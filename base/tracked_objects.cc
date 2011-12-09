@@ -43,7 +43,7 @@ DeathData::DeathData(int count) {
   count_ = count;
 }
 
-// TODO(jar): I need to see if this macro to optimize branching is worth it.
+// TODO(jar): I need to see if this macro to optimize branching is worth using.
 //
 // This macro has no branching, so it is surely fast, and is equivalent to:
 //             if (assign_it)
@@ -56,28 +56,24 @@ DeathData::DeathData(int count) {
 void DeathData::RecordDeath(const DurationInt queue_duration,
                             const DurationInt run_duration,
                             int32 random_number) {
+  ++count_;
   queue_duration_sum_ += queue_duration;
   run_duration_sum_ += run_duration;
-  ++count_;
+
+  if (queue_duration_max_ < queue_duration)
+    queue_duration_max_ = queue_duration;
+  if (run_duration_max_ < run_duration)
+    run_duration_max_ = run_duration;
 
   // Take a uniformly distributed sample over all durations ever supplied.
   // The probability that we (instead) use this new sample is 1/count_.  This
   // results in a completely uniform selection of the sample.
   // We ignore the fact that we correlated our selection of a sample of run
   // and queue times.
-  bool take_sample = 0 == (random_number % count_);
-  CONDITIONAL_ASSIGN(take_sample, queue_duration_sample_, queue_duration);
-  CONDITIONAL_ASSIGN(take_sample, run_duration_sample_, run_duration);
-
-  CONDITIONAL_ASSIGN(queue_duration_max_ < queue_duration, queue_duration_max_,
-                     queue_duration);
-  CONDITIONAL_ASSIGN(run_duration_max_ < run_duration, run_duration_max_,
-                     run_duration);
-  // Ensure we got the macros right.
-  DCHECK_GE(queue_duration_max_, queue_duration);
-  DCHECK_GE(run_duration_max_, run_duration);
-  DCHECK(!take_sample || run_duration_sample_ == run_duration);
-  DCHECK(!take_sample || queue_duration_sample_ == queue_duration);
+  if (0 == (random_number % count_)) {
+    queue_duration_sample_ = queue_duration;
+    run_duration_sample_ = run_duration;
+  }
 }
 
 int DeathData::count() const { return count_; }

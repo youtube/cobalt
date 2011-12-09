@@ -164,9 +164,6 @@
 // upload via UMA (where correctness of data may be more significant than for a
 // single screen of about:profiler).
 //
-// TODO(jar): We need to save a single sample in each DeathData instance of the
-// times recorded.  This sample should be selected in a uniformly random way.
-//
 // TODO(jar): We should support (optionally) the recording of parent-child
 // relationships for tasks.  This should be done by detecting what tasks are
 // Born during the running of a parent task.  The resulting data can be used by
@@ -281,15 +278,20 @@ class BASE_EXPORT DeathData {
   void Clear();
 
  private:
-  // Number of runs seen.
+  // Members are ordered from most regularly read and updated, to least
+  // frequently used.  This might help a bit with cache lines.
+  // Number of runs seen (divisor for calculating averages).
   int count_;
-  // Data about run time durations.
+  // Basic tallies, used to compute averages.
   DurationInt run_duration_sum_;
-  DurationInt run_duration_max_;
-  DurationInt run_duration_sample_;
-  // Data about queueing times durations.
   DurationInt queue_duration_sum_;
+  // Max values, used by local visualization routines.  These are often read,
+  // but rarely updated.
+  DurationInt run_duration_max_;
   DurationInt queue_duration_max_;
+  // Samples, used by by crowd sourcing gatherers.  These are almost never read,
+  // and rarely updated.
+  DurationInt run_duration_sample_;
   DurationInt queue_duration_sample_;
 };
 
