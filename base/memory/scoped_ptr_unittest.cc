@@ -23,6 +23,19 @@ class ConDecLogger {
   DISALLOW_COPY_AND_ASSIGN(ConDecLogger);
 };
 
+scoped_ptr<ConDecLogger> PassThru(scoped_ptr<ConDecLogger> logger) {
+  return logger.Pass();
+}
+
+void GrabAndDrop(scoped_ptr<ConDecLogger> logger) {
+}
+
+// Do not delete this function!  It's existence is to test that you can
+// return a temporarily constructed version of the scoper.
+scoped_ptr<ConDecLogger> TestReturnOfType(int* constructed) {
+  return scoped_ptr<ConDecLogger>(new ConDecLogger(constructed));
+}
+
 }  // namespace
 
 TEST(ScopedPtrTest, ScopedPtr) {
@@ -162,6 +175,85 @@ TEST(ScopedPtrTest, ScopedArray) {
     EXPECT_FALSE(scoper1.get());
     EXPECT_FALSE(scoper1 == scoper2.get());
     EXPECT_TRUE(scoper1 != scoper2.get());
+  }
+  EXPECT_EQ(0, constructed);
+}
+
+TEST(ScopedPtrTest, PassBehavior) {
+  int constructed = 0;
+  {
+    ConDecLogger* logger = new ConDecLogger(&constructed);
+    scoped_ptr<ConDecLogger> scoper(logger);
+    EXPECT_EQ(1, constructed);
+
+    // Test Pass() with constructor;
+    scoped_ptr<ConDecLogger> scoper2(scoper.Pass());
+    EXPECT_EQ(1, constructed);
+
+    // Test Pass() with assignment;
+    scoped_ptr<ConDecLogger> scoper3;
+    scoper3 = scoper2.Pass();
+    EXPECT_EQ(1, constructed);
+    EXPECT_FALSE(scoper.get());
+    EXPECT_FALSE(scoper2.get());
+    EXPECT_TRUE(scoper3.get());
+  }
+
+  // Test uncaught Pass() does not leak.
+  {
+    ConDecLogger* logger = new ConDecLogger(&constructed);
+    scoped_ptr<ConDecLogger> scoper(logger);
+    EXPECT_EQ(1, constructed);
+
+    // Should auto-destruct logger by end of scope.
+    scoper.Pass();
+    EXPECT_FALSE(scoper.get());
+  }
+  EXPECT_EQ(0, constructed);
+
+  // Test that passing to function which does nothing does not leak.
+  {
+    ConDecLogger* logger = new ConDecLogger(&constructed);
+    scoped_ptr<ConDecLogger> scoper(logger);
+    EXPECT_EQ(1, constructed);
+
+    // Should auto-destruct logger by end of scope.
+    GrabAndDrop(scoper.Pass());
+    EXPECT_FALSE(scoper.get());
+  }
+  EXPECT_EQ(0, constructed);
+}
+
+TEST(ScopedPtrTest, ReturnTypeBehavior) {
+  int constructed = 0;
+
+  // Test that we can return a scoped_ptr.
+  {
+    ConDecLogger* logger = new ConDecLogger(&constructed);
+    scoped_ptr<ConDecLogger> scoper(logger);
+    EXPECT_EQ(1, constructed);
+
+    PassThru(scoper.Pass());
+    EXPECT_FALSE(scoper.get());
+  }
+  EXPECT_EQ(0, constructed);
+
+  // Test uncaught return type not leak.
+  {
+    ConDecLogger* logger = new ConDecLogger(&constructed);
+    scoped_ptr<ConDecLogger> scoper(logger);
+    EXPECT_EQ(1, constructed);
+
+    // Should auto-destruct logger by end of scope.
+    PassThru(scoper.Pass());
+    EXPECT_FALSE(scoper.get());
+  }
+  EXPECT_EQ(0, constructed);
+
+  // Call TestReturnOfType() so the compiler doesn't warn for an unused
+  // function.
+  {
+    TestReturnOfType(&constructed);
   }
   EXPECT_EQ(0, constructed);
 }
