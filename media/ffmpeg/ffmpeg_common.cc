@@ -127,48 +127,6 @@ static CodecID VideoCodecToCodecID(VideoCodec video_codec) {
   return CODEC_ID_NONE;
 }
 
-static VideoCodecProfile ProfileIDToVideoCodecProfile(int profile) {
-  switch (profile) {
-    case FF_PROFILE_H264_BASELINE:
-      return H264PROFILE_BASELINE;
-    case FF_PROFILE_H264_MAIN:
-      return H264PROFILE_MAIN;
-    case FF_PROFILE_H264_EXTENDED:
-      return H264PROFILE_EXTENDED;
-    case FF_PROFILE_H264_HIGH:
-      return H264PROFILE_HIGH;
-    case FF_PROFILE_H264_HIGH_10:
-      return H264PROFILE_HIGH10PROFILE;
-    case FF_PROFILE_H264_HIGH_422:
-      return H264PROFILE_HIGH422PROFILE;
-    case FF_PROFILE_H264_HIGH_444_PREDICTIVE:
-      return H264PROFILE_HIGH444PREDICTIVEPROFILE;
-    default:
-      return VIDEO_CODEC_PROFILE_UNKNOWN;
-  }
-}
-
-static int VideoCodecProfileToProfileID(VideoCodecProfile profile) {
-  switch (profile) {
-    case H264PROFILE_BASELINE:
-      return FF_PROFILE_H264_BASELINE;
-    case H264PROFILE_MAIN:
-      return FF_PROFILE_H264_MAIN;
-    case H264PROFILE_EXTENDED:
-      return FF_PROFILE_H264_EXTENDED;
-    case H264PROFILE_HIGH:
-      return FF_PROFILE_H264_HIGH;
-    case H264PROFILE_HIGH10PROFILE:
-      return FF_PROFILE_H264_HIGH_10;
-    case H264PROFILE_HIGH422PROFILE:
-      return FF_PROFILE_H264_HIGH_422;
-    case H264PROFILE_HIGH444PREDICTIVEPROFILE:
-      return FF_PROFILE_H264_HIGH_444_PREDICTIVE;
-    default:
-      return FF_PROFILE_UNKNOWN;
-  }
-}
-
 void AVCodecContextToAudioDecoderConfig(
     const AVCodecContext* codec_context,
     AudioDecoderConfig* config) {
@@ -246,7 +204,6 @@ void AVStreamToVideoDecoderConfig(
     aspect_ratio = stream->codec->sample_aspect_ratio;
 
   config->Initialize(CodecIDToVideoCodec(stream->codec->codec_id),
-                     ProfileIDToVideoCodecProfile(stream->codec->profile),
                      PixelFormatToVideoFormat(stream->codec->pix_fmt),
                      coded_size, visible_rect,
                      stream->r_frame_rate.num,
@@ -262,7 +219,6 @@ void VideoDecoderConfigToAVCodecContext(
     AVCodecContext* codec_context) {
   codec_context->codec_type = AVMEDIA_TYPE_VIDEO;
   codec_context->codec_id = VideoCodecToCodecID(config.codec());
-  codec_context->profile = VideoCodecProfileToProfileID(config.profile());
   codec_context->coded_width = config.coded_size().width();
   codec_context->coded_height = config.coded_size().height();
   codec_context->pix_fmt = VideoFormatToPixelFormat(config.format());

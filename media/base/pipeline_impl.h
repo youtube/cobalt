@@ -206,8 +206,8 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
   virtual void SetCurrentReadPosition(int64 offset) OVERRIDE;
   virtual int64 GetCurrentReadPosition() OVERRIDE;
 
-  // Callbacks executed by filters upon completing initialization.
-  void OnFilterInitialize(PipelineStatus status);
+  // Callback executed by filters upon completing initialization.
+  void OnFilterInitialize();
 
   // Callback executed by filters upon completing Play(), Pause(), or Stop().
   void OnFilterStateTransition();
@@ -231,9 +231,8 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
   // InitializeTask() performs initialization in multiple passes. It is executed
   // as a result of calling Start() or InitializationComplete() that advances
   // initialization to the next state. It works as a hub of state transition for
-  // initialization.  One stage communicates its status to the next through
-  // |last_stage_status|.
-  void InitializeTask(PipelineStatus last_stage_status);
+  // initialization.
+  void InitializeTask();
 
   // Stops and destroys all filters, placing the pipeline in the kStopped state.
   void StopTask(const PipelineStatusCB& stop_callback);
