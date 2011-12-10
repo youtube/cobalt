@@ -325,7 +325,7 @@ void SpdyStream::OnDataReceived(const char* data, int length) {
     return;
   }
 
-  if (session_->flow_control())
+  if (session_->is_flow_control_enabled())
     DecreaseRecvWindowSize(length);
 
   // Track our bandwidth.
