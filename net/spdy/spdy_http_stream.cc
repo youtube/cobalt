@@ -128,7 +128,7 @@ int SpdyHttpStream::ReadResponseBody(
       }
       bytes_read += bytes_to_copy;
     }
-    if (SpdySession::flow_control())
+    if (spdy_session_ && spdy_session_->is_flow_control_enabled())
       stream_->IncreaseRecvWindowSize(bytes_read);
     return bytes_read;
   } else if (stream_->closed()) {

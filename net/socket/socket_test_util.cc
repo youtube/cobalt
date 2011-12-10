@@ -1063,7 +1063,9 @@ MockSSLClientSocket::MockSSLClientSocket(
       transport_(transport_socket),
       data_(data),
       is_npn_state_set_(false),
-      new_npn_value_(false) {
+      new_npn_value_(false),
+      is_next_protocol_set_(false),
+      next_protocol_(kProtoHTTP11) {
   DCHECK(data_);
   delete ssl_host_info;  // we take ownership but don't use it.
 }
@@ -1157,6 +1159,19 @@ bool MockSSLClientSocket::was_npn_negotiated() const {
 bool MockSSLClientSocket::set_was_npn_negotiated(bool negotiated) {
   is_npn_state_set_ = true;
   return new_npn_value_ = negotiated;
+}
+
+SSLClientSocket::NextProto MockSSLClientSocket::next_protocol_negotiated()
+    const {
+  if (is_next_protocol_set_)
+    return next_protocol_;
+  return SSLClientSocket::NextProtoFromString(data_->next_proto);
+}
+
+void MockSSLClientSocket::set_next_protocol_negotiated(
+    SSLClientSocket::NextProto next_protocol) {
+  is_next_protocol_set_ = true;
+  next_protocol_ = next_protocol;
 }
 
 void MockSSLClientSocket::OnReadComplete(const MockRead& data) {

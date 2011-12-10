@@ -761,6 +761,9 @@ class MockSSLClientSocket : public MockClientSocket, public AsyncSocket {
                                        std::string* server_protos) OVERRIDE;
   virtual bool was_npn_negotiated() const OVERRIDE;
   virtual bool set_was_npn_negotiated(bool negotiated) OVERRIDE;
+  virtual SSLClientSocket::NextProto next_protocol_negotiated() const OVERRIDE;
+  virtual void set_next_protocol_negotiated(
+      SSLClientSocket::NextProto next_protocol) OVERRIDE;
 
   // This MockSocket does not implement the manual async IO feature.
   virtual void OnReadComplete(const MockRead& data) OVERRIDE;
@@ -775,6 +778,8 @@ class MockSSLClientSocket : public MockClientSocket, public AsyncSocket {
   bool is_npn_state_set_;
   bool new_npn_value_;
   bool was_used_to_convey_data_;
+  bool is_next_protocol_set_;
+  SSLClientSocket::NextProto next_protocol_;
 };
 
 class MockUDPClientSocket : public DatagramClientSocket,

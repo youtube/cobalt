@@ -95,7 +95,7 @@ std::vector<std::string> MakeNextProtos(const char* a, ...) {
 // SpdyNextProtos returns a vector of NPN protocol strings for negotiating
 // SPDY.
 std::vector<std::string> SpdyNextProtos() {
-  return MakeNextProtos("http/1.1", "spdy/2", NULL);
+  return MakeNextProtos("http/1.1", "spdy/2", "spdy/2.1", NULL);
 }
 
 }  // namespace
@@ -8544,7 +8544,8 @@ TEST_F(HttpNetworkTransactionTest, SpdyAlternateProtocolThroughProxy) {
   // to https when doing an Alternate Protocol upgrade.
   HttpStreamFactory::set_use_alternate_protocols(true);
   HttpStreamFactory::set_next_protos(
-      MakeNextProtos("http/1.1", "http1.1", "spdy/2", "spdy", NULL));
+      MakeNextProtos(
+          "http/1.1", "http1.1", "spdy/2.1", "spdy/2", "spdy", NULL));
 
   SessionDependencies session_deps(ProxyService::CreateFixed("myproxy:70"));
   HttpAuthHandlerMock::Factory* auth_factory =
