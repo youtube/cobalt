@@ -4199,8 +4199,8 @@ TEST_P(SpdyNetworkTransactionTest, SettingsSaved) {
     "version",  "HTTP/1.1"
   };
 
-  NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+  BoundNetLog net_log;
+  NormalSpdyTransactionHelper helper(CreateGetRequest(), net_log, GetParam());
   helper.RunPreTestSetup();
 
   // Verify that no settings exist initially.
@@ -4310,8 +4310,8 @@ TEST_P(SpdyNetworkTransactionTest, SettingsPlayback) {
     "version",  "HTTP/1.1"
   };
 
-  NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+  BoundNetLog net_log;
+  NormalSpdyTransactionHelper helper(CreateGetRequest(), net_log, GetParam());
   helper.RunPreTestSetup();
 
   // Verify that no settings exist initially.
