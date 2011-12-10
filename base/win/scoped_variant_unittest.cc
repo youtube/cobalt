@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -251,9 +251,7 @@ TEST(ScopedVariantTest, ScopedVariant) {
   ASSERT_TRUE(sa != NULL);
 
   var.Set(sa);
-#ifndef OFFICIAL_BUILD
   EXPECT_TRUE(ScopedVariant::IsLeakableVarType(var.type()));
-#endif
   EXPECT_EQ(VT_ARRAY | VT_UI1, var.type());
   EXPECT_EQ(sa, V_ARRAY(&var));
   // The array is destroyed in the destructor of var.
