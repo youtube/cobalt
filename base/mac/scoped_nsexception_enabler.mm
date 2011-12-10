@@ -12,6 +12,15 @@ using base::LazyInstance;
 using base::LeakyLazyInstanceTraits;
 using base::ThreadLocalBoolean;
 
+// When C++ exceptions are disabled, the C++ library defines |try| and
+// |catch| so as to allow exception-expecting C++ code to build properly when
+// language support for exceptions is not present.  These macros interfere
+// with the use of |@try| and |@catch| in Objective-C files such as this one.
+// Undefine these macros here, after everything has been #included, since
+// there will be no C++ uses and only Objective-C uses from this point on.
+#undef try
+#undef catch
+
 namespace {
 
 // Whether to allow NSExceptions to be raised on the current thread.
@@ -29,6 +38,17 @@ bool GetNSExceptionsAllowed() {
 
 void SetNSExceptionsAllowed(bool allowed) {
   return g_exceptionsAllowed.Get().Set(allowed);
+}
+
+id PerformSelectorIgnoringExceptions(NSObject* target, SEL sel) {
+  id ret = nil;
+  @try {
+    base::mac::ScopedNSExceptionEnabler enable;
+    ret = [target performSelector:sel];
+  }
+  @catch(id exception) {
+  }
+  return ret;
 }
 
 ScopedNSExceptionEnabler::ScopedNSExceptionEnabler() {
