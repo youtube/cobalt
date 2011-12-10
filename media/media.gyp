@@ -205,8 +205,6 @@
         'filters/file_data_source.h',
         'filters/file_data_source_factory.cc',
         'filters/file_data_source_factory.h',
-        'filters/gpu_video_decoder.cc',
-        'filters/gpu_video_decoder.h',
         'filters/in_memory_url_protocol.cc',
         'filters/in_memory_url_protocol.h',
         'filters/null_audio_renderer.cc',

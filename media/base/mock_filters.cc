@@ -166,10 +166,6 @@ void RunPipelineStatusCB(PipelineStatus status, const PipelineStatusCB& cb) {
   cb.Run(status);
 }
 
-void RunPipelineStatusOKCB(const PipelineStatusCB& cb) {
-  cb.Run(PIPELINE_OK);
-}
-
 void RunFilterCallback3(::testing::Unused, const base::Closure& callback,
                         ::testing::Unused) {
   callback.Run();

@@ -40,7 +40,6 @@ class MEDIA_EXPORT FilterCollection {
   // Selects a filter of the specified type from the collection.
   // If the required filter cannot be found, NULL is returned.
   // If a filter is returned it is removed from the collection.
-  // Filters are selected in FIFO order.
   void SelectVideoDecoder(scoped_refptr<VideoDecoder>* filter_out);
   void SelectAudioDecoder(scoped_refptr<AudioDecoder>* filter_out);
   void SelectVideoRenderer(scoped_refptr<VideoRenderer>* filter_out);
