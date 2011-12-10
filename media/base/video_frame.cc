@@ -17,9 +17,8 @@ scoped_refptr<VideoFrame> VideoFrame::CreateFrame(
     base::TimeDelta duration) {
   DCHECK(width > 0 && height > 0);
   DCHECK(width * height < 100000000);
-  scoped_refptr<VideoFrame> frame(new VideoFrame(format, width, height));
-  frame->SetTimestamp(timestamp);
-  frame->SetDuration(duration);
+  scoped_refptr<VideoFrame> frame(new VideoFrame(
+      format, width, height, timestamp, duration));
   switch (format) {
     case VideoFrame::RGB555:
     case VideoFrame::RGB565:
@@ -47,8 +46,25 @@ scoped_refptr<VideoFrame> VideoFrame::CreateFrame(
 }
 
 // static
+scoped_refptr<VideoFrame> VideoFrame::WrapNativeTexture(
+    uint32 texture_id,
+    size_t width,
+    size_t height,
+    base::TimeDelta timestamp,
+    base::TimeDelta duration,
+    const base::Closure& no_longer_needed) {
+  scoped_refptr<VideoFrame> frame(
+      new VideoFrame(NATIVE_TEXTURE, width, height, timestamp, duration));
+  frame->planes_ = 0;
+  frame->texture_id_ = texture_id;
+  frame->texture_no_longer_needed_ = no_longer_needed;
+  return frame;
+}
+
+// static
 scoped_refptr<VideoFrame> VideoFrame::CreateEmptyFrame() {
-  return new VideoFrame(VideoFrame::EMPTY, 0, 0);
+  return new VideoFrame(
+      VideoFrame::EMPTY, 0, 0, base::TimeDelta(), base::TimeDelta());
 }
 
 // static
@@ -138,16 +154,26 @@ void VideoFrame::AllocateYUV() {
 
 VideoFrame::VideoFrame(VideoFrame::Format format,
                        size_t width,
-                       size_t height)
+                       size_t height,
+                       base::TimeDelta timestamp,
+                       base::TimeDelta duration)
     : format_(format),
       width_(width),
       height_(height),
-      planes_(0) {
+      planes_(0),
+      texture_id_(0) {
+  SetTimestamp(timestamp);
+  SetDuration(duration);
   memset(&strides_, 0, sizeof(strides_));
   memset(&data_, 0, sizeof(data_));
 }
 
 VideoFrame::~VideoFrame() {
+  if (format_ == NATIVE_TEXTURE && !texture_no_longer_needed_.is_null()) {
+    texture_no_longer_needed_.Run();
+    texture_no_longer_needed_.Reset();
+  }
+
   // In multi-plane allocations, only a single block of memory is allocated
   // on the heap, and other |data| pointers point inside the same, single block
   // so just delete index 0.
@@ -166,6 +192,10 @@ bool VideoFrame::IsValidPlane(size_t plane) const {
     case YV12:
     case YV16:
       return plane == kYPlane || plane == kUPlane || plane == kVPlane;
+
+    case NATIVE_TEXTURE:
+      NOTREACHED() << "NATIVE_TEXTUREs don't use plane-related methods!";
+      return false;
 
     default:
       break;
@@ -234,6 +264,12 @@ int VideoFrame::rows(size_t plane) const {
 uint8* VideoFrame::data(size_t plane) const {
   DCHECK(IsValidPlane(plane));
   return data_[plane];
+}
+
+uint32 VideoFrame::texture_id() const {
+  DCHECK_EQ(format_, NATIVE_TEXTURE);
+  DCHECK_EQ(planes_, 0U);
+  return texture_id_;
 }
 
 bool VideoFrame::IsEndOfStream() const {
