@@ -5,6 +5,7 @@
 #ifndef MEDIA_BASE_VIDEO_FRAME_H_
 #define MEDIA_BASE_VIDEO_FRAME_H_
 
+#include "base/callback.h"
 #include "media/base/buffers.h"
 
 namespace media {
@@ -25,6 +26,7 @@ class MEDIA_EXPORT VideoFrame : public StreamSample {
   // Surface formats roughly based on FOURCC labels, see:
   // http://www.fourcc.org/rgb.php
   // http://www.fourcc.org/yuv.php
+  // Keep in sync with WebKit::WebVideoFrame!
   enum Format {
     INVALID,     // Invalid format value.  Used for error reporting.
     RGB555,      // 16bpp RGB packed 5:5:5
@@ -38,6 +40,7 @@ class MEDIA_EXPORT VideoFrame : public StreamSample {
     EMPTY,       // An empty frame.
     ASCII,       // A frame with ASCII content. For testing only.
     I420,        // 12bpp YVU planar 1x1 Y, 2x2 UV samples.
+    NATIVE_TEXTURE,  // Opaque native texture.  Pixel-format agnostic.
   };
 
   // Creates a new frame in system memory with given parameters. Buffers for
@@ -48,6 +51,16 @@ class MEDIA_EXPORT VideoFrame : public StreamSample {
       size_t height,
       base::TimeDelta timestamp,
       base::TimeDelta duration);
+
+  // Wraps a native texture of the given parameters with a VideoFrame.  When the
+  // frame is destroyed |no_longer_needed.Run()| will be called.
+  static scoped_refptr<VideoFrame> WrapNativeTexture(
+      uint32 texture_id,
+      size_t width,
+      size_t height,
+      base::TimeDelta timestamp,
+      base::TimeDelta duration,
+      const base::Closure& no_longer_needed);
 
   // Creates a frame with format equals to VideoFrame::EMPTY, width, height
   // timestamp and duration are all 0.
@@ -78,14 +91,20 @@ class MEDIA_EXPORT VideoFrame : public StreamSample {
   // VideoFrame object and must not be freed by the caller.
   uint8* data(size_t plane) const;
 
+  // Returns the ID of the native texture wrapped by this frame.  Only valid to
+  // call if this is a NATIVE_TEXTURE frame.
+  uint32 texture_id() const;
+
   // StreamSample interface.
   virtual bool IsEndOfStream() const OVERRIDE;
 
- protected:
+ private:
   // Clients must use the static CreateFrame() method to create a new frame.
   VideoFrame(Format format,
              size_t video_width,
-             size_t video_height);
+             size_t video_height,
+             base::TimeDelta timestamp,
+             base::TimeDelta duration);
 
   virtual ~VideoFrame();
 
@@ -103,8 +122,8 @@ class MEDIA_EXPORT VideoFrame : public StreamSample {
   size_t width_;
   size_t height_;
 
-  // Number of planes, typically 1 for packed RGB formats and 3 for planar
-  // YUV formats.
+  // Number of planes, typically 1 for packed RGB formats, 3 for planar
+  // YUV formats, and 0 for native textures.
   size_t planes_;
 
   // Array of strides for each plane, typically greater or equal to the width
@@ -115,7 +134,11 @@ class MEDIA_EXPORT VideoFrame : public StreamSample {
   // Array of data pointers to each plane.
   uint8* data_[kMaxPlanes];
 
-  DISALLOW_COPY_AND_ASSIGN(VideoFrame);
+  // Native texture ID, if this is a NATIVE_TEXTURE frame.
+  uint32 texture_id_;
+  base::Closure texture_no_longer_needed_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(VideoFrame);
 };
 
 }  // namespace media

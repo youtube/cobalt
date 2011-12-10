@@ -586,10 +586,10 @@ void PipelineImpl::DisableAudioRenderer() {
 }
 
 // Called from any thread.
-void PipelineImpl::OnFilterInitialize() {
+void PipelineImpl::OnFilterInitialize(PipelineStatus status) {
   // Continue the initialize task by proceeding to the next stage.
-  message_loop_->PostTask(FROM_HERE,
-      base::Bind(&PipelineImpl::InitializeTask, this));
+  message_loop_->PostTask(
+      FROM_HERE, base::Bind(&PipelineImpl::InitializeTask, this, status));
 }
 
 // Called from any thread.
@@ -661,8 +661,20 @@ void PipelineImpl::StartTask(FilterCollection* filter_collection,
 // TODO(hclam): InitializeTask() is now starting the pipeline asynchronously. It
 // works like a big state change table. If we no longer need to start filters
 // in order, we need to get rid of all the state change.
-void PipelineImpl::InitializeTask() {
+void PipelineImpl::InitializeTask(PipelineStatus last_stage_status) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
+
+  if (last_stage_status != PIPELINE_OK) {
+    // Currently only VideoDecoders have a recoverable error code.
+    if (state_ == kInitVideoDecoder &&
+        last_stage_status == DECODER_ERROR_NOT_SUPPORTED) {
+      pipeline_init_state_->composite_->RemoveFilter(
+          pipeline_init_state_->video_decoder_.get());
+      state_ = kInitAudioRenderer;
+    } else {
+      SetError(last_stage_status);
+    }
+  }
 
   // If we have received the stop or error signal, return immediately.
   if (IsPipelineStopPending() || IsPipelineStopped() || !IsPipelineOk())
@@ -1111,10 +1123,8 @@ void PipelineImpl::FinishDestroyingFiltersTask() {
 
 bool PipelineImpl::PrepareFilter(scoped_refptr<Filter> filter) {
   bool ret = pipeline_init_state_->composite_->AddFilter(filter.get());
-
-  if (!ret) {
+  if (!ret)
     SetError(PIPELINE_ERROR_INITIALIZATION_FAILED);
-  }
   return ret;
 }
 
@@ -1155,7 +1165,7 @@ void PipelineImpl::OnDemuxerBuilt(PipelineStatus status, Demuxer* demuxer) {
     clock_->SetTime(demuxer_->GetStartTime());
   }
 
-  OnFilterInitialize();
+  OnFilterInitialize(PIPELINE_OK);
 }
 
 bool PipelineImpl::InitializeAudioDecoder(
@@ -1183,7 +1193,7 @@ bool PipelineImpl::InitializeAudioDecoder(
   pipeline_init_state_->audio_decoder_ = audio_decoder;
   audio_decoder->Initialize(
       stream,
-      base::Bind(&PipelineImpl::OnFilterInitialize, this),
+      base::Bind(&PipelineImpl::OnFilterInitialize, this, PIPELINE_OK),
       base::Bind(&PipelineImpl::OnUpdateStatistics, this));
   return true;
 }
@@ -1240,7 +1250,7 @@ bool PipelineImpl::InitializeAudioRenderer(
 
   audio_renderer_->Initialize(
       decoder,
-      base::Bind(&PipelineImpl::OnFilterInitialize, this),
+      base::Bind(&PipelineImpl::OnFilterInitialize, this, PIPELINE_OK),
       base::Bind(&PipelineImpl::OnAudioUnderflow, this));
   return true;
 }
@@ -1264,7 +1274,7 @@ bool PipelineImpl::InitializeVideoRenderer(
 
   video_renderer_->Initialize(
       decoder,
-      base::Bind(&PipelineImpl::OnFilterInitialize, this),
+      base::Bind(&PipelineImpl::OnFilterInitialize, this, PIPELINE_OK),
       base::Bind(&PipelineImpl::OnUpdateStatistics, this));
   return true;
 }
