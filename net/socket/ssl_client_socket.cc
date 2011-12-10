@@ -22,6 +22,8 @@ SSLClientSocket::NextProto SSLClientSocket::NextProtoFromString(
     return kProtoSPDY1;
   } else if (proto_string == "spdy/2") {
     return kProtoSPDY2;
+  } else if (proto_string == "spdy/2.1") {
+    return kProtoSPDY21;
   } else {
     return kProtoUnknown;
   }
@@ -89,6 +91,15 @@ bool SSLClientSocket::was_spdy_negotiated() const {
 
 bool SSLClientSocket::set_was_spdy_negotiated(bool negotiated) {
   return was_spdy_negotiated_ = negotiated;
+}
+
+SSLClientSocket::NextProto SSLClientSocket::next_protocol_negotiated() const {
+  return next_protocol_;
+}
+
+void SSLClientSocket::set_next_protocol_negotiated(
+    SSLClientSocket::NextProto next_protocol) {
+  next_protocol_ = next_protocol;
 }
 
 bool SSLClientSocket::was_origin_bound_cert_sent() const {
