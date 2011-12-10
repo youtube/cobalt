@@ -149,9 +149,9 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   static void SetSSLMode(bool enable) { use_ssl_ = enable; }
   static bool SSLMode() { return use_ssl_; }
 
-  // Enable or disable flow control.
-  static void set_flow_control(bool enable) { use_flow_control_ = enable; }
-  static bool flow_control() { return use_flow_control_; }
+  // Enable or disable flow control used by unit tests. This only applies for
+  // new SpdySessions.
+  static void set_use_flow_control(bool enable) { use_flow_control_ = enable; }
 
   // Sets the max concurrent streams per session, as a ceiling on any server
   // specific SETTINGS value.
@@ -222,6 +222,11 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   size_t num_active_streams() const { return active_streams_.size(); }
   size_t num_unclaimed_pushed_streams() const {
       return unclaimed_pushed_streams_.size();
+  }
+
+  // Returns true if flow control is enabled for the session.
+  bool is_flow_control_enabled() const {
+    return flow_control_;
   }
 
   const BoundNetLog& net_log() const { return net_log_; }
@@ -539,6 +544,9 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // us to decide if we need yet another trailing ping, or if it would be a
   // waste of effort (and MUST not be done).
   bool need_to_send_ping_;
+
+  // Indicate if flow control is enabled or not.
+  bool flow_control_;
 
   // Initial send window size for the session; can be changed by an
   // arriving SETTINGS frame; newly created streams use this value for the
