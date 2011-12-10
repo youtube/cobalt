@@ -97,15 +97,17 @@ void VideoRendererBase::SetPlaybackRate(float playback_rate) {
 }
 
 void VideoRendererBase::Seek(base::TimeDelta time, const FilterStatusCB& cb) {
-  base::AutoLock auto_lock(lock_);
-  DCHECK_EQ(state_, kFlushed) << "Must flush prior to seeking.";
-  DCHECK(!cb.is_null());
-  DCHECK(seek_cb_.is_null());
+  {
+    base::AutoLock auto_lock(lock_);
+    DCHECK_EQ(state_, kFlushed) << "Must flush prior to seeking.";
+    DCHECK(!cb.is_null());
+    DCHECK(seek_cb_.is_null());
 
-  state_ = kSeeking;
-  seek_cb_ = cb;
-  seek_timestamp_ = time;
-  AttemptRead_Locked();
+    state_ = kSeeking;
+    seek_cb_ = cb;
+    seek_timestamp_ = time;
+    AttemptRead_Locked();
+  }
 }
 
 void VideoRendererBase::Initialize(VideoDecoder* decoder,
@@ -274,6 +276,7 @@ void VideoRendererBase::ThreadMain() {
         frames_queue_ready_.pop_front();
         AttemptRead_Locked();
       }
+
       // Continue waiting for the current paint to finish.
       continue;
     }
@@ -476,6 +479,7 @@ void VideoRendererBase::DoStopOrError_Locked() {
   lock_.AssertAcquired();
   current_frame_ = NULL;
   last_available_frame_ = NULL;
+  DCHECK(!pending_read_);
 }
 
 }  // namespace media

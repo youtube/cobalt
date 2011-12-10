@@ -188,7 +188,7 @@ class MockVideoDecoder : public VideoDecoder {
 
   // VideoDecoder implementation.
   MOCK_METHOD3(Initialize, void(DemuxerStream* stream,
-                                const PipelineStatusCB& callback,
+                                const base::Closure& callback,
                                 const StatisticsCallback& stats_callback));
   MOCK_METHOD1(Read, void(const ReadCB& callback));
   MOCK_METHOD0(natural_size, const gfx::Size&());
@@ -322,7 +322,6 @@ class MockFilterCollection {
 void RunFilterCallback(::testing::Unused, const base::Closure& callback);
 void RunFilterStatusCB(::testing::Unused, const FilterStatusCB& cb);
 void RunPipelineStatusCB(PipelineStatus status, const PipelineStatusCB& cb);
-void RunPipelineStatusOKCB(const PipelineStatusCB& cb);  // Always PIPELINE_OK.
 void RunFilterCallback3(::testing::Unused, const base::Closure& callback,
                         ::testing::Unused);
 

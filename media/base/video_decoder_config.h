@@ -14,7 +14,7 @@
 
 namespace media {
 
-enum MEDIA_EXPORT VideoCodec {
+enum VideoCodec {
   // These values are histogrammed over time; do not change their ordinal
   // values.  When deleting a codec replace it with a dummy value; when adding a
   // codec, do so at the bottom (and update kVideoCodecMax).
@@ -33,28 +33,6 @@ enum MEDIA_EXPORT VideoCodec {
   kVideoCodecMax = kCodecVP8  // Must equal the last "real" codec above.
 };
 
-// Video stream profile.  This *must* match PP_VideoDecoder_Profile.
-enum MEDIA_EXPORT VideoCodecProfile {
-  // Keep the values in this enum unique, as they imply format (h.264 vs. VP8,
-  // for example), and keep the values for a particular format grouped
-  // together for clarity.
-  VIDEO_CODEC_PROFILE_UNKNOWN = -1,
-  H264PROFILE_MIN = 0,
-  H264PROFILE_BASELINE = H264PROFILE_MIN,
-  H264PROFILE_MAIN,
-  H264PROFILE_EXTENDED,
-  H264PROFILE_HIGH,
-  H264PROFILE_HIGH10PROFILE,
-  H264PROFILE_HIGH422PROFILE,
-  H264PROFILE_HIGH444PREDICTIVEPROFILE,
-  H264PROFILE_SCALABLEBASELINE,
-  H264PROFILE_SCALABLEHIGH,
-  H264PROFILE_STEREOHIGH,
-  H264PROFILE_MULTIVIEWHIGH,
-  H264PROFILE_MAX = H264PROFILE_MULTIVIEWHIGH,
-  VIDEO_CODEC_PROFILE_MAX = H264PROFILE_MAX,
-};
-
 class MEDIA_EXPORT VideoDecoderConfig {
  public:
   // Constructs an uninitialized object. Clients should call Initialize() with
@@ -64,7 +42,6 @@ class MEDIA_EXPORT VideoDecoderConfig {
   // Constructs an initialized object. It is acceptable to pass in NULL for
   // |extra_data|, otherwise the memory is copied.
   VideoDecoderConfig(VideoCodec codec,
-                     VideoCodecProfile profile,
                      VideoFrame::Format format,
                      const gfx::Size& coded_size,
                      const gfx::Rect& visible_rect,
@@ -76,7 +53,6 @@ class MEDIA_EXPORT VideoDecoderConfig {
 
   // Resets the internal state of this object.
   void Initialize(VideoCodec codec,
-                  VideoCodecProfile profile,
                   VideoFrame::Format format,
                   const gfx::Size& coded_size,
                   const gfx::Rect& visible_rect,
@@ -88,12 +64,7 @@ class MEDIA_EXPORT VideoDecoderConfig {
   // otherwise.
   bool IsValidConfig() const;
 
-  // Returns a human-readable string describing |*this|.  For debugging & test
-  // output only.
-  std::string AsHumanReadableString() const;
-
   VideoCodec codec() const;
-  VideoCodecProfile profile() const;
 
   // Video format used to determine YUV buffer sizes.
   VideoFrame::Format format() const;
@@ -131,7 +102,6 @@ class MEDIA_EXPORT VideoDecoderConfig {
 
  private:
   VideoCodec codec_;
-  VideoCodecProfile profile_;
 
   VideoFrame::Format format_;
 
