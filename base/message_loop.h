@@ -238,25 +238,15 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   // messages.  This method may only be called on the same thread that called
   // Run, and Run must still be on the call stack.
   //
-  // Use QuitTask or QuitClosure if you need to Quit another thread's
-  // MessageLoop, but note that doing so is fairly dangerous if the target
-  // thread makes nested calls to MessageLoop::Run.  The problem being that you
-  // won't know which nested run loop you are quitting, so be careful!
+  // Use QuitClosure if you need to Quit another thread's MessageLoop, but note
+  // that doing so is fairly dangerous if the target thread makes nested calls
+  // to MessageLoop::Run.  The problem being that you won't know which nested
+  // run loop you are quitting, so be careful!
   void Quit();
 
   // This method is a variant of Quit, that does not wait for pending messages
   // to be processed before returning from Run.
   void QuitNow();
-
-  // Invokes Quit on the current MessageLoop when run.  Useful to schedule an
-  // arbitrary MessageLoop to Quit.
-  // TODO(jhawkins): Remove once task.h is removed.
-  class QuitTask : public Task {
-   public:
-    virtual void Run() OVERRIDE {
-      MessageLoop::current()->Quit();
-    }
-  };
 
   // Invokes Quit on the current MessageLoop when run. Useful to schedule an
   // arbitrary MessageLoop to Quit.
