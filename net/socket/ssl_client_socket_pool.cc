@@ -302,8 +302,10 @@ int SSLConnectJob::DoSSLConnectComplete(int result) {
     // advertised it, so allow it.
     // TODO(mbelshe): verify it was a protocol we advertised?
     if (next_protocol == SSLClientSocket::kProtoSPDY1 ||
-        next_protocol == SSLClientSocket::kProtoSPDY2) {
+        next_protocol == SSLClientSocket::kProtoSPDY2 ||
+        next_protocol == SSLClientSocket::kProtoSPDY21) {
       ssl_socket_->set_was_spdy_negotiated(true);
+      ssl_socket_->set_next_protocol_negotiated(next_protocol);
     }
   }
   if (params_->want_spdy_over_npn() && !ssl_socket_->was_spdy_negotiated())

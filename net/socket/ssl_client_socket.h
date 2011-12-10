@@ -83,6 +83,7 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
     kProtoHTTP11 = 1,
     kProtoSPDY1 = 2,
     kProtoSPDY2 = 3,
+    kProtoSPDY21 = 4,
   };
 
   // Gets the SSL connection information of the socket.
@@ -126,6 +127,11 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
 
   virtual bool set_was_spdy_negotiated(bool negotiated);
 
+  virtual SSLClientSocket::NextProto next_protocol_negotiated() const;
+
+  virtual void set_next_protocol_negotiated(
+      SSLClientSocket::NextProto next_protocol);
+
   // Returns true if an origin bound certificate was sent on this connection.
   // This may be useful for protocols, like SPDY, which allow the same
   // connection to be shared between multiple origins, each of which need
@@ -139,6 +145,8 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
   bool was_npn_negotiated_;
   // True if NPN successfully negotiated SPDY.
   bool was_spdy_negotiated_;
+  // Protocol that we negotiated with the server.
+  SSLClientSocket::NextProto next_protocol_;
   // True if an origin bound certificate was sent.
   bool was_origin_bound_cert_sent_;
 };

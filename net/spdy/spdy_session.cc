@@ -282,6 +282,7 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       trailing_ping_pending_(false),
       check_ping_status_pending_(false),
       need_to_send_ping_(false),
+      flow_control_(use_flow_control_),
       initial_send_window_size_(spdy::kSpdyStreamInitialWindowSize),
       initial_recv_window_size_(spdy::kSpdyStreamInitialWindowSize),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SPDY_SESSION)),
@@ -335,6 +336,14 @@ net::Error SpdySession::InitializeWithSocket(
   connection_->AddLayeredPool(this);
   is_secure_ = is_secure;
   certificate_error_code_ = certificate_error_code;
+
+  if (is_secure_) {
+    SSLClientSocket* ssl_socket =
+        reinterpret_cast<SSLClientSocket*>(connection_->socket());
+    DCHECK(ssl_socket);
+    if (ssl_socket->next_protocol_negotiated() == SSLClientSocket::kProtoSPDY21)
+      flow_control_ = true;
+  }
 
   // Write out any data that we might have to send, such as the settings frame.
   WriteSocketLater();
@@ -557,7 +566,7 @@ int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
   }
 
   // Obey send window size of the stream if flow control is enabled.
-  if (use_flow_control_) {
+  if (flow_control_) {
     if (stream->send_window_size() <= 0) {
       // Because we queue frames onto the session, it is possible that
       // a stream was not flow controlled at the time it attempted the
@@ -1463,7 +1472,7 @@ void SpdySession::OnWindowUpdate(
   CHECK_EQ(stream->stream_id(), stream_id);
   CHECK(!stream->cancelled());
 
-  if (use_flow_control_)
+  if (flow_control_)
     stream->IncreaseSendWindowSize(delta_window_size);
 
   net_log_.AddEvent(

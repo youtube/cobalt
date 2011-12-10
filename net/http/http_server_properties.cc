@@ -13,12 +13,14 @@ const char kAlternateProtocolHeader[] = "Alternate-Protocol";
 const char* const kAlternateProtocolStrings[] = {
   "npn-spdy/1",
   "npn-spdy/2",
+  "npn-spdy/2.1",
 };
 
 static const char* AlternateProtocolToString(AlternateProtocol protocol) {
   switch (protocol) {
     case NPN_SPDY_1:
     case NPN_SPDY_2:
+    case NPN_SPDY_21:
       return kAlternateProtocolStrings[protocol];
     case ALTERNATE_PROTOCOL_BROKEN:
       return "Broken";

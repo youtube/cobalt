@@ -121,7 +121,11 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
       use_alt_protocols = false;
       HttpStreamFactory::set_use_alternate_protocols(false);
     } else if (option == kEnableFlowControl) {
-      SpdySession::set_flow_control(true);
+      std::vector<std::string> next_protos;
+      next_protos.push_back("http/1.1");
+      next_protos.push_back("spdy/2");
+      next_protos.push_back("spdy/2.1");
+      HttpStreamFactory::set_next_protos(next_protos);
     } else if (option == kForceAltProtocols) {
       PortAlternateProtocolPair pair;
       pair.port = 443;

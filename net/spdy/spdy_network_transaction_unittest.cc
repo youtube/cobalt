@@ -122,6 +122,7 @@ class SpdyNetworkTransactionTest
       std::vector<std::string> next_protos;
       next_protos.push_back("http/1.1");
       next_protos.push_back("spdy/2");
+      next_protos.push_back("spdy/2.1");
 
       switch (test_type_) {
         case SPDYNPN:
@@ -1851,7 +1852,7 @@ TEST_P(SpdyNetworkTransactionTest, ResponseWithTwoSynReplies) {
 // limitations as described above and it's not deterministic, tests may
 // fail under specific circumstances.
 TEST_P(SpdyNetworkTransactionTest, WindowUpdateReceived) {
-  SpdySession::set_flow_control(true);
+  SpdySession::set_use_flow_control(true);
 
   static int kFrameCount = 2;
   scoped_ptr<std::string> content(
@@ -1922,13 +1923,13 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateReceived) {
             kMaxSpdyFrameChunkSize * kFrameCount,
             stream->stream()->send_window_size());
   helper.VerifyDataConsumed();
-  SpdySession::set_flow_control(false);
+  SpdySession::set_use_flow_control(false);
 }
 
 // Test that received data frames and sent WINDOW_UPDATE frames change
 // the recv_window_size_ correctly.
 TEST_P(SpdyNetworkTransactionTest, WindowUpdateSent) {
-  SpdySession::set_flow_control(true);
+  SpdySession::set_use_flow_control(true);
 
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
   scoped_ptr<spdy::SpdyFrame> window_update(
@@ -2005,13 +2006,13 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateSent) {
   data->CompleteRead();
 
   helper.VerifyDataConsumed();
-  SpdySession::set_flow_control(false);
+  SpdySession::set_use_flow_control(false);
 }
 
 // Test that WINDOW_UPDATE frame causing overflow is handled correctly.  We
 // use the same trick as in the above test to enforce our scenario.
 TEST_P(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
-  SpdySession::set_flow_control(true);
+  SpdySession::set_use_flow_control(true);
 
   // number of full frames we hope to write (but will not, used to
   // set content-length header correctly)
@@ -2084,7 +2085,7 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
   helper.session()->spdy_session_pool()->CloseAllSessions();
   helper.VerifyDataConsumed();
 
-  SpdySession::set_flow_control(false);
+  SpdySession::set_use_flow_control(false);
 }
 
 // Test that after hitting a send window size of 0, the write process
@@ -2103,7 +2104,7 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
 // After that, next read is artifically enforced, which causes a
 // WINDOW_UPDATE to be read and I/O process resumes.
 TEST_P(SpdyNetworkTransactionTest, FlowControlStallResume) {
-  SpdySession::set_flow_control(true);
+  SpdySession::set_use_flow_control(true);
 
   // Number of frames we need to send to zero out the window size: data
   // frames plus SYN_STREAM plus the last data frame; also we need another
@@ -2194,7 +2195,7 @@ TEST_P(SpdyNetworkTransactionTest, FlowControlStallResume) {
   rv = callback.WaitForResult();
   helper.VerifyDataConsumed();
 
-  SpdySession::set_flow_control(false);
+  SpdySession::set_use_flow_control(false);
 }
 
 TEST_P(SpdyNetworkTransactionTest, CancelledTransaction) {
