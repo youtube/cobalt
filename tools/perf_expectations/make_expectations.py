@@ -3,6 +3,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# For instructions see:
+# http://www.chromium.org/developers/tree-sheriffs/perf-sheriffs
 
 import hashlib
 import math

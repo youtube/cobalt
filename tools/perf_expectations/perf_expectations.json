@@ -3,7 +3,7 @@
  "linux-release-64/sizes/chrome-si/initializers": {"reva": 113930, "revb": 113930, "type": "absolute", "better": "lower", "improve": 137, "regress": 137, "tolerance": 0, "sha1": "8613af27"},
  "linux-release-64/sizes/chrome-text/text": {"reva": 104463, "revb": 104463, "type": "absolute", "improve": 60823945, "regress": 67905522, "sha1": "6887f46b"},
  "linux-release-64/sizes/chrome.pak/chrome.pak": {"reva": 93584, "revb": 93660, "type": "absolute", "improve": 2893618, "regress": 3230516, "sha1": "ddcb764c"},
- "linux-release-64/sizes/chrome/chrome": {"reva": 113631, "revb": 113761, "type": "absolute", "improve": 83225973, "regress": 92055743, "sha1": "5f090c44"},
+ "linux-release-64/sizes/chrome/chrome": {"reva": 113941, "revb": 113960, "type": "absolute", "improve": 83295452, "regress": 92119491, "sha1": "ba2a3917"},
  "linux-release-hardy/dhtml/commit_charge/cc": {"reva": 63231, "revb": 64325, "improve": -6947, "regress": 25528, "sha1": "0e22e67a"},
  "linux-release-hardy/dhtml/processes/proc_": {"improve": 0, "regress": 0, "sha1": "696fcb0f"},
  "linux-release-hardy/dhtml/times/t": {"reva": 99393, "revb": 100034, "improve": -68, "regress": 21, "sha1": "9c13cabb"},
