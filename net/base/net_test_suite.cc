@@ -45,6 +45,10 @@ void NetTestSuite::Shutdown() {
 void NetTestSuite::InitializeTestThread() {
   network_change_notifier_.reset(net::NetworkChangeNotifier::CreateMock());
 
+  InitializeTestThreadNoNetworkChangeNotifier();
+}
+
+void NetTestSuite::InitializeTestThreadNoNetworkChangeNotifier() {
   host_resolver_proc_ = new net::RuleBasedHostResolverProc(NULL);
   scoped_host_resolver_proc_.Init(host_resolver_proc_.get());
   // In case any attempts are made to resolve host names, force them all to
