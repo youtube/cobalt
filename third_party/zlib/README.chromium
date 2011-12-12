@@ -1,6 +1,7 @@
 Name: zlib
 URL: http://zlib.net/
-Version: 1.2.3
+Version: 1.2.5
+Security Critical: yes
 
 Description:
 General purpose compression library
