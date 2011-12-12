@@ -56,7 +56,7 @@
  "linux-release/startup/times/t": {"improve": -15, "regress": 15, "sha1": "c8f06f81"},
  "mac-release-10.5/dhtml/times/t": {"reva": 113638, "revb": 113846, "improve": 52, "regress": 136, "sha1": "62558d97"},
  "mac-release-10.5/dom_perf/Total/score": {"reva": 109368, "revb": 110217, "improve": 96, "regress": 17, "sha1": "447dfdf9"},
- "mac-release-10.5/intl1/times/t": {"reva": 105307, "revb": 106585, "improve": -114, "regress": 282, "sha1": "ac0ca5cd"},
+ "mac-release-10.5/intl1/times/t": {"reva": 113624, "revb": 113972, "improve": -1131, "regress": -798, "sha1": "f9bc4de1"},
  "mac-release-10.5/intl2/commit_charge/cc": {"reva": 79662, "revb": 81211, "improve": -46238, "regress": 55911, "sha1": "4c75e106"},
  "mac-release-10.5/intl2/processes/proc_": {"improve": 0, "regress": 0, "sha1": "a1a53594"},
  "mac-release-10.5/intl2/times/t": {"reva": 80750, "revb": 81208, "improve": -1772, "regress": 1586, "sha1": "3b491046"},
