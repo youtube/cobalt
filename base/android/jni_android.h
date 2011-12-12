@@ -8,6 +8,8 @@
 #include <jni.h>
 #include <sys/types.h>
 
+#include "base/android/scoped_java_ref.h"
+
 namespace base {
 namespace android {
 
@@ -21,13 +23,15 @@ void DetachFromVM();
 // InitApplicationContext().
 void InitVM(JavaVM* vm);
 
-// Initializes the global application context object. The |context| should be
-// the global reference of application context object.  It is not necessarily
-// called after InitVM().
+// Initializes the global application context object. The |context| can be any
+// valid reference to the application context. Internally holds a global ref to
+// the context. InitVM and InitApplicationContext maybe called in either order.
 // TODO: We might combine InitVM() and InitApplicationContext() into one method.
-void InitApplicationContext(jobject context);
+void InitApplicationContext(const JavaRef<jobject>& context);
 
-// Returns the application context assigned by InitApplicationContext().
+// Gets a global ref to the application context set with
+// InitApplicationContext(). Ownership is retained by the function - the caller
+// must NOT release it.
 jobject GetApplicationContext();
 
 // Gets the method ID from the class name. Clears the pending Java exception
