@@ -6,39 +6,38 @@
 
 #include "base/at_exit.h"
 #include "base/logging.h"
+#include "base/message_loop.h"
 
-static bool g_destroy_called = false;
+// Used only to make sure we never create more than one instance.
 static AudioManager* g_audio_manager = NULL;
 
-// static
-void AudioManager::Destroy(void* not_used) {
-  g_destroy_called = true;
+// Forward declaration of the platform specific AudioManager factory function.
+AudioManager* CreateAudioManager();
 
-  if (g_audio_manager) {
-    g_audio_manager->Cleanup();
-
-    AudioManager* audio_manager = g_audio_manager;
-    g_audio_manager = NULL;
-    delete audio_manager;
-  }
+AudioManager::AudioManager() {
+  CHECK(g_audio_manager == NULL);
+  g_audio_manager = this;
 }
 
-// static
-AudioManager* AudioManager::GetAudioManager() {
-  if (!g_audio_manager && !g_destroy_called) {
-    g_audio_manager = CreateAudioManager();
-    g_audio_manager->Init();
-    base::AtExitManager::RegisterCallback(&AudioManager::Destroy, NULL);
-  }
-  return g_audio_manager;
+AudioManager::~AudioManager() {
+  CHECK(g_audio_manager == this);
+  g_audio_manager = NULL;
 }
 
-// static
-bool AudioManager::SingletonExists() {
-  return g_audio_manager != NULL;
+#ifndef NDEBUG
+void AudioManager::AddRef() const {
+  base::RefCountedThreadSafe<AudioManager>::AddRef();
 }
 
+void AudioManager::Release() const {
+  base::RefCountedThreadSafe<AudioManager>::Release();
+}
+#endif
+
 // static
-void AudioManager::Resurrect() {
-  g_destroy_called = false;
+scoped_refptr<AudioManager> AudioManager::Create() {
+  AudioManager* ret = CreateAudioManager();
+  DCHECK(ret == g_audio_manager);
+  ret->Init();
+  return ret;
 }

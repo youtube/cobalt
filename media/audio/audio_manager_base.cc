@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "media/audio/audio_manager_base.h"
+
+#include "base/bind.h"
 #include "media/audio/audio_output_dispatcher.h"
 #include "media/audio/audio_output_proxy.h"
 
@@ -13,23 +15,29 @@ const char AudioManagerBase::kDefaultDeviceId[] = "default";
 
 AudioManagerBase::AudioManagerBase()
     : audio_thread_("AudioThread"),
-      initialized_(false),
       num_active_input_streams_(0) {
 }
 
 AudioManagerBase::~AudioManagerBase() {
-  DCHECK(!audio_thread_.IsRunning());
+  Shutdown();
 }
+
+#ifndef NDEBUG
+void AudioManagerBase::AddRef() const {
+  const MessageLoop* loop = audio_thread_.message_loop();
+  DCHECK(loop == NULL || loop != MessageLoop::current());
+  AudioManager::AddRef();
+}
+
+void AudioManagerBase::Release() const {
+  const MessageLoop* loop = audio_thread_.message_loop();
+  DCHECK(loop == NULL || loop != MessageLoop::current());
+  AudioManager::Release();
+}
+#endif
 
 void AudioManagerBase::Init() {
-  initialized_ = audio_thread_.Start();
-}
-
-void AudioManagerBase::Cleanup() {
-  if (initialized_) {
-    initialized_ = false;
-    audio_thread_.Stop();
-  }
+  CHECK(audio_thread_.Start());
 }
 
 string16 AudioManagerBase::GetAudioInputDeviceModel() {
@@ -37,20 +45,20 @@ string16 AudioManagerBase::GetAudioInputDeviceModel() {
 }
 
 MessageLoop* AudioManagerBase::GetMessageLoop() {
-  DCHECK(initialized_);
   return audio_thread_.message_loop();
 }
 
 AudioOutputStream* AudioManagerBase::MakeAudioOutputStreamProxy(
     const AudioParameters& params) {
-  if (!initialized_)
+  DCHECK_EQ(MessageLoop::current(), GetMessageLoop());
+
+  if (!initialized())
     return NULL;
 
   scoped_refptr<AudioOutputDispatcher>& dispatcher =
       output_dispatchers_[params];
   if (!dispatcher)
     dispatcher = new AudioOutputDispatcher(this, params, kStreamCloseDelayMs);
-
   return new AudioOutputProxy(dispatcher);
 }
 
@@ -66,17 +74,50 @@ void AudioManagerBase::GetAudioInputDeviceNames(
 }
 
 void AudioManagerBase::IncreaseActiveInputStreamCount() {
-  base::AutoLock auto_lock(active_input_streams_lock_);
-  ++num_active_input_streams_;
+  base::AtomicRefCountInc(&num_active_input_streams_);
 }
 
 void AudioManagerBase::DecreaseActiveInputStreamCount() {
-  base::AutoLock auto_lock(active_input_streams_lock_);
-  DCHECK_GT(num_active_input_streams_, 0);
-  --num_active_input_streams_;
+  DCHECK(IsRecordingInProcess());
+  base::AtomicRefCountDec(&num_active_input_streams_);
 }
 
 bool AudioManagerBase::IsRecordingInProcess() {
-  base::AutoLock auto_lock(active_input_streams_lock_);
-  return num_active_input_streams_ > 0;
+  return !base::AtomicRefCountIsZero(&num_active_input_streams_);
+}
+
+void AudioManagerBase::Shutdown() {
+  if (!initialized())
+    return;
+
+  DCHECK_NE(MessageLoop::current(), GetMessageLoop());
+
+  // We must use base::Unretained since Shutdown might have been called from
+  // the destructor and we can't alter the refcount of the object at that point.
+  GetMessageLoop()->PostTask(FROM_HERE, base::Bind(
+      &AudioManagerBase::ShutdownOnAudioThread,
+      base::Unretained(this)));
+  // Stop() will wait for any posted messages to be processed first.
+  audio_thread_.Stop();
+}
+
+void AudioManagerBase::ShutdownOnAudioThread() {
+  DCHECK_EQ(MessageLoop::current(), GetMessageLoop());
+
+  AudioOutputDispatchersMap::iterator it = output_dispatchers_.begin();
+  for (; it != output_dispatchers_.end(); ++it) {
+    scoped_refptr<AudioOutputDispatcher>& dispatcher = (*it).second;
+    if (dispatcher) {
+      dispatcher->Shutdown();
+      // All AudioOutputProxies must have been freed before Shutdown is called.
+      // If they still exist, things will go bad.  They have direct pointers to
+      // both physical audio stream objects that belong to the dispatcher as
+      // well as the message loop of the audio thread that will soon go away.
+      // So, better crash now than later.
+      CHECK(dispatcher->HasOneRef()) << "AudioOutputProxies are still alive";
+      dispatcher = NULL;
+    }
+  }
+
+  output_dispatchers_.clear();
 }

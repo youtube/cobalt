@@ -21,7 +21,7 @@ static void GenerateRandomData(char* buffer, uint32 len) {
   }
 
   for (uint32 i = 0; i < len; i++)
-    buffer[i] = static_cast<char>(rand());
+    buffer[i] = static_cast<char>(rand());  // NOLINT
 }
 
 // To test write size smaller than read size.
@@ -68,8 +68,7 @@ TEST(SimpleSources, SineWaveAudio16MonoTest) {
   SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
                              freq, AudioParameters::kTelephoneSampleRate);
 
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  ASSERT_TRUE(NULL != audio_man);
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   AudioParameters params(
       AudioParameters::AUDIO_MOCK, CHANNEL_LAYOUT_MONO,
       AudioParameters::kTelephoneSampleRate, bytes_per_sample * 2, samples);

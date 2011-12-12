@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_AUDIO_AUDIO_OUTPUT_STREAM_PROXY_H_
-#define MEDIA_AUDIO_AUDIO_OUTPUT_STREAM_PROXY_H_
+#ifndef MEDIA_AUDIO_AUDIO_OUTPUT_PROXY_H_
+#define MEDIA_AUDIO_AUDIO_OUTPUT_PROXY_H_
 
 #include "base/basictypes.h"
 #include "base/task.h"
@@ -23,7 +23,7 @@ class AudioOutputDispatcher;
 class MEDIA_EXPORT AudioOutputProxy : public AudioOutputStream {
  public:
   // Caller keeps ownership of |dispatcher|.
-  AudioOutputProxy(AudioOutputDispatcher* dispatcher);
+  explicit AudioOutputProxy(AudioOutputDispatcher* dispatcher);
 
   // AudioOutputStream interface.
   virtual bool Open() OVERRIDE;
@@ -34,9 +34,6 @@ class MEDIA_EXPORT AudioOutputProxy : public AudioOutputStream {
   virtual void Close() OVERRIDE;
 
  private:
-  // Needs to access destructor.
-  friend class DeleteTask<AudioOutputProxy>;
-
   enum State {
     kCreated,
     kOpened,
@@ -61,4 +58,4 @@ class MEDIA_EXPORT AudioOutputProxy : public AudioOutputStream {
   DISALLOW_COPY_AND_ASSIGN(AudioOutputProxy);
 };
 
-#endif  // MEDIA_AUDIO_AUDIO_OUTPUT_STREAM_PROXY_H_
+#endif  // MEDIA_AUDIO_AUDIO_OUTPUT_PROXY_H_

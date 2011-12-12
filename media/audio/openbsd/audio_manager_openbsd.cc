@@ -118,6 +118,6 @@ void AudioManagerOpenBSD::ReleaseOutputStream(AudioOutputStream* stream) {
 }
 
 // static
-AudioManager* AudioManager::CreateAudioManager() {
+AudioManager* CreateAudioManager() {
   return new AudioManagerOpenBSD();
 }

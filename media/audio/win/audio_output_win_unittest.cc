@@ -199,8 +199,7 @@ class ReadOnlyMappedFile {
 // ============================================================================
 // Validate that the AudioManager::AUDIO_MOCK callbacks work.
 TEST(WinAudioTest, MockStreamBasicCallbacks) {
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  ASSERT_TRUE(NULL != audio_man);
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
       AudioParameters(AudioParameters::AUDIO_MOCK, CHANNEL_LAYOUT_STEREO, 8000,
                       8, 128));
@@ -226,8 +225,7 @@ TEST(WinAudioTest, MockStreamBasicCallbacks) {
 TEST(WinAudioTest, PCMWaveStreamGetAndClose) {
   if (IsRunningHeadless())
     return;
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  ASSERT_TRUE(NULL != audio_man);
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
@@ -241,8 +239,7 @@ TEST(WinAudioTest, PCMWaveStreamGetAndClose) {
 TEST(WinAudioTest, SanityOnMakeParams) {
   if (IsRunningHeadless())
     return;
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  ASSERT_TRUE(NULL != audio_man);
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioParameters::Format fmt = AudioParameters::AUDIO_PCM_LINEAR;
@@ -269,8 +266,7 @@ TEST(WinAudioTest, SanityOnMakeParams) {
 TEST(WinAudioTest, PCMWaveStreamOpenAndClose) {
   if (IsRunningHeadless())
     return;
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  ASSERT_TRUE(NULL != audio_man);
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
@@ -285,8 +281,7 @@ TEST(WinAudioTest, PCMWaveStreamOpenAndClose) {
 TEST(WinAudioTest, PCMWaveStreamOpenLimit) {
   if (IsRunningHeadless())
     return;
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  ASSERT_TRUE(NULL != audio_man);
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
@@ -302,8 +297,7 @@ TEST(WinAudioTest, PCMWaveStreamOpenLimit) {
 TEST(WinAudioTest, PCMWaveStreamTripleBuffer) {
   if (IsRunningHeadless())
     return;
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  ASSERT_TRUE(NULL != audio_man);
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
@@ -327,8 +321,7 @@ TEST(WinAudioTest, PCMWaveStreamTripleBuffer) {
 TEST(WinAudioTest, PCMWaveSlowSource) {
   if (IsRunningHeadless())
     return;
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  ASSERT_TRUE(NULL != audio_man);
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
@@ -354,8 +347,7 @@ TEST(WinAudioTest, PCMWaveSlowSource) {
 TEST(WinAudioTest, PCMWaveStreamPlaySlowLoop) {
   if (IsRunningHeadless())
     return;
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  ASSERT_TRUE(NULL != audio_man);
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
   uint32 samples_100_ms = AudioParameters::kAudioCDSampleRate / 10;
@@ -385,8 +377,7 @@ TEST(WinAudioTest, PCMWaveStreamPlaySlowLoop) {
 TEST(WinAudioTest, PCMWaveStreamPlay200HzTone44Kss) {
   if (IsRunningHeadless())
     return;
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  ASSERT_TRUE(NULL != audio_man);
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
   uint32 samples_100_ms = AudioParameters::kAudioCDSampleRate / 10;
@@ -413,8 +404,7 @@ TEST(WinAudioTest, PCMWaveStreamPlay200HzTone44Kss) {
 TEST(WinAudioTest, PCMWaveStreamPlay200HzTone22Kss) {
   if (IsRunningHeadless())
     return;
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  ASSERT_TRUE(NULL != audio_man);
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
   uint32 samples_100_ms = AudioParameters::kAudioCDSampleRate / 20;
@@ -460,8 +450,7 @@ TEST(WinAudioTest, PushSourceFile16KHz)  {
   ReadOnlyMappedFile file_reader(audio_file.value().c_str());
   ASSERT_TRUE(file_reader.is_valid());
 
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  ASSERT_TRUE(NULL != audio_man);
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
 
@@ -508,8 +497,7 @@ TEST(WinAudioTest, PushSourceFile16KHz)  {
 TEST(WinAudioTest, PCMWaveStreamPlayTwice200HzTone44Kss) {
   if (IsRunningHeadless())
     return;
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  ASSERT_TRUE(NULL != audio_man);
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
 
@@ -546,8 +534,7 @@ TEST(WinAudioTest, PCMWaveStreamPlayTwice200HzTone44Kss) {
 TEST(WinAudioTest, PCMWaveStreamPlay200HzToneLowLatency) {
   if (IsRunningHeadless())
     return;
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  ASSERT_TRUE(NULL != audio_man);
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
 
@@ -583,8 +570,7 @@ TEST(WinAudioTest, PCMWaveStreamPlay200HzToneLowLatency) {
 TEST(WinAudioTest, PCMWaveStreamPendingBytes) {
   if (IsRunningHeadless())
     return;
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  ASSERT_TRUE(NULL != audio_man);
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
 
@@ -681,7 +667,7 @@ DWORD __stdcall SyncSocketThread(void* context) {
   SyncThreadContext& ctx = *(reinterpret_cast<SyncThreadContext*>(context));
 
   const int kTwoSecBytes =
-      AudioParameters::kAudioCDSampleRate * 2 * sizeof(uint16);
+      AudioParameters::kAudioCDSampleRate * 2 * sizeof(uint16);  // NOLINT
   uint8* buffer = new uint8[kTwoSecBytes];
   SineWaveAudioSource sine(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM,
                            1, ctx.sine_freq, ctx.sample_rate);
@@ -713,8 +699,7 @@ TEST(WinAudioTest, SyncSocketBasic) {
   if (IsRunningHeadless())
     return;
 
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  ASSERT_TRUE(NULL != audio_man);
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
 

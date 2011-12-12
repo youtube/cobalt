@@ -16,6 +16,7 @@
 #include "media/audio/audio_parameters.h"
 
 class AlsaWrapper;
+class AudioManagerLinux;
 
 // Provides an input stream for audio capture based on the ALSA PCM interface.
 // This object is not thread safe and all methods should be invoked in the
@@ -29,7 +30,8 @@ class AlsaPcmInputStream : public AudioInputStream {
   // Create a PCM Output stream for the ALSA device identified by
   // |device_name|. If unsure of what to use for |device_name|, use
   // |kAutoSelectDevice|.
-  AlsaPcmInputStream(const std::string& device_name,
+  AlsaPcmInputStream(AudioManagerLinux* audio_manager,
+                     const std::string& device_name,
                      const AudioParameters& params,
                      AlsaWrapper* wrapper);
   virtual ~AlsaPcmInputStream();
@@ -54,6 +56,12 @@ class AlsaPcmInputStream : public AudioInputStream {
   // Utility function for talking with the ALSA API.
   snd_pcm_sframes_t GetCurrentDelay();
 
+  // Non-refcounted pointer back to the audio manager.
+  // The AudioManager indirectly holds on to stream objects, so we don't
+  // want circular references.  Additionally, stream objects live on the audio
+  // thread, which is owned by the audio manager and we don't want to addref
+  // the manager from that thread.
+  AudioManagerLinux* audio_manager_;
   std::string device_name_;
   AudioParameters params_;
   int bytes_per_packet_;

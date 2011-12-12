@@ -10,7 +10,7 @@
 
 namespace {
 const int kMaxInputChannels = 2;
-const int kTimerResetInterval = 1; // One second.
+const int kTimerResetInterval = 1;  // One second.
 }
 
 namespace media {
@@ -18,9 +18,11 @@ namespace media {
 // static
 AudioInputController::Factory* AudioInputController::factory_ = NULL;
 
-AudioInputController::AudioInputController(EventHandler* handler,
+AudioInputController::AudioInputController(AudioManager* audio_manager,
+                                           EventHandler* handler,
                                            SyncWriter* sync_writer)
-    : handler_(handler),
+    : audio_manager_(audio_manager),
+      handler_(handler),
       stream_(NULL),
       ALLOW_THIS_IN_INITIALIZER_LIST(no_data_timer_(FROM_HERE,
           base::TimeDelta::FromSeconds(kTimerResetInterval),
@@ -29,6 +31,7 @@ AudioInputController::AudioInputController(EventHandler* handler,
       state_(kEmpty),
       thread_("AudioInputControllerThread"),
       sync_writer_(sync_writer) {
+  DCHECK(audio_manager_);  // Fail early.
 }
 
 AudioInputController::~AudioInputController() {
@@ -37,17 +40,19 @@ AudioInputController::~AudioInputController() {
 
 // static
 scoped_refptr<AudioInputController> AudioInputController::Create(
+    AudioManager* audio_manager,
     EventHandler* event_handler,
     const AudioParameters& params) {
+  DCHECK(audio_manager);
   if (!params.IsValid() || (params.channels > kMaxInputChannels))
     return NULL;
 
   if (factory_) {
-    return factory_->Create(event_handler, params);
+    return factory_->Create(audio_manager, event_handler, params);
   }
 
   scoped_refptr<AudioInputController> controller(new AudioInputController(
-      event_handler, NULL));
+      audio_manager, event_handler, NULL));
 
   // Start the thread and post a task to create the audio input stream.
   // Pass an empty string to indicate using default device.
@@ -61,21 +66,20 @@ scoped_refptr<AudioInputController> AudioInputController::Create(
 
 // static
 scoped_refptr<AudioInputController> AudioInputController::CreateLowLatency(
+    AudioManager* audio_manager,
     EventHandler* event_handler,
     const AudioParameters& params,
     const std::string& device_id,
     SyncWriter* sync_writer) {
+  DCHECK(audio_manager);
   DCHECK(sync_writer);
 
   if (!params.IsValid() || (params.channels > kMaxInputChannels))
     return NULL;
 
-  if (!AudioManager::GetAudioManager())
-    return NULL;
-
   // Starts the audio controller thread.
   scoped_refptr<AudioInputController> controller(new AudioInputController(
-      event_handler, sync_writer));
+      audio_manager, event_handler, sync_writer));
 
   // Start the thread and post a task to create the audio input stream.
   controller->thread_.Start();
@@ -114,8 +118,7 @@ void AudioInputController::Close() {
 
 void AudioInputController::DoCreate(const AudioParameters& params,
                                     const std::string& device_id) {
-  stream_ = AudioManager::GetAudioManager()->MakeAudioInputStream(params,
-                                                                  device_id);
+  stream_ = audio_manager_->MakeAudioInputStream(params, device_id);
 
   if (!stream_) {
     // TODO(satish): Define error types.
