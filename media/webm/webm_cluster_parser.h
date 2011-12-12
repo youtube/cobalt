@@ -53,8 +53,6 @@ class WebMClusterParser : public WebMParserClient {
   int video_track_num_;
   base::TimeDelta  video_default_duration_;
 
-  WebMListParser parser_;
-
   int64 last_block_timecode_;
 
   int64 cluster_timecode_;

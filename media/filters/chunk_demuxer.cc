@@ -130,7 +130,7 @@ void ChunkDemuxerStream::Flush() {
 bool ChunkDemuxerStream::CanAddBuffers(const BufferQueue& buffers) const {
   base::AutoLock auto_lock(lock_);
 
-  // If we haven't seen any buffers yet, then anything can be added.
+  // If we haven't seen any buffers yet than anything can be added.
   if (last_buffer_timestamp_ == kNoTimestamp)
     return true;
 
@@ -434,7 +434,7 @@ bool ChunkDemuxer::AppendData(const uint8* data, size_t length) {
     int cur_size = 0;
     int bytes_parsed = 0;
     int result = -1;
-    bool can_complete_seek = false;
+    bool parsed_a_cluster = false;
 
     byte_queue_.Peek(&cur, &cur_size);
 
@@ -449,19 +449,16 @@ bool ChunkDemuxer::AppendData(const uint8* data, size_t length) {
           }
           break;
 
-        case INITIALIZED: {
-          bool buffers_added = false;
-          result = ParseCluster_Locked(cur, cur_size, &buffers_added);
+        case INITIALIZED:
+          result = ParseCluster_Locked(cur, cur_size);
           if (result < 0) {
             VLOG(1) << "AppendData(): parsing data failed";
             ReportError_Locked(PIPELINE_ERROR_DECODE);
             return true;
           }
 
-          // We can complete the seek if we have successfully parsed
-          // some data and buffers were added to one of the DemuxerStreams.
-          can_complete_seek |= (result > 0 && buffers_added);
-        } break;
+          parsed_a_cluster = (result > 0);
+          break;
 
         case WAITING_FOR_INIT:
         case ENDED:
@@ -480,7 +477,7 @@ bool ChunkDemuxer::AppendData(const uint8* data, size_t length) {
 
     byte_queue_.Pop(bytes_parsed);
 
-    if (can_complete_seek && seek_waits_for_data_) {
+    if (parsed_a_cluster && seek_waits_for_data_) {
       seek_waits_for_data_ = false;
 
       if (!seek_cb_.is_null())
@@ -733,8 +730,7 @@ bool ChunkDemuxer::SetupStreams() {
   return !no_supported_streams;
 }
 
-int ChunkDemuxer::ParseCluster_Locked(const uint8* data, int size,
-                                      bool* buffers_added) {
+int ChunkDemuxer::ParseCluster_Locked(const uint8* data, int size) {
   lock_.AssertAcquired();
   if (!cluster_parser_.get())
     return -1;
@@ -753,6 +749,9 @@ int ChunkDemuxer::ParseCluster_Locked(const uint8* data, int size,
     }
     // Skip the element.
     return result + element_size;
+  } else if (id != kWebMIdCluster) {
+    VLOG(1) << "Unexpected ID 0x" << std::hex << id;
+    return -1;
   }
 
   int bytes_parsed = cluster_parser_->Parse(data, size);
@@ -760,25 +759,20 @@ int ChunkDemuxer::ParseCluster_Locked(const uint8* data, int size,
   if (bytes_parsed <= 0)
     return bytes_parsed;
 
-  if (!cluster_parser_->audio_buffers().empty() ||
-      !cluster_parser_->video_buffers().empty()) {
-    // Make sure we can add the buffers to both streams before we actually
-    // add them. This allows us to accept all of the data or none of it.
-    if ((audio_.get() &&
-         !audio_->CanAddBuffers(cluster_parser_->audio_buffers())) ||
-        (video_.get() &&
-         !video_->CanAddBuffers(cluster_parser_->video_buffers()))) {
-      return -1;
-    }
-
-    if (audio_.get())
-      audio_->AddBuffers(cluster_parser_->audio_buffers());
-
-    if (video_.get())
-      video_->AddBuffers(cluster_parser_->video_buffers());
-
-    *buffers_added = true;
+  // Make sure we can add the buffers to both streams before we actutally
+  // add them. This allows us to accept all of the data or none of it.
+  if ((audio_.get() &&
+       !audio_->CanAddBuffers(cluster_parser_->audio_buffers())) ||
+      (video_.get() &&
+       !video_->CanAddBuffers(cluster_parser_->video_buffers()))) {
+    return -1;
   }
+
+  if (audio_.get())
+    audio_->AddBuffers(cluster_parser_->audio_buffers());
+
+  if (video_.get())
+    video_->AddBuffers(cluster_parser_->video_buffers());
 
   // TODO(acolwell) : make this more representative of what is actually
   // buffered.
