@@ -43,6 +43,9 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   ~SSLClientSocketOpenSSL();
 
   const HostPortPair& host_and_port() const { return host_and_port_; }
+  const std::string& ssl_session_cache_shard() const {
+    return ssl_session_cache_shard_;
+  }
 
   // Callback from the SSL layer that indicates the remote server is requesting
   // a certificate for this client.
@@ -151,6 +154,10 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   scoped_ptr<ClientSocketHandle> transport_;
   const HostPortPair host_and_port_;
   SSLConfig ssl_config_;
+  // ssl_session_cache_shard_ is an opaque string that partitions the SSL
+  // session cache. i.e. sessions created with one value will not attempt to
+  // resume on the socket with a different value.
+  const std::string ssl_session_cache_shard_;
 
   // Used for session cache diagnostics.
   bool trying_cached_session_;

@@ -43,6 +43,7 @@ HttpNetworkSession::HttpNetworkSession(const Params& params)
               params.transport_security_state,
               params.dns_cert_checker,
               params.ssl_host_info_factory,
+              params.ssl_session_cache_shard,
               params.proxy_service,
               params.ssl_config_service)),
       spdy_session_pool_(params.host_resolver,

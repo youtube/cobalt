@@ -102,22 +102,8 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
 #endif
   }
 
-  // TODO(rch): This is only implemented for the NSS SSL library, which is the
-  /// default for Windows, Mac and Linux, but we should implement it everywhere.
   void ClearSSLSessionCache() {
-#if defined(OS_WIN)
-    if (!g_use_system_ssl)
-      SSLClientSocketNSS::ClearSessionCache();
-#elif defined(USE_OPENSSL)
-    // no-op
-#elif defined(USE_NSS)
-    SSLClientSocketNSS::ClearSessionCache();
-#elif defined(OS_MACOSX)
-    if (!g_use_system_ssl)
-      SSLClientSocketNSS::ClearSessionCache();
-#else
-    NOTIMPLEMENTED();
-#endif
+    SSLClientSocket::ClearSessionCache();
   }
 
 };

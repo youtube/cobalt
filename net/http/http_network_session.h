@@ -74,6 +74,7 @@ class NET_EXPORT HttpNetworkSession
     DnsCertProvenanceChecker* dns_cert_checker;
     ProxyService* proxy_service;
     SSLHostInfoFactory* ssl_host_info_factory;
+    std::string ssl_session_cache_shard;
     SSLConfigService* ssl_config_service;
     HttpAuthHandlerFactory* http_auth_handler_factory;
     NetworkDelegate* network_delegate;
