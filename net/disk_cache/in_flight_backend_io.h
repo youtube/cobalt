@@ -168,6 +168,8 @@ class InFlightBackendIO : public InFlightIO {
                         net::OldCompletionCallback* callback);
   void OpenNextEntry(void** iter, Entry** next_entry,
                      net::OldCompletionCallback* callback);
+  void OpenNextEntry(void** iter, Entry** next_entry,
+                     const net::CompletionCallback& callback);
   void OpenPrevEntry(void** iter, Entry** prev_entry,
                      net::OldCompletionCallback* callback);
   void EndEnumeration(void* iterator);
