@@ -57,8 +57,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
                      const SSLClientSocketContext& context);
   virtual ~SSLClientSocketNSS();
 
-  NET_EXPORT_PRIVATE static void ClearSessionCache();
-
   // SSLClientSocket implementation.
   virtual void GetSSLInfo(SSLInfo* ssl_info) OVERRIDE;
   virtual void GetSSLCertRequestInfo(
@@ -268,6 +266,11 @@ class SSLClientSocketNSS : public SSLClientSocket {
 
   // True if the SSL handshake has been completed.
   bool completed_handshake_;
+
+  // ssl_session_cache_shard_ is an opaque string that partitions the SSL
+  // session cache. i.e. sessions created with one value will not attempt to
+  // resume on the socket with a different value.
+  const std::string ssl_session_cache_shard_;
 
   // True iff we believe that the user has an ESET product intercepting our
   // HTTPS connections.

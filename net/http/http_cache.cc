@@ -49,6 +49,7 @@ HttpNetworkSession* CreateNetworkSession(
     DnsCertProvenanceChecker* dns_cert_checker,
     ProxyService* proxy_service,
     SSLHostInfoFactory* ssl_host_info_factory,
+    const std::string& ssl_session_cache_shard,
     SSLConfigService* ssl_config_service,
     HttpAuthHandlerFactory* http_auth_handler_factory,
     NetworkDelegate* network_delegate,
@@ -62,6 +63,7 @@ HttpNetworkSession* CreateNetworkSession(
   params.dns_cert_checker = dns_cert_checker;
   params.proxy_service = proxy_service;
   params.ssl_host_info_factory = ssl_host_info_factory;
+  params.ssl_session_cache_shard = ssl_session_cache_shard;
   params.ssl_config_service = ssl_config_service;
   params.http_auth_handler_factory = http_auth_handler_factory;
   params.network_delegate = network_delegate;
@@ -321,6 +323,7 @@ HttpCache::HttpCache(HostResolver* host_resolver,
                      TransportSecurityState* transport_security_state,
                      DnsCertProvenanceChecker* dns_cert_checker_,
                      ProxyService* proxy_service,
+                     const std::string& ssl_session_cache_shard,
                      SSLConfigService* ssl_config_service,
                      HttpAuthHandlerFactory* http_auth_handler_factory,
                      NetworkDelegate* network_delegate,
@@ -344,6 +347,7 @@ HttpCache::HttpCache(HostResolver* host_resolver,
                   dns_cert_checker_,
                   proxy_service,
                   ssl_host_info_factory_.get(),
+                  ssl_session_cache_shard,
                   ssl_config_service,
                   http_auth_handler_factory,
                   network_delegate,
