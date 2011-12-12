@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/basictypes.h"
+#include "base/memory/scoped_ptr.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_manager.h"
 #include "media/audio/simple_sources.h"
@@ -47,13 +48,12 @@ TEST(MacAudioTest, SineWaveAudio16MonoTest) {
 // ===========================================================================
 // Validation of AudioParameters::AUDIO_PCM_LINEAR
 //
-// Unlike windows, the tests can reliably detect the existense of real
+// Unlike windows, the tests can reliably detect the existence of real
 // audio devices on the bots thus no need for 'headless' detection.
 
 // Test that can it be created and closed.
 TEST(MacAudioTest, PCMWaveStreamGetAndClose) {
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  ASSERT_TRUE(NULL != audio_man);
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
@@ -65,8 +65,7 @@ TEST(MacAudioTest, PCMWaveStreamGetAndClose) {
 
 // Test that it can be opened and closed.
 TEST(MacAudioTest, PCMWaveStreamOpenAndClose) {
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  ASSERT_TRUE(NULL != audio_man);
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
@@ -82,8 +81,7 @@ TEST(MacAudioTest, PCMWaveStreamOpenAndClose) {
 // pops or noises while the sound is playing. The sound must also be identical
 // to the sound of PCMWaveStreamPlay200HzTone22KssMono test.
 TEST(MacAudioTest, PCMWaveStreamPlay200HzTone44KssMono) {
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  ASSERT_TRUE(NULL != audio_man);
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
   uint32 frames_100_ms = AudioParameters::kAudioCDSampleRate / 10;
@@ -113,8 +111,7 @@ TEST(MacAudioTest, PCMWaveStreamPlay200HzTone44KssMono) {
 // or noises while the sound is playing. The sound must also be identical to the
 // sound of PCMWaveStreamPlay200HzTone44KssMono test.
 TEST(MacAudioTest, PCMWaveStreamPlay200HzTone22KssMono) {
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  ASSERT_TRUE(NULL != audio_man);
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
   uint32 frames_100_ms = AudioParameters::kAudioCDSampleRate / 10;
@@ -140,8 +137,7 @@ static void ClearBuffer(AudioOutputStream* stream, uint8* dest,
 }
 
 TEST(MacAudioTest, PCMWaveStreamPendingBytes) {
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  ASSERT_TRUE(NULL != audio_man);
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
 

@@ -22,10 +22,12 @@ static const char kDefaultDevice2[] = "plug:default";
 
 const char* AlsaPcmInputStream::kAutoSelectDevice = "";
 
-AlsaPcmInputStream::AlsaPcmInputStream(const std::string& device_name,
+AlsaPcmInputStream::AlsaPcmInputStream(AudioManagerLinux* audio_manager,
+                                       const std::string& device_name,
                                        const AudioParameters& params,
                                        AlsaWrapper* wrapper)
-    : device_name_(device_name),
+    : audio_manager_(audio_manager),
+      device_name_(device_name),
       params_(params),
       bytes_per_packet_(params.samples_per_packet *
                         (params.channels * params.bits_per_sample) / 8),
@@ -110,8 +112,7 @@ void AlsaPcmInputStream::Start(AudioInputCallback* callback) {
         base::Bind(&AlsaPcmInputStream::ReadAudio, weak_factory_.GetWeakPtr()),
         delay_ms);
 
-    static_cast<AudioManagerLinux*>(AudioManager::GetAudioManager())->
-        IncreaseActiveInputStreamCount();
+    audio_manager_->IncreaseActiveInputStreamCount();
   }
 }
 
@@ -224,8 +225,7 @@ void AlsaPcmInputStream::Stop() {
 
   // Stop is always called before Close. In case of error, this will be
   // also called when closing the input controller.
-  static_cast<AudioManagerLinux*>(AudioManager::GetAudioManager())->
-      DecreaseActiveInputStreamCount();
+  audio_manager_->DecreaseActiveInputStreamCount();
 
   weak_factory_.InvalidateWeakPtrs();  // Cancel the next scheduled read.
   int error = wrapper_->PcmDrop(device_handle_);

@@ -5,8 +5,7 @@
 #ifndef MEDIA_AUDIO_LINUX_AUDIO_MANAGER_LINUX_H_
 #define MEDIA_AUDIO_LINUX_AUDIO_MANAGER_LINUX_H_
 
-#include <set>
-
+#include <string>
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/threading/thread.h"
@@ -61,7 +60,7 @@ class MEDIA_EXPORT AudioManagerLinux : public AudioManagerBase {
 
   scoped_ptr<AlsaWrapper> wrapper_;
 
-  std::set<AudioOutputStream*> active_streams_;
+  size_t active_output_stream_count_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioManagerLinux);
 };

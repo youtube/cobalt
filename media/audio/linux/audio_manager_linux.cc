@@ -56,13 +56,14 @@ AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
   }
 
   if (!initialized()) {
+    // We should never get here since this method is called on the audio thread.
+    NOTREACHED();
     return NULL;
   }
 
   // Don't allow opening more than |kMaxOutputStreams| streams.
-  if (active_streams_.size() >= kMaxOutputStreams) {
+  if (active_output_stream_count_ >= kMaxOutputStreams)
     return NULL;
-  }
 
   AudioOutputStream* stream;
 #if defined(USE_PULSEAUDIO)
@@ -81,15 +82,16 @@ AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
 #if defined(USE_PULSEAUDIO)
   }
 #endif
-  active_streams_.insert(stream);
+  ++active_output_stream_count_;
   return stream;
 }
 
 AudioInputStream* AudioManagerLinux::MakeAudioInputStream(
     const AudioParameters& params, const std::string& device_id) {
   if (!params.IsValid() || params.channels > kMaxInputChannels ||
-      device_id.empty())
+      device_id.empty()) {
     return NULL;
+  }
 
   if (params.format == AudioParameters::AUDIO_MOCK) {
     return FakeAudioInputStream::MakeFakeStream(params);
@@ -107,29 +109,18 @@ AudioInputStream* AudioManagerLinux::MakeAudioInputStream(
         switches::kAlsaInputDevice);
   }
 
-  AlsaPcmInputStream* stream = new AlsaPcmInputStream(
+  AlsaPcmInputStream* stream = new AlsaPcmInputStream(this,
       device_name, params, wrapper_.get());
 
   return stream;
 }
 
-AudioManagerLinux::AudioManagerLinux() {
-}
+AudioManagerLinux::AudioManagerLinux() : active_output_stream_count_(0U) {}
 
 AudioManagerLinux::~AudioManagerLinux() {
-  // Make sure we stop the thread first. If we allow the default destructor to
-  // destroy the members, we may destroy audio streams before stopping the
-  // thread, resulting an unexpected behavior.
-  // This way we make sure activities of the audio streams are all stopped
-  // before we destroy them.
-  audio_thread_.Stop();
-
-  // Free output dispatchers, closing all remaining open streams.
-  output_dispatchers_.clear();
-
-  // Delete all the streams. Have to do it manually, we don't have ScopedSet<>,
-  // and we are not using ScopedVector<> because search there is slow.
-  STLDeleteElements(&active_streams_);
+  Shutdown();
+  // All the streams should have been deleted on the audio thread via Shutdown.
+  CHECK_EQ(active_output_stream_count_, 0U);
 }
 
 void AudioManagerLinux::Init() {
@@ -147,8 +138,9 @@ void AudioManagerLinux::UnMuteAll() {
 
 void AudioManagerLinux::ReleaseOutputStream(AudioOutputStream* stream) {
   if (stream) {
-    active_streams_.erase(stream);
     delete stream;
+    --active_output_stream_count_;
+    DCHECK_GE(active_output_stream_count_, 0U);
   }
 }
 
@@ -324,7 +316,6 @@ bool AudioManagerLinux::HasAnyAlsaAudioDevice(StreamType stream) {
   return has_device;
 }
 
-// static
-AudioManager* AudioManager::CreateAudioManager() {
+AudioManager* CreateAudioManager() {
   return new AudioManagerLinux();
 }

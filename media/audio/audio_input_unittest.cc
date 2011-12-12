@@ -31,7 +31,7 @@ class TestInputCallback : public AudioInputStream::AudioInputCallback {
     if (size) {
       ASSERT_LE(static_cast<int>(size), max_data_bytes_);
       int value = data[0];
-      EXPECT_TRUE(value >= 0);
+      EXPECT_GE(value, 0);
     }
   }
   virtual void OnClose(AudioInputStream* stream) {
@@ -87,20 +87,18 @@ class TestInputCallbackBlocking : public TestInputCallback {
   int block_for_ms_;
 };
 
-static bool CanRunAudioTests() {
-  scoped_ptr<base::Environment> env(base::Environment::Create());
-  if (env->HasVar("CHROME_HEADLESS"))
+static bool CanRunAudioTests(AudioManager* audio_man) {
+  if (NULL == audio_man)
     return false;
 
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  if (NULL == audio_man)
+  scoped_ptr<base::Environment> env(base::Environment::Create());
+  if (env->HasVar("CHROME_HEADLESS"))
     return false;
 
   return audio_man->HasAudioInputDevices();
 }
 
-static AudioInputStream* CreateTestAudioInputStream() {
-  AudioManager* audio_man = AudioManager::GetAudioManager();
+static AudioInputStream* CreateTestAudioInputStream(AudioManager* audio_man) {
   AudioInputStream* ais = audio_man->MakeAudioInputStream(
       AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, CHANNEL_LAYOUT_STEREO,
                       kSamplingRate, 16, kSamplesPerPacket),
@@ -111,9 +109,10 @@ static AudioInputStream* CreateTestAudioInputStream() {
 
 // Test that AudioInputStream rejects out of range parameters.
 TEST(AudioInputTest, SanityOnMakeParams) {
-  if (!CanRunAudioTests())
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
+  if (!CanRunAudioTests(audio_man.get()))
     return;
-  AudioManager* audio_man = AudioManager::GetAudioManager();
+
   AudioParameters::Format fmt = AudioParameters::AUDIO_PCM_LINEAR;
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
       AudioParameters(fmt, CHANNEL_LAYOUT_7POINT1, 8000, 16,
@@ -144,26 +143,29 @@ TEST(AudioInputTest, SanityOnMakeParams) {
 
 // Test create and close of an AudioInputStream without recording audio.
 TEST(AudioInputTest, CreateAndClose) {
-  if (!CanRunAudioTests())
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
+  if (!CanRunAudioTests(audio_man.get()))
     return;
-  AudioInputStream* ais = CreateTestAudioInputStream();
+  AudioInputStream* ais = CreateTestAudioInputStream(audio_man.get());
   ais->Close();
 }
 
 // Test create, open and close of an AudioInputStream without recording audio.
 TEST(AudioInputTest, OpenAndClose) {
-  if (!CanRunAudioTests())
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
+  if (!CanRunAudioTests(audio_man.get()))
     return;
-  AudioInputStream* ais = CreateTestAudioInputStream();
+  AudioInputStream* ais = CreateTestAudioInputStream(audio_man.get());
   EXPECT_TRUE(ais->Open());
   ais->Close();
 }
 
 // Test create, open, stop and close of an AudioInputStream without recording.
 TEST(AudioInputTest, OpenStopAndClose) {
-  if (!CanRunAudioTests())
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
+  if (!CanRunAudioTests(audio_man.get()))
     return;
-  AudioInputStream* ais = CreateTestAudioInputStream();
+  AudioInputStream* ais = CreateTestAudioInputStream(audio_man.get());
   EXPECT_TRUE(ais->Open());
   ais->Stop();
   ais->Close();
@@ -171,10 +173,11 @@ TEST(AudioInputTest, OpenStopAndClose) {
 
 // Test a normal recording sequence using an AudioInputStream.
 TEST(AudioInputTest, Record) {
-  if (!CanRunAudioTests())
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
+  if (!CanRunAudioTests(audio_man.get()))
     return;
   MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
-  AudioInputStream* ais = CreateTestAudioInputStream();
+  AudioInputStream* ais = CreateTestAudioInputStream(audio_man.get());
   EXPECT_TRUE(ais->Open());
 
   TestInputCallback test_callback(kSamplesPerPacket * 4);
@@ -192,10 +195,11 @@ TEST(AudioInputTest, Record) {
 
 // Test a recording sequence with delays in the audio callback.
 TEST(AudioInputTest, RecordWithSlowSink) {
-  if (!CanRunAudioTests())
+  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
+  if (!CanRunAudioTests(audio_man.get()))
     return;
   MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
-  AudioInputStream* ais = CreateTestAudioInputStream();
+  AudioInputStream* ais = CreateTestAudioInputStream(audio_man.get());
   EXPECT_TRUE(ais->Open());
 
   // We should normally get a callback every 50ms, and a 20ms delay inside each

@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -84,9 +84,14 @@ void AudioOutputProxy::Close() {
   DCHECK(state_ == kCreated || state_ == kError || state_ == kOpened);
   DCHECK(!physical_stream_);
 
-  if (state_ != kCreated) {
+  if (state_ != kCreated)
     dispatcher_->StreamClosed();
-  }
-  dispatcher_->message_loop()->DeleteSoon(FROM_HERE, this);
+
   state_ = kClosed;
+
+  // Delete the object now like is done in the Close() implementation of
+  // physical stream objects.  If we delete the object via DeleteSoon, we
+  // unnecessarily complicate the Shutdown procedure of the
+  // dispatcher+audio manager.
+  delete this;
 }

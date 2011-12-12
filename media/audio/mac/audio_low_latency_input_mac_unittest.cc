@@ -84,49 +84,52 @@ class WriteToFileAudioSink : public AudioInputStream::AudioInputCallback {
   size_t bytes_to_write_;
 };
 
-// Convenience method which ensures that we are not running on the build
-// bots and that at least one valid input device can be found.
-static bool CanRunAudioTests() {
-  scoped_ptr<base::Environment> env(base::Environment::Create());
-  if (env->HasVar("CHROME_HEADLESS"))
-    return false;
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  if (NULL == audio_man)
-    return false;
-  return audio_man->HasAudioInputDevices();
-}
+class MacAudioInputTest : public testing::Test {
+ protected:
+  MacAudioInputTest() : audio_manager_(AudioManager::Create()) {}
+  virtual ~MacAudioInputTest() {}
 
-// Convenience method which creates a default AudioInputStream object using
-// a 10ms frame size and a sample rate which is set to the hardware sample rate.
-static AudioInputStream* CreateDefaultAudioInputStream() {
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  int fs = static_cast<int>(AUAudioInputStream::HardwareSampleRate());
-  int samples_per_packet = fs / 100;
-  AudioInputStream* ais = audio_man->MakeAudioInputStream(
-      AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
-      CHANNEL_LAYOUT_STEREO, fs, 16, samples_per_packet),
-      AudioManagerBase::kDefaultDeviceId);
-  EXPECT_TRUE(ais);
-  return ais;
-}
+  // Convenience method which ensures that we are not running on the build
+  // bots and that at least one valid input device can be found.
+  bool CanRunAudioTests() {
+    scoped_ptr<base::Environment> env(base::Environment::Create());
+    if (env->HasVar("CHROME_HEADLESS"))
+      return false;
+    return audio_manager_->HasAudioInputDevices();
+  }
 
-// Convenience method which creates an AudioInputStream object with a specified
-// channel layout.
-static AudioInputStream* CreateAudioInputStream(ChannelLayout channel_layout) {
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  int fs = static_cast<int>(AUAudioInputStream::HardwareSampleRate());
-  int samples_per_packet = fs / 100;
-  AudioInputStream* ais = audio_man->MakeAudioInputStream(
-      AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
-      channel_layout, fs, 16, samples_per_packet),
-      AudioManagerBase::kDefaultDeviceId);
-  EXPECT_TRUE(ais);
-  return ais;
-}
+  // Convenience method which creates a default AudioInputStream object using
+  // a 10ms frame size and a sample rate which is set to the hardware sample
+  // rate.
+  AudioInputStream* CreateDefaultAudioInputStream() {
+    int fs = static_cast<int>(AUAudioInputStream::HardwareSampleRate());
+    int samples_per_packet = fs / 100;
+    AudioInputStream* ais = audio_manager_->MakeAudioInputStream(
+        AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
+        CHANNEL_LAYOUT_STEREO, fs, 16, samples_per_packet),
+        AudioManagerBase::kDefaultDeviceId);
+    EXPECT_TRUE(ais);
+    return ais;
+  }
 
+  // Convenience method which creates an AudioInputStream object with a
+  // specified channel layout.
+  AudioInputStream* CreateAudioInputStream(ChannelLayout channel_layout) {
+    int fs = static_cast<int>(AUAudioInputStream::HardwareSampleRate());
+    int samples_per_packet = fs / 100;
+    AudioInputStream* ais = audio_manager_->MakeAudioInputStream(
+        AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
+        channel_layout, fs, 16, samples_per_packet),
+        AudioManagerBase::kDefaultDeviceId);
+    EXPECT_TRUE(ais);
+    return ais;
+  }
+
+  scoped_refptr<AudioManager> audio_manager_;
+};
 
 // Test Create(), Close().
-TEST(MacAudioInputTest, AUAudioInputStreamCreateAndClose) {
+TEST_F(MacAudioInputTest, AUAudioInputStreamCreateAndClose) {
   if (!CanRunAudioTests())
     return;
   AudioInputStream* ais = CreateDefaultAudioInputStream();
@@ -134,7 +137,7 @@ TEST(MacAudioInputTest, AUAudioInputStreamCreateAndClose) {
 }
 
 // Test Open(), Close().
-TEST(MacAudioInputTest, AUAudioInputStreamOpenAndClose) {
+TEST_F(MacAudioInputTest, AUAudioInputStreamOpenAndClose) {
   if (!CanRunAudioTests())
     return;
   AudioInputStream* ais = CreateDefaultAudioInputStream();
@@ -143,7 +146,7 @@ TEST(MacAudioInputTest, AUAudioInputStreamOpenAndClose) {
 }
 
 // Test Open(), Start(), Close().
-TEST(MacAudioInputTest, AUAudioInputStreamOpenStartAndClose) {
+TEST_F(MacAudioInputTest, AUAudioInputStreamOpenStartAndClose) {
   if (!CanRunAudioTests())
     return;
   AudioInputStream* ais = CreateDefaultAudioInputStream();
@@ -156,7 +159,7 @@ TEST(MacAudioInputTest, AUAudioInputStreamOpenStartAndClose) {
 }
 
 // Test Open(), Start(), Stop(), Close().
-TEST(MacAudioInputTest, AUAudioInputStreamOpenStartStopAndClose) {
+TEST_F(MacAudioInputTest, AUAudioInputStreamOpenStartStopAndClose) {
   if (!CanRunAudioTests())
     return;
   AudioInputStream* ais = CreateDefaultAudioInputStream();
@@ -170,7 +173,7 @@ TEST(MacAudioInputTest, AUAudioInputStreamOpenStartStopAndClose) {
 }
 
 // Test some additional calling sequences.
-TEST(MacAudioInputTest, AUAudioInputStreamMiscCallingSequences) {
+TEST_F(MacAudioInputTest, AUAudioInputStreamMiscCallingSequences) {
   if (!CanRunAudioTests())
     return;
   AudioInputStream* ais = CreateDefaultAudioInputStream();
@@ -200,7 +203,7 @@ TEST(MacAudioInputTest, AUAudioInputStreamMiscCallingSequences) {
 }
 
 // Verify that recording starts and stops correctly in mono using mocked sink.
-TEST(MacAudioInputTest, AUAudioInputStreamVerifyMonoRecording) {
+TEST_F(MacAudioInputTest, AUAudioInputStreamVerifyMonoRecording) {
   if (!CanRunAudioTests())
     return;
 
@@ -234,7 +237,7 @@ TEST(MacAudioInputTest, AUAudioInputStreamVerifyMonoRecording) {
 }
 
 // Verify that recording starts and stops correctly in mono using mocked sink.
-TEST(MacAudioInputTest, AUAudioInputStreamVerifyStereoRecording) {
+TEST_F(MacAudioInputTest, AUAudioInputStreamVerifyStereoRecording) {
   if (!CanRunAudioTests())
     return;
 
@@ -273,7 +276,7 @@ TEST(MacAudioInputTest, AUAudioInputStreamVerifyStereoRecording) {
 // To include disabled tests in test execution, just invoke the test program
 // with --gtest_also_run_disabled_tests or set the GTEST_ALSO_RUN_DISABLED_TESTS
 // environment variable to a value greater than 0.
-TEST(MacAudioInputTest, DISABLED_AUAudioInputStreamRecordToFile) {
+TEST_F(MacAudioInputTest, DISABLED_AUAudioInputStreamRecordToFile) {
   if (!CanRunAudioTests())
     return;
   const char* file_name = "out_stereo_10sec.pcm";
