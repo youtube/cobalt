@@ -71,6 +71,7 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
                          NULL /* dnsrr_resolver */,
                          NULL /* dns_cert_checker */,
                          NULL /* ssl_host_info_factory */,
+                         ""   /* ssl_session_cache_shard */,
                          &socket_factory_,
                          &transport_socket_pool_,
                          NULL,

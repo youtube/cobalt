@@ -183,6 +183,7 @@ class NET_EXPORT_PRIVATE SSLClientSocketPool
       TransportSecurityState* transport_security_state,
       DnsCertProvenanceChecker* dns_cert_checker,
       SSLHostInfoFactory* ssl_host_info_factory,
+      const std::string& ssl_session_cache_shard,
       ClientSocketFactory* client_socket_factory,
       TransportClientSocketPool* transport_pool,
       SOCKSClientSocketPool* socks_pool,

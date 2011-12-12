@@ -66,6 +66,7 @@ class ClientSocketPoolManagerImpl : public base::NonThreadSafe,
                               TransportSecurityState* transport_security_state,
                               DnsCertProvenanceChecker* dns_cert_checker,
                               SSLHostInfoFactory* ssl_host_info_factory,
+                              const std::string& ssl_session_cache_shard,
                               ProxyService* proxy_service,
                               SSLConfigService* ssl_config_service);
   virtual ~ClientSocketPoolManagerImpl();
@@ -112,6 +113,7 @@ class ClientSocketPoolManagerImpl : public base::NonThreadSafe,
   TransportSecurityState* const transport_security_state_;
   DnsCertProvenanceChecker* const dns_cert_checker_;
   SSLHostInfoFactory* const ssl_host_info_factory_;
+  const std::string ssl_session_cache_shard_;
   ProxyService* const proxy_service_;
   const scoped_refptr<SSLConfigService> ssl_config_service_;
 

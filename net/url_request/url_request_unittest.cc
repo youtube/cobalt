@@ -23,6 +23,7 @@
 #include "base/process_util.h"
 #include "base/string_number_conversions.h"
 #include "base/string_piece.h"
+#include "base/string_split.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/utf_string_conversions.h"
@@ -41,9 +42,11 @@
 #include "net/ftp/ftp_network_layer.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_network_layer.h"
+#include "net/http/http_network_session.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
 #include "net/proxy/proxy_service.h"
+#include "net/socket/ssl_client_socket.h"
 #include "net/test/test_server.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_file_dir_job.h"
@@ -1178,6 +1181,152 @@ TEST_F(HTTPSRequestTest, ClientAuthTest) {
     EXPECT_EQ(1, d.response_started_count());
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_NE(0, d.bytes_received());
+  }
+}
+
+TEST_F(HTTPSRequestTest, ResumeTest) {
+  // Test that we attempt a session resume when making two connections to the
+  // same host.
+  TestServer::HTTPSOptions https_options;
+  https_options.record_resume = true;
+  TestServer test_server(https_options,
+                         FilePath(FILE_PATH_LITERAL("net/data/ssl")));
+  ASSERT_TRUE(test_server.Start());
+
+  SSLClientSocket::ClearSessionCache();
+
+  {
+    TestDelegate d;
+    TestURLRequest r(test_server.GetURL("ssl-session-cache"), &d);
+    r.set_context(default_context_);
+
+    r.Start();
+    EXPECT_TRUE(r.is_pending());
+
+    MessageLoop::current()->Run();
+
+    EXPECT_EQ(1, d.response_started_count());
+  }
+
+  reinterpret_cast<HttpCache*>(default_context_->http_transaction_factory())->
+    CloseAllConnections();
+
+  {
+    TestDelegate d;
+    TestURLRequest r(test_server.GetURL("ssl-session-cache"), &d);
+    r.set_context(default_context_);
+
+    r.Start();
+    EXPECT_TRUE(r.is_pending());
+
+    MessageLoop::current()->Run();
+
+    // The response will look like;
+    //   insert abc
+    //   lookup abc
+    //   insert xyz
+    //
+    // With a newline at the end which makes the split think that there are
+    // four lines.
+
+    EXPECT_EQ(1, d.response_started_count());
+    std::vector<std::string> lines;
+    base::SplitString(d.data_received(), '\n', &lines);
+    ASSERT_EQ(4u, lines.size()) << d.data_received();
+
+    std::string session_id;
+
+    for (size_t i = 0; i < 2; i++) {
+      std::vector<std::string> parts;
+      base::SplitString(lines[i], '\t', &parts);
+      ASSERT_EQ(2u, parts.size());
+      if (i == 0) {
+        EXPECT_EQ("insert", parts[0]);
+        session_id = parts[1];
+      } else {
+        EXPECT_EQ("lookup", parts[0]);
+        EXPECT_EQ(session_id, parts[1]);
+      }
+    }
+  }
+}
+
+TEST_F(HTTPSRequestTest, SSLSessionCacheShardTest) {
+  // Test that sessions aren't resumed when the value of ssl_session_cache_shard
+  // differs.
+  TestServer::HTTPSOptions https_options;
+  https_options.record_resume = true;
+  TestServer test_server(https_options,
+                         FilePath(FILE_PATH_LITERAL("net/data/ssl")));
+  ASSERT_TRUE(test_server.Start());
+
+  SSLClientSocket::ClearSessionCache();
+
+  {
+    TestDelegate d;
+    TestURLRequest r(test_server.GetURL("ssl-session-cache"), &d);
+    r.set_context(default_context_);
+
+    r.Start();
+    EXPECT_TRUE(r.is_pending());
+
+    MessageLoop::current()->Run();
+
+    EXPECT_EQ(1, d.response_started_count());
+  }
+
+  // Now create a new HttpCache with a different ssl_session_cache_shard value.
+  HttpNetworkSession::Params params;
+  params.host_resolver = default_context_->host_resolver();
+  params.cert_verifier = default_context_->cert_verifier();
+  params.proxy_service = default_context_->proxy_service();
+  params.ssl_config_service = default_context_->ssl_config_service();
+  params.http_auth_handler_factory =
+      default_context_->http_auth_handler_factory();
+  params.network_delegate = default_context_->network_delegate();
+  params.http_server_properties = default_context_->http_server_properties();
+  params.ssl_session_cache_shard = "alternate";
+
+  scoped_ptr<net::HttpCache> cache(new net::HttpCache(
+      new net::HttpNetworkSession(params),
+      net::HttpCache::DefaultBackend::InMemory(0)));
+
+  default_context_->set_http_transaction_factory(cache.get());
+
+  {
+    TestDelegate d;
+    TestURLRequest r(test_server.GetURL("ssl-session-cache"), &d);
+    r.set_context(default_context_);
+
+    r.Start();
+    EXPECT_TRUE(r.is_pending());
+
+    MessageLoop::current()->Run();
+
+    // The response will look like;
+    //   insert abc
+    //   insert xyz
+    //
+    // With a newline at the end which makes the split think that there are
+    // three lines.
+
+    EXPECT_EQ(1, d.response_started_count());
+    std::vector<std::string> lines;
+    base::SplitString(d.data_received(), '\n', &lines);
+    ASSERT_EQ(3u, lines.size());
+
+    std::string session_id;
+    for (size_t i = 0; i < 2; i++) {
+      std::vector<std::string> parts;
+      base::SplitString(lines[i], '\t', &parts);
+      ASSERT_EQ(2u, parts.size());
+      EXPECT_EQ("insert", parts[0]);
+      if (i == 0) {
+        session_id = parts[1];
+      } else {
+        EXPECT_NE(session_id, parts[1]);
+      }
+    }
   }
 }
 

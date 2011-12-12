@@ -98,6 +98,7 @@ class SSLClientSocketPoolTest : public testing::Test {
         NULL /* dnsrr_resolver */,
         NULL /* dns_cert_checker */,
         NULL /* ssl_host_info_factory */,
+        ""   /* ssl_session_cache_shard */,
         &socket_factory_,
         transport_pool ? &transport_socket_pool_ : NULL,
         socks_pool ? &socks_socket_pool_ : NULL,

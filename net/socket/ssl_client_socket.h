@@ -39,18 +39,24 @@ struct SSLClientSocketContext {
                          OriginBoundCertService* origin_bound_cert_service_arg,
                          TransportSecurityState* transport_security_state_arg,
                          DnsCertProvenanceChecker* dns_cert_checker_arg,
-                         SSLHostInfoFactory* ssl_host_info_factory_arg)
+                         SSLHostInfoFactory* ssl_host_info_factory_arg,
+                         const std::string& ssl_session_cache_shard_arg)
       : cert_verifier(cert_verifier_arg),
         origin_bound_cert_service(origin_bound_cert_service_arg),
         transport_security_state(transport_security_state_arg),
         dns_cert_checker(dns_cert_checker_arg),
-        ssl_host_info_factory(ssl_host_info_factory_arg) {}
+        ssl_host_info_factory(ssl_host_info_factory_arg),
+        ssl_session_cache_shard(ssl_session_cache_shard_arg) {}
 
   CertVerifier* cert_verifier;
   OriginBoundCertService* origin_bound_cert_service;
   TransportSecurityState* transport_security_state;
   DnsCertProvenanceChecker* dns_cert_checker;
   SSLHostInfoFactory* ssl_host_info_factory;
+  // ssl_session_cache_shard is an opaque string that identifies a shard of the
+  // SSL session cache. SSL sockets with the same ssl_session_cache_shard may
+  // resume each other's SSL sessions but we'll never sessions between shards.
+  const std::string ssl_session_cache_shard;
 };
 
 // A client socket that uses SSL as the transport layer.
@@ -119,6 +125,10 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
   static std::string ServerProtosToString(const std::string& server_protos);
 
   static bool IgnoreCertError(int error, int load_flags);
+
+  // ClearSessionCache clears the SSL session cache, used to resume SSL
+  // sessions.
+  static void ClearSessionCache();
 
   virtual bool was_npn_negotiated() const;
 
