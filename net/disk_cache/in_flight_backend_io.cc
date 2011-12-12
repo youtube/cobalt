@@ -384,6 +384,13 @@ void InFlightBackendIO::OpenNextEntry(void** iter, Entry** next_entry,
   PostOperation(operation);
 }
 
+void InFlightBackendIO::OpenNextEntry(void** iter, Entry** next_entry,
+                                      const net::CompletionCallback& callback) {
+  scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
+  operation->OpenNextEntry(iter, next_entry);
+  PostOperation(operation);
+}
+
 void InFlightBackendIO::OpenPrevEntry(void** iter, Entry** prev_entry,
                                       OldCompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
