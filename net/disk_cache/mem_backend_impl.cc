@@ -200,6 +200,14 @@ int MemBackendImpl::OpenNextEntry(void** iter, Entry** next_entry,
   return net::ERR_FAILED;
 }
 
+int MemBackendImpl::OpenNextEntry(void** iter, Entry** next_entry,
+                                  const net::CompletionCallback& callback) {
+  if (OpenNextEntry(iter, next_entry))
+    return net::OK;
+
+  return net::ERR_FAILED;
+}
+
 void MemBackendImpl::EndEnumeration(void** iter) {
   *iter = NULL;
 }
