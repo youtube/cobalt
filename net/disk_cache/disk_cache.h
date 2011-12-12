@@ -98,6 +98,7 @@ class NET_EXPORT Backend {
   // this method returns ERR_IO_PENDING, the |callback| will be invoked when the
   // operation completes.
   virtual int DoomAllEntries(OldCompletionCallback* callback) = 0;
+  virtual int DoomAllEntries(const net::CompletionCallback& callback) = 0;
 
   // Marks a range of entries for deletion. This supports unbounded deletes in
   // either direction by using null Time values for either argument. The return
@@ -106,6 +107,9 @@ class NET_EXPORT Backend {
   virtual int DoomEntriesBetween(const base::Time initial_time,
                                  const base::Time end_time,
                                  OldCompletionCallback* callback) = 0;
+  virtual int DoomEntriesBetween(const base::Time initial_time,
+                                 const base::Time end_time,
+                                 const net::CompletionCallback& callback) = 0;
 
   // Marks all entries accessed since |initial_time| for deletion. The return
   // value is a net error code. If this method returns ERR_IO_PENDING, the

@@ -16,7 +16,21 @@ namespace disk_cache {
 
 BackendIO::BackendIO(InFlightIO* controller, BackendImpl* backend,
                      net::OldCompletionCallback* callback)
-    : BackgroundIO(controller), backend_(backend), callback_(callback),
+    : BackgroundIO(controller),
+      backend_(backend),
+      old_callback_(callback),
+      operation_(OP_NONE),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          my_callback_(this, &BackendIO::OnIOComplete)) {
+  start_time_ = base::TimeTicks::Now();
+}
+
+BackendIO::BackendIO(InFlightIO* controller, BackendImpl* backend,
+                     const net::CompletionCallback& callback)
+    : BackgroundIO(controller),
+      backend_(backend),
+      old_callback_(NULL),
+      callback_(callback),
       operation_(OP_NONE),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           my_callback_(this, &BackendIO::OnIOComplete)) {
@@ -333,9 +347,24 @@ void InFlightBackendIO::DoomAllEntries(OldCompletionCallback* callback) {
   PostOperation(operation);
 }
 
+void InFlightBackendIO::DoomAllEntries(
+    const net::CompletionCallback& callback) {
+  scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
+  operation->DoomAllEntries();
+  PostOperation(operation);
+}
+
 void InFlightBackendIO::DoomEntriesBetween(const base::Time initial_time,
                         const base::Time end_time,
                         OldCompletionCallback* callback) {
+  scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
+  operation->DoomEntriesBetween(initial_time, end_time);
+  PostOperation(operation);
+}
+
+void InFlightBackendIO::DoomEntriesBetween(const base::Time initial_time,
+                        const base::Time end_time,
+                        const net::CompletionCallback& callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->DoomEntriesBetween(initial_time, end_time);
   PostOperation(operation);
@@ -464,8 +493,10 @@ void InFlightBackendIO::OnOperationComplete(BackgroundIO* operation,
     CACHE_UMA(TIMES, "TotalIOTime", 0, op->ElapsedTime());
   }
 
-  if (op->callback() && (!cancel || op->IsEntryOperation()))
-    op->callback()->Run(op->result());
+  if (op->old_callback() && (!cancel || op->IsEntryOperation()))
+    op->old_callback()->Run(op->result());
+  else if (!op->callback().is_null() && (!cancel || op->IsEntryOperation()))
+    op->callback().Run(op->result());
 }
 
 void InFlightBackendIO::PostOperation(BackendIO* operation) {

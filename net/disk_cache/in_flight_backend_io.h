@@ -27,6 +27,8 @@ class BackendIO : public BackgroundIO {
  public:
   BackendIO(InFlightIO* controller, BackendImpl* backend,
             net::OldCompletionCallback* callback);
+  BackendIO(InFlightIO* controller, BackendImpl* backend,
+            const net::CompletionCallback& callback);
 
   // Runs the actual operation on the background thread.
   void ExecuteOperation();
@@ -37,7 +39,8 @@ class BackendIO : public BackgroundIO {
   // Returns true if this operation is directed to an entry (vs. the backend).
   bool IsEntryOperation();
 
-  net::OldCompletionCallback* callback() { return callback_; }
+  net::OldCompletionCallback* old_callback() const { return old_callback_; }
+  net::CompletionCallback callback() const { return callback_; }
 
   // Grabs an extra reference of entry_.
   void ReferenceEntry();
@@ -113,7 +116,8 @@ class BackendIO : public BackgroundIO {
   void ExecuteEntryOperation();
 
   BackendImpl* backend_;
-  net::OldCompletionCallback* callback_;
+  net::OldCompletionCallback* old_callback_;
+  net::CompletionCallback callback_;
   Operation operation_;
   net::OldCompletionCallbackImpl<BackendIO> my_callback_;
 
@@ -153,9 +157,13 @@ class InFlightBackendIO : public InFlightIO {
                    net::OldCompletionCallback* callback);
   void DoomEntry(const std::string& key, net::OldCompletionCallback* callback);
   void DoomAllEntries(net::OldCompletionCallback* callback);
+  void DoomAllEntries(const net::CompletionCallback& callback);
   void DoomEntriesBetween(const base::Time initial_time,
                           const base::Time end_time,
                           net::OldCompletionCallback* callback);
+  void DoomEntriesBetween(const base::Time initial_time,
+                          const base::Time end_time,
+                          const net::CompletionCallback& callback);
   void DoomEntriesSince(const base::Time initial_time,
                         net::OldCompletionCallback* callback);
   void OpenNextEntry(void** iter, Entry** next_entry,
