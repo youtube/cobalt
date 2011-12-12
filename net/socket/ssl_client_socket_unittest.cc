@@ -753,3 +753,9 @@ TEST_F(SSLClientSocketTest, ClientSocketHandleNotFromPool) {
     rv = callback.WaitForResult();
   EXPECT_EQ(net::OK, rv);
 }
+
+// Verifies that SSLClientSocket::ClearSessionCache can be called without
+// explicit NSS initialization.
+TEST(SSLClientSocket, ClearSessionCache) {
+  net::SSLClientSocket::ClearSessionCache();
+}

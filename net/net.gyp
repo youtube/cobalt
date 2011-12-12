@@ -1147,7 +1147,6 @@
         'socket/socks5_client_socket_unittest.cc',
         'socket/socks_client_socket_pool_unittest.cc',
         'socket/socks_client_socket_unittest.cc',
-        'socket/ssl_client_socket_nss_unittest.cc',
         'socket/ssl_client_socket_pool_unittest.cc',
         'socket/ssl_client_socket_unittest.cc',
         'socket/ssl_server_socket_unittest.cc',
@@ -1243,7 +1242,6 @@
               'base/x509_util_nss_unittest.cc',
               'base/cert_database_nss_unittest.cc',
               'base/dnssec_unittest.cc',
-              'socket/ssl_client_socket_nss_unittest.cc',
             ],
           }, {  # else !use_openssl: remove the unneeded files
             'sources!': [

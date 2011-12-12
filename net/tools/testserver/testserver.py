@@ -68,6 +68,20 @@ def debug(str):
   debug_output.write(str + "\n")
   debug_output.flush()
 
+class RecordingSSLSessionCache(object):
+  """RecordingSSLSessionCache acts as a TLS session cache and maintains a log of
+  lookups and inserts in order to test session cache behaviours."""
+
+  def __init__(self):
+    self.log = []
+
+  def __getitem__(self, sessionID):
+    self.log.append(('lookup', sessionID))
+    raise KeyError()
+
+  def __setitem__(self, sessionID, session):
+    self.log.append(('insert', sessionID))
+
 class StoppableHTTPServer(BaseHTTPServer.HTTPServer):
   """This is a specialization of of BaseHTTPServer to allow it
   to be exited cleanly (by setting its "stop" member to True)."""
@@ -83,7 +97,8 @@ class HTTPSServer(tlslite.api.TLSSocketServerMixIn, StoppableHTTPServer):
   """This is a specialization of StoppableHTTPerver that add https support."""
 
   def __init__(self, server_address, request_hander_class, cert_path,
-               ssl_client_auth, ssl_client_cas, ssl_bulk_ciphers):
+               ssl_client_auth, ssl_client_cas, ssl_bulk_ciphers,
+               record_resume_info):
     s = open(cert_path).read()
     x509 = tlslite.api.X509()
     x509.parse(s)
@@ -101,7 +116,12 @@ class HTTPSServer(tlslite.api.TLSSocketServerMixIn, StoppableHTTPServer):
     if ssl_bulk_ciphers is not None:
       self.ssl_handshake_settings.cipherNames = ssl_bulk_ciphers
 
-    self.session_cache = tlslite.api.SessionCache()
+    if record_resume_info:
+      # If record_resume_info is true then we'll replace the session cache with
+      # an object that records the lookups and inserts that it sees.
+      self.session_cache = RecordingSSLSessionCache()
+    else:
+      self.session_cache = tlslite.api.SessionCache()
     StoppableHTTPServer.__init__(self, server_address, request_hander_class)
 
   def handshake(self, tlsConnection):
@@ -357,6 +377,7 @@ class TestPageHandler(BasePageHandler):
       self.ClientRedirectHandler,
       self.MultipartHandler,
       self.MultipartSlowHandler,
+      self.GetSSLSessionCacheHandler,
       self.DefaultResponseHandler]
     post_handlers = [
       self.EchoTitleHandler,
@@ -1380,6 +1401,23 @@ class TestPageHandler(BasePageHandler):
     self.wfile.write('--' + bound + '--')
     return True
 
+  def GetSSLSessionCacheHandler(self):
+    """Send a reply containing a log of the session cache operations."""
+
+    if not self._ShouldHandleRequest('/ssl-session-cache'):
+      return False
+
+    self.send_response(200)
+    self.send_header('Content-Type', 'text/plain')
+    self.end_headers()
+    try:
+      for (action, sessionID) in self.server.session_cache.log:
+        self.wfile.write('%s\t%s\n' % (action, sessionID.encode('hex')))
+    except AttributeError, e:
+      self.wfile.write('Pass --https-record-resume in order to use' +
+                       ' this request')
+    return True
+
   def DefaultResponseHandler(self):
     """This is the catch-all response handler for requests that aren't handled
     by one of the special handlers above.
@@ -1805,7 +1843,7 @@ def main(options, args):
           return
       server = HTTPSServer(('127.0.0.1', port), TestPageHandler, options.cert,
                            options.ssl_client_auth, options.ssl_client_ca,
-                           options.ssl_bulk_cipher)
+                           options.ssl_bulk_cipher, options.record_resume)
       print 'HTTPS server started on port %d...' % server.server_port
     else:
       server = StoppableHTTPServer(('127.0.0.1', port), TestPageHandler)
@@ -1921,6 +1959,11 @@ if __name__ == '__main__':
                            help='Specify that https should be used, specify '
                            'the path to the cert containing the private key '
                            'the server should use.')
+  option_parser.add_option('', '--https-record-resume', dest='record_resume',
+                           const=True, default=False, action='store_const',
+                           help='Record resumption cache events rather than'
+                           ' resuming as normal. Allows the use of the'
+                           ' /ssl-session-cache request')
   option_parser.add_option('', '--ssl-client-auth', action='store_true',
                            help='Require SSL client auth on every connection.')
   option_parser.add_option('', '--ssl-client-ca', action='append', default=[],
