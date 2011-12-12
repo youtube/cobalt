@@ -450,6 +450,7 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       ob_cert_request_handle_(NULL),
       handshake_callback_called_(false),
       completed_handshake_(false),
+      ssl_session_cache_shard_(context.ssl_session_cache_shard),
       eset_mitm_detected_(false),
       kaspersky_mitm_detected_(false),
       predicted_cert_chain_correct_(false),
@@ -471,7 +472,7 @@ SSLClientSocketNSS::~SSLClientSocketNSS() {
 }
 
 // static
-void SSLClientSocketNSS::ClearSessionCache() {
+void SSLClientSocket::ClearSessionCache() {
   // SSL_ClearSessionCache can't be called before NSS is initialized.  Don't
   // bother initializing NSS just to clear an empty SSL session cache.
   if (!NSS_IsInitialized())
@@ -1044,6 +1045,13 @@ int SSLClientSocketNSS::InitializeSSLPeerName() {
   // SSL tunnel through a proxy -- GetPeerName returns the proxy's address
   // rather than the destination server's address in that case.
   std::string peer_id = host_and_port_.ToString();
+  // If the ssl_session_cache_shard_ is non-empty, we append it to the peer id.
+  // This will cause session cache misses between sockets with different values
+  // of ssl_session_cache_shard_ and this is used to partition the session cache
+  // for incognito mode.
+  if (!ssl_session_cache_shard_.empty()) {
+    peer_id += "/" + ssl_session_cache_shard_;
+  }
   SECStatus rv = SSL_SetSockPeerID(nss_fd_, const_cast<char*>(peer_id.c_str()));
   if (rv != SECSuccess)
     LogFailedNSSFunction(net_log_, "SSL_SetSockPeerID", peer_id.c_str());

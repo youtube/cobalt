@@ -452,6 +452,7 @@ SSLClientSocketPool::SSLClientSocketPool(
     TransportSecurityState* transport_security_state,
     DnsCertProvenanceChecker* dns_cert_checker,
     SSLHostInfoFactory* ssl_host_info_factory,
+    const std::string& ssl_session_cache_shard,
     ClientSocketFactory* client_socket_factory,
     TransportClientSocketPool* transport_pool,
     SOCKSClientSocketPool* socks_pool,
@@ -474,7 +475,8 @@ SSLClientSocketPool::SSLClientSocketPool(
                                          origin_bound_cert_service,
                                          transport_security_state,
                                          dns_cert_checker,
-                                         ssl_host_info_factory),
+                                         ssl_host_info_factory,
+                                         ssl_session_cache_shard),
                                      net_log)),
       ssl_config_service_(ssl_config_service) {
   if (ssl_config_service_)

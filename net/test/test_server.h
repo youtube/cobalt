@@ -103,6 +103,11 @@ class TestServer {
     // HTTPS server, or BULK_CIPHER_ANY to indicate that all implemented
     // ciphers are acceptable.
     int bulk_ciphers;
+
+    // If true, pass the --https-record-resume argument to testserver.py which
+    // causes it to log session cache actions and echo the log on
+    // /ssl-session-cache.
+    bool record_resume;
   };
 
   TestServer(Type type, const FilePath& document_root);
