@@ -62,7 +62,8 @@ void CertDatabase::ListModules(CryptoModuleList* modules, bool need_rw) const {
 int CertDatabase::ImportFromPKCS12(CryptoModule* module,
                                    const std::string& data,
                                    const string16& password,
-                                   bool is_extractable) {
+                                   bool is_extractable,
+                                   CertificateList* imported_certs) {
   // TODO(bulach): implement me.
   NOTIMPLEMENTED();
   return ERR_NOT_IMPLEMENTED;
