@@ -82,13 +82,6 @@ bool CertDatabase::DeleteCertAndKey(const X509Certificate* cert) {
   return false;
 }
 
-bool CertDatabase::DeleteCertAndKeyByLabel(const std::string& label) {
-  // TODO(gspencer):Find the certificate with the given label
-  // (nickname), and delete it.
-  NOTIMPLEMENTED();
-  return false;
-}
-
 CertDatabase::TrustBits CertDatabase::GetCertTrust(const X509Certificate* cert,
                                                    CertType type) const {
   // TODO(bulach): implement me.
