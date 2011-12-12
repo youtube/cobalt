@@ -265,13 +265,24 @@ std::string DhcpProxyScriptAdapterFetcher::GetPacURLFromDhcp(
     LOG(INFO) << "Error fetching PAC URL from DHCP: " << res;
     UMA_HISTOGRAM_COUNTS("Net.DhcpWpadUnhandledDhcpError", 1);
   } else if (wpad_params.nBytesData) {
-    // The result should be ASCII, not wide character.
-    DCHECK_EQ(strlen(reinterpret_cast<const char*>(wpad_params.Data)) + 1,
-              wpad_params.nBytesData);
-    // Return only up to the first null in case of embedded NULLs; if the
-    // server is giving us back a buffer with embedded NULLs, something is
-    // broken anyway.
-    return std::string(reinterpret_cast<const char *>(wpad_params.Data));
+#ifndef NDEBUG
+    // The result should be ASCII, not wide character.  Some DHCP
+    // servers appear to count the trailing NULL in nBytesData, others
+    // do not.
+    size_t count_without_null =
+        strlen(reinterpret_cast<const char*>(wpad_params.Data));
+    DCHECK(count_without_null == wpad_params.nBytesData ||
+           count_without_null + 1 == wpad_params.nBytesData);
+#endif
+    // Belt and suspenders: First, ensure we NULL-terminate after
+    // nBytesData; this is the inner constructor with nBytesData as a
+    // parameter.  Then, return only up to the first null in case of
+    // embedded NULLs; this is the outer constructor that takes the
+    // result of c_str() on the inner.  If the server is giving us
+    // back a buffer with embedded NULLs, something is broken anyway.
+    return std::string(
+        std::string(reinterpret_cast<const char *>(wpad_params.Data),
+                    wpad_params.nBytesData).c_str());
   }
 
   return "";
