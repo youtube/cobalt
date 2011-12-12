@@ -131,6 +131,8 @@ class NET_EXPORT Backend {
   // therefore it does not impact the eviction ranking of the entry.
   virtual int OpenNextEntry(void** iter, Entry** next_entry,
                             OldCompletionCallback* callback) = 0;
+  virtual int OpenNextEntry(void** iter, Entry** next_entry,
+                            const net::CompletionCallback& callback) = 0;
 
   // Releases iter without returning the next entry. Whenever OpenNextEntry()
   // returns true, but the caller is not interested in continuing the
