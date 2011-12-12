@@ -9,4 +9,4 @@ for more details on the presubmit API built into gcl.
 """
 
 def GetPreferredTrySlaves():
-  return ['win', 'linux', 'mac', 'win_sync', 'linux_sync', 'mac_sync']
+  return ['win_sync', 'linux_sync', 'mac_sync']
