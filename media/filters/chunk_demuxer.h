@@ -81,18 +81,13 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // found.
   bool SetupStreams();
 
-  // Parse a cluster and add the buffers to the appropriate DemuxerStream. This
-  // method also skips over CUES elements if it happens to encounter them.
-  //
-  // |data| is expected to point to the beginning of an element.
-  //
-  // |buffers_added| - Indicates whether Buffers were added to DemuxerStreams
-  //   during the call. This is only valid if the return value > 0.
+  // Parse a cluster add add the buffers to the appropriate DemxuerStream.
+  // |data| is expected to point to the beginning of a cluster element.
   //
   // Returns -1 if the parse fails.
   // Returns 0 if more data is needed.
   // Returns the number of bytes parsed on success.
-  int ParseCluster_Locked(const uint8* data, int size, bool* buffers_added);
+  int ParseCluster_Locked(const uint8* data, int size);
 
   // Reports an error and puts the demuxer in a state where it won't accept more
   // data.
