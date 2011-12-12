@@ -7,7 +7,6 @@
 #include "base/base_switches.h"
 #include "base/bind.h"
 #include "base/bind_helpers.h"
-#include "base/build_time.h"
 #include "base/command_line.h"
 #include "base/compiler_specific.h"
 #include "base/file_util.h"
@@ -30,7 +29,6 @@
 #include "net/base/sdch_manager.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_config_service.h"
-#include "net/base/transport_security_state.h"
 #include "net/http/http_mac_signature.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
@@ -661,53 +659,19 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
   // Clear the IO_PENDING status
   SetStatus(URLRequestStatus());
 
-#if defined(OFFICIAL_BUILD) && !defined(OS_ANDROID)
-  // Take care of any mandates for public key pinning.
-  //
-  // Pinning is only enabled for official builds to make sure that others don't
-  // end up with pins that cannot be easily updated.
-  //
-  // TODO(agl): we might have an issue here where a request for foo.example.com
-  // merges into a SPDY connection to www.example.com, and gets a different
-  // certificate.
-  if (transaction_->GetResponseInfo() != NULL) {
-    const SSLInfo& ssl_info = transaction_->GetResponseInfo()->ssl_info;
-    if (ssl_info.is_valid() &&
-        (result == OK || (IsCertificateError(result) &&
-                          IsCertStatusMinorError(ssl_info.cert_status))) &&
-        ssl_info.is_issued_by_known_root &&
-        context_->transport_security_state()) {
-      TransportSecurityState::DomainState domain_state;
+  if (result == ERR_SSL_PINNED_KEY_NOT_IN_CERT_CHAIN &&
+      transaction_->GetResponseInfo() != NULL) {
+    FraudulentCertificateReporter* reporter =
+      context_->fraudulent_certificate_reporter();
+    if (reporter != NULL) {
+      const SSLInfo& ssl_info = transaction_->GetResponseInfo()->ssl_info;
       bool sni_available = SSLConfigService::IsSNIAvailable(
           context_->ssl_config_service());
-      std::string host = request_->url().host();
+      const std::string& host = request_->url().host();
 
-      if (context_->transport_security_state()->HasPinsForHost(
-              &domain_state, host, sni_available)) {
-        if (!domain_state.IsChainOfPublicKeysPermitted(
-                ssl_info.public_key_hashes)) {
-          const base::Time build_time = base::GetBuildTime();
-          // Pins are not enforced if the build is sufficiently old. Chrome
-          // users should get updates every six weeks or so, but it's possible
-          // that some users will stop getting updates for some reason. We
-          // don't want those users building up as a pool of people with bad
-          // pins.
-          if ((base::Time::Now() - build_time).InDays() < 70 /* 10 weeks */) {
-            result = ERR_SSL_PINNED_KEY_NOT_IN_CERT_CHAIN;
-            UMA_HISTOGRAM_BOOLEAN("Net.PublicKeyPinSuccess", false);
-            TransportSecurityState::ReportUMAOnPinFailure(host);
-            FraudulentCertificateReporter* reporter =
-                context_->fraudulent_certificate_reporter();
-            if (reporter != NULL)
-              reporter->SendReport(host, ssl_info, sni_available);
-          }
-        } else {
-          UMA_HISTOGRAM_BOOLEAN("Net.PublicKeyPinSuccess", true);
-        }
-      }
+      reporter->SendReport(host, ssl_info, sni_available);
     }
   }
-#endif
 
   if (result == OK) {
     scoped_refptr<HttpResponseHeaders> headers = GetResponseHeaders();
