@@ -277,6 +277,8 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
                                OldCompletionCallback* callback) OVERRIDE;
   virtual int OpenNextEntry(void** iter, Entry** next_entry,
                             OldCompletionCallback* callback) OVERRIDE;
+  virtual int OpenNextEntry(void** iter, Entry** next_entry,
+                            const net::CompletionCallback& callback) OVERRIDE;
   virtual void EndEnumeration(void** iter) OVERRIDE;
   virtual void GetStats(StatsItems* stats) OVERRIDE;
   virtual void OnExternalCacheHit(const std::string& key) OVERRIDE;
