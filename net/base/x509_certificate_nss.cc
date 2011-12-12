@@ -6,6 +6,7 @@
 
 #include <cert.h>
 #include <cryptohi.h>
+#include <keyhi.h>
 #include <nss.h>
 #include <pk11pub.h>
 #include <prerror.h>
@@ -685,6 +686,90 @@ void X509Certificate::Initialize() {
 }
 
 // static
+X509Certificate* X509Certificate::CreateFromBytesWithNickname(
+    const char* data,
+    int length,
+    const char* nickname) {
+  OSCertHandle cert_handle = CreateOSCertHandleFromBytesWithNickname(data,
+                                                                     length,
+                                                                     nickname);
+  if (!cert_handle)
+    return NULL;
+
+  X509Certificate* cert = CreateFromHandle(cert_handle, OSCertHandles());
+  FreeOSCertHandle(cert_handle);
+
+  if (nickname)
+    cert->default_nickname_ = nickname;
+
+  return cert;
+}
+
+std::string X509Certificate::GetDefaultNickname(CertType type) const {
+  if (!default_nickname_.empty())
+    return default_nickname_;
+
+  std::string result;
+  if (type == USER_CERT) {
+    // Find the private key for this certificate and see if it has a
+    // nickname.  If there is a private key, and it has a nickname, then
+    // we return that nickname.
+    SECKEYPrivateKey* private_key = PK11_FindPrivateKeyFromCert(
+        cert_handle_->slot,
+        cert_handle_,
+        NULL);  // wincx
+    if (private_key) {
+      char* private_key_nickname = PK11_GetPrivateKeyNickname(private_key);
+      if (private_key_nickname) {
+        result = private_key_nickname;
+        PORT_Free(private_key_nickname);
+        SECKEY_DestroyPrivateKey(private_key);
+        return result;
+      }
+      SECKEY_DestroyPrivateKey(private_key);
+    }
+  }
+
+  switch (type) {
+    case CA_CERT: {
+      char* nickname = CERT_MakeCANickname(cert_handle_);
+      result = nickname;
+      PORT_Free(nickname);
+      break;
+    }
+    case USER_CERT: {
+      // Create a nickname for a user certificate.
+      // We use the scheme used by Firefox:
+      // --> <subject's common name>'s <issuer's common name> ID.
+      // TODO(gspencer): internationalize this: it's wrong to
+      // hard code English.
+
+      std::string username, ca_name;
+      char* temp_username = CERT_GetCommonName(
+          &cert_handle_->subject);
+      char* temp_ca_name = CERT_GetCommonName(&cert_handle_->issuer);
+      if (temp_username) {
+        username = temp_username;
+        PORT_Free(temp_username);
+      }
+      if (temp_ca_name) {
+        ca_name = temp_ca_name;
+        PORT_Free(temp_ca_name);
+      }
+      result = username + "'s " + ca_name + " ID";
+      break;
+    }
+    case SERVER_CERT:
+      result = subject_.GetDisplayName();
+      break;
+    case UNKNOWN_CERT:
+    default:
+      break;
+  }
+  return result;
+}
+
+// static
 X509Certificate* X509Certificate::CreateSelfSigned(
     crypto::RSAPrivateKey* key,
     const std::string& subject,
@@ -922,6 +1007,15 @@ bool X509Certificate::IsSameOSCert(X509Certificate::OSCertHandle a,
 // static
 X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
     const char* data, int length) {
+  return CreateOSCertHandleFromBytesWithNickname(data, length, NULL);
+}
+
+// static
+X509Certificate::OSCertHandle
+X509Certificate::CreateOSCertHandleFromBytesWithNickname(
+    const char* data,
+    int length,
+    const char* nickname) {
   if (length < 0)
     return NULL;
 
@@ -936,13 +1030,16 @@ X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
   der_cert.type = siDERCertBuffer;
 
   // Parse into a certificate structure.
-  return CERT_NewTempCertificate(CERT_GetDefaultCertDB(), &der_cert, NULL,
+  return CERT_NewTempCertificate(CERT_GetDefaultCertDB(), &der_cert,
+                                 const_cast<char*>(nickname),
                                  PR_FALSE, PR_TRUE);
 }
 
 // static
 X509Certificate::OSCertHandles X509Certificate::CreateOSCertHandlesFromBytes(
-    const char* data, int length, Format format) {
+    const char* data,
+    int length,
+    Format format) {
   OSCertHandles results;
   if (length < 0)
     return results;

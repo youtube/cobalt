@@ -80,14 +80,12 @@ bool ImportCACerts(const net::CertificateList& certificates,
     // Mozilla uses CERT_AddTempCertToPerm, however it is privately exported,
     // and it doesn't take the slot as an argument either.  Instead, we use
     // PK11_ImportCert and CERT_ChangeCertTrust.
-    char* nickname = CERT_MakeCANickname(root->os_cert_handle());
-    if (!nickname)
-      return false;
-    SECStatus srv = PK11_ImportCert(slot.get(), root->os_cert_handle(),
-                                    CK_INVALID_HANDLE,
-                                    nickname,
-                                    PR_FALSE /* includeTrust (unused) */);
-    PORT_Free(nickname);
+    SECStatus srv = PK11_ImportCert(
+        slot.get(),
+        root->os_cert_handle(),
+        CK_INVALID_HANDLE,
+        root->GetDefaultNickname(net::CA_CERT).c_str(),
+        PR_FALSE /* includeTrust (unused) */);
     if (srv != SECSuccess) {
       LOG(ERROR) << "PK11_ImportCert failed with error " << PORT_GetError();
       return false;
@@ -139,14 +137,12 @@ bool ImportCACerts(const net::CertificateList& certificates,
 
     // Mozilla uses CERT_ImportCerts, which doesn't take a slot arg.  We use
     // PK11_ImportCert instead.
-    char* nickname = CERT_MakeCANickname(cert->os_cert_handle());
-    if (!nickname)
-      return false;
-    SECStatus srv = PK11_ImportCert(slot.get(), cert->os_cert_handle(),
-                                    CK_INVALID_HANDLE,
-                                    nickname,
-                                    PR_FALSE /* includeTrust (unused) */);
-    PORT_Free(nickname);
+    SECStatus srv = PK11_ImportCert(
+        slot.get(),
+        cert->os_cert_handle(),
+        CK_INVALID_HANDLE,
+        cert->GetDefaultNickname(net::CA_CERT).c_str(),
+        PR_FALSE /* includeTrust (unused) */);
     if (srv != SECSuccess) {
       LOG(ERROR) << "PK11_ImportCert failed with error " << PORT_GetError();
       // TODO(mattm): Should we bail or continue on error here?  Mozilla doesn't
@@ -174,10 +170,12 @@ bool ImportServerCert(const net::CertificateList& certificates,
 
     // Mozilla uses CERT_ImportCerts, which doesn't take a slot arg.  We use
     // PK11_ImportCert instead.
-    SECStatus srv = PK11_ImportCert(slot.get(), cert->os_cert_handle(),
-                                    CK_INVALID_HANDLE,
-                                    cert->subject().GetDisplayName().c_str(),
-                                    PR_FALSE /* includeTrust (unused) */);
+    SECStatus srv = PK11_ImportCert(
+        slot.get(),
+        cert->os_cert_handle(),
+        CK_INVALID_HANDLE,
+        cert->GetDefaultNickname(net::SERVER_CERT).c_str(),
+        PR_FALSE /* includeTrust (unused) */);
     if (srv != SECSuccess) {
       LOG(ERROR) << "PK11_ImportCert failed with error " << PORT_GetError();
       not_imported->push_back(net::CertDatabase::ImportCertFailure(
