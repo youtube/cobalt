@@ -130,6 +130,10 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   // MessagePump implementation for 'TYPE_UI'.
   static void InitMessagePumpForUIFactory(MessagePumpFactory* factory);
 
+#if defined(__LB_PS3__)
+  inline int Size() const { return work_queue_.size() + delayed_work_queue_.size() + deferred_non_nestable_work_queue_.size() + incoming_queue_.size(); }
+#endif
+
   // A DestructionObserver is notified when the current MessageLoop is being
   // destroyed.  These obsevers are notified prior to MessageLoop::current()
   // being changed to return NULL.  This gives interested parties the chance to
