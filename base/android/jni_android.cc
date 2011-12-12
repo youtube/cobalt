@@ -6,7 +6,6 @@
 
 #include <map>
 
-#include "base/android/scoped_java_ref.h"
 #include "base/atomicops.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
@@ -55,7 +54,6 @@ namespace android {
 JNIEnv* AttachCurrentThread() {
   if (!g_jvm)
     return NULL;
-
   JNIEnv* env = NULL;
   jint ret = g_jvm->AttachCurrentThread(&env, NULL);
   DCHECK_EQ(ret, JNI_OK);
@@ -74,9 +72,9 @@ void InitVM(JavaVM* vm) {
   g_jvm = vm;
 }
 
-void InitApplicationContext(jobject context) {
+void InitApplicationContext(const JavaRef<jobject>& context) {
   DCHECK(!g_application_context);
-  g_application_context = context;
+  g_application_context = context.env()->NewGlobalRef(context.obj());
 }
 
 jobject GetApplicationContext() {
