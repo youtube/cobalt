@@ -71,7 +71,7 @@ class SQL_EXPORT MetaTable {
  private:
   // Conveniences to prepare the two types of statements used by
   // MetaTableHelper.
-  bool PrepareSetStatement(Statement* statement, const char* key);
+  void PrepareSetStatement(Statement* statement, const char* key);
   bool PrepareGetStatement(Statement* statement, const char* key);
 
   Connection* db_;

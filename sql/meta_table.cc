@@ -51,8 +51,7 @@ void MetaTable::Reset() {
 
 bool MetaTable::SetValue(const char* key, const std::string& value) {
   Statement s;
-  if (!PrepareSetStatement(&s, key))
-    return false;
+  PrepareSetStatement(&s, key);
   s.BindString(1, value);
   return s.Run();
 }
@@ -68,9 +67,7 @@ bool MetaTable::GetValue(const char* key, std::string* value) {
 
 bool MetaTable::SetValue(const char* key, int value) {
   Statement s;
-  if (!PrepareSetStatement(&s, key))
-    return false;
-
+  PrepareSetStatement(&s, key);
   s.BindInt(1, value);
   return s.Run();
 }
@@ -86,8 +83,7 @@ bool MetaTable::GetValue(const char* key, int* value) {
 
 bool MetaTable::SetValue(const char* key, int64 value) {
   Statement s;
-  if (!PrepareSetStatement(&s, key))
-    return false;
+  PrepareSetStatement(&s, key);
   s.BindInt64(1, value);
   return s.Run();
 }
@@ -123,26 +119,17 @@ int MetaTable::GetCompatibleVersionNumber() {
   return version;
 }
 
-bool MetaTable::PrepareSetStatement(Statement* statement, const char* key) {
+void MetaTable::PrepareSetStatement(Statement* statement, const char* key) {
   DCHECK(db_ && statement);
   statement->Assign(db_->GetCachedStatement(SQL_FROM_HERE,
       "INSERT OR REPLACE INTO meta (key,value) VALUES (?,?)"));
-  if (!statement->is_valid()) {
-    NOTREACHED() << db_->GetErrorMessage();
-    return false;
-  }
   statement->BindCString(0, key);
-  return true;
 }
 
 bool MetaTable::PrepareGetStatement(Statement* statement, const char* key) {
   DCHECK(db_ && statement);
   statement->Assign(db_->GetCachedStatement(SQL_FROM_HERE,
       "SELECT value FROM meta WHERE key=?"));
-  if (!statement->is_valid()) {
-    NOTREACHED() << db_->GetErrorMessage();
-    return false;
-  }
   statement->BindCString(0, key);
   if (!statement->Step())
     return false;
