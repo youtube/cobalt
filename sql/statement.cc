@@ -35,15 +35,23 @@ void Statement::Assign(scoped_refptr<Connection::StatementRef> ref) {
   ref_ = ref;
 }
 
-bool Statement::Run() {
+bool Statement::CheckValid() const {
   if (!is_valid())
+    DLOG(FATAL) << "Cannot call mutating statements on an invalid statement.";
+  return is_valid();
+}
+
+bool Statement::Run() {
+  if (!CheckValid())
     return false;
+
   return CheckError(sqlite3_step(ref_->stmt())) == SQLITE_DONE;
 }
 
 bool Statement::Step() {
-  if (!is_valid())
+  if (!CheckValid())
     return false;
+
   return CheckError(sqlite3_step(ref_->stmt())) == SQLITE_ROW;
 }
 
@@ -55,21 +63,22 @@ void Statement::Reset() {
     sqlite3_clear_bindings(ref_->stmt());
     sqlite3_reset(ref_->stmt());
   }
+
   succeeded_ = false;
 }
 
 bool Statement::Succeeded() const {
   if (!is_valid())
     return false;
+
   return succeeded_;
 }
 
 bool Statement::BindNull(int col) {
-  if (is_valid()) {
-    int err = CheckError(sqlite3_bind_null(ref_->stmt(), col + 1));
-    return err == SQLITE_OK;
-  }
-  return false;
+  if (!is_valid())
+    return false;
+
+  return CheckOk(sqlite3_bind_null(ref_->stmt(), col + 1));
 }
 
 bool Statement::BindBool(int col, bool val) {
@@ -77,45 +86,43 @@ bool Statement::BindBool(int col, bool val) {
 }
 
 bool Statement::BindInt(int col, int val) {
-  if (is_valid()) {
-    int err = CheckError(sqlite3_bind_int(ref_->stmt(), col + 1, val));
-    return err == SQLITE_OK;
-  }
-  return false;
+  if (!is_valid())
+    return false;
+
+  return CheckOk(sqlite3_bind_int(ref_->stmt(), col + 1, val));
 }
 
 bool Statement::BindInt64(int col, int64 val) {
-  if (is_valid()) {
-    int err = CheckError(sqlite3_bind_int64(ref_->stmt(), col + 1, val));
-    return err == SQLITE_OK;
-  }
-  return false;
+  if (!is_valid())
+    return false;
+
+  return CheckOk(sqlite3_bind_int64(ref_->stmt(), col + 1, val));
 }
 
 bool Statement::BindDouble(int col, double val) {
-  if (is_valid()) {
-    int err = CheckError(sqlite3_bind_double(ref_->stmt(), col + 1, val));
-    return err == SQLITE_OK;
-  }
-  return false;
+  if (!is_valid())
+    return false;
+
+  return CheckOk(sqlite3_bind_double(ref_->stmt(), col + 1, val));
 }
 
 bool Statement::BindCString(int col, const char* val) {
-  if (is_valid()) {
-    int err = CheckError(sqlite3_bind_text(ref_->stmt(), col + 1, val, -1,
-                         SQLITE_TRANSIENT));
-    return err == SQLITE_OK;
-  }
-  return false;
+  if (!is_valid())
+    return false;
+
+  return CheckOk(
+      sqlite3_bind_text(ref_->stmt(), col + 1, val, -1, SQLITE_TRANSIENT));
 }
 
 bool Statement::BindString(int col, const std::string& val) {
-  if (is_valid()) {
-    int err = CheckError(sqlite3_bind_text(ref_->stmt(), col + 1, val.data(),
-                                           val.size(), SQLITE_TRANSIENT));
-    return err == SQLITE_OK;
-  }
-  return false;
+  if (!is_valid())
+    return false;
+
+  return CheckOk(sqlite3_bind_text(ref_->stmt(),
+                                   col + 1,
+                                   val.data(),
+                                   val.size(),
+                                   SQLITE_TRANSIENT));
 }
 
 bool Statement::BindString16(int col, const string16& value) {
@@ -123,19 +130,17 @@ bool Statement::BindString16(int col, const string16& value) {
 }
 
 bool Statement::BindBlob(int col, const void* val, int val_len) {
-  if (is_valid()) {
-    int err = CheckError(sqlite3_bind_blob(ref_->stmt(), col + 1,
-                         val, val_len, SQLITE_TRANSIENT));
-    return err == SQLITE_OK;
-  }
-  return false;
+  if (!is_valid())
+    return false;
+
+  return CheckOk(
+      sqlite3_bind_blob(ref_->stmt(), col + 1, val, val_len, SQLITE_TRANSIENT));
 }
 
 int Statement::ColumnCount() const {
-  if (!is_valid()) {
-    NOTREACHED();
+  if (!is_valid())
     return 0;
-  }
+
   return sqlite3_column_count(ref_->stmt());
 }
 
@@ -155,34 +160,30 @@ bool Statement::ColumnBool(int col) const {
 }
 
 int Statement::ColumnInt(int col) const {
-  if (!is_valid()) {
-    NOTREACHED();
+  if (!CheckValid())
     return 0;
-  }
+
   return sqlite3_column_int(ref_->stmt(), col);
 }
 
 int64 Statement::ColumnInt64(int col) const {
-  if (!is_valid()) {
-    NOTREACHED();
+  if (!CheckValid())
     return 0;
-  }
+
   return sqlite3_column_int64(ref_->stmt(), col);
 }
 
 double Statement::ColumnDouble(int col) const {
-  if (!is_valid()) {
-    NOTREACHED();
+  if (!CheckValid())
     return 0;
-  }
+
   return sqlite3_column_double(ref_->stmt(), col);
 }
 
 std::string Statement::ColumnString(int col) const {
-  if (!is_valid()) {
-    NOTREACHED();
+  if (!CheckValid())
     return "";
-  }
+
   const char* str = reinterpret_cast<const char*>(
       sqlite3_column_text(ref_->stmt(), col));
   int len = sqlite3_column_bytes(ref_->stmt(), col);
@@ -194,36 +195,31 @@ std::string Statement::ColumnString(int col) const {
 }
 
 string16 Statement::ColumnString16(int col) const {
-  if (!is_valid()) {
-    NOTREACHED();
+  if (!CheckValid())
     return string16();
-  }
+
   std::string s = ColumnString(col);
   return !s.empty() ? UTF8ToUTF16(s) : string16();
 }
 
 int Statement::ColumnByteLength(int col) const {
-  if (!is_valid()) {
-    NOTREACHED();
+  if (!CheckValid())
     return 0;
-  }
+
   return sqlite3_column_bytes(ref_->stmt(), col);
 }
 
 const void* Statement::ColumnBlob(int col) const {
-  if (!is_valid()) {
-    NOTREACHED();
+  if (!CheckValid())
     return NULL;
-  }
 
   return sqlite3_column_blob(ref_->stmt(), col);
 }
 
 bool Statement::ColumnBlobAsString(int col, std::string* blob) {
-  if (!is_valid()) {
-    NOTREACHED();
+  if (!CheckValid())
     return false;
-  }
+
   const void* p = ColumnBlob(col);
   size_t len = ColumnByteLength(col);
   blob->resize(len);
@@ -234,12 +230,11 @@ bool Statement::ColumnBlobAsString(int col, std::string* blob) {
   return true;
 }
 
-void Statement::ColumnBlobAsVector(int col, std::vector<char>* val) const {
+bool Statement::ColumnBlobAsVector(int col, std::vector<char>* val) const {
   val->clear();
-  if (!is_valid()) {
-    NOTREACHED();
-    return;
-  }
+
+  if (!CheckValid())
+    return false;
 
   const void* data = sqlite3_column_blob(ref_->stmt(), col);
   int len = sqlite3_column_bytes(ref_->stmt(), col);
@@ -247,16 +242,21 @@ void Statement::ColumnBlobAsVector(int col, std::vector<char>* val) const {
     val->resize(len);
     memcpy(&(*val)[0], data, len);
   }
+  return true;
 }
 
-void Statement::ColumnBlobAsVector(
+bool Statement::ColumnBlobAsVector(
     int col,
     std::vector<unsigned char>* val) const {
-  ColumnBlobAsVector(col, reinterpret_cast< std::vector<char>* >(val));
+  return ColumnBlobAsVector(col, reinterpret_cast< std::vector<char>* >(val));
 }
 
 const char* Statement::GetSQLStatement() {
   return sqlite3_sql(ref_->stmt());
+}
+
+bool Statement::CheckOk(int err) const {
+  return err == SQLITE_OK;
 }
 
 int Statement::CheckError(int err) {
