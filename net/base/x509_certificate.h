@@ -15,6 +15,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/string_piece.h"
 #include "base/time.h"
+#include "net/base/cert_type.h"
 #include "net/base/net_export.h"
 #include "net/base/x509_cert_types.h"
 
@@ -145,6 +146,24 @@ class NET_EXPORT X509Certificate
   //
   // The returned pointer must be stored in a scoped_refptr<X509Certificate>.
   static X509Certificate* CreateFromBytes(const char* data, int length);
+
+#if defined(USE_NSS)
+  // Create an X509Certificate from the DER-encoded representation.
+  // |nickname| can be NULL if an auto-generated nickname is desired.
+  // Returns NULL on failure.  The returned pointer must be stored in a
+  // scoped_refptr<X509Certificate>.
+  //
+  // This function differs from CreateFromBytes in that it takes a
+  // nickname that will be used when the certificate is imported into PKCS#11.
+  static X509Certificate* CreateFromBytesWithNickname(const char* data,
+                                                      int length,
+                                                      const char* nickname);
+
+  // The default nickname of the certificate, based on the certificate type
+  // passed in.  If this object was created using CreateFromBytesWithNickname,
+  // then this will return the nickname specified upon creation.
+  std::string GetDefaultNickname(CertType type) const;
+#endif
 
   // Create an X509Certificate from the representation stored in the given
   // pickle.  The data for this object is found relative to the given
@@ -413,15 +432,27 @@ class NET_EXPORT X509Certificate
   // Returns true if two OSCertHandles refer to identical certificates.
   static bool IsSameOSCert(OSCertHandle a, OSCertHandle b);
 
-  // Creates an OS certificate handle from the BER-encoded representation.
+  // Creates an OS certificate handle from the DER-encoded representation.
   // Returns NULL on failure.
   static OSCertHandle CreateOSCertHandleFromBytes(const char* data,
                                                   int length);
 
+#if defined(USE_NSS)
+  // Creates an OS certificate handle from the DER-encoded representation.
+  // Returns NULL on failure.  Sets the default nickname if |nickname| is
+  // non-NULL.
+  static OSCertHandle CreateOSCertHandleFromBytesWithNickname(
+      const char* data,
+      int length,
+      const char* nickname);
+#endif
+
   // Creates all possible OS certificate handles from |data| encoded in a
   // specific |format|. Returns an empty collection on failure.
   static OSCertHandles CreateOSCertHandlesFromBytes(
-      const char* data, int length, Format format);
+      const char* data,
+      int length,
+      Format format);
 
   // Duplicates (or adds a reference to) an OS certificate handle.
   static OSCertHandle DupOSCertHandle(OSCertHandle cert_handle);
@@ -552,6 +583,14 @@ class NET_EXPORT X509Certificate
   // Untrusted intermediate certificates associated with this certificate
   // that may be needed for chain building.
   OSCertHandles intermediate_ca_certs_;
+
+#if defined(USE_NSS)
+  // This stores any default nickname that has been set on the certificate
+  // at creation time with CreateFromBytesWithNickname.
+  // If this is empty, then GetDefaultNickname will return a generated name
+  // based on the type of the certificate.
+  std::string default_nickname_;
+#endif
 
 #if defined(OS_MACOSX)
   // Blocks multiple threads from verifying the cert simultaneously.
