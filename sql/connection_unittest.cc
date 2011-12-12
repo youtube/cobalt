@@ -35,8 +35,19 @@ TEST_F(SQLConnectionTest, Execute) {
   EXPECT_EQ(SQLITE_OK, db().GetErrorCode());
 
   // Invalid statement should fail.
-  ASSERT_FALSE(db().Execute("CREATE TAB foo (a, b"));
+  ASSERT_EQ(SQLITE_ERROR,
+            db().ExecuteAndReturnErrorCode("CREATE TAB foo (a, b"));
   EXPECT_EQ(SQLITE_ERROR, db().GetErrorCode());
+}
+
+TEST_F(SQLConnectionTest, ExecuteWithErrorCode) {
+  ASSERT_EQ(SQLITE_OK,
+            db().ExecuteAndReturnErrorCode("CREATE TABLE foo (a, b)"));
+  ASSERT_EQ(SQLITE_ERROR,
+            db().ExecuteAndReturnErrorCode("CREATE TABLE TABLE"));
+  ASSERT_EQ(SQLITE_ERROR,
+            db().ExecuteAndReturnErrorCode(
+                "INSERT INTO foo(a, b) VALUES (1, 2, 3, 4)"));
 }
 
 TEST_F(SQLConnectionTest, CachedStatement) {
@@ -48,7 +59,7 @@ TEST_F(SQLConnectionTest, CachedStatement) {
   // Create a new cached statement.
   {
     sql::Statement s(db().GetCachedStatement(id1, "SELECT a FROM foo"));
-    ASSERT_FALSE(!s);  // Test ! operator for validity.
+    ASSERT_TRUE(s.is_valid());
 
     ASSERT_TRUE(s.Step());
     EXPECT_EQ(12, s.ColumnInt(0));
@@ -61,7 +72,7 @@ TEST_F(SQLConnectionTest, CachedStatement) {
     // Get the same statement using different SQL. This should ignore our
     // SQL and use the cached one (so it will be valid).
     sql::Statement s(db().GetCachedStatement(id1, "something invalid("));
-    ASSERT_FALSE(!s);  // Test ! operator for validity.
+    ASSERT_TRUE(s.is_valid());
 
     ASSERT_TRUE(s.Step());
     EXPECT_EQ(12, s.ColumnInt(0));
@@ -69,6 +80,12 @@ TEST_F(SQLConnectionTest, CachedStatement) {
 
   // Make sure other statements aren't marked as cached.
   EXPECT_FALSE(db().HasCachedStatement(SQL_FROM_HERE));
+}
+
+TEST_F(SQLConnectionTest, IsSQLValidTest) {
+  ASSERT_TRUE(db().Execute("CREATE TABLE foo (a, b)"));
+  ASSERT_TRUE(db().IsSQLValid("SELECT a FROM foo"));
+  ASSERT_FALSE(db().IsSQLValid("SELECT no_exist FROM foo"));
 }
 
 TEST_F(SQLConnectionTest, DoesStuffExist) {
@@ -103,4 +120,3 @@ TEST_F(SQLConnectionTest, GetLastInsertRowId) {
   ASSERT_TRUE(s.Step());
   EXPECT_EQ(12, s.ColumnInt(0));
 }
-

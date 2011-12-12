@@ -204,7 +204,11 @@ class SQL_EXPORT Connection {
   // Executes the given SQL string, returning true on success. This is
   // normally used for simple, 1-off statements that don't take any bound
   // parameters and don't return any data (e.g. CREATE TABLE).
+  // This will DCHECK if the |sql| contains errors.
   bool Execute(const char* sql);
+
+  // Like Execute(), but returns the error code given by SQLite.
+  int ExecuteAndReturnErrorCode(const char* sql);
 
   // Returns true if we have a statement with the given identifier already
   // cached. This is normally not necessary to call, but can be useful if the
@@ -217,8 +221,10 @@ class SQL_EXPORT Connection {
   // keeping commonly-used ones around for future use is important for
   // performance.
   //
-  // The SQL may have an error, so the caller must check validity of the
-  // statement before using it.
+  // If the |sql| has an error, an invalid, inert StatementRef is returned (and
+  // the code will crash in debug). The caller must deal with this eventuality,
+  // either by checking validity of the |sql| before calling, by correctly
+  // handling the return of an inert statement, or both.
   //
   // The StatementID and the SQL must always correspond to one-another. The
   // ID is the lookup into the cache, so crazy things will happen if you use
@@ -235,6 +241,10 @@ class SQL_EXPORT Connection {
   //     return false;  // Error creating statement.
   scoped_refptr<StatementRef> GetCachedStatement(const StatementID& id,
                                                  const char* sql);
+
+  // Used to check a |sql| statement for syntactic validity. If the statement is
+  // valid SQL, returns true.
+  bool IsSQLValid(const char* sql);
 
   // Returns a non-cached statement for the given SQL. Use this for SQL that
   // is only executed once or only rarely (there is overhead associated with
@@ -274,7 +284,7 @@ class SQL_EXPORT Connection {
   const char* GetErrorMessage() const;
 
  private:
-  // Statement access StatementRef which we don't want to expose to erverybody
+  // Statement accesses StatementRef which we don't want to expose to everybody
   // (they should go through Statement).
   friend class Statement;
 

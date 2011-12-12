@@ -29,12 +29,15 @@ enum ColType {
 
 // Normal usage:
 //   sql::Statement s(connection_.GetUniqueStatement(...));
-//   if (!s)  // You should check for errors before using the statement.
-//     return false;
-//
 //   s.BindInt(0, a);
 //   if (s.Step())
 //     return s.ColumnString(0);
+//
+//   If there are errors getting the statement, the statement will be inert; no
+//   mutating or database-access methods will work. If you need to check for
+//   validity, use:
+//   if (!s.is_valid())
+//     return false;
 //
 // Step() and Run() just return true to signal success. If you want to handle
 // specific errors such as database corruption, install an error handler in
@@ -61,6 +64,7 @@ class SQL_EXPORT Statement {
 
   // These operators allow conveniently checking if the statement is valid
   // or not. See the pattern above for an example.
+  // TODO(shess,gbillock): Remove these once clients are converted.
   operator bool() const { return is_valid(); }
   bool operator!() const { return !is_valid(); }
 
@@ -96,7 +100,7 @@ class SQL_EXPORT Statement {
 
   // Binding -------------------------------------------------------------------
 
-  // These all take a 0-based argument index and return true on failure. You
+  // These all take a 0-based argument index and return true on success. You
   // may not always care about the return value (they'll DCHECK if they fail).
   // The main thing you may want to check is when binding large blobs or
   // strings there may be out of memory.
@@ -137,8 +141,8 @@ class SQL_EXPORT Statement {
   int ColumnByteLength(int col) const;
   const void* ColumnBlob(int col) const;
   bool ColumnBlobAsString(int col, std::string* blob);
-  void ColumnBlobAsVector(int col, std::vector<char>* val) const;
-  void ColumnBlobAsVector(int col, std::vector<unsigned char>* val) const;
+  bool ColumnBlobAsVector(int col, std::vector<char>* val) const;
+  bool ColumnBlobAsVector(int col, std::vector<unsigned char>* val) const;
 
   // Diagnostics --------------------------------------------------------------
 
@@ -151,6 +155,24 @@ class SQL_EXPORT Statement {
   // code. Currently this function just updates the succeeded flag, but will be
   // enhanced in the future to do the notification.
   int CheckError(int err);
+
+  // Contraction for checking an error code against SQLITE_OK. Does not set the
+  // succeeded flag.
+  bool CheckOk(int err) const;
+
+  // Should be called by all mutating methods to check that the statement is
+  // valid. Returns true if the statement is valid. DCHECKS and returns false
+  // if it is not.
+  // The reason for this is to handle two specific cases in which a Statement
+  // may be invalid. The first case is that the programmer made an SQL error.
+  // Those cases need to be DCHECKed so that we are guaranteed to find them
+  // before release. The second case is that the computer has an error (probably
+  // out of disk space) which is prohibiting the correct operation of the
+  // database. Our testing apparatus should not exhibit this defect, but release
+  // situations may. Therefore, the code is handling disjoint situations in
+  // release and test. In test, we're ensuring correct SQL. In release, we're
+  // ensuring that contracts are honored in error edge cases.
+  bool CheckValid() const;
 
   // The actual sqlite statement. This may be unique to us, or it may be cached
   // by the connection, which is why it's refcounted. This pointer is
