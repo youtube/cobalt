@@ -35,10 +35,10 @@ namespace net {
 class BoundNetLog;
 class CertVerifier;
 class ClientSocketHandle;
-class DnsCertProvenanceChecker;
 class OriginBoundCertService;
 class SingleRequestCertVerifier;
 class SSLHostInfo;
+class TransportSecurityState;
 class X509Certificate;
 
 // An SSL client socket implemented with Mozilla NSS.
@@ -296,7 +296,8 @@ class SSLClientSocketNSS : public SSLClientSocket {
   base::TimeTicks start_cert_verification_time_;
 
   scoped_ptr<SSLHostInfo> ssl_host_info_;
-  DnsCertProvenanceChecker* const dns_cert_checker_;
+
+  TransportSecurityState* transport_security_state_;
 
   // next_proto_ is the protocol that we selected by NPN.
   std::string next_proto_;
