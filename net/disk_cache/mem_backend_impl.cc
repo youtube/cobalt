@@ -159,9 +159,25 @@ int MemBackendImpl::DoomAllEntries(OldCompletionCallback* callback) {
   return net::ERR_FAILED;
 }
 
+int MemBackendImpl::DoomAllEntries(const net::CompletionCallback& callback) {
+  if (DoomAllEntries())
+    return net::OK;
+
+  return net::ERR_FAILED;
+}
+
 int MemBackendImpl::DoomEntriesBetween(const base::Time initial_time,
                                        const base::Time end_time,
                                        OldCompletionCallback* callback) {
+  if (DoomEntriesBetween(initial_time, end_time))
+    return net::OK;
+
+  return net::ERR_FAILED;
+}
+
+int MemBackendImpl::DoomEntriesBetween(
+    const base::Time initial_time, const base::Time end_time,
+    const net::CompletionCallback& callback) {
   if (DoomEntriesBetween(initial_time, end_time))
     return net::OK;
 
