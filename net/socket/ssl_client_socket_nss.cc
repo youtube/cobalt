@@ -66,6 +66,7 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/build_time.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
@@ -96,7 +97,6 @@
 #include "net/base/x509_certificate_net_log_param.h"
 #include "net/ocsp/nss_ocsp.h"
 #include "net/socket/client_socket_handle.h"
-#include "net/socket/dns_cert_provenance_checker.h"
 #include "net/socket/nss_ssl_util.h"
 #include "net/socket/ssl_error_params.h"
 #include "net/socket/ssl_host_info.h"
@@ -458,7 +458,7 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       nss_bufs_(NULL),
       net_log_(transport_socket->socket()->NetLog()),
       ssl_host_info_(ssl_host_info),
-      dns_cert_checker_(context.dns_cert_checker),
+      transport_security_state_(context.transport_security_state),
       next_proto_status_(kNextProtoUnsupported),
       valid_thread_id_(base::kInvalidThreadId) {
   EnterFunction("");
@@ -1624,13 +1624,6 @@ int SSLClientSocketNSS::DoGetOBCertComplete(int result) {
 }
 
 int SSLClientSocketNSS::DoVerifyDNSSEC(int result) {
-  if (ssl_config_.dns_cert_provenance_checking_enabled &&
-      dns_cert_checker_) {
-    PeerCertificateChain certs(nss_fd_);
-    dns_cert_checker_->DoAsyncVerification(
-        host_and_port_.host(), certs.AsStringPieceVector());
-  }
-
   DNSValidationResult r = CheckDNSSECChain(host_and_port_.host(),
                                            server_cert_nss_,
                                            host_and_port_.port());
@@ -1794,7 +1787,7 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
   // http://crbug.com/15630 for more info.
 
   // TODO(hclam): Skip logging if server cert was expected to be bad because
-  // |server_cert_verify_results_| doesn't contain all the information about
+  // |server_cert_verify_result_| doesn't contain all the information about
   // the cert.
   if (result == OK)
     LogConnectionTypeMetrics();
@@ -1806,6 +1799,47 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
     if (rv != ERR_IO_PENDING)
       DoReadCallback(rv);
   }
+
+//#if defined(OFFICIAL_BUILD) && !defined(OS_ANDROID)
+  // Take care of any mandates for public key pinning.
+  //
+  // Pinning is only enabled for official builds to make sure that others don't
+  // end up with pins that cannot be easily updated.
+  //
+  // TODO(agl): we might have an issue here where a request for foo.example.com
+  // merges into a SPDY connection to www.example.com, and gets a different
+  // certificate.
+
+  const CertStatus cert_status = server_cert_verify_result_->cert_status;
+  if ((result == OK || (IsCertificateError(result) &&
+                        IsCertStatusMinorError(cert_status))) &&
+      server_cert_verify_result_->is_issued_by_known_root &&
+      transport_security_state_) {
+    bool sni_available = ssl_config_.tls1_enabled || ssl_config_.ssl3_fallback;
+    const std::string& host = host_and_port_.host();
+
+    TransportSecurityState::DomainState domain_state;
+    if (transport_security_state_->HasPinsForHost(
+            &domain_state, host, sni_available)) {
+      if (!domain_state.IsChainOfPublicKeysPermitted(
+               server_cert_verify_result_->public_key_hashes)) {
+        const base::Time build_time = base::GetBuildTime();
+        // Pins are not enforced if the build is sufficiently old. Chrome
+        // users should get updates every six weeks or so, but it's possible
+        // that some users will stop getting updates for some reason. We
+        // don't want those users building up as a pool of people with bad
+        // pins.
+        if ((base::Time::Now() - build_time).InDays() < 70 /* 10 weeks */) {
+          result = ERR_SSL_PINNED_KEY_NOT_IN_CERT_CHAIN;
+          UMA_HISTOGRAM_BOOLEAN("Net.PublicKeyPinSuccess", false);
+          TransportSecurityState::ReportUMAOnPinFailure(host);
+        }
+      } else {
+        UMA_HISTOGRAM_BOOLEAN("Net.PublicKeyPinSuccess", true);
+      }
+    }
+  }
+//#endif
 
   // Exit DoHandshakeLoop and return the result to the caller to Connect.
   DCHECK(next_handshake_state_ == STATE_NONE);

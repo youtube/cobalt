@@ -31,6 +31,7 @@ struct SSLClientSocketContext {
   SSLClientSocketContext()
       : cert_verifier(NULL),
         origin_bound_cert_service(NULL),
+        transport_security_state(NULL),
         dns_cert_checker(NULL),
         ssl_host_info_factory(NULL) {}
 
