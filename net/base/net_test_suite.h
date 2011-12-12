@@ -34,6 +34,12 @@ class NetTestSuite : public base::TestSuite {
   // initialization that can only be done once.
   void InitializeTestThread();
 
+  // Same as above, except it does not create a mock
+  // NetworkChangeNotifier.  Use this if your test needs to create and
+  // manage its own mock NetworkChangeNotifier, or if your test uses
+  // the production NetworkChangeNotifier.
+  void InitializeTestThreadNoNetworkChangeNotifier();
+
  private:
   scoped_ptr<net::NetworkChangeNotifier> network_change_notifier_;
   scoped_ptr<MessageLoop> message_loop_;
