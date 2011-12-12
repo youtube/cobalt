@@ -304,6 +304,6 @@ void AudioManagerWin::GetAudioInputDeviceNames(
 }
 
 /// static
-AudioManager* AudioManager::CreateAudioManager() {
+AudioManager* CreateAudioManager() {
   return new AudioManagerWin();
 }

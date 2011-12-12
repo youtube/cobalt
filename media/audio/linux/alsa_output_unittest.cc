@@ -91,6 +91,7 @@ class MockAudioManagerLinux : public AudioManagerLinux {
 class AlsaPcmOutputStreamTest : public testing::Test {
  protected:
   AlsaPcmOutputStreamTest() {
+    mock_manager_ = new StrictMock<MockAudioManagerLinux>();
     test_stream_.reset(CreateStream(kTestChannelLayout));
   }
 
@@ -109,7 +110,7 @@ class AlsaPcmOutputStreamTest : public testing::Test {
     return new AlsaPcmOutputStream(kTestDeviceName,
                                    params,
                                    &mock_alsa_wrapper_,
-                                   &mock_manager_,
+                                   mock_manager_,
                                    &message_loop_);
   }
 
@@ -130,6 +131,10 @@ class AlsaPcmOutputStreamTest : public testing::Test {
     packet_->SetDataSize(kTestPacketSize);
     test_stream_->buffer_.reset(new media::SeekableBuffer(0, kTestPacketSize));
     test_stream_->buffer_->Append(packet_.get());
+  }
+
+  MockAudioManagerLinux& mock_manager() {
+    return *mock_manager_;
   }
 
   static const ChannelLayout kTestChannelLayout;
@@ -154,7 +159,7 @@ class AlsaPcmOutputStreamTest : public testing::Test {
   static void* kFakeHints[];
 
   StrictMock<MockAlsaWrapper> mock_alsa_wrapper_;
-  StrictMock<MockAudioManagerLinux> mock_manager_;
+  scoped_refptr<StrictMock<MockAudioManagerLinux> > mock_manager_;
   MessageLoop message_loop_;
   scoped_ptr<AlsaPcmOutputStream> test_stream_;
   scoped_refptr<media::DataBuffer> packet_;
@@ -211,7 +216,7 @@ TEST_F(AlsaPcmOutputStreamTest, ConstructedState) {
   test_stream_.reset(new AlsaPcmOutputStream(kTestDeviceName,
                                              bad_bps_params,
                                              &mock_alsa_wrapper_,
-                                             &mock_manager_,
+                                             mock_manager_,
                                              &message_loop_));
   EXPECT_EQ(AlsaPcmOutputStream::kInError, test_stream_->state());
 
@@ -222,7 +227,7 @@ TEST_F(AlsaPcmOutputStreamTest, ConstructedState) {
   test_stream_.reset(new AlsaPcmOutputStream(kTestDeviceName,
                                              bad_format_params,
                                              &mock_alsa_wrapper_,
-                                             &mock_manager_,
+                                             mock_manager_,
                                              &message_loop_));
   EXPECT_EQ(AlsaPcmOutputStream::kInError, test_stream_->state());
 }
@@ -257,12 +262,12 @@ TEST_F(AlsaPcmOutputStreamTest, LatencyFloor) {
   EXPECT_CALL(mock_alsa_wrapper_, PcmClose(kFakeHandle)).WillOnce(Return(0));
   EXPECT_CALL(mock_alsa_wrapper_, PcmName(kFakeHandle))
       .WillOnce(Return(kTestDeviceName));
-  EXPECT_CALL(mock_manager_, ReleaseOutputStream(test_stream_.get()));
+  EXPECT_CALL(mock_manager(), ReleaseOutputStream(test_stream_.get()));
   test_stream_->Close();
   message_loop_.RunAllPending();
 
   Mock::VerifyAndClear(&mock_alsa_wrapper_);
-  Mock::VerifyAndClear(&mock_manager_);
+  Mock::VerifyAndClear(mock_manager_);
 
   // Test that having more packets ends up with a latency based on packet size.
   const int kOverMinLatencyPacketSize = kPacketFramesInMinLatency + 1;
@@ -289,12 +294,12 @@ TEST_F(AlsaPcmOutputStreamTest, LatencyFloor) {
       .WillOnce(Return(0));
   EXPECT_CALL(mock_alsa_wrapper_, PcmName(kFakeHandle))
       .WillOnce(Return(kTestDeviceName));
-  EXPECT_CALL(mock_manager_, ReleaseOutputStream(test_stream_.get()));
+  EXPECT_CALL(mock_manager(), ReleaseOutputStream(test_stream_.get()));
   test_stream_->Close();
   message_loop_.RunAllPending();
 
   Mock::VerifyAndClear(&mock_alsa_wrapper_);
-  Mock::VerifyAndClear(&mock_manager_);
+  Mock::VerifyAndClear(mock_manager_);
 }
 
 TEST_F(AlsaPcmOutputStreamTest, OpenClose) {
@@ -339,7 +344,7 @@ TEST_F(AlsaPcmOutputStreamTest, OpenClose) {
       .WillOnce(Return(0));
   EXPECT_CALL(mock_alsa_wrapper_, PcmName(kFakeHandle))
       .WillOnce(Return(kTestDeviceName));
-  EXPECT_CALL(mock_manager_, ReleaseOutputStream(test_stream_.get()));
+  EXPECT_CALL(mock_manager(), ReleaseOutputStream(test_stream_.get()));
   test_stream_->Close();
   message_loop_.RunAllPending();
 
@@ -367,7 +372,7 @@ TEST_F(AlsaPcmOutputStreamTest, PcmOpenFailed) {
   EXPECT_FALSE(test_stream_->buffer_.get());
 
   // Close the stream since we opened it to make destruction happy.
-  EXPECT_CALL(mock_manager_, ReleaseOutputStream(test_stream_.get()));
+  EXPECT_CALL(mock_manager(), ReleaseOutputStream(test_stream_.get()));
   test_stream_->Close();
   message_loop_.RunAllPending();
 }
@@ -399,7 +404,7 @@ TEST_F(AlsaPcmOutputStreamTest, PcmSetParamsFailed) {
   EXPECT_FALSE(test_stream_->buffer_.get());
 
   // Close the stream since we opened it to make destruction happy.
-  EXPECT_CALL(mock_manager_, ReleaseOutputStream(test_stream_.get()));
+  EXPECT_CALL(mock_manager(), ReleaseOutputStream(test_stream_.get()));
   test_stream_->Close();
   message_loop_.RunAllPending();
 }
@@ -456,7 +461,7 @@ TEST_F(AlsaPcmOutputStreamTest, StartStop) {
   test_stream_->Start(&mock_callback);
   message_loop_.RunAllPending();
 
-  EXPECT_CALL(mock_manager_, ReleaseOutputStream(test_stream_.get()));
+  EXPECT_CALL(mock_manager(), ReleaseOutputStream(test_stream_.get()));
   EXPECT_CALL(mock_alsa_wrapper_, PcmClose(kFakeHandle))
       .WillOnce(Return(0));
   EXPECT_CALL(mock_alsa_wrapper_, PcmName(kFakeHandle))
@@ -685,7 +690,7 @@ TEST_F(AlsaPcmOutputStreamTest, AutoSelectDevice_DeviceSelect) {
     EXPECT_EQ(kExpectedDownmix[i], test_stream_->should_downmix_);
 
     Mock::VerifyAndClearExpectations(&mock_alsa_wrapper_);
-    Mock::VerifyAndClearExpectations(&mock_manager_);
+    Mock::VerifyAndClearExpectations(mock_manager_);
   }
 }
 

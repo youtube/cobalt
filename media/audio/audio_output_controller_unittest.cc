@@ -61,12 +61,6 @@ class MockAudioOutputControllerSyncReader
   DISALLOW_COPY_AND_ASSIGN(MockAudioOutputControllerSyncReader);
 };
 
-static bool HasAudioOutputDevices() {
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  CHECK(audio_man);
-  return audio_man->HasAudioOutputDevices();
-}
-
 static bool IsRunningHeadless() {
   scoped_ptr<base::Environment> env(base::Environment::Create());
   if (env->HasVar("CHROME_HEADLESS"))
@@ -91,7 +85,11 @@ static void CloseAudioController(AudioOutputController* controller) {
 }
 
 TEST(AudioOutputControllerTest, CreateAndClose) {
-  if (!HasAudioOutputDevices() || IsRunningHeadless())
+  if (IsRunningHeadless())
+    return;
+
+  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!audio_manager->HasAudioOutputDevices())
     return;
 
   MockAudioOutputControllerEventHandler event_handler;
@@ -103,7 +101,8 @@ TEST(AudioOutputControllerTest, CreateAndClose) {
   AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
   scoped_refptr<AudioOutputController> controller =
-      AudioOutputController::Create(&event_handler, params, kBufferCapacity);
+      AudioOutputController::Create(audio_manager, &event_handler, params,
+                                    kBufferCapacity);
   ASSERT_TRUE(controller.get());
 
   // Close the controller immediately.
@@ -111,7 +110,11 @@ TEST(AudioOutputControllerTest, CreateAndClose) {
 }
 
 TEST(AudioOutputControllerTest, PlayAndClose) {
-  if (!HasAudioOutputDevices() || IsRunningHeadless())
+  if (IsRunningHeadless())
+    return;
+
+  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!audio_manager->HasAudioOutputDevices())
     return;
 
   MockAudioOutputControllerEventHandler event_handler;
@@ -133,7 +136,8 @@ TEST(AudioOutputControllerTest, PlayAndClose) {
   AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
   scoped_refptr<AudioOutputController> controller =
-      AudioOutputController::Create(&event_handler, params, kBufferCapacity);
+      AudioOutputController::Create(audio_manager, &event_handler, params,
+                                    kBufferCapacity);
   ASSERT_TRUE(controller.get());
 
   // Wait for OnCreated() to be called.
@@ -153,7 +157,11 @@ TEST(AudioOutputControllerTest, PlayAndClose) {
 }
 
 TEST(AudioOutputControllerTest, PlayAndCloseLowLatency) {
-  if (!HasAudioOutputDevices() || IsRunningHeadless())
+  if (IsRunningHeadless())
+    return;
+
+  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!audio_manager->HasAudioOutputDevices())
     return;
 
   MockAudioOutputControllerEventHandler event_handler;
@@ -183,7 +191,8 @@ TEST(AudioOutputControllerTest, PlayAndCloseLowLatency) {
   AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
   scoped_refptr<AudioOutputController> controller =
-      AudioOutputController::CreateLowLatency(&event_handler,
+      AudioOutputController::CreateLowLatency(audio_manager,
+                                              &event_handler,
                                               params,
                                               &sync_reader);
   ASSERT_TRUE(controller.get());
@@ -205,7 +214,11 @@ TEST(AudioOutputControllerTest, PlayAndCloseLowLatency) {
 }
 
 TEST(AudioOutputControllerTest, PlayPauseClose) {
-  if (!HasAudioOutputDevices() || IsRunningHeadless())
+  if (IsRunningHeadless())
+    return;
+
+  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!audio_manager->HasAudioOutputDevices())
     return;
 
   MockAudioOutputControllerEventHandler event_handler;
@@ -234,7 +247,8 @@ TEST(AudioOutputControllerTest, PlayPauseClose) {
   AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
   scoped_refptr<AudioOutputController> controller =
-      AudioOutputController::Create(&event_handler, params, kBufferCapacity);
+      AudioOutputController::Create(audio_manager, &event_handler, params,
+                                    kBufferCapacity);
   ASSERT_TRUE(controller.get());
 
   // Wait for OnCreated() to be called.
@@ -259,7 +273,11 @@ TEST(AudioOutputControllerTest, PlayPauseClose) {
 }
 
 TEST(AudioOutputControllerTest, PlayPauseCloseLowLatency) {
-  if (!HasAudioOutputDevices() || IsRunningHeadless())
+  if (IsRunningHeadless())
+    return;
+
+  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!audio_manager->HasAudioOutputDevices())
     return;
 
   MockAudioOutputControllerEventHandler event_handler;
@@ -286,7 +304,8 @@ TEST(AudioOutputControllerTest, PlayPauseCloseLowLatency) {
   AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
   scoped_refptr<AudioOutputController> controller =
-      AudioOutputController::CreateLowLatency(&event_handler,
+      AudioOutputController::CreateLowLatency(audio_manager,
+                                              &event_handler,
                                               params,
                                               &sync_reader);
   ASSERT_TRUE(controller.get());
@@ -304,7 +323,11 @@ TEST(AudioOutputControllerTest, PlayPauseCloseLowLatency) {
 }
 
 TEST(AudioOutputControllerTest, PlayPausePlay) {
-  if (!HasAudioOutputDevices() || IsRunningHeadless())
+  if (IsRunningHeadless())
+    return;
+
+  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!audio_manager->HasAudioOutputDevices())
     return;
 
   MockAudioOutputControllerEventHandler event_handler;
@@ -339,7 +362,8 @@ TEST(AudioOutputControllerTest, PlayPausePlay) {
   AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
   scoped_refptr<AudioOutputController> controller =
-      AudioOutputController::Create(&event_handler, params, kBufferCapacity);
+      AudioOutputController::Create(audio_manager, &event_handler, params,
+                                    kBufferCapacity);
   ASSERT_TRUE(controller.get());
 
   // Wait for OnCreated() to be called.
@@ -374,7 +398,11 @@ TEST(AudioOutputControllerTest, PlayPausePlay) {
 }
 
 TEST(AudioOutputControllerTest, HardwareBufferTooLarge) {
-  if (!HasAudioOutputDevices() || IsRunningHeadless())
+  if (IsRunningHeadless())
+    return;
+
+  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!audio_manager->HasAudioOutputDevices())
     return;
 
   // Create an audio device with a very large hardware buffer size.
@@ -383,7 +411,7 @@ TEST(AudioOutputControllerTest, HardwareBufferTooLarge) {
                          kSampleRate, kBitsPerSample,
                          kSamplesPerPacket * 1000);
   scoped_refptr<AudioOutputController> controller =
-      AudioOutputController::Create(&event_handler, params,
+      AudioOutputController::Create(audio_manager, &event_handler, params,
                                     kBufferCapacity);
 
   // Use assert because we don't stop the device and assume we can't
@@ -392,7 +420,11 @@ TEST(AudioOutputControllerTest, HardwareBufferTooLarge) {
 }
 
 TEST(AudioOutputControllerTest, CloseTwice) {
-  if (!HasAudioOutputDevices() || IsRunningHeadless())
+  if (IsRunningHeadless())
+    return;
+
+  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!audio_manager->HasAudioOutputDevices())
     return;
 
   MockAudioOutputControllerEventHandler event_handler;
@@ -410,7 +442,8 @@ TEST(AudioOutputControllerTest, CloseTwice) {
   AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
   scoped_refptr<AudioOutputController> controller =
-      AudioOutputController::Create(&event_handler, params, kBufferCapacity);
+      AudioOutputController::Create(audio_manager, &event_handler, params,
+                                    kBufferCapacity);
   ASSERT_TRUE(controller.get());
 
   // Wait for OnCreated() to be called.

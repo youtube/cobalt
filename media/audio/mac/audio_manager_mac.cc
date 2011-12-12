@@ -333,7 +333,6 @@ void AudioManagerMac::ReleaseInputStream(AudioInputStream* stream) {
   delete stream;
 }
 
-// static
-AudioManager* AudioManager::CreateAudioManager() {
+AudioManager* CreateAudioManager() {
   return new AudioManagerMac();
 }

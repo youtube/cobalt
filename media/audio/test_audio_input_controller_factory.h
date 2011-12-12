@@ -45,6 +45,7 @@ class TestAudioInputControllerFactory;
 class TestAudioInputController : public AudioInputController {
  public:
   TestAudioInputController(TestAudioInputControllerFactory* factory,
+                           AudioManager* audio_manager,
                            EventHandler* event_handler,
                            SyncWriter* sync_writer);
   virtual ~TestAudioInputController();
@@ -74,6 +75,7 @@ class TestAudioInputControllerFactory : public AudioInputController::Factory {
 
   // AudioInputController::Factory methods.
   virtual AudioInputController* Create(
+      AudioManager* audio_manager,
       AudioInputController::EventHandler* event_handler,
       AudioParameters params) OVERRIDE;
 

@@ -19,12 +19,16 @@ AudioOutputDispatcher::AudioOutputDispatcher(
       pause_delay_milliseconds_(2 * params.samples_per_packet *
           base::Time::kMillisecondsPerSecond / params.sample_rate),
       paused_proxies_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(close_timer_(FROM_HERE,
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_this_(this)),
+      close_timer_(FROM_HERE,
           base::TimeDelta::FromMilliseconds(close_delay_ms),
-          this, &AudioOutputDispatcher::ClosePendingStreams)) {
+          weak_this_.GetWeakPtr(),
+          &AudioOutputDispatcher::ClosePendingStreams) {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
 }
 
 AudioOutputDispatcher::~AudioOutputDispatcher() {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
 }
 
 bool AudioOutputDispatcher::StreamOpened() {
@@ -58,7 +62,7 @@ AudioOutputStream* AudioOutputDispatcher::StreamStarted() {
 
   // Schedule task to allocate streams for other proxies if we need to.
   message_loop_->PostTask(FROM_HERE, base::Bind(
-      &AudioOutputDispatcher::OpenTask, this));
+      &AudioOutputDispatcher::OpenTask, weak_this_.GetWeakPtr()));
 
   return stream;
 }
@@ -73,13 +77,17 @@ void AudioOutputDispatcher::StreamStopped(AudioOutputStream* stream) {
   // Don't recycle stream until two buffers worth of time has elapsed.
   message_loop_->PostDelayedTask(
       FROM_HERE,
-      base::Bind(&AudioOutputDispatcher::StopStreamTask, this),
+      base::Bind(&AudioOutputDispatcher::StopStreamTask,
+                 weak_this_.GetWeakPtr()),
       pause_delay_milliseconds_);
 }
 
 void AudioOutputDispatcher::StopStreamTask() {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+
   if (pausing_streams_.empty())
     return;
+
   AudioOutputStream* stream = pausing_streams_.back();
   pausing_streams_.pop_back();
   idle_streams_.push_back(stream);
@@ -103,16 +111,36 @@ void AudioOutputDispatcher::StreamClosed() {
   }
 }
 
+void AudioOutputDispatcher::Shutdown() {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+
+  // Cancel any pending tasks to close paused streams or create new ones.
+  weak_this_.InvalidateWeakPtrs();
+
+  // No AudioOutputProxy objects should hold a reference to us when we get
+  // to this stage.
+  DCHECK(HasOneRef()) << "Only the AudioManager should hold a reference";
+
+  AudioOutputStreamList::iterator it = idle_streams_.begin();
+  for (; it != idle_streams_.end(); ++it)
+    (*it)->Close();
+  idle_streams_.clear();
+
+  it = pausing_streams_.begin();
+  for (; it != pausing_streams_.end(); ++it)
+    (*it)->Close();
+  pausing_streams_.clear();
+}
+
 MessageLoop* AudioOutputDispatcher::message_loop() {
   return message_loop_;
 }
 
 bool AudioOutputDispatcher::CreateAndOpenStream() {
-  AudioOutputStream* stream =
-      audio_manager_->MakeAudioOutputStream(params_);
-  if (!stream) {
+  AudioOutputStream* stream = audio_manager_->MakeAudioOutputStream(params_);
+  if (!stream)
     return false;
-  }
+
   if (!stream->Open()) {
     stream->Close();
     return false;
@@ -134,6 +162,8 @@ void AudioOutputDispatcher::OpenTask() {
 
 // This method is called by |close_timer_|.
 void AudioOutputDispatcher::ClosePendingStreams() {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+
   while (!idle_streams_.empty()) {
     idle_streams_.back()->Close();
     idle_streams_.pop_back();

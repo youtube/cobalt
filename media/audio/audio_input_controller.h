@@ -5,6 +5,7 @@
 #ifndef MEDIA_AUDIO_AUDIO_INPUT_CONTROLLER_H_
 #define MEDIA_AUDIO_AUDIO_INPUT_CONTROLLER_H_
 
+#include <string>
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/synchronization/lock.h"
@@ -73,8 +74,10 @@ class MEDIA_EXPORT AudioInputController
   // create the AudioInputController. Factory is intended for testing.
   class Factory {
    public:
-    virtual AudioInputController* Create(EventHandler* event_handler,
-                                         AudioParameters params) = 0;
+    virtual AudioInputController* Create(
+        AudioManager* audio_manager,
+        EventHandler* event_handler,
+        AudioParameters params) = 0;
    protected:
     virtual ~Factory() {}
   };
@@ -86,11 +89,13 @@ class MEDIA_EXPORT AudioInputController
   // device will be created on the new thread and when that is done event
   // handler will receive a OnCreated() call.
   static scoped_refptr<AudioInputController> Create(
+      AudioManager* audio_manager,
       EventHandler* event_handler,
       const AudioParameters& params);
 
   // Factory method for creating a low latency audio stream.
   static scoped_refptr<AudioInputController> CreateLowLatency(
+      AudioManager* audio_manager,
       EventHandler* event_handler,
       const AudioParameters& params,
       const std::string& device_id,
@@ -133,7 +138,8 @@ class MEDIA_EXPORT AudioInputController
     kError
   };
 
-  AudioInputController(EventHandler* handler, SyncWriter* sync_writer);
+  AudioInputController(AudioManager* audio_manager, EventHandler* handler,
+                       SyncWriter* sync_writer);
 
   // The following methods are executed on the audio controller thread.
   void DoCreate(const AudioParameters& params, const std::string& device_id);
@@ -143,6 +149,7 @@ class MEDIA_EXPORT AudioInputController
   void DoReportNoDataError();
   void DoResetNoDataTimer();
 
+  scoped_refptr<AudioManager> audio_manager_;
   EventHandler* handler_;
   AudioInputStream* stream_;
 

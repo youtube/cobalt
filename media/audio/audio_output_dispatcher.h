@@ -2,21 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// AudioOutputDispatcher dispatches creation and deletion of audio
-// output streams. AudioOutputProxy objects use this class to allocate
-// and recycle actual audio output streams. When playback is started,
-// the proxy calls StreamStarted() to get an output stream that it
-// uses to play the sound. When playback is stopped, the proxy returns
-// the stream back to the dispatcher by calling StreamStopped().
+// AudioOutputDispatcher is a single-threaded class that dispatches creation and
+// deletion of audio output streams. AudioOutputProxy objects use this class to
+// allocate and recycle actual audio output streams. When playback is started,
+// the proxy calls StreamStarted() to get an output stream that it uses to play
+// audio. When playback is stopped, the proxy returns the stream back to the
+// dispatcher by calling StreamStopped().
 //
-// To avoid opening and closing audio devices more frequently than it
-// is neccessary, each dispatcher has a pool of inactive physical
-// streams. A stream is closed only if it hasn't been used for a
-// certain period of time (specified in the constructor).
+// To avoid opening and closing audio devices more frequently than necessary,
+// each dispatcher has a pool of inactive physical streams. A stream is closed
+// only if it hasn't been used for a certain period of time (specified via the
+// constructor).
 //
-// AudioManagerBase creates one AudioOutputDispatcher per each
-// possible set of audio parameters, i.e. streams with different
-// parameters are managed independently.
+// AudioManagerBase creates one AudioOutputDispatcher on the audio thread for
+// each possible set of audio parameters. I.e streams with different parameters
+// are managed independently.  The AudioOutputDispatcher instance is then
+// deleted on the audio thread when the AudioManager shuts down.
 
 #ifndef MEDIA_AUDIO_AUDIO_OUTPUT_DISPATCHER_H_
 #define MEDIA_AUDIO_AUDIO_OUTPUT_DISPATCHER_H_
@@ -26,6 +27,7 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/weak_ptr.h"
 #include "base/timer.h"
 #include "media/audio/audio_manager.h"
 #include "media/audio/audio_parameters.h"
@@ -64,6 +66,9 @@ class MEDIA_EXPORT AudioOutputDispatcher
   // Called by AudioOutputProxy when the stream is closed.
   void StreamClosed();
 
+  // Called on the audio thread when the AudioManager is shutting down.
+  void Shutdown();
+
   MessageLoop* message_loop();
 
  private:
@@ -85,14 +90,20 @@ class MEDIA_EXPORT AudioOutputDispatcher
   // Called by |close_timer_|. Closes all pending stream.
   void ClosePendingStreams();
 
+  // A no-reference-held pointer (we don't want circular references) back to the
+  // AudioManager that owns this object.
   AudioManager* audio_manager_;
   MessageLoop* message_loop_;
   AudioParameters params_;
 
   int64 pause_delay_milliseconds_;
   size_t paused_proxies_;
-  std::vector<AudioOutputStream*> idle_streams_;
-  std::list<AudioOutputStream*> pausing_streams_;
+  typedef std::list<AudioOutputStream*> AudioOutputStreamList;
+  AudioOutputStreamList idle_streams_;
+  AudioOutputStreamList pausing_streams_;
+
+  // Used to post delayed tasks to ourselves that we cancel inside Shutdown().
+  base::WeakPtrFactory<AudioOutputDispatcher> weak_this_;
   base::DelayTimer<AudioOutputDispatcher> close_timer_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioOutputDispatcher);
