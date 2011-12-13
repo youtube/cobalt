@@ -10,6 +10,17 @@
 
 namespace base {
 
+// MSVC doesn't like complex extern templates and DLLs.
+#if !defined(COMPILER_MSVC)
+namespace internal {
+template class StringPieceDetail<std::string>;
+template class StringPieceDetail<string16>;
+}  // namespace internal
+
+template class BasicStringPiece<std::string>;
+template class BasicStringPiece<string16>;
+#endif
+
 typedef StringPiece::size_type size_type;
 
 bool operator==(const StringPiece& x, const StringPiece& y) {
@@ -19,22 +30,25 @@ bool operator==(const StringPiece& x, const StringPiece& y) {
   return StringPiece::wordmemcmp(x.data(), y.data(), x.size()) == 0;
 }
 
-void StringPiece::CopyToString(std::string* target) const {
+void BasicStringPiece<std::string>::CopyToString(std::string* target) const {
   target->assign(!empty() ? data() : "", size());
 }
 
-void StringPiece::AppendToString(std::string* target) const {
+void BasicStringPiece<std::string>::AppendToString(std::string* target) const {
   if (!empty())
     target->append(data(), size());
 }
 
-size_type StringPiece::copy(char* buf, size_type n, size_type pos) const {
+size_type BasicStringPiece<std::string>::copy(char* buf,
+                                              size_type n,
+                                              size_type pos) const {
   size_type ret = std::min(length_ - pos, n);
   memcpy(buf, ptr_ + pos, ret);
   return ret;
 }
 
-size_type StringPiece::find(const StringPiece& s, size_type pos) const {
+size_type BasicStringPiece<std::string>::find(const BasicStringPiece& s,
+                                              size_type pos) const {
   if (pos > length_)
     return npos;
 
@@ -44,7 +58,7 @@ size_type StringPiece::find(const StringPiece& s, size_type pos) const {
   return xpos + s.length_ <= length_ ? xpos : npos;
 }
 
-size_type StringPiece::find(char c, size_type pos) const {
+size_type BasicStringPiece<std::string>::find(char c, size_type pos) const {
   if (pos >= length_)
     return npos;
 
@@ -52,7 +66,8 @@ size_type StringPiece::find(char c, size_type pos) const {
   return result != ptr_ + length_ ? static_cast<size_t>(result - ptr_) : npos;
 }
 
-size_type StringPiece::rfind(const StringPiece& s, size_type pos) const {
+size_type BasicStringPiece<std::string>::rfind(const BasicStringPiece& s,
+                                               size_type pos) const {
   if (length_ < s.length_)
     return npos;
 
@@ -64,7 +79,7 @@ size_type StringPiece::rfind(const StringPiece& s, size_type pos) const {
   return result != last ? static_cast<size_t>(result - ptr_) : npos;
 }
 
-size_type StringPiece::rfind(char c, size_type pos) const {
+size_type BasicStringPiece<std::string>::rfind(char c, size_type pos) const {
   if (length_ == 0)
     return npos;
 
@@ -94,8 +109,8 @@ static inline void BuildLookupTable(const StringPiece& characters_wanted,
   }
 }
 
-size_type StringPiece::find_first_of(const StringPiece& s,
-                                     size_type pos) const {
+size_type BasicStringPiece<std::string>::find_first_of(
+    const BasicStringPiece& s, size_type pos) const {
   if (length_ == 0 || s.length_ == 0)
     return npos;
 
@@ -113,8 +128,8 @@ size_type StringPiece::find_first_of(const StringPiece& s,
   return npos;
 }
 
-size_type StringPiece::find_first_not_of(const StringPiece& s,
-                                         size_type pos) const {
+size_type BasicStringPiece<std::string>::find_first_not_of(
+    const BasicStringPiece& s, size_type pos) const {
   if (length_ == 0)
     return npos;
 
@@ -135,7 +150,8 @@ size_type StringPiece::find_first_not_of(const StringPiece& s,
   return npos;
 }
 
-size_type StringPiece::find_first_not_of(char c, size_type pos) const {
+size_type BasicStringPiece<std::string>::find_first_not_of(
+    char c, size_type pos) const {
   if (length_ == 0)
     return npos;
 
@@ -147,7 +163,8 @@ size_type StringPiece::find_first_not_of(char c, size_type pos) const {
   return npos;
 }
 
-size_type StringPiece::find_last_of(const StringPiece& s, size_type pos) const {
+size_type BasicStringPiece<std::string>::find_last_of(const StringPiece& s,
+                                                      size_type pos) const {
   if (length_ == 0 || s.length_ == 0)
     return npos;
 
@@ -166,8 +183,8 @@ size_type StringPiece::find_last_of(const StringPiece& s, size_type pos) const {
   return npos;
 }
 
-size_type StringPiece::find_last_not_of(const StringPiece& s,
-                                        size_type pos) const {
+size_type BasicStringPiece<std::string>::find_last_not_of(
+    const BasicStringPiece& s, size_type pos) const {
   if (length_ == 0)
     return npos;
 
@@ -190,7 +207,8 @@ size_type StringPiece::find_last_not_of(const StringPiece& s,
   return npos;
 }
 
-size_type StringPiece::find_last_not_of(char c, size_type pos) const {
+size_type BasicStringPiece<std::string>::find_last_not_of(char c,
+                                                          size_type pos) const {
   if (length_ == 0)
     return npos;
 
@@ -203,12 +221,11 @@ size_type StringPiece::find_last_not_of(char c, size_type pos) const {
   return npos;
 }
 
-StringPiece StringPiece::substr(size_type pos, size_type n) const {
+BasicStringPiece<std::string> BasicStringPiece<std::string>::substr(
+    size_type pos, size_type n) const {
   if (pos > length_) pos = length_;
   if (n > length_ - pos) n = length_ - pos;
   return StringPiece(ptr_ + pos, n);
 }
-
-const StringPiece::size_type StringPiece::npos = size_type(-1);
 
 }  // namespace base
