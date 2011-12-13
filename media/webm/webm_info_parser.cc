@@ -17,7 +17,17 @@ WebMInfoParser::WebMInfoParser()
 WebMInfoParser::~WebMInfoParser() {}
 
 int WebMInfoParser::Parse(const uint8* buf, int size) {
-  return WebMParseListElement(buf, size, kWebMIdInfo, 1, this);
+  timecode_scale_ = -1;
+  duration_ = -1;
+
+  WebMListParser parser(kWebMIdInfo);
+  int result = parser.Parse(buf, size, this);
+
+  if (result <= 0)
+    return result;
+
+  // For now we do all or nothing parsing.
+  return parser.IsParsingComplete() ? result : 0;
 }
 
 bool WebMInfoParser::OnListStart(int id) { return true; }
@@ -36,7 +46,7 @@ bool WebMInfoParser::OnUInt(int id, int64 val) {
     return true;
 
   if (timecode_scale_ != -1) {
-    VLOG(1) << "Multiple values for id " << std::hex << id << " specified";
+    DVLOG(1) << "Multiple values for id " << std::hex << id << " specified";
     return false;
   }
 
@@ -46,12 +56,12 @@ bool WebMInfoParser::OnUInt(int id, int64 val) {
 
 bool WebMInfoParser::OnFloat(int id, double val) {
   if (id != kWebMIdDuration) {
-    VLOG(1) << "Unexpected float for id" << std::hex << id;
+    DVLOG(1) << "Unexpected float for id" << std::hex << id;
     return false;
   }
 
   if (duration_ != -1) {
-    VLOG(1) << "Multiple values for duration.";
+    DVLOG(1) << "Multiple values for duration.";
     return false;
   }
 
