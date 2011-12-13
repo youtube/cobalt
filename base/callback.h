@@ -124,7 +124,7 @@
 // There are three main components to the system:
 //   1) The Callback classes.
 //   2) The Bind() functions.
-//   3) The arguments wrappers (eg., Unretained() and ConstRef()).
+//   3) The arguments wrappers (e.g., Unretained() and ConstRef()).
 //
 // The Callback classes represent a generic function pointer. Internally,
 // it stores a refcounted piece of state that represents the target function
@@ -160,7 +160,7 @@
 // to refcount a target object if the function being bound is a class method.
 //
 // To change this behavior, we introduce a set of argument wrappers
-// (eg. Unretained(), and ConstRef()).  These are simple container templates
+// (e.g., Unretained(), and ConstRef()).  These are simple container templates
 // that are passed by value, and wrap a pointer to argument.  See the
 // file-level comment in base/bind_helpers.h for more info.
 //
@@ -197,7 +197,7 @@
 // Lastly, tr1::function and tr1::bind has a more general and flexible API.
 // This includes things like argument reordering by use of
 // tr1::bind::placeholder, support for non-const reference parameters, and some
-// limited amount of subtyping of the tr1::function object (eg.,
+// limited amount of subtyping of the tr1::function object (e.g.,
 // tr1::function<int(int)> is convertible to tr1::function<void(int)>).
 //
 // These are not features that are required in Chromium. Some of them, such as
