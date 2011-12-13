@@ -577,7 +577,7 @@ void MessagePumpNSApplication::DoRun(Delegate* delegate) {
 
 void MessagePumpNSApplication::Quit() {
   if (!running_own_loop_) {
-    [NSApp stop:nil];
+    [[NSApplication sharedApplication] stop:nil];
   } else {
     keep_running_ = false;
   }
