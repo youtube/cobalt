@@ -314,11 +314,11 @@ NET_EXPORT bool IsPortAllowedByDefault(int port);
 
 // Checks |port| against a list of ports which are restricted by the FTP
 // protocol.  Returns true if |port| is allowed, false if it is restricted.
-bool IsPortAllowedByFtp(int port);
+NET_EXPORT_PRIVATE bool IsPortAllowedByFtp(int port);
 
 // Check if banned |port| has been overriden by an entry in
 // |explicitly_allowed_ports_|.
-bool IsPortAllowedByOverride(int port);
+NET_EXPORT_PRIVATE bool IsPortAllowedByOverride(int port);
 
 // Set socket to non-blocking mode
 NET_EXPORT int SetNonBlocking(int fd);
