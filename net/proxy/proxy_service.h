@@ -30,9 +30,9 @@ namespace net {
 
 class DhcpProxyScriptFetcher;
 class HostResolver;
-class InitProxyResolver;
 class NetworkDelegate;
 class ProxyResolver;
+class ProxyScriptDecider;
 class ProxyScriptFetcher;
 
 // This class can be used to resolve the proxy server to use when loading a
@@ -67,7 +67,7 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
   // the caller will not need to cancel the request.
   //
   // We use the three possible proxy access types in the following order,
-  // doing fallback if one doesn't work.  See "init_proxy_resolver.h"
+  // doing fallback if one doesn't work.  See "pac_script_decider.h"
   // for the specifics.
   //   1.  WPAD auto-detection
   //   2.  PAC URL
@@ -245,6 +245,7 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
   FRIEND_TEST_ALL_PREFIXES(ProxyServiceTest, UpdateConfigAfterFailedAutodetect);
   FRIEND_TEST_ALL_PREFIXES(ProxyServiceTest, UpdateConfigFromPACToDirect);
   friend class PacRequest;
+  class InitProxyResolver;
 
   // TODO(eroman): change this to a std::set. Note that this requires updating
   // some tests in proxy_service_unittest.cc such as:
