@@ -283,12 +283,22 @@ bool Connection::IsSQLValid(const char* sql) {
 }
 
 bool Connection::DoesTableExist(const char* table_name) const {
+  return DoesTableOrIndexExist(table_name, "table");
+}
+
+bool Connection::DoesIndexExist(const char* index_name) const {
+  return DoesTableOrIndexExist(index_name, "index");
+}
+
+bool Connection::DoesTableOrIndexExist(
+    const char* name, const char* type) const {
   // GetUniqueStatement can't be const since statements may modify the
   // database, but we know ours doesn't modify it, so the cast is safe.
   Statement statement(const_cast<Connection*>(this)->GetUniqueStatement(
       "SELECT name FROM sqlite_master "
-      "WHERE type='table' AND name=?"));
-  statement.BindString(0, table_name);
+      "WHERE type=? AND name=?"));
+  statement.BindString(0, type);
+  statement.BindString(1, name);
   return statement.Step();  // Table exists if any row was returned.
 }
 
