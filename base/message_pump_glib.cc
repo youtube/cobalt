@@ -206,7 +206,7 @@ void MessagePumpGlib::RunWithDispatcher(Delegate* delegate,
     // Don't block if we think we have more work to do.
     bool block = !more_work_is_plausible;
 
-    more_work_is_plausible = g_main_context_iteration(context_, block);
+    more_work_is_plausible = RunOnce(context_, block);
     if (state_->should_quit)
       break;
 
