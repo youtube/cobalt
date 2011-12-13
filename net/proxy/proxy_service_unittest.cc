@@ -28,6 +28,9 @@
 namespace net {
 namespace {
 
+const char kValidPacScript1[] = "pac-script-v1-FindProxyForURL";
+const char kValidPacScript2[] = "pac-script-v2-FindProxyForURL";
+
 class MockProxyConfigService: public ProxyConfigService {
  public:
   explicit MockProxyConfigService(const ProxyConfig& config)
@@ -423,17 +426,12 @@ TEST(ProxyServiceTest, ProxyResolverFailsParsingJavaScriptMandatoryPac) {
   EXPECT_EQ(GURL("http://foopy/proxy.pac"), fetcher->pending_request_url());
   fetcher->NotifyFetchCompletion(OK, "invalid-script-contents");
 
-  // Simulate a parse error.
-  EXPECT_EQ(ASCIIToUTF16("invalid-script-contents"),
-            resolver->pending_set_pac_script_request()->script_data()->utf16());
-  resolver->pending_set_pac_script_request()->CompleteNow(
-      ERR_PAC_SCRIPT_FAILED);
-
   EXPECT_FALSE(fetcher->has_pending_request());
   ASSERT_EQ(0u, resolver->pending_requests().size());
 
-  // As the proxy resolver failed the request and is configured for a mandatory
-  // PAC script, ProxyService must not implicitly fall-back to DIRECT.
+  // Since ProxyScriptDecider failed to identify a valid PAC and PAC was
+  // mandatory for this configuration, the ProxyService must not implicitly
+  // fall-back to DIRECT.
   EXPECT_EQ(ERR_MANDATORY_PROXY_CONFIGURATION_FAILED,
             callback.WaitForResult());
   EXPECT_FALSE(info.is_direct());
@@ -1195,11 +1193,11 @@ TEST(ProxyServiceTest, InitialPACScriptDownload) {
   // At this point the ProxyService should be waiting for the
   // ProxyScriptFetcher to invoke its completion callback, notifying it of
   // PAC script download completion.
-  fetcher->NotifyFetchCompletion(OK, "pac-v1");
+  fetcher->NotifyFetchCompletion(OK, kValidPacScript1);
 
   // Now that the PAC script is downloaded, it will have been sent to the proxy
   // resolver.
-  EXPECT_EQ(ASCIIToUTF16("pac-v1"),
+  EXPECT_EQ(ASCIIToUTF16(kValidPacScript1),
             resolver->pending_set_pac_script_request()->script_data()->utf16());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
@@ -1277,11 +1275,11 @@ TEST(ProxyServiceTest, ChangeScriptFetcherWhilePACDownloadInProgress) {
   // Nothing has been sent to the resolver yet.
   EXPECT_TRUE(resolver->pending_requests().empty());
 
-  fetcher->NotifyFetchCompletion(OK, "pac-v1");
+  fetcher->NotifyFetchCompletion(OK, kValidPacScript1);
 
   // Now that the PAC script is downloaded, it will have been sent to the proxy
   // resolver.
-  EXPECT_EQ(ASCIIToUTF16("pac-v1"),
+  EXPECT_EQ(ASCIIToUTF16(kValidPacScript1),
             resolver->pending_set_pac_script_request()->script_data()->utf16());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
@@ -1340,11 +1338,11 @@ TEST(ProxyServiceTest, CancelWhilePACFetching) {
   // At this point the ProxyService should be waiting for the
   // ProxyScriptFetcher to invoke its completion callback, notifying it of
   // PAC script download completion.
-  fetcher->NotifyFetchCompletion(OK, "pac-v1");
+  fetcher->NotifyFetchCompletion(OK, kValidPacScript1);
 
   // Now that the PAC script is downloaded, it will have been sent to the
   // proxy resolver.
-  EXPECT_EQ(ASCIIToUTF16("pac-v1"),
+  EXPECT_EQ(ASCIIToUTF16(kValidPacScript1),
             resolver->pending_set_pac_script_request()->script_data()->utf16());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
@@ -1423,9 +1421,9 @@ TEST(ProxyServiceTest, FallbackFromAutodetectToCustomPac) {
   // Next it should be trying the custom PAC url.
   EXPECT_TRUE(fetcher->has_pending_request());
   EXPECT_EQ(GURL("http://foopy/proxy.pac"), fetcher->pending_request_url());
-  fetcher->NotifyFetchCompletion(OK, "custom-pac-script");
+  fetcher->NotifyFetchCompletion(OK, kValidPacScript1);
 
-  EXPECT_EQ(ASCIIToUTF16("custom-pac-script"),
+  EXPECT_EQ(ASCIIToUTF16(kValidPacScript1),
             resolver->pending_set_pac_script_request()->script_data()->utf16());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
@@ -1490,18 +1488,15 @@ TEST(ProxyServiceTest, FallbackFromAutodetectToCustomPac2) {
   EXPECT_EQ(GURL("http://wpad/wpad.dat"), fetcher->pending_request_url());
   fetcher->NotifyFetchCompletion(OK, "invalid-script-contents");
 
-  // Simulate a parse error.
-  EXPECT_EQ(ASCIIToUTF16("invalid-script-contents"),
-            resolver->pending_set_pac_script_request()->script_data()->utf16());
-  resolver->pending_set_pac_script_request()->CompleteNow(
-      ERR_PAC_SCRIPT_FAILED);
+  // The script contents passed failed basic verification step (since didn't
+  // contain token FindProxyForURL), so it was never passed to the resolver.
 
   // Next it should be trying the custom PAC url.
   EXPECT_TRUE(fetcher->has_pending_request());
   EXPECT_EQ(GURL("http://foopy/proxy.pac"), fetcher->pending_request_url());
-  fetcher->NotifyFetchCompletion(OK, "custom-pac-script");
+  fetcher->NotifyFetchCompletion(OK, kValidPacScript1);
 
-  EXPECT_EQ(ASCIIToUTF16("custom-pac-script"),
+  EXPECT_EQ(ASCIIToUTF16(kValidPacScript1),
             resolver->pending_set_pac_script_request()->script_data()->utf16());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
@@ -1615,9 +1610,9 @@ TEST(ProxyServiceTest, BypassDoesntApplyToPac) {
   // It should be trying to auto-detect first -- succeed the download.
   EXPECT_TRUE(fetcher->has_pending_request());
   EXPECT_EQ(GURL("http://wpad/wpad.dat"), fetcher->pending_request_url());
-  fetcher->NotifyFetchCompletion(OK, "auto-detect");
+  fetcher->NotifyFetchCompletion(OK, kValidPacScript1);
 
-  EXPECT_EQ(ASCIIToUTF16("auto-detect"),
+  EXPECT_EQ(ASCIIToUTF16(kValidPacScript1),
             resolver->pending_set_pac_script_request()->script_data()->utf16());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
@@ -1823,11 +1818,11 @@ TEST(ProxyServiceTest, NetworkChangeTriggersPacRefetch) {
   // At this point the ProxyService should be waiting for the
   // ProxyScriptFetcher to invoke its completion callback, notifying it of
   // PAC script download completion.
-  fetcher->NotifyFetchCompletion(OK, "pac-v1");
+  fetcher->NotifyFetchCompletion(OK, kValidPacScript1);
 
   // Now that the PAC script is downloaded, the request will have been sent to
   // the proxy resolver.
-  EXPECT_EQ(ASCIIToUTF16("pac-v1"),
+  EXPECT_EQ(ASCIIToUTF16(kValidPacScript1),
             resolver->pending_set_pac_script_request()->script_data()->utf16());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
@@ -1865,11 +1860,11 @@ TEST(ProxyServiceTest, NetworkChangeTriggersPacRefetch) {
 
   // Simulate the PAC script fetch as having completed (this time with
   // different data).
-  fetcher->NotifyFetchCompletion(OK, "pac-v2");
+  fetcher->NotifyFetchCompletion(OK, kValidPacScript2);
 
   // Now that the PAC script is downloaded, the second request will have been
   // sent to the proxy resolver.
-  EXPECT_EQ(ASCIIToUTF16("pac-v2"),
+  EXPECT_EQ(ASCIIToUTF16(kValidPacScript2),
             resolver->pending_set_pac_script_request()->script_data()->utf16());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
@@ -1893,7 +1888,7 @@ TEST(ProxyServiceTest, NetworkChangeTriggersPacRefetch) {
 
   EXPECT_TRUE(LogContainsEntryWithType(entries, 0,
                                        NetLog::TYPE_PROXY_CONFIG_CHANGED));
-  ASSERT_EQ(13u, entries.size());
+  ASSERT_EQ(9u, entries.size());
   for (size_t i = 1; i < entries.size(); ++i)
     EXPECT_NE(NetLog::TYPE_PROXY_CONFIG_CHANGED, entries[i].type);
 }
