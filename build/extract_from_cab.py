@@ -8,7 +8,24 @@
 import os
 import subprocess
 import sys
+import tempfile
 
+lock_file = os.path.join(tempfile.gettempdir(), 'expand.lock')
+
+def acquire_lock():
+  while True:
+    try:
+      fd = os.open(lock_file, os.O_CREAT | os.O_EXCL | os.O_RDWR)
+      return fd
+    except OSError as e:
+      if e.errno != errno.EEXIST:
+        raise
+      print 'Cab extraction could not get exclusive lock. Retrying in 1 sec...'
+      time.sleep(1000)
+
+def release_lock(fd):
+  os.close(fd)
+  os.unlink(lock_file)
 
 def main():
   if len(sys.argv) != 4:
@@ -17,17 +34,21 @@ def main():
 
   [cab_path, archived_file, output_dir] = sys.argv[1:]
 
-  # Invoke the Windows expand utility to extract the file.
-  level = subprocess.call(
-      ['expand', cab_path, '-F:' + archived_file, output_dir])
-  if level != 0:
-    print 'Cab extraction(%s, %s, %s) failed.' % (
-        cab_path, archived_file, output_dir)
-    print 'Trying a second time.'
+  lock_fd = acquire_lock()
+  try:
+    # Invoke the Windows expand utility to extract the file.
     level = subprocess.call(
         ['expand', cab_path, '-F:' + archived_file, output_dir])
     if level != 0:
-      return level
+      print 'Cab extraction(%s, %s, %s) failed.' % (
+          cab_path, archived_file, output_dir)
+      print 'Trying a second time.'
+      level = subprocess.call(
+          ['expand', cab_path, '-F:' + archived_file, output_dir])
+      if level != 0:
+        return level
+  finally:
+    release_lock(lock_fd)
 
   # The expand utility preserves the modification date and time of the archived
   # file. Touch the extracted file. This helps build systems that compare the
