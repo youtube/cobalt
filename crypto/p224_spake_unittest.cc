@@ -43,37 +43,24 @@ bool RunExchange(P224EncryptedKeyExchange* client,
 }
 
 static const char kPassword[] = "foo";
-static const char kSession[] = "bar";
 
 TEST(MutualAuth, CorrectAuth) {
   P224EncryptedKeyExchange client(
-      P224EncryptedKeyExchange::kPeerTypeClient,
-      kPassword, kSession);
+      P224EncryptedKeyExchange::kPeerTypeClient, kPassword);
   P224EncryptedKeyExchange server(
-      P224EncryptedKeyExchange::kPeerTypeServer,
-      kPassword, kSession);
+      P224EncryptedKeyExchange::kPeerTypeServer, kPassword);
 
   EXPECT_TRUE(RunExchange(&client, &server));
+  EXPECT_EQ(client.GetKey(), server.GetKey());
 }
 
 TEST(MutualAuth, IncorrectPassword) {
   P224EncryptedKeyExchange client(
       P224EncryptedKeyExchange::kPeerTypeClient,
-      kPassword, kSession);
+      kPassword);
   P224EncryptedKeyExchange server(
       P224EncryptedKeyExchange::kPeerTypeServer,
-      "wrongpassword", kSession);
-
-  EXPECT_FALSE(RunExchange(&client, &server));
-}
-
-TEST(MutualAuth, IncorrectSession) {
-  P224EncryptedKeyExchange client(
-      P224EncryptedKeyExchange::kPeerTypeClient,
-      kPassword, kSession);
-  P224EncryptedKeyExchange server(
-      P224EncryptedKeyExchange::kPeerTypeServer,
-      kPassword, "wrongsession");
+      "wrongpassword");
 
   EXPECT_FALSE(RunExchange(&client, &server));
 }
@@ -83,11 +70,9 @@ TEST(MutualAuth, Fuzz) {
 
   for (unsigned i = 0; i < kIterations; i++) {
     P224EncryptedKeyExchange client(
-        P224EncryptedKeyExchange::kPeerTypeClient,
-        kPassword, kSession);
+        P224EncryptedKeyExchange::kPeerTypeClient, kPassword);
     P224EncryptedKeyExchange server(
-        P224EncryptedKeyExchange::kPeerTypeServer,
-        kPassword, kSession);
+        P224EncryptedKeyExchange::kPeerTypeServer, kPassword);
 
     // We'll only be testing small values of i, but we don't want that to bias
     // the test coverage. So we disperse the value of i by multiplying by the
