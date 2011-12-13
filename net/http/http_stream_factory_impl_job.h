@@ -80,6 +80,7 @@ class HttpStreamFactoryImpl::Job {
 
  private:
   enum State {
+    STATE_START,
     STATE_RESOLVE_PROXY,
     STATE_RESOLVE_PROXY_COMPLETE,
 
@@ -134,6 +135,7 @@ class HttpStreamFactoryImpl::Job {
   // argument receive the result from the previous state.  If a method returns
   // ERR_IO_PENDING, then the result from OnIOComplete will be passed to the
   // next state method as the result arg.
+  int DoStart();
   int DoResolveProxy();
   int DoResolveProxyComplete(int result);
   int DoWaitForJob();
