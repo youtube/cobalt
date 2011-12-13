@@ -18,13 +18,13 @@
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
 #include "net/proxy/dhcp_proxy_script_fetcher.h"
-#include "net/proxy/init_proxy_resolver.h"
 #include "net/proxy/multi_threaded_proxy_resolver.h"
 #include "net/proxy/network_delegate_error_observer.h"
 #include "net/proxy/proxy_config_service_fixed.h"
 #include "net/proxy/proxy_resolver.h"
 #include "net/proxy/proxy_resolver_js_bindings.h"
 #include "net/proxy/proxy_resolver_v8.h"
+#include "net/proxy/proxy_script_decider.h"
 #include "net/proxy/proxy_script_fetcher.h"
 #include "net/proxy/sync_host_resolver_bridge.h"
 #include "net/url_request/url_request_context.h"
@@ -313,6 +313,142 @@ class BadProxyListNetLogParam : public NetLog::EventParameters {
 };
 
 }  // namespace
+
+// ProxyService::InitProxyResolver --------------------------------------------
+
+// This glues together two asynchronous steps:
+//   (1) ProxyScriptDecider -- try to fetch/validate a sequence of PAC scripts to
+//       figure out what we should configure against.
+//   (2) Feed the fetched PAC script into the ProxyResolver.
+//
+// TODO(eroman): This is something of a temporary shim while refactoring to keep
+// things similar. It will probably end up changing while solving bug 90581.
+
+class ProxyService::InitProxyResolver {
+ public:
+  InitProxyResolver(ProxyResolver* proxy_resolver,
+                    ProxyScriptFetcher* proxy_script_fetcher,
+                    DhcpProxyScriptFetcher* dhcp_proxy_script_fetcher,
+                    NetLog* net_log)
+      : decider_(proxy_script_fetcher, dhcp_proxy_script_fetcher, net_log),
+        effective_config_(NULL),
+        proxy_resolver_(proxy_resolver),
+        user_callback_(NULL),
+        ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(
+            this, &InitProxyResolver::OnIOCompletion)) {
+  }
+
+  ~InitProxyResolver() {
+    // Note that the destruction of ProxyScriptDecider will automatically cancel
+    // any outstanding work.
+    if (next_state_ == STATE_SET_PAC_SCRIPT_COMPLETE) {
+      proxy_resolver_->CancelSetPacScript();
+    }
+  }
+
+  int Init(const ProxyConfig& config,
+           base::TimeDelta wait_delay,
+           ProxyConfig* effective_config,
+           OldCompletionCallback* callback) {
+    config_ = config;
+    wait_delay_ = wait_delay;
+    effective_config_ = effective_config;
+    user_callback_ = callback;
+
+    next_state_ = STATE_DECIDE_PROXY_SCRIPT;
+    return DoLoop(OK);
+  }
+
+ private:
+  enum State {
+    STATE_NONE,
+    STATE_DECIDE_PROXY_SCRIPT,
+    STATE_DECIDE_PROXY_SCRIPT_COMPLETE,
+    STATE_SET_PAC_SCRIPT,
+    STATE_SET_PAC_SCRIPT_COMPLETE,
+  };
+
+  int DoLoop(int result) {
+    DCHECK_NE(next_state_, STATE_NONE);
+    int rv = result;
+    do {
+      State state = next_state_;
+      next_state_ = STATE_NONE;
+      switch (state) {
+        case STATE_DECIDE_PROXY_SCRIPT:
+          DCHECK_EQ(OK, rv);
+          rv = DoDecideProxyScript();
+          break;
+        case STATE_DECIDE_PROXY_SCRIPT_COMPLETE:
+          rv = DoDecideProxyScriptComplete(rv);
+          break;
+        case STATE_SET_PAC_SCRIPT:
+          DCHECK_EQ(OK, rv);
+          rv = DoSetPacScript();
+          break;
+        case STATE_SET_PAC_SCRIPT_COMPLETE:
+          rv = DoSetPacScriptComplete(rv);
+          break;
+        default:
+          NOTREACHED() << "bad state: " << state;
+          rv = ERR_UNEXPECTED;
+          break;
+      }
+    } while (rv != ERR_IO_PENDING && next_state_ != STATE_NONE);
+    return rv;
+  }
+
+  int DoDecideProxyScript() {
+    next_state_ = STATE_DECIDE_PROXY_SCRIPT_COMPLETE;
+
+    return decider_.Start(
+        config_, wait_delay_, proxy_resolver_->expects_pac_bytes(),
+        &io_callback_);
+  }
+
+  int DoDecideProxyScriptComplete(int result) {
+    if (result != OK)
+      return result;
+
+    *effective_config_ = decider_.effective_config();
+    next_state_ = STATE_SET_PAC_SCRIPT;
+    return OK;
+  }
+
+  int DoSetPacScript() {
+    DCHECK(decider_.script_data());
+    // TODO(eroman): Should log this latency to the NetLog.
+    next_state_ = STATE_SET_PAC_SCRIPT_COMPLETE;
+    return proxy_resolver_->SetPacScript(decider_.script_data(), &io_callback_);
+  }
+
+  int DoSetPacScriptComplete(int result) {
+    return result;
+  }
+
+  void OnIOCompletion(int result) {
+    DCHECK_NE(STATE_NONE, next_state_);
+    int rv = DoLoop(result);
+    if (rv != ERR_IO_PENDING)
+      DoCallback(rv);
+  }
+
+  void DoCallback(int result) {
+    DCHECK_NE(ERR_IO_PENDING, result);
+    user_callback_->Run(result);
+  }
+
+  ProxyConfig config_;
+  base::TimeDelta wait_delay_;
+  ProxyScriptDecider decider_;
+  ProxyConfig* effective_config_;
+  ProxyResolver* proxy_resolver_;
+  OldCompletionCallback* user_callback_;
+  OldCompletionCallbackImpl<InitProxyResolver> io_callback_;
+  State next_state_;
+
+  DISALLOW_COPY_AND_ASSIGN(InitProxyResolver);
+};
 
 // ProxyService::PacRequest ---------------------------------------------------
 

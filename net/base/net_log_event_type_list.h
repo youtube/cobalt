@@ -145,12 +145,12 @@ EVENT_TYPE(HOST_RESOLVER_IMPL_JOB)
 // ------------------------------------------------------------------------
 
 // The start/end of auto-detect + custom PAC URL configuration.
-EVENT_TYPE(INIT_PROXY_RESOLVER)
+EVENT_TYPE(PROXY_SCRIPT_DECIDER)
 
 // The start/end of when proxy autoconfig was artificially paused following
 // a network change event. (We wait some amount of time after being told of
 // network changes to avoid hitting spurious errors during auto-detect).
-EVENT_TYPE(INIT_PROXY_RESOLVER_WAIT)
+EVENT_TYPE(PROXY_SCRIPT_DECIDER_WAIT)
 
 // The start/end of download of a PAC script. This could be the well-known
 // WPAD URL (if testing auto-detect), or a custom PAC URL.
@@ -164,24 +164,15 @@ EVENT_TYPE(INIT_PROXY_RESOLVER_WAIT)
 //   {
 //      "net_error": <Net error code integer>,
 //   }
-EVENT_TYPE(INIT_PROXY_RESOLVER_FETCH_PAC_SCRIPT)
-
-// The start/end of the testing of a PAC script (trying to parse the fetched
-// file as javascript).
-//
-// If the parsing of the script failed, the END phase will have parameters:
-//   {
-//      "net_error": <Net error code integer>,
-//   }
-EVENT_TYPE(INIT_PROXY_RESOLVER_SET_PAC_SCRIPT)
+EVENT_TYPE(PROXY_SCRIPT_DECIDER_FETCH_PAC_SCRIPT)
 
 // This event means that initialization failed because there was no
 // configured script fetcher. (This indicates a configuration error).
-EVENT_TYPE(INIT_PROXY_RESOLVER_HAS_NO_FETCHER)
+EVENT_TYPE(PROXY_SCRIPT_DECIDER_HAS_NO_FETCHER)
 
 // This event is emitted after deciding to fall-back to the next source
 // of PAC scripts in the list.
-EVENT_TYPE(INIT_PROXY_RESOLVER_FALLING_BACK_TO_NEXT_PAC_SOURCE)
+EVENT_TYPE(PROXY_SCRIPT_DECIDER_FALLING_BACK_TO_NEXT_PAC_SOURCE)
 
 // ------------------------------------------------------------------------
 // ProxyService
