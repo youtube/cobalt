@@ -16,11 +16,31 @@
 #include "base/location.h"
 #include "base/profiler/tracked_time.h"
 
-#define TRACK_RUN_IN_THIS_SCOPED_REGION_FOR_OFFICIAL_BUILDS(variable_name) \
-    ::tracked_objects::ScopedProfile variable_name(FROM_HERE)
+#if defined(GOOGLE_CHROME_BUILD)
 
-#define TRACK_RUN_IN_IPC_HANDLER(dispatch_function_name) \
-    ::tracked_objects::ScopedProfile some_tracking_variable_name(  \
+// We don't ship these profiled regions.  This is for developer builds only.
+// It allows developers to do some profiling of their code, and see results on
+// their about:profiler page.
+#define TRACK_RUN_IN_THIS_SCOPED_REGION_FOR_DEVELOPER_BUILDS(scope_name)       \
+    ((void)0)
+
+#else
+
+#define TRACK_RUN_IN_THIS_SCOPED_REGION_FOR_DEVELOPER_BUILDS(scope_name)       \
+    ::tracked_objects::ScopedProfile  LINE_BASED_VARIABLE_NAME_FOR_PROFILING(  \
+        FROM_HERE_WITH_EXPLICIT_FUNCTION(#scope_name))
+
+#endif
+
+
+
+#define PASTE_LINE_NUMBER_ON_NAME(name, line) name##line
+
+#define LINE_BASED_VARIABLE_NAME_FOR_PROFILING                                 \
+    PASTE_LINE_NUMBER_ON_NAME(some_profiler_variable_, __LINE__)
+
+#define TRACK_RUN_IN_IPC_HANDLER(dispatch_function_name)                       \
+    ::tracked_objects::ScopedProfile some_tracking_variable_name(              \
         FROM_HERE_WITH_EXPLICIT_FUNCTION(#dispatch_function_name))
 
 
