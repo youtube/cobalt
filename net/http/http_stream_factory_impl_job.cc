@@ -485,6 +485,10 @@ int HttpStreamFactoryImpl::Job::DoLoop(int result) {
     State state = next_state_;
     next_state_ = STATE_NONE;
     switch (state) {
+      case STATE_START:
+        DCHECK_EQ(OK, rv);
+        rv = DoStart();
+        break;
       case STATE_RESOLVE_PROXY:
         DCHECK_EQ(OK, rv);
         rv = DoResolveProxy();
@@ -534,19 +538,27 @@ int HttpStreamFactoryImpl::Job::DoLoop(int result) {
 
 int HttpStreamFactoryImpl::Job::StartInternal() {
   CHECK_EQ(STATE_NONE, next_state_);
-
-  origin_ = HostPortPair(request_info_.url.HostNoBrackets(),
-                         request_info_.url.EffectiveIntPort());
-  origin_url_ = HttpStreamFactory::ApplyHostMappingRules(
-      request_info_.url, &origin_);
-
+  next_state_ = STATE_START;
   net_log_.BeginEvent(NetLog::TYPE_HTTP_STREAM_JOB,
                       HttpStreamJobParameters::Create(request_info_.url,
                                                       origin_url_));
-  next_state_ = STATE_RESOLVE_PROXY;
   int rv = RunLoop(OK);
   DCHECK_EQ(ERR_IO_PENDING, rv);
   return rv;
+}
+
+int HttpStreamFactoryImpl::Job::DoStart() {
+  // Don't connect to restricted ports.
+  int port = request_info_.url.EffectiveIntPort();
+  if (!IsPortAllowedByDefault(port) && !IsPortAllowedByOverride(port))
+    return ERR_UNSAFE_PORT;
+
+  origin_ = HostPortPair(request_info_.url.HostNoBrackets(), port);
+  origin_url_ = HttpStreamFactory::ApplyHostMappingRules(
+      request_info_.url, &origin_);
+
+  next_state_ = STATE_RESOLVE_PROXY;
+  return OK;
 }
 
 int HttpStreamFactoryImpl::Job::DoResolveProxy() {
