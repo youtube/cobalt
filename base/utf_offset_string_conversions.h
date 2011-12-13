@@ -11,11 +11,7 @@
 
 #include "base/base_export.h"
 #include "base/string16.h"
-
-namespace base {
-class StringPiece;
-class StringPiece16;
-}
+#include "base/string_piece.h"
 
 // Like the conversions in utf_string_conversions.h, but also takes one or more
 // offsets (|offset[s]_for_adjustment|) into the source strings, each offset
