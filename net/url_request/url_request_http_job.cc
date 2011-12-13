@@ -165,10 +165,6 @@ URLRequestJob* URLRequestHttpJob::Factory(URLRequest* request,
                                           const std::string& scheme) {
   DCHECK(scheme == "http" || scheme == "https");
 
-  int port = request->url().IntPort();
-  if (!IsPortAllowedByDefault(port) && !IsPortAllowedByOverride(port))
-    return new URLRequestErrorJob(request, ERR_UNSAFE_PORT);
-
   if (!request->context() ||
       !request->context()->http_transaction_factory()) {
     NOTREACHED() << "requires a valid context";

@@ -7,7 +7,6 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "net/base/capturing_net_log.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_log.h"
@@ -49,7 +48,7 @@ class MockHttpStreamFactoryImpl : public HttpStreamFactoryImpl {
 
  private:
   // HttpStreamFactoryImpl methods.
-  virtual void OnPreconnectsCompleteInternal() {
+  virtual void OnPreconnectsCompleteInternal() OVERRIDE {
     preconnect_done_ = true;
     if (waiting_for_preconnect_)
       MessageLoop::current()->Quit();
@@ -162,8 +161,9 @@ TestCase kTests[] = {
   { 2, true},
 };
 
-void PreconnectHelper(const TestCase& test,
-                      HttpNetworkSession* session) {
+void PreconnectHelperForURL(int num_streams,
+                            const GURL& url,
+                            HttpNetworkSession* session) {
   HttpNetworkSessionPeer peer(session);
   MockHttpStreamFactoryImpl* mock_factory =
       new MockHttpStreamFactoryImpl(session);
@@ -173,16 +173,19 @@ void PreconnectHelper(const TestCase& test,
 
   HttpRequestInfo request;
   request.method = "GET";
-  request.url = test.ssl ?  GURL("https://www.google.com") :
-      GURL("http://www.google.com");
+  request.url = url;
   request.load_flags = 0;
 
-  ProxyInfo proxy_info;
-  TestOldCompletionCallback callback;
-
   session->http_stream_factory()->PreconnectStreams(
-      test.num_streams, request, ssl_config, ssl_config, BoundNetLog());
+      num_streams, request, ssl_config, ssl_config, BoundNetLog());
   mock_factory->WaitForPreconnects();
+};
+
+void PreconnectHelper(const TestCase& test,
+                      HttpNetworkSession* session) {
+  GURL url = test.ssl ? GURL("https://www.google.com") :
+      GURL("http://www.google.com");
+  PreconnectHelperForURL(test.num_streams, url, session);
 };
 
 template<typename ParentPool>
@@ -200,7 +203,7 @@ class CapturePreconnectsSocketPool : public ParentPool {
                             RequestPriority priority,
                             ClientSocketHandle* handle,
                             OldCompletionCallback* callback,
-                            const BoundNetLog& net_log) {
+                            const BoundNetLog& net_log) OVERRIDE {
     ADD_FAILURE();
     return ERR_UNEXPECTED;
   }
@@ -208,36 +211,38 @@ class CapturePreconnectsSocketPool : public ParentPool {
   virtual void RequestSockets(const std::string& group_name,
                               const void* socket_params,
                               int num_sockets,
-                              const BoundNetLog& net_log) {
+                              const BoundNetLog& net_log) OVERRIDE {
     last_num_streams_ = num_sockets;
   }
 
   virtual void CancelRequest(const std::string& group_name,
-                             ClientSocketHandle* handle) {
+                             ClientSocketHandle* handle) OVERRIDE {
     ADD_FAILURE();
   }
   virtual void ReleaseSocket(const std::string& group_name,
                              StreamSocket* socket,
-                             int id) {
+                             int id) OVERRIDE {
     ADD_FAILURE();
   }
-  virtual void CloseIdleSockets() {
+  virtual void CloseIdleSockets() OVERRIDE {
     ADD_FAILURE();
   }
-  virtual int IdleSocketCount() const {
-    ADD_FAILURE();
-    return 0;
-  }
-  virtual int IdleSocketCountInGroup(const std::string& group_name) const {
+  virtual int IdleSocketCount() const OVERRIDE {
     ADD_FAILURE();
     return 0;
   }
-  virtual LoadState GetLoadState(const std::string& group_name,
-                                 const ClientSocketHandle* handle) const {
+  virtual int IdleSocketCountInGroup(
+      const std::string& group_name) const OVERRIDE {
+    ADD_FAILURE();
+    return 0;
+  }
+  virtual LoadState GetLoadState(
+      const std::string& group_name,
+      const ClientSocketHandle* handle) const OVERRIDE {
     ADD_FAILURE();
     return LOAD_STATE_IDLE;
   }
-  virtual base::TimeDelta ConnectionTimeout() const {
+  virtual base::TimeDelta ConnectionTimeout() const OVERRIDE {
     return base::TimeDelta();
   }
 
@@ -389,6 +394,29 @@ TEST(HttpStreamFactoryTest, PreconnectDirectWithExistingSpdySession) {
   }
 }
 
+// Verify that preconnects to unsafe ports are cancelled before they reach
+// the SocketPool.
+TEST(HttpStreamFactoryTest, PreconnectUnsafePort) {
+  ASSERT_FALSE(IsPortAllowedByDefault(7));
+  ASSERT_FALSE(IsPortAllowedByOverride(7));
+
+  SessionDependencies session_deps(ProxyService::CreateDirect());
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+  HttpNetworkSessionPeer peer(session);
+  CapturePreconnectsTransportSocketPool* transport_conn_pool =
+      new CapturePreconnectsTransportSocketPool(
+          session_deps.host_resolver.get(),
+          session_deps.cert_verifier.get());
+  MockClientSocketPoolManager* mock_pool_manager =
+      new MockClientSocketPoolManager;
+  mock_pool_manager->SetTransportSocketPool(transport_conn_pool);
+  peer.SetClientSocketPoolManager(mock_pool_manager);
+
+  PreconnectHelperForURL(1, GURL("http://www.google.com:7"), session);
+
+  EXPECT_EQ(-1, transport_conn_pool->last_num_streams());
+}
+
 TEST(HttpStreamFactoryTest, JobNotifiesProxy) {
   const char* kProxyString = "PROXY bad:99; PROXY maybe:80; DIRECT";
   SessionDependencies session_deps(
@@ -404,9 +432,6 @@ TEST(HttpStreamFactoryTest, JobNotifiesProxy) {
   socket_data2.set_connect_data(MockConnect(true, OK));
   session_deps.socket_factory.AddSocketDataProvider(&socket_data2);
 
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
-  EXPECT_TRUE(log.bound().IsLoggingAllEvents());
-
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
   // Now request a stream.  It should succeed using the second proxy in the
@@ -421,7 +446,7 @@ TEST(HttpStreamFactoryTest, JobNotifiesProxy) {
   scoped_ptr<HttpStreamRequest> request(
       session->http_stream_factory()->RequestStream(request_info, ssl_config,
                                                     ssl_config, &waiter,
-                                                    log.bound()));
+                                                    BoundNetLog()));
   waiter.WaitForStream();
 
   // The proxy that failed should now be known to the proxy_service as bad.
