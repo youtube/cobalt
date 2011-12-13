@@ -64,7 +64,6 @@ int CertDatabase::CheckUserCert(X509Certificate* cert_obj) {
 int CertDatabase::AddUserCert(X509Certificate* cert_obj) {
   CERTCertificate* cert = cert_obj->os_cert_handle();
   PK11SlotInfo* slot = NULL;
-  std::string nickname;
 
   {
     crypto::AutoNSSWriteLock lock;
