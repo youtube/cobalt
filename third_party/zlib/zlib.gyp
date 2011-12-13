@@ -71,9 +71,9 @@
                 'contrib/minizip/iowin32.c'
               ],
             }],
-            ['OS=="mac"', {
-              # Mac does not have fopen64, ftello64, or fseeko64. We use fopen,
-              # ftell, and fseek instead on Mac.
+            ['OS=="mac" or os_bsd==1', {
+              # Mac and the BSDs don't have fopen64, ftello64, or fseeko64.
+              # We use fopen, ftell, and fseek instead on these systems.
               'defines': [
                 'USE_FILE32API'
               ],
