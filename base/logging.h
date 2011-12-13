@@ -983,8 +983,7 @@ inline std::ostream& operator<<(std::ostream& out, const std::wstring& wstr) {
 
 namespace base {
 
-template <typename STRING_TYPE> class BasicStringPiece;
-typedef BasicStringPiece<std::string> StringPiece;
+class StringPiece;
 
 // Allows StringPiece to be logged.
 BASE_EXPORT std::ostream& operator<<(std::ostream& o, const StringPiece& piece);
