@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This code implements SPAKE2, a varient of EKE:
+// This code implements SPAKE2, a variant of EKE:
 //  http://www.di.ens.fr/~pointche/pub.php?reference=AbPo04
 
 #include <crypto/p224_spake.h>
@@ -96,9 +96,7 @@ const crypto::p224::Point kN = {
 namespace crypto {
 
 P224EncryptedKeyExchange::P224EncryptedKeyExchange(
-    PeerType peer_type,
-    const base::StringPiece& password,
-    const base::StringPiece& session)
+    PeerType peer_type, const base::StringPiece& password)
     : state_(kStateInitial),
       is_server_(peer_type == kPeerTypeServer) {
   // x_ is a random scalar.
@@ -108,26 +106,9 @@ P224EncryptedKeyExchange::P224EncryptedKeyExchange(
   p224::Point X;
   p224::ScalarBaseMult(x_, &X);
 
-  // The "password" in the SPAKE2 protocol is
-  // SHA256(P(password) + P(session)) where P is function that prepends a
-  // uint32, big-endian length prefix.
-  uint8 password_length[4], session_length[4];
-  password_length[0] = password.size() >> 24;
-  password_length[1] = password.size() >> 16;
-  password_length[2] = password.size() >> 8;
-  password_length[3] = password.size();
-  session_length[0] = session.size() >> 24;
-  session_length[1] = session.size() >> 16;
-  session_length[2] = session.size() >> 8;
-  session_length[3] = session.size();
-  SHA256HashString(std::string(reinterpret_cast<const char *>(password_length),
-                               sizeof(password_length)) +
-                   password.as_string() +
-                   std::string(reinterpret_cast<const char *>(session_length),
-                               sizeof(session_length)) +
-                   session.as_string(),
-                   pw_,
-                   sizeof(pw_));
+  // Calculate |password| hash to get SPAKE password value.
+  SHA256HashString(std::string(password.data(), password.length()),
+                   pw_, sizeof(pw_));
 
   // The client masks the Diffie-Hellman value, X, by adding M**pw and the
   // server uses N**pw.
@@ -200,7 +181,7 @@ P224EncryptedKeyExchange::Result P224EncryptedKeyExchange::ProcessMessage(
   p224::ScalarMult(Y, x_, &k);
 
   // If everything worked out, then K is the same for both parties.
-  std::string k_str = k.ToString();
+  key_ = k.ToString();
 
   std::string client_masked_dh, server_masked_dh;
   if (is_server_) {
@@ -214,9 +195,9 @@ P224EncryptedKeyExchange::Result P224EncryptedKeyExchange::ProcessMessage(
   // Now we calculate the hashes that each side will use to prove to the other
   // that they derived the correct value for K.
   uint8 client_hash[kSHA256Length], server_hash[kSHA256Length];
-  CalculateHash(kPeerTypeClient, client_masked_dh, server_masked_dh, k_str,
+  CalculateHash(kPeerTypeClient, client_masked_dh, server_masked_dh, key_,
                 client_hash);
-  CalculateHash(kPeerTypeServer, client_masked_dh, server_masked_dh, k_str,
+  CalculateHash(kPeerTypeServer, client_masked_dh, server_masked_dh, key_,
                 server_hash);
 
   const uint8* my_hash = is_server_ ? server_hash : client_hash;
@@ -254,6 +235,11 @@ void P224EncryptedKeyExchange::CalculateHash(
 
 const std::string& P224EncryptedKeyExchange::error() const {
   return error_;
+}
+
+const std::string& P224EncryptedKeyExchange::GetKey() {
+  DCHECK_EQ(state_, kStateDone);
+  return key_;
 }
 
 }  // namespace crypto
