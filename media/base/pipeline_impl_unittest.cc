@@ -21,11 +21,13 @@ using ::testing::_;
 using ::testing::DeleteArg;
 using ::testing::InSequence;
 using ::testing::Invoke;
+using ::testing::InvokeArgument;
 using ::testing::Mock;
 using ::testing::NotNull;
 using ::testing::Return;
 using ::testing::ReturnRef;
 using ::testing::StrictMock;
+using ::testing::WithArg;
 
 namespace media {
 
@@ -51,6 +53,11 @@ class CallbackHelper {
  private:
   DISALLOW_COPY_AND_ASSIGN(CallbackHelper);
 };
+
+// Run |cb| w/ OK status.
+static void RunPipelineStatusOKCB(const PipelineStatusCB& cb) {
+  cb.Run(PIPELINE_OK);
+}
 
 // TODO(scherkus): even though some filters are initialized on separate
 // threads these test aren't flaky... why?  It's because filters' Initialize()
@@ -126,7 +133,7 @@ class PipelineImplTest : public ::testing::Test {
   void InitializeVideoDecoder(MockDemuxerStream* stream) {
     EXPECT_CALL(*mocks_->video_decoder(),
                 Initialize(stream, _, _))
-        .WillOnce(Invoke(&RunFilterCallback3));
+        .WillOnce(WithArg<1>(Invoke(&RunPipelineStatusOKCB)));
     EXPECT_CALL(*mocks_->video_decoder(), SetPlaybackRate(0.0f));
     EXPECT_CALL(*mocks_->video_decoder(),
                 Seek(mocks_->demuxer()->GetStartTime(), _))

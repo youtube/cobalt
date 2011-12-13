@@ -32,7 +32,7 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
 
   // VideoDecoder implementation.
   virtual void Initialize(DemuxerStream* demuxer_stream,
-                          const base::Closure& callback,
+                          const PipelineStatusCB& callback,
                           const StatisticsCallback& stats_callback) OVERRIDE;
   virtual void Read(const ReadCB& callback) OVERRIDE;
   virtual const gfx::Size& natural_size() OVERRIDE;
