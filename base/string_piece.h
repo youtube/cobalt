@@ -33,39 +33,47 @@
 
 namespace base {
 
-class BASE_EXPORT StringPiece {
+template <typename STRING_TYPE> class BasicStringPiece;
+
+namespace internal {
+
+// Defines the types, methods, operators, and data members common to both
+// StringPiece and StringPiece16. Do not refer to this class directly, but
+// rather to BasicStringPiece, StringPiece, or StringPiece16.
+template <typename STRING_TYPE> class StringPieceDetail {
  public:
   // standard STL container boilerplate
   typedef size_t size_type;
-  typedef char value_type;
-  typedef const char* pointer;
-  typedef const char& reference;
-  typedef const char& const_reference;
+  typedef typename STRING_TYPE::value_type value_type;
+  typedef const value_type* pointer;
+  typedef const value_type& reference;
+  typedef const value_type& const_reference;
   typedef ptrdiff_t difference_type;
-  typedef const char* const_iterator;
-  typedef const char* iterator;
+  typedef const value_type* const_iterator;
   typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
-  typedef std::reverse_iterator<iterator> reverse_iterator;
 
   static const size_type npos;
 
  public:
   // We provide non-explicit singleton constructors so users can pass
   // in a "const char*" or a "string" wherever a "StringPiece" is
-  // expected.
-  StringPiece() : ptr_(NULL), length_(0) { }
-  StringPiece(const char* str)
-    : ptr_(str), length_((str == NULL) ? 0 : strlen(str)) { }
-  StringPiece(const std::string& str)
-    : ptr_(str.data()), length_(str.size()) { }
-  StringPiece(const char* offset, size_type len)
-    : ptr_(offset), length_(len) { }
+  // expected (likewise for char16, string16, StringPiece16).
+  StringPieceDetail() : ptr_(NULL), length_(0) {}
+  StringPieceDetail(const value_type* str)
+      : ptr_(str),
+      length_((str == NULL) ? 0 : STRING_TYPE::traits_type::length(str)) {}
+  StringPieceDetail(const STRING_TYPE& str)
+      : ptr_(str.data()),
+        length_(str.size()) {}
+  StringPieceDetail(const value_type* offset, size_type len)
+      : ptr_(offset),
+        length_(len) {}
 
   // data() may return a pointer to a buffer with embedded NULs, and the
   // returned buffer may or may not be null terminated.  Therefore it is
   // typically a mistake to pass data() to a routine that expects a NUL
   // terminated string.
-  const char* data() const { return ptr_; }
+  const value_type* data() const { return ptr_; }
   size_type size() const { return length_; }
   size_type length() const { return length_; }
   bool empty() const { return length_ == 0; }
@@ -74,20 +82,16 @@ class BASE_EXPORT StringPiece {
     ptr_ = NULL;
     length_ = 0;
   }
-  void set(const char* data, size_type len) {
+  void set(const value_type* data, size_type len) {
     ptr_ = data;
     length_ = len;
   }
-  void set(const char* str) {
+  void set(const value_type* str) {
     ptr_ = str;
-    length_ = str ? strlen(str) : 0;
-  }
-  void set(const void* data, size_type len) {
-    ptr_ = reinterpret_cast<const char*>(data);
-    length_ = len;
+    length_ = str ? STRING_TYPE::traits_type::length(str) : 0;
   }
 
-  char operator[](size_type i) const { return ptr_[i]; }
+  value_type operator[](size_type i) const { return ptr_[i]; }
 
   void remove_prefix(size_type n) {
     ptr_ += n;
@@ -98,7 +102,7 @@ class BASE_EXPORT StringPiece {
     length_ -= n;
   }
 
-  int compare(const StringPiece& x) const {
+  int compare(const BasicStringPiece<STRING_TYPE>& x) const {
     int r = wordmemcmp(
         ptr_, x.ptr_, (length_ < x.length_ ? length_ : x.length_));
     if (r == 0) {
@@ -108,146 +112,136 @@ class BASE_EXPORT StringPiece {
     return r;
   }
 
-  std::string as_string() const {
+  STRING_TYPE as_string() const {
     // std::string doesn't like to take a NULL pointer even with a 0 size.
-    return std::string(!empty() ? data() : "", size());
+    return empty() ? STRING_TYPE() : STRING_TYPE(data(), size());
+  }
+
+  const_iterator begin() const { return ptr_; }
+  const_iterator end() const { return ptr_ + length_; }
+  const_reverse_iterator rbegin() const {
+    return const_reverse_iterator(ptr_ + length_);
+  }
+  const_reverse_iterator rend() const {
+    return const_reverse_iterator(ptr_);
+  }
+
+  size_type max_size() const { return length_; }
+  size_type capacity() const { return length_; }
+
+  static int wordmemcmp(const value_type* p,
+                        const value_type* p2,
+                        size_type N) {
+    return STRING_TYPE::traits_type::compare(p, p2, N);
+  }
+
+ protected:
+  const value_type* ptr_;
+  size_type     length_;
+};
+
+template <typename STRING_TYPE>
+const typename StringPieceDetail<STRING_TYPE>::size_type
+StringPieceDetail<STRING_TYPE>::npos =
+    typename StringPieceDetail<STRING_TYPE>::size_type(-1);
+
+// MSVC doesn't like complex extern templates and DLLs.
+#if !defined(COMPILER_MSVC)
+extern template class BASE_EXPORT StringPieceDetail<std::string>;
+extern template class BASE_EXPORT StringPieceDetail<string16>;
+#endif
+
+}  // namespace internal
+
+// Defines the template type that is instantiated as either StringPiece or
+// StringPiece16.
+template <typename STRING_TYPE> class BasicStringPiece :
+    public internal::StringPieceDetail<STRING_TYPE> {
+ public:
+  typedef typename internal::StringPieceDetail<STRING_TYPE>::value_type
+      value_type;
+  typedef typename internal::StringPieceDetail<STRING_TYPE>::size_type
+      size_type;
+
+  BasicStringPiece() {}
+  BasicStringPiece(const value_type*str)
+      : internal::StringPieceDetail<STRING_TYPE>(str) {}
+  BasicStringPiece(const STRING_TYPE& str)
+      : internal::StringPieceDetail<STRING_TYPE>(str) {}
+  BasicStringPiece(const value_type* offset, size_type len)
+      : internal::StringPieceDetail<STRING_TYPE>(offset, len) {}
+};
+
+// Specializes BasicStringPiece for std::string to add a few operations that
+// are not needed for string16.
+template <> class BASE_EXPORT BasicStringPiece<std::string> :
+    public internal::StringPieceDetail<std::string> {
+ public:
+  BasicStringPiece() {}
+  BasicStringPiece(const char* str)
+      : internal::StringPieceDetail<std::string>(str) {}
+  BasicStringPiece(const std::string& str)
+      : internal::StringPieceDetail<std::string>(str) {}
+  BasicStringPiece(const char* offset, size_type len)
+      : internal::StringPieceDetail<std::string>(offset, len) {}
+
+  // Prevent the following overload of set() from hiding the definitions in the
+  // base class.
+  using internal::StringPieceDetail<std::string>::set;
+
+  void set(const void* data, size_type len) {
+    ptr_ = reinterpret_cast<const value_type*>(data);
+    length_ = len;
   }
 
   void CopyToString(std::string* target) const;
   void AppendToString(std::string* target) const;
 
   // Does "this" start with "x"
-  bool starts_with(const StringPiece& x) const {
+  bool starts_with(const BasicStringPiece& x) const {
     return ((length_ >= x.length_) &&
             (wordmemcmp(ptr_, x.ptr_, x.length_) == 0));
   }
 
   // Does "this" end with "x"
-  bool ends_with(const StringPiece& x) const {
+  bool ends_with(const BasicStringPiece& x) const {
     return ((length_ >= x.length_) &&
             (wordmemcmp(ptr_ + (length_-x.length_), x.ptr_, x.length_) == 0));
   }
 
-  iterator begin() const { return ptr_; }
-  iterator end() const { return ptr_ + length_; }
-  const_reverse_iterator rbegin() const {
-    return const_reverse_iterator(ptr_ + length_);
-  }
-  const_reverse_iterator rend() const {
-    return const_reverse_iterator(ptr_);
-  }
-
-  size_type max_size() const { return length_; }
-  size_type capacity() const { return length_; }
-
   size_type copy(char* buf, size_type n, size_type pos = 0) const;
 
-  size_type find(const StringPiece& s, size_type pos = 0) const;
+  size_type find(const BasicStringPiece& s, size_type pos = 0) const;
   size_type find(char c, size_type pos = 0) const;
-  size_type rfind(const StringPiece& s, size_type pos = npos) const;
+  size_type rfind(const BasicStringPiece& s, size_type pos = npos) const;
   size_type rfind(char c, size_type pos = npos) const;
 
-  size_type find_first_of(const StringPiece& s, size_type pos = 0) const;
+  size_type find_first_of(const BasicStringPiece& s, size_type pos = 0) const;
   size_type find_first_of(char c, size_type pos = 0) const {
     return find(c, pos);
   }
-  size_type find_first_not_of(const StringPiece& s, size_type pos = 0) const;
+  size_type find_first_not_of(const BasicStringPiece& s,
+                              size_type pos = 0) const;
   size_type find_first_not_of(char c, size_type pos = 0) const;
-  size_type find_last_of(const StringPiece& s, size_type pos = npos) const;
+  size_type find_last_of(const BasicStringPiece& s, size_type pos = npos) const;
   size_type find_last_of(char c, size_type pos = npos) const {
     return rfind(c, pos);
   }
-  size_type find_last_not_of(const StringPiece& s, size_type pos = npos) const;
+  size_type find_last_not_of(const BasicStringPiece& s,
+                             size_type pos = npos) const;
   size_type find_last_not_of(char c, size_type pos = npos) const;
 
-  StringPiece substr(size_type pos, size_type n = npos) const;
-
-  static int wordmemcmp(const char* p, const char* p2, size_type N) {
-    return memcmp(p, p2, N);
-  }
-
- private:
-  const char*   ptr_;
-  size_type     length_;
+  BasicStringPiece substr(size_type pos, size_type n = npos) const;
 };
 
-class BASE_EXPORT StringPiece16 {
- public:
-  // standard STL container boilerplate
-  typedef size_t size_type;
-  typedef char16 value_type;
-  typedef const char16* pointer;
-  typedef const char16& reference;
-  typedef const char16& const_reference;
-  typedef ptrdiff_t difference_type;
-  typedef const char16* const_iterator;
-  typedef const char16* iterator;
-  typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
-  typedef std::reverse_iterator<iterator> reverse_iterator;
+// MSVC doesn't like complex extern templates and DLLs.
+#if !defined(COMPILER_MSVC)
+extern template class BasicStringPiece<std::string>;
+extern template class BASE_EXPORT BasicStringPiece<string16>;
+#endif
 
- public:
-  // We provide non-explicit singleton constructors so users can pass
-  // in a "const char16*" or a "string16" wherever a "StringPiece16" is
-  // expected.
-  StringPiece16() : ptr_(NULL), length_(0) { }
-  StringPiece16(const char16* str)
-      : ptr_(str),
-        length_((str == NULL) ? 0 : string16::traits_type::length(str)) { }
-  StringPiece16(const string16& str)
-      : ptr_(str.data()), length_(str.size()) { }
-  StringPiece16(const char16* offset, size_type len)
-      : ptr_(offset), length_(len) { }
-
-  // data() may return a pointer to a buffer with embedded NULs, and the
-  // returned buffer may or may not be null terminated.  Therefore it is
-  // typically a mistake to pass data() to a routine that expects a NUL
-  // terminated string.
-  const char16* data() const { return ptr_; }
-  size_type size() const { return length_; }
-  size_type length() const { return length_; }
-  bool empty() const { return length_ == 0; }
-
-  void clear() {
-    ptr_ = NULL;
-    length_ = 0;
-  }
-  void set(const char16* data, size_type len) {
-    ptr_ = data;
-    length_ = len;
-  }
-  void set(const char16* str) {
-    ptr_ = str;
-    length_ = str ? string16::traits_type::length(str) : 0;
-  }
-
-  char16 operator[](size_type i) const { return ptr_[i]; }
-
-  string16 as_string16() const {
-    // StringPiece claims that this is bad when data() is NULL, but unittesting
-    // seems to say otherwise.
-    return string16(data(), size());
-  }
-
-  iterator begin() const { return ptr_; }
-  iterator end() const { return ptr_ + length_; }
-  const_reverse_iterator rbegin() const {
-    return const_reverse_iterator(ptr_ + length_);
-  }
-  const_reverse_iterator rend() const {
-    return const_reverse_iterator(ptr_);
-  }
-
-  size_type max_size() const { return length_; }
-  size_type capacity() const { return length_; }
-
-  static int wordmemcmp(const char16* p, const char16* p2, size_type N) {
-    return string16::traits_type::compare(p, p2, N);
-  }
-
- private:
-  const char16*   ptr_;
-  size_type       length_;
-};
+typedef BasicStringPiece<std::string> StringPiece;
+typedef BasicStringPiece<string16> StringPiece16;
 
 BASE_EXPORT bool operator==(const StringPiece& x, const StringPiece& y);
 
