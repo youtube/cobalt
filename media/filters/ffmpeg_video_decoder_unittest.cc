@@ -58,7 +58,8 @@ class FFmpegVideoDecoderTest : public testing::Test {
     ReadTestDataFile("vp8-I-frame-320x240", &i_frame_buffer_);
     ReadTestDataFile("vp8-corrupt-I-frame", &corrupt_i_frame_buffer_);
 
-    config_.Initialize(kCodecVP8, kVideoFormat, kCodedSize, kVisibleRect,
+    config_.Initialize(kCodecVP8, VIDEO_CODEC_PROFILE_UNKNOWN,
+                       kVideoFormat, kCodedSize, kVisibleRect,
                        kFrameRate.num, kFrameRate.den,
                        kAspectRatio.num, kAspectRatio.den,
                        NULL, 0);
@@ -70,15 +71,20 @@ class FFmpegVideoDecoderTest : public testing::Test {
     InitializeWithConfig(config_);
   }
 
-  void InitializeWithConfig(const VideoDecoderConfig& config) {
+  void InitializeWithConfigAndStatus(const VideoDecoderConfig& config,
+                                     PipelineStatus status) {
     EXPECT_CALL(*demuxer_, video_decoder_config())
         .WillOnce(ReturnRef(config));
 
-    decoder_->Initialize(demuxer_, NewExpectedClosure(),
+    decoder_->Initialize(demuxer_, NewExpectedStatusCB(status),
                          base::Bind(&MockStatisticsCallback::OnStatistics,
                                     base::Unretained(&statistics_callback_)));
 
     message_loop_.RunAllPending();
+  }
+
+  void InitializeWithConfig(const VideoDecoderConfig& config) {
+    InitializeWithConfigAndStatus(config, PIPELINE_OK);
   }
 
   void Pause() {
@@ -242,38 +248,35 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_Normal) {
 
 TEST_F(FFmpegVideoDecoderTest, Initialize_UnsupportedDecoder) {
   // Test avcodec_find_decoder() returning NULL.
-  VideoDecoderConfig config(kUnknownVideoCodec, kVideoFormat,
+  VideoDecoderConfig config(kUnknownVideoCodec, VIDEO_CODEC_PROFILE_UNKNOWN,
+                            kVideoFormat,
                             kCodedSize, kVisibleRect,
                             kFrameRate.num, kFrameRate.den,
                             kAspectRatio.num, kAspectRatio.den,
                             NULL, 0);
-
-  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
-  InitializeWithConfig(config);
+  InitializeWithConfigAndStatus(config, PIPELINE_ERROR_DECODE);
 }
 
 TEST_F(FFmpegVideoDecoderTest, Initialize_UnsupportedPixelFormat) {
   // Ensure decoder handles unsupport pixel formats without crashing.
-  VideoDecoderConfig config(kCodecVP8, VideoFrame::INVALID,
+  VideoDecoderConfig config(kCodecVP8, VIDEO_CODEC_PROFILE_UNKNOWN,
+                            VideoFrame::INVALID,
                             kCodedSize, kVisibleRect,
                             kFrameRate.num, kFrameRate.den,
                             kAspectRatio.num, kAspectRatio.den,
                             NULL, 0);
-
-  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
-  InitializeWithConfig(config);
+  InitializeWithConfigAndStatus(config, PIPELINE_ERROR_DECODE);
 }
 
 TEST_F(FFmpegVideoDecoderTest, Initialize_OpenDecoderFails) {
   // Specify Theora w/o extra data so that avcodec_open() fails.
-  VideoDecoderConfig config(kCodecTheora, kVideoFormat,
+  VideoDecoderConfig config(kCodecTheora, VIDEO_CODEC_PROFILE_UNKNOWN,
+                            kVideoFormat,
                             kCodedSize, kVisibleRect,
                             kFrameRate.num, kFrameRate.den,
                             kAspectRatio.num, kAspectRatio.den,
                             NULL, 0);
-
-  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
-  InitializeWithConfig(config);
+  InitializeWithConfigAndStatus(config, PIPELINE_ERROR_DECODE);
 }
 
 TEST_F(FFmpegVideoDecoderTest, DecodeFrame_Normal) {

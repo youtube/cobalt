@@ -64,7 +64,7 @@ FFmpegVideoDecoder::~FFmpegVideoDecoder() {
 }
 
 void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
-                                    const base::Closure& callback,
+                                    const PipelineStatusCB& callback,
                                     const StatisticsCallback& stats_callback) {
   if (MessageLoop::current() != message_loop_) {
     message_loop_->PostTask(FROM_HERE, base::Bind(
@@ -76,8 +76,7 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
   DCHECK(!demuxer_stream_);
 
   if (!demuxer_stream) {
-    host()->SetError(PIPELINE_ERROR_DECODE);
-    callback.Run();
+    callback.Run(PIPELINE_ERROR_DECODE);
     return;
   }
 
@@ -89,24 +88,8 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
   // TODO(scherkus): this check should go in PipelineImpl prior to creating
   // decoder objects.
   if (!config.IsValidConfig()) {
-    DLOG(ERROR) << "Invalid video stream -"
-                << " codec: " << config.codec()
-                << " format: " << config.format()
-                << " coded size: [" << config.coded_size().width()
-                << "," << config.coded_size().height() << "]"
-                << " visible rect: [" << config.visible_rect().x()
-                << "," << config.visible_rect().y()
-                << "," << config.visible_rect().width()
-                << "," << config.visible_rect().height() << "]"
-                << " natural size: [" << config.natural_size().width()
-                << "," << config.natural_size().height() << "]"
-                << " frame rate: " << config.frame_rate_numerator()
-                << "/" << config.frame_rate_denominator()
-                << " aspect ratio: " << config.aspect_ratio_numerator()
-                << "/" << config.aspect_ratio_denominator();
-
-    host()->SetError(PIPELINE_ERROR_DECODE);
-    callback.Run();
+    DLOG(ERROR) << "Invalid video stream - " << config.AsHumanReadableString();
+    callback.Run(PIPELINE_ERROR_DECODE);
     return;
   }
 
@@ -122,14 +105,12 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
 
   AVCodec* codec = avcodec_find_decoder(codec_context_->codec_id);
   if (!codec) {
-    host()->SetError(PIPELINE_ERROR_DECODE);
-    callback.Run();
+    callback.Run(PIPELINE_ERROR_DECODE);
     return;
   }
 
   if (avcodec_open(codec_context_, codec) < 0) {
-    host()->SetError(PIPELINE_ERROR_DECODE);
-    callback.Run();
+    callback.Run(PIPELINE_ERROR_DECODE);
     return;
   }
 
@@ -140,7 +121,7 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
   natural_size_ = config.natural_size();
   frame_rate_numerator_ = config.frame_rate_numerator();
   frame_rate_denominator_ = config.frame_rate_denominator();
-  callback.Run();
+  callback.Run(PIPELINE_OK);
 }
 
 void FFmpegVideoDecoder::Stop(const base::Closure& callback) {
