@@ -12,6 +12,8 @@
 
 #include <ios>
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/command_line.h"
 #include "base/debug/stack_trace.h"
 #include "base/logging.h"
@@ -108,49 +110,18 @@ void OnNoMemory() {
   _exit(1);
 }
 
-class TimerExpiredTask : public Task,
-                         public win::ObjectWatcher::Delegate {
+class TimerExpiredTask : public win::ObjectWatcher::Delegate {
  public:
-  explicit TimerExpiredTask(ProcessHandle process) : process_(process) {
-    watcher_.StartWatching(process_, this);
-  }
+  explicit TimerExpiredTask(ProcessHandle process);
+  ~TimerExpiredTask();
 
-  virtual ~TimerExpiredTask() {
-    if (process_) {
-      KillProcess();
-      DCHECK(!process_) << "Make sure to close the handle.";
-    }
-  }
-
-  // Task ---------------------------------------------------------------------
-
-  virtual void Run() {
-    if (process_)
-      KillProcess();
-  }
+  void TimedOut();
 
   // MessageLoop::Watcher -----------------------------------------------------
-
-  virtual void OnObjectSignaled(HANDLE object) {
-    // When we're called from KillProcess, the ObjectWatcher may still be
-    // watching.  the process handle, so make sure it has stopped.
-    watcher_.StopWatching();
-
-    CloseHandle(process_);
-    process_ = NULL;
-  }
+  virtual void OnObjectSignaled(HANDLE object);
 
  private:
-  void KillProcess() {
-    // OK, time to get frisky.  We don't actually care when the process
-    // terminates.  We just care that it eventually terminates, and that's what
-    // TerminateProcess should do for us. Don't check for the result code since
-    // it fails quite often. This should be investigated eventually.
-    base::KillProcess(process_, kProcessKilledExitCode, false);
-
-    // Now, just cleanup as if the process exited normally.
-    OnObjectSignaled(process_);
-  }
+  void KillProcess();
 
   // The process that we are watching.
   ProcessHandle process_;
@@ -159,6 +130,39 @@ class TimerExpiredTask : public Task,
 
   DISALLOW_COPY_AND_ASSIGN(TimerExpiredTask);
 };
+
+TimerExpiredTask::TimerExpiredTask(ProcessHandle process) : process_(process) {
+  watcher_.StartWatching(process_, this);
+}
+
+TimerExpiredTask::~TimerExpiredTask() {
+  TimedOut();
+  DCHECK(!process_) << "Make sure to close the handle.";
+}
+
+void TimerExpiredTask::TimedOut() {
+  if (process_)
+    KillProcess();
+}
+
+void TimerExpiredTask::OnObjectSignaled(HANDLE object) {
+  CloseHandle(process_);
+  process_ = NULL;
+}
+
+void TimerExpiredTask::KillProcess() {
+  // Stop watching the process handle since we're killing it.
+  watcher_.StopWatching();
+
+  // OK, time to get frisky.  We don't actually care when the process
+  // terminates.  We just care that it eventually terminates, and that's what
+  // TerminateProcess should do for us. Don't check for the result code since
+  // it fails quite often. This should be investigated eventually.
+  base::KillProcess(process_, kProcessKilledExitCode, false);
+
+  // Now, just cleanup as if the process exited normally.
+  OnObjectSignaled(process_);
+}
 
 }  // namespace
 
@@ -628,9 +632,11 @@ void EnsureProcessTerminated(ProcessHandle process) {
     return;
   }
 
-  MessageLoop::current()->PostDelayedTask(FROM_HERE,
-                                          new TimerExpiredTask(process),
-                                          kWaitInterval);
+  MessageLoop::current()->PostDelayedTask(
+      FROM_HERE,
+      base::Bind(&TimerExpiredTask::TimedOut,
+                 base::Owned(new TimerExpiredTask(process))),
+      kWaitInterval);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
