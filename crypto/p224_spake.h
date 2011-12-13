@@ -12,12 +12,10 @@
 
 namespace crypto {
 
-// P224EncryptedKeyExchange provides a means to authenticate an
-// encrypted transport using a low-entropy, shared secret.
-//
-// You need a value derived from the master secret of the connection in order
-// to bind the authentication to the encrypted channel. It's the |session|
-// argument to the constructor and can be of any length.
+// P224EncryptedKeyExchange implements SPAKE2, a variant of Encrypted
+// Key Exchange. It allows two parties that have a secret common
+// password to establish a common secure key by exchanging messages
+// over unsecure channel without disclosing the password.
 //
 // The password can be low entropy as authenticating with an attacker only
 // gives the attacker a one-shot password oracle. No other information about
@@ -51,13 +49,11 @@ class CRYPTO_EXPORT P224EncryptedKeyExchange {
   };
 
   // peer_type: the type of the local authentication party.
-  // password: a, possibly low-entropy, mutually known password.
-  // session: a value securely derived from the connection's master secret.
-  //     Both parties to the authentication must pass the same value. For the
-  //     case of a TLS connection, see RFC 5705.
+  // password: secret session password. Both parties to the
+  //     authentication must pass the same value. For the case of a
+  //     TLS connection, see RFC 5705.
   P224EncryptedKeyExchange(PeerType peer_type,
-                           const base::StringPiece& password,
-                           const base::StringPiece& session);
+                           const base::StringPiece& password);
 
   // GetMessage returns a byte string which must be passed to the other party
   // in the authentication.
@@ -70,6 +66,10 @@ class CRYPTO_EXPORT P224EncryptedKeyExchange {
   // In the event that ProcessMessage() returns kResultFailed, error will
   // return a human readable error message.
   const std::string& error() const;
+
+  // The key established as result of the key exchange. Must be called
+  // at then end after ProcessMessage() returns kResultSuccess.
+  const std::string& GetKey();
 
  private:
   // The authentication state machine is very simple and each party proceeds
@@ -106,6 +106,8 @@ class CRYPTO_EXPORT P224EncryptedKeyExchange {
   // expected_authenticator_ is used to store the hash value expected from the
   // other party.
   uint8 expected_authenticator_[kSHA256Length];
+
+  std::string key_;
 };
 
 }  // namespace crypto
