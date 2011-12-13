@@ -15,15 +15,28 @@ WebMTracksParser::WebMTracksParser(int64 timecode_scale)
       track_num_(-1),
       track_default_duration_(-1),
       audio_track_num_(-1),
-      audio_default_duration_(base::TimeDelta::FromMicroseconds(-1)),
-      video_track_num_(-1),
-      video_default_duration_(base::TimeDelta::FromMicroseconds(-1)) {
+      video_track_num_(-1) {
 }
 
 WebMTracksParser::~WebMTracksParser() {}
 
 int WebMTracksParser::Parse(const uint8* buf, int size) {
-  return WebMParseListElement(buf, size, kWebMIdTracks, 1, this);
+  track_type_ =-1;
+  track_num_ = -1;
+  track_default_duration_ = -1;
+  audio_track_num_ = -1;
+  audio_default_duration_ = base::TimeDelta();
+  video_track_num_ = -1;
+  video_default_duration_ = base::TimeDelta();
+
+  WebMListParser parser(kWebMIdTracks);
+  int result = parser.Parse(buf, size, this);
+
+  if (result <= 0)
+    return result;
+
+  // For now we do all or nothing parsing.
+  return parser.IsParsingComplete() ? result : 0;
 }
 
 
@@ -40,15 +53,19 @@ bool WebMTracksParser::OnListStart(int id) {
 bool WebMTracksParser::OnListEnd(int id) {
   if (id == kWebMIdTrackEntry) {
     if (track_type_ == -1 || track_num_ == -1) {
-      VLOG(1) << "Missing TrackEntry data"
-              << " TrackType " << track_type_
-              << " TrackNum " << track_num_;
+      DVLOG(1) << "Missing TrackEntry data"
+               << " TrackType " << track_type_
+               << " TrackNum " << track_num_;
       return false;
     }
 
-    // Convert nanoseconds to base::TimeDelta.
-    base::TimeDelta default_duration = base::TimeDelta::FromMicroseconds(
-        track_default_duration_ / 1000.0);
+    base::TimeDelta default_duration;
+
+    if (track_default_duration_ > 0) {
+      // Convert nanoseconds to base::TimeDelta.
+      default_duration= base::TimeDelta::FromMicroseconds(
+          track_default_duration_ / 1000.0);
+    }
 
     if (track_type_ == kWebMTrackTypeVideo) {
       video_track_num_ = track_num_;
@@ -57,7 +74,7 @@ bool WebMTracksParser::OnListEnd(int id) {
       audio_track_num_ = track_num_;
       audio_default_duration_ = default_duration;
     } else {
-      VLOG(1) << "Unexpected TrackType " << track_type_;
+      DVLOG(1) << "Unexpected TrackType " << track_type_;
       return false;
     }
 
@@ -86,7 +103,7 @@ bool WebMTracksParser::OnUInt(int id, int64 val) {
   }
 
   if (*dst != -1) {
-    VLOG(1) << "Multiple values for id " << std::hex << id << " specified";
+    DVLOG(1) << "Multiple values for id " << std::hex << id << " specified";
     return false;
   }
 
@@ -95,7 +112,7 @@ bool WebMTracksParser::OnUInt(int id, int64 val) {
 }
 
 bool WebMTracksParser::OnFloat(int id, double val) {
-  VLOG(1) << "Unexpected float for id" << std::hex << id;
+  DVLOG(1) << "Unexpected float for id" << std::hex << id;
   return false;
 }
 
@@ -108,7 +125,7 @@ bool WebMTracksParser::OnString(int id, const std::string& str) {
     return false;
 
   if (str != "A_VORBIS" && str != "V_VP8") {
-    VLOG(1) << "Unexpected CodecID " << str;
+    DVLOG(1) << "Unexpected CodecID " << str;
     return false;
   }
 

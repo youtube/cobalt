@@ -26,6 +26,7 @@ WebMClusterParser::WebMClusterParser(int64 timecode_scale,
       audio_default_duration_(audio_default_duration),
       video_track_num_(video_track_num),
       video_default_duration_(video_default_duration),
+      parser_(kWebMIdCluster),
       last_block_timecode_(-1),
       cluster_timecode_(-1) {
 }
@@ -33,12 +34,25 @@ WebMClusterParser::WebMClusterParser(int64 timecode_scale,
 WebMClusterParser::~WebMClusterParser() {}
 
 int WebMClusterParser::Parse(const uint8* buf, int size) {
-  last_block_timecode_ = -1;
-  cluster_timecode_ = -1;
   audio_buffers_.clear();
   video_buffers_.clear();
 
-  return WebMParseListElement(buf, size, kWebMIdCluster, 1, this);
+  int result = parser_.Parse(buf, size, this);
+
+  if (result <= 0)
+    return result;
+
+  if (parser_.IsParsingComplete()) {
+    // Reset the parser if we're done parsing so that
+    // it is ready to accept another cluster on the next
+    // call.
+    parser_.Reset();
+
+    last_block_timecode_ = -1;
+    cluster_timecode_ = -1;
+  }
+
+  return result;
 }
 
 bool WebMClusterParser::OnListStart(int id) {
@@ -67,17 +81,17 @@ bool WebMClusterParser::OnUInt(int id, int64 val) {
 }
 
 bool WebMClusterParser::OnFloat(int id, double val) {
-  VLOG(1) << "Unexpected float element with ID " << std::hex << id;
+  DVLOG(1) << "Unexpected float element with ID " << std::hex << id;
   return false;
 }
 
 bool WebMClusterParser::OnBinary(int id, const uint8* data, int size) {
-  VLOG(1) << "Unexpected binary element with ID " << std::hex << id;
+  DVLOG(1) << "Unexpected binary element with ID " << std::hex << id;
   return false;
 }
 
 bool WebMClusterParser::OnString(int id, const std::string& str) {
-  VLOG(1) << "Unexpected string element with ID " << std::hex << id;
+  DVLOG(1) << "Unexpected string element with ID " << std::hex << id;
   return false;
 }
 
@@ -85,17 +99,17 @@ bool WebMClusterParser::OnSimpleBlock(int track_num, int timecode,
                                       int flags,
                                       const uint8* data, int size) {
   if (cluster_timecode_ == -1) {
-    VLOG(1) << "Got SimpleBlock before cluster timecode.";
+    DVLOG(1) << "Got SimpleBlock before cluster timecode.";
     return false;
   }
 
   if (timecode < 0) {
-    VLOG(1) << "Got SimpleBlock with negative timecode offset " << timecode;
+    DVLOG(1) << "Got SimpleBlock with negative timecode offset " << timecode;
     return false;
   }
 
   if (last_block_timecode_ != -1 && timecode < last_block_timecode_) {
-    VLOG(1) << "Got SimpleBlock with a timecode before the previous block.";
+    DVLOG(1) << "Got SimpleBlock with a timecode before the previous block.";
     return false;
   }
 
@@ -115,13 +129,13 @@ bool WebMClusterParser::OnSimpleBlock(int track_num, int timecode,
     buffer->SetDuration(video_default_duration_);
     queue = &video_buffers_;
   } else {
-    VLOG(1) << "Unexpected track number " << track_num;
+    DVLOG(1) << "Unexpected track number " << track_num;
     return false;
   }
 
   if (!queue->empty() &&
       buffer->GetTimestamp() == queue->back()->GetTimestamp()) {
-    VLOG(1) << "Got SimpleBlock timecode is not strictly monotonically "
+    DVLOG(1) << "Got SimpleBlock timecode is not strictly monotonically "
             << "increasing for track " << track_num;
     return false;
   }
