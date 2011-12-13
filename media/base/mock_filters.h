@@ -188,7 +188,7 @@ class MockVideoDecoder : public VideoDecoder {
 
   // VideoDecoder implementation.
   MOCK_METHOD3(Initialize, void(DemuxerStream* stream,
-                                const base::Closure& callback,
+                                const PipelineStatusCB& callback,
                                 const StatisticsCallback& stats_callback));
   MOCK_METHOD1(Read, void(const ReadCB& callback));
   MOCK_METHOD0(natural_size, const gfx::Size&());
