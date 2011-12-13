@@ -13,7 +13,6 @@
 
 #include "base/base_export.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 
 namespace base {
 namespace internal {
@@ -130,64 +129,6 @@ struct CallbackParamTraits<T[]> {
   typedef const T* ForwardType;
   typedef const T* StorageType;
 };
-
-// Parameter traits for movable-but-not-copyable scopers.
-//
-// Callback<>/Bind() understands movable-but-not-copyable semantics where
-// the type cannot be copied but can still have its state destructively
-// transferred (aka. moved) to another instance of the same type by calling a
-// helper function.  When used with Bind(), this signifies transferal of the
-// object's state to the target function.
-//
-// For these types, the ForwardType must not be a const reference, or a
-// reference.  A const reference is inappropriate, and would break const
-// correctness, because we are implementing a destructive move.  A non-const
-// reference cannot be used with temporaries which means the result of a
-// function or a cast would not be usable with Callback<> or Bind().
-//
-// TODO(ajwong): We might be able to use SFINAE to search for the existence of
-// a Pass() function in the type and avoid the whitelist in CallbackParamTraits
-// and CallbackForward.
-template <typename T>
-struct CallbackParamTraits<scoped_ptr<T> > {
-  typedef scoped_ptr<T> ForwardType;
-  typedef scoped_ptr<T> StorageType;
-};
-
-template <typename T>
-struct CallbackParamTraits<scoped_array<T> > {
-  typedef scoped_array<T> ForwardType;
-  typedef scoped_array<T> StorageType;
-};
-
-template <typename T>
-struct CallbackParamTraits<scoped_ptr_malloc<T> > {
-  typedef scoped_ptr_malloc<T> ForwardType;
-  typedef scoped_ptr_malloc<T> StorageType;
-};
-
-// CallbackForward() is a very limited simulation of C++11's std::forward()
-// used by the Callback/Bind system for a set of movable-but-not-copyable
-// types.  It is needed because forwarding a movable-but-not-copyable
-// argument to another function requires us to invoke the proper move
-// operator to create a rvalue version of the type.  The supported types are
-// whitelisted below as overloads of the CallbackForward() function. The
-// default template compiles out to be a no-op.
-//
-// In C++11, std::forward would replace all uses of this function.  However, it
-// is impossible to implement a general std::forward with C++11 due to a lack
-// of rvalue references.
-template <typename T>
-T& CallbackForward(T& t) { return t; }
-
-template <typename T>
-scoped_ptr<T> CallbackForward(scoped_ptr<T>& p) { return p.Pass(); }
-
-template <typename T>
-scoped_ptr<T> CallbackForward(scoped_array<T>& p) { return p.Pass(); }
-
-template <typename T>
-scoped_ptr<T> CallbackForward(scoped_ptr_malloc<T>& p) { return p.Pass(); }
 
 }  // namespace internal
 }  // namespace base
