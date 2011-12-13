@@ -258,6 +258,9 @@ class SQL_EXPORT Connection {
   // Returns true if the given table exists.
   bool DoesTableExist(const char* table_name) const;
 
+  // Returns true if the given index exists.
+  bool DoesIndexExist(const char* index_name) const;
+
   // Returns true if a column with the given name exists in the given table.
   bool DoesColumnExist(const char* table_name, const char* column_name) const;
 
@@ -292,6 +295,9 @@ class SQL_EXPORT Connection {
   // name is always 8 bits since we want to use the 8-bit version of
   // sqlite3_open. The string can also be sqlite's special ":memory:" string.
   bool OpenInternal(const std::string& file_name);
+
+  // Internal helper for DoesTableExist and DoesIndexExist.
+  bool DoesTableOrIndexExist(const char* name, const char* type) const;
 
   // A StatementRef is a refcounted wrapper around a sqlite statement pointer.
   // Refcounting allows us to give these statements out to sql::Statement
