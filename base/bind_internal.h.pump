@@ -82,6 +82,7 @@ namespace internal {
 //                 into the Bind() system, doing most of the type resolution.
 //                 There are ARITY BindState types.
 
+
 // RunnableAdapter<>
 //
 // The RunnableAdapter<> templates provide a uniform interface for invoking
@@ -120,7 +121,7 @@ class RunnableAdapter<R(*)($for ARG , [[A$(ARG)]])> {
   }
 
   R Run($for ARG , [[typename CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]]) {
-    return function_($for ARG , [[CallbackForward(a$(ARG))]]);
+    return function_($for ARG , [[a$(ARG)]]);
   }
 
  private:
@@ -142,7 +143,7 @@ $if ARITY > 0[[, ]] $for ARG , [[A$(ARG)]]);
 
   R Run(T* object[[]]
 $if ARITY > 0[[, ]]  $for ARG, [[typename CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]]) {
-    return (object->*method_)($for ARG , [[CallbackForward(a$(ARG))]]);
+    return (object->*method_)($for ARG , [[a$(ARG)]]);
   }
 
  private:
@@ -164,7 +165,7 @@ $if ARITY > 0[[, ]] $for ARG , [[A$(ARG)]]);
 
   R Run(const T* object[[]]
 $if ARITY > 0[[, ]]  $for ARG, [[typename CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]]) {
-    return (object->*method_)($for ARG , [[CallbackForward(a$(ARG))]]);
+    return (object->*method_)($for ARG , [[a$(ARG)]]);
   }
 
  private:
@@ -290,7 +291,7 @@ struct InvokeHelper<false, ReturnType, Runnable,
     void($for ARG , [[A$(ARG)]])>  {
   static ReturnType MakeItSo(Runnable runnable[[]]
 $if ARITY > 0[[, ]] $for ARG , [[A$(ARG) a$(ARG)]]) {
-    return runnable.Run($for ARG , [[CallbackForward(a$(ARG))]]);
+    return runnable.Run($for ARG , [[a$(ARG)]]);
   }
 };
 
@@ -300,7 +301,7 @@ struct InvokeHelper<false, void, Runnable,
     void($for ARG , [[A$(ARG)]])>  {
   static void MakeItSo(Runnable runnable[[]]
 $if ARITY > 0[[, ]] $for ARG , [[A$(ARG) a$(ARG)]]) {
-    runnable.Run($for ARG , [[CallbackForward(a$(ARG))]]);
+    runnable.Run($for ARG , [[a$(ARG)]]);
   }
 };
 
@@ -315,7 +316,7 @@ $if ARITY > 0[[, ]] $for ARG , [[A$(ARG) a$(ARG)]]) {
       return;
     }
 
-    runnable.Run($for ARG , [[CallbackForward(a$(ARG))]]);
+    runnable.Run($for ARG , [[a$(ARG)]]);
   }
 };
 
@@ -403,7 +404,7 @@ typename CallbackParamTraits<X$(UNBOUND_ARG)>::ForwardType x$(UNBOUND_ARG)
 ]]
 )>
                ::MakeItSo(storage->runnable_
-$if ARITY > 0[[, ]] $for ARG , [[CallbackForward(x$(ARG))]]);
+$if ARITY > 0[[, ]] $for ARG , [[x$(ARG)]]);
   }
 };
 
