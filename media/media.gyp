@@ -621,6 +621,7 @@
         'video/capture/video_capture_device_unittest.cc',
         'webm/cluster_builder.cc',
         'webm/cluster_builder.h',
+        'webm/webm_parser_unittest.cc',
       ],
       'conditions': [
         ['os_posix==1 and OS!="mac"', {
