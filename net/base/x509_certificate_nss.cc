@@ -710,7 +710,7 @@ std::string X509Certificate::GetDefaultNickname(CertType type) const {
     return default_nickname_;
 
   std::string result;
-  if (type == USER_CERT) {
+  if (type == USER_CERT && cert_handle_->slot) {
     // Find the private key for this certificate and see if it has a
     // nickname.  If there is a private key, and it has a nickname, then
     // we return that nickname.
