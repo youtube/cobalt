@@ -6,28 +6,10 @@
 """Extracts a single file from a CAB archive."""
 
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
-
-lock_file = os.path.join(tempfile.gettempdir(), 'expand.lock')
-
-
-def acquire_lock():
-  while True:
-    try:
-      fd = os.open(lock_file, os.O_CREAT | os.O_EXCL | os.O_RDWR)
-      return fd
-    except OSError as e:
-      if e.errno != errno.EEXIST:
-        raise
-      print 'Cab extraction could not get exclusive lock. Retrying in 100ms...'
-      time.sleep(0.1)
-
-
-def release_lock(fd):
-  os.close(fd)
-  os.unlink(lock_file)
 
 
 def main():
@@ -37,15 +19,30 @@ def main():
 
   [cab_path, archived_file, output_dir] = sys.argv[1:]
 
-  lock_fd = acquire_lock()
+  # Expand.exe does its work in a fixed-named temporary directory created within
+  # the given output directory. This is a problem for concurrent extractions, so
+  # create a unique temp dir within the desired output directory to work around
+  # this limitation.
+  temp_dir = tempfile.mkdtemp(dir=output_dir)
+
   try:
     # Invoke the Windows expand utility to extract the file.
     level = subprocess.call(
-        ['expand', cab_path, '-F:' + archived_file, output_dir])
-    if level != 0:
-      return level
+        ['expand', cab_path, '-F:' + archived_file, temp_dir])
+    if level == 0:
+      # Move the output file into place, preserving expand.exe's behavior of
+      # paving over any preexisting file.
+      output_file = os.path.join(output_dir, archived_file)
+      try:
+        os.remove(output_file)
+      except OSError:
+        pass
+      os.rename(os.path.join(temp_dir, archived_file), output_file)
   finally:
-    release_lock(lock_fd)
+    shutil.rmtree(temp_dir, True)
+
+  if level != 0:
+    return level
 
   # The expand utility preserves the modification date and time of the archived
   # file. Touch the extracted file. This helps build systems that compare the
