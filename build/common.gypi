@@ -2111,8 +2111,7 @@
             'conditions': [
               ['android_build_type==0', {
                 'ldflags': [
-                  '-Wl,-rpath-link=<(android_ndk_lib)',
-                  '-L<(android_ndk_lib)',
+                  '--sysroot=<(android_ndk_sysroot)',
                 ],
               }],
               # NOTE: The stlport header include paths below are specified in
