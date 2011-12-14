@@ -739,7 +739,6 @@
         'message_pump_libevent.h',
         'message_pump_mac.h',
         'message_pump_mac.mm',
-        'message_pump_wayland.cc',
         'message_pump_wayland.h',
         'metrics/field_trial.cc',
         'metrics/field_trial.h',
