@@ -1494,7 +1494,7 @@ void SpdySession::SendWindowUpdate(spdy::SpdyStreamId stream_id,
 
   scoped_ptr<spdy::SpdyWindowUpdateControlFrame> window_update_frame(
       spdy_framer_.CreateWindowUpdate(stream_id, delta_window_size));
-  QueueFrame(window_update_frame.get(), stream->priority(), stream);
+  QueueFrame(window_update_frame.get(), stream->priority(), NULL);
 }
 
 // Given a cwnd that we would have sent to the server, modify it based on the
