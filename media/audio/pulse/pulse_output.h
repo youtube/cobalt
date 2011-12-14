@@ -42,13 +42,11 @@ typedef AudioManagerOpenBSD AudioManagerPulse;
 #endif
 
 struct AudioParameters;
-class MessageLoop;
 
 class PulseAudioOutputStream : public AudioOutputStream {
  public:
   PulseAudioOutputStream(const AudioParameters& params,
-                         AudioManagerPulse* manager,
-                         MessageLoop* message_loop);
+                         AudioManagerPulse* manager);
 
   virtual ~PulseAudioOutputStream();
 
@@ -122,10 +120,6 @@ class PulseAudioOutputStream : public AudioOutputStream {
   // Whether or not PulseAudio has called the WriteCallback for the most recent
   // set of pa_mainloop iterations.
   bool write_callback_handled_;
-
-  // Message loop used to post WaitForWriteTasks.  Used to prevent blocking on
-  // the audio thread while waiting for PulseAudio write callbacks.
-  MessageLoop* message_loop_;
 
   // Allows us to run tasks on the PulseAudioOutputStream instance which are
   // bound by its lifetime.
