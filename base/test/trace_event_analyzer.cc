@@ -615,7 +615,7 @@ namespace {
 // Search |events| for |query| and add matches to |output|.
 size_t FindMatchingEvents(const std::vector<TraceEvent>& events,
                           const Query& query,
-                          TraceAnalyzer::TraceEventVector* output) {
+                          TraceEventVector* output) {
   for (size_t i = 0; i < events.size(); ++i) {
     if (query.Evaluate(events[i]))
       output->push_back(&events[i]);
@@ -739,6 +739,19 @@ void TraceAnalyzer::AssociateEvents(const Query& first,
   }
 }
 
+void TraceAnalyzer::MergeAssociatedEventArgs() {
+  for (size_t i = 0; i < raw_events_.size(); ++i) {
+    if (raw_events_[i].other_event) {
+      raw_events_[i].arg_numbers.insert(
+          raw_events_[i].other_event->arg_numbers.begin(),
+          raw_events_[i].other_event->arg_numbers.end());
+      raw_events_[i].arg_strings.insert(
+          raw_events_[i].other_event->arg_strings.begin(),
+          raw_events_[i].other_event->arg_strings.end());
+    }
+  }
+}
+
 size_t TraceAnalyzer::FindEvents(const Query& query, TraceEventVector* output) {
   allow_assocation_changes_ = false;
   output->clear();
@@ -758,7 +771,24 @@ const std::string& TraceAnalyzer::GetThreadName(
   return thread_names_[thread];
 }
 
-bool TraceAnalyzer::GetRateStats(const TraceEventVector& events, Stats* stats) {
+void TraceAnalyzer::ParseMetadata() {
+  for (size_t i = 0; i < raw_events_.size(); ++i) {
+    TraceEvent& this_event = raw_events_[i];
+    // Check for thread name metadata.
+    if (this_event.phase != TRACE_EVENT_PHASE_METADATA ||
+        this_event.name != "thread_name")
+      continue;
+    std::map<std::string, std::string>::const_iterator string_it =
+        this_event.arg_strings.find("name");
+    if (string_it != this_event.arg_strings.end())
+      thread_names_[this_event.thread] = string_it->second;
+  }
+}
+
+// TraceEventVector utility functions.
+
+bool GetRateStats(const TraceEventVector& events, RateStats* stats) {
+  CHECK(stats);
   // Need at least 3 events to calculate rate stats.
   if (events.size() < 3) {
     LOG(ERROR) << "Not enough events: " << events.size();
@@ -769,7 +799,7 @@ bool TraceAnalyzer::GetRateStats(const TraceEventVector& events, Stats* stats) {
   double delta_sum = 0.0;
   size_t num_deltas = events.size() - 1;
   for (size_t i = 0; i < num_deltas; ++i) {
-    double delta = events[i + 1]->timestamp - events[i]->timestamp;
+    double delta = events.at(i + 1)->timestamp - events.at(i)->timestamp;
     if (delta < 0.0) {
       LOG(ERROR) << "Events are out of order";
       return false;
@@ -793,18 +823,90 @@ bool TraceAnalyzer::GetRateStats(const TraceEventVector& events, Stats* stats) {
   return true;
 }
 
-void TraceAnalyzer::ParseMetadata() {
-  for (size_t i = 0; i < raw_events_.size(); ++i) {
-    TraceEvent& this_event = raw_events_[i];
-    // Check for thread name metadata.
-    if (this_event.phase != TRACE_EVENT_PHASE_METADATA ||
-        this_event.name != "thread_name")
-      continue;
-    std::map<std::string, std::string>::const_iterator string_it =
-        this_event.arg_strings.find("name");
-    if (string_it != this_event.arg_strings.end())
-      thread_names_[this_event.thread] = string_it->second;
+bool FindFirstOf(const TraceEventVector& events,
+                 const Query& query,
+                 size_t position,
+                 size_t* return_index) {
+  CHECK(return_index);
+  for (size_t i = position; i < events.size(); ++i) {
+    if (query.Evaluate(*events.at(i))) {
+      *return_index = i;
+      return true;
+    }
   }
+  return false;
+}
+
+bool FindLastOf(const TraceEventVector& events,
+                const Query& query,
+                size_t position,
+                size_t* return_index) {
+  CHECK(return_index);
+  if (events.empty())
+    return false;
+  position = (position < events.size()) ? position : events.size() - 1;
+  for (;;) {
+    if (query.Evaluate(*events.at(position))) {
+      *return_index = position;
+      return true;
+    }
+    if (position == 0)
+      return false;
+    --position;
+  }
+  return false;
+}
+
+bool FindClosest(const TraceEventVector& events,
+                 const Query& query,
+                 size_t position,
+                 size_t* return_closest,
+                 size_t* return_second_closest) {
+  CHECK(return_closest);
+  if (events.empty() || position >= events.size())
+    return false;
+  size_t closest = events.size();
+  size_t second_closest = events.size();
+  for (size_t i = 0; i < events.size(); ++i) {
+    if (!query.Evaluate(*events.at(i)))
+      continue;
+    if (closest == events.size()) {
+      closest = i;
+      continue;
+    }
+    if (fabs(events.at(i)->timestamp - events.at(position)->timestamp) <
+        fabs(events.at(closest)->timestamp - events.at(position)->timestamp)) {
+      second_closest = closest;
+      closest = i;
+    } else if (second_closest == events.size()) {
+      second_closest = i;
+    }
+  }
+
+  if (closest < events.size() &&
+      (!return_second_closest || second_closest < events.size())) {
+    *return_closest = closest;
+    if (return_second_closest)
+      *return_second_closest = second_closest;
+    return true;
+  }
+
+  return false;
+}
+
+size_t CountMatches(const TraceEventVector& events,
+                    const Query& query,
+                    size_t begin_position,
+                    size_t end_position) {
+  if (begin_position >= events.size())
+    return 0u;
+  end_position = (end_position < events.size()) ? end_position : events.size();
+  size_t count = 0u;
+  for (size_t i = begin_position; i < end_position; ++i) {
+    if (query.Evaluate(*events.at(i)))
+      ++count;
+  }
+  return count;
 }
 
 }  // namespace trace_analyzer
