@@ -769,23 +769,13 @@ SymmetricKey* GetSupplementalUserKey() {
 }
 #endif  // defined(OS_CHROMEOS)
 
-// TODO(port): Implement this more simply.  We can convert by subtracting an
-// offset (the difference between NSPR's and base::Time's epochs).
 base::Time PRTimeToBaseTime(PRTime prtime) {
-  PRExplodedTime prxtime;
-  PR_ExplodeTime(prtime, PR_GMTParameters, &prxtime);
+  return base::Time::FromInternalValue(
+      prtime + base::Time::UnixEpoch().ToInternalValue());
+}
 
-  base::Time::Exploded exploded;
-  exploded.year         = prxtime.tm_year;
-  exploded.month        = prxtime.tm_month + 1;
-  exploded.day_of_week  = prxtime.tm_wday;
-  exploded.day_of_month = prxtime.tm_mday;
-  exploded.hour         = prxtime.tm_hour;
-  exploded.minute       = prxtime.tm_min;
-  exploded.second       = prxtime.tm_sec;
-  exploded.millisecond  = prxtime.tm_usec / 1000;
-
-  return base::Time::FromUTCExploded(exploded);
+PRTime BaseTimeToPRTime(base::Time time) {
+  return time.ToInternalValue() - base::Time::UnixEpoch().ToInternalValue();
 }
 
 PK11SlotInfo* GetPublicNSSKeySlot() {
