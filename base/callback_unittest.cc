@@ -9,7 +9,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
-
 namespace {
 
 class HelperObject {
@@ -27,40 +26,18 @@ struct FakeInvoker {
   static void Run(internal::BindStateBase*) {
   }
 };
-}  // namespace
-
-namespace internal {
-template <typename Runnable, typename RunType, typename BoundArgsType>
-struct BindState;
 
 // White-box testpoints to inject into a Callback<> object for checking
-// comparators and emptiness APIs.  Use a BindState that is specialized
-// based on a type we declared in the anonymous namespace above to remove any
-// chance of colliding with another instantiation and breaking the
-// one-definition-rule.
-template <>
-struct BindState<void(void), void(void), void(FakeInvoker)>
-    : public BindStateBase {
+// comparators and emptiness APIs.
+class FakeBindState1 : public internal::BindStateBase {
  public:
   typedef FakeInvoker InvokerType;
 };
 
-template <>
-struct BindState<void(void), void(void),
-                           void(FakeInvoker, FakeInvoker)>
-    : public BindStateBase {
+class FakeBindState2 : public internal::BindStateBase {
  public:
   typedef FakeInvoker InvokerType;
 };
-}  // namespace internal
-
-namespace {
-
-typedef internal::BindState<void(void), void(void), void(FakeInvoker)>
-    FakeBindState1;
-typedef internal::BindState<void(void), void(void),
-                            void(FakeInvoker, FakeInvoker)>
-   FakeBindState2;
 
 TEST(CallbackOld, OneArg) {
   HelperObject obj;
@@ -83,8 +60,8 @@ TEST(CallbackOld, ReturnValue) {
 class CallbackTest : public ::testing::Test {
  public:
   CallbackTest()
-      : callback_a_(new FakeBindState1()),
-        callback_b_(new FakeBindState2()) {
+      : callback_a_(MakeBindStateHolder(new FakeBindState1())),
+        callback_b_(MakeBindStateHolder(new FakeBindState2())) {
   }
 
   virtual ~CallbackTest() {
@@ -128,7 +105,8 @@ TEST_F(CallbackTest, Equals) {
   EXPECT_FALSE(callback_b_.Equals(callback_a_));
 
   // We should compare based on instance, not type.
-  Callback<void(void)> callback_c(new FakeBindState1());
+  Callback<void(void)> callback_c(
+      MakeBindStateHolder(new FakeBindState1()));
   Callback<void(void)> callback_a2 = callback_a_;
   EXPECT_TRUE(callback_a_.Equals(callback_a2));
   EXPECT_FALSE(callback_a_.Equals(callback_c));

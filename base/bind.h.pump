@@ -71,12 +71,11 @@ $range ARG 1..ARITY
 
 template <typename Functor[[]]
 $if ARITY > 0 [[, ]] $for ARG , [[typename P$(ARG)]]>
-base::Callback<
-    typename internal::BindState<
+internal::BindStateHolder<
+    internal::BindState<
         typename internal::FunctorTraits<Functor>::RunnableType,
         typename internal::FunctorTraits<Functor>::RunType,
-        void($for ARG , [[typename internal::CallbackParamTraits<P$(ARG)>::StorageType]])>
-            ::UnboundRunType>
+        void($for ARG , [[typename internal::CallbackParamTraits<P$(ARG)>::StorageType]])> >
 Bind(Functor functor
 $if ARITY > 0 [[, ]] $for ARG , [[const P$(ARG)& p$(ARG)]]) {
   // Typedefs for how to store and run the functor.
@@ -126,13 +125,11 @@ $if ARG == 1 [[
 
 ]]  $$ $for ARG
 
-  typedef internal::BindState<RunnableType, RunType, [[]]
-void($for ARG , [[typename internal::CallbackParamTraits<P$(ARG)>::StorageType]])> [[]]
-BindState;
 
-
-  return Callback<typename BindState::UnboundRunType>(
-      new BindState(internal::MakeRunnable(functor)[[]]
+  return internal::MakeBindStateHolder(
+      new internal::BindState<RunnableType, RunType, [[]]
+void($for ARG , [[typename internal::CallbackParamTraits<P$(ARG)>::StorageType]])>(
+          internal::MakeRunnable(functor)[[]]
 $if ARITY > 0 [[, ]] $for ARG , [[p$(ARG)]]));
 }
 
