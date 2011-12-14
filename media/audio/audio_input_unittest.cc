@@ -88,14 +88,12 @@ class TestInputCallbackBlocking : public TestInputCallback {
 };
 
 static bool CanRunAudioTests(AudioManager* audio_man) {
-  if (NULL == audio_man)
-    return false;
+  bool has_input = audio_man->HasAudioInputDevices();
 
-  scoped_ptr<base::Environment> env(base::Environment::Create());
-  if (env->HasVar("CHROME_HEADLESS"))
-    return false;
+  if (!has_input)
+    LOG(WARNING) << "No input devices detected";
 
-  return audio_man->HasAudioInputDevices();
+  return has_input;
 }
 
 static AudioInputStream* CreateTestAudioInputStream(AudioManager* audio_man) {
@@ -194,10 +192,17 @@ TEST(AudioInputTest, Record) {
 }
 
 // Test a recording sequence with delays in the audio callback.
+// TODO(joth): See bug 107546.  This fails on slow bots.  Once fixed, remove the
+// CHROME_HEADLESS check below.
 TEST(AudioInputTest, RecordWithSlowSink) {
   scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   if (!CanRunAudioTests(audio_man.get()))
     return;
+
+  scoped_ptr<base::Environment> env(base::Environment::Create());
+  if (env->HasVar("CHROME_HEADLESS"))
+    return;
+
   MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
   AudioInputStream* ais = CreateTestAudioInputStream(audio_man.get());
   EXPECT_TRUE(ais->Open());
