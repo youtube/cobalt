@@ -34,8 +34,10 @@ class AudioManagerMac : public AudioManagerBase {
   void ReleaseOutputStream(AudioOutputStream* stream);
   void ReleaseInputStream(AudioInputStream* stream);
 
- private:
+ protected:
   virtual ~AudioManagerMac();
+
+ private:
 
   // Number of currently open output streams.
   size_t num_output_streams_;
