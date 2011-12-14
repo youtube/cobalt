@@ -42,7 +42,7 @@ class TraceEventTestFixture : public testing::Test {
   // up multiple times when testing AtExit. Use ManualTestSetUp for this.
   void ManualTestSetUp();
   void OnTraceDataCollected(
-      scoped_refptr<TraceLog::RefCountedString> events_str);
+      const scoped_refptr<TraceLog::RefCountedString>& events_str);
   DictionaryValue* FindMatchingTraceEntry(const JsonKeyValue* key_values);
   DictionaryValue* FindNamePhase(const char* name, const char* phase);
   DictionaryValue* FindNamePhaseKeyValue(const char* name,
@@ -89,7 +89,7 @@ void TraceEventTestFixture::ManualTestSetUp() {
 }
 
 void TraceEventTestFixture::OnTraceDataCollected(
-    scoped_refptr<TraceLog::RefCountedString> events_str) {
+    const scoped_refptr<TraceLog::RefCountedString>& events_str) {
   AutoLock lock(lock_);
   json_output_.json_output.clear();
   trace_buffer_.Start();
