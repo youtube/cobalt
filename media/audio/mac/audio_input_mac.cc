@@ -21,7 +21,8 @@ PCMQueueInAudioInputStream::PCMQueueInAudioInputStream(
     : manager_(manager),
       callback_(NULL),
       audio_queue_(NULL),
-      buffer_size_bytes_(0) {
+      buffer_size_bytes_(0),
+      started_(false) {
   // We must have a manager.
   DCHECK(manager_);
   // A frame is one sample across all channels. In interleaved audio the per
@@ -68,15 +69,18 @@ void PCMQueueInAudioInputStream::Start(AudioInputCallback* callback) {
     return;
   callback_ = callback;
   OSStatus err = AudioQueueStart(audio_queue_, NULL);
-  if (err != noErr)
+  if (err != noErr) {
     HandleError(err);
-  else
+  } else {
+    started_ = true;
     manager_->IncreaseActiveInputStreamCount();
+  }
 }
 
 void PCMQueueInAudioInputStream::Stop() {
-  if (!audio_queue_)
+  if (!audio_queue_ || !started_)
     return;
+
   // Stop is always called before Close. In case of error, this will be
   // also called when closing the input controller.
   manager_->DecreaseActiveInputStreamCount();
@@ -86,6 +90,8 @@ void PCMQueueInAudioInputStream::Stop() {
   OSStatus err = AudioQueueStop(audio_queue_, true);
   if (err != noErr)
     HandleError(err);
+
+  started_ = false;
 }
 
 void PCMQueueInAudioInputStream::Close() {

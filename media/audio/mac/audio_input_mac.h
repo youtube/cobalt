@@ -67,6 +67,8 @@ class PCMQueueInAudioInputStream : public AudioInputStream {
   AudioQueueRef audio_queue_;
   // Size of each of the buffers in |audio_buffers_|
   uint32 buffer_size_bytes_;
+  // True iff Start() has been called successfully.
+  bool started_;
 
   DISALLOW_COPY_AND_ASSIGN(PCMQueueInAudioInputStream);
 };
