@@ -173,7 +173,8 @@ class CancelableCallback<void(A1)> {
   }
 
  private:
-  void Forward(A1 a1) const {
+  void Forward(
+      typename internal::CallbackParamTraits<A1>::ForwardType a1) const {
     callback_.Run(a1);
   }
 

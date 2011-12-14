@@ -28,7 +28,7 @@ class MEDIA_EXPORT DemuxerStream
   // Request a buffer to returned via the provided callback.
   //
   // Buffers will be non-NULL yet may be end of stream buffers.
-  typedef base::Callback<void(const scoped_refptr<Buffer>&)> ReadCallback;
+  typedef base::Callback<void(scoped_refptr<Buffer>)> ReadCallback;
   virtual void Read(const ReadCallback& read_callback) = 0;
 
   // Returns the audio decoder configuration. It is an error to call this method
