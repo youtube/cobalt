@@ -61,13 +61,6 @@ class MockAudioOutputControllerSyncReader
   DISALLOW_COPY_AND_ASSIGN(MockAudioOutputControllerSyncReader);
 };
 
-static bool IsRunningHeadless() {
-  scoped_ptr<base::Environment> env(base::Environment::Create());
-  if (env->HasVar("CHROME_HEADLESS"))
-    return true;
-  return false;
-}
-
 ACTION_P(SignalEvent, event) {
   event->Signal();
 }
@@ -85,9 +78,6 @@ static void CloseAudioController(AudioOutputController* controller) {
 }
 
 TEST(AudioOutputControllerTest, CreateAndClose) {
-  if (IsRunningHeadless())
-    return;
-
   scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
   if (!audio_manager->HasAudioOutputDevices())
     return;
@@ -110,9 +100,6 @@ TEST(AudioOutputControllerTest, CreateAndClose) {
 }
 
 TEST(AudioOutputControllerTest, PlayAndClose) {
-  if (IsRunningHeadless())
-    return;
-
   scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
   if (!audio_manager->HasAudioOutputDevices())
     return;
@@ -157,9 +144,6 @@ TEST(AudioOutputControllerTest, PlayAndClose) {
 }
 
 TEST(AudioOutputControllerTest, PlayAndCloseLowLatency) {
-  if (IsRunningHeadless())
-    return;
-
   scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
   if (!audio_manager->HasAudioOutputDevices())
     return;
@@ -214,9 +198,6 @@ TEST(AudioOutputControllerTest, PlayAndCloseLowLatency) {
 }
 
 TEST(AudioOutputControllerTest, PlayPauseClose) {
-  if (IsRunningHeadless())
-    return;
-
   scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
   if (!audio_manager->HasAudioOutputDevices())
     return;
@@ -273,9 +254,6 @@ TEST(AudioOutputControllerTest, PlayPauseClose) {
 }
 
 TEST(AudioOutputControllerTest, PlayPauseCloseLowLatency) {
-  if (IsRunningHeadless())
-    return;
-
   scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
   if (!audio_manager->HasAudioOutputDevices())
     return;
@@ -323,9 +301,6 @@ TEST(AudioOutputControllerTest, PlayPauseCloseLowLatency) {
 }
 
 TEST(AudioOutputControllerTest, PlayPausePlay) {
-  if (IsRunningHeadless())
-    return;
-
   scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
   if (!audio_manager->HasAudioOutputDevices())
     return;
@@ -398,9 +373,6 @@ TEST(AudioOutputControllerTest, PlayPausePlay) {
 }
 
 TEST(AudioOutputControllerTest, HardwareBufferTooLarge) {
-  if (IsRunningHeadless())
-    return;
-
   scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
   if (!audio_manager->HasAudioOutputDevices())
     return;
@@ -420,9 +392,6 @@ TEST(AudioOutputControllerTest, HardwareBufferTooLarge) {
 }
 
 TEST(AudioOutputControllerTest, CloseTwice) {
-  if (IsRunningHeadless())
-    return;
-
   scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
   if (!audio_manager->HasAudioOutputDevices())
     return;
