@@ -1868,6 +1868,9 @@
             'cflags': [
               '-fPIC',
             ],
+            'ldflags': [
+              '-fPIC',
+            ],
           }],
           # TODO(rkc): Currently building Chrome with the PIE flag causes
           # remote debugging to break (remote debugger does not get correct
