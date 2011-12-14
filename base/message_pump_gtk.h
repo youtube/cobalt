@@ -54,9 +54,6 @@ class BASE_EXPORT MessagePumpGtk : public MessagePumpGlib {
   static Display* GetDefaultXDisplay();
 
  private:
-  // Overridden from MessagePumpGlib
-  virtual bool RunOnce(GMainContext* context, bool block) OVERRIDE;
-
   // Invoked from EventDispatcher. Notifies all observers we're about to
   // process an event.
   void WillProcessEvent(GdkEvent* event);

@@ -91,11 +91,6 @@ Display* MessagePumpGtk::GetDefaultXDisplay() {
   return display ? GDK_DISPLAY_XDISPLAY(display) : NULL;
 }
 
-bool MessagePumpGtk::RunOnce(GMainContext* context, bool block) {
-  // g_main_context_iteration returns true if events have been dispatched.
-  return g_main_context_iteration(context, block);
-}
-
 void MessagePumpGtk::WillProcessEvent(GdkEvent* event) {
   FOR_EACH_OBSERVER(MessagePumpObserver, observers(), WillProcessEvent(event));
 }
