@@ -1613,12 +1613,41 @@ TEST_P(X509CertificateWeakDigestTest, Verify) {
 
   int flags = 0;
   CertVerifyResult verify_result;
-  ee_chain->Verify("127.0.0.1", flags, NULL, &verify_result);
+  int rv = ee_chain->Verify("127.0.0.1", flags, NULL, &verify_result);
   EXPECT_EQ(data.expected_has_md5, verify_result.has_md5);
   EXPECT_EQ(data.expected_has_md4, verify_result.has_md4);
   EXPECT_EQ(data.expected_has_md2, verify_result.has_md2);
   EXPECT_EQ(data.expected_has_md5_ca, verify_result.has_md5_ca);
   EXPECT_EQ(data.expected_has_md2_ca, verify_result.has_md2_ca);
+
+  // Ensure that MD4 and MD2 are tagged as invalid.
+  if (data.expected_has_md4 || data.expected_has_md2) {
+    EXPECT_EQ(CERT_STATUS_INVALID,
+              verify_result.cert_status & CERT_STATUS_INVALID);
+  }
+
+  // Ensure that MD5 is flagged as weak.
+  if (data.expected_has_md5) {
+    EXPECT_EQ(
+        CERT_STATUS_WEAK_SIGNATURE_ALGORITHM,
+        verify_result.cert_status & CERT_STATUS_WEAK_SIGNATURE_ALGORITHM);
+  }
+
+  // If a root cert is present, then check that the chain was rejected if any
+  // weak algorithms are present. This is only checked when a root cert is
+  // present because the error reported for incomplete chains with weak
+  // algorithms depends on which implementation was used to validate (NSS,
+  // OpenSSL, CryptoAPI, Security.framework) and upon which weak algorithm
+  // present (MD2, MD4, MD5).
+  if (data.root_cert_filename) {
+    if (data.expected_has_md4 || data.expected_has_md2) {
+      EXPECT_EQ(ERR_CERT_INVALID, rv);
+    } else if (data.expected_has_md5) {
+      EXPECT_EQ(ERR_CERT_WEAK_SIGNATURE_ALGORITHM, rv);
+    } else {
+      EXPECT_EQ(OK, rv);
+    }
+  }
 }
 
 // Unlike TEST/TEST_F, which are macros that expand to further macros,

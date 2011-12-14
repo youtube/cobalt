@@ -597,6 +597,22 @@ int X509Certificate::Verify(const std::string& hostname,
     rv = MapCertStatusToNetError(verify_result->cert_status);
   }
 
+  // Treat certificates signed using broken signature algorithms as invalid.
+  if (verify_result->has_md2 || verify_result->has_md4) {
+    verify_result->cert_status |= CERT_STATUS_INVALID;
+    rv = MapCertStatusToNetError(verify_result->cert_status);
+  }
+
+  // Flag certificates using weak signature algorithms.
+  if (verify_result->has_md5) {
+    verify_result->cert_status |= CERT_STATUS_WEAK_SIGNATURE_ALGORITHM;
+    // Avoid replacing a more serious error, such as an OS/library failure,
+    // by ensuring that if verification failed, it failed with a certificate
+    // error.
+    if (rv == OK || IsCertificateError(rv))
+      rv = MapCertStatusToNetError(verify_result->cert_status);
+  }
+
   return rv;
 }
 
