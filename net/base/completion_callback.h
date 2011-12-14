@@ -60,6 +60,13 @@ class CancelableOldCompletionCallback :
   bool is_canceled_;
 };
 
+// Helper function for using OldCompletionCallback objects with
+// the newer CompletionCallback APIs.
+//
+// This is a transitional function and should be removed when
+// OldCompletionCallbackAdapter is deleted.
+void OldCompletionCallbackAdapter(OldCompletionCallback* old_callback, int rv);
+
 }  // namespace net
 
 #endif  // NET_BASE_COMPLETION_CALLBACK_H__

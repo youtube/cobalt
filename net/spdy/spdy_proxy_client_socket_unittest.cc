@@ -1276,8 +1276,8 @@ TEST_F(SpdyProxyClientSocketTest, RstWithReadAndWritePendingDelete) {
   scoped_refptr<IOBuffer> read_buf(new IOBuffer(kLen1));
   ASSERT_EQ(ERR_IO_PENDING,
             sock_->Read(read_buf, kLen1,
-                        base::Bind(&DeleteSockCallback::Run<int>,
-                                   base::Unretained(&read_callback))));
+                        base::Bind(&OldCompletionCallbackAdapter,
+                                   &read_callback)));
 
   scoped_refptr<IOBufferWithSize> write_buf(CreateBuffer(kMsg1, kLen1));
   EXPECT_EQ(ERR_IO_PENDING, sock_->Write(write_buf, write_buf->size(),
