@@ -110,6 +110,8 @@ AudioManagerWin::AudioManagerWin()
 }
 
 AudioManagerWin::~AudioManagerWin() {
+  // All output streams should be released upon termination.
+  DCHECK_EQ(0, num_output_streams_);
 }
 
 bool AudioManagerWin::HasAudioOutputDevices() {
