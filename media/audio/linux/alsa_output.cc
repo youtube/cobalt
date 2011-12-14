@@ -4,19 +4,14 @@
 //
 // THREAD SAFETY
 //
-// AlsaPcmOutputStream object is *not* thread-safe -- we assume that
-//   client thread - creates the object and calls the public APIs.
-//   message loop thread - executes all the internal tasks including querying
-//      the data source for more data, writing to the alsa device, and closing
-//      the alsa device.
-// is actually the same thread.
+// AlsaPcmOutputStream object is *not* thread-safe and should only be used
+// from the audio thread.  We DCHECK on this assumption whenever we can.
 //
+// SEMANTICS OF Close()
 //
-// SEMANTICS OF CloseTask()
-//
-// The CloseTask() is responsible for cleaning up any resources that were
-// acquired after a successful Open().  CloseTask() would revoke any
-// scheduled outstanding runnable methods.
+// Close() is responsible for cleaning up any resources that were acquired after
+// a successful Open().  Close() will nullify any scheduled outstanding runnable
+// methods.
 //
 //
 // SEMANTICS OF ERROR STATES
@@ -26,11 +21,11 @@
 // that the playback_handle should no longer be used either because of a
 // hardware/low-level event.
 //
-// When |state_| == kInError, all public API functions will fail
-// with an error (Start() will call the OnError() function on the callback
-// immediately), or no-op themselves with the exception of Close().  Even if an
-// error state has been entered, if Open() has previously returned successfully,
-// Close() must be called to cleanup the ALSA devices and release resources.
+// When |state_| == kInError, all public API functions will fail with an error
+// (Start() will call the OnError() function on the callback immediately), or
+// no-op themselves with the exception of Close().  Even if an error state has
+// been entered, if Open() has previously returned successfully, Close() must be
+// called to cleanup the ALSA devices and release resources.
 //
 // When |stop_stream_| is set, no more commands will be made against the
 // ALSA device, and playback will effectively stop.  From the client's point of
@@ -54,6 +49,7 @@
 #include "media/base/data_buffer.h"
 #include "media/base/seekable_buffer.h"
 
+namespace {
 // Amount of time to wait if we've exhausted the data source.  This is to avoid
 // busy looping.
 static const uint32 kNoDataSleepMilliseconds = 10;
@@ -74,7 +70,7 @@ static const int kPcmRecoverIsSilent = 1;
 static const int kPcmRecoverIsSilent = 0;
 #endif
 
-// ALSA is currently limited to 48Khz.
+// ALSA is currently limited to 48kHz.
 // TODO(fbarchard): Resample audio from higher frequency to 48000.
 static const int kAlsaMaxSampleRate = 48000;
 
@@ -147,6 +143,7 @@ static void Swizzle51Layout(Format* b, uint32 filled) {
     b[5] = aac[5];  // LFE
   }
 }
+}  // end namespace
 
 std::ostream& operator<<(std::ostream& os,
                          AlsaPcmOutputStream::InternalState state) {
@@ -185,8 +182,7 @@ const uint32 AlsaPcmOutputStream::kMinLatencyMicros =
 AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
                                          const AudioParameters& params,
                                          AlsaWrapper* wrapper,
-                                         AudioManagerLinux* manager,
-                                         MessageLoop* message_loop)
+                                         AudioManagerLinux* manager)
     : requested_device_name_(device_name),
       pcm_format_(alsa_util::BitsToFormat(params.bits_per_sample)),
       channels_(params.channels),
@@ -206,12 +202,11 @@ AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
       manager_(manager),
       playback_handle_(NULL),
       frames_per_packet_(packet_size_ / bytes_per_frame_),
-      message_loop_(message_loop),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       state_(kCreated),
       volume_(1.0f),
       source_callback_(NULL) {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK_EQ(MessageLoop::current(), manager_->GetMessageLoop());
 
   // Sanity check input values.
   if ((params.sample_rate > kAlsaMaxSampleRate) || (params.sample_rate <= 0)) {
@@ -236,19 +231,14 @@ AlsaPcmOutputStream::~AlsaPcmOutputStream() {
   DCHECK(current_state == kCreated ||
          current_state == kIsClosed ||
          current_state == kInError);
-
-  // TODO(ajwong): Ensure that CloseTask has been called and the
-  // playback handle released by DCHECKing that playback_handle_ is NULL.
-  // Currently, because of Bug 18217, there is a race condition on destruction
-  // where the stream is not always stopped and closed, causing this to fail.
+  DCHECK(!playback_handle_);
 }
 
 bool AlsaPcmOutputStream::Open() {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK_EQ(MessageLoop::current(), manager_->GetMessageLoop());
 
-  if (state() == kInError) {
+  if (state() == kInError)
     return false;
-  }
 
   if (!CanTransitionTo(kIsOpened)) {
     NOTREACHED() << "Invalid state: " << state();
@@ -260,70 +250,12 @@ bool AlsaPcmOutputStream::Open() {
   // object's public API is only called on one thread so the state cannot
   // transition out from under us.
   TransitionTo(kIsOpened);
-  message_loop_->PostTask(
-      FROM_HERE,
-      base::Bind(&AlsaPcmOutputStream::OpenTask, weak_factory_.GetWeakPtr()));
-
-  return true;
-}
-
-void AlsaPcmOutputStream::Close() {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
-
-  // Sanity check that the transition occurs correctly.  It is safe to
-  // continue anyways because all operations for closing are idempotent.
-  if (TransitionTo(kIsClosed) != kIsClosed) {
-    NOTREACHED() << "Unable to transition Closed.";
-  }
-
-  message_loop_->PostTask(
-      FROM_HERE,
-      base::Bind(&AlsaPcmOutputStream::CloseTask, weak_factory_.GetWeakPtr()));
-}
-
-void AlsaPcmOutputStream::Start(AudioSourceCallback* callback) {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
-
-  CHECK(callback);
-
-  set_source_callback(callback);
-
-  // Only post the task if we can enter the playing state.
-  if (TransitionTo(kIsPlaying) == kIsPlaying) {
-    message_loop_->PostTask(FROM_HERE, base::Bind(
-        &AlsaPcmOutputStream::StartTask, weak_factory_.GetWeakPtr()));
-  }
-}
-
-void AlsaPcmOutputStream::Stop() {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
-
-  // Reset the callback, so that it is not called anymore.
-  set_source_callback(NULL);
-
-  TransitionTo(kIsStopped);
-}
-
-void AlsaPcmOutputStream::SetVolume(double volume) {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
-
-  volume_ = static_cast<float>(volume);
-}
-
-void AlsaPcmOutputStream::GetVolume(double* volume) {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
-
-  *volume = volume_;
-}
-
-void AlsaPcmOutputStream::OpenTask() {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
 
   // Try to open the device.
   if (requested_device_name_ == kAutoSelectDevice) {
     playback_handle_ = AutoSelectDevice(latency_micros_);
     if (playback_handle_)
-      VLOG(1) << "Auto-selected device: " << device_name_;
+      DVLOG(1) << "Auto-selected device: " << device_name_;
   } else {
     device_name_ = requested_device_name_;
     playback_handle_ = alsa_util::OpenPlaybackDevice(wrapper_,
@@ -356,73 +288,103 @@ void AlsaPcmOutputStream::OpenTask() {
       alsa_buffer_frames_ = buffer_size;
     }
   }
+
+  return true;
 }
 
-void AlsaPcmOutputStream::StartTask() {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+void AlsaPcmOutputStream::Close() {
+  DCHECK_EQ(MessageLoop::current(), manager_->GetMessageLoop());
 
-  if (stop_stream_) {
-    return;
+  // Sanity check that the transition occurs correctly.  It is safe to
+  // continue anyways because all operations for closing are idempotent.
+  if (TransitionTo(kIsClosed) != kIsClosed) {
+    NOTREACHED() << "Unable to transition Closed.";
+  } else {
+    // Shutdown the audio device.
+    if (playback_handle_ &&
+        alsa_util::CloseDevice(wrapper_, playback_handle_) < 0) {
+      LOG(WARNING) << "Unable to close audio device. Leaking handle.";
+    }
+    playback_handle_ = NULL;
+
+    // Release the buffer.
+    buffer_.reset();
+
+    // Signal anything that might already be scheduled to stop.
+    stop_stream_ = true;  // Not necessary in production, but unit tests
+                          // uses the flag to verify that stream was closed.
+    weak_factory_.InvalidateWeakPtrs();
+
+    // Signal to the manager that we're closed and can be removed.
+    // Should be last call in the method as it deletes "this".
+    manager_->ReleaseOutputStream(this);
   }
-
-  if (state() != kIsPlaying) {
-    return;
-  }
-
-  // Before starting, the buffer might have audio from previous user of this
-  // device.
-  buffer_->Clear();
-
-  // When starting again, drop all packets in the device and prepare it again
-  // incase we are restarting from a pause state and need to flush old data.
-  int error = wrapper_->PcmDrop(playback_handle_);
-  if (error < 0 && error != -EAGAIN) {
-    LOG(ERROR) << "Failure clearing playback device ("
-               << wrapper_->PcmName(playback_handle_) << "): "
-               << wrapper_->StrError(error);
-    stop_stream_ = true;
-    return;
-  }
-
-  error = wrapper_->PcmPrepare(playback_handle_);
-  if (error < 0 && error != -EAGAIN) {
-    LOG(ERROR) << "Failure preparing stream ("
-               << wrapper_->PcmName(playback_handle_) << "): "
-               << wrapper_->StrError(error);
-    stop_stream_ = true;
-    return;
-  }
-
-  ScheduleNextWrite(false);
 }
 
-void AlsaPcmOutputStream::CloseTask() {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+void AlsaPcmOutputStream::Start(AudioSourceCallback* callback) {
+  DCHECK_EQ(MessageLoop::current(), manager_->GetMessageLoop());
 
-  // Shutdown the audio device.
-  if (playback_handle_ &&
-      alsa_util::CloseDevice(wrapper_, playback_handle_) < 0) {
-    LOG(WARNING) << "Unable to close audio device. Leaking handle.";
+  CHECK(callback);
+
+  if (stop_stream_)
+    return;
+
+  set_source_callback(callback);
+
+  // Only post the task if we can enter the playing state.
+  if (TransitionTo(kIsPlaying) == kIsPlaying) {
+    // Before starting, the buffer might have audio from previous user of this
+    // device.
+    buffer_->Clear();
+
+    // When starting again, drop all packets in the device and prepare it again
+    // in case we are restarting from a pause state and need to flush old data.
+    int error = wrapper_->PcmDrop(playback_handle_);
+    if (error < 0 && error != -EAGAIN) {
+      LOG(ERROR) << "Failure clearing playback device ("
+                 << wrapper_->PcmName(playback_handle_) << "): "
+                 << wrapper_->StrError(error);
+      stop_stream_ = true;
+    } else {
+      error = wrapper_->PcmPrepare(playback_handle_);
+      if (error < 0 && error != -EAGAIN) {
+        LOG(ERROR) << "Failure preparing stream ("
+                   << wrapper_->PcmName(playback_handle_) << "): "
+                   << wrapper_->StrError(error);
+        stop_stream_ = true;
+      }
+    }
+
+    if (!stop_stream_)
+      ScheduleNextWrite(false);
   }
-  playback_handle_ = NULL;
+}
 
-  // Release the buffer.
-  buffer_.reset();
+void AlsaPcmOutputStream::Stop() {
+  DCHECK_EQ(MessageLoop::current(), manager_->GetMessageLoop());
 
-  // Signal anything that might already be scheduled to stop.
-  stop_stream_ = true;  // Not necessary in production, but unit tests
-                        // uses the flag to verify that stream was closed.
-  weak_factory_.InvalidateWeakPtrs();
+  // Reset the callback, so that it is not called anymore.
+  set_source_callback(NULL);
 
-  // Signal to the manager that we're closed and can be removed.
-  // Should be last call in the method as it deletes "this".
-  manager_->ReleaseOutputStream(this);
+  TransitionTo(kIsStopped);
+}
+
+void AlsaPcmOutputStream::SetVolume(double volume) {
+  DCHECK_EQ(MessageLoop::current(), manager_->GetMessageLoop());
+
+  volume_ = static_cast<float>(volume);
+}
+
+void AlsaPcmOutputStream::GetVolume(double* volume) {
+  DCHECK_EQ(MessageLoop::current(), manager_->GetMessageLoop());
+
+  *volume = volume_;
 }
 
 void AlsaPcmOutputStream::BufferPacket(bool* source_exhausted) {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK_EQ(MessageLoop::current(), manager_->GetMessageLoop());
 
-  // If stopped, simulate a 0-lengthed packet.
+  // If stopped, simulate a 0-length packet.
   if (stop_stream_) {
     buffer_->Clear();
     *source_exhausted = true;
@@ -448,8 +410,7 @@ void AlsaPcmOutputStream::BufferPacket(bool* source_exhausted) {
                                          packet->GetBufferSize(),
                                          AudioBuffersState(buffer_delay,
                                                            hardware_delay));
-    CHECK(packet_size <= packet->GetBufferSize()) <<
-        "Data source overran buffer.";
+    CHECK(packet_size <= packet->GetBufferSize());
 
     // This should not happen, but in case it does, drop any trailing bytes
     // that aren't large enough to make a frame.  Without this, packet writing
@@ -465,8 +426,7 @@ void AlsaPcmOutputStream::BufferPacket(bool* source_exhausted) {
                               bytes_per_sample_,
                               volume_)) {
         // Adjust packet size for downmix.
-        packet_size =
-            packet_size / bytes_per_frame_ * bytes_per_output_frame_;
+        packet_size = packet_size / bytes_per_frame_ * bytes_per_output_frame_;
       } else {
         LOG(ERROR) << "Folding failed";
       }
@@ -513,7 +473,7 @@ void AlsaPcmOutputStream::BufferPacket(bool* source_exhausted) {
 }
 
 void AlsaPcmOutputStream::WritePacket() {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK_EQ(MessageLoop::current(), manager_->GetMessageLoop());
 
   // If the device is in error, just eat the bytes.
   if (stop_stream_) {
@@ -521,9 +481,8 @@ void AlsaPcmOutputStream::WritePacket() {
     return;
   }
 
-  if (state() == kIsStopped) {
+  if (state() == kIsStopped)
     return;
-  }
 
   CHECK_EQ(buffer_->forward_bytes() % bytes_per_output_frame_, 0u);
 
@@ -578,15 +537,13 @@ void AlsaPcmOutputStream::WritePacket() {
 }
 
 void AlsaPcmOutputStream::WriteTask() {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK_EQ(MessageLoop::current(), manager_->GetMessageLoop());
 
-  if (stop_stream_) {
+  if (stop_stream_)
     return;
-  }
 
-  if (state() == kIsStopped) {
+  if (state() == kIsStopped)
     return;
-  }
 
   bool source_exhausted;
   BufferPacket(&source_exhausted);
@@ -596,11 +553,10 @@ void AlsaPcmOutputStream::WriteTask() {
 }
 
 void AlsaPcmOutputStream::ScheduleNextWrite(bool source_exhausted) {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK_EQ(MessageLoop::current(), manager_->GetMessageLoop());
 
-  if (stop_stream_) {
+  if (stop_stream_)
     return;
-  }
 
   uint32 frames_avail_wanted = alsa_buffer_frames_ / 2;
   uint32 available_frames = GetAvailableFrames();
@@ -637,21 +593,20 @@ void AlsaPcmOutputStream::ScheduleNextWrite(bool source_exhausted) {
   }
 
   // Avoid busy looping if the data source is exhausted.
-  if (source_exhausted) {
+  if (source_exhausted)
     next_fill_time_ms = std::max(next_fill_time_ms, kNoDataSleepMilliseconds);
-  }
 
   // Only schedule more reads/writes if we are still in the playing state.
   if (state() == kIsPlaying) {
     if (next_fill_time_ms == 0) {
-      message_loop_->PostTask(FROM_HERE, base::Bind(
+      manager_->GetMessageLoop()->PostTask(FROM_HERE, base::Bind(
           &AlsaPcmOutputStream::WriteTask, weak_factory_.GetWeakPtr()));
     } else {
       // TODO(ajwong): Measure the reliability of the delay interval.  Use
       // base/metrics/histogram.h.
-      message_loop_->PostDelayedTask(
-          FROM_HERE, base::Bind(
-              &AlsaPcmOutputStream::WriteTask, weak_factory_.GetWeakPtr()),
+      manager_->GetMessageLoop()->PostDelayedTask(FROM_HERE,
+          base::Bind(&AlsaPcmOutputStream::WriteTask,
+                     weak_factory_.GetWeakPtr()),
           next_fill_time_ms);
     }
   }
@@ -673,9 +628,8 @@ std::string AlsaPcmOutputStream::FindDeviceForChannels(uint32 channels) {
   static const char kNameHintName[] = "NAME";
 
   const char* wanted_device = GuessSpecificDeviceName(channels);
-  if (!wanted_device) {
+  if (!wanted_device)
     return "";
-  }
 
   std::string guessed_device;
   void** hints = NULL;
@@ -702,7 +656,7 @@ std::string AlsaPcmOutputStream::FindDeviceForChannels(uint32 channels) {
       }
     }
 
-    // Destory the hint now that we're done with it.
+    // Destroy the hint now that we're done with it.
     wrapper_->DeviceNameFreeHint(hints);
     hints = NULL;
   } else {
@@ -741,11 +695,10 @@ snd_pcm_sframes_t AlsaPcmOutputStream::GetCurrentDelay() {
 }
 
 snd_pcm_sframes_t AlsaPcmOutputStream::GetAvailableFrames() {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK_EQ(MessageLoop::current(), manager_->GetMessageLoop());
 
-  if (stop_stream_) {
+  if (stop_stream_)
     return 0;
-  }
 
   // Find the number of frames queued in the sound device.
   snd_pcm_sframes_t available_frames =
@@ -768,7 +721,7 @@ snd_pcm_t* AlsaPcmOutputStream::AutoSelectDevice(unsigned int latency) {
   // For auto-selection:
   //   1) Attempt to open a device that best matches the number of channels
   //      requested.
-  //   2) If that fails, attempt the "plug:" version of it incase ALSA can
+  //   2) If that fails, attempt the "plug:" version of it in case ALSA can
   //      remap do some software conversion to make it work.
   //   3) Fallback to kDefaultDevice.
   //   4) If that fails too, try the "plug:" version of kDefaultDevice.
@@ -856,7 +809,7 @@ bool AlsaPcmOutputStream::CanTransitionTo(InternalState to) {
 
 AlsaPcmOutputStream::InternalState
 AlsaPcmOutputStream::TransitionTo(InternalState to) {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK_EQ(MessageLoop::current(), manager_->GetMessageLoop());
 
   if (!CanTransitionTo(to)) {
     NOTREACHED() << "Cannot transition from: " << state_ << " to: " << to;
@@ -876,22 +829,20 @@ uint32 AlsaPcmOutputStream::RunDataCallback(uint8* dest,
                                             AudioBuffersState buffers_state) {
   TRACE_EVENT0("audio", "AlsaPcmOutputStream::RunDataCallback");
 
-  if (source_callback_) {
+  if (source_callback_)
     return source_callback_->OnMoreData(this, dest, max_size, buffers_state);
-  }
 
   return 0;
 }
 
 void AlsaPcmOutputStream::RunErrorCallback(int code) {
-  if (source_callback_) {
+  if (source_callback_)
     source_callback_->OnError(this, code);
-  }
 }
 
 // Changes the AudioSourceCallback to proxy calls to.  Pass in NULL to
 // release ownership of the currently registered callback.
 void AlsaPcmOutputStream::set_source_callback(AudioSourceCallback* callback) {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK_EQ(MessageLoop::current(), manager_->GetMessageLoop());
   source_callback_ = callback;
 }

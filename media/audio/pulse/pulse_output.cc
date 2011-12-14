@@ -112,18 +112,21 @@ static size_t MicrosecondsToBytes(
       base::Time::kMicrosecondsPerSecond;
 }
 
+// static
 void PulseAudioOutputStream::ContextStateCallback(pa_context* context,
                                                   void* state_addr) {
   pa_context_state_t* state = static_cast<pa_context_state_t*>(state_addr);
   *state = pa_context_get_state(context);
 }
 
-void PulseAudioOutputStream::WriteRequestCallback(
-    pa_stream* playback_handle, size_t length, void* stream_addr) {
+// static
+void PulseAudioOutputStream::WriteRequestCallback(pa_stream* playback_handle,
+                                                  size_t length,
+                                                  void* stream_addr) {
   PulseAudioOutputStream* stream =
-      static_cast<PulseAudioOutputStream*>(stream_addr);
+      reinterpret_cast<PulseAudioOutputStream*>(stream_addr);
 
-  DCHECK_EQ(stream->message_loop_, MessageLoop::current());
+  DCHECK_EQ(stream->manager_->GetMessageLoop(), MessageLoop::current());
 
   stream->write_callback_handled_ = true;
 
@@ -132,8 +135,7 @@ void PulseAudioOutputStream::WriteRequestCallback(
 }
 
 PulseAudioOutputStream::PulseAudioOutputStream(const AudioParameters& params,
-                                               AudioManagerPulse* manager,
-                                               MessageLoop* message_loop)
+                                               AudioManagerPulse* manager)
     : channel_layout_(params.channel_layout),
       channel_count_(ChannelLayoutToChannelCount(channel_layout_)),
       sample_format_(BitsToPASampleFormat(params.bits_per_sample)),
@@ -149,11 +151,9 @@ PulseAudioOutputStream::PulseAudioOutputStream(const AudioParameters& params,
       volume_(1.0f),
       stream_stopped_(true),
       write_callback_handled_(false),
-      message_loop_(message_loop),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       source_callback_(NULL) {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
-  DCHECK(manager_);
+  DCHECK_EQ(manager_->GetMessageLoop(), MessageLoop::current());
 
   // TODO(slock): Sanity check input values.
 }
@@ -167,7 +167,7 @@ PulseAudioOutputStream::~PulseAudioOutputStream() {
 }
 
 bool PulseAudioOutputStream::Open() {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK_EQ(manager_->GetMessageLoop(), MessageLoop::current());
 
   // TODO(slock): Possibly move most of this to an OpenPlaybackDevice function
   // in a new class 'pulse_util', like alsa_util.
@@ -270,7 +270,7 @@ void PulseAudioOutputStream::Reset() {
 }
 
 void PulseAudioOutputStream::Close() {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK_EQ(manager_->GetMessageLoop(), MessageLoop::current());
 
   Reset();
 
@@ -280,7 +280,7 @@ void PulseAudioOutputStream::Close() {
 }
 
 void PulseAudioOutputStream::WaitForWriteRequest() {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK_EQ(manager_->GetMessageLoop(), MessageLoop::current());
 
   if (stream_stopped_)
     return;
@@ -290,7 +290,7 @@ void PulseAudioOutputStream::WaitForWriteRequest() {
   write_callback_handled_ = false;
   pa_mainloop_iterate(pa_mainloop_, 1, NULL);
   if (!write_callback_handled_) {
-    message_loop_->PostTask(FROM_HERE, base::Bind(
+    manager_->GetMessageLoop()->PostTask(FROM_HERE, base::Bind(
         &PulseAudioOutputStream::WaitForWriteRequest,
         weak_factory_.GetWeakPtr()));
   }
@@ -350,13 +350,13 @@ void PulseAudioOutputStream::FulfillWriteRequest(size_t requested_bytes) {
   if (bytes_written < requested_bytes) {
     // We weren't able to buffer enough data to fulfill the request.  Try to
     // fulfill the rest of the request later.
-    message_loop_->PostTask(FROM_HERE, base::Bind(
+    manager_->GetMessageLoop()->PostTask(FROM_HERE, base::Bind(
         &PulseAudioOutputStream::FulfillWriteRequest,
         weak_factory_.GetWeakPtr(),
         requested_bytes - bytes_written));
   } else {
     // Continue playback.
-    message_loop_->PostTask(FROM_HERE, base::Bind(
+    manager_->GetMessageLoop()->PostTask(FROM_HERE, base::Bind(
         &PulseAudioOutputStream::WaitForWriteRequest,
         weak_factory_.GetWeakPtr()));
   }
@@ -382,7 +382,7 @@ void PulseAudioOutputStream::WriteToStream(size_t bytes_to_write,
 }
 
 void PulseAudioOutputStream::Start(AudioSourceCallback* callback) {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK_EQ(manager_->GetMessageLoop(), MessageLoop::current());
   CHECK(callback);
   DLOG_IF(ERROR, !playback_handle_)
       << "Open() has not been called successfully";
@@ -396,25 +396,25 @@ void PulseAudioOutputStream::Start(AudioSourceCallback* callback) {
   stream_stopped_ = false;
 
   // Start playback.
-  message_loop_->PostTask(FROM_HERE, base::Bind(
+  manager_->GetMessageLoop()->PostTask(FROM_HERE, base::Bind(
       &PulseAudioOutputStream::WaitForWriteRequest,
       weak_factory_.GetWeakPtr()));
 }
 
 void PulseAudioOutputStream::Stop() {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK_EQ(manager_->GetMessageLoop(), MessageLoop::current());
 
   stream_stopped_ = true;
 }
 
 void PulseAudioOutputStream::SetVolume(double volume) {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK_EQ(manager_->GetMessageLoop(), MessageLoop::current());
 
   volume_ = static_cast<float>(volume);
 }
 
 void PulseAudioOutputStream::GetVolume(double* volume) {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK_EQ(manager_->GetMessageLoop(), MessageLoop::current());
 
   *volume = volume_;
 }
