@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/string16.h"
 #include "net/base/completion_callback.h"
@@ -243,6 +244,16 @@ class NET_EXPORT HttpStreamFactory {
   }
   static bool http_pipelining_enabled() { return http_pipelining_enabled_; }
 
+  static void set_testing_fixed_http_port(int port) {
+    testing_fixed_http_port_ = port;
+  }
+  static uint16 testing_fixed_http_port() { return testing_fixed_http_port_; }
+
+  static void set_testing_fixed_https_port(int port) {
+    testing_fixed_https_port_ = port;
+  }
+  static uint16 testing_fixed_https_port() { return testing_fixed_https_port_; }
+
  protected:
   HttpStreamFactory();
 
@@ -258,6 +269,8 @@ class NET_EXPORT HttpStreamFactory {
   static std::list<HostPortPair>* forced_spdy_exclusions_;
   static bool ignore_certificate_errors_;
   static bool http_pipelining_enabled_;
+  static uint16 testing_fixed_http_port_;
+  static uint16 testing_fixed_https_port_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpStreamFactory);
 };
