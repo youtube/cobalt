@@ -93,7 +93,7 @@ void WorkerThread::ThreadMain() {
         "src_func", pending_task.posted_from.function_name());
 
     TrackedTime start_time =
-        tracked_objects::ThreadData::NowForStartOfRun();
+        tracked_objects::ThreadData::NowForStartOfRun(pending_task.birth_tally);
 
     pending_task.task.Run();
 

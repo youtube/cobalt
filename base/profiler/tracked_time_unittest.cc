@@ -81,7 +81,7 @@ TEST(TrackedTimeTest, TrackedTimerDisabled) {
   // Since we disabled tracking, we should get a null response.
   TrackedTime track_now = ThreadData::Now();
   EXPECT_TRUE(track_now.is_null());
-  track_now = ThreadData::NowForStartOfRun();
+  track_now = ThreadData::NowForStartOfRun(NULL);
   EXPECT_TRUE(track_now.is_null());
   track_now = ThreadData::NowForEndOfRun();
   EXPECT_TRUE(track_now.is_null());
