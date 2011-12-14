@@ -92,10 +92,10 @@ class MacAudioInputTest : public testing::Test {
   // Convenience method which ensures that we are not running on the build
   // bots and that at least one valid input device can be found.
   bool CanRunAudioTests() {
-    scoped_ptr<base::Environment> env(base::Environment::Create());
-    if (env->HasVar("CHROME_HEADLESS"))
-      return false;
-    return audio_manager_->HasAudioInputDevices();
+    bool has_input = audio_manager_->HasAudioInputDevices();
+    if (!has_input)
+      LOG(WARNING) << "No input devices detected";
+    return has_input;
   }
 
   // Convenience method which creates a default AudioInputStream object using
