@@ -725,6 +725,9 @@
       ['OS=="mac"', {
         # Enable clang on mac by default!
         'clang%': 1,
+        # Compile in Breakpad support by default so that it can be
+        # tested, even if it is not enabled by default at runtime.
+        'mac_breakpad_compiled_in%': 1,
         'conditions': [
           # mac_product_name is set to the name of the .app bundle as it should
           # appear on disk.  This duplicates data from
@@ -737,13 +740,15 @@
             'mac_product_name%': 'Chromium',
           }],
 
-          # Feature variables for enabling Mac Breakpad and Keystone auto-update
-          # support.  Both features are on by default in official builds with
-          # Chrome branding.
           ['branding=="Chrome" and buildtype=="Official"', {
+            # Enable uploading crash dumps.
+            'mac_breakpad_uploads%': 1,
+            # Enable dumping symbols at build time for use by Mac Breakpad.
             'mac_breakpad%': 1,
+            # Enable Keystone auto-update support.
             'mac_keystone%': 1,
           }, { # else: branding!="Chrome" or buildtype!="Official"
+            'mac_breakpad_uploads%': 0,
             'mac_breakpad%': 0,
             'mac_keystone%': 0,
           }],
