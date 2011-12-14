@@ -1808,7 +1808,7 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
       DoReadCallback(rv);
   }
 
-//#if defined(OFFICIAL_BUILD) && !defined(OS_ANDROID)
+#if defined(OFFICIAL_BUILD) && !defined(OS_ANDROID)
   // Take care of any mandates for public key pinning.
   //
   // Pinning is only enabled for official builds to make sure that others don't
@@ -1847,7 +1847,7 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
       }
     }
   }
-//#endif
+#endif
 
   // Exit DoHandshakeLoop and return the result to the caller to Connect.
   DCHECK(next_handshake_state_ == STATE_NONE);
