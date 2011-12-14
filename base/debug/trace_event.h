@@ -751,7 +751,7 @@ class BASE_EXPORT TraceResultBuffer {
   // JSON output and during AddFragment and Finish with following JSON output
   // chunks. The callback target must live past the last calls to
   // TraceResultBuffer::Start/AddFragment/Finish.
-  void SetOutputCallback(OutputCallback json_chunk_callback);
+  void SetOutputCallback(const OutputCallback& json_chunk_callback);
 
   // Start JSON output. This resets all internal state, so you can reuse
   // the TraceResultBuffer by calling Start.
@@ -818,7 +818,8 @@ class BASE_EXPORT TraceLog {
   // undefined. Use TraceResultBuffer to convert one or more trace strings to
   // JSON.
   typedef RefCountedData<std::string> RefCountedString;
-  typedef base::Callback<void(scoped_refptr<RefCountedString>)> OutputCallback;
+  typedef base::Callback<void(const scoped_refptr<RefCountedString>&)>
+      OutputCallback;
   void SetOutputCallback(const OutputCallback& cb);
 
   // The trace buffer does not flush dynamically, so when it fills up,
