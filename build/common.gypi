@@ -623,10 +623,15 @@
     # https://bugs.webkit.org/show_bug.cgi?id=68463.
     'build_webkit_exes_from_webkit_gyp%': 1,
 
+    # This flag is only used when disable_nacl==0 and disables all those
+    # subcomponents which would require the installation of a native_client
+    # untrusted toolchain.
+    'disable_nacl_untrusted%': 0,
+
     'conditions': [
       # Used to disable Native Client at compile time, for platforms where it
       # isn't supported (ARM)
-      ['target_arch=="arm"', {
+      ['target_arch=="arm" and chromeos == 1', {
         'disable_nacl%': 1,
        }, {
         'disable_nacl%': 0,
