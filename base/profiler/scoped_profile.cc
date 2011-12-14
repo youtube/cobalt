@@ -13,7 +13,7 @@ namespace tracked_objects {
 
 ScopedProfile::ScopedProfile(const Location& location)
     : birth_(ThreadData::TallyABirthIfActive(location)),
-      start_of_run_(ThreadData::NowForStartOfRun()) {
+      start_of_run_(ThreadData::NowForStartOfRun(birth_)) {
 }
 
 ScopedProfile::~ScopedProfile() {

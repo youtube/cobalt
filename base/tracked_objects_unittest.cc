@@ -46,9 +46,11 @@ TEST_F(TrackedObjectsTest, MinimalStartupShutdown) {
   EXPECT_EQ(data, ThreadData::Get());
   ThreadData::BirthMap birth_map;
   ThreadData::DeathMap death_map;
-  data->SnapshotMaps(false, &birth_map, &death_map);
+  ThreadData::ParentChildSet parent_child_set;
+  data->SnapshotMaps(false, &birth_map, &death_map, &parent_child_set);
   EXPECT_EQ(0u, birth_map.size());
   EXPECT_EQ(0u, death_map.size());
+  EXPECT_EQ(0u, parent_child_set.size());
   // Cleanup with no leaking.
   ShutdownSingleThreadedCleanup(false);
 
@@ -62,9 +64,10 @@ TEST_F(TrackedObjectsTest, MinimalStartupShutdown) {
   EXPECT_EQ(data, ThreadData::Get());
   birth_map.clear();
   death_map.clear();
-  data->SnapshotMaps(false, &birth_map, &death_map);
+  data->SnapshotMaps(false, &birth_map, &death_map, &parent_child_set);
   EXPECT_EQ(0u, birth_map.size());
   EXPECT_EQ(0u, death_map.size());
+  EXPECT_EQ(0u, parent_child_set.size());
 }
 
 TEST_F(TrackedObjectsTest, TinyStartupShutdown) {
@@ -73,7 +76,7 @@ TEST_F(TrackedObjectsTest, TinyStartupShutdown) {
 
   // Instigate tracking on a single tracked object, on our thread.
   const Location& location = FROM_HERE;
-  ThreadData::TallyABirthIfActive(location);
+  Births* first_birth = ThreadData::TallyABirthIfActive(location);
 
   ThreadData* data = ThreadData::first();
   ASSERT_TRUE(data);
@@ -81,31 +84,132 @@ TEST_F(TrackedObjectsTest, TinyStartupShutdown) {
   EXPECT_EQ(data, ThreadData::Get());
   ThreadData::BirthMap birth_map;
   ThreadData::DeathMap death_map;
-  data->SnapshotMaps(false, &birth_map, &death_map);
+  ThreadData::ParentChildSet parent_child_set;
+  data->SnapshotMaps(false, &birth_map, &death_map, &parent_child_set);
   EXPECT_EQ(1u, birth_map.size());                         // 1 birth location.
   EXPECT_EQ(1, birth_map.begin()->second->birth_count());  // 1 birth.
   EXPECT_EQ(0u, death_map.size());                         // No deaths.
+  EXPECT_EQ(0u, parent_child_set.size());                  // No children.
 
 
-  // Now instigate another birth, and a first death at the same location.
+  // Now instigate another birth, while we are timing the run of the first
+  // execution.
+  TrackedTime start_time =
+      ThreadData::NowForStartOfRun(first_birth);
+  // Create a child (using the same birth location).
   // TrackingInfo will call TallyABirth() during construction.
-  base::TimeTicks kBogusStartTime;
-  base::TrackingInfo pending_task(location, kBogusStartTime);
-  TrackedTime kBogusStartRunTime;
-  TrackedTime kBogusEndRunTime;
-  ThreadData::TallyRunOnNamedThreadIfTracking(pending_task, kBogusStartRunTime,
-                                              kBogusEndRunTime);
+  base::TimeTicks kBogusBirthTime;
+  base::TrackingInfo pending_task(location, kBogusBirthTime);
+  // Finally conclude the outer run.
+  TrackedTime end_time = ThreadData::NowForEndOfRun();
+  ThreadData::TallyRunOnNamedThreadIfTracking(pending_task, start_time,
+                                              end_time);
 
   birth_map.clear();
   death_map.clear();
-  data->SnapshotMaps(false, &birth_map, &death_map);
+  parent_child_set.clear();
+  data->SnapshotMaps(false, &birth_map, &death_map, &parent_child_set);
   EXPECT_EQ(1u, birth_map.size());                         // 1 birth location.
   EXPECT_EQ(2, birth_map.begin()->second->birth_count());  // 2 births.
   EXPECT_EQ(1u, death_map.size());                         // 1 location.
   EXPECT_EQ(1, death_map.begin()->second.count());         // 1 death.
+  if (ThreadData::tracking_parent_child_status()) {
+    EXPECT_EQ(1u, parent_child_set.size());                  // 1 child.
+    EXPECT_EQ(parent_child_set.begin()->first,
+              parent_child_set.begin()->second);
+  } else {
+    EXPECT_EQ(0u, parent_child_set.size());                  // no stats.
+  }
 
   // The births were at the same location as the one known death.
   EXPECT_EQ(birth_map.begin()->second, death_map.begin()->first);
+}
+
+TEST_F(TrackedObjectsTest, ParentChildTest) {
+  if (!ThreadData::InitializeAndSetTrackingStatus(true))
+    return;
+  if (!ThreadData::tracking_parent_child_status())
+    return;   // Feature not compiled in.
+
+  // Instigate tracking on a single tracked object, on our thread.
+  const int kFakeLineNumber = 1776;
+  const char* kFile = "FixedUnitTestFileName";
+  const char* kFunction = "ParentChildTest";
+  Location location(kFunction, kFile, kFakeLineNumber, NULL);
+  Births* first_birth = ThreadData::TallyABirthIfActive(location);
+
+  // Now instigate another birth, while we are timing the run of the first
+  // execution.
+  TrackedTime start_time =
+      ThreadData::NowForStartOfRun(first_birth);
+  // Create a child (using the same birth location).
+  // TrackingInfo will call TallyABirth() during construction.
+  base::TimeTicks kBogusBirthTime;
+  base::TrackingInfo pending_task(location, kBogusBirthTime);
+
+  // Don't conclude the run, so that we don't use the actual timer that we
+  // started for the outer profile.  This way the JSON will not include some
+  // random time.
+  ThreadData* data = ThreadData::first();
+  ASSERT_TRUE(data);
+  EXPECT_TRUE(!data->next());
+  EXPECT_EQ(data, ThreadData::Get());
+
+  ThreadData::BirthMap birth_map;
+  ThreadData::DeathMap death_map;
+  ThreadData::ParentChildSet parent_child_set;
+
+  data->SnapshotMaps(false, &birth_map, &death_map, &parent_child_set);
+  EXPECT_EQ(1u, birth_map.size());                         // 1 birth location.
+  EXPECT_EQ(2, birth_map.begin()->second->birth_count());  // 2 births.
+  EXPECT_EQ(0u, death_map.size());                         // No status yet.
+  // Just like TinyStartupShutdown test.
+  EXPECT_EQ(1u, parent_child_set.size());                  // 1 child.
+  EXPECT_EQ(parent_child_set.begin()->first,
+            parent_child_set.begin()->second);
+
+  scoped_ptr<base::Value> value(ThreadData::ToValue(false));
+  std::string json;
+  base::JSONWriter::Write(value.get(), false, &json);
+  std::string birth_only_result = "{"
+      "\"descendants\":["
+        "{"
+          "\"child_location\":{"
+            "\"file_name\":\"FixedUnitTestFileName\","
+            "\"function_name\":\"ParentChildTest\","
+            "\"line_number\":1776"
+          "},"
+          "\"child_thread\":\"WorkerThread-1\","
+          "\"parent_location\":{"
+            "\"file_name\":\"FixedUnitTestFileName\","
+            "\"function_name\":\"ParentChildTest\","
+            "\"line_number\":1776"
+          "},"
+          "\"parent_thread\":\"WorkerThread-1\""
+        "}"
+      "],"
+      "\"list\":["
+        "{"
+          "\"birth_thread\":\"WorkerThread-1\","
+          "\"death_data\":{"
+            "\"count\":2,"
+            "\"queue_ms\":0,"
+            "\"queue_ms_max\":0,"
+            "\"queue_ms_sample\":0,"
+            "\"run_ms\":0,"
+            "\"run_ms_max\":0,"
+            "\"run_ms_sample\":0"
+          "},"
+          "\"death_thread\":\"Still_Alive\","
+          "\"location\":{"
+            "\"file_name\":\"FixedUnitTestFileName\","
+            "\"function_name\":\"ParentChildTest\","
+            "\"line_number\":1776"
+          "}"
+        "}"
+      "]"
+    "}";
+  EXPECT_EQ(json, birth_only_result);
 }
 
 TEST_F(TrackedObjectsTest, DeathDataTest) {
@@ -184,6 +288,8 @@ TEST_F(TrackedObjectsTest, DeactivatedBirthOnlyToValueWorkerThread) {
   std::string json;
   base::JSONWriter::Write(value.get(), false, &json);
   std::string birth_only_result = "{"
+      "\"descendants\":["
+      "],"
       "\"list\":["
       "]"
     "}";
@@ -210,6 +316,8 @@ TEST_F(TrackedObjectsTest, DeactivatedBirthOnlyToValueMainThread) {
   std::string json;
   base::JSONWriter::Write(value.get(), false, &json);
   std::string birth_only_result = "{"
+      "\"descendants\":["
+      "],"
       "\"list\":["
       "]"
     "}";
@@ -232,6 +340,8 @@ TEST_F(TrackedObjectsTest, BirthOnlyToValueWorkerThread) {
   std::string json;
   base::JSONWriter::Write(value.get(), false, &json);
   std::string birth_only_result = "{"
+      "\"descendants\":["
+      "],"
       "\"list\":["
         "{"
           "\"birth_thread\":\"WorkerThread-1\","
@@ -274,6 +384,8 @@ TEST_F(TrackedObjectsTest, BirthOnlyToValueMainThread) {
   std::string json;
   base::JSONWriter::Write(value.get(), false, &json);
   std::string birth_only_result = "{"
+      "\"descendants\":["
+      "],"
       "\"list\":["
         "{"
           "\"birth_thread\":\"SomeMainThreadName\","
@@ -329,6 +441,8 @@ TEST_F(TrackedObjectsTest, LifeCycleToValueMainThread) {
   std::string json;
   base::JSONWriter::Write(value.get(), false, &json);
   std::string one_line_result = "{"
+      "\"descendants\":["
+      "],"
       "\"list\":["
         "{"
           "\"birth_thread\":\"SomeMainThreadName\","
@@ -391,6 +505,8 @@ TEST_F(TrackedObjectsTest, LifeCycleMidDeactivatedToValueMainThread) {
   std::string json;
   base::JSONWriter::Write(value.get(), false, &json);
   std::string one_line_result = "{"
+      "\"descendants\":["
+      "],"
       "\"list\":["
         "{"
           "\"birth_thread\":\"SomeMainThreadName\","
@@ -448,6 +564,8 @@ TEST_F(TrackedObjectsTest, LifeCyclePreDeactivatedToValueMainThread) {
   std::string json;
   base::JSONWriter::Write(value.get(), false, &json);
   std::string one_line_result = "{"
+      "\"descendants\":["
+      "],"
       "\"list\":["
       "]"
     "}";
@@ -481,6 +599,8 @@ TEST_F(TrackedObjectsTest, LifeCycleToValueWorkerThread) {
   std::string json;
   base::JSONWriter::Write(value.get(), false, &json);
   std::string one_line_result = "{"
+      "\"descendants\":["
+      "],"
       "\"list\":["
         "{"
           "\"birth_thread\":\"WorkerThread-1\","
@@ -517,6 +637,8 @@ TEST_F(TrackedObjectsTest, LifeCycleToValueWorkerThread) {
   value.reset(ThreadData::ToValue(false));
   base::JSONWriter::Write(value.get(), false, &json);
   std::string one_line_result_with_zeros = "{"
+      "\"descendants\":["
+      "],"
       "\"list\":["
         "{"
           "\"birth_thread\":\"WorkerThread-1\","
@@ -580,6 +702,8 @@ TEST_F(TrackedObjectsTest, TwoLives) {
   std::string json;
   base::JSONWriter::Write(value.get(), false, &json);
   std::string one_line_result = "{"
+      "\"descendants\":["
+      "],"
       "\"list\":["
         "{"
           "\"birth_thread\":\"SomeFileThreadName\","
@@ -639,6 +763,8 @@ TEST_F(TrackedObjectsTest, DifferentLives) {
   std::string json;
   base::JSONWriter::Write(value.get(), false, &json);
   std::string one_line_result = "{"
+      "\"descendants\":["
+      "],"
       "\"list\":["
         "{"
           "\"birth_thread\":\"SomeFileThreadName\","

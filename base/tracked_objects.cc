@@ -22,14 +22,18 @@ namespace {
 // Flag to compile out almost all of the task tracking code.
 static const bool kTrackAllTaskObjects = true;
 
+// Flag to compile out parent-child link recording.
+static const bool kTrackParentChildLinks = false;
+
 // When ThreadData is first initialized, should we start in an ACTIVE state to
 // record all of the startup-time tasks, or should we start up DEACTIVATED, so
 // that we only record after parsing the command line flag --enable-tracking.
 // Note that the flag may force either state, so this really controls only the
 // period of time up until that flag is parsed. If there is no flag seen, then
 // this state may prevail for much or all of the process lifetime.
-static const ThreadData::Status kInitialStartupState = ThreadData::ACTIVE;
-}  // anonymous namespace.
+static const ThreadData::Status kInitialStartupState =
+    ThreadData::PROFILING_CHILDREN_ACTIVE;
+}  // namespace
 
 //------------------------------------------------------------------------------
 // DeathData tallies durations when a death takes place.
@@ -142,6 +146,13 @@ BirthOnThread::BirthOnThread(const Location& location,
 const Location BirthOnThread::location() const { return location_; }
 const ThreadData* BirthOnThread::birth_thread() const { return birth_thread_; }
 
+void BirthOnThread::ToValue(const std::string& prefix,
+                            base::DictionaryValue* dictionary) const {
+  dictionary->Set(prefix + "_location", location_.ToValue());
+  dictionary->Set(prefix + "_thread",
+                  base::Value::CreateStringValue(birth_thread_->thread_name()));
+}
+
 //------------------------------------------------------------------------------
 Births::Births(const Location& location, const ThreadData& current)
     : BirthOnThread(location, current),
@@ -193,20 +204,20 @@ base::LazyInstance<base::Lock,
 ThreadData::Status ThreadData::status_ = ThreadData::UNINITIALIZED;
 
 ThreadData::ThreadData(const std::string& suggested_name)
-    : incarnation_count_for_pool_(-1),
-      next_(NULL),
+    : next_(NULL),
       next_retired_worker_(NULL),
-      worker_thread_number_(0) {
+      worker_thread_number_(0),
+      incarnation_count_for_pool_(-1) {
   DCHECK_GE(suggested_name.size(), 0u);
   thread_name_ = suggested_name;
   PushToHeadOfList();  // Which sets real incarnation_count_for_pool_.
 }
 
 ThreadData::ThreadData(int thread_number)
-    : incarnation_count_for_pool_(-1),
-      next_(NULL),
+    : next_(NULL),
       next_retired_worker_(NULL),
-      worker_thread_number_(thread_number) {
+      worker_thread_number_(thread_number),
+      incarnation_count_for_pool_(-1)  {
   CHECK_GT(thread_number, 0);
   base::StringAppendF(&thread_name_, "WorkerThread-%d", thread_number);
   PushToHeadOfList();  // Which sets real incarnation_count_for_pool_.
@@ -283,12 +294,11 @@ ThreadData* ThreadData::Get() {
 
 // static
 void ThreadData::OnThreadTermination(void* thread_data) {
+  DCHECK(thread_data);  // TLS should *never* call us with a NULL.
   // We must NOT do any allocations during this callback. There is a chance
   // that the allocator is no longer active on this thread.
   if (!kTrackAllTaskObjects)
     return;  // Not compiled in.
-  if (!thread_data)
-    return;
   reinterpret_cast<ThreadData*>(thread_data)->OnThreadTerminationCleanup();
 }
 
@@ -316,32 +326,45 @@ base::DictionaryValue* ThreadData::ToValue(bool reset_max) {
   // Request multiple calls to collected_data.Append() for all threads.
   SendAllMaps(reset_max, &collected_data);
   collected_data.AddListOfLivingObjects();  // Add births that are still alive.
-  base::ListValue* list = collected_data.ToValue();
   base::DictionaryValue* dictionary = new base::DictionaryValue();
-  dictionary->Set("list", list);
+  collected_data.ToValue(dictionary);
   return dictionary;
 }
 
 Births* ThreadData::TallyABirth(const Location& location) {
   BirthMap::iterator it = birth_map_.find(location);
+  Births* child;
   if (it != birth_map_.end()) {
-    it->second->RecordBirth();
-    return it->second;
+    child =  it->second;
+    child->RecordBirth();
+  } else {
+    child = new Births(location, *this);  // Leak this.
+    // Lock since the map may get relocated now, and other threads sometimes
+    // snapshot it (but they lock before copying it).
+    base::AutoLock lock(map_lock_);
+    birth_map_[location] = child;
   }
 
-  Births* tracker = new Births(location, *this);
-  // Lock since the map may get relocated now, and other threads sometimes
-  // snapshot it (but they lock before copying it).
-  base::AutoLock lock(map_lock_);
-  birth_map_[location] = tracker;
-  return tracker;
+  if (kTrackParentChildLinks && status_ > PROFILING_ACTIVE &&
+      !parent_stack_.empty()) {
+    const Births* parent = parent_stack_.top();
+    ParentChildPair pair(parent, child);
+    if (parent_child_set_.find(pair) == parent_child_set_.end()) {
+      // Lock since the map may get relocated now, and other threads sometimes
+      // snapshot it (but they lock before copying it).
+      base::AutoLock lock(map_lock_);
+      parent_child_set_.insert(pair);
+    }
+  }
+
+  return child;
 }
 
 void ThreadData::TallyADeath(const Births& birth,
                              DurationInt queue_duration,
                              DurationInt run_duration) {
   // Stir in some randomness, plus add constant in case durations are zero.
-  const DurationInt kSomePrimeNumber = 5939;  // To big is 4294967279;
+  const DurationInt kSomePrimeNumber = 2147483647;
   random_number_ += queue_duration + run_duration + kSomePrimeNumber;
   // An address is going to have some randomness to it as well ;-).
   random_number_ ^= static_cast<int32>(&birth - reinterpret_cast<Births*>(0));
@@ -355,6 +378,13 @@ void ThreadData::TallyADeath(const Births& birth,
     death_data = &death_map_[&birth];
   }  // Release lock ASAP.
   death_data->RecordDeath(queue_duration, run_duration, random_number_);
+
+  if (!kTrackParentChildLinks)
+    return;
+  if (!parent_stack_.empty()) {  // We might get turned off.
+    DCHECK_EQ(parent_stack_.top(), &birth);
+    parent_stack_.pop();
+  }
 }
 
 // static
@@ -399,7 +429,7 @@ void ThreadData::TallyRunOnNamedThreadIfTracking(
       : tracked_objects::TrackedTime(completed_task.delayed_run_time);
 
   // Watch out for a race where status_ is changing, and hence one or both
-  // of start_of_run or end_of_run is zero.  IN that case, we didn't bother to
+  // of start_of_run or end_of_run is zero.  In that case, we didn't bother to
   // get a time value since we "weren't tracking" and we were trying to be
   // efficient by not calling for a genuine time value. For simplicity, we'll
   // use a default zero duration when we can't calculate a true value.
@@ -481,7 +511,8 @@ const std::string ThreadData::thread_name() const { return thread_name_; }
 // This may be called from another thread.
 void ThreadData::SnapshotMaps(bool reset_max,
                               BirthMap* birth_map,
-                              DeathMap* death_map) {
+                              DeathMap* death_map,
+                              ParentChildSet* parent_child_set) {
   base::AutoLock lock(map_lock_);
   for (BirthMap::const_iterator it = birth_map_.begin();
        it != birth_map_.end(); ++it)
@@ -492,6 +523,13 @@ void ThreadData::SnapshotMaps(bool reset_max,
     if (reset_max)
       it->second.ResetMax();
   }
+
+  if (!kTrackParentChildLinks)
+    return;
+
+  for (ParentChildSet::iterator it = parent_child_set_.begin();
+       it != parent_child_set_.end(); ++it)
+    parent_child_set->insert(*it);
 }
 
 // static
@@ -513,8 +551,10 @@ void ThreadData::SendAllMaps(bool reset_max, class DataCollector* target) {
     // Get copy of data.
     ThreadData::BirthMap birth_map;
     ThreadData::DeathMap death_map;
-    thread_data->SnapshotMaps(reset_max, &birth_map, &death_map);
-    target->Append(*thread_data, birth_map, death_map);
+    ThreadData::ParentChildSet parent_child_set;
+    thread_data->SnapshotMaps(reset_max, &birth_map, &death_map,
+                              &parent_child_set);
+    target->Append(*thread_data, birth_map, death_map, parent_child_set);
   }
 }
 
@@ -541,7 +581,7 @@ void ThreadData::Reset() {
 bool ThreadData::Initialize() {
   if (!kTrackAllTaskObjects)
     return false;  // Not compiled in.
-  if (status_ != UNINITIALIZED)
+  if (status_ >= DEACTIVATED)
     return true;  // Someone else did the initialization.
   // Due to racy lazy initialization in tests, we'll need to recheck status_
   // after we acquire the lock.
@@ -550,15 +590,19 @@ bool ThreadData::Initialize() {
   // threaded in the product, but some tests may be racy and lazy about our
   // initialization.
   base::AutoLock lock(*list_lock_.Pointer());
-  if (status_ != UNINITIALIZED)
+  if (status_ >= DEACTIVATED)
     return true;  // Someone raced in here and beat us.
 
   // Perform the "real" TLS initialization now, and leave it intact through
   // process termination.
   if (!tls_index_.initialized()) {  // Testing may have initialized this.
+    DCHECK_EQ(status_, UNINITIALIZED);
     tls_index_.Initialize(&ThreadData::OnThreadTermination);
     if (!tls_index_.initialized())
       return false;
+  } else {
+    // TLS was initialzed for us earlier.
+    DCHECK_EQ(status_, DORMANT_DURING_TESTS);
   }
 
   // Incarnation counter is only significant to testing, as it otherwise will
@@ -569,6 +613,9 @@ bool ThreadData::Initialize() {
   // ensures that if we have a racy initialization, that we'll bail as soon as
   // we get the lock earlier in this method.
   status_ = kInitialStartupState;
+  if (!kTrackParentChildLinks &&
+      kInitialStartupState == PROFILING_CHILDREN_ACTIVE)
+    status_ = PROFILING_ACTIVE;
   DCHECK(status_ != UNINITIALIZED);
   return true;
 }
@@ -578,17 +625,34 @@ bool ThreadData::InitializeAndSetTrackingStatus(bool status) {
   if (!Initialize())  // No-op if already initialized.
     return false;  // Not compiled in.
 
-  status_ = status ? ACTIVE : DEACTIVATED;
+  if (!status) {
+    status_ = DEACTIVATED;
+  } else {
+    if (kTrackParentChildLinks)
+      status_ = PROFILING_CHILDREN_ACTIVE;
+    else
+      status_ = PROFILING_ACTIVE;
+  }
   return true;
 }
 
 // static
 bool ThreadData::tracking_status() {
-  return status_ == ACTIVE;
+  return status_ > DEACTIVATED;
 }
 
 // static
-TrackedTime ThreadData::NowForStartOfRun() {
+bool ThreadData::tracking_parent_child_status() {
+  return status_ >= PROFILING_CHILDREN_ACTIVE;
+}
+
+// static
+TrackedTime ThreadData::NowForStartOfRun(const Births* parent) {
+  if (kTrackParentChildLinks && parent && status_ > PROFILING_ACTIVE) {
+    ThreadData* current_thread_data = Get();
+    if (current_thread_data)
+      current_thread_data->parent_stack_.push(parent);
+  }
   return Now();
 }
 
@@ -642,7 +706,7 @@ void ThreadData::ShutdownSingleThreadedCleanup(bool leak) {
   worker_thread_data_creation_count_ = 0;
   cleanup_count_ = 0;
   tls_index_.Set(NULL);
-  status_ = UNINITIALIZED;
+  status_ = DORMANT_DURING_TESTS;  // Almost UNINITIALIZED.
 
   // To avoid any chance of racing in unit tests, which is the only place we
   // call this function, we may sometimes leak all the data structures we
@@ -660,8 +724,6 @@ void ThreadData::ShutdownSingleThreadedCleanup(bool leak) {
     for (BirthMap::iterator it = next_thread_data->birth_map_.begin();
          next_thread_data->birth_map_.end() != it; ++it)
       delete it->second;  // Delete the Birth Records.
-    next_thread_data->birth_map_.clear();
-    next_thread_data->death_map_.clear();
     delete next_thread_data;  // Includes all Death Records.
   }
 }
@@ -692,12 +754,17 @@ const std::string Snapshot::DeathThreadName() const {
 
 base::DictionaryValue* Snapshot::ToValue() const {
   base::DictionaryValue* dictionary = new base::DictionaryValue;
-  dictionary->Set("death_data", death_data_.ToValue());
+  // TODO(jar): Switch the next two lines to:
+  // birth_->ToValue("birth", dictionary);
+  // ...but that will require fixing unit tests, and JS to take
+  // "birth_location" rather than "location"
   dictionary->Set("birth_thread",
       base::Value::CreateStringValue(birth_->birth_thread()->thread_name()));
+  dictionary->Set("location", birth_->location().ToValue());
+
+  dictionary->Set("death_data", death_data_.ToValue());
   dictionary->Set("death_thread",
       base::Value::CreateStringValue(DeathThreadName()));
-  dictionary->Set("location", birth_->location().ToValue());
   return dictionary;
 }
 
@@ -709,9 +776,10 @@ DataCollector::DataCollector() {}
 DataCollector::~DataCollector() {
 }
 
-void DataCollector::Append(const ThreadData &thread_data,
-                           const ThreadData::BirthMap &birth_map,
-                           const ThreadData::DeathMap &death_map) {
+void DataCollector::Append(const ThreadData& thread_data,
+                           const ThreadData::BirthMap& birth_map,
+                           const ThreadData::DeathMap& death_map,
+                           const ThreadData::ParentChildSet& parent_child_set) {
   for (ThreadData::DeathMap::const_iterator it = death_map.begin();
        it != death_map.end(); ++it) {
     collection_.push_back(Snapshot(*it->first, thread_data, it->second));
@@ -721,6 +789,14 @@ void DataCollector::Append(const ThreadData &thread_data,
   for (ThreadData::BirthMap::const_iterator it = birth_map.begin();
        it != birth_map.end(); ++it) {
     global_birth_count_[it->second] += it->second->birth_count();
+  }
+
+  if (!kTrackParentChildLinks)
+    return;
+
+  for (ThreadData::ParentChildSet::const_iterator it = parent_child_set.begin();
+       it != parent_child_set.end(); ++it) {
+    parent_child_set_.insert(*it);
   }
 }
 
@@ -736,12 +812,24 @@ void DataCollector::AddListOfLivingObjects() {
   }
 }
 
-base::ListValue* DataCollector::ToValue() const {
+void DataCollector::ToValue(base::DictionaryValue* dictionary) const {
   base::ListValue* list = new base::ListValue;
   for (size_t i = 0; i < collection_.size(); ++i) {
     list->Append(collection_[i].ToValue());
   }
-  return list;
+  dictionary->Set("list", list);
+
+  base::ListValue* descendants = new base::ListValue;
+  for (ThreadData::ParentChildSet::const_iterator it =
+           parent_child_set_.begin();
+       it != parent_child_set_.end();
+       ++it) {
+    base::DictionaryValue* parent_child = new base::DictionaryValue;
+    it->first->ToValue("parent", parent_child);
+    it->second->ToValue("child", parent_child);
+    descendants->Append(parent_child);
+  }
+  dictionary->Set("descendants", descendants);
 }
 
 }  // namespace tracked_objects
