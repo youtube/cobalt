@@ -15,8 +15,7 @@ class TraceEventAnalyzerTest : public testing::Test {
  public:
   void ManualSetUp();
   void OnTraceDataCollected(
-      const scoped_refptr<base::debug::TraceLog::RefCountedString>&
-          json_events_str);
+      scoped_refptr<base::debug::TraceLog::RefCountedString> json_events_str);
   void BeginTracing();
   void EndTracing();
 
@@ -36,8 +35,7 @@ void TraceEventAnalyzerTest::ManualSetUp() {
 }
 
 void TraceEventAnalyzerTest::OnTraceDataCollected(
-    const scoped_refptr<base::debug::TraceLog::RefCountedString>&
-        json_events_str) {
+    scoped_refptr<base::debug::TraceLog::RefCountedString> json_events_str) {
   buffer_.AddFragment(json_events_str->data);
 }
 
@@ -611,3 +609,4 @@ TEST_F(TraceEventAnalyzerTest, RateStats) {
 
 
 }  // namespace trace_analyzer
+

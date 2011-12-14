@@ -296,8 +296,7 @@ TraceResultBuffer::TraceResultBuffer() : append_comma_(false) {
 TraceResultBuffer::~TraceResultBuffer() {
 }
 
-void TraceResultBuffer::SetOutputCallback(
-    const OutputCallback& json_chunk_callback) {
+void TraceResultBuffer::SetOutputCallback(OutputCallback json_chunk_callback) {
   output_callback_ = json_chunk_callback;
 }
 
