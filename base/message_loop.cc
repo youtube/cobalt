@@ -493,7 +493,7 @@ void MessageLoop::RunTask(const PendingTask& pending_task) {
   HistogramEvent(kTaskRunEvent);
 
   tracked_objects::TrackedTime start_time =
-      tracked_objects::ThreadData::NowForStartOfRun();
+      tracked_objects::ThreadData::NowForStartOfRun(pending_task.birth_tally);
 
   FOR_EACH_OBSERVER(TaskObserver, task_observers_,
                     WillProcessTask(pending_task.time_posted));

@@ -7,8 +7,10 @@
 #pragma once
 
 #include <map>
+#include <set>
 #include <stack>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/base_export.h"
@@ -198,6 +200,12 @@ class BASE_EXPORT BirthOnThread {
   const Location location() const;
   const ThreadData* birth_thread() const;
 
+  // Insert our state (location, and thread name) into the dictionary.
+  // Use the supplied |prefix| in front of "thread_name" and "location"
+  // respectively when defining keys.
+  void ToValue(const std::string& prefix,
+               base::DictionaryValue* dictionary) const;
+
  private:
   // File/lineno of birth.  This defines the essence of the task, as the context
   // of the birth (construction) often tell what the item is for.  This field
@@ -305,7 +313,8 @@ class BASE_EXPORT DeathData {
 class BASE_EXPORT Snapshot {
  public:
   // When snapshotting a full life cycle set (birth-to-death), use this:
-  Snapshot(const BirthOnThread& birth_on_thread, const ThreadData& death_thread,
+  Snapshot(const BirthOnThread& birth_on_thread,
+           const ThreadData& death_thread,
            const DeathData& death_data);
 
   // When snapshotting a birth, with no death yet, use this:
@@ -336,13 +345,18 @@ class BASE_EXPORT ThreadData {
   // Current allowable states of the tracking system.  The states can vary
   // between ACTIVE and DEACTIVATED, but can never go back to UNINITIALIZED.
   enum Status {
-    UNINITIALIZED,
-    ACTIVE,
-    DEACTIVATED,
+    UNINITIALIZED,              // PRistine, link-time state before running.
+    DORMANT_DURING_TESTS,       // Only used during testing.
+    DEACTIVATED,                // No longer recording profling.
+    PROFILING_ACTIVE,           // Recording profiles (no parent-child links).
+    PROFILING_CHILDREN_ACTIVE,  // Fully active, recording parent-child links.
   };
 
   typedef std::map<Location, Births*> BirthMap;
   typedef std::map<const Births*, DeathData> DeathMap;
+  typedef std::pair<const Births*, const Births*> ParentChildPair;
+  typedef std::set<ParentChildPair> ParentChildSet;
+  typedef std::stack<const Births*> ParentStack;
 
   // Initialize the current thread context with a new instance of ThreadData.
   // This is used by all threads that have names, and should be explicitly
@@ -403,9 +417,9 @@ class BASE_EXPORT ThreadData {
   const std::string thread_name() const;
 
   // Snapshot (under a lock) copies of the maps in each ThreadData instance. For
-  // each set of maps (BirthMap and DeathMap) call the Append() method of the
-  // |target| DataCollector.  If |reset_max| is true, then the max values in
-  // each DeathData instance should be reset during the scan.
+  // each set of maps (BirthMap, DeathMap, and ParentChildSet) call the Append()
+  // method of the |target| DataCollector.  If |reset_max| is true, then the max
+  // values in each DeathData instance should be reset during the scan.
   static void SendAllMaps(bool reset_max, class DataCollector* target);
 
   // Hack: asynchronously clear all birth counts and death tallies data values
@@ -418,17 +432,33 @@ class BASE_EXPORT ThreadData {
   // while we are single threaded). Returns false if unable to initialize.
   static bool Initialize();
 
-  // Sets internal status_ to either become ACTIVE, or DEACTIVATED,
-  // based on argument being true or false respectively.
+  // Sets internal status_.
+  // If |status| is false, then status_ is set to DEACTIVATED.
+  // If |status| is true, then status_ is set to, PROFILING_ACTIVE, or
+  // PROFILING_CHILDREN_ACTIVE.
   // If tracking is not compiled in, this function will return false.
+  // If parent-child tracking is not compiled in, then an attempt to set the
+  // status to PROFILING_CHILDREN_ACTIVE will only result in a status of
+  // PROFILING_ACTIVE (i.e., it can't be set to a higher level than what is
+  // compiled into the binary, and parent-child tracking at the
+  // PROFILING_CHILDREN_ACTIVE level might not be compiled in).
   static bool InitializeAndSetTrackingStatus(bool status);
+
+  // Indicate if any sort of profiling is being done (i.e., we are more than
+  // DEACTIVATED).
   static bool tracking_status();
+
+  // For testing only, indicate if the status of parent-child tracking is turned
+  // on.  This is currently a compiled option, atop tracking_status().
+  static bool tracking_parent_child_status();
 
   // Special versions of Now() for getting times at start and end of a tracked
   // run.  They are super fast when tracking is disabled, and have some internal
   // side effects when we are tracking, so that we can deduce the amount of time
   // accumulated outside of execution of tracked runs.
-  static TrackedTime NowForStartOfRun();
+  // The task that will be tracked is passed in as |parent| so that parent-child
+  // relationships can be (optionally) calculated.
+  static TrackedTime NowForStartOfRun(const Births* parent);
   static TrackedTime NowForEndOfRun();
 
   // Provide a time function that does nothing (runs fast) when we don't have
@@ -451,6 +481,7 @@ class BASE_EXPORT ThreadData {
   friend class TrackedObjectsTest;
   FRIEND_TEST_ALL_PREFIXES(TrackedObjectsTest, MinimalStartupShutdown);
   FRIEND_TEST_ALL_PREFIXES(TrackedObjectsTest, TinyStartupShutdown);
+  FRIEND_TEST_ALL_PREFIXES(TrackedObjectsTest, ParentChildTest);
 
   // Worker thread construction creates a name since there is none.
   explicit ThreadData(int thread_number);
@@ -487,7 +518,8 @@ class BASE_EXPORT ThreadData {
   // zero in the active DeathMap (not the snapshot).
   void SnapshotMaps(bool reset_max,
                     BirthMap* birth_map,
-                    DeathMap* death_map);
+                    DeathMap* death_map,
+                    ParentChildSet* parent_child_set);
 
   // Using our lock to protect the iteration, Clear all birth and death data.
   void Reset();
@@ -546,12 +578,6 @@ class BASE_EXPORT ThreadData {
   static base::LazyInstance<base::Lock,
       base::LeakyLazyInstanceTraits<base::Lock> > list_lock_;
 
-  // Record of what the incarnation_counter_ was when this instance was created.
-  // If the incarnation_counter_ has changed, then we avoid pushing into the
-  // pool (this is only critical in tests which go through multiple
-  // incarations).
-  int incarnation_count_for_pool_;
-
   // We set status_ to SHUTDOWN when we shut down the tracking service.
   static Status status_;
 
@@ -587,6 +613,11 @@ class BASE_EXPORT ThreadData {
   // locking before reading it.
   DeathMap death_map_;
 
+  // A set of parents that created children tasks on this thread. Each pair
+  // corresponds to potentially non-local Births (location and thread), and a
+  // local Births (that took place on this thread).
+  ParentChildSet parent_child_set_;
+
   // Lock to protect *some* access to BirthMap and DeathMap.  The maps are
   // regularly read and written on this thread, but may only be read from other
   // threads.  To support this, we acquire this lock if we are writing from this
@@ -595,11 +626,27 @@ class BASE_EXPORT ThreadData {
   // writing is only done from this thread.
   mutable base::Lock map_lock_;
 
+  // The stack of parents that are currently being profiled. This includes only
+  // tasks that have started a timer recently via NowForStartOfRun(), but not
+  // yet concluded with a NowForEndOfRun().  Usually this stack is one deep, but
+  // if a scoped region is profiled, or <sigh> a task runs a nested-message
+  // loop, then the stack can grow larger.  Note that we don't try to deduct
+  // time in nested porfiles, as our current timer is based on wall-clock time,
+  // and not CPU time (and we're hopeful that nested timing won't be a
+  // significant additional cost).
+  ParentStack parent_stack_;
+
   // A random number that we used to select decide which sample to keep as a
   // representative sample in each DeathData instance.  We can't start off with
   // much randomness (because we can't call RandInt() on all our threads), so
   // we stir in more and more as we go.
   int32 random_number_;
+
+  // Record of what the incarnation_counter_ was when this instance was created.
+  // If the incarnation_counter_ has changed, then we avoid pushing into the
+  // pool (this is only critical in tests which go through multiple
+  // incarnations).
+  int incarnation_count_for_pool_;
 
   DISALLOW_COPY_AND_ASSIGN(ThreadData);
 };
@@ -621,8 +668,9 @@ class BASE_EXPORT DataCollector {
   // of the birth_map and death_map, so that the data will not change during the
   // iterations and processing.
   void Append(const ThreadData &thread_data,
-              const ThreadData::BirthMap &birth_map,
-              const ThreadData::DeathMap &death_map);
+              const ThreadData::BirthMap& birth_map,
+              const ThreadData::DeathMap& death_map,
+              const ThreadData::ParentChildSet& parent_child_set);
 
   // After the accumulation phase, the following accessor is used to process the
   // data (i.e., sort it, filter it, etc.).
@@ -635,9 +683,9 @@ class BASE_EXPORT DataCollector {
   // processed using Append().
   void AddListOfLivingObjects();
 
-  // Generates a ListValue representation of the vector of snapshots. The caller
-  // assumes ownership of the memory in the returned instance.
-  base::ListValue* ToValue() const;
+  // Generates a ListValue representation of the vector of snapshots, and
+  // inserts the results into |dictionary|.
+  void ToValue(base::DictionaryValue* dictionary) const;
 
  private:
   typedef std::map<const BirthOnThread*, int> BirthCount;
@@ -649,6 +697,9 @@ class BASE_EXPORT DataCollector {
   // seen a death count.  This map changes as we do Append() calls, and is later
   // used by AddListOfLivingObjects() to gather up unaccounted for births.
   BirthCount global_birth_count_;
+
+  // The complete list of parent-child relationships among tasks.
+  ThreadData::ParentChildSet parent_child_set_;
 
   DISALLOW_COPY_AND_ASSIGN(DataCollector);
 };
