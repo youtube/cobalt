@@ -65,7 +65,7 @@ TEST_F(TraceEventAnalyzerTest, NoEvents) {
   ASSERT_TRUE(analyzer.get());
 
   // Search for all events and verify that nothing is returned.
-  TraceAnalyzer::TraceEventVector found;
+  TraceEventVector found;
   analyzer->FindEvents(Query::Bool(true), &found);
   EXPECT_EQ(0u, found.size());
 }
@@ -221,7 +221,7 @@ TEST_F(TraceEventAnalyzerTest, BooleanOperators) {
       analyzer(TraceAnalyzer::Create(output_.json_output));
   ASSERT_TRUE(!!analyzer.get());
 
-  TraceAnalyzer::TraceEventVector found;
+  TraceEventVector found;
 
   // ==
 
@@ -308,7 +308,7 @@ TEST_F(TraceEventAnalyzerTest, ArithmeticOperators) {
       analyzer(TraceAnalyzer::Create(output_.json_output));
   ASSERT_TRUE(analyzer.get());
 
-  TraceAnalyzer::TraceEventVector found;
+  TraceEventVector found;
 
   // Verify that arithmetic operators function:
 
@@ -364,7 +364,7 @@ TEST_F(TraceEventAnalyzerTest, StringPattern) {
       analyzer(TraceAnalyzer::Create(output_.json_output));
   ASSERT_TRUE(analyzer.get());
 
-  TraceAnalyzer::TraceEventVector found;
+  TraceEventVector found;
 
   analyzer->FindEvents(Query(EVENT_NAME) == Query::Pattern("name?"), &found);
   ASSERT_EQ(2u, found.size());
@@ -410,7 +410,7 @@ TEST_F(TraceEventAnalyzerTest, Duration) {
   ASSERT_TRUE(analyzer.get());
   analyzer->AssociateBeginEndEvents();
 
-  TraceAnalyzer::TraceEventVector found;
+  TraceEventVector found;
   analyzer->FindEvents(Query::MatchBeginWithEnd() &&
                       Query(EVENT_DURATION) > Query::Int(duration_cutoff_us) &&
                       (Query(EVENT_CATEGORY) == Query::String("cat1") ||
@@ -440,10 +440,39 @@ TEST_F(TraceEventAnalyzerTest, BeginEndAssocations) {
   ASSERT_TRUE(analyzer.get());
   analyzer->AssociateBeginEndEvents();
 
-  TraceAnalyzer::TraceEventVector found;
+  TraceEventVector found;
   analyzer->FindEvents(Query::MatchBeginWithEnd(), &found);
   ASSERT_EQ(1u, found.size());
   EXPECT_STREQ("name2", found[0]->name.c_str());
+}
+
+// Test MergeAssociatedEventArgs
+TEST_F(TraceEventAnalyzerTest, MergeAssociatedEventArgs) {
+  using namespace trace_analyzer;
+  ManualSetUp();
+
+  const char* arg_string = "arg_string";
+  BeginTracing();
+  {
+    TRACE_EVENT1("cat1", "name1", "arg", arg_string);
+  }
+  EndTracing();
+
+  scoped_ptr<TraceAnalyzer>
+      analyzer(TraceAnalyzer::Create(output_.json_output));
+  ASSERT_TRUE(analyzer.get());
+  analyzer->AssociateBeginEndEvents();
+
+  TraceEventVector found;
+  analyzer->FindEvents(Query(EVENT_NAME) == Query::String("name1") &&
+      Query(EVENT_PHASE) == Query::Phase(TRACE_EVENT_PHASE_END), &found);
+  ASSERT_EQ(1u, found.size());
+  std::string arg_actual;
+  EXPECT_FALSE(found[0]->GetArgAsString("arg", &arg_actual));
+
+  analyzer->MergeAssociatedEventArgs();
+  EXPECT_TRUE(found[0]->GetArgAsString("arg", &arg_actual));
+  EXPECT_STREQ(arg_string, arg_actual.c_str());
 }
 
 // Test AssociateStartFinishEvents
@@ -469,7 +498,7 @@ TEST_F(TraceEventAnalyzerTest, StartFinishAssocations) {
   ASSERT_TRUE(analyzer.get());
   analyzer->AssociateStartFinishEvents();
 
-  TraceAnalyzer::TraceEventVector found;
+  TraceEventVector found;
   analyzer->FindEvents(Query::MatchStartWithFinish(), &found);
   ASSERT_EQ(2u, found.size());
   EXPECT_STRCASEEQ("B", found[0]->id.c_str());
@@ -504,7 +533,7 @@ TEST_F(TraceEventAnalyzerTest, CustomAssociations) {
   Query match(Query(EVENT_ARG, "id") == Query(OTHER_ARG, "id"));
   analyzer->AssociateEvents(begin, end, match);
 
-  TraceAnalyzer::TraceEventVector found;
+  TraceEventVector found;
 
   // cat1 has no other_event.
   analyzer->FindEvents(Query(EVENT_CATEGORY) == Query::String("cat1") &&
@@ -570,12 +599,12 @@ TEST_F(TraceEventAnalyzerTest, RateStats) {
 
   std::vector<TraceEvent> events;
   events.reserve(100);
-  TraceAnalyzer::TraceEventVector event_ptrs;
+  TraceEventVector event_ptrs;
   TraceEvent event;
   event.timestamp = 0.0;
   double little_delta = 1.0;
   double big_delta = 10.0;
-  TraceAnalyzer::Stats stats;
+  RateStats stats;
 
   for (int i = 0; i < 10; ++i) {
     event.timestamp += little_delta;
@@ -583,7 +612,7 @@ TEST_F(TraceEventAnalyzerTest, RateStats) {
     event_ptrs.push_back(&events.back());
   }
 
-  ASSERT_TRUE(TraceAnalyzer::GetRateStats(event_ptrs, &stats));
+  ASSERT_TRUE(GetRateStats(event_ptrs, &stats));
   EXPECT_EQ(little_delta, stats.mean_us);
   EXPECT_EQ(little_delta, stats.min_us);
   EXPECT_EQ(little_delta, stats.max_us);
@@ -593,18 +622,138 @@ TEST_F(TraceEventAnalyzerTest, RateStats) {
   events.push_back(event);
   event_ptrs.push_back(&events.back());
 
-  ASSERT_TRUE(TraceAnalyzer::GetRateStats(event_ptrs, &stats));
+  ASSERT_TRUE(GetRateStats(event_ptrs, &stats));
   EXPECT_LT(little_delta, stats.mean_us);
   EXPECT_EQ(little_delta, stats.min_us);
   EXPECT_EQ(big_delta, stats.max_us);
   EXPECT_LT(0.0, stats.standard_deviation_us);
 
-  TraceAnalyzer::TraceEventVector few_event_ptrs;
+  TraceEventVector few_event_ptrs;
   few_event_ptrs.push_back(&event);
   few_event_ptrs.push_back(&event);
-  ASSERT_FALSE(TraceAnalyzer::GetRateStats(few_event_ptrs, &stats));
+  ASSERT_FALSE(GetRateStats(few_event_ptrs, &stats));
   few_event_ptrs.push_back(&event);
-  ASSERT_TRUE(TraceAnalyzer::GetRateStats(few_event_ptrs, &stats));
+  ASSERT_TRUE(GetRateStats(few_event_ptrs, &stats));
+}
+
+// Test FindFirstOf and FindLastOf.
+TEST_F(TraceEventAnalyzerTest, FindOf) {
+  using namespace trace_analyzer;
+
+  size_t num_events = 100;
+  size_t index = 0;
+  TraceEventVector event_ptrs;
+  EXPECT_FALSE(FindFirstOf(event_ptrs, Query::Bool(true), 0, &index));
+  EXPECT_FALSE(FindFirstOf(event_ptrs, Query::Bool(true), 10, &index));
+  EXPECT_FALSE(FindLastOf(event_ptrs, Query::Bool(true), 0, &index));
+  EXPECT_FALSE(FindLastOf(event_ptrs, Query::Bool(true), 10, &index));
+
+  std::vector<TraceEvent> events;
+  events.resize(num_events);
+  for (size_t i = 0; i < events.size(); ++i)
+    event_ptrs.push_back(&events[i]);
+  size_t bam_index = num_events/2;
+  events[bam_index].name = "bam";
+  Query query_bam = Query(EVENT_NAME) == Query::String(events[bam_index].name);
+
+  // FindFirstOf
+  EXPECT_FALSE(FindFirstOf(event_ptrs, Query::Bool(false), 0, &index));
+  EXPECT_TRUE(FindFirstOf(event_ptrs, Query::Bool(true), 0, &index));
+  EXPECT_EQ(0u, index);
+  EXPECT_TRUE(FindFirstOf(event_ptrs, Query::Bool(true), 5, &index));
+  EXPECT_EQ(5u, index);
+
+  EXPECT_FALSE(FindFirstOf(event_ptrs, query_bam, bam_index + 1, &index));
+  EXPECT_TRUE(FindFirstOf(event_ptrs, query_bam, 0, &index));
+  EXPECT_EQ(bam_index, index);
+  EXPECT_TRUE(FindFirstOf(event_ptrs, query_bam, bam_index, &index));
+  EXPECT_EQ(bam_index, index);
+
+  // FindLastOf
+  EXPECT_FALSE(FindLastOf(event_ptrs, Query::Bool(false), 1000, &index));
+  EXPECT_TRUE(FindLastOf(event_ptrs, Query::Bool(true), 1000, &index));
+  EXPECT_EQ(num_events - 1, index);
+  EXPECT_TRUE(FindLastOf(event_ptrs, Query::Bool(true), num_events - 5,
+                         &index));
+  EXPECT_EQ(num_events - 5, index);
+
+  EXPECT_FALSE(FindLastOf(event_ptrs, query_bam, bam_index - 1, &index));
+  EXPECT_TRUE(FindLastOf(event_ptrs, query_bam, num_events, &index));
+  EXPECT_EQ(bam_index, index);
+  EXPECT_TRUE(FindLastOf(event_ptrs, query_bam, bam_index, &index));
+  EXPECT_EQ(bam_index, index);
+}
+
+// Test FindClosest.
+TEST_F(TraceEventAnalyzerTest, FindClosest) {
+  using namespace trace_analyzer;
+
+  size_t index_1 = 0;
+  size_t index_2 = 0;
+  TraceEventVector event_ptrs;
+  EXPECT_FALSE(FindClosest(event_ptrs, Query::Bool(true), 0,
+                           &index_1, &index_2));
+
+  size_t num_events = 5;
+  std::vector<TraceEvent> events;
+  events.resize(num_events);
+  for (size_t i = 0; i < events.size(); ++i) {
+    // timestamps go up exponentially so the lower index is always closer in
+    // time than the higher index.
+    events[i].timestamp = static_cast<double>(i) * static_cast<double>(i);
+    event_ptrs.push_back(&events[i]);
+  }
+  events[0].name = "one";
+  events[2].name = "two";
+  events[4].name = "three";
+  Query query_named = Query(EVENT_NAME) != Query::String("");
+  Query query_one = Query(EVENT_NAME) == Query::String("one");
+
+  // Only one event matches query_one, so two closest can't be found.
+  EXPECT_FALSE(FindClosest(event_ptrs, query_one, 0, &index_1, &index_2));
+
+  EXPECT_TRUE(FindClosest(event_ptrs, query_one, 3, &index_1, NULL));
+  EXPECT_EQ(0u, index_1);
+
+  EXPECT_TRUE(FindClosest(event_ptrs, query_named, 1, &index_1, &index_2));
+  EXPECT_EQ(0u, index_1);
+  EXPECT_EQ(2u, index_2);
+
+  EXPECT_TRUE(FindClosest(event_ptrs, query_named, 4, &index_1, &index_2));
+  EXPECT_EQ(4u, index_1);
+  EXPECT_EQ(2u, index_2);
+
+  EXPECT_TRUE(FindClosest(event_ptrs, query_named, 3, &index_1, &index_2));
+  EXPECT_EQ(2u, index_1);
+  EXPECT_EQ(0u, index_2);
+}
+
+// Test CountMatches.
+TEST_F(TraceEventAnalyzerTest, CountMatches) {
+  using namespace trace_analyzer;
+
+  TraceEventVector event_ptrs;
+  EXPECT_EQ(0u, CountMatches(event_ptrs, Query::Bool(true), 0, 10));
+
+  size_t num_events = 5;
+  size_t num_named = 3;
+  std::vector<TraceEvent> events;
+  events.resize(num_events);
+  for (size_t i = 0; i < events.size(); ++i)
+    event_ptrs.push_back(&events[i]);
+  events[0].name = "one";
+  events[2].name = "two";
+  events[4].name = "three";
+  Query query_named = Query(EVENT_NAME) != Query::String("");
+  Query query_one = Query(EVENT_NAME) == Query::String("one");
+
+  EXPECT_EQ(0u, CountMatches(event_ptrs, Query::Bool(false)));
+  EXPECT_EQ(num_events, CountMatches(event_ptrs, Query::Bool(true)));
+  EXPECT_EQ(num_events - 1, CountMatches(event_ptrs, Query::Bool(true),
+                                         1, num_events));
+  EXPECT_EQ(1u, CountMatches(event_ptrs, query_one));
+  EXPECT_EQ(num_events - 1, CountMatches(event_ptrs, !query_one));
+  EXPECT_EQ(num_named, CountMatches(event_ptrs, query_named));
 }
 
 
