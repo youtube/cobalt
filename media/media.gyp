@@ -580,6 +580,7 @@
         'audio/audio_input_controller_unittest.cc',
         'audio/audio_input_device_unittest.cc',
         'audio/audio_input_unittest.cc',
+        'audio/audio_low_latency_input_output_unittest.cc',
         'audio/audio_output_controller_unittest.cc',
         'audio/audio_output_proxy_unittest.cc',
         'audio/audio_parameters_unittest.cc',

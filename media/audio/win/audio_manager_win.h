@@ -43,14 +43,15 @@ class MEDIA_EXPORT AudioManagerWin : public AudioManagerBase {
   // Called internally by the audio stream when it has been closed.
   void ReleaseInputStream(AudioInputStream* stream);
 
+ protected:
+  virtual ~AudioManagerWin();
+
  private:
   enum EnumerationType {
     kUninitializedEnumeration = 0,
     kMMDeviceEnumeration,
     kWaveEnumeration,
   };
-
-  virtual ~AudioManagerWin();
 
   // Allow unit test to modify the utilized enumeration API.
   friend class AudioInputDeviceTest;
