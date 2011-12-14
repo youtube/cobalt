@@ -43,6 +43,10 @@ unit tests.
 
 - unittest.key.bin : private key stored unencrypted.
 
+- unittest.originbound.der: A test origin-bound certificate for
+     https://www.google.com:443.
+- unittest.originbound.key.der: matching PrivateKeyInfo.
+
 - x509_verify_results.chain.pem : A simple certificate chain used to test that
     the correctly ordered, filtered certificate chain is returned during
     verification, regardless of the order in which the intermediate/root CA
