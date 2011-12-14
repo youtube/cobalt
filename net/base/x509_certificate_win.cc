@@ -866,6 +866,7 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
            chain_flags,
            NULL,  // reserved
            &chain_context)) {
+    verify_result->cert_status |= CERT_STATUS_INVALID;
     return MapSecurityError(GetLastError());
   }
 
@@ -884,6 +885,7 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
              chain_flags,
              NULL,  // reserved
              &chain_context)) {
+      verify_result->cert_status |= CERT_STATUS_INVALID;
       return MapSecurityError(GetLastError());
     }
   }
@@ -893,14 +895,6 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   GetCertChainInfo(chain_context, verify_result);
   verify_result->cert_status |= MapCertChainErrorStatusToCertStatus(
       chain_context->TrustStatus.dwErrorStatus);
-
-  // Treat certificates signed using broken signature algorithms as invalid.
-  if (verify_result->has_md4)
-    verify_result->cert_status |= CERT_STATUS_INVALID;
-
-  // Flag certificates signed using weak signature algorithms.
-  if (verify_result->has_md2)
-    verify_result->cert_status |= CERT_STATUS_WEAK_SIGNATURE_ALGORITHM;
 
   // Flag certificates that have a Subject common name with a NULL character.
   if (CertSubjectCommonNameHasNull(cert_handle_))
