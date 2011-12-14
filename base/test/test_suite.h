@@ -75,7 +75,7 @@ class TestSuite {
 
   // Make sure that we setup an AtExitManager so Singleton objects will be
   // destroyed.
-  base::ShadowingAtExitManager at_exit_manager_;
+  base::AtExitManager at_exit_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(TestSuite);
 };
