@@ -209,7 +209,6 @@
         'ec_private_key_unittest.cc',
         'encryptor_unittest.cc',
         'hmac_unittest.cc',
-        'nss_util_unittest.cc',
         'p224_unittest.cc',
         'p224_spake_unittest.cc',
         'rsa_private_key_unittest.cc',
@@ -254,7 +253,6 @@
         }],
         [ 'use_openssl==1', {
           'sources!': [
-            'nss_util_unittest.cc',
             'openpgp_symmetric_encryption_unittest.cc',
             'rsa_private_key_nss_unittest.cc',
           ],
