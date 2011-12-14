@@ -298,6 +298,8 @@
             'filters/ffmpeg_glue.h',
             'filters/ffmpeg_video_decoder.cc',
             'filters/ffmpeg_video_decoder.h',
+            'filters/gpu_video_decoder.cc',
+            'filters/gpu_video_decoder.h',
           ],
         }],
         # The below 'android' condition were added temporarily and should be
