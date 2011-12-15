@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "googleurl/src/gurl.h"
@@ -18,7 +19,6 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/socket/stream_socket.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace net {
 
