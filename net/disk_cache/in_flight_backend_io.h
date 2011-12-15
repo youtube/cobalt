@@ -156,18 +156,12 @@ class InFlightBackendIO : public InFlightIO {
   void CreateEntry(const std::string& key, Entry** entry,
                    net::OldCompletionCallback* callback);
   void DoomEntry(const std::string& key, net::OldCompletionCallback* callback);
-  void DoomAllEntries(net::OldCompletionCallback* callback);
   void DoomAllEntries(const net::CompletionCallback& callback);
-  void DoomEntriesBetween(const base::Time initial_time,
-                          const base::Time end_time,
-                          net::OldCompletionCallback* callback);
   void DoomEntriesBetween(const base::Time initial_time,
                           const base::Time end_time,
                           const net::CompletionCallback& callback);
   void DoomEntriesSince(const base::Time initial_time,
                         net::OldCompletionCallback* callback);
-  void OpenNextEntry(void** iter, Entry** next_entry,
-                     net::OldCompletionCallback* callback);
   void OpenNextEntry(void** iter, Entry** next_entry,
                      const net::CompletionCallback& callback);
   void OpenPrevEntry(void** iter, Entry** prev_entry,
