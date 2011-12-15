@@ -166,17 +166,20 @@ void PlatformThread::Sleep(int duration_ms) {
     sleep_time = remaining;
 }
 
-// Linux SetName is currently disabled, as we need to distinguish between
-// helper threads (where it's ok to make this call) and the main thread
-// (where making this call renames our process, causing tools like killall
-// to stop working).
-#if 0 && defined(OS_LINUX)
+#if defined(OS_LINUX)
 // static
 void PlatformThread::SetName(const char* name) {
   // have to cast away const because ThreadLocalPointer does not support const
   // void*
   current_thread_name.Pointer()->Set(const_cast<char*>(name));
   tracked_objects::ThreadData::InitializeThreadContext(name);
+
+  // On linux we can get the thread names to show up in the debugger by setting
+  // the process name for the LWP.  We don't want to do this for the main
+  // thread because that would rename the process, causing tools like killall
+  // to stop working.
+  if (PlatformThread::CurrentId() == getpid())
+    return;
 
   // http://0pointer.de/blog/projects/name-your-threads.html
 
