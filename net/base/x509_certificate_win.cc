@@ -1171,4 +1171,40 @@ bool X509Certificate::WriteOSCertHandleToPickle(OSCertHandle cert_handle,
                            length);
 }
 
+// static
+void X509Certificate::GetPublicKeyInfo(OSCertHandle cert_handle,
+                                       size_t* size_bits,
+                                       PublicKeyType* type) {
+  PCCRYPT_OID_INFO oid_info = CryptFindOIDInfo(
+      CRYPT_OID_INFO_OID_KEY,
+      cert_handle->pCertInfo->SubjectPublicKeyInfo.Algorithm.pszObjId,
+      CRYPT_PUBKEY_ALG_OID_GROUP_ID);
+  PCHECK(oid_info);
+  CHECK(oid_info->dwGroupId == CRYPT_PUBKEY_ALG_OID_GROUP_ID);
+
+  *size_bits = CertGetPublicKeyLength(
+      X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+      &cert_handle->pCertInfo->SubjectPublicKeyInfo);
+
+  switch (oid_info->Algid) {
+    case CALG_RSA_SIGN:
+    case CALG_RSA_KEYX:
+      *type = kPublicKeyTypeRSA;
+      break;
+    case CALG_DSS_SIGN:
+      *type = kPublicKeyTypeDSA;
+      break;
+    case CALG_ECDSA:
+      *type = kPublicKeyTypeECDSA;
+      break;
+    case CALG_ECDH:
+      *type = kPublicKeyTypeECDH;
+      break;
+    default:
+      *type = kPublicKeyTypeUnknown;
+      *size_bits = 0;
+      break;
+  }
+}
+
 }  // namespace net

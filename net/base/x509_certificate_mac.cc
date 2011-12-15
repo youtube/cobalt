@@ -812,7 +812,7 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   }
 
   CSSM_BOOL confirmRequired;
-  CSSM_TP_RESULT_SET *resultSet = NULL;
+  CSSM_TP_RESULT_SET* resultSet = NULL;
   crtn = CSSM_TP_RetrieveCredResult(tp_handle, &refId, NULL, &estTime,
                                     &confirmRequired, &resultSet);
   ScopedEncodedCertResults scopedResults(resultSet);
@@ -1512,6 +1512,51 @@ bool X509Certificate::WriteOSCertHandleToPickle(OSCertHandle cert_handle,
 
   return pickle->WriteData(reinterpret_cast<char*>(cert_data.Data),
                            cert_data.Length);
+}
+
+// static
+void X509Certificate::GetPublicKeyInfo(OSCertHandle cert_handle,
+                                       size_t* size_bits,
+                                       PublicKeyType* type) {
+  // Since we might fail, set the output parameters to default values first.
+  *type = kPublicKeyTypeUnknown;
+  *size_bits = 0;
+
+  SecKeyRef key;
+  OSStatus status = SecCertificateCopyPublicKey(cert_handle, &key);
+  if (status) {
+    NOTREACHED() << "SecCertificateCopyPublicKey failed: " << status;
+    return;
+  }
+  ScopedCFTypeRef<SecKeyRef> scoped_key;
+
+  const CSSM_KEY* cssm_key;
+  status = SecKeyGetCSSMKey(key, &cssm_key);
+  if (status) {
+    NOTREACHED() << "SecKeyGetCSSMKey failed: " << status;
+    return;
+  }
+
+  *size_bits = cssm_key->KeyHeader.LogicalKeySizeInBits;
+
+  switch (cssm_key->KeyHeader.AlgorithmId) {
+    case CSSM_ALGID_RSA:
+      *type = kPublicKeyTypeRSA;
+      break;
+    case CSSM_ALGID_DSA:
+      *type = kPublicKeyTypeDSA;
+      break;
+    case CSSM_ALGID_ECDSA:
+      *type = kPublicKeyTypeECDSA;
+      break;
+    case CSSM_ALGID_DH:
+      *type = kPublicKeyTypeDH;
+      break;
+    default:
+      *type = kPublicKeyTypeUnknown;
+      *size_bits = 0;
+      break;
+  }
 }
 
 }  // namespace net

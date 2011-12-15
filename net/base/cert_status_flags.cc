@@ -41,6 +41,8 @@ CertStatus MapNetErrorToCertStatus(int error) {
       return CERT_STATUS_INVALID;
     case ERR_CERT_WEAK_SIGNATURE_ALGORITHM:
       return CERT_STATUS_WEAK_SIGNATURE_ALGORITHM;
+    case ERR_CERT_WEAK_KEY:
+      return CERT_STATUS_WEAK_KEY;
     case ERR_CERT_NOT_IN_DNS:
       return CERT_STATUS_NOT_IN_DNS;
     default:
@@ -65,6 +67,8 @@ int MapCertStatusToNetError(CertStatus cert_status) {
     return ERR_CERT_COMMON_NAME_INVALID;
   if (cert_status & CERT_STATUS_WEAK_SIGNATURE_ALGORITHM)
     return ERR_CERT_WEAK_SIGNATURE_ALGORITHM;
+  if (cert_status & CERT_STATUS_WEAK_KEY)
+    return ERR_CERT_WEAK_KEY;
   if (cert_status & CERT_STATUS_DATE_INVALID)
     return ERR_CERT_DATE_INVALID;
 
