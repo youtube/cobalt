@@ -21,7 +21,7 @@
 
   'targets': [
     {
-      'target_name': 'ssl',
+      'target_name': 'libssl',
       'type': 'static_library',
       'sources': [
         'ssl/authcert.c',
