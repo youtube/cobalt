@@ -380,13 +380,17 @@ NET_ERROR(CERT_NOT_IN_DNS, -209)
 // The host name specified in the certificate is not unique.
 NET_ERROR(CERT_NON_UNIQUE_NAME, -210)
 
+// The server responded with a certificate that contains a weak key (e.g.
+// a too-small RSA key).
+NET_ERROR(CERT_WEAK_KEY, -211)
+
 // Add new certificate error codes here.
 //
 // Update the value of CERT_END whenever you add a new certificate error
 // code.
 
 // The value immediately past the last certificate error code.
-NET_ERROR(CERT_END, -211)
+NET_ERROR(CERT_END, -212)
 
 // The URL is invalid.
 NET_ERROR(INVALID_URL, -300)

@@ -24,6 +24,12 @@
 #include <cert.h>
 #endif
 
+#if defined(OS_WIN)
+#include "base/win/windows_version.h"
+#elif defined(OS_MACOSX)
+#include "base/mac/mac_util.h"
+#endif
+
 // Unit tests aren't allowed to access external resources. Unfortunately, to
 // properly verify the EV-ness of a cert, we need to check for its revocation
 // through online servers. If you're manually running unit tests, feel free to
@@ -611,6 +617,90 @@ TEST(X509CertificateTest, DISABLED_GlobalSignR3EVTest) {
     EXPECT_EQ(ERR_CERT_DATE_INVALID, error);
 }
 
+// Currently, only RSA and DSA keys are checked for weakness, and our example
+// weak size is 768. These could change in the future.
+//
+// Note that this means there may be false negatives: keys for other
+// algorithms and which are weak will pass this test.
+static bool IsWeakKeyType(const std::string& key_type) {
+  size_t pos = key_type.find("-");
+  std::string size = key_type.substr(0, pos);
+  std::string type = key_type.substr(pos + 1);
+
+  if (type == "rsa" || type == "dsa")
+    return size == "768";
+
+  return false;
+}
+
+TEST(X509CertificateTest, RejectWeakKeys) {
+  FilePath certs_dir = GetTestCertsDirectory();
+  typedef std::vector<std::string> Strings;
+  Strings key_types;
+
+  // generate-weak-test-chains.sh currently has:
+  //     key_types="768-rsa 1024-rsa 2048-rsa prime256v1-ecdsa"
+  // We must use the same key types here. The filenames generated look like:
+  //     2048-rsa-ee-by-768-rsa-intermediate.pem
+  key_types.push_back("768-rsa");
+  key_types.push_back("1024-rsa");
+  key_types.push_back("2048-rsa");
+
+  bool use_ecdsa = true;
+#if defined(OS_WIN)
+  use_ecdsa = base::win::GetVersion() > base::win::VERSION_XP;
+#elif defined(OS_MACOSX)
+  use_ecdsa = base::mac::IsOSSnowLeopardOrLater();
+#endif
+
+  if (use_ecdsa)
+    key_types.push_back("prime256v1-ecdsa");
+
+  // Add the root that signed the intermediates for this test.
+  scoped_refptr<X509Certificate> root_cert =
+      ImportCertFromFile(certs_dir, "2048-rsa-root.pem");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), root_cert);
+  TestRootCerts::GetInstance()->Add(root_cert.get());
+
+  // Now test each chain.
+  for (Strings::const_iterator ee_type = key_types.begin();
+       ee_type != key_types.end(); ++ee_type) {
+    for (Strings::const_iterator signer_type = key_types.begin();
+         signer_type != key_types.end(); ++signer_type) {
+      std::string basename = *ee_type + "-ee-by-" + *signer_type +
+          "-intermediate.pem";
+      scoped_refptr<X509Certificate> ee_cert =
+          ImportCertFromFile(certs_dir, basename);
+      ASSERT_NE(static_cast<X509Certificate*>(NULL), ee_cert);
+
+      basename = *signer_type + "-intermediate.pem";
+      scoped_refptr<X509Certificate> intermediate =
+          ImportCertFromFile(certs_dir, basename);
+      ASSERT_NE(static_cast<X509Certificate*>(NULL), intermediate);
+
+      X509Certificate::OSCertHandles intermediates;
+      intermediates.push_back(intermediate->os_cert_handle());
+      scoped_refptr<X509Certificate> cert_chain =
+          X509Certificate::CreateFromHandle(ee_cert->os_cert_handle(),
+                                            intermediates);
+
+      CertVerifyResult verify_result;
+      int error = cert_chain->Verify("127.0.0.1", 0, NULL, &verify_result);
+
+      if (IsWeakKeyType(*ee_type) || IsWeakKeyType(*signer_type)) {
+        EXPECT_NE(OK, error);
+        EXPECT_EQ(CERT_STATUS_WEAK_KEY,
+                  verify_result.cert_status & CERT_STATUS_WEAK_KEY);
+      } else {
+        EXPECT_EQ(OK, error);
+        EXPECT_EQ(0U, verify_result.cert_status & CERT_STATUS_WEAK_KEY);
+      }
+    }
+  }
+
+  TestRootCerts::GetInstance()->Clear();
+}
+
 // Test for bug 94673.
 TEST(X509CertificateTest, GoogleDigiNotarTest) {
   FilePath certs_dir = GetTestCertsDirectory();
@@ -727,7 +817,7 @@ TEST(X509CertificateTest, ExtractSPKIFromDERCert) {
   base::SHA1HashBytes(reinterpret_cast<const uint8*>(spkiBytes.data()),
                       spkiBytes.size(), hash);
 
-  EXPECT_TRUE(0 == memcmp(hash, nistSPKIHash, sizeof(hash)));
+  EXPECT_EQ(0, memcmp(hash, nistSPKIHash, sizeof(hash)));
 }
 
 TEST(X509CertificateTest, ExtractCRLURLsFromDERCert) {
@@ -1382,7 +1472,7 @@ const CertificateNameVerifyTestData kNameVerifyTestData[] = {
     { false, "f.uk", ".uk" },
     { false, "w.bar.foo.com", "?.bar.foo.com" },
     { false, "www.foo.com", "(www|ftp).foo.com" },
-    { false, "www.foo.com", "www.foo.com#" }, // # = null char.
+    { false, "www.foo.com", "www.foo.com#" },  // # = null char.
     { false, "www.foo.com", "", "www.foo.com#*.foo.com,#,#" },
     { false, "www.house.example", "ww.house.example" },
     { false, "test.org", "", "www.test.org,*.test.org,*.org" },
@@ -1520,7 +1610,7 @@ TEST_P(X509CertificateNameVerifyTest, VerifyHostname) {
     for (size_t i = 0; i < ip_addressses_ascii.size(); ++i) {
       std::string& addr_ascii = ip_addressses_ascii[i];
       ASSERT_NE(0U, addr_ascii.length());
-      if (addr_ascii[0] == 'x') { // Hex encoded address
+      if (addr_ascii[0] == 'x') {  // Hex encoded address
         addr_ascii.erase(0, 1);
         std::vector<uint8> bytes;
         EXPECT_TRUE(base::HexStringToBytes(addr_ascii, &bytes))
