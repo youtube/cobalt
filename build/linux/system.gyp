@@ -103,7 +103,7 @@
             }],
             ['use_openssl==0 and use_system_ssl==0', {
               'dependencies': [
-                '../../net/third_party/nss/ssl.gyp:ssl',
+                '../../net/third_party/nss/ssl.gyp:libssl',
                 '../../third_party/zlib/zlib.gyp:zlib',
               ],
               'direct_dependent_settings': {

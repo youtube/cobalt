@@ -914,7 +914,7 @@
             'dependencies': [
               '../third_party/nss/nss.gyp:nspr',
               '../third_party/nss/nss.gyp:nss',
-              'third_party/nss/ssl.gyp:ssl',
+              'third_party/nss/ssl.gyp:libssl',
               'tld_cleanup',
             ],
           }, { # else: OS != "win"
@@ -932,7 +932,7 @@
             'dependencies': [
               '../third_party/nss/nss.gyp:nspr',
               '../third_party/nss/nss.gyp:nss',
-              'third_party/nss/ssl.gyp:ssl',
+              'third_party/nss/ssl.gyp:libssl',
             ],
             'link_settings': {
               'libraries': [
@@ -1260,7 +1260,7 @@
               '../third_party/icu/icu.gyp:icudata',
               '../third_party/nss/nss.gyp:nspr',
               '../third_party/nss/nss.gyp:nss',
-              'third_party/nss/ssl.gyp:ssl',
+              'third_party/nss/ssl.gyp:libssl',
             ],
           },
         ],
@@ -1268,7 +1268,7 @@
             'dependencies': [
               '../third_party/nss/nss.gyp:nspr',
               '../third_party/nss/nss.gyp:nss',
-              'third_party/nss/ssl.gyp:ssl',
+              'third_party/nss/ssl.gyp:libssl',
             ],
           },
         ],
