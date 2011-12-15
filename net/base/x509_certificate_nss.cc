@@ -1142,4 +1142,38 @@ bool X509Certificate::WriteOSCertHandleToPickle(OSCertHandle cert_handle,
       cert_handle->derCert.len);
 }
 
+// static
+void X509Certificate::GetPublicKeyInfo(OSCertHandle cert_handle,
+                                       size_t* size_bits,
+                                       PublicKeyType* type) {
+  // Since we might fail, set the output parameters to default values first.
+  *type = kPublicKeyTypeUnknown;
+  *size_bits = 0;
+
+  SECKEYPublicKey* key = CERT_ExtractPublicKey(cert_handle);
+  if (!key)
+    return;
+
+  *size_bits = SECKEY_PublicKeyStrengthInBits(key);
+
+  switch (key->keyType) {
+    case rsaKey:
+      *type = kPublicKeyTypeRSA;
+      break;
+    case dsaKey:
+      *type = kPublicKeyTypeDSA;
+      break;
+    case dhKey:
+      *type = kPublicKeyTypeDH;
+      break;
+    case ecKey:
+      *type = kPublicKeyTypeECDSA;
+      break;
+    default:
+      *type = kPublicKeyTypeUnknown;
+      *size_bits = 0;
+      break;
+  }
+}
+
 }  // namespace net

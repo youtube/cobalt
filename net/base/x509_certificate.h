@@ -74,6 +74,15 @@ class NET_EXPORT X509Certificate
 
   typedef std::vector<OSCertHandle> OSCertHandles;
 
+  enum PublicKeyType {
+    kPublicKeyTypeUnknown,
+    kPublicKeyTypeRSA,
+    kPublicKeyTypeDSA,
+    kPublicKeyTypeECDSA,
+    kPublicKeyTypeDH,
+    kPublicKeyTypeECDH
+  };
+
   // Predicate functor used in maps when X509Certificate is used as the key.
   class NET_EXPORT LessThan {
    public:
@@ -421,6 +430,13 @@ class NET_EXPORT X509Certificate
   // storig the result in |*pem_encoded|, with this certificate stored as
   // the first element.
   bool GetPEMEncodedChain(std::vector<std::string>* pem_encoded) const;
+
+  // Sets |*size_bits| to be the length of the public key in bits, and sets
+  // |*type| to one of the |PublicKeyType| values. In case of
+  // |kPublicKeyTypeUnknown|, |*size_bits| will be set to 0.
+  static void GetPublicKeyInfo(OSCertHandle cert_handle,
+                               size_t* size_bits,
+                               PublicKeyType* type);
 
   // Returns the OSCertHandle of this object. Because of caching, this may
   // differ from the OSCertHandle originally supplied during initialization.

@@ -224,6 +224,20 @@ X509Certificate::OSCertHandle CreateOSCert(base::StringPiece der_cert) {
 }
 #endif
 
+// Returns true if |type| is |kPublicKeyTypeRSA| or |kPublicKeyTypeDSA|, and
+// if |size_bits| is < 1024. Note that this means there may be false
+// negatives: keys for other algorithms and which are weak will pass this
+// test.
+bool IsWeakKey(X509Certificate::PublicKeyType type, size_t size_bits) {
+  switch (type) {
+    case X509Certificate::kPublicKeyTypeRSA:
+    case X509Certificate::kPublicKeyTypeDSA:
+      return size_bits < 1024;
+    default:
+      return false;
+  }
+}
+
 }  // namespace
 
 bool X509Certificate::LessThan::operator()(X509Certificate* lhs,
@@ -595,6 +609,31 @@ int X509Certificate::Verify(const std::string& hostname,
   if (IsPublicKeyBlacklisted(verify_result->public_key_hashes)) {
     verify_result->cert_status |= CERT_STATUS_REVOKED;
     rv = MapCertStatusToNetError(verify_result->cert_status);
+  }
+
+  // Check for weak keys in the entire verified chain.
+  size_t size_bits = 0;
+  PublicKeyType type = kPublicKeyTypeUnknown;
+  bool weak_key = false;
+
+  GetPublicKeyInfo(verify_result->verified_cert->os_cert_handle(), &size_bits,
+                   &type);
+  if (IsWeakKey(type, size_bits)) {
+    weak_key = true;
+  } else {
+    const OSCertHandles& intermediates =
+        verify_result->verified_cert->GetIntermediateCertificates();
+    for (OSCertHandles::const_iterator i = intermediates.begin();
+         i != intermediates.end(); ++i) {
+      GetPublicKeyInfo(*i, &size_bits, &type);
+      if (IsWeakKey(type, size_bits))
+        weak_key = true;
+    }
+  }
+
+  if (weak_key) {
+    verify_result->cert_status |= CERT_STATUS_WEAK_KEY;
+    return MapCertStatusToNetError(verify_result->cert_status);
   }
 
   // Treat certificates signed using broken signature algorithms as invalid.
