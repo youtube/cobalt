@@ -283,6 +283,9 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // that we found the prediction to be correct.
   bool predicted_cert_chain_correct_;
 
+  // The time when we started waiting for DNSSEC records.
+  base::Time dnssec_wait_start_time_;
+
   State next_handshake_state_;
 
   // The NSS SSL state machine
