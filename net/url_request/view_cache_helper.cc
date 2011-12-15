@@ -4,6 +4,8 @@
 
 #include "net/url_request/view_cache_helper.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/stringprintf.h"
 #include "net/base/escape.h"
 #include "net/base/io_buffer.h"
@@ -242,7 +244,9 @@ int ViewCacheHelper::DoGetBackendComplete(int result) {
 
 int ViewCacheHelper::DoOpenNextEntry() {
   next_state_ = STATE_OPEN_NEXT_ENTRY_COMPLETE;
-  return disk_cache_->OpenNextEntry(&iter_, &entry_, &cache_callback_);
+  return disk_cache_->OpenNextEntry(
+      &iter_, &entry_,
+      base::Bind(&ViewCacheHelper::OnIOComplete, base::Unretained(this)));
 }
 
 int ViewCacheHelper::DoOpenNextEntryComplete(int result) {

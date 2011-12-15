@@ -102,19 +102,13 @@ class MockDiskCache : public disk_cache::Backend {
                           net::OldCompletionCallback* callback) OVERRIDE;
   virtual int DoomEntry(const std::string& key,
                         net::OldCompletionCallback* callback) OVERRIDE;
-  virtual int DoomAllEntries(net::OldCompletionCallback* callback) OVERRIDE;
   virtual int DoomAllEntries(const net::CompletionCallback& callback) OVERRIDE;
-  virtual int DoomEntriesBetween(const base::Time initial_time,
-                                 const base::Time end_time,
-                                 net::OldCompletionCallback* callback) OVERRIDE;
   virtual int DoomEntriesBetween(
       const base::Time initial_time,
       const base::Time end_time,
       const net::CompletionCallback& callback) OVERRIDE;
   virtual int DoomEntriesSince(const base::Time initial_time,
                                net::OldCompletionCallback* callback) OVERRIDE;
-  virtual int OpenNextEntry(void** iter, disk_cache::Entry** next_entry,
-                            net::OldCompletionCallback* callback) OVERRIDE;
   virtual int OpenNextEntry(void** iter, disk_cache::Entry** next_entry,
                             const net::CompletionCallback& callback) OVERRIDE;
   virtual void EndEnumeration(void** iter) OVERRIDE;

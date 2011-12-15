@@ -341,24 +341,10 @@ void InFlightBackendIO::DoomEntry(const std::string& key,
   PostOperation(operation);
 }
 
-void InFlightBackendIO::DoomAllEntries(OldCompletionCallback* callback) {
-  scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
-  operation->DoomAllEntries();
-  PostOperation(operation);
-}
-
 void InFlightBackendIO::DoomAllEntries(
     const net::CompletionCallback& callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->DoomAllEntries();
-  PostOperation(operation);
-}
-
-void InFlightBackendIO::DoomEntriesBetween(const base::Time initial_time,
-                        const base::Time end_time,
-                        OldCompletionCallback* callback) {
-  scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
-  operation->DoomEntriesBetween(initial_time, end_time);
   PostOperation(operation);
 }
 
@@ -374,13 +360,6 @@ void InFlightBackendIO::DoomEntriesSince(const base::Time initial_time,
                                          OldCompletionCallback* callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->DoomEntriesSince(initial_time);
-  PostOperation(operation);
-}
-
-void InFlightBackendIO::OpenNextEntry(void** iter, Entry** next_entry,
-                                      OldCompletionCallback* callback) {
-  scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
-  operation->OpenNextEntry(iter, next_entry);
   PostOperation(operation);
 }
 
