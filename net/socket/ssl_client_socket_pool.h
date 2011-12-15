@@ -153,7 +153,6 @@ class SSLConnectJob : public ConnectJob {
 
   State next_state_;
   CompletionCallback callback_;
-  OldCompletionCallbackImpl<SSLConnectJob> callback_old_;
   scoped_ptr<ClientSocketHandle> transport_socket_handle_;
   scoped_ptr<SSLClientSocket> ssl_socket_;
   scoped_ptr<SSLHostInfo> ssl_host_info_;

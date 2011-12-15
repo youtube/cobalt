@@ -832,23 +832,25 @@ class MockUDPClientSocket : public DatagramClientSocket,
   DISALLOW_COPY_AND_ASSIGN(MockUDPClientSocket);
 };
 
-class TestSocketRequest : public CallbackRunner< Tuple1<int> > {
+class TestSocketRequest : public TestCompletionCallbackBase {
  public:
-  TestSocketRequest(
-      std::vector<TestSocketRequest*>* request_order,
-      size_t* completion_count);
+  TestSocketRequest(std::vector<TestSocketRequest*>* request_order,
+                    size_t* completion_count);
   virtual ~TestSocketRequest();
 
   ClientSocketHandle* handle() { return &handle_; }
 
-  int WaitForResult();
-  virtual void RunWithParams(const Tuple1<int>& params) OVERRIDE;
+  const net::CompletionCallback& callback() const { return callback_; }
 
  private:
+  void OnComplete(int result);
+
   ClientSocketHandle handle_;
   std::vector<TestSocketRequest*>* request_order_;
   size_t* completion_count_;
-  TestOldCompletionCallback callback_;
+  CompletionCallback callback_;
+
+  DISALLOW_COPY_AND_ASSIGN(TestSocketRequest);
 };
 
 class ClientSocketPoolTest {
@@ -876,7 +878,7 @@ class ClientSocketPoolTest {
                                                        &completion_count_);
     requests_.push_back(request);
     int rv = request->handle()->Init(
-        group_name, socket_params, priority, request,
+        group_name, socket_params, priority, request->callback(),
         socket_pool, BoundNetLog());
     if (rv != ERR_IO_PENDING)
       request_order_.push_back(request);
