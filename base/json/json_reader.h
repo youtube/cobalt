@@ -37,19 +37,8 @@
 // Chromium and Chromium OS check out gtest to different places, so we're
 // unable to compile on both if we include gtest_prod.h here.  Instead, include
 // its only contents -- this will need to be updated if the macro ever changes.
-#if defined(GOOGLE_CHROME_BUILD)
-
-// Provide a no-op that can live in a class definition.
-// We can't use an expression, so we define a useless local class name.
-#define FRIEND_TEST(test_case_name, test_name)                                 \
-    class test_case_name##_##test_name##_Test {int garbage;}
-
-#else
-
-#define FRIEND_TEST(test_case_name, test_name)                                 \
-    friend class test_case_name##_##test_name##_Test
-
-#endif
+#define FRIEND_TEST(test_case_name, test_name)\
+friend class test_case_name##_##test_name##_Test
 
 #define FRIEND_TEST_ALL_PREFIXES(test_case_name, test_name) \
   FRIEND_TEST(test_case_name, test_name); \
