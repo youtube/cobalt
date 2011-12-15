@@ -143,15 +143,11 @@ class ReadFromFileAudioSource : public AudioOutputStream::AudioSourceCallback {
 // Convenience method which ensures that we are not running on the build
 // bots and that at least one valid output device can be found.
 static bool CanRunAudioTests(AudioManager* audio_man) {
-  if (NULL == audio_man)
-    return false;
-
-  scoped_ptr<base::Environment> env(base::Environment::Create());
-  if (env->HasVar("CHROME_HEADLESS"))
-    return false;
   // TODO(henrika): note that we use Wave today to query the number of
   // existing output devices.
-  return audio_man->HasAudioOutputDevices();
+  bool output = audio_man->HasAudioOutputDevices();
+  LOG_IF(WARNING, !output) << "No output devices detected.";
+  return output;
 }
 
 // Convenience method which creates a default AudioOutputStream object but

@@ -89,13 +89,11 @@ class WriteToFileAudioSink : public AudioInputStream::AudioInputCallback {
 // Convenience method which ensures that we are not running on the build
 // bots and that at least one valid input device can be found.
 static bool CanRunAudioTests(AudioManager* audio_man) {
-  scoped_ptr<base::Environment> env(base::Environment::Create());
-  if (env->HasVar("CHROME_HEADLESS"))
-    return false;
-
   // TODO(henrika): note that we use Wave today to query the number of
   // existing input devices.
-  return audio_man->HasAudioInputDevices();
+  bool input = audio_man->HasAudioInputDevices();
+  LOG_IF(WARNING, !input) << "No input device detected.";
+  return input;
 }
 
 // Convenience method which creates a default AudioInputStream object but

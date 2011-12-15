@@ -110,11 +110,11 @@ class AudioLowLatencyInputOutputTest : public testing::Test {
   // Convenience method which ensures that we are not running on the build
   // bots and that at least one valid input and output device can be found.
   bool CanRunAudioTests() {
-    scoped_ptr<base::Environment> env(base::Environment::Create());
-    if (env->HasVar("CHROME_HEADLESS"))
-      return false;
-    return (audio_manager()->HasAudioInputDevices() &&
-            audio_manager()->HasAudioOutputDevices());
+    bool input = audio_manager()->HasAudioInputDevices();
+    bool output = audio_manager()->HasAudioOutputDevices();
+    LOG_IF(WARNING, !input) << "No input device detected.";
+    LOG_IF(WARNING, !output) << "No output device detected.";
+    return input && output;
   }
 
  private:
