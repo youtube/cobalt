@@ -41,7 +41,6 @@ HttpNetworkSession::HttpNetworkSession(const Params& params)
               params.cert_verifier,
               params.origin_bound_cert_service,
               params.transport_security_state,
-              params.dns_cert_checker,
               params.ssl_host_info_factory,
               params.ssl_session_cache_shard,
               params.proxy_service,
