@@ -6,11 +6,11 @@
 #define NET_DISK_CACHE_MEM_ENTRY_IMPL_H_
 #pragma once
 
+#include "base/gtest_prod_util.h"
 #include "base/hash_tables.h"
 #include "base/memory/scoped_ptr.h"
 #include "net/base/net_log.h"
 #include "net/disk_cache/disk_cache.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace disk_cache {
 
