@@ -27,6 +27,7 @@ namespace net {
 
 class CertVerifier;
 class ClientSocketFactory;
+class DnsCertProvenanceChecker;
 class HostResolver;
 class HttpAuthHandlerFactory;
 class HttpNetworkSessionPeer;
@@ -56,6 +57,7 @@ class NET_EXPORT HttpNetworkSession
           cert_verifier(NULL),
           origin_bound_cert_service(NULL),
           transport_security_state(NULL),
+          dns_cert_checker(NULL),
           proxy_service(NULL),
           ssl_host_info_factory(NULL),
           ssl_config_service(NULL),
@@ -69,6 +71,7 @@ class NET_EXPORT HttpNetworkSession
     CertVerifier* cert_verifier;
     OriginBoundCertService* origin_bound_cert_service;
     TransportSecurityState* transport_security_state;
+    DnsCertProvenanceChecker* dns_cert_checker;
     ProxyService* proxy_service;
     SSLHostInfoFactory* ssl_host_info_factory;
     std::string ssl_session_cache_shard;
