@@ -152,24 +152,8 @@ int MemBackendImpl::DoomEntry(const std::string& key,
   return net::ERR_FAILED;
 }
 
-int MemBackendImpl::DoomAllEntries(OldCompletionCallback* callback) {
-  if (DoomAllEntries())
-    return net::OK;
-
-  return net::ERR_FAILED;
-}
-
 int MemBackendImpl::DoomAllEntries(const net::CompletionCallback& callback) {
   if (DoomAllEntries())
-    return net::OK;
-
-  return net::ERR_FAILED;
-}
-
-int MemBackendImpl::DoomEntriesBetween(const base::Time initial_time,
-                                       const base::Time end_time,
-                                       OldCompletionCallback* callback) {
-  if (DoomEntriesBetween(initial_time, end_time))
     return net::OK;
 
   return net::ERR_FAILED;
@@ -187,14 +171,6 @@ int MemBackendImpl::DoomEntriesBetween(
 int MemBackendImpl::DoomEntriesSince(const base::Time initial_time,
                                      OldCompletionCallback* callback) {
   if (DoomEntriesSince(initial_time))
-    return net::OK;
-
-  return net::ERR_FAILED;
-}
-
-int MemBackendImpl::OpenNextEntry(void** iter, Entry** next_entry,
-                                  OldCompletionCallback* callback) {
-  if (OpenNextEntry(iter, next_entry))
     return net::OK;
 
   return net::ERR_FAILED;

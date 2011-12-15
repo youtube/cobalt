@@ -438,17 +438,7 @@ int MockDiskCache::DoomEntry(const std::string& key,
   return net::ERR_IO_PENDING;
 }
 
-int MockDiskCache::DoomAllEntries(net::OldCompletionCallback* callback) {
-  return net::ERR_NOT_IMPLEMENTED;
-}
-
 int MockDiskCache::DoomAllEntries(const net::CompletionCallback& callback) {
-  return net::ERR_NOT_IMPLEMENTED;
-}
-
-int MockDiskCache::DoomEntriesBetween(const base::Time initial_time,
-                                      const base::Time end_time,
-                                      net::OldCompletionCallback* callback) {
   return net::ERR_NOT_IMPLEMENTED;
 }
 
@@ -460,11 +450,6 @@ int MockDiskCache::DoomEntriesBetween(const base::Time initial_time,
 
 int MockDiskCache::DoomEntriesSince(const base::Time initial_time,
                                     net::OldCompletionCallback* callback) {
-  return net::ERR_NOT_IMPLEMENTED;
-}
-
-int MockDiskCache::OpenNextEntry(void** iter, disk_cache::Entry** next_entry,
-                                 net::OldCompletionCallback* callback) {
   return net::ERR_NOT_IMPLEMENTED;
 }
 

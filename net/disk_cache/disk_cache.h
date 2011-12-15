@@ -97,16 +97,12 @@ class NET_EXPORT Backend {
   // Marks all entries for deletion. The return value is a net error code. If
   // this method returns ERR_IO_PENDING, the |callback| will be invoked when the
   // operation completes.
-  virtual int DoomAllEntries(OldCompletionCallback* callback) = 0;
   virtual int DoomAllEntries(const net::CompletionCallback& callback) = 0;
 
   // Marks a range of entries for deletion. This supports unbounded deletes in
   // either direction by using null Time values for either argument. The return
   // value is a net error code. If this method returns ERR_IO_PENDING, the
   // |callback| will be invoked when the operation completes.
-  virtual int DoomEntriesBetween(const base::Time initial_time,
-                                 const base::Time end_time,
-                                 OldCompletionCallback* callback) = 0;
   virtual int DoomEntriesBetween(const base::Time initial_time,
                                  const base::Time end_time,
                                  const net::CompletionCallback& callback) = 0;
@@ -129,8 +125,6 @@ class NET_EXPORT Backend {
   //
   // NOTE: This method does not modify the last_used field of the entry, and
   // therefore it does not impact the eviction ranking of the entry.
-  virtual int OpenNextEntry(void** iter, Entry** next_entry,
-                            OldCompletionCallback* callback) = 0;
   virtual int OpenNextEntry(void** iter, Entry** next_entry,
                             const net::CompletionCallback& callback) = 0;
 
