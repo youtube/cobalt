@@ -121,6 +121,7 @@
         'at_exit_unittest.cc',
         'atomicops_unittest.cc',
         'base64_unittest.cc',
+        'win/dllmain.cc',
         'bind_unittest.cc',
         'bind_unittest.nc',
         'bits_unittest.cc',
