@@ -16,6 +16,7 @@
 #include "net/http/http_server_properties.h"
 #include "net/http/http_transaction_factory.h"
 #include "net/proxy/proxy_service.h"
+#include "net/socket/dns_cert_provenance_checker.h"
 #include "net/url_request/fraudulent_certificate_reporter.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_job_factory.h"
@@ -48,6 +49,12 @@ void URLRequestContextStorage::set_origin_bound_cert_service(
     OriginBoundCertService* origin_bound_cert_service) {
   context_->set_origin_bound_cert_service(origin_bound_cert_service);
   origin_bound_cert_service_.reset(origin_bound_cert_service);
+}
+
+void URLRequestContextStorage::set_dns_cert_checker(
+    DnsCertProvenanceChecker* dns_cert_checker) {
+  context_->set_dns_cert_checker(dns_cert_checker);
+  dns_cert_checker_.reset(dns_cert_checker);
 }
 
 void URLRequestContextStorage::set_fraudulent_certificate_reporter(
