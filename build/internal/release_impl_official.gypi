@@ -15,6 +15,10 @@
       'AdditionalOptions': ['/ltcg', '/expectedoutputsize:120000000'],
     },
     'VCLinkerTool': {
+      # Get more debug spew from the linker while we're sorting out
+      # build problems and performance.
+      # TODO(siggi): Remove these flags after we're out of the woods.
+      'AdditionalOptions': ['/verbose', '/time'],
       'LinkTimeCodeGeneration': '1',
       # The /PROFILE flag causes the linker to add a "FIXUP" debug stream to
       # the generated PDB. According to MSDN documentation, this flag is only
