@@ -65,7 +65,7 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   int SyncInit();
   void CleanupCache();
 
-  // Same bahavior as OpenNextEntry but walks the list from back to front.
+  // Same behavior as OpenNextEntry but walks the list from back to front.
   int OpenPrevEntry(void** iter, Entry** prev_entry,
                     OldCompletionCallback* callback);
 
@@ -115,7 +115,7 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   // the related storage in addition of releasing the related block.
   void DeleteBlock(Addr block_address, bool deep);
 
-  // Retrieves a pointer to the lru-related data.
+  // Retrieves a pointer to the LRU-related data.
   LruData* GetLruData();
 
   // Updates the ranking information for an entry.
@@ -211,7 +211,7 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   // Called when an interesting event should be logged (counted).
   void OnEvent(Stats::Counters an_event);
 
-  // Keeps track of paylod access (doesn't include metadata).
+  // Keeps track of payload access (doesn't include metadata).
   void OnRead(int bytes);
   void OnWrite(int bytes);
 
@@ -252,11 +252,11 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   // entries. This method should be called directly on the cache thread.
   void TrimDeletedListForTest(bool empty);
 
-  // Peforms a simple self-check, and returns the number of dirty items
+  // Performs a simple self-check, and returns the number of dirty items
   // or an error code (negative value).
   int SelfCheck();
 
-  // Backend interface.
+  // Backend implementation.
   virtual int32 GetEntryCount() const OVERRIDE;
   virtual int OpenEntry(const std::string& key, Entry** entry,
                         OldCompletionCallback* callback) OVERRIDE;
@@ -264,19 +264,13 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
                           OldCompletionCallback* callback) OVERRIDE;
   virtual int DoomEntry(const std::string& key,
                         OldCompletionCallback* callback) OVERRIDE;
-  virtual int DoomAllEntries(OldCompletionCallback* callback) OVERRIDE;
   virtual int DoomAllEntries(const net::CompletionCallback& callback) OVERRIDE;
-  virtual int DoomEntriesBetween(const base::Time initial_time,
-                                 const base::Time end_time,
-                                 OldCompletionCallback* callback) OVERRIDE;
   virtual int DoomEntriesBetween(
       const base::Time initial_time,
       const base::Time end_time,
       const net::CompletionCallback& callback) OVERRIDE;
   virtual int DoomEntriesSince(const base::Time initial_time,
                                OldCompletionCallback* callback) OVERRIDE;
-  virtual int OpenNextEntry(void** iter, Entry** next_entry,
-                            OldCompletionCallback* callback) OVERRIDE;
   virtual int OpenNextEntry(void** iter, Entry** next_entry,
                             const net::CompletionCallback& callback) OVERRIDE;
   virtual void EndEnumeration(void** iter) OVERRIDE;
@@ -312,7 +306,7 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   // Opens the next or previous entry on a cache iteration.
   EntryImpl* OpenFollowingEntry(bool forward, void** iter);
 
-  // Opens the next or previous entry on a single list. If successfull,
+  // Opens the next or previous entry on a single list. If successful,
   // |from_entry| will be updated to point to the new entry, otherwise it will
   // be set to NULL; in other words, it is used as an explicit iterator.
   bool OpenFollowingEntryFromList(bool forward, Rankings::List list,
@@ -349,7 +343,7 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   // Performs basic checks on the index file. Returns false on failure.
   bool CheckIndex();
 
-  // Part of the selt test. Returns the number or dirty entries, or an error.
+  // Part of the self test. Returns the number or dirty entries, or an error.
   int CheckAllEntries();
 
   // Part of the self test. Returns false if the entry is corrupt.
@@ -376,7 +370,7 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   int buffer_bytes_;  // Total size of the temporary entries' buffers.
   int up_ticks_;  // The number of timer ticks received (OnStatsTimer).
   net::CacheType cache_type_;
-  int uma_report_;  // Controls transmision of UMA data.
+  int uma_report_;  // Controls transmission of UMA data.
   uint32 user_flags_;  // Flags set by the user.
   bool init_;  // controls the initialization of the system.
   bool restarted_;
@@ -389,16 +383,16 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
 
   net::NetLog* net_log_;
 
-  Stats stats_;  // Usage statistcs.
+  Stats stats_;  // Usage statistics.
   base::RepeatingTimer<BackendImpl> timer_;  // Usage timer.
   base::WaitableEvent done_;  // Signals the end of background work.
-  scoped_refptr<TraceObject> trace_object_;  // Inits internal tracing.
+  scoped_refptr<TraceObject> trace_object_;  // Initializes internal tracing.
   base::WeakPtrFactory<BackendImpl> ptr_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(BackendImpl);
 };
 
-// Returns the prefered max cache size given the available disk space.
+// Returns the preferred max cache size given the available disk space.
 NET_EXPORT_PRIVATE int PreferedCacheSize(int64 available);
 
 }  // namespace disk_cache

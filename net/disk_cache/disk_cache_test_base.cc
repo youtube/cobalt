@@ -125,15 +125,15 @@ int DiskCacheTestWithCache::DoomEntry(const std::string& key) {
 }
 
 int DiskCacheTestWithCache::DoomAllEntries() {
-  TestOldCompletionCallback cb;
-  int rv = cache_->DoomAllEntries(&cb);
+  net::TestCompletionCallback cb;
+  int rv = cache_->DoomAllEntries(cb.callback());
   return cb.GetResult(rv);
 }
 
 int DiskCacheTestWithCache::DoomEntriesBetween(const base::Time initial_time,
                                                const base::Time end_time) {
-  TestOldCompletionCallback cb;
-  int rv = cache_->DoomEntriesBetween(initial_time, end_time, &cb);
+  net::TestCompletionCallback cb;
+  int rv = cache_->DoomEntriesBetween(initial_time, end_time, cb.callback());
   return cb.GetResult(rv);
 }
 
@@ -145,8 +145,8 @@ int DiskCacheTestWithCache::DoomEntriesSince(const base::Time initial_time) {
 
 int DiskCacheTestWithCache::OpenNextEntry(void** iter,
                                           disk_cache::Entry** next_entry) {
-  TestOldCompletionCallback cb;
-  int rv = cache_->OpenNextEntry(iter, next_entry, &cb);
+  net::TestCompletionCallback cb;
+  int rv = cache_->OpenNextEntry(iter, next_entry, cb.callback());
   return cb.GetResult(rv);
 }
 
@@ -177,7 +177,6 @@ int DiskCacheTestWithCache::ReadData(disk_cache::Entry* entry, int index,
   int rv = entry->ReadData(index, offset, buf, len, &cb);
   return cb.GetResult(rv);
 }
-
 
 int DiskCacheTestWithCache::WriteData(disk_cache::Entry* entry, int index,
                                       int offset, net::IOBuffer* buf, int len,
