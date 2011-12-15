@@ -7312,10 +7312,10 @@ TEST_F(HttpNetworkTransactionTest,
             connection->Init(host_port_pair.ToString(),
                              transport_params,
                              LOWEST,
-                             &callback_old,
+                             callback.callback(),
                              session->GetTransportSocketPool(),
                              BoundNetLog()));
-  EXPECT_EQ(OK, callback_old.WaitForResult());
+  EXPECT_EQ(OK, callback.WaitForResult());
 
   SSLConfig ssl_config;
   session->ssl_config_service()->GetSSLConfig(&ssl_config);
@@ -8567,12 +8567,13 @@ TEST_F(HttpNetworkTransactionTest, PreconnectWithExistingSpdySession) {
       session->spdy_session_pool()->Get(pair, BoundNetLog());
   scoped_refptr<TransportSocketParams> transport_params(
       new TransportSocketParams(host_port_pair, MEDIUM, false, false));
-  TestOldCompletionCallback callback;
+  TestOldCompletionCallback old_callback;
+  TestCompletionCallback callback;
 
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(ERR_IO_PENDING,
             connection->Init(host_port_pair.ToString(), transport_params,
-                             LOWEST, &callback,
+                             LOWEST, callback.callback(),
                              session->GetTransportSocketPool(), BoundNetLog()));
   EXPECT_EQ(OK, callback.WaitForResult());
   spdy_session->InitializeWithSocket(connection.release(), false, OK);
@@ -8587,9 +8588,9 @@ TEST_F(HttpNetworkTransactionTest, PreconnectWithExistingSpdySession) {
 
   scoped_ptr<HttpNetworkTransaction> trans(new HttpNetworkTransaction(session));
 
-  int rv = trans->Start(&request, &callback, BoundNetLog());
+  int rv = trans->Start(&request, &old_callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_EQ(OK, old_callback.WaitForResult());
 }
 
 // Given a net error, cause that error to be returned from the first Write()

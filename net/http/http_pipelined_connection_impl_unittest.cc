@@ -86,7 +86,8 @@ class HttpPipelinedConnectionImplTest : public testing::Test {
     factory_.AddSocketDataProvider(data_.get());
     scoped_refptr<DummySocketParams> params;
     ClientSocketHandle* connection = new ClientSocketHandle;
-    connection->Init("a", params, MEDIUM, NULL, &pool_, BoundNetLog());
+    connection->Init("a", params, MEDIUM, CompletionCallback(), &pool_,
+                     BoundNetLog());
     pipeline_.reset(new HttpPipelinedConnectionImpl(connection, &delegate_,
                                                     ssl_config_, proxy_info_,
                                                     BoundNetLog(), false));

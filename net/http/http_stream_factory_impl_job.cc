@@ -5,6 +5,7 @@
 #include "net/http/http_stream_factory_impl_job.h"
 
 #include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/logging.h"
 #include "base/stl_util.h"
 #include "base/string_util.h"
@@ -114,7 +115,10 @@ HttpStreamFactoryImpl::Job::Job(HttpStreamFactoryImpl* stream_factory,
       proxy_ssl_config_(proxy_ssl_config),
       net_log_(BoundNetLog::Make(net_log.net_log(),
                                  NetLog::SOURCE_HTTP_STREAM_JOB)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(this, &Job::OnIOComplete)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(old_io_callback_(
+          this, &Job::OnIOComplete)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(
+          base::Bind(&Job::OnIOComplete, base::Unretained(this)))),
       connection_(new ClientSocketHandle),
       session_(session),
       stream_factory_(stream_factory),
@@ -572,8 +576,7 @@ int HttpStreamFactoryImpl::Job::DoResolveProxy() {
   }
 
   return session_->proxy_service()->ResolveProxy(
-      request_info_.url, &proxy_info_, &io_callback_, &pac_request_,
-      net_log_);
+      request_info_.url, &proxy_info_, io_callback_, &pac_request_, net_log_);
 }
 
 int HttpStreamFactoryImpl::Job::DoResolveProxyComplete(int result) {
@@ -715,19 +718,10 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
         num_streams_);
   } else {
     return InitSocketHandleForHttpRequest(
-        origin_url_,
-        request_info_.extra_headers,
-        request_info_.load_flags,
-        request_info_.priority,
-        session_,
-        proxy_info_,
-        ShouldForceSpdySSL(),
-        want_spdy_over_npn,
-        server_ssl_config_,
-        proxy_ssl_config_,
-        net_log_,
-        connection_.get(),
-        &io_callback_);
+        origin_url_, request_info_.extra_headers, request_info_.load_flags,
+        request_info_.priority, session_, proxy_info_, ShouldForceSpdySSL(),
+        want_spdy_over_npn, server_ssl_config_, proxy_ssl_config_, net_log_,
+        connection_.get(), io_callback_);
   }
 }
 
@@ -956,7 +950,7 @@ int HttpStreamFactoryImpl::Job::DoRestartTunnelAuth() {
   next_state_ = STATE_RESTART_TUNNEL_AUTH_COMPLETE;
   HttpProxyClientSocket* http_proxy_socket =
       static_cast<HttpProxyClientSocket*>(connection_->socket());
-  return http_proxy_socket->RestartWithAuth(&io_callback_);
+  return http_proxy_socket->RestartWithAuth(&old_io_callback_);
 }
 
 int HttpStreamFactoryImpl::Job::DoRestartTunnelAuthComplete(int result) {
@@ -1090,8 +1084,7 @@ int HttpStreamFactoryImpl::Job::ReconsiderProxyAfterError(int error) {
   }
 
   int rv = session_->proxy_service()->ReconsiderProxyAfterError(
-      request_info_.url, &proxy_info_, &io_callback_, &pac_request_,
-      net_log_);
+      request_info_.url, &proxy_info_, io_callback_, &pac_request_, net_log_);
   if (rv == OK || rv == ERR_IO_PENDING) {
     // If the error was during connection setup, there is no socket to
     // disconnect.

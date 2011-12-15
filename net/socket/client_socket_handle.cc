@@ -50,7 +50,7 @@ void ClientSocketHandle::ResetInternal(bool cancel) {
   is_initialized_ = false;
   group_name_.clear();
   is_reused_ = false;
-  user_callback_ = NULL;
+  user_callback_.Reset();
   if (layered_pool_) {
     pool_->RemoveLayeredPool(layered_pool_);
     layered_pool_ = NULL;
@@ -92,10 +92,10 @@ void ClientSocketHandle::AddLayeredPool(LayeredPool* layered_pool) {
 }
 
 void ClientSocketHandle::OnIOComplete(int result) {
-  OldCompletionCallback* callback = user_callback_;
-  user_callback_ = NULL;
+  CompletionCallback callback = user_callback_;
+  user_callback_.Reset();
   HandleInitCompletion(result);
-  callback->Run(result);
+  callback.Run(result);
 }
 
 void ClientSocketHandle::HandleInitCompletion(int result) {

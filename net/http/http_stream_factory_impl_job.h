@@ -207,7 +207,8 @@ class HttpStreamFactoryImpl::Job {
   SSLConfig proxy_ssl_config_;
   const BoundNetLog net_log_;
 
-  OldCompletionCallbackImpl<Job> io_callback_;
+  OldCompletionCallbackImpl<Job> old_io_callback_;
+  CompletionCallback io_callback_;
   scoped_ptr<ClientSocketHandle> connection_;
   HttpNetworkSession* const session_;
   HttpStreamFactoryImpl* const stream_factory_;

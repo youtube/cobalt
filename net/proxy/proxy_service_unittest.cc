@@ -212,8 +212,8 @@ TEST(ProxyServiceTest, PAC_FailoverWithoutDirect) {
   // Now, imagine that connecting to foopy:8080 fails: there is nothing
   // left to fallback to, since our proxy list was NOT terminated by
   // DIRECT.
-  TestOldCompletionCallback callback2;
-  rv = service.ReconsiderProxyAfterError(url, &info, &callback2, NULL,
+  TestCompletionCallback callback2;
+  rv = service.ReconsiderProxyAfterError(url, &info, callback2.callback(), NULL,
                                          BoundNetLog());
   // ReconsiderProxyAfterError returns error indicating nothing left.
   EXPECT_EQ(ERR_FAILED, rv);
@@ -267,31 +267,31 @@ TEST(ProxyServiceTest, PAC_FailoverAfterDirect) {
   EXPECT_TRUE(info.is_direct());
 
   // Fallback 1.
-  TestOldCompletionCallback callback2;
-  rv = service.ReconsiderProxyAfterError(url, &info, &callback2, NULL,
+  TestCompletionCallback callback2;
+  rv = service.ReconsiderProxyAfterError(url, &info, callback2.callback(), NULL,
                                          BoundNetLog());
   EXPECT_EQ(OK, rv);
   EXPECT_FALSE(info.is_direct());
   EXPECT_EQ("foobar:10", info.proxy_server().ToURI());
 
   // Fallback 2.
-  TestOldCompletionCallback callback3;
-  rv = service.ReconsiderProxyAfterError(url, &info, &callback3, NULL,
+  TestCompletionCallback callback3;
+  rv = service.ReconsiderProxyAfterError(url, &info, callback3.callback(), NULL,
                                          BoundNetLog());
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(info.is_direct());
 
   // Fallback 3.
-  TestOldCompletionCallback callback4;
-  rv = service.ReconsiderProxyAfterError(url, &info, &callback4, NULL,
+  TestCompletionCallback callback4;
+  rv = service.ReconsiderProxyAfterError(url, &info, callback4.callback(), NULL,
                                          BoundNetLog());
   EXPECT_EQ(OK, rv);
   EXPECT_FALSE(info.is_direct());
   EXPECT_EQ("foobar:20", info.proxy_server().ToURI());
 
   // Fallback 4 -- Nothing to fall back to!
-  TestOldCompletionCallback callback5;
-  rv = service.ReconsiderProxyAfterError(url, &info, &callback5, NULL,
+  TestCompletionCallback callback5;
+  rv = service.ReconsiderProxyAfterError(url, &info, callback5.callback(), NULL,
                                          BoundNetLog());
   EXPECT_EQ(ERR_FAILED, rv);
   EXPECT_TRUE(info.is_empty());
@@ -532,8 +532,8 @@ TEST(ProxyServiceTest, ProxyFallback) {
   EXPECT_EQ("foopy1:8080", info.proxy_server().ToURI());
 
   // Fake an error on the proxy.
-  TestOldCompletionCallback callback2;
-  rv = service.ReconsiderProxyAfterError(url, &info, &callback2, NULL,
+  TestCompletionCallback callback2;
+  rv = service.ReconsiderProxyAfterError(url, &info, callback2.callback(), NULL,
                                          BoundNetLog());
   EXPECT_EQ(OK, rv);
 
@@ -561,8 +561,8 @@ TEST(ProxyServiceTest, ProxyFallback) {
   EXPECT_EQ("foopy3:7070", info.proxy_server().ToURI());
 
   // We fake another error. It should now try the third one.
-  TestOldCompletionCallback callback4;
-  rv = service.ReconsiderProxyAfterError(url, &info, &callback4, NULL,
+  TestCompletionCallback callback4;
+  rv = service.ReconsiderProxyAfterError(url, &info, callback4.callback(), NULL,
                                          BoundNetLog());
   EXPECT_EQ(OK, rv);
   EXPECT_EQ("foopy2:9090", info.proxy_server().ToURI());
@@ -570,24 +570,25 @@ TEST(ProxyServiceTest, ProxyFallback) {
   // We fake another error. At this point we have tried all of the
   // proxy servers we thought were valid; next we try the proxy server
   // that was in our bad proxies map (foopy1:8080).
-  TestOldCompletionCallback callback5;
-  rv = service.ReconsiderProxyAfterError(url, &info, &callback5, NULL,
+  TestCompletionCallback callback5;
+  rv = service.ReconsiderProxyAfterError(url, &info, callback5.callback(), NULL,
                                          BoundNetLog());
   EXPECT_EQ(OK, rv);
   EXPECT_EQ("foopy1:8080", info.proxy_server().ToURI());
 
   // Fake another error, the last proxy is gone, the list should now be empty,
   // so there is nothing left to try.
-  TestOldCompletionCallback callback6;
-  rv = service.ReconsiderProxyAfterError(url, &info, &callback6, NULL,
+  TestCompletionCallback callback6;
+  rv = service.ReconsiderProxyAfterError(url, &info, callback6.callback(), NULL,
                                          BoundNetLog());
   EXPECT_EQ(ERR_FAILED, rv);
   EXPECT_FALSE(info.is_direct());
   EXPECT_TRUE(info.is_empty());
 
   // Look up proxies again
-  TestOldCompletionCallback callback7;
-  rv = service.ResolveProxy(url, &info, &callback7, NULL, BoundNetLog());
+  TestCompletionCallback callback7;
+  rv = service.ResolveProxy(url, &info, callback7.callback(), NULL,
+                            BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   ASSERT_EQ(1u, resolver->pending_requests().size());
@@ -643,8 +644,8 @@ TEST(ProxyServiceTest, ProxyFallbackToDirect) {
   EXPECT_EQ("foopy1:8080", info.proxy_server().ToURI());
 
   // Fake an error on the proxy.
-  TestOldCompletionCallback callback2;
-  rv = service.ReconsiderProxyAfterError(url, &info, &callback2, NULL,
+  TestCompletionCallback callback2;
+  rv = service.ReconsiderProxyAfterError(url, &info, callback2.callback(), NULL,
                                          BoundNetLog());
   EXPECT_EQ(OK, rv);
 
@@ -652,8 +653,8 @@ TEST(ProxyServiceTest, ProxyFallbackToDirect) {
   EXPECT_EQ("foopy2:9090", info.proxy_server().ToURI());
 
   // Fake an error on this proxy as well.
-  TestOldCompletionCallback callback3;
-  rv = service.ReconsiderProxyAfterError(url, &info, &callback3, NULL,
+  TestCompletionCallback callback3;
+  rv = service.ReconsiderProxyAfterError(url, &info, callback3.callback(), NULL,
                                          BoundNetLog());
   EXPECT_EQ(OK, rv);
 
@@ -661,8 +662,8 @@ TEST(ProxyServiceTest, ProxyFallbackToDirect) {
   EXPECT_TRUE(info.is_direct());
 
   // Now we tell the proxy service that even DIRECT failed.
-  TestOldCompletionCallback callback4;
-  rv = service.ReconsiderProxyAfterError(url, &info, &callback4, NULL,
+  TestCompletionCallback callback4;
+  rv = service.ReconsiderProxyAfterError(url, &info, callback4.callback(), NULL,
                                          BoundNetLog());
   // There was nothing left to try after DIRECT, so we are out of
   // choices.
@@ -708,8 +709,8 @@ TEST(ProxyServiceTest, ProxyFallback_NewSettings) {
   config_service->SetConfig(
       ProxyConfig::CreateFromCustomPacURL(GURL("http://foopy-new/proxy.pac")));
 
-  TestOldCompletionCallback callback2;
-  rv = service.ReconsiderProxyAfterError(url, &info, &callback2, NULL,
+  TestCompletionCallback callback2;
+  rv = service.ReconsiderProxyAfterError(url, &info, callback2.callback(), NULL,
                                          BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
@@ -729,8 +730,8 @@ TEST(ProxyServiceTest, ProxyFallback_NewSettings) {
   EXPECT_EQ("foopy1:8080", info.proxy_server().ToURI());
 
   // We fake another error. It should now ignore the first one.
-  TestOldCompletionCallback callback3;
-  rv = service.ReconsiderProxyAfterError(url, &info, &callback3, NULL,
+  TestCompletionCallback callback3;
+  rv = service.ReconsiderProxyAfterError(url, &info, callback3.callback(), NULL,
                                          BoundNetLog());
   EXPECT_EQ(OK, rv);
   EXPECT_EQ("foopy2:9090", info.proxy_server().ToURI());
@@ -741,8 +742,8 @@ TEST(ProxyServiceTest, ProxyFallback_NewSettings) {
           GURL("http://foopy-new2/proxy.pac")));
 
   // We fake another error. It should go back to the first proxy.
-  TestOldCompletionCallback callback4;
-  rv = service.ReconsiderProxyAfterError(url, &info, &callback4, NULL,
+  TestCompletionCallback callback4;
+  rv = service.ReconsiderProxyAfterError(url, &info, callback4.callback(), NULL,
                                          BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
@@ -795,8 +796,8 @@ TEST(ProxyServiceTest, ProxyFallback_BadConfig) {
   EXPECT_EQ("foopy1:8080", info.proxy_server().ToURI());
 
   // Fake a proxy error.
-  TestOldCompletionCallback callback2;
-  rv = service.ReconsiderProxyAfterError(url, &info, &callback2, NULL,
+  TestCompletionCallback callback2;
+  rv = service.ReconsiderProxyAfterError(url, &info, callback2.callback(), NULL,
                                          BoundNetLog());
   EXPECT_EQ(OK, rv);
 
@@ -826,9 +827,9 @@ TEST(ProxyServiceTest, ProxyFallback_BadConfig) {
   // proxy list. Since we have not marked the configuration as bad, it should
   // "just work" the next time we call it.
   ProxyInfo info3;
-  TestOldCompletionCallback callback4;
-  rv = service.ReconsiderProxyAfterError(url, &info3, &callback4, NULL,
-                                         BoundNetLog());
+  TestCompletionCallback callback4;
+  rv = service.ReconsiderProxyAfterError(url, &info3, callback4.callback(),
+                                         NULL, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   ASSERT_EQ(1u, resolver->pending_requests().size());
@@ -882,8 +883,8 @@ TEST(ProxyServiceTest, ProxyFallback_BadConfigMandatory) {
   EXPECT_EQ("foopy1:8080", info.proxy_server().ToURI());
 
   // Fake a proxy error.
-  TestOldCompletionCallback callback2;
-  rv = service.ReconsiderProxyAfterError(url, &info, &callback2, NULL,
+  TestCompletionCallback callback2;
+  rv = service.ReconsiderProxyAfterError(url, &info, callback2.callback(), NULL,
                                          BoundNetLog());
   EXPECT_EQ(OK, rv);
 
@@ -914,9 +915,9 @@ TEST(ProxyServiceTest, ProxyFallback_BadConfigMandatory) {
   // proxy list. Since we have not marked the configuration as bad, it should
   // "just work" the next time we call it.
   ProxyInfo info3;
-  TestOldCompletionCallback callback4;
-  rv = service.ReconsiderProxyAfterError(url, &info3, &callback4, NULL,
-                                         BoundNetLog());
+  TestCompletionCallback callback4;
+  rv = service.ReconsiderProxyAfterError(url, &info3, callback4.callback(),
+                                         NULL, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   ASSERT_EQ(1u, resolver->pending_requests().size());
