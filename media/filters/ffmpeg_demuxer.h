@@ -84,6 +84,7 @@ class FFmpegDemuxerStream : public DemuxerStream {
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
 
  private:
+  friend class FFmpegDemuxerTest;
   virtual ~FFmpegDemuxerStream();
 
   // Carries out enqueuing a pending read on the demuxer thread.
@@ -217,20 +218,17 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   // FFmpeg context handle.
   AVFormatContext* format_context_;
 
-  // Two vector of streams:
-  //   - |streams_| is indexed by type for the Demuxer interface GetStream(),
-  //     and contains NULLs for types which aren't present.
-  //   - |packet_streams_| is indexed to mirror AVFormatContext when dealing
-  //     with AVPackets returned from av_read_frame() and contain NULL entries
-  //     representing unsupported streams where we throw away the data.
+  // |streams_| mirrors the AVStream array in |format_context_|. It contains
+  // FFmpegDemuxerStreams encapsluating AVStream objects at the same index.
   //
-  // Ownership is handled via reference counting.
+  // Since we only support a single audio and video stream, |streams_| will
+  // contain NULL entries for additional audio/video streams as well as for
+  // stream types that we do not currently support.
   //
   // Once initialized, operations on FFmpegDemuxerStreams should be carried out
   // on the demuxer thread.
-  typedef std::vector< scoped_refptr<FFmpegDemuxerStream> > StreamVector;
+  typedef std::vector<scoped_refptr<FFmpegDemuxerStream> > StreamVector;
   StreamVector streams_;
-  StreamVector packet_streams_;
 
   // Reference to the data source. Asynchronous read requests are submitted to
   // this object.
