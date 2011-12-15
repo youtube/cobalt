@@ -6,6 +6,8 @@
 
 #include <algorithm>
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
@@ -67,7 +69,7 @@ const size_t kDefaultNumPacThreads = 4;
 // Now by the time we run the proxy-autoconfig there is a lower chance of
 // getting transient DNS / connect failures.
 //
-// Admitedly this is a hack. Ideally we would have NetworkChangeNotifier
+// Admittedly this is a hack. Ideally we would have NetworkChangeNotifier
 // deliver a reliable signal indicating that the network has changed AND is
 // ready for action... But until then, we can reduce the likelihood of users
 // getting wedged because of proxy detection failures on network switch.
@@ -84,7 +86,7 @@ const size_t kDefaultNumPacThreads = 4;
 // The specific hard-coded wait time below is arbitrary.
 // Basically I ran some experiments switching between wireless networks on
 // a Linux Ubuntu (Lucid) laptop, and experimentally found this timeout fixes
-// things. It is entirely possible that the value is insuficient for other
+// things. It is entirely possible that the value is insufficient for other
 // setups.
 const int64 kNumMillisToStallAfterNetworkChanges = 2000;
 
@@ -777,7 +779,7 @@ int ProxyService::ResolveProxy(const GURL& raw_url,
   DCHECK(!ContainsPendingRequest(req));
   pending_requests_.push_back(req);
 
-  // Completion will be notifed through |callback|, unless the caller cancels
+  // Completion will be notified through |callback|, unless the caller cancels
   // the request using |pac_request|.
   if (pac_request)
     *pac_request = req.get();
@@ -960,7 +962,7 @@ void ProxyService::OnInitProxyResolverComplete(int result) {
 
 int ProxyService::ReconsiderProxyAfterError(const GURL& url,
                                             ProxyInfo* result,
-                                            OldCompletionCallback* callback,
+                                            const CompletionCallback& callback,
                                             PacRequest** pac_request,
                                             const BoundNetLog& net_log) {
   DCHECK(CalledOnValidThread());
@@ -1262,7 +1264,8 @@ SyncProxyServiceHelper::SyncProxyServiceHelper(MessageLoop* io_message_loop,
       proxy_service_(proxy_service),
       event_(false, false),
       ALLOW_THIS_IN_INITIALIZER_LIST(callback_(
-          this, &SyncProxyServiceHelper::OnCompletion)) {
+          base::Bind(&SyncProxyServiceHelper::OnCompletion,
+                     base::Unretained(this)))) {
   DCHECK(io_message_loop_ != MessageLoop::current());
 }
 
@@ -1302,7 +1305,7 @@ SyncProxyServiceHelper::~SyncProxyServiceHelper() {}
 void SyncProxyServiceHelper::StartAsyncResolve(const GURL& url,
                                                const BoundNetLog& net_log) {
   result_ = proxy_service_->ResolveProxy(
-      url, &proxy_info_, &callback_, NULL, net_log);
+      url, &proxy_info_, callback_, NULL, net_log);
   if (result_ != net::ERR_IO_PENDING) {
     OnCompletion(result_);
   }
@@ -1311,7 +1314,7 @@ void SyncProxyServiceHelper::StartAsyncResolve(const GURL& url,
 void SyncProxyServiceHelper::StartAsyncReconsider(const GURL& url,
                                                   const BoundNetLog& net_log) {
   result_ = proxy_service_->ReconsiderProxyAfterError(
-      url, &proxy_info_, &callback_, NULL, net_log);
+      url, &proxy_info_, callback_, NULL, net_log);
   if (result_ != net::ERR_IO_PENDING) {
     OnCompletion(result_);
   }

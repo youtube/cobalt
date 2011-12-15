@@ -1344,10 +1344,11 @@ void MockUDPClientSocket::RunCallback(const CompletionCallback& callback,
 }
 
 TestSocketRequest::TestSocketRequest(
-    std::vector<TestSocketRequest*>* request_order,
-    size_t* completion_count)
+    std::vector<TestSocketRequest*>* request_order, size_t* completion_count)
     : request_order_(request_order),
-      completion_count_(completion_count) {
+      completion_count_(completion_count),
+      ALLOW_THIS_IN_INITIALIZER_LIST(callback_(
+          base::Bind(&TestSocketRequest::OnComplete, base::Unretained(this)))) {
   DCHECK(request_order);
   DCHECK(completion_count);
 }
@@ -1355,12 +1356,8 @@ TestSocketRequest::TestSocketRequest(
 TestSocketRequest::~TestSocketRequest() {
 }
 
-int TestSocketRequest::WaitForResult() {
-  return callback_.WaitForResult();
-}
-
-void TestSocketRequest::RunWithParams(const Tuple1<int>& params) {
-  callback_.RunWithParams(params);
+void TestSocketRequest::OnComplete(int result) {
+  SetResult(result);
   (*completion_count_)++;
   request_order_->push_back(this);
 }

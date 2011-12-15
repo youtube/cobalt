@@ -99,7 +99,7 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
   // Profiling information for the request is saved to |net_log| if non-NULL.
   int ReconsiderProxyAfterError(const GURL& url,
                                 ProxyInfo* results,
-                                OldCompletionCallback* callback,
+                                const CompletionCallback& callback,
                                 PacRequest** pac_request,
                                 const BoundNetLog& net_log);
 
@@ -404,7 +404,7 @@ class NET_EXPORT SyncProxyServiceHelper
   ProxyService* proxy_service_;
 
   base::WaitableEvent event_;
-  OldCompletionCallbackImpl<SyncProxyServiceHelper> callback_;
+  CompletionCallback callback_;
   ProxyInfo proxy_info_;
   int result_;
 };

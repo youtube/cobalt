@@ -142,11 +142,10 @@ TEST_F(SpdySessionTest, GoAway) {
                                 false,
                                 false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
-  EXPECT_EQ(OK,
-            connection->Init(test_host_port_pair.ToString(),
-                             transport_params, MEDIUM,
-                             NULL, http_session->GetTransportSocketPool(),
-                             BoundNetLog()));
+  EXPECT_EQ(OK, connection->Init(test_host_port_pair.ToString(),
+                                 transport_params, MEDIUM, CompletionCallback(),
+                                 http_session->GetTransportSocketPool(),
+                                 BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
 
   // Flush the SpdySession::OnReadComplete() task.
@@ -213,13 +212,10 @@ TEST_F(SpdySessionTest, Ping) {
                                 false,
                                 false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
-  EXPECT_EQ(OK,
-            connection->Init(test_host_port_pair.ToString(),
-                             transport_params,
-                             MEDIUM,
-                             NULL,
-                             http_session->GetTransportSocketPool(),
-                             BoundNetLog()));
+  EXPECT_EQ(OK, connection->Init(test_host_port_pair.ToString(),
+                                 transport_params, MEDIUM, CompletionCallback(),
+                                 http_session->GetTransportSocketPool(),
+                                 BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
 
   scoped_refptr<SpdyStream> spdy_stream1;
@@ -304,13 +300,10 @@ TEST_F(SpdySessionTest, FailedPing) {
                                 false,
                                 false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
-  EXPECT_EQ(OK,
-            connection->Init(test_host_port_pair.ToString(),
-                             transport_params,
-                             MEDIUM,
-                             NULL,
-                             http_session->GetTransportSocketPool(),
-                             BoundNetLog()));
+  EXPECT_EQ(OK, connection->Init(test_host_port_pair.ToString(),
+                                 transport_params, MEDIUM, CompletionCallback(),
+                                 http_session->GetTransportSocketPool(),
+                                 BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
 
   scoped_refptr<SpdyStream> spdy_stream1;
@@ -550,11 +543,10 @@ TEST_F(SpdySessionTest, OnSettings) {
                                 false,
                                 false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
-  EXPECT_EQ(OK,
-            connection->Init(test_host_port_pair.ToString(),
-                             transport_params, MEDIUM,
-                             NULL, http_session->GetTransportSocketPool(),
-                             BoundNetLog()));
+  EXPECT_EQ(OK, connection->Init(test_host_port_pair.ToString(),
+                                 transport_params, MEDIUM, CompletionCallback(),
+                                 http_session->GetTransportSocketPool(),
+                                 BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
 
   // Create 2 streams.  First will succeed.  Second will be pending.
@@ -635,11 +627,10 @@ TEST_F(SpdySessionTest, CancelPendingCreateStream) {
                                 false,
                                 false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
-  EXPECT_EQ(OK,
-            connection->Init(test_host_port_pair.ToString(),
-                             transport_params, MEDIUM,
-                             NULL, http_session->GetTransportSocketPool(),
-                             BoundNetLog()));
+  EXPECT_EQ(OK, connection->Init(test_host_port_pair.ToString(),
+                                 transport_params, MEDIUM, CompletionCallback(),
+                                 http_session->GetTransportSocketPool(),
+                                 BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
 
   // Use scoped_ptr to let us invalidate the memory when we want to, to trigger
@@ -734,11 +725,10 @@ TEST_F(SpdySessionTest, SendSettingsOnNewSession) {
                                 false,
                                 false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
-  EXPECT_EQ(OK,
-            connection->Init(test_host_port_pair.ToString(),
-                             transport_params, MEDIUM,
-                             NULL, http_session->GetTransportSocketPool(),
-                             BoundNetLog()));
+  EXPECT_EQ(OK, connection->Init(test_host_port_pair.ToString(),
+                                 transport_params, MEDIUM, CompletionCallback(),
+                                 http_session->GetTransportSocketPool(),
+                                 BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
   MessageLoop::current()->RunAllPending();
   EXPECT_TRUE(data.at_write_eof());
@@ -808,11 +798,10 @@ void IPPoolingTest(bool clean_via_close_current_sessions) {
                           false,
                           false));
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
-  EXPECT_EQ(OK,
-            connection->Init(test_host_port_pair.ToString(),
-                             transport_params, MEDIUM,
-                             NULL, http_session->GetTransportSocketPool(),
-                             BoundNetLog()));
+  EXPECT_EQ(OK, connection->Init(test_host_port_pair.ToString(),
+                                 transport_params, MEDIUM, CompletionCallback(),
+                                 http_session->GetTransportSocketPool(),
+                                 BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
 
   // TODO(rtenneti): MockClientSocket::GetPeerAddress return's 0 as the port

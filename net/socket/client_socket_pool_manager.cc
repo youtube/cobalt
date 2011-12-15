@@ -52,7 +52,7 @@ int InitSocketPoolHelper(const GURL& request_url,
                          const BoundNetLog& net_log,
                          int num_preconnect_streams,
                          ClientSocketHandle* socket_handle,
-                         OldCompletionCallback* callback) {
+                         const CompletionCallback& callback) {
   scoped_refptr<TransportSocketParams> tcp_params;
   scoped_refptr<HttpProxySocketParams> http_proxy_params;
   scoped_refptr<SOCKSSocketParams> socks_params;
@@ -289,23 +289,13 @@ int InitSocketHandleForHttpRequest(
     const SSLConfig& ssl_config_for_proxy,
     const BoundNetLog& net_log,
     ClientSocketHandle* socket_handle,
-    OldCompletionCallback* callback) {
+    const CompletionCallback& callback) {
   DCHECK(socket_handle);
-  return InitSocketPoolHelper(request_url,
-                              request_extra_headers,
-                              request_load_flags,
-                              request_priority,
-                              session,
-                              proxy_info,
-                              force_spdy_over_ssl,
-                              want_spdy_over_npn,
-                              ssl_config_for_origin,
-                              ssl_config_for_proxy,
-                              false,
-                              net_log,
-                              0,
-                              socket_handle,
-                              callback);
+  return InitSocketPoolHelper(
+      request_url, request_extra_headers, request_load_flags, request_priority,
+      session, proxy_info, force_spdy_over_ssl, want_spdy_over_npn,
+      ssl_config_for_origin, ssl_config_for_proxy, false, net_log, 0,
+      socket_handle, callback);
 }
 
 int InitSocketHandleForRawConnect(
@@ -316,7 +306,7 @@ int InitSocketHandleForRawConnect(
     const SSLConfig& ssl_config_for_proxy,
     const BoundNetLog& net_log,
     ClientSocketHandle* socket_handle,
-    OldCompletionCallback* callback) {
+    const CompletionCallback& callback) {
   DCHECK(socket_handle);
   // Synthesize an HttpRequestInfo.
   GURL request_url = GURL("http://" + host_port_pair.ToString());
@@ -324,21 +314,10 @@ int InitSocketHandleForRawConnect(
   int request_load_flags = 0;
   RequestPriority request_priority = MEDIUM;
 
-  return InitSocketPoolHelper(request_url,
-                              request_extra_headers,
-                              request_load_flags,
-                              request_priority,
-                              session,
-                              proxy_info,
-                              false,
-                              false,
-                              ssl_config_for_origin,
-                              ssl_config_for_proxy,
-                              true,
-                              net_log,
-                              0,
-                              socket_handle,
-                              callback);
+  return InitSocketPoolHelper(
+      request_url, request_extra_headers, request_load_flags, request_priority,
+      session, proxy_info, false, false, ssl_config_for_origin,
+      ssl_config_for_proxy, true, net_log, 0, socket_handle, callback);
 }
 
 int PreconnectSocketsForHttpRequest(
@@ -354,21 +333,11 @@ int PreconnectSocketsForHttpRequest(
     const SSLConfig& ssl_config_for_proxy,
     const BoundNetLog& net_log,
     int num_preconnect_streams) {
-  return InitSocketPoolHelper(request_url,
-                              request_extra_headers,
-                              request_load_flags,
-                              request_priority,
-                              session,
-                              proxy_info,
-                              force_spdy_over_ssl,
-                              want_spdy_over_npn,
-                              ssl_config_for_origin,
-                              ssl_config_for_proxy,
-                              false,
-                              net_log,
-                              num_preconnect_streams,
-                              NULL,
-                              NULL);
+  return InitSocketPoolHelper(
+      request_url, request_extra_headers, request_load_flags, request_priority,
+      session, proxy_info, force_spdy_over_ssl, want_spdy_over_npn,
+      ssl_config_for_origin, ssl_config_for_proxy, false, net_log,
+      num_preconnect_streams, NULL, CompletionCallback());
 }
 
 }  // namespace net
