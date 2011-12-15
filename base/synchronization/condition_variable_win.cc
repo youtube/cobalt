@@ -12,9 +12,49 @@
 #include "base/synchronization/lock.h"
 #include "base/time.h"
 
+namespace {
+// We can't use the linker supported delay-load for kernel32 so all this
+// cruft here is to manually late-bind the needed functions.
+typedef void (WINAPI *InitializeConditionVariableFn)(PCONDITION_VARIABLE);
+typedef BOOL (WINAPI *SleepConditionVariableCSFn)(PCONDITION_VARIABLE,
+                                                  PCRITICAL_SECTION, DWORD);
+typedef void (WINAPI *WakeConditionVariableFn)(PCONDITION_VARIABLE);
+typedef void (WINAPI *WakeAllConditionVariableFn)(PCONDITION_VARIABLE);
+
+InitializeConditionVariableFn initialize_condition_variable_fn;
+SleepConditionVariableCSFn sleep_condition_variable_fn;
+WakeConditionVariableFn wake_condition_variable_fn;
+WakeAllConditionVariableFn wake_all_condition_variable_fn;
+
+bool BindVistaCondVarFunctions() {
+  HMODULE kernel32 = GetModuleHandleA("kernel32.dll");
+  initialize_condition_variable_fn =
+      reinterpret_cast<InitializeConditionVariableFn>(
+          GetProcAddress(kernel32, "InitializeConditionVariable"));
+  if (!initialize_condition_variable_fn)
+    return false;
+  sleep_condition_variable_fn =
+      reinterpret_cast<SleepConditionVariableCSFn>(
+          GetProcAddress(kernel32, "SleepConditionVariableCS"));
+  if (!sleep_condition_variable_fn)
+    return false;
+  wake_condition_variable_fn =
+      reinterpret_cast<WakeConditionVariableFn>(
+          GetProcAddress(kernel32, "WakeConditionVariable"));
+  if (!wake_condition_variable_fn)
+    return false;
+  wake_all_condition_variable_fn =
+      reinterpret_cast<WakeAllConditionVariableFn>(
+          GetProcAddress(kernel32, "WakeAllConditionVariable"));
+  if (!wake_all_condition_variable_fn)
+    return false;
+  return true;
+}
+
+}  // namespace.
+
 namespace base {
-// Abstract class of the pimpl, idiom. TODO(cpu): create the
-// WinVistaCondVar once the WinXPCondVar lands.
+// Abstract base class of the pimpl idiom.
 class ConditionVarImpl {
  public:
   virtual ~ConditionVarImpl() {};
@@ -23,6 +63,64 @@ class ConditionVarImpl {
   virtual void Broadcast() = 0;
   virtual void Signal() = 0;
 };
+
+///////////////////////////////////////////////////////////////////////////////
+// Windows Vista and Win7 implementation.
+///////////////////////////////////////////////////////////////////////////////
+
+class WinVistaCondVar: public ConditionVarImpl {
+ public:
+  WinVistaCondVar(Lock* user_lock);
+  ~WinVistaCondVar() {};
+  // Overridden from ConditionVarImpl.
+  virtual void Wait() OVERRIDE;
+  virtual void TimedWait(const TimeDelta& max_time) OVERRIDE;
+  virtual void Broadcast() OVERRIDE;
+  virtual void Signal() OVERRIDE;
+
+ private:
+  base::Lock& user_lock_;
+  CONDITION_VARIABLE cv_;
+};
+
+WinVistaCondVar::WinVistaCondVar(Lock* user_lock)
+    : user_lock_(*user_lock) {
+  initialize_condition_variable_fn(&cv_);
+  DCHECK(user_lock);
+}
+
+void WinVistaCondVar::Wait() {
+  TimedWait(TimeDelta::FromMilliseconds(INFINITE));
+}
+
+void WinVistaCondVar::TimedWait(const TimeDelta& max_time) {
+  DWORD timeout = static_cast<DWORD>(max_time.InMilliseconds());
+  CRITICAL_SECTION* cs = user_lock_.lock_.os_lock();
+
+#if !defined(NDEBUG)
+  user_lock_.CheckHeldAndUnmark();
+#endif
+
+  if (FALSE == sleep_condition_variable_fn(&cv_, cs, timeout)) {
+    DCHECK(GetLastError() != WAIT_TIMEOUT);
+  }
+
+#if !defined(NDEBUG)
+  user_lock_.CheckUnheldAndMark();
+#endif
+}
+
+void WinVistaCondVar::Broadcast() {
+  wake_all_condition_variable_fn(&cv_);
+}
+
+void WinVistaCondVar::Signal() {
+  wake_condition_variable_fn(&cv_);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Windows XP implementation.
+///////////////////////////////////////////////////////////////////////////////
 
 class WinXPCondVar : public ConditionVarImpl {
  public:
@@ -537,7 +635,12 @@ code review and validate its correctness.
 */
 
 ConditionVariable::ConditionVariable(Lock* user_lock)
-    : impl_(new WinXPCondVar(user_lock)) {
+    : impl_(NULL) {
+  static bool use_vista_native_cv = BindVistaCondVarFunctions();
+  if (use_vista_native_cv)
+    impl_= new WinVistaCondVar(user_lock);
+  else
+    impl_ = new WinXPCondVar(user_lock);
 }
 
 ConditionVariable::~ConditionVariable() {
