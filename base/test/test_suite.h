@@ -13,6 +13,7 @@
 #include <string>
 
 #include "base/at_exit.h"
+#include "base/memory/scoped_ptr.h"
 
 namespace testing {
 class TestInfo;
@@ -59,6 +60,11 @@ class TestSuite {
   static const char kStrictFailureHandling[];
 
  protected:
+  // This constructor is only accessible to specialized test suite
+  // implementations which need to control the creation of an AtExitManager
+  // instance for the duration of the test.
+  TestSuite(int argc, char** argv, bool create_at_exit_manager);
+
   // By default fatal log messages (e.g. from DCHECKs) result in error dialogs
   // which gum up buildbots. Use a minimalistic assert handler which just
   // terminates the process.
@@ -75,7 +81,11 @@ class TestSuite {
 
   // Make sure that we setup an AtExitManager so Singleton objects will be
   // destroyed.
-  base::AtExitManager at_exit_manager_;
+  scoped_ptr<base::AtExitManager> at_exit_manager_;
+
+ private:
+  // Basic initialization for the test suite happens here.
+  void PreInitialize(int argc, char** argv, bool create_at_exit_manager);
 
   DISALLOW_COPY_AND_ASSIGN(TestSuite);
 };
