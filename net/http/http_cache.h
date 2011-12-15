@@ -43,6 +43,7 @@ class Entry;
 namespace net {
 
 class CertVerifier;
+class DnsCertProvenanceChecker;
 class HostResolver;
 class HttpAuthHandlerFactory;
 class HttpNetworkSession;
@@ -123,6 +124,7 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
             CertVerifier* cert_verifier,
             OriginBoundCertService* origin_bound_cert_service,
             TransportSecurityState* transport_security_state,
+            DnsCertProvenanceChecker* dns_cert_checker,
             ProxyService* proxy_service,
             const std::string& ssl_session_cache_shard,
             SSLConfigService* ssl_config_service,

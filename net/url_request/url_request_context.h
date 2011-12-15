@@ -25,6 +25,7 @@
 namespace net {
 class CertVerifier;
 class CookieStore;
+class DnsCertProvenanceChecker;
 class FraudulentCertificateReporter;
 class FtpTransactionFactory;
 class HostResolver;
@@ -84,6 +85,13 @@ class NET_EXPORT URLRequestContext
   void set_origin_bound_cert_service(
       OriginBoundCertService* origin_bound_cert_service) {
     origin_bound_cert_service_ = origin_bound_cert_service;
+  }
+
+  DnsCertProvenanceChecker* dns_cert_checker() const {
+    return dns_cert_checker_;
+  }
+  void set_dns_cert_checker(DnsCertProvenanceChecker* dns_cert_checker) {
+    dns_cert_checker_ = dns_cert_checker;
   }
 
   FraudulentCertificateReporter* fraudulent_certificate_reporter() const {
@@ -208,6 +216,7 @@ class NET_EXPORT URLRequestContext
   HostResolver* host_resolver_;
   CertVerifier* cert_verifier_;
   OriginBoundCertService* origin_bound_cert_service_;
+  DnsCertProvenanceChecker* dns_cert_checker_;
   FraudulentCertificateReporter* fraudulent_certificate_reporter_;
   HttpAuthHandlerFactory* http_auth_handler_factory_;
   ProxyService* proxy_service_;
