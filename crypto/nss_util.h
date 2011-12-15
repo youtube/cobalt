@@ -149,6 +149,10 @@ CRYPTO_EXPORT SymmetricKey* GetSupplementalUserKey();
 // We use a int64 instead of PRTime here to avoid depending on NSPR headers.
 CRYPTO_EXPORT base::Time PRTimeToBaseTime(int64 prtime);
 
+// Convert a base::Time object into a PRTime value.
+// We use a int64 instead of PRTime here to avoid depending on NSPR headers.
+CRYPTO_EXPORT int64 BaseTimeToPRTime(base::Time time);
+
 #if defined(USE_NSS)
 // Exposed for unittests only.  |path| should be an existing directory under
 // which the DB files will be placed.  |description| is a user-visible name for
