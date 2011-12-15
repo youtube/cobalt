@@ -4,6 +4,8 @@
 
 #include "net/socket/socks_client_socket_pool.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/time.h"
 #include "base/values.h"
 #include "net/base/net_errors.h"
@@ -50,8 +52,8 @@ SOCKSConnectJob::SOCKSConnectJob(
       socks_params_(socks_params),
       transport_pool_(transport_pool),
       resolver_(host_resolver),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          callback_old_(this, &SOCKSConnectJob::OnIOComplete)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(callback_(
+          base::Bind(&SOCKSConnectJob::OnIOComplete, base::Unretained(this)))) {
 }
 
 SOCKSConnectJob::~SOCKSConnectJob() {
@@ -115,12 +117,10 @@ int SOCKSConnectJob::DoLoop(int result) {
 int SOCKSConnectJob::DoTransportConnect() {
   next_state_ = STATE_TRANSPORT_CONNECT_COMPLETE;
   transport_socket_handle_.reset(new ClientSocketHandle());
-  return transport_socket_handle_->Init(group_name(),
-                                        socks_params_->transport_params(),
-                                        socks_params_->destination().priority(),
-                                        &callback_old_,
-                                        transport_pool_,
-                                        net_log());
+  return transport_socket_handle_->Init(
+      group_name(), socks_params_->transport_params(),
+      socks_params_->destination().priority(), callback_, transport_pool_,
+      net_log());
 }
 
 int SOCKSConnectJob::DoTransportConnectComplete(int result) {

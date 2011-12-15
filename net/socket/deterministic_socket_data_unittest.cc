@@ -93,7 +93,7 @@ void DeterministicSocketDataTest::Initialize(MockRead* reads,
             connection_.Init(endpoint_.ToString(),
                 tcp_params_,
                 LOWEST,
-                NULL,
+                CompletionCallback(),
                 reinterpret_cast<TransportClientSocketPool*>(&socket_pool_),
                 BoundNetLog()));
   sock_ = connection_.socket();

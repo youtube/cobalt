@@ -187,13 +187,10 @@ TEST_F(SpdyStreamTest, SendDataAfterOpen) {
       new TransportSocketParams(host_port_pair, LOWEST, false, false));
 
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
-  EXPECT_EQ(OK,
-            connection->Init(host_port_pair.ToString(),
-                             transport_params,
-                             LOWEST,
-                             NULL,
-                             session_->GetTransportSocketPool(),
-                             BoundNetLog()));
+  EXPECT_EQ(OK, connection->Init(host_port_pair.ToString(), transport_params,
+                                 LOWEST, CompletionCallback(),
+                                 session_->GetTransportSocketPool(),
+                                 BoundNetLog()));
   session->InitializeWithSocket(connection.release(), false, OK);
 
   scoped_refptr<SpdyStream> stream;

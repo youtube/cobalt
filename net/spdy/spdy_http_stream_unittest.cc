@@ -32,13 +32,13 @@ class SpdyHttpStreamTest : public testing::Test {
     session_ = http_session_->spdy_session_pool()->Get(pair, BoundNetLog());
     transport_params_ = new TransportSocketParams(host_port_pair,
                                       MEDIUM, false, false);
-    TestOldCompletionCallback callback;
+    TestCompletionCallback callback;
     scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
     EXPECT_EQ(ERR_IO_PENDING,
               connection->Init(host_port_pair.ToString(),
                                 transport_params_,
                                 MEDIUM,
-                                &callback,
+                                callback.callback(),
                                 http_session_->GetTransportSocketPool(),
                                 BoundNetLog()));
     EXPECT_EQ(OK, callback.WaitForResult());

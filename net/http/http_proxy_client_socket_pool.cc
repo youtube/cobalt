@@ -174,12 +174,9 @@ int HttpProxyConnectJob::DoTransportConnect() {
   next_state_ = STATE_TCP_CONNECT_COMPLETE;
   transport_socket_handle_.reset(new ClientSocketHandle());
   return transport_socket_handle_->Init(
-      group_name(),
-      params_->transport_params(),
-      params_->transport_params()->destination().priority(),
-      &callback_old_,
-      transport_pool_,
-      net_log());
+      group_name(), params_->transport_params(),
+      params_->transport_params()->destination().priority(), callback_,
+      transport_pool_, net_log());
 }
 
 int HttpProxyConnectJob::DoTransportConnectComplete(int result) {
@@ -211,7 +208,7 @@ int HttpProxyConnectJob::DoSSLConnect() {
   return transport_socket_handle_->Init(
       group_name(), params_->ssl_params(),
       params_->ssl_params()->transport_params()->destination().priority(),
-      &callback_old_, ssl_pool_, net_log());
+      callback_, ssl_pool_, net_log());
 }
 
 int HttpProxyConnectJob::DoSSLConnectComplete(int result) {

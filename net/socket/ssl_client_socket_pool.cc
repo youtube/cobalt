@@ -4,6 +4,8 @@
 
 #include "net/socket/ssl_client_socket_pool.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram.h"
 #include "base/values.h"
@@ -95,9 +97,7 @@ SSLConnectJob::SSLConnectJob(const std::string& group_name,
       context_(context),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           callback_(base::Bind(&SSLConnectJob::OnIOComplete,
-                               base::Unretained(this)))),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          callback_old_(this, &SSLConnectJob::OnIOComplete)) {}
+                               base::Unretained(this)))) {}
 
 SSLConnectJob::~SSLConnectJob() {}
 
@@ -207,10 +207,9 @@ int SSLConnectJob::DoTransportConnect() {
   scoped_refptr<TransportSocketParams> transport_params =
       params_->transport_params();
   return transport_socket_handle_->Init(
-      group_name(),
-      transport_params,
-      transport_params->destination().priority(),
-      &callback_old_, transport_pool_, net_log());
+      group_name(), transport_params,
+      transport_params->destination().priority(), callback_, transport_pool_,
+      net_log());
 }
 
 int SSLConnectJob::DoTransportConnectComplete(int result) {
@@ -225,9 +224,9 @@ int SSLConnectJob::DoSOCKSConnect() {
   next_state_ = STATE_SOCKS_CONNECT_COMPLETE;
   transport_socket_handle_.reset(new ClientSocketHandle());
   scoped_refptr<SOCKSSocketParams> socks_params = params_->socks_params();
-  return transport_socket_handle_->Init(group_name(), socks_params,
-                                        socks_params->destination().priority(),
-                                        &callback_old_, socks_pool_, net_log());
+  return transport_socket_handle_->Init(
+      group_name(), socks_params, socks_params->destination().priority(),
+      callback_, socks_pool_, net_log());
 }
 
 int SSLConnectJob::DoSOCKSConnectComplete(int result) {
@@ -246,8 +245,8 @@ int SSLConnectJob::DoTunnelConnect() {
       params_->http_proxy_params();
   return transport_socket_handle_->Init(
       group_name(), http_proxy_params,
-      http_proxy_params->destination().priority(), &callback_old_,
-      http_proxy_pool_, net_log());
+      http_proxy_params->destination().priority(), callback_, http_proxy_pool_,
+      net_log());
 }
 
 int SSLConnectJob::DoTunnelConnectComplete(int result) {
