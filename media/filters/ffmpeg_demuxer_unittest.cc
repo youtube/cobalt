@@ -126,6 +126,12 @@ class FFmpegDemuxerTest : public testing::Test {
     return demuxer_->GetBitrate() > 0;
   }
 
+  bool IsStreamStopped(DemuxerStream::Type type) {
+    DemuxerStream* stream = demuxer_->GetStream(type);
+    CHECK(stream);
+    return static_cast<FFmpegDemuxerStream*>(stream)->stopped_;
+  }
+
   // Fixture members.
   scoped_refptr<FFmpegDemuxer> demuxer_;
   StrictMock<MockFilterHost> host_;
@@ -157,7 +163,7 @@ TEST_F(FFmpegDemuxerTest, Initialize_OpenFails) {
 //}
 
 TEST_F(FFmpegDemuxerTest, Initialize_NoStreams) {
-  // Open a file with no parseable streams.
+  // Open a file with no streams whatsoever.
   EXPECT_CALL(host_, SetCurrentReadPosition(_));
   demuxer_->Initialize(
       CreateDataSource("no_streams.webm"),
@@ -165,14 +171,13 @@ TEST_F(FFmpegDemuxerTest, Initialize_NoStreams) {
   message_loop_.RunAllPending();
 }
 
-// TODO(acolwell): Find a subtitle only file so we can uncomment this test.
-//
-//TEST_F(FFmpegDemuxerTest, Initialize_DataStreamOnly) {
-//  demuxer_->Initialize(
-//      CreateDataSource("subtitles_only.mp4"),,
-//      NewExpectedStatusCB(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
-//  message_loop_.RunAllPending();
-//}
+TEST_F(FFmpegDemuxerTest, Initialize_NoAudioVideo) {
+  // Open a file containing streams but none of which are audio/video streams.
+  demuxer_->Initialize(
+      CreateDataSource("no_audio_video.webm"),
+      NewExpectedStatusCB(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
+  message_loop_.RunAllPending();
+}
 
 TEST_F(FFmpegDemuxerTest, Initialize_Successful) {
   InitializeDemuxer(CreateDataSource("bear-320x240.webm"));
@@ -211,6 +216,37 @@ TEST_F(FFmpegDemuxerTest, Initialize_Successful) {
   EXPECT_EQ(44100, audio_config.samples_per_second());
   EXPECT_TRUE(audio_config.extra_data());
   EXPECT_GT(audio_config.extra_data_size(), 0u);
+
+  // Unknown stream should never be present.
+  EXPECT_FALSE(demuxer_->GetStream(DemuxerStream::UNKNOWN));
+}
+
+TEST_F(FFmpegDemuxerTest, Initialize_Multitrack) {
+  // Open a file containing the following streams:
+  //   Stream #0: Video (VP8)
+  //   Stream #1: Audio (Vorbis)
+  //   Stream #2: Subtitles (SRT)
+  //   Stream #3: Video (Theora)
+  //   Stream #4: Audio (16-bit signed little endian PCM)
+  //
+  // We should only pick the first audio/video streams we come across.
+  InitializeDemuxer(CreateDataSource("bear-320x240-multitrack.webm"));
+
+  // Video stream should be VP8.
+  scoped_refptr<DemuxerStream> stream =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+  ASSERT_TRUE(stream);
+  EXPECT_EQ(DemuxerStream::VIDEO, stream->type());
+  EXPECT_EQ(kCodecVP8, stream->video_decoder_config().codec());
+
+  // Audio stream should be Vorbis.
+  stream = demuxer_->GetStream(DemuxerStream::AUDIO);
+  ASSERT_TRUE(stream);
+  EXPECT_EQ(DemuxerStream::AUDIO, stream->type());
+  EXPECT_EQ(kCodecVorbis, stream->audio_decoder_config().codec());
+
+  // Unknown stream should never be present.
+  EXPECT_FALSE(demuxer_->GetStream(DemuxerStream::UNKNOWN));
 }
 
 TEST_F(FFmpegDemuxerTest, Read_Audio) {
@@ -491,17 +527,22 @@ TEST_F(FFmpegDemuxerTest, DisableAudioStream) {
   ASSERT_TRUE(video);
   ASSERT_TRUE(audio);
 
-  // Attempt a read from the video stream and run the message loop until done.
+  // The audio stream should have been prematurely stopped.
+  EXPECT_FALSE(IsStreamStopped(DemuxerStream::VIDEO));
+  EXPECT_TRUE(IsStreamStopped(DemuxerStream::AUDIO));
+
+  // Attempt a read from the video stream: it should return valid data.
   scoped_refptr<DemuxerStreamReader> reader(new DemuxerStreamReader());
   reader->Read(video);
   message_loop_.RunAllPending();
-  EXPECT_TRUE(reader->called());
+  ASSERT_TRUE(reader->called());
   ValidateBuffer(FROM_HERE, reader->buffer(), 22084, 0);
 
+  // Attempt a read from the audio stream: it should immediately return end of
+  // stream without requiring the message loop to read data.
   reader->Reset();
   reader->Read(audio);
-  message_loop_.RunAllPending();
-  EXPECT_TRUE(reader->called());
+  ASSERT_TRUE(reader->called());
   EXPECT_TRUE(reader->buffer()->IsEndOfStream());
 }
 

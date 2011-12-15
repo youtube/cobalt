@@ -362,9 +362,13 @@ void FFmpegDemuxer::Initialize(DataSource* data_source,
 
 scoped_refptr<DemuxerStream> FFmpegDemuxer::GetStream(
     DemuxerStream::Type type) {
-  DCHECK_GE(type, 0);
-  DCHECK_LT(type, DemuxerStream::NUM_TYPES);
-  return streams_[type];
+  StreamVector::iterator iter;
+  for (iter = streams_.begin(); iter != streams_.end(); ++iter) {
+    if (*iter && (*iter)->type() == type) {
+      return *iter;
+    }
+  }
+  return NULL;
 }
 
 base::TimeDelta FFmpegDemuxer::GetStartTime() const {
@@ -479,38 +483,48 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
     return;
   }
 
-  // Create demuxer streams for all supported streams.
-  streams_.resize(DemuxerStream::NUM_TYPES);
+  // Create demuxer stream entries for each possible AVStream.
+  streams_.resize(format_context_->nb_streams);
+  bool found_audio_stream = false;
+  bool found_video_stream = false;
+
   base::TimeDelta max_duration;
-  bool no_supported_streams = true;
   for (size_t i = 0; i < format_context_->nb_streams; ++i) {
     AVCodecContext* codec_context = format_context_->streams[i]->codec;
     AVMediaType codec_type = codec_context->codec_type;
-    if (codec_type == AVMEDIA_TYPE_AUDIO || codec_type == AVMEDIA_TYPE_VIDEO) {
-      AVStream* stream = format_context_->streams[i];
-      scoped_refptr<FFmpegDemuxerStream> demuxer_stream(
-          new FFmpegDemuxerStream(this, stream));
-      if (!streams_[demuxer_stream->type()]) {
-        no_supported_streams = false;
-        streams_[demuxer_stream->type()] = demuxer_stream;
-        max_duration = std::max(max_duration, demuxer_stream->duration());
 
-        if (stream->first_dts != static_cast<int64_t>(AV_NOPTS_VALUE)) {
-          const base::TimeDelta first_dts = ConvertFromTimeBase(
-              stream->time_base, stream->first_dts);
-          if (start_time_ == kNoTimestamp || first_dts < start_time_)
-            start_time_ = first_dts;
-        }
-      }
-      packet_streams_.push_back(demuxer_stream);
+    if (codec_type == AVMEDIA_TYPE_AUDIO) {
+      if (found_audio_stream)
+        continue;
+      found_audio_stream = true;
+    } else if (codec_type == AVMEDIA_TYPE_VIDEO) {
+      if (found_video_stream)
+        continue;
+      found_video_stream = true;
     } else {
-      packet_streams_.push_back(NULL);
+      continue;
+    }
+
+    AVStream* stream = format_context_->streams[i];
+    scoped_refptr<FFmpegDemuxerStream> demuxer_stream(
+        new FFmpegDemuxerStream(this, stream));
+
+    streams_[i] = demuxer_stream;
+    max_duration = std::max(max_duration, demuxer_stream->duration());
+
+    if (stream->first_dts != static_cast<int64_t>(AV_NOPTS_VALUE)) {
+      const base::TimeDelta first_dts = ConvertFromTimeBase(
+          stream->time_base, stream->first_dts);
+      if (start_time_ == kNoTimestamp || first_dts < start_time_)
+        start_time_ = first_dts;
     }
   }
-  if (no_supported_streams) {
+
+  if (!found_audio_stream && !found_video_stream) {
     callback.Run(DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
     return;
   }
+
   if (format_context_->duration != static_cast<int64_t>(AV_NOPTS_VALUE)) {
     // If there is a duration value in the container use that to find the
     // maximum between it and the duration from A/V streams.
@@ -642,26 +656,24 @@ void FFmpegDemuxer::DemuxTask() {
   // worried about downstream filters (i.e., decoders) executing on this
   // thread.
   DCHECK_GE(packet->stream_index, 0);
-  DCHECK_LT(packet->stream_index, static_cast<int>(packet_streams_.size()));
-  FFmpegDemuxerStream* demuxer_stream = NULL;
-  size_t i = packet->stream_index;
+  DCHECK_LT(packet->stream_index, static_cast<int>(streams_.size()));
+
   // Defend against ffmpeg giving us a bad stream index.
-  if (i < packet_streams_.size()) {
-    demuxer_stream = packet_streams_[i];
-  }
-  if (demuxer_stream) {
-    // Queue the packet with the appropriate stream.  The stream takes
-    // ownership of the AVPacket.
-    if (packet.get()) {
-      // If a packet is returned by FFmpeg's av_parser_parse2()
-      // the packet will reference an inner memory of FFmpeg.
-      // In this case, the packet's "destruct" member is NULL,
-      // and it MUST be duplicated. This fixes issue with MP3 and possibly
-      // other codecs.  It is safe to call this function even if the packet does
-      // not refer to inner memory from FFmpeg.
-      av_dup_packet(packet.get());
-      demuxer_stream->EnqueuePacket(packet.release());
-    }
+  if (packet->stream_index >= 0 &&
+      packet->stream_index < static_cast<int>(streams_.size()) &&
+      streams_[packet->stream_index]) {
+    FFmpegDemuxerStream* demuxer_stream = streams_[packet->stream_index];
+
+    // If a packet is returned by FFmpeg's av_parser_parse2()
+    // the packet will reference an inner memory of FFmpeg.
+    // In this case, the packet's "destruct" member is NULL,
+    // and it MUST be duplicated. This fixes issue with MP3 and possibly
+    // other codecs.  It is safe to call this function even if the packet does
+    // not refer to inner memory from FFmpeg.
+    av_dup_packet(packet.get());
+
+    // The stream takes ownership of the AVPacket.
+    demuxer_stream->EnqueuePacket(packet.release());
   }
 
   // Create a loop by posting another task.  This allows seek and message loop
@@ -687,17 +699,10 @@ void FFmpegDemuxer::StopTask(const base::Closure& callback) {
 
 void FFmpegDemuxer::DisableAudioStreamTask() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
-
   StreamVector::iterator iter;
-  for (size_t i = 0; i < packet_streams_.size(); ++i) {
-    if (!packet_streams_[i])
-      continue;
-
-    // If the codec type is audio, remove the reference. DemuxTask() will
-    // look for such reference, and this will result in deleting the
-    // audio packets after they are demuxed.
-    if (packet_streams_[i]->type() == DemuxerStream::AUDIO) {
-      packet_streams_[i] = NULL;
+  for (iter = streams_.begin(); iter != streams_.end(); ++iter) {
+    if (*iter && (*iter)->type() == DemuxerStream::AUDIO) {
+      (*iter)->Stop();
     }
   }
 }
