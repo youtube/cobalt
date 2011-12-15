@@ -190,34 +190,3 @@ TEST(AudioInputTest, Record) {
   ais->Stop();
   ais->Close();
 }
-
-// Test a recording sequence with delays in the audio callback.
-// TODO(joth): See bug 107546.  This fails on slow bots.  Once fixed, remove the
-// CHROME_HEADLESS check below.
-TEST(AudioInputTest, RecordWithSlowSink) {
-  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
-  if (!CanRunAudioTests(audio_man.get()))
-    return;
-
-  scoped_ptr<base::Environment> env(base::Environment::Create());
-  if (env->HasVar("CHROME_HEADLESS"))
-    return;
-
-  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
-  AudioInputStream* ais = CreateTestAudioInputStream(audio_man.get());
-  EXPECT_TRUE(ais->Open());
-
-  // We should normally get a callback every 50ms, and a 20ms delay inside each
-  // callback should not change this sequence.
-  TestInputCallbackBlocking test_callback(kSamplesPerPacket * 4, 0, 20);
-  ais->Start(&test_callback);
-  // Verify at least 500ms worth of audio was recorded, after giving sufficient
-  // extra time.
-  message_loop.PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(), 590);
-  message_loop.Run();
-  EXPECT_GE(test_callback.callback_count(), 10);
-  EXPECT_FALSE(test_callback.had_error());
-
-  ais->Stop();
-  ais->Close();
-}
