@@ -22,6 +22,11 @@ NetTestSuite::NetTestSuite(int argc, char** argv)
     : TestSuite(argc, argv) {
 }
 
+NetTestSuite::NetTestSuite(int argc, char** argv,
+                           bool create_at_exit_manager)
+    : TestSuite(argc, argv, create_at_exit_manager) {
+}
+
 NetTestSuite::~NetTestSuite() {}
 
 void NetTestSuite::Initialize() {

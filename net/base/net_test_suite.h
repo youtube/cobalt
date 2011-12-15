@@ -27,6 +27,10 @@ class NetTestSuite : public base::TestSuite {
   virtual void Shutdown() OVERRIDE;
 
  protected:
+  // This constructor is only accessible to specialized net test
+  // implementations which need to control the creation of an AtExitManager
+  // instance for the duration of the test.
+  NetTestSuite(int argc, char** argv, bool create_at_exit_manager);
 
   // Called from within Initialize(), but separate so that derived classes
   // can initialize the NetTestSuite instance only and not
