@@ -32,6 +32,7 @@ static const CertStatus CERT_STATUS_INVALID                    = 1 << 7;
 static const CertStatus CERT_STATUS_WEAK_SIGNATURE_ALGORITHM   = 1 << 8;
 static const CertStatus CERT_STATUS_NOT_IN_DNS                 = 1 << 9;
 static const CertStatus CERT_STATUS_NON_UNIQUE_NAME            = 1 << 10;
+static const CertStatus CERT_STATUS_WEAK_KEY                   = 1 << 11;
 
 // Bits 16 to 31 are for non-error statuses.
 static const CertStatus CERT_STATUS_IS_EV                      = 1 << 16;

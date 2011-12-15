@@ -662,6 +662,37 @@ bool X509Certificate::WriteOSCertHandleToPickle(OSCertHandle cert_handle,
       der_cache.data_length);
 }
 
+// static
+void X509Certificate::GetPublicKeyInfo(OSCertHandle cert_handle,
+                                       size_t* size_bits,
+                                       PublicKeyType* type) {
+  EVP_PKEY* key = X509_get_pubkey(cert_handle);
+  CHECK(key);
+
+  switch (key->type) {
+    case EVP_PKEY_RSA:
+      *type = kPublicKeyTypeRSA;
+      *size_bits = EVP_PKEY_size(key) * 8;
+      break;
+    case EVP_PKEY_DSA:
+      *type = kPublicKeyTypeDSA;
+      *size_bits = EVP_PKEY_size(key) * 8;
+      break;
+    case EVP_PKEY_EC:
+      *type = kPublicKeyTypeECDSA;
+      *size_bits = EVP_PKEY_size(key);
+      break;
+    case EVP_PKEY_DH:
+      *type = kPublicKeyTypeDH;
+      *size_bits = EVP_PKEY_size(key) * 8;
+      break;
+    default:
+      *type = kPublicKeyTypeUnknown;
+      *size_bits = 0;
+      break;
+  }
+}
+
 #if defined(OS_ANDROID)
 void X509Certificate::GetChainDEREncodedBytes(
     std::vector<std::string>* chain_bytes) const {

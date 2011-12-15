@@ -1,0 +1,18 @@
+[req]
+default_bits       = $ENV::KEY_SIZE
+default_md         = sha1
+string_mask        = utf8only
+prompt             = no
+encrypt_key        = no
+distinguished_name = req_dn
+req_extensions     = req_extensions
+
+[req_dn]
+C  = US
+ST = California
+L  = Mountain View
+O  = Test CA
+CN = 127.0.0.1
+
+[req_extensions]
+subjectAltName = IP:127.0.0.1
