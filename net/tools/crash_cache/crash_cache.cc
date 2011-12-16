@@ -265,9 +265,8 @@ int LoadOperations(const FilePath& path, RankCrashes action,
 
   // No experiments and use a simple LRU.
   cache->SetFlags(disk_cache::kNoRandom);
-  TestOldCompletionCallback old_cb;
-  net::TestCompletionCallback cb;
-  int rv = cache->Init(cb.callback());
+  TestOldCompletionCallback cb;
+  int rv = cache->Init(&cb);
   if (cb.GetResult(rv) != net::OK || cache->GetEntryCount())
     return GENERIC;
 
@@ -277,14 +276,14 @@ int LoadOperations(const FilePath& path, RankCrashes action,
   disk_cache::Entry* entry;
   for (int i = 0; i < 100; i++) {
     std::string key = GenerateKey(true);
-    rv = cache->CreateEntry(key, &entry, &old_cb);
-    if (old_cb.GetResult(rv) != net::OK)
+    rv = cache->CreateEntry(key, &entry, &cb);
+    if (cb.GetResult(rv) != net::OK)
       return GENERIC;
     entry->Close();
     FlushQueue(cache);
     if (50 == i && action >= disk_cache::REMOVE_LOAD_1) {
-      rv = cache->CreateEntry(kCrashEntryName, &entry, &old_cb);
-      if (old_cb.GetResult(rv) != net::OK)
+      rv = cache->CreateEntry(kCrashEntryName, &entry, &cb);
+      if (cb.GetResult(rv) != net::OK)
         return GENERIC;
       entry->Close();
       FlushQueue(cache);
@@ -294,13 +293,13 @@ int LoadOperations(const FilePath& path, RankCrashes action,
   if (action <= disk_cache::INSERT_LOAD_2) {
     disk_cache::g_rankings_crash = action;
 
-    rv = cache->CreateEntry(kCrashEntryName, &entry, &old_cb);
-    if (old_cb.GetResult(rv) != net::OK)
+    rv = cache->CreateEntry(kCrashEntryName, &entry, &cb);
+    if (cb.GetResult(rv) != net::OK)
       return GENERIC;
   }
 
-  rv = cache->OpenEntry(kCrashEntryName, &entry, &old_cb);
-  if (old_cb.GetResult(rv) != net::OK)
+  rv = cache->OpenEntry(kCrashEntryName, &entry, &cb);
+  if (cb.GetResult(rv) != net::OK)
     return GENERIC;
 
   disk_cache::g_rankings_crash = action;
