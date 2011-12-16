@@ -18,7 +18,13 @@
       # Get more debug spew from the linker while we're sorting out
       # build problems and performance.
       # TODO(siggi): Remove these flags after we're out of the woods.
-      'AdditionalOptions': ['/verbose', '/time'],
+      'AdditionalOptions': [
+        '/time',
+        # This may reduce memory fragmentation during linking.
+        # The expected size is 40*1024*1024, which gives us about 10M of
+        # headroom as of Dec 16, 2011.
+        '/expectedoutputsize:41943040',
+      ],
       'LinkTimeCodeGeneration': '1',
       # The /PROFILE flag causes the linker to add a "FIXUP" debug stream to
       # the generated PDB. According to MSDN documentation, this flag is only
