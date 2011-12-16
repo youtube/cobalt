@@ -119,8 +119,8 @@ int DiskCacheTestWithCache::CreateEntry(const std::string& key,
 }
 
 int DiskCacheTestWithCache::DoomEntry(const std::string& key) {
-  net::TestCompletionCallback cb;
-  int rv = cache_->DoomEntry(key, cb.callback());
+  TestOldCompletionCallback cb;
+  int rv = cache_->DoomEntry(key, &cb);
   return cb.GetResult(rv);
 }
 
@@ -304,7 +304,7 @@ void DiskCacheTestWithCache::InitDiskCacheImpl() {
 
   cache_impl_->SetType(type_);
   cache_impl_->SetFlags(disk_cache::kNoRandom);
-  net::TestCompletionCallback cb;
-  int rv = cache_impl_->Init(cb.callback());
+  TestOldCompletionCallback cb;
+  int rv = cache_impl_->Init(&cb);
   ASSERT_EQ(net::OK, cb.GetResult(rv));
 }
