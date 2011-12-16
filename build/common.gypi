@@ -1180,6 +1180,9 @@
           'ENABLE_WEB_INTENTS=1',
         ],
       }],
+      ['OS=="win" and branding=="Chrome"', {
+        'defines': ['ENABLE_SWIFTSHADER'],
+      }],
     ],  # conditions for 'target_defaults'
     'target_conditions': [
       ['enable_wexit_time_destructors==1', {
