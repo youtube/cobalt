@@ -17,6 +17,12 @@ namespace net {
 typedef Callback1<int>::Type OldCompletionCallback;
 typedef base::Callback<void(int)> CompletionCallback;
 
+// Temporary (in the code) adapter of OldCompletionCallback for use at call
+// sites that expect a CompletionCallback.
+//
+// TODO(jhawkins): Remove once OldCompletionCallback is removed.
+void OldCompletionCallbackAdapter(OldCompletionCallback* callback, int result);
+
 // Used to implement a OldCompletionCallback.
 template <class T>
 class OldCompletionCallbackImpl :
