@@ -145,7 +145,7 @@ int MemBackendImpl::CreateEntry(const std::string& key, Entry** entry,
 }
 
 int MemBackendImpl::DoomEntry(const std::string& key,
-                              OldCompletionCallback* callback) {
+                              const net::CompletionCallback& callback) {
   if (DoomEntry(key))
     return net::OK;
 
