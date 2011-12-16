@@ -441,6 +441,8 @@ base::NativeLibrary GSSAPISharedLibrary::LoadSharedLibrary() {
     static const char* kDefaultLibraryNames[] = {
 #if defined(OS_MACOSX)
       "libgssapi_krb5.dylib"  // MIT Kerberos
+#elif defined(OS_OPENBSD)
+      "libgssapi.so"          // Heimdal - OpenBSD
 #else
       "libgssapi_krb5.so.2",  // MIT Kerberos - FC, Suse10, Debian
       "libgssapi.so.4",       // Heimdal - Suse10, MDK
