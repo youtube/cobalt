@@ -72,7 +72,6 @@
         'base/cert_verifier.h',
         'base/cert_verify_result.cc',
         'base/cert_verify_result.h',
-        'base/completion_callback.cc',
         'base/completion_callback.h',
         'base/connection_type_histograms.cc',
         'base/connection_type_histograms.h',
