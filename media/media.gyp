@@ -682,7 +682,7 @@
         'base/mock_callback.cc',
         'base/mock_callback.h',
         'base/mock_data_source_host.cc',
-        'base/mock_ddata_source_host.h',
+        'base/mock_data_source_host.h',
         'base/mock_demuxer_host.cc',
         'base/mock_demuxer_host.h',
         'base/mock_filter_host.cc',
