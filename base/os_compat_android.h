@@ -8,25 +8,22 @@
 
 #include <fcntl.h>
 #include <sys/types.h>
-#include <time64.h>
 #include <utime.h>
 
-// Not implemented in Bionic. See platform_file_android.cc.
+// Not implemented in Bionic.
 extern "C" int futimes(int fd, const struct timeval tv[2]);
 
 // The prototype of mkdtemp is missing.
 extern "C" char* mkdtemp(char* path);
+
+// Android has no timegm().
+extern "C" time_t timegm(struct tm* const t);
 
 // The lockf() function is not available on Android; we translate to flock().
 #define F_LOCK LOCK_EX
 #define F_ULOCK LOCK_UN
 inline int lockf(int fd, int cmd, off_t ignored_len) {
   return flock(fd, cmd);
-}
-
-// Android has only timegm64() and no timegm().
-inline time_t timegm(struct tm* const tmp) {
-  return static_cast<time_t>(timegm64(tmp));
 }
 
 #endif  // BASE_OS_COMPAT_ANDROID_H_
