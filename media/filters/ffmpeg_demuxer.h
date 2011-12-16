@@ -140,9 +140,9 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
 
   // Demuxer implementation.
   virtual void Stop(const base::Closure& callback) OVERRIDE;
-  virtual void Seek(base::TimeDelta time, const FilterStatusCB& cb) OVERRIDE;
+  virtual void Seek(base::TimeDelta time, const PipelineStatusCB& cb) OVERRIDE;
   virtual void OnAudioRendererDisabled() OVERRIDE;
-  virtual void set_host(FilterHost* filter_host) OVERRIDE;
+  virtual void set_host(DemuxerHost* demuxer_host) OVERRIDE;
   virtual void SetPlaybackRate(float playback_rate) OVERRIDE;
   virtual scoped_refptr<DemuxerStream> GetStream(
       DemuxerStream::Type type) OVERRIDE;
@@ -175,7 +175,7 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
       DataSource* data_source, const PipelineStatusCB& callback);
 
   // Carries out a seek on the demuxer thread.
-  void SeekTask(base::TimeDelta time, const FilterStatusCB& cb);
+  void SeekTask(base::TimeDelta time, const PipelineStatusCB& cb);
 
   // Carries out demuxing and satisfying stream reads on the demuxer thread.
   void DemuxTask();
@@ -247,7 +247,7 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   int64 read_position_;
 
   // Initialization can happen before set_host() is called, in which case we
-  // store these bits for deferred reporting to the FilterHost when we get one.
+  // store these bits for deferred reporting to the DemuxerHost when we get one.
   base::TimeDelta max_duration_;
   PipelineStatus deferred_status_;
 

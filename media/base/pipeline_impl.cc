@@ -340,11 +340,6 @@ void PipelineImpl::SetCurrentReadPosition(int64 offset) {
   current_bytes_ = offset;
 }
 
-int64 PipelineImpl::GetCurrentReadPosition() {
-  base::AutoLock auto_lock(lock_);
-  return current_bytes_;
-}
-
 void PipelineImpl::ResetState() {
   base::AutoLock auto_lock(lock_);
   const base::TimeDelta kZero;
@@ -455,6 +450,10 @@ PipelineImpl::State PipelineImpl::FindNextState(State current) {
   } else {
     return current;
   }
+}
+
+void PipelineImpl::OnDemuxerError(PipelineStatus error) {
+  SetError(error);
 }
 
 void PipelineImpl::SetError(PipelineStatus error) {

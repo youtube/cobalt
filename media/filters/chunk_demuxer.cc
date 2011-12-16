@@ -12,7 +12,6 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "media/base/audio_decoder_config.h"
-#include "media/base/filter_host.h"
 #include "media/base/data_buffer.h"
 #include "media/base/video_decoder_config.h"
 #include "media/ffmpeg/ffmpeg_common.h"
@@ -323,11 +322,11 @@ void ChunkDemuxer::Init(const PipelineStatusCB& cb) {
   client_->DemuxerOpened(this);
 }
 
-void ChunkDemuxer::set_host(FilterHost* filter_host) {
+void ChunkDemuxer::set_host(DemuxerHost* host) {
   DCHECK_EQ(state_, INITIALIZED);
-  Demuxer::set_host(filter_host);
-  filter_host->SetDuration(duration_);
-  filter_host->SetCurrentReadPosition(0);
+  Demuxer::set_host(host);
+  host->SetDuration(duration_);
+  host->SetCurrentReadPosition(0);
 }
 
 void ChunkDemuxer::Stop(const base::Closure& callback) {
@@ -811,7 +810,7 @@ void ChunkDemuxer::ReportError_Locked(PipelineStatus error) {
   {
     base::AutoUnlock auto_unlock(lock_);
     if (cb.is_null()) {
-      host()->SetError(error);
+      host()->OnDemuxerError(error);
       return;
     }
     cb.Run(error);

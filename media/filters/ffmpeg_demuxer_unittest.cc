@@ -9,7 +9,7 @@
 #include "base/threading/thread.h"
 #include "media/base/filters.h"
 #include "media/base/mock_callback.h"
-#include "media/base/mock_filter_host.h"
+#include "media/base/mock_demuxer_host.h"
 #include "media/base/mock_filters.h"
 #include "media/base/mock_reader.h"
 #include "media/ffmpeg/ffmpeg_common.h"
@@ -134,7 +134,7 @@ class FFmpegDemuxerTest : public testing::Test {
 
   // Fixture members.
   scoped_refptr<FFmpegDemuxer> demuxer_;
-  StrictMock<MockFilterHost> host_;
+  StrictMock<MockDemuxerHost> host_;
   MessageLoop message_loop_;
 
   int64 current_read_position_;

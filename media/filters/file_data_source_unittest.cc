@@ -10,7 +10,7 @@
 #include "base/path_service.h"
 #include "base/utf_string_conversions.h"
 #include "media/base/mock_callback.h"
-#include "media/base/mock_filter_host.h"
+#include "media/base/mock_data_source_host.h"
 #include "media/base/mock_filters.h"
 #include "media/filters/file_data_source.h"
 
@@ -51,7 +51,7 @@ std::string TestFileURL() {
 
 // Test that FileDataSource call the appropriate methods on its filter host.
 TEST(FileDataSourceTest, OpenFile) {
-  StrictMock<MockFilterHost> host;
+  StrictMock<MockDataSourceHost> host;
   EXPECT_CALL(host, SetTotalBytes(10));
   EXPECT_CALL(host, SetBufferedBytes(10));
 
@@ -68,7 +68,7 @@ TEST(FileDataSourceTest, ReadData) {
   uint8 ten_bytes[10];
 
   // Create our mock filter host and initialize the data source.
-  NiceMock<MockFilterHost> host;
+  NiceMock<MockDataSourceHost> host;
   scoped_refptr<FileDataSource> filter(new FileDataSource());
 
   filter->set_host(&host);
@@ -93,16 +93,6 @@ TEST(FileDataSourceTest, ReadData) {
   filter->Read(5, 10, ten_bytes, base::Bind(
       &ReadCallbackHandler::ReadCallback, base::Unretained(&handler)));
   EXPECT_EQ('5', ten_bytes[0]);
-
-  filter->Stop(NewExpectedClosure());
-}
-
-// Test that FileDataSource does nothing on Seek().
-TEST(FileDataSourceTest, Seek) {
-  const base::TimeDelta kZero;
-
-  scoped_refptr<FileDataSource> filter(new FileDataSource());
-  filter->Seek(kZero, NewExpectedStatusCB(PIPELINE_OK));
 
   filter->Stop(NewExpectedClosure());
 }

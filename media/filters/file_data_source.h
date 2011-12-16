@@ -9,7 +9,7 @@
 
 #include "base/gtest_prod_util.h"
 #include "base/synchronization/lock.h"
-#include "media/base/filters.h"
+#include "media/base/data_source.h"
 
 namespace media {
 
@@ -23,11 +23,9 @@ class MEDIA_EXPORT FileDataSource : public DataSource {
 
   PipelineStatus Initialize(const std::string& url);
 
-  // Implementation of Filter.
-  virtual void set_host(FilterHost* filter_host) OVERRIDE;
-  virtual void Stop(const base::Closure& callback) OVERRIDE;
-
   // Implementation of DataSource.
+  virtual void set_host(DataSourceHost* host) OVERRIDE;
+  virtual void Stop(const base::Closure& callback) OVERRIDE;
   virtual void Read(int64 position, size_t size, uint8* data,
                     const DataSource::ReadCallback& read_callback) OVERRIDE;
   virtual bool GetSize(int64* size_out) OVERRIDE;
