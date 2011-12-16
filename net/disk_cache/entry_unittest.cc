@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/basictypes.h"
+#include "base/file_util.h"
 #include "base/threading/platform_thread.h"
 #include "base/timer.h"
 #include "base/string_util.h"
@@ -1242,6 +1243,36 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyDoomedEntry) {
   SetMemoryOnlyMode();
   InitCache();
   DoomedEntry();
+}
+
+// Tests that we discard entries if the data is missing.
+TEST_F(DiskCacheEntryTest, MissingData) {
+  SetDirectMode();
+  InitCache();
+
+  std::string key("the first key");
+  disk_cache::Entry* entry;
+  ASSERT_EQ(net::OK, CreateEntry(key, &entry));
+
+  // Write to an external file.
+  const int kSize = 20000;
+  scoped_refptr<net::IOBuffer> buffer(new net::IOBuffer(kSize));
+  CacheTestFillBuffer(buffer->data(), kSize, false);
+  EXPECT_EQ(kSize, WriteData(entry, 0, 0, buffer, kSize, false));
+  entry->Close();
+  FlushQueueForTest();
+
+  disk_cache::Addr address(0x80000001);
+  FilePath name = cache_impl_->GetFileName(address);
+  EXPECT_TRUE(file_util::Delete(name, false));
+
+  // Attempt to read the data.
+  ASSERT_EQ(net::OK, OpenEntry(key, &entry));
+  EXPECT_EQ(net::ERR_FAILED, ReadData(entry, 0, 0, buffer, kSize));
+  entry->Close();
+
+  // The entry should be gone.
+  ASSERT_NE(net::OK, OpenEntry(key, &entry));
 }
 
 // Test that child entries in a memory cache backend are not visible from
