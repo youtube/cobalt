@@ -22,6 +22,7 @@
 #include "base/time.h"
 #include "crypto/nss_util.h"
 #include "crypto/rsa_private_key.h"
+#include "crypto/scoped_nss_types.h"
 #include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
@@ -1150,11 +1151,11 @@ void X509Certificate::GetPublicKeyInfo(OSCertHandle cert_handle,
   *type = kPublicKeyTypeUnknown;
   *size_bits = 0;
 
-  SECKEYPublicKey* key = CERT_ExtractPublicKey(cert_handle);
-  if (!key)
+  crypto::ScopedSECKEYPublicKey key(CERT_ExtractPublicKey(cert_handle));
+  if (!key.get())
     return;
 
-  *size_bits = SECKEY_PublicKeyStrengthInBits(key);
+  *size_bits = SECKEY_PublicKeyStrengthInBits(key.get());
 
   switch (key->keyType) {
     case rsaKey:
