@@ -80,6 +80,9 @@
 // This indicates to the tracing UI that these counters should be displayed
 // in a single graph, as a summed area chart.
 //
+// Since counters are in a global namespace, you may want to disembiguate with a
+// unique ID, by using the TRACE_COUNTER_ID* variations.
+//
 // By default, trace collection is compiled in, but turned off at runtime.
 // Collecting trace data is the responsibility of the embedding
 // application. In Chrome's case, navigating to about:tracing will turn on
@@ -333,15 +336,50 @@
 #define TRACE_COUNTER2(category, name, value1_name, value1_val, \
         value2_name, value2_val) \
     INTERNAL_TRACE_EVENT_ADD_COUNTER( \
-        category, name, value1_name, value1_val, value2_name, value2_val, \
+        category, name, 0, value1_name, value1_val, value2_name, value2_val, \
         TRACE_EVENT_FLAG_NONE)
 #define TRACE_COPY_COUNTER2(category, name, value1_name, value1_val, \
         value2_name, value2_val) \
     INTERNAL_TRACE_EVENT_ADD_COUNTER( \
-        category, name, \
+        category, name, 0, \
         value1_name, value1_val, \
         value2_name, value2_val, \
         TRACE_EVENT_FLAG_COPY)
+
+// Records the value of a counter called "name" immediately. Value
+// must be representable as a 32 bit integer.
+// - category and name strings must have application lifetime (statics or
+//   literals). They may not include " chars.
+// - |id| is used to disambiguate counters with the same name. It must either
+//   be a pointer or an integer value up to 64 bits. If it's a pointer, the bits
+//   will be xored with a hash of the process ID so that the same pointer on
+//   two different processes will not collide.
+#define TRACE_COUNTER_ID1(category, name, id, value) \
+    TRACE_COUNTER_ID2(category, name, id, "value", value, NULL, 0)
+#define TRACE_COPY_COUNTER_ID1(category, name, id, value) \
+    TRACE_COPY_COUNTER_ID2(category, name, id, "value", value, NULL, 0)
+
+// Records the values of a multi-parted counter called "name" immediately.
+// The UI will treat value1 and value2 as parts of a whole, displaying their
+// values as a stacked-bar chart.
+// - category and name strings must have application lifetime (statics or
+//   literals). They may not include " chars.
+// - |id| is used to disambiguate counters with the same name. It must either
+//   be a pointer or an integer value up to 64 bits. If it's a pointer, the bits
+//   will be xored with a hash of the process ID so that the same pointer on
+//   two different processes will not collide.
+#define TRACE_COUNTER_ID2(category, name, id, value1_name, value1_val, \
+        value2_name, value2_val) \
+    INTERNAL_TRACE_EVENT_ADD_COUNTER( \
+        category, name, id, value1_name, value1_val, value2_name, value2_val, \
+        TRACE_EVENT_FLAG_HAS_ID)
+#define TRACE_COPY_COUNTER_ID2(category, name, id, value1_name, value1_val, \
+        value2_name, value2_val) \
+    INTERNAL_TRACE_EVENT_ADD_COUNTER( \
+        category, name, id, \
+        value1_name, value1_val, \
+        value2_name, value2_val, \
+        TRACE_EVENT_FLAG_COPY|TRACE_EVENT_FLAG_HAS_ID)
 
 
 // Records a single START event called "name" immediately, with 0, 1 or 2
@@ -433,12 +471,12 @@
 // Implementation detail: internal macro to create static category and
 // add the counter event if it is enabled.
 #define INTERNAL_TRACE_EVENT_ADD_COUNTER( \
-      category, name, arg1_name, arg1_val, arg2_name, arg2_val, flags) \
+      category, name, id, arg1_name, arg1_val, arg2_name, arg2_val, flags) \
     INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category); \
     if (INTERNAL_TRACE_EVENT_UID(catstatic)->enabled) { \
       base::debug::TraceLog::GetInstance()->AddCounterEvent( \
           INTERNAL_TRACE_EVENT_UID(catstatic), \
-          name, arg1_name, arg1_val, arg2_name, arg2_val, flags); \
+          name, id, arg1_name, arg1_val, arg2_name, arg2_val, flags); \
     }
 
 // Implementation detail: internal macro to create static category and add begin
@@ -863,6 +901,7 @@ class BASE_EXPORT TraceLog {
   // that allows only integer values for the counters.
   int AddCounterEvent(const TraceCategory* category,
                       const char* name,
+                      TraceID id,
                       const char* arg1_name, int32 arg1_val,
                       const char* arg2_name, int32 arg2_val,
                       TraceEventFlags flags);
