@@ -152,7 +152,8 @@ URLRequest::URLRequest(const GURL& url, Delegate* delegate)
       ALLOW_THIS_IN_INITIALIZER_LIST(before_request_callback_(
           base::Bind(&URLRequest::BeforeRequestComplete,
                      base::Unretained(this)))),
-      has_notified_completion_(false) {
+      has_notified_completion_(false),
+      creation_time_(base::TimeTicks::Now()) {
   SIMPLE_STATS_COUNTER("URLRequestCount");
 
   // Sanity check out environment.
