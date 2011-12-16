@@ -15,6 +15,7 @@
 #include "base/memory/linked_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/string16.h"
+#include "base/time.h"
 #include "base/threading/non_thread_safe.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/auth.h"
@@ -47,10 +48,6 @@ class AppCacheInterceptor;
 class AppCacheRequestHandlerTest;
 class AppCacheURLRequestJobTest;
 }
-
-namespace base {
-class Time;
-}  // namespace base
 
 // Temporary layering violation to allow existing users of a deprecated
 // interface.
@@ -456,6 +453,9 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // the response status line.  Restrictions on GetResponseHeaders apply.
   void GetAllResponseHeaders(std::string* headers);
 
+  // The time when |this| was constructed.
+  base::TimeTicks creation_time() const { return creation_time_; }
+
   // The time at which the returned response was requested.  For cached
   // responses, this is the last time the cache entry was validated.
   const base::Time& request_time() const {
@@ -813,6 +813,8 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // the authentication challenge being handled by |NotifyAuthRequired|.
   AuthCredentials auth_credentials_;
   scoped_refptr<AuthChallengeInfo> auth_info_;
+
+  base::TimeTicks creation_time_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequest);
 };
