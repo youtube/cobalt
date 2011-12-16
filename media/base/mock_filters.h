@@ -72,8 +72,7 @@ class MockDataSource : public DataSource {
  public:
   MockDataSource();
 
-  // Filter implementation.
-  virtual void set_host(FilterHost* host);
+  virtual void set_host(DataSourceHost* data_source_host);
 
   MOCK_METHOD1(Stop, void(const base::Closure& callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
@@ -105,8 +104,8 @@ class MockDataSource : public DataSource {
 class MockDemuxer : public Demuxer {
  public:
   MockDemuxer();
-  // Filter implementation.
-  virtual void set_host(FilterHost* host);
+
+  virtual void set_host(DemuxerHost* demuxer_host);
   MOCK_METHOD1(Stop, void(const base::Closure& callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD1(SetPreload, void(Preload preload));

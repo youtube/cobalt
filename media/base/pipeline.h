@@ -11,8 +11,10 @@
 
 #include <string>
 
-#include "media/base/filters.h"
+#include "media/base/media_export.h"
 #include "media/base/pipeline_status.h"
+#include "media/base/preload.h"
+#include "ui/gfx/size.h"
 
 namespace base {
 class TimeDelta;

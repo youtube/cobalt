@@ -30,7 +30,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   void Init(const PipelineStatusCB& cb);
 
   // Demuxer implementation.
-  virtual void set_host(FilterHost* filter_host) OVERRIDE;
+  virtual void set_host(DemuxerHost* host) OVERRIDE;
   virtual void Stop(const base::Closure& callback) OVERRIDE;
   virtual void Seek(base::TimeDelta time, const PipelineStatusCB&  cb) OVERRIDE;
   virtual void OnAudioRendererDisabled() OVERRIDE;

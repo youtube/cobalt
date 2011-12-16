@@ -5,7 +5,7 @@
 #include "base/bind.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/mock_callback.h"
-#include "media/base/mock_filter_host.h"
+#include "media/base/mock_demuxer_host.h"
 #include "media/base/test_data_util.h"
 #include "media/filters/chunk_demuxer.h"
 #include "media/filters/chunk_demuxer_client.h"
@@ -114,9 +114,10 @@ class ChunkDemuxerTest : public testing::Test {
   }
 
   void AppendData(const uint8* data, size_t length) {
-    EXPECT_CALL(mock_filter_host_, SetBufferedBytes(_)).Times(AnyNumber());
-    EXPECT_CALL(mock_filter_host_, SetBufferedTime(_)).Times(AnyNumber());
-    EXPECT_CALL(mock_filter_host_, SetNetworkActivity(true)).Times(AnyNumber());
+    EXPECT_CALL(mock_demuxer_host_, SetBufferedBytes(_)).Times(AnyNumber());
+    EXPECT_CALL(mock_demuxer_host_, SetBufferedTime(_)).Times(AnyNumber());
+    EXPECT_CALL(mock_demuxer_host_, SetNetworkActivity(true))
+        .Times(AnyNumber());
     EXPECT_TRUE(demuxer_->AppendData(data, length));
   }
 
@@ -148,10 +149,10 @@ class ChunkDemuxerTest : public testing::Test {
     EXPECT_EQ(status, expected_status);
 
     if (status == PIPELINE_OK) {
-      EXPECT_CALL(mock_filter_host_, SetDuration(expected_duration));
-      EXPECT_CALL(mock_filter_host_, SetCurrentReadPosition(_));
+      EXPECT_CALL(mock_demuxer_host_, SetDuration(expected_duration));
+      EXPECT_CALL(mock_demuxer_host_, SetCurrentReadPosition(_));
 
-      demuxer_->set_host(&mock_filter_host_);
+      demuxer_->set_host(&mock_demuxer_host_);
     }
   }
 
@@ -193,7 +194,7 @@ class ChunkDemuxerTest : public testing::Test {
 
   MOCK_METHOD1(Checkpoint, void(int id));
 
-  MockFilterHost mock_filter_host_;
+  MockDemuxerHost mock_demuxer_host_;
 
   scoped_ptr<MockChunkDemuxerClient> client_;
   scoped_refptr<ChunkDemuxer> demuxer_;
@@ -348,7 +349,7 @@ TEST_F(ChunkDemuxerTest, TestOutOfOrderClusters) {
 
   // Make sure that AppendData() fails because this cluster data
   // is before previous data.
-  EXPECT_CALL(mock_filter_host_, SetError(PIPELINE_ERROR_DECODE));
+  EXPECT_CALL(mock_demuxer_host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
   AppendData(clusterB->data(), clusterB->size());
 
   // Verify that AppendData() doesn't accept more data now.
@@ -373,7 +374,7 @@ TEST_F(ChunkDemuxerTest, TestNonMonotonicButAboveClusterTimecode) {
   AddSimpleBlock(&cb, kVideoTrackNum, 15);
   scoped_ptr<Cluster> clusterA(cb.Finish());
 
-  EXPECT_CALL(mock_filter_host_, SetError(PIPELINE_ERROR_DECODE));
+  EXPECT_CALL(mock_demuxer_host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
   AppendData(clusterA->data(), clusterA->size());
 
   // Verify that AppendData() doesn't accept more data now.
@@ -398,7 +399,7 @@ TEST_F(ChunkDemuxerTest, TestBackwardsAndBeforeClusterTimecode) {
   AddSimpleBlock(&cb, kVideoTrackNum, 3);
   scoped_ptr<Cluster> clusterA(cb.Finish());
 
-  EXPECT_CALL(mock_filter_host_, SetError(PIPELINE_ERROR_DECODE));
+  EXPECT_CALL(mock_demuxer_host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
   AppendData(clusterA->data(), clusterA->size());
 
   // Verify that AppendData() doesn't accept more data now.
@@ -424,7 +425,7 @@ TEST_F(ChunkDemuxerTest, TestPerStreamMonotonicallyIncreasingTimestamps) {
   AddSimpleBlock(&cb, kVideoTrackNum, 7);
   scoped_ptr<Cluster> cluster(cb.Finish());
 
-  EXPECT_CALL(mock_filter_host_, SetError(PIPELINE_ERROR_DECODE));
+  EXPECT_CALL(mock_demuxer_host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
   AppendData(cluster->data(), cluster->size());
 }
 
@@ -447,7 +448,7 @@ TEST_F(ChunkDemuxerTest, TestMonotonicallyIncreasingTimestampsAcrossClusters) {
   AddSimpleBlock(&cb, kVideoTrackNum, 7);
   scoped_ptr<Cluster> clusterB(cb.Finish());
 
-  EXPECT_CALL(mock_filter_host_, SetError(PIPELINE_ERROR_DECODE));
+  EXPECT_CALL(mock_demuxer_host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
   AppendData(clusterB->data(), clusterB->size());
 
   // Verify that AppendData() doesn't accept more data now.
@@ -491,7 +492,7 @@ TEST_F(ChunkDemuxerTest, TestDecodeErrorEndOfStream) {
   scoped_ptr<Cluster> cluster(cb.Finish());
   AppendData(cluster->data(), cluster->size());
 
-  EXPECT_CALL(mock_filter_host_, SetError(PIPELINE_ERROR_DECODE));
+  EXPECT_CALL(mock_demuxer_host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
   demuxer_->EndOfStream(PIPELINE_ERROR_DECODE);
 }
 
@@ -507,7 +508,7 @@ TEST_F(ChunkDemuxerTest, TestNetworkErrorEndOfStream) {
   scoped_ptr<Cluster> cluster(cb.Finish());
   AppendData(cluster->data(), cluster->size());
 
-  EXPECT_CALL(mock_filter_host_, SetError(PIPELINE_ERROR_NETWORK));
+  EXPECT_CALL(mock_demuxer_host_, OnDemuxerError(PIPELINE_ERROR_NETWORK));
   demuxer_->EndOfStream(PIPELINE_ERROR_NETWORK);
 }
 

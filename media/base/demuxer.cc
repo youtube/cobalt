@@ -8,11 +8,13 @@
 
 namespace media {
 
+DemuxerHost::~DemuxerHost() {}
+
 Demuxer::Demuxer() : host_(NULL) {}
 
 Demuxer::~Demuxer() {}
 
-void Demuxer::set_host(FilterHost* host) {
+void Demuxer::set_host(DemuxerHost* host) {
   DCHECK(host);
   DCHECK(!host_);
   host_ = host;

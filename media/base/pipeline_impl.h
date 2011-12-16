@@ -96,7 +96,10 @@ class MEDIA_EXPORT PipelineStatusNotification {
 // If any error ever happens, this object will transition to the "Error" state
 // from any state. If Stop() is ever called, this object will transition to
 // "Stopped" state.
-class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
+class MEDIA_EXPORT PipelineImpl
+    : public Pipeline,
+      public FilterHost,
+      public DemuxerHost {
  public:
   explicit PipelineImpl(MessageLoop* message_loop, MediaLog* media_log);
 
@@ -190,21 +193,25 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public FilterHost {
   // Given the current state, returns the next state.
   State FindNextState(State current);
 
+  // DataSourceHost (by way of DemuxerHost) implementation.
+  virtual void SetTotalBytes(int64 total_bytes) OVERRIDE;
+  virtual void SetBufferedBytes(int64 buffered_bytes) OVERRIDE;
+  virtual void SetNetworkActivity(bool is_downloading_data) OVERRIDE;
+
+  // DemuxerHost implementaion.
+  virtual void SetDuration(base::TimeDelta duration) OVERRIDE;
+  virtual void SetBufferedTime(base::TimeDelta buffered_time) OVERRIDE;
+  virtual void SetCurrentReadPosition(int64 offset) OVERRIDE;
+  virtual void OnDemuxerError(PipelineStatus error) OVERRIDE;
+
   // FilterHost implementation.
   virtual void SetError(PipelineStatus error) OVERRIDE;
   virtual base::TimeDelta GetTime() const OVERRIDE;
   virtual base::TimeDelta GetDuration() const OVERRIDE;
   virtual void SetTime(base::TimeDelta time) OVERRIDE;
-  virtual void SetDuration(base::TimeDelta duration) OVERRIDE;
-  virtual void SetBufferedTime(base::TimeDelta buffered_time) OVERRIDE;
-  virtual void SetTotalBytes(int64 total_bytes) OVERRIDE;
-  virtual void SetBufferedBytes(int64 buffered_bytes) OVERRIDE;
   virtual void SetNaturalVideoSize(const gfx::Size& size) OVERRIDE;
-  virtual void SetNetworkActivity(bool is_downloading_data) OVERRIDE;
   virtual void NotifyEnded() OVERRIDE;
   virtual void DisableAudioRenderer() OVERRIDE;
-  virtual void SetCurrentReadPosition(int64 offset) OVERRIDE;
-  virtual int64 GetCurrentReadPosition() OVERRIDE;
 
   // Callbacks executed by filters upon completing initialization.
   void OnFilterInitialize(PipelineStatus status);
