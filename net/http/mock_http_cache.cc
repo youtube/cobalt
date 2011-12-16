@@ -11,10 +11,6 @@
 
 namespace {
 
-// We can override the test mode for a given operation by setting this global
-// variable.
-int g_test_mode = 0;
-
 int GetTestModeForEntry(const std::string& key) {
   // 'key' is prefixed with an identifier if it corresponds to a cached POST.
   // Skip past that to locate the actual URL.
@@ -35,9 +31,9 @@ int GetTestModeForEntry(const std::string& key) {
   return t->test_mode;
 }
 
-void CallbackForwader(const net::CompletionCallback& callback, int result) {
-  callback.Run(result);
-}
+// We can override the test mode for a given operation by setting this global
+// variable.
+int g_test_mode = 0;
 
 }  // namespace
 
@@ -329,6 +325,20 @@ bool MockDiskEntry::ignore_callbacks_ = false;
 
 //-----------------------------------------------------------------------------
 
+class MockDiskCache::CallbackRunner : public Task {
+ public:
+  CallbackRunner(net::OldCompletionCallback* callback, int result)
+      : callback_(callback), result_(result) {}
+  virtual void Run() {
+    callback_->Run(result_);
+  }
+
+ private:
+  net::OldCompletionCallback* callback_;
+  int result_;
+  DISALLOW_COPY_AND_ASSIGN(CallbackRunner);
+};
+
 MockDiskCache::MockDiskCache()
     : open_count_(0), create_count_(0), fail_requests_(false),
       soft_failures_(false), double_create_check_(true) {
@@ -369,8 +379,7 @@ int MockDiskCache::OpenEntry(const std::string& key, disk_cache::Entry** entry,
   if (GetTestModeForEntry(key) & TEST_MODE_SYNC_CACHE_START)
     return net::OK;
 
-  CallbackLater(
-      base::Bind(&net::OldCompletionCallbackAdapter, callback), net::OK);
+  CallbackLater(callback, net::OK);
   return net::ERR_IO_PENDING;
 }
 
@@ -409,14 +418,13 @@ int MockDiskCache::CreateEntry(const std::string& key,
   if (GetTestModeForEntry(key) & TEST_MODE_SYNC_CACHE_START)
     return net::OK;
 
-  CallbackLater(
-      base::Bind(&net::OldCompletionCallbackAdapter, callback), net::OK);
+  CallbackLater(callback, net::OK);
   return net::ERR_IO_PENDING;
 }
 
 int MockDiskCache::DoomEntry(const std::string& key,
-                             const net::CompletionCallback& callback) {
-  DCHECK(!callback.is_null());
+                             net::OldCompletionCallback* callback) {
+  DCHECK(callback);
   EntryMap::iterator it = entries_.find(key);
   if (it != entries_.end()) {
     it->second->Release();
@@ -467,10 +475,10 @@ void MockDiskCache::ReleaseAll() {
   entries_.clear();
 }
 
-void MockDiskCache::CallbackLater(const net::CompletionCallback& callback,
+void MockDiskCache::CallbackLater(net::OldCompletionCallback* callback,
                                   int result) {
-  MessageLoop::current()->PostTask(
-      FROM_HERE, base::Bind(&CallbackForwader, callback, result));
+  MessageLoop::current()->PostTask(FROM_HERE,
+                                   new CallbackRunner(callback, result));
 }
 
 //-----------------------------------------------------------------------------

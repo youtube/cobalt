@@ -1724,31 +1724,22 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyDoomSparseEntry) {
   DoomSparseEntry();
 }
 
-// A CompletionCallback wrapper that deletes the cache from within the callback.
-// The way an OldCompletionCallback works means that all tasks (even new ones)
-// are executed by the message loop before returning to the caller so the only
-// way to simulate a race is to execute what we want on the callback.
-class SparseTestCompletionCallback: public TestCompletionCallbackBase {
+// A OldCompletionCallback that deletes the cache from within the callback. The way
+// a TestOldCompletionCallback works means that all tasks (even new ones) are
+// executed by the message loop before returning to the caller so the only way
+// to simulate a race is to execute what we want on the callback.
+class SparseTestOldCompletionCallback : public TestOldCompletionCallback {
  public:
-  explicit SparseTestCompletionCallback(disk_cache::Backend* cache)
-      : cache_(cache),
-        ALLOW_THIS_IN_INITIALIZER_LIST(callback_(
-            base::Bind(&SparseTestCompletionCallback::OnComplete,
-                       base::Unretained(this)))) {
-  }
+  explicit SparseTestOldCompletionCallback(disk_cache::Backend* cache)
+      : cache_(cache) {}
 
-  const net::CompletionCallback& callback() const { return callback_; }
-
- private:
-  void OnComplete(int result) {
+  virtual void RunWithParams(const Tuple1<int>& params) {
     delete cache_;
-    SetResult(result);
+    TestOldCompletionCallback::RunWithParams(params);
   }
-
+ private:
   disk_cache::Backend* cache_;
-  net::CompletionCallback callback_;
-
-  DISALLOW_COPY_AND_ASSIGN(SparseTestCompletionCallback);
+  DISALLOW_COPY_AND_ASSIGN(SparseTestOldCompletionCallback);
 };
 
 // Tests that we don't crash when the backend is deleted while we are working
@@ -1774,8 +1765,8 @@ TEST_F(DiskCacheEntryTest, DoomSparseEntry2) {
   EXPECT_EQ(9, cache_->GetEntryCount());
 
   entry->Close();
-  SparseTestCompletionCallback cb(cache_);
-  int rv = cache_->DoomEntry(key, cb.callback());
+  SparseTestOldCompletionCallback cb(cache_);
+  int rv = cache_->DoomEntry(key, &cb);
   EXPECT_EQ(net::ERR_IO_PENDING, rv);
   EXPECT_EQ(net::OK, cb.WaitForResult());
 

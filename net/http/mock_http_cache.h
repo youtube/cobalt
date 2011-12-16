@@ -101,7 +101,7 @@ class MockDiskCache : public disk_cache::Backend {
   virtual int CreateEntry(const std::string& key, disk_cache::Entry** entry,
                           net::OldCompletionCallback* callback) OVERRIDE;
   virtual int DoomEntry(const std::string& key,
-                        const net::CompletionCallback& callback) OVERRIDE;
+                        net::OldCompletionCallback* callback) OVERRIDE;
   virtual int DoomAllEntries(const net::CompletionCallback& callback) OVERRIDE;
   virtual int DoomEntriesBetween(
       const base::Time initial_time,
@@ -135,8 +135,9 @@ class MockDiskCache : public disk_cache::Backend {
 
  private:
   typedef base::hash_map<std::string, MockDiskEntry*> EntryMap;
+  class CallbackRunner;
 
-  void CallbackLater(const net::CompletionCallback& callback, int result);
+  void CallbackLater(net::OldCompletionCallback* callback, int result);
 
   EntryMap entries_;
   int open_count_;

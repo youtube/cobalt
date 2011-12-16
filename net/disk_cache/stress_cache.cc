@@ -113,8 +113,8 @@ void StressTheCache(int iteration) {
   cache->SetMaxSize(cache_size);
   cache->SetFlags(disk_cache::kNoLoadProtection);
 
-  net::TestCompletionCallback cb;
-  int rv = cache->Init(cb.callback());
+  TestOldCompletionCallback cb;
+  int rv = cache->Init(&cb);
 
   if (cb.GetResult(rv) != net::OK) {
     printf("Unable to initialize cache.\n");
@@ -154,24 +154,22 @@ void StressTheCache(int iteration) {
     if (entries[slot])
       entries[slot]->Close();
 
-    TestOldCompletionCallback old_cb;
-    rv = cache->OpenEntry(keys[key], &entries[slot], &old_cb);
-    if (old_cb.GetResult(rv) != net::OK) {
-      rv = cache->CreateEntry(keys[key], &entries[slot], &old_cb);
-      CHECK_EQ(net::OK, old_cb.GetResult(rv));
+    rv = cache->OpenEntry(keys[key], &entries[slot], &cb);
+    if (cb.GetResult(rv) != net::OK) {
+      rv = cache->CreateEntry(keys[key], &entries[slot], &cb);
+      CHECK_EQ(net::OK, cb.GetResult(rv));
     }
 
     base::snprintf(buffer->data(), kSize,
                    "i: %d iter: %d, size: %d, truncate: %d     ", i, iteration,
                    size, truncate ? 1 : 0);
-    rv = entries[slot]->WriteData(0, 0, buffer, size, &old_cb, truncate);
-    CHECK_EQ(size, old_cb.GetResult(rv));
+    rv = entries[slot]->WriteData(0, 0, buffer, size, &cb, truncate);
+    CHECK_EQ(size, cb.GetResult(rv));
 
     if (rand() % 100 > 80) {
       key = rand() % kNumKeys;
-      net::TestCompletionCallback cb2;
-      rv = cache->DoomEntry(keys[key], cb2.callback());
-      cb2.GetResult(rv);
+      rv = cache->DoomEntry(keys[key], &cb);
+      cb.GetResult(rv);
     }
 
     if (!(i % 100))
