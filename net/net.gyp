@@ -768,6 +768,11 @@
             'USE_KERBEROS',
           ],
           'conditions': [
+            ['OS=="openbsd"', {
+              'include_dirs': [
+                '/usr/include/kerberosV'
+              ],
+            }],
             ['linux_link_kerberos==1', {
               'link_settings': {
                 'ldflags': [
