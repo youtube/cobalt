@@ -314,7 +314,7 @@ InFlightBackendIO::InFlightBackendIO(BackendImpl* backend,
 InFlightBackendIO::~InFlightBackendIO() {
 }
 
-void InFlightBackendIO::Init(OldCompletionCallback* callback) {
+void InFlightBackendIO::Init(const net::CompletionCallback& callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->Init();
   PostOperation(operation);
@@ -335,7 +335,7 @@ void InFlightBackendIO::CreateEntry(const std::string& key, Entry** entry,
 }
 
 void InFlightBackendIO::DoomEntry(const std::string& key,
-                                  OldCompletionCallback* callback) {
+                                  const net::CompletionCallback& callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->DoomEntry(key);
   PostOperation(operation);

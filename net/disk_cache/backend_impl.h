@@ -59,7 +59,7 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
                            OldCompletionCallback* callback);
 
   // Performs general initialization for this current instance of the cache.
-  int Init(OldCompletionCallback* callback);
+  int Init(const net::CompletionCallback& callback);
 
   // Performs the actual initialization and final cleanup on destruction.
   int SyncInit();
@@ -263,7 +263,7 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   virtual int CreateEntry(const std::string& key, Entry** entry,
                           OldCompletionCallback* callback) OVERRIDE;
   virtual int DoomEntry(const std::string& key,
-                        OldCompletionCallback* callback) OVERRIDE;
+                        const net::CompletionCallback& callback) OVERRIDE;
   virtual int DoomAllEntries(const net::CompletionCallback& callback) OVERRIDE;
   virtual int DoomEntriesBetween(
       const base::Time initial_time,
