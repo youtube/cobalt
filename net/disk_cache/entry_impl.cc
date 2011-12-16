@@ -974,12 +974,16 @@ int EntryImpl::InternalReadData(int index, int offset, net::IOBuffer* buf,
 
   address.set_value(entry_.Data()->data_addr[index]);
   DCHECK(address.is_initialized());
-  if (!address.is_initialized())
+  if (!address.is_initialized()) {
+    DoomImpl();
     return net::ERR_FAILED;
+  }
 
   File* file = GetBackingFile(address, index);
-  if (!file)
+  if (!file) {
+    DoomImpl();
     return net::ERR_FAILED;
+  }
 
   size_t file_offset = offset;
   if (address.is_block_file()) {
@@ -1000,6 +1004,7 @@ int EntryImpl::InternalReadData(int index, int offset, net::IOBuffer* buf,
   if (!file->Read(buf->data(), buf_len, file_offset, io_callback, &completed)) {
     if (io_callback)
       io_callback->Discard();
+    DoomImpl();
     return net::ERR_FAILED;
   }
 
