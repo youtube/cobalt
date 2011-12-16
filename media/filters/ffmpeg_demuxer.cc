@@ -11,7 +11,6 @@
 #include "base/string_util.h"
 #include "base/time.h"
 #include "media/base/data_buffer.h"
-#include "media/base/filter_host.h"
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
 #include "media/ffmpeg/ffmpeg_common.h"
@@ -319,7 +318,7 @@ void FFmpegDemuxer::Stop(const base::Closure& callback) {
   SignalReadCompleted(DataSource::kReadError);
 }
 
-void FFmpegDemuxer::Seek(base::TimeDelta time, const FilterStatusCB& cb) {
+void FFmpegDemuxer::Seek(base::TimeDelta time, const PipelineStatusCB& cb) {
   message_loop_->PostTask(FROM_HERE,
                           base::Bind(&FFmpegDemuxer::SeekTask, this, time, cb));
 }
@@ -339,16 +338,16 @@ void FFmpegDemuxer::OnAudioRendererDisabled() {
       &FFmpegDemuxer::DisableAudioStreamTask, this));
 }
 
-void FFmpegDemuxer::set_host(FilterHost* filter_host) {
-  Demuxer::set_host(filter_host);
+void FFmpegDemuxer::set_host(DemuxerHost* demuxer_host) {
+  Demuxer::set_host(demuxer_host);
   if (data_source_)
-    data_source_->set_host(filter_host);
+    data_source_->set_host(demuxer_host);
   if (max_duration_.InMicroseconds() >= 0)
     host()->SetDuration(max_duration_);
   if (read_position_ > 0)
     host()->SetCurrentReadPosition(read_position_);
   if (deferred_status_ != PIPELINE_OK)
-    host()->SetError(deferred_status_);
+    host()->OnDemuxerError(deferred_status_);
 }
 
 void FFmpegDemuxer::Initialize(DataSource* data_source,
@@ -399,7 +398,7 @@ size_t FFmpegDemuxer::Read(size_t size, uint8* data) {
   size_t last_read_bytes = WaitForRead();
   if (last_read_bytes == DataSource::kReadError) {
     if (host())
-      host()->SetError(PIPELINE_ERROR_READ);
+      host()->OnDemuxerError(PIPELINE_ERROR_READ);
     else
       deferred_status_ = PIPELINE_ERROR_READ;
 
@@ -595,7 +594,7 @@ bool FFmpegDemuxer::IsSeekable() {
   return !IsStreaming();
 }
 
-void FFmpegDemuxer::SeekTask(base::TimeDelta time, const FilterStatusCB& cb) {
+void FFmpegDemuxer::SeekTask(base::TimeDelta time, const PipelineStatusCB& cb) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
   // TODO(scherkus): remove this by separating Seek() from Flush() from

@@ -49,8 +49,8 @@ PipelineStatus FileDataSource::Initialize(const std::string& url) {
   return PIPELINE_OK;
 }
 
-void FileDataSource::set_host(FilterHost* filter_host) {
-  DataSource::set_host(filter_host);
+void FileDataSource::set_host(DataSourceHost* host) {
+  DataSource::set_host(host);
   UpdateHostBytes();
 }
 

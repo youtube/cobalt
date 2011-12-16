@@ -20,8 +20,8 @@ MockDataSource::MockDataSource()
 
 MockDataSource::~MockDataSource() {}
 
-void MockDataSource::set_host(FilterHost* filter_host) {
-  Filter::set_host(filter_host);
+void MockDataSource::set_host(DataSourceHost* data_source_host) {
+  DataSource::set_host(data_source_host);
 
   if (total_bytes_ > 0)
     host()->SetTotalBytes(total_bytes_);
@@ -74,8 +74,8 @@ MockDemuxer::MockDemuxer()
 
 MockDemuxer::~MockDemuxer() {}
 
-void MockDemuxer::set_host(FilterHost* filter_host) {
-  Demuxer::set_host(filter_host);
+void MockDemuxer::set_host(DemuxerHost* demuxer_host) {
+  Demuxer::set_host(demuxer_host);
 
   if (total_bytes_ > 0)
     host()->SetTotalBytes(total_bytes_);
