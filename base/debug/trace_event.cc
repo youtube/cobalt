@@ -680,7 +680,7 @@ void TraceLog::AddClockSyncMetadataEvents() {
                    now_in_seconds);
   if (file_util::WriteFile(
           FilePath("/sys/kernel/debug/tracing/trace_marker"),
-          marker.c_str(), marker.size()) == -1)
+          marker.c_str(), marker.size()) == -1) {
     DLOG(WARNING) << "Couldn't write to /sys/kernel/debug/tracing/trace_marker";
     return;
   }
