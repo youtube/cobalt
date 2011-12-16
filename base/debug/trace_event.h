@@ -937,7 +937,8 @@ class BASE_EXPORT TraceLog {
   TraceLog();
   ~TraceLog();
   const TraceCategory* GetCategoryInternal(const char* name);
-  void AddCurrentMetadataEvents();
+  void AddThreadNameMetadataEvents();
+  void AddClockSyncMetadataEvents();
 
   // TODO(nduca): switch to per-thread trace buffers to reduce thread
   // synchronization.
