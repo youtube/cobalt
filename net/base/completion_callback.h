@@ -9,6 +9,7 @@
 #include "base/callback_old.h"
 #include "base/callback.h"
 #include "base/cancelable_callback.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
@@ -16,6 +17,13 @@ namespace net {
 // is used to report a byte count or network error code.
 typedef Callback1<int>::Type OldCompletionCallback;
 typedef base::Callback<void(int)> CompletionCallback;
+
+// Temporary (in the code) adapter of OldCompletionCallback for use at call
+// sites that expect a CompletionCallback.
+//
+// TODO(jhawkins): Remove once OldCompletionCallback is removed.
+void NET_EXPORT OldCompletionCallbackAdapter(OldCompletionCallback* callback,
+                                             int result);
 
 // Used to implement a OldCompletionCallback.
 template <class T>

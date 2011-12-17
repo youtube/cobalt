@@ -149,13 +149,14 @@ class InFlightBackendIO : public InFlightIO {
                     base::MessageLoopProxy* background_thread);
   virtual ~InFlightBackendIO();
 
-  // The operations we proxy:
-  void Init(net::OldCompletionCallback* callback);
+  // Proxied operations.
+  void Init(const net::CompletionCallback& callback);
   void OpenEntry(const std::string& key, Entry** entry,
                  net::OldCompletionCallback* callback);
   void CreateEntry(const std::string& key, Entry** entry,
                    net::OldCompletionCallback* callback);
-  void DoomEntry(const std::string& key, net::OldCompletionCallback* callback);
+  void DoomEntry(const std::string& key,
+                 const net::CompletionCallback& callback);
   void DoomAllEntries(const net::CompletionCallback& callback);
   void DoomEntriesBetween(const base::Time initial_time,
                           const base::Time end_time,
