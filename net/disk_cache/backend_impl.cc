@@ -5,6 +5,7 @@
 #include "net/disk_cache/backend_impl.h"
 
 #include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/message_loop.h"
@@ -183,7 +184,7 @@ bool InitExperiment(disk_cache::IndexHeader* header, uint32 mask) {
   }
 
   if (!header->create_time || !header->lru.filled)
-    return true;  // Wait untill we fill up the cache.
+    return true;  // Wait until we fill up the cache.
 
   int index_load = header->num_entries * 100 / (mask + 1);
   if (index_load > 25) {
@@ -218,22 +219,28 @@ class CacheCreator {
                base::MessageLoopProxy* thread, net::NetLog* net_log,
                disk_cache::Backend** backend,
                net::OldCompletionCallback* callback)
-      : path_(path), force_(force), retry_(false), max_bytes_(max_bytes),
-        type_(type), flags_(flags), thread_(thread), backend_(backend),
-        callback_(callback), cache_(NULL), net_log_(net_log),
-        ALLOW_THIS_IN_INITIALIZER_LIST(
-            my_callback_(this, &CacheCreator::OnIOComplete)) {
+      : path_(path),
+        force_(force),
+        retry_(false),
+        max_bytes_(max_bytes),
+        type_(type),
+        flags_(flags),
+        thread_(thread),
+        backend_(backend),
+        callback_(callback),
+        cache_(NULL),
+        net_log_(net_log) {
   }
   ~CacheCreator() {}
 
   // Creates the backend.
   int Run();
 
-  // Callback implementation.
-  void OnIOComplete(int result);
-
  private:
   void DoCallback(int result);
+
+  // Callback implementation.
+  void OnIOComplete(int result);
 
   const FilePath& path_;
   bool force_;
@@ -246,7 +253,6 @@ class CacheCreator {
   net::OldCompletionCallback* callback_;
   disk_cache::BackendImpl* cache_;
   net::NetLog* net_log_;
-  net::OldCompletionCallbackImpl<CacheCreator> my_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(CacheCreator);
 };
@@ -256,9 +262,23 @@ int CacheCreator::Run() {
   cache_->SetMaxSize(max_bytes_);
   cache_->SetType(type_);
   cache_->SetFlags(flags_);
-  int rv = cache_->Init(&my_callback_);
+  int rv = cache_->Init(
+      base::Bind(&CacheCreator::OnIOComplete, base::Unretained(this)));
   DCHECK_EQ(net::ERR_IO_PENDING, rv);
   return rv;
+}
+
+void CacheCreator::DoCallback(int result) {
+  DCHECK_NE(net::ERR_IO_PENDING, result);
+  if (result == net::OK) {
+    *backend_ = cache_;
+  } else {
+    LOG(ERROR) << "Unable to create cache";
+    *backend_ = NULL;
+    delete cache_;
+  }
+  callback_->Run(result);
+  delete this;
 }
 
 void CacheCreator::OnIOComplete(int result) {
@@ -279,35 +299,9 @@ void CacheCreator::OnIOComplete(int result) {
   DCHECK_EQ(net::ERR_IO_PENDING, rv);
 }
 
-void CacheCreator::DoCallback(int result) {
-  DCHECK_NE(net::ERR_IO_PENDING, result);
-  if (result == net::OK) {
-    *backend_ = cache_;
-  } else {
-    LOG(ERROR) << "Unable to create cache";
-    *backend_ = NULL;
-    delete cache_;
-  }
-  callback_->Run(result);
-  delete this;
-}
-
-// ------------------------------------------------------------------------
-
-// A task to perform final cleanup on the background thread.
-class FinalCleanup : public Task {
- public:
-  explicit FinalCleanup(disk_cache::BackendImpl* backend) : backend_(backend) {}
-  ~FinalCleanup() {}
-
-  virtual void Run();
- private:
-  disk_cache::BackendImpl* backend_;
-  DISALLOW_EVIL_CONSTRUCTORS(FinalCleanup);
-};
-
-void FinalCleanup::Run() {
-  backend_->CleanupCache();
+// A callback to perform final cleanup on the background thread.
+void FinalCleanupCallback(disk_cache::BackendImpl* backend) {
+  backend->CleanupCache();
 }
 
 }  // namespace
@@ -420,8 +414,8 @@ BackendImpl::~BackendImpl() {
     // Unit tests may use the same thread for everything.
     CleanupCache();
   } else {
-    background_queue_.background_thread()->PostTask(FROM_HERE,
-                                                    new FinalCleanup(this));
+    background_queue_.background_thread()->PostTask(
+        FROM_HERE, base::Bind(&FinalCleanupCallback, base::Unretained(this)));
     done_.Wait();
   }
 }
@@ -449,7 +443,7 @@ int BackendImpl::CreateBackend(const FilePath& full_path, bool force,
   return creator->Run();
 }
 
-int BackendImpl::Init(OldCompletionCallback* callback) {
+int BackendImpl::Init(const net::CompletionCallback& callback) {
   background_queue_.Init(callback);
   return net::ERR_IO_PENDING;
 }
@@ -1389,8 +1383,8 @@ int BackendImpl::CreateEntry(const std::string& key, Entry** entry,
 }
 
 int BackendImpl::DoomEntry(const std::string& key,
-                           OldCompletionCallback* callback) {
-  DCHECK(callback);
+                           const net::CompletionCallback& callback) {
+  DCHECK(!callback.is_null());
   background_queue_.DoomEntry(key, callback);
   return net::ERR_IO_PENDING;
 }

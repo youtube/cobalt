@@ -92,7 +92,7 @@ class NET_EXPORT Backend {
   // is a net error code. If this method returns ERR_IO_PENDING, the |callback|
   // will be invoked after the entry is doomed.
   virtual int DoomEntry(const std::string& key,
-                        OldCompletionCallback* callback) = 0;
+                        const net::CompletionCallback& callback) = 0;
 
   // Marks all entries for deletion. The return value is a net error code. If
   // this method returns ERR_IO_PENDING, the |callback| will be invoked when the

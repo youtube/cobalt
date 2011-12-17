@@ -638,7 +638,8 @@ int HttpCache::AsyncDoomEntry(const std::string& key, Transaction* trans) {
   BackendCallback* my_callback = new BackendCallback(this, pending_op);
   pending_op->callback = my_callback;
 
-  int rv = disk_cache_->DoomEntry(key, my_callback);
+  int rv = disk_cache_->DoomEntry(
+      key, base::Bind(&net::OldCompletionCallbackAdapter, my_callback));
   if (rv != ERR_IO_PENDING) {
     item->ClearTransaction();
     my_callback->Run(rv);
