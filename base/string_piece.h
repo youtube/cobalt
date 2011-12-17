@@ -60,10 +60,6 @@ class BASE_EXPORT StringPiece {
     : ptr_(str.data()), length_(str.size()) { }
   StringPiece(const char* offset, size_type len)
     : ptr_(offset), length_(len) { }
-  StringPiece(const std::string::const_iterator& begin,
-              const std::string::const_iterator& end)
-    : ptr_((end > begin) ? &(*begin) : NULL),
-      length_((end > begin) ? (size_type)(end - begin) : 0) { }
 
   // data() may return a pointer to a buffer with embedded NULs, and the
   // returned buffer may or may not be null terminated.  Therefore it is
@@ -201,10 +197,6 @@ class BASE_EXPORT StringPiece16 {
       : ptr_(str.data()), length_(str.size()) { }
   StringPiece16(const char16* offset, size_type len)
       : ptr_(offset), length_(len) { }
-  StringPiece16(const string16::const_iterator& begin,
-                const string16::const_iterator& end)
-      : ptr_((end > begin) ? &(*begin) : NULL),
-        length_((end > begin) ? (size_type)(end - begin) : 0) { }
 
   // data() may return a pointer to a buffer with embedded NULs, and the
   // returned buffer may or may not be null terminated.  Therefore it is
