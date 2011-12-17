@@ -69,7 +69,7 @@ class NET_EXPORT_PRIVATE MemBackendImpl : public Backend {
   virtual int CreateEntry(const std::string& key, Entry** entry,
                           OldCompletionCallback* callback) OVERRIDE;
   virtual int DoomEntry(const std::string& key,
-                        OldCompletionCallback* callback) OVERRIDE;
+                        const net::CompletionCallback& callback) OVERRIDE;
   virtual int DoomAllEntries(const net::CompletionCallback& callback) OVERRIDE;
   virtual int DoomEntriesBetween(
       const base::Time initial_time,
