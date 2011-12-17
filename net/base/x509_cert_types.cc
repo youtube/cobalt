@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,7 +20,7 @@ namespace {
 // untouched otherwise. Returns the parsed integer.
 int ParseIntAndAdvance(const char** field, size_t field_len, bool* ok) {
   int result = 0;
-  *ok &= base::StringToInt(*field, *field + field_len, &result);
+  *ok &= base::StringToInt(base::StringPiece(*field, field_len), &result);
   *field += field_len;
   return result;
 }
