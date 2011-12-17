@@ -14,7 +14,6 @@
 #include "base/mac/scoped_cftyperef.h"
 #include "base/memory/scoped_nsobject.h"
 #include "base/string_number_conversions.h"
-#include "base/string_piece.h"
 #include "base/sys_string_conversions.h"
 
 namespace base {
@@ -522,9 +521,7 @@ int DarwinMajorVersionInternal() {
   int darwin_major_version = 0;
   char* dot = strchr(uname_info.release, '.');
   if (dot) {
-    if (!base::StringToInt(base::StringPiece(uname_info.release,
-                                             dot - uname_info.release),
-                           &darwin_major_version)) {
+    if (!base::StringToInt(uname_info.release, dot, &darwin_major_version)) {
       dot = NULL;
     }
   }
