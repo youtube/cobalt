@@ -927,7 +927,10 @@
       'win_debug_Optimization%': '0',   # 0 = /Od
 
       # See http://msdn.microsoft.com/en-us/library/2kxx5t2c(v=vs.80).aspx
+      # Tri-state: blank is default, 1 on, 0 off
       'win_release_OmitFramePointers%': '1',
+      # Tri-state: blank is default, 1 on, 0 off
+      'win_debug_OmitFramePointers%': '',
 
       # See http://msdn.microsoft.com/en-us/library/8wtf2dfz(VS.71).aspx
       'win_debug_RuntimeChecks%': '3',    # 3 = all checks enabled, 0 = off
@@ -946,6 +949,10 @@
       'release_extra_cflags%': '',
       'debug_extra_cflags%': '',
       'release_valgrind_build%': 0,
+
+      # the non-qualified versions are widely assumed to be *nix-only
+      'win_release_extra_cflags%': '',
+      'win_debug_extra_cflags%': '',
 
       # TODO(thakis): Make this a blacklist instead, http://crbug.com/101600
       'enable_wexit_time_destructors%': '<(enable_wexit_time_destructors)',
@@ -1442,7 +1449,22 @@
               ['win_debug_disable_iterator_debugging==1', {
                 'PreprocessorDefinitions': ['_HAS_ITERATOR_DEBUGGING=0'],
               }],
+
+              # if win_debug_OmitFramePointers is blank, leave as default
+              ['win_debug_OmitFramePointers==1', {
+                'OmitFramePointers': 'true',
+              }],
+              ['win_debug_OmitFramePointers==0', {
+                'OmitFramePointers': 'false',
+                # The above is not sufficient (http://crbug.com/106711): it
+                # simply eliminates an explicit "/Oy", but both /O2 and /Ox
+                # perform FPO regardless, so we must explicitly disable.
+                # We still want the false setting above to avoid having
+                # "/Oy /Oy-" and warnings about overriding.
+                'AdditionalOptions': ['/Oy-'],
+              }],
             ],
+            'AdditionalOptions': [ '<@(win_debug_extra_cflags)', ],
           },
           'VCLinkerTool': {
             'LinkIncremental': '<(msvs_debug_link_incremental)',
@@ -1501,13 +1523,21 @@
                   '<(win_release_InlineFunctionExpansion)',
               }],
 
+              # if win_release_OmitFramePointers is blank, leave as default
               ['win_release_OmitFramePointers==1', {
                 'OmitFramePointers': 'true',
               }],
               ['win_release_OmitFramePointers==0', {
                 'OmitFramePointers': 'false',
+                # The above is not sufficient (http://crbug.com/106711): it
+                # simply eliminates an explicit "/Oy", but both /O2 and /Ox
+                # perform FPO regardless, so we must explicitly disable.
+                # We still want the false setting above to avoid having
+                # "/Oy /Oy-" and warnings about overriding.
+                'AdditionalOptions': ['/Oy-'],
               }],
             ],
+            'AdditionalOptions': [ '<@(win_release_extra_cflags)', ],
           },
           'VCLinkerTool': {
             # LinkIncremental is a tri-state boolean, where 0 means default
