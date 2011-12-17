@@ -1,12 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.  Use of this
+// source code is governed by a BSD-style license that can be found in the
+// LICENSE file.
 
 #include "net/ftp/ftp_ctrl_response_buffer.h"
 
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
-#include "base/string_piece.h"
 //#include "base/string_util.h"
 #include "net/base/net_errors.h"
 
@@ -92,8 +91,7 @@ FtpCtrlResponseBuffer::ParsedLine FtpCtrlResponseBuffer::ParseLine(
   ParsedLine result;
 
   if (line.length() >= 3) {
-    if (base::StringToInt(base::StringPiece(line.begin(), line.begin() + 3),
-                          &result.status_code))
+    if (base::StringToInt(line.begin(), line.begin() + 3, &result.status_code))
       result.has_status_code = (100 <= result.status_code &&
                                 result.status_code <= 599);
     if (result.has_status_code && line.length() >= 4 && line[3] == ' ') {
