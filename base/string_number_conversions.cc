@@ -292,24 +292,6 @@ class BaseIteratorRangeToNumberTraits {
   static const int kBase = BASE;
 };
 
-typedef BaseIteratorRangeToNumberTraits<std::string::const_iterator, int, 10>
-    IteratorRangeToIntTraits;
-typedef BaseIteratorRangeToNumberTraits<string16::const_iterator, int, 10>
-    WideIteratorRangeToIntTraits;
-typedef BaseIteratorRangeToNumberTraits<std::string::const_iterator, int64, 10>
-    IteratorRangeToInt64Traits;
-typedef BaseIteratorRangeToNumberTraits<string16::const_iterator, int64, 10>
-    WideIteratorRangeToInt64Traits;
-
-typedef BaseIteratorRangeToNumberTraits<const char*, int, 10>
-    CharBufferToIntTraits;
-typedef BaseIteratorRangeToNumberTraits<const char16*, int, 10>
-    WideCharBufferToIntTraits;
-typedef BaseIteratorRangeToNumberTraits<const char*, int64, 10>
-    CharBufferToInt64Traits;
-typedef BaseIteratorRangeToNumberTraits<const char16*, int64, 10>
-    WideCharBufferToInt64Traits;
-
 template<typename ITERATOR>
 class BaseHexIteratorRangeToIntTraits
     : public BaseIteratorRangeToNumberTraits<ITERATOR, int, 16> {
@@ -320,10 +302,8 @@ class BaseHexIteratorRangeToIntTraits
   }
 };
 
-typedef BaseHexIteratorRangeToIntTraits<std::string::const_iterator>
+typedef BaseHexIteratorRangeToIntTraits<StringPiece::const_iterator>
     HexIteratorRangeToIntTraits;
-typedef BaseHexIteratorRangeToIntTraits<const char*>
-    HexCharBufferToIntTraits;
 
 template<typename STR>
 bool HexStringToBytesT(const STR& input, std::vector<uint8>* output) {
@@ -340,6 +320,30 @@ bool HexStringToBytesT(const STR& input, std::vector<uint8>* output) {
     output->push_back((msb << 4) | lsb);
   }
   return true;
+}
+
+template <typename VALUE, int BASE>
+class StringPieceToNumberTraits
+    : public BaseIteratorRangeToNumberTraits<StringPiece::const_iterator,
+                                             VALUE,
+                                             BASE> {};
+
+template <typename VALUE>
+bool StringToIntImpl(const StringPiece& input, VALUE* output) {
+  return IteratorRangeToNumber<StringPieceToNumberTraits<VALUE, 10> >::Invoke(
+      input.begin(), input.end(), output);
+}
+
+template <typename VALUE, int BASE>
+class StringPiece16ToNumberTraits
+    : public BaseIteratorRangeToNumberTraits<StringPiece16::const_iterator,
+                                             VALUE,
+                                             BASE> {};
+
+template <typename VALUE>
+bool String16ToIntImpl(const StringPiece16& input, VALUE* output) {
+  return IteratorRangeToNumber<StringPiece16ToNumberTraits<VALUE, 10> >::Invoke(
+      input.begin(), input.end(), output);
 }
 
 }  // namespace
@@ -390,90 +394,21 @@ std::string DoubleToString(double value) {
   return std::string(buffer);
 }
 
-bool StringToInt(const std::string& input, int* output) {
-  return IteratorRangeToNumber<IteratorRangeToIntTraits>::Invoke(input.begin(),
-                                                                 input.end(),
-                                                                 output);
+bool StringToInt(const StringPiece& input, int* output) {
+  return StringToIntImpl(input, output);
 }
 
-bool StringToInt(std::string::const_iterator begin,
-                 std::string::const_iterator end,
-                 int* output) {
-  return IteratorRangeToNumber<IteratorRangeToIntTraits>::Invoke(begin,
-                                                                 end,
-                                                                 output);
+bool StringToInt(const StringPiece16& input, int* output) {
+  return String16ToIntImpl(input, output);
 }
 
-#if !defined(STD_STRING_ITERATOR_IS_CHAR_POINTER)
-bool StringToInt(const char* begin, const char* end, int* output) {
-  return IteratorRangeToNumber<CharBufferToIntTraits>::Invoke(begin,
-                                                              end,
-                                                              output);
-}
-#endif
-
-bool StringToInt(const string16& input, int* output) {
-  return IteratorRangeToNumber<WideIteratorRangeToIntTraits>::Invoke(
-    input.begin(), input.end(), output);
+bool StringToInt64(const StringPiece& input, int64* output) {
+  return StringToIntImpl(input, output);
 }
 
-bool StringToInt(string16::const_iterator begin,
-                 string16::const_iterator end,
-                 int* output) {
-  return IteratorRangeToNumber<WideIteratorRangeToIntTraits>::Invoke(begin,
-                                                                     end,
-                                                                     output);
+bool StringToInt64(const StringPiece16& input, int64* output) {
+  return String16ToIntImpl(input, output);
 }
-
-#if !defined(BASE_STRING16_ITERATOR_IS_CHAR16_POINTER)
-bool StringToInt(const char16* begin, const char16* end, int* output) {
-  return IteratorRangeToNumber<WideCharBufferToIntTraits>::Invoke(begin,
-                                                                  end,
-                                                                  output);
-}
-#endif
-
-bool StringToInt64(const std::string& input, int64* output) {
-  return IteratorRangeToNumber<IteratorRangeToInt64Traits>::Invoke(
-    input.begin(), input.end(), output);
-}
-
-bool StringToInt64(std::string::const_iterator begin,
-                 std::string::const_iterator end,
-                 int64* output) {
-  return IteratorRangeToNumber<IteratorRangeToInt64Traits>::Invoke(begin,
-                                                                 end,
-                                                                 output);
-}
-
-#if !defined(STD_STRING_ITERATOR_IS_CHAR_POINTER)
-bool StringToInt64(const char* begin, const char* end, int64* output) {
-  return IteratorRangeToNumber<CharBufferToInt64Traits>::Invoke(begin,
-                                                              end,
-                                                              output);
-}
-#endif
-
-bool StringToInt64(const string16& input, int64* output) {
-  return IteratorRangeToNumber<WideIteratorRangeToInt64Traits>::Invoke(
-    input.begin(), input.end(), output);
-}
-
-bool StringToInt64(string16::const_iterator begin,
-                 string16::const_iterator end,
-                 int64* output) {
-  return IteratorRangeToNumber<WideIteratorRangeToInt64Traits>::Invoke(begin,
-                                                                     end,
-                                                                     output);
-}
-
-#if !defined(BASE_STRING16_ITERATOR_IS_CHAR16_POINTER)
-bool StringToInt64(const char16* begin, const char16* end, int64* output) {
-  return IteratorRangeToNumber<WideCharBufferToInt64Traits>::Invoke(begin,
-                                                                  end,
-                                                                  output);
-}
-#endif
 
 bool StringToDouble(const std::string& input, double* output) {
   errno = 0;  // Thread-safe?  It is on at least Mac, Linux, and Windows.
@@ -517,26 +452,10 @@ std::string HexEncode(const void* bytes, size_t size) {
   return ret;
 }
 
-bool HexStringToInt(const std::string& input, int* output) {
+bool HexStringToInt(const StringPiece& input, int* output) {
   return IteratorRangeToNumber<HexIteratorRangeToIntTraits>::Invoke(
     input.begin(), input.end(), output);
 }
-
-bool HexStringToInt(std::string::const_iterator begin,
-                    std::string::const_iterator end,
-                    int* output) {
-  return IteratorRangeToNumber<HexIteratorRangeToIntTraits>::Invoke(begin,
-                                                                    end,
-                                                                    output);
-}
-
-#if !defined(STD_STRING_ITERATOR_IS_CHAR_POINTER)
-bool HexStringToInt(const char* begin, const char* end, int* output) {
-  return IteratorRangeToNumber<HexCharBufferToIntTraits>::Invoke(begin,
-                                                                    end,
-                                                                    output);
-}
-#endif
 
 bool HexStringToBytes(const std::string& input, std::vector<uint8>* output) {
   return HexStringToBytesT(input, output);
