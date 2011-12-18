@@ -15,11 +15,13 @@
 #include "base/metrics/histogram.h"
 #include "base/pickle.h"
 #include "base/string_number_conversions.h"
+#include "base/string_piece.h"
 #include "base/string_util.h"
 #include "base/time.h"
 #include "net/base/escape.h"
 #include "net/http/http_util.h"
 
+using base::StringPiece;
 using base::Time;
 using base::TimeDelta;
 
@@ -698,7 +700,7 @@ void HttpResponseHeaders::ParseStatusLine(
   raw_headers_.push_back(' ');
   raw_headers_.append(code, p);
   raw_headers_.push_back(' ');
-  base::StringToInt(code, p, &response_code_);
+  base::StringToInt(StringPiece(code, p), &response_code_);
 
   // Skip whitespace.
   while (*p == ' ')
@@ -1071,8 +1073,8 @@ bool HttpResponseHeaders::GetMaxAgeValue(TimeDelta* result) const {
                                value.begin() + kMaxAgePrefixLen,
                                kMaxAgePrefix)) {
         int64 seconds;
-        base::StringToInt64(value.begin() + kMaxAgePrefixLen,
-                            value.end(),
+        base::StringToInt64(StringPiece(value.begin() + kMaxAgePrefixLen,
+                                        value.end()),
                             &seconds);
         *result = TimeDelta::FromSeconds(seconds);
         return true;
@@ -1250,8 +1252,8 @@ bool HttpResponseHeaders::GetContentRange(int64* first_byte_position,
           byte_range_resp_spec.begin() + minus_position;
       HttpUtil::TrimLWS(&first_byte_pos_begin, &first_byte_pos_end);
 
-      bool ok = base::StringToInt64(first_byte_pos_begin,
-                                    first_byte_pos_end,
+      bool ok = base::StringToInt64(StringPiece(first_byte_pos_begin,
+                                                first_byte_pos_end),
                                     first_byte_position);
 
       // Obtain last-byte-pos.
@@ -1261,8 +1263,8 @@ bool HttpResponseHeaders::GetContentRange(int64* first_byte_position,
           byte_range_resp_spec.end();
       HttpUtil::TrimLWS(&last_byte_pos_begin, &last_byte_pos_end);
 
-      ok &= base::StringToInt64(last_byte_pos_begin,
-                                last_byte_pos_end,
+      ok &= base::StringToInt64(StringPiece(last_byte_pos_begin,
+                                            last_byte_pos_end),
                                 last_byte_position);
       if (!ok) {
         *first_byte_position = *last_byte_position = -1;
@@ -1286,8 +1288,8 @@ bool HttpResponseHeaders::GetContentRange(int64* first_byte_position,
 
   if (LowerCaseEqualsASCII(instance_length_begin, instance_length_end, "*")) {
     return false;
-  } else if (!base::StringToInt64(instance_length_begin,
-                                  instance_length_end,
+  } else if (!base::StringToInt64(StringPiece(instance_length_begin,
+                                              instance_length_end),
                                   instance_length)) {
     *instance_length = -1;
     return false;
