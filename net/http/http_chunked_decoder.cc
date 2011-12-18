@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -187,14 +187,12 @@ bool HttpChunkedDecoder::ParseChunkSize(const char* start, int len, int* out) {
 
   // Be more restrictive than HexStringToInt;
   // don't allow inputs with leading "-", "+", "0x", "0X"
-  base::StringPiece chunk_size(start, len);
-  if (chunk_size.find_first_not_of("0123456789abcdefABCDEF")
-      != base::StringPiece::npos) {
+  if (base::StringPiece(start, len).find_first_not_of("0123456789abcdefABCDEF")
+      != base::StringPiece::npos)
     return false;
-  }
 
   int parsed_number;
-  bool ok = base::HexStringToInt(chunk_size, &parsed_number);
+  bool ok = base::HexStringToInt(start, start + len, &parsed_number);
   if (ok && parsed_number >= 0) {
     *out = parsed_number;
     return true;
