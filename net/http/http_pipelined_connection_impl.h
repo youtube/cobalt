@@ -66,7 +66,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
   // Used by HttpStreamFactoryImpl.
   virtual const SSLConfig& used_ssl_config() const OVERRIDE;
   virtual const ProxyInfo& used_proxy_info() const OVERRIDE;
-  virtual const NetLog::Source& source() const OVERRIDE;
+  virtual const BoundNetLog& net_log() const OVERRIDE;
   virtual bool was_npn_negotiated() const OVERRIDE;
 
   // Used by HttpPipelinedStream.

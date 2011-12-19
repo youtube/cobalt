@@ -281,7 +281,7 @@ void HttpStreamFactoryImpl::Job::OnStreamReadyCallback() {
   } else {
     request_->Complete(was_npn_negotiated(),
                        using_spdy(),
-                       net_log_.source());
+                       net_log_);
     request_->OnStreamReady(this, server_ssl_config_, proxy_info_,
                             stream_.release());
   }
@@ -298,7 +298,7 @@ void HttpStreamFactoryImpl::Job::OnSpdySessionReadyCallback() {
   if (IsOrphaned()) {
     stream_factory_->OnSpdySessionReady(
         spdy_session, spdy_session_direct_, server_ssl_config_, proxy_info_,
-        was_npn_negotiated(), using_spdy(), net_log_.source());
+        was_npn_negotiated(), using_spdy(), net_log_);
     stream_factory_->OnOrphanedJobComplete(this);
   } else {
     request_->OnSpdySessionReady(this, spdy_session, spdy_session_direct_);
@@ -364,7 +364,7 @@ void HttpStreamFactoryImpl::Job::OnPreconnectsComplete() {
   if (new_spdy_session_) {
     stream_factory_->OnSpdySessionReady(
         new_spdy_session_, spdy_session_direct_, server_ssl_config_,
-        proxy_info_, was_npn_negotiated(), using_spdy(), net_log_.source());
+        proxy_info_, was_npn_negotiated(), using_spdy(), net_log_);
   }
   stream_factory_->OnPreconnectsComplete(this);
   // |this| may be deleted after this call.

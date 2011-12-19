@@ -191,7 +191,7 @@ void HttpStreamFactoryImpl::OnSpdySessionReady(
     const ProxyInfo& used_proxy_info,
     bool was_npn_negotiated,
     bool using_spdy,
-    const NetLog::Source& source) {
+    const BoundNetLog& net_log) {
   const HostPortProxyPair& spdy_session_key =
       spdy_session->host_port_proxy_pair();
   while (!spdy_session->IsClosed()) {
@@ -207,7 +207,7 @@ void HttpStreamFactoryImpl::OnSpdySessionReady(
     Request* request = *spdy_session_request_map_[spdy_session_key].begin();
     request->Complete(was_npn_negotiated,
                       using_spdy,
-                      source);
+                      net_log);
     bool use_relative_url = direct || request->url().SchemeIs("https");
     request->OnStreamReady(NULL, used_ssl_config, used_proxy_info,
                            new SpdyHttpStream(spdy_session, use_relative_url));
@@ -235,7 +235,7 @@ void HttpStreamFactoryImpl::OnHttpPipelinedHostHasAdditionalCapacity(
     Request* request = *http_pipelining_request_map_[origin].begin();
     request->Complete(stream->was_npn_negotiated(),
                       false,  // not using_spdy
-                      stream->source());
+                      stream->net_log());
     request->OnStreamReady(NULL,
                            stream->used_ssl_config(),
                            stream->used_proxy_info(),
