@@ -706,8 +706,8 @@ const ProxyInfo& HttpPipelinedConnectionImpl::used_proxy_info() const {
   return used_proxy_info_;
 }
 
-const NetLog::Source& HttpPipelinedConnectionImpl::source() const {
-  return net_log_.source();
+const BoundNetLog& HttpPipelinedConnectionImpl::net_log() const {
+  return net_log_;
 }
 
 bool HttpPipelinedConnectionImpl::was_npn_negotiated() const {

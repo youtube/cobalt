@@ -90,8 +90,8 @@ class HttpPipelinedStream : public HttpStream {
   // The ProxyInfo used to establish this this stream's pipeline.
   const ProxyInfo& used_proxy_info() const;
 
-  // The source of this stream's pipelined connection.
-  const NetLog::Source& source() const;
+  // The BoundNetLog of this stream's pipelined connection.
+  const BoundNetLog& net_log() const;
 
   // True if this stream's pipeline was NPN negotiated.
   bool was_npn_negotiated() const;
