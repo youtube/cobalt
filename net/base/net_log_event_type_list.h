@@ -784,12 +784,20 @@ EVENT_TYPE(HTTP_STREAM_REQUEST)
 // Measures the time taken to execute the HttpStreamFactoryImpl::Job
 EVENT_TYPE(HTTP_STREAM_JOB)
 
-// Identifies the NetLog::Source() for the Job that fulfilled the request.
-// request. The event parameters are:
+// Identifies the NetLog::Source() for the Job that fulfilled the Request.
+// The event parameters are:
 //   {
-//      "source_dependency": <Source identifier for the job we acquired>,
+//      "source_dependency": <Source identifier for Job we acquired>,
 //   }
 EVENT_TYPE(HTTP_STREAM_REQUEST_BOUND_TO_JOB)
+
+// Identifies the NetLog::Source() for the Request that the Job was attached to.
+// The event parameters are:
+//   {
+//      "source_dependency": <Source identifier for the Request to which we were
+//                            attached>,
+//   }
+EVENT_TYPE(HTTP_STREAM_JOB_BOUND_TO_REQUEST)
 
 // Logs the protocol negotiated with the server. The event parameters are:
 //   {

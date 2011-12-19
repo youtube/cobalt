@@ -271,8 +271,8 @@ Value* NetLogStringParameter::ToValue() const {
 
 Value* NetLogSourceParameter::ToValue() const {
   DictionaryValue* dict = new DictionaryValue();
-
-  dict->Set(name_, value_.ToValue());
+  if (value_.is_valid())
+    dict->Set(name_, value_.ToValue());
   return dict;
 }
 

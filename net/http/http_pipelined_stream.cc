@@ -130,8 +130,8 @@ const ProxyInfo& HttpPipelinedStream::used_proxy_info() const {
   return pipeline_->used_proxy_info();
 }
 
-const NetLog::Source& HttpPipelinedStream::source() const {
-  return pipeline_->source();
+const BoundNetLog& HttpPipelinedStream::net_log() const {
+  return pipeline_->net_log();
 }
 
 bool HttpPipelinedStream::was_npn_negotiated() const {

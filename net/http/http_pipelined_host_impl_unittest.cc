@@ -68,7 +68,7 @@ class MockPipeline : public HttpPipelinedConnection {
   MOCK_METHOD1(OnStreamDeleted, void(int pipeline_id));
   MOCK_CONST_METHOD0(used_ssl_config, const SSLConfig&());
   MOCK_CONST_METHOD0(used_proxy_info, const ProxyInfo&());
-  MOCK_CONST_METHOD0(source, const NetLog::Source&());
+  MOCK_CONST_METHOD0(net_log, const BoundNetLog&());
   MOCK_CONST_METHOD0(was_npn_negotiated, bool());
 
  private:
