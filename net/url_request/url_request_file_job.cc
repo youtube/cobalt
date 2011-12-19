@@ -38,6 +38,8 @@
 #include "net/url_request/url_request_error_job.h"
 #include "net/url_request/url_request_file_dir_job.h"
 
+extern std::string *global_game_content_path;
+
 namespace net {
 
 #if defined(OS_WIN)
@@ -105,6 +107,16 @@ URLRequestJob* URLRequestFileJob::Factory(URLRequest* request,
   if (AccessDisabled(file_path))
     return new URLRequestErrorJob(request, ERR_ACCESS_DENIED);
 #endif
+#if defined(__LB_PS3__)
+  // Jail the file path to a specific folder.
+  std::string jail_path(*global_game_content_path + "/local");
+  file_path = FilePath(jail_path + file_path.value());
+  // Check for a jail-break attempt.
+  if (file_path.ReferencesParent()) {
+    // The request could lead to a path outside of our jail.
+    return new URLRequestErrorJob(request, ERR_ACCESS_DENIED);
+  }
+#endif
 
   // We need to decide whether to create URLRequestFileJob for file access or
   // URLRequestFileDirJob for directory access. To avoid accessing the
@@ -115,7 +127,11 @@ URLRequestJob* URLRequestFileJob::Factory(URLRequest* request,
   if (is_file &&
       file_util::EndsWithSeparator(file_path) &&
       file_path.IsAbsolute())
+#if defined(__LB_PS3__)
+    return new URLRequestErrorJob(request, ERR_ACCESS_DENIED);
+#else
     return new URLRequestFileDirJob(request, file_path);
+#endif
 
   // Use a regular file request job for all non-directories (including invalid
   // file names).
