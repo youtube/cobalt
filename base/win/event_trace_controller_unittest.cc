@@ -9,6 +9,7 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/logging.h"
+#include "base/scoped_temp_dir.h"
 #include "base/sys_info.h"
 #include "base/win/event_trace_controller.h"
 #include "base/win/event_trace_provider.h"
@@ -139,15 +140,17 @@ TEST(EtwTraceControllerTest, StartRealTimeSession) {
 }
 
 TEST(EtwTraceControllerTest, StartFileSession) {
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
   FilePath temp;
-
-  ASSERT_HRESULT_SUCCEEDED(file_util::CreateTemporaryFile(&temp));
+  ASSERT_TRUE(file_util::CreateTemporaryFileInDir(temp_dir.path(), &temp));
 
   EtwTraceController controller;
   HRESULT hr = controller.StartFileSession(kTestSessionName,
                                            temp.value().c_str());
   if (hr == E_ACCESSDENIED) {
     VLOG(1) << "You must be an administrator to run this test on Vista";
+    file_util::Delete(temp, false);
     return;
   }
 
@@ -157,6 +160,7 @@ TEST(EtwTraceControllerTest, StartFileSession) {
   EXPECT_HRESULT_SUCCEEDED(controller.Stop(NULL));
   EXPECT_EQ(NULL, controller.session());
   EXPECT_STREQ(L"", controller.session_name());
+  file_util::Delete(temp, false);
 }
 
 TEST(EtwTraceControllerTest, EnableDisable) {
