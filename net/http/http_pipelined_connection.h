@@ -74,8 +74,8 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnection {
   // The ProxyInfo used to establish this connection.
   virtual const ProxyInfo& used_proxy_info() const = 0;
 
-  // The source of this pipelined connection.
-  virtual const NetLog::Source& source() const = 0;
+  // The BoundNetLog of this pipelined connection.
+  virtual const BoundNetLog& net_log() const = 0;
 
   // True if this connection was NPN negotiated.
   virtual bool was_npn_negotiated() const = 0;
