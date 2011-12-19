@@ -12,6 +12,7 @@
 
 #include <string>
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/metrics/field_trial.h"
@@ -19,6 +20,7 @@
 #include "base/string_util.h"
 #include "base/time.h"
 #include "net/base/cert_status_flags.h"
+#include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
@@ -167,10 +169,10 @@ HttpCache::Transaction::~Transaction() {
 }
 
 int HttpCache::Transaction::WriteMetadata(IOBuffer* buf, int buf_len,
-                                          OldCompletionCallback* callback) {
+                                          const CompletionCallback& callback) {
   DCHECK(buf);
   DCHECK_GT(buf_len, 0);
-  DCHECK(callback);
+  DCHECK(!callback.is_null());
   if (!cache_ || !entry_)
     return ERR_UNEXPECTED;
 
@@ -1111,7 +1113,9 @@ int HttpCache::Transaction::DoTruncateCachedData() {
     net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_DATA, NULL);
 
   // Truncate the stream.
-  return WriteToEntry(kResponseContentIndex, 0, NULL, 0, cache_callback_);
+  return WriteToEntry(
+      kResponseContentIndex, 0, NULL, 0,
+      base::Bind(&net::OldCompletionCallbackAdapter, cache_callback_));
 }
 
 int HttpCache::Transaction::DoTruncateCachedDataComplete(int result) {
@@ -1134,7 +1138,9 @@ int HttpCache::Transaction::DoTruncateCachedMetadata() {
 
   if (net_log_.IsLoggingAllEvents())
     net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_INFO, NULL);
-  return WriteToEntry(kMetadataIndex, 0, NULL, 0, cache_callback_);
+  return WriteToEntry(
+      kMetadataIndex, 0, NULL, 0,
+      base::Bind(&net::OldCompletionCallbackAdapter, cache_callback_));
 }
 
 int HttpCache::Transaction::DoTruncateCachedMetadataComplete(int result) {
@@ -1186,8 +1192,9 @@ int HttpCache::Transaction::DoCacheReadResponse() {
 
   net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_READ_INFO, NULL);
   cache_callback_->AddRef();  // Balanced in DoCacheReadResponseComplete.
-  return entry_->disk_entry->ReadData(kResponseInfoIndex, 0, read_buf_,
-                                      io_buf_len_, cache_callback_);
+  return entry_->disk_entry->ReadData(
+      kResponseInfoIndex, 0, read_buf_, io_buf_len_,
+      base::Bind(&net::OldCompletionCallbackAdapter, cache_callback_));
 }
 
 int HttpCache::Transaction::DoCacheReadResponseComplete(int result) {
@@ -1278,9 +1285,9 @@ int HttpCache::Transaction::DoCacheReadMetadata() {
 
   net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_READ_INFO, NULL);
   cache_callback_->AddRef();  // Balanced in DoCacheReadMetadataComplete.
-  return entry_->disk_entry->ReadData(kMetadataIndex, 0, response_.metadata,
-                                      response_.metadata->size(),
-                                      cache_callback_);
+  return entry_->disk_entry->ReadData(
+      kMetadataIndex, 0, response_.metadata, response_.metadata->size(),
+      base::Bind(&net::OldCompletionCallbackAdapter, cache_callback_));
 }
 
 int HttpCache::Transaction::DoCacheReadMetadataComplete(int result) {
@@ -1299,7 +1306,8 @@ int HttpCache::Transaction::DoCacheQueryData() {
 
   // Balanced in DoCacheQueryDataComplete.
   cache_callback_->AddRef();
-  return entry_->disk_entry->ReadyForSparseIO(cache_callback_);
+  return entry_->disk_entry->ReadyForSparseIO(
+      base::Bind(&net::OldCompletionCallbackAdapter, cache_callback_));
 }
 
 int HttpCache::Transaction::DoCacheQueryDataComplete(int result) {
@@ -1320,12 +1328,14 @@ int HttpCache::Transaction::DoCacheReadData() {
   if (net_log_.IsLoggingAllEvents())
     net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_READ_DATA, NULL);
   if (partial_.get()) {
-    return partial_->CacheRead(entry_->disk_entry, read_buf_, io_buf_len_,
-                               cache_callback_);
+    return partial_->CacheRead(
+        entry_->disk_entry, read_buf_, io_buf_len_,
+        base::Bind(&net::OldCompletionCallbackAdapter, cache_callback_));
   }
 
-  return entry_->disk_entry->ReadData(kResponseContentIndex, read_offset_,
-                                      read_buf_, io_buf_len_, cache_callback_);
+  return entry_->disk_entry->ReadData(
+      kResponseContentIndex, read_offset_, read_buf_, io_buf_len_,
+      base::Bind(&net::OldCompletionCallbackAdapter, cache_callback_));
 }
 
 int HttpCache::Transaction::DoCacheReadDataComplete(int result) {
@@ -1357,7 +1367,9 @@ int HttpCache::Transaction::DoCacheWriteData(int num_bytes) {
     net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WRITE_DATA, NULL);
   cache_callback_->AddRef();  // Balanced in DoCacheWriteDataComplete.
 
-  return AppendResponseDataToEntry(read_buf_, num_bytes, cache_callback_);
+  return AppendResponseDataToEntry(
+      read_buf_, num_bytes,
+      base::Bind(&net::OldCompletionCallbackAdapter, cache_callback_));
 }
 
 int HttpCache::Transaction::DoCacheWriteDataComplete(int result) {
@@ -1932,7 +1944,7 @@ int HttpCache::Transaction::ReadFromEntry(IOBuffer* data, int data_len) {
 
 int HttpCache::Transaction::WriteToEntry(int index, int offset,
                                          IOBuffer* data, int data_len,
-                                         OldCompletionCallback* callback) {
+                                         const CompletionCallback& callback) {
   if (!entry_)
     return data_len;
 
@@ -1983,12 +1995,14 @@ int HttpCache::Transaction::WriteResponseInfoToEntry(bool truncated) {
   // destructor of this object so cache_callback_ may be currently in use.
   write_headers_callback_->AddRef();
   io_buf_len_ = data->pickle()->size();
-  return entry_->disk_entry->WriteData(kResponseInfoIndex, 0, data, io_buf_len_,
-                                       write_headers_callback_, true);
+  return entry_->disk_entry->WriteData(
+      kResponseInfoIndex, 0, data, io_buf_len_,
+      base::Bind(&net::OldCompletionCallbackAdapter, write_headers_callback_),
+      true);
 }
 
 int HttpCache::Transaction::AppendResponseDataToEntry(
-    IOBuffer* data, int data_len, OldCompletionCallback* callback) {
+    IOBuffer* data, int data_len, const CompletionCallback& callback) {
   if (!entry_ || !data_len)
     return data_len;
 
