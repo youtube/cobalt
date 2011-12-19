@@ -696,8 +696,8 @@
             ['exclude', 'sdch'],
             # and any v8-specific bindings
             ['exclude', 'v8'],
-            # and any request on a url for local files
-            ['exclude', 'url_request_file'],
+            # and any request on a url for local folders
+            ['exclude', 'url_request_file_dir'],
             # and the unsupported libevent
             ['exclude', 'libevent'],
             # no need for SOCKS
