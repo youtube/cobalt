@@ -49,8 +49,6 @@ ViewCacheHelper::ViewCacheHelper()
       data_(NULL),
       next_state_(STATE_NONE),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          cache_callback_(this, &ViewCacheHelper::OnIOComplete)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
           entry_callback_(new CancelableOldCompletionCallback<ViewCacheHelper>(
               this, &ViewCacheHelper::OnIOComplete))) {
 }
@@ -221,7 +219,9 @@ int ViewCacheHelper::DoGetBackend() {
   if (!http_cache)
     return ERR_FAILED;
 
-  return http_cache->GetBackend(&disk_cache_, &cache_callback_);
+  return http_cache->GetBackend(
+      &disk_cache_, base::Bind(&ViewCacheHelper::OnIOComplete,
+                               base::Unretained(this)));
 }
 
 int ViewCacheHelper::DoGetBackendComplete(int result) {
@@ -266,7 +266,9 @@ int ViewCacheHelper::DoOpenNextEntryComplete(int result) {
 
 int ViewCacheHelper::DoOpenEntry() {
   next_state_ = STATE_OPEN_ENTRY_COMPLETE;
-  return disk_cache_->OpenEntry(key_, &entry_, &cache_callback_);
+  return disk_cache_->OpenEntry(
+      key_, &entry_,
+      base::Bind(&ViewCacheHelper::OnIOComplete, base::Unretained(this)));
 }
 
 int ViewCacheHelper::DoOpenEntryComplete(int result) {
@@ -289,7 +291,9 @@ int ViewCacheHelper::DoReadResponse() {
     return buf_len_;
 
   buf_ = new IOBuffer(buf_len_);
-  return entry_->ReadData(0, 0, buf_, buf_len_, entry_callback_);
+  return entry_->ReadData(
+      0, 0, buf_, buf_len_,
+      base::Bind(&net::OldCompletionCallbackAdapter, entry_callback_));
 }
 
 int ViewCacheHelper::DoReadResponseComplete(int result) {
@@ -334,7 +338,9 @@ int ViewCacheHelper::DoReadData() {
     return buf_len_;
 
   buf_ = new IOBuffer(buf_len_);
-  return entry_->ReadData(index_, 0, buf_, buf_len_, entry_callback_);
+  return entry_->ReadData(
+      index_, 0, buf_, buf_len_,
+      base::Bind(&net::OldCompletionCallbackAdapter, entry_callback_));
 }
 
 int ViewCacheHelper::DoReadDataComplete(int result) {
