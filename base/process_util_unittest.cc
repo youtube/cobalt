@@ -893,6 +893,11 @@ int tc_set_new_mode(int mode);
 // OutOfMemoryTest cases.
 // OpenBSD does not support these tests either.
 #if !defined(OS_ANDROID) && !defined(OS_OPENBSD)
+
+// AddressSanitizer defines the malloc()/free()/etc. functions so that they
+// don't crash if the program is out of memory, so the OOM tests aren't supposed
+// to work.
+#if !defined(ADDRESS_SANITIZER)
 class OutOfMemoryDeathTest : public testing::Test {
  public:
   OutOfMemoryDeathTest()
@@ -1124,6 +1129,8 @@ TEST_F(OutOfMemoryDeathTest, PsychoticallyBigObjCObject) {
 
 #endif  // !ARCH_CPU_64_BITS
 #endif  // OS_MACOSX
+
+#endif  // !defined(ADDRESS_SANITIZER)
 
 #endif  // !defined(OS_ANDROID)
 
