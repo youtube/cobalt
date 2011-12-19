@@ -16,8 +16,8 @@
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_data_job.h"
 #include "net/url_request/url_request_error_job.h"
-#if !defined(__LB_PS3__)
 #include "net/url_request/url_request_file_job.h"
+#if !defined(__LB_PS3__)
 #include "net/url_request/url_request_ftp_job.h"
 #endif
 #include "net/url_request/url_request_http_job.h"
@@ -41,6 +41,8 @@ static const SchemeToFactory kBuiltinFactories[] = {
 #if !defined(__LB_PS3__)
   { "file", URLRequestFileJob::Factory },
   { "ftp", URLRequestFtpJob::Factory },
+#else
+  { "local", URLRequestFileJob::Factory },  // local, jailed file content
 #endif
   { "about", URLRequestAboutJob::Factory },
   { "data", URLRequestDataJob::Factory },
