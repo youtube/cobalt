@@ -89,7 +89,7 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
     // |callback| because the object can be deleted from within the callback.
     virtual int CreateBackend(NetLog* net_log,
                               disk_cache::Backend** backend,
-                              OldCompletionCallback* callback) = 0;
+                              const CompletionCallback& callback) = 0;
   };
 
   // A default backend factory for the common use cases.
@@ -108,7 +108,7 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
     // BackendFactory implementation.
     virtual int CreateBackend(NetLog* net_log,
                               disk_cache::Backend** backend,
-                              OldCompletionCallback* callback) OVERRIDE;
+                              const CompletionCallback& callback) OVERRIDE;
 
    private:
     CacheType type_;
@@ -156,7 +156,8 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
   // a network error code, and it could be ERR_IO_PENDING, in which case the
   // |callback| will be notified when the operation completes. The pointer that
   // receives the |backend| must remain valid until the operation completes.
-  int GetBackend(disk_cache::Backend** backend, OldCompletionCallback* callback);
+  int GetBackend(disk_cache::Backend** backend,
+                 const net::CompletionCallback& callback);
 
   // Returns the current backend (can be NULL).
   disk_cache::Backend* GetCurrentBackend() const;
@@ -242,7 +243,7 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
   // Creates the |backend| object and notifies the |callback| when the operation
   // completes. Returns an error code.
   int CreateBackend(disk_cache::Backend** backend,
-                    OldCompletionCallback* callback);
+                    const net::CompletionCallback& callback);
 
   // Makes sure that the backend creation is complete before allowing the
   // provided transaction to use the object. Returns an error code.  |trans|

@@ -56,7 +56,7 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
                            int max_bytes, net::CacheType type,
                            uint32 flags, base::MessageLoopProxy* thread,
                            net::NetLog* net_log, Backend** backend,
-                           OldCompletionCallback* callback);
+                           const net::CompletionCallback& callback);
 
   // Performs general initialization for this current instance of the cache.
   int Init(const net::CompletionCallback& callback);
@@ -67,7 +67,7 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
 
   // Same behavior as OpenNextEntry but walks the list from back to front.
   int OpenPrevEntry(void** iter, Entry** prev_entry,
-                    OldCompletionCallback* callback);
+                    const net::CompletionCallback& callback);
 
   // Synchronous implementation of the asynchronous interface.
   int SyncOpenEntry(const std::string& key, Entry** entry);
@@ -238,11 +238,11 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   void ClearRefCountForTest();
 
   // Sends a dummy operation through the operation queue, for unit tests.
-  int FlushQueueForTest(OldCompletionCallback* callback);
+  int FlushQueueForTest(const net::CompletionCallback& callback);
 
   // Runs the provided task on the cache thread. The task will be automatically
   // deleted after it runs.
-  int RunTaskForTest(Task* task, OldCompletionCallback* callback);
+  int RunTaskForTest(Task* task, const net::CompletionCallback& callback);
 
   // Trims an entry (all if |empty| is true) from the list of deleted
   // entries. This method should be called directly on the cache thread.
@@ -259,9 +259,9 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   // Backend implementation.
   virtual int32 GetEntryCount() const OVERRIDE;
   virtual int OpenEntry(const std::string& key, Entry** entry,
-                        OldCompletionCallback* callback) OVERRIDE;
+                        const net::CompletionCallback& callback) OVERRIDE;
   virtual int CreateEntry(const std::string& key, Entry** entry,
-                          OldCompletionCallback* callback) OVERRIDE;
+                          const net::CompletionCallback& callback) OVERRIDE;
   virtual int DoomEntry(const std::string& key,
                         const net::CompletionCallback& callback) OVERRIDE;
   virtual int DoomAllEntries(const net::CompletionCallback& callback) OVERRIDE;
@@ -269,8 +269,9 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
       const base::Time initial_time,
       const base::Time end_time,
       const net::CompletionCallback& callback) OVERRIDE;
-  virtual int DoomEntriesSince(const base::Time initial_time,
-                               OldCompletionCallback* callback) OVERRIDE;
+  virtual int DoomEntriesSince(
+      const base::Time initial_time,
+      const net::CompletionCallback& callback) OVERRIDE;
   virtual int OpenNextEntry(void** iter, Entry** next_entry,
                             const net::CompletionCallback& callback) OVERRIDE;
   virtual void EndEnumeration(void** iter) OVERRIDE;
