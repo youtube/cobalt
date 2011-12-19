@@ -75,7 +75,7 @@ void HttpStreamFactoryImpl::Request::AttachJob(Job* job) {
 void HttpStreamFactoryImpl::Request::Complete(
     bool was_npn_negotiated,
     bool using_spdy,
-    const NetLog::Source& job_source) {
+    const BoundNetLog& job_net_log) {
   DCHECK(!completed_);
   completed_ = true;
   was_npn_negotiated_ = was_npn_negotiated;
@@ -83,7 +83,11 @@ void HttpStreamFactoryImpl::Request::Complete(
   net_log_.AddEvent(
       NetLog::TYPE_HTTP_STREAM_REQUEST_BOUND_TO_JOB,
       make_scoped_refptr(new NetLogSourceParameter(
-          "source_dependency", job_source)));
+          "source_dependency", job_net_log.source())));
+  job_net_log.AddEvent(
+      NetLog::TYPE_HTTP_STREAM_JOB_BOUND_TO_REQUEST,
+      make_scoped_refptr(new NetLogSourceParameter(
+          "source_dependency", net_log_.source())));
 }
 
 void HttpStreamFactoryImpl::Request::OnStreamReady(
@@ -272,11 +276,9 @@ void HttpStreamFactoryImpl::Request::OnSpdySessionReady(
   const ProxyInfo used_proxy_info = job->proxy_info();
   const bool was_npn_negotiated = job->was_npn_negotiated();
   const bool using_spdy = job->using_spdy();
-  const NetLog::Source source = job->net_log().source();
+  const BoundNetLog net_log = job->net_log();
 
-  Complete(was_npn_negotiated,
-           using_spdy,
-           source);
+  Complete(was_npn_negotiated, using_spdy, net_log);
 
   // Cache this so we can still use it if the request is deleted.
   HttpStreamFactoryImpl* factory = factory_;
@@ -289,7 +291,7 @@ void HttpStreamFactoryImpl::Request::OnSpdySessionReady(
   // |this| may be deleted after this point.
   factory->OnSpdySessionReady(
       spdy_session, direct, used_ssl_config, used_proxy_info,
-      was_npn_negotiated, using_spdy, source);
+      was_npn_negotiated, using_spdy, net_log);
 }
 
 void HttpStreamFactoryImpl::Request::OrphanJobsExcept(Job* job) {
