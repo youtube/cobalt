@@ -1,4 +1,4 @@
-// Copyright (c) 2009-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -59,7 +59,7 @@ class SparseControl {
   // WriteSparseData for details about the arguments. The return value is the
   // number of bytes read or written, or a net error code.
   int StartIO(SparseOperation op, int64 offset, net::IOBuffer* buf,
-              int buf_len, net::OldCompletionCallback* callback);
+              int buf_len, const net::CompletionCallback& callback);
 
   // Implements Entry::GetAvailableRange().
   int GetAvailableRange(int64 offset, int len, int64* start);
@@ -70,7 +70,7 @@ class SparseControl {
   // Returns OK if the entry can be used for new IO or ERR_IO_PENDING if we are
   // busy. If the entry is busy, we'll invoke the callback when we are ready
   // again. See disk_cache::Entry::ReadyToUse() for more info.
-  int ReadyToUse(net::OldCompletionCallback* completion_callback);
+  int ReadyToUse(const net::CompletionCallback& completion_callback);
 
   // Deletes the children entries of |entry|.
   static void DeleteChildren(EntryImpl* entry);
@@ -159,9 +159,8 @@ class SparseControl {
   SparseData child_data_;  // Parent and allocation map of child_.
   Bitmap child_map_;  // The allocation map as a bitmap.
 
-  net::OldCompletionCallbackImpl<SparseControl> child_callback_;
-  net::OldCompletionCallback* user_callback_;
-  std::vector<net::OldCompletionCallback*> abort_callbacks_;
+  net::CompletionCallback user_callback_;
+  std::vector<net::CompletionCallback> abort_callbacks_;
   int64 offset_;  // Current sparse offset.
   scoped_refptr<net::DrainableIOBuffer> user_buf_;
   int buf_len_;  // Bytes to read or write.

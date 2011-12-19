@@ -126,18 +126,21 @@ bool CreateTargetFolder(const FilePath& path, RankCrashes action,
 
 // Makes sure that any pending task is processed.
 void FlushQueue(disk_cache::Backend* cache) {
-  TestOldCompletionCallback cb;
+  net::TestCompletionCallback cb;
   int rv =
-      reinterpret_cast<disk_cache::BackendImpl*>(cache)->FlushQueueForTest(&cb);
+      reinterpret_cast<disk_cache::BackendImpl*>(cache)->FlushQueueForTest(
+          cb.callback());
   cb.GetResult(rv);  // Ignore the result;
 }
 
-bool CreateCache(const FilePath& path, base::Thread* thread,
-                 disk_cache::Backend** cache, TestOldCompletionCallback* cb) {
+bool CreateCache(const FilePath& path,
+                 base::Thread* thread,
+                 disk_cache::Backend** cache,
+                 net::TestCompletionCallback* cb) {
   int size = 1024 * 1024;
   int rv = disk_cache::BackendImpl::CreateBackend(
                path, false, size, net::DISK_CACHE, disk_cache::kNoRandom,
-               thread->message_loop_proxy(), NULL, cache, cb);
+               thread->message_loop_proxy(), NULL, cache, cb->callback());
 
   return (cb->GetResult(rv) == net::OK && !(*cache)->GetEntryCount());
 }
@@ -145,7 +148,7 @@ bool CreateCache(const FilePath& path, base::Thread* thread,
 // Generates the files for an empty and one item cache.
 int SimpleInsert(const FilePath& path, RankCrashes action,
                  base::Thread* cache_thread) {
-  TestOldCompletionCallback cb;
+  net::TestCompletionCallback cb;
   disk_cache::Backend* cache;
   if (!CreateCache(path, cache_thread, &cache, &cb))
     return GENERIC;
@@ -158,7 +161,7 @@ int SimpleInsert(const FilePath& path, RankCrashes action,
   }
 
   disk_cache::Entry* entry;
-  int rv = cache->CreateEntry(test_name, &entry, &cb);
+  int rv = cache->CreateEntry(test_name, &entry, cb.callback());
   if (cb.GetResult(rv) != net::OK)
     return GENERIC;
 
@@ -169,7 +172,7 @@ int SimpleInsert(const FilePath& path, RankCrashes action,
   disk_cache::g_rankings_crash = action;
   test_name = kCrashEntryName;
 
-  rv = cache->CreateEntry(test_name, &entry, &cb);
+  rv = cache->CreateEntry(test_name, &entry, cb.callback());
   if (cb.GetResult(rv) != net::OK)
     return GENERIC;
 
@@ -182,13 +185,13 @@ int SimpleRemove(const FilePath& path, RankCrashes action,
   DCHECK(action >= disk_cache::REMOVE_ONE_1);
   DCHECK(action <= disk_cache::REMOVE_TAIL_3);
 
-  TestOldCompletionCallback cb;
+  net::TestCompletionCallback cb;
   disk_cache::Backend* cache;
   if (!CreateCache(path, cache_thread, &cache, &cb))
     return GENERIC;
 
   disk_cache::Entry* entry;
-  int rv = cache->CreateEntry(kCrashEntryName, &entry, &cb);
+  int rv = cache->CreateEntry(kCrashEntryName, &entry, cb.callback());
   if (cb.GetResult(rv) != net::OK)
     return GENERIC;
 
@@ -196,7 +199,7 @@ int SimpleRemove(const FilePath& path, RankCrashes action,
   FlushQueue(cache);
 
   if (action >= disk_cache::REMOVE_TAIL_1) {
-    rv = cache->CreateEntry("some other key", &entry, &cb);
+    rv = cache->CreateEntry("some other key", &entry, cb.callback());
     if (cb.GetResult(rv) != net::OK)
       return GENERIC;
 
@@ -204,7 +207,7 @@ int SimpleRemove(const FilePath& path, RankCrashes action,
     FlushQueue(cache);
   }
 
-  rv = cache->OpenEntry(kCrashEntryName, &entry, &cb);
+  rv = cache->OpenEntry(kCrashEntryName, &entry, cb.callback());
   if (cb.GetResult(rv) != net::OK)
     return GENERIC;
 
@@ -221,26 +224,26 @@ int HeadRemove(const FilePath& path, RankCrashes action,
   DCHECK(action >= disk_cache::REMOVE_HEAD_1);
   DCHECK(action <= disk_cache::REMOVE_HEAD_4);
 
-  TestOldCompletionCallback cb;
+  net::TestCompletionCallback cb;
   disk_cache::Backend* cache;
   if (!CreateCache(path, cache_thread, &cache, &cb))
     return GENERIC;
 
   disk_cache::Entry* entry;
-  int rv = cache->CreateEntry("some other key", &entry, &cb);
+  int rv = cache->CreateEntry("some other key", &entry, cb.callback());
   if (cb.GetResult(rv) != net::OK)
     return GENERIC;
 
   entry->Close();
   FlushQueue(cache);
-  rv = cache->CreateEntry(kCrashEntryName, &entry, &cb);
+  rv = cache->CreateEntry(kCrashEntryName, &entry, cb.callback());
   if (cb.GetResult(rv) != net::OK)
     return GENERIC;
 
   entry->Close();
   FlushQueue(cache);
 
-  rv = cache->OpenEntry(kCrashEntryName, &entry, &cb);
+  rv = cache->OpenEntry(kCrashEntryName, &entry, cb.callback());
   if (cb.GetResult(rv) != net::OK)
     return GENERIC;
 
@@ -265,7 +268,6 @@ int LoadOperations(const FilePath& path, RankCrashes action,
 
   // No experiments and use a simple LRU.
   cache->SetFlags(disk_cache::kNoRandom);
-  TestOldCompletionCallback old_cb;
   net::TestCompletionCallback cb;
   int rv = cache->Init(cb.callback());
   if (cb.GetResult(rv) != net::OK || cache->GetEntryCount())
@@ -277,14 +279,14 @@ int LoadOperations(const FilePath& path, RankCrashes action,
   disk_cache::Entry* entry;
   for (int i = 0; i < 100; i++) {
     std::string key = GenerateKey(true);
-    rv = cache->CreateEntry(key, &entry, &old_cb);
-    if (old_cb.GetResult(rv) != net::OK)
+    rv = cache->CreateEntry(key, &entry, cb.callback());
+    if (cb.GetResult(rv) != net::OK)
       return GENERIC;
     entry->Close();
     FlushQueue(cache);
     if (50 == i && action >= disk_cache::REMOVE_LOAD_1) {
-      rv = cache->CreateEntry(kCrashEntryName, &entry, &old_cb);
-      if (old_cb.GetResult(rv) != net::OK)
+      rv = cache->CreateEntry(kCrashEntryName, &entry, cb.callback());
+      if (cb.GetResult(rv) != net::OK)
         return GENERIC;
       entry->Close();
       FlushQueue(cache);
@@ -294,13 +296,13 @@ int LoadOperations(const FilePath& path, RankCrashes action,
   if (action <= disk_cache::INSERT_LOAD_2) {
     disk_cache::g_rankings_crash = action;
 
-    rv = cache->CreateEntry(kCrashEntryName, &entry, &old_cb);
-    if (old_cb.GetResult(rv) != net::OK)
+    rv = cache->CreateEntry(kCrashEntryName, &entry, cb.callback());
+    if (cb.GetResult(rv) != net::OK)
       return GENERIC;
   }
 
-  rv = cache->OpenEntry(kCrashEntryName, &entry, &old_cb);
-  if (old_cb.GetResult(rv) != net::OK)
+  rv = cache->OpenEntry(kCrashEntryName, &entry, cb.callback());
+  if (cb.GetResult(rv) != net::OK)
     return GENERIC;
 
   disk_cache::g_rankings_crash = action;
