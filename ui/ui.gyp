@@ -266,6 +266,8 @@
         'gfx/favicon_size.h',
         'gfx/font.h',
         'gfx/font.cc',
+        'gfx/font_list.h',
+        'gfx/font_list.cc',
         'gfx/gfx_paths.cc',
         'gfx/gfx_paths.h',
         'gfx/image/image.cc',
