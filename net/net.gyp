@@ -1530,7 +1530,18 @@
       ],
       'sources': [
         'tools/dnssec_chain_verify/dnssec_chain_verify.cc',
-      ]
+      ],
+    },
+    {
+      'target_name': 'crl_set_dump',
+      'type': 'executable',
+      'dependencies': [
+        'net',
+        '../base/base.gyp:base',
+      ],
+      'sources': [
+        'tools/crl_set_dump/crl_set_dump.cc',
+      ],
     },
     {
       'target_name': 'ssl_false_start_blacklist_process',
