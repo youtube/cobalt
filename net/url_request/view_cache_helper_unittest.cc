@@ -47,8 +47,8 @@ void WriteHeaders(disk_cache::Entry* entry, int flags, const std::string data) {
       reinterpret_cast<const char*>(pickle.data())));
   int len = static_cast<int>(pickle.size());
 
-  TestOldCompletionCallback cb;
-  int rv = entry->WriteData(0, 0, buf, len, &cb, true);
+  net::TestCompletionCallback cb;
+  int rv = entry->WriteData(0, 0, buf, len, cb.callback(), true);
   ASSERT_EQ(len, cb.GetResult(rv));
 }
 
@@ -60,20 +60,20 @@ void WriteData(disk_cache::Entry* entry, int index, const std::string data) {
   scoped_refptr<IOBuffer> buf(new IOBuffer(len));
   memcpy(buf->data(), data.data(), data.length());
 
-  TestOldCompletionCallback cb;
-  int rv = entry->WriteData(index, 0, buf, len, &cb, true);
+  net::TestCompletionCallback cb;
+  int rv = entry->WriteData(index, 0, buf, len, cb.callback(), true);
   ASSERT_EQ(len, cb.GetResult(rv));
 }
 
 void WriteToEntry(disk_cache::Backend* cache, const std::string key,
                   const std::string data0, const std::string data1,
                   const std::string data2) {
-  TestOldCompletionCallback cb;
+  net::TestCompletionCallback cb;
   disk_cache::Entry* entry;
-  int rv = cache->CreateEntry(key, &entry, &cb);
+  int rv = cache->CreateEntry(key, &entry, cb.callback());
   rv = cb.GetResult(rv);
   if (rv != OK) {
-    rv = cache->OpenEntry(key, &entry, &cb);
+    rv = cache->OpenEntry(key, &entry, cb.callback());
     ASSERT_EQ(OK, cb.GetResult(rv));
   }
 
@@ -85,10 +85,11 @@ void WriteToEntry(disk_cache::Backend* cache, const std::string key,
 }
 
 void FillCache(URLRequestContext* context) {
-  TestOldCompletionCallback cb;
+  net::TestCompletionCallback cb;
   disk_cache::Backend* cache;
   int rv =
-      context->http_transaction_factory()->GetCache()->GetBackend(&cache, &cb);
+      context->http_transaction_factory()->GetCache()->GetBackend(
+          &cache, cb.callback());
   ASSERT_EQ(OK, cb.GetResult(rv));
 
   std::string empty;
@@ -180,15 +181,16 @@ TEST(ViewCacheHelper, TruncatedFlag) {
   scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext());
   ViewCacheHelper helper;
 
-  TestOldCompletionCallback cb;
+  net::TestCompletionCallback cb;
   disk_cache::Backend* cache;
   int rv =
-      context->http_transaction_factory()->GetCache()->GetBackend(&cache, &cb);
+      context->http_transaction_factory()->GetCache()->GetBackend(
+          &cache, cb.callback());
   ASSERT_EQ(OK, cb.GetResult(rv));
 
   std::string key("the key");
   disk_cache::Entry* entry;
-  rv = cache->CreateEntry(key, &entry, &cb);
+  rv = cache->CreateEntry(key, &entry, cb.callback());
   ASSERT_EQ(OK, cb.GetResult(rv));
 
   // RESPONSE_INFO_TRUNCATED defined on response_info.cc

@@ -129,7 +129,7 @@ int32 MemBackendImpl::GetEntryCount() const {
 }
 
 int MemBackendImpl::OpenEntry(const std::string& key, Entry** entry,
-                              OldCompletionCallback* callback) {
+                              const net::CompletionCallback& callback) {
   if (OpenEntry(key, entry))
     return net::OK;
 
@@ -137,7 +137,7 @@ int MemBackendImpl::OpenEntry(const std::string& key, Entry** entry,
 }
 
 int MemBackendImpl::CreateEntry(const std::string& key, Entry** entry,
-                                OldCompletionCallback* callback) {
+                                const net::CompletionCallback& callback) {
   if (CreateEntry(key, entry))
     return net::OK;
 
@@ -169,7 +169,7 @@ int MemBackendImpl::DoomEntriesBetween(
 }
 
 int MemBackendImpl::DoomEntriesSince(const base::Time initial_time,
-                                     OldCompletionCallback* callback) {
+                                     const net::CompletionCallback& callback) {
   if (DoomEntriesSince(initial_time))
     return net::OK;
 

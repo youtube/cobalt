@@ -5,6 +5,7 @@
 #include "net/http/http_cache.h"
 
 #include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/memory/scoped_vector.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
@@ -32,18 +33,27 @@ using base::Time;
 
 namespace {
 
-class DeleteCacheOldCompletionCallback : public TestOldCompletionCallback {
+class DeleteCacheCompletionCallback : public TestCompletionCallbackBase {
  public:
-  explicit DeleteCacheOldCompletionCallback(MockHttpCache* cache)
-      : cache_(cache) {}
-
-  virtual void RunWithParams(const Tuple1<int>& params) {
-    delete cache_;
-    TestOldCompletionCallback::RunWithParams(params);
+  explicit DeleteCacheCompletionCallback(MockHttpCache* cache)
+      : cache_(cache),
+        ALLOW_THIS_IN_INITIALIZER_LIST(callback_(
+            base::Bind(&DeleteCacheCompletionCallback::OnComplete,
+                       base::Unretained(this)))) {
   }
 
+  const net::CompletionCallback& callback() const { return callback_; }
+
  private:
+  void OnComplete(int result) {
+    delete cache_;
+    SetResult(result);
+  }
+
   MockHttpCache* cache_;
+  net::CompletionCallback callback_;
+
+  DISALLOW_COPY_AND_ASSIGN(DeleteCacheCompletionCallback);
 };
 
 //-----------------------------------------------------------------------------
@@ -344,8 +354,8 @@ void CreateTruncatedEntry(std::string raw_headers, MockHttpCache* cache) {
   scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(100));
   int len = static_cast<int>(base::strlcpy(buf->data(),
                                            "rg: 00-09 rg: 10-19 ", 100));
-  TestOldCompletionCallback cb;
-  int rv = entry->WriteData(1, 0, buf, len, &cb, true);
+  net::TestCompletionCallback cb;
+  int rv = entry->WriteData(1, 0, buf, len, cb.callback(), true);
   EXPECT_EQ(len, cb.GetResult(rv));
   entry->Close();
 }
@@ -395,9 +405,9 @@ TEST(HttpCache, GetBackend) {
   MockHttpCache cache(net::HttpCache::DefaultBackend::InMemory(0));
 
   disk_cache::Backend* backend;
-  TestOldCompletionCallback cb;
+  net::TestCompletionCallback cb;
   // This will lazily initialize the backend.
-  int rv = cache.http_cache()->GetBackend(&backend, &cb);
+  int rv = cache.http_cache()->GetBackend(&backend, cb.callback());
   EXPECT_EQ(net::OK, cb.GetResult(rv));
 }
 
@@ -1449,14 +1459,14 @@ TEST(HttpCache, DeleteCacheWaitingForBackend) {
 
   // We cannot call FinishCreation because the factory itself will go away with
   // the cache, so grab the callback and attempt to use it.
-  net::OldCompletionCallback* callback = factory->callback();
+  net::CompletionCallback callback = factory->callback();
   disk_cache::Backend** backend = factory->backend();
 
   cache.reset();
   MessageLoop::current()->RunAllPending();
 
   *backend = NULL;
-  callback->Run(net::ERR_ABORTED);
+  callback.Run(net::ERR_ABORTED);
 }
 
 // Tests that we can delete the cache while creating the backend, from within
@@ -1465,9 +1475,9 @@ TEST(HttpCache, DeleteCacheWaitingForBackend2) {
   MockBlockingBackendFactory* factory = new MockBlockingBackendFactory();
   MockHttpCache* cache = new MockHttpCache(factory);
 
-  DeleteCacheOldCompletionCallback cb(cache);
+  DeleteCacheCompletionCallback cb(cache);
   disk_cache::Backend* backend;
-  int rv = cache->http_cache()->GetBackend(&backend, &cb);
+  int rv = cache->http_cache()->GetBackend(&backend, cb.callback());
   EXPECT_EQ(net::ERR_IO_PENDING, rv);
 
   // Now let's queue a regular transaction
@@ -1480,8 +1490,8 @@ TEST(HttpCache, DeleteCacheWaitingForBackend2) {
   c->trans->Start(&request, &c->callback, net::BoundNetLog());
 
   // And another direct backend request.
-  TestOldCompletionCallback cb2;
-  rv = cache->http_cache()->GetBackend(&backend, &cb2);
+  net::TestCompletionCallback cb2;
+  rv = cache->http_cache()->GetBackend(&backend, cb2.callback());
   EXPECT_EQ(net::ERR_IO_PENDING, rv);
 
   // Just to make sure that everything is still pending.
@@ -2814,8 +2824,8 @@ TEST(HttpCache, GET_Previous206_NotSparse) {
   scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(500));
   int len = static_cast<int>(base::strlcpy(buf->data(),
                                            kRangeGET_TransactionOK.data, 500));
-  TestOldCompletionCallback cb;
-  int rv = entry->WriteData(1, 0, buf, len, &cb, true);
+  net::TestCompletionCallback cb;
+  int rv = entry->WriteData(1, 0, buf, len, cb.callback(), true);
   EXPECT_EQ(len, cb.GetResult(rv));
   entry->Close();
 
@@ -2858,8 +2868,8 @@ TEST(HttpCache, RangeGET_Previous206_NotSparse_2) {
   scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(500));
   int len = static_cast<int>(base::strlcpy(buf->data(),
                                            kRangeGET_TransactionOK.data, 500));
-  TestOldCompletionCallback cb;
-  int rv = entry->WriteData(1, 0, buf, len, &cb, true);
+  net::TestCompletionCallback cb;
+  int rv = entry->WriteData(1, 0, buf, len, cb.callback(), true);
   EXPECT_EQ(len, cb.GetResult(rv));
   entry->Close();
 
@@ -2900,8 +2910,8 @@ TEST(HttpCache, GET_Previous206_NotValidation) {
   scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(500));
   int len = static_cast<int>(base::strlcpy(buf->data(),
                                            kRangeGET_TransactionOK.data, 500));
-  TestOldCompletionCallback cb;
-  int rv = entry->WriteData(1, 0, buf, len, &cb, true);
+  net::TestCompletionCallback cb;
+  int rv = entry->WriteData(1, 0, buf, len, cb.callback(), true);
   EXPECT_EQ(len, cb.GetResult(rv));
   entry->Close();
 
@@ -3298,8 +3308,8 @@ TEST(HttpCache, RangeGET_InvalidResponse3) {
   ASSERT_TRUE(cache.OpenBackendEntry(kRangeGET_TransactionOK.url, &en));
 
   int64 cached_start = 0;
-  TestOldCompletionCallback cb;
-  int rv = en->GetAvailableRange(40, 20, &cached_start, &cb);
+  net::TestCompletionCallback cb;
+  int rv = en->GetAvailableRange(40, 20, &cached_start, cb.callback());
   EXPECT_EQ(10, cb.GetResult(rv));
   EXPECT_EQ(50, cached_start);
   en->Close();
@@ -4616,7 +4626,7 @@ TEST(HttpCache, StopCachingTruncatedEntry) {
   RemoveMockTransaction(&kRangeGET_TransactionOK);
 }
 
-// Tests that we detect truncated rersources from the net when there is
+// Tests that we detect truncated resources from the net when there is
 // a Content-Length header.
 TEST(HttpCache, TruncatedByContentLength) {
   MockHttpCache cache;

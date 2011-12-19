@@ -13,6 +13,7 @@
 #endif
 
 #include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/callback.h"
 #include "base/format_macros.h"
 #include "base/location.h"
@@ -89,9 +90,9 @@ HttpCache::BackendFactory* HttpCache::DefaultBackend::InMemory(int max_bytes) {
   return new DefaultBackend(MEMORY_CACHE, FilePath(), max_bytes, NULL);
 }
 
-int HttpCache::DefaultBackend::CreateBackend(NetLog* net_log,
-                                             disk_cache::Backend** backend,
-                                             OldCompletionCallback* callback) {
+int HttpCache::DefaultBackend::CreateBackend(
+    NetLog* net_log, disk_cache::Backend** backend,
+    const CompletionCallback& callback) {
   DCHECK_GE(max_bytes_, 0);
   return disk_cache::CreateCacheBackend(type_, path_, max_bytes_, true,
                                         thread_, net_log, backend, callback);
@@ -143,11 +144,16 @@ enum WorkItemOperation {
 class HttpCache::WorkItem {
  public:
   WorkItem(WorkItemOperation operation, Transaction* trans, ActiveEntry** entry)
-      : operation_(operation), trans_(trans), entry_(entry), callback_(NULL),
+      : operation_(operation),
+        trans_(trans),
+        entry_(entry),
         backend_(NULL) {}
   WorkItem(WorkItemOperation operation, Transaction* trans,
-           OldCompletionCallback* cb, disk_cache::Backend** backend)
-      : operation_(operation), trans_(trans), entry_(NULL), callback_(cb),
+           const net::CompletionCallback& cb, disk_cache::Backend** backend)
+      : operation_(operation),
+        trans_(trans),
+        entry_(NULL),
+        callback_(cb),
         backend_(backend) {}
   ~WorkItem() {}
 
@@ -165,8 +171,8 @@ class HttpCache::WorkItem {
   bool DoCallback(int result, disk_cache::Backend* backend) {
     if (backend_)
       *backend_ = backend;
-    if (callback_) {
-      callback_->Run(result);
+    if (!callback_.is_null()) {
+      callback_.Run(result);
       return true;
     }
     return false;
@@ -175,15 +181,15 @@ class HttpCache::WorkItem {
   WorkItemOperation operation() { return operation_; }
   void ClearTransaction() { trans_ = NULL; }
   void ClearEntry() { entry_ = NULL; }
-  void ClearCallback() { callback_ = NULL; }
+  void ClearCallback() { callback_.Reset(); }
   bool Matches(Transaction* trans) const { return trans == trans_; }
-  bool IsValid() const { return trans_ || entry_ || callback_; }
+  bool IsValid() const { return trans_ || entry_ || !callback_.is_null(); }
 
  private:
   WorkItemOperation operation_;
   Transaction* trans_;
   ActiveEntry** entry_;
-  OldCompletionCallback* callback_;  // User callback.
+  net::CompletionCallback callback_;  // User callback.
   disk_cache::Backend** backend_;
 };
 
@@ -279,7 +285,9 @@ void HttpCache::MetadataWriter::VerifyResponse(int result) {
   if (response_info->response_time != expected_response_time_)
     return SelfDestroy();
 
-  result = transaction_->WriteMetadata(buf_, buf_len_, &callback_);
+  result = transaction_->WriteMetadata(
+      buf_, buf_len_,
+      base::Bind(&MetadataWriter::OnIOComplete, base::Unretained(this)));
   if (result != ERR_IO_PENDING)
     SelfDestroy();
 }
@@ -422,8 +430,8 @@ HttpCache::~HttpCache() {
 }
 
 int HttpCache::GetBackend(disk_cache::Backend** backend,
-                          OldCompletionCallback* callback) {
-  DCHECK(callback != NULL);
+                          const net::CompletionCallback& callback) {
+  DCHECK(!callback.is_null());
 
   if (disk_cache_.get()) {
     *backend = disk_cache_.get();
@@ -452,8 +460,10 @@ void HttpCache::WriteMetadata(const GURL& url,
     return;
 
   // Do lazy initialization of disk cache if needed.
-  if (!disk_cache_.get())
-    CreateBackend(NULL, NULL);  // We don't care about the result.
+  if (!disk_cache_.get()) {
+    // We don't care about the result.
+    CreateBackend(NULL, net::CompletionCallback());
+  }
 
   HttpCache::Transaction* trans = new HttpCache::Transaction(this);
   MetadataWriter* writer = new MetadataWriter(trans);
@@ -492,8 +502,10 @@ void HttpCache::OnExternalCacheHit(const GURL& url,
 
 int HttpCache::CreateTransaction(scoped_ptr<HttpTransaction>* trans) {
   // Do lazy initialization of disk cache if needed.
-  if (!disk_cache_.get())
-    CreateBackend(NULL, NULL);  // We don't care about the result.
+  if (!disk_cache_.get()) {
+    // We don't care about the result.
+    CreateBackend(NULL, net::CompletionCallback());
+  }
 
   trans->reset(new HttpCache::Transaction(this));
   return OK;
@@ -512,7 +524,7 @@ HttpNetworkSession* HttpCache::GetSession() {
 //-----------------------------------------------------------------------------
 
 int HttpCache::CreateBackend(disk_cache::Backend** backend,
-                             OldCompletionCallback* callback) {
+                             const net::CompletionCallback& callback) {
   if (!backend_factory_.get())
     return ERR_FAILED;
 
@@ -525,7 +537,7 @@ int HttpCache::CreateBackend(disk_cache::Backend** backend,
   // entry, so we use an empty key for it.
   PendingOp* pending_op = GetPendingOp("");
   if (pending_op->writer) {
-    if (callback)
+    if (!callback.is_null())
       pending_op->pending_queue.push_back(item.release());
     return ERR_IO_PENDING;
   }
@@ -536,8 +548,9 @@ int HttpCache::CreateBackend(disk_cache::Backend** backend,
   BackendCallback* my_callback = new BackendCallback(this, pending_op);
   pending_op->callback = my_callback;
 
-  int rv = backend_factory_->CreateBackend(net_log_, &pending_op->backend,
-                                           my_callback);
+  int rv = backend_factory_->CreateBackend(
+      net_log_, &pending_op->backend,
+      base::Bind(&net::OldCompletionCallbackAdapter, my_callback));
   if (rv != ERR_IO_PENDING) {
     pending_op->writer->ClearCallback();
     my_callback->Run(rv);
@@ -553,7 +566,8 @@ int HttpCache::GetBackendForTransaction(Transaction* trans) {
   if (!building_backend_)
     return ERR_FAILED;
 
-  WorkItem* item = new WorkItem(WI_CREATE_BACKEND, trans, NULL, NULL);
+  WorkItem* item = new WorkItem(
+      WI_CREATE_BACKEND, trans, net::CompletionCallback(), NULL);
   PendingOp* pending_op = GetPendingOp("");
   DCHECK(pending_op->writer);
   pending_op->pending_queue.push_back(item);
@@ -762,7 +776,9 @@ int HttpCache::OpenEntry(const std::string& key, ActiveEntry** entry,
   BackendCallback* my_callback = new BackendCallback(this, pending_op);
   pending_op->callback = my_callback;
 
-  int rv = disk_cache_->OpenEntry(key, &(pending_op->disk_entry), my_callback);
+  int rv = disk_cache_->OpenEntry(
+      key, &(pending_op->disk_entry),
+      base::Bind(&net::OldCompletionCallbackAdapter, my_callback));
   if (rv != ERR_IO_PENDING) {
     item->ClearTransaction();
     my_callback->Run(rv);
@@ -788,8 +804,9 @@ int HttpCache::CreateEntry(const std::string& key, ActiveEntry** entry,
   BackendCallback* my_callback = new BackendCallback(this, pending_op);
   pending_op->callback = my_callback;
 
-  int rv = disk_cache_->CreateEntry(key, &(pending_op->disk_entry),
-                                    my_callback);
+  int rv = disk_cache_->CreateEntry(
+      key, &(pending_op->disk_entry),
+      base::Bind(&net::OldCompletionCallbackAdapter, my_callback));
   if (rv != ERR_IO_PENDING) {
     item->ClearTransaction();
     my_callback->Run(rv);
@@ -1018,7 +1035,7 @@ void HttpCache::OnProcessPendingQueue(ActiveEntry* entry) {
   entry->will_process_pending_queue = false;
   DCHECK(!entry->writer);
 
-  // If no one is interested in this entry, then we can de-activate it.
+  // If no one is interested in this entry, then we can deactivate it.
   if (entry->pending_queue.empty()) {
     if (entry->readers.empty())
       DestroyEntry(entry);
@@ -1104,7 +1121,7 @@ void HttpCache::OnIOComplete(int result, PendingOp* pending_op) {
 
     if (item->operation() == WI_CREATE_ENTRY) {
       if (result == OK) {
-        // A second Create request, but the first request succeded.
+        // A second Create request, but the first request succeeded.
         item->NotifyTransaction(ERR_CACHE_CREATE_FAILURE, NULL);
       } else {
         if (op != WI_CREATE_ENTRY) {

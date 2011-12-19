@@ -189,10 +189,7 @@ SparseControl::SparseControl(EntryImpl* entry)
       child_(NULL),
       operation_(kNoOperation),
       init_(false),
-      child_map_(child_data_.bitmap, kNumSparseBits, kNumSparseBits / 32),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          child_callback_(this, &SparseControl::OnChildIOCompleted)),
-      user_callback_(NULL) {
+      child_map_(child_data_.bitmap, kNumSparseBits, kNumSparseBits / 32) {
 }
 
 SparseControl::~SparseControl() {
@@ -233,8 +230,9 @@ bool SparseControl::CouldBeSparse() const {
   return (entry_->GetDataSize(kSparseIndex) != 0);
 }
 
-int SparseControl::StartIO(SparseOperation op, int64 offset, net::IOBuffer* buf,
-                           int buf_len, net::OldCompletionCallback* callback) {
+int SparseControl::StartIO(
+    SparseOperation op, int64 offset, net::IOBuffer* buf, int buf_len,
+    const net::CompletionCallback& callback) {
   DCHECK(init_);
   // We don't support simultaneous IO for sparse data.
   if (operation_ != kNoOperation)
@@ -248,7 +246,7 @@ int SparseControl::StartIO(SparseOperation op, int64 offset, net::IOBuffer* buf,
     return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
 
   DCHECK(!user_buf_);
-  DCHECK(!user_callback_);
+  DCHECK(user_callback_.is_null());
 
   if (!buf && (op == kReadOperation || op == kWriteOperation))
     return 0;
@@ -276,7 +274,7 @@ int SparseControl::StartIO(SparseOperation op, int64 offset, net::IOBuffer* buf,
     // Everything was done synchronously.
     operation_ = kNoOperation;
     user_buf_ = NULL;
-    user_callback_ = NULL;
+    user_callback_.Reset();
     return result_;
   }
 
@@ -292,7 +290,8 @@ int SparseControl::GetAvailableRange(int64 offset, int len, int64* start) {
   DCHECK(start);
 
   range_found_ = false;
-  int result = StartIO(kGetRangeOperation, offset, NULL, len, NULL);
+  int result = StartIO(
+      kGetRangeOperation, offset, NULL, len, net::CompletionCallback());
   if (range_found_) {
     *start = offset_;
     return result;
@@ -309,7 +308,7 @@ void SparseControl::CancelIO() {
   abort_ = true;
 }
 
-int SparseControl::ReadyToUse(net::OldCompletionCallback* completion_callback) {
+int SparseControl::ReadyToUse(const net::CompletionCallback& callback) {
   if (!abort_)
     return net::OK;
 
@@ -317,7 +316,7 @@ int SparseControl::ReadyToUse(net::OldCompletionCallback* completion_callback) {
   // one extra reference due to the pending IO operation itself, but we'll
   // release that one before invoking user_callback_.
   entry_->AddRef();  // Balanced in DoAbortCallbacks.
-  abort_callbacks_.push_back(completion_callback);
+  abort_callbacks_.push_back(callback);
   return net::ERR_IO_PENDING;
 }
 
@@ -371,8 +370,9 @@ int SparseControl::CreateSparseEntry() {
   scoped_refptr<net::IOBuffer> buf(
       new net::WrappedIOBuffer(reinterpret_cast<char*>(&sparse_header_)));
 
-  int rv = entry_->WriteData(kSparseIndex, 0, buf, sizeof(sparse_header_), NULL,
-                             false);
+  int rv = entry_->WriteData(
+      kSparseIndex, 0, buf, sizeof(sparse_header_), net::CompletionCallback(),
+      false);
   if (rv != sizeof(sparse_header_)) {
     DLOG(ERROR) << "Unable to save sparse_header_";
     return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
@@ -402,7 +402,8 @@ int SparseControl::OpenSparseEntry(int data_len) {
       new net::WrappedIOBuffer(reinterpret_cast<char*>(&sparse_header_)));
 
   // Read header.
-  int rv = entry_->ReadData(kSparseIndex, 0, buf, sizeof(sparse_header_), NULL);
+  int rv = entry_->ReadData(
+      kSparseIndex, 0, buf, sizeof(sparse_header_), net::CompletionCallback());
   if (rv != static_cast<int>(sizeof(sparse_header_)))
     return net::ERR_CACHE_READ_FAILURE;
 
@@ -416,7 +417,7 @@ int SparseControl::OpenSparseEntry(int data_len) {
   // Read the actual bitmap.
   buf = new net::IOBuffer(map_len);
   rv = entry_->ReadData(kSparseIndex, sizeof(sparse_header_), buf, map_len,
-                        NULL);
+                        net::CompletionCallback());
   if (rv != map_len)
     return net::ERR_CACHE_READ_FAILURE;
 
@@ -455,7 +456,8 @@ bool SparseControl::OpenChild() {
       new net::WrappedIOBuffer(reinterpret_cast<char*>(&child_data_)));
 
   // Read signature.
-  int rv = child_->ReadData(kSparseIndex, 0, buf, sizeof(child_data_), NULL);
+  int rv = child_->ReadData(
+      kSparseIndex, 0, buf, sizeof(child_data_), net::CompletionCallback());
   if (rv != sizeof(child_data_))
     return KillChildAndContinue(key, true);  // This is a fatal failure.
 
@@ -478,8 +480,9 @@ void SparseControl::CloseChild() {
       new net::WrappedIOBuffer(reinterpret_cast<char*>(&child_data_)));
 
   // Save the allocation bitmap before closing the child entry.
-  int rv = child_->WriteData(kSparseIndex, 0, buf, sizeof(child_data_),
-                             NULL, false);
+  int rv = child_->WriteData(
+      kSparseIndex, 0, buf, sizeof(child_data_), net::CompletionCallback(),
+      false);
   if (rv != sizeof(child_data_))
     DLOG(ERROR) << "Failed to save child data";
   child_->Release();
@@ -545,8 +548,9 @@ void SparseControl::WriteSparseData() {
       reinterpret_cast<const char*>(children_map_.GetMap())));
 
   int len = children_map_.ArraySize() * 4;
-  int rv = entry_->WriteData(kSparseIndex, sizeof(sparse_header_), buf, len,
-                             NULL, false);
+  int rv = entry_->WriteData(
+      kSparseIndex, sizeof(sparse_header_), buf, len, net::CompletionCallback(),
+      false);
   if (rv != len) {
     DLOG(ERROR) << "Unable to save sparse map";
   }
@@ -649,8 +653,9 @@ void SparseControl::InitChildData() {
   scoped_refptr<net::WrappedIOBuffer> buf(
       new net::WrappedIOBuffer(reinterpret_cast<char*>(&child_data_)));
 
-  int rv = child_->WriteData(kSparseIndex, 0, buf, sizeof(child_data_),
-                             NULL, false);
+  int rv = child_->WriteData(
+      kSparseIndex, 0, buf, sizeof(child_data_), net::CompletionCallback(),
+      false);
   if (rv != sizeof(child_data_))
     DLOG(ERROR) << "Failed to save child data";
   SetChildBit(true);
@@ -691,7 +696,11 @@ bool SparseControl::DoChildIO() {
 
   // We have more work to do. Let's not trigger a callback to the caller.
   finished_ = false;
-  net::OldCompletionCallback* callback = user_callback_ ? &child_callback_ : NULL;
+  net::CompletionCallback callback;
+  if (!user_callback_.is_null()) {
+    callback =
+        base::Bind(&SparseControl::OnChildIOCompleted, base::Unretained(this));
+  }
 
   int rv = 0;
   switch (operation_) {
@@ -836,27 +845,27 @@ void SparseControl::OnChildIOCompleted(int result) {
 }
 
 void SparseControl::DoUserCallback() {
-  DCHECK(user_callback_);
-  net::OldCompletionCallback* c = user_callback_;
-  user_callback_ = NULL;
+  DCHECK(!user_callback_.is_null());
+  net::CompletionCallback cb = user_callback_;
+  user_callback_.Reset();
   user_buf_ = NULL;
   pending_ = false;
   operation_ = kNoOperation;
   int rv = result_;
   entry_->Release();  // Don't touch object after this line.
-  c->Run(rv);
+  cb.Run(rv);
 }
 
 void SparseControl::DoAbortCallbacks() {
   for (size_t i = 0; i < abort_callbacks_.size(); i++) {
     // Releasing all references to entry_ may result in the destruction of this
     // object so we should not be touching it after the last Release().
-    net::OldCompletionCallback* c = abort_callbacks_[i];
+    net::CompletionCallback cb = abort_callbacks_[i];
     if (i == abort_callbacks_.size() - 1)
       abort_callbacks_.clear();
 
     entry_->Release();  // Don't touch object after this line.
-    c->Run(net::OK);
+    cb.Run(net::OK);
   }
 }
 
