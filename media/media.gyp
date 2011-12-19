@@ -175,10 +175,6 @@
         'filters/audio_file_reader.h',
         'filters/audio_renderer_algorithm_base.cc',
         'filters/audio_renderer_algorithm_base.h',
-        'filters/audio_renderer_algorithm_default.cc',
-        'filters/audio_renderer_algorithm_default.h',
-        'filters/audio_renderer_algorithm_ola.cc',
-        'filters/audio_renderer_algorithm_ola.h',
         'filters/audio_renderer_base.cc',
         'filters/audio_renderer_base.h',
         'filters/bitstream_converter.cc',
@@ -615,7 +611,7 @@
         'base/video_util_unittest.cc',
         'base/yuv_convert_unittest.cc',
         'ffmpeg/ffmpeg_common_unittest.cc',
-        'filters/audio_renderer_algorithm_ola_unittest.cc',
+        'filters/audio_renderer_algorithm_base_unittest.cc',
         'filters/audio_renderer_base_unittest.cc',
         'filters/bitstream_converter_unittest.cc',
         'filters/chunk_demuxer_unittest.cc',
@@ -702,17 +698,6 @@
       ],
       'sources': [
         'tools/scaler_bench/scaler_bench.cc',
-      ],
-    },
-    {
-      'target_name': 'wav_ola_test',
-      'type': 'executable',
-      'dependencies': [
-        'media',
-        '../base/base.gyp:base',
-      ],
-      'sources': [
-        'tools/wav_ola_test/wav_ola_test.cc'
       ],
     },
     {
