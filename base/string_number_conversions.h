@@ -10,6 +10,7 @@
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
+#include "base/string_piece.h"
 #include "base/string16.h"
 
 // ----------------------------------------------------------------------------
@@ -58,32 +59,10 @@ BASE_EXPORT std::string DoubleToString(double value);
 //  - No characters parseable as a number at the beginning of the string.
 //    |*output| will be set to 0.
 //  - Empty string.  |*output| will be set to 0.
-BASE_EXPORT bool StringToInt(const std::string& input, int* output);
-BASE_EXPORT bool StringToInt(std::string::const_iterator begin,
-                             std::string::const_iterator end,
-                             int* output);
-BASE_EXPORT bool StringToInt(const char* begin, const char* end, int* output);
-
-BASE_EXPORT bool StringToInt(const string16& input, int* output);
-BASE_EXPORT bool StringToInt(string16::const_iterator begin,
-                             string16::const_iterator end,
-                             int* output);
-BASE_EXPORT bool StringToInt(const char16* begin, const char16* end,
-                             int* output);
-
-BASE_EXPORT bool StringToInt64(const std::string& input, int64* output);
-BASE_EXPORT bool StringToInt64(std::string::const_iterator begin,
-                               std::string::const_iterator end,
-                               int64* output);
-BASE_EXPORT bool StringToInt64(const char* begin, const char* end,
-                               int64* output);
-
-BASE_EXPORT bool StringToInt64(const string16& input, int64* output);
-BASE_EXPORT bool StringToInt64(string16::const_iterator begin,
-                               string16::const_iterator end,
-                               int64* output);
-BASE_EXPORT bool StringToInt64(const char16* begin, const char16* end,
-                               int64* output);
+BASE_EXPORT bool StringToInt(const StringPiece& input, int* output);
+BASE_EXPORT bool StringToInt(const StringPiece16& input, int* output);
+BASE_EXPORT bool StringToInt64(const StringPiece& input, int64* output);
+BASE_EXPORT bool StringToInt64(const StringPiece16& input, int64* output);
 
 // For floating-point conversions, only conversions of input strings in decimal
 // form are defined to work.  Behavior with strings representing floating-point
@@ -104,12 +83,7 @@ BASE_EXPORT bool StringToDouble(const std::string& input, double* output);
 BASE_EXPORT std::string HexEncode(const void* bytes, size_t size);
 
 // Best effort conversion, see StringToInt above for restrictions.
-BASE_EXPORT bool HexStringToInt(const std::string& input, int* output);
-BASE_EXPORT bool HexStringToInt(std::string::const_iterator begin,
-                                std::string::const_iterator end,
-                                int* output);
-BASE_EXPORT bool HexStringToInt(const char* begin, const char* end,
-                                int* output);
+BASE_EXPORT bool HexStringToInt(const StringPiece& input, int* output);
 
 // Similar to the previous functions, except that output is a vector of bytes.
 // |*output| will contain as many bytes as were successfully parsed prior to the
