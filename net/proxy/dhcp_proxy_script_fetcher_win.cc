@@ -5,6 +5,7 @@
 #include "net/proxy/dhcp_proxy_script_fetcher_win.h"
 
 #include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/metrics/histogram.h"
 #include "base/perftimer.h"
 #include "base/threading/worker_pool.h"
@@ -37,8 +38,6 @@ namespace net {
 DhcpProxyScriptFetcherWin::DhcpProxyScriptFetcherWin(
     URLRequestContext* url_request_context)
     : state_(STATE_START),
-      ALLOW_THIS_IN_INITIALIZER_LIST(fetcher_callback_(
-          this, &DhcpProxyScriptFetcherWin::OnFetcherDone)),
       num_pending_fetchers_(0),
       url_request_context_(url_request_context) {
   DCHECK(url_request_context_);
@@ -55,7 +54,7 @@ DhcpProxyScriptFetcherWin::~DhcpProxyScriptFetcherWin() {
 }
 
 int DhcpProxyScriptFetcherWin::Fetch(string16* utf16_text,
-                                     OldCompletionCallback* callback) {
+                                     const CompletionCallback& callback) {
   DCHECK(CalledOnValidThread());
   if (state_ != STATE_START && state_ != STATE_DONE) {
     NOTREACHED();
@@ -65,7 +64,7 @@ int DhcpProxyScriptFetcherWin::Fetch(string16* utf16_text,
   fetch_start_time_ = base::TimeTicks::Now();
 
   state_ = STATE_WAIT_ADAPTERS;
-  client_callback_ = callback;
+  callback_ = callback;
   destination_string_ = utf16_text;
 
   last_query_ = ImplCreateAdapterQuery();
@@ -100,7 +99,7 @@ void DhcpProxyScriptFetcherWin::CancelImpl() {
   DCHECK(CalledOnValidThread());
 
   if (state_ != STATE_DONE) {
-    client_callback_ = NULL;
+    callback_.Reset();
     wait_timer_.Stop();
     state_ = STATE_DONE;
 
@@ -145,7 +144,9 @@ void DhcpProxyScriptFetcherWin::OnGetCandidateAdapterNamesDone(
        it != adapter_names.end();
        ++it) {
     DhcpProxyScriptAdapterFetcher* fetcher(ImplCreateAdapterFetcher());
-    fetcher->Fetch(*it, &fetcher_callback_);
+    fetcher->Fetch(
+        *it, base::Bind(&DhcpProxyScriptFetcherWin::OnFetcherDone,
+                        base::Unretained(this)));
     fetchers_.push_back(fetcher);
   }
   num_pending_fetchers_ = fetchers_.size();
@@ -245,11 +246,11 @@ void DhcpProxyScriptFetcherWin::TransitionToDone() {
     }
   }
 
-  OldCompletionCallback* callback = client_callback_;
+  CompletionCallback callback = callback_;
   CancelImpl();
   DCHECK_EQ(state_, STATE_DONE);
   DCHECK(fetchers_.empty());
-  DCHECK(!client_callback_);  // Invariant of data.
+  DCHECK(callback_.is_null());  // Invariant of data.
 
   UMA_HISTOGRAM_TIMES("Net.DhcpWpadCompletionTime",
                       base::TimeTicks::Now() - fetch_start_time_);
@@ -260,7 +261,7 @@ void DhcpProxyScriptFetcherWin::TransitionToDone() {
   }
 
   // We may be deleted re-entrantly within this outcall.
-  callback->Run(result);
+  callback.Run(result);
 }
 
 int DhcpProxyScriptFetcherWin::num_pending_fetchers() const {

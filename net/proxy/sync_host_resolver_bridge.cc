@@ -86,8 +86,7 @@ int SyncHostResolverBridge::Core::ResolveSynchronously(
   // Otherwise start an async resolve on the resolver's thread.
   host_resolver_loop_->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &Core::StartResolve,
-                        info, addresses));
+      base::Bind(&Core::StartResolve, this, info, addresses));
 
   return WaitForResolveCompletion();
 }

@@ -728,11 +728,11 @@ ProxyResolverV8::ProxyResolverV8(
 
 ProxyResolverV8::~ProxyResolverV8() {}
 
-int ProxyResolverV8::GetProxyForURL(const GURL& query_url,
-                                    ProxyInfo* results,
-                                    OldCompletionCallback* /*callback*/,
-                                    RequestHandle* /*request*/,
-                                    const BoundNetLog& net_log) {
+int ProxyResolverV8::GetProxyForURL(
+    const GURL& query_url, ProxyInfo* results,
+    const CompletionCallback& /*callback*/,
+    RequestHandle* /*request*/,
+    const BoundNetLog& net_log) {
   // If the V8 instance has not been initialized (either because
   // SetPacScript() wasn't called yet, or because it failed.
   if (!context_.get())
@@ -789,7 +789,7 @@ void ProxyResolverV8::Shutdown() {
 
 int ProxyResolverV8::SetPacScript(
     const scoped_refptr<ProxyResolverScriptData>& script_data,
-    OldCompletionCallback* /*callback*/) {
+    const CompletionCallback& /*callback*/) {
   DCHECK(script_data.get());
   context_.reset();
   if (script_data->utf16().empty())
