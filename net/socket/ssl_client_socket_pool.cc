@@ -511,7 +511,7 @@ int SSLClientSocketPool::RequestSocket(const std::string& group_name,
                                        const void* socket_params,
                                        RequestPriority priority,
                                        ClientSocketHandle* handle,
-                                       OldCompletionCallback* callback,
+                                       const CompletionCallback& callback,
                                        const BoundNetLog& net_log) {
   const scoped_refptr<SSLSocketParams>* casted_socket_params =
       static_cast<const scoped_refptr<SSLSocketParams>*>(socket_params);

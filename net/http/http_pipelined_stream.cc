@@ -25,19 +25,18 @@ HttpPipelinedStream::~HttpPipelinedStream() {
   pipeline_->OnStreamDeleted(pipeline_id_);
 }
 
-int HttpPipelinedStream::InitializeStream(const HttpRequestInfo* request_info,
-                                          const BoundNetLog& net_log,
-                                          OldCompletionCallback* callback) {
+int HttpPipelinedStream::InitializeStream(
+    const HttpRequestInfo* request_info, const BoundNetLog& net_log,
+    const CompletionCallback& callback) {
   request_info_ = request_info;
   pipeline_->InitializeParser(pipeline_id_, request_info, net_log);
   return OK;
 }
 
 
-int HttpPipelinedStream::SendRequest(const HttpRequestHeaders& headers,
-                                     UploadDataStream* request_body,
-                                     HttpResponseInfo* response,
-                                     OldCompletionCallback* callback) {
+int HttpPipelinedStream::SendRequest(
+    const HttpRequestHeaders& headers, UploadDataStream* request_body,
+    HttpResponseInfo* response, const CompletionCallback& callback) {
   CHECK(pipeline_id_);
   CHECK(request_info_);
   // TODO(simonjam): Proxy support will be needed here.
@@ -53,7 +52,8 @@ uint64 HttpPipelinedStream::GetUploadProgress() const {
   return pipeline_->GetUploadProgress(pipeline_id_);
 }
 
-int HttpPipelinedStream::ReadResponseHeaders(OldCompletionCallback* callback) {
+int HttpPipelinedStream::ReadResponseHeaders(
+    const CompletionCallback& callback) {
   return pipeline_->ReadResponseHeaders(pipeline_id_, callback);
 }
 
@@ -62,7 +62,7 @@ const HttpResponseInfo* HttpPipelinedStream::GetResponseInfo() const {
 }
 
 int HttpPipelinedStream::ReadResponseBody(IOBuffer* buf, int buf_len,
-                                          OldCompletionCallback* callback) {
+                                          const CompletionCallback& callback) {
   return pipeline_->ReadResponseBody(pipeline_id_, buf, buf_len, callback);
 }
 

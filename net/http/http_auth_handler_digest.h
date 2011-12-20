@@ -86,7 +86,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerDigest : public HttpAuthHandler {
 
   virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
                                     const HttpRequestInfo* request,
-                                    OldCompletionCallback* callback,
+                                    const CompletionCallback& callback,
                                     std::string* auth_token) OVERRIDE;
 
  private:

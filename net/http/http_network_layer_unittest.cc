@@ -89,7 +89,7 @@ TEST_F(HttpNetworkLayerTest, GET) {
                                      data_writes, arraysize(data_writes));
   mock_socket_factory_.AddSocketDataProvider(&data);
 
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
 
   HttpRequestInfo request_info;
   request_info.url = GURL("http://www.google.com/");
@@ -102,7 +102,7 @@ TEST_F(HttpNetworkLayerTest, GET) {
   int rv = factory_->CreateTransaction(&trans);
   EXPECT_EQ(OK, rv);
 
-  rv = trans->Start(&request_info, &callback, BoundNetLog());
+  rv = trans->Start(&request_info, callback.callback(), BoundNetLog());
   if (rv == ERR_IO_PENDING)
     rv = callback.WaitForResult();
   ASSERT_EQ(OK, rv);

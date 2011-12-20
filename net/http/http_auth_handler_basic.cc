@@ -86,10 +86,8 @@ HttpAuth::AuthorizationResult HttpAuthHandlerBasic::HandleAnotherChallenge(
 }
 
 int HttpAuthHandlerBasic::GenerateAuthTokenImpl(
-    const AuthCredentials* credentials,
-    const HttpRequestInfo*,
-    OldCompletionCallback*,
-    std::string* auth_token) {
+    const AuthCredentials* credentials, const HttpRequestInfo*,
+    const CompletionCallback&, std::string* auth_token) {
   DCHECK(credentials);
   // TODO(eroman): is this the right encoding of username/password?
   std::string base64_username_password;

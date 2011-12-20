@@ -157,7 +157,6 @@ class HttpProxyConnectJob : public ConnectJob {
 
   State next_state_;
   CompletionCallback callback_;
-  OldCompletionCallbackImpl<HttpProxyConnectJob> callback_old_;
   scoped_ptr<ClientSocketHandle> transport_socket_handle_;
   scoped_ptr<ProxyClientSocket> transport_socket_;
   bool using_spdy_;
@@ -172,7 +171,8 @@ class HttpProxyConnectJob : public ConnectJob {
 };
 
 class NET_EXPORT_PRIVATE HttpProxyClientSocketPool
-    : public ClientSocketPool, public LayeredPool {
+    : public ClientSocketPool,
+      public LayeredPool {
  public:
   HttpProxyClientSocketPool(
       int max_sockets,
@@ -185,12 +185,12 @@ class NET_EXPORT_PRIVATE HttpProxyClientSocketPool
 
   virtual ~HttpProxyClientSocketPool();
 
-  // ClientSocketPool methods:
+  // ClientSocketPool implementation.
   virtual int RequestSocket(const std::string& group_name,
                             const void* connect_params,
                             RequestPriority priority,
                             ClientSocketHandle* handle,
-                            OldCompletionCallback* callback,
+                            const CompletionCallback& callback,
                             const BoundNetLog& net_log) OVERRIDE;
 
   virtual void RequestSockets(const std::string& group_name,
@@ -233,7 +233,7 @@ class NET_EXPORT_PRIVATE HttpProxyClientSocketPool
 
   virtual ClientSocketPoolHistograms* histograms() const OVERRIDE;
 
-  // LayeredPool methods:
+  // LayeredPool implementation.
   virtual bool CloseOneIdleConnection() OVERRIDE;
 
  private:

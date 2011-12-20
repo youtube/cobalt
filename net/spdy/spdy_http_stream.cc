@@ -31,7 +31,6 @@ SpdyHttpStream::SpdyHttpStream(SpdySession* spdy_session,
       response_info_(NULL),
       download_finished_(false),
       response_headers_received_(false),
-      user_callback_(NULL),
       user_buffer_len_(0),
       buffered_read_callback_pending_(false),
       more_read_data_pending_(false),
@@ -50,7 +49,7 @@ SpdyHttpStream::~SpdyHttpStream() {
 
 int SpdyHttpStream::InitializeStream(const HttpRequestInfo* request_info,
                                      const BoundNetLog& stream_net_log,
-                                     OldCompletionCallback* callback) {
+                                     const CompletionCallback& callback) {
   DCHECK(!stream_.get());
   if (spdy_session_->IsClosed())
    return ERR_CONNECTION_CLOSED;
@@ -82,8 +81,8 @@ uint64 SpdyHttpStream::GetUploadProgress() const {
   return request_body_stream_->position();
 }
 
-int SpdyHttpStream::ReadResponseHeaders(OldCompletionCallback* callback) {
-  CHECK(callback);
+int SpdyHttpStream::ReadResponseHeaders(const CompletionCallback& callback) {
+  CHECK(!callback.is_null());
   CHECK(!stream_->cancelled());
 
   if (stream_->closed())
@@ -96,17 +95,17 @@ int SpdyHttpStream::ReadResponseHeaders(OldCompletionCallback* callback) {
   }
 
   // Still waiting for the response, return IO_PENDING.
-  CHECK(!user_callback_);
-  user_callback_ = callback;
+  CHECK(callback_.is_null());
+  callback_ = callback;
   return ERR_IO_PENDING;
 }
 
 int SpdyHttpStream::ReadResponseBody(
-    IOBuffer* buf, int buf_len, OldCompletionCallback* callback) {
+    IOBuffer* buf, int buf_len, const CompletionCallback& callback) {
   CHECK(stream_->is_idle());
   CHECK(buf);
   CHECK(buf_len);
-  CHECK(callback);
+  CHECK(!callback.is_null());
 
   // If we have data buffered, complete the IO immediately.
   if (!response_body_.empty()) {
@@ -135,11 +134,11 @@ int SpdyHttpStream::ReadResponseBody(
     return stream_->response_status();
   }
 
-  CHECK(!user_callback_);
+  CHECK(callback_.is_null());
   CHECK(!user_buffer_);
   CHECK_EQ(0, user_buffer_len_);
 
-  user_callback_ = callback;
+  callback_ = callback;
   user_buffer_ = buf;
   user_buffer_len_ = buf_len;
   return ERR_IO_PENDING;
@@ -190,7 +189,7 @@ void SpdyHttpStream::set_chunk_callback(ChunkCallback* callback) {
 int SpdyHttpStream::SendRequest(const HttpRequestHeaders& request_headers,
                                 UploadDataStream* request_body,
                                 HttpResponseInfo* response,
-                                OldCompletionCallback* callback) {
+                                const CompletionCallback& callback) {
   base::Time request_time = base::Time::Now();
   CHECK(stream_.get());
 
@@ -216,7 +215,7 @@ int SpdyHttpStream::SendRequest(const HttpRequestHeaders& request_headers,
       delete request_body;
   }
 
-  CHECK(callback);
+  CHECK(!callback.is_null());
   CHECK(!stream_->cancelled());
   CHECK(response);
 
@@ -252,8 +251,8 @@ int SpdyHttpStream::SendRequest(const HttpRequestHeaders& request_headers,
   bool has_upload_data = request_body_stream_.get() != NULL;
   result = stream_->SendRequest(has_upload_data);
   if (result == ERR_IO_PENDING) {
-    CHECK(!user_callback_);
-    user_callback_ = callback;
+    CHECK(callback_.is_null());
+    callback_ = callback;
   }
   return result;
 }
@@ -261,13 +260,13 @@ int SpdyHttpStream::SendRequest(const HttpRequestHeaders& request_headers,
 void SpdyHttpStream::Cancel() {
   if (spdy_session_)
     spdy_session_->CancelPendingCreateStreams(&stream_);
-  user_callback_ = NULL;
+  callback_.Reset();
   if (stream_)
     stream_->Cancel();
 }
 
 bool SpdyHttpStream::OnSendHeadersComplete(int status) {
-  if (user_callback_)
+  if (!callback_.is_null())
     DoCallback(status);
   return request_body_stream_.get() == NULL;
 }
@@ -344,8 +343,9 @@ int SpdyHttpStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response,
   // frame has been received and processed.  Move to framer?
   response_info_->response_time = response_time;
 
-  if (user_callback_)
+  if (!callback_.is_null())
     DoCallback(status);
+
   return status;
 }
 
@@ -385,7 +385,7 @@ void SpdyHttpStream::OnClose(int status) {
     // We need to complete any pending buffered read now.
     invoked_callback = DoBufferedReadCallback();
   }
-  if (!invoked_callback && user_callback_)
+  if (!invoked_callback && !callback_.is_null())
     DoCallback(status);
 }
 
@@ -441,7 +441,7 @@ bool SpdyHttpStream::DoBufferedReadCallback() {
 
   int rv = 0;
   if (user_buffer_) {
-    rv = ReadResponseBody(user_buffer_, user_buffer_len_, user_callback_);
+    rv = ReadResponseBody(user_buffer_, user_buffer_len_, callback_);
     CHECK_NE(rv, ERR_IO_PENDING);
     user_buffer_ = NULL;
     user_buffer_len_ = 0;
@@ -453,12 +453,12 @@ bool SpdyHttpStream::DoBufferedReadCallback() {
 
 void SpdyHttpStream::DoCallback(int rv) {
   CHECK_NE(rv, ERR_IO_PENDING);
-  CHECK(user_callback_);
+  CHECK(!callback_.is_null());
 
   // Since Run may result in being called back, clear user_callback_ in advance.
-  OldCompletionCallback* c = user_callback_;
-  user_callback_ = NULL;
-  c->Run(rv);
+  CompletionCallback c = callback_;
+  callback_.Reset();
+  c.Run(rv);
 }
 
 void SpdyHttpStream::GetSSLInfo(SSLInfo* ssl_info) {

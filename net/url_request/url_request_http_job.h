@@ -105,8 +105,7 @@ class URLRequestHttpJob : public URLRequestJob {
   AuthState server_auth_state_;
   AuthCredentials auth_credentials_;
 
-  OldCompletionCallbackImpl<URLRequestHttpJob> start_callback_;
-  OldCompletionCallbackImpl<URLRequestHttpJob> read_callback_;
+  CompletionCallback start_callback_;
   CompletionCallback notify_before_headers_sent_callback_;
 
   bool read_in_progress_;

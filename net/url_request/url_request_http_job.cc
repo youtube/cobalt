@@ -200,9 +200,8 @@ URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
       proxy_auth_state_(AUTH_STATE_DONT_NEED_AUTH),
       server_auth_state_(AUTH_STATE_DONT_NEED_AUTH),
       ALLOW_THIS_IN_INITIALIZER_LIST(start_callback_(
-          this, &URLRequestHttpJob::OnStartCompleted)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(read_callback_(
-          this, &URLRequestHttpJob::OnReadCompleted)),
+          base::Bind(&URLRequestHttpJob::OnStartCompleted,
+                     base::Unretained(this)))),
       ALLOW_THIS_IN_INITIALIZER_LIST(notify_before_headers_sent_callback_(
           base::Bind(&URLRequestHttpJob::NotifyBeforeSendHeadersCallback,
                      base::Unretained(this)))),
@@ -338,7 +337,7 @@ void URLRequestHttpJob::StartTransactionInternal() {
   }
 
   if (transaction_.get()) {
-    rv = transaction_->RestartWithAuth(auth_credentials_, &start_callback_);
+    rv = transaction_->RestartWithAuth(auth_credentials_, start_callback_);
     auth_credentials_ = AuthCredentials();
   } else {
     DCHECK(request_->context());
@@ -350,7 +349,7 @@ void URLRequestHttpJob::StartTransactionInternal() {
       if (!URLRequestThrottlerManager::GetInstance()->enforce_throttling() ||
           !throttling_entry_->ShouldRejectRequest(request_info_.load_flags)) {
         rv = transaction_->Start(
-            &request_info_, &start_callback_, request_->net_log());
+            &request_info_, start_callback_, request_->net_log());
         start_time_ = base::TimeTicks::Now();
       } else {
         // Special error code for the exponential back-off module.
@@ -1025,7 +1024,7 @@ void URLRequestHttpJob::ContinueWithCertificate(
   // be notifying our consumer asynchronously via OnStartCompleted.
   SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
 
-  int rv = transaction_->RestartWithCertificate(client_cert, &start_callback_);
+  int rv = transaction_->RestartWithCertificate(client_cert, start_callback_);
   if (rv == ERR_IO_PENDING)
     return;
 
@@ -1050,7 +1049,7 @@ void URLRequestHttpJob::ContinueDespiteLastError() {
   // be notifying our consumer asynchronously via OnStartCompleted.
   SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
 
-  int rv = transaction_->RestartIgnoringLastError(&start_callback_);
+  int rv = transaction_->RestartIgnoringLastError(start_callback_);
   if (rv == ERR_IO_PENDING)
     return;
 
@@ -1090,7 +1089,9 @@ bool URLRequestHttpJob::ReadRawData(IOBuffer* buf, int buf_size,
   DCHECK(bytes_read);
   DCHECK(!read_in_progress_);
 
-  int rv = transaction_->Read(buf, buf_size, &read_callback_);
+  int rv = transaction_->Read(
+      buf, buf_size,
+      base::Bind(&URLRequestHttpJob::OnReadCompleted, base::Unretained(this)));
 
   if (ShouldFixMismatchedContentLength(rv))
     rv = 0;

@@ -190,12 +190,12 @@ class NET_EXPORT_PRIVATE SSLClientSocketPool
 
   virtual ~SSLClientSocketPool();
 
-  // ClientSocketPool methods:
+  // ClientSocketPool implementation.
   virtual int RequestSocket(const std::string& group_name,
                             const void* connect_params,
                             RequestPriority priority,
                             ClientSocketHandle* handle,
-                            OldCompletionCallback* callback,
+                            const CompletionCallback& callback,
                             const BoundNetLog& net_log) OVERRIDE;
 
   virtual void RequestSockets(const std::string& group_name,
@@ -238,13 +238,13 @@ class NET_EXPORT_PRIVATE SSLClientSocketPool
 
   virtual ClientSocketPoolHistograms* histograms() const OVERRIDE;
 
-  // LayeredPool methods:
+  // LayeredPool implementation.
   virtual bool CloseOneIdleConnection() OVERRIDE;
 
  private:
   typedef ClientSocketPoolBase<SSLSocketParams> PoolBase;
 
-  // SSLConfigService::Observer methods:
+  // SSLConfigService::Observer implementation.
 
   // When the user changes the SSL config, we flush all idle sockets so they
   // won't get re-used.

@@ -425,7 +425,7 @@ class TestClientSocketPool : public ClientSocketPool {
       const void* params,
       net::RequestPriority priority,
       ClientSocketHandle* handle,
-      OldCompletionCallback* callback,
+      const CompletionCallback& callback,
       const BoundNetLog& net_log) OVERRIDE {
     const scoped_refptr<TestSocketParams>* casted_socket_params =
         static_cast<const scoped_refptr<TestSocketParams>*>(params);
@@ -728,7 +728,7 @@ TEST_F(ClientSocketPoolBaseTest, ConnectJob_NoTimeoutOnSynchronousCompletion) {
   TestConnectJobDelegate delegate;
   ClientSocketHandle ignored;
   TestClientSocketPoolBase::Request request(
-      &ignored, NULL, kDefaultPriority,
+      &ignored, CompletionCallback(), kDefaultPriority,
       internal::ClientSocketPoolBaseHelper::NORMAL,
       false, params_, BoundNetLog());
   scoped_ptr<TestConnectJob> job(
@@ -748,7 +748,7 @@ TEST_F(ClientSocketPoolBaseTest, ConnectJob_TimedOut) {
   CapturingNetLog log(CapturingNetLog::kUnbounded);
 
   TestClientSocketPoolBase::Request request(
-      &ignored, NULL, kDefaultPriority,
+      &ignored, CompletionCallback(), kDefaultPriority,
       internal::ClientSocketPoolBaseHelper::NORMAL,
       false, params_, BoundNetLog());
   // Deleted by TestConnectJobDelegate.

@@ -172,7 +172,7 @@ class NET_EXPORT ClientSocketHandle {
   scoped_ptr<StreamSocket> socket_;
   std::string group_name_;
   bool is_reused_;
-  OldCompletionCallbackImpl<ClientSocketHandle> callback_;
+  CompletionCallback callback_;
   CompletionCallback user_callback_;
   base::TimeDelta idle_time_;
   int pool_id_;  // See ClientSocketPool::ReleaseSocket() for an explanation.
@@ -208,7 +208,7 @@ int ClientSocketHandle::Init(const std::string& group_name,
   group_name_ = group_name;
   init_time_ = base::TimeTicks::Now();
   int rv = pool_->RequestSocket(
-      group_name, &socket_params, priority, this, &callback_, net_log);
+      group_name, &socket_params, priority, this, callback_, net_log);
   if (rv == ERR_IO_PENDING) {
     user_callback_ = callback;
   } else {

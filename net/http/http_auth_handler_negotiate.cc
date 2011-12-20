@@ -106,7 +106,6 @@ HttpAuthHandlerNegotiate::HttpAuthHandlerNegotiate(
       resolver_(resolver),
       already_called_(false),
       has_credentials_(false),
-      user_callback_(NULL),
       auth_token_(NULL),
       next_state_(STATE_NONE),
       url_security_manager_(url_security_manager) {
@@ -212,11 +211,9 @@ bool HttpAuthHandlerNegotiate::Init(HttpAuth::ChallengeTokenizer* challenge) {
 }
 
 int HttpAuthHandlerNegotiate::GenerateAuthTokenImpl(
-    const AuthCredentials* credentials,
-    const HttpRequestInfo* request,
-    OldCompletionCallback* callback,
-    std::string* auth_token) {
-  DCHECK(user_callback_ == NULL);
+    const AuthCredentials* credentials, const HttpRequestInfo* request,
+    const CompletionCallback& callback, std::string* auth_token) {
+  DCHECK(callback_.is_null());
   DCHECK(auth_token_ == NULL);
   auth_token_ = auth_token;
   if (already_called_) {
@@ -233,7 +230,7 @@ int HttpAuthHandlerNegotiate::GenerateAuthTokenImpl(
   }
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING)
-    user_callback_ = callback;
+    callback_ = callback;
   return rv;
 }
 
@@ -245,10 +242,10 @@ void HttpAuthHandlerNegotiate::OnIOComplete(int result) {
 
 void HttpAuthHandlerNegotiate::DoCallback(int rv) {
   DCHECK(rv != ERR_IO_PENDING);
-  DCHECK(user_callback_);
-  OldCompletionCallback* callback = user_callback_;
-  user_callback_ = NULL;
-  callback->Run(rv);
+  DCHECK(!callback_.is_null());
+  CompletionCallback callback = callback_;
+  callback_.Reset();
+  callback.Run(rv);
 }
 
 int HttpAuthHandlerNegotiate::DoLoop(int result) {

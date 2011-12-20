@@ -42,7 +42,7 @@ class MockAuthHandler : public HttpAuthHandler {
 
   virtual int GenerateAuthTokenImpl(const AuthCredentials*,
                                     const HttpRequestInfo*,
-                                    OldCompletionCallback* callback,
+                                    const CompletionCallback& callback,
                                     std::string* auth_token) {
     *auth_token = "mock-credentials";
     return OK;

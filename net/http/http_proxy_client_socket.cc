@@ -4,6 +4,8 @@
 
 #include "net/http/http_proxy_client_socket.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "googleurl/src/gurl.h"
@@ -35,8 +37,9 @@ HttpProxyClientSocket::HttpProxyClientSocket(
     bool using_spdy,
     SSLClientSocket::NextProto protocol_negotiated,
     bool is_https_proxy)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(
-          io_callback_(this, &HttpProxyClientSocket::OnIOComplete)),
+    : ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(
+        base::Bind(&HttpProxyClientSocket::OnIOComplete,
+                   base::Unretained(this)))),
       next_state_(STATE_NONE),
       transport_(transport_socket),
       endpoint_(endpoint),
@@ -64,7 +67,7 @@ HttpProxyClientSocket::~HttpProxyClientSocket() {
   Disconnect();
 }
 
-int HttpProxyClientSocket::RestartWithAuth(OldCompletionCallback* callback) {
+int HttpProxyClientSocket::RestartWithAuth(const CompletionCallback& callback) {
   DCHECK_EQ(STATE_NONE, next_state_);
   DCHECK(user_callback_.is_null());
 
@@ -73,10 +76,11 @@ int HttpProxyClientSocket::RestartWithAuth(OldCompletionCallback* callback) {
     return rv;
 
   rv = DoLoop(OK);
-  if (rv == ERR_IO_PENDING)
-    if (callback) {
-      user_callback_ = base::Bind(&OldCompletionCallbackAdapter, callback);
-    }
+  if (rv == ERR_IO_PENDING) {
+    if (!callback.is_null())
+      user_callback_ =  callback;
+  }
+
   return rv;
 }
 
@@ -371,7 +375,7 @@ int HttpProxyClientSocket::DoLoop(int last_io_result) {
 
 int HttpProxyClientSocket::DoGenerateAuthToken() {
   next_state_ = STATE_GENERATE_AUTH_TOKEN_COMPLETE;
-  return auth_->MaybeGenerateAuthToken(&request_, &io_callback_, net_log_);
+  return auth_->MaybeGenerateAuthToken(&request_, io_callback_, net_log_);
 }
 
 int HttpProxyClientSocket::DoGenerateAuthTokenComplete(int result) {
@@ -405,7 +409,7 @@ int HttpProxyClientSocket::DoSendRequest() {
   http_stream_parser_.reset(
       new HttpStreamParser(transport_.get(), &request_, parser_buf_, net_log_));
   return http_stream_parser_->SendRequest(request_line_, request_headers_, NULL,
-                                          &response_, &io_callback_);
+                                          &response_, io_callback_);
 }
 
 int HttpProxyClientSocket::DoSendRequestComplete(int result) {
@@ -418,7 +422,7 @@ int HttpProxyClientSocket::DoSendRequestComplete(int result) {
 
 int HttpProxyClientSocket::DoReadHeaders() {
   next_state_ = STATE_READ_HEADERS_COMPLETE;
-  return http_stream_parser_->ReadResponseHeaders(&io_callback_);
+  return http_stream_parser_->ReadResponseHeaders(io_callback_);
 }
 
 int HttpProxyClientSocket::DoReadHeadersComplete(int result) {
@@ -476,7 +480,7 @@ int HttpProxyClientSocket::DoDrainBody() {
   DCHECK(transport_->is_initialized());
   next_state_ = STATE_DRAIN_BODY_COMPLETE;
   return http_stream_parser_->ReadResponseBody(drain_buf_, kDrainBodyBufferSize,
-                                               &io_callback_);
+                                               io_callback_);
 }
 
 int HttpProxyClientSocket::DoDrainBodyComplete(int result) {

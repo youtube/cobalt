@@ -55,7 +55,7 @@ class PartialData {
   // error code. If this method returns ERR_IO_PENDING, the |callback| will be
   // notified when the result is ready.
   int ShouldValidateCache(disk_cache::Entry* entry,
-                          OldCompletionCallback* callback);
+                          const CompletionCallback& callback);
 
   // Builds the required |headers| to perform the proper cache validation for
   // the next range to be fetched.
@@ -136,7 +136,7 @@ class PartialData {
   bool truncated_;  // We have an incomplete 200 stored.
   bool initial_validation_;  // Only used for truncated entries.
   Core* core_;
-  OldCompletionCallback* callback_;
+  CompletionCallback callback_;
 
   DISALLOW_COPY_AND_ASSIGN(PartialData);
 };

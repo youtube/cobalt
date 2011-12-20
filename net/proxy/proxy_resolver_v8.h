@@ -26,7 +26,7 @@ class ProxyResolverJSBindings;
 // since only one will be running inside V8 at a time.
 //
 // It is important that *ALL* instances of V8 in the process be using
-// v8::Locker. If not there can be race conditions beween the non-locked V8
+// v8::Locker. If not there can be race conditions between the non-locked V8
 // instances and the locked V8 instances used by ProxyResolverV8 (assuming they
 // run on different threads).
 //
