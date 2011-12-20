@@ -187,8 +187,13 @@ bool ParseFtpDirectoryListingLs(
       // TODO(phajdan.jr): Use a value that means "unknown" instead of 0 bytes.
       entry.size = 0;
     }
-    if (entry.size < 0)
-      return false;
+    if (entry.size < 0) {
+      // Some FTP servers have bugs that cause them to display the file size
+      // as negative. They're most likely big files like DVD ISO images.
+      // We still want to display them, so just say the real file size
+      // is unknown.
+      entry.size = -1;
+    }
     if (entry.type != FtpDirectoryListingEntry::FILE)
       entry.size = -1;
 

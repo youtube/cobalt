@@ -1411,7 +1411,11 @@ std::string GetDirectoryListingEntry(const string16& name,
     result.append(",0,");
   }
 
-  base::JsonDoubleQuote(FormatBytesUnlocalized(size), true, &result);
+  // Negative size means unknown or not applicable (e.g. directory).
+  string16 size_string;
+  if (size >= 0)
+    size_string = FormatBytesUnlocalized(size);
+  base::JsonDoubleQuote(size_string, true, &result);
 
   result.append(",");
 
