@@ -13,6 +13,7 @@
 #include "base/basictypes.h"
 #include "base/location.h"
 #include "base/memory/linked_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/task.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
@@ -90,14 +91,14 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
                   const HttpRequestHeaders& headers,
                   UploadDataStream* request_body,
                   HttpResponseInfo* response,
-                  OldCompletionCallback* callback);
+                  const CompletionCallback& callback);
 
   int ReadResponseHeaders(int pipeline_id,
-                          OldCompletionCallback* callback);
+                          const CompletionCallback& callback);
 
   int ReadResponseBody(int pipeline_id,
                        IOBuffer* buf, int buf_len,
-                       OldCompletionCallback* callback);
+                       const CompletionCallback& callback);
 
   void Close(int pipeline_id,
              bool not_reusable);
@@ -166,7 +167,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
     HttpRequestHeaders headers;
     UploadDataStream* request_body;
     HttpResponseInfo* response;
-    OldCompletionCallback* callback;
+    CompletionCallback callback;
   };
 
   struct StreamInfo {
@@ -174,8 +175,8 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
     ~StreamInfo();
 
     linked_ptr<HttpStreamParser> parser;
-    OldCompletionCallback* read_headers_callback;
-    OldCompletionCallback* pending_user_callback;
+    CompletionCallback read_headers_callback;
+    CompletionCallback pending_user_callback;
     StreamState state;
     NetLog::Source source;
   };
@@ -275,7 +276,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
   // synchronously, but we've already returned ERR_IO_PENDING to the user's
   // SendRequest() or ReadResponseHeaders() call into us.
   void QueueUserCallback(int pipeline_id,
-                         OldCompletionCallback* callback,
+                         const CompletionCallback& callback,
                          int rv,
                          const tracked_objects::Location& from_here);
 
@@ -295,7 +296,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
   bool active_;
   bool usable_;
   bool completed_one_request_;
-  ScopedRunnableMethodFactory<HttpPipelinedConnectionImpl> method_factory_;
+  base::WeakPtrFactory<HttpPipelinedConnectionImpl> weak_factory_;
 
   StreamInfoMap stream_info_map_;
 
@@ -305,12 +306,10 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
   scoped_ptr<PendingSendRequest> active_send_request_;
   SendRequestState send_next_state_;
   bool send_still_on_call_stack_;
-  OldCompletionCallbackImpl<HttpPipelinedConnectionImpl> send_io_callback_;
 
   ReadHeadersState read_next_state_;
   int active_read_id_;
   bool read_still_on_call_stack_;
-  OldCompletionCallbackImpl<HttpPipelinedConnectionImpl> read_io_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpPipelinedConnectionImpl);
 };

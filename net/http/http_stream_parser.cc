@@ -77,7 +77,6 @@ HttpStreamParser::HttpStreamParser(ClientSocketHandle* connection,
       chunked_decoder_(NULL),
       user_read_buf_(NULL),
       user_read_buf_len_(0),
-      user_callback_(NULL),
       connection_(connection),
       net_log_(net_log),
       ALLOW_THIS_IN_INITIALIZER_LIST(
@@ -98,10 +97,10 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
                                   const HttpRequestHeaders& headers,
                                   UploadDataStream* request_body,
                                   HttpResponseInfo* response,
-                                  OldCompletionCallback* callback) {
+                                  const CompletionCallback& callback) {
   DCHECK_EQ(STATE_NONE, io_state_);
-  DCHECK(!user_callback_);
-  DCHECK(callback);
+  DCHECK(callback_.is_null());
+  DCHECK(!callback.is_null());
   DCHECK(response);
 
   if (net_log_.IsLoggingAllEvents()) {
@@ -137,15 +136,15 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
   io_state_ = STATE_SENDING_HEADERS;
   result = DoLoop(OK);
   if (result == ERR_IO_PENDING)
-    user_callback_ = callback;
+    callback_ = callback;
 
   return result > 0 ? OK : result;
 }
 
-int HttpStreamParser::ReadResponseHeaders(OldCompletionCallback* callback) {
+int HttpStreamParser::ReadResponseHeaders(const CompletionCallback& callback) {
   DCHECK(io_state_ == STATE_REQUEST_SENT || io_state_ == STATE_DONE);
-  DCHECK(!user_callback_);
-  DCHECK(callback);
+  DCHECK(callback_.is_null());
+  DCHECK(!callback.is_null());
 
   // This function can be called with io_state_ == STATE_DONE if the
   // connection is closed after seeing just a 1xx response code.
@@ -165,7 +164,7 @@ int HttpStreamParser::ReadResponseHeaders(OldCompletionCallback* callback) {
 
   result = DoLoop(result);
   if (result == ERR_IO_PENDING)
-    user_callback_ = callback;
+    callback_ = callback;
 
   return result > 0 ? OK : result;
 }
@@ -177,10 +176,10 @@ void HttpStreamParser::Close(bool not_reusable) {
 }
 
 int HttpStreamParser::ReadResponseBody(IOBuffer* buf, int buf_len,
-                                       OldCompletionCallback* callback) {
+                                       const CompletionCallback& callback) {
   DCHECK(io_state_ == STATE_BODY_PENDING || io_state_ == STATE_DONE);
-  DCHECK(!user_callback_);
-  DCHECK(callback);
+  DCHECK(callback_.is_null());
+  DCHECK(!callback.is_null());
   DCHECK_LE(buf_len, kMaxBufSize);
 
   if (io_state_ == STATE_DONE)
@@ -192,7 +191,7 @@ int HttpStreamParser::ReadResponseBody(IOBuffer* buf, int buf_len,
 
   int result = DoLoop(OK);
   if (result == ERR_IO_PENDING)
-    user_callback_ = callback;
+    callback_ = callback;
 
   return result;
 }
@@ -202,10 +201,10 @@ void HttpStreamParser::OnIOComplete(int result) {
 
   // The client callback can do anything, including destroying this class,
   // so any pending callback must be issued after everything else is done.
-  if (result != ERR_IO_PENDING && user_callback_) {
-    OldCompletionCallback* c = user_callback_;
-    user_callback_ = NULL;
-    c->Run(result);
+  if (result != ERR_IO_PENDING && !callback_.is_null()) {
+    CompletionCallback c = callback_;
+    callback_.Reset();
+    c.Run(result);
   }
 }
 

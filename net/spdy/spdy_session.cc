@@ -300,6 +300,10 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
   SendSettings();
 }
 
+SpdySession::PendingCreateStream::~PendingCreateStream() {}
+
+SpdySession::CallbackResultPair::~CallbackResultPair() {}
+
 SpdySession::~SpdySession() {
   if (state_ != CLOSED) {
     state_ = CLOSED;
@@ -402,7 +406,7 @@ int SpdySession::CreateStream(
     RequestPriority priority,
     scoped_refptr<SpdyStream>* spdy_stream,
     const BoundNetLog& stream_net_log,
-    OldCompletionCallback* callback) {
+    const CompletionCallback& callback) {
   if (!max_concurrent_streams_ ||
       active_streams_.size() < max_concurrent_streams_) {
     return CreateStreamImpl(url, priority, spdy_stream, stream_net_log);
@@ -892,7 +896,7 @@ void SpdySession::CloseAllStreams(net::Error status) {
     while (!create_stream_queues_[i].empty()) {
       PendingCreateStream pending_create = create_stream_queues_[i].front();
       create_stream_queues_[i].pop();
-      pending_create.callback->Run(ERR_ABORTED);
+      pending_create.callback.Run(ERR_ABORTED);
     }
   }
 
@@ -1770,10 +1774,10 @@ void SpdySession::InvokeUserStreamCreationCallback(
   if (it == pending_callback_map_.end())
     return;
 
-  OldCompletionCallback* callback = it->second.callback;
+  CompletionCallback callback = it->second.callback;
   int result = it->second.result;
   pending_callback_map_.erase(it);
-  callback->Run(result);
+  callback.Run(result);
 }
 
 }  // namespace net

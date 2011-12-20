@@ -43,20 +43,20 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
   // Cancels any callbacks from being invoked and deletes the stream.
   void Cancel();
 
-  // HttpStream methods:
+  // HttpStream implementation.
   virtual int InitializeStream(const HttpRequestInfo* request_info,
                                const BoundNetLog& net_log,
-                               OldCompletionCallback* callback) OVERRIDE;
+                               const CompletionCallback& callback) OVERRIDE;
   virtual int SendRequest(const HttpRequestHeaders& headers,
                           UploadDataStream* request_body,
                           HttpResponseInfo* response,
-                          OldCompletionCallback* callback) OVERRIDE;
+                          const CompletionCallback& callback) OVERRIDE;
   virtual uint64 GetUploadProgress() const OVERRIDE;
-  virtual int ReadResponseHeaders(OldCompletionCallback* callback) OVERRIDE;
+  virtual int ReadResponseHeaders(const CompletionCallback& callback) OVERRIDE;
   virtual const HttpResponseInfo* GetResponseInfo() const OVERRIDE;
   virtual int ReadResponseBody(IOBuffer* buf,
                                int buf_len,
-                               OldCompletionCallback* callback) OVERRIDE;
+                               const CompletionCallback& callback) OVERRIDE;
   virtual void Close(bool not_reusable) OVERRIDE;
   virtual HttpStream* RenewStreamForAuth() OVERRIDE;
   virtual bool IsResponseBodyComplete() const OVERRIDE;
@@ -72,7 +72,7 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
   virtual void LogNumRttVsBytesMetrics() const OVERRIDE {}
   virtual void Drain(HttpNetworkSession* session) OVERRIDE;
 
-  // SpdyStream::Delegate methods:
+  // SpdyStream::Delegate implementation.
   virtual bool OnSendHeadersComplete(int status) OVERRIDE;
   virtual int OnSendBody() OVERRIDE;
   virtual int OnSendBodyComplete(int status, bool* eof) OVERRIDE;
@@ -119,7 +119,7 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
   // TODO(mbelshe):  is this infinite buffering?
   std::list<scoped_refptr<IOBufferWithSize> > response_body_;
 
-  OldCompletionCallback* user_callback_;
+  CompletionCallback callback_;
 
   // User provided buffer for the ReadResponseBody() response.
   scoped_refptr<IOBuffer> user_buffer_;

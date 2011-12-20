@@ -14,9 +14,10 @@
 namespace net {
 
 HttpAuthHandlerMock::HttpAuthHandlerMock()
-  : resolve_(RESOLVE_INIT), user_callback_(NULL),
-    ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)),
-    generate_async_(false), generate_rv_(OK),
+  : resolve_(RESOLVE_INIT),
+    ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
+    generate_async_(false),
+    generate_rv_(OK),
     auth_token_(NULL),
     first_round_(true),
     connection_based_(false),
@@ -46,8 +47,8 @@ bool HttpAuthHandlerMock::NeedsCanonicalName() {
   }
 }
 
-int HttpAuthHandlerMock::ResolveCanonicalName(HostResolver* host_resolver,
-                                              OldCompletionCallback* callback) {
+int HttpAuthHandlerMock::ResolveCanonicalName(
+    HostResolver* host_resolver, const CompletionCallback& callback) {
   EXPECT_NE(RESOLVE_TESTED, resolve_);
   int rv = OK;
   switch (resolve_) {
@@ -55,13 +56,13 @@ int HttpAuthHandlerMock::ResolveCanonicalName(HostResolver* host_resolver,
       resolve_ = RESOLVE_TESTED;
       break;
     case RESOLVE_ASYNC:
-      EXPECT_TRUE(user_callback_ == NULL);
+      EXPECT_TRUE(callback_.is_null());
       rv = ERR_IO_PENDING;
-      user_callback_ = callback;
+      callback_ = callback;
       MessageLoop::current()->PostTask(
           FROM_HERE, base::Bind(
               &HttpAuthHandlerMock::OnResolveCanonicalName,
-              ptr_factory_.GetWeakPtr()));
+              weak_factory_.GetWeakPtr()));
       break;
     default:
       NOTREACHED();
@@ -108,19 +109,19 @@ bool HttpAuthHandlerMock::Init(HttpAuth::ChallengeTokenizer* challenge) {
 int HttpAuthHandlerMock::GenerateAuthTokenImpl(
     const AuthCredentials* credentials,
     const HttpRequestInfo* request,
-    OldCompletionCallback* callback,
+    const CompletionCallback& callback,
     std::string* auth_token) {
   first_round_ = false;
   request_url_ = request->url;
   if (generate_async_) {
-    EXPECT_TRUE(user_callback_ == NULL);
+    EXPECT_TRUE(callback_.is_null());
     EXPECT_TRUE(auth_token_ == NULL);
-    user_callback_ = callback;
+    callback_ = callback;
     auth_token_ = auth_token;
     MessageLoop::current()->PostTask(
         FROM_HERE, base::Bind(
             &HttpAuthHandlerMock::OnGenerateAuthToken,
-            ptr_factory_.GetWeakPtr()));
+            weak_factory_.GetWeakPtr()));
     return ERR_IO_PENDING;
   } else {
     if (generate_rv_ == OK)
@@ -131,22 +132,22 @@ int HttpAuthHandlerMock::GenerateAuthTokenImpl(
 
 void HttpAuthHandlerMock::OnResolveCanonicalName() {
   EXPECT_EQ(RESOLVE_ASYNC, resolve_);
-  EXPECT_TRUE(user_callback_ != NULL);
+  EXPECT_TRUE(!callback_.is_null());
   resolve_ = RESOLVE_TESTED;
-  OldCompletionCallback* callback = user_callback_;
-  user_callback_ = NULL;
-  callback->Run(OK);
+  CompletionCallback callback = callback_;
+  callback_.Reset();
+  callback.Run(OK);
 }
 
 void HttpAuthHandlerMock::OnGenerateAuthToken() {
   EXPECT_TRUE(generate_async_);
-  EXPECT_TRUE(user_callback_ != NULL);
+  EXPECT_TRUE(!callback_.is_null());
   if (generate_rv_ == OK)
     *auth_token_ = "auth_token";
   auth_token_ = NULL;
-  OldCompletionCallback* callback = user_callback_;
-  user_callback_ = NULL;
-  callback->Run(generate_rv_);
+  CompletionCallback callback = callback_;
+  callback_.Reset();
+  callback.Run(generate_rv_);
 }
 
 HttpAuthHandlerMock::Factory::Factory()

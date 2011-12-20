@@ -202,7 +202,7 @@ class CapturePreconnectsSocketPool : public ParentPool {
                             const void* socket_params,
                             RequestPriority priority,
                             ClientSocketHandle* handle,
-                            OldCompletionCallback* callback,
+                            const CompletionCallback& callback,
                             const BoundNetLog& net_log) OVERRIDE {
     ADD_FAILURE();
     return ERR_UNEXPECTED;

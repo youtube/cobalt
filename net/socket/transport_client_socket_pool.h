@@ -140,53 +140,38 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool : public ClientSocketPool {
 
   virtual ~TransportClientSocketPool();
 
-  // ClientSocketPool methods:
-
+  // ClientSocketPool implementation.
   virtual int RequestSocket(const std::string& group_name,
                             const void* resolve_info,
                             RequestPriority priority,
                             ClientSocketHandle* handle,
-                            OldCompletionCallback* callback,
+                            const CompletionCallback& callback,
                             const BoundNetLog& net_log) OVERRIDE;
-
   virtual void RequestSockets(const std::string& group_name,
                               const void* params,
                               int num_sockets,
                               const BoundNetLog& net_log) OVERRIDE;
-
   virtual void CancelRequest(const std::string& group_name,
                              ClientSocketHandle* handle) OVERRIDE;
-
   virtual void ReleaseSocket(const std::string& group_name,
                              StreamSocket* socket,
                              int id) OVERRIDE;
-
   virtual void Flush() OVERRIDE;
-
   virtual bool IsStalled() const OVERRIDE;
-
   virtual void CloseIdleSockets() OVERRIDE;
-
   virtual int IdleSocketCount() const OVERRIDE;
-
   virtual int IdleSocketCountInGroup(
       const std::string& group_name) const OVERRIDE;
-
   virtual LoadState GetLoadState(
       const std::string& group_name,
       const ClientSocketHandle* handle) const OVERRIDE;
-
   virtual void AddLayeredPool(LayeredPool* layered_pool) OVERRIDE;
-
   virtual void RemoveLayeredPool(LayeredPool* layered_pool) OVERRIDE;
-
   virtual base::DictionaryValue* GetInfoAsValue(
       const std::string& name,
       const std::string& type,
       bool include_nested_pools) const OVERRIDE;
-
   virtual base::TimeDelta ConnectionTimeout() const OVERRIDE;
-
   virtual ClientSocketPoolHistograms* histograms() const OVERRIDE;
 
  private:

@@ -4,6 +4,8 @@
 
 #include "net/spdy/spdy_websocket_stream.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_errors.h"
 #include "net/base/io_buffer.h"
@@ -18,9 +20,7 @@ SpdyWebSocketStream::SpdyWebSocketStream(
     SpdySession* spdy_session, Delegate* delegate)
     : stream_(NULL),
       spdy_session_(spdy_session),
-      delegate_(delegate),
-      ALLOW_THIS_IN_INITIALIZER_LIST(spdy_stream_created_callback_(
-          this, &SpdyWebSocketStream::OnSpdyStreamCreated)) {
+      delegate_(delegate) {
   DCHECK(spdy_session_);
   DCHECK(delegate_);
 }
@@ -44,7 +44,8 @@ int SpdyWebSocketStream::InitializeStream(const GURL& url,
 
   int result = spdy_session_->CreateStream(
       url, request_priority, &stream_, net_log,
-      &spdy_stream_created_callback_);
+      base::Bind(&SpdyWebSocketStream::OnSpdyStreamCreated,
+                 base::Unretained(this)));
 
   if (result == OK) {
     DCHECK(stream_);

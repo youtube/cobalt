@@ -115,8 +115,6 @@ HttpStreamFactoryImpl::Job::Job(HttpStreamFactoryImpl* stream_factory,
       proxy_ssl_config_(proxy_ssl_config),
       net_log_(BoundNetLog::Make(net_log.net_log(),
                                  NetLog::SOURCE_HTTP_STREAM_JOB)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(old_io_callback_(
-          this, &Job::OnIOComplete)),
       ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(
           base::Bind(&Job::OnIOComplete, base::Unretained(this)))),
       connection_(new ClientSocketHandle),
@@ -963,7 +961,7 @@ int HttpStreamFactoryImpl::Job::DoRestartTunnelAuth() {
   next_state_ = STATE_RESTART_TUNNEL_AUTH_COMPLETE;
   HttpProxyClientSocket* http_proxy_socket =
       static_cast<HttpProxyClientSocket*>(connection_->socket());
-  return http_proxy_socket->RestartWithAuth(&old_io_callback_);
+  return http_proxy_socket->RestartWithAuth(io_callback_);
 }
 
 int HttpStreamFactoryImpl::Job::DoRestartTunnelAuthComplete(int result) {

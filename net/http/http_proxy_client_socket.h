@@ -55,7 +55,7 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   // If Connect (or its callback) returns PROXY_AUTH_REQUESTED, then
   // credentials should be added to the HttpAuthController before calling
   // RestartWithAuth.
-  int RestartWithAuth(OldCompletionCallback* callback);
+  int RestartWithAuth(const CompletionCallback& callback);
 
   const scoped_refptr<HttpAuthController>& auth_controller() {
     return auth_;
@@ -141,7 +141,7 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   int DoTCPRestart();
   int DoTCPRestartComplete(int result);
 
-  OldCompletionCallbackImpl<HttpProxyClientSocket> io_callback_;
+  CompletionCallback io_callback_;
   State next_state_;
 
   // Stores the callback to the layer above, called on completing Connect().
