@@ -1478,8 +1478,7 @@ int MockTransportClientSocketPool::RequestSocket(
       AddressList(), net_log.net_log(), net::NetLog::Source());
   CompletionCallback cb;
   if (callback) {
-    cb = base::Bind(&OldCompletionCallback::Run<int>,
-                    base::Unretained(callback));
+    cb = base::Bind(&OldCompletionCallbackAdapter, callback);
   }
   MockConnectJob* job = new MockConnectJob(socket, handle, cb);
   job_list_.push_back(job);
@@ -1488,7 +1487,7 @@ int MockTransportClientSocketPool::RequestSocket(
 }
 
 void MockTransportClientSocketPool::CancelRequest(const std::string& group_name,
-                                            ClientSocketHandle* handle) {
+                                                  ClientSocketHandle* handle) {
   std::vector<MockConnectJob*>::iterator i;
   for (i = job_list_.begin(); i != job_list_.end(); ++i) {
     if ((*i)->CancelHandle(handle)) {
