@@ -8,7 +8,7 @@
 
 #include <string>
 
-#include "base/task.h"
+#include "base/memory/weak_ptr.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_job.h"
 
@@ -139,7 +139,7 @@ class NET_EXPORT_PRIVATE URLRequestTestJob : public URLRequestJob {
   IOBuffer* async_buf_;
   int async_buf_size_;
 
-  ScopedRunnableMethodFactory<URLRequestTestJob> method_factory_;
+  base::WeakPtrFactory<URLRequestTestJob> weak_factory_;
 };
 
 }  // namespace net
