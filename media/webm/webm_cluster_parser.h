@@ -25,6 +25,9 @@ class WebMClusterParser : public WebMParserClient {
                     base::TimeDelta video_default_duration);
   virtual ~WebMClusterParser();
 
+  // Resets the parser state so it can accept a new cluster.
+  void Reset();
+
   // Parses a WebM cluster element in |buf|.
   //
   // Returns -1 if the parse fails.
