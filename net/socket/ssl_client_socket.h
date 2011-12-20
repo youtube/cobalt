@@ -112,6 +112,8 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
 
   static NextProto NextProtoFromString(const std::string& proto_string);
 
+  static const char* NextProtoToString(SSLClientSocket::NextProto next_proto);
+
   static const char* NextProtoStatusToString(
       const SSLClientSocket::NextProtoStatus status);
 
@@ -133,10 +135,10 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
 
   virtual bool set_was_spdy_negotiated(bool negotiated);
 
-  virtual SSLClientSocket::NextProto next_protocol_negotiated() const;
+  virtual SSLClientSocket::NextProto protocol_negotiated() const;
 
-  virtual void set_next_protocol_negotiated(
-      SSLClientSocket::NextProto next_protocol);
+  virtual void set_protocol_negotiated(
+      SSLClientSocket::NextProto protocol_negotiated);
 
   // Returns true if an origin bound certificate was sent on this connection.
   // This may be useful for protocols, like SPDY, which allow the same
@@ -152,7 +154,7 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
   // True if NPN successfully negotiated SPDY.
   bool was_spdy_negotiated_;
   // Protocol that we negotiated with the server.
-  SSLClientSocket::NextProto next_protocol_;
+  SSLClientSocket::NextProto protocol_negotiated_;
   // True if an origin bound certificate was sent.
   bool was_origin_bound_cert_sent_;
 };

@@ -341,7 +341,7 @@ net::Error SpdySession::InitializeWithSocket(
     SSLClientSocket* ssl_socket =
         reinterpret_cast<SSLClientSocket*>(connection_->socket());
     DCHECK(ssl_socket);
-    if (ssl_socket->next_protocol_negotiated() == SSLClientSocket::kProtoSPDY21)
+    if (ssl_socket->protocol_negotiated() == SSLClientSocket::kProtoSPDY21)
       flow_control_ = true;
   }
 
@@ -362,7 +362,8 @@ bool SpdySession::VerifyDomainAuthentication(const std::string& domain) {
 
   SSLInfo ssl_info;
   bool was_npn_negotiated;
-  if (!GetSSLInfo(&ssl_info, &was_npn_negotiated))
+  SSLClientSocket::NextProto protocol_negotiated;
+  if (!GetSSLInfo(&ssl_info, &was_npn_negotiated, &protocol_negotiated))
     return true;   // This is not a secure session, so all domains are okay.
 
   return !ssl_info.client_cert_sent && ssl_info.cert->VerifyNameMatch(domain);
@@ -1066,12 +1067,15 @@ scoped_refptr<SpdyStream> SpdySession::GetActivePushStream(
   return NULL;
 }
 
-bool SpdySession::GetSSLInfo(SSLInfo* ssl_info, bool* was_npn_negotiated) {
+bool SpdySession::GetSSLInfo(SSLInfo* ssl_info,
+                             bool* was_npn_negotiated,
+                             SSLClientSocket::NextProto* protocol_negotiated) {
   if (is_secure_) {
     SSLClientSocket* ssl_socket =
         reinterpret_cast<SSLClientSocket*>(connection_->socket());
     ssl_socket->GetSSLInfo(ssl_info);
     *was_npn_negotiated = ssl_socket->was_npn_negotiated();
+    *protocol_negotiated = ssl_socket->protocol_negotiated();
     return true;
   }
   return false;

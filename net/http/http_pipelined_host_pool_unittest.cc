@@ -47,12 +47,13 @@ class MockHost : public HttpPipelinedHost {
       : origin_(origin) {
   }
 
-  MOCK_METHOD5(CreateStreamOnNewPipeline, HttpPipelinedStream*(
+  MOCK_METHOD6(CreateStreamOnNewPipeline, HttpPipelinedStream*(
       ClientSocketHandle* connection,
       const SSLConfig& used_ssl_config,
       const ProxyInfo& used_proxy_info,
       const BoundNetLog& net_log,
-      bool was_npn_negotiated));
+      bool was_npn_negotiated,
+      SSLClientSocket::NextProto protocol_negotiated));
   MOCK_METHOD0(CreateStreamOnExistingPipeline, HttpPipelinedStream*());
   MOCK_CONST_METHOD0(IsExistingPipelineAvailable, bool());
 
@@ -71,7 +72,8 @@ class HttpPipelinedHostPoolTest : public testing::Test {
         http_server_properties_(new HttpServerPropertiesImpl),
         pool_(new HttpPipelinedHostPool(&delegate_, factory_,
                                         http_server_properties_.get())),
-        was_npn_negotiated_(false) {
+        was_npn_negotiated_(false),
+        protocol_negotiated_(SSLClientSocket::kProtoUnknown) {
   }
 
   void CreateDummyStream() {
@@ -79,13 +81,15 @@ class HttpPipelinedHostPoolTest : public testing::Test {
                                                   Ref(ssl_config_),
                                                   Ref(proxy_info_),
                                                   Ref(net_log_),
-                                                  was_npn_negotiated_))
+                                                  was_npn_negotiated_,
+                                                  protocol_negotiated_))
         .Times(1)
         .WillOnce(Return(kDummyStream));
     EXPECT_EQ(kDummyStream,
               pool_->CreateStreamOnNewPipeline(origin_, kDummyConnection,
                                                ssl_config_, proxy_info_,
-                                               net_log_, was_npn_negotiated_));
+                                               net_log_, was_npn_negotiated_,
+                                               protocol_negotiated_));
   }
 
   HostPortPair origin_;
@@ -99,6 +103,7 @@ class HttpPipelinedHostPoolTest : public testing::Test {
   const ProxyInfo proxy_info_;
   const BoundNetLog net_log_;
   bool was_npn_negotiated_;
+  SSLClientSocket::NextProto protocol_negotiated_;
 };
 
 TEST_F(HttpPipelinedHostPoolTest, DefaultUnknown) {
@@ -128,7 +133,8 @@ TEST_F(HttpPipelinedHostPoolTest, RemembersIncapable) {
   EXPECT_EQ(NULL,
             pool_->CreateStreamOnNewPipeline(origin_, kDummyConnection,
                                              ssl_config_, proxy_info_, net_log_,
-                                             was_npn_negotiated_));
+                                             was_npn_negotiated_,
+                                             protocol_negotiated_));
 }
 
 TEST_F(HttpPipelinedHostPoolTest, RemembersCapable) {

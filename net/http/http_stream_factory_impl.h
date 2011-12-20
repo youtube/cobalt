@@ -14,6 +14,7 @@
 #include "net/http/http_pipelined_host_pool.h"
 #include "net/http/http_stream_factory.h"
 #include "net/proxy/proxy_server.h"
+#include "net/socket/ssl_client_socket.h"
 
 namespace net {
 
@@ -70,6 +71,7 @@ class NET_EXPORT_PRIVATE HttpStreamFactoryImpl :
                           const SSLConfig& used_ssl_config,
                           const ProxyInfo& used_proxy_info,
                           bool was_npn_negotiated,
+                          SSLClientSocket::NextProto protocol_negotiated,
                           bool using_spdy,
                           const BoundNetLog& net_log);
 

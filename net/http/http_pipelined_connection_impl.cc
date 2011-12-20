@@ -23,13 +23,15 @@ HttpPipelinedConnectionImpl::HttpPipelinedConnectionImpl(
     const SSLConfig& used_ssl_config,
     const ProxyInfo& used_proxy_info,
     const BoundNetLog& net_log,
-    bool was_npn_negotiated)
+    bool was_npn_negotiated,
+    SSLClientSocket::NextProto protocol_negotiated)
     : delegate_(delegate),
       connection_(connection),
       used_ssl_config_(used_ssl_config),
       used_proxy_info_(used_proxy_info),
       net_log_(net_log),
       was_npn_negotiated_(was_npn_negotiated),
+      protocol_negotiated_(protocol_negotiated),
       read_buf_(new GrowableIOBuffer()),
       next_pipeline_id_(1),
       active_(false),
@@ -712,6 +714,11 @@ const BoundNetLog& HttpPipelinedConnectionImpl::net_log() const {
 
 bool HttpPipelinedConnectionImpl::was_npn_negotiated() const {
   return was_npn_negotiated_;
+}
+
+SSLClientSocket::NextProto HttpPipelinedConnectionImpl::protocol_negotiated()
+    const {
+  return protocol_negotiated_;
 }
 
 HttpPipelinedConnectionImpl::PendingSendRequest::PendingSendRequest() {

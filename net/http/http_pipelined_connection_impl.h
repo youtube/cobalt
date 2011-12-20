@@ -50,7 +50,8 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
                               const SSLConfig& used_ssl_config,
                               const ProxyInfo& used_proxy_info,
                               const BoundNetLog& net_log,
-                              bool was_npn_negotiated);
+                              bool was_npn_negotiated,
+                              SSLClientSocket::NextProto protocol_negotiated);
   virtual ~HttpPipelinedConnectionImpl();
 
   // HttpPipelinedConnection interface.
@@ -68,6 +69,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
   virtual const ProxyInfo& used_proxy_info() const OVERRIDE;
   virtual const BoundNetLog& net_log() const OVERRIDE;
   virtual bool was_npn_negotiated() const OVERRIDE;
+  virtual SSLClientSocket::NextProto protocol_negotiated() const OVERRIDE;
 
   // Used by HttpPipelinedStream.
 
@@ -280,6 +282,8 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
   ProxyInfo used_proxy_info_;
   BoundNetLog net_log_;
   bool was_npn_negotiated_;
+  // Protocol negotiated with the server.
+  SSLClientSocket::NextProto protocol_negotiated_;
   scoped_refptr<GrowableIOBuffer> read_buf_;
   int next_pipeline_id_;
   bool active_;

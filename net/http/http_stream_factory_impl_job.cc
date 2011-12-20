@@ -133,6 +133,7 @@ HttpStreamFactoryImpl::Job::Job(HttpStreamFactoryImpl* stream_factory,
       spdy_certificate_error_(OK),
       establishing_tunnel_(false),
       was_npn_negotiated_(false),
+      protocol_negotiated_(SSLClientSocket::kProtoUnknown),
       num_streams_(0),
       spdy_session_direct_(false),
       existing_available_pipeline_(false),
@@ -248,6 +249,11 @@ bool HttpStreamFactoryImpl::Job::was_npn_negotiated() const {
   return was_npn_negotiated_;
 }
 
+SSLClientSocket::NextProto HttpStreamFactoryImpl::Job::protocol_negotiated()
+    const {
+  return protocol_negotiated_;
+}
+
 bool HttpStreamFactoryImpl::Job::using_spdy() const {
   return using_spdy_;
 }
@@ -280,6 +286,7 @@ void HttpStreamFactoryImpl::Job::OnStreamReadyCallback() {
     stream_factory_->OnOrphanedJobComplete(this);
   } else {
     request_->Complete(was_npn_negotiated(),
+                       protocol_negotiated(),
                        using_spdy(),
                        net_log_);
     request_->OnStreamReady(this, server_ssl_config_, proxy_info_,
@@ -298,7 +305,7 @@ void HttpStreamFactoryImpl::Job::OnSpdySessionReadyCallback() {
   if (IsOrphaned()) {
     stream_factory_->OnSpdySessionReady(
         spdy_session, spdy_session_direct_, server_ssl_config_, proxy_info_,
-        was_npn_negotiated(), using_spdy(), net_log_);
+        was_npn_negotiated(), protocol_negotiated(), using_spdy(), net_log_);
     stream_factory_->OnOrphanedJobComplete(this);
   } else {
     request_->OnSpdySessionReady(this, spdy_session, spdy_session_direct_);
@@ -364,7 +371,8 @@ void HttpStreamFactoryImpl::Job::OnPreconnectsComplete() {
   if (new_spdy_session_) {
     stream_factory_->OnSpdySessionReady(
         new_spdy_session_, spdy_session_direct_, server_ssl_config_,
-        proxy_info_, was_npn_negotiated(), using_spdy(), net_log_);
+        proxy_info_, was_npn_negotiated(), protocol_negotiated(), using_spdy(),
+        net_log_);
   }
   stream_factory_->OnPreconnectsComplete(this);
   // |this| may be deleted after this call.
@@ -758,6 +766,9 @@ int HttpStreamFactoryImpl::Job::DoInitConnectionComplete(int result) {
       std::string server_protos;
       SSLClientSocket::NextProtoStatus status =
           ssl_socket->GetNextProto(&proto, &server_protos);
+      SSLClientSocket::NextProto protocol_negotiated =
+          SSLClientSocket::NextProtoFromString(proto);
+      protocol_negotiated_ = protocol_negotiated;
       net_log_.AddEvent(
            NetLog::TYPE_HTTP_STREAM_REQUEST_PROTO,
            HttpStreamProtoParameters::Create(status, proto, server_protos));
@@ -772,6 +783,7 @@ int HttpStreamFactoryImpl::Job::DoInitConnectionComplete(int result) {
       static_cast<HttpProxyClientSocket*>(connection_->socket());
     if (proxy_socket->using_spdy()) {
       was_npn_negotiated_ = true;
+      protocol_negotiated_ = proxy_socket->protocol_negotiated();
       SwitchToSpdyMode();
     }
   }
@@ -878,7 +890,8 @@ int HttpStreamFactoryImpl::Job::DoCreateStream() {
               server_ssl_config_,
               proxy_info_,
               net_log_,
-              was_npn_negotiated_));
+              was_npn_negotiated_,
+              protocol_negotiated_));
       CHECK(stream_.get());
     } else {
       stream_.reset(new HttpBasicStream(connection_.release(), NULL,

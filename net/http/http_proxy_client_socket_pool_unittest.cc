@@ -176,6 +176,7 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
     ssl_data_->next_proto_status = SSLClientSocket::kNextProtoNegotiated;
     ssl_data_->next_proto = "spdy/2";
     ssl_data_->was_npn_negotiated = true;
+    ssl_data_->protocol_negotiated = SSLClientSocket::kProtoSPDY2;
   }
 
   HttpNetworkSession* CreateNetworkSession() {
