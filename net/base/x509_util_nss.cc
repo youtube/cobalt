@@ -78,7 +78,8 @@ CERTCertificate* CreateCertificate(
     SECKEYPublicKey* public_key,
     const std::string& subject,
     uint32 serial_number,
-    base::TimeDelta valid_duration) {
+    base::Time not_valid_before,
+    base::Time not_valid_after) {
   // Create info about public key.
   CERTSubjectPublicKeyInfo* spki =
       SECKEY_CreateSubjectPublicKeyInfo(public_key);
@@ -99,11 +100,9 @@ CERTCertificate* CreateCertificate(
     return NULL;
   }
 
-  PRTime now = PR_Now();
-  PRTime not_after = now + valid_duration.InMicroseconds();
-
-  // Note that the time is now in micro-second unit.
-  CERTValidity* validity = CERT_CreateValidity(now, not_after);
+  CERTValidity* validity = CERT_CreateValidity(
+      crypto::BaseTimeToPRTime(not_valid_before),
+      crypto::BaseTimeToPRTime(not_valid_after));
   CERTCertificate* cert = CERT_CreateCertificate(serial_number, subject_name,
                                                  validity, cert_request);
   if (!cert) {
@@ -176,13 +175,15 @@ bool CreateOriginBoundCertInternal(
     SECKEYPrivateKey* private_key,
     const std::string& origin,
     uint32 serial_number,
-    base::TimeDelta valid_duration,
+    base::Time not_valid_before,
+    base::Time not_valid_after,
     std::string* der_cert) {
 
   CERTCertificate* cert = CreateCertificate(public_key,
                                             "CN=anonymous.invalid",
                                             serial_number,
-                                            valid_duration);
+                                            not_valid_before,
+                                            not_valid_after);
 
   if (!cert)
     return false;
@@ -254,11 +255,13 @@ CERTCertificate* CreateSelfSignedCert(
     SECKEYPrivateKey* private_key,
     const std::string& subject,
     uint32 serial_number,
-    base::TimeDelta valid_duration) {
+    base::Time not_valid_before,
+    base::Time not_valid_after) {
   CERTCertificate* cert = CreateCertificate(public_key,
                                             subject,
                                             serial_number,
-                                            valid_duration);
+                                            not_valid_before,
+                                            not_valid_after);
   if (!cert)
     return NULL;
 
@@ -274,7 +277,8 @@ bool CreateOriginBoundCertRSA(
     crypto::RSAPrivateKey* key,
     const std::string& origin,
     uint32 serial_number,
-    base::TimeDelta valid_duration,
+    base::Time not_valid_before,
+    base::Time not_valid_after,
     std::string* der_cert) {
   DCHECK(key);
 
@@ -329,7 +333,8 @@ bool CreateOriginBoundCertRSA(
                                        private_key,
                                        origin,
                                        serial_number,
-                                       valid_duration,
+                                       not_valid_before,
+                                       not_valid_after,
                                        der_cert);
 }
 
@@ -337,14 +342,16 @@ bool CreateOriginBoundCertEC(
     crypto::ECPrivateKey* key,
     const std::string& origin,
     uint32 serial_number,
-    base::TimeDelta valid_duration,
+    base::Time not_valid_before,
+    base::Time not_valid_after,
     std::string* der_cert) {
   DCHECK(key);
   return CreateOriginBoundCertInternal(key->public_key(),
                                        key->key(),
                                        origin,
                                        serial_number,
-                                       valid_duration,
+                                       not_valid_before,
+                                       not_valid_after,
                                        der_cert);
 }
 
