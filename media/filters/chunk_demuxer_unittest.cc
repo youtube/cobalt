@@ -778,4 +778,75 @@ TEST_F(ChunkDemuxerTest, TestWebMFile) {
   }
 }
 
+// Verify that we output buffers before the entire cluster has been parsed.
+TEST_F(ChunkDemuxerTest, TestIncrementalClusterParsing) {
+  InitDemuxer(true, true);
+
+  ClusterBuilder cb;
+  cb.SetClusterTimecode(0);
+  AddSimpleBlock(&cb, kAudioTrackNum, 0, 10);
+  AddSimpleBlock(&cb, kVideoTrackNum, 1, 10);
+  AddSimpleBlock(&cb, kVideoTrackNum, 2, 10);
+  AddSimpleBlock(&cb, kAudioTrackNum, 3, 10);
+  scoped_ptr<Cluster> cluster(cb.Finish());
+
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+
+  bool audio_read_done = false;
+  bool video_read_done = false;
+  audio->Read(base::Bind(&OnReadDone,
+                         base::TimeDelta::FromMilliseconds(0),
+                         &audio_read_done));
+
+  video->Read(base::Bind(&OnReadDone,
+                         base::TimeDelta::FromMilliseconds(1),
+                         &video_read_done));
+
+  // Make sure the reads haven't completed yet.
+  EXPECT_FALSE(audio_read_done);
+  EXPECT_FALSE(video_read_done);
+
+  // Append data one byte at a time until the audio read completes.
+  int i = 0;
+  for (; i < cluster->size() && !audio_read_done; ++i) {
+    AppendData(cluster->data() + i, 1);
+  }
+
+  EXPECT_TRUE(audio_read_done);
+  EXPECT_FALSE(video_read_done);
+  EXPECT_GT(i, 0);
+  EXPECT_LT(i, cluster->size());
+
+  // Append data one byte at a time until the video read completes.
+  for (; i < cluster->size() && !video_read_done; ++i) {
+    AppendData(cluster->data() + i, 1);
+  }
+
+  EXPECT_TRUE(video_read_done);
+  EXPECT_LT(i, cluster->size());
+
+  audio_read_done = false;
+  video_read_done = false;
+  audio->Read(base::Bind(&OnReadDone,
+                         base::TimeDelta::FromMilliseconds(3),
+                         &audio_read_done));
+
+  video->Read(base::Bind(&OnReadDone,
+                         base::TimeDelta::FromMilliseconds(2),
+                         &video_read_done));
+
+  // Make sure the reads haven't completed yet.
+  EXPECT_FALSE(audio_read_done);
+  EXPECT_FALSE(video_read_done);
+
+  // Append the remaining data.
+  AppendData(cluster->data() + i, cluster->size() - i);
+
+  EXPECT_TRUE(audio_read_done);
+  EXPECT_TRUE(video_read_done);
+}
+
 }  // namespace media
