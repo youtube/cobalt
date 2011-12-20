@@ -27,7 +27,7 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
   // AudioDecoder implementation.
   virtual void Initialize(DemuxerStream* stream, const base::Closure& callback,
                           const StatisticsCallback& stats_callback) OVERRIDE;
-  virtual void ProduceAudioSamples(scoped_refptr<Buffer> output) OVERRIDE;
+  virtual void Read(const ReadCB& callback) OVERRIDE;
   virtual int bits_per_channel() OVERRIDE;
   virtual ChannelLayout channel_layout() OVERRIDE;
   virtual int samples_per_second() OVERRIDE;
@@ -38,7 +38,7 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
                     const base::Closure& callback,
                     const StatisticsCallback& stats_callback);
   void DoFlush(const base::Closure& callback);
-  void DoProduceAudioSamples(const scoped_refptr<Buffer>& output);
+  void DoRead(const ReadCB& callback);
   void DoDecodeBuffer(const scoped_refptr<Buffer>& input);
 
   // Reads from the demuxer stream with corresponding callback method.
@@ -52,6 +52,9 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
 
   // Calculates duration based on size of decoded audio bytes.
   base::TimeDelta CalculateDuration(int size);
+
+  // Delivers decoded samples to |read_cb_| and resets the callback.
+  void DeliverSamples(const scoped_refptr<Buffer>& samples);
 
   MessageLoop* message_loop_;
 
@@ -72,11 +75,7 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
   const int decoded_audio_size_;
   uint8* decoded_audio_;  // Allocated via av_malloc().
 
-  // Holds downstream-provided buffers.
-  std::list<scoped_refptr<Buffer> > output_buffers_;
-
-  // Tracks reads issued for compressed data.
-  int pending_reads_;
+  ReadCB read_cb_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FFmpegAudioDecoder);
 };

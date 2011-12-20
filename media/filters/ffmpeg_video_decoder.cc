@@ -171,8 +171,8 @@ void FFmpegVideoDecoder::Flush(const base::Closure& callback) {
 }
 
 void FFmpegVideoDecoder::Read(const ReadCB& callback) {
-  // TODO(scherkus): forced task post since VideoRendererBase::FrameReady() will
-  // call Read() on FFmpegVideoDecoder's thread as we executed |read_cb_|.
+  // Complete operation asynchronously on different stack of execution as per
+  // the API contract of VideoDecoder::Read()
   message_loop_->PostTask(FROM_HERE, base::Bind(
       &FFmpegVideoDecoder::DoRead, this, callback));
 }
@@ -183,7 +183,7 @@ const gfx::Size& FFmpegVideoDecoder::natural_size() {
 
 void FFmpegVideoDecoder::DoRead(const ReadCB& callback) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
-  CHECK(!callback.is_null());
+  DCHECK(!callback.is_null());
   CHECK(read_cb_.is_null()) << "Overlapping decodes are not supported.";
 
   // This can happen during shutdown after Stop() has been called.
@@ -211,8 +211,8 @@ void FFmpegVideoDecoder::ReadFromDemuxerStream() {
 }
 
 void FFmpegVideoDecoder::DecodeBuffer(const scoped_refptr<Buffer>& buffer) {
-  // TODO(scherkus): forced task post since FFmpegDemuxerStream::Read() can
-  // immediately execute our callback on FFmpegVideoDecoder's thread.
+  // TODO(scherkus): fix FFmpegDemuxerStream::Read() to not execute our read
+  // callback on the same execution stack so we can get rid of forced task post.
   message_loop_->PostTask(FROM_HERE, base::Bind(
       &FFmpegVideoDecoder::DoDecodeBuffer, this, buffer));
 }
