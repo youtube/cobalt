@@ -880,8 +880,15 @@ MULTIPROCESS_TEST_MAIN(process_util_test_die_immediately) {
 
 #endif  // defined(OS_POSIX)
 
+// Android doesn't implement set_new_handler, so we can't use the
+// OutOfMemoryTest cases.
+// OpenBSD does not support these tests either.
+// AddressSanitizer defines the malloc()/free()/etc. functions so that they
+// don't crash if the program is out of memory, so the OOM tests aren't supposed
+// to work.
 // TODO(vandebo) make this work on Windows too.
-#if !defined(OS_WIN)
+#if !defined(OS_ANDROID) && !defined(OS_OPENBSD) && \
+    !defined(OS_WIN) && !defined(ADDRESS_SANITIZER)
 
 #if defined(USE_TCMALLOC)
 extern "C" {
@@ -889,15 +896,6 @@ int tc_set_new_mode(int mode);
 }
 #endif  // defined(USE_TCMALLOC)
 
-// Android doesn't implement set_new_handler, so we can't use the
-// OutOfMemoryTest cases.
-// OpenBSD does not support these tests either.
-#if !defined(OS_ANDROID) && !defined(OS_OPENBSD)
-
-// AddressSanitizer defines the malloc()/free()/etc. functions so that they
-// don't crash if the program is out of memory, so the OOM tests aren't supposed
-// to work.
-#if !defined(ADDRESS_SANITIZER)
 class OutOfMemoryDeathTest : public testing::Test {
  public:
   OutOfMemoryDeathTest()
@@ -1130,8 +1128,5 @@ TEST_F(OutOfMemoryDeathTest, PsychoticallyBigObjCObject) {
 #endif  // !ARCH_CPU_64_BITS
 #endif  // OS_MACOSX
 
-#endif  // !defined(ADDRESS_SANITIZER)
-
-#endif  // !defined(OS_ANDROID)
-
-#endif  // !defined(OS_WIN)
+#endif  // !defined(OS_ANDROID) && !defined(OS_OPENBSD) &&
+        // !defined(OS_WIN) && !defined(ADDRESS_SANITIZER)
