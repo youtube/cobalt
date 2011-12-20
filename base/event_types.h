@@ -18,6 +18,12 @@ union WaylandEvent;
 }
 #elif defined(USE_X11)
 typedef union _XEvent XEvent;
+#elif defined(OS_MACOSX)
+#if defined(__OBJC__)
+@class NSEvent;
+#else  // __OBJC__
+class NSEvent;
+#endif // __OBJC__
 #endif
 
 namespace base {
@@ -29,6 +35,8 @@ typedef MSG NativeEvent;
 typedef wayland::WaylandEvent* NativeEvent;
 #elif defined(USE_X11)
 typedef XEvent* NativeEvent;
+#elif defined(OS_MACOSX)
+typedef NSEvent* NativeEvent;
 #else
 typedef void* NativeEvent;
 #endif

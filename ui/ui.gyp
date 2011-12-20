@@ -85,6 +85,7 @@
         'base/clipboard/scoped_clipboard_writer.h',
         'base/cocoa/base_view.h',
         'base/cocoa/base_view.mm',
+        'base/cocoa/events_mac.mm',
         'base/dragdrop/cocoa_dnd_util.h',
         'base/dragdrop/cocoa_dnd_util.mm',
         'base/dragdrop/drag_drop_types_gtk.cc',
