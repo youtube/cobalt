@@ -10,7 +10,7 @@
 
 #include "base/file_path.h"
 #include "base/file_util.h"
-#include "base/task.h"
+#include "base/memory/weak_ptr.h"
 #include "net/base/directory_lister.h"
 #include "net/url_request/url_request_job.h"
 
@@ -70,7 +70,7 @@ class URLRequestFileDirJob
   bool read_pending_;
   scoped_refptr<IOBuffer> read_buffer_;
   int read_buffer_length_;
-  ScopedRunnableMethodFactory<URLRequestFileDirJob> method_factory_;
+  base::WeakPtrFactory<URLRequestFileDirJob> weak_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestFileDirJob);
 };
