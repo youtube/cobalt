@@ -29,29 +29,6 @@ class BindStateBase : public RefCountedThreadSafe<BindStateBase> {
   virtual ~BindStateBase() {}
 };
 
-// This structure exists purely to pass the returned |bind_state_| from
-// Bind() to Callback while avoiding an extra AddRef/Release() pair.
-//
-// To do this, the constructor of Callback<> must take a const-ref.  The
-// reference must be to a const object otherwise the compiler will emit a
-// warning about taking a reference to a temporary.
-//
-// Unfortunately, this means that the internal |bind_state_| field must
-// be made mutable.
-template <typename T>
-struct BindStateHolder {
-  explicit BindStateHolder(T* bind_state)
-      : bind_state_(bind_state) {
-  }
-
-  mutable scoped_refptr<BindStateBase> bind_state_;
-};
-
-template <typename T>
-BindStateHolder<T> MakeBindStateHolder(T* o) {
-  return BindStateHolder<T>(o);
-}
-
 // Holds the Callback methods that don't require specialization to reduce
 // template bloat.
 class BASE_EXPORT CallbackBase {
@@ -72,8 +49,11 @@ class BASE_EXPORT CallbackBase {
   // Returns true if this callback equals |other|. |other| may be null.
   bool Equals(const CallbackBase& other) const;
 
-  CallbackBase(InvokeFuncStorage polymorphic_invoke,
-               scoped_refptr<BindStateBase>* bind_state);
+  // Allow initializing of |bind_state_| via the constructor to avoid default
+  // initialization of the scoped_refptr.  We do not also initialize
+  // |polymorphic_invoke_| here because doing a normal assignment in the
+  // derived Callback templates makes for much nicer compiler errors.
+  explicit CallbackBase(BindStateBase* bind_state);
 
   // Force the destructor to be instantiated inside this translation unit so
   // that our subclasses will not get inlined versions.  Avoids more template
