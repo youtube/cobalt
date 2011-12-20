@@ -14,7 +14,10 @@
     {
       'target_name': 'base_i18n',
       'type': '<(component)',
-      'variables': { 'enable_wexit_time_destructors': 1, },
+      'variables': {
+        'enable_wexit_time_destructors': 1,
+        'optimize': 'max',
+      },
       'dependencies': [
         'base',
         'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
@@ -69,7 +72,10 @@
       # base depends on base_static.
       'target_name': 'base_static',
       'type': 'static_library',
-      'variables': { 'enable_wexit_time_destructors': 1, },
+      'variables': {
+        'enable_wexit_time_destructors': 1,
+        'optimize': 'max',
+      },
       'toolsets': ['host', 'target'],
       'sources': [
         'base_switches.cc',
