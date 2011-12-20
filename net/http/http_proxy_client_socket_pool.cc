@@ -86,8 +86,6 @@ HttpProxyConnectJob::HttpProxyConnectJob(
       ALLOW_THIS_IN_INITIALIZER_LIST(
           callback_(base::Bind(&HttpProxyConnectJob::OnIOComplete,
                                base::Unretained(this)))),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          callback_old_(this, &HttpProxyConnectJob::OnIOComplete)),
       using_spdy_(false),
       protocol_negotiated_(SSLClientSocket::kProtoUnknown) {
 }
@@ -312,10 +310,9 @@ int HttpProxyConnectJob::DoSpdyProxyCreateStream() {
   }
 
   next_state_ = STATE_SPDY_PROXY_CREATE_STREAM_COMPLETE;
-  return spdy_session->CreateStream(params_->request_url(),
-                                    params_->destination().priority(),
-                                    &spdy_stream_, spdy_session->net_log(),
-                                    &callback_old_);
+  return spdy_session->CreateStream(
+      params_->request_url(), params_->destination().priority(),
+      &spdy_stream_, spdy_session->net_log(), callback_);
 }
 
 int HttpProxyConnectJob::DoSpdyProxyCreateStreamComplete(int result) {
@@ -410,12 +407,10 @@ HttpProxyClientSocketPool::~HttpProxyClientSocketPool() {
     transport_pool_->RemoveLayeredPool(this);
 }
 
-int HttpProxyClientSocketPool::RequestSocket(const std::string& group_name,
-                                             const void* socket_params,
-                                             RequestPriority priority,
-                                             ClientSocketHandle* handle,
-                                             OldCompletionCallback* callback,
-                                             const BoundNetLog& net_log) {
+int HttpProxyClientSocketPool::RequestSocket(
+    const std::string& group_name, const void* socket_params,
+    RequestPriority priority, ClientSocketHandle* handle,
+    const CompletionCallback& callback, const BoundNetLog& net_log) {
   const scoped_refptr<HttpProxySocketParams>* casted_socket_params =
       static_cast<const scoped_refptr<HttpProxySocketParams>*>(socket_params);
 

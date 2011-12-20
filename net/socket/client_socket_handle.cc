@@ -4,6 +4,8 @@
 
 #include "net/socket/client_socket_handle.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/metrics/histogram.h"
 #include "base/logging.h"
@@ -18,8 +20,9 @@ ClientSocketHandle::ClientSocketHandle()
       pool_(NULL),
       layered_pool_(NULL),
       is_reused_(false),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          callback_(this, &ClientSocketHandle::OnIOComplete)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(callback_(
+          base::Bind(&ClientSocketHandle::OnIOComplete,
+                     base::Unretained(this)))),
       is_ssl_error_(false) {}
 
 ClientSocketHandle::~ClientSocketHandle() {

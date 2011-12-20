@@ -115,8 +115,7 @@ PartialData::PartialData()
       sparse_entry_(true),
       truncated_(false),
       initial_validation_(false),
-      core_(NULL),
-      callback_(NULL) {
+      core_(NULL) {
 }
 
 PartialData::~PartialData() {
@@ -162,7 +161,7 @@ void PartialData::RestoreHeaders(HttpRequestHeaders* headers) const {
 }
 
 int PartialData::ShouldValidateCache(disk_cache::Entry* entry,
-                                     OldCompletionCallback* callback) {
+                                     const CompletionCallback& callback) {
   DCHECK_GE(current_range_start_, 0);
 
   // Scan the disk cache for the first cached portion within this range.
@@ -173,7 +172,7 @@ int PartialData::ShouldValidateCache(disk_cache::Entry* entry,
   DVLOG(3) << "ShouldValidateCache len: " << len;
 
   if (sparse_entry_) {
-    DCHECK(!callback_);
+    DCHECK(callback_.is_null());
     Core* core = Core::CreateCore(this);
     cached_min_len_ = core->GetAvailableRange(entry, current_range_start_, len,
                                               &cached_start_);
@@ -481,7 +480,7 @@ int PartialData::GetNextRangeLen() {
 }
 
 void PartialData::GetAvailableRangeCompleted(int result, int64 start) {
-  DCHECK(callback_);
+  DCHECK(!callback_.is_null());
   DCHECK_NE(ERR_IO_PENDING, result);
 
   cached_start_ = start;
@@ -489,9 +488,9 @@ void PartialData::GetAvailableRangeCompleted(int result, int64 start) {
   if (result >= 0)
     result = 1;  // Return success, go ahead and validate the entry.
 
-  OldCompletionCallback* cb = callback_;
-  callback_ = NULL;
-  cb->Run(result);
+  CompletionCallback cb = callback_;
+  callback_.Reset();
+  cb.Run(result);
 }
 
 }  // namespace net

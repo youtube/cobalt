@@ -340,8 +340,6 @@ void OrderedSocketData::EndLoop() {
   NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_
                             << ": Posting Quit at read " << read_index();
   loop_stop_stage_ = sequence_number_;
-  if (!callback_.is_null())
-    callback_.Run(ERR_IO_PENDING);
 }
 
 MockRead OrderedSocketData::GetNextRead() {
@@ -1468,19 +1466,12 @@ MockTransportClientSocketPool::MockTransportClientSocketPool(
 MockTransportClientSocketPool::~MockTransportClientSocketPool() {}
 
 int MockTransportClientSocketPool::RequestSocket(
-    const std::string& group_name,
-    const void* socket_params,
-    RequestPriority priority,
-    ClientSocketHandle* handle,
-    OldCompletionCallback* callback,
-    const BoundNetLog& net_log) {
+    const std::string& group_name, const void* socket_params,
+    RequestPriority priority, ClientSocketHandle* handle,
+    const CompletionCallback& callback, const BoundNetLog& net_log) {
   StreamSocket* socket = client_socket_factory_->CreateTransportClientSocket(
       AddressList(), net_log.net_log(), net::NetLog::Source());
-  CompletionCallback cb;
-  if (callback) {
-    cb = base::Bind(&OldCompletionCallbackAdapter, callback);
-  }
-  MockConnectJob* job = new MockConnectJob(socket, handle, cb);
+  MockConnectJob* job = new MockConnectJob(socket, handle, callback);
   job_list_.push_back(job);
   handle->set_pool_id(1);
   return job->Connect();
@@ -1579,18 +1570,12 @@ MockSOCKSClientSocketPool::MockSOCKSClientSocketPool(
 
 MockSOCKSClientSocketPool::~MockSOCKSClientSocketPool() {}
 
-int MockSOCKSClientSocketPool::RequestSocket(const std::string& group_name,
-                                             const void* socket_params,
-                                             RequestPriority priority,
-                                             ClientSocketHandle* handle,
-                                             OldCompletionCallback* callback,
-                                             const BoundNetLog& net_log) {
-  return transport_pool_->RequestSocket(group_name,
-                                        socket_params,
-                                        priority,
-                                        handle,
-                                        callback,
-                                        net_log);
+int MockSOCKSClientSocketPool::RequestSocket(
+    const std::string& group_name, const void* socket_params,
+    RequestPriority priority, ClientSocketHandle* handle,
+    const CompletionCallback& callback, const BoundNetLog& net_log) {
+  return transport_pool_->RequestSocket(
+      group_name, socket_params, priority, handle, callback, net_log);
 }
 
 void MockSOCKSClientSocketPool::CancelRequest(

@@ -128,7 +128,6 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
   // and returns the number of bytes read.
   int PopulateUserReadBuffer();
 
-  OldCompletionCallbackImpl<SpdyProxyClientSocket> io_callback_;
   State next_state_;
 
   // Pointer to the SPDY Stream that this sits on top of.

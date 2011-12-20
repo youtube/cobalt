@@ -60,8 +60,7 @@ class NET_EXPORT_PRIVATE HttpResponseBodyDrainer {
   const scoped_ptr<HttpStream> stream_;
   State next_state_;
   int total_read_;
-  OldCompletionCallbackImpl<HttpResponseBodyDrainer> io_callback_;
-  OldCompletionCallback* user_callback_;
+  CompletionCallback user_callback_;
   base::OneShotTimer<HttpResponseBodyDrainer> timer_;
   HttpNetworkSession* session_;
 

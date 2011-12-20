@@ -29,10 +29,8 @@ bool HttpAuthHandlerNTLM::Init(HttpAuth::ChallengeTokenizer* tok) {
 }
 
 int HttpAuthHandlerNTLM::GenerateAuthTokenImpl(
-    const AuthCredentials* credentials,
-    const HttpRequestInfo* request,
-    OldCompletionCallback* callback,
-    std::string* auth_token) {
+    const AuthCredentials* credentials, const HttpRequestInfo* request,
+    const CompletionCallback& callback, std::string* auth_token) {
 #if defined(NTLM_SSPI)
   return auth_sspi_.GenerateAuthToken(
       credentials,

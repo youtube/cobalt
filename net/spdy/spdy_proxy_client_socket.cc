@@ -6,6 +6,8 @@
 
 #include <algorithm>  // min
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "googleurl/src/gurl.h"
@@ -29,9 +31,7 @@ SpdyProxyClientSocket::SpdyProxyClientSocket(
     const HostPortPair& proxy_server,
     HttpAuthCache* auth_cache,
     HttpAuthHandlerFactory* auth_handler_factory)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(
-          io_callback_(this, &SpdyProxyClientSocket::OnIOComplete)),
-      next_state_(STATE_DISCONNECTED),
+    : next_state_(STATE_DISCONNECTED),
       spdy_stream_(spdy_stream),
       endpoint_(endpoint),
       auth_(
@@ -304,7 +304,10 @@ int SpdyProxyClientSocket::DoLoop(int last_io_result) {
 
 int SpdyProxyClientSocket::DoGenerateAuthToken() {
   next_state_ = STATE_GENERATE_AUTH_TOKEN_COMPLETE;
-  return auth_->MaybeGenerateAuthToken(&request_, &io_callback_, net_log_);
+  return auth_->MaybeGenerateAuthToken(
+      &request_,
+      base::Bind(&SpdyProxyClientSocket::OnIOComplete, base::Unretained(this)),
+      net_log_);
 }
 
 int SpdyProxyClientSocket::DoGenerateAuthTokenComplete(int result) {

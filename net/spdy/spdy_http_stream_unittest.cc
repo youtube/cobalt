@@ -73,7 +73,7 @@ TEST_F(SpdyHttpStreamTest, SendRequest) {
   HttpRequestInfo request;
   request.method = "GET";
   request.url = GURL("http://www.google.com/");
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   HttpResponseInfo response;
   HttpRequestHeaders headers;
   BoundNetLog net_log;
@@ -81,10 +81,10 @@ TEST_F(SpdyHttpStreamTest, SendRequest) {
       new SpdyHttpStream(session_.get(), true));
   ASSERT_EQ(
       OK,
-      http_stream->InitializeStream(&request, net_log, NULL));
+      http_stream->InitializeStream(&request, net_log, CompletionCallback()));
 
-  EXPECT_EQ(ERR_IO_PENDING,
-            http_stream->SendRequest(headers, NULL, &response, &callback));
+  EXPECT_EQ(ERR_IO_PENDING, http_stream->SendRequest(headers, NULL, &response,
+                                                     callback.callback()));
   EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(pair));
 
   // This triggers the MockWrite and read 2
@@ -133,19 +133,19 @@ TEST_F(SpdyHttpStreamTest, SendChunkedPost) {
   request.upload_data->set_is_chunked(true);
   request.upload_data->AppendChunk(kUploadData, kUploadDataSize, false);
   request.upload_data->AppendChunk(kUploadData, kUploadDataSize, true);
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   HttpResponseInfo response;
   HttpRequestHeaders headers;
   BoundNetLog net_log;
   SpdyHttpStream http_stream(session_.get(), true);
   ASSERT_EQ(
       OK,
-      http_stream.InitializeStream(&request, net_log, NULL));
+      http_stream.InitializeStream(&request, net_log, CompletionCallback()));
 
   UploadDataStream* upload_stream =
       UploadDataStream::Create(request.upload_data, NULL);
   EXPECT_EQ(ERR_IO_PENDING, http_stream.SendRequest(
-      headers, upload_stream, &response, &callback));
+      headers, upload_stream, &response, callback.callback()));
   EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(pair));
 
   // This triggers the MockWrite and read 2
@@ -187,17 +187,17 @@ TEST_F(SpdyHttpStreamTest, SpdyURLTest) {
   HttpRequestInfo request;
   request.method = "GET";
   request.url = GURL(full_url);
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   HttpResponseInfo response;
   HttpRequestHeaders headers;
   BoundNetLog net_log;
   scoped_ptr<SpdyHttpStream> http_stream(new SpdyHttpStream(session_, true));
   ASSERT_EQ(
       OK,
-      http_stream->InitializeStream(&request, net_log, NULL));
+      http_stream->InitializeStream(&request, net_log, CompletionCallback()));
 
-  EXPECT_EQ(ERR_IO_PENDING,
-            http_stream->SendRequest(headers, NULL, &response, &callback));
+  EXPECT_EQ(ERR_IO_PENDING, http_stream->SendRequest(headers, NULL, &response,
+                                                     callback.callback()));
 
   spdy::SpdyHeaderBlock* spdy_header =
     http_stream->stream()->spdy_headers().get();
