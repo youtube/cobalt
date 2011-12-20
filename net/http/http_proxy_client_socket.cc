@@ -33,6 +33,7 @@ HttpProxyClientSocket::HttpProxyClientSocket(
     HttpAuthHandlerFactory* http_auth_handler_factory,
     bool tunnel,
     bool using_spdy,
+    SSLClientSocket::NextProto protocol_negotiated,
     bool is_https_proxy)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &HttpProxyClientSocket::OnIOComplete)),
@@ -48,6 +49,7 @@ HttpProxyClientSocket::HttpProxyClientSocket(
           : NULL),
       tunnel_(tunnel),
       using_spdy_(using_spdy),
+      protocol_negotiated_(protocol_negotiated),
       is_https_proxy_(is_https_proxy),
       net_log_(transport_socket->socket()->NetLog()) {
   // Synthesize the bits of a request that we actually use.

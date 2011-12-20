@@ -20,6 +20,7 @@
 #include "net/socket/client_socket_pool_base.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/client_socket_pool.h"
+#include "net/socket/ssl_client_socket.h"
 
 namespace net {
 
@@ -160,6 +161,8 @@ class HttpProxyConnectJob : public ConnectJob {
   scoped_ptr<ClientSocketHandle> transport_socket_handle_;
   scoped_ptr<ProxyClientSocket> transport_socket_;
   bool using_spdy_;
+  // Protocol negotiated with the server.
+  SSLClientSocket::NextProto protocol_negotiated_;
 
   HttpResponseInfo error_response_info_;
 
