@@ -69,9 +69,6 @@ CRLSet::~CRLSet() {
 //   ContentType (string): "CRLSet" or "CRLSetDelta" (magic value)
 //   DeltaFrom (int32): if this is a delta update (see below), then this contains
 //       the sequence number of the base CRLSet.
-//   NextUpdate (int64, epoch seconds): the time at which an update is
-//       availible.
-//   WindowSecs (int64, seconds): the span of time to spread fetches over.
 //   Sequence (int32): the monotonic sequence number of this CRL set.
 //
 // A delta CRLSet is similar to a CRLSet:
@@ -208,18 +205,11 @@ bool CRLSet::Parse(base::StringPiece data, scoped_refptr<CRLSet>* out_crl_set) {
     return false;
   }
 
-  double next_update, update_window;
   int sequence;
-  if (!header_dict->GetDouble("NextUpdate", &next_update) ||
-      !header_dict->GetDouble("WindowSecs", &update_window) ||
-      !header_dict->GetInteger("Sequence", &sequence)) {
+  if (!header_dict->GetInteger("Sequence", &sequence))
     return false;
-  }
 
   scoped_refptr<CRLSet> crl_set(new CRLSet);
-  crl_set->next_update_ = base::Time::FromDoubleT(next_update);
-  crl_set->update_window_ =
-      base::TimeDelta::FromSeconds(static_cast<int64>(update_window));
   crl_set->sequence_ = static_cast<uint32>(sequence);
 
   for (size_t crl_index = 0; !data.empty(); crl_index++) {
@@ -336,11 +326,8 @@ bool CRLSet::ApplyDelta(base::StringPiece data,
     return false;
   }
 
-  double next_update, update_window;
   int sequence, delta_from;
-  if (!header_dict->GetDouble("NextUpdate", &next_update) ||
-      !header_dict->GetDouble("WindowSecs", &update_window) ||
-      !header_dict->GetInteger("Sequence", &sequence) ||
+  if (!header_dict->GetInteger("Sequence", &sequence) ||
       !header_dict->GetInteger("DeltaFrom", &delta_from) ||
       delta_from < 0 ||
       static_cast<uint32>(delta_from) != sequence_) {
@@ -348,9 +335,6 @@ bool CRLSet::ApplyDelta(base::StringPiece data,
   }
 
   scoped_refptr<CRLSet> crl_set(new CRLSet);
-  crl_set->next_update_ = base::Time::FromDoubleT(next_update);
-  crl_set->update_window_ =
-      base::TimeDelta::FromSeconds(static_cast<int64>(update_window));
   crl_set->sequence_ = static_cast<uint32>(sequence);
 
   std::vector<uint8> crl_changes;
@@ -433,14 +417,6 @@ CRLSet::Result CRLSet::CheckCertificate(
   }
 
   return GOOD;
-}
-
-base::Time CRLSet::next_update() const {
-  return next_update_;
-}
-
-base::TimeDelta CRLSet::update_window() const {
-  return update_window_;
 }
 
 uint32 CRLSet::sequence() const {

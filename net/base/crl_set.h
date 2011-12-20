@@ -42,8 +42,6 @@ class NET_EXPORT CRLSet : public base::RefCountedThreadSafe<CRLSet> {
   //   serial_number: the serial number of the certificate
   //   issuer_spki_hash: the SHA256 of the SubjectPublicKeyInfo of the CRL
   //       signer
-  //
-  // This does not check that the CRLSet is timely. See |next_update|.
   Result CheckCertificate(
       const base::StringPiece& serial_number,
       const base::StringPiece& issuer_spki_hash) const;
@@ -52,15 +50,6 @@ class NET_EXPORT CRLSet : public base::RefCountedThreadSafe<CRLSet> {
   // updating the current CRL set with the delta information in |delta_bytes|.
   bool ApplyDelta(base::StringPiece delta_bytes,
                   scoped_refptr<CRLSet>* out_crl_set);
-
-  // next_update returns the time at which a new CRLSet may be availible.
-  base::Time next_update() const;
-
-  // update_window returns the length of the update window. Once the
-  // |next_update| time has occured, the client should schedule a fetch,
-  // uniformly at random, within |update_window|. This aims to smooth the load
-  // on the server.
-  base::TimeDelta update_window() const;
 
   // sequence returns the sequence number of this CRL set. CRL sets generated
   // by the same source are given strictly monotonically increasing sequence
@@ -81,10 +70,7 @@ class NET_EXPORT CRLSet : public base::RefCountedThreadSafe<CRLSet> {
 
   static CRLSet* CRLSetFromHeader(base::StringPiece header);
 
-  base::Time next_update_;
-  base::TimeDelta update_window_;
   uint32 sequence_;
-
   CRLList crls_;
   // crls_index_by_issuer_ maps from issuer SPKI hashes to the index in |crls_|
   // where the information for that issuer can be found. We have both |crls_|
