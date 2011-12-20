@@ -44,6 +44,7 @@ class NET_EXPORT_PRIVATE HttpStreamFactoryImpl :
                                  const BoundNetLog& net_log) OVERRIDE;
   virtual void AddTLSIntolerantServer(const HostPortPair& server) OVERRIDE;
   virtual bool IsTLSIntolerantServer(const HostPortPair& server) const OVERRIDE;
+  virtual base::Value* PipelineInfoToValue() const OVERRIDE;
 
   // HttpPipelinedHostPool::Delegate interface
   virtual void OnHttpPipelinedHostHasAdditionalCapacity(

@@ -17,6 +17,10 @@
 #include "net/http/http_pipelined_host.h"
 #include "net/http/http_pipelined_host_capability.h"
 
+namespace base {
+class Value;
+}
+
 namespace net {
 
 class BoundNetLog;
@@ -63,6 +67,10 @@ class NET_EXPORT_PRIVATE HttpPipelinedHostImpl
       HttpPipelinedConnection::Feedback feedback) OVERRIDE;
 
   virtual const HostPortPair& origin() const OVERRIDE;
+
+  // Creates a Value summary of this host's |pipelines_|. Caller assumes
+  // ownership of the returned Value.
+  virtual base::Value* PipelineInfoToValue() const OVERRIDE;
 
   // Returns the maximum number of in-flight pipelined requests we'll allow on a
   // single connection.

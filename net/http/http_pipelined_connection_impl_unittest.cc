@@ -68,7 +68,8 @@ class HttpPipelinedConnectionImplTest : public testing::Test {
  public:
   HttpPipelinedConnectionImplTest()
       : histograms_("a"),
-        pool_(1, 1, &histograms_, &factory_) {
+        pool_(1, 1, &histograms_, &factory_),
+        origin_("host", 123) {
   }
 
   void TearDown() {
@@ -88,10 +89,9 @@ class HttpPipelinedConnectionImplTest : public testing::Test {
     ClientSocketHandle* connection = new ClientSocketHandle;
     connection->Init("a", params, MEDIUM, CompletionCallback(), &pool_,
                      BoundNetLog());
-    pipeline_.reset(
-        new HttpPipelinedConnectionImpl(connection, &delegate_, ssl_config_,
-                                        proxy_info_, BoundNetLog(), false,
-                                        SSLClientSocket::kProtoUnknown));
+    pipeline_.reset(new HttpPipelinedConnectionImpl(
+        connection, &delegate_, origin_, ssl_config_, proxy_info_,
+        BoundNetLog(), false, SSLClientSocket::kProtoUnknown));
   }
 
   HttpRequestInfo* GetRequestInfo(const std::string& filename) {
@@ -145,6 +145,7 @@ class HttpPipelinedConnectionImplTest : public testing::Test {
   MockTransportClientSocketPool pool_;
   scoped_refptr<DeterministicSocketData> data_;
 
+  HostPortPair origin_;
   SSLConfig ssl_config_;
   ProxyInfo proxy_info_;
   NiceMock<MockPipelineDelegate> delegate_;
