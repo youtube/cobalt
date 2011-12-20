@@ -471,18 +471,6 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // Indicate if this response was fetched from disk cache.
   bool was_cached() const { return response_info_.was_cached; }
 
-  // True if response could use alternate protocol. However, browser will
-  // ignore the alternate protocol if spdy is not enabled.
-  bool was_fetched_via_spdy() const {
-    return response_info_.was_fetched_via_spdy;
-  }
-
-  // Returns true if the URLRequest was delivered after NPN is negotiated,
-  // using either SPDY or HTTP.
-  bool was_npn_negotiated() const {
-    return response_info_.was_npn_negotiated;
-  }
-
   // Returns true if the URLRequest was delivered through a proxy.
   bool was_fetched_via_proxy() const {
     return response_info_.was_fetched_via_proxy;

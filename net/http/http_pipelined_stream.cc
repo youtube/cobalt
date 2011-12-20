@@ -138,4 +138,8 @@ bool HttpPipelinedStream::was_npn_negotiated() const {
   return pipeline_->was_npn_negotiated();
 }
 
+SSLClientSocket::NextProto HttpPipelinedStream::protocol_negotiated() const {
+  return pipeline_->protocol_negotiated();
+}
+
 }  // namespace net

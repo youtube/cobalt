@@ -88,7 +88,8 @@ HttpProxyConnectJob::HttpProxyConnectJob(
                                base::Unretained(this)))),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           callback_old_(this, &HttpProxyConnectJob::OnIOComplete)),
-      using_spdy_(false) {
+      using_spdy_(false),
+      protocol_negotiated_(SSLClientSocket::kProtoUnknown) {
 }
 
 HttpProxyConnectJob::~HttpProxyConnectJob() {}
@@ -235,6 +236,7 @@ int HttpProxyConnectJob::DoSSLConnectComplete(int result) {
   SSLClientSocket* ssl =
       static_cast<SSLClientSocket*>(transport_socket_handle_->socket());
   using_spdy_ = ssl->was_spdy_negotiated();
+  protocol_negotiated_ = ssl->protocol_negotiated();
 
   // Reset the timer to just the length of time allowed for HttpProxy handshake
   // so that a fast SSL connection plus a slow HttpProxy failure doesn't take
@@ -270,6 +272,7 @@ int HttpProxyConnectJob::DoHttpProxyConnect() {
                                 params_->http_auth_handler_factory(),
                                 params_->tunnel(),
                                 using_spdy_,
+                                protocol_negotiated_,
                                 params_->ssl_params() != NULL));
   return transport_socket_->Connect(callback_);
 }

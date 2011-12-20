@@ -51,14 +51,16 @@ HttpPipelinedStream* HttpPipelinedHostPool::CreateStreamOnNewPipeline(
     const SSLConfig& used_ssl_config,
     const ProxyInfo& used_proxy_info,
     const BoundNetLog& net_log,
-    bool was_npn_negotiated) {
+    bool was_npn_negotiated,
+    SSLClientSocket::NextProto protocol_negotiated) {
   HttpPipelinedHost* host = GetPipelinedHost(origin, true);
   if (!host) {
     return NULL;
   }
   return host->CreateStreamOnNewPipeline(connection, used_ssl_config,
                                          used_proxy_info, net_log,
-                                         was_npn_negotiated);
+                                         was_npn_negotiated,
+                                         protocol_negotiated);
 }
 
 HttpPipelinedStream* HttpPipelinedHostPool::CreateStreamOnExistingPipeline(

@@ -62,6 +62,9 @@ enum {
   // protocol version, compression method and whether SSLv3 fallback was used.
   RESPONSE_INFO_HAS_SSL_CONNECTION_STATUS = 1 << 16,
 
+  // This bit is set if the response info has protocol version.
+  RESPONSE_INFO_HAS_NPN_NEGOTIATED_PROTOCOL = 1 << 17,
+
   // TODO(darin): Add other bits to indicate alternate request methods.
   // For now, we don't support storing those.
 };
@@ -79,6 +82,7 @@ HttpResponseInfo::HttpResponseInfo(const HttpResponseInfo& rhs)
       was_npn_negotiated(rhs.was_npn_negotiated),
       was_fetched_via_proxy(rhs.was_fetched_via_proxy),
       socket_address(rhs.socket_address),
+      npn_negotiated_protocol(rhs.npn_negotiated_protocol),
       request_time(rhs.request_time),
       response_time(rhs.response_time),
       auth_challenge(rhs.auth_challenge),
@@ -98,6 +102,7 @@ HttpResponseInfo& HttpResponseInfo::operator=(const HttpResponseInfo& rhs) {
   was_npn_negotiated = rhs.was_npn_negotiated;
   was_fetched_via_proxy = rhs.was_fetched_via_proxy;
   socket_address = rhs.socket_address;
+  npn_negotiated_protocol = rhs.npn_negotiated_protocol;
   request_time = rhs.request_time;
   response_time = rhs.response_time;
   auth_challenge = rhs.auth_challenge;
@@ -190,6 +195,12 @@ bool HttpResponseInfo::InitFromPickle(const Pickle& pickle,
     return false;
   }
 
+  // read protocol-version.
+  if (flags & RESPONSE_INFO_HAS_NPN_NEGOTIATED_PROTOCOL) {
+    if (!pickle.ReadString(&iter, &npn_negotiated_protocol))
+      return false;
+  }
+
   was_fetched_via_spdy = (flags & RESPONSE_INFO_WAS_SPDY) != 0;
 
   was_npn_negotiated = (flags & RESPONSE_INFO_WAS_NPN) != 0;
@@ -219,8 +230,10 @@ void HttpResponseInfo::Persist(Pickle* pickle,
     flags |= RESPONSE_INFO_TRUNCATED;
   if (was_fetched_via_spdy)
     flags |= RESPONSE_INFO_WAS_SPDY;
-  if (was_npn_negotiated)
+  if (was_npn_negotiated) {
     flags |= RESPONSE_INFO_WAS_NPN;
+    flags |= RESPONSE_INFO_HAS_NPN_NEGOTIATED_PROTOCOL;
+  }
   if (was_fetched_via_proxy)
     flags |= RESPONSE_INFO_WAS_PROXY;
 
@@ -256,6 +269,9 @@ void HttpResponseInfo::Persist(Pickle* pickle,
 
   pickle->WriteString(socket_address.host());
   pickle->WriteUInt16(socket_address.port());
+
+  if (was_npn_negotiated)
+    pickle->WriteString(npn_negotiated_protocol);
 }
 
 }  // namespace net

@@ -6,6 +6,8 @@
 #define NET_HTTP_HTTP_RESPONSE_INFO_H_
 #pragma once
 
+#include <string>
+
 #include "base/time.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/net_export.h"
@@ -66,6 +68,9 @@ class NET_EXPORT HttpResponseInfo {
   // different remote address, or if some of the content came from a byte-range
   // request to a different address.
   HostPortPair socket_address;
+
+  // Protocol negotiated with the server.
+  std::string npn_negotiated_protocol;
 
   // The time at which the request was made that resulted in this response.
   // For cached responses, this is the last time the cache entry was validated.

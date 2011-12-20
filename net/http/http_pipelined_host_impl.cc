@@ -23,10 +23,12 @@ class HttpPipelinedConnectionImplFactory :
       const SSLConfig& used_ssl_config,
       const ProxyInfo& used_proxy_info,
       const BoundNetLog& net_log,
-      bool was_npn_negotiated) OVERRIDE {
+      bool was_npn_negotiated,
+      SSLClientSocket::NextProto protocol_negotiated) OVERRIDE {
     return new HttpPipelinedConnectionImpl(connection, delegate,
                                            used_ssl_config, used_proxy_info,
-                                           net_log, was_npn_negotiated);
+                                           net_log, was_npn_negotiated,
+                                           protocol_negotiated);
   }
 };
 
@@ -53,13 +55,14 @@ HttpPipelinedStream* HttpPipelinedHostImpl::CreateStreamOnNewPipeline(
     const SSLConfig& used_ssl_config,
     const ProxyInfo& used_proxy_info,
     const BoundNetLog& net_log,
-    bool was_npn_negotiated) {
+    bool was_npn_negotiated,
+    SSLClientSocket::NextProto protocol_negotiated) {
   if (capability_ == PIPELINE_INCAPABLE) {
     return NULL;
   }
   HttpPipelinedConnection* pipeline = factory_->CreateNewPipeline(
       connection, this, used_ssl_config, used_proxy_info, net_log,
-      was_npn_negotiated);
+      was_npn_negotiated, protocol_negotiated);
   PipelineInfo info;
   pipelines_.insert(std::make_pair(pipeline, info));
   return pipeline->CreateNewStream();
