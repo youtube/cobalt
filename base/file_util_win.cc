@@ -831,6 +831,7 @@ FileEnumerator::FileEnumerator(const FilePath& root_path,
       find_handle_(INVALID_HANDLE_VALUE) {
   // INCLUDE_DOT_DOT must not be specified if recursive.
   DCHECK(!(recursive && (INCLUDE_DOT_DOT & file_type_)));
+  memset(&find_data_, 0, sizeof(find_data_));
   pending_paths_.push(root_path);
 }
 
@@ -845,6 +846,7 @@ FileEnumerator::FileEnumerator(const FilePath& root_path,
       find_handle_(INVALID_HANDLE_VALUE) {
   // INCLUDE_DOT_DOT must not be specified if recursive.
   DCHECK(!(recursive && (INCLUDE_DOT_DOT & file_type_)));
+  memset(&find_data_, 0, sizeof(find_data_));
   pending_paths_.push(root_path);
 }
 
