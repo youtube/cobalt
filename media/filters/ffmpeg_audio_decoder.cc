@@ -52,8 +52,7 @@ FFmpegAudioDecoder::FFmpegAudioDecoder(MessageLoop* message_loop)
       channel_layout_(CHANNEL_LAYOUT_NONE),
       samples_per_second_(0),
       decoded_audio_size_(AVCODEC_MAX_AUDIO_FRAME_SIZE),
-      decoded_audio_(static_cast<uint8*>(av_malloc(decoded_audio_size_))),
-      pending_reads_(0) {
+      decoded_audio_(static_cast<uint8*>(av_malloc(decoded_audio_size_))) {
 }
 
 FFmpegAudioDecoder::~FFmpegAudioDecoder() {
@@ -87,11 +86,11 @@ void FFmpegAudioDecoder::Initialize(
                  ref_stream, callback, stats_callback));
 }
 
-void FFmpegAudioDecoder::ProduceAudioSamples(scoped_refptr<Buffer> buffer) {
-  message_loop_->PostTask(
-      FROM_HERE,
-      base::Bind(&FFmpegAudioDecoder::DoProduceAudioSamples, this,
-                 buffer));
+void FFmpegAudioDecoder::Read(const ReadCB& callback) {
+  // Complete operation asynchronously on different stack of execution as per
+  // the API contract of AudioDecoder::Read()
+  message_loop_->PostTask(FROM_HERE, base::Bind(
+      &FFmpegAudioDecoder::DoRead, this, callback));
 }
 
 int FFmpegAudioDecoder::bits_per_channel() {
@@ -156,16 +155,18 @@ void FFmpegAudioDecoder::DoFlush(const base::Closure& callback) {
   callback.Run();
 }
 
-void FFmpegAudioDecoder::DoProduceAudioSamples(
-    const scoped_refptr<Buffer>& output) {
-  output_buffers_.push_back(output);
+void FFmpegAudioDecoder::DoRead(const ReadCB& callback) {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK(!callback.is_null());
+  CHECK(read_cb_.is_null()) << "Overlapping decodes are not supported.";
+
+  read_cb_ = callback;
   ReadFromDemuxerStream();
 }
 
 void FFmpegAudioDecoder::DoDecodeBuffer(const scoped_refptr<Buffer>& input) {
-  DCHECK(!output_buffers_.empty());
-  DCHECK_GT(pending_reads_, 0);
-  pending_reads_--;
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  DCHECK(!read_cb_.is_null());
 
   // FFmpeg tends to seek Ogg audio streams in the middle of nowhere, giving us
   // a whole bunch of AV_NOPTS_VALUE packets.  Discard them until we find
@@ -233,27 +234,23 @@ void FFmpegAudioDecoder::DoDecodeBuffer(const scoped_refptr<Buffer>& input) {
   // Decoding finished successfully, update stats and execute callback.
   stats_callback_.Run(statistics);
   if (output) {
-    DCHECK_GT(output_buffers_.size(), 0u);
-    output_buffers_.pop_front();
-
-    ConsumeAudioSamples(output);
+    DeliverSamples(output);
   } else {
     ReadFromDemuxerStream();
   }
 }
 
 void FFmpegAudioDecoder::ReadFromDemuxerStream() {
-  DCHECK(!output_buffers_.empty())
-      << "Reads should only occur if there are output buffers.";
+  DCHECK(!read_cb_.is_null());
 
-  pending_reads_++;
   demuxer_stream_->Read(base::Bind(&FFmpegAudioDecoder::DecodeBuffer, this));
 }
 
 void FFmpegAudioDecoder::DecodeBuffer(const scoped_refptr<Buffer>& buffer) {
-  message_loop_->PostTask(
-      FROM_HERE,
-      base::Bind(&FFmpegAudioDecoder::DoDecodeBuffer, this, buffer));
+  // TODO(scherkus): fix FFmpegDemuxerStream::Read() to not execute our read
+  // callback on the same execution stack so we can get rid of forced task post.
+  message_loop_->PostTask(FROM_HERE, base::Bind(
+      &FFmpegAudioDecoder::DoDecodeBuffer, this, buffer));
 }
 
 void FFmpegAudioDecoder::UpdateDurationAndTimestamp(
@@ -284,6 +281,13 @@ base::TimeDelta FFmpegAudioDecoder::CalculateDuration(int size) {
   double microseconds = size /
       (denominator / static_cast<double>(base::Time::kMicrosecondsPerSecond));
   return base::TimeDelta::FromMicroseconds(static_cast<int64>(microseconds));
+}
+
+void FFmpegAudioDecoder::DeliverSamples(const scoped_refptr<Buffer>& samples) {
+  // Reset the callback before running to protect against reentrancy.
+  ReadCB read_cb = read_cb_;
+  read_cb_.Reset();
+  read_cb.Run(samples);
 }
 
 }  // namespace media

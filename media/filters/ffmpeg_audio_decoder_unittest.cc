@@ -54,10 +54,6 @@ class FFmpegAudioDecoderTest : public testing::Test {
     // Push in an EOS buffer.
     encoded_audio_.push_back(new DataBuffer(0));
 
-    decoder_->set_consume_audio_samples_callback(
-        base::Bind(&FFmpegAudioDecoderTest::DecodeFinished,
-                   base::Unretained(this)));
-
     config_.Initialize(kCodecVorbis,
                        16,
                        CHANNEL_LAYOUT_STEREO,
@@ -91,6 +87,12 @@ class FFmpegAudioDecoderTest : public testing::Test {
     scoped_refptr<Buffer> buffer(encoded_audio_.front());
     encoded_audio_.pop_front();
     read_callback.Run(buffer);
+  }
+
+  void Read() {
+    decoder_->Read(base::Bind(
+        &FFmpegAudioDecoderTest::DecodeFinished, base::Unretained(this)));
+    message_loop_.RunAllPending();
   }
 
   void DecodeFinished(scoped_refptr<Buffer> buffer) {
@@ -157,12 +159,9 @@ TEST_F(FFmpegAudioDecoderTest, ProduceAudioSamples) {
   EXPECT_CALL(statistics_callback_, OnStatistics(_))
       .Times(5);
 
-  // We have to use a buffer to trigger a read. Silly.
-  scoped_refptr<DataBuffer> buffer(0);
-  decoder_->ProduceAudioSamples(buffer);
-  decoder_->ProduceAudioSamples(buffer);
-  decoder_->ProduceAudioSamples(buffer);
-  message_loop_.RunAllPending();
+  Read();
+  Read();
+  Read();
 
   // We should have three decoded audio buffers.
   //
@@ -173,10 +172,7 @@ TEST_F(FFmpegAudioDecoderTest, ProduceAudioSamples) {
   ExpectDecodedAudio(2, 2902, 23219);
 
   // Call one more time to trigger EOS.
-  //
-  // TODO(scherkus): EOS should flush data, not overwrite timestamps with zero.
-  decoder_->ProduceAudioSamples(buffer);
-  message_loop_.RunAllPending();
+  Read();
   ASSERT_EQ(4u, decoded_audio_.size());
   ExpectEndOfStream(3);
 

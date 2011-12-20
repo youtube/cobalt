@@ -213,14 +213,11 @@ class MockAudioDecoder : public AudioDecoder {
   MOCK_METHOD3(Initialize, void(DemuxerStream* stream,
                                 const base::Closure& callback,
                                 const StatisticsCallback& stats_callback));
+  MOCK_METHOD1(Read, void(const ReadCB& callback));
   MOCK_METHOD1(ProduceAudioSamples, void(scoped_refptr<Buffer>));
   MOCK_METHOD0(bits_per_channel, int(void));
   MOCK_METHOD0(channel_layout, ChannelLayout(void));
   MOCK_METHOD0(samples_per_second, int(void));
-
-  void ConsumeAudioSamplesForTest(scoped_refptr<Buffer> buffer) {
-    AudioDecoder::ConsumeAudioSamples(buffer);
-  }
 
  protected:
   virtual ~MockAudioDecoder();
