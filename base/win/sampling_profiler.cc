@@ -74,7 +74,13 @@ class ProfilerFuncs {
   bool initialized_;
 };
 
-ProfilerFuncs::ProfilerFuncs() : initialized_(false) {
+ProfilerFuncs::ProfilerFuncs()
+    : ZwSetIntervalProfile(NULL),
+      ZwQueryIntervalProfile(NULL),
+      ZwCreateProfile(NULL),
+      ZwStartProfile(NULL),
+      ZwStopProfile(NULL),
+      initialized_(false) {
   HMODULE ntdll = ::GetModuleHandle(L"ntdll.dll");
   if (ntdll != NULL) {
     ZwSetIntervalProfile = reinterpret_cast<ZwSetIntervalProfileFunc>(
