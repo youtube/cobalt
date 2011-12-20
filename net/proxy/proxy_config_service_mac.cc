@@ -7,6 +7,7 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <SystemConfiguration/SystemConfiguration.h>
 
+#include "base/bind.h"
 #include "base/logging.h"
 #include "base/mac/foundation_util.h"
 #include "base/mac/scoped_cftyperef.h"
@@ -248,8 +249,7 @@ void ProxyConfigServiceMac::OnNetworkConfigChange(CFArrayRef changed_keys) {
   // Call OnProxyConfigChanged() on the IO thread to notify our observers.
   io_loop_->PostTask(
       FROM_HERE,
-      NewRunnableMethod(
-          helper_.get(), &Helper::OnProxyConfigChanged, new_config));
+      base::Bind(&Helper::OnProxyConfigChanged, helper_.get(), new_config));
 }
 
 void ProxyConfigServiceMac::OnProxyConfigChanged(

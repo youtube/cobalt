@@ -4,13 +4,13 @@
 
 #include "net/proxy/network_delegate_error_observer.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/message_loop_proxy.h"
 #include "base/threading/thread.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_delegate.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-DISABLE_RUNNABLE_METHOD_REFCOUNT(net::NetworkDelegateErrorObserver);
 
 namespace net {
 
@@ -80,9 +80,8 @@ TEST(NetworkDelegateErrorObserverTest, CallOnThread) {
                base::MessageLoopProxy::current());
   thread.message_loop()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(&observer,
-                        &NetworkDelegateErrorObserver::OnPACScriptError,
-                        42, string16()));
+      base::Bind(&NetworkDelegateErrorObserver::OnPACScriptError,
+                 base::Unretained(&observer), 42, string16()));
   thread.Stop();
   MessageLoop::current()->RunAllPending();
   ASSERT_TRUE(network_delegate.got_pac_error());
@@ -96,9 +95,8 @@ TEST(NetworkDelegateErrorObserverTest, NoDelegate) {
       observer(NULL, base::MessageLoopProxy::current());
   thread.message_loop()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(&observer,
-                        &NetworkDelegateErrorObserver::OnPACScriptError,
-                        42, string16()));
+      base::Bind(&NetworkDelegateErrorObserver::OnPACScriptError,
+                 base::Unretained(&observer), 42, string16()));
   thread.Stop();
   MessageLoop::current()->RunAllPending();
   // Shouldn't have crashed until here...

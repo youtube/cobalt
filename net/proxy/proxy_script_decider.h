@@ -69,7 +69,7 @@ class NET_EXPORT_PRIVATE ProxyScriptDecider {
   int Start(const ProxyConfig& config,
             const base::TimeDelta wait_delay,
             bool fetch_pac_bytes,
-            OldCompletionCallback* callback);
+            const net::CompletionCallback& callback);
 
   const ProxyConfig& effective_config() const;
 
@@ -145,8 +145,7 @@ class NET_EXPORT_PRIVATE ProxyScriptDecider {
   ProxyScriptFetcher* proxy_script_fetcher_;
   DhcpProxyScriptFetcher* dhcp_proxy_script_fetcher_;
 
-  OldCompletionCallbackImpl<ProxyScriptDecider> io_callback_;
-  OldCompletionCallback* user_callback_;
+  net::CompletionCallback callback_;
 
   size_t current_pac_source_index_;
 

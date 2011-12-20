@@ -83,10 +83,10 @@ class SyncProxyResolver : public ProxyResolver {
 
   virtual int GetProxyForURL(const GURL& url,
                              ProxyInfo* results,
-                             OldCompletionCallback* callback,
+                             const CompletionCallback& callback,
                              RequestHandle* request,
                              const BoundNetLog& net_log) {
-    EXPECT_FALSE(callback);
+    EXPECT_FALSE(!callback.is_null());
     EXPECT_FALSE(request);
 
     // Do a synchronous host resolve.
@@ -124,7 +124,7 @@ class SyncProxyResolver : public ProxyResolver {
 
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      OldCompletionCallback* callback) OVERRIDE {
+      const CompletionCallback& callback) OVERRIDE {
     return OK;
   }
 
@@ -178,15 +178,16 @@ class IOThread : public base::Thread {
             1u));
 
     // Initialize the resolver.
-    TestOldCompletionCallback callback;
+    TestCompletionCallback callback;
     proxy_resolver_->SetPacScript(ProxyResolverScriptData::FromURL(GURL()),
-                                  &callback);
+                                  callback.callback());
     EXPECT_EQ(OK, callback.WaitForResult());
 
     // Start an asynchronous request to the proxy resolver
     // (note that it will never complete).
-    proxy_resolver_->GetProxyForURL(GURL("http://test/"), &results_,
-                                    &callback_, &request_, BoundNetLog());
+    proxy_resolver_->GetProxyForURL(
+        GURL("http://test/"), &results_, callback_.callback(), &request_,
+        BoundNetLog());
   }
 
   virtual void CleanUp() OVERRIDE {
@@ -214,7 +215,7 @@ class IOThread : public base::Thread {
   scoped_ptr<ProxyResolver> proxy_resolver_;
 
   // Data for the outstanding request to the single threaded proxy resolver.
-  TestOldCompletionCallback callback_;
+  TestCompletionCallback callback_;
   ProxyInfo results_;
   ProxyResolver::RequestHandle request_;
 };

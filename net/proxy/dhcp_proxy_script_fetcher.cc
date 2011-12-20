@@ -24,8 +24,8 @@ DoNothingDhcpProxyScriptFetcher::DoNothingDhcpProxyScriptFetcher() {
 DoNothingDhcpProxyScriptFetcher::~DoNothingDhcpProxyScriptFetcher() {
 }
 
-int DoNothingDhcpProxyScriptFetcher::Fetch(string16* utf16_text,
-                                           OldCompletionCallback* callback) {
+int DoNothingDhcpProxyScriptFetcher::Fetch(
+    string16* utf16_text, const CompletionCallback& callback) {
   return ERR_NOT_IMPLEMENTED;
 }
 

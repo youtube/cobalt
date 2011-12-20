@@ -4,6 +4,7 @@
 
 #include "net/proxy/network_delegate_error_observer.h"
 
+#include "base/bind.h"
 #include "base/location.h"
 #include "base/message_loop_proxy.h"
 #include "net/base/net_errors.h"
@@ -49,8 +50,7 @@ void NetworkDelegateErrorObserver::Core::NotifyPACScriptError(
   if (!origin_loop_->BelongsToCurrentThread()) {
     origin_loop_->PostTask(
         FROM_HERE,
-        NewRunnableMethod(this, &Core::NotifyPACScriptError,
-                          line_number, error));
+        base::Bind(&Core::NotifyPACScriptError, this, line_number, error));
     return;
   }
   if (network_delegate_)

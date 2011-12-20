@@ -69,7 +69,7 @@ ProxyResolverMac::~ProxyResolverMac() {}
 // inspired by http://developer.apple.com/samplecode/CFProxySupportTool/
 int ProxyResolverMac::GetProxyForURL(const GURL& query_url,
                                      ProxyInfo* results,
-                                     OldCompletionCallback* /*callback*/,
+                                     const CompletionCallback& /*callback*/,
                                      RequestHandle* /*request*/,
                                      const BoundNetLog& net_log) {
   base::mac::ScopedCFTypeRef<CFStringRef> query_ref(
@@ -202,7 +202,7 @@ void ProxyResolverMac::CancelSetPacScript() {
 
 int ProxyResolverMac::SetPacScript(
     const scoped_refptr<ProxyResolverScriptData>& script_data,
-    OldCompletionCallback* /*callback*/) {
+    const CompletionCallback& /*callback*/) {
   script_data_ = script_data;
   return OK;
 }
