@@ -10,6 +10,10 @@
 #include "net/http/http_pipelined_connection.h"
 #include "net/http/http_pipelined_host_capability.h"
 
+namespace base {
+class Value;
+}
+
 namespace net {
 
 class BoundNetLog;
@@ -73,6 +77,11 @@ class NET_EXPORT_PRIVATE HttpPipelinedHost {
 
   // Returns the host and port associated with this class.
   virtual const HostPortPair& origin() const = 0;
+
+  // Creates a Value summary of this host's pipelines. Caller assumes
+  // ownership of the returned Value.
+  virtual base::Value* PipelineInfoToValue() const = 0;
+
 };
 
 }  // namespace net

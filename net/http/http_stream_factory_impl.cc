@@ -127,6 +127,10 @@ bool HttpStreamFactoryImpl::IsTLSIntolerantServer(
   return ContainsKey(tls_intolerant_servers_, server);
 }
 
+base::Value* HttpStreamFactoryImpl::PipelineInfoToValue() const {
+  return http_pipelined_host_pool_.PipelineInfoToValue();
+}
+
 bool HttpStreamFactoryImpl::GetAlternateProtocolRequestFor(
     const GURL& original_url,
     GURL* alternate_url) const {

@@ -56,6 +56,7 @@ class MockHost : public HttpPipelinedHost {
       SSLClientSocket::NextProto protocol_negotiated));
   MOCK_METHOD0(CreateStreamOnExistingPipeline, HttpPipelinedStream*());
   MOCK_CONST_METHOD0(IsExistingPipelineAvailable, bool());
+  MOCK_CONST_METHOD0(PipelineInfoToValue, base::Value*());
 
   virtual const HostPortPair& origin() const OVERRIDE { return origin_; }
 

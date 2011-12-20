@@ -14,6 +14,10 @@
 #include "net/http/http_pipelined_host.h"
 #include "net/http/http_pipelined_host_capability.h"
 
+namespace base {
+class Value;
+}
+
 namespace net {
 
 class HostPortPair;
@@ -71,6 +75,10 @@ class NET_EXPORT_PRIVATE HttpPipelinedHostPool
   virtual void OnHostDeterminedCapability(
       HttpPipelinedHost* host,
       HttpPipelinedHostCapability capability) OVERRIDE;
+
+  // Creates a Value summary of this pool's |host_map_|. Caller assumes
+  // ownership of the returned Value.
+  base::Value* PipelineInfoToValue() const;
 
  private:
   typedef std::map<const HostPortPair, HttpPipelinedHost*> HostMap;

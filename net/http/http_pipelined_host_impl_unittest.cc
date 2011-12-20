@@ -37,9 +37,10 @@ class MockHostDelegate : public HttpPipelinedHost::Delegate {
 
 class MockPipelineFactory : public HttpPipelinedConnection::Factory {
  public:
-  MOCK_METHOD7(CreateNewPipeline, HttpPipelinedConnection*(
+  MOCK_METHOD8(CreateNewPipeline, HttpPipelinedConnection*(
       ClientSocketHandle* connection,
       HttpPipelinedConnection::Delegate* delegate,
+      const HostPortPair& origin,
       const SSLConfig& used_ssl_config,
       const ProxyInfo& used_proxy_info,
       const BoundNetLog& net_log,
@@ -79,6 +80,8 @@ class MockPipeline : public HttpPipelinedConnection {
   bool active_;
 };
 
+MATCHER_P(MatchesOrigin, expected, "") { return expected.Equals(arg); }
+
 class HttpPipelinedHostImplTest : public testing::Test {
  public:
   HttpPipelinedHostImplTest()
@@ -97,6 +100,7 @@ class HttpPipelinedHostImplTest : public testing::Test {
   MockPipeline* AddTestPipeline(int depth, bool usable, bool active) {
     MockPipeline* pipeline = new MockPipeline(depth, usable, active);
     EXPECT_CALL(*factory_, CreateNewPipeline(kDummyConnection, host_.get(),
+                                             MatchesOrigin(origin_),
                                              Ref(ssl_config_), Ref(proxy_info_),
                                              Ref(net_log_), true,
                                              SSLClientSocket::kProtoSPDY2))

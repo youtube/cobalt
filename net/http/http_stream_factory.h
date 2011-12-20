@@ -19,6 +19,10 @@
 
 class GURL;
 
+namespace base {
+class Value;
+}
+
 namespace net {
 
 class AuthCredentials;
@@ -178,6 +182,11 @@ class NET_EXPORT HttpStreamFactory {
 
   virtual void AddTLSIntolerantServer(const HostPortPair& server) = 0;
   virtual bool IsTLSIntolerantServer(const HostPortPair& server) const = 0;
+
+  // If pipelining is supported, creates a Value summary of the currently active
+  // pipelines. Caller assumes ownership of the returned value. Otherwise,
+  // returns an empty Value.
+  virtual base::Value* PipelineInfoToValue() const = 0;
 
   // Static settings
 
