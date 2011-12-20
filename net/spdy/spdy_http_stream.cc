@@ -331,7 +331,8 @@ int SpdyHttpStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response,
   // Don't store the SSLInfo in the response here, HttpNetworkTransaction
   // will take care of that part.
   SSLInfo ssl_info;
-  SSLClientSocket::NextProto protocol_negotiated;
+  SSLClientSocket::NextProto protocol_negotiated =
+      SSLClientSocket::kProtoUnknown;
   stream_->GetSSLInfo(&ssl_info,
                       &response_info_->was_npn_negotiated,
                       &protocol_negotiated);
@@ -463,7 +464,8 @@ void SpdyHttpStream::DoCallback(int rv) {
 void SpdyHttpStream::GetSSLInfo(SSLInfo* ssl_info) {
   DCHECK(stream_);
   bool using_npn;
-  SSLClientSocket::NextProto protocol_negotiated;
+  SSLClientSocket::NextProto protocol_negotiated =
+      SSLClientSocket::kProtoUnknown;
   stream_->GetSSLInfo(ssl_info, &using_npn, &protocol_negotiated);
 }
 
