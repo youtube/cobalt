@@ -135,18 +135,18 @@ TEST_F(ProxyScriptFetcherImplTest, FileUrl) {
 
   { // Fetch a non-existent file.
     string16 text;
-    TestOldCompletionCallback callback;
+    TestCompletionCallback callback;
     int result = pac_fetcher.Fetch(GetTestFileUrl("does-not-exist"),
-                                   &text, &callback);
+                                   &text, callback.callback());
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(ERR_FILE_NOT_FOUND, callback.WaitForResult());
     EXPECT_TRUE(text.empty());
   }
   { // Fetch a file that exists.
     string16 text;
-    TestOldCompletionCallback callback;
+    TestCompletionCallback callback;
     int result = pac_fetcher.Fetch(GetTestFileUrl("pac.txt"),
-                                   &text, &callback);
+                                   &text, callback.callback());
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(OK, callback.WaitForResult());
     EXPECT_EQ(ASCIIToUTF16("-pac.txt-\n"), text);
@@ -164,8 +164,8 @@ TEST_F(ProxyScriptFetcherImplTest, HttpMimeType) {
   { // Fetch a PAC with mime type "text/plain"
     GURL url(test_server_.GetURL("files/pac.txt"));
     string16 text;
-    TestOldCompletionCallback callback;
-    int result = pac_fetcher.Fetch(url, &text, &callback);
+    TestCompletionCallback callback;
+    int result = pac_fetcher.Fetch(url, &text, callback.callback());
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(OK, callback.WaitForResult());
     EXPECT_EQ(ASCIIToUTF16("-pac.txt-\n"), text);
@@ -173,8 +173,8 @@ TEST_F(ProxyScriptFetcherImplTest, HttpMimeType) {
   { // Fetch a PAC with mime type "text/html"
     GURL url(test_server_.GetURL("files/pac.html"));
     string16 text;
-    TestOldCompletionCallback callback;
-    int result = pac_fetcher.Fetch(url, &text, &callback);
+    TestCompletionCallback callback;
+    int result = pac_fetcher.Fetch(url, &text, callback.callback());
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(OK, callback.WaitForResult());
     EXPECT_EQ(ASCIIToUTF16("-pac.html-\n"), text);
@@ -182,8 +182,8 @@ TEST_F(ProxyScriptFetcherImplTest, HttpMimeType) {
   { // Fetch a PAC with mime type "application/x-ns-proxy-autoconfig"
     GURL url(test_server_.GetURL("files/pac.nsproxy"));
     string16 text;
-    TestOldCompletionCallback callback;
-    int result = pac_fetcher.Fetch(url, &text, &callback);
+    TestCompletionCallback callback;
+    int result = pac_fetcher.Fetch(url, &text, callback.callback());
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(OK, callback.WaitForResult());
     EXPECT_EQ(ASCIIToUTF16("-pac.nsproxy-\n"), text);
@@ -199,8 +199,8 @@ TEST_F(ProxyScriptFetcherImplTest, HttpStatusCode) {
   { // Fetch a PAC which gives a 500 -- FAIL
     GURL url(test_server_.GetURL("files/500.pac"));
     string16 text;
-    TestOldCompletionCallback callback;
-    int result = pac_fetcher.Fetch(url, &text, &callback);
+    TestCompletionCallback callback;
+    int result = pac_fetcher.Fetch(url, &text, callback.callback());
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(ERR_PAC_STATUS_NOT_OK, callback.WaitForResult());
     EXPECT_TRUE(text.empty());
@@ -208,8 +208,8 @@ TEST_F(ProxyScriptFetcherImplTest, HttpStatusCode) {
   { // Fetch a PAC which gives a 404 -- FAIL
     GURL url(test_server_.GetURL("files/404.pac"));
     string16 text;
-    TestOldCompletionCallback callback;
-    int result = pac_fetcher.Fetch(url, &text, &callback);
+    TestCompletionCallback callback;
+    int result = pac_fetcher.Fetch(url, &text, callback.callback());
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(ERR_PAC_STATUS_NOT_OK, callback.WaitForResult());
     EXPECT_TRUE(text.empty());
@@ -226,8 +226,8 @@ TEST_F(ProxyScriptFetcherImplTest, ContentDisposition) {
   // have no effect.
   GURL url(test_server_.GetURL("files/downloadable.pac"));
   string16 text;
-  TestOldCompletionCallback callback;
-  int result = pac_fetcher.Fetch(url, &text, &callback);
+  TestCompletionCallback callback;
+  int result = pac_fetcher.Fetch(url, &text, callback.callback());
   EXPECT_EQ(ERR_IO_PENDING, result);
   EXPECT_EQ(OK, callback.WaitForResult());
   EXPECT_EQ(ASCIIToUTF16("-downloadable.pac-\n"), text);
@@ -243,8 +243,8 @@ TEST_F(ProxyScriptFetcherImplTest, NoCache) {
   GURL url(test_server_.GetURL("files/cacheable_1hr.pac"));
   {
     string16 text;
-    TestOldCompletionCallback callback;
-    int result = pac_fetcher.Fetch(url, &text, &callback);
+    TestCompletionCallback callback;
+    int result = pac_fetcher.Fetch(url, &text, callback.callback());
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(OK, callback.WaitForResult());
     EXPECT_EQ(ASCIIToUTF16("-cacheable_1hr.pac-\n"), text);
@@ -258,8 +258,8 @@ TEST_F(ProxyScriptFetcherImplTest, NoCache) {
   // get a success.
   {
     string16 text;
-    TestOldCompletionCallback callback;
-    int result = pac_fetcher.Fetch(url, &text, &callback);
+    TestCompletionCallback callback;
+    int result = pac_fetcher.Fetch(url, &text, callback.callback());
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(ERR_CONNECTION_REFUSED, callback.WaitForResult());
   }
@@ -285,8 +285,8 @@ TEST_F(ProxyScriptFetcherImplTest, TooLarge) {
   for (size_t i = 0; i < arraysize(urls); ++i) {
     const GURL& url = urls[i];
     string16 text;
-    TestOldCompletionCallback callback;
-    int result = pac_fetcher.Fetch(url, &text, &callback);
+    TestCompletionCallback callback;
+    int result = pac_fetcher.Fetch(url, &text, callback.callback());
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(ERR_FILE_TOO_BIG, callback.WaitForResult());
     EXPECT_TRUE(text.empty());
@@ -298,8 +298,8 @@ TEST_F(ProxyScriptFetcherImplTest, TooLarge) {
   { // Make sure we can still fetch regular URLs.
     GURL url(test_server_.GetURL("files/pac.nsproxy"));
     string16 text;
-    TestOldCompletionCallback callback;
-    int result = pac_fetcher.Fetch(url, &text, &callback);
+    TestCompletionCallback callback;
+    int result = pac_fetcher.Fetch(url, &text, callback.callback());
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(OK, callback.WaitForResult());
     EXPECT_EQ(ASCIIToUTF16("-pac.nsproxy-\n"), text);
@@ -320,8 +320,8 @@ TEST_F(ProxyScriptFetcherImplTest, Hang) {
   // after 500 ms, and fail with a timeout error.
   { GURL url(test_server_.GetURL("slow/proxy.pac?1.2"));
     string16 text;
-    TestOldCompletionCallback callback;
-    int result = pac_fetcher.Fetch(url, &text, &callback);
+    TestCompletionCallback callback;
+    int result = pac_fetcher.Fetch(url, &text, callback.callback());
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(ERR_TIMED_OUT, callback.WaitForResult());
     EXPECT_TRUE(text.empty());
@@ -333,8 +333,8 @@ TEST_F(ProxyScriptFetcherImplTest, Hang) {
   { // Make sure we can still fetch regular URLs.
     GURL url(test_server_.GetURL("files/pac.nsproxy"));
     string16 text;
-    TestOldCompletionCallback callback;
-    int result = pac_fetcher.Fetch(url, &text, &callback);
+    TestCompletionCallback callback;
+    int result = pac_fetcher.Fetch(url, &text, callback.callback());
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(OK, callback.WaitForResult());
     EXPECT_EQ(ASCIIToUTF16("-pac.nsproxy-\n"), text);
@@ -354,8 +354,8 @@ TEST_F(ProxyScriptFetcherImplTest, Encodings) {
   {
     GURL url(test_server_.GetURL("files/gzipped_pac"));
     string16 text;
-    TestOldCompletionCallback callback;
-    int result = pac_fetcher.Fetch(url, &text, &callback);
+    TestCompletionCallback callback;
+    int result = pac_fetcher.Fetch(url, &text, callback.callback());
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(OK, callback.WaitForResult());
     EXPECT_EQ(ASCIIToUTF16("This data was gzipped.\n"), text);
@@ -366,8 +366,8 @@ TEST_F(ProxyScriptFetcherImplTest, Encodings) {
   {
     GURL url(test_server_.GetURL("files/utf16be_pac"));
     string16 text;
-    TestOldCompletionCallback callback;
-    int result = pac_fetcher.Fetch(url, &text, &callback);
+    TestCompletionCallback callback;
+    int result = pac_fetcher.Fetch(url, &text, callback.callback());
     EXPECT_EQ(ERR_IO_PENDING, result);
     EXPECT_EQ(OK, callback.WaitForResult());
     EXPECT_EQ(ASCIIToUTF16("This was encoded as UTF-16BE.\n"), text);
@@ -393,8 +393,8 @@ TEST_F(ProxyScriptFetcherImplTest, DataURLs) {
   {
     GURL url(kEncodedUrl);
     string16 text;
-    TestOldCompletionCallback callback;
-    int result = pac_fetcher.Fetch(url, &text, &callback);
+    TestCompletionCallback callback;
+    int result = pac_fetcher.Fetch(url, &text, callback.callback());
     EXPECT_EQ(OK, result);
     EXPECT_EQ(ASCIIToUTF16(kPacScript), text);
   }
@@ -406,8 +406,8 @@ TEST_F(ProxyScriptFetcherImplTest, DataURLs) {
   {
     GURL url(kEncodedUrlBroken);
     string16 text;
-    TestOldCompletionCallback callback;
-    int result = pac_fetcher.Fetch(url, &text, &callback);
+    TestCompletionCallback callback;
+    int result = pac_fetcher.Fetch(url, &text, callback.callback());
     EXPECT_EQ(ERR_FAILED, result);
   }
 }

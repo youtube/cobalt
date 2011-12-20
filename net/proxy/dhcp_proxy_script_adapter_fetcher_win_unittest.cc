@@ -141,7 +141,7 @@ class FetcherClient {
   }
 
   void RunTest() {
-    fetcher_->Fetch("adapter name", &callback_);
+    fetcher_->Fetch("adapter name", callback_.callback());
   }
 
   void FinishTestAllowCleanup() {
@@ -149,7 +149,7 @@ class FetcherClient {
     MessageLoop::current()->RunAllPending();
   }
 
-  TestOldCompletionCallback callback_;
+  TestCompletionCallback callback_;
   scoped_refptr<URLRequestContext> url_request_context_;
   scoped_ptr<MockDhcpProxyScriptAdapterFetcher> fetcher_;
   string16 pac_text_;

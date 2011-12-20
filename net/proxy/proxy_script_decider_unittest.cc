@@ -4,6 +4,7 @@
 
 #include <vector>
 
+#include "base/bind.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
 #include "base/time.h"
@@ -96,7 +97,7 @@ class RuleBasedProxyScriptFetcher : public ProxyScriptFetcher {
   // ProxyScriptFetcher implementation.
   virtual int Fetch(const GURL& url,
                     string16* text,
-                    OldCompletionCallback* callback) {
+                    const CompletionCallback& callback) {
     const Rules::Rule& rule = rules_->GetRuleByUrl(url);
     int rv = rule.fetch_error;
     EXPECT_NE(ERR_UNEXPECTED, rv);
@@ -124,11 +125,11 @@ TEST(ProxyScriptDeciderTest, CustomPacSucceeds) {
 
   Rules::Rule rule = rules.AddSuccessRule("http://custom/proxy.pac");
 
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   CapturingNetLog log(CapturingNetLog::kUnbounded);
   ProxyScriptDecider decider(&fetcher, &dhcp_fetcher, &log);
   EXPECT_EQ(OK, decider.Start(
-      config, base::TimeDelta(), true, &callback));
+      config, base::TimeDelta(), true, callback.callback()));
   EXPECT_EQ(rule.text(), decider.script_data()->utf16());
 
   // Check the NetLog was filled correctly.
@@ -160,11 +161,12 @@ TEST(ProxyScriptDeciderTest, CustomPacFails1) {
 
   rules.AddFailDownloadRule("http://custom/proxy.pac");
 
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   CapturingNetLog log(CapturingNetLog::kUnbounded);
   ProxyScriptDecider decider(&fetcher, &dhcp_fetcher, &log);
   EXPECT_EQ(kFailedDownloading,
-            decider.Start(config, base::TimeDelta(), true, &callback));
+            decider.Start(config, base::TimeDelta(), true,
+                          callback.callback()));
   EXPECT_EQ(NULL, decider.script_data());
 
   // Check the NetLog was filled correctly.
@@ -195,10 +197,11 @@ TEST(ProxyScriptDeciderTest, CustomPacFails2) {
 
   rules.AddFailParsingRule("http://custom/proxy.pac");
 
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   ProxyScriptDecider decider(&fetcher, &dhcp_fetcher, NULL);
   EXPECT_EQ(kFailedParsing,
-            decider.Start(config, base::TimeDelta(), true, &callback));
+            decider.Start(config, base::TimeDelta(), true,
+                          callback.callback()));
   EXPECT_EQ(NULL, decider.script_data());
 }
 
@@ -210,10 +213,11 @@ TEST(ProxyScriptDeciderTest, HasNullProxyScriptFetcher) {
   ProxyConfig config;
   config.set_pac_url(GURL("http://custom/proxy.pac"));
 
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   ProxyScriptDecider decider(NULL, &dhcp_fetcher, NULL);
   EXPECT_EQ(ERR_UNEXPECTED,
-            decider.Start(config, base::TimeDelta(), true, &callback));
+            decider.Start(config, base::TimeDelta(), true,
+                          callback.callback()));
   EXPECT_EQ(NULL, decider.script_data());
 }
 
@@ -228,10 +232,10 @@ TEST(ProxyScriptDeciderTest, AutodetectSuccess) {
 
   Rules::Rule rule = rules.AddSuccessRule("http://wpad/wpad.dat");
 
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   ProxyScriptDecider decider(&fetcher, &dhcp_fetcher, NULL);
   EXPECT_EQ(OK, decider.Start(
-      config, base::TimeDelta(), true, &callback));
+      config, base::TimeDelta(), true, callback.callback()));
   EXPECT_EQ(rule.text(), decider.script_data()->utf16());
 
   EXPECT_TRUE(decider.effective_config().has_pac_url());
@@ -251,10 +255,10 @@ TEST(ProxyScriptDeciderTest, AutodetectFailCustomSuccess1) {
   rules.AddFailDownloadRule("http://wpad/wpad.dat");
   Rules::Rule rule = rules.AddSuccessRule("http://custom/proxy.pac");
 
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   ProxyScriptDecider decider(&fetcher, &dhcp_fetcher, NULL);
   EXPECT_EQ(OK, decider.Start(
-      config, base::TimeDelta(), true, &callback));
+      config, base::TimeDelta(), true, callback.callback()));
   EXPECT_EQ(rule.text(), decider.script_data()->utf16());
 
   EXPECT_TRUE(decider.effective_config().has_pac_url());
@@ -276,12 +280,12 @@ TEST(ProxyScriptDeciderTest, AutodetectFailCustomSuccess2) {
   rules.AddFailParsingRule("http://wpad/wpad.dat");
   Rules::Rule rule = rules.AddSuccessRule("http://custom/proxy.pac");
 
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   CapturingNetLog log(CapturingNetLog::kUnbounded);
 
   ProxyScriptDecider decider(&fetcher, &dhcp_fetcher, &log);
   EXPECT_EQ(OK, decider.Start(config, base::TimeDelta(),
-                          true, &callback));
+                          true, callback.callback()));
   EXPECT_EQ(rule.text(), decider.script_data()->utf16());
 
   // Verify that the effective configuration no longer contains auto detect or
@@ -339,10 +343,11 @@ TEST(ProxyScriptDeciderTest, AutodetectFailCustomFails1) {
   rules.AddFailDownloadRule("http://wpad/wpad.dat");
   rules.AddFailDownloadRule("http://custom/proxy.pac");
 
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   ProxyScriptDecider decider(&fetcher, &dhcp_fetcher, NULL);
   EXPECT_EQ(kFailedDownloading,
-            decider.Start(config, base::TimeDelta(), true, &callback));
+            decider.Start(config, base::TimeDelta(), true,
+                          callback.callback()));
   EXPECT_EQ(NULL, decider.script_data());
 }
 
@@ -359,10 +364,11 @@ TEST(ProxyScriptDeciderTest, AutodetectFailCustomFails2) {
   rules.AddFailDownloadRule("http://wpad/wpad.dat");
   rules.AddFailParsingRule("http://custom/proxy.pac");
 
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   ProxyScriptDecider decider(&fetcher, &dhcp_fetcher, NULL);
   EXPECT_EQ(kFailedParsing,
-            decider.Start(config, base::TimeDelta(), true, &callback));
+            decider.Start(config, base::TimeDelta(), true,
+                          callback.callback()));
   EXPECT_EQ(NULL, decider.script_data());
 }
 
@@ -379,12 +385,12 @@ TEST(ProxyScriptDeciderTest, CustomPacFails1_WithPositiveDelay) {
 
   rules.AddFailDownloadRule("http://custom/proxy.pac");
 
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   CapturingNetLog log(CapturingNetLog::kUnbounded);
   ProxyScriptDecider decider(&fetcher, &dhcp_fetcher, &log);
   EXPECT_EQ(ERR_IO_PENDING,
             decider.Start(config, base::TimeDelta::FromMilliseconds(1),
-                      true, &callback));
+                      true, callback.callback()));
 
   EXPECT_EQ(kFailedDownloading, callback.WaitForResult());
   EXPECT_EQ(NULL, decider.script_data());
@@ -421,12 +427,12 @@ TEST(ProxyScriptDeciderTest, CustomPacFails1_WithNegativeDelay) {
 
   rules.AddFailDownloadRule("http://custom/proxy.pac");
 
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   CapturingNetLog log(CapturingNetLog::kUnbounded);
   ProxyScriptDecider decider(&fetcher, &dhcp_fetcher, &log);
   EXPECT_EQ(kFailedDownloading,
             decider.Start(config, base::TimeDelta::FromSeconds(-5),
-                          true, &callback));
+                          true, callback.callback()));
   EXPECT_EQ(NULL, decider.script_data());
 
   // Check the NetLog was filled correctly.
@@ -450,7 +456,7 @@ class SynchronousSuccessDhcpFetcher : public DhcpProxyScriptFetcher {
       : gurl_("http://dhcppac/"), expected_text_(expected_text) {
   }
 
-  int Fetch(string16* utf16_text, OldCompletionCallback* callback) OVERRIDE {
+  int Fetch(string16* utf16_text, const CompletionCallback& callback) OVERRIDE {
     *utf16_text = expected_text_;
     return OK;
   }
@@ -490,10 +496,10 @@ TEST(ProxyScriptDeciderTest, AutodetectDhcpSuccess) {
   rules.AddSuccessRule("http://bingo/");
   rules.AddFailDownloadRule("http://wpad/wpad.dat");
 
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   ProxyScriptDecider decider(&fetcher, &dhcp_fetcher, NULL);
   EXPECT_EQ(OK, decider.Start(
-      config, base::TimeDelta(), true, &callback));
+      config, base::TimeDelta(), true, callback.callback()));
   EXPECT_EQ(dhcp_fetcher.expected_text(),
             decider.script_data()->utf16());
 
@@ -513,12 +519,12 @@ TEST(ProxyScriptDeciderTest, AutodetectDhcpFailParse) {
   rules.AddFailParsingRule("http://bingo/");
   rules.AddFailDownloadRule("http://wpad/wpad.dat");
 
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   ProxyScriptDecider decider(&fetcher, &dhcp_fetcher, NULL);
   // Since there is fallback to DNS-based WPAD, the final error will be that
   // it failed downloading, not that it failed parsing.
   EXPECT_EQ(kFailedDownloading,
-      decider.Start(config, base::TimeDelta(), true, &callback));
+      decider.Start(config, base::TimeDelta(), true, callback.callback()));
   EXPECT_EQ(NULL, decider.script_data());
 
   EXPECT_FALSE(decider.effective_config().has_pac_url());
@@ -528,19 +534,18 @@ class AsyncFailDhcpFetcher
     : public DhcpProxyScriptFetcher,
       public base::RefCountedThreadSafe<AsyncFailDhcpFetcher> {
  public:
-  AsyncFailDhcpFetcher() : callback_(NULL) {
-  }
+  AsyncFailDhcpFetcher() {}
 
-  int Fetch(string16* utf16_text, OldCompletionCallback* callback) OVERRIDE {
+  int Fetch(string16* utf16_text, const CompletionCallback& callback) OVERRIDE {
     callback_ = callback;
     MessageLoop::current()->PostTask(
         FROM_HERE,
-        NewRunnableMethod(this, &AsyncFailDhcpFetcher::CallbackWithFailure));
+        base::Bind(&AsyncFailDhcpFetcher::CallbackWithFailure, this));
     return ERR_IO_PENDING;
   }
 
   void Cancel() OVERRIDE {
-    callback_ = NULL;
+    callback_.Reset();
   }
 
   const GURL& GetPacURL() const OVERRIDE {
@@ -548,13 +553,13 @@ class AsyncFailDhcpFetcher
   }
 
   void CallbackWithFailure() {
-    if (callback_)
-      callback_->Run(ERR_PAC_NOT_IN_DHCP);
+    if (!callback_.is_null())
+      callback_.Run(ERR_PAC_NOT_IN_DHCP);
   }
 
  private:
   GURL dummy_gurl_;
-  OldCompletionCallback* callback_;
+  CompletionCallback callback_;
 };
 
 TEST(ProxyScriptDeciderTest, DhcpCancelledByDestructor) {
@@ -571,12 +576,12 @@ TEST(ProxyScriptDeciderTest, DhcpCancelledByDestructor) {
   config.set_auto_detect(true);
   rules.AddFailDownloadRule("http://wpad/wpad.dat");
 
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
 
   // Scope so ProxyScriptDecider gets destroyed early.
   {
     ProxyScriptDecider decider(&fetcher, dhcp_fetcher.get(), NULL);
-    decider.Start(config, base::TimeDelta(), true, &callback);
+    decider.Start(config, base::TimeDelta(), true, callback.callback());
   }
 
   // Run the message loop to let the DHCP fetch complete and post the results

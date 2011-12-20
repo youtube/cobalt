@@ -119,7 +119,8 @@ class PacPerfSuiteRunner {
       GURL pac_url =
           test_server_.GetURL(std::string("files/") + script_name);
       int rv = resolver_->SetPacScript(
-          net::ProxyResolverScriptData::FromURL(pac_url), NULL);
+          net::ProxyResolverScriptData::FromURL(pac_url),
+          net::CompletionCallback());
       EXPECT_EQ(net::OK, rv);
     } else {
       LoadPacScriptIntoResolver(script_name);
@@ -131,8 +132,8 @@ class PacPerfSuiteRunner {
     {
       net::ProxyInfo proxy_info;
       int result = resolver_->GetProxyForURL(
-          GURL("http://www.warmup.com"), &proxy_info, NULL, NULL,
-          net::BoundNetLog());
+          GURL("http://www.warmup.com"), &proxy_info, net::CompletionCallback(),
+          NULL, net::BoundNetLog());
       ASSERT_EQ(net::OK, result);
     }
 
@@ -146,9 +147,9 @@ class PacPerfSuiteRunner {
 
       // Resolve.
       net::ProxyInfo proxy_info;
-      int result = resolver_->GetProxyForURL(GURL(query.query_url),
-                                             &proxy_info, NULL, NULL,
-                                             net::BoundNetLog());
+      int result = resolver_->GetProxyForURL(
+          GURL(query.query_url), &proxy_info, net::CompletionCallback(), NULL,
+          net::BoundNetLog());
 
       // Check that the result was correct. Note that ToPacString() and
       // ASSERT_EQ() are fast, so they won't skew the results.
@@ -179,7 +180,8 @@ class PacPerfSuiteRunner {
 
     // Load the PAC script into the ProxyResolver.
     int rv = resolver_->SetPacScript(
-        net::ProxyResolverScriptData::FromUTF8(file_contents), NULL);
+        net::ProxyResolverScriptData::FromUTF8(file_contents),
+        net::CompletionCallback());
     EXPECT_EQ(net::OK, rv);
   }
 

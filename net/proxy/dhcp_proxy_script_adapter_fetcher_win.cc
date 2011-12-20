@@ -5,6 +5,7 @@
 #include "net/proxy/dhcp_proxy_script_adapter_fetcher_win.h"
 
 #include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/message_loop_proxy.h"
 #include "base/metrics/histogram.h"
 #include "base/sys_string_conversions.h"
@@ -33,10 +34,6 @@ DhcpProxyScriptAdapterFetcher::DhcpProxyScriptAdapterFetcher(
     URLRequestContext* url_request_context)
     : state_(STATE_START),
       result_(ERR_IO_PENDING),
-      callback_(NULL),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          script_fetcher_callback_(
-              this, &DhcpProxyScriptAdapterFetcher::OnFetcherDone)),
       url_request_context_(url_request_context) {
 }
 
@@ -50,7 +47,7 @@ DhcpProxyScriptAdapterFetcher::~DhcpProxyScriptAdapterFetcher() {
 }
 
 void DhcpProxyScriptAdapterFetcher::Fetch(
-    const std::string& adapter_name, OldCompletionCallback* callback) {
+    const std::string& adapter_name, const CompletionCallback& callback) {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(state_, STATE_START);
   result_ = ERR_IO_PENDING;
@@ -76,7 +73,7 @@ void DhcpProxyScriptAdapterFetcher::Fetch(
 
 void DhcpProxyScriptAdapterFetcher::Cancel() {
   DCHECK(CalledOnValidThread());
-  callback_ = NULL;
+  callback_.Reset();
   wait_timer_.Stop();
   script_fetcher_.reset();
 
@@ -161,7 +158,10 @@ void DhcpProxyScriptAdapterFetcher::OnDhcpQueryDone(
   } else {
     state_ = STATE_WAIT_URL;
     script_fetcher_.reset(ImplCreateScriptFetcher());
-    script_fetcher_->Fetch(pac_url_, &pac_script_, &script_fetcher_callback_);
+    script_fetcher_->Fetch(
+        pac_url_, &pac_script_,
+        base::Bind(&DhcpProxyScriptAdapterFetcher::OnFetcherDone,
+                   base::Unretained(this)));
   }
 }
 
@@ -186,12 +186,12 @@ void DhcpProxyScriptAdapterFetcher::OnFetcherDone(int result) {
 void DhcpProxyScriptAdapterFetcher::TransitionToFinish() {
   DCHECK(state_ == STATE_WAIT_DHCP || state_ == STATE_WAIT_URL);
   state_ = STATE_FINISH;
-  OldCompletionCallback* callback = callback_;
-  callback_ = NULL;
+  CompletionCallback callback = callback_;
+  callback_.Reset();
 
   // Be careful not to touch any member state after this, as the client
   // may delete us during this callback.
-  callback->Run(result_);
+  callback.Run(result_);
 }
 
 DhcpProxyScriptAdapterFetcher::State

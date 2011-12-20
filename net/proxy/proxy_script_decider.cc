@@ -4,6 +4,8 @@
 
 #include "net/proxy/proxy_script_decider.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/format_macros.h"
 #include "base/logging.h"
@@ -49,9 +51,6 @@ ProxyScriptDecider::ProxyScriptDecider(
     NetLog* net_log)
     : proxy_script_fetcher_(proxy_script_fetcher),
       dhcp_proxy_script_fetcher_(dhcp_proxy_script_fetcher),
-      ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(
-          this, &ProxyScriptDecider::OnIOCompletion)),
-      user_callback_(NULL),
       current_pac_source_index_(0u),
       pac_mandatory_(false),
       next_state_(STATE_NONE),
@@ -65,12 +64,11 @@ ProxyScriptDecider::~ProxyScriptDecider() {
     Cancel();
 }
 
-int ProxyScriptDecider::Start(const ProxyConfig& config,
-                              const base::TimeDelta wait_delay,
-                              bool fetch_pac_bytes,
-                              OldCompletionCallback* callback) {
+int ProxyScriptDecider::Start(
+    const ProxyConfig& config, const base::TimeDelta wait_delay,
+    bool fetch_pac_bytes, const CompletionCallback& callback) {
   DCHECK_EQ(STATE_NONE, next_state_);
-  DCHECK(callback);
+  DCHECK(!callback.is_null());
   DCHECK(config.HasAutomaticSettings());
 
   net_log_.BeginEvent(NetLog::TYPE_PROXY_SCRIPT_DECIDER, NULL);
@@ -91,7 +89,7 @@ int ProxyScriptDecider::Start(const ProxyConfig& config,
 
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING)
-    user_callback_ = callback;
+    callback_ = callback;
   else
     DidComplete();
 
@@ -174,8 +172,8 @@ int ProxyScriptDecider::DoLoop(int result) {
 
 void ProxyScriptDecider::DoCallback(int result) {
   DCHECK_NE(ERR_IO_PENDING, result);
-  DCHECK(user_callback_);
-  user_callback_->Run(result);
+  DCHECK(!callback_.is_null());
+  callback_.Run(result);
 }
 
 int ProxyScriptDecider::DoWait() {
@@ -223,7 +221,9 @@ int ProxyScriptDecider::DoFetchPacScript() {
       return ERR_UNEXPECTED;
     }
 
-    return dhcp_proxy_script_fetcher_->Fetch(&pac_script_, &io_callback_);
+    return dhcp_proxy_script_fetcher_->Fetch(
+        &pac_script_, base::Bind(&ProxyScriptDecider::OnIOCompletion,
+                                 base::Unretained(this)));
   }
 
   if (!proxy_script_fetcher_) {
@@ -232,7 +232,8 @@ int ProxyScriptDecider::DoFetchPacScript() {
   }
 
   return proxy_script_fetcher_->Fetch(
-      effective_pac_url, &pac_script_, &io_callback_);
+      effective_pac_url, &pac_script_,
+      base::Bind(&ProxyScriptDecider::OnIOCompletion, base::Unretained(this)));
 }
 
 int ProxyScriptDecider::DoFetchPacScriptComplete(int result) {
