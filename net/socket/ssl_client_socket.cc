@@ -41,7 +41,7 @@ const char* SSLClientSocket::NextProtoToString(
       return "spdy/2";
     case kProtoSPDY21:
       return "spdy/2.1";
-    case kProtoUnknown:
+    default:
       break;
   }
   return "unknown";
