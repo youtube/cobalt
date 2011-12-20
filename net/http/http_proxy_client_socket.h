@@ -18,6 +18,7 @@
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_info.h"
 #include "net/http/proxy_client_socket.h"
+#include "net/socket/ssl_client_socket.h"
 
 class GURL;
 
@@ -45,6 +46,7 @@ class HttpProxyClientSocket : public ProxyClientSocket {
                         HttpAuthHandlerFactory* http_auth_handler_factory,
                         bool tunnel,
                         bool using_spdy,
+                        SSLClientSocket::NextProto protocol_negotiated,
                         bool is_https_proxy);
 
   // On destruction Disconnect() is called.
@@ -61,6 +63,10 @@ class HttpProxyClientSocket : public ProxyClientSocket {
 
   bool using_spdy() {
     return using_spdy_;
+  }
+
+  SSLClientSocket::NextProto protocol_negotiated() {
+    return protocol_negotiated_;
   }
 
   // ProxyClientSocket implementation.
@@ -158,6 +164,8 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   const bool tunnel_;
   // If true, then the connection to the proxy is a SPDY connection.
   const bool using_spdy_;
+  // Protocol negotiated with the server.
+  SSLClientSocket::NextProto protocol_negotiated_;
   // If true, then SSL is used to communicate with this proxy
   const bool is_https_proxy_;
 

@@ -12,6 +12,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "net/base/net_log.h"
 #include "net/http/http_stream.h"
+#include "net/socket/ssl_client_socket.h"
 
 namespace net {
 
@@ -95,6 +96,9 @@ class HttpPipelinedStream : public HttpStream {
 
   // True if this stream's pipeline was NPN negotiated.
   bool was_npn_negotiated() const;
+
+  // Protocol negotiated with the server.
+  SSLClientSocket::NextProto protocol_negotiated() const;
 
  private:
   HttpPipelinedConnectionImpl* pipeline_;

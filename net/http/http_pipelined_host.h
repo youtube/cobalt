@@ -60,7 +60,8 @@ class NET_EXPORT_PRIVATE HttpPipelinedHost {
       const SSLConfig& used_ssl_config,
       const ProxyInfo& used_proxy_info,
       const BoundNetLog& net_log,
-      bool was_npn_negotiated) = 0;
+      bool was_npn_negotiated,
+      SSLClientSocket::NextProto protocol_negotiated) = 0;
 
   // Tries to find an existing pipeline with capacity for a new request. If
   // successful, returns a new stream on that pipeline. Otherwise, returns NULL.
