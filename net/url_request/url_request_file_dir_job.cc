@@ -4,6 +4,7 @@
 
 #include "net/url_request/url_request_file_dir_job.h"
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/file_util.h"
 #include "base/message_loop.h"
@@ -32,7 +33,7 @@ URLRequestFileDirJob::URLRequestFileDirJob(URLRequest* request,
       wrote_header_(false),
       read_pending_(false),
       read_buffer_length_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
 }
 
 void URLRequestFileDirJob::StartAsync() {
@@ -46,8 +47,8 @@ void URLRequestFileDirJob::Start() {
   // callbacks happen as they would for network requests.
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      method_factory_.NewRunnableMethod(
-          &URLRequestFileDirJob::StartAsync));
+      base::Bind(&URLRequestFileDirJob::StartAsync,
+                 weak_factory_.GetWeakPtr()));
 }
 
 void URLRequestFileDirJob::Kill() {
@@ -61,7 +62,7 @@ void URLRequestFileDirJob::Kill() {
 
   URLRequestJob::Kill();
 
-  method_factory_.RevokeAll();
+  weak_factory_.InvalidateWeakPtrs();
 }
 
 bool URLRequestFileDirJob::ReadRawData(IOBuffer* buf, int buf_size,

@@ -11,8 +11,8 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/system_monitor/system_monitor.h"
-#include "base/task.h"
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/filter.h"
@@ -373,7 +373,7 @@ class NET_EXPORT URLRequestJob : public base::RefCounted<URLRequestJob>,
   GURL deferred_redirect_url_;
   int deferred_redirect_status_code_;
 
-  ScopedRunnableMethodFactory<URLRequestJob> method_factory_;
+  base::WeakPtrFactory<URLRequestJob> weak_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestJob);
 };

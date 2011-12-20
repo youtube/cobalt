@@ -12,7 +12,6 @@
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/task.h"
 #include "base/time.h"
 #include "net/base/auth.h"
 #include "net/base/completion_callback.h"
@@ -214,8 +213,7 @@ class URLRequestHttpJob : public URLRequestJob {
   base::TimeTicks start_time_;
 
   scoped_ptr<HttpFilterContext> filter_context_;
-  ScopedRunnableMethodFactory<URLRequestHttpJob> method_factory_;
-  base::WeakPtrFactory<URLRequestHttpJob> weak_ptr_factory_;
+  base::WeakPtrFactory<URLRequestHttpJob> weak_factory_;
 
   CompletionCallback on_headers_received_callback_;
 
