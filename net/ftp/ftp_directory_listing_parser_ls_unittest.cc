@@ -50,6 +50,9 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
     { "lrwxrwxrwx 1 0  0 26 Sep 18 2008 pub",
       FtpDirectoryListingEntry::SYMLINK, "pub", -1,
       2008, 9, 18, 0, 0 },
+    { "-rw-r--r--    1 ftp      ftp           -528 Nov 01  2007 README",
+      FtpDirectoryListingEntry::FILE, "README", -1,
+      2007, 11, 1, 0, 0 },
 
     // Tests for the wu-ftpd variant:
     { "drwxr-xr-x   2 sys          512 Mar 27  2009 pub",
@@ -161,12 +164,10 @@ TEST_F(FtpDirectoryListingParserLsTest, Bad) {
     "-rw-r--r-- ftp ftp",
     "-rw-rgbr-- ftp ftp 528 Nov 01 2007 README",
     "qrwwr--r-- ftp ftp 528 Nov 01 2007 README",
-    "-rw-r--r-- ftp ftp -528 Nov 01 2007 README",
     "-rw-r--r-- ftp ftp 528 Foo 01 2007 README",
     "-rw-r--r-- 1 ftp ftp",
     "-rw-rgbr-- 1 ftp ftp 528 Nov 01 2007 README",
     "qrwwr--r-- 1 ftp ftp 528 Nov 01 2007 README",
-    "-rw-r--r-- 1 ftp ftp -528 Nov 01 2007 README",
     "-rw-r--r-- 1 ftp ftp 528 Foo 01 2007 README",
     "drwxrwxrwx   1 owner    group               1024 Sep 13  0:3 audio",
 
