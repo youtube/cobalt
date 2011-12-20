@@ -161,7 +161,8 @@ TestTransactionConsumer::~TestTransactionConsumer() {
 void TestTransactionConsumer::Start(const net::HttpRequestInfo* request,
                                     const net::BoundNetLog& net_log) {
   state_ = STARTING;
-  int result = trans_->Start(request, this, net_log);
+  int result = trans_->Start(
+      request, base::Bind(&net::OldCompletionCallbackAdapter, this), net_log);
   if (result != net::ERR_IO_PENDING)
     DidStart(result);
 }
@@ -193,7 +194,8 @@ void TestTransactionConsumer::DidFinish(int result) {
 void TestTransactionConsumer::Read() {
   state_ = READING;
   read_buf_ = new net::IOBuffer(1024);
-  int result = trans_->Read(read_buf_, 1024, this);
+  int result = trans_->Read(
+      read_buf_, 1024, base::Bind(&net::OldCompletionCallbackAdapter, this));
   if (result != net::ERR_IO_PENDING)
     DidRead(result);
 }
@@ -214,7 +216,7 @@ void TestTransactionConsumer::RunWithParams(const Tuple1<int>& params) {
 
 
 MockNetworkTransaction::MockNetworkTransaction(MockNetworkLayer* factory)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)),
+    : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       data_cursor_(0),
       transaction_factory_(factory->AsWeakPtr()) {
 }
@@ -222,7 +224,7 @@ MockNetworkTransaction::MockNetworkTransaction(MockNetworkLayer* factory)
 MockNetworkTransaction::~MockNetworkTransaction() {}
 
 int MockNetworkTransaction::Start(const net::HttpRequestInfo* request,
-                                  net::OldCompletionCallback* callback,
+                                  const net::CompletionCallback& callback,
                                   const net::BoundNetLog& net_log) {
   const MockTransaction* t = FindMockTransaction(request->url);
   if (!t)
@@ -261,19 +263,19 @@ int MockNetworkTransaction::Start(const net::HttpRequestInfo* request,
 }
 
 int MockNetworkTransaction::RestartIgnoringLastError(
-    net::OldCompletionCallback* callback) {
+    const net::CompletionCallback& callback) {
   return net::ERR_FAILED;
 }
 
 int MockNetworkTransaction::RestartWithCertificate(
     net::X509Certificate* client_cert,
-    net::OldCompletionCallback* callback) {
+    const net::CompletionCallback& callback) {
   return net::ERR_FAILED;
 }
 
 int MockNetworkTransaction::RestartWithAuth(
     const net::AuthCredentials& credentials,
-    net::OldCompletionCallback* callback) {
+    const net::CompletionCallback& callback) {
   return net::ERR_FAILED;
 }
 
@@ -282,7 +284,7 @@ bool MockNetworkTransaction::IsReadyToRestartForAuth() {
 }
 
 int MockNetworkTransaction::Read(net::IOBuffer* buf, int buf_len,
-                                 net::OldCompletionCallback* callback) {
+                                 const net::CompletionCallback& callback) {
   int data_len = static_cast<int>(data_.size());
   int num = std::min(buf_len, data_len - data_cursor_);
   if (num) {
@@ -317,16 +319,16 @@ uint64 MockNetworkTransaction::GetUploadProgress() const {
   return 0;
 }
 
-void MockNetworkTransaction::CallbackLater(net::OldCompletionCallback* callback,
-                                           int result) {
-  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
-      &MockNetworkTransaction::RunCallback, ptr_factory_.GetWeakPtr(),
-      callback, result));
+void MockNetworkTransaction::CallbackLater(
+    const net::CompletionCallback& callback, int result) {
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&MockNetworkTransaction::RunCallback,
+                            weak_factory_.GetWeakPtr(), callback, result));
 }
 
-void MockNetworkTransaction::RunCallback(net::OldCompletionCallback* callback,
-                                         int result) {
-  callback->Run(result);
+void MockNetworkTransaction::RunCallback(
+    const net::CompletionCallback& callback, int result) {
+  callback.Run(result);
 }
 
 MockNetworkLayer::MockNetworkLayer()
@@ -359,19 +361,19 @@ net::HttpNetworkSession* MockNetworkLayer::GetSession() {
 int ReadTransaction(net::HttpTransaction* trans, std::string* result) {
   int rv;
 
-  TestOldCompletionCallback callback;
+  net::TestCompletionCallback callback;
 
   std::string content;
   do {
     scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(256));
-    rv = trans->Read(buf, 256, &callback);
+    rv = trans->Read(buf, 256, callback.callback());
     if (rv == net::ERR_IO_PENDING)
       rv = callback.WaitForResult();
-    if (rv > 0) {
+
+    if (rv > 0)
       content.append(buf->data(), rv);
-    } else if (rv < 0) {
+    else if (rv < 0)
       return rv;
-    }
   } while (rv > 0);
 
   result->swap(content);

@@ -86,7 +86,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
       RequestPriority priority,
       scoped_refptr<SpdyStream>* spdy_stream,
       const BoundNetLog& stream_net_log,
-      OldCompletionCallback* callback);
+      const CompletionCallback& callback);
 
   // Remove PendingCreateStream objects on transaction deletion
   void CancelPendingCreateStreams(const scoped_refptr<SpdyStream>* spdy_stream);
@@ -237,11 +237,12 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   int GetPeerAddress(AddressList* address) const;
   int GetLocalAddress(IPEndPoint* address) const;
 
-  // LayeredPool methods:
+  // LayeredPool implementation.
   virtual bool CloseOneIdleConnection() OVERRIDE;
 
  private:
   friend class base::RefCounted<SpdySession>;
+
   // Allow tests to access our innards for testing purposes.
   FRIEND_TEST_ALL_PREFIXES(SpdySessionTest, Ping);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionTest, FailedPing);
@@ -251,15 +252,19 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
     PendingCreateStream(const GURL& url, RequestPriority priority,
                         scoped_refptr<SpdyStream>* spdy_stream,
                         const BoundNetLog& stream_net_log,
-                        OldCompletionCallback* callback)
-        : url(&url), priority(priority), spdy_stream(spdy_stream),
-          stream_net_log(&stream_net_log), callback(callback) { }
+                        const CompletionCallback& callback)
+        : url(&url),
+          priority(priority),
+          spdy_stream(spdy_stream),
+          stream_net_log(&stream_net_log),
+          callback(callback) {}
+    ~PendingCreateStream();
 
     const GURL* url;
     RequestPriority priority;
     scoped_refptr<SpdyStream>* spdy_stream;
     const BoundNetLog* stream_net_log;
-    OldCompletionCallback* callback;
+    CompletionCallback callback;
   };
   typedef std::queue<PendingCreateStream, std::list< PendingCreateStream> >
       PendingCreateStreamQueue;
@@ -270,10 +275,11 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   struct CallbackResultPair {
     CallbackResultPair() : result(OK) {}
-    CallbackResultPair(OldCompletionCallback* callback_in, int result_in)
+    CallbackResultPair(const CompletionCallback& callback_in, int result_in)
         : callback(callback_in), result(result_in) {}
+    ~CallbackResultPair();
 
-    OldCompletionCallback* callback;
+    CompletionCallback callback;
     int result;
   };
 

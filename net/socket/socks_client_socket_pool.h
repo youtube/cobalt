@@ -118,12 +118,12 @@ class NET_EXPORT_PRIVATE SOCKSClientSocketPool
 
   virtual ~SOCKSClientSocketPool();
 
-  // ClientSocketPool methods:
+  // ClientSocketPool implementation.
   virtual int RequestSocket(const std::string& group_name,
                             const void* connect_params,
                             RequestPriority priority,
                             ClientSocketHandle* handle,
-                            OldCompletionCallback* callback,
+                            const CompletionCallback& callback,
                             const BoundNetLog& net_log) OVERRIDE;
 
   virtual void RequestSockets(const std::string& group_name,
@@ -166,7 +166,7 @@ class NET_EXPORT_PRIVATE SOCKSClientSocketPool
 
   virtual ClientSocketPoolHistograms* histograms() const OVERRIDE;
 
-  // LayeredPool methods:
+  // LayeredPool implementation.
   virtual bool CloseOneIdleConnection() OVERRIDE;
 
  private:

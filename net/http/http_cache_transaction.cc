@@ -107,7 +107,6 @@ HttpCache::Transaction::Transaction(HttpCache* cache)
       entry_(NULL),
       new_entry_(NULL),
       network_trans_(NULL),
-      callback_(NULL),
       new_response_(NULL),
       mode_(NONE),
       target_state_(STATE_NONE),
@@ -123,8 +122,8 @@ HttpCache::Transaction::Transaction(HttpCache* cache)
       effective_load_flags_(0),
       write_len_(0),
       final_upload_progress_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          io_callback_(this, &Transaction::OnIOComplete)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(
+          base::Bind(&Transaction::OnIOComplete, base::Unretained(this)))),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           cache_callback_(new CancelableOldCompletionCallback<Transaction>(
               this, &Transaction::OnIOComplete))),
@@ -139,7 +138,7 @@ HttpCache::Transaction::Transaction(HttpCache* cache)
 HttpCache::Transaction::~Transaction() {
   // We may have to issue another IO, but we should never invoke the callback_
   // after this point.
-  callback_ = NULL;
+  callback_.Reset();
 
   if (cache_) {
     if (entry_) {
@@ -218,13 +217,13 @@ const BoundNetLog& HttpCache::Transaction::net_log() const {
 }
 
 int HttpCache::Transaction::Start(const HttpRequestInfo* request,
-                                  OldCompletionCallback* callback,
+                                  const CompletionCallback& callback,
                                   const BoundNetLog& net_log) {
   DCHECK(request);
-  DCHECK(callback);
+  DCHECK(!callback.is_null());
 
   // Ensure that we only have one asynchronous call at a time.
-  DCHECK(!callback_);
+  DCHECK(callback_.is_null());
   DCHECK(!reading_);
   DCHECK(!network_trans_.get());
   DCHECK(!entry_);
@@ -247,11 +246,11 @@ int HttpCache::Transaction::Start(const HttpRequestInfo* request,
 }
 
 int HttpCache::Transaction::RestartIgnoringLastError(
-    OldCompletionCallback* callback) {
-  DCHECK(callback);
+    const CompletionCallback& callback) {
+  DCHECK(!callback.is_null());
 
   // Ensure that we only have one asynchronous call at a time.
-  DCHECK(!callback_);
+  DCHECK(callback_.is_null());
 
   if (!cache_)
     return ERR_UNEXPECTED;
@@ -266,11 +265,11 @@ int HttpCache::Transaction::RestartIgnoringLastError(
 
 int HttpCache::Transaction::RestartWithCertificate(
     X509Certificate* client_cert,
-    OldCompletionCallback* callback) {
-  DCHECK(callback);
+    const CompletionCallback& callback) {
+  DCHECK(!callback.is_null());
 
   // Ensure that we only have one asynchronous call at a time.
-  DCHECK(!callback_);
+  DCHECK(callback_.is_null());
 
   if (!cache_)
     return ERR_UNEXPECTED;
@@ -285,12 +284,12 @@ int HttpCache::Transaction::RestartWithCertificate(
 
 int HttpCache::Transaction::RestartWithAuth(
     const AuthCredentials& credentials,
-    OldCompletionCallback* callback) {
+    const CompletionCallback& callback) {
   DCHECK(auth_response_.headers);
-  DCHECK(callback);
+  DCHECK(!callback.is_null());
 
   // Ensure that we only have one asynchronous call at a time.
-  DCHECK(!callback_);
+  DCHECK(callback_.is_null());
 
   if (!cache_)
     return ERR_UNEXPECTED;
@@ -313,12 +312,12 @@ bool HttpCache::Transaction::IsReadyToRestartForAuth() {
 }
 
 int HttpCache::Transaction::Read(IOBuffer* buf, int buf_len,
-                                 OldCompletionCallback* callback) {
+                                 const CompletionCallback& callback) {
   DCHECK(buf);
   DCHECK_GT(buf_len, 0);
-  DCHECK(callback);
+  DCHECK(!callback.is_null());
 
-  DCHECK(!callback_);
+  DCHECK(callback_.is_null());
 
   if (!cache_)
     return ERR_UNEXPECTED;
@@ -357,7 +356,7 @@ int HttpCache::Transaction::Read(IOBuffer* buf, int buf_len,
   }
 
   if (rv == ERR_IO_PENDING) {
-    DCHECK(!callback_);
+    DCHECK(callback_.is_null());
     callback_ = callback;
   }
   return rv;
@@ -415,18 +414,19 @@ uint64 HttpCache::Transaction::GetUploadProgress() const {
 
 void HttpCache::Transaction::DoCallback(int rv) {
   DCHECK(rv != ERR_IO_PENDING);
-  DCHECK(callback_);
+  DCHECK(!callback_.is_null());
 
   // Since Run may result in Read being called, clear callback_ up front.
-  OldCompletionCallback* c = callback_;
-  callback_ = NULL;
-  c->Run(rv);
+  CompletionCallback c = callback_;
+  callback_.Reset();
+  c.Run(rv);
 }
 
 int HttpCache::Transaction::HandleResult(int rv) {
   DCHECK(rv != ERR_IO_PENDING);
-  if (callback_)
+  if (!callback_.is_null())
     DoCallback(rv);
+
   return rv;
 }
 
@@ -722,7 +722,7 @@ int HttpCache::Transaction::DoSendRequest() {
     return rv;
 
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
-  rv = network_trans_->Start(request_, &io_callback_, net_log_);
+  rv = network_trans_->Start(request_, io_callback_, net_log_);
   return rv;
 }
 
@@ -798,7 +798,7 @@ int HttpCache::Transaction::DoSuccessfulSendRequest() {
 
 int HttpCache::Transaction::DoNetworkRead() {
   next_state_ = STATE_NETWORK_READ_COMPLETE;
-  return network_trans_->Read(read_buf_, io_buf_len_, &io_callback_);
+  return network_trans_->Read(read_buf_, io_buf_len_, io_callback_);
 }
 
 int HttpCache::Transaction::DoNetworkReadComplete(int result) {
@@ -990,7 +990,7 @@ int HttpCache::Transaction::DoStartPartialCacheValidation() {
     return OK;
 
   next_state_ = STATE_COMPLETE_PARTIAL_CACHE_VALIDATION;
-  return partial_->ShouldValidateCache(entry_->disk_entry, &io_callback_);
+  return partial_->ShouldValidateCache(entry_->disk_entry, io_callback_);
 }
 
 int HttpCache::Transaction::DoCompletePartialCacheValidation(int result) {
@@ -1682,7 +1682,7 @@ int HttpCache::Transaction::RestartNetworkRequest() {
   DCHECK_EQ(STATE_NONE, next_state_);
 
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
-  int rv = network_trans_->RestartIgnoringLastError(&io_callback_);
+  int rv = network_trans_->RestartIgnoringLastError(io_callback_);
   if (rv != ERR_IO_PENDING)
     return DoLoop(rv);
   return rv;
@@ -1695,7 +1695,7 @@ int HttpCache::Transaction::RestartNetworkRequestWithCertificate(
   DCHECK_EQ(STATE_NONE, next_state_);
 
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
-  int rv = network_trans_->RestartWithCertificate(client_cert, &io_callback_);
+  int rv = network_trans_->RestartWithCertificate(client_cert, io_callback_);
   if (rv != ERR_IO_PENDING)
     return DoLoop(rv);
   return rv;
@@ -1708,7 +1708,7 @@ int HttpCache::Transaction::RestartNetworkRequestWithAuth(
   DCHECK_EQ(STATE_NONE, next_state_);
 
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
-  int rv = network_trans_->RestartWithAuth(credentials, &io_callback_);
+  int rv = network_trans_->RestartWithAuth(credentials, io_callback_);
   if (rv != ERR_IO_PENDING)
     return DoLoop(rv);
   return rv;

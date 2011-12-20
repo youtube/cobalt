@@ -42,21 +42,21 @@ class HttpPipelinedStream : public HttpStream {
   // HttpStream methods:
   virtual int InitializeStream(const HttpRequestInfo* request_info,
                                const BoundNetLog& net_log,
-                               OldCompletionCallback* callback) OVERRIDE;
+                               const CompletionCallback& callback) OVERRIDE;
 
   virtual int SendRequest(const HttpRequestHeaders& headers,
                           UploadDataStream* request_body,
                           HttpResponseInfo* response,
-                          OldCompletionCallback* callback) OVERRIDE;
+                          const CompletionCallback& callback) OVERRIDE;
 
   virtual uint64 GetUploadProgress() const OVERRIDE;
 
-  virtual int ReadResponseHeaders(OldCompletionCallback* callback) OVERRIDE;
+  virtual int ReadResponseHeaders(const CompletionCallback& callback) OVERRIDE;
 
   virtual const HttpResponseInfo* GetResponseInfo() const OVERRIDE;
 
   virtual int ReadResponseBody(IOBuffer* buf, int buf_len,
-                               OldCompletionCallback* callback) OVERRIDE;
+                               const CompletionCallback& callback) OVERRIDE;
 
   virtual void Close(bool not_reusable) OVERRIDE;
 

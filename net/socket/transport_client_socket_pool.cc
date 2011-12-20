@@ -392,7 +392,7 @@ int TransportClientSocketPool::RequestSocket(
     const void* params,
     RequestPriority priority,
     ClientSocketHandle* handle,
-    OldCompletionCallback* callback,
+    const CompletionCallback& callback,
     const BoundNetLog& net_log) {
   const scoped_refptr<TransportSocketParams>* casted_params =
       static_cast<const scoped_refptr<TransportSocketParams>*>(params);

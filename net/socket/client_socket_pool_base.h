@@ -33,6 +33,7 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/task.h"
 #include "base/time.h"
 #include "base/timer.h"
@@ -189,7 +190,7 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
   class NET_EXPORT_PRIVATE Request {
    public:
     Request(ClientSocketHandle* handle,
-            OldCompletionCallback* callback,
+            const CompletionCallback& callback,
             RequestPriority priority,
             bool ignore_limits,
             Flags flags,
@@ -198,7 +199,7 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
     virtual ~Request();
 
     ClientSocketHandle* handle() const { return handle_; }
-    OldCompletionCallback* callback() const { return callback_; }
+    const CompletionCallback& callback() const { return callback_; }
     RequestPriority priority() const { return priority_; }
     bool ignore_limits() const { return ignore_limits_; }
     Flags flags() const { return flags_; }
@@ -206,7 +207,7 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
 
    private:
     ClientSocketHandle* const handle_;
-    OldCompletionCallback* const callback_;
+    CompletionCallback callback_;
     const RequestPriority priority_;
     bool ignore_limits_;
     const Flags flags_;
@@ -398,10 +399,10 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
       return pending_requests_.front()->priority();
     }
 
-    bool HasBackupJob() const { return !method_factory_.empty(); }
+    bool HasBackupJob() const { return weak_factory_.HasWeakPtrs(); }
 
     void CleanupBackupJob() {
-      method_factory_.RevokeAll();
+      weak_factory_.InvalidateWeakPtrs();
     }
 
     // Set a timer to create a backup socket if it takes too long to create one.
@@ -437,7 +438,7 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
     RequestQueue pending_requests_;
     int active_socket_count_;  // number of active sockets used by clients
     // A factory to pin the backup_job tasks.
-    ScopedRunnableMethodFactory<Group> method_factory_;
+    base::WeakPtrFactory<Group> weak_factory_;
   };
 
   typedef std::map<std::string, Group*> GroupMap;
@@ -445,11 +446,12 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
   typedef std::set<ConnectJob*> ConnectJobSet;
 
   struct CallbackResultPair {
-    CallbackResultPair() : callback(NULL), result(OK) {}
-    CallbackResultPair(OldCompletionCallback* callback_in, int result_in)
+    CallbackResultPair() : result(OK) {}
+    CallbackResultPair(const CompletionCallback& callback_in, int result_in)
         : callback(callback_in), result(result_in) {}
+    ~CallbackResultPair();
 
-    OldCompletionCallback* callback;
+    CompletionCallback callback;
     int result;
   };
 
@@ -541,7 +543,7 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
   // current message loop.  Inserts |callback| into |pending_callback_map_|,
   // keyed by |handle|.
   void InvokeUserCallbackLater(
-      ClientSocketHandle* handle, OldCompletionCallback* callback, int rv);
+      ClientSocketHandle* handle, const CompletionCallback& callback, int rv);
 
   // Invokes the user callback for |handle|.  By the time this task has run,
   // it's possible that the request has been cancelled, so |handle| may not
@@ -594,7 +596,7 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
 
   std::set<LayeredPool*> higher_layer_pools_;
 
-  ScopedRunnableMethodFactory<ClientSocketPoolBaseHelper> method_factory_;
+  base::WeakPtrFactory<ClientSocketPoolBaseHelper> weak_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(ClientSocketPoolBaseHelper);
 };
@@ -607,7 +609,7 @@ class ClientSocketPoolBase {
   class Request : public internal::ClientSocketPoolBaseHelper::Request {
    public:
     Request(ClientSocketHandle* handle,
-            OldCompletionCallback* callback,
+            const CompletionCallback& callback,
             RequestPriority priority,
             internal::ClientSocketPoolBaseHelper::Flags flags,
             bool ignore_limits,
@@ -674,7 +676,7 @@ class ClientSocketPoolBase {
                     const scoped_refptr<SocketParams>& params,
                     RequestPriority priority,
                     ClientSocketHandle* handle,
-                    OldCompletionCallback* callback,
+                    const CompletionCallback& callback,
                     const BoundNetLog& net_log) {
     Request* request =
         new Request(handle, callback, priority,
@@ -692,7 +694,7 @@ class ClientSocketPoolBase {
                       int num_sockets,
                       const BoundNetLog& net_log) {
     const Request request(NULL /* no handle */,
-                          NULL /* no callback */,
+                          CompletionCallback(),
                           LOWEST,
                           internal::ClientSocketPoolBaseHelper::NO_IDLE_SOCKETS,
                           params->ignore_limits(),

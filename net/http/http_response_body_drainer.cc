@@ -17,9 +17,6 @@ HttpResponseBodyDrainer::HttpResponseBodyDrainer(HttpStream* stream)
     : stream_(stream),
       next_state_(STATE_NONE),
       total_read_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          io_callback_(this, &HttpResponseBodyDrainer::OnIOComplete)),
-      user_callback_(NULL),
       session_(NULL) {}
 
 HttpResponseBodyDrainer::~HttpResponseBodyDrainer() {}
@@ -90,7 +87,8 @@ int HttpResponseBodyDrainer::DoDrainResponseBody() {
 
   return stream_->ReadResponseBody(
       read_buf_, read_size_ - total_read_,
-      &io_callback_);
+      base::Bind(&HttpResponseBodyDrainer::OnIOComplete,
+                 base::Unretained(this)));
 }
 
 int HttpResponseBodyDrainer::DoDrainResponseBodyComplete(int result) {

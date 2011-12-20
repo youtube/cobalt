@@ -43,19 +43,20 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
 
   // HttpTransaction methods:
   virtual int Start(const HttpRequestInfo* request_info,
-                    OldCompletionCallback* callback,
+                    const CompletionCallback& callback,
                     const BoundNetLog& net_log) OVERRIDE;
   virtual int RestartIgnoringLastError(
-      OldCompletionCallback* callback) OVERRIDE;
-  virtual int RestartWithCertificate(X509Certificate* client_cert,
-                                     OldCompletionCallback* callback) OVERRIDE;
+      const CompletionCallback& callback) OVERRIDE;
+  virtual int RestartWithCertificate(
+      X509Certificate* client_cert,
+      const CompletionCallback& callback) OVERRIDE;
   virtual int RestartWithAuth(const AuthCredentials& credentials,
-                              OldCompletionCallback* callback) OVERRIDE;
+                              const CompletionCallback& callback) OVERRIDE;
   virtual bool IsReadyToRestartForAuth() OVERRIDE;
 
   virtual int Read(IOBuffer* buf,
                    int buf_len,
-                   OldCompletionCallback* callback) OVERRIDE;
+                   const CompletionCallback& callback) OVERRIDE;
   virtual void StopCaching() OVERRIDE {}
   virtual void DoneReading() OVERRIDE {}
   virtual const HttpResponseInfo* GetResponseInfo() const OVERRIDE;
@@ -227,8 +228,8 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
   // cleared by RestartWithAuth().
   HttpAuth::Target pending_auth_target_;
 
-  OldCompletionCallbackImpl<HttpNetworkTransaction> io_callback_;
-  OldCompletionCallback* user_callback_;
+  CompletionCallback io_callback_;
+  CompletionCallback callback_;
   scoped_ptr<UploadDataStream> request_body_;
 
   scoped_refptr<HttpNetworkSession> session_;

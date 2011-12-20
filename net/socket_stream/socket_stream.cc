@@ -730,7 +730,7 @@ int SocketStream::DoWriteTunnelHeaders() {
       int rv = auth_handler_->GenerateAuthToken(
           &auth_identity_.credentials,
           &request_info,
-          NULL,
+          CompletionCallback(),
           &auth_token);
       // TODO(cbentzel): Support async auth handlers.
       DCHECK_NE(ERR_IO_PENDING, rv);
