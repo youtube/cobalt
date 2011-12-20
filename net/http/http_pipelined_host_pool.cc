@@ -6,9 +6,13 @@
 
 #include "base/logging.h"
 #include "base/stl_util.h"
+#include "base/values.h"
 #include "net/http/http_pipelined_host_capability.h"
 #include "net/http/http_pipelined_host_impl.h"
 #include "net/http/http_server_properties.h"
+
+using base::ListValue;
+using base::Value;
 
 namespace net {
 
@@ -119,6 +123,16 @@ void HttpPipelinedHostPool::OnHostDeterminedCapability(
     HttpPipelinedHost* host,
     HttpPipelinedHostCapability capability) {
   http_server_properties_->SetPipelineCapability(host->origin(), capability);
+}
+
+Value* HttpPipelinedHostPool::PipelineInfoToValue() const {
+  ListValue* list = new ListValue();
+  for (HostMap::const_iterator it = host_map_.begin();
+       it != host_map_.end(); ++it) {
+    Value* value = it->second->PipelineInfoToValue();
+    list->Append(value);
+  }
+  return list;
 }
 
 }  // namespace net
