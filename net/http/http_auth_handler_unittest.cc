@@ -29,7 +29,7 @@ TEST(HttpAuthHandlerTest, NetLog) {
     for (int j = 0; j < 2; ++j) {
       int rv = (j == 0) ? OK : ERR_UNEXPECTED;
       for (int k = 0; k < 2; ++k) {
-        TestOldCompletionCallback test_callback;
+        TestCompletionCallback test_callback;
         HttpAuth::Target target =
             (k == 0) ? HttpAuth::AUTH_PROXY : HttpAuth::AUTH_SERVER;
         NetLog::EventType event_type =
@@ -44,7 +44,7 @@ TEST(HttpAuthHandlerTest, NetLog) {
                                        origin, bound_net_log);
         mock_handler.SetGenerateExpectation(async, rv);
         mock_handler.GenerateAuthToken(&credentials, &request,
-                                       &test_callback, &auth_token);
+                                       test_callback.callback(), &auth_token);
         if (async)
           test_callback.WaitForResult();
 

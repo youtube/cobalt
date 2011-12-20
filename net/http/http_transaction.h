@@ -32,9 +32,9 @@ class NET_EXPORT_PRIVATE HttpTransaction {
   //
   // Returns OK if the transaction could be started synchronously, which means
   // that the request was served from the cache.  ERR_IO_PENDING is returned to
-  // indicate that the OldCompletionCallback will be notified once response info
-  // is available or if an IO error occurs.  Any other return value indicates
-  // that the transaction could not be started.
+  // indicate that the CompletionCallback will be notified once response info is
+  // available or if an IO error occurs.  Any other return value indicates that
+  // the transaction could not be started.
   //
   // Regardless of the return value, the caller is expected to keep the
   // request_info object alive until Destroy is called on the transaction.
@@ -43,7 +43,7 @@ class NET_EXPORT_PRIVATE HttpTransaction {
   //
   // Profiling information for the request is saved to |net_log| if non-NULL.
   virtual int Start(const HttpRequestInfo* request_info,
-                    OldCompletionCallback* callback,
+                    const CompletionCallback& callback,
                     const BoundNetLog& net_log) = 0;
 
   // Restarts the HTTP transaction, ignoring the last error.  This call can
@@ -56,15 +56,15 @@ class NET_EXPORT_PRIVATE HttpTransaction {
   //
   // NOTE: The transaction is not responsible for deleting the callback object.
   //
-  virtual int RestartIgnoringLastError(OldCompletionCallback* callback) = 0;
+  virtual int RestartIgnoringLastError(const CompletionCallback& callback) = 0;
 
   // Restarts the HTTP transaction with a client certificate.
   virtual int RestartWithCertificate(X509Certificate* client_cert,
-                                     OldCompletionCallback* callback) = 0;
+                                     const CompletionCallback& callback) = 0;
 
   // Restarts the HTTP transaction with authentication credentials.
   virtual int RestartWithAuth(const AuthCredentials& credentials,
-                              OldCompletionCallback* callback) = 0;
+                              const CompletionCallback& callback) = 0;
 
   // Returns true if auth is ready to be continued. Callers should check
   // this value anytime Start() completes: if it is true, the transaction
@@ -79,9 +79,9 @@ class NET_EXPORT_PRIVATE HttpTransaction {
   //
   // Response data is copied into the given buffer and the number of bytes
   // copied is returned.  ERR_IO_PENDING is returned if response data is not
-  // yet available.  The OldCompletionCallback is notified when the data copy
+  // yet available.  The CompletionCallback is notified when the data copy
   // completes, and it is passed the number of bytes that were successfully
-  // copied.  Or, if a read error occurs, the OldCompletionCallback is notified of
+  // copied.  Or, if a read error occurs, the CompletionCallback is notified of
   // the error.  Any other negative return value indicates that the transaction
   // could not be read.
   //
@@ -90,7 +90,7 @@ class NET_EXPORT_PRIVATE HttpTransaction {
   // a reference to the provided buffer.
   //
   virtual int Read(IOBuffer* buf, int buf_len,
-                   OldCompletionCallback* callback) = 0;
+                   const CompletionCallback& callback) = 0;
 
   // Stops further caching of this request by the HTTP cache, if there is any.
   virtual void StopCaching() = 0;

@@ -78,7 +78,7 @@ class NET_EXPORT ClientSocketPool {
                             const void* params,
                             RequestPriority priority,
                             ClientSocketHandle* handle,
-                            OldCompletionCallback* callback,
+                            const CompletionCallback& callback,
                             const BoundNetLog& net_log) = 0;
 
   // RequestSockets is used to request that |num_sockets| be connected in the

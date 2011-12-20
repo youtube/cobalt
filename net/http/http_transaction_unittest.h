@@ -159,24 +159,24 @@ class MockNetworkTransaction : public net::HttpTransaction {
   virtual ~MockNetworkTransaction();
 
   virtual int Start(const net::HttpRequestInfo* request,
-                    net::OldCompletionCallback* callback,
+                    const net::CompletionCallback& callback,
                     const net::BoundNetLog& net_log) OVERRIDE;
 
   virtual int RestartIgnoringLastError(
-      net::OldCompletionCallback* callback) OVERRIDE;
+      const net::CompletionCallback& callback) OVERRIDE;
 
   virtual int RestartWithCertificate(
       net::X509Certificate* client_cert,
-      net::OldCompletionCallback* callback) OVERRIDE;
+      const net::CompletionCallback& callback) OVERRIDE;
 
   virtual int RestartWithAuth(
       const net::AuthCredentials& credentials,
-      net::OldCompletionCallback* callback) OVERRIDE;
+      const net::CompletionCallback& callback) OVERRIDE;
 
   virtual bool IsReadyToRestartForAuth() OVERRIDE;
 
   virtual int Read(net::IOBuffer* buf, int buf_len,
-                   net::OldCompletionCallback* callback) OVERRIDE;
+                   const net::CompletionCallback& callback) OVERRIDE;
 
   virtual void StopCaching() OVERRIDE;
 
@@ -189,10 +189,10 @@ class MockNetworkTransaction : public net::HttpTransaction {
   virtual uint64 GetUploadProgress() const OVERRIDE;
 
  private:
-  void CallbackLater(net::OldCompletionCallback* callback, int result);
-  void RunCallback(net::OldCompletionCallback* callback, int result);
+  void CallbackLater(const net::CompletionCallback& callback, int result);
+  void RunCallback(const net::CompletionCallback& callback, int result);
 
-  base::WeakPtrFactory<MockNetworkTransaction> ptr_factory_;
+  base::WeakPtrFactory<MockNetworkTransaction> weak_factory_;
   net::HttpResponseInfo response_;
   std::string data_;
   int data_cursor_;

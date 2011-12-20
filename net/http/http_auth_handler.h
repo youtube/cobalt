@@ -27,7 +27,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandler {
 
   // Initializes the handler using a challenge issued by a server.
   // |challenge| must be non-NULL and have already tokenized the
-  // authentication scheme, but none of the tokens occuring after the
+  // authentication scheme, but none of the tokens occurring after the
   // authentication scheme. |target| and |origin| are both stored
   // for later use, and are not part of the initial challenge.
   bool InitFromChallenge(HttpAuth::ChallengeTokenizer* challenge,
@@ -46,7 +46,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandler {
   // be made with a different nonce provided in the challenge.
   //
   // |challenge| must be non-NULL and have already tokenized the
-  // authentication scheme, but none of the tokens occuring after the
+  // authentication scheme, but none of the tokens occurring after the
   // authentication scheme.
   virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
       HttpAuth::ChallengeTokenizer* challenge) = 0;
@@ -73,7 +73,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandler {
   // token, and the value of |*auth_token| is unspecified.
   int GenerateAuthToken(const AuthCredentials* credentials,
                         const HttpRequestInfo* request,
-                        OldCompletionCallback* callback,
+                        const CompletionCallback& callback,
                         std::string* auth_token);
 
   // The authentication scheme as an enumerated value.
@@ -148,18 +148,18 @@ class NET_EXPORT_PRIVATE HttpAuthHandler {
 
   // Initializes the handler using a challenge issued by a server.
   // |challenge| must be non-NULL and have already tokenized the
-  // authentication scheme, but none of the tokens occuring after the
+  // authentication scheme, but none of the tokens occurring after the
   // authentication scheme.
-  // Implementations are expcted to initialize the following members:
+  // Implementations are expected to initialize the following members:
   // scheme_, realm_, score_, properties_
   virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) = 0;
 
   // |GenerateAuthTokenImpl()} is the auth-scheme specific implementation
-  // of generating the next auth token. Callers sohuld use |GenerateAuthToken()|
+  // of generating the next auth token. Callers should use |GenerateAuthToken()|
   // which will in turn call |GenerateAuthTokenImpl()|
   virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
                                     const HttpRequestInfo* request,
-                                    OldCompletionCallback* callback,
+                                    const CompletionCallback& callback,
                                     std::string* auth_token) = 0;
 
   // The auth-scheme as an enumerated value.
@@ -191,8 +191,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandler {
   void OnGenerateAuthTokenComplete(int rv);
   void FinishGenerateAuthToken();
 
-  OldCompletionCallback* original_callback_;
-  OldCompletionCallbackImpl<HttpAuthHandler> wrapper_callback_;
+  CompletionCallback callback_;
 };
 
 }  // namespace net

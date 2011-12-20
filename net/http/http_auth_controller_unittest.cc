@@ -77,10 +77,10 @@ void RunSingleRoundAuthTest(HandlerRunMode run_mode,
   controller->ResetAuth(AuthCredentials());
   EXPECT_TRUE(controller->HaveAuth());
 
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
   EXPECT_EQ((run_mode == RUN_HANDLER_ASYNC)? ERR_IO_PENDING:
             expected_controller_rv,
-            controller->MaybeGenerateAuthToken(&request, &callback,
+            controller->MaybeGenerateAuthToken(&request, callback.callback(),
                                                dummy_log));
   if (run_mode == RUN_HANDLER_ASYNC)
     EXPECT_EQ(expected_controller_rv, callback.WaitForResult());
@@ -144,7 +144,7 @@ TEST(HttpAuthControllerTest, NoExplicitCredentialsAllowed) {
 
     virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
                                       const HttpRequestInfo* request,
-                                      OldCompletionCallback* callback,
+                                      const CompletionCallback& callback,
                                       std::string* auth_token) OVERRIDE {
       int result =
           HttpAuthHandlerMock::GenerateAuthTokenImpl(credentials,
@@ -215,7 +215,8 @@ TEST(HttpAuthControllerTest, NoExplicitCredentialsAllowed) {
   EXPECT_TRUE(controller->HaveAuth());
 
   // Should only succeed if we are using the AUTH_SCHEME_MOCK MockHandler.
-  EXPECT_EQ(OK, controller->MaybeGenerateAuthToken(&request, NULL, dummy_log));
+  EXPECT_EQ(OK, controller->MaybeGenerateAuthToken(
+      &request, CompletionCallback(), dummy_log));
   controller->AddAuthorizationHeader(&request_headers);
 
   // Once a token is generated, simulate the receipt of a server response
@@ -229,7 +230,8 @@ TEST(HttpAuthControllerTest, NoExplicitCredentialsAllowed) {
   EXPECT_FALSE(controller->IsAuthSchemeDisabled(HttpAuth::AUTH_SCHEME_BASIC));
 
   // Should only succeed if we are using the AUTH_SCHEME_BASIC MockHandler.
-  EXPECT_EQ(OK, controller->MaybeGenerateAuthToken(&request, NULL, dummy_log));
+  EXPECT_EQ(OK, controller->MaybeGenerateAuthToken(
+      &request, CompletionCallback(), dummy_log));
 }
 
 }  // namespace net

@@ -345,10 +345,6 @@ class OrderedSocketData : public StaticSocketDataProvider,
                     MockRead* reads, size_t reads_count,
                     MockWrite* writes, size_t writes_count);
 
-  void SetCompletionCallback(const CompletionCallback& callback) {
-    callback_ = callback;
-  }
-
   // Posts a quit message to the current message loop, if one is running.
   void EndLoop();
 
@@ -364,7 +360,6 @@ class OrderedSocketData : public StaticSocketDataProvider,
 
   int sequence_number_;
   int loop_stop_stage_;
-  CompletionCallback callback_;
   bool blocked_;
   base::WeakPtrFactory<OrderedSocketData> weak_factory_;
 };
@@ -942,12 +937,12 @@ class MockTransportClientSocketPool : public TransportClientSocketPool {
   int release_count() const { return release_count_; }
   int cancel_count() const { return cancel_count_; }
 
-  // TransportClientSocketPool methods.
+  // TransportClientSocketPool implementation.
   virtual int RequestSocket(const std::string& group_name,
                             const void* socket_params,
                             RequestPriority priority,
                             ClientSocketHandle* handle,
-                            OldCompletionCallback* callback,
+                            const CompletionCallback& callback,
                             const BoundNetLog& net_log) OVERRIDE;
 
   virtual void CancelRequest(const std::string& group_name,
@@ -1021,12 +1016,12 @@ class MockSOCKSClientSocketPool : public SOCKSClientSocketPool {
 
   virtual ~MockSOCKSClientSocketPool();
 
-  // SOCKSClientSocketPool methods.
+  // SOCKSClientSocketPool implementation.
   virtual int RequestSocket(const std::string& group_name,
                             const void* socket_params,
                             RequestPriority priority,
                             ClientSocketHandle* handle,
-                            OldCompletionCallback* callback,
+                            const CompletionCallback& callback,
                             const BoundNetLog& net_log) OVERRIDE;
 
   virtual void CancelRequest(const std::string& group_name,

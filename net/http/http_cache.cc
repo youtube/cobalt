@@ -163,7 +163,7 @@ class HttpCache::WorkItem {
     if (entry_)
       *entry_ = entry;
     if (trans_)
-      trans_->io_callback()->Run(result);
+      trans_->io_callback().Run(result);
   }
 
   // Notifies the caller about the operation completion. Returns true if the
@@ -231,12 +231,12 @@ class HttpCache::BackendCallback : public CallbackRunner<Tuple1<int> > {
 class HttpCache::MetadataWriter {
  public:
   explicit MetadataWriter(HttpCache::Transaction* trans)
-      : transaction_(trans),
-        ALLOW_THIS_IN_INITIALIZER_LIST(
-            callback_(this, &MetadataWriter::OnIOComplete)) {}
+      : transaction_(trans) {
+  }
+
   ~MetadataWriter() {}
 
-  // Implementes the bulk of HttpCache::WriteMetadata.
+  // Implements the bulk of HttpCache::WriteMetadata.
   void Write(const GURL& url, base::Time expected_response_time, IOBuffer* buf,
              int buf_len);
 
@@ -250,7 +250,6 @@ class HttpCache::MetadataWriter {
   scoped_refptr<IOBuffer> buf_;
   int buf_len_;
   base::Time expected_response_time_;
-  OldCompletionCallbackImpl<MetadataWriter> callback_;
   HttpRequestInfo request_info_;
   DISALLOW_COPY_AND_ASSIGN(MetadataWriter);
 };
@@ -270,7 +269,10 @@ void HttpCache::MetadataWriter::Write(const GURL& url,
   buf_len_ = buf_len;
   verified_ = false;
 
-  int rv = transaction_->Start(&request_info_, &callback_, BoundNetLog());
+  int rv = transaction_->Start(
+      &request_info_,
+      base::Bind(&MetadataWriter::OnIOComplete, base::Unretained(this)),
+      BoundNetLog());
   if (rv != ERR_IO_PENDING)
     VerifyResponse(rv);
 }
@@ -907,7 +909,7 @@ void HttpCache::DoneWritingToEntry(ActiveEntry* entry, bool success) {
     // be added to a new entry.
     while (!pending_queue.empty()) {
       // ERR_CACHE_RACE causes the transaction to restart the whole process.
-      pending_queue.front()->io_callback()->Run(ERR_CACHE_RACE);
+      pending_queue.front()->io_callback().Run(ERR_CACHE_RACE);
       pending_queue.pop_front();
     }
   }
@@ -1051,7 +1053,7 @@ void HttpCache::OnProcessPendingQueue(ActiveEntry* entry) {
 
   int rv = AddTransactionToEntry(entry, next);
   if (rv != ERR_IO_PENDING) {
-    next->io_callback()->Run(rv);
+    next->io_callback().Run(rv);
   }
 }
 

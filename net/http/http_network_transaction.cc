@@ -7,6 +7,8 @@
 #include <set>
 #include <vector>
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/format_macros.h"
 #include "base/memory/scoped_ptr.h"
@@ -96,9 +98,9 @@ bool IsClientCertificateError(int error) {
 
 HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
     : pending_auth_target_(HttpAuth::AUTH_NONE),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          io_callback_(this, &HttpNetworkTransaction::OnIOComplete)),
-      user_callback_(NULL),
+      ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(
+          base::Bind(&HttpNetworkTransaction::OnIOComplete,
+                     base::Unretained(this)))),
       session_(session),
       request_(NULL),
       headers_valid_(false),
@@ -144,7 +146,7 @@ HttpNetworkTransaction::~HttpNetworkTransaction() {
 }
 
 int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
-                                  OldCompletionCallback* callback,
+                                  const CompletionCallback& callback,
                                   const BoundNetLog& net_log) {
   SIMPLE_STATS_COUNTER("HttpNetworkTransaction.Count");
 
@@ -160,12 +162,12 @@ int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
   next_state_ = STATE_CREATE_STREAM;
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING)
-    user_callback_ = callback;
+    callback_ = callback;
   return rv;
 }
 
 int HttpNetworkTransaction::RestartIgnoringLastError(
-    OldCompletionCallback* callback) {
+    const CompletionCallback& callback) {
   DCHECK(!stream_.get());
   DCHECK(!stream_request_.get());
   DCHECK_EQ(STATE_NONE, next_state_);
@@ -174,13 +176,12 @@ int HttpNetworkTransaction::RestartIgnoringLastError(
 
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING)
-    user_callback_ = callback;
+    callback_ = callback;
   return rv;
 }
 
 int HttpNetworkTransaction::RestartWithCertificate(
-    X509Certificate* client_cert,
-    OldCompletionCallback* callback) {
+    X509Certificate* client_cert, const CompletionCallback& callback) {
   // In HandleCertificateRequest(), we always tear down existing stream
   // requests to force a new connection.  So we shouldn't have one here.
   DCHECK(!stream_request_.get());
@@ -199,12 +200,12 @@ int HttpNetworkTransaction::RestartWithCertificate(
   next_state_ = STATE_CREATE_STREAM;
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING)
-    user_callback_ = callback;
+    callback_ = callback;
   return rv;
 }
 
-int HttpNetworkTransaction::RestartWithAuth(const AuthCredentials& credentials,
-                                            OldCompletionCallback* callback) {
+int HttpNetworkTransaction::RestartWithAuth(
+    const AuthCredentials& credentials, const CompletionCallback& callback) {
   HttpAuth::Target target = pending_auth_target_;
   if (target == HttpAuth::AUTH_NONE) {
     NOTREACHED();
@@ -214,7 +215,7 @@ int HttpNetworkTransaction::RestartWithAuth(const AuthCredentials& credentials,
 
   auth_controllers_[target]->ResetAuth(credentials);
 
-  DCHECK(user_callback_ == NULL);
+  DCHECK(callback_.is_null());
 
   int rv = OK;
   if (target == HttpAuth::AUTH_PROXY && establishing_tunnel_) {
@@ -234,7 +235,7 @@ int HttpNetworkTransaction::RestartWithAuth(const AuthCredentials& credentials,
   }
 
   if (rv == ERR_IO_PENDING)
-    user_callback_ = callback;
+    callback_ = callback;
   return rv;
 }
 
@@ -297,7 +298,7 @@ bool HttpNetworkTransaction::IsReadyToRestartForAuth() {
 }
 
 int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
-                                 OldCompletionCallback* callback) {
+                                 const CompletionCallback& callback) {
   DCHECK(buf);
   DCHECK_LT(0, buf_len);
 
@@ -331,7 +332,7 @@ int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
   next_state_ = next_state;
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING)
-    user_callback_ = callback;
+    callback_ = callback;
   return rv;
 }
 
@@ -469,12 +470,12 @@ bool HttpNetworkTransaction::is_https_request() const {
 
 void HttpNetworkTransaction::DoCallback(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
-  DCHECK(user_callback_);
+  DCHECK(!callback_.is_null());
 
   // Since Run may result in Read being called, clear user_callback_ up front.
-  OldCompletionCallback* c = user_callback_;
-  user_callback_ = NULL;
-  c->Run(rv);
+  CompletionCallback c = callback_;
+  callback_.Reset();
+  c.Run(rv);
 }
 
 void HttpNetworkTransaction::OnIOComplete(int result) {
@@ -615,7 +616,7 @@ int HttpNetworkTransaction::DoCreateStreamComplete(int result) {
 int HttpNetworkTransaction::DoInitStream() {
   DCHECK(stream_.get());
   next_state_ = STATE_INIT_STREAM_COMPLETE;
-  return stream_->InitializeStream(request_, net_log_, &io_callback_);
+  return stream_->InitializeStream(request_, net_log_, io_callback_);
 }
 
 int HttpNetworkTransaction::DoInitStreamComplete(int result) {
@@ -644,7 +645,7 @@ int HttpNetworkTransaction::DoGenerateProxyAuthToken() {
                                session_->http_auth_cache(),
                                session_->http_auth_handler_factory());
   return auth_controllers_[target]->MaybeGenerateAuthToken(request_,
-                                                           &io_callback_,
+                                                           io_callback_,
                                                            net_log_);
 }
 
@@ -667,7 +668,7 @@ int HttpNetworkTransaction::DoGenerateServerAuthToken() {
   if (!ShouldApplyServerAuth())
     return OK;
   return auth_controllers_[target]->MaybeGenerateAuthToken(request_,
-                                                           &io_callback_,
+                                                           io_callback_,
                                                            net_log_);
 }
 
@@ -761,7 +762,7 @@ int HttpNetworkTransaction::DoSendRequest() {
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
 
   return stream_->SendRequest(
-      request_headers_, request_body_.release(), &response_, &io_callback_);
+      request_headers_, request_body_.release(), &response_, io_callback_);
 }
 
 int HttpNetworkTransaction::DoSendRequestComplete(int result) {
@@ -773,7 +774,7 @@ int HttpNetworkTransaction::DoSendRequestComplete(int result) {
 
 int HttpNetworkTransaction::DoReadHeaders() {
   next_state_ = STATE_READ_HEADERS_COMPLETE;
-  return stream_->ReadResponseHeaders(&io_callback_);
+  return stream_->ReadResponseHeaders(io_callback_);
 }
 
 int HttpNetworkTransaction::HandleConnectionClosedBeforeEndOfHeaders() {
@@ -878,7 +879,7 @@ int HttpNetworkTransaction::DoReadBody() {
   DCHECK(stream_ != NULL);
 
   next_state_ = STATE_READ_BODY_COMPLETE;
-  return stream_->ReadResponseBody(read_buf_, read_buf_len_, &io_callback_);
+  return stream_->ReadResponseBody(read_buf_, read_buf_len_, io_callback_);
 }
 
 int HttpNetworkTransaction::DoReadBodyComplete(int result) {

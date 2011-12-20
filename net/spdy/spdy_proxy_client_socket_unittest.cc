@@ -4,6 +4,8 @@
 
 #include "net/spdy/spdy_proxy_client_socket.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/address_list.h"
 #include "net/base/net_log.h"
@@ -100,7 +102,6 @@ class SpdyProxyClientSocketTest : public PlatformTest {
 
   scoped_ptr<SpdyProxyClientSocket> sock_;
   TestCompletionCallback read_callback_;
-  TestOldCompletionCallback read_callback_old_;
   TestCompletionCallback write_callback_;
   scoped_refptr<DeterministicSocketData> data_;
 
@@ -192,7 +193,7 @@ void SpdyProxyClientSocketTest::Initialize(MockRead* reads,
   ASSERT_EQ(
       OK,
       spdy_session_->CreateStream(url_, LOWEST, &spdy_stream_, BoundNetLog(),
-                                  NULL));
+                                  CompletionCallback()));
 
   // Create the SpdyProxyClientSocket
   sock_.reset(
@@ -864,7 +865,7 @@ TEST_F(SpdyProxyClientSocketTest, ReadErrorResponseBody) {
             sock_->Read(NULL, 1, CompletionCallback()));
   scoped_refptr<IOBuffer> buf(new IOBuffer(kLen1 + kLen2));
   scoped_ptr<HttpStream> stream(sock_->CreateConnectResponseStream());
-  stream->ReadResponseBody(buf, kLen1 + kLen2, &read_callback_old_);
+  stream->ReadResponseBody(buf, kLen1 + kLen2, read_callback_.callback());
 }
 
 // ----------- Reads and Writes
@@ -1230,22 +1231,30 @@ TEST_F(SpdyProxyClientSocketTest, RstWithReadAndWritePending) {
 
 // CompletionCallback that causes the SpdyProxyClientSocket to be
 // deleted when Run is invoked.
-class DeleteSockCallback : public TestOldCompletionCallback {
+class DeleteSockCallback : public TestCompletionCallbackBase {
  public:
   explicit DeleteSockCallback(scoped_ptr<SpdyProxyClientSocket>* sock)
-    : sock_(sock) {
+    : sock_(sock),
+      ALLOW_THIS_IN_INITIALIZER_LIST(callback_(
+          base::Bind(&DeleteSockCallback::OnComplete,
+                     base::Unretained(this)))) {
   }
 
   virtual ~DeleteSockCallback() {
   }
 
-  virtual void RunWithParams(const Tuple1<int>& params) OVERRIDE {
-    sock_->reset(NULL);
-    TestOldCompletionCallback::RunWithParams(params);
-  }
+  const CompletionCallback& callback() const { return callback_; }
 
  private:
+  void OnComplete(int result) {
+    sock_->reset(NULL);
+    SetResult(result);
+  }
+
   scoped_ptr<SpdyProxyClientSocket>* sock_;
+  CompletionCallback callback_;
+
+  DISALLOW_COPY_AND_ASSIGN(DeleteSockCallback);
 };
 
 // If the socket is Reset when both a read and write are pending, and the
@@ -1275,9 +1284,7 @@ TEST_F(SpdyProxyClientSocketTest, RstWithReadAndWritePendingDelete) {
 
   scoped_refptr<IOBuffer> read_buf(new IOBuffer(kLen1));
   ASSERT_EQ(ERR_IO_PENDING,
-            sock_->Read(read_buf, kLen1,
-                        base::Bind(&OldCompletionCallbackAdapter,
-                                   &read_callback)));
+            sock_->Read(read_buf, kLen1, read_callback.callback()));
 
   scoped_refptr<IOBufferWithSize> write_buf(CreateBuffer(kMsg1, kLen1));
   EXPECT_EQ(ERR_IO_PENDING, sock_->Write(write_buf, write_buf->size(),

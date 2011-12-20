@@ -66,7 +66,7 @@ class HttpAuthHandlerMock : public HttpAuthHandler {
   virtual bool NeedsCanonicalName();
 
   virtual int ResolveCanonicalName(HostResolver* host_resolver,
-                                   OldCompletionCallback* callback);
+                                   const CompletionCallback& callback);
 
 
   void SetGenerateExpectation(bool async, int rv);
@@ -99,7 +99,7 @@ class HttpAuthHandlerMock : public HttpAuthHandler {
 
   virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
                                     const HttpRequestInfo* request,
-                                    OldCompletionCallback* callback,
+                                    const CompletionCallback& callback,
                                     std::string* auth_token) OVERRIDE;
 
  private:
@@ -108,8 +108,8 @@ class HttpAuthHandlerMock : public HttpAuthHandler {
   void OnGenerateAuthToken();
 
   Resolve resolve_;
-  OldCompletionCallback* user_callback_;
-  base::WeakPtrFactory<HttpAuthHandlerMock> ptr_factory_;
+  CompletionCallback callback_;
+  base::WeakPtrFactory<HttpAuthHandlerMock> weak_factory_;
   bool generate_async_;
   int generate_rv_;
   std::string* auth_token_;

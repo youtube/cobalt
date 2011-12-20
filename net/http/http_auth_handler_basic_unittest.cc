@@ -41,7 +41,7 @@ TEST(HttpAuthHandlerBasicTest, GenerateAuthToken) {
     HttpRequestInfo request_info;
     std::string auth_token;
     int rv = basic->GenerateAuthToken(&credentials, &request_info,
-                                      NULL, &auth_token);
+                                      CompletionCallback(), &auth_token);
     EXPECT_EQ(OK, rv);
     EXPECT_STREQ(tests[i].expected_credentials, auth_token.c_str());
   }

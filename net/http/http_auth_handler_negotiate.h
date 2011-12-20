@@ -118,7 +118,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNegotiate : public HttpAuthHandler {
 
   virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
                                     const HttpRequestInfo* request,
-                                    OldCompletionCallback* callback,
+                                    const CompletionCallback& callback,
                                     std::string* auth_token) OVERRIDE;
 
  private:
@@ -156,7 +156,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerNegotiate : public HttpAuthHandler {
   std::wstring spn_;
 
   // Things which vary each round.
-  OldCompletionCallback* user_callback_;
+  CompletionCallback callback_;
   std::string* auth_token_;
 
   State next_state_;

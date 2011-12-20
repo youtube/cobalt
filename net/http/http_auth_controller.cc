@@ -4,6 +4,8 @@
 
 #include "net/http/http_auth_controller.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/metrics/histogram.h"
 #include "base/string_util.h"
 #include "base/threading/platform_thread.h"
@@ -161,20 +163,16 @@ HttpAuthController::HttpAuthController(
       embedded_identity_used_(false),
       default_credentials_used_(false),
       http_auth_cache_(http_auth_cache),
-      http_auth_handler_factory_(http_auth_handler_factory),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          io_callback_(this, &HttpAuthController::OnIOComplete)),
-      user_callback_(NULL) {
+      http_auth_handler_factory_(http_auth_handler_factory) {
 }
 
 HttpAuthController::~HttpAuthController() {
   DCHECK(CalledOnValidThread());
-  user_callback_ = NULL;
 }
 
-int HttpAuthController::MaybeGenerateAuthToken(const HttpRequestInfo* request,
-                                               OldCompletionCallback* callback,
-                                               const BoundNetLog& net_log) {
+int HttpAuthController::MaybeGenerateAuthToken(
+    const HttpRequestInfo* request, const CompletionCallback& callback,
+    const BoundNetLog& net_log) {
   DCHECK(CalledOnValidThread());
   bool needs_auth = HaveAuth() || SelectPreemptiveAuth(net_log);
   if (!needs_auth)
@@ -183,15 +181,15 @@ int HttpAuthController::MaybeGenerateAuthToken(const HttpRequestInfo* request,
   if (identity_.source != HttpAuth::IDENT_SRC_DEFAULT_CREDENTIALS)
     credentials = &identity_.credentials;
   DCHECK(auth_token_.empty());
-  DCHECK(NULL == user_callback_);
-  int rv = handler_->GenerateAuthToken(credentials,
-                                       request,
-                                       &io_callback_,
-                                       &auth_token_);
+  DCHECK(callback_.is_null());
+  int rv = handler_->GenerateAuthToken(
+      credentials, request,
+      base::Bind(&HttpAuthController::OnIOComplete, base::Unretained(this)),
+      &auth_token_);
   if (DisableOnAuthHandlerResult(rv))
     rv = OK;
   if (rv == ERR_IO_PENDING)
-    user_callback_ = callback;
+    callback_ = callback;
   else
     OnIOComplete(rv);
   return rv;
@@ -543,10 +541,10 @@ void HttpAuthController::OnIOComplete(int result) {
   DCHECK(CalledOnValidThread());
   if (DisableOnAuthHandlerResult(result))
     result = OK;
-  if (user_callback_) {
-    OldCompletionCallback* c = user_callback_;
-    user_callback_ = NULL;
-    c->Run(result);
+  if (!callback_.is_null()) {
+    CompletionCallback c = callback_;
+    callback_.Reset();
+    c.Run(result);
   }
 }
 
