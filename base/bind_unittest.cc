@@ -199,8 +199,16 @@ void RefArgSet(int &n) {
   n = 2;
 }
 
+void PtrArgSet(int *n) {
+  *n = 2;
+}
+
 int FunctionWithWeakFirstParam(WeakPtr<NoRef> o, int n) {
   return n;
+}
+
+void TakesACallback(const Closure& callback) {
+  callback.Run();
 }
 
 class BindTest : public ::testing::Test {
@@ -282,6 +290,25 @@ TEST_F(BindTest, CurryingTest) {
 
   Callback<int(void)> c0 = Bind(c1, 1);
   EXPECT_EQ(63, c0.Run());
+}
+
+// Test that currying the rvalue result of another Bind() works correctly.
+//   - rvalue should be usable as argument to Bind().
+//   - multiple runs of resulting Callback remain valid.
+TEST_F(BindTest, CurryingRvalueResultOfBind) {
+  int n = 0;
+  Closure cb = base::Bind(&TakesACallback, base::Bind(&PtrArgSet, &n));
+
+  // If we implement Bind() such that the return value has auto_ptr-like
+  // semantics, the second call here will fail because ownership of
+  // the internal BindState<> would have been transfered to a *temporary*
+  // constructon of a Callback object on the first call.
+  cb.Run();
+  EXPECT_EQ(2, n);
+
+  n = 0;
+  cb.Run();
+  EXPECT_EQ(2, n);
 }
 
 // Function type support.
