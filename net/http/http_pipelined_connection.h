@@ -14,6 +14,7 @@ namespace net {
 
 class BoundNetLog;
 class ClientSocketHandle;
+class HostPortPair;
 class HttpPipelinedStream;
 class ProxyInfo;
 struct SSLConfig;
@@ -47,6 +48,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnection {
     virtual HttpPipelinedConnection* CreateNewPipeline(
         ClientSocketHandle* connection,
         Delegate* delegate,
+        const HostPortPair& origin,
         const SSLConfig& used_ssl_config,
         const ProxyInfo& used_proxy_info,
         const BoundNetLog& net_log,

@@ -5,8 +5,13 @@
 #include "net/http/http_pipelined_host_impl.h"
 
 #include "base/stl_util.h"
+#include "base/values.h"
 #include "net/http/http_pipelined_connection_impl.h"
 #include "net/http/http_pipelined_stream.h"
+
+using base::DictionaryValue;
+using base::ListValue;
+using base::Value;
 
 namespace net {
 
@@ -20,12 +25,13 @@ class HttpPipelinedConnectionImplFactory :
   HttpPipelinedConnection* CreateNewPipeline(
       ClientSocketHandle* connection,
       HttpPipelinedConnection::Delegate* delegate,
+      const HostPortPair& origin,
       const SSLConfig& used_ssl_config,
       const ProxyInfo& used_proxy_info,
       const BoundNetLog& net_log,
       bool was_npn_negotiated,
       SSLClientSocket::NextProto protocol_negotiated) OVERRIDE {
-    return new HttpPipelinedConnectionImpl(connection, delegate,
+    return new HttpPipelinedConnectionImpl(connection, delegate, origin,
                                            used_ssl_config, used_proxy_info,
                                            net_log, was_npn_negotiated,
                                            protocol_negotiated);
@@ -61,7 +67,7 @@ HttpPipelinedStream* HttpPipelinedHostImpl::CreateStreamOnNewPipeline(
     return NULL;
   }
   HttpPipelinedConnection* pipeline = factory_->CreateNewPipeline(
-      connection, this, used_ssl_config, used_proxy_info, net_log,
+      connection, this, origin_, used_ssl_config, used_proxy_info, net_log,
       was_npn_negotiated, protocol_negotiated);
   PipelineInfo info;
   pipelines_.insert(std::make_pair(pipeline, info));
@@ -188,6 +194,22 @@ void HttpPipelinedHostImpl::NotifyAllPipelinesHaveCapacity() {
       OnPipelineHasCapacity(it->first);
     }
   }
+}
+
+Value* HttpPipelinedHostImpl::PipelineInfoToValue() const {
+  ListValue* list_value = new ListValue();
+  for (PipelineInfoMap::const_iterator it = pipelines_.begin();
+       it != pipelines_.end(); ++it) {
+    DictionaryValue* pipeline_dict = new DictionaryValue;
+    pipeline_dict->SetString("host", origin_.ToString());
+    pipeline_dict->SetInteger("depth", it->first->depth());
+    pipeline_dict->SetInteger("capacity", GetPipelineCapacity());
+    pipeline_dict->SetBoolean("usable", it->first->usable());
+    pipeline_dict->SetBoolean("active", it->first->active());
+    pipeline_dict->SetInteger("source_id", it->first->net_log().source().id);
+    list_value->Append(pipeline_dict);
+  }
+  return list_value;
 }
 
 HttpPipelinedHostImpl::PipelineInfo::PipelineInfo()

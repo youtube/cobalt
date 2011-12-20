@@ -28,6 +28,7 @@ namespace net {
 
 class ClientSocketHandle;
 class GrowableIOBuffer;
+class HostPortPair;
 class HttpNetworkSession;
 class HttpRequestHeaders;
 class HttpResponseInfo;
@@ -47,6 +48,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
  public:
   HttpPipelinedConnectionImpl(ClientSocketHandle* connection,
                               Delegate* delegate,
+                              const HostPortPair& origin,
                               const SSLConfig& used_ssl_config,
                               const ProxyInfo& used_proxy_info,
                               const BoundNetLog& net_log,
@@ -175,6 +177,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
     OldCompletionCallback* read_headers_callback;
     OldCompletionCallback* pending_user_callback;
     StreamState state;
+    NetLog::Source source;
   };
 
   typedef std::map<int, StreamInfo> StreamInfoMap;
@@ -258,9 +261,12 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
   // HttpPipelinedSockets indicates the connection was suddenly closed.
   int DoEvictPendingReadHeaders(int result);
 
-  // Reports back to |delegate_| whether pipelining will work. This is called
-  // every time we receive headers.
-  void CheckHeadersForPipelineCompatibility(int result, int pipeline_id);
+  // Determines if the response headers indicate pipelining will work. This is
+  // called every time we receive headers.
+  void CheckHeadersForPipelineCompatibility(int pipeline_id, int result);
+
+  // Reports back to |delegate_| whether pipelining will work.
+  void ReportPipelineFeedback(int pipeline_id, Feedback feedback);
 
   // Posts a task to fire the user's callback in response to SendRequest() or
   // ReadResponseHeaders() completing on an underlying parser. This might be
