@@ -203,6 +203,7 @@
         'base/rand_callback.h',
         'base/registry_controlled_domain.cc',
         'base/registry_controlled_domain.h',
+        'base/request_priority.h',
         'base/sdch_filter.cc',
         'base/sdch_filter.h',
         'base/sdch_manager.cc',
