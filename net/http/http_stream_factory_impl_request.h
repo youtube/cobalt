@@ -10,6 +10,7 @@
 #include "googleurl/src/gurl.h"
 #include "net/base/net_log.h"
 #include "net/http/http_stream_factory_impl.h"
+#include "net/socket/ssl_client_socket.h"
 
 namespace net {
 
@@ -42,6 +43,7 @@ class HttpStreamFactoryImpl::Request : public HttpStreamRequest {
   // Marks completion of the request. Must be called before OnStreamReady().
   // |job_net_log| is the BoundNetLog of the Job that fulfilled this request.
   void Complete(bool was_npn_negotiated,
+                SSLClientSocket::NextProto protocol_negotiated,
                 bool using_spdy,
                 const BoundNetLog& job_net_log);
 
@@ -91,6 +93,7 @@ class HttpStreamFactoryImpl::Request : public HttpStreamRequest {
       const AuthCredentials& credentials) OVERRIDE;
   virtual LoadState GetLoadState() const OVERRIDE;
   virtual bool was_npn_negotiated() const OVERRIDE;
+  virtual SSLClientSocket::NextProto protocol_negotiated() const OVERRIDE;
   virtual bool using_spdy() const OVERRIDE;
 
  private:
@@ -114,6 +117,8 @@ class HttpStreamFactoryImpl::Request : public HttpStreamRequest {
 
   bool completed_;
   bool was_npn_negotiated_;
+  // Protocol negotiated with the server.
+  SSLClientSocket::NextProto protocol_negotiated_;
   bool using_spdy_;
 
   DISALLOW_COPY_AND_ASSIGN(Request);

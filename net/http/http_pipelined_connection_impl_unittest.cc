@@ -88,9 +88,10 @@ class HttpPipelinedConnectionImplTest : public testing::Test {
     ClientSocketHandle* connection = new ClientSocketHandle;
     connection->Init("a", params, MEDIUM, CompletionCallback(), &pool_,
                      BoundNetLog());
-    pipeline_.reset(new HttpPipelinedConnectionImpl(connection, &delegate_,
-                                                    ssl_config_, proxy_info_,
-                                                    BoundNetLog(), false));
+    pipeline_.reset(
+        new HttpPipelinedConnectionImpl(connection, &delegate_, ssl_config_,
+                                        proxy_info_, BoundNetLog(), false,
+                                        SSLClientSocket::kProtoUnknown));
   }
 
   HttpRequestInfo* GetRequestInfo(const std::string& filename) {

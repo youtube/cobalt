@@ -240,6 +240,7 @@ SSLSocketDataProvider::SSLSocketDataProvider(bool async, int result)
     : connect(async, result),
       next_proto_status(SSLClientSocket::kNextProtoUnsupported),
       was_npn_negotiated(false),
+      protocol_negotiated(SSLClientSocket::kProtoUnknown),
       client_cert_sent(false),
       cert_request_info(NULL) {
 }
@@ -1064,8 +1065,8 @@ MockSSLClientSocket::MockSSLClientSocket(
       data_(data),
       is_npn_state_set_(false),
       new_npn_value_(false),
-      is_next_protocol_set_(false),
-      next_protocol_(kProtoHTTP11) {
+      is_protocol_negotiated_set_(false),
+      protocol_negotiated_(SSLClientSocket::kProtoUnknown) {
   DCHECK(data_);
   delete ssl_host_info;  // we take ownership but don't use it.
 }
@@ -1161,17 +1162,16 @@ bool MockSSLClientSocket::set_was_npn_negotiated(bool negotiated) {
   return new_npn_value_ = negotiated;
 }
 
-SSLClientSocket::NextProto MockSSLClientSocket::next_protocol_negotiated()
-    const {
-  if (is_next_protocol_set_)
-    return next_protocol_;
-  return SSLClientSocket::NextProtoFromString(data_->next_proto);
+SSLClientSocket::NextProto MockSSLClientSocket::protocol_negotiated() const {
+  if (is_protocol_negotiated_set_)
+    return protocol_negotiated_;
+  return data_->protocol_negotiated;
 }
 
-void MockSSLClientSocket::set_next_protocol_negotiated(
-    SSLClientSocket::NextProto next_protocol) {
-  is_next_protocol_set_ = true;
-  next_protocol_ = next_protocol;
+void MockSSLClientSocket::set_protocol_negotiated(
+    SSLClientSocket::NextProto protocol_negotiated) {
+  is_protocol_negotiated_set_ = true;
+  protocol_negotiated_ = protocol_negotiated;
 }
 
 void MockSSLClientSocket::OnReadComplete(const MockRead& data) {

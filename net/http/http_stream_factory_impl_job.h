@@ -17,6 +17,7 @@
 #include "net/http/http_stream_factory_impl.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_handle.h"
+#include "net/socket/ssl_client_socket.h"
 
 namespace net {
 
@@ -65,6 +66,7 @@ class HttpStreamFactoryImpl::Job {
   void Orphan(const Request* request);
 
   bool was_npn_negotiated() const;
+  SSLClientSocket::NextProto protocol_negotiated() const;
   bool using_spdy() const;
   const BoundNetLog& net_log() const { return net_log_; }
 
@@ -260,6 +262,9 @@ class HttpStreamFactoryImpl::Job {
 
   // True if we negotiated NPN.
   bool was_npn_negotiated_;
+
+  // Protocol negotiated with the server.
+  SSLClientSocket::NextProto protocol_negotiated_;
 
   // 0 if we're not preconnecting. Otherwise, the number of streams to
   // preconnect.

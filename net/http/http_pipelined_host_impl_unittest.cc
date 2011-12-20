@@ -37,13 +37,14 @@ class MockHostDelegate : public HttpPipelinedHost::Delegate {
 
 class MockPipelineFactory : public HttpPipelinedConnection::Factory {
  public:
-  MOCK_METHOD6(CreateNewPipeline, HttpPipelinedConnection*(
+  MOCK_METHOD7(CreateNewPipeline, HttpPipelinedConnection*(
       ClientSocketHandle* connection,
       HttpPipelinedConnection::Delegate* delegate,
       const SSLConfig& used_ssl_config,
       const ProxyInfo& used_proxy_info,
       const BoundNetLog& net_log,
-      bool was_npn_negotiated));
+      bool was_npn_negotiated,
+      SSLClientSocket::NextProto protocol_negotiated));
 };
 
 class MockPipeline : public HttpPipelinedConnection {
@@ -70,6 +71,7 @@ class MockPipeline : public HttpPipelinedConnection {
   MOCK_CONST_METHOD0(used_proxy_info, const ProxyInfo&());
   MOCK_CONST_METHOD0(net_log, const BoundNetLog&());
   MOCK_CONST_METHOD0(was_npn_negotiated, bool());
+  MOCK_CONST_METHOD0(protocol_negotiated, SSLClientSocket::NextProto());
 
  private:
   int depth_;
@@ -96,14 +98,16 @@ class HttpPipelinedHostImplTest : public testing::Test {
     MockPipeline* pipeline = new MockPipeline(depth, usable, active);
     EXPECT_CALL(*factory_, CreateNewPipeline(kDummyConnection, host_.get(),
                                              Ref(ssl_config_), Ref(proxy_info_),
-                                             Ref(net_log_), true))
+                                             Ref(net_log_), true,
+                                             SSLClientSocket::kProtoSPDY2))
         .Times(1)
         .WillOnce(Return(pipeline));
     EXPECT_CALL(*pipeline, CreateNewStream())
         .Times(1)
         .WillOnce(Return(kDummyStream));
     EXPECT_EQ(kDummyStream, host_->CreateStreamOnNewPipeline(
-        kDummyConnection, ssl_config_, proxy_info_, net_log_, true));
+        kDummyConnection, ssl_config_, proxy_info_, net_log_, true,
+        SSLClientSocket::kProtoSPDY2));
     return pipeline;
   }
 
@@ -254,7 +258,8 @@ TEST_F(HttpPipelinedHostImplTest, ShutsDownOnOldVersion) {
 
   ClearTestPipeline(pipeline);
   EXPECT_EQ(NULL, host_->CreateStreamOnNewPipeline(
-      kDummyConnection, ssl_config_, proxy_info_, net_log_, true));
+      kDummyConnection, ssl_config_, proxy_info_, net_log_, true,
+      SSLClientSocket::kProtoSPDY2));
 }
 
 TEST_F(HttpPipelinedHostImplTest, ConnectionCloseHasNoEffect) {

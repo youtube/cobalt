@@ -295,16 +295,16 @@ int SSLConnectJob::DoSSLConnectComplete(int result) {
   // If we want spdy over npn, make sure it succeeded.
   if (status == SSLClientSocket::kNextProtoNegotiated) {
     ssl_socket_->set_was_npn_negotiated(true);
-    SSLClientSocket::NextProto next_protocol =
+    SSLClientSocket::NextProto protocol_negotiated =
         SSLClientSocket::NextProtoFromString(proto);
+    ssl_socket_->set_protocol_negotiated(protocol_negotiated);
     // If we negotiated either version of SPDY, we must have
     // advertised it, so allow it.
     // TODO(mbelshe): verify it was a protocol we advertised?
-    if (next_protocol == SSLClientSocket::kProtoSPDY1 ||
-        next_protocol == SSLClientSocket::kProtoSPDY2 ||
-        next_protocol == SSLClientSocket::kProtoSPDY21) {
+    if (protocol_negotiated == SSLClientSocket::kProtoSPDY1 ||
+        protocol_negotiated == SSLClientSocket::kProtoSPDY2 ||
+        protocol_negotiated == SSLClientSocket::kProtoSPDY21) {
       ssl_socket_->set_was_spdy_negotiated(true);
-      ssl_socket_->set_next_protocol_negotiated(next_protocol);
     }
   }
   if (params_->want_spdy_over_npn() && !ssl_socket_->was_spdy_negotiated())

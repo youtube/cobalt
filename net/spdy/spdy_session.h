@@ -24,6 +24,7 @@
 #include "net/base/ssl_config_service.h"
 #include "net/base/upload_data_stream.h"
 #include "net/socket/client_socket_handle.h"
+#include "net/socket/ssl_client_socket.h"
 #include "net/socket/stream_socket.h"
 #include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_io_buffer.h"
@@ -139,7 +140,9 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   LoadState GetLoadState() const;
 
   // Fills SSL info in |ssl_info| and returns true when SSL is in use.
-  bool GetSSLInfo(SSLInfo* ssl_info, bool* was_npn_negotiated);
+  bool GetSSLInfo(SSLInfo* ssl_info,
+                  bool* was_npn_negotiated,
+                  SSLClientSocket::NextProto* protocol_negotiated);
 
   // Fills SSL Certificate Request info |cert_request_info| and returns
   // true when SSL is in use.
