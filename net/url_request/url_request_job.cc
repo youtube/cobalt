@@ -4,6 +4,7 @@
 
 #include "net/url_request/url_request_job.h"
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
 #include "base/string_number_conversions.h"
@@ -31,7 +32,7 @@ URLRequestJob::URLRequestJob(URLRequest* request)
       has_handled_response_(false),
       expected_content_size_(-1),
       deferred_redirect_status_code_(-1),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
   base::SystemMonitor* system_monitor = base::SystemMonitor::Get();
   if (system_monitor)
     base::SystemMonitor::Get()->AddPowerObserver(this);
@@ -44,7 +45,7 @@ void URLRequestJob::SetExtraRequestHeaders(const HttpRequestHeaders& headers) {
 }
 
 void URLRequestJob::Kill() {
-  method_factory_.RevokeAll();
+  weak_factory_.InvalidateWeakPtrs();
   // Make sure the request is notified that we are done.  We assume that the
   // request took care of setting its error status before calling Kill.
   if (request_)
@@ -424,7 +425,8 @@ void URLRequestJob::NotifyDone(const URLRequestStatus &status) {
   // delegate if we're done because of a synchronous call.
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      method_factory_.NewRunnableMethod(&URLRequestJob::CompleteNotifyDone));
+      base::Bind(&URLRequestJob::CompleteNotifyDone,
+                 weak_factory_.GetWeakPtr()));
 }
 
 void URLRequestJob::CompleteNotifyDone() {

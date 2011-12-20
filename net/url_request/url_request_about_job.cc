@@ -8,6 +8,7 @@
 
 #include "net/url_request/url_request_about_job.h"
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
 
@@ -15,7 +16,7 @@ namespace net {
 
 URLRequestAboutJob::URLRequestAboutJob(URLRequest* request)
     : URLRequestJob(request),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
 }
 
 // static
@@ -29,7 +30,7 @@ void URLRequestAboutJob::Start() {
   // callbacks happen as they would for network requests.
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      method_factory_.NewRunnableMethod(&URLRequestAboutJob::StartAsync));
+      base::Bind(&URLRequestAboutJob::StartAsync, weak_factory_.GetWeakPtr()));
 }
 
 bool URLRequestAboutJob::GetMimeType(std::string* mime_type) const {

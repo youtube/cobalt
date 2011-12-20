@@ -8,7 +8,7 @@
 
 #include <string>
 
-#include "base/task.h"
+#include "base/memory/weak_ptr.h"
 #include "net/base/net_export.h"
 #include "net/url_request/url_request_job.h"
 
@@ -43,7 +43,7 @@ class NET_EXPORT URLRequestSimpleJob : public URLRequestJob {
   std::string charset_;
   std::string data_;
   int data_offset_;
-  ScopedRunnableMethodFactory<URLRequestSimpleJob> method_factory_;
+  base::WeakPtrFactory<URLRequestSimpleJob> weak_factory_;
 };
 
 }  // namespace net

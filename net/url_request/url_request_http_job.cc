@@ -222,8 +222,7 @@ URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
       final_packet_time_(),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           filter_context_(new HttpFilterContext(this))),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
-      weak_ptr_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(on_headers_received_callback_(
           base::Bind(&URLRequestHttpJob::OnHeadersReceivedCallback,
                      base::Unretained(this)))),
@@ -370,8 +369,8 @@ void URLRequestHttpJob::StartTransactionInternal() {
   // URLRequest delegate via the message loop.
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      method_factory_.NewRunnableMethod(
-          &URLRequestHttpJob::OnStartCompleted, rv));
+      base::Bind(&URLRequestHttpJob::OnStartCompleted,
+                 weak_factory_.GetWeakPtr(), rv));
 }
 
 void URLRequestHttpJob::AddExtraHeaders() {
@@ -472,7 +471,7 @@ void URLRequestHttpJob::AddCookieHeaderAndStart() {
       cookie_monster->GetAllCookiesForURLAsync(
           request_->url(),
           base::Bind(&URLRequestHttpJob::CheckCookiePolicyAndLoad,
-                     weak_ptr_factory_.GetWeakPtr()));
+                     weak_factory_.GetWeakPtr()));
     } else {
       DoLoadCookies();
     }
@@ -487,7 +486,7 @@ void URLRequestHttpJob::DoLoadCookies() {
   request_->context()->cookie_store()->GetCookiesWithInfoAsync(
       request_->url(), options,
       base::Bind(&URLRequestHttpJob::OnCookiesLoaded,
-                 weak_ptr_factory_.GetWeakPtr()));
+                 weak_factory_.GetWeakPtr()));
 }
 
 void URLRequestHttpJob::CheckCookiePolicyAndLoad(
@@ -564,7 +563,7 @@ void URLRequestHttpJob::SaveNextCookie() {
       request_->context()->cookie_store()->SetCookieWithOptionsAsync(
           request_->url(), response_cookies_[response_cookies_save_index_],
           options, base::Bind(&URLRequestHttpJob::OnCookieSaved,
-                              weak_ptr_factory_.GetWeakPtr()));
+                              weak_factory_.GetWeakPtr()));
       return;
     }
   }
@@ -807,7 +806,7 @@ void URLRequestHttpJob::Kill() {
   if (!transaction_.get())
     return;
 
-  weak_ptr_factory_.InvalidateWeakPtrs();
+  weak_factory_.InvalidateWeakPtrs();
   DestroyTransaction();
   URLRequestJob::Kill();
 }
@@ -1010,8 +1009,8 @@ void URLRequestHttpJob::CancelAuth() {
   //
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      method_factory_.NewRunnableMethod(
-          &URLRequestHttpJob::OnStartCompleted, OK));
+      base::Bind(&URLRequestHttpJob::OnStartCompleted,
+                 weak_factory_.GetWeakPtr(), OK));
 }
 
 void URLRequestHttpJob::ContinueWithCertificate(
@@ -1034,8 +1033,8 @@ void URLRequestHttpJob::ContinueWithCertificate(
   // URLRequest delegate via the message loop.
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      method_factory_.NewRunnableMethod(
-          &URLRequestHttpJob::OnStartCompleted, rv));
+      base::Bind(&URLRequestHttpJob::OnStartCompleted,
+                 weak_factory_.GetWeakPtr(), rv));
 }
 
 void URLRequestHttpJob::ContinueDespiteLastError() {
@@ -1059,8 +1058,8 @@ void URLRequestHttpJob::ContinueDespiteLastError() {
   // URLRequest delegate via the message loop.
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      method_factory_.NewRunnableMethod(
-          &URLRequestHttpJob::OnStartCompleted, rv));
+      base::Bind(&URLRequestHttpJob::OnStartCompleted,
+                 weak_factory_.GetWeakPtr(), rv));
 }
 
 bool URLRequestHttpJob::ShouldFixMismatchedContentLength(int rv) const {

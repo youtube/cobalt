@@ -8,7 +8,7 @@
 
 #include <string>
 
-#include "base/task.h"
+#include "base/memory/weak_ptr.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_job.h"
 
@@ -29,7 +29,7 @@ class NET_EXPORT URLRequestAboutJob : public URLRequestJob {
 
   void StartAsync();
 
-  ScopedRunnableMethodFactory<URLRequestAboutJob> method_factory_;
+  base::WeakPtrFactory<URLRequestAboutJob> weak_factory_;
 };
 
 }  // namespace net
