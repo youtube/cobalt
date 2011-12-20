@@ -9,10 +9,11 @@ set -e
 # The script is to install Android SDK, NDK for build chromium on Android, and
 # doesn't need to run as root.
 
-# Using Android 3.2, API Level: 13 (Honeycomb). The SDK package is about 30M.
-SDK_FILE_NAME="android-sdk_r13-linux_x86.tgz"
+# Using Android 4.0, API Level: 14 (ice cream sandwich). The SDK package is
+# about 25M.
+SDK_FILE_NAME="android-sdk_r16-linux.tgz"
 SDK_DOWNLOAD_URL="http://dl.google.com/android/${SDK_FILE_NAME}"
-SDK_MD5SUM="d80d7530a46c665644ae76084a9a0dc4"
+SDK_MD5SUM="3ba457f731d51da3741c29c8830a4583"
 
 # Using "ANDROID_SDK_ROOT/tools/android list targets" to get the matching target
 # id which will be loaded in simulator for testing.
@@ -24,7 +25,7 @@ SDK_MD5SUM="d80d7530a46c665644ae76084a9a0dc4"
 #     API level: 13
 #     Revision: 1
 #     Skins: WXGA (default)
-SDK_TARGET_ID=android-13
+SDK_TARGET_ID=android-14
 
 # Using NDK r7; The package is about 64M.
 NDK_FILE_NAME="android-ndk-r7-linux-x86.tar.bz2"
@@ -103,18 +104,8 @@ if [[ ! $("${ANDROID_SDK_ROOT}/tools/android" list targets \
   # This will take a little bit long time.
   echo "Install platform, platform-tool and tool ..."
 
-  # This needs to be called twice.  The first time, "android" itself
-  # references
-  # https://dl-ssl.google.com/android/repository/addons_list.xml,
-  # which no longer exists.  On the second run, "android" (or one of
-  # it's config files) has been updated to now reference curl
-  # https://dl-ssl.google.com/android/repository/addons_list-1.xml,
-  # which contains what we need.
-  for try in 1 2 ; do
-    echo "==== SDK update $try"
-    "${ANDROID_SDK_ROOT}"/tools/android update sdk --no-ui \
-      --filter platform,platform-tool,tool
-  done
+  "${ANDROID_SDK_ROOT}"/tools/android update sdk -o --no-ui \
+      --filter platform,platform-tool,tool,system-image
 fi
 
 # Create a Android Virtual Device named 'buildbot' with default hardware
