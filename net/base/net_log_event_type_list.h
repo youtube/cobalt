@@ -1353,3 +1353,35 @@ EVENT_TYPE(CERT_VERIFIER_JOB)
 //      "source_dependency": <Source identifer for the job we are bound to>,
 //   }
 EVENT_TYPE(CERT_VERIFIER_REQUEST_BOUND_TO_JOB)
+
+// ------------------------------------------------------------------------
+// HttpPipelinedConnection
+// ------------------------------------------------------------------------
+
+// The start/end of a HttpPipelinedConnection.
+//   {
+//     "host_and_port": <The host-port string>,
+//   }
+EVENT_TYPE(HTTP_PIPELINED_CONNECTION)
+
+// This event is created when a pipelined connection finishes sending a request.
+//   {
+//     "source_dependency": <Source id of the requesting stream>,
+//   }
+EVENT_TYPE(HTTP_PIPELINED_CONNECTION_SENT_REQUEST)
+
+// This event is created when a pipelined connection finishes receiving the
+// response headers.
+//   {
+//     "source_dependency": <Source id of the requesting stream>,
+//     "feedback": <The value of HttpPipelinedConnection::Feedback indicating
+//                  pipeline capability>,
+//   }
+EVENT_TYPE(HTTP_PIPELINED_CONNECTION_RECEIVED_HEADERS)
+
+// This event is created when a pipelined stream closes.
+//   {
+//     "source_dependency": <Source id of the requesting stream>,
+//     "must_close": <True if the pipeline must shut down>,
+//   }
+EVENT_TYPE(HTTP_PIPELINED_CONNECTION_STREAM_CLOSED)
