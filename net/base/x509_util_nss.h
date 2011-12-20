@@ -28,7 +28,8 @@ CERTCertificate* CreateSelfSignedCert(
     SECKEYPrivateKey* private_key,
     const std::string& subject,
     uint32 serial_number,
-    base::TimeDelta valid_duration);
+    base::Time not_valid_before,
+    base::Time not_valid_after);
 
 } // namespace x509_util
 

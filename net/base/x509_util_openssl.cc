@@ -19,7 +19,8 @@ bool CreateOriginBoundCertRSA(
     crypto::RSAPrivateKey* key,
     const std::string& origin,
     uint32 serial_number,
-    base::TimeDelta valid_duration,
+    base::Time not_valid_before,
+    base::Time not_valid_after,
     std::string* der_cert) {
   NOTIMPLEMENTED();
   return false;
@@ -29,7 +30,8 @@ bool CreateOriginBoundCertEC(
     crypto::ECPrivateKey* key,
     const std::string& origin,
     uint32 serial_number,
-    base::TimeDelta valid_duration,
+    base::Time not_valid_before,
+    base::Time not_valid_after,
     std::string* der_cert) {
   NOTIMPLEMENTED();
   return false;
