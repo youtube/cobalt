@@ -94,7 +94,7 @@ class NET_EXPORT_PRIVATE MultiThreadedProxyResolver
   // ProxyResolver implementation:
   virtual int GetProxyForURL(const GURL& url,
                              ProxyInfo* results,
-                             OldCompletionCallback* callback,
+                             const CompletionCallback& callback,
                              RequestHandle* request,
                              const BoundNetLog& net_log) OVERRIDE;
   virtual void CancelRequest(RequestHandle request) OVERRIDE;
@@ -105,7 +105,7 @@ class NET_EXPORT_PRIVATE MultiThreadedProxyResolver
   virtual void PurgeMemory() OVERRIDE;
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      OldCompletionCallback* callback) OVERRIDE;
+      const CompletionCallback& callback) OVERRIDE;
 
  private:
   class Executor;

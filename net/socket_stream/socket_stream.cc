@@ -69,8 +69,6 @@ SocketStream::SocketStream(const GURL& url, Delegate* delegate)
       ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(base::Bind(&SocketStream::OnIOCompleted,
                                   base::Unretained(this)))),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          io_callback_old_(this, &SocketStream::OnIOCompleted)),
       read_buf_(NULL),
       write_buf_(NULL),
       current_write_buf_(NULL),
@@ -551,7 +549,7 @@ int SocketStream::DoResolveProxy() {
   // Alternate-Protocol header here for ws:// or TLS NPN extension for wss:// .
 
   return proxy_service()->ResolveProxy(
-      proxy_url_, &proxy_info_, &io_callback_old_, &pac_request_, net_log_);
+      proxy_url_, &proxy_info_, io_callback_, &pac_request_, net_log_);
 }
 
 int SocketStream::DoResolveProxyComplete(int result) {

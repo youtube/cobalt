@@ -4,6 +4,7 @@
 
 #include "net/proxy/multi_threaded_proxy_resolver.h"
 
+#include "base/bind.h"
 #include "base/message_loop_proxy.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
@@ -100,9 +101,9 @@ class MultiThreadedProxyResolver::Job
     TYPE_SET_PAC_SCRIPT_INTERNAL,
   };
 
-  Job(Type type, OldCompletionCallback* user_callback)
+  Job(Type type, const CompletionCallback& callback)
       : type_(type),
-        user_callback_(user_callback),
+        callback_(callback),
         executor_(NULL),
         was_cancelled_(false) {
   }
@@ -133,8 +134,8 @@ class MultiThreadedProxyResolver::Job
   // scheduled internally (for example TYPE_SET_PAC_SCRIPT_INTERNAL).
   //
   // Otherwise jobs that correspond with user-initiated work will
-  // have a non-NULL callback up until the callback is run.
-  bool has_user_callback() const { return user_callback_ != NULL; }
+  // have a non-null callback up until the callback is run.
+  bool has_user_callback() const { return !callback_.is_null(); }
 
   // This method is called when the job is inserted into a wait queue
   // because no executors were ready to accept it.
@@ -157,10 +158,10 @@ class MultiThreadedProxyResolver::Job
 
   void RunUserCallback(int result) {
     DCHECK(has_user_callback());
-    OldCompletionCallback* callback = user_callback_;
-    // Null the callback so has_user_callback() will now return false.
-    user_callback_ = NULL;
-    callback->Run(result);
+    CompletionCallback callback = callback_;
+    // Reset the callback so has_user_callback() will now return false.
+    callback_.Reset();
+    callback.Run(result);
   }
 
   friend class base::RefCountedThreadSafe<MultiThreadedProxyResolver::Job>;
@@ -169,7 +170,7 @@ class MultiThreadedProxyResolver::Job
 
  private:
   const Type type_;
-  OldCompletionCallback* user_callback_;
+  CompletionCallback callback_;
   Executor* executor_;
   bool was_cancelled_;
 };
@@ -181,8 +182,9 @@ class MultiThreadedProxyResolver::SetPacScriptJob
     : public MultiThreadedProxyResolver::Job {
  public:
   SetPacScriptJob(const scoped_refptr<ProxyResolverScriptData>& script_data,
-                  OldCompletionCallback* callback)
-    : Job(callback ? TYPE_SET_PAC_SCRIPT : TYPE_SET_PAC_SCRIPT_INTERNAL,
+                  const CompletionCallback& callback)
+    : Job(!callback.is_null() ? TYPE_SET_PAC_SCRIPT :
+                                TYPE_SET_PAC_SCRIPT_INTERNAL,
           callback),
       script_data_(script_data) {
   }
@@ -190,12 +192,12 @@ class MultiThreadedProxyResolver::SetPacScriptJob
   // Runs on the worker thread.
   virtual void Run(scoped_refptr<base::MessageLoopProxy> origin_loop) OVERRIDE {
     ProxyResolver* resolver = executor()->resolver();
-    int rv = resolver->SetPacScript(script_data_, NULL);
+    int rv = resolver->SetPacScript(script_data_, CompletionCallback());
 
     DCHECK_NE(rv, ERR_IO_PENDING);
     origin_loop->PostTask(
         FROM_HERE,
-        NewRunnableMethod(this, &SetPacScriptJob::RequestComplete, rv));
+        base::Bind(&SetPacScriptJob::RequestComplete, this, rv));
   }
 
  private:
@@ -220,14 +222,14 @@ class MultiThreadedProxyResolver::GetProxyForURLJob
   // |results|     -- the structure to fill with proxy resolve results.
   GetProxyForURLJob(const GURL& url,
                     ProxyInfo* results,
-                    OldCompletionCallback* callback,
+                    const CompletionCallback& callback,
                     const BoundNetLog& net_log)
       : Job(TYPE_GET_PROXY_FOR_URL, callback),
         results_(results),
         net_log_(net_log),
         url_(url),
         was_waiting_for_thread_(false) {
-    DCHECK(callback);
+    DCHECK(!callback.is_null());
   }
 
   BoundNetLog* net_log() { return &net_log_; }
@@ -256,12 +258,12 @@ class MultiThreadedProxyResolver::GetProxyForURLJob
   virtual void Run(scoped_refptr<base::MessageLoopProxy> origin_loop) OVERRIDE {
     ProxyResolver* resolver = executor()->resolver();
     int rv = resolver->GetProxyForURL(
-        url_, &results_buf_, NULL, NULL, net_log_);
+        url_, &results_buf_, CompletionCallback(), NULL, net_log_);
     DCHECK_NE(rv, ERR_IO_PENDING);
 
     origin_loop->PostTask(
         FROM_HERE,
-        NewRunnableMethod(this, &GetProxyForURLJob::QueryComplete, rv));
+        base::Bind(&GetProxyForURLJob::QueryComplete, this, rv));
   }
 
  private:
@@ -320,8 +322,7 @@ void MultiThreadedProxyResolver::Executor::StartJob(Job* job) {
   job->FinishedWaitingForThread();
   thread_->message_loop()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(job, &Job::Run,
-                        base::MessageLoopProxy::current()));
+      base::Bind(&Job::Run, job, base::MessageLoopProxy::current()));
 }
 
 void MultiThreadedProxyResolver::Executor::OnJobCompleted(Job* job) {
@@ -366,7 +367,7 @@ void MultiThreadedProxyResolver::Executor::PurgeMemory() {
   scoped_refptr<PurgeMemoryTask> helper(new PurgeMemoryTask(resolver_.get()));
   thread_->message_loop()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(helper.get(), &PurgeMemoryTask::PurgeMemory));
+      base::Bind(&PurgeMemoryTask::PurgeMemory, helper.get()));
 }
 
 MultiThreadedProxyResolver::Executor::~Executor() {
@@ -395,13 +396,11 @@ MultiThreadedProxyResolver::~MultiThreadedProxyResolver() {
   ReleaseAllExecutors();
 }
 
-int MultiThreadedProxyResolver::GetProxyForURL(const GURL& url,
-                                               ProxyInfo* results,
-                                               OldCompletionCallback* callback,
-                                               RequestHandle* request,
-                                               const BoundNetLog& net_log) {
+int MultiThreadedProxyResolver::GetProxyForURL(
+    const GURL& url, ProxyInfo* results, const CompletionCallback& callback,
+    RequestHandle* request, const BoundNetLog& net_log) {
   DCHECK(CalledOnValidThread());
-  DCHECK(callback);
+  DCHECK(!callback.is_null());
   DCHECK(current_script_data_.get())
       << "Resolver is un-initialized. Must call SetPacScript() first!";
 
@@ -431,7 +430,7 @@ int MultiThreadedProxyResolver::GetProxyForURL(const GURL& url,
   if (executors_.size() < max_num_threads_) {
     executor = AddNewExecutor();
     executor->StartJob(
-        new SetPacScriptJob(current_script_data_, NULL));
+        new SetPacScriptJob(current_script_data_, CompletionCallback()));
   }
 
   return ERR_IO_PENDING;
@@ -498,9 +497,9 @@ void MultiThreadedProxyResolver::PurgeMemory() {
 
 int MultiThreadedProxyResolver::SetPacScript(
     const scoped_refptr<ProxyResolverScriptData>& script_data,
-    OldCompletionCallback* callback) {
+    const CompletionCallback&callback) {
   DCHECK(CalledOnValidThread());
-  DCHECK(callback);
+  DCHECK(!callback.is_null());
 
   // Save the script details, so we can provision new executors later.
   current_script_data_ = script_data;

@@ -10,10 +10,8 @@
 namespace net {
 
 MockAsyncProxyResolverBase::Request::Request(
-    MockAsyncProxyResolverBase* resolver,
-            const GURL& url,
-            ProxyInfo* results,
-            OldCompletionCallback* callback)
+    MockAsyncProxyResolverBase* resolver, const GURL& url, ProxyInfo* results,
+    const CompletionCallback& callback)
         : resolver_(resolver),
           url_(url),
           results_(results),
@@ -22,12 +20,12 @@ MockAsyncProxyResolverBase::Request::Request(
     }
 
     void MockAsyncProxyResolverBase::Request::CompleteNow(int rv) {
-      OldCompletionCallback* callback = callback_;
+      CompletionCallback callback = callback_;
 
       // May delete |this|.
       resolver_->RemovePendingRequest(this);
 
-      callback->Run(rv);
+      callback.Run(rv);
     }
 
 MockAsyncProxyResolverBase::Request::~Request() {}
@@ -36,7 +34,7 @@ MockAsyncProxyResolverBase::Request::~Request() {}
 MockAsyncProxyResolverBase::SetPacScriptRequest::SetPacScriptRequest(
         MockAsyncProxyResolverBase* resolver,
         const scoped_refptr<ProxyResolverScriptData>& script_data,
-        OldCompletionCallback* callback)
+        const CompletionCallback& callback)
         : resolver_(resolver),
           script_data_(script_data),
           callback_(callback),
@@ -46,21 +44,19 @@ MockAsyncProxyResolverBase::SetPacScriptRequest::SetPacScriptRequest(
 MockAsyncProxyResolverBase::SetPacScriptRequest::~SetPacScriptRequest() {}
 
     void MockAsyncProxyResolverBase::SetPacScriptRequest::CompleteNow(int rv) {
-       OldCompletionCallback* callback = callback_;
+       CompletionCallback callback = callback_;
 
       // Will delete |this|.
       resolver_->RemovePendingSetPacScriptRequest(this);
 
-      callback->Run(rv);
+      callback.Run(rv);
     }
 
 MockAsyncProxyResolverBase::~MockAsyncProxyResolverBase() {}
 
-int MockAsyncProxyResolverBase::GetProxyForURL(const GURL& url,
-                                               ProxyInfo* results,
-                                               OldCompletionCallback* callback,
-                                               RequestHandle* request_handle,
-                                               const BoundNetLog& /*net_log*/) {
+int MockAsyncProxyResolverBase::GetProxyForURL(
+    const GURL& url, ProxyInfo* results, const CompletionCallback& callback,
+    RequestHandle* request_handle, const BoundNetLog& /*net_log*/) {
   scoped_refptr<Request> request = new Request(this, url, results, callback);
   pending_requests_.push_back(request);
 
@@ -91,7 +87,7 @@ LoadState MockAsyncProxyResolverBase::GetLoadStateThreadSafe(
 
 int MockAsyncProxyResolverBase::SetPacScript(
     const scoped_refptr<ProxyResolverScriptData>& script_data,
-    OldCompletionCallback* callback) {
+    const CompletionCallback& callback) {
   DCHECK(!pending_set_pac_script_request_.get());
   pending_set_pac_script_request_.reset(
       new SetPacScriptRequest(this, script_data, callback));

@@ -12,13 +12,14 @@
 namespace net {
 
 MockProxyScriptFetcher::MockProxyScriptFetcher()
-    : pending_request_callback_(NULL), pending_request_text_(NULL) {
+    : pending_request_text_(NULL) {
 }
 
+MockProxyScriptFetcher::~MockProxyScriptFetcher() {}
+
 // ProxyScriptFetcher implementation.
-int MockProxyScriptFetcher::Fetch(const GURL& url,
-                                  string16* text,
-                                  OldCompletionCallback* callback) {
+int MockProxyScriptFetcher::Fetch(const GURL& url, string16* text,
+                                  const CompletionCallback& callback) {
   DCHECK(!has_pending_request());
 
   // Save the caller's information, and have them wait.
@@ -32,9 +33,9 @@ void MockProxyScriptFetcher::NotifyFetchCompletion(
     int result, const std::string& ascii_text) {
   DCHECK(has_pending_request());
   *pending_request_text_ = ASCIIToUTF16(ascii_text);
-  OldCompletionCallback* callback = pending_request_callback_;
-  pending_request_callback_ = NULL;
-  callback->Run(result);
+  CompletionCallback callback = pending_request_callback_;
+  pending_request_callback_.Reset();
+  callback.Run(result);
 }
 
 void MockProxyScriptFetcher::Cancel() {
@@ -49,7 +50,7 @@ const GURL& MockProxyScriptFetcher::pending_request_url() const {
 }
 
 bool MockProxyScriptFetcher::has_pending_request() const {
-  return pending_request_callback_ != NULL;
+  return !pending_request_callback_.is_null();
 }
 
 }  // namespace net

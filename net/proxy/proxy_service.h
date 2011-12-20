@@ -76,11 +76,6 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
   // Profiling information for the request is saved to |net_log| if non-NULL.
   int ResolveProxy(const GURL& url,
                    ProxyInfo* results,
-                   OldCompletionCallback* callback,
-                   PacRequest** pac_request,
-                   const BoundNetLog& net_log);
-  int ResolveProxy(const GURL& url,
-                   ProxyInfo* results,
                    const net::CompletionCallback& callback,
                    PacRequest** pac_request,
                    const BoundNetLog& net_log);
@@ -346,9 +341,6 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
   // script configured in DHCP, if any. Can be NULL if the ProxyResolver has
   // no need for DHCP PAC script fetching.
   scoped_ptr<DhcpProxyScriptFetcher> dhcp_proxy_script_fetcher_;
-
-  // Callback for when |init_proxy_resolver_| is done.
-  OldCompletionCallbackImpl<ProxyService> init_proxy_resolver_callback_;
 
   // Helper to download the PAC script (wpad + custom) and apply fallback rules.
   //

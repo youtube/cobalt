@@ -21,11 +21,12 @@ class URLRequestContext;
 class MockProxyScriptFetcher : public ProxyScriptFetcher {
  public:
   MockProxyScriptFetcher();
+  virtual ~MockProxyScriptFetcher();
 
   // ProxyScriptFetcher implementation.
   virtual int Fetch(const GURL& url,
                     string16* text,
-                    OldCompletionCallback* callback) OVERRIDE;
+                    const CompletionCallback& callback) OVERRIDE;
   virtual void Cancel() OVERRIDE;
   virtual URLRequestContext* GetRequestContext() const OVERRIDE;
 
@@ -35,7 +36,7 @@ class MockProxyScriptFetcher : public ProxyScriptFetcher {
 
  private:
   GURL pending_request_url_;
-  OldCompletionCallback* pending_request_callback_;
+  CompletionCallback pending_request_callback_;
   string16* pending_request_text_;
 };
 
