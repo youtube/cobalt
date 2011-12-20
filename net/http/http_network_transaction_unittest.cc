@@ -7075,7 +7075,7 @@ class CapturingProxyResolver : public ProxyResolver {
 
   virtual int GetProxyForURL(const GURL& url,
                              ProxyInfo* results,
-                             OldCompletionCallback* callback,
+                             const CompletionCallback& callback,
                              RequestHandle* request,
                              const BoundNetLog& net_log) {
     ProxyServer proxy_server(ProxyServer::SCHEME_HTTP,
@@ -7105,7 +7105,7 @@ class CapturingProxyResolver : public ProxyResolver {
   }
 
   virtual int SetPacScript(const scoped_refptr<ProxyResolverScriptData>&,
-                           OldCompletionCallback* /*callback*/) {
+                           const CompletionCallback& /*callback*/) {
     return OK;
   }
 

@@ -24,7 +24,7 @@ class NET_EXPORT ProxyResolverMac : public ProxyResolver {
   // ProxyResolver methods:
   virtual int GetProxyForURL(const GURL& url,
                              ProxyInfo* results,
-                             OldCompletionCallback* callback,
+                             const net::CompletionCallback& callback,
                              RequestHandle* request,
                              const BoundNetLog& net_log) OVERRIDE;
 
@@ -39,7 +39,7 @@ class NET_EXPORT ProxyResolverMac : public ProxyResolver {
 
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      OldCompletionCallback* /*callback*/) OVERRIDE;
+      const net::CompletionCallback& /*callback*/) OVERRIDE;
 
  private:
   scoped_refptr<ProxyResolverScriptData> script_data_;

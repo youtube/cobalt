@@ -43,7 +43,7 @@ class NET_EXPORT_PRIVATE ProxyResolver {
   // |*request| is written to, and can be passed to CancelRequest().
   virtual int GetProxyForURL(const GURL& url,
                              ProxyInfo* results,
-                             OldCompletionCallback* callback,
+                             const net::CompletionCallback& callback,
                              RequestHandle* request,
                              const BoundNetLog& net_log) = 0;
 
@@ -74,7 +74,7 @@ class NET_EXPORT_PRIVATE ProxyResolver {
   // the result through |callback|.
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& pac_script,
-      OldCompletionCallback* callback) = 0;
+      const net::CompletionCallback& callback) = 0;
 
   // Optional shutdown code to be run before destruction. This is only used
   // by the multithreaded runner to signal cleanup from origin thread
