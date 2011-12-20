@@ -73,8 +73,7 @@ int HttpProxyClientSocket::RestartWithAuth(OldCompletionCallback* callback) {
   rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING)
     if (callback) {
-      user_callback_ = base::Bind(&OldCompletionCallback::Run<int>,
-                                  base::Unretained(callback));
+      user_callback_ = base::Bind(&OldCompletionCallbackAdapter, callback);
     }
   return rv;
 }
