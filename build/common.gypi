@@ -755,14 +755,14 @@
         ],
       }],  # OS=="mac"
 
-      # Whether to use multiple cores to compile with visual studio. This is
-      # optional because it sometimes causes corruption on VS 2005.
-      # It is on by default on VS 2008 and off on VS 2005.
       ['OS=="win"', {
         'conditions': [
           ['component=="shared_library"', {
             'win_use_allocator_shim%': 0,
           }],
+          # Whether to use multiple cores to compile with visual studio. This is
+          # optional because it sometimes causes corruption on VS 2005.
+          # It is on by default on VS 2008 and off on VS 2005.
           ['MSVS_VERSION=="2005"', {
             'msvs_multi_core_compile%': 0,
           },{
@@ -1509,9 +1509,14 @@
         },
         'msvs_settings': {
           'VCCLCompilerTool': {
-            'Optimization': '<(win_release_Optimization)',
             'RuntimeLibrary': '<(win_release_RuntimeLibrary)',
             'conditions': [
+              # In official builds, each target will self-select
+              # an optimization level.
+              ['buildtype!="Official"', {
+                  'Optimization': '<(win_release_Optimization)',
+                },
+              ],
               # According to MSVS, InlineFunctionExpansion=0 means
               # "default inlining", not "/Ob0".
               # Thus, we have to handle InlineFunctionExpansion==0 separately.
@@ -2341,7 +2346,7 @@
               'OTHER_LDFLAGS': [
                 '-faddress-sanitizer',
                 # The symbols below are referenced in the ASan runtime
-                # library (compiled on OS X 10.6), but may be unavailable 
+                # library (compiled on OS X 10.6), but may be unavailable
                 # on the prior OS X versions. Because Chromium is currently
                 # targeting 10.5.0, we need to explicitly mark these
                 # symbols as dynamic_lookup.
@@ -2493,6 +2498,57 @@
           '_HAS_TR1=0',
         ],
         'conditions': [
+          ['buildtype=="Official"', {
+              # In official builds, targets can self-select an optimization
+              # level by defining a variable named 'optimize', and setting it
+              # to one of
+              # - "size", optimizes for minimal code size - the default.
+              # - "speed", optimizes for speed over code size.
+              # - "max", whole program optimization and link-time code
+              #   generation. This is very expensive and should be used
+              #   sparingly.
+              'variables': {
+                'optimize%': 'size',
+              },
+              'target_conditions': [
+                ['optimize=="size"', {
+                    'msvs_settings': {
+                      'VCCLCompilerTool': {
+                        # 1, optimizeMinSpace, Minimize Size (/O1)
+                        'Optimization': '1',
+                        # 2, favorSize - Favor small code (/Os)
+                        'FavorSizeOrSpeed': '2',
+                      },
+                    },
+                  },
+                ],
+                ['optimize=="speed"', {
+                    'msvs_settings': {
+                      'VCCLCompilerTool': {
+                        # 2, optimizeMaxSpeed, Maximize Speed (/O2)
+                        'Optimization': '2',
+                        # 1, favorSpeed - Favor fast code (/Ot)
+                        'FavorSizeOrSpeed': '1',
+                      },
+                    },
+                  },
+                ],
+                ['optimize=="max"', {
+                    'msvs_settings': {
+                      'VCCLCompilerTool': {
+                        # 2, optimizeMaxSpeed, Maximize Speed (/O2)
+                        'Optimization': '2',
+                        # 1, favorSpeed - Favor fast code (/Ot)
+                        'FavorSizeOrSpeed': '1',
+                        # This implies link time code generation.
+                        'WholeProgramOptimization': 'true',
+                      },
+                    },
+                  },
+                ],
+              ],
+            },
+          ],
           ['component=="static_library"', {
             'defines': [
               '_HAS_EXCEPTIONS=0',
