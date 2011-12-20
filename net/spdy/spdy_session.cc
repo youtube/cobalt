@@ -362,7 +362,8 @@ bool SpdySession::VerifyDomainAuthentication(const std::string& domain) {
 
   SSLInfo ssl_info;
   bool was_npn_negotiated;
-  SSLClientSocket::NextProto protocol_negotiated;
+  SSLClientSocket::NextProto protocol_negotiated =
+      SSLClientSocket::kProtoUnknown;
   if (!GetSSLInfo(&ssl_info, &was_npn_negotiated, &protocol_negotiated))
     return true;   // This is not a secure session, so all domains are okay.
 
@@ -1077,6 +1078,8 @@ bool SpdySession::GetSSLInfo(SSLInfo* ssl_info,
     *was_npn_negotiated = ssl_socket->was_npn_negotiated();
     *protocol_negotiated = ssl_socket->protocol_negotiated();
     return true;
+  } else {
+    *protocol_negotiated = SSLClientSocket::kProtoUnknown;
   }
   return false;
 }
