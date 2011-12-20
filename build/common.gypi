@@ -1976,15 +1976,11 @@
             ],
           }],
           ['asan==1', {
-            # TODO(glider): -fasan is deprecated. Remove it when we stop using
-            # it.
             'cflags': [
-              '-fasan',
               '-faddress-sanitizer',
               '-w',
             ],
             'ldflags': [
-              '-fasan',
               '-faddress-sanitizer',
             ],
             'defines': [
@@ -2339,12 +2335,10 @@
           ['asan==1', {
             'xcode_settings': {
               'OTHER_CFLAGS': [
-                '-fasan',
                 '-faddress-sanitizer',
                 '-w',
               ],
               'OTHER_LDFLAGS': [
-                '-fasan',
                 '-faddress-sanitizer',
                 # The symbols below are referenced in the ASan runtime
                 # library (compiled on OS X 10.6), but may be unavailable 
