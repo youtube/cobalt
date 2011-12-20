@@ -115,6 +115,7 @@ class TypeEnumerator
 
 PinBase::PinBase(IBaseFilter* owner)
     : owner_(owner) {
+  memset(&current_media_type_, 0, sizeof(current_media_type_));
 }
 
 PinBase::~PinBase() {
