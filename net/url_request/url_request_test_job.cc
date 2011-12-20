@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <list>
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/lazy_instance.h"
 #include "base/message_loop.h"
@@ -91,7 +92,7 @@ URLRequestTestJob::URLRequestTestJob(URLRequest* request)
       offset_(0),
       async_buf_(NULL),
       async_buf_size_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
 }
 
 URLRequestTestJob::URLRequestTestJob(URLRequest* request,
@@ -102,7 +103,7 @@ URLRequestTestJob::URLRequestTestJob(URLRequest* request,
       offset_(0),
       async_buf_(NULL),
       async_buf_size_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
 }
 
 URLRequestTestJob::URLRequestTestJob(URLRequest* request,
@@ -117,7 +118,7 @@ URLRequestTestJob::URLRequestTestJob(URLRequest* request,
       offset_(0),
       async_buf_(NULL),
       async_buf_size_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
 }
 
 URLRequestTestJob::~URLRequestTestJob() {
@@ -138,8 +139,8 @@ void URLRequestTestJob::Start() {
   // Start reading asynchronously so that all error reporting and data
   // callbacks happen as they would for network requests.
   MessageLoop::current()->PostTask(
-      FROM_HERE, method_factory_.NewRunnableMethod(
-          &URLRequestTestJob::StartAsync));
+      FROM_HERE, base::Bind(&URLRequestTestJob::StartAsync,
+                            weak_factory_.GetWeakPtr()));
 }
 
 void URLRequestTestJob::StartAsync() {
@@ -227,7 +228,7 @@ bool URLRequestTestJob::IsRedirectResponse(GURL* location,
 void URLRequestTestJob::Kill() {
   stage_ = DONE;
   URLRequestJob::Kill();
-  method_factory_.RevokeAll();
+  weak_factory_.InvalidateWeakPtrs();
   g_pending_jobs.Get().erase(
       std::remove(
           g_pending_jobs.Get().begin(), g_pending_jobs.Get().end(), this),
@@ -268,8 +269,8 @@ void URLRequestTestJob::ProcessNextOperation() {
 void URLRequestTestJob::AdvanceJob() {
   if (auto_advance_) {
     MessageLoop::current()->PostTask(
-        FROM_HERE, method_factory_.NewRunnableMethod(
-            &URLRequestTestJob::ProcessNextOperation));
+        FROM_HERE, base::Bind(&URLRequestTestJob::ProcessNextOperation,
+                              weak_factory_.GetWeakPtr()));
     return;
   }
   g_pending_jobs.Get().push_back(this);

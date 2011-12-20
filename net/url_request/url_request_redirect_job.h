@@ -6,7 +6,7 @@
 #define NET_URL_REQUEST_URL_REQUEST_REDIRECT_JOB_H_
 #pragma once
 
-#include "base/task.h"
+#include "base/memory/weak_ptr.h"
 #include "net/base/net_export.h"
 #include "net/url_request/url_request_job.h"
 
@@ -47,7 +47,7 @@ class NET_EXPORT URLRequestRedirectJob : public URLRequestJob {
   GURL redirect_destination_;
   int http_status_code_;
 
-  ScopedRunnableMethodFactory<URLRequestRedirectJob> method_factory_;
+  base::WeakPtrFactory<URLRequestRedirectJob> weak_factory_;
 };
 
 }  // namespace net

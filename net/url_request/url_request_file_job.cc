@@ -86,8 +86,7 @@ URLRequestFileJob::URLRequestFileJob(URLRequest* request,
     : URLRequestJob(request),
       file_path_(file_path),
       is_directory_(false),
-      remaining_bytes_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
+      remaining_bytes_(0) {
 }
 
 // static
@@ -163,7 +162,6 @@ void URLRequestFileJob::Kill() {
   }
 
   URLRequestJob::Kill();
-  method_factory_.RevokeAll();
 }
 
 bool URLRequestFileJob::ReadRawData(IOBuffer* dest, int dest_size,
