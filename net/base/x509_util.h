@@ -30,14 +30,12 @@ namespace x509_util {
 bool NET_EXPORT_PRIVATE CreateOriginBoundCertRSA(crypto::RSAPrivateKey* key,
                                                  const std::string& origin,
                                                  uint32 serial_number,
-                                                 base::Time not_valid_before,
-                                                 base::Time not_valid_after,
+                                                 base::TimeDelta valid_duration,
                                                  std::string* der_cert);
 bool NET_EXPORT_PRIVATE CreateOriginBoundCertEC(crypto::ECPrivateKey* key,
                                                 const std::string& origin,
                                                 uint32 serial_number,
-                                                base::Time not_valid_before,
-                                                base::Time not_valid_after,
+                                                base::TimeDelta valid_duration,
                                                 std::string* der_cert);
 
 } // namespace x509_util
