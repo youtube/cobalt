@@ -22,7 +22,6 @@
 #endif
 
 #if defined(OS_LINUX)
-#include <dlfcn.h>
 #include <sys/prctl.h>
 #include <sys/syscall.h>
 #include <unistd.h>
@@ -182,30 +181,13 @@ void PlatformThread::SetName(const char* name) {
     return;
 
   // http://0pointer.de/blog/projects/name-your-threads.html
-
-  // glibc recently added support for pthread_setname_np, but it's not
-  // commonly available yet.  So test for it at runtime.
-  int (*dynamic_pthread_setname_np)(pthread_t, const char*);
-  *reinterpret_cast<void**>(&dynamic_pthread_setname_np) =
-      dlsym(RTLD_DEFAULT, "pthread_setname_np");
-
-  if (dynamic_pthread_setname_np) {
-    // This limit comes from glibc, which gets it from the kernel
-    // (TASK_COMM_LEN).
-    const int kMaxNameLength = 15;
-    std::string shortened_name = std::string(name).substr(0, kMaxNameLength);
-    int err = dynamic_pthread_setname_np(pthread_self(),
-                                         shortened_name.c_str());
-    if (err < 0)
-      DLOG(ERROR) << "pthread_setname_np: " << safe_strerror(err);
-  } else {
-    // Implementing this function without glibc is simple enough.  (We
-    // don't do the name length clipping as above because it will be
-    // truncated by the callee (see TASK_COMM_LEN above).)
-    int err = prctl(PR_SET_NAME, name);
-    if (err < 0)
-      DPLOG(ERROR) << "prctl(PR_SET_NAME)";
-  }
+  // Set the name for the LWP (which gets truncated to 15 characters).
+  // Note that glibc also has a 'pthread_setname_np' api, but it may not be
+  // available everywhere and doesn't seem to have any advantage over using
+  // prctl.
+  int err = prctl(PR_SET_NAME, name);
+  if (err < 0)
+    DPLOG(ERROR) << "prctl(PR_SET_NAME)";
 }
 #elif defined(OS_MACOSX)
 // Mac is implemented in platform_thread_mac.mm.
