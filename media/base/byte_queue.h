@@ -20,9 +20,6 @@ class ByteQueue {
   ByteQueue();
   ~ByteQueue();
 
-  // Reset the queue to the empty state.
-  void Reset();
-
   // Appends new bytes onto the end of the queue.
   void Push(const uint8* data, int size);
 

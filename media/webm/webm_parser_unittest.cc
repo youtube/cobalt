@@ -60,13 +60,11 @@ static Cluster* CreateCluster(int timecode,
 static void CreateClusterExpectations(int timecode,
                                       const SimpleBlockInfo* block_info,
                                       int block_count,
-                                      bool is_complete_cluster,
                                       MockWebMParserClient* client) {
 
   InSequence s;
   EXPECT_CALL(*client, OnListStart(kWebMIdCluster)).WillOnce(Return(true));
-  EXPECT_CALL(*client, OnUInt(kWebMIdTimecode, timecode))
-      .WillOnce(Return(true));
+  EXPECT_CALL(*client, OnUInt(kWebMIdTimecode, 0)).WillOnce(Return(true));
 
   for (int i = 0; i < block_count; i++) {
     EXPECT_CALL(*client, OnSimpleBlock(block_info[i].track_num,
@@ -75,8 +73,7 @@ static void CreateClusterExpectations(int timecode,
         .WillOnce(Return(true));
   }
 
-  if (is_complete_cluster)
-    EXPECT_CALL(*client, OnListEnd(kWebMIdCluster)).WillOnce(Return(true));
+  EXPECT_CALL(*client, OnListEnd(kWebMIdCluster)).WillOnce(Return(true));
 }
 
 TEST_F(WebMParserTest, EmptyCluster) {
@@ -214,7 +211,7 @@ TEST_F(WebMParserTest, ParseListElementWithSingleCall) {
   int block_count = arraysize(kBlockInfo);
 
   scoped_ptr<Cluster> cluster(CreateCluster(0, kBlockInfo, block_count));
-  CreateClusterExpectations(0, kBlockInfo, block_count, true, &client_);
+  CreateClusterExpectations(0, kBlockInfo, block_count, &client_);
 
   WebMListParser parser(kWebMIdCluster);
   int result = parser.Parse(cluster->data(), cluster->size(), &client_);
@@ -233,7 +230,7 @@ TEST_F(WebMParserTest, ParseListElementWithMultipleCalls) {
   int block_count = arraysize(kBlockInfo);
 
   scoped_ptr<Cluster> cluster(CreateCluster(0, kBlockInfo, block_count));
-  CreateClusterExpectations(0, kBlockInfo, block_count, true, &client_);
+  CreateClusterExpectations(0, kBlockInfo, block_count, &client_);
 
   const uint8* data = cluster->data();
   int size = cluster->size();
@@ -261,43 +258,6 @@ TEST_F(WebMParserTest, ParseListElementWithMultipleCalls) {
 
     EXPECT_EQ((size == 0), parser.IsParsingComplete());
   }
-  EXPECT_TRUE(parser.IsParsingComplete());
-}
-
-TEST_F(WebMParserTest, TestReset) {
-  InSequence s;
-
-  const SimpleBlockInfo kBlockInfo[] = {
-    { 0, 1 },
-    { 1, 2 },
-    { 0, 3 },
-    { 0, 4 },
-    { 1, 4 },
-  };
-  int block_count = arraysize(kBlockInfo);
-
-  scoped_ptr<Cluster> cluster(CreateCluster(0, kBlockInfo, block_count));
-
-  // First expect all but the last block.
-  CreateClusterExpectations(0, kBlockInfo, block_count - 1, false, &client_);
-
-  // Now expect all blocks.
-  CreateClusterExpectations(0, kBlockInfo, block_count, true, &client_);
-
-  WebMListParser parser(kWebMIdCluster);
-
-  // Send slightly less than the full cluster so all but the last block is
-  // parsed.
-  int result = parser.Parse(cluster->data(), cluster->size() - 1, &client_);
-  EXPECT_GT(result, 0);
-  EXPECT_LT(result, cluster->size());
-  EXPECT_FALSE(parser.IsParsingComplete());
-
-  parser.Reset();
-
-  // Now parse a whole cluster to verify that all the blocks will get parsed.
-  result = parser.Parse(cluster->data(), cluster->size(), &client_);
-  EXPECT_EQ(result, cluster->size());
   EXPECT_TRUE(parser.IsParsingComplete());
 }
 
