@@ -99,7 +99,9 @@ TransportConnectJob::TransportConnectJob(
                  BoundNetLog::Make(net_log, NetLog::SOURCE_CONNECT_JOB)),
       params_(params),
       client_socket_factory_(client_socket_factory),
-      resolver_(host_resolver) {}
+      resolver_(host_resolver),
+      next_state_(STATE_NONE) {
+}
 
 TransportConnectJob::~TransportConnectJob() {
   // We don't worry about cancelling the host resolution and TCP connect, since
