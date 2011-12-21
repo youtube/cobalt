@@ -257,7 +257,9 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
           priority(priority),
           spdy_stream(spdy_stream),
           stream_net_log(&stream_net_log),
-          callback(callback) {}
+          callback(callback) {
+    }
+
     ~PendingCreateStream();
 
     const GURL* url;
