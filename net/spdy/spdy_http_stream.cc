@@ -8,6 +8,8 @@
 #include <list>
 #include <string>
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "net/base/address_list.h"
@@ -25,7 +27,7 @@ namespace net {
 
 SpdyHttpStream::SpdyHttpStream(SpdySession* spdy_session,
                                bool direct)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(read_callback_factory_(this)),
+    : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       stream_(NULL),
       spdy_session_(spdy_session),
       response_info_(NULL),
@@ -400,8 +402,10 @@ void SpdyHttpStream::ScheduleBufferedReadCallback() {
   more_read_data_pending_ = false;
   buffered_read_callback_pending_ = true;
   const int kBufferTimeMs = 1;
-  MessageLoop::current()->PostDelayedTask(FROM_HERE, read_callback_factory_.
-      NewRunnableMethod(&SpdyHttpStream::DoBufferedReadCallback),
+  MessageLoop::current()->PostDelayedTask(
+      FROM_HERE,
+      base::Bind(base::IgnoreResult(&SpdyHttpStream::DoBufferedReadCallback),
+                 weak_factory_.GetWeakPtr()),
       kBufferTimeMs);
 }
 
@@ -423,7 +427,7 @@ bool SpdyHttpStream::ShouldWaitForMoreBufferedData() const {
 }
 
 bool SpdyHttpStream::DoBufferedReadCallback() {
-  read_callback_factory_.RevokeAll();
+  weak_factory_.InvalidateWeakPtrs();
   buffered_read_callback_pending_ = false;
 
   // If the transaction is cancelled or errored out, we don't need to complete
