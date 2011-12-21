@@ -145,17 +145,14 @@ void VerifyOriginBoundCert(const std::string& origin,
 TEST(X509UtilNSSTest, CreateOriginBoundCertRSA) {
   // Create a sample ASCII weborigin.
   std::string origin = "http://weborigin.com:443";
-  base::Time now = base::Time::Now();
 
   scoped_ptr<crypto::RSAPrivateKey> private_key(
       crypto::RSAPrivateKey::Create(1024));
   std::string der_cert;
-  ASSERT_TRUE(x509_util::CreateOriginBoundCertRSA(
-      private_key.get(),
-      origin, 1,
-      now,
-      now + base::TimeDelta::FromDays(1),
-      &der_cert));
+  ASSERT_TRUE(x509_util::CreateOriginBoundCertRSA(private_key.get(),
+                                                  origin, 1,
+                                                  base::TimeDelta::FromDays(1),
+                                                  &der_cert));
 
   VerifyOriginBoundCert(origin, der_cert);
 
@@ -169,17 +166,14 @@ TEST(X509UtilNSSTest, CreateOriginBoundCertRSA) {
 TEST(X509UtilNSSTest, CreateOriginBoundCertEC) {
   // Create a sample ASCII weborigin.
   std::string origin = "http://weborigin.com:443";
-  base::Time now = base::Time::Now();
 
   scoped_ptr<crypto::ECPrivateKey> private_key(
       crypto::ECPrivateKey::Create());
   std::string der_cert;
-  ASSERT_TRUE(x509_util::CreateOriginBoundCertEC(
-      private_key.get(),
-      origin, 1,
-      now,
-      now + base::TimeDelta::FromDays(1),
-      &der_cert));
+  ASSERT_TRUE(x509_util::CreateOriginBoundCertEC(private_key.get(),
+                                                 origin, 1,
+                                                 base::TimeDelta::FromDays(1),
+                                                 &der_cert));
 
   VerifyOriginBoundCert(origin, der_cert);
 
