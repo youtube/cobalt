@@ -1534,7 +1534,7 @@ void X509Certificate::GetPublicKeyInfo(OSCertHandle cert_handle,
     NOTREACHED() << "SecCertificateCopyPublicKey failed: " << status;
     return;
   }
-  ScopedCFTypeRef<SecKeyRef> scoped_key;
+  ScopedCFTypeRef<SecKeyRef> scoped_key(key);
 
   const CSSM_KEY* cssm_key;
   status = SecKeyGetCSSMKey(key, &cssm_key);
