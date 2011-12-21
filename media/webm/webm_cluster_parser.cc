@@ -33,6 +33,14 @@ WebMClusterParser::WebMClusterParser(int64 timecode_scale,
 
 WebMClusterParser::~WebMClusterParser() {}
 
+void WebMClusterParser::Reset() {
+  audio_buffers_.clear();
+  video_buffers_.clear();
+  last_block_timecode_ = -1;
+  cluster_timecode_ = -1;
+  parser_.Reset();
+}
+
 int WebMClusterParser::Parse(const uint8* buf, int size) {
   audio_buffers_.clear();
   video_buffers_.clear();

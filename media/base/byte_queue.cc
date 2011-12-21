@@ -20,6 +20,11 @@ ByteQueue::ByteQueue()
 
 ByteQueue::~ByteQueue() {}
 
+void ByteQueue::Reset() {
+  offset_ = 0;
+  used_ = 0;
+}
+
 void ByteQueue::Push(const uint8* data, int size) {
   DCHECK(data);
   DCHECK_GT(size, 0);
