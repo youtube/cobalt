@@ -60,7 +60,6 @@ SSLServerSocketNSS::SSLServerSocketNSS(
     const SSLConfig& ssl_config)
     : transport_send_busy_(false),
       transport_recv_busy_(false),
-      user_handshake_callback_(NULL),
       nss_fd_(NULL),
       nss_bufs_(NULL),
       transport_socket_(transport_socket),
@@ -86,7 +85,7 @@ SSLServerSocketNSS::~SSLServerSocketNSS() {
   }
 }
 
-int SSLServerSocketNSS::Handshake(OldCompletionCallback* callback) {
+int SSLServerSocketNSS::Handshake(const CompletionCallback& callback) {
   net_log_.BeginEvent(NetLog::TYPE_SSL_SERVER_HANDSHAKE, NULL);
 
   int rv = Init();
@@ -145,7 +144,7 @@ int SSLServerSocketNSS::Connect(const CompletionCallback& callback) {
 int SSLServerSocketNSS::Read(IOBuffer* buf, int buf_len,
                              const CompletionCallback& callback) {
   DCHECK(user_read_callback_.is_null());
-  DCHECK(!user_handshake_callback_);
+  DCHECK(user_handshake_callback_.is_null());
   DCHECK(!user_read_buf_);
   DCHECK(nss_bufs_);
 
@@ -466,7 +465,7 @@ void SSLServerSocketNSS::OnHandshakeIOComplete(int result) {
   if (rv != ERR_IO_PENDING) {
     net_log_.EndEventWithNetErrorCode(net::NetLog::TYPE_SSL_SERVER_HANDSHAKE,
                                       rv);
-    if (user_handshake_callback_)
+    if (!user_handshake_callback_.is_null())
       DoHandshakeCallback(rv);
   }
 }
@@ -705,9 +704,9 @@ int SSLServerSocketNSS::DoHandshake() {
 void SSLServerSocketNSS::DoHandshakeCallback(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
 
-  OldCompletionCallback* c = user_handshake_callback_;
-  user_handshake_callback_ = NULL;
-  c->Run(rv > OK ? OK : rv);
+  CompletionCallback c = user_handshake_callback_;
+  user_handshake_callback_.Reset();
+  c.Run(rv > OK ? OK : rv);
 }
 
 void SSLServerSocketNSS::DoReadCallback(int rv) {
