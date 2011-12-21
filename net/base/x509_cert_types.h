@@ -55,9 +55,6 @@ struct NET_EXPORT CertPrincipal {
   // Parses a BER-format DistinguishedName.
   bool ParseDistinguishedName(const void* ber_name_data, size_t length);
 
-  // Parses a CSSM_X509_NAME struct.
-  void Parse(const CSSM_X509_NAME* name);
-
   // Compare this CertPrincipal with |against|, returning true if they're
   // equal enough to be a possible match. This should NOT be used for any
   // security relevant decisions.
