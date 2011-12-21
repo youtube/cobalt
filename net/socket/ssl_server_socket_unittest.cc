@@ -29,6 +29,7 @@
 #include "net/base/address_list.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verifier.h"
+#include "net/base/completion_callback.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_endpoint.h"
@@ -326,9 +327,9 @@ TEST_F(SSLServerSocketTest, Handshake) {
   Initialize();
 
   TestCompletionCallback connect_callback;
-  TestOldCompletionCallback handshake_callback;
+  TestCompletionCallback handshake_callback;
 
-  int server_ret = server_socket_->Handshake(&handshake_callback);
+  int server_ret = server_socket_->Handshake(handshake_callback.callback());
   EXPECT_TRUE(server_ret == net::OK || server_ret == net::ERR_IO_PENDING);
 
   int client_ret = client_socket_->Connect(connect_callback.callback());
@@ -351,13 +352,13 @@ TEST_F(SSLServerSocketTest, DataTransfer) {
   Initialize();
 
   TestCompletionCallback connect_callback;
-  TestOldCompletionCallback handshake_callback;
+  TestCompletionCallback handshake_callback;
 
   // Establish connection.
   int client_ret = client_socket_->Connect(connect_callback.callback());
   ASSERT_TRUE(client_ret == net::OK || client_ret == net::ERR_IO_PENDING);
 
-  int server_ret = server_socket_->Handshake(&handshake_callback);
+  int server_ret = server_socket_->Handshake(handshake_callback.callback());
   ASSERT_TRUE(server_ret == net::OK || server_ret == net::ERR_IO_PENDING);
 
   client_ret = connect_callback.GetResult(client_ret);
@@ -435,12 +436,12 @@ TEST_F(SSLServerSocketTest, ExportKeyingMaterial) {
   Initialize();
 
   TestCompletionCallback connect_callback;
-  TestOldCompletionCallback handshake_callback;
+  TestCompletionCallback handshake_callback;
 
   int client_ret = client_socket_->Connect(connect_callback.callback());
   ASSERT_TRUE(client_ret == net::OK || client_ret == net::ERR_IO_PENDING);
 
-  int server_ret = server_socket_->Handshake(&handshake_callback);
+  int server_ret = server_socket_->Handshake(handshake_callback.callback());
   ASSERT_TRUE(server_ret == net::OK || server_ret == net::ERR_IO_PENDING);
 
   if (client_ret == net::ERR_IO_PENDING) {
