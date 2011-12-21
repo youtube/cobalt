@@ -32,41 +32,6 @@
 //     foo.get()->Method();  // Foo::Method on the 0th element.
 //     foo[10].Method();     // Foo::Method on the 10th element.
 //   }
-//
-// These scopers also implement part of the functionality of C++11 unique_ptr
-// in that they are "movable but not copyable."  You can use the scopers in
-// the parameter and return types of functions to signify ownership transfer
-// in to and out of a function.  When calling a function that has a scoper
-// as the argument type, it must be called with the result of an analogous
-// scoper's Pass() function or another function that generates a temporary;
-// passing by copy will NOT work.  Here is an example using scoped_ptr:
-//
-//   void TakesOwnership(scoped_ptr<Foo> arg) {
-//     // Do something with arg
-//   }
-//   scoped_ptr<Foo> CreateFoo() {
-//     // No need for calling Pass() because we are constructing a temporary
-//     // for the return value.
-//     return scoped_ptr<Foo>(new Foo("new"));
-//   }
-//   scoped_ptr<Foo> PassThru(scoped_ptr<Foo> arg) {
-//     return arg.Pass();
-//   }
-//
-//   {
-//     scoped_ptr<Foo> ptr(new Foo("yay"));  // ptr manages Foo("yay)"
-//     TakesOwnership(ptr.Pass());           // ptr no longer owns Foo("yay").
-//     scoped_ptr<Foo> ptr2 = CreateFoo();   // ptr2 owns the return Foo.
-//     scoped_ptr<Foo> ptr3 =                // ptr3 now owns what was in ptr2.
-//         PassThru(ptr2.Pass());            // ptr2 is correspondingly NULL.
-//   }
-//
-// Notice that if you do not call Pass() when returning from PassThru(), or
-// when invoking TakesOwnership(), the code will not compile because scopers
-// are not copyable; they only implement move semantics which require calling
-// the Pass() function to signify a destructive transfer of state. CreateFoo()
-// is different though because we are constructing a temporary on the return
-// line and thus can avoid needing to call Pass().
 
 #ifndef BASE_MEMORY_SCOPED_PTR_H_
 #define BASE_MEMORY_SCOPED_PTR_H_
@@ -82,35 +47,12 @@
 
 #include "base/compiler_specific.h"
 
-// Macro with the boilerplate C++03 move emulation for a class.
-//
-// In C++11, this is done via rvalue references.  Here, we use C++03 move
-// emulation to fake an rvalue reference.  For a more thorough explanation
-// of the technique, see:
-//
-//   http://en.wikibooks.org/wiki/More_C%2B%2B_Idioms/Move_Constructor
-//
-#define CPP_03_MOVE_EMULATION(scoper, field) \
- private: \
-  struct RValue { \
-    explicit RValue(scoper& obj) : obj_(obj) {} \
-    scoper& obj_; \
-  }; \
- public: \
-  operator RValue() { return RValue(*this); } \
-  scoper(RValue proxy) : field(proxy.obj_.release()) { } \
-  scoper& operator=(RValue proxy) { \
-    swap(proxy.obj_); \
-    return *this; \
-  } \
-  scoper Pass() { return scoper(RValue(*this)); }
-
 // A scoped_ptr<T> is like a T*, except that the destructor of scoped_ptr<T>
 // automatically deletes the pointer it holds (if any).
 // That is, scoped_ptr<T> owns the T object that it points to.
 // Like a T*, a scoped_ptr<T> may hold either NULL or a pointer to a T object.
 // Also like T*, scoped_ptr<T> is thread-compatible, and once you
-// dereference it, you get the thread safety guarantees of T.
+// dereference it, you get the threadsafety guarantees of T.
 //
 // The size of a scoped_ptr is small:
 // sizeof(scoped_ptr<C>) == sizeof(C*)
@@ -180,8 +122,6 @@ class scoped_ptr {
     return retVal;
   }
 
-  CPP_03_MOVE_EMULATION(scoped_ptr, ptr_);
-
  private:
   C* ptr_;
 
@@ -191,10 +131,9 @@ class scoped_ptr {
   template <class C2> bool operator==(scoped_ptr<C2> const& p2) const;
   template <class C2> bool operator!=(scoped_ptr<C2> const& p2) const;
 
-  // Disallow evil constructors.  Note that MUST NOT take a const& because we
-  // are implementing move semantics.  See the CPP_03_MOVE_EMULATION macro.
-  scoped_ptr(scoped_ptr&);
-  void operator=(scoped_ptr&);
+  // Disallow evil constructors
+  scoped_ptr(const scoped_ptr&);
+  void operator=(const scoped_ptr&);
 };
 
 // Free functions
@@ -219,7 +158,7 @@ bool operator!=(C* p1, const scoped_ptr<C>& p2) {
 // As with scoped_ptr<C>, a scoped_array<C> either points to an object
 // or is NULL.  A scoped_array<C> owns the object that it points to.
 // scoped_array<T> is thread-compatible, and once you index into it,
-// the returned objects have only the thread safety guarantees of T.
+// the returned objects have only the threadsafety guarantees of T.
 //
 // Size: sizeof(scoped_array<C>) == sizeof(C*)
 template <class C>
@@ -229,7 +168,7 @@ class scoped_array {
   // The element type
   typedef C element_type;
 
-  // Constructor.  Defaults to initializing with NULL.
+  // Constructor.  Defaults to intializing with NULL.
   // There is no way to create an uninitialized scoped_array.
   // The input parameter must be allocated with new [].
   explicit scoped_array(C* p = NULL) : array_(p) { }
@@ -290,8 +229,6 @@ class scoped_array {
     return retVal;
   }
 
-  CPP_03_MOVE_EMULATION(scoped_array, array_);
-
  private:
   C* array_;
 
@@ -299,10 +236,9 @@ class scoped_array {
   template <class C2> bool operator==(scoped_array<C2> const& p2) const;
   template <class C2> bool operator!=(scoped_array<C2> const& p2) const;
 
-  // Disallow evil constructors.  Note that MUST NOT take a const& because we
-  // are implementing move semantics.  See the CPP_03_MOVE_EMULATION macro.
-  scoped_array(scoped_array&);
-  void operator=(scoped_array&);
+  // Disallow evil constructors
+  scoped_array(const scoped_array&);
+  void operator=(const scoped_array&);
 };
 
 // Free functions
@@ -411,8 +347,6 @@ class scoped_ptr_malloc {
     return tmp;
   }
 
-  CPP_03_MOVE_EMULATION(scoped_ptr_malloc, ptr_);
-
  private:
   C* ptr_;
 
@@ -422,13 +356,10 @@ class scoped_ptr_malloc {
   template <class C2, class GP>
   bool operator!=(scoped_ptr_malloc<C2, GP> const& p) const;
 
-  // Disallow evil constructors.  Note that MUST NOT take a const& because we
-  // are implementing move semantics.  See the CPP_03_MOVE_EMULATION macro.
-  scoped_ptr_malloc(scoped_ptr_malloc&);
-  void operator=(scoped_ptr_malloc&);
+  // Disallow evil constructors
+  scoped_ptr_malloc(const scoped_ptr_malloc&);
+  void operator=(const scoped_ptr_malloc&);
 };
-
-#undef CPP_03_MOVE_EMULATION
 
 template<class C, class FP> inline
 void swap(scoped_ptr_malloc<C, FP>& a, scoped_ptr_malloc<C, FP>& b) {
