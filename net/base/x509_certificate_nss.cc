@@ -778,14 +778,11 @@ X509Certificate* X509Certificate::CreateSelfSigned(
     base::TimeDelta valid_duration) {
   DCHECK(key);
 
-  base::Time not_valid_before = base::Time::Now();
-  base::Time not_valid_after = not_valid_before + valid_duration;
   CERTCertificate* cert = x509_util::CreateSelfSignedCert(key->public_key(),
                                                           key->key(),
                                                           subject,
                                                           serial_number,
-                                                          not_valid_before,
-                                                          not_valid_after);
+                                                          valid_duration);
 
   if (!cert)
     return NULL;
