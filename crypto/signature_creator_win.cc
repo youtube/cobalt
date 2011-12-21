@@ -23,7 +23,7 @@ SignatureCreator* SignatureCreator::Create(RSAPrivateKey* key) {
   return result.release();
 }
 
-SignatureCreator::SignatureCreator() : key_(NULL), hash_object_(0) {}
+SignatureCreator::SignatureCreator() : hash_object_(0) {}
 
 SignatureCreator::~SignatureCreator() {}
 
