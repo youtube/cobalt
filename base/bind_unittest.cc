@@ -5,6 +5,9 @@
 #include "base/bind.h"
 
 #include "base/callback.h"
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -102,7 +105,7 @@ class CopyCounter {
     (*copies_)++;
   }
 
-  // Probing for copies from coerscion.
+  // Probing for copies from coercion.
   CopyCounter(const DerivedCopyCounter& other)
       : copies_(other.copies_),
         assigns_(other.assigns_) {
@@ -148,6 +151,11 @@ class DeleteCounter {
  private:
   int* deletes_;
 };
+
+template <typename T>
+T PassThru(T scoper) {
+  return scoper.Pass();
+}
 
 // Some test functions that we can Bind to.
 template <typename T>
@@ -668,8 +676,8 @@ TEST_F(BindTest, Owned) {
   // return the same value.
   Callback<DeleteCounter*(void)> no_capture_cb =
       Bind(&PolymorphicIdentity<DeleteCounter*>, Owned(counter));
-  EXPECT_EQ(counter, no_capture_cb.Run());
-  EXPECT_EQ(counter, no_capture_cb.Run());
+  ASSERT_EQ(counter, no_capture_cb.Run());
+  ASSERT_EQ(counter, no_capture_cb.Run());
   EXPECT_EQ(0, deletes);
   no_capture_cb.Reset();  // This should trigger a delete.
   EXPECT_EQ(1, deletes);
@@ -684,11 +692,60 @@ TEST_F(BindTest, Owned) {
   EXPECT_EQ(1, deletes);
 }
 
+// Passed() wrapper support.
+//   - Passed() can be constructed from a pointer to scoper.
+//   - Passed() can be constructed from a scoper rvalue.
+//   - Using Passed() gives Callback Ownership.
+//   - Ownership is transferred from Callback to callee on the first Run().
+//   - Callback supports unbound arguments.
+TEST_F(BindTest, ScopedPtr) {
+  int deletes = 0;
+
+  // Tests the Passed() function's support for pointers.
+  scoped_ptr<DeleteCounter> ptr(new DeleteCounter(&deletes));
+  Callback<scoped_ptr<DeleteCounter>(void)> unused_callback =
+      Bind(&PassThru<scoped_ptr<DeleteCounter> >, Passed(&ptr));
+  EXPECT_FALSE(ptr.get());
+  EXPECT_EQ(0, deletes);
+
+  // If we never invoke the Callback, it retains ownership and deletes.
+  unused_callback.Reset();
+  EXPECT_EQ(1, deletes);
+
+  // Tests the Passed() function's support for rvalues.
+  deletes = 0;
+  DeleteCounter* counter = new DeleteCounter(&deletes);
+  Callback<scoped_ptr<DeleteCounter>(void)> callback =
+      Bind(&PassThru<scoped_ptr<DeleteCounter> >,
+           Passed(scoped_ptr<DeleteCounter>(counter)));
+  EXPECT_FALSE(ptr.get());
+  EXPECT_EQ(0, deletes);
+
+  // Check that ownership can be transferred back out.
+  scoped_ptr<DeleteCounter> result = callback.Run();
+  ASSERT_EQ(counter, result.get());
+  EXPECT_EQ(0, deletes);
+
+  // Resetting does not delete since ownership was transferred.
+  callback.Reset();
+  EXPECT_EQ(0, deletes);
+
+  // Ensure that we actually did get ownership.
+  result.reset();
+  EXPECT_EQ(1, deletes);
+
+  // Test unbound argument forwarding.
+  Callback<scoped_ptr<DeleteCounter>(scoped_ptr<DeleteCounter>)> cb_unbound =
+      Bind(&PassThru<scoped_ptr<DeleteCounter> >);
+  ptr.reset(new DeleteCounter(&deletes));
+  cb_unbound.Run(ptr.Pass());
+}
+
 // Argument Copy-constructor usage for non-reference parameters.
 //   - Bound arguments are only copied once.
 //   - Forwarded arguments are only copied once.
-//   - Forwarded arguments with coerscions are only copied twice (once for the
-//     coerscion, and one for the final dispatch).
+//   - Forwarded arguments with coercions are only copied twice (once for the
+//     coercion, and one for the final dispatch).
 TEST_F(BindTest, ArgumentCopies) {
   int copies = 0;
   int assigns = 0;
