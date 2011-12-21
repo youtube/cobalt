@@ -262,11 +262,10 @@ void URLRequestJobManager::UnregisterRequestInterceptor(
   interceptors_.erase(i);
 }
 
-URLRequestJobManager::URLRequestJobManager() : enable_file_access_(false) {
-#ifndef NDEBUG
-  allowed_thread_ = 0;
-  allowed_thread_initialized_ = false;
-#endif
+URLRequestJobManager::URLRequestJobManager()
+    : allowed_thread_(0),
+      allowed_thread_initialized_(false),
+      enable_file_access_(false) {
 }
 
 URLRequestJobManager::~URLRequestJobManager() {}
