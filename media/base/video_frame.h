@@ -12,16 +12,18 @@ namespace media {
 
 class MEDIA_EXPORT VideoFrame : public StreamSample {
  public:
-  static const size_t kMaxPlanes = 3;
+  enum {
+    kMaxPlanes = 3,
 
-  static const size_t kNumRGBPlanes = 1;
-  static const size_t kRGBPlane = 0;
+    kNumRGBPlanes = 1,
+    kRGBPlane = 0,
 
-  static const size_t kNumYUVPlanes = 3;
-  static const size_t kNumNV12Planes = 2;
-  static const size_t kYPlane = 0;
-  static const size_t kUPlane = 1;
-  static const size_t kVPlane = 2;
+    kNumYUVPlanes = 3,
+    kNumNV12Planes = 2,
+    kYPlane = 0,
+    kUPlane = 1,
+    kVPlane = 2,
+  };
 
   // Surface formats roughly based on FOURCC labels, see:
   // http://www.fourcc.org/rgb.php
