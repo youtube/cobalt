@@ -11,7 +11,7 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
-#include "base/task.h"
+#include "base/memory/weak_ptr.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_log.h"
 #include "net/http/http_request_info.h"
@@ -96,7 +96,7 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
   bool DoBufferedReadCallback();
   bool ShouldWaitForMoreBufferedData() const;
 
-  ScopedRunnableMethodFactory<SpdyHttpStream> read_callback_factory_;
+  base::WeakPtrFactory<SpdyHttpStream> weak_factory_;
   scoped_refptr<SpdyStream> stream_;
   scoped_refptr<SpdySession> spdy_session_;
 
