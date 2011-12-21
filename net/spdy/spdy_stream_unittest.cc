@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/memory/ref_counted.h"
+#include "net/base/completion_callback.h"
 #include "net/spdy/spdy_stream.h"
 #include "net/spdy/spdy_http_utils.h"
 #include "net/spdy/spdy_session.h"
@@ -19,7 +20,7 @@ class TestSpdyStreamDelegate : public SpdyStream::Delegate {
  public:
   TestSpdyStreamDelegate(SpdyStream* stream,
                          IOBufferWithSize* buf,
-                         OldCompletionCallback* callback)
+                         const CompletionCallback& callback)
       : stream_(stream),
         buf_(buf),
         callback_(callback),
@@ -62,9 +63,9 @@ class TestSpdyStreamDelegate : public SpdyStream::Delegate {
   }
   virtual void OnClose(int status) {
     closed_ = true;
-    OldCompletionCallback* callback = callback_;
-    callback_ = NULL;
-    callback->Run(OK);
+    CompletionCallback callback = callback_;
+    callback_.Reset();
+    callback.Run(OK);
   }
   virtual void set_chunk_callback(net::ChunkCallback *) {}
 
@@ -79,7 +80,7 @@ class TestSpdyStreamDelegate : public SpdyStream::Delegate {
  private:
   SpdyStream* stream_;
   scoped_refptr<IOBufferWithSize> buf_;
-  OldCompletionCallback* callback_;
+  CompletionCallback callback_;
   bool send_headers_completed_;
   linked_ptr<spdy::SpdyHeaderBlock> response_;
   std::string received_data_;
@@ -200,10 +201,10 @@ TEST_F(SpdyStreamTest, SendDataAfterOpen) {
                             CompletionCallback()));
   scoped_refptr<IOBufferWithSize> buf(new IOBufferWithSize(8));
   memcpy(buf->data(), "\0hello!\xff", 8);
-  TestOldCompletionCallback callback;
+  TestCompletionCallback callback;
 
   scoped_ptr<TestSpdyStreamDelegate> delegate(
-      new TestSpdyStreamDelegate(stream.get(), buf.get(), &callback));
+      new TestSpdyStreamDelegate(stream.get(), buf.get(), callback.callback()));
   stream->SetDelegate(delegate.get());
 
   EXPECT_FALSE(stream->HasUrl());

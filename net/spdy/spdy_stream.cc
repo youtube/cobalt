@@ -4,6 +4,7 @@
 
 #include "net/spdy/spdy_stream.h"
 
+#include "base/bind.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/values.h"
@@ -71,8 +72,7 @@ void SpdyStream::SetDelegate(Delegate* delegate) {
   if (pushed_) {
     CHECK(response_received());
     MessageLoop::current()->PostTask(
-        FROM_HERE, NewRunnableMethod(this,
-                                     &SpdyStream::PushedStreamReplayData));
+        FROM_HERE, base::Bind(&SpdyStream::PushedStreamReplayData, this));
   } else {
     continue_buffering_data_ = false;
   }
