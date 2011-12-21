@@ -180,14 +180,10 @@ bool SpdyFrameBuilder::Resize(size_t new_capacity) {
     return true;
 
   char* p = new char[new_capacity];
-  if (!p)
-    return false;
   if (buffer_) {
     memcpy(p, buffer_, capacity_);
     delete[] buffer_;
   }
-  if (!p && new_capacity > 0)
-    return false;
   buffer_ = p;
   capacity_ = new_capacity;
   return true;
