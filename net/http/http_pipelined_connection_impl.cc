@@ -802,7 +802,10 @@ SSLClientSocket::NextProto HttpPipelinedConnectionImpl::protocol_negotiated()
   return protocol_negotiated_;
 }
 
-HttpPipelinedConnectionImpl::PendingSendRequest::PendingSendRequest() {
+HttpPipelinedConnectionImpl::PendingSendRequest::PendingSendRequest()
+    : pipeline_id(0),
+      request_body(NULL),
+      response(NULL) {
 }
 
 HttpPipelinedConnectionImpl::PendingSendRequest::~PendingSendRequest() {

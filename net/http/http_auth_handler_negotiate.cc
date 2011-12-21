@@ -22,6 +22,7 @@ namespace net {
 HttpAuthHandlerNegotiate::Factory::Factory()
     : disable_cname_lookup_(false),
       use_port_(false),
+      resolver_(NULL),
 #if defined(OS_WIN)
       max_token_length_(0),
       first_creation_(true),
