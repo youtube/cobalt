@@ -410,9 +410,6 @@ void ChunkDemuxer::FlushData() {
   if (video_.get())
     video_->Flush();
 
-  byte_queue_.Reset();
-  cluster_parser_->Reset();
-
   seek_waits_for_data_ = true;
   ChangeState_Locked(INITIALIZED);
 }
