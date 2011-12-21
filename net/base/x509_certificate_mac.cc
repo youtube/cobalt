@@ -258,6 +258,17 @@ class CSSMCachedCertificate {
   CSSM_HANDLE cached_cert_handle_;
 };
 
+void GetCertDistinguishedName(const CSSMCachedCertificate& cached_cert,
+                              const CSSM_OID* oid,
+                              CertPrincipal* result) {
+  CSSMFieldValue distinguished_name;
+  OSStatus status = cached_cert.GetField(oid, &distinguished_name);
+  if (status || !distinguished_name.field())
+    return;
+  result->ParseDistinguishedName(distinguished_name.field()->Data,
+                                 distinguished_name.field()->Length);
+}
+
 void GetCertDateForOID(const CSSMCachedCertificate& cached_cert,
                        const CSSM_OID* oid,
                        Time* result) {
@@ -677,17 +688,12 @@ void AppendPublicKeyHashes(CFArrayRef chain,
 }  // namespace
 
 void X509Certificate::Initialize() {
-  const CSSM_X509_NAME* name;
-  OSStatus status = SecCertificateGetSubject(cert_handle_, &name);
-  if (!status)
-    subject_.Parse(name);
-
-  status = SecCertificateGetIssuer(cert_handle_, &name);
-  if (!status)
-    issuer_.Parse(name);
-
   CSSMCachedCertificate cached_cert;
   if (cached_cert.Init(cert_handle_) == CSSM_OK) {
+    GetCertDistinguishedName(cached_cert, &CSSMOID_X509V1SubjectNameStd,
+                             &subject_);
+    GetCertDistinguishedName(cached_cert, &CSSMOID_X509V1IssuerNameStd,
+                             &issuer_);
     GetCertDateForOID(cached_cert, &CSSMOID_X509V1ValidityNotBefore,
                       &valid_start_);
     GetCertDateForOID(cached_cert, &CSSMOID_X509V1ValidityNotAfter,
