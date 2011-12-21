@@ -10,6 +10,7 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_vector.h"
+#include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
 #include "base/stringprintf.h"
 #include "base/string_number_conversions.h"
@@ -202,7 +203,7 @@ class TestConnectJob : public ConnectJob {
                    BoundNetLog::Make(net_log, NetLog::SOURCE_CONNECT_JOB)),
         job_type_(job_type),
         client_socket_factory_(client_socket_factory),
-        method_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)),
+        ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
         load_state_(LOAD_STATE_IDLE),
         store_additional_error_state_(false) {}
 
@@ -253,22 +254,22 @@ class TestConnectJob : public ConnectJob {
         // time functions, so this change would be rather invasive.
         MessageLoop::current()->PostDelayedTask(
             FROM_HERE,
-            method_factory_.NewRunnableMethod(
-                &TestConnectJob::DoConnect,
-                true /* successful */,
-                true /* async */,
-                false /* recoverable */),
+            base::Bind(base::IgnoreResult(&TestConnectJob::DoConnect),
+                       weak_factory_.GetWeakPtr(),
+                       true /* successful */,
+                       true /* async */,
+                       false /* recoverable */),
             kPendingConnectDelay);
         return ERR_IO_PENDING;
       case kMockPendingFailingJob:
         set_load_state(LOAD_STATE_CONNECTING);
         MessageLoop::current()->PostDelayedTask(
             FROM_HERE,
-            method_factory_.NewRunnableMethod(
-                &TestConnectJob::DoConnect,
-                false /* error */,
-                true  /* async */,
-                false /* recoverable */),
+            base::Bind(base::IgnoreResult(&TestConnectJob::DoConnect),
+                       weak_factory_.GetWeakPtr(),
+                       false /* error */,
+                       true  /* async */,
+                       false /* recoverable */),
             2);
         return ERR_IO_PENDING;
       case kMockWaitingJob:
@@ -277,9 +278,8 @@ class TestConnectJob : public ConnectJob {
         return ERR_IO_PENDING;
       case kMockAdvancingLoadStateJob:
         MessageLoop::current()->PostTask(
-            FROM_HERE,
-            method_factory_.NewRunnableMethod(
-                &TestConnectJob::AdvanceLoadState, load_state_));
+            FROM_HERE, base::Bind(&TestConnectJob::AdvanceLoadState,
+                                  weak_factory_.GetWeakPtr(), load_state_));
         return ERR_IO_PENDING;
       case kMockRecoverableJob:
         return DoConnect(false /* error */, false /* sync */,
@@ -288,11 +288,11 @@ class TestConnectJob : public ConnectJob {
         set_load_state(LOAD_STATE_CONNECTING);
         MessageLoop::current()->PostDelayedTask(
             FROM_HERE,
-            method_factory_.NewRunnableMethod(
-                &TestConnectJob::DoConnect,
-                false /* error */,
-                true  /* async */,
-                true  /* recoverable */),
+            base::Bind(base::IgnoreResult(&TestConnectJob::DoConnect),
+                       weak_factory_.GetWeakPtr(),
+                       false /* error */,
+                       true  /* async */,
+                       true  /* recoverable */),
             2);
         return ERR_IO_PENDING;
       case kMockAdditionalErrorStateJob:
@@ -304,11 +304,11 @@ class TestConnectJob : public ConnectJob {
         store_additional_error_state_ = true;
         MessageLoop::current()->PostDelayedTask(
             FROM_HERE,
-            method_factory_.NewRunnableMethod(
-                &TestConnectJob::DoConnect,
-                false /* error */,
-                true  /* async */,
-                false /* recoverable */),
+            base::Bind(base::IgnoreResult(&TestConnectJob::DoConnect),
+                       weak_factory_.GetWeakPtr(),
+                       false /* error */,
+                       true  /* async */,
+                       false /* recoverable */),
             2);
         return ERR_IO_PENDING;
       default:
@@ -347,16 +347,15 @@ class TestConnectJob : public ConnectJob {
       state = static_cast<LoadState>(tmp);
       set_load_state(state);
       MessageLoop::current()->PostTask(
-          FROM_HERE,
-          method_factory_.NewRunnableMethod(&TestConnectJob::AdvanceLoadState,
-                                            state));
+          FROM_HERE, base::Bind(&TestConnectJob::AdvanceLoadState,
+                                weak_factory_.GetWeakPtr(), state));
     }
   }
 
   bool waiting_success_;
   const JobType job_type_;
   MockClientSocketFactory* const client_socket_factory_;
-  ScopedRunnableMethodFactory<TestConnectJob> method_factory_;
+  base::WeakPtrFactory<TestConnectJob> weak_factory_;
   LoadState load_state_;
   bool store_additional_error_state_;
 

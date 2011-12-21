@@ -98,7 +98,7 @@ class NET_EXPORT ClientSocketPool {
 
   // Called to cancel a RequestSocket call that returned ERR_IO_PENDING.  The
   // same handle parameter must be passed to this method as was passed to the
-  // RequestSocket call being cancelled.  The associated OldCompletionCallback is
+  // RequestSocket call being cancelled.  The associated CompletionCallback is
   // not run.  However, for performance, we will let one ConnectJob complete
   // and go idle.
   virtual void CancelRequest(const std::string& group_name,

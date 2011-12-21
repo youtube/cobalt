@@ -28,7 +28,7 @@ class SSLServerSocket : public SSLSocket {
   // if the process completes asynchronously.  If Disconnect is called before
   // completion then the callback will be silently, as for other StreamSocket
   // calls.
-  virtual int Handshake(OldCompletionCallback* callback) = 0;
+  virtual int Handshake(const CompletionCallback& callback) = 0;
 };
 
 // Creates an SSL server socket over an already-connected transport socket.

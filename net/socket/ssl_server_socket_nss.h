@@ -32,7 +32,7 @@ class SSLServerSocketNSS : public SSLServerSocket {
   virtual ~SSLServerSocketNSS();
 
   // SSLServerSocket interface.
-  virtual int Handshake(OldCompletionCallback* callback) OVERRIDE;
+  virtual int Handshake(const CompletionCallback& callback) OVERRIDE;
   virtual int ExportKeyingMaterial(const base::StringPiece& label,
                                    const base::StringPiece& context,
                                    unsigned char *out,
@@ -105,7 +105,7 @@ class SSLServerSocketNSS : public SSLServerSocket {
 
   BoundNetLog net_log_;
 
-  OldCompletionCallback* user_handshake_callback_;
+  CompletionCallback user_handshake_callback_;
   CompletionCallback user_read_callback_;
   CompletionCallback user_write_callback_;
 
