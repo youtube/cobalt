@@ -293,7 +293,7 @@ class Callback<R($for ARG , [[A$(ARG)]])> : public internal::CallbackBase {
     return f(bind_state_.get()[[]]
 $if ARITY != 0 [[, ]]
 $for ARG ,
-             [[internal::CallbackForward(a$(ARG))]]);
+             [[a$(ARG)]]);
   }
 
  private:
