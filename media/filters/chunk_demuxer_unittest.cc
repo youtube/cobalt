@@ -16,7 +16,6 @@ using ::testing::AnyNumber;
 using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::SetArgumentPointee;
-using ::testing::NiceMock;
 using ::testing::_;
 
 namespace media {
@@ -31,6 +30,11 @@ static const int kTracksSizeOffset = 4;
 
 static const int kVideoTrackNum = 1;
 static const int kAudioTrackNum = 2;
+
+MATCHER_P(HasTimestamp, timestamp_in_ms, "") {
+  return !arg->IsEndOfStream() &&
+      arg->GetTimestamp().InMilliseconds() == timestamp_in_ms;
+}
 
 class MockChunkDemuxerClient : public ChunkDemuxerClient {
  public:
@@ -192,6 +196,14 @@ class ChunkDemuxerTest : public testing::Test {
     cb->AddSimpleBlock(track_num, timecode, 0, data.get(), size);
   }
 
+  MOCK_METHOD1(ReadDone, void(const scoped_refptr<Buffer>&));
+
+  void ExpectRead(DemuxerStream* stream, int64 timestamp_in_ms) {
+    EXPECT_CALL(*this, ReadDone(HasTimestamp(timestamp_in_ms)));
+    stream->Read(base::Bind(&ChunkDemuxerTest::ReadDone,
+                            base::Unretained(this)));
+  }
+
   MOCK_METHOD1(Checkpoint, void(int id));
 
   MockDemuxerHost mock_demuxer_host_;
@@ -277,6 +289,57 @@ TEST_F(ChunkDemuxerTest, TestAppendDataAfterSeek) {
   Checkpoint(2);
 }
 
+// Test the case where a Seek() is requested while the parser
+// is in the middle of cluster. This is to verify that the parser
+// resets itself on seek and is in the right state when data from
+// the new seek point arrives.
+TEST_F(ChunkDemuxerTest, TestSeekWhileParsingCluster) {
+  InitDemuxer(true, true);
+
+  scoped_refptr<DemuxerStream> audio =
+      demuxer_->GetStream(DemuxerStream::AUDIO);
+  scoped_refptr<DemuxerStream> video =
+      demuxer_->GetStream(DemuxerStream::VIDEO);
+
+  InSequence s;
+
+  ClusterBuilder cb;
+  cb.SetClusterTimecode(0);
+  AddSimpleBlock(&cb, kAudioTrackNum, 1);
+  AddSimpleBlock(&cb, kVideoTrackNum, 2);
+  AddSimpleBlock(&cb, kAudioTrackNum, 10);
+  AddSimpleBlock(&cb, kVideoTrackNum, 20);
+  scoped_ptr<Cluster> cluster_a(cb.Finish());
+
+  cb.SetClusterTimecode(5000);
+  AddSimpleBlock(&cb, kAudioTrackNum, 5000);
+  AddSimpleBlock(&cb, kVideoTrackNum, 5005);
+  AddSimpleBlock(&cb, kAudioTrackNum, 5007);
+  AddSimpleBlock(&cb, kVideoTrackNum, 5035);
+  scoped_ptr<Cluster> cluster_b(cb.Finish());
+
+  // Append all but the last byte so that everything but
+  // the last block can be parsed.
+  AppendData(cluster_a->data(), cluster_a->size() - 1);
+
+  ExpectRead(audio, 1);
+  ExpectRead(video, 2);
+  ExpectRead(audio, 10);
+
+  demuxer_->FlushData();
+  demuxer_->Seek(base::TimeDelta::FromSeconds(5),
+                 NewExpectedStatusCB(PIPELINE_OK));
+
+
+  // Append the new cluster and verify that only the blocks
+  // in the new cluster are returned.
+  AppendData(cluster_b->data(), cluster_b->size());
+  ExpectRead(audio, 5000);
+  ExpectRead(video, 5005);
+  ExpectRead(audio, 5007);
+  ExpectRead(video, 5035);
+}
+
 // Test the case where AppendData() is called before Init().
 TEST_F(ChunkDemuxerTest, TestAppendDataBeforeInit) {
   scoped_array<uint8> info_tracks;
@@ -334,30 +397,30 @@ TEST_F(ChunkDemuxerTest, TestOutOfOrderClusters) {
   AddSimpleBlock(&cb, kVideoTrackNum, 10);
   AddSimpleBlock(&cb, kAudioTrackNum, 33);
   AddSimpleBlock(&cb, kVideoTrackNum, 43);
-  scoped_ptr<Cluster> clusterA(cb.Finish());
+  scoped_ptr<Cluster> cluster_a(cb.Finish());
 
-  AppendData(clusterA->data(), clusterA->size());
+  AppendData(cluster_a->data(), cluster_a->size());
 
-  // Cluster B starts before clusterA and has data
+  // Cluster B starts before cluster_a and has data
   // that overlaps.
   cb.SetClusterTimecode(5);
   AddSimpleBlock(&cb, kAudioTrackNum, 5);
   AddSimpleBlock(&cb, kVideoTrackNum, 7);
   AddSimpleBlock(&cb, kAudioTrackNum, 28);
   AddSimpleBlock(&cb, kVideoTrackNum, 40);
-  scoped_ptr<Cluster> clusterB(cb.Finish());
+  scoped_ptr<Cluster> cluster_b(cb.Finish());
 
   // Make sure that AppendData() fails because this cluster data
   // is before previous data.
   EXPECT_CALL(mock_demuxer_host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
-  AppendData(clusterB->data(), clusterB->size());
+  AppendData(cluster_b->data(), cluster_b->size());
 
   // Verify that AppendData() doesn't accept more data now.
   cb.SetClusterTimecode(45);
   AddSimpleBlock(&cb, kAudioTrackNum, 45);
   AddSimpleBlock(&cb, kVideoTrackNum, 45);
-  scoped_ptr<Cluster> clusterC(cb.Finish());
-  EXPECT_FALSE(demuxer_->AppendData(clusterC->data(), clusterC->size()));
+  scoped_ptr<Cluster> cluster_c(cb.Finish());
+  EXPECT_FALSE(demuxer_->AppendData(cluster_c->data(), cluster_c->size()));
 }
 
 TEST_F(ChunkDemuxerTest, TestNonMonotonicButAboveClusterTimecode) {
@@ -372,17 +435,17 @@ TEST_F(ChunkDemuxerTest, TestNonMonotonicButAboveClusterTimecode) {
   AddSimpleBlock(&cb, kVideoTrackNum, 10);
   AddSimpleBlock(&cb, kAudioTrackNum, 7);
   AddSimpleBlock(&cb, kVideoTrackNum, 15);
-  scoped_ptr<Cluster> clusterA(cb.Finish());
+  scoped_ptr<Cluster> cluster_a(cb.Finish());
 
   EXPECT_CALL(mock_demuxer_host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
-  AppendData(clusterA->data(), clusterA->size());
+  AppendData(cluster_a->data(), cluster_a->size());
 
   // Verify that AppendData() doesn't accept more data now.
   cb.SetClusterTimecode(20);
   AddSimpleBlock(&cb, kAudioTrackNum, 20);
   AddSimpleBlock(&cb, kVideoTrackNum, 20);
-  scoped_ptr<Cluster> clusterB(cb.Finish());
-  EXPECT_FALSE(demuxer_->AppendData(clusterB->data(), clusterB->size()));
+  scoped_ptr<Cluster> cluster_b(cb.Finish());
+  EXPECT_FALSE(demuxer_->AppendData(cluster_b->data(), cluster_b->size()));
 }
 
 TEST_F(ChunkDemuxerTest, TestBackwardsAndBeforeClusterTimecode) {
@@ -397,17 +460,17 @@ TEST_F(ChunkDemuxerTest, TestBackwardsAndBeforeClusterTimecode) {
   AddSimpleBlock(&cb, kVideoTrackNum, 5);
   AddSimpleBlock(&cb, kAudioTrackNum, 3);
   AddSimpleBlock(&cb, kVideoTrackNum, 3);
-  scoped_ptr<Cluster> clusterA(cb.Finish());
+  scoped_ptr<Cluster> cluster_a(cb.Finish());
 
   EXPECT_CALL(mock_demuxer_host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
-  AppendData(clusterA->data(), clusterA->size());
+  AppendData(cluster_a->data(), cluster_a->size());
 
   // Verify that AppendData() doesn't accept more data now.
   cb.SetClusterTimecode(6);
   AddSimpleBlock(&cb, kAudioTrackNum, 6);
   AddSimpleBlock(&cb, kVideoTrackNum, 6);
-  scoped_ptr<Cluster> clusterB(cb.Finish());
-  EXPECT_FALSE(demuxer_->AppendData(clusterB->data(), clusterB->size()));
+  scoped_ptr<Cluster> cluster_b(cb.Finish());
+  EXPECT_FALSE(demuxer_->AppendData(cluster_b->data(), cluster_b->size()));
 }
 
 
@@ -439,24 +502,24 @@ TEST_F(ChunkDemuxerTest, TestMonotonicallyIncreasingTimestampsAcrossClusters) {
   cb.SetClusterTimecode(5);
   AddSimpleBlock(&cb, kAudioTrackNum, 5);
   AddSimpleBlock(&cb, kVideoTrackNum, 5);
-  scoped_ptr<Cluster> clusterA(cb.Finish());
+  scoped_ptr<Cluster> cluster_a(cb.Finish());
 
-  AppendData(clusterA->data(), clusterA->size());
+  AppendData(cluster_a->data(), cluster_a->size());
 
   cb.SetClusterTimecode(5);
   AddSimpleBlock(&cb, kAudioTrackNum, 5);
   AddSimpleBlock(&cb, kVideoTrackNum, 7);
-  scoped_ptr<Cluster> clusterB(cb.Finish());
+  scoped_ptr<Cluster> cluster_b(cb.Finish());
 
   EXPECT_CALL(mock_demuxer_host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
-  AppendData(clusterB->data(), clusterB->size());
+  AppendData(cluster_b->data(), cluster_b->size());
 
   // Verify that AppendData() doesn't accept more data now.
   cb.SetClusterTimecode(10);
   AddSimpleBlock(&cb, kAudioTrackNum, 10);
   AddSimpleBlock(&cb, kVideoTrackNum, 10);
-  scoped_ptr<Cluster> clusterC(cb.Finish());
-  EXPECT_FALSE(demuxer_->AppendData(clusterC->data(), clusterC->size()));
+  scoped_ptr<Cluster> cluster_c(cb.Finish());
+  EXPECT_FALSE(demuxer_->AppendData(cluster_c->data(), cluster_c->size()));
 }
 
 // Test the case where a cluster is passed to AppendData() before
@@ -670,24 +733,24 @@ TEST_F(ChunkDemuxerTest, TestAppendingInPieces) {
   cb.SetClusterTimecode(0);
   AddSimpleBlock(&cb, kAudioTrackNum, 32, 512);
   AddSimpleBlock(&cb, kVideoTrackNum, 123, 1024);
-  scoped_ptr<Cluster> clusterA(cb.Finish());
+  scoped_ptr<Cluster> cluster_a(cb.Finish());
 
   cb.SetClusterTimecode(125);
   AddSimpleBlock(&cb, kAudioTrackNum, 125, 2048);
   AddSimpleBlock(&cb, kVideoTrackNum, 150, 2048);
-  scoped_ptr<Cluster> clusterB(cb.Finish());
+  scoped_ptr<Cluster> cluster_b(cb.Finish());
 
-  size_t buffer_size = info_tracks_size + clusterA->size() + clusterB->size();
+  size_t buffer_size = info_tracks_size + cluster_a->size() + cluster_b->size();
   scoped_array<uint8> buffer(new uint8[buffer_size]);
   uint8* dst = buffer.get();
   memcpy(dst, info_tracks.get(), info_tracks_size);
   dst += info_tracks_size;
 
-  memcpy(dst, clusterA->data(), clusterA->size());
-  dst += clusterA->size();
+  memcpy(dst, cluster_a->data(), cluster_a->size());
+  dst += cluster_a->size();
 
-  memcpy(dst, clusterB->data(), clusterB->size());
-  dst += clusterB->size();
+  memcpy(dst, cluster_b->data(), cluster_b->size());
+  dst += cluster_b->size();
 
   AppendDataInPieces(buffer.get(), buffer_size);
 
