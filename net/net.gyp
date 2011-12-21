@@ -1560,6 +1560,13 @@
         'base/ssl_false_start_blacklist_process.cc',
         'base/ssl_false_start_blacklist.h',
       ],
+      'conditions': [
+        ['OS == "android" and host_os == "linux"', {
+          'ldflags': [
+            '-ldl',
+          ],
+        }],
+      ],
     },
   ],
   'conditions': [
