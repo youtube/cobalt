@@ -54,48 +54,38 @@ const CSSM_OID* kOIDs[] = {
 // These are used to parse the contents of a raw
 // BER DistinguishedName structure.
 
-struct KeyValuePair {
-  enum ValueType {
-    kTypeOther = 0,
-    kTypePrintableString,
-    kTypeIA5String,
-    kTypeT61String,
-    kTypeUTF8String,
-    kTypeBMPString,
-    kTypeUniversalString,
-  };
-
-  CSSM_OID key;
-  ValueType value_type;
-  CSSM_DATA value;
-};
-
 const SecAsn1Template kStringValueTemplate[] = {
-  { SEC_ASN1_CHOICE, offsetof(KeyValuePair, value_type), },
+  { SEC_ASN1_CHOICE, offsetof(CSSM_X509_TYPE_VALUE_PAIR, valueType), },
   { SEC_ASN1_PRINTABLE_STRING,
-    offsetof(KeyValuePair, value), 0, KeyValuePair::kTypePrintableString },
+    offsetof(CSSM_X509_TYPE_VALUE_PAIR, value), 0,
+    BER_TAG_PRINTABLE_STRING },
   { SEC_ASN1_IA5_STRING,
-    offsetof(KeyValuePair, value), 0, KeyValuePair::kTypeIA5String },
+    offsetof(CSSM_X509_TYPE_VALUE_PAIR, value), 0,
+    BER_TAG_IA5_STRING },
   { SEC_ASN1_T61_STRING,
-    offsetof(KeyValuePair, value), 0, KeyValuePair::kTypeT61String },
+    offsetof(CSSM_X509_TYPE_VALUE_PAIR, value), 0,
+    BER_TAG_T61_STRING },
   { SEC_ASN1_UTF8_STRING,
-    offsetof(KeyValuePair, value), 0, KeyValuePair::kTypeUTF8String },
+    offsetof(CSSM_X509_TYPE_VALUE_PAIR, value), 0,
+    BER_TAG_PKIX_UTF8_STRING },
   { SEC_ASN1_BMP_STRING,
-    offsetof(KeyValuePair, value), 0, KeyValuePair::kTypeBMPString },
+    offsetof(CSSM_X509_TYPE_VALUE_PAIR, value), 0,
+    BER_TAG_PKIX_BMP_STRING },
   { SEC_ASN1_UNIVERSAL_STRING,
-    offsetof(KeyValuePair, value), 0, KeyValuePair::kTypeUniversalString },
+    offsetof(CSSM_X509_TYPE_VALUE_PAIR, value), 0,
+    BER_TAG_PKIX_UNIVERSAL_STRING },
   { 0, }
 };
 
 const SecAsn1Template kKeyValuePairTemplate[] = {
-  { SEC_ASN1_SEQUENCE, 0, NULL, sizeof(KeyValuePair) },
-  { SEC_ASN1_OBJECT_ID, offsetof(KeyValuePair, key), },
+  { SEC_ASN1_SEQUENCE, 0, NULL, sizeof(CSSM_X509_TYPE_VALUE_PAIR) },
+  { SEC_ASN1_OBJECT_ID, offsetof(CSSM_X509_TYPE_VALUE_PAIR, type), },
   { SEC_ASN1_INLINE, 0, &kStringValueTemplate, },
   { 0, }
 };
 
 struct KeyValuePairs {
-  KeyValuePair* pairs;
+  CSSM_X509_TYPE_VALUE_PAIR* pairs;
 };
 
 const SecAsn1Template kKeyValuePairSetTemplate[] = {
@@ -233,43 +223,43 @@ bool CertPrincipal::ParseDistinguishedName(const void* ber_name_data,
   DCHECK(arraysize(kOIDs) == arraysize(values));
 
   for (int rdn = 0; name[rdn].pairs_list; ++rdn) {
-    KeyValuePair *pair;
+    CSSM_X509_TYPE_VALUE_PAIR* pair;
     for (int pair_index = 0;
          NULL != (pair = name[rdn].pairs_list[0][pair_index].pairs);
          ++pair_index) {
-      switch (pair->value_type) {
-        case KeyValuePair::kTypeIA5String:          // ASCII (that means 7-bit!)
-        case KeyValuePair::kTypePrintableString:    // a subset of ASCII
-        case KeyValuePair::kTypeUTF8String:         // UTF-8
-          AddTypeValuePair(pair->key, DataToString(pair->value), values);
+      switch (pair->valueType) {
+        case BER_TAG_IA5_STRING:          // ASCII (that means 7-bit!)
+        case BER_TAG_PRINTABLE_STRING:    // a subset of ASCII
+        case BER_TAG_PKIX_UTF8_STRING:    // UTF-8
+          AddTypeValuePair(pair->type, DataToString(pair->value), values);
           break;
-        case KeyValuePair::kTypeT61String:          // T61, pretend it's Latin-1
-          AddTypeValuePair(pair->key,
+        case BER_TAG_T61_STRING:          // T61, pretend it's Latin-1
+          AddTypeValuePair(pair->type,
                            Latin1DataToUTF8String(pair->value),
                            values);
           break;
-        case KeyValuePair::kTypeBMPString: {        // UTF-16, big-endian
+        case BER_TAG_PKIX_BMP_STRING: {        // UTF-16, big-endian
           std::string value;
           UTF16BigEndianToUTF8(reinterpret_cast<char16*>(pair->value.Data),
                                pair->value.Length / sizeof(char16),
                                &value);
-          AddTypeValuePair(pair->key, value, values);
+          AddTypeValuePair(pair->type, value, values);
           break;
         }
-        case KeyValuePair::kTypeUniversalString: {  // UTF-32, big-endian
+        case BER_TAG_PKIX_UNIVERSAL_STRING: {  // UTF-32, big-endian
           std::string value;
           UTF32BigEndianToUTF8(reinterpret_cast<char32*>(pair->value.Data),
                                pair->value.Length / sizeof(char32),
                                &value);
-          AddTypeValuePair(pair->key, value, values);
+          AddTypeValuePair(pair->type, value, values);
           break;
         }
         default:
-          DCHECK_EQ(pair->value_type, KeyValuePair::kTypeOther);
+          DCHECK_EQ(pair->valueType, BER_TAG_UNKNOWN);
           // We don't know what data type this is, but we'll store it as a blob.
           // Displaying the string may not work, but at least it can be compared
           // byte-for-byte by a Matches() call.
-          AddTypeValuePair(pair->key, DataToString(pair->value), values);
+          AddTypeValuePair(pair->type, DataToString(pair->value), values);
           break;
       }
     }
@@ -283,37 +273,6 @@ bool CertPrincipal::ParseDistinguishedName(const void* ber_name_data,
   // Releasing |coder| frees all the memory pointed to via |name|.
   SecAsn1CoderRelease(coder);
   return true;
-}
-
-void CertPrincipal::Parse(const CSSM_X509_NAME* name) {
-  std::vector<std::string> common_names, locality_names, state_names,
-      country_names;
-
-  std::vector<std::string>* values[] = {
-      &common_names, &locality_names,
-      &state_names, &country_names,
-      &(this->street_addresses),
-      &(this->organization_names),
-      &(this->organization_unit_names),
-      &(this->domain_components)
-  };
-  DCHECK(arraysize(kOIDs) == arraysize(values));
-
-  for (size_t rdn = 0; rdn < name->numberOfRDNs; ++rdn) {
-    CSSM_X509_RDN rdn_struct = name->RelativeDistinguishedName[rdn];
-    for (size_t pair = 0; pair < rdn_struct.numberOfPairs; ++pair) {
-      CSSM_X509_TYPE_VALUE_PAIR pair_struct =
-          rdn_struct.AttributeTypeAndValue[pair];
-      AddTypeValuePair(pair_struct.type,
-                       DataToString(pair_struct.value),
-                       values);
-    }
-  }
-
-  SetSingle(common_names, &this->common_name);
-  SetSingle(locality_names, &this->locality_name);
-  SetSingle(state_names, &this->state_or_province_name);
-  SetSingle(country_names, &this->country_name);
 }
 
 bool CertPrincipal::Matches(const CertPrincipal& against) const {
