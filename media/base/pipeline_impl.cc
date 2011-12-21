@@ -69,8 +69,7 @@ PipelineImpl::PipelineImpl(MessageLoop* message_loop, MediaLog* media_log)
       waiting_for_clock_update_(false),
       state_(kCreated),
       current_bytes_(0),
-      creation_time_(base::Time::Now()),
-      is_downloading_data_(false) {
+      creation_time_(base::Time::Now()) {
   media_log_->AddEvent(media_log_->CreatePipelineStateChangedEvent(kCreated));
   ResetState();
   media_log_->AddEvent(
