@@ -42,7 +42,7 @@ class MEDIA_EXPORT VideoFrame : public StreamSample {
     EMPTY,       // An empty frame.
     ASCII,       // A frame with ASCII content. For testing only.
     I420,        // 12bpp YVU planar 1x1 Y, 2x2 UV samples.
-    NATIVE_TEXTURE,  // Opaque native texture.  Pixel-format agnostic.
+    NATIVE_TEXTURE,  // Native texture.  Pixel-format agnostic.
   };
 
   // Creates a new frame in system memory with given parameters. Buffers for
