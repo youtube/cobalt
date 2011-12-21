@@ -136,12 +136,10 @@ TEST_F(TrackedObjectsTest, ParentChildTest) {
   const char* kFile = "FixedUnitTestFileName";
   const char* kFunction = "ParentChildTest";
   Location location(kFunction, kFile, kFakeLineNumber, NULL);
-  Births* first_birth = ThreadData::TallyABirthIfActive(location);
 
   // Now instigate another birth, while we are timing the run of the first
   // execution.
-  TrackedTime start_time =
-      ThreadData::NowForStartOfRun(first_birth);
+
   // Create a child (using the same birth location).
   // TrackingInfo will call TallyABirth() during construction.
   base::TimeTicks kBogusBirthTime;
