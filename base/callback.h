@@ -312,7 +312,7 @@ class Callback<R(A1)> : public internal::CallbackBase {
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
-    return f(bind_state_.get(), internal::CallbackForward(a1));
+    return f(bind_state_.get(), a1);
   }
 
  private:
@@ -353,8 +353,8 @@ class Callback<R(A1, A2)> : public internal::CallbackBase {
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
-    return f(bind_state_.get(), internal::CallbackForward(a1),
-             internal::CallbackForward(a2));
+    return f(bind_state_.get(), a1,
+             a2);
   }
 
  private:
@@ -397,9 +397,9 @@ class Callback<R(A1, A2, A3)> : public internal::CallbackBase {
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
-    return f(bind_state_.get(), internal::CallbackForward(a1),
-             internal::CallbackForward(a2),
-             internal::CallbackForward(a3));
+    return f(bind_state_.get(), a1,
+             a2,
+             a3);
   }
 
  private:
@@ -444,10 +444,10 @@ class Callback<R(A1, A2, A3, A4)> : public internal::CallbackBase {
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
-    return f(bind_state_.get(), internal::CallbackForward(a1),
-             internal::CallbackForward(a2),
-             internal::CallbackForward(a3),
-             internal::CallbackForward(a4));
+    return f(bind_state_.get(), a1,
+             a2,
+             a3,
+             a4);
   }
 
  private:
@@ -495,11 +495,11 @@ class Callback<R(A1, A2, A3, A4, A5)> : public internal::CallbackBase {
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
-    return f(bind_state_.get(), internal::CallbackForward(a1),
-             internal::CallbackForward(a2),
-             internal::CallbackForward(a3),
-             internal::CallbackForward(a4),
-             internal::CallbackForward(a5));
+    return f(bind_state_.get(), a1,
+             a2,
+             a3,
+             a4,
+             a5);
   }
 
  private:
@@ -549,12 +549,12 @@ class Callback<R(A1, A2, A3, A4, A5, A6)> : public internal::CallbackBase {
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
-    return f(bind_state_.get(), internal::CallbackForward(a1),
-             internal::CallbackForward(a2),
-             internal::CallbackForward(a3),
-             internal::CallbackForward(a4),
-             internal::CallbackForward(a5),
-             internal::CallbackForward(a6));
+    return f(bind_state_.get(), a1,
+             a2,
+             a3,
+             a4,
+             a5,
+             a6);
   }
 
  private:
@@ -606,13 +606,13 @@ class Callback<R(A1, A2, A3, A4, A5, A6, A7)> : public internal::CallbackBase {
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
-    return f(bind_state_.get(), internal::CallbackForward(a1),
-             internal::CallbackForward(a2),
-             internal::CallbackForward(a3),
-             internal::CallbackForward(a4),
-             internal::CallbackForward(a5),
-             internal::CallbackForward(a6),
-             internal::CallbackForward(a7));
+    return f(bind_state_.get(), a1,
+             a2,
+             a3,
+             a4,
+             a5,
+             a6,
+             a7);
   }
 
  private:
