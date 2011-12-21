@@ -99,6 +99,9 @@ P224EncryptedKeyExchange::P224EncryptedKeyExchange(
     PeerType peer_type, const base::StringPiece& password)
     : state_(kStateInitial),
       is_server_(peer_type == kPeerTypeServer) {
+  memset(&x_, 0, sizeof(x_));
+  memset(&expected_authenticator_, 0, sizeof(expected_authenticator_));
+
   // x_ is a random scalar.
   base::RandBytes(x_, sizeof(x_));
 
