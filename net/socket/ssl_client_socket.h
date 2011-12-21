@@ -68,7 +68,7 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
   // an agreement about the application level protocol to speak over a
   // connection.
   enum NextProtoStatus {
-    // WARNING: These values are serialized to disk. Don't change them.
+    // WARNING: These values are serialised to disk. Don't change them.
 
     kNextProtoUnsupported = 0,  // The server doesn't support NPN.
     kNextProtoNegotiated = 1,   // We agreed on a protocol.
