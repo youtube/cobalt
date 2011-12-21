@@ -1983,6 +1983,7 @@
           ['asan==1', {
             'cflags': [
               '-faddress-sanitizer',
+              '-fno-omit-frame-pointer',
               '-w',
             ],
             'ldflags': [
