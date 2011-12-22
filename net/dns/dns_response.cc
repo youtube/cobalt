@@ -13,6 +13,12 @@
 
 namespace net {
 
+DnsResourceRecord::DnsResourceRecord() {
+}
+
+DnsResourceRecord::~DnsResourceRecord() {
+}
+
 DnsRecordParser::DnsRecordParser() : packet_(NULL), length_(0), cur_(0) {
 }
 
