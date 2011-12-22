@@ -256,6 +256,11 @@ const char* Statement::GetSQLStatement() {
 }
 
 bool Statement::CheckOk(int err) const {
+  // Binding to a non-existent variable is evidence of a serious error.
+  // TODO(gbillock,shess): make this invalidate the statement so it
+  // can't wreak havoc.
+  if (err == SQLITE_RANGE)
+    DLOG(FATAL) << "Bind value out of range";
   return err == SQLITE_OK;
 }
 
