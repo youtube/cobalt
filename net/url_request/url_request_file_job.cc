@@ -53,8 +53,9 @@ class URLRequestFileJob::AsyncResolver
     bool exists = file_util::GetFileInfo(file_path, &file_info);
     base::AutoLock locked(lock_);
     if (owner_loop_) {
-      owner_loop_->PostTask(FROM_HERE, NewRunnableMethod(
-          this, &AsyncResolver::ReturnResults, exists, file_info));
+      owner_loop_->PostTask(
+          FROM_HERE,
+          base::Bind(&AsyncResolver::ReturnResults, this, exists, file_info));
     }
   }
 
@@ -149,8 +150,10 @@ bool URLRequestFileJob::AccessDisabled(const FilePath& file_path) {
 void URLRequestFileJob::Start() {
   DCHECK(!async_resolver_);
   async_resolver_ = new AsyncResolver(this);
-  base::WorkerPool::PostTask(FROM_HERE, NewRunnableMethod(
-      async_resolver_.get(), &AsyncResolver::Resolve, file_path_), true);
+  base::WorkerPool::PostTask(
+      FROM_HERE,
+      base::Bind(&AsyncResolver::Resolve, async_resolver_.get(), file_path_),
+      true);
 }
 
 void URLRequestFileJob::Kill() {

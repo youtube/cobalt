@@ -8,6 +8,7 @@
 
 #include <string>
 
+#include "base/memory/weak_ptr.h"
 #include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_export.h"
@@ -114,7 +115,7 @@ class NET_EXPORT ViewCacheHelper {
 
   State next_state_;
 
-  scoped_refptr<CancelableOldCompletionCallback<ViewCacheHelper> > entry_callback_;
+  base::WeakPtrFactory<ViewCacheHelper> weak_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(ViewCacheHelper);
 };
