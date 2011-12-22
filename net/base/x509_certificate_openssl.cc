@@ -666,8 +666,10 @@ bool X509Certificate::WriteOSCertHandleToPickle(OSCertHandle cert_handle,
 void X509Certificate::GetPublicKeyInfo(OSCertHandle cert_handle,
                                        size_t* size_bits,
                                        PublicKeyType* type) {
-  EVP_PKEY* key = X509_get_pubkey(cert_handle);
-  CHECK(key);
+  crypto::ScopedOpenSSL<EVP_PKEY, EVP_PKEY_free> scoped_key(
+      X509_get_pubkey(cert_handle));
+  CHECK(scoped_key.get());
+  EVP_PKEY* key = scoped_key.get();
 
   switch (key->type) {
     case EVP_PKEY_RSA:
