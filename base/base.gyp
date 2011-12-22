@@ -244,6 +244,7 @@
         'values_unittest.cc',
         'version_unittest.cc',
         'vlog_unittest.cc',
+        'win/dllmain.cc',
         'win/enum_variant_unittest.cc',
         'win/event_trace_consumer_unittest.cc',
         'win/event_trace_controller_unittest.cc',
