@@ -315,14 +315,14 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
   // to completion.
   void DoneWithEntry(ActiveEntry* entry, Transaction* trans, bool cancel);
 
-  // Called when the transaction has finished writting to this entry. |success|
+  // Called when the transaction has finished writing to this entry. |success|
   // is false if the cache entry should be deleted.
   void DoneWritingToEntry(ActiveEntry* entry, bool success);
 
   // Called when the transaction has finished reading from this entry.
   void DoneReadingFromEntry(ActiveEntry* entry, Transaction* trans);
 
-  // Convers the active writter transaction to a reader so that other
+  // Converts the active writer transaction to a reader so that other
   // transactions can start reading from this entry.
   void ConvertWriterToReader(ActiveEntry* entry);
 
