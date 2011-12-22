@@ -26,9 +26,9 @@ namespace {
 // we clamp message lengths, which are size_t, to no more than INT_MAX.
 const size_t kMaxMessageLength = static_cast<size_t>(INT_MAX);
 
-static const SyncSocket::Handle kInvalidHandle = -1;
-
 }  // namespace
+
+const SyncSocket::Handle SyncSocket::kInvalidHandle = -1;
 
 bool SyncSocket::CreatePair(SyncSocket* pair[2]) {
   Handle handles[2] = { kInvalidHandle, kInvalidHandle };
