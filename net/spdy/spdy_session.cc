@@ -435,8 +435,8 @@ void SpdySession::ProcessPendingCreateStreams() {
                                      *pending_create.stream_net_log);
         scoped_refptr<SpdyStream>* stream = pending_create.spdy_stream;
         DCHECK(!ContainsKey(pending_callback_map_, stream));
-        pending_callback_map_[stream] =
-            CallbackResultPair(pending_create.callback, error);
+        pending_callback_map_.insert(std::make_pair(stream,
+            CallbackResultPair(pending_create.callback, error)));
         MessageLoop::current()->PostTask(
             FROM_HERE,
             base::Bind(&SpdySession::InvokeUserStreamCreationCallback,

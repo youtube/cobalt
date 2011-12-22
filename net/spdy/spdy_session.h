@@ -276,7 +276,6 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   typedef std::priority_queue<SpdyIOBuffer> OutputQueue;
 
   struct CallbackResultPair {
-    CallbackResultPair() : result(OK) {}
     CallbackResultPair(const CompletionCallback& callback_in, int result_in)
         : callback(callback_in), result(result_in) {}
     ~CallbackResultPair();
