@@ -8,6 +8,7 @@
 #include "base/stringprintf.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/platform_thread.h"
+#include "base/threading/thread_restrictions.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
@@ -233,6 +234,19 @@ TEST_F(DiskCacheTest, CreateBackend) {
   }
 
   MessageLoop::current()->RunAllPending();
+}
+
+// Testst that re-creating the cache performs the expected cleanup.
+TEST_F(DiskCacheBackendTest, CreateBackend_MissingFile) {
+  ASSERT_TRUE(CopyTestCache("bad_entry"));
+  FilePath filename = cache_path_.AppendASCII("data_1");
+  file_util::Delete(filename, false);
+  DisableFirstCleanup();
+  SetForceCreation();
+
+  bool prev = base::ThreadRestrictions::SetIOAllowed(false);
+  InitCache();
+  base::ThreadRestrictions::SetIOAllowed(prev);
 }
 
 TEST_F(DiskCacheBackendTest, ExternalFiles) {
