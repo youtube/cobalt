@@ -27,6 +27,7 @@ class BASE_EXPORT SyncSocket {
 #else
   typedef int Handle;
 #endif
+  static const Handle kInvalidHandle;
 
   // Creates a SyncSocket from a Handle.  Used in transport.
   explicit SyncSocket(Handle handle) : handle_(handle) { }

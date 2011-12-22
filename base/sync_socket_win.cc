@@ -28,9 +28,9 @@ const int kOutBufferSize = 4096;
 const int kInBufferSize = 4096;
 const int kDefaultTimeoutMilliSeconds = 1000;
 
-static const SyncSocket::Handle kInvalidHandle = INVALID_HANDLE_VALUE;
-
 }  // namespace
+
+const SyncSocket::Handle SyncSocket::kInvalidHandle = INVALID_HANDLE_VALUE;
 
 bool SyncSocket::CreatePair(SyncSocket* pair[2]) {
   Handle handles[2];
