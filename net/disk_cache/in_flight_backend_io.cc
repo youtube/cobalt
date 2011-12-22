@@ -126,7 +126,7 @@ void BackendIO::FlushQueue() {
   operation_ = OP_FLUSH_QUEUE;
 }
 
-void BackendIO::RunTask(Task* task) {
+void BackendIO::RunTask(const base::Closure& task) {
   operation_ = OP_RUN_TASK;
   task_ = task;
 }
@@ -241,8 +241,7 @@ void BackendIO::ExecuteBackendOperation() {
       result_ = net::OK;
       break;
     case OP_RUN_TASK:
-      task_->Run();
-      delete task_;
+      task_.Run();
       result_ = net::OK;
       break;
     default:
@@ -403,7 +402,7 @@ void InFlightBackendIO::FlushQueue(const net::CompletionCallback& callback) {
 }
 
 void InFlightBackendIO::RunTask(
-    Task* task, const net::CompletionCallback& callback) {
+    const base::Closure& task, const net::CompletionCallback& callback) {
   scoped_refptr<BackendIO> operation(new BackendIO(this, backend_, callback));
   operation->RunTask(task);
   PostOperation(operation);

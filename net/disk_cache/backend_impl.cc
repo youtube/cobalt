@@ -1312,7 +1312,7 @@ int BackendImpl::FlushQueueForTest(const net::CompletionCallback& callback) {
   return net::ERR_IO_PENDING;
 }
 
-int BackendImpl::RunTaskForTest(Task* task,
+int BackendImpl::RunTaskForTest(const base::Closure& task,
                                 const net::CompletionCallback& callback) {
   background_queue_.RunTask(task, callback);
   return net::ERR_IO_PENDING;
