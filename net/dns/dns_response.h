@@ -25,6 +25,9 @@ struct Header;
 
 // Parsed resource record.
 struct NET_EXPORT_PRIVATE DnsResourceRecord {
+  DnsResourceRecord();
+  ~DnsResourceRecord();
+
   std::string name;  // in dotted form
   uint16 type;
   uint16 klass;
