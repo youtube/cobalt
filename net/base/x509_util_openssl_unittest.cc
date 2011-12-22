@@ -15,13 +15,16 @@ namespace net {
 // is present.
 TEST(X509UtilOpenSSLTest, CreateOriginBoundCertNotImplemented) {
   std::string origin = "http://weborigin.com:443";
+  base::Time now = base::Time::Now();
   scoped_ptr<crypto::RSAPrivateKey> private_key(
       crypto::RSAPrivateKey::Create(1024));
   std::string der_cert;
-  EXPECT_FALSE(x509_util::CreateOriginBoundCertRSA(private_key.get(),
-                                                   origin, 1,
-                                                   base::TimeDelta::FromDays(1),
-                                                   &der_cert));
+  EXPECT_FALSE(x509_util::CreateOriginBoundCertRSA(
+      private_key.get(),
+      origin, 1,
+      now,
+      now + base::TimeDelta::FromDays(1),
+      &der_cert));
   EXPECT_TRUE(der_cert.empty());
 
 }
