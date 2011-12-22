@@ -6,6 +6,7 @@
 
 #include "base/basictypes.h"
 #include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/perftimer.h"
 #include "base/string_util.h"
 #include "base/threading/thread.h"
@@ -66,7 +67,7 @@ bool TimeWrite(int num_entries, disk_cache::Backend* cache,
       break;
     int ret = cache_entry->WriteData(
         0, 0, buffer1, kSize1,
-        base::Bind(&net::OldCompletionCallbackAdapter, &callback), false);
+        base::Bind(&CallbackTest::Run, base::Unretained(&callback)), false);
     if (net::ERR_IO_PENDING == ret)
       expected++;
     else if (kSize1 != ret)
@@ -74,7 +75,7 @@ bool TimeWrite(int num_entries, disk_cache::Backend* cache,
 
     ret = cache_entry->WriteData(
         1, 0, buffer2, entry.data_len,
-        base::Bind(&net::OldCompletionCallbackAdapter, &callback), false);
+        base::Bind(&CallbackTest::Run, base::Unretained(&callback)), false);
     if (net::ERR_IO_PENDING == ret)
       expected++;
     else if (entry.data_len != ret)
@@ -115,7 +116,7 @@ bool TimeRead(int num_entries, disk_cache::Backend* cache,
       break;
     int ret = cache_entry->ReadData(
         0, 0, buffer1, kSize1,
-        base::Bind(&net::OldCompletionCallbackAdapter, &callback));
+        base::Bind(&CallbackTest::Run, base::Unretained(&callback)));
     if (net::ERR_IO_PENDING == ret)
       expected++;
     else if (kSize1 != ret)
@@ -123,7 +124,7 @@ bool TimeRead(int num_entries, disk_cache::Backend* cache,
 
     ret = cache_entry->ReadData(
         1, 0, buffer2, entries[i].data_len,
-        base::Bind(&net::OldCompletionCallbackAdapter, &callback));
+        base::Bind(&CallbackTest::Run, base::Unretained(&callback)));
     if (net::ERR_IO_PENDING == ret)
       expected++;
     else if (entries[i].data_len != ret)

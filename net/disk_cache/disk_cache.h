@@ -33,7 +33,6 @@ namespace disk_cache {
 
 class Entry;
 class Backend;
-typedef net::OldCompletionCallback OldCompletionCallback;
 
 // Returns an instance of a Backend of the given |type|. |path| points to a
 // folder where the cached data will be stored (if appropriate). This cache
