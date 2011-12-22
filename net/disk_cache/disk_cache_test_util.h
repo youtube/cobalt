@@ -103,16 +103,16 @@ class MessageLoopHelper {
 
 // Simple callback to process IO completions from the cache. It allows tests
 // with multiple simultaneous IO operations.
-class CallbackTest : public CallbackRunner< Tuple1<int> > {
+class CallbackTest {
  public:
   // Creates a new CallbackTest object. When the callback is called, it will
   // update |helper| with the result of the call. If |reuse| is false and a
   // callback is called more than once, or if |reuse| is true and a callback
   // is called more than twice, an error will be reported to |helper|.
   CallbackTest(MessageLoopHelper* helper, bool reuse);
-  virtual ~CallbackTest();
+  ~CallbackTest();
 
-  virtual void RunWithParams(const Tuple1<int>& params) OVERRIDE;
+  void Run(int params);
 
  private:
   MessageLoopHelper* helper_;

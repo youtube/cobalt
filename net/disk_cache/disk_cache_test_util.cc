@@ -164,7 +164,7 @@ CallbackTest::~CallbackTest() {
 
 // On the actual callback, increase the number of tests received and check for
 // errors (an unexpected test received)
-void CallbackTest::RunWithParams(const Tuple1<int>& params) {
+void CallbackTest::Run(int params) {
   if (reuse_) {
     DCHECK_EQ(1, reuse_);
     if (2 == reuse_)
