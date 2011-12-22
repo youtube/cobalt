@@ -112,7 +112,7 @@ class DiskCacheTestWithCache : public DiskCacheTest {
   int DoomEntriesSince(const base::Time initial_time);
   int OpenNextEntry(void** iter, disk_cache::Entry** next_entry);
   void FlushQueueForTest();
-  void RunTaskForTest(Task* task);
+  void RunTaskForTest(const base::Closure& closure);
   int ReadData(disk_cache::Entry* entry, int index, int offset,
                net::IOBuffer* buf, int len);
   int WriteData(disk_cache::Entry* entry, int index, int offset,
