@@ -174,8 +174,6 @@
         'base/models/button_menu_item_model.cc',
         'base/models/button_menu_item_model.h',
         'base/models/combobox_model.h',
-        'base/models/list_model.h',
-        'base/models/list_model_observer.h',
         'base/models/menu_model.cc',
         'base/models/menu_model.h',
         'base/models/menu_model_delegate.h',
