@@ -1,12 +1,12 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 // Illustrates how to use worker threads that issue completion callbacks
 
+#include "base/bind.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
-#include "base/task.h"
 #include "base/threading/worker_pool.h"
 #include "net/base/completion_callback.h"
 #include "net/base/test_completion_callback.h"
@@ -66,20 +66,15 @@ void ExampleEmployer::ExampleWorker::DoWork() {
   // Running on the worker thread
   // In a real worker thread, some work would be done here.
   // Pretend it is, and send the completion callback.
-  Task* reply = NewRunnableMethod(this, &ExampleWorker::DoCallback);
 
   // The origin loop could go away while we are trying to post to it, so we
   // need to call its PostTask method inside a lock.  See ~ExampleEmployer.
   {
     base::AutoLock locked(origin_loop_lock_);
-    if (origin_loop_) {
-      origin_loop_->PostTask(FROM_HERE, reply);
-      reply = NULL;
-    }
+    if (origin_loop_)
+      origin_loop_->PostTask(FROM_HERE,
+                             base::Bind(&ExampleWorker::DoCallback, this));
   }
-
-  // Does nothing if it got posted.
-  delete reply;
 }
 
 void ExampleEmployer::ExampleWorker::DoCallback() {
@@ -105,8 +100,10 @@ bool ExampleEmployer::DoSomething(OldCompletionCallback* callback) {
   request_ = new ExampleWorker(this, callback);
 
   // Dispatch to worker thread...
-  if (!base::WorkerPool::PostTask(FROM_HERE,
-          NewRunnableMethod(request_.get(), &ExampleWorker::DoWork), true)) {
+  if (!base::WorkerPool::PostTask(
+          FROM_HERE,
+          base::Bind(&ExampleWorker::DoWork, request_.get()),
+          true)) {
     NOTREACHED();
     request_ = NULL;
     return false;
