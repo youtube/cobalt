@@ -48,17 +48,12 @@ ViewCacheHelper::ViewCacheHelper()
       index_(0),
       data_(NULL),
       next_state_(STATE_NONE),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          entry_callback_(new CancelableOldCompletionCallback<ViewCacheHelper>(
-              this, &ViewCacheHelper::OnIOComplete))) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
 }
 
 ViewCacheHelper::~ViewCacheHelper() {
   if (entry_)
     entry_->Close();
-
-  // Cancel any pending entry callback.
-  entry_callback_->Cancel();
 }
 
 int ViewCacheHelper::GetEntryInfoHTML(const std::string& key,
@@ -286,18 +281,16 @@ int ViewCacheHelper::DoOpenEntryComplete(int result) {
 int ViewCacheHelper::DoReadResponse() {
   next_state_ = STATE_READ_RESPONSE_COMPLETE;
   buf_len_ = entry_->GetDataSize(0);
-  entry_callback_->AddRef();
   if (!buf_len_)
     return buf_len_;
 
   buf_ = new IOBuffer(buf_len_);
   return entry_->ReadData(
       0, 0, buf_, buf_len_,
-      base::Bind(&net::OldCompletionCallbackAdapter, entry_callback_));
+      base::Bind(&ViewCacheHelper::OnIOComplete, weak_factory_.GetWeakPtr()));
 }
 
 int ViewCacheHelper::DoReadResponseComplete(int result) {
-  entry_callback_->Release();
   if (result && result == buf_len_) {
     HttpResponseInfo response;
     bool truncated;
@@ -333,18 +326,16 @@ int ViewCacheHelper::DoReadData() {
 
   next_state_ = STATE_READ_DATA_COMPLETE;
   buf_len_ = entry_->GetDataSize(index_);
-  entry_callback_->AddRef();
   if (!buf_len_)
     return buf_len_;
 
   buf_ = new IOBuffer(buf_len_);
   return entry_->ReadData(
       index_, 0, buf_, buf_len_,
-      base::Bind(&net::OldCompletionCallbackAdapter, entry_callback_));
+      base::Bind(&ViewCacheHelper::OnIOComplete, weak_factory_.GetWeakPtr()));
 }
 
 int ViewCacheHelper::DoReadDataComplete(int result) {
-  entry_callback_->Release();
   if (result && result == buf_len_) {
     HexDump(buf_->data(), buf_len_, data_);
   }
