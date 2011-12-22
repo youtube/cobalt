@@ -491,6 +491,7 @@
                 '../chrome/chrome.gyp:chromedriver',
                 '../chrome/chrome.gyp:crash_service',
                 '../chrome/chrome.gyp:crash_service_win64',
+                '../chrome/chrome.gyp:performance_ui_tests',
                 '../chrome/chrome.gyp:policy_templates',
                 '../chrome/chrome.gyp:pyautolib',
                 '../chrome/chrome.gyp:reliability_tests',
