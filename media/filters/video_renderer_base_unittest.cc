@@ -40,34 +40,17 @@ ACTION(OnStop) {
   arg0.Run();
 }
 
-// Mocked subclass of VideoRendererBase for testing purposes.
-class MockVideoRendererBase : public VideoRendererBase {
- public:
-  MockVideoRendererBase() {}
-  virtual ~MockVideoRendererBase() {}
-
-  // VideoRendererBase implementation.
-  MOCK_METHOD1(OnInitialize, bool(VideoDecoder* decoder));
-  MOCK_METHOD1(OnStop, void(const base::Closure& callback));
-  MOCK_METHOD0(OnFrameAvailable, void());
-
-  // Used for verifying check points during tests.
-  MOCK_METHOD1(CheckPoint, void(int id));
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(MockVideoRendererBase);
-};
-
 class VideoRendererBaseTest : public ::testing::Test {
  public:
   VideoRendererBaseTest()
-      : renderer_(new MockVideoRendererBase()),
-        decoder_(new MockVideoDecoder()),
+      : decoder_(new MockVideoDecoder()),
         cv_(&lock_),
         event_(false, false),
         timeout_(base::TimeDelta::FromMilliseconds(
             TestTimeouts::action_timeout_ms())),
         seeking_(false) {
+    renderer_ = new VideoRendererBase(base::Bind(
+        &VideoRendererBaseTest::PaintCBWasCalled, base::Unretained(this)));
     renderer_->set_host(&host_);
 
     EXPECT_CALL(*decoder_, natural_size())
@@ -84,6 +67,8 @@ class VideoRendererBaseTest : public ::testing::Test {
       Stop();
     }
   }
+
+  MOCK_METHOD0(PaintCBWasCalled, void());
 
   void Initialize() {
     // TODO(scherkus): really, really, really need to inject a thread into
@@ -104,10 +89,6 @@ class VideoRendererBaseTest : public ::testing::Test {
 
     // We expect the video size to be set.
     EXPECT_CALL(host_, SetNaturalVideoSize(kNaturalSize));
-
-    // Then our subclass will be asked to initialize.
-    EXPECT_CALL(*renderer_, OnInitialize(_))
-        .WillOnce(Return(true));
 
     // Set playback rate before anything else happens.
     renderer_->SetPlaybackRate(1.0f);
@@ -160,12 +141,6 @@ class VideoRendererBaseTest : public ::testing::Test {
 
   void Stop() {
     SCOPED_TRACE("Stop()");
-
-    // Expect a call into the subclass.
-    EXPECT_CALL(*renderer_, OnStop(_))
-        .WillOnce(DoAll(OnStop(), Return()))
-        .RetiresOnSaturation();
-
     renderer_->Stop(NewWaitableClosure());
     WaitForClosure();
   }
@@ -265,7 +240,7 @@ class VideoRendererBaseTest : public ::testing::Test {
   }
 
   // Fixture members.
-  scoped_refptr<MockVideoRendererBase> renderer_;
+  scoped_refptr<VideoRendererBase> renderer_;
   scoped_refptr<MockVideoDecoder> decoder_;
   StrictMock<MockFilterHost> host_;
   MockStatisticsCallback stats_callback_object_;
@@ -297,7 +272,7 @@ class VideoRendererBaseTest : public ::testing::Test {
   }
 
   void FinishSeeking(int64 timestamp) {
-    EXPECT_CALL(*renderer_, OnFrameAvailable());
+    EXPECT_CALL(*this, PaintCBWasCalled());
     EXPECT_TRUE(seeking_);
 
     // Satisfy the read requests.  The callback must be executed in order
@@ -342,28 +317,7 @@ class VideoRendererBaseTest : public ::testing::Test {
   DISALLOW_COPY_AND_ASSIGN(VideoRendererBaseTest);
 };
 
-// Test initialization where the subclass failed for some reason.
-TEST_F(VideoRendererBaseTest, Initialize_Failed) {
-  InSequence s;
-
-  // We expect the video size to be set.
-  EXPECT_CALL(host_, SetNaturalVideoSize(kNaturalSize));
-
-  // Our subclass will fail when asked to initialize.
-  EXPECT_CALL(*renderer_, OnInitialize(_))
-      .WillOnce(Return(false));
-
-  // We expect to receive an error.
-  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_INITIALIZATION_FAILED));
-
-  // Initialize, we expect to have no reads.
-  renderer_->Initialize(decoder_,
-                        NewExpectedClosure(), NewStatisticsCallback());
-  EXPECT_EQ(0u, read_queue_.size());
-}
-
-// Test successful initialization and preroll.
-TEST_F(VideoRendererBaseTest, Initialize_Successful) {
+TEST_F(VideoRendererBaseTest, Initialize) {
   Initialize();
   ExpectCurrentTimestamp(0);
   Shutdown();
@@ -383,7 +337,7 @@ TEST_F(VideoRendererBaseTest, EndOfStream) {
   // frames as we go along.
   //
   // Put the gmock expectation here to avoid racing with the rendering thread.
-  EXPECT_CALL(*renderer_, OnFrameAvailable())
+  EXPECT_CALL(*this, PaintCBWasCalled())
       .Times(limits::kMaxVideoFrames - 1);
   for (int i = 1; i < limits::kMaxVideoFrames; ++i) {
     RenderFrame(kFrameDuration * i);

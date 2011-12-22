@@ -210,8 +210,6 @@
         'filters/in_memory_url_protocol.h',
         'filters/null_audio_renderer.cc',
         'filters/null_audio_renderer.h',
-        'filters/null_video_renderer.cc',
-        'filters/null_video_renderer.h',
         'filters/reference_audio_renderer.cc',
         'filters/reference_audio_renderer.h',
         'filters/video_renderer_base.cc',
@@ -735,8 +733,6 @@
             'tools/player_wtl/seek.h',
             'tools/player_wtl/resource.h',
             'tools/player_wtl/view.h',
-            'tools/player_wtl/wtl_renderer.cc',
-            'tools/player_wtl/wtl_renderer.h',
           ],
           'msvs_settings': {
             'VCLinkerTool': {

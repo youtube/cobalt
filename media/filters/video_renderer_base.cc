@@ -13,7 +13,7 @@
 
 namespace media {
 
-VideoRendererBase::VideoRendererBase()
+VideoRendererBase::VideoRendererBase(const base::Closure& paint_cb)
     : frame_available_(&lock_),
       state_(kUninitialized),
       thread_(base::kNullThreadHandle),
@@ -22,7 +22,9 @@ VideoRendererBase::VideoRendererBase()
       pending_paint_with_last_available_(false),
       playback_rate_(0),
       read_cb_(base::Bind(&VideoRendererBase::FrameReady,
-                          base::Unretained(this))) {
+                          base::Unretained(this))),
+      paint_cb_(paint_cb) {
+  DCHECK(!paint_cb_.is_null());
 }
 
 VideoRendererBase::~VideoRendererBase() {
@@ -74,8 +76,7 @@ void VideoRendererBase::Stop(const base::Closure& callback) {
   if (thread_to_join != base::kNullThreadHandle)
     base::PlatformThread::Join(thread_to_join);
 
-  // Signal the subclass we're stopping.
-  OnStop(callback);
+  callback.Run();
 }
 
 void VideoRendererBase::SetPlaybackRate(float playback_rate) {
@@ -109,16 +110,6 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
 
   // Notify the pipeline of the video dimensions.
   host()->SetNaturalVideoSize(decoder_->natural_size());
-
-  // Initialize the subclass.
-  // TODO(scherkus): do we trust subclasses not to do something silly while
-  // we're holding the lock?
-  if (!OnInitialize(decoder)) {
-    state_ = kError;
-    host()->SetError(PIPELINE_ERROR_INITIALIZATION_FAILED);
-    callback.Run();
-    return;
-  }
 
   // We're all good!  Consider ourselves flushed. (ThreadMain() should never
   // see us in the kUninitialized state).
@@ -278,7 +269,7 @@ void VideoRendererBase::ThreadMain() {
     AttemptRead_Locked();
 
     base::AutoUnlock auto_unlock(lock_);
-    OnFrameAvailable();
+    paint_cb_.Run();
   }
 }
 
@@ -408,7 +399,7 @@ void VideoRendererBase::FrameReady(scoped_refptr<VideoFrame> frame) {
     ResetAndRunCB(&seek_cb_, PIPELINE_OK);
 
     base::AutoUnlock ul(lock_);
-    OnFrameAvailable();
+    paint_cb_.Run();
   }
 }
 
