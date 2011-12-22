@@ -58,7 +58,7 @@ class SQL_EXPORT Statement {
   // Returns true if the statement can be executed. All functions can still
   // be used if the statement is invalid, but they will return failure or some
   // default value. This is because the statement can become invalid in the
-  // middle of executing a command if there is a serioud error and the database
+  // middle of executing a command if there is a serious error and the database
   // has to be reset.
   bool is_valid() const { return ref_->is_valid(); }
 
