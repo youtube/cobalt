@@ -43,7 +43,8 @@ void ComputeHMACSHA256(const unsigned char* key, size_t key_len,
     memset(key0 + SHA256_LENGTH, 0, SHA256_BLOCK_SIZE - SHA256_LENGTH);
   } else {
     memcpy(key0, key, key_len);
-    memset(key0 + key_len, 0, SHA256_BLOCK_SIZE - key_len);
+    if (key_len < SHA256_BLOCK_SIZE)
+      memset(key0 + key_len, 0, SHA256_BLOCK_SIZE - key_len);
   }
 
   unsigned char padded_key[SHA256_BLOCK_SIZE];
