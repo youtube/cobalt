@@ -242,7 +242,8 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
 
   // Runs the provided task on the cache thread. The task will be automatically
   // deleted after it runs.
-  int RunTaskForTest(Task* task, const net::CompletionCallback& callback);
+  int RunTaskForTest(const base::Closure& task,
+                     const net::CompletionCallback& callback);
 
   // Trims an entry (all if |empty| is true) from the list of deleted
   // entries. This method should be called directly on the cache thread.
