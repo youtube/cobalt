@@ -159,15 +159,14 @@ void DiskCacheTestWithCache::FlushQueueForTest() {
   EXPECT_EQ(net::OK, cb.GetResult(rv));
 }
 
-void DiskCacheTestWithCache::RunTaskForTest(Task* task) {
+void DiskCacheTestWithCache::RunTaskForTest(const base::Closure& closure) {
   if (memory_only_ || !cache_impl_) {
-    task->Run();
-    delete task;
+    closure.Run();
     return;
   }
 
   net::TestCompletionCallback cb;
-  int rv = cache_impl_->RunTaskForTest(task, cb.callback());
+  int rv = cache_impl_->RunTaskForTest(closure, cb.callback());
   EXPECT_EQ(net::OK, cb.GetResult(rv));
 }
 
@@ -202,33 +201,16 @@ int DiskCacheTestWithCache::WriteSparseData(disk_cache::Entry* entry,
   return cb.GetResult(rv);
 }
 
-// Simple task to run part of a test from the cache thread.
-class TrimTask : public Task {
- public:
-  TrimTask(disk_cache::BackendImpl* backend, bool deleted, bool empty)
-      : backend_(backend),
-        deleted_(deleted),
-        empty_(empty) {}
-
-  virtual void Run() {
-    if (deleted_)
-      backend_->TrimDeletedListForTest(empty_);
-    else
-      backend_->TrimForTest(empty_);
-  }
-
- protected:
-  disk_cache::BackendImpl* backend_;
-  bool deleted_;
-  bool empty_;
-};
-
 void DiskCacheTestWithCache::TrimForTest(bool empty) {
-  RunTaskForTest(new TrimTask(cache_impl_, false, empty));
+  RunTaskForTest(base::Bind(&disk_cache::BackendImpl::TrimForTest,
+                            base::Unretained(cache_impl_),
+                            empty));
 }
 
 void DiskCacheTestWithCache::TrimDeletedListForTest(bool empty) {
-  RunTaskForTest(new TrimTask(cache_impl_, true, empty));
+  RunTaskForTest(base::Bind(&disk_cache::BackendImpl::TrimDeletedListForTest,
+                            base::Unretained(cache_impl_),
+                            empty));
 }
 
 void DiskCacheTestWithCache::TearDown() {
