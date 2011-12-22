@@ -103,9 +103,8 @@ class MEDIA_EXPORT VideoRendererBase
   // the next frame timestamp (may be NULL), and the provided playback rate.
   //
   // We don't use |playback_rate_| to avoid locking.
-  base::TimeDelta CalculateSleepDuration(
-      const scoped_refptr<VideoFrame>& next_frame,
-      float playback_rate);
+  base::TimeDelta CalculateSleepDuration(VideoFrame* next_frame,
+                                         float playback_rate);
 
   // Safely handles entering to an error state.
   void EnterErrorState_Locked(PipelineStatus status);
@@ -121,7 +120,7 @@ class MEDIA_EXPORT VideoRendererBase
   // Queue of incoming frames as well as the current frame since the last time
   // OnFrameAvailable() was called.
   typedef std::deque<scoped_refptr<VideoFrame> > VideoFrameQueue;
-  VideoFrameQueue ready_frames_;
+  VideoFrameQueue frames_queue_ready_;
 
   // The current frame available to subclasses for rendering via
   // GetCurrentFrame().  |current_frame_| can only be altered when
@@ -180,6 +179,9 @@ class MEDIA_EXPORT VideoRendererBase
 
   // Video thread handle.
   base::PlatformThreadHandle thread_;
+
+  // Previous time returned from the pipeline.
+  base::TimeDelta previous_time_;
 
   // Keep track of various pending operations:
   //   - |pending_read_| is true when there's an active video decoding request.
