@@ -53,27 +53,6 @@ class DiskCacheEntryTest : public DiskCacheTestWithCache {
   void PartialSparseEntry();
 };
 
-// Simple task to run part of a test from the cache thread.
-class SyncIOTask : public Task {
- public:
-  SyncIOTask(DiskCacheEntryTest* test, disk_cache::Entry* entry)
-      : test_(test), entry_(entry) {}
-
- protected:
-  DiskCacheEntryTest* test_;
-  disk_cache::Entry* entry_;
-};
-
-class InternalSyncIOTask : public SyncIOTask {
- public:
-  InternalSyncIOTask(DiskCacheEntryTest* test, disk_cache::Entry* entry)
-      : SyncIOTask(test, entry) {}
-
-  virtual void Run() {
-    test_->InternalSyncIOBackground(entry_);
-  }
-};
-
 // This part of the test runs on the background thread.
 void DiskCacheEntryTest::InternalSyncIOBackground(disk_cache::Entry* entry) {
   const int kSize1 = 10;
@@ -134,8 +113,11 @@ void DiskCacheEntryTest::InternalSyncIO() {
   ASSERT_EQ(net::OK, CreateEntry("the first key", &entry));
   ASSERT_TRUE(NULL != entry);
 
-  // The bulk of the test runs from within the task, on the cache thread.
-  RunTaskForTest(new InternalSyncIOTask(this, entry));
+  // The bulk of the test runs from within the callback, on the cache thread.
+  RunTaskForTest(base::Bind(&DiskCacheEntryTest::InternalSyncIOBackground,
+                            base::Unretained(this),
+                            entry));
+
 
   entry->Doom();
   entry->Close();
@@ -317,16 +299,6 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyInternalAsyncIO) {
   InternalAsyncIO();
 }
 
-class ExternalSyncIOTask : public SyncIOTask {
- public:
-  ExternalSyncIOTask(DiskCacheEntryTest* test, disk_cache::Entry* entry)
-      : SyncIOTask(test, entry) {}
-
-  virtual void Run() {
-    test_->ExternalSyncIOBackground(entry_);
-  }
-};
-
 // This part of the test runs on the background thread.
 void DiskCacheEntryTest::ExternalSyncIOBackground(disk_cache::Entry* entry) {
   const int kSize1 = 17000;
@@ -375,8 +347,10 @@ void DiskCacheEntryTest::ExternalSyncIO() {
   disk_cache::Entry* entry;
   ASSERT_EQ(net::OK, CreateEntry("the first key", &entry));
 
-  // The bulk of the test runs from within the task, on the cache thread.
-  RunTaskForTest(new ExternalSyncIOTask(this, entry));
+  // The bulk of the test runs from within the callback, on the cache thread.
+  RunTaskForTest(base::Bind(&DiskCacheEntryTest::ExternalSyncIOBackground,
+                            base::Unretained(this),
+                            entry));
 
   entry->Doom();
   entry->Close();
