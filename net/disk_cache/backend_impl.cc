@@ -560,6 +560,7 @@ void BackendImpl::CleanupCache() {
     }
   }
   block_files_.CloseFiles();
+  index_ = NULL;
   ptr_factory_.InvalidateWeakPtrs();
   done_.Signal();
 }
