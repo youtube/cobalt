@@ -107,9 +107,7 @@ bool Process::SetProcessBackgrounded(bool background) {
 }
 
 struct CheckForNicePermission {
-  bool can_reraise_priority;
-
-  CheckForNicePermission() {
+  CheckForNicePermission() : can_reraise_priority(false) {
     // We won't be able to raise the priority if we don't have the right rlimit.
     // The limit may be adjusted in /etc/security/limits.conf for PAM systems.
     struct rlimit rlim;
@@ -118,6 +116,8 @@ struct CheckForNicePermission {
         can_reraise_priority = true;
     }
   };
+
+  bool can_reraise_priority;
 };
 
 // static
