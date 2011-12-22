@@ -11,14 +11,52 @@
 
 namespace base {
 
-TEST(StringPieceTest, CheckComparisonOperators) {
-#define CMP_Y(op, x, y)                                               \
-  ASSERT_TRUE( (StringPiece((x)) op StringPiece((y))));               \
-  ASSERT_TRUE( (StringPiece((x)).compare(StringPiece((y))) op 0))
+template <typename T>
+class CommonStringPieceTest : public ::testing::Test {
+ public:
+  static const T as_string(const char* input) {
+    return T(input);
+  }
+  static const T& as_string(const T& input) {
+    return input;
+  }
+};
 
-#define CMP_N(op, x, y)                                          \
-  ASSERT_FALSE(StringPiece((x)) op StringPiece((y)));               \
-  ASSERT_FALSE(StringPiece((x)).compare(StringPiece((y))) op 0)
+template <>
+class CommonStringPieceTest<string16> : public ::testing::Test {
+ public:
+  static const string16 as_string(const char* input) {
+    return ASCIIToUTF16(input);
+  }
+  static const string16 as_string(const std::string& input) {
+    return ASCIIToUTF16(input);
+  }
+};
+
+typedef ::testing::Types<std::string, string16> SupportedStringTypes;
+
+TYPED_TEST_CASE(CommonStringPieceTest, SupportedStringTypes);
+
+TYPED_TEST(CommonStringPieceTest, CheckComparisonOperators) {
+#define CMP_Y(op, x, y)                                                    \
+  {                                                                        \
+    TypeParam lhs(TestFixture::as_string(x));                              \
+    TypeParam rhs(TestFixture::as_string(y));                              \
+    ASSERT_TRUE( (BasicStringPiece<TypeParam>((lhs.c_str())) op            \
+                  BasicStringPiece<TypeParam>((rhs.c_str()))));            \
+    ASSERT_TRUE( (BasicStringPiece<TypeParam>((lhs.c_str())).compare(      \
+                      BasicStringPiece<TypeParam>((rhs.c_str()))) op 0));  \
+  }
+
+#define CMP_N(op, x, y)                                                    \
+  {                                                                        \
+    TypeParam lhs(TestFixture::as_string(x));                              \
+    TypeParam rhs(TestFixture::as_string(y));                              \
+    ASSERT_FALSE( (BasicStringPiece<TypeParam>((lhs.c_str())) op           \
+                  BasicStringPiece<TypeParam>((rhs.c_str()))));            \
+    ASSERT_FALSE( (BasicStringPiece<TypeParam>((lhs.c_str())).compare(     \
+                      BasicStringPiece<TypeParam>((rhs.c_str()))) op 0));  \
+  }
 
   CMP_Y(==, "",   "");
   CMP_Y(==, "a",  "a");
@@ -94,34 +132,40 @@ TEST(StringPieceTest, CheckComparisonOperators) {
 #undef CMP_N
 }
 
-TEST(StringPieceTest, CheckSTL) {
-  StringPiece a("abcdefghijklmnopqrstuvwxyz");
-  StringPiece b("abc");
-  StringPiece c("xyz");
-  StringPiece d("foobar");
-  StringPiece e;
-  std::string temp("123");
-  temp += '\0';
-  temp += "456";
-  StringPiece f(temp);
+TYPED_TEST(CommonStringPieceTest, CheckSTL) {
+  TypeParam alphabet(TestFixture::as_string("abcdefghijklmnopqrstuvwxyz"));
+  TypeParam abc(TestFixture::as_string("abc"));
+  TypeParam xyz(TestFixture::as_string("xyz"));
+  TypeParam foobar(TestFixture::as_string("foobar"));
 
-  ASSERT_EQ(a[6], 'g');
-  ASSERT_EQ(b[0], 'a');
-  ASSERT_EQ(c[2], 'z');
-  ASSERT_EQ(f[3], '\0');
-  ASSERT_EQ(f[5], '5');
+  BasicStringPiece<TypeParam> a(alphabet);
+  BasicStringPiece<TypeParam> b(abc);
+  BasicStringPiece<TypeParam> c(xyz);
+  BasicStringPiece<TypeParam> d(foobar);
+  BasicStringPiece<TypeParam> e;
+  TypeParam temp(TestFixture::as_string("123"));
+  temp += static_cast<typename TypeParam::value_type>(0);
+  temp += TestFixture::as_string("456");
+  BasicStringPiece<TypeParam> f(temp);
 
-  ASSERT_EQ(*d.data(), 'f');
-  ASSERT_EQ(d.data()[5], 'r');
+  ASSERT_EQ(a[6], static_cast<typename TypeParam::value_type>('g'));
+  ASSERT_EQ(b[0], static_cast<typename TypeParam::value_type>('a'));
+  ASSERT_EQ(c[2], static_cast<typename TypeParam::value_type>('z'));
+  ASSERT_EQ(f[3], static_cast<typename TypeParam::value_type>('\0'));
+  ASSERT_EQ(f[5], static_cast<typename TypeParam::value_type>('5'));
+
+  ASSERT_EQ(*d.data(), static_cast<typename TypeParam::value_type>('f'));
+  ASSERT_EQ(d.data()[5], static_cast<typename TypeParam::value_type>('r'));
   ASSERT_TRUE(e.data() == NULL);
 
-  ASSERT_EQ(*a.begin(), 'a');
-  ASSERT_EQ(*(b.begin() + 2), 'c');
-  ASSERT_EQ(*(c.end() - 1), 'z');
+  ASSERT_EQ(*a.begin(), static_cast<typename TypeParam::value_type>('a'));
+  ASSERT_EQ(*(b.begin() + 2), static_cast<typename TypeParam::value_type>('c'));
+  ASSERT_EQ(*(c.end() - 1), static_cast<typename TypeParam::value_type>('z'));
 
-  ASSERT_EQ(*a.rbegin(), 'z');
-  ASSERT_EQ(*(b.rbegin() + 2), 'a');
-  ASSERT_EQ(*(c.rend() - 1), 'x');
+  ASSERT_EQ(*a.rbegin(), static_cast<typename TypeParam::value_type>('z'));
+  ASSERT_EQ(*(b.rbegin() + 2),
+            static_cast<typename TypeParam::value_type>('a'));
+  ASSERT_EQ(*(c.rend() - 1), static_cast<typename TypeParam::value_type>('x'));
   ASSERT_TRUE(a.rbegin() + 26 == a.rend());
 
   ASSERT_EQ(a.size(), 26U);
@@ -146,6 +190,20 @@ TEST(StringPieceTest, CheckSTL) {
 
   ASSERT_GE(a.max_size(), a.capacity());
   ASSERT_GE(a.capacity(), a.size());
+}
+
+// STL stuff only supported by the std::string version
+TEST(StringPieceTest, CheckSTL) {
+  StringPiece a("abcdefghijklmnopqrstuvwxyz");
+  StringPiece b("abc");
+  StringPiece c("xyz");
+  StringPiece d("foobar");
+  d.clear();
+  StringPiece e;
+  std::string temp("123");
+  temp += '\0';
+  temp += "456";
+  StringPiece f(temp);
 
   char buf[4] = { '%', '%', '%', '%' };
   ASSERT_EQ(a.copy(buf, 4), 4U);
@@ -259,6 +317,9 @@ TEST(StringPieceTest, CheckSTL) {
   ASSERT_EQ(d.rfind('o', 4), StringPiece::npos);
   ASSERT_EQ(e.rfind('o', 7), StringPiece::npos);
 
+  ASSERT_EQ(
+      StringPiece("one,two:three;four").find_first_of(StringPiece(",:"), 1),
+      3U);
   ASSERT_EQ(a.find_first_of(b), 0U);
   ASSERT_EQ(a.find_first_of(b, 0), 0U);
   ASSERT_EQ(a.find_first_of(b, 1), 1U);
@@ -400,6 +461,53 @@ TEST(StringPieceTest, CheckSTL) {
   ASSERT_EQ(d.substr(99, 99), e);
 }
 
+TYPED_TEST(CommonStringPieceTest, CheckCustom) {
+  TypeParam foobar(TestFixture::as_string("foobar"));
+  BasicStringPiece<TypeParam> a(foobar);
+  TypeParam s1(TestFixture::as_string("123"));
+  s1 += static_cast<typename TypeParam::value_type>('\0');
+  s1 += TestFixture::as_string("456");
+  BasicStringPiece<TypeParam> b(s1);
+  BasicStringPiece<TypeParam> e;
+  TypeParam s2;
+
+  // remove_prefix
+  BasicStringPiece<TypeParam> c(a);
+  c.remove_prefix(3);
+  ASSERT_EQ(c, TestFixture::as_string("bar"));
+  c = a;
+  c.remove_prefix(0);
+  ASSERT_EQ(c, a);
+  c.remove_prefix(c.size());
+  ASSERT_EQ(c, e);
+
+  // remove_suffix
+  c = a;
+  c.remove_suffix(3);
+  ASSERT_EQ(c, TestFixture::as_string("foo"));
+  c = a;
+  c.remove_suffix(0);
+  ASSERT_EQ(c, a);
+  c.remove_suffix(c.size());
+  ASSERT_EQ(c, e);
+
+  // set
+  c.set(foobar.c_str());
+  ASSERT_EQ(c, a);
+  c.set(foobar.c_str(), 6);
+  ASSERT_EQ(c, a);
+  c.set(foobar.c_str(), 0);
+  ASSERT_EQ(c, e);
+  c.set(foobar.c_str(), 7);  // Note, has an embedded NULL
+  ASSERT_NE(c, a);
+
+  // as_string
+  TypeParam s3(a.as_string().c_str(), 7);  // Note, has an embedded NULL
+  ASSERT_TRUE(c == s3);
+  TypeParam s4(e.as_string());
+  ASSERT_TRUE(s4.empty());
+}
+
 TEST(StringPieceTest, CheckCustom) {
   StringPiece a("foobar");
   std::string s1("123");
@@ -452,74 +560,50 @@ TEST(StringPieceTest, CheckCustom) {
   ASSERT_TRUE(!b.ends_with(a));
   ASSERT_TRUE(!e.ends_with(a));
 
-  // remove_prefix
-  StringPiece c(a);
-  c.remove_prefix(3);
-  ASSERT_EQ(c, "bar");
-  c = a;
-  c.remove_prefix(0);
-  ASSERT_EQ(c, a);
-  c.remove_prefix(c.size());
-  ASSERT_EQ(c, e);
-
-  // remove_suffix
-  c = a;
-  c.remove_suffix(3);
-  ASSERT_EQ(c, "foo");
-  c = a;
-  c.remove_suffix(0);
-  ASSERT_EQ(c, a);
-  c.remove_suffix(c.size());
-  ASSERT_EQ(c, e);
-
-  // set
-  c.set("foobar", 6);
-  ASSERT_EQ(c, a);
-  c.set("foobar", 0);
-  ASSERT_EQ(c, e);
-  c.set("foobar", 7);
-  ASSERT_NE(c, a);
-
-  c.set("foobar");
-  ASSERT_EQ(c, a);
-
+  StringPiece c;
   c.set(static_cast<const void*>("foobar"), 6);
   ASSERT_EQ(c, a);
   c.set(static_cast<const void*>("foobar"), 0);
   ASSERT_EQ(c, e);
   c.set(static_cast<const void*>("foobar"), 7);
   ASSERT_NE(c, a);
-
-  // as_string
-  std::string s3(a.as_string().c_str(), 7);
-  ASSERT_EQ(c, s3);
-  std::string s4(e.as_string());
-  ASSERT_TRUE(s4.empty());
 }
 
-TEST(StringPieceTest, CheckNULL) {
+TYPED_TEST(CommonStringPieceTest, CheckNULL) {
   // we used to crash here, but now we don't.
-  StringPiece s(NULL);
-  ASSERT_EQ(s.data(), (const char*)NULL);
+  BasicStringPiece<TypeParam> s(NULL);
+  ASSERT_EQ(s.data(), (const typename TypeParam::value_type*)NULL);
   ASSERT_EQ(s.size(), 0U);
 
   s.set(NULL);
-  ASSERT_EQ(s.data(), (const char*)NULL);
+  ASSERT_EQ(s.data(), (const typename TypeParam::value_type*)NULL);
   ASSERT_EQ(s.size(), 0U);
+
+  TypeParam str = s.as_string();
+  ASSERT_EQ(str.length(), 0U);
+  ASSERT_EQ(str, TypeParam());
 }
 
-TEST(StringPieceTest, CheckComparisons2) {
-  StringPiece abc("abcdefghijklmnopqrstuvwxyz");
+TYPED_TEST(CommonStringPieceTest, CheckComparisons2) {
+  TypeParam alphabet(TestFixture::as_string("abcdefghijklmnopqrstuvwxyz"));
+  TypeParam alphabet_z(TestFixture::as_string("abcdefghijklmnopqrstuvwxyzz"));
+  TypeParam alphabet_y(TestFixture::as_string("abcdefghijklmnopqrstuvwxyy"));
+  BasicStringPiece<TypeParam> abc(alphabet);
 
   // check comparison operations on strings longer than 4 bytes.
-  ASSERT_TRUE(abc == StringPiece("abcdefghijklmnopqrstuvwxyz"));
-  ASSERT_TRUE(abc.compare(StringPiece("abcdefghijklmnopqrstuvwxyz")) == 0);
+  ASSERT_TRUE(abc == BasicStringPiece<TypeParam>(alphabet));
+  ASSERT_TRUE(abc.compare(BasicStringPiece<TypeParam>(alphabet)) == 0);
 
-  ASSERT_TRUE(abc < StringPiece("abcdefghijklmnopqrstuvwxzz"));
-  ASSERT_TRUE(abc.compare(StringPiece("abcdefghijklmnopqrstuvwxzz")) < 0);
+  ASSERT_TRUE(abc < BasicStringPiece<TypeParam>(alphabet_z));
+  ASSERT_TRUE(abc.compare(BasicStringPiece<TypeParam>(alphabet_z)) < 0);
 
-  ASSERT_TRUE(abc > StringPiece("abcdefghijklmnopqrstuvwxyy"));
-  ASSERT_TRUE(abc.compare(StringPiece("abcdefghijklmnopqrstuvwxyy")) > 0);
+  ASSERT_TRUE(abc > BasicStringPiece<TypeParam>(alphabet_y));
+  ASSERT_TRUE(abc.compare(BasicStringPiece<TypeParam>(alphabet_y)) > 0);
+}
+
+// Test operations only supported by std::string version.
+TEST(StringPieceTest, CheckComparisons2) {
+  StringPiece abc("abcdefghijklmnopqrstuvwxyz");
 
   // starts_with
   ASSERT_TRUE(abc.starts_with(abc));
@@ -532,169 +616,22 @@ TEST(StringPieceTest, CheckComparisons2) {
   ASSERT_TRUE(abc.ends_with("nopqrstuvwxyz"));
 }
 
-TEST(StringPieceTest, StringCompareNotAmbiguous) {
-  ASSERT_TRUE("hello" == std::string("hello"));
-  ASSERT_TRUE("hello" < std::string("world"));
+TYPED_TEST(CommonStringPieceTest, StringCompareNotAmbiguous) {
+  ASSERT_TRUE(TestFixture::as_string("hello").c_str() ==
+              TestFixture::as_string("hello"));
+  ASSERT_TRUE(TestFixture::as_string("hello").c_str() <
+              TestFixture::as_string("world"));
 }
 
-TEST(StringPieceTest, HeterogenousStringPieceEquals) {
-  ASSERT_TRUE(StringPiece("hello") == std::string("hello"));
-  ASSERT_TRUE("hello" == StringPiece("hello"));
+TYPED_TEST(CommonStringPieceTest, HeterogenousStringPieceEquals) {
+  TypeParam hello(TestFixture::as_string("hello"));
+
+  ASSERT_TRUE(BasicStringPiece<TypeParam>(hello) == hello);
+  ASSERT_TRUE(hello.c_str() == BasicStringPiece<TypeParam>(hello));
 }
 
-TEST(StringPiece16Test, CheckComparisonOperators) {
-  ASSERT_TRUE(StringPiece16(string16()) ==
-              StringPiece16(string16()));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) ==
-              StringPiece16(ASCIIToUTF16("a")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("aa")) ==
-              StringPiece16(ASCIIToUTF16("aa")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) ==
-               StringPiece16(string16()));
-  ASSERT_FALSE(StringPiece16(string16()) ==
-               StringPiece16(ASCIIToUTF16("a")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) ==
-               StringPiece16(ASCIIToUTF16("b")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) ==
-               StringPiece16(ASCIIToUTF16("aa")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("aa")) ==
-               StringPiece16(ASCIIToUTF16("a")));
-
-  ASSERT_FALSE(StringPiece16(string16()) !=
-               StringPiece16(string16()));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) !=
-               StringPiece16(ASCIIToUTF16("a")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("aa")) !=
-               StringPiece16(ASCIIToUTF16("aa")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) !=
-              StringPiece16(string16()));
-  ASSERT_TRUE(StringPiece16(string16()) !=
-              StringPiece16(ASCIIToUTF16("a")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) !=
-              StringPiece16(ASCIIToUTF16("b")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) !=
-              StringPiece16(ASCIIToUTF16("aa")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("aa")) !=
-              StringPiece16(ASCIIToUTF16("a")));
-
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) <
-              StringPiece16(ASCIIToUTF16("b")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) <
-              StringPiece16(ASCIIToUTF16("aa")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("aa")) <
-              StringPiece16(ASCIIToUTF16("b")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("aa")) <
-              StringPiece16(ASCIIToUTF16("bb")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) <
-               StringPiece16(ASCIIToUTF16("a")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("b")) <
-               StringPiece16(ASCIIToUTF16("a")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("aa")) <
-               StringPiece16(ASCIIToUTF16("a")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("b")) <
-               StringPiece16(ASCIIToUTF16("aa")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("bb")) <
-               StringPiece16(ASCIIToUTF16("aa")));
-
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) <=
-              StringPiece16(ASCIIToUTF16("a")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) <=
-              StringPiece16(ASCIIToUTF16("b")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) <=
-              StringPiece16(ASCIIToUTF16("aa")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("aa")) <=
-              StringPiece16(ASCIIToUTF16("b")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("aa")) <=
-              StringPiece16(ASCIIToUTF16("bb")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("b")) <=
-               StringPiece16(ASCIIToUTF16("a")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("aa")) <=
-               StringPiece16(ASCIIToUTF16("a")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("b")) <=
-               StringPiece16(ASCIIToUTF16("aa")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("bb")) <=
-               StringPiece16(ASCIIToUTF16("aa")));
-
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) <=
-              StringPiece16(ASCIIToUTF16("a")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) <=
-              StringPiece16(ASCIIToUTF16("b")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) <=
-              StringPiece16(ASCIIToUTF16("aa")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("aa")) <=
-              StringPiece16(ASCIIToUTF16("b")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("aa")) <=
-              StringPiece16(ASCIIToUTF16("bb")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("b")) <=
-               StringPiece16(ASCIIToUTF16("a")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("aa")) <=
-               StringPiece16(ASCIIToUTF16("a")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("b")) <=
-               StringPiece16(ASCIIToUTF16("aa")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("bb")) <=
-               StringPiece16(ASCIIToUTF16("aa")));
-
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) >=
-               StringPiece16(ASCIIToUTF16("b")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) >=
-               StringPiece16(ASCIIToUTF16("aa")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("aa")) >=
-               StringPiece16(ASCIIToUTF16("b")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("aa")) >=
-               StringPiece16(ASCIIToUTF16("bb")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("a")) >=
-              StringPiece16(ASCIIToUTF16("a")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("b")) >=
-              StringPiece16(ASCIIToUTF16("a")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("aa")) >=
-              StringPiece16(ASCIIToUTF16("a")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("b")) >=
-              StringPiece16(ASCIIToUTF16("aa")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("bb")) >=
-              StringPiece16(ASCIIToUTF16("aa")));
-
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) >
-               StringPiece16(ASCIIToUTF16("a")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) >
-               StringPiece16(ASCIIToUTF16("b")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("a")) >
-               StringPiece16(ASCIIToUTF16("aa")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("aa")) >
-               StringPiece16(ASCIIToUTF16("b")));
-  ASSERT_FALSE(StringPiece16(ASCIIToUTF16("aa")) >
-               StringPiece16(ASCIIToUTF16("bb")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("b")) >
-              StringPiece16(ASCIIToUTF16("a")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("aa")) >
-              StringPiece16(ASCIIToUTF16("a")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("b")) >
-              StringPiece16(ASCIIToUTF16("aa")));
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("bb")) >
-              StringPiece16(ASCIIToUTF16("aa")));
-
-  string16 x;
-  for (int i = 0; i < 256; i++) {
-    x += 'a';
-    string16 y = x;
-    ASSERT_EQ(StringPiece16(x), StringPiece16(y));
-    for (int j = 0; j < i; j++) {
-      string16 z = x;
-      z[j] = 'b';       // Differs in position 'j'
-      ASSERT_NE(StringPiece16(x), StringPiece16(z));
-    }
-  }
-}
-
+// string16-specific stuff
 TEST(StringPiece16Test, CheckSTL) {
-  string16 first = ASCIIToUTF16("abcdefghijklmnopqrstuvwxyz");
-  StringPiece16 a(first);
-  string16 second = ASCIIToUTF16("abc");
-  StringPiece16 b(second.c_str());
-  string16 third = ASCIIToUTF16("xyz");
-  StringPiece16 c(third.c_str(), third.size());
-  string16 fourth = ASCIIToUTF16("foobarrandomstuff");
-  StringPiece16 d(fourth.c_str(), 6);
-  StringPiece16 e;
   // Check some non-ascii characters.
   string16 fifth(ASCIIToUTF16("123"));
   fifth.push_back(0x0000);
@@ -702,74 +639,39 @@ TEST(StringPiece16Test, CheckSTL) {
   fifth.push_back(0xdffe);
   StringPiece16 f(fifth);
 
-  ASSERT_EQ(a[6], 'g');
-  ASSERT_EQ(b[0], 'a');
-  ASSERT_EQ(c[2], 'z');
   ASSERT_EQ(f[3], '\0');
   ASSERT_EQ(f[5], static_cast<char16>(0xdffe));
 
-  ASSERT_EQ(*d.data(), 'f');
-  ASSERT_EQ(d.data()[5], 'r');
-  ASSERT_TRUE(e.data() == NULL);
-
-  ASSERT_EQ(*a.begin(), 'a');
-  ASSERT_EQ(*(b.begin() + 2), 'c');
-  ASSERT_EQ(*(c.end() - 1), 'z');
-
-  ASSERT_EQ(*a.rbegin(), 'z');
-  ASSERT_EQ(*(b.rbegin() + 2), 'a');
-  ASSERT_EQ(*(c.rend() - 1), 'x');
-  ASSERT_TRUE(a.rbegin() + 26 == a.rend());
-
-  ASSERT_EQ(a.size(), 26U);
-  ASSERT_EQ(b.size(), 3U);
-  ASSERT_EQ(c.size(), 3U);
-  ASSERT_EQ(d.size(), 6U);
-  ASSERT_EQ(e.size(), 0U);
   ASSERT_EQ(f.size(), 6U);
-
-  ASSERT_TRUE(!d.empty());
-  ASSERT_TRUE(d.begin() != d.end());
-  ASSERT_TRUE(d.begin() + 6 == d.end());
-
-  ASSERT_TRUE(e.empty());
-  ASSERT_TRUE(e.begin() == e.end());
-
-  d.clear();
-  ASSERT_EQ(d.size(), 0U);
-  ASSERT_TRUE(d.empty());
-  ASSERT_TRUE(d.data() == NULL);
-  ASSERT_TRUE(d.begin() == d.end());
-
-  ASSERT_GE(a.max_size(), a.capacity());
-  ASSERT_GE(a.capacity(), a.size());
 }
 
-TEST(StringPiece16Test, CheckNULL) {
-  StringPiece16 s(NULL);
-  ASSERT_EQ(s.data(), (const char16*)NULL);
-  ASSERT_EQ(s.size(), 0U);
 
-  s.set(NULL);
-  ASSERT_EQ(s.data(), (const char16*)NULL);
-  ASSERT_EQ(s.size(), 0U);
-
-  string16 str = s.as_string16();
-  ASSERT_EQ(s.data(), (const char16*)NULL);
-  ASSERT_EQ(s.size(), 0U);
-}
-
-TEST(StringPiece16Test, HeterogenousStringPieceEquals) {
-  ASSERT_TRUE(StringPiece16(ASCIIToUTF16("hello")) == ASCIIToUTF16("hello"));
-}
 
 TEST(StringPiece16Test, CheckConversion) {
   // Make sure that we can convert from UTF8 to UTF16 and back. We use a two
   // byte character (G clef) to test this.
   ASSERT_EQ(
       UTF16ToUTF8(
-          StringPiece16(UTF8ToUTF16("\xf0\x9d\x84\x9e")).as_string16()),
+          StringPiece16(UTF8ToUTF16("\xf0\x9d\x84\x9e")).as_string()),
       "\xf0\x9d\x84\x9e");
+}
+
+TYPED_TEST(CommonStringPieceTest, CheckConstructors) {
+  TypeParam str(TestFixture::as_string("hello world"));
+  TypeParam empty;
+
+  ASSERT_TRUE(str == BasicStringPiece<TypeParam>(str));
+  ASSERT_TRUE(str == BasicStringPiece<TypeParam>(str.c_str()));
+  ASSERT_TRUE(TestFixture::as_string("hello") ==
+              BasicStringPiece<TypeParam>(str.c_str(), 5));
+  ASSERT_TRUE(empty == BasicStringPiece<TypeParam>(str.c_str(), 0));
+  ASSERT_TRUE(empty == BasicStringPiece<TypeParam>(NULL));
+  ASSERT_TRUE(empty == BasicStringPiece<TypeParam>(NULL, 0));
+  ASSERT_TRUE(empty == BasicStringPiece<TypeParam>());
+  ASSERT_TRUE(str == BasicStringPiece<TypeParam>(str.begin(), str.end()));
+  ASSERT_TRUE(empty == BasicStringPiece<TypeParam>(str.begin(), str.begin()));
+  ASSERT_TRUE(empty == BasicStringPiece<TypeParam>(empty));
+  ASSERT_TRUE(empty == BasicStringPiece<TypeParam>(empty.begin(), empty.end()));
 }
 
 }  // namespace base
