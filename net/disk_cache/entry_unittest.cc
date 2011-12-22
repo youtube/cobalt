@@ -4,6 +4,7 @@
 
 #include "base/basictypes.h"
 #include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/file_util.h"
 #include "base/threading/platform_thread.h"
 #include "base/timer.h"
@@ -180,12 +181,12 @@ void DiskCacheEntryTest::InternalAsyncIO() {
 
   EXPECT_EQ(0, entry->ReadData(
       0, 15 * 1024, buffer1, kSize1,
-      base::Bind(&net::OldCompletionCallbackAdapter, &callback1)));
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback1))));
   base::strlcpy(buffer1->data(), "the data", kSize1);
   int expected = 0;
   int ret = entry->WriteData(
       0, 0, buffer1, kSize1,
-      base::Bind(&net::OldCompletionCallbackAdapter, &callback2), false);
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback2)), false);
   EXPECT_TRUE(10 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
@@ -194,7 +195,7 @@ void DiskCacheEntryTest::InternalAsyncIO() {
   memset(buffer2->data(), 0, kSize2);
   ret = entry->ReadData(
       0, 0, buffer2, kSize1,
-      base::Bind(&net::OldCompletionCallbackAdapter, &callback3));
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback3)));
   EXPECT_TRUE(10 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
@@ -205,7 +206,7 @@ void DiskCacheEntryTest::InternalAsyncIO() {
   base::strlcpy(buffer2->data(), "The really big data goes here", kSize2);
   ret = entry->WriteData(
       1, 1500, buffer2, kSize2,
-      base::Bind(&net::OldCompletionCallbackAdapter, &callback4), true);
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback4)), true);
   EXPECT_TRUE(5000 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
@@ -214,7 +215,7 @@ void DiskCacheEntryTest::InternalAsyncIO() {
   memset(buffer3->data(), 0, kSize3);
   ret = entry->ReadData(
       1, 1511, buffer3, kSize2,
-      base::Bind(&net::OldCompletionCallbackAdapter, &callback5));
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback5)));
   EXPECT_TRUE(4989 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
@@ -223,7 +224,7 @@ void DiskCacheEntryTest::InternalAsyncIO() {
   EXPECT_STREQ("big data goes here", buffer3->data());
   ret = entry->ReadData(
       1, 0, buffer2, kSize2,
-      base::Bind(&net::OldCompletionCallbackAdapter, &callback6));
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback6)));
   EXPECT_TRUE(5000 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
@@ -234,21 +235,21 @@ void DiskCacheEntryTest::InternalAsyncIO() {
   EXPECT_EQ(0, memcmp(buffer2->data(), buffer3->data(), 1500));
   ret = entry->ReadData(
       1, 5000, buffer2, kSize2,
-      base::Bind(&net::OldCompletionCallbackAdapter, &callback7));
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback7)));
   EXPECT_TRUE(1500 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
 
   ret = entry->ReadData(
       1, 0, buffer3, kSize3,
-      base::Bind(&net::OldCompletionCallbackAdapter, &callback9));
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback9)));
   EXPECT_TRUE(6500 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
 
   ret = entry->WriteData(
       1, 0, buffer3, 8192,
-      base::Bind(&net::OldCompletionCallbackAdapter, &callback10), true);
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback10)), true);
   EXPECT_TRUE(8192 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
@@ -256,7 +257,7 @@ void DiskCacheEntryTest::InternalAsyncIO() {
   EXPECT_TRUE(helper.WaitUntilCacheIoFinished(expected));
   ret = entry->ReadData(
       1, 0, buffer3, kSize3,
-      base::Bind(&net::OldCompletionCallbackAdapter, &callback11));
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback11)));
   EXPECT_TRUE(8192 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
@@ -265,14 +266,14 @@ void DiskCacheEntryTest::InternalAsyncIO() {
 
   ret = entry->ReadData(
       0, 0, buffer1, kSize1,
-      base::Bind(&net::OldCompletionCallbackAdapter, &callback12));
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback12)));
   EXPECT_TRUE(10 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
 
   ret = entry->ReadData(
       1, 0, buffer2, kSize2,
-      base::Bind(&net::OldCompletionCallbackAdapter, &callback13));
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback13)));
   EXPECT_TRUE(5000 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
@@ -407,7 +408,7 @@ void DiskCacheEntryTest::ExternalAsyncIO() {
   base::strlcpy(buffer1->data(), "the data", kSize1);
   int ret = entry->WriteData(
       0, 0, buffer1, kSize1,
-      base::Bind(&net::OldCompletionCallbackAdapter, &callback1), false);
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback1)), false);
   EXPECT_TRUE(17000 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
@@ -417,7 +418,7 @@ void DiskCacheEntryTest::ExternalAsyncIO() {
   memset(buffer2->data(), 0, kSize1);
   ret = entry->ReadData(
       0, 0, buffer2, kSize1,
-      base::Bind(&net::OldCompletionCallbackAdapter, &callback2));
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback2)));
   EXPECT_TRUE(17000 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
@@ -428,7 +429,7 @@ void DiskCacheEntryTest::ExternalAsyncIO() {
   base::strlcpy(buffer2->data(), "The really big data goes here", kSize2);
   ret = entry->WriteData(
       1, 10000, buffer2, kSize2,
-      base::Bind(&net::OldCompletionCallbackAdapter, &callback3), false);
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback3)), false);
   EXPECT_TRUE(25000 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
@@ -438,7 +439,7 @@ void DiskCacheEntryTest::ExternalAsyncIO() {
   memset(buffer3->data(), 0, kSize3);
   ret = entry->ReadData(
       1, 10011, buffer3, kSize3,
-      base::Bind(&net::OldCompletionCallbackAdapter, &callback4));
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback4)));
   EXPECT_TRUE(24989 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
@@ -447,7 +448,7 @@ void DiskCacheEntryTest::ExternalAsyncIO() {
   EXPECT_STREQ("big data goes here", buffer3->data());
   ret = entry->ReadData(
       1, 0, buffer2, kSize2,
-      base::Bind(&net::OldCompletionCallbackAdapter, &callback5));
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback5)));
   EXPECT_TRUE(25000 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
@@ -456,23 +457,23 @@ void DiskCacheEntryTest::ExternalAsyncIO() {
   EXPECT_EQ(0, memcmp(buffer2->data(), buffer2->data(), 10000));
   ret = entry->ReadData(
       1, 30000, buffer2, kSize2,
-      base::Bind(&net::OldCompletionCallbackAdapter, &callback6));
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback6)));
   EXPECT_TRUE(5000 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
 
   EXPECT_EQ(0, entry->ReadData(
       1, 35000, buffer2, kSize2,
-      base::Bind(&net::OldCompletionCallbackAdapter, &callback7)));
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback7))));
   ret = entry->ReadData(
       1, 0, buffer1, kSize1,
-      base::Bind(&net::OldCompletionCallbackAdapter, &callback8));
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback8)));
   EXPECT_TRUE(17000 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
   ret = entry->WriteData(
       1, 20000, buffer1, kSize1,
-      base::Bind(&net::OldCompletionCallbackAdapter, &callback9), false);
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback9)), false);
   EXPECT_TRUE(17000 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
@@ -1780,7 +1781,7 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyDoomSparseEntry) {
 }
 
 // A CompletionCallback wrapper that deletes the cache from within the callback.
-// The way an OldCompletionCallback works means that all tasks (even new ones)
+// The way an CompletionCallback works means that all tasks (even new ones)
 // are executed by the message loop before returning to the caller so the only
 // way to simulate a race is to execute what we want on the callback.
 class SparseTestCompletionCallback: public TestCompletionCallbackBase {
