@@ -162,7 +162,8 @@ void TestTransactionConsumer::Start(const net::HttpRequestInfo* request,
                                     const net::BoundNetLog& net_log) {
   state_ = STARTING;
   int result = trans_->Start(
-      request, base::Bind(&net::OldCompletionCallbackAdapter, this), net_log);
+      request, base::Bind(&TestTransactionConsumer::OnIOComplete,
+                          base::Unretained(this)), net_log);
   if (result != net::ERR_IO_PENDING)
     DidStart(result);
 }
@@ -194,14 +195,14 @@ void TestTransactionConsumer::DidFinish(int result) {
 void TestTransactionConsumer::Read() {
   state_ = READING;
   read_buf_ = new net::IOBuffer(1024);
-  int result = trans_->Read(
-      read_buf_, 1024, base::Bind(&net::OldCompletionCallbackAdapter, this));
+  int result = trans_->Read(read_buf_, 1024,
+                            base::Bind(&TestTransactionConsumer::OnIOComplete,
+                                       base::Unretained(this)));
   if (result != net::ERR_IO_PENDING)
     DidRead(result);
 }
 
-void TestTransactionConsumer::RunWithParams(const Tuple1<int>& params) {
-  int result = params.a;
+void TestTransactionConsumer::OnIOComplete(int result) {
   switch (state_) {
     case STARTING:
       DidStart(result);
@@ -213,7 +214,6 @@ void TestTransactionConsumer::RunWithParams(const Tuple1<int>& params) {
       NOTREACHED();
   }
 }
-
 
 MockNetworkTransaction::MockNetworkTransaction(MockNetworkLayer* factory)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
