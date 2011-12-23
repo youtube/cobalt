@@ -210,7 +210,6 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
  private:
   // Types --------------------------------------------------------------------
 
-  class BackendCallback;
   class MetadataWriter;
   class SSLHostInfoFactoryAdaptor;
   class Transaction;
@@ -352,6 +351,16 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
 
   // Processes BackendCallback notifications.
   void OnIOComplete(int result, PendingOp* entry);
+
+  // Helper to conditionally delete |pending_op| if the HttpCache object it
+  // is meant for has been deleted.
+  //
+  // TODO(ajwong): The PendingOp lifetime management is very tricky.  It might
+  // be possible to simplify it using either base::Owned() or base::Passed()
+  // with the callback.
+  static void OnPendingOpComplete(const base::WeakPtr<HttpCache>& cache,
+                                  PendingOp* pending_op,
+                                  int result);
 
   // Processes the backend creation notification.
   void OnBackendCreated(int result, PendingOp* pending_op);
