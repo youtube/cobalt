@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "base/at_exit.h"
+#include "base/bind.h"
 #include "base/command_line.h"
 #include "base/debug/debugger.h"
 #include "base/file_path.h"
@@ -183,37 +184,32 @@ void StressTheCache(int iteration) {
 // waiting for the debugger to attach.
 bool g_crashing = false;
 
-class CrashTask : public Task {
- public:
-  CrashTask() {}
-  ~CrashTask() {}
+void RunSoon(MessageLoop* target_loop);
 
-  virtual void Run() {
-    // Keep trying to run.
-    RunSoon(MessageLoop::current());
+void Crash() {
+  // Keep trying to run.
+  RunSoon(MessageLoop::current());
 
-    if (g_crashing)
-      return;
+  if (g_crashing)
+    return;
 
-    if (rand() % 100 > 30) {
-      printf("sweet death...\n");
+  if (rand() % 100 > 30) {
+    printf("sweet death...\n");
 #if defined(OS_WIN)
-      // Windows does more work on _exit() that we would like, so we use Kill.
-      base::KillProcessById(base::GetCurrentProcId(), kExpectedCrash, false);
+    // Windows does more work on _exit() that we would like, so we use Kill.
+    base::KillProcessById(base::GetCurrentProcId(), kExpectedCrash, false);
 #elif defined(OS_POSIX)
-      // On POSIX, _exit() will terminate the process with minimal cleanup,
-      // and it is cleaner than killing.
-      _exit(kExpectedCrash);
+    // On POSIX, _exit() will terminate the process with minimal cleanup,
+    // and it is cleaner than killing.
+    _exit(kExpectedCrash);
 #endif
-    }
   }
+}
 
-  static void RunSoon(MessageLoop* target_loop) {
-    int task_delay = 10000;  // 10 seconds
-    CrashTask* task = new CrashTask();
-    target_loop->PostDelayedTask(FROM_HERE, task, task_delay);
-  }
-};
+void RunSoon(MessageLoop* target_loop) {
+  int task_delay = 10000;  // 10 seconds
+  target_loop->PostDelayedTask(FROM_HERE, base::Bind(&Crash), task_delay);
+}
 
 // We leak everything here :)
 bool StartCrashThread() {
@@ -221,7 +217,7 @@ bool StartCrashThread() {
   if (!thread->Start())
     return false;
 
-  CrashTask::RunSoon(thread->message_loop());
+  RunSoon(thread->message_loop());
   return true;
 }
 
