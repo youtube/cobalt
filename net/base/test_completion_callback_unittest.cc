@@ -15,8 +15,6 @@
 
 typedef PlatformTest TestCompletionCallbackTest;
 
-using net::OldCompletionCallback;
-
 const int kMagicResult = 8888;
 
 // ExampleEmployer is a toy version of HostResolver
