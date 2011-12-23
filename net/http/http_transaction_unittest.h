@@ -103,7 +103,7 @@ class MockHttpRequest : public net::HttpRequestInfo {
 //-----------------------------------------------------------------------------
 // use this class to test completely consuming a transaction
 
-class TestTransactionConsumer : public CallbackRunner< Tuple1<int> > {
+class TestTransactionConsumer {
  public:
   explicit TestTransactionConsumer(net::HttpTransactionFactory* factory);
   virtual ~TestTransactionConsumer();
@@ -132,8 +132,7 @@ class TestTransactionConsumer : public CallbackRunner< Tuple1<int> > {
   void DidFinish(int result);
   void Read();
 
-  // Callback implementation:
-  virtual void RunWithParams(const Tuple1<int>& params) OVERRIDE;
+  void OnIOComplete(int result);
 
   State state_;
   scoped_ptr<net::HttpTransaction> trans_;
