@@ -15,6 +15,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
@@ -59,7 +60,8 @@ class OCSPIOLoop {
   }
 
   // Called from worker thread.
-  void PostTaskToIOLoop(const tracked_objects::Location& from_here, Task* task);
+  void PostTaskToIOLoop(const tracked_objects::Location& from_here,
+                        const base::Closure& task);
 
   void EnsureIOLoop();
 
@@ -179,7 +181,7 @@ class OCSPRequestSession
     DCHECK(!io_loop_);
     g_ocsp_io_loop.Get().PostTaskToIOLoop(
         FROM_HERE,
-        NewRunnableMethod(this, &OCSPRequestSession::StartURLRequest));
+        base::Bind(&OCSPRequestSession::StartURLRequest, this));
   }
 
   bool Started() const {
@@ -340,7 +342,7 @@ class OCSPRequestSession
     if (io_loop_) {
       io_loop_->PostTask(
           FROM_HERE,
-          NewRunnableMethod(this, &OCSPRequestSession::CancelURLRequest));
+          base::Bind(&OCSPRequestSession::CancelURLRequest, this));
     }
   }
 
@@ -493,7 +495,7 @@ void OCSPIOLoop::Shutdown() {
 }
 
 void OCSPIOLoop::PostTaskToIOLoop(
-    const tracked_objects::Location& from_here, Task* task) {
+    const tracked_objects::Location& from_here, const base::Closure& task) {
   base::AutoLock autolock(lock_);
   if (io_loop_)
     io_loop_->PostTask(from_here, task);
