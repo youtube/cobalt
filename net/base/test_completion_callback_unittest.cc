@@ -13,7 +13,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
-typedef PlatformTest TestOldCompletionCallbackTest;
+typedef PlatformTest TestCompletionCallbackTest;
 
 using net::OldCompletionCallback;
 
@@ -30,7 +30,7 @@ class ExampleEmployer {
   // Do some imaginary work on a worker thread;
   // when done, worker posts callback on the original thread.
   // Returns true on success
-  bool DoSomething(OldCompletionCallback* callback);
+  bool DoSomething(const net::CompletionCallback& callback);
 
  private:
   class ExampleWorker;
@@ -43,7 +43,8 @@ class ExampleEmployer {
 class ExampleEmployer::ExampleWorker
     : public base::RefCountedThreadSafe<ExampleWorker> {
  public:
-  ExampleWorker(ExampleEmployer* employer, OldCompletionCallback* callback)
+  ExampleWorker(ExampleEmployer* employer,
+                const net::CompletionCallback& callback)
       : employer_(employer), callback_(callback),
         origin_loop_(MessageLoop::current()) {
   }
@@ -56,7 +57,7 @@ class ExampleEmployer::ExampleWorker
 
   // Only used on the origin thread (where DoSomething was called).
   ExampleEmployer* employer_;
-  OldCompletionCallback* callback_;
+  net::CompletionCallback callback_;
   // Used to post ourselves onto the origin thread.
   base::Lock origin_loop_lock_;
   MessageLoop* origin_loop_;
@@ -85,7 +86,7 @@ void ExampleEmployer::ExampleWorker::DoCallback() {
   // destroyed.
   employer_->request_ = NULL;
 
-  callback_->Run(kMagicResult);
+  callback_.Run(kMagicResult);
 }
 
 ExampleEmployer::ExampleEmployer() {
@@ -94,7 +95,7 @@ ExampleEmployer::ExampleEmployer() {
 ExampleEmployer::~ExampleEmployer() {
 }
 
-bool ExampleEmployer::DoSomething(OldCompletionCallback* callback) {
+bool ExampleEmployer::DoSomething(const net::CompletionCallback& callback) {
   DCHECK(!request_) << "already in use";
 
   request_ = new ExampleWorker(this, callback);
@@ -112,10 +113,10 @@ bool ExampleEmployer::DoSomething(OldCompletionCallback* callback) {
   return true;
 }
 
-TEST_F(TestOldCompletionCallbackTest, Simple) {
+TEST_F(TestCompletionCallbackTest, Simple) {
   ExampleEmployer boss;
-  TestOldCompletionCallback callback;
-  bool queued = boss.DoSomething(&callback);
+  net::TestCompletionCallback callback;
+  bool queued = boss.DoSomething(callback.callback());
   EXPECT_EQ(queued, true);
   int result = callback.WaitForResult();
   EXPECT_EQ(result, kMagicResult);
