@@ -184,9 +184,10 @@ void StressTheCache(int iteration) {
 // waiting for the debugger to attach.
 bool g_crashing = false;
 
+// RunSoon() and CrashCallback() reference each other, unfortunately.
 void RunSoon(MessageLoop* target_loop);
 
-void Crash() {
+void CrashCallback() {
   // Keep trying to run.
   RunSoon(MessageLoop::current());
 
@@ -207,8 +208,9 @@ void Crash() {
 }
 
 void RunSoon(MessageLoop* target_loop) {
-  int task_delay = 10000;  // 10 seconds
-  target_loop->PostDelayedTask(FROM_HERE, base::Bind(&Crash), task_delay);
+  const int kTaskDelay = 10000;  // 10 seconds
+  target_loop->PostDelayedTask(
+      FROM_HERE, base::Bind(&CrashCallback), kTaskDelay);
 }
 
 // We leak everything here :)
