@@ -42,18 +42,6 @@ class TestCompletionCallbackBase {
   DISALLOW_COPY_AND_ASSIGN(TestCompletionCallbackBase);
 };
 
-class TestOldCompletionCallback : public TestCompletionCallbackBase,
-                                  public CallbackRunner<Tuple1<int> > {
- public:
-  TestOldCompletionCallback() {};
-  virtual ~TestOldCompletionCallback() {}
-
-  virtual void RunWithParams(const Tuple1<int>& params) OVERRIDE;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(TestOldCompletionCallback);
-};
-
 namespace net {
 
 class TestCompletionCallback : public TestCompletionCallbackBase {
