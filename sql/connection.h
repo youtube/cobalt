@@ -11,6 +11,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
 #include "sql/sql_export.h"
@@ -149,12 +150,12 @@ class SQL_EXPORT Connection {
 
   // Initializes the SQL connection for the given file, returning true if the
   // file could be opened. You can call this or OpenInMemory.
-  bool Open(const FilePath& path);
+  bool Open(const FilePath& path) WARN_UNUSED_RESULT;
 
   // Initializes the SQL connection for a temporary in-memory database. There
   // will be no associated file on disk, and the initial database will be
   // empty. You can call this or Open.
-  bool OpenInMemory();
+  bool OpenInMemory() WARN_UNUSED_RESULT;
 
   // Returns trie if the database has been successfully opened.
   bool is_open() const { return !!db_; }
@@ -204,11 +205,15 @@ class SQL_EXPORT Connection {
   // Executes the given SQL string, returning true on success. This is
   // normally used for simple, 1-off statements that don't take any bound
   // parameters and don't return any data (e.g. CREATE TABLE).
+  //
   // This will DCHECK if the |sql| contains errors.
-  bool Execute(const char* sql);
+  //
+  // Do not use ignore_result() to ignore all errors.  Use
+  // ExecuteAndReturnErrorCode() and ignore only specific errors.
+  bool Execute(const char* sql) WARN_UNUSED_RESULT;
 
   // Like Execute(), but returns the error code given by SQLite.
-  int ExecuteAndReturnErrorCode(const char* sql);
+  int ExecuteAndReturnErrorCode(const char* sql) WARN_UNUSED_RESULT;
 
   // Returns true if we have a statement with the given identifier already
   // cached. This is normally not necessary to call, but can be useful if the
@@ -360,7 +365,8 @@ class SQL_EXPORT Connection {
   int OnSqliteError(int err, Statement* stmt);
 
   // Like |Execute()|, but retries if the database is locked.
-  bool ExecuteWithTimeout(const char* sql, base::TimeDelta ms_timeout);
+  bool ExecuteWithTimeout(const char* sql, base::TimeDelta ms_timeout)
+      WARN_UNUSED_RESULT;
 
   // The actual sqlite database. Will be NULL before Init has been called or if
   // Init resulted in an error.
