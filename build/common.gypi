@@ -628,6 +628,9 @@
     # untrusted toolchain.
     'disable_nacl_untrusted%': 0,
 
+    # Disable Dart by default.
+    'enable_dart%': 0,
+
     'conditions': [
       # Used to disable Native Client at compile time, for platforms where it
       # isn't supported (ARM)
@@ -1186,6 +1189,9 @@
         'defines': [
           'ENABLE_WEB_INTENTS=1',
         ],
+      }],
+      ['enable_dart==1', {
+        'defines': ['WEBKIT_USING_DART=1'],
       }],
     ],  # conditions for 'target_defaults'
     'target_conditions': [
