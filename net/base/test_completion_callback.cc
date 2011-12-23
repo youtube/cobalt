@@ -43,10 +43,6 @@ TestCompletionCallbackBase::TestCompletionCallbackBase()
       waiting_for_result_(false) {
 }
 
-void TestOldCompletionCallback::RunWithParams(const Tuple1<int>& params) {
-  SetResult(params.a);
-}
-
 namespace net {
 
 TestCompletionCallback::TestCompletionCallback()
