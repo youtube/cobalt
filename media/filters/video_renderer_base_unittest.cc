@@ -49,8 +49,11 @@ class VideoRendererBaseTest : public ::testing::Test {
         timeout_(base::TimeDelta::FromMilliseconds(
             TestTimeouts::action_timeout_ms())),
         seeking_(false) {
-    renderer_ = new VideoRendererBase(base::Bind(
-        &VideoRendererBaseTest::PaintCBWasCalled, base::Unretained(this)));
+    renderer_ = new VideoRendererBase(
+        base::Bind(&VideoRendererBaseTest::PaintCBWasCalled,
+                   base::Unretained(this)),
+        base::Bind(&VideoRendererBaseTest::SetOpaqueCBWasCalled,
+                   base::Unretained(this)));
     renderer_->set_host(&host_);
 
     EXPECT_CALL(*decoder_, natural_size())
@@ -69,6 +72,8 @@ class VideoRendererBaseTest : public ::testing::Test {
   }
 
   MOCK_METHOD0(PaintCBWasCalled, void());
+
+  MOCK_CONST_METHOD1(SetOpaqueCBWasCalled, void(bool));
 
   void Initialize() {
     // TODO(scherkus): really, really, really need to inject a thread into

@@ -25,8 +25,13 @@ class MEDIA_EXPORT VideoRendererBase
     : public VideoRenderer,
       public base::PlatformThread::Delegate {
  public:
+  typedef base::Callback<void(bool)> SetOpaqueCB;
+
   // |paint_cb| is executed on the video frame timing thread whenever a new
   // frame is available for painting via GetCurrentFrame().
+  //
+  // |set_opaque_cb| is executed when the renderer is initialized to inform
+  // the player whether the decoder's output will be opaque or not.
   //
   // Implementors should avoid doing any sort of heavy work in this method and
   // instead post a task to a common/worker thread to handle rendering.  Slowing
@@ -34,7 +39,8 @@ class MEDIA_EXPORT VideoRendererBase
   //
   // TODO(scherkus): pass the VideoFrame* to this callback and remove
   // Get/PutCurrentFrame() http://crbug.com/108435
-  explicit VideoRendererBase(const base::Closure& paint_cb);
+  VideoRendererBase(const base::Closure& paint_cb,
+                    const SetOpaqueCB& set_opaque_cb);
   virtual ~VideoRendererBase();
 
   // Filter implementation.
@@ -182,6 +188,10 @@ class MEDIA_EXPORT VideoRendererBase
 
   // Embedder callback for notifying a new frame is available for painting.
   base::Closure paint_cb_;
+
+  // Callback to execute to inform the player if the video decoder's output is
+  // opaque.
+  SetOpaqueCB set_opaque_cb_;
 
   DISALLOW_COPY_AND_ASSIGN(VideoRendererBase);
 };
