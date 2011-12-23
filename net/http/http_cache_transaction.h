@@ -12,6 +12,7 @@
 #include <string>
 
 #include "base/time.h"
+#include "net/base/completion_callback.h"
 #include "net/base/net_log.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_response_info.h"
@@ -361,10 +362,8 @@ class HttpCache::Transaction : public HttpTransaction {
   int write_len_;
   scoped_ptr<PartialData> partial_;  // We are dealing with range requests.
   uint64 final_upload_progress_;
+  base::WeakPtrFactory<Transaction> weak_factory_;
   CompletionCallback io_callback_;
-  scoped_refptr<CancelableOldCompletionCallback<Transaction> > cache_callback_;
-  scoped_refptr<CancelableOldCompletionCallback<Transaction> >
-      write_headers_callback_;
 };
 
 }  // namespace net

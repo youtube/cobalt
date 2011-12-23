@@ -119,13 +119,13 @@ HttpCache::ActiveEntry::~ActiveEntry() {
 // This structure keeps track of work items that are attempting to create or
 // open cache entries or the backend itself.
 struct HttpCache::PendingOp {
-  PendingOp() : disk_entry(NULL), backend(NULL), writer(NULL), callback(NULL) {}
+  PendingOp() : disk_entry(NULL), backend(NULL), writer(NULL) {}
   ~PendingOp() {}
 
   disk_cache::Entry* disk_entry;
   disk_cache::Backend* backend;
   WorkItem* writer;
-  OldCompletionCallback* callback;  // BackendCallback.
+  CompletionCallback callback;  // BackendCallback.
   WorkItemList pending_queue;
 };
 
@@ -191,37 +191,6 @@ class HttpCache::WorkItem {
   ActiveEntry** entry_;
   net::CompletionCallback callback_;  // User callback.
   disk_cache::Backend** backend_;
-};
-
-//-----------------------------------------------------------------------------
-
-// This class is a specialized type of OldCompletionCallback that allows us to
-// pass multiple arguments to the completion routine.
-class HttpCache::BackendCallback : public CallbackRunner<Tuple1<int> > {
- public:
-  BackendCallback(HttpCache* cache, PendingOp* pending_op)
-      : cache_(cache), pending_op_(pending_op) {}
-  ~BackendCallback() {}
-
-  virtual void RunWithParams(const Tuple1<int>& params) {
-    if (cache_) {
-      cache_->OnIOComplete(params.a, pending_op_);
-    } else {
-      // The callback was cancelled so we should delete the pending_op that
-      // was used with this callback.
-      delete pending_op_;
-    }
-    delete this;
-  }
-
-  void Cancel() {
-    cache_ = NULL;
-  }
-
- private:
-  HttpCache* cache_;
-  PendingOp* pending_op_;
-  DISALLOW_COPY_AND_ASSIGN(BackendCallback);
 };
 
 //-----------------------------------------------------------------------------
@@ -414,15 +383,12 @@ HttpCache::~HttpCache() {
     if (building_backend_) {
       // If we don't have a backend, when its construction finishes it will
       // deliver the callbacks.
-      BackendCallback* callback =
-          static_cast<BackendCallback*>(pending_op->callback);
-      if (callback) {
-        // The callback will delete the pending operation.
-        callback->Cancel();
+      if (!pending_op->callback.is_null()) {
+        // If not null, the callback will delete the pending operation later.
         delete_pending_op = false;
       }
     } else {
-      delete pending_op->callback;
+      pending_op->callback.Reset();
     }
 
     STLDeleteElements(&pending_op->pending_queue);
@@ -432,7 +398,7 @@ HttpCache::~HttpCache() {
 }
 
 int HttpCache::GetBackend(disk_cache::Backend** backend,
-                          const net::CompletionCallback& callback) {
+                          const CompletionCallback& callback) {
   DCHECK(!callback.is_null());
 
   if (disk_cache_.get()) {
@@ -547,15 +513,14 @@ int HttpCache::CreateBackend(disk_cache::Backend** backend,
   DCHECK(pending_op->pending_queue.empty());
 
   pending_op->writer = item.release();
-  BackendCallback* my_callback = new BackendCallback(this, pending_op);
-  pending_op->callback = my_callback;
+  pending_op->callback = base::Bind(&HttpCache::OnPendingOpComplete,
+                                    AsWeakPtr(), pending_op);
 
-  int rv = backend_factory_->CreateBackend(
-      net_log_, &pending_op->backend,
-      base::Bind(&net::OldCompletionCallbackAdapter, my_callback));
+  int rv = backend_factory_->CreateBackend(net_log_, &pending_op->backend,
+                                           pending_op->callback);
   if (rv != ERR_IO_PENDING) {
     pending_op->writer->ClearCallback();
-    my_callback->Run(rv);
+    pending_op->callback.Run(rv);
   }
 
   return rv;
@@ -651,14 +616,13 @@ int HttpCache::AsyncDoomEntry(const std::string& key, Transaction* trans) {
   DCHECK(pending_op->pending_queue.empty());
 
   pending_op->writer = item;
-  BackendCallback* my_callback = new BackendCallback(this, pending_op);
-  pending_op->callback = my_callback;
+  pending_op->callback = base::Bind(&HttpCache::OnPendingOpComplete,
+                                    AsWeakPtr(), pending_op);
 
-  int rv = disk_cache_->DoomEntry(
-      key, base::Bind(&net::OldCompletionCallbackAdapter, my_callback));
+  int rv = disk_cache_->DoomEntry(key, pending_op->callback);
   if (rv != ERR_IO_PENDING) {
     item->ClearTransaction();
-    my_callback->Run(rv);
+    pending_op->callback.Run(rv);
   }
 
   return rv;
@@ -775,15 +739,14 @@ int HttpCache::OpenEntry(const std::string& key, ActiveEntry** entry,
   DCHECK(pending_op->pending_queue.empty());
 
   pending_op->writer = item;
-  BackendCallback* my_callback = new BackendCallback(this, pending_op);
-  pending_op->callback = my_callback;
+  pending_op->callback = base::Bind(&HttpCache::OnPendingOpComplete,
+                                    AsWeakPtr(), pending_op);
 
-  int rv = disk_cache_->OpenEntry(
-      key, &(pending_op->disk_entry),
-      base::Bind(&net::OldCompletionCallbackAdapter, my_callback));
+  int rv = disk_cache_->OpenEntry(key, &(pending_op->disk_entry),
+                                  pending_op->callback);
   if (rv != ERR_IO_PENDING) {
     item->ClearTransaction();
-    my_callback->Run(rv);
+    pending_op->callback.Run(rv);
   }
 
   return rv;
@@ -803,15 +766,14 @@ int HttpCache::CreateEntry(const std::string& key, ActiveEntry** entry,
   DCHECK(pending_op->pending_queue.empty());
 
   pending_op->writer = item;
-  BackendCallback* my_callback = new BackendCallback(this, pending_op);
-  pending_op->callback = my_callback;
+  pending_op->callback = base::Bind(&HttpCache::OnPendingOpComplete,
+                                    AsWeakPtr(), pending_op);
 
-  int rv = disk_cache_->CreateEntry(
-      key, &(pending_op->disk_entry),
-      base::Bind(&net::OldCompletionCallbackAdapter, my_callback));
+  int rv = disk_cache_->CreateEntry(key, &(pending_op->disk_entry),
+                                    pending_op->callback);
   if (rv != ERR_IO_PENDING) {
     item->ClearTransaction();
-    my_callback->Run(rv);
+    pending_op->callback.Run(rv);
   }
 
   return rv;
@@ -1146,13 +1108,26 @@ void HttpCache::OnIOComplete(int result, PendingOp* pending_op) {
   }
 }
 
+// static
+void HttpCache::OnPendingOpComplete(const base::WeakPtr<HttpCache>& cache,
+                                    PendingOp* pending_op,
+                                    int rv) {
+  if (cache.get()) {
+    cache->OnIOComplete(rv, pending_op);
+  } else {
+    // The callback was cancelled so we should delete the pending_op that
+    // was used with this callback.
+    delete pending_op;
+  }
+}
+
 void HttpCache::OnBackendCreated(int result, PendingOp* pending_op) {
   scoped_ptr<WorkItem> item(pending_op->writer);
   WorkItemOperation op = item->operation();
   DCHECK_EQ(WI_CREATE_BACKEND, op);
 
   // We don't need the callback anymore.
-  pending_op->callback = NULL;
+  pending_op->callback.Reset();
   disk_cache::Backend* backend = pending_op->backend;
 
   if (backend_factory_.get()) {
