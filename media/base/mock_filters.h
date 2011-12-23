@@ -191,6 +191,7 @@ class MockVideoDecoder : public VideoDecoder {
                                 const StatisticsCallback& stats_callback));
   MOCK_METHOD1(Read, void(const ReadCB& callback));
   MOCK_METHOD0(natural_size, const gfx::Size&());
+  MOCK_CONST_METHOD0(HasAlpha, bool());
 
  protected:
   virtual ~MockVideoDecoder();

@@ -13,7 +13,8 @@
 
 namespace media {
 
-VideoRendererBase::VideoRendererBase(const base::Closure& paint_cb)
+VideoRendererBase::VideoRendererBase(const base::Closure& paint_cb,
+                                     const SetOpaqueCB& set_opaque_cb)
     : frame_available_(&lock_),
       state_(kUninitialized),
       thread_(base::kNullThreadHandle),
@@ -23,7 +24,8 @@ VideoRendererBase::VideoRendererBase(const base::Closure& paint_cb)
       playback_rate_(0),
       read_cb_(base::Bind(&VideoRendererBase::FrameReady,
                           base::Unretained(this))),
-      paint_cb_(paint_cb) {
+      paint_cb_(paint_cb),
+      set_opaque_cb_(set_opaque_cb) {
   DCHECK(!paint_cb_.is_null());
 }
 
@@ -116,6 +118,9 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   // Since we had an initial Seek, we consider ourself flushed, because we
   // have not populated any buffers yet.
   state_ = kFlushed;
+
+  set_opaque_cb_.Run(!decoder->HasAlpha());
+  set_opaque_cb_.Reset();
 
   // Create our video thread.
   if (!base::PlatformThread::Create(0, this, &thread_)) {
