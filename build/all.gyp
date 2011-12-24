@@ -134,7 +134,7 @@
         ['use_aura==1', {
           'dependencies': [
             '../ui/aura/aura.gyp:*',
-            '../ui/aura_shell/aura_shell.gyp:*',
+            '../ash/ash.gyp:*',
           ],
         }],
         ['remoting==1', {
@@ -564,11 +564,11 @@
           'target_name': 'aura_builder',
           'type': 'none',
           'dependencies': [
+            '../ash/ash.gyp:ash_shell',
+            '../ash/ash.gyp:aura_shell_unittests',
             '../chrome/chrome.gyp:chrome',
             '../chrome/chrome.gyp:unit_tests',
             '../chrome/chrome.gyp:ui_tests',
-            '../ui/aura_shell/aura_shell.gyp:aura_shell_exe',
-            '../ui/aura_shell/aura_shell.gyp:aura_shell_unittests',
             '../ui/aura/aura.gyp:*',
             '../ui/gfx/compositor/compositor.gyp:*',
             '../ui/views/views.gyp:views',
