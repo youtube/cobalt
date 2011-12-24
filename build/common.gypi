@@ -1962,6 +1962,9 @@
               # This (rightyfully) complains about 'override', which we use
               # heavily.
               '-Wno-c++11-extensions',
+              # TODO(thakis): Reenable this once clang stops complaining about
+              # %as in format strings.
+              '-Wno-format',
             ],
             'cflags!': [
               # Clang doesn't seem to know know this flag.
@@ -2294,11 +2297,11 @@
               'CC': '$(SOURCE_ROOT)/<(clang_dir)/clang',
               'LDPLUSPLUS': '$(SOURCE_ROOT)/<(clang_dir)/clang++',
 
-	      # Don't use -Wc++0x-extensions, which Xcode 4 enables by default
-	      # when buliding with clang. This warning is triggered when the
-	      # override keyword is used via the OVERRIDE macro from
-	      # base/compiler_specific.h.
-	      'CLANG_WARN_CXX0X_EXTENSIONS': 'NO',
+              # Don't use -Wc++0x-extensions, which Xcode 4 enables by default
+              # when buliding with clang. This warning is triggered when the
+              # override keyword is used via the OVERRIDE macro from
+              # base/compiler_specific.h.
+              'CLANG_WARN_CXX0X_EXTENSIONS': 'NO',
 
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
               'WARNING_CFLAGS': [
