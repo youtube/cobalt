@@ -54,6 +54,25 @@ typedef std::list<SpdySetting> SpdySettings;
 // SpdyFramerVisitorInterface is a set of callbacks for the SpdyFramer.
 // Implement this interface to receive event callbacks as frames are
 // decoded from the framer.
+//
+// Control frames that contain SPDY header blocks (SYN_STREAM, SYN_REPLY, and
+// HEADER) are processed in fashion that allows the decompressed header block
+// to be delivered in chunks to the visitor. The following steps are followed:
+//   1. OnControl is called, with either a SpdySynStreamControlFrame,
+//      SpdySynReplyControlFrame, or a SpdyHeaderControlFrame argument.
+//   2. Repeated: OnControlFrameHeaderData is called with chunks of the
+//      decompressed header block. In each call the len parameter is greater
+//      than zero.
+//   3. OnControlFrameHeaderData is called with len set to zero, indicating
+//      that the full header block has been delivered for the control frame.
+// During step 2 the visitor may return false, indicating that the chunk of
+// header data could not be handled by the visitor (typically this indicates
+// resource exhaustion). If this occurs the framer will discontinue
+// delivering chunks to the visitor, set a SPDY_CONTROL_PAYLOAD_TOO_LARGE
+// error, and clean up appropriately. Note that this will cause the header
+// decompressor to lose synchronization with the sender's header compressor,
+// making the SPDY session unusable for future work. The visitor's OnError
+// function should deal with this condition by closing the SPDY connection.
 class NET_EXPORT_PRIVATE SpdyFramerVisitorInterface {
  public:
   virtual ~SpdyFramerVisitorInterface() {}
@@ -69,14 +88,14 @@ class NET_EXPORT_PRIVATE SpdyFramerVisitorInterface {
   // Called when a chunk of header data is available. This is called
   // after OnControl() is called with the control frame associated with the
   // header data being delivered here.
-  // |stream_id| The stream receiving the header data.
+  // |control_frame| header control frame.
   // |header_data| A buffer containing the header data chunk received.
   // |len| The length of the header data buffer. A length of zero indicates
   //       that the header data block has been completely sent.
   // When this function returns true the visitor indicates that it accepted
   // all of the data. Returning false indicates that that an unrecoverable
   // error has occurred, such as bad header data or resource exhaustion.
-  virtual bool OnControlFrameHeaderData(SpdyStreamId stream_id,
+  virtual bool OnControlFrameHeaderData(const SpdyControlFrame* control_frame,
                                         const char* header_data,
                                         size_t len) = 0;
 
@@ -352,8 +371,8 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   void ProcessControlFrameHeader();
   size_t ProcessControlFramePayload(const char* data, size_t len);
   size_t ProcessControlFrameBeforeHeaderBlock(const char* data, size_t len);
-  size_t NewProcessControlFrameHeaderBlock(const char* data, size_t len);
   size_t ProcessControlFrameHeaderBlock(const char* data, size_t len);
+  size_t OldProcessControlFrameHeaderBlock(const char* data, size_t len);
   size_t ProcessDataFramePayload(const char* data, size_t len);
 
   // Get (and lazily initialize) the ZLib state.
@@ -381,13 +400,13 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // Deliver the given control frame's compressed headers block to the visitor
   // in decompressed form, in chunks. Returns true if the visitor has
   // accepted all of the chunks.
-  bool IncrementallyDecompressControlFrameHeaderData(
+  bool OldIncrementallyDecompressControlFrameHeaderData(
       const SpdyControlFrame* frame);
 
   // Deliver the given control frame's compressed headers block to the visitor
   // in decompressed form, in chunks. Returns true if the visitor has
   // accepted all of the chunks.
-  bool NewIncrementallyDecompressControlFrameHeaderData(
+  bool IncrementallyDecompressControlFrameHeaderData(
       const SpdyControlFrame* frame,
       const char* data,
       size_t len);

@@ -85,7 +85,7 @@ void CompareCharArraysWithHexError(
 
 class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
  public:
-  static const size_t kDefaultHeaderBufferSize = 16 * 1024;
+  static const size_t kDefaultHeaderBufferSize = 64 * 1024;
 
   TestSpdyVisitor()
     : use_compression_(false),
@@ -124,6 +124,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
   void OnStreamFrameData(SpdyStreamId stream_id,
                          const char* data,
                          size_t len) {
+    EXPECT_EQ(header_stream_id_, stream_id);
     if (len == 0)
       ++zero_length_data_frame_count_;
 
@@ -164,10 +165,11 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
       ++fin_flag_count_;
   }
 
-  bool OnControlFrameHeaderData(SpdyStreamId stream_id,
+  bool OnControlFrameHeaderData(const SpdyControlFrame* control_frame,
                                 const char* header_data,
                                 size_t len) {
     ++control_frame_header_data_count_;
+    SpdyStreamId stream_id = SpdyFramer::GetControlFrameStreamId(control_frame);
     CHECK_EQ(header_stream_id_, stream_id);
     if (len == 0) {
       ++zero_length_control_frame_header_data_count_;
@@ -285,6 +287,21 @@ using spdy::test::TestSpdyVisitor;
 
 namespace spdy {
 
+TEST(SpdyFrameBuilderTest, WriteLimits) {
+  SpdyFrameBuilder builder(kLengthMask + 4);
+  // length field should fail.
+  EXPECT_FALSE(builder.WriteBytes(reinterpret_cast<const void*>(0x1),
+                                  kLengthMask + 1));
+  EXPECT_EQ(0, builder.length());
+
+  // Writing a block of the maximum allowed size should succeed.
+  const std::string kLargeData(kLengthMask, 'A');
+  builder.WriteUInt32(kLengthMask);
+  EXPECT_EQ(4, builder.length());
+  EXPECT_TRUE(builder.WriteBytes(kLargeData.data(), kLengthMask));
+  EXPECT_EQ(4 + kLengthMask, static_cast<unsigned>(builder.length()));
+}
+
 class SpdyFramerTest : public PlatformTest {
  public:
   virtual void TearDown() {}
@@ -300,23 +317,36 @@ class SpdyFramerTest : public PlatformTest {
     CompareCharArraysWithHexError(
         description, actual, actual_len, expected, expected_len);
   }
+
+  // Returns true if the two header blocks have equivalent content.
+  bool CompareHeaderBlocks(const SpdyHeaderBlock* expected,
+                           const SpdyHeaderBlock* actual) {
+    if (expected->size() != actual->size()) {
+      LOG(ERROR) << "Expected " << expected->size() << " headers; actually got "
+                 << actual->size() << "." << std::endl;
+      return false;
+    }
+    for (SpdyHeaderBlock::const_iterator it = expected->begin();
+         it != expected->end();
+         ++it) {
+      SpdyHeaderBlock::const_iterator it2 = actual->find(it->first);
+      if (it2 == actual->end()) {
+        LOG(ERROR) << "Expected header name '" << it->first << "'."
+                   << std::endl;
+        return false;
+      }
+      if (it->second.compare(it2->second) != 0) {
+        LOG(ERROR) << "Expected header named '" << it->first
+                   << "' to have a value of '" << it->second
+                   << "'. The actual value received was '" << it2->second
+                   << "'." << std::endl;
+        return false;
+      }
+    }
+    return true;
+  }
 };
 
-
-TEST(SpdyFrameBuilderTest, WriteLimits) {
-  SpdyFrameBuilder builder(kLengthMask + 4);
-  // length field should fail.
-  EXPECT_FALSE(builder.WriteBytes(reinterpret_cast<const void*>(0x1),
-                                  kLengthMask + 1));
-  EXPECT_EQ(0, builder.length());
-
-  // Writing a block of the maximum allowed size should succeed.
-  const std::string kLargeData(kLengthMask, 'A');
-  builder.WriteUInt32(kLengthMask);
-  EXPECT_EQ(4, builder.length());
-  EXPECT_TRUE(builder.WriteBytes(kLargeData.data(), kLengthMask));
-  EXPECT_EQ(4 + kLengthMask, static_cast<unsigned>(builder.length()));
-}
 
 // Test that we can encode and decode a SpdyHeaderBlock.
 TEST_F(SpdyFramerTest, HeaderBlock) {
@@ -408,7 +438,9 @@ TEST_F(SpdyFramerTest, OutOfOrderHeaders) {
                                  syn_frame.header_block_len());
   SpdyFramer framer;
   framer.set_enable_compression(false);
-  EXPECT_TRUE(framer.ParseHeaderBlock(control_frame.get(), &new_headers));
+  EXPECT_TRUE(framer.ParseHeaderBlockInBuffer(serialized_headers.c_str(),
+                                              serialized_headers.size(),
+                                              &new_headers));
 }
 
 TEST_F(SpdyFramerTest, WrongNumberOfHeaders) {
@@ -482,7 +514,9 @@ TEST_F(SpdyFramerTest, DuplicateHeader) {
   SpdyFramer framer;
   framer.set_enable_compression(false);
   // This should fail because duplicate headers are verboten by the spec.
-  EXPECT_FALSE(framer.ParseHeaderBlock(control_frame.get(), &new_headers));
+  EXPECT_FALSE(framer.ParseHeaderBlockInBuffer(serialized_headers.c_str(),
+                                               serialized_headers.size(),
+                                               &new_headers));
 }
 
 TEST_F(SpdyFramerTest, MultiValueHeader) {
@@ -511,7 +545,9 @@ TEST_F(SpdyFramerTest, MultiValueHeader) {
                                  syn_frame.header_block_len());
   SpdyFramer framer;
   framer.set_enable_compression(false);
-  EXPECT_TRUE(framer.ParseHeaderBlock(control_frame.get(), &new_headers));
+  EXPECT_TRUE(framer.ParseHeaderBlockInBuffer(serialized_headers.c_str(),
+                                              serialized_headers.size(),
+                                              &new_headers));
   EXPECT_TRUE(new_headers.find("name") != new_headers.end());
   EXPECT_EQ(value, new_headers.find("name")->second);
 }
@@ -575,6 +611,7 @@ TEST_F(SpdyFramerTest, BasicCompression) {
   EXPECT_EQ(0,
       memcmp(frame3->data(), frame4->data(),
       SpdyFrame::kHeaderSize + frame3->length()));
+
 
   // Expect frames 3 to be the same as a uncompressed frame created
   // from scratch.
@@ -673,7 +710,7 @@ TEST_F(SpdyFramerTest, Basic) {
   EXPECT_EQ(2, visitor.fin_frame_count_);
   EXPECT_EQ(0, visitor.fin_flag_count_);
   EXPECT_EQ(0, visitor.zero_length_data_frame_count_);
-  // EXPECT_EQ(4, visitor.data_frame_count_);
+  EXPECT_EQ(4, visitor.data_frame_count_);
 }
 
 // Test that the FIN flag on a data frame signifies EOF.
@@ -716,7 +753,7 @@ TEST_F(SpdyFramerTest, FinOnDataFrame) {
   EXPECT_EQ(0, visitor.fin_frame_count_);
   EXPECT_EQ(0, visitor.fin_flag_count_);
   EXPECT_EQ(1, visitor.zero_length_data_frame_count_);
-  // EXPECT_EQ(2, visitor.data_frame_count_);
+  EXPECT_EQ(2, visitor.data_frame_count_);
 }
 
 // Test that the FIN flag on a SYN reply frame signifies EOF.
@@ -750,7 +787,7 @@ TEST_F(SpdyFramerTest, FinOnSynReplyFrame) {
   EXPECT_EQ(0, visitor.fin_frame_count_);
   EXPECT_EQ(1, visitor.fin_flag_count_);
   EXPECT_EQ(1, visitor.zero_length_data_frame_count_);
-  // EXPECT_EQ(0, visitor.data_frame_count_);
+  EXPECT_EQ(0, visitor.data_frame_count_);
 }
 
 // Basic compression & decompression
@@ -893,7 +930,7 @@ TEST_F(SpdyFramerTest, UnclosedStreamDataCompressors) {
   EXPECT_EQ(0, visitor.fin_frame_count_);
   EXPECT_EQ(0, visitor.fin_flag_count_);
   EXPECT_EQ(1, visitor.zero_length_data_frame_count_);
-  // EXPECT_EQ(1, visitor.data_frame_count_);
+  EXPECT_EQ(1, visitor.data_frame_count_);
 
   // We closed the streams, so all compressors should be down.
   EXPECT_EQ(0, visitor.framer_.num_stream_compressors());

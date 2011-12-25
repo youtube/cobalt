@@ -3629,15 +3629,12 @@ TEST_P(SpdyNetworkTransactionTest, DecompressFailureOnSynReply) {
       ConstructSpdyRstStream(1, spdy::PROTOCOL_ERROR));
   MockWrite writes[] = {
     CreateMockWrite(*compressed),
-    CreateMockWrite(*rst),
   };
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
   MockRead reads[] = {
     CreateMockRead(*resp),
-    CreateMockRead(*body),
-    MockRead(true, 0, 0)
   };
 
   scoped_refptr<DelayedSocketData> data(
