@@ -295,7 +295,7 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
 
   // TODO(mbelshe): consider randomization of the stream_hi_water_mark.
 
-  spdy_framer_.set_visitor(this);
+  buffered_spdy_framer_.set_visitor(this);
 
   SendSettings();
 }
@@ -529,7 +529,7 @@ int SpdySession::WriteSynStream(
   SendPrefacePingIfNoneInFlight();
 
   scoped_ptr<spdy::SpdySynStreamControlFrame> syn_frame(
-      spdy_framer_.CreateSynStream(
+      buffered_spdy_framer_.CreateSynStream(
           stream_id, 0,
           ConvertRequestPriorityToSpdyPriority(priority),
           flags, false, headers.get()));
@@ -607,7 +607,8 @@ int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
 
   // TODO(mbelshe): reduce memory copies here.
   scoped_ptr<spdy::SpdyDataFrame> frame(
-      spdy_framer_.CreateDataFrame(stream_id, data->data(), len, flags));
+      buffered_spdy_framer_.CreateDataFrame(
+          stream_id, data->data(), len, flags));
   QueueFrame(frame.get(), stream->priority(), stream);
 
   // Some servers don't like too many pings, so we limit our current sending to
@@ -636,7 +637,7 @@ void SpdySession::ResetStream(
       make_scoped_refptr(new NetLogSpdyRstParameter(stream_id, status)));
 
   scoped_ptr<spdy::SpdyRstStreamControlFrame> rst_frame(
-      spdy_framer_.CreateRstStream(stream_id, status));
+      spdy::SpdyFramer::CreateRstStream(stream_id, status));
 
   // Default to lowest priority unless we know otherwise.
   int priority = 3;
@@ -695,12 +696,14 @@ void SpdySession::OnReadComplete(int bytes_read) {
 
   char *data = read_buffer_->data();
   while (bytes_read &&
-         spdy_framer_.error_code() == spdy::SpdyFramer::SPDY_NO_ERROR) {
-    uint32 bytes_processed = spdy_framer_.ProcessInput(data, bytes_read);
+         buffered_spdy_framer_.error_code() ==
+             spdy::SpdyFramer::SPDY_NO_ERROR) {
+    uint32 bytes_processed =
+        buffered_spdy_framer_.ProcessInput(data, bytes_read);
     bytes_read -= bytes_processed;
     data += bytes_processed;
-    if (spdy_framer_.state() == spdy::SpdyFramer::SPDY_DONE)
-      spdy_framer_.Reset();
+    if (buffered_spdy_framer_.state() == spdy::SpdyFramer::SPDY_DONE)
+      buffered_spdy_framer_.Reset();
   }
 
   if (state_ != CLOSED)
@@ -834,9 +837,9 @@ void SpdySession::WriteSocket() {
       // which is now.  At this time, we don't compress our data frames.
       spdy::SpdyFrame uncompressed_frame(next_buffer.buffer()->data(), false);
       size_t size;
-      if (spdy_framer_.IsCompressible(uncompressed_frame)) {
+      if (buffered_spdy_framer_.IsCompressible(uncompressed_frame)) {
         scoped_ptr<spdy::SpdyFrame> compressed_frame(
-            spdy_framer_.CompressFrame(uncompressed_frame));
+            buffered_spdy_framer_.CompressFrame(uncompressed_frame));
         if (!compressed_frame.get()) {
           LOG(ERROR) << "SPDY Compression failure";
           CloseSessionOnError(net::ERR_SPDY_PROTOCOL_ERROR, true);
@@ -1297,28 +1300,12 @@ void SpdySession::OnHeaders(const spdy::SpdyHeadersControlFrame& frame,
 }
 
 void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
-  const linked_ptr<spdy::SpdyHeaderBlock> headers(new spdy::SpdyHeaderBlock);
   uint32 type = frame->type();
   if (type == spdy::SYN_STREAM ||
       type == spdy::SYN_REPLY ||
       type == spdy::HEADERS) {
-    if (!spdy_framer_.ParseHeaderBlock(frame, headers.get())) {
-      LOG(WARNING) << "Could not parse Spdy Control Frame Header.";
-      int stream_id = 0;
-      if (type == spdy::SYN_STREAM) {
-        stream_id = (reinterpret_cast<const spdy::SpdySynStreamControlFrame*>
-                     (frame))->stream_id();
-      } else if (type == spdy::SYN_REPLY) {
-        stream_id = (reinterpret_cast<const spdy::SpdySynReplyControlFrame*>
-                     (frame))->stream_id();
-      } else if (type == spdy::HEADERS) {
-        stream_id = (reinterpret_cast<const spdy::SpdyHeadersControlFrame*>
-                     (frame))->stream_id();
-      }
-      if(IsStreamActive(stream_id))
-        ResetStream(stream_id, spdy::PROTOCOL_ERROR);
-      return;
-    }
+    buffered_spdy_framer_.OnControl(frame);
+    return;
   }
 
   frames_received_++;
@@ -1337,19 +1324,6 @@ void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
     case spdy::RST_STREAM:
       OnRst(*reinterpret_cast<const spdy::SpdyRstStreamControlFrame*>(frame));
       break;
-    case spdy::SYN_STREAM:
-      OnSyn(*reinterpret_cast<const spdy::SpdySynStreamControlFrame*>(frame),
-            headers);
-      break;
-    case spdy::HEADERS:
-      OnHeaders(*reinterpret_cast<const spdy::SpdyHeadersControlFrame*>(frame),
-                headers);
-      break;
-    case spdy::SYN_REPLY:
-      OnSynReply(
-          *reinterpret_cast<const spdy::SpdySynReplyControlFrame*>(frame),
-          headers);
-      break;
     case spdy::WINDOW_UPDATE:
       OnWindowUpdate(
           *reinterpret_cast<const spdy::SpdyWindowUpdateControlFrame*>(frame));
@@ -1359,15 +1333,27 @@ void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
   }
 }
 
-bool SpdySession::OnControlFrameHeaderData(spdy::SpdyStreamId stream_id,
-                                           const char* header_data,
-                                           size_t len) {
-  DCHECK(false);
-  return false;
+bool SpdySession::OnControlFrameHeaderData(
+    const spdy::SpdyControlFrame* control_frame,
+    const char* header_data,
+    size_t len) {
+  if (!buffered_spdy_framer_.OnControlFrameHeaderData(
+          control_frame, header_data, len)) {
+    spdy::SpdyStreamId stream_id =
+        spdy::SpdyFramer::GetControlFrameStreamId(control_frame);
+    if (IsStreamActive(stream_id))
+      ResetStream(stream_id, spdy::PROTOCOL_ERROR);
+    return false;
+  }
+  if (len == 0) {
+    // Indicates end-of-header-block.
+    frames_received_++;
+  }
+  return true;
 }
 
 void SpdySession::OnDataFrameHeader(const spdy::SpdyDataFrame* frame) {
-  DCHECK(false);
+  buffered_spdy_framer_.OnDataFrameHeader(frame);
 }
 
 void SpdySession::OnRst(const spdy::SpdyRstStreamControlFrame& frame) {
@@ -1451,7 +1437,7 @@ void SpdySession::OnPing(const spdy::SpdyPingControlFrame& frame) {
 
 void SpdySession::OnSettings(const spdy::SpdySettingsControlFrame& frame) {
   spdy::SpdySettings settings;
-  if (spdy_framer_.ParseSettings(&frame, &settings)) {
+  if (spdy::SpdyFramer::ParseSettings(&frame, &settings)) {
     HandleSettings(settings);
     http_server_properties_->SetSpdySettings(host_port_pair(), settings);
   }
@@ -1504,7 +1490,7 @@ void SpdySession::SendWindowUpdate(spdy::SpdyStreamId stream_id,
           stream_id, delta_window_size, stream->recv_window_size())));
 
   scoped_ptr<spdy::SpdyWindowUpdateControlFrame> window_update_frame(
-      spdy_framer_.CreateWindowUpdate(stream_id, delta_window_size));
+      spdy::SpdyFramer::CreateWindowUpdate(stream_id, delta_window_size));
   QueueFrame(window_update_frame.get(), stream->priority(), NULL);
 }
 
@@ -1568,7 +1554,7 @@ void SpdySession::SendSettings() {
 
   // Create the SETTINGS frame and send it.
   scoped_ptr<spdy::SpdySettingsControlFrame> settings_frame(
-      spdy_framer_.CreateSettings(settings));
+      spdy::SpdyFramer::CreateSettings(settings));
   sent_settings_ = true;
   QueueFrame(settings_frame.get(), 0, NULL);
 }
@@ -1627,7 +1613,7 @@ void SpdySession::SendTrailingPing() {
 
 void SpdySession::WritePingFrame(uint32 unique_id) {
   scoped_ptr<spdy::SpdyPingControlFrame> ping_frame(
-      spdy_framer_.CreatePingFrame(next_ping_id_));
+      spdy::SpdyFramer::CreatePingFrame(next_ping_id_));
   QueueFrame(ping_frame.get(), SPDY_PRIORITY_HIGHEST, NULL);
 
   if (net_log().IsLoggingAllEvents()) {
