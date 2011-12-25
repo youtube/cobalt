@@ -26,7 +26,7 @@
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/ssl_client_socket.h"
 #include "net/socket/stream_socket.h"
-#include "net/spdy/spdy_framer.h"
+#include "net/spdy/buffered_spdy_framer.h"
 #include "net/spdy/spdy_io_buffer.h"
 #include "net/spdy/spdy_protocol.h"
 #include "net/spdy/spdy_session_pool.h"
@@ -46,7 +46,7 @@ class SpdyStream;
 class SSLInfo;
 
 class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
-                               public spdy::SpdyFramerVisitorInterface,
+                               public spdy::BufferedSpdyFramerVisitorInterface,
                                public LayeredPool {
  public:
   // Create a new SpdySession.
@@ -304,12 +304,6 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
       const BoundNetLog& stream_net_log);
 
   // Control frame handlers.
-  void OnSyn(const spdy::SpdySynStreamControlFrame& frame,
-             const linked_ptr<spdy::SpdyHeaderBlock>& headers);
-  void OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
-                  const linked_ptr<spdy::SpdyHeaderBlock>& headers);
-  void OnHeaders(const spdy::SpdyHeadersControlFrame& frame,
-                 const linked_ptr<spdy::SpdyHeaderBlock>& headers);
   void OnRst(const spdy::SpdyRstStreamControlFrame& frame);
   void OnGoAway(const spdy::SpdyGoAwayControlFrame& frame);
   void OnPing(const spdy::SpdyPingControlFrame& frame);
@@ -398,18 +392,28 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // can be deferred to the MessageLoop, so we avoid re-entrancy problems.
   void InvokeUserStreamCreationCallback(scoped_refptr<SpdyStream>* stream);
 
-  // SpdyFramerVisitorInterface:
+  // BufferedSpdyFramerVisitorInterface:
   virtual void OnError(spdy::SpdyFramer*) OVERRIDE;
   virtual void OnStreamFrameData(spdy::SpdyStreamId stream_id,
                                  const char* data,
                                  size_t len) OVERRIDE;
   virtual void OnControl(const spdy::SpdyControlFrame* frame) OVERRIDE;
 
-  virtual bool OnControlFrameHeaderData(spdy::SpdyStreamId stream_id,
-                                        const char* header_data,
-                                        size_t len) OVERRIDE;
+  virtual bool OnControlFrameHeaderData(
+      const spdy::SpdyControlFrame* control_frame,
+      const char* header_data,
+      size_t len) OVERRIDE;
 
   virtual void OnDataFrameHeader(const spdy::SpdyDataFrame* frame) OVERRIDE;
+
+  virtual void OnSyn(const spdy::SpdySynStreamControlFrame& frame,
+                     const linked_ptr<spdy::SpdyHeaderBlock>& headers) OVERRIDE;
+  virtual void OnSynReply(
+      const spdy::SpdySynReplyControlFrame& frame,
+      const linked_ptr<spdy::SpdyHeaderBlock>& headers) OVERRIDE;
+  virtual void OnHeaders(
+      const spdy::SpdyHeadersControlFrame& frame,
+      const linked_ptr<spdy::SpdyHeaderBlock>& headers) OVERRIDE;
 
   // --------------------------
   // Helper methods for testing
@@ -507,7 +511,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   int certificate_error_code_;
 
   // Spdy Frame state.
-  spdy::SpdyFramer spdy_framer_;
+  spdy::BufferedSpdyFramer buffered_spdy_framer_;
 
   // If an error has occurred on the session, the session is effectively
   // dead.  Record this error here.  When no error has occurred, |error_| will
