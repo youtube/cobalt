@@ -140,6 +140,8 @@
         'base/ime/input_method_base.cc',
         'base/ime/input_method_base.h',
         'base/ime/input_method_delegate.h',
+        'base/ime/input_method_factory.cc',
+        'base/ime/input_method_factory.h',
         'base/ime/input_method_ibus.cc',
         'base/ime/input_method_ibus.h',
         'base/ime/mock_input_method.cc',
@@ -371,6 +373,8 @@
            ],
         }, {  # use_aura!=1
           'sources!': [
+            'base/ime/input_method_factory.cc',
+            'base/ime/input_method_factory.h',
             'base/ime/input_method_ibus.cc',
             'base/ime/input_method_ibus.h',
             'base/ime/mock_input_method.cc',
