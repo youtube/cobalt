@@ -86,7 +86,7 @@ bool SpdyFrameBuilder::ReadString(void** iter, std::string* result) const {
 }
 
 bool SpdyFrameBuilder::ReadBytes(void** iter, const char** data,
-                                 uint16 length) const {
+                                 uint32 length) const {
   DCHECK(iter);
   DCHECK(data);
 
@@ -106,6 +106,19 @@ bool SpdyFrameBuilder::ReadData(void** iter, const char** data,
   DCHECK(length);
 
   if (!ReadUInt16(iter, length))
+    return false;
+
+  return ReadBytes(iter, data, *length);
+}
+
+bool SpdyFrameBuilder::ReadReadLen32PrefixedData(void** iter,
+                                                 const char** data,
+                                                 uint32* length) const {
+  DCHECK(iter);
+  DCHECK(data);
+  DCHECK(length);
+
+  if (!ReadUInt32(iter, length))
     return false;
 
   return ReadBytes(iter, data, *length);
