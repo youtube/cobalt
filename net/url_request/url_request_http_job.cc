@@ -1180,12 +1180,12 @@ void URLRequestHttpJob::RecordTimer() {
         to_start);
   }
 
-  static const bool use_prefetch_histogram =
-      base::FieldTrialList::TrialExists("Prefetch");
-  if (use_prefetch_histogram) {
+  static const bool use_prerender_histogram =
+      base::FieldTrialList::TrialExists("Prerender");
+  if (use_prerender_histogram) {
     UMA_HISTOGRAM_MEDIUM_TIMES(
         base::FieldTrial::MakeName("Net.HttpTimeToFirstByte",
-                                   "Prefetch"),
+                                   "Prerender"),
         to_start);
   }
 }
