@@ -3,9 +3,12 @@
 // found in the LICENSE file.
 
 #include "base/base64.h"
+#include "base/format_macros.h"
 #include "base/json/json_reader.h"
 #include "base/logging.h"
 #include "base/stl_util.h"
+#include "base/string_util.h"
+#include "base/stringprintf.h"
 #include "base/values.h"
 #include "crypto/sha2.h"
 #include "net/base/crl_set.h"
@@ -310,7 +313,7 @@ bool ReadDeltaCRL(base::StringPiece* data,
 
 bool CRLSet::ApplyDelta(base::StringPiece data,
                         scoped_refptr<CRLSet>* out_crl_set) {
-       scoped_ptr<DictionaryValue> header_dict(ReadHeader(&data));
+  scoped_ptr<DictionaryValue> header_dict(ReadHeader(&data));
   if (!header_dict.get())
     return false;
 
@@ -387,6 +390,55 @@ bool CRLSet::ApplyDelta(base::StringPiece data,
 
   *out_crl_set = crl_set;
   return true;
+}
+
+std::string CRLSet::Serialize() const {
+  std::string header = StringPrintf(
+      "{"
+      "\"Version\":0,"
+      "\"ContentType\":\"CRLSet\","
+      "\"Sequence\":%u,"
+      "\"DeltaFrom\":0,"
+      "\"NumParents\":%u"
+      "}",
+      static_cast<unsigned>(sequence_),
+      static_cast<unsigned>(crls_.size()));
+
+  size_t len = 2 /* header len */ + header.size();
+
+  for (CRLList::const_iterator i = crls_.begin(); i != crls_.end(); ++i) {
+    len += i->first.size() + 4 /* num serials */;
+    for (std::vector<std::string>::const_iterator j = i->second.begin();
+         j != i->second.end(); j++) {
+      len += 1 /* serial length */ + j->size();
+    }
+  }
+
+  std::string ret;
+  char* out = WriteInto(&ret, len + 1 /* to include final NUL */);
+  size_t off = 0;
+  out[off++] = header.size();
+  out[off++] = header.size() >> 8;
+  memcpy(out + off, header.data(), header.size());
+  off += header.size();
+
+  for (CRLList::const_iterator i = crls_.begin(); i != crls_.end(); ++i) {
+    memcpy(out + off, i->first.data(), i->first.size());
+    off += i->first.size();
+    const uint32 num_serials = i->second.size();
+    memcpy(out + off, &num_serials, sizeof(num_serials));
+    off += sizeof(num_serials);
+
+    for (std::vector<std::string>::const_iterator j = i->second.begin();
+         j != i->second.end(); j++) {
+      out[off++] = j->size();
+      memcpy(out + off, j->data(), j->size());
+      off += j->size();
+    }
+  }
+
+  CHECK_EQ(off, len);
+  return ret;
 }
 
 CRLSet::Result CRLSet::CheckCertificate(
