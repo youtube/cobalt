@@ -51,6 +51,11 @@ class NET_EXPORT CRLSet : public base::RefCountedThreadSafe<CRLSet> {
   bool ApplyDelta(base::StringPiece delta_bytes,
                   scoped_refptr<CRLSet>* out_crl_set);
 
+  // Serialize returns a string of bytes suitable for passing to Parse. Parsing
+  // and serializing a CRLSet is a lossless operation - the resulting bytes
+  // will be equal.
+  std::string Serialize() const;
+
   // sequence returns the sequence number of this CRL set. CRL sets generated
   // by the same source are given strictly monotonically increasing sequence
   // numbers.
