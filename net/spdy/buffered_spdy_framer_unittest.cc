@@ -56,6 +56,11 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
     LOG(FATAL) << "Unexpected OnStreamFrameData call.";
   }
 
+  bool OnCredentialFrameData(const char*, size_t) {
+    LOG(FATAL) << "Unexpected OnCredentialFrameData call.";
+    return false;
+  }
+
   void OnDataFrameHeader(const SpdyDataFrame* frame) {
     LOG(FATAL) << "Unexpected OnDataFrameHeader call.";
   }

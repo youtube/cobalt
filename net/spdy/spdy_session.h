@@ -309,6 +309,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   void OnPing(const spdy::SpdyPingControlFrame& frame);
   void OnSettings(const spdy::SpdySettingsControlFrame& frame);
   void OnWindowUpdate(const spdy::SpdyWindowUpdateControlFrame& frame);
+  void OnCredential(const spdy::SpdyCredentialControlFrame& frame);
 
   // IO Callbacks
   void OnReadComplete(int result);
@@ -318,7 +319,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   void SendSettings();
 
   // Handle SETTINGS.  Either when we send settings, or when we receive a
-  // SETTINGS ontrol frame, update our SpdySession accordingly.
+  // SETTINGS control frame, update our SpdySession accordingly.
   void HandleSettings(const spdy::SpdySettings& settings);
 
   // Send the PING (preface-PING and trailing-PING) frames.
@@ -403,6 +404,9 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
       const spdy::SpdyControlFrame* control_frame,
       const char* header_data,
       size_t len) OVERRIDE;
+
+  virtual bool OnCredentialFrameData(const char* frame_data,
+                                     size_t len) OVERRIDE;
 
   virtual void OnDataFrameHeader(const spdy::SpdyDataFrame* frame) OVERRIDE;
 
