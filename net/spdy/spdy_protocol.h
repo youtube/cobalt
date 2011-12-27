@@ -124,6 +124,25 @@
 //  |   Delta-Window-Size (32 bits)    |
 //  +----------------------------------+
 //
+//  Control Frame: CREDENTIAL
+//  +----------------------------------+
+//  |1|000000000000001|0000000000001010|
+//  +----------------------------------+
+//  | flags (8)  |  Length (24 bits)   | >= 12
+//  +----------------------------------+
+//  |  Slot (16 bits) | Origin Len (16)|
+//  +----------------------------------+
+//  |              Origin              |
+//  +----------------------------------+
+//  |      Proof Length (32 bits)      |
+//  +----------------------------------+
+//  |               Proof              |
+//  +----------------------------------+ <+
+//  |   Certificate Length (32 bits)   |  |
+//  +----------------------------------+  | Repeated until end of frame
+//  |            Certificate           |  |
+//  +----------------------------------+ <+
+//
 namespace spdy {
 
 // This implementation of Spdy is version 2; It's like version 1, with some
@@ -160,6 +179,7 @@ enum SpdyControlType {
   GOAWAY,
   HEADERS,
   WINDOW_UPDATE,
+  CREDENTIAL,
   NUM_CONTROL_FRAME_TYPES
 };
 
@@ -289,6 +309,17 @@ struct SpdyNoopControlFrameBlock : SpdyFrameBlock {
 // A PING Control Frame structure.
 struct SpdyPingControlFrameBlock : SpdyFrameBlock {
   uint32 unique_id_;
+};
+
+// A CREDENTIAL Control Frame structure.
+struct SpdyCredentialControlFrameBlock : SpdyFrameBlock {
+  uint16 slot_;
+  uint16 origin_len_;
+  uint32 proof_len_;
+  // Variable data here.
+  // origin data
+  // proof data
+  // for each certificate: unit32 certificate_len + certificate_data[i]
 };
 
 // A GOAWAY Control Frame structure.
@@ -685,6 +716,25 @@ class SpdyPingControlFrame : public SpdyControlFrame {
   struct SpdyPingControlFrameBlock* mutable_block() {
     return static_cast<SpdyPingControlFrameBlock*>(frame_);
   }
+};
+
+class SpdyCredentialControlFrame : public SpdyControlFrame {
+ public:
+  SpdyCredentialControlFrame() : SpdyControlFrame(size()) {}
+  SpdyCredentialControlFrame(char* data, bool owns_buffer)
+      : SpdyControlFrame(data, owns_buffer) {}
+
+  const char* payload() const {
+    return reinterpret_cast<const char*>(block()) + SpdyFrame::kHeaderSize;
+  }
+
+  static size_t size() { return sizeof(SpdyCredentialControlFrameBlock); }
+
+ private:
+  const struct SpdyCredentialControlFrameBlock* block() const {
+    return static_cast<SpdyCredentialControlFrameBlock*>(frame_);
+  }
+  DISALLOW_COPY_AND_ASSIGN(SpdyCredentialControlFrame);
 };
 
 class SpdyGoAwayControlFrame : public SpdyControlFrame {
