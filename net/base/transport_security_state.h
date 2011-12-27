@@ -76,19 +76,9 @@ class NET_EXPORT TransportSecurityState
     bool IsChainOfPublicKeysPermitted(
         const std::vector<SHA1Fingerprint>& hashes);
 
-    // ShouldCertificateErrorsBeFatal returns true iff, given the |mode| of this
-    // DomainState, certificate errors on this domain should be fatal (i.e. no
-    // user bypass).
-    bool ShouldCertificateErrorsBeFatal() const;
-
     // ShouldRedirectHTTPToHTTPS returns true iff, given the |mode| of this
     // DomainState, HTTP requests should be internally redirected to HTTPS.
     bool ShouldRedirectHTTPToHTTPS() const;
-
-    // ShouldMixedScriptingBeBlocked returns true iff, given the |mode| of this
-    // DomainState, mixed scripting (the loading of Javascript, CSS or plugins
-    // over HTTP for an HTTPS page) should be blocked.
-    bool ShouldMixedScriptingBeBlocked() const;
 
     Mode mode;
     base::Time created;  // when this host entry was first created
