@@ -1389,19 +1389,9 @@ bool TransportSecurityState::DomainState::IsChainOfPublicKeysPermitted(
   return false;
 }
 
-bool TransportSecurityState::DomainState::ShouldCertificateErrorsBeFatal()
-    const {
-  return true;
-}
-
 bool TransportSecurityState::DomainState::ShouldRedirectHTTPToHTTPS()
     const {
   return mode == MODE_STRICT;
-}
-
-bool TransportSecurityState::DomainState::ShouldMixedScriptingBeBlocked()
-    const {
-  return true;
 }
 
 }  // namespace
