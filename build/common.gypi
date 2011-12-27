@@ -1356,7 +1356,7 @@
             'sources/': [ ['exclude', '_views\\.(h|cc)$'] ]
           }],
           ['use_aura==0', {
-            'sources/': [ ['exclude', '_aura\\.(h|cc)$'],
+            'sources/': [ ['exclude', '_aura(_unittest)?\\.(h|cc)$'],
                           ['exclude', '(^|/)aura/'],
             ]
           }],
