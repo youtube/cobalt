@@ -939,6 +939,13 @@ int HttpCache::Transaction::DoAddToEntryComplete(int result) {
   const base::TimeDelta entry_lock_wait =
       base::TimeTicks::Now() - entry_lock_waiting_since_;
   UMA_HISTOGRAM_TIMES("HttpCache.EntryLockWait", entry_lock_wait);
+  static const bool prefetching_fieldtrial =
+      base::FieldTrialList::TrialExists("Prefetch");
+  if (prefetching_fieldtrial) {
+    UMA_HISTOGRAM_TIMES(
+        base::FieldTrial::MakeName("HttpCache.EntryLockWait", "Prefetch"),
+        entry_lock_wait);
+  }
   static const bool prerendering_fieldtrial =
       base::FieldTrialList::TrialExists("Prerender");
   if (prerendering_fieldtrial) {
