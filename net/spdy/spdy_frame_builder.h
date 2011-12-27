@@ -61,8 +61,11 @@ class NET_EXPORT_PRIVATE SpdyFrameBuilder {
   bool ReadUInt16(void** iter, uint16* result) const;
   bool ReadUInt32(void** iter, uint32* result) const;
   bool ReadString(void** iter, std::string* result) const;
-  bool ReadBytes(void** iter, const char** data, uint16 length) const;
+  bool ReadBytes(void** iter, const char** data, uint32 length) const;
   bool ReadData(void** iter, const char** data, uint16* length) const;
+  bool ReadReadLen32PrefixedData(void** iter,
+                                 const char** data,
+                                 uint32* length) const;
 
   // Methods for adding to the payload.  These values are appended to the end
   // of the SpdyFrameBuilder payload.  When reading values, you must read them

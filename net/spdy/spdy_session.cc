@@ -1352,6 +1352,12 @@ bool SpdySession::OnControlFrameHeaderData(
   return true;
 }
 
+bool SpdySession::OnCredentialFrameData(const char* frame_data,
+                                        size_t len) {
+  DCHECK(false);
+  return false;
+}
+
 void SpdySession::OnDataFrameHeader(const spdy::SpdyDataFrame* frame) {
   buffered_spdy_framer_.OnDataFrameHeader(frame);
 }
