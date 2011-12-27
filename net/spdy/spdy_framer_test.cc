@@ -86,6 +86,7 @@ void CompareCharArraysWithHexError(
 class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
  public:
   static const size_t kDefaultHeaderBufferSize = 64 * 1024;
+  static const size_t kDefaultCredentialBufferSize = 16 * 1024;
 
   TestSpdyVisitor()
     : use_compression_(false),
@@ -94,6 +95,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
       syn_reply_frame_count_(0),
       headers_frame_count_(0),
       goaway_count_(0),
+      credential_count_(0),
       data_bytes_(0),
       fin_frame_count_(0),
       fin_flag_count_(0),
@@ -107,7 +109,10 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
       header_buffer_size_(kDefaultHeaderBufferSize),
       header_stream_id_(-1),
       header_control_type_(NUM_CONTROL_FRAME_TYPES),
-      header_buffer_valid_(false) {
+      header_buffer_valid_(false),
+      credential_buffer_(new char[kDefaultCredentialBufferSize]),
+      credential_buffer_length_(0),
+      credential_buffer_size_(kDefaultCredentialBufferSize) {
   }
 
   void OnError(SpdyFramer* f) {
@@ -158,6 +163,9 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
       case GOAWAY:
         goaway_count_++;
         break;
+      case CREDENTIAL:
+        credential_count_++;
+        break;
       default:
         DLOG(FATAL);  // Error!
     }
@@ -187,6 +195,26 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
     }
     memcpy(header_buffer_.get() + header_buffer_length_, header_data, len);
     header_buffer_length_ += len;
+    return true;
+  }
+
+  bool OnCredentialFrameData(const char* credential_data, size_t len) {
+    if (len == 0) {
+      if (!framer_.ParseCredentialData(credential_buffer_.get(),
+                                       credential_buffer_length_,
+                                       &credential_)) {
+        ++error_count_;
+      }
+      return true;
+    }
+    const size_t available =
+        credential_buffer_size_ - credential_buffer_length_;
+    if (len > available) {
+      return false;
+    }
+    memcpy(credential_buffer_.get() + credential_buffer_length_,
+           credential_data, len);
+    credential_buffer_length_ += len;
     return true;
   }
 
@@ -244,6 +272,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
   int syn_reply_frame_count_;
   int headers_frame_count_;
   int goaway_count_;
+  int credential_count_;
   int data_bytes_;
   int fin_frame_count_;  // The count of RST_STREAM type frames received.
   int fin_flag_count_;  // The count of frames with the FIN flag set.
@@ -262,6 +291,11 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
   SpdyControlType header_control_type_;
   bool header_buffer_valid_;
   SpdyHeaderBlock headers_;
+
+  scoped_array<char> credential_buffer_;
+  size_t credential_buffer_length_;
+  size_t credential_buffer_size_;
+  SpdyCredential credential_;
 };
 
 }  // namespace test
@@ -1586,6 +1620,86 @@ TEST_F(SpdyFramerTest, CreateWindowUpdate) {
   }
 }
 
+TEST_F(SpdyFramerTest, CreateCredential) {
+  SpdyFramer framer;
+
+  {
+    const char kDescription[] = "CREDENTIAL frame";
+    const unsigned char kFrameData[] = {
+      0x80, 0x02, 0x00, 0x0A,
+      0x00, 0x00, 0x00, 0x3F,
+      0x00, 0x03, 0x00, 0x0A,
+      'g',  'o',  'o',  'g',
+      'l',  'e',  '.',  'c',
+      'o',  'm',  0x00, 0x00,
+      0x00, 0x05, 'p',  'r',
+      'o',  'o',  'f',  0x00,
+      0x00, 0x00, 0x06, 'a',
+      ' ',  'c',  'e',  'r',
+      't',  0x00, 0x00, 0x00,
+      0x0C, 'a',  'n',  'o',
+      't',  'h',  'e',  'r',
+      ' ',  'c',  'e',  'r',
+      't',  0x00,  0x00, 0x00,
+      0x0A, 'f',  'i',  'n',
+      'a',  'l',  ' ',  'c',
+      'e',  'r',  't',
+    };
+    SpdyCredential credential;
+    credential.slot = 3;
+    credential.origin = "google.com";
+    credential.proof = "proof";
+    credential.certs.push_back("a cert");
+    credential.certs.push_back("another cert");
+    credential.certs.push_back("final cert");
+    scoped_ptr<SpdyFrame> frame(framer.CreateCredentialFrame(credential));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+}
+
+TEST_F(SpdyFramerTest, ParseCredentialFrame) {
+  SpdyFramer framer;
+
+  {
+    unsigned char kFrameData[] = {
+      0x80, 0x02, 0x00, 0x0A,
+      0x00, 0x00, 0x00, 0x3F,
+      0x00, 0x03, 0x00, 0x0A,
+      'g',  'o',  'o',  'g',
+      'l',  'e',  '.',  'c',
+      'o',  'm',  0x00, 0x00,
+      0x00, 0x05, 'p',  'r',
+      'o',  'o',  'f',  0x00,
+      0x00, 0x00, 0x06, 'a',
+      ' ',  'c',  'e',  'r',
+      't',  0x00, 0x00, 0x00,
+      0x0C, 'a',  'n',  'o',
+      't',  'h',  'e',  'r',
+      ' ',  'c',  'e',  'r',
+      't',  0x00,  0x00, 0x00,
+      0x0A, 'f',  'i',  'n',
+      'a',  'l',  ' ',  'c',
+      'e',  'r',  't',
+    };
+    SpdyCredentialControlFrame frame(reinterpret_cast<char*>(kFrameData),
+                                     false);
+    SpdyCredential credential;
+    EXPECT_TRUE(SpdyFramer::ParseCredentialData(frame.payload(),
+                                                frame.length(),
+                                                &credential));
+    EXPECT_EQ(3u, credential.slot);
+    EXPECT_EQ("google.com", credential.origin);
+    EXPECT_EQ("proof", credential.proof);
+    EXPECT_EQ("a cert", credential.certs.front());
+    credential.certs.erase(credential.certs.begin());
+    EXPECT_EQ("another cert", credential.certs.front());
+    credential.certs.erase(credential.certs.begin());
+    EXPECT_EQ("final cert", credential.certs.front());
+    credential.certs.erase(credential.certs.begin());
+    EXPECT_TRUE(credential.certs.empty());
+  }
+}
+
 TEST_F(SpdyFramerTest, DuplicateFrame) {
   SpdyFramer framer;
 
@@ -1635,6 +1749,106 @@ TEST_F(SpdyFramerTest, ExpandBuffer_HeapSmash) {
          template_frame.get()->length() + SpdyControlFrame::kHeaderSize);
     EXPECT_EQ(1, visitor.syn_frame_count_);
   }
+}
+
+TEST_F(SpdyFramerTest, ReadCredentialFrame) {
+  SpdyCredential credential;
+  credential.slot = 3;
+  credential.origin = "google.com";
+  credential.proof = "proof";
+  credential.certs.push_back("a cert");
+  credential.certs.push_back("another cert");
+  credential.certs.push_back("final cert");
+  SpdyFramer framer;
+  scoped_ptr<SpdyFrame> control_frame(
+      framer.CreateCredentialFrame(credential));
+  EXPECT_TRUE(control_frame.get() != NULL);
+  TestSpdyVisitor visitor;
+  visitor.use_compression_ = false;
+  visitor.SimulateInFramer(
+      reinterpret_cast<unsigned char*>(control_frame.get()->data()),
+      control_frame.get()->length() + SpdyControlFrame::kHeaderSize);
+  EXPECT_EQ(0, visitor.error_count_);
+  EXPECT_EQ(1, visitor.credential_count_);
+  EXPECT_EQ(control_frame->length(), visitor.credential_buffer_length_);
+  EXPECT_EQ(credential.slot, visitor.credential_.slot);
+  EXPECT_EQ(credential.origin, visitor.credential_.origin);
+  EXPECT_EQ(credential.proof, visitor.credential_.proof);
+  EXPECT_EQ(credential.certs.size(), visitor.credential_.certs.size());
+  for (size_t i = 0; i < credential.certs.size(); i++) {
+    EXPECT_EQ(credential.certs[i], visitor.credential_.certs[i]);
+  }
+}
+
+TEST_F(SpdyFramerTest, ReadCredentialFrameWithCorruptOrigin) {
+  SpdyCredential credential;
+  credential.slot = 3;
+  credential.origin = "google.com";
+  credential.proof = "proof";
+  credential.certs.push_back("a cert");
+  credential.certs.push_back("another cert");
+  credential.certs.push_back("final cert");
+  SpdyFramer framer;
+  scoped_ptr<SpdyFrame> control_frame(
+      framer.CreateCredentialFrame(credential));
+  EXPECT_TRUE(control_frame.get() != NULL);
+  TestSpdyVisitor visitor;
+  visitor.use_compression_ = false;
+  unsigned char* data =
+      reinterpret_cast<unsigned char*>(control_frame.get()->data());
+  // Origin length is past the end of the frame
+  data[SpdyControlFrame::kHeaderSize + 2] = 0xFF;
+  visitor.SimulateInFramer(
+      data, control_frame.get()->length() + SpdyControlFrame::kHeaderSize);
+  EXPECT_EQ(1, visitor.error_count_);
+}
+
+TEST_F(SpdyFramerTest, ReadCredentialFrameWithCorruptProof) {
+  SpdyCredential credential;
+  credential.slot = 3;
+  credential.origin = "google.com";
+  credential.proof = "proof";
+  credential.certs.push_back("a cert");
+  credential.certs.push_back("another cert");
+  credential.certs.push_back("final cert");
+  SpdyFramer framer;
+  scoped_ptr<SpdyFrame> control_frame(
+      framer.CreateCredentialFrame(credential));
+  EXPECT_TRUE(control_frame.get() != NULL);
+  TestSpdyVisitor visitor;
+  visitor.use_compression_ = false;
+  unsigned char* data =
+      reinterpret_cast<unsigned char*>(control_frame.get()->data());
+  size_t offset = SpdyControlFrame::kHeaderSize + 4 +
+      credential.origin.length();
+  data[offset] = 0xFF;  // Proof length is past the end of the frame
+  visitor.SimulateInFramer(
+      data, control_frame.get()->length() + SpdyControlFrame::kHeaderSize);
+  EXPECT_EQ(1, visitor.error_count_);
+}
+
+TEST_F(SpdyFramerTest, ReadCredentialFrameWithCorruptCertificate) {
+  SpdyCredential credential;
+  credential.slot = 3;
+  credential.origin = "google.com";
+  credential.proof = "proof";
+  credential.certs.push_back("a cert");
+  credential.certs.push_back("another cert");
+  credential.certs.push_back("final cert");
+  SpdyFramer framer;
+  scoped_ptr<SpdyFrame> control_frame(
+      framer.CreateCredentialFrame(credential));
+  EXPECT_TRUE(control_frame.get() != NULL);
+  TestSpdyVisitor visitor;
+  visitor.use_compression_ = false;
+  unsigned char* data =
+      reinterpret_cast<unsigned char*>(control_frame.get()->data());
+  size_t offset = SpdyControlFrame::kHeaderSize + 4 +
+      credential.origin.length() + 4 + credential.proof.length();
+  data[offset] = 0xFF;  // Certificate length is past the end of the frame
+  visitor.SimulateInFramer(
+      data, control_frame.get()->length() + SpdyControlFrame::kHeaderSize);
+  EXPECT_EQ(1, visitor.error_count_);
 }
 
 TEST_F(SpdyFramerTest, ReadGarbage) {
@@ -1691,9 +1905,12 @@ TEST(SpdyFramer, StateToStringTest) {
   EXPECT_STREQ("SPDY_CONTROL_FRAME_HEADER_BLOCK",
                SpdyFramer::StateToString(
                    SpdyFramer::SPDY_CONTROL_FRAME_HEADER_BLOCK));
+  EXPECT_STREQ("SPDY_CREDENTIAL_FRAME_PAYLOAD",
+               SpdyFramer::StateToString(
+                   SpdyFramer::SPDY_CREDENTIAL_FRAME_PAYLOAD));
   EXPECT_STREQ("UNKNOWN_STATE",
                SpdyFramer::StateToString(
-                   SpdyFramer::SPDY_CONTROL_FRAME_HEADER_BLOCK + 1));
+                   SpdyFramer::SPDY_CREDENTIAL_FRAME_PAYLOAD + 1));
 }
 
 TEST(SpdyFramer, ErrorCodeToStringTest) {
@@ -1761,6 +1978,8 @@ TEST(SpdyFramer, ControlTypeToStringTest) {
                SpdyFramer::ControlTypeToString(HEADERS));
   EXPECT_STREQ("WINDOW_UPDATE",
                SpdyFramer::ControlTypeToString(WINDOW_UPDATE));
+  EXPECT_STREQ("SETTINGS",
+               SpdyFramer::ControlTypeToString(SETTINGS));
   EXPECT_STREQ("UNKNOWN_CONTROL_TYPE",
                SpdyFramer::ControlTypeToString(NUM_CONTROL_FRAME_TYPES));
 }
@@ -1784,6 +2003,8 @@ TEST(SpdyFramer, GetMinimumControlFrameSizeTest) {
             SpdyFramer::GetMinimumControlFrameSize(HEADERS));
   EXPECT_EQ(SpdyWindowUpdateControlFrame::size(),
             SpdyFramer::GetMinimumControlFrameSize(WINDOW_UPDATE));
+  EXPECT_EQ(SpdyCredentialControlFrame::size(),
+            SpdyFramer::GetMinimumControlFrameSize(CREDENTIAL));
   EXPECT_EQ(static_cast<size_t>(0x7FFFFFFF),
             SpdyFramer::GetMinimumControlFrameSize(NUM_CONTROL_FRAME_TYPES));
 }

@@ -10,6 +10,7 @@
 #include <map>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
@@ -50,6 +51,17 @@ typedef std::map<std::string, std::string> SpdyHeaderBlock;
 // A datastructure for holding a set of ID/value pairs for a SETTINGS frame.
 typedef std::pair<spdy::SettingsFlagsAndId, uint32> SpdySetting;
 typedef std::list<SpdySetting> SpdySettings;
+
+// A datastrcture for holding the contents of a CREDENTIAL frame.
+struct NET_EXPORT_PRIVATE SpdyCredential {
+  SpdyCredential();
+  ~SpdyCredential();
+
+  uint16 slot;
+  std::string origin;
+  std::vector<std::string> certs;
+  std::string proof;
+};
 
 // SpdyFramerVisitorInterface is a set of callbacks for the SpdyFramer.
 // Implement this interface to receive event callbacks as frames are
@@ -99,6 +111,18 @@ class NET_EXPORT_PRIVATE SpdyFramerVisitorInterface {
                                         const char* header_data,
                                         size_t len) = 0;
 
+  // Called when a chunk of payload data for a credential frame is available.
+  // This is called after OnControl() is called with the credential frame
+  // associated with the payload being delivered here.
+  // |frame_data| A buffer containing the header data chunk received.
+  // |len| The length of the header data buffer. A length of zero indicates
+  //       that the header data block has been completely sent.
+  // When this function returns true the visitor indicates that it accepted
+  // all of the data. Returning false indicates that that an unrecoverable
+  // error has occurred, such as bad header data or resource exhaustion.
+  virtual bool OnCredentialFrameData(const char* frame_data,
+                                     size_t len) = 0;
+
   // Called when a data frame header is received. The frame's data
   // payload will be provided via subsequent calls to
   // OnStreamFrameData().
@@ -132,6 +156,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
     SPDY_FORWARD_STREAM_FRAME,
     SPDY_CONTROL_FRAME_BEFORE_HEADER_BLOCK,
     SPDY_CONTROL_FRAME_HEADER_BLOCK,
+    SPDY_CREDENTIAL_FRAME_PAYLOAD,
   };
 
   // SPDY error codes.
@@ -143,6 +168,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
     SPDY_UNSUPPORTED_VERSION,        // Control frame has unsupported version.
     SPDY_DECOMPRESS_FAILURE,         // There was an error decompressing.
     SPDY_COMPRESS_FAILURE,           // There was an error compressing.
+    SPDY_CREDENTIAL_FRAME_CORRUPT,   // CREDENTIAL frame could not be parsed.
 
     LAST_ERROR,  // Must be the last entry in the enum.
   };
@@ -260,10 +286,23 @@ class NET_EXPORT_PRIVATE SpdyFramer {
       SpdyStreamId stream_id,
       uint32 delta_window_size);
 
+  // Creates an instance of SpdyCredentialControlFrame.  The CREDENTIAL
+  // frame is used to send a client certificate to the server when
+  // request more than one origin are sent over the same SPDY session.
+  static SpdyCredentialControlFrame* CreateCredentialFrame(
+      const SpdyCredential& credential);
+
   // Given a SpdySettingsControlFrame, extract the settings.
   // Returns true on successful parse, false otherwise.
   static bool ParseSettings(const SpdySettingsControlFrame* frame,
-      SpdySettings* settings);
+                            SpdySettings* settings);
+
+  // Given a SpdyCredentialControlFrame's payload, extract the credential.
+  // Returns true on successful parse, false otherwise.
+  // TODO(hkhalil): Implement CREDENTIAL frame parsing in SpdyFramer
+  // and eliminate this method.
+  static bool ParseCredentialData(const char* data, size_t len,
+                                  SpdyCredential* credential);
 
   // Create a data frame.
   // |stream_id| is the stream  for this frame
@@ -370,6 +409,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   size_t ProcessCommonHeader(const char* data, size_t len);
   void ProcessControlFrameHeader();
   size_t ProcessControlFramePayload(const char* data, size_t len);
+  size_t ProcessCredentialFramePayload(const char* data, size_t len);
   size_t ProcessControlFrameBeforeHeaderBlock(const char* data, size_t len);
   size_t ProcessControlFrameHeaderBlock(const char* data, size_t len);
   size_t OldProcessControlFrameHeaderBlock(const char* data, size_t len);
