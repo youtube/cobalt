@@ -189,6 +189,7 @@ bool SpdyFrameBuilder::WriteString(const std::string& value) {
 
 // TODO(hkhalil) Remove Resize() entirely.
 bool SpdyFrameBuilder::Resize(size_t new_capacity) {
+  DCHECK(new_capacity > 0);
   if (new_capacity <= capacity_)
     return true;
 
