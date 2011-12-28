@@ -580,6 +580,9 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(ShouldRedirect("ubertt.org"));
   EXPECT_TRUE(ShouldRedirect("foo.ubertt.org"));
 
+  EXPECT_TRUE(ShouldRedirect("pixi.me"));
+  EXPECT_TRUE(ShouldRedirect("www.pixi.me"));
+
 #if defined(OS_CHROMEOS)
   static const bool kTwitterHSTS = true;
 #else
