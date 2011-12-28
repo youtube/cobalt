@@ -157,7 +157,5 @@ v8.log
 /webkit/data/xbm_decoder
 /x86-generic_out/
 /xcodebuild
-PS3_PPU_Debug
-PS3_PPU_Release
-PS3_PPU_Profile
+PS3_PPU_*
 *.gyp_lbps3.*
