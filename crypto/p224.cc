@@ -11,14 +11,7 @@
 
 #include <string.h>
 
-#include "build/build_config.h"
-
-// For htonl and ntohl.
-#if defined(OS_WIN)
-#include <winsock2.h>
-#else
-#include <arpa/inet.h>
-#endif
+#include "base/sys_byteorder.h"
 
 namespace {
 
