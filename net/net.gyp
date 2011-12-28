@@ -228,7 +228,6 @@
         'base/static_cookie_policy.cc',
         'base/static_cookie_policy.h',
         'base/sys_addrinfo.h',
-        'base/sys_byteorder.h',
         'base/test_data_stream.cc',
         'base/test_data_stream.h',
         'base/test_root_certs.cc',

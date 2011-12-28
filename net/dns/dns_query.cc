@@ -6,10 +6,10 @@
 
 #include <limits>
 
+#include "base/sys_byteorder.h"
 #include "net/base/big_endian.h"
 #include "net/base/dns_util.h"
 #include "net/base/io_buffer.h"
-#include "net/base/sys_byteorder.h"
 #include "net/dns/dns_protocol.h"
 
 namespace net {

@@ -5,35 +5,7 @@
 #include "crypto/encryptor.h"
 
 #include "base/logging.h"
-#include "build/build_config.h"
-
-// Include headers to provide bswap for all platforms.
-#if defined(COMPILER_MSVC)
-#include <stdlib.h>
-#define bswap_16(x) _byteswap_ushort(x)
-#define bswap_32(x) _byteswap_ulong(x)
-#define bswap_64(x) _byteswap_uint64(x)
-#elif defined(OS_MACOSX)
-#include <libkern/OSByteOrder.h>
-#define bswap_16(x) OSSwapInt16(x)
-#define bswap_32(x) OSSwapInt32(x)
-#define bswap_64(x) OSSwapInt64(x)
-#elif defined(OS_OPENBSD)
-#include <sys/endian.h>
-#define bswap_16(x) swap16(x)
-#define bswap_32(x) swap32(x)
-#define bswap_64(x) swap64(x)
-#else
-#include <byteswap.h>
-#endif
-
-#if defined(ARCH_CPU_LITTLE_ENDIAN)
-#define ntoh_64(x) bswap_64(x)
-#define hton_64(x) bswap_64(x)
-#else
-#define ntoh_64(x) (x)
-#define hton_64(x) (x)
-#endif
+#include "base/sys_byteorder.h"
 
 namespace crypto {
 
@@ -49,14 +21,14 @@ Encryptor::Counter::~Counter() {
 }
 
 bool Encryptor::Counter::Increment() {
-  uint64 low_num = ntoh_64(counter_.components64[1]);
+  uint64 low_num = base::ntohll(counter_.components64[1]);
   uint64 new_low_num = low_num + 1;
-  counter_.components64[1] = hton_64(new_low_num);
+  counter_.components64[1] = base::htonll(new_low_num);
 
   // If overflow occured then increment the most significant component.
   if (new_low_num < low_num) {
     counter_.components64[0] =
-        hton_64(ntoh_64(counter_.components64[0]) + 1);
+        base::htonll(base::ntohll(counter_.components64[0]) + 1);
   }
 
   // TODO(hclam): Return false if counter value overflows.

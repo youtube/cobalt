@@ -15,8 +15,8 @@
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/sys_byteorder.h"
 #include "net/base/net_export.h"
-#include "net/base/sys_byteorder.h"
 #include "net/spdy/spdy_protocol.h"
 
 typedef struct z_stream_s z_stream;  // Forward declaration for zlib.

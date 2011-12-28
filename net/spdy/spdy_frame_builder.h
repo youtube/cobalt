@@ -9,8 +9,8 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/sys_byteorder.h"
 #include "net/base/net_export.h"
-#include "net/base/sys_byteorder.h"
 #include "net/spdy/spdy_protocol.h"
 
 namespace spdy {
