@@ -293,6 +293,7 @@
           'system_monitor/system_monitor_mac.mm',
           'system_monitor/system_monitor_posix.cc',
           'system_monitor/system_monitor_win.cc',
+          'sys_byteorder.h',
           'sys_info.h',
           'sys_info_chromeos.cc',
           'sys_info_freebsd.cc',

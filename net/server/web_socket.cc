@@ -4,6 +4,8 @@
 
 #include "net/server/web_socket.h"
 
+#include <limits>
+
 #include "base/base64.h"
 #include "base/rand_util.h"
 #include "base/logging.h"
@@ -11,16 +13,9 @@
 #include "base/sha1.h"
 #include "base/string_number_conversions.h"
 #include "base/stringprintf.h"
+#include "base/sys_byteorder.h"
 #include "net/server/http_connection.h"
 #include "net/server/http_server_request_info.h"
-
-#if defined(OS_WIN)
-#include <winsock2.h>
-#else
-#include <arpa/inet.h>
-#endif
-
-#include <limits>
 
 namespace net {
 

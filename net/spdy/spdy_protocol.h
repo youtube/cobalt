@@ -12,7 +12,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
-#include "net/base/sys_byteorder.h"
+#include "base/sys_byteorder.h"
 #include "net/spdy/spdy_bitmasks.h"
 
 //  Data Frame Format
