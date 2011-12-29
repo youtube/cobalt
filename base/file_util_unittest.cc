@@ -581,6 +581,25 @@ TEST_F(FileUtilTest, NormalizeFilePathReparsePoints) {
                                             &normalized_path));
 }
 
+TEST_F(FileUtilTest, GetPlatformFileInfoForDirectory) {
+  FilePath empty_dir = temp_dir_.path().Append(FPL("gpfi_test"));
+  ASSERT_TRUE(file_util::CreateDirectory(empty_dir));
+  base::win::ScopedHandle dir(
+      ::CreateFile(empty_dir.value().c_str(),
+                   FILE_ALL_ACCESS,
+                   FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                   NULL,
+                   OPEN_EXISTING,
+                   FILE_FLAG_BACKUP_SEMANTICS,  // Needed to open a directory.
+                   NULL));
+  ASSERT_TRUE(dir.IsValid());
+  base::PlatformFileInfo info;
+  EXPECT_TRUE(base::GetPlatformFileInfo(dir.Get(), &info));
+  EXPECT_TRUE(info.is_directory);
+  EXPECT_FALSE(info.is_symbolic_link);
+  EXPECT_EQ(0, info.size);
+}
+
 #endif  // defined(OS_WIN)
 
 #if defined(OS_POSIX)
@@ -1612,7 +1631,6 @@ TEST_F(FileUtilTest, DetectDirectoryTest) {
   EXPECT_TRUE(file_util::CreateDirectory(test_root));
   EXPECT_TRUE(file_util::PathExists(test_root));
   EXPECT_TRUE(file_util::DirectoryExists(test_root));
-
   // Check a file
   FilePath test_path =
       test_root.Append(FILE_PATH_LITERAL("foobar.txt"));
