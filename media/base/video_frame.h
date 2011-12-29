@@ -15,11 +15,8 @@ class MEDIA_EXPORT VideoFrame : public StreamSample {
   enum {
     kMaxPlanes = 3,
 
-    kNumRGBPlanes = 1,
     kRGBPlane = 0,
 
-    kNumYUVPlanes = 3,
-    kNumNV12Planes = 2,
     kYPlane = 0,
     kUPlane = 1,
     kVPlane = 2,
@@ -78,8 +75,6 @@ class MEDIA_EXPORT VideoFrame : public StreamSample {
 
   size_t height() const { return height_; }
 
-  size_t planes() const { return planes_;  }
-
   int stride(size_t plane) const;
 
   // Returns the number of bytes per row and number of rows for a given plane.
@@ -123,10 +118,6 @@ class MEDIA_EXPORT VideoFrame : public StreamSample {
   // Width and height of surface.
   size_t width_;
   size_t height_;
-
-  // Number of planes, typically 1 for packed RGB formats, 3 for planar
-  // YUV formats, and 0 for native textures.
-  size_t planes_;
 
   // Array of strides for each plane, typically greater or equal to the width
   // of the surface divided by the horizontal sampling period.  Note that
