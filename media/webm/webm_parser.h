@@ -19,23 +19,26 @@ namespace media {
 // The ID of the element that was parsed is given along with the value
 // stored in the element. List elements generate calls at the start and
 // end of the list. Any pointers passed to these methods are only guaranteed
-// to be valid for the life of that call. Each method returns a bool that
-// indicates whether the parsed data is valid. If false is returned
-// then the parse is immediately terminated and an error is reported by the
-// parser.
+// to be valid for the life of that call. Each method (except for OnListStart)
+// returns a bool that indicates whether the parsed data is valid. OnListStart
+// returns a pointer to a WebMParserClient object, which should be used to
+// handle elements parsed out of the list being started. If false (or NULL by
+// OnListStart) is returned then the parse is immediately terminated and an
+// error is reported by the parser.
 class MEDIA_EXPORT WebMParserClient {
  public:
   virtual ~WebMParserClient();
 
-  virtual bool OnListStart(int id) = 0;
-  virtual bool OnListEnd(int id) = 0;
-  virtual bool OnUInt(int id, int64 val) = 0;
-  virtual bool OnFloat(int id, double val) = 0;
-  virtual bool OnBinary(int id, const uint8* data, int size) = 0;
-  virtual bool OnString(int id, const std::string& str) = 0;
+  virtual WebMParserClient* OnListStart(int id);
+  virtual bool OnListEnd(int id);
+  virtual bool OnUInt(int id, int64 val);
+  virtual bool OnFloat(int id, double val);
+  virtual bool OnBinary(int id, const uint8* data, int size);
+  virtual bool OnString(int id, const std::string& str);
   virtual bool OnSimpleBlock(int track_num, int timecode,
                              int flags,
-                             const uint8* data, int size) = 0;
+                             const uint8* data, int size);
+
  protected:
   WebMParserClient();
 
@@ -52,19 +55,19 @@ struct ListElementInfo;
 class MEDIA_EXPORT WebMListParser {
  public:
   // |id| - Element ID of the list we intend to parse.
-  explicit WebMListParser(int id);
+  // |client| - Called as different elements in the list are parsed.
+  WebMListParser(int id, WebMParserClient* client);
   ~WebMListParser();
 
   // Resets the state of the parser so it can start parsing a new list.
   void Reset();
 
   // Parses list data contained in |buf|.
-  // |client| Called as different elements in the list are parsed.
   //
   // Returns < 0 if the parse fails.
   // Returns 0 if more data is needed.
   // Returning > 0 indicates success & the number of bytes parsed.
-  int Parse(const uint8* buf, int size, WebMParserClient* client);
+  int Parse(const uint8* buf, int size);
 
   // Returns true if the entire list has been parsed.
   bool IsParsingComplete() const;
@@ -82,6 +85,7 @@ class MEDIA_EXPORT WebMListParser {
     int size_;
     int bytes_parsed_;
     const ListElementInfo* element_info_;
+    WebMParserClient* client_;
   };
 
   void ChangeState(State new_state);
@@ -100,8 +104,7 @@ class MEDIA_EXPORT WebMListParser {
   // Returning > 0 indicates success & the number of bytes parsed.
   int ParseListElement(int header_size,
                        int id, int64 element_size,
-                       const uint8* data, int size,
-                       WebMParserClient* client);
+                       const uint8* data, int size);
 
   // Called when starting to parse a new list.
   //
@@ -111,25 +114,26 @@ class MEDIA_EXPORT WebMListParser {
   //
   // Returns true if this list can be started in the current context. False
   // if starting this list causes some sort of parse error.
-  bool OnListStart(int id, int64 size, WebMParserClient* client);
+  bool OnListStart(int id, int64 size);
 
   // Called when the end of the current list has been reached. This may also
   // signal the end of the current list's ancestors if the current list happens
   // to be at the end of its parent.
   //
-  // |client| - The client to notify about lists ending.
-  //
   // Returns true if no errors occurred while ending this list(s).
-  bool OnListEnd(WebMParserClient* client);
+  bool OnListEnd();
 
   State state_;
 
   // Element ID passed to the constructor.
-  int root_id_;
+  const int root_id_;
 
   // Element level for |root_id_|. Used to verify that elements appear at
   // the correct level.
-  int root_level_;
+  const int root_level_;
+
+  // WebMParserClient to handle the root list.
+  WebMParserClient* const root_client_;
 
   // Stack of state for all the lists currently being parsed. Lists are
   // added and removed from this stack as they are parsed.
