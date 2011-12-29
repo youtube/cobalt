@@ -9,6 +9,10 @@
 
 namespace media {
 
+// Default timecode scale if the TimecodeScale element is
+// not specified in the INFO element.
+static const int kWebMDefaultTimecodeScale = 1000000;
+
 WebMInfoParser::WebMInfoParser()
     : timecode_scale_(-1),
       duration_(-1) {
@@ -20,8 +24,8 @@ int WebMInfoParser::Parse(const uint8* buf, int size) {
   timecode_scale_ = -1;
   duration_ = -1;
 
-  WebMListParser parser(kWebMIdInfo);
-  int result = parser.Parse(buf, size, this);
+  WebMListParser parser(kWebMIdInfo, this);
+  int result = parser.Parse(buf, size);
 
   if (result <= 0)
     return result;
@@ -30,7 +34,7 @@ int WebMInfoParser::Parse(const uint8* buf, int size) {
   return parser.IsParsingComplete() ? result : 0;
 }
 
-bool WebMInfoParser::OnListStart(int id) { return true; }
+WebMParserClient* WebMInfoParser::OnListStart(int id) { return this; }
 
 bool WebMInfoParser::OnListEnd(int id) {
   if (id == kWebMIdInfo && timecode_scale_ == -1) {
@@ -75,11 +79,6 @@ bool WebMInfoParser::OnBinary(int id, const uint8* data, int size) {
 
 bool WebMInfoParser::OnString(int id, const std::string& str) {
   return true;
-}
-
-bool WebMInfoParser::OnSimpleBlock(int track_num, int timecode, int flags,
-                                   const uint8* data, int size) {
-  return false;
 }
 
 }  // namespace media

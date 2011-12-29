@@ -9,6 +9,10 @@
 
 namespace media {
 
+// Values for TrackType element.
+static const int kWebMTrackTypeVideo = 1;
+static const int kWebMTrackTypeAudio = 2;
+
 WebMTracksParser::WebMTracksParser(int64 timecode_scale)
     : timecode_scale_(timecode_scale),
       track_type_(-1),
@@ -29,8 +33,8 @@ int WebMTracksParser::Parse(const uint8* buf, int size) {
   video_track_num_ = -1;
   video_default_duration_ = base::TimeDelta();
 
-  WebMListParser parser(kWebMIdTracks);
-  int result = parser.Parse(buf, size, this);
+  WebMListParser parser(kWebMIdTracks, this);
+  int result = parser.Parse(buf, size);
 
   if (result <= 0)
     return result;
@@ -40,14 +44,14 @@ int WebMTracksParser::Parse(const uint8* buf, int size) {
 }
 
 
-bool WebMTracksParser::OnListStart(int id) {
+WebMParserClient* WebMTracksParser::OnListStart(int id) {
   if (id == kWebMIdTrackEntry) {
     track_type_ = -1;
     track_num_ = -1;
     track_default_duration_ = -1;
   }
 
-  return true;
+  return this;
 }
 
 bool WebMTracksParser::OnListEnd(int id) {
@@ -95,7 +99,7 @@ bool WebMTracksParser::OnUInt(int id, int64 val) {
     case kWebMIdTrackType:
       dst = &track_type_;
       break;
-    case  kWebMIdDefaultDuration:
+    case kWebMIdDefaultDuration:
       dst = &track_default_duration_;
       break;
     default:
@@ -109,11 +113,6 @@ bool WebMTracksParser::OnUInt(int id, int64 val) {
 
   *dst = val;
   return true;
-}
-
-bool WebMTracksParser::OnFloat(int id, double val) {
-  DVLOG(1) << "Unexpected float for id" << std::hex << id;
-  return false;
 }
 
 bool WebMTracksParser::OnBinary(int id, const uint8* data, int size) {
@@ -130,11 +129,6 @@ bool WebMTracksParser::OnString(int id, const std::string& str) {
   }
 
   return true;
-}
-
-bool WebMTracksParser::OnSimpleBlock(int track_num, int timecode, int flags,
-                                     const uint8* data, int size) {
-  return false;
 }
 
 }  // namespace media
