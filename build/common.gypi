@@ -145,10 +145,10 @@
       'sysroot%': '',
 
       # On Linux, we build with sse2 for Chromium builds.
-      'disable_sse2%': 1,
+      'disable_sse2%': 0,
 
       # Use libjpeg-turbo as the JPEG codec used by Chromium.
-      'use_libjpeg_turbo%': 0,
+      'use_libjpeg_turbo%': 1,
 
       # Variable 'component' is for cases where we would like to build some
       # components as dynamic shared libraries but still need variable
@@ -165,17 +165,17 @@
       'use_third_party_translations%': 0,
 
       # Remoting compilation is enabled by default. Set to 0 to disable.
-      'remoting%': 0,
+      'remoting%': 1,
 
       # P2P APIs are compiled in by default. Set to 0 to disable.
       # Also note that this should be enabled for remoting to compile.
-      'p2p_apis%': 0,
+      'p2p_apis%': 1,
 
       # Configuration policy is enabled by default. Set to 0 to disable.
       'configuration_policy%': 1,
 
       # Safe browsing is compiled in by default. Set to 0 to disable.
-      'safe_browsing%': 0,
+      'safe_browsing%': 1,
 
       # If this is set, the clang plugins used on the buildbot will be used.
       # Run tools/clang/scripts/update.sh to make sure they are compiled.
@@ -268,6 +268,15 @@
         }, {
           'enable_smooth_scrolling%': 0,
         }],
+
+        # Override some defaults for PS3
+        ['OS=="cell_lv2"', {
+          'disable_sse2%': 1,
+          'use_libjpeg_turbo%': 0,
+          'remoting%': 0,
+          'p2p_apis%': 0,
+          'safe_browsing%': 0,
+        }],
       ],
     },
 
@@ -352,7 +361,7 @@
 
     # Overridable specification for potential use of alternative
     # JavaScript engines.
-    'javascript_engine%': 'JavaScriptCore',
+    'javascript_engine%': 'v8',
 
     # Although base/allocator lets you select a heap library via an
     # environment variable, the libcmt shim it uses sometimes gets in
@@ -450,7 +459,7 @@
 
     # Used to disable Native Client at compile time, for platforms where it
     # isn't supported
-    'disable_nacl%': 1,
+    'disable_nacl%': 0,
 
     # Set Thumb compilation flags.
     'arm_thumb%': 0,
@@ -470,7 +479,7 @@
     'enable_gpu%': 1,
 
     # Use OpenSSL instead of NSS. Under development: see http://crbug.com/62803
-    'use_openssl%': 1,
+    'use_openssl%': 0,
 
     # .gyp files or targets should set chromium_code to 1 if they build
     # Chromium-specific code, as opposed to external code.  This variable is
@@ -603,6 +612,12 @@
       }, {
         'use_cups%': 0,
       }],
+
+      ['OS=="cell_lv2"', {
+        'javascript_engine%': 'JavaScriptCore',
+        'disable_nacl%': 1,
+        'use_openssl%': 1,
+      }], # OS=="cell_lv2"
 
       # Set the relative path from this file to the GYP file of the JPEG
       # library used by Chromium.
@@ -905,9 +920,11 @@
               '-Wextra',
               '-Werror',
             ],
-            'cflags': [
+            'cflags_cc': [
               # Don't warn about hash_map in third-party code.
               '-Wno-deprecated',
+            ],
+            'cflags': [
               # Don't warn about printf format problems.
               # This is off by default in gcc but on in Ubuntu's gcc(!).
               '-Wno-format',
@@ -1569,6 +1586,12 @@
     ['OS=="solaris"', {
       'cflags!': ['-fvisibility=hidden'],
       'cflags_cc!': ['-fvisibility-inlines-hidden'],
+    }],
+    ['OS=="cell_lv2"', {
+      'target_defaults': {
+        'cflags!': ['-pthread'],
+        'ldflags!': ['-pthread'],
+      },
     }],
     ['OS=="mac"', {
       'target_defaults': {
