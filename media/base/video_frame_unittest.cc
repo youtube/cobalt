@@ -40,14 +40,7 @@ void InitializeYV12Frame(VideoFrame* frame, double white_to_black) {
 // Given a |yv12_frame| this method converts the YV12 frame to RGBA and
 // makes sure that all the pixels of the RBG frame equal |expect_rgb_color|.
 void ExpectFrameColor(media::VideoFrame* yv12_frame, uint32 expect_rgb_color) {
-  // On linux and mac builds if you directly compare using EXPECT_EQ and use
-  // the VideoFrame::kNumxxxPlanes constants, it generates an error when
-  // linking.  These are declared so that we can compare against locals.
-  const size_t expect_yuv_planes = VideoFrame::kNumYUVPlanes;
-  const size_t expect_rgb_planes = VideoFrame::kNumRGBPlanes;
-
   ASSERT_EQ(VideoFrame::YV12, yv12_frame->format());
-  ASSERT_EQ(expect_yuv_planes, yv12_frame->planes());
   ASSERT_EQ(yv12_frame->stride(VideoFrame::kUPlane),
             yv12_frame->stride(VideoFrame::kVPlane));
 
@@ -60,7 +53,6 @@ void ExpectFrameColor(media::VideoFrame* yv12_frame, uint32 expect_rgb_color) {
 
   ASSERT_EQ(yv12_frame->width(), rgb_frame->width());
   ASSERT_EQ(yv12_frame->height(), rgb_frame->height());
-  ASSERT_EQ(expect_rgb_planes, rgb_frame->planes());
 
   media::ConvertYUVToRGB32(yv12_frame->data(VideoFrame::kYPlane),
                            yv12_frame->data(VideoFrame::kUPlane),
@@ -150,7 +142,6 @@ TEST(VideoFrame, CreateBlackFrame) {
   EXPECT_EQ(VideoFrame::YV12, frame->format());
   EXPECT_EQ(kWidth, frame->width());
   EXPECT_EQ(kHeight, frame->height());
-  EXPECT_EQ(3u, frame->planes());
 
   // Test frames themselves.
   uint8* y_plane = frame->data(VideoFrame::kYPlane);
