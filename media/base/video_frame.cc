@@ -55,7 +55,6 @@ scoped_refptr<VideoFrame> VideoFrame::WrapNativeTexture(
     const base::Closure& no_longer_needed) {
   scoped_refptr<VideoFrame> frame(
       new VideoFrame(NATIVE_TEXTURE, width, height, timestamp, duration));
-  frame->planes_ = 0;
   frame->texture_id_ = texture_id;
   frame->texture_no_longer_needed_ = no_longer_needed;
   return frame;
@@ -114,7 +113,6 @@ void VideoFrame::AllocateRGB(size_t bytes_per_pixel) {
   // Round up to align at a 64-bit (8 byte) boundary for each row.  This
   // is sufficient for MMX reads (movq).
   size_t bytes_per_row = RoundUp(width_ * bytes_per_pixel, 8);
-  planes_ = VideoFrame::kNumRGBPlanes;
   strides_[VideoFrame::kRGBPlane] = bytes_per_row;
   data_[VideoFrame::kRGBPlane] = new uint8[bytes_per_row * height_];
   DCHECK(!(reinterpret_cast<intptr_t>(data_[VideoFrame::kRGBPlane]) & 7));
@@ -142,7 +140,6 @@ void VideoFrame::AllocateYUV() {
   size_t uv_bytes = uv_height * uv_stride;
 
   uint8* data = new uint8[y_bytes + (uv_bytes * 2) + kFramePadBytes];
-  planes_ = VideoFrame::kNumYUVPlanes;
   COMPILE_ASSERT(0 == VideoFrame::kYPlane, y_plane_data_must_be_index_0);
   data_[VideoFrame::kYPlane] = data;
   data_[VideoFrame::kUPlane] = data + y_bytes;
@@ -160,7 +157,6 @@ VideoFrame::VideoFrame(VideoFrame::Format format,
     : format_(format),
       width_(width),
       height_(height),
-      planes_(0),
       texture_id_(0) {
   SetTimestamp(timestamp);
   SetDuration(duration);
@@ -268,7 +264,6 @@ uint8* VideoFrame::data(size_t plane) const {
 
 uint32 VideoFrame::texture_id() const {
   DCHECK_EQ(format_, NATIVE_TEXTURE);
-  DCHECK_EQ(planes_, 0U);
   return texture_id_;
 }
 
