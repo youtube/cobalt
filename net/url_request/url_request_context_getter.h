@@ -7,7 +7,7 @@
 #pragma once
 
 #include "base/memory/ref_counted.h"
-#include "base/message_loop_helpers.h"
+#include "base/task.h"
 #include "net/base/net_export.h"
 
 namespace base {
@@ -40,7 +40,7 @@ class NET_EXPORT URLRequestContextGetter
  protected:
   friend class base::RefCountedThreadSafe<URLRequestContextGetter,
                                           URLRequestContextGetterTraits>;
-  friend class base::DeleteHelper<URLRequestContextGetter>;
+  friend class DeleteTask<const URLRequestContextGetter>;
   friend struct URLRequestContextGetterTraits;
 
   URLRequestContextGetter();

@@ -10,7 +10,6 @@
 #include "base/basictypes.h"
 #include "base/callback_forward.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop_helpers.h"
 #include "base/task.h"
 
 namespace tracked_objects {
@@ -122,9 +121,8 @@ class BASE_EXPORT MessageLoopProxy
 
   template <class T>
   bool DeleteSoon(const tracked_objects::Location& from_here,
-                  const T* object) {
-    return base::subtle::DeleteHelperInternal<T, bool>::DeleteOnMessageLoop(
-        this, from_here, object);
+                  T* object) {
+    return PostNonNestableTask(from_here, new DeleteTask<T>(object));
   }
   template <class T>
   bool ReleaseSoon(const tracked_objects::Location& from_here,
@@ -137,7 +135,6 @@ class BASE_EXPORT MessageLoopProxy
   static scoped_refptr<MessageLoopProxy> current();
 
  protected:
-  template <class T, class R> friend class subtle::DeleteHelperInternal;
   friend class RefCountedThreadSafe<MessageLoopProxy, MessageLoopProxyTraits>;
   friend struct MessageLoopProxyTraits;
 
@@ -147,10 +144,6 @@ class BASE_EXPORT MessageLoopProxy
   // Called when the proxy is about to be deleted. Subclasses can override this
   // to provide deletion on specific threads.
   virtual void OnDestruct() const;
-
-  bool DeleteSoonInternal(const tracked_objects::Location& from_here,
-                          void(*deleter)(const void*),
-                          const void* object);
 };
 
 struct MessageLoopProxyTraits {
