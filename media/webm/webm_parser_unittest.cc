@@ -10,6 +10,7 @@
 
 using ::testing::InSequence;
 using ::testing::Return;
+using ::testing::ReturnNull;
 using ::testing::StrictMock;
 using ::testing::_;
 
@@ -20,7 +21,7 @@ class MockWebMParserClient : public WebMParserClient {
   virtual ~MockWebMParserClient() {}
 
   // WebMParserClient methods.
-  MOCK_METHOD1(OnListStart, bool(int));
+  MOCK_METHOD1(OnListStart, WebMParserClient*(int));
   MOCK_METHOD1(OnListEnd, bool(int));
   MOCK_METHOD2(OnUInt, bool(int, int64));
   MOCK_METHOD2(OnFloat, bool(int, double));
@@ -64,7 +65,7 @@ static void CreateClusterExpectations(int timecode,
                                       MockWebMParserClient* client) {
 
   InSequence s;
-  EXPECT_CALL(*client, OnListStart(kWebMIdCluster)).WillOnce(Return(true));
+  EXPECT_CALL(*client, OnListStart(kWebMIdCluster)).WillOnce(Return(client));
   EXPECT_CALL(*client, OnUInt(kWebMIdTimecode, timecode))
       .WillOnce(Return(true));
 
@@ -86,11 +87,11 @@ TEST_F(WebMParserTest, EmptyCluster) {
   int size = sizeof(kEmptyCluster);
 
   InSequence s;
-  EXPECT_CALL(client_, OnListStart(kWebMIdCluster)).WillOnce(Return(true));
+  EXPECT_CALL(client_, OnListStart(kWebMIdCluster)).WillOnce(Return(&client_));
   EXPECT_CALL(client_, OnListEnd(kWebMIdCluster)).WillOnce(Return(true));
 
-  WebMListParser parser(kWebMIdCluster);
-  int result = parser.Parse(kEmptyCluster, size, &client_);
+  WebMListParser parser(kWebMIdCluster, &client_);
+  int result = parser.Parse(kEmptyCluster, size);
   EXPECT_EQ(size, result);
   EXPECT_TRUE(parser.IsParsingComplete());
 }
@@ -103,13 +104,13 @@ TEST_F(WebMParserTest, EmptyClusterInSegment) {
   int size = sizeof(kBuffer);
 
   InSequence s;
-  EXPECT_CALL(client_, OnListStart(kWebMIdSegment)).WillOnce(Return(true));
-  EXPECT_CALL(client_, OnListStart(kWebMIdCluster)).WillOnce(Return(true));
+  EXPECT_CALL(client_, OnListStart(kWebMIdSegment)).WillOnce(Return(&client_));
+  EXPECT_CALL(client_, OnListStart(kWebMIdCluster)).WillOnce(Return(&client_));
   EXPECT_CALL(client_, OnListEnd(kWebMIdCluster)).WillOnce(Return(true));
   EXPECT_CALL(client_, OnListEnd(kWebMIdSegment)).WillOnce(Return(true));
 
-  WebMListParser parser(kWebMIdSegment);
-  int result = parser.Parse(kBuffer, size, &client_);
+  WebMListParser parser(kWebMIdSegment, &client_);
+  int result = parser.Parse(kBuffer, size);
   EXPECT_EQ(size, result);
   EXPECT_TRUE(parser.IsParsingComplete());
 }
@@ -124,10 +125,10 @@ TEST_F(WebMParserTest, ChildNonListLargerThanParent) {
   int size = sizeof(kBuffer);
 
   InSequence s;
-  EXPECT_CALL(client_, OnListStart(kWebMIdCluster)).WillOnce(Return(true));
+  EXPECT_CALL(client_, OnListStart(kWebMIdCluster)).WillOnce(Return(&client_));
 
-  WebMListParser parser(kWebMIdCluster);
-  int result = parser.Parse(kBuffer, size, &client_);
+  WebMListParser parser(kWebMIdCluster, &client_);
+  int result = parser.Parse(kBuffer, size);
   EXPECT_EQ(-1, result);
   EXPECT_FALSE(parser.IsParsingComplete());
 }
@@ -142,10 +143,10 @@ TEST_F(WebMParserTest, ChildListLargerThanParent) {
   int size = sizeof(kBuffer);
 
   InSequence s;
-  EXPECT_CALL(client_, OnListStart(kWebMIdSegment)).WillOnce(Return(true));
+  EXPECT_CALL(client_, OnListStart(kWebMIdSegment)).WillOnce(Return(&client_));
 
-  WebMListParser parser(kWebMIdSegment);
-  int result = parser.Parse(kBuffer, size, &client_);
+  WebMListParser parser(kWebMIdSegment, &client_);
+  int result = parser.Parse(kBuffer, size);
   EXPECT_EQ(-1, result);
   EXPECT_FALSE(parser.IsParsingComplete());
 }
@@ -157,8 +158,8 @@ TEST_F(WebMParserTest, ListIdDoesNotMatch) {
   };
   int size = sizeof(kBuffer);
 
-  WebMListParser parser(kWebMIdCluster);
-  int result = parser.Parse(kBuffer, size, &client_);
+  WebMListParser parser(kWebMIdCluster, &client_);
+  int result = parser.Parse(kBuffer, size);
   EXPECT_EQ(-1, result);
   EXPECT_FALSE(parser.IsParsingComplete());
 }
@@ -171,10 +172,10 @@ TEST_F(WebMParserTest, InvalidElementInList) {
   int size = sizeof(kBuffer);
 
   InSequence s;
-  EXPECT_CALL(client_, OnListStart(kWebMIdSegment)).WillOnce(Return(true));
+  EXPECT_CALL(client_, OnListStart(kWebMIdSegment)).WillOnce(Return(&client_));
 
-  WebMListParser parser(kWebMIdSegment);
-  int result = parser.Parse(kBuffer, size, &client_);
+  WebMListParser parser(kWebMIdSegment, &client_);
+  int result = parser.Parse(kBuffer, size);
   EXPECT_EQ(-1, result);
   EXPECT_FALSE(parser.IsParsingComplete());
 }
@@ -191,13 +192,13 @@ TEST_F(WebMParserTest, VoidAndCRC32InList) {
   int size = sizeof(kBuffer);
 
   InSequence s;
-  EXPECT_CALL(client_, OnListStart(kWebMIdSegment)).WillOnce(Return(true));
-  EXPECT_CALL(client_, OnListStart(kWebMIdCluster)).WillOnce(Return(true));
+  EXPECT_CALL(client_, OnListStart(kWebMIdSegment)).WillOnce(Return(&client_));
+  EXPECT_CALL(client_, OnListStart(kWebMIdCluster)).WillOnce(Return(&client_));
   EXPECT_CALL(client_, OnListEnd(kWebMIdCluster)).WillOnce(Return(true));
   EXPECT_CALL(client_, OnListEnd(kWebMIdSegment)).WillOnce(Return(true));
 
-  WebMListParser parser(kWebMIdSegment);
-  int result = parser.Parse(kBuffer, size, &client_);
+  WebMListParser parser(kWebMIdSegment, &client_);
+  int result = parser.Parse(kBuffer, size);
   EXPECT_EQ(size, result);
   EXPECT_TRUE(parser.IsParsingComplete());
 }
@@ -216,8 +217,8 @@ TEST_F(WebMParserTest, ParseListElementWithSingleCall) {
   scoped_ptr<Cluster> cluster(CreateCluster(0, kBlockInfo, block_count));
   CreateClusterExpectations(0, kBlockInfo, block_count, true, &client_);
 
-  WebMListParser parser(kWebMIdCluster);
-  int result = parser.Parse(cluster->data(), cluster->size(), &client_);
+  WebMListParser parser(kWebMIdCluster, &client_);
+  int result = parser.Parse(cluster->data(), cluster->size());
   EXPECT_EQ(cluster->size(), result);
   EXPECT_TRUE(parser.IsParsingComplete());
 }
@@ -238,11 +239,11 @@ TEST_F(WebMParserTest, ParseListElementWithMultipleCalls) {
   const uint8* data = cluster->data();
   int size = cluster->size();
   int default_parse_size = 3;
-  WebMListParser parser(kWebMIdCluster);
+  WebMListParser parser(kWebMIdCluster, &client_);
   int parse_size = std::min(default_parse_size, size);
 
   while (size > 0) {
-    int result = parser.Parse(data, parse_size, &client_);
+    int result = parser.Parse(data, parse_size);
     EXPECT_GE(result, 0);
     EXPECT_LE(result, parse_size);
 
@@ -284,11 +285,11 @@ TEST_F(WebMParserTest, TestReset) {
   // Now expect all blocks.
   CreateClusterExpectations(0, kBlockInfo, block_count, true, &client_);
 
-  WebMListParser parser(kWebMIdCluster);
+  WebMListParser parser(kWebMIdCluster, &client_);
 
   // Send slightly less than the full cluster so all but the last block is
   // parsed.
-  int result = parser.Parse(cluster->data(), cluster->size() - 1, &client_);
+  int result = parser.Parse(cluster->data(), cluster->size() - 1);
   EXPECT_GT(result, 0);
   EXPECT_LT(result, cluster->size());
   EXPECT_FALSE(parser.IsParsingComplete());
@@ -296,9 +297,59 @@ TEST_F(WebMParserTest, TestReset) {
   parser.Reset();
 
   // Now parse a whole cluster to verify that all the blocks will get parsed.
-  result = parser.Parse(cluster->data(), cluster->size(), &client_);
+  result = parser.Parse(cluster->data(), cluster->size());
   EXPECT_EQ(result, cluster->size());
   EXPECT_TRUE(parser.IsParsingComplete());
+}
+
+// Test the case where multiple clients are used for different lists.
+TEST_F(WebMParserTest, MultipleClients) {
+  const uint8 kBuffer[] = {
+    0x18, 0x53, 0x80, 0x67, 0x94,  // SEGMENT (size = 20)
+    0x16, 0x54, 0xAE, 0x6B, 0x85,  //   TRACKS (size = 5)
+    0xAE, 0x83,                    //     TRACKENTRY (size = 3)
+    0xD7, 0x81, 0x01,              //       TRACKNUMBER (size = 1)
+    0x1F, 0x43, 0xB6, 0x75, 0x85,  //   CLUSTER (size = 5)
+    0xEC, 0x83, 0x00, 0x00, 0x00,  //     Void (size = 3)
+  };
+  int size = sizeof(kBuffer);
+
+  StrictMock<MockWebMParserClient> c1_;
+  StrictMock<MockWebMParserClient> c2_;
+  StrictMock<MockWebMParserClient> c3_;
+
+  InSequence s;
+  EXPECT_CALL(client_, OnListStart(kWebMIdSegment)).WillOnce(Return(&c1_));
+  EXPECT_CALL(c1_, OnListStart(kWebMIdTracks)).WillOnce(Return(&c2_));
+  EXPECT_CALL(c2_, OnListStart(kWebMIdTrackEntry)).WillOnce(Return(&c3_));
+  EXPECT_CALL(c3_, OnUInt(kWebMIdTrackNumber, 1)).WillOnce(Return(true));
+  EXPECT_CALL(c2_, OnListEnd(kWebMIdTrackEntry)).WillOnce(Return(true));
+  EXPECT_CALL(c1_, OnListEnd(kWebMIdTracks)).WillOnce(Return(true));
+  EXPECT_CALL(c1_, OnListStart(kWebMIdCluster)).WillOnce(Return(&c2_));
+  EXPECT_CALL(c1_, OnListEnd(kWebMIdCluster)).WillOnce(Return(true));
+  EXPECT_CALL(client_, OnListEnd(kWebMIdSegment)).WillOnce(Return(true));
+
+  WebMListParser parser(kWebMIdSegment, &client_);
+  int result = parser.Parse(kBuffer, size);
+  EXPECT_EQ(size, result);
+  EXPECT_TRUE(parser.IsParsingComplete());
+}
+
+// Test the case where multiple clients are used for different lists.
+TEST_F(WebMParserTest, InvalidClient) {
+  const uint8 kBuffer[] = {
+    0x18, 0x53, 0x80, 0x67, 0x85,  // SEGMENT (size = 20)
+    0x16, 0x54, 0xAE, 0x6B, 0x80,  //   TRACKS (size = 5)
+  };
+  int size = sizeof(kBuffer);
+
+  InSequence s;
+  EXPECT_CALL(client_, OnListStart(kWebMIdSegment)).WillOnce(ReturnNull());
+
+  WebMListParser parser(kWebMIdSegment, &client_);
+  int result = parser.Parse(kBuffer, size);
+  EXPECT_EQ(-1, result);
+  EXPECT_FALSE(parser.IsParsingComplete());
 }
 
 }  // namespace media

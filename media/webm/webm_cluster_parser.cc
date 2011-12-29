@@ -26,7 +26,7 @@ WebMClusterParser::WebMClusterParser(int64 timecode_scale,
       audio_default_duration_(audio_default_duration),
       video_track_num_(video_track_num),
       video_default_duration_(video_default_duration),
-      parser_(kWebMIdCluster),
+      parser_(kWebMIdCluster, this),
       last_block_timecode_(-1),
       cluster_timecode_(-1) {
 }
@@ -45,7 +45,7 @@ int WebMClusterParser::Parse(const uint8* buf, int size) {
   audio_buffers_.clear();
   video_buffers_.clear();
 
-  int result = parser_.Parse(buf, size, this);
+  int result = parser_.Parse(buf, size);
 
   if (result <= 0)
     return result;
@@ -63,11 +63,11 @@ int WebMClusterParser::Parse(const uint8* buf, int size) {
   return result;
 }
 
-bool WebMClusterParser::OnListStart(int id) {
+WebMParserClient* WebMClusterParser::OnListStart(int id) {
   if (id == kWebMIdCluster)
     cluster_timecode_ = -1;
 
-  return true;
+  return this;
 }
 
 bool WebMClusterParser::OnListEnd(int id) {
@@ -86,21 +86,6 @@ bool WebMClusterParser::OnUInt(int id, int64 val) {
   }
 
   return true;
-}
-
-bool WebMClusterParser::OnFloat(int id, double val) {
-  DVLOG(1) << "Unexpected float element with ID " << std::hex << id;
-  return false;
-}
-
-bool WebMClusterParser::OnBinary(int id, const uint8* data, int size) {
-  DVLOG(1) << "Unexpected binary element with ID " << std::hex << id;
-  return false;
-}
-
-bool WebMClusterParser::OnString(int id, const std::string& str) {
-  DVLOG(1) << "Unexpected string element with ID " << std::hex << id;
-  return false;
 }
 
 bool WebMClusterParser::OnSimpleBlock(int track_num, int timecode,

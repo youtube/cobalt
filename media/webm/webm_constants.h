@@ -66,14 +66,6 @@ const int kWebMIdWritingApp = 0x5741;
 
 const int64 kWebMUnknownSize = GG_LONGLONG(0x00FFFFFFFFFFFFFF);
 
-// Default timecode scale if the TimecodeScale element is
-// not specified in the INFO element.
-const int kWebMDefaultTimecodeScale = 1000000;
-
-// Values for TrackType element.
-const int kWebMTrackTypeVideo = 1;
-const int kWebMTrackTypeAudio = 2;
-
 }  // namespace media
 
 #endif  // MEDIA_WEBM_WEBM_CONSTANTS_H_
