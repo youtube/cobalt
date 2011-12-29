@@ -200,7 +200,9 @@ class HttpCache::WorkItem {
 class HttpCache::MetadataWriter {
  public:
   explicit MetadataWriter(HttpCache::Transaction* trans)
-      : transaction_(trans) {
+      : transaction_(trans),
+        verified_(false),
+        buf_len_(0) {
   }
 
   ~MetadataWriter() {}
