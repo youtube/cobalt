@@ -49,11 +49,4 @@ void MessageLoopProxy::OnDestruct() const {
   delete this;
 }
 
-bool MessageLoopProxy::DeleteSoonInternal(
-    const tracked_objects::Location& from_here,
-    void(*deleter)(const void*),
-    const void* object) {
-  return PostNonNestableTask(from_here, base::Bind(deleter, object));
-}
-
 }  // namespace base
