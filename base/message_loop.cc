@@ -776,6 +776,13 @@ void MessageLoop::DeleteSoonInternal(const tracked_objects::Location& from_here,
   PostNonNestableTask(from_here, base::Bind(deleter, object));
 }
 
+void MessageLoop::ReleaseSoonInternal(
+    const tracked_objects::Location& from_here,
+    void(*releaser)(const void*),
+    const void* object) {
+  PostNonNestableTask(from_here, base::Bind(releaser, object));
+}
+
 //------------------------------------------------------------------------------
 // MessageLoop::AutoRunState
 
