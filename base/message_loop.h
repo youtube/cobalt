@@ -14,6 +14,7 @@
 #include "base/callback_forward.h"
 #include "base/location.h"
 #include "base/memory/ref_counted.h"
+#include "base/message_loop_helpers.h"
 #include "base/message_loop_proxy.h"
 #include "base/message_pump.h"
 #include "base/observer_list.h"
@@ -228,7 +229,8 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   // from RefCountedThreadSafe<T>!
   template <class T>
   void DeleteSoon(const tracked_objects::Location& from_here, const T* object) {
-    PostNonNestableTask(from_here, new DeleteTask<T>(object));
+    base::subtle::DeleteHelperInternal<T, void>::DeleteOnMessageLoop(
+        this, from_here, object);
   }
 
   // A variant on PostTask that releases the given reference counted object
@@ -552,6 +554,12 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
 
  private:
+  template <class T, class R> friend class base::subtle::DeleteHelperInternal;
+
+  void DeleteSoonInternal(const tracked_objects::Location& from_here,
+                          void(*deleter)(const void*),
+                          const void* object);
+
   DISALLOW_COPY_AND_ASSIGN(MessageLoop);
 };
 
