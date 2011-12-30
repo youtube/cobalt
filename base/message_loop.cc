@@ -272,6 +272,13 @@ void MessageLoop::PostDelayedTask(
   AddToIncomingQueue(&pending_task);
 }
 
+void MessageLoop::PostDelayedTask(
+    const tracked_objects::Location& from_here,
+    Task* task,
+    base::TimeDelta delay) {
+  PostDelayedTask(from_here, task, delay.InMillisecondsRoundedUp());
+}
+
 void MessageLoop::PostNonNestableTask(
     const tracked_objects::Location& from_here, Task* task) {
   DCHECK(task);
@@ -296,6 +303,13 @@ void MessageLoop::PostNonNestableDelayedTask(
   AddToIncomingQueue(&pending_task);
 }
 
+void MessageLoop::PostNonNestableDelayedTask(
+    const tracked_objects::Location& from_here,
+    Task* task,
+    base::TimeDelta delay) {
+  PostNonNestableDelayedTask(from_here, task, delay.InMillisecondsRoundedUp());
+}
+
 void MessageLoop::PostTask(
     const tracked_objects::Location& from_here, const base::Closure& task) {
   DCHECK(!task.is_null()) << from_here.ToString();
@@ -304,12 +318,20 @@ void MessageLoop::PostTask(
 }
 
 void MessageLoop::PostDelayedTask(
-    const tracked_objects::Location& from_here, const base::Closure& task,
+    const tracked_objects::Location& from_here,
+    const base::Closure& task,
     int64 delay_ms) {
   DCHECK(!task.is_null()) << from_here.ToString();
   PendingTask pending_task(from_here, task,
                            CalculateDelayedRuntime(delay_ms), true);
   AddToIncomingQueue(&pending_task);
+}
+
+void MessageLoop::PostDelayedTask(
+    const tracked_objects::Location& from_here,
+    const base::Closure& task,
+    base::TimeDelta delay) {
+  PostDelayedTask(from_here, task, delay.InMillisecondsRoundedUp());
 }
 
 void MessageLoop::PostNonNestableTask(
@@ -326,6 +348,13 @@ void MessageLoop::PostNonNestableDelayedTask(
   PendingTask pending_task(from_here, task,
                            CalculateDelayedRuntime(delay_ms), false);
   AddToIncomingQueue(&pending_task);
+}
+
+void MessageLoop::PostNonNestableDelayedTask(
+    const tracked_objects::Location& from_here,
+    const base::Closure& task,
+    base::TimeDelta delay) {
+  PostNonNestableDelayedTask(from_here, task, delay.InMillisecondsRoundedUp());
 }
 
 void MessageLoop::Run() {
