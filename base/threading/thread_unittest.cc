@@ -177,8 +177,10 @@ TEST_F(ThreadTest, TwoTasks) {
     // Test that all events are dispatched before the Thread object is
     // destroyed.  We do this by dispatching a sleep event before the
     // event that will toggle our sentinel value.
-    a.message_loop()->PostTask(FROM_HERE,
-                               base::Bind(&base::PlatformThread::Sleep, 20));
+    a.message_loop()->PostTask(
+        FROM_HERE,
+        base::Bind(static_cast<void (*)(int)>(&base::PlatformThread::Sleep),
+                   20));
     a.message_loop()->PostTask(FROM_HERE, base::Bind(&ToggleValue,
                                                      &was_invoked));
   }
