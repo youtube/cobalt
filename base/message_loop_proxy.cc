@@ -56,4 +56,11 @@ bool MessageLoopProxy::DeleteSoonInternal(
   return PostNonNestableTask(from_here, base::Bind(deleter, object));
 }
 
+bool MessageLoopProxy::ReleaseSoonInternal(
+    const tracked_objects::Location& from_here,
+    void(*releaser)(const void*),
+    const void* object) {
+  return PostNonNestableTask(from_here, base::Bind(releaser, object));
+}
+
 }  // namespace base

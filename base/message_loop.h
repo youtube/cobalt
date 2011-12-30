@@ -246,7 +246,8 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   template <class T>
   void ReleaseSoon(const tracked_objects::Location& from_here,
                    const T* object) {
-    PostNonNestableTask(from_here, new ReleaseTask<T>(object));
+    base::subtle::ReleaseHelperInternal<T, void>::ReleaseOnMessageLoop(
+        this, from_here, object);
   }
 
   // Run the message loop.
@@ -555,10 +556,15 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
 
  private:
   template <class T, class R> friend class base::subtle::DeleteHelperInternal;
+  template <class T, class R> friend class base::subtle::ReleaseHelperInternal;
 
   void DeleteSoonInternal(const tracked_objects::Location& from_here,
                           void(*deleter)(const void*),
                           const void* object);
+  void ReleaseSoonInternal(const tracked_objects::Location& from_here,
+                           void(*releaser)(const void*),
+                           const void* object);
+
 
   DISALLOW_COPY_AND_ASSIGN(MessageLoop);
 };
