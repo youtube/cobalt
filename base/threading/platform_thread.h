@@ -12,6 +12,7 @@
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
+#include "base/time.h"
 #include "build/build_config.h"
 
 #if defined(OS_WIN)
@@ -73,6 +74,9 @@ class BASE_EXPORT PlatformThread {
 
   // Sleeps for the specified duration (units are milliseconds).
   static void Sleep(int duration_ms);
+
+  // Sleeps for the specified duration.
+  static void Sleep(base::TimeDelta duration);
 
   // Sets the thread name visible to debuggers/tools. This has no effect
   // otherwise. This name pointer is not copied internally. Thus, it must stay
