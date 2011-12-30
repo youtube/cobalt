@@ -9,7 +9,8 @@
 namespace spdy {
 
 BufferedSpdyFramer::BufferedSpdyFramer()
-    : header_buffer_used_(0),
+    : visitor_(NULL),
+      header_buffer_used_(0),
       header_buffer_valid_(false),
       header_stream_id_(SpdyFramer::kInvalidStream) {
 }
