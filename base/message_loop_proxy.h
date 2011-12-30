@@ -123,13 +123,14 @@ class BASE_EXPORT MessageLoopProxy
   template <class T>
   bool DeleteSoon(const tracked_objects::Location& from_here,
                   const T* object) {
-    return base::subtle::DeleteHelperInternal<T, bool>::DeleteOnMessageLoop(
+    return subtle::DeleteHelperInternal<T, bool>::DeleteOnMessageLoop(
         this, from_here, object);
   }
   template <class T>
   bool ReleaseSoon(const tracked_objects::Location& from_here,
                    T* object) {
-    return PostNonNestableTask(from_here, new ReleaseTask<T>(object));
+    return subtle::ReleaseHelperInternal<T, bool>::ReleaseOnMessageLoop(
+        this, from_here, object);
   }
 
   // Gets the MessageLoopProxy for the current message loop, creating one if
@@ -137,7 +138,6 @@ class BASE_EXPORT MessageLoopProxy
   static scoped_refptr<MessageLoopProxy> current();
 
  protected:
-  template <class T, class R> friend class subtle::DeleteHelperInternal;
   friend class RefCountedThreadSafe<MessageLoopProxy, MessageLoopProxyTraits>;
   friend struct MessageLoopProxyTraits;
 
@@ -148,9 +148,15 @@ class BASE_EXPORT MessageLoopProxy
   // to provide deletion on specific threads.
   virtual void OnDestruct() const;
 
+ private:
+  template <class T, class R> friend class subtle::DeleteHelperInternal;
+  template <class T, class R> friend class subtle::ReleaseHelperInternal;
   bool DeleteSoonInternal(const tracked_objects::Location& from_here,
                           void(*deleter)(const void*),
                           const void* object);
+  bool ReleaseSoonInternal(const tracked_objects::Location& from_here,
+                           void(*releaser)(const void*),
+                           const void* object);
 };
 
 struct MessageLoopProxyTraits {
