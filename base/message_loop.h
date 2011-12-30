@@ -168,11 +168,21 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   void PostDelayedTask(
       const tracked_objects::Location& from_here, Task* task, int64 delay_ms);
 
+  void PostDelayedTask(
+      const tracked_objects::Location& from_here,
+      Task* task,
+      base::TimeDelta delay);
+
   void PostNonNestableTask(
       const tracked_objects::Location& from_here, Task* task);
 
   void PostNonNestableDelayedTask(
       const tracked_objects::Location& from_here, Task* task, int64 delay_ms);
+
+  void PostNonNestableDelayedTask(
+      const tracked_objects::Location& from_here,
+      Task* task,
+      base::TimeDelta delay);
 
   // TODO(ajwong): Remove the functions above once the Task -> Closure migration
   // is complete.
@@ -189,6 +199,11 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
       const tracked_objects::Location& from_here,
       const base::Closure& task, int64 delay_ms);
 
+  void PostDelayedTask(
+      const tracked_objects::Location& from_here,
+      const base::Closure& task,
+      base::TimeDelta delay);
+
   void PostNonNestableTask(
       const tracked_objects::Location& from_here,
       const base::Closure& task);
@@ -196,6 +211,11 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   void PostNonNestableDelayedTask(
       const tracked_objects::Location& from_here,
       const base::Closure& task, int64 delay_ms);
+
+  void PostNonNestableDelayedTask(
+      const tracked_objects::Location& from_here,
+      const base::Closure& task,
+      base::TimeDelta delay);
 
   // A variant on PostTask that deletes the given object.  This is useful
   // if the object needs to live until the next run of the MessageLoop (for
