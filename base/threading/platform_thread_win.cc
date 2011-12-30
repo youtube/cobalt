@@ -114,6 +114,11 @@ void PlatformThread::Sleep(int duration_ms) {
 }
 
 // static
+void PlatformThread::Sleep(TimeDelta duration) {
+  ::Sleep(duration.InMillisecondsRoundedUp());
+}
+
+// static
 void PlatformThread::SetName(const char* name) {
   current_thread_name.Set(const_cast<char*>(name));
   tracked_objects::ThreadData::InitializeThreadContext(name);

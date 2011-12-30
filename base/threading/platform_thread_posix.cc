@@ -152,14 +152,21 @@ void PlatformThread::YieldCurrentThread() {
 
 // static
 void PlatformThread::Sleep(int duration_ms) {
+  // NOTE: This function will be supplanted by the other version of Sleep
+  // in the future.  See issue 108171 for more information.
+  Sleep(TimeDelta::FromMilliseconds(duration_ms));
+}
+
+// static
+void PlatformThread::Sleep(TimeDelta duration) {
   struct timespec sleep_time, remaining;
 
-  // Contains the portion of duration_ms >= 1 sec.
-  sleep_time.tv_sec = duration_ms / 1000;
-  duration_ms -= sleep_time.tv_sec * 1000;
-
-  // Contains the portion of duration_ms < 1 sec.
-  sleep_time.tv_nsec = duration_ms * 1000 * 1000;  // nanoseconds.
+  // Break the duration into seconds and nanoseconds.
+  // NOTE: TimeDelta's microseconds are int64s while timespec's
+  // nanoseconds are longs, so this unpacking must prevent overflow.
+  sleep_time.tv_sec = duration.InSeconds();
+  duration -= TimeDelta::FromSeconds(sleep_time.tv_sec);
+  sleep_time.tv_nsec = duration.InMicroseconds() * 1000;  // nanoseconds
 
   while (nanosleep(&sleep_time, &remaining) == -1 && errno == EINTR)
     sleep_time = remaining;
