@@ -58,7 +58,7 @@ class MultipleThreadMain : public PlatformThread::Delegate {
 
     for (int idx = 0; idx < 100; idx++) {
       *ptr = idx;
-      PlatformThread::Sleep(1);  // Short wait.
+      PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(1));
       EXPECT_EQ(*ptr, idx);
     }
     // Reset back to 0 for the next test that uses the same name.
@@ -113,7 +113,7 @@ class MultipleLockThread : public PlatformThread::Delegate {
       memory2.Lock();
       int i = (id_ << 16) + idx;
       *ptr = i;
-      PlatformThread::Sleep(1);  // Short wait.
+      PlatformThread::Sleep(TimeDelta::FromMilliseconds(1));
       EXPECT_EQ(*ptr, i);
       memory2.Unlock();
     }
@@ -388,7 +388,7 @@ class SharedMemoryProcessTest : public MultiProcessTest {
       memory.Lock();
       int i = (1 << 16) + idx;
       *ptr = i;
-      PlatformThread::Sleep(10);  // Short wait.
+      PlatformThread::Sleep(TimeDelta::FromMilliseconds(10));
       if (*ptr != i)
         errors++;
       memory.Unlock();

@@ -198,7 +198,9 @@ bool BeingDebugged() {
 // Use GDB to set |go| to 1 to resume execution.
 #define DEBUG_BREAK() do { \
   volatile int go = 0;             \
-  while (!go) { base::PlatformThread::Sleep(100); }   \
+  while (!go) { \
+    base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(100)); \
+  } \
 } while (0)
 #else
 // ARM && !ANDROID

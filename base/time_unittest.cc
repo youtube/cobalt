@@ -311,7 +311,7 @@ TEST_F(TimeTest, ParseTimeTestInvalidString) {
 TEST(TimeTicks, Deltas) {
   for (int index = 0; index < 50; index++) {
     TimeTicks ticks_start = TimeTicks::Now();
-    base::PlatformThread::Sleep(10);
+    base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(10));
     TimeTicks ticks_stop = TimeTicks::Now();
     TimeDelta delta = ticks_stop - ticks_start;
     // Note:  Although we asked for a 10ms sleep, if the
