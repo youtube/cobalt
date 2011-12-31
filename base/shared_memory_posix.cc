@@ -340,7 +340,7 @@ void SharedMemory::LockOrUnlockCommon(int function) {
       continue;
     } else if (errno == ENOLCK) {
       // temporary kernel resource exaustion
-      base::PlatformThread::Sleep(500);
+      base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(500));
       continue;
     } else {
       NOTREACHED() << "lockf() failed."

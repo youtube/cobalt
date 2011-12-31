@@ -24,7 +24,7 @@ bool WaitForDebugger(int wait_seconds, bool silent) {
         BreakDebugger();
       return true;
     }
-    PlatformThread::Sleep(100);
+    PlatformThread::Sleep(TimeDelta::FromMilliseconds(100));
   }
   return false;
 }

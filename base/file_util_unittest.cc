@@ -22,7 +22,6 @@
 #include "base/path_service.h"
 #include "base/scoped_temp_dir.h"
 #include "base/threading/platform_thread.h"
-#include "base/time.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -349,11 +348,11 @@ TEST_F(FileUtilTest, FLAKY_CountFilesCreatedAfter) {
 
   // Age to perfection
 #if defined(OS_WIN)
-  base::PlatformThread::Sleep(100);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(100));
 #elif defined(OS_POSIX)
   // We need to wait at least one second here because the precision of
   // file creation time is one second.
-  base::PlatformThread::Sleep(1500);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(1500));
 #endif
 
   // Establish our cutoff time
@@ -1250,9 +1249,9 @@ TEST_F(FileUtilTest, GetFileCreationLocalTime) {
 
   SYSTEMTIME start_time;
   GetLocalTime(&start_time);
-  Sleep(100);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(100));
   CreateTextFile(file_name, L"New file!");
-  Sleep(100);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(100));
   SYSTEMTIME end_time;
   GetLocalTime(&end_time);
 

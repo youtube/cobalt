@@ -661,7 +661,7 @@ void WorkQueue::SpinUntilAllThreadsAreWaiting() {
       if (waiting_thread_count_ == thread_count_)
         break;
     }
-    PlatformThread::Sleep(30);
+    PlatformThread::Sleep(TimeDelta::FromMilliseconds(30));
   }
 }
 
@@ -672,7 +672,7 @@ void WorkQueue::SpinUntilTaskCountLessThan(int task_count) {
       if (task_count_ < task_count)
         break;
     }
-    PlatformThread::Sleep(30);
+    PlatformThread::Sleep(TimeDelta::FromMilliseconds(30));
   }
 }
 

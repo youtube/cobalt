@@ -170,7 +170,7 @@ class TOOLS_SANITY_TEST_CONCURRENT_THREAD : public PlatformThread::Delegate {
     // Sleep for a few milliseconds so the two threads are more likely to live
     // simultaneously. Otherwise we may miss the report due to mutex
     // lock/unlock's inside thread creation code in pure-happens-before mode...
-    PlatformThread::Sleep(100);
+    PlatformThread::Sleep(TimeDelta::FromMilliseconds(100));
   }
  private:
   bool *value_;
@@ -186,7 +186,7 @@ class ReleaseStoreThread : public PlatformThread::Delegate {
     // Sleep for a few milliseconds so the two threads are more likely to live
     // simultaneously. Otherwise we may miss the report due to mutex
     // lock/unlock's inside thread creation code in pure-happens-before mode...
-    PlatformThread::Sleep(100);
+    PlatformThread::Sleep(TimeDelta::FromMilliseconds(100));
   }
  private:
   base::subtle::Atomic32 *value_;
@@ -198,7 +198,7 @@ class AcquireLoadThread : public PlatformThread::Delegate {
   ~AcquireLoadThread() {}
   void ThreadMain() {
     // Wait for the other thread to make Release_Store
-    PlatformThread::Sleep(100);
+    PlatformThread::Sleep(TimeDelta::FromMilliseconds(100));
     base::subtle::Acquire_Load(value_);
   }
  private:
