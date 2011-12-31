@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -99,7 +99,7 @@ TEST_F(WatchdogTest, ConstructorDisabledTest) {
   WatchdogCounter watchdog(TimeDelta::FromMilliseconds(10), "Disabled", false);
   watchdog.Arm();
   // Alarm should not fire, as it was disabled.
-  PlatformThread::Sleep(500);
+  PlatformThread::Sleep(TimeDelta::FromMilliseconds(500));
   EXPECT_EQ(0, watchdog.alarm_counter());
 }
 
@@ -109,7 +109,8 @@ TEST_F(WatchdogTest, DisarmTest) {
 
   TimeTicks start = TimeTicks::Now();
   watchdog.Arm();
-  PlatformThread::Sleep(100);  // Sleep a bit, but not past the alarm point.
+  // Sleep a bit, but not past the alarm point.
+  PlatformThread::Sleep(TimeDelta::FromMilliseconds(100));
   watchdog.Disarm();
   TimeTicks end = TimeTicks::Now();
 
@@ -124,7 +125,7 @@ TEST_F(WatchdogTest, DisarmTest) {
 
   // Sleep past the point where it would have fired if it wasn't disarmed,
   // and verify that it didn't fire.
-  PlatformThread::Sleep(1000);
+  PlatformThread::Sleep(TimeDelta::FromSeconds(1));
   EXPECT_EQ(0, watchdog.alarm_counter());
 
   // ...but even after disarming, we can still use the alarm...

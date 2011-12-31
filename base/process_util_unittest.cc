@@ -74,7 +74,7 @@ const int kExpectedStillRunningExitCode = 0;
 void WaitToDie(const char* filename) {
   FILE *fp;
   do {
-    base::PlatformThread::Sleep(10);
+    base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(10));
     fp = fopen(filename, "r");
   } while (!fp);
   fclose(fp);
@@ -95,14 +95,14 @@ base::TerminationStatus WaitForChildTermination(base::ProcessHandle handle,
                                                 int* exit_code) {
   // Now we wait until the result is something other than STILL_RUNNING.
   base::TerminationStatus status = base::TERMINATION_STATUS_STILL_RUNNING;
-  const int kIntervalMs = 20;
-  int waited = 0;
+  const base::TimeDelta kInterval = base::TimeDelta::FromMilliseconds(20);
+  base::TimeDelta waited;
   do {
     status = base::GetTerminationStatus(handle, exit_code);
-    base::PlatformThread::Sleep(kIntervalMs);
-    waited += kIntervalMs;
+    base::PlatformThread::Sleep(kInterval);
+    waited += kInterval;
   } while (status == base::TERMINATION_STATUS_STILL_RUNNING &&
-           waited < TestTimeouts::action_max_timeout_ms());
+           waited.InMilliseconds() < TestTimeouts::action_max_timeout_ms());
 
   return status;
 }
