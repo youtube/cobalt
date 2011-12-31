@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -101,7 +101,7 @@ void StatsTableThread::Run() {
       mixed_counter.Decrement();
     else
       mixed_counter.Increment();
-    PlatformThread::Sleep(index % 10);   // short wait
+    PlatformThread::Sleep(TimeDelta::FromMilliseconds(index % 10));
   }
 }
 
@@ -180,7 +180,7 @@ MULTIPROCESS_TEST_MAIN(StatsTableMultipleProcessMain) {
     lucky13_counter.Set(1313);
     increment_counter.Increment();
     decrement_counter.Decrement();
-    PlatformThread::Sleep(index % 10);   // short wait
+    PlatformThread::Sleep(TimeDelta::FromMilliseconds(index % 10));
   }
   return 0;
 }
@@ -315,21 +315,21 @@ TEST_F(StatsTableTest, StatsCounterTimer) {
   EXPECT_TRUE(bar.start_time().is_null());
   EXPECT_TRUE(bar.stop_time().is_null());
 
-  const int kRunMs = 100;
+  const TimeDelta kDuration = TimeDelta::FromMilliseconds(100);
 
   // Do some timing.
   bar.Start();
-  PlatformThread::Sleep(kRunMs);
+  PlatformThread::Sleep(kDuration);
   bar.Stop();
   EXPECT_GT(table.GetCounterValue("t:bar"), 0);
-  EXPECT_LE(kRunMs, table.GetCounterValue("t:bar"));
+  EXPECT_LE(kDuration.InMilliseconds(), table.GetCounterValue("t:bar"));
 
   // Verify that timing again is additive.
   bar.Start();
-  PlatformThread::Sleep(kRunMs);
+  PlatformThread::Sleep(kDuration);
   bar.Stop();
   EXPECT_GT(table.GetCounterValue("t:bar"), 0);
-  EXPECT_LE(kRunMs * 2, table.GetCounterValue("t:bar"));
+  EXPECT_LE(kDuration.InMilliseconds() * 2, table.GetCounterValue("t:bar"));
 }
 
 // Test some basic StatsRate operations
@@ -348,21 +348,21 @@ TEST_F(StatsTableTest, StatsRate) {
   EXPECT_EQ(0, table.GetCounterValue("c:baz"));
   EXPECT_EQ(0, table.GetCounterValue("t:baz"));
 
-  const int kRunMs = 100;
+  const TimeDelta kDuration = TimeDelta::FromMilliseconds(100);
 
   // Do some timing.
   baz.Start();
-  PlatformThread::Sleep(kRunMs);
+  PlatformThread::Sleep(kDuration);
   baz.Stop();
   EXPECT_EQ(1, table.GetCounterValue("c:baz"));
-  EXPECT_LE(kRunMs, table.GetCounterValue("t:baz"));
+  EXPECT_LE(kDuration.InMilliseconds(), table.GetCounterValue("t:baz"));
 
   // Verify that timing again is additive.
   baz.Start();
-  PlatformThread::Sleep(kRunMs);
+  PlatformThread::Sleep(kDuration);
   baz.Stop();
   EXPECT_EQ(2, table.GetCounterValue("c:baz"));
-  EXPECT_LE(kRunMs * 2, table.GetCounterValue("t:baz"));
+  EXPECT_LE(kDuration.InMilliseconds() * 2, table.GetCounterValue("t:baz"));
 }
 
 // Test some basic StatsScope operations
@@ -383,26 +383,26 @@ TEST_F(StatsTableTest, StatsScope) {
   EXPECT_EQ(0, table.GetCounterValue("t:bar"));
   EXPECT_EQ(0, table.GetCounterValue("c:bar"));
 
-  const int kRunMs = 100;
+  const TimeDelta kDuration = TimeDelta::FromMilliseconds(100);
 
   // Try a scope.
   {
     StatsScope<StatsCounterTimer> timer(foo);
     StatsScope<StatsRate> timer2(bar);
-    PlatformThread::Sleep(kRunMs);
+    PlatformThread::Sleep(kDuration);
   }
-  EXPECT_LE(kRunMs, table.GetCounterValue("t:foo"));
-  EXPECT_LE(kRunMs, table.GetCounterValue("t:bar"));
+  EXPECT_LE(kDuration.InMilliseconds(), table.GetCounterValue("t:foo"));
+  EXPECT_LE(kDuration.InMilliseconds(), table.GetCounterValue("t:bar"));
   EXPECT_EQ(1, table.GetCounterValue("c:bar"));
 
   // Try a second scope.
   {
     StatsScope<StatsCounterTimer> timer(foo);
     StatsScope<StatsRate> timer2(bar);
-    PlatformThread::Sleep(kRunMs);
+    PlatformThread::Sleep(kDuration);
   }
-  EXPECT_LE(kRunMs * 2, table.GetCounterValue("t:foo"));
-  EXPECT_LE(kRunMs * 2, table.GetCounterValue("t:bar"));
+  EXPECT_LE(kDuration.InMilliseconds() * 2, table.GetCounterValue("t:foo"));
+  EXPECT_LE(kDuration.InMilliseconds() * 2, table.GetCounterValue("t:bar"));
   EXPECT_EQ(2, table.GetCounterValue("c:bar"));
 
   DeleteShmem(kTableName);
