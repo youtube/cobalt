@@ -36,7 +36,7 @@ class SleepInsideInitThread : public Thread {
   }
 
   virtual void Init() {
-    base::PlatformThread::Sleep(500);
+    base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(500));
     init_called_ = true;
   }
   bool InitCalled() { return init_called_; }
@@ -162,7 +162,7 @@ TEST_F(ThreadTest, StartWithOptions_StackSize) {
   // instead to avoid busy waiting, but this is sufficient for
   // testing purposes).
   for (int i = 100; i >= 0 && !was_invoked; --i) {
-    base::PlatformThread::Sleep(10);
+    base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(10));
   }
   EXPECT_TRUE(was_invoked);
 }
@@ -179,8 +179,10 @@ TEST_F(ThreadTest, TwoTasks) {
     // event that will toggle our sentinel value.
     a.message_loop()->PostTask(
         FROM_HERE,
-        base::Bind(static_cast<void (*)(int)>(&base::PlatformThread::Sleep),
-                   20));
+        base::Bind(
+            static_cast<void (*)(base::TimeDelta)>(
+                &base::PlatformThread::Sleep),
+            base::TimeDelta::FromMilliseconds(20)));
     a.message_loop()->PostTask(FROM_HERE, base::Bind(&ToggleValue,
                                                      &was_invoked));
   }

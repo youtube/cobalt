@@ -629,7 +629,7 @@ TEST_F(TraceEventTestFixture, DataCapturedThreshold) {
     // 100+ seconds to avoid flakiness.
     TRACE_EVENT_IF_LONGER_THAN0(100000000, "time", "threshold long1");
     TRACE_EVENT_IF_LONGER_THAN0(200000000, "time", "threshold long2");
-    base::PlatformThread::Sleep(20); // 20000 us
+    base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(20));
   }
 
   // Test that a normal nested event remains after it's parent event is dropped.
@@ -654,7 +654,8 @@ TEST_F(TraceEventTestFixture, DataCapturedThreshold) {
             TRACE_EVENT_IF_LONGER_THAN0(1000, "time", "3threshold1000");
             {
               TRACE_EVENT_IF_LONGER_THAN0(100, "time", "3threshold100");
-              base::PlatformThread::Sleep(20);
+              base::PlatformThread::Sleep(
+                  base::TimeDelta::FromMilliseconds(20));
             }
           }
         }
@@ -678,7 +679,8 @@ TEST_F(TraceEventTestFixture, DataCapturedThreshold) {
             {
               TRACE_EVENT_IF_LONGER_THAN0(200000000, "time",
                                           "4thresholdlong2");
-              base::PlatformThread::Sleep(20);
+              base::PlatformThread::Sleep(
+                  base::TimeDelta::FromMilliseconds(20));
             }
           }
         }

@@ -31,7 +31,6 @@
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_restrictions.h"
-#include "base/time.h"
 
 #if defined(OS_FREEBSD)
 #include <sys/event.h>
@@ -1197,7 +1196,7 @@ bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
       result = true;
       break;
     }
-    base::PlatformThread::Sleep(100);
+    base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(100));
   } while ((end_time - base::Time::Now()) > base::TimeDelta());
 
   return result;
@@ -1264,7 +1263,7 @@ class BackgroundReaper : public PlatformThread::Delegate {
 
     // Wait for 2 * timeout_ 500 milliseconds intervals.
     for (unsigned i = 0; i < 2 * timeout_; ++i) {
-      PlatformThread::Sleep(500);  // 0.5 seconds
+      PlatformThread::Sleep(TimeDelta::FromMilliseconds(500));
       if (IsChildDead(child_))
         return;
     }
