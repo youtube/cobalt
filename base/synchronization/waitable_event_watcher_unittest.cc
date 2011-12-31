@@ -80,7 +80,7 @@ void RunTest_CancelAfterSet(MessageLoop::Type message_loop_type) {
   event.Signal();
 
   // Let the background thread do its business
-  base::PlatformThread::Sleep(30);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(30));
 
   watcher.StopWatching();
 

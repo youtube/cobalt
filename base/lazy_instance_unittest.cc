@@ -27,7 +27,7 @@ class SlowConstructor {
  public:
   SlowConstructor() : some_int_(0) {
     // Sleep for 1 second to try to cause a race.
-    base::PlatformThread::Sleep(1000);
+    base::PlatformThread::Sleep(base::TimeDelta::FromSeconds(1));
     ++constructed;
     some_int_ = 12;
   }
