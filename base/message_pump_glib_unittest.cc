@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <vector>
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop.h"
@@ -58,25 +60,23 @@ class EventInjector {
     Event event = events_[0];
     events_.erase(events_.begin());
     ++processed_events_;
-    if (!event.callback.is_null()) {
+    if (!event.callback.is_null())
       event.callback.Run();
-    } else if (event.task) {
-      event.task->Run();
-      delete event.task;
-    }
+    else if (!event.task.is_null())
+      event.task.Run();
   }
 
   // Adds an event to the queue. When "handled", executes |callback|.
   // delay_ms is relative to the last event if any, or to Now() otherwise.
   void AddEvent(int delay_ms, const base::Closure& callback) {
-    AddEventHelper(delay_ms, callback, NULL);
+    AddEventHelper(delay_ms, callback, base::Closure());
   }
 
   void AddDummyEvent(int delay_ms) {
-    AddEventHelper(delay_ms, base::Closure(), NULL);
+    AddEventHelper(delay_ms, base::Closure(), base::Closure());
   }
 
-  void AddEventAsTask(int delay_ms, Task* task) {
+  void AddEventAsTask(int delay_ms, const base::Closure& task) {
     AddEventHelper(delay_ms, base::Closure(), task);
   }
 
@@ -91,22 +91,23 @@ class EventInjector {
   struct Event {
     base::Time time;
     base::Closure callback;
-    Task* task;
+    base::Closure task;
   };
 
   struct Source : public GSource {
     EventInjector* injector;
   };
 
-  void AddEventHelper(int delay_ms, const base::Closure& callback, Task* task) {
+  void AddEventHelper(
+      int delay_ms, const base::Closure& callback, const base::Closure& task) {
     base::Time last_time;
-    if (!events_.empty()) {
+    if (!events_.empty())
       last_time = (events_.end()-1)->time;
-    } else {
+    else
       last_time = base::Time::NowFromSystemTime();
-    }
+
     base::Time future = last_time + base::TimeDelta::FromMilliseconds(delay_ms);
-    EventInjector::Event event = { future, callback, task };
+    EventInjector::Event event = {future, callback, task};
     events_.push_back(event);
   }
 
@@ -155,7 +156,7 @@ void ExpectProcessedEvents(EventInjector* injector, int count) {
 
 // Posts a task on the current message loop.
 void PostMessageLoopTask(const tracked_objects::Location& from_here,
-                         Task* task) {
+                         const base::Closure& task) {
   MessageLoop::current()->PostTask(from_here, task);
 }
 
@@ -213,22 +214,24 @@ TEST_F(MessagePumpGLibTest, TestEventTaskInterleave) {
   // If changes cause this test to fail, it is reasonable to change it, but
   // TestWorkWhileWaitingForEvents and TestEventsWhileWaitingForWork have to be
   // changed accordingly, otherwise they can become flaky.
-  injector()->AddEventAsTask(0, NewRunnableFunction(DoNothing));
-  Task* check_task = NewRunnableFunction(ExpectProcessedEvents, injector(), 2);
-  Task* posted_task = NewRunnableFunction(PostMessageLoopTask,
-                                          FROM_HERE, check_task);
+  injector()->AddEventAsTask(0, base::Bind(&DoNothing));
+  base::Closure check_task =
+      base::Bind(&ExpectProcessedEvents, base::Unretained(injector()), 2);
+  base::Closure posted_task =
+      base::Bind(&PostMessageLoopTask, FROM_HERE, check_task);
   injector()->AddEventAsTask(0, posted_task);
-  injector()->AddEventAsTask(0, NewRunnableFunction(DoNothing));
+  injector()->AddEventAsTask(0, base::Bind(&DoNothing));
   injector()->AddEvent(0, MessageLoop::QuitClosure());
   loop()->Run();
   EXPECT_EQ(4, injector()->processed_events());
 
   injector()->Reset();
-  injector()->AddEventAsTask(0, NewRunnableFunction(DoNothing));
-  check_task = NewRunnableFunction(ExpectProcessedEvents, injector(), 2);
-  posted_task = NewRunnableFunction(PostMessageLoopTask, FROM_HERE, check_task);
+  injector()->AddEventAsTask(0, base::Bind(&DoNothing));
+  check_task =
+      base::Bind(&ExpectProcessedEvents, base::Unretained(injector()), 2);
+  posted_task = base::Bind(&PostMessageLoopTask, FROM_HERE, check_task);
   injector()->AddEventAsTask(0, posted_task);
-  injector()->AddEventAsTask(10, NewRunnableFunction(DoNothing));
+  injector()->AddEventAsTask(10, base::Bind(&DoNothing));
   injector()->AddEvent(0, MessageLoop::QuitClosure());
   loop()->Run();
   EXPECT_EQ(4, injector()->processed_events());
@@ -239,13 +242,14 @@ TEST_F(MessagePumpGLibTest, TestWorkWhileWaitingForEvents) {
   // Tests that we process tasks while waiting for new events.
   // The event queue is empty at first.
   for (int i = 0; i < 10; ++i) {
-    loop()->PostTask(FROM_HERE, NewRunnableFunction(IncrementInt, &task_count));
+    loop()->PostTask(FROM_HERE, base::Bind(&IncrementInt, &task_count));
   }
   // After all the previous tasks have executed, enqueue an event that will
   // quit.
   loop()->PostTask(
-      FROM_HERE, NewRunnableMethod(injector(), &EventInjector::AddEvent,
-                                   0, MessageLoop::QuitClosure()));
+      FROM_HERE,
+      base::Bind(&EventInjector::AddEvent, base::Unretained(injector()), 0,
+                 MessageLoop::QuitClosure()));
   loop()->Run();
   ASSERT_EQ(10, task_count);
   EXPECT_EQ(1, injector()->processed_events());
@@ -255,15 +259,16 @@ TEST_F(MessagePumpGLibTest, TestWorkWhileWaitingForEvents) {
   task_count = 0;
   for (int i = 0; i < 10; ++i) {
     loop()->PostDelayedTask(
-        FROM_HERE, NewRunnableFunction(IncrementInt, &task_count), 10*i);
+        FROM_HERE, base::Bind(&IncrementInt, &task_count), 10*i);
   }
   // After all the previous tasks have executed, enqueue an event that will
   // quit.
   // This relies on the fact that delayed tasks are executed in delay order.
   // That is verified in message_loop_unittest.cc.
   loop()->PostDelayedTask(
-      FROM_HERE, NewRunnableMethod(injector(), &EventInjector::AddEvent,
-                                   10, MessageLoop::QuitClosure()), 150);
+      FROM_HERE,
+      base::Bind(&EventInjector::AddEvent, base::Unretained(injector()), 10,
+                 MessageLoop::QuitClosure()), 150);
   loop()->Run();
   ASSERT_EQ(10, task_count);
   EXPECT_EQ(1, injector()->processed_events());
@@ -278,9 +283,10 @@ TEST_F(MessagePumpGLibTest, TestEventsWhileWaitingForWork) {
   // After all the events have been processed, post a task that will check that
   // the events have been processed (note: the task executes after the event
   // that posted it has been handled, so we expect 11 at that point).
-  Task* check_task = NewRunnableFunction(ExpectProcessedEvents, injector(), 11);
-  Task* posted_task = NewRunnableFunction(PostMessageLoopTask,
-                                          FROM_HERE, check_task);
+  base::Closure check_task =
+      base::Bind(&ExpectProcessedEvents, base::Unretained(injector()), 11);
+  base::Closure posted_task =
+      base::Bind(&PostMessageLoopTask, FROM_HERE, check_task);
   injector()->AddEventAsTask(10, posted_task);
 
   // And then quit (relies on the condition tested by TestEventTaskInterleave).
@@ -311,7 +317,7 @@ class ConcurrentHelper : public base::RefCounted<ConcurrentHelper>  {
         MessageLoop::current()->Quit();
     } else {
       MessageLoop::current()->PostTask(
-          FROM_HERE, NewRunnableMethod(this, &ConcurrentHelper::FromTask));
+          FROM_HERE, base::Bind(&ConcurrentHelper::FromTask, this));
     }
   }
 
@@ -323,7 +329,7 @@ class ConcurrentHelper : public base::RefCounted<ConcurrentHelper>  {
         MessageLoop::current()->Quit();
     } else {
       injector_->AddEventAsTask(
-          0, NewRunnableMethod(this, &ConcurrentHelper::FromEvent));
+          0, base::Bind(&ConcurrentHelper::FromEvent, this));
     }
   }
 
@@ -356,15 +362,15 @@ TEST_F(MessagePumpGLibTest, TestConcurrentEventPostedTask) {
   // Add 2 events to the queue to make sure it is always full (when we remove
   // the event before processing it).
   injector()->AddEventAsTask(
-      0, NewRunnableMethod(helper.get(), &ConcurrentHelper::FromEvent));
+      0, base::Bind(&ConcurrentHelper::FromEvent, helper.get()));
   injector()->AddEventAsTask(
-      0, NewRunnableMethod(helper.get(), &ConcurrentHelper::FromEvent));
+      0, base::Bind(&ConcurrentHelper::FromEvent, helper.get()));
 
   // Similarly post 2 tasks.
   loop()->PostTask(
-      FROM_HERE, NewRunnableMethod(helper.get(), &ConcurrentHelper::FromTask));
+      FROM_HERE, base::Bind(&ConcurrentHelper::FromTask, helper.get()));
   loop()->PostTask(
-      FROM_HERE, NewRunnableMethod(helper.get(), &ConcurrentHelper::FromTask));
+      FROM_HERE, base::Bind(&ConcurrentHelper::FromTask, helper.get()));
 
   loop()->Run();
   EXPECT_EQ(0, helper->event_count());
@@ -381,8 +387,8 @@ void AddEventsAndDrainGLib(EventInjector* injector) {
   injector->AddEvent(0, MessageLoop::QuitClosure());
 
   // Post a couple of dummy tasks
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableFunction(DoNothing));
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableFunction(DoNothing));
+  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(&DoNothing));
+  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(&DoNothing));
 
   // Drain the events
   while (g_main_context_pending(NULL)) {
@@ -395,7 +401,8 @@ void AddEventsAndDrainGLib(EventInjector* injector) {
 TEST_F(MessagePumpGLibTest, TestDrainingGLib) {
   // Tests that draining events using GLib works.
   loop()->PostTask(
-      FROM_HERE, NewRunnableFunction(AddEventsAndDrainGLib, injector()));
+      FROM_HERE,
+      base::Bind(&AddEventsAndDrainGLib, base::Unretained(injector())));
   loop()->Run();
 
   EXPECT_EQ(3, injector()->processed_events());
@@ -413,8 +420,8 @@ void AddEventsAndDrainGtk(EventInjector* injector) {
   injector->AddEvent(0, MessageLoop::QuitClosure());
 
   // Post a couple of dummy tasks
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableFunction(DoNothing));
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableFunction(DoNothing));
+  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(&DoNothing));
+  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(&DoNothing));
 
   // Drain the events
   while (gtk_events_pending()) {
@@ -429,7 +436,8 @@ void AddEventsAndDrainGtk(EventInjector* injector) {
 TEST_F(MessagePumpGLibTest, TestDrainingGtk) {
   // Tests that draining events using Gtk works.
   loop()->PostTask(
-      FROM_HERE, NewRunnableFunction(AddEventsAndDrainGtk, injector()));
+      FROM_HERE,
+      base::Bind(&AddEventsAndDrainGtk, base::Unretained(injector())));
   loop()->Run();
 
   EXPECT_EQ(3, injector()->processed_events());
@@ -488,17 +496,17 @@ void TestGLibLoopInternal(EventInjector* injector) {
   injector->AddDummyEvent(0);
   // Post a couple of dummy tasks
   MessageLoop::current()->PostTask(
-      FROM_HERE, NewRunnableFunction(IncrementInt, &task_count));
+      FROM_HERE, base::Bind(&IncrementInt, &task_count));
   MessageLoop::current()->PostTask(
-      FROM_HERE, NewRunnableFunction(IncrementInt, &task_count));
+      FROM_HERE, base::Bind(&IncrementInt, &task_count));
   // Delayed events
   injector->AddDummyEvent(10);
   injector->AddDummyEvent(10);
   // Delayed work
   MessageLoop::current()->PostDelayedTask(
-      FROM_HERE, NewRunnableFunction(IncrementInt, &task_count), 30);
+      FROM_HERE, base::Bind(&IncrementInt, &task_count), 30);
   MessageLoop::current()->PostDelayedTask(
-      FROM_HERE, NewRunnableMethod(runner.get(), &GLibLoopRunner::Quit), 40);
+      FROM_HERE, base::Bind(&GLibLoopRunner::Quit, runner.get()), 40);
 
   // Run a nested, straight GLib message loop.
   runner->RunGLib();
@@ -519,17 +527,17 @@ void TestGtkLoopInternal(EventInjector* injector) {
   injector->AddDummyEvent(0);
   // Post a couple of dummy tasks
   MessageLoop::current()->PostTask(
-      FROM_HERE, NewRunnableFunction(IncrementInt, &task_count));
+      FROM_HERE, base::Bind(&IncrementInt, &task_count));
   MessageLoop::current()->PostTask(
-      FROM_HERE, NewRunnableFunction(IncrementInt, &task_count));
+      FROM_HERE, base::Bind(&IncrementInt, &task_count));
   // Delayed events
   injector->AddDummyEvent(10);
   injector->AddDummyEvent(10);
   // Delayed work
   MessageLoop::current()->PostDelayedTask(
-      FROM_HERE, NewRunnableFunction(IncrementInt, &task_count), 30);
+      FROM_HERE, base::Bind(&IncrementInt, &task_count), 30);
   MessageLoop::current()->PostDelayedTask(
-      FROM_HERE, NewRunnableMethod(runner.get(), &GLibLoopRunner::Quit), 40);
+      FROM_HERE, base::Bind(&GLibLoopRunner::Quit, runner.get()), 40);
 
   // Run a nested, straight Gtk message loop.
   runner->RunLoop();
@@ -542,21 +550,23 @@ void TestGtkLoopInternal(EventInjector* injector) {
 }  // namespace
 
 TEST_F(MessagePumpGLibTest, TestGLibLoop) {
-  // Tests that events and posted tasks are correctly exectuted if the message
+  // Tests that events and posted tasks are correctly executed if the message
   // loop is not run by MessageLoop::Run() but by a straight GLib loop.
   // Note that in this case we don't make strong guarantees about niceness
   // between events and posted tasks.
-  loop()->PostTask(FROM_HERE,
-                   NewRunnableFunction(TestGLibLoopInternal, injector()));
+  loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&TestGLibLoopInternal, base::Unretained(injector())));
   loop()->Run();
 }
 
 TEST_F(MessagePumpGLibTest, TestGtkLoop) {
-  // Tests that events and posted tasks are correctly exectuted if the message
+  // Tests that events and posted tasks are correctly executed if the message
   // loop is not run by MessageLoop::Run() but by a straight Gtk loop.
   // Note that in this case we don't make strong guarantees about niceness
   // between events and posted tasks.
-  loop()->PostTask(FROM_HERE,
-                   NewRunnableFunction(TestGtkLoopInternal, injector()));
+  loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&TestGtkLoopInternal, base::Unretained(injector())));
   loop()->Run();
 }

@@ -93,13 +93,6 @@ class MessageLoopProxyImplTest : public testing::Test {
   mutable MessageLoop loop_;
 };
 
-
-TEST_F(MessageLoopProxyImplTest, LegacyPostTask) {
-  EXPECT_TRUE(file_thread_->message_loop_proxy()->PostTask(
-      FROM_HERE, NewRunnableFunction(&BasicFunction, this)));
-  MessageLoop::current()->Run();
-}
-
 TEST_F(MessageLoopProxyImplTest, Release) {
   EXPECT_TRUE(io_thread_->message_loop_proxy()->ReleaseSoon(FROM_HERE, this));
   MessageLoop::current()->Run();
