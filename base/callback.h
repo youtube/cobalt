@@ -19,8 +19,8 @@
 // Closure should #include "base/callback_forward.h" instead of this file.
 
 // New, super-duper, unified Callback system.  This will eventually replace
-// NewRunnableMethod, NewRunnableFunction, CreateFunctor, and CreateCallback
-// systems currently in the Chromium code base.
+// NewRunnableMethod, CreateFunctor, and CreateCallback systems currently in the
+// Chromium code base.
 //
 // WHAT IS THIS:
 //
