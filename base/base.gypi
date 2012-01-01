@@ -318,6 +318,8 @@
           'threading/platform_thread_win.cc',
           'threading/post_task_and_reply_impl.cc',
           'threading/post_task_and_reply_impl.h',
+          'threading/sequenced_worker_pool.cc',
+          'threading/sequenced_worker_pool.h',
           'threading/simple_thread.cc',
           'threading/simple_thread.h',
           'threading/thread.cc',
