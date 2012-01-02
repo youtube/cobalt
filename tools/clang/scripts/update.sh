@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 # Do NOT CHANGE this if you don't know what you're doing -- see
 # https://code.google.com/p/chromium/wiki/UpdatingClang
 # Reverting problematic clang rolls is safe, though.
-CLANG_REVISION=147225
+CLANG_REVISION=147434
 
 THIS_DIR="$(dirname "${0}")"
 LLVM_DIR="${THIS_DIR}/../../../third_party/llvm"
@@ -189,7 +189,7 @@ if [ "${OS}" = "Linux" ]; then
 elif [ "${OS}" = "Darwin" ]; then
   NUM_JOBS="$(sysctl -n hw.ncpu)"
 fi
-make -j"${NUM_JOBS}"
+MACOSX_DEPLOYMENT_TARGET=10.5 make -j"${NUM_JOBS}"
 cd -
 
 # Build plugin.
@@ -203,7 +203,7 @@ cp -R "${PLUGIN_SRC_DIR}" "${PLUGIN_DST_DIR}"
 rm -rf "${PLUGIN_BUILD_DIR}"
 mkdir -p "${PLUGIN_BUILD_DIR}"
 cp "${PLUGIN_SRC_DIR}/Makefile" "${PLUGIN_BUILD_DIR}"
-make -j"${NUM_JOBS}" -C "${PLUGIN_BUILD_DIR}"
+MACOSX_DEPLOYMENT_TARGET=10.5 make -j"${NUM_JOBS}" -C "${PLUGIN_BUILD_DIR}"
 
 if [[ -n "$run_tests" ]]; then
   # Run a few tests.
