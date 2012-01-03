@@ -171,7 +171,6 @@
           'memory/ref_counted.h',
           'memory/ref_counted_memory.cc',
           'memory/ref_counted_memory.h',
-          'memory/scoped_callback_factory.h',
           'memory/scoped_handle.h',
           'memory/scoped_nsobject.h',
           'memory/scoped_open_process.h',
