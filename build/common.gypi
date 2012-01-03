@@ -1,4 +1,4 @@
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -30,8 +30,11 @@
           # Whether the compositor is enabled on views.
           'views_compositor%': 0,
 
-          # Whether or not we are building with the Aura window manager.
+          # Whether or not we are using the Aura windowing framework.
           'use_aura%': 0,
+          
+          # Whether or not we are building the Ash shell.
+          'use_ash%': 0,
 
           # Use OpenSSL instead of NSS. Under development: see http://crbug.com/62803
           'use_openssl%': 0,
@@ -47,6 +50,7 @@
         'chromeos%': '<(chromeos)',
         'views_compositor%': '<(views_compositor)',
         'use_aura%': '<(use_aura)',
+        'use_ash%': '<(use_ash)',
         'use_openssl%': '<(use_openssl)',
         'use_virtual_keyboard%': '<(use_virtual_keyboard)',
         'use_skia_on_mac%': '<(use_skia_on_mac)',
@@ -61,6 +65,11 @@
             # well; such hosts should pass an explicit target_arch to gyp.
             'host_arch%':
               '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/i86pc/ia32/")',
+          }],
+          
+          # Ash requires Aura.
+          ['use_ash==1', {
+            'use_aura%': 1,
           }],
 
           # Set default value of toolkit_views based on OS.
@@ -91,6 +100,7 @@
       'views_compositor%': '<(views_compositor)',
       'use_webkit_compositor%': '<(use_webkit_compositor)',
       'use_aura%': '<(use_aura)',
+      'use_ash%': '<(use_ash)',
       'use_openssl%': '<(use_openssl)',
       'use_virtual_keyboard%': '<(use_virtual_keyboard)',
       'use_skia_on_mac%': '<(use_skia_on_mac)',
@@ -357,6 +367,7 @@
     'ui_compositor_image_transport%': '<(ui_compositor_image_transport)',
     'use_webkit_compositor%': '<(use_webkit_compositor)',
     'use_aura%': '<(use_aura)',
+    'use_ash%': '<(use_ash)',
     'use_openssl%': '<(use_openssl)',
     'use_nss%': '<(use_nss)',
     'os_bsd%': '<(os_bsd)',
@@ -835,6 +846,9 @@
       ['use_aura==1', {
         'grit_defines': ['-D', 'use_aura'],
       }],
+      ['use_ash==1', {
+        'grit_defines': ['-D', 'use_ash'],
+      }],
       ['use_nss==1', {
         'grit_defines': ['-D', 'use_nss'],
       }],
@@ -1008,6 +1022,9 @@
       }],
       ['use_aura==1', {
         'defines': ['USE_AURA=1'],
+      }],
+      ['use_ash==1', {
+        'defines': ['USE_ASH=1'],
       }],
       ['use_nss==1', {
         'defines': ['USE_NSS=1'],
