@@ -288,10 +288,6 @@
             'gfx/native_theme_ps3.cc',
             'gfx/native_theme_ps3.h'
           ],
-          'include_dirs': [          
-            # to pick up the grit/ includes, copied from ui_strings.gyp
-            'base/strings/$(IntDir)/obj/global_intermediate/ui/ui_strings'
-          ]
         }, { # OS != "cell_lv2"
           'dependencies': [
             '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
