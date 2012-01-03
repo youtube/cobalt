@@ -19,6 +19,7 @@ Modifications:
 - And a follow-on fix to the previous two fixes, committed upstream: http://git.gnome.org/browse/libxml2/commit/?id=f5048b3e71fc30ad096970b8df6e7af073bae4cb (slightly differently, but we can drop our local fix on the next roll).
 - Add a fix for handling of unknown namespaces, commit upstream is pending.
 - Add fixes for ending the parse properly if a SAX callback calls xmlStopParser(), commit upstream is pending.
+- Add fix for entities, commit upstream is http://git.gnome.org/browse/libxml2/commit/?id=5bd3c061823a8499b27422aee04ea20aae24f03e
 
 To import a new snapshot of libxml:
 
