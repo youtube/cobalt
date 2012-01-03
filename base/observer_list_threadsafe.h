@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,6 @@
 
 #include "base/basictypes.h"
 #include "base/bind.h"
-#include "base/callback_old.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
@@ -57,6 +56,24 @@
 // Forward declaration for ObserverListThreadSafeTraits.
 template <class ObserverType>
 class ObserverListThreadSafe;
+
+// An UnboundMethod is a wrapper for a method where the actual object is
+// provided at Run dispatch time.
+template <class T, class Method, class Params>
+class UnboundMethod {
+ public:
+  UnboundMethod(Method m, const Params& p) : m_(m), p_(p) {
+    COMPILE_ASSERT(
+        (base::internal::ParamsUseScopedRefptrCorrectly<Params>::value),
+        badunboundmethodparams);
+  }
+  void Run(T* obj) const {
+    DispatchToMethod(obj, m_, p_);
+  }
+ private:
+  Method m_;
+  Params p_;
+};
 
 // This class is used to work around VS2005 not accepting:
 //
