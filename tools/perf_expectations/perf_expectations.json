@@ -117,7 +117,7 @@
  "vista-release-single-core/moz/times/t": {"reva": 104862, "revb": 105544, "improve": 185, "regress": 565, "sha1": "43ada48f"},
  "vista-release-single-core/startup/times/t": {"improve": -9, "regress": 9, "sha1": "cb61d833"},
  "xp-release-dual-core/dhtml/times/t": {"reva": 104424, "revb": 104645, "improve": -80, "regress": 1972, "sha1": "9f34f008"},
- "xp-release-dual-core/dom_perf/Total/score": {"reva": 111124, "revb": 112020, "improve": 67, "regress": -57, "sha1": "4802cac3"},
+ "xp-release-dual-core/dom_perf/Total/score": {"reva": 116084, "revb": 116312, "improve": 160, "regress": 0, "sha1": "4d8353a0"},
  "xp-release-dual-core/dromaeo_domcore/score/score": {"improve": 284, "regress": 236, "sha1": "35178029"},
  "xp-release-dual-core/dromaeo_jslib/score/score": {"improve": 18, "regress": -6, "sha1": "bd9f8469"},
  "xp-release-dual-core/intl1/times/t": {"reva": 109829, "revb": 112020, "improve": 30, "regress": 546, "sha1": "0469d27b"},
