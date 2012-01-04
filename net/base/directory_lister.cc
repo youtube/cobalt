@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "base/bind.h"
-#include "base/bind_helpers.h"
 #include "base/file_util.h"
 #include "base/i18n/file_util_icu.h"
 #include "base/message_loop.h"
@@ -20,7 +19,7 @@ namespace net {
 
 namespace {
 
-const size_t kFilesPerEvent = 8;
+const int kFilesPerEvent = 8;
 
 // Comparator for sorting lister results. This uses the locale aware filename
 // comparison function on the filenames for sorting in the user's locale.
@@ -79,47 +78,72 @@ bool CompareFullPath(const DirectoryLister::DirectoryListerData& a,
   return file_util::LocaleAwareCompareFilenames(a.path, b.path);
 }
 
-// Sorts |data| so that it is in the order indicated by |sort_type|.
-void SortData(std::vector<DirectoryLister::DirectoryListerData>* data,
-              DirectoryLister::SortType sort_type) {
-  // Sort the results. See the TODO below (this sort should be removed and we
-  // should do it from JS).
-  if (sort_type == DirectoryLister::DATE)
-    std::sort(data->begin(), data->end(), CompareDate);
-  else if (sort_type == DirectoryLister::FULL_PATH)
-    std::sort(data->begin(), data->end(), CompareFullPath);
-  else if (sort_type == DirectoryLister::ALPHA_DIRS_FIRST)
-    std::sort(data->begin(), data->end(), CompareAlphaDirsFirst);
-  else
-    DCHECK_EQ(DirectoryLister::NO_SORT, sort_type);
-}
-
 }  // namespace
+
+// A task which is used to signal the delegate asynchronously.
+class DirectoryLister::Core::DataEvent : public Task {
+public:
+  explicit DataEvent(Core* core) : core_(core), error_(OK) {
+    // Allocations of the FindInfo aren't super cheap, so reserve space.
+    data_.reserve(64);
+  }
+
+  virtual void Run() {
+    DCHECK(core_->origin_loop_->BelongsToCurrentThread());
+    if (data_.empty()) {
+      core_->OnDone(error_);
+      return;
+    }
+    core_->OnReceivedData(&data_[0], static_cast<int>(data_.size()));
+  }
+
+  void set_error(int error) { error_ = error; }
+
+  void AddData(const DirectoryListerData& data) {
+    data_.push_back(data);
+  }
+
+  bool HasData() const {
+    return !data_.empty();
+  }
+
+  void SortData(SortType sort_type) {
+    // Sort the results. See the TODO below (this sort should be removed and we
+    // should do it from JS).
+    if (sort_type == DATE)
+      std::sort(data_.begin(), data_.end(), CompareDate);
+    else if (sort_type == FULL_PATH)
+      std::sort(data_.begin(), data_.end(), CompareFullPath);
+    else if (sort_type == ALPHA_DIRS_FIRST)
+      std::sort(data_.begin(), data_.end(), CompareAlphaDirsFirst);
+    else
+      DCHECK_EQ(NO_SORT, sort_type);
+  }
+
+ private:
+  scoped_refptr<Core> core_;
+  std::vector<DirectoryListerData> data_;
+  int error_;
+};
 
 DirectoryLister::DirectoryLister(const FilePath& dir,
                                  DirectoryListerDelegate* delegate)
-    : dir_(dir),
-      recursive_(false),
-      sort_(ALPHA_DIRS_FIRST),
-      cancelled_(false),
-      delegate_(delegate),
-      origin_loop_(base::MessageLoopProxy::current()) {
+    : ALLOW_THIS_IN_INITIALIZER_LIST(
+        core_(new Core(dir, false, ALPHA_DIRS_FIRST, this))),
+      delegate_(delegate) {
   DCHECK(delegate_);
-  DCHECK(!dir_.value().empty());
+  DCHECK(!dir.value().empty());
 }
 
 DirectoryLister::DirectoryLister(const FilePath& dir,
                                  bool recursive,
                                  SortType sort,
                                  DirectoryListerDelegate* delegate)
-    : dir_(dir),
-      recursive_(recursive),
-      sort_(sort),
-      cancelled_(false),
-      delegate_(delegate),
-      origin_loop_(base::MessageLoopProxy::current()) {
+    : ALLOW_THIS_IN_INITIALIZER_LIST(
+        core_(new Core(dir, recursive, sort, this))),
+      delegate_(delegate) {
   DCHECK(delegate_);
-  DCHECK(!dir_.value().empty());
+  DCHECK(!dir.value().empty());
 }
 
 DirectoryLister::~DirectoryLister() {
@@ -127,25 +151,43 @@ DirectoryLister::~DirectoryLister() {
 }
 
 bool DirectoryLister::Start() {
-  return base::WorkerPool::PostTask(
-      FROM_HERE,
-      base::Bind(&DirectoryLister::StartInternal,
-                 base::Unretained(this)),
-      true);
+  return core_->Start();
 }
 
 void DirectoryLister::Cancel() {
-  cancelled_ = true;
+  return core_->Cancel();
 }
 
-void DirectoryLister::StartInternal() {
+DirectoryLister::Core::Core(const FilePath& dir,
+                            bool recursive,
+                            SortType sort,
+                            DirectoryLister* lister)
+    : dir_(dir),
+      recursive_(recursive),
+      sort_(sort),
+      lister_(lister) {
+  DCHECK(lister_);
+}
+
+DirectoryLister::Core::~Core() {}
+
+bool DirectoryLister::Core::Start() {
+  origin_loop_ = base::MessageLoopProxy::current();
+
+  return base::WorkerPool::PostTask(
+      FROM_HERE, base::Bind(&Core::StartInternal, this), true);
+}
+
+void DirectoryLister::Core::Cancel() {
+  lister_ = NULL;
+}
+
+void DirectoryLister::Core::StartInternal() {
+  DataEvent* e = new DataEvent(this);
 
   if (!file_util::DirectoryExists(dir_)) {
-    origin_loop_->PostTask(
-        FROM_HERE,
-        base::Bind(&DirectoryLister::OnDone,
-                   base::Unretained(this),
-                   ERR_FILE_NOT_FOUND));
+    e->set_error(ERR_FILE_NOT_FOUND);
+    origin_loop_->PostTask(FROM_HERE, e);
     return;
   }
 
@@ -157,45 +199,45 @@ void DirectoryLister::StartInternal() {
   file_util::FileEnumerator file_enum(dir_, recursive_,
       static_cast<file_util::FileEnumerator::FileType>(types));
 
-  std::vector<DirectoryListerData> file_data;
   FilePath path;
-  while (!cancelled_ && !(path = file_enum.Next()).empty()) {
+  while (lister_ && !(path = file_enum.Next()).empty()) {
     DirectoryListerData data;
     file_enum.GetFindInfo(&data.info);
     data.path = path;
-    file_data.push_back(data);
+    e->AddData(data);
 
     /* TODO(brettw) bug 24107: It would be nice to send incremental updates.
        We gather them all so they can be sorted, but eventually the sorting
        should be done from JS to give more flexibility in the page. When we do
        that, we can uncomment this to send incremental updates to the page.
-    if (file_data.size() == kFilesPerEvent) {
-      origin_loop_->PostTask(FROM_HERE,
-          base::Bind(&DirectoryLister::SendData, base::Unretained(this),
-              file_data));
-      file_data.clear();
+    if (++e->count == kFilesPerEvent) {
+      message_loop_->PostTask(FROM_HERE, e);
+      e = new DataEvent(this);
     }
     */
   }
 
-  SortData(&file_data, sort_);
-  origin_loop_->PostTask(
-      FROM_HERE,
-      base::Bind(&DirectoryLister::SendData,
-                 base::Unretained(this),
-                 file_data));
+  if (e->HasData()) {
+    e->SortData(sort_);
+    origin_loop_->PostTask(FROM_HERE, e);
+    e = new DataEvent(this);
+  }
 
-  origin_loop_->PostTask(
-      FROM_HERE,
-      base::Bind(&DirectoryLister::OnDone,
-                 base::Unretained(this),
-                 OK));
+  // Notify done
+  origin_loop_->PostTask(FROM_HERE, e);
 }
 
-void DirectoryLister::SendData(const std::vector<DirectoryListerData>& data) {
-  // We need to check for cancellation, which can happen during each callback.
-  for (size_t i = 0; !cancelled_ && i < data.size(); ++i)
-    OnReceivedData(data[i]);
+void DirectoryLister::Core::OnReceivedData(const DirectoryListerData* data,
+                                           int count) {
+  // We need to check for cancellation (indicated by NULL'ing of |lister_|),
+  // which can happen during each callback.
+  for (int i = 0; lister_ && i < count; ++i)
+    lister_->OnReceivedData(data[i]);
+}
+
+void DirectoryLister::Core::OnDone(int error) {
+  if (lister_)
+    lister_->OnDone(error);
 }
 
 void DirectoryLister::OnReceivedData(const DirectoryListerData& data) {
@@ -203,8 +245,7 @@ void DirectoryLister::OnReceivedData(const DirectoryListerData& data) {
 }
 
 void DirectoryLister::OnDone(int error) {
-  if (!cancelled_)
-    delegate_->OnListDone(error);
+  delegate_->OnListDone(error);
 }
 
 }  // namespace net
