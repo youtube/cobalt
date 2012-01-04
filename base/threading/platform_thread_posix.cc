@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -190,10 +190,11 @@ void PlatformThread::SetName(const char* name) {
   // http://0pointer.de/blog/projects/name-your-threads.html
   // Set the name for the LWP (which gets truncated to 15 characters).
   // Note that glibc also has a 'pthread_setname_np' api, but it may not be
-  // available everywhere and doesn't seem to have any advantage over using
-  // prctl.
+  // available everywhere and it's only benefit over using prctl directly is
+  // that it can set the name of threads other than the current thread.
   int err = prctl(PR_SET_NAME, name);
-  if (err < 0)
+  // We expect EPERM failures in sandboxed processes, just ignore those.
+  if (err < 0 && errno != EPERM)
     DPLOG(ERROR) << "prctl(PR_SET_NAME)";
 }
 #elif defined(OS_MACOSX)
