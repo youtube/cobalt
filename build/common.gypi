@@ -1979,9 +1979,6 @@
               # This (rightyfully) complains about 'override', which we use
               # heavily.
               '-Wno-c++11-extensions',
-              # TODO(thakis): Reenable this once clang stops complaining about
-              # %as in format strings.
-              '-Wno-format',
             ],
             'cflags!': [
               # Clang doesn't seem to know know this flag.
