@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,6 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/path_service.h"
-#include "base/scoped_temp_dir.h"
 #include "net/base/directory_lister.h"
 #include "net/base/net_errors.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -129,23 +128,6 @@ TEST(DirectoryListerTest, CancelTest) {
   MessageLoop::current()->RunAllPending();
 
   EXPECT_EQ(num_files, delegate.num_files());
-}
-
-TEST(DirectoryListerTest, EmptyDirTest) {
-  ScopedTempDir tempDir;
-  EXPECT_TRUE(tempDir.CreateUniqueTempDir());
-
-  bool kRecursive = false;
-  bool kQuitLoopAfterEachFile = false;
-  ListerDelegate delegate(kRecursive, kQuitLoopAfterEachFile);
-  DirectoryLister lister(tempDir.path(), &delegate);
-  lister.Start();
-
-  MessageLoop::current()->Run();
-
-  // Contains only the parent directory ("..")
-  EXPECT_EQ(1, delegate.num_files());
-  EXPECT_EQ(OK, delegate.error());
 }
 
 }  // namespace net
