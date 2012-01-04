@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,10 @@
 #include "base/threading/thread_checker.h"
 #include "base/threading/simple_thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+// Duplicated from base/threading/thread_checker.h so that we can be
+// good citizens there and undef the macro.
+#define ENABLE_THREAD_CHECKER (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON))
 
 namespace base {
 
@@ -107,7 +111,7 @@ TEST(ThreadCheckerTest, DetachFromThread) {
   call_on_thread.Join();
 }
 
-#if GTEST_HAS_DEATH_TEST || NDEBUG
+#if GTEST_HAS_DEATH_TEST || !ENABLE_THREAD_CHECKER
 
 void ThreadCheckerClass::MethodOnDifferentThreadImpl() {
   scoped_ptr<ThreadCheckerClass> thread_checker_class(
@@ -121,7 +125,7 @@ void ThreadCheckerClass::MethodOnDifferentThreadImpl() {
   call_on_thread.Join();
 }
 
-#ifndef NDEBUG
+#if ENABLE_THREAD_CHECKER
 TEST(ThreadCheckerDeathTest, MethodNotAllowedOnDifferentThreadInDebug) {
   ASSERT_DEBUG_DEATH({
       ThreadCheckerClass::MethodOnDifferentThreadImpl();
@@ -131,7 +135,7 @@ TEST(ThreadCheckerDeathTest, MethodNotAllowedOnDifferentThreadInDebug) {
 TEST(ThreadCheckerTest, MethodAllowedOnDifferentThreadInRelease) {
   ThreadCheckerClass::MethodOnDifferentThreadImpl();
 }
-#endif  // NDEBUG
+#endif  // ENABLE_THREAD_CHECKER
 
 void ThreadCheckerClass::DetachThenCallFromDifferentThreadImpl() {
   scoped_ptr<ThreadCheckerClass> thread_checker_class(
@@ -150,7 +154,7 @@ void ThreadCheckerClass::DetachThenCallFromDifferentThreadImpl() {
   thread_checker_class->DoStuff();
 }
 
-#ifndef NDEBUG
+#if ENABLE_THREAD_CHECKER
 TEST(ThreadCheckerDeathTest, DetachFromThreadInDebug) {
   ASSERT_DEBUG_DEATH({
     ThreadCheckerClass::DetachThenCallFromDifferentThreadImpl();
@@ -160,8 +164,11 @@ TEST(ThreadCheckerDeathTest, DetachFromThreadInDebug) {
 TEST(ThreadCheckerTest, DetachFromThreadInRelease) {
   ThreadCheckerClass::DetachThenCallFromDifferentThreadImpl();
 }
-#endif  // NDEBUG
+#endif  // ENABLE_THREAD_CHECKER
 
-#endif  // GTEST_HAS_DEATH_TEST || NDEBUG
+#endif  // GTEST_HAS_DEATH_TEST || !ENABLE_THREAD_CHECKER
+
+// Just in case we ever get lumped together with other compilation units.
+#undef ENABLE_THREAD_CHECKER
 
 }  // namespace base
