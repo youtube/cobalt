@@ -87,23 +87,10 @@ FilePath GetPrefixedName(const FilePath& path, const std::string& name,
   return path.AppendASCII(tmp);
 }
 
-// This is a simple Task to cleanup old caches.
-class CleanupTask : public Task {
- public:
-  CleanupTask(const FilePath& path, const std::string& name)
-      : path_(path), name_(name) {}
-
-  virtual void Run();
-
- private:
-  FilePath path_;
-  std::string name_;
-  DISALLOW_COPY_AND_ASSIGN(CleanupTask);
-};
-
-void CleanupTask::Run() {
+// This is a simple callback to cleanup old caches.
+void CleanupCallback(const FilePath& path, const std::string& name) {
   for (int i = 0; i < kMaxOldFolders; i++) {
-    FilePath to_delete = GetPrefixedName(path_, name_, i);
+    FilePath to_delete = GetPrefixedName(path, name, i);
     disk_cache::DeleteCache(to_delete, true);
   }
 }
@@ -148,7 +135,8 @@ bool DelayedCacheCleanup(const FilePath& full_path) {
     return false;
   }
 
-  base::WorkerPool::PostTask(FROM_HERE, new CleanupTask(path, name_str), true);
+  base::WorkerPool::PostTask(
+      FROM_HERE, base::Bind(&CleanupCallback, path, name_str), true);
   return true;
 }
 
