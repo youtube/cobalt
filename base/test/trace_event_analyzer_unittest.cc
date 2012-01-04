@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -389,10 +389,10 @@ TEST_F(TraceEventAnalyzerTest, Duration) {
   using namespace trace_analyzer;
   ManualSetUp();
 
-  int sleep_time_us = 200000;
+  const base::TimeDelta kSleepTime = base::TimeDelta::FromMilliseconds(200);
   // We will search for events that have a duration of greater than 90% of the
   // sleep time, so that there is no flakiness.
-  int duration_cutoff_us = (sleep_time_us * 9) / 10;
+  int duration_cutoff_us = (kSleepTime.InMicroseconds() * 9) / 10;
 
   BeginTracing();
   {
@@ -401,7 +401,7 @@ TEST_F(TraceEventAnalyzerTest, Duration) {
     {
       TRACE_EVENT0("cat2", "name3"); // found by duration query
       TRACE_EVENT_INSTANT0("noise", "name4"); // not searched for, just noise
-      base::PlatformThread::Sleep(sleep_time_us / 1000);
+      base::PlatformThread::Sleep(kSleepTime);
       TRACE_EVENT0("cat2", "name5"); // not found (duration too short)
     }
   }
