@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -92,10 +92,11 @@ class NET_EXPORT DirectoryLister  {
 
     ~Core();
 
-    // Runs on a WorkerPool thread.
+    // This method runs on a WorkerPool thread.
     void StartInternal();
 
-    void OnReceivedData(const DirectoryListerData* data, int count);
+    void SendData(const std::vector<DirectoryListerData>& data);
+
     void OnDone(int error);
 
     FilePath dir_;
