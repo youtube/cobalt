@@ -3,7 +3,7 @@
 // DO NOT EDIT BY HAND!!!
 
 
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,10 +18,6 @@
 // NOTE: Header files that do not require the full definition of Callback or
 // Closure should #include "base/callback_forward.h" instead of this file.
 
-// New, super-duper, unified Callback system.  This will eventually replace
-// NewRunnableMethod, CreateFunctor, and CreateCallback systems currently in the
-// Chromium code base.
-//
 // WHAT IS THIS:
 //
 // The templated Callback class is a generalized function object. Together

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -187,9 +187,6 @@ class MessagePumpGLibTest : public testing::Test {
 };
 
 }  // namespace
-
-// EventInjector is expected to always live longer than the runnable methods.
-DISABLE_RUNNABLE_METHOD_REFCOUNT(EventInjector);
 
 TEST_F(MessagePumpGLibTest, TestQuit) {
   // Checks that Quit works and that the basic infrastructure is working.
