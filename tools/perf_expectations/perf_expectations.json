@@ -33,7 +33,7 @@
  "linux-release-hardy/moz/times/t": {"reva": 99393, "revb": 100034, "improve": 38, "regress": 165, "sha1": "430fc571"},
  "linux-release-hardy/startup/warm/t": {"improve": -11, "regress": 93, "sha1": "e000c456"},
  "linux-release-hardy/v8_benchmark/score/score": {"reva": 70271, "revb": 70591, "improve": -3619, "regress": -4680, "sha1": "498da66a"},
- "linux-release-lowmem/bloat-http/times/t": {"reva": 113417, "revb": 113768, "improve": 464, "regress": 791, "sha1": "65730b7f"},
+ "linux-release-lowmem/bloat-http/times/t": {"reva": 114997, "revb": 116349, "improve": 137, "regress": 524, "sha1": "459b397b"},
  "linux-release-lowmem/database/delete-transactions/t": {"reva": 108964, "revb": 109902, "improve": -452, "regress": 984, "sha1": "3c757f05"},
  "linux-release-lowmem/database/insert-transactions/t": {"reva": 98857, "revb": 99968, "improve": -258, "regress": 925, "sha1": "3690944a"},
  "linux-release-lowmem/database/pseudo-random-transactions/t": {"reva": 109097, "revb": 109902, "improve": -253, "regress": 704, "sha1": "61ebb31b"},
