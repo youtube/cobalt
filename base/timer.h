@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,7 +18,8 @@
 //   class MyClass {
 //    public:
 //     void StartDoingStuff() {
-//       timer_.Start(TimeDelta::FromSeconds(1), this, &MyClass::DoStuff);
+//       timer_.Start(FROM_HERE, TimeDelta::FromSeconds(1),
+//                    this, &MyClass::DoStuff);
 //     }
 //     void StopDoingStuff() {
 //       timer_.Stop();
