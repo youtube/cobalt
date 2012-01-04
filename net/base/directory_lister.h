@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -75,45 +75,22 @@ class NET_EXPORT DirectoryLister  {
   void Cancel();
 
  private:
-  class Core : public base::RefCountedThreadSafe<Core> {
-   public:
-    Core(const FilePath& dir,
-         bool recursive,
-         SortType sort,
-         DirectoryLister* lister);
+  void Init();
 
-    bool Start();
+  // This method runs on a WorkerPool thread.
+  void StartInternal();
 
-    void Cancel();
-
-   private:
-    friend class base::RefCountedThreadSafe<Core>;
-    class DataEvent;
-
-    ~Core();
-
-    // Runs on a WorkerPool thread.
-    void StartInternal();
-
-    void OnReceivedData(const DirectoryListerData* data, int count);
-    void OnDone(int error);
-
-    FilePath dir_;
-    bool recursive_;
-    SortType sort_;
-    scoped_refptr<base::MessageLoopProxy> origin_loop_;
-
-    // |lister_| gets set to NULL when canceled.
-    DirectoryLister* lister_;
-
-    DISALLOW_COPY_AND_ASSIGN(Core);
-  };
+  void SendData(const std::vector<DirectoryListerData>& data);
 
   void OnReceivedData(const DirectoryListerData& data);
   void OnDone(int error);
 
-  const scoped_refptr<Core> core_;
+  const FilePath dir_;
+  const bool recursive_;
+  const SortType sort_;
+  bool cancelled_;
   DirectoryListerDelegate* const delegate_;
+  const scoped_refptr<base::MessageLoopProxy> origin_loop_;
 
   DISALLOW_COPY_AND_ASSIGN(DirectoryLister);
 };
