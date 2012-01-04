@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -94,6 +94,5 @@ class MEDIA_EXPORT VideoCaptureHandlerProxy
 };
 
 }  // namespace media
-DISABLE_RUNNABLE_METHOD_REFCOUNT(media::VideoCaptureHandlerProxy);
 
 #endif  // MEDIA_VIDEO_CAPTURE_VIDEO_CAPTURE_PROXY_H_

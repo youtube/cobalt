@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -80,38 +80,6 @@ class Foo : public base::RefCounted<Foo> {
   int test_count_;
   std::string result_;
 };
-
-// TODO(ajwong): Remove this once we've finished getting rid of the PostTask()
-// compatibility methods.
-void RunTest_PostLegacyTask(MessageLoop::Type message_loop_type) {
-  MessageLoop loop(message_loop_type);
-
-  // Add tests to message loop
-  scoped_refptr<Foo> foo(new Foo());
-  std::string a("a"), b("b"), c("c"), d("d");
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      foo.get(), &Foo::Test0));
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-    foo.get(), &Foo::Test1ConstRef, a));
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      foo.get(), &Foo::Test1Ptr, &b));
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      foo.get(), &Foo::Test1Int, 100));
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      foo.get(), &Foo::Test2Ptr, &a, &c));
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-    foo.get(), &Foo::Test2Mixed, a, &d));
-
-  // After all tests, post a message that will shut down the message loop
-  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
-      &MessageLoop::Quit, base::Unretained(MessageLoop::current())));
-
-  // Now kick things off
-  MessageLoop::current()->Run();
-
-  EXPECT_EQ(foo->test_count(), 105);
-  EXPECT_EQ(foo->result(), "abacad");
-}
 
 void RunTest_PostTask(MessageLoop::Type message_loop_type) {
   MessageLoop loop(message_loop_type);
@@ -1298,12 +1266,6 @@ void RunTest_WaitForIO() {
 // Each test is run against each type of MessageLoop.  That way we are sure
 // that message loops work properly in all configurations.  Of course, in some
 // cases, a unit test may only be for a particular type of loop.
-
-TEST(MessageLoopTest, PostLegacyTask) {
-  RunTest_PostLegacyTask(MessageLoop::TYPE_DEFAULT);
-  RunTest_PostLegacyTask(MessageLoop::TYPE_UI);
-  RunTest_PostLegacyTask(MessageLoop::TYPE_IO);
-}
 
 TEST(MessageLoopTest, PostTask) {
   RunTest_PostTask(MessageLoop::TYPE_DEFAULT);

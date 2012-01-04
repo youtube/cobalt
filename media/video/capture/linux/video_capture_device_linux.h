@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -74,7 +74,5 @@ class VideoCaptureDeviceLinux : public VideoCaptureDevice {
 };
 
 }  // namespace media
-
-DISABLE_RUNNABLE_METHOD_REFCOUNT(media::VideoCaptureDeviceLinux);
 
 #endif  // MEDIA_VIDEO_CAPTURE_LINUX_VIDEO_CAPTURE_DEVICE_LINUX_H_
