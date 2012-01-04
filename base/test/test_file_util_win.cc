@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -63,7 +63,9 @@ bool DenyFilePermission(const FilePath& path, DWORD permission) {
 
 bool DieFileDie(const FilePath& file, bool recurse) {
   // It turns out that to not induce flakiness a long timeout is needed.
-  const int kTimeoutMs = 10000;
+  const int kIterations = 25;
+  const base::TimeDelta kTimeout = base::TimeDelta::FromSeconds(10) /
+                                   kIterations;
 
   if (!file_util::PathExists(file))
     return true;
@@ -71,10 +73,10 @@ bool DieFileDie(const FilePath& file, bool recurse) {
   // Sometimes Delete fails, so try a few more times. Divide the timeout
   // into short chunks, so that if a try succeeds, we won't delay the test
   // for too long.
-  for (int i = 0; i < 25; ++i) {
+  for (int i = 0; i < kIterations; ++i) {
     if (file_util::Delete(file, recurse))
       return true;
-    base::PlatformThread::Sleep(kTimeoutMs / 25);
+    base::PlatformThread::Sleep(kTimeout);
   }
   return false;
 }
