@@ -2708,6 +2708,7 @@
             'DelayLoadDLLs': [
               'dbghelp.dll',
               'dwmapi.dll',
+              'shell32.dll',
               'uxtheme.dll',
             ],
           },
