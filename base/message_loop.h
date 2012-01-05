@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -162,36 +162,6 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   //
   // NOTE: These methods may be called on any thread.  The Task will be invoked
   // on the thread that executes MessageLoop::Run().
-
-  void PostTask(
-      const tracked_objects::Location& from_here, Task* task);
-
-  void PostDelayedTask(
-      const tracked_objects::Location& from_here, Task* task, int64 delay_ms);
-
-  void PostDelayedTask(
-      const tracked_objects::Location& from_here,
-      Task* task,
-      base::TimeDelta delay);
-
-  void PostNonNestableTask(
-      const tracked_objects::Location& from_here, Task* task);
-
-  void PostNonNestableDelayedTask(
-      const tracked_objects::Location& from_here, Task* task, int64 delay_ms);
-
-  void PostNonNestableDelayedTask(
-      const tracked_objects::Location& from_here,
-      Task* task,
-      base::TimeDelta delay);
-
-  // TODO(ajwong): Remove the functions above once the Task -> Closure migration
-  // is complete.
-  //
-  // There are 2 sets of Post*Task functions, one which takes the older Task*
-  // function object representation, and one that takes the newer base::Closure.
-  // We have this overload to allow a staged transition between the two systems.
-  // Once the transition is done, the functions above should be deleted.
   void PostTask(
       const tracked_objects::Location& from_here,
       const base::Closure& task);
