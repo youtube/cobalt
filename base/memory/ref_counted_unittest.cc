@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,6 +22,27 @@ class CheckDerivedMemberAccess : public scoped_refptr<SelfAssign> {
   }
 };
 
+class ScopedRefPtrToSelf : public base::RefCounted<ScopedRefPtrToSelf> {
+ public:
+  ScopedRefPtrToSelf()
+      : ALLOW_THIS_IN_INITIALIZER_LIST(self_ptr_(this)) {
+  }
+  ~ScopedRefPtrToSelf() { was_destroyed_ = true; }
+
+  static bool was_destroyed() { return was_destroyed_; }
+
+  void SelfDestruct() { self_ptr_ = NULL; }
+
+ private:
+  friend class base::RefCounted<ScopedRefPtrToSelf>;
+
+  static bool was_destroyed_;
+
+  scoped_refptr<ScopedRefPtrToSelf> self_ptr_;
+};
+
+bool ScopedRefPtrToSelf::was_destroyed_ = false;
+
 }  // end namespace
 
 TEST(RefCountedUnitTest, TestSelfAssignment) {
@@ -33,4 +54,11 @@ TEST(RefCountedUnitTest, TestSelfAssignment) {
 
 TEST(RefCountedUnitTest, ScopedRefPtrMemberAccess) {
   CheckDerivedMemberAccess check;
+}
+
+TEST(RefCountedUnitTest, ScopedRefPtrToSelf) {
+  ScopedRefPtrToSelf* check = new ScopedRefPtrToSelf();
+  EXPECT_FALSE(ScopedRefPtrToSelf::was_destroyed());
+  check->SelfDestruct();
+  EXPECT_TRUE(ScopedRefPtrToSelf::was_destroyed());
 }
