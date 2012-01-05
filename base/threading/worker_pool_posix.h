@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -58,13 +58,6 @@ class BASE_EXPORT PosixDynamicThreadPool
   // Indicates that the thread pool is going away.  Stops handing out tasks to
   // worker threads.  Wakes up all the idle threads to let them exit.
   void Terminate();
-
-  // Adds |task| to the thread pool.  PosixDynamicThreadPool assumes ownership
-  // of |task|.
-  //
-  // TODO(ajwong): Remove this compatibility API once the Task -> Closure
-  // migration is finished.
-  void PostTask(const tracked_objects::Location& from_here, Task* task);
 
   // Adds |task| to the thread pool.
   void PostTask(const tracked_objects::Location& from_here,

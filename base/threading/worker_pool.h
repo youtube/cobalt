@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -31,11 +31,6 @@ class BASE_EXPORT WorkerPool {
   // should be used for tasks that will take a long time to execute.  Returns
   // false if |task| could not be posted to a worker thread.  Regardless of
   // return value, ownership of |task| is transferred to the worker pool.
-  //
-  // TODO(ajwong): Remove the Task* based overload once we've finished the
-  // Task -> Closure migration.
-  static bool PostTask(const tracked_objects::Location& from_here,
-                       Task* task, bool task_is_slow);
   static bool PostTask(const tracked_objects::Location& from_here,
                        const base::Closure& task, bool task_is_slow);
 

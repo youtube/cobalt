@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -105,21 +105,9 @@ class CapturingDestructionObserver : public MessageLoop::DestructionObserver {
 };
 
 // Task that adds a destruction observer to the current message loop.
-class RegisterDestructionObserver : public Task {
- public:
-  explicit RegisterDestructionObserver(
-      MessageLoop::DestructionObserver* observer)
-      : observer_(observer) {
-  }
-
-  virtual void Run() {
-    MessageLoop::current()->AddDestructionObserver(observer_);
-    observer_ = NULL;
-  }
-
- private:
-  MessageLoop::DestructionObserver* observer_;
-};
+void RegisterDestructionObserver(MessageLoop::DestructionObserver* observer) {
+  MessageLoop::current()->AddDestructionObserver(observer);
+}
 
 }  // namespace
 
@@ -234,8 +222,8 @@ TEST_F(ThreadTest, CleanUp) {
     // Register an observer that writes into |captured_events| once the
     // thread's message loop is destroyed.
     t.message_loop()->PostTask(
-        FROM_HERE,
-        new RegisterDestructionObserver(&loop_destruction_observer));
+        FROM_HERE, base::Bind(&RegisterDestructionObserver,
+                              base::Unretained(&loop_destruction_observer)));
 
     // Upon leaving this scope, the thread is deleted.
   }

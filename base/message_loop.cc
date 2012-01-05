@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -246,68 +246,6 @@ void MessageLoop::RemoveDestructionObserver(
     DestructionObserver* destruction_observer) {
   DCHECK_EQ(this, current());
   destruction_observers_.RemoveObserver(destruction_observer);
-}
-
-void MessageLoop::PostTask(
-    const tracked_objects::Location& from_here, Task* task) {
-  DCHECK(task);
-  PendingTask pending_task(
-      from_here,
-      base::Bind(
-          &base::subtle::TaskClosureAdapter::Run,
-          new base::subtle::TaskClosureAdapter(task, &should_leak_tasks_)),
-      CalculateDelayedRuntime(0), true);
-  AddToIncomingQueue(&pending_task);
-}
-
-void MessageLoop::PostDelayedTask(
-    const tracked_objects::Location& from_here, Task* task, int64 delay_ms) {
-  DCHECK(task);
-  PendingTask pending_task(
-      from_here,
-      base::Bind(
-          &base::subtle::TaskClosureAdapter::Run,
-          new base::subtle::TaskClosureAdapter(task, &should_leak_tasks_)),
-      CalculateDelayedRuntime(delay_ms), true);
-  AddToIncomingQueue(&pending_task);
-}
-
-void MessageLoop::PostDelayedTask(
-    const tracked_objects::Location& from_here,
-    Task* task,
-    base::TimeDelta delay) {
-  PostDelayedTask(from_here, task, delay.InMillisecondsRoundedUp());
-}
-
-void MessageLoop::PostNonNestableTask(
-    const tracked_objects::Location& from_here, Task* task) {
-  DCHECK(task);
-  PendingTask pending_task(
-      from_here,
-      base::Bind(
-          &base::subtle::TaskClosureAdapter::Run,
-          new base::subtle::TaskClosureAdapter(task, &should_leak_tasks_)),
-      CalculateDelayedRuntime(0), false);
-  AddToIncomingQueue(&pending_task);
-}
-
-void MessageLoop::PostNonNestableDelayedTask(
-    const tracked_objects::Location& from_here, Task* task, int64 delay_ms) {
-  DCHECK(task);
-  PendingTask pending_task(
-      from_here,
-      base::Bind(
-          &base::subtle::TaskClosureAdapter::Run,
-          new base::subtle::TaskClosureAdapter(task, &should_leak_tasks_)),
-      CalculateDelayedRuntime(delay_ms), false);
-  AddToIncomingQueue(&pending_task);
-}
-
-void MessageLoop::PostNonNestableDelayedTask(
-    const tracked_objects::Location& from_here,
-    Task* task,
-    base::TimeDelta delay) {
-  PostNonNestableDelayedTask(from_here, task, delay.InMillisecondsRoundedUp());
 }
 
 void MessageLoop::PostTask(
