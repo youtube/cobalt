@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,6 +15,10 @@
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_manager.h"
 #include "media/audio/simple_sources.h"
+
+namespace base {
+class WaitableEvent;
+}  // namespace base
 
 class MessageLoop;
 
@@ -220,7 +224,8 @@ class MEDIA_EXPORT AudioOutputController
   void StartStream();
 
   // Helper method that stops, closes, and NULLs |*stream_|.
-  void StopCloseAndClearStream();
+  // Signals event when done if it is not NULL.
+  void DoStopCloseAndClearStream(base::WaitableEvent *done);
 
   scoped_refptr<AudioManager> audio_manager_;
   // |handler_| may be called only if |state_| is not kClosed.
