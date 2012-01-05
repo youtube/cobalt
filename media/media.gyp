@@ -217,7 +217,7 @@
         ],
       },
       'conditions': [
-        ['OS == "cell_lv2"', {
+        ['OS == "lb_shell"', {
           'sources/': [
             ['exclude', '.*'],
             ['include', 'base/seekable_buffer.cc'],
@@ -228,7 +228,7 @@
             ['include', 'base/buffers.h'],
             ['include', 'base/pipeline_status.h'],
           ]
-        }, { #else OS != "cell_lv2"
+        }, { #else OS != "lb_shell"
           'dependencies': [
             'yuv_convert',
             '../base/base.gyp:base',
@@ -368,11 +368,11 @@
         'ffmpeg/ffmpeg_unittest.cc',
       ],
       'conditions': [
-        ['OS == "cell_lv2"', {
+        ['OS == "lb_shell"', {
           'sources/': [
             ['exclude', '.*']
           ]
-        }, { #else OS != "cell_lv2"
+        }, { #else OS != "lb_shell"
           'dependencies': [
             'media',
             'media_test_support',
@@ -463,11 +463,11 @@
         'webm/cluster_builder.h',
       ],
       'conditions': [
-        ['OS == "cell_lv2"', {
+        ['OS == "lb_shell"', {
           'sources/': [
             ['exclude', '.*']
           ]
-        }, { #else OS != "cell_lv2"
+        }, { #else OS != "lb_shell"
           'dependencies': [
             'media',
             'media_test_support',
@@ -519,11 +519,11 @@
         'tools/media_bench/media_bench.cc',
       ],
       'conditions': [
-        ['OS == "cell_lv2"', {
+        ['OS == "lb_shell"', {
           'sources/': [
             ['exclude', '.*']
           ]
-        }, { #else OS != "cell_lv2"
+        }, { #else OS != "lb_shell"
           'dependencies': [
             'media',
             '../base/base.gyp:base',
@@ -551,11 +551,11 @@
         'test/ffmpeg_tests/ffmpeg_tests.cc',
       ],
       'conditions': [
-        ['OS == "cell_lv2"', {
+        ['OS == "lb_shell"', {
           'sources/': [
             ['exclude', '.*']
           ]
-        }, { #else OS != "cell_lv2"
+        }, { #else OS != "lb_shell"
           'dependencies': [
             'media',
             '../base/base.gyp:base',

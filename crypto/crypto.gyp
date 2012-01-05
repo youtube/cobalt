@@ -22,7 +22,7 @@
         4018,
       ],
       'conditions': [
-        ['OS=="cell_lv2"', {
+        ['OS=="lb_shell"', {
           'dependencies' : [
             '../../openssl/openssl.gyp:openssl'
           ],
@@ -30,7 +30,7 @@
             '../../openssl/include'
           ]
         }],
-        [ 'os_posix == 1 and OS != "mac" and OS != "cell_lv2"', {
+        [ 'os_posix == 1 and OS != "mac" and OS != "lb_shell"', {
           'dependencies': [
             '../build/linux/system.gyp:ssl',
           ],
@@ -207,7 +207,7 @@
         '../testing/gtest.gyp:gtest',
       ],
       'conditions': [
-        [ 'os_posix == 1 and OS != "mac" and OS != "cell_lv2"', {
+        [ 'os_posix == 1 and OS != "mac" and OS != "lb_shell"', {
           'conditions': [
             [ 'linux_use_tcmalloc==1', {
                 'dependencies': [

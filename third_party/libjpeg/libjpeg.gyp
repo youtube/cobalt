@@ -5,10 +5,10 @@
 {
   'variables': {
     'conditions': [
-      [ 'os_posix == 1 and OS != "mac" and OS != "cell_lv2"', {
+      [ 'os_posix == 1 and OS != "mac" and OS != "lb_shell"', {
         # Link to system .so since we already use it due to GTK.
         'use_system_libjpeg%': 1,
-      }, {  # os_posix != 1 or OS == "mac"
+      }, {  # os_posix != 1 or OS == "mac" or OS == "lb_shell"
         'use_system_libjpeg%': 0,
       }],
     ],
