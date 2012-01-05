@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -32,6 +32,7 @@ class DhcpProxyScriptFetcher;
 class HostResolver;
 class NetworkDelegate;
 class ProxyResolver;
+class ProxyResolverScriptData;
 class ProxyScriptDecider;
 class ProxyScriptFetcher;
 
@@ -42,6 +43,13 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
                                 public ProxyConfigService::Observer,
                                 NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
+  // Only used by unit-tests.
+  enum PollPolicy {
+    POLL_POLICY_REGULAR,  // Normal PAC poll policy (retry periodically).
+    POLL_POLICY_NEVER,  // Don't re-fetch PAC scripts for changes.
+    POLL_POLICY_IMMEDIATE,  // Check every 1 ms.
+  };
+
   // The instance takes ownership of |config_service| and |resolver|.
   // |net_log| is a possibly NULL destination to send log events to. It must
   // remain alive for the lifetime of this ProxyService.
@@ -236,11 +244,16 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
     stall_proxy_auto_config_delay_ = delay;
   }
 
+  // This method should only be used by unit tests. Returns the previously
+  // active policy.
+  static PollPolicy set_pac_script_poll_policy(PollPolicy policy);
+
  private:
   FRIEND_TEST_ALL_PREFIXES(ProxyServiceTest, UpdateConfigAfterFailedAutodetect);
   FRIEND_TEST_ALL_PREFIXES(ProxyServiceTest, UpdateConfigFromPACToDirect);
   friend class PacRequest;
   class InitProxyResolver;
+  class ProxyScriptDeciderPoller;
 
   // TODO(eroman): change this to a std::set. Note that this requires updating
   // some tests in proxy_service_unittest.cc such as:
@@ -300,6 +313,12 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
   // Start initialization using |fetched_config_|.
   void InitializeUsingLastFetchedConfig();
 
+  // Start the initialization skipping past the "decision" phase.
+  void InitializeUsingDecidedConfig(
+      int decider_result,
+      ProxyResolverScriptData* script_data,
+      const ProxyConfig& effective_config);
+
   // NetworkChangeNotifier::IPAddressObserver
   // When this is called, we re-fetch PAC scripts and re-run WPAD.
   virtual void OnIPAddressChanged() OVERRIDE;
@@ -347,6 +366,9 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
   // Note that the declaration is important here: |proxy_script_fetcher_| and
   // |proxy_resolver_| must outlive |init_proxy_resolver_|.
   scoped_ptr<InitProxyResolver> init_proxy_resolver_;
+
+  // Helper to poll the PAC script for changes.
+  scoped_ptr<ProxyScriptDeciderPoller> script_poller_;
 
   State current_state_;
 

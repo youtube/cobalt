@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,7 @@
 #include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
+#include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
 #include "base/message_loop_proxy.h"
 #include "base/string_util.h"
@@ -52,7 +53,7 @@ const size_t kMaxNumNetLogEntries = 100;
 const size_t kDefaultNumPacThreads = 4;
 
 // When the IP address changes we don't immediately re-run proxy auto-config.
-// Instead, we  wait for |kNumMillisToStallAfterNetworkChanges| before
+// Instead, we  wait for |kDelayAfterNetworkChangesMs| before
 // attempting to re-valuate proxy auto-config.
 //
 // During this time window, any resolve requests sent to the ProxyService will
@@ -65,30 +66,19 @@ const size_t kDefaultNumPacThreads = 4;
 // we were to run proxy auto-config right away, it could fail due to spurious
 // DNS failures. (see http://crbug.com/50779 for more details.)
 //
-// By adding the wait window, we give things a chance to get properly set up.
-// Now by the time we run the proxy-autoconfig there is a lower chance of
-// getting transient DNS / connect failures.
-//
-// Admittedly this is a hack. Ideally we would have NetworkChangeNotifier
-// deliver a reliable signal indicating that the network has changed AND is
-// ready for action... But until then, we can reduce the likelihood of users
-// getting wedged because of proxy detection failures on network switch.
-//
-// The obvious downside to this strategy is it introduces an additional
-// latency when switching networks. This delay shouldn't be too disruptive
-// assuming network switches are infrequent and user initiated. However if
-// NetworkChangeNotifier delivers network changes more frequently this could
-// cause jankiness. (NetworkChangeNotifier broadcasts a change event when ANY
-// interface goes up/down. So in theory if the non-primary interface were
-// hopping on and off wireless networks our constant delayed reconfiguration
-// could add noticeable jank.)
-//
-// The specific hard-coded wait time below is arbitrary.
-// Basically I ran some experiments switching between wireless networks on
-// a Linux Ubuntu (Lucid) laptop, and experimentally found this timeout fixes
-// things. It is entirely possible that the value is insufficient for other
-// setups.
-const int64 kNumMillisToStallAfterNetworkChanges = 2000;
+// By adding the wait window, we give things a better chance to get properly
+// set up. Network failures can happen at any time though, so we additionally
+// poll the PAC script for changes, which will allow us to recover from these
+// sorts of problems.
+const int64 kDelayAfterNetworkChangesMs = 2000;
+
+// The initial number of milliseconds to wait before refetching PAC script after
+// a fetch error/success.
+const int64 kInitialPollDelayForErrorMs = 4000;
+const int64 kInitialPollDelayForSuccessMs = 16000;
+
+// The maximum poll delay for checking PAC scripts.
+const int64 kMaxPollDelayMs = 120000;  // 2 minutes.
 
 // Config getter that always returns direct settings.
 class ProxyConfigServiceDirect : public ProxyConfigService {
@@ -323,18 +313,16 @@ class BadProxyListNetLogParam : public NetLog::EventParameters {
 //       figure out what we should configure against.
 //   (2) Feed the fetched PAC script into the ProxyResolver.
 //
-// TODO(eroman): This is something of a temporary shim while refactoring to keep
-// things similar. It will probably end up changing while solving bug 90581.
+// InitProxyResolver is a single-use class which encapsulates cancellation as
+// part of its destructor. Start() or StartSkipDecider() should be called just
+// once. The instance can be destroyed at any time, and the request will be
+// cancelled.
 
 class ProxyService::InitProxyResolver {
  public:
-  InitProxyResolver(ProxyResolver* proxy_resolver,
-                    ProxyScriptFetcher* proxy_script_fetcher,
-                    DhcpProxyScriptFetcher* dhcp_proxy_script_fetcher,
-                    NetLog* net_log)
-      : decider_(proxy_script_fetcher, dhcp_proxy_script_fetcher, net_log),
-        effective_config_(NULL),
-        proxy_resolver_(proxy_resolver) {
+  InitProxyResolver()
+      : proxy_resolver_(NULL),
+        next_state_(STATE_NONE) {
   }
 
   ~InitProxyResolver() {
@@ -345,17 +333,61 @@ class ProxyService::InitProxyResolver {
     }
   }
 
-  int Init(const ProxyConfig& config,
-           base::TimeDelta wait_delay,
-           ProxyConfig* effective_config,
-           const CompletionCallback& callback) {
+  // Begins initializing the proxy resolver; calls |callback| when done.
+  int Start(ProxyResolver* proxy_resolver,
+            ProxyScriptFetcher* proxy_script_fetcher,
+            DhcpProxyScriptFetcher* dhcp_proxy_script_fetcher,
+            NetLog* net_log,
+            const ProxyConfig& config,
+            base::TimeDelta wait_delay,
+            const CompletionCallback& callback) {
+    DCHECK_EQ(STATE_NONE, next_state_);
+    proxy_resolver_ = proxy_resolver;
+
+    decider_.reset(new ProxyScriptDecider(
+        proxy_script_fetcher, dhcp_proxy_script_fetcher, net_log));
     config_ = config;
     wait_delay_ = wait_delay;
-    effective_config_ = effective_config;
     callback_ = callback;
 
     next_state_ = STATE_DECIDE_PROXY_SCRIPT;
     return DoLoop(OK);
+  }
+
+  // Similar to Start(), however it skips the ProxyScriptDecider stage. Instead
+  // |effective_config|, |decider_result| and |script_data| will be used as the
+  // inputs for initializing the ProxyResolver.
+  int StartSkipDecider(ProxyResolver* proxy_resolver,
+                       const ProxyConfig& effective_config,
+                       int decider_result,
+                       ProxyResolverScriptData* script_data,
+                       const CompletionCallback& callback) {
+    DCHECK_EQ(STATE_NONE, next_state_);
+    proxy_resolver_ = proxy_resolver;
+
+    effective_config_ = effective_config;
+    script_data_ = script_data;
+    callback_ = callback;
+
+    if (decider_result != OK)
+      return decider_result;
+
+    next_state_ = STATE_SET_PAC_SCRIPT;
+    return DoLoop(OK);
+  }
+
+  // Returns the proxy configuration that was selected by ProxyScriptDecider.
+  // Should only be called upon completion of the initialization.
+  const ProxyConfig& effective_config() const {
+    DCHECK_EQ(STATE_NONE, next_state_);
+    return effective_config_;
+  }
+
+  // Returns the PAC script data that was selected by ProxyScriptDecider.
+  // Should only be called upon completion of the initialization.
+  ProxyResolverScriptData* script_data() {
+    DCHECK_EQ(STATE_NONE, next_state_);
+    return script_data_.get();
   }
 
  private:
@@ -400,7 +432,7 @@ class ProxyService::InitProxyResolver {
   int DoDecideProxyScript() {
     next_state_ = STATE_DECIDE_PROXY_SCRIPT_COMPLETE;
 
-    return decider_.Start(
+    return decider_->Start(
         config_, wait_delay_, proxy_resolver_->expects_pac_bytes(),
         base::Bind(&InitProxyResolver::OnIOCompletion, base::Unretained(this)));
   }
@@ -409,17 +441,19 @@ class ProxyService::InitProxyResolver {
     if (result != OK)
       return result;
 
-    *effective_config_ = decider_.effective_config();
+    effective_config_ = decider_->effective_config();
+    script_data_ = decider_->script_data();
+
     next_state_ = STATE_SET_PAC_SCRIPT;
     return OK;
   }
 
   int DoSetPacScript() {
-    DCHECK(decider_.script_data());
+    DCHECK(script_data_);
     // TODO(eroman): Should log this latency to the NetLog.
     next_state_ = STATE_SET_PAC_SCRIPT_COMPLETE;
     return proxy_resolver_->SetPacScript(
-        decider_.script_data(),
+        script_data_,
         base::Bind(&InitProxyResolver::OnIOCompletion, base::Unretained(this)));
   }
 
@@ -440,15 +474,213 @@ class ProxyService::InitProxyResolver {
   }
 
   ProxyConfig config_;
+  ProxyConfig effective_config_;
+  scoped_refptr<ProxyResolverScriptData> script_data_;
   base::TimeDelta wait_delay_;
-  ProxyScriptDecider decider_;
-  ProxyConfig* effective_config_;
+  scoped_ptr<ProxyScriptDecider> decider_;
   ProxyResolver* proxy_resolver_;
   CompletionCallback callback_;
   State next_state_;
 
   DISALLOW_COPY_AND_ASSIGN(InitProxyResolver);
 };
+
+// ProxyService::ProxyScriptDeciderPoller -------------------------------------
+
+// This helper class encapsulates the logic to schedule and run periodic
+// background checks to see if the PAC script (or effective proxy configuration)
+// has changed. If a change is detected, then the caller will be notified via
+// the ChangeCallback.
+class ProxyService::ProxyScriptDeciderPoller {
+ public:
+  typedef base::Callback<void(int, ProxyResolverScriptData*,
+                              const ProxyConfig&)> ChangeCallback;
+
+  // Builds a poller helper, and starts polling for updates. Whenever a change
+  // is observed, |callback| will be invoked with the details.
+  //
+  //   |config| specifies the (unresolved) proxy configuration to poll.
+  //   |proxy_resolver_expects_pac_bytes| the type of proxy resolver we expect
+  //                                      to use the resulting script data with
+  //                                      (so it can choose the right format).
+  //   |proxy_script_fetcher| this pointer must remain alive throughout our
+  //                          lifetime. It is the dependency that will be used
+  //                          for downloading proxy scripts.
+  //   |dhcp_proxy_script_fetcher| similar to |proxy_script_fetcher|, but for
+  //                               the DHCP dependency.
+  //   |init_net_error| This is the initial network error (possibly success)
+  //                    encountered by the first PAC fetch attempt. We use it
+  //                    to schedule updates more aggressively if the initial
+  //                    fetch resulted in an error.
+  //   |init_script_data| the initial script data from the PAC fetch attempt.
+  //                      This is the baseline used to determine when the
+  //                      script's contents have changed.
+  //   |net_log| the NetLog to log progress into.
+  ProxyScriptDeciderPoller(ChangeCallback callback,
+                           const ProxyConfig& config,
+                           bool proxy_resolver_expects_pac_bytes,
+                           ProxyScriptFetcher* proxy_script_fetcher,
+                           DhcpProxyScriptFetcher* dhcp_proxy_script_fetcher,
+                           int init_net_error,
+                           ProxyResolverScriptData* init_script_data,
+                           NetLog* net_log)
+      : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
+        change_callback_(callback),
+        config_(config),
+        proxy_resolver_expects_pac_bytes_(proxy_resolver_expects_pac_bytes),
+        proxy_script_fetcher_(proxy_script_fetcher),
+        dhcp_proxy_script_fetcher_(dhcp_proxy_script_fetcher),
+        last_error_(init_net_error),
+        last_script_data_(init_script_data) {
+    // Set the initial poll delay -- we check more aggressively right after a
+    // failure in case it was due to a spurious network error.
+    current_poll_delay_ms_ = GetInitialWaitDelayMs(init_net_error);
+
+    StartPollTimer();
+  }
+
+  // ----------------------------------
+  // Policy for the retry scheduling.
+  // ----------------------------------
+
+  static int64 GetInitialWaitDelayMs(int error) {
+    switch (poll_policy_) {
+      case POLL_POLICY_REGULAR:
+        // Use a shorter wait delay if the initial fetch resulted in an error.
+        return (error != OK) ?
+            kInitialPollDelayForErrorMs : kInitialPollDelayForSuccessMs;
+      case POLL_POLICY_IMMEDIATE:
+        // Wait a mere 1 millisecond.
+        return 1;
+      case POLL_POLICY_NEVER:
+        // Unreasonably large wait delay, will never fire the check.
+        return 0xFFFFFFFF;
+    }
+
+    // Shouldn't be reached
+    return -1;
+  }
+
+  static int64 GetNextWaitDelayMs(int64 current_delay_ms) {
+    switch (poll_policy_) {
+      case POLL_POLICY_REGULAR:
+        // Increase the delay exponentially up to 2 minutes.
+        return std::min(current_delay_ms * 2, kMaxPollDelayMs);
+      case POLL_POLICY_IMMEDIATE:
+      case POLL_POLICY_NEVER:
+        return current_delay_ms;
+    }
+
+    // Shouldn't be reached
+    return -1;
+  }
+
+  static PollPolicy set_policy(PollPolicy policy) {
+    PollPolicy prev = poll_policy_;
+    poll_policy_ = policy;
+    return prev;
+  }
+
+ private:
+  void StartPollTimer() {
+    DCHECK(!decider_.get());
+
+    MessageLoop::current()->PostDelayedTask(
+        FROM_HERE,
+        base::Bind(&ProxyScriptDeciderPoller::OnPollTimerFired,
+                   weak_factory_.GetWeakPtr()),
+        current_poll_delay_ms_);
+  }
+
+  void OnPollTimerFired() {
+    // Start the proxy script decider to see if anything has changed.
+    // TODO(eroman): Pass a proper NetLog rather than NULL.
+    decider_.reset(new ProxyScriptDecider(
+        proxy_script_fetcher_, dhcp_proxy_script_fetcher_, NULL));
+    int result = decider_->Start(
+        config_, base::TimeDelta(), proxy_resolver_expects_pac_bytes_,
+        base::Bind(&ProxyScriptDeciderPoller::OnProxyScriptDeciderCompleted,
+                   base::Unretained(this)));
+
+    if (result != ERR_IO_PENDING)
+      OnProxyScriptDeciderCompleted(result);
+  }
+
+  void OnProxyScriptDeciderCompleted(int result) {
+    if (HasScriptDataChanged(result, decider_->script_data())) {
+      // Something has changed, we must notify the ProxyService so it can
+      // re-initialize its ProxyResolver. Note that we post a notification task
+      // rather than calling it directly -- this is done to avoid an ugly
+      // destruction sequence, since |this| might be destroyed as a result of
+      // the notification.
+      MessageLoop::current()->PostTask(
+        FROM_HERE,
+        base::Bind(
+            &ProxyScriptDeciderPoller::NotifyProxyServiceOfChange,
+            weak_factory_.GetWeakPtr(),
+            result,
+            make_scoped_refptr(decider_->script_data()),
+            decider_->effective_config()));
+      return;
+    }
+
+    decider_.reset();
+
+    // Schedule the next poll check.
+    current_poll_delay_ms_ = GetNextWaitDelayMs(current_poll_delay_ms_);
+    StartPollTimer();
+  }
+
+  bool HasScriptDataChanged(int result, ProxyResolverScriptData* script_data) {
+    if (result != last_error_) {
+      // Something changed -- it was failing before and now it succeeded, or
+      // conversely it succeeded before and now it failed. Or it failed in
+      // both cases, however the specific failure error codes differ.
+      return true;
+    }
+
+    if (result != OK) {
+      // If it failed last time and failed again with the same error code this
+      // time, then nothing has actually changed.
+      return false;
+    }
+
+    // Otherwise if it succeeded both this time and last time, we need to look
+    // closer and see if we ended up downloading different content for the PAC
+    // script.
+    return !script_data->Equals(last_script_data_);
+  }
+
+  void NotifyProxyServiceOfChange(
+      int result,
+      const scoped_refptr<ProxyResolverScriptData>& script_data,
+      const ProxyConfig& effective_config) {
+    // Note that |this| may be deleted after calling into the ProxyService.
+    change_callback_.Run(result, script_data, effective_config);
+  }
+
+  base::WeakPtrFactory<ProxyScriptDeciderPoller> weak_factory_;
+
+  ChangeCallback change_callback_;
+  ProxyConfig config_;
+  bool proxy_resolver_expects_pac_bytes_;
+  ProxyScriptFetcher* proxy_script_fetcher_;
+  DhcpProxyScriptFetcher* dhcp_proxy_script_fetcher_;
+
+  int last_error_;
+  scoped_refptr<ProxyResolverScriptData> last_script_data_;
+
+  scoped_ptr<ProxyScriptDecider> decider_;
+  int64 current_poll_delay_ms_;
+
+  static PollPolicy poll_policy_;
+
+  DISALLOW_COPY_AND_ASSIGN(ProxyScriptDeciderPoller);
+};
+
+// static
+ProxyService::PollPolicy ProxyService::ProxyScriptDeciderPoller::poll_policy_ =
+    ProxyService::POLL_POLICY_REGULAR;
 
 // ProxyService::PacRequest ---------------------------------------------------
 
@@ -592,7 +824,7 @@ ProxyService::ProxyService(ProxyConfigService* config_service,
       net_log_(net_log),
       stall_proxy_auto_config_delay_(
           base::TimeDelta::FromMilliseconds(
-              kNumMillisToStallAfterNetworkChanges)) {
+              kDelayAfterNetworkChangesMs)) {
   NetworkChangeNotifier::AddIPAddressObserver(this);
   ResetConfigService(config_service);
 }
@@ -858,6 +1090,24 @@ void ProxyService::OnInitProxyResolverComplete(int result) {
   DCHECK_EQ(STATE_WAITING_FOR_INIT_PROXY_RESOLVER, current_state_);
   DCHECK(init_proxy_resolver_.get());
   DCHECK(fetched_config_.HasAutomaticSettings());
+  config_ = init_proxy_resolver_->effective_config();
+
+  // At this point we have decided which proxy settings to use (i.e. which PAC
+  // script if any). We start up a background poller to periodically revisit
+  // this decision. If the contents of the PAC script change, or if the
+  // result of proxy auto-discovery changes, this poller will notice it and
+  // will trigger a re-initialization using the newly discovered PAC.
+  script_poller_.reset(new ProxyScriptDeciderPoller(
+      base::Bind(&ProxyService::InitializeUsingDecidedConfig,
+                 base::Unretained(this)),
+      fetched_config_,
+      resolver_->expects_pac_bytes(),
+      proxy_script_fetcher_.get(),
+      dhcp_proxy_script_fetcher_.get(),
+      result,
+      init_proxy_resolver_->script_data(),
+      NULL));
+
   init_proxy_resolver_.reset();
 
   if (result != OK) {
@@ -876,6 +1126,8 @@ void ProxyService::OnInitProxyResolverComplete(int result) {
   }
   permanent_error_ = result;
 
+  // TODO(eroman): Make this ID unique in the case where configuration changed
+  //               due to ProxyScriptDeciderPoller.
   config_.set_id(fetched_config_.id());
 
   // Resume any requests which we had to defer until the PAC script was
@@ -1022,6 +1274,7 @@ ProxyService::State ProxyService::ResetProxyConfig(bool reset_fetched_config) {
 
   permanent_error_ = OK;
   proxy_retry_info_.clear();
+  script_poller_.reset();
   init_proxy_resolver_.reset();
   SuspendAllPendingRequests();
   config_ = ProxyConfig();
@@ -1099,6 +1352,12 @@ ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
 #endif
 }
 
+// static
+ProxyService::PollPolicy ProxyService::set_pac_script_poll_policy(
+    PollPolicy policy) {
+  return ProxyScriptDeciderPoller::set_policy(policy);
+}
+
 void ProxyService::OnProxyConfigChanged(
     const ProxyConfig& config,
     ProxyConfigService::ConfigAvailability availability) {
@@ -1154,18 +1413,42 @@ void ProxyService::InitializeUsingLastFetchedConfig() {
   // Start downloading + testing the PAC scripts for this new configuration.
   current_state_ = STATE_WAITING_FOR_INIT_PROXY_RESOLVER;
 
-  init_proxy_resolver_.reset(
-      new InitProxyResolver(resolver_.get(),
-                            proxy_script_fetcher_.get(),
-                            dhcp_proxy_script_fetcher_.get(),
-                            net_log_));
-
   // If we changed networks recently, we should delay running proxy auto-config.
   base::TimeDelta wait_delay =
       stall_proxy_autoconfig_until_ - base::TimeTicks::Now();
 
-  int rv = init_proxy_resolver_->Init(
-      fetched_config_, wait_delay, &config_,
+  init_proxy_resolver_.reset(new InitProxyResolver());
+  int rv = init_proxy_resolver_->Start(
+      resolver_.get(),
+      proxy_script_fetcher_.get(),
+      dhcp_proxy_script_fetcher_.get(),
+      net_log_,
+      fetched_config_,
+      wait_delay,
+      base::Bind(&ProxyService::OnInitProxyResolverComplete,
+                 base::Unretained(this)));
+
+  if (rv != ERR_IO_PENDING)
+    OnInitProxyResolverComplete(rv);
+}
+
+void ProxyService::InitializeUsingDecidedConfig(
+    int decider_result,
+    ProxyResolverScriptData* script_data,
+    const ProxyConfig& effective_config) {
+  DCHECK(fetched_config_.is_valid());
+  DCHECK(fetched_config_.HasAutomaticSettings());
+
+  ResetProxyConfig(false);
+
+  current_state_ = STATE_WAITING_FOR_INIT_PROXY_RESOLVER;
+
+  init_proxy_resolver_.reset(new InitProxyResolver());
+  int rv = init_proxy_resolver_->StartSkipDecider(
+      resolver_.get(),
+      effective_config,
+      decider_result,
+      script_data,
       base::Bind(&ProxyService::OnInitProxyResolverComplete,
                  base::Unretained(this)));
 
@@ -1174,7 +1457,7 @@ void ProxyService::InitializeUsingLastFetchedConfig() {
 }
 
 void ProxyService::OnIPAddressChanged() {
-  // See the comment block by |kNumMillisToStallAfterNetworkChanges| for info.
+  // See the comment block by |kDelayAfterNetworkChangesMs| for info.
   stall_proxy_autoconfig_until_ =
       base::TimeTicks::Now() + stall_proxy_auto_config_delay_;
 
