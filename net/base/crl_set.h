@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -50,6 +50,11 @@ class NET_EXPORT CRLSet : public base::RefCountedThreadSafe<CRLSet> {
   // updating the current CRL set with the delta information in |delta_bytes|.
   bool ApplyDelta(base::StringPiece delta_bytes,
                   scoped_refptr<CRLSet>* out_crl_set);
+
+  // GetIsDeltaUpdate extracts the header from |bytes|, sets *is_delta to
+  // whether |bytes| is a delta CRL set or not and returns true. In the event
+  // of a parse error, it returns false.
+  static bool GetIsDeltaUpdate(const base::StringPiece& bytes, bool *is_delta);
 
   // Serialize returns a string of bytes suitable for passing to Parse. Parsing
   // and serializing a CRLSet is a lossless operation - the resulting bytes
