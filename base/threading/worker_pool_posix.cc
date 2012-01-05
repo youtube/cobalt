@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -31,8 +31,6 @@ class WorkerPoolImpl {
   WorkerPoolImpl();
   ~WorkerPoolImpl();
 
-  void PostTask(const tracked_objects::Location& from_here, Task* task,
-                bool task_is_slow);
   void PostTask(const tracked_objects::Location& from_here,
                 const base::Closure& task, bool task_is_slow);
 
@@ -47,11 +45,6 @@ WorkerPoolImpl::WorkerPoolImpl()
 
 WorkerPoolImpl::~WorkerPoolImpl() {
   pool_->Terminate();
-}
-
-void WorkerPoolImpl::PostTask(const tracked_objects::Location& from_here,
-                              Task* task, bool task_is_slow) {
-  pool_->PostTask(from_here, task);
 }
 
 void WorkerPoolImpl::PostTask(const tracked_objects::Location& from_here,
@@ -109,12 +102,6 @@ void WorkerThread::ThreadMain() {
 }  // namespace
 
 bool WorkerPool::PostTask(const tracked_objects::Location& from_here,
-                          Task* task, bool task_is_slow) {
-  g_lazy_worker_pool.Pointer()->PostTask(from_here, task, task_is_slow);
-  return true;
-}
-
-bool WorkerPool::PostTask(const tracked_objects::Location& from_here,
                           const base::Closure& task, bool task_is_slow) {
   g_lazy_worker_pool.Pointer()->PostTask(from_here, task, task_is_slow);
   return true;
@@ -142,21 +129,6 @@ void PosixDynamicThreadPool::Terminate() {
     terminated_ = true;
   }
   pending_tasks_available_cv_.Broadcast();
-}
-
-void PosixDynamicThreadPool::PostTask(
-    const tracked_objects::Location& from_here,
-    Task* task) {
-  PendingTask pending_task(from_here,
-                           base::Bind(&subtle::TaskClosureAdapter::Run,
-                                      new subtle::TaskClosureAdapter(task)));
-  // |pending_task| and AddTask() work in conjunction here to ensure that after
-  // a successful AddTask(), the TaskClosureAdapter object is deleted on the
-  // worker thread. In AddTask(), the reference |pending_task.task| is handed
-  // off in a destructive manner to ensure that the local copy of
-  // |pending_task| doesn't keep a ref on the Closure causing the
-  // TaskClosureAdapter to be deleted on the wrong thread.
-  AddTask(&pending_task);
 }
 
 void PosixDynamicThreadPool::PostTask(

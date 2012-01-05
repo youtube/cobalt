@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -152,76 +152,62 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
   DISALLOW_COPY_AND_ASSIGN(FilePathWatcherImpl);
 };
 
-class InotifyReaderTask : public Task {
- public:
-  InotifyReaderTask(InotifyReader* reader, int inotify_fd, int shutdown_fd)
-      : reader_(reader),
-        inotify_fd_(inotify_fd),
-        shutdown_fd_(shutdown_fd) {
-    // Make sure the file descriptors are good for use with select().
-    CHECK_LE(0, inotify_fd_);
-    CHECK_GT(FD_SETSIZE, inotify_fd_);
-    CHECK_LE(0, shutdown_fd_);
-    CHECK_GT(FD_SETSIZE, shutdown_fd_);
-  }
+void InotifyReaderCallback(InotifyReader* reader, int inotify_fd,
+                           int shutdown_fd) {
+  // Make sure the file descriptors are good for use with select().
+  CHECK_LE(0, inotify_fd);
+  CHECK_GT(FD_SETSIZE, inotify_fd);
+  CHECK_LE(0, shutdown_fd);
+  CHECK_GT(FD_SETSIZE, shutdown_fd);
 
-  virtual void Run() {
-    while (true) {
-      fd_set rfds;
-      FD_ZERO(&rfds);
-      FD_SET(inotify_fd_, &rfds);
-      FD_SET(shutdown_fd_, &rfds);
+  while (true) {
+    fd_set rfds;
+    FD_ZERO(&rfds);
+    FD_SET(inotify_fd, &rfds);
+    FD_SET(shutdown_fd, &rfds);
 
-      // Wait until some inotify events are available.
-      int select_result =
-        HANDLE_EINTR(select(std::max(inotify_fd_, shutdown_fd_) + 1,
-                            &rfds, NULL, NULL, NULL));
-      if (select_result < 0) {
-        DPLOG(WARNING) << "select failed";
-        return;
-      }
+    // Wait until some inotify events are available.
+    int select_result =
+      HANDLE_EINTR(select(std::max(inotify_fd, shutdown_fd) + 1,
+                          &rfds, NULL, NULL, NULL));
+    if (select_result < 0) {
+      DPLOG(WARNING) << "select failed";
+      return;
+    }
 
-      if (FD_ISSET(shutdown_fd_, &rfds))
-        return;
+    if (FD_ISSET(shutdown_fd, &rfds))
+      return;
 
-      // Adjust buffer size to current event queue size.
-      int buffer_size;
-      int ioctl_result = HANDLE_EINTR(ioctl(inotify_fd_, FIONREAD,
-                                            &buffer_size));
+    // Adjust buffer size to current event queue size.
+    int buffer_size;
+    int ioctl_result = HANDLE_EINTR(ioctl(inotify_fd, FIONREAD,
+                                          &buffer_size));
 
-      if (ioctl_result != 0) {
-        DPLOG(WARNING) << "ioctl failed";
-        return;
-      }
+    if (ioctl_result != 0) {
+      DPLOG(WARNING) << "ioctl failed";
+      return;
+    }
 
-      std::vector<char> buffer(buffer_size);
+    std::vector<char> buffer(buffer_size);
 
-      ssize_t bytes_read = HANDLE_EINTR(read(inotify_fd_, &buffer[0],
-                                             buffer_size));
+    ssize_t bytes_read = HANDLE_EINTR(read(inotify_fd, &buffer[0],
+                                           buffer_size));
 
-      if (bytes_read < 0) {
-        DPLOG(WARNING) << "read from inotify fd failed";
-        return;
-      }
+    if (bytes_read < 0) {
+      DPLOG(WARNING) << "read from inotify fd failed";
+      return;
+    }
 
-      ssize_t i = 0;
-      while (i < bytes_read) {
-        inotify_event* event = reinterpret_cast<inotify_event*>(&buffer[i]);
-        size_t event_size = sizeof(inotify_event) + event->len;
-        DCHECK(i + event_size <= static_cast<size_t>(bytes_read));
-        reader_->OnInotifyEvent(event);
-        i += event_size;
-      }
+    ssize_t i = 0;
+    while (i < bytes_read) {
+      inotify_event* event = reinterpret_cast<inotify_event*>(&buffer[i]);
+      size_t event_size = sizeof(inotify_event) + event->len;
+      DCHECK(i + event_size <= static_cast<size_t>(bytes_read));
+      reader->OnInotifyEvent(event);
+      i += event_size;
     }
   }
-
- private:
-  InotifyReader* reader_;
-  int inotify_fd_;
-  int shutdown_fd_;
-
-  DISALLOW_COPY_AND_ASSIGN(InotifyReaderTask);
-};
+}
 
 static base::LazyInstance<InotifyReader> g_inotify_reader =
     LAZY_INSTANCE_INITIALIZER;
@@ -234,7 +220,8 @@ InotifyReader::InotifyReader()
   shutdown_pipe_[1] = -1;
   if (inotify_fd_ >= 0 && pipe(shutdown_pipe_) == 0 && thread_.Start()) {
     thread_.message_loop()->PostTask(
-        FROM_HERE, new InotifyReaderTask(this, inotify_fd_, shutdown_pipe_[0]));
+        FROM_HERE, base::Bind(&InotifyReaderCallback, this, inotify_fd_,
+                              shutdown_pipe_[0]));
     valid_ = true;
   }
 }
