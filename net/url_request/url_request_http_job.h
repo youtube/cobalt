@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -54,6 +54,9 @@ class URLRequestHttpJob : public URLRequestJob {
   // Process the Strict-Transport-Security header, if one exists.
   void ProcessStrictTransportSecurityHeader();
 
+  // Process the Public-Key-Pins header, if one exists.
+  void ProcessPublicKeyPinsHeader();
+
   // |result| should be net::OK, or the request is canceled.
   void OnHeadersReceivedCallback(int result);
   void OnStartCompleted(int result);
@@ -84,7 +87,7 @@ class URLRequestHttpJob : public URLRequestJob {
   virtual void ContinueWithCertificate(X509Certificate* client_cert) OVERRIDE;
   virtual void ContinueDespiteLastError() OVERRIDE;
   virtual bool ReadRawData(IOBuffer* buf, int buf_size,
-                           int *bytes_read) OVERRIDE;
+                           int* bytes_read) OVERRIDE;
   virtual void StopCaching() OVERRIDE;
   virtual void DoneReading() OVERRIDE;
   virtual HostPortPair GetSocketAddress() const OVERRIDE;
