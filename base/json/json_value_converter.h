@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,6 +14,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/stl_util.h"
+#include "base/string16.h"
 #include "base/values.h"
 
 // JSONValueConverter converts a JSON value into a C++ struct in a
@@ -45,12 +46,18 @@
 //   JSONValueConverter<Message> converter;
 //   converter.Convert(json, &message);
 //
+// Convert() returns false when it fails.  Here "fail" means that the value is
+// structurally different from expected, such like a string value appears
+// for an int field.  Do not report failures for missing fields.
+// Also note that Convert() will modify the passed |message| even when it
+// fails for performance reason.
+//
 // For nested field, the internal message also has to implement the registration
 // method.  Then, just use RegisterNestedField() from the containing struct's
 // RegisterJSONConverter method.
 //   struct Nested {
 //     Message foo;
-//     void RegisterJSONConverter(...) {
+//     static void RegisterJSONConverter(...) {
 //       ...
 //       converter->RegisterNestedField("foo", &Nested::foo);
 //     }
@@ -72,7 +79,7 @@ class FieldConverterBase {
  public:
   BASE_EXPORT explicit FieldConverterBase(const std::string& path);
   BASE_EXPORT virtual ~FieldConverterBase();
-  virtual void ConvertField(const base::Value& value, void* obj) const = 0;
+  virtual bool ConvertField(const base::Value& value, void* obj) const = 0;
   const std::string& field_path() const { return field_path_; }
 
  private:
@@ -84,7 +91,7 @@ template <typename FieldType>
 class ValueConverter {
  public:
   virtual ~ValueConverter() {}
-  virtual void Convert(const base::Value& value, FieldType* field) const = 0;
+  virtual bool Convert(const base::Value& value, FieldType* field) const = 0;
 };
 
 template <typename StructType, typename FieldType>
@@ -98,10 +105,10 @@ class FieldConverter : public FieldConverterBase {
         value_converter_(converter) {
   }
 
-  virtual void ConvertField(
+  virtual bool ConvertField(
       const base::Value& value, void* obj) const OVERRIDE {
     StructType* dst = reinterpret_cast<StructType*>(obj);
-    value_converter_->Convert(value, &(dst->*field_pointer_));
+    return value_converter_->Convert(value, &(dst->*field_pointer_));
   }
 
  private:
@@ -118,8 +125,8 @@ class BasicValueConverter<int> : public ValueConverter<int> {
  public:
   BasicValueConverter() {}
 
-  virtual void Convert(const base::Value& value, int* field) const OVERRIDE {
-    value.GetAsInteger(field);
+  virtual bool Convert(const base::Value& value, int* field) const OVERRIDE {
+    return value.GetAsInteger(field);
   }
 
  private:
@@ -131,9 +138,23 @@ class BasicValueConverter<std::string> : public ValueConverter<std::string> {
  public:
   BasicValueConverter() {}
 
-  virtual void Convert(
+  virtual bool Convert(
       const base::Value& value, std::string* field) const OVERRIDE {
-    value.GetAsString(field);
+    return value.GetAsString(field);
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(BasicValueConverter);
+};
+
+template <>
+class BasicValueConverter<string16> : public ValueConverter<string16> {
+ public:
+  BasicValueConverter() {}
+
+  virtual bool Convert(
+      const base::Value& value, string16* field) const OVERRIDE {
+    return value.GetAsString(field);
   }
 
  private:
@@ -145,8 +166,8 @@ class BasicValueConverter<double> : public ValueConverter<double> {
  public:
   BasicValueConverter() {}
 
-  virtual void Convert(const base::Value& value, double* field) const OVERRIDE {
-    value.GetAsDouble(field);
+  virtual bool Convert(const base::Value& value, double* field) const OVERRIDE {
+    return value.GetAsDouble(field);
   }
 
  private:
@@ -158,8 +179,8 @@ class BasicValueConverter<bool> : public ValueConverter<bool> {
  public:
   BasicValueConverter() {}
 
-  virtual void Convert(const base::Value& value, bool* field) const OVERRIDE {
-    value.GetAsBoolean(field);
+  virtual bool Convert(const base::Value& value, bool* field) const OVERRIDE {
+    return value.GetAsBoolean(field);
   }
 
  private:
@@ -171,9 +192,9 @@ class NestedValueConverter : public ValueConverter<NestedType> {
  public:
   NestedValueConverter() {}
 
-  virtual void Convert(
+  virtual bool Convert(
       const base::Value& value, NestedType* field) const OVERRIDE {
-    converter_.Convert(value, field);
+    return converter_.Convert(value, field);
   }
 
  private:
@@ -186,12 +207,12 @@ class RepeatedValueConverter : public ValueConverter<std::vector<Element> > {
  public:
   RepeatedValueConverter() {}
 
-  virtual void Convert(
+  virtual bool Convert(
       const base::Value& value, std::vector<Element>* field) const OVERRIDE {
     const base::ListValue* list = NULL;
     if (!value.GetAsList(&list)) {
       // The field is not a list.
-      return;
+      return false;
     }
 
     field->reserve(list->GetSize());
@@ -201,9 +222,13 @@ class RepeatedValueConverter : public ValueConverter<std::vector<Element> > {
         continue;
 
       Element e;
-      basic_converter_.Convert(*element, &e);
+      if (!basic_converter_.Convert(*element, &e)) {
+        DVLOG(1) << "failure at " << i << "-th element";
+        return false;
+      }
       field->push_back(e);
     }
+    return true;
   }
 
  private:
@@ -217,11 +242,11 @@ class RepeatedMessageConverter
  public:
   RepeatedMessageConverter() {}
 
-  virtual void Convert(
+  virtual bool Convert(
       const base::Value& value, std::vector<NestedType>* field) const OVERRIDE {
     const base::ListValue* list = NULL;
     if (!value.GetAsList(&list))
-      return;
+      return false;
 
     field->reserve(list->GetSize());
     for (size_t i = 0; i < list->GetSize(); ++i) {
@@ -230,8 +255,12 @@ class RepeatedMessageConverter
         continue;
 
       field->push_back(NestedType());
-      converter_.Convert(*element, &field->back());
+      if (!converter_.Convert(*element, &field->back())) {
+        DVLOG(1) << "failure at " << i << "-th element";
+        return false;
+      }
     }
+    return true;
   }
 
  private:
@@ -259,9 +288,15 @@ class JSONValueConverter {
   }
 
   void RegisterStringField(const std::string& field_name,
-                        std::string StructType::* field) {
+                           std::string StructType::* field) {
     fields_.push_back(new internal::FieldConverter<StructType, std::string>(
         field_name, field, new internal::BasicValueConverter<std::string>));
+  }
+
+  void RegisterStringField(const std::string& field_name,
+                           string16 StructType::* field) {
+    fields_.push_back(new internal::FieldConverter<StructType, string16>(
+        field_name, field, new internal::BasicValueConverter<string16>));
   }
 
   void RegisterBoolField(const std::string& field_name,
@@ -301,6 +336,15 @@ class JSONValueConverter {
             new internal::RepeatedValueConverter<std::string>));
   }
 
+  void RegisterRepeatedString(const std::string& field_name,
+                              std::vector<string16> StructType::* field) {
+    fields_.push_back(
+        new internal::FieldConverter<StructType, std::vector<string16> >(
+            field_name,
+            field,
+            new internal::RepeatedValueConverter<string16>));
+  }
+
   void RegisterRepeatedDouble(const std::string& field_name,
                               std::vector<double> StructType::* field) {
     fields_.push_back(
@@ -325,18 +369,22 @@ class JSONValueConverter {
             new internal::RepeatedMessageConverter<NestedType>));
   }
 
-  void Convert(const base::Value& value, StructType* output) const {
+  bool Convert(const base::Value& value, StructType* output) const {
     const DictionaryValue* dictionary_value = NULL;
     if (!value.GetAsDictionary(&dictionary_value))
-      return;
+      return false;
 
     for(std::vector<internal::FieldConverterBase*>::const_iterator it =
             fields_.begin(); it != fields_.end(); ++it) {
       base::Value* field = NULL;
       if (dictionary_value->Get((*it)->field_path(), &field)) {
-        (*it)->ConvertField(*field, output);
+        if (!(*it)->ConvertField(*field, output)) {
+          DVLOG(1) << "failure at field " << (*it)->field_path();
+          return false;
+        }
       }
     }
+    return true;
   }
 
  private:
