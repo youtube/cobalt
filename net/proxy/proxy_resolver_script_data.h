@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -53,6 +53,9 @@ class NET_EXPORT_PRIVATE ProxyResolverScriptData
   // Returns the URL of the script.
   // (only valid for type() == TYPE_SCRIPT_URL).
   const GURL& url() const;
+
+  // Returns true if |this| matches |other|.
+  bool Equals(const ProxyResolverScriptData* other) const;
 
  private:
   friend class base::RefCountedThreadSafe<ProxyResolverScriptData>;
