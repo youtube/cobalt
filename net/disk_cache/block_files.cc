@@ -1,9 +1,10 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/disk_cache/block_files.h"
 
+#include "base/atomicops.h"
 #include "base/file_util.h"
 #include "base/metrics/histogram.h"
 #include "base/string_util.h"
@@ -62,12 +63,18 @@ bool CreateMapBlock(int target, int size, disk_cache::BlockFileHeader* header,
       *index = current * 32 + index_offset;
       DCHECK_EQ(*index / 4, (*index + size - 1) / 4);
       uint32 to_add = ((1 << size) - 1) << index_offset;
+      header->num_entries++;
+
+      // Note that there is no race in the normal sense here, but if we enforce
+      // the order of memory accesses between num_entries and allocation_map, we
+      // can assert that even if we crash here, num_entries will never be less
+      // than the actual number of used blocks.
+      base::subtle::MemoryBarrier();
       header->allocation_map[current] |= to_add;
 
       header->hints[target - 1] = current;
       header->empty[target - 1]--;
       DCHECK_GE(header->empty[target - 1], 0);
-      header->num_entries++;
       if (target != size) {
         header->empty[target - size - 1]++;
       }
@@ -117,6 +124,7 @@ void DeleteMapBlock(int index, int size, disk_cache::BlockFileHeader* header) {
     header->empty[new_type - 1]++;
     DCHECK_GE(header->empty[bits_at_end - 1], 0);
   }
+  base::subtle::MemoryBarrier();
   header->num_entries--;
   DCHECK_GE(header->num_entries, 0);
   HISTOGRAM_TIMES("DiskCache.DeleteBlock", TimeTicks::Now() - start);
@@ -182,6 +190,30 @@ bool NeedToGrowBlockFile(const disk_cache::BlockFileHeader* header,
   return !have_space;
 }
 
+// Returns the number of empty blocks for this file.
+int EmptyBlocks(const disk_cache::BlockFileHeader* header) {
+  int empty_blocks = 0;
+  for (int i = 0; i < disk_cache::kMaxNumBlocks; i++) {
+    empty_blocks += header->empty[i] * (i + 1);
+    if (header->empty[i] < 0)
+      return false;
+  }
+  return empty_blocks;
+}
+
+// Returns true if the counters look OK.
+bool ValidateCounters(const disk_cache::BlockFileHeader* header) {
+  if (header->max_entries < 0 || header->max_entries > disk_cache::kMaxBlocks ||
+      header->num_entries < 0)
+    return false;
+
+  int empty_blocks = EmptyBlocks(header);
+  if (empty_blocks + header->num_entries > header->max_entries)
+    return false;
+
+  return true;
+}
+
 }  // namespace
 
 namespace disk_cache {
@@ -213,7 +245,8 @@ bool BlockFiles::Init(bool create_files) {
       return false;
 
     // Walk this chain of files removing empty ones.
-    RemoveEmptyFile(static_cast<FileType>(i + 1));
+    if (!RemoveEmptyFile(static_cast<FileType>(i + 1)))
+      return false;
   }
 
   init_ = true;
@@ -301,7 +334,7 @@ void BlockFiles::DeleteBlock(Addr address, bool deep) {
     FileType type = Addr::RequiredFileType(header->entry_size);
     if (Addr::BlockSizeForFileType(RANKINGS) == header->entry_size)
       type = RANKINGS;
-    RemoveEmptyFile(type);
+    RemoveEmptyFile(type);  // Ignore failures.
   }
 }
 
@@ -409,14 +442,16 @@ bool BlockFiles::OpenBlockFile(int index) {
 
   BlockFileHeader* header = reinterpret_cast<BlockFileHeader*>(file->buffer());
   if (kBlockMagic != header->magic || kCurrentVersion != header->version) {
-    LOG(ERROR) << "Invalid file version or magic";
+    LOG(ERROR) << "Invalid file version or magic " << name.value();
     return false;
   }
 
-  if (header->updating) {
-    // Last instance was not properly shutdown.
-    if (!FixBlockFileHeader(file))
+  if (header->updating || !ValidateCounters(header)) {
+    // Last instance was not properly shutdown, or counters are out of sync.
+    if (!FixBlockFileHeader(file)) {
+      LOG(ERROR) << "Unable to fix block file " << name.value();
       return false;
+    }
   }
 
   if (static_cast<int>(file_len) <
@@ -448,7 +483,6 @@ bool BlockFiles::GrowBlockFile(MappedFile* file, BlockFileHeader* header) {
 
   int new_size_bytes = new_size * header->entry_size + sizeof(*header);
 
-  FileLock lock(header);
   if (!file->SetLength(new_size_bytes)) {
     // Most likely we are trying to truncate the file, so the header is wrong.
     if (header->updating < 10 && !FixBlockFileHeader(file)) {
@@ -460,6 +494,7 @@ bool BlockFiles::GrowBlockFile(MappedFile* file, BlockFileHeader* header) {
     return (header->max_entries >= new_size);
   }
 
+  FileLock lock(header);
   header->empty[3] = (new_size - header->max_entries) / 4;  // 4 blocks entries
   header->max_entries = new_size;
 
@@ -467,7 +502,7 @@ bool BlockFiles::GrowBlockFile(MappedFile* file, BlockFileHeader* header) {
 }
 
 MappedFile* BlockFiles::FileForNewBlock(FileType block_type, int block_count) {
-  COMPILE_ASSERT(RANKINGS == 1, invalid_fily_type);
+  COMPILE_ASSERT(RANKINGS == 1, invalid_file_type);
   MappedFile* file = block_files_[block_type - 1];
   BlockFileHeader* header = reinterpret_cast<BlockFileHeader*>(file->buffer());
 
@@ -522,7 +557,7 @@ int BlockFiles::CreateNextBlockFile(FileType block_type) {
 
 // We walk the list of files for this particular block type, deleting the ones
 // that are empty.
-void BlockFiles::RemoveEmptyFile(FileType block_type) {
+bool BlockFiles::RemoveEmptyFile(FileType block_type) {
   MappedFile* file = block_files_[block_type - 1];
   BlockFileHeader* header = reinterpret_cast<BlockFileHeader*>(file->buffer());
 
@@ -531,7 +566,7 @@ void BlockFiles::RemoveEmptyFile(FileType block_type) {
     Addr address(BLOCK_256, 1, header->next_file, 0);
     MappedFile* next_file = GetFile(address);
     if (!next_file)
-      return;
+      return false;
 
     BlockFileHeader* next_header =
         reinterpret_cast<BlockFileHeader*>(next_file->buffer());
@@ -560,14 +595,25 @@ void BlockFiles::RemoveEmptyFile(FileType block_type) {
     header = next_header;
     file = next_file;
   }
+  return true;
 }
 
+// Note that we expect to be called outside of a FileLock... however, we cannot
+// DCHECK on header->updating because we may be fixing a crash.
 bool BlockFiles::FixBlockFileHeader(MappedFile* file) {
   BlockFileHeader* header = reinterpret_cast<BlockFileHeader*>(file->buffer());
   int file_size = static_cast<int>(file->GetLength());
   if (file_size < static_cast<int>(sizeof(*header)))
     return false;  // file_size > 2GB is also an error.
 
+  const int kMinBlockSize = 36;
+  const int kMaxBlockSize = 4096;
+  if (header->entry_size < kMinBlockSize ||
+      header->entry_size > kMaxBlockSize || header->num_entries < 0)
+    return false;
+
+  // Make sure that we survive crashes.
+  header->updating = 1;
   int expected = header->entry_size * header->max_entries + sizeof(*header);
   if (file_size != expected) {
     int max_expected = header->entry_size * kMaxBlocks + sizeof(*header);
@@ -582,6 +628,13 @@ bool BlockFiles::FixBlockFileHeader(MappedFile* file) {
   }
 
   FixAllocationCounters(header);
+  int empty_blocks = EmptyBlocks(header);
+  if (empty_blocks + header->num_entries > header->max_entries)
+    header->num_entries = header->max_entries - empty_blocks;
+
+  if (!ValidateCounters(header))
+    return false;
+
   header->updating = 0;
   return true;
 }
