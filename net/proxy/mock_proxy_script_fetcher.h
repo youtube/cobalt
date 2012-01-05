@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -34,10 +34,14 @@ class MockProxyScriptFetcher : public ProxyScriptFetcher {
   const GURL& pending_request_url() const;
   bool has_pending_request() const;
 
+  // Spins the message loop until this->Fetch() is invoked.
+  void WaitUntilFetch();
+
  private:
   GURL pending_request_url_;
   CompletionCallback pending_request_callback_;
   string16* pending_request_text_;
+  bool waiting_for_fetch_;
 };
 
 }  // namespace net
