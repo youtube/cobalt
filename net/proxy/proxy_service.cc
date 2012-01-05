@@ -39,7 +39,7 @@
 #elif defined(OS_LINUX) && !defined(OS_CHROMEOS)
 #include "net/proxy/proxy_config_service_linux.h"
 #elif defined(__LB_PS3__)
-#include "net/proxy/proxy_config_service_ps3.h"
+#include "../../../../lbps3/src/platform/ps3/chromium/net/proxy/proxy_config_service_ps3.h" // FIXME: temporary hack
 #endif
 
 using base::TimeDelta;

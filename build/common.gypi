@@ -215,7 +215,7 @@
         }],
 
         # Flags to use Gtk and X11 on non-Mac POSIX platforms
-        ['OS=="win" or OS=="mac" or OS=="cell_lv2"', {
+        ['OS=="win" or OS=="mac" or OS=="lb_shell"', {
           'toolkit_uses_gtk%': 0,
           'use_x11%': 0,
         }, {
@@ -269,13 +269,16 @@
           'enable_smooth_scrolling%': 0,
         }],
 
-        # Override some defaults for PS3
-        ['OS=="cell_lv2"', {
-          'disable_sse2%': 1,
-          'use_libjpeg_turbo%': 0,
+        # Override some defaults for lb_shell
+        ['OS=="lb_shell"', {
           'remoting%': 0,
           'p2p_apis%': 0,
           'safe_browsing%': 0,
+        }],
+        # Override some defaults for PS3
+        ['target_arch=="ps3"', {
+          'disable_sse2%': 1,
+          'use_libjpeg_turbo%': 0,
         }],
       ],
     },
@@ -607,17 +610,19 @@
         ],
       }],
 
-      ['os_posix==1 and chromeos==0 and target_arch!="arm" and OS != "cell_lv2"', {
+      ['os_posix==1 and chromeos==0 and target_arch!="arm" and OS != "lb_shell"', {
         'use_cups%': 1,
       }, {
         'use_cups%': 0,
       }],
 
-      ['OS=="cell_lv2"', {
-        'javascript_engine%': 'JavaScriptCore',
+      ['OS=="lb_shell"', {
         'disable_nacl%': 1,
         'use_openssl%': 1,
-      }], # OS=="cell_lv2"
+      }],
+      ['target_arch=="ps3"', {
+        'javascript_engine%': 'JavaScriptCore',
+      }],
 
       # Set the relative path from this file to the GYP file of the JPEG
       # library used by Chromium.
@@ -747,7 +752,7 @@
       ],
     },
     'conditions': [
-      ['OS!="cell_lv2"', {
+      ['OS!="lb_shell"', {
         'default_configuration': 'Debug', # LBPS3 provides its own configurations
       }],
       ['branding=="Chrome"', {
@@ -1217,7 +1222,7 @@
         },
       },
       'conditions': [
-        [ 'OS!="cell_lv2"', {
+        [ 'OS!="lb_shell"', {
           #
           # Concrete configurations omitted from LBPS3 build
           #
@@ -1587,7 +1592,7 @@
       'cflags!': ['-fvisibility=hidden'],
       'cflags_cc!': ['-fvisibility-inlines-hidden'],
     }],
-    ['OS=="cell_lv2"', {
+    ['target_arch=="ps3"', {
       'target_defaults': {
         'cflags!': ['-pthread'],
         'ldflags!': ['-pthread'],

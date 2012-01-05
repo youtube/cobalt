@@ -5,7 +5,7 @@
 {
   'variables': {
     'conditions': [
-      [ 'os_posix == 1 and OS != "mac" and OS != "openbsd" and OS != "cell_lv2"', {
+      [ 'os_posix == 1 and OS != "mac" and OS != "openbsd" and OS != "lb_shell"', {
         # Link to system .so since we already use it due to GTK.
         # TODO(pvalchev): OpenBSD is purposefully left out, as the system
         # zlib brings up an incompatibility that breaks rendering.

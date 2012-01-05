@@ -118,7 +118,7 @@
                 '-Wno-pointer-to-int-cast',
               ],
             }],
-            ['OS=="cell_lv2"', {
+            ['target_arch=="ps3"', {
               'include_dirs': [
                 '../..'
               ],

@@ -16,7 +16,7 @@
         '../..',
       ],
       'conditions': [
-        ['OS=="cell_lv2"', {
+        ['target_arch=="ps3"', {
           'defines': [
             'WORDS_BIGENDIAN'
           ]
