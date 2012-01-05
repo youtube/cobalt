@@ -947,6 +947,7 @@ typedef void (GL_APIENTRYP PFNGLMULTIDRAWELEMENTSEXTPROC) (GLenum mode, const GL
 #ifndef GL_EXT_texture_storage
 #define GL_EXT_texture_storage 1
 #ifdef GL_GLEXT_PROTOTYPES
+#define glTexStorage2DEXT GLES2_GET_FUN(TexStorage2DEXT)
 GL_APICALL void GL_APIENTRY glTexStorage2DEXT (GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height);
 #endif /* GL_GLEXT_PROTOTYPES */
 typedef void (GL_APIENTRYP PFNGLTEXSTORAGE2DEXT) (GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height);
