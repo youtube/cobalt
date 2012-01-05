@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,29 +10,6 @@
 namespace base {
 
 MessageLoopProxyImpl::~MessageLoopProxyImpl() {
-}
-
-  // MessageLoopProxy implementation
-bool MessageLoopProxyImpl::PostTask(const tracked_objects::Location& from_here,
-                                    Task* task) {
-  return PostTaskHelper(from_here, task, 0, true);
-}
-
-bool MessageLoopProxyImpl::PostDelayedTask(
-    const tracked_objects::Location& from_here, Task* task, int64 delay_ms) {
-  return PostTaskHelper(from_here, task, delay_ms, true);
-}
-
-bool MessageLoopProxyImpl::PostNonNestableTask(
-    const tracked_objects::Location& from_here, Task* task) {
-  return PostTaskHelper(from_here, task, 0, false);
-}
-
-bool MessageLoopProxyImpl::PostNonNestableDelayedTask(
-    const tracked_objects::Location& from_here,
-    Task* task,
-    int64 delay_ms) {
-  return PostTaskHelper(from_here, task, delay_ms, false);
 }
 
 bool MessageLoopProxyImpl::PostTask(const tracked_objects::Location& from_here,
@@ -97,27 +74,6 @@ void MessageLoopProxyImpl::OnDestruct() const {
 
 MessageLoopProxyImpl::MessageLoopProxyImpl()
     : target_message_loop_(MessageLoop::current()) {
-}
-
-bool MessageLoopProxyImpl::PostTaskHelper(
-    const tracked_objects::Location& from_here, Task* task, int64 delay_ms,
-    bool nestable) {
-  bool ret = false;
-  {
-    AutoLock lock(message_loop_lock_);
-    if (target_message_loop_) {
-      if (nestable) {
-        target_message_loop_->PostDelayedTask(from_here, task, delay_ms);
-      } else {
-        target_message_loop_->PostNonNestableDelayedTask(from_here, task,
-                                                         delay_ms);
-      }
-      ret = true;
-    }
-  }
-  if (!ret)
-    delete task;
-  return ret;
 }
 
 bool MessageLoopProxyImpl::PostTaskHelper(
