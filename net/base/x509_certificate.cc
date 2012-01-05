@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -633,7 +633,11 @@ int X509Certificate::Verify(const std::string& hostname,
 
   if (weak_key) {
     verify_result->cert_status |= CERT_STATUS_WEAK_KEY;
-    return MapCertStatusToNetError(verify_result->cert_status);
+    // Avoid replacing a more serious error, such as an OS/library failure,
+    // by ensuring that if verification failed, it failed with a certificate
+    // error.
+    if (rv == OK || IsCertificateError(rv))
+      rv = MapCertStatusToNetError(verify_result->cert_status);
   }
 
   // Treat certificates signed using broken signature algorithms as invalid.
