@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -51,15 +51,6 @@ bool PostTaskInternal(PendingTask* pending_task, bool task_is_slow) {
 }
 
 }  // namespace
-
-bool WorkerPool::PostTask(const tracked_objects::Location& from_here,
-                          Task* task, bool task_is_slow) {
-  PendingTask* pending_task =
-      new PendingTask(from_here,
-                      base::Bind(&subtle::TaskClosureAdapter::Run,
-                                 new subtle::TaskClosureAdapter(task)));
-  return PostTaskInternal(pending_task, task_is_slow);
-}
 
 bool WorkerPool::PostTask(const tracked_objects::Location& from_here,
                           const base::Closure& task, bool task_is_slow) {

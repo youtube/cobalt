@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,17 +22,6 @@ class BASE_EXPORT MessageLoopProxyImpl
   virtual ~MessageLoopProxyImpl();
 
   // MessageLoopProxy implementation
-  virtual bool PostTask(const tracked_objects::Location& from_here,
-                        Task* task) OVERRIDE;
-  virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
-                               Task* task,
-                               int64 delay_ms) OVERRIDE;
-  virtual bool PostNonNestableTask(const tracked_objects::Location& from_here,
-                                   Task* task) OVERRIDE;
-  virtual bool PostNonNestableDelayedTask(
-      const tracked_objects::Location& from_here,
-      Task* task,
-      int64 delay_ms) OVERRIDE;
   virtual bool PostTask(const tracked_objects::Location& from_here,
                         const base::Closure& task) OVERRIDE;
   virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
@@ -58,11 +47,6 @@ class BASE_EXPORT MessageLoopProxyImpl
   virtual void WillDestroyCurrentMessageLoop();
 
 
-  // TODO(ajwong): Remove this after we've fully migrated to base::Closure.
-  bool PostTaskHelper(const tracked_objects::Location& from_here,
-                      Task* task,
-                      int64 delay_ms,
-                      bool nestable);
   bool PostTaskHelper(const tracked_objects::Location& from_here,
                       const base::Closure& task,
                       int64 delay_ms,
