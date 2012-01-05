@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -389,6 +389,29 @@ bool CRLSet::ApplyDelta(base::StringPiece data,
     return false;
 
   *out_crl_set = crl_set;
+  return true;
+}
+
+// static
+bool CRLSet::GetIsDeltaUpdate(const base::StringPiece& in_data,
+                              bool *is_delta) {
+  base::StringPiece data(in_data);
+  scoped_ptr<DictionaryValue> header_dict(ReadHeader(&data));
+  if (!header_dict.get())
+    return false;
+
+  std::string contents;
+  if (!header_dict->GetString("ContentType", &contents))
+    return false;
+
+  if (contents == "CRLSet") {
+    *is_delta = false;
+  } else if (contents == "CRLSetDelta") {
+    *is_delta = true;
+  } else {
+    return false;
+  }
+
   return true;
 }
 
