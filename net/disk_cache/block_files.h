@@ -1,11 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 // See net/disk_cache/disk_cache.h for the public interface.
 
-#ifndef NET_DISK_CACHE_BLOCK_FILES_H__
-#define NET_DISK_CACHE_BLOCK_FILES_H__
+#ifndef NET_DISK_CACHE_BLOCK_FILES_H_
+#define NET_DISK_CACHE_BLOCK_FILES_H_
 #pragma once
 
 #include <vector>
@@ -75,7 +75,7 @@ class NET_EXPORT_PRIVATE BlockFiles {
   int CreateNextBlockFile(FileType block_type);
 
   // Removes a chained block file that is now empty.
-  void RemoveEmptyFile(FileType block_type);
+  bool RemoveEmptyFile(FileType block_type);
 
   // Restores the header of a potentially inconsistent file.
   bool FixBlockFileHeader(MappedFile* file);
@@ -102,4 +102,4 @@ class NET_EXPORT_PRIVATE BlockFiles {
 
 }  // namespace disk_cache
 
-#endif  // NET_DISK_CACHE_BLOCK_FILES_H__
+#endif  // NET_DISK_CACHE_BLOCK_FILES_H_
