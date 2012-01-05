@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -196,6 +196,61 @@ TEST_F(DiskCacheTest, BlockFiles_TruncatedFile) {
   ASSERT_FALSE(files.Init(false));
 }
 
+// Tests detection of out of sync counters.
+TEST_F(DiskCacheTest, BlockFiles_Counters) {
+  ASSERT_TRUE(CleanupCacheDir());
+  ASSERT_TRUE(file_util::CreateDirectory(cache_path_));
+
+  BlockFiles files(cache_path_);
+  ASSERT_TRUE(files.Init(true));
+
+  // Create a block of size 2.
+  Addr address(0);
+  EXPECT_TRUE(files.CreateBlock(RANKINGS, 2, &address));
+
+  MappedFile* file = files.GetFile(address);
+  ASSERT_TRUE(NULL != file);
+
+  BlockFileHeader* header = reinterpret_cast<BlockFileHeader*>(file->buffer());
+  ASSERT_TRUE(NULL != header);
+  ASSERT_EQ(0, header->updating);
+
+  // Alter the counters so that the free space doesn't add up.
+  header->empty[2] = 50;  // 50 free blocks of size 3.
+  files.CloseFiles();
+
+  ASSERT_TRUE(files.Init(false));
+  file = files.GetFile(address);
+  ASSERT_TRUE(NULL != file);
+  header = reinterpret_cast<BlockFileHeader*>(file->buffer());
+  ASSERT_TRUE(NULL != header);
+
+  // The file must have been fixed.
+  ASSERT_EQ(0, header->empty[2]);
+
+  // Change the number of entries.
+  header->num_entries = 3;
+  header->updating = 1;
+  files.CloseFiles();
+
+  ASSERT_TRUE(files.Init(false));
+  file = files.GetFile(address);
+  ASSERT_TRUE(NULL != file);
+  header = reinterpret_cast<BlockFileHeader*>(file->buffer());
+  ASSERT_TRUE(NULL != header);
+
+  // The file must have been "fixed".
+  ASSERT_EQ(2, header->num_entries);
+
+  // Change the number of entries.
+  header->num_entries = -1;
+  header->updating = 1;
+  files.CloseFiles();
+
+  // Detect the error.
+  ASSERT_FALSE(files.Init(false));
+}
+
 // An invalid file can be detected after init.
 TEST_F(DiskCacheTest, BlockFiles_InvalidFile) {
   ASSERT_TRUE(CleanupCacheDir());
@@ -217,7 +272,7 @@ TEST_F(DiskCacheTest, BlockFiles_InvalidFile) {
 
   EXPECT_TRUE(NULL == files.GetFile(addr));
 
-  // The file should not have been cached (it is still invalid).
+  // The file should not have been changed (it is still invalid).
   EXPECT_TRUE(NULL == files.GetFile(addr));
 }
 
