@@ -27,7 +27,7 @@
 #if !defined(TOOLKIT_VIEWS)
 #define TOOLKIT_GTK
 #endif
-#elif defined(_WIN32) && !defined(__LB_PS3__)
+#elif defined(_WIN32)
 #define OS_WIN 1
 #define TOOLKIT_VIEWS 1
 #elif defined(__FreeBSD__)
@@ -39,7 +39,7 @@
 #elif defined(__sun)
 #define OS_SOLARIS 1
 #define TOOLKIT_GTK
-#elif defined(__LB_PS3__)
+#elif defined(__LB_SHELL__)
 // NO toolkit!
 #else
 #error Please add support for your platform in build/build_config.h
@@ -86,7 +86,7 @@
 // Compiler detection.
 #if defined(__GNUC__) || defined(__LB_PS3__)
 #define COMPILER_GCC 1
-#elif defined(_MSC_VER) && !defined(__LB_PS3__)
+#elif defined(_MSC_VER)
 #define COMPILER_MSVC 1
 #else
 #error Please add support for your compiler in build/build_config.h
