@@ -32,7 +32,6 @@
           'base_paths_mac.h',
           'base_paths_mac.mm',
           'base_paths_linux.cc',
-          'base_paths_ps3.cc',
           'base_paths_win.cc',
           'base_paths_win.h',
           'basictypes.h',
@@ -82,7 +81,6 @@
           'file_util_linux.cc',
           'file_util_mac.mm',
           'file_util_posix.cc',
-          'file_util_ps3.cc',
           'file_util_win.cc',
           'file_util_proxy.cc',
           'file_util_proxy.h',
@@ -97,7 +95,6 @@
           'files/file_path_watcher_mac.cc',
           'files/file_path_watcher_win.cc',
           'float_util.h',
-          'getenv_ps3.cc',
           'global_descriptors_posix.cc',
           'global_descriptors_posix.h',
           'gtest_prod_util.h',
@@ -163,8 +160,6 @@
           'message_pump_default.h',
           'message_pump_win.cc',
           'message_pump_win.h',
-          'message_pump_ps3.cc',
-          'message_pump_ps3.h',
           'metrics/histogram.cc',
           'metrics/histogram.h',
           'metrics/stats_counters.cc',
@@ -198,12 +193,9 @@
           'process_util_posix.cc',
           'process_util_win.cc',
           'process_win.cc',
-          'ps3/object_watcher.cc',
-          'ps3/object_watcher.h',
           'rand_util.cc',
           'rand_util.h',
           'rand_util_posix.cc',
-          'rand_util_ps3.cc',
           'rand_util_win.cc',
           'resource_util.cc',
           'resource_util.h',
@@ -384,8 +376,8 @@
                 'message_pump_gtk.cc',
                 'message_pump_x.cc',
               ],
-          }], 
-          [ 'OS=="cell_lv2"', {
+          }],
+          [ 'OS=="lb_shell"', {
             'sources!': [
               'atomicops_internals_x86_msvc.h',
               'sys_info_posix.cc',
@@ -409,23 +401,9 @@
             ],
             'sources': [
               'atomicops_internals_cell_ppu.h',
-              'sys_info_ps3.cc',
-              'environment_ps3.cc',
-              'platform_file_ps3.cc',
-              'time_ps3.cc',
-              'process_ps3.cc',
-              'sync_socket_ps3.cc',
-              'process_util_ps3.cc',
-              'file_util_ps3.cc',
-              'message_pump_ps3.cc',
-              'message_pump_ps3.h',
-              'sys_string_conversions_ps3.cc',
-              'metrics/stats_table_ps3.cc'
-            ]
-          }, { # OS != cell_lv2
-            'sources/' : [
-              ['exclude', 'ps3']
-            ]
+              'message_pump_shell.cc',
+              'message_pump_shell.h',
+            ],
           }],
           [ 'touchui==0', {
             'sources!' : [ 'message_pump_x.cc', ],
@@ -577,7 +555,7 @@
             ],
           },
         }],
-        [ 'OS != "win" and OS != "cell_lv2"', {
+        [ 'OS != "win"', {
             'dependencies': ['../third_party/libevent/libevent.gyp:libevent'],
             'sources!': [
               'third_party/purify/pure_api.c',
@@ -594,20 +572,16 @@
             }],
           ],
         }],
-        ['OS=="cell_lv2"', {
+        ['OS=="lb_shell"', {
+          'dependencies!': ['../third_party/libevent/libevent.gyp:libevent'],
           'sources!': [
-            'third_party/purify/pure_api.c',
             'base_drag_source.cc',
             'base_drop_target.cc',
-            'event_recorder.cc',
             'file_version_info.cc',
             'registry.cc',
-            'resource_util.cc',
             'win_util.cc',
             'file_descriptor_shuffle.cc'
           ]
-        }, { # OS != "cell_lv2"
-          'dependencies': ['../third_party/libevent/libevent.gyp:libevent'],          
         }]
       ],
       'sources': [

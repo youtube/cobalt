@@ -7,7 +7,7 @@
     'conditions': [
       # __LB_PS3__FIX_ME__ remove our dependency on libpng and revert
       # this file to upstream!
-      [ 'os_posix == 1 and OS != "mac" and OS != "cell_lv2"', {
+      [ 'os_posix == 1 and OS != "mac" and OS != "lb_shell"', {
         # Link to system .so since we already use it due to GTK.
         'use_system_libpng%': 1,
       }, {  # os_posix != 1 or OS == "mac"
@@ -75,10 +75,10 @@
                 ],
               },          
             }],
-            ['OS=="cell_lv2"', {
-            # __LB_PS3__FIX_ME__ we want to go to using the libpng code on
-            # the console.  For now we aren't picking up the corect include
-            # dirs for zlib
+            ['OS=="lb_shell"', {
+              # __LB_SHELL__FIX_ME__: we want to go to using the libpng code on
+              # the console.  For now we aren't picking up the correct include
+              # dirs for zlib
               'include_dirs': [
                 '../zlib'
               ]
