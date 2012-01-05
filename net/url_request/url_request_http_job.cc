@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -244,7 +244,9 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
                                           &response_adapter);
   }
 
+  // The ordering of these calls is not important.
   ProcessStrictTransportSecurityHeader();
+  ProcessPublicKeyPinsHeader();
 
   if (SdchManager::Global() &&
       SdchManager::Global()->IsInSupportedDomain(request_->url())) {
@@ -635,6 +637,43 @@ void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
 
     ctx->transport_security_state()->EnableHost(request_info_.url.host(),
                                                 domain_state);
+  }
+}
+
+void URLRequestHttpJob::ProcessPublicKeyPinsHeader() {
+  DCHECK(response_info_);
+
+  const URLRequestContext* ctx = request_->context();
+  const SSLInfo& ssl_info = response_info_->ssl_info;
+
+  // Only accept pins on connections that have no errors.
+  if (!ssl_info.is_valid() || IsCertStatusError(ssl_info.cert_status) ||
+      !ctx || !ctx->transport_security_state()) {
+    return;
+  }
+
+  TransportSecurityState* security_state = ctx->transport_security_state();
+  TransportSecurityState::DomainState domain_state;
+  const std::string& host = request_info_.url.host();
+
+  bool sni_available =
+      SSLConfigService::IsSNIAvailable(ctx->ssl_config_service());
+  bool found = security_state->HasMetadata(&domain_state, host, sni_available);
+  if (!found)
+    domain_state.mode = TransportSecurityState::DomainState::MODE_PINNING_ONLY;
+
+  HttpResponseHeaders* headers = GetResponseHeaders();
+  void* iter = NULL;
+  std::string value;
+
+  while (headers->EnumerateHeader(&iter, "Public-Key-Pins", &value)) {
+    // Note that ParsePinsHeader updates |domain_state| (iff the header parses
+    // correctly), but does not completely overwrite it. It just updates the
+    // dynamic pinning metadata.
+    if (TransportSecurityState::ParsePinsHeader(value, ssl_info,
+                                                &domain_state)) {
+      security_state->EnableHost(host, domain_state);
+    }
   }
 }
 
