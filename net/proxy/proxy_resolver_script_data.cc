@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -43,6 +43,23 @@ const string16& ProxyResolverScriptData::utf16() const {
 const GURL& ProxyResolverScriptData::url() const {
   DCHECK_EQ(TYPE_SCRIPT_URL, type_);
   return url_;
+}
+
+bool ProxyResolverScriptData::Equals(
+    const ProxyResolverScriptData* other) const {
+  if (type() != other->type())
+    return false;
+
+  switch (type()) {
+    case TYPE_SCRIPT_CONTENTS:
+      return utf16() == other->utf16();
+    case TYPE_SCRIPT_URL:
+      return url() == other->url();
+    case TYPE_AUTO_DETECT:
+      return true;
+  }
+
+  return false;  // Shouldn't be reached.
 }
 
 ProxyResolverScriptData::ProxyResolverScriptData(Type type,
