@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,10 +7,12 @@
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
 #include "base/message_loop.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/threading/platform_thread.h"
 #include "base/time.h"
 
 using base::Time;
+using base::WaitableEvent;
 
 namespace media {
 
@@ -40,7 +42,18 @@ AudioOutputController::AudioOutputController(AudioManager* audio_manager,
 
 AudioOutputController::~AudioOutputController() {
   DCHECK_EQ(kClosed, state_);
-  StopCloseAndClearStream();
+  if (message_loop_ == MessageLoop::current()) {
+    DoStopCloseAndClearStream(NULL);
+  } else {
+    DCHECK(message_loop_);
+    WaitableEvent completion(true /* manual reset */,
+                             false /* initial state */);
+    message_loop_->PostTask(FROM_HERE,
+        base::Bind(&AudioOutputController::DoStopCloseAndClearStream,
+                   base::Unretained(this),
+                   &completion));
+    completion.Wait();
+  }
 }
 
 // static
@@ -139,7 +152,7 @@ void AudioOutputController::DoCreate(const AudioParameters& params) {
     return;
   DCHECK_EQ(kEmpty, state_);
 
-  StopCloseAndClearStream();
+  DoStopCloseAndClearStream(NULL);
   stream_ = audio_manager_->MakeAudioOutputStreamProxy(params);
   if (!stream_) {
     // TODO(hclam): Define error types.
@@ -148,7 +161,7 @@ void AudioOutputController::DoCreate(const AudioParameters& params) {
   }
 
   if (!stream_->Open()) {
-    StopCloseAndClearStream();
+    DoStopCloseAndClearStream(NULL);
 
     // TODO(hclam): Define error types.
     handler_->OnError(this, 0);
@@ -286,7 +299,7 @@ void AudioOutputController::DoClose(const base::Closure& closed_task) {
   DCHECK_EQ(message_loop_, MessageLoop::current());
 
   if (state_ != kClosed) {
-    StopCloseAndClearStream();
+    DoStopCloseAndClearStream(NULL);
 
     if (LowLatencyMode()) {
       sync_reader_->Close();
@@ -400,14 +413,20 @@ void AudioOutputController::SubmitOnMoreData_Locked() {
   handler_->OnMoreData(this, buffers_state);
 }
 
-void AudioOutputController::StopCloseAndClearStream() {
+void AudioOutputController::DoStopCloseAndClearStream(WaitableEvent *done) {
+  DCHECK_EQ(message_loop_, MessageLoop::current());
+
   // Allow calling unconditionally and bail if we don't have a stream_ to close.
-  if (!stream_)
-    return;
-  stream_->Stop();
-  stream_->Close();
-  stream_ = NULL;
-  weak_this_.InvalidateWeakPtrs();
+  if (stream_ != NULL) {
+    stream_->Stop();
+    stream_->Close();
+    stream_ = NULL;
+    weak_this_.InvalidateWeakPtrs();
+  }
+
+  // Should be last in the method, do not touch "this" from here on.
+  if (done != NULL)
+    done->Signal();
 }
 
 }  // namespace media
