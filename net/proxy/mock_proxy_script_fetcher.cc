@@ -1,10 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/proxy/mock_proxy_script_fetcher.h"
 
 #include "base/logging.h"
+#include "base/message_loop.h"
 #include "base/string16.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/net_errors.h"
@@ -12,7 +13,8 @@
 namespace net {
 
 MockProxyScriptFetcher::MockProxyScriptFetcher()
-    : pending_request_text_(NULL) {
+    : pending_request_text_(NULL),
+      waiting_for_fetch_(false) {
 }
 
 MockProxyScriptFetcher::~MockProxyScriptFetcher() {}
@@ -26,6 +28,10 @@ int MockProxyScriptFetcher::Fetch(const GURL& url, string16* text,
   pending_request_url_ = url;
   pending_request_callback_ = callback;
   pending_request_text_ = text;
+
+  if (waiting_for_fetch_)
+    MessageLoop::current()->Quit();
+
   return ERR_IO_PENDING;
 }
 
@@ -51,6 +57,13 @@ const GURL& MockProxyScriptFetcher::pending_request_url() const {
 
 bool MockProxyScriptFetcher::has_pending_request() const {
   return !pending_request_callback_.is_null();
+}
+
+void MockProxyScriptFetcher::WaitUntilFetch() {
+  DCHECK(!has_pending_request());
+  waiting_for_fetch_ = true;
+  MessageLoop::current()->Run();
+  waiting_for_fetch_ = false;
 }
 
 }  // namespace net
