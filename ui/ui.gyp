@@ -276,7 +276,7 @@
         'ui_api.h',
       ],
       'conditions': [
-        ['OS == "cell_lv2"', {
+        ['OS == "lb_shell"', {
           'sources/': [
             # data_pack.cc uses memory-mapped files
             ['exclude', 'data_pack'],
@@ -285,10 +285,9 @@
             ['exclude', 'dragdrop']
           ],
           'sources': [
-            'gfx/native_theme_ps3.cc',
-            'gfx/native_theme_ps3.h'
+            'gfx/native_theme_shell.cc',
           ],
-        }, { # OS != "cell_lv2"
+        }, { # OS != "lb_shell"
           'dependencies': [
             '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
           ]

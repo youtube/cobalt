@@ -172,7 +172,6 @@
         # TODO(tc): gnome-vfs? xdgmime? /etc/mime.types?
         'base/platform_mime_util_linux.cc',
         'base/platform_mime_util_mac.cc',
-        'base/platform_mime_util_ps3.cc',
         'base/platform_mime_util_win.cc',
         'base/rand_callback.h',
         'base/registry_controlled_domain.cc',
@@ -258,7 +257,6 @@
         'disk_cache/file_lock.cc',
         'disk_cache/file_lock.h',
         'disk_cache/file_posix.cc',
-        'disk_cache/file_ps3.cc',
         'disk_cache/file_win.cc',
         'disk_cache/hash.cc',
         'disk_cache/hash.h',
@@ -269,7 +267,6 @@
         'disk_cache/in_flight_io.h',
         'disk_cache/mapped_file.h',
         'disk_cache/mapped_file_posix.cc',
-        'disk_cache/mapped_file_ps3.cc',
         'disk_cache/mapped_file_win.cc',
         'disk_cache/mem_backend_impl.cc',
         'disk_cache/mem_backend_impl.h',
@@ -457,8 +454,6 @@
         'proxy/proxy_config_service_linux.h',
         'proxy/proxy_config_service_mac.cc',
         'proxy/proxy_config_service_mac.h',
-        'proxy/proxy_config_service_ps3.cc',
-        'proxy/proxy_config_service_ps3.h',
         'proxy/proxy_config_service_win.cc',
         'proxy/proxy_config_service_win.h',
         'proxy/proxy_info.cc',
@@ -675,7 +670,7 @@
         '../base/base.gyp:base',
       ],
       'conditions': [
-        ['OS=="cell_lv2"', {
+        ['OS=="lb_shell"', {
           'dependencies': [
             '../../openssl/openssl.gyp:openssl'
           ],
@@ -707,13 +702,10 @@
             # crl_filter code assumes little-endian machine
             ['exclude', 'crl_filter']
           ]
-        }, { # os is not CellLv2
+        }, { # os is not lb_shell
           'dependencies': [
             '../sdch/sdch.gyp:sdch',
             'ssl_false_start_blacklist_process#host',
-          ],
-          'sources/': [
-            ['exclude', 'ps3']
           ],
           'actions': [
             {
@@ -809,7 +801,7 @@
               '../build/linux/system.gyp:libresolv',
             ],
             'conditions': [
-              ['use_openssl==1 and OS != "cell_lv2"', {
+              ['use_openssl==1 and OS != "lb_shell"', {
                 'dependencies': [
                   '../third_party/openssl/openssl.gyp:openssl',
                 ],
@@ -1275,7 +1267,7 @@
             '../third_party/protobuf/protobuf.gyp:py_proto',
           ],
         }],
-        ['os_posix == 1 and OS != "mac" and OS != "cell_lv2"', {
+        ['os_posix == 1 and OS != "mac" and OS != "lb_shell"', {
           'conditions': [
             ['use_openssl==1', {
               'dependencies': [
@@ -1396,7 +1388,7 @@
     },
   ],
   'conditions': [
-     ['os_posix == 1 and OS != "mac" and OS != "cell_lv2"', {
+     ['os_posix == 1 and OS != "mac" and OS != "lb_shell"', {
        'targets': [
          {
            'target_name': 'flip_in_mem_edsm_server',

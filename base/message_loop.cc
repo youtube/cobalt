@@ -22,13 +22,13 @@
 #if defined(OS_MACOSX)
 #include "base/message_pump_mac.h"
 #endif
-#if defined(OS_POSIX) && !defined(__LB_PS3__)
+#if defined(OS_POSIX) && !defined(__LB_SHELL__)
 #include "base/message_pump_libevent.h"
 #endif
 #if defined(OS_ANDROID)
 #include "base/message_pump_android.h"
 #endif
-#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(__LB_PS3__)
+#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_ANDROID) && !defined(__LB_SHELL__)
 #include <gdk/gdk.h>
 #include <gdk/gdkx.h>
 #if defined(TOUCH_UI)
@@ -37,8 +37,8 @@
 #include "base/message_pump_gtk.h"
 #endif  // defined(TOUCH_UI)
 #endif  // defined(OS_POSIX) && !defined(OS_MACOSX)
-#if defined(__LB_PS3__)
-#include "base/message_pump_ps3.h"
+#if defined(__LB_SHELL__)
+#include "base/message_pump_shell.h"
 #endif
 
 using base::TimeDelta;
@@ -144,7 +144,7 @@ MessageLoop::MessageLoop(Type type)
   lazy_tls_ptr.Pointer()->Set(this);
 
 // TODO(rvargas): Get rid of the OS guards.
-#if defined(OS_WIN) || defined(__LB_PS3__)
+#if defined(OS_WIN)
 #define MESSAGE_PUMP_UI new base::MessagePumpForUI()
 #define MESSAGE_PUMP_IO new base::MessagePumpForIO()
 #elif defined(OS_MACOSX)
@@ -161,6 +161,9 @@ MessageLoop::MessageLoop(Type type)
 // TODO(abarth): Figure out if we need these.
 #define MESSAGE_PUMP_UI NULL
 #define MESSAGE_PUMP_IO NULL
+#elif defined(__LB_SHELL__)
+#define MESSAGE_PUMP_UI new base::MessagePumpShell()
+#define MESSAGE_PUMP_IO new base::MessagePumpShell()
 #elif defined(OS_POSIX)  // POSIX but not MACOSX.
 #define MESSAGE_PUMP_UI new base::MessagePumpGtk()
 #define MESSAGE_PUMP_IO new base::MessagePumpLibevent()
@@ -835,7 +838,7 @@ bool MessageLoopForIO::WaitForIOCompletion(DWORD timeout, IOHandler* filter) {
   return pump_io()->WaitForIOCompletion(timeout, filter);
 }
 
-#elif defined(__LB_PS3__)
+#elif defined(__LB_SHELL__)
 
 bool MessageLoopForIO::WatchSocket(int s,
                                    bool persistent,
