@@ -1,12 +1,23 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/transport_security_state.h"
 
+#include <algorithm>
+#include <string>
+
 #include "base/base64.h"
+#include "base/file_path.h"
 #include "base/sha1.h"
 #include "base/string_piece.h"
+#include "net/base/asn1_util.h"
+#include "net/base/cert_test_util.h"
+#include "net/base/cert_verifier.h"
+#include "net/base/ssl_info.h"
+#include "net/base/test_root_certs.h"
+#include "net/base/x509_certificate.h"
+#include "net/http/http_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(USE_OPENSSL)
@@ -102,6 +113,97 @@ TEST_F(TransportSecurityStateTest, BogusHeaders) {
   EXPECT_FALSE(include_subdomains);
 }
 
+static std::string GetPinFromCert(X509Certificate* cert) {
+  SHA1Fingerprint spki_hash;
+  if (!TransportSecurityState::GetPublicKeyHash(*cert, &spki_hash))
+    return "";
+  std::string base64;
+  base::Base64Encode(base::StringPiece(reinterpret_cast<char*>(spki_hash.data),
+                                       sizeof(spki_hash.data)),
+                     &base64);
+  return "pin-sha1=" + HttpUtil::Quote(base64);
+}
+
+TEST_F(TransportSecurityStateTest, BogusPinsHeaders) {
+  TransportSecurityState::DomainState state;
+  state.max_age = 42;
+  SSLInfo ssl_info;
+  ssl_info.cert =
+      ImportCertFromFile(GetTestCertsDirectory(), "test_mail_google_com.pem");
+  std::string good_pin = GetPinFromCert(ssl_info.cert);
+
+  // The backup pin is fake --- it just has to not be in the chain.
+  std::string backup_pin = "pin-sha1=" +
+      HttpUtil::Quote("6dcfXufJLW3J6S/9rRe4vUlBj5g=");
+
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "", ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "    ", ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "abc", ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "  abc", ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "  abc   ", ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "max-age", ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "  max-age", ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "  max-age  ", ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "max-age=", ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "   max-age=", ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "   max-age  =", ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "   max-age=   ", ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "   max-age  =     ", ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "   max-age  =     xy", ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "   max-age  =     3488a923", ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "max-age=3488a923  ", ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "max-ag=3488923pins=" + good_pin + "," + backup_pin,
+      ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "max-aged=3488923" + backup_pin,
+      ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "max-aged=3488923; " + backup_pin,
+      ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "max-aged=3488923; " + backup_pin + ";" + backup_pin,
+      ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "max-aged=3488923; " + good_pin + ";" + good_pin,
+      ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "max-aged=3488923; " + good_pin,
+      ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "max-age==3488923", ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "amax-age=3488923", ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "max-age=-3488923", ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "max-age=3488923;", ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "max-age=3488923     e", ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "max-age=3488923     includesubdomain", ssl_info, &state));
+  EXPECT_FALSE(TransportSecurityState::ParsePinsHeader(
+      "max-age=34889.23", ssl_info, &state));
+
+  EXPECT_EQ(state.max_age, 42);
+}
+
 TEST_F(TransportSecurityStateTest, ValidHeaders) {
   int max_age = 42;
   bool include_subdomains = true;
@@ -138,7 +240,8 @@ TEST_F(TransportSecurityStateTest, ValidHeaders) {
   EXPECT_TRUE(include_subdomains);
 
   EXPECT_TRUE(TransportSecurityState::ParseHeader(
-      "max-age=394082038  ;  incLudesUbdOmains", &max_age, &include_subdomains));
+      "max-age=394082038  ;  incLudesUbdOmains", &max_age,
+      &include_subdomains));
   EXPECT_EQ(max_age,
             std::min(TransportSecurityState::kMaxHSTSAgeSecs, 394082038l));
   EXPECT_TRUE(include_subdomains);
@@ -154,6 +257,98 @@ TEST_F(TransportSecurityStateTest, ValidHeaders) {
       &max_age, &include_subdomains));
   EXPECT_EQ(max_age, TransportSecurityState::kMaxHSTSAgeSecs);
   EXPECT_TRUE(include_subdomains);
+}
+
+TEST_F(TransportSecurityStateTest, ValidPinsHeaders) {
+  TransportSecurityState::DomainState state;
+  state.max_age = 42;
+
+  // Set up a realistic SSLInfo with a realistic cert chain.
+  FilePath certs_dir = GetTestCertsDirectory();
+  scoped_refptr<X509Certificate> ee_cert =
+      ImportCertFromFile(certs_dir, "2048-rsa-ee-by-2048-rsa-intermediate.pem");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), ee_cert);
+  scoped_refptr<X509Certificate> intermediate =
+      ImportCertFromFile(certs_dir, "2048-rsa-intermediate.pem");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), intermediate);
+  X509Certificate::OSCertHandles intermediates;
+  intermediates.push_back(intermediate->os_cert_handle());
+  SSLInfo ssl_info;
+  ssl_info.cert = X509Certificate::CreateFromHandle(ee_cert->os_cert_handle(),
+                                                    intermediates);
+
+  // Add the root that signed the intermediate for this test.
+  scoped_refptr<X509Certificate> root_cert =
+      ImportCertFromFile(certs_dir, "2048-rsa-root.pem");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), root_cert);
+  TestRootCerts::GetInstance()->Add(root_cert.get());
+
+  // Verify has the side-effect of populating public_key_hashes, which
+  // ParsePinsHeader needs. (It wants to check pins against the validated
+  // chain, not just the presented chain.)
+  CertVerifyResult result;
+  int rv = ssl_info.cert->Verify("127.0.0.1", 0, NULL, &result);
+  ASSERT_EQ(0, rv);
+  // Normally, ssl_client_socket_nss would do this, but for a unit test we
+  // fake it.
+  ssl_info.public_key_hashes = result.public_key_hashes;
+  std::string good_pin = GetPinFromCert(ssl_info.cert);
+
+  // The backup pin is fake --- we just need an SPKI hash that does not match
+  // the hash of any SPKI in the certificate chain.
+  std::string backup_pin = "pin-sha1=" +
+      HttpUtil::Quote("6dcfXufJLW3J6S/9rRe4vUlBj5g=");
+
+  EXPECT_TRUE(TransportSecurityState::ParsePinsHeader(
+      "max-age=243; " + good_pin + ";" + backup_pin,
+      ssl_info, &state));
+  EXPECT_EQ(state.max_age, 243);
+
+  EXPECT_TRUE(TransportSecurityState::ParsePinsHeader(
+      "   " + good_pin + "; " + backup_pin + "  ; Max-agE    = 567",
+      ssl_info, &state));
+  EXPECT_EQ(state.max_age, 567);
+
+  EXPECT_TRUE(TransportSecurityState::ParsePinsHeader(
+      good_pin + ";" + backup_pin + "  ; mAx-aGe    = 890      ",
+      ssl_info, &state));
+  EXPECT_EQ(state.max_age, 890);
+
+  EXPECT_TRUE(TransportSecurityState::ParsePinsHeader(
+      good_pin + ";" + backup_pin + "; max-age=123;IGNORED;",
+      ssl_info, &state));
+  EXPECT_EQ(state.max_age, 123);
+
+  EXPECT_TRUE(TransportSecurityState::ParsePinsHeader(
+      "max-age=394082;" + backup_pin + ";" + good_pin + ";  ",
+      ssl_info, &state));
+  EXPECT_EQ(state.max_age, 394082);
+
+  EXPECT_TRUE(TransportSecurityState::ParsePinsHeader(
+      "max-age=39408299  ;" + backup_pin + ";" + good_pin + ";  ",
+      ssl_info, &state));
+  EXPECT_EQ(state.max_age,
+            std::min(TransportSecurityState::kMaxHSTSAgeSecs, 39408299l));
+
+  EXPECT_TRUE(TransportSecurityState::ParsePinsHeader(
+      "max-age=39408038  ;    cybers=39408038  ;  " +
+          good_pin + ";" + backup_pin + ";   ",
+      ssl_info, &state));
+  EXPECT_EQ(state.max_age,
+            std::min(TransportSecurityState::kMaxHSTSAgeSecs, 394082038l));
+
+  EXPECT_TRUE(TransportSecurityState::ParsePinsHeader(
+      "  max-age=0  ;  " + good_pin + ";" + backup_pin,
+      ssl_info, &state));
+  EXPECT_EQ(state.max_age, 0);
+
+  EXPECT_TRUE(TransportSecurityState::ParsePinsHeader(
+      "  max-age=999999999999999999999999999999999999999999999  ;  " +
+          backup_pin + ";" + good_pin + ";   ",
+      ssl_info, &state));
+  EXPECT_EQ(state.max_age, TransportSecurityState::kMaxHSTSAgeSecs);
+
+  TestRootCerts::GetInstance()->Clear();
 }
 
 TEST_F(TransportSecurityStateTest, SimpleMatches) {
@@ -240,17 +435,21 @@ TEST_F(TransportSecurityStateTest, Serialise2) {
   EXPECT_TRUE(state.LoadEntries(output, &dirty));
 
   EXPECT_TRUE(state.GetDomainState(&domain_state, "yahoo.com", true));
-  EXPECT_EQ(domain_state.mode, TransportSecurityState::DomainState::MODE_STRICT);
+  EXPECT_EQ(domain_state.mode,
+            TransportSecurityState::DomainState::MODE_STRICT);
   EXPECT_TRUE(state.GetDomainState(&domain_state, "foo.yahoo.com", true));
-  EXPECT_EQ(domain_state.mode, TransportSecurityState::DomainState::MODE_STRICT);
+  EXPECT_EQ(domain_state.mode,
+            TransportSecurityState::DomainState::MODE_STRICT);
   EXPECT_TRUE(state.GetDomainState(&domain_state,
                                    "foo.bar.yahoo.com",
                                    true));
-  EXPECT_EQ(domain_state.mode, TransportSecurityState::DomainState::MODE_STRICT);
+  EXPECT_EQ(domain_state.mode,
+            TransportSecurityState::DomainState::MODE_STRICT);
   EXPECT_TRUE(state.GetDomainState(&domain_state,
                                    "foo.bar.baz.yahoo.com",
                                    true));
-  EXPECT_EQ(domain_state.mode, TransportSecurityState::DomainState::MODE_STRICT);
+  EXPECT_EQ(domain_state.mode,
+            TransportSecurityState::DomainState::MODE_STRICT);
   EXPECT_FALSE(state.GetDomainState(&domain_state, "com", true));
 }
 
@@ -385,7 +584,7 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
 
   EXPECT_FALSE(HasState("paypal.com"));
   EXPECT_FALSE(HasState("www2.paypal.com"));
-  EXPECT_FALSE(HasState("www2.paypal.com"));;
+  EXPECT_FALSE(HasState("www2.paypal.com"));
 
   // Google hosts:
 
@@ -544,6 +743,22 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(ShouldRedirect("www.dropcam.com"));
   EXPECT_FALSE(HasState("foo.dropcam.com"));
 
+  EXPECT_TRUE(state.GetDomainState(&domain_state,
+                                     "torproject.org",
+                                     false));
+  EXPECT_FALSE(domain_state.preloaded_spki_hashes.empty());
+  EXPECT_TRUE(state.GetDomainState(&domain_state,
+                                     "www.torproject.org",
+                                     false));
+  EXPECT_FALSE(domain_state.preloaded_spki_hashes.empty());
+  EXPECT_TRUE(state.GetDomainState(&domain_state,
+                                     "check.torproject.org",
+                                     false));
+  EXPECT_FALSE(domain_state.preloaded_spki_hashes.empty());
+  EXPECT_TRUE(state.GetDomainState(&domain_state,
+                                     "blog.torproject.org",
+                                     false));
+  EXPECT_FALSE(domain_state.preloaded_spki_hashes.empty());
   EXPECT_TRUE(ShouldRedirect("ebanking.indovinabank.com.vn"));
   EXPECT_TRUE(ShouldRedirect("foo.ebanking.indovinabank.com.vn"));
 
@@ -608,12 +823,12 @@ TEST_F(TransportSecurityStateTest, PublicKeyHashes) {
   TransportSecurityState state("");
   TransportSecurityState::DomainState domain_state;
   EXPECT_FALSE(state.GetDomainState(&domain_state, "example.com", false));
-  std::vector<SHA1Fingerprint> hashes;
+  FingerprintVector hashes;
   EXPECT_TRUE(domain_state.IsChainOfPublicKeysPermitted(hashes));
 
   SHA1Fingerprint hash;
   memset(hash.data, '1', sizeof(hash.data));
-  domain_state.public_key_hashes.push_back(hash);
+  domain_state.preloaded_spki_hashes.push_back(hash);
 
   EXPECT_FALSE(domain_state.IsChainOfPublicKeysPermitted(hashes));
   hashes.push_back(hash);
@@ -630,9 +845,9 @@ TEST_F(TransportSecurityStateTest, PublicKeyHashes) {
   bool dirty;
   EXPECT_TRUE(state.LoadEntries(ser, &dirty));
   EXPECT_TRUE(state.GetDomainState(&domain_state, "example.com", false));
-  EXPECT_EQ(1u, domain_state.public_key_hashes.size());
-  EXPECT_TRUE(0 == memcmp(domain_state.public_key_hashes[0].data, hash.data,
-                          sizeof(hash.data)));
+  EXPECT_EQ(1u, domain_state.preloaded_spki_hashes.size());
+  EXPECT_EQ(0, memcmp(domain_state.preloaded_spki_hashes[0].data, hash.data,
+                      sizeof(hash.data)));
 }
 
 TEST_F(TransportSecurityStateTest, BuiltinCertPins) {
@@ -642,7 +857,7 @@ TEST_F(TransportSecurityStateTest, BuiltinCertPins) {
                                    "chrome.google.com",
                                    true));
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "chrome.google.com", true));
-  std::vector<SHA1Fingerprint> hashes;
+  FingerprintVector hashes;
   // This essential checks that a built-in list does exist.
   EXPECT_FALSE(domain_state.IsChainOfPublicKeysPermitted(hashes));
   EXPECT_FALSE(state.HasPinsForHost(&domain_state, "www.paypal.com", true));
@@ -700,14 +915,17 @@ TEST_F(TransportSecurityStateTest, BuiltinCertPins) {
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "oauth.twitter.com", true));
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "mobile.twitter.com", true));
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "dev.twitter.com", true));
-  EXPECT_TRUE(state.HasPinsForHost(&domain_state, "business.twitter.com", true));
-  EXPECT_TRUE(state.HasPinsForHost(&domain_state, "platform.twitter.com", true));
+  EXPECT_TRUE(state.HasPinsForHost(&domain_state, "business.twitter.com",
+                                   true));
+  EXPECT_TRUE(state.HasPinsForHost(&domain_state, "platform.twitter.com",
+                                   true));
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "si0.twimg.com", true));
-  EXPECT_TRUE(state.HasPinsForHost(&domain_state, "twimg0-a.akamaihd.net", true));
+  EXPECT_TRUE(state.HasPinsForHost(&domain_state, "twimg0-a.akamaihd.net",
+                                   true));
 }
 
 static bool AddHash(const std::string& type_and_base64,
-                    std::vector<SHA1Fingerprint>* out) {
+                    FingerprintVector* out) {
   std::string hash_str;
   if (type_and_base64.find("sha1/") == 0 &&
       base::Base64Decode(type_and_base64.substr(5, type_and_base64.size() - 5),
@@ -903,22 +1121,20 @@ static const uint8 kSidePinExpectedHash[20] = {
 };
 
 TEST_F(TransportSecurityStateTest, ParseSidePins) {
-
   base::StringPiece leaf_spki(reinterpret_cast<const char*>(kSidePinLeafSPKI),
                               sizeof(kSidePinLeafSPKI));
   base::StringPiece side_info(reinterpret_cast<const char*>(kSidePinInfo),
                               sizeof(kSidePinInfo));
 
-  std::vector<SHA1Fingerprint> pub_key_hashes;
+  FingerprintVector pub_key_hashes;
   EXPECT_TRUE(TransportSecurityState::ParseSidePin(
       leaf_spki, side_info, &pub_key_hashes));
   ASSERT_EQ(1u, pub_key_hashes.size());
-  EXPECT_TRUE(0 == memcmp(pub_key_hashes[0].data, kSidePinExpectedHash,
-                          sizeof(kSidePinExpectedHash)));
+  EXPECT_EQ(0, memcmp(pub_key_hashes[0].data, kSidePinExpectedHash,
+                      sizeof(kSidePinExpectedHash)));
 }
 
 TEST_F(TransportSecurityStateTest, ParseSidePinsFailsWithBadData) {
-
   uint8 leaf_spki_copy[sizeof(kSidePinLeafSPKI)];
   memcpy(leaf_spki_copy, kSidePinLeafSPKI, sizeof(leaf_spki_copy));
 
@@ -929,7 +1145,7 @@ TEST_F(TransportSecurityStateTest, ParseSidePinsFailsWithBadData) {
                               sizeof(leaf_spki_copy));
   base::StringPiece side_info(reinterpret_cast<const char*>(side_info_copy),
                               sizeof(side_info_copy));
-  std::vector<SHA1Fingerprint> pub_key_hashes;
+  FingerprintVector pub_key_hashes;
 
   // Tweak |leaf_spki| and expect a failure.
   leaf_spki_copy[10] ^= 1;
@@ -954,7 +1170,7 @@ TEST_F(TransportSecurityStateTest, DISABLED_ParseSidePinsFuzz) {
   uint8 side_info_copy[sizeof(kSidePinInfo)];
   base::StringPiece side_info(reinterpret_cast<const char*>(side_info_copy),
                               sizeof(side_info_copy));
-  std::vector<SHA1Fingerprint> pub_key_hashes;
+  FingerprintVector pub_key_hashes;
   static const size_t bit_length = sizeof(kSidePinInfo) * 8;
 
   for (size_t bit_to_flip = 0; bit_to_flip < bit_length; bit_to_flip++) {
