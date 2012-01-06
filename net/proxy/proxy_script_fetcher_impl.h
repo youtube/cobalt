@@ -14,7 +14,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/string16.h"
-#include "base/task.h"
 #include "base/time.h"
 #include "net/proxy/proxy_script_fetcher.h"
 #include "net/url_request/url_request.h"

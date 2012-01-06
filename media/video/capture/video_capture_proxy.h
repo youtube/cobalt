@@ -7,7 +7,6 @@
 
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/task.h"
 #include "media/video/capture/video_capture.h"
 
 namespace base {

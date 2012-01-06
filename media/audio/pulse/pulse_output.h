@@ -23,7 +23,6 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/task.h"
 #include "media/audio/audio_io.h"
 #include "media/base/channel_layout.h"
 

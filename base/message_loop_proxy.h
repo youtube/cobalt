@@ -11,7 +11,6 @@
 #include "base/callback_forward.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop_helpers.h"
-#include "base/task.h"
 
 namespace tracked_objects {
 class Location;
