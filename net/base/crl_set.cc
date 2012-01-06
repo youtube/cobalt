@@ -311,8 +311,9 @@ bool ReadDeltaCRL(base::StringPiece* data,
   return true;
 }
 
-bool CRLSet::ApplyDelta(base::StringPiece data,
+bool CRLSet::ApplyDelta(const base::StringPiece& in_data,
                         scoped_refptr<CRLSet>* out_crl_set) {
+  base::StringPiece data(in_data);
   scoped_ptr<DictionaryValue> header_dict(ReadHeader(&data));
   if (!header_dict.get())
     return false;
