@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -105,8 +105,6 @@ struct NET_EXPORT SSLConfig {
   std::vector<std::string> next_protos;
 
   scoped_refptr<X509Certificate> client_cert;
-
-  scoped_refptr<CRLSet> crl_set;
 };
 
 // The interface for retrieving the SSL configuration.  This interface
