@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -93,6 +93,10 @@ Histogram* Histogram::FactoryGet(const std::string& name,
     minimum = 1;
   if (maximum > kSampleType_MAX - 1)
     maximum = kSampleType_MAX - 1;
+
+  DCHECK_GT(maximum, minimum);
+  DCHECK_GT((Sample) bucket_count, 2);
+  DCHECK_LE((Sample) bucket_count, maximum - minimum + 2);
 
   if (!StatisticsRecorder::FindHistogram(name, &histogram)) {
     // Extra variable is not needed... but this keeps this section basically
@@ -815,6 +819,10 @@ Histogram* LinearHistogram::FactoryGet(const std::string& name,
     minimum = 1;
   if (maximum > kSampleType_MAX - 1)
     maximum = kSampleType_MAX - 1;
+
+  DCHECK_GT(maximum, minimum);
+  DCHECK_GT((Sample) bucket_count, 2);
+  DCHECK_LE((Sample) bucket_count, maximum - minimum + 2);
 
   if (!StatisticsRecorder::FindHistogram(name, &histogram)) {
     // To avoid racy destruction at shutdown, the following will be leaked.
