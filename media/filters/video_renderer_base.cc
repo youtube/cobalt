@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -375,11 +375,14 @@ void VideoRendererBase::FrameReady(scoped_refptr<VideoFrame> frame) {
   statistics.video_frames_decoded = 1;
   statistics_callback_.Run(statistics);
 
+  int outstanding_frames =
+      (current_frame_ ? 1 : 0) + (last_available_frame_ ? 1 : 0) +
+      (current_frame_ && (current_frame_ == last_available_frame_) ? -1 : 0);
   // Always request more decoded video if we have capacity. This serves two
   // purposes:
   //   1) Prerolling while paused
   //   2) Keeps decoding going if video rendering thread starts falling behind
-  if (ready_frames_.size() < limits::kMaxVideoFrames &&
+  if ((ready_frames_.size() + outstanding_frames) < limits::kMaxVideoFrames &&
       !frame->IsEndOfStream()) {
     AttemptRead_Locked();
     return;
