@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -922,9 +922,7 @@ TEST_F(SpdyFramerTest, DataCompression) {
 }
 
 // Verify we don't leak when we leave streams unclosed
-// http://crbug.com/108596 - Disabled, failed ASAN tests.
-// TODO(rtenneti): investigating why it is failing.
-TEST_F(SpdyFramerTest, DISABLED_UnclosedStreamDataCompressors) {
+TEST_F(SpdyFramerTest, UnclosedStreamDataCompressors) {
   SpdyFramer send_framer;
 
   send_framer.set_enable_compression(true);
