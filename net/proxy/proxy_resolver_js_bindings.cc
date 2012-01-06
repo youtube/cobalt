@@ -19,10 +19,6 @@
 #include "net/proxy/proxy_resolver_request_context.h"
 #include "net/proxy/sync_host_resolver.h"
 
-#if defined(__LB_PS3__)
-#include "net/base/dns_addrinfo_ps3.h"
-#endif
-
 namespace net {
 
 namespace {
