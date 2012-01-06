@@ -212,6 +212,8 @@
         'filters/null_audio_renderer.h',
         'filters/reference_audio_renderer.cc',
         'filters/reference_audio_renderer.h',
+        'filters/video_frame_generator.cc',
+        'filters/video_frame_generator.h',
         'filters/video_renderer_base.cc',
         'filters/video_renderer_base.h',
         'video/capture/fake_video_capture_device.cc',
