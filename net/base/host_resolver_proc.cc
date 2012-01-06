@@ -16,11 +16,6 @@
 #include <resolv.h>
 #endif
 
-#if defined(__LB_PS3__)
-#include "net/base/dns_addrinfo_ps3.h"
-#endif
-
-
 namespace net {
 
 namespace {
