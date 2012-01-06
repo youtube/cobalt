@@ -1,4 +1,4 @@
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -199,6 +199,9 @@
         'base/platform_mime_util_linux.cc',
         'base/platform_mime_util_mac.cc',
         'base/platform_mime_util_win.cc',
+        'base/prioritized_dispatcher.cc',
+        'base/prioritized_dispatcher.h',
+        'base/priority_queue.h',
         'base/rand_callback.h',
         'base/registry_controlled_domain.cc',
         'base/registry_controlled_domain.h',
@@ -1033,6 +1036,8 @@
         'base/network_change_notifier_win_unittest.cc',
         'base/origin_bound_cert_service_unittest.cc',
         'base/pem_tokenizer_unittest.cc',
+        'base/prioritized_dispatcher_unittest.cc',
+        'base/priority_queue_unittest.cc',
         'base/registry_controlled_domain_unittest.cc',
         'base/run_all_unittests.cc',
         'base/sdch_filter_unittest.cc',
