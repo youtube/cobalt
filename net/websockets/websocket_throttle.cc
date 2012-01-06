@@ -18,10 +18,6 @@
 #include "net/socket_stream/socket_stream.h"
 #include "net/websockets/websocket_job.h"
 
-#if defined(__LB_PS3__)
-#include "net/base/dns_addrinfo_ps3.h"
-#endif
-
 namespace net {
 
 static std::string AddrinfoToHashkey(const struct addrinfo* addrinfo) {
