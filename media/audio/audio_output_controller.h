@@ -123,8 +123,6 @@ class MEDIA_EXPORT AudioOutputController
     virtual bool DataReady() = 0;
   };
 
-  virtual ~AudioOutputController();
-
   // Factory method for creating an AudioOutputController.
   // If successful, an audio controller thread is created. The audio device
   // will be created on the audio controller thread and when that is done
@@ -197,6 +195,9 @@ class MEDIA_EXPORT AudioOutputController
     kClosed,
     kError,
   };
+
+  friend class base::RefCountedThreadSafe<AudioOutputController>;
+  virtual ~AudioOutputController();
 
  private:
   // We are polling sync reader if data became available.
