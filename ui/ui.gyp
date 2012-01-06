@@ -136,6 +136,9 @@
         'base/ime/composition_text.cc',
         'base/ime/composition_text.h',
         'base/ime/composition_underline.h',
+        'base/ime/ibus_client.h',
+        'base/ime/ibus_client_impl.cc',
+        'base/ime/ibus_client_impl.h',
         'base/ime/input_method.h',
         'base/ime/input_method_base.cc',
         'base/ime/input_method_base.h',
@@ -144,6 +147,8 @@
         'base/ime/input_method_factory.h',
         'base/ime/input_method_ibus.cc',
         'base/ime/input_method_ibus.h',
+        'base/ime/mock_ibus_client.cc',
+        'base/ime/mock_ibus_client.h',
         'base/ime/mock_input_method.cc',
         'base/ime/mock_input_method.h',
         'base/ime/text_input_client.cc',
@@ -375,10 +380,17 @@
            ],
         }, {  # use_aura!=1
           'sources!': [
+            'base/ime/character_composer.cc',
+            'base/ime/character_composer.h',
+            'base/ime/ibus_client.h',
+            'base/ime/ibus_client_impl.cc',
+            'base/ime/ibus_client_impl.h',
             'base/ime/input_method_factory.cc',
             'base/ime/input_method_factory.h',
             'base/ime/input_method_ibus.cc',
             'base/ime/input_method_ibus.h',
+            'base/ime/mock_ibus_client.cc',
+            'base/ime/mock_ibus_client.h',
             'base/ime/mock_input_method.cc',
             'base/ime/mock_input_method.h',
             'gfx/native_theme_aura.cc',
@@ -404,8 +416,8 @@
           ],
         }, { # else: use_ibus != 1
           'sources/': [
-            ['exclude', 'base/ime/input_method_ibus.cc'],
-            ['exclude', 'base/ime/input_method_ibus.h'],
+            ['exclude', 'base/ime/ibus_client_impl.cc'],
+            ['exclude', 'base/ime/ibus_client_impl.h'],
           ],
         }],
 
@@ -485,12 +497,6 @@
             ['include', 'gfx/platform_font_pango.h'],
             ['include', 'gfx/linux_util.cc'],
             ['include', 'gfx/linux_util.h'],
-          ],
-        }],
-        ['use_ibus != 1', {
-          'sources/': [
-            ['exclude', 'base/ime/character_composer.cc'],
-            ['exclude', 'base/ime/character_composer.h'],
           ],
         }],
         ['OS=="win"', {
@@ -592,6 +598,12 @@
             'base/keycodes/keyboard_code_conversion_x.cc',
             'base/keycodes/keyboard_code_conversion_x.h',
             'base/x/',
+            'base/ime/input_method_ibus.cc',
+            'base/ime/input_method_ibus.h',
+            'base/ime/mock_ibus_client.cc',
+            'base/ime/mock_ibus_client.h',
+            'base/ime/character_composer.cc',
+            'base/ime/character_composer.h',
           ],
         }],
         ['chromeos==1', {
