@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -247,12 +247,16 @@ CRLSetResult CheckRevocationWithCRLSet(CERTCertList* cert_list,
                                        CERTCertificate* root,
                                        CRLSet* crl_set) {
   std::vector<CERTCertificate*> certs;
-  for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
-       !CERT_LIST_END(node, cert_list);
-       node = CERT_LIST_NEXT(node)) {
-    certs.push_back(node->cert);
+
+  if (cert_list) {
+    for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
+         !CERT_LIST_END(node, cert_list);
+         node = CERT_LIST_NEXT(node)) {
+      certs.push_back(node->cert);
+    }
   }
-  certs.push_back(root);
+  if (root)
+    certs.push_back(root);
 
   CERTCertificate* prev = NULL;
   for (std::vector<CERTCertificate*>::iterator i = certs.begin();
@@ -875,31 +879,17 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
     flags &= ~VERIFY_EV_CERT;
   }
 
-  if (check_revocation && crl_set) {
-    // We have a CRLSet so we build a chain without revocation checking in
-    // order to try and check it ourselves.
-    status = PKIXVerifyCert(cert_handle_, false /* no revocation checking */,
-                            NULL, 0, cvout);
-    if (status == SECSuccess) {
-      CRLSetResult crl_set_result = CheckRevocationWithCRLSet(
-          cvout[cvout_cert_list_index].value.pointer.chain,
-          cvout[cvout_trust_anchor_index].value.pointer.cert,
-          crl_set);
-      if (crl_set_result == kCRLSetError) {
-        // An error occured during processing so we fall back to standard
-        // revocation checking.
-        status = PKIXVerifyCert(cert_handle_, check_revocation, NULL, 0, cvout);
-      } else {
-        DCHECK(crl_set_result == kCRLSetRevoked || crl_set_result == kCRLSetOk);
-        if (crl_set_result == kCRLSetRevoked) {
-          PORT_SetError(SEC_ERROR_REVOKED_CERTIFICATE);
-          status = SECFailure;
-        }
-      }
+  status = PKIXVerifyCert(cert_handle_, check_revocation, NULL, 0, cvout);
+
+  if (crl_set) {
+    CRLSetResult crl_set_result = CheckRevocationWithCRLSet(
+        cvout[cvout_cert_list_index].value.pointer.chain,
+        cvout[cvout_trust_anchor_index].value.pointer.cert,
+        crl_set);
+    if (crl_set_result == kCRLSetRevoked) {
+      PORT_SetError(SEC_ERROR_REVOKED_CERTIFICATE);
+      status = SECFailure;
     }
-  } else {
-    status = PKIXVerifyCert(cert_handle_, check_revocation,
-                            NULL, 0, cvout);
   }
 
   if (status != SECSuccess) {
