@@ -46,6 +46,8 @@ void InitThreading();
 
 namespace {
 
+const int kMinStackSize = 32 * 1024;
+
 struct ThreadParams {
   PlatformThread::Delegate* delegate;
   bool joinable;
@@ -118,11 +120,13 @@ bool CreateThread(size_t stack_size, bool joinable,
   // default stack size of 16K is _not_ cutting it :)
   // switch to a default stack size of at least 256K
   // useful read: https://ps3.scedev.net/projects/knowledge_base/docs/overflow/1
+  // (ningwang): changed to 32k minimal to save some memory. Threads need to
+  // specify a greater number manually if needed.
 #if defined(_DEBUG)
   attributes.name = name;
 #endif
-  if (stack_size < 256*1024)
-    stack_size = 256*1024;
+  if (stack_size < kMinStackSize)
+    stack_size = kMinStackSize;
 #endif
 
 
