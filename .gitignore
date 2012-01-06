@@ -79,8 +79,6 @@ v8.log
 /net/testserver.log
 /out
 /out_*
-# Profile-guided compiler optimization files from cros.DEPS.
-/profile/
 /remoting/appengine/
 /remoting/tools/internal/
 /rlz
