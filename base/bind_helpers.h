@@ -130,7 +130,6 @@
 #pragma once
 
 #include "base/basictypes.h"
-#include "base/bind.h"
 #include "base/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/template_util.h"
@@ -462,11 +461,6 @@ struct MaybeRefcount<true, const T*> {
   static void Release(const T* o) { o->Release(); }
 };
 
-template <typename R>
-void VoidReturnAdapter(Callback<R(void)> callback) {
-  callback.Run();
-}
-
 // IsWeakMethod is a helper that determine if we are binding a WeakPtr<> to a
 // method.  It is used internally by Bind() to select the correct
 // InvokeHelper that will no-op itself in the event the WeakPtr<> for
@@ -510,12 +504,6 @@ static inline internal::PassedWrapper<T> Passed(T scoper) {
 template <typename T>
 static inline internal::PassedWrapper<T> Passed(T* scoper) {
   return internal::PassedWrapper<T>(scoper->Pass());
-}
-
-// -- DEPRECATED -- Use IgnoreResult instead.
-template <typename R>
-static inline Closure IgnoreReturn(Callback<R(void)> callback) {
-  return Bind(&internal::VoidReturnAdapter<R>, callback);
 }
 
 template <typename T>
