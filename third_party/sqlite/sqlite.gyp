@@ -130,9 +130,6 @@
                 '-Wno-int-to-pointer-cast',
                 '-Wno-pointer-to-int-cast',
               ],
-              'sources': [
-                 'src/src/os_ps3.cc'
-              ]
             }],
           ],
         }],
