@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -1714,7 +1714,7 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
   server_cert_verify_result_ = &local_server_cert_verify_result_;
   return verifier_->Verify(
       server_cert_, host_and_port_.host(), flags,
-      ssl_config_.crl_set,
+      SSLConfigService::GetCRLSet(),
       &local_server_cert_verify_result_,
       base::Bind(&SSLClientSocketNSS::OnHandshakeIOComplete,
                  base::Unretained(this)),
