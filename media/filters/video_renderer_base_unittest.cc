@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -413,7 +413,13 @@ TEST_F(VideoRendererBaseTest, GetCurrentFrame_Flushed) {
   Shutdown();
 }
 
-TEST_F(VideoRendererBaseTest, GetCurrentFrame_EndOfStream) {
+#if defined(OS_MACOSX)
+// http://crbug.com/109405
+#define MAYBE_GetCurrentFrame_EndOfStream FLAKY_GetCurrentFrame_EndOfStream
+#else
+#define MAYBE_GetCurrentFrame_EndOfStream GetCurrentFrame_EndOfStream
+#endif
+TEST_F(VideoRendererBaseTest, MAYBE_GetCurrentFrame_EndOfStream) {
   Initialize();
   Play();
   Pause();
