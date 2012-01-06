@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -133,7 +133,7 @@ fi
 case "${TARGET_PRODUCT}" in
   "full")
     DEFINES+=" target_arch=arm"
-    DEFINES+=" arm_neon=0 armv7=0 arm_thumb=1 arm_fpu=vfp"
+    DEFINES+=" arm_neon=0 armv7=1 arm_thumb=1 arm_fpu=vfpv3-d16"
     ;;
   *x86*)
     DEFINES+=" target_arch=ia32 use_libffmpeg=0"
