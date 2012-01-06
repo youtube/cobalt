@@ -6,7 +6,6 @@
 
 #include "base/logging.h"
 #include "base/message_loop.h"
-#include "base/task.h"
 #include "media/audio/audio_manager.h"
 #include "media/audio/audio_output_dispatcher.h"
 
