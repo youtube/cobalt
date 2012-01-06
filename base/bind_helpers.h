@@ -6,7 +6,13 @@
 // can be used specify the refcounting and reference semantics of arguments
 // that are bound by the Bind() function in base/bind.h.
 //
-// The public functions are base::Unretained(), base::Owned(), bass::Passed(),
+// It also defines a set of simple functions and utilities that people want
+// when using Callback<> and Bind().
+//
+//
+// ARGUMENT BINDING WRAPPERS
+//
+// The wrapper functions are base::Unretained(), base::Owned(), bass::Passed(),
 // base::ConstRef(), and base::IgnoreResult().
 //
 // Unretained() allows Bind() to bind a non-refcounted class, and to disable
@@ -124,6 +130,19 @@
 // ownership of an argument into a task, but don't necessarily know if the
 // task will always be executed. This can happen if the task is cancellable
 // or if it is posted to a MessageLoopProxy.
+//
+//
+// SIMPLE FUNCTIONS AND UTILITIES.
+//
+//   DoNothing() - Useful for creating a Closure that does nothing when called.
+//   DeletePointer<T>() - Useful for creating a Closure that will delete a
+//                        pointer when invoked. Only use this when necessary.
+//                        In most cases MessageLoop::DeleteSoon() is a better
+//                        fit.
+//   ScopedClosureRunner - Scoper object that runs the wrapped closure when it
+//                         goes out of scope. It's conceptually similar to
+//                         scoped_ptr<> but calls Run() instead of deleting
+//                         the pointer.
 
 #ifndef BASE_BIND_HELPERS_H_
 #define BASE_BIND_HELPERS_H_
@@ -516,6 +535,28 @@ static inline internal::IgnoreResultHelper<Callback<T> >
 IgnoreResult(const Callback<T>& data) {
   return internal::IgnoreResultHelper<Callback<T> >(data);
 }
+
+BASE_EXPORT void DoNothing();
+
+template<typename T>
+void DeletePointer(T* obj) {
+  delete obj;
+}
+
+// ScopedClosureRunner is akin to scoped_ptr for Closures. It ensures that the
+// Closure is executed and deleted no matter how the current scope exits.
+class BASE_EXPORT ScopedClosureRunner {
+ public:
+  explicit ScopedClosureRunner(const Closure& closure);
+  ~ScopedClosureRunner();
+
+  Closure Release();
+
+ private:
+  Closure closure_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ScopedClosureRunner);
+};
 
 }  // namespace base
 

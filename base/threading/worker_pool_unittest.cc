@@ -8,7 +8,6 @@
 #include "base/bind_helpers.h"
 #include "base/location.h"
 #include "base/message_loop.h"
-#include "base/task.h"
 #include "base/test/test_timeouts.h"
 #include "base/time.h"
 #include "base/threading/thread_checker_impl.h"

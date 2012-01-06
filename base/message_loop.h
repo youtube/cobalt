@@ -20,7 +20,6 @@
 #include "base/observer_list.h"
 #include "base/pending_task.h"
 #include "base/synchronization/lock.h"
-#include "base/task.h"
 #include "base/tracking_info.h"
 #include "base/time.h"
 
