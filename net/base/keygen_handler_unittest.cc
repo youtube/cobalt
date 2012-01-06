@@ -10,7 +10,6 @@
 #include "base/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/task.h"
 #include "base/threading/worker_pool.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/synchronization/waitable_event.h"

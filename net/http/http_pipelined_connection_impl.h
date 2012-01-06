@@ -14,7 +14,6 @@
 #include "base/location.h"
 #include "base/memory/linked_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/task.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
 #include "net/base/net_log.h"

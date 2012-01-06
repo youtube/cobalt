@@ -141,10 +141,6 @@ GSourceFuncs EventInjector::SourceFuncs = {
   NULL
 };
 
-// Does nothing. This function can be called from a task.
-void DoNothing() {
-}
-
 void IncrementInt(int *value) {
   ++*value;
 }
@@ -211,24 +207,24 @@ TEST_F(MessagePumpGLibTest, TestEventTaskInterleave) {
   // If changes cause this test to fail, it is reasonable to change it, but
   // TestWorkWhileWaitingForEvents and TestEventsWhileWaitingForWork have to be
   // changed accordingly, otherwise they can become flaky.
-  injector()->AddEventAsTask(0, base::Bind(&DoNothing));
+  injector()->AddEventAsTask(0, base::Bind(&base::DoNothing));
   base::Closure check_task =
       base::Bind(&ExpectProcessedEvents, base::Unretained(injector()), 2);
   base::Closure posted_task =
       base::Bind(&PostMessageLoopTask, FROM_HERE, check_task);
   injector()->AddEventAsTask(0, posted_task);
-  injector()->AddEventAsTask(0, base::Bind(&DoNothing));
+  injector()->AddEventAsTask(0, base::Bind(&base::DoNothing));
   injector()->AddEvent(0, MessageLoop::QuitClosure());
   loop()->Run();
   EXPECT_EQ(4, injector()->processed_events());
 
   injector()->Reset();
-  injector()->AddEventAsTask(0, base::Bind(&DoNothing));
+  injector()->AddEventAsTask(0, base::Bind(&base::DoNothing));
   check_task =
       base::Bind(&ExpectProcessedEvents, base::Unretained(injector()), 2);
   posted_task = base::Bind(&PostMessageLoopTask, FROM_HERE, check_task);
   injector()->AddEventAsTask(0, posted_task);
-  injector()->AddEventAsTask(10, base::Bind(&DoNothing));
+  injector()->AddEventAsTask(10, base::Bind(&base::DoNothing));
   injector()->AddEvent(0, MessageLoop::QuitClosure());
   loop()->Run();
   EXPECT_EQ(4, injector()->processed_events());
@@ -384,8 +380,8 @@ void AddEventsAndDrainGLib(EventInjector* injector) {
   injector->AddEvent(0, MessageLoop::QuitClosure());
 
   // Post a couple of dummy tasks
-  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(&DoNothing));
-  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(&DoNothing));
+  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(&base::DoNothing));
+  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(&base::DoNothing));
 
   // Drain the events
   while (g_main_context_pending(NULL)) {
@@ -417,8 +413,8 @@ void AddEventsAndDrainGtk(EventInjector* injector) {
   injector->AddEvent(0, MessageLoop::QuitClosure());
 
   // Post a couple of dummy tasks
-  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(&DoNothing));
-  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(&DoNothing));
+  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(&base::DoNothing));
+  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(&base::DoNothing));
 
   // Drain the events
   while (gtk_events_pending()) {
