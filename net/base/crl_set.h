@@ -48,7 +48,7 @@ class NET_EXPORT CRLSet : public base::RefCountedThreadSafe<CRLSet> {
 
   // ApplyDelta returns a new CRLSet in |out_crl_set| that is the result of
   // updating the current CRL set with the delta information in |delta_bytes|.
-  bool ApplyDelta(base::StringPiece delta_bytes,
+  bool ApplyDelta(const base::StringPiece& delta_bytes,
                   scoped_refptr<CRLSet>* out_crl_set);
 
   // GetIsDeltaUpdate extracts the header from |bytes|, sets *is_delta to
