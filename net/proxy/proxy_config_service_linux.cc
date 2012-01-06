@@ -34,7 +34,6 @@
 #include "base/string_number_conversions.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
-#include "base/task.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/timer.h"
 #include "googleurl/src/url_canon.h"

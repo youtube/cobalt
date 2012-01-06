@@ -8,7 +8,7 @@
 
 #include <string>
 
-#include "base/task.h"
+#include "base/memory/weak_ptr.h"
 #include "net/base/auth.h"
 #include "net/base/completion_callback.h"
 #include "net/ftp/ftp_request_info.h"
