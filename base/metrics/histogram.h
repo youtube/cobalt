@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -430,8 +430,15 @@ class BASE_EXPORT Histogram {
   };
 
   //----------------------------------------------------------------------------
-  // minimum should start from 1. 0 is invalid as a minimum. 0 is an implicit
-  // default underflow bucket.
+  // For a valid histogram, input should follow these restrictions:
+  // minimum > 0 (if a minimum below 1 is specified, it will implicitly be
+  //              normalized up to 1)
+  // maximum > minimum
+  // buckets > 2 [minimum buckets needed: underflow, overflow and the range]
+  // Additionally,
+  // buckets <= (maximum - minimum + 2) - this is to ensure that we don't have
+  // more buckets than the range of numbers; having more buckets than 1 per
+  // value in the range would be nonsensical.
   static Histogram* FactoryGet(const std::string& name,
                                Sample minimum,
                                Sample maximum,
