@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -699,6 +699,14 @@ size_t SpdyFramer::ProcessControlFramePayload(const char* data, size_t len) {
       DCHECK(!control_frame.has_header_block());
       visitor_->OnControl(&control_frame);
 
+      // If this is a FIN, tell the caller.
+      if (control_frame.type() == SYN_REPLY &&
+          control_frame.flags() & CONTROL_FLAG_FIN) {
+        visitor_->OnStreamFrameData(reinterpret_cast<SpdySynReplyControlFrame*>(
+                                        &control_frame)->stream_id(),
+                                    NULL, 0);
+      }
+
       CHANGE_STATE(SPDY_IGNORE_REMAINING_PAYLOAD);
     }
   }
@@ -741,7 +749,7 @@ size_t SpdyFramer::ProcessDataFramePayload(const char* data, size_t len) {
 
         int rv = inflate(decompressor, Z_SYNC_FLUSH);
         if (rv != Z_OK) {
-          LOG(WARNING) << "ProcessDataFramePayload inflate failure: " << rv;
+          LOG(WARNING) << "inflate failure: " << rv;
           set_error(SPDY_DECOMPRESS_FAILURE);
           return 0;
         }
@@ -1534,7 +1542,7 @@ SpdyFrame* SpdyFramer::DecompressFrameWithZStream(const SpdyFrame& frame,
     }
   }
   if (rv != Z_OK) {  // How can we know that it decompressed everything?
-    LOG(WARNING) << "DecompressFrameWithZStream inflate failure: " << rv;
+    LOG(WARNING) << "inflate failure: " << rv;
     return NULL;
   }
 
@@ -1640,8 +1648,7 @@ bool SpdyFramer::IncrementallyDecompressControlFrameHeaderData(
     int rv = DecompressHeaderBlockInZStream(decomp);
     if (rv != Z_OK) {
       set_error(SPDY_DECOMPRESS_FAILURE);
-      LOG(WARNING) << "IncrementallyDecompressControlFrameHeaderData "
-                      "inflate failure: " << rv;
+      DLOG(WARNING) << "inflate failure: " << rv;
       processed_successfully = false;
     } else {
       size_t decompressed_len = arraysize(buffer) - decomp->avail_out;
