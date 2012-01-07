@@ -71,15 +71,7 @@ bool Thread::StartWithOptions(const Options& options) {
   StartupData startup_data(options);
   startup_data_ = &startup_data;
 
-#if defined(__LB_PS3__)
-  const int kMaxNameLength = 32;
-  char name[kMaxNameLength];
-  strncpy(name, name_.c_str(), kMaxNameLength - 1);
-  name[kMaxNameLength-1] = '\0';
-  if (!PlatformThread::Create(options.stack_size, this, &thread_, name)) {
-#else
-  if (!PlatformThread::Create(options.stack_size, this, &thread_))) {
-#endif
+  if (!PlatformThread::Create(options.stack_size, this, &thread_)) {
     DLOG(ERROR) << "failed to create thread";
     startup_data_ = NULL;
     return false;

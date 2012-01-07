@@ -848,9 +848,6 @@ bool MessageLoopForIO::WatchSocket(int s,
   return pump_io()->WatchSocket(
     s,
     persistent,
-    // __LB_PS3__FIX_ME__
-    // these are the same type, see the typedefs in message_loop.h
-    // this old-school cast is the only way I can get this to compile
     (base::MessagePumpForIO::Mode)mode,
     (base::MessagePumpForIO::FileDescriptorWatcher*)controller,
     (base::MessagePumpForIO::Watcher*)del);
