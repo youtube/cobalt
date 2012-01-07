@@ -26,18 +26,15 @@ typedef DWORD ProcessId;
 typedef HANDLE UserTokenHandle;
 const ProcessHandle kNullProcessHandle = NULL;
 const ProcessId kNullProcessId = 0;
-#elif defined(OS_POSIX) && !defined(__LB_PS3__)
+#elif defined(OS_POSIX)
 // On POSIX, our ProcessHandle will just be the PID.
+#if defined(__LB_SHELL__)
+typedef int pid_t; // the shell doesn't really live in a multi-process world.
+#endif
 typedef pid_t ProcessHandle;
 typedef pid_t ProcessId;
 const ProcessHandle kNullProcessHandle = 0;
 const ProcessId kNullProcessId = 0;
-#elif defined(__LB_PS3__)
-#include <sys/process.h>
-typedef sys_pid_t ProcessHandle;
-typedef sys_pid_t ProcessId;
-const ProcessHandle kNullProcessHandle = NULL;
-const ProcessId kNullProcessId = NULL;
 #endif  // defined(OS_WIN)
 
 #if defined(OS_POSIX) && !defined(OS_MACOSX)

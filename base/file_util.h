@@ -392,7 +392,7 @@ class ScopedFILEClose {
 
 typedef scoped_ptr_malloc<FILE, ScopedFILEClose> ScopedFILE;
 
-#if defined(OS_POSIX) && !defined(__LB_PS3__)
+#if defined(OS_POSIX)
 // A class to handle auto-closing of FDs.
 class ScopedFDClose {
  public:

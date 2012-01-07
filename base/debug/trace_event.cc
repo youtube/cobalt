@@ -380,8 +380,7 @@ int TraceLog::AddTraceEvent(TraceEventPhase phase,
     ret_begin_id = static_cast<int>(logged_events_.size());
     logged_events_.push_back(
         TraceEvent(static_cast<unsigned long>(base::GetCurrentProcId()),
-      // __LB_PS3__FIX_ME__
-        reinterpret_cast<int>(PlatformThread::CurrentId()),
+                   PlatformThread::CurrentId(),
                    now, phase, category, name,
                    arg1_name, arg1_val,
                    arg2_name, arg2_val,
@@ -395,7 +394,7 @@ int TraceLog::AddTraceEvent(TraceEventPhase phase,
   if (!buffer_full_callback_copy.is_null())
     buffer_full_callback_copy.Run();
 
-#if defined(__LB_PS3__)
+#if defined(__LB_SHELL__)
   Flush();
 #endif
 

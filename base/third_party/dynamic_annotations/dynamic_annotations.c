@@ -221,16 +221,15 @@ static int GetRunningOnValgrind(void) {
 #ifdef RUNNING_ON_VALGRIND
   if (RUNNING_ON_VALGRIND) return 1;
 #endif
+#if defined(__LB_SHELL__)
+  return 0;
+#endif
 
 #ifndef _MSC_VER
-#if defined(__LB_PS3__)
-  return 0;
-#else
   char *running_on_valgrind_str = getenv("RUNNING_ON_VALGRIND");
   if (running_on_valgrind_str) {
     return strcmp(running_on_valgrind_str, "0") != 0;
   }
-#endif
 #else
   /* Visual Studio issues warnings if we use getenv,
    * so we use GetEnvironmentVariableA instead.
