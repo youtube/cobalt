@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -150,7 +150,6 @@ class NET_EXPORT_PRIVATE SpdyFramer {
     SPDY_RESET,
     SPDY_AUTO_RESET,
     SPDY_READING_COMMON_HEADER,
-    SPDY_INTERPRET_CONTROL_FRAME_COMMON_HEADER,
     SPDY_CONTROL_FRAME_PAYLOAD,
     SPDY_IGNORE_REMAINING_PAYLOAD,
     SPDY_FORWARD_STREAM_FRAME,
@@ -383,7 +382,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   static const int kDictionarySize;
 
  protected:
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest, DataCompression);
+  FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest, HeaderCompression);
   FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest, ExpandBuffer_HeapSmash);
   FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest, HugeHeaderBlock);
   FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest, UnclosedStreamDataCompressors);
@@ -412,7 +411,6 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   size_t ProcessCredentialFramePayload(const char* data, size_t len);
   size_t ProcessControlFrameBeforeHeaderBlock(const char* data, size_t len);
   size_t ProcessControlFrameHeaderBlock(const char* data, size_t len);
-  size_t OldProcessControlFrameHeaderBlock(const char* data, size_t len);
   size_t ProcessDataFramePayload(const char* data, size_t len);
 
   // Get (and lazily initialize) the ZLib state.
@@ -436,12 +434,6 @@ class NET_EXPORT_PRIVATE SpdyFramer {
 
   // Not used (yet)
   size_t BytesSafeToRead() const;
-
-  // Deliver the given control frame's compressed headers block to the visitor
-  // in decompressed form, in chunks. Returns true if the visitor has
-  // accepted all of the chunks.
-  bool OldIncrementallyDecompressControlFrameHeaderData(
-      const SpdyControlFrame* frame);
 
   // Deliver the given control frame's compressed headers block to the visitor
   // in decompressed form, in chunks. Returns true if the visitor has

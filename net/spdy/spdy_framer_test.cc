@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -382,26 +382,6 @@ class SpdyFramerTest : public PlatformTest {
 };
 
 
-// Test that we can encode and decode a SpdyHeaderBlock.
-TEST_F(SpdyFramerTest, HeaderBlock) {
-  SpdyHeaderBlock headers;
-  headers["alpha"] = "beta";
-  headers["gamma"] = "charlie";
-  SpdyFramer framer;
-
-  // Encode the header block into a SynStream frame.
-  scoped_ptr<SpdySynStreamControlFrame> frame(
-      framer.CreateSynStream(1, 0, 1, CONTROL_FLAG_NONE, true, &headers));
-  EXPECT_TRUE(frame.get() != NULL);
-
-  SpdyHeaderBlock new_headers;
-  EXPECT_TRUE(framer.ParseHeaderBlock(frame.get(), &new_headers));
-
-  EXPECT_EQ(headers.size(), new_headers.size());
-  EXPECT_EQ(headers["alpha"], new_headers["alpha"]);
-  EXPECT_EQ(headers["gamma"], new_headers["gamma"]);
-}
-
 // Test that we can encode and decode a SpdyHeaderBlock in serialized form.
 TEST_F(SpdyFramerTest, HeaderBlockInBuffer) {
   SpdyHeaderBlock headers;
@@ -477,49 +457,6 @@ TEST_F(SpdyFramerTest, OutOfOrderHeaders) {
                                               &new_headers));
 }
 
-TEST_F(SpdyFramerTest, WrongNumberOfHeaders) {
-  SpdyFrameBuilder frame1;
-  SpdyFrameBuilder frame2;
-
-  // a frame with smaller number of actual headers
-  frame1.WriteUInt16(kControlFlagMask | 1);
-  frame1.WriteUInt16(SYN_STREAM);
-  frame1.WriteUInt32(0);  // Placeholder for the length.
-  frame1.WriteUInt32(3);  // stream_id
-  frame1.WriteUInt16(0);  // Priority.
-
-  frame1.WriteUInt16(1);  // Wrong number of headers (underflow)
-  frame1.WriteString("gamma");
-  frame1.WriteString("gamma");
-  frame1.WriteString("alpha");
-  frame1.WriteString("alpha");
-  // write the length
-  frame1.WriteUInt32ToOffset(4, frame1.length() - SpdyFrame::kHeaderSize);
-
-  // a frame with larger number of actual headers
-  frame2.WriteUInt16(kControlFlagMask | 1);
-  frame2.WriteUInt16(SYN_STREAM);
-  frame2.WriteUInt32(0);  // Placeholder for the length.
-  frame2.WriteUInt32(3);  // stream_id
-  frame2.WriteUInt16(0);  // Priority.
-
-  frame2.WriteUInt16(100);  // Wrong number of headers (overflow)
-  frame2.WriteString("gamma");
-  frame2.WriteString("gamma");
-  frame2.WriteString("alpha");
-  frame2.WriteString("alpha");
-  // write the length
-  frame2.WriteUInt32ToOffset(4, frame2.length() - SpdyFrame::kHeaderSize);
-
-  SpdyHeaderBlock new_headers;
-  scoped_ptr<SpdyFrame> syn_frame1(frame1.take());
-  scoped_ptr<SpdyFrame> syn_frame2(frame2.take());
-  SpdyFramer framer;
-  framer.set_enable_compression(false);
-  EXPECT_FALSE(framer.ParseHeaderBlock(syn_frame1.get(), &new_headers));
-  EXPECT_FALSE(framer.ParseHeaderBlock(syn_frame2.get(), &new_headers));
-}
-
 TEST_F(SpdyFramerTest, DuplicateHeader) {
   // Frame builder with plentiful buffer size.
   SpdyFrameBuilder frame(1024);
@@ -584,34 +521,6 @@ TEST_F(SpdyFramerTest, MultiValueHeader) {
                                               &new_headers));
   EXPECT_TRUE(new_headers.find("name") != new_headers.end());
   EXPECT_EQ(value, new_headers.find("name")->second);
-}
-
-TEST_F(SpdyFramerTest, ZeroLengthHeader) {
-  SpdyHeaderBlock header1;
-  SpdyHeaderBlock header2;
-  SpdyHeaderBlock header3;
-
-  header1[""] = "value2";
-  header2["name3"] = "";
-  header3[""] = "";
-
-  SpdyFramer framer;
-  SpdyHeaderBlock parsed_headers;
-
-  scoped_ptr<SpdySynStreamControlFrame> frame1(
-      framer.CreateSynStream(1, 0, 1, CONTROL_FLAG_NONE, true, &header1));
-  EXPECT_TRUE(frame1.get() != NULL);
-  EXPECT_FALSE(framer.ParseHeaderBlock(frame1.get(), &parsed_headers));
-
-  scoped_ptr<SpdySynStreamControlFrame> frame2(
-      framer.CreateSynStream(1, 0, 1, CONTROL_FLAG_NONE, true, &header2));
-  EXPECT_TRUE(frame2.get() != NULL);
-  EXPECT_FALSE(framer.ParseHeaderBlock(frame2.get(), &parsed_headers));
-
-  scoped_ptr<SpdySynStreamControlFrame> frame3(
-      framer.CreateSynStream(1, 0, 1, CONTROL_FLAG_NONE, true, &header3));
-  EXPECT_TRUE(frame3.get() != NULL);
-  EXPECT_FALSE(framer.ParseHeaderBlock(frame3.get(), &parsed_headers));
 }
 
 TEST_F(SpdyFramerTest, BasicCompression) {
@@ -824,15 +733,13 @@ TEST_F(SpdyFramerTest, FinOnSynReplyFrame) {
   EXPECT_EQ(0, visitor.data_frame_count_);
 }
 
-// Basic compression & decompression
-TEST_F(SpdyFramerTest, DataCompression) {
+TEST_F(SpdyFramerTest, HeaderCompression) {
   SpdyFramer send_framer;
   SpdyFramer recv_framer;
 
   send_framer.set_enable_compression(true);
   recv_framer.set_enable_compression(true);
 
-  // Mix up some SYNs and DATA frames since they use different compressors.
   const char kHeader1[] = "header1";
   const char kHeader2[] = "header2";
   const char kHeader3[] = "header3";
@@ -849,76 +756,64 @@ TEST_F(SpdyFramerTest, DataCompression) {
       send_framer.CreateSynStream(1, 0, 0, flags, true, &block));
   EXPECT_TRUE(syn_frame_1.get() != NULL);
 
-  // DATA #1
-  const char bytes[] = "this is a test test test test test!";
-  scoped_ptr<SpdyFrame> data_frame_1(
-      send_framer.CreateDataFrame(1, bytes, arraysize(bytes),
-                                  DATA_FLAG_COMPRESSED));
-  EXPECT_TRUE(data_frame_1.get() != NULL);
-
   // SYN_STREAM #2
   block[kHeader3] = kValue3;
-  scoped_ptr<SpdyFrame> syn_frame_2(
+  scoped_ptr<spdy::SpdyFrame> syn_frame_2(
       send_framer.CreateSynStream(3, 0, 0, flags, true, &block));
   EXPECT_TRUE(syn_frame_2.get() != NULL);
 
-  // DATA #2
-  scoped_ptr<SpdyFrame> data_frame_2(
-      send_framer.CreateDataFrame(3, bytes, arraysize(bytes),
-                                  DATA_FLAG_COMPRESSED));
-  EXPECT_TRUE(data_frame_2.get() != NULL);
-
   // Now start decompressing
   scoped_ptr<SpdyFrame> decompressed;
-  SpdyControlFrame* control_frame;
-  SpdyDataFrame* data_frame;
+  scoped_ptr<SpdyFrame> decompressed_syn_frame;
+  SpdySynStreamControlFrame* syn_frame;
+  scoped_ptr<std::string> serialized_headers;
   SpdyHeaderBlock decompressed_headers;
 
-  decompressed.reset(recv_framer.DuplicateFrame(*syn_frame_1.get()));
+  // Decompress SYN_STREAM #1
+  decompressed.reset(recv_framer.DecompressFrame(*syn_frame_1.get()));
   EXPECT_TRUE(decompressed.get() != NULL);
   EXPECT_TRUE(decompressed->is_control_frame());
-  control_frame = reinterpret_cast<SpdyControlFrame*>(decompressed.get());
-  EXPECT_EQ(SYN_STREAM, control_frame->type());
-  EXPECT_TRUE(recv_framer.ParseHeaderBlock(
-      control_frame, &decompressed_headers));
+  EXPECT_EQ(SYN_STREAM,
+            reinterpret_cast<SpdyControlFrame*>(decompressed.get())->type());
+  decompressed_syn_frame.reset(
+      new SpdySynStreamControlFrame(decompressed->data(), false));
+  syn_frame = reinterpret_cast<SpdySynStreamControlFrame*>(
+      decompressed_syn_frame.get());
+  serialized_headers.reset(new std::string(syn_frame->header_block(),
+                                           syn_frame->header_block_len()));
+  EXPECT_TRUE(recv_framer.ParseHeaderBlockInBuffer(serialized_headers->c_str(),
+                                                   serialized_headers->size(),
+                                                   &decompressed_headers));
   EXPECT_EQ(2u, decompressed_headers.size());
-  EXPECT_EQ(SYN_STREAM, control_frame->type());
   EXPECT_EQ(kValue1, decompressed_headers[kHeader1]);
   EXPECT_EQ(kValue2, decompressed_headers[kHeader2]);
 
-  decompressed.reset(recv_framer.DecompressFrame(*data_frame_1.get()));
-  EXPECT_TRUE(decompressed.get() != NULL);
-  EXPECT_FALSE(decompressed->is_control_frame());
-  data_frame = reinterpret_cast<SpdyDataFrame*>(decompressed.get());
-  EXPECT_EQ(arraysize(bytes), data_frame->length());
-  EXPECT_EQ(0, memcmp(data_frame->payload(), bytes, data_frame->length()));
-
-  decompressed.reset(recv_framer.DuplicateFrame(*syn_frame_2.get()));
+  // Decompress SYN_STREAM #2
+  decompressed.reset(recv_framer.DecompressFrame(*syn_frame_2.get()));
   EXPECT_TRUE(decompressed.get() != NULL);
   EXPECT_TRUE(decompressed->is_control_frame());
-  control_frame = reinterpret_cast<SpdyControlFrame*>(decompressed.get());
-  EXPECT_EQ(control_frame->type(), SYN_STREAM);
+  EXPECT_EQ(SYN_STREAM,
+            reinterpret_cast<SpdyControlFrame*>(decompressed.get())->type());
+  decompressed_syn_frame.reset(
+      new SpdySynStreamControlFrame(decompressed->data(), false));
+  syn_frame = reinterpret_cast<SpdySynStreamControlFrame*>(
+      decompressed_syn_frame.get());
+  serialized_headers.reset(new std::string(syn_frame->header_block(),
+                                           syn_frame->header_block_len()));
   decompressed_headers.clear();
-  EXPECT_TRUE(recv_framer.ParseHeaderBlock(
-      control_frame, &decompressed_headers));
+  EXPECT_TRUE(recv_framer.ParseHeaderBlockInBuffer(serialized_headers->c_str(),
+                                                   serialized_headers->size(),
+                                                   &decompressed_headers));
   EXPECT_EQ(3u, decompressed_headers.size());
-  EXPECT_EQ(SYN_STREAM, control_frame->type());
   EXPECT_EQ(kValue1, decompressed_headers[kHeader1]);
   EXPECT_EQ(kValue2, decompressed_headers[kHeader2]);
   EXPECT_EQ(kValue3, decompressed_headers[kHeader3]);
 
-  decompressed.reset(recv_framer.DecompressFrame(*data_frame_2.get()));
-  EXPECT_TRUE(decompressed.get() != NULL);
-  EXPECT_FALSE(decompressed->is_control_frame());
-  data_frame = reinterpret_cast<SpdyDataFrame*>(decompressed.get());
-  EXPECT_EQ(arraysize(bytes), data_frame->length());
-  EXPECT_EQ(0, memcmp(data_frame->payload(), bytes, data_frame->length()));
-
-  // We didn't close these streams, so the compressors should be active.
-  EXPECT_EQ(2, send_framer.num_stream_compressors());
+  // We didn't have data streams, so we shouldn't have (de)compressors.
+  EXPECT_EQ(0, send_framer.num_stream_compressors());
   EXPECT_EQ(0, send_framer.num_stream_decompressors());
   EXPECT_EQ(0, recv_framer.num_stream_compressors());
-  EXPECT_EQ(2, recv_framer.num_stream_decompressors());
+  EXPECT_EQ(0, recv_framer.num_stream_decompressors());
 }
 
 // Verify we don't leak when we leave streams unclosed
@@ -1887,9 +1782,6 @@ TEST(SpdyFramer, StateToStringTest) {
   EXPECT_STREQ("READING_COMMON_HEADER",
                SpdyFramer::StateToString(
                    SpdyFramer::SPDY_READING_COMMON_HEADER));
-  EXPECT_STREQ("INTERPRET_CONTROL_FRAME_COMMON_HEADER",
-               SpdyFramer::StateToString(
-                   SpdyFramer::SPDY_INTERPRET_CONTROL_FRAME_COMMON_HEADER));
   EXPECT_STREQ("CONTROL_FRAME_PAYLOAD",
                SpdyFramer::StateToString(
                    SpdyFramer::SPDY_CONTROL_FRAME_PAYLOAD));
@@ -2014,42 +1906,6 @@ std::string RandomString(int length) {
   for (int index = 0; index < length; index++)
     rv += static_cast<char>('a' + (rand() % 26));
   return rv;
-}
-
-// Stress that we can handle a really large header block compression and
-// decompression.
-TEST_F(SpdyFramerTest, DISABLED_HugeHeaderBlock) {
-  // Loop targetting various sizes which will potentially jam up the
-  // frame compressor/decompressor.
-  SpdyFramer compress_framer;
-  SpdyFramer decompress_framer;
-  for (size_t target_size = 1024;
-       target_size < SpdyFramer::kControlFrameBufferInitialSize;
-       target_size += 1024) {
-    SpdyHeaderBlock headers;
-    for (size_t index = 0; index < target_size; ++index) {
-      std::string name = RandomString(4);
-      std::string value = RandomString(8);
-      headers[name] = value;
-    }
-
-    // Encode the header block into a SynStream frame.
-    scoped_ptr<SpdySynStreamControlFrame> frame(
-        compress_framer.CreateSynStream(1,
-                                        0,
-                                        1,
-                                        CONTROL_FLAG_NONE,
-                                        true,
-                                        &headers));
-    // The point of this test is to exercise the limits.  So, it is ok if the
-    // frame was too large to encode, or if the decompress fails.  We just want
-    // to make sure we don't crash.
-    if (frame.get() != NULL) {
-      // Now that same header block should decompress just fine.
-      SpdyHeaderBlock new_headers;
-      decompress_framer.ParseHeaderBlock(frame.get(), &new_headers);
-    }
-  }
 }
 
 }  // namespace
