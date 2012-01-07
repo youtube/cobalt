@@ -23,6 +23,6 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #if defined(__LB_PS3__)
-#include "net/base/dns_addrinfo_ps3.h"
+#include "posix_emulation.h"
 #endif
 #endif

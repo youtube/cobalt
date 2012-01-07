@@ -69,8 +69,6 @@
         'base/default_origin_bound_cert_store.h',
         'base/directory_lister.cc',
         'base/directory_lister.h',
-        'base/dns_addrinfo_ps3.cc',
-        'base/dns_addrinfo_ps3.h',
         'base/dns_reload_timer.cc',
         'base/dns_reload_timer.h',
         'base/dnssec_chain_verifier.cc',
