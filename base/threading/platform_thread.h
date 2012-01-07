@@ -40,10 +40,9 @@ typedef pthread_t PlatformThreadHandle;
 const PlatformThreadHandle kNullThreadHandle = 0;
 #if defined(OS_MACOSX)
 typedef mach_port_t PlatformThreadId;
-#elif defined(__LB_PS3__)
-#include <pthread.h>
-typedef pthread_t PlatformThreadId;
-#else  // OS_POSIX && !OS_MACOSX
+#elif defined(__LB_SHELL__)
+typedef int PlatformThreadId;
+#else  // OS_POSIX && !OS_MACOSX &&!__LB_SHELL__
 typedef pid_t PlatformThreadId;
 #endif
 #endif
@@ -90,11 +89,6 @@ class BASE_EXPORT PlatformThread {
   // the Delegate object outlives the thread.
   static bool Create(size_t stack_size, Delegate* delegate,
                      PlatformThreadHandle* thread_handle);
-#if defined(__LB_PS3__)
-  static bool Create(size_t stack_size, Delegate* delegate,
-                     PlatformThreadHandle* thread_handle,
-                     char* name);
-#endif
 
   // CreateNonJoinable() does the same thing as Create() except the thread
   // cannot be Join()'d.  Therefore, it also does not output a

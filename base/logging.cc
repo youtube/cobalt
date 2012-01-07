@@ -24,12 +24,17 @@ typedef HANDLE MutexHandle;
 #else
 #include <sys/syscall.h>
 #endif
-#if defined (__LB_PS3__)
-#define STDERR_FILENO 2
-#include <sys/ppu_thread.h>
-#include <cell/rtc.h>
-#endif
 #include <time.h>
+#endif
+
+#if defined(__LB_PS3__)
+#include "posix_emulation.h"
+#endif
+#if defined(__LB_SHELL__)
+// We will use the platform thread API to abstract this.
+#include "base/threading/platform_thread.h"
+// To implement TickCount.
+#include "lb_platform.h"
 #endif
 
 #if defined(OS_POSIX)
@@ -126,9 +131,9 @@ LogMessageHandlerFunction log_message_handler = NULL;
 int32 CurrentProcessId() {
 #if defined(OS_WIN)
   return GetCurrentProcessId();
-#elif defined(__LB_PS3__)
+#elif defined(__LB_SHELL__)
   // This should never be reached, because logging PIDs should never
-  // be enabled for PS3
+  // be enabled for LB shell.
   return 0;
 #elif defined(OS_POSIX)
   return getpid();
@@ -149,10 +154,8 @@ int32 CurrentThreadId() {
   return reinterpret_cast<int64>(pthread_self());
 #elif defined(OS_NACL)
   return pthread_self();
-#elif defined(__LB_PS3__)
-  sys_ppu_thread_t id;
-  sys_ppu_thread_get_id(&id);
-  return id;
+#elif defined(__LB_SHELL__)
+  return base::PlatformThread::CurrentId();
 #endif
 }
 
@@ -165,10 +168,8 @@ uint64 TickCount() {
   // NaCl sadly does not have _POSIX_TIMERS enabled in sys/features.h
   // So we have to use clock() for now.
   return clock();
-#elif defined (__LB_PS3__)
-  CellRtcTick tick;
-  cellRtcGetCurrentTick(&tick);
-  return tick.tick;
+#elif defined(__LB_SHELL__)
+  return LB::Platform::TickCount();
 #elif defined(OS_POSIX)
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -700,14 +701,6 @@ void LogMessage::Init(const char* file, int line) {
     struct tm local_time = {0};
 #if _MSC_VER >= 1400
     localtime_s(&local_time, &t);
-#elif defined(__LB_PS3__)
-    CellRtcDateTime clock;
-    cellRtcGetCurrentClockLocalTime(&clock);
-    local_time.tm_mon = clock.month - 1;
-    local_time.tm_mday = clock.day;
-    local_time.tm_hour = clock.hour;
-    local_time.tm_min = clock.minute;
-    local_time.tm_sec = clock.second;
 #else
     localtime_r(&t, &local_time);
 #endif
@@ -837,15 +830,9 @@ void RawLog(int level, const char* message) {
     const size_t message_len = strlen(message);
     int rv;
     while (bytes_written < message_len) {
-#if defined(__LB_PS3__)
-    // The PS3 syscalls can't return EINTR
-      rv = write(STDERR_FILENO, message + bytes_written,
-                 message_len - bytes_written);
-#else
       rv = HANDLE_EINTR(
           write(STDERR_FILENO, message + bytes_written,
                 message_len - bytes_written));
-#endif
       if (rv < 0) {
         // Give up, nothing we can do now.
         break;
@@ -856,12 +843,7 @@ void RawLog(int level, const char* message) {
     // Why didn't the author of this just append '\n' to the original string?
     if (message_len > 0 && message[message_len - 1] != '\n') {
       do {
-#if defined(__LB_PS3__)
-    // The PS3 syscalls can't return EINTR
-        rv = write(STDERR_FILENO, "\n", 1);
-#else
         rv = HANDLE_EINTR(write(STDERR_FILENO, "\n", 1));
-#endif
         if (rv < 0) {
           // Give up, nothing we can do now.
           break;

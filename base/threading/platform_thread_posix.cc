@@ -33,11 +33,6 @@
 #include <sys/nacl_syscalls.h>
 #endif
 
-#if defined(__LB_PS3__)
-#include <sys/ppu_thread.h>
-#include <sys/timer.h>
-#endif
-
 namespace base {
 
 #if defined(OS_MACOSX)
@@ -45,8 +40,6 @@ void InitThreading();
 #endif
 
 namespace {
-
-const int kMinStackSize = 32 * 1024;
 
 struct ThreadParams {
   PlatformThread::Delegate* delegate;
@@ -68,9 +61,7 @@ void* ThreadFunc(void* params) {
 
 bool CreateThread(size_t stack_size, bool joinable,
                   PlatformThread::Delegate* delegate,
-                  PlatformThreadHandle* thread_handle,
-                  char * name
-                  ) {
+                  PlatformThreadHandle* thread_handle) {
 #if defined(OS_MACOSX)
   base::InitThreading();
 #endif  // OS_MACOSX
@@ -116,20 +107,6 @@ bool CreateThread(size_t stack_size, bool joinable,
   }
 #endif  // OS_MACOSX
 
-#if defined(__LB_PS3__)
-  // default stack size of 16K is _not_ cutting it :)
-  // switch to a default stack size of at least 256K
-  // useful read: https://ps3.scedev.net/projects/knowledge_base/docs/overflow/1
-  // (ningwang): changed to 32k minimal to save some memory. Threads need to
-  // specify a greater number manually if needed.
-#if defined(_DEBUG)
-  attributes.name = name;
-#endif
-  if (stack_size < kMinStackSize)
-    stack_size = kMinStackSize;
-#endif
-
-
   if (stack_size > 0)
     pthread_attr_setstacksize(&attributes, stack_size);
 
@@ -159,25 +136,18 @@ PlatformThreadId PlatformThread::CurrentId() {
 #elif defined(OS_FREEBSD)
   // TODO(BSD): find a better thread ID
   return reinterpret_cast<int64>(pthread_self());
-#elif defined(OS_NACL) || defined(OS_SOLARIS) || defined(__LB_PS3__)
+#elif defined(OS_NACL) || defined(OS_SOLARIS)
   return pthread_self();
 #endif
 }
 
 // static
 void PlatformThread::YieldCurrentThread() {
-#if defined(__LB_PS3__)
-  sys_ppu_thread_yield();
-#else
   sched_yield();
-#endif
 }
 
 // static
 void PlatformThread::Sleep(int duration_ms) {
-#if defined(__LB_PS3__)
-  sys_timer_usleep(duration_ms * 1000);
-#else
   struct timespec sleep_time, remaining;
 
   // Contains the portion of duration_ms >= 1 sec.
@@ -189,7 +159,6 @@ void PlatformThread::Sleep(int duration_ms) {
 
   while (nanosleep(&sleep_time, &remaining) == -1 && errno == EINTR)
     sleep_time = remaining;
-#endif
 }
 
 // Linux SetName is currently disabled, as we need to distinguish between
@@ -241,14 +210,7 @@ void PlatformThread::SetName(const char* /*name*/) {
 bool PlatformThread::Create(size_t stack_size, Delegate* delegate,
                             PlatformThreadHandle* thread_handle) {
   return CreateThread(stack_size, true /* joinable thread */,
-                      delegate, thread_handle, NULL);
-}
-
-bool PlatformThread::Create(size_t stack_size, Delegate* delegate,
-                            PlatformThreadHandle* thread_handle,
-                            char* name) {
-  return CreateThread(stack_size, true /* joinable thread */,
-                      delegate, thread_handle, name);
+                      delegate, thread_handle);
 }
 
 // static
@@ -256,7 +218,7 @@ bool PlatformThread::CreateNonJoinable(size_t stack_size, Delegate* delegate) {
   PlatformThreadHandle unused;
 
   bool result = CreateThread(stack_size, false /* non-joinable thread */,
-                             delegate, &unused, NULL);
+                             delegate, &unused);
   return result;
 }
 
