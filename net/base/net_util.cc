@@ -29,9 +29,7 @@
 #endif
 #include <netdb.h>
 #if defined(__LB_PS3__)
-#include "net/base/dns_addrinfo_ps3.h"
-#else
-#include <net/if.h>
+#include "posix_emulation.h"
 #endif
 #include <netinet/in.h>
 #endif
