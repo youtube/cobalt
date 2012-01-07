@@ -172,6 +172,12 @@ class BASE_EXPORT SequencedWorkerPool {
                                const tracked_objects::Location& from_here,
                                const base::Closure& task);
 
+  // Like PostSequencedWorkerTask above, but allows you to specify a named
+  // token, which saves an extra call to GetNamedSequenceToken.
+  bool PostNamedSequencedWorkerTask(const std::string& token_name,
+                                    const tracked_objects::Location& from_here,
+                                    const base::Closure& task);
+
   // Same as PostSequencedWorkerTask but allows specification of the shutdown
   // behavior.
   bool PostSequencedWorkerTaskWithShutdownBehavior(
