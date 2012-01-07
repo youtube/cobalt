@@ -8,6 +8,12 @@
 #if !defined(__LB_PS3__)
 #include <sys/param.h>
 #include <execinfo.h>
+#else
+#include "posix_emulation.h"
+#endif
+
+#if defined(__LB_SHELL__)
+#include "lb_platform.h"
 #endif
 
 #include <errno.h>
@@ -145,7 +151,7 @@ bool BeingDebugged() {
   return false;
 }
 
-#elif defined(__LB_PS3__)
+#elif defined(__LB_SHELL__)
 
 bool BeingDebugged() {
 #if defined(NDEBUG)
@@ -186,8 +192,8 @@ bool BeingDebugged() {
 // should ask for advice from some NaCl experts about the optimum thing here.
 // http://code.google.com/p/nativeclient/issues/detail?id=645
 #define DEBUG_BREAK() abort()
-#elif defined(__LB_PS3__)
-#define DEBUG_BREAK() __builtin_snpause()
+#elif defined(__LB_SHELL__)
+#define DEBUG_BREAK() LB::Platform::DEBUG_BREAK()
 #elif defined(ARCH_CPU_ARM_FAMILY)
 #if defined(OS_ANDROID)
 // Though Android has a "helpful" process called debuggerd to catch native
@@ -211,11 +217,7 @@ bool BeingDebugged() {
 void BreakDebugger() {
   DEBUG_BREAK();
 #if defined(NDEBUG)
-#if defined(__LB_PS3__)
-  exit(1);
-#else
   _exit(1);
-#endif
 #endif
 }
 
