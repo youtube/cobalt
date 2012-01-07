@@ -398,6 +398,7 @@
               'third_party/nspr/prtime.cc',
               'metrics/stats_table.cc',
               'rand_util_posix.cc',
+              'threading/platform_thread_posix.cc',
             ],
             'sources': [
               'atomicops_internals_cell_ppu.h',

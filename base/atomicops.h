@@ -138,7 +138,8 @@ Atomic64 Release_Load(volatile const Atomic64* ptr);
 #elif defined(COMPILER_GCC) && defined(ARCH_CPU_ARM_FAMILY)
 #include "base/atomicops_internals_arm_gcc.h"
 #elif defined(__LB_PS3__)
-#include "base/atomicops_internals_cell_ppu.h"
+// from the platform lib:
+#include "chromium/base/atomicops_internals_ps3.h"
 #else
 #error "Atomic operations are not supported on your platform"
 #endif

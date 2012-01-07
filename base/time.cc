@@ -4,7 +4,7 @@
 
 #include "base/time.h"
 #include "base/sys_string_conversions.h"
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
 #include "base/third_party/nspr/prtime.h"
 #endif
 
@@ -100,8 +100,10 @@ Time Time::LocalMidnight() const {
 }
 
 // static
-#if !defined(__LB_PS3__)
 bool Time::FromString(const char* time_string, Time* parsed_time) {
+#if defined(__LB_SHELL__)
+  return false;
+#else
   DCHECK((time_string != NULL) && (parsed_time != NULL));
 
   if (time_string[0] == '\0')
@@ -116,13 +118,8 @@ bool Time::FromString(const char* time_string, Time* parsed_time) {
   result_time += kTimeTToMicrosecondsOffset;
   *parsed_time = Time(result_time);
   return true;
-}
-#else
-bool Time::FromString(const char* time_string, Time* parsed_time) {
-  // __LB_PS3__WRITE_ME__
-  return false;
-}
 #endif
+}
 
 // Time::Exploded -------------------------------------------------------------
 
