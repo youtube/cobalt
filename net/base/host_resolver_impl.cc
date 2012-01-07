@@ -8,6 +8,9 @@
 #include <Winsock2.h>
 #elif defined(OS_POSIX)
 #include <netdb.h>
+#if defined(__LB_PS3__)
+#include "posix_emulation.h"
+#endif
 #endif
 
 #include <cmath>
@@ -38,10 +41,6 @@
 
 #if defined(OS_WIN)
 #include "net/base/winsock_init.h"
-#endif
-
-#if defined(__LB_PS3__)
-#include "net/base/dns_addrinfo_ps3.h"
 #endif
 
 namespace net {
