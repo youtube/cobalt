@@ -1595,7 +1595,8 @@
     ['target_arch=="ps3"', {
       'target_defaults': {
         'cflags!': ['-pthread'],
-        'ldflags!': ['-pthread'],
+        'ldflags!': ['-pthread', '-Wl,-z,noexecstack'],
+        'ldflags': ['-fno-exceptions', '-fno-rtti'],
       },
     }],
     ['OS=="mac"', {
