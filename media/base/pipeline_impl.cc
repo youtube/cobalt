@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -232,9 +232,6 @@ void PipelineImpl::SetPreload(Preload preload) {
 }
 
 base::TimeDelta PipelineImpl::GetCurrentTime() const {
-  // TODO(scherkus): perhaps replace checking state_ == kEnded with a bool that
-  // is set/get under the lock, because this is breaching the contract that
-  // |state_| is only accessed on |message_loop_|.
   base::AutoLock auto_lock(lock_);
   return GetCurrentTime_Locked();
 }
@@ -242,9 +239,9 @@ base::TimeDelta PipelineImpl::GetCurrentTime() const {
 base::TimeDelta PipelineImpl::GetCurrentTime_Locked() const {
   lock_.AssertAcquired();
   base::TimeDelta elapsed = clock_->Elapsed();
-  if (state_ == kEnded || elapsed > duration_) {
+  if (elapsed > duration_)
     return duration_;
-  }
+
   return elapsed;
 }
 
@@ -487,9 +484,8 @@ void PipelineImpl::SetTime(base::TimeDelta time) {
   if (waiting_for_clock_update_) {
     if (time < clock_->Elapsed())
       return;
-    waiting_for_clock_update_ = false;
     clock_->SetTime(time);
-    clock_->Play();
+    StartClockIfWaitingForTimeUpdate_Locked();
     return;
   }
   clock_->SetTime(time);
@@ -900,8 +896,7 @@ void PipelineImpl::SeekTask(base::TimeDelta time,
   // Kick off seeking!
   {
     base::AutoLock auto_lock(lock_);
-    // If we are waiting for a clock update, the clock hasn't been played yet.
-    if (!waiting_for_clock_update_)
+    if (clock_->IsPlaying())
       clock_->Pause();
   }
   pipeline_filter_->Pause(
@@ -924,12 +919,10 @@ void PipelineImpl::NotifyEndedTask() {
       return;
     }
 
-    if (waiting_for_clock_update_) {
-      // Start clock since there is no more audio to
-      // trigger clock updates.
-      waiting_for_clock_update_ = false;
-      clock_->Play();
-    }
+    // Start clock since there is no more audio to
+    // trigger clock updates.
+    base::AutoLock auto_lock(lock_);
+    StartClockIfWaitingForTimeUpdate_Locked();
   }
 
   if (video_renderer_ && !video_renderer_->HasEnded()) {
@@ -938,6 +931,12 @@ void PipelineImpl::NotifyEndedTask() {
 
   // Transition to ended, executing the callback if present.
   SetState(kEnded);
+  {
+    base::AutoLock auto_lock(lock_);
+    clock_->Pause();
+    clock_->SetTime(duration_);
+  }
+
   if (!ended_callback_.is_null()) {
     ended_callback_.Run(status_);
   }
@@ -964,6 +963,10 @@ void PipelineImpl::DisableAudioRendererTask() {
     demuxer_->OnAudioRendererDisabled();
     pipeline_filter_->OnAudioRendererDisabled();
   }
+
+  // Start clock since there is no more audio to
+  // trigger clock updates.
+  StartClockIfWaitingForTimeUpdate_Locked();
 }
 
 void PipelineImpl::FilterStateTransitionTask() {
@@ -1029,9 +1032,9 @@ void PipelineImpl::FilterStateTransitionTask() {
     base::AutoLock auto_lock(lock_);
     // We use audio stream to update the clock. So if there is such a stream,
     // we pause the clock until we receive a valid timestamp.
-    waiting_for_clock_update_ = has_audio_;
-    if (!waiting_for_clock_update_)
-      clock_->Play();
+    waiting_for_clock_update_ = true;
+    if (!has_audio_)
+      StartClockIfWaitingForTimeUpdate_Locked();
 
     // Start monitoring rate of downloading.
     int bitrate = 0;
@@ -1428,6 +1431,15 @@ void PipelineImpl::OnCanPlayThrough() {
 void PipelineImpl::NotifyCanPlayThrough() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   NotifyNetworkEventTask(CAN_PLAY_THROUGH);
+}
+
+void PipelineImpl::StartClockIfWaitingForTimeUpdate_Locked() {
+  lock_.AssertAcquired();
+  if (!waiting_for_clock_update_)
+    return;
+
+  waiting_for_clock_update_ = false;
+  clock_->Play();
 }
 
 }  // namespace media
