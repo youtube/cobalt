@@ -1157,8 +1157,6 @@ static const char* const kGoogleAcceptableCerts[] = {
 };
 static const char* const kGoogleRejectedCerts[] = {
   kSPKIHash_Aetna,
-  kSPKIHash_GeoTrustGlobal,
-  kSPKIHash_GeoTrustPrimary,
   kSPKIHash_Intel,
   kSPKIHash_TCTrustCenter,
   kSPKIHash_Vodafone,
