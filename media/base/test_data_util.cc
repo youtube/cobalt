@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,17 @@
 #include "media/ffmpeg/ffmpeg_common.h"
 
 namespace media {
+
+std::string GetTestDataURL(const std::string& name) {
+  FilePath file_path;
+  CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &file_path));
+
+  file_path = file_path.Append(FILE_PATH_LITERAL("media"))
+      .Append(FILE_PATH_LITERAL("test"))
+      .Append(FILE_PATH_LITERAL("data"))
+      .AppendASCII(name);
+  return file_path.MaybeAsASCII();
+}
 
 void ReadTestDataFile(const std::string& name, scoped_array<uint8>* buffer,
                       int* size) {
