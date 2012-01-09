@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -402,6 +402,45 @@ TEST_F(HostResolverImplTest, AsynchronousLookup) {
   EXPECT_TRUE(htonl(0xc0a8012a) == sa_in->sin_addr.s_addr);
 }
 
+TEST_F(HostResolverImplTest, FailedAsynchronousLookup) {
+  AddressList addrlist;
+  const int kPortnum = 80;
+
+  scoped_refptr<RuleBasedHostResolverProc> resolver_proc(
+      new RuleBasedHostResolverProc(NULL));
+  resolver_proc->AddSimulatedFailure("just.testing");
+
+  scoped_ptr<HostResolver> host_resolver(
+      CreateHostResolverImpl(resolver_proc));
+
+  HostResolver::RequestInfo info(HostPortPair("just.testing", kPortnum));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  int err = host_resolver->Resolve(info, &addrlist, callback_, NULL,
+                                   log.bound());
+  EXPECT_EQ(ERR_IO_PENDING, err);
+
+  CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
+
+  EXPECT_EQ(1u, entries.size());
+  EXPECT_TRUE(LogContainsBeginEvent(
+      entries, 0, NetLog::TYPE_HOST_RESOLVER_IMPL));
+
+  MessageLoop::current()->Run();
+
+  ASSERT_TRUE(callback_called_);
+  ASSERT_EQ(ERR_NAME_NOT_RESOLVED, callback_result_);
+
+  log.GetEntries(&entries);
+
+  EXPECT_EQ(2u, entries.size());
+  EXPECT_TRUE(LogContainsEndEvent(
+      entries, 1, NetLog::TYPE_HOST_RESOLVER_IMPL));
+
+  // Also test that the error is not cached!
+  err = host_resolver->ResolveFromCache(info, &addrlist, log.bound());
+  EXPECT_EQ(ERR_DNS_CACHE_MISS, err);
+}
 
 // Using WaitingHostResolverProc you can simulate very long lookups.
 class WaitingHostResolverProc : public HostResolverProc {
