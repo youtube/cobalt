@@ -1,4 +1,4 @@
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -629,7 +629,8 @@
       'target_name': 'udev',
       'type': 'none',
       'conditions': [
-        ['_toolset=="target"', {
+        # libudev is not available on *BSD
+        ['_toolset=="target" and os_bsd!=1', {
           'direct_dependent_settings': {
             'cflags': [
               '<!@(<(pkg-config) --cflags libudev)'
