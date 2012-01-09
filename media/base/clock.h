@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -32,9 +32,6 @@ class MEDIA_EXPORT Clock {
 
   Clock(TimeProvider* time_provider);
   ~Clock();
-
-  // Returns true if the clock is running.
-  bool IsPlaying() const;
 
   // Starts the clock and returns the current media time, which will increase
   // with respect to the current playback rate.
