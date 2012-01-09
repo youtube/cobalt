@@ -13,20 +13,24 @@
 #define WEBP_ENC_VP8ENCI_H_
 
 #include "string.h"     // for memcpy()
-#include "webp/encode.h"
-#include "bit_writer.h"
+#include "../webp/encode.h"
+#include "../dsp/dsp.h"
+#include "../utils/bit_writer.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Various defines and enums
 
 // version numbers
 #define ENC_MAJ_VERSION 0
 #define ENC_MIN_VERSION 1
-#define ENC_REV_VERSION 2
+#define ENC_REV_VERSION 3
+
+// size of histogram used by CollectHistogram.
+#define MAX_COEFF_THRESH   64
 
 // intra prediction modes
 enum { B_DC_PRED = 0,   // 4x4 modes
@@ -158,7 +162,7 @@ static inline int QUANTDIV(int n, int iQ, int B) {
 }
 extern const uint8_t VP8Zigzag[16];
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Headers
 
 typedef uint8_t ProbaArray[NUM_CTX][NUM_PROBAS];
@@ -184,7 +188,7 @@ typedef struct {
   StatsArray stats_[NUM_TYPES][NUM_BANDS];       // 7.4k
   CostArray level_cost_[NUM_TYPES][NUM_BANDS];   // 11.4k
   int use_skip_proba_;      // Note: we always use skip_proba for now.
-  int nb_skip_, nb_i4_, nb_i16_;   // block type counters
+  int nb_skip_;             // number of skipped blocks
 } VP8Proba;
 
 // Filter parameters. Not actually used in the code (we don't perform
@@ -196,19 +200,19 @@ typedef struct {
   int i4x4_lf_delta_;      // delta filter level for i4x4 relative to i16x16
 } VP8FilterHeader;
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Informations about the macroblocks.
 
 typedef struct {
   // block type
-  uint8_t type_:2;     // 0=i4x4, 1=i16x16
-  uint8_t uv_mode_:2;
-  uint8_t skip_:1;
-  uint8_t segment_:2;
+  unsigned int type_:2;     // 0=i4x4, 1=i16x16
+  unsigned int uv_mode_:2;
+  unsigned int skip_:1;
+  unsigned int segment_:2;
   uint8_t alpha_;      // quantization-susceptibility
 } VP8MBInfo;
 
-typedef struct {
+typedef struct VP8Matrix {
   uint16_t q_[16];        // quantizer steps
   uint16_t iq_[16];       // reciprocals, fixed point.
   uint16_t bias_[16];     // rounding bias
@@ -258,7 +262,7 @@ typedef struct {
   uint8_t*      preds_;            // intra mode predictors (4x4 blocks)
   uint32_t*     nz_;               // non-zero pattern
   uint8_t       i4_boundary_[37];  // 32+5 boundary samples needed by intra4x4
-  uint8_t*      i4_top_;           // pointer to the current *top boundary sample
+  uint8_t*      i4_top_;           // pointer to the current top boundary sample
   int           i4_;               // current intra4x4 mode being tested
   int           top_nz_[9];        // top-non-zero context.
   int           left_nz_[9];       // left-non-zero. left_nz[8] is independent.
@@ -302,7 +306,7 @@ void VP8SetSkip(const VP8EncIterator* const it, int skip);
 void VP8SetSegment(const VP8EncIterator* const it, int segment);
 void VP8IteratorResetCosts(VP8EncIterator* const it);
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // VP8Encoder
 
 struct VP8Encoder {
@@ -326,6 +330,17 @@ struct VP8Encoder {
   VP8BitWriter bw_;                         // part0
   VP8BitWriter parts_[MAX_NUM_PARTITIONS];  // token partitions
 
+  // transparency blob
+  int has_alpha_;
+  uint8_t* alpha_data_;       // non-NULL if transparency is present
+  size_t alpha_data_size_;
+
+  // enhancement layer
+  int use_layer_;
+  VP8BitWriter layer_bw_;
+  uint8_t* layer_data_;
+  size_t layer_data_size_;
+
   // quantization info (one set of DC/AC dequant factor per segment)
   VP8SegmentInfo dqm_[NUM_MB_SEGMENTS];
   int base_quant_;                 // nominal quantizer value. Only used
@@ -345,8 +360,9 @@ struct VP8Encoder {
   int      block_count_[3];
 
   // quality/speed settings
-  int method_;             // 0=fastest, 6=best/slowest.
-  int rd_opt_level_;       // Deduced from method_.
+  int method_;              // 0=fastest, 6=best/slowest.
+  int rd_opt_level_;        // Deduced from method_.
+  int max_i4_header_bits_;  // partition #0 safeness factor
 
   // Memory
   VP8MBInfo* mb_info_;   // contextual macroblock infos (mb_w_ + 1)
@@ -366,7 +382,7 @@ struct VP8Encoder {
   LFStats   *lf_stats_;  // autofilter stats (if NULL, autofilter is off)
 };
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // internal functions. Not public.
 
   // in tree.c
@@ -403,6 +419,10 @@ int VP8GetCostUV(VP8EncIterator* const it, const VP8ModeScore* const rd);
 int VP8EncLoop(VP8Encoder* const enc);
 int VP8StatLoop(VP8Encoder* const enc);
 
+  // in webpenc.c
+// Assign an error code to a picture. Return false for convenience.
+int WebPEncodingSetError(WebPPicture* const pic, WebPEncodingError error);
+
   // in analysis.c
 // Main analysis loop. Decides the segmentations and complexity.
 // Assigns a first guess for Intra16 and uvmode_ prediction modes.
@@ -414,58 +434,27 @@ void VP8SetSegmentParams(VP8Encoder* const enc, float quality);
 // Pick best modes and fills the levels. Returns true if skipped.
 int VP8Decimate(VP8EncIterator* const it, VP8ModeScore* const rd, int rd_opt);
 
-  // in dsp.c
-// Transforms
-typedef void (*VP8Idct)(const uint8_t* ref, const int16_t* in, uint8_t* dst);
-typedef void (*VP8Fdct)(const uint8_t* src, const uint8_t* ref, int16_t* out);
-typedef void (*VP8WHT)(const int16_t* in, int16_t* out);
-extern VP8Idct VP8ITransform;
-extern VP8Fdct VP8FTransform;
-extern VP8WHT VP8ITransformWHT;
-extern VP8WHT VP8FTransformWHT;
-// Predictions
-// *dst is the destination block. *top, *top_right and *left can be NULL.
-typedef void (*VP8IntraPreds)(uint8_t *dst, const uint8_t* left,
-                              const uint8_t* top);
-typedef void (*VP8Intra4Preds)(uint8_t *dst, const uint8_t* top);
-extern VP8Intra4Preds VP8EncPredLuma4;
-extern VP8IntraPreds VP8EncPredLuma16;
-extern VP8IntraPreds VP8EncPredChroma8;
+  // in alpha.c
+void VP8EncInitAlpha(VP8Encoder* enc);           // initialize alpha compression
+void VP8EncCodeAlphaBlock(VP8EncIterator* it);   // analyze or code a macroblock
+int VP8EncFinishAlpha(VP8Encoder* enc);          // finalize compressed data
+void VP8EncDeleteAlpha(VP8Encoder* enc);         // delete compressed data
 
-typedef int (*VP8Metric)(const uint8_t* pix, const uint8_t* ref);
-extern VP8Metric VP8SSE16x16, VP8SSE16x8, VP8SSE8x8, VP8SSE4x4;
-typedef int (*VP8WMetric)(const uint8_t* pix, const uint8_t* ref,
-                          const uint16_t* const weights);
-extern VP8WMetric VP8TDisto4x4, VP8TDisto16x16;
-
-typedef void (*VP8BlockCopy)(const uint8_t* src, uint8_t* dst);
-extern VP8BlockCopy VP8Copy4x4;
-extern VP8BlockCopy VP8Copy8x8;
-extern VP8BlockCopy VP8Copy16x16;
-// Quantization
-typedef int (*VP8QuantizeBlock)(int16_t in[16], int16_t out[16],
-                                int n, const VP8Matrix* const mtx);
-extern VP8QuantizeBlock VP8EncQuantizeBlock;
-
-typedef enum {
-  kSSE2,
-  kSSE3
-} CPUFeature;
-// returns true if the CPU supports the feature.
-typedef int (*VP8CPUInfo)(CPUFeature feature);
-extern VP8CPUInfo CPUInfo;
-
-void VP8EncDspInit(void);   // must be called before using any of the above
+  // in layer.c
+void VP8EncInitLayer(VP8Encoder* const enc);     // init everything
+void VP8EncCodeLayerBlock(VP8EncIterator* it);   // code one more macroblock
+int VP8EncFinishLayer(VP8Encoder* const enc);    // finalize coding
+void VP8EncDeleteLayer(VP8Encoder* enc);         // reclaim memory
 
   // in filter.c
 extern void VP8InitFilter(VP8EncIterator* const it);
 extern void VP8StoreFilterStats(VP8EncIterator* const it);
 extern void VP8AdjustFilterStrength(VP8EncIterator* const it);
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }    // extern "C"
 #endif
 
-#endif  // WEBP_ENC_VP8ENCI_H_
+#endif  /* WEBP_ENC_VP8ENCI_H_ */

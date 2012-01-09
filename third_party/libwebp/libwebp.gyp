@@ -1,4 +1,4 @@
-# Copyright (c) 2010 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -14,19 +14,19 @@
           'type': 'static_library',
           'include_dirs': ['.'],
           'sources': [
+            'enc/alpha.c',
             'enc/analysis.c',
-            'enc/bit_writer.c',
             'enc/config.c',
             'enc/cost.c',
-            'enc/dsp.c',
             'enc/filter.c',
             'enc/frame.c',
             'enc/iterator.c',
+            'enc/layer.c',
             'enc/picture.c',
             'enc/quant.c',
             'enc/syntax.c',
             'enc/tree.c',
-            'enc/webpenc.c'
+            'enc/webpenc.c',
           ],
         },
         {
@@ -34,15 +34,42 @@
           'type': 'static_library',
           'include_dirs': ['.'],
           'sources': [
-            'dec/bits.c',
-            'dec/dsp.c',
+            'dec/alpha.c',
+            'dec/buffer.c',
             'dec/frame.c',
             'dec/idec.c',
+            'dec/io.c',
+            'dec/layer.c',
             'dec/quant.c',
             'dec/tree.c',
             'dec/vp8.c',
             'dec/webp.c',
-            'dec/yuv.c',
+          ],
+        },
+        {
+          'target_name': 'libwebp_dsp',
+          'type': 'static_library',
+          'include_dirs': ['.'],
+          'sources': [
+            'dsp/cpu.c',
+            'dsp/dec.c',
+            'dsp/dec_neon.c',
+            'dsp/dec_sse2.c',
+            'dsp/enc.c',
+            'dsp/enc_sse2.c',
+            'dsp/upsampling.c',
+            'dsp/upsampling_sse2.c',
+            'dsp/yuv.c',
+          ],
+        },
+        {
+          'target_name': 'libwebp_utils',
+          'type': 'static_library',
+          'include_dirs': ['.'],
+          'sources': [
+            'utils/bit_reader.c',
+            'utils/bit_writer.c',
+            'utils/thread.c',
           ],
         },
         {
@@ -51,6 +78,8 @@
           'dependencies' : [
             'libwebp_enc',
             'libwebp_dec',
+            'libwebp_dsp',
+            'libwebp_utils',
           ],
           'direct_dependent_settings': {
             'include_dirs': ['.'],

@@ -13,19 +13,21 @@
 #define WEBP_DEC_VP8I_H_
 
 #include <string.h>     // for memcpy()
-#include "bits.h"
+#include "../utils/bit_reader.h"
+#include "../utils/thread.h"
+#include "../dsp/dsp.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Various defines and enums
 
 // version numbers
 #define DEC_MAJ_VERSION 0
 #define DEC_MIN_VERSION 1
-#define DEC_REV_VERSION 2
+#define DEC_REV_VERSION 3
 
 #define ONLY_KEYFRAME_CODE      // to remove any code related to P-Frames
 
@@ -95,7 +97,7 @@ enum { MB_FEATURE_TREE_PROBS = 3,
 #define U_OFF    (Y_OFF + BPS * 16 + BPS)
 #define V_OFF    (U_OFF + 16)
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Headers
 
 typedef struct {
@@ -144,19 +146,19 @@ typedef struct {
   int mode_lf_delta_[NUM_MODE_LF_DELTAS];
 } VP8FilterHeader;
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Informations about the macroblocks.
 
-typedef struct {
-  // block type
-  uint8_t skip_:1;
-  // filter specs
-  uint8_t f_level_:6;      // filter strength: 0..63
-  uint8_t f_ilevel_:6;     // inner limit: 1..63
-  uint8_t f_inner_:1;      // do inner filtering?
-  // cbp
-  uint8_t nz_;        // non-zero AC/DC coeffs
-  uint8_t dc_nz_;     // non-zero DC coeffs
+typedef struct {  // filter specs
+  unsigned int f_level_:6;      // filter strength: 0..63
+  unsigned int f_ilevel_:6;     // inner limit: 1..63
+  unsigned int f_inner_:1;      // do inner filtering?
+} VP8FInfo;
+
+typedef struct {  // used for syntax-parsing
+  unsigned int nz_;          // non-zero AC/DC coeffs
+  unsigned int dc_nz_:1;     // non-zero DC coeffs
+  unsigned int skip_:1;      // block type
 } VP8MB;
 
 // Dequantization matrices
@@ -164,7 +166,16 @@ typedef struct {
   uint16_t y1_mat_[2], y2_mat_[2], uv_mat_[2];    // [DC / AC]
 } VP8QuantMatrix;
 
-//-----------------------------------------------------------------------------
+// Persistent information needed by the parallel processing
+typedef struct {
+  int id_;            // cache row to process (in [0..2])
+  int mb_y_;          // macroblock position of the row
+  int filter_row_;    // true if row-filtering is needed
+  VP8FInfo* f_info_;  // filter strengths
+  VP8Io io_;          // copy of the VP8Io to pass to put()
+} VP8ThreadContext;
+
+//------------------------------------------------------------------------------
 // VP8Decoder: the main opaque structure handed over to user
 
 struct VP8Decoder {
@@ -181,8 +192,19 @@ struct VP8Decoder {
   VP8FilterHeader  filter_hdr_;
   VP8SegmentHeader segment_hdr_;
 
+  // Worker
+  WebPWorker worker_;
+  int use_threads_;    // use multi-thread
+  int cache_id_;       // current cache row
+  int num_caches_;     // number of cached rows of 16 pixels (1, 2 or 3)
+  VP8ThreadContext thread_ctx_;  // Thread context
+
   // dimension, in macroblock units.
   int mb_w_, mb_h_;
+
+  // Macroblock to process/filter, depending on cropping and filter_type.
+  int tl_mb_x_, tl_mb_y_;  // top-left MB that must be in-loop filtered
+  int br_mb_x_, br_mb_y_;  // last bottom-right MB that must be decoded
 
   // number of partitions.
   int num_parts_;
@@ -212,10 +234,11 @@ struct VP8Decoder {
   // Boundary data cache and persistent buffers.
   uint8_t* intra_t_;     // top intra modes values: 4 * mb_w_
   uint8_t  intra_l_[4];  // left intra modes values
-  uint8_t *y_t_;         // top luma samples: 16 * mb_w_
-  uint8_t *u_t_, *v_t_;  // top u/v samples: 8 * mb_w_ each
+  uint8_t* y_t_;         // top luma samples: 16 * mb_w_
+  uint8_t* u_t_, *v_t_;  // top u/v samples: 8 * mb_w_ each
 
-  VP8MB* mb_info_;       // contextual macroblock infos (mb_w_ + 1)
+  VP8MB* mb_info_;       // contextual macroblock info (mb_w_ + 1)
+  VP8FInfo* f_info_;     // filter strength info
   uint8_t* yuv_b_;       // main block for Y/U/V (size = YUV_SIZE)
   int16_t* coeffs_;      // 384 coeffs = (16+8+8) * 4*4
 
@@ -244,16 +267,34 @@ struct VP8Decoder {
   uint32_t non_zero_ac_;
 
   // Filtering side-info
-  int filter_type_;                       // 0=off, 1=simple, 2=complex
+  int filter_type_;                         // 0=off, 1=simple, 2=complex
+  int filter_row_;                          // per-row flag
   uint8_t filter_levels_[NUM_MB_SEGMENTS];  // precalculated per-segment
+
+  // extensions
+  const uint8_t* alpha_data_;   // compressed alpha data (if present)
+  size_t alpha_data_size_;
+  uint8_t* alpha_plane_;        // output
+
+  int layer_colorspace_;
+  const uint8_t* layer_data_;   // compressed layer data (if present)
+  size_t layer_data_size_;
 };
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // internal functions. Not public.
 
 // in vp8.c
 int VP8SetError(VP8Decoder* const dec,
                 VP8StatusCode error, const char * const msg);
+
+// Validates the VP8 data-header and retrieve basic header information viz width
+// and height. Returns 0 in case of formatting error. *width/*height/*has_alpha
+// can be passed NULL.
+int VP8GetInfo(const uint8_t* data,
+               uint32_t data_size,    // data available so far
+               uint32_t chunk_size,   // total data size expect in the chunk
+               int *width, int *height, int *has_alpha);
 
 // in tree.c
 void VP8ResetProba(VP8Proba* const proba);
@@ -267,59 +308,38 @@ void VP8ParseQuant(VP8Decoder* const dec);
 int VP8InitFrame(VP8Decoder* const dec, VP8Io* io);
 // Predict a block and add residual
 void VP8ReconstructBlock(VP8Decoder* const dec);
+// Call io->setup() and finish setting up scan parameters.
+// After this call returns, one must always call VP8ExitCritical() with the
+// same parameters. Both functions should be used in pair. Returns VP8_STATUS_OK
+// if ok, otherwise sets and returns the error status on *dec.
+VP8StatusCode VP8EnterCritical(VP8Decoder* const dec, VP8Io* const io);
+// Must always be called in pair with VP8EnterCritical().
+// Returns false in case of error.
+int VP8ExitCritical(VP8Decoder* const dec, VP8Io* const io);
+// Filter the decoded macroblock row (if needed)
+int VP8FinishRow(VP8Decoder* const dec, VP8Io* io);   // multi threaded call
+// Process the last decoded row (filtering + output)
+int VP8ProcessRow(VP8Decoder* const dec, VP8Io* const io);
 // Store a block, along with filtering params
 void VP8StoreBlock(VP8Decoder* const dec);
 // Finalize and transmit a complete row. Return false in case of user-abort.
-int VP8FinishRow(VP8Decoder* const dec, VP8Io* io);
+int VP8FinishRow(VP8Decoder* const dec, VP8Io* const io);
+// To be called at the start of a new scanline, to initialize predictors.
+void VP8InitScanline(VP8Decoder* const dec);
 // Decode one macroblock. Returns false if there is not enough data.
 int VP8DecodeMB(VP8Decoder* const dec, VP8BitReader* const token_br);
 
-// in dsp.c
-typedef void (*VP8Idct)(const int16_t* coeffs, uint8_t* dst);
-extern VP8Idct VP8Transform;
-extern VP8Idct VP8TransformUV;
-extern VP8Idct VP8TransformDC;
-extern VP8Idct VP8TransformDCUV;
-extern void (*VP8TransformWHT)(const int16_t* in, int16_t* out);
+// in alpha.c
+const uint8_t* VP8DecompressAlphaRows(VP8Decoder* const dec,
+                                      int row, int num_rows);
 
-// *dst is the destination block, with stride BPS. Boundary samples are
-// assumed accessible when needed.
-typedef void (*VP8PredFunc)(uint8_t *dst);
-extern VP8PredFunc VP8PredLuma16[NUM_B_DC_MODES];
-extern VP8PredFunc VP8PredChroma8[NUM_B_DC_MODES];
-extern VP8PredFunc VP8PredLuma4[NUM_BMODES];
+// in layer.c
+int VP8DecodeLayer(VP8Decoder* const dec);
 
-void VP8DspInit(void);        // must be called before anything using the above
-void VP8DspInitTables(void);  // needs to be called no matter what.
-
-// simple filter (only for luma)
-typedef void (*VP8SimpleFilterFunc)(uint8_t* p, int stride, int thresh);
-extern VP8SimpleFilterFunc VP8SimpleVFilter16;
-extern VP8SimpleFilterFunc VP8SimpleHFilter16;
-extern VP8SimpleFilterFunc VP8SimpleVFilter16i;  // filter 3 inner edges
-extern VP8SimpleFilterFunc VP8SimpleHFilter16i;
-
-// regular filter (on both macroblock edges and inner edges)
-typedef void (*VP8LumaFilterFunc)(uint8_t* luma, int stride,
-                                  int thresh, int ithresh, int hev_t);
-typedef void (*VP8ChromaFilterFunc)(uint8_t* u, uint8_t* v, int stride,
-                                    int thresh, int ithresh, int hev_t);
-// on outter edge
-extern VP8LumaFilterFunc VP8VFilter16;
-extern VP8LumaFilterFunc VP8HFilter16;
-extern VP8ChromaFilterFunc VP8VFilter8;
-extern VP8ChromaFilterFunc VP8HFilter8;
-
-// on inner edge
-extern VP8LumaFilterFunc VP8VFilter16i;   // filtering 3 inner edges altogether
-extern VP8LumaFilterFunc VP8HFilter16i;
-extern VP8ChromaFilterFunc VP8VFilter8i;  // filtering u and v altogether
-extern VP8ChromaFilterFunc VP8HFilter8i;
-
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }    // extern "C"
 #endif
 
-#endif  // WEBP_DEC_VP8I_H_
+#endif  /* WEBP_DEC_VP8I_H_ */

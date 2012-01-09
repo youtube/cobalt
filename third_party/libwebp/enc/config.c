@@ -10,15 +10,15 @@
 // Author: Skal (pascal.massimino@gmail.com)
 
 #include <assert.h>
-#include "webp/encode.h"
+#include "../webp/encode.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // WebPConfig
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 int WebPConfigInitInternal(WebPConfig* const config,
                            WebPPreset preset, float quality, int version) {
@@ -41,6 +41,8 @@ int WebPConfigInitInternal(WebPConfig* const config,
   config->show_compressed = 0;
   config->preprocessing = 0;
   config->autofilter = 0;
+  config->alpha_compression = 0;
+  config->partition_limit = 0;
 
   // TODO(skal): tune.
   switch (preset) {
@@ -105,10 +107,14 @@ int WebPValidateConfig(const WebPConfig* const config) {
     return 0;
   if (config->partitions < 0 || config->partitions > 3)
     return 0;
+  if (config->partition_limit < 0 || config->partition_limit > 100)
+    return 0;
+  if (config->alpha_compression < 0)
+    return 0;
   return 1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }    // extern "C"
