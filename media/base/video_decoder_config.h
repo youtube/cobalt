@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -82,7 +82,11 @@ class MEDIA_EXPORT VideoDecoderConfig {
                   const gfx::Rect& visible_rect,
                   int frame_rate_numerator, int frame_rate_denominator,
                   int aspect_ratio_numerator, int aspect_ratio_denominator,
-                  const uint8* extra_data, size_t extra_data_size);
+                  const uint8* extra_data, size_t extra_data_size,
+                  bool record_stats);
+
+  // Deep copies |video_config|.
+  void CopyFrom(const VideoDecoderConfig& video_config);
 
   // Returns true if this object has appropriate configuration values, false
   // otherwise.
