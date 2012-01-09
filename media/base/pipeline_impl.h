@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -348,8 +348,6 @@ class MEDIA_EXPORT PipelineImpl
   // Carries out the notification that the media can be played through without
   // needing to pause to buffer.
   void NotifyCanPlayThrough();
-
-  void StartClockIfWaitingForTimeUpdate_Locked();
 
   // Message loop used to execute pipeline tasks.
   MessageLoop* message_loop_;

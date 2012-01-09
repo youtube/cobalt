@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,10 +16,6 @@ Clock::Clock(TimeProvider* time_provider)
 }
 
 Clock::~Clock() {}
-
-bool Clock::IsPlaying() const {
-  return playing_;
-}
 
 base::TimeDelta Clock::Play() {
   DCHECK(!playing_);
