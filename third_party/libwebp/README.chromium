@@ -1,16 +1,22 @@
-Name: libwebpdecode
+Name: WebP image encoder/decoder
 Short Name: libwebp
 URL: http://code.google.com/speed/webp
-Version: unknown
-Revision: 0.1.2
-Included In Release: Yes
+Version: v0.1.3
+License File: LICENSE
+Security Critical: Yes
 
 Description:
-Here is a copy of libwebp-decode, from the upstream project:
-  http://code.google.com/p/webp/downloads/detail?name=libwebp-0.1.2.tar.gz
+Source archive:
+  http://code.google.com/p/webp/downloads/detail?name=libwebp-0.1.3.tar.gz
 
-The project files do not include from the distribution:
-  examples/
+WebP is an image format that does lossy compression of digital photographic
+images. WebP consists of a codec based on VP8, that Google open-sourced in May
+2010 and a container based on RIFF. Webmasters, web developers and browser
+developers can use WebP to compress, archive and distribute digital images more
+efficiently.
 
 Local changes:
  * Removed from types.h the risky: #ifdef ANSI / #define inline /#endif
+ * Removed examples/, documentation and build related files, keeping only
+   the contents of src/.
+ * Merged COPYING/PATENTS to LICENSE
