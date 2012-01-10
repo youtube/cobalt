@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,7 +25,7 @@ AudioDecoderConfig::AudioDecoderConfig(AudioCodec codec,
                                        const uint8* extra_data,
                                        size_t extra_data_size) {
   Initialize(codec, bits_per_channel, channel_layout, samples_per_second,
-             extra_data, extra_data_size, true);
+             extra_data, extra_data_size);
 }
 
 // Helper enum used only for histogramming samples-per-second.  Put
@@ -63,26 +63,21 @@ void AudioDecoderConfig::Initialize(AudioCodec codec,
                                     ChannelLayout channel_layout,
                                     int samples_per_second,
                                     const uint8* extra_data,
-                                    size_t extra_data_size,
-                                    bool record_stats) {
+                                    size_t extra_data_size) {
   CHECK((extra_data_size != 0) == (extra_data != NULL));
 
-  if (record_stats) {
-    UMA_HISTOGRAM_ENUMERATION("Media.AudioCodec", codec, kAudioCodecMax + 1);
-    // Fake enum histogram to get exact integral buckets.  Expect to never see
-    // any values over 32 and even that is huge.
-    UMA_HISTOGRAM_ENUMERATION("Media.AudioBitsPerChannel", bits_per_channel,
-                              40);
-    UMA_HISTOGRAM_ENUMERATION(
-        "Media.AudioChannelLayout", channel_layout, CHANNEL_LAYOUT_MAX);
-    AudioSamplesPerSecond asps = AsAudioSamplesPerSecond(samples_per_second);
-    if (asps != kUnexpected) {
-      UMA_HISTOGRAM_ENUMERATION("Media.AudioSamplesPerSecond", asps,
-                                kUnexpected);
-    } else {
-      UMA_HISTOGRAM_COUNTS(
-          "Media.AudioSamplesPerSecondUnexpected", samples_per_second);
-    }
+  UMA_HISTOGRAM_ENUMERATION("Media.AudioCodec", codec, kAudioCodecMax + 1);
+  // Fake enum histogram to get exact integral buckets.  Expect to never see
+  // any values over 32 and even that is huge.
+  UMA_HISTOGRAM_ENUMERATION("Media.AudioBitsPerChannel", bits_per_channel, 40);
+  UMA_HISTOGRAM_ENUMERATION(
+      "Media.AudioChannelLayout", channel_layout, CHANNEL_LAYOUT_MAX);
+  AudioSamplesPerSecond asps = AsAudioSamplesPerSecond(samples_per_second);
+  if (asps != kUnexpected) {
+    UMA_HISTOGRAM_ENUMERATION("Media.AudioSamplesPerSecond", asps, kUnexpected);
+  } else {
+    UMA_HISTOGRAM_COUNTS(
+        "Media.AudioSamplesPerSecondUnexpected", samples_per_second);
   }
 
   codec_ = codec;
@@ -108,16 +103,6 @@ bool AudioDecoderConfig::IsValidConfig() const {
       bits_per_channel_ <= limits::kMaxBitsPerSample &&
       samples_per_second_ > 0 &&
       samples_per_second_ <= limits::kMaxSampleRate;
-}
-
-void AudioDecoderConfig::CopyFrom(const AudioDecoderConfig& audio_config) {
-  Initialize(audio_config.codec(),
-             audio_config.bits_per_channel(),
-             audio_config.channel_layout(),
-             audio_config.samples_per_second(),
-             audio_config.extra_data(),
-             audio_config.extra_data_size(),
-             false);
 }
 
 AudioCodec AudioDecoderConfig::codec() const {
