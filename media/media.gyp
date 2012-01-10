@@ -1,4 +1,4 @@
-# Copyright (c) 2012 The Chromium Authors. All rights reserved.
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -161,8 +161,6 @@
         'base/seekable_buffer.h',
         'base/state_matrix.cc',
         'base/state_matrix.h',
-        'base/stream_parser.cc',
-        'base/stream_parser.h',
         'base/video_decoder_config.cc',
         'base/video_decoder_config.h',
         'base/video_frame.cc',
@@ -255,8 +253,6 @@
         'webm/webm_info_parser.h',
         'webm/webm_parser.cc',
         'webm/webm_parser.h',
-        'webm/webm_stream_parser.cc',
-        'webm/webm_stream_parser.h',
         'webm/webm_tracks_parser.cc',
         'webm/webm_tracks_parser.h',
       ],

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -190,8 +190,7 @@ void AVCodecContextToAudioDecoderConfig(
                      channel_layout,
                      samples_per_second,
                      codec_context->extradata,
-                     codec_context->extradata_size,
-                     true);
+                     codec_context->extradata_size);
 }
 
 void AudioDecoderConfigToAVCodecContext(const AudioDecoderConfig& config,
@@ -259,8 +258,7 @@ void AVStreamToVideoDecoderConfig(
                      aspect_ratio.num,
                      aspect_ratio.den,
                      stream->codec->extradata,
-                     stream->codec->extradata_size,
-                     true);
+                     stream->codec->extradata_size);
 }
 
 void VideoDecoderConfigToAVCodecContext(

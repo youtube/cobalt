@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,9 @@
 #include "base/synchronization/lock.h"
 #include "media/base/byte_queue.h"
 #include "media/base/demuxer.h"
-#include "media/base/stream_parser.h"
+#include "media/webm/webm_cluster_parser.h"
+
+struct AVFormatContext;
 
 namespace media {
 
@@ -18,9 +20,9 @@ class ChunkDemuxerClient;
 class ChunkDemuxerStream;
 class FFmpegURLProtocol;
 
-// Demuxer implementation that allows chunks of media data to be passed
+// Demuxer implementation that allows chunks of WebM media data to be passed
 // from JavaScript to the media stack.
-class MEDIA_EXPORT ChunkDemuxer : public Demuxer, public StreamParserHost {
+class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
  public:
   explicit ChunkDemuxer(ChunkDemuxerClient* client);
   virtual ~ChunkDemuxer();
@@ -62,17 +64,39 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer, public StreamParserHost {
 
   void ChangeState_Locked(State new_state);
 
+  // Parses a buffer that contains an INFO & TRACKS element. This method handles
+  // calling & clearing |init_cb_| before it returns.
+  //
+  // Returns -1 if the parse fails.
+  // Returns 0 if more data is needed.
+  // Returns the number of bytes parsed on success.
+  int ParseInfoAndTracks_Locked(const uint8* data, int size);
+
+  // Generates an AVFormatContext for the INFO & TRACKS elements contained
+  // in |data|. Returns NULL if parsing |data| fails.
+  AVFormatContext* CreateFormatContext(const uint8* data, int size);
+
+  // Sets up |audio_| & |video_| DemuxerStreams based on the data in
+  // |format_context_|. Returns false if no valid audio or video stream were
+  // found.
+  bool SetupStreams();
+
+  // Parse a cluster and add the buffers to the appropriate DemuxerStream. This
+  // method also skips over CUES elements if it happens to encounter them.
+  //
+  // |data| is expected to point to the beginning of an element.
+  //
+  // |buffers_added| - Indicates whether Buffers were added to DemuxerStreams
+  //   during the call. This is only valid if the return value > 0.
+  //
+  // Returns -1 if the parse fails.
+  // Returns 0 if more data is needed.
+  // Returns the number of bytes parsed on success.
+  int ParseCluster_Locked(const uint8* data, int size, bool* buffers_added);
+
   // Reports an error and puts the demuxer in a state where it won't accept more
   // data.
   void ReportError_Locked(PipelineStatus error);
-
-  void OnStreamParserInitDone(bool success, base::TimeDelta duration);
-
-  // StreamParserHost implementation.
-  virtual bool OnNewAudioConfig(const AudioDecoderConfig& config) OVERRIDE;
-  virtual bool OnNewVideoConfig(const VideoDecoderConfig& config) OVERRIDE;
-  virtual bool OnAudioBuffers(const BufferQueue& buffer) OVERRIDE;
-  virtual bool OnVideoBuffers(const BufferQueue& buffer) OVERRIDE;
 
   base::Lock lock_;
   State state_;
@@ -84,11 +108,22 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer, public StreamParserHost {
   scoped_refptr<ChunkDemuxerStream> audio_;
   scoped_refptr<ChunkDemuxerStream> video_;
 
+  // Backing buffer for |url_protocol_|.
+  scoped_array<uint8> url_protocol_buffer_;
+
+  // Protocol used by |format_context_|. It must outlive the context object.
+  scoped_ptr<FFmpegURLProtocol> url_protocol_;
+
+  // FFmpeg format context for this demuxer. It is created by
+  // av_open_input_file() during demuxer initialization and cleaned up with
+  // DestroyAVFormatContext() in the destructor.
+  AVFormatContext* format_context_;
+
   int64 buffered_bytes_;
 
   base::TimeDelta duration_;
 
-  scoped_ptr<StreamParser> stream_parser_;
+  scoped_ptr<WebMClusterParser> cluster_parser_;
 
   // Should a Seek() call wait for more data before calling the
   // callback.

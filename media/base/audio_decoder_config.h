@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -52,11 +52,7 @@ class MEDIA_EXPORT AudioDecoderConfig {
   // Resets the internal state of this object.
   void Initialize(AudioCodec codec, int bits_per_channel,
                   ChannelLayout channel_layout, int samples_per_second,
-                  const uint8* extra_data, size_t extra_data_size,
-                  bool record_stats);
-
-  // Deep copies |audio_config|.
-  void CopyFrom(const AudioDecoderConfig& audio_config);
+                  const uint8* extra_data, size_t extra_data_size);
 
   // Returns true if this object has appropriate configuration values, false
   // otherwise.
