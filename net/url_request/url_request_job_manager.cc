@@ -36,7 +36,7 @@ struct SchemeToFactory {
 static const SchemeToFactory kBuiltinFactories[] = {
   { "http", URLRequestHttpJob::Factory },
   { "https", URLRequestHttpJob::Factory },
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
   { "file", URLRequestFileJob::Factory },
   { "ftp", URLRequestFtpJob::Factory },
 #else
