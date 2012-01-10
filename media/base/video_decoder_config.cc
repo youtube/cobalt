@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -37,7 +37,7 @@ VideoDecoderConfig::VideoDecoderConfig(VideoCodec codec,
   Initialize(codec, profile, format, coded_size, visible_rect,
              frame_rate_numerator, frame_rate_denominator,
              aspect_ratio_numerator, aspect_ratio_denominator,
-             extra_data, extra_data_size);
+             extra_data, extra_data_size, true);
 }
 
 VideoDecoderConfig::~VideoDecoderConfig() {}
@@ -74,16 +74,19 @@ void VideoDecoderConfig::Initialize(VideoCodec codec,
                                     int aspect_ratio_numerator,
                                     int aspect_ratio_denominator,
                                     const uint8* extra_data,
-                                    size_t extra_data_size) {
+                                    size_t extra_data_size,
+                                    bool record_stats) {
   CHECK((extra_data_size != 0) == (extra_data != NULL));
 
-  UMA_HISTOGRAM_ENUMERATION("Media.VideoCodec", codec, kVideoCodecMax + 1);
-  UMA_HISTOGRAM_ENUMERATION("Media.VideoCodecProfile", profile,
-                            VIDEO_CODEC_PROFILE_MAX + 1);
-  UMA_HISTOGRAM_COUNTS_10000("Media.VideoCodedWidth", coded_size.width());
-  UmaHistogramAspectRatio("Media.VideoCodedAspectRatio", coded_size);
-  UMA_HISTOGRAM_COUNTS_10000("Media.VideoVisibleWidth", visible_rect.width());
-  UmaHistogramAspectRatio("Media.VideoVisibleAspectRatio", visible_rect);
+  if (record_stats) {
+    UMA_HISTOGRAM_ENUMERATION("Media.VideoCodec", codec, kVideoCodecMax + 1);
+    UMA_HISTOGRAM_ENUMERATION("Media.VideoCodecProfile", profile,
+                              VIDEO_CODEC_PROFILE_MAX + 1);
+    UMA_HISTOGRAM_COUNTS_10000("Media.VideoCodedWidth", coded_size.width());
+    UmaHistogramAspectRatio("Media.VideoCodedAspectRatio", coded_size);
+    UMA_HISTOGRAM_COUNTS_10000("Media.VideoVisibleWidth", visible_rect.width());
+    UmaHistogramAspectRatio("Media.VideoVisibleAspectRatio", visible_rect);
+  }
 
   codec_ = codec;
   profile_ = profile;
@@ -118,6 +121,21 @@ void VideoDecoderConfig::Initialize(VideoCodec codec,
   // An even width makes things easier for YV12 and appears to be the behavior
   // expected by WebKit layout tests.
   natural_size_.SetSize(width & ~1, height);
+}
+
+void VideoDecoderConfig::CopyFrom(const VideoDecoderConfig& video_config) {
+  Initialize(video_config.codec(),
+             video_config.profile(),
+             video_config.format(),
+             video_config.coded_size(),
+             video_config.visible_rect(),
+             video_config.frame_rate_numerator(),
+             video_config.frame_rate_denominator(),
+             video_config.aspect_ratio_numerator(),
+             video_config.aspect_ratio_denominator(),
+             video_config.extra_data(),
+             video_config.extra_data_size(),
+             false);
 }
 
 bool VideoDecoderConfig::IsValidConfig() const {
