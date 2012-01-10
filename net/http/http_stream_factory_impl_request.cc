@@ -7,7 +7,7 @@
 #include "base/logging.h"
 #include "base/stl_util.h"
 #include "net/http/http_stream_factory_impl_job.h"
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
 #include "net/spdy/spdy_http_stream.h"
 #include "net/spdy/spdy_session.h"
 #endif
@@ -44,12 +44,12 @@ HttpStreamFactoryImpl::Request::~Request() {
 
   STLDeleteElements(&jobs_);
 
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
   RemoveRequestFromSpdySessionRequestMap();
 #endif
 }
 
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
 void HttpStreamFactoryImpl::Request::SetSpdySessionKey(
     const HostPortProxyPair& spdy_session_key) {
   DCHECK(!spdy_session_key_.get());
@@ -215,7 +215,7 @@ bool HttpStreamFactoryImpl::Request::using_spdy() const {
   return using_spdy_;
 }
 
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
 void
 HttpStreamFactoryImpl::Request::RemoveRequestFromSpdySessionRequestMap() {
   if (spdy_session_key_.get()) {
@@ -285,7 +285,7 @@ void HttpStreamFactoryImpl::Request::OrphanJobsExcept(Job* job) {
 }
 
 void HttpStreamFactoryImpl::Request::OrphanJobs() {
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
   RemoveRequestFromSpdySessionRequestMap();
 #endif
 

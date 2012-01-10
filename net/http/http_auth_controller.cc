@@ -17,9 +17,7 @@
 #include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
-#if defined(__LB_PS3__)
 #include "net/base/net_errors.h"
-#endif
 
 namespace net {
 

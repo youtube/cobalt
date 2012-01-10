@@ -41,7 +41,7 @@ class HttpStreamFactoryImpl::Request : public HttpStreamRequest {
                 bool using_spdy,
                 const NetLog::Source& source);
 
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
   // If this Request has a spdy_session_key, remove this session from the
   // SpdySessionRequestMap.
   void RemoveRequestFromSpdySessionRequestMap();

@@ -28,7 +28,7 @@ class HttpAuthCache;
 class HttpAuthHandlerFactory;
 class SSLClientSocketPool;
 class SSLSocketParams;
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
 class SpdySessionPool;
 class SpdyStream;
 #endif
@@ -50,7 +50,7 @@ class NET_TEST HttpProxySocketParams
       HostPortPair endpoint,
       HttpAuthCache* http_auth_cache,
       HttpAuthHandlerFactory* http_auth_handler_factory,
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
       SpdySessionPool* spdy_session_pool,
 #endif
       bool tunnel);
@@ -68,7 +68,7 @@ class NET_TEST HttpProxySocketParams
   HttpAuthHandlerFactory* http_auth_handler_factory() const {
     return http_auth_handler_factory_;
   }
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
   SpdySessionPool* spdy_session_pool() {
     return spdy_session_pool_;
   }
@@ -83,7 +83,7 @@ class NET_TEST HttpProxySocketParams
 
   const scoped_refptr<TransportSocketParams> transport_params_;
   const scoped_refptr<SSLSocketParams> ssl_params_;
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
   SpdySessionPool* spdy_session_pool_;
 #endif
   const GURL request_url_;
@@ -170,7 +170,7 @@ class HttpProxyConnectJob : public ConnectJob {
 
   HttpResponseInfo error_response_info_;
 
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
   scoped_refptr<SpdyStream> spdy_stream_;
 #endif
 
