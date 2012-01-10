@@ -349,6 +349,8 @@ class MEDIA_EXPORT PipelineImpl
   // needing to pause to buffer.
   void NotifyCanPlayThrough();
 
+  void StartClockIfWaitingForTimeUpdate_Locked();
+
   // Message loop used to execute pipeline tasks.
   MessageLoop* message_loop_;
 
