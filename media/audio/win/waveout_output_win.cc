@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -253,19 +253,23 @@ void PCMWaveOutAudioOutputStream::Stop() {
     return;
   }
 
-  // Stop watching for buffer event, wait till all the callbacks are complete.
-  BOOL unregister  = UnregisterWaitEx(waiting_handle_.Take(),
-                                      INVALID_HANDLE_VALUE);
-  if (!unregister) {
-    state_ = PCMA_PLAYING;
-    HandleError(MMSYSERR_ERROR);
-    return;
-  }
-
   // waveOutReset() leaves buffers in the unpredictable state, causing
-  // problems if we want to release or reuse them. Fix the states.
+  // problems if we want to close, release, or reuse them. Fix the states.
   for (int ix = 0; ix != num_buffers_; ++ix) {
     GetBuffer(ix)->dwFlags = WHDR_PREPARED;
+  }
+
+  // Stop watching for buffer event, wait till all the callbacks are complete.
+  // If UnregisterWaitEx() fails we cannot do anything, just continue normal
+  // Stop() -- event would never be signalled because we already stopped the
+  // stream.
+  HANDLE waiting_handle = waiting_handle_.Take();
+  if (waiting_handle) {
+    BOOL unregister  = UnregisterWaitEx(waiting_handle, INVALID_HANDLE_VALUE);
+    if (!unregister) {
+      state_ = PCMA_PLAYING;
+      HandleError(MMSYSERR_ERROR);
+    }
   }
 
   // Don't use callback after Stop().
@@ -275,7 +279,9 @@ void PCMWaveOutAudioOutputStream::Stop() {
 }
 
 // We can Close in any state except that trying to close a stream that is
-// playing Windows generates an error, which we propagate to the source.
+// playing Windows generates an error. We cannot propagate it to the source,
+// as callback_ is set to NULL. Just print it and hope somebody somehow
+// will find it...
 void PCMWaveOutAudioOutputStream::Close() {
   Stop();  // Just to be sure. No-op if not playing.
   if (waveout_) {
@@ -308,7 +314,8 @@ void PCMWaveOutAudioOutputStream::GetVolume(double* volume) {
 
 void PCMWaveOutAudioOutputStream::HandleError(MMRESULT error) {
   DLOG(WARNING) << "PCMWaveOutAudio error " << error;
-  callback_->OnError(this, error);
+  if (callback_)
+    callback_->OnError(this, error);
 }
 
 void PCMWaveOutAudioOutputStream::QueueNextPacket(WAVEHDR *buffer) {
