@@ -655,6 +655,10 @@
     # Disable Dart by default.
     'enable_dart%': 0,
 
+    # (Most) Chrome OS hardware reports ACPI power button releases correctly.
+    # Standard hardware reports releases immediately after presses.
+    'chromeos_legacy_power_button%': 0,
+
     'conditions': [
       # Used to disable Native Client at compile time, for platforms where it
       # isn't supported (ARM)
@@ -1058,6 +1062,9 @@
       }],
       ['chromeos==1', {
         'defines': ['OS_CHROMEOS=1'],
+      }],
+      ['chromeos_legacy_power_button==1', {
+        'defines': ['CHROMEOS_LEGACY_POWER_BUTTON=1'],
       }],
       ['use_virtual_keyboard==1', {
         'defines': ['USE_VIRTUAL_KEYBOARD=1'],
