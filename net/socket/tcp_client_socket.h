@@ -12,7 +12,7 @@
 #if defined(OS_WIN)
 #include "net/socket/tcp_client_socket_win.h"
 #elif defined(__LB_PS3__)
-#include "net/socket/tcp_client_socket_ps3.h"
+#include "chromium/net/socket/tcp_client_socket_ps3.h"
 #elif defined(OS_POSIX)
 #include "net/socket/tcp_client_socket_libevent.h"
 #endif
