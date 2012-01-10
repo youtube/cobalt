@@ -23,7 +23,7 @@
 #include "net/proxy/proxy_config_service_fixed.h"
 #include "net/proxy/proxy_resolver.h"
 #include "net/proxy/proxy_resolver_js_bindings.h"
-#if !defined(__LB_PS3__)
+#if WEBKIT_USING_V8
 #include "net/proxy/proxy_resolver_v8.h"
 #endif
 #include "net/proxy/proxy_script_fetcher.h"
@@ -39,7 +39,7 @@
 #elif defined(OS_LINUX) && !defined(OS_CHROMEOS)
 #include "net/proxy/proxy_config_service_linux.h"
 #elif defined(__LB_PS3__)
-#include "../../../../lbps3/src/platform/ps3/chromium/net/proxy/proxy_config_service_ps3.h" // FIXME: temporary hack
+#include "chromium/net/proxy/proxy_config_service_ps3.h" // in the platform library
 #endif
 
 using base::TimeDelta;
@@ -168,7 +168,7 @@ class ProxyResolverFromPacString : public ProxyResolver {
   const std::string pac_string_;
 };
 
-#if !defined(__LB_PS3__)
+#if WEBKIT_USING_V8
 // This factory creates V8ProxyResolvers with appropriate javascript bindings.
 class ProxyResolverFactoryForV8 : public ProxyResolverFactory {
  public:
@@ -413,7 +413,7 @@ ProxyService::ProxyService(ProxyConfigService* config_service,
   ResetConfigService(config_service);
 }
 
-#if !defined(__LB_PS3__)
+#if WEBKIT_USING_V8
 // static
 ProxyService* ProxyService::CreateUsingV8ProxyResolver(
     ProxyConfigService* proxy_config_service,

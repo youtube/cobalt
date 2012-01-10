@@ -17,7 +17,7 @@
 #include "net/http/http_auth_cache.h"
 #include "net/http/http_stream_factory.h"
 #include "net/socket/client_socket_pool_manager.h"
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
 #include "net/spdy/spdy_session_pool.h"
 #include "net/spdy/spdy_settings_storage.h"
 #endif
@@ -103,7 +103,7 @@ class NET_API HttpNetworkSession
     return socket_pool_manager_.ssl_socket_pool();
   }
 
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
   SOCKSClientSocketPool* GetSocketPoolForSOCKSProxy(
       const HostPortPair& socks_proxy);
 #endif
@@ -117,7 +117,7 @@ class NET_API HttpNetworkSession
   CertVerifier* cert_verifier() { return cert_verifier_; }
   ProxyService* proxy_service() { return proxy_service_; }
   SSLConfigService* ssl_config_service() { return ssl_config_service_; }
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
   SpdySessionPool* spdy_session_pool() { return &spdy_session_pool_; }
 #endif
   HttpAuthHandlerFactory* http_auth_handler_factory() {
@@ -139,7 +139,7 @@ class NET_API HttpNetworkSession
   // responsible for deleting the returned value.
   base::Value* SocketPoolInfoToValue() const;
 
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
   // Creates a Value summary of the state of the SPDY sessions. The caller is
   // responsible for deleting the returned value.
   base::Value* SpdySessionPoolInfoToValue() const;
@@ -167,7 +167,7 @@ class NET_API HttpNetworkSession
   SSLClientAuthCache ssl_client_auth_cache_;
   HttpAlternateProtocols alternate_protocols_;
   ClientSocketPoolManager socket_pool_manager_;
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
   SpdySessionPool spdy_session_pool_;
 #endif
   scoped_ptr<HttpStreamFactory> http_stream_factory_;

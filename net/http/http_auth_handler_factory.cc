@@ -49,7 +49,7 @@ HttpAuthHandlerRegistryFactory* HttpAuthHandlerFactory::CreateDefault(
   registry_factory->RegisterSchemeFactory(
       "digest", new HttpAuthHandlerDigest::Factory());
 
-#if !defined(__LB_PS3__) // Negotiate not supported on LBPS3
+#if !defined(__LB_SHELL__) // Negotiate not supported on LB_SHELL
   HttpAuthHandlerNegotiate::Factory* negotiate_factory =
       new HttpAuthHandlerNegotiate::Factory();
 #if defined(OS_POSIX)
@@ -146,7 +146,7 @@ HttpAuthHandlerRegistryFactory* HttpAuthHandlerRegistryFactory::Create(
 #endif
     registry_factory->RegisterSchemeFactory("ntlm", ntlm_factory);
   }
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
   if (IsSupportedScheme(supported_schemes, "negotiate")) {
     HttpAuthHandlerNegotiate::Factory* negotiate_factory =
         new HttpAuthHandlerNegotiate::Factory();

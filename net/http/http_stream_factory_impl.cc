@@ -12,7 +12,7 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_stream_factory_impl_job.h"
 #include "net/http/http_stream_factory_impl_request.h"
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
 #include "net/spdy/spdy_http_stream.h"
 #endif
 
@@ -38,7 +38,7 @@ HttpStreamFactoryImpl::HttpStreamFactoryImpl(HttpNetworkSession* session)
 
 HttpStreamFactoryImpl::~HttpStreamFactoryImpl() {
   DCHECK(request_map_.empty());
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
   DCHECK(spdy_session_request_map_.empty());
 #endif
 
@@ -122,7 +122,7 @@ bool HttpStreamFactoryImpl::IsTLSIntolerantServer(
 bool HttpStreamFactoryImpl::GetAlternateProtocolRequestFor(
     const GURL& original_url,
     GURL* alternate_url) const {
-#if defined(__LB_PS3__)
+#if defined(__LB_SHELL__)
   return false;
 #else
   if (!spdy_enabled())
@@ -171,7 +171,7 @@ void HttpStreamFactoryImpl::OrphanJob(Job* job, const Request* request) {
   job->Orphan(request);
 }
 
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
 void HttpStreamFactoryImpl::OnSpdySessionReady(
     scoped_refptr<SpdySession> spdy_session,
     bool direct,

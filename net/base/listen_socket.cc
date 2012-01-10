@@ -11,10 +11,7 @@
 #elif defined(OS_POSIX)
 #include <errno.h>
 #include <netinet/in.h>
-#if defined(__LB_PS3__)
-// sony SDK requires <sys/types.h> included before <sys/socket.h> to compile
-#include <sys/types.h>
-#endif
+#include <sys/types.h> // must come before sys/socket.h
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include "net/base/net_errors.h"
@@ -24,6 +21,10 @@
 #include "base/threading/platform_thread.h"
 #include "net/base/net_util.h"
 #include "net/base/listen_socket.h"
+
+#if defined(__LB_PS3__)
+#include "lb_platform.h"
+#endif
 
 #if defined(OS_WIN)
 typedef int socklen_t;
@@ -254,7 +255,7 @@ void ListenSocket::CloseSocket(SOCKET s) {
 #if defined(OS_WIN)
     closesocket(s);
 #elif defined(__LB_PS3__)
-    socketclose(s);
+    LB::Platform::close_socket(s);
 #elif defined(OS_POSIX)
     close(s);
 #endif
@@ -267,7 +268,7 @@ void ListenSocket::WatchSocket(WaitState state) {
   watcher_.StartWatching(socket_event_, this);
 #elif defined(__LB_PS3__)
   MessageLoopForIO::current()->WatchSocket(
-    socket_, true, MessageLoopForIO::WATCH_READ, &watcher_, this);
+      socket_, true, MessageLoopForIO::WATCH_READ, &watcher_, this);
 #elif defined(OS_POSIX)
   // Implicitly calls StartWatchingFileDescriptor().
   MessageLoopForIO::current()->WatchFileDescriptor(
