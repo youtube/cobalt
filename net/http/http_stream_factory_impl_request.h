@@ -41,7 +41,6 @@ class HttpStreamFactoryImpl::Request : public HttpStreamRequest {
                 bool using_spdy,
                 const NetLog::Source& source);
 
-#if !defined(__LB_SHELL__)
   // If this Request has a spdy_session_key, remove this session from the
   // SpdySessionRequestMap.
   void RemoveRequestFromSpdySessionRequestMap();
@@ -50,7 +49,6 @@ class HttpStreamFactoryImpl::Request : public HttpStreamRequest {
   void OnSpdySessionReady(Job* job,
                           scoped_refptr<SpdySession> spdy_session,
                           bool direct);
-#endif
 
   // HttpStreamRequest::Delegate methods which we implement. Note we don't
   // actually subclass HttpStreamRequest::Delegate.

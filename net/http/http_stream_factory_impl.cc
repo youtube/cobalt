@@ -12,9 +12,7 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_stream_factory_impl_job.h"
 #include "net/http/http_stream_factory_impl_request.h"
-#if !defined(__LB_SHELL__)
 #include "net/spdy/spdy_http_stream.h"
-#endif
 
 namespace net {
 
@@ -38,9 +36,7 @@ HttpStreamFactoryImpl::HttpStreamFactoryImpl(HttpNetworkSession* session)
 
 HttpStreamFactoryImpl::~HttpStreamFactoryImpl() {
   DCHECK(request_map_.empty());
-#if !defined(__LB_SHELL__)
   DCHECK(spdy_session_request_map_.empty());
-#endif
 
   std::set<const Job*> tmp_job_set;
   tmp_job_set.swap(orphaned_job_set_);
@@ -122,9 +118,6 @@ bool HttpStreamFactoryImpl::IsTLSIntolerantServer(
 bool HttpStreamFactoryImpl::GetAlternateProtocolRequestFor(
     const GURL& original_url,
     GURL* alternate_url) const {
-#if defined(__LB_SHELL__)
-  return false;
-#else
   if (!spdy_enabled())
     return false;
 
@@ -157,7 +150,6 @@ bool HttpStreamFactoryImpl::GetAlternateProtocolRequestFor(
 
   *alternate_url = UpgradeUrlToHttps(original_url);
   return true;
-#endif
 }
 
 void HttpStreamFactoryImpl::OrphanJob(Job* job, const Request* request) {
@@ -171,7 +163,6 @@ void HttpStreamFactoryImpl::OrphanJob(Job* job, const Request* request) {
   job->Orphan(request);
 }
 
-#if !defined(__LB_SHELL__)
 void HttpStreamFactoryImpl::OnSpdySessionReady(
     scoped_refptr<SpdySession> spdy_session,
     bool direct,
@@ -202,7 +193,6 @@ void HttpStreamFactoryImpl::OnSpdySessionReady(
   }
   // TODO(mbelshe): Alert other valid requests.
 }
-#endif
 
 void HttpStreamFactoryImpl::OnOrphanedJobComplete(const Job* job) {
   orphaned_job_set_.erase(job);
