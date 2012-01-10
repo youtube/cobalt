@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,24 +26,25 @@ class MEDIA_EXPORT MediaLog : public base::RefCountedThreadSafe<MediaLog> {
 
   // Add an event to this log. Overriden by inheritors to actually do something
   // with it.
-  // Takes ownership of |event|.
-  virtual void AddEvent(MediaLogEvent* event);
+  virtual void AddEvent(scoped_ptr<MediaLogEvent> event);
 
   // Helper methods to create events and their parameters.
-  MediaLogEvent* CreateEvent(MediaLogEvent::Type type);
-  MediaLogEvent* CreateBooleanEvent(MediaLogEvent::Type type,
-                                    const char* property, bool value);
-  MediaLogEvent* CreateIntegerEvent(MediaLogEvent::Type type,
-                                    const char* property, int64 value);
-  MediaLogEvent* CreateTimeEvent(MediaLogEvent::Type type,
-                                 const char* property, base::TimeDelta value);
-  MediaLogEvent* CreateLoadEvent(const std::string& url);
-  MediaLogEvent* CreateSeekEvent(float seconds);
-  MediaLogEvent* CreatePipelineStateChangedEvent(PipelineImpl::State state);
-  MediaLogEvent* CreatePipelineErrorEvent(PipelineStatus error);
-  MediaLogEvent* CreateVideoSizeSetEvent(size_t width, size_t height);
-  MediaLogEvent* CreateBufferedExtentsChangedEvent(size_t start, size_t current,
-                                                   size_t end);
+  scoped_ptr<MediaLogEvent> CreateEvent(MediaLogEvent::Type type);
+  scoped_ptr<MediaLogEvent> CreateBooleanEvent(
+      MediaLogEvent::Type type, const char* property, bool value);
+  scoped_ptr<MediaLogEvent> CreateIntegerEvent(
+      MediaLogEvent::Type type, const char* property, int64 value);
+  scoped_ptr<MediaLogEvent> CreateTimeEvent(
+      MediaLogEvent::Type type, const char* property, base::TimeDelta value);
+  scoped_ptr<MediaLogEvent> CreateLoadEvent(const std::string& url);
+  scoped_ptr<MediaLogEvent> CreateSeekEvent(float seconds);
+  scoped_ptr<MediaLogEvent> CreatePipelineStateChangedEvent(
+      PipelineImpl::State state);
+  scoped_ptr<MediaLogEvent> CreatePipelineErrorEvent(PipelineStatus error);
+  scoped_ptr<MediaLogEvent> CreateVideoSizeSetEvent(
+      size_t width, size_t height);
+  scoped_ptr<MediaLogEvent> CreateBufferedExtentsChangedEvent(
+      size_t start, size_t current, size_t end);
 
   // Called when the pipeline statistics have been updated.
   // This gets called every frame, so we send the most recent stats after 500ms.
