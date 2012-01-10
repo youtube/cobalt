@@ -534,8 +534,6 @@
         'socket/tcp_client_socket.h',
         'socket/tcp_client_socket_libevent.cc',
         'socket/tcp_client_socket_libevent.h',
-        'socket/tcp_client_socket_ps3.cc',
-        'socket/tcp_client_socket_ps3.h',
         'socket/tcp_client_socket_win.cc',
         'socket/tcp_client_socket_win.h',
         'socket/tcp_server_socket.h',
