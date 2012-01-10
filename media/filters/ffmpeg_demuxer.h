@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -40,6 +40,7 @@ struct AVFormatContext;
 struct AVPacket;
 struct AVRational;
 struct AVStream;
+class ScopedPtrAVFreePacket;
 
 namespace media {
 
@@ -57,8 +58,8 @@ class FFmpegDemuxerStream : public DemuxerStream {
   // Safe to call on any thread.
   bool HasPendingReads();
 
-  // Enqueues and takes ownership over the given AVPacket.
-  void EnqueuePacket(AVPacket* packet);
+  // Enqueues the given AVPacket.
+  void EnqueuePacket(scoped_ptr_malloc<AVPacket, ScopedPtrAVFreePacket> packet);
 
   // Signals to empty the buffer queue and mark next packet as discontinuous.
   void FlushBuffers();

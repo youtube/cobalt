@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -205,7 +205,7 @@ class PipelineImplTest : public ::testing::Test {
     pipeline_->Start(mocks_->filter_collection(true,
                                                true,
                                                true,
-                                               build_status),
+                                               build_status).Pass(),
                      "",
                      base::Bind(&CallbackHelper::OnStart,
                                 base::Unretained(&callbacks_)));
@@ -328,7 +328,7 @@ TEST_F(PipelineImplTest, NeverInitializes) {
   pipeline_->Start(mocks_->filter_collection(false,
                                              false,
                                              true,
-                                             PIPELINE_OK),
+                                             PIPELINE_OK).Pass(),
                    "",
                    base::Bind(&CallbackHelper::OnStart,
                               base::Unretained(&callbacks_)));
@@ -352,12 +352,9 @@ TEST_F(PipelineImplTest, RequiredFilterMissing) {
   EXPECT_CALL(callbacks_, OnStart(PIPELINE_ERROR_REQUIRED_FILTER_MISSING));
 
   // Create a filter collection with missing filter.
-  FilterCollection* collection =
-      mocks_->filter_collection(false,
-                                true,
-                                true,
-                                PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
-  pipeline_->Start(collection, "",
+  scoped_ptr<FilterCollection> collection(mocks_->filter_collection(
+      false, true, true, PIPELINE_ERROR_REQUIRED_FILTER_MISSING));
+  pipeline_->Start(collection.Pass(), "",
                    base::Bind(&CallbackHelper::OnStart,
                               base::Unretained(&callbacks_)));
   message_loop_.RunAllPending();

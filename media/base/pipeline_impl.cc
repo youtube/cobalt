@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -98,11 +98,10 @@ void PipelineImpl::Init(const PipelineStatusCB& ended_callback,
 }
 
 // Creates the PipelineInternal and calls it's start method.
-bool PipelineImpl::Start(FilterCollection* collection,
+bool PipelineImpl::Start(scoped_ptr<FilterCollection> collection,
                          const std::string& url,
                          const PipelineStatusCB& start_callback) {
   base::AutoLock auto_lock(lock_);
-  scoped_ptr<FilterCollection> filter_collection(collection);
 
   if (running_) {
     VLOG(1) << "Media pipeline is already running";
@@ -118,7 +117,7 @@ bool PipelineImpl::Start(FilterCollection* collection,
   message_loop_->PostTask(
       FROM_HERE,
       base::Bind(&PipelineImpl::StartTask, this,
-                 filter_collection.release(),
+                 base::Passed(&collection),
                  url,
                  start_callback));
   return true;
@@ -626,12 +625,12 @@ void PipelineImpl::OnUpdateStatistics(const PipelineStatistics& stats) {
   media_log_->QueueStatisticsUpdatedEvent(statistics_);
 }
 
-void PipelineImpl::StartTask(FilterCollection* filter_collection,
+void PipelineImpl::StartTask(scoped_ptr<FilterCollection> filter_collection,
                              const std::string& url,
                              const PipelineStatusCB& start_callback) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK_EQ(kCreated, state_);
-  filter_collection_.reset(filter_collection);
+  filter_collection_ = filter_collection.Pass();
   url_ = url;
   seek_callback_ = start_callback;
 

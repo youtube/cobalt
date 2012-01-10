@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,9 +26,10 @@ namespace media {
 //
 class AVPacketBuffer : public Buffer {
  public:
-  AVPacketBuffer(AVPacket* packet, const base::TimeDelta& timestamp,
+  AVPacketBuffer(scoped_ptr_malloc<AVPacket, ScopedPtrAVFreePacket> packet,
+                 const base::TimeDelta& timestamp,
                  const base::TimeDelta& duration)
-      : packet_(packet) {
+      : packet_(packet.Pass()) {
     SetTimestamp(timestamp);
     SetDuration(duration);
   }
@@ -98,7 +99,8 @@ bool FFmpegDemuxerStream::HasPendingReads() {
   return !read_queue_.empty();
 }
 
-void FFmpegDemuxerStream::EnqueuePacket(AVPacket* packet) {
+void FFmpegDemuxerStream::EnqueuePacket(
+    scoped_ptr_malloc<AVPacket, ScopedPtrAVFreePacket> packet) {
   DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
   base::TimeDelta timestamp =
       ConvertStreamTimestamp(stream_->time_base, packet->pts);
@@ -113,13 +115,13 @@ void FFmpegDemuxerStream::EnqueuePacket(AVPacket* packet) {
 
   // Convert if the packet if there is bitstream filter.
   if (packet->data && bitstream_converter_.get() &&
-      !bitstream_converter_->ConvertPacket(packet)) {
+      !bitstream_converter_->ConvertPacket(packet.get())) {
     LOG(ERROR) << "Format converstion failed.";
   }
 
   // Enqueue the callback and attempt to satisfy a read immediately.
   scoped_refptr<Buffer> buffer(
-      new AVPacketBuffer(packet, timestamp, duration));
+      new AVPacketBuffer(packet.Pass(), timestamp, duration));
   if (!buffer) {
     NOTREACHED() << "Unable to allocate AVPacketBuffer";
     return;
@@ -671,8 +673,7 @@ void FFmpegDemuxer::DemuxTask() {
     // not refer to inner memory from FFmpeg.
     av_dup_packet(packet.get());
 
-    // The stream takes ownership of the AVPacket.
-    demuxer_stream->EnqueuePacket(packet.release());
+    demuxer_stream->EnqueuePacket(packet.Pass());
   }
 
   // Create a loop by posting another task.  This allows seek and message loop
@@ -723,9 +724,9 @@ void FFmpegDemuxer::StreamHasEnded() {
   for (iter = streams_.begin(); iter != streams_.end(); ++iter) {
     if (!*iter)
       continue;
-    AVPacket* packet = new AVPacket();
-    memset(packet, 0, sizeof(*packet));
-    (*iter)->EnqueuePacket(packet);
+    scoped_ptr_malloc<AVPacket, ScopedPtrAVFreePacket> packet(new AVPacket());
+    memset(packet.get(), 0, sizeof(*packet.get()));
+    (*iter)->EnqueuePacket(packet.Pass());
   }
 }
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,8 +21,7 @@ class MEDIA_EXPORT FilterCollection {
   ~FilterCollection();
 
   // DemuxerFactory accessor methods.
-  // FilterCollection takes ownership of the factory here.
-  void SetDemuxerFactory(DemuxerFactory* factory);
+  void SetDemuxerFactory(scoped_ptr<DemuxerFactory> factory);
   DemuxerFactory* GetDemuxerFactory();
 
   // Adds a filter to the collection.

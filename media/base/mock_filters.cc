@@ -1,10 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/base/mock_filters.h"
 
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "media/base/filter_host.h"
 
 using ::testing::_;
@@ -65,8 +66,8 @@ void MockDemuxerFactory::RunBuildCallback(const std::string& url,
   callback.Run(status_, NULL);
 }
 
-DemuxerFactory* MockDemuxerFactory::Clone() const {
-  return new MockDemuxerFactory(demuxer_.get());
+scoped_ptr<DemuxerFactory> MockDemuxerFactory::Clone() const {
+  return scoped_ptr<DemuxerFactory>(new MockDemuxerFactory(demuxer_.get()));
 }
 
 MockDemuxer::MockDemuxer()
@@ -124,33 +125,36 @@ MockFilterCollection::MockFilterCollection()
 
 MockFilterCollection::~MockFilterCollection() {}
 
-FilterCollection* MockFilterCollection::filter_collection(
+scoped_ptr<FilterCollection> MockFilterCollection::filter_collection(
     bool include_demuxer,
     bool run_build_callback,
     bool run_build,
     PipelineStatus build_status) const {
-  FilterCollection* collection = new FilterCollection();
+  scoped_ptr<FilterCollection> collection(new FilterCollection());
 
-  MockDemuxerFactory* demuxer_factory =
-      new MockDemuxerFactory(include_demuxer ? demuxer_ : NULL);
+  scoped_ptr<MockDemuxerFactory> demuxer_factory(
+      new MockDemuxerFactory(include_demuxer ? demuxer_ : NULL));
 
   if (build_status != PIPELINE_OK)
     demuxer_factory->SetError(build_status);
 
   if (run_build_callback) {
     ON_CALL(*demuxer_factory, Build(_, _)).WillByDefault(Invoke(
-        demuxer_factory, &MockDemuxerFactory::RunBuildCallback));
+        demuxer_factory.get(), &MockDemuxerFactory::RunBuildCallback));
   }  // else ignore Build calls.
 
   if (run_build)
     EXPECT_CALL(*demuxer_factory, Build(_, _));
 
-  collection->SetDemuxerFactory(demuxer_factory);
+  // TODO(fischman): replace the extra scoped_ptr+release() with Pass() when
+  // http://crbug.com/109026 is fixed.
+  collection->SetDemuxerFactory(scoped_ptr<DemuxerFactory>(
+      demuxer_factory.release()));
   collection->AddVideoDecoder(video_decoder_);
   collection->AddAudioDecoder(audio_decoder_);
   collection->AddVideoRenderer(video_renderer_);
   collection->AddAudioRenderer(audio_renderer_);
-  return collection;
+  return collection.Pass();
 }
 
 void RunFilterCallback(::testing::Unused, const base::Closure& callback) {

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,7 +13,7 @@ namespace media {
 static Buffer* CreateBuffer(const uint8* data, size_t size) {
   scoped_array<uint8> buf(new uint8[size]);
   memcpy(buf.get(), data, size);
-  return new DataBuffer(buf.release(), size);
+  return new DataBuffer(buf.Pass(), size);
 }
 
 WebMClusterParser::WebMClusterParser(int64 timecode_scale,

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -148,7 +148,7 @@ class MockDemuxerFactory : public DemuxerFactory {
   // DemuxerFactory methods.
   MOCK_METHOD2(Build, void(const std::string& url,
                            const BuildCallback& callback));
-  virtual DemuxerFactory* Clone() const;
+  virtual scoped_ptr<DemuxerFactory> Clone() const;
 
  private:
   scoped_refptr<MockDemuxer> demuxer_;
@@ -294,14 +294,13 @@ class MockFilterCollection {
   MockVideoRenderer* video_renderer() const { return video_renderer_; }
   MockAudioRenderer* audio_renderer() const { return audio_renderer_; }
 
-  FilterCollection* filter_collection() const {
-    return filter_collection(true, true, true, PIPELINE_OK);
+  scoped_ptr<FilterCollection> filter_collection() const {
+    return filter_collection(true, true, true, PIPELINE_OK).Pass();
   }
 
-  FilterCollection* filter_collection(bool include_demuxer,
-                                      bool run_build_callback,
-                                      bool run_build,
-                                      PipelineStatus build_status) const;
+  scoped_ptr<FilterCollection> filter_collection(
+      bool include_demuxer, bool run_build_callback, bool run_build,
+      PipelineStatus build_status) const;
 
  private:
   scoped_refptr<MockDemuxer> demuxer_;

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -46,9 +46,9 @@ static void AddSimpleBlock(ClusterBuilder* cb, int track_num,
   cb->AddSimpleBlock(track_num, timecode, 0, data, sizeof(data));
 }
 
-static Cluster* CreateCluster(int timecode,
-                              const SimpleBlockInfo* block_info,
-                              int block_count) {
+static scoped_ptr<Cluster> CreateCluster(int timecode,
+                                         const SimpleBlockInfo* block_info,
+                                         int block_count) {
   ClusterBuilder cb;
   cb.SetClusterTimecode(0);
 

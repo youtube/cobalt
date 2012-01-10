@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -107,7 +107,7 @@ class MEDIA_EXPORT PipelineImpl
   virtual void Init(const PipelineStatusCB& ended_callback,
                     const PipelineStatusCB& error_callback,
                     const NetworkEventCB& network_callback) OVERRIDE;
-  virtual bool Start(FilterCollection* filter_collection,
+  virtual bool Start(scoped_ptr<FilterCollection> filter_collection,
                      const std::string& uri,
                      const PipelineStatusCB& start_callback) OVERRIDE;
   virtual void Stop(const PipelineStatusCB& stop_callback) OVERRIDE;
@@ -231,7 +231,7 @@ class MEDIA_EXPORT PipelineImpl
   // The following "task" methods correspond to the public methods, but these
   // methods are run as the result of posting a task to the PipelineInternal's
   // message loop.
-  void StartTask(FilterCollection* filter_collection,
+  void StartTask(scoped_ptr<FilterCollection> filter_collection,
                  const std::string& url,
                  const PipelineStatusCB& start_callback);
 

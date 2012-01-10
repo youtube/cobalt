@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -50,8 +50,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // The parameter specifies the type of event that is being signaled.
   typedef base::Callback<void(NetworkEvent)> NetworkEventCB;
 
-  // Initializes pipeline. Pipeline takes ownership of all callbacks passed
-  // into this method.
+  // Initializes pipeline.
   // |ended_callback| will be executed when the media reaches the end.
   // |error_callback_| will be executed upon an error in the pipeline.
   // |network_callback_| will be executed when there's a network event.
@@ -70,7 +69,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // This method is asynchronous and can execute a callback when completed.
   // If the caller provides a |start_callback|, it will be called when the
   // pipeline initialization completes.
-  virtual bool Start(FilterCollection* filter_collection,
+  virtual bool Start(scoped_ptr<FilterCollection> filter_collection,
                      const std::string& url,
                      const PipelineStatusCB& start_callback) = 0;
 

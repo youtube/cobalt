@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,9 +12,9 @@ FilterCollection::FilterCollection() {}
 
 FilterCollection::~FilterCollection() {}
 
-void FilterCollection::SetDemuxerFactory(DemuxerFactory* factory) {
-  DCHECK(factory);
-  demuxer_factory_.reset(factory);
+void FilterCollection::SetDemuxerFactory(scoped_ptr<DemuxerFactory> factory) {
+  DCHECK(factory.get());
+  demuxer_factory_ = factory.Pass();
 }
 
 DemuxerFactory* FilterCollection::GetDemuxerFactory() {
