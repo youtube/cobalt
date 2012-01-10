@@ -7,10 +7,8 @@
 #include "base/logging.h"
 #include "base/stl_util.h"
 #include "net/http/http_stream_factory_impl_job.h"
-#if !defined(__LB_SHELL__)
 #include "net/spdy/spdy_http_stream.h"
 #include "net/spdy/spdy_session.h"
-#endif
 
 namespace net {
 
@@ -44,12 +42,9 @@ HttpStreamFactoryImpl::Request::~Request() {
 
   STLDeleteElements(&jobs_);
 
-#if !defined(__LB_SHELL__)
   RemoveRequestFromSpdySessionRequestMap();
-#endif
 }
 
-#if !defined(__LB_SHELL__)
 void HttpStreamFactoryImpl::Request::SetSpdySessionKey(
     const HostPortProxyPair& spdy_session_key) {
   DCHECK(!spdy_session_key_.get());
@@ -59,7 +54,6 @@ void HttpStreamFactoryImpl::Request::SetSpdySessionKey(
   DCHECK(!ContainsKey(request_set, this));
   request_set.insert(this);
 }
-#endif
 
 void HttpStreamFactoryImpl::Request::AttachJob(Job* job) {
   DCHECK(job);
@@ -215,7 +209,6 @@ bool HttpStreamFactoryImpl::Request::using_spdy() const {
   return using_spdy_;
 }
 
-#if !defined(__LB_SHELL__)
 void
 HttpStreamFactoryImpl::Request::RemoveRequestFromSpdySessionRequestMap() {
   if (spdy_session_key_.get()) {
@@ -271,7 +264,6 @@ void HttpStreamFactoryImpl::Request::OnSpdySessionReady(
       spdy_session, direct, used_ssl_config, used_proxy_info,
       was_npn_negotiated, using_spdy, source);
 }
-#endif
 
 void HttpStreamFactoryImpl::Request::OrphanJobsExcept(Job* job) {
   DCHECK(job);
@@ -285,9 +277,7 @@ void HttpStreamFactoryImpl::Request::OrphanJobsExcept(Job* job) {
 }
 
 void HttpStreamFactoryImpl::Request::OrphanJobs() {
-#if !defined(__LB_SHELL__)
   RemoveRequestFromSpdySessionRequestMap();
-#endif
 
   std::set<Job*> tmp;
   tmp.swap(jobs_);

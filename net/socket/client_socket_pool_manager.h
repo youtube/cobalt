@@ -47,9 +47,7 @@ class NetLog;
 class OriginBoundCertService;
 class ProxyInfo;
 class ProxyService;
-#if !defined(__LB_PS3__)
 class SOCKSClientSocketPool;
-#endif
 class SSLClientSocketPool;
 class SSLConfigService;
 class SSLHostInfoFactory;
@@ -103,10 +101,8 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
 
   SSLClientSocketPool* ssl_socket_pool() { return ssl_socket_pool_.get(); }
 
-#if !defined(__LB_PS3__)
   SOCKSClientSocketPool* GetSocketPoolForSOCKSProxy(
       const HostPortPair& socks_proxy);
-#endif
 
   HttpProxyClientSocketPool* GetSocketPoolForHTTPProxy(
       const HostPortPair& http_proxy);
@@ -180,10 +176,8 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
 
   typedef internal::OwnedPoolMap<HostPortPair, TransportClientSocketPool*>
       TransportSocketPoolMap;
-#if !defined(__LB_PS3__)
   typedef internal::OwnedPoolMap<HostPortPair, SOCKSClientSocketPool*>
       SOCKSSocketPoolMap;
-#endif
   typedef internal::OwnedPoolMap<HostPortPair, HttpProxyClientSocketPool*>
       HTTPProxySocketPoolMap;
   typedef internal::OwnedPoolMap<HostPortPair, SSLClientSocketPool*>
@@ -212,9 +206,7 @@ class ClientSocketPoolManager : public base::NonThreadSafe,
   TransportSocketPoolMap transport_socket_pools_for_socks_proxies_;
 
   ClientSocketPoolHistograms socks_pool_histograms_;
-#if !defined(__LB_PS3__)
   SOCKSSocketPoolMap socks_socket_pools_;
-#endif
 
   ClientSocketPoolHistograms transport_for_http_proxy_pool_histograms_;
   TransportSocketPoolMap transport_socket_pools_for_http_proxies_;

@@ -674,25 +674,19 @@
             '../../openssl/include'
           ],
           'sources/': [
-            # I would love to support SPDY on PS3 but porting it right now is outside the scope of effort.
-            ['exclude', 'spdy'],
-            # we _really_ don't want to support FTP.
-            ['exclude', 'ftp'],
-            # or UDP
+            # no UDP
             ['exclude', 'udp'],
             # or file tree access
             ['exclude', 'disk_cache/mapped_file_posix.cc'],
             ['exclude', 'disk_cache/file_posix.cc'],
             # or SDCH, Shared Dictionary Compression over HTTP
             ['exclude', 'sdch'],
-            # and any v8-specific bindings
+            # exclude any v8-specific bindings
             ['exclude', 'v8'],
             # and any request on a url for local folders
             ['exclude', 'url_request_file_dir'],
             # and the unsupported libevent
             ['exclude', 'libevent'],
-            # no need for SOCKS
-            ['exclude', 'socks'],
             # WWW-authenticate: Negotiate requries a native GSSAPI, which PS3 lacks
             ['exclude', 'http/http_auth_handler_negotiate.cc'],
             # crl_filter code assumes little-endian machine

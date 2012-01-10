@@ -199,8 +199,8 @@ AddressList AddressList::CreateFromSockaddr(
         ai->ai_family = sin6->sin6_family;
         DCHECK_EQ(AF_INET6, ai->ai_family);
       }
-#endif
       break;
+#endif
     default:
       NOTREACHED() << "Bad IP address";
       break;
