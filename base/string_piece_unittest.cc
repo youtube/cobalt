@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -664,9 +664,9 @@ TYPED_TEST(CommonStringPieceTest, CheckConstructors) {
   ASSERT_TRUE(str == BasicStringPiece<TypeParam>(str.c_str()));
   ASSERT_TRUE(TestFixture::as_string("hello") ==
               BasicStringPiece<TypeParam>(str.c_str(), 5));
-  ASSERT_TRUE(empty == BasicStringPiece<TypeParam>(str.c_str(), 0));
+  ASSERT_TRUE(empty == BasicStringPiece<TypeParam>(str.c_str(), 0U));
   ASSERT_TRUE(empty == BasicStringPiece<TypeParam>(NULL));
-  ASSERT_TRUE(empty == BasicStringPiece<TypeParam>(NULL, 0));
+  ASSERT_TRUE(empty == BasicStringPiece<TypeParam>(NULL, 0U));
   ASSERT_TRUE(empty == BasicStringPiece<TypeParam>());
   ASSERT_TRUE(str == BasicStringPiece<TypeParam>(str.begin(), str.end()));
   ASSERT_TRUE(empty == BasicStringPiece<TypeParam>(str.begin(), str.begin()));
