@@ -36,7 +36,7 @@ HttpTransactionFactory* HttpNetworkLayer::CreateFactory(
   return new HttpNetworkLayer(session);
 }
 
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
 // static
 void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
   static const char kOff[] = "off";
