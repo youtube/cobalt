@@ -21,9 +21,7 @@
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_histograms.h"
-#if !defined(__LB_PS3__)
 #include "net/socket/socks_client_socket_pool.h"
-#endif
 #include "net/socket/ssl_client_socket_pool.h"
 #include "net/socket/transport_client_socket_pool.h"
 
@@ -77,9 +75,7 @@ int InitSocketPoolHelper(const GURL& request_url,
                          CompletionCallback* callback) {
   scoped_refptr<TransportSocketParams> tcp_params;
   scoped_refptr<HttpProxySocketParams> http_proxy_params;
-#if !defined(__LB_PS3__)
   scoped_refptr<SOCKSSocketParams> socks_params;
-#endif
   scoped_ptr<HostPortPair> proxy_host_port;
 
   GURL request_referrer;
@@ -143,9 +139,7 @@ int InitSocketPoolHelper(const GURL& request_url,
       if (proxy_info.is_https()) {
         // Set ssl_params, and unset proxy_tcp_params
         ssl_params = new SSLSocketParams(proxy_tcp_params,
-#if !defined(__LB_PS3__) // this is for a socks_params 
                                          NULL,
-#endif
                                          NULL,
                                          ProxyServer::SCHEME_DIRECT,
                                          *proxy_host_port.get(),
@@ -164,13 +158,9 @@ int InitSocketPoolHelper(const GURL& request_url,
                                     origin_host_port,
                                     session->http_auth_cache(),
                                     session->http_auth_handler_factory(),
-#if !defined(__LB_PS3__)
                                     session->spdy_session_pool(),
-#endif
                                     force_tunnel || using_ssl);
-    }
-#if !defined(__LB_PS3__)
-    else {
+    } else {
       DCHECK(proxy_info.is_socks());
       char socks_version;
       if (proxy_server.scheme() == ProxyServer::SCHEME_SOCKS5)
@@ -186,16 +176,13 @@ int InitSocketPoolHelper(const GURL& request_url,
                                            request_priority,
                                            request_referrer);
     }
-#endif
   }
 
   // Deal with SSL - which layers on top of any given proxy.
   if (using_ssl) {
     scoped_refptr<SSLSocketParams> ssl_params =
         new SSLSocketParams(tcp_params,
-#if !defined(__LB_PS3__)
                             socks_params,
-#endif
                             http_proxy_params,
                             proxy_info.proxy_server().scheme(),
                             origin_host_port,
@@ -235,7 +222,6 @@ int InitSocketPoolHelper(const GURL& request_url,
                                pool, net_log);
   }
 
-#if !defined(__LB_PS3__)
   if (proxy_info.is_socks()) {
     SOCKSClientSocketPool* pool =
         session->GetSocketPoolForSOCKSProxy(*proxy_host_port);
@@ -249,8 +235,6 @@ int InitSocketPoolHelper(const GURL& request_url,
                                request_priority, callback, pool,
                                net_log);
   }
-#endif
-
 
   DCHECK(proxy_info.is_direct());
 
@@ -308,9 +292,7 @@ ClientSocketPoolManager::ClientSocketPoolManager(
           ssl_host_info_factory,
           socket_factory,
           transport_socket_pool_.get(),
-#if !defined(__LB_PS3__)
           NULL /* no socks proxy */,
-#endif
           NULL /* no http proxy */,
           ssl_config_service,
           net_log)),
@@ -362,13 +344,11 @@ void ClientSocketPoolManager::FlushSocketPools() {
        ++it)
     it->second->Flush();
 
-#if !defined(__LB_PS3__)
   for (SOCKSSocketPoolMap::const_iterator it =
        socks_socket_pools_.begin();
        it != socks_socket_pools_.end();
        ++it)
     it->second->Flush();
-#endif
 
   for (TransportSocketPoolMap::const_iterator it =
        transport_socket_pools_for_socks_proxies_.begin();
@@ -413,13 +393,11 @@ void ClientSocketPoolManager::CloseIdleSockets() {
        ++it)
     it->second->CloseIdleSockets();
 
-#if !defined(__LB_PS3__)
   for (SOCKSSocketPoolMap::const_iterator it =
        socks_socket_pools_.begin();
        it != socks_socket_pools_.end();
        ++it)
     it->second->CloseIdleSockets();
-#endif
 
   for (TransportSocketPoolMap::const_iterator it =
        transport_socket_pools_for_socks_proxies_.begin();
@@ -431,7 +409,6 @@ void ClientSocketPoolManager::CloseIdleSockets() {
   transport_socket_pool_->CloseIdleSockets();
 }
 
-#if !defined(__LB_PS3__)
 SOCKSClientSocketPool* ClientSocketPoolManager::GetSocketPoolForSOCKSProxy(
     const HostPortPair& socks_proxy) {
   SOCKSSocketPoolMap::const_iterator it = socks_socket_pools_.find(socks_proxy);
@@ -465,8 +442,6 @@ SOCKSClientSocketPool* ClientSocketPoolManager::GetSocketPoolForSOCKSProxy(
 
   return ret.first->second;
 }
-#endif
-
 
 HttpProxyClientSocketPool* ClientSocketPoolManager::GetSocketPoolForHTTPProxy(
     const HostPortPair& http_proxy) {
@@ -522,9 +497,7 @@ HttpProxyClientSocketPool* ClientSocketPoolManager::GetSocketPoolForHTTPProxy(
                   ssl_host_info_factory_,
                   socket_factory_,
                   tcp_https_ret.first->second /* https proxy */,
-#if !defined(__LB_PS3__)
                   NULL /* no socks proxy */,
-#endif
                   NULL /* no http proxy */,
                   ssl_config_service_, net_log_)));
   DCHECK(tcp_https_ret.second);
@@ -562,9 +535,7 @@ SSLClientSocketPool* ClientSocketPoolManager::GetSocketPoolForSSLWithProxy(
       ssl_host_info_factory_,
       socket_factory_,
       NULL, /* no tcp pool, we always go through a proxy */
-#if !defined(__LB_PS3__)
       GetSocketPoolForSOCKSProxy(proxy_server),
-#endif
       GetSocketPoolForHTTPProxy(proxy_server),
       ssl_config_service_,
       net_log_);
@@ -618,12 +589,10 @@ Value* ClientSocketPoolManager::SocketPoolInfoToValue() const {
                        http_proxy_socket_pools_,
                        "http_proxy_socket_pool",
                        true);
-#if !defined(__LB_PS3__)
   AddSocketPoolsToList(list,
                        socks_socket_pools_,
                        "socks_socket_pool",
                        true);
-#endif
 
   // Third parameter is false because |ssl_socket_pools_for_proxies_| use
   // socket pools in |http_proxy_socket_pools_| and |socks_socket_pools_|.

@@ -19,11 +19,7 @@
 #include "net/base/net_log.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/transport_security_state.h"
-#if defined(__LB_PS3__)
-#include "googleurl/src/gurl.h"
-#else
 #include "net/ftp/ftp_auth_cache.h"
-#endif
 
 namespace net {
 class CertVerifier;
@@ -133,7 +129,6 @@ class NET_API URLRequestContext
     http_transaction_factory_ = factory;
   }
 
-#if !defined(__LB_PS3__)
   // Gets the ftp transaction factory for this context.
   FtpTransactionFactory* ftp_transaction_factory() const {
     return ftp_transaction_factory_;
@@ -141,7 +136,6 @@ class NET_API URLRequestContext
   void set_ftp_transaction_factory(FtpTransactionFactory* factory) {
     ftp_transaction_factory_ = factory;
   }
-#endif
 
   void set_network_delegate(NetworkDelegate* network_delegate) {
     network_delegate_ = network_delegate;
@@ -161,10 +155,8 @@ class NET_API URLRequestContext
     transport_security_state_ = state;
   }
 
-#if !defined(__LB_PS3__)
   // Gets the FTP authentication cache for this context.
   FtpAuthCache* ftp_auth_cache() const { return ftp_auth_cache_.get(); }
-#endif
 
   // Gets the value of 'Accept-Charset' header field.
   const std::string& accept_charset() const { return accept_charset_; }
@@ -222,9 +214,7 @@ class NET_API URLRequestContext
   NetworkDelegate* network_delegate_;
   scoped_refptr<CookieStore> cookie_store_;
   scoped_refptr<TransportSecurityState> transport_security_state_;
-#if !defined(__LB_PS3__)
   scoped_ptr<FtpAuthCache> ftp_auth_cache_;
-#endif
   std::string accept_language_;
   std::string accept_charset_;
   // The charset of the referrer where this request comes from. It's not
@@ -232,9 +222,7 @@ class NET_API URLRequestContext
   // filename for file download.
   std::string referrer_charset_;
   HttpTransactionFactory* http_transaction_factory_;
-#if !defined(__LB_PS3__)
   FtpTransactionFactory* ftp_transaction_factory_;
-#endif
   const URLRequestJobFactory* job_factory_;
 
   // ---------------------------------------------------------------------------

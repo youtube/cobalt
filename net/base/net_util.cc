@@ -1838,7 +1838,9 @@ bool IPv6Supported() {
   // java.net.NetworkInterface through JNI.
   NOTIMPLEMENTED();
   return true;
-#elif defined(OS_POSIX) && !defined(__LB_PS3__)
+#elif defined(__LB_PS3__)
+  return false;
+#elif defined(OS_POSIX)
   int test_socket = socket(AF_INET6, SOCK_STREAM, 0);
   if (test_socket == -1) {
     IPv6SupportResults(IPV6_CANNOT_CREATE_SOCKETS);
