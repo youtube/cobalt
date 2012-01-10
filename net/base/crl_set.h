@@ -17,6 +17,10 @@
 #include "base/time.h"
 #include "net/base/net_export.h"
 
+namespace base {
+class DictionaryValue;
+}
+
 namespace net {
 
 // A CRLSet is a structure that lists the serial numbers of revoked
@@ -37,12 +41,16 @@ class NET_EXPORT CRLSet : public base::RefCountedThreadSafe<CRLSet> {
   static bool Parse(base::StringPiece data,
                     scoped_refptr<CRLSet>* out_crl_set);
 
-  // CheckCertificate returns the information contained in the set for a given
+  // CheckSPKI checks whether the given SPKI has been listed as blocked.
+  //   spki_hash: the SHA256 of the SubjectPublicKeyInfo of the certificate.
+  Result CheckSPKI(const base::StringPiece& spki_hash) const;
+
+  // CheckSerial returns the information contained in the set for a given
   // certificate:
   //   serial_number: the serial number of the certificate
   //   issuer_spki_hash: the SHA256 of the SubjectPublicKeyInfo of the CRL
   //       signer
-  Result CheckCertificate(
+  Result CheckSerial(
       const base::StringPiece& serial_number,
       const base::StringPiece& issuer_spki_hash) const;
 
@@ -78,7 +86,9 @@ class NET_EXPORT CRLSet : public base::RefCountedThreadSafe<CRLSet> {
  private:
   CRLSet();
 
-  static CRLSet* CRLSetFromHeader(base::StringPiece header);
+  // CopyBlockedSPKIsFromHeader sets |blocked_spkis_| to the list of values
+  // from "BlockedSPKIs" in |header_dict|.
+  bool CopyBlockedSPKIsFromHeader(base::DictionaryValue* header_dict);
 
   uint32 sequence_;
   CRLList crls_;
@@ -87,6 +97,9 @@ class NET_EXPORT CRLSet : public base::RefCountedThreadSafe<CRLSet> {
   // and |crls_index_by_issuer_| because, when applying a delta update, we need
   // to identify a CRL by index.
   std::map<std::string, size_t> crls_index_by_issuer_;
+  // blocked_spkis_ contains the SHA256 hashes of SPKIs which are to be blocked
+  // no matter where in a certificate chain they might appear.
+  std::vector<std::string> blocked_spkis_;
 };
 
 }  // namespace net

@@ -23,6 +23,7 @@
 #include "crypto/nss_util.h"
 #include "crypto/rsa_private_key.h"
 #include "crypto/scoped_nss_types.h"
+#include "crypto/sha2.h"
 #include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
@@ -258,14 +259,12 @@ CRLSetResult CheckRevocationWithCRLSet(CERTCertList* cert_list,
   if (root)
     certs.push_back(root);
 
-  CERTCertificate* prev = NULL;
-  for (std::vector<CERTCertificate*>::iterator i = certs.begin();
-       i != certs.end(); ++i) {
+  // We iterate from the root certificate down to the leaf, keeping track of
+  // the issuer's SPKI at each step.
+  std::string issuer_spki_hash;
+  for (std::vector<CERTCertificate*>::reverse_iterator i = certs.rbegin();
+       i != certs.rend(); ++i) {
     CERTCertificate* cert = *i;
-    CERTCertificate* child = prev;
-    prev = cert;
-    if (child == NULL)
-      continue;
 
     base::StringPiece der(reinterpret_cast<char*>(cert->derCert.data),
                           cert->derCert.len);
@@ -275,12 +274,18 @@ CRLSetResult CheckRevocationWithCRLSet(CERTCertList* cert_list,
       NOTREACHED();
       return kCRLSetError;
     }
+    const std::string spki_hash = crypto::SHA256HashString(spki);
 
-    std::string serial_number(
-        reinterpret_cast<char*>(child->serialNumber.data),
-        child->serialNumber.len);
+    base::StringPiece serial_number = base::StringPiece(
+        reinterpret_cast<char*>(cert->serialNumber.data),
+        cert->serialNumber.len);
 
-    CRLSet::Result result = crl_set->CheckCertificate(serial_number, spki);
+    CRLSet::Result result = crl_set->CheckSPKI(spki_hash);
+
+    if (result != CRLSet::REVOKED && !issuer_spki_hash.empty())
+      result = crl_set->CheckSerial(serial_number, issuer_spki_hash);
+
+    issuer_spki_hash = spki_hash;
 
     switch (result) {
       case CRLSet::REVOKED:
