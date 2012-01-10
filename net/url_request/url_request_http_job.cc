@@ -25,7 +25,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/base/network_delegate.h"
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
 #include "net/base/sdch_manager.h"
 #endif
 #include "net/base/ssl_cert_request_info.h"
@@ -295,7 +295,7 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
 
   ProcessStrictTransportSecurityHeader();
 
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
   if (SdchManager::Global() &&
       SdchManager::Global()->IsInSupportedDomain(request_->url())) {
     static const std::string name = "Get-Dictionary";
@@ -427,7 +427,7 @@ void URLRequestHttpJob::StartTransactionInternal() {
 }
 
 void URLRequestHttpJob::AddExtraHeaders() {
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
   // Supply Accept-Encoding field only if it is not already provided.
   // It should be provided IF the content is known to have restrictions on
   // potential encoding, such as streaming multi-media.
@@ -1214,7 +1214,7 @@ HostPortPair URLRequestHttpJob::GetSocketAddress() const {
 }
 
 URLRequestHttpJob::~URLRequestHttpJob() {
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
   DCHECK(!sdch_test_control_ || !sdch_test_activated_);
   if (!is_cached_content_) {
     if (sdch_test_control_)

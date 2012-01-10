@@ -33,11 +33,8 @@ class WebSocketHandshakeResponseHandler;
 // TODO(ukai): refactor websocket.cc to use this.
 class NET_API WebSocketJob
     : public SocketStreamJob,
-      public SocketStream::Delegate
-#if !defined(__LB_PS3__)
-      , public SpdyWebSocketStream::Delegate 
-#endif
-{
+      public SocketStream::Delegate,
+      public SpdyWebSocketStream::Delegate {
  public:
   // This is state of WebSocket, not SocketStream.
   enum State {
@@ -76,7 +73,6 @@ class NET_API WebSocketJob
       SocketStream* socket, AuthChallengeInfo* auth_info);
   virtual void OnError(const SocketStream* socket, int error);
 
-#if !defined(__LB_PS3__)
   // SpdyWebSocketStream::Delegate methods.
   virtual void OnCreatedSpdyStream(int status);
   virtual void OnSentSpdyHeaders(int status);
@@ -85,7 +81,6 @@ class NET_API WebSocketJob
   virtual void OnSentSpdyData(int amount_sent);
   virtual void OnReceivedSpdyData(const char* data, int length);
   virtual void OnCloseSpdyStream();
-#endif
 
  private:
   friend class WebSocketThrottle;

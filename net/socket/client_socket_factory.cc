@@ -21,7 +21,7 @@
 #endif
 #include "net/socket/ssl_host_info.h"
 #include "net/socket/tcp_client_socket.h"
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
 #include "net/udp/udp_client_socket.h"
 #endif
 
@@ -60,7 +60,7 @@ class DefaultClientSocketFactory : public ClientSocketFactory,
       const RandIntCallback& rand_int_cb,
       NetLog* net_log,
       const NetLog::Source& source) {
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
     return new UDPClientSocket(bind_type, rand_int_cb, net_log, source);
 #else
     return NULL;

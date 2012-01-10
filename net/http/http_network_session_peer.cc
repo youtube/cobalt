@@ -27,15 +27,13 @@ void HttpNetworkSessionPeer::SetTransportSocketPool(
 void HttpNetworkSessionPeer::SetSocketPoolForSOCKSProxy(
     const HostPortPair& socks_proxy,
     SOCKSClientSocketPool* pool) {
-#if !defined(__LB_SHELL__)
-      ClientSocketPoolManager* socket_pool_manager =
+  ClientSocketPoolManager* socket_pool_manager =
       &session_->socket_pool_manager_;
 
   // Call through the public interface to force initialization of the
   // wrapped socket pools.
   delete socket_pool_manager->GetSocketPoolForSOCKSProxy(socks_proxy);
   socket_pool_manager->socks_socket_pools_[socks_proxy] = pool;
-#endif
 }
 
 void HttpNetworkSessionPeer::SetSocketPoolForHTTPProxy(
