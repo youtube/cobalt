@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -46,6 +46,30 @@ static void AdjustVolume(Format* buf_out,
   for (int i = 0; i < sample_count; ++i) {
     buf_out[i] = static_cast<Format>(ScaleChannel<Fixed>(buf_out[i] - bias,
                                                          fixed_volume) + bias);
+  }
+}
+
+// Type is the datatype of a data point in the waveform (i.e. uint8, int16,
+// int32, etc).
+template <class Type>
+static void DoCrossfade(int bytes_to_crossfade, int number_of_channels,
+                        int bytes_per_channel, const Type* src, Type* dest) {
+  DCHECK_EQ(sizeof(Type), static_cast<size_t>(bytes_per_channel));
+  int number_of_samples =
+      bytes_to_crossfade / (bytes_per_channel * number_of_channels);
+
+  const Type* dest_end = dest + number_of_samples * number_of_channels;
+  const Type* src_end = src + number_of_samples * number_of_channels;
+
+  for (int i = 0; i < number_of_samples; ++i) {
+    double crossfade_ratio = static_cast<double>(i) / number_of_samples;
+    for (int j = 0; j < number_of_channels; ++j) {
+      DCHECK_LT(dest, dest_end);
+      DCHECK_LT(src, src_end);
+      *dest = (*dest) * (1.0 - crossfade_ratio) + (*src) * crossfade_ratio;
+      ++src;
+      ++dest;
+    }
   }
 }
 
@@ -372,5 +396,28 @@ bool IsWASAPISupported() {
 }
 
 #endif
+
+void Crossfade(int bytes_to_crossfade, int number_of_channels,
+               int bytes_per_channel, const uint8* src, uint8* dest) {
+  // TODO(vrk): The type punning below is no good!
+  switch (bytes_per_channel) {
+    case 4:
+      DoCrossfade(bytes_to_crossfade, number_of_channels, bytes_per_channel,
+                  reinterpret_cast<const int32*>(src),
+                  reinterpret_cast<int32*>(dest));
+      break;
+    case 2:
+      DoCrossfade(bytes_to_crossfade, number_of_channels, bytes_per_channel,
+                  reinterpret_cast<const int16*>(src),
+                  reinterpret_cast<int16*>(dest));
+      break;
+    case 1:
+      DoCrossfade(bytes_to_crossfade, number_of_channels, bytes_per_channel,
+                  src, dest);
+      break;
+    default:
+      NOTREACHED() << "Unsupported audio bit depth in crossfade.";
+  }
+}
 
 }  // namespace media

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -112,6 +112,13 @@ MEDIA_EXPORT bool IsUnknownDataSize(base::SharedMemory* shared_memory,
 MEDIA_EXPORT bool IsWASAPISupported();
 
 #endif  // defined(OS_WIN)
+
+// Crossfades |bytes_to_crossfade| bytes of data in |dest| with the
+// data in |src|. Assumes there is room in |dest| and enough data in |src|.
+MEDIA_EXPORT void Crossfade(int bytes_to_crossfade, int number_of_channels,
+                            int bytes_per_channel, const uint8* src,
+                            uint8* dest);
+
 
 }  // namespace media
 
