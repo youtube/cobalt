@@ -107,7 +107,7 @@ URLRequestJob* URLRequestFileJob::Factory(URLRequest* request,
   if (AccessDisabled(file_path))
     return new URLRequestErrorJob(request, ERR_ACCESS_DENIED);
 #endif
-#if defined(__LB_PS3__)
+#if defined(__LB_SHELL__)
   // Jail the file path to a specific folder.
   std::string jail_path(*global_game_content_path + "/local");
   file_path = FilePath(jail_path + file_path.value());
@@ -127,7 +127,7 @@ URLRequestJob* URLRequestFileJob::Factory(URLRequest* request,
   if (is_file &&
       file_util::EndsWithSeparator(file_path) &&
       file_path.IsAbsolute())
-#if defined(__LB_PS3__)
+#if defined(__LB_SHELL__)
     return new URLRequestErrorJob(request, ERR_ACCESS_DENIED);
 #else
     return new URLRequestFileDirJob(request, file_path);
