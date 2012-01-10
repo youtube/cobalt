@@ -10,6 +10,10 @@
 #include "net/disk_cache/errors.h"
 #include "net/disk_cache/histogram_macros.h"
 
+#if defined(__LB_PS3__)
+#include "posix_emulation.h"
+#endif
+
 using base::Time;
 using base::TimeTicks;
 
@@ -72,8 +76,6 @@ void TerminateSelf() {
 #if defined(OS_WIN)
   // Windows does more work on _exit() than we would like, so we force exit.
   TerminateProcess(GetCurrentProcess(), 0);
-#elif defined(__LB_PS3__)
-  exit(0);
 #elif defined(OS_POSIX)
   // On POSIX, _exit() will terminate the process with minimal cleanup,
   // and it is cleaner than killing.
