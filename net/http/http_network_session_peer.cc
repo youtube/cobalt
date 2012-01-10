@@ -27,7 +27,7 @@ void HttpNetworkSessionPeer::SetTransportSocketPool(
 void HttpNetworkSessionPeer::SetSocketPoolForSOCKSProxy(
     const HostPortPair& socks_proxy,
     SOCKSClientSocketPool* pool) {
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
       ClientSocketPoolManager* socket_pool_manager =
       &session_->socket_pool_manager_;
 

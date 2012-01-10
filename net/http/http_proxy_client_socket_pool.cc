@@ -19,7 +19,7 @@
 #include "net/socket/ssl_client_socket.h"
 #include "net/socket/ssl_client_socket_pool.h"
 #include "net/socket/transport_client_socket_pool.h"
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
 #include "net/spdy/spdy_proxy_client_socket.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
@@ -37,13 +37,13 @@ HttpProxySocketParams::HttpProxySocketParams(
     HostPortPair endpoint,
     HttpAuthCache* http_auth_cache,
     HttpAuthHandlerFactory* http_auth_handler_factory,
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
     SpdySessionPool* spdy_session_pool,
 #endif
     bool tunnel)
     : transport_params_(transport_params),
       ssl_params_(ssl_params),
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
       spdy_session_pool_(spdy_session_pool),
 #endif
       request_url_(request_url),
@@ -155,7 +155,7 @@ int HttpProxyConnectJob::DoLoop(int result) {
       case STATE_HTTP_PROXY_CONNECT_COMPLETE:
         rv = DoHttpProxyConnectComplete(rv);
         break;
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
       case STATE_SPDY_PROXY_CREATE_STREAM:
         DCHECK_EQ(OK, rv);
         rv = DoSpdyProxyCreateStream();
@@ -204,7 +204,7 @@ int HttpProxyConnectJob::DoSSLConnect() {
   if (params_->tunnel()) {
     HostPortProxyPair pair(params_->destination().host_port_pair(),
                            ProxyServer::Direct());
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
     if (params_->spdy_session_pool()->HasSession(pair)) {
       using_spdy_ = true;
       next_state_ = STATE_SPDY_PROXY_CREATE_STREAM;
@@ -291,7 +291,7 @@ int HttpProxyConnectJob::DoHttpProxyConnectComplete(int result) {
   return result;
 }
 
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
 int HttpProxyConnectJob::DoSpdyProxyCreateStream() {
   DCHECK(using_spdy_);
   DCHECK(params_->tunnel());
