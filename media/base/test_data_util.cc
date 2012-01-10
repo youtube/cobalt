@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -42,7 +42,7 @@ void ReadTestDataFile(const std::string& name, scoped_refptr<Buffer>* buffer) {
   scoped_array<uint8> buf;
   int buf_size;
   ReadTestDataFile(name, &buf, &buf_size);
-  *buffer = new DataBuffer(buf.release(), buf_size);
+  *buffer = new DataBuffer(buf.Pass(), buf_size);
 }
 
 }  // namespace media

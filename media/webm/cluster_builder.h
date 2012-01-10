@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,15 +13,14 @@ namespace media {
 
 class Cluster {
  public:
-  // Takes ownership of |data|
-  Cluster(const uint8* data, int size);
+  Cluster(scoped_array<uint8> data, int size);
   ~Cluster();
 
   const uint8* data() const { return data_.get(); }
   int size() const { return size_; }
 
  private:
-  scoped_array<const uint8> data_;
+  scoped_array<uint8> data_;
   int size_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Cluster);
@@ -36,7 +35,7 @@ class ClusterBuilder {
   void AddSimpleBlock(int track_num, int64 timecode, int flags,
                       const uint8* data, int size);
 
-  Cluster* Finish();
+  scoped_ptr<Cluster> Finish();
 
  private:
   void Reset();
