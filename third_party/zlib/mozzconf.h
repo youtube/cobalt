@@ -68,6 +68,7 @@
 #define compress2 MOZ_Z_compress2
 #define compressBound MOZ_Z_compressBound
 #define uncompress MOZ_Z_uncompress
+#define gzopen MOZ_Z_gzopen
 #define gzdopen MOZ_Z_gzdopen
 #define gzsetparams MOZ_Z_gzsetparams
 #define gzread MOZ_Z_gzread
@@ -79,7 +80,9 @@
 #define gzgetc MOZ_Z_gzgetc
 #define gzungetc MOZ_Z_gzungetc
 #define gzflush MOZ_Z_gzflush
+#define gzseek MOZ_Z_gzseek
 #define gzrewind MOZ_Z_gzrewind
+#define gztell MOZ_Z_gztell
 #define gzeof MOZ_Z_gzeof
 #define gzclose MOZ_Z_gzclose
 #define gzerror MOZ_Z_gzerror
@@ -116,6 +119,8 @@
 #define out_func MOZ_Z_out_func
 
 /* New as of libpng-1.2.3 */
+#define adler32_combine MOZ_Z_adler32_combine
+#define crc32_combine MOZ_Z_crc32_combine
 #define deflateSetHeader MOZ_Z_deflateSetHeader
 #define deflateTune MOZ_Z_deflateTune
 #define gzdirect MOZ_Z_gzdirect
@@ -123,6 +128,13 @@
 #define inflateGetHeader MOZ_Z_inflateGetHeader
 
 /* New as of zlib 1.2.5 */
+#define gzoffset MOZ_Z_gzoffset
+#define gzopen64 MOZ_Z_gzopen64
+#define gzseek64 MOZ_Z_gzseek64
+#define gztell64 MOZ_Z_gztell64
+#define gzoffset64 MOZ_Z_gzoffset64
+#define adler32_combine64 MOZ_Z_adler32_combine64
+#define crc32_combine64 MOZ_Z_crc32_combine64
 #define gz_error MOZ_Z_gz_error
 #define gz_intmax MOZ_Z_gz_intmax
 #define gz_strwinerror MOZ_Z_gz_strwinerror
@@ -151,24 +163,6 @@
 #if !defined(__MACTYPES__)
 #define Byte MOZ_Z_Byte
 #define Bytef MOZ_Z_Bytef
-#endif
-
-/* Mangle only 64-bit functions on platforms which support 64-bit files to avoid
- * conflicts with manglings in zlib.h. */
-#if !defined(ZLIB_INTERNAL) && _FILE_OFFSET_BITS-0 == 64 && _LFS64_LARGEFILE-0
-#define gzopen64 MOZ_Z_gzopen64
-#define gzseek64 MOZ_Z_gzseek64
-#define gztell64 MOZ_Z_gztell64
-#define gzoffset64 MOZ_Z_gzoffset64
-#define adler32_combine64 MOZ_Z_adler32_combine64
-#define crc32_combine64 MOZ_Z_crc32_combine64
-#else
-#define gzopen MOZ_Z_gzopen
-#define gzseek MOZ_Z_gzseek
-#define gztell MOZ_Z_gztell
-#define gzoffset MOZ_Z_gzoffset
-#define adler32_combine MOZ_Z_adler32_combine
-#define crc32_combine MOZ_Z_crc32_combine
 #endif
 
 #endif
