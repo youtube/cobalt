@@ -11,6 +11,17 @@
 
 namespace media {
 
+std::string GetTestDataURL(const std::string& name) {
+  FilePath file_path;
+  CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &file_path));
+
+  file_path = file_path.Append(FILE_PATH_LITERAL("media"))
+      .Append(FILE_PATH_LITERAL("test"))
+      .Append(FILE_PATH_LITERAL("data"))
+      .AppendASCII(name);
+  return file_path.MaybeAsASCII();
+}
+
 void ReadTestDataFile(const std::string& name, scoped_array<uint8>* buffer,
                       int* size) {
   FilePath file_path;
