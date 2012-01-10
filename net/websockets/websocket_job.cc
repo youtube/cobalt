@@ -17,10 +17,8 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_transaction_factory.h"
 #include "net/http/http_util.h"
-#if !defined(__LB_PS3__)
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
-#endif
 #include "net/url_request/url_request_context.h"
 #include "net/websockets/websocket_frame_handler.h"
 #include "net/websockets/websocket_handshake_handler.h"
@@ -200,9 +198,7 @@ int WebSocketJob::OnStartOpenConnection(
     AddRef();  // Balanced when callback_ becomes NULL.
     return ERR_IO_PENDING;
   }
-#if !defined(__LB_PS3__)
   return TrySpdyStream();
-#endif
 }
 
 void WebSocketJob::OnConnected(
@@ -301,7 +297,6 @@ void WebSocketJob::OnError(const SocketStream* socket, int error) {
     delegate_->OnError(socket, error);
 }
 
-#if !defined(__LB_PS3__)
 void WebSocketJob::OnCreatedSpdyStream(int result) {
   DCHECK(spdy_websocket_stream_.get());
   DCHECK(socket_.get());
@@ -366,7 +361,6 @@ void WebSocketJob::OnCloseSpdyStream() {
   spdy_websocket_stream_.reset();
   OnClose(socket_);
 }
-#endif
 
 bool WebSocketJob::SendHandshakeRequest(const char* data, int len) {
   DCHECK_EQ(state_, CONNECTING);
@@ -411,15 +405,12 @@ void WebSocketJob::LoadCookieCallback(const std::string& cookie) {
 }
 
 void WebSocketJob::DoSendData() {
-#if !defined(__LB_PS3__)
   if (spdy_websocket_stream_.get()) {
     linked_ptr<spdy::SpdyHeaderBlock> headers(new spdy::SpdyHeaderBlock);
     handshake_request_->GetRequestHeaderBlock(
         socket_->url(), headers.get(), &challenge_);
     spdy_websocket_stream_->SendRequest(headers);
-  } else
-#endif
-  {
+  } else {
     const std::string& handshake_request =
         handshake_request_->GetRawRequest();
     handshake_request_sent_ = 0;
@@ -562,9 +553,6 @@ const AddressList& WebSocketJob::address_list() const {
 }
 
 int WebSocketJob::TrySpdyStream() {
-#if defined(__LB_PS3__)
-  return ERR_FAILED;
-#else
   if (!socket_.get())
     return ERR_FAILED;
 
@@ -610,7 +598,6 @@ int WebSocketJob::TrySpdyStream() {
   }
 
   return ERR_IO_PENDING;
-#endif
 }
 
 void WebSocketJob::SetWaiting() {
@@ -651,20 +638,16 @@ void WebSocketJob::CompleteIO(int result) {
 }
 
 bool WebSocketJob::SendDataInternal(const char* data, int length) {
-#if !defined(__LB_PS3__)
   if (spdy_websocket_stream_.get())
     return ERR_IO_PENDING == spdy_websocket_stream_->SendData(data, length);
-#endif
   if (socket_.get())
     return socket_->SendData(data, length);
   return false;
 }
 
 void WebSocketJob::CloseInternal() {
-#if !defined(__LB_PS3__)
   if (spdy_websocket_stream_.get())
     spdy_websocket_stream_->Close();
-#endif
   if (socket_.get())
     socket_->Close();
 }

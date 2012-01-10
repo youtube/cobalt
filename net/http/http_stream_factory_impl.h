@@ -17,9 +17,7 @@
 namespace net {
 
 class HttpNetworkSession;
-#if !defined(__LB_SHELL__)
 class SpdySession;
-#endif
 
 class NET_TEST HttpStreamFactoryImpl : public HttpStreamFactory {
  public:
@@ -45,9 +43,7 @@ class NET_TEST HttpStreamFactoryImpl : public HttpStreamFactory {
   class Job;
 
   typedef std::set<Request*> RequestSet;
-#if !defined(__LB_SHELL__)
   typedef std::map<HostPortProxyPair, RequestSet> SpdySessionRequestMap;
-#endif
 
   bool GetAlternateProtocolRequestFor(const GURL& original_url,
                                       GURL* alternate_url) const;
@@ -55,7 +51,6 @@ class NET_TEST HttpStreamFactoryImpl : public HttpStreamFactory {
   // Detaches |job| from |request|.
   void OrphanJob(Job* job, const Request* request);
 
-#if !defined(__LB_SHELL__)
   // Called when a SpdySession is ready. It will find appropriate Requests and
   // fulfill them. |direct| indicates whether or not |spdy_session| uses a
   // proxy.
@@ -66,7 +61,6 @@ class NET_TEST HttpStreamFactoryImpl : public HttpStreamFactory {
                           bool was_npn_negotiated,
                           bool using_spdy,
                           const NetLog::Source& source);
-#endif
 
   // Called when the Job detects that the endpoint indicated by the
   // Alternate-Protocol does not work. Lets the factory update
@@ -91,9 +85,7 @@ class NET_TEST HttpStreamFactoryImpl : public HttpStreamFactory {
   // |request_map_|. The Requests will delete the corresponding job.
   std::map<const Job*, Request*> request_map_;
 
-#if !defined(__LB_SHELL__)
   SpdySessionRequestMap spdy_session_request_map_;
-#endif
 
   // These jobs correspond to jobs orphaned by Requests and now owned by
   // HttpStreamFactoryImpl. Since they are no longer tied to Requests, they will

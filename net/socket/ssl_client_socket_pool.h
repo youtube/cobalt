@@ -30,10 +30,8 @@ class DnsRRResolver;
 class HostPortPair;
 class HttpProxyClientSocketPool;
 class HttpProxySocketParams;
-#if !defined(__LB_PS3__)
 class SOCKSClientSocketPool;
 class SOCKSSocketParams;
-#endif
 class SSLClientSocket;
 class SSLHostInfoFactory;
 class TransportSocketParams;
@@ -45,9 +43,7 @@ struct RRResponse;
 class NET_TEST SSLSocketParams : public base::RefCounted<SSLSocketParams> {
  public:
   SSLSocketParams(const scoped_refptr<TransportSocketParams>& transport_params,
-#if !defined(__LB_PS3__)
-    const scoped_refptr<SOCKSSocketParams>& socks_params,
-#endif
+                  const scoped_refptr<SOCKSSocketParams>& socks_params,
                   const scoped_refptr<HttpProxySocketParams>& http_proxy_params,
                   ProxyServer::Scheme proxy,
                   const HostPortPair& host_and_port,
@@ -62,11 +58,9 @@ class NET_TEST SSLSocketParams : public base::RefCounted<SSLSocketParams> {
   const scoped_refptr<HttpProxySocketParams>& http_proxy_params() {
     return http_proxy_params_;
   }
-#if !defined(__LB_PS3__)
   const scoped_refptr<SOCKSSocketParams>& socks_params() {
     return socks_params_;
   }
-#endif
   ProxyServer::Scheme proxy() const { return proxy_; }
   const HostPortPair& host_and_port() const { return host_and_port_; }
   const SSLConfig& ssl_config() const { return ssl_config_; }
@@ -81,9 +75,7 @@ class NET_TEST SSLSocketParams : public base::RefCounted<SSLSocketParams> {
 
   const scoped_refptr<TransportSocketParams> transport_params_;
   const scoped_refptr<HttpProxySocketParams> http_proxy_params_;
-#if !defined(__LB_PS3__)
   const scoped_refptr<SOCKSSocketParams> socks_params_;
-#endif
   const ProxyServer::Scheme proxy_;
   const HostPortPair host_and_port_;
   const SSLConfig ssl_config_;
@@ -104,9 +96,7 @@ class SSLConnectJob : public ConnectJob {
       const scoped_refptr<SSLSocketParams>& params,
       const base::TimeDelta& timeout_duration,
       TransportClientSocketPool* transport_pool,
-#if !defined(__LB_PS3__)
       SOCKSClientSocketPool* socks_pool,
-#endif
       HttpProxyClientSocketPool* http_proxy_pool,
       ClientSocketFactory* client_socket_factory,
       HostResolver* host_resolver,
@@ -154,9 +144,7 @@ class SSLConnectJob : public ConnectJob {
 
   scoped_refptr<SSLSocketParams> params_;
   TransportClientSocketPool* const transport_pool_;
-#if !defined(__LB_PS3__)
   SOCKSClientSocketPool* const socks_pool_;
-#endif
   HttpProxyClientSocketPool* const http_proxy_pool_;
   ClientSocketFactory* const client_socket_factory_;
   HostResolver* const host_resolver_;
@@ -194,9 +182,7 @@ class NET_TEST SSLClientSocketPool : public ClientSocketPool,
       SSLHostInfoFactory* ssl_host_info_factory,
       ClientSocketFactory* client_socket_factory,
       TransportClientSocketPool* transport_pool,
-#if !defined(__LB_PS3__)
       SOCKSClientSocketPool* socks_pool,
-#endif
       HttpProxyClientSocketPool* http_proxy_pool,
       SSLConfigService* ssl_config_service,
       NetLog* net_log);
@@ -256,9 +242,7 @@ class NET_TEST SSLClientSocketPool : public ClientSocketPool,
    public:
     SSLConnectJobFactory(
         TransportClientSocketPool* transport_pool,
-#if !defined(__LB_PS3__)
         SOCKSClientSocketPool* socks_pool,
-#endif
         HttpProxyClientSocketPool* http_proxy_pool,
         ClientSocketFactory* client_socket_factory,
         HostResolver* host_resolver,
@@ -277,9 +261,7 @@ class NET_TEST SSLClientSocketPool : public ClientSocketPool,
 
    private:
     TransportClientSocketPool* const transport_pool_;
-#if !defined(__LB_PS3__)
     SOCKSClientSocketPool* const socks_pool_;
-#endif
     HttpProxyClientSocketPool* const http_proxy_pool_;
     ClientSocketFactory* const client_socket_factory_;
     HostResolver* const host_resolver_;
@@ -291,9 +273,7 @@ class NET_TEST SSLClientSocketPool : public ClientSocketPool,
   };
 
   TransportClientSocketPool* const transport_pool_;
-#if !defined(__LB_PS3__)
   SOCKSClientSocketPool* const socks_pool_;
-#endif
   HttpProxyClientSocketPool* const http_proxy_pool_;
   PoolBase base_;
   const scoped_refptr<SSLConfigService> ssl_config_service_;

@@ -25,13 +25,9 @@
 #include "net/socket/socks_client_socket_pool.h"
 #include "net/socket/ssl_client_socket.h"
 #include "net/socket/ssl_client_socket_pool.h"
-#if !defined(__LB_SHELL__)
 #include "net/spdy/spdy_http_stream.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
-#else
-#include "base/metrics/histogram.h"
-#endif
 
 namespace net {
 
@@ -226,7 +222,6 @@ void HttpStreamFactoryImpl::Job::OnStreamReadyCallback() {
   // |this| may be deleted after this call.
 }
 
-#if !defined(__LB_SHELL__)
 void HttpStreamFactoryImpl::Job::OnSpdySessionReadyCallback() {
   DCHECK(!stream_.get());
   DCHECK(!IsPreconnecting());
@@ -244,7 +239,6 @@ void HttpStreamFactoryImpl::Job::OnSpdySessionReadyCallback() {
   }
   // |this| may be deleted after this call.
 }
-#endif
 
 void HttpStreamFactoryImpl::Job::OnStreamFailedCallback(int result) {
   DCHECK(!IsPreconnecting());
@@ -301,13 +295,11 @@ void HttpStreamFactoryImpl::Job::OnHttpsProxyTunnelResponseCallback(
 
 void HttpStreamFactoryImpl::Job::OnPreconnectsComplete() {
   DCHECK(!request_);
-#if !defined(__LB_SHELL__)
   if (new_spdy_session_) {
     stream_factory_->OnSpdySessionReady(
         new_spdy_session_, spdy_session_direct_, ssl_config_,
         proxy_info_, was_npn_negotiated(), using_spdy(), net_log_.source());
   }
-#endif
   stream_factory_->OnPreconnectsComplete(this);
   // |this| may be deleted after this call.
 }
@@ -392,15 +384,12 @@ int HttpStreamFactoryImpl::Job::RunLoop(int result) {
 
     case OK:
       next_state_ = STATE_DONE;
-#if !defined(__LB_SHELL__)
       if (new_spdy_session_) {
         MessageLoop::current()->PostTask(
             FROM_HERE,
             method_factory_.NewRunnableMethod(
                 &HttpStreamFactoryImpl::Job::OnSpdySessionReadyCallback));
-      } else
-#endif
-      {
+      } else {
         MessageLoop::current()->PostTask(
             FROM_HERE,
             method_factory_.NewRunnableMethod(
@@ -567,7 +556,6 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
   using_ssl_ = request_info_.url.SchemeIs("https") || ShouldForceSpdySSL();
   using_spdy_ = false;
 
-#if !defined(__LB_SHELL__)
   // Check first if we have a spdy session for this group.  If so, then go
   // straight to using that.
   HostPortProxyPair spdy_session_key;
@@ -593,7 +581,6 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
     // Update the spdy session key for the request that launched this job.
     request_->SetSpdySessionKey(spdy_session_key);
   }
-#endif
   // OK, there's no available SPDY session. Let |dependent_job_| resume if it's
   // paused.
 
@@ -769,11 +756,7 @@ int HttpStreamFactoryImpl::Job::DoWaitingUserAction(int result) {
 }
 
 int HttpStreamFactoryImpl::Job::DoCreateStream() {
-#if !defined(__LB_SHELL__)
   if (!connection_->socket() && !existing_spdy_session_)
-#else
-  if (!connection_->socket())
-#endif
     HACKCrashHereToDebug80095();
 
 
@@ -794,11 +777,6 @@ int HttpStreamFactoryImpl::Job::DoCreateStream() {
                                       using_proxy));
     return OK;
   }
-
-#if defined(__LB_SHELL__)
-  DCHECK(!using_spdy_);
-  return OK;
-#else
 
   CHECK(!stream_.get());
 
@@ -852,7 +830,6 @@ int HttpStreamFactoryImpl::Job::DoCreateStream() {
   bool use_relative_url = direct || request_info_.url.SchemeIs("https");
   stream_.reset(new SpdyHttpStream(spdy_session, use_relative_url));
   return OK;
-#endif
 }
 
 int HttpStreamFactoryImpl::Job::DoCreateStreamComplete(int result) {
@@ -895,10 +872,8 @@ void HttpStreamFactoryImpl::Job::ReturnToStateInitConnection(
     connection_->socket()->Disconnect();
   connection_->Reset();
 
-#if !defined(__LB_SHELL__)
   if (request_)
     request_->RemoveRequestFromSpdySessionRequestMap();
-#endif
 
   next_state_ = STATE_INIT_CONNECTION;
 }
@@ -1011,10 +986,8 @@ int HttpStreamFactoryImpl::Job::ReconsiderProxyAfterError(int error) {
     if (connection_->socket())
       connection_->socket()->Disconnect();
     connection_->Reset();
-#if !defined(__LB_SHELL__)
     if (request_)
       request_->RemoveRequestFromSpdySessionRequestMap();
-#endif
     next_state_ = STATE_RESOLVE_PROXY_COMPLETE;
   } else {
     // If ReconsiderProxyAfterError() failed synchronously, it means

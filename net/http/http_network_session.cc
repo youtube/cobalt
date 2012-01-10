@@ -17,11 +17,7 @@
 #include "net/http/url_security_manager.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_factory.h"
-#if defined(__LB_SHELL__)
-#include "net/base/ssl_config_service.h"
-#else
 #include "net/spdy/spdy_session_pool.h"
-#endif
 
 namespace net {
 
@@ -45,9 +41,7 @@ HttpNetworkSession::HttpNetworkSession(const Params& params)
                            params.ssl_host_info_factory,
                            params.proxy_service,
                            params.ssl_config_service),
-#if !defined(__LB_SHELL__)
       spdy_session_pool_(params.host_resolver, params.ssl_config_service),
-#endif
       ALLOW_THIS_IN_INITIALIZER_LIST(http_stream_factory_(
           new HttpStreamFactoryImpl(this))) {
   DCHECK(params.proxy_service);
@@ -56,9 +50,7 @@ HttpNetworkSession::HttpNetworkSession(const Params& params)
 
 HttpNetworkSession::~HttpNetworkSession() {
   STLDeleteElements(&response_drainers_);
-#if !defined(__LB_SHELL__)
   spdy_session_pool_.CloseAllSessions();
-#endif
 }
 
 void HttpNetworkSession::AddResponseDrainer(HttpResponseBodyDrainer* drainer) {
@@ -72,12 +64,10 @@ void HttpNetworkSession::RemoveResponseDrainer(
   response_drainers_.erase(drainer);
 }
 
-#if !defined(__LB_SHELL__)
 SOCKSClientSocketPool* HttpNetworkSession::GetSocketPoolForSOCKSProxy(
     const HostPortPair& socks_proxy) {
   return socket_pool_manager_.GetSocketPoolForSOCKSProxy(socks_proxy);
 }
-#endif
 
 HttpProxyClientSocketPool* HttpNetworkSession::GetSocketPoolForHTTPProxy(
     const HostPortPair& http_proxy) {
@@ -93,17 +83,13 @@ Value* HttpNetworkSession::SocketPoolInfoToValue() const {
   return socket_pool_manager_.SocketPoolInfoToValue();
 }
 
-#if !defined(__LB_SHELL__)
 Value* HttpNetworkSession::SpdySessionPoolInfoToValue() const {
   return spdy_session_pool_.SpdySessionPoolInfoToValue();
 }
-#endif
 
 void HttpNetworkSession::CloseAllConnections() {
   socket_pool_manager_.FlushSocketPools();
-#if !defined(__LB_SHELL__)
   spdy_session_pool_.CloseCurrentSessions();
-#endif
 }
 
 void HttpNetworkSession::CloseIdleConnections() {

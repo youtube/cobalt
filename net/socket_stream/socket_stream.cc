@@ -26,12 +26,8 @@
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
 #include "net/socket/client_socket_factory.h"
-#if defined(__LB_PS3__)
-#include "net/base/single_request_host_resolver.h"
-#else
 #include "net/socket/socks5_client_socket.h"
 #include "net/socket/socks_client_socket.h"
-#endif
 #include "net/socket/ssl_client_socket.h"
 #include "net/socket/tcp_client_socket.h"
 #include "net/socket_stream/socket_stream_metrics.h"
@@ -875,7 +871,6 @@ int SocketStream::DoReadTunnelHeadersComplete(int result) {
 }
 
 int SocketStream::DoSOCKSConnect() {
-#if !defined(__LB_PS3__)
   DCHECK_EQ(kSOCKSProxy, proxy_mode_);
 
   next_state_ = STATE_SOCKS_CONNECT_COMPLETE;
@@ -891,9 +886,6 @@ int SocketStream::DoSOCKSConnect() {
   socket_.reset(s);
   metrics_->OnCountConnectionType(SocketStreamMetrics::SOCKS_CONNECTION);
   return socket_->Connect(&io_callback_);
-#else
-  return ERR_NOT_IMPLEMENTED;
-#endif
 }
 
 int SocketStream::DoSOCKSConnectComplete(int result) {
