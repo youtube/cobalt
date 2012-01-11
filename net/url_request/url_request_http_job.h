@@ -51,10 +51,10 @@ class URLRequestHttpJob : public URLRequestJob {
   void SaveNextCookie();
   void FetchResponseCookies(std::vector<std::string>* cookies);
 
-  // Process the Strict-Transport-Security header, if one exists.
+  // Processes the Strict-Transport-Security header, if one exists.
   void ProcessStrictTransportSecurityHeader();
 
-  // Process the Public-Key-Pins header, if one exists.
+  // Processes the Public-Key-Pins header, if one exists.
   void ProcessPublicKeyPinsHeader();
 
   // |result| should be net::OK, or the request is canceled.
