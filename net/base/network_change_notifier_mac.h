@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -45,6 +45,9 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
     virtual void Init() OVERRIDE {
       net_config_watcher_->SetInitialState();
     }
+    virtual void StartReachabilityNotifications() OVERRIDE {
+      net_config_watcher_->StartReachabilityNotifications();
+    }
     virtual void SetDynamicStoreNotificationKeys(
         SCDynamicStoreRef store) OVERRIDE {
       net_config_watcher_->SetDynamicStoreNotificationKeys(store);
@@ -58,7 +61,8 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
     DISALLOW_COPY_AND_ASSIGN(Forwarder);
   };
 
-  // NetworkConfigWatcherMac::Delegate implementation:
+  // Methods directly called by the NetworkConfigWatcherMac::Delegate:
+  void StartReachabilityNotifications();
   void SetDynamicStoreNotificationKeys(SCDynamicStoreRef store);
   void OnNetworkConfigChange(CFArrayRef changed_keys);
 

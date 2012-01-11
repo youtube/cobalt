@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,10 +25,10 @@ NetworkChangeNotifierMac::NetworkChangeNotifierMac()
 
 NetworkChangeNotifierMac::~NetworkChangeNotifierMac() {
   // Delete the ConfigWatcher to join the notifier thread, ensuring that
-  // SetDynamicStoreNotificationKeys() has an opportunity to run to completion.
+  // StartReachabilityNotifications() has an opportunity to run to completion.
   config_watcher_.reset();
 
-  // Now that SetDynamicStoreNotificationKeys has either run to completion or
+  // Now that StartReachabilityNotifications() has either run to completion or
   // never run at all, unschedule reachability_ if it was previously scheduled.
   if (reachability_.get() && run_loop_.get()) {
     SCNetworkReachabilityUnscheduleFromRunLoop(reachability_.get(),
@@ -74,30 +74,10 @@ void NetworkChangeNotifierMac::SetInitialState() {
   }
 }
 
-void NetworkChangeNotifierMac::SetDynamicStoreNotificationKeys(
-    SCDynamicStoreRef store) {
+void NetworkChangeNotifierMac::StartReachabilityNotifications() {
   // Called on notifier thread.
   run_loop_.reset(CFRunLoopGetCurrent());
   CFRetain(run_loop_.get());
-
-  base::mac::ScopedCFTypeRef<CFMutableArrayRef> notification_keys(
-      CFArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks));
-  base::mac::ScopedCFTypeRef<CFStringRef> key(
-      SCDynamicStoreKeyCreateNetworkGlobalEntity(
-          NULL, kSCDynamicStoreDomainState, kSCEntNetInterface));
-  CFArrayAppendValue(notification_keys.get(), key.get());
-  key.reset(SCDynamicStoreKeyCreateNetworkGlobalEntity(
-      NULL, kSCDynamicStoreDomainState, kSCEntNetIPv4));
-  CFArrayAppendValue(notification_keys.get(), key.get());
-  key.reset(SCDynamicStoreKeyCreateNetworkGlobalEntity(
-      NULL, kSCDynamicStoreDomainState, kSCEntNetIPv6));
-  CFArrayAppendValue(notification_keys.get(), key.get());
-
-  // Set the notification keys.  This starts us receiving notifications.
-  bool ret = SCDynamicStoreSetNotificationKeys(
-      store, notification_keys.get(), NULL);
-  // TODO(willchan): Figure out a proper way to handle this rather than crash.
-  CHECK(ret);
 
   DCHECK(reachability_);
   SCNetworkReachabilityContext reachability_context = {
@@ -119,6 +99,28 @@ void NetworkChangeNotifierMac::SetDynamicStoreNotificationKeys(
     LOG(DFATAL) << "Could not schedule network reachability on run loop";
     reachability_.reset();
   }
+}
+
+void NetworkChangeNotifierMac::SetDynamicStoreNotificationKeys(
+    SCDynamicStoreRef store) {
+  base::mac::ScopedCFTypeRef<CFMutableArrayRef> notification_keys(
+      CFArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks));
+  base::mac::ScopedCFTypeRef<CFStringRef> key(
+      SCDynamicStoreKeyCreateNetworkGlobalEntity(
+          NULL, kSCDynamicStoreDomainState, kSCEntNetInterface));
+  CFArrayAppendValue(notification_keys.get(), key.get());
+  key.reset(SCDynamicStoreKeyCreateNetworkGlobalEntity(
+      NULL, kSCDynamicStoreDomainState, kSCEntNetIPv4));
+  CFArrayAppendValue(notification_keys.get(), key.get());
+  key.reset(SCDynamicStoreKeyCreateNetworkGlobalEntity(
+      NULL, kSCDynamicStoreDomainState, kSCEntNetIPv6));
+  CFArrayAppendValue(notification_keys.get(), key.get());
+
+  // Set the notification keys.  This starts us receiving notifications.
+  bool ret = SCDynamicStoreSetNotificationKeys(
+      store, notification_keys.get(), NULL);
+  // TODO(willchan): Figure out a proper way to handle this rather than crash.
+  CHECK(ret);
 }
 
 void NetworkChangeNotifierMac::OnNetworkConfigChange(CFArrayRef changed_keys) {
