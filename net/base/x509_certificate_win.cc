@@ -480,13 +480,23 @@ bool CheckRevocationWithCRLSet(PCCERT_CHAIN_CONTEXT chain,
     base::StringPiece der_bytes(
         reinterpret_cast<const char*>(cert->pbCertEncoded),
         cert->cbCertEncoded);
+
+    LOG(ERROR) << "#" << i << " cert: "
+               << base::HexEncode(der_bytes.data(), der_bytes.size());
+
     base::StringPiece spki;
     if (!asn1::ExtractSPKIFromDERCert(der_bytes, &spki)) {
       NOTREACHED();
       continue;
     }
 
+    LOG(ERROR) << "#" << i << " spki: "
+               << base::HexEncode(spki.data(), spki.size());
+
     const std::string spki_hash = crypto::SHA256HashString(spki);
+
+    LOG(ERROR) << "#" << i << " spki_hash: "
+               << base::HexEncode(spki_hash.data(), spki_hash.size());
 
     const CRYPT_INTEGER_BLOB* serial_blob = &cert->pCertInfo->SerialNumber;
     // FIXME(agl): I'm in the middle of debugging this on the builders.
