@@ -143,6 +143,8 @@
           'logging.h',
           'logging_win.cc',
           'logging_win.h',
+          'mac/bundle_locations.h',
+          'mac/bundle_locations.mm',
           'mac/cocoa_protocols.h',
           'mac/crash_logging.h',
           'mac/crash_logging.mm',
