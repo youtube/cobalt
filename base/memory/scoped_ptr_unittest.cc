@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,15 +8,24 @@
 
 namespace {
 
-class ConDecLogger {
+// Used to test depth subtyping.
+class ConDecLoggerParent {
+ public:
+  virtual ~ConDecLoggerParent() {}
+  virtual void set_ptr(int* ptr) = 0;
+
+  virtual int SomeMeth(int x) const = 0;
+};
+
+class ConDecLogger : public ConDecLoggerParent {
  public:
   ConDecLogger() : ptr_(NULL) { }
   explicit ConDecLogger(int* ptr) { set_ptr(ptr); }
-  ~ConDecLogger() { --*ptr_; }
+  virtual ~ConDecLogger() { --*ptr_; }
 
-  void set_ptr(int* ptr) { ptr_ = ptr; ++*ptr_; }
+  virtual void set_ptr(int* ptr) { ptr_ = ptr; ++*ptr_; }
 
-  int SomeMeth(int x) { return x; }
+  virtual int SomeMeth(int x) const { return x; }
 
  private:
   int* ptr_;
@@ -101,6 +110,72 @@ TEST(ScopedPtrTest, ScopedPtr) {
     EXPECT_FALSE(scoper1.get());
     EXPECT_FALSE(scoper1 == scoper2.get());
     EXPECT_TRUE(scoper1 != scoper2.get());
+  }
+  EXPECT_EQ(0, constructed);
+}
+
+TEST(ScopedPtrTest, ScopedPtrDepthSubtyping) {
+  int constructed = 0;
+
+  // Test construction from a scoped_ptr to a derived class.
+  {
+    scoped_ptr<ConDecLogger> scoper(new ConDecLogger(&constructed));
+    EXPECT_EQ(1, constructed);
+    EXPECT_TRUE(scoper.get());
+
+    scoped_ptr<ConDecLoggerParent> scoper_parent(scoper.Pass());
+    EXPECT_EQ(1, constructed);
+    EXPECT_TRUE(scoper_parent.get());
+    EXPECT_FALSE(scoper.get());
+
+    EXPECT_EQ(10, scoper_parent->SomeMeth(10));
+    EXPECT_EQ(10, scoper_parent.get()->SomeMeth(10));
+    EXPECT_EQ(10, (*scoper_parent).SomeMeth(10));
+  }
+  EXPECT_EQ(0, constructed);
+
+  // Test assignment from a scoped_ptr to a derived class.
+  {
+    scoped_ptr<ConDecLogger> scoper(new ConDecLogger(&constructed));
+    EXPECT_EQ(1, constructed);
+    EXPECT_TRUE(scoper.get());
+
+    scoped_ptr<ConDecLoggerParent> scoper_parent;
+    scoper_parent = scoper.Pass();
+    EXPECT_EQ(1, constructed);
+    EXPECT_TRUE(scoper_parent.get());
+    EXPECT_FALSE(scoper.get());
+  }
+  EXPECT_EQ(0, constructed);
+
+  // Test construction of a scoped_ptr with an additional const annotation.
+  {
+    scoped_ptr<ConDecLogger> scoper(new ConDecLogger(&constructed));
+    EXPECT_EQ(1, constructed);
+    EXPECT_TRUE(scoper.get());
+
+    scoped_ptr<const ConDecLogger> scoper_const(scoper.Pass());
+    EXPECT_EQ(1, constructed);
+    EXPECT_TRUE(scoper_const.get());
+    EXPECT_FALSE(scoper.get());
+
+    EXPECT_EQ(10, scoper_const->SomeMeth(10));
+    EXPECT_EQ(10, scoper_const.get()->SomeMeth(10));
+    EXPECT_EQ(10, (*scoper_const).SomeMeth(10));
+  }
+  EXPECT_EQ(0, constructed);
+
+  // Test assignment to a scoped_ptr with an additional const annotation.
+  {
+    scoped_ptr<ConDecLogger> scoper(new ConDecLogger(&constructed));
+    EXPECT_EQ(1, constructed);
+    EXPECT_TRUE(scoper.get());
+
+    scoped_ptr<const ConDecLogger> scoper_const;
+    scoper_const = scoper.Pass();
+    EXPECT_EQ(1, constructed);
+    EXPECT_TRUE(scoper_const.get());
+    EXPECT_FALSE(scoper.get());
   }
   EXPECT_EQ(0, constructed);
 }
