@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,11 +17,9 @@
 #include "base/utf_string_conversions.h"
 #include "crypto/rsa_private_key.h"
 #include "crypto/scoped_capi_types.h"
-#include "crypto/sha2.h"
 #include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
-#include "net/base/crl_set.h"
 #include "net/base/ev_root_ca_metadata.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_root_certs.h"
@@ -456,65 +454,6 @@ X509Certificate::OSCertHandles ParsePKCS7(const char* data, size_t length) {
   CertCloseStore(out_store, CERT_CLOSE_STORE_CHECK_FLAG);
 
   return results;
-}
-
-bool CheckRevocationWithCRLSet(PCCERT_CHAIN_CONTEXT chain,
-                               CRLSet* crl_set) {
-  if (chain->cChain == 0)
-    return true;
-
-  const PCERT_SIMPLE_CHAIN first_chain = chain->rgpChain[0];
-  const PCERT_CHAIN_ELEMENT* element = first_chain->rgpElement;
-
-  const int num_elements = first_chain->cElement;
-  if (num_elements == 0)
-    return true;
-
-  // We iterate from the root certificate down to the leaf, keeping track of
-  // the issuer's SPKI at each step.
-  std::string issuer_spki_hash;
-  for (int i = num_elements - 1; i >= 0; i--) {
-    PCCERT_CONTEXT cert = element[i]->pCertContext;
-
-    base::StringPiece der_bytes(
-        reinterpret_cast<const char*>(cert->pbCertEncoded),
-        cert->cbCertEncoded);
-    base::StringPiece spki;
-    if (!asn1::ExtractSPKIFromDERCert(der_bytes, &spki)) {
-      NOTREACHED();
-      continue;
-    }
-
-    const std::string spki_hash = crypto::SHA256HashString(spki);
-
-    const CRYPT_INTEGER_BLOB* serial_blob = &cert->pCertInfo->SerialNumber;
-    scoped_array<uint8> serial_bytes(new uint8[serial_blob->cbData]);
-    // The bytes of the serial number are stored little-endian.
-    for (unsigned j = 0; j < serial_blob->cbData; j++)
-      serial_bytes[j] = serial_blob->pbData[serial_blob->cbData - j - 1];
-    base::StringPiece serial(reinterpret_cast<const char*>(serial_bytes.get()),
-                             serial_blob->cbData);
-
-    CRLSet::Result result = crl_set->CheckSPKI(spki_hash);
-
-    if (result != CRLSet::REVOKED && !issuer_spki_hash.empty())
-      result = crl_set->CheckSerial(serial, issuer_spki_hash);
-
-    issuer_spki_hash = spki_hash;
-
-    switch (result) {
-      case CRLSet::REVOKED:
-        return false;
-      case CRLSet::UNKNOWN:
-      case CRLSet::GOOD:
-        continue;
-      default:
-        NOTREACHED();
-        continue;
-    }
-  }
-
-  return true;
 }
 
 void AppendPublicKeyHashes(PCCERT_CHAIN_CONTEXT chain,
@@ -960,9 +899,6 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   // Flag certificates that have a Subject common name with a NULL character.
   if (CertSubjectCommonNameHasNull(cert_handle_))
     verify_result->cert_status |= CERT_STATUS_INVALID;
-
-  if (crl_set && !CheckRevocationWithCRLSet(chain_context, crl_set))
-    verify_result->cert_status |= CERT_STATUS_REVOKED;
 
   std::wstring wstr_hostname = ASCIIToWide(hostname);
 
