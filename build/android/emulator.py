@@ -146,6 +146,8 @@ class Emulator(object):
     """
     logging.info('Aggressive Image Cleanup')
     emulator_imagedir = '/tmp/android-%s' % os.environ['USER']
+    if not os.path.exists(emulator_imagedir):
+      return
     for image in os.listdir(emulator_imagedir):
       full_name = os.path.join(emulator_imagedir, image)
       if 'emulator' in full_name:
