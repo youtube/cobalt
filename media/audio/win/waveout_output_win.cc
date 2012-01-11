@@ -87,7 +87,8 @@ PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
       buffer_size_(params.GetPacketSize()),
       volume_(1),
       channels_(params.channels),
-      pending_bytes_(0) {
+      pending_bytes_(0),
+      thread_id_(GetCurrentThreadId()) {
   format_.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
   format_.Format.nChannels = params.channels;
   format_.Format.nSamplesPerSec = params.sample_rate;
@@ -112,6 +113,7 @@ PCMWaveOutAudioOutputStream::~PCMWaveOutAudioOutputStream() {
 }
 
 bool PCMWaveOutAudioOutputStream::Open() {
+  CHECK_EQ(thread_id_, GetCurrentThreadId());
   if (state_ != PCMA_BRAND_NEW)
     return false;
   if (BufferSize() * num_buffers_ > kMaxOpenBufferSize)
@@ -145,6 +147,7 @@ bool PCMWaveOutAudioOutputStream::Open() {
 }
 
 void PCMWaveOutAudioOutputStream::SetupBuffers() {
+  CHECK_EQ(thread_id_, GetCurrentThreadId());
   buffers_.reset(new char[BufferSize() * num_buffers_]);
   for (int ix = 0; ix != num_buffers_; ++ix) {
     WAVEHDR* buffer = GetBuffer(ix);
@@ -161,6 +164,7 @@ void PCMWaveOutAudioOutputStream::SetupBuffers() {
 }
 
 void PCMWaveOutAudioOutputStream::FreeBuffers() {
+  CHECK_EQ(thread_id_, GetCurrentThreadId());
   for (int ix = 0; ix != num_buffers_; ++ix) {
     ::waveOutUnprepareHeader(waveout_, GetBuffer(ix), sizeof(WAVEHDR));
   }
@@ -171,6 +175,7 @@ void PCMWaveOutAudioOutputStream::FreeBuffers() {
 // this then we would always get the driver callback when it is about to run
 // samples and that would leave too little time to react.
 void PCMWaveOutAudioOutputStream::Start(AudioSourceCallback* callback) {
+  CHECK_EQ(thread_id_, GetCurrentThreadId());
   if (state_ != PCMA_READY)
     return;
   callback_ = callback;
@@ -185,6 +190,8 @@ void PCMWaveOutAudioOutputStream::Start(AudioSourceCallback* callback) {
                                   INFINITE,
                                   WT_EXECUTEDEFAULT);
     if (!waiting_handle) {
+      volatile DWORD code = GetLastError();
+      CHECK(false);
       HandleError(MMSYSERR_ERROR);
       return;
     }
@@ -212,6 +219,7 @@ void PCMWaveOutAudioOutputStream::Start(AudioSourceCallback* callback) {
 
   MMRESULT result = ::waveOutPause(waveout_);
   if (result != MMSYSERR_NOERROR) {
+    CHECK(false);
     HandleError(result);
     return;
   }
@@ -221,12 +229,14 @@ void PCMWaveOutAudioOutputStream::Start(AudioSourceCallback* callback) {
   for (int ix = 0; ix != num_buffers_; ++ix) {
     result = ::waveOutWrite(waveout_, GetBuffer(ix), sizeof(WAVEHDR));
     if (result != MMSYSERR_NOERROR) {
+      CHECK(false);
       HandleError(result);
       break;
     }
   }
   result = ::waveOutRestart(waveout_);
   if (result != MMSYSERR_NOERROR) {
+    CHECK(false);
     HandleError(result);
     return;
   }
@@ -240,6 +250,7 @@ void PCMWaveOutAudioOutputStream::Start(AudioSourceCallback* callback) {
 //             should be under its own lock, and checking the liveness and
 //             acquiring the lock on stream should be done atomically.
 void PCMWaveOutAudioOutputStream::Stop() {
+  CHECK_EQ(thread_id_, GetCurrentThreadId());
   if (state_ != PCMA_PLAYING)
     return;
   state_ = PCMA_STOPPING;
@@ -248,6 +259,7 @@ void PCMWaveOutAudioOutputStream::Stop() {
   // Stop playback.
   MMRESULT res = ::waveOutReset(waveout_);
   if (res != MMSYSERR_NOERROR) {
+    CHECK(false);
     state_ = PCMA_PLAYING;
     HandleError(res);
     return;
@@ -267,6 +279,8 @@ void PCMWaveOutAudioOutputStream::Stop() {
   if (waiting_handle) {
     BOOL unregister  = UnregisterWaitEx(waiting_handle, INVALID_HANDLE_VALUE);
     if (!unregister) {
+      volatile DWORD code = GetLastError();
+      CHECK(false);
       state_ = PCMA_PLAYING;
       HandleError(MMSYSERR_ERROR);
     }
@@ -283,15 +297,17 @@ void PCMWaveOutAudioOutputStream::Stop() {
 // as callback_ is set to NULL. Just print it and hope somebody somehow
 // will find it...
 void PCMWaveOutAudioOutputStream::Close() {
+  CHECK_EQ(thread_id_, GetCurrentThreadId());
   Stop();  // Just to be sure. No-op if not playing.
   if (waveout_) {
     MMRESULT res = ::waveOutClose(waveout_);
-    // The callback was cleared by the call to Stop(), so there's no point in
-    // calling HandleError at this point.  Also, even though waveOutClose might
-    // fail, we do not want to attempt to close the handle again, so we always
-    // transfer to the closed state and NULL the handle. Moreover, we must
-    // always call ReleaseOutputStream().
-    DLOG_IF(ERROR, res != MMSYSERR_NOERROR) << "waveOutClose() failed";
+    if (res != MMSYSERR_NOERROR) {
+      CHECK(false);
+      HandleError(res);
+    }
+    // Even though waveOutClose might fail, we do not want to attempt to close
+    // the handle again, so we always transfer to the closed state and NULL the
+    // handle. Moreover, we must always call ReleaseOutputStream().
     state_ = PCMA_CLOSED;
     waveout_ = NULL;
     FreeBuffers();
@@ -303,18 +319,21 @@ void PCMWaveOutAudioOutputStream::Close() {
 }
 
 void PCMWaveOutAudioOutputStream::SetVolume(double volume) {
+  CHECK_EQ(thread_id_, GetCurrentThreadId());
   if (!waveout_)
     return;
   volume_ = static_cast<float>(volume);
 }
 
 void PCMWaveOutAudioOutputStream::GetVolume(double* volume) {
+  CHECK_EQ(thread_id_, GetCurrentThreadId());
   if (!waveout_)
     return;
   *volume = volume_;
 }
 
 void PCMWaveOutAudioOutputStream::HandleError(MMRESULT error) {
+  CHECK_EQ(thread_id_, GetCurrentThreadId());
   DLOG(WARNING) << "PCMWaveOutAudio error " << error;
   if (callback_)
     callback_->OnError(this, error);
