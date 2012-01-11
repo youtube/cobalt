@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -1384,7 +1384,7 @@ TEST(X509CertificateTest, GetDEREncoded) {
 }
 #endif
 
-#if defined(USE_NSS)
+#if defined(USE_NSS) || defined(OS_MACOSX)
 static const uint8 kCRLSetThawteSPKIBlocked[] = {
   0x8e, 0x00, 0x7b, 0x22, 0x56, 0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x22, 0x3a,
   0x30, 0x2c, 0x22, 0x43, 0x6f, 0x6e, 0x74, 0x65, 0x6e, 0x74, 0x54, 0x79, 0x70,
