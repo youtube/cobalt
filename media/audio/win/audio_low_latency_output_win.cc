@@ -4,6 +4,8 @@
 
 #include "media/audio/win/audio_low_latency_output_win.h"
 
+#include <Functiondiscoverykeys_devpkey.h>
+
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/utf_string_conversions.h"
@@ -23,6 +25,7 @@ WASAPIAudioOutputStream::WASAPIAudioOutputStream(AudioManagerWin* manager,
       render_thread_(NULL),
       opened_(false),
       started_(false),
+      restart_rendering_mode_(false),
       volume_(1.0),
       endpoint_buffer_size_frames_(0),
       device_role_(device_role),
@@ -66,6 +69,10 @@ WASAPIAudioOutputStream::WASAPIAudioOutputStream(AudioManagerWin* manager,
   // Create the event which will be set in Stop() when capturing shall stop.
   stop_render_event_.Set(CreateEvent(NULL, FALSE, FALSE, NULL));
   DCHECK(stop_render_event_.IsValid());
+
+  // Create the event which will be set when a stream switch shall take place.
+  stream_switch_event_.Set(CreateEvent(NULL, FALSE, FALSE, NULL));
+  DCHECK(stream_switch_event_.IsValid());
 }
 
 WASAPIAudioOutputStream::~WASAPIAudioOutputStream() {}
@@ -75,8 +82,9 @@ bool WASAPIAudioOutputStream::Open() {
   if (opened_)
     return true;
 
-  // Obtain a reference to the IMMDevice interface of the default rendering
-  // device with the specified role.
+  // Create an IMMDeviceEnumerator interface and obtain a reference to
+  // the IMMDevice interface of the default rendering device with the
+  // specified role.
   HRESULT hr = SetRenderDevice(device_role_);
   if (FAILED(hr)) {
     return false;
@@ -109,9 +117,13 @@ bool WASAPIAudioOutputStream::Open() {
     return false;
   }
 
-  opened_ = true;
+  // Register this client as an IMMNotificationClient implementation.
+  // Only OnDefaultDeviceChanged() and OnDeviceStateChanged() and are
+  // non-trivial.
+  hr = device_enumerator_->RegisterEndpointNotificationCallback(this);
 
-  return true;
+  opened_ = true;
+  return SUCCEEDED(hr);
 }
 
 void WASAPIAudioOutputStream::Start(AudioSourceCallback* callback) {
@@ -123,6 +135,18 @@ void WASAPIAudioOutputStream::Start(AudioSourceCallback* callback) {
 
   if (started_)
     return;
+
+  if (restart_rendering_mode_) {
+    // The selected audio device has been removed or disabled and a new
+    // default device has been enabled instead. The current implementation
+    // does not to support this sequence of events. Given that Open()
+    // and Start() are usually called in one sequence; it should be a very
+    // rare event.
+    // TODO(henrika): it is possible to extend the functionality here.
+    LOG(ERROR) << "Unable to start since the selected default device has "
+                  "changed since Open() was called.";
+    return;
+  }
 
   source_ = callback;
 
@@ -181,8 +205,10 @@ void WASAPIAudioOutputStream::Stop() {
 
   // Stop output audio streaming.
   HRESULT hr = audio_client_->Stop();
-  DLOG_IF(ERROR, FAILED(hr)) << "Failed to stop output streaming: "
-                             << std::hex << hr;
+  if (FAILED(hr)) {
+    DLOG_IF(ERROR, hr != AUDCLNT_E_NOT_INITIALIZED)
+        << "Failed to stop output streaming: " << std::hex << hr;
+  }
 
   // Wait until the thread completes and perform cleanup.
   if (render_thread_) {
@@ -200,6 +226,14 @@ void WASAPIAudioOutputStream::Close() {
   // It is valid to call Close() before calling open or Start().
   // It is also valid to call Close() after Start() has been called.
   Stop();
+
+  if (opened_ && device_enumerator_) {
+    // De-register the IMMNotificationClient callback interface.
+    HRESULT hr = device_enumerator_->UnregisterEndpointNotificationCallback(
+        this);
+    DLOG_IF(ERROR, FAILED(hr)) << "Failed to disable device notifications: "
+                               << std::hex << hr;
+  }
 
   // Inform the audio manager that we have been closed. This will cause our
   // destruction.
@@ -289,7 +323,9 @@ void WASAPIAudioOutputStream::Run() {
 
   bool playing = true;
   bool error = false;
-  HANDLE wait_array[2] = {stop_render_event_, audio_samples_render_event_};
+  HANDLE wait_array[] = { stop_render_event_,
+                          stream_switch_event_,
+                          audio_samples_render_event_ };
   UINT64 device_frequency = 0;
 
   // The IAudioClock interface enables us to monitor a stream's data
@@ -307,10 +343,14 @@ void WASAPIAudioOutputStream::Run() {
   PLOG_IF(ERROR, error) << "Failed to acquire IAudioClock interface: "
                         << std::hex << hr;
 
-  // Render audio until stop event or error.
+  // Keep rendering audio until the stop event or the stream-switch event
+  // is signaled. An error event can also break the main thread loop.
   while (playing && !error) {
-    // Wait for a close-down event or a new render event.
-    DWORD wait_result = WaitForMultipleObjects(2, wait_array, FALSE, INFINITE);
+    // Wait for a close-down event, stream-switch event or a new render event.
+    DWORD wait_result = WaitForMultipleObjects(arraysize(wait_array),
+                                               wait_array,
+                                               FALSE,
+                                               INFINITE);
 
     switch (wait_result) {
       case WAIT_OBJECT_0 + 0:
@@ -318,6 +358,15 @@ void WASAPIAudioOutputStream::Run() {
         playing = false;
         break;
       case WAIT_OBJECT_0 + 1:
+        // |stream_switch_event_| has been set. Stop rendering and try to
+        // re-start the session using a new endpoint device.
+        if (!RestartRenderingUsingNewDefaultDevice()) {
+          // Abort the thread since stream switching failed.
+          playing = false;
+          error = true;
+        }
+        break;
+      case WAIT_OBJECT_0 + 2:
         {
           // |audio_samples_render_event_| has been set.
           UINT32 num_queued_frames = 0;
@@ -441,19 +490,20 @@ void WASAPIAudioOutputStream::HandleError(HRESULT err) {
 }
 
 HRESULT WASAPIAudioOutputStream::SetRenderDevice(ERole device_role) {
-  ScopedComPtr<IMMDeviceEnumerator> enumerator;
+  // Create the IMMDeviceEnumerator interface.
   HRESULT hr =  CoCreateInstance(__uuidof(MMDeviceEnumerator),
                                  NULL,
                                  CLSCTX_INPROC_SERVER,
                                  __uuidof(IMMDeviceEnumerator),
-                                 enumerator.ReceiveVoid());
+                                 device_enumerator_.ReceiveVoid());
   if (SUCCEEDED(hr)) {
     // Retrieve the default render audio endpoint for the specified role.
     // Note that, in Windows Vista, the MMDevice API supports device roles
     // but the system-supplied user interface programs do not.
-    hr = enumerator->GetDefaultAudioEndpoint(eRender,
-                                             device_role,
-                                             endpoint_device_.Receive());
+    hr = device_enumerator_->GetDefaultAudioEndpoint(
+        eRender, device_role, endpoint_device_.Receive());
+    if (FAILED(hr))
+      return hr;
 
     // Verify that the audio endpoint device is active. That is, the audio
     // adapter that connects to the endpoint device is present and enabled.
@@ -591,4 +641,168 @@ HRESULT WASAPIAudioOutputStream::InitializeAudioEngine() {
   hr = audio_client_->GetService(__uuidof(IAudioRenderClient),
                                  audio_render_client_.ReceiveVoid());
   return hr;
+}
+
+ULONG WASAPIAudioOutputStream::AddRef() {
+  NOTREACHED() << "IMMNotificationClient should not use this method.";
+  return 1;
+}
+
+ULONG WASAPIAudioOutputStream::Release() {
+  NOTREACHED() << "IMMNotificationClient should not use this method.";
+  return 1;
+}
+
+HRESULT WASAPIAudioOutputStream::QueryInterface(REFIID iid, void** object) {
+  NOTREACHED() << "IMMNotificationClient should not use this method.";
+  if (iid == IID_IUnknown || iid == __uuidof(IMMNotificationClient)) {
+    *object = static_cast < IMMNotificationClient*>(this);
+  } else {
+    return E_NOINTERFACE;
+  }
+  return S_OK;
+}
+
+STDMETHODIMP WASAPIAudioOutputStream::OnDeviceStateChanged(LPCWSTR device_id,
+                                                      DWORD new_state) {
+#ifndef NDEBUG
+  std::string device_name = GetDeviceName(device_id);
+  std::string device_state;
+
+  switch (new_state) {
+    case DEVICE_STATE_ACTIVE:
+      device_state = "ACTIVE";
+      break;
+    case DEVICE_STATE_DISABLED:
+      device_state = "DISABLED";
+      break;
+    case DEVICE_STATE_NOTPRESENT:
+      device_state = "NOTPRESENT";
+      break;
+    case DEVICE_STATE_UNPLUGGED:
+      device_state = "UNPLUGGED";
+      break;
+    default:
+      break;
+  }
+
+  DVLOG(1) << "-> State changed to " << device_state
+           << " for device: " << device_name;
+#endif
+  return S_OK;
+}
+
+HRESULT WASAPIAudioOutputStream::OnDefaultDeviceChanged(EDataFlow flow,
+    ERole role, LPCWSTR new_default_device_id) {
+  if (new_default_device_id == NULL) {
+    // The user has removed or disabled the default device for our
+    // particular role, and no other device is available to take that role.
+    DLOG(ERROR) << "All devices are disabled.";
+    return E_FAIL;
+  }
+
+  if (flow ==  eRender && role == device_role_) {
+    // Log the name of the new default device for our configured role.
+    std::string new_default_device = GetDeviceName(new_default_device_id);
+    DVLOG(1) << "-> New default device: "  << new_default_device;
+
+    // Initiate a stream switch if not already initiated by signaling the
+    // stream-switch event to inform the render thread that it is OK to
+    // re-initialize the active audio renderer. All the action takes place
+    // on the WASAPI render thread.
+    if (!restart_rendering_mode_) {
+      restart_rendering_mode_ = true;
+      SetEvent(stream_switch_event_.Get());
+    }
+  }
+
+  return S_OK;
+}
+
+std::string WASAPIAudioOutputStream::GetDeviceName(LPCWSTR device_id) const {
+  std::string name;
+  ScopedComPtr<IMMDevice> audio_device;
+
+  // Get the IMMDevice interface corresponding to the given endpoint ID string.
+  HRESULT hr = device_enumerator_->GetDevice(device_id, audio_device.Receive());
+  if (SUCCEEDED(hr)) {
+    // Retrieve user-friendly name of endpoint device.
+    // Example: "Speakers (Realtek High Definition Audio)".
+    ScopedComPtr<IPropertyStore> properties;
+    hr = audio_device->OpenPropertyStore(STGM_READ, properties.Receive());
+    if (SUCCEEDED(hr)) {
+      PROPVARIANT friendly_name;
+      PropVariantInit(&friendly_name);
+      hr = properties->GetValue(PKEY_Device_FriendlyName, &friendly_name);
+      if (SUCCEEDED(hr) && friendly_name.vt == VT_LPWSTR) {
+        if (friendly_name.pwszVal)
+          name = WideToUTF8(friendly_name.pwszVal);
+      }
+      PropVariantClear(&friendly_name);
+    }
+  }
+  return name;
+}
+
+bool WASAPIAudioOutputStream::RestartRenderingUsingNewDefaultDevice() {
+  DCHECK(base::PlatformThread::CurrentId() == render_thread_->tid());
+  DCHECK(restart_rendering_mode_);
+
+  // The |restart_rendering_mode_| event has been signaled which means that
+  // we must stop the current renderer and start a new render session using
+  // the new default device with the configured role.
+
+  // Stop the current rendering.
+  HRESULT hr = audio_client_->Stop();
+  if (FAILED(hr)) {
+    restart_rendering_mode_ = false;
+    return false;
+  }
+
+  // Release acquired interfaces (IAudioRenderClient, IAudioClient, IMMDevice).
+  audio_render_client_.Release();
+  audio_client_.Release();
+  endpoint_device_.Release();
+
+  // Retrieve the new default render audio endpoint (IMMDevice) for the
+  // specified role.
+  hr = device_enumerator_->GetDefaultAudioEndpoint(
+      eRender, device_role_, endpoint_device_.Receive());
+  if (FAILED(hr)) {
+    restart_rendering_mode_ = false;
+    return false;
+  }
+
+  // Re-create an IAudioClient interface.
+  hr = ActivateRenderDevice();
+  if (FAILED(hr)) {
+    restart_rendering_mode_ = false;
+    return false;
+  }
+
+  // Retrieve the new mix format and ensure that it is supported given
+  // the predefined format set at construction.
+  base::win::ScopedCoMem<WAVEFORMATEX> new_audio_engine_mix_format;
+  hr = audio_client_->GetMixFormat(&new_audio_engine_mix_format);
+  if (FAILED(hr) || !DesiredFormatIsSupported()) {
+    restart_rendering_mode_ = false;
+    return false;
+  }
+
+  // Re-initialize the audio engine using the new audio endpoint.
+  // This method will create a new IAudioRenderClient interface.
+  hr = InitializeAudioEngine();
+  if (FAILED(hr)) {
+    restart_rendering_mode_ = false;
+    return false;
+  }
+
+  // All released interfaces (IAudioRenderClient, IAudioClient, IMMDevice)
+  // are now re-initiated and it is now possible to re-start audio rendering.
+
+  // Start rendering again using the new default audio endpoint.
+  hr = audio_client_->Start();
+
+  restart_rendering_mode_ = false;
+  return SUCCEEDED(hr);
 }
