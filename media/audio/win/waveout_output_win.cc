@@ -286,10 +286,12 @@ void PCMWaveOutAudioOutputStream::Close() {
   Stop();  // Just to be sure. No-op if not playing.
   if (waveout_) {
     MMRESULT res = ::waveOutClose(waveout_);
-    if (res != MMSYSERR_NOERROR) {
-      HandleError(res);
-      return;
-    }
+    // The callback was cleared by the call to Stop(), so there's no point in
+    // calling HandleError at this point.  Also, even though waveOutClose might
+    // fail, we do not want to attempt to close the handle again, so we always
+    // transfer to the closed state and NULL the handle. Moreover, we must
+    // always call ReleaseOutputStream().
+    DLOG_IF(ERROR, res != MMSYSERR_NOERROR) << "waveOutClose() failed";
     state_ = PCMA_CLOSED;
     waveout_ = NULL;
     FreeBuffers();
