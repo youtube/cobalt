@@ -602,12 +602,14 @@ void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
   DCHECK(response_info_);
 
   const URLRequestContext* ctx = request_->context();
-  if (!ctx || !ctx->transport_security_state())
-    return;
+  const SSLInfo& ssl_info = response_info_->ssl_info;
 
-  const bool https = response_info_->ssl_info.is_valid();
-  const bool valid_https =
-      https && !IsCertStatusError(response_info_->ssl_info.cert_status);
+  // Only accept strict transport security headers on HTTPS connections that
+  // have no certificate errors.
+  if (!ssl_info.is_valid() || IsCertStatusError(ssl_info.cert_status) ||
+      !ctx || !ctx->transport_security_state()) {
+    return;
+  }
 
   const std::string name = "Strict-Transport-Security";
   std::string value;
@@ -622,10 +624,6 @@ void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
     const bool ok = TransportSecurityState::ParseHeader(
         value, &max_age, &include_subdomains);
     if (!ok)
-      continue;
-    // We will only accept strict mode if we saw the header from an HTTPS
-    // connection with no certificate problems.
-    if (!valid_https)
       continue;
     base::Time current_time(base::Time::Now());
     base::TimeDelta max_age_delta = base::TimeDelta::FromSeconds(max_age);
@@ -646,7 +644,8 @@ void URLRequestHttpJob::ProcessPublicKeyPinsHeader() {
   const URLRequestContext* ctx = request_->context();
   const SSLInfo& ssl_info = response_info_->ssl_info;
 
-  // Only accept pins on connections that have no errors.
+  // Only accept public key pins headers on HTTPS connections that have no
+  // certificate errors.
   if (!ssl_info.is_valid() || IsCertStatusError(ssl_info.cert_status) ||
       !ctx || !ctx->transport_security_state()) {
     return;
