@@ -199,7 +199,8 @@ class NET_EXPORT TransportSecurityState
   void DeleteSince(const base::Time& time);
 
   // Parses |value| as a Public-Key-Pins header. If successful, returns |true|
-  // and updates |state|; otherwise, returns |false| without updating |state|.
+  // and updates the |dynamic_spki_hashes| and |dynamic_spki_hashes_expiry|
+  // fields of |*state|; otherwise, returns |false| without updating |*state|.
   static bool ParsePinsHeader(const std::string& value,
                               const SSLInfo& ssl_info,
                               DomainState* state);
