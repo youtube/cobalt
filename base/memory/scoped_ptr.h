@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -126,11 +126,25 @@ class scoped_ptr {
   // The input parameter must be allocated with new.
   explicit scoped_ptr(C* p = NULL) : ptr_(p) { }
 
+  // Constructor.  Allows construction from a scoped_ptr rvalue for a
+  // convertible type.
+  template <typename U>
+  scoped_ptr(scoped_ptr<U> other) : ptr_(other.release()) {
+  }
+
   // Destructor.  If there is a C object, delete it.
   // We don't need to test ptr_ == NULL because C++ does that for us.
   ~scoped_ptr() {
     enum { type_must_be_complete = sizeof(C) };
     delete ptr_;
+  }
+
+  // operator=.  Allows assignment from a scoped_ptr rvalue for a convertible
+  // type.
+  template <typename U>
+  scoped_ptr& operator=(scoped_ptr<U> rhs) {
+    reset(rhs.release());
+    return *this;
   }
 
   // Reset.  Deletes the current owned object, if any.
