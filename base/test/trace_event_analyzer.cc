@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -674,26 +674,26 @@ bool TraceAnalyzer::SetEvents(const std::string& json_events) {
 }
 
 void TraceAnalyzer::AssociateBeginEndEvents() {
-  using namespace trace_analyzer;
+  using trace_analyzer::Query;
 
-  Query begin(Query(EVENT_PHASE) == Query::Phase(TRACE_EVENT_PHASE_BEGIN));
-  Query end(Query(EVENT_PHASE) == Query::Phase(TRACE_EVENT_PHASE_END));
-  Query match(Query(EVENT_NAME) == Query(OTHER_NAME) &&
-              Query(EVENT_CATEGORY) == Query(OTHER_CATEGORY) &&
-              Query(EVENT_TID) == Query(OTHER_TID) &&
-              Query(EVENT_PID) == Query(OTHER_PID));
+  Query begin(Query::EventPhase() == Query::Phase(TRACE_EVENT_PHASE_BEGIN));
+  Query end(Query::EventPhase() == Query::Phase(TRACE_EVENT_PHASE_END));
+  Query match(Query::EventName() == Query::OtherName() &&
+              Query::EventCategory() == Query::OtherCategory() &&
+              Query::EventTid() == Query::OtherTid() &&
+              Query::EventPid() == Query::OtherPid());
 
   AssociateEvents(begin, end, match);
 }
 
 void TraceAnalyzer::AssociateStartFinishEvents() {
-  using namespace trace_analyzer;
+  using trace_analyzer::Query;
 
-  Query begin(Query(EVENT_PHASE) == Query::Phase(TRACE_EVENT_PHASE_START));
-  Query end(Query(EVENT_PHASE) == Query::Phase(TRACE_EVENT_PHASE_FINISH));
-  Query match(Query(EVENT_NAME) == Query(OTHER_NAME) &&
-              Query(EVENT_CATEGORY) == Query(OTHER_CATEGORY) &&
-              Query(EVENT_ID) == Query(OTHER_ID));
+  Query begin(Query::EventPhase() == Query::Phase(TRACE_EVENT_PHASE_START));
+  Query end(Query::EventPhase() == Query::Phase(TRACE_EVENT_PHASE_FINISH));
+  Query match(Query::EventName() == Query::OtherName() &&
+              Query::EventCategory() == Query::OtherCategory() &&
+              Query::EventId() == Query::OtherId());
 
   AssociateEvents(begin, end, match);
 }
