@@ -15,7 +15,6 @@
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
-#include "base/string_number_conversions.h"
 #include "crypto/rsa_private_key.h"
 #include "crypto/scoped_capi_types.h"
 #include "crypto/sha2.h"
@@ -481,28 +480,15 @@ bool CheckRevocationWithCRLSet(PCCERT_CHAIN_CONTEXT chain,
         reinterpret_cast<const char*>(cert->pbCertEncoded),
         cert->cbCertEncoded);
 
-    LOG(ERROR) << "#" << i << " cert: "
-               << base::HexEncode(der_bytes.data(), der_bytes.size());
-
     base::StringPiece spki;
     if (!asn1::ExtractSPKIFromDERCert(der_bytes, &spki)) {
       NOTREACHED();
       continue;
     }
 
-    LOG(ERROR) << "#" << i << " spki: "
-               << base::HexEncode(spki.data(), spki.size());
-
     const std::string spki_hash = crypto::SHA256HashString(spki);
 
-    LOG(ERROR) << "#" << i << " spki_hash: "
-               << base::HexEncode(spki_hash.data(), spki_hash.size());
-
     const CRYPT_INTEGER_BLOB* serial_blob = &cert->pCertInfo->SerialNumber;
-    // FIXME(agl): I'm in the middle of debugging this on the builders.
-    LOG(ERROR) << "#" << i << " serial blob: "
-               << base::HexEncode(serial_blob->pbData, serial_blob->cbData);
-
     scoped_array<uint8> serial_bytes(new uint8[serial_blob->cbData]);
     // The bytes of the serial number are stored little-endian.
     for (unsigned j = 0; j < serial_blob->cbData; j++)
