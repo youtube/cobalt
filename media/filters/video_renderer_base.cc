@@ -192,6 +192,7 @@ void VideoRendererBase::ThreadMain() {
       if (ready_frames_.front()->IsEndOfStream()) {
         state_ = kEnded;
         host()->NotifyEnded();
+        ready_frames_.clear();
 
         // No need to sleep here as we idle when |state_ != kPlaying|.
         continue;
@@ -230,6 +231,7 @@ void VideoRendererBase::ThreadMain() {
     if (ready_frames_.front()->IsEndOfStream()) {
       state_ = kEnded;
       host()->NotifyEnded();
+      ready_frames_.clear();
 
       // No need to sleep here as we idle when |state_ != kPlaying|.
       continue;
@@ -356,34 +358,32 @@ void VideoRendererBase::FrameReady(scoped_refptr<VideoFrame> frame) {
     return;
   }
 
-  // Adjust the incoming frame if it's rendering stop time is past the duration
+  // Adjust the incoming frame if its rendering stop time is past the duration
   // of the video itself. This is typically the last frame of the video and
   // occurs if the container specifies a duration that isn't a multiple of the
-  // frame rate.
-  if (!frame->IsEndOfStream() &&
-      (frame->GetTimestamp() + frame->GetDuration()) > host()->GetDuration()) {
-    frame->SetDuration(host()->GetDuration() - frame->GetTimestamp());
+  // frame rate.  Another way for this to happen is for the container to state a
+  // smaller duration than the largest packet timestamp.
+  if (!frame->IsEndOfStream()) {
+    if (frame->GetTimestamp() > host()->GetDuration())
+      frame->SetTimestamp(host()->GetDuration());
+    if ((frame->GetTimestamp() + frame->GetDuration()) > host()->GetDuration())
+      frame->SetDuration(host()->GetDuration() - frame->GetTimestamp());
   }
 
   // This one's a keeper! Place it in the ready queue.
   ready_frames_.push_back(frame);
-  DCHECK_LE(ready_frames_.size(),
-            static_cast<size_t>(limits::kMaxVideoFrames));
+  DCHECK_LE(NumFrames_Locked(), limits::kMaxVideoFrames);
   frame_available_.Signal();
 
   PipelineStatistics statistics;
   statistics.video_frames_decoded = 1;
   statistics_callback_.Run(statistics);
 
-  int outstanding_frames =
-      (current_frame_ ? 1 : 0) + (last_available_frame_ ? 1 : 0) +
-      (current_frame_ && (current_frame_ == last_available_frame_) ? -1 : 0);
   // Always request more decoded video if we have capacity. This serves two
   // purposes:
   //   1) Prerolling while paused
   //   2) Keeps decoding going if video rendering thread starts falling behind
-  if ((ready_frames_.size() + outstanding_frames) < limits::kMaxVideoFrames &&
-      !frame->IsEndOfStream()) {
+  if (NumFrames_Locked() < limits::kMaxVideoFrames && !frame->IsEndOfStream()) {
     AttemptRead_Locked();
     return;
   }
@@ -415,8 +415,11 @@ void VideoRendererBase::AttemptRead_Locked() {
   lock_.AssertAcquired();
   DCHECK_NE(kEnded, state_);
 
-  if (pending_read_ || ready_frames_.size() == limits::kMaxVideoFrames)
+  if (pending_read_ ||
+      NumFrames_Locked() == limits::kMaxVideoFrames ||
+      (!ready_frames_.empty() && ready_frames_.back()->IsEndOfStream())) {
     return;
+  }
 
   pending_read_ = true;
   decoder_->Read(read_cb_);
@@ -427,9 +430,7 @@ void VideoRendererBase::AttemptFlush_Locked() {
   DCHECK_EQ(kFlushing, state_);
 
   // Get rid of any ready frames.
-  while (!ready_frames_.empty()) {
-    ready_frames_.pop_front();
-  }
+  ready_frames_.clear();
 
   if (!pending_paint_ && !pending_read_) {
     state_ = kFlushed;
@@ -463,6 +464,15 @@ void VideoRendererBase::DoStopOrError_Locked() {
   lock_.AssertAcquired();
   current_frame_ = NULL;
   last_available_frame_ = NULL;
+  ready_frames_.clear();
+}
+
+int VideoRendererBase::NumFrames_Locked() const {
+  lock_.AssertAcquired();
+  int outstanding_frames =
+      (current_frame_ ? 1 : 0) + (last_available_frame_ ? 1 : 0) +
+      (current_frame_ && (current_frame_ == last_available_frame_) ? -1 : 0);
+  return ready_frames_.size() + outstanding_frames;
 }
 
 }  // namespace media
