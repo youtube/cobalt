@@ -132,7 +132,7 @@ class Xvfb(object):
 
 def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
              timeout, performance_test, cleanup_test_files, tool,
-             log_dump_name):
+             log_dump_name, fast_and_loose=False):
   """Runs the tests.
 
   Args:
@@ -146,6 +146,8 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
     cleanup_test_files: Whether or not to cleanup test files on device.
     tool: Name of the Valgrind tool.
     log_dump_name: Name of log dump file.
+    fast_and_loose: should we go extra-fast but sacrifice stability
+      and/or correctness?  Intended for quick cycle testing; not for bots!
 
   Returns:
     A TestResults object.
@@ -172,7 +174,8 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
   for t in _TEST_SUITES:
     test = SingleTestRunner(device, t, gtest_filter, test_arguments,
                             timeout, rebaseline, performance_test,
-                            cleanup_test_files, tool, not not log_dump_name)
+                            cleanup_test_files, tool, not not log_dump_name,
+                            fast_and_loose=fast_and_loose)
     test.RunTests()
     results += [test.test_results]
     # Collect debug info.
@@ -189,6 +192,7 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
           'debug_info_dumps'),
       log_dump_name, [d for d in debug_info_list if d])
   return TestResults.FromTestResults(results)
+
 
 def Dispatch(options):
   """Dispatches the tests, sharding if possible.
@@ -214,7 +218,7 @@ def Dispatch(options):
 
   if options.use_emulator:
     t = TimeProfile('Emulator launch')
-    buildbot_emulator = emulator.Emulator()
+    buildbot_emulator = emulator.Emulator(options.fast_and_loose)
     buildbot_emulator.Launch()
     t.Stop()
     attached_devices.append(buildbot_emulator.device)
@@ -230,13 +234,25 @@ def Dispatch(options):
                           options.rebaseline, options.timeout,
                           options.performance_test,
                           options.cleanup_test_files, options.tool,
-                          options.log_dump)
+                          options.log_dump,
+                          fast_and_loose=options.fast_and_loose)
   if buildbot_emulator:
     buildbot_emulator.Shutdown()
   if options.use_xvfb:
     xvfb.Stop()
 
-  return len(test_results.failed)
+  # Another chance if we timed out?  At this point It is safe(r) to
+  # run fast and loose since we just uploaded all the test data and
+  # binary.
+  if test_results.timed_out and options.repeat:
+    logging.critical('Timed out; repeating in fast_and_loose mode.')
+    options.fast_and_loose = True
+    options.repeat = options.repeat - 1
+    logging.critical('Repeats left: ' + str(options.repeat))
+    return Dispatch(options)
+  else:
+    return len(test_results.failed)
+
 
 def ListTestSuites():
   """Display a list of available test suites
@@ -256,7 +272,7 @@ def main(argv):
                            help='Rebaseline and update *testsuite_disabled',
                            action='store_true',
                            default=False)
-  option_parser.add_option('-f', dest='gtest_filter',
+  option_parser.add_option('-f', '--gtest_filter', dest='gtest_filter',
                            help='gtest filter')
   option_parser.add_option('-a', '--test_arguments', dest='test_arguments',
                            help='Additional arguments to pass to the test')
@@ -275,6 +291,17 @@ def main(argv):
   option_parser.add_option('-x', '--xvfb', dest='use_xvfb',
                            action='store_true', default=False,
                            help='Use Xvfb around tests (ignored if not Linux)')
+  option_parser.add_option('--fast', '--fast_and_loose', dest='fast_and_loose',
+                           action='store_true', default=False,
+                           help='Go faster (but be less stable), '
+                           'for quick testing.  Example: when tracking down '
+                           'tests that hang to add to the disabled list, '
+                           'there is no need to redeploy the test binary '
+                           'or data to the device again.  '
+                           'Don\'t use on bots by default!')
+  option_parser.add_option('--repeat', dest='repeat', type='int',
+                           default=2,
+                           help='Repeat count on test timeout')
   options, args = option_parser.parse_args(argv)
   if len(args) > 1:
     print 'Unknown argument:', args[1:]
