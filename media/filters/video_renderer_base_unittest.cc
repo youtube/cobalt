@@ -338,19 +338,18 @@ TEST_F(VideoRendererBaseTest, EndOfStream) {
   Initialize();
   Play();
 
-  // Finish rendering up to the next-to-last frame, delivering end of stream
-  // frames as we go along.
+  // Finish rendering up to the next-to-last frame.
   //
   // Put the gmock expectation here to avoid racing with the rendering thread.
   EXPECT_CALL(*this, PaintCBWasCalled())
       .Times(limits::kMaxVideoFrames - 1);
   for (int i = 1; i < limits::kMaxVideoFrames; ++i) {
     RenderFrame(kFrameDuration * i);
-    DeliverFrame(kEndOfStream);
   }
 
   // Finish rendering the last frame, we should NOT get a new frame but instead
   // get notified of end of stream.
+  DeliverFrame(kEndOfStream);
   RenderLastFrame(kFrameDuration * limits::kMaxVideoFrames);
 
   Shutdown();
