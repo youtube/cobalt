@@ -1753,17 +1753,22 @@ TEST_F(URLRequestTestHTTP, PostFileTest) {
     PathService::Get(base::DIR_EXE, &dir);
     file_util::SetCurrentDirectory(dir);
 
+    scoped_refptr<UploadData> upload_data(new UploadData);
+
     FilePath path;
     PathService::Get(base::DIR_SOURCE_ROOT, &path);
     path = path.Append(FILE_PATH_LITERAL("net"));
     path = path.Append(FILE_PATH_LITERAL("data"));
     path = path.Append(FILE_PATH_LITERAL("url_request_unittest"));
     path = path.Append(FILE_PATH_LITERAL("with-headers.html"));
-    r.AppendFileToUpload(path);
+    upload_data->AppendFileRange(path, 0, kuint64max, base::Time());
 
     // This file should just be ignored in the upload stream.
-    r.AppendFileToUpload(FilePath(FILE_PATH_LITERAL(
-        "c:\\path\\to\\non\\existant\\file.randomness.12345")));
+    upload_data->AppendFileRange(
+        FilePath(FILE_PATH_LITERAL(
+            "c:\\path\\to\\non\\existant\\file.randomness.12345")),
+        0, kuint64max, base::Time());
+    r.set_upload(upload_data);
 
     r.Start();
     EXPECT_TRUE(r.is_pending());
