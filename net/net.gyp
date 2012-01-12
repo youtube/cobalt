@@ -690,7 +690,9 @@
             # WWW-authenticate: Negotiate requries a native GSSAPI, which PS3 lacks
             ['exclude', 'http/http_auth_handler_negotiate.cc'],
             # crl_filter code assumes little-endian machine
-            ['exclude', 'crl_filter']
+            ['exclude', 'crl_filter'],
+            # no support for a recursive resolver
+            ['exclude', 'base/dnsrr_resolver.cc'],
           ]
         }, { # os is not lb_shell
           'dependencies': [
