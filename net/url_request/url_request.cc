@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -442,7 +442,11 @@ void URLRequest::BeforeRequestComplete(int error) {
   DCHECK(!job_);
   DCHECK_NE(ERR_IO_PENDING, error);
 
+  // Check that there are no callbacks to already canceled requests.
+  DCHECK_NE(URLRequestStatus::CANCELED, status_.status());
+
   SetUnblockedOnDelegate();
+
   if (error != OK) {
     net_log_.AddEvent(NetLog::TYPE_CANCELLED,
         make_scoped_refptr(new NetLogStringParameter("source", "delegate")));
@@ -527,11 +531,8 @@ void URLRequest::DoCancel(int error, const SSLInfo& ssl_info) {
     response_info_.ssl_info = ssl_info;
   }
 
-  // There's nothing to do if we are not waiting on a Job.
-  if (!is_pending_ || !job_)
-    return;
-
-  job_->Kill();
+  if (is_pending_ && job_)
+    job_->Kill();
 
   // We need to notify about the end of this job here synchronously. The
   // Job sends an asynchronous notification but by the time this is processed,
@@ -808,6 +809,9 @@ void URLRequest::NotifyAuthRequired(AuthChallengeInfo* auth_info) {
 void URLRequest::NotifyAuthRequiredComplete(
     NetworkDelegate::AuthRequiredResponse result) {
   SetUnblockedOnDelegate();
+
+  // Check that there are no callbacks to already canceled requests.
+  DCHECK_NE(URLRequestStatus::CANCELED, status_.status());
 
   // NotifyAuthRequired may be called multiple times, such as
   // when an authentication attempt fails. Clear out the data
