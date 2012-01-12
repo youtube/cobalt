@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -41,7 +41,7 @@ class BASE_EXPORT FileUtilProxy {
                         bool /* created */)> CreateOrOpenCallback;
   typedef Callback<void(PlatformFileError,
                         PassPlatformFile,
-                        FilePath)> CreateTemporaryCallback;
+                        const FilePath&)> CreateTemporaryCallback;
   typedef Callback<void(PlatformFileError,
                         const PlatformFileInfo&
                        )> GetFileInfoCallback;
