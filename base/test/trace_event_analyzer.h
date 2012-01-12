@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -172,69 +172,14 @@ struct TraceEvent {
 
 typedef std::vector<const TraceEvent*> TraceEventVector;
 
-// Pass these values to Query to compare with the corresponding member of a
-// TraceEvent. Unless otherwise specfied, the usage is Query(ENUM_MEMBER).
-enum TraceEventMember {
-  EVENT_INVALID,
-  // Use these to access the event members:
-  EVENT_PID,
-  EVENT_TID,
-  // Return the timestamp of the event in microseconds since epoch.
-  EVENT_TIME,
-  // Return the absolute time between event and other event in microseconds.
-  // Only works for events with associated BEGIN/END: Query(EVENT_HAS_OTHER).
-  EVENT_DURATION,
-  EVENT_PHASE,
-  EVENT_CATEGORY,
-  EVENT_NAME,
-  EVENT_ID,
-
-  // Evaluates to true if arg exists and is a string.
-  // Usage: Query(EVENT_HAS_STRING_ARG, "arg_name")
-  EVENT_HAS_STRING_ARG,
-  // Evaluates to true if arg exists and is a number.
-  // Number arguments include types double, int and bool.
-  // Usage: Query(EVENT_HAS_NUMBER_ARG, "arg_name")
-  EVENT_HAS_NUMBER_ARG,
-  // Evaluates to arg value (string or number).
-  // Usage: Query(EVENT_ARG, "arg_name")
-  EVENT_ARG,
-  // Return true if associated event exists.
-  // (Typically BEGIN for END or END for BEGIN).
-  EVENT_HAS_OTHER,
-
-  // Access the associated other_event's members:
-  OTHER_PID,
-  OTHER_TID,
-  OTHER_TIME,
-  OTHER_PHASE,
-  OTHER_CATEGORY,
-  OTHER_NAME,
-  OTHER_ID,
-
-  // Evaluates to true if arg exists and is a string.
-  // Usage: Query(EVENT_HAS_STRING_ARG, "arg_name")
-  OTHER_HAS_STRING_ARG,
-  // Evaluates to true if arg exists and is a number.
-  // Number arguments include types double, int and bool.
-  // Usage: Query(EVENT_HAS_NUMBER_ARG, "arg_name")
-  OTHER_HAS_NUMBER_ARG,
-  // Evaluates to arg value (string or number).
-  // Usage: Query(EVENT_ARG, "arg_name")
-  OTHER_ARG,
-};
-
 class Query {
  public:
-  // Compare with the given member.
-  Query(TraceEventMember member);
-
-  // Compare with the given member argument value.
-  Query(TraceEventMember member, const std::string& arg_name);
-
   Query(const Query& query);
 
   ~Query();
+
+  ////////////////////////////////////////////////////////////////
+  // Query literal values
 
   // Compare with the given string.
   static Query String(const std::string& str);
@@ -254,6 +199,76 @@ class Query {
   // Example: Query(EVENT_NAME) == Query::Pattern("MyEvent*")
   static Query Pattern(const std::string& pattern);
 
+  ////////////////////////////////////////////////////////////////
+  // Query event members
+
+  static Query EventPid() { return Query(EVENT_PID); }
+
+  static Query EventTid() { return Query(EVENT_TID); }
+
+  // Return the timestamp of the event in microseconds since epoch.
+  static Query EventTime() { return Query(EVENT_TIME); }
+
+  // Return the absolute time between event and other event in microseconds.
+  // Only works if Query::EventHasOther() == true.
+  static Query EventDuration() { return Query(EVENT_DURATION); }
+
+  static Query EventPhase() { return Query(EVENT_PHASE); }
+
+  static Query EventCategory() { return Query(EVENT_CATEGORY); }
+
+  static Query EventName() { return Query(EVENT_NAME); }
+
+  static Query EventId() { return Query(EVENT_ID); }
+
+  // Evaluates to true if arg exists and is a string.
+  static Query EventHasStringArg(const std::string& arg_name) {
+    return Query(EVENT_HAS_STRING_ARG, arg_name);
+  }
+
+  // Evaluates to true if arg exists and is a number.
+  // Number arguments include types double, int and bool.
+  static Query EventHasNumberArg(const std::string& arg_name) {
+    return Query(EVENT_HAS_NUMBER_ARG, arg_name);
+  }
+
+  // Evaluates to arg value (string or number).
+  static Query EventArg(const std::string& arg_name) {
+    return Query(EVENT_ARG, arg_name);
+  }
+
+  // Return true if associated event exists.
+  static Query EventHasOther() { return Query(EVENT_HAS_OTHER); }
+
+  // Access the associated other_event's members:
+
+  static Query OtherPid() { return Query(OTHER_PID); }
+
+  static Query OtherTid() { return Query(OTHER_TID); }
+
+  static Query OtherTime() { return Query(OTHER_TIME); }
+
+  static Query OtherPhase() { return Query(OTHER_PHASE); }
+
+  static Query OtherCategory() { return Query(OTHER_CATEGORY); }
+
+  static Query OtherName() { return Query(OTHER_NAME); }
+
+  static Query OtherId() { return Query(OTHER_ID); }
+
+  static Query OtherHasStringArg(const std::string& arg_name) {
+    return Query(OTHER_HAS_STRING_ARG, arg_name);
+  }
+
+  static Query OtherHasNumberArg(const std::string& arg_name) {
+    return Query(OTHER_HAS_NUMBER_ARG, arg_name);
+  }
+
+  static Query OtherArg(const std::string& arg_name) {
+    return Query(OTHER_ARG, arg_name);
+  }
+
+  ////////////////////////////////////////////////////////////////
   // Common queries:
 
   // Find BEGIN events that have a corresponding END event.
@@ -285,6 +300,9 @@ class Query {
            (Query(EVENT_TID) != Query(OTHER_TID));
   }
 
+  ////////////////////////////////////////////////////////////////
+  // Operators:
+
   // Boolean operators:
   Query operator==(const Query& rhs) const;
   Query operator!=(const Query& rhs) const;
@@ -311,6 +329,32 @@ class Query {
   bool Evaluate(const TraceEvent& event) const;
 
  private:
+  enum TraceEventMember {
+    EVENT_INVALID,
+    EVENT_PID,
+    EVENT_TID,
+    EVENT_TIME,
+    EVENT_DURATION,
+    EVENT_PHASE,
+    EVENT_CATEGORY,
+    EVENT_NAME,
+    EVENT_ID,
+    EVENT_HAS_STRING_ARG,
+    EVENT_HAS_NUMBER_ARG,
+    EVENT_ARG,
+    EVENT_HAS_OTHER,
+    OTHER_PID,
+    OTHER_TID,
+    OTHER_TIME,
+    OTHER_PHASE,
+    OTHER_CATEGORY,
+    OTHER_NAME,
+    OTHER_ID,
+    OTHER_HAS_STRING_ARG,
+    OTHER_HAS_NUMBER_ARG,
+    OTHER_ARG,
+  };
+
   enum Operator {
     OP_INVALID,
     // Boolean operators:
@@ -339,6 +383,12 @@ class Query {
     QUERY_NUMBER,
     QUERY_STRING
   };
+
+  // Compare with the given member.
+  Query(TraceEventMember member);
+
+  // Compare with the given member argument value.
+  Query(TraceEventMember member, const std::string& arg_name);
 
   // Compare with the given string.
   Query(const std::string& str);
