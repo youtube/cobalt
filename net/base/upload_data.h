@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -144,8 +144,6 @@ class NET_EXPORT UploadData : public base::RefCounted<UploadData> {
   UploadData();
 
   void AppendBytes(const char* bytes, int bytes_len);
-
-  void AppendFile(const FilePath& file_path);
 
   void AppendFileRange(const FilePath& file_path,
                        uint64 offset, uint64 length,

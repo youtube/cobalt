@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -378,18 +378,7 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // appropriate value before calling Start().
   //
   // When uploading data, bytes_len must be non-zero.
-  // When uploading a file range, length must be non-zero. If length
-  // exceeds the end-of-file, the upload is clipped at end-of-file. If the
-  // expected modification time is provided (non-zero), it will be used to
-  // check if the underlying file has been changed or not. The granularity of
-  // the time comparison is 1 second since time_t precision is used in WebKit.
   void AppendBytesToUpload(const char* bytes, int bytes_len);  // takes a copy
-  void AppendFileRangeToUpload(const FilePath& file_path,
-                               uint64 offset, uint64 length,
-                               const base::Time& expected_modification_time);
-  void AppendFileToUpload(const FilePath& file_path) {
-    AppendFileRangeToUpload(file_path, 0, kuint64max, base::Time());
-  }
 
   // Indicates that the request body should be sent using chunked transfer
   // encoding. This method may only be called before Start() is called.
