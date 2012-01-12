@@ -1,0 +1,282 @@
+# 2012 January 4 {}
+#
+# The author disclaims copyright to this source code.  In place of
+# a legal notice, here is a blessing:
+#
+#    May you do good and not evil.
+#    May you find forgiveness for yourself and forgive others.
+#    May you share freely, never taking more than you give.
+#
+#***********************************************************************
+# This file implements regression tests for SQLite library.
+#
+# Use tables to test leaf-node reading, and also type checking.
+#
+# $Id$
+
+set testdir [file dirname $argv0]
+source $testdir/tester.tcl
+
+# A really basic table with manifest typing and a row of each type.
+db close
+sqlite3 db test.db
+db eval {
+  DROP TABLE IF EXISTS types;
+  CREATE TABLE types (rowtype TEXT, value);
+  INSERT INTO types VALUES ("NULL", NULL);
+  INSERT INTO types VALUES ("INTEGER", 17);
+  INSERT INTO types VALUES ("FLOAT", 3.1415927);
+  INSERT INTO types VALUES ("TEXT", "This is text");
+  INSERT INTO types VALUES ("BLOB", CAST("This is a blob" AS BLOB));
+
+  -- Same contents, with an alias for rowid.  Testing separately
+  -- because it changes the structure of the data (the alias column is
+  -- serialized as NULL).
+  DROP TABLE IF EXISTS types2;
+  CREATE TABLE types2 (id INTEGER PRIMARY KEY, rowtype TEXT, value);
+  INSERT INTO types2 (id, rowtype, value)
+    SELECT rowid, rowtype, value FROM types;
+}
+
+# Baseline results.
+do_test recover-types-0.0 {
+  execsql {SELECT rowid, rowtype, value, TYPEOF(value) FROM types}
+} {1 NULL {} null 2 INTEGER 17 integer 3 FLOAT 3.1415927 real 4 TEXT {This is text} text 5 BLOB {This is a blob} blob}
+
+# With no restrictions, recover table shows identical results.
+do_test recover-types-0.1 {
+  db eval {
+    DROP TABLE IF EXISTS temp.types_recover;
+    CREATE VIRTUAL TABLE temp.types_recover USING recover(
+      types,
+      rowtype TEXT,
+      value
+    );
+  }
+  execsql {SELECT rowid, rowtype, value, TYPEOF(value) FROM types_recover}
+} {1 NULL {} null 2 INTEGER 17 integer 3 FLOAT 3.1415927 real 4 TEXT {This is text} text 5 BLOB {This is a blob} blob}
+
+# Restrict by INTEGER
+do_test recover-types-1.0 {
+  db eval {
+    DROP TABLE IF EXISTS temp.types_recover;
+    CREATE VIRTUAL TABLE temp.types_recover USING recover(
+      types,
+      rowtype TEXT,
+      value INTEGER
+    );
+  }
+  execsql {SELECT rowid, rowtype, value, TYPEOF(value) FROM types_recover}
+} {1 NULL {} null 2 INTEGER 17 integer}
+
+# Restrict by INTEGER NOT NULL
+do_test recover-types-1.1 {
+  db eval {
+    DROP TABLE IF EXISTS temp.types_recover;
+    CREATE VIRTUAL TABLE temp.types_recover USING recover(
+      types,
+      rowtype TEXT,
+      value INTEGER NOT NULL
+    );
+  }
+  execsql {SELECT rowid, rowtype, value, TYPEOF(value) FROM types_recover}
+} {2 INTEGER 17 integer}
+
+# Restrict by FLOAT
+do_test recover-types-2.0 {
+  db eval {
+    DROP TABLE IF EXISTS temp.types_recover;
+    CREATE VIRTUAL TABLE temp.types_recover USING recover(
+      types,
+      rowtype TEXT,
+      value FLOAT
+    );
+  }
+  execsql {SELECT rowid, rowtype, value, TYPEOF(value) FROM types_recover}
+} {1 NULL {} null 2 INTEGER 17.0 real 3 FLOAT 3.1415927 real}
+
+# Restrict by FLOAT NOT NULL
+do_test recover-types-2.1 {
+  db eval {
+    DROP TABLE IF EXISTS temp.types_recover;
+    CREATE VIRTUAL TABLE temp.types_recover USING recover(
+      types,
+      rowtype TEXT,
+      value FLOAT NOT NULL
+    );
+  }
+  execsql {SELECT rowid, rowtype, value, TYPEOF(value) FROM types_recover}
+} {2 INTEGER 17.0 real 3 FLOAT 3.1415927 real}
+
+# Restrict by FLOAT STRICT
+do_test recover-types-2.2 {
+  db eval {
+    DROP TABLE IF EXISTS temp.types_recover;
+    CREATE VIRTUAL TABLE temp.types_recover USING recover(
+      types,
+      rowtype TEXT,
+      value FLOAT STRICT
+    );
+  }
+  execsql {SELECT rowid, rowtype, value, TYPEOF(value) FROM types_recover}
+} {1 NULL {} null 3 FLOAT 3.1415927 real}
+
+# Restrict by FLOAT STRICT NOT NULL
+do_test recover-types-2.3 {
+  db eval {
+    DROP TABLE IF EXISTS temp.types_recover;
+    CREATE VIRTUAL TABLE temp.types_recover USING recover(
+      types,
+      rowtype TEXT,
+      value FLOAT STRICT NOT NULL
+    );
+  }
+  execsql {SELECT rowid, rowtype, value, TYPEOF(value) FROM types_recover}
+} {3 FLOAT 3.1415927 real}
+
+# Restrict by TEXT
+do_test recover-types-3.0 {
+  db eval {
+    DROP TABLE IF EXISTS temp.types_recover;
+    CREATE VIRTUAL TABLE temp.types_recover USING recover(
+      types,
+      rowtype TEXT,
+      value TEXT
+    );
+  }
+  execsql {SELECT rowid, rowtype, value, TYPEOF(value) FROM types_recover}
+} {1 NULL {} null 4 TEXT {This is text} text 5 BLOB {This is a blob} blob}
+
+# Restrict by TEXT NOT NULL
+do_test recover-types-3.1 {
+  db eval {
+    DROP TABLE IF EXISTS temp.types_recover;
+    CREATE VIRTUAL TABLE temp.types_recover USING recover(
+      types,
+      rowtype TEXT,
+      value TEXT NOT NULL
+    );
+  }
+  execsql {SELECT rowid, rowtype, value, TYPEOF(value) FROM types_recover}
+} {4 TEXT {This is text} text 5 BLOB {This is a blob} blob}
+
+# Restrict by TEXT STRICT
+do_test recover-types-3.2 {
+  db eval {
+    DROP TABLE IF EXISTS temp.types_recover;
+    CREATE VIRTUAL TABLE temp.types_recover USING recover(
+      types,
+      rowtype TEXT,
+      value TEXT STRICT
+    );
+  }
+  execsql {SELECT rowid, rowtype, value, TYPEOF(value) FROM types_recover}
+} {1 NULL {} null 4 TEXT {This is text} text}
+
+# Restrict by TEXT STRICT NOT NULL
+do_test recover-types-3.3 {
+  db eval {
+    DROP TABLE IF EXISTS temp.types_recover;
+    CREATE VIRTUAL TABLE temp.types_recover USING recover(
+      types,
+      rowtype TEXT,
+      value TEXT STRICT NOT NULL
+    );
+  }
+  execsql {SELECT rowid, rowtype, value, TYPEOF(value) FROM types_recover}
+} {4 TEXT {This is text} text}
+
+# Restrict by BLOB
+do_test recover-types-4.0 {
+  db eval {
+    DROP TABLE IF EXISTS temp.types_recover;
+    CREATE VIRTUAL TABLE temp.types_recover USING recover(
+      types,
+      rowtype TEXT,
+      value BLOB
+    );
+  }
+  execsql {SELECT rowid, rowtype, value, TYPEOF(value) FROM types_recover}
+} {1 NULL {} null 5 BLOB {This is a blob} blob}
+
+# Restrict by BLOB NOT NULL
+do_test recover-types-4.1 {
+  db eval {
+    DROP TABLE IF EXISTS temp.types_recover;
+    CREATE VIRTUAL TABLE temp.types_recover USING recover(
+      types,
+      rowtype TEXT,
+      value BLOB NOT NULL
+    );
+  }
+  execsql {SELECT rowid, rowtype, value, TYPEOF(value) FROM types_recover}
+} {5 BLOB {This is a blob} blob}
+
+# Manifest typing.
+do_test recover-types-5.0 {
+  db eval {
+    DROP TABLE IF EXISTS temp.types_recover;
+    CREATE VIRTUAL TABLE temp.types_recover USING recover(
+      types,
+      rowtype TEXT,
+      value
+    );
+  }
+  execsql {SELECT rowid, rowtype, value, TYPEOF(value) FROM types_recover}
+} {1 NULL {} null 2 INTEGER 17 integer 3 FLOAT 3.1415927 real 4 TEXT {This is text} text 5 BLOB {This is a blob} blob}
+
+# Should get same results specifying manifest typing explicitly.
+do_test recover-types-5.1 {
+  db eval {
+    DROP TABLE IF EXISTS temp.types_recover;
+    CREATE VIRTUAL TABLE temp.types_recover USING recover(
+      types,
+      rowtype TEXT,
+      value ANY
+    );
+  }
+  execsql {SELECT rowid, rowtype, value, TYPEOF(value) FROM types_recover}
+} {1 NULL {} null 2 INTEGER 17 integer 3 FLOAT 3.1415927 real 4 TEXT {This is text} text 5 BLOB {This is a blob} blob}
+
+# Same results, skipping the NULL row.
+do_test recover-types-5.2 {
+  db eval {
+    DROP TABLE IF EXISTS temp.types_recover;
+    CREATE VIRTUAL TABLE temp.types_recover USING recover(
+      types,
+      rowtype TEXT,
+      value ANY NOT NULL
+    );
+  }
+  execsql {SELECT rowid, rowtype, value, TYPEOF(value) FROM types_recover}
+} {2 INTEGER 17 integer 3 FLOAT 3.1415927 real 4 TEXT {This is text} text 5 BLOB {This is a blob} blob}
+
+# Test ROWID values.
+do_test recover-types-6.0 {
+  db eval {
+    DROP TABLE IF EXISTS temp.types2_recover;
+    CREATE VIRTUAL TABLE temp.types2_recover USING recover(
+      types2,
+      id ROWID,
+      rowtype TEXT,
+      value
+    );
+  }
+  execsql {SELECT rowid, id, rowtype, value, TYPEOF(value) FROM types2_recover}
+} {1 1 NULL {} null 2 2 INTEGER 17 integer 3 3 FLOAT 3.1415927 real 4 4 TEXT {This is text} text 5 5 BLOB {This is a blob} blob}
+
+# ROWID NOT NULL is identical.
+do_test recover-types-6.1 {
+  db eval {
+    DROP TABLE IF EXISTS temp.types2_recover;
+    CREATE VIRTUAL TABLE temp.types2_recover USING recover(
+      types2,
+      id ROWID NOT NULL,
+      rowtype TEXT,
+      value
+    );
+  }
+  execsql {SELECT rowid, id, rowtype, value, TYPEOF(value) FROM types2_recover}
+} {1 1 NULL {} null 2 2 INTEGER 17 integer 3 3 FLOAT 3.1415927 real 4 4 TEXT {This is text} text 5 5 BLOB {This is a blob} blob}
+
+finish_test

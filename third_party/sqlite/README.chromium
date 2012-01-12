@@ -189,3 +189,5 @@ Changes from Chrome:
    conflict with an Apple library after amalgamation it was also necessary to
    rename fts3_porter.c's 'cType' to 'vOrCType'.
  - fts3_85522.patch allows fts3 to work if PRAGMA is not authorized.
+ - src/recover.c file implements a virtual table which can read
+   through corruption.
