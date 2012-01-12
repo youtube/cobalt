@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -52,6 +52,11 @@ def MatchNode(graph, substring):
 
 
 def Main(argv):
+  if sys.platform in ['win32', 'cygwin']:
+    print 'The dump_dependency_json gyp generator required for gyp-explain.py'
+    print 'does not support Windows.'
+    sys.exit(1)
+
   # Check that dump.json exists and that it's not too old.
   dump_json_dirty = False
   try:
