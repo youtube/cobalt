@@ -146,8 +146,6 @@ scoped_ptr<FilterCollection> MockFilterCollection::filter_collection(
   if (run_build)
     EXPECT_CALL(*demuxer_factory, Build(_, _));
 
-  // TODO(fischman): replace the extra scoped_ptr+release() with Pass() when
-  // http://crbug.com/109026 is fixed.
   collection->SetDemuxerFactory(scoped_ptr<DemuxerFactory>(
       demuxer_factory.release()));
   collection->AddVideoDecoder(video_decoder_);
