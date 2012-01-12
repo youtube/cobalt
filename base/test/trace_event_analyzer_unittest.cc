@@ -55,7 +55,6 @@ void TraceEventAnalyzerTest::EndTracing() {
 }  // namespace
 
 TEST_F(TraceEventAnalyzerTest, NoEvents) {
-  using namespace trace_analyzer;
   ManualSetUp();
 
   // Create an empty JSON event string:
@@ -73,7 +72,6 @@ TEST_F(TraceEventAnalyzerTest, NoEvents) {
 }
 
 TEST_F(TraceEventAnalyzerTest, TraceEvent) {
-  using namespace trace_analyzer;
   ManualSetUp();
 
   int int_num = 2;
@@ -103,7 +101,6 @@ TEST_F(TraceEventAnalyzerTest, TraceEvent) {
 }
 
 TEST_F(TraceEventAnalyzerTest, QueryEventMember) {
-  using namespace trace_analyzer;
   ManualSetUp();
 
   TraceEvent event;
@@ -133,36 +130,36 @@ TEST_F(TraceEventAnalyzerTest, QueryEventMember) {
   ASSERT_TRUE(event.has_other_event());
   double duration = event.GetAbsTimeToOtherEvent();
 
-  Query event_pid = (Query(EVENT_PID) == Query::Int(event.thread.process_id));
-  Query event_tid = (Query(EVENT_TID) == Query::Int(event.thread.thread_id));
-  Query event_time = (Query(EVENT_TIME) == Query::Double(event.timestamp));
-  Query event_duration = (Query(EVENT_DURATION) == Query::Double(duration));
-  Query event_phase = (Query(EVENT_PHASE) == Query::Phase(event.phase));
+  Query event_pid = (Query::EventPid() == Query::Int(event.thread.process_id));
+  Query event_tid = (Query::EventTid() == Query::Int(event.thread.thread_id));
+  Query event_time = (Query::EventTime() == Query::Double(event.timestamp));
+  Query event_duration = (Query::EventDuration() == Query::Double(duration));
+  Query event_phase = (Query::EventPhase() == Query::Phase(event.phase));
   Query event_category =
-      (Query(EVENT_CATEGORY) == Query::String(event.category));
-  Query event_name = (Query(EVENT_NAME) == Query::String(event.name));
-  Query event_id = (Query(EVENT_ID) == Query::String(event.id));
-  Query event_has_arg1 = Query(EVENT_HAS_NUMBER_ARG, "num");
-  Query event_has_arg2 = Query(EVENT_HAS_STRING_ARG, "str");
+      (Query::EventCategory() == Query::String(event.category));
+  Query event_name = (Query::EventName() == Query::String(event.name));
+  Query event_id = (Query::EventId() == Query::String(event.id));
+  Query event_has_arg1 = Query::EventHasNumberArg("num");
+  Query event_has_arg2 = Query::EventHasStringArg("str");
   Query event_arg1 =
-      (Query(EVENT_ARG, "num") == Query::Double(event.arg_numbers["num"]));
+      (Query::EventArg("num") == Query::Double(event.arg_numbers["num"]));
   Query event_arg2 =
-      (Query(EVENT_ARG, "str") == Query::String(event.arg_strings["str"]));
-  Query event_has_other = Query(EVENT_HAS_OTHER);
-  Query other_pid = (Query(OTHER_PID) == Query::Int(other.thread.process_id));
-  Query other_tid = (Query(OTHER_TID) == Query::Int(other.thread.thread_id));
-  Query other_time = (Query(OTHER_TIME) == Query::Double(other.timestamp));
-  Query other_phase = (Query(OTHER_PHASE) == Query::Phase(other.phase));
+      (Query::EventArg("str") == Query::String(event.arg_strings["str"]));
+  Query event_has_other = Query::EventHasOther();
+  Query other_pid = (Query::OtherPid() == Query::Int(other.thread.process_id));
+  Query other_tid = (Query::OtherTid() == Query::Int(other.thread.thread_id));
+  Query other_time = (Query::OtherTime() == Query::Double(other.timestamp));
+  Query other_phase = (Query::OtherPhase() == Query::Phase(other.phase));
   Query other_category =
-      (Query(OTHER_CATEGORY) == Query::String(other.category));
-  Query other_name = (Query(OTHER_NAME) == Query::String(other.name));
-  Query other_id = (Query(OTHER_ID) == Query::String(other.id));
-  Query other_has_arg1 = Query(OTHER_HAS_NUMBER_ARG, "num2");
-  Query other_has_arg2 = Query(OTHER_HAS_STRING_ARG, "str2");
+      (Query::OtherCategory() == Query::String(other.category));
+  Query other_name = (Query::OtherName() == Query::String(other.name));
+  Query other_id = (Query::OtherId() == Query::String(other.id));
+  Query other_has_arg1 = Query::OtherHasNumberArg("num2");
+  Query other_has_arg2 = Query::OtherHasStringArg("str2");
   Query other_arg1 =
-      (Query(OTHER_ARG, "num2") == Query::Double(other.arg_numbers["num2"]));
+      (Query::OtherArg("num2") == Query::Double(other.arg_numbers["num2"]));
   Query other_arg2 =
-      (Query(OTHER_ARG, "str2") == Query::String(other.arg_strings["str2"]));
+      (Query::OtherArg("str2") == Query::String(other.arg_strings["str2"]));
 
   EXPECT_TRUE(event_pid.Evaluate(event));
   EXPECT_TRUE(event_tid.Evaluate(event));
@@ -207,7 +204,6 @@ TEST_F(TraceEventAnalyzerTest, QueryEventMember) {
 }
 
 TEST_F(TraceEventAnalyzerTest, BooleanOperators) {
-  using namespace trace_analyzer;
   ManualSetUp();
 
   BeginTracing();
@@ -227,72 +223,71 @@ TEST_F(TraceEventAnalyzerTest, BooleanOperators) {
 
   // ==
 
-  analyzer->FindEvents(Query(EVENT_CATEGORY) == Query::String("cat1"), &found);
+  analyzer->FindEvents(Query::EventCategory() == Query::String("cat1"), &found);
   ASSERT_EQ(2u, found.size());
   EXPECT_STREQ("name1", found[0]->name.c_str());
   EXPECT_STREQ("name2", found[1]->name.c_str());
 
-  analyzer->FindEvents(Query(EVENT_ARG, "num") == Query::Int(2), &found);
+  analyzer->FindEvents(Query::EventArg("num") == Query::Int(2), &found);
   ASSERT_EQ(1u, found.size());
   EXPECT_STREQ("name2", found[0]->name.c_str());
 
   // !=
 
-  analyzer->FindEvents(Query(EVENT_CATEGORY) != Query::String("cat1"), &found);
+  analyzer->FindEvents(Query::EventCategory() != Query::String("cat1"), &found);
   ASSERT_EQ(2u, found.size());
   EXPECT_STREQ("name3", found[0]->name.c_str());
   EXPECT_STREQ("name4", found[1]->name.c_str());
 
-  analyzer->FindEvents(Query(EVENT_ARG, "num") != Query::Int(2), &found);
+  analyzer->FindEvents(Query::EventArg("num") != Query::Int(2), &found);
   ASSERT_EQ(3u, found.size());
   EXPECT_STREQ("name1", found[0]->name.c_str());
   EXPECT_STREQ("name3", found[1]->name.c_str());
   EXPECT_STREQ("name4", found[2]->name.c_str());
 
   // <
-  analyzer->FindEvents(Query(EVENT_ARG, "num") < Query::Int(2), &found);
+  analyzer->FindEvents(Query::EventArg("num") < Query::Int(2), &found);
   ASSERT_EQ(1u, found.size());
   EXPECT_STREQ("name1", found[0]->name.c_str());
 
   // <=
-  analyzer->FindEvents(Query(EVENT_ARG, "num") <= Query::Int(2), &found);
+  analyzer->FindEvents(Query::EventArg("num") <= Query::Int(2), &found);
   ASSERT_EQ(2u, found.size());
   EXPECT_STREQ("name1", found[0]->name.c_str());
   EXPECT_STREQ("name2", found[1]->name.c_str());
 
   // >
-  analyzer->FindEvents(Query(EVENT_ARG, "num") > Query::Int(3), &found);
+  analyzer->FindEvents(Query::EventArg("num") > Query::Int(3), &found);
   ASSERT_EQ(1u, found.size());
   EXPECT_STREQ("name4", found[0]->name.c_str());
 
   // >=
-  analyzer->FindEvents(Query(EVENT_ARG, "num") >= Query::Int(4), &found);
+  analyzer->FindEvents(Query::EventArg("num") >= Query::Int(4), &found);
   ASSERT_EQ(1u, found.size());
   EXPECT_STREQ("name4", found[0]->name.c_str());
 
   // &&
-  analyzer->FindEvents(Query(EVENT_NAME) != Query::String("name1") &&
-                       Query(EVENT_ARG, "num") < Query::Int(3), &found);
+  analyzer->FindEvents(Query::EventName() != Query::String("name1") &&
+                       Query::EventArg("num") < Query::Int(3), &found);
   ASSERT_EQ(1u, found.size());
   EXPECT_STREQ("name2", found[0]->name.c_str());
 
   // ||
-  analyzer->FindEvents(Query(EVENT_NAME) == Query::String("name1") ||
-                       Query(EVENT_ARG, "num") == Query::Int(3), &found);
+  analyzer->FindEvents(Query::EventName() == Query::String("name1") ||
+                       Query::EventArg("num") == Query::Int(3), &found);
   ASSERT_EQ(2u, found.size());
   EXPECT_STREQ("name1", found[0]->name.c_str());
   EXPECT_STREQ("name3", found[1]->name.c_str());
 
   // !
-  analyzer->FindEvents(!(Query(EVENT_NAME) == Query::String("name1") ||
-                         Query(EVENT_ARG, "num") == Query::Int(3)), &found);
+  analyzer->FindEvents(!(Query::EventName() == Query::String("name1") ||
+                         Query::EventArg("num") == Query::Int(3)), &found);
   ASSERT_EQ(2u, found.size());
   EXPECT_STREQ("name2", found[0]->name.c_str());
   EXPECT_STREQ("name4", found[1]->name.c_str());
 }
 
 TEST_F(TraceEventAnalyzerTest, ArithmeticOperators) {
-  using namespace trace_analyzer;
   ManualSetUp();
 
   BeginTracing();
@@ -315,42 +310,41 @@ TEST_F(TraceEventAnalyzerTest, ArithmeticOperators) {
   // Verify that arithmetic operators function:
 
   // +
-  analyzer->FindEvents(Query(EVENT_ARG, "a") + Query(EVENT_ARG, "b") ==
+  analyzer->FindEvents(Query::EventArg("a") + Query::EventArg("b") ==
                        Query::Int(20), &found);
   EXPECT_EQ(1u, found.size());
   EXPECT_STREQ("math2", found.front()->name.c_str());
 
   // -
-  analyzer->FindEvents(Query(EVENT_ARG, "a") - Query(EVENT_ARG, "b") ==
+  analyzer->FindEvents(Query::EventArg("a") - Query::EventArg("b") ==
                        Query::Int(5), &found);
   EXPECT_EQ(1u, found.size());
   EXPECT_STREQ("math1", found.front()->name.c_str());
 
   // *
-  analyzer->FindEvents(Query(EVENT_ARG, "a") * Query(EVENT_ARG, "b") ==
+  analyzer->FindEvents(Query::EventArg("a") * Query::EventArg("b") ==
                        Query::Int(50), &found);
   EXPECT_EQ(1u, found.size());
   EXPECT_STREQ("math1", found.front()->name.c_str());
 
   // /
-  analyzer->FindEvents(Query(EVENT_ARG, "a") / Query(EVENT_ARG, "b") ==
+  analyzer->FindEvents(Query::EventArg("a") / Query::EventArg("b") ==
                        Query::Int(2), &found);
   EXPECT_EQ(1u, found.size());
   EXPECT_STREQ("math1", found.front()->name.c_str());
 
   // %
-  analyzer->FindEvents(Query(EVENT_ARG, "a") % Query(EVENT_ARG, "b") ==
+  analyzer->FindEvents(Query::EventArg("a") % Query::EventArg("b") ==
                        Query::Int(0), &found);
   EXPECT_EQ(2u, found.size());
 
   // - (negate)
-  analyzer->FindEvents(-Query(EVENT_ARG, "b") == Query::Int(-10), &found);
+  analyzer->FindEvents(-Query::EventArg("b") == Query::Int(-10), &found);
   EXPECT_EQ(1u, found.size());
   EXPECT_STREQ("math2", found.front()->name.c_str());
 }
 
 TEST_F(TraceEventAnalyzerTest, StringPattern) {
-  using namespace trace_analyzer;
   ManualSetUp();
 
   BeginTracing();
@@ -368,25 +362,24 @@ TEST_F(TraceEventAnalyzerTest, StringPattern) {
 
   TraceEventVector found;
 
-  analyzer->FindEvents(Query(EVENT_NAME) == Query::Pattern("name?"), &found);
+  analyzer->FindEvents(Query::EventName() == Query::Pattern("name?"), &found);
   ASSERT_EQ(2u, found.size());
   EXPECT_STREQ("name1", found[0]->name.c_str());
   EXPECT_STREQ("name2", found[1]->name.c_str());
 
-  analyzer->FindEvents(Query(EVENT_NAME) == Query::Pattern("name*"), &found);
+  analyzer->FindEvents(Query::EventName() == Query::Pattern("name*"), &found);
   ASSERT_EQ(3u, found.size());
   EXPECT_STREQ("name1", found[0]->name.c_str());
   EXPECT_STREQ("name2", found[1]->name.c_str());
   EXPECT_STREQ("name3x", found[2]->name.c_str());
 
-  analyzer->FindEvents(Query(EVENT_NAME) != Query::Pattern("name*"), &found);
+  analyzer->FindEvents(Query::EventName() != Query::Pattern("name*"), &found);
   ASSERT_EQ(1u, found.size());
   EXPECT_STREQ("no match", found[0]->name.c_str());
 }
 
 // Test that duration queries work.
 TEST_F(TraceEventAnalyzerTest, Duration) {
-  using namespace trace_analyzer;
   ManualSetUp();
 
   const base::TimeDelta kSleepTime = base::TimeDelta::FromMilliseconds(200);
@@ -413,11 +406,13 @@ TEST_F(TraceEventAnalyzerTest, Duration) {
   analyzer->AssociateBeginEndEvents();
 
   TraceEventVector found;
-  analyzer->FindEvents(Query::MatchBeginWithEnd() &&
-                      Query(EVENT_DURATION) > Query::Int(duration_cutoff_us) &&
-                      (Query(EVENT_CATEGORY) == Query::String("cat1") ||
-                       Query(EVENT_CATEGORY) == Query::String("cat2") ||
-                       Query(EVENT_CATEGORY) == Query::String("cat3")), &found);
+  analyzer->FindEvents(
+      Query::MatchBeginWithEnd() &&
+      Query::EventDuration() > Query::Int(duration_cutoff_us) &&
+      (Query::EventCategory() == Query::String("cat1") ||
+       Query::EventCategory() == Query::String("cat2") ||
+       Query::EventCategory() == Query::String("cat3")),
+      &found);
   ASSERT_EQ(2u, found.size());
   EXPECT_STREQ("name1", found[0]->name.c_str());
   EXPECT_STREQ("name3", found[1]->name.c_str());
@@ -425,7 +420,6 @@ TEST_F(TraceEventAnalyzerTest, Duration) {
 
 // Test AssociateBeginEndEvents
 TEST_F(TraceEventAnalyzerTest, BeginEndAssocations) {
-  using namespace trace_analyzer;
   ManualSetUp();
 
   BeginTracing();
@@ -450,7 +444,6 @@ TEST_F(TraceEventAnalyzerTest, BeginEndAssocations) {
 
 // Test MergeAssociatedEventArgs
 TEST_F(TraceEventAnalyzerTest, MergeAssociatedEventArgs) {
-  using namespace trace_analyzer;
   ManualSetUp();
 
   const char* arg_string = "arg_string";
@@ -466,8 +459,8 @@ TEST_F(TraceEventAnalyzerTest, MergeAssociatedEventArgs) {
   analyzer->AssociateBeginEndEvents();
 
   TraceEventVector found;
-  analyzer->FindEvents(Query(EVENT_NAME) == Query::String("name1") &&
-      Query(EVENT_PHASE) == Query::Phase(TRACE_EVENT_PHASE_END), &found);
+  analyzer->FindEvents(Query::EventName() == Query::String("name1") &&
+      Query::EventPhase() == Query::Phase(TRACE_EVENT_PHASE_END), &found);
   ASSERT_EQ(1u, found.size());
   std::string arg_actual;
   EXPECT_FALSE(found[0]->GetArgAsString("arg", &arg_actual));
@@ -479,7 +472,6 @@ TEST_F(TraceEventAnalyzerTest, MergeAssociatedEventArgs) {
 
 // Test AssociateStartFinishEvents
 TEST_F(TraceEventAnalyzerTest, StartFinishAssocations) {
-  using namespace trace_analyzer;
   ManualSetUp();
 
   BeginTracing();
@@ -509,7 +501,6 @@ TEST_F(TraceEventAnalyzerTest, StartFinishAssocations) {
 
 // Test that the TraceAnalyzer custom associations work.
 TEST_F(TraceEventAnalyzerTest, CustomAssociations) {
-  using namespace trace_analyzer;
   ManualSetUp();
 
   // Add events that begin/end in pipelined ordering with unique ID parameter
@@ -530,52 +521,51 @@ TEST_F(TraceEventAnalyzerTest, CustomAssociations) {
   ASSERT_TRUE(analyzer.get());
 
   // begin, end, and match queries to find proper begin/end pairs.
-  Query begin(Query(EVENT_NAME) == Query::String("begin"));
-  Query end(Query(EVENT_NAME) == Query::String("end"));
-  Query match(Query(EVENT_ARG, "id") == Query(OTHER_ARG, "id"));
+  Query begin(Query::EventName() == Query::String("begin"));
+  Query end(Query::EventName() == Query::String("end"));
+  Query match(Query::EventArg("id") == Query::OtherArg("id"));
   analyzer->AssociateEvents(begin, end, match);
 
   TraceEventVector found;
 
   // cat1 has no other_event.
-  analyzer->FindEvents(Query(EVENT_CATEGORY) == Query::String("cat1") &&
-                       Query(EVENT_HAS_OTHER), &found);
+  analyzer->FindEvents(Query::EventCategory() == Query::String("cat1") &&
+                       Query::EventHasOther(), &found);
   EXPECT_EQ(0u, found.size());
 
   // cat1 has no other_event.
-  analyzer->FindEvents(Query(EVENT_CATEGORY) == Query::String("cat1") &&
-                       !Query(EVENT_HAS_OTHER), &found);
+  analyzer->FindEvents(Query::EventCategory() == Query::String("cat1") &&
+                       !Query::EventHasOther(), &found);
   EXPECT_EQ(1u, found.size());
 
   // cat6 has no other_event.
-  analyzer->FindEvents(Query(EVENT_CATEGORY) == Query::String("cat6") &&
-                       !Query(EVENT_HAS_OTHER), &found);
+  analyzer->FindEvents(Query::EventCategory() == Query::String("cat6") &&
+                       !Query::EventHasOther(), &found);
   EXPECT_EQ(1u, found.size());
 
   // cat2 and cat4 are a associated.
-  analyzer->FindEvents(Query(EVENT_CATEGORY) == Query::String("cat2") &&
-                       Query(OTHER_CATEGORY) == Query::String("cat4"), &found);
+  analyzer->FindEvents(Query::EventCategory() == Query::String("cat2") &&
+                       Query::OtherCategory() == Query::String("cat4"), &found);
   EXPECT_EQ(1u, found.size());
 
   // cat4 and cat2 are a associated.
-  analyzer->FindEvents(Query(EVENT_CATEGORY) == Query::String("cat4") &&
-                       Query(OTHER_CATEGORY) == Query::String("cat2"), &found);
+  analyzer->FindEvents(Query::EventCategory() == Query::String("cat4") &&
+                       Query::OtherCategory() == Query::String("cat2"), &found);
   EXPECT_EQ(1u, found.size());
 
   // cat3 and cat5 are a associated.
-  analyzer->FindEvents(Query(EVENT_CATEGORY) == Query::String("cat3") &&
-                       Query(OTHER_CATEGORY) == Query::String("cat5"), &found);
+  analyzer->FindEvents(Query::EventCategory() == Query::String("cat3") &&
+                       Query::OtherCategory() == Query::String("cat5"), &found);
   EXPECT_EQ(1u, found.size());
 
   // cat5 and cat3 are a associated.
-  analyzer->FindEvents(Query(EVENT_CATEGORY) == Query::String("cat5") &&
-                       Query(OTHER_CATEGORY) == Query::String("cat3"), &found);
+  analyzer->FindEvents(Query::EventCategory() == Query::String("cat5") &&
+                       Query::OtherCategory() == Query::String("cat3"), &found);
   EXPECT_EQ(1u, found.size());
 }
 
 // Verify that Query literals and types are properly casted.
 TEST_F(TraceEventAnalyzerTest, Literals) {
-  using namespace trace_analyzer;
   ManualSetUp();
 
   // Since these queries don't refer to the event data, the dummy event below
@@ -597,8 +587,6 @@ TEST_F(TraceEventAnalyzerTest, Literals) {
 
 // Test GetRateStats.
 TEST_F(TraceEventAnalyzerTest, RateStats) {
-  using namespace trace_analyzer;
-
   std::vector<TraceEvent> events;
   events.reserve(100);
   TraceEventVector event_ptrs;
@@ -640,8 +628,6 @@ TEST_F(TraceEventAnalyzerTest, RateStats) {
 
 // Test FindFirstOf and FindLastOf.
 TEST_F(TraceEventAnalyzerTest, FindOf) {
-  using namespace trace_analyzer;
-
   size_t num_events = 100;
   size_t index = 0;
   TraceEventVector event_ptrs;
@@ -656,7 +642,7 @@ TEST_F(TraceEventAnalyzerTest, FindOf) {
     event_ptrs.push_back(&events[i]);
   size_t bam_index = num_events/2;
   events[bam_index].name = "bam";
-  Query query_bam = Query(EVENT_NAME) == Query::String(events[bam_index].name);
+  Query query_bam = Query::EventName() == Query::String(events[bam_index].name);
 
   // FindFirstOf
   EXPECT_FALSE(FindFirstOf(event_ptrs, Query::Bool(false), 0, &index));
@@ -688,8 +674,6 @@ TEST_F(TraceEventAnalyzerTest, FindOf) {
 
 // Test FindClosest.
 TEST_F(TraceEventAnalyzerTest, FindClosest) {
-  using namespace trace_analyzer;
-
   size_t index_1 = 0;
   size_t index_2 = 0;
   TraceEventVector event_ptrs;
@@ -708,8 +692,8 @@ TEST_F(TraceEventAnalyzerTest, FindClosest) {
   events[0].name = "one";
   events[2].name = "two";
   events[4].name = "three";
-  Query query_named = Query(EVENT_NAME) != Query::String("");
-  Query query_one = Query(EVENT_NAME) == Query::String("one");
+  Query query_named = Query::EventName() != Query::String("");
+  Query query_one = Query::EventName() == Query::String("one");
 
   // Only one event matches query_one, so two closest can't be found.
   EXPECT_FALSE(FindClosest(event_ptrs, query_one, 0, &index_1, &index_2));
@@ -732,8 +716,6 @@ TEST_F(TraceEventAnalyzerTest, FindClosest) {
 
 // Test CountMatches.
 TEST_F(TraceEventAnalyzerTest, CountMatches) {
-  using namespace trace_analyzer;
-
   TraceEventVector event_ptrs;
   EXPECT_EQ(0u, CountMatches(event_ptrs, Query::Bool(true), 0, 10));
 
@@ -746,8 +728,8 @@ TEST_F(TraceEventAnalyzerTest, CountMatches) {
   events[0].name = "one";
   events[2].name = "two";
   events[4].name = "three";
-  Query query_named = Query(EVENT_NAME) != Query::String("");
-  Query query_one = Query(EVENT_NAME) == Query::String("one");
+  Query query_named = Query::EventName() != Query::String("");
+  Query query_one = Query::EventName() == Query::String("one");
 
   EXPECT_EQ(0u, CountMatches(event_ptrs, Query::Bool(false)));
   EXPECT_EQ(num_events, CountMatches(event_ptrs, Query::Bool(true)));
