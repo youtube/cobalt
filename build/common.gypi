@@ -965,7 +965,7 @@
 
       # See http://msdn.microsoft.com/en-us/library/2kxx5t2c(v=vs.80).aspx
       # Tri-state: blank is default, 1 on, 0 off
-      'win_release_OmitFramePointers%': '1',
+      'win_release_OmitFramePointers%': 1,
       # Tri-state: blank is default, 1 on, 0 off
       'win_debug_OmitFramePointers%': '',
 
@@ -982,6 +982,11 @@
       # tools like ThreadSanitizer so we want it to be disablable.
       # See http://msdn.microsoft.com/en-us/library/aa985982(v=VS.80).aspx
       'win_debug_disable_iterator_debugging%': '0',
+
+      # Tri-state: blank is VS default, 1 on, 0 off
+      'win_release_RandomizedBaseAddress%': '',
+      # Tri-state: blank is VS default, 1 on, 0 off.  Off by default: see below.
+      'win_debug_RandomizedBaseAddress%': 0,
 
       'release_extra_cflags%': '',
       'debug_extra_cflags%': '',
@@ -1517,15 +1522,32 @@
           },
           'VCLinkerTool': {
             'LinkIncremental': '<(msvs_debug_link_incremental)',
-            # ASLR makes debugging with windbg difficult because Chrome.exe and
-            # Chrome.dll share the same base name. As result, windbg will
-            # name the Chrome.dll module like chrome_<base address>, where
-            # <base address> typically changes with each launch. This in turn
-            # means that breakpoints in Chrome.dll don't stick from one launch
-            # to the next. For this reason, we turn ASLR off in debug builds.
-            # Note that this is a three-way bool, where 0 means to pick up
-            # the default setting, 1 is off and 2 is on.
-            'RandomizedBaseAddress': 1,
+            'conditions': [
+              # ASLR makes debugging with windbg difficult because Chrome.exe
+              # and Chrome.dll share the same base name. As result, windbg will
+              # name the Chrome.dll module like chrome_<base address>, where
+              # <base address> typically changes with each launch. This in turn
+              # means that breakpoints in Chrome.dll don't stick from one launch
+              # to the next. For this reason, we turn ASLR off in debug builds.
+              # Note that this is a three-way bool, where 0 means to pick up
+              # the default setting, 1 is off and 2 is on.
+              # Also note that an explicit /dynamicbase linker flag will
+              # override this setting.
+
+              # If win_debug_RandomizedBaseAddress is blank, leave as default
+              # (that's VS default: off for VS2008, on for VS2010).
+              ['win_debug_RandomizedBaseAddress==1', {
+                # No ASLR for executables or static libraries
+                'target_conditions': [
+                  ['_type=="shared_library" or _type=="loadable_module"', {
+                    'RandomizedBaseAddress': 2,
+                  }],
+                ],
+              }],
+              ['win_debug_RandomizedBaseAddress==0', {
+                'RandomizedBaseAddress': 1,
+              }],
+            ],
           },
           'VCResourceCompilerTool': {
             'PreprocessorDefinitions': ['_DEBUG'],
@@ -1604,6 +1626,21 @@
             # information is used by the Syzygy optimization tool when
             # decomposing the release image.
             'Profile': 'true',
+            'conditions': [
+              # If win_release_RandomizedBaseAddress is blank, leave as default.
+              # For RandomizedBaseAddress: 0=default, 1=off, 2=on
+              ['win_release_RandomizedBaseAddress==1', {
+                # No ASLR for executables or static libraries
+                'target_conditions': [
+                  ['_type=="shared_library" or _type=="loadable_module"', {
+                    'RandomizedBaseAddress': 2,
+                  }],
+                ],
+              }],
+              ['win_release_RandomizedBaseAddress==0', {
+                'RandomizedBaseAddress': 1,
+              }],
+            ],
           },
         },
         'conditions': [
@@ -2745,7 +2782,6 @@
               'VCLinkerTool': {
                 'AdditionalOptions': [
                   '/safeseh',
-                  '/dynamicbase',
                   '/ignore:4199',
                   '/ignore:4221',
                   '/nxcompat',
@@ -2758,7 +2794,6 @@
               'VCLinkerTool': {
                 'AdditionalOptions': [
                   # safeseh is not compatible with x64
-                  '/dynamicbase',
                   '/ignore:4199',
                   '/ignore:4221',
                   '/nxcompat',
