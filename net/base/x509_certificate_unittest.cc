@@ -1462,9 +1462,7 @@ TEST(X509CertificateTest, CRLSet) {
 
   error = google_full_chain->Verify(
       "www.google.com", 0, crl_set.get(), &verify_result);
-  LOG(ERROR) << "Thawte SPKI test: " << error;
-  // TODO(agl): disabled in order to debug this test on WinXP bots.
-  // EXPECT_EQ(ERR_CERT_REVOKED, error);
+  EXPECT_EQ(ERR_CERT_REVOKED, error);
 
   // Second, test revocation by serial number of a cert directly under the
   // root.
@@ -1475,9 +1473,7 @@ TEST(X509CertificateTest, CRLSet) {
 
   error = google_full_chain->Verify(
       "www.google.com", 0, crl_set.get(), &verify_result);
-  LOG(ERROR) << "Thawte Serial test: " << error;
-  // TODO(agl): disabled in order to debug this test on WinXP bots.
-  // EXPECT_EQ(ERR_CERT_REVOKED, error);
+  EXPECT_EQ(ERR_CERT_REVOKED, error);
 
   // Lastly, test revocation by serial number of a certificate not under the
   // root.
@@ -1488,9 +1484,7 @@ TEST(X509CertificateTest, CRLSet) {
 
   error = google_full_chain->Verify(
       "www.google.com", 0, crl_set.get(), &verify_result);
-  LOG(ERROR) << "Leaf serial: " << error;
-  // TODO(agl): disabled in order to debug this test on WinXP bots.
-  // EXPECT_EQ(ERR_CERT_REVOKED, error);
+  EXPECT_EQ(ERR_CERT_REVOKED, error);
 }
 #endif
 
