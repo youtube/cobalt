@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -135,30 +135,6 @@ def FetchGitSVNURLAndRevision(directory, svn_url_regex):
   return None, None
 
 
-def IsGitSVNDirty(directory):
-  """
-  Checks whether our git-svn tree contains clean trunk or any local changes.
-
-  Errors are swallowed.
-  """
-  proc = RunGitCommand(directory, ['log', '-1'])
-  if proc:
-    output = proc.communicate()[0].strip()
-    if proc.returncode == 0 and output:
-      # Extract the latest SVN revision and the SVN URL.
-      # The target line is the last "git-svn-id: ..." line like this:
-      # git-svn-id: svn://svn.chromium.org/chrome/trunk/src@85528 0039d316....
-      match = _GIT_SVN_ID_REGEX.search(output)
-      if match:
-        # Check if there are any local uncommitted changes.
-        proc = RunGitCommand(directory, ['checkout'])
-        if proc:
-          output = proc.communicate()[0].strip()
-          if proc.returncode == 0 and not output:
-            return False
-  return True
-
-
 def FetchGitSVNRevision(directory, svn_url_regex):
   """
   Fetch the Git-SVN identifier for the local tree.
@@ -167,8 +143,6 @@ def FetchGitSVNRevision(directory, svn_url_regex):
   """
   url, revision = FetchGitSVNURLAndRevision(directory, svn_url_regex)
   if url and revision:
-    if IsGitSVNDirty(directory):
-      revision = revision + '-dirty'
     return VersionInfo(url, revision)
   return None
 
