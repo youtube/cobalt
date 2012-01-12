@@ -66,6 +66,14 @@ from test_result import BaseTestResult, TestResults
 _TEST_SUITES = ['base_unittests', 'sql_unittests', 'ipc_tests', 'net_unittests']
 
 
+def FullyQualifiedTestSuites():
+  """Return a fully qualified list that represents all known suites."""
+  # If not specified, assume the test suites are in out/Release
+  test_suite_dir = os.path.abspath(os.path.join(run_tests_helper.CHROME_DIR,
+                                                'out', 'Release'))
+  return [os.path.join(test_suite_dir, t) for t in _TEST_SUITES]
+
+
 class TimeProfile(object):
   """Class for simple profiling of action, with logging of cost."""
 
@@ -157,21 +165,19 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
   if test_suite:
     global _TEST_SUITES
     if not os.path.exists(test_suite):
-      logging.critical('Unrecognized test suite, supported: %s' %
-                       _TEST_SUITES)
+      logging.critical('Unrecognized test suite %s, supported: %s' %
+                       (test_suite, _TEST_SUITES))
       if test_suite in _TEST_SUITES:
         logging.critical('(Remember to include the path: out/Release/%s)',
                          test_suite)
       return TestResults.FromOkAndFailed([], [BaseTestResult(test_suite, '')])
-    _TEST_SUITES = [test_suite]
+    fully_qualified_test_suites = [test_suite]
   else:
-    # If not specified, assume the test suites are in out/Release
-    test_suite_dir = os.path.abspath(os.path.join(run_tests_helper.CHROME_DIR,
-        'out', 'Release'))
-    _TEST_SUITES = [os.path.join(test_suite_dir, t) for t in _TEST_SUITES]
+    fully_qualified_test_suites = FullyQualifiedTestSuites()
   debug_info_list = []
-  print _TEST_SUITES  # So it shows up in buildbot output
-  for t in _TEST_SUITES:
+  print 'Known suites: ' + str(_TEST_SUITES)
+  print 'Running these: ' + str(fully_qualified_test_suites)
+  for t in fully_qualified_test_suites:
     test = SingleTestRunner(device, t, gtest_filter, test_arguments,
                             timeout, rebaseline, performance_test,
                             cleanup_test_files, tool, not not log_dump_name,
@@ -193,12 +199,12 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
       log_dump_name, [d for d in debug_info_list if d])
   return TestResults.FromTestResults(results)
 
+def _RunATestSuite(options):
+  """Run a single test suite.
 
-def Dispatch(options):
-  """Dispatches the tests, sharding if possible.
-
-  If options.use_emulator is True, all tests will be run in a new emulator
-  instance.
+  Helper for Dispatch() to allow stop/restart of the emulator across
+  test bundles.  If using the emulator, we start it on entry and stop
+  it on exit.
 
   Args:
     options: options for running the tests.
@@ -206,16 +212,7 @@ def Dispatch(options):
   Returns:
     0 if successful, number of failing tests otherwise.
   """
-  if options.test_suite == 'help':
-    ListTestSuites()
-    return 0
-  buildbot_emulator = None
   attached_devices = []
-
-  if options.use_xvfb:
-    xvfb = Xvfb()
-    xvfb.Start()
-
   if options.use_emulator:
     t = TimeProfile('Emulator launch')
     buildbot_emulator = emulator.Emulator(options.fast_and_loose)
@@ -236,10 +233,9 @@ def Dispatch(options):
                           options.cleanup_test_files, options.tool,
                           options.log_dump,
                           fast_and_loose=options.fast_and_loose)
+
   if buildbot_emulator:
     buildbot_emulator.Shutdown()
-  if options.use_xvfb:
-    xvfb.Stop()
 
   # Another chance if we timed out?  At this point It is safe(r) to
   # run fast and loose since we just uploaded all the test data and
@@ -249,9 +245,43 @@ def Dispatch(options):
     options.fast_and_loose = True
     options.repeat = options.repeat - 1
     logging.critical('Repeats left: ' + str(options.repeat))
-    return Dispatch(options)
+    return _RunATestSuite(options)
+  return len(test_results.failed)
+
+
+def Dispatch(options):
+  """Dispatches the tests, sharding if possible.
+
+  If options.use_emulator is True, all tests will be run in a new emulator
+  instance.
+
+  Args:
+    options: options for running the tests.
+
+  Returns:
+    0 if successful, number of failing tests otherwise.
+  """
+  if options.test_suite == 'help':
+    ListTestSuites()
+    return 0
+  buildbot_emulator = None
+
+  if options.use_xvfb:
+    xvfb = Xvfb()
+    xvfb.Start()
+
+  all_test_suites = [options.test_suite] or FullyQualifiedTestSuites()
+  failures = 0
+  if options.use_emulator and options.restart_emulator_each_test:
+    for suite in all_test_suites:
+      options.test_suite = suite
+      failures += _RunATestSuite(options)
   else:
-    return len(test_results.failed)
+    failures += _RunATestSuite(options)
+
+  if options.use_xvfb:
+    xvfb.Stop()
+  return failures
 
 
 def ListTestSuites():
@@ -265,7 +295,7 @@ def ListTestSuites():
 def main(argv):
   option_parser = run_tests_helper.CreateTestRunnerOptionParser(None,
       default_timeout=0)
-  option_parser.add_option('-s', dest='test_suite',
+  option_parser.add_option('-s', '--suite', dest='test_suite',
                            help='Executable name of the test suite to run '
                            '(use -s help to list them)')
   option_parser.add_option('-r', dest='rebaseline',
@@ -302,6 +332,9 @@ def main(argv):
   option_parser.add_option('--repeat', dest='repeat', type='int',
                            default=2,
                            help='Repeat count on test timeout')
+  option_parser.add_option('--restart_emulator_each_test',
+                           default='True',
+                           help='Restart the emulator for each test?')
   options, args = option_parser.parse_args(argv)
   if len(args) > 1:
     print 'Unknown argument:', args[1:]
