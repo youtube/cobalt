@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -135,12 +135,6 @@ void UploadData::AppendBytes(const char* bytes, int bytes_len) {
     elements_.push_back(Element());
     elements_.back().SetToBytes(bytes, bytes_len);
   }
-}
-
-void UploadData::AppendFile(const FilePath& file_path) {
-  DCHECK(!is_chunked_);
-  elements_.push_back(Element());
-  elements_.back().SetToFilePath(file_path);
 }
 
 void UploadData::AppendFileRange(const FilePath& file_path,
