@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -93,6 +93,9 @@ class MEDIA_EXPORT VideoRendererBase
 
   // Helper function that flushes the buffers when a Stop() or error occurs.
   void DoStopOrError_Locked();
+
+  // Return the number of frames currently held by this class.
+  int NumFrames_Locked() const;
 
   // Used for accessing data members.
   base::Lock lock_;
