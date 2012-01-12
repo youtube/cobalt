@@ -282,7 +282,8 @@
             ['exclude', 'data_pack'],
             ['exclude', 'clipboard'],
             ['exclude', 'resource'],
-            ['exclude', 'dragdrop']
+            ['exclude', 'dragdrop'],
+            ['exclude', 'blit'],
           ],
           'sources': [
             'gfx/native_theme_shell.cc',
