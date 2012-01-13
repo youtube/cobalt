@@ -1526,7 +1526,7 @@ bool SpdyFramer::IncrementallyDecompressControlFrameHeaderData(
     decomp->next_out = reinterpret_cast<Bytef*>(buffer);
     decomp->avail_out = arraysize(buffer);
     int rv = DecompressHeaderBlockInZStream(decomp);
-    if (rv != Z_OK) {
+    if (rv != Z_OK && rv != Z_BUF_ERROR) {
       set_error(SPDY_DECOMPRESS_FAILURE);
       DLOG(WARNING) << "inflate failure: " << rv;
       processed_successfully = false;
