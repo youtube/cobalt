@@ -77,8 +77,42 @@ const int64 kDelayAfterNetworkChangesMs = 2000;
 const int64 kInitialPollDelayForErrorMs = 4000;
 const int64 kInitialPollDelayForSuccessMs = 16000;
 
+// Once the poll delay becomes larger than this, we will stop scheduling using
+// a timer, and instead wait for an incoming request to trigger the poll.
+const int64 kMaxPollDelayUsingTimer = 16000;
+
 // The maximum poll delay for checking PAC scripts.
 const int64 kMaxPollDelayMs = 120000;  // 2 minutes.
+
+// This is the default policy for polling the PAC script. Checks happen after an
+// exponentially increasing delay. The first couple checks will be scheduled
+// using a timer. After that the checks will only be done lazily in response to
+// a user request.
+class DefaultPollPolicy : public ProxyService::PacPollPolicy {
+ public:
+  DefaultPollPolicy() {}
+
+  virtual Mode GetInitialDelay(int error, int64* next_delay_ms) const OVERRIDE {
+    // Use a shorter wait delay if the initial fetch resulted in an error.
+    *next_delay_ms = (error != OK) ?
+        kInitialPollDelayForErrorMs : kInitialPollDelayForSuccessMs;
+    return MODE_USE_TIMER;
+  }
+
+  virtual Mode GetNextDelay(int64 current_delay_ms,
+                            int64* next_delay_ms) const OVERRIDE {
+    // Increase the wait delay exponentially up to a maximum.
+    *next_delay_ms = std::min(current_delay_ms * 2, kMaxPollDelayMs);
+
+    // Once the delays are large enough, stop scheduling using a timer and
+    // instead only poll during periods of activity.
+    return (*next_delay_ms <= kMaxPollDelayUsingTimer) ?
+        MODE_USE_TIMER: MODE_START_AFTER_ACTIVITY;
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(DefaultPollPolicy);
+};
 
 // Config getter that always returns direct settings.
 class ProxyConfigServiceDirect : public ProxyConfigService {
@@ -531,68 +565,67 @@ class ProxyService::ProxyScriptDeciderPoller {
         proxy_script_fetcher_(proxy_script_fetcher),
         dhcp_proxy_script_fetcher_(dhcp_proxy_script_fetcher),
         last_error_(init_net_error),
-        last_script_data_(init_script_data) {
+        last_script_data_(init_script_data),
+        last_poll_time_(base::TimeTicks::Now()) {
     // Set the initial poll delay -- we check more aggressively right after a
     // failure in case it was due to a spurious network error.
-    current_poll_delay_ms_ = GetInitialWaitDelayMs(init_net_error);
-
-    StartPollTimer();
+    next_poll_mode_ = poll_policy()->GetInitialDelay(
+        init_net_error, &next_poll_delay_ms_);
+    TryToStartNextPoll(false);
   }
 
-  // ----------------------------------
-  // Policy for the retry scheduling.
-  // ----------------------------------
-
-  static int64 GetInitialWaitDelayMs(int error) {
-    switch (poll_policy_) {
-      case POLL_POLICY_REGULAR:
-        // Use a shorter wait delay if the initial fetch resulted in an error.
-        return (error != OK) ?
-            kInitialPollDelayForErrorMs : kInitialPollDelayForSuccessMs;
-      case POLL_POLICY_IMMEDIATE:
-        // Wait a mere 1 millisecond.
-        return 1;
-      case POLL_POLICY_NEVER:
-        // Unreasonably large wait delay, will never fire the check.
-        return 0xFFFFFFFF;
-    }
-
-    // Shouldn't be reached
-    return -1;
+  void OnLazyPoll() {
+    // We have just been notified of network activity. Use this opportunity to
+    // see if we can start our next poll.
+    TryToStartNextPoll(true);
   }
 
-  static int64 GetNextWaitDelayMs(int64 current_delay_ms) {
-    switch (poll_policy_) {
-      case POLL_POLICY_REGULAR:
-        // Increase the delay exponentially up to 2 minutes.
-        return std::min(current_delay_ms * 2, kMaxPollDelayMs);
-      case POLL_POLICY_IMMEDIATE:
-      case POLL_POLICY_NEVER:
-        return current_delay_ms;
-    }
-
-    // Shouldn't be reached
-    return -1;
-  }
-
-  static PollPolicy set_policy(PollPolicy policy) {
-    PollPolicy prev = poll_policy_;
+  static const PacPollPolicy* set_policy(const PacPollPolicy* policy) {
+    const PacPollPolicy* prev = poll_policy_;
     poll_policy_ = policy;
     return prev;
   }
 
  private:
+  // Returns the effective poll policy (the one injected by unit-tests, or the
+  // default).
+  const PacPollPolicy* poll_policy() {
+    if (poll_policy_)
+      return poll_policy_;
+    return &default_poll_policy_;
+  }
+
   void StartPollTimer() {
     DCHECK(!decider_.get());
 
     MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
-        base::Bind(&ProxyScriptDeciderPoller::OnPollTimerFired,
+        base::Bind(&ProxyScriptDeciderPoller::DoPoll,
                    weak_factory_.GetWeakPtr()),
-        current_poll_delay_ms_);
+        next_poll_delay_ms_);
   }
 
-  void OnPollTimerFired() {
+  void TryToStartNextPoll(bool triggered_by_activity) {
+    switch (next_poll_mode_) {
+      case PacPollPolicy::MODE_USE_TIMER:
+        if (!triggered_by_activity)
+          StartPollTimer();
+        break;
+
+      case PacPollPolicy::MODE_START_AFTER_ACTIVITY:
+        if (triggered_by_activity && !decider_.get()) {
+          base::TimeDelta elapsed_time =
+              base::TimeTicks::Now() - last_poll_time_;
+          if (elapsed_time.InMilliseconds() >= next_poll_delay_ms_)
+            DoPoll();
+        }
+        break;
+    }
+  }
+
+  void DoPoll() {
+    last_poll_time_ = base::TimeTicks::Now();
+
     // Start the proxy script decider to see if anything has changed.
     // TODO(eroman): Pass a proper NetLog rather than NULL.
     decider_.reset(new ProxyScriptDecider(
@@ -626,9 +659,11 @@ class ProxyService::ProxyScriptDeciderPoller {
 
     decider_.reset();
 
-    // Schedule the next poll check.
-    current_poll_delay_ms_ = GetNextWaitDelayMs(current_poll_delay_ms_);
-    StartPollTimer();
+    // Decide when the next poll should take place, and possibly start the
+    // next timer.
+    next_poll_mode_ =
+        poll_policy()->GetNextDelay(next_poll_delay_ms_, &next_poll_delay_ms_);
+    TryToStartNextPoll(false);
   }
 
   bool HasScriptDataChanged(int result, ProxyResolverScriptData* script_data) {
@@ -671,16 +706,23 @@ class ProxyService::ProxyScriptDeciderPoller {
   scoped_refptr<ProxyResolverScriptData> last_script_data_;
 
   scoped_ptr<ProxyScriptDecider> decider_;
-  int64 current_poll_delay_ms_;
+  int64 next_poll_delay_ms_;
+  PacPollPolicy::Mode next_poll_mode_;
 
-  static PollPolicy poll_policy_;
+  base::TimeTicks last_poll_time_;
+
+  // Polling policy injected by unit-tests. Otherwise this is NULL and the
+  // default policy will be used.
+  static const PacPollPolicy* poll_policy_;
+
+  const DefaultPollPolicy default_poll_policy_;
 
   DISALLOW_COPY_AND_ASSIGN(ProxyScriptDeciderPoller);
 };
 
 // static
-ProxyService::PollPolicy ProxyService::ProxyScriptDeciderPoller::poll_policy_ =
-    ProxyService::POLL_POLICY_REGULAR;
+const ProxyService::PacPollPolicy*
+    ProxyService::ProxyScriptDeciderPoller::poll_policy_ = NULL;
 
 // ProxyService::PacRequest ---------------------------------------------------
 
@@ -951,7 +993,12 @@ int ProxyService::ResolveProxy(const GURL& raw_url,
 
   net_log.BeginEvent(NetLog::TYPE_PROXY_SERVICE, NULL);
 
+  // Notify our polling-based dependencies that a resolve is taking place.
+  // This way they can schedule their polls in response to network activity.
   config_service_->OnLazyPoll();
+  if (script_poller_.get())
+     script_poller_->OnLazyPoll();
+
   if (current_state_ == STATE_NONE)
     ApplyProxyConfigIfAvailable();
 
@@ -1353,9 +1400,15 @@ ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
 }
 
 // static
-ProxyService::PollPolicy ProxyService::set_pac_script_poll_policy(
-    PollPolicy policy) {
+const ProxyService::PacPollPolicy* ProxyService::set_pac_script_poll_policy(
+    const PacPollPolicy* policy) {
   return ProxyScriptDeciderPoller::set_policy(policy);
+}
+
+// static
+scoped_ptr<ProxyService::PacPollPolicy>
+  ProxyService::CreateDefaultPacPollPolicy() {
+  return scoped_ptr<PacPollPolicy>(new DefaultPollPolicy());
 }
 
 void ProxyService::OnProxyConfigChanged(
