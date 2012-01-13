@@ -1280,17 +1280,12 @@
               '-Wsign-compare',
             ]
           }],
-          [ 'os_posix==1 and os_bsd!=1 and OS!="mac" and OS!="android" and chromeos==0', {
+          [ 'os_posix==1 and os_bsd!=1 and OS!="mac" and OS!="android"', {
             'cflags': [
               # Don't warn about ignoring the return value from e.g. close().
               # This is off by default in some gccs but on by default in others.
-              # Currently this option is not set for Chrome OS build because
-              # the current version of gcc (4.3.4) used for building Chrome in
-              # Chrome OS chroot doesn't support this option.
-              # BSD systems do not support this option either, since they are
-              # usually using gcc 4.2.1, which does not have this flag yet.
-              # TODO(mazda): remove the conditional for Chrome OS when gcc
-              # version is upgraded.
+              # BSD systems do not support this option, since they are usually
+              # using gcc 4.2.1, which does not have this flag yet.
               '-Wno-unused-result',
             ],
           }],
