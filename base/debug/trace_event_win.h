@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -37,14 +37,14 @@ class BASE_EXPORT TraceEventETWProvider : public base::win::EtwTraceProvider {
   // be used for length.
   static void Trace(const char* name,
                     size_t name_len,
-                    TraceEventPhase type,
+                    char type,
                     const void* id,
                     const char* extra,
                     size_t extra_len);
 
   // Allows passing extra as a std::string for convenience.
   static void Trace(const char* name,
-                    TraceEventPhase type,
+                    char type,
                     const void* id,
                     const std::string& extra) {
     return Trace(name, -1, type, id, extra.c_str(), extra.length());
@@ -53,7 +53,7 @@ class BASE_EXPORT TraceEventETWProvider : public base::win::EtwTraceProvider {
   // Allows passing extra as a const char* to avoid constructing temporary
   // std::string instances where not needed.
   static void Trace(const char* name,
-                    TraceEventPhase type,
+                    char type,
                     const void* id,
                     const char* extra) {
     return Trace(name, -1, type, id, extra, -1);
@@ -75,7 +75,7 @@ class BASE_EXPORT TraceEventETWProvider : public base::win::EtwTraceProvider {
   //    string will be used.
   void TraceEvent(const char* name,
                   size_t name_len,
-                  TraceEventPhase type,
+                  char type,
                   const void* id,
                   const char* extra,
                   size_t extra_len);
