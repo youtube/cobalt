@@ -316,9 +316,6 @@ void URLRequestHttpJob::StartTransaction() {
 void URLRequestHttpJob::NotifyBeforeSendHeadersCallback(int result) {
   SetUnblockedOnDelegate();
 
-  // Check that there are no callbacks to already canceled requests.
-  DCHECK_NE(URLRequestStatus::CANCELED, GetStatus().status());
-
   if (result == OK) {
     StartTransactionInternal();
   } else {
@@ -757,10 +754,6 @@ void URLRequestHttpJob::OnHeadersReceivedCallback(int result) {
   request_->net_log().EndEvent(
       NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE, NULL);
   awaiting_callback_ = false;
-
-  // Check that there are no callbacks to already canceled requests.
-  DCHECK_NE(URLRequestStatus::CANCELED, GetStatus().status());
-
   SaveCookiesAndNotifyHeadersComplete(result);
 }
 
