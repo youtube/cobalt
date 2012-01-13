@@ -49,4 +49,7 @@ WebSocketJobTest.ThrottlingSpdySpdyEnabled
 X509CertificateWeakDigestTest.*
 FtpDirectoryListingParserTest.*
 */X509CertificateWeakDigestTest.*
-
+TransportSecurityStateTest.BogusPinsHeaders
+TransportSecurityStateTest.ValidPinsHeaders
+HTTPSRequestTest.ResumeTest
+HTTPSRequestTest.SSLSessionCacheShardTest
