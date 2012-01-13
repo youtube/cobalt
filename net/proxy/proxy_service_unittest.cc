@@ -28,6 +28,64 @@
 namespace net {
 namespace {
 
+// This polling policy will decide to poll every 1 ms.
+class ImmediatePollPolicy : public ProxyService::PacPollPolicy {
+ public:
+  ImmediatePollPolicy() {}
+
+  virtual Mode GetInitialDelay(int error, int64* next_delay_ms) const OVERRIDE {
+    *next_delay_ms = 1;
+    return MODE_USE_TIMER;
+  }
+
+  virtual Mode GetNextDelay(int64 current_delay_ms,
+                            int64* next_delay_ms) const OVERRIDE {
+    return GetInitialDelay(OK, next_delay_ms);
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ImmediatePollPolicy);
+};
+
+// This polling policy chooses a fantastically large delay. In other words, it
+// will never trigger a poll
+class NeverPollPolicy : public ProxyService::PacPollPolicy {
+ public:
+  NeverPollPolicy() {}
+
+  virtual Mode GetInitialDelay(int error, int64* next_delay_ms) const OVERRIDE {
+    *next_delay_ms = 0xFFFFFFFF;  // Big number of milliseconds!
+    return MODE_USE_TIMER;
+  }
+
+  virtual Mode GetNextDelay(int64 current_delay_ms,
+                            int64* next_delay_ms) const OVERRIDE {
+    return GetInitialDelay(OK, next_delay_ms);
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(NeverPollPolicy);
+};
+
+// This polling policy starts a poll immediately after network activity.
+class ImmediateAfterActivityPollPolicy : public ProxyService::PacPollPolicy {
+ public:
+  ImmediateAfterActivityPollPolicy() {}
+
+  virtual Mode GetInitialDelay(int error, int64* next_delay_ms) const OVERRIDE {
+    *next_delay_ms = 0;
+    return MODE_START_AFTER_ACTIVITY;
+  }
+
+  virtual Mode GetNextDelay(int64 current_delay_ms,
+                            int64* next_delay_ms) const OVERRIDE {
+    return GetInitialDelay(OK, next_delay_ms);
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ImmediateAfterActivityPollPolicy);
+};
+
 // This test fixture is used to partially disable the background polling done by
 // the ProxyService (which it uses to detect whenever its PAC script contents or
 // WPAD results have changed).
@@ -47,8 +105,8 @@ class ProxyServiceTest : public testing::Test {
  protected:
   virtual void SetUp() OVERRIDE {
     testing::Test::SetUp();
-    previous_policy_ = ProxyService::set_pac_script_poll_policy(
-        ProxyService::POLL_POLICY_NEVER);
+    previous_policy_ =
+        ProxyService::set_pac_script_poll_policy(&never_poll_policy_);
   }
 
   virtual void TearDown() OVERRIDE {
@@ -57,7 +115,9 @@ class ProxyServiceTest : public testing::Test {
     testing::Test::TearDown();
   }
 
-  ProxyService::PollPolicy previous_policy_;
+ private:
+  NeverPollPolicy never_poll_policy_;
+  const ProxyService::PacPollPolicy* previous_policy_;
 };
 
 const char kValidPacScript1[] = "pac-script-v1-FindProxyForURL";
@@ -1956,8 +2016,8 @@ TEST_F(ProxyServiceTest, NetworkChangeTriggersPacRefetch) {
 TEST_F(ProxyServiceTest, PACScriptRefetchAfterFailure) {
   // Change the retry policy to wait a mere 1 ms before retrying, so the test
   // runs quickly.
-  ProxyService::set_pac_script_poll_policy(
-      ProxyService::POLL_POLICY_IMMEDIATE);
+  ImmediatePollPolicy poll_policy;
+  ProxyService::set_pac_script_poll_policy(&poll_policy);
 
   MockProxyConfigService* config_service =
       new MockProxyConfigService("http://foopy/proxy.pac");
@@ -2063,8 +2123,8 @@ TEST_F(ProxyServiceTest, PACScriptRefetchAfterFailure) {
 TEST_F(ProxyServiceTest, PACScriptRefetchAfterContentChange) {
   // Change the retry policy to wait a mere 1 ms before retrying, so the test
   // runs quickly.
-  ProxyService::set_pac_script_poll_policy(
-      ProxyService::POLL_POLICY_IMMEDIATE);
+  ImmediatePollPolicy poll_policy;
+  ProxyService::set_pac_script_poll_policy(&poll_policy);
 
   MockProxyConfigService* config_service =
       new MockProxyConfigService("http://foopy/proxy.pac");
@@ -2175,8 +2235,8 @@ TEST_F(ProxyServiceTest, PACScriptRefetchAfterContentChange) {
 TEST_F(ProxyServiceTest, PACScriptRefetchAfterContentUnchanged) {
   // Change the retry policy to wait a mere 1 ms before retrying, so the test
   // runs quickly.
-  ProxyService::set_pac_script_poll_policy(
-      ProxyService::POLL_POLICY_IMMEDIATE);
+  ImmediatePollPolicy poll_policy;
+  ProxyService::set_pac_script_poll_policy(&poll_policy);
 
   MockProxyConfigService* config_service =
       new MockProxyConfigService("http://foopy/proxy.pac");
@@ -2283,8 +2343,8 @@ TEST_F(ProxyServiceTest, PACScriptRefetchAfterContentUnchanged) {
 TEST_F(ProxyServiceTest, PACScriptRefetchAfterSuccess) {
   // Change the retry policy to wait a mere 1 ms before retrying, so the test
   // runs quickly.
-  ProxyService::set_pac_script_poll_policy(
-      ProxyService::POLL_POLICY_IMMEDIATE);
+  ImmediatePollPolicy poll_policy;
+  ProxyService::set_pac_script_poll_policy(&poll_policy);
 
   MockProxyConfigService* config_service =
       new MockProxyConfigService("http://foopy/proxy.pac");
@@ -2369,6 +2429,158 @@ TEST_F(ProxyServiceTest, PACScriptRefetchAfterSuccess) {
       BoundNetLog());
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(info2.is_direct());
+}
+
+// Tests that the code which decides at what times to poll the PAC
+// script follows the expected policy.
+TEST_F(ProxyServiceTest, PACScriptPollingPolicy) {
+  // Retrieve the internal polling policy implementation used by ProxyService.
+  scoped_ptr<ProxyService::PacPollPolicy> policy =
+      ProxyService::CreateDefaultPacPollPolicy();
+
+  ProxyService::PacPollPolicy::Mode mode;
+  int64 delay_ms = -1;
+
+  // After a failure, we should start polling at 4 seconds.
+  mode = policy->GetInitialDelay(ERR_FAILED, &delay_ms);
+  EXPECT_EQ(4000, delay_ms);
+  EXPECT_EQ(ProxyService::PacPollPolicy::MODE_USE_TIMER, mode);
+
+  // After a success, we should start polling at 16 seconds.
+  mode = policy->GetInitialDelay(OK, &delay_ms);
+  EXPECT_EQ(16000, delay_ms);
+  EXPECT_EQ(ProxyService::PacPollPolicy::MODE_USE_TIMER, mode);
+
+  // The delay should be doubled each time.
+  mode = policy->GetNextDelay(4000, &delay_ms);
+  EXPECT_EQ(8000, delay_ms);
+  EXPECT_EQ(ProxyService::PacPollPolicy::MODE_USE_TIMER, mode);
+  mode = policy->GetNextDelay(delay_ms, &delay_ms);
+  EXPECT_EQ(16000, delay_ms);
+  EXPECT_EQ(ProxyService::PacPollPolicy::MODE_USE_TIMER, mode);
+
+  // Once we reach 32 seconds, the polling should stop being done using
+  // a timer, however it should keep doubling.
+  mode = policy->GetNextDelay(delay_ms, &delay_ms);
+  EXPECT_EQ(32000, delay_ms);
+  EXPECT_EQ(ProxyService::PacPollPolicy::MODE_START_AFTER_ACTIVITY, mode);
+  mode = policy->GetNextDelay(delay_ms, &delay_ms);
+  EXPECT_EQ(64000, delay_ms);
+  EXPECT_EQ(ProxyService::PacPollPolicy::MODE_START_AFTER_ACTIVITY, mode);
+
+  // Once we reach 2 minutes, the polling delay should stop increasing.
+  mode = policy->GetNextDelay(delay_ms, &delay_ms);
+  EXPECT_EQ(120000, delay_ms);
+  EXPECT_EQ(ProxyService::PacPollPolicy::MODE_START_AFTER_ACTIVITY, mode);
+  mode = policy->GetNextDelay(delay_ms, &delay_ms);
+  EXPECT_EQ(120000, delay_ms);
+  EXPECT_EQ(ProxyService::PacPollPolicy::MODE_START_AFTER_ACTIVITY, mode);
+}
+
+// This tests the polling of the PAC script. Specifically, it tests that
+// polling occurs in response to user activity.
+TEST_F(ProxyServiceTest, PACScriptRefetchAfterActivity) {
+  ImmediateAfterActivityPollPolicy poll_policy;
+  ProxyService::set_pac_script_poll_policy(&poll_policy);
+
+  MockProxyConfigService* config_service =
+      new MockProxyConfigService("http://foopy/proxy.pac");
+
+  MockAsyncProxyResolverExpectsBytes* resolver =
+      new MockAsyncProxyResolverExpectsBytes;
+
+  CapturingNetLog log(CapturingNetLog::kUnbounded);
+
+  ProxyService service(config_service, resolver, &log);
+
+  MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
+  service.SetProxyScriptFetchers(fetcher,
+                                 new DoNothingDhcpProxyScriptFetcher());
+
+  // Start 1 request.
+
+  ProxyInfo info1;
+  TestCompletionCallback callback1;
+  int rv = service.ResolveProxy(
+      GURL("http://request1"), &info1, callback1.callback(), NULL,
+      BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  // The first request should have triggered initial download of PAC script.
+  EXPECT_TRUE(fetcher->has_pending_request());
+  EXPECT_EQ(GURL("http://foopy/proxy.pac"), fetcher->pending_request_url());
+
+  // Nothing has been sent to the resolver yet.
+  EXPECT_TRUE(resolver->pending_requests().empty());
+
+  // At this point the ProxyService should be waiting for the
+  // ProxyScriptFetcher to invoke its completion callback, notifying it of
+  // PAC script download completion.
+  fetcher->NotifyFetchCompletion(OK, kValidPacScript1);
+
+  // Now that the PAC script is downloaded, the request will have been sent to
+  // the proxy resolver.
+  EXPECT_EQ(ASCIIToUTF16(kValidPacScript1),
+            resolver->pending_set_pac_script_request()->script_data()->utf16());
+  resolver->pending_set_pac_script_request()->CompleteNow(OK);
+
+  ASSERT_EQ(1u, resolver->pending_requests().size());
+  EXPECT_EQ(GURL("http://request1"), resolver->pending_requests()[0]->url());
+
+  // Complete the pending request.
+  resolver->pending_requests()[0]->results()->UseNamedProxy("request1:80");
+  resolver->pending_requests()[0]->CompleteNow(OK);
+
+  // Wait for completion callback, and verify that the request ran as expected.
+  EXPECT_EQ(OK, callback1.WaitForResult());
+  EXPECT_EQ("request1:80", info1.proxy_server().ToURI());
+
+  // At this point we have initialized the proxy service using a PAC script.
+  // Our PAC poller is set to update ONLY in response to network activity,
+  // (i.e. another call to ResolveProxy()).
+
+  ASSERT_FALSE(fetcher->has_pending_request());
+  ASSERT_TRUE(resolver->pending_requests().empty());
+
+  // Start a second request.
+  ProxyInfo info2;
+  TestCompletionCallback callback2;
+  rv = service.ResolveProxy(
+      GURL("http://request2"), &info2, callback2.callback(), NULL,
+      BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  // This request should have sent work to the resolver; complete it.
+  ASSERT_EQ(1u, resolver->pending_requests().size());
+  EXPECT_EQ(GURL("http://request2"), resolver->pending_requests()[0]->url());
+  resolver->pending_requests()[0]->results()->UseNamedProxy("request2:80");
+  resolver->pending_requests()[0]->CompleteNow(OK);
+
+  EXPECT_EQ(OK, callback2.WaitForResult());
+  EXPECT_EQ("request2:80", info2.proxy_server().ToURI());
+
+  // In response to getting that resolve request, the poller should have
+  // started the next poll, and made it as far as to request the download.
+
+  EXPECT_TRUE(fetcher->has_pending_request());
+  EXPECT_EQ(GURL("http://foopy/proxy.pac"), fetcher->pending_request_url());
+
+  // This time we will fail the download, to simulate a PAC script change.
+  fetcher->NotifyFetchCompletion(ERR_FAILED, "");
+
+  // Drain the message loop, so ProxyService is notified of the change
+  // and has a chance to re-configure itself.
+  MessageLoop::current()->RunAllPending();
+
+  // Start a third request -- this time we expect to get a direct connection
+  // since the PAC script poller experienced a failure.
+  ProxyInfo info3;
+  TestCompletionCallback callback3;
+  rv = service.ResolveProxy(
+      GURL("http://request3"), &info3, callback3.callback(), NULL,
+      BoundNetLog());
+  EXPECT_EQ(OK, rv);
+  EXPECT_TRUE(info3.is_direct());
 }
 
 }  // namespace net

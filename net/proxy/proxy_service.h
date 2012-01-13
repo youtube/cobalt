@@ -43,11 +43,45 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
                                 public ProxyConfigService::Observer,
                                 NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
-  // Only used by unit-tests.
-  enum PollPolicy {
-    POLL_POLICY_REGULAR,  // Normal PAC poll policy (retry periodically).
-    POLL_POLICY_NEVER,  // Don't re-fetch PAC scripts for changes.
-    POLL_POLICY_IMMEDIATE,  // Check every 1 ms.
+  // This interface defines the set of policies for when to poll the PAC
+  // script for changes.
+  //
+  // The polling policy decides what the next poll delay should be in
+  // milliseconds. It also decides how to wait for this delay -- either
+  // by starting a timer to do the poll at exactly |next_delay_ms|
+  // (MODE_USE_TIMER) or by waiting for the first network request issued after
+  // |next_delay_ms| (MODE_START_AFTER_ACTIVITY).
+  //
+  // The timer method is more precise and guarantees that polling happens when
+  // it was requested. However it has the disadvantage of causing spurious CPU
+  // and network activity. It is a reasonable choice to use for short poll
+  // intervals which only happen a couple times.
+  //
+  // However for repeated timers this will prevent the browser from going
+  // idle. MODE_START_AFTER_ACTIVITY solves this problem by only polling in
+  // direct response to network activity. The drawback to
+  // MODE_START_AFTER_ACTIVITY is since the poll is initiated only after the
+  // request is received, the first couple requests initiated after a long
+  // period of inactivity will likely see a stale version of the PAC script
+  // until the background polling gets a chance to update things.
+  class NET_EXPORT_PRIVATE PacPollPolicy {
+   public:
+    enum Mode {
+      MODE_USE_TIMER,
+      MODE_START_AFTER_ACTIVITY,
+    };
+
+    virtual ~PacPollPolicy() {}
+
+    // Decides the initial poll delay. |error| is the network error
+    // code that the most last PAC fetch failed with (or OK if it was a
+    // success). Implementations must set |next_delay_ms|.
+    virtual Mode GetInitialDelay(int error, int64* next_delay_ms) const = 0;
+
+    // Decides the next poll delay. |current_delay_ms| is the delay used
+    // by the preceding poll. Implementations must set |next_delay_ms|.
+    virtual Mode GetNextDelay(int64 current_delay_ms,
+                              int64* next_delay_ms) const = 0;
   };
 
   // The instance takes ownership of |config_service| and |resolver|.
@@ -246,7 +280,12 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
 
   // This method should only be used by unit tests. Returns the previously
   // active policy.
-  static PollPolicy set_pac_script_poll_policy(PollPolicy policy);
+  static const PacPollPolicy* set_pac_script_poll_policy(
+      const PacPollPolicy* policy);
+
+  // This method should only be used by unit tests. Creates an instance
+  // of the default internal PacPollPolicy used by ProxyService.
+  static scoped_ptr<PacPollPolicy> CreateDefaultPacPollPolicy();
 
  private:
   FRIEND_TEST_ALL_PREFIXES(ProxyServiceTest, UpdateConfigAfterFailedAutodetect);
