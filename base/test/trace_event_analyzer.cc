@@ -41,7 +41,7 @@ bool TraceEvent::SetFromJSON(const base::Value* event_value) {
     return false;
   }
 
-  phase = base::debug::TraceEvent::GetPhase(phase_str.c_str());
+  phase = *phase_str.data();
 
   bool require_origin = (phase != TRACE_EVENT_PHASE_METADATA);
   bool require_id = (phase == TRACE_EVENT_PHASE_START ||
@@ -229,7 +229,7 @@ Query Query::Bool(bool boolean) {
   return Query(boolean ? 1.0 : 0.0);
 }
 
-Query Query::Phase(base::debug::TraceEventPhase phase) {
+Query Query::Phase(char phase) {
   return Query(static_cast<double>(phase));
 }
 
@@ -268,17 +268,17 @@ bool Query::Evaluate(const TraceEvent& event) const {
     else if (CompareAsString(event, &compare_result))
       return compare_result;
     return false;
-  } else {
-    switch (operator_) {
-      case OP_AND:
-        return left().Evaluate(event) && right().Evaluate(event);
-      case OP_OR:
-        return left().Evaluate(event) || right().Evaluate(event);
-      case OP_NOT:
-        return !left().Evaluate(event);
-      default:
-        NOTREACHED();
-    }
+  }
+  // It's a logical operator.
+  switch (operator_) {
+    case OP_AND:
+      return left().Evaluate(event) && right().Evaluate(event);
+    case OP_OR:
+      return left().Evaluate(event) || right().Evaluate(event);
+    case OP_NOT:
+      return !left().Evaluate(event);
+    default:
+      NOTREACHED();
   }
 
   NOTREACHED();
@@ -393,17 +393,11 @@ bool Query::EvaluateArithmeticOperator(const TraceEvent& event,
 }
 
 bool Query::GetAsDouble(const TraceEvent& event, double* num) const {
-  base::debug::TraceValue value;
   switch (type_) {
     case QUERY_ARITHMETIC_OPERATOR:
       return EvaluateArithmeticOperator(event, num);
     case QUERY_EVENT_MEMBER:
-      value = GetMemberValue(event);
-      if (value.type() == base::debug::TraceValue::TRACE_TYPE_DOUBLE) {
-        *num = value.as_double();
-        return true;
-      }
-      return false;
+      return GetMemberValueAsDouble(event, num);
     case QUERY_NUMBER:
       *num = number_;
       return true;
@@ -413,15 +407,9 @@ bool Query::GetAsDouble(const TraceEvent& event, double* num) const {
 }
 
 bool Query::GetAsString(const TraceEvent& event, std::string* str) const {
-  base::debug::TraceValue value;
   switch (type_) {
     case QUERY_EVENT_MEMBER:
-      value = GetMemberValue(event);
-      if (value.is_string()) {
-        *str = value.as_string();
-        return true;
-      }
-      return false;
+      return GetMemberValueAsString(event, str);
     case QUERY_STRING:
       *str = string_;
       return true;
@@ -430,7 +418,8 @@ bool Query::GetAsString(const TraceEvent& event, std::string* str) const {
   }
 }
 
-base::debug::TraceValue Query::GetMemberValue(const TraceEvent& event) const {
+bool Query::GetMemberValueAsDouble(const TraceEvent& event,
+                                   double* num) const {
   DCHECK(type_ == QUERY_EVENT_MEMBER);
 
   // This could be a request for a member of |event| or a member of |event|'s
@@ -440,69 +429,96 @@ base::debug::TraceValue Query::GetMemberValue(const TraceEvent& event) const {
 
   // Request for member of associated event, but there is no associated event.
   if (!the_event)
-    return base::debug::TraceValue();
+    return false;
 
   switch (member_) {
     case EVENT_PID:
     case OTHER_PID:
-      return static_cast<double>(the_event->thread.process_id);
+      *num = static_cast<double>(the_event->thread.process_id);
+      return true;
     case EVENT_TID:
     case OTHER_TID:
-      return static_cast<double>(the_event->thread.thread_id);
+      *num = static_cast<double>(the_event->thread.thread_id);
+      return true;
     case EVENT_TIME:
     case OTHER_TIME:
-      return the_event->timestamp;
+      *num = the_event->timestamp;
+      return true;
     case EVENT_DURATION:
-      {
-        if (the_event->has_other_event())
-          return the_event->GetAbsTimeToOtherEvent();
-        else
-          return base::debug::TraceValue();
+      if (the_event->has_other_event()) {
+        *num = the_event->GetAbsTimeToOtherEvent();
+        return true;
       }
+      return false;
     case EVENT_PHASE:
     case OTHER_PHASE:
-      return static_cast<double>(the_event->phase);
-    case EVENT_CATEGORY:
-    case OTHER_CATEGORY:
-      return the_event->category;
-    case EVENT_NAME:
-    case OTHER_NAME:
-      return the_event->name;
-    case EVENT_ID:
-    case OTHER_ID:
-      return the_event->id;
+      *num = static_cast<double>(the_event->phase);
+      return true;
     case EVENT_HAS_STRING_ARG:
     case OTHER_HAS_STRING_ARG:
-      return (the_event->HasStringArg(string_) ? 1.0 : 0.0);
+      *num = (the_event->HasStringArg(string_) ? 1.0 : 0.0);
+      return true;
     case EVENT_HAS_NUMBER_ARG:
     case OTHER_HAS_NUMBER_ARG:
-      return (the_event->HasNumberArg(string_) ? 1.0 : 0.0);
+      *num = (the_event->HasNumberArg(string_) ? 1.0 : 0.0);
+      return true;
     case EVENT_ARG:
-    case OTHER_ARG:
-      {
-        // Search for the argument name and return its value if found.
-
-        std::map<std::string, std::string>::const_iterator str_i =
-            the_event->arg_strings.find(string_);
-        if (str_i != the_event->arg_strings.end())
-          return str_i->second;
-
-        std::map<std::string, double>::const_iterator num_i =
-            the_event->arg_numbers.find(string_);
-        if (num_i != the_event->arg_numbers.end())
-          return num_i->second;
-
-        return base::debug::TraceValue();
-      }
+    case OTHER_ARG: {
+      // Search for the argument name and return its value if found.
+      std::map<std::string, double>::const_iterator num_i =
+          the_event->arg_numbers.find(string_);
+      if (num_i == the_event->arg_numbers.end())
+        return false;
+      *num = num_i->second;
+      return true;
+    }
     case EVENT_HAS_OTHER:
-      {
-        // return 1.0 (true) if the other event exists
-        double result = event.other_event ? 1.0 : 0.0;
-        return result;
-      }
+      // return 1.0 (true) if the other event exists
+      *num = event.other_event ? 1.0 : 0.0;
+      return true;
     default:
-      NOTREACHED();
-      return base::debug::TraceValue();
+      return false;
+  }
+}
+
+bool Query::GetMemberValueAsString(const TraceEvent& event,
+                                   std::string* str) const {
+  DCHECK(type_ == QUERY_EVENT_MEMBER);
+
+  // This could be a request for a member of |event| or a member of |event|'s
+  // associated event. Store the target event in the_event:
+  const TraceEvent* the_event = (member_ < OTHER_PID) ?
+      &event : event.other_event;
+
+  // Request for member of associated event, but there is no associated event.
+  if (!the_event)
+    return false;
+
+  switch (member_) {
+    case EVENT_CATEGORY:
+    case OTHER_CATEGORY:
+      *str = the_event->category;
+      return true;
+    case EVENT_NAME:
+    case OTHER_NAME:
+      *str = the_event->name;
+      return true;
+    case EVENT_ID:
+    case OTHER_ID:
+      *str = the_event->id;
+      return true;
+    case EVENT_ARG:
+    case OTHER_ARG: {
+      // Search for the argument name and return its value if found.
+      std::map<std::string, std::string>::const_iterator str_i =
+          the_event->arg_strings.find(string_);
+      if (str_i == the_event->arg_strings.end())
+        return false;
+      *str = str_i->second;
+      return true;
+    }
+    default:
+      return false;
   }
 }
 

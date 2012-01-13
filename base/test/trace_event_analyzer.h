@@ -152,7 +152,7 @@ struct TraceEvent {
   // Stored as double to match its JSON representation.
   double timestamp;
 
-  base::debug::TraceEventPhase phase;
+  char phase;
 
   std::string category;
 
@@ -193,7 +193,7 @@ class Query {
   static Query Bool(bool boolean);
 
   // Compare with the given phase.
-  static Query Phase(base::debug::TraceEventPhase phase);
+  static Query Phase(char phase);
 
   // Compare with the given string pattern. Only works with == and != operators.
   // Example: Query(EVENT_NAME) == Query::Pattern("MyEvent*")
@@ -424,10 +424,11 @@ class Query {
   bool EvaluateArithmeticOperator(const TraceEvent& event,
                                   double* num) const;
 
-  // For QUERY_EVENT_MEMBER Query: attempt to get the value of the Query.
-  // The TraceValue will either be TRACE_TYPE_DOUBLE, TRACE_TYPE_STRING,
-  // or if requested member does not exist, it will be TRACE_TYPE_UNDEFINED.
-  base::debug::TraceValue GetMemberValue(const TraceEvent& event) const;
+  // For QUERY_EVENT_MEMBER Query: attempt to get the double value of the Query.
+  bool GetMemberValueAsDouble(const TraceEvent& event, double* num) const;
+
+  // For QUERY_EVENT_MEMBER Query: attempt to get the string value of the Query.
+  bool GetMemberValueAsString(const TraceEvent& event, std::string* num) const;
 
   // Does this Query represent a value?
   bool is_value() const { return type_ != QUERY_BOOLEAN_OPERATOR; }
