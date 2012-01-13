@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -382,7 +382,8 @@ class TestPageHandler(BasePageHandler):
     post_handlers = [
       self.EchoTitleHandler,
       self.EchoHandler,
-      self.DeviceManagementHandler] + get_handlers
+      self.DeviceManagementHandler,
+      self.PostOnlyFileHandler] + get_handlers
     put_handlers = [
       self.EchoTitleHandler,
       self.EchoHandler] + get_handlers
@@ -904,15 +905,23 @@ class TestPageHandler(BasePageHandler):
   def FileHandler(self):
     """This handler sends the contents of the requested file.  Wow, it's like
     a real webserver!"""
-
     prefix = self.server.file_root_url
     if not self.path.startswith(prefix):
       return False
-
     # Consume a request body if present.
     if self.command == 'POST' or self.command == 'PUT' :
       self.ReadRequestBody()
+    return self._FileHandlerHelper(prefix)
 
+  def PostOnlyFileHandler(self):
+    """This handler sends the contents of the requested file on a POST."""
+    prefix = self.server.file_root_url + '/post/'
+    if not self.path.startswith(prefix):
+      return False
+    self.ReadRequestBody()
+    return self._FileHandlerHelper(prefix)
+
+  def _FileHandlerHelper(self, prefix):
     _, _, url_path, _, query, _ = urlparse.urlparse(self.path)
     sub_path = url_path[len(prefix):]
     entries = sub_path.split('/')
