@@ -433,7 +433,7 @@ nsPKCS12Blob_Export(std::string* output,
                                                       nssCert,
                                                       NULL);  // wincx
        if (privKey) {
-        PRBool privKeyIsExtractable;
+        PRBool privKeyIsExtractable = PR_FALSE;
         SECStatus rv = isExtractable(privKey, &privKeyIsExtractable);
         SECKEY_DestroyPrivateKey(privKey);
 
