@@ -817,9 +817,7 @@ TEST_F(SpdyFramerTest, HeaderCompression) {
 }
 
 // Verify we don't leak when we leave streams unclosed
-// http://crbug.com/108596 - Disabled, failed ASAN tests.
-// TODO(rtenneti): investigating why it is failing.
-TEST_F(SpdyFramerTest, DISABLED_UnclosedStreamDataCompressors) {
+TEST_F(SpdyFramerTest, UnclosedStreamDataCompressors) {
   SpdyFramer send_framer;
 
   send_framer.set_enable_compression(true);
