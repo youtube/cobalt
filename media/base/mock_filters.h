@@ -148,7 +148,6 @@ class MockDemuxerFactory : public DemuxerFactory {
   // DemuxerFactory methods.
   MOCK_METHOD2(Build, void(const std::string& url,
                            const BuildCallback& callback));
-  virtual scoped_ptr<DemuxerFactory> Clone() const;
 
  private:
   scoped_refptr<MockDemuxer> demuxer_;

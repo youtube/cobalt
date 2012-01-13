@@ -66,10 +66,6 @@ void MockDemuxerFactory::RunBuildCallback(const std::string& url,
   callback.Run(status_, NULL);
 }
 
-scoped_ptr<DemuxerFactory> MockDemuxerFactory::Clone() const {
-  return scoped_ptr<DemuxerFactory>(new MockDemuxerFactory(demuxer_.get()));
-}
-
 MockDemuxer::MockDemuxer()
   : total_bytes_(-1), buffered_bytes_(-1), duration_() {}
 
