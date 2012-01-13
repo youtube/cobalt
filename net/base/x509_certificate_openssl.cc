@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -547,7 +547,7 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
       break;
     case android::VERIFY_INVOCATION_ERROR:
     default:
-      verify_result->cert_status |= ERR_CERT_INVALID;
+      verify_result->cert_status |= CERT_STATUS_INVALID;
       break;
   }
   if (IsCertStatusError(verify_result->cert_status))
