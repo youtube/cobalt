@@ -140,7 +140,7 @@ class Xvfb(object):
 
 def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
              timeout, performance_test, cleanup_test_files, tool,
-             log_dump_name, fast_and_loose=False):
+             log_dump_name, fast_and_loose=False, annotate=False):
   """Runs the tests.
 
   Args:
@@ -156,6 +156,7 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
     log_dump_name: Name of log dump file.
     fast_and_loose: should we go extra-fast but sacrifice stability
       and/or correctness?  Intended for quick cycle testing; not for bots!
+    annotate: should we print buildbot-style annotations?
 
   Returns:
     A TestResults object.
@@ -178,26 +179,37 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
   print 'Known suites: ' + str(_TEST_SUITES)
   print 'Running these: ' + str(fully_qualified_test_suites)
   for t in fully_qualified_test_suites:
+    if annotate:
+      print '@@@BUILD_STEP Test suite %s@@@' % os.path.basename(t)
     test = SingleTestRunner(device, t, gtest_filter, test_arguments,
                             timeout, rebaseline, performance_test,
                             cleanup_test_files, tool, not not log_dump_name,
                             fast_and_loose=fast_and_loose)
     test.RunTests()
+
     results += [test.test_results]
     # Collect debug info.
     debug_info_list += [test.dump_debug_info]
     if rebaseline:
       test.UpdateFilter(test.test_results.failed)
     elif test.test_results.failed:
-      # Stop running test if encountering failed test.
       test.test_results.LogFull()
-      break
   # Zip all debug info outputs into a file named by log_dump_name.
   debug_info.GTestDebugInfo.ZipAndCleanResults(
       os.path.join(run_tests_helper.CHROME_DIR, 'out', 'Release',
           'debug_info_dumps'),
       log_dump_name, [d for d in debug_info_list if d])
+
+  if annotate:
+    if test.test_results.timed_out:
+      print '@@@STEP_WARNINGS@@@'
+    elif test.test_results.failed:
+      print '@@@STEP_FAILURE@@@'
+    else:
+      print 'Step success!'  # No annotation needed
+
   return TestResults.FromTestResults(results)
+
 
 def _RunATestSuite(options):
   """Run a single test suite.
@@ -213,6 +225,8 @@ def _RunATestSuite(options):
     0 if successful, number of failing tests otherwise.
   """
   attached_devices = []
+  buildbot_emulator = None
+
   if options.use_emulator:
     t = TimeProfile('Emulator launch')
     buildbot_emulator = emulator.Emulator(options.fast_and_loose)
@@ -232,7 +246,8 @@ def _RunATestSuite(options):
                           options.performance_test,
                           options.cleanup_test_files, options.tool,
                           options.log_dump,
-                          fast_and_loose=options.fast_and_loose)
+                          fast_and_loose=options.fast_and_loose,
+                          annotate=options.annotate)
 
   if buildbot_emulator:
     buildbot_emulator.Shutdown()
@@ -264,19 +279,18 @@ def Dispatch(options):
   if options.test_suite == 'help':
     ListTestSuites()
     return 0
-  buildbot_emulator = None
 
   if options.use_xvfb:
     xvfb = Xvfb()
     xvfb.Start()
 
-  all_test_suites = [options.test_suite] or FullyQualifiedTestSuites()
-  failures = 0
-  if options.use_emulator and options.restart_emulator_each_test:
-    for suite in all_test_suites:
-      options.test_suite = suite
-      failures += _RunATestSuite(options)
+  if options.test_suite:
+    all_test_suites = [options.test_suite]
   else:
+    all_test_suites = FullyQualifiedTestSuites()
+  failures = 0
+  for suite in all_test_suites:
+    options.test_suite = suite
     failures += _RunATestSuite(options)
 
   if options.use_xvfb:
@@ -332,9 +346,9 @@ def main(argv):
   option_parser.add_option('--repeat', dest='repeat', type='int',
                            default=2,
                            help='Repeat count on test timeout')
-  option_parser.add_option('--restart_emulator_each_test',
-                           default='True',
-                           help='Restart the emulator for each test?')
+  option_parser.add_option('--annotate', default=True,
+                           help='Print buildbot-style annotate messages '
+                           'for each test suite.  Default=True')
   options, args = option_parser.parse_args(argv)
   if len(args) > 1:
     print 'Unknown argument:', args[1:]
