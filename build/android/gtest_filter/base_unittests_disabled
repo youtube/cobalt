@@ -6,3 +6,10 @@ ReadOnlyFileUtilTest.ContentsEqual
 ReadOnlyFileUtilTest.TextContentsEqual
 SharedMemoryTest.OpenExclusive
 StackTrace.DebugPrintBacktrace
+VerifyPathControlledByUserTest.Symlinks
+PathServiceTest.Get
+SharedMemoryTest.OpenClose
+StringPrintfTest.StringPrintfMisc
+StringPrintfTest.StringAppendfString
+StringPrintfTest.StringAppendfInt
+StringPrintfTest.StringPrintfBounds
