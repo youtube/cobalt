@@ -64,10 +64,6 @@ class MEDIA_EXPORT VideoDecodeAccelerator
     // Callback to deliver decoded pictures ready to be displayed.
     virtual void PictureReady(const Picture& picture) = 0;
 
-    // Callback to notify that decoder has decoded end of stream marker and has
-    // outputted all displayable pictures.
-    virtual void NotifyEndOfStream() = 0;
-
     // Callback to notify that decoded has decoded the end of the current
     // bitstream buffer.
     virtual void NotifyEndOfBitstreamBuffer(int32 bitstream_buffer_id) = 0;
