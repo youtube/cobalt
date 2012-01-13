@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -48,8 +48,6 @@ TEST(MacAudioTest, SineWaveAudio16MonoTest) {
 // ===========================================================================
 // Validation of AudioParameters::AUDIO_PCM_LINEAR
 //
-// Unlike windows, the tests can reliably detect the existence of real
-// audio devices on the bots thus no need for 'headless' detection.
 
 // Test that can it be created and closed.
 TEST(MacAudioTest, PCMWaveStreamGetAndClose) {
