@@ -1,10 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/base/video_frame.h"
 
 #include "base/logging.h"
+#include "media/base/video_util.h"
 
 namespace media {
 
@@ -79,27 +80,7 @@ scoped_refptr<VideoFrame> VideoFrame::CreateBlackFrame(int width, int height) {
   // Now set the data to YUV(0,128,128).
   const uint8 kBlackY = 0x00;
   const uint8 kBlackUV = 0x80;
-
-  // Fill the Y plane.
-  uint8* y_plane = frame->data(VideoFrame::kYPlane);
-  for (size_t i = 0; i < frame->height_; ++i) {
-    memset(y_plane, kBlackY, frame->width_);
-    y_plane += frame->stride(VideoFrame::kYPlane);
-  }
-
-  // Fill the U and V planes.
-  uint8* u_plane = frame->data(VideoFrame::kUPlane);
-  uint8* v_plane = frame->data(VideoFrame::kVPlane);
-  int uv_rows = frame->rows(VideoFrame::kUPlane);
-  int u_row_bytes = frame->row_bytes(VideoFrame::kUPlane);
-  int v_row_bytes = frame->row_bytes(VideoFrame::kVPlane);
-  for (size_t i = 0; i < (size_t)uv_rows; ++i) {
-    memset(u_plane, kBlackUV, u_row_bytes);
-    memset(v_plane, kBlackUV, v_row_bytes);
-    u_plane += frame->stride(VideoFrame::kUPlane);
-    v_plane += frame->stride(VideoFrame::kVPlane);
-  }
-
+  FillYUV(frame, kBlackY, kBlackUV, kBlackUV);
   return frame;
 }
 

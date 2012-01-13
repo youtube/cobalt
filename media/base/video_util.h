@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,6 +22,9 @@ MEDIA_EXPORT void CopyUPlane(const uint8* source, int stride, int rows,
                              VideoFrame* frame);
 MEDIA_EXPORT void CopyVPlane(const uint8* source, int stride, int rows,
                              VideoFrame* frame);
+
+// Fills |frame| containing YUV data to the given color values.
+MEDIA_EXPORT void FillYUV(VideoFrame* frame, uint8 y, uint8 u, uint8 v);
 
 }  // namespace media
 
