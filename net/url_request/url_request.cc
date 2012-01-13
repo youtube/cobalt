@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,7 +12,6 @@
 #include "base/memory/singleton.h"
 #include "base/message_loop.h"
 #include "base/metrics/stats_counters.h"
-#include "base/string_util.h"
 #include "base/synchronization/lock.h"
 #include "net/base/auth.h"
 #include "net/base/host_port_pair.h"
@@ -377,8 +376,6 @@ void URLRequest::set_first_party_for_cookies(
 
 void URLRequest::set_method(const std::string& method) {
   DCHECK(!is_pending_);
-  DCHECK(!method.empty());
-  DCHECK_EQ(StringToUpperASCII(method), method);
   method_ = method;
 }
 
