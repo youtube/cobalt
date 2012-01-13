@@ -50,14 +50,34 @@ def _KillAllEmulators():
       return
     time.sleep(1)
 
+
+class PortPool(object):
+  """Pool for emulator port starting position that changes over time."""
+  _port_min = 5554
+  _port_max = 5585
+  _port_current_index = 0
+
+  @classmethod
+  def port_range(cls):
+    """Return a range of valid ports for emulator use.
+
+    The port must be an even number between 5554 and 5584.  Sometimes
+    a killed emulator "hangs on" to a port long enough to prevent
+    relaunch.  This is especially true on slow machines (like a bot).
+    Cycling through a port start position helps make us resilient."""
+    ports = range(cls._port_min, cls._port_max, 2)
+    n = cls._port_current_index
+    cls._port_current_index = (n + 1) % len(ports)
+    return ports[n:] + ports[:n]
+
+
 def _GetAvailablePort():
   """Returns an available TCP port for the console."""
   used_ports = []
   emulators = android_commands.GetEmulators()
   for emulator in emulators:
     used_ports.append(emulator.split('-')[1])
-  # The port must be an even number between 5554 and 5584.
-  for port in range(5554, 5585, 2):
+  for port in PortPool.port_range():
     if str(port) not in used_ports:
       return port
 
