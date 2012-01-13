@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -130,8 +130,8 @@ void CheckSSLInfo(const SSLInfo& ssl_info) {
 class BlockingNetworkDelegate : public TestNetworkDelegate {
  public:
   BlockingNetworkDelegate()
-      : retval_(ERR_IO_PENDING),
-        callback_retval_(OK),
+      : retval_(net::ERR_IO_PENDING),
+        callback_retval_(net::OK),
         auth_retval_(NetworkDelegate::AUTH_REQUIRED_RESPONSE_IO_PENDING),
         auth_callback_retval_(
             NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION),
@@ -150,12 +150,12 @@ class BlockingNetworkDelegate : public TestNetworkDelegate {
 
  private:
   // TestNetworkDelegate implementation.
-  virtual int OnBeforeURLRequest(URLRequest* request,
-                                 const CompletionCallback& callback,
+  virtual int OnBeforeURLRequest(net::URLRequest* request,
+                                 const net::CompletionCallback& callback,
                                  GURL* new_url) OVERRIDE {
     if (redirect_url_ == request->url()) {
       // We've already seen this request and redirected elsewhere.
-      return OK;
+      return net::OK;
     }
 
     TestNetworkDelegate::OnBeforeURLRequest(request, callback, new_url);
@@ -163,14 +163,14 @@ class BlockingNetworkDelegate : public TestNetworkDelegate {
     if (!redirect_url_.is_empty())
       *new_url = redirect_url_;
 
-    if (retval_ != ERR_IO_PENDING)
+    if (retval_ != net::ERR_IO_PENDING)
       return retval_;
 
     MessageLoop::current()->PostTask(
         FROM_HERE,
         base::Bind(&BlockingNetworkDelegate::DoCallback,
                    weak_factory_.GetWeakPtr(), callback));
-    return ERR_IO_PENDING;
+    return net::ERR_IO_PENDING;
   }
 
   virtual NetworkDelegate::AuthRequiredResponse OnAuthRequired(
@@ -197,7 +197,7 @@ class BlockingNetworkDelegate : public TestNetworkDelegate {
     return auth_retval_;
   }
 
-  void DoCallback(const CompletionCallback& callback) {
+  void DoCallback(const net::CompletionCallback& callback) {
     callback.Run(callback_retval_);
   }
 
@@ -219,121 +219,6 @@ class BlockingNetworkDelegate : public TestNetworkDelegate {
   AuthCredentials auth_credentials_;
   base::WeakPtrFactory<BlockingNetworkDelegate> weak_factory_;
 };
-
-// A network delegate that allows blocking requests until a callback function is
-// called.
-class BlockingNetworkDelegateWithManualCallback : public TestNetworkDelegate {
- public:
-  enum State {
-    NOT_BLOCKED = 0,
-    ON_BEFORE_URL_REQUEST = 1 << 0,
-    ON_BEFORE_SEND_HEADERS = 1 << 1,
-    ON_HEADERS_RECEIVED = 1 << 2,
-    ON_AUTH_REQUIRED = 1 << 3
-  };
-
-  BlockingNetworkDelegateWithManualCallback()
-      : block_on_(0),
-        state_(NOT_BLOCKED) {
-  }
-
-  // Activates blocking on |state|.
-  void BlockOn(State state) {
-    block_on_ |= state;
-  }
-
-  void DoCallback(int rv) {
-    ASSERT_NE(NOT_BLOCKED, state_);
-    CompletionCallback callback = callback_;
-    Reset();
-    callback.Run(rv);
-  }
-
-  void DoAuthCallback(NetworkDelegate::AuthRequiredResponse response) {
-    ASSERT_EQ(ON_AUTH_REQUIRED, state_);
-    AuthCallback auth_callback = auth_callback_;
-    Reset();
-    auth_callback.Run(response);
-  }
-
-  // Runs the message loop until |state| is reached.
-  void WaitForState(State state) {
-    while (state_ != state)
-      MessageLoop::current()->RunAllPending();
-  }
-
- private:
-  // TestNetworkDelegate implementation.
-  virtual int OnBeforeURLRequest(URLRequest* request,
-                                 const CompletionCallback& callback,
-                                 GURL* new_url) OVERRIDE {
-    TestNetworkDelegate::OnBeforeURLRequest(request, callback, new_url);
-    if ((block_on_ & ON_BEFORE_URL_REQUEST) == 0) {
-      return OK;
-    } else {
-      state_ = ON_BEFORE_URL_REQUEST;
-      callback_ = callback;
-      return ERR_IO_PENDING;
-    }
-  }
-
-  virtual int OnBeforeSendHeaders(URLRequest* request,
-                                  const CompletionCallback& callback,
-                                  HttpRequestHeaders* headers) OVERRIDE {
-    TestNetworkDelegate::OnBeforeSendHeaders(request, callback, headers);
-    if ((block_on_ & ON_BEFORE_SEND_HEADERS) == 0) {
-      return OK;
-    } else {
-      state_ = ON_BEFORE_SEND_HEADERS;
-      callback_ = callback;
-      return ERR_IO_PENDING;
-    }
-  }
-
-  virtual int OnHeadersReceived(
-      URLRequest* request,
-      const CompletionCallback& callback,
-      HttpResponseHeaders* original_response_headers,
-      scoped_refptr<HttpResponseHeaders>* override_response_headers)
-      OVERRIDE {
-    TestNetworkDelegate::OnHeadersReceived(
-        request, callback, original_response_headers,
-        override_response_headers);
-    if ((block_on_ & ON_HEADERS_RECEIVED) == 0) {
-      return OK;
-    } else {
-      state_ = ON_HEADERS_RECEIVED;
-      callback_ = callback;
-      return ERR_IO_PENDING;
-    }
-  }
-
-  virtual NetworkDelegate::AuthRequiredResponse OnAuthRequired(
-      URLRequest* request,
-      const AuthChallengeInfo& auth_info,
-      const AuthCallback& callback,
-      AuthCredentials* credentials) OVERRIDE {
-    if ((block_on_ & ON_AUTH_REQUIRED) == 0) {
-      return NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION;
-    } else {
-      state_ = ON_AUTH_REQUIRED;
-      auth_callback_ = callback;
-      return NetworkDelegate::AUTH_REQUIRED_RESPONSE_IO_PENDING;
-    }
-  }
-
-  void Reset() {
-    state_ = NOT_BLOCKED;
-    callback_.Reset();
-    auth_callback_.Reset();
-  }
-
-  int block_on_;  // Bit mask on which states to block.
-  State state_;
-  CompletionCallback callback_;
-  AuthCallback auth_callback_;
-};
-
 
 // A simple Interceptor that returns a pre-built URLRequestJob one time.
 class TestJobInterceptor : public URLRequestJobFactory::Interceptor {
@@ -903,146 +788,6 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateOnAuthRequiredAsyncCancel) {
     EXPECT_EQ(OK, r.status().error());
     EXPECT_EQ(401, r.GetResponseCode());
     EXPECT_FALSE(d.auth_required_called());
-    EXPECT_EQ(1, network_delegate.created_requests());
-    EXPECT_EQ(0, network_delegate.destroyed_requests());
-  }
-  EXPECT_EQ(1, network_delegate.destroyed_requests());
-}
-
-// Tests that we can handle when a network request was canceled while we were
-// waiting for the network delegate.
-// Part 1: Request is cancelled while waiting for OnBeforeURLRequest callback.
-TEST_F(URLRequestTestHTTP, NetworkDelegateCancelWhileWaiting1) {
-  ASSERT_TRUE(test_server_.Start());
-
-  TestDelegate d;
-  BlockingNetworkDelegateWithManualCallback network_delegate;
-  network_delegate.BlockOn(
-      BlockingNetworkDelegateWithManualCallback::ON_BEFORE_URL_REQUEST);
-
-  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext(true));
-  context->set_network_delegate(&network_delegate);
-  context->Init();
-
-  {
-    TestURLRequest r(test_server_.GetURL(""), &d);
-    r.set_context(context);
-
-    r.Start();
-    network_delegate.WaitForState(
-        BlockingNetworkDelegateWithManualCallback::ON_BEFORE_URL_REQUEST);
-    EXPECT_EQ(0, network_delegate.completed_requests());
-    // Cancel before callback.
-    r.Cancel();
-    // Ensure that network delegate is notified.
-    EXPECT_EQ(1, network_delegate.completed_requests());
-    EXPECT_EQ(URLRequestStatus::CANCELED, r.status().status());
-    EXPECT_EQ(ERR_ABORTED, r.status().error());
-    EXPECT_EQ(1, network_delegate.created_requests());
-    EXPECT_EQ(0, network_delegate.destroyed_requests());
-  }
-  EXPECT_EQ(1, network_delegate.destroyed_requests());
-}
-
-// Tests that we can handle when a network request was canceled while we were
-// waiting for the network delegate.
-// Part 2: Request is cancelled while waiting for OnBeforeSendHeaders callback.
-TEST_F(URLRequestTestHTTP, NetworkDelegateCancelWhileWaiting2) {
-  ASSERT_TRUE(test_server_.Start());
-
-  TestDelegate d;
-  BlockingNetworkDelegateWithManualCallback network_delegate;
-  network_delegate.BlockOn(
-      BlockingNetworkDelegateWithManualCallback::ON_BEFORE_SEND_HEADERS);
-
-  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext(true));
-  context->set_network_delegate(&network_delegate);
-  context->Init();
-
-  {
-    TestURLRequest r(test_server_.GetURL(""), &d);
-    r.set_context(context);
-
-    r.Start();
-    network_delegate.WaitForState(
-        BlockingNetworkDelegateWithManualCallback::ON_BEFORE_SEND_HEADERS);
-    EXPECT_EQ(0, network_delegate.completed_requests());
-    // Cancel before callback.
-    r.Cancel();
-    // Ensure that network delegate is notified.
-    EXPECT_EQ(1, network_delegate.completed_requests());
-    EXPECT_EQ(URLRequestStatus::CANCELED, r.status().status());
-    EXPECT_EQ(ERR_ABORTED, r.status().error());
-    EXPECT_EQ(1, network_delegate.created_requests());
-    EXPECT_EQ(0, network_delegate.destroyed_requests());
-  }
-  EXPECT_EQ(1, network_delegate.destroyed_requests());
-}
-
-// Tests that we can handle when a network request was canceled while we were
-// waiting for the network delegate.
-// Part 3: Request is cancelled while waiting for OnHeadersReceived callback.
-TEST_F(URLRequestTestHTTP, NetworkDelegateCancelWhileWaiting3) {
-  ASSERT_TRUE(test_server_.Start());
-
-  TestDelegate d;
-  BlockingNetworkDelegateWithManualCallback network_delegate;
-  network_delegate.BlockOn(
-      BlockingNetworkDelegateWithManualCallback::ON_HEADERS_RECEIVED);
-
-  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext(true));
-  context->set_network_delegate(&network_delegate);
-  context->Init();
-
-  {
-    TestURLRequest r(test_server_.GetURL(""), &d);
-    r.set_context(context);
-
-    r.Start();
-    network_delegate.WaitForState(
-        BlockingNetworkDelegateWithManualCallback::ON_HEADERS_RECEIVED);
-    EXPECT_EQ(0, network_delegate.completed_requests());
-    // Cancel before callback.
-    r.Cancel();
-    // Ensure that network delegate is notified.
-    EXPECT_EQ(1, network_delegate.completed_requests());
-    EXPECT_EQ(URLRequestStatus::CANCELED, r.status().status());
-    EXPECT_EQ(ERR_ABORTED, r.status().error());
-    EXPECT_EQ(1, network_delegate.created_requests());
-    EXPECT_EQ(0, network_delegate.destroyed_requests());
-  }
-  EXPECT_EQ(1, network_delegate.destroyed_requests());
-}
-
-// Tests that we can handle when a network request was canceled while we were
-// waiting for the network delegate.
-// Part 4: Request is cancelled while waiting for OnAuthRequired callback.
-TEST_F(URLRequestTestHTTP, NetworkDelegateCancelWhileWaiting4) {
-  ASSERT_TRUE(test_server_.Start());
-
-  TestDelegate d;
-  BlockingNetworkDelegateWithManualCallback network_delegate;
-  network_delegate.BlockOn(
-      BlockingNetworkDelegateWithManualCallback::ON_AUTH_REQUIRED);
-
-  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext(true));
-  context->set_network_delegate(&network_delegate);
-  context->Init();
-
-  {
-    TestURLRequest r(test_server_.GetURL("auth-basic"), &d);
-    r.set_context(context);
-
-    r.Start();
-    network_delegate.WaitForState(
-        BlockingNetworkDelegateWithManualCallback::ON_AUTH_REQUIRED);
-    EXPECT_EQ(0, network_delegate.completed_requests());
-    // Cancel before callback.
-    r.Cancel();
-    // Ensure that network delegate is notified.
-    EXPECT_EQ(1, network_delegate.completed_requests());
-    EXPECT_EQ(URLRequestStatus::CANCELED, r.status().status());
-    EXPECT_EQ(ERR_ABORTED, r.status().error());
     EXPECT_EQ(1, network_delegate.created_requests());
     EXPECT_EQ(0, network_delegate.destroyed_requests());
   }
