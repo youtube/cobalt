@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -443,7 +443,7 @@ void TestNetworkDelegate::OnRawBytesRead(const net::URLRequest& request,
                                          int bytes_read) {
 }
 
-void TestNetworkDelegate::OnCompleted(net::URLRequest* request) {
+void TestNetworkDelegate::OnCompleted(net::URLRequest* request, bool started) {
   int req_id = request->identifier();
   InitRequestStatesIfNew(req_id);
   event_order_[req_id] += "OnCompleted\n";

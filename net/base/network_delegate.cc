@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -63,10 +63,10 @@ void NetworkDelegate::NotifyBeforeRedirect(URLRequest* request,
   OnBeforeRedirect(request, new_location);
 }
 
-void NetworkDelegate::NotifyCompleted(URLRequest* request) {
+void NetworkDelegate::NotifyCompleted(URLRequest* request, bool started) {
   DCHECK(CalledOnValidThread());
   DCHECK(request);
-  OnCompleted(request);
+  OnCompleted(request, started);
 }
 
 void NetworkDelegate::NotifyURLRequestDestroyed(URLRequest* request) {

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -66,7 +66,7 @@ class NetworkDelegate : public base::NonThreadSafe {
                             const GURL& new_location);
   void NotifyResponseStarted(URLRequest* request);
   void NotifyRawBytesRead(const URLRequest& request, int bytes_read);
-  void NotifyCompleted(URLRequest* request);
+  void NotifyCompleted(URLRequest* request, bool started);
   void NotifyURLRequestDestroyed(URLRequest* request);
   void NotifyPACScriptError(int line_number, const string16& error);
   AuthRequiredResponse NotifyAuthRequired(URLRequest* request,
@@ -92,13 +92,16 @@ class NetworkDelegate : public base::NonThreadSafe {
 
   // Called right before the HTTP headers are sent. Allows the delegate to
   // read/write |headers| before they get sent out. |callback| and |headers| are
-  // valid only until OnURLRequestDestroyed is called for this request.
+  // valid only until OnCompleted or OnURLRequestDestroyed is called for this
+  // request.
   // Returns a net status code.
   virtual int OnBeforeSendHeaders(URLRequest* request,
                                   const CompletionCallback& callback,
                                   HttpRequestHeaders* headers) = 0;
 
   // Called right before the HTTP request(s) are being sent to the network.
+  // |headers| is only valid until OnCompleted or OnURLRequestDestroyed is
+  // called for this request.
   virtual void OnSendHeaders(URLRequest* request,
                              const HttpRequestHeaders& headers) = 0;
 
@@ -111,6 +114,8 @@ class NetworkDelegate : public base::NonThreadSafe {
   // network, these must not be modified. |override_response_headers| can be set
   // to new values, that should be considered as overriding
   // |original_response_headers|.
+  // |callback|, |original_response_headers|, and |override_response_headers|
+  // are only valid until OnURLRequestDestroyed is called for this request.
   virtual int OnHeadersReceived(
       URLRequest* request,
       const CompletionCallback& callback,
@@ -118,6 +123,8 @@ class NetworkDelegate : public base::NonThreadSafe {
       scoped_refptr<HttpResponseHeaders>* override_response_headers) = 0;
 
   // Called right after a redirect response code was received.
+  // |new_location| is only valid until OnURLRequestDestroyed is called for this
+  // request.
   virtual void OnBeforeRedirect(URLRequest* request,
                                 const GURL& new_location) = 0;
 
@@ -128,7 +135,9 @@ class NetworkDelegate : public base::NonThreadSafe {
   virtual void OnRawBytesRead(const URLRequest& request, int bytes_read) = 0;
 
   // Indicates that the URL request has been completed or failed.
-  virtual void OnCompleted(URLRequest* request) = 0;
+  // |started| indicates whether the request has been started. If false,
+  // some information like the socket address is not available.
+  virtual void OnCompleted(URLRequest* request, bool started) = 0;
 
   // Called when an URLRequest is being destroyed. Note that the request is
   // being deleted, so it's not safe to call any methods that may result in
