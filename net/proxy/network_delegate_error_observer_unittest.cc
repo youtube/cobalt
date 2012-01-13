@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -49,7 +49,7 @@ class TestNetworkDelegate : public net::NetworkDelegate {
   virtual void OnResponseStarted(URLRequest* request) OVERRIDE {}
   virtual void OnRawBytesRead(const URLRequest& request,
                               int bytes_read) OVERRIDE {}
-  virtual void OnCompleted(URLRequest* request) OVERRIDE {}
+  virtual void OnCompleted(URLRequest* request, bool started) OVERRIDE {}
   virtual void OnURLRequestDestroyed(URLRequest* request) OVERRIDE {}
 
   virtual void OnPACScriptError(int line_number,
