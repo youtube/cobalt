@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -51,7 +51,7 @@ UploadDataStream::UploadDataStream(UploadData* data)
       next_element_(0),
       next_element_offset_(0),
       next_element_remaining_(0),
-      total_size_(data->is_chunked() ? 0 : data->GetContentLength()),
+      total_size_(data->GetContentLength()),
       current_position_(0),
       eof_(false) {
 }
