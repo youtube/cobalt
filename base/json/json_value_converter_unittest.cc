@@ -10,6 +10,7 @@
 #include "base/values.h"
 #include "base/json/json_reader.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/string_piece.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -17,17 +18,34 @@ namespace {
 
 // Very simple messages.
 struct SimpleMessage {
+  enum SimpleEnum {
+    FOO, BAR,
+  };
   int foo;
   std::string bar;
   bool baz;
+  SimpleEnum simple_enum;
   std::vector<int> ints;
   SimpleMessage() : foo(0), baz(false) {}
+
+  static bool ParseSimpleEnum(const StringPiece& value, SimpleEnum* field) {
+    if (value == "foo") {
+      *field = FOO;
+      return true;
+    } else if (value == "bar") {
+      *field = BAR;
+      return true;
+    }
+    return false;
+  }
 
   static void RegisterJSONConverter(
       base::JSONValueConverter<SimpleMessage>* converter) {
     converter->RegisterIntField("foo", &SimpleMessage::foo);
     converter->RegisterStringField("bar", &SimpleMessage::bar);
     converter->RegisterBoolField("baz", &SimpleMessage::baz);
+    converter->RegisterCustomField<SimpleEnum>(
+        "simple_enum", &SimpleMessage::simple_enum, &ParseSimpleEnum);
     converter->RegisterRepeatedInt("ints", &SimpleMessage::ints);
   }
 };
@@ -56,6 +74,7 @@ TEST(JSONValueConverterTest, ParseSimpleMessage) {
       "  \"foo\": 1,\n"
       "  \"bar\": \"bar\",\n"
       "  \"baz\": true,\n"
+      "  \"simple_enum\": \"foo\","
       "  \"ints\": [1, 2]"
       "}\n";
 
@@ -67,6 +86,7 @@ TEST(JSONValueConverterTest, ParseSimpleMessage) {
   EXPECT_EQ(1, message.foo);
   EXPECT_EQ("bar", message.bar);
   EXPECT_TRUE(message.baz);
+  EXPECT_EQ(SimpleMessage::FOO, message.simple_enum);
   EXPECT_EQ(2, static_cast<int>(message.ints.size()));
   EXPECT_EQ(1, message.ints[0]);
   EXPECT_EQ(2, message.ints[1]);
@@ -151,6 +171,23 @@ TEST(JSONValueConverterTest, ParseWithMissingFields) {
   EXPECT_EQ(2, static_cast<int>(message.ints.size()));
   EXPECT_EQ(1, message.ints[0]);
   EXPECT_EQ(2, message.ints[1]);
+}
+
+TEST(JSONValueConverterTest, EnumParserFails) {
+  const char normal_data[] =
+      "{\n"
+      "  \"foo\": 1,\n"
+      "  \"bar\": \"bar\",\n"
+      "  \"baz\": true,\n"
+      "  \"simple_enum\": \"baz\","
+      "  \"ints\": [1, 2]"
+      "}\n";
+
+  scoped_ptr<Value> value(base::JSONReader::Read(normal_data, false));
+  SimpleMessage message;
+  base::JSONValueConverter<SimpleMessage> converter;
+  EXPECT_FALSE(converter.Convert(*value.get(), &message));
+  // No check the values as mentioned above.
 }
 
 }  // namespace base

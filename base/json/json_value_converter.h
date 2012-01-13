@@ -15,6 +15,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/stl_util.h"
 #include "base/string16.h"
+#include "base/string_piece.h"
 #include "base/values.h"
 
 // JSONValueConverter converts a JSON value into a C++ struct in a
@@ -67,6 +68,21 @@
 // and you can put RegisterRepeatedInt or some other types.  Use
 // RegisterRepeatedMessage for nested repeated fields.
 //
+// Sometimes JSON format uses string representations for other types such
+// like enum, timestamp, or URL.  You can use RegisterCustomField method
+// and specify a function to convert a StringPiece to your type.
+//   bool ConvertFunc(const StringPiece& s, YourEnum* result) {
+//     // do something and return true if succeed...
+//   }
+//   struct Message {
+//     YourEnum ye;
+//     ...
+//     static void RegisterJSONConverter(...) {
+//       ...
+//       converter->RegsiterCustomField<YourEnum>(
+//           "your_enum", &Message::ye, &ConvertFunc);
+//     }
+//   };
 
 namespace base {
 
@@ -185,6 +201,27 @@ class BasicValueConverter<bool> : public ValueConverter<bool> {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(BasicValueConverter);
+};
+
+template <typename FieldType>
+class CustomFieldConverter : public ValueConverter<FieldType> {
+ public:
+  typedef bool(*ConvertFunc)(const StringPiece& value, FieldType* field);
+
+  CustomFieldConverter(ConvertFunc convert_func)
+      : convert_func_(convert_func) {}
+
+  virtual bool Convert(const base::Value& value,
+                       FieldType* field) const OVERRIDE {
+    std::string string_value;
+    return value.GetAsString(&string_value) &&
+        convert_func_(string_value, field);
+  }
+
+ private:
+  ConvertFunc convert_func_;
+
+  DISALLOW_COPY_AND_ASSIGN(CustomFieldConverter);
 };
 
 template <typename NestedType>
@@ -318,6 +355,17 @@ class JSONValueConverter {
             field_name,
             field,
             new internal::NestedValueConverter<NestedType>));
+  }
+
+  template <typename FieldType>
+  void RegisterCustomField(
+      const std::string& field_name,
+      FieldType StructType::* field,
+      bool (*convert_func)(const StringPiece&, FieldType*)) {
+    fields_.push_back(new internal::FieldConverter<StructType, FieldType>(
+        field_name,
+        field,
+        new internal::CustomFieldConverter<FieldType>(convert_func)));
   }
 
   void RegisterRepeatedInt(const std::string& field_name,
