@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -31,6 +31,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/debug/stack_trace.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -412,7 +413,7 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
     // uses it.  Returns true on success.  Otherwise, returns false.
     bool TryToUsePreconnectConnectJob();
 
-    void AddJob(ConnectJob* job) { jobs_.insert(job); }
+    void AddJob(ConnectJob* job);
     void RemoveJob(ConnectJob* job) { jobs_.erase(job); }
     void RemoveAllJobs();
 
@@ -427,10 +428,19 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
     std::list<IdleSocket>* mutable_idle_sockets() { return &idle_sockets_; }
 
    private:
+    enum MagicToken {
+      TOKEN_ALIVE = 0xCA11AB1E,
+      TOKEN_DEAD = 0xB100D1ED,
+    };
+
     // Called when the backup socket timer fires.
     void OnBackupSocketTimerFired(
         std::string group_name,
         ClientSocketPoolBaseHelper* pool);
+
+    // Crash if |this| is an invalid object (for instance if it was deleted).
+    // This code is being used to help track down http://crbug.com/109876.
+    void CheckAlive();
 
     std::list<IdleSocket> idle_sockets_;
     std::set<ConnectJob*> jobs_;
@@ -438,6 +448,14 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
     int active_socket_count_;  // number of active sockets used by clients
     // A factory to pin the backup_job tasks.
     base::WeakPtrFactory<Group> weak_factory_;
+
+    // Special value used to verify that |this| is not garbage memory.
+    MagicToken liveness_token_;
+
+    // This corresponds with the callstack where |this| was deleted from. If
+    // the object was not deleted, then this corresponds with the allocation
+    // callstack.
+    base::debug::StackTrace destruction_callstack_;
   };
 
   typedef std::map<std::string, Group*> GroupMap;
