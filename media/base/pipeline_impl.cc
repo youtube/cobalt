@@ -130,8 +130,10 @@ void PipelineImpl::Stop(const PipelineStatusCB& stop_callback) {
     return;
   }
 
-  if (video_decoder_)
+  if (video_decoder_) {
     video_decoder_->PrepareForShutdownHack();
+    video_decoder_ = NULL;
+  }
 
   // Stop the pipeline, which will set |running_| to false on our behalf.
   message_loop_->PostTask(FROM_HERE,
