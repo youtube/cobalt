@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -123,6 +123,14 @@ void LinearScaleYUVToRGB32Row_C(const uint8* y_buf,
                                 uint8* rgb_buf,
                                 int width,
                                 int source_dx);
+
+void LinearScaleYUVToRGB32RowWithRange_C(const uint8* y_buf,
+                                         const uint8* u_buf,
+                                         const uint8* v_buf,
+                                         uint8* rgb_buf,
+                                         int dest_width,
+                                         int source_x,
+                                         int source_dx);
 
 void LinearScaleYUVToRGB32Row_MMX(const uint8* y_buf,
                                   const uint8* u_buf,

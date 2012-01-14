@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,6 +18,7 @@
 #include "media/base/yuv_convert.h"
 
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "build/build_config.h"
 #include "media/base/cpu_features.h"
 #include "media/base/simd/convert_rgb_to_yuv.h"
@@ -272,6 +273,157 @@ void ScaleYUVToRGB32(const uint8* y_buf,
         scale_proc(y_ptr, u_ptr, v_ptr, dest_pixel, width, source_dx);
       }
     }
+  }
+
+  EmptyRegisterState();
+}
+
+// Scale a frame of YV12 to 32 bit ARGB for a specific rectangle.
+void ScaleYUVToRGB32WithRect(const uint8* y_buf,
+                             const uint8* u_buf,
+                             const uint8* v_buf,
+                             uint8* rgb_buf,
+                             int source_width,
+                             int source_height,
+                             int dest_width,
+                             int dest_height,
+                             int dest_rect_left,
+                             int dest_rect_top,
+                             int dest_rect_right,
+                             int dest_rect_bottom,
+                             int y_pitch,
+                             int uv_pitch,
+                             int rgb_pitch) {
+  static FilterYUVRowsProc filter_proc = NULL;
+  if (!filter_proc)
+    filter_proc = ChooseFilterYUVRowsProc();
+
+  // This routine doesn't currently support up-scaling.
+  CHECK(dest_width <= source_width && dest_height <= source_height);
+
+  // Sanity-check the destination rectangle.
+  DCHECK(dest_rect_left >= 0 && dest_rect_right <= dest_width);
+  DCHECK(dest_rect_top >= 0 && dest_rect_bottom <= dest_height);
+  DCHECK(dest_rect_right > dest_rect_left);
+  DCHECK(dest_rect_bottom > dest_rect_top);
+
+  // Fixed-point value of vertical and horizontal scale down factor.
+  // Values are in the format 16.16.
+  int y_step = kFractionMax * source_height / dest_height;
+  int x_step = kFractionMax * source_width / dest_width;
+
+  // Determine the coordinates of the rectangle in 16.16 coords.
+  // NB: Our origin is the *center* of the top/left pixel, NOT its top/left.
+  // If we're down-scaling by more than a factor of two, we start with a 50%
+  // fraction to avoid degenerating to point-sampling - we should really just
+  // fix the fraction at 50% for all pixels in that case.
+  int source_left = dest_rect_left * x_step;
+  int source_right = (dest_rect_right - 1) * x_step;
+  if (x_step < kFractionMax * 2) {
+    source_left += ((x_step - kFractionMax) / 2);
+    source_right += ((x_step - kFractionMax) / 2);
+  } else {
+    source_left += kFractionMax / 2;
+    source_right += kFractionMax / 2;
+  }
+  int source_top = dest_rect_top * y_step;
+  if (y_step < kFractionMax * 2) {
+    source_top += ((y_step - kFractionMax) / 2);
+  } else {
+    source_top += kFractionMax / 2;
+  }
+
+  // Determine the parts of the Y, U and V buffers to interpolate.
+  int source_y_left = source_left >> kFractionBits;
+  int source_y_right = (source_right >> kFractionBits) + 2;
+  DCHECK(source_y_right <= source_width);
+
+  int source_uv_left = source_y_left / 2;
+  int source_uv_right = std::min(
+      (source_right >> (kFractionBits + 1)) + 2,
+      (source_width + 1) / 2);
+
+  int source_y_width = source_y_right - source_y_left;
+  int source_uv_width = source_uv_right - source_uv_left;
+
+  // Determine number of pixels in each output row.
+  int dest_rect_width = dest_rect_right - dest_rect_left;
+
+  // Intermediate buffer for vertical interpolation.
+  // 4096 bytes allows 3 buffers to fit in 12k, which fits in a 16K L1 cache,
+  // and is bigger than most users will generally need.
+  // The buffer is 16-byte aligned and padded with 16 extra bytes; some of the
+  // FilterYUVRowProcs have alignment requirements, and the SSE version can
+  // write up to 16 bytes past the end of the buffer.
+  const int kFilterBufferSize = 4096;
+  if (source_width > kFilterBufferSize)
+    filter_proc = NULL;
+  uint8 yuv_temp[16 + kFilterBufferSize * 3 + 16];
+  uint8* y_temp =
+      reinterpret_cast<uint8*>(
+          reinterpret_cast<uintptr_t>(yuv_temp + 15) & ~15);
+  uint8* u_temp = y_temp + kFilterBufferSize;
+  uint8* v_temp = u_temp + kFilterBufferSize;
+
+  // Move to the top-left pixel of output.
+  rgb_buf += dest_rect_top * rgb_pitch;
+  rgb_buf += dest_rect_left * 4;
+
+  // For each destination row perform interpolation and color space
+  // conversion to produce the output.
+  for (int row = dest_rect_top; row < dest_rect_bottom; ++row) {
+    // Round the fixed-point y position to get the current row.
+    int source_row = source_top >> kFractionBits;
+    int source_uv_row = source_row / 2;
+    DCHECK(source_row < source_height);
+
+    // Locate the first row for each plane for interpolation.
+    const uint8* y0_ptr = y_buf + y_pitch * source_row + source_y_left;
+    const uint8* u0_ptr = u_buf + uv_pitch * source_uv_row + source_uv_left;
+    const uint8* v0_ptr = v_buf + uv_pitch * source_uv_row + source_uv_left;
+    const uint8* y1_ptr = NULL;
+    const uint8* u1_ptr = NULL;
+    const uint8* v1_ptr = NULL;
+
+    // Locate the second row for interpolation, being careful not to overrun.
+    if (source_row + 1 >= source_height) {
+      y1_ptr = y0_ptr;
+    } else {
+      y1_ptr = y0_ptr + y_pitch;
+    }
+    if (source_uv_row + 1 >= (source_height + 1) / 2) {
+      u1_ptr = u0_ptr;
+      v1_ptr = v0_ptr;
+    } else {
+      u1_ptr = u0_ptr + uv_pitch;
+      v1_ptr = v0_ptr + uv_pitch;
+    }
+
+    if (filter_proc) {
+      // Vertical scaler uses 16.8 fixed point.
+      int fraction = (source_top & kFractionMask) >> 8;
+      filter_proc(y_temp + source_y_left, y0_ptr, y1_ptr,
+                  source_y_width, fraction);
+      filter_proc(u_temp + source_uv_left, u0_ptr, u1_ptr,
+                  source_uv_width, fraction);
+      filter_proc(v_temp + source_uv_left, v0_ptr, v1_ptr,
+                  source_uv_width, fraction);
+
+      // Perform horizontal interpolation and color space conversion.
+      // TODO(hclam): Use the MMX version after more testing.
+      LinearScaleYUVToRGB32RowWithRange_C(
+          y_temp, u_temp, v_temp, rgb_buf,
+          dest_rect_width, source_left, x_step);
+    } else {
+      // If the frame is too large then we linear scale a single row.
+      LinearScaleYUVToRGB32RowWithRange_C(
+          y0_ptr, u0_ptr, v0_ptr, rgb_buf,
+          dest_rect_width, source_left, x_step);
+    }
+
+    // Advance vertically in the source and destination image.
+    source_top += y_step;
+    rgb_buf += rgb_pitch;
   }
 
   EmptyRegisterState();

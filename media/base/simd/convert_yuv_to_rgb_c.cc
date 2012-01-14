@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,11 +9,10 @@
 #define paddsw(x, y) (((x) + (y)) < -32768 ? -32768 : \
     (((x) + (y)) > 32767 ? 32767 : ((x) + (y))))
 
-static inline void YUVPixel(uint8 y,
-                            uint8 u,
-                            uint8 v,
-                            uint8* rgb_buf) {
-
+static inline void ConvertYUVToRGB32_C(uint8 y,
+                                       uint8 u,
+                                       uint8 v,
+                                       uint8* rgb_buf) {
   int b = kCoefficientsRgbY[256+u][0];
   int g = kCoefficientsRgbY[256+u][1];
   int r = kCoefficientsRgbY[256+u][2];
@@ -40,6 +39,11 @@ static inline void YUVPixel(uint8 y,
                                         (packuswb(a) << 24);
 }
 
+// 16.16 fixed point arithmetic
+const int kFractionBits = 16;
+const int kFractionMax = 1 << kFractionBits;
+const int kFractionMask = ((1 << kFractionBits) - 1);
+
 extern "C" {
 
 void ConvertYUVToRGB32Row_C(const uint8* y_buf,
@@ -51,10 +55,10 @@ void ConvertYUVToRGB32Row_C(const uint8* y_buf,
     uint8 u = u_buf[x >> 1];
     uint8 v = v_buf[x >> 1];
     uint8 y0 = y_buf[x];
-    YUVPixel(y0, u, v, rgb_buf);
+    ConvertYUVToRGB32_C(y0, u, v, rgb_buf);
     if ((x + 1) < width) {
       uint8 y1 = y_buf[x + 1];
-      YUVPixel(y1, u, v, rgb_buf + 4);
+      ConvertYUVToRGB32_C(y1, u, v, rgb_buf + 4);
     }
     rgb_buf += 8;  // Advance 2 pixels.
   }
@@ -75,11 +79,11 @@ void ScaleYUVToRGB32Row_C(const uint8* y_buf,
     int y = y_buf[x >> 16];
     int u = u_buf[(x >> 17)];
     int v = v_buf[(x >> 17)];
-    YUVPixel(y, u, v, rgb_buf);
+    ConvertYUVToRGB32_C(y, u, v, rgb_buf);
     x += source_dx;
     if ((i + 1) < width) {
       y = y_buf[x >> 16];
-      YUVPixel(y, u, v, rgb_buf+4);
+      ConvertYUVToRGB32_C(y, u, v, rgb_buf+4);
       x += source_dx;
     }
     rgb_buf += 8;
@@ -92,11 +96,22 @@ void LinearScaleYUVToRGB32Row_C(const uint8* y_buf,
                                 uint8* rgb_buf,
                                 int width,
                                 int source_dx) {
-  int x = 0;
-  if (source_dx >= 0x20000) {
-    x = 32768;
-  }
-  for (int i = 0; i < width; i += 2) {
+  // Avoid point-sampling for down-scaling by > 2:1.
+  int source_x = 0;
+  if (source_dx >= 0x20000)
+    source_x += 0x8000;
+  LinearScaleYUVToRGB32RowWithRange_C(y_buf, u_buf, v_buf, rgb_buf, width,
+                                      source_x, source_dx);
+}
+
+void LinearScaleYUVToRGB32RowWithRange_C(const uint8* y_buf,
+                                         const uint8* u_buf,
+                                         const uint8* v_buf,
+                                         uint8* rgb_buf,
+                                         int dest_width,
+                                         int x,
+                                         int source_dx) {
+  for (int i = 0; i < dest_width; i += 2) {
     int y0 = y_buf[x >> 16];
     int y1 = y_buf[(x >> 16) + 1];
     int u0 = u_buf[(x >> 17)];
@@ -108,14 +123,14 @@ void LinearScaleYUVToRGB32Row_C(const uint8* y_buf,
     int y = (y_frac * y1 + (y_frac ^ 65535) * y0) >> 16;
     int u = (uv_frac * u1 + (uv_frac ^ 65535) * u0) >> 16;
     int v = (uv_frac * v1 + (uv_frac ^ 65535) * v0) >> 16;
-    YUVPixel(y, u, v, rgb_buf);
+    ConvertYUVToRGB32_C(y, u, v, rgb_buf);
     x += source_dx;
-    if ((i + 1) < width) {
+    if ((i + 1) < dest_width) {
       y0 = y_buf[x >> 16];
       y1 = y_buf[(x >> 16) + 1];
       y_frac = (x & 65535);
       y = (y_frac * y1 + (y_frac ^ 65535) * y0) >> 16;
-      YUVPixel(y, u, v, rgb_buf+4);
+      ConvertYUVToRGB32_C(y, u, v, rgb_buf+4);
       x += source_dx;
     }
     rgb_buf += 8;
