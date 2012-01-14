@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 #include "media/audio/audio_output_dispatcher.h"
 #include "media/audio/audio_output_proxy.h"
 
-static const int kStreamCloseDelayMs = 5000;
+static const int kStreamCloseDelaySeconds = 5;
 
 const char AudioManagerBase::kDefaultDeviceName[] = "Default";
 const char AudioManagerBase::kDefaultDeviceId[] = "default";
@@ -58,7 +58,8 @@ AudioOutputStream* AudioManagerBase::MakeAudioOutputStreamProxy(
   scoped_refptr<AudioOutputDispatcher>& dispatcher =
       output_dispatchers_[params];
   if (!dispatcher)
-    dispatcher = new AudioOutputDispatcher(this, params, kStreamCloseDelayMs);
+    dispatcher = new AudioOutputDispatcher(
+        this, params, base::TimeDelta::FromSeconds(kStreamCloseDelaySeconds));
   return new AudioOutputProxy(dispatcher);
 }
 

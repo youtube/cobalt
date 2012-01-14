@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -42,7 +42,7 @@ class MEDIA_EXPORT AudioOutputDispatcher
   // the audio device is closed.
   AudioOutputDispatcher(AudioManager* audio_manager,
                         const AudioParameters& params,
-                        int close_delay_ms);
+                        base::TimeDelta close_delay);
   ~AudioOutputDispatcher();
 
   // Called by AudioOutputProxy when the stream is closed. Opens a new
@@ -96,7 +96,7 @@ class MEDIA_EXPORT AudioOutputDispatcher
   MessageLoop* message_loop_;
   AudioParameters params_;
 
-  int64 pause_delay_milliseconds_;
+  base::TimeDelta pause_delay_;
   size_t paused_proxies_;
   typedef std::list<AudioOutputStream*> AudioOutputStreamList;
   AudioOutputStreamList idle_streams_;

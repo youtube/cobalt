@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -62,29 +62,6 @@ class TestInputCallback : public AudioInputStream::AudioInputCallback {
   int had_error_;
   int was_closed_;
   int max_data_bytes_;
-};
-
-// Specializes TestInputCallback to simulate a sink that blocks for some time
-// in the OnData callback.
-class TestInputCallbackBlocking : public TestInputCallback {
- public:
-  TestInputCallbackBlocking(int max_data_bytes, int block_after_callback,
-                            int block_for_ms)
-      : TestInputCallback(max_data_bytes),
-        block_after_callback_(block_after_callback),
-        block_for_ms_(block_for_ms) {
-  }
-  virtual void OnData(AudioInputStream* stream, const uint8* data,
-                      uint32 size, uint32 hardware_delay_bytes) {
-    // Call the base, which increments the callback_count_.
-    TestInputCallback::OnData(stream, data, size, hardware_delay_bytes);
-    if (callback_count() > block_after_callback_)
-      base::PlatformThread::Sleep(block_for_ms_);
-  }
-
- private:
-  int block_after_callback_;
-  int block_for_ms_;
 };
 
 static bool CanRunAudioTests(AudioManager* audio_man) {

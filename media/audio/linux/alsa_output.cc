@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -607,7 +607,7 @@ void AlsaPcmOutputStream::ScheduleNextWrite(bool source_exhausted) {
       manager_->GetMessageLoop()->PostDelayedTask(FROM_HERE,
           base::Bind(&AlsaPcmOutputStream::WriteTask,
                      weak_factory_.GetWeakPtr()),
-          next_fill_time_ms);
+          base::TimeDelta::FromMilliseconds(next_fill_time_ms));
     }
   }
 }

@@ -239,7 +239,7 @@ void MediaLog::QueueStatisticsUpdatedEvent(PipelineStatistics stats) {
     MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
         base::Bind(&media::MediaLog::AddStatisticsUpdatedEvent, this),
-        500);
+        base::TimeDelta::FromMilliseconds(500));
   }
 }
 
