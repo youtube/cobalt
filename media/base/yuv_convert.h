@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -66,6 +66,25 @@ void ScaleYUVToRGB32(const uint8* yplane,
                      YUVType yuv_type,
                      Rotate view_rotate,
                      ScaleFilter filter);
+
+// Biliner Scale a frame of YV12 to 32 bits ARGB on a specified rectangle.
+// |yplane|, etc and |rgbframe| should point to the top-left pixels of the
+// source and destination buffers.
+void ScaleYUVToRGB32WithRect(const uint8* yplane,
+                             const uint8* uplane,
+                             const uint8* vplane,
+                             uint8* rgbframe,
+                             int source_width,
+                             int source_height,
+                             int dest_width,
+                             int dest_height,
+                             int dest_rect_left,
+                             int dest_rect_top,
+                             int dest_rect_right,
+                             int dest_rect_bottom,
+                             int ystride,
+                             int uvstride,
+                             int rgbstride);
 
 void ConvertRGB32ToYUV(const uint8* rgbframe,
                        uint8* yplane,
