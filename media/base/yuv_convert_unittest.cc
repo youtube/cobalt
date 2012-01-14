@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,6 +13,7 @@
 #include "media/base/simd/filter_yuv.h"
 #include "media/base/yuv_convert.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/gfx/rect.h"
 
 // Size of raw image.
 static const int kSourceWidth = 640;
@@ -22,6 +23,8 @@ static const int kSourceUOffset = kSourceYSize;
 static const int kSourceVOffset = kSourceYSize * 5 / 4;
 static const int kScaledWidth = 1024;
 static const int kScaledHeight = 768;
+static const int kDownScaledWidth = 512;
+static const int kDownScaledHeight = 320;
 static const int kBpp = 4;
 
 // Surface sizes for various test files.
@@ -377,6 +380,79 @@ TEST(YUVConvertTest, YUY2ToYUV) {
   uint32 yuy_hash = DJB2Hash(yuv_converted_bytes.get(), kYUV12Size,
                              kDJB2HashSeed);
   EXPECT_EQ(666823187u, yuy_hash);
+}
+
+TEST(YUVConvertTest, DownScaleYUVToRGB32WithRect) {
+  // Read YUV reference data from file.
+  FilePath yuv_url;
+  EXPECT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &yuv_url));
+  yuv_url = yuv_url.Append(FILE_PATH_LITERAL("media"))
+                   .Append(FILE_PATH_LITERAL("test"))
+                   .Append(FILE_PATH_LITERAL("data"))
+                   .Append(FILE_PATH_LITERAL("bali_640x360_P420.yuv"));
+  const size_t size_of_yuv = kSourceYSize * 12 / 8;  // 12 bpp.
+  scoped_array<uint8> yuv_bytes(new uint8[size_of_yuv]);
+  EXPECT_EQ(static_cast<int>(size_of_yuv),
+            file_util::ReadFile(yuv_url,
+                                reinterpret_cast<char*>(yuv_bytes.get()),
+                                static_cast<int>(size_of_yuv)));
+
+  // Scale the full frame of YUV to 32 bit ARGB.
+  // The API currently only supports down-scaling, so we don't test up-scaling.
+  const size_t size_of_rgb_scaled = kDownScaledWidth * kDownScaledHeight * kBpp;
+  scoped_array<uint8> rgb_scaled_bytes(new uint8[size_of_rgb_scaled]);
+  gfx::Rect sub_rect(0, 0, kDownScaledWidth, kDownScaledHeight);
+
+  // We can't compare with the full-frame scaler because it uses slightly
+  // different sampling coordinates.
+  media::ScaleYUVToRGB32WithRect(
+      yuv_bytes.get(),                          // Y
+      yuv_bytes.get() + kSourceUOffset,         // U
+      yuv_bytes.get() + kSourceVOffset,         // V
+      rgb_scaled_bytes.get(),                   // Rgb output
+      kSourceWidth, kSourceHeight,              // Dimensions
+      kDownScaledWidth, kDownScaledHeight,      // Dimensions
+      sub_rect.x(), sub_rect.y(),               // Dest rect
+      sub_rect.right(), sub_rect.bottom(),      // Dest rect
+      kSourceWidth,                             // YStride
+      kSourceWidth / 2,                         // UvStride
+      kDownScaledWidth * kBpp);                 // RgbStride
+
+  uint32 rgb_hash_full_rect = DJB2Hash(rgb_scaled_bytes.get(),
+                                       size_of_rgb_scaled,
+                                       kDJB2HashSeed);
+
+  // Re-scale sub-rectangles and verify the results are the same.
+  int next_sub_rect = 0;
+  while (!sub_rect.IsEmpty()) {
+    // Scale a partial rectangle.
+    media::ScaleYUVToRGB32WithRect(
+        yuv_bytes.get(),                          // Y
+        yuv_bytes.get() + kSourceUOffset,         // U
+        yuv_bytes.get() + kSourceVOffset,         // V
+        rgb_scaled_bytes.get(),                   // Rgb output
+        kSourceWidth, kSourceHeight,              // Dimensions
+        kDownScaledWidth, kDownScaledHeight,      // Dimensions
+        sub_rect.x(), sub_rect.y(),               // Dest rect
+        sub_rect.right(), sub_rect.bottom(),      // Dest rect
+        kSourceWidth,                             // YStride
+        kSourceWidth / 2,                         // UvStride
+        kDownScaledWidth * kBpp);                 // RgbStride
+    uint32 rgb_hash_sub_rect = DJB2Hash(rgb_scaled_bytes.get(),
+                                        size_of_rgb_scaled,
+                                        kDJB2HashSeed);
+
+    EXPECT_EQ(rgb_hash_full_rect, rgb_hash_sub_rect);
+
+    // Now pick choose a quarter rect of this sub-rect.
+    if (next_sub_rect & 1)
+      sub_rect.set_x(sub_rect.x() + sub_rect.width() / 2);
+    if (next_sub_rect & 2)
+      sub_rect.set_y(sub_rect.y() + sub_rect.height() / 2);
+    sub_rect.set_width(sub_rect.width() / 2);
+    sub_rect.set_height(sub_rect.height() / 2);
+    next_sub_rect++;
+  }
 }
 
 #if !defined(ARCH_CPU_ARM_FAMILY)
