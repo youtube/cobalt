@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -297,7 +297,7 @@ TEST(WinAudioInputTest, WASAPIAudioInputStreamTestPacketSizes) {
       .Times(Between(5, 10));
 
   ais->Start(&sink);
-  base::PlatformThread::Sleep(TestTimeouts::tiny_timeout_ms());
+  base::PlatformThread::Sleep(TestTimeouts::tiny_timeout());
   ais->Stop();
 
   // Store current packet size (to be used in the subsequent tests).
@@ -318,7 +318,7 @@ TEST(WinAudioInputTest, WASAPIAudioInputStreamTestPacketSizes) {
       ais, NotNull(), bytes_per_packet, Gt(bytes_per_packet)))
       .Times(Between(5, 10));
   ais->Start(&sink);
-  base::PlatformThread::Sleep(2 * TestTimeouts::tiny_timeout_ms());
+  base::PlatformThread::Sleep(2 * TestTimeouts::tiny_timeout());
   ais->Stop();
 
   EXPECT_CALL(sink, OnClose(ais))
@@ -336,7 +336,7 @@ TEST(WinAudioInputTest, WASAPIAudioInputStreamTestPacketSizes) {
       ais, NotNull(), bytes_per_packet, Gt(bytes_per_packet)))
       .Times(Between(2 * 5, 2 * 10));
   ais->Start(&sink);
-  base::PlatformThread::Sleep(TestTimeouts::tiny_timeout_ms());
+  base::PlatformThread::Sleep(TestTimeouts::tiny_timeout());
   ais->Stop();
 
   EXPECT_CALL(sink, OnClose(ais))
@@ -366,7 +366,7 @@ TEST(WinAudioInputTest, DISABLED_WASAPIAudioInputStreamRecordToFile) {
   WriteToFileAudioSink file_sink(file_name);
   fprintf(stderr, "               >> Speak into the mic while recording...\n");
   ais->Start(&file_sink);
-  base::PlatformThread::Sleep(TestTimeouts::action_timeout_ms());
+  base::PlatformThread::Sleep(TestTimeouts::action_timeout());
   ais->Stop();
   fprintf(stderr, "               >> Recording has stopped.\n");
   ais->Close();

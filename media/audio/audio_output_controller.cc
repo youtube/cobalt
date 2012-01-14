@@ -204,7 +204,7 @@ void AudioOutputController::DoPlay() {
         FROM_HERE,
         base::Bind(&AudioOutputController::PollAndStartIfDataReady,
         weak_this_.GetWeakPtr()),
-        kPollPauseInMilliseconds);
+        base::TimeDelta::FromMilliseconds(kPollPauseInMilliseconds));
   } else {
     StartStream();
   }
@@ -232,7 +232,7 @@ void AudioOutputController::PollAndStartIfDataReady() {
         FROM_HERE,
         base::Bind(&AudioOutputController::PollAndStartIfDataReady,
         weak_this_.GetWeakPtr()),
-        kPollPauseInMilliseconds);
+        base::TimeDelta::FromMilliseconds(kPollPauseInMilliseconds));
   }
 }
 
@@ -378,12 +378,13 @@ void AudioOutputController::WaitTillDataReady() {
   if (LowLatencyMode() && !sync_reader_->DataReady()) {
     // In the different place we use different mechanism to poll, get max
     // polling delay from constants used there.
-    const int kMaxPollingDelayMs = kPollNumAttempts * kPollPauseInMilliseconds;
+    const base::TimeDelta kMaxPollingDelay = base::TimeDelta::FromMilliseconds(
+        kPollNumAttempts * kPollPauseInMilliseconds);
     Time start_time = Time::Now();
     do {
-      base::PlatformThread::Sleep(1);
+      base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(1));
     } while (!sync_reader_->DataReady() &&
-             (Time::Now() - start_time).InMilliseconds() < kMaxPollingDelayMs);
+             Time::Now() - start_time < kMaxPollingDelay);
   }
 }
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -351,7 +351,7 @@ void VideoCaptureDeviceLinux::OnCaptureTask() {
         FROM_HERE,
         base::Bind(&VideoCaptureDeviceLinux::OnCaptureTask,
                    base::Unretained(this)),
-        kCaptureSelectWaitMs);
+        base::TimeDelta::FromMilliseconds(kCaptureSelectWaitMs));
   }
 
   // Check if the driver have filled a buffer.

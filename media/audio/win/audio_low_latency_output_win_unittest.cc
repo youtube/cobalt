@@ -523,7 +523,6 @@ TEST(WinAudioOutputTest, DISABLED_WASAPIAudioOutputStreamReadFromFile) {
     return;
   }
   ReadFromFileAudioSource file_source(file_name);
-  int file_duration_ms = kFileDurationMs;
 
   LOG(INFO) << "File name  : " << file_name.c_str();
   LOG(INFO) << "Sample rate: " << aosw.sample_rate();
@@ -531,7 +530,8 @@ TEST(WinAudioOutputTest, DISABLED_WASAPIAudioOutputStreamReadFromFile) {
   LOG(INFO) << ">> Listen to the file while playing...";
 
   aos->Start(&file_source);
-  base::PlatformThread::Sleep(file_duration_ms);
+  base::PlatformThread::Sleep(
+      base::TimeDelta::FromMilliseconds(kFileDurationMs));
   aos->Stop();
 
   LOG(INFO) << ">> File playout has stopped.";

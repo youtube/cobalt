@@ -873,32 +873,34 @@ TEST_F(PipelineImplTest, StartTimeIsNonZero) {
 
 class FlexibleCallbackRunner : public base::DelegateSimpleThread::Delegate {
  public:
-  FlexibleCallbackRunner(int delayInMs, PipelineStatus status,
+  FlexibleCallbackRunner(base::TimeDelta delay, PipelineStatus status,
                          const PipelineStatusCB& callback)
-      : delayInMs_(delayInMs), status_(status), callback_(callback) {
-    if (delayInMs_ < 0) {
+      : delay_(delay),
+        status_(status),
+        callback_(callback) {
+    if (delay_ < base::TimeDelta()) {
       callback_.Run(status_);
       return;
     }
   }
   virtual void Run() {
-    if (delayInMs_ < 0) return;
-    base::PlatformThread::Sleep(delayInMs_);
+    if (delay_ < base::TimeDelta()) return;
+    base::PlatformThread::Sleep(delay_);
     callback_.Run(status_);
   }
 
  private:
-  int delayInMs_;
+  base::TimeDelta delay_;
   PipelineStatus status_;
   PipelineStatusCB callback_;
 };
 
-void TestPipelineStatusNotification(int delayInMs) {
+void TestPipelineStatusNotification(base::TimeDelta delay) {
   PipelineStatusNotification note;
   // Arbitrary error value we expect to fish out of the notification after the
   // callback is fired.
   const PipelineStatus expected_error = PIPELINE_ERROR_URL_NOT_FOUND;
-  FlexibleCallbackRunner runner(delayInMs, expected_error, note.Callback());
+  FlexibleCallbackRunner runner(delay, expected_error, note.Callback());
   base::DelegateSimpleThread thread(&runner, "FlexibleCallbackRunner");
   thread.Start();
   note.Wait();
@@ -908,18 +910,18 @@ void TestPipelineStatusNotification(int delayInMs) {
 
 // Test that in-line callback (same thread, no yield) works correctly.
 TEST(PipelineStatusNotificationTest, InlineCallback) {
-  TestPipelineStatusNotification(-1);
+  TestPipelineStatusNotification(base::TimeDelta::FromMilliseconds(-1));
 }
 
 // Test that different-thread, no-delay callback works correctly.
 TEST(PipelineStatusNotificationTest, ImmediateCallback) {
-  TestPipelineStatusNotification(0);
+  TestPipelineStatusNotification(base::TimeDelta::FromMilliseconds(0));
 }
 
 // Test that different-thread, some-delay callback (the expected common case)
 // works correctly.
 TEST(PipelineStatusNotificationTest, DelayedCallback) {
-  TestPipelineStatusNotification(20);
+  TestPipelineStatusNotification(base::TimeDelta::FromMilliseconds(20));
 }
 
 }  // namespace media
