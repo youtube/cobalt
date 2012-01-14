@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -145,6 +145,18 @@ void HttpPipelinedHostImpl::OnPipelineFeedback(
       break;
 
     case HttpPipelinedConnection::PIPELINE_SOCKET_ERROR:
+      // Socket errors on the initial request - when no other requests are
+      // pipelined - can't be due to pipelining.
+      if (pipelines_[pipeline].num_successes > 0 || pipeline->depth() > 1) {
+        // TODO(simonjam): This may be needlessly harsh. For example, pogo.com
+        // only returns a socket error once after the root document, but is
+        // otherwise able to pipeline just fine. Consider being more persistent
+        // and only give up on pipelining if we get a couple of failures.
+        capability_ = PIPELINE_INCAPABLE;
+        delegate_->OnHostDeterminedCapability(this, PIPELINE_INCAPABLE);
+      }
+      break;
+
     case HttpPipelinedConnection::OLD_HTTP_VERSION:
       capability_ = PIPELINE_INCAPABLE;
       delegate_->OnHostDeterminedCapability(this, PIPELINE_INCAPABLE);
