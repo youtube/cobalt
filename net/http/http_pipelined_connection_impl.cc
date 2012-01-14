@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -473,7 +473,12 @@ int HttpPipelinedConnectionImpl::DoReadHeadersComplete(int result) {
 
   read_next_state_ = READ_STATE_WAITING_FOR_CLOSE;
   if (result < OK) {
-    if (result == ERR_SOCKET_NOT_CONNECTED && completed_one_request_) {
+    if (completed_one_request_ &&
+        (result == ERR_CONNECTION_CLOSED ||
+         result == ERR_EMPTY_RESPONSE ||
+         result == ERR_SOCKET_NOT_CONNECTED)) {
+      // These usually indicate that pipelining failed on the server side. In
+      // that case, we should retry without pipelining.
       result = ERR_PIPELINE_EVICTION;
     }
     usable_ = false;
