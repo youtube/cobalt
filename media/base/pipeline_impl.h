@@ -477,6 +477,12 @@ class MEDIA_EXPORT PipelineImpl
   // Reference to the filter(s) that constitute the pipeline.
   scoped_refptr<Filter> pipeline_filter_;
 
+  // Decoder reference used for signalling imminent shutdown.
+  // This is a HACK necessary because WebMediaPlayerImpl::Destroy() holds the
+  // renderer thread loop hostage for until PipelineImpl::Stop() calls its
+  // callback.  http://crbug.com/110228 tracks removing this hack.
+  scoped_refptr<VideoDecoder> video_decoder_;
+
   // Renderer references used for setting the volume and determining
   // when playback has finished.
   scoped_refptr<AudioRenderer> audio_renderer_;

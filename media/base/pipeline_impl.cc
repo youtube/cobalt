@@ -130,7 +130,10 @@ void PipelineImpl::Stop(const PipelineStatusCB& stop_callback) {
     return;
   }
 
-  // Stop the pipeline, which will set |running_| to false on behalf.
+  if (video_decoder_)
+    video_decoder_->PrepareForShutdownHack();
+
+  // Stop the pipeline, which will set |running_| to false on our behalf.
   message_loop_->PostTask(FROM_HERE,
       base::Bind(&PipelineImpl::StopTask, this, stop_callback));
 }
@@ -1214,19 +1217,18 @@ bool PipelineImpl::InitializeVideoDecoder(
       return false;
   }
 
-  scoped_refptr<VideoDecoder> video_decoder;
-  filter_collection_->SelectVideoDecoder(&video_decoder);
+  filter_collection_->SelectVideoDecoder(&video_decoder_);
 
-  if (!video_decoder) {
+  if (!video_decoder_) {
     SetError(PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
     return false;
   }
 
-  if (!PrepareFilter(video_decoder))
+  if (!PrepareFilter(video_decoder_))
     return false;
 
-  pipeline_init_state_->video_decoder_ = video_decoder;
-  video_decoder->Initialize(
+  pipeline_init_state_->video_decoder_ = video_decoder_;
+  video_decoder_->Initialize(
       stream,
       base::Bind(&PipelineImpl::OnFilterInitialize, this),
       base::Bind(&PipelineImpl::OnUpdateStatistics, this));
