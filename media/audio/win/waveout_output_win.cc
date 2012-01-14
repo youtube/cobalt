@@ -175,6 +175,14 @@ void PCMWaveOutAudioOutputStream::Start(AudioSourceCallback* callback) {
     return;
   callback_ = callback;
 
+  // Reset buffer event, it can be left in the arbitrary state if we
+  // previously stopped the stream. Can happen because we are stopping
+  // callbacks before stopping playback itself.
+  if (!::ResetEvent(buffer_event_.Get())) {
+    HandleError(MMSYSERR_ERROR);
+    return;
+  }
+
   // Start watching for buffer events.
   {
     HANDLE waiting_handle = NULL;
@@ -245,6 +253,24 @@ void PCMWaveOutAudioOutputStream::Stop() {
   state_ = PCMA_STOPPING;
   MemoryBarrier();
 
+  // Stop watching for buffer event, wait till all the callbacks are complete.
+  // Should be done before ::waveOutReset() call to avoid race condition when
+  // callback that is currently active and already checked that stream is still
+  // being played calls ::waveOutWrite() after ::waveOutReset() returns, later
+  // causing ::waveOutClose() to fail with WAVERR_STILLPLAYING.
+  // TODO(enal): that delays actual stopping of playback. Alternative can be
+  //             to call ::waveOutReset() twice, once before
+  //             ::UnregisterWaitEx() and once after.
+  HANDLE waiting_handle = waiting_handle_.Take();
+  if (waiting_handle) {
+    BOOL unregister  = ::UnregisterWaitEx(waiting_handle, INVALID_HANDLE_VALUE);
+    if (!unregister) {
+      state_ = PCMA_PLAYING;
+      HandleError(MMSYSERR_ERROR);
+      return;
+    }
+  }
+
   // Stop playback.
   MMRESULT res = ::waveOutReset(waveout_);
   if (res != MMSYSERR_NOERROR) {
@@ -257,19 +283,6 @@ void PCMWaveOutAudioOutputStream::Stop() {
   // problems if we want to close, release, or reuse them. Fix the states.
   for (int ix = 0; ix != num_buffers_; ++ix) {
     GetBuffer(ix)->dwFlags = WHDR_PREPARED;
-  }
-
-  // Stop watching for buffer event, wait till all the callbacks are complete.
-  // If UnregisterWaitEx() fails we cannot do anything, just continue normal
-  // Stop() -- event would never be signalled because we already stopped the
-  // stream.
-  HANDLE waiting_handle = waiting_handle_.Take();
-  if (waiting_handle) {
-    BOOL unregister  = UnregisterWaitEx(waiting_handle, INVALID_HANDLE_VALUE);
-    if (!unregister) {
-      state_ = PCMA_PLAYING;
-      HandleError(MMSYSERR_ERROR);
-    }
   }
 
   // Don't use callback after Stop().
@@ -285,13 +298,14 @@ void PCMWaveOutAudioOutputStream::Stop() {
 void PCMWaveOutAudioOutputStream::Close() {
   Stop();  // Just to be sure. No-op if not playing.
   if (waveout_) {
-    MMRESULT res = ::waveOutClose(waveout_);
-    // The callback was cleared by the call to Stop(), so there's no point in
-    // calling HandleError at this point.  Also, even though waveOutClose might
-    // fail, we do not want to attempt to close the handle again, so we always
-    // transfer to the closed state and NULL the handle. Moreover, we must
-    // always call ReleaseOutputStream().
-    DLOG_IF(ERROR, res != MMSYSERR_NOERROR) << "waveOutClose() failed";
+    MMRESULT result = ::waveOutClose(waveout_);
+    // If ::waveOutClose() fails we cannot just delete the stream, callback
+    // may try to access it and would crash. Better to leak the stream.
+    if (result != MMSYSERR_NOERROR) {
+      HandleError(result);
+      state_ = PCMA_PLAYING;
+      return;
+    }
     state_ = PCMA_CLOSED;
     waveout_ = NULL;
     FreeBuffers();
