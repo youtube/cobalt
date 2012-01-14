@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -263,7 +263,9 @@ int main(int argc, const char** argv) {
   std::vector<double> decode_times;
   decode_times.reserve(4096);
   // Parse through the entire stream until we hit EOF.
+#if SHOW_VERBOSE
   base::TimeTicks start = base::TimeTicks::HighResNow();
+#endif
   int frames = 0;
   int read_result = 0;
   do {
