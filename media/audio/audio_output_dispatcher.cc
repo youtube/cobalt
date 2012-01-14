@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,16 +12,17 @@
 
 AudioOutputDispatcher::AudioOutputDispatcher(
     AudioManager* audio_manager, const AudioParameters& params,
-    int close_delay_ms)
+    base::TimeDelta close_delay)
     : audio_manager_(audio_manager),
       message_loop_(audio_manager->GetMessageLoop()),
       params_(params),
-      pause_delay_milliseconds_(2 * params.samples_per_packet *
-          base::Time::kMillisecondsPerSecond / params.sample_rate),
+      pause_delay_(base::TimeDelta::FromMilliseconds(
+          2 * params.samples_per_packet *
+          base::Time::kMillisecondsPerSecond / params.sample_rate)),
       paused_proxies_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_this_(this)),
       close_timer_(FROM_HERE,
-          base::TimeDelta::FromMilliseconds(close_delay_ms),
+          close_delay,
           weak_this_.GetWeakPtr(),
           &AudioOutputDispatcher::ClosePendingStreams) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
@@ -79,7 +80,7 @@ void AudioOutputDispatcher::StreamStopped(AudioOutputStream* stream) {
       FROM_HERE,
       base::Bind(&AudioOutputDispatcher::StopStreamTask,
                  weak_this_.GetWeakPtr()),
-      pause_delay_milliseconds_);
+      pause_delay_);
 }
 
 void AudioOutputDispatcher::StopStreamTask() {
