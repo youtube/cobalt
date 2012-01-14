@@ -10,6 +10,7 @@
 #include "base/values.h"
 #include "base/json/json_reader.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/memory/scoped_vector.h"
 #include "base/string_piece.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -25,7 +26,7 @@ struct SimpleMessage {
   std::string bar;
   bool baz;
   SimpleEnum simple_enum;
-  std::vector<int> ints;
+  ScopedVector<int> ints;
   SimpleMessage() : foo(0), baz(false) {}
 
   static bool ParseSimpleEnum(const StringPiece& value, SimpleEnum* field) {
@@ -54,7 +55,7 @@ struct SimpleMessage {
 struct NestedMessage {
   double foo;
   SimpleMessage child;
-  std::vector<SimpleMessage> children;
+  ScopedVector<SimpleMessage> children;
 
   NestedMessage() : foo(0) {}
 
@@ -88,8 +89,8 @@ TEST(JSONValueConverterTest, ParseSimpleMessage) {
   EXPECT_TRUE(message.baz);
   EXPECT_EQ(SimpleMessage::FOO, message.simple_enum);
   EXPECT_EQ(2, static_cast<int>(message.ints.size()));
-  EXPECT_EQ(1, message.ints[0]);
-  EXPECT_EQ(2, message.ints[1]);
+  EXPECT_EQ(1, *(message.ints[0]));
+  EXPECT_EQ(2, *(message.ints[1]));
 }
 
 TEST(JSONValueConverterTest, ParseNestedMessage) {
@@ -124,15 +125,17 @@ TEST(JSONValueConverterTest, ParseNestedMessage) {
   EXPECT_TRUE(message.child.baz);
 
   EXPECT_EQ(2, static_cast<int>(message.children.size()));
-  const SimpleMessage& first_child = message.children[0];
-  EXPECT_EQ(2, first_child.foo);
-  EXPECT_EQ("foobar", first_child.bar);
-  EXPECT_TRUE(first_child.baz);
+  const SimpleMessage* first_child = message.children[0];
+  ASSERT_TRUE(first_child);
+  EXPECT_EQ(2, first_child->foo);
+  EXPECT_EQ("foobar", first_child->bar);
+  EXPECT_TRUE(first_child->baz);
 
-  const SimpleMessage& second_child = message.children[1];
-  EXPECT_EQ(3, second_child.foo);
-  EXPECT_EQ("barbaz", second_child.bar);
-  EXPECT_FALSE(second_child.baz);
+  const SimpleMessage* second_child = message.children[1];
+  ASSERT_TRUE(second_child);
+  EXPECT_EQ(3, second_child->foo);
+  EXPECT_EQ("barbaz", second_child->bar);
+  EXPECT_FALSE(second_child->baz);
 }
 
 TEST(JSONValueConverterTest, ParseFailures) {
@@ -169,8 +172,8 @@ TEST(JSONValueConverterTest, ParseWithMissingFields) {
   EXPECT_EQ(1, message.foo);
   EXPECT_TRUE(message.baz);
   EXPECT_EQ(2, static_cast<int>(message.ints.size()));
-  EXPECT_EQ(1, message.ints[0]);
-  EXPECT_EQ(2, message.ints[1]);
+  EXPECT_EQ(1, *(message.ints[0]));
+  EXPECT_EQ(2, *(message.ints[1]));
 }
 
 TEST(JSONValueConverterTest, EnumParserFails) {
