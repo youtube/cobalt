@@ -136,7 +136,7 @@ class NET_API HttpNetworkSession
   // Creates a Value summary of the state of the SPDY sessions. The caller is
   // responsible for deleting the returned value.
   base::Value* SpdySessionPoolInfoToValue() const;
-  
+
   void CloseAllConnections();
   void CloseIdleConnections();
 

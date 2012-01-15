@@ -37,7 +37,6 @@
 #endif
 #endif
 
-
 namespace base {
 class Histogram;
 }
@@ -646,9 +645,9 @@ class BASE_EXPORT MessageLoopForIO : public MessageLoop {
   typedef base::MessagePumpForIO::IOContext IOContext;
   typedef base::MessagePumpForIO::IOObserver IOObserver;
 #elif defined(__LB_SHELL__)
-   typedef base::MessagePumpShell::IOObserver IOObserver;
-   typedef base::MessagePumpShell::Watcher Watcher;
-   typedef base::MessagePumpShell::FileDescriptorWatcher FileDescriptorWatcher;
+  typedef base::MessagePumpShell::IOObserver IOObserver;
+  typedef base::MessagePumpShell::Watcher Watcher;
+  typedef base::MessagePumpShell::FileDescriptorWatcher FileDescriptorWatcher;
 
   enum Mode {
     WATCH_READ = base::MessagePumpShell::WATCH_READ,
@@ -666,6 +665,7 @@ class BASE_EXPORT MessageLoopForIO : public MessageLoop {
     WATCH_WRITE = base::MessagePumpLibevent::WATCH_WRITE,
     WATCH_READ_WRITE = base::MessagePumpLibevent::WATCH_READ_WRITE
   };
+
 #endif
 
   MessageLoopForIO() : MessageLoop(TYPE_IO) {
@@ -720,7 +720,7 @@ class BASE_EXPORT MessageLoopForIO : public MessageLoop {
   base::MessagePumpLibevent* pump_io() {
     return static_cast<base::MessagePumpLibevent*>(pump_.get());
   }
-#endif  // defined(OS_*)
+#endif  // defined(OS_POSIX)
 };
 
 // Do not add any member variables to MessageLoopForIO!  This is important b/c

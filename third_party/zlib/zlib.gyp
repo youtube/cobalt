@@ -10,7 +10,7 @@
         # TODO(pvalchev): OpenBSD is purposefully left out, as the system
         # zlib brings up an incompatibility that breaks rendering.
         'use_system_zlib%': 1,
-      }, {  # os_posix != 1 or OS == "mac" or OS == "openbsd"
+      }, {  # os_posix != 1 or OS == "mac" or OS == "openbsd" or OS == "lb_shell"
         'use_system_zlib%': 0,
       }],
     ],

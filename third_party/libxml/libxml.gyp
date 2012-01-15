@@ -192,13 +192,6 @@
             }, {  # else: OS!="win"
               'product_name': 'xml2',
             }],
-            ['OS=="lb_shell"', {
-              # __LB_SHELL__FIX_ME__ aren't picking up correct include path
-              # for zlib
-              'include_dirs': [
-                '../zlib'
-              ]
-            }]
           ],
         }],
       ],

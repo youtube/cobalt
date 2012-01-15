@@ -5,21 +5,16 @@
 #include "base/debug/debugger.h"
 #include "build/build_config.h"
 
-#if !defined(__LB_PS3__)
-#include <sys/param.h>
-#include <execinfo.h>
-#else
-#include "posix_emulation.h"
-#endif
-
 #if defined(__LB_SHELL__)
 #include "lb_platform.h"
 #endif
 
 #include <errno.h>
+#include <execinfo.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>

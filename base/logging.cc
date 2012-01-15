@@ -27,9 +27,6 @@ typedef HANDLE MutexHandle;
 #include <time.h>
 #endif
 
-#if defined(__LB_PS3__)
-#include "posix_emulation.h"
-#endif
 #if defined(__LB_SHELL__)
 // We will use the platform thread API to abstract this.
 #include "base/threading/platform_thread.h"

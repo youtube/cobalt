@@ -8,9 +8,6 @@
 #include <Winsock2.h>
 #elif defined(OS_POSIX)
 #include <netdb.h>
-#if defined(__LB_PS3__)
-#include "posix_emulation.h"
-#endif
 #endif
 
 #include <cmath>
@@ -84,7 +81,7 @@ std::vector<int> GetAllGetAddrinfoOSErrors() {
   int os_errors[] = {
 #if defined(OS_POSIX)
 #if !defined(OS_FREEBSD)
-#if !defined(OS_ANDROID) && !defined(__LB_PS3__)
+#if !defined(OS_ANDROID)
     // EAI_ADDRFAMILY has been declared obsolete in Android's netdb.h.
     EAI_ADDRFAMILY,
 #endif
@@ -256,7 +253,6 @@ class JobCreationParameters : public NetLog::EventParameters {
   const std::string host_;
   const NetLog::Source source_;
 };
-
 
 //-----------------------------------------------------------------------------
 

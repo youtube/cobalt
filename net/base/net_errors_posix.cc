@@ -8,10 +8,6 @@
 
 #include "base/logging.h"
 
-#if defined(__LB_PS3__)
-#include "posix_emulation.h"
-#endif
-
 namespace net {
 
 Error MapSystemError(int os_error) {
