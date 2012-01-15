@@ -1,5 +1,5 @@
-#ifndef BASE_MESSAGE_PUMP_PS3_H_
-#define BASE_MESSAGE_PUMP_PS3_H_
+#ifndef BASE_MESSAGE_PUMP_SHELL_H_
+#define BASE_MESSAGE_PUMP_SHELL_H_
 #pragma once
 
 #include "base/message_pump.h"
@@ -15,23 +15,23 @@ class BASE_EXPORT MessagePumpShell : public MessagePump {
 
   // ------------------------------------------- UI
   class Observer {
-    // __LB_PS3__WRITE_ME__
+    // __LB_SHELL__WRITE_ME__
   };
 
   class Dispatcher {
-    // __LB_PS3__WRITE_ME__
+    // __LB_SHELL__WRITE_ME__
   };
 
   // ------------------------------------------- IO
   class IOObserver {
-     // __LB_PS3__WRITE_ME__
+     // __LB_SHELL__WRITE_ME__
   };
 
   class Watcher {
   public:
     Watcher();
     Watcher(Watcher &);
-    // __LB_PS3__WRITE_ME__
+    // __LB_SHELL__WRITE_ME__
   };
 
   // this one only watches sockets, not all file descriptors
@@ -39,7 +39,7 @@ class BASE_EXPORT MessagePumpShell : public MessagePump {
   public:
     FileDescriptorWatcher();
     FileDescriptorWatcher(FileDescriptorWatcher &);
-    // __LB_PS3__WRITE_ME__
+    // __LB_SHELL__WRITE_ME__
     bool StopWatchingFileDescriptor();
   };
 
@@ -93,4 +93,4 @@ typedef MessagePumpShell MessagePumpForIO;
 
 } // namespace base
 
-#endif // BASE_MESSAGE_PUMP_PS3_H_
+#endif // BASE_MESSAGE_PUMP_SHELL_H_

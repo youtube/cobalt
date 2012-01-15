@@ -513,7 +513,7 @@ class BASE_EXPORT FileEnumerator {
   DISALLOW_COPY_AND_ASSIGN(FileEnumerator);
 };
 
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
 class BASE_EXPORT MemoryMappedFile {
  public:
   // The default constructor sets all members to invalid/null values.
@@ -659,8 +659,7 @@ enum FileSystemType {
 // Attempts determine the FileSystemType for |path|.
 // Returns false if |path| doesn't exist.
 BASE_EXPORT bool GetFileSystemType(const FilePath& path, FileSystemType* type);
-
-#endif // __LB_PS3__
+#endif
 
 }  // namespace file_util
 

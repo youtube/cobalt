@@ -11,10 +11,6 @@
 #include "base/synchronization/lock.h"
 #include "base/time.h"
 
-#if defined(__LB_PS3__)
-#include "posix_emulation.h"
-#endif
-
 namespace base {
 
 ConditionVariable::ConditionVariable(Lock* user_lock)

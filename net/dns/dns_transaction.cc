@@ -15,10 +15,6 @@
 #include "net/socket/client_socket_factory.h"
 #include "net/udp/datagram_client_socket.h"
 
-#if defined(__LB_PS3__)
-#include "posix_emulation.h"
-#endif
-
 namespace net {
 
 namespace {

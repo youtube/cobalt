@@ -379,7 +379,6 @@
           }],
           [ 'OS=="lb_shell"', {
             'sources!': [
-              'atomicops_internals_x86_msvc.h',
               'sys_info_posix.cc',
               'shared_memory_posix.cc',
               'environment.cc',
@@ -401,9 +400,11 @@
               'threading/platform_thread_posix.cc',
             ],
             'sources': [
-              'atomicops_internals_cell_ppu.h',
               'message_pump_shell.cc',
               'message_pump_shell.h',
+            ],
+            'sources/': [
+              ['include', 'sys_string_conversions_linux.cc'],
             ],
           }],
           [ 'touchui==0', {
@@ -576,11 +577,6 @@
         ['OS=="lb_shell"', {
           'dependencies!': ['../third_party/libevent/libevent.gyp:libevent'],
           'sources!': [
-            'base_drag_source.cc',
-            'base_drop_target.cc',
-            'file_version_info.cc',
-            'registry.cc',
-            'win_util.cc',
             'file_descriptor_shuffle.cc'
           ]
         }]

@@ -581,6 +581,7 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
     // Update the spdy session key for the request that launched this job.
     request_->SetSpdySessionKey(spdy_session_key);
   }
+
   // OK, there's no available SPDY session. Let |dependent_job_| resume if it's
   // paused.
 
@@ -758,7 +759,6 @@ int HttpStreamFactoryImpl::Job::DoWaitingUserAction(int result) {
 int HttpStreamFactoryImpl::Job::DoCreateStream() {
   if (!connection_->socket() && !existing_spdy_session_)
     HACKCrashHereToDebug80095();
-
 
   next_state_ = STATE_CREATE_STREAM_COMPLETE;
 

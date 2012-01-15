@@ -83,12 +83,6 @@
       ],
       'msvs_disabled_warnings': [4018, 4244],
       'conditions': [
-        ['OS=="lb_shell"', {
-          'dependencies': [
-            '../../../third_party/zlib/zlib.gyp:zlib',
-            '../../../third_party/nss/nss.gyp:nss',
-          ],
-        }],
         [ 'OS=="mac"', {
           'defines': [
             'XP_UNIX',

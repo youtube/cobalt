@@ -15,11 +15,6 @@
 #include "base/third_party/dmg_fp/dmg_fp.h"
 #include "base/utf_string_conversions.h"
 
-#if defined(__LB_PS3__)
-#include <ctype.h>
-#include <wctype.h>
-#endif
-
 namespace base {
 
 namespace {

@@ -10,10 +10,6 @@
 #include "net/disk_cache/errors.h"
 #include "net/disk_cache/histogram_macros.h"
 
-#if defined(__LB_PS3__)
-#include "posix_emulation.h"
-#endif
-
 using base::Time;
 using base::TimeTicks;
 
