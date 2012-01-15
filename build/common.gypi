@@ -215,7 +215,7 @@
         }],
 
         # Flags to use Gtk and X11 on non-Mac POSIX platforms
-        ['OS=="win" or OS=="mac" or OS=="lb_shell"', {
+        ['OS=="win" or OS=="mac"', {
           'toolkit_uses_gtk%': 0,
           'use_x11%': 0,
         }, {
@@ -271,14 +271,13 @@
 
         # Override some defaults for lb_shell
         ['OS=="lb_shell"', {
-          'remoting%': 0,
-          'p2p_apis%': 0,
-          'safe_browsing%': 0,
-        }],
-        # Override some defaults for PS3
-        ['target_arch=="ps3"', {
-          'disable_sse2%': 1,
-          'use_libjpeg_turbo%': 0,
+          'remoting': 0,
+          'p2p_apis': 0,
+          'safe_browsing': 0,
+          'toolkit_uses_gtk': 0,
+          'use_x11': 0,
+          'disable_sse2': 1,
+          'use_libjpeg_turbo': 0,
         }],
       ],
     },
@@ -610,18 +609,17 @@
         ],
       }],
 
-      ['os_posix==1 and chromeos==0 and target_arch!="arm" and OS != "lb_shell"', {
+      ['os_posix==1 and chromeos==0 and target_arch!="arm"', {
         'use_cups%': 1,
       }, {
         'use_cups%': 0,
       }],
 
       ['OS=="lb_shell"', {
-        'disable_nacl%': 1,
-        'use_openssl%': 1,
-      }],
-      ['target_arch=="ps3"', {
-        'javascript_engine%': 'JavaScriptCore',
+        'disable_nacl': 1,
+        'use_openssl': 1,
+        'use_cups': 0,
+        'javascript_engine': 'JavaScriptCore',
       }],
 
       # Set the relative path from this file to the GYP file of the JPEG

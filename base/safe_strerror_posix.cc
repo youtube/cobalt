@@ -8,9 +8,6 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
-#if defined(__LB_PS3__)
-#include "posix_emulation.h"
-#endif
 
 #define USE_HISTORICAL_STRERRO_R (defined(__GLIBC__) || defined(OS_NACL))
 

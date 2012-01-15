@@ -238,13 +238,6 @@
             '../third_party/openmax/openmax.gyp:il'
           ],
         }],
-        ['OS == "linux" or OS == "freebsd" or OS == "solaris"', {
-          'link_settings': {
-            'libraries': [
-              '-lasound',
-            ],
-          },
-        }],
         ['OS=="openbsd"', {
           'sources/': [ ['exclude', 'alsa_' ],
                         ['exclude', 'audio_manager_linux' ],

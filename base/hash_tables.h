@@ -84,7 +84,6 @@ DEFINE_TRIVIAL_HASH(unsigned long long);
 #undef DEFINE_TRIVIAL_HASH
 #endif  // !defined(OS_ANDROID)
 
-
 #if !defined(__LB_PS3__)
 // Implement string hash functions so that strings of various flavors can
 // be used as keys in STL maps and sets.  The hash algorithm comes from the

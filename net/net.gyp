@@ -668,10 +668,8 @@
       'conditions': [
         ['OS=="lb_shell"', {
           'dependencies': [
-            '../../openssl/openssl.gyp:openssl'
-          ],
-          'include_dirs' : [
-            '../../openssl/include'
+            '../../openssl/openssl.gyp:openssl',
+            '../../openssl/openssl.gyp:openssl_includes',
           ],
           'sources/': [
             # no UDP

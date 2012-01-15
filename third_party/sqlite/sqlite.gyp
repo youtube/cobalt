@@ -118,17 +118,13 @@
                 '-Wno-pointer-to-int-cast',
               ],
             }],
-            ['target_arch=="ps3"', {
+            ['OS=="lb_shell"', {
               'include_dirs': [
                 '../..'
               ],
               'defines': [
                 'SQLITE_OS_OTHER=1',
                 'SQLITE_OMIT_WAL=1'
-              ],
-              'cflags': [
-                '-Wno-int-to-pointer-cast',
-                '-Wno-pointer-to-int-cast',
               ],
             }],
           ],
