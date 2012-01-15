@@ -32,7 +32,6 @@ namespace base {
 #endif
 }
 
-
 namespace {
 
 typedef base::hash_map<int, FilePath> PathMap;

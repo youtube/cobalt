@@ -4,17 +4,12 @@
 
 #include "base/debug/stack_trace.h"
 
-#if !defined(__LB_PS3__)
-#include <execinfo.h>
-#include <sys/param.h>
-#else
-#include "posix_emulation.h"
-#endif
-
 #include <errno.h>
+#include <execinfo.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>

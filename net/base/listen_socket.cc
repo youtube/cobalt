@@ -11,7 +11,6 @@
 #elif defined(OS_POSIX)
 #include <errno.h>
 #include <netinet/in.h>
-#include <sys/types.h> // must come before sys/socket.h
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include "net/base/net_errors.h"
@@ -22,7 +21,7 @@
 #include "net/base/net_util.h"
 #include "net/base/listen_socket.h"
 
-#if defined(__LB_PS3__)
+#if defined(__LB_SHELL__)
 #include "lb_platform.h"
 #endif
 
@@ -157,11 +156,7 @@ void ListenSocket::SendInternal(const char* bytes, int len) {
       if (WSAGetLastError() != WSAEWOULDBLOCK) {
         LOG(ERROR) << "send failed: WSAGetLastError()==" << WSAGetLastError();
 #elif defined(OS_POSIX)
-      if (
-#if defined(EWOULDBLOCK)
-        errno != EWOULDBLOCK &&
-#endif
-        errno != EAGAIN) {
+      if (errno != EWOULDBLOCK && errno != EAGAIN) {
         LOG(ERROR) << "send failed: errno==" << errno;
 #endif
         break;
@@ -212,11 +207,7 @@ void ListenSocket::Read() {
       int err = WSAGetLastError();
       if (err == WSAEWOULDBLOCK) {
 #elif defined(OS_POSIX)
-      if (
-#if defined(EWOULDBLOCK)
-        errno == EWOULDBLOCK || 
-#endif
-        errno == EAGAIN) {
+      if (errno == EWOULDBLOCK || errno == EAGAIN) {
 #endif
         break;
       } else {
@@ -254,7 +245,7 @@ void ListenSocket::CloseSocket(SOCKET s) {
     UnwatchSocket();
 #if defined(OS_WIN)
     closesocket(s);
-#elif defined(__LB_PS3__)
+#elif defined(__LB_SHELL__)
     LB::Platform::close_socket(s);
 #elif defined(OS_POSIX)
     close(s);
@@ -266,7 +257,7 @@ void ListenSocket::WatchSocket(WaitState state) {
 #if defined(OS_WIN)
   WSAEventSelect(socket_, socket_event_, FD_ACCEPT | FD_CLOSE | FD_READ);
   watcher_.StartWatching(socket_event_, this);
-#elif defined(__LB_PS3__)
+#elif defined(__LB_SHELL__)
   MessageLoopForIO::current()->WatchSocket(
       socket_, true, MessageLoopForIO::WATCH_READ, &watcher_, this);
 #elif defined(OS_POSIX)

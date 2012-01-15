@@ -277,6 +277,9 @@
       ],
       'conditions': [
         ['OS == "lb_shell"', {
+          'sources': [
+            'gfx/native_theme_shell.cc',
+          ],
           'sources/': [
             # data_pack.cc uses memory-mapped files
             ['exclude', 'base/resource/data_pack.cc'],
@@ -305,6 +308,7 @@
             ['include', 'gfx/rect.cc'],
             ['include', 'gfx/size.h'],
             ['include', 'gfx/size.cc'],
+            ['include', 'gfx/native_theme_shell.cc'],
           ],
         }, { # OS != "lb_shell"
           'dependencies': [

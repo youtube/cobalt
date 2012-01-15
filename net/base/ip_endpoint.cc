@@ -12,10 +12,6 @@
 #include <netinet/in.h>
 #endif
 
-#if defined(__LB_PS3__)
-#include "posix_emulation.h"
-#endif
-
 namespace net {
 
 IPEndPoint::IPEndPoint() : port_(0) {}

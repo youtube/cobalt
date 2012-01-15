@@ -24,13 +24,11 @@
 #pragma comment(lib, "iphlpapi.lib")
 #elif defined(OS_POSIX)
 #include <fcntl.h>
-#if !defined(OS_ANDROID) && !defined(__LB_PS3__)
+#if !defined(OS_ANDROID)
 #include <ifaddrs.h>
 #endif
 #include <netdb.h>
-#if defined(__LB_PS3__)
-#include "posix_emulation.h"
-#endif
+#include <net/if.h>
 #include <netinet/in.h>
 #endif
 
@@ -1382,14 +1380,14 @@ int SetNonBlocking(int fd) {
 #if defined(OS_WIN)
   unsigned long no_block = 1;
   return ioctlsocket(fd, FIONBIO, &no_block);
-#elif defined(OS_POSIX) && !defined(__LB_PS3__)
+#elif defined(__LB_PS3__)
+  int val = 1;
+  return setsockopt(fd, SOL_SOCKET, SO_NBIO, &val, sizeof(int));
+#elif defined(OS_POSIX)
   int flags = fcntl(fd, F_GETFL, 0);
   if (-1 == flags)
     return flags;
   return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-#elif defined(__LB_PS3__)
-  int val = 1;
-  return setsockopt(fd, SOL_SOCKET, SO_NBIO, &val, sizeof(int));
 #endif
 }
 
@@ -2187,16 +2185,14 @@ const uint16* GetPortFieldFromSockaddr(const struct sockaddr* address,
     const struct sockaddr_in* sockaddr =
         reinterpret_cast<const struct sockaddr_in*>(address);
     return &sockaddr->sin_port;
-  } 
 #if !defined(__LB_PS3__)
-  else if (address->sa_family == AF_INET6) {
+  } else if (address->sa_family == AF_INET6) {
     DCHECK_LE(sizeof(sockaddr_in6), static_cast<size_t>(address_len));
     const struct sockaddr_in6* sockaddr =
         reinterpret_cast<const struct sockaddr_in6*>(address);
     return &sockaddr->sin6_port;
-  } 
 #endif
-  else {
+  } else {
     NOTREACHED();
     return NULL;
   }
@@ -2238,6 +2234,7 @@ bool IsLocalhost(const std::string& host) {
         }
         return IPNumberMatchesPrefix(ip_number, localhost_prefix, 8);
       }
+
 #if !defined(__LB_PS3__)
       case kIPv6AddressSize: {
         struct in6_addr sin6_addr;
@@ -2245,6 +2242,7 @@ bool IsLocalhost(const std::string& host) {
         return !!IN6_IS_ADDR_LOOPBACK(&sin6_addr);
       }
 #endif
+
       default:
         NOTREACHED();
     }

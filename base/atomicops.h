@@ -39,7 +39,7 @@ typedef int32 Atomic32;
 #ifdef ARCH_CPU_64_BITS
 // We need to be able to go between Atomic64 and AtomicWord implicitly.  This
 // means Atomic64 and AtomicWord should be the same type on 64-bit.
-#if defined(OS_NACL) || defined(__PPU__)
+#if defined(OS_NACL)
 // NaCl's intptr_t is not actually 64-bits on 64-bit!
 // http://code.google.com/p/nativeclient/issues/detail?id=1162
 typedef int64_t Atomic64;
@@ -137,9 +137,9 @@ Atomic64 Release_Load(volatile const Atomic64* ptr);
 #include "base/atomicops_internals_x86_gcc.h"
 #elif defined(COMPILER_GCC) && defined(ARCH_CPU_ARM_FAMILY)
 #include "base/atomicops_internals_arm_gcc.h"
-#elif defined(__LB_PS3__)
+#elif defined(__LB_SHELL__)
 // from the platform lib:
-#include "chromium/base/atomicops_internals_ps3.h"
+#include "chromium/base/atomicops_internals_shell.h"
 #else
 #error "Atomic operations are not supported on your platform"
 #endif
