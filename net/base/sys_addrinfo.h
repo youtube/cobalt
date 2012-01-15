@@ -22,7 +22,4 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
-#if defined(__LB_PS3__)
-#include "posix_emulation.h"
-#endif
 #endif

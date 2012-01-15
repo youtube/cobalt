@@ -69,7 +69,7 @@
 // more specific macro.
 #if defined(OS_MACOSX) || defined(OS_LINUX) || defined(OS_FREEBSD) ||     \
     defined(OS_OPENBSD) || defined(OS_SOLARIS) || defined(OS_ANDROID) ||  \
-    defined(OS_NACL) || defined(__LB_PS3__)
+    defined(OS_NACL) || defined(__LB_SHELL__)
 #define OS_POSIX 1
 #endif
 
@@ -102,10 +102,10 @@
 #define ARCH_CPU_64_BITS 1
 #define ARCH_CPU_LITTLE_ENDIAN 1
 #elif defined(__LB_PS3__)
-#define ARCH_CPU_64_BITS 1
+#define ARCH_CPU_32_BITS 1
 #define ARCH_CPU_BIG_ENDIAN 1
 #define ARCH_CPU_PPC_FAMILY 1
-#elif (defined(_M_IX86) || defined(__i386__))
+#elif defined(_M_IX86) || defined(__i386__)
 #define ARCH_CPU_X86_FAMILY 1
 #define ARCH_CPU_X86 1
 #define ARCH_CPU_32_BITS 1

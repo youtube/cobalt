@@ -4,10 +4,6 @@
 
 #include "net/base/net_util.h"
 
-#if defined(__LB_PS3__)
-#include "posix_emulation.h"
-#endif
-
 #include <sys/types.h>
 
 #include "base/eintr_wrapper.h"
@@ -20,7 +16,7 @@
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 
-#if !defined(OS_ANDROID) && !defined(__LB_PS3__)
+#if !defined(OS_ANDROID)
 #include <ifaddrs.h>
 #endif
 

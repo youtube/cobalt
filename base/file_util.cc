@@ -8,9 +8,6 @@
 #include <io.h>
 #endif
 #include <stdio.h>
-#if defined(__LB_PS3__)
-#include <unistd.h>
-#endif
 
 #include <fstream>
 
@@ -302,7 +299,7 @@ int64 ComputeFilesSize(const FilePath& directory,
   return running_size;
 }
 
-#if !defined(__LB_PS3__)
+#if !defined(__LB_SHELL__)
 ///////////////////////////////////////////////
 // MemoryMappedFile
 

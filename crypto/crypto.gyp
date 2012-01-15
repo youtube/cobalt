@@ -24,11 +24,9 @@
       'conditions': [
         ['OS=="lb_shell"', {
           'dependencies' : [
-            '../../openssl/openssl.gyp:openssl'
+            '../../openssl/openssl.gyp:openssl',
+            '../../openssl/openssl.gyp:openssl_includes',
           ],
-          'include_dirs': [
-            '../../openssl/include'
-          ]
         }],
         [ 'os_posix == 1 and OS != "mac" and OS != "lb_shell"', {
           'dependencies': [

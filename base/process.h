@@ -28,9 +28,6 @@ const ProcessHandle kNullProcessHandle = NULL;
 const ProcessId kNullProcessId = 0;
 #elif defined(OS_POSIX)
 // On POSIX, our ProcessHandle will just be the PID.
-#if defined(__LB_SHELL__)
-typedef int pid_t; // the shell doesn't really live in a multi-process world.
-#endif
 typedef pid_t ProcessHandle;
 typedef pid_t ProcessId;
 const ProcessHandle kNullProcessHandle = 0;

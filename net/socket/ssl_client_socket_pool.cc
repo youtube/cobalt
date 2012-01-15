@@ -489,9 +489,7 @@ ConnectJob* SSLClientSocketPool::SSLConnectJobFactory::NewConnectJob(
     const PoolBase::Request& request,
     ConnectJob::Delegate* delegate) const {
   return new SSLConnectJob(group_name, request.params(), ConnectionTimeout(),
-                           transport_pool_, 
-                           socks_pool_, 
-                           http_proxy_pool_,
+                           transport_pool_, socks_pool_, http_proxy_pool_,
                            client_socket_factory_, host_resolver_,
                            context_, delegate, net_log_);
 }
