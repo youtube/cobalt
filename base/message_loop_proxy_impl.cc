@@ -81,11 +81,11 @@ bool MessageLoopProxyImpl::PostTaskHelper(
     int64 delay_ms, bool nestable) {
   AutoLock lock(message_loop_lock_);
   if (target_message_loop_) {
-    base::TimeDelta delay = base::TimeDelta::FromMilliseconds(delay_ms);
     if (nestable) {
-      target_message_loop_->PostDelayedTask(from_here, task, delay);
+      target_message_loop_->PostDelayedTask(from_here, task, delay_ms);
     } else {
-      target_message_loop_->PostNonNestableDelayedTask(from_here, task, delay);
+      target_message_loop_->PostNonNestableDelayedTask(from_here, task,
+                                                       delay_ms);
     }
     return true;
   }
