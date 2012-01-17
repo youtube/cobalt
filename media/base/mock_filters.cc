@@ -11,6 +11,7 @@
 using ::testing::_;
 using ::testing::Invoke;
 using ::testing::NotNull;
+using ::testing::Return;
 
 namespace media {
 
@@ -67,7 +68,11 @@ void MockDemuxerFactory::RunBuildCallback(const std::string& url,
 }
 
 MockDemuxer::MockDemuxer()
-  : total_bytes_(-1), buffered_bytes_(-1), duration_() {}
+    : total_bytes_(-1), buffered_bytes_(-1), duration_() {
+  EXPECT_CALL(*this, GetBitrate()).WillRepeatedly(Return(0));
+  EXPECT_CALL(*this, IsLocalSource()).WillRepeatedly(Return(false));
+  EXPECT_CALL(*this, IsSeekable()).WillRepeatedly(Return(false));
+}
 
 MockDemuxer::~MockDemuxer() {}
 
@@ -95,7 +100,9 @@ MockDemuxerStream::MockDemuxerStream() {}
 
 MockDemuxerStream::~MockDemuxerStream() {}
 
-MockVideoDecoder::MockVideoDecoder() {}
+MockVideoDecoder::MockVideoDecoder() {
+  EXPECT_CALL(*this, HasAlpha()).WillRepeatedly(Return(false));
+}
 
 MockVideoDecoder::~MockVideoDecoder() {}
 
