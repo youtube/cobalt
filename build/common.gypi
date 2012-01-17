@@ -270,6 +270,9 @@
       # for details.
       'chromium_win_pch%': 0,
 
+      # Enable plug-in installation by default.
+      'enable_plugin_installation%': 1,
+
       'conditions': [
         # TODO(epoger): Figure out how to set use_skia=1 for Mac outside of
         # the 'conditions' clause.  Initial attempts resulted in chromium and
@@ -382,6 +385,12 @@
         ['OS=="win" and MSVS_VERSION=="2010"', {
           'chromium_win_pch%': 1
         }],
+
+        ['use_aura==1 or chromeos==1', {
+          'enable_plugin_installation%': 0,
+        }, {
+          'enable_plugin_installation%': 1,
+        }],
       ],
     },
 
@@ -441,6 +450,7 @@
     'asan%': '<(asan)',
     'enable_register_protocol_handler%': '<(enable_register_protocol_handler)',
     'enable_web_intents%': '<(enable_web_intents)',
+    'enable_plugin_installation%': '<(enable_plugin_installation)',
     # Whether to build for Wayland display server
     'use_wayland%': 0,
 
@@ -1255,6 +1265,9 @@
       }],
       ['enable_dart==1', {
         'defines': ['WEBKIT_USING_DART=1'],
+      }],
+      ['enable_plugin_installation==1', {
+        'defines': ['ENABLE_PLUGIN_INSTALLATION=1'],
       }],
     ],  # conditions for 'target_defaults'
     'target_conditions': [
