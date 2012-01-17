@@ -358,7 +358,7 @@ TEST(YUVConvertTest, RGB32ToYUV) {
   }
 
   // Make sure error is within bound.
-  LOG(INFO) << "Average error per channel: " << error / kRGBSize;
+  DVLOG(1) << "Average error per channel: " << error / kRGBSize;
   EXPECT_GT(5, error / kRGBSize);
 }
 

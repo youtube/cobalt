@@ -61,6 +61,9 @@ class VideoRendererBaseTest : public ::testing::Test {
 
     EXPECT_CALL(stats_callback_object_, OnStatistics(_))
         .Times(AnyNumber());
+
+    EXPECT_CALL(*this, SetOpaqueCBWasCalled(_))
+        .WillRepeatedly(::testing::Return());
   }
 
   virtual ~VideoRendererBaseTest() {
