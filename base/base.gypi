@@ -472,7 +472,6 @@
               # missing JNI, add them back when JNI is ready.
               ['exclude', '^android/'],
               ['exclude', '^base_paths_android\\.cc$'],
-              ['exclude', '^debug/stack_trace_android\\.cc$'],
               ['exclude', '^message_pump_android\\.cc$'],
             ],
           }],
