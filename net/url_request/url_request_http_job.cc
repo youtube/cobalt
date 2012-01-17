@@ -738,13 +738,12 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
     // what we should do.
 
     TransportSecurityState::DomainState domain_state;
-    const bool is_hsts_host =
+    const bool fatal =
         context_->transport_security_state() &&
         context_->transport_security_state()->GetDomainState(
             &domain_state, request_info_.url.host(),
             SSLConfigService::IsSNIAvailable(context_->ssl_config_service()));
-    NotifySSLCertificateError(transaction_->GetResponseInfo()->ssl_info,
-                              is_hsts_host);
+    NotifySSLCertificateError(transaction_->GetResponseInfo()->ssl_info, fatal);
   } else if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
     NotifyCertificateRequested(
         transaction_->GetResponseInfo()->cert_request_info);
