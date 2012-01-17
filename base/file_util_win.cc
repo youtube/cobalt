@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -34,48 +34,6 @@ namespace {
 
 const DWORD kFileShareAll =
     FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
-
-// Helper for NormalizeFilePath(), defined below.
-bool DevicePathToDriveLetterPath(const FilePath& device_path,
-                                 FilePath* drive_letter_path) {
-  base::ThreadRestrictions::AssertIOAllowed();
-
-  // Get the mapping of drive letters to device paths.
-  const int kDriveMappingSize = 1024;
-  wchar_t drive_mapping[kDriveMappingSize] = {'\0'};
-  if (!::GetLogicalDriveStrings(kDriveMappingSize - 1, drive_mapping)) {
-    DLOG(ERROR) << "Failed to get drive mapping.";
-    return false;
-  }
-
-  // The drive mapping is a sequence of null terminated strings.
-  // The last string is empty.
-  wchar_t* drive_map_ptr = drive_mapping;
-  wchar_t device_name[MAX_PATH];
-  wchar_t drive[] = L" :";
-
-  // For each string in the drive mapping, get the junction that links
-  // to it.  If that junction is a prefix of |device_path|, then we
-  // know that |drive| is the real path prefix.
-  while (*drive_map_ptr) {
-    drive[0] = drive_map_ptr[0];  // Copy the drive letter.
-
-    if (QueryDosDevice(drive, device_name, MAX_PATH) &&
-        StartsWith(device_path.value(), device_name, true)) {
-      *drive_letter_path = FilePath(drive +
-          device_path.value().substr(wcslen(device_name)));
-      return true;
-    }
-    // Move to the next drive letter string, which starts one
-    // increment after the '\0' that terminates the current string.
-    while (*drive_map_ptr++);
-  }
-
-  // No drive matched.  The path does not start with a device junction
-  // that is mounted as a drive letter.  This means there is no drive
-  // letter path to the volume that holds |device_path|, so fail.
-  return false;
-}
 
 }  // namespace
 
@@ -1045,6 +1003,50 @@ bool NormalizeFilePath(const FilePath& path, FilePath* real_path) {
   // will find a drive letter which maps to the path's device, so
   // that we return a path starting with a drive letter.
   return DevicePathToDriveLetterPath(mapped_file, real_path);
+}
+
+bool DevicePathToDriveLetterPath(const FilePath& nt_device_path,
+                                 FilePath* out_drive_letter_path) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
+  // Get the mapping of drive letters to device paths.
+  const int kDriveMappingSize = 1024;
+  wchar_t drive_mapping[kDriveMappingSize] = {'\0'};
+  if (!::GetLogicalDriveStrings(kDriveMappingSize - 1, drive_mapping)) {
+    DLOG(ERROR) << "Failed to get drive mapping.";
+    return false;
+  }
+
+  // The drive mapping is a sequence of null terminated strings.
+  // The last string is empty.
+  wchar_t* drive_map_ptr = drive_mapping;
+  wchar_t device_path_as_string[MAX_PATH];
+  wchar_t drive[] = L" :";
+
+  // For each string in the drive mapping, get the junction that links
+  // to it.  If that junction is a prefix of |device_path|, then we
+  // know that |drive| is the real path prefix.
+  while (*drive_map_ptr) {
+    drive[0] = drive_map_ptr[0];  // Copy the drive letter.
+
+    if (QueryDosDevice(drive, device_path_as_string, MAX_PATH)) {
+      FilePath device_path(device_path_as_string);
+      if (device_path == nt_device_path ||
+          device_path.IsParent(nt_device_path)) {
+        *out_drive_letter_path = FilePath(drive +
+            nt_device_path.value().substr(wcslen(device_path_as_string)));
+        return true;
+      }
+    }
+    // Move to the next drive letter string, which starts one
+    // increment after the '\0' that terminates the current string.
+    while (*drive_map_ptr++);
+  }
+
+  // No drive matched.  The path does not start with a device junction
+  // that is mounted as a drive letter.  This means there is no drive
+  // letter path to the volume that holds |device_path|, so fail.
+  return false;
 }
 
 bool NormalizeToNativeFilePath(const FilePath& path, FilePath* nt_path) {
