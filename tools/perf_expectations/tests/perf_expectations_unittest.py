@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-#
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -151,7 +150,8 @@ class PerfExpectationsUnittest(unittest.TestCase):
   def testNoUpdatesNeeded(self):
     p = subprocess.Popen([MAKE_EXPECTATIONS, '-s'], stdout=subprocess.PIPE)
     p.wait();
-    self.assertEqual(p.returncode, 0, msg='Expectations has pending updates!')
+    self.assertEqual(p.returncode, 0,
+        msg='Update expectations first by running ./make_expectations.py')
 
   def testConfigFile(self):
     # Test that the config file can be parsed as JSON.
