@@ -69,7 +69,7 @@ ChunkDemuxerStream::ChunkDemuxerStream(const AudioDecoderConfig& audio_config)
     : type_(AUDIO),
       shutdown_called_(false),
       received_end_of_stream_(false),
-      last_buffer_timestamp_(kNoTimestamp) {
+      last_buffer_timestamp_(kNoTimestamp()) {
   audio_config_.CopyFrom(audio_config);
 }
 
@@ -78,7 +78,7 @@ ChunkDemuxerStream::ChunkDemuxerStream(const VideoDecoderConfig& video_config)
     : type_(VIDEO),
       shutdown_called_(false),
       received_end_of_stream_(false),
-      last_buffer_timestamp_(kNoTimestamp) {
+      last_buffer_timestamp_(kNoTimestamp()) {
   video_config_.CopyFrom(video_config);
 }
 
@@ -89,14 +89,14 @@ void ChunkDemuxerStream::Flush() {
   base::AutoLock auto_lock(lock_);
   buffers_.clear();
   received_end_of_stream_ = false;
-  last_buffer_timestamp_ = kNoTimestamp;
+  last_buffer_timestamp_ = kNoTimestamp();
 }
 
 bool ChunkDemuxerStream::CanAddBuffers(const BufferQueue& buffers) const {
   base::AutoLock auto_lock(lock_);
 
   // If we haven't seen any buffers yet, then anything can be added.
-  if (last_buffer_timestamp_ == kNoTimestamp)
+  if (last_buffer_timestamp_ == kNoTimestamp())
     return true;
 
   if (buffers.empty())
@@ -131,7 +131,7 @@ void ChunkDemuxerStream::AddBuffers(const BufferQueue& buffers) {
         }
       } else {
         base::TimeDelta current_ts = (*itr)->GetTimestamp();
-        if (last_buffer_timestamp_ != kNoTimestamp) {
+        if (last_buffer_timestamp_ != kNoTimestamp()) {
           DCHECK_GT(current_ts.ToInternalValue(),
                     last_buffer_timestamp_.ToInternalValue());
         }

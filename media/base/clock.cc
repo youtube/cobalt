@@ -46,7 +46,7 @@ void Clock::SetPlaybackRate(float playback_rate) {
 }
 
 void Clock::SetTime(const base::TimeDelta& time) {
-  if (time == kNoTimestamp) {
+  if (time == kNoTimestamp()) {
     NOTREACHED();
     return;
   }

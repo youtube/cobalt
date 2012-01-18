@@ -270,7 +270,7 @@ const VideoDecoderConfig& FFmpegDemuxerStream::video_decoder_config() {
 base::TimeDelta FFmpegDemuxerStream::ConvertStreamTimestamp(
     const AVRational& time_base, int64 timestamp) {
   if (timestamp == static_cast<int64>(AV_NOPTS_VALUE))
-    return kNoTimestamp;
+    return kNoTimestamp();
 
   return ConvertFromTimeBase(time_base, timestamp);
 }
@@ -289,7 +289,7 @@ FFmpegDemuxer::FFmpegDemuxer(MessageLoop* message_loop, bool local_source)
       max_duration_(base::TimeDelta::FromMicroseconds(-1)),
       deferred_status_(PIPELINE_OK),
       first_seek_hack_(true),
-      start_time_(kNoTimestamp) {
+      start_time_(kNoTimestamp()) {
   DCHECK(message_loop_);
 }
 
@@ -516,7 +516,7 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
     if (stream->first_dts != static_cast<int64_t>(AV_NOPTS_VALUE)) {
       const base::TimeDelta first_dts = ConvertFromTimeBase(
           stream->time_base, stream->first_dts);
-      if (start_time_ == kNoTimestamp || first_dts < start_time_)
+      if (start_time_ == kNoTimestamp() || first_dts < start_time_)
         start_time_ = first_dts;
     }
   }
@@ -535,12 +535,12 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
                  ConvertFromTimeBase(av_time_base, format_context_->duration));
   } else {
     // The duration is unknown, in which case this is likely a live stream.
-    max_duration = kInfiniteDuration;
+    max_duration = kInfiniteDuration();
   }
 
   // Some demuxers, like WAV, do not put timestamps on their frames. We
   // assume the the start time is 0.
-  if (start_time_ == kNoTimestamp)
+  if (start_time_ == kNoTimestamp())
     start_time_ = base::TimeDelta();
 
   // Good to go: set the duration and bitrate and notify we're done
@@ -576,7 +576,7 @@ int FFmpegDemuxer::GetBitrate() {
   // valid duration.
   int64 filesize_in_bytes;
   if (max_duration_.InMicroseconds() <= 0 ||
-      max_duration_ == kInfiniteDuration ||
+      max_duration_ == kInfiniteDuration() ||
       !GetSize(&filesize_in_bytes)) {
     return 0;
   }

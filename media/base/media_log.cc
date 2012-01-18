@@ -8,6 +8,7 @@
 
 #include "base/atomic_sequence_num.h"
 #include "base/bind.h"
+#include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/values.h"
@@ -16,7 +17,8 @@ namespace media {
 
 // A count of all MediaLogs created on this render process.
 // Used to generate unique ids.
-static base::AtomicSequenceNumber media_log_count(base::LINKER_INITIALIZED);
+static base::LazyInstance<base::AtomicSequenceNumber> media_log_count =
+    LAZY_INSTANCE_INITIALIZER;
 
 const char* MediaLog::EventTypeToString(MediaLogEvent::Type type) {
   switch (type) {
@@ -144,7 +146,7 @@ const char* MediaLog::PipelineStatusToString(PipelineStatus status) {
 }
 
 MediaLog::MediaLog() {
-  id_ = media_log_count.GetNext();
+  id_ = media_log_count.Get().GetNext();
   stats_update_pending_ = false;
 }
 
