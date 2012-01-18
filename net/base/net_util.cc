@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -1518,7 +1518,7 @@ string16 GetSuggestedFilename(const GURL& url,
   // whitespace to prevent file extension obfuscation on trusted websites
   // e.g. Gmail might think evil.exe. is safe, so we don't want it to become
   // evil.exe when we download it
-  std::wstring::size_type path_length_before_trim = path.length();
+  string16::size_type path_length_before_trim = path.length();
   TrimWhitespace(path, TRIM_TRAILING, &path);
   trimmed_trailing_character_count += path_length_before_trim - path.length();
   file_util::ReplaceIllegalCharactersInPath(&path, '-');
