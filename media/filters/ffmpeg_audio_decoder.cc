@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -31,8 +31,8 @@ static bool IsTimestampMarkerPacket(int result, Buffer* input) {
   // We can get a positive result but no decoded data.  This is ok because this
   // this can be a marker packet that only contains timestamp.
   return result > 0 && !input->IsEndOfStream() &&
-      input->GetTimestamp() != kNoTimestamp &&
-      input->GetDuration() != kNoTimestamp;
+      input->GetTimestamp() != kNoTimestamp() &&
+      input->GetDuration() != kNoTimestamp();
 }
 
 // Returns true if the decode result was end of stream.
@@ -151,7 +151,7 @@ void FFmpegAudioDecoder::DoInitialize(
 
 void FFmpegAudioDecoder::DoFlush(const base::Closure& callback) {
   avcodec_flush_buffers(codec_context_);
-  estimated_next_timestamp_ = kNoTimestamp;
+  estimated_next_timestamp_ = kNoTimestamp();
   callback.Run();
 }
 
@@ -171,8 +171,8 @@ void FFmpegAudioDecoder::DoDecodeBuffer(const scoped_refptr<Buffer>& input) {
   // FFmpeg tends to seek Ogg audio streams in the middle of nowhere, giving us
   // a whole bunch of AV_NOPTS_VALUE packets.  Discard them until we find
   // something valid.  Refer to http://crbug.com/49709
-  if (input->GetTimestamp() == kNoTimestamp &&
-      estimated_next_timestamp_ == kNoTimestamp &&
+  if (input->GetTimestamp() == kNoTimestamp() &&
+      estimated_next_timestamp_ == kNoTimestamp() &&
       !input->IsEndOfStream()) {
     ReadFromDemuxerStream();
     return;
@@ -261,7 +261,7 @@ void FFmpegAudioDecoder::UpdateDurationAndTimestamp(
   output->SetDuration(duration);
 
   // Use the incoming timestamp if it's valid.
-  if (input->GetTimestamp() != kNoTimestamp) {
+  if (input->GetTimestamp() != kNoTimestamp()) {
     output->SetTimestamp(input->GetTimestamp());
     estimated_next_timestamp_ = input->GetTimestamp() + duration;
     return;
@@ -270,7 +270,7 @@ void FFmpegAudioDecoder::UpdateDurationAndTimestamp(
   // Otherwise use an estimated timestamp and attempt to update the estimation
   // as long as it's valid.
   output->SetTimestamp(estimated_next_timestamp_);
-  if (estimated_next_timestamp_ != kNoTimestamp) {
+  if (estimated_next_timestamp_ != kNoTimestamp()) {
     estimated_next_timestamp_ += duration;
   }
 }
