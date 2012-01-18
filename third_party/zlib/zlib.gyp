@@ -79,6 +79,17 @@
                 'USE_FILE32API'
               ],
             }],
+            ['clang==1', {
+              'xcode_settings': {
+                'WARNING_CFLAGS': [
+                  # zlib uses `if ((a == b))` for some reason.
+                  '-Wno-parentheses-equality',
+                ],
+              },
+              'cflags': [
+                '-Wno-parentheses-equality',
+              ],
+            }],
           ],
         },
       ],
