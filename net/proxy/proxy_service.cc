@@ -72,42 +72,45 @@ const size_t kDefaultNumPacThreads = 4;
 // sorts of problems.
 const int64 kDelayAfterNetworkChangesMs = 2000;
 
-// The initial number of milliseconds to wait before refetching PAC script after
-// a fetch error/success.
-const int64 kInitialPollDelayForErrorMs = 4000;
-const int64 kInitialPollDelayForSuccessMs = 16000;
-
-// Once the poll delay becomes larger than this, we will stop scheduling using
-// a timer, and instead wait for an incoming request to trigger the poll.
-const int64 kMaxPollDelayUsingTimer = 16000;
-
-// The maximum poll delay for checking PAC scripts.
-const int64 kMaxPollDelayMs = 120000;  // 2 minutes.
-
-// This is the default policy for polling the PAC script. Checks happen after an
-// exponentially increasing delay. The first couple checks will be scheduled
-// using a timer. After that the checks will only be done lazily in response to
-// a user request.
+// This is the default policy for polling the PAC script.
+//
+// In response to a failure, the poll intervals are:
+//    0: 8 seconds  (scheduled on timer)
+//    1: 32 seconds
+//    2: 2 minutes
+//    3+: 2 hours
+//
+// In response to a success, the poll intervals are:
+//    0: 2 minutes
+//    1+: 2 hours
+//
+// Only the 8 second poll is scheduled on a timer, the rest happen in response
+// to network activity (and hence will take longer than the written time).
 class DefaultPollPolicy : public ProxyService::PacPollPolicy {
  public:
   DefaultPollPolicy() {}
 
   virtual Mode GetInitialDelay(int error, int64* next_delay_ms) const OVERRIDE {
-    // Use a shorter wait delay if the initial fetch resulted in an error.
-    *next_delay_ms = (error != OK) ?
-        kInitialPollDelayForErrorMs : kInitialPollDelayForSuccessMs;
-    return MODE_USE_TIMER;
+    // Poll after 8 seconds on errors, versus 2 minutes after a success.
+    if (error != OK) {
+      *next_delay_ms = 8000;
+      return MODE_USE_TIMER;
+    }
+
+    *next_delay_ms = 120000;
+    return MODE_START_AFTER_ACTIVITY;
   }
 
   virtual Mode GetNextDelay(int64 current_delay_ms,
                             int64* next_delay_ms) const OVERRIDE {
-    // Increase the wait delay exponentially up to a maximum.
-    *next_delay_ms = std::min(current_delay_ms * 2, kMaxPollDelayMs);
-
-    // Once the delays are large enough, stop scheduling using a timer and
-    // instead only poll during periods of activity.
-    return (*next_delay_ms <= kMaxPollDelayUsingTimer) ?
-        MODE_USE_TIMER: MODE_START_AFTER_ACTIVITY;
+    switch (current_delay_ms) {
+      case 8000:
+        *next_delay_ms = 32000;
+        return MODE_START_AFTER_ACTIVITY;
+      default:
+        *next_delay_ms = 7200000;  // 2 hours
+        return MODE_START_AFTER_ACTIVITY;
+    }
   }
 
  private:
@@ -343,8 +346,8 @@ class BadProxyListNetLogParam : public NetLog::EventParameters {
 // ProxyService::InitProxyResolver --------------------------------------------
 
 // This glues together two asynchronous steps:
-//   (1) ProxyScriptDecider -- try to fetch/validate a sequence of PAC scripts to
-//       figure out what we should configure against.
+//   (1) ProxyScriptDecider -- try to fetch/validate a sequence of PAC scripts
+//       to figure out what we should configure against.
 //   (2) Feed the fetched PAC script into the ProxyResolver.
 //
 // InitProxyResolver is a single-use class which encapsulates cancellation as
