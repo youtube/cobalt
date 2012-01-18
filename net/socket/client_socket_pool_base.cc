@@ -22,6 +22,14 @@
 
 using base::TimeDelta;
 
+// Disable FPO for all the functions in this file. This is to help track down
+// http://crbug.com/109876. With FPO enabled, the stacktrace capture is
+// unreliable, and we can't see the specific deletion point of the Group.
+// TODO(eroman): Remove it when done investigating.
+#if defined(COMPILER_MSVC)
+#pragma optimize("y", off)
+#endif
+
 namespace {
 
 // Indicate whether we should enable idle socket cleanup timer. When timer is
@@ -1250,3 +1258,8 @@ void ClientSocketPoolBaseHelper::Group::RemoveAllJobs() {
 }  // namespace internal
 
 }  // namespace net
+
+// Restore default optimization settings.
+#if defined(COMPILER_MSVC)
+#pragma optimize("", on)
+#endif
