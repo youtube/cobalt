@@ -491,8 +491,8 @@ TEST_F(FFmpegVideoDecoderTest, Timestamps_Estimated) {
 
   PushTimestamp(0);
   PushTimestamp(1000);
-  PushTimestamp(kNoTimestamp.InMicroseconds());
-  PushTimestamp(kNoTimestamp.InMicroseconds());
+  PushTimestamp(kNoTimestamp().InMicroseconds());
+  PushTimestamp(kNoTimestamp().InMicroseconds());
 
   EXPECT_EQ(0, PopTimestamp());
   EXPECT_EQ(1000, PopTimestamp());

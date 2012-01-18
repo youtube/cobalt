@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -298,15 +298,15 @@ TEST_F(SeekableBufferTest, GetTime) {
     int64 expected_time;
   } tests[] = {
     // Timestamps of 0 are treated as garbage.
-    { 0, 1000000, 0, kNoTimestamp.ToInternalValue() },
-    { 0, 4000000, 0, kNoTimestamp.ToInternalValue() },
-    { 0, 8000000, 0, kNoTimestamp.ToInternalValue() },
-    { 0, 1000000, 4, kNoTimestamp.ToInternalValue() },
-    { 0, 4000000, 4, kNoTimestamp.ToInternalValue() },
-    { 0, 8000000, 4, kNoTimestamp.ToInternalValue() },
-    { 0, 1000000, kWriteSize, kNoTimestamp.ToInternalValue() },
-    { 0, 4000000, kWriteSize, kNoTimestamp.ToInternalValue() },
-    { 0, 8000000, kWriteSize, kNoTimestamp.ToInternalValue() },
+    { 0, 1000000, 0, kNoTimestamp().ToInternalValue() },
+    { 0, 4000000, 0, kNoTimestamp().ToInternalValue() },
+    { 0, 8000000, 0, kNoTimestamp().ToInternalValue() },
+    { 0, 1000000, 4, kNoTimestamp().ToInternalValue() },
+    { 0, 4000000, 4, kNoTimestamp().ToInternalValue() },
+    { 0, 8000000, 4, kNoTimestamp().ToInternalValue() },
+    { 0, 1000000, kWriteSize, kNoTimestamp().ToInternalValue() },
+    { 0, 4000000, kWriteSize, kNoTimestamp().ToInternalValue() },
+    { 0, 8000000, kWriteSize, kNoTimestamp().ToInternalValue() },
     { 5, 1000000, 0, 5 },
     { 5, 4000000, 0, 5 },
     { 5, 8000000, 0, 5 },
@@ -318,8 +318,8 @@ TEST_F(SeekableBufferTest, GetTime) {
     { 5, 8000000, kWriteSize, 8000005 },
   };
 
-  // current_time() must initially return kNoTimestamp.
-  EXPECT_EQ(kNoTimestamp.ToInternalValue(),
+  // current_time() must initially return kNoTimestamp().
+  EXPECT_EQ(kNoTimestamp().ToInternalValue(),
             buffer_.current_time().ToInternalValue());
 
   scoped_refptr<media::DataBuffer> buffer(new media::DataBuffer(kWriteSize));

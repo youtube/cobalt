@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -35,10 +35,14 @@
 namespace media {
 
 // Indicates an invalid or missing timestamp.
-MEDIA_EXPORT extern const base::TimeDelta kNoTimestamp;
+MEDIA_EXPORT extern inline base::TimeDelta kNoTimestamp() {
+  return base::TimeDelta::FromMicroseconds(kint64min);
+}
 
 // Represents an infinite stream duration.
-MEDIA_EXPORT extern const base::TimeDelta kInfiniteDuration;
+MEDIA_EXPORT extern inline base::TimeDelta kInfiniteDuration() {
+  return base::TimeDelta::FromMicroseconds(kint64max);
+}
 
 class MEDIA_EXPORT StreamSample
     : public base::RefCountedThreadSafe<StreamSample> {
