@@ -262,13 +262,12 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
     // safe thing and Cancel() the request or decide to proceed by calling
     // ContinueDespiteLastError().  cert_error is a ERR_* error code
     // indicating what's wrong with the certificate.
-    // If |fatal| is true then the host in question demands a higher level
-    // of security (due e.g. to HTTP Strict Transport Security, user
-    // preference, or built-in policy). In this case, errors must not be
-    // bypassable by the user.
+    // If |is_hsts_host| is true then the host in question is an HSTS host
+    // which demands a higher level of security. In this case, errors must not
+    // be bypassable by the user.
     virtual void OnSSLCertificateError(URLRequest* request,
                                        const SSLInfo& ssl_info,
-                                       bool fatal);
+                                       bool is_hsts_host);
 
     // Called when reading cookies to allow the delegate to block access to the
     // cookie. This method will never be invoked when LOAD_DO_NOT_SEND_COOKIES
@@ -694,7 +693,8 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   void NotifyAuthRequired(AuthChallengeInfo* auth_info);
   void NotifyAuthRequiredComplete(NetworkDelegate::AuthRequiredResponse result);
   void NotifyCertificateRequested(SSLCertRequestInfo* cert_request_info);
-  void NotifySSLCertificateError(const SSLInfo& ssl_info, bool fatal);
+  void NotifySSLCertificateError(const SSLInfo& ssl_info,
+                                 bool is_hsts_host);
   bool CanGetCookies(const CookieList& cookie_list) const;
   bool CanSetCookie(const std::string& cookie_line,
                     CookieOptions* options) const;
