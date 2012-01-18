@@ -17,7 +17,9 @@ namespace media {
 
 // A count of all MediaLogs created on this render process.
 // Used to generate unique ids.
-static base::LazyInstance<base::AtomicSequenceNumber> media_log_count =
+static base::LazyInstance<
+  base::AtomicSequenceNumber,
+  base::LeakyLazyInstanceTraits<base::AtomicSequenceNumber> > media_log_count =
     LAZY_INSTANCE_INITIALIZER;
 
 const char* MediaLog::EventTypeToString(MediaLogEvent::Type type) {
