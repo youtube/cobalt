@@ -133,7 +133,9 @@ PlatformThreadId PlatformThread::CurrentId() {
   // Pthreads doesn't have the concept of a thread ID, so we have to reach down
   // into the kernel.
 #if defined(OS_MACOSX)
-  return mach_thread_self();
+  mach_port_t port = mach_thread_self();
+  mach_port_deallocate(mach_task_self(), port);
+  return port;
 #elif defined(OS_LINUX)
   return syscall(__NR_gettid);
 #elif defined(OS_ANDROID)
