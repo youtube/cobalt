@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -51,7 +51,6 @@ typedef pthread_mutex_t* MutexHandle;
 #include "base/eintr_wrapper.h"
 #include "base/string_piece.h"
 #include "base/synchronization/lock_impl.h"
-#include "base/threading/platform_thread.h"
 #include "base/utf_string_conversions.h"
 #include "base/vlog.h"
 #if defined(OS_POSIX)
@@ -127,6 +126,22 @@ int32 CurrentProcessId() {
   return GetCurrentProcessId();
 #elif defined(OS_POSIX)
   return getpid();
+#endif
+}
+
+int32 CurrentThreadId() {
+#if defined(OS_WIN)
+  return GetCurrentThreadId();
+#elif defined(OS_MACOSX)
+  return mach_thread_self();
+#elif defined(OS_LINUX)
+  return syscall(__NR_gettid);
+#elif defined(OS_ANDROID)
+  return gettid();
+#elif defined(OS_NACL)
+  return pthread_self();
+#elif defined(OS_POSIX)
+  return reinterpret_cast<int64>(pthread_self());
 #endif
 }
 
@@ -675,7 +690,7 @@ void LogMessage::Init(const char* file, int line) {
   if (log_process_id)
     stream_ << CurrentProcessId() << ':';
   if (log_thread_id)
-    stream_ << base::PlatformThread::CurrentId() << ':';
+    stream_ << CurrentThreadId() << ':';
   if (log_timestamp) {
     time_t t = time(NULL);
     struct tm local_time = {0};
