@@ -1,7 +1,8 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/compiler_specific.h"
 #include "base/threading/platform_thread.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -14,7 +15,7 @@ class TrivialThread : public PlatformThread::Delegate {
  public:
   TrivialThread() : did_run_(false) {}
 
-  virtual void ThreadMain() {
+  virtual void ThreadMain() OVERRIDE {
     did_run_ = true;
   }
 
@@ -56,10 +57,13 @@ class FunctionTestThread : public TrivialThread {
  public:
   FunctionTestThread() : thread_id_(0) {}
 
-  virtual void ThreadMain() {
+  virtual void ThreadMain() OVERRIDE {
     thread_id_ = PlatformThread::CurrentId();
     PlatformThread::YieldCurrentThread();
     PlatformThread::Sleep(TimeDelta::FromMilliseconds(50));
+
+    // Make sure that the thread ID is the same across calls.
+    EXPECT_EQ(thread_id_, PlatformThread::CurrentId());
 
     TrivialThread::ThreadMain();
   }
@@ -83,6 +87,9 @@ TEST(PlatformThreadTest, Function) {
   PlatformThread::Join(handle);
   ASSERT_TRUE(thread.did_run());
   EXPECT_NE(thread.thread_id(), main_thread_id);
+
+  // Make sure that the thread ID is the same across calls.
+  EXPECT_EQ(main_thread_id, PlatformThread::CurrentId());
 }
 
 TEST(PlatformThreadTest, FunctionTimesTen) {
@@ -100,7 +107,15 @@ TEST(PlatformThreadTest, FunctionTimesTen) {
   for (size_t n = 0; n < arraysize(thread); n++) {
     ASSERT_TRUE(thread[n].did_run());
     EXPECT_NE(thread[n].thread_id(), main_thread_id);
+
+    // Make sure no two threads get the same ID.
+    for (size_t i = 0; i < n; ++i) {
+      EXPECT_NE(thread[i].thread_id(), thread[n].thread_id());
+    }
   }
+
+  // Make sure that the thread ID is the same across calls.
+  EXPECT_EQ(main_thread_id, PlatformThread::CurrentId());
 }
 
 }  // namespace base
