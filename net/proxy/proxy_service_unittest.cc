@@ -2441,39 +2441,53 @@ TEST_F(ProxyServiceTest, PACScriptPollingPolicy) {
   ProxyService::PacPollPolicy::Mode mode;
   int64 delay_ms = -1;
 
-  // After a failure, we should start polling at 4 seconds.
+  // --------------------------------------------------
+  // Test the poll sequence in response to a failure.
+  // --------------------------------------------------
   mode = policy->GetInitialDelay(ERR_FAILED, &delay_ms);
-  EXPECT_EQ(4000, delay_ms);
-  EXPECT_EQ(ProxyService::PacPollPolicy::MODE_USE_TIMER, mode);
-
-  // After a success, we should start polling at 16 seconds.
-  mode = policy->GetInitialDelay(OK, &delay_ms);
-  EXPECT_EQ(16000, delay_ms);
-  EXPECT_EQ(ProxyService::PacPollPolicy::MODE_USE_TIMER, mode);
-
-  // The delay should be doubled each time.
-  mode = policy->GetNextDelay(4000, &delay_ms);
   EXPECT_EQ(8000, delay_ms);
   EXPECT_EQ(ProxyService::PacPollPolicy::MODE_USE_TIMER, mode);
-  mode = policy->GetNextDelay(delay_ms, &delay_ms);
-  EXPECT_EQ(16000, delay_ms);
-  EXPECT_EQ(ProxyService::PacPollPolicy::MODE_USE_TIMER, mode);
 
-  // Once we reach 32 seconds, the polling should stop being done using
-  // a timer, however it should keep doubling.
+  // Poll #1
   mode = policy->GetNextDelay(delay_ms, &delay_ms);
   EXPECT_EQ(32000, delay_ms);
   EXPECT_EQ(ProxyService::PacPollPolicy::MODE_START_AFTER_ACTIVITY, mode);
+
+  // Poll #2
   mode = policy->GetNextDelay(delay_ms, &delay_ms);
-  EXPECT_EQ(64000, delay_ms);
+  EXPECT_EQ(7200000, delay_ms);
   EXPECT_EQ(ProxyService::PacPollPolicy::MODE_START_AFTER_ACTIVITY, mode);
 
-  // Once we reach 2 minutes, the polling delay should stop increasing.
+  // Poll #3
   mode = policy->GetNextDelay(delay_ms, &delay_ms);
+  EXPECT_EQ(7200000, delay_ms);
+  EXPECT_EQ(ProxyService::PacPollPolicy::MODE_START_AFTER_ACTIVITY, mode);
+
+  // Poll #4
+  mode = policy->GetNextDelay(delay_ms, &delay_ms);
+  EXPECT_EQ(7200000, delay_ms);
+  EXPECT_EQ(ProxyService::PacPollPolicy::MODE_START_AFTER_ACTIVITY, mode);
+
+  // --------------------------------------------------
+  // Test the poll sequence in response to a success.
+  // --------------------------------------------------
+  mode = policy->GetInitialDelay(OK, &delay_ms);
   EXPECT_EQ(120000, delay_ms);
   EXPECT_EQ(ProxyService::PacPollPolicy::MODE_START_AFTER_ACTIVITY, mode);
+
+  // Poll #1
   mode = policy->GetNextDelay(delay_ms, &delay_ms);
-  EXPECT_EQ(120000, delay_ms);
+  EXPECT_EQ(7200000, delay_ms);
+  EXPECT_EQ(ProxyService::PacPollPolicy::MODE_START_AFTER_ACTIVITY, mode);
+
+  // Poll #2
+  mode = policy->GetNextDelay(delay_ms, &delay_ms);
+  EXPECT_EQ(7200000, delay_ms);
+  EXPECT_EQ(ProxyService::PacPollPolicy::MODE_START_AFTER_ACTIVITY, mode);
+
+  // Poll #3
+  mode = policy->GetNextDelay(delay_ms, &delay_ms);
+  EXPECT_EQ(7200000, delay_ms);
   EXPECT_EQ(ProxyService::PacPollPolicy::MODE_START_AFTER_ACTIVITY, mode);
 }
 
