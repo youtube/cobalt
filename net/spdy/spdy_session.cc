@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -1479,7 +1479,7 @@ void SpdySession::OnWindowUpdate(
     stream->IncreaseSendWindowSize(delta_window_size);
 
   net_log_.AddEvent(
-      NetLog::TYPE_SPDY_SESSION_SEND_WINDOW_UPDATE,
+      NetLog::TYPE_SPDY_SESSION_RECV_WINDOW_UPDATE,
       make_scoped_refptr(new NetLogSpdyWindowUpdateParameter(
           stream_id, delta_window_size, stream->send_window_size())));
 }
@@ -1491,7 +1491,7 @@ void SpdySession::SendWindowUpdate(spdy::SpdyStreamId stream_id,
   CHECK_EQ(stream->stream_id(), stream_id);
 
   net_log_.AddEvent(
-      NetLog::TYPE_SPDY_SESSION_RECV_WINDOW_UPDATE,
+      NetLog::TYPE_SPDY_SESSION_SEND_WINDOW_UPDATE,
       make_scoped_refptr(new NetLogSpdyWindowUpdateParameter(
           stream_id, delta_window_size, stream->recv_window_size())));
 
