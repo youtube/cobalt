@@ -12,6 +12,7 @@
 #include "media/base/filter_host.h"
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
+#include "media/base/pipeline.h"
 #include "media/base/video_decoder_config.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_util.h"
@@ -85,7 +86,7 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
 
   const VideoDecoderConfig& config = demuxer_stream->video_decoder_config();
 
-  // TODO(scherkus): this check should go in PipelineImpl prior to creating
+  // TODO(scherkus): this check should go in Pipeline prior to creating
   // decoder objects.
   if (!config.IsValidConfig()) {
     DLOG(ERROR) << "Invalid video stream - " << config.AsHumanReadableString();

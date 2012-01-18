@@ -8,6 +8,7 @@
 #include "media/base/buffers.h"
 #include "media/base/filter_host.h"
 #include "media/base/limits.h"
+#include "media/base/pipeline.h"
 #include "media/base/video_frame.h"
 #include "media/filters/video_renderer_base.h"
 

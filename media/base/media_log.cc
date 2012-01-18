@@ -11,6 +11,7 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/message_loop.h"
 #include "base/values.h"
 
 namespace media {
@@ -65,37 +66,37 @@ const char* MediaLog::EventTypeToString(MediaLogEvent::Type type) {
   return NULL;
 }
 
-const char* MediaLog::PipelineStateToString(PipelineImpl::State state) {
+const char* MediaLog::PipelineStateToString(Pipeline::State state) {
   switch (state) {
-    case PipelineImpl::kCreated:
+    case Pipeline::kCreated:
       return "created";
-    case PipelineImpl::kInitDemuxer:
+    case Pipeline::kInitDemuxer:
       return "initDemuxer";
-    case PipelineImpl::kInitAudioDecoder:
+    case Pipeline::kInitAudioDecoder:
       return "initAudioDecoder";
-    case PipelineImpl::kInitAudioRenderer:
+    case Pipeline::kInitAudioRenderer:
       return "initAudioRenderer";
-    case PipelineImpl::kInitVideoDecoder:
+    case Pipeline::kInitVideoDecoder:
       return "initVideoDecoder";
-    case PipelineImpl::kInitVideoRenderer:
+    case Pipeline::kInitVideoRenderer:
       return "initVideoRenderer";
-    case PipelineImpl::kPausing:
+    case Pipeline::kPausing:
       return "pausing";
-    case PipelineImpl::kSeeking:
+    case Pipeline::kSeeking:
       return "seeking";
-    case PipelineImpl::kFlushing:
+    case Pipeline::kFlushing:
       return "flushing";
-    case PipelineImpl::kStarting:
+    case Pipeline::kStarting:
       return "starting";
-    case PipelineImpl::kStarted:
+    case Pipeline::kStarted:
       return "started";
-    case PipelineImpl::kEnded:
+    case Pipeline::kEnded:
       return "ended";
-    case PipelineImpl::kStopping:
+    case Pipeline::kStopping:
       return "stopping";
-    case PipelineImpl::kStopped:
+    case Pipeline::kStopped:
       return "stopped";
-    case PipelineImpl::kError:
+    case Pipeline::kError:
       return "error";
   }
   NOTREACHED();
@@ -199,7 +200,7 @@ scoped_ptr<MediaLogEvent> MediaLog::CreateSeekEvent(float seconds) {
 }
 
 scoped_ptr<MediaLogEvent> MediaLog::CreatePipelineStateChangedEvent(
-    PipelineImpl::State state) {
+    Pipeline::State state) {
   scoped_ptr<MediaLogEvent> event(
       CreateEvent(MediaLogEvent::PIPELINE_STATE_CHANGED));
   event->params.SetString("pipeline_state", PipelineStateToString(state));

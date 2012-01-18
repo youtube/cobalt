@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,7 +18,7 @@ struct MediaLogEvent {
     WEBMEDIAPLAYER_CREATED,
     WEBMEDIAPLAYER_DESTROYED,
 
-    // A PipelineImpl is being created or destroyed.
+    // A Pipeline is being created or destroyed.
     // params: none.
     PIPELINE_CREATED,
     PIPELINE_DESTROYED,
@@ -36,7 +36,7 @@ struct MediaLogEvent {
     PLAY,
     PAUSE,
 
-    // The state of PipelineImpl has changed.
+    // The state of Pipeline has changed.
     // params: "pipeline_state": <string name of the state>.
     PIPELINE_STATE_CHANGED,
 
