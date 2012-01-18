@@ -9,6 +9,7 @@
 #include "media/base/data_buffer.h"
 #include "media/base/demuxer.h"
 #include "media/base/filter_host.h"
+#include "media/base/pipeline.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 
 namespace media {
@@ -113,7 +114,7 @@ void FFmpegAudioDecoder::DoInitialize(
   const AudioDecoderConfig& config = stream->audio_decoder_config();
   stats_callback_ = stats_callback;
 
-  // TODO(scherkus): this check should go in PipelineImpl prior to creating
+  // TODO(scherkus): this check should go in Pipeline prior to creating
   // decoder objects.
   if (!config.IsValidConfig()) {
     DLOG(ERROR) << "Invalid audio stream -"
