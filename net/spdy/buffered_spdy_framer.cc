@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -107,6 +107,19 @@ SpdyFramer::SpdyError BufferedSpdyFramer::error_code() const {
 
 SpdyFramer::SpdyState BufferedSpdyFramer::state() const {
   return spdy_framer_.state();
+}
+
+bool BufferedSpdyFramer::MessageFullyRead() {
+  return spdy_framer_.MessageFullyRead();
+}
+
+bool BufferedSpdyFramer::HasError() {
+  return spdy_framer_.HasError();
+}
+
+bool BufferedSpdyFramer::ParseHeaderBlock(const SpdyFrame* frame,
+                                          SpdyHeaderBlock* block) {
+  return spdy_framer_.ParseHeaderBlock(frame, block);
 }
 
 SpdySynStreamControlFrame* BufferedSpdyFramer::CreateSynStream(
