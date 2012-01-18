@@ -601,6 +601,12 @@ void URLRequestHttpJob::FetchResponseCookies(
   }
 }
 
+// NOTE: |ProcessStrictTransportSecurityHeader| and
+// |ProcessPublicKeyPinsHeader| have very similar structures, by design.
+// They manipulate different parts of |TransportSecurityState::DomainState|,
+// and they must remain complementary. If, in future changes here, there is
+// any conflict between their policies (such as in |domain_state.mode|), you
+// should resolve the conflict in favor of the more strict policy.
 void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
   DCHECK(response_info_);
 
@@ -614,30 +620,36 @@ void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
     return;
   }
 
-  const std::string name = "Strict-Transport-Security";
-  std::string value;
+  TransportSecurityState* security_state = ctx->transport_security_state();
+  TransportSecurityState::DomainState domain_state;
+  const std::string& host = request_info_.url.host();
 
-  int max_age;
-  bool include_subdomains;
+  bool sni_available =
+      SSLConfigService::IsSNIAvailable(ctx->ssl_config_service());
+  if (!security_state->HasMetadata(&domain_state, host, sni_available)) {
+    // |HasMetadata| may have altered |domain_state| while searching. If not
+    // found, start with a fresh state.
+    domain_state = TransportSecurityState::DomainState();
+    domain_state.mode = TransportSecurityState::DomainState::MODE_STRICT;
+  }
 
   HttpResponseHeaders* headers = GetResponseHeaders();
-
+  std::string value;
   void* iter = NULL;
-  while (headers->EnumerateHeader(&iter, name, &value)) {
-    const bool ok = TransportSecurityState::ParseHeader(
-        value, &max_age, &include_subdomains);
-    if (!ok)
-      continue;
-    base::Time current_time(base::Time::Now());
-    base::TimeDelta max_age_delta = base::TimeDelta::FromSeconds(max_age);
 
-    TransportSecurityState::DomainState domain_state;
-    domain_state.expiry = current_time + max_age_delta;
-    domain_state.mode = TransportSecurityState::DomainState::MODE_STRICT;
-    domain_state.include_subdomains = include_subdomains;
+  while (headers->EnumerateHeader(&iter, "Strict-Transport-Security", &value)) {
+    int max_age;
+    bool include_subdomains;
+    if (TransportSecurityState::ParseHeader(value, &max_age,
+                                            &include_subdomains)) {
+      base::Time current_time(base::Time::Now());
+      base::TimeDelta max_age_delta = base::TimeDelta::FromSeconds(max_age);
 
-    ctx->transport_security_state()->EnableHost(request_info_.url.host(),
-                                                domain_state);
+      domain_state.expiry = current_time + max_age_delta;
+      domain_state.include_subdomains = include_subdomains;
+
+      security_state->EnableHost(request_info_.url.host(), domain_state);
+    }
   }
 }
 
@@ -660,9 +672,12 @@ void URLRequestHttpJob::ProcessPublicKeyPinsHeader() {
 
   bool sni_available =
       SSLConfigService::IsSNIAvailable(ctx->ssl_config_service());
-  bool found = security_state->HasMetadata(&domain_state, host, sni_available);
-  if (!found)
+  if (!security_state->HasMetadata(&domain_state, host, sni_available)) {
+    // |HasMetadata| may have altered |domain_state| while searching. If not
+    // found, start with a fresh state.
+    domain_state = TransportSecurityState::DomainState();
     domain_state.mode = TransportSecurityState::DomainState::MODE_PINNING_ONLY;
+  }
 
   HttpResponseHeaders* headers = GetResponseHeaders();
   void* iter = NULL;
