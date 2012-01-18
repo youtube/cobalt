@@ -3,10 +3,11 @@
 // found in the LICENSE file.
 
 #include "base/bind.h"
+#include "base/message_loop.h"
 #include "media/base/filter_collection.h"
 #include "media/base/media_log.h"
 #include "media/base/message_loop_factory_impl.h"
-#include "media/base/pipeline_impl.h"
+#include "media/base/pipeline.h"
 #include "media/base/test_data_util.h"
 #include "media/filters/ffmpeg_audio_decoder.h"
 #include "media/filters/ffmpeg_demuxer_factory.h"
@@ -21,7 +22,7 @@ using ::testing::AnyNumber;
 
 namespace media {
 
-// Integration tests for PipelineImpl. Real demuxers, real decoders, and
+// Integration tests for Pipeline. Real demuxers, real decoders, and
 // base renderer implementations are used to verify pipeline functionality. The
 // renderers used in these tests rely heavily on the AudioRendererBase &
 // VideoRendererBase implementations which contain a majority of the code used
@@ -34,7 +35,7 @@ class PipelineIntegrationTest : public testing::Test {
  public:
   PipelineIntegrationTest()
       : message_loop_factory_(new MessageLoopFactoryImpl()),
-        pipeline_(new PipelineImpl(&message_loop_, new MediaLog())),
+        pipeline_(new Pipeline(&message_loop_, new MediaLog())),
         ended_(false) {
     pipeline_->Init(
         base::Bind(&PipelineIntegrationTest::OnEnded, base::Unretained(this)),
