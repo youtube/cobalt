@@ -1337,9 +1337,9 @@ TEST_F(HTTPSRequestTest, HTTPSExpiredTest) {
   }
 }
 
-// This tests that a load of www.google.com with a certificate error sets the
-// is_hsts_host flag correctly. This flag will cause the interstitial to be
-// fatal.
+// This tests that a load of www.google.com with a certificate error sets
+// the |certificate_errors_are_fatal| flag correctly. This flag will cause
+// the interstitial to be fatal.
 TEST_F(HTTPSRequestTest, HTTPSPreloadedHSTSTest) {
   TestServer::HTTPSOptions https_options(
       TestServer::HTTPSOptions::CERT_MISMATCHED_NAME);
@@ -1376,7 +1376,7 @@ TEST_F(HTTPSRequestTest, HTTPSPreloadedHSTSTest) {
   EXPECT_EQ(1, d.response_started_count());
   EXPECT_FALSE(d.received_data_before_response());
   EXPECT_TRUE(d.have_certificate_errors());
-  EXPECT_TRUE(d.is_hsts_host());
+  EXPECT_TRUE(d.certificate_errors_are_fatal());
 }
 
 namespace {
