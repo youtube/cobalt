@@ -232,11 +232,11 @@ void URLRequestJob::NotifyCertificateRequested(
 }
 
 void URLRequestJob::NotifySSLCertificateError(const SSLInfo& ssl_info,
-                                              bool is_hsts_host) {
+                                              bool fatal) {
   if (!request_)
     return;  // The request was destroyed, so there is no more work to do.
 
-  request_->NotifySSLCertificateError(ssl_info, is_hsts_host);
+  request_->NotifySSLCertificateError(ssl_info, fatal);
 }
 
 bool URLRequestJob::CanGetCookies(const CookieList& cookie_list) const {
