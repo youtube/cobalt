@@ -140,27 +140,29 @@ class MEDIA_EXPORT Pipeline
             const NetworkEventCB& network_callback);
 
   // Build a pipeline to render the given URL using the given filter collection
-  // to construct a filter chain.  Returns true if successful, false otherwise
-  // (i.e., pipeline already started).  Note that a return value of true
-  // only indicates that the initialization process has started successfully.
-  // Pipeline initialization is an inherently asynchronous process.  Clients can
-  // either poll the IsInitialized() method (discouraged) or use the
-  // |start_callback| as described below.
+  // to construct a filter chain.
   //
-  // This method is asynchronous and can execute a callback when completed.
-  // If the caller provides a |start_callback|, it will be called when the
-  // pipeline initialization completes.
-  bool Start(scoped_ptr<FilterCollection> filter_collection,
+  // Pipeline initialization is an inherently asynchronous process.  Clients can
+  // either poll the IsInitialized() method (discouraged) or optionally pass in
+  // |start_callback|, which will be executed when initialization completes.
+  //
+  // It is an error to call this method after the pipeline has already started.
+  //
+  // TODO(scherkus): remove IsInitialized() and force clients to use callbacks.
+  void Start(scoped_ptr<FilterCollection> filter_collection,
              const std::string& url,
              const PipelineStatusCB& start_callback);
 
   // Asynchronously stops the pipeline and resets it to an uninitialized state.
+  //
   // If provided, |stop_callback| will be executed when the pipeline has been
   // completely torn down and reset to an uninitialized state.  It is acceptable
   // to call Start() again once the callback has finished executing.
   //
   // Stop() must be called before destroying the pipeline.  Clients can
   // determine whether Stop() must be called by checking IsRunning().
+  //
+  // It is an error to call this method if the pipeline has not started.
   //
   // TODO(scherkus): ideally clients would destroy the pipeline after calling
   // Stop() and create a new pipeline as needed.
@@ -171,6 +173,8 @@ class MEDIA_EXPORT Pipeline
   //
   // Clients are expected to call GetCurrentTime() to check whether the seek
   // succeeded.
+  //
+  // It is an error to call this method if the pipeline has not started.
   void Seek(base::TimeDelta time, const PipelineStatusCB& seek_callback);
 
   // Returns true if the pipeline has been started via Start().  If IsRunning()
