@@ -838,9 +838,9 @@ void URLRequest::NotifyCertificateRequested(
 }
 
 void URLRequest::NotifySSLCertificateError(const SSLInfo& ssl_info,
-                                           bool fatal) {
+                                           bool is_hsts_host) {
   if (delegate_)
-    delegate_->OnSSLCertificateError(this, ssl_info, fatal);
+    delegate_->OnSSLCertificateError(this, ssl_info, is_hsts_host);
 }
 
 bool URLRequest::CanGetCookies(const CookieList& cookie_list) const {

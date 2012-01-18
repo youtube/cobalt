@@ -190,7 +190,7 @@ void ProxyScriptFetcherImpl::OnAuthRequired(URLRequest* request,
 
 void ProxyScriptFetcherImpl::OnSSLCertificateError(URLRequest* request,
                                                    const SSLInfo& ssl_info,
-                                                   bool fatal) {
+                                                   bool is_hsts_host) {
   DCHECK_EQ(request, cur_request_.get());
   // Revocation check failures are not fatal.
   if (IsCertStatusMinorError(ssl_info.cert_status)) {
