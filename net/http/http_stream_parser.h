@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,9 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/string_piece.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_export.h"
 #include "net/base/net_log.h"
 #include "net/base/upload_data_stream.h"
 #include "net/http/http_chunked_decoder.h"
@@ -26,7 +28,7 @@ class IOBuffer;
 class SSLCertRequestInfo;
 class SSLInfo;
 
-class HttpStreamParser  : public ChunkCallback {
+class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
  public:
   // Any data in |read_buffer| will be used before reading from the socket
   // and any data left over after parsing the stream will be put into
@@ -76,6 +78,21 @@ class HttpStreamParser  : public ChunkCallback {
 
   // ChunkCallback methods.
   virtual void OnChunkAvailable() OVERRIDE;
+
+  // Encodes the given |payload| in the chunked format to |output|.
+  // Returns the number of bytes written to |output|. |output_size| should
+  // be large enough to store the encoded chunk, which is payload.size() +
+  // kChunkHeaderFooterSize. Returns ERR_INVALID_ARGUMENT if |output_size|
+  // is not large enough.
+  //
+  // The output will look like: "HEX\r\n[payload]\r\n"
+  // where HEX is a length in hexdecimal (without the "0x" prefix).
+  static int EncodeChunk(const base::StringPiece& payload,
+                         char* output,
+                         size_t output_size);
+
+  // The number of extra bytes required to encode a chunk.
+  static const size_t kChunkHeaderFooterSize;
 
  private:
   // FOO_COMPLETE states implement the second half of potentially asynchronous

@@ -13,6 +13,7 @@
 
 namespace net {
 
+const size_t UploadDataStream::kBufferSize = 16384;
 bool UploadDataStream::merge_chunks_ = true;
 
 UploadDataStream::~UploadDataStream() {
@@ -46,7 +47,7 @@ void UploadDataStream::MarkConsumedAndFillBuffer(size_t num_bytes) {
 
 UploadDataStream::UploadDataStream(UploadData* data)
     : data_(data),
-      buf_(new IOBuffer(kBufSize)),
+      buf_(new IOBuffer(kBufferSize)),
       buf_len_(0),
       next_element_(0),
       next_element_offset_(0),
@@ -59,12 +60,12 @@ UploadDataStream::UploadDataStream(UploadData* data)
 int UploadDataStream::FillBuf() {
   std::vector<UploadData::Element>& elements = *data_->elements();
 
-  while (buf_len_ < kBufSize && next_element_ < elements.size()) {
+  while (buf_len_ < kBufferSize && next_element_ < elements.size()) {
     bool advance_to_next_element = false;
 
     UploadData::Element& element = elements[next_element_];
 
-    size_t size_remaining = kBufSize - buf_len_;
+    size_t size_remaining = kBufferSize - buf_len_;
     if (element.type() == UploadData::TYPE_BYTES ||
         element.type() == UploadData::TYPE_CHUNK) {
       const std::vector<char>& d = element.bytes();
