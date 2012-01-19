@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6815,6 +6815,60 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortUnrestrictedAllowed2) {
   EXPECT_EQ(OK, callback.WaitForResult());
 
   HttpStreamFactory::set_use_alternate_protocols(false);
+}
+
+TEST_F(HttpNetworkTransactionTest, AlternateProtocolUnsafeBlocked) {
+  // Ensure that we're not allowed to redirect traffic via an alternate
+  // protocol to an unsafe port, and that we resume the second
+  // HttpStreamFactoryImpl::Job once the alternate protocol request fails.
+  HttpStreamFactory::set_use_alternate_protocols(true);
+  SessionDependencies session_deps;
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = 0;
+
+  // The alternate protocol request will error out before we attempt to connect,
+  // so only the standard HTTP request will try to connect.
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 200 OK\r\n\r\n"),
+    MockRead("hello world"),
+    MockRead(true, OK),
+  };
+  StaticSocketDataProvider data(
+      data_reads, arraysize(data_reads), NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
+
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  HttpServerProperties* http_server_properties =
+      session->http_server_properties();
+  const int kUnsafePort = 7;
+  http_server_properties->SetAlternateProtocol(
+      HostPortPair::FromURL(request.url),
+      kUnsafePort,
+      NPN_SPDY_2);
+
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+  TestCompletionCallback callback;
+
+  int rv = trans->Start(&request, callback.callback(), BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  // The HTTP request should succeed.
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  // Disable alternate protocol before the asserts.
+  HttpStreamFactory::set_use_alternate_protocols(false);
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+
+  std::string response_data;
+  ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
+  EXPECT_EQ("hello world", response_data);
 }
 
 TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForNpnSpdy) {
