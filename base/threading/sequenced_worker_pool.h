@@ -172,6 +172,12 @@ class BASE_EXPORT SequencedWorkerPool {
                                const tracked_objects::Location& from_here,
                                const base::Closure& task);
 
+  // Like PostSequencedWorkerTask above, but allows you to specify a named
+  // token, which saves an extra call to GetNamedSequenceToken.
+  bool PostNamedSequencedWorkerTask(const std::string& token_name,
+                                    const tracked_objects::Location& from_here,
+                                    const base::Closure& task);
+
   // Same as PostSequencedWorkerTask but allows specification of the shutdown
   // behavior.
   bool PostSequencedWorkerTaskWithShutdownBehavior(
@@ -179,6 +185,16 @@ class BASE_EXPORT SequencedWorkerPool {
       const tracked_objects::Location& from_here,
       const base::Closure& task,
       WorkerShutdown shutdown_behavior);
+
+  // Blocks until all pending tasks are complete. This should only be called in
+  // unit tests when you want to validate something that should have happened.
+  //
+  // Note that calling this will not prevent other threads from posting work to
+  // the queue while the calling thread is waiting on Flush(). In this case,
+  // Flush will return only when there's no more work in the queue. Normally,
+  // this doesn't come up sine in a test, all the work is being posted from
+  // the main thread.
+  void FlushForTesting();
 
   // Implements the worker pool shutdown. This should be called during app
   // shutdown, and will discard/join with appropriate tasks before returning.
