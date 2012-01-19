@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -109,9 +109,9 @@ bool Initialize() {
   // be released.
   static file_util::MemoryMappedFile mapped_file;
   if (!mapped_file.IsValid()) {
-    // Assume it is in the MainBundle's Resources directory.
+    // Assume it is in the framework bundle's Resources directory.
     FilePath data_path =
-      base::mac::PathForMainAppBundleResource(CFSTR(ICU_UTIL_DATA_FILE_NAME));
+      base::mac::PathForFrameworkBundleResource(CFSTR(ICU_UTIL_DATA_FILE_NAME));
     if (data_path.empty()) {
       DLOG(ERROR) << ICU_UTIL_DATA_FILE_NAME << " not found in bundle";
       return false;
