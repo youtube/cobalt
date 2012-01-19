@@ -22,6 +22,8 @@
 
 namespace {
 
+static const size_t kMaxMergedHeaderAndBodySize = 1400;
+
 std::string GetResponseHeaderLines(const net::HttpResponseHeaders& headers) {
   std::string raw_headers = headers.raw_headers();
   const char* null_separated_headers = raw_headers.c_str();
@@ -122,9 +124,6 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
   response_->socket_address = HostPortPair::FromAddrInfo(address.head());
 
   std::string request = request_line + headers.ToString();
-  scoped_refptr<StringIOBuffer> headers_io_buf(new StringIOBuffer(request));
-  request_headers_ = new DrainableIOBuffer(headers_io_buf,
-                                           headers_io_buf->size());
   request_body_.reset(request_body);
   if (request_body_ != NULL && request_body_->is_chunked()) {
     request_body_->set_chunk_callback(this);
@@ -134,6 +133,48 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
   }
 
   io_state_ = STATE_SENDING_HEADERS;
+
+  // If we have a small request body, then we'll merge with the headers into a
+  // single write.
+  bool did_merge = false;
+  if (request_body_ != NULL &&
+      !request_body_->is_chunked() &&
+      request_body_->size() > 0) {
+    size_t merged_size = request.size() + request_body_->size();
+    if (merged_size <= kMaxMergedHeaderAndBodySize) {
+      scoped_refptr<IOBuffer> merged_request_headers_and_body(
+          new IOBuffer(merged_size));
+      // We'll repurpose |request_headers_| to store the merged headers and
+      // body.
+      request_headers_ = new DrainableIOBuffer(
+          merged_request_headers_and_body, merged_size);
+
+      char *buf = request_headers_->data();
+      memcpy(buf, request.data(), request.size());
+      buf += request.size();
+
+      size_t todo = request_body_->size();
+      while (todo) {
+        size_t buf_len = request_body_->buf_len();
+        memcpy(buf, request_body_->buf()->data(), buf_len);
+        todo -= buf_len;
+        buf += buf_len;
+        request_body_->MarkConsumedAndFillBuffer(buf_len);
+      }
+      DCHECK(request_body_->eof());
+
+      did_merge = true;
+    }
+  }
+
+  if (!did_merge) {
+    // If we didn't merge the body with the headers, then |request_headers_|
+    // contains just the HTTP headers.
+    scoped_refptr<StringIOBuffer> headers_io_buf(new StringIOBuffer(request));
+    request_headers_ = new DrainableIOBuffer(headers_io_buf,
+                                             headers_io_buf->size());
+  }
+
   result = DoLoop(OK);
   if (result == ERR_IO_PENDING)
     callback_ = callback;
@@ -280,44 +321,13 @@ int HttpStreamParser::DoSendHeaders(int result) {
     // out the first bytes of the request headers.
     if (bytes_remaining == request_headers_->size()) {
       response_->request_time = base::Time::Now();
-
-      // We'll record the count of uncoalesced packets IFF coalescing will help,
-      // and otherwise we'll use an enum to tell why it won't help.
-      enum COALESCE_POTENTIAL {
-        // Coalescing won't reduce packet count.
-        NO_ADVANTAGE = 0,
-        // There is only a header packet or we have a request body but the
-        // request body isn't available yet (can't coalesce).
-        HEADER_ONLY = 1,
-        // Various cases of coalasced savings.
-        COALESCE_POTENTIAL_MAX = 30
-      };
-      size_t coalesce = HEADER_ONLY;
-      if (request_body_ != NULL && !request_body_->is_chunked()) {
-        const size_t kBytesPerPacket = 1430;
-        uint64 body_packets = (request_body_->size() + kBytesPerPacket - 1) /
-                              kBytesPerPacket;
-        uint64 header_packets = (bytes_remaining + kBytesPerPacket - 1) /
-                                kBytesPerPacket;
-        uint64 coalesced_packets = (request_body_->size() + bytes_remaining +
-                                    kBytesPerPacket - 1) / kBytesPerPacket;
-        if (coalesced_packets < header_packets + body_packets) {
-          if (coalesced_packets > COALESCE_POTENTIAL_MAX)
-            coalesce = COALESCE_POTENTIAL_MAX;
-          else
-            coalesce = static_cast<size_t>(header_packets + body_packets);
-        } else {
-          coalesce = NO_ADVANTAGE;
-        }
-      }
-      UMA_HISTOGRAM_ENUMERATION("Net.CoalescePotential", coalesce,
-                                COALESCE_POTENTIAL_MAX);
     }
     result = connection_->socket()->Write(request_headers_,
                                           bytes_remaining,
                                           io_callback_);
   } else if (request_body_ != NULL &&
-             (request_body_->is_chunked() || request_body_->size())) {
+             (request_body_->is_chunked() ||
+              (request_body_->size() && !request_body_->eof()))) {
     io_state_ = STATE_SENDING_BODY;
     result = OK;
   } else {
