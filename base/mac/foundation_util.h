@@ -43,12 +43,6 @@ BASE_EXPORT void SetOverrideAmIBundled(bool value);
 // Returns true if this process is marked as a "Background only process".
 BASE_EXPORT bool IsBackgroundOnlyProcess();
 
-// Returns the main bundle or the override, used for code that needs
-// to fetch resources from bundles, but work within a unittest where we
-// aren't a bundle.
-BASE_EXPORT NSBundle* MainAppBundle();
-BASE_EXPORT FilePath MainAppBundlePath();
-
 // Returns the path to a resource within the framework bundle.
 FilePath PathForFrameworkBundleResource(CFStringRef resourceName);
 
