@@ -266,6 +266,25 @@ TEST_F(HttpPipelinedHostImplTest, ShutsDownOnOldVersion) {
       SSLClientSocket::kProtoSPDY2));
 }
 
+TEST_F(HttpPipelinedHostImplTest, ShutsDownOnAuthenticationRequired) {
+  SetCapability(PIPELINE_UNKNOWN);
+  MockPipeline* pipeline = AddTestPipeline(1, true, true);
+
+  EXPECT_EQ(NULL, host_->CreateStreamOnExistingPipeline());
+  EXPECT_CALL(delegate_, OnHostHasAdditionalCapacity(host_.get()))
+      .Times(0);
+  EXPECT_CALL(delegate_,
+              OnHostDeterminedCapability(host_.get(), PIPELINE_INCAPABLE))
+      .Times(1);
+  host_->OnPipelineFeedback(pipeline,
+                            HttpPipelinedConnection::AUTHENTICATION_REQUIRED);
+
+  ClearTestPipeline(pipeline);
+  EXPECT_EQ(NULL, host_->CreateStreamOnNewPipeline(
+      kDummyConnection, ssl_config_, proxy_info_, net_log_, true,
+      SSLClientSocket::kProtoSPDY2));
+}
+
 TEST_F(HttpPipelinedHostImplTest, ConnectionCloseHasNoEffect) {
   SetCapability(PIPELINE_UNKNOWN);
   MockPipeline* pipeline = AddTestPipeline(1, true, true);

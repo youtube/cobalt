@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -1378,6 +1378,28 @@ TEST_F(HttpPipelinedConnectionImplTest, FeedbackOnNoContentLength) {
               OnPipelineFeedback(
                   pipeline_.get(),
                   HttpPipelinedConnection::MUST_CLOSE_CONNECTION))
+      .Times(1);
+
+  scoped_ptr<HttpStream> stream(NewTestStream("ok.html"));
+  TestSyncRequest(stream, "ok.html");
+}
+
+TEST_F(HttpPipelinedConnectionImplTest, FeedbackOnAuthenticationRequired) {
+  MockWrite writes[] = {
+    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+  };
+  MockRead reads[] = {
+    MockRead(false, 1, "HTTP/1.1 401 Unauthorized\r\n"),
+    MockRead(false, 2, "WWW-Authenticate: NTLM\r\n"),
+    MockRead(false, 3, "Content-Length: 7\r\n\r\n"),
+    MockRead(false, 4, "ok.html"),
+  };
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  EXPECT_CALL(delegate_,
+              OnPipelineFeedback(
+                  pipeline_.get(),
+                  HttpPipelinedConnection::AUTHENTICATION_REQUIRED))
       .Times(1);
 
   scoped_ptr<HttpStream> stream(NewTestStream("ok.html"));
