@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -115,15 +115,16 @@ bool WebMTracksParser::OnUInt(int id, int64 val) {
   return true;
 }
 
+bool WebMTracksParser::OnFloat(int id, double val) {
+  return true;
+}
+
 bool WebMTracksParser::OnBinary(int id, const uint8* data, int size) {
   return true;
 }
 
 bool WebMTracksParser::OnString(int id, const std::string& str) {
-  if (id != kWebMIdCodecID)
-    return false;
-
-  if (str != "A_VORBIS" && str != "V_VP8") {
+  if (id == kWebMIdCodecID && str != "A_VORBIS" && str != "V_VP8") {
     DVLOG(1) << "Unexpected CodecID " << str;
     return false;
   }

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -43,28 +43,97 @@ struct ListElementInfo {
 // appear in the list, a parsing error is signalled. Some elements are
 // marked as SKIP because they are valid, but we don't care about them
 // right now.
-static const ElementIdInfo kClusterIds[] = {
-  {UINT, kWebMIdTimecode},
-  {SBLOCK, kWebMIdSimpleBlock},
-  {LIST, kWebMIdBlockGroup},
+static const ElementIdInfo kEBMLHeaderIds[] = {
+  {UINT, kWebMIdEBMLVersion},
+  {UINT, kWebMIdEBMLReadVersion},
+  {UINT, kWebMIdEBMLMaxIDLength},
+  {UINT, kWebMIdEBMLMaxSizeLength},
+  {STRING, kWebMIdDocType},
+  {UINT, kWebMIdDocTypeVersion},
+  {UINT, kWebMIdDocTypeReadVersion},
 };
 
 static const ElementIdInfo kSegmentIds[] = {
-  {SKIP, kWebMIdSeekHead},  // TODO(acolwell): add SeekHead info
+  {LIST, kWebMIdSeekHead},
   {LIST, kWebMIdInfo},
   {LIST, kWebMIdCluster},
   {LIST, kWebMIdTracks},
-  {SKIP, kWebMIdCues},  // TODO(acolwell): add CUES info
+  {LIST, kWebMIdCues},
+  {LIST, kWebMIdAttachments},
+  {LIST, kWebMIdChapters},
+  {LIST, kWebMIdTags},
+};
+
+static const ElementIdInfo kSeekHeadIds[] = {
+  {LIST, kWebMIdSeek},
+};
+
+static const ElementIdInfo kSeekIds[] = {
+  {BINARY, kWebMIdSeekID},
+  {UINT, kWebMIdSeekPosition},
 };
 
 static const ElementIdInfo kInfoIds[] = {
-  {SKIP, kWebMIdSegmentUID},
+  {BINARY, kWebMIdSegmentUID},
+  {STRING, kWebMIdSegmentFilename},
+  {BINARY, kWebMIdPrevUID},
+  {STRING, kWebMIdPrevFilename},
+  {BINARY, kWebMIdNextUID},
+  {STRING, kWebMIdNextFilename},
+  {BINARY, kWebMIdSegmentFamily},
+  {LIST, kWebMIdChapterTranslate},
   {UINT, kWebMIdTimecodeScale},
   {FLOAT, kWebMIdDuration},
-  {SKIP, kWebMIdDateUTC},
-  {SKIP, kWebMIdTitle},
-  {SKIP, kWebMIdMuxingApp},
-  {SKIP, kWebMIdWritingApp},
+  {BINARY, kWebMIdDateUTC},
+  {STRING, kWebMIdTitle},
+  {STRING, kWebMIdMuxingApp},
+  {STRING, kWebMIdWritingApp},
+};
+
+static const ElementIdInfo kChapterTranslateIds[] = {
+  {UINT, kWebMIdChapterTranslateEditionUID},
+  {UINT, kWebMIdChapterTranslateCodec},
+  {BINARY, kWebMIdChapterTranslateID},
+};
+
+static const ElementIdInfo kClusterIds[] = {
+  {SBLOCK, kWebMIdSimpleBlock},
+  {UINT, kWebMIdTimecode},
+  {LIST, kWebMIdSilentTracks},
+  {UINT, kWebMIdPosition},
+  {UINT, kWebMIdPrevSize},
+  {LIST, kWebMIdBlockGroup},
+};
+
+static const ElementIdInfo kSilentTracksIds[] = {
+  {UINT, kWebMIdSilentTrackNumber},
+};
+
+static const ElementIdInfo kBlockGroupIds[] = {
+  {BINARY, kWebMIdBlock},
+  {LIST, kWebMIdBlockAdditions},
+  {UINT, kWebMIdBlockDuration},
+  {UINT, kWebMIdReferencePriority},
+  {BINARY, kWebMIdReferenceBlock},
+  {BINARY, kWebMIdCodecState},
+  {LIST, kWebMIdSlices},
+};
+
+static const ElementIdInfo kBlockAdditionsIds[] = {
+  {LIST, kWebMIdBlockMore},
+};
+
+static const ElementIdInfo kBlockMoreIds[] = {
+  {UINT, kWebMIdBlockAddID},
+  {BINARY, kWebMIdBlockAdditional},
+};
+
+static const ElementIdInfo kSlicesIds[] = {
+  {LIST, kWebMIdTimeSlice},
+};
+
+static const ElementIdInfo kTimeSliceIds[] = {
+  {UINT, kWebMIdLaceNumber},
 };
 
 static const ElementIdInfo kTracksIds[] = {
@@ -73,42 +142,209 @@ static const ElementIdInfo kTracksIds[] = {
 
 static const ElementIdInfo kTrackEntryIds[] = {
   {UINT, kWebMIdTrackNumber},
-  {SKIP, kWebMIdTrackUID},
+  {UINT, kWebMIdTrackUID},
   {UINT, kWebMIdTrackType},
-  {SKIP, kWebMIdFlagEnabled},
-  {SKIP, kWebMIdFlagDefault},
-  {SKIP, kWebMIdFlagForced},
+  {UINT, kWebMIdFlagEnabled},
+  {UINT, kWebMIdFlagDefault},
+  {UINT, kWebMIdFlagForced},
   {UINT, kWebMIdFlagLacing},
+  {UINT, kWebMIdMinCache},
+  {UINT, kWebMIdMaxCache},
   {UINT, kWebMIdDefaultDuration},
-  {SKIP, kWebMIdName},
-  {SKIP, kWebMIdLanguage},
+  {FLOAT, kWebMIdTrackTimecodeScale},
+  {UINT, kWebMIdMaxBlockAdditionId},
+  {STRING, kWebMIdName},
+  {STRING, kWebMIdLanguage},
   {STRING, kWebMIdCodecID},
   {BINARY, kWebMIdCodecPrivate},
-  {SKIP, kWebMIdCodecName},
+  {STRING, kWebMIdCodecName},
+  {UINT, kWebMIdAttachmentLink},
+  {UINT, kWebMIdCodecDecodeAll},
+  {UINT, kWebMIdTrackOverlay},
+  {LIST, kWebMIdTrackTranslate},
   {LIST, kWebMIdVideo},
   {LIST, kWebMIdAudio},
+  {LIST, kWebMIdTrackOperation},
+};
+
+static const ElementIdInfo kTrackTranslateIds[] = {
+  {UINT, kWebMIdTrackTranslateEditionUID},
+  {UINT, kWebMIdTrackTranslateCodec},
+  {BINARY, kWebMIdTrackTranslateTrackID},
 };
 
 static const ElementIdInfo kVideoIds[] = {
-  {SKIP, kWebMIdFlagInterlaced},
-  {SKIP, kWebMIdStereoMode},
+  {UINT, kWebMIdFlagInterlaced},
+  {UINT, kWebMIdStereoMode},
   {UINT, kWebMIdPixelWidth},
   {UINT, kWebMIdPixelHeight},
-  {SKIP, kWebMIdPixelCropBottom},
-  {SKIP, kWebMIdPixelCropTop},
-  {SKIP, kWebMIdPixelCropLeft},
-  {SKIP, kWebMIdPixelCropRight},
-  {SKIP, kWebMIdDisplayWidth},
-  {SKIP, kWebMIdDisplayHeight},
-  {SKIP, kWebMIdDisplayUnit},
-  {SKIP, kWebMIdAspectRatioType},
+  {UINT, kWebMIdPixelCropBottom},
+  {UINT, kWebMIdPixelCropTop},
+  {UINT, kWebMIdPixelCropLeft},
+  {UINT, kWebMIdPixelCropRight},
+  {UINT, kWebMIdDisplayWidth},
+  {UINT, kWebMIdDisplayHeight},
+  {UINT, kWebMIdDisplayUnit},
+  {UINT, kWebMIdAspectRatioType},
+  {BINARY, kWebMIdColorSpace},
 };
 
 static const ElementIdInfo kAudioIds[] = {
-  {SKIP, kWebMIdSamplingFrequency},
-  {SKIP, kWebMIdOutputSamplingFrequency},
+  {FLOAT, kWebMIdSamplingFrequency},
+  {FLOAT, kWebMIdOutputSamplingFrequency},
   {UINT, kWebMIdChannels},
-  {SKIP, kWebMIdBitDepth},
+  {UINT, kWebMIdBitDepth},
+};
+
+static const ElementIdInfo kTrackOperationIds[] = {
+  {LIST, kWebMIdTrackCombinePlanes},
+  {LIST, kWebMIdJoinBlocks},
+  {LIST, kWebMIdContentEncodings},
+};
+
+static const ElementIdInfo kTrackCombinePlanesIds[] = {
+  {LIST, kWebMIdTrackPlane},
+};
+
+static const ElementIdInfo kTrackPlaneIds[] = {
+  {UINT, kWebMIdTrackPlaneUID},
+  {UINT, kWebMIdTrackPlaneType},
+};
+
+static const ElementIdInfo kJoinBlocksIds[] = {
+  {UINT, kWebMIdTrackJoinUID},
+};
+
+static const ElementIdInfo kContentEncodingsIds[] = {
+  {LIST, kWebMIdContentEncoding},
+};
+
+static const ElementIdInfo kContentEncodingIds[] = {
+  {UINT, kWebMIdContentEncodingOrder},
+  {UINT, kWebMIdContentEncodingScope},
+  {UINT, kWebMIdContentEncodingType},
+  {LIST, kWebMIdContentCompression},
+  {LIST, kWebMIdContentEncryption},
+};
+
+static const ElementIdInfo kContentCompressionIds[] = {
+  {UINT, kWebMIdContentCompAlgo},
+  {BINARY, kWebMIdContentCompSettings},
+};
+
+static const ElementIdInfo kContentEncryptionIds[] = {
+  {UINT, kWebMIdContentEncAlgo},
+  {BINARY, kWebMIdContentEncKeyID},
+  {BINARY, kWebMIdContentSignature},
+  {BINARY, kWebMIdContentSigKeyID},
+  {UINT, kWebMIdContentSigAlgo},
+  {UINT, kWebMIdContentSigHashAlgo},
+};
+
+static const ElementIdInfo kCuesIds[] = {
+  {LIST, kWebMIdCuePoint},
+};
+
+static const ElementIdInfo kCuePointIds[] = {
+  {UINT, kWebMIdCueTime},
+  {LIST, kWebMIdCueTrackPositions},
+};
+
+static const ElementIdInfo kCueTrackPositionsIds[] = {
+  {UINT, kWebMIdCueTrack},
+  {UINT, kWebMIdCueClusterPosition},
+  {UINT, kWebMIdCueBlockNumber},
+  {UINT, kWebMIdCueCodecState},
+  {LIST, kWebMIdCueReference},
+};
+
+static const ElementIdInfo kCueReferenceIds[] = {
+  {UINT, kWebMIdCueRefTime},
+};
+
+static const ElementIdInfo kAttachmentsIds[] = {
+  {LIST, kWebMIdAttachedFile},
+};
+
+static const ElementIdInfo kAttachedFileIds[] = {
+  {STRING, kWebMIdFileDescription},
+  {STRING, kWebMIdFileName},
+  {STRING, kWebMIdFileMimeType},
+  {BINARY, kWebMIdFileData},
+  {UINT, kWebMIdFileUID},
+};
+
+static const ElementIdInfo kChaptersIds[] = {
+  {LIST, kWebMIdEditionEntry},
+};
+
+static const ElementIdInfo kEditionEntryIds[] = {
+  {UINT, kWebMIdEditionUID},
+  {UINT, kWebMIdEditionFlagHidden},
+  {UINT, kWebMIdEditionFlagDefault},
+  {UINT, kWebMIdEditionFlagOrdered},
+  {LIST, kWebMIdChapterAtom},
+};
+
+static const ElementIdInfo kChapterAtomIds[] = {
+  {UINT, kWebMIdChapterUID},
+  {UINT, kWebMIdChapterTimeStart},
+  {UINT, kWebMIdChapterTimeEnd},
+  {UINT, kWebMIdChapterFlagHidden},
+  {UINT, kWebMIdChapterFlagEnabled},
+  {BINARY, kWebMIdChapterSegmentUID},
+  {UINT, kWebMIdChapterSegmentEditionUID},
+  {UINT, kWebMIdChapterPhysicalEquiv},
+  {LIST, kWebMIdChapterTrack},
+  {LIST, kWebMIdChapterDisplay},
+  {LIST, kWebMIdChapProcess},
+};
+
+static const ElementIdInfo kChapterTrackIds[] = {
+  {UINT, kWebMIdChapterTrackNumber},
+};
+
+static const ElementIdInfo kChapterDisplayIds[] = {
+  {STRING, kWebMIdChapString},
+  {STRING, kWebMIdChapLanguage},
+  {STRING, kWebMIdChapCountry},
+};
+
+static const ElementIdInfo kChapProcessIds[] = {
+  {UINT, kWebMIdChapProcessCodecID},
+  {BINARY, kWebMIdChapProcessPrivate},
+  {LIST, kWebMIdChapProcessCommand},
+};
+
+static const ElementIdInfo kChapProcessCommandIds[] = {
+  {UINT, kWebMIdChapProcessTime},
+  {BINARY, kWebMIdChapProcessData},
+};
+
+static const ElementIdInfo kTagsIds[] = {
+  {LIST, kWebMIdTag},
+};
+
+static const ElementIdInfo kTagIds[] = {
+  {LIST, kWebMIdTargets},
+  {LIST, kWebMIdSimpleTag},
+};
+
+static const ElementIdInfo kTargetsIds[] = {
+  {UINT, kWebMIdTargetTypeValue},
+  {STRING, kWebMIdTargetType},
+  {UINT, kWebMIdTagTrackUID},
+  {UINT, kWebMIdTagEditionUID},
+  {UINT, kWebMIdTagChapterUID},
+  {UINT, kWebMIdTagAttachmentUID},
+};
+
+static const ElementIdInfo kSimpleTagIds[] = {
+  {STRING, kWebMIdTagName},
+  {STRING, kWebMIdTagLanguage},
+  {UINT, kWebMIdTagDefault},
+  {STRING, kWebMIdTagString},
+  {BINARY, kWebMIdTagBinary},
 };
 
 #define LIST_ELEMENT_INFO(id, level, id_info) \
@@ -116,12 +352,48 @@ static const ElementIdInfo kAudioIds[] = {
 
 static const ListElementInfo kListElementInfo[] = {
   LIST_ELEMENT_INFO(kWebMIdCluster, 1, kClusterIds),
+  LIST_ELEMENT_INFO(kWebMIdEBMLHeader, 0, kEBMLHeaderIds),
   LIST_ELEMENT_INFO(kWebMIdSegment, 0, kSegmentIds),
+  LIST_ELEMENT_INFO(kWebMIdSeekHead, 1, kSeekHeadIds),
+  LIST_ELEMENT_INFO(kWebMIdSeek, 2, kSeekIds),
   LIST_ELEMENT_INFO(kWebMIdInfo, 1, kInfoIds),
+  LIST_ELEMENT_INFO(kWebMIdChapterTranslate, 2, kChapterTranslateIds),
+  LIST_ELEMENT_INFO(kWebMIdSilentTracks, 2, kSilentTracksIds),
+  LIST_ELEMENT_INFO(kWebMIdBlockGroup, 2, kBlockGroupIds),
+  LIST_ELEMENT_INFO(kWebMIdBlockAdditions, 3, kBlockAdditionsIds),
+  LIST_ELEMENT_INFO(kWebMIdBlockMore, 4, kBlockMoreIds),
+  LIST_ELEMENT_INFO(kWebMIdSlices, 3, kSlicesIds),
+  LIST_ELEMENT_INFO(kWebMIdTimeSlice, 4, kTimeSliceIds),
   LIST_ELEMENT_INFO(kWebMIdTracks, 1, kTracksIds),
   LIST_ELEMENT_INFO(kWebMIdTrackEntry, 2, kTrackEntryIds),
+  LIST_ELEMENT_INFO(kWebMIdTrackTranslate, 3, kTrackTranslateIds),
   LIST_ELEMENT_INFO(kWebMIdVideo, 3, kVideoIds),
   LIST_ELEMENT_INFO(kWebMIdAudio, 3, kAudioIds),
+  LIST_ELEMENT_INFO(kWebMIdTrackOperation, 3, kTrackOperationIds),
+  LIST_ELEMENT_INFO(kWebMIdTrackCombinePlanes, 4, kTrackCombinePlanesIds),
+  LIST_ELEMENT_INFO(kWebMIdTrackPlane, 5, kTrackPlaneIds),
+  LIST_ELEMENT_INFO(kWebMIdJoinBlocks, 4, kJoinBlocksIds),
+  LIST_ELEMENT_INFO(kWebMIdContentEncodings, 4, kContentEncodingsIds),
+  LIST_ELEMENT_INFO(kWebMIdContentEncoding, 5, kContentEncodingIds),
+  LIST_ELEMENT_INFO(kWebMIdContentCompression, 6, kContentCompressionIds),
+  LIST_ELEMENT_INFO(kWebMIdContentEncryption, 6, kContentEncryptionIds),
+  LIST_ELEMENT_INFO(kWebMIdCues, 1, kCuesIds),
+  LIST_ELEMENT_INFO(kWebMIdCuePoint, 2, kCuePointIds),
+  LIST_ELEMENT_INFO(kWebMIdCueTrackPositions, 3, kCueTrackPositionsIds),
+  LIST_ELEMENT_INFO(kWebMIdCueReference, 4, kCueReferenceIds),
+  LIST_ELEMENT_INFO(kWebMIdAttachments, 1, kAttachmentsIds),
+  LIST_ELEMENT_INFO(kWebMIdAttachedFile, 2, kAttachedFileIds),
+  LIST_ELEMENT_INFO(kWebMIdChapters, 1, kChaptersIds),
+  LIST_ELEMENT_INFO(kWebMIdEditionEntry, 2, kEditionEntryIds),
+  LIST_ELEMENT_INFO(kWebMIdChapterAtom, 3, kChapterAtomIds),
+  LIST_ELEMENT_INFO(kWebMIdChapterTrack, 4, kChapterTrackIds),
+  LIST_ELEMENT_INFO(kWebMIdChapterDisplay, 4, kChapterDisplayIds),
+  LIST_ELEMENT_INFO(kWebMIdChapProcess, 4, kChapProcessIds),
+  LIST_ELEMENT_INFO(kWebMIdChapProcessCommand, 5, kChapProcessCommandIds),
+  LIST_ELEMENT_INFO(kWebMIdTags, 1, kTagsIds),
+  LIST_ELEMENT_INFO(kWebMIdTag, 2, kTagIds),
+  LIST_ELEMENT_INFO(kWebMIdTargets, 3, kTargetsIds),
+  LIST_ELEMENT_INFO(kWebMIdSimpleTag, 3, kSimpleTagIds),
 };
 
 // Parses an element header id or size field. These fields are variable length
