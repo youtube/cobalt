@@ -8,6 +8,7 @@
 
 #include "base/file_path.h"
 #include "base/logging.h"
+#include "base/mac/bundle_locations.h"
 #include "base/mac/foundation_util.h"
 #include "base/sys_string_conversions.h"
 
@@ -19,7 +20,7 @@ FileVersionInfoMac::~FileVersionInfoMac() {}
 
 // static
 FileVersionInfo* FileVersionInfo::CreateFileVersionInfoForCurrentModule() {
-  return CreateFileVersionInfo(base::mac::MainAppBundlePath());
+  return CreateFileVersionInfo(base::mac::FrameworkBundlePath());
 }
 
 // static

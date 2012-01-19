@@ -68,14 +68,6 @@ bool IsBackgroundOnlyProcess() {
   return [[info_dictionary objectForKey:@"LSUIElement"] boolValue] != NO;
 }
 
-NSBundle* MainAppBundle() {
-  return base::mac::FrameworkBundle();
-}
-
-FilePath MainAppBundlePath() {
-  return base::mac::FrameworkBundlePath();
-}
-
 FilePath PathForFrameworkBundleResource(CFStringRef resourceName) {
   NSBundle* bundle = base::mac::FrameworkBundle();
   NSString* resourcePath = [bundle pathForResource:(NSString*)resourceName
