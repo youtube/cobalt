@@ -184,6 +184,31 @@ void WASAPIAudioInputStream::Close() {
 
 // static
 double WASAPIAudioInputStream::HardwareSampleRate(ERole device_role) {
+  base::win::ScopedCoMem<WAVEFORMATEX> audio_engine_mix_format;
+  HRESULT hr = GetMixFormat(device_role, &audio_engine_mix_format);
+  if (FAILED(hr)) {
+    NOTREACHED() << "error code: " << hr;
+    return 0.0;
+  }
+
+  return static_cast<double>(audio_engine_mix_format->nSamplesPerSec);
+}
+
+// static
+uint32 WASAPIAudioInputStream::HardwareChannelCount(ERole device_role) {
+  base::win::ScopedCoMem<WAVEFORMATEX> audio_engine_mix_format;
+  HRESULT hr = GetMixFormat(device_role, &audio_engine_mix_format);
+  if (FAILED(hr)) {
+    NOTREACHED() << "error code: " << hr;
+    return 0;
+  }
+
+  return static_cast<uint32>(audio_engine_mix_format->nChannels);
+}
+
+// static
+HRESULT WASAPIAudioInputStream::GetMixFormat(ERole device_role,
+                                             WAVEFORMATEX** device_format) {
   // It is assumed that this static method is called from a COM thread, i.e.,
   // CoInitializeEx() is not called here to avoid STA/MTA conflicts.
   ScopedComPtr<IMMDeviceEnumerator> enumerator;
@@ -192,10 +217,8 @@ double WASAPIAudioInputStream::HardwareSampleRate(ERole device_role) {
                                  CLSCTX_INPROC_SERVER,
                                  __uuidof(IMMDeviceEnumerator),
                                  enumerator.ReceiveVoid());
-  if (FAILED(hr)) {
-    NOTREACHED() << "error code: " << hr;
-    return 0.0;
-  }
+  if (FAILED(hr))
+    return hr;
 
   ScopedComPtr<IMMDevice> endpoint_device;
   hr = enumerator->GetDefaultAudioEndpoint(eCapture,
@@ -206,7 +229,7 @@ double WASAPIAudioInputStream::HardwareSampleRate(ERole device_role) {
     // (e.g. some audio cards that have inputs will still report them as
     // "not found" when no mic is plugged into the input jack).
     LOG(WARNING) << "No audio end point: " << std::hex << hr;
-    return 0.0;
+    return hr;
   }
 
   ScopedComPtr<IAudioClient> audio_client;
@@ -214,19 +237,10 @@ double WASAPIAudioInputStream::HardwareSampleRate(ERole device_role) {
                                  CLSCTX_INPROC_SERVER,
                                  NULL,
                                  audio_client.ReceiveVoid());
-  if (FAILED(hr)) {
-    NOTREACHED() << "error code: " << hr;
-    return 0.0;
-  }
+  if (SUCCEEDED(hr))
+    hr = audio_client->GetMixFormat(device_format);
 
-  base::win::ScopedCoMem<WAVEFORMATEX> audio_engine_mix_format;
-  hr = audio_client->GetMixFormat(&audio_engine_mix_format);
-  if (FAILED(hr)) {
-    NOTREACHED() << "error code: " << hr;
-    return 0.0;
-  }
-
-  return static_cast<double>(audio_engine_mix_format->nSamplesPerSec);
+  return hr;
 }
 
 void WASAPIAudioInputStream::Run() {
