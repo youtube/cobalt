@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -327,9 +327,13 @@ int HttpStreamParser::DoSendHeaders(int result) {
 }
 
 int HttpStreamParser::DoSendBody(int result) {
+  // |result| is the number of bytes sent from the last call to
+  // DoSendBody(), or 0 (i.e. OK) the first time.
+
   if (request_body_->is_chunked()) {
     chunk_length_ -= result;
     if (chunk_length_) {
+      // Move the remaining data in the chunk buffer to the beginning.
       memmove(chunk_buf_->data(), chunk_buf_->data() + result, chunk_length_);
       return connection_->socket()->Write(chunk_buf_, chunk_length_,
                                           io_callback_);
@@ -340,6 +344,8 @@ int HttpStreamParser::DoSendBody(int result) {
       return OK;
     }
 
+    // |chunk_length_without_encoding_| is 0 when DoSendBody() is first
+    // called, hence the first call to MarkConsumedAndFillBuffer() is a noop.
     request_body_->MarkConsumedAndFillBuffer(chunk_length_without_encoding_);
     chunk_length_without_encoding_ = 0;
     chunk_length_ = 0;
@@ -363,7 +369,7 @@ int HttpStreamParser::DoSendBody(int result) {
       chunk_length_ = chunk_header.length() + buf_len + 2;
     }
 
-    if (!chunk_length_)  // More POST data is yet to come?
+    if (!chunk_length_)  // chunk_buf_ is empty. More POST data is yet to come?
       return ERR_IO_PENDING;
 
     return connection_->socket()->Write(chunk_buf_, chunk_length_,
@@ -371,6 +377,8 @@ int HttpStreamParser::DoSendBody(int result) {
   }
 
   // Non-chunked request body.
+
+  // The first call to MarkConsumedAndFillBuffer() is a noop as |result| is 0.
   request_body_->MarkConsumedAndFillBuffer(result);
 
   if (!request_body_->eof()) {
