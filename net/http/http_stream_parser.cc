@@ -348,7 +348,6 @@ int HttpStreamParser::DoSendBody(int result) {
     // called, hence the first call to MarkConsumedAndFillBuffer() is a noop.
     request_body_->MarkConsumedAndFillBuffer(chunk_length_without_encoding_);
     chunk_length_without_encoding_ = 0;
-    chunk_length_ = 0;
 
     int buf_len = static_cast<int>(request_body_->buf_len());
     if (request_body_->eof()) {
@@ -367,10 +366,10 @@ int HttpStreamParser::DoSendBody(int result) {
       memcpy(chunk_ptr, "\r\n", 2);
       chunk_length_without_encoding_ = buf_len;
       chunk_length_ = chunk_header.length() + buf_len + 2;
-    }
-
-    if (!chunk_length_)  // chunk_buf_ is empty. More POST data is yet to come?
+    } else {
+      // Nothing to send. More POST data is yet to come?
       return ERR_IO_PENDING;
+    }
 
     return connection_->socket()->Write(chunk_buf_, chunk_length_,
                                         io_callback_);
