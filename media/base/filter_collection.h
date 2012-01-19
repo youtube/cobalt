@@ -8,8 +8,8 @@
 #include <list>
 
 #include "base/memory/ref_counted.h"
+#include "media/base/demuxer_factory.h"
 #include "media/base/filters.h"
-#include "media/base/filter_factories.h"
 
 namespace media {
 

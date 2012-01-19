@@ -12,7 +12,7 @@
 #include "media/filters/ffmpeg_audio_decoder.h"
 #include "media/filters/ffmpeg_demuxer_factory.h"
 #include "media/filters/ffmpeg_video_decoder.h"
-#include "media/filters/file_data_source_factory.h"
+#include "media/filters/file_data_source.h"
 #include "media/filters/null_audio_renderer.h"
 #include "media/filters/video_renderer_base.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -82,7 +82,7 @@ class PipelineIntegrationTest : public testing::Test {
   MOCK_METHOD1(OnError, void(PipelineStatus));
 
   void Start(const std::string& url, PipelineStatus expected_status) {
-    pipeline_->Start(CreateFilterCollection(), url,
+    pipeline_->Start(CreateFilterCollection(url), url,
                      QuitOnStatusCB(expected_status));
     message_loop_.Run();
   }
@@ -135,13 +135,14 @@ class PipelineIntegrationTest : public testing::Test {
     message_loop_.Run();
   }
 
-  scoped_ptr<FilterCollection> CreateFilterCollection() {
+  scoped_ptr<FilterCollection> CreateFilterCollection(const std::string& url) {
+    scoped_refptr<FileDataSource> data_source = new FileDataSource();
+    CHECK_EQ(PIPELINE_OK, data_source->Initialize(url));
+
     scoped_ptr<FilterCollection> collection(
         new FilterCollection());
     collection->SetDemuxerFactory(scoped_ptr<DemuxerFactory>(
-        new FFmpegDemuxerFactory(
-            scoped_ptr<DataSourceFactory>(new FileDataSourceFactory()),
-            &message_loop_)));
+        new FFmpegDemuxerFactory(data_source, &message_loop_)));
     collection->AddAudioDecoder(new FFmpegAudioDecoder(
         message_loop_factory_->GetMessageLoop("AudioDecoderThread")));
     collection->AddVideoDecoder(new FFmpegVideoDecoder(
