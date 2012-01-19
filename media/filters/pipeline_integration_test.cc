@@ -26,11 +26,11 @@ namespace media {
 // base renderer implementations are used to verify pipeline functionality. The
 // renderers used in these tests rely heavily on the AudioRendererBase &
 // VideoRendererBase implementations which contain a majority of the code used
-// in the real AudioRendererImpl & VideoRendererImpl implementations used in the
-// browser. The renderers in this test don't actually write data to a display or
-// audio device. Both of these devices are simulated since they have little
-// effect on verifying pipeline behavior and allow tests to run faster than
-// real-time.
+// in the real AudioRendererImpl & SkCanvasVideoRenderer implementations used in
+// the browser. The renderers in this test don't actually write data to a
+// display or audio device. Both of these devices are simulated since they have
+// little effect on verifying pipeline behavior and allow tests to run faster
+// than real-time.
 class PipelineIntegrationTest : public testing::Test {
  public:
   PipelineIntegrationTest()
