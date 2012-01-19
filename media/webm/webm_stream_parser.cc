@@ -239,7 +239,7 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8* data, int size) {
     return result;
 
   switch (id) {
-    case kWebMIdEBML:
+    case kWebMIdEBMLHeader:
     case kWebMIdSeekHead:
     case kWebMIdVoid:
     case kWebMIdCRC32:
