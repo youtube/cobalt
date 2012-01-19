@@ -90,6 +90,9 @@ MEDIA_EXPORT double GetAudioInputHardwareSampleRate();
 // at without glitches.  The buffer size is in sample-frames.
 MEDIA_EXPORT size_t GetAudioHardwareBufferSize();
 
+// Returns the default number of channels for the audio input hardware.
+MEDIA_EXPORT uint32 GetAudioInputHardwareChannelCount();
+
 // Functions that handle data buffer passed between processes in the shared
 // memory. Called on both IPC sides.
 
