@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -109,7 +109,7 @@ int SSLServerSocketNSS::Handshake(const CompletionCallback& callback) {
   memio_SetPeerName(nss_fd_, &peername);
 
   GotoState(STATE_HANDSHAKE);
-  rv = DoHandshakeLoop(net::OK);
+  rv = DoHandshakeLoop(OK);
   if (rv == ERR_IO_PENDING) {
     user_handshake_callback_ = callback;
   } else {
@@ -463,8 +463,7 @@ void SSLServerSocketNSS::OnRecvComplete(int result) {
 void SSLServerSocketNSS::OnHandshakeIOComplete(int result) {
   int rv = DoHandshakeLoop(result);
   if (rv != ERR_IO_PENDING) {
-    net_log_.EndEventWithNetErrorCode(net::NetLog::TYPE_SSL_SERVER_HANDSHAKE,
-                                      rv);
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_SERVER_HANDSHAKE, rv);
     if (!user_handshake_callback_.is_null())
       DoHandshakeCallback(rv);
   }
@@ -599,7 +598,6 @@ int SSLServerSocketNSS::DoPayloadWrite() {
 }
 
 int SSLServerSocketNSS::DoHandshakeLoop(int last_io_result) {
-  bool network_moved;
   int rv = last_io_result;
   do {
     // Default to STATE_NONE for next state.
@@ -610,12 +608,10 @@ int SSLServerSocketNSS::DoHandshakeLoop(int last_io_result) {
     State state = next_handshake_state_;
     GotoState(STATE_NONE);
     switch (state) {
-      case STATE_NONE:
-        // we're just pumping data between the buffer and the network
-        break;
       case STATE_HANDSHAKE:
         rv = DoHandshake();
         break;
+      case STATE_NONE:
       default:
         rv = ERR_UNEXPECTED;
         LOG(DFATAL) << "unexpected state " << state;
@@ -623,9 +619,14 @@ int SSLServerSocketNSS::DoHandshakeLoop(int last_io_result) {
     }
 
     // Do the actual network I/O
-    network_moved = DoTransportIO();
-  } while ((rv != ERR_IO_PENDING || network_moved) &&
-           next_handshake_state_ != STATE_NONE);
+    bool network_moved = DoTransportIO();
+    if (network_moved && next_handshake_state_ == STATE_HANDSHAKE) {
+      // In general we exit the loop if rv is ERR_IO_PENDING.  In this
+      // special case we keep looping even if rv is ERR_IO_PENDING because
+      // the transport IO may allow DoHandshake to make progress.
+      rv = OK;  // This causes us to stay in the loop.
+    }
+  } while (rv != ERR_IO_PENDING && next_handshake_state_ != STATE_NONE);
   return rv;
 }
 
@@ -678,7 +679,7 @@ int SSLServerSocketNSS::DoWriteLoop(int result) {
 }
 
 int SSLServerSocketNSS::DoHandshake() {
-  int net_error = net::OK;
+  int net_error = OK;
   SECStatus rv = SSL_ForceHandshake(nss_fd_);
 
   if (rv == SECSuccess) {
