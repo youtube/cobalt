@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -568,7 +568,12 @@ OCSPNSSInitialization::OCSPNSSInitialization() {
   }
 }
 
-OCSPNSSInitialization::~OCSPNSSInitialization() {}
+OCSPNSSInitialization::~OCSPNSSInitialization() {
+  SECStatus status = CERT_RegisterAlternateOCSPAIAInfoCallBack(NULL, NULL);
+  if (status != SECSuccess) {
+    LOG(ERROR) << "Error unregistering OCSP: " << PR_GetError();
+  }
+}
 
 
 // OCSP Http Client functions.
