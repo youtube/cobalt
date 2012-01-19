@@ -14,7 +14,7 @@ AudioOutputDispatcher::AudioOutputDispatcher(
     AudioManager* audio_manager, const AudioParameters& params,
     base::TimeDelta close_delay)
     : audio_manager_(audio_manager),
-      message_loop_(audio_manager->GetMessageLoop()),
+      message_loop_(MessageLoop::current()),
       params_(params),
       pause_delay_(base::TimeDelta::FromMilliseconds(
           2 * params.samples_per_packet *
@@ -25,7 +25,9 @@ AudioOutputDispatcher::AudioOutputDispatcher(
           close_delay,
           weak_this_.GetWeakPtr(),
           &AudioOutputDispatcher::ClosePendingStreams) {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  // We expect to be instantiated on the audio thread.  Otherwise the
+  // message_loop_ member will point to the wrong message loop!
+  DCHECK(audio_manager->GetMessageLoop()->BelongsToCurrentThread());
 }
 
 AudioOutputDispatcher::~AudioOutputDispatcher() {
@@ -131,10 +133,6 @@ void AudioOutputDispatcher::Shutdown() {
   for (; it != pausing_streams_.end(); ++it)
     (*it)->Close();
   pausing_streams_.clear();
-}
-
-MessageLoop* AudioOutputDispatcher::message_loop() {
-  return message_loop_;
 }
 
 bool AudioOutputDispatcher::CreateAndOpenStream() {

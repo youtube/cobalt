@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -49,17 +49,9 @@ bool AudioManagerLinux::HasAudioInputDevices() {
 
 AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
     const AudioParameters& params) {
-  // Early return for testing hook.  Do this before checking for
-  // |initialized_|.
-  if (params.format == AudioParameters::AUDIO_MOCK) {
+  // Early return for testing hook.
+  if (params.format == AudioParameters::AUDIO_MOCK)
     return FakeAudioOutputStream::MakeFakeStream(params);
-  }
-
-  if (!initialized()) {
-    // We should never get here since this method is called on the audio thread.
-    NOTREACHED();
-    return NULL;
-  }
 
   // Don't allow opening more than |kMaxOutputStreams| streams.
   if (active_output_stream_count_ >= kMaxOutputStreams)
@@ -96,9 +88,6 @@ AudioInputStream* AudioManagerLinux::MakeAudioInputStream(
   if (params.format == AudioParameters::AUDIO_MOCK) {
     return FakeAudioInputStream::MakeFakeStream(params);
   }
-
-  if (!initialized())
-    return NULL;
 
   std::string device_name = (device_id == AudioManagerBase::kDefaultDeviceId) ?
       AlsaPcmInputStream::kAutoSelectDevice : device_id;

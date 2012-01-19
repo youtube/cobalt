@@ -69,8 +69,6 @@ class MEDIA_EXPORT AudioOutputDispatcher
   // Called on the audio thread when the AudioManager is shutting down.
   void Shutdown();
 
-  MessageLoop* message_loop();
-
  private:
   friend class AudioOutputProxyTest;
 
