@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -89,7 +89,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedHostImpl
   void OnPipelineEmpty(HttpPipelinedConnection* pipeline);
 
   // Adds the next pending request to the pipeline if it's still usuable.
-  void AddRequestToPipeline(HttpPipelinedConnection* connection);
+  void AddRequestToPipeline(HttpPipelinedConnection* pipeline);
 
   // Returns the current pipeline capacity based on |capability_|. This should
   // not be called if |capability_| is INCAPABLE.
