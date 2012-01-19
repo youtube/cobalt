@@ -48,7 +48,7 @@
         '../third_party/npapi/npapi.gyp:*',
         '../third_party/ots/ots.gyp:*',
         '../third_party/sqlite/sqlite.gyp:*',
-        '../third_party/WebKit/Source/WebKit/chromium/WebKit.gyp:*',
+        '../third_party/WebKit/Source/WebKit/chromium/All.gyp:*',
         '../third_party/zlib/zlib.gyp:*',
         '../v8/tools/gyp/v8.gyp:*',
         '../webkit/support/webkit_support.gyp:*',
@@ -208,7 +208,7 @@
             '../sandbox/sandbox.gyp:sbox_integration_tests',
             '../sandbox/sandbox.gyp:sbox_unittests',
             '../sandbox/sandbox.gyp:sbox_validation_tests',
-            '../third_party/WebKit/Source/WebKit/chromium/WebKit.gyp:copy_TestNetscapePlugIn',
+            '../webkit/webkit.gyp:pull_in_copy_TestNetscapePlugIn',
             '../ui/views/views.gyp:views_unittests',
             # TODO(nsylvain) ui_tests.exe depends on test_shell_common.
             # This should:
@@ -253,7 +253,7 @@
         '../chrome/chrome.gyp:gpu_tests',
         '../chrome/chrome.gyp:performance_browser_tests',
         '../chrome/chrome.gyp:performance_ui_tests',
-        '../third_party/WebKit/Source/WebKit/chromium/WebKit.gyp:DumpRenderTree',
+        '../webkit/webkit.gyp:pull_in_DumpRenderTree',
       ],
     }, # target_name: chromium_gpu_builder
     {
@@ -425,7 +425,7 @@
             '../sql/sql.gyp:sql_unittests',
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
             '../third_party/libphonenumber/libphonenumber.gyp:libphonenumber_unittests',
-            '../third_party/WebKit/Source/WebKit/chromium/WebKit.gyp:copy_TestNetscapePlugIn',
+            '../webkit/webkit.gyp:pull_in_copy_TestNetscapePlugIn',
             '../ui/views/views.gyp:views_unittests',
             # TODO(nsylvain) ui_tests.exe depends on test_shell_common.
             # This should:
