@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,16 +9,14 @@
 #include <sys/types.h>
 #include "base/logging.h"
 
-
 namespace base {
 
 namespace {
-// This prefix used to be appended to pipe names for pipes
-// created in CreatePair.
-const wchar_t kPipePrefix[] = L"\\\\.\\pipe\\chrome.sync.";
-const size_t kPipePrefixSize = arraysize(kPipePrefix);
-const size_t kPathMax = 28;  // print length of process id + pair count.
-const size_t kPipePathMax = kPipePrefixSize + kPathMax + 1;
+// IMPORTANT: do not change how this name is generated because it will break
+// in sandboxed scenarios as we might have by-name policies that allow pipe
+// creation. Also keep the secure random number generation.
+const wchar_t kPipeNameFormat[] = L"\\\\.\\pipe\\chrome.sync.%u.%u.%lu";
+const size_t kPipePathMax =  arraysize(kPipeNameFormat) + (3 * 10) + 1;
 
 // To avoid users sending negative message lengths to Send/Receive
 // we clamp message lengths, which are size_t, to no more than INT_MAX.
@@ -52,8 +50,10 @@ bool SyncSocket::CreatePair(SyncSocket* pair[2]) {
     unsigned int rnd_name;
     if (rand_s(&rnd_name) != 0)
       return false;
-    swprintf(name, kPipePathMax, L"%s%u.%lu",
-             kPipePrefix, GetCurrentProcessId(),
+    swprintf(name, kPipePathMax,
+             kPipeNameFormat,
+             GetCurrentProcessId(),
+             GetCurrentThreadId(),
              rnd_name);
     handles[0] = CreateNamedPipeW(
         name,
@@ -64,19 +64,22 @@ bool SyncSocket::CreatePair(SyncSocket* pair[2]) {
         kInBufferSize,
         kDefaultTimeoutMilliSeconds,
         NULL);
-    if (handles[0] == INVALID_HANDLE_VALUE &&
-        GetLastError() != ERROR_ACCESS_DENIED &&
-        GetLastError() != ERROR_PIPE_BUSY) {
-      return false;
-    }
-  } while (handles[0] == INVALID_HANDLE_VALUE);
+  } while ((handles[0] == INVALID_HANDLE_VALUE) &&
+           (GetLastError() == ERROR_PIPE_BUSY));
+
+  if (handles[0] == INVALID_HANDLE_VALUE) {
+    NOTREACHED();
+    return false;
+  }
+  // The SECURITY_ANONYMOUS flag means that the server side (pair[0]) cannot
+  // impersonate the client (pair[1]). This allows us not to care which side
+  // ends up in which side of a privilege boundary.
   handles[1] = CreateFileW(name,
                            GENERIC_READ | GENERIC_WRITE,
                            0,              // no sharing.
                            NULL,           // default security attributes.
                            OPEN_EXISTING,  // opens existing pipe.
                            SECURITY_SQOS_PRESENT | SECURITY_ANONYMOUS,
-                                           // no impersonation.
                            NULL);          // no template file.
   if (handles[1] == INVALID_HANDLE_VALUE) {
     CloseHandle(handles[0]);
