@@ -486,8 +486,6 @@ typedef khronos_ssize_t  GLsizeiptr;
 /*-------------------------------------------------------------------------
  * GL core functions.
  *-----------------------------------------------------------------------*/
-#undef GL_APICALL
-#define GL_APICALL
 #undef GL_APIENTRY
 #define GL_APIENTRY
 
