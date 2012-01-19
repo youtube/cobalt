@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 
 #include "base/file_path.h"
 #include "base/logging.h"
+#include "base/mac/bundle_locations.h"
 #include "base/sys_string_conversions.h"
 
 namespace base {
@@ -61,49 +62,27 @@ void SetOverrideAmIBundled(bool value) {
 
 bool IsBackgroundOnlyProcess() {
   // This function really does want to examine NSBundle's idea of the main
-  // bundle dictionary, and not the overriden MainAppBundle.  It needs to look
-  // at the actual running .app's Info.plist to access its LSUIElement
-  // property.
-  NSDictionary* info_dictionary = [[NSBundle mainBundle] infoDictionary];
+  // bundle dictionary.  It needs to look at the actual running .app's
+  // Info.plist to access its LSUIElement property.
+  NSDictionary* info_dictionary = [base::mac::MainBundle() infoDictionary];
   return [[info_dictionary objectForKey:@"LSUIElement"] boolValue] != NO;
 }
 
-// No threading worries since NSBundle isn't thread safe.
-static NSBundle* g_override_app_bundle = nil;
-
 NSBundle* MainAppBundle() {
-  if (g_override_app_bundle)
-    return g_override_app_bundle;
-  return [NSBundle mainBundle];
+  return base::mac::FrameworkBundle();
 }
 
 FilePath MainAppBundlePath() {
-  NSBundle* bundle = MainAppBundle();
-  return FilePath([[bundle bundlePath] fileSystemRepresentation]);
+  return base::mac::FrameworkBundlePath();
 }
 
-FilePath PathForMainAppBundleResource(CFStringRef resourceName) {
-  NSBundle* bundle = MainAppBundle();
+FilePath PathForFrameworkBundleResource(CFStringRef resourceName) {
+  NSBundle* bundle = base::mac::FrameworkBundle();
   NSString* resourcePath = [bundle pathForResource:(NSString*)resourceName
                                             ofType:nil];
   if (!resourcePath)
     return FilePath();
   return FilePath([resourcePath fileSystemRepresentation]);
-}
-
-void SetOverrideAppBundle(NSBundle* bundle) {
-  if (bundle != g_override_app_bundle) {
-    [g_override_app_bundle release];
-    g_override_app_bundle = [bundle retain];
-  }
-}
-
-void SetOverrideAppBundlePath(const FilePath& file_path) {
-  NSString* path = base::SysUTF8ToNSString(file_path.value());
-  NSBundle* bundle = [NSBundle bundleWithPath:path];
-  DCHECK(bundle) << "Failed to load the bundle at " << file_path.value();
-
-  SetOverrideAppBundle(bundle);
 }
 
 OSType CreatorCodeForCFBundleRef(CFBundleRef bundle) {

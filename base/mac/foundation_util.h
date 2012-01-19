@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -49,13 +49,8 @@ BASE_EXPORT bool IsBackgroundOnlyProcess();
 BASE_EXPORT NSBundle* MainAppBundle();
 BASE_EXPORT FilePath MainAppBundlePath();
 
-// Returns the path to a resource within the MainAppBundle.
-FilePath PathForMainAppBundleResource(CFStringRef resourceName);
-
-// Set the bundle that MainAppBundle will return, overriding the default value
-// (Restore the default by calling SetOverrideAppBundle(nil)).
-BASE_EXPORT void SetOverrideAppBundle(NSBundle* bundle);
-BASE_EXPORT void SetOverrideAppBundlePath(const FilePath& file_path);
+// Returns the path to a resource within the framework bundle.
+FilePath PathForFrameworkBundleResource(CFStringRef resourceName);
 
 // Returns the creator code associated with the CFBundleRef at bundle.
 OSType CreatorCodeForCFBundleRef(CFBundleRef bundle);
