@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -38,6 +38,13 @@ class BASE_EXPORT Watchdog {
            bool enabled);
   virtual ~Watchdog();
 
+  // Notify watchdog thread to finish up. Sets the state_ to SHUTDOWN.
+  void Cleanup();
+
+  // Returns true if we state_ is JOINABLE (which indicates that Watchdog has
+  // exited).
+  bool IsJoinable();
+
   // Start timing, and alarm when time expires (unless we're disarm()ed.)
   void Arm();  // Arm  starting now.
   void ArmSomeTimeDeltaAgo(const TimeDelta& time_delta);
@@ -66,9 +73,9 @@ class BASE_EXPORT Watchdog {
     Watchdog* watchdog_;
   };
 
-  enum State {ARMED, DISARMED, SHUTDOWN };
+  enum State {ARMED, DISARMED, SHUTDOWN, JOINABLE };
 
-  bool init_successful_;
+  bool enabled_;
 
   Lock lock_;  // Mutex for state_.
   ConditionVariable condition_variable_;
