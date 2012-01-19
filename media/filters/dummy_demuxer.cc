@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -55,6 +55,11 @@ int DummyDemuxer::GetBitrate() {
 
 scoped_refptr<DemuxerStream> DummyDemuxer::GetStream(DemuxerStream::Type type) {
   return streams_[type];
+}
+
+void DummyDemuxer::set_host(DemuxerHost* demuxer_host) {
+  Demuxer::set_host(demuxer_host);
+  host()->SetDuration(media::kInfiniteDuration());
 }
 
 base::TimeDelta DummyDemuxer::GetStartTime() const {
