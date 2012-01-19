@@ -716,7 +716,11 @@ void HttpPipelinedConnectionImpl::CheckHeadersForPipelineCompatibility(
     ReportPipelineFeedback(pipeline_id, MUST_CLOSE_CONNECTION);
     return;
   }
-  // TODO(simonjam): We should also check for, and work around, authentication.
+  if (info->headers->HasHeader(
+      HttpAuth::GetChallengeHeaderName(HttpAuth::AUTH_SERVER))) {
+    ReportPipelineFeedback(pipeline_id, AUTHENTICATION_REQUIRED);
+    return;
+  }
   ReportPipelineFeedback(pipeline_id, OK);
 }
 
@@ -738,6 +742,10 @@ void HttpPipelinedConnectionImpl::ReportPipelineFeedback(int pipeline_id,
 
     case MUST_CLOSE_CONNECTION:
       feedback_str = "MUST_CLOSE_CONNECTION";
+      break;
+
+    case AUTHENTICATION_REQUIRED:
+      feedback_str = "AUTHENTICATION_REQUIRED";
       break;
 
     default:
