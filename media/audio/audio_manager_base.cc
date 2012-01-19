@@ -5,6 +5,8 @@
 #include "media/audio/audio_manager_base.h"
 
 #include "base/bind.h"
+#include "base/message_loop_proxy.h"
+#include "base/threading/thread.h"
 #include "media/audio/audio_output_dispatcher.h"
 #include "media/audio/audio_output_proxy.h"
 
@@ -14,8 +16,7 @@ const char AudioManagerBase::kDefaultDeviceName[] = "Default";
 const char AudioManagerBase::kDefaultDeviceId[] = "default";
 
 AudioManagerBase::AudioManagerBase()
-    : audio_thread_("AudioThread"),
-      num_active_input_streams_(0) {
+    : num_active_input_streams_(0) {
 }
 
 AudioManagerBase::~AudioManagerBase() {
@@ -24,36 +25,45 @@ AudioManagerBase::~AudioManagerBase() {
 
 #ifndef NDEBUG
 void AudioManagerBase::AddRef() const {
-  const MessageLoop* loop = audio_thread_.message_loop();
-  DCHECK(loop == NULL || loop != MessageLoop::current());
+  {
+    base::AutoLock lock(audio_thread_lock_);
+    const MessageLoop* loop = audio_thread_.get() ?
+        audio_thread_->message_loop() : NULL;
+    DCHECK(loop == NULL || loop != MessageLoop::current());
+  }
   AudioManager::AddRef();
 }
 
 void AudioManagerBase::Release() const {
-  const MessageLoop* loop = audio_thread_.message_loop();
-  DCHECK(loop == NULL || loop != MessageLoop::current());
+  {
+    base::AutoLock lock(audio_thread_lock_);
+    const MessageLoop* loop = audio_thread_.get() ?
+        audio_thread_->message_loop() : NULL;
+    DCHECK(loop == NULL || loop != MessageLoop::current());
+  }
   AudioManager::Release();
 }
 #endif
 
 void AudioManagerBase::Init() {
-  CHECK(audio_thread_.Start());
+  base::AutoLock lock(audio_thread_lock_);
+  DCHECK(!audio_thread_.get());
+  audio_thread_.reset(new base::Thread("AudioThread"));
+  CHECK(audio_thread_->Start());
 }
 
 string16 AudioManagerBase::GetAudioInputDeviceModel() {
   return string16();
 }
 
-MessageLoop* AudioManagerBase::GetMessageLoop() {
-  return audio_thread_.message_loop();
+scoped_refptr<base::MessageLoopProxy> AudioManagerBase::GetMessageLoop() {
+  base::AutoLock lock(audio_thread_lock_);
+  return audio_thread_.get() ? audio_thread_->message_loop_proxy() : NULL;
 }
 
 AudioOutputStream* AudioManagerBase::MakeAudioOutputStreamProxy(
     const AudioParameters& params) {
-  DCHECK_EQ(MessageLoop::current(), GetMessageLoop());
-
-  if (!initialized())
-    return NULL;
+  DCHECK(GetMessageLoop()->BelongsToCurrentThread());
 
   scoped_refptr<AudioOutputDispatcher>& dispatcher =
       output_dispatchers_[params];
@@ -88,23 +98,34 @@ bool AudioManagerBase::IsRecordingInProcess() {
 }
 
 void AudioManagerBase::Shutdown() {
-  if (!initialized())
-    return;
+  // To avoid running into deadlocks while we stop the thread, shut it down
+  // via a local variable while not holding the audio thread lock.
+  scoped_ptr<base::Thread> audio_thread;
+  {
+    base::AutoLock lock(audio_thread_lock_);
+    audio_thread_.swap(audio_thread);
+  }
 
-  DCHECK_NE(MessageLoop::current(), GetMessageLoop());
+  if (!audio_thread.get())
+      return;
+
+  CHECK_NE(MessageLoop::current(), audio_thread->message_loop());
 
   // We must use base::Unretained since Shutdown might have been called from
   // the destructor and we can't alter the refcount of the object at that point.
-  GetMessageLoop()->PostTask(FROM_HERE, base::Bind(
+  audio_thread->message_loop()->PostTask(FROM_HERE, base::Bind(
       &AudioManagerBase::ShutdownOnAudioThread,
       base::Unretained(this)));
+
   // Stop() will wait for any posted messages to be processed first.
-  audio_thread_.Stop();
+  audio_thread->Stop();
 }
 
 void AudioManagerBase::ShutdownOnAudioThread() {
-  DCHECK_EQ(MessageLoop::current(), GetMessageLoop());
-
+  // This should always be running on the audio thread, but since we've cleared
+  // the audio_thread_ member pointer when we get here, we can't verify exactly
+  // what thread we're running on.  The method is not public though and only
+  // called from one place, so we'll leave it at that.
   AudioOutputDispatchersMap::iterator it = output_dispatchers_.begin();
   for (; it != output_dispatchers_.end(); ++it) {
     scoped_refptr<AudioOutputDispatcher>& dispatcher = (*it).second;

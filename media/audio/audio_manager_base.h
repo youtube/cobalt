@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,10 +9,15 @@
 
 #include "base/atomic_ref_count.h"
 #include "base/compiler_specific.h"
-#include "base/threading/thread.h"
+#include "base/memory/scoped_ptr.h"
+#include "base/synchronization/lock.h"
 #include "media/audio/audio_manager.h"
 
 class AudioOutputDispatcher;
+
+namespace base {
+class Thread;
+}
 
 // AudioManagerBase provides AudioManager functions common for all platforms.
 class MEDIA_EXPORT AudioManagerBase : public AudioManager {
@@ -34,7 +39,7 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
 
   virtual void Init() OVERRIDE;
 
-  virtual MessageLoop* GetMessageLoop() OVERRIDE;
+  virtual scoped_refptr<base::MessageLoopProxy> GetMessageLoop() OVERRIDE;
 
   virtual string16 GetAudioInputDeviceModel() OVERRIDE;
 
@@ -66,12 +71,13 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
 
   void ShutdownOnAudioThread();
 
-  bool initialized() { return audio_thread_.IsRunning(); }
-
   // Thread used to interact with AudioOutputStreams created by this
   // audio manger.
-  base::Thread audio_thread_;
+  scoped_ptr<base::Thread> audio_thread_;
+  mutable base::Lock audio_thread_lock_;
 
+  // Map of cached AudioOutputDispatcher instances.  Must only be touched
+  // from the audio thread (no locking).
   AudioOutputDispatchersMap output_dispatchers_;
 
   // Counts the number of active input streams to find out if something else
