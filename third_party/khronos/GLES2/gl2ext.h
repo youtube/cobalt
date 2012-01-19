@@ -1398,7 +1398,7 @@ typedef void (GL_APIENTRYP PFNGLGETPROGRAMINFOCHROMIUM) ();
 #ifdef GL_GLEXT_PROTOTYPES
 #define glEnableFeatureCHROMIUM GLES2_GET_FUN(EnableFeatureCHROMIUM)
 #if !defined(GLES2_USE_CPP_BINDINGS)
-GL_APICALL GLboolean GL_APIENTRY glEnableFeatureCHROMIUM (const GLchar *feature);
+GL_APICALL void GL_APIENTRY glEnableFeatureCHROMIUM (const GLchar *feature);
 #endif
 #else
 typedef void (GL_APIENTRYP PFNGLENABLEFEATURECHROMIUM) (const GLchar *feature);
