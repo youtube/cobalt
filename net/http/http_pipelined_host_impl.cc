@@ -158,6 +158,7 @@ void HttpPipelinedHostImpl::OnPipelineFeedback(
       break;
 
     case HttpPipelinedConnection::OLD_HTTP_VERSION:
+    case HttpPipelinedConnection::AUTHENTICATION_REQUIRED:
       capability_ = PIPELINE_INCAPABLE;
       delegate_->OnHostDeterminedCapability(this, PIPELINE_INCAPABLE);
       break;
