@@ -19,18 +19,8 @@
 
 #include <KHR/khrplatform.h>
 
-#if defined(COMPONENT_BUILD)
-#if defined(WIN32)
-#if defined(GLES2_C_LIB_IMPLEMENTATION)
-#define GL_APICALL __declspec(dllexport)
-#else
-#define GL_APICALL __declspec(dllimport)
-#endif  /* defined(GLES2_C_LIB_IMPLEMENTATION) */
-#else /* defined(WIN32) */
-#define GL_APICALL __attribute__((visibility("default")))
-#endif
-#else
-#   define GL_APICALL
+#ifndef GL_APICALL
+#define GL_APICALL  KHRONOS_APICALL
 #endif
 
 #ifndef GL_APIENTRY
