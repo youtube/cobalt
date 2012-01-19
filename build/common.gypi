@@ -2054,6 +2054,12 @@
               '-Xclang', '-add-plugin', '-Xclang', '<(clang_add_plugin)',
             ],
           }],
+          ['clang==1 and "<(GENERATOR)"=="ninja"', {
+            'cflags': [
+              # See http://crbug.com/110262
+              '-fcolor-diagnostics',
+            ],
+          }],
           ['asan==1', {
             'cflags': [
               '-faddress-sanitizer',
@@ -2402,6 +2408,12 @@
             ['clang==1 and clang_add_plugin!=""', {
               'OTHER_CFLAGS': [
                 '-Xclang', '-add-plugin', '-Xclang', '<(clang_add_plugin)',
+              ],
+            }],
+            ['clang==1 and "<(GENERATOR)"=="ninja"', {
+              'OTHER_CFLAGS': [
+                # See http://crbug.com/110262
+                '-fcolor-diagnostics',
               ],
             }],
           ],
