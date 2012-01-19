@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -123,7 +123,7 @@ HttpStreamFactoryImpl::Job::Job(HttpStreamFactoryImpl* stream_factory,
       next_state_(STATE_NONE),
       pac_request_(NULL),
       blocking_job_(NULL),
-      dependent_job_(NULL),
+      waiting_job_(NULL),
       using_ssl_(false),
       using_spdy_(false),
       force_spdy_always_(HttpStreamFactory::force_spdy_always()),
@@ -211,9 +211,9 @@ void HttpStreamFactoryImpl::Job::WaitFor(Job* job) {
   DCHECK_EQ(STATE_NONE, next_state_);
   DCHECK_EQ(STATE_NONE, job->next_state_);
   DCHECK(!blocking_job_);
-  DCHECK(!job->dependent_job_);
+  DCHECK(!job->waiting_job_);
   blocking_job_ = job;
-  job->dependent_job_ = this;
+  job->waiting_job_ = this;
 }
 
 void HttpStreamFactoryImpl::Job::Resume(Job* job) {
@@ -236,8 +236,8 @@ void HttpStreamFactoryImpl::Job::Orphan(const Request* request) {
   // We've been orphaned, but there's a job we're blocked on. Don't bother
   // racing, just cancel ourself.
   if (blocking_job_) {
-    DCHECK(blocking_job_->dependent_job_);
-    blocking_job_->dependent_job_ = NULL;
+    DCHECK(blocking_job_->waiting_job_);
+    blocking_job_->waiting_job_ = NULL;
     blocking_job_ = NULL;
     stream_factory_->OnOrphanedJobComplete(this);
   }
@@ -385,6 +385,10 @@ int HttpStreamFactoryImpl::Job::RunLoop(int result) {
 
   if (result == ERR_IO_PENDING)
     return result;
+
+  // If there was an error, we should have already resumed the |waiting_job_|,
+  // if there was one.
+  DCHECK(result == OK || waiting_job_ == NULL);
 
   if (IsPreconnecting()) {
     MessageLoop::current()->PostTask(
@@ -549,23 +553,29 @@ int HttpStreamFactoryImpl::Job::DoLoop(int result) {
 int HttpStreamFactoryImpl::Job::StartInternal() {
   CHECK_EQ(STATE_NONE, next_state_);
   next_state_ = STATE_START;
-  net_log_.BeginEvent(NetLog::TYPE_HTTP_STREAM_JOB,
-                      HttpStreamJobParameters::Create(request_info_.url,
-                                                      origin_url_));
   int rv = RunLoop(OK);
   DCHECK_EQ(ERR_IO_PENDING, rv);
   return rv;
 }
 
 int HttpStreamFactoryImpl::Job::DoStart() {
-  // Don't connect to restricted ports.
   int port = request_info_.url.EffectiveIntPort();
-  if (!IsPortAllowedByDefault(port) && !IsPortAllowedByOverride(port))
-    return ERR_UNSAFE_PORT;
-
   origin_ = HostPortPair(request_info_.url.HostNoBrackets(), port);
   origin_url_ = HttpStreamFactory::ApplyHostMappingRules(
       request_info_.url, &origin_);
+
+  net_log_.BeginEvent(NetLog::TYPE_HTTP_STREAM_JOB,
+                      HttpStreamJobParameters::Create(request_info_.url,
+                                                      origin_url_));
+
+  // Don't connect to restricted ports.
+  if (!IsPortAllowedByDefault(port) && !IsPortAllowedByOverride(port)) {
+    if (waiting_job_) {
+      waiting_job_->Resume(this);
+      waiting_job_ = NULL;
+    }
+    return ERR_UNSAFE_PORT;
+  }
 
   next_state_ = STATE_RESOLVE_PROXY;
   return OK;
@@ -603,8 +613,10 @@ int HttpStreamFactoryImpl::Job::DoResolveProxyComplete(int result) {
   }
 
   if (result != OK) {
-    if (dependent_job_)
-      dependent_job_->Resume(this);
+    if (waiting_job_) {
+      waiting_job_->Resume(this);
+      waiting_job_ = NULL;
+    }
     return result;
   }
 
@@ -684,12 +696,12 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
     }
   }
 
-  // OK, there's no available SPDY session. Let |dependent_job_| resume if it's
+  // OK, there's no available SPDY session. Let |waiting_job_| resume if it's
   // paused.
 
-  if (dependent_job_) {
-    dependent_job_->Resume(this);
-    dependent_job_ = NULL;
+  if (waiting_job_) {
+    waiting_job_->Resume(this);
+    waiting_job_ = NULL;
   }
 
   if (proxy_info_.is_http() || proxy_info_.is_https())
@@ -739,9 +751,9 @@ int HttpStreamFactoryImpl::Job::DoInitConnectionComplete(int result) {
 
   // TODO(willchan): Make this a bit more exact. Maybe there are recoverable
   // errors, such as ignoring certificate errors for Alternate-Protocol.
-  if (result < 0 && dependent_job_) {
-    dependent_job_->Resume(this);
-    dependent_job_ = NULL;
+  if (result < 0 && waiting_job_) {
+    waiting_job_->Resume(this);
+    waiting_job_ = NULL;
   }
 
   // |result| may be the result of any of the stacked pools. The following
