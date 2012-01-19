@@ -6,7 +6,6 @@
 
 #include "base/compiler_specific.h"
 #include "base/metrics/histogram.h"
-#include "base/stringprintf.h"
 #include "base/string_util.h"
 #include "net/base/address_list.h"
 #include "net/base/auth.h"
@@ -60,6 +59,15 @@ bool HeadersContainMultipleCopiesOfField(
 }  // namespace
 
 namespace net {
+
+// 2 CRLFs + max of 8 hex chars.
+const size_t HttpStreamParser::kChunkHeaderFooterSize = 12;
+
+// The size of the chunk buffer (chunk_buf_). The chunk buffer is
+// guaranteed to be large enough to hold the encoded chunk.
+static const size_t kChunkBufferSize =
+    UploadDataStream::kBufferSize +
+    HttpStreamParser::kChunkHeaderFooterSize;
 
 HttpStreamParser::HttpStreamParser(ClientSocketHandle* connection,
                                    const HttpRequestInfo* request,
@@ -128,9 +136,7 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
   request_body_.reset(request_body);
   if (request_body_ != NULL && request_body_->is_chunked()) {
     request_body_->set_chunk_callback(this);
-    const int kChunkHeaderFooterSize = 12;  // 2 CRLFs + max of 8 hex chars.
-    chunk_buf_ = new IOBuffer(request_body_->GetMaxBufferSize() +
-                              kChunkHeaderFooterSize);
+    chunk_buf_ = new IOBuffer(kChunkBufferSize);
   }
 
   io_state_ = STATE_SENDING_HEADERS;
@@ -349,23 +355,17 @@ int HttpStreamParser::DoSendBody(int result) {
     request_body_->MarkConsumedAndFillBuffer(chunk_length_without_encoding_);
     chunk_length_without_encoding_ = 0;
 
-    int buf_len = static_cast<int>(request_body_->buf_len());
     if (request_body_->eof()) {
-      static const char kLastChunk[] = "0\r\n\r\n";
-      chunk_length_ = strlen(kLastChunk);
-      memcpy(chunk_buf_->data(), kLastChunk, chunk_length_);
+      chunk_length_ = EncodeChunk(
+          base::StringPiece(), chunk_buf_->data(), kChunkBufferSize);
       sent_last_chunk_ = true;
-    } else if (buf_len) {
+    } else if (request_body_->buf_len() > 0) {
       // Encode and send the buffer as 1 chunk.
-      std::string chunk_header = StringPrintf("%X\r\n", buf_len);
-      char* chunk_ptr = chunk_buf_->data();
-      memcpy(chunk_ptr, chunk_header.data(), chunk_header.length());
-      chunk_ptr += chunk_header.length();
-      memcpy(chunk_ptr, request_body_->buf()->data(), buf_len);
-      chunk_ptr += buf_len;
-      memcpy(chunk_ptr, "\r\n", 2);
-      chunk_length_without_encoding_ = buf_len;
-      chunk_length_ = chunk_header.length() + buf_len + 2;
+      const base::StringPiece payload(request_body_->buf()->data(),
+                                      request_body_->buf_len());
+      chunk_length_ = EncodeChunk(payload, chunk_buf_->data(),
+                                  kChunkBufferSize);
+      chunk_length_without_encoding_ = payload.size();
     } else {
       // Nothing to send. More POST data is yet to come?
       return ERR_IO_PENDING;
@@ -771,6 +771,30 @@ void HttpStreamParser::GetSSLCertRequestInfo(
         static_cast<SSLClientSocket*>(connection_->socket());
     ssl_socket->GetSSLCertRequestInfo(cert_request_info);
   }
+}
+
+int HttpStreamParser::EncodeChunk(const base::StringPiece& payload,
+                                  char* output,
+                                  size_t output_size) {
+  if (output_size < payload.size() + kChunkHeaderFooterSize)
+    return ERR_INVALID_ARGUMENT;
+
+  char* cursor = output;
+  // Add the header.
+  const int num_chars = base::snprintf(output, output_size,
+                                       "%X\r\n",
+                                       static_cast<int>(payload.size()));
+  cursor += num_chars;
+  // Add the payload if any.
+  if (payload.size() > 0) {
+    memcpy(cursor, payload.data(), payload.size());
+    cursor += payload.size();
+  }
+  // Add the trailing CRLF.
+  memcpy(cursor, "\r\n", 2);
+  cursor += 2;
+
+  return cursor - output;
 }
 
 }  // namespace net

@@ -1116,6 +1116,7 @@
         'http/http_response_headers_unittest.cc',
         'http/http_server_properties_impl_unittest.cc',
         'http/http_stream_factory_impl_unittest.cc',
+        'http/http_stream_parser_unittest.cc',
         'http/http_transaction_unittest.cc',
         'http/http_transaction_unittest.h',
         'http/http_util_unittest.cc',
