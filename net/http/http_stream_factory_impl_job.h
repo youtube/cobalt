@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -232,8 +232,10 @@ class HttpStreamFactoryImpl::Job {
   // proceed.
   Job* blocking_job_;
 
-  // |dependent_job_| is dependent on |this|. Notify it when it's ok to proceed.
-  Job* dependent_job_;
+  // |waiting_job_| is a Job waiting to see if |this| can reuse a connection.
+  // If |this| is unable to do so, we'll notify |waiting_job_| that it's ok to
+  // proceed and then race the two Jobs.
+  Job* waiting_job_;
 
   // True if handling a HTTPS request, or using SPDY with SSL
   bool using_ssl_;
