@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -36,31 +36,46 @@ TimeDelta g_last_debugged_alarm_delay;
 Watchdog::Watchdog(const TimeDelta& duration,
                    const std::string& thread_watched_name,
                    bool enabled)
-  : init_successful_(false),
+  : enabled_(enabled),
     lock_(),
     condition_variable_(&lock_),
     state_(DISARMED),
     duration_(duration),
     thread_watched_name_(thread_watched_name),
     ALLOW_THIS_IN_INITIALIZER_LIST(delegate_(this)) {
-  if (!enabled)
+  if (!enabled_)
     return;  // Don't start thread, or doing anything really.
-  init_successful_ = PlatformThread::Create(0,  // Default stack size.
-                                            &delegate_,
-                                            &handle_);
-  DCHECK(init_successful_);
+  enabled_ = PlatformThread::Create(0,  // Default stack size.
+                                    &delegate_,
+                                    &handle_);
+  DCHECK(enabled_);
 }
 
 // Notify watchdog thread, and wait for it to finish up.
 Watchdog::~Watchdog() {
-  if (!init_successful_)
+  if (!enabled_)
+    return;
+  if (!IsJoinable())
+    Cleanup();
+  condition_variable_.Signal();
+  PlatformThread::Join(handle_);
+}
+
+void Watchdog::Cleanup() {
+  if (!enabled_)
     return;
   {
     AutoLock lock(lock_);
     state_ = SHUTDOWN;
   }
   condition_variable_.Signal();
-  PlatformThread::Join(handle_);
+}
+
+bool Watchdog::IsJoinable() {
+  if (!enabled_)
+    return true;
+  AutoLock lock(lock_);
+  return (state_ == JOINABLE);
 }
 
 void Watchdog::Arm() {
@@ -105,8 +120,10 @@ void Watchdog::ThreadDelegate::ThreadMain() {
     AutoLock lock(watchdog_->lock_);
     while (DISARMED == watchdog_->state_)
       watchdog_->condition_variable_.Wait();
-    if (SHUTDOWN == watchdog_->state_)
+    if (SHUTDOWN == watchdog_->state_) {
+      watchdog_->state_ = JOINABLE;
       return;
+    }
     DCHECK(ARMED == watchdog_->state_);
     remaining_duration = watchdog_->duration_ -
         (TimeTicks::Now() - watchdog_->start_time_);
