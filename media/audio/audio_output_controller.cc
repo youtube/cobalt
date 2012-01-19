@@ -42,10 +42,11 @@ AudioOutputController::AudioOutputController(AudioManager* audio_manager,
 
 AudioOutputController::~AudioOutputController() {
   DCHECK_EQ(kClosed, state_);
-  if (message_loop_ == MessageLoop::current()) {
+  DCHECK(message_loop_);
+
+  if (!message_loop_.get() || message_loop_->BelongsToCurrentThread()) {
     DoStopCloseAndClearStream(NULL);
   } else {
-    DCHECK(message_loop_);
     WaitableEvent completion(true /* manual reset */,
                              false /* initial state */);
     message_loop_->PostTask(FROM_HERE,
@@ -145,7 +146,7 @@ void AudioOutputController::EnqueueData(const uint8* data, uint32 size) {
 }
 
 void AudioOutputController::DoCreate(const AudioParameters& params) {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK(message_loop_->BelongsToCurrentThread());
 
   // Close() can be called before DoCreate() is executed.
   if (state_ == kClosed)
@@ -185,7 +186,7 @@ void AudioOutputController::DoCreate(const AudioParameters& params) {
 }
 
 void AudioOutputController::DoPlay() {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK(message_loop_->BelongsToCurrentThread());
 
   // We can start from created or paused state.
   if (state_ != kCreated && state_ != kPaused)
@@ -204,14 +205,14 @@ void AudioOutputController::DoPlay() {
         FROM_HERE,
         base::Bind(&AudioOutputController::PollAndStartIfDataReady,
         weak_this_.GetWeakPtr()),
-        base::TimeDelta::FromMilliseconds(kPollPauseInMilliseconds));
+        kPollPauseInMilliseconds);
   } else {
     StartStream();
   }
 }
 
 void AudioOutputController::PollAndStartIfDataReady() {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK(message_loop_->BelongsToCurrentThread());
 
   // Being paranoid: do nothing if state unexpectedly changed.
   if ((state_ != kStarting) && (state_ != kPausedWhenStarting))
@@ -232,12 +233,12 @@ void AudioOutputController::PollAndStartIfDataReady() {
         FROM_HERE,
         base::Bind(&AudioOutputController::PollAndStartIfDataReady,
         weak_this_.GetWeakPtr()),
-        base::TimeDelta::FromMilliseconds(kPollPauseInMilliseconds));
+        kPollPauseInMilliseconds);
   }
 }
 
 void AudioOutputController::StartStream() {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK(message_loop_->BelongsToCurrentThread());
   state_ = kPlaying;
 
   // We start the AudioOutputStream lazily.
@@ -248,7 +249,7 @@ void AudioOutputController::StartStream() {
 }
 
 void AudioOutputController::DoPause() {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK(message_loop_->BelongsToCurrentThread());
 
   if (stream_)
     stream_->Stop();
@@ -282,7 +283,7 @@ void AudioOutputController::DoPause() {
 }
 
 void AudioOutputController::DoFlush() {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK(message_loop_->BelongsToCurrentThread());
 
   // TODO(hclam): Actually flush the audio device.
 
@@ -296,7 +297,7 @@ void AudioOutputController::DoFlush() {
 }
 
 void AudioOutputController::DoClose(const base::Closure& closed_task) {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK(message_loop_->BelongsToCurrentThread());
 
   if (state_ != kClosed) {
     DoStopCloseAndClearStream(NULL);
@@ -312,7 +313,7 @@ void AudioOutputController::DoClose(const base::Closure& closed_task) {
 }
 
 void AudioOutputController::DoSetVolume(double volume) {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK(message_loop_->BelongsToCurrentThread());
 
   // Saves the volume to a member first. We may not be able to set the volume
   // right away but when the stream is created we'll set the volume.
@@ -332,7 +333,7 @@ void AudioOutputController::DoSetVolume(double volume) {
 }
 
 void AudioOutputController::DoReportError(int code) {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK(message_loop_->BelongsToCurrentThread());
   if (state_ != kClosed)
     handler_->OnError(this, code);
 }
@@ -415,7 +416,7 @@ void AudioOutputController::SubmitOnMoreData_Locked() {
 }
 
 void AudioOutputController::DoStopCloseAndClearStream(WaitableEvent *done) {
-  DCHECK_EQ(message_loop_, MessageLoop::current());
+  DCHECK(message_loop_->BelongsToCurrentThread());
 
   // Allow calling unconditionally and bail if we don't have a stream_ to close.
   if (stream_ != NULL) {

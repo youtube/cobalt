@@ -254,7 +254,7 @@ class MEDIA_EXPORT AudioOutputController
   SyncReader* sync_reader_;
 
   // The message loop of audio thread that this object runs on.
-  MessageLoop* message_loop_;
+  scoped_refptr<base::MessageLoopProxy> message_loop_;
 
   // When starting stream we wait for data to become available.
   // Number of times left.

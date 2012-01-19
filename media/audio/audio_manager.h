@@ -16,6 +16,9 @@
 class AudioInputStream;
 class AudioOutputStream;
 class MessageLoop;
+namespace base {
+class MessageLoopProxy;
+}
 
 // Manages all audio resources. In particular it owns the AudioOutputStream
 // objects. Provides some convenience functions that avoid the need to provide
@@ -121,7 +124,7 @@ class MEDIA_EXPORT AudioManager
   virtual bool IsRecordingInProcess() = 0;
 
   // Returns message loop used for audio IO.
-  virtual MessageLoop* GetMessageLoop() = 0;
+  virtual scoped_refptr<base::MessageLoopProxy> GetMessageLoop() = 0;
 
  protected:
   // Called from Create() to initialize the instance.

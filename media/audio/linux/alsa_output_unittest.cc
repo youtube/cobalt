@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -88,8 +88,8 @@ class MockAudioManagerLinux : public AudioManagerLinux {
 
   // We don't mock this method since all tests will do the same thing
   // and use the current message loop.
-  virtual MessageLoop* GetMessageLoop() {
-    return MessageLoop::current();
+  virtual scoped_refptr<base::MessageLoopProxy> GetMessageLoop() OVERRIDE {
+    return MessageLoop::current()->message_loop_proxy();
   }
 };
 

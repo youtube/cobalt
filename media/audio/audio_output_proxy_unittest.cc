@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/message_loop.h"
+#include "base/message_loop_proxy.h"
 #include "base/threading/platform_thread.h"
 #include "media/audio/audio_output_dispatcher.h"
 #include "media/audio/audio_output_proxy.h"
@@ -50,7 +51,7 @@ class MockAudioManager : public AudioManager {
   MOCK_METHOD0(UnMuteAll, void());
   MOCK_METHOD0(CanShowAudioInputSettings, bool());
   MOCK_METHOD0(ShowAudioInputSettings, void());
-  MOCK_METHOD0(GetMessageLoop, MessageLoop*());
+  MOCK_METHOD0(GetMessageLoop, scoped_refptr<base::MessageLoopProxy>());
   MOCK_METHOD1(GetAudioInputDeviceNames, void(
       media::AudioDeviceNames* device_name));
   MOCK_METHOD0(IsRecordingInProcess, bool());
@@ -69,7 +70,7 @@ class AudioOutputProxyTest : public testing::Test {
   virtual void SetUp() {
     MockAudioManager* manager = new MockAudioManager();
     EXPECT_CALL(*manager, GetMessageLoop())
-        .WillRepeatedly(Return(&message_loop_));
+        .WillRepeatedly(Return(message_loop_.message_loop_proxy()));
     manager_ = manager;
     InitDispatcher(base::TimeDelta::FromMilliseconds(kTestCloseDelayMs));
   }

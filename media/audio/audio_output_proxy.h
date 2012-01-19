@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
+#include "base/threading/non_thread_safe.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
@@ -21,7 +22,9 @@ class AudioOutputDispatcher;
 //
 // AudioOutputProxy uses AudioOutputDispatcher to open and close
 // physical output streams.
-class MEDIA_EXPORT AudioOutputProxy : public AudioOutputStream {
+class MEDIA_EXPORT AudioOutputProxy
+  : public AudioOutputStream,
+    public NON_EXPORTED_BASE(base::NonThreadSafe) {
  public:
   // Caller keeps ownership of |dispatcher|.
   explicit AudioOutputProxy(AudioOutputDispatcher* dispatcher);

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 #include "base/environment.h"
 #include "base/file_util.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/message_loop.h"
 #include "base/path_service.h"
 #include "base/synchronization/lock.h"
 #include "base/test/test_timeouts.h"
@@ -82,8 +83,8 @@ class MockAudioManager : public AudioManagerAnyPlatform {
 
   virtual ~MockAudioManager() {}
 
-  virtual MessageLoop* GetMessageLoop() OVERRIDE {
-    return MessageLoop::current();
+  virtual scoped_refptr<base::MessageLoopProxy> GetMessageLoop() OVERRIDE {
+    return MessageLoop::current()->message_loop_proxy();
   }
 
  private:
