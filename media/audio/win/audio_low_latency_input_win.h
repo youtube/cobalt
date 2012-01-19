@@ -89,9 +89,13 @@ class MEDIA_EXPORT WASAPIAudioInputStream
   virtual void Stop() OVERRIDE;
   virtual void Close() OVERRIDE;
 
-  // Retrieves the stream format that the audio engine uses for its internal
+  // Retrieves the sample rate used by the audio engine for its internal
   // processing/mixing of shared-mode streams.
   static double HardwareSampleRate(ERole device_role);
+
+  // Retrieves the number of audio channels used by the audio engine for its
+  // internal processing/mixing of shared-mode streams.
+  static uint32 HardwareChannelCount(ERole device_role);
 
   bool started() const { return started_; }
 
@@ -108,6 +112,10 @@ class MEDIA_EXPORT WASAPIAudioInputStream
   HRESULT GetAudioEngineStreamFormat();
   bool DesiredFormatIsSupported();
   HRESULT InitializeAudioEngine();
+
+  // Retrieves the stream format that the audio engine uses for its internal
+  // processing/mixing of shared-mode streams.
+  static HRESULT GetMixFormat(ERole device_role, WAVEFORMATEX** device_format);
 
   // Initializes the COM library for use by the calling thread and set the
   // thread's concurrency model to multi-threaded.

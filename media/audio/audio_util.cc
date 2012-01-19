@@ -337,6 +337,22 @@ size_t GetAudioHardwareBufferSize() {
 #endif
 }
 
+uint32 GetAudioInputHardwareChannelCount() {
+  enum channel_layout { MONO = 1, STEREO = 2 };
+#if defined(OS_MACOSX)
+  return MONO;
+#elif defined(OS_WIN)
+  if (!IsWASAPISupported()) {
+    // Fall back to Windows Wave implementation on Windows XP or lower and
+    // use stereo by default.
+    return STEREO;
+  }
+  return WASAPIAudioInputStream::HardwareChannelCount(eConsole);
+#else
+  return STEREO;
+#endif
+}
+
 // When transferring data in the shared memory, first word is size of data
 // in bytes. Actual data starts immediately after it.
 
