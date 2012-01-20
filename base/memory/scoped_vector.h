@@ -16,7 +16,7 @@
 // destructor.
 template <class T>
 class ScopedVector {
-  MOVE_ONLY_TYPE_FOR_CPP_03(ScopedVector, RValue);
+  MOVE_ONLY_TYPE_FOR_CPP_03(ScopedVector, RValue)
 
  public:
   typedef typename std::vector<T*>::iterator iterator;
