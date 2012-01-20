@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,6 @@
 
 #include <math.h>
 #include "base/compiler_specific.h"
-#include "base/debug/alias.h"
 #include "base/format_macros.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
@@ -1144,22 +1143,15 @@ void ClientSocketPoolBaseHelper::InvokeUserCallback(
 
 ClientSocketPoolBaseHelper::Group::Group()
     : active_socket_count_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
-      liveness_token_(TOKEN_ALIVE) {}
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {}
 
 ClientSocketPoolBaseHelper::Group::~Group() {
   CleanupBackupJob();
-
-  // Mark this object as destroyed.
-  liveness_token_ = TOKEN_DEAD;
-  destruction_callstack_ = base::debug::StackTrace();
 }
 
 void ClientSocketPoolBaseHelper::Group::StartBackupSocketTimer(
     const std::string& group_name,
     ClientSocketPoolBaseHelper* pool) {
-  CheckAlive();
-
   // Only allow one timer pending to create a backup socket.
   if (weak_factory_.HasWeakPtrs())
     return;
@@ -1172,8 +1164,6 @@ void ClientSocketPoolBaseHelper::Group::StartBackupSocketTimer(
 }
 
 bool ClientSocketPoolBaseHelper::Group::TryToUsePreconnectConnectJob() {
-  CheckAlive();
-
   for (std::set<ConnectJob*>::iterator it = jobs_.begin();
        it != jobs_.end(); ++it) {
     ConnectJob* job = *it;
@@ -1185,18 +1175,9 @@ bool ClientSocketPoolBaseHelper::Group::TryToUsePreconnectConnectJob() {
   return false;
 }
 
-void ClientSocketPoolBaseHelper::Group::AddJob(ConnectJob* job) {
-  CheckAlive();
-
-  jobs_.insert(job);
-}
-
-
 void ClientSocketPoolBaseHelper::Group::OnBackupSocketTimerFired(
     std::string group_name,
     ClientSocketPoolBaseHelper* pool) {
-  CheckAlive();
-
   // If there are no more jobs pending, there is no work to do.
   // If we've done our cleanups correctly, this should not happen.
   if (jobs_.empty()) {
@@ -1227,24 +1208,7 @@ void ClientSocketPoolBaseHelper::Group::OnBackupSocketTimerFired(
     pool->OnConnectJobComplete(rv, backup_job);
 }
 
-void ClientSocketPoolBaseHelper::Group::CheckAlive() {
-  if (liveness_token_ == TOKEN_ALIVE)
-    return;
-
-  // Copy all the interesting values onto the stack prior to crashing, in case
-  // the memory for |this| does not make it into the dump.
-  MagicToken token = liveness_token_;
-  base::debug::StackTrace callstack = destruction_callstack_;
-
-  base::debug::Alias(&token);
-  base::debug::Alias(&callstack);
-
-  CHECK_EQ(liveness_token_, TOKEN_ALIVE);
-}
-
 void ClientSocketPoolBaseHelper::Group::RemoveAllJobs() {
-  CheckAlive();
-
   // Delete active jobs.
   STLDeleteElements(&jobs_);
 
