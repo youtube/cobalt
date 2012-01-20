@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,12 +9,15 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/move.h"
 #include "base/stl_util.h"
 
 // ScopedVector wraps a vector deleting the elements from its
 // destructor.
 template <class T>
 class ScopedVector {
+  MOVE_ONLY_TYPE_FOR_CPP_03(ScopedVector, RValue);
+
  public:
   typedef typename std::vector<T*>::iterator iterator;
   typedef typename std::vector<T*>::const_iterator const_iterator;
@@ -24,6 +27,12 @@ class ScopedVector {
 
   ScopedVector() {}
   ~ScopedVector() { reset(); }
+  ScopedVector(RValue& other) { swap(other); }
+
+  ScopedVector& operator=(RValue& rhs) {
+    swap(rhs);
+    return *this;
+  }
 
   std::vector<T*>* operator->() { return &v; }
   const std::vector<T*>* operator->() const { return &v; }
@@ -89,8 +98,6 @@ class ScopedVector {
   }
  private:
   std::vector<T*> v;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedVector);
 };
 
 #endif  // BASE_MEMORY_SCOPED_VECTOR_H_

@@ -81,29 +81,7 @@
 #include <stdlib.h>
 
 #include "base/compiler_specific.h"
-
-// Macro with the boilerplate C++03 move emulation for a class.
-//
-// In C++11, this is done via rvalue references.  Here, we use C++03 move
-// emulation to fake an rvalue reference.  For a more thorough explanation
-// of the technique, see:
-//
-//   http://en.wikibooks.org/wiki/More_C%2B%2B_Idioms/Move_Constructor
-//
-#define CPP_03_MOVE_EMULATION(scoper, field) \
- private: \
-  struct RValue { \
-    explicit RValue(scoper& obj) : obj_(obj) {} \
-    scoper& obj_; \
-  }; \
- public: \
-  operator RValue() { return RValue(*this); } \
-  scoper(RValue proxy) : field(proxy.obj_.release()) { } \
-  scoper& operator=(RValue proxy) { \
-    swap(proxy.obj_); \
-    return *this; \
-  } \
-  scoper Pass() { return scoper(RValue(*this)); }
+#include "base/move.h"
 
 // A scoped_ptr<T> is like a T*, except that the destructor of scoped_ptr<T>
 // automatically deletes the pointer it holds (if any).
@@ -116,6 +94,8 @@
 // sizeof(scoped_ptr<C>) == sizeof(C*)
 template <class C>
 class scoped_ptr {
+  MOVE_ONLY_TYPE_FOR_CPP_03(scoped_ptr, RValue);
+
  public:
 
   // The element type
@@ -129,8 +109,10 @@ class scoped_ptr {
   // Constructor.  Allows construction from a scoped_ptr rvalue for a
   // convertible type.
   template <typename U>
-  scoped_ptr(scoped_ptr<U> other) : ptr_(other.release()) {
-  }
+  scoped_ptr(scoped_ptr<U> other) : ptr_(other.release()) { }
+
+  // Constructor.  Move constructor for C++03 move emulation of this type.
+  scoped_ptr(RValue& other) : ptr_(other.release()) { }
 
   // Destructor.  If there is a C object, delete it.
   // We don't need to test ptr_ == NULL because C++ does that for us.
@@ -144,6 +126,12 @@ class scoped_ptr {
   template <typename U>
   scoped_ptr& operator=(scoped_ptr<U> rhs) {
     reset(rhs.release());
+    return *this;
+  }
+
+  // operator=.  Move operator= for C++03 move emulation of this type.
+  scoped_ptr& operator=(RValue& rhs) {
+    swap(rhs);
     return *this;
   }
 
@@ -194,8 +182,6 @@ class scoped_ptr {
     return retVal;
   }
 
-  CPP_03_MOVE_EMULATION(scoped_ptr, ptr_);
-
  private:
   C* ptr_;
 
@@ -205,10 +191,6 @@ class scoped_ptr {
   template <class C2> bool operator==(scoped_ptr<C2> const& p2) const;
   template <class C2> bool operator!=(scoped_ptr<C2> const& p2) const;
 
-  // Disallow evil constructors.  Note that MUST NOT take a const& because we
-  // are implementing move semantics.  See the CPP_03_MOVE_EMULATION macro.
-  scoped_ptr(scoped_ptr&);
-  void operator=(scoped_ptr&);
 };
 
 // Free functions
@@ -238,6 +220,8 @@ bool operator!=(C* p1, const scoped_ptr<C>& p2) {
 // Size: sizeof(scoped_array<C>) == sizeof(C*)
 template <class C>
 class scoped_array {
+  MOVE_ONLY_TYPE_FOR_CPP_03(scoped_array, RValue);
+
  public:
 
   // The element type
@@ -248,11 +232,20 @@ class scoped_array {
   // The input parameter must be allocated with new [].
   explicit scoped_array(C* p = NULL) : array_(p) { }
 
+  // Constructor.  Move constructor for C++03 move emulation of this type.
+  scoped_array(RValue& other) : array_(other.release()) { }
+
   // Destructor.  If there is a C object, delete it.
   // We don't need to test ptr_ == NULL because C++ does that for us.
   ~scoped_array() {
     enum { type_must_be_complete = sizeof(C) };
     delete[] array_;
+  }
+
+  // operator=.  Move operator= for C++03 move emulation of this type.
+  scoped_array& operator=(RValue& rhs) {
+    swap(rhs);
+    return *this;
   }
 
   // Reset.  Deletes the current owned object, if any.
@@ -304,19 +297,12 @@ class scoped_array {
     return retVal;
   }
 
-  CPP_03_MOVE_EMULATION(scoped_array, array_);
-
  private:
   C* array_;
 
   // Forbid comparison of different scoped_array types.
   template <class C2> bool operator==(scoped_array<C2> const& p2) const;
   template <class C2> bool operator!=(scoped_array<C2> const& p2) const;
-
-  // Disallow evil constructors.  Note that MUST NOT take a const& because we
-  // are implementing move semantics.  See the CPP_03_MOVE_EMULATION macro.
-  scoped_array(scoped_array&);
-  void operator=(scoped_array&);
 };
 
 // Free functions
@@ -349,6 +335,8 @@ class ScopedPtrMallocFree {
 
 template<class C, class FreeProc = ScopedPtrMallocFree>
 class scoped_ptr_malloc {
+  MOVE_ONLY_TYPE_FOR_CPP_03(scoped_ptr_malloc, RValue);
+
  public:
 
   // The element type
@@ -361,9 +349,18 @@ class scoped_ptr_malloc {
   // realloc.
   explicit scoped_ptr_malloc(C* p = NULL): ptr_(p) {}
 
+  // Constructor.  Move constructor for C++03 move emulation of this type.
+  scoped_ptr_malloc(RValue& other) : ptr_(other.release()) { }
+
   // Destructor.  If there is a C object, call the Free functor.
   ~scoped_ptr_malloc() {
     reset();
+  }
+
+  // operator=.  Move operator= for C++03 move emulation of this type.
+  scoped_ptr_malloc& operator=(RValue& rhs) {
+    swap(rhs);
+    return *this;
   }
 
   // Reset.  Calls the Free functor on the current owned object, if any.
@@ -425,8 +422,6 @@ class scoped_ptr_malloc {
     return tmp;
   }
 
-  CPP_03_MOVE_EMULATION(scoped_ptr_malloc, ptr_);
-
  private:
   C* ptr_;
 
@@ -435,14 +430,7 @@ class scoped_ptr_malloc {
   bool operator==(scoped_ptr_malloc<C2, GP> const& p) const;
   template <class C2, class GP>
   bool operator!=(scoped_ptr_malloc<C2, GP> const& p) const;
-
-  // Disallow evil constructors.  Note that MUST NOT take a const& because we
-  // are implementing move semantics.  See the CPP_03_MOVE_EMULATION macro.
-  scoped_ptr_malloc(scoped_ptr_malloc&);
-  void operator=(scoped_ptr_malloc&);
 };
-
-#undef CPP_03_MOVE_EMULATION
 
 template<class C, class FP> inline
 void swap(scoped_ptr_malloc<C, FP>& a, scoped_ptr_malloc<C, FP>& b) {
