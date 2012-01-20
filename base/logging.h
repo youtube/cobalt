@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -980,15 +980,5 @@ inline std::ostream& operator<<(std::ostream& out, const std::wstring& wstr) {
   LOG_IF(ERROR, 0 == count++) << NOTIMPLEMENTED_MSG;\
 } while(0)
 #endif
-
-namespace base {
-
-template <typename STRING_TYPE> class BasicStringPiece;
-typedef BasicStringPiece<std::string> StringPiece;
-
-// Allows StringPiece to be logged.
-BASE_EXPORT std::ostream& operator<<(std::ostream& o, const StringPiece& piece);
-
-}  // namespace base
 
 #endif  // BASE_LOGGING_H_
