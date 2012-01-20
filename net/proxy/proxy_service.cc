@@ -78,38 +78,74 @@ const int64 kDelayAfterNetworkChangesMs = 2000;
 //    0: 8 seconds  (scheduled on timer)
 //    1: 32 seconds
 //    2: 2 minutes
-//    3+: 2 hours
+//    3+: 4 hours
 //
 // In response to a success, the poll intervals are:
-//    0: 2 minutes
-//    1+: 2 hours
+//    0+: 12 hours
 //
 // Only the 8 second poll is scheduled on a timer, the rest happen in response
 // to network activity (and hence will take longer than the written time).
+//
+// Explanation for these values:
+//
+// TODO(eroman): These values are somewhat arbitrary, and need to be tuned
+// using some histograms data. Trying to be conservative so as not to break
+// existing setups when deployed. A simple exponential retry scheme would be
+// more elegant, but places more load on server.
+//
+// The motivation for trying quickly after failures (8 seconds) is to recover
+// from spurious network failures, which are common after the IP address has
+// just changed (like DNS failing to resolve). The next 32 second boundary is
+// to try and catch other VPN weirdness which anecdotally I have seen take
+// 10+ seconds for some users.
+//
+// The motivation for re-trying after a success is to check for possible
+// content changes to the script, or to the WPAD auto-discovery results. We are
+// not very aggressive with these checks so as to minimize the risk of
+// overloading existing PAC setups. Moreover it is unlikely that PAC scripts
+// change very frequently in existing setups. More research is needed to
+// motivate what safe values are here, and what other user agents do.
+//
+// Comparison to other browsers:
+//
+// In Firefox the PAC URL is re-tried on failures according to
+// network.proxy.autoconfig_retry_interval_min and
+// network.proxy.autoconfig_retry_interval_max. The defaults are 5 seconds and
+// 5 minutes respectively. It doubles the interval at each attempt.
+//
+// TODO(eroman): Figure out what Internet Explorer does.
 class DefaultPollPolicy : public ProxyService::PacPollPolicy {
  public:
   DefaultPollPolicy() {}
 
-  virtual Mode GetInitialDelay(int error, int64* next_delay_ms) const OVERRIDE {
-    // Poll after 8 seconds on errors, versus 2 minutes after a success.
-    if (error != OK) {
-      *next_delay_ms = 8000;
-      return MODE_USE_TIMER;
-    }
-
-    *next_delay_ms = 120000;
-    return MODE_START_AFTER_ACTIVITY;
-  }
-
-  virtual Mode GetNextDelay(int64 current_delay_ms,
+  virtual Mode GetNextDelay(int initial_error,
+                            int64 current_delay_ms,
                             int64* next_delay_ms) const OVERRIDE {
-    switch (current_delay_ms) {
-      case 8000:
-        *next_delay_ms = 32000;
-        return MODE_START_AFTER_ACTIVITY;
-      default:
-        *next_delay_ms = 7200000;  // 2 hours
-        return MODE_START_AFTER_ACTIVITY;
+    if (initial_error != OK) {
+      // Re-try policy for failures.
+      const int kDelay1 = 8000;  // 8 seconds
+      const int kDelay2 = 32000;  // 32 seconds
+      const int kDelay3 = 120000;  // 2 minutes
+      const int kDelay4 = 14400000;  // 4 hours
+
+      switch (current_delay_ms) {
+        case -1:  // Initial poll.
+          *next_delay_ms = kDelay1;
+          return MODE_USE_TIMER;
+        case kDelay1:
+          *next_delay_ms = kDelay2;
+          return MODE_START_AFTER_ACTIVITY;
+        case kDelay2:
+          *next_delay_ms =  kDelay3;
+          return MODE_START_AFTER_ACTIVITY;
+        default:
+          *next_delay_ms = kDelay4;
+          return MODE_START_AFTER_ACTIVITY;
+      }
+    } else {
+      // Re-try policy for succeses.
+      *next_delay_ms = 43200000;  // 12 hours
+      return MODE_START_AFTER_ACTIVITY;
     }
   }
 
@@ -570,10 +606,9 @@ class ProxyService::ProxyScriptDeciderPoller {
         last_error_(init_net_error),
         last_script_data_(init_script_data),
         last_poll_time_(base::TimeTicks::Now()) {
-    // Set the initial poll delay -- we check more aggressively right after a
-    // failure in case it was due to a spurious network error.
-    next_poll_mode_ = poll_policy()->GetInitialDelay(
-        init_net_error, &next_poll_delay_ms_);
+    // Set the initial poll delay.
+    next_poll_mode_ = poll_policy()->GetNextDelay(
+        last_error_, -1, &next_poll_delay_ms_);
     TryToStartNextPoll(false);
   }
 
@@ -664,8 +699,8 @@ class ProxyService::ProxyScriptDeciderPoller {
 
     // Decide when the next poll should take place, and possibly start the
     // next timer.
-    next_poll_mode_ =
-        poll_policy()->GetNextDelay(next_poll_delay_ms_, &next_poll_delay_ms_);
+    next_poll_mode_ = poll_policy()->GetNextDelay(
+        last_error_, next_poll_delay_ms_, &next_poll_delay_ms_);
     TryToStartNextPoll(false);
   }
 
