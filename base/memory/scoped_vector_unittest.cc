@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -121,6 +121,41 @@ TEST(ScopedVectorTest, Scope) {
   {
     ScopedVector<LifeCycleObject> scoped_vector;
     scoped_vector.push_back(watcher.NewLifeCycleObject());
+    EXPECT_EQ(LC_CONSTRUCTED, watcher.life_cycle_state());
+  }
+  EXPECT_EQ(LC_DESTROYED, watcher.life_cycle_state());
+}
+
+TEST(ScopedVectorTest, MoveConstruct) {
+  LifeCycleWatcher watcher;
+  EXPECT_EQ(LC_INITIAL, watcher.life_cycle_state());
+  {
+    ScopedVector<LifeCycleObject> scoped_vector;
+    scoped_vector.push_back(watcher.NewLifeCycleObject());
+    EXPECT_FALSE(scoped_vector.empty());
+
+    ScopedVector<LifeCycleObject> scoped_vector_copy(scoped_vector.Pass());
+    EXPECT_TRUE(scoped_vector.empty());
+    EXPECT_FALSE(scoped_vector_copy.empty());
+
+    EXPECT_EQ(LC_CONSTRUCTED, watcher.life_cycle_state());
+  }
+  EXPECT_EQ(LC_DESTROYED, watcher.life_cycle_state());
+}
+
+TEST(ScopedVectorTest, MoveAssign) {
+  LifeCycleWatcher watcher;
+  EXPECT_EQ(LC_INITIAL, watcher.life_cycle_state());
+  {
+    ScopedVector<LifeCycleObject> scoped_vector;
+    scoped_vector.push_back(watcher.NewLifeCycleObject());
+    ScopedVector<LifeCycleObject> scoped_vector_assign;
+    EXPECT_FALSE(scoped_vector.empty());
+
+    scoped_vector_assign = scoped_vector.Pass();
+    EXPECT_TRUE(scoped_vector.empty());
+    EXPECT_FALSE(scoped_vector_assign.empty());
+
     EXPECT_EQ(LC_CONSTRUCTED, watcher.life_cycle_state());
   }
   EXPECT_EQ(LC_DESTROYED, watcher.life_cycle_state());

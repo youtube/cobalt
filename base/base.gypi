@@ -200,6 +200,7 @@
           'metrics/stats_counters.h',
           'metrics/stats_table.cc',
           'metrics/stats_table.h',
+          'move.h',
           'native_library.h',
           'native_library_mac.mm',
           'native_library_posix.cc',
