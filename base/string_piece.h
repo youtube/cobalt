@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 // Copied from strings/stringpiece.h with modifications
@@ -24,6 +24,7 @@
 #define BASE_STRING_PIECE_H_
 #pragma once
 
+#include <iosfwd>
 #include <string>
 
 #include "base/base_export.h"
@@ -398,6 +399,9 @@ inline bool operator<=(const StringPiece16& x, const StringPiece16& y) {
 inline bool operator>=(const StringPiece16& x, const StringPiece16& y) {
   return !(x < y);
 }
+
+BASE_EXPORT std::ostream& operator<<(std::ostream& o,
+                                     const StringPiece& piece);
 
 }  // namespace base
 
