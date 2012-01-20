@@ -45,15 +45,9 @@
           # Default setting for use_skia on mac platform.
           # This is typically overridden in use_skia_on_mac.gypi.
           'use_skia_on_mac%': 0,
-
-          # Whether or not to show the aura-window-mode flag in about://flags.
-          # TODO(alicet): Remove this when we can expose the flag to
-          # all chromeos platforms.
-          'aura_show_about_flag_window_mode': 0,
         },
         # Copy conditionally-set variables out one scope.
         'chromeos%': '<(chromeos)',
-        'aura_show_about_flag_window_mode%': '<(aura_show_about_flag_window_mode)',
         'views_compositor%': '<(views_compositor)',
         'use_aura%': '<(use_aura)',
         'use_ash%': '<(use_ash)',
@@ -76,11 +70,6 @@
           # Ash requires Aura.
           ['use_ash==1', {
             'use_aura%': 1,
-          }],
-
-          # show aura-window-mode about flag by default.
-          ['use_aura==1', {
-            'aura_show_about_flag_window_mode': 1,
           }],
 
           # Set default value of toolkit_views based on OS.
@@ -107,7 +96,6 @@
       # Copy conditionally-set variables out one scope.
       'chromeos%': '<(chromeos)',
       'host_arch%': '<(host_arch)',
-      'aura_show_about_flag_window_mode%': '<(aura_show_about_flag_window_mode)',
       'toolkit_views%': '<(toolkit_views)',
       'views_compositor%': '<(views_compositor)',
       'use_webkit_compositor%': '<(use_webkit_compositor)',
@@ -400,7 +388,6 @@
     'target_arch%': '<(target_arch)',
     'host_arch%': '<(host_arch)',
     'library%': 'static_library',
-    'aura_show_about_flag_window_mode%': '<(aura_show_about_flag_window_mode)',
     'toolkit_views%': '<(toolkit_views)',
     'views_compositor%': '<(views_compositor)',
     'ui_compositor_image_transport%': '<(ui_compositor_image_transport)',
@@ -682,10 +669,6 @@
     # Disable Dart by default.
     'enable_dart%': 0,
 
-    # (Most) Chrome OS hardware reports ACPI power button releases correctly.
-    # Standard hardware reports releases immediately after presses.
-    'chromeos_legacy_power_button%': 0,
-
     'conditions': [
       # Used to disable Native Client at compile time, for platforms where it
       # isn't supported (ARM)
@@ -884,9 +867,6 @@
       ['chromeos==1', {
         'grit_defines': ['-D', 'chromeos'],
       }],
-      ['aura_show_about_flag_window_mode==1', {
-        'grit_defines': ['-D', 'aura_show_about_flag_window_mode'],
-      }],
       ['toolkit_views==1', {
         'grit_defines': ['-D', 'toolkit_views'],
       }],
@@ -1055,9 +1035,6 @@
         # See http://code.google.com/p/chromium/issues/detail?id=98755 .
         'defines': ['COMPILE_CONTENT_STATICALLY'],
       }],
-      ['aura_show_about_flag_window_mode==1', {
-        'defines': ['AURA_SHOW_ABOUT_FLAG_WINDOW_MODE=1'],
-      }],
       ['toolkit_views==1', {
         'defines': ['TOOLKIT_VIEWS=1'],
       }],
@@ -1089,9 +1066,6 @@
       }],
       ['chromeos==1', {
         'defines': ['OS_CHROMEOS=1'],
-      }],
-      ['chromeos_legacy_power_button==1', {
-        'defines': ['CHROMEOS_LEGACY_POWER_BUTTON=1'],
       }],
       ['use_virtual_keyboard==1', {
         'defines': ['USE_VIRTUAL_KEYBOARD=1'],
