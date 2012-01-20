@@ -69,6 +69,7 @@
           'debug/trace_event.cc',
           'debug/trace_event.h',
           'dir_reader_fallback.h',
+          'dir_reader_dirent.h',
           'dir_reader_linux.h',
           'dir_reader_posix.h',
           'environment.cc',
