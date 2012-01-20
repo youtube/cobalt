@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,10 +22,6 @@
 namespace net {
 
 namespace {
-
-// TTL for the per-request DNS cache. Applies to both successful and failed
-// DNS resolutions.
-const base::TimeDelta kCacheEntryTTL = base::TimeDelta::FromMinutes(5);
 
 // Event parameters for a PAC error message (line number + message).
 class ErrorNetlogParams : public NetLog::EventParameters {
@@ -267,8 +263,7 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
     // Save the result back to the per-request DNS cache.
     if (host_cache) {
       host_cache->Set(cache_key, result, *address_list,
-                      base::TimeTicks::Now(),
-                      kCacheEntryTTL);
+                      base::TimeTicks::Now());
     }
 
     return result;
