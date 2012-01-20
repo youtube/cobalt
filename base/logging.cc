@@ -835,20 +835,11 @@ void RawLog(int level, const char* message) {
     base::debug::BreakDebugger();
 }
 
+// This was defined at the beginning of this file.
+#undef write
+
 }  // namespace logging
 
 std::ostream& operator<<(std::ostream& out, const wchar_t* wstr) {
   return out << WideToUTF8(std::wstring(wstr));
 }
-
-namespace base {
-
-// This was defined at the beginnig of this file.
-#undef write
-
-std::ostream& operator<<(std::ostream& o, const StringPiece& piece) {
-  o.write(piece.data(), static_cast<std::streamsize>(piece.size()));
-  return o;
-}
-
-}  // namespace base
