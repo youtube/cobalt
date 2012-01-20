@@ -17,7 +17,7 @@ AudioManager* CreateAudioManager() {
 AudioManagerAndroid::AudioManagerAndroid() {}
 
 AudioManagerAndroid::~AudioManagerAndroid() {
-  audio_thread_.Stop();
+  audio_thread_->Stop();
 }
 
 bool AudioManagerAndroid::HasAudioOutputDevices() {
