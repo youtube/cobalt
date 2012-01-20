@@ -165,6 +165,7 @@ static const ElementIdInfo kTrackEntryIds[] = {
   {LIST, kWebMIdVideo},
   {LIST, kWebMIdAudio},
   {LIST, kWebMIdTrackOperation},
+  {LIST, kWebMIdContentEncodings},
 };
 
 static const ElementIdInfo kTrackTranslateIds[] = {
@@ -199,7 +200,6 @@ static const ElementIdInfo kAudioIds[] = {
 static const ElementIdInfo kTrackOperationIds[] = {
   {LIST, kWebMIdTrackCombinePlanes},
   {LIST, kWebMIdJoinBlocks},
-  {LIST, kWebMIdContentEncodings},
 };
 
 static const ElementIdInfo kTrackCombinePlanesIds[] = {
@@ -373,10 +373,10 @@ static const ListElementInfo kListElementInfo[] = {
   LIST_ELEMENT_INFO(kWebMIdTrackCombinePlanes, 4, kTrackCombinePlanesIds),
   LIST_ELEMENT_INFO(kWebMIdTrackPlane, 5, kTrackPlaneIds),
   LIST_ELEMENT_INFO(kWebMIdJoinBlocks, 4, kJoinBlocksIds),
-  LIST_ELEMENT_INFO(kWebMIdContentEncodings, 4, kContentEncodingsIds),
-  LIST_ELEMENT_INFO(kWebMIdContentEncoding, 5, kContentEncodingIds),
-  LIST_ELEMENT_INFO(kWebMIdContentCompression, 6, kContentCompressionIds),
-  LIST_ELEMENT_INFO(kWebMIdContentEncryption, 6, kContentEncryptionIds),
+  LIST_ELEMENT_INFO(kWebMIdContentEncodings, 3, kContentEncodingsIds),
+  LIST_ELEMENT_INFO(kWebMIdContentEncoding, 4, kContentEncodingIds),
+  LIST_ELEMENT_INFO(kWebMIdContentCompression, 5, kContentCompressionIds),
+  LIST_ELEMENT_INFO(kWebMIdContentEncryption, 5, kContentEncryptionIds),
   LIST_ELEMENT_INFO(kWebMIdCues, 1, kCuesIds),
   LIST_ELEMENT_INFO(kWebMIdCuePoint, 2, kCuePointIds),
   LIST_ELEMENT_INFO(kWebMIdCueTrackPositions, 3, kCueTrackPositionsIds),
