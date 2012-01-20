@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -742,10 +742,12 @@ int ProxyResolverV8::GetProxyForURL(
   // available to any of the javascript "bindings" that are subsequently invoked
   // from the javascript.
   //
-  // In particular, we create a HostCache to aggressively cache failed DNS
-  // resolves.
-  const unsigned kMaxCacheEntries = 50;
-  HostCache host_cache(kMaxCacheEntries);
+  // In particular, we create a HostCache that is aggressive about caching
+  // failed DNS resolves.
+  HostCache host_cache(
+      50,
+      base::TimeDelta::FromMinutes(5),
+      base::TimeDelta::FromMinutes(5));
 
   ProxyResolverRequestContext request_context(&net_log, &host_cache);
 

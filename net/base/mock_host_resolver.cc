@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,11 +21,6 @@
 namespace net {
 
 namespace {
-
-// Cache size for the MockCachingHostResolver.
-const unsigned kMaxCacheEntries = 100;
-// TTL for the successful resolutions. Failures are not cached.
-const base::TimeDelta kCacheEntryTTL = base::TimeDelta::FromMinutes(1);
 
 char* do_strdup(const char* src) {
 #if defined(OS_WIN)
@@ -135,7 +130,10 @@ MockHostResolverBase::MockHostResolverBase(bool use_caching)
   proc_ = rules_;
 
   if (use_caching) {
-    cache_.reset(new HostCache(kMaxCacheEntries));
+    cache_.reset(new HostCache(
+        100,  // max entries.
+        base::TimeDelta::FromMinutes(1),
+        base::TimeDelta::FromSeconds(0)));
   }
 }
 
@@ -175,10 +173,7 @@ int MockHostResolverBase::ResolveProc(size_t id,
     HostCache::Key key(info.hostname(),
                        info.address_family(),
                        info.host_resolver_flags());
-    // Storing a failure with TTL 0 so that it overwrites previous value.
-    cache_->Set(key, rv, addr,
-                base::TimeTicks::Now(),
-                (rv == OK) ? kCacheEntryTTL : base::TimeDelta());
+    cache_->Set(key, rv, addr, base::TimeTicks::Now());
   }
   if (rv == OK)
     *addresses = CreateAddressListUsingPort(addr, info.port());
