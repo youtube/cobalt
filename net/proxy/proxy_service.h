@@ -73,14 +73,14 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
 
     virtual ~PacPollPolicy() {}
 
-    // Decides the initial poll delay. |error| is the network error
-    // code that the most last PAC fetch failed with (or OK if it was a
-    // success). Implementations must set |next_delay_ms|.
-    virtual Mode GetInitialDelay(int error, int64* next_delay_ms) const = 0;
-
     // Decides the next poll delay. |current_delay_ms| is the delay used
-    // by the preceding poll. Implementations must set |next_delay_ms|.
-    virtual Mode GetNextDelay(int64 current_delay_ms,
+    // by the preceding poll, or -1 if determining the delay for the initial
+    // poll. |initial_error| is the network error code that the last PAC
+    // fetch (or WPAD initialization) failed with, or OK if it completed
+    // successfully. Implementations must set |next_delay_ms| to a non-negative
+    // value.
+    virtual Mode GetNextDelay(int initial_error,
+                              int64 current_delay_ms,
                               int64* next_delay_ms) const = 0;
   };
 
