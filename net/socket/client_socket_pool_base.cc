@@ -386,6 +386,11 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
           return ERR_IO_PENDING;
         }
       } while (ReachedMaxSocketsLimit());
+
+      // It is possible that CloseOneIdleConnectionInLayeredPool() has deleted
+      // our Group (see http://crbug.com/109876), so look it up again
+      // to be safe.
+      group = GetOrCreateGroup(group_name);
     }
   }
 
