@@ -94,7 +94,7 @@
 // sizeof(scoped_ptr<C>) == sizeof(C*)
 template <class C>
 class scoped_ptr {
-  MOVE_ONLY_TYPE_FOR_CPP_03(scoped_ptr, RValue);
+  MOVE_ONLY_TYPE_FOR_CPP_03(scoped_ptr, RValue)
 
  public:
 
@@ -220,7 +220,7 @@ bool operator!=(C* p1, const scoped_ptr<C>& p2) {
 // Size: sizeof(scoped_array<C>) == sizeof(C*)
 template <class C>
 class scoped_array {
-  MOVE_ONLY_TYPE_FOR_CPP_03(scoped_array, RValue);
+  MOVE_ONLY_TYPE_FOR_CPP_03(scoped_array, RValue)
 
  public:
 
@@ -335,7 +335,7 @@ class ScopedPtrMallocFree {
 
 template<class C, class FreeProc = ScopedPtrMallocFree>
 class scoped_ptr_malloc {
-  MOVE_ONLY_TYPE_FOR_CPP_03(scoped_ptr_malloc, RValue);
+  MOVE_ONLY_TYPE_FOR_CPP_03(scoped_ptr_malloc, RValue)
 
  public:
 
