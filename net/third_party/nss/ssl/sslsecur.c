@@ -391,8 +391,8 @@ SSL_ForceHandshake(PRFileDesc *fd)
     if (!ssl_SocketIsBlocking(ss)) {
 	ssl_GetXmitBufLock(ss);
 	if (ss->pendingBuf.len != 0) {
-	    rv = ssl_SendSavedWriteData(ss);
-	    if ((rv < 0) && (PORT_GetError() != PR_WOULD_BLOCK_ERROR)) {
+	    int sent = ssl_SendSavedWriteData(ss);
+	    if ((sent < 0) && (PORT_GetError() != PR_WOULD_BLOCK_ERROR)) {
 		ssl_ReleaseXmitBufLock(ss);
 		return SECFailure;
 	    }
