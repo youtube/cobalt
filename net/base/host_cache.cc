@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,12 +22,8 @@ HostCache::Entry::~Entry() {
 
 //-----------------------------------------------------------------------------
 
-HostCache::HostCache(size_t max_entries,
-                     base::TimeDelta success_entry_ttl,
-                     base::TimeDelta failure_entry_ttl)
-    : max_entries_(max_entries),
-      success_entry_ttl_(success_entry_ttl),
-      failure_entry_ttl_(failure_entry_ttl) {
+HostCache::HostCache(size_t max_entries)
+    : max_entries_(max_entries) {
 }
 
 HostCache::~HostCache() {
@@ -53,13 +49,13 @@ const HostCache::Entry* HostCache::Lookup(const Key& key,
 HostCache::Entry* HostCache::Set(const Key& key,
                                  int error,
                                  const AddressList& addrlist,
-                                 base::TimeTicks now) {
+                                 base::TimeTicks now,
+                                 base::TimeDelta ttl) {
   DCHECK(CalledOnValidThread());
   if (caching_is_disabled())
     return NULL;
 
-  base::TimeTicks expiration = now +
-      (error == OK ? success_entry_ttl_ : failure_entry_ttl_);
+  base::TimeTicks expiration = now + ttl;
 
   scoped_refptr<Entry>& entry = entries_[key];
   if (!entry) {
@@ -96,16 +92,6 @@ size_t HostCache::max_entries() const {
   return max_entries_;
 }
 
-base::TimeDelta HostCache::success_entry_ttl() const {
-  DCHECK(CalledOnValidThread());
-  return success_entry_ttl_;
-}
-
-base::TimeDelta HostCache::failure_entry_ttl() const {
-  DCHECK(CalledOnValidThread());
-  return failure_entry_ttl_;
-}
-
 // Note that this map may contain expired entries.
 const HostCache::EntryMap& HostCache::entries() const {
   DCHECK(CalledOnValidThread());
@@ -120,13 +106,7 @@ bool HostCache::CanUseEntry(const Entry* entry, const base::TimeTicks now) {
 // static
 HostCache* HostCache::CreateDefaultCache() {
   static const size_t kMaxHostCacheEntries = 100;
-
-  HostCache* cache = new HostCache(
-      kMaxHostCacheEntries,
-      base::TimeDelta::FromMinutes(1),
-      base::TimeDelta::FromSeconds(0));  // Disable caching of failed DNS.
-
-  return cache;
+  return new HostCache(kMaxHostCacheEntries);
 }
 
 void HostCache::Compact(base::TimeTicks now, const Entry* pinned_entry) {

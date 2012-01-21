@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -49,6 +49,9 @@ namespace {
 // Limit the size of hostnames that will be resolved to combat issues in
 // some platform's resolvers.
 const size_t kMaxHostLength = 4096;
+
+// Default TTL for successful resolutions with ProcTask.
+const unsigned kCacheEntryTTLSeconds = 60;
 
 // Helper to mutate the linked list contained by AddressList to the given
 // port. Note that in general this is dangerous since the AddressList's
@@ -1353,9 +1356,14 @@ void HostResolverImpl::OnJobComplete(Job* job,
   RemoveOutstandingJob(job);
 
   // Write result to the cache.
-  if (cache_.get())
-    cache_->Set(job->key(), net_error, addrlist, base::TimeTicks::Now());
-
+  if (cache_.get()) {
+    base::TimeDelta ttl = base::TimeDelta::FromSeconds(0);
+    if (net_error == OK)
+      ttl = base::TimeDelta::FromSeconds(kCacheEntryTTLSeconds);
+    cache_->Set(job->key(), net_error, addrlist,
+                base::TimeTicks::Now(),
+                ttl);
+  }
   OnJobCompleteInternal(job, net_error, os_error, addrlist);
 }
 
