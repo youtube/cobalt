@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -31,6 +31,10 @@
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_restrictions.h"
+
+#if defined(OS_CHROMEOS)
+#include <sys/ioctl.h>
+#endif
 
 #if defined(OS_FREEBSD)
 #include <sys/event.h>
@@ -676,6 +680,20 @@ bool LaunchProcess(const std::vector<std::string>& argv,
 
     // DANGER: no calls to malloc are allowed from now on:
     // http://crbug.com/36678
+
+#if defined(OS_CHROMEOS)
+    if (options.ctrl_terminal_fd >= 0) {
+      // Set process' controlling terminal.
+      if (HANDLE_EINTR(setsid()) != -1) {
+        if (HANDLE_EINTR(
+                ioctl(options.ctrl_terminal_fd, TIOCSCTTY, NULL)) == -1) {
+          RAW_LOG(WARNING, "ioctl(TIOCSCTTY), ctrl terminal not set");
+        }
+      } else {
+        RAW_LOG(WARNING, "setsid failed, ctrl terminal not set");
+      }
+    }
+#endif  // defined(OS_CHROMEOS)
 
     if (options.fds_to_remap) {
       for (file_handle_mapping_vector::const_iterator
