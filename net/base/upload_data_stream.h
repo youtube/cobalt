@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -24,15 +24,18 @@ class NET_EXPORT UploadDataStream {
   // code will be set if the output parameter error_code is not empty.
   static UploadDataStream* Create(UploadData* data, int* error_code);
 
-  // Returns the stream's buffer and buffer length.
+  // Returns the stream's buffer.
   IOBuffer* buf() const { return buf_; }
+  // Returns the length of the data in the stream's buffer.
   size_t buf_len() const { return buf_len_; }
 
   // TODO(satish): We should ideally have UploadDataStream expose a Read()
   // method which returns data in a caller provided IOBuffer. That would do away
-  // with this method and make the interface cleaner as well with less memmove
+  // with this function and make the interface cleaner as well with less memmove
   // calls.
-  size_t GetMaxBufferSize() const { return kBufSize; }
+  //
+  // Returns the size of the stream's buffer pointed by buf().
+  static size_t GetBufferSize();
 
   // Call to indicate that a portion of the stream's buffer was consumed.  This
   // call modifies the stream's buffer so that it contains the next segment of
@@ -67,8 +70,6 @@ class NET_EXPORT UploadDataStream {
   static void set_merge_chunks(bool merge) { merge_chunks_ = merge; }
 
  private:
-  enum { kBufSize = 16384 };
-
   // Protects from public access since now we have a static creator function
   // which will do both creation and initialization and might return an error.
   explicit UploadDataStream(UploadData* data);
@@ -112,6 +113,8 @@ class NET_EXPORT UploadDataStream {
   // TODO(satish): Remove this once we have a better way to unit test POST
   // requests with chunked uploads.
   static bool merge_chunks_;
+  // The size of the stream's buffer pointed by buf_.
+  static const size_t kBufferSize;
 
   DISALLOW_COPY_AND_ASSIGN(UploadDataStream);
 };
