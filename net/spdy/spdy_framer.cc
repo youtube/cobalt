@@ -1340,8 +1340,11 @@ SpdyDataFrame* SpdyFramer::CompressDataFrame(const SpdyDataFrame& frame) {
 SpdyControlFrame* SpdyFramer::DecompressControlFrame(
     const SpdyControlFrame& frame) {
   z_stream* decompressor = GetHeaderDecompressor();
-  if (!decompressor)
+  if (!decompressor) {
+    LOG(DFATAL) << "Couldn't get decompressor for handling control frame.";
+    set_error(SPDY_DECOMPRESS_FAILURE);
     return NULL;
+  }
   return reinterpret_cast<SpdyControlFrame*>(
       DecompressFrameWithZStream(frame, decompressor));
 }
