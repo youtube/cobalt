@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,6 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "media/base/filters.h"
-#include "media/base/pts_stream.h"
 #include "ui/gfx/size.h"
 
 class MessageLoop;
@@ -70,7 +69,6 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
 
   MessageLoop* message_loop_;
 
-  PtsStream pts_stream_;
   DecoderState state_;
 
   StatisticsCallback statistics_callback_;

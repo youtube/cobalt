@@ -187,37 +187,6 @@ class FFmpegVideoDecoderTest : public testing::Test {
     message_loop_.RunAllPending();
   }
 
-  void SetupTimestampTest() {
-    Initialize();
-    EXPECT_CALL(*demuxer_, Read(_))
-        .WillRepeatedly(Invoke(this, &FFmpegVideoDecoderTest::ReadTimestamp));
-    EXPECT_CALL(statistics_callback_, OnStatistics(_))
-        .Times(AnyNumber());
-  }
-
-  void PushTimestamp(int64 timestamp) {
-    timestamps_.push_back(timestamp);
-  }
-
-  int64 PopTimestamp() {
-    scoped_refptr<VideoFrame> video_frame;
-    Read(&video_frame);
-
-    return video_frame->GetTimestamp().InMicroseconds();
-  }
-
-  void ReadTimestamp(const DemuxerStream::ReadCallback& read_callback) {
-    if (timestamps_.empty()) {
-      read_callback.Run(end_of_stream_buffer_);
-      return;
-    }
-
-    i_frame_buffer_->SetTimestamp(
-        base::TimeDelta::FromMicroseconds(timestamps_.front()));
-    timestamps_.pop_front();
-    read_callback.Run(i_frame_buffer_);
-  }
-
   MOCK_METHOD1(FrameReady, void(scoped_refptr<VideoFrame>));
 
   MessageLoop message_loop_;
@@ -467,53 +436,6 @@ TEST_F(FFmpegVideoDecoderTest, Stop_EndOfStream) {
   EnterDecodingState();
   EnterEndOfStreamState();
   Stop();
-}
-
-// Test normal operation of timestamping where all input has valid timestamps.
-TEST_F(FFmpegVideoDecoderTest, Timestamps_Normal) {
-  SetupTimestampTest();
-
-  PushTimestamp(0);
-  PushTimestamp(1000);
-  PushTimestamp(2000);
-  PushTimestamp(3000);
-
-  EXPECT_EQ(0, PopTimestamp());
-  EXPECT_EQ(1000, PopTimestamp());
-  EXPECT_EQ(2000, PopTimestamp());
-  EXPECT_EQ(3000, PopTimestamp());
-}
-
-// Test situation where some input timestamps are missing and estimation will
-// be used based on the frame rate.
-TEST_F(FFmpegVideoDecoderTest, Timestamps_Estimated) {
-  SetupTimestampTest();
-
-  PushTimestamp(0);
-  PushTimestamp(1000);
-  PushTimestamp(kNoTimestamp().InMicroseconds());
-  PushTimestamp(kNoTimestamp().InMicroseconds());
-
-  EXPECT_EQ(0, PopTimestamp());
-  EXPECT_EQ(1000, PopTimestamp());
-  EXPECT_EQ(11000, PopTimestamp());
-  EXPECT_EQ(21000, PopTimestamp());
-}
-
-// Test resulting timestamps from end of stream.
-TEST_F(FFmpegVideoDecoderTest, Timestamps_EndOfStream) {
-  SetupTimestampTest();
-
-  PushTimestamp(0);
-  PushTimestamp(1000);
-
-  EXPECT_EQ(0, PopTimestamp());
-  EXPECT_EQ(1000, PopTimestamp());
-
-  // Following are all end of stream buffers.
-  EXPECT_EQ(0, PopTimestamp());
-  EXPECT_EQ(0, PopTimestamp());
-  EXPECT_EQ(0, PopTimestamp());
 }
 
 }  // namespace media
