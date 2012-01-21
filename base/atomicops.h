@@ -133,13 +133,12 @@ Atomic64 Release_Load(volatile const Atomic64* ptr);
 #include "base/atomicops_internals_x86_msvc.h"
 #elif defined(OS_MACOSX) && defined(ARCH_CPU_X86_FAMILY)
 #include "base/atomicops_internals_x86_macosx.h"
+#elif defined(__LB_SHELL__)
+#include "chromium/base/atomicops_internals_shell.h"  // from the platform lib
 #elif defined(COMPILER_GCC) && defined(ARCH_CPU_X86_FAMILY)
 #include "base/atomicops_internals_x86_gcc.h"
 #elif defined(COMPILER_GCC) && defined(ARCH_CPU_ARM_FAMILY)
 #include "base/atomicops_internals_arm_gcc.h"
-#elif defined(__LB_SHELL__)
-// from the platform lib:
-#include "chromium/base/atomicops_internals_shell.h"
 #else
 #error "Atomic operations are not supported on your platform"
 #endif
