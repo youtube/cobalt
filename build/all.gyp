@@ -263,7 +263,9 @@
         '../chrome/chrome.gyp:chromedriver',
       ],
       'conditions': [
-        ['OS=="mac" or OS=="win" or (os_posix==1 and target_arch==python_arch)', {
+        # If you change this condition, make sure you also change it
+        # in chrome_tests.gypi
+        ['OS=="mac" or OS=="win" or (os_posix==1 and OS != "android" and target_arch==python_arch)', {
           'dependencies': [
             '../chrome/chrome.gyp:pyautolib',
           ],
