@@ -118,7 +118,6 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
   // Success!
   state_ = kNormal;
   av_frame_ = avcodec_alloc_frame();
-  pts_stream_.Initialize(GetFrameDuration(config));
   natural_size_ = config.natural_size();
   frame_rate_numerator_ = config.frame_rate_numerator();
   frame_rate_denominator_ = config.frame_rate_denominator();
@@ -144,7 +143,6 @@ void FFmpegVideoDecoder::Seek(base::TimeDelta time, const FilterStatusCB& cb) {
     return;
   }
 
-  pts_stream_.Seek(time);
   cb.Run(PIPELINE_OK);
 }
 
@@ -166,7 +164,6 @@ void FFmpegVideoDecoder::Flush(const base::Closure& callback) {
   }
 
   avcodec_flush_buffers(codec_context_);
-  pts_stream_.Flush();
   state_ = kNormal;
   callback.Run();
 }
@@ -254,13 +251,6 @@ void FFmpegVideoDecoder::DoDecodeBuffer(const scoped_refptr<Buffer>& buffer) {
     state_ = kFlushCodec;
   }
 
-  // Push all incoming timestamps into the priority queue as long as we have
-  // not yet received an end of stream buffer.  It is important that this line
-  // stay below the state transition into kFlushCodec done above.
-  if (state_ == kNormal) {
-    pts_stream_.EnqueuePts(buffer.get());
-  }
-
   scoped_refptr<VideoFrame> video_frame;
   if (!Decode(buffer, &video_frame)) {
     state_ = kDecodeFinished;
@@ -288,11 +278,6 @@ void FFmpegVideoDecoder::DoDecodeBuffer(const scoped_refptr<Buffer>& buffer) {
     ReadFromDemuxerStream();
     return;
   }
-
-  // If we got a frame make sure its timestamp is correct before sending it off.
-  pts_stream_.UpdatePtsAndDuration(video_frame.get());
-  video_frame->SetTimestamp(pts_stream_.current_pts());
-  video_frame->SetDuration(pts_stream_.current_duration());
 
   DeliverFrame(video_frame);
 }
