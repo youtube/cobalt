@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -235,9 +235,8 @@ TEST(ProxyResolverJSBindingsTest, PerRequestDNSCache) {
   // Now setup a per-request context, and try the same experiment -- we
   // expect the underlying host resolver to receive only 1 request this time,
   // since it will service the others from the per-request DNS cache.
-  HostCache cache(50,
-                  base::TimeDelta::FromMinutes(10),
-                  base::TimeDelta::FromMinutes(10));
+  const unsigned kMaxCacheEntries = 50;
+  HostCache cache(kMaxCacheEntries);
   ProxyResolverRequestContext context(NULL, &cache);
   bindings->set_current_request_context(&context);
 
