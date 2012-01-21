@@ -158,4 +158,4 @@ v8.log
 /x86-generic_out/
 /xcodebuild
 PS3_PPU_*
-*.gyp_lbps3.*
+*.gyp_lb*
