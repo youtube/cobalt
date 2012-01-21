@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -225,6 +225,9 @@ struct LaunchOptions {
 #if defined(OS_LINUX)
                   , clone_flags(0)
 #endif  // OS_LINUX
+#if defined(OS_CHROMEOS)
+                  , ctrl_terminal_fd(-1)
+#endif  // OS_CHROMEOS
 #if defined(OS_MACOSX)
                   , synchronize(NULL)
 #endif  // defined(OS_MACOSX)
@@ -281,6 +284,12 @@ struct LaunchOptions {
   // If non-zero, start the process using clone(), using flags as provided.
   int clone_flags;
 #endif  // defined(OS_LINUX)
+
+#if defined(OS_CHROMEOS)
+  // If non-negative, the specified file descriptor will be set as the launched
+  // process' controlling terminal.
+  int ctrl_terminal_fd;
+#endif  // defined(OS_CHROMEOS)
 
 #if defined(OS_MACOSX)
   // When non-NULL, a new LaunchSynchronizationHandle will be created and
