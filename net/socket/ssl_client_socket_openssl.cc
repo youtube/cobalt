@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -425,6 +425,7 @@ SSLClientSocketOpenSSL::SSLClientSocketOpenSSL(
       ssl_config_(ssl_config),
       ssl_session_cache_shard_(context.ssl_session_cache_shard),
       trying_cached_session_(false),
+      next_handshake_state_(STATE_NONE),
       npn_status_(kNextProtoUnsupported),
       net_log_(transport_socket->socket()->NetLog()) {
 }
@@ -719,7 +720,6 @@ void SSLClientSocketOpenSSL::Disconnect() {
 }
 
 int SSLClientSocketOpenSSL::DoHandshakeLoop(int last_io_result) {
-  bool network_moved;
   int rv = last_io_result;
   do {
     // Default to STATE_NONE for next state.
@@ -730,9 +730,6 @@ int SSLClientSocketOpenSSL::DoHandshakeLoop(int last_io_result) {
     State state = next_handshake_state_;
     GotoState(STATE_NONE);
     switch (state) {
-      case STATE_NONE:
-        // we're just pumping data between the buffer and the network
-        break;
       case STATE_HANDSHAKE:
         rv = DoHandshake();
         break;
@@ -743,20 +740,21 @@ int SSLClientSocketOpenSSL::DoHandshakeLoop(int last_io_result) {
       case STATE_VERIFY_CERT_COMPLETE:
         rv = DoVerifyCertComplete(rv);
         break;
+      case STATE_NONE:
       default:
         rv = ERR_UNEXPECTED;
         NOTREACHED() << "unexpected state" << state;
         break;
     }
 
-    // To avoid getting an ERR_IO_PENDING here after handshake complete.
-    if (next_handshake_state_ == STATE_NONE)
-      break;
-
-    // Do the actual network I/O.
-    network_moved = DoTransportIO();
-  } while ((rv != ERR_IO_PENDING || network_moved) &&
-            next_handshake_state_ != STATE_NONE);
+    bool network_moved = DoTransportIO();
+    if (network_moved && next_handshake_state_ == STATE_HANDSHAKE) {
+      // In general we exit the loop if rv is ERR_IO_PENDING.  In this
+      // special case we keep looping even if rv is ERR_IO_PENDING because
+      // the transport IO may allow DoHandshake to make progress.
+      rv = OK;  // This causes us to stay in the loop.
+    }
+  } while (rv != ERR_IO_PENDING && next_handshake_state_ != STATE_NONE);
   return rv;
 }
 
@@ -1065,7 +1063,7 @@ void SSLClientSocketOpenSSL::OnHandshakeIOComplete(int result) {
 }
 
 void SSLClientSocketOpenSSL::OnSendComplete(int result) {
-  if (next_handshake_state_ != STATE_NONE) {
+  if (next_handshake_state_ == STATE_HANDSHAKE) {
     // In handshake phase.
     OnHandshakeIOComplete(result);
     return;
@@ -1093,7 +1091,7 @@ void SSLClientSocketOpenSSL::OnSendComplete(int result) {
 }
 
 void SSLClientSocketOpenSSL::OnRecvComplete(int result) {
-  if (next_handshake_state_ != STATE_NONE) {
+  if (next_handshake_state_ == STATE_HANDSHAKE) {
     // In handshake phase.
     OnHandshakeIOComplete(result);
     return;
