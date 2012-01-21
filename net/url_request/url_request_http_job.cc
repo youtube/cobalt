@@ -648,7 +648,7 @@ void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
       domain_state.expiry = current_time + max_age_delta;
       domain_state.include_subdomains = include_subdomains;
 
-      security_state->EnableHost(request_info_.url.host(), domain_state);
+      security_state->EnableHost(host, domain_state);
     }
   }
 }
