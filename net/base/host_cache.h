@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -73,12 +73,8 @@ class NET_EXPORT HostCache : NON_EXPORTED_BASE(public base::NonThreadSafe) {
 
   typedef std::map<Key, scoped_refptr<Entry> > EntryMap;
 
-  // Constructs a HostCache that caches successful host resolves for
-  // |success_entry_ttl| time, and failed host resolves for
-  // |failure_entry_ttl|. The cache will store up to |max_entries|.
-  HostCache(size_t max_entries,
-            base::TimeDelta success_entry_ttl,
-            base::TimeDelta failure_entry_ttl);
+  // Constructs a HostCache that stores up to |max_entries|.
+  explicit HostCache(size_t max_entries);
 
   ~HostCache();
 
@@ -88,12 +84,13 @@ class NET_EXPORT HostCache : NON_EXPORTED_BASE(public base::NonThreadSafe) {
 
   // Overwrites or creates an entry for |key|. Returns the pointer to the
   // entry, or NULL on failure (fails if caching is disabled).
-  // (|error|, |addrlist|) is the value to set, and |now| is the current
-  // timestamp.
+  // (|error|, |addrlist|) is the value to set, |now| is the current time
+  // |ttl| is the "time to live".
   Entry* Set(const Key& key,
              int error,
              const AddressList& addrlist,
-             base::TimeTicks now);
+             base::TimeTicks now,
+             base::TimeDelta ttl);
 
   // Empties the cache
   void clear();
@@ -103,10 +100,6 @@ class NET_EXPORT HostCache : NON_EXPORTED_BASE(public base::NonThreadSafe) {
 
   // Following are used by net_internals UI.
   size_t max_entries() const;
-
-  base::TimeDelta success_entry_ttl() const;
-
-  base::TimeDelta failure_entry_ttl() const;
 
   // Note that this map may contain expired entries.
   const EntryMap& entries() const;
@@ -132,10 +125,6 @@ class NET_EXPORT HostCache : NON_EXPORTED_BASE(public base::NonThreadSafe) {
 
   // Bound on total size of the cache.
   size_t max_entries_;
-
-  // Time to live for cache entries.
-  base::TimeDelta success_entry_ttl_;
-  base::TimeDelta failure_entry_ttl_;
 
   // Map from hostname (presumably in lowercase canonicalized format) to
   // a resolved result entry.
