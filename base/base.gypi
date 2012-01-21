@@ -386,7 +386,6 @@
               'platform_file_posix.cc',
               'time_posix.cc',
               'process_posix.cc',
-              'string16.cc',
               'message_pump_libevent.cc',
               'message_pump_libevent.h',
               'file_descriptor_shuffle.cc',
@@ -406,6 +405,11 @@
             ],
             'sources/': [
               ['include', 'sys_string_conversions_linux.cc'],
+            ],
+          }],
+          [ 'target_arch=="ps3"', {
+            'sources!': [
+              'string16.cc',  # wchar_t is 2-bytes wide, string16 == wstring here.
             ],
           }],
           [ 'touchui==0', {
