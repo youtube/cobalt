@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -299,7 +299,7 @@ TEST_F(SocketStreamTest, CloseFlushPendingWrite) {
   AddWebSocketMessage("message1");
   AddWebSocketMessage("message2");
 
-  scoped_refptr<DelayedSocketData> data_provider(
+  scoped_ptr<DelayedSocketData> data_provider(
       new DelayedSocketData(1,
                             data_reads, arraysize(data_reads),
                             data_writes, arraysize(data_writes)));
@@ -436,7 +436,7 @@ TEST_F(SocketStreamTest, IOPending) {
   AddWebSocketMessage("message1");
   AddWebSocketMessage("message2");
 
-  scoped_refptr<DelayedSocketData> data_provider(
+  scoped_ptr<DelayedSocketData> data_provider(
       new DelayedSocketData(1,
                             data_reads, arraysize(data_reads),
                             data_writes, arraysize(data_writes)));

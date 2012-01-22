@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -1062,7 +1062,7 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionEvilPasvUnsafeHost) {
   // The transaction fires the callback when we can start reading data. That
   // means that the data socket should be open.
   MockTCPClientSocket* data_socket =
-      mock_socket_factory_.GetMockTCPClientSocket(1);
+      static_cast<MockTCPClientSocket*>(transaction_.data_socket_.get());
   ASSERT_TRUE(data_socket);
   ASSERT_TRUE(data_socket->IsConnected());
 

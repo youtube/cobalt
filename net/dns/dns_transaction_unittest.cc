@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -150,9 +150,9 @@ TEST_F(DnsTransactionTest, FirstTimeoutTest) {
              arraysize(kT0ResponseDatagram))
   };
 
-  scoped_refptr<DelayedSocketData> socket0_data(
+  scoped_ptr<DelayedSocketData> socket0_data(
       new DelayedSocketData(2, NULL, 0, writes0, arraysize(writes0)));
-  scoped_refptr<DelayedSocketData> socket1_data(
+  scoped_ptr<DelayedSocketData> socket1_data(
       new DelayedSocketData(0, reads0, arraysize(reads0),
                             writes0, arraysize(writes0)));
 
@@ -172,7 +172,6 @@ TEST_F(DnsTransactionTest, FirstTimeoutTest) {
   EXPECT_TRUE(socket0_data->at_write_eof());
   EXPECT_TRUE(socket1_data->at_read_eof());
   EXPECT_TRUE(socket1_data->at_write_eof());
-  EXPECT_EQ(2u, factory().udp_client_sockets().size());
 }
 
 // Test that after the first timeout we do a fresh connection, and after
@@ -189,11 +188,11 @@ TEST_F(DnsTransactionTest, SecondTimeoutTest) {
              arraysize(kT0ResponseDatagram))
   };
 
-  scoped_refptr<DelayedSocketData> socket0_data(
+  scoped_ptr<DelayedSocketData> socket0_data(
       new DelayedSocketData(2, NULL, 0, writes0, arraysize(writes0)));
-  scoped_refptr<DelayedSocketData> socket1_data(
+  scoped_ptr<DelayedSocketData> socket1_data(
       new DelayedSocketData(2, NULL, 0, writes0, arraysize(writes0)));
-  scoped_refptr<DelayedSocketData> socket2_data(
+  scoped_ptr<DelayedSocketData> socket2_data(
       new DelayedSocketData(0, reads0, arraysize(reads0),
                             writes0, arraysize(writes0)));
 
@@ -216,7 +215,6 @@ TEST_F(DnsTransactionTest, SecondTimeoutTest) {
   EXPECT_TRUE(socket1_data->at_write_eof());
   EXPECT_TRUE(socket2_data->at_read_eof());
   EXPECT_TRUE(socket2_data->at_write_eof());
-  EXPECT_EQ(3u, factory().udp_client_sockets().size());
 }
 
 // Test that after the first timeout we do a fresh connection, and after
@@ -228,11 +226,11 @@ TEST_F(DnsTransactionTest, ThirdTimeoutTest) {
               arraysize(kT0QueryDatagram))
   };
 
-  scoped_refptr<DelayedSocketData> socket0_data(
+  scoped_ptr<DelayedSocketData> socket0_data(
       new DelayedSocketData(2, NULL, 0, writes0, arraysize(writes0)));
-  scoped_refptr<DelayedSocketData> socket1_data(
+  scoped_ptr<DelayedSocketData> socket1_data(
       new DelayedSocketData(2, NULL, 0, writes0, arraysize(writes0)));
-  scoped_refptr<DelayedSocketData> socket2_data(
+  scoped_ptr<DelayedSocketData> socket2_data(
       new DelayedSocketData(2, NULL, 0, writes0, arraysize(writes0)));
 
   // Use short timeout to speed up the test.
@@ -254,7 +252,6 @@ TEST_F(DnsTransactionTest, ThirdTimeoutTest) {
   EXPECT_TRUE(socket1_data->at_write_eof());
   EXPECT_TRUE(socket2_data->at_read_eof());
   EXPECT_TRUE(socket2_data->at_write_eof());
-  EXPECT_EQ(3u, factory().udp_client_sockets().size());
 }
 
 }  // namespace
