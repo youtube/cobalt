@@ -255,9 +255,10 @@ void HttpStreamParser::OnChunkAvailable() {
   // This method may get called while sending the headers or body, so check
   // before processing the new data. If we were still initializing or sending
   // headers, we will automatically start reading the chunks once we get into
-  // STATE_SENDING_BODY so nothing to do here.
-  DCHECK(io_state_ == STATE_SENDING_HEADERS || io_state_ == STATE_SENDING_BODY);
-  if (io_state_ == STATE_SENDING_BODY)
+  // STATE_SENDING_CHUNKED_BODY so nothing to do here.
+  DCHECK(io_state_ == STATE_SENDING_HEADERS ||
+         io_state_ == STATE_SENDING_CHUNKED_BODY);
+  if (io_state_ == STATE_SENDING_CHUNKED_BODY)
     OnIOComplete(0);
 }
 
@@ -271,11 +272,17 @@ int HttpStreamParser::DoLoop(int result) {
         else
           result = DoSendHeaders(result);
         break;
-      case STATE_SENDING_BODY:
+      case STATE_SENDING_CHUNKED_BODY:
         if (result < 0)
           can_do_more = false;
         else
-          result = DoSendBody(result);
+          result = DoSendChunkedBody(result);
+        break;
+      case STATE_SENDING_NON_CHUNKED_BODY:
+        if (result < 0)
+          can_do_more = false;
+        else
+          result = DoSendNonChunkedBody(result);
         break;
       case STATE_REQUEST_SENT:
         DCHECK(result != ERR_IO_PENDING);
@@ -327,10 +334,13 @@ int HttpStreamParser::DoSendHeaders(int result) {
     result = connection_->socket()->Write(request_headers_,
                                           bytes_remaining,
                                           io_callback_);
-  } else if (request_body_ != NULL &&
-             (request_body_->is_chunked() ||
-              (request_body_->size() && !request_body_->eof()))) {
-    io_state_ = STATE_SENDING_BODY;
+  } else if (request_body_ != NULL && request_body_->is_chunked()) {
+    io_state_ = STATE_SENDING_CHUNKED_BODY;
+    result = OK;
+  } else if (request_body_ != NULL && request_body_->size() > 0 &&
+             // !eof() indicates that the body wasn't merged.
+             !request_body_->eof()) {
+    io_state_ = STATE_SENDING_NON_CHUNKED_BODY;
     result = OK;
   } else {
     io_state_ = STATE_REQUEST_SENT;
@@ -338,50 +348,51 @@ int HttpStreamParser::DoSendHeaders(int result) {
   return result;
 }
 
-int HttpStreamParser::DoSendBody(int result) {
+int HttpStreamParser::DoSendChunkedBody(int result) {
   // |result| is the number of bytes sent from the last call to
-  // DoSendBody(), or 0 (i.e. OK) the first time.
+  // DoSendChunkedBody(), or 0 (i.e. OK) the first time.
 
-  if (request_body_->is_chunked()) {
-    chunk_length_ -= result;
-    if (chunk_length_) {
-      // Move the remaining data in the chunk buffer to the beginning.
-      memmove(chunk_buf_->data(), chunk_buf_->data() + result, chunk_length_);
-      return connection_->socket()->Write(chunk_buf_, chunk_length_,
-                                          io_callback_);
-    }
-
-    if (sent_last_chunk_) {
-      io_state_ = STATE_REQUEST_SENT;
-      return OK;
-    }
-
-    // |chunk_length_without_encoding_| is 0 when DoSendBody() is first
-    // called, hence the first call to MarkConsumedAndFillBuffer() is a noop.
-    request_body_->MarkConsumedAndFillBuffer(chunk_length_without_encoding_);
-    chunk_length_without_encoding_ = 0;
-
-    if (request_body_->eof()) {
-      chunk_length_ = EncodeChunk(
-          base::StringPiece(), chunk_buf_->data(), chunk_buffer_size_);
-      sent_last_chunk_ = true;
-    } else if (request_body_->buf_len() > 0) {
-      // Encode and send the buffer as 1 chunk.
-      const base::StringPiece payload(request_body_->buf()->data(),
-                                      request_body_->buf_len());
-      chunk_length_ = EncodeChunk(payload, chunk_buf_->data(),
-                                  chunk_buffer_size_);
-      chunk_length_without_encoding_ = payload.size();
-    } else {
-      // Nothing to send. More POST data is yet to come?
-      return ERR_IO_PENDING;
-    }
-
+  chunk_length_ -= result;
+  if (chunk_length_) {
+    // Move the remaining data in the chunk buffer to the beginning.
+    memmove(chunk_buf_->data(), chunk_buf_->data() + result, chunk_length_);
     return connection_->socket()->Write(chunk_buf_, chunk_length_,
                                         io_callback_);
   }
 
-  // Non-chunked request body.
+  if (sent_last_chunk_) {
+    io_state_ = STATE_REQUEST_SENT;
+    return OK;
+  }
+
+  // |chunk_length_without_encoding_| is 0 when DoSendBody() is first
+  // called, hence the first call to MarkConsumedAndFillBuffer() is a noop.
+  request_body_->MarkConsumedAndFillBuffer(chunk_length_without_encoding_);
+  chunk_length_without_encoding_ = 0;
+
+  if (request_body_->eof()) {
+    chunk_length_ = EncodeChunk(
+        base::StringPiece(), chunk_buf_->data(), chunk_buffer_size_);
+    sent_last_chunk_ = true;
+  } else if (request_body_->buf_len() > 0) {
+    // Encode and send the buffer as 1 chunk.
+    const base::StringPiece payload(request_body_->buf()->data(),
+                                    request_body_->buf_len());
+    chunk_length_ = EncodeChunk(payload, chunk_buf_->data(),
+                                chunk_buffer_size_);
+    chunk_length_without_encoding_ = payload.size();
+  } else {
+    // Nothing to send. More POST data is yet to come?
+    return ERR_IO_PENDING;
+  }
+
+  return connection_->socket()->Write(chunk_buf_, chunk_length_,
+                                      io_callback_);
+}
+
+int HttpStreamParser::DoSendNonChunkedBody(int result) {
+  // |result| is the number of bytes sent from the last call to
+  // DoSendNonChunkedBody(), or 0 (i.e. OK) the first time.
 
   // The first call to MarkConsumedAndFillBuffer() is a noop as |result| is 0.
   request_body_->MarkConsumedAndFillBuffer(result);

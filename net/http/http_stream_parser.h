@@ -100,7 +100,11 @@ class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
   enum State {
     STATE_NONE,
     STATE_SENDING_HEADERS,
-    STATE_SENDING_BODY,
+    // If the request comes with a body, either of the following two
+    // states will be executed, depending on whether the body is chunked
+    // or not.
+    STATE_SENDING_CHUNKED_BODY,
+    STATE_SENDING_NON_CHUNKED_BODY,
     STATE_REQUEST_SENT,
     STATE_READ_HEADERS,
     STATE_READ_HEADERS_COMPLETE,
@@ -131,7 +135,8 @@ class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
 
   // The implementations of each state of the state machine.
   int DoSendHeaders(int result);
-  int DoSendBody(int result);
+  int DoSendChunkedBody(int result);
+  int DoSendNonChunkedBody(int result);
   int DoReadHeaders();
   int DoReadHeadersComplete(int result);
   int DoReadBody();
