@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -170,7 +170,7 @@ TEST_F(SpdyStreamTest, SendDataAfterOpen) {
   reads[1].sequence_number = 3;
   reads[2].sequence_number = 4;
 
-  scoped_refptr<OrderedSocketData> data(
+  scoped_ptr<OrderedSocketData> data(
       new OrderedSocketData(reads, arraysize(reads),
                             writes, arraysize(writes)));
   MockConnect connect_data(false, OK);

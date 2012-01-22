@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -273,16 +273,15 @@ struct SSLSocketDataProvider {
 
 // A DataProvider where the client must write a request before the reads (e.g.
 // the response) will complete.
-class DelayedSocketData : public StaticSocketDataProvider,
-                          public base::RefCounted<DelayedSocketData> {
+class DelayedSocketData : public StaticSocketDataProvider {
  public:
   // |write_delay| the number of MockWrites to complete before allowing
   //               a MockRead to complete.
   // |reads| the list of MockRead completions.
   // |writes| the list of MockWrite completions.
   // Note: All MockReads and MockWrites must be async.
-  // Note: The MockRead and MockWrite lists musts end with a EOF
-  //       e.g. a MockRead(true, 0, 0);
+  // Note: For stream sockets, the MockRead list must end with a EOF, e.g., a
+  //       MockRead(true, 0, 0);
   DelayedSocketData(int write_delay,
                     MockRead* reads, size_t reads_count,
                     MockWrite* writes, size_t writes_count);
@@ -293,8 +292,8 @@ class DelayedSocketData : public StaticSocketDataProvider,
   //               a MockRead to complete.
   // |writes| the list of MockWrite completions.
   // Note: All MockReads and MockWrites must be async.
-  // Note: The MockRead and MockWrite lists musts end with a EOF
-  //       e.g. a MockRead(true, 0, 0);
+  // Note: For stream sockets, the MockRead list must end with a EOF, e.g., a
+  //       MockRead(true, 0, 0);
   DelayedSocketData(const MockConnect& connect, int write_delay,
                     MockRead* reads, size_t reads_count,
                     MockWrite* writes, size_t writes_count);
@@ -310,6 +309,7 @@ class DelayedSocketData : public StaticSocketDataProvider,
 
  private:
   int write_delay_;
+  bool read_in_progress_;
   base::WeakPtrFactory<DelayedSocketData> weak_factory_;
 };
 
@@ -324,23 +324,23 @@ class DelayedSocketData : public StaticSocketDataProvider,
 // of data before a complete message has arrived, and provides support for
 // testing server push when the request is issued while the response is in the
 // middle of being received.
-class OrderedSocketData : public StaticSocketDataProvider,
-                          public base::RefCounted<OrderedSocketData> {
+class OrderedSocketData : public StaticSocketDataProvider {
  public:
   // |reads| the list of MockRead completions.
   // |writes| the list of MockWrite completions.
   // Note: All MockReads and MockWrites must be async.
-  // Note: The MockRead and MockWrite lists musts end with a EOF
-  //       e.g. a MockRead(true, 0, 0);
+  // Note: For stream sockets, the MockRead list must end with a EOF, e.g., a
+  //       MockRead(true, 0, 0);
   OrderedSocketData(MockRead* reads, size_t reads_count,
                     MockWrite* writes, size_t writes_count);
+  virtual ~OrderedSocketData();
 
   // |connect| the result for the connect phase.
   // |reads| the list of MockRead completions.
   // |writes| the list of MockWrite completions.
   // Note: All MockReads and MockWrites must be async.
-  // Note: The MockRead and MockWrite lists musts end with a EOF
-  //       e.g. a MockRead(true, 0, 0);
+  // Note: For stream sockets, the MockRead list must end with a EOF, e.g., a
+  //       MockRead(true, 0, 0);
   OrderedSocketData(const MockConnect& connect,
                     MockRead* reads, size_t reads_count,
                     MockWrite* writes, size_t writes_count);
@@ -355,9 +355,6 @@ class OrderedSocketData : public StaticSocketDataProvider,
   virtual void CompleteRead() OVERRIDE;
 
  private:
-  friend class base::RefCounted<OrderedSocketData>;
-  virtual ~OrderedSocketData();
-
   int sequence_number_;
   int loop_stop_stage_;
   bool blocked_;
@@ -530,22 +527,8 @@ class MockClientSocketFactory : public ClientSocketFactory {
   void AddSSLSocketDataProvider(SSLSocketDataProvider* socket);
   void ResetNextMockIndexes();
 
-  // Return |index|-th MockTCPClientSocket (starting from 0) that the factory
-  // created.
-  MockTCPClientSocket* GetMockTCPClientSocket(size_t index) const;
-
-  // Return |index|-th MockSSLClientSocket (starting from 0) that the factory
-  // created.
-  MockSSLClientSocket* GetMockSSLClientSocket(size_t index) const;
-
   SocketDataProviderArray<SocketDataProvider>& mock_data() {
     return mock_data_;
-  }
-  std::vector<MockTCPClientSocket*>& tcp_client_sockets() {
-    return tcp_client_sockets_;
-  }
-  std::vector<MockUDPClientSocket*>& udp_client_sockets() {
-    return udp_client_sockets_;
   }
 
   // ClientSocketFactory
@@ -569,11 +552,6 @@ class MockClientSocketFactory : public ClientSocketFactory {
  private:
   SocketDataProviderArray<SocketDataProvider> mock_data_;
   SocketDataProviderArray<SSLSocketDataProvider> mock_ssl_data_;
-
-  // Store pointers to handed out sockets in case the test wants to get them.
-  std::vector<MockUDPClientSocket*> udp_client_sockets_;
-  std::vector<MockTCPClientSocket*> tcp_client_sockets_;
-  std::vector<MockSSLClientSocket*> ssl_client_sockets_;
 };
 
 class MockClientSocket : public SSLClientSocket {
