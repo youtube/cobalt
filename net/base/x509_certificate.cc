@@ -110,8 +110,7 @@ class X509CertificateCache {
   DISALLOW_COPY_AND_ASSIGN(X509CertificateCache);
 };
 
-base::LazyInstance<X509CertificateCache,
-                   base::LeakyLazyInstanceTraits<X509CertificateCache> >
+base::LazyInstance<X509CertificateCache>::Leaky
     g_x509_certificate_cache = LAZY_INSTANCE_INITIALIZER;
 
 void X509CertificateCache::InsertOrUpdate(

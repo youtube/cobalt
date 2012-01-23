@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -133,8 +133,7 @@ TEST(LazyInstanceTest, LeakyLazyInstance) {
   bool deleted2 = false;
   {
     base::ShadowingAtExitManager shadow;
-    static base::LazyInstance<DeleteLogger,
-                              base::LeakyLazyInstanceTraits<DeleteLogger> >
+    static base::LazyInstance<DeleteLogger>::Leaky
         test = LAZY_INSTANCE_INITIALIZER;
     test.Get().SetDeletedPtr(&deleted2);
   }

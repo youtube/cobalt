@@ -64,8 +64,7 @@ const int g_category_metadata = 2;
 int g_category_index = 3; // skip initial 3 categories
 
 // The most-recently captured name of the current thread
-LazyInstance<ThreadLocalPointer<const char>,
-             LeakyLazyInstanceTraits<ThreadLocalPointer<const char> > >
+LazyInstance<ThreadLocalPointer<const char> >::Leaky
     g_current_thread_name = LAZY_INSTANCE_INITIALIZER;
 
 void AppendValueAsJSON(unsigned char type,

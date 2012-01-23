@@ -21,8 +21,7 @@ namespace {
 // on alarms from callers that specify old times.
 
 // Lock for access of static data...
-LazyInstance<Lock, LeakyLazyInstanceTraits<Lock> > g_static_lock =
-    LAZY_INSTANCE_INITIALIZER;
+LazyInstance<Lock>::Leaky g_static_lock = LAZY_INSTANCE_INITIALIZER;
 
 // When did we last alarm and get stuck (for a while) in a debugger?
 TimeTicks g_last_debugged_alarm_time;
