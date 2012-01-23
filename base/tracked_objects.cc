@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -196,8 +196,7 @@ ThreadData* ThreadData::all_thread_data_list_head_ = NULL;
 ThreadData* ThreadData::first_retired_worker_ = NULL;
 
 // static
-base::LazyInstance<base::Lock,
-                   base::LeakyLazyInstanceTraits<base::Lock> >
+base::LazyInstance<base::Lock>::Leaky
     ThreadData::list_lock_ = LAZY_INSTANCE_INITIALIZER;
 
 // static

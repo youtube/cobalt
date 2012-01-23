@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -40,7 +40,7 @@ struct MethodIdentifier {
 };
 
 typedef std::map<MethodIdentifier, jmethodID> MethodIDMap;
-base::LazyInstance<MethodIDMap, base::LeakyLazyInstanceTraits<MethodIDMap> >
+base::LazyInstance<MethodIDMap>::Leaky
     g_method_id_map = LAZY_INSTANCE_INITIALIZER;
 const base::subtle::AtomicWord kUnlocked = 0;
 const base::subtle::AtomicWord kLocked = 1;
