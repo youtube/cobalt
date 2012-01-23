@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -186,10 +186,8 @@ void WASAPIAudioInputStream::Close() {
 double WASAPIAudioInputStream::HardwareSampleRate(ERole device_role) {
   base::win::ScopedCoMem<WAVEFORMATEX> audio_engine_mix_format;
   HRESULT hr = GetMixFormat(device_role, &audio_engine_mix_format);
-  if (FAILED(hr)) {
-    NOTREACHED() << "error code: " << hr;
+  if (FAILED(hr))
     return 0.0;
-  }
 
   return static_cast<double>(audio_engine_mix_format->nSamplesPerSec);
 }
@@ -198,10 +196,8 @@ double WASAPIAudioInputStream::HardwareSampleRate(ERole device_role) {
 uint32 WASAPIAudioInputStream::HardwareChannelCount(ERole device_role) {
   base::win::ScopedCoMem<WAVEFORMATEX> audio_engine_mix_format;
   HRESULT hr = GetMixFormat(device_role, &audio_engine_mix_format);
-  if (FAILED(hr)) {
-    NOTREACHED() << "error code: " << hr;
+  if (FAILED(hr))
     return 0;
-  }
 
   return static_cast<uint32>(audio_engine_mix_format->nChannels);
 }
@@ -237,8 +233,11 @@ HRESULT WASAPIAudioInputStream::GetMixFormat(ERole device_role,
                                  CLSCTX_INPROC_SERVER,
                                  NULL,
                                  audio_client.ReceiveVoid());
-  if (SUCCEEDED(hr))
+  DCHECK(SUCCEEDED(hr)) << "Failed to activate device: " << std::hex << hr;
+  if (SUCCEEDED(hr)) {
     hr = audio_client->GetMixFormat(device_format);
+    DCHECK(SUCCEEDED(hr)) << "GetMixFormat: " << std::hex << hr;
+  }
 
   return hr;
 }
