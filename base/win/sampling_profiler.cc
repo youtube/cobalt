@@ -104,8 +104,7 @@ ProfilerFuncs::ProfilerFuncs()
   }
 }
 
-base::LazyInstance<ProfilerFuncs, base::LeakyLazyInstanceTraits<ProfilerFuncs> >
-    funcs = LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<ProfilerFuncs>::Leaky funcs = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 
