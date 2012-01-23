@@ -592,7 +592,7 @@ bool WaitForProcessesToExit(const std::wstring& executable_name,
   DWORD start_time = GetTickCount();
 
   NamedProcessIterator iter(executable_name, filter);
-  while (entry = iter.NextProcessEntry()) {
+  while ((entry = iter.NextProcessEntry())) {
     DWORD remaining_wait =
         std::max<int64>(0, wait_milliseconds - (GetTickCount() - start_time));
     HANDLE process = OpenProcess(SYNCHRONIZE,

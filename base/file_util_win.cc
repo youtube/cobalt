@@ -988,8 +988,9 @@ void MemoryMappedFile::CloseHandles() {
 bool HasFileBeenModifiedSince(const FileEnumerator::FindInfo& find_info,
                               const base::Time& cutoff_time) {
   base::ThreadRestrictions::AssertIOAllowed();
+  FILETIME file_time = cutoff_time.ToFileTime();
   long result = CompareFileTime(&find_info.ftLastWriteTime,  // NOLINT
-                                &cutoff_time.ToFileTime());
+                                &file_time);
   return result == 1 || result == 0;
 }
 
