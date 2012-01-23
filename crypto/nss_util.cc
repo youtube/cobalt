@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -217,8 +217,7 @@ class NSPRInitSingleton {
   }
 };
 
-base::LazyInstance<NSPRInitSingleton,
-                   base::LeakyLazyInstanceTraits<NSPRInitSingleton> >
+base::LazyInstance<NSPRInitSingleton>::Leaky
     g_nspr_singleton = LAZY_INSTANCE_INITIALIZER;
 
 class NSSInitSingleton {
@@ -612,8 +611,7 @@ class NSSInitSingleton {
 // static
 bool NSSInitSingleton::force_nodb_init_ = false;
 
-base::LazyInstance<NSSInitSingleton,
-                   base::LeakyLazyInstanceTraits<NSSInitSingleton> >
+base::LazyInstance<NSSInitSingleton>::Leaky
     g_nss_singleton = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace

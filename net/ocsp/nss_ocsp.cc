@@ -87,7 +87,7 @@ class OCSPIOLoop {
   DISALLOW_COPY_AND_ASSIGN(OCSPIOLoop);
 };
 
-base::LazyInstance<OCSPIOLoop, base::LeakyLazyInstanceTraits<OCSPIOLoop> >
+base::LazyInstance<OCSPIOLoop>::Leaky
     g_ocsp_io_loop = LAZY_INSTANCE_INITIALIZER;
 
 const int kRecvBufferSize = 4096;
