@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -607,8 +607,10 @@ bool WaitForProcessesToExit(const std::wstring& executable_name,
 }
 
 bool WaitForSingleProcess(ProcessHandle handle, int64 wait_milliseconds) {
-  bool retval = WaitForSingleObject(handle, wait_milliseconds) == WAIT_OBJECT_0;
-  return retval;
+  int exit_code;
+  if (!WaitForExitCodeWithTimeout(handle, &exit_code, wait_milliseconds))
+    return false;
+  return exit_code == 0;
 }
 
 bool CleanupProcesses(const std::wstring& executable_name,
