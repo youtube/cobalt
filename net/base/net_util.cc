@@ -484,8 +484,7 @@ void SetExemplarSetForLang(const std::string& lang,
   map.insert(std::make_pair(lang, lang_set));
 }
 
-static base::LazyInstance<base::Lock,
-                          base::LeakyLazyInstanceTraits<base::Lock> >
+static base::LazyInstance<base::Lock>::Leaky
     g_lang_set_lock = LAZY_INSTANCE_INITIALIZER;
 
 // Returns true if all the characters in component_characters are used by
@@ -1110,8 +1109,7 @@ const FormatUrlType kFormatUrlOmitTrailingSlashOnBareHostname = 1 << 2;
 const FormatUrlType kFormatUrlOmitAll = kFormatUrlOmitUsernamePassword |
     kFormatUrlOmitHTTP | kFormatUrlOmitTrailingSlashOnBareHostname;
 
-static base::LazyInstance<std::multiset<int>,
-                          base::LeakyLazyInstanceTraits<std::multiset<int> > >
+static base::LazyInstance<std::multiset<int> >::Leaky
     g_explicitly_allowed_ports = LAZY_INSTANCE_INITIALIZER;
 
 size_t GetCountOfExplicitlyAllowedPorts() {

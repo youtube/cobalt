@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -73,6 +73,11 @@ struct DefaultLazyInstanceTraits {
   }
 };
 
+// Use LazyInstance<T>::Leaky for a less-verbose call-site typedef; e.g.:
+// base::LazyInstance<T>::Leaky my_leaky_lazy_instance;
+// instead of:
+// base::LazyInstance<T, LeakyLazyInstanceTraits<T> > my_leaky_lazy_instance;
+// (especially when T is MyLongTypeNameImplClientHolderFactory).
 template <typename Type>
 struct LeakyLazyInstanceTraits {
   static const bool kRegisterOnExit = false;
@@ -116,6 +121,10 @@ class LazyInstance {
   // example. We handle destruction of the contained Type class explicitly via
   // the OnExit member function, where needed.
   // ~LazyInstance() {}
+
+  // Convenience typedef to avoid having to repeat Type for leaky lazy
+  // instances.
+  typedef LazyInstance<Type, LeakyLazyInstanceTraits<Type> > Leaky;
 
   Type& Get() {
     return *Pointer();

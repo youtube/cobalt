@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -575,8 +575,7 @@ class BASE_EXPORT ThreadData {
   // unregistered_thread_data_pool_.  This lock is leaked at shutdown.
   // The lock is very infrequently used, so we can afford to just make a lazy
   // instance and be safe.
-  static base::LazyInstance<base::Lock,
-      base::LeakyLazyInstanceTraits<base::Lock> > list_lock_;
+  static base::LazyInstance<base::Lock>::Leaky list_lock_;
 
   // We set status_ to SHUTDOWN when we shut down the tracking service.
   static Status status_;
