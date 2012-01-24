@@ -79,20 +79,22 @@ TEST(HttpStreamParser, EncodeChunk_TooLargePayload) {
   ASSERT_EQ(ERR_INVALID_ARGUMENT, num_bytes_written);
 }
 
-TEST(HttpStreamParser, ShouldMerge_NoBody) {
+TEST(HttpStreamParser, ShouldMergeRequestHeadersAndBody_NoBody) {
   // Shouldn't be merged if upload data is non-existent.
-  ASSERT_FALSE(HttpStreamParser::ShouldMerge("some header", NULL));
+  ASSERT_FALSE(HttpStreamParser::ShouldMergeRequestHeadersAndBody(
+      "some header", NULL));
 }
 
-TEST(HttpStreamParser, ShouldMerge_EmptyBody) {
+TEST(HttpStreamParser, ShouldMergeRequestHeadersAndBody_EmptyBody) {
   scoped_refptr<UploadData> upload_data = new UploadData;
   scoped_ptr<UploadDataStream> body(
       UploadDataStream::Create(upload_data.get(), NULL));
   // Shouldn't be merged if upload data is empty.
-  ASSERT_FALSE(HttpStreamParser::ShouldMerge("some header", body.get()));
+  ASSERT_FALSE(HttpStreamParser::ShouldMergeRequestHeadersAndBody(
+      "some header", body.get()));
 }
 
-TEST(HttpStreamParser, ShouldMerge_ChunkedBody) {
+TEST(HttpStreamParser, ShouldMergeRequestHeadersAndBody_ChunkedBody) {
   scoped_refptr<UploadData> upload_data = new UploadData;
   upload_data->set_is_chunked(true);
   const std::string payload = "123";
@@ -101,10 +103,11 @@ TEST(HttpStreamParser, ShouldMerge_ChunkedBody) {
   scoped_ptr<UploadDataStream> body(
       UploadDataStream::Create(upload_data.get(), NULL));
   // Shouldn't be merged if upload data carries chunked data.
-  ASSERT_FALSE(HttpStreamParser::ShouldMerge("some header", body.get()));
+  ASSERT_FALSE(HttpStreamParser::ShouldMergeRequestHeadersAndBody(
+      "some header", body.get()));
 }
 
-TEST(HttpStreamParser, ShouldMerge_FileBody) {
+TEST(HttpStreamParser, ShouldMergeRequestHeadersAndBody_FileBody) {
   scoped_refptr<UploadData> upload_data = new UploadData;
 
   // Create an empty temporary file.
@@ -119,10 +122,11 @@ TEST(HttpStreamParser, ShouldMerge_FileBody) {
   scoped_ptr<UploadDataStream> body(
       UploadDataStream::Create(upload_data.get(), NULL));
   // Shouldn't be merged if upload data carries a file, as it's not in-memory.
-  ASSERT_FALSE(HttpStreamParser::ShouldMerge("some header", body.get()));
+  ASSERT_FALSE(HttpStreamParser::ShouldMergeRequestHeadersAndBody(
+      "some header", body.get()));
 }
 
-TEST(HttpStreamParser, ShouldMerge_SmallBodyInMemory) {
+TEST(HttpStreamParser, ShouldMergeRequestHeadersAndBody_SmallBodyInMemory) {
   scoped_refptr<UploadData> upload_data = new UploadData;
   const std::string payload = "123";
   upload_data->AppendBytes(payload.data(), payload.size());
@@ -130,10 +134,11 @@ TEST(HttpStreamParser, ShouldMerge_SmallBodyInMemory) {
   scoped_ptr<UploadDataStream> body(
       UploadDataStream::Create(upload_data.get(), NULL));
   // Yes, should be merged if the in-memory body is small here.
-  ASSERT_TRUE(HttpStreamParser::ShouldMerge("some header", body.get()));
+  ASSERT_TRUE(HttpStreamParser::ShouldMergeRequestHeadersAndBody(
+      "some header", body.get()));
 }
 
-TEST(HttpStreamParser, ShouldMerge_LargeBodyInMemory) {
+TEST(HttpStreamParser, ShouldMergeRequestHeadersAndBody_LargeBodyInMemory) {
   scoped_refptr<UploadData> upload_data = new UploadData;
   const std::string payload(10000, 'a');  // 'a' x 10000.
   upload_data->AppendBytes(payload.data(), payload.size());
@@ -141,7 +146,8 @@ TEST(HttpStreamParser, ShouldMerge_LargeBodyInMemory) {
   scoped_ptr<UploadDataStream> body(
       UploadDataStream::Create(upload_data.get(), NULL));
   // Shouldn't be merged if the in-memory body is large here.
-  ASSERT_FALSE(HttpStreamParser::ShouldMerge("some header", body.get()));
+  ASSERT_FALSE(HttpStreamParser::ShouldMergeRequestHeadersAndBody(
+      "some header", body.get()));
 }
 
 }  // namespace net
