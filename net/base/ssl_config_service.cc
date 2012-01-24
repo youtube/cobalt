@@ -60,7 +60,6 @@ bool SSLConfigService::IsKnownFalseStartIncompatibleServer(
 }
 
 static bool g_cached_info_enabled = false;
-static bool g_false_start_enabled = true;
 static bool g_dns_cert_provenance_checking = false;
 
 // GlobalCRLSet holds a reference to the global CRLSet. It simply wraps a lock
@@ -86,16 +85,6 @@ class GlobalCRLSet {
 base::LazyInstance<GlobalCRLSet,
                    base::LeakyLazyInstanceTraits<GlobalCRLSet> >
     g_crl_set = LAZY_INSTANCE_INITIALIZER;
-
-// static
-void SSLConfigService::DisableFalseStart() {
-  g_false_start_enabled = false;
-}
-
-// static
-bool SSLConfigService::false_start_enabled() {
-  return g_false_start_enabled;
-}
 
 // static
 void SSLConfigService::EnableDNSCertProvenanceChecking() {
@@ -140,7 +129,6 @@ SSLConfigService::~SSLConfigService() {
 
 // static
 void SSLConfigService::SetSSLConfigFlags(SSLConfig* ssl_config) {
-  ssl_config->false_start_enabled = g_false_start_enabled;
   ssl_config->dns_cert_provenance_checking_enabled =
       g_dns_cert_provenance_checking;
   ssl_config->cached_info_enabled = g_cached_info_enabled;
@@ -155,7 +143,9 @@ void SSLConfigService::ProcessConfigUpdate(const SSLConfig& orig_config,
       (orig_config.disabled_cipher_suites !=
        new_config.disabled_cipher_suites) ||
       (orig_config.origin_bound_certs_enabled !=
-       new_config.origin_bound_certs_enabled);
+       new_config.origin_bound_certs_enabled) ||
+      (orig_config.false_start_enabled !=
+       new_config.false_start_enabled);
 
   if (config_changed)
     FOR_EACH_OBSERVER(Observer, observer_list_, OnSSLConfigChanged());
