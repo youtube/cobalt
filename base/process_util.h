@@ -564,7 +564,9 @@ class BASE_EXPORT ProcessMetrics {
   // Creates a ProcessMetrics for the specified process.
   // The caller owns the returned object.
 #if !defined(OS_MACOSX)
+#if !defined(__LB_SHELL__)
   static ProcessMetrics* CreateProcessMetrics(ProcessHandle process);
+#endif
 #else
   class PortProvider {
    public:
@@ -585,7 +587,9 @@ class BASE_EXPORT ProcessMetrics {
   // Returns the current space allocated for the pagefile, in bytes (these pages
   // may or may not be in memory).  On Linux, this returns the total virtual
   // memory size.
+#if !defined(__LB_SHELL__)
   size_t GetPagefileUsage() const;
+#endif
   // Returns the peak space allocated for the pagefile, in bytes.
   size_t GetPeakPagefileUsage() const;
   // Returns the current working set size, in bytes.  On Linux, this returns
