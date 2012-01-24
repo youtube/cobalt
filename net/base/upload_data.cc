@@ -178,7 +178,11 @@ uint64 UploadData::GetContentLength() {
 }
 
 bool UploadData::IsInMemory() const {
-  // Chunks are provided as a stream, hence it's not in memory.
+  // Chunks are in memory, but UploadData does not have all the chunks at
+  // once. Chunks are provided progressively with AppendChunk() as chunks
+  // are ready. Check is_chunked_ here, rather than relying on the loop
+  // below, as there is a case that is_chunked_ is set to true, but the
+  // first chunk is not yet delivered.
   if (is_chunked_)
     return false;
 
