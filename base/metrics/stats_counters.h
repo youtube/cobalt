@@ -78,8 +78,12 @@ namespace base {
 class BASE_EXPORT StatsCounter {
  public:
   // Create a StatsCounter object.
+#if !defined(__LB_SHELL__)
   explicit StatsCounter(const std::string& name);
   virtual ~StatsCounter();
+#else
+  explicit StatsCounter(const std::string& name) {}
+#endif
 
   // Sets the counter to a specific value.
   void Set(int value);
@@ -89,7 +93,11 @@ class BASE_EXPORT StatsCounter {
     Add(1);
   }
 
+#if !defined(__LB_SHELL__)
   virtual void Add(int value);
+#else
+  virtual void Add(int value) {}
+#endif
 
   // Decrements the counter.
   void Decrement() {
