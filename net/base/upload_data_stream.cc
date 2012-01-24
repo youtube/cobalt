@@ -167,4 +167,8 @@ bool UploadDataStream::IsOnLastChunk() const {
            elements.back().is_last_chunk()));
 }
 
+bool UploadDataStream::IsInMemory() const {
+  return data_->IsInMemory();
+}
+
 }  // namespace net

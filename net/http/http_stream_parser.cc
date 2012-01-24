@@ -139,34 +139,30 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
   // If we have a small request body, then we'll merge with the headers into a
   // single write.
   bool did_merge = false;
-  if (request_body_ != NULL &&
-      !request_body_->is_chunked() &&
-      request_body_->size() > 0) {
-    size_t merged_size = request.size() + request_body_->size();
-    if (merged_size <= kMaxMergedHeaderAndBodySize) {
-      scoped_refptr<IOBuffer> merged_request_headers_and_body(
-          new IOBuffer(merged_size));
-      // We'll repurpose |request_headers_| to store the merged headers and
-      // body.
-      request_headers_ = new DrainableIOBuffer(
-          merged_request_headers_and_body, merged_size);
+  if (ShouldMerge(request, request_body_.get())) {
+    size_t merged_size = request.size() + request_body->size();
+    scoped_refptr<IOBuffer> merged_request_headers_and_body(
+        new IOBuffer(merged_size));
+    // We'll repurpose |request_headers_| to store the merged headers and
+    // body.
+    request_headers_ = new DrainableIOBuffer(
+        merged_request_headers_and_body, merged_size);
 
-      char *buf = request_headers_->data();
-      memcpy(buf, request.data(), request.size());
-      buf += request.size();
+    char *buf = request_headers_->data();
+    memcpy(buf, request.data(), request.size());
+    buf += request.size();
 
-      size_t todo = request_body_->size();
-      while (todo) {
-        size_t buf_len = request_body_->buf_len();
-        memcpy(buf, request_body_->buf()->data(), buf_len);
-        todo -= buf_len;
-        buf += buf_len;
-        request_body_->MarkConsumedAndFillBuffer(buf_len);
-      }
-      DCHECK(request_body_->eof());
-
-      did_merge = true;
+    size_t todo = request_body_->size();
+    while (todo) {
+      size_t buf_len = request_body_->buf_len();
+      memcpy(buf, request_body_->buf()->data(), buf_len);
+      todo -= buf_len;
+      buf += buf_len;
+      request_body_->MarkConsumedAndFillBuffer(buf_len);
     }
+    DCHECK(request_body_->eof());
+
+    did_merge = true;
   }
 
   if (!did_merge) {
@@ -812,6 +808,20 @@ int HttpStreamParser::EncodeChunk(const base::StringPiece& payload,
   cursor += 2;
 
   return cursor - output;
+}
+
+// static
+bool HttpStreamParser::ShouldMerge(const std::string& request,
+                                   const UploadDataStream* request_body) {
+  if (request_body != NULL &&
+      // IsInMemory() ensures that the request body is not chunked.
+      request_body->IsInMemory() &&
+      request_body->size() > 0) {
+    size_t merged_size = request.size() + request_body->size();
+    if (merged_size <= kMaxMergedHeaderAndBodySize)
+      return true;
+  }
+  return false;
 }
 
 }  // namespace net
