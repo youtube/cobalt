@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -92,10 +92,6 @@ class NET_EXPORT ClientSocketHandle {
   // initialized the ClientSocketHandle.
   LoadState GetLoadState() const;
 
-  bool IsPoolStalled() const;
-
-  void AddLayeredPool(LayeredPool* layered_pool);
-
   // Returns true when Init() has completed successfully.
   bool is_initialized() const { return is_initialized_; }
 
@@ -168,7 +164,6 @@ class NET_EXPORT ClientSocketHandle {
 
   bool is_initialized_;
   ClientSocketPool* pool_;
-  LayeredPool* layered_pool_;
   scoped_ptr<StreamSocket> socket_;
   std::string group_name_;
   bool is_reused_;
