@@ -1654,8 +1654,6 @@
         # Enable -Werror by default, but put it in a variable so it can
         # be disabled in ~/.gyp/include.gypi on the valgrind builders.
         'variables': {
-          # Use -fno-strict-aliasing, see http://crbug.com/32204
-          'no_strict_aliasing%': 1,
           'conditions': [
             ['OS=="linux"', {
               'werror%': '-Werror',
@@ -1668,6 +1666,7 @@
           '<(werror)',  # See note above about the werror variable.
           '-pthread',
           '-fno-exceptions',
+          '-fno-strict-aliasing',  # See http://crbug.com/32204
           '-Wall',
           # TODO(evan): turn this back on once all the builds work.
           # '-Wextra',
@@ -2039,11 +2038,6 @@
             ],
             'defines': [
               'ADDRESS_SANITIZER',
-            ],
-          }],
-          ['no_strict_aliasing==1', {
-            'cflags': [
-              '-fno-strict-aliasing',
             ],
           }],
           ['linux_breakpad==1', {
