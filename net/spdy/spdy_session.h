@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -46,8 +46,7 @@ class SpdyStream;
 class SSLInfo;
 
 class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
-                               public spdy::BufferedSpdyFramerVisitorInterface,
-                               public LayeredPool {
+                               public spdy::BufferedSpdyFramerVisitorInterface {
  public:
   // Create a new SpdySession.
   // |host_port_proxy_pair| is the host/port that this session connects to, and
@@ -236,9 +235,6 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   int GetPeerAddress(AddressList* address) const;
   int GetLocalAddress(IPEndPoint* address) const;
-
-  // LayeredPool implementation.
-  virtual bool CloseOneIdleConnection() OVERRIDE;
 
  private:
   friend class base::RefCounted<SpdySession>;
