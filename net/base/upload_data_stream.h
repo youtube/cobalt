@@ -66,6 +66,9 @@ class NET_EXPORT UploadDataStream {
   // returns true only after the data in buf() has been consumed.
   bool IsOnLastChunk() const;
 
+  // Returns true if the upload data in the stream is entirely in memory.
+  bool IsInMemory() const;
+
   // This method is provided only to be used by unit tests.
   static void set_merge_chunks(bool merge) { merge_chunks_ = merge; }
 
