@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -28,11 +28,7 @@
 #include "net/socket/socket_test_util.h"
 #include "net/socket/ssl_host_info.h"
 #include "net/socket/stream_socket.h"
-#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-using ::testing::Invoke;
-using ::testing::Return;
 
 namespace net {
 
@@ -44,18 +40,10 @@ const net::RequestPriority kDefaultPriority = MEDIUM;
 
 class TestSocketParams : public base::RefCounted<TestSocketParams> {
  public:
-  TestSocketParams() : ignore_limits_(false) {}
-
-  void set_ignore_limits(bool ignore_limits) {
-    ignore_limits_ = ignore_limits;
-  }
-  bool ignore_limits() { return ignore_limits_; }
-
+  bool ignore_limits() { return false; }
  private:
   friend class base::RefCounted<TestSocketParams>;
   ~TestSocketParams() {}
-
-  bool ignore_limits_;
 };
 typedef ClientSocketPoolBase<TestSocketParams> TestClientSocketPoolBase;
 
@@ -459,10 +447,6 @@ class TestClientSocketPool : public ClientSocketPool {
     base_.Flush();
   }
 
-  virtual bool IsStalled() const OVERRIDE {
-    return base_.IsStalled();
-  }
-
   virtual void CloseIdleSockets() OVERRIDE {
     base_.CloseIdleSockets();
   }
@@ -480,14 +464,6 @@ class TestClientSocketPool : public ClientSocketPool {
       const std::string& group_name,
       const ClientSocketHandle* handle) const OVERRIDE {
     return base_.GetLoadState(group_name, handle);
-  }
-
-  virtual void AddLayeredPool(LayeredPool* pool) OVERRIDE {
-    base_.AddLayeredPool(pool);
-  }
-
-  virtual void RemoveLayeredPool(LayeredPool* pool) OVERRIDE {
-    base_.RemoveLayeredPool(pool);
   }
 
   virtual DictionaryValue* GetInfoAsValue(
@@ -522,10 +498,6 @@ class TestClientSocketPool : public ClientSocketPool {
   void CleanupTimedOutIdleSockets() { base_.CleanupIdleSockets(false); }
 
   void EnableConnectBackupJobs() { base_.EnableConnectBackupJobs(); }
-
-  bool CloseOneIdleConnectionInLayeredPool() {
-    return base_.CloseOneIdleConnectionInLayeredPool();
-  }
 
  private:
   TestClientSocketPoolBase base_;
@@ -1192,7 +1164,6 @@ TEST_F(ClientSocketPoolBaseTest, WaitForStalledSocketAtSocketLimit) {
   ClientSocketHandle stalled_handle;
   TestCompletionCallback callback;
   {
-    EXPECT_FALSE(pool_->IsStalled());
     ClientSocketHandle handles[kDefaultMaxSockets];
     for (int i = 0; i < kDefaultMaxSockets; ++i) {
       TestCompletionCallback callback;
@@ -1207,7 +1178,6 @@ TEST_F(ClientSocketPoolBaseTest, WaitForStalledSocketAtSocketLimit) {
 
     EXPECT_EQ(kDefaultMaxSockets, client_socket_factory_.allocation_count());
     EXPECT_EQ(0, pool_->IdleSocketCount());
-    EXPECT_FALSE(pool_->IsStalled());
 
     // Now we will hit the socket limit.
     EXPECT_EQ(ERR_IO_PENDING, stalled_handle.Init("foo",
@@ -1216,7 +1186,6 @@ TEST_F(ClientSocketPoolBaseTest, WaitForStalledSocketAtSocketLimit) {
                                                   callback.callback(),
                                                   pool_.get(),
                                                   BoundNetLog()));
-    EXPECT_TRUE(pool_->IsStalled());
 
     // Dropping out of scope will close all handles and return them to idle.
   }
@@ -2034,9 +2003,9 @@ TEST_F(ClientSocketPoolBaseTest, DisableCleanupTimer) {
   EXPECT_EQ(1, handle2.socket()->Write(NULL, 1, CompletionCallback()));
   handle2.Reset();
 
-  // The idle socket timeout value was set to 10 milliseconds. Wait 100
+  // The idle socket timeout value was set to 10 milliseconds. Wait 20
   // milliseconds so the sockets timeout.
-  base::PlatformThread::Sleep(100);
+  base::PlatformThread::Sleep(20);
   MessageLoop::current()->RunAllPending();
 
   ASSERT_EQ(2, pool_->IdleSocketCount());
@@ -3068,7 +3037,6 @@ TEST_F(ClientSocketPoolBaseTest, RequestSocketsHitMaxSocketLimit) {
 
   ASSERT_TRUE(pool_->HasGroup("a"));
   EXPECT_EQ(kDefaultMaxSockets - 1, pool_->NumConnectJobsInGroup("a"));
-  EXPECT_FALSE(pool_->IsStalled());
 
   ASSERT_FALSE(pool_->HasGroup("b"));
 
@@ -3077,7 +3045,6 @@ TEST_F(ClientSocketPoolBaseTest, RequestSocketsHitMaxSocketLimit) {
 
   ASSERT_TRUE(pool_->HasGroup("b"));
   EXPECT_EQ(1, pool_->NumConnectJobsInGroup("b"));
-  EXPECT_FALSE(pool_->IsStalled());
 }
 
 TEST_F(ClientSocketPoolBaseTest, RequestSocketsCountIdleSockets) {
@@ -3394,117 +3361,6 @@ TEST_F(ClientSocketPoolBaseTest, PreconnectWithBackupJob) {
   EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
   EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
   EXPECT_EQ(1, pool_->NumActiveSocketsInGroup("a"));
-}
-
-class MockLayeredPool : public LayeredPool {
- public:
-  MockLayeredPool(TestClientSocketPool* pool,
-                  const std::string& group_name)
-      : pool_(pool),
-        params_(new TestSocketParams),
-        group_name_(group_name) {
-    pool_->AddLayeredPool(this);
-  }
-
-  ~MockLayeredPool() {
-    pool_->RemoveLayeredPool(this);
-  }
-
-  int RequestSocket(TestClientSocketPool* pool) {
-    return handle_.Init(group_name_, params_, kDefaultPriority,
-                        callback_.callback(), pool, BoundNetLog());
-  }
-
-  int RequestSocketWithoutLimits(TestClientSocketPool* pool) {
-    params_->set_ignore_limits(true);
-    return handle_.Init(group_name_, params_, kDefaultPriority,
-                        callback_.callback(), pool, BoundNetLog());
-  }
-
-  bool ReleaseOneConnection() {
-    if (!handle_.is_initialized()) {
-      return false;
-    }
-    handle_.socket()->Disconnect();
-    handle_.Reset();
-    return true;
-  }
-
-  MOCK_METHOD0(CloseOneIdleConnection, bool());
-
- private:
-  TestClientSocketPool* const pool_;
-  scoped_refptr<TestSocketParams> params_;
-  ClientSocketHandle handle_;
-  TestCompletionCallback callback_;
-  const std::string group_name_;
-};
-
-TEST_F(ClientSocketPoolBaseTest, FailToCloseIdleSocketsNotHeldByLayeredPool) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-  connect_job_factory_->set_job_type(TestConnectJob::kMockJob);
-
-  MockLayeredPool mock_layered_pool(pool_.get(), "foo");
-  EXPECT_CALL(mock_layered_pool, CloseOneIdleConnection())
-      .WillOnce(Return(false));
-  EXPECT_EQ(OK, mock_layered_pool.RequestSocket(pool_.get()));
-  EXPECT_FALSE(pool_->CloseOneIdleConnectionInLayeredPool());
-}
-
-TEST_F(ClientSocketPoolBaseTest, ForciblyCloseIdleSocketsHeldByLayeredPool) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-  connect_job_factory_->set_job_type(TestConnectJob::kMockJob);
-
-  MockLayeredPool mock_layered_pool(pool_.get(), "foo");
-  EXPECT_EQ(OK, mock_layered_pool.RequestSocket(pool_.get()));
-  EXPECT_CALL(mock_layered_pool, CloseOneIdleConnection())
-      .WillOnce(Invoke(&mock_layered_pool,
-                       &MockLayeredPool::ReleaseOneConnection));
-  EXPECT_TRUE(pool_->CloseOneIdleConnectionInLayeredPool());
-}
-
-TEST_F(ClientSocketPoolBaseTest, CloseIdleSocketsHeldByLayeredPoolWhenNeeded) {
-  CreatePool(1, 1);
-  connect_job_factory_->set_job_type(TestConnectJob::kMockJob);
-
-  MockLayeredPool mock_layered_pool(pool_.get(), "foo");
-  EXPECT_EQ(OK, mock_layered_pool.RequestSocket(pool_.get()));
-  EXPECT_CALL(mock_layered_pool, CloseOneIdleConnection())
-      .WillOnce(Invoke(&mock_layered_pool,
-                       &MockLayeredPool::ReleaseOneConnection));
-  ClientSocketHandle handle;
-  TestCompletionCallback callback;
-  EXPECT_EQ(OK, handle.Init("a",
-                            params_,
-                            kDefaultPriority,
-                            callback.callback(),
-                            pool_.get(),
-                            BoundNetLog()));
-}
-
-TEST_F(ClientSocketPoolBaseTest,
-       CloseMultipleIdleSocketsHeldByLayeredPoolWhenNeeded) {
-  CreatePool(1, 1);
-  connect_job_factory_->set_job_type(TestConnectJob::kMockJob);
-
-  MockLayeredPool mock_layered_pool1(pool_.get(), "foo");
-  EXPECT_EQ(OK, mock_layered_pool1.RequestSocket(pool_.get()));
-  EXPECT_CALL(mock_layered_pool1, CloseOneIdleConnection())
-      .WillRepeatedly(Invoke(&mock_layered_pool1,
-                             &MockLayeredPool::ReleaseOneConnection));
-  MockLayeredPool mock_layered_pool2(pool_.get(), "bar");
-  EXPECT_EQ(OK, mock_layered_pool2.RequestSocketWithoutLimits(pool_.get()));
-  EXPECT_CALL(mock_layered_pool2, CloseOneIdleConnection())
-      .WillRepeatedly(Invoke(&mock_layered_pool2,
-                             &MockLayeredPool::ReleaseOneConnection));
-  ClientSocketHandle handle;
-  TestCompletionCallback callback;
-  EXPECT_EQ(OK, handle.Init("a",
-                            params_,
-                            kDefaultPriority,
-                            callback.callback(),
-                            pool_.get(),
-                            BoundNetLog()));
 }
 
 }  // namespace

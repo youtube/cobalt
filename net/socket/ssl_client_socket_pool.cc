@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -478,21 +478,9 @@ SSLClientSocketPool::SSLClientSocketPool(
       ssl_config_service_(ssl_config_service) {
   if (ssl_config_service_)
     ssl_config_service_->AddObserver(this);
-  if (transport_pool_)
-    transport_pool_->AddLayeredPool(this);
-  if (socks_pool_)
-    socks_pool_->AddLayeredPool(this);
-  if (http_proxy_pool_)
-    http_proxy_pool_->AddLayeredPool(this);
 }
 
 SSLClientSocketPool::~SSLClientSocketPool() {
-  if (http_proxy_pool_)
-    http_proxy_pool_->RemoveLayeredPool(this);
-  if (socks_pool_)
-    socks_pool_->RemoveLayeredPool(this);
-  if (transport_pool_)
-    transport_pool_->RemoveLayeredPool(this);
   if (ssl_config_service_)
     ssl_config_service_->RemoveObserver(this);
 }
@@ -545,13 +533,6 @@ void SSLClientSocketPool::Flush() {
   base_.Flush();
 }
 
-bool SSLClientSocketPool::IsStalled() const {
-  return base_.IsStalled() ||
-      (transport_pool_ && transport_pool_->IsStalled()) ||
-      (socks_pool_ && socks_pool_->IsStalled()) ||
-      (http_proxy_pool_ && http_proxy_pool_->IsStalled());
-}
-
 void SSLClientSocketPool::CloseIdleSockets() {
   base_.CloseIdleSockets();
 }
@@ -568,14 +549,6 @@ int SSLClientSocketPool::IdleSocketCountInGroup(
 LoadState SSLClientSocketPool::GetLoadState(
     const std::string& group_name, const ClientSocketHandle* handle) const {
   return base_.GetLoadState(group_name, handle);
-}
-
-void SSLClientSocketPool::AddLayeredPool(LayeredPool* layered_pool) {
-  base_.AddLayeredPool(layered_pool);
-}
-
-void SSLClientSocketPool::RemoveLayeredPool(LayeredPool* layered_pool) {
-  base_.RemoveLayeredPool(layered_pool);
 }
 
 DictionaryValue* SSLClientSocketPool::GetInfoAsValue(
@@ -615,12 +588,6 @@ ClientSocketPoolHistograms* SSLClientSocketPool::histograms() const {
 
 void SSLClientSocketPool::OnSSLConfigChanged() {
   Flush();
-}
-
-bool SSLClientSocketPool::CloseOneIdleConnection() {
-  if (base_.CloseOneIdleSocket())
-    return true;
-  return base_.CloseOneIdleConnectionInLayeredPool();
 }
 
 }  // namespace net
