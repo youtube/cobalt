@@ -139,7 +139,7 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
   // If we have a small request body, then we'll merge with the headers into a
   // single write.
   bool did_merge = false;
-  if (ShouldMerge(request, request_body_.get())) {
+  if (ShouldMergeRequestHeadersAndBody(request, request_body_.get())) {
     size_t merged_size = request.size() + request_body->size();
     scoped_refptr<IOBuffer> merged_request_headers_and_body(
         new IOBuffer(merged_size));
@@ -811,13 +811,14 @@ int HttpStreamParser::EncodeChunk(const base::StringPiece& payload,
 }
 
 // static
-bool HttpStreamParser::ShouldMerge(const std::string& request,
-                                   const UploadDataStream* request_body) {
+bool HttpStreamParser::ShouldMergeRequestHeadersAndBody(
+    const std::string& request_headers,
+    const UploadDataStream* request_body) {
   if (request_body != NULL &&
       // IsInMemory() ensures that the request body is not chunked.
       request_body->IsInMemory() &&
       request_body->size() > 0) {
-    size_t merged_size = request.size() + request_body->size();
+    size_t merged_size = request_headers.size() + request_body->size();
     if (merged_size <= kMaxMergedHeaderAndBodySize)
       return true;
   }
