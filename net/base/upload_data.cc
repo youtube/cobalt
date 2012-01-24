@@ -177,6 +177,18 @@ uint64 UploadData::GetContentLength() {
   return len;
 }
 
+bool UploadData::IsInMemory() const {
+  // Chunks are provided as a stream, hence it's not in memory.
+  if (is_chunked_)
+    return false;
+
+  for (size_t i = 0; i < elements_.size(); ++i) {
+    if (elements_[i].type() != TYPE_BYTES)
+      return false;
+  }
+  return true;
+}
+
 void UploadData::SetElements(const std::vector<Element>& elements) {
   elements_ = elements;
 }
