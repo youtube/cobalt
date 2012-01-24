@@ -398,6 +398,9 @@
               'metrics/stats_table.cc',
               'rand_util_posix.cc',
               'threading/platform_thread_posix.cc',
+              'metrics/stats_counters.cc',
+              'metrics/stats_table.cc',
+              'metrics/stats_table.h',
             ],
             'sources': [
               'message_pump_shell.cc',
