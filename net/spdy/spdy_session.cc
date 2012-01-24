@@ -337,7 +337,6 @@ net::Error SpdySession::InitializeWithSocket(
 
   state_ = CONNECTED;
   connection_.reset(connection);
-  connection_->AddLayeredPool(this);
   is_secure_ = is_secure;
   certificate_error_code_ = certificate_error_code;
 
@@ -1002,15 +1001,6 @@ int SpdySession::GetLocalAddress(IPEndPoint* address) const {
   return connection_->socket()->GetLocalAddress(address);
 }
 
-bool SpdySession::CloseOneIdleConnection() {
-  if (num_active_streams() == 0) {
-    // Should delete this.
-    RemoveFromPool();
-    return true;
-  }
-  return false;
-}
-
 void SpdySession::ActivateStream(SpdyStream* stream) {
   const spdy::SpdyStreamId id = stream->stream_id();
   DCHECK(!IsStreamActive(id));
@@ -1045,11 +1035,6 @@ void SpdySession::DeleteStream(spdy::SpdyStreamId id, int status) {
   if (stream)
     stream->OnClose(status);
   ProcessPendingCreateStreams();
-  if (num_active_streams() == 0 && connection_->is_initialized() &&
-      connection_->IsPoolStalled()) {
-    // Should delete this.
-    RemoveFromPool();
-  }
 }
 
 void SpdySession::RemoveFromPool() {
