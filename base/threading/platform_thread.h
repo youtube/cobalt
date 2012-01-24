@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,11 +19,7 @@
 #include <windows.h>
 #elif defined(OS_POSIX)
 #include <pthread.h>
-#if defined(OS_MACOSX)
-#include <mach/mach.h>
-#else  // OS_POSIX && !OS_MACOSX
 #include <unistd.h>
-#endif
 #endif
 
 namespace base {
@@ -39,11 +35,7 @@ const PlatformThreadHandle kNullThreadHandle = NULL;
 #elif defined(OS_POSIX)
 typedef pthread_t PlatformThreadHandle;
 const PlatformThreadHandle kNullThreadHandle = 0;
-#if defined(OS_MACOSX)
-typedef mach_port_t PlatformThreadId;
-#else  // OS_POSIX && !OS_MACOSX
 typedef pid_t PlatformThreadId;
-#endif
 #endif
 
 const PlatformThreadId kInvalidThreadId = 0;

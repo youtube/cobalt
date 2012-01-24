@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -231,7 +231,22 @@ TEST_F(PosixDynamicThreadPoolTest, Complex) {
   pool_->PostTask(FROM_HERE, CreateNewIncrementingTaskCallback());
   WaitForIdleThreads(1);
 
-  EXPECT_EQ(3U, unique_threads_.size());
+  // The POSIX implementation of PlatformThread::CurrentId() uses pthread_self()
+  // which is not guaranteed to be unique after a thread joins. The OS X
+  // implemntation of pthread_self() returns the address of the pthread_t, which
+  // is merely a malloc()ed pointer stored in the first TLS slot. When a thread
+  // joins and that structure is freed, the block of memory can be put on the
+  // OS free list, meaning the same address could be reused in a subsequent
+  // allocation. This in fact happens when allocating in a loop as this test
+  // does.
+  //
+  // Because there are two concurrent threads, there's at least the guarantee
+  // of having two unique thread IDs in the set. But after those two threads are
+  // joined, the next-created thread can get a re-used ID if the allocation of
+  // the pthread_t structure is taken from the free list. Therefore, there can
+  // be either 2 or 3 unique thread IDs in the set at this stage in the test.
+  EXPECT_TRUE(unique_threads_.size() >= 2 && unique_threads_.size() <= 3)
+      << "unique_threads_.size() = " << unique_threads_.size();
   EXPECT_EQ(1, peer_.num_idle_threads());
   EXPECT_EQ(4, counter_);
 }
