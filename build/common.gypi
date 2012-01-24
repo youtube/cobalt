@@ -83,6 +83,13 @@
           ['use_aura==1', {
             'views_compositor%': 1,
           }],
+
+          # Use the WebKit compositor for ui, when Aura is on.
+          ['use_aura==1', {
+            'use_webkit_compositor%': 1,
+          }, {
+            'use_webkit_compositor%': 0,
+          }],
         ],
       },
 
@@ -91,6 +98,7 @@
       'host_arch%': '<(host_arch)',
       'toolkit_views%': '<(toolkit_views)',
       'views_compositor%': '<(views_compositor)',
+      'use_webkit_compositor%': '<(use_webkit_compositor)',
       'use_aura%': '<(use_aura)',
       'use_ash%': '<(use_ash)',
       'use_openssl%': '<(use_openssl)',
@@ -252,9 +260,6 @@
 
       # Enable plug-in installation by default.
       'enable_plugin_installation%': 1,
-
-      # Use the WebKit compositor for ui.
-      'use_webkit_compositor%': 1,
 
       'conditions': [
         # TODO(epoger): Figure out how to set use_skia=1 for Mac outside of
