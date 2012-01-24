@@ -2046,12 +2046,10 @@
           }],
           ['linux_use_heapchecker==1', {
             'variables': {'linux_use_tcmalloc%': 1},
+            'defines': ['USE_HEAPCHECKER'],
           }],
           ['linux_use_tcmalloc==0', {
             'defines': ['NO_TCMALLOC'],
-          }],
-          ['linux_use_heapchecker==0', {
-            'defines': ['NO_HEAPCHECKER'],
           }],
           ['linux_keep_shadow_stacks==1', {
             'defines': ['KEEP_SHADOW_STACKS'],
