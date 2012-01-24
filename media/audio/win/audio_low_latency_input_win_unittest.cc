@@ -7,7 +7,9 @@
 
 #include "base/basictypes.h"
 #include "base/environment.h"
+#include "base/file_util.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/path_service.h"
 #include "base/test/test_timeouts.h"
 #include "base/win/scoped_com_initializer.h"
 #include "media/audio/audio_io.h"
@@ -42,8 +44,14 @@ class WriteToFileAudioSink : public AudioInputStream::AudioInputCallback {
 
   explicit WriteToFileAudioSink(const char* file_name)
       : buffer_(0, kMaxBufferSize),
-    file_(fopen(file_name, "wb")),
-    bytes_to_write_(0) {
+        bytes_to_write_(0) {
+    FilePath file_path;
+    EXPECT_TRUE(PathService::Get(base::DIR_EXE, &file_path));
+    file_path = file_path.AppendASCII(file_name);
+    binary_file_ = file_util::OpenFile(file_path, "wb");
+    DLOG_IF(ERROR, !binary_file_) << "Failed to open binary PCM data file.";
+    LOG(INFO) << ">> Output file: " << file_path.value()
+              << " has been created.";
   }
 
   virtual ~WriteToFileAudioSink() {
@@ -57,11 +65,11 @@ class WriteToFileAudioSink : public AudioInputStream::AudioInputCallback {
         break;
 
       // Write recorded data chunk to the file and prepare for next chunk.
-      fwrite(chunk, 1, chunk_size, file_);
+      fwrite(chunk, 1, chunk_size, binary_file_);
       buffer_.Seek(chunk_size);
       bytes_written += chunk_size;
     }
-    fclose(file_);
+    file_util::CloseFile(binary_file_);
   }
 
   // AudioInputStream::AudioInputCallback implementation.
@@ -82,7 +90,7 @@ class WriteToFileAudioSink : public AudioInputStream::AudioInputCallback {
 
  private:
   media::SeekableBuffer buffer_;
-  FILE* file_;
+  FILE* binary_file_;
   size_t bytes_to_write_;
 };
 
@@ -165,7 +173,7 @@ static AudioInputStream* CreateDefaultAudioInputStream(
 // for all supported device roles. The ERole enumeration defines constants
 // that indicate the role that the system/user has assigned to an audio
 // endpoint device.
-// TODO(henrika): modify this test when we suport full device enumeration.
+// TODO(henrika): modify this test when we support full device enumeration.
 TEST(WinAudioInputTest, WASAPIAudioInputStreamHardwareSampleRate) {
   scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
   if (!CanRunAudioTests(audio_manager))
@@ -355,19 +363,21 @@ TEST(WinAudioInputTest, DISABLED_WASAPIAudioInputStreamRecordToFile) {
   if (!CanRunAudioTests(audio_manager))
     return;
 
+  // Name of the output PCM file containing captured data. The output file
+  // will be stored in the directory containing 'media_unittests.exe'.
+  // Example of full name: \src\build\Debug\out_stereo_10sec.pcm.
   const char* file_name = "out_stereo_10sec.pcm";
 
   AudioInputStreamWrapper aisw(audio_manager);
   AudioInputStream* ais = aisw.Create();
   EXPECT_TRUE(ais->Open());
 
-  fprintf(stderr, "               File name  : %s\n", file_name);
-  fprintf(stderr, "               Sample rate: %d\n", aisw.sample_rate());
+  LOG(INFO) << ">> Sample rate: " << aisw.sample_rate() << " [Hz]";
   WriteToFileAudioSink file_sink(file_name);
-  fprintf(stderr, "               >> Speak into the mic while recording...\n");
+  LOG(INFO) << ">> Speak into the microphone while recording.";
   ais->Start(&file_sink);
-  base::PlatformThread::Sleep(TestTimeouts::action_timeout());
+  base::PlatformThread::Sleep(TestTimeouts::action_timeout_ms());
   ais->Stop();
-  fprintf(stderr, "               >> Recording has stopped.\n");
+  LOG(INFO) << ">> Recording has stopped.";
   ais->Close();
 }
