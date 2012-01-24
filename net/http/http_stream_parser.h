@@ -91,6 +91,11 @@ class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
                          char* output,
                          size_t output_size);
 
+  // Returns true if request and body should be merged (i.e. the sum is
+  // small enough and the body is in memory, and not chunked).
+  static bool ShouldMerge(const std::string& request,
+                          const UploadDataStream* request_body);
+
   // The number of extra bytes required to encode a chunk.
   static const size_t kChunkHeaderFooterSize;
 

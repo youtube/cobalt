@@ -166,6 +166,10 @@ class NET_EXPORT UploadData : public base::RefCounted<UploadData> {
   // Returns the total size in bytes of the data to upload.
   uint64 GetContentLength();
 
+  // Returns true if the upload data is entirely in memory (i.e. the
+  // upload data is not chunked, and all elemnts are of TYPE_BYTES).
+  bool IsInMemory() const;
+
   std::vector<Element>* elements() {
     return &elements_;
   }
