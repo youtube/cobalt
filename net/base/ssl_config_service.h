@@ -139,11 +139,6 @@ class NET_EXPORT SSLConfigService
   // False Start.
   static bool IsKnownFalseStartIncompatibleServer(const std::string& hostname);
 
-  // Disables False Start in SSL connections.
-  static void DisableFalseStart();
-  // True if we use False Start for SSL and TLS.
-  static bool false_start_enabled();
-
   // Enables DNS side checks for certificates.
   static void EnableDNSCertProvenanceChecking();
   static bool dns_cert_provenance_checking_enabled();

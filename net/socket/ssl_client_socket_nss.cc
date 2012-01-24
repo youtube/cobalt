@@ -915,6 +915,7 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
 #endif
 
 #ifdef SSL_ENABLE_FALSE_START
+  LOG(ERROR) << "FALSE START " << ssl_config_.false_start_enabled;
   rv = SSL_OptionSet(
       nss_fd_, SSL_ENABLE_FALSE_START,
       ssl_config_.false_start_enabled &&
