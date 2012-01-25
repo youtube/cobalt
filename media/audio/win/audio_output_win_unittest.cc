@@ -636,7 +636,6 @@ class SyncSocketSource : public AudioOutputStream::AudioSourceCallback {
       : socket_(socket) {}
 
   ~SyncSocketSource() {
-    delete socket_;
   }
 
   // AudioSourceCallback::OnMoreData implementation:
@@ -716,16 +715,16 @@ TEST(WinAudioTest, SyncSocketBasic) {
 
   ASSERT_TRUE(oas->Open());
 
-  base::SyncSocket* sockets[2];
-  ASSERT_TRUE(base::SyncSocket::CreatePair(sockets));
+  base::SyncSocket sockets[2];
+  ASSERT_TRUE(base::SyncSocket::CreatePair(&sockets[0], &sockets[1]));
 
-  SyncSocketSource source(sockets[0]);
+  SyncSocketSource source(&sockets[0]);
 
   SyncThreadContext thread_context;
   thread_context.sample_rate = sample_rate;
   thread_context.sine_freq = 200.0;
   thread_context.packet_size_bytes = kSamples20ms * 2;
-  thread_context.socket = sockets[1];
+  thread_context.socket = &sockets[1];
 
   HANDLE thread = ::CreateThread(NULL, 0, SyncSocketThread,
                                  &thread_context, 0, NULL);
@@ -734,7 +733,6 @@ TEST(WinAudioTest, SyncSocketBasic) {
 
   ::WaitForSingleObject(thread, INFINITE);
   ::CloseHandle(thread);
-  delete sockets[1];
 
   oas->Stop();
   oas->Close();
