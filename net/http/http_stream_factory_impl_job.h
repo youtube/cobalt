@@ -13,6 +13,7 @@
 #include "net/base/ssl_config_service.h"
 #include "net/http/http_auth.h"
 #include "net/http/http_auth_controller.h"
+#include "net/http/http_proxy_client_socket_pool.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_stream_factory_impl.h"
 #include "net/proxy/proxy_service.h"
@@ -46,7 +47,8 @@ class HttpStreamFactoryImpl::Job {
   // appropriate ClientSocketPool.
   int Preconnect(int num_streams);
 
-  int RestartTunnelWithProxyAuth(const AuthCredentials& credentials);
+  int RestartTunnelWithProxyAuth();
+
   LoadState GetLoadState() const;
 
   // Marks this Job as the "alternate" job, from Alternate-Protocol. Tracks the
@@ -123,6 +125,9 @@ class HttpStreamFactoryImpl::Job {
   void OnCertificateErrorCallback(int result, const SSLInfo& ssl_info);
   void OnNeedsProxyAuthCallback(const HttpResponseInfo& response_info,
                                 HttpAuthController* auth_controller);
+  void OnNeedsProxyTunnelAuthCallback(const HttpResponseInfo& response_info,
+                                      HttpAuthController* auth_controller,
+                                      CompletionCallback callback);
   void OnNeedsClientAuthCallback(SSLCertRequestInfo* cert_info);
   void OnHttpsProxyTunnelResponseCallback(const HttpResponseInfo& response_info,
                                           HttpStream* stream);
@@ -152,6 +157,8 @@ class HttpStreamFactoryImpl::Job {
 
   // Returns to STATE_INIT_CONNECTION and resets some state.
   void ReturnToStateInitConnection(bool close_connection);
+
+  void DoRestartTunnelWithProxyAuth();
 
   // Set the motivation for this request onto the underlying socket.
   void SetSocketMotivation();
@@ -254,6 +261,9 @@ class HttpStreamFactoryImpl::Job {
 
   scoped_refptr<HttpAuthController>
       auth_controllers_[HttpAuth::AUTH_NUM_TARGETS];
+
+  // Invoked after a request for tunnel auth has been handled.
+  CompletionCallback tunnel_auth_handled_callback_;
 
   // True when the tunnel is in the process of being established - we can't
   // read from the socket until the tunnel is done.

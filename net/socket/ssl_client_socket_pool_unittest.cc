@@ -1,8 +1,8 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/http/http_proxy_client_socket_pool.h"
+#include "net/socket/ssl_client_socket_pool.h"
 
 #include "base/callback.h"
 #include "base/compiler_specific.h"
@@ -19,6 +19,7 @@
 #include "net/base/test_completion_callback.h"
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_network_session.h"
+#include "net/http/http_proxy_client_socket_pool.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_server_properties_impl.h"
@@ -71,7 +72,9 @@ class SSLClientSocketPoolTest : public testing::Test {
             session_->http_auth_cache(),
             session_->http_auth_handler_factory(),
             session_->spdy_session_pool(),
-            true)),
+            true,
+            base::Bind(&SSLClientSocketPoolTest::OnNeedsProxyAuthCallback,
+                       base::Unretained(this)))),
         http_proxy_histograms_("MockHttpProxy"),
         http_proxy_socket_pool_(
             kMaxSockets,
@@ -142,6 +145,13 @@ class SSLClientSocketPoolTest : public testing::Test {
     params.http_auth_handler_factory = http_auth_handler_factory_.get();
     params.http_server_properties = &http_server_properties_;
     return new HttpNetworkSession(params);
+  }
+
+  void OnNeedsProxyAuthCallback(const HttpResponseInfo& response_info,
+                                HttpAuthController* auth_controller,
+                                CompletionCallback cb) {
+    // Don't add any auth, just execute the callback.
+    cb.Run(OK);
   }
 
   MockClientSocketFactory socket_factory_;
