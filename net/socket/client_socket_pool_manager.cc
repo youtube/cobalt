@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -52,6 +52,7 @@ int InitSocketPoolHelper(const GURL& request_url,
                          const BoundNetLog& net_log,
                          int num_preconnect_streams,
                          ClientSocketHandle* socket_handle,
+                         TunnelAuthCallback auth_needed_callback,
                          const CompletionCallback& callback) {
   scoped_refptr<TransportSocketParams> tcp_params;
   scoped_refptr<HttpProxySocketParams> http_proxy_params;
@@ -136,7 +137,8 @@ int InitSocketPoolHelper(const GURL& request_url,
                                     session->http_auth_cache(),
                                     session->http_auth_handler_factory(),
                                     session->spdy_session_pool(),
-                                    force_tunnel || using_ssl);
+                                    force_tunnel || using_ssl,
+                                    auth_needed_callback);
     } else {
       DCHECK(proxy_info.is_socks());
       char socks_version;
@@ -289,13 +291,15 @@ int InitSocketHandleForHttpRequest(
     const SSLConfig& ssl_config_for_proxy,
     const BoundNetLog& net_log,
     ClientSocketHandle* socket_handle,
+    TunnelAuthCallback auth_needed_callback,
     const CompletionCallback& callback) {
+
   DCHECK(socket_handle);
   return InitSocketPoolHelper(
       request_url, request_extra_headers, request_load_flags, request_priority,
       session, proxy_info, force_spdy_over_ssl, want_spdy_over_npn,
       ssl_config_for_origin, ssl_config_for_proxy, false, net_log, 0,
-      socket_handle, callback);
+      socket_handle, auth_needed_callback, callback);
 }
 
 int InitSocketHandleForRawConnect(
@@ -306,6 +310,7 @@ int InitSocketHandleForRawConnect(
     const SSLConfig& ssl_config_for_proxy,
     const BoundNetLog& net_log,
     ClientSocketHandle* socket_handle,
+    TunnelAuthCallback auth_needed_callback,
     const CompletionCallback& callback) {
   DCHECK(socket_handle);
   // Synthesize an HttpRequestInfo.
@@ -313,11 +318,11 @@ int InitSocketHandleForRawConnect(
   HttpRequestHeaders request_extra_headers;
   int request_load_flags = 0;
   RequestPriority request_priority = MEDIUM;
-
   return InitSocketPoolHelper(
       request_url, request_extra_headers, request_load_flags, request_priority,
       session, proxy_info, false, false, ssl_config_for_origin,
-      ssl_config_for_proxy, true, net_log, 0, socket_handle, callback);
+      ssl_config_for_proxy, true, net_log, 0, socket_handle,
+      auth_needed_callback, callback);
 }
 
 int PreconnectSocketsForHttpRequest(
@@ -332,12 +337,13 @@ int PreconnectSocketsForHttpRequest(
     const SSLConfig& ssl_config_for_origin,
     const SSLConfig& ssl_config_for_proxy,
     const BoundNetLog& net_log,
-    int num_preconnect_streams) {
+    int num_preconnect_streams,
+    TunnelAuthCallback auth_needed_callback) {
   return InitSocketPoolHelper(
       request_url, request_extra_headers, request_load_flags, request_priority,
       session, proxy_info, force_spdy_over_ssl, want_spdy_over_npn,
       ssl_config_for_origin, ssl_config_for_proxy, false, net_log,
-      num_preconnect_streams, NULL, CompletionCallback());
+      num_preconnect_streams, NULL, auth_needed_callback, CompletionCallback());
 }
 
 }  // namespace net

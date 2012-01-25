@@ -181,12 +181,20 @@ int HttpStreamFactoryImpl::Job::Preconnect(int num_streams) {
   return StartInternal();
 }
 
-int HttpStreamFactoryImpl::Job::RestartTunnelWithProxyAuth(
-    const AuthCredentials& credentials) {
-  DCHECK(establishing_tunnel_);
-  next_state_ = STATE_RESTART_TUNNEL_AUTH;
-  stream_.reset();
-  return RunLoop(OK);
+int HttpStreamFactoryImpl::Job::RestartTunnelWithProxyAuth() {
+  // We run this asynchronously to ensure that we don't invoke
+  // the callback (which might cause the caller to be deleted)
+  // while the caller is waiting for this method to return.
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      base::Bind(&HttpStreamFactoryImpl::Job::DoRestartTunnelWithProxyAuth,
+                 ptr_factory_.GetWeakPtr()));
+  return ERR_IO_PENDING;
+}
+
+void HttpStreamFactoryImpl::Job::DoRestartTunnelWithProxyAuth() {
+  tunnel_auth_handled_callback_.Run(OK);
+  tunnel_auth_handled_callback_.Reset();
 }
 
 LoadState HttpStreamFactoryImpl::Job::GetLoadState() const {
@@ -342,6 +350,18 @@ void HttpStreamFactoryImpl::Job::OnNeedsProxyAuthCallback(
   // |this| may be deleted after this call.
 }
 
+void HttpStreamFactoryImpl::Job::OnNeedsProxyTunnelAuthCallback(
+    const HttpResponseInfo& response_info,
+    HttpAuthController* auth_controller,
+    CompletionCallback callback) {
+  DCHECK(!callback.is_null());
+  DCHECK(tunnel_auth_handled_callback_.is_null());
+  tunnel_auth_handled_callback_ = callback;
+  request_->OnNeedsProxyAuth(
+    this, response_info, server_ssl_config_, proxy_info_, auth_controller);
+  // |this| may be deleted after this call.
+}
+
 void HttpStreamFactoryImpl::Job::OnNeedsClientAuthCallback(
     SSLCertRequestInfo* cert_info) {
   DCHECK(!IsPreconnecting());
@@ -420,10 +440,10 @@ int HttpStreamFactoryImpl::Job::RunLoop(int result) {
         DCHECK(connection_->socket());
         DCHECK(establishing_tunnel_);
 
-        HttpProxyClientSocket* http_proxy_socket =
-            static_cast<HttpProxyClientSocket*>(connection_->socket());
+        ProxyClientSocket* proxy_socket =
+            static_cast<ProxyClientSocket*>(connection_->socket());
         const HttpResponseInfo* tunnel_auth_response =
-            http_proxy_socket->GetConnectResponseInfo();
+            proxy_socket->GetConnectResponseInfo();
 
         next_state_ = STATE_WAITING_USER_ACTION;
         MessageLoop::current()->PostTask(
@@ -432,7 +452,7 @@ int HttpStreamFactoryImpl::Job::RunLoop(int result) {
                 &HttpStreamFactoryImpl::Job::OnNeedsProxyAuthCallback,
                 ptr_factory_.GetWeakPtr(),
                 *tunnel_auth_response,
-                http_proxy_socket->auth_controller()));
+                proxy_socket->GetAuthController()));
       }
       return ERR_IO_PENDING;
 
@@ -733,13 +753,18 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
         server_ssl_config_,
         proxy_ssl_config_,
         net_log_,
-        num_streams_);
+        num_streams_,
+        base::Bind(&HttpStreamFactoryImpl::Job::OnNeedsProxyTunnelAuthCallback,
+                   ptr_factory_.GetWeakPtr()));
   } else {
     return InitSocketHandleForHttpRequest(
         origin_url_, request_info_.extra_headers, request_info_.load_flags,
         request_info_.priority, session_, proxy_info_, ShouldForceSpdySSL(),
         want_spdy_over_npn, server_ssl_config_, proxy_ssl_config_, net_log_,
-        connection_.get(), io_callback_);
+        connection_.get(),
+        base::Bind(&HttpStreamFactoryImpl::Job::OnNeedsProxyTunnelAuthCallback,
+                   ptr_factory_.GetWeakPtr()),
+        io_callback_);
   }
 }
 
