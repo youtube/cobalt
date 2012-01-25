@@ -702,8 +702,9 @@ void HttpPipelinedConnectionImpl::CheckHeadersForPipelineCompatibility(
 
       default:
         ReportPipelineFeedback(pipeline_id, PIPELINE_SOCKET_ERROR);
-        return;
+        break;
     }
+    return;
   }
   HttpResponseInfo* info = GetResponseInfo(pipeline_id);
   const HttpVersion required_version(1, 1);

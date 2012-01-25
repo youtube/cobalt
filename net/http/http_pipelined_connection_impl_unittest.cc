@@ -18,6 +18,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using testing::_;
 using testing::NiceMock;
 using testing::StrEq;
 
@@ -1319,6 +1320,27 @@ TEST_F(HttpPipelinedConnectionImplTest, FeedbackOnSocketError) {
   EXPECT_EQ(OK, stream->SendRequest(headers, NULL, &response,
                                     callback_.callback()));
   EXPECT_EQ(ERR_FAILED, stream->ReadResponseHeaders(callback_.callback()));
+}
+
+TEST_F(HttpPipelinedConnectionImplTest, FeedbackOnNoInternetConnection) {
+  MockWrite writes[] = {
+    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+  };
+  MockRead reads[] = {
+    MockRead(false, ERR_INTERNET_DISCONNECTED, 1),
+  };
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  EXPECT_CALL(delegate_, OnPipelineFeedback(_, _))
+      .Times(0);
+
+  scoped_ptr<HttpStream> stream(NewTestStream("ok.html"));
+  HttpRequestHeaders headers;
+  HttpResponseInfo response;
+  EXPECT_EQ(OK, stream->SendRequest(headers, NULL, &response,
+                                    callback_.callback()));
+  EXPECT_EQ(ERR_INTERNET_DISCONNECTED,
+            stream->ReadResponseHeaders(callback_.callback()));
 }
 
 TEST_F(HttpPipelinedConnectionImplTest, FeedbackOnHttp10) {
