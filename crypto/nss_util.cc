@@ -30,6 +30,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/native_library.h"
+#include "base/scoped_temp_dir.h"
 #include "base/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
@@ -220,6 +221,11 @@ class NSPRInitSingleton {
 base::LazyInstance<NSPRInitSingleton>::Leaky
     g_nspr_singleton = LAZY_INSTANCE_INITIALIZER;
 
+// This is a LazyInstance so that it will be deleted automatically when the
+// unittest exits.  NSSInitSingleton is a LeakySingleton, so it would not be
+// deleted if it were a regular member.
+base::LazyInstance<ScopedTempDir> g_test_nss_db_dir = LAZY_INSTANCE_INITIALIZER;
+
 class NSSInitSingleton {
  public:
 #if defined(OS_CHROMEOS)
@@ -343,8 +349,12 @@ class NSSInitSingleton {
 #endif  // defined(OS_CHROMEOS)
 
 
-  bool OpenTestNSSDB(const FilePath& path, const char* description) {
-    test_slot_ = OpenUserDB(path, description);
+  bool OpenTestNSSDB() {
+    if (test_slot_)
+      return true;
+    if (!g_test_nss_db_dir.Get().CreateUniqueTempDir())
+      return false;
+    test_slot_ = OpenUserDB(g_test_nss_db_dir.Get().path(), "Test DB");
     return !!test_slot_;
   }
 
@@ -355,6 +365,7 @@ class NSSInitSingleton {
         PLOG(ERROR) << "SECMOD_CloseUserDB failed: " << PORT_GetError();
       PK11_FreeSlot(test_slot_);
       test_slot_ = NULL;
+      ignore_result(g_test_nss_db_dir.Get().Delete());
     }
   }
 
@@ -698,12 +709,8 @@ bool CheckNSSVersion(const char* version) {
 }
 
 #if defined(USE_NSS)
-bool OpenTestNSSDB(const FilePath& path, const char* description) {
-  return g_nss_singleton.Get().OpenTestNSSDB(path, description);
-}
-
-void CloseTestNSSDB() {
-  g_nss_singleton.Get().CloseTestNSSDB();
+bool OpenTestNSSDB() {
+  return g_nss_singleton.Get().OpenTestNSSDB();
 }
 
 base::Lock* GetNSSWriteLock() {
