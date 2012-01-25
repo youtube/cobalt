@@ -26,6 +26,7 @@ namespace net {
 
 class HostResolver;
 class HttpAuthCache;
+class HttpAuthController;
 class HttpAuthHandlerFactory;
 class SSLClientSocketPool;
 class SSLSocketParams;
@@ -33,6 +34,17 @@ class SpdySessionPool;
 class SpdyStream;
 class TransportClientSocketPool;
 class TransportSocketParams;
+
+// Called when a 407 Proxy Authentication Required response is received
+// from an HTTP or HTTPS proxy when attempting to establish a CONNECT tunnel
+// to an HTTPS server.  Information about the challenge can be found in
+// the HttpResponse info.  Credentials should be added to the
+// HttpAuthController, and the CompletionCallback should be invoked
+// with the status.
+typedef base::Callback<void (const HttpResponseInfo&,
+                             HttpAuthController*,
+                             CompletionCallback)>
+    TunnelAuthCallback;
 
 // HttpProxySocketParams only needs the socket params for one of the proxy
 // types.  The other param must be NULL.  When using an HTTP Proxy,
@@ -50,7 +62,8 @@ class NET_EXPORT_PRIVATE HttpProxySocketParams
       HttpAuthCache* http_auth_cache,
       HttpAuthHandlerFactory* http_auth_handler_factory,
       SpdySessionPool* spdy_session_pool,
-      bool tunnel);
+      bool tunnel,
+      TunnelAuthCallback auth_needed_callback);
 
   const scoped_refptr<TransportSocketParams>& transport_params() const {
     return transport_params_;
@@ -71,6 +84,7 @@ class NET_EXPORT_PRIVATE HttpProxySocketParams
   const HostResolver::RequestInfo& destination() const;
   bool tunnel() const { return tunnel_; }
   bool ignore_limits() const { return ignore_limits_; }
+  TunnelAuthCallback auth_needed_callback() { return auth_needed_callback_; }
 
  private:
   friend class base::RefCounted<HttpProxySocketParams>;
@@ -86,6 +100,7 @@ class NET_EXPORT_PRIVATE HttpProxySocketParams
   HttpAuthHandlerFactory* const http_auth_handler_factory_;
   const bool tunnel_;
   bool ignore_limits_;
+  TunnelAuthCallback auth_needed_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpProxySocketParams);
 };
@@ -120,6 +135,8 @@ class HttpProxyConnectJob : public ConnectJob {
     STATE_SPDY_PROXY_CREATE_STREAM,
     STATE_SPDY_PROXY_CREATE_STREAM_COMPLETE,
     STATE_SPDY_PROXY_CONNECT_COMPLETE,
+    STATE_RESTART_WITH_AUTH,
+    STATE_RESTART_WITH_AUTH_COMPLETE,
     STATE_NONE,
   };
 
@@ -140,6 +157,11 @@ class HttpProxyConnectJob : public ConnectJob {
 
   int DoSpdyProxyCreateStream();
   int DoSpdyProxyCreateStreamComplete(int result);
+
+  int DoRestartWithAuth();
+  int DoRestartWithAuthComplete(int result);
+
+  void HandleProxyAuthChallenge();
 
   // Begins the tcp connection and the optional Http proxy tunnel.  If the
   // request is not immediately servicable (likely), the request will return
@@ -166,6 +188,11 @@ class HttpProxyConnectJob : public ConnectJob {
   HttpResponseInfo error_response_info_;
 
   scoped_refptr<SpdyStream> spdy_stream_;
+
+  // AuthController to be used for *all* requests when setting up this tunnel.
+  scoped_refptr<HttpAuthController> auth_;
+
+  base::WeakPtrFactory<HttpProxyConnectJob> ptr_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpProxyConnectJob);
 };

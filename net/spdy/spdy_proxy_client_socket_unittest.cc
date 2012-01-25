@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -68,6 +68,7 @@ class SpdyProxyClientSocketTest : public PlatformTest {
   spdy::SpdyFrame* ConstructConnectAuthRequestFrame();
   spdy::SpdyFrame* ConstructConnectReplyFrame();
   spdy::SpdyFrame* ConstructConnectAuthReplyFrame();
+  spdy::SpdyFrame* ConstructConnectNtlmAuthReplyFrame();
   spdy::SpdyFrame* ConstructConnectErrorReplyFrame();
   spdy::SpdyFrame* ConstructBodyFrame(const char* data, int length);
   scoped_refptr<IOBufferWithSize> CreateBuffer(const char* data, int size);
@@ -199,8 +200,12 @@ void SpdyProxyClientSocketTest::Initialize(MockRead* reads,
   sock_.reset(
       new SpdyProxyClientSocket(spdy_stream_, user_agent_,
                                 endpoint_host_port_pair_, url_,
-                                proxy_host_port_, session_->http_auth_cache(),
-                                session_->http_auth_handler_factory()));
+                                proxy_host_port_,
+                                new HttpAuthController(
+                                  HttpAuth::AUTH_PROXY,
+                                  GURL(kProxyUrl),
+                                  session_->http_auth_cache(),
+                                  session_->http_auth_handler_factory())));
 }
 
 scoped_refptr<IOBufferWithSize> SpdyProxyClientSocketTest::CreateBuffer(
@@ -390,6 +395,26 @@ spdy::SpdyFrame* SpdyProxyClientSocketTest::ConstructConnectAuthReplyFrame() {
                                    arraysize(kStandardReplyHeaders));
 }
 
+// Constructs a standard SPDY SYN_REPLY frame to match the SPDY CONNECT.
+spdy::SpdyFrame*
+SpdyProxyClientSocketTest::ConstructConnectNtlmAuthReplyFrame() {
+  const char* const kStandardReplyHeaders[] = {
+      "status", "407 Proxy Authentication Required",
+      "version", "HTTP/1.1",
+      "proxy-authenticate", "NTLM"
+  };
+
+  return ConstructSpdyControlFrame(NULL,
+                                   0,
+                                   false,
+                                   kStreamId,
+                                   LOWEST,
+                                   spdy::SYN_REPLY,
+                                   spdy::CONTROL_FLAG_NONE,
+                                   kStandardReplyHeaders,
+                                   arraysize(kStandardReplyHeaders));
+}
+
 // Constructs a SPDY SYN_REPLY frame with an HTTP 500 error.
 spdy::SpdyFrame* SpdyProxyClientSocketTest::ConstructConnectErrorReplyFrame() {
   const char* const kStandardReplyHeaders[] = {
@@ -436,13 +461,13 @@ TEST_F(SpdyProxyClientSocketTest, ConnectSendsCorrectRequest) {
   AssertConnectionEstablished();
 }
 
-TEST_F(SpdyProxyClientSocketTest, ConnectWithAuthRequested) {
+TEST_F(SpdyProxyClientSocketTest, ConnectWithUnsupportedAuthScheme) {
   scoped_ptr<spdy::SpdyFrame> conn(ConstructConnectRequestFrame());
   MockWrite writes[] = {
     CreateMockWrite(*conn, 0, false),
   };
 
-  scoped_ptr<spdy::SpdyFrame> resp(ConstructConnectAuthReplyFrame());
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructConnectNtlmAuthReplyFrame());
   MockRead reads[] = {
     CreateMockRead(*resp, 1, true),
     MockRead(true, 0, 3),  // EOF
@@ -450,13 +475,7 @@ TEST_F(SpdyProxyClientSocketTest, ConnectWithAuthRequested) {
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
-  AssertConnectFails(ERR_TUNNEL_CONNECTION_FAILED);
-
-  const HttpResponseInfo* response = sock_->GetConnectResponseInfo();
-  ASSERT_TRUE(response != NULL);
-  ASSERT_EQ(407, response->headers->response_code());
-  ASSERT_EQ("Proxy Authentication Required",
-            response->headers->GetStatusText());
+  AssertConnectFails(ERR_PROXY_AUTH_UNSUPPORTED);
 }
 
 TEST_F(SpdyProxyClientSocketTest, ConnectWithAuthCredentials) {
@@ -477,6 +496,39 @@ TEST_F(SpdyProxyClientSocketTest, ConnectWithAuthCredentials) {
   AssertConnectSucceeds();
 
   AssertConnectionEstablished();
+}
+
+TEST_F(SpdyProxyClientSocketTest, ConnectWithAuthRestart) {
+  scoped_ptr<spdy::SpdyFrame> conn(ConstructConnectRequestFrame());
+  scoped_ptr<spdy::SpdyFrame> auth(ConstructConnectAuthRequestFrame());
+  MockWrite writes[] = {
+    CreateMockWrite(*conn, 0, false),
+  };
+
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructConnectAuthReplyFrame());
+  scoped_ptr<spdy::SpdyFrame> auth_resp(ConstructConnectReplyFrame());
+  MockRead reads[] = {
+    CreateMockRead(*resp, 1, true),
+    MockRead(true, 0, 3),  // EOF
+  };
+
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  AssertConnectFails(ERR_PROXY_AUTH_REQUESTED);
+
+  const HttpResponseInfo* response = sock_->GetConnectResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_EQ(407, response->headers->response_code());
+  ASSERT_EQ("Proxy Authentication Required",
+            response->headers->GetStatusText());
+
+  AddAuthToCache();
+
+  ASSERT_EQ(ERR_NO_KEEP_ALIVE_ON_AUTH_RESTART,
+            sock_->RestartWithAuth(read_callback_.callback()));
+  // A SpdyProxyClientSocket sits on a single SPDY stream which can
+  // only be used for a single request/response.
+  ASSERT_FALSE(sock_->IsConnectedAndIdle());
 }
 
 TEST_F(SpdyProxyClientSocketTest, ConnectFails) {
@@ -831,7 +883,7 @@ TEST_F(SpdyProxyClientSocketTest, ReadAuthResponseBody) {
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
-  AssertConnectFails(ERR_TUNNEL_CONNECTION_FAILED);
+  AssertConnectFails(ERR_PROXY_AUTH_REQUESTED);
 
   Run(2);  // SpdySession consumes the next two reads and sends then to
            // sock_ to be buffered.

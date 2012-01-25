@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -284,6 +284,9 @@ NET_ERROR(CLIENT_AUTH_CERT_TYPE_UNSUPPORTED, -151)
 // Server requested one type of cert, then requested a different type while the
 // first was still being generated.
 NET_ERROR(ORIGIN_BOUND_CERT_GENERATION_TYPE_MISMATCH, -152)
+
+// The proxy does not support restarting a request on the existing connection.
+NET_ERROR(NO_KEEP_ALIVE_ON_AUTH_RESTART, -153)
 
 // Certificate error codes
 //

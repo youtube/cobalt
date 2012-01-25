@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,8 +14,6 @@
 #include "net/base/auth.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_util.h"
-#include "net/http/http_auth_cache.h"
-#include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_net_log_params.h"
 #include "net/http/http_proxy_utils.h"
 #include "net/http/http_response_headers.h"
@@ -29,16 +27,11 @@ SpdyProxyClientSocket::SpdyProxyClientSocket(
     const HostPortPair& endpoint,
     const GURL& url,
     const HostPortPair& proxy_server,
-    HttpAuthCache* auth_cache,
-    HttpAuthHandlerFactory* auth_handler_factory)
+    HttpAuthController* http_auth_controller)
     : next_state_(STATE_DISCONNECTED),
       spdy_stream_(spdy_stream),
       endpoint_(endpoint),
-      auth_(
-          new HttpAuthController(HttpAuth::AUTH_PROXY,
-                                 GURL("https://" + proxy_server.ToString()),
-                                 auth_cache,
-                                 auth_handler_factory)),
+      auth_(http_auth_controller),
       user_buffer_(NULL),
       write_buffer_len_(0),
       write_bytes_outstanding_(0),
@@ -61,6 +54,19 @@ const HttpResponseInfo* SpdyProxyClientSocket::GetConnectResponseInfo() const {
   return response_.headers ? &response_ : NULL;
 }
 
+const
+scoped_refptr<HttpAuthController>& SpdyProxyClientSocket::GetAuthController() {
+  return auth_;
+}
+
+int SpdyProxyClientSocket::RestartWithAuth(const CompletionCallback& callback) {
+  // A SPDY Stream can only handle a single request, so the underlying
+  // stream may not be reused and a new SpdyProxyClientSocket must be
+  // created (possibly on top of the same SPDY Session).
+  next_state_ = STATE_DISCONNECTED;
+  return ERR_NO_KEEP_ALIVE_ON_AUTH_RESTART;
+}
+
 HttpStream* SpdyProxyClientSocket::CreateConnectResponseStream() {
   DCHECK(response_stream_.get());
   return response_stream_.release();
@@ -72,8 +78,6 @@ HttpStream* SpdyProxyClientSocket::CreateConnectResponseStream() {
 // ERR_TUNNEL_CONNECTION_FAILED will be returned for any other status.
 // In any of these cases, Read() may be called to retrieve the HTTP
 // response body.  Any other return values should be considered fatal.
-// TODO(rch): handle 407 proxy auth requested correctly, perhaps
-// by creating a new stream for the subsequent request.
 // TODO(rch): create a more appropriate error code to disambiguate
 // the HTTPS Proxy tunnel failure from an HTTP Proxy tunnel failure.
 int SpdyProxyClientSocket::Connect(const CompletionCallback& callback) {
@@ -379,7 +383,17 @@ int SpdyProxyClientSocket::DoReadReplyComplete(int result) {
   if (response_.headers->response_code() == 200) {
     return OK;
   } else if (response_.headers->response_code() == 407) {
-    return ERR_TUNNEL_CONNECTION_FAILED;
+    int rv = HandleAuthChallenge(auth_, &response_, net_log_);
+    if (rv != ERR_PROXY_AUTH_REQUESTED) {
+      return rv;
+    }
+    // SPDY only supports basic and digest auth
+    if (!auth_->auth_info() ||
+        (auth_->auth_info()->scheme != "basic" &&
+         auth_->auth_info()->scheme != "digest")) {
+      return ERR_PROXY_AUTH_UNSUPPORTED;
+    }
+    return ERR_PROXY_AUTH_REQUESTED;
   } else {
     // Immediately hand off our SpdyStream to a newly created SpdyHttpStream
     // so that any subsequent SpdyFrames are processed in the context of
