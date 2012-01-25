@@ -207,6 +207,12 @@
       # See https://sites.google.com/a/chromium.org/dev/developers/testing/addresssanitizer
       'asan%': 0,
 
+      # Use the provided profiled order file to link Chrome image with it.
+      # This makes Chrome faster by better using CPU cache when executing code.
+      # This is known as PGO (profile guided optimization).
+      # See https://sites.google.com/a/google.com/chrome-msk/dev/boot-speed-up-effort
+      'order_text_section%' : "",
+
       # Set to 1 compile with -fPIC cflag on linux. This is a must for shared
       # libraries on linux x86-64 and arm, plus ASLR.
       'linux_fpic%': 1,
@@ -430,6 +436,7 @@
     'notifications%': '<(notifications)',
     'clang_use_chrome_plugins%': '<(clang_use_chrome_plugins)',
     'asan%': '<(asan)',
+    'order_text_section%': '<(order_text_section)',
     'enable_register_protocol_handler%': '<(enable_register_protocol_handler)',
     'enable_web_intents%': '<(enable_web_intents)',
     'enable_plugin_installation%': '<(enable_plugin_installation)',
