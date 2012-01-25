@@ -57,7 +57,7 @@ bool FileURLToFilePath(const GURL& url, FilePath* path) {
 }
 
 bool GetNetworkList(NetworkInterfaceList* networks) {
-#if defined(OS_ANDROID)
+#if defined(OS_ANDROID) || defined(__LB_SHELL__)
   // TODO: Android API doesn't support ifaddrs. This method was only used by
   // P2PMessage. Consider to implement it until really needed. The possible
   // approach is implementing the similar feature by
