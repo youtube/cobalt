@@ -14,10 +14,8 @@ ECSignatureCreator* ECSignatureCreator::Create(ECPrivateKey* key) {
   return NULL;
 }
 
-ECSignatureCreator::ECSignatureCreator(ECPrivateKey* key,
-                                       HASH_HashType hash_type)
-    : key_(key),
-      hash_type_(hash_type) {
+ECSignatureCreator::ECSignatureCreator(ECPrivateKey* key)
+    : key_(key) {
   NOTIMPLEMENTED();
 }
 
