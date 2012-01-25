@@ -8,7 +8,9 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/threading/thread.h"
+#include "net/base/default_origin_bound_cert_store.h"
 #include "net/base/host_port_pair.h"
+#include "net/base/origin_bound_cert_service.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_server_properties_impl.h"
 #include "net/url_request/url_request_job_factory.h"
@@ -140,6 +142,12 @@ void TestURLRequestContext::Init() {
   // In-memory cookie store.
   if (!cookie_store())
     context_storage_.set_cookie_store(new net::CookieMonster(NULL, NULL));
+  // In-memory origin bound cert service.
+  if (!origin_bound_cert_service()) {
+    context_storage_.set_origin_bound_cert_service(
+        new net::OriginBoundCertService(
+            new net::DefaultOriginBoundCertStore(NULL)));
+  }
   if (accept_language().empty())
     set_accept_language("en-us,fr");
   if (accept_charset().empty())
