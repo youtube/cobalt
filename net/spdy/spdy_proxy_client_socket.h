@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -47,19 +47,15 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
                         const HostPortPair& endpoint,
                         const GURL& url,
                         const HostPortPair& proxy_server,
-                        HttpAuthCache* auth_cache,
-                        HttpAuthHandlerFactory* auth_handler_factory);
-
+                        HttpAuthController* auth_controller);
 
   // On destruction Disconnect() is called.
   virtual ~SpdyProxyClientSocket();
 
-  const scoped_refptr<HttpAuthController>& auth_controller() {
-    return auth_;
-  }
-
   // ProxyClientSocket methods:
   virtual const HttpResponseInfo* GetConnectResponseInfo() const OVERRIDE;
+  virtual int RestartWithAuth(const CompletionCallback& callback) OVERRIDE;
+  virtual const scoped_refptr<HttpAuthController>& GetAuthController() OVERRIDE;
 
   // In the event of a non-200 response to the CONNECT request, this
   // method may be called to return an HttpStream in order to read

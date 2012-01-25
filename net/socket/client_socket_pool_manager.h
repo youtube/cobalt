@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -13,6 +13,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
 #include "net/base/request_priority.h"
+#include "net/http/http_proxy_client_socket_pool.h"
 
 class GURL;
 
@@ -26,7 +27,6 @@ class BoundNetLog;
 class ClientSocketHandle;
 class HostPortPair;
 class HttpNetworkSession;
-class HttpProxyClientSocketPool;
 class HttpRequestHeaders;
 class ProxyInfo;
 class TransportClientSocketPool;
@@ -88,6 +88,7 @@ int InitSocketHandleForHttpRequest(
     const SSLConfig& ssl_config_for_proxy,
     const BoundNetLog& net_log,
     ClientSocketHandle* socket_handle,
+    TunnelAuthCallback auth_needed_callback,
     const CompletionCallback& callback);
 
 // A helper method that uses the passed in proxy information to initialize a
@@ -102,6 +103,7 @@ NET_EXPORT int InitSocketHandleForRawConnect(
     const SSLConfig& ssl_config_for_proxy,
     const BoundNetLog& net_log,
     ClientSocketHandle* socket_handle,
+    TunnelAuthCallback auth_needed_callback,
     const CompletionCallback& callback);
 
 // Similar to InitSocketHandleForHttpRequest except that it initiates the
@@ -118,7 +120,8 @@ int PreconnectSocketsForHttpRequest(
     const SSLConfig& ssl_config_for_origin,
     const SSLConfig& ssl_config_for_proxy,
     const BoundNetLog& net_log,
-    int num_preconnect_streams);
+    int num_preconnect_streams,
+    TunnelAuthCallback auth_needed_callback);
 
 }  // namespace net
 

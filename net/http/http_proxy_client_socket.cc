@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -31,8 +31,7 @@ HttpProxyClientSocket::HttpProxyClientSocket(
     const std::string& user_agent,
     const HostPortPair& endpoint,
     const HostPortPair& proxy_server,
-    HttpAuthCache* http_auth_cache,
-    HttpAuthHandlerFactory* http_auth_handler_factory,
+    HttpAuthController* http_auth_controller,
     bool tunnel,
     bool using_spdy,
     SSLClientSocket::NextProto protocol_negotiated,
@@ -43,13 +42,7 @@ HttpProxyClientSocket::HttpProxyClientSocket(
       next_state_(STATE_NONE),
       transport_(transport_socket),
       endpoint_(endpoint),
-      auth_(tunnel ?
-          new HttpAuthController(HttpAuth::AUTH_PROXY,
-                                 GURL((is_https_proxy ? "https://" : "http://")
-                                      + proxy_server.ToString()),
-                                 http_auth_cache,
-                                 http_auth_handler_factory)
-          : NULL),
+      auth_(http_auth_controller),
       tunnel_(tunnel),
       using_spdy_(using_spdy),
       protocol_negotiated_(protocol_negotiated),
@@ -65,6 +58,11 @@ HttpProxyClientSocket::HttpProxyClientSocket(
 
 HttpProxyClientSocket::~HttpProxyClientSocket() {
   Disconnect();
+}
+
+const
+scoped_refptr<HttpAuthController>& HttpProxyClientSocket::GetAuthController() {
+  return auth_;
 }
 
 int HttpProxyClientSocket::RestartWithAuth(const CompletionCallback& callback) {
@@ -254,14 +252,14 @@ int HttpProxyClientSocket::PrepareForAuthRestart() {
 }
 
 int HttpProxyClientSocket::DidDrainBodyForAuthRestart(bool keep_alive) {
+  int rv = OK;
   if (keep_alive && transport_->socket()->IsConnectedAndIdle()) {
     next_state_ = STATE_GENERATE_AUTH_TOKEN;
     transport_->set_is_reused(true);
   } else {
-    // This assumes that the underlying transport socket is a TCP socket,
-    // since only TCP sockets are restartable.
-    next_state_ = STATE_TCP_RESTART;
+    next_state_ = STATE_NONE;
     transport_->socket()->Disconnect();
+    rv = ERR_NO_KEEP_ALIVE_ON_AUTH_RESTART;
   }
 
   // Reset the other member variables.
@@ -271,17 +269,6 @@ int HttpProxyClientSocket::DidDrainBodyForAuthRestart(bool keep_alive) {
   request_line_.clear();
   request_headers_.Clear();
   response_ = HttpResponseInfo();
-  return OK;
-}
-
-int HttpProxyClientSocket::HandleAuthChallenge() {
-  DCHECK(response_.headers);
-
-  int rv = auth_->HandleAuthChallenge(response_.headers, false, true, net_log_);
-  response_.auth_challenge = auth_->auth_info();
-  if (rv == OK)
-    return ERR_PROXY_AUTH_REQUESTED;
-
   return rv;
 }
 
@@ -353,13 +340,6 @@ int HttpProxyClientSocket::DoLoop(int last_io_result) {
         break;
       case STATE_DRAIN_BODY_COMPLETE:
         rv = DoDrainBodyComplete(rv);
-        break;
-      case STATE_TCP_RESTART:
-        DCHECK_EQ(OK, rv);
-        rv = DoTCPRestart();
-        break;
-      case STATE_TCP_RESTART_COMPLETE:
-        rv = DoTCPRestartComplete(rv);
         break;
       case STATE_DONE:
         break;
@@ -459,7 +439,7 @@ int HttpProxyClientSocket::DoReadHeadersComplete(int result) {
       // authentication code is smart enough to avoid being tricked by an
       // active network attacker.
       // The next state is intentionally not set as it should be STATE_NONE;
-      return HandleAuthChallenge();
+      return HandleAuthChallenge(auth_, &response_, net_log_);
 
     default:
       if (is_https_proxy_)
@@ -493,20 +473,6 @@ int HttpProxyClientSocket::DoDrainBodyComplete(int result) {
   // Keep draining.
   next_state_ = STATE_DRAIN_BODY;
   return OK;
-}
-
-int HttpProxyClientSocket::DoTCPRestart() {
-  next_state_ = STATE_TCP_RESTART_COMPLETE;
-  return transport_->socket()->Connect(
-      base::Bind(&HttpProxyClientSocket::OnIOComplete, base::Unretained(this)));
-}
-
-int HttpProxyClientSocket::DoTCPRestartComplete(int result) {
-  if (result != OK)
-    return result;
-
-  next_state_ = STATE_GENERATE_AUTH_TOKEN;
-  return result;
 }
 
 }  // namespace net
