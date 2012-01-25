@@ -258,8 +258,8 @@ int SSLConnectJob::DoTunnelConnectComplete(int result) {
   } else if (result == ERR_PROXY_AUTH_REQUESTED ||
              result == ERR_HTTPS_PROXY_TUNNEL_RESPONSE) {
     StreamSocket* socket = transport_socket_handle_->socket();
-    HttpProxyClientSocket* tunnel_socket =
-        static_cast<HttpProxyClientSocket*>(socket);
+    ProxyClientSocket* tunnel_socket =
+        static_cast<ProxyClientSocket*>(socket);
     error_response_info_ = *tunnel_socket->GetConnectResponseInfo();
   }
   if (result < 0)
