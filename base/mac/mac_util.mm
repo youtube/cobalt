@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,7 @@
 
 #include "base/file_path.h"
 #include "base/logging.h"
+#include "base/mac/bundle_locations.h"
 #include "base/mac/foundation_util.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/memory/scoped_nsobject.h"
@@ -72,7 +73,7 @@ LSSharedFileListItemRef GetLoginItemForApp() {
   scoped_nsobject<NSArray> login_items_array(
       CFToNSCast(LSSharedFileListCopySnapshot(login_items, NULL)));
 
-  NSURL* url = [NSURL fileURLWithPath:[[NSBundle mainBundle] bundlePath]];
+  NSURL* url = [NSURL fileURLWithPath:[base::mac::MainBundle() bundlePath]];
 
   for(NSUInteger i = 0; i < [login_items_array count]; ++i) {
     LSSharedFileListItemRef item = reinterpret_cast<LSSharedFileListItemRef>(
@@ -416,7 +417,7 @@ void AddToLoginItems(bool hide_on_startup) {
     LSSharedFileListItemRemove(login_items, item);
   }
 
-  NSURL* url = [NSURL fileURLWithPath:[[NSBundle mainBundle] bundlePath]];
+  NSURL* url = [NSURL fileURLWithPath:[base::mac::MainBundle() bundlePath]];
 
   BOOL hide = hide_on_startup ? YES : NO;
   NSDictionary* properties =
