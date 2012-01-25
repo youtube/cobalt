@@ -1664,13 +1664,7 @@
         # Enable -Werror by default, but put it in a variable so it can
         # be disabled in ~/.gyp/include.gypi on the valgrind builders.
         'variables': {
-          'conditions': [
-            ['OS=="linux"', {
-              'werror%': '-Werror',
-              }, { # turn off -Werror on other Unices
-              'werror%': '',
-            }],
-          ],
+          'werror%': '-Werror',
         },
         'defines': [
           '_FILE_OFFSET_BITS=64',
