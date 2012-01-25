@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,6 +17,8 @@
 #include <sys/types.h>
 
 #include "base/base_export.h"
+#include "base/compiler_specific.h"
+#include "base/synchronization/waitable_event.h"
 
 namespace base {
 
@@ -29,17 +31,19 @@ class BASE_EXPORT SyncSocket {
 #endif
   static const Handle kInvalidHandle;
 
-  // Creates a SyncSocket from a Handle.  Used in transport.
-  explicit SyncSocket(Handle handle) : handle_(handle) { }
-  ~SyncSocket() { Close(); }
+  SyncSocket();
 
-  // Creates an unnamed pair of connected sockets.
-  // pair is a pointer to an array of two SyncSockets in which connected socket
-  // descriptors are returned.  Returns true on success, false on failure.
-  static bool CreatePair(SyncSocket* pair[2]);
+  // Creates a SyncSocket from a Handle.  Used in transport.
+  explicit SyncSocket(Handle handle) : handle_(handle)  {}
+  virtual ~SyncSocket();
+
+  // Initializes and connects a pair of sockets.
+  // |socket_a| and |socket_b| must not hold a valid handle.  Upon successful
+  // return, the sockets will both be valid and connected.
+  static bool CreatePair(SyncSocket* socket_a, SyncSocket* socket_b);
 
   // Closes the SyncSocket.  Returns true on success, false on failure.
-  bool Close();
+  virtual bool Close();
 
   // Sends the message to the remote peer of the SyncSocket.
   // Note it is not safe to send messages from the same socket handle by
@@ -47,13 +51,13 @@ class BASE_EXPORT SyncSocket {
   // buffer is a pointer to the data to send.
   // length is the length of the data to send (must be non-zero).
   // Returns the number of bytes sent, or 0 upon failure.
-  size_t Send(const void* buffer, size_t length);
+  virtual size_t Send(const void* buffer, size_t length);
 
   // Receives a message from an SyncSocket.
   // buffer is a pointer to the buffer to receive data.
   // length is the number of bytes of data to receive (must be non-zero).
   // Returns the number of bytes received, or 0 upon failure.
-  size_t Receive(void* buffer, size_t length);
+  virtual size_t Receive(void* buffer, size_t length);
 
   // Returns the number of bytes available. If non-zero, Receive() will not
   // not block when called. NOTE: Some implementations cannot reliably
@@ -65,10 +69,49 @@ class BASE_EXPORT SyncSocket {
   // processes.
   Handle handle() const { return handle_; }
 
- private:
+ protected:
   Handle handle_;
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(SyncSocket);
+};
+
+// Derives from SyncSocket and adds support for shutting down the socket from
+// another thread while a blocking Receive or Send is being done from the thread
+// that owns the socket.
+class BASE_EXPORT CancelableSyncSocket : public SyncSocket {
+ public:
+  CancelableSyncSocket();
+  explicit CancelableSyncSocket(Handle handle);
+  virtual ~CancelableSyncSocket() {}
+
+  // Initializes a pair of cancelable sockets.  See documentation for
+  // SyncSocket::CreatePair for more details.
+  static bool CreatePair(CancelableSyncSocket* socket_a,
+                         CancelableSyncSocket* socket_b);
+
+  // A way to shut down a socket even if another thread is currently performing
+  // a blocking Receive or Send.
+  bool Shutdown();
+
+#if defined(OS_WIN)
+  // Since the Linux and Mac implementations actually use a socket, shutting
+  // them down from another thread is pretty simple - we can just call
+  // shutdown().  However, the Windows implementation relies on named pipes
+  // and there isn't a way to cancel a blocking synchronous Read that is
+  // supported on <Vista. So, for Windows only, we override these
+  // SyncSocket methods in order to support shutting down the 'socket'.
+  virtual bool Close() OVERRIDE;
+  virtual size_t Send(const void* buffer, size_t length) OVERRIDE;
+  virtual size_t Receive(void* buffer, size_t length) OVERRIDE;
+#endif
+
+ private:
+#if defined(OS_WIN)
+  WaitableEvent shutdown_event_;
+  WaitableEvent file_operation_;
+#endif
+  DISALLOW_COPY_AND_ASSIGN(CancelableSyncSocket);
 };
 
 }  // namespace base
