@@ -1672,6 +1672,9 @@
             }],
           ],
         },
+        'defines': [
+          '_FILE_OFFSET_BITS=64',
+        ],
         'cflags': [
           '<(werror)',  # See note above about the werror variable.
           '-pthread',
@@ -1684,7 +1687,6 @@
           '-Wno-unused-parameter',
           # Don't warn about the "struct foo f = {0};" initialization pattern.
           '-Wno-missing-field-initializers',
-          '-D_FILE_OFFSET_BITS=64',
           # Don't export any symbols (for example, to plugins we dlopen()).
           # Note: this is *required* to make some plugins work.
           '-fvisibility=hidden',
@@ -1946,10 +1948,12 @@
                           '-march=armv5te',
                           '-mtune=xscale',
                           '-msoft-float',
-                          '-D__ARM_ARCH_5__',
-                          '-D__ARM_ARCH_5T__',
-                          '-D__ARM_ARCH_5E__',
-                          '-D__ARM_ARCH_5TE__',
+                        ],
+                        'defines': [
+                          '__ARM_ARCH_5__',
+                          '__ARM_ARCH_5T__',
+                          '__ARM_ARCH_5E__',
+                          '__ARM_ARCH_5TE__',
                         ],
                       }],
                     ],
