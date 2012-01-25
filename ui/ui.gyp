@@ -243,6 +243,7 @@
         'gfx/canvas_skia_linux.cc',
         'gfx/canvas_skia_mac.mm',
         'gfx/canvas_skia_paint.h',
+        'gfx/canvas_skia_skia.cc',
         'gfx/canvas_skia_win.cc',
         'gfx/codec/jpeg_codec.cc',
         'gfx/codec/jpeg_codec.h',
@@ -336,6 +337,20 @@
         'gfx/transform.cc',
       ],
       'conditions': [
+        # TODO(asvitkine): Switch all platforms to use_canvas_skia_skia.cc.
+        #                  http://crbug.com/105550
+        ['use_canvas_skia_skia==1', {
+          'sources!': [
+            'gfx/canvas_skia_android.cc',
+            'gfx/canvas_skia_linux.cc',
+            'gfx/canvas_skia_mac.mm',
+            'gfx/canvas_skia_win.cc',
+          ],
+        }, {  # use_canvas_skia_skia!=1
+          'sources!': [
+            'gfx/canvas_skia_skia.cc',
+          ],
+        }],
         ['use_aura==1', {
           'sources/': [
             ['exclude', 'gfx/gtk_'],
@@ -571,13 +586,17 @@
         }],
         ['toolkit_views==0', {
           'sources!': [
+            'base/x/events_x.cc',
+          ],
+        }],
+        ['toolkit_views==0 and use_canvas_skia_skia==0', {
+          'sources!': [
             'gfx/render_text.cc',
             'gfx/render_text.h',
             'gfx/render_text_linux.cc',
             'gfx/render_text_linux.h',
             'gfx/render_text_win.cc',
             'gfx/render_text_win.h',
-            'base/x/events_x.cc',
           ],
         }],
         ['OS=="android"', {
