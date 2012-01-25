@@ -45,6 +45,11 @@ scoped_ptr<ConDecLogger> TestReturnOfType(int* constructed) {
   return scoped_ptr<ConDecLogger>(new ConDecLogger(constructed));
 }
 
+scoped_ptr<ConDecLoggerParent> UpcastUsingPassAs(
+    scoped_ptr<ConDecLogger> object) {
+  return object.PassAs<ConDecLoggerParent>();
+}
+
 }  // namespace
 
 TEST(ScopedPtrTest, ScopedPtr) {
@@ -329,6 +334,22 @@ TEST(ScopedPtrTest, ReturnTypeBehavior) {
   // function.
   {
     TestReturnOfType(&constructed);
+  }
+  EXPECT_EQ(0, constructed);
+}
+
+TEST(ScopedPtrTest, PassAs) {
+  int constructed = 0;
+  {
+    scoped_ptr<ConDecLogger> scoper(new ConDecLogger(&constructed));
+    EXPECT_EQ(1, constructed);
+    EXPECT_TRUE(scoper.get());
+
+    scoped_ptr<ConDecLoggerParent> scoper_parent;
+    scoper_parent = UpcastUsingPassAs(scoper.Pass());
+    EXPECT_EQ(1, constructed);
+    EXPECT_TRUE(scoper_parent.get());
+    EXPECT_FALSE(scoper.get());
   }
   EXPECT_EQ(0, constructed);
 }
