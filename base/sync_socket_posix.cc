@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -30,25 +30,26 @@ const size_t kMaxMessageLength = static_cast<size_t>(INT_MAX);
 
 const SyncSocket::Handle SyncSocket::kInvalidHandle = -1;
 
-bool SyncSocket::CreatePair(SyncSocket* pair[2]) {
-  Handle handles[2] = { kInvalidHandle, kInvalidHandle };
-  SyncSocket* tmp_sockets[2] = { NULL, NULL };
+SyncSocket::SyncSocket() : handle_(kInvalidHandle) {}
+
+SyncSocket::~SyncSocket() {
+  Close();
+}
+
+// static
+bool SyncSocket::CreatePair(SyncSocket* socket_a, SyncSocket* socket_b) {
+  DCHECK(socket_a != socket_b);
+  DCHECK(socket_a->handle_ == kInvalidHandle);
+  DCHECK(socket_b->handle_ == kInvalidHandle);
+
 #if defined(OS_MACOSX)
   int nosigpipe = 1;
 #endif  // defined(OS_MACOSX)
 
-  // Create the two SyncSocket objects first to avoid ugly cleanup issues.
-  tmp_sockets[0] = new SyncSocket(kInvalidHandle);
-  if (tmp_sockets[0] == NULL) {
+  Handle handles[2] = { kInvalidHandle, kInvalidHandle };
+  if (socketpair(AF_UNIX, SOCK_STREAM, 0, handles) != 0)
     goto cleanup;
-  }
-  tmp_sockets[1] = new SyncSocket(kInvalidHandle);
-  if (tmp_sockets[1] == NULL) {
-    goto cleanup;
-  }
-  if (socketpair(AF_UNIX, SOCK_STREAM, 0, handles) != 0) {
-    goto cleanup;
-  }
+
 #if defined(OS_MACOSX)
   // On OSX an attempt to read or write to a closed socket may generate a
   // SIGPIPE rather than returning -1.  setsockopt will shut this off.
@@ -59,11 +60,11 @@ bool SyncSocket::CreatePair(SyncSocket* pair[2]) {
     goto cleanup;
   }
 #endif
+
   // Copy the handles out for successful return.
-  tmp_sockets[0]->handle_ = handles[0];
-  pair[0] = tmp_sockets[0];
-  tmp_sockets[1]->handle_ = handles[1];
-  pair[1] = tmp_sockets[1];
+  socket_a->handle_ = handles[0];
+  socket_b->handle_ = handles[1];
+
   return true;
 
  cleanup:
@@ -75,8 +76,7 @@ bool SyncSocket::CreatePair(SyncSocket* pair[2]) {
     if (HANDLE_EINTR(close(handles[1])) < 0)
       DPLOG(ERROR) << "close";
   }
-  delete tmp_sockets[0];
-  delete tmp_sockets[1];
+
   return false;
 }
 
@@ -101,11 +101,9 @@ size_t SyncSocket::Send(const void* buffer, size_t length) {
 size_t SyncSocket::Receive(void* buffer, size_t length) {
   DCHECK_LE(length, kMaxMessageLength);
   char* charbuffer = static_cast<char*>(buffer);
-  if (file_util::ReadFromFD(handle_, charbuffer, length)) {
+  if (file_util::ReadFromFD(handle_, charbuffer, length))
     return length;
-  } else {
-    return -1;
-  }
+  return 0;
 }
 
 size_t SyncSocket::Peek() {
@@ -115,6 +113,21 @@ size_t SyncSocket::Peek() {
     return 0;
   }
   return (size_t) number_chars;
+}
+
+CancelableSyncSocket::CancelableSyncSocket() {}
+CancelableSyncSocket::CancelableSyncSocket(Handle handle)
+    : SyncSocket(handle) {
+}
+
+bool CancelableSyncSocket::Shutdown() {
+  return HANDLE_EINTR(shutdown(handle(), SHUT_RDWR)) >= 0;
+}
+
+// static
+bool CancelableSyncSocket::CreatePair(CancelableSyncSocket* socket_a,
+                                      CancelableSyncSocket* socket_b) {
+  return SyncSocket::CreatePair(socket_a, socket_b);
 }
 
 }  // namespace base
