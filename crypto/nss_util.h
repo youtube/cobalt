@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -154,11 +154,12 @@ CRYPTO_EXPORT base::Time PRTimeToBaseTime(int64 prtime);
 CRYPTO_EXPORT int64 BaseTimeToPRTime(base::Time time);
 
 #if defined(USE_NSS)
-// Exposed for unittests only.  |path| should be an existing directory under
-// which the DB files will be placed.  |description| is a user-visible name for
-// the DB, as a utf8 string, which will be truncated at 32 bytes.
-CRYPTO_EXPORT bool OpenTestNSSDB(const FilePath& path, const char* description);
-CRYPTO_EXPORT void CloseTestNSSDB();
+// Exposed for unittests only.
+// TODO(mattm): when https://bugzilla.mozilla.org/show_bug.cgi?id=588269 is
+// fixed, switch back to using a separate userdb for each test.  (Maybe refactor
+// to provide a ScopedTestNSSDB instead of open/close methods.)
+CRYPTO_EXPORT bool OpenTestNSSDB();
+// NOTE: due to NSS bug 588269, mentioned above, there is no CloseTestNSSDB.
 
 // NSS has a bug which can cause a deadlock or stall in some cases when writing
 // to the certDB and keyDB. It also has a bug which causes concurrent key pair
