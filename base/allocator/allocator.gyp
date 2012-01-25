@@ -1,4 +1,4 @@
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -367,8 +367,8 @@
             # so only one of them should be used.
             '<(tcmalloc_dir)/src/tcmalloc.cc',
           ],
-          'cflags': [
-            '-DTCMALLOC_FOR_DEBUGALLOCATION',
+          'defines': [
+            'TCMALLOC_FOR_DEBUGALLOCATION',
           ],
         }, { # linux_use_debugallocation != 1
           'sources!': [
@@ -383,7 +383,9 @@
           ],
           'cflags': [
             '-finstrument-functions',
-            '-DKEEP_SHADOW_STACKS',
+          ],
+          'defines': [
+            'KEEP_SHADOW_STACKS',
           ],
         }],
         [ 'linux_use_heapchecker==0', {
@@ -393,8 +395,8 @@
             '<(tcmalloc_dir)/src/heap-checker.cc',
           ],
           # Disable the heap checker in tcmalloc.
-          'cflags': [
-            '-DNO_HEAP_CHECK',
+          'defines': [
+            'NO_HEAP_CHECK',
           ],
         }],
       ],
