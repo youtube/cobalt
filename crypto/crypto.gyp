@@ -1,4 +1,4 @@
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -39,6 +39,8 @@
             'sources/': [
               ['exclude', '_nss\.cc$'],
               ['include', 'ec_private_key_nss\.cc$'],
+              ['include', 'ec_signature_creator_nss\.cc$'],
+              ['include', 'signature_verifier_nss\.cc$'],
             ],
             'sources!': [
               'openpgp_symmetric_encryption.cc',
@@ -50,6 +52,8 @@
             ],
             'sources/': [
               ['exclude', 'ec_private_key_nss\.cc$'],
+              ['exclude', 'ec_signature_creator_nss\.cc$'],
+              ['exclude', 'signature_verifier_nss\.cc$'],
             ],
         }],
         [ 'os_bsd==1', {
@@ -91,6 +95,7 @@
             #             OpenSSL file set is complete.
             'sources!': [
               'ec_private_key_nss.cc',
+              'ec_signature_creator_nss.cc',
               'encryptor_nss.cc',
               'hmac_nss.cc',
               'nss_util.cc',
@@ -112,6 +117,7 @@
           }, {
             'sources!': [
               'ec_private_key_openssl.cc',
+              'ec_signature_creator_openssl.cc',
               'encryptor_openssl.cc',
               'hmac_openssl.cc',
               'openssl_util.cc',
@@ -134,6 +140,9 @@
         'ec_private_key.h',
         'ec_private_key_nss.cc',
         'ec_private_key_openssl.cc',
+        'ec_signature_creator.h',
+        'ec_signature_creator_nss.cc',
+        'ec_signature_creator_openssl.cc',
         'encryptor.cc',
         'encryptor.h',
         'encryptor_mac.cc',
@@ -180,10 +189,8 @@
         'signature_creator_openssl.cc',
         'signature_creator_win.cc',
         'signature_verifier.h',
-        'signature_verifier_mac.cc',
         'signature_verifier_nss.cc',
         'signature_verifier_openssl.cc',
-        'signature_verifier_win.cc',
         'symmetric_key.h',
         'symmetric_key_mac.cc',
         'symmetric_key_nss.cc',
@@ -207,6 +214,7 @@
 
         # Tests.
         'ec_private_key_unittest.cc',
+        'ec_signature_creator_unittest.cc',
         'encryptor_unittest.cc',
         'hmac_unittest.cc',
         'nss_util_unittest.cc',
