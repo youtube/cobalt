@@ -262,6 +262,13 @@
       # Use the WebKit compositor for ui.
       'use_webkit_compositor%': 1,
 
+      # Specifies whether to use canvas_skia_skia.cc in place of platform
+      # specific implementations of CanvasSkia. Affects text drawing in the
+      # Chrome UI.
+      # TODO(asvitkine): Enable this on all platforms and delete this flag.
+      #                  http://crbug.com/105550
+      'use_canvas_skia_skia%': 0,
+
       'conditions': [
         # TODO(epoger): Figure out how to set use_skia=1 for Mac outside of
         # the 'conditions' clause.  Initial attempts resulted in chromium and
@@ -440,6 +447,7 @@
     'enable_register_protocol_handler%': '<(enable_register_protocol_handler)',
     'enable_web_intents%': '<(enable_web_intents)',
     'enable_plugin_installation%': '<(enable_plugin_installation)',
+    'use_canvas_skia_skia%': '<(use_canvas_skia_skia)',
     # Whether to build for Wayland display server
     'use_wayland%': 0,
 
