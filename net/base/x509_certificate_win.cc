@@ -804,8 +804,7 @@ class GlobalCertStore {
   DISALLOW_COPY_AND_ASSIGN(GlobalCertStore);
 };
 
-static base::LazyInstance<GlobalCertStore,
-                          base::LeakyLazyInstanceTraits<GlobalCertStore> >
+static base::LazyInstance<GlobalCertStore>::Leaky
     g_cert_store = LAZY_INSTANCE_INITIALIZER;
 
 // static
