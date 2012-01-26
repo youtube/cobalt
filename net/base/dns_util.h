@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,7 +22,8 @@ namespace net {
 NET_EXPORT_PRIVATE bool DNSDomainFromDot(const base::StringPiece& dotted,
                                          std::string* out);
 
-// DNSDomainToString coverts a domain in DNS format to a dotted string.
+// DNSDomainToString converts a domain in DNS format to a dotted string.
+// Excludes the dot at the end.
 NET_EXPORT_PRIVATE std::string DNSDomainToString(
     const base::StringPiece& domain);
 

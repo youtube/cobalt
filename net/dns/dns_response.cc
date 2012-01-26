@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 
 #include "base/sys_byteorder.h"
 #include "net/base/big_endian.h"
+#include "net/base/dns_util.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/dns/dns_protocol.h"
@@ -132,6 +133,7 @@ DnsResponse::DnsResponse(const void* data,
                          size_t answer_offset)
     : io_buffer_(new IOBufferWithSize(length)),
       parser_(io_buffer_->data(), length, answer_offset) {
+  DCHECK(data);
   memcpy(io_buffer_->data(), data, length);
 }
 
@@ -166,24 +168,51 @@ bool DnsResponse::InitParse(int nbytes, const DnsQuery& query) {
   return true;
 }
 
-uint8 DnsResponse::flags0() const {
-  return header()->flags[0];
+bool DnsResponse::IsValid() const {
+  return parser_.IsValid();
 }
 
-uint8 DnsResponse::flags1() const {
-  return header()->flags[1] & ~(dns_protocol::kRcodeMask);
+uint16 DnsResponse::flags() const {
+  DCHECK(parser_.IsValid());
+  return ntohs(header()->flags) & ~(dns_protocol::kRcodeMask);
 }
 
 uint8 DnsResponse::rcode() const {
-  return header()->flags[1] & dns_protocol::kRcodeMask;
+  DCHECK(parser_.IsValid());
+  return ntohs(header()->flags) & dns_protocol::kRcodeMask;
 }
 
 int DnsResponse::answer_count() const {
+  DCHECK(parser_.IsValid());
   return ntohs(header()->ancount);
+}
+
+base::StringPiece DnsResponse::qname() const {
+  DCHECK(parser_.IsValid());
+  // The response is HEADER QNAME QTYPE QCLASS ANSWER.
+  // |parser_| is positioned at the beginning of ANSWER, so the end of QNAME is
+  // two uint16s before it.
+  const size_t hdr_size = sizeof(dns_protocol::Header);
+  const size_t qname_size = parser_.GetOffset() - 2 * sizeof(uint16) - hdr_size;
+  return base::StringPiece(io_buffer_->data() + hdr_size, qname_size);
+}
+
+uint16 DnsResponse::qtype() const {
+  DCHECK(parser_.IsValid());
+  // QTYPE starts where QNAME ends.
+  const size_t type_offset = parser_.GetOffset() - 2 * sizeof(uint16);
+  uint16 type;
+  ReadBigEndian<uint16>(io_buffer_->data() + type_offset, &type);
+  return type;
+}
+
+std::string DnsResponse::GetDottedName() const {
+  return DNSDomainToString(qname());
 }
 
 DnsRecordParser DnsResponse::Parser() const {
   DCHECK(parser_.IsValid());
+  // Return a copy of the parser.
   return parser_;
 }
 

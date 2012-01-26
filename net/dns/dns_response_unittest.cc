@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -205,29 +205,39 @@ TEST(DnsResponseTest, InitParse) {
 
   // Reject too short.
   EXPECT_FALSE(resp.InitParse(query->io_buffer()->size() - 1, *query));
+  EXPECT_FALSE(resp.IsValid());
 
   // Reject wrong id.
   scoped_ptr<DnsQuery> other_query(query->CloneWithNewId(0xbeef));
   EXPECT_FALSE(resp.InitParse(sizeof(response_data), *other_query));
+  EXPECT_FALSE(resp.IsValid());
 
   // Reject wrong question.
   scoped_ptr<DnsQuery> wrong_query(
       new DnsQuery(0xcafe, qname, dns_protocol::kTypeCNAME));
   EXPECT_FALSE(resp.InitParse(sizeof(response_data), *wrong_query));
+  EXPECT_FALSE(resp.IsValid());
 
   // Accept matching question.
   EXPECT_TRUE(resp.InitParse(sizeof(response_data), *query));
+  EXPECT_TRUE(resp.IsValid());
 
   // Check header access.
-  EXPECT_EQ(0x81, resp.flags0());
-  EXPECT_EQ(0x80, resp.flags1());
+  EXPECT_EQ(0x8180, resp.flags());
   EXPECT_EQ(0x0, resp.rcode());
   EXPECT_EQ(2, resp.answer_count());
+
+  // Check question access.
+  EXPECT_EQ(query->qname(), resp.qname());
+  EXPECT_EQ(query->qtype(), resp.qtype());
+  EXPECT_EQ("codereview.chromium.org", resp.GetDottedName());
 
   DnsResourceRecord record;
   DnsRecordParser parser = resp.Parser();
   EXPECT_TRUE(parser.ParseRecord(&record));
+  EXPECT_FALSE(parser.AtEnd());
   EXPECT_TRUE(parser.ParseRecord(&record));
+  EXPECT_TRUE(parser.AtEnd());
   EXPECT_FALSE(parser.ParseRecord(&record));
 }
 

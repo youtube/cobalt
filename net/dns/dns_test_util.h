@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,28 +6,11 @@
 #define NET_DNS_DNS_TEST_UTIL_H_
 #pragma once
 
-#include <deque>
-#include <vector>
-
-#include "base/logging.h"
-#include "net/base/dns_util.h"
-#include "net/base/host_resolver.h"
-#include "net/base/ip_endpoint.h"
-#include "net/base/net_util.h"
+#include "base/basictypes.h"
 #include "net/dns/dns_protocol.h"
 
 namespace net {
 
-// A utility function for tests that given an array of IP literals,
-// converts it to an IPAddressList.
-bool ConvertStringsToIPAddressList(
-    const char* const ip_strings[], size_t size, IPAddressList* address_list);
-
-// A utility function for tests that creates an IPEndPoint whose IP is
-// |ip_string| and whose port is |port| and stores it in |endpoint|.
-bool CreateDnsAddress(const char* ip_string, uint16 port, IPEndPoint* endpoint);
-
-static const char kDnsIp[] = "192.168.1.1";
 static const uint16 kDnsPort = 53;
 
 //-----------------------------------------------------------------------------
