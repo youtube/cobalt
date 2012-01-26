@@ -259,9 +259,9 @@ class RepeatedValueConverter : public ValueConverter<ScopedVector<Element> > {
       if (!list->Get(i, &element))
         continue;
 
-      Element *e = new Element;
-      if (basic_converter_.Convert(*element, e)) {
-        field->push_back(e);
+      scoped_ptr<Element> e(new Element);
+      if (basic_converter_.Convert(*element, e.get())) {
+        field->push_back(e.release());
       } else {
         DVLOG(1) << "failure at " << i << "-th element";
         return false;
@@ -293,9 +293,9 @@ class RepeatedMessageConverter
       if (!list->Get(i, &element))
         continue;
 
-      NestedType* nested = new NestedType();
-      if (converter_.Convert(*element, nested)) {
-        field->push_back(nested);
+      scoped_ptr<NestedType> nested(new NestedType);
+      if (converter_.Convert(*element, nested.get())) {
+        field->push_back(nested.release());
       } else {
         DVLOG(1) << "failure at " << i << "-th element";
         return false;
