@@ -57,8 +57,7 @@ void StripPostSpecificHeaders(HttpRequestHeaders* headers) {
 uint64 g_next_url_request_identifier = 1;
 
 // This lock protects g_next_url_request_identifier.
-base::LazyInstance<base::Lock,
-                   base::LeakyLazyInstanceTraits<base::Lock> >
+base::LazyInstance<base::Lock>::Leaky
     g_next_url_request_identifier_lock = LAZY_INSTANCE_INITIALIZER;
 
 // Returns an prior unused identifier for URL requests.

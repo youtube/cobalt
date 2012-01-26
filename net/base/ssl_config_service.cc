@@ -82,9 +82,7 @@ class GlobalCRLSet {
   mutable base::Lock lock_;
 };
 
-base::LazyInstance<GlobalCRLSet,
-                   base::LeakyLazyInstanceTraits<GlobalCRLSet> >
-    g_crl_set = LAZY_INSTANCE_INITIALIZER;
+base::LazyInstance<GlobalCRLSet>::Leaky g_crl_set = LAZY_INSTANCE_INITIALIZER;
 
 // static
 void SSLConfigService::EnableDNSCertProvenanceChecking() {

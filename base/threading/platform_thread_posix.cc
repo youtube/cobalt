@@ -40,8 +40,7 @@ namespace {
 
 #if !defined(OS_MACOSX)
 // Mac name code is in in platform_thread_mac.mm.
-LazyInstance<ThreadLocalPointer<char>,
-             LeakyLazyInstanceTraits<ThreadLocalPointer<char> > >
+LazyInstance<ThreadLocalPointer<char> >::Leaky
     current_thread_name = LAZY_INSTANCE_INITIALIZER;
 #endif
 
