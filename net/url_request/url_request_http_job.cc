@@ -427,7 +427,6 @@ void URLRequestHttpJob::StartTransactionInternal() {
 }
 
 void URLRequestHttpJob::AddExtraHeaders() {
-#if !defined(__LB_SHELL__)
   // Supply Accept-Encoding field only if it is not already provided.
   // It should be provided IF the content is known to have restrictions on
   // potential encoding, such as streaming multi-media.
@@ -437,6 +436,7 @@ void URLRequestHttpJob::AddExtraHeaders() {
   // simple_data_source.
   if (!request_info_.extra_headers.HasHeader(
       HttpRequestHeaders::kAcceptEncoding)) {
+#if !defined(__LB_SHELL__)
     bool advertise_sdch = SdchManager::Global() &&
         SdchManager::Global()->IsInSupportedDomain(request_->url());
     std::string avail_dictionaries;
@@ -462,6 +462,9 @@ void URLRequestHttpJob::AddExtraHeaders() {
         }
       }
     }
+#else
+    bool advertise_sdch = false;
+#endif
 
     // Supply Accept-Encoding headers first so that it is more likely that they
     // will be in the first transmitted packet.  This can sometimes make it
@@ -473,6 +476,7 @@ void URLRequestHttpJob::AddExtraHeaders() {
       request_info_.extra_headers.SetHeader(
           HttpRequestHeaders::kAcceptEncoding, "gzip,deflate");
     } else {
+#if !defined(__LB_SHELL__)
       // Include SDCH in acceptable list.
       request_info_.extra_headers.SetHeader(
           HttpRequestHeaders::kAcceptEncoding, "gzip,deflate,sdch");
@@ -488,9 +492,9 @@ void URLRequestHttpJob::AddExtraHeaders() {
         // arrival times.
         packet_timing_enabled_ = true;
       }
+#endif
     }
   }
-#endif
 
   const URLRequestContext* context = request_->context();
   if (context) {

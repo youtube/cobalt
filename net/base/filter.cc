@@ -301,7 +301,6 @@ void Filter::FixupEncodingTypes(
           SdchManager::BINARY_FIXED_CONTENT_ENCODINGS);
     }
   }
-#endif
 
   // Leave the existing encoding type to be processed first, and add our
   // tentative decodings to be done afterwards.  Vodaphone UK reportedyl will
@@ -315,6 +314,7 @@ void Filter::FixupEncodingTypes(
   encoding_types->insert(encoding_types->begin(),
                          FILTER_TYPE_GZIP_HELPING_SDCH);
   encoding_types->insert(encoding_types->begin(), FILTER_TYPE_SDCH_POSSIBLE);
+#endif
   return;
 }
 
