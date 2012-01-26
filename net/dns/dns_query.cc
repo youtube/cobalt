@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -29,7 +29,7 @@ DnsQuery::DnsQuery(uint16 id, const base::StringPiece& qname, uint16 qtype)
       reinterpret_cast<dns_protocol::Header*>(io_buffer_->data());
   memset(header, 0, sizeof(dns_protocol::Header));
   header->id = htons(id);
-  header->flags[0] = 0x1;  // RD bit
+  header->flags = htons(dns_protocol::kFlagRD);
   header->qdcount = htons(1);
 
   // Write question section after the header.

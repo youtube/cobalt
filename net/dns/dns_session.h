@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -31,17 +31,18 @@ class NET_EXPORT_PRIVATE DnsSession
              const RandIntCallback& rand_int_callback,
              NetLog* net_log);
 
-  ClientSocketFactory* socket_factory() const { return socket_factory_.get(); }
   const DnsConfig& config() const { return config_; }
   NetLog* net_log() const { return net_log_; }
 
+  ClientSocketFactory* socket_factory() { return socket_factory_.get(); }
+
   // Return the next random query ID.
-  int NextId() const;
+  int NextQueryId() const;
 
-  // Return the next server address.
-  const IPEndPoint& NextServer();
+  // Return the index of the first configured server to use on first attempt.
+  int NextFirstServerIndex();
 
-  // Return the timeout for the next transaction.
+  // Return the timeout for the next query.
   base::TimeDelta NextTimeout(int attempt);
 
  private:
@@ -53,13 +54,12 @@ class NET_EXPORT_PRIVATE DnsSession
   RandCallback rand_callback_;
   NetLog* net_log_;
 
-  // Current index into |config_.nameservers|.
+  // Current index into |config_.nameservers| to begin resolution with.
   int server_index_;
 
-  // TODO(szym): add current RTT estimate
-  // TODO(szym): add flag to indicate DNSSEC is supported
-  // TODO(szym): add TCP connection pool to support DNS over TCP
-  // TODO(szym): add UDP socket pool ?
+  // TODO(szym): Add current RTT estimate.
+  // TODO(szym): Add TCP connection pool to support DNS over TCP.
+  // TODO(szym): Add UDP port pool to avoid NAT table overload.
 
   DISALLOW_COPY_AND_ASSIGN(DnsSession);
 };
