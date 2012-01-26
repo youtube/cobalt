@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,8 +19,7 @@ namespace base {
 
 namespace {
 
-LazyInstance<ThreadLocalPointer<char>,
-             LeakyLazyInstanceTraits<ThreadLocalPointer<char> > >
+LazyInstance<ThreadLocalPointer<char> >::Leaky
     current_thread_name = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace

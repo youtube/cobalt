@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -89,8 +89,7 @@ struct CryptoAPIInjector {
   }
 };
 
-base::LazyInstance<CryptoAPIInjector,
-                   base::LeakyLazyInstanceTraits<CryptoAPIInjector> >
+base::LazyInstance<CryptoAPIInjector>::Leaky
     g_capi_injector = LAZY_INSTANCE_INITIALIZER;
 
 BOOL WINAPI InterceptedOpenStoreW(LPCSTR store_provider,
