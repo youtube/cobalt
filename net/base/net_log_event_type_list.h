@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -1205,7 +1205,6 @@ EVENT_TYPE(THROTTLING_GOT_CUSTOM_RETRY_AFTER)
 // The BEGIN phase contains the following parameters:
 //
 // {
-//   "dns_server": <IP of the DNS server to which queries are sent>,
 //   "hostname": <The hostname it is trying to resolve>,
 //   "query_type": <Type of the query>,
 //   "source_dependency":  <Source id, if any, of what created the
@@ -1215,23 +1214,46 @@ EVENT_TYPE(THROTTLING_GOT_CUSTOM_RETRY_AFTER)
 // The END phase contains the following parameters:
 //
 // {
-//   "ip_address_list": <The result of the resolution process,
-//                       an IPAddressList>
 //   "net_error": <The net error code for the failure, if any>,
 // }
 EVENT_TYPE(DNS_TRANSACTION)
 
+// The start/end of a DnsTransaction query for a fully-qualified domain name.
+//
+// The BEGIN phase contains the following parameters:
+//
+// {
+//   "qname": <The fully-qualified domain name it is trying to resolve>,
+// }
+//
+// The END phase contains the following parameters:
+//
+// {
+//   "net_error": <The net error code for the failure, if any>,
+// }
+EVENT_TYPE(DNS_TRANSACTION_QUERY)
+
 // This event is created when DnsTransaction creates a new UDP socket and
-// tries to resolve the hostname.
+// tries to resolve the fully-qualified name.
 //
 // It has a single parameter:
 //
 //   {
-//     "attempt_number": <current attempt number at resolving hostname>
-//     "source_dependency": <Source id of the UDP socket that caused the
-//                           attempt>,
+//     "socket_source": <Source id of the UDP socket created for the attempt>,
 //   }
-EVENT_TYPE(DNS_TRANSACTION_ATTEMPT_STARTED)
+EVENT_TYPE(DNS_TRANSACTION_ATTEMPT)
+
+// This event is created when DnsTransaction receives a matching response.
+//
+// It has the following parameters:
+//
+//   {
+//     "rcode": <rcode in the received response>,
+//     "answer_count": <answer_count in the received response>,
+//     "socket_source": <Source id of the UDP socket that received the
+//                       response>,
+//   }
+EVENT_TYPE(DNS_TRANSACTION_RESPONSE)
 
 // ------------------------------------------------------------------------
 // AsyncHostResolver
