@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -171,6 +171,20 @@ TEST_F(ProcessUtilTest, MAYBE_GetTerminationStatusExit) {
   base::CloseProcessHandle(handle);
   remove(kSignalFileSlow);
 }
+
+#if defined(OS_WIN)
+// TODO(cpu): figure out how to test this in other platforms.
+TEST_F(ProcessUtilTest, GetProcId) {
+  base::ProcessId id1 = base::GetProcId(GetCurrentProcess());
+  EXPECT_NE(0ul, id1);
+  base::ProcessHandle handle = this->SpawnChild("SimpleChildProcess", false);
+  ASSERT_NE(base::kNullProcessHandle, handle);
+  base::ProcessId id2 = base::GetProcId(handle);
+  EXPECT_NE(0ul, id2);
+  EXPECT_NE(id1, id2);
+  base::CloseProcessHandle(handle);
+}
+#endif
 
 #if !defined(OS_MACOSX)
 // This test is disabled on Mac, since it's flaky due to ReportCrash
