@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -39,20 +39,19 @@ struct NET_EXPORT_PRIVATE DnsConfig {
   std::vector<IPEndPoint> nameservers;
   // Suffix search list; used on first lookup when number of dots in given name
   // is less than |ndots|.
+  // TODO(szym): Filter out duplicate entries from this list.
   std::vector<std::string> search;
 
   DnsHosts hosts;
 
   // Resolver options; see man resolv.conf.
-  // TODO(szym): use |ndots| and |search| to determine the sequence of FQDNs
-  // to query given a specific name.
   // TODO(szym): implement DNS Devolution for windows
 
   // Minimum number of dots before global resolution precedes |search|.
   int ndots;
   // Time between retransmissions, see res_state.retrans.
   base::TimeDelta timeout;
-  // Maximum number of retries, see res_state.retry.
+  // Maximum number of attempts, see res_state.retry.
   int attempts;
   // Round robin entries in |nameservers| for subsequent requests.
   bool rotate;

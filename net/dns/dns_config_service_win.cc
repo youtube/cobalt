@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -240,6 +240,7 @@ class DnsConfigServiceWin::ConfigReader : public SerialWorker {
       ReadSearchList(tcpip_watcher_, &dns_config_);
 
     // TODO(szym): add support for DNS suffix devolution BUG=99510
+    // TODO(szym): read AppendToMultiLabelName to determine ndots BUG=109902
   }
 
   void OnWorkFinished() OVERRIDE {

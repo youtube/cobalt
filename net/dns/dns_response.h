@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -51,6 +51,9 @@ class NET_EXPORT_PRIVATE DnsRecordParser {
   // Returns |true| if no more bytes remain in the packet.
   bool AtEnd() const { return cur_ == packet_ + length_; }
 
+  // Returns current offset into the packet.
+  size_t GetOffset() const { return cur_ - packet_; }
+
   // Parses a (possibly compressed) DNS name from the packet starting at
   // |pos|. Stores output (even partial) in |out| unless |out| is NULL. |out|
   // is stored in the dotted form, e.g., "example.com". Returns number of bytes
@@ -91,15 +94,26 @@ class NET_EXPORT_PRIVATE DnsResponse {
   // |query| id or question.
   bool InitParse(int nbytes, const DnsQuery& query);
 
+  // Returns true if response is valid, that is, after successful InitParse.
+  bool IsValid() const;
+
+  // All of the methods below are valid only if the response is valid.
+
   // Accessors for the header.
-  uint8 flags0() const;  // first byte of flags
-  uint8 flags1() const;  // second byte of flags excluding rcode
+  uint16 flags() const;  // excluding rcode
   uint8 rcode() const;
   int answer_count() const;
 
-  // Returns an iterator to the resource records in the answer section. Must be
-  // called after InitParse. The iterator is valid only in the scope of the
-  // DnsResponse.
+  // Accessors to the question. The qname is unparsed.
+  base::StringPiece qname() const;
+  uint16 qtype() const;
+
+  // Returns qname in dotted format.
+  std::string GetDottedName() const;
+
+  // Returns an iterator to the resource records in the answer section.
+  // The iterator is valid only in the scope of the DnsResponse.
+  // This operation is idempotent.
   DnsRecordParser Parser() const;
 
  private:
@@ -110,6 +124,7 @@ class NET_EXPORT_PRIVATE DnsResponse {
   scoped_refptr<IOBufferWithSize> io_buffer_;
 
   // Iterator constructed after InitParse positioned at the answer section.
+  // It is never updated afterwards, so can be used in accessors.
   DnsRecordParser parser_;
 
   DISALLOW_COPY_AND_ASSIGN(DnsResponse);

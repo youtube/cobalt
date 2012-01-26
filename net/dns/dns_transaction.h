@@ -7,99 +7,74 @@
 #pragma once
 
 #include <string>
-#include <vector>
 
-#include "base/memory/ref_counted.h"
+#include "base/basictypes.h"
+#include "base/callback_forward.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/string_piece.h"
-#include "base/timer.h"
-#include "base/threading/non_thread_safe.h"
-#include "net/base/completion_callback.h"
-#include "net/base/ip_endpoint.h"
 #include "net/base/net_export.h"
-#include "net/base/net_log.h"
-#include "net/base/rand_callback.h"
 
 namespace net {
 
-class DatagramClientSocket;
-class DnsQuery;
+class BoundNetLog;
 class DnsResponse;
 class DnsSession;
 
-// Performs a single asynchronous DNS transaction over UDP,
-// which consists of sending out a DNS query, waiting for a response, and
-// returning the response that it matches.
-class NET_EXPORT_PRIVATE DnsTransaction :
-    NON_EXPORTED_BASE(public base::NonThreadSafe) {
+// DnsTransaction implements a stub DNS resolver as defined in RFC 1034.
+// The DnsTransaction takes care of retransmissions, name server fallback (or
+// round-robin), suffix search, and simple response validation ("does it match
+// the query") to fight poisoning.
+//
+// Destroying DnsTransaction cancels the underlying network effort.
+class NET_EXPORT_PRIVATE DnsTransaction {
  public:
-  typedef base::Callback<void(DnsTransaction*, int)> ResultCallback;
+  virtual ~DnsTransaction() {}
 
-  // Create new transaction using the parameters and state in |session|.
-  // Issues query for name |qname| (in DNS format) type |qtype| and class IN.
-  // Calls |callback| on completion or timeout.
-  // TODO(szym): change dependency to (IPEndPoint, Socket, DnsQuery, callback)
-  DnsTransaction(DnsSession* session,
-                 const base::StringPiece& qname,
-                 uint16 qtype,
-                 const ResultCallback& callback,
-                 const BoundNetLog& source_net_log);
-  ~DnsTransaction();
+  // Returns the original |hostname|.
+  virtual const std::string& GetHostname() const = 0;
 
-  const DnsQuery* query() const { return query_.get(); }
+  // Returns the |qtype|.
+  virtual uint16 GetType() const = 0;
 
-  const DnsResponse* response() const { return response_.get(); }
+  // Starts the transaction. Returns the net error on synchronous failure or
+  // ERR_IO_PENDING in which case the result will be passed via the callback.
+  virtual int Start() = 0;
+};
 
-  // Starts the resolution process.  Will return ERR_IO_PENDING and will
-  // notify the caller via |delegate|.  Should only be called once.
-  int Start();
+// Creates DnsTransaction which performs asynchronous DNS search.
+// It does NOT perform caching, aggregation or prioritization of transactions.
+//
+// Destroying the factory does NOT affect any already created DnsTransactions.
+class NET_EXPORT_PRIVATE DnsTransactionFactory {
+ public:
+  // Called with the response or NULL if no matching response was received.
+  // Note that the |GetDottedName()| of the response may be different than the
+  // original |hostname| as a result of suffix search.
+  typedef base::Callback<void(DnsTransaction* transaction,
+                              int neterror,
+                              const DnsResponse* response)> CallbackType;
 
- private:
-  enum State {
-    STATE_CONNECT,
-    STATE_CONNECT_COMPLETE,
-    STATE_SEND_QUERY,
-    STATE_SEND_QUERY_COMPLETE,
-    STATE_READ_RESPONSE,
-    STATE_READ_RESPONSE_COMPLETE,
-    STATE_NONE,
-  };
+  virtual ~DnsTransactionFactory() {}
 
-  int DoLoop(int result);
-  void DoCallback(int result);
-  void OnIOComplete(int result);
+  // Creates DnsTransaction for the given |hostname| and |qtype| (assuming
+  // QCLASS is IN). |hostname| should be in the dotted form. A dot at the end
+  // implies the domain name is fully-qualified and will be exempt from suffix
+  // search. |hostname| should not be an IP literal.
+  //
+  // The transaction will run |callback| upon asynchronous completion.
+  // The source of |source_net_log| is used as source dependency in log.
+  virtual scoped_ptr<DnsTransaction> CreateTransaction(
+      const std::string& hostname,
+      uint16 qtype,
+      const CallbackType& callback,
+      const BoundNetLog& source_net_log) WARN_UNUSED_RESULT = 0;
 
-  int DoConnect();
-  int DoConnectComplete(int result);
-  int DoSendQuery();
-  int DoSendQueryComplete(int result);
-  int DoReadResponse();
-  int DoReadResponseComplete(int result);
-
-  // Fixed number of attempts are made to send a query and read a response,
-  // and at the start of each, a timer is started with increasing delays.
-  void StartTimer(base::TimeDelta delay);
-  void RevokeTimer();
-  void OnTimeout();
-
-  scoped_refptr<DnsSession> session_;
-  IPEndPoint dns_server_;
-  scoped_ptr<DnsQuery> query_;
-  ResultCallback callback_;
-  scoped_ptr<DnsResponse> response_;
-  scoped_ptr<DatagramClientSocket> socket_;
-
-  // Number of retry attempts so far.
-  int attempts_;
-
-  State next_state_;
-  base::OneShotTimer<DnsTransaction> timer_;
-
-  BoundNetLog net_log_;
-
-  DISALLOW_COPY_AND_ASSIGN(DnsTransaction);
+  // Creates a DnsTransactionFactory which creates DnsTransactionImpl using the
+  // |session|.
+  static scoped_ptr<DnsTransactionFactory> CreateFactory(
+      DnsSession* session) WARN_UNUSED_RESULT;
 };
 
 }  // namespace net
 
 #endif  // NET_DNS_DNS_TRANSACTION_H_
+

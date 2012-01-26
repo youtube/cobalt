@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -75,7 +75,7 @@ namespace dns_protocol {
 // Used internally in DnsQuery and DnsResponseParser.
 struct NET_EXPORT_PRIVATE Header {
   uint16 id;
-  uint8 flags[2];
+  uint16 flags;
   uint16 qdcount;
   uint16 ancount;
   uint16 nscount;
@@ -113,6 +113,13 @@ static const uint8 kRcodeSERVFAIL = 2;
 static const uint8 kRcodeNXDOMAIN = 3;
 static const uint8 kRcodeNOTIMP = 4;
 static const uint8 kRcodeREFUSED = 5;
+
+// DNS flags.
+static const uint16 kFlagResponse = 0x8000;
+static const uint16 kFlagRA = 0x80;
+static const uint16 kFlagRD = 0x100;
+static const uint16 kFlagTC = 0x200;
+static const uint16 kFlagAA = 0x400;
 
 }  // namespace dns_protocol
 
