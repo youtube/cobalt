@@ -193,4 +193,21 @@ TEST(JSONValueConverterTest, EnumParserFails) {
   // No check the values as mentioned above.
 }
 
+TEST(JSONValueConverterTest, RepeatedValueErrorInTheMiddle) {
+  const char normal_data[] =
+      "{\n"
+      "  \"foo\": 1,\n"
+      "  \"bar\": \"bar\",\n"
+      "  \"baz\": true,\n"
+      "  \"simple_enum\": \"baz\","
+      "  \"ints\": [1, false]"
+      "}\n";
+
+  scoped_ptr<Value> value(base::JSONReader::Read(normal_data, false));
+  SimpleMessage message;
+  base::JSONValueConverter<SimpleMessage> converter;
+  EXPECT_FALSE(converter.Convert(*value.get(), &message));
+  // No check the values as mentioned above.
+}
+
 }  // namespace base
