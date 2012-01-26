@@ -394,7 +394,7 @@ TEST_F(HostResolverImplTest, AsynchronousLookup) {
 
   const struct addrinfo* ainfo = addrlist.head();
   EXPECT_EQ(static_cast<addrinfo*>(NULL), ainfo->ai_next);
-  EXPECT_EQ(sizeof(struct sockaddr_in), ainfo->ai_addrlen);
+  EXPECT_EQ(sizeof(struct sockaddr_in), static_cast<size_t>(ainfo->ai_addrlen));
 
   const struct sockaddr* sa = ainfo->ai_addr;
   const struct sockaddr_in* sa_in = (const struct sockaddr_in*) sa;
@@ -564,7 +564,7 @@ TEST_F(HostResolverImplTest, NumericIPv4Address) {
 
   const struct addrinfo* ainfo = addrlist.head();
   EXPECT_EQ(static_cast<addrinfo*>(NULL), ainfo->ai_next);
-  EXPECT_EQ(sizeof(struct sockaddr_in), ainfo->ai_addrlen);
+  EXPECT_EQ(sizeof(struct sockaddr_in), static_cast<size_t>(ainfo->ai_addrlen));
 
   const struct sockaddr* sa = ainfo->ai_addr;
   const struct sockaddr_in* sa_in = (const struct sockaddr_in*) sa;
@@ -591,7 +591,8 @@ TEST_F(HostResolverImplTest, NumericIPv6Address) {
 
   const struct addrinfo* ainfo = addrlist.head();
   EXPECT_EQ(static_cast<addrinfo*>(NULL), ainfo->ai_next);
-  EXPECT_EQ(sizeof(struct sockaddr_in6), ainfo->ai_addrlen);
+  EXPECT_EQ(sizeof(struct sockaddr_in6),
+            static_cast<size_t>(ainfo->ai_addrlen));
 
   const struct sockaddr* sa = ainfo->ai_addr;
   const struct sockaddr_in6* sa_in6 = (const struct sockaddr_in6*) sa;
@@ -1552,7 +1553,7 @@ TEST_F(HostResolverImplTest, DisallowNonCachedResponses) {
 
   const struct addrinfo* ainfo = addrlist.head();
   EXPECT_EQ(static_cast<addrinfo*>(NULL), ainfo->ai_next);
-  EXPECT_EQ(sizeof(struct sockaddr_in), ainfo->ai_addrlen);
+  EXPECT_EQ(sizeof(struct sockaddr_in), static_cast<size_t>(ainfo->ai_addrlen));
 
   const struct sockaddr* sa = ainfo->ai_addr;
   const struct sockaddr_in* sa_in = reinterpret_cast<const sockaddr_in*>(sa);
