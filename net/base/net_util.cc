@@ -2041,6 +2041,8 @@ bool IPv6Supported() {
   // Another approach is implementing the similar feature by
   // java.net.NetworkInterface through JNI.
   NOTIMPLEMENTED();
+  // so we don't get a 'defined but not used' warning/err
+  IPv6SupportResults(IPV6_GETIFADDRS_FAILED);
   return true;
 #elif defined(OS_POSIX)
   int test_socket = socket(AF_INET6, SOCK_STREAM, 0);
