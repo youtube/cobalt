@@ -118,20 +118,6 @@
                 '-Wno-pointer-to-int-cast',
               ],
             }],
-            ['clang==1', {
-              'xcode_settings': {
-                'WARNING_CFLAGS': [
-                  # sqlite does `if (*a++ && *b++);` in a non-buggy way.
-                  '-Wno-empty-body',
-                  # sqlite has some `unsigned < 0` checks.
-                  '-Wno-tautological-compare',
-                ],
-              },
-              'cflags': [
-                '-Wno-empty-body',
-                '-Wno-tautological-compare',
-              ],
-            }],
           ],
         }],
       ],
