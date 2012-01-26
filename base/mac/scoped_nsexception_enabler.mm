@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,6 @@
 
 // To make the |g_exceptionsAllowed| declaration readable.
 using base::LazyInstance;
-using base::LeakyLazyInstanceTraits;
 using base::ThreadLocalBoolean;
 
 // When C++ exceptions are disabled, the C++ library defines |try| and
@@ -24,7 +23,7 @@ using base::ThreadLocalBoolean;
 namespace {
 
 // Whether to allow NSExceptions to be raised on the current thread.
-LazyInstance<ThreadLocalBoolean, LeakyLazyInstanceTraits<ThreadLocalBoolean> >
+LazyInstance<ThreadLocalBoolean>::Leaky
     g_exceptionsAllowed = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
