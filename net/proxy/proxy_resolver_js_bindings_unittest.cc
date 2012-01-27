@@ -33,7 +33,8 @@ class MockHostResolverWithMultipleResults : public SyncHostResolver {
  public:
   // HostResolver methods:
   virtual int Resolve(const HostResolver::RequestInfo& info,
-                      AddressList* addresses) OVERRIDE {
+                      AddressList* addresses,
+                      const net::BoundNetLog& bound_net_log) OVERRIDE {
     return ParseAddressList("192.168.1.1,172.22.34.1,200.100.1.2", "",
                             addresses);
   }
@@ -50,7 +51,8 @@ class MockFailingHostResolver : public SyncHostResolver {
 
   // HostResolver methods:
   virtual int Resolve(const HostResolver::RequestInfo& info,
-                      AddressList* addresses) OVERRIDE {
+                      AddressList* addresses,
+                      const net::BoundNetLog& bound_net_log) OVERRIDE {
     count_++;
     return ERR_NAME_NOT_RESOLVED;
   }
@@ -72,9 +74,10 @@ class MockSyncHostResolver : public SyncHostResolver {
   }
 
   virtual int Resolve(const HostResolver::RequestInfo& info,
-                      AddressList* addresses) OVERRIDE {
+                      AddressList* addresses,
+                      const net::BoundNetLog& bound_net_log) OVERRIDE {
     return resolver_.Resolve(info, addresses, CompletionCallback(), NULL,
-                             BoundNetLog());
+                             bound_net_log);
   }
 
   virtual void Shutdown() OVERRIDE {}
@@ -164,11 +167,11 @@ TEST(ProxyResolverJSBindingsTest, RestrictAddressFamily) {
   // depending if the address family was IPV4_ONLY or not.
   HostResolver::RequestInfo info(HostPortPair("foo", 80));
   AddressList address_list;
-  EXPECT_EQ(OK, host_resolver->Resolve(info, &address_list));
+  EXPECT_EQ(OK, host_resolver->Resolve(info, &address_list, BoundNetLog()));
   EXPECT_EQ("192.168.2.1", NetAddressToString(address_list.head()));
 
   info.set_address_family(ADDRESS_FAMILY_IPV4);
-  EXPECT_EQ(OK, host_resolver->Resolve(info, &address_list));
+  EXPECT_EQ(OK, host_resolver->Resolve(info, &address_list, BoundNetLog()));
   EXPECT_EQ("192.168.1.1", NetAddressToString(address_list.head()));
 
   std::string ip_address;

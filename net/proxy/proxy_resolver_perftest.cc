@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,7 +26,8 @@
 class MockSyncHostResolver : public net::SyncHostResolver {
  public:
   virtual int Resolve(const net::HostResolver::RequestInfo& info,
-                      net::AddressList* addresses) OVERRIDE {
+                      net::AddressList* addresses,
+                      const net::BoundNetLog& net_log) OVERRIDE {
     return net::ERR_NAME_NOT_RESOLVED;
   }
 

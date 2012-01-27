@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,7 +23,8 @@ class SyncHostResolverBridge::Core
   Core(HostResolver* resolver, MessageLoop* host_resolver_loop);
 
   int ResolveSynchronously(const HostResolver::RequestInfo& info,
-                           AddressList* addresses);
+                           AddressList* addresses,
+                           const BoundNetLog& net_log);
 
   // Returns true if Shutdown() has been called.
   bool HasShutdown() const {
@@ -43,7 +44,8 @@ class SyncHostResolverBridge::Core
 
   // Called on |host_resolver_loop_|.
   void StartResolve(const HostResolver::RequestInfo& info,
-                    AddressList* addresses);
+                    AddressList* addresses,
+                    const BoundNetLog& net_log);
 
   // Called on |host_resolver_loop_|.
   void OnResolveCompletion(int result);
@@ -82,18 +84,20 @@ SyncHostResolverBridge::Core::Core(HostResolver* host_resolver,
 
 int SyncHostResolverBridge::Core::ResolveSynchronously(
     const HostResolver::RequestInfo& info,
-    net::AddressList* addresses) {
+    net::AddressList* addresses,
+    const BoundNetLog& net_log) {
   // Otherwise start an async resolve on the resolver's thread.
   host_resolver_loop_->PostTask(
       FROM_HERE,
-      base::Bind(&Core::StartResolve, this, info, addresses));
+      base::Bind(&Core::StartResolve, this, info, addresses, net_log));
 
   return WaitForResolveCompletion();
 }
 
 void SyncHostResolverBridge::Core::StartResolve(
     const HostResolver::RequestInfo& info,
-    net::AddressList* addresses) {
+    net::AddressList* addresses,
+    const BoundNetLog& net_log) {
   DCHECK_EQ(MessageLoop::current(), host_resolver_loop_);
   DCHECK(!outstanding_request_);
 
@@ -102,7 +106,7 @@ void SyncHostResolverBridge::Core::StartResolve(
 
   int error = host_resolver_->Resolve(
       info, addresses, base::Bind(&Core::OnResolveCompletion, this),
-      &outstanding_request_, BoundNetLog());
+      &outstanding_request_, net_log);
   if (error != ERR_IO_PENDING)
     OnResolveCompletion(error);  // Completed synchronously.
 }
@@ -159,8 +163,9 @@ SyncHostResolverBridge::~SyncHostResolverBridge() {
 }
 
 int SyncHostResolverBridge::Resolve(const HostResolver::RequestInfo& info,
-                                    AddressList* addresses) {
-  return core_->ResolveSynchronously(info, addresses);
+                                    AddressList* addresses,
+                                    const BoundNetLog& net_log) {
+  return core_->ResolveSynchronously(info, addresses, net_log);
 }
 
 void SyncHostResolverBridge::Shutdown() {
