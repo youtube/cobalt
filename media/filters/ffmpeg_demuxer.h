@@ -261,6 +261,10 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   // is 0.
   base::TimeDelta start_time_;
 
+  // Whether audio has been disabled for this demuxer (in which case this class
+  // drops packets destined for AUDIO demuxer streams on the floor).
+  bool audio_disabled_;
+
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxer);
 };
 
