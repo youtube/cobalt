@@ -248,13 +248,6 @@ class BASE_EXPORT TraceLog {
                                const void* id,
                                const std::string& extra);
 
-  // Mangle |ptr| with a hash based on the process ID so that if |ptr| occurs on
-  // more than one process, it will not collide.
-  unsigned long long GetInterProcessID(void* ptr) const {
-    return static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(ptr)) ^
-           process_id_hash_;
-  }
-
   int process_id() const { return process_id_; }
 
   // Exposed for unittesting:
