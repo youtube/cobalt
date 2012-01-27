@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -151,31 +151,11 @@ NET_EXPORT std::string GetHeaderParamValue(const std::string& header,
                                            const std::string& param_name,
                                            QuoteRule::Type quote_rule);
 
-// Return the filename extracted from Content-Disposition header. The following
-// formats are tried in order listed below:
-//
-// 1. RFC 5987
-// 2. RFC 2047
-// 3. Raw-8bit-characters :
-//    a. UTF-8, b. referrer_charset, c. default os codepage.
-// 4. %-escaped UTF-8.
-//
-// In step 3, if referrer_charset is empty(i.e. unknown), 3b is skipped.
-// In step 4, the fallback charsets tried in step 3 are not tried. We
-// can consider doing that later.
-//
-// When a param value is ASCII, but is not in format #2 or format #4 above,
-// it is returned as it is unless it's pretty close to two supported
-// formats but not well-formed. In that case, an empty string is returned.
-//
-// In any case, a caller must check for the empty return value and resort to
-// another means to get a filename (e.g. url).
-//
-// This function does not do any escaping and callers are responsible for
-// escaping 'unsafe' characters (e.g. (back)slash, colon) as they see fit.
-NET_EXPORT_PRIVATE std::string GetFileNameFromCD(
-    const std::string& header,
-    const std::string& referrer_charset);
+// TODO(abarth): Move these functions to http_content_disposition.cc.
+bool DecodeFilenameValue(const std::string& input,
+                         const std::string& referrer_charset,
+                         std::string* output);
+bool DecodeExtValue(const std::string& value, std::string* output);
 
 // Converts the given host name to unicode characters. This can be called for
 // any host name, if the input is not IDN or is invalid in some way, we'll just
