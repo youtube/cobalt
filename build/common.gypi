@@ -649,10 +649,6 @@
 
     'grit_defines': [],
 
-    # Use Harfbuzz-NG instead of Harfbuzz.
-    # Under development: http://crbug.com/68551
-    'use_harfbuzz_ng%': 0,
-
     # If debug_devtools is set to 1, JavaScript files for DevTools are
     # stored as is and loaded from disk. Otherwise, a concatenated file
     # is stored in resources.pak. It is still possible to load JS files
