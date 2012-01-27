@@ -1,8 +1,10 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/audio/mac/audio_input_mac.h"
+
+#include <CoreServices/CoreServices.h>
 
 #include "base/basictypes.h"
 #include "base/logging.h"
@@ -114,7 +116,8 @@ void PCMQueueInAudioInputStream::Close() {
 void PCMQueueInAudioInputStream::HandleError(OSStatus err) {
   if (callback_)
     callback_->OnError(this, static_cast<int>(err));
-  NOTREACHED() << "error code " << err;
+  NOTREACHED() << "error " << GetMacOSStatusErrorString(err)
+               << " (" << err << ")";
 }
 
 bool PCMQueueInAudioInputStream::SetupBuffers() {

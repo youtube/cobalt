@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,7 @@
 
 #include "base/base64.h"
 #include "base/logging.h"
+#include "base/mac/mac_logging.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/string_util.h"
 #include "base/synchronization/lock.h"
@@ -192,7 +193,7 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
 
  failure:
   if (err)
-    LOG(ERROR) << "SSL Keygen failed! OSStatus = " << err;
+    OSSTATUS_LOG(ERROR, err) << "SSL Keygen failed!";
   else
     VLOG(1) << "SSL Keygen succeeded! Output is: " << result;
 

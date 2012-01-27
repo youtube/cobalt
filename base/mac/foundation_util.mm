@@ -10,6 +10,7 @@
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/mac/bundle_locations.h"
+#include "base/mac/mac_logging.h"
 #include "base/sys_string_conversions.h"
 
 namespace base {
@@ -28,7 +29,7 @@ static bool UncachedAmIBundled() {
   FSRef fsref;
   OSStatus pbErr;
   if ((pbErr = GetProcessBundleLocation(&psn, &fsref)) != noErr) {
-    DLOG(ERROR) << "GetProcessBundleLocation failed: error " << pbErr;
+    OSSTATUS_DLOG(ERROR, pbErr) << "GetProcessBundleLocation failed";
     return false;
   }
 
@@ -36,7 +37,7 @@ static bool UncachedAmIBundled() {
   OSErr fsErr;
   if ((fsErr = FSGetCatalogInfo(&fsref, kFSCatInfoNodeFlags, &info,
                                 NULL, NULL, NULL)) != noErr) {
-    DLOG(ERROR) << "FSGetCatalogInfo failed: error " << fsErr;
+    OSSTATUS_DLOG(ERROR, fsErr) << "FSGetCatalogInfo failed";
     return false;
   }
 
