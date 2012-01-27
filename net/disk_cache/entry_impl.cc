@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -771,12 +771,14 @@ std::string EntryImpl::GetKey() const {
   COMPILE_ASSERT(kNumStreams == kKeyFileIndex, invalid_key_index);
   File* key_file = const_cast<EntryImpl*>(this)->GetBackingFile(address,
                                                                 kKeyFileIndex);
+  if (!key_file)
+    return std::string();
 
   ++key_len;  // We store a trailing \0 on disk that we read back below.
   if (!offset && key_file->GetLength() != static_cast<size_t>(key_len))
     return std::string();
 
-  if (!key_file || !key_file->Read(WriteInto(&key_, key_len), key_len, offset))
+  if (!key_file->Read(WriteInto(&key_, key_len), key_len, offset))
     key_.clear();
   return key_;
 }
