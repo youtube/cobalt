@@ -12,6 +12,7 @@
 #include "base/logging.h"
 #include "base/mac/bundle_locations.h"
 #include "base/mac/foundation_util.h"
+#include "base/mac/mac_logging.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/memory/scoped_nsobject.h"
 #include "base/string_number_conversions.h"
@@ -218,7 +219,7 @@ void ActivateProcess(pid_t pid) {
   if (status == noErr) {
     SetFrontProcess(&process);
   } else {
-    DLOG(WARNING) << "Unable to get process for pid " << pid;
+    OSSTATUS_DLOG(WARNING, status) << "Unable to get process for pid " << pid;
   }
 }
 
@@ -226,7 +227,7 @@ bool AmIForeground() {
   ProcessSerialNumber foreground_psn = { 0 };
   OSErr err = GetFrontProcess(&foreground_psn);
   if (err != noErr) {
-    DLOG(WARNING) << "GetFrontProcess: " << err;
+    OSSTATUS_DLOG(WARNING, err) << "GetFrontProcess";
     return false;
   }
 
@@ -235,7 +236,7 @@ bool AmIForeground() {
   Boolean result = FALSE;
   err = SameProcess(&foreground_psn, &my_psn, &result);
   if (err != noErr) {
-    DLOG(WARNING) << "SameProcess: " << err;
+    OSSTATUS_DLOG(WARNING, err) << "SameProcess";
     return false;
   }
 
@@ -256,11 +257,9 @@ bool SetFileBackupExclusion(const FilePath& file_path) {
   OSStatus os_err =
       CSBackupSetItemExcluded(base::mac::NSToCFCast(file_url), TRUE, FALSE);
   if (os_err != noErr) {
-    DLOG(WARNING) << "Failed to set backup exclusion for file '"
-                 << file_path.value().c_str() << "' with error "
-                 << os_err << " (" << GetMacOSStatusErrorString(os_err)
-                 << ": " << GetMacOSStatusCommentString(os_err)
-                 << ").  Continuing.";
+    OSSTATUS_DLOG(WARNING, os_err)
+        << "Failed to set backup exclusion for file '"
+        << file_path.value().c_str() << "'";
   }
   return os_err == noErr;
 }
@@ -351,7 +350,8 @@ void SetProcessName(CFStringRef process_name) {
                                                ls_display_name_key,
                                                process_name,
                                                NULL /* optional out param */);
-  DLOG_IF(ERROR, err) << "Call to set process name failed, err " << err;
+  OSSTATUS_DLOG_IF(ERROR, err != noErr, err)
+      << "Call to set process name failed";
 }
 
 // Converts a NSImage to a CGImageRef.  Normally, the system frameworks can do

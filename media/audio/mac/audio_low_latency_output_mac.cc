@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/mac/mac_logging.h"
 #include "media/audio/audio_util.h"
 #include "media/audio/mac/audio_manager_mac.h"
 
@@ -87,7 +88,7 @@ bool AUAudioOutputStream::Open() {
                                                0,
                                                &size,
                                                &output_device_id_);
-  DCHECK_EQ(result, 0);
+  OSSTATUS_DCHECK(result == noErr, result);
   if (result)
     return false;
 
@@ -104,13 +105,12 @@ bool AUAudioOutputStream::Open() {
   DCHECK(comp);
 
   result = OpenAComponent(comp, &output_unit_);
-  DCHECK_EQ(result, 0);
+  OSSTATUS_DCHECK(result == noErr, result);
   if (result)
     return false;
 
   result = AudioUnitInitialize(output_unit_);
-
-  DCHECK_EQ(result, 0);
+  OSSTATUS_DCHECK(result == noErr, result);
   if (result)
     return false;
 
@@ -131,8 +131,7 @@ bool AUAudioOutputStream::Configure() {
       0,
       &input,
       sizeof(input));
-
-  DCHECK_EQ(result, 0);
+  OSSTATUS_DCHECK(result == noErr, result);
   if (result)
     return false;
 
@@ -144,7 +143,7 @@ bool AUAudioOutputStream::Configure() {
       0,
       &format_,
       sizeof(format_));
-  DCHECK_EQ(result, 0);
+  OSSTATUS_DCHECK(result == noErr, result);
   if (result)
     return false;
 
@@ -157,7 +156,7 @@ bool AUAudioOutputStream::Configure() {
       0,
       &buffer_size,
       sizeof(buffer_size));
-  DCHECK_EQ(result, 0);
+  OSSTATUS_DCHECK(result == noErr, result);
   if (result)
     return false;
 
@@ -269,7 +268,7 @@ double AUAudioOutputStream::HardwareSampleRate() {
                                                0,
                                                &info_size,
                                                &device_id);
-  DCHECK_EQ(result, 0);
+  OSSTATUS_DCHECK(result == noErr, result);
   if (result)
     return 0.0;  // error
 
@@ -287,7 +286,7 @@ double AUAudioOutputStream::HardwareSampleRate() {
                                       0,
                                       &info_size,
                                       &nominal_sample_rate);
-  DCHECK_EQ(result, 0);
+  OSSTATUS_DCHECK(result == noErr, result);
   if (result)
     return 0.0;  // error
 
@@ -309,7 +308,8 @@ double AUAudioOutputStream::GetHardwareLatency() {
                                          0,
                                          &audio_unit_latency_sec,
                                          &size);
-  DLOG_IF(WARNING, result != noErr) << "Could not get audio unit latency.";
+  OSSTATUS_DLOG_IF(WARNING, result != noErr, result)
+      << "Could not get audio unit latency";
 
   // Get output audio device latency.
   AudioObjectPropertyAddress property_address = {
@@ -325,7 +325,8 @@ double AUAudioOutputStream::GetHardwareLatency() {
                                       NULL,
                                       &size,
                                       &device_latency_frames);
-  DLOG_IF(WARNING, result != noErr) << "Could not get audio device latency.";
+  OSSTATUS_DLOG_IF(WARNING, result != noErr, result)
+      << "Could not get audio device latency";
 
   // Get the stream latency.
   property_address.mSelector = kAudioDevicePropertyStreams;
@@ -355,7 +356,8 @@ double AUAudioOutputStream::GetHardwareLatency() {
                                           &stream_latency_frames);
     }
   }
-  DLOG_IF(WARNING, result != noErr) << "Could not get audio stream latency.";
+  OSSTATUS_DLOG_IF(WARNING, result != noErr, result)
+      << "Could not get audio stream latency";
 
   return static_cast<double>((audio_unit_latency_sec *
       format_.mSampleRate) + device_latency_frames + stream_latency_frames);
