@@ -220,8 +220,13 @@
       # Enable navigator.registerProtocolHandler and supporting UI.
       'enable_register_protocol_handler%': 1,
 
-      # Enable Web Intents and supporting UI.
-      'enable_web_intents%': 0,
+      # Enable Web Intents support in WebKit, dispatching of intents,
+      # and extensions Web Intents support.
+      'enable_web_intents%': 1,
+
+      # Enable Web Intents web content registration via HTML element
+      # and WebUI managing such registrations.
+      'enable_web_intents_tag%': 0,
 
       # Webrtc compilation is enabled by default. Set to 0 to disable.
       'enable_webrtc%': 1,
@@ -446,6 +451,7 @@
     'order_text_section%': '<(order_text_section)',
     'enable_register_protocol_handler%': '<(enable_register_protocol_handler)',
     'enable_web_intents%': '<(enable_web_intents)',
+    'enable_web_intents_tag%': '<(enable_web_intents_tag)',
     'enable_plugin_installation%': '<(enable_plugin_installation)',
     'use_canvas_skia_skia%': '<(use_canvas_skia_skia)',
     # Whether to build for Wayland display server
@@ -920,8 +926,8 @@
         'grit_defines': ['-D', 'enable_register_protocol_handler'],
       }],
 
-      ['enable_web_intents==1', {
-        'grit_defines': ['-D', 'enable_web_intents'],
+      ['enable_web_intents_tag==1', {
+        'grit_defines': ['-D', 'enable_web_intents_tag'],
       }],
 
       ['asan==1', {
