@@ -254,7 +254,8 @@ ChunkDemuxer::ChunkDemuxer(ChunkDemuxerClient* client)
     : state_(WAITING_FOR_INIT),
       client_(client),
       buffered_bytes_(0),
-      seek_waits_for_data_(true) {
+      seek_waits_for_data_(true),
+      deferred_error_(PIPELINE_OK) {
   DCHECK(client);
 }
 
@@ -281,10 +282,14 @@ void ChunkDemuxer::Init(const PipelineStatusCB& cb) {
 }
 
 void ChunkDemuxer::set_host(DemuxerHost* host) {
-  DCHECK_EQ(state_, INITIALIZED);
+  DCHECK(state_ == INITIALIZED || state_ == PARSE_ERROR);
   Demuxer::set_host(host);
   host->SetDuration(duration_);
   host->SetCurrentReadPosition(0);
+  if (deferred_error_ != PIPELINE_OK) {
+    host->OnDemuxerError(deferred_error_);
+    deferred_error_ = PIPELINE_OK;
+  }
 }
 
 void ChunkDemuxer::Stop(const base::Closure& callback) {
@@ -407,6 +412,7 @@ bool ChunkDemuxer::AppendData(const uint8* data, size_t length) {
         case INITIALIZING:
           result = stream_parser_->Parse(cur, cur_size);
           if (result < 0) {
+            DCHECK_EQ(state_, INITIALIZING);
             ReportError_Locked(DEMUXER_ERROR_COULD_NOT_OPEN);
             return true;
           }
@@ -566,14 +572,20 @@ void ChunkDemuxer::ReportError_Locked(PipelineStatus error) {
       video_->Shutdown();
   }
 
-  {
+  if (!cb.is_null()) {
     base::AutoUnlock auto_unlock(lock_);
-    if (cb.is_null()) {
-      host()->OnDemuxerError(error);
-      return;
-    }
     cb.Run(error);
+    return;
   }
+
+  DemuxerHost* demuxer_host = host();
+  if (demuxer_host) {
+    base::AutoUnlock auto_unlock(lock_);
+    demuxer_host->OnDemuxerError(error);
+    return;
+  }
+
+  deferred_error_ = error;
 }
 
 void ChunkDemuxer::OnStreamParserInitDone(bool success,

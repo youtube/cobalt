@@ -305,6 +305,7 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8* data, int size) {
 
   ChangeState(PARSING_CLUSTERS);
   init_cb_.Run(true, duration);
+  init_cb_.Reset();
 
   return bytes_parsed;
 }
@@ -334,14 +335,15 @@ int WebMStreamParser::ParseCluster(const uint8* data, int size) {
   if (bytes_parsed <= 0)
     return bytes_parsed;
 
-  if (cluster_parser_->audio_buffers().empty() &&
-      cluster_parser_->video_buffers().empty())
-    return bytes_parsed;
+  const StreamParserHost::BufferQueue& audio_buffers =
+      cluster_parser_->audio_buffers();
+  const StreamParserHost::BufferQueue& video_buffers =
+      cluster_parser_->video_buffers();
 
-  if (!host_->OnAudioBuffers(cluster_parser_->audio_buffers()))
+  if (!audio_buffers.empty() && !host_->OnAudioBuffers(audio_buffers))
     return -1;
 
-  if (!host_->OnVideoBuffers(cluster_parser_->video_buffers()))
+  if (!video_buffers.empty() && !host_->OnVideoBuffers(video_buffers))
     return -1;
 
   return bytes_parsed;
