@@ -127,7 +127,7 @@ class SpdyNetworkTransactionTest
         case SPDYNPN:
           session_->http_server_properties()->SetAlternateProtocol(
               HostPortPair("www.google.com", 80), 443,
-              NPN_SPDY_2);
+              NPN_SPDY_21);
           HttpStreamFactory::set_use_alternate_protocols(true);
           HttpStreamFactory::set_next_protos(next_protos);
           break;
@@ -234,9 +234,9 @@ class SpdyNetworkTransactionTest
           new SSLSocketDataProvider(true, OK));
       if (test_type_ == SPDYNPN) {
         ssl_->next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-        ssl_->next_proto = "spdy/2";
+        ssl_->next_proto = "spdy/2.1";
         ssl_->was_npn_negotiated = true;
-        ssl_->protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+        ssl_->protocol_negotiated = SSLClientSocket::kProtoSPDY21;
       }
       ssl_vector_.push_back(ssl_);
       if (test_type_ == SPDYNPN || test_type_ == SPDYSSL)
@@ -262,9 +262,9 @@ class SpdyNetworkTransactionTest
           new SSLSocketDataProvider(true, OK));
       if (test_type_ == SPDYNPN) {
         ssl_->next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-        ssl_->next_proto = "spdy/2";
+        ssl_->next_proto = "spdy/2.1";
         ssl_->was_npn_negotiated = true;
-        ssl_->protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+        ssl_->protocol_negotiated = SSLClientSocket::kProtoSPDY21;
       }
       ssl_vector_.push_back(ssl_);
       if (test_type_ == SPDYNPN || test_type_ == SPDYSSL) {
@@ -1885,7 +1885,7 @@ TEST_P(SpdyNetworkTransactionTest, ResponseWithTwoSynReplies) {
 // limitations as described above and it's not deterministic, tests may
 // fail under specific circumstances.
 TEST_P(SpdyNetworkTransactionTest, WindowUpdateReceived) {
-  SpdySession::set_use_flow_control(true);
+  SpdySession::set_use_flow_control(SpdySession::kEnableFlowControl);
 
   static int kFrameCount = 2;
   scoped_ptr<std::string> content(
@@ -1956,13 +1956,14 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateReceived) {
             kMaxSpdyFrameChunkSize * kFrameCount,
             stream->stream()->send_window_size());
   helper.VerifyDataConsumed();
-  SpdySession::set_use_flow_control(false);
+
+  SpdySession::set_use_flow_control(SpdySession::kFlowControlBasedOnNPN);
 }
 
 // Test that received data frames and sent WINDOW_UPDATE frames change
 // the recv_window_size_ correctly.
 TEST_P(SpdyNetworkTransactionTest, WindowUpdateSent) {
-  SpdySession::set_use_flow_control(true);
+  SpdySession::set_use_flow_control(SpdySession::kEnableFlowControl);
 
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
   scoped_ptr<spdy::SpdyFrame> window_update(
@@ -2039,13 +2040,14 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateSent) {
   data->CompleteRead();
 
   helper.VerifyDataConsumed();
-  SpdySession::set_use_flow_control(false);
+
+  SpdySession::set_use_flow_control(SpdySession::kFlowControlBasedOnNPN);
 }
 
 // Test that WINDOW_UPDATE frame causing overflow is handled correctly.  We
 // use the same trick as in the above test to enforce our scenario.
 TEST_P(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
-  SpdySession::set_use_flow_control(true);
+  SpdySession::set_use_flow_control(SpdySession::kEnableFlowControl);
 
   // number of full frames we hope to write (but will not, used to
   // set content-length header correctly)
@@ -2118,7 +2120,7 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
   helper.session()->spdy_session_pool()->CloseAllSessions();
   helper.VerifyDataConsumed();
 
-  SpdySession::set_use_flow_control(false);
+  SpdySession::set_use_flow_control(SpdySession::kFlowControlBasedOnNPN);
 }
 
 // Test that after hitting a send window size of 0, the write process
@@ -2137,7 +2139,7 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
 // After that, next read is artifically enforced, which causes a
 // WINDOW_UPDATE to be read and I/O process resumes.
 TEST_P(SpdyNetworkTransactionTest, FlowControlStallResume) {
-  SpdySession::set_use_flow_control(true);
+  SpdySession::set_use_flow_control(SpdySession::kEnableFlowControl);
 
   // Number of frames we need to send to zero out the window size: data
   // frames plus SYN_STREAM plus the last data frame; also we need another
@@ -2228,7 +2230,7 @@ TEST_P(SpdyNetworkTransactionTest, FlowControlStallResume) {
   rv = callback.WaitForResult();
   helper.VerifyDataConsumed();
 
-  SpdySession::set_use_flow_control(false);
+  SpdySession::set_use_flow_control(SpdySession::kFlowControlBasedOnNPN);
 }
 
 TEST_P(SpdyNetworkTransactionTest, CancelledTransaction) {
@@ -2965,6 +2967,8 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushMultipleDataFrame) {
 }
 
 TEST_P(SpdyNetworkTransactionTest, ServerPushMultipleDataFrameInterrupted) {
+  SpdySession::set_use_flow_control(SpdySession::kDisableFlowControl);
+
   static const unsigned char kPushBodyFrame1[] = {
     0x00, 0x00, 0x00, 0x02,                                      // header, ID
     0x01, 0x00, 0x00, 0x1F,                                      // FIN, length
@@ -3026,6 +3030,8 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushMultipleDataFrameInterrupted) {
   // Verify the pushed stream.
   EXPECT_TRUE(response2.headers != NULL);
   EXPECT_EQ("HTTP/1.1 200 OK", response2.headers->GetStatusLine());
+
+  SpdySession::set_use_flow_control(SpdySession::kFlowControlBasedOnNPN);
 }
 
 TEST_P(SpdyNetworkTransactionTest, ServerPushInvalidAssociatedStreamID0) {
@@ -3740,6 +3746,8 @@ TEST_P(SpdyNetworkTransactionTest, NetLog) {
 // on the network, but issued a Read for only 5 of those bytes) that the data
 // flow still works correctly.
 TEST_P(SpdyNetworkTransactionTest, BufferFull) {
+  SpdySession::set_use_flow_control(SpdySession::kDisableFlowControl);
+
   spdy::SpdyFramer framer;
 
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
@@ -3829,12 +3837,16 @@ TEST_P(SpdyNetworkTransactionTest, BufferFull) {
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
   EXPECT_EQ("goodbye world", out.response_data);
+
+  SpdySession::set_use_flow_control(SpdySession::kFlowControlBasedOnNPN);
 }
 
 // Verify that basic buffering works; when multiple data frames arrive
 // at the same time, ensure that we don't notify a read completion for
 // each data frame individually.
 TEST_P(SpdyNetworkTransactionTest, Buffering) {
+  SpdySession::set_use_flow_control(SpdySession::kDisableFlowControl);
+
   spdy::SpdyFramer framer;
 
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
@@ -3926,6 +3938,8 @@ TEST_P(SpdyNetworkTransactionTest, Buffering) {
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
   EXPECT_EQ("messagemessagemessagemessage", out.response_data);
+
+  SpdySession::set_use_flow_control(SpdySession::kFlowControlBasedOnNPN);
 }
 
 // Verify the case where we buffer data but read it after it has been buffered.
