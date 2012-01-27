@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -227,14 +227,14 @@ TEST_F(FieldTrialTest, HashName) {
     const char* name;
     uint32 hash_value;
   } known_hashes[] = {
-    {"a", 937752454},
-    {"1", 723085877},
-    {"Trial Name", 2713117220},
-    {"Group Name", 3201815843},
-    {"My Favorite Experiment", 3722155194},
-    {"My Awesome Group Name", 4109503236},
-    {"abcdefghijklmonpqrstuvwxyz", 787728696},
-    {"0123456789ABCDEF", 348858318}
+    {"a", 937752454u},
+    {"1", 723085877u},
+    {"Trial Name", 2713117220u},
+    {"Group Name", 3201815843u},
+    {"My Favorite Experiment", 3722155194u},
+    {"My Awesome Group Name", 4109503236u},
+    {"abcdefghijklmonpqrstuvwxyz", 787728696u},
+    {"0123456789ABCDEF", 348858318U}
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(known_hashes); ++i) {
     EXPECT_EQ(known_hashes[i].hash_value,
