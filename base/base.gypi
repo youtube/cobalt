@@ -151,6 +151,8 @@
           'mac/crash_logging.mm',
           'mac/foundation_util.h',
           'mac/foundation_util.mm',
+          'mac/mac_logging.h',
+          'mac/mac_logging.cc',
           'mac/mac_util.h',
           'mac/mac_util.mm',
           'mac/objc_property_releaser.h',

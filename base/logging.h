@@ -438,7 +438,6 @@ const LogSeverity LOG_0 = LOG_ERROR;
 // PLOG_STREAM is used by PLOG, which is the usual error logging macro
 // for each platform.
 #define PLOG_STREAM(severity) LOG_ERRNO_STREAM(severity)
-// TODO(tschmelcher): Should we add OSStatus logging for Mac?
 #endif
 
 #define PLOG(severity)                                          \
