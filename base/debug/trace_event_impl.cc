@@ -595,6 +595,10 @@ int TraceLog::AddTraceEvent(char phase,
         return -1;
       }
     }
+
+    if (flags & TRACE_EVENT_FLAG_MANGLE_ID)
+      id ^= process_id_hash_;
+
     ret_begin_id = static_cast<int>(logged_events_.size());
     logged_events_.push_back(
         TraceEvent(thread_id,
