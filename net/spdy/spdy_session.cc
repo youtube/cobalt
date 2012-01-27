@@ -227,7 +227,8 @@ class NetLogSpdyGoAwayParameter : public NetLog::EventParameters {
 bool SpdySession::use_ssl_ = true;
 
 // static
-bool SpdySession::use_flow_control_ = false;
+SpdySession::FlowControl SpdySession::use_flow_control_ =
+    SpdySession::kFlowControlBasedOnNPN;
 
 // static
 size_t SpdySession::init_max_concurrent_streams_ = 10;
@@ -282,7 +283,7 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       trailing_ping_pending_(false),
       check_ping_status_pending_(false),
       need_to_send_ping_(false),
-      flow_control_(use_flow_control_),
+      flow_control_(false),
       initial_send_window_size_(spdy::kSpdyStreamInitialWindowSize),
       initial_recv_window_size_(spdy::kSpdyStreamInitialWindowSize),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SPDY_SESSION)),
@@ -292,6 +293,10 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       NetLog::TYPE_SPDY_SESSION,
       make_scoped_refptr(
           new NetLogSpdySessionParameter(host_port_proxy_pair_)));
+
+  // In unit tests, check if use_flow_control_ is enabled or disabled.
+  if (use_flow_control_ == SpdySession::kEnableFlowControl)
+    flow_control_ = true;
 
   // TODO(mbelshe): consider randomization of the stream_hi_water_mark.
 
@@ -344,8 +349,14 @@ net::Error SpdySession::InitializeWithSocket(
     SSLClientSocket* ssl_socket =
         reinterpret_cast<SSLClientSocket*>(connection_->socket());
     DCHECK(ssl_socket);
-    if (ssl_socket->protocol_negotiated() == SSLClientSocket::kProtoSPDY21)
-      flow_control_ = true;
+
+    // For SPDY 2.1 and above versions, flow control is enabled by default and
+    // for older versions, flow control is disabled by default. Unit tests can
+    // either enable or disable flow_control_ by setting the use_flow_control_.
+    if (ssl_socket->protocol_negotiated() >= SSLClientSocket::kProtoSPDY21)
+      flow_control_ = (use_flow_control_ != SpdySession::kDisableFlowControl);
+    else
+      flow_control_ = (use_flow_control_ == SpdySession::kEnableFlowControl);
   }
 
   // Write out any data that we might have to send, such as the settings frame.
