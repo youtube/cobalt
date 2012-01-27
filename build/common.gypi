@@ -1323,65 +1323,17 @@
           }],
         ],
       }, {
+        'includes': [
+           # Rules for excluding e.g. foo_win.cc from the build on non-Windows.
+          'filename_rules.gypi',
+        ],
         # In Chromium code, we define __STDC_FORMAT_MACROS in order to get the
         # C99 macros on Mac and Linux.
         'defines': [
           '__STDC_FORMAT_MACROS',
         ],
         'conditions': [
-          ['OS!="win"', {
-            'sources/': [ ['exclude', '_win(_unittest)?\\.(h|cc)$'],
-                          ['exclude', '(^|/)win/'],
-                          ['exclude', '(^|/)win_[^/]*\\.(h|cc)$'] ],
-          }],
-          ['OS!="mac"', {
-            'sources/': [ ['exclude', '_(cocoa|mac)(_unittest)?\\.(h|cc)$'],
-                          ['exclude', '(^|/)(cocoa|mac)/'],
-                          ['exclude', '\\.mm?$' ] ],
-          }],
-          ['use_x11!=1', {
-            'sources/': [
-              ['exclude', '_(chromeos|x|x11)(_unittest)?\\.(h|cc)$'],
-              ['exclude', '(^|/)x11_[^/]*\\.(h|cc)$'],
-            ],
-          }],
-          ['toolkit_uses_gtk!=1', {
-            'sources/': [
-              ['exclude', '_gtk(_unittest)?\\.(h|cc)$'],
-              ['exclude', '(^|/)gtk/'],
-              ['exclude', '(^|/)gtk_[^/]*\\.(h|cc)$'],
-            ],
-          }],
-          ['OS!="linux" and OS!="openbsd" and OS!="freebsd"', {
-            'sources/': [
-              ['exclude', '_xdg(_unittest)?\\.(h|cc)$'],
-            ],
-          }],
-          ['use_wayland!=1', {
-            'sources/': [
-              ['exclude', '_(wayland)(_unittest)?\\.(h|cc)$'],
-              ['exclude', '(^|/)wayland/'],
-              ['exclude', '(^|/)(wayland)_[^/]*\\.(h|cc)$'],
-            ],
-          }],
-          # Do not exclude the linux files on *BSD since most of them can be
-          # shared at this point.
-          # In case a file is not needed, it is going to be excluded later on.
-          ['OS!="linux" and OS!="openbsd" and OS!="freebsd"', {
-            'sources/': [
-              ['exclude', '_linux(_unittest)?\\.(h|cc)$'],
-              ['exclude', '(^|/)linux/'],
-            ],
-          }],
-          ['OS!="android"', {
-            'sources/': [
-              ['exclude', '_android(_unittest)?\\.cc$'],
-              ['exclude', '(^|/)android/'],
-            ],
-          }],
-          # We use "POSIX" to refer to all non-Windows operating systems.
           ['OS=="win"', {
-            'sources/': [ ['exclude', '_posix(_unittest)?\\.(h|cc)$'] ],
             # turn on warnings for signed/unsigned mismatch on chromium code.
             'msvs_settings': {
               'VCCLCompilerTool': {
@@ -1393,23 +1345,6 @@
             'msvs_disabled_warnings': [
               4251,  # class 'std::xx' needs to have dll-interface.
             ],
-          }],
-          ['chromeos!=1', {
-            'sources/': [ ['exclude', '_chromeos\\.(h|cc)$'] ]
-          }],
-          ['toolkit_views==0', {
-            'sources/': [ ['exclude', '_views\\.(h|cc)$'] ]
-          }],
-          ['use_aura==0', {
-            'sources/': [ ['exclude', '_aura(_unittest)?\\.(h|cc)$'],
-                          ['exclude', '(^|/)aura/'],
-            ]
-          }],
-          ['use_aura==0 or use_x11==0', {
-            'sources/': [ ['exclude', '_aurax11\\.(h|cc)$'] ]
-          }],
-          ['use_aura==0 or OS!="win"', {
-            'sources/': [ ['exclude', '_aurawin\\.(h|cc)$'] ]
           }],
         ],
       }],
