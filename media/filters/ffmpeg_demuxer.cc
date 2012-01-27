@@ -289,7 +289,8 @@ FFmpegDemuxer::FFmpegDemuxer(MessageLoop* message_loop, bool local_source)
       max_duration_(base::TimeDelta::FromMicroseconds(-1)),
       deferred_status_(PIPELINE_OK),
       first_seek_hack_(true),
-      start_time_(kNoTimestamp()) {
+      start_time_(kNoTimestamp()),
+      audio_disabled_(false) {
   DCHECK(message_loop_);
 }
 
@@ -662,7 +663,9 @@ void FFmpegDemuxer::DemuxTask() {
   // Defend against ffmpeg giving us a bad stream index.
   if (packet->stream_index >= 0 &&
       packet->stream_index < static_cast<int>(streams_.size()) &&
-      streams_[packet->stream_index]) {
+      streams_[packet->stream_index] &&
+      (!audio_disabled_ ||
+       streams_[packet->stream_index]->type() != DemuxerStream::AUDIO)) {
     FFmpegDemuxerStream* demuxer_stream = streams_[packet->stream_index];
 
     // If a packet is returned by FFmpeg's av_parser_parse2()
@@ -699,6 +702,7 @@ void FFmpegDemuxer::StopTask(const base::Closure& callback) {
 
 void FFmpegDemuxer::DisableAudioStreamTask() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
+  audio_disabled_ = true;
   StreamVector::iterator iter;
   for (iter = streams_.begin(); iter != streams_.end(); ++iter) {
     if (*iter && (*iter)->type() == DemuxerStream::AUDIO) {
@@ -722,8 +726,10 @@ void FFmpegDemuxer::StreamHasEnded() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   StreamVector::iterator iter;
   for (iter = streams_.begin(); iter != streams_.end(); ++iter) {
-    if (!*iter)
+    if (!*iter ||
+        (audio_disabled_ && (*iter)->type() == DemuxerStream::AUDIO)) {
       continue;
+    }
     scoped_ptr_malloc<AVPacket, ScopedPtrAVFreePacket> packet(new AVPacket());
     memset(packet.get(), 0, sizeof(*packet.get()));
     (*iter)->EnqueuePacket(packet.Pass());

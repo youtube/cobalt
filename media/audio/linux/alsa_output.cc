@@ -268,6 +268,8 @@ bool AlsaPcmOutputStream::Open() {
   // Finish initializing the stream if the device was opened successfully.
   if (playback_handle_ == NULL) {
     stop_stream_ = true;
+    TransitionTo(kInError);
+    return false;
   } else {
     bytes_per_output_frame_ = should_downmix_ ? 2 * bytes_per_sample_ :
         bytes_per_frame_;

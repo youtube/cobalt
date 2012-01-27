@@ -355,11 +355,10 @@ TEST_F(AlsaPcmOutputStreamTest, PcmOpenFailed) {
   EXPECT_CALL(mock_alsa_wrapper_, StrError(kTestFailedErrno))
       .WillOnce(Return(kDummyMessage));
 
-  ASSERT_TRUE(test_stream_->Open());
-  ASSERT_EQ(AlsaPcmOutputStream::kIsOpened, test_stream_->state());
+  ASSERT_FALSE(test_stream_->Open());
+  ASSERT_EQ(AlsaPcmOutputStream::kInError, test_stream_->state());
 
   // Ensure internal state is set for a no-op stream if PcmOpen() failes.
-  EXPECT_EQ(AlsaPcmOutputStream::kIsOpened, test_stream_->state());
   EXPECT_TRUE(test_stream_->stop_stream_);
   EXPECT_TRUE(test_stream_->playback_handle_ == NULL);
   EXPECT_FALSE(test_stream_->buffer_.get());
@@ -384,11 +383,10 @@ TEST_F(AlsaPcmOutputStreamTest, PcmSetParamsFailed) {
 
   // If open fails, the stream stays in kCreated because it has effectively had
   // no changes.
-  ASSERT_TRUE(test_stream_->Open());
-  EXPECT_EQ(AlsaPcmOutputStream::kIsOpened, test_stream_->state());
+  ASSERT_FALSE(test_stream_->Open());
+  EXPECT_EQ(AlsaPcmOutputStream::kInError, test_stream_->state());
 
   // Ensure internal state is set for a no-op stream if PcmSetParams() failes.
-  EXPECT_EQ(AlsaPcmOutputStream::kIsOpened, test_stream_->state());
   EXPECT_TRUE(test_stream_->stop_stream_);
   EXPECT_TRUE(test_stream_->playback_handle_ == NULL);
   EXPECT_FALSE(test_stream_->buffer_.get());
