@@ -13,6 +13,7 @@
 
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/mac/mac_logging.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/memory/singleton.h"
 #include "base/pickle.h"
@@ -53,11 +54,7 @@ int NetErrorFromOSStatus(OSStatus status) {
     case errSecAuthFailed:
       return ERR_ACCESS_DENIED;
     default: {
-      base::mac::ScopedCFTypeRef<CFStringRef> error_string(
-          SecCopyErrorMessageString(status, NULL));
-      LOG(ERROR) << "Unknown error " << status
-                 << " (" << base::SysCFStringRefToUTF8(error_string) << ")"
-                 << " mapped to ERR_FAILED";
+      OSSTATUS_LOG(ERROR, status) << "Unknown error mapped to ERR_FAILED";
       return ERR_FAILED;
     }
   }
@@ -121,11 +118,8 @@ CertStatus CertStatusFromOSStatus(OSStatus status) {
       // Failure was due to something Chromium doesn't define a
       // specific status for (such as basic constraints violation, or
       // unknown critical extension)
-      base::mac::ScopedCFTypeRef<CFStringRef> error_string(
-          SecCopyErrorMessageString(status, NULL));
-      LOG(WARNING) << "Unknown error " << status
-                   << " (" << base::SysCFStringRefToUTF8(error_string) << ")"
-                   << " mapped to CERT_STATUS_INVALID";
+      OSSTATUS_LOG(WARNING, status)
+          << "Unknown error mapped to CERT_STATUS_INVALID";
       return CERT_STATUS_INVALID;
     }
   }
@@ -536,8 +530,8 @@ void AddCertificatesFromBytes(const char* data, size_t length,
   OSStatus status = SecKeychainItemImport(local_data, NULL, &input_format,
                                           NULL, 0, NULL, NULL, &items);
   if (status) {
-    DLOG(WARNING) << status << " Unable to import items from data of length "
-                  << length;
+    OSSTATUS_DLOG(WARNING, status)
+        << "Unable to import items from data of length " << length;
     return;
   }
 
@@ -786,7 +780,7 @@ X509Certificate* X509Certificate::CreateSelfSigned(
   DCHECK(!subject.empty());
 
   if (valid_duration.InSeconds() > kuint32max) {
-     LOG(ERROR) << "valid_duration too big" << valid_duration.InSeconds();
+     LOG(ERROR) << "valid_duration too big " << valid_duration.InSeconds();
      valid_duration = base::TimeDelta::FromSeconds(kuint32max);
   }
 
@@ -906,7 +900,7 @@ X509Certificate* X509Certificate::CreateSelfSigned(
       SecCertificateCreateFromData(&encCert->CertBlob, encCert->CertType,
                                    encCert->CertEncoding, &certificate_ref);
   if (os_status != 0) {
-    DLOG(ERROR) << "SecCertificateCreateFromData failed: " << os_status;
+    OSSTATUS_DLOG(ERROR, os_status) << "SecCertificateCreateFromData failed";
     return NULL;
   }
   scoped_cert.reset(certificate_ref);
@@ -1331,8 +1325,7 @@ bool X509Certificate::IsIssuedBy(
     const std::vector<CertPrincipal>& valid_issuers) {
   // Get the cert's issuer chain.
   CFArrayRef cert_chain = NULL;
-  OSStatus result;
-  result = CopyCertChain(os_cert_handle(), &cert_chain);
+  OSStatus result = CopyCertChain(os_cert_handle(), &cert_chain);
   if (result)
     return false;
   ScopedCFTypeRef<CFArrayRef> scoped_cert_chain(cert_chain);
@@ -1502,7 +1495,7 @@ bool X509Certificate::GetSSLClientCertificates(
   }
 
   if (err != errSecItemNotFound) {
-    LOG(ERROR) << "SecIdentitySearch error " << err;
+    OSSTATUS_LOG(ERROR, err) << "SecIdentitySearch error ";
     return false;
   }
   return true;
@@ -1510,11 +1503,11 @@ bool X509Certificate::GetSSLClientCertificates(
 
 CFArrayRef X509Certificate::CreateClientCertificateChain() const {
   // Initialize the result array with just the IdentityRef of the receiver:
-  OSStatus result;
   SecIdentityRef identity;
-  result = SecIdentityCreateWithCertificate(NULL, cert_handle_, &identity);
+  OSStatus result =
+      SecIdentityCreateWithCertificate(NULL, cert_handle_, &identity);
   if (result) {
-    LOG(ERROR) << "SecIdentityCreateWithCertificate error " << result;
+    OSSTATUS_LOG(ERROR, result) << "SecIdentityCreateWithCertificate error";
     return NULL;
   }
   ScopedCFTypeRef<CFMutableArrayRef> chain(
@@ -1525,7 +1518,7 @@ CFArrayRef X509Certificate::CreateClientCertificateChain() const {
   result = CopyCertChain(cert_handle_, &cert_chain);
   ScopedCFTypeRef<CFArrayRef> scoped_cert_chain(cert_chain);
   if (result) {
-    LOG(ERROR) << "CreateIdentityCertificateChain error " << result;
+    OSSTATUS_LOG(ERROR, result) << "CreateIdentityCertificateChain error";
     return chain.release();
   }
 
