@@ -24,6 +24,7 @@ class NET_EXPORT_PRIVATE HttpContentDisposition {
                          const std::string& referrer_charset);
   ~HttpContentDisposition();
 
+  Type type() const { return type_; }
   const std::string& filename() const { return filename_; }
 
  private:
@@ -31,7 +32,7 @@ class NET_EXPORT_PRIVATE HttpContentDisposition {
   std::string::const_iterator ConsumeDispositionType(
       std::string::const_iterator begin, std::string::const_iterator end);
 
-  Type type_;  // TODO(abarth): Add an accessor and tests.
+  Type type_;
   std::string filename_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpContentDisposition);
