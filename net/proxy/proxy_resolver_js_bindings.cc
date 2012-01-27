@@ -262,7 +262,10 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
     }
 
     // Otherwise ask the host resolver.
-    int result = host_resolver_->Resolve(info, address_list);
+    const BoundNetLog* net_log = GetNetLogForCurrentRequest();
+    int result = host_resolver_->Resolve(info,
+                                         address_list,
+                                         net_log ? *net_log : BoundNetLog());
 
     // Save the result back to the per-request DNS cache.
     if (host_cache) {
@@ -274,12 +277,20 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
     return result;
   }
 
+  // May return NULL.
+  const BoundNetLog* GetNetLogForCurrentRequest() {
+    if (!current_request_context())
+      return NULL;
+    return current_request_context()->net_log;
+  }
+
   void LogEventToCurrentRequest(
       NetLog::EventPhase phase,
       NetLog::EventType type,
       scoped_refptr<NetLog::EventParameters> params) {
-    if (current_request_context() && current_request_context()->net_log)
-      current_request_context()->net_log->AddEntry(type, phase, params);
+    const BoundNetLog* net_log = GetNetLogForCurrentRequest();
+    if (net_log)
+      net_log->AddEntry(type, phase, params);
   }
 
   void LogEventToCurrentRequestAndGlobally(
