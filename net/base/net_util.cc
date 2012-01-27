@@ -63,6 +63,7 @@
 #if defined(OS_WIN)
 #include "net/base/winsock_init.h"
 #endif
+#include "net/http/http_content_disposition.h"
 #include "unicode/datefmt.h"
 #include "unicode/regex.h"
 #include "unicode/ucnv.h"
@@ -355,38 +356,6 @@ bool DecodeWord(const std::string& encoded_word,
     // TODO(jungshik) : Test IE further and consider adding a fallback here.
   }
   return false;
-}
-
-bool DecodeParamValue(const std::string& input,
-                      const std::string& referrer_charset,
-                      std::string* output) {
-  std::string tmp;
-  // Tokenize with whitespace characters.
-  StringTokenizer t(input, " \t\n\r");
-  t.set_options(StringTokenizer::RETURN_DELIMS);
-  bool is_previous_token_rfc2047 = true;
-  while (t.GetNext()) {
-    if (t.token_is_delim()) {
-      // If the previous non-delimeter token is not RFC2047-encoded,
-      // put in a space in its place. Otheriwse, skip over it.
-      if (!is_previous_token_rfc2047) {
-        tmp.push_back(' ');
-      }
-      continue;
-    }
-    // We don't support a single multibyte character split into
-    // adjacent encoded words. Some broken mail clients emit headers
-    // with that problem, but most web servers usually encode a filename
-    // in a single encoded-word. Firefox/Thunderbird do not support
-    // it, either.
-    std::string decoded;
-    if (!DecodeWord(t.token(), referrer_charset, &is_previous_token_rfc2047,
-                    &decoded))
-      return false;
-    tmp.append(decoded);
-  }
-  output->swap(tmp);
-  return true;
 }
 
 // Does some simple normalization of scripts so we can allow certain scripts
@@ -1217,39 +1186,57 @@ bool DecodeCharset(const std::string& input,
   return true;
 }
 
-std::string GetFileNameFromCD(const std::string& header,
-                              const std::string& referrer_charset) {
-  std::string decoded;
-  std::string param_value = GetHeaderParamValue(header, "filename*",
-                                                QuoteRule::KEEP_OUTER_QUOTES);
-  if (!param_value.empty()) {
-    if (param_value.find('"') == std::string::npos) {
-      std::string charset;
-      std::string value;
-      if (DecodeCharset(param_value, &charset, &value)) {
-        // RFC 5987 value should be ASCII-only.
-        if (!IsStringASCII(value))
-          return std::string();
-        std::string tmp = UnescapeURLComponent(
-            value,
-            UnescapeRule::SPACES | UnescapeRule::URL_SPECIAL_CHARS);
-        if (base::ConvertToUtf8AndNormalize(tmp, charset, &decoded))
-          return decoded;
+bool DecodeFilenameValue(const std::string& input,
+                         const std::string& referrer_charset,
+                         std::string* output) {
+  std::string tmp;
+  // Tokenize with whitespace characters.
+  StringTokenizer t(input, " \t\n\r");
+  t.set_options(StringTokenizer::RETURN_DELIMS);
+  bool is_previous_token_rfc2047 = true;
+  while (t.GetNext()) {
+    if (t.token_is_delim()) {
+      // If the previous non-delimeter token is not RFC2047-encoded,
+      // put in a space in its place. Otheriwse, skip over it.
+      if (!is_previous_token_rfc2047) {
+        tmp.push_back(' ');
       }
+      continue;
     }
+    // We don't support a single multibyte character split into
+    // adjacent encoded words. Some broken mail clients emit headers
+    // with that problem, but most web servers usually encode a filename
+    // in a single encoded-word. Firefox/Thunderbird do not support
+    // it, either.
+    std::string decoded;
+    if (!DecodeWord(t.token(), referrer_charset, &is_previous_token_rfc2047,
+                    &decoded))
+      return false;
+    tmp.append(decoded);
   }
-  param_value = GetHeaderParamValue(header, "filename",
-                                    QuoteRule::REMOVE_OUTER_QUOTES);
-  if (param_value.empty()) {
-    // Some servers use 'name' parameter.
-    param_value = GetHeaderParamValue(header, "name",
-                                      QuoteRule::REMOVE_OUTER_QUOTES);
+  output->swap(tmp);
+  return true;
+}
+
+bool DecodeExtValue(const std::string& param_value, std::string* decoded) {
+  if (param_value.find('"') != std::string::npos)
+    return false;
+
+  std::string charset;
+  std::string value;
+  if (!DecodeCharset(param_value, &charset, &value))
+    return false;
+
+  // RFC 5987 value should be ASCII-only.
+  if (!IsStringASCII(value)) {
+    decoded->clear();
+    return true;
   }
-  if (param_value.empty())
-    return std::string();
-  if (DecodeParamValue(param_value, referrer_charset, &decoded))
-    return decoded;
-  return std::string();
+
+  std::string unescaped = UnescapeURLComponent(value,
+      UnescapeRule::SPACES | UnescapeRule::URL_SPECIAL_CHARS);
+
+  return base::ConvertToUtf8AndNormalize(unescaped, charset, decoded);
 }
 
 // TODO(mpcomplete): This is a quick and dirty implementation for now.  I'm
@@ -1472,8 +1459,10 @@ string16 GetSuggestedFilename(const GURL& url,
   bool overwrite_extension = false;
 
   // Try to extract a filename from content-disposition first.
-  if (!content_disposition.empty())
-    filename = GetFileNameFromCD(content_disposition, referrer_charset);
+  if (!content_disposition.empty()) {
+    HttpContentDisposition header(content_disposition, referrer_charset);
+    filename = header.filename();
+  }
 
   // Then try to use the suggested name.
   if (filename.empty() && !suggested_name.empty())

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -307,8 +307,12 @@ class NET_EXPORT HttpUtil {
     }
     std::string value() const {
       return value_is_quoted_ ? unquoted_value_ : std::string(value_begin_,
-                                                               value_end_);
+                                                              value_end_);
     }
+
+    // The value before unquoting (if any).
+    std::string raw_value() const { return std::string(value_begin_,
+                                                       value_end_); }
 
    private:
     HttpUtil::ValuesIterator props_;
