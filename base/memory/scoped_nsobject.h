@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -159,5 +159,68 @@ class scoped_nsobject<NSAutoreleasePool> {
   explicit scoped_nsobject(NSAutoreleasePool* object = nil);
   DISALLOW_COPY_AND_ASSIGN(scoped_nsobject);
 };
+
+// Equivalent of scoped_nsobject for a id<protocol>. This is exactly the same
+// class as scoped_nsobject, except that it doesn't handle any pointer
+// transformation.
+template<typename NST>
+class scoped_nsprotocol {
+ public:
+  explicit scoped_nsprotocol(NST object = nil) : object_(object) {
+  }
+
+  ~scoped_nsprotocol() {
+    [object_ release];
+  }
+
+  void reset(NST object = nil) {
+    [object_ release];
+    object_ = object;
+  }
+
+  bool operator==(NST that) const { return object_ == that; }
+  bool operator!=(NST that) const { return object_ != that; }
+
+  operator NST() const {
+    return object_;
+  }
+
+  NST get() const {
+    return object_;
+  }
+
+  void swap(scoped_nsprotocol& that) {
+    NST temp = that.object_;
+    that.object_ = object_;
+    object_ = temp;
+  }
+
+  NST release() WARN_UNUSED_RESULT {
+    NST temp = object_;
+    object_ = nil;
+    return temp;
+  }
+
+ private:
+  NST object_;
+
+  DISALLOW_COPY_AND_ASSIGN(scoped_nsprotocol);
+};
+
+// Free functions
+template <class C>
+void swap(scoped_nsprotocol<C>& p1, scoped_nsprotocol<C>& p2) {
+  p1.swap(p2);
+}
+
+template <class C>
+bool operator==(C p1, const scoped_nsprotocol<C>& p2) {
+  return p1 == p2.get();
+}
+
+template <class C>
+bool operator!=(C p1, const scoped_nsprotocol<C>& p2) {
+  return p1 != p2.get();
+}
 
 #endif  // BASE_MEMORY_SCOPED_NSOBJECT_H_
