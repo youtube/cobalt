@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,6 +13,7 @@
 
 #include "base/bind.h"
 #include "base/lazy_instance.h"
+#include "base/mac/mac_logging.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/string_util.h"
 #include "net/base/address_list.h"
@@ -203,7 +204,7 @@ int NetErrorFromOSStatus(OSStatus status) {
     case errSSLPeerCertUnknown...errSSLPeerBadCert:
     case errSSLPeerUnknownCA:
     case errSSLPeerAccessDenied:
-      LOG(WARNING) << "Server rejected client cert (OSStatus=" << status << ")";
+      OSSTATUS_LOG(WARNING, status) << "Server rejected client cert";
       return ERR_BAD_SSL_CLIENT_AUTH_CERT;
 
     case errSSLNegotiation:
@@ -215,8 +216,8 @@ int NetErrorFromOSStatus(OSStatus status) {
     case errSSLModuleAttach:
     case errSSLSessionNotFound:
     default:
-      LOG(WARNING) << "Unknown error " << status <<
-          " mapped to net::ERR_FAILED";
+      OSSTATUS_LOG(WARNING, status)
+          << "Unknown error mapped to net::ERR_FAILED";
       return ERR_FAILED;
   }
 }
@@ -240,8 +241,7 @@ OSStatus OSStatusFromNetError(int net_error) {
     case OK:
       return noErr;
     default:
-      LOG(WARNING) << "Unknown error " << net_error <<
-          " mapped to paramErr";
+      LOG(WARNING) << "Unknown error " << net_error << " mapped to paramErr";
       return paramErr;
   }
 }
@@ -1196,7 +1196,7 @@ int SSLClientSocketMac::SetClientCert() {
   VLOG(1) << "SSLSetCertificate(" << CFArrayGetCount(cert_refs) << " certs)";
   OSStatus result = SSLSetCertificate(ssl_context_, cert_refs);
   if (result)
-    LOG(ERROR) << "SSLSetCertificate returned OSStatus " << result;
+    OSSTATUS_LOG(ERROR, result) << "SSLSetCertificate failed";
   return result;
 }
 

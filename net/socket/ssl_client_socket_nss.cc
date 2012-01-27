@@ -108,6 +108,7 @@
 #include <Security/SecBase.h>
 #include <Security/SecCertificate.h>
 #include <Security/SecIdentity.h>
+#include "base/mac/mac_logging.h"
 #elif defined(USE_NSS)
 #include <dlfcn.h>
 #endif
@@ -2506,8 +2507,8 @@ SECStatus SSLClientSocketNSS::PlatformClientAuthHandler(
                                                           cert_count)));
         return SECSuccess;
       }
-      LOG(WARNING) << "Client cert found, but could not be used: "
-                   << os_error;
+      OSSTATUS_LOG(WARNING, os_error)
+          << "Client cert found, but could not be used";
       if (*result_certs) {
         CERT_DestroyCertList(*result_certs);
         *result_certs = NULL;

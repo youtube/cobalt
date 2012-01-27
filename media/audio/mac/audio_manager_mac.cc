@@ -1,9 +1,10 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <CoreAudio/AudioHardware.h>
 
+#include "base/mac/mac_logging.h"
 #include "base/mac/mac_util.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/sys_string_conversions.h"
@@ -227,8 +228,8 @@ static AudioDeviceID GetAudioDeviceIdByUId(bool is_input,
   }
 
   if (result) {
-    DLOG(WARNING) << "Unable to query device " << device_id
-                  << " for AudioDeviceID ";
+    OSSTATUS_DLOG(WARNING, result) << "Unable to query device " << device_id
+                                   << " for AudioDeviceID";
   }
 
   return audio_device_id;

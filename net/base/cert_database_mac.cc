@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 #include <Security/Security.h>
 
 #include "base/logging.h"
+#include "base/mac/mac_logging.h"
 #include "base/synchronization/lock.h"
 #include "crypto/mac_security_services_lock.h"
 #include "net/base/net_errors.h"
@@ -53,7 +54,7 @@ int CertDatabase::AddUserCert(X509Certificate* cert) {
     case errSecDuplicateItem:
       return OK;
     default:
-      LOG(ERROR) << "CertDatabase failed to add cert to keychain: " << err;
+      OSSTATUS_LOG(ERROR, err) << "CertDatabase failed to add cert to keychain";
       // TODO(snej): Map the error code more intelligently.
       return ERR_ADD_USER_CERT_FAILED;
   }

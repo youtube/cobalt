@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,7 @@
 
 #include "base/logging.h"
 #include "base/i18n/icu_string_conversions.h"
+#include "base/mac/mac_logging.h"
 #include "base/utf_string_conversions.h"
 
 namespace net {
@@ -202,7 +203,7 @@ bool CertPrincipal::ParseDistinguishedName(const void* ber_name_data,
   OSStatus err = SecAsn1Decode(coder, ber_name_data, length, kNameTemplate,
                                &name);
   if (err) {
-    LOG(ERROR) << "SecAsn1Decode returned " << err << "; name=" << name;
+    OSSTATUS_LOG(ERROR, err) << "SecAsn1Decode name=" << name;
     SecAsn1CoderRelease(coder);
     return false;
   }
