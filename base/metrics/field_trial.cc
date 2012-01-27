@@ -14,23 +14,16 @@
 
 namespace base {
 
-// static
-const int FieldTrial::kNotFinalized = -1;
-
-// static
-const int FieldTrial::kDefaultGroupNumber = 0;
-
-// static
-bool FieldTrial::enable_benchmarking_ = false;
-
-// static
-const char FieldTrialList::kPersistentStringSeparator('/');
-
 static const char kHistogramFieldTrialSeparator('_');
 
-// static
-int FieldTrialList::kExpirationYearInFuture = 0;
+// statics
+const int FieldTrial::kNotFinalized = -1;
+const int FieldTrial::kDefaultGroupNumber = 0;
+const uint32 FieldTrial::kReservedHashValue = 0;
+bool FieldTrial::enable_benchmarking_ = false;
 
+const char FieldTrialList::kPersistentStringSeparator('/');
+int FieldTrialList::kExpirationYearInFuture = 0;
 
 //------------------------------------------------------------------------------
 // FieldTrial methods and members.
@@ -42,12 +35,14 @@ FieldTrial::FieldTrial(const std::string& name,
                        const int month,
                        const int day_of_month)
   : name_(name),
+    name_hash_(HashName(name)),
     divisor_(total_probability),
     default_group_name_(default_group_name),
     random_(static_cast<Probability>(divisor_ * RandDouble())),
     accumulated_group_probability_(0),
     next_group_number_(kDefaultGroupNumber + 1),
     group_(kNotFinalized),
+    group_name_hash_(kReservedHashValue),
     enable_field_trial_(true) {
   DCHECK_GT(total_probability, 0);
   DCHECK(!name_.empty());
@@ -96,6 +91,7 @@ void FieldTrial::Disable() {
   if (group_ != kNotFinalized) {
     group_ = kDefaultGroupNumber;
     group_name_ = default_group_name_;
+    group_name_hash_ = HashName(group_name_);
   }
 }
 
@@ -117,6 +113,7 @@ int FieldTrial::AppendGroup(const std::string& name,
       StringAppendF(&group_name_, "%d", group_);
     else
       group_name_ = name;
+    group_name_hash_ = HashName(group_name_);
     FieldTrialList::NotifyFieldTrialGroupSelection(name_, group_name_);
   }
   return next_group_number_++;
@@ -127,6 +124,7 @@ int FieldTrial::group() {
     accumulated_group_probability_ = divisor_;
     group_ = kDefaultGroupNumber;
     group_name_ = default_group_name_;
+    group_name_hash_ = HashName(group_name_);
     FieldTrialList::NotifyFieldTrialGroupSelection(name_, group_name_);
   }
   return group_;
@@ -136,6 +134,14 @@ std::string FieldTrial::group_name() {
   group();  // call group() to make sure group assignment was done.
   DCHECK(!group_name_.empty());
   return group_name_;
+}
+
+bool FieldTrial::GetNameGroupId(NameGroupId* name_group_id) {
+  if (group_name_hash_ == kReservedHashValue)
+    return false;
+  name_group_id->name = name_hash_;
+  name_group_id->group = group_name_hash_;
+  return true;
 }
 
 // static
@@ -171,6 +177,25 @@ double FieldTrial::HashClientId(const std::string& client_id,
   uint64* bits = reinterpret_cast<uint64*>(&sha1_hash[0]);
 
   return BitsToOpenEndedUnitInterval(*bits);
+}
+
+// static
+uint32 FieldTrial::HashName(const std::string& name) {
+  // SHA-1 is designed to produce a uniformly random spread in its output space,
+  // even for nearly-identical inputs.
+  unsigned char sha1_hash[kSHA1Length];
+  SHA1HashBytes(reinterpret_cast<const unsigned char*>(name.c_str()),
+                name.size(),
+                sha1_hash);
+
+  COMPILE_ASSERT(sizeof(uint32) < sizeof(sha1_hash), need_more_data);
+  uint32* bits = reinterpret_cast<uint32*>(&sha1_hash[0]);
+
+  // We only DCHECK, since this should not happen because the registration
+  // of the experiment on the server should have already warn the developer.
+  // If this ever happen, we'll ignore this experiment/group when reporting.
+  DCHECK(*bits != kReservedHashValue);
+  return *bits;
 }
 
 //------------------------------------------------------------------------------
@@ -251,9 +276,9 @@ bool FieldTrialList::TrialExists(const std::string& name) {
 
 // static
 void FieldTrialList::StatesToString(std::string* output) {
+  DCHECK(output->empty());
   if (!global_)
     return;
-  DCHECK(output->empty());
   AutoLock auto_lock(global_->lock_);
 
   for (RegistrationList::iterator it = global_->registered_.begin();
@@ -268,6 +293,22 @@ void FieldTrialList::StatesToString(std::string* output) {
     output->append(1, kPersistentStringSeparator);
     output->append(group_name);
     output->append(1, kPersistentStringSeparator);
+  }
+}
+
+// static
+void FieldTrialList::GetFieldTrialNameGroupIds(
+    std::vector<FieldTrial::NameGroupId>* name_group_ids) {
+  DCHECK(name_group_ids->empty());
+  if (!global_)
+    return;
+  AutoLock auto_lock(global_->lock_);
+
+  for (RegistrationList::iterator it = global_->registered_.begin();
+       it != global_->registered_.end(); ++it) {
+    FieldTrial::NameGroupId name_group_id;
+    if (it->second->GetNameGroupId(&name_group_id))
+      name_group_ids->push_back(name_group_id);
   }
 }
 
