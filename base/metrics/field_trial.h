@@ -92,6 +92,12 @@ class FieldTrialList;
 class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
  public:
   typedef int Probability;  // Probability type for being selected in a trial.
+  // The Unique ID of a trial, where the name and group identifiers are
+  // hashes of the trial and group name strings.
+  struct NameGroupId {
+    uint32 name;
+    uint32 group;
+  };
 
   // A return value to indicate that a given instance has not yet had a group
   // assignment (and hence is not yet participating in the trial).
@@ -148,6 +154,12 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // number is used as the group name.
   std::string group_name();
 
+  // Gets the unique identifier of the Field Trial, but only if a group was
+  // officially chosen, otherwise name_group_id is left untouched and false
+  // is returned. When true is returned, the name and group ids were successfuly
+  // set in name_group_id.
+  bool GetNameGroupId(NameGroupId* name_group_id);
+
   // Return the default group name of the FieldTrial.
   std::string default_group_name() const { return default_group_name_; }
 
@@ -173,6 +185,8 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, MakeName);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, HashClientId);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, HashClientIdIsUniform);
+  FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, HashName);
+  FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, NameGroupIds);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, UseOneTimeRandomization);
 
   friend class base::FieldTrialList;
@@ -190,8 +204,15 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   static double HashClientId(const std::string& client_id,
                              const std::string& trial_name);
 
+  // Creates unique identifier for the trial by hashing a name string, whether
+  // it's for the field trial or the group name.
+  static uint32 HashName(const std::string& name);
+
   // The name of the field trial, as can be found via the FieldTrialList.
   const std::string name_;
+
+  // The hashed name of the field trial to be sent as a unique identifier.
+  const uint32 name_hash_;
 
   // The maximum sum of all probabilities supplied, which corresponds to 100%.
   // This is the scaling factor used to adjust supplied probabilities.
@@ -218,6 +239,10 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // has been called.
   std::string group_name_;
 
+  // The hashed name of the group to be sent as a unique identifier.
+  // Is not valid while group_ is equal to kNotFinalized.
+  uint32 group_name_hash_;
+
   // When enable_field_trial_ is false, field trial reverts to the 'default'
   // group.
   bool enable_field_trial_;
@@ -225,6 +250,9 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // When benchmarking is enabled, field trials all revert to the 'default'
   // group.
   static bool enable_benchmarking_;
+
+  // This value is reserved for an uninitialized hash value.
+  static const uint32 kReservedHashValue;
 
   DISALLOW_COPY_AND_ASSIGN(FieldTrial);
 };
@@ -285,10 +313,16 @@ class BASE_EXPORT FieldTrialList {
 
   // Create a persistent representation of all FieldTrial instances and the
   // |client_id()| state for resurrection in another process.  This allows
-  // randomization to be done in one process, and secondary processes can by
+  // randomization to be done in one process, and secondary processes can be
   // synchronized on the result. The resulting string contains the
   // |client_id()|, the names, the trial name, and a "/" separator.
   static void StatesToString(std::string* output);
+
+  // Returns an array of Unique IDs for each Field Trial that has a chosen
+  // group. Field Trials for which a group has not been chosen yet are NOT
+  // returned in this list.
+  static void GetFieldTrialNameGroupIds(
+      std::vector<FieldTrial::NameGroupId>* name_group_ids);
 
   // Use a previously generated state string (re: StatesToString()) augment the
   // current list of field tests to include the supplied tests, and using a 100%
