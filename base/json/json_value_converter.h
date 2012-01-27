@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
@@ -92,11 +91,13 @@ class JSONValueConverter;
 
 namespace internal {
 
+template<typename StructType>
 class FieldConverterBase {
  public:
-  BASE_EXPORT explicit FieldConverterBase(const std::string& path);
-  BASE_EXPORT virtual ~FieldConverterBase();
-  virtual bool ConvertField(const base::Value& value, void* obj) const = 0;
+  explicit FieldConverterBase(const std::string& path) : field_path_(path) {}
+  virtual ~FieldConverterBase() {}
+  virtual bool ConvertField(const base::Value& value, StructType* obj)
+      const = 0;
   const std::string& field_path() const { return field_path_; }
 
  private:
@@ -112,19 +113,18 @@ class ValueConverter {
 };
 
 template <typename StructType, typename FieldType>
-class FieldConverter : public FieldConverterBase {
+class FieldConverter : public FieldConverterBase<StructType> {
  public:
   explicit FieldConverter(const std::string& path,
                           FieldType StructType::* field,
                           ValueConverter<FieldType>* converter)
-      : FieldConverterBase(path),
+      : FieldConverterBase<StructType>(path),
         field_pointer_(field),
         value_converter_(converter) {
   }
 
   virtual bool ConvertField(
-      const base::Value& value, void* obj) const OVERRIDE {
-    StructType* dst = reinterpret_cast<StructType*>(obj);
+      const base::Value& value, StructType* dst) const OVERRIDE {
     return value_converter_->Convert(value, &(dst->*field_pointer_));
   }
 
@@ -423,7 +423,8 @@ class JSONValueConverter {
       return false;
 
     for(size_t i = 0; i < fields_.size(); ++i) {
-      const internal::FieldConverterBase* field_converter = fields_[i];
+      const internal::FieldConverterBase<StructType>* field_converter =
+          fields_[i];
       base::Value* field = NULL;
       if (dictionary_value->Get(field_converter->field_path(), &field)) {
         if (!field_converter->ConvertField(*field, output)) {
@@ -436,7 +437,7 @@ class JSONValueConverter {
   }
 
  private:
-  ScopedVector<internal::FieldConverterBase> fields_;
+  ScopedVector<internal::FieldConverterBase<StructType> > fields_;
 
   DISALLOW_COPY_AND_ASSIGN(JSONValueConverter);
 };
