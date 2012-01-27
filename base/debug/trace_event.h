@@ -349,11 +349,11 @@
 //   two different processes will not collide.
 #define TRACE_COUNTER_ID1(category, name, id, value) \
     INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_COUNTER, \
-        category, name, id, TRACE_EVENT_FLAG_HAS_ID, \
+        category, name, id, TRACE_EVENT_FLAG_NONE, \
         "value", static_cast<int>(value))
 #define TRACE_COPY_COUNTER_ID1(category, name, id, value) \
     INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_COUNTER, \
-        category, name, id, TRACE_EVENT_FLAG_COPY | TRACE_EVENT_FLAG_HAS_ID, \
+        category, name, id, TRACE_EVENT_FLAG_COPY, \
         "value", static_cast<int>(value))
 
 // Records the values of a multi-parted counter called "name" immediately.
@@ -368,13 +368,13 @@
 #define TRACE_COUNTER_ID2(category, name, id, value1_name, value1_val, \
         value2_name, value2_val) \
     INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_COUNTER, \
-        category, name, id, TRACE_EVENT_FLAG_HAS_ID, \
+        category, name, id, TRACE_EVENT_FLAG_NONE, \
         value1_name, static_cast<int>(value1_val), \
         value2_name, static_cast<int>(value2_val))
 #define TRACE_COPY_COUNTER_ID2(category, name, id, value1_name, value1_val, \
         value2_name, value2_val) \
     INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_COUNTER, \
-        category, name, id, TRACE_EVENT_FLAG_COPY | TRACE_EVENT_FLAG_HAS_ID, \
+        category, name, id, TRACE_EVENT_FLAG_COPY, \
         value1_name, static_cast<int>(value1_val), \
         value2_name, static_cast<int>(value2_val))
 
@@ -390,52 +390,52 @@
 //   two different processes will not collide.
 #define TRACE_EVENT_START0(category, name, id) \
     INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_START, \
-        category, name, id, TRACE_EVENT_FLAG_HAS_ID)
+        category, name, id, TRACE_EVENT_FLAG_NONE)
 #define TRACE_EVENT_START1(category, name, id, arg1_name, arg1_val) \
     INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_START, \
-        category, name, id, TRACE_EVENT_FLAG_HAS_ID, arg1_name, arg1_val)
+        category, name, id, TRACE_EVENT_FLAG_NONE, arg1_name, arg1_val)
 #define TRACE_EVENT_START2(category, name, id, arg1_name, arg1_val, \
         arg2_name, arg2_val) \
     INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_START, \
-        category, name, id, TRACE_EVENT_FLAG_HAS_ID, \
+        category, name, id, TRACE_EVENT_FLAG_NONE, \
         arg1_name, arg1_val, arg2_name, arg2_val)
 #define TRACE_EVENT_COPY_START0(category, name, id) \
     INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_START, \
-        category, name, id, TRACE_EVENT_FLAG_HAS_ID | TRACE_EVENT_FLAG_COPY)
+        category, name, id, TRACE_EVENT_FLAG_COPY)
 #define TRACE_EVENT_COPY_START1(category, name, id, arg1_name, arg1_val) \
     INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_START, \
-        category, name, id, TRACE_EVENT_FLAG_HAS_ID | TRACE_EVENT_FLAG_COPY, \
+        category, name, id, TRACE_EVENT_FLAG_COPY, \
         arg1_name, arg1_val)
 #define TRACE_EVENT_COPY_START2(category, name, id, arg1_name, arg1_val, \
         arg2_name, arg2_val) \
     INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_START, \
-        category, name, id, TRACE_EVENT_FLAG_HAS_ID | TRACE_EVENT_FLAG_COPY, \
+        category, name, id, TRACE_EVENT_FLAG_COPY, \
         arg1_name, arg1_val, arg2_name, arg2_val)
 
 // Records a single FINISH event for "name" immediately. If the category
 // is not enabled, then this does nothing.
 #define TRACE_EVENT_FINISH0(category, name, id) \
     INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FINISH, \
-        category, name, id, TRACE_EVENT_FLAG_HAS_ID)
+        category, name, id, TRACE_EVENT_FLAG_NONE)
 #define TRACE_EVENT_FINISH1(category, name, id, arg1_name, arg1_val) \
     INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FINISH, \
-        category, name, id, TRACE_EVENT_FLAG_HAS_ID, arg1_name, arg1_val)
+        category, name, id, TRACE_EVENT_FLAG_NONE, arg1_name, arg1_val)
 #define TRACE_EVENT_FINISH2(category, name, id, arg1_name, arg1_val, \
         arg2_name, arg2_val) \
     INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FINISH, \
-        category, name, id, TRACE_EVENT_FLAG_HAS_ID, \
+        category, name, id, TRACE_EVENT_FLAG_NONE, \
         arg1_name, arg1_val, arg2_name, arg2_val)
 #define TRACE_EVENT_COPY_FINISH0(category, name, id) \
     INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FINISH, \
-        category, name, id, TRACE_EVENT_FLAG_HAS_ID | TRACE_EVENT_FLAG_COPY)
+        category, name, id, TRACE_EVENT_FLAG_COPY)
 #define TRACE_EVENT_COPY_FINISH1(category, name, id, arg1_name, arg1_val) \
     INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FINISH, \
-        category, name, id, TRACE_EVENT_FLAG_HAS_ID | TRACE_EVENT_FLAG_COPY, \
+        category, name, id, TRACE_EVENT_FLAG_COPY, \
         arg1_name, arg1_val)
 #define TRACE_EVENT_COPY_FINISH2(category, name, id, arg1_name, arg1_val, \
         arg2_name, arg2_val) \
     INTERNAL_TRACE_EVENT_ADD_WITH_ID(TRACE_EVENT_PHASE_FINISH, \
-        category, name, id, TRACE_EVENT_FLAG_HAS_ID | TRACE_EVENT_FLAG_COPY, \
+        category, name, id, TRACE_EVENT_FLAG_COPY, \
         arg1_name, arg1_val, arg2_name, arg2_val)
 
 
@@ -471,13 +471,6 @@
 //                    unsigned char flags)
 #define TRACE_EVENT_API_ADD_TRACE_EVENT \
     base::debug::TraceLog::GetInstance()->AddTraceEvent
-
-// Mangle pointer with a hash so that if it occurs on more than one process,
-// it will not collide in the trace data. Pass the returned value to
-// TRACE_EVENT_API_ADD_TRACE_EVENT as the id parameter.
-// unsigned long long TRACE_EVENT_API_GET_ID_FROM_POINTER(void* pointer)
-#define TRACE_EVENT_API_GET_ID_FROM_POINTER \
-    base::debug::TraceLog::GetInstance()->GetInterProcessID
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -554,9 +547,12 @@
                                          ...) \
     INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category); \
     if (*INTERNAL_TRACE_EVENT_UID(catstatic)) { \
+      unsigned char trace_event_flags = flags | TRACE_EVENT_FLAG_HAS_ID; \
+      trace_event_internal::TraceID trace_event_trace_id( \
+          id, &trace_event_flags); \
       trace_event_internal::AddTraceEvent( \
           phase, INTERNAL_TRACE_EVENT_UID(catstatic), \
-          name, trace_event_internal::TraceID(id).data(), flags, \
+          name, trace_event_trace_id.data(), trace_event_flags, \
           ##__VA_ARGS__); \
     }
 
@@ -576,8 +572,9 @@
 
 // Flags for changing the behavior of TRACE_EVENT_API_ADD_TRACE_EVENT.
 #define TRACE_EVENT_FLAG_NONE        (static_cast<unsigned char>(0))
-#define TRACE_EVENT_FLAG_COPY        (static_cast<unsigned char>(1<<0))
-#define TRACE_EVENT_FLAG_HAS_ID      (static_cast<unsigned char>(1<<1))
+#define TRACE_EVENT_FLAG_COPY        (static_cast<unsigned char>(1 << 0))
+#define TRACE_EVENT_FLAG_HAS_ID      (static_cast<unsigned char>(1 << 1))
+#define TRACE_EVENT_FLAG_MANGLE_ID   (static_cast<unsigned char>(1 << 2))
 
 // Type values for identifying types in the TraceValue union.
 #define TRACE_VALUE_TYPE_BOOL         (static_cast<unsigned char>(1))
@@ -602,20 +599,31 @@ const unsigned long long kNoEventId = 0;
 // same pointer is used on different processes.
 class TraceID {
  public:
-  explicit TraceID(void* rhs) :
-      data_(TRACE_EVENT_API_GET_ID_FROM_POINTER(rhs)) {}
-  explicit TraceID(unsigned long long rhs) : data_(rhs) {}
-  explicit TraceID(unsigned long rhs) : data_(rhs) {}
-  explicit TraceID(unsigned int rhs) : data_(rhs) {}
-  explicit TraceID(unsigned short rhs) : data_(rhs) {}
-  explicit TraceID(unsigned char rhs) : data_(rhs) {}
-  explicit TraceID(long long rhs) :
-      data_(static_cast<unsigned long long>(rhs)) {}
-  explicit TraceID(long rhs) : data_(static_cast<unsigned long long>(rhs)) {}
-  explicit TraceID(int rhs) : data_(static_cast<unsigned long long>(rhs)) {}
-  explicit TraceID(short rhs) : data_(static_cast<unsigned long long>(rhs)) {}
-  explicit TraceID(signed char rhs) :
-      data_(static_cast<unsigned long long>(rhs)) {}
+  explicit TraceID(const void* id, unsigned char* flags) :
+      data_(static_cast<unsigned long long>(
+          reinterpret_cast<unsigned long>(id))) {
+    *flags |= TRACE_EVENT_FLAG_MANGLE_ID;
+  }
+  explicit TraceID(unsigned long long id, unsigned char* flags) :
+      data_(id) { (void)flags; }
+  explicit TraceID(unsigned long id, unsigned char* flags) :
+      data_(id) { (void)flags; }
+  explicit TraceID(unsigned int id, unsigned char* flags) :
+      data_(id) { (void)flags; }
+  explicit TraceID(unsigned short id, unsigned char* flags) :
+      data_(id) { (void)flags; }
+  explicit TraceID(unsigned char id, unsigned char* flags) :
+      data_(id) { (void)flags; }
+  explicit TraceID(long long id, unsigned char* flags) :
+      data_(static_cast<unsigned long long>(id)) { (void)flags; }
+  explicit TraceID(long id, unsigned char* flags) :
+      data_(static_cast<unsigned long long>(id)) { (void)flags; }
+  explicit TraceID(int id, unsigned char* flags) :
+      data_(static_cast<unsigned long long>(id)) { (void)flags; }
+  explicit TraceID(short id, unsigned char* flags) :
+      data_(static_cast<unsigned long long>(id)) { (void)flags; }
+  explicit TraceID(signed char id, unsigned char* flags) :
+      data_(static_cast<unsigned long long>(id)) { (void)flags; }
 
   unsigned long long data() const { return data_; }
 
