@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,7 +25,7 @@ void BaseTimer_Helper::InitiateDelayedTask(TimerTask* timer_task) {
   MessageLoop::current()->PostDelayedTask(
       timer_task->posted_from_,
       base::Bind(&TimerTask::Run, base::Owned(timer_task)),
-      static_cast<int>(timer_task->delay_.InMillisecondsRoundedUp()));
+      timer_task->delay_);
 }
 
 }  // namespace base
