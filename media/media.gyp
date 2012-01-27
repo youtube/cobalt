@@ -535,6 +535,7 @@
       'variables': {
         'yasm_output_path': '<(SHARED_INTERMEDIATE_DIR)/media',
       },
+      'msvs_2010_disable_uldi_when_referenced': 1,
       'includes': [
         '../third_party/yasm/yasm_compile.gypi',
       ],
