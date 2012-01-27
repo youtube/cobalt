@@ -128,7 +128,6 @@
           'id_map.h',
           'json/json_reader.cc',
           'json/json_reader.h',
-          'json/json_value_converter.cc',
           'json/json_value_converter.h',
           'json/json_value_serializer.cc',
           'json/json_value_serializer.h',
