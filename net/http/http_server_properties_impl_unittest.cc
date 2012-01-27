@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -212,7 +212,7 @@ TEST_F(AlternateProtocolServerPropertiesTest, Initialize) {
   AlternateProtocolMap alternate_protocol_map;
   PortAlternateProtocolPair port_alternate_protocol_pair;
   port_alternate_protocol_pair.port = 123;
-  port_alternate_protocol_pair.protocol = NPN_SPDY_2;
+  port_alternate_protocol_pair.protocol = NPN_SPDY_21;
   alternate_protocol_map[test_host_port_pair2] = port_alternate_protocol_pair;
   impl_.InitializeAlternateProtocolServers(&alternate_protocol_map);
 
@@ -224,7 +224,7 @@ TEST_F(AlternateProtocolServerPropertiesTest, Initialize) {
   port_alternate_protocol_pair =
       impl_.GetAlternateProtocol(test_host_port_pair2);
   EXPECT_EQ(123, port_alternate_protocol_pair.port);
-  EXPECT_EQ(NPN_SPDY_2, port_alternate_protocol_pair.protocol);
+  EXPECT_EQ(NPN_SPDY_21, port_alternate_protocol_pair.protocol);
 }
 
 TEST_F(AlternateProtocolServerPropertiesTest, SetBroken) {
@@ -249,7 +249,7 @@ TEST_F(AlternateProtocolServerPropertiesTest, Forced) {
 
   PortAlternateProtocolPair default_protocol;
   default_protocol.port = 1234;
-  default_protocol.protocol = NPN_SPDY_2;
+  default_protocol.protocol = NPN_SPDY_21;
   HttpServerPropertiesImpl::ForceAlternateProtocol(default_protocol);
 
   // Verify the forced protocol.
