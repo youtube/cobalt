@@ -373,8 +373,8 @@ TEST_F(SSLClientSocketPoolTest, DirectGotSPDY) {
   socket_factory_.AddSocketDataProvider(&data);
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2";
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  ssl.next_proto = "spdy/2.1";
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -399,7 +399,7 @@ TEST_F(SSLClientSocketPoolTest, DirectGotSPDY) {
   std::string server_protos;
   ssl_socket->GetNextProto(&proto, &server_protos);
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
-            SSLClientSocket::kProtoSPDY2);
+            SSLClientSocket::kProtoSPDY21);
 }
 
 TEST_F(SSLClientSocketPoolTest, DirectGotBonusSPDY) {
@@ -407,8 +407,8 @@ TEST_F(SSLClientSocketPoolTest, DirectGotBonusSPDY) {
   socket_factory_.AddSocketDataProvider(&data);
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2";
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  ssl.next_proto = "spdy/2.1";
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -433,7 +433,7 @@ TEST_F(SSLClientSocketPoolTest, DirectGotBonusSPDY) {
   std::string server_protos;
   ssl_socket->GetNextProto(&proto, &server_protos);
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
-            SSLClientSocket::kProtoSPDY2);
+            SSLClientSocket::kProtoSPDY21);
 }
 
 TEST_F(SSLClientSocketPoolTest, SOCKSFail) {
@@ -709,8 +709,8 @@ TEST_F(SSLClientSocketPoolTest, IPPooling) {
   ssl.cert = X509Certificate::CreateFromBytes(
       reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der));
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2";
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  ssl.next_proto = "spdy/2.1";
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -735,7 +735,7 @@ TEST_F(SSLClientSocketPoolTest, IPPooling) {
   std::string server_protos;
   ssl_socket->GetNextProto(&proto, &server_protos);
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
-            SSLClientSocket::kProtoSPDY2);
+            SSLClientSocket::kProtoSPDY21);
 
   // TODO(rtenneti): MockClientSocket::GetPeerAddress returns 0 as the port
   // number. Fix it to return port 80 and then use GetPeerAddress to AddAlias.
@@ -797,9 +797,9 @@ TEST_F(SSLClientSocketPoolTest, IPPoolingClientCert) {
   ssl.cert = X509Certificate::CreateFromBytes(
       reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der));
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2";
+  ssl.next_proto = "spdy/2.1";
   ssl.client_cert_sent = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -823,7 +823,7 @@ TEST_F(SSLClientSocketPoolTest, IPPoolingClientCert) {
   std::string server_protos;
   ssl_socket->GetNextProto(&proto, &server_protos);
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
-            SSLClientSocket::kProtoSPDY2);
+            SSLClientSocket::kProtoSPDY21);
 
   // TODO(rtenneti): MockClientSocket::GetPeerAddress returns 0 as the port
   // number. Fix it to return port 80 and then use GetPeerAddress to AddAlias.

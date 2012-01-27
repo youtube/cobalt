@@ -377,7 +377,7 @@ CaptureGroupNameSSLSocketPool::CaptureGroupNameSocketPool(
 
 // This is the expected return from a current server advertising SPDY.
 static const char kAlternateProtocolHttpHeader[] =
-    "Alternate-Protocol: 443:npn-spdy/2\r\n\r\n";
+    "Alternate-Protocol: 443:npn-spdy/2.1\r\n\r\n";
 
 // Helper functions for validating that AuthChallengeInfo's are correctly
 // configured for common cases.
@@ -2541,9 +2541,9 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyGet) {
 
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2";
+  ssl.next_proto = "spdy/2.1";
   ssl.was_npn_negotiated = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
   TestCompletionCallback callback1;
@@ -2628,9 +2628,9 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyGetWithProxyAuth) {
 
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2";
+  ssl.next_proto = "spdy/2.1";
   ssl.was_npn_negotiated = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
   TestCompletionCallback callback1;
@@ -2723,9 +2723,9 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyConnectHttps) {
 
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2";
+  ssl.next_proto = "spdy/2.1";
   ssl.was_npn_negotiated = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
   SSLSocketDataProvider ssl2(true, OK);
   ssl2.was_npn_negotiated = false;
@@ -2798,15 +2798,15 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyConnectSpdy) {
 
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2";
+  ssl.next_proto = "spdy/2.1";
   ssl.was_npn_negotiated = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
   SSLSocketDataProvider ssl2(true, OK);
   ssl2.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl2.next_proto = "spdy/2";
+  ssl2.next_proto = "spdy/2.1";
   ssl2.was_npn_negotiated = true;
-  ssl2.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  ssl2.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl2);
 
   TestCompletionCallback callback1;
@@ -2867,15 +2867,15 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyConnectFailure) {
 
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2";
+  ssl.next_proto = "spdy/2.1";
   ssl.was_npn_negotiated = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
   SSLSocketDataProvider ssl2(true, OK);
   ssl2.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl2.next_proto = "spdy/2";
+  ssl2.next_proto = "spdy/2.1";
   ssl2.was_npn_negotiated = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl2);
 
   TestCompletionCallback callback1;
@@ -5269,9 +5269,9 @@ TEST_F(HttpNetworkTransactionTest, RedirectOfHttpsConnectViaSpdyProxy) {
           data_writes, arraysize(data_writes)));
   SSLSocketDataProvider proxy_ssl(true, OK);  // SSL to the proxy
   proxy_ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  proxy_ssl.next_proto = "spdy/2";
+  proxy_ssl.next_proto = "spdy/2.1";
   proxy_ssl.was_npn_negotiated = true;
-  proxy_ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  proxy_ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
 
   session_deps.socket_factory.AddSocketDataProvider(data.get());
   session_deps.socket_factory.AddSSLSocketDataProvider(&proxy_ssl);
@@ -5389,9 +5389,9 @@ TEST_F(HttpNetworkTransactionTest, ErrorResponseTofHttpsConnectViaSpdyProxy) {
           data_writes, arraysize(data_writes)));
   SSLSocketDataProvider proxy_ssl(true, OK);  // SSL to the proxy
   proxy_ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  proxy_ssl.next_proto = "spdy/2";
+  proxy_ssl.next_proto = "spdy/2.1";
   proxy_ssl.was_npn_negotiated = true;
-  proxy_ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  proxy_ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
 
   session_deps.socket_factory.AddSocketDataProvider(data.get());
   session_deps.socket_factory.AddSSLSocketDataProvider(&proxy_ssl);
@@ -6145,7 +6145,7 @@ scoped_refptr<HttpNetworkSession> SetupSessionForGroupNameTests(
       session->http_server_properties();
   http_server_properties->SetAlternateProtocol(
       HostPortPair("host.with.alternate", 80), 443,
-      NPN_SPDY_2);
+      NPN_SPDY_21);
 
   return session;
 }
@@ -7085,7 +7085,7 @@ TEST_F(HttpNetworkTransactionTest, HonorAlternateProtocolHeader) {
       http_server_properties.GetAlternateProtocol(http_host_port_pair);
   PortAlternateProtocolPair expected_alternate;
   expected_alternate.port = 443;
-  expected_alternate.protocol = NPN_SPDY_2;
+  expected_alternate.protocol = NPN_SPDY_21;
   EXPECT_TRUE(expected_alternate.Equals(alternate));
 
   HttpStreamFactory::set_use_alternate_protocols(false);
@@ -7124,7 +7124,7 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocolAndFallback) {
   http_server_properties->SetAlternateProtocol(
       HostPortPair::FromURL(request.url),
       666 /* port is ignored by MockConnect anyway */,
-      NPN_SPDY_2);
+      NPN_SPDY_21);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestCompletionCallback callback;
@@ -7186,7 +7186,7 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortRestrictedBlocked) {
   http_server_properties->SetAlternateProtocol(
       HostPortPair::FromURL(restricted_port_request.url),
       kUnrestrictedAlternatePort,
-      NPN_SPDY_2);
+      NPN_SPDY_21);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestCompletionCallback callback;
@@ -7235,7 +7235,7 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortRestrictedAllowed) {
   http_server_properties->SetAlternateProtocol(
       HostPortPair::FromURL(restricted_port_request.url),
       kRestrictedAlternatePort,
-      NPN_SPDY_2);
+      NPN_SPDY_21);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestCompletionCallback callback;
@@ -7284,7 +7284,7 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortUnrestrictedAllowed1) {
   http_server_properties->SetAlternateProtocol(
       HostPortPair::FromURL(unrestricted_port_request.url),
       kRestrictedAlternatePort,
-      NPN_SPDY_2);
+      NPN_SPDY_21);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestCompletionCallback callback;
@@ -7333,7 +7333,7 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortUnrestrictedAllowed2) {
   http_server_properties->SetAlternateProtocol(
       HostPortPair::FromURL(unrestricted_port_request.url),
       kUnrestrictedAlternatePort,
-      NPN_SPDY_2);
+      NPN_SPDY_21);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestCompletionCallback callback;
@@ -7424,9 +7424,9 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForNpnSpdy) {
 
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2";
+  ssl.next_proto = "spdy/2.1";
   ssl.was_npn_negotiated = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
@@ -7526,9 +7526,9 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolWithSpdyLateBinding) {
 
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2";
+  ssl.next_proto = "spdy/2.1";
   ssl.was_npn_negotiated = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
   scoped_ptr<spdy::SpdyFrame> req1(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
@@ -7635,9 +7635,9 @@ TEST_F(HttpNetworkTransactionTest, StallAlternateProtocolForNpnSpdy) {
 
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2";
+  ssl.next_proto = "spdy/2.1";
   ssl.was_npn_negotiated = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
   MockConnect never_finishing_connect(false, ERR_IO_PENDING);
@@ -7770,9 +7770,9 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
 
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2";
+  ssl.next_proto = "spdy/2.1";
   ssl.was_npn_negotiated = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
@@ -7877,9 +7877,9 @@ TEST_F(HttpNetworkTransactionTest,
 
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2";
+  ssl.next_proto = "spdy/2.1";
   ssl.was_npn_negotiated = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
   // Make sure we use ssl for spdy here.
   SpdySession::SetSSLMode(true);
@@ -8764,9 +8764,9 @@ TEST_F(HttpNetworkTransactionTest, SpdyPostNPNServerHangup) {
 
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2";
+  ssl.next_proto = "spdy/2.1";
   ssl.was_npn_negotiated = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
@@ -8827,7 +8827,7 @@ TEST_F(HttpNetworkTransactionTest, SpdyAlternateProtocolThroughProxy) {
   MockRead data_reads_1[] = {
     MockRead(false, ERR_TEST_PEER_CLOSE_AFTER_NEXT_MOCK_READ),
     MockRead("HTTP/1.1 200 OK\r\n"
-             "Alternate-Protocol: 443:npn-spdy/2\r\n"
+             "Alternate-Protocol: 443:npn-spdy/2.1\r\n"
              "Proxy-Connection: close\r\n"
              "\r\n"),
   };
@@ -8920,9 +8920,9 @@ TEST_F(HttpNetworkTransactionTest, SpdyAlternateProtocolThroughProxy) {
 
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2";
+  ssl.next_proto = "spdy/2.1";
   ssl.was_npn_negotiated = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
 
   MockConnect never_finishing_connect(false, ERR_IO_PENDING);
   StaticSocketDataProvider hanging_non_alternate_protocol_socket(
@@ -9207,9 +9207,9 @@ TEST_F(HttpNetworkTransactionTest, PreconnectWithExistingSpdySession) {
 
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2";
+  ssl.next_proto = "spdy/2.1";
   ssl.was_npn_negotiated = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
@@ -9644,9 +9644,9 @@ TEST_F(HttpNetworkTransactionTest, UseIPConnectionPooling) {
 
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2";
+  ssl.next_proto = "spdy/2.1";
   ssl.was_npn_negotiated = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
   scoped_ptr<spdy::SpdyFrame> host1_req(ConstructSpdyGet(
@@ -9798,9 +9798,9 @@ TEST_F(HttpNetworkTransactionTest,
 
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2";
+  ssl.next_proto = "spdy/2.1";
   ssl.was_npn_negotiated = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
   scoped_ptr<spdy::SpdyFrame> host1_req(ConstructSpdyGet(

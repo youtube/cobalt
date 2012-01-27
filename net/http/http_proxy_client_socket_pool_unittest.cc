@@ -176,9 +176,9 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
   void InitializeSpdySsl() {
     spdy::SpdyFramer::set_enable_compression_default(false);
     ssl_data_->next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-    ssl_data_->next_proto = "spdy/2";
+    ssl_data_->next_proto = "spdy/2.1";
     ssl_data_->was_npn_negotiated = true;
-    ssl_data_->protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+    ssl_data_->protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   }
 
   HttpNetworkSession* CreateNetworkSession() {
