@@ -96,6 +96,10 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer, public StreamParserHost {
 
   ByteQueue byte_queue_;
 
+  // Stores an error that happens after initilization but before set_host().
+  // TODO(acolwell): Remove this when http://crbug.com/111585 is fixed.
+  PipelineStatus deferred_error_;
+
   DISALLOW_COPY_AND_ASSIGN(ChunkDemuxer);
 };
 
