@@ -103,7 +103,7 @@ class HttpPipelinedHostImplTest : public testing::Test {
                                              MatchesOrigin(origin_),
                                              Ref(ssl_config_), Ref(proxy_info_),
                                              Ref(net_log_), true,
-                                             SSLClientSocket::kProtoSPDY2))
+                                             SSLClientSocket::kProtoSPDY21))
         .Times(1)
         .WillOnce(Return(pipeline));
     EXPECT_CALL(*pipeline, CreateNewStream())
@@ -111,7 +111,7 @@ class HttpPipelinedHostImplTest : public testing::Test {
         .WillOnce(Return(kDummyStream));
     EXPECT_EQ(kDummyStream, host_->CreateStreamOnNewPipeline(
         kDummyConnection, ssl_config_, proxy_info_, net_log_, true,
-        SSLClientSocket::kProtoSPDY2));
+        SSLClientSocket::kProtoSPDY21));
     return pipeline;
   }
 
@@ -263,7 +263,7 @@ TEST_F(HttpPipelinedHostImplTest, ShutsDownOnOldVersion) {
   ClearTestPipeline(pipeline);
   EXPECT_EQ(NULL, host_->CreateStreamOnNewPipeline(
       kDummyConnection, ssl_config_, proxy_info_, net_log_, true,
-      SSLClientSocket::kProtoSPDY2));
+      SSLClientSocket::kProtoSPDY21));
 }
 
 TEST_F(HttpPipelinedHostImplTest, ShutsDownOnAuthenticationRequired) {
