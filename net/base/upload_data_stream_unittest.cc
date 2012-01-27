@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,7 +21,7 @@ namespace net {
 namespace {
 
 const char kTestData[] = "0123456789";
-const int kTestDataSize = arraysize(kTestData) - 1;
+const size_t kTestDataSize = arraysize(kTestData) - 1;
 
 }  // namespace
 
@@ -41,6 +41,8 @@ TEST_F(UploadDataStreamTest, EmptyUploadData) {
   scoped_ptr<UploadDataStream> stream(
       UploadDataStream::Create(upload_data_, NULL));
   ASSERT_TRUE(stream.get());
+  EXPECT_EQ(0U, stream->size());
+  EXPECT_EQ(0U, stream->position());
   EXPECT_TRUE(stream->eof());
 }
 
@@ -49,16 +51,20 @@ TEST_F(UploadDataStreamTest, ConsumeAll) {
   scoped_ptr<UploadDataStream> stream(
       UploadDataStream::Create(upload_data_, NULL));
   ASSERT_TRUE(stream.get());
+  EXPECT_EQ(kTestDataSize, stream->size());
+  EXPECT_EQ(0U, stream->position());
+  EXPECT_FALSE(stream->eof());
   while (!stream->eof()) {
     stream->MarkConsumedAndFillBuffer(stream->buf_len());
   }
+  EXPECT_EQ(kTestDataSize, stream->position());
 }
 
 TEST_F(UploadDataStreamTest, FileSmallerThanLength) {
   FilePath temp_file_path;
   ASSERT_TRUE(file_util::CreateTemporaryFile(&temp_file_path));
-  ASSERT_EQ(kTestDataSize, file_util::WriteFile(temp_file_path,
-                                                kTestData, kTestDataSize));
+  ASSERT_EQ(static_cast<int>(kTestDataSize),
+            file_util::WriteFile(temp_file_path, kTestData, kTestDataSize));
   const uint64 kFakeSize = kTestDataSize*2;
 
   std::vector<UploadData::Element> elements;
@@ -72,15 +78,19 @@ TEST_F(UploadDataStreamTest, FileSmallerThanLength) {
   scoped_ptr<UploadDataStream> stream(
       UploadDataStream::Create(upload_data_, NULL));
   ASSERT_TRUE(stream.get());
+  EXPECT_EQ(kFakeSize, stream->size());
+  EXPECT_EQ(0U, stream->position());
   EXPECT_FALSE(stream->eof());
   uint64 read_counter = 0;
   while (!stream->eof()) {
     read_counter += stream->buf_len();
     stream->MarkConsumedAndFillBuffer(stream->buf_len());
+    EXPECT_EQ(read_counter, stream->position());
   }
   // UpdateDataStream will pad out the file with 0 bytes so that the HTTP
   // transaction doesn't hang.  Therefore we expected the full size.
-  EXPECT_EQ(read_counter, stream->size());
+  EXPECT_EQ(kFakeSize, read_counter);
+  EXPECT_EQ(read_counter, stream->position());
 
   file_util::Delete(temp_file_path, false);
 }
@@ -106,8 +116,8 @@ void UploadDataStreamTest::FileChangedHelper(const FilePath& file_path,
 TEST_F(UploadDataStreamTest, FileChanged) {
   FilePath temp_file_path;
   ASSERT_TRUE(file_util::CreateTemporaryFile(&temp_file_path));
-  ASSERT_EQ(kTestDataSize, file_util::WriteFile(temp_file_path,
-                                                kTestData, kTestDataSize));
+  ASSERT_EQ(static_cast<int>(kTestDataSize),
+            file_util::WriteFile(temp_file_path, kTestData, kTestDataSize));
 
   base::PlatformFileInfo file_info;
   ASSERT_TRUE(file_util::GetFileInfo(temp_file_path, &file_info));
