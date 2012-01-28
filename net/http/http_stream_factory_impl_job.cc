@@ -108,13 +108,12 @@ HttpStreamFactoryImpl::Job::Job(HttpStreamFactoryImpl* stream_factory,
                                 const HttpRequestInfo& request_info,
                                 const SSLConfig& server_ssl_config,
                                 const SSLConfig& proxy_ssl_config,
-                                const BoundNetLog& net_log)
+                                NetLog* net_log)
     : request_(NULL),
       request_info_(request_info),
       server_ssl_config_(server_ssl_config),
       proxy_ssl_config_(proxy_ssl_config),
-      net_log_(BoundNetLog::Make(net_log.net_log(),
-                                 NetLog::SOURCE_HTTP_STREAM_JOB)),
+      net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_HTTP_STREAM_JOB)),
       ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(
           base::Bind(&Job::OnIOComplete, base::Unretained(this)))),
       connection_(new ClientSocketHandle),
