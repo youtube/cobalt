@@ -31,12 +31,12 @@
 
 namespace {
 
+class IconTheme;
+
 // None of the XDG stuff is thread-safe, so serialize all access under
 // this lock.
-static base::LazyInstance<base::Lock>::Leaky
+base::LazyInstance<base::Lock>::Leaky
     g_mime_util_xdg_lock = LAZY_INSTANCE_INITIALIZER;
-
-class IconTheme;
 
 class MimeUtilConstants {
  public:
