@@ -73,15 +73,15 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
 
     virtual ~PacPollPolicy() {}
 
-    // Decides the next poll delay. |current_delay_ms| is the delay used
-    // by the preceding poll, or -1 if determining the delay for the initial
-    // poll. |initial_error| is the network error code that the last PAC
-    // fetch (or WPAD initialization) failed with, or OK if it completed
-    // successfully. Implementations must set |next_delay_ms| to a non-negative
-    // value.
+    // Decides the next poll delay. |current_delay| is the delay used
+    // by the preceding poll, or a negative TimeDelta value if determining
+    // the delay for the initial poll. |initial_error| is the network error
+    // code that the last PAC fetch (or WPAD initialization) failed with,
+    // or OK if it completed successfully. Implementations must set
+    // |next_delay| to a non-negative value.
     virtual Mode GetNextDelay(int initial_error,
-                              int64 current_delay_ms,
-                              int64* next_delay_ms) const = 0;
+                              base::TimeDelta current_delay,
+                              base::TimeDelta* next_delay) const = 0;
   };
 
   // The instance takes ownership of |config_service| and |resolver|.

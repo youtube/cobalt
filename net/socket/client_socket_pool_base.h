@@ -277,10 +277,11 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
   LoadState GetLoadState(const std::string& group_name,
                          const ClientSocketHandle* handle) const;
 
-  int ConnectRetryIntervalMs() const {
+  base::TimeDelta ConnectRetryInterval() const {
     // TODO(mbelshe): Make this tuned dynamically based on measured RTT.
     //                For now, just use the max retry interval.
-    return ClientSocketPool::kMaxConnectRetryIntervalMs;
+    return base::TimeDelta::FromMilliseconds(
+        ClientSocketPool::kMaxConnectRetryIntervalMs);
   }
 
   int NumConnectJobsInGroup(const std::string& group_name) const {

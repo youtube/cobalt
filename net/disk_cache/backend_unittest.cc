@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -27,6 +27,8 @@
 #endif
 
 using base::Time;
+
+static const int kDiskDelayMs = 20;
 
 // Tests that can run with different types of caches.
 class DiskCacheBackendTest : public DiskCacheTestWithCache {
@@ -939,7 +941,7 @@ void DiskCacheBackendTest::BackendEnumerations2() {
   FlushQueueForTest();
 
   // Make sure that the timestamp is not the same.
-  base::PlatformThread::Sleep(20);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(kDiskDelayMs));
   ASSERT_EQ(net::OK, OpenEntry(second, &entry1));
   void* iter = NULL;
   ASSERT_EQ(net::OK, OpenNextEntry(&iter, &entry2));
@@ -1115,7 +1117,7 @@ void DiskCacheBackendTest::BackendDoomRecent() {
   entry->Close();
   FlushQueueForTest();
 
-  base::PlatformThread::Sleep(20);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(kDiskDelayMs));
   Time middle = Time::Now();
 
   ASSERT_EQ(net::OK, CreateEntry("third", &entry));
@@ -1124,7 +1126,7 @@ void DiskCacheBackendTest::BackendDoomRecent() {
   entry->Close();
   FlushQueueForTest();
 
-  base::PlatformThread::Sleep(20);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(kDiskDelayMs));
   Time final = Time::Now();
 
   ASSERT_EQ(4, cache_->GetEntryCount());
@@ -1160,7 +1162,7 @@ void DiskCacheBackendTest::BackendDoomBetween() {
   entry->Close();
   FlushQueueForTest();
 
-  base::PlatformThread::Sleep(20);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(kDiskDelayMs));
   Time middle_start = Time::Now();
 
   ASSERT_EQ(net::OK, CreateEntry("second", &entry));
@@ -1169,7 +1171,7 @@ void DiskCacheBackendTest::BackendDoomBetween() {
   entry->Close();
   FlushQueueForTest();
 
-  base::PlatformThread::Sleep(20);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(kDiskDelayMs));
   Time middle_end = Time::Now();
 
   ASSERT_EQ(net::OK, CreateEntry("fourth", &entry));
@@ -1178,7 +1180,7 @@ void DiskCacheBackendTest::BackendDoomBetween() {
   entry->Close();
   FlushQueueForTest();
 
-  base::PlatformThread::Sleep(20);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(kDiskDelayMs));
   Time final = Time::Now();
 
   ASSERT_EQ(4, cache_->GetEntryCount());

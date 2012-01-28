@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -271,7 +271,7 @@ int main(int argc, const char* argv[]) {
 #endif
 
   // Some time for the memory manager to flush stuff.
-  base::PlatformThread::Sleep(3000);
+  base::PlatformThread::Sleep(base::TimeDelta::FromSeconds(3));
   MessageLoop message_loop(MessageLoop::TYPE_IO);
 
   char* end;
