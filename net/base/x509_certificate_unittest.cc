@@ -708,6 +708,43 @@ TEST(X509CertificateTest, RejectWeakKeys) {
   TestRootCerts::GetInstance()->Clear();
 }
 
+// Test for bug 108514.
+// The certificate will expire on 2012-07-20. The test will still
+// pass if error == ERR_CERT_DATE_INVALID.  TODO(rsleevi): generate test
+// certificates for this unit test.  http://crbug.com/111730
+TEST(X509CertificateTest, ExtraneousMD5RootCert) {
+  FilePath certs_dir = GetTestCertsDirectory();
+
+  scoped_refptr<X509Certificate> server_cert =
+      ImportCertFromFile(certs_dir, "images_etrade_wallst_com.pem");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), server_cert);
+
+  scoped_refptr<X509Certificate> intermediate_cert =
+      ImportCertFromFile(certs_dir, "globalsign_orgv1_ca.pem");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), intermediate_cert);
+
+  scoped_refptr<X509Certificate> md5_root_cert =
+      ImportCertFromFile(certs_dir, "globalsign_root_ca_md5.pem");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), md5_root_cert);
+
+  X509Certificate::OSCertHandles intermediates;
+  intermediates.push_back(intermediate_cert->os_cert_handle());
+  intermediates.push_back(md5_root_cert->os_cert_handle());
+  scoped_refptr<X509Certificate> cert_chain =
+      X509Certificate::CreateFromHandle(server_cert->os_cert_handle(),
+                                        intermediates);
+
+  CertVerifyResult verify_result;
+  int flags = 0;
+  int error = cert_chain->Verify("images.etrade.wallst.com", flags, NULL,
+                                 &verify_result);
+  if (error != OK)
+    EXPECT_EQ(ERR_CERT_DATE_INVALID, error);
+
+  EXPECT_FALSE(verify_result.has_md5);
+  EXPECT_FALSE(verify_result.has_md5_ca);
+}
+
 // Test for bug 94673.
 TEST(X509CertificateTest, GoogleDigiNotarTest) {
   FilePath certs_dir = GetTestCertsDirectory();
