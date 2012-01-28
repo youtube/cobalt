@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -43,11 +43,16 @@ class NET_EXPORT CertDatabase {
     virtual ~Observer() {}
 
     // Will be called when a new user certificate is added.
-    // Note that |cert| could be NULL when called.
+    // Called with |cert| == NULL after importing a list of certificates
+    // in ImportFromPKCS12().
     virtual void OnUserCertAdded(const X509Certificate* cert) {}
 
+    // Will be called when a user certificate is removed.
+    virtual void OnUserCertRemoved(const X509Certificate* cert) {}
+
     // Will be called when a certificate's trust is changed.
-    // Note that |cert| could be NULL when called.
+    // Called with |cert| == NULL after importing a list of certificates
+    // in ImportCACerts().
     virtual void OnCertTrustChanged(const X509Certificate* cert) {}
 
    protected:
@@ -196,6 +201,7 @@ class NET_EXPORT CertDatabase {
  private:
   // Broadcasts notifications to all registered observers.
   static void NotifyObserversOfUserCertAdded(const X509Certificate* cert);
+  static void NotifyObserversOfUserCertRemoved(const X509Certificate* cert);
   static void NotifyObserversOfCertTrustChanged(const X509Certificate* cert);
 
   DISALLOW_COPY_AND_ASSIGN(CertDatabase);
