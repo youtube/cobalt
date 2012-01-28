@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -111,7 +111,7 @@ class RealFetchTester {
   // do something a bit more clever to track worker threads even when the
   // DhcpProxyScriptFetcherWin state machine has finished.
   void FinishTestAllowCleanup() {
-    base::PlatformThread::Sleep(30);
+    base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(30));
   }
 
   scoped_refptr<URLRequestContext> context_;
@@ -169,7 +169,7 @@ class DelayingDhcpProxyScriptAdapterFetcher
 
     std::string ImplGetPacURLFromDhcp(
         const std::string& adapter_name) OVERRIDE {
-      base::PlatformThread::Sleep(20);
+      base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(20));
       return DhcpQuery::ImplGetPacURLFromDhcp(adapter_name);
     }
   };

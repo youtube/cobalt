@@ -119,32 +119,34 @@ class DefaultPollPolicy : public ProxyService::PacPollPolicy {
   DefaultPollPolicy() {}
 
   virtual Mode GetNextDelay(int initial_error,
-                            int64 current_delay_ms,
-                            int64* next_delay_ms) const OVERRIDE {
+                            TimeDelta current_delay,
+                            TimeDelta* next_delay) const OVERRIDE {
     if (initial_error != OK) {
       // Re-try policy for failures.
-      const int kDelay1 = 8000;  // 8 seconds
-      const int kDelay2 = 32000;  // 32 seconds
-      const int kDelay3 = 120000;  // 2 minutes
-      const int kDelay4 = 14400000;  // 4 hours
+      const int kDelay1Seconds = 8;
+      const int kDelay2Seconds = 32;
+      const int kDelay3Seconds = 2 * 60;  // 2 minutes
+      const int kDelay4Seconds = 4 * 60 * 60;  // 4 Hours
 
-      switch (current_delay_ms) {
-        case -1:  // Initial poll.
-          *next_delay_ms = kDelay1;
-          return MODE_USE_TIMER;
-        case kDelay1:
-          *next_delay_ms = kDelay2;
+      // Initial poll.
+      if (current_delay < TimeDelta()) {
+        *next_delay = TimeDelta::FromSeconds(kDelay1Seconds);
+        return MODE_USE_TIMER;
+      }
+      switch (current_delay.InSeconds()) {
+        case kDelay1Seconds:
+          *next_delay = TimeDelta::FromSeconds(kDelay2Seconds);
           return MODE_START_AFTER_ACTIVITY;
-        case kDelay2:
-          *next_delay_ms =  kDelay3;
+        case kDelay2Seconds:
+          *next_delay = TimeDelta::FromSeconds(kDelay3Seconds);
           return MODE_START_AFTER_ACTIVITY;
         default:
-          *next_delay_ms = kDelay4;
+          *next_delay = TimeDelta::FromSeconds(kDelay4Seconds);
           return MODE_START_AFTER_ACTIVITY;
       }
     } else {
       // Re-try policy for succeses.
-      *next_delay_ms = 43200000;  // 12 hours
+      *next_delay = TimeDelta::FromHours(12);
       return MODE_START_AFTER_ACTIVITY;
     }
   }
@@ -412,7 +414,7 @@ class ProxyService::InitProxyResolver {
             DhcpProxyScriptFetcher* dhcp_proxy_script_fetcher,
             NetLog* net_log,
             const ProxyConfig& config,
-            base::TimeDelta wait_delay,
+            TimeDelta wait_delay,
             const CompletionCallback& callback) {
     DCHECK_EQ(STATE_NONE, next_state_);
     proxy_resolver_ = proxy_resolver;
@@ -549,7 +551,7 @@ class ProxyService::InitProxyResolver {
   ProxyConfig config_;
   ProxyConfig effective_config_;
   scoped_refptr<ProxyResolverScriptData> script_data_;
-  base::TimeDelta wait_delay_;
+  TimeDelta wait_delay_;
   scoped_ptr<ProxyScriptDecider> decider_;
   ProxyResolver* proxy_resolver_;
   CompletionCallback callback_;
@@ -605,10 +607,10 @@ class ProxyService::ProxyScriptDeciderPoller {
         dhcp_proxy_script_fetcher_(dhcp_proxy_script_fetcher),
         last_error_(init_net_error),
         last_script_data_(init_script_data),
-        last_poll_time_(base::TimeTicks::Now()) {
+        last_poll_time_(TimeTicks::Now()) {
     // Set the initial poll delay.
     next_poll_mode_ = poll_policy()->GetNextDelay(
-        last_error_, -1, &next_poll_delay_ms_);
+        last_error_, TimeDelta::FromSeconds(-1), &next_poll_delay_);
     TryToStartNextPoll(false);
   }
 
@@ -640,7 +642,7 @@ class ProxyService::ProxyScriptDeciderPoller {
         FROM_HERE,
         base::Bind(&ProxyScriptDeciderPoller::DoPoll,
                    weak_factory_.GetWeakPtr()),
-        next_poll_delay_ms_);
+        next_poll_delay_);
   }
 
   void TryToStartNextPoll(bool triggered_by_activity) {
@@ -652,9 +654,8 @@ class ProxyService::ProxyScriptDeciderPoller {
 
       case PacPollPolicy::MODE_START_AFTER_ACTIVITY:
         if (triggered_by_activity && !decider_.get()) {
-          base::TimeDelta elapsed_time =
-              base::TimeTicks::Now() - last_poll_time_;
-          if (elapsed_time.InMilliseconds() >= next_poll_delay_ms_)
+          TimeDelta elapsed_time = TimeTicks::Now() - last_poll_time_;
+          if (elapsed_time >= next_poll_delay_)
             DoPoll();
         }
         break;
@@ -662,14 +663,14 @@ class ProxyService::ProxyScriptDeciderPoller {
   }
 
   void DoPoll() {
-    last_poll_time_ = base::TimeTicks::Now();
+    last_poll_time_ = TimeTicks::Now();
 
     // Start the proxy script decider to see if anything has changed.
     // TODO(eroman): Pass a proper NetLog rather than NULL.
     decider_.reset(new ProxyScriptDecider(
         proxy_script_fetcher_, dhcp_proxy_script_fetcher_, NULL));
     int result = decider_->Start(
-        config_, base::TimeDelta(), proxy_resolver_expects_pac_bytes_,
+        config_, TimeDelta(), proxy_resolver_expects_pac_bytes_,
         base::Bind(&ProxyScriptDeciderPoller::OnProxyScriptDeciderCompleted,
                    base::Unretained(this)));
 
@@ -700,7 +701,7 @@ class ProxyService::ProxyScriptDeciderPoller {
     // Decide when the next poll should take place, and possibly start the
     // next timer.
     next_poll_mode_ = poll_policy()->GetNextDelay(
-        last_error_, next_poll_delay_ms_, &next_poll_delay_ms_);
+        last_error_, next_poll_delay_, &next_poll_delay_);
     TryToStartNextPoll(false);
   }
 
@@ -744,10 +745,10 @@ class ProxyService::ProxyScriptDeciderPoller {
   scoped_refptr<ProxyResolverScriptData> last_script_data_;
 
   scoped_ptr<ProxyScriptDecider> decider_;
-  int64 next_poll_delay_ms_;
+  TimeDelta next_poll_delay_;
   PacPollPolicy::Mode next_poll_mode_;
 
-  base::TimeTicks last_poll_time_;
+  TimeTicks last_poll_time_;
 
   // Polling policy injected by unit-tests. Otherwise this is NULL and the
   // default policy will be used.
@@ -902,9 +903,8 @@ ProxyService::ProxyService(ProxyConfigService* config_service,
       next_config_id_(1),
       current_state_(STATE_NONE) ,
       net_log_(net_log),
-      stall_proxy_auto_config_delay_(
-          base::TimeDelta::FromMilliseconds(
-              kDelayAfterNetworkChangesMs)) {
+      stall_proxy_auto_config_delay_(TimeDelta::FromMilliseconds(
+          kDelayAfterNetworkChangesMs)) {
   NetworkChangeNotifier::AddIPAddressObserver(this);
   ResetConfigService(config_service);
 }
@@ -1266,7 +1266,7 @@ void ProxyService::ReportSuccess(const ProxyInfo& result) {
   }
   if (net_log_) {
     net_log_->AddEntry(NetLog::TYPE_BAD_PROXY_LIST_REPORTED,
-                       base::TimeTicks::Now(),
+                       TimeTicks::Now(),
                        NetLog::Source(),
                        NetLog::PHASE_NONE,
                        make_scoped_refptr(
@@ -1474,7 +1474,7 @@ void ProxyService::OnProxyConfigChanged(
     scoped_refptr<NetLog::EventParameters> params(
         new ProxyConfigChangedNetLogParam(fetched_config_, effective_config));
     net_log_->AddEntry(net::NetLog::TYPE_PROXY_CONFIG_CHANGED,
-                       base::TimeTicks::Now(),
+                       TimeTicks::Now(),
                        NetLog::Source(),
                        NetLog::PHASE_NONE,
                        params);
@@ -1505,8 +1505,8 @@ void ProxyService::InitializeUsingLastFetchedConfig() {
   current_state_ = STATE_WAITING_FOR_INIT_PROXY_RESOLVER;
 
   // If we changed networks recently, we should delay running proxy auto-config.
-  base::TimeDelta wait_delay =
-      stall_proxy_autoconfig_until_ - base::TimeTicks::Now();
+  TimeDelta wait_delay =
+      stall_proxy_autoconfig_until_ - TimeTicks::Now();
 
   init_proxy_resolver_.reset(new InitProxyResolver());
   int rv = init_proxy_resolver_->Start(
@@ -1550,7 +1550,7 @@ void ProxyService::InitializeUsingDecidedConfig(
 void ProxyService::OnIPAddressChanged() {
   // See the comment block by |kDelayAfterNetworkChangesMs| for info.
   stall_proxy_autoconfig_until_ =
-      base::TimeTicks::Now() + stall_proxy_auto_config_delay_;
+      TimeTicks::Now() + stall_proxy_auto_config_delay_;
 
   State previous_state = ResetProxyConfig(false);
   if (previous_state != STATE_NONE)

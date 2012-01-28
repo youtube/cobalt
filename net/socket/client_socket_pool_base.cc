@@ -1100,7 +1100,7 @@ void ClientSocketPoolBaseHelper::Group::StartBackupSocketTimer(
       FROM_HERE,
       base::Bind(&Group::OnBackupSocketTimerFired, weak_factory_.GetWeakPtr(),
                  group_name, pool),
-      pool->ConnectRetryIntervalMs());
+      pool->ConnectRetryInterval());
 }
 
 bool ClientSocketPoolBaseHelper::Group::TryToUsePreconnectConnectJob() {

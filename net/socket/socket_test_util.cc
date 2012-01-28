@@ -294,7 +294,7 @@ MockWriteResult DelayedSocketData::OnWrite(const std::string& data) {
         FROM_HERE,
         base::Bind(&DelayedSocketData::CompleteRead,
                    weak_factory_.GetWeakPtr()),
-        100);
+        base::TimeDelta::FromMilliseconds(100));
   return rv;
 }
 
@@ -385,7 +385,7 @@ MockWriteResult OrderedSocketData::OnWrite(const std::string& data) {
         FROM_HERE,
         base::Bind(&OrderedSocketData::CompleteRead,
                    weak_factory_.GetWeakPtr()),
-        100);
+        base::TimeDelta::FromMilliseconds(100));
   }
   return StaticSocketDataProvider::OnWrite(data);
 }
