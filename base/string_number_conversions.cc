@@ -426,6 +426,14 @@ bool StringToUint64(const StringPiece16& input, uint64* output) {
   return String16ToIntImpl(input, output);
 }
 
+bool StringToSizeT(const StringPiece& input, size_t* output) {
+  return StringToIntImpl(input, output);
+}
+
+bool StringToSizeT(const StringPiece16& input, size_t* output) {
+  return String16ToIntImpl(input, output);
+}
+
 bool StringToDouble(const std::string& input, double* output) {
   errno = 0;  // Thread-safe?  It is on at least Mac, Linux, and Windows.
   char* endptr = NULL;
