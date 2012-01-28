@@ -36,7 +36,7 @@ class HttpStreamFactoryImpl::Job {
       const HttpRequestInfo& request_info,
       const SSLConfig& server_ssl_config,
       const SSLConfig& proxy_ssl_config,
-      const BoundNetLog& net_log);
+      NetLog* net_log);
   ~Job();
 
   // Start initiates the process of creating a new HttpStream. |request| will be

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -40,8 +40,7 @@ class NET_EXPORT_PRIVATE HttpStreamFactoryImpl :
   virtual void PreconnectStreams(int num_streams,
                                  const HttpRequestInfo& info,
                                  const SSLConfig& server_ssl_config,
-                                 const SSLConfig& proxy_ssl_config,
-                                 const BoundNetLog& net_log) OVERRIDE;
+                                 const SSLConfig& proxy_ssl_config) OVERRIDE;
   virtual void AddTLSIntolerantServer(const HostPortPair& server) OVERRIDE;
   virtual bool IsTLSIntolerantServer(const HostPortPair& server) const OVERRIDE;
   virtual base::Value* PipelineInfoToValue() const OVERRIDE;

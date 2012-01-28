@@ -72,13 +72,13 @@ HttpStreamRequest* HttpStreamFactoryImpl::RequestStream(
     alternate_request_info.url = alternate_url;
     alternate_job =
         new Job(this, session_, alternate_request_info, server_ssl_config,
-                proxy_ssl_config, net_log);
+                proxy_ssl_config, net_log.net_log());
     request->AttachJob(alternate_job);
     alternate_job->MarkAsAlternate(request_info.url);
   }
 
   Job* job = new Job(this, session_, request_info, server_ssl_config,
-                     proxy_ssl_config, net_log);
+                     proxy_ssl_config, net_log.net_log());
   request->AttachJob(job);
   if (alternate_job) {
     job->WaitFor(alternate_job);
@@ -98,8 +98,7 @@ void HttpStreamFactoryImpl::PreconnectStreams(
     int num_streams,
     const HttpRequestInfo& request_info,
     const SSLConfig& server_ssl_config,
-    const SSLConfig& proxy_ssl_config,
-    const BoundNetLog& net_log) {
+    const SSLConfig& proxy_ssl_config) {
   GURL alternate_url;
   bool has_alternate_protocol =
       GetAlternateProtocolRequestFor(request_info.url, &alternate_url);
@@ -108,11 +107,11 @@ void HttpStreamFactoryImpl::PreconnectStreams(
     HttpRequestInfo alternate_request_info = request_info;
     alternate_request_info.url = alternate_url;
     job = new Job(this, session_, alternate_request_info, server_ssl_config,
-                  proxy_ssl_config, net_log);
+                  proxy_ssl_config, session_->net_log());
     job->MarkAsAlternate(request_info.url);
   } else {
     job = new Job(this, session_, request_info, server_ssl_config,
-                  proxy_ssl_config, net_log);
+                  proxy_ssl_config, session_->net_log());
   }
   preconnect_job_set_.insert(job);
   job->Preconnect(num_streams);
