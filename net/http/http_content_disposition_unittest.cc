@@ -199,7 +199,7 @@ TEST(HttpContentDispositionTest, Filename) {
 }
 
 // Test cases from http://greenbytes.de/tech/tc2231/
-TEST(HttpContentDispositionTest, FAILS_tc2231) {
+TEST(HttpContentDispositionTest, tc2231) {
   const struct FileNameCDCase {
     const char* header;
     net::HttpContentDisposition::Type expected_type;
@@ -310,11 +310,13 @@ TEST(HttpContentDispositionTest, FAILS_tc2231) {
       net::HttpContentDisposition::ATTACHMENT,
       L"foo.bar"  // Should be L"'foo.bar'"
     },
+#ifdef ICU_SHOULD_FAIL_CONVERSION_ON_INVALID_CHARACTER
     // http://greenbytes.de/tech/tc2231/#attwithisofnplain
     { "attachment; filename=\"foo-\xE4html\"",
       net::HttpContentDisposition::ATTACHMENT,
       L""  // Should be L"foo-\xE4.html"
     },
+#endif
     // http://greenbytes.de/tech/tc2231/#attwithutf8fnplain
     // Note: We'll UTF-8 decode the file name, even though tc2231 says not to.
     { "attachment; filename=\"foo-\xC3\xA4.html\"",
@@ -341,11 +343,13 @@ TEST(HttpContentDispositionTest, FAILS_tc2231) {
       net::HttpContentDisposition::ATTACHMENT,
       L"foo-A.html"  // Should be L"foo-%41.html"
     },
+#ifdef ICU_SHOULD_FAIL_CONVERSION_ON_INVALID_CHARACTER
     // http://greenbytes.de/tech/tc2231/#attwithfilenamepctandiso
     { "attachment; filename=\"\xE4-%41.html\"",
       net::HttpContentDisposition::ATTACHMENT,
       L""  // Should be L"\xE4-%41.htm"
     },
+#endif
     // http://greenbytes.de/tech/tc2231/#attwithfnrawpctenclong
     { "attachment; filename=\"foo-%c3%a4-%e2%82%ac.html\"",
       net::HttpContentDisposition::ATTACHMENT,
@@ -368,12 +372,14 @@ TEST(HttpContentDispositionTest, FAILS_tc2231) {
       net::HttpContentDisposition::ATTACHMENT,
       L"foo[1](2).html"
     },
+#ifdef ICU_SHOULD_FAIL_CONVERSION_ON_INVALID_CHARACTER
     // http://greenbytes.de/tech/tc2231/#attfnbrokentokeniso
     // Note: tc2231 says we should fail to parse this header.
     { "attachment; filename=foo-\xE4.html",
       net::HttpContentDisposition::ATTACHMENT,
       L""
     },
+#endif
     // http://greenbytes.de/tech/tc2231/#attfnbrokentokenutf
     // Note: tc2231 says we should fail to parse this header.
     { "attachment; filename=foo-\xC3\xA4.html",
