@@ -62,14 +62,11 @@ BASE_EXPORT std::string DoubleToString(double value);
 BASE_EXPORT bool StringToInt(const StringPiece& input, int* output);
 BASE_EXPORT bool StringToInt(const StringPiece16& input, int* output);
 
-BASE_EXPORT bool StringToUint(const StringPiece& input, unsigned* output);
-BASE_EXPORT bool StringToUint(const StringPiece16& input, unsigned* output);
-
 BASE_EXPORT bool StringToInt64(const StringPiece& input, int64* output);
 BASE_EXPORT bool StringToInt64(const StringPiece16& input, int64* output);
 
-BASE_EXPORT bool StringToUint64(const StringPiece& input, uint64* output);
-BASE_EXPORT bool StringToUint64(const StringPiece16& input, uint64* output);
+BASE_EXPORT bool StringToSizeT(const StringPiece& input, size_t* output);
+BASE_EXPORT bool StringToSizeT(const StringPiece16& input, size_t* output);
 
 // For floating-point conversions, only conversions of input strings in decimal
 // form are defined to work.  Behavior with strings representing floating-point
