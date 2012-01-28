@@ -35,7 +35,8 @@ std::string::const_iterator HttpContentDisposition::ConsumeDispositionType(
   std::string::const_iterator type_begin = begin;
   std::string::const_iterator type_end = delimiter;
   HttpUtil::TrimLWS(&type_begin, &type_end);
-  if (!LowerCaseEqualsASCII(type_begin, type_end, "inline"))
+  if (type_begin != type_end &&
+      !LowerCaseEqualsASCII(type_begin, type_end, "inline"))
     type_ = ATTACHMENT;
   return delimiter;
 }
