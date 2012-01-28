@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -290,7 +290,6 @@ bool CertDatabase::SetCertTrust(const X509Certificate* cert,
   return success;
 }
 
-// TODO(xiyuan): Add an Observer method for this event.
 bool CertDatabase::DeleteCertAndKey(const X509Certificate* cert) {
   // For some reason, PK11_DeleteTokenCertAndKey only calls
   // SEC_DeletePermCertificate if the private key is found.  So, we check
@@ -310,6 +309,9 @@ bool CertDatabase::DeleteCertAndKey(const X509Certificate* cert) {
       return false;
     }
   }
+
+  CertDatabase::NotifyObserversOfUserCertRemoved(cert);
+
   return true;
 }
 
