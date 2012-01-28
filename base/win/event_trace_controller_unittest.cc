@@ -1,15 +1,18 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
 // Unit tests for event trace controller.
 
-#include <initguid.h>  // NOLINT.
+#include <objbase.h>
+#include <initguid.h>
 
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/logging.h"
+#include "base/process.h"
 #include "base/scoped_temp_dir.h"
+#include "base/stringprintf.h"
 #include "base/sys_info.h"
 #include "base/win/event_trace_controller.h"
 #include "base/win/event_trace_provider.h"
@@ -21,12 +24,6 @@ namespace {
 using base::win::EtwTraceController;
 using base::win::EtwTraceProvider;
 using base::win::EtwTraceProperties;
-
-const wchar_t kTestSessionName[] = L"TestLogSession";
-
-// {0D236A42-CD18-4e3d-9975-DCEEA2106E05}
-DEFINE_GUID(kTestProvider,
-    0xd236a42, 0xcd18, 0x4e3d, 0x99, 0x75, 0xdc, 0xee, 0xa2, 0x10, 0x6e, 0x5);
 
 DEFINE_GUID(kGuidNull,
     0x0000000, 0x0000, 0x0000, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0);
@@ -59,12 +56,6 @@ class TestingProvider: public EtwTraceProvider {
 };
 
 }  // namespace
-
-TEST(EtwTraceTest, Cleanup) {
-  // Clean up potential leftover sessions from previous unsuccessful runs.
-  EtwTraceProperties ignore;
-  EtwTraceController::Stop(kTestSessionName, &ignore);
-}
 
 TEST(EtwTracePropertiesTest, Initialization) {
   EtwTraceProperties prop;
@@ -115,38 +106,68 @@ TEST(EtwTracePropertiesTest, Strings) {
   ASSERT_HRESULT_FAILED(prop.SetLoggerName(name2.c_str()));
 }
 
-TEST(EtwTraceControllerTest, Initialize) {
+namespace {
+
+class EtwTraceControllerTest : public testing::Test {
+ public:
+  EtwTraceControllerTest() : session_name_(
+      base::StringPrintf(L"TestSession-%d", base::Process::Current().pid())) {
+  }
+
+  virtual void SetUp() {
+    EtwTraceProperties ignore;
+    EtwTraceController::Stop(session_name_.c_str(), &ignore);
+
+    // Allocate a new provider name GUID for each test.
+    ASSERT_HRESULT_SUCCEEDED(::CoCreateGuid(&test_provider_));
+  }
+
+  virtual void TearDown() {
+    EtwTraceProperties prop;
+    EtwTraceController::Stop(session_name_.c_str(), &prop);
+  }
+
+ protected:
+  GUID test_provider_;
+  std::wstring session_name_;
+};
+
+}  // namespace
+
+TEST_F(EtwTraceControllerTest, Initialize) {
   EtwTraceController controller;
 
   EXPECT_EQ(NULL, controller.session());
   EXPECT_STREQ(L"", controller.session_name());
 }
 
-TEST(EtwTraceControllerTest, StartRealTimeSession) {
+
+TEST_F(EtwTraceControllerTest, StartRealTimeSession) {
   EtwTraceController controller;
 
-  HRESULT hr = controller.StartRealtimeSession(kTestSessionName, 100 * 1024);
+  HRESULT hr = controller.StartRealtimeSession(session_name_.c_str(),
+                                               100 * 1024);
   if (hr == E_ACCESSDENIED) {
     VLOG(1) << "You must be an administrator to run this test on Vista";
     return;
   }
 
   EXPECT_TRUE(NULL != controller.session());
-  EXPECT_STREQ(kTestSessionName, controller.session_name());
+  EXPECT_STREQ(session_name_.c_str(), controller.session_name());
 
   EXPECT_HRESULT_SUCCEEDED(controller.Stop(NULL));
   EXPECT_EQ(NULL, controller.session());
   EXPECT_STREQ(L"", controller.session_name());
 }
 
-TEST(EtwTraceControllerTest, StartFileSession) {
+TEST_F(EtwTraceControllerTest, StartFileSession) {
   ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
   FilePath temp;
   ASSERT_TRUE(file_util::CreateTemporaryFileInDir(temp_dir.path(), &temp));
 
   EtwTraceController controller;
-  HRESULT hr = controller.StartFileSession(kTestSessionName,
+  HRESULT hr = controller.StartFileSession(session_name_.c_str(),
                                            temp.value().c_str());
   if (hr == E_ACCESSDENIED) {
     VLOG(1) << "You must be an administrator to run this test on Vista";
@@ -155,7 +176,7 @@ TEST(EtwTraceControllerTest, StartFileSession) {
   }
 
   EXPECT_TRUE(NULL != controller.session());
-  EXPECT_STREQ(kTestSessionName, controller.session_name());
+  EXPECT_STREQ(session_name_.c_str(), controller.session_name());
 
   EXPECT_HRESULT_SUCCEEDED(controller.Stop(NULL));
   EXPECT_EQ(NULL, controller.session());
@@ -163,20 +184,21 @@ TEST(EtwTraceControllerTest, StartFileSession) {
   file_util::Delete(temp, false);
 }
 
-TEST(EtwTraceControllerTest, EnableDisable) {
-  TestingProvider provider(kTestProvider);
+TEST_F(EtwTraceControllerTest, EnableDisable) {
+  TestingProvider provider(test_provider_);
 
   EXPECT_EQ(ERROR_SUCCESS, provider.Register());
   EXPECT_EQ(NULL, provider.session_handle());
 
   EtwTraceController controller;
-  HRESULT hr = controller.StartRealtimeSession(kTestSessionName, 100 * 1024);
+  HRESULT hr = controller.StartRealtimeSession(session_name_.c_str(),
+                                               100 * 1024);
   if (hr == E_ACCESSDENIED) {
     VLOG(1) << "You must be an administrator to run this test on Vista";
     return;
   }
 
-  EXPECT_HRESULT_SUCCEEDED(controller.EnableProvider(kTestProvider,
+  EXPECT_HRESULT_SUCCEEDED(controller.EnableProvider(test_provider_,
                            TRACE_LEVEL_VERBOSE, kTestProviderFlags));
 
   provider.WaitForCallback();
@@ -184,7 +206,7 @@ TEST(EtwTraceControllerTest, EnableDisable) {
   EXPECT_EQ(TRACE_LEVEL_VERBOSE, provider.enable_level());
   EXPECT_EQ(kTestProviderFlags, provider.enable_flags());
 
-  EXPECT_HRESULT_SUCCEEDED(controller.DisableProvider(kTestProvider));
+  EXPECT_HRESULT_SUCCEEDED(controller.DisableProvider(test_provider_));
 
   provider.WaitForCallback();
 
@@ -194,7 +216,7 @@ TEST(EtwTraceControllerTest, EnableDisable) {
   EXPECT_EQ(ERROR_SUCCESS, provider.Unregister());
 
   // Enable the provider again, before registering.
-  EXPECT_HRESULT_SUCCEEDED(controller.EnableProvider(kTestProvider,
+  EXPECT_HRESULT_SUCCEEDED(controller.EnableProvider(test_provider_,
                            TRACE_LEVEL_VERBOSE, kTestProviderFlags));
 
   // Register the provider again, the settings above
