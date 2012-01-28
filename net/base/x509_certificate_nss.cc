@@ -192,8 +192,32 @@ void GetCertChainInfo(CERTCertList* cert_list,
     if (i == 0) {
       verified_cert = node->cert;
     } else {
+      // Because of an NSS bug, CERT_PKIXVerifyCert may chain a self-signed
+      // certificate of a root CA to another certificate of the same root CA
+      // key.  Detect that error and ignore the root CA certificate.
+      // See https://bugzilla.mozilla.org/show_bug.cgi?id=721288.
+      if (node->cert->isRoot) {
+        // NOTE: isRoot doesn't mean the certificate is a trust anchor.  It
+        // means the certificate is self-signed.  Here we assume isRoot only
+        // implies the certificate is self-issued.
+        CERTCertListNode* next_node = CERT_LIST_NEXT(node);
+        CERTCertificate* next_cert;
+        if (!CERT_LIST_END(next_node, cert_list)) {
+          next_cert = next_node->cert;
+        } else {
+          next_cert = root_cert;
+        }
+        // Test that |node->cert| is actually a self-signed certificate
+        // whose key is equal to |next_cert|, and not a self-issued
+        // certificate signed by another key of the same CA.
+        if (next_cert && SECITEM_ItemsAreEqual(&node->cert->derPublicKey,
+                                               &next_cert->derPublicKey)) {
+          continue;
+        }
+      }
       verified_chain.push_back(node->cert);
     }
+
     SECAlgorithmID& signature = node->cert->signature;
     SECOidTag oid_tag = SECOID_FindOIDTag(&signature.algorithm);
     switch (oid_tag) {
