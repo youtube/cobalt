@@ -19,11 +19,12 @@ using base::TimeDelta;
 namespace tracked_objects {
 
 namespace {
+
 // Flag to compile out almost all of the task tracking code.
-static const bool kTrackAllTaskObjects = true;
+const bool kTrackAllTaskObjects = true;
 
 // Flag to compile out parent-child link recording.
-static const bool kTrackParentChildLinks = false;
+const bool kTrackParentChildLinks = false;
 
 // When ThreadData is first initialized, should we start in an ACTIVE state to
 // record all of the startup-time tasks, or should we start up DEACTIVATED, so
@@ -31,8 +32,9 @@ static const bool kTrackParentChildLinks = false;
 // Note that the flag may force either state, so this really controls only the
 // period of time up until that flag is parsed. If there is no flag seen, then
 // this state may prevail for much or all of the process lifetime.
-static const ThreadData::Status kInitialStartupState =
+const ThreadData::Status kInitialStartupState =
     ThreadData::PROFILING_CHILDREN_ACTIVE;
+
 }  // namespace
 
 //------------------------------------------------------------------------------
