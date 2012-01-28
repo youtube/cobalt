@@ -548,7 +548,9 @@ TEST(X509CertificateTest, CAFingerprints) {
 }
 
 // A regression test for http://crbug.com/31497.
-// This certificate will expire on 2012-04-08.
+// This certificate will expire on 2012-04-08. The test will still
+// pass if error == ERR_CERT_DATE_INVALID.  TODO(wtc): generate test
+// certificates for this unit test. http://crbug.com/111742
 TEST(X509CertificateTest, IntermediateCARequireExplicitPolicy) {
   FilePath certs_dir = GetTestCertsDirectory();
 
@@ -576,8 +578,12 @@ TEST(X509CertificateTest, IntermediateCARequireExplicitPolicy) {
   CertVerifyResult verify_result;
   int error = cert_chain->Verify("www.us.army.mil", flags, NULL,
                                  &verify_result);
-  EXPECT_EQ(OK, error);
-  EXPECT_EQ(0U, verify_result.cert_status);
+  if (error == OK) {
+    EXPECT_EQ(0U, verify_result.cert_status);
+  } else {
+    EXPECT_EQ(ERR_CERT_DATE_INVALID, error);
+    EXPECT_EQ(CERT_STATUS_DATE_INVALID, verify_result.cert_status);
+  }
   root_certs->Clear();
 }
 
