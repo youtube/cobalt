@@ -49,7 +49,6 @@
 #include "media/base/data_buffer.h"
 #include "media/base/seekable_buffer.h"
 
-namespace {
 // Amount of time to wait if we've exhausted the data source.  This is to avoid
 // busy looping.
 static const uint32 kNoDataSleepMilliseconds = 10;
@@ -143,7 +142,6 @@ static void Swizzle51Layout(Format* b, uint32 filled) {
     b[5] = aac[5];  // LFE
   }
 }
-}  // end namespace
 
 std::ostream& operator<<(std::ostream& os,
                          AlsaPcmOutputStream::InternalState state) {
