@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -177,7 +177,7 @@ void PreconnectHelperForURL(int num_streams,
   request.load_flags = 0;
 
   session->http_stream_factory()->PreconnectStreams(
-      num_streams, request, ssl_config, ssl_config, BoundNetLog());
+      num_streams, request, ssl_config, ssl_config);
   mock_factory->WaitForPreconnects();
 };
 
