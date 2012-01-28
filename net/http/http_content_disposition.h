@@ -13,7 +13,7 @@
 
 namespace net {
 
-class NET_EXPORT_PRIVATE HttpContentDisposition {
+class NET_EXPORT HttpContentDisposition {
  public:
   enum Type {
     INLINE,
@@ -23,6 +23,8 @@ class NET_EXPORT_PRIVATE HttpContentDisposition {
   HttpContentDisposition(const std::string& header,
                          const std::string& referrer_charset);
   ~HttpContentDisposition();
+
+  bool is_attachment() const { return type() == ATTACHMENT; }
 
   Type type() const { return type_; }
   const std::string& filename() const { return filename_; }
