@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -177,8 +177,7 @@ class NET_EXPORT HttpStreamFactory {
   virtual void PreconnectStreams(int num_streams,
                                  const HttpRequestInfo& info,
                                  const SSLConfig& server_ssl_config,
-                                 const SSLConfig& proxy_ssl_config,
-                                 const BoundNetLog& net_log) = 0;
+                                 const SSLConfig& proxy_ssl_config) = 0;
 
   virtual void AddTLSIntolerantServer(const HostPortPair& server) = 0;
   virtual bool IsTLSIntolerantServer(const HostPortPair& server) const = 0;
