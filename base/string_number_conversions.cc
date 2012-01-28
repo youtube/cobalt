@@ -402,6 +402,14 @@ bool StringToInt(const StringPiece16& input, int* output) {
   return String16ToIntImpl(input, output);
 }
 
+bool StringToUint(const StringPiece& input, unsigned* output) {
+  return StringToIntImpl(input, output);
+}
+
+bool StringToUint(const StringPiece16& input, unsigned* output) {
+  return String16ToIntImpl(input, output);
+}
+
 bool StringToInt64(const StringPiece& input, int64* output) {
   return StringToIntImpl(input, output);
 }
@@ -410,11 +418,11 @@ bool StringToInt64(const StringPiece16& input, int64* output) {
   return String16ToIntImpl(input, output);
 }
 
-bool StringToSizeT(const StringPiece& input, size_t* output) {
+bool StringToUint64(const StringPiece& input, uint64* output) {
   return StringToIntImpl(input, output);
 }
 
-bool StringToSizeT(const StringPiece16& input, size_t* output) {
+bool StringToUint64(const StringPiece16& input, uint64* output) {
   return String16ToIntImpl(input, output);
 }
 
