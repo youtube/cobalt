@@ -46,7 +46,7 @@ struct Provider {
   bool is_static;
 };
 
-static Provider base_provider = {
+Provider base_provider = {
   base::PathProvider,
   NULL,
 #ifndef NDEBUG
@@ -57,7 +57,7 @@ static Provider base_provider = {
 };
 
 #if defined(OS_WIN)
-static Provider base_provider_win = {
+Provider base_provider_win = {
   base::PathProviderWin,
   &base_provider,
 #ifndef NDEBUG
@@ -69,7 +69,7 @@ static Provider base_provider_win = {
 #endif
 
 #if defined(OS_MACOSX)
-static Provider base_provider_mac = {
+Provider base_provider_mac = {
   base::PathProviderMac,
   &base_provider,
 #ifndef NDEBUG
@@ -81,7 +81,7 @@ static Provider base_provider_mac = {
 #endif
 
 #if defined(OS_ANDROID)
-static Provider base_provider_android = {
+Provider base_provider_android = {
   base::PathProviderAndroid,
   &base_provider,
 #ifndef NDEBUG
@@ -93,7 +93,7 @@ static Provider base_provider_android = {
 #endif
 
 #if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_ANDROID)
-static Provider base_provider_posix = {
+Provider base_provider_posix = {
   base::PathProviderPosix,
   &base_provider,
 #ifndef NDEBUG
