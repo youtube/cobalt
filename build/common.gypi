@@ -27,9 +27,6 @@
           # Whether we are using Views Toolkit
           'toolkit_views%': 0,
 
-          # Whether the compositor is enabled on views.
-          'views_compositor%': 0,
-
           # Whether or not we are using the Aura windowing framework.
           'use_aura%': 0,
 
@@ -48,7 +45,6 @@
         },
         # Copy conditionally-set variables out one scope.
         'chromeos%': '<(chromeos)',
-        'views_compositor%': '<(views_compositor)',
         'use_aura%': '<(use_aura)',
         'use_ash%': '<(use_ash)',
         'use_openssl%': '<(use_openssl)',
@@ -78,11 +74,6 @@
           }, {
             'toolkit_views%': 0,
           }],
-
-          # Use the views compositor when using the Aura window manager.
-          ['use_aura==1', {
-            'views_compositor%': 1,
-          }],
         ],
       },
 
@@ -90,7 +81,6 @@
       'chromeos%': '<(chromeos)',
       'host_arch%': '<(host_arch)',
       'toolkit_views%': '<(toolkit_views)',
-      'views_compositor%': '<(views_compositor)',
       'use_aura%': '<(use_aura)',
       'use_ash%': '<(use_ash)',
       'use_openssl%': '<(use_openssl)',
@@ -376,7 +366,7 @@
 
         # Use GPU accelerated cross process image transport by default
         # on linux builds with the Aura window manager
-        ['views_compositor==1 and OS=="linux"', {
+        ['use_aura==1 and OS=="linux"', {
           'ui_compositor_image_transport%': 1,
         }, {
           'ui_compositor_image_transport%': 0,
@@ -402,7 +392,6 @@
     'host_arch%': '<(host_arch)',
     'library%': 'static_library',
     'toolkit_views%': '<(toolkit_views)',
-    'views_compositor%': '<(views_compositor)',
     'ui_compositor_image_transport%': '<(ui_compositor_image_transport)',
     'use_webkit_compositor%': '<(use_webkit_compositor)',
     'use_aura%': '<(use_aura)',
@@ -1043,9 +1032,6 @@
       }],
       ['toolkit_views==1', {
         'defines': ['TOOLKIT_VIEWS=1'],
-      }],
-      ['views_compositor==1', {
-        'defines': ['VIEWS_COMPOSITOR=1'],
       }],
       ['ui_compositor_image_transport==1', {
         'defines': ['UI_COMPOSITOR_IMAGE_TRANSPORT'],
