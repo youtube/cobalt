@@ -243,10 +243,10 @@ bool SpdySession::enable_ping_based_connection_checking_ = true;
 int SpdySession::connection_at_risk_of_loss_seconds_ = 10;
 
 // static
-int SpdySession::trailing_ping_delay_time_ms_ = 1000;
+int SpdySession::trailing_ping_delay_time_ms_ = 1000;  // 1 second
 
 // static
-int SpdySession::hung_interval_ms_ = 10000;
+int SpdySession::hung_interval_ms_ = 10000;  // 10 seconds
 
 SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
                          SpdySessionPool* spdy_session_pool,
@@ -1604,7 +1604,7 @@ void SpdySession::PlanToSendTrailingPing() {
   MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
       base::Bind(&SpdySession::SendTrailingPing, weak_factory_.GetWeakPtr()),
-      trailing_ping_delay_time_ms_);
+      base::TimeDelta::FromMilliseconds(trailing_ping_delay_time_ms_));
 }
 
 void SpdySession::SendTrailingPing() {
@@ -1641,7 +1641,7 @@ void SpdySession::PlanToCheckPingStatus() {
       FROM_HERE,
       base::Bind(&SpdySession::CheckPingStatus, weak_factory_.GetWeakPtr(),
                  base::TimeTicks::Now()),
-      hung_interval_ms_);
+      base::TimeDelta::FromMilliseconds(hung_interval_ms_));
 }
 
 void SpdySession::CheckPingStatus(base::TimeTicks last_check_time) {
@@ -1653,11 +1653,10 @@ void SpdySession::CheckPingStatus(base::TimeTicks last_check_time) {
 
   DCHECK(check_ping_status_pending_);
 
-  const base::TimeDelta kHungInterval =
-      base::TimeDelta::FromMilliseconds(hung_interval_ms_);
-
   base::TimeTicks now = base::TimeTicks::Now();
-  base::TimeDelta delay = kHungInterval - (now - received_data_time_);
+  base::TimeDelta delay =
+      base::TimeDelta::FromMilliseconds(hung_interval_ms_) -
+      (now - received_data_time_);
 
   if (delay.InMilliseconds() < 0 || received_data_time_ < last_check_time) {
     CloseSessionOnError(net::ERR_SPDY_PING_FAILED, true);
@@ -1673,7 +1672,7 @@ void SpdySession::CheckPingStatus(base::TimeTicks last_check_time) {
       FROM_HERE,
       base::Bind(&SpdySession::CheckPingStatus, weak_factory_.GetWeakPtr(),
                  now),
-      delay.InMilliseconds());
+      delay);
 }
 
 void SpdySession::RecordPingRTTHistogram(base::TimeDelta duration) {

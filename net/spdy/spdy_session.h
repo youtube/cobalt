@@ -621,7 +621,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   static int trailing_ping_delay_time_ms_;
 
   // The amount of time (in milliseconds) that we are willing to tolerate with
-  // no data received (of any form), while there is a ping in flight, before we
+  // no data received (of any form), while there is a ping in flight, before w e
   // declare the connection to be hung.
   static int hung_interval_ms_;
 };

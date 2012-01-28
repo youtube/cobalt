@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -220,7 +220,7 @@ TEST(DhcpProxyScriptAdapterFetcher, CancelWhileFetcher) {
   client.RunTest();
   int max_loops = 4;
   while (!client.fetcher_->IsWaitingForFetcher() && max_loops--) {
-    base::PlatformThread::Sleep(10);
+    base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(10));
     MessageLoop::current()->RunAllPending();
   }
   client.fetcher_->Cancel();

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,6 +21,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using base::Time;
+
+static const int kDiskDelayMs = 20;
 
 // Tests that can run with different types of caches.
 class DiskCacheEntryTest : public DiskCacheTestWithCache {
@@ -605,7 +607,7 @@ void DiskCacheEntryTest::GetTimes() {
   EXPECT_TRUE(entry->GetLastModified() >= t1);
   EXPECT_TRUE(entry->GetLastModified() == entry->GetLastUsed());
 
-  base::PlatformThread::Sleep(20);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(kDiskDelayMs));
   Time t2 = Time::Now();
   EXPECT_TRUE(t2 > t1);
   EXPECT_EQ(0, WriteData(entry, 0, 200, NULL, 0, false));
@@ -616,7 +618,7 @@ void DiskCacheEntryTest::GetTimes() {
   }
   EXPECT_TRUE(entry->GetLastModified() == entry->GetLastUsed());
 
-  base::PlatformThread::Sleep(20);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(kDiskDelayMs));
   Time t3 = Time::Now();
   EXPECT_TRUE(t3 > t2);
   const int kSize = 200;
@@ -1258,7 +1260,7 @@ void DiskCacheEntryTest::DoomedEntry() {
   FlushQueueForTest();
   EXPECT_EQ(0, cache_->GetEntryCount());
   Time initial = Time::Now();
-  base::PlatformThread::Sleep(20);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(kDiskDelayMs));
 
   const int kSize1 = 2000;
   const int kSize2 = 2000;
@@ -1760,7 +1762,7 @@ void DiskCacheEntryTest::DoomSparseEntry() {
       // Most likely we are waiting for the result of reading the sparse info
       // (it's always async on Posix so it is easy to miss). Unfortunately we
       // don't have any signal to watch for so we can only wait.
-      base::PlatformThread::Sleep(500);
+      base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(500));
       MessageLoop::current()->RunAllPending();
     }
     EXPECT_EQ(0, cache_->GetEntryCount());

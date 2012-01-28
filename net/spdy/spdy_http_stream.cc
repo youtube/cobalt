@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -401,12 +401,12 @@ void SpdyHttpStream::ScheduleBufferedReadCallback() {
 
   more_read_data_pending_ = false;
   buffered_read_callback_pending_ = true;
-  const int kBufferTimeMs = 1;
+  const base::TimeDelta kBufferTime = base::TimeDelta::FromMilliseconds(1);
   MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
       base::Bind(base::IgnoreResult(&SpdyHttpStream::DoBufferedReadCallback),
                  weak_factory_.GetWeakPtr()),
-      kBufferTimeMs);
+      kBufferTime);
 }
 
 // Checks to see if we should wait for more buffered data before notifying

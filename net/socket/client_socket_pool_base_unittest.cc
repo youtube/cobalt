@@ -732,7 +732,7 @@ TEST_F(ClientSocketPoolBaseTest, ConnectJob_TimedOut) {
                          &client_socket_factory_,
                          &log);
   ASSERT_EQ(ERR_IO_PENDING, job->Connect());
-  base::PlatformThread::Sleep(1);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(1));
   EXPECT_EQ(ERR_TIMED_OUT, delegate.WaitForResult());
 
   net::CapturingNetLog::EntryList entries;
@@ -986,7 +986,7 @@ TEST_F(ClientSocketPoolBaseTest, TotalLimitCountsConnectingSockets) {
   // actually become pending until 2ms after they have been created. In order
   // to flush all tasks, we need to wait so that we know there are no
   // soon-to-be-pending tasks waiting.
-  base::PlatformThread::Sleep(10);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(10));
   MessageLoop::current()->RunAllPending();
 
   // The next synchronous request should wait for its turn.
@@ -1439,7 +1439,7 @@ class RequestSocketCallback : public TestCompletionCallbackBase {
           {
             MessageLoop::ScopedNestableTaskAllower nestable(
                 MessageLoop::current());
-            base::PlatformThread::Sleep(10);
+            base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(10));
             EXPECT_EQ(OK, next_job_callback.WaitForResult());
           }
           break;
@@ -2005,7 +2005,7 @@ TEST_F(ClientSocketPoolBaseTest, DisableCleanupTimer) {
 
   // The idle socket timeout value was set to 10 milliseconds. Wait 20
   // milliseconds so the sockets timeout.
-  base::PlatformThread::Sleep(20);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(20));
   MessageLoop::current()->RunAllPending();
 
   ASSERT_EQ(2, pool_->IdleSocketCount());
@@ -2082,7 +2082,7 @@ TEST_F(ClientSocketPoolBaseTest, CleanupTimedOutIdleSockets) {
   // actually become pending until 2ms after they have been created. In order
   // to flush all tasks, we need to wait so that we know there are no
   // soon-to-be-pending tasks waiting.
-  base::PlatformThread::Sleep(10);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(10));
   MessageLoop::current()->RunAllPending();
 
   ASSERT_EQ(2, pool_->IdleSocketCount());
@@ -2509,8 +2509,8 @@ TEST_F(ClientSocketPoolBaseTest, BackupSocketCancelAtMaxSockets) {
   handle.Reset();
 
   // Wait for the backup timer to fire (add some slop to ensure it fires)
-  base::PlatformThread::Sleep(
-      ClientSocketPool::kMaxConnectRetryIntervalMs / 2 * 3);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(
+      ClientSocketPool::kMaxConnectRetryIntervalMs / 2 * 3));
 
   MessageLoop::current()->RunAllPending();
   EXPECT_EQ(kDefaultMaxSockets, client_socket_factory_.allocation_count());
@@ -2538,8 +2538,8 @@ TEST_F(ClientSocketPoolBaseTest, CancelBackupSocketAfterCancelingAllRequests) {
   // the backup time to see if it indeed got canceled.
   handle.Reset();
   // Wait for the backup timer to fire (add some slop to ensure it fires)
-  base::PlatformThread::Sleep(
-      ClientSocketPool::kMaxConnectRetryIntervalMs / 2 * 3);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(
+      ClientSocketPool::kMaxConnectRetryIntervalMs / 2 * 3));
   MessageLoop::current()->RunAllPending();
   ASSERT_TRUE(pool_->HasGroup("bar"));
   EXPECT_EQ(1, pool_->NumConnectJobsInGroup("bar"));
@@ -2577,8 +2577,8 @@ TEST_F(ClientSocketPoolBaseTest, CancelBackupSocketAfterFinishingAllRequests) {
   handle.Reset();
   EXPECT_EQ(OK, callback2.WaitForResult());
   // Wait for the backup timer to fire (add some slop to ensure it fires)
-  base::PlatformThread::Sleep(
-      ClientSocketPool::kMaxConnectRetryIntervalMs / 2 * 3);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(
+      ClientSocketPool::kMaxConnectRetryIntervalMs / 2 * 3));
   MessageLoop::current()->RunAllPending();
 }
 
