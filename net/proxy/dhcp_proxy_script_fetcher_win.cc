@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -39,6 +39,7 @@ DhcpProxyScriptFetcherWin::DhcpProxyScriptFetcherWin(
     URLRequestContext* url_request_context)
     : state_(STATE_START),
       num_pending_fetchers_(0),
+      destination_string_(NULL),
       url_request_context_(url_request_context) {
   DCHECK(url_request_context_);
 }
