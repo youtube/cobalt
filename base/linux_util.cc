@@ -73,7 +73,7 @@ class LinuxDistroHelper {
 #endif  // if defined(OS_LINUX)
 
 // expected prefix of the target of the /proc/self/fd/%d link for a socket
-static const char kSocketLinkPrefix[] = "socket:[";
+const char kSocketLinkPrefix[] = "socket:[";
 
 // Parse a symlink in /proc/pid/fd/$x and return the inode number of the
 // socket.
