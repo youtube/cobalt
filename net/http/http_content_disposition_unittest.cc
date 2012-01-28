@@ -413,7 +413,7 @@ TEST(HttpContentDispositionTest, tc2231) {
     // http://greenbytes.de/tech/tc2231/#emptydisposition
     // Note: tc2231 says we should fail to parse this header.
     { "; filename=foo.html",
-      net::HttpContentDisposition::ATTACHMENT,  // Should be INLINE?
+      net::HttpContentDisposition::INLINE,
       L"foo.html"
     },
     // http://greenbytes.de/tech/tc2231/#attandinline
