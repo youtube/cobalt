@@ -319,8 +319,10 @@ int RuleBasedHostResolverProc::Resolve(const std::string& host,
         host_resolver_flags;
     if (matches_flags && matches_address_family &&
         MatchPattern(host, r->host_pattern)) {
-      if (r->latency_ms != 0)
-        base::PlatformThread::Sleep(r->latency_ms);
+      if (r->latency_ms != 0) {
+        base::PlatformThread::Sleep(
+            base::TimeDelta::FromMilliseconds(r->latency_ms));
+      }
 
       // Remap to a new host.
       const std::string& effective_host =

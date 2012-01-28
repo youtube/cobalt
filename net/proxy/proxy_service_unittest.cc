@@ -33,9 +33,9 @@ class ImmediatePollPolicy : public ProxyService::PacPollPolicy {
  public:
   ImmediatePollPolicy() {}
 
-  virtual Mode GetNextDelay(int error, int64 current_delay_ms,
-                            int64* next_delay_ms) const OVERRIDE {
-    *next_delay_ms = 1;
+  virtual Mode GetNextDelay(int error, base::TimeDelta current_delay,
+                            base::TimeDelta* next_delay) const OVERRIDE {
+    *next_delay = base::TimeDelta::FromMilliseconds(1);
     return MODE_USE_TIMER;
   }
 
@@ -49,9 +49,9 @@ class NeverPollPolicy : public ProxyService::PacPollPolicy {
  public:
   NeverPollPolicy() {}
 
-  virtual Mode GetNextDelay(int error, int64 current_delay_ms,
-                            int64* next_delay_ms) const OVERRIDE {
-    *next_delay_ms = 0xFFFFFFFF;  // Big number of milliseconds!
+  virtual Mode GetNextDelay(int error, base::TimeDelta current_delay,
+                            base::TimeDelta* next_delay) const OVERRIDE {
+    *next_delay = base::TimeDelta::FromDays(60);
     return MODE_USE_TIMER;
   }
 
@@ -64,9 +64,9 @@ class ImmediateAfterActivityPollPolicy : public ProxyService::PacPollPolicy {
  public:
   ImmediateAfterActivityPollPolicy() {}
 
-  virtual Mode GetNextDelay(int error, int64 current_delay_ms,
-                            int64* next_delay_ms) const OVERRIDE {
-    *next_delay_ms = 0;
+  virtual Mode GetNextDelay(int error, base::TimeDelta current_delay,
+                            base::TimeDelta* next_delay) const OVERRIDE {
+    *next_delay = base::TimeDelta();
     return MODE_START_AFTER_ACTIVITY;
   }
 
@@ -2428,7 +2428,8 @@ TEST_F(ProxyServiceTest, PACScriptPollingPolicy) {
 
   int error;
   ProxyService::PacPollPolicy::Mode mode;
-  int64 delay_ms = -1;
+  const base::TimeDelta initial_delay = base::TimeDelta::FromMilliseconds(-1);
+  base::TimeDelta delay = initial_delay;
 
   // --------------------------------------------------
   // Test the poll sequence in response to a failure.
@@ -2436,28 +2437,28 @@ TEST_F(ProxyServiceTest, PACScriptPollingPolicy) {
   error = ERR_NAME_NOT_RESOLVED;
 
   // Poll #0
-  mode = policy->GetNextDelay(error, -1, &delay_ms);
-  EXPECT_EQ(8000, delay_ms);
+  mode = policy->GetNextDelay(error, initial_delay, &delay);
+  EXPECT_EQ(8, delay.InSeconds());
   EXPECT_EQ(ProxyService::PacPollPolicy::MODE_USE_TIMER, mode);
 
   // Poll #1
-  mode = policy->GetNextDelay(error, delay_ms, &delay_ms);
-  EXPECT_EQ(32000, delay_ms);
+  mode = policy->GetNextDelay(error, delay, &delay);
+  EXPECT_EQ(32, delay.InSeconds());
   EXPECT_EQ(ProxyService::PacPollPolicy::MODE_START_AFTER_ACTIVITY, mode);
 
   // Poll #2
-  mode = policy->GetNextDelay(error, delay_ms, &delay_ms);
-  EXPECT_EQ(120000, delay_ms);
+  mode = policy->GetNextDelay(error, delay, &delay);
+  EXPECT_EQ(120, delay.InSeconds());
   EXPECT_EQ(ProxyService::PacPollPolicy::MODE_START_AFTER_ACTIVITY, mode);
 
   // Poll #3
-  mode = policy->GetNextDelay(error, delay_ms, &delay_ms);
-  EXPECT_EQ(14400000, delay_ms);
+  mode = policy->GetNextDelay(error, delay, &delay);
+  EXPECT_EQ(14400, delay.InSeconds());
   EXPECT_EQ(ProxyService::PacPollPolicy::MODE_START_AFTER_ACTIVITY, mode);
 
   // Poll #4
-  mode = policy->GetNextDelay(error, delay_ms, &delay_ms);
-  EXPECT_EQ(14400000, delay_ms);
+  mode = policy->GetNextDelay(error, delay, &delay);
+  EXPECT_EQ(14400, delay.InSeconds());
   EXPECT_EQ(ProxyService::PacPollPolicy::MODE_START_AFTER_ACTIVITY, mode);
 
   // --------------------------------------------------
@@ -2466,18 +2467,18 @@ TEST_F(ProxyServiceTest, PACScriptPollingPolicy) {
   error = OK;
 
   // Poll #0
-  mode = policy->GetNextDelay(error, -1, &delay_ms);
-  EXPECT_EQ(43200000, delay_ms);
+  mode = policy->GetNextDelay(error, initial_delay, &delay);
+  EXPECT_EQ(43200, delay.InSeconds());
   EXPECT_EQ(ProxyService::PacPollPolicy::MODE_START_AFTER_ACTIVITY, mode);
 
   // Poll #1
-  mode = policy->GetNextDelay(error, delay_ms, &delay_ms);
-  EXPECT_EQ(43200000, delay_ms);
+  mode = policy->GetNextDelay(error, delay, &delay);
+  EXPECT_EQ(43200, delay.InSeconds());
   EXPECT_EQ(ProxyService::PacPollPolicy::MODE_START_AFTER_ACTIVITY, mode);
 
   // Poll #2
-  mode = policy->GetNextDelay(error, delay_ms, &delay_ms);
-  EXPECT_EQ(43200000, delay_ms);
+  mode = policy->GetNextDelay(error, delay, &delay);
+  EXPECT_EQ(43200, delay.InSeconds());
   EXPECT_EQ(ProxyService::PacPollPolicy::MODE_START_AFTER_ACTIVITY, mode);
 }
 

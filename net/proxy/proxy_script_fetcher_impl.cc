@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -162,7 +162,7 @@ int ProxyScriptFetcherImpl::Fetch(
       FROM_HERE,
       base::Bind(&ProxyScriptFetcherImpl::OnTimeout, weak_factory_.GetWeakPtr(),
                  cur_request_id_),
-      static_cast<int>(max_duration_.InMilliseconds()));
+      max_duration_);
 
   // Start the request.
   cur_request_->Start();

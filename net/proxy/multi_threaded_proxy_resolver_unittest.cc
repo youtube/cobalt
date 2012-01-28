@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -32,8 +32,7 @@ class MockProxyResolver : public ProxyResolver {
       : ProxyResolver(true /*expects_pac_bytes*/),
         wrong_loop_(MessageLoop::current()),
         request_count_(0),
-        purge_count_(0),
-        resolve_latency_ms_(0) {}
+        purge_count_(0) {}
 
   // ProxyResolver implementation.
   virtual int GetProxyForURL(const GURL& query_url,
@@ -41,8 +40,8 @@ class MockProxyResolver : public ProxyResolver {
                              const CompletionCallback& callback,
                              RequestHandle* request,
                              const BoundNetLog& net_log) OVERRIDE {
-    if (resolve_latency_ms_)
-      base::PlatformThread::Sleep(resolve_latency_ms_);
+    if (resolve_latency_ != base::TimeDelta())
+      base::PlatformThread::Sleep(resolve_latency_);
 
     CheckIsOnWorkerThread();
 
@@ -97,8 +96,8 @@ class MockProxyResolver : public ProxyResolver {
     return last_script_data_;
   }
 
-  void SetResolveLatency(int latency_ms) {
-    resolve_latency_ms_ = latency_ms;
+  void SetResolveLatency(base::TimeDelta latency) {
+    resolve_latency_ = latency;
   }
 
  private:
@@ -114,7 +113,7 @@ class MockProxyResolver : public ProxyResolver {
   int request_count_;
   int purge_count_;
   scoped_refptr<ProxyResolverScriptData> last_script_data_;
-  int resolve_latency_ms_;
+  base::TimeDelta resolve_latency_;
 };
 
 
@@ -566,7 +565,7 @@ TEST(MultiThreadedProxyResolverTest, SingleThread_CancelRequestByDeleting) {
   // of the worker thread. The test will pass regardless, so this race doesn't
   // cause flakiness. However the destruction during execution is a more
   // interesting case to test.
-  mock->SetResolveLatency(100);
+  mock->SetResolveLatency(base::TimeDelta::FromMilliseconds(100));
 
   // Unblock the worker thread and delete the underlying
   // MultiThreadedProxyResolver immediately.

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -174,11 +174,11 @@ class MockPendingClientSocket : public StreamSocket {
       const AddressList& addrlist,
       bool should_connect,
       bool should_stall,
-      int delay_ms)
+      base::TimeDelta delay)
       : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
         should_connect_(should_connect),
         should_stall_(should_stall),
-        delay_ms_(delay_ms),
+        delay_(delay),
         is_connected_(false),
         addrlist_(addrlist) {}
 
@@ -188,7 +188,7 @@ class MockPendingClientSocket : public StreamSocket {
         FROM_HERE,
         base::Bind(&MockPendingClientSocket::DoCallback,
                    weak_factory_.GetWeakPtr(), callback),
-        delay_ms_);
+        delay_);
     return ERR_IO_PENDING;
   }
 
@@ -255,7 +255,7 @@ class MockPendingClientSocket : public StreamSocket {
   base::WeakPtrFactory<MockPendingClientSocket> weak_factory_;
   bool should_connect_;
   bool should_stall_;
-  int delay_ms_;
+  base::TimeDelta delay_;
   bool is_connected_;
   const AddressList addrlist_;
   BoundNetLog net_log_;
@@ -278,7 +278,8 @@ class MockClientSocketFactory : public ClientSocketFactory {
       : allocation_count_(0), client_socket_type_(MOCK_CLIENT_SOCKET),
         client_socket_types_(NULL), client_socket_index_(0),
         client_socket_index_max_(0),
-        delay_ms_(ClientSocketPool::kMaxConnectRetryIntervalMs) {}
+        delay_(base::TimeDelta::FromMilliseconds(
+            ClientSocketPool::kMaxConnectRetryIntervalMs)) {}
 
   virtual DatagramClientSocket* CreateDatagramClientSocket(
       DatagramSocket::BindType bind_type,
@@ -307,13 +308,16 @@ class MockClientSocketFactory : public ClientSocketFactory {
       case MOCK_FAILING_CLIENT_SOCKET:
         return new MockFailingClientSocket(addresses);
       case MOCK_PENDING_CLIENT_SOCKET:
-        return new MockPendingClientSocket(addresses, true, false, 0);
+        return new MockPendingClientSocket(
+            addresses, true, false, base::TimeDelta());
       case MOCK_PENDING_FAILING_CLIENT_SOCKET:
-        return new MockPendingClientSocket(addresses, false, false, 0);
+        return new MockPendingClientSocket(
+            addresses, false, false, base::TimeDelta());
       case MOCK_DELAYED_CLIENT_SOCKET:
-        return new MockPendingClientSocket(addresses, true, false, delay_ms_);
+        return new MockPendingClientSocket(addresses, true, false, delay_);
       case MOCK_STALLED_CLIENT_SOCKET:
-        return new MockPendingClientSocket(addresses, true, true, 0);
+        return new MockPendingClientSocket(
+            addresses, true, true, base::TimeDelta());
       default:
         NOTREACHED();
         return new MockClientSocket(addresses);
@@ -350,7 +354,7 @@ class MockClientSocketFactory : public ClientSocketFactory {
     client_socket_index_max_ = num_types;
   }
 
-  void set_delay_ms(int delay_ms) { delay_ms_ = delay_ms; }
+  void set_delay(base::TimeDelta delay) { delay_ = delay; }
 
  private:
   int allocation_count_;
@@ -358,14 +362,14 @@ class MockClientSocketFactory : public ClientSocketFactory {
   ClientSocketType* client_socket_types_;
   int client_socket_index_;
   int client_socket_index_max_;
-  int delay_ms_;
+  base::TimeDelta delay_;
 };
 
 class TransportClientSocketPoolTest : public testing::Test {
  protected:
   TransportClientSocketPoolTest()
       : connect_backup_jobs_enabled_(
-          ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(true)),
+            ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(true)),
         params_(
             new TransportSocketParams(HostPortPair("www.google.com", 80),
                                      kDefaultPriority, false, false)),
@@ -948,8 +952,8 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketConnect) {
     MessageLoop::current()->RunAllPending();
 
     // Wait for the backup socket timer to fire.
-    base::PlatformThread::Sleep(
-        ClientSocketPool::kMaxConnectRetryIntervalMs + 50);
+    base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(
+        ClientSocketPool::kMaxConnectRetryIntervalMs + 50));
 
     // Let the appropriate socket connect.
     MessageLoop::current()->RunAllPending();
@@ -1066,7 +1070,7 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterDelay) {
   };
 
   client_socket_factory_.set_client_socket_types(case_types, 2);
-  client_socket_factory_.set_delay_ms(5000);
+  client_socket_factory_.set_delay(base::TimeDelta::FromSeconds(5));
 
   EXPECT_EQ(0, pool_.IdleSocketCount());
 
@@ -1163,8 +1167,8 @@ TEST_F(TransportClientSocketPoolTest, IPv6FallbackSocketIPv6FinishesFirst) {
   };
 
   client_socket_factory_.set_client_socket_types(case_types, 2);
-  client_socket_factory_.set_delay_ms(
-      TransportConnectJob::kIPv6FallbackTimerInMs + 50);
+  client_socket_factory_.set_delay(base::TimeDelta::FromMilliseconds(
+      TransportConnectJob::kIPv6FallbackTimerInMs + 50));
 
   // Resolve an AddressList with a IPv6 address first and then a IPv4 address.
   host_resolver_->rules()->AddIPLiteralRule(
