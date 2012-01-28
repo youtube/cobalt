@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -119,7 +119,7 @@
 
 #else
 
-#define DFAKE_MUTEX(obj)
+#define DFAKE_MUTEX(obj) typedef void InternalFakeMutexType##obj
 #define DFAKE_SCOPED_LOCK(obj) ((void)0)
 #define DFAKE_SCOPED_RECURSIVE_LOCK(obj) ((void)0)
 #define DFAKE_SCOPED_LOCK_THREAD_LOCKED(obj) ((void)0)
