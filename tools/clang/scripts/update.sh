@@ -117,6 +117,12 @@ if [[ "${OS}" = "Darwin" ]]; then
       find "${MAKE_DIR}/${CONFIG}/obj.target" -name '*.gch' -exec rm {} +
     fi
 
+    # ninja puts its output below ${MAKE_DIR} as well.
+    if [[ -d "${MAKE_DIR}/${CONFIG}/obj" ]]; then
+      echo "Clobbering ${CONFIG} PCH files for ninja build"
+      find "${MAKE_DIR}/${CONFIG}/obj" -name '*.gch' -exec rm {} +
+    fi
+
     if [[ -d "${XCODEBUILD_DIR}/${CONFIG}/SharedPrecompiledHeaders" ]]; then
       echo "Clobbering ${CONFIG} PCH files for Xcode build"
       rm -rf "${XCODEBUILD_DIR}/${CONFIG}/SharedPrecompiledHeaders"
