@@ -254,9 +254,6 @@
       # Enable plug-in installation by default.
       'enable_plugin_installation%': 1,
 
-      # Use the WebKit compositor for ui.
-      'use_webkit_compositor%': 1,
-
       # Specifies whether to use canvas_skia_skia.cc in place of platform
       # specific implementations of CanvasSkia. Affects text drawing in the
       # Chrome UI.
@@ -393,7 +390,6 @@
     'library%': 'static_library',
     'toolkit_views%': '<(toolkit_views)',
     'ui_compositor_image_transport%': '<(ui_compositor_image_transport)',
-    'use_webkit_compositor%': '<(use_webkit_compositor)',
     'use_aura%': '<(use_aura)',
     'use_ash%': '<(use_ash)',
     'use_openssl%': '<(use_openssl)',
@@ -1035,9 +1031,6 @@
       }],
       ['ui_compositor_image_transport==1', {
         'defines': ['UI_COMPOSITOR_IMAGE_TRANSPORT'],
-      }],
-      ['use_webkit_compositor==1', {
-        'defines': ['USE_WEBKIT_COMPOSITOR=1'],
       }],
       ['use_aura==1', {
         'defines': ['USE_AURA=1'],
