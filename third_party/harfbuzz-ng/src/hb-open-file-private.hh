@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007,2008,2009  Red Hat, Inc.
+ * Copyright © 2007,2008,2009  Red Hat, Inc.
  *
  *  This is part of HarfBuzz, a text shaping library.
  *
@@ -29,7 +29,6 @@
 
 #include "hb-open-type-private.hh"
 
-HB_BEGIN_DECLS
 
 
 /*
@@ -152,7 +151,7 @@ struct TTCHeader
 
   inline unsigned int get_face_count (void) const
   {
-    switch (u.header.version) {
+    switch (u.header.version.major) {
     case 2: /* version 2 is compatible with version 1 */
     case 1: return u.version1.get_face_count ();
     default:return 0;
@@ -160,7 +159,7 @@ struct TTCHeader
   }
   inline const OpenTypeFontFace& get_face (unsigned int i) const
   {
-    switch (u.header.version) {
+    switch (u.header.version.major) {
     case 2: /* version 2 is compatible with version 1 */
     case 1: return u.version1.get_face (i);
     default:return Null(OpenTypeFontFace);
@@ -170,7 +169,7 @@ struct TTCHeader
   inline bool sanitize (hb_sanitize_context_t *c) {
     TRACE_SANITIZE ();
     if (unlikely (!u.header.version.sanitize (c))) return false;
-    switch (u.header.version) {
+    switch (u.header.version.major) {
     case 2: /* version 2 is compatible with version 1 */
     case 1: return u.version1.sanitize (c);
     default:return true;
@@ -253,6 +252,5 @@ struct OpenTypeFontFile
 };
 
 
-HB_END_DECLS
 
 #endif /* HB_OPEN_FILE_PRIVATE_HH */
