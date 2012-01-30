@@ -811,7 +811,8 @@ TEST(X509CertificateTest, DigiNotarCerts) {
   }
 }
 
-TEST(X509CertificateTest, TestKnownRoot) {
+// Bug 111893: This test needs a new certificate.
+TEST(X509CertificateTest, DISABLED_TestKnownRoot) {
   FilePath certs_dir = GetTestCertsDirectory();
   scoped_refptr<X509Certificate> cert =
       ImportCertFromFile(certs_dir, "nist.der");
@@ -884,7 +885,8 @@ TEST(X509CertificateTest, ExtractCRLURLsFromDERCert) {
   }
 }
 
-TEST(X509CertificateTest, PublicKeyHashes) {
+// Bug 111893: This test needs a new certificate.
+TEST(X509CertificateTest, DISABLED_PublicKeyHashes) {
   FilePath certs_dir = GetTestCertsDirectory();
   // This is going to blow up in Feb 2012. Sorry! Disable and file a bug
   // against agl. Also see TestKnownRoot in this file.
