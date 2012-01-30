@@ -26,8 +26,5 @@
         ],
       },
     }],
-    ['OS=="win"', {
-      'dependencies': ['<(DEPTH)/build/win/system.gyp:cygwin'],
-    }],
   ],
 }
