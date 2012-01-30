@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -86,13 +86,13 @@ void** ThreadLocalStorage::Initialize() {
   return tls_data;
 }
 
-ThreadLocalStorage::Slot::Slot(TLSDestructorFunc destructor)
-    : initialized_(false),
-      slot_(0) {
+ThreadLocalStorage::Slot::Slot(TLSDestructorFunc destructor) {
+  initialized_ = false;
+  slot_ = 0;
   Initialize(destructor);
 }
 
-bool ThreadLocalStorage::Slot::Initialize(TLSDestructorFunc destructor) {
+bool ThreadLocalStorage::StaticSlot::Initialize(TLSDestructorFunc destructor) {
   if (tls_key_ == TLS_OUT_OF_INDEXES || !TlsGetValue(tls_key_))
     ThreadLocalStorage::Initialize();
 
@@ -110,7 +110,7 @@ bool ThreadLocalStorage::Slot::Initialize(TLSDestructorFunc destructor) {
   return true;
 }
 
-void ThreadLocalStorage::Slot::Free() {
+void ThreadLocalStorage::StaticSlot::Free() {
   // At this time, we don't reclaim old indices for TLS slots.
   // So all we need to do is wipe the destructor.
   DCHECK_GT(slot_, 0);
@@ -120,7 +120,7 @@ void ThreadLocalStorage::Slot::Free() {
   initialized_ = false;
 }
 
-void* ThreadLocalStorage::Slot::Get() const {
+void* ThreadLocalStorage::StaticSlot::Get() const {
   void** tls_data = static_cast<void**>(TlsGetValue(tls_key_));
   if (!tls_data)
     tls_data = ThreadLocalStorage::Initialize();
@@ -129,7 +129,7 @@ void* ThreadLocalStorage::Slot::Get() const {
   return tls_data[slot_];
 }
 
-void ThreadLocalStorage::Slot::Set(void* value) {
+void ThreadLocalStorage::StaticSlot::Set(void* value) {
   void** tls_data = static_cast<void**>(TlsGetValue(tls_key_));
   if (!tls_data)
     tls_data = ThreadLocalStorage::Initialize();

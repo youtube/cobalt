@@ -544,7 +544,7 @@ class BASE_EXPORT ThreadData {
   static void ShutdownSingleThreadedCleanup(bool leak);
 
   // We use thread local store to identify which ThreadData to interact with.
-  static base::ThreadLocalStorage::Slot tls_index_;
+  static base::ThreadLocalStorage::StaticSlot tls_index_;
 
   // List of ThreadData instances for use with worker threads. When a worker
   // thread is done (terminated), we push it onto this llist.  When a new worker
