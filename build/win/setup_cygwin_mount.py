@@ -8,9 +8,9 @@ import sys
 def main():
   if len(sys.argv) != 2 or sys.argv[1] != '--win-only':
     return 1
-  if 'win' in sys.platform:
+  if sys.platform in ('win32', 'cygwin'):
     self_dir = os.path.dirname(sys.argv[0])
-    mount_path = os.path.join(self_dir, "..\\..\\third_party\\cygwin")
+    mount_path = os.path.join(self_dir, "../../third_party/cygwin")
     batch_path = os.path.join(mount_path, "setup_mount.bat")
     return os.system(os.path.normpath(batch_path) + ">nul")
   return 0
