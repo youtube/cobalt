@@ -167,9 +167,6 @@
       # Remoting compilation is enabled by default. Set to 0 to disable.
       'remoting%': 1,
 
-      # Threaded compositing
-      'use_threaded_compositing%': 0,
-
       # P2P APIs are compiled in by default. Set to 0 to disable.
       # Also note that this should be enabled for remoting to compile.
       'p2p_apis%': 1,
@@ -423,7 +420,6 @@
     'use_titlecase_in_grd_files%': '<(use_titlecase_in_grd_files)',
     'use_third_party_translations%': '<(use_third_party_translations)',
     'remoting%': '<(remoting)',
-    'use_threaded_compositing%': '<(use_threaded_compositing)',
     'enable_webrtc%': '<(enable_webrtc)',
     'chromium_win_pch%': '<(chromium_win_pch)',
     'p2p_apis%': '<(p2p_apis)',
