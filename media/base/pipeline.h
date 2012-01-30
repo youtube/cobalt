@@ -56,6 +56,10 @@ enum NetworkEvent {
   CAN_PLAY_THROUGH
 };
 
+// Callback that executes when a network event occurs.
+// The parameter specifies the type of event that is being signalled.
+typedef base::Callback<void(NetworkEvent)> NetworkEventCB;
+
 // Adapter for using asynchronous Pipeline methods in code that wants to run
 // synchronously.  To use, construct an instance of this class and pass the
 // |Callback()| to the Pipeline method requiring a callback.  Then Wait() for
@@ -125,19 +129,8 @@ class MEDIA_EXPORT Pipeline
       public FilterHost,
       public DemuxerHost {
  public:
+  // Constructs a media pipeline that will execute on |message_loop|.
   Pipeline(MessageLoop* message_loop, MediaLog* media_log);
-
-  // Callback that executes when a network event occurrs.
-  // The parameter specifies the type of event that is being signaled.
-  typedef base::Callback<void(NetworkEvent)> NetworkEventCB;
-
-  // Initializes pipeline.
-  // |ended_callback| will be executed when the media reaches the end.
-  // |error_callback_| will be executed upon an error in the pipeline.
-  // |network_callback_| will be executed when there's a network event.
-  void Init(const PipelineStatusCB& ended_callback,
-            const PipelineStatusCB& error_callback,
-            const NetworkEventCB& network_callback);
 
   // Build a pipeline to render the given URL using the given filter collection
   // to construct a filter chain.
@@ -146,11 +139,22 @@ class MEDIA_EXPORT Pipeline
   // either poll the IsInitialized() method (discouraged) or optionally pass in
   // |start_callback|, which will be executed when initialization completes.
   //
+  // The following permanent callbacks will be executed as follows:
+  //   |ended_callback| will be executed whenever the media reaches the end.
+  //   |error_callback_| will be executed whenever an error occurs.
+  //   |network_callback_| will be executed whenever there's a network activity.
+  //
+  // These callbacks are only executed after Start() has been called and until
+  // Stop() has completed.
+  //
   // It is an error to call this method after the pipeline has already started.
   //
   // TODO(scherkus): remove IsInitialized() and force clients to use callbacks.
   void Start(scoped_ptr<FilterCollection> filter_collection,
              const std::string& url,
+             const PipelineStatusCB& ended_callback,
+             const PipelineStatusCB& error_callback,
+             const NetworkEventCB& network_callback,
              const PipelineStatusCB& start_callback);
 
   // Asynchronously stops the pipeline and resets it to an uninitialized state.
@@ -359,6 +363,9 @@ class MEDIA_EXPORT Pipeline
   // message loop.
   void StartTask(scoped_ptr<FilterCollection> filter_collection,
                  const std::string& url,
+                 const PipelineStatusCB& ended_callback,
+                 const PipelineStatusCB& error_callback,
+                 const NetworkEventCB& network_callback,
                  const PipelineStatusCB& start_callback);
 
   // InitializeTask() performs initialization in multiple passes. It is executed
