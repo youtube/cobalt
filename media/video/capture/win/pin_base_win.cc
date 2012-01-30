@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -147,7 +147,7 @@ STDMETHODIMP PinBase::ReceiveConnection(IPin* connector,
   if (!IsMediaTypeValid(media_type))
     return VFW_E_TYPE_NOT_ACCEPTED;
 
-  current_media_type_ = current_media_type_;
+  current_media_type_ = *media_type;
   connector->AddRef();
   connected_pin_.Attach(connector);
   return S_OK;
