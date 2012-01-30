@@ -27,5 +27,5 @@
              '-i', '<(grit_grd_file)', 'build',
              '-o', '<(grit_out_dir)',
              '<@(grit_defines)' ],
-  'message': 'Generating resources from <(grit_grd_file)',
+  'message': 'Generating resources from <(grit_grd_file) to <@(_outputs)',
 }
