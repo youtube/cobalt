@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,7 +26,7 @@ const int kFinalTlsValue = 0x7777;
 // How many times must a destructor be called before we really are done.
 const int kNumberDestructorCallRepetitions = 3;
 
-static ThreadLocalStorage::Slot tls_slot(LINKER_INITIALIZED);
+static ThreadLocalStorage::StaticSlot tls_slot = TLS_INITIALIZER;
 
 class ThreadLocalStorageRunner : public DelegateSimpleThread::Delegate {
  public:
