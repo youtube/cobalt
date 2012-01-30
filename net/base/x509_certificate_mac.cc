@@ -1495,7 +1495,7 @@ bool X509Certificate::GetSSLClientCertificates(
   }
 
   if (err != errSecItemNotFound) {
-    OSSTATUS_LOG(ERROR, err) << "SecIdentitySearch error ";
+    OSSTATUS_LOG(ERROR, err) << "SecIdentitySearch error";
     return false;
   }
   return true;
