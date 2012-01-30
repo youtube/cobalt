@@ -180,7 +180,7 @@ void Births::Clear() { birth_count_ = 0; }
 // do a fake initialization here (zeroing out data), and then the real in-place
 // construction happens when we call tls_index_.Initialize().
 // static
-base::ThreadLocalStorage::Slot ThreadData::tls_index_(base::LINKER_INITIALIZED);
+base::ThreadLocalStorage::StaticSlot ThreadData::tls_index_ = TLS_INITIALIZER;
 
 // static
 int ThreadData::worker_thread_data_creation_count_ = 0;
