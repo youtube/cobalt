@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,15 +25,18 @@ class BASE_EXPORT ThreadLocalStorage {
   // stored in thread local storage.
   typedef void (*TLSDestructorFunc)(void* value);
 
+  // StaticSlot uses its own struct initializer-list style static
+  // initialization, as base's LINKER_INITIALIZED requires a constructor and on
+  // some compilers (notably gcc 4.4) this still ends up needing runtime
+  // initialization.
+  #define TLS_INITIALIZER {0}
+
   // A key representing one value stored in TLS.
-  class BASE_EXPORT Slot {
-   public:
-    explicit Slot(TLSDestructorFunc destructor = NULL);
-
-    // This constructor should be used for statics.
-    // It returns an uninitialized Slot.
-    explicit Slot(base::LinkerInitialized x) {}
-
+  // Initialize like
+  //   ThreadLocalStorage::StaticSlot my_slot = TLS_INITIALIZER;
+  // If you're not using a static variable, use the convenience class
+  // ThreadLocalStorage::Slot (below) instead.
+  struct BASE_EXPORT StaticSlot {
     // Set up the TLS slot.  Called by the constructor.
     // 'destructor' is a pointer to a function to perform per-thread cleanup of
     // this object.  If set to NULL, no cleanup is done for this TLS slot.
@@ -56,7 +59,6 @@ class BASE_EXPORT ThreadLocalStorage {
 
     bool initialized() const { return initialized_; }
 
-   private:
     // The internals of this struct should be considered private.
     bool initialized_;
 #if defined(OS_WIN)
@@ -65,6 +67,22 @@ class BASE_EXPORT ThreadLocalStorage {
     pthread_key_t key_;
 #endif
 
+  };
+
+  // A convenience wrapper around StaticSlot with a constructor. Can be used
+  // as a member variable.
+  class BASE_EXPORT Slot : public StaticSlot {
+   public:
+    // Calls StaticSlot::Initialize().
+    explicit Slot(TLSDestructorFunc destructor = NULL);
+
+   private:
+    using StaticSlot::initialized_;
+#if defined(OS_WIN)
+    using StaticSlot::slot_;
+#elif defined(OS_POSIX)
+    using StaticSlot::key_;
+#endif
     DISALLOW_COPY_AND_ASSIGN(Slot);
   };
 
