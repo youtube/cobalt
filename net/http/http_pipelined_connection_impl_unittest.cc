@@ -1115,6 +1115,46 @@ TEST_F(HttpPipelinedConnectionImplTest, CloseBeforeReadCallbackRuns) {
   MessageLoop::current()->RunAllPending();
 }
 
+TEST_F(HttpPipelinedConnectionImplTest, NoGapBetweenCloseAndEviction) {
+  MockWrite writes[] = {
+    MockWrite(false, 0, "GET /close.html HTTP/1.1\r\n\r\n"),
+    MockWrite(false, 2, "GET /dummy.html HTTP/1.1\r\n\r\n"),
+  };
+  MockRead reads[] = {
+    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(true, 3, "Content-Length: 7\r\n\r\n"),
+  };
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  scoped_ptr<HttpStream> close_stream(NewTestStream("close.html"));
+  scoped_ptr<HttpStream> dummy_stream(NewTestStream("dummy.html"));
+
+  HttpRequestHeaders headers;
+  HttpResponseInfo response;
+  EXPECT_EQ(OK, close_stream->SendRequest(headers, NULL, &response,
+                                          callback_.callback()));
+
+  TestCompletionCallback close_callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            close_stream->ReadResponseHeaders(close_callback.callback()));
+
+  EXPECT_EQ(OK, dummy_stream->SendRequest(headers, NULL, &response,
+                                          callback_.callback()));
+
+  TestCompletionCallback dummy_callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            dummy_stream->ReadResponseHeaders(dummy_callback.callback()));
+
+  close_stream->Close(true);
+  close_stream.reset();
+
+  EXPECT_TRUE(dummy_callback.have_result());
+  EXPECT_EQ(ERR_PIPELINE_EVICTION, dummy_callback.WaitForResult());
+  dummy_stream->Close(true);
+  dummy_stream.reset();
+  pipeline_.reset();
+}
+
 TEST_F(HttpPipelinedConnectionImplTest, RecoverFromDrainOnRedirect) {
   MockWrite writes[] = {
     MockWrite(false, 0, "GET /redirect.html HTTP/1.1\r\n\r\n"),
