@@ -528,10 +528,8 @@ int HttpPipelinedConnectionImpl::DoEvictPendingReadHeaders(int result) {
     }
     if (stream_info_map_[evicted_id].state == STREAM_READ_PENDING) {
       stream_info_map_[evicted_id].state = STREAM_READ_EVICTED;
-      QueueUserCallback(evicted_id,
-                        stream_info_map_[evicted_id].read_headers_callback,
-                        ERR_PIPELINE_EVICTION,
-                        FROM_HERE);
+      stream_info_map_[evicted_id].read_headers_callback.Run(
+          ERR_PIPELINE_EVICTION);
     }
   }
   read_next_state_ = READ_STATE_NONE;
