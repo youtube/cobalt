@@ -203,7 +203,7 @@ bool CertPrincipal::ParseDistinguishedName(const void* ber_name_data,
   OSStatus err = SecAsn1Decode(coder, ber_name_data, length, kNameTemplate,
                                &name);
   if (err) {
-    OSSTATUS_LOG(ERROR, err) << "SecAsn1Decode name=" << name;
+    OSSTATUS_LOG(ERROR, err) << "SecAsn1Decode";
     SecAsn1CoderRelease(coder);
     return false;
   }
