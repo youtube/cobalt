@@ -963,7 +963,7 @@ inline std::ostream& operator<<(std::ostream& out, const std::wstring& wstr) {
 #endif
 
 #if NOTIMPLEMENTED_POLICY == 0
-#define NOTIMPLEMENTED() ;
+#define NOTIMPLEMENTED() EAT_STREAM_PARAMETERS
 #elif NOTIMPLEMENTED_POLICY == 1
 // TODO, figure out how to generate a warning
 #define NOTIMPLEMENTED() COMPILE_ASSERT(false, NOT_IMPLEMENTED)
