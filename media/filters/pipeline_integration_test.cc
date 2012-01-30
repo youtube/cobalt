@@ -37,11 +37,6 @@ class PipelineIntegrationTest : public testing::Test {
       : message_loop_factory_(new MessageLoopFactoryImpl()),
         pipeline_(new Pipeline(&message_loop_, new MediaLog())),
         ended_(false) {
-    pipeline_->Init(
-        base::Bind(&PipelineIntegrationTest::OnEnded, base::Unretained(this)),
-        base::Bind(&PipelineIntegrationTest::OnError, base::Unretained(this)),
-        Pipeline::NetworkEventCB());
-
     EXPECT_CALL(*this, OnVideoRendererPaint()).Times(AnyNumber());
     EXPECT_CALL(*this, OnSetOpaque(true));
   }
@@ -82,8 +77,13 @@ class PipelineIntegrationTest : public testing::Test {
   MOCK_METHOD1(OnError, void(PipelineStatus));
 
   void Start(const std::string& url, PipelineStatus expected_status) {
-    pipeline_->Start(CreateFilterCollection(url), url,
-                     QuitOnStatusCB(expected_status));
+    pipeline_->Start(
+        CreateFilterCollection(url),
+        url,
+        base::Bind(&PipelineIntegrationTest::OnEnded, base::Unretained(this)),
+        base::Bind(&PipelineIntegrationTest::OnError, base::Unretained(this)),
+        NetworkEventCB(),
+        QuitOnStatusCB(expected_status));
     message_loop_.Run();
   }
 
