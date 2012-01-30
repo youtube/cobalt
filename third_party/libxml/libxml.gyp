@@ -192,6 +192,20 @@
             }, {  # else: OS!="win"
               'product_name': 'xml2',
             }],
+            ['clang == 1', {
+              'xcode_settings': {
+                'WARNING_CFLAGS': [
+                  # libxml passes `const unsigned char*` through `const char*`.
+                  '-Wno-pointer-sign',
+                  # libxml converts xmlSchemaValType to xmlSchemaTypeType.
+                  '-Wno-conversion',
+                ],
+              },
+              'cflags': [
+                '-Wno-pointer-sign',
+                '-Wno-conversion',
+              ],
+            }],
           ],
         }],
       ],
