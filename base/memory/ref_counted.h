@@ -6,6 +6,8 @@
 #define BASE_MEMORY_REF_COUNTED_H_
 #pragma once
 
+#include <cassert>
+
 #include "base/atomic_ref_count.h"
 #include "base/base_export.h"
 #include "base/threading/thread_collision_warner.h"
@@ -243,7 +245,10 @@ class scoped_refptr {
 
   T* get() const { return ptr_; }
   operator T*() const { return ptr_; }
-  T* operator->() const { return ptr_; }
+  T* operator->() const {
+    assert(ptr_ != NULL);
+    return ptr_;
+  }
 
   // Release a pointer.
   // The return value is the current pointer held by this object.
