@@ -212,7 +212,7 @@ TEST(HttpContentDispositionTest, tc2231) {
     },
     // http://greenbytes.de/tech/tc2231/#inlonlyquoted
     { "\"inline\"",
-      net::HttpContentDisposition::ATTACHMENT,
+      net::HttpContentDisposition::INLINE,
       L""
     },
     // http://greenbytes.de/tech/tc2231/#inlwithasciifilename
@@ -237,7 +237,7 @@ TEST(HttpContentDispositionTest, tc2231) {
     },
     // http://greenbytes.de/tech/tc2231/#attonlyquoted
     { "\"attachment\"",
-      net::HttpContentDisposition::ATTACHMENT,
+      net::HttpContentDisposition::INLINE,
       L""
     },
     // http://greenbytes.de/tech/tc2231/#attonly403
@@ -364,7 +364,7 @@ TEST(HttpContentDispositionTest, tc2231) {
     // Note: tc2231 says we should fail to parse this header.
     { "attachment; filename=\"foo.html\"; filename=\"bar.html\"",
       net::HttpContentDisposition::ATTACHMENT,
-      L"bar.html"  // Probably should be foo.html to match other browsers.
+      L"foo.html"
     },
     // http://greenbytes.de/tech/tc2231/#attfnbrokentoken
     // Note: tc2231 says we should fail to parse this header.
@@ -401,8 +401,8 @@ TEST(HttpContentDispositionTest, tc2231) {
     // http://greenbytes.de/tech/tc2231/#attmissingdisposition3
     // Note: tc2231 says we should fail to parse this header.
     { "\"foo; filename=bar;baz\"; filename=qux",
-      net::HttpContentDisposition::ATTACHMENT,
-      L"bar"  // Firefox gets qux
+      net::HttpContentDisposition::INLINE,
+      L""  // Firefox gets qux
     },
     // http://greenbytes.de/tech/tc2231/#attmissingdisposition4
     // Note: tc2231 says we should fail to parse this header.
@@ -447,10 +447,10 @@ TEST(HttpContentDispositionTest, tc2231) {
       L"foo\"bar;baz\"qux"
     },
     // http://greenbytes.de/tech/tc2231/#attmultinstances
-    { "attachment; filename=foo.html, attachment; filename=bar.html",
     // Note: tc2231 says we should fail to parse this header.
+    { "attachment; filename=foo.html, attachment; filename=bar.html",
       net::HttpContentDisposition::ATTACHMENT,
-      L"bar.html"
+      L"foo.html, attachment"
     },
     // http://greenbytes.de/tech/tc2231/#attmissingdelim
     { "attachment; foo=foo filename=bar",

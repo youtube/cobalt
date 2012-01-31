@@ -104,6 +104,13 @@ class NET_EXPORT HttpUtil {
   // Whether the character is the start of a quotation mark.
   static bool IsQuote(char c);
 
+  // Whether the string is a valid |token| as defined in RFC 2616 Sec 2.2.
+  static bool IsToken(std::string::const_iterator begin,
+                      std::string::const_iterator end);
+  static bool IsToken(const std::string& str) {
+    return IsToken(str.begin(), str.end());
+  }
+
   // RFC 2616 Sec 2.2:
   // quoted-string = ( <"> *(qdtext | quoted-pair ) <"> )
   // Unquote() strips the surrounding quotemarks off a string, and unescapes
