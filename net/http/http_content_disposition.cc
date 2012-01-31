@@ -23,20 +23,21 @@ HttpContentDisposition::~HttpContentDisposition() {
 std::string::const_iterator HttpContentDisposition::ConsumeDispositionType(
     std::string::const_iterator begin, std::string::const_iterator end) {
   DCHECK(type_ == INLINE);
-
   std::string::const_iterator delimiter = std::find(begin, end, ';');
-
-  // If there's an '=' in before the first ';', then the Content-Disposition
-  // header is malformed, and we treat the first bytes as a parameter rather
-  // than a disposition-type.
-  if (std::find(begin, delimiter, '=') != delimiter)
-    return begin;
 
   std::string::const_iterator type_begin = begin;
   std::string::const_iterator type_end = delimiter;
   HttpUtil::TrimLWS(&type_begin, &type_end);
-  if (type_begin != type_end &&
-      !LowerCaseEqualsASCII(type_begin, type_end, "inline"))
+
+  // If the disposition-type isn't a valid token the then the
+  // Content-Disposition header is malformed, and we treat the first bytes as
+  // a parameter rather than a disposition-type.
+  if (!HttpUtil::IsToken(type_begin, type_end))
+    return begin;
+
+  DCHECK(std::find(type_begin, type_end, '=') == type_end);
+
+  if (!LowerCaseEqualsASCII(type_begin, type_end, "inline"))
     type_ = ATTACHMENT;
   return delimiter;
 }
@@ -73,17 +74,17 @@ void HttpContentDisposition::Parse(const std::string& header,
 
   HttpUtil::NameValuePairsIterator iter(pos, end, ';');
   while (iter.GetNext()) {
-    if (LowerCaseEqualsASCII(iter.name_begin(),
-                             iter.name_end(),
-                             "filename")) {
+    if (filename.empty() && LowerCaseEqualsASCII(iter.name_begin(),
+                                                 iter.name_end(),
+                                                 "filename")) {
       DecodeFilenameValue(iter.value(), referrer_charset, &filename);
-    } else if (LowerCaseEqualsASCII(iter.name_begin(),
-                             iter.name_end(),
-                             "name")) {
+    } else if (filename.empty() && LowerCaseEqualsASCII(iter.name_begin(),
+                                                        iter.name_end(),
+                                                        "name")) {
       DecodeFilenameValue(iter.value(), referrer_charset, &filename);
-    } else if (LowerCaseEqualsASCII(iter.name_begin(),
-                                    iter.name_end(),
-                                    "filename*")) {
+    } else if (ext_filename.empty() && LowerCaseEqualsASCII(iter.name_begin(),
+                                                            iter.name_end(),
+                                                            "filename*")) {
       DecodeExtValue(iter.raw_value(), &ext_filename);
     }
   }

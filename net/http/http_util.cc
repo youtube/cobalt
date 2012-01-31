@@ -413,14 +413,29 @@ void HttpUtil::TrimLWS(string::const_iterator* begin,
     --(*end);
 }
 
-// static
 bool HttpUtil::IsQuote(char c) {
   // Single quote mark isn't actually part of quoted-text production,
   // but apparently some servers rely on this.
   return c == '"' || c == '\'';
 }
 
-// static
+// See RFC 2616 Sec 2.2 for the definition of |token|.
+bool HttpUtil::IsToken(string::const_iterator begin,
+                       string::const_iterator end) {
+  if (begin == end)
+    return false;
+  for (std::string::const_iterator iter = begin; iter != end; ++iter) {
+    unsigned char c = *iter;
+    if (c >= 0x80 || c <= 0x1F || c == 0x7F ||
+        c == '(' || c == ')' || c == '<' || c == '>' || c == '@' ||
+        c == ',' || c == ';' || c == ':' || c == '\\' || c == '"' ||
+        c == '/' || c == '[' || c == ']' || c == '?' || c == '=' ||
+        c == '{' || c == '}' || c == ' ' || c == '\t')
+      return false;
+  }
+  return true;
+}
+
 std::string HttpUtil::Unquote(std::string::const_iterator begin,
                               std::string::const_iterator end) {
   // Empty string
