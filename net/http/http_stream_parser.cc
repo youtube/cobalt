@@ -87,9 +87,6 @@ HttpStreamParser::HttpStreamParser(ClientSocketHandle* connection,
           io_callback_(
               base::Bind(&HttpStreamParser::OnIOComplete,
                          base::Unretained(this)))),
-      chunk_buffer_size_(UploadDataStream::GetBufferSize() +
-                         kChunkHeaderFooterSize),
-      chunk_length_(0),
       chunk_length_without_encoding_(0),
       sent_last_chunk_(false) {
 }
@@ -131,7 +128,10 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
   request_body_.reset(request_body);
   if (request_body_ != NULL && request_body_->is_chunked()) {
     request_body_->set_chunk_callback(this);
-    chunk_buf_ = new IOBuffer(chunk_buffer_size_);
+    // The raw chunk buffer is guaranteed to be large enough to hold the
+    // encoded chunk.
+    raw_chunk_buf_ = new IOBufferWithSize(UploadDataStream::GetBufferSize() +
+                                          kChunkHeaderFooterSize);
   }
 
   io_state_ = STATE_SENDING_HEADERS;
@@ -348,12 +348,14 @@ int HttpStreamParser::DoSendChunkedBody(int result) {
   // |result| is the number of bytes sent from the last call to
   // DoSendChunkedBody(), or 0 (i.e. OK) the first time.
 
-  chunk_length_ -= result;
-  if (chunk_length_) {
-    // Move the remaining data in the chunk buffer to the beginning.
-    memmove(chunk_buf_->data(), chunk_buf_->data() + result, chunk_length_);
-    return connection_->socket()->Write(chunk_buf_, chunk_length_,
-                                        io_callback_);
+  // Send the remaining data in the chunk buffer.
+  if (chunk_buf_.get()) {
+    chunk_buf_->DidConsume(result);
+    if (chunk_buf_->BytesRemaining() > 0) {
+      return connection_->socket()->Write(chunk_buf_,
+                                          chunk_buf_->BytesRemaining(),
+                                          io_callback_);
+    }
   }
 
   if (sent_last_chunk_) {
@@ -367,22 +369,24 @@ int HttpStreamParser::DoSendChunkedBody(int result) {
   chunk_length_without_encoding_ = 0;
 
   if (request_body_->eof()) {
-    chunk_length_ = EncodeChunk(
-        base::StringPiece(), chunk_buf_->data(), chunk_buffer_size_);
+    const int chunk_length = EncodeChunk(
+        base::StringPiece(), raw_chunk_buf_->data(), raw_chunk_buf_->size());
+    chunk_buf_ = new DrainableIOBuffer(raw_chunk_buf_, chunk_length);
     sent_last_chunk_ = true;
   } else if (request_body_->buf_len() > 0) {
     // Encode and send the buffer as 1 chunk.
     const base::StringPiece payload(request_body_->buf()->data(),
                                     request_body_->buf_len());
-    chunk_length_ = EncodeChunk(payload, chunk_buf_->data(),
-                                chunk_buffer_size_);
+    const int chunk_length = EncodeChunk(
+        payload, raw_chunk_buf_->data(), raw_chunk_buf_->size());
+    chunk_buf_ = new DrainableIOBuffer(raw_chunk_buf_, chunk_length);
     chunk_length_without_encoding_ = payload.size();
   } else {
     // Nothing to send. More POST data is yet to come?
     return ERR_IO_PENDING;
   }
 
-  return connection_->socket()->Write(chunk_buf_, chunk_length_,
+  return connection_->socket()->Write(chunk_buf_, chunk_buf_->BytesRemaining(),
                                       io_callback_);
 }
 
