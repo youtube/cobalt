@@ -1239,50 +1239,6 @@ bool DecodeExtValue(const std::string& param_value, std::string* decoded) {
   return base::ConvertToUtf8AndNormalize(unescaped, charset, decoded);
 }
 
-// TODO(mpcomplete): This is a quick and dirty implementation for now.  I'm
-// sure this doesn't properly handle all (most?) cases.
-std::string GetHeaderParamValue(const std::string& header,
-                                const std::string& param_name,
-                                QuoteRule::Type quote_rule) {
-  // This assumes args are formatted exactly like "bla; arg1=value; arg2=value".
-  std::string::const_iterator param_begin =
-      std::search(header.begin(), header.end(), param_name.begin(),
-                  param_name.end(), base::CaseInsensitiveCompareASCII<char>());
-
-  if (param_begin == header.end())
-    return std::string();
-  param_begin += param_name.length();
-
-  std::string whitespace(" \t");
-  size_t equals_offset =
-      header.find_first_not_of(whitespace, param_begin - header.begin());
-  if (equals_offset == std::string::npos || header[equals_offset] != '=')
-    return std::string();
-
-  size_t param_value_offset =
-      header.find_first_not_of(whitespace, equals_offset + 1);
-  if (param_value_offset == std::string::npos)
-    return std::string();
-
-  param_begin = header.begin() + param_value_offset;
-  if (param_begin == header.end())
-    return std::string();
-
-  std::string::const_iterator param_end;
-  if (*param_begin == '"' && quote_rule == QuoteRule::REMOVE_OUTER_QUOTES) {
-    ++param_begin;  // skip past the quote.
-    param_end = std::find(param_begin, header.end(), '"');
-    // If the closing quote is missing, we will treat the rest of the
-    // string as the parameter.  We can't set |param_end| to the
-    // location of the separator (';'), since the separator is
-    // technically quoted. See: http://crbug.com/58840
-  } else {
-    param_end = std::find(param_begin + 1, header.end(), ';');
-  }
-
-  return std::string(param_begin, param_end);
-}
-
 string16 IDNToUnicode(const std::string& host,
                       const std::string& languages) {
   return IDNToUnicodeWithOffsets(host, languages, NULL);
