@@ -180,4 +180,20 @@ TEST_F(FFmpegAudioDecoderTest, ProduceAudioSamples) {
   Stop();
 }
 
+TEST_F(FFmpegAudioDecoderTest, ReadAbort) {
+  Initialize();
+
+  encoded_audio_.clear();
+  encoded_audio_.push_back(NULL);
+
+  EXPECT_CALL(*demuxer_, Read(_))
+      .WillOnce(InvokeReadPacket(this));
+  Read();
+
+  EXPECT_EQ(decoded_audio_.size(), 1u);
+  EXPECT_TRUE(decoded_audio_[0].get() ==  NULL);
+
+  Stop();
+}
+
 }  // namespace media

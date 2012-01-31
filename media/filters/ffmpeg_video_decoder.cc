@@ -221,6 +221,11 @@ void FFmpegVideoDecoder::DoDecodeBuffer(const scoped_refptr<Buffer>& buffer) {
   DCHECK_NE(state_, kDecodeFinished);
   DCHECK(!read_cb_.is_null());
 
+  if (!buffer) {
+    DeliverFrame(NULL);
+    return;
+  }
+
   // During decode, because reads are issued asynchronously, it is possible to
   // receive multiple end of stream buffers since each read is acked. When the
   // first end of stream buffer is read, FFmpeg may still have frames queued

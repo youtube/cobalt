@@ -6,13 +6,17 @@
 
 #include "base/logging.h"
 #include "media/base/data_buffer.h"
+#include "media/ffmpeg/ffmpeg_common.h"
 #include "media/webm/webm_constants.h"
 
 namespace media {
 
 static Buffer* CreateBuffer(const uint8* data, size_t size) {
-  scoped_array<uint8> buf(new uint8[size]);
+  // Why FF_INPUT_BUFFER_PADDING_SIZE? FFmpeg assumes all input buffers are
+  // padded with this value.
+  scoped_array<uint8> buf(new uint8[size + FF_INPUT_BUFFER_PADDING_SIZE]);
   memcpy(buf.get(), data, size);
+  memset(buf.get() + size, 0, FF_INPUT_BUFFER_PADDING_SIZE);
   return new DataBuffer(buf.Pass(), size);
 }
 
@@ -129,7 +133,7 @@ bool WebMClusterParser::OnSimpleBlock(int track_num, int timecode,
   if (!queue->empty() &&
       buffer->GetTimestamp() == queue->back()->GetTimestamp()) {
     DVLOG(1) << "Got SimpleBlock timecode is not strictly monotonically "
-            << "increasing for track " << track_num;
+             << "increasing for track " << track_num;
     return false;
   }
 
