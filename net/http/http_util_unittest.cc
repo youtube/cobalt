@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -630,6 +630,91 @@ TEST(HttpUtilTest, GenerateAcceptCharsetHeader) {
             HttpUtil::GenerateAcceptCharsetHeader("utf-8"));
   EXPECT_EQ(std::string("EUC-JP,utf-8;q=0.7,*;q=0.3"),
             HttpUtil::GenerateAcceptCharsetHeader("EUC-JP"));
+}
+
+// HttpResponseHeadersTest.GetMimeType also tests ParseContentType.
+TEST(HttpUtilTest, ParseContentType) {
+  const struct {
+    const char* content_type;
+    const char* expected_mime_type;
+    const char* expected_charset;
+    const bool expected_had_charset;
+    const char* expected_boundary;
+  } tests[] = {
+    { "text/html; charset=utf-8",
+      "text/html",
+      "utf-8",
+      true,
+      ""
+    },
+    { "text/html; charset =utf-8",
+      "text/html",
+      "utf-8",
+      true,
+      ""
+    },
+    { "text/html; charset= utf-8",
+      "text/html",
+      "utf-8",
+      true,
+      ""
+    },
+    { "text/html; charset=utf-8 ",
+      "text/html",
+      "utf-8",
+      true,
+      ""
+    },
+    { "text/html; boundary=\"WebKit-ada-df-dsf-adsfadsfs\"",
+      "text/html",
+      "",
+      false,
+      "\"WebKit-ada-df-dsf-adsfadsfs\""
+    },
+    { "text/html; boundary =\"WebKit-ada-df-dsf-adsfadsfs\"",
+      "text/html",
+      "",
+      false,
+      "\"WebKit-ada-df-dsf-adsfadsfs\""
+    },
+    { "text/html; boundary= \"WebKit-ada-df-dsf-adsfadsfs\"",
+      "text/html",
+      "",
+      false,
+      "\"WebKit-ada-df-dsf-adsfadsfs\""
+    },
+    { "text/html; boundary= \"WebKit-ada-df-dsf-adsfadsfs\"   ",
+      "text/html",
+      "",
+      false,
+      "\"WebKit-ada-df-dsf-adsfadsfs\""
+    },
+    { "text/html; boundary=\"WebKit-ada-df-dsf-adsfadsfs  \"",
+      "text/html",
+      "",
+      false,
+      "\"WebKit-ada-df-dsf-adsfadsfs  \""
+    },
+    { "text/html; boundary=WebKit-ada-df-dsf-adsfadsfs",
+      "text/html",
+      "",
+      false,
+      "WebKit-ada-df-dsf-adsfadsfs"
+    },
+    // TODO(abarth): Add more interesting test cases.
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    std::string mime_type;
+    std::string charset;
+    bool had_charset = false;
+    std::string boundary;
+    net::HttpUtil::ParseContentType(tests[i].content_type, &mime_type,
+                                    &charset, &had_charset, &boundary);
+    EXPECT_EQ(tests[i].expected_mime_type, mime_type) << "i=" << i;
+    EXPECT_EQ(tests[i].expected_charset, charset) << "i=" << i;
+    EXPECT_EQ(tests[i].expected_had_charset, had_charset) << "i=" << i;
+    EXPECT_EQ(tests[i].expected_boundary, boundary) << "i=" << i;
+  }
 }
 
 TEST(HttpUtilTest, ParseRanges) {

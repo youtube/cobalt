@@ -748,67 +748,6 @@ TEST(NetUtilTest, GetSpecificHeader) {
   }
 }
 
-TEST(NetUtilTest, GetHeaderParamValue) {
-  const HeaderParamCase tests[] = {
-    {"Content-type", "charset", "utf-8"},
-    {"content-disposition", "filename", "download.pdf"},
-    {"Content-Type", "badparam", ""},
-    {"X-Malformed", "arg", "test\""},
-    {"X-Malformed2", "arg", ""},
-    {"X-Test", "arg1", "val1"},
-    {"X-Test", "arg2", "val2"},
-    {"Bad-Header", "badparam", ""},
-    {"Bad-Header", "", ""},
-    {"", "badparam", ""},
-    {"", "", ""},
-  };
-  // TODO(mpcomplete): add tests for other formats of headers.
-
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    std::string header_value =
-        GetSpecificHeader(google_headers, tests[i].header_name);
-    std::string result =
-        GetHeaderParamValue(header_value, tests[i].param_name,
-                            QuoteRule::REMOVE_OUTER_QUOTES);
-    EXPECT_EQ(result, tests[i].expected);
-  }
-
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    std::string header_value =
-      GetSpecificHeader(std::string(), tests[i].header_name);
-    std::string result =
-        GetHeaderParamValue(header_value, tests[i].param_name,
-                            QuoteRule::REMOVE_OUTER_QUOTES);
-    EXPECT_EQ(result, std::string());
-  }
-}
-
-TEST(NetUtilTest, GetHeaderParamValueQuotes) {
-  struct {
-    const char* header;
-    const char* expected_with_quotes;
-    const char* expected_without_quotes;
-  } tests[] = {
-    {"filename=foo", "foo", "foo"},
-    {"filename=\"foo\"", "\"foo\"", "foo"},
-    {"filename=foo\"", "foo\"", "foo\""},
-    {"filename=fo\"o", "fo\"o", "fo\"o"},
-  };
-
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    std::string actual_with_quotes =
-        GetHeaderParamValue(tests[i].header, "filename",
-                            QuoteRule::KEEP_OUTER_QUOTES);
-    std::string actual_without_quotes =
-        GetHeaderParamValue(tests[i].header, "filename",
-                            QuoteRule::REMOVE_OUTER_QUOTES);
-    EXPECT_EQ(tests[i].expected_with_quotes, actual_with_quotes)
-        << "Failed while processing: " << tests[i].header;
-    EXPECT_EQ(tests[i].expected_without_quotes, actual_without_quotes)
-        << "Failed while processing: " << tests[i].header;
-  }
-}
-
 TEST(NetUtilTest, IDNToUnicodeFast) {
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(idn_cases); i++) {
     for (size_t j = 0; j < arraysize(kLanguages); j++) {

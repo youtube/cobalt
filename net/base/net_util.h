@@ -48,18 +48,6 @@ namespace net {
 typedef uint32 FormatUrlType;
 typedef uint32 FormatUrlTypes;
 
-// Used by GetHeaderParamValue to determine how to handle quotes in the value.
-class QuoteRule {
- public:
-  enum Type {
-    KEEP_OUTER_QUOTES,
-    REMOVE_OUTER_QUOTES,
-  };
-
- private:
-  QuoteRule();
-};
-
 // Nothing is ommitted.
 NET_EXPORT extern const FormatUrlType kFormatUrlOmitNothing;
 
@@ -143,13 +131,6 @@ NET_EXPORT std::string GetHostOrSpecFromURL(const GURL& url);
 // Returns the empty string if the header is not found.
 NET_EXPORT std::string GetSpecificHeader(const std::string& headers,
                                          const std::string& name);
-
-// Return the value of the HTTP response header field's parameter named
-// 'param_name'.  Returns the empty string if the parameter is not found or is
-// improperly formatted.
-NET_EXPORT std::string GetHeaderParamValue(const std::string& header,
-                                           const std::string& param_name,
-                                           QuoteRule::Type quote_rule);
 
 // TODO(abarth): Move these functions to http_content_disposition.cc.
 bool DecodeFilenameValue(const std::string& input,
