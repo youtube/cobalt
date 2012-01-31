@@ -309,7 +309,7 @@ TEST_F(PipelineIntegrationTest, SeekWhilePaused) {
 }
 
 // TODO(acolwell): Fix flakiness http://crbug.com/109875
-TEST_F(PipelineIntegrationTest, FLAKY_SeekWhilePlaying) {
+TEST_F(PipelineIntegrationTest, DISABLED_SeekWhilePlaying) {
   Start(GetTestDataURL("bear-320x240.webm"), PIPELINE_OK);
 
   base::TimeDelta duration(pipeline_->GetMediaDuration());
