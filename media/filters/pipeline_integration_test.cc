@@ -104,7 +104,8 @@ class PipelineIntegrationTest : public testing::Test {
   PipelineIntegrationTest()
       : message_loop_factory_(new MessageLoopFactoryImpl()),
         pipeline_(new Pipeline(&message_loop_, new MediaLog())),
-        ended_(false) {
+        ended_(false),
+        pipeline_status_(PIPELINE_OK) {
     EXPECT_CALL(*this, OnVideoRendererPaint()).Times(AnyNumber());
     EXPECT_CALL(*this, OnSetOpaque(true)).Times(AnyNumber());
   }
@@ -119,6 +120,7 @@ class PipelineIntegrationTest : public testing::Test {
   void OnStatusCallback(PipelineStatus expected_status,
                         PipelineStatus status) {
     EXPECT_EQ(status, expected_status);
+    pipeline_status_ = status;
     message_loop_.PostTask(FROM_HERE, MessageLoop::QuitClosure());
   }
 
@@ -135,16 +137,21 @@ class PipelineIntegrationTest : public testing::Test {
     message_loop_.PostTask(FROM_HERE, MessageLoop::QuitClosure());
   }
 
-  void WaitUntilOnEnded() {
-    if (!ended_) {
-      message_loop_.Run();
-      DCHECK(ended_);
-    }
+  bool WaitUntilOnEnded() {
+    if (ended_)
+      return (pipeline_status_ == PIPELINE_OK);
+    message_loop_.Run();
+    EXPECT_TRUE(ended_);
+    return ended_ && (pipeline_status_ == PIPELINE_OK);
   }
 
-  MOCK_METHOD1(OnError, void(PipelineStatus));
+  void OnError(PipelineStatus status) {
+    DCHECK_NE(status, PIPELINE_OK);
+    pipeline_status_ = status;
+    message_loop_.PostTask(FROM_HERE, MessageLoop::QuitClosure());
+  }
 
-  void Start(const std::string& url, PipelineStatus expected_status) {
+  bool Start(const std::string& url, PipelineStatus expected_status) {
     pipeline_->Start(
         CreateFilterCollection(url),
         url,
@@ -153,6 +160,7 @@ class PipelineIntegrationTest : public testing::Test {
         NetworkEventCB(),
         QuitOnStatusCB(expected_status));
     message_loop_.Run();
+    return (pipeline_status_ == PIPELINE_OK);
   }
 
   void Play() {
@@ -163,11 +171,12 @@ class PipelineIntegrationTest : public testing::Test {
     pipeline_->SetPlaybackRate(0);
   }
 
-  void Seek(base::TimeDelta seek_time) {
+  bool Seek(base::TimeDelta seek_time) {
     ended_ = false;
 
     pipeline_->Seek(seek_time, QuitOnStatusCB(PIPELINE_OK));
     message_loop_.Run();
+    return (pipeline_status_ == PIPELINE_OK);
   }
 
   void Stop() {
@@ -177,7 +186,8 @@ class PipelineIntegrationTest : public testing::Test {
   }
 
   void QuitAfterCurrentTimeTask(const base::TimeDelta& quit_time) {
-    if (pipeline_->GetCurrentTime() >= quit_time) {
+    if (pipeline_->GetCurrentTime() >= quit_time ||
+        pipeline_status_ != PIPELINE_OK) {
       message_loop_.Quit();
       return;
     }
@@ -189,7 +199,7 @@ class PipelineIntegrationTest : public testing::Test {
         10);
   }
 
-  void WaitUntilCurrentTimeIsAfter(const base::TimeDelta& wait_time) {
+  bool WaitUntilCurrentTimeIsAfter(const base::TimeDelta& wait_time) {
     DCHECK(pipeline_->IsRunning());
     DCHECK_GT(pipeline_->GetPlaybackRate(), 0);
     DCHECK(wait_time <= pipeline_->GetMediaDuration());
@@ -201,6 +211,7 @@ class PipelineIntegrationTest : public testing::Test {
                    wait_time),
         10);
     message_loop_.Run();
+    return (pipeline_status_ == PIPELINE_OK);
   }
 
   scoped_ptr<FilterCollection> CreateFilterCollection(const std::string& url) {
@@ -236,7 +247,7 @@ class PipelineIntegrationTest : public testing::Test {
   // Verifies that seeking works properly for ChunkDemuxer when the
   // seek happens while there is a pending read on the ChunkDemuxer
   // and no data is available.
-  void TestSeekDuringRead(const std::string& filename,
+  bool TestSeekDuringRead(const std::string& filename,
                           int initial_append_size,
                           base::TimeDelta start_seek_time,
                           base::TimeDelta seek_time,
@@ -253,16 +264,22 @@ class PipelineIntegrationTest : public testing::Test {
                      QuitOnStatusCB(PIPELINE_OK));
     message_loop_.Run();
 
+    if (pipeline_status_ != PIPELINE_OK)
+      return false;
+
     Play();
-    WaitUntilCurrentTimeIsAfter(start_seek_time);
+    if (!WaitUntilCurrentTimeIsAfter(start_seek_time))
+      return false;
 
     source.Seek(seek_file_position, seek_append_size);
-    Seek(seek_time);
+    if (!Seek(seek_time))
+      return false;
 
     source.EndOfStream();
 
     source.Abort();
     Stop();
+    return true;
   }
 
  protected:
@@ -270,6 +287,7 @@ class PipelineIntegrationTest : public testing::Test {
   scoped_ptr<MessageLoopFactory> message_loop_factory_;
   scoped_refptr<Pipeline> pipeline_;
   bool ended_;
+  PipelineStatus pipeline_status_;
 
  private:
   MOCK_METHOD0(OnVideoRendererPaint, void());
@@ -278,70 +296,70 @@ class PipelineIntegrationTest : public testing::Test {
 
 
 TEST_F(PipelineIntegrationTest, BasicPlayback) {
-  Start(GetTestDataURL("bear-320x240.webm"), PIPELINE_OK);
+  ASSERT_TRUE(Start(GetTestDataURL("bear-320x240.webm"), PIPELINE_OK));
 
   Play();
 
-  WaitUntilOnEnded();
+  ASSERT_TRUE(WaitUntilOnEnded());
 }
 
 TEST_F(PipelineIntegrationTest, SeekWhilePaused) {
-  Start(GetTestDataURL("bear-320x240.webm"), PIPELINE_OK);
+  ASSERT_TRUE(Start(GetTestDataURL("bear-320x240.webm"), PIPELINE_OK));
 
   base::TimeDelta duration(pipeline_->GetMediaDuration());
   base::TimeDelta start_seek_time(duration / 4);
   base::TimeDelta seek_time(duration * 3 / 4);
 
   Play();
-  WaitUntilCurrentTimeIsAfter(start_seek_time);
+  ASSERT_TRUE(WaitUntilCurrentTimeIsAfter(start_seek_time));
   Pause();
-  Seek(seek_time);
+  ASSERT_TRUE(Seek(seek_time));
   EXPECT_EQ(pipeline_->GetCurrentTime(), seek_time);
   Play();
-  WaitUntilOnEnded();
+  ASSERT_TRUE(WaitUntilOnEnded());
 
   // Make sure seeking after reaching the end works as expected.
   Pause();
-  Seek(seek_time);
+  ASSERT_TRUE(Seek(seek_time));
   EXPECT_EQ(pipeline_->GetCurrentTime(), seek_time);
   Play();
-  WaitUntilOnEnded();
+  ASSERT_TRUE(WaitUntilOnEnded());
 }
 
 // TODO(acolwell): Fix flakiness http://crbug.com/109875
 TEST_F(PipelineIntegrationTest, DISABLED_SeekWhilePlaying) {
-  Start(GetTestDataURL("bear-320x240.webm"), PIPELINE_OK);
+  ASSERT_TRUE(Start(GetTestDataURL("bear-320x240.webm"), PIPELINE_OK));
 
   base::TimeDelta duration(pipeline_->GetMediaDuration());
   base::TimeDelta start_seek_time(duration / 4);
   base::TimeDelta seek_time(duration * 3 / 4);
 
   Play();
-  WaitUntilCurrentTimeIsAfter(start_seek_time);
-  Seek(seek_time);
+  ASSERT_TRUE(WaitUntilCurrentTimeIsAfter(start_seek_time));
+  ASSERT_TRUE(Seek(seek_time));
   EXPECT_GE(pipeline_->GetCurrentTime(), seek_time);
-  WaitUntilOnEnded();
+  ASSERT_TRUE(WaitUntilOnEnded());
 
   // Make sure seeking after reaching the end works as expected.
-  Seek(seek_time);
+  ASSERT_TRUE(Seek(seek_time));
   EXPECT_GE(pipeline_->GetCurrentTime(), seek_time);
-  WaitUntilOnEnded();
+  ASSERT_TRUE(WaitUntilOnEnded());
 }
 
 // Verify audio decoder & renderer can handle aborted demuxer reads.
 TEST_F(PipelineIntegrationTest, ChunkDemuxerAbortRead_AudioOnly) {
-  TestSeekDuringRead("bear-320x240-audio-only.webm", 8192,
-                     base::TimeDelta::FromMilliseconds(477),
-                     base::TimeDelta::FromMilliseconds(617),
-                     0x10CA, 19730);
+  ASSERT_TRUE(TestSeekDuringRead("bear-320x240-audio-only.webm", 8192,
+                                 base::TimeDelta::FromMilliseconds(477),
+                                 base::TimeDelta::FromMilliseconds(617),
+                                 0x10CA, 19730));
 }
 
 // Verify video decoder & renderer can handle aborted demuxer reads.
 TEST_F(PipelineIntegrationTest, ChunkDemuxerAbortRead_VideoOnly) {
-  TestSeekDuringRead("bear-320x240-video-only.webm", 32768,
-                     base::TimeDelta::FromMilliseconds(200),
-                     base::TimeDelta::FromMilliseconds(1668),
-                     0x1C896, 65536);
+  ASSERT_TRUE(TestSeekDuringRead("bear-320x240-video-only.webm", 32768,
+                                 base::TimeDelta::FromMilliseconds(200),
+                                 base::TimeDelta::FromMilliseconds(1668),
+                                 0x1C896, 65536));
 }
 
 }  // namespace media
