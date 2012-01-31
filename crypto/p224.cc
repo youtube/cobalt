@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -247,7 +247,7 @@ void Invert(FieldElement* out, const FieldElement& in) {
 
 // Contract converts a FieldElement to its minimal, distinguished form.
 //
-// On entry, in[i] < 2**32
+// On entry, in[i] < 2**29
 // On exit, in[i] < 2**28
 void Contract(FieldElement* inout) {
   FieldElement& out = *inout;
@@ -267,6 +267,39 @@ void Contract(FieldElement* inout) {
   // We may just have made out[0] negative. So we carry down. If we made
   // out[0] negative then we know that out[3] is sufficiently positive
   // because we just added to it.
+  for (int i = 0; i < 3; i++) {
+    uint32 mask = static_cast<uint32>(static_cast<int32>(out[i]) >> 31);
+    out[i] += (1 << 28) & mask;
+    out[i+1] -= 1 & mask;
+  }
+
+  // We might have pushed out[3] over 2**28 so we perform another, partial
+  // carry chain.
+  for (int i = 3; i < 7; i++) {
+    out[i+1] += out[i] >> 28;
+    out[i] &= kBottom28Bits;
+  }
+  top = out[7] >> 28;
+  out[7] &= kBottom28Bits;
+
+  // Eliminate top while maintaining the same value mod p.
+  out[0] -= top;
+  out[3] += top << 12;
+
+  // There are two cases to consider for out[3]:
+  //   1) The first time that we eliminated top, we didn't push out[3] over
+  //      2**28. In this case, the partial carry chain didn't change any values
+  //      and top is zero.
+  //   2) We did push out[3] over 2**28 the first time that we eliminated top.
+  //      The first value of top was in [0..16), therefore, prior to eliminating
+  //      the first top, 0xfff1000 <= out[3] <= 0xfffffff. Therefore, after
+  //      overflowing and being reduced by the second carry chain, out[3] <=
+  //      0xf000. Thus it cannot have overflowed when we eliminated top for the
+  //      second time.
+
+  // Again, we may just have made out[0] negative, so do the same carry down.
+  // As before, if we made out[0] negative then we know that out[3] is
+  // sufficiently positive.
   for (int i = 0; i < 3; i++) {
     uint32 mask = static_cast<uint32>(static_cast<int32>(out[i]) >> 31);
     out[i] += (1 << 28) & mask;
