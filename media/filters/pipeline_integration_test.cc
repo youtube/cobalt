@@ -9,6 +9,9 @@
 #include "media/base/message_loop_factory_impl.h"
 #include "media/base/pipeline.h"
 #include "media/base/test_data_util.h"
+#include "media/filters/chunk_demuxer.h"
+#include "media/filters/chunk_demuxer_client.h"
+#include "media/filters/chunk_demuxer_factory.h"
 #include "media/filters/ffmpeg_audio_decoder.h"
 #include "media/filters/ffmpeg_demuxer_factory.h"
 #include "media/filters/ffmpeg_video_decoder.h"
@@ -21,6 +24,71 @@
 using ::testing::AnyNumber;
 
 namespace media {
+
+// Helper class that emulates calls made on the ChunkDemuxer by the
+// Media Source API.
+class MockMediaSource : public ChunkDemuxerClient {
+ public:
+  MockMediaSource(const std::string& filename, int initial_append_size)
+      : url_(GetTestDataURL(filename)),
+        current_position_(0),
+        initial_append_size_(initial_append_size) {
+    ReadTestDataFile(filename, &file_data_, &file_data_size_);
+
+    DCHECK_GT(initial_append_size_, 0);
+    DCHECK_LE(initial_append_size_, file_data_size_);
+  }
+
+  virtual ~MockMediaSource() {}
+
+  const std::string& url() { return url_; }
+
+  void Seek(int new_position, int seek_append_size) {
+    chunk_demuxer_->FlushData();
+
+    DCHECK_GE(new_position, 0);
+    DCHECK_LT(new_position, file_data_size_);
+    current_position_ = new_position;
+
+    AppendData(seek_append_size);
+  }
+
+  void AppendData(int size) {
+    DCHECK(chunk_demuxer_.get());
+    DCHECK_LT(current_position_, file_data_size_);
+    DCHECK_LE(current_position_ + size, file_data_size_);
+    chunk_demuxer_->AppendData(file_data_.get() + current_position_, size);
+    current_position_ += size;
+  }
+
+  void EndOfStream() {
+    chunk_demuxer_->EndOfStream(PIPELINE_OK);
+  }
+
+  void Abort() {
+    if (!chunk_demuxer_.get())
+      return;
+    chunk_demuxer_->Shutdown();
+  }
+
+  // ChunkDemuxerClient methods.
+  virtual void DemuxerOpened(ChunkDemuxer* demuxer) {
+    chunk_demuxer_ = demuxer;
+    AppendData(initial_append_size_);
+  }
+
+  virtual void DemuxerClosed() {
+    chunk_demuxer_ = NULL;
+  }
+
+ private:
+  std::string url_;
+  scoped_array<uint8> file_data_;
+  int file_data_size_;
+  int current_position_;
+  int initial_append_size_;
+  scoped_refptr<ChunkDemuxer> chunk_demuxer_;
+};
 
 // Integration tests for Pipeline. Real demuxers, real decoders, and
 // base renderer implementations are used to verify pipeline functionality. The
@@ -38,7 +106,7 @@ class PipelineIntegrationTest : public testing::Test {
         pipeline_(new Pipeline(&message_loop_, new MediaLog())),
         ended_(false) {
     EXPECT_CALL(*this, OnVideoRendererPaint()).Times(AnyNumber());
-    EXPECT_CALL(*this, OnSetOpaque(true));
+    EXPECT_CALL(*this, OnSetOpaque(true)).Times(AnyNumber());
   }
 
   virtual ~PipelineIntegrationTest() {
@@ -50,7 +118,7 @@ class PipelineIntegrationTest : public testing::Test {
 
   void OnStatusCallback(PipelineStatus expected_status,
                         PipelineStatus status) {
-    DCHECK_EQ(status, expected_status);
+    EXPECT_EQ(status, expected_status);
     message_loop_.PostTask(FROM_HERE, MessageLoop::QuitClosure());
   }
 
@@ -138,11 +206,20 @@ class PipelineIntegrationTest : public testing::Test {
   scoped_ptr<FilterCollection> CreateFilterCollection(const std::string& url) {
     scoped_refptr<FileDataSource> data_source = new FileDataSource();
     CHECK_EQ(PIPELINE_OK, data_source->Initialize(url));
-
-    scoped_ptr<FilterCollection> collection(
-        new FilterCollection());
-    collection->SetDemuxerFactory(scoped_ptr<DemuxerFactory>(
+    return CreateFilterCollection(scoped_ptr<DemuxerFactory>(
         new FFmpegDemuxerFactory(data_source, &message_loop_)));
+  }
+
+  scoped_ptr<FilterCollection> CreateFilterCollection(
+      ChunkDemuxerClient* client) {
+    return CreateFilterCollection(scoped_ptr<DemuxerFactory>(
+        new ChunkDemuxerFactory(client)));
+  }
+
+  scoped_ptr<FilterCollection> CreateFilterCollection(
+      scoped_ptr<DemuxerFactory> demuxer_factory) {
+    scoped_ptr<FilterCollection> collection(new FilterCollection());
+    collection->SetDemuxerFactory(demuxer_factory.Pass());
     collection->AddAudioDecoder(new FFmpegAudioDecoder(
         message_loop_factory_->GetMessageLoop("AudioDecoderThread")));
     collection->AddVideoDecoder(new FFmpegVideoDecoder(
@@ -154,6 +231,38 @@ class PipelineIntegrationTest : public testing::Test {
                    base::Unretained(this))));
     collection->AddAudioRenderer(new NullAudioRenderer());
     return collection.Pass();
+  }
+
+  // Verifies that seeking works properly for ChunkDemuxer when the
+  // seek happens while there is a pending read on the ChunkDemuxer
+  // and no data is available.
+  void TestSeekDuringRead(const std::string& filename,
+                          int initial_append_size,
+                          base::TimeDelta start_seek_time,
+                          base::TimeDelta seek_time,
+                          int seek_file_position,
+                          int seek_append_size) {
+    MockMediaSource source(filename, initial_append_size);
+
+    pipeline_->Start(CreateFilterCollection(&source), source.url(),
+                     base::Bind(&PipelineIntegrationTest::OnEnded,
+                                base::Unretained(this)),
+                     base::Bind(&PipelineIntegrationTest::OnError,
+                                base::Unretained(this)),
+                     NetworkEventCB(),
+                     QuitOnStatusCB(PIPELINE_OK));
+    message_loop_.Run();
+
+    Play();
+    WaitUntilCurrentTimeIsAfter(start_seek_time);
+
+    source.Seek(seek_file_position, seek_append_size);
+    Seek(seek_time);
+
+    source.EndOfStream();
+
+    source.Abort();
+    Stop();
   }
 
  protected:
@@ -199,7 +308,8 @@ TEST_F(PipelineIntegrationTest, SeekWhilePaused) {
   WaitUntilOnEnded();
 }
 
-TEST_F(PipelineIntegrationTest, SeekWhilePlaying) {
+// TODO(acolwell): Fix flakiness http://crbug.com/109875
+TEST_F(PipelineIntegrationTest, FLAKY_SeekWhilePlaying) {
   Start(GetTestDataURL("bear-320x240.webm"), PIPELINE_OK);
 
   base::TimeDelta duration(pipeline_->GetMediaDuration());
@@ -216,6 +326,22 @@ TEST_F(PipelineIntegrationTest, SeekWhilePlaying) {
   Seek(seek_time);
   EXPECT_GE(pipeline_->GetCurrentTime(), seek_time);
   WaitUntilOnEnded();
+}
+
+// Verify audio decoder & renderer can handle aborted demuxer reads.
+TEST_F(PipelineIntegrationTest, ChunkDemuxerAbortRead_AudioOnly) {
+  TestSeekDuringRead("bear-320x240-audio-only.webm", 8192,
+                     base::TimeDelta::FromMilliseconds(477),
+                     base::TimeDelta::FromMilliseconds(617),
+                     0x10CA, 19730);
+}
+
+// Verify video decoder & renderer can handle aborted demuxer reads.
+TEST_F(PipelineIntegrationTest, ChunkDemuxerAbortRead_VideoOnly) {
+  TestSeekDuringRead("bear-320x240-video-only.webm", 32768,
+                     base::TimeDelta::FromMilliseconds(200),
+                     base::TimeDelta::FromMilliseconds(1668),
+                     0x1C896, 65536);
 }
 
 }  // namespace media

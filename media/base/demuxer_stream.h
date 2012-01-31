@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -27,7 +27,9 @@ class MEDIA_EXPORT DemuxerStream
 
   // Request a buffer to returned via the provided callback.
   //
-  // Buffers will be non-NULL yet may be end of stream buffers.
+  // Non-NULL buffer pointers will contain media data or signal the end of the
+  // stream. A NULL pointer indicates an aborted Read(). This can happen if the
+  // DemuxerStream gets flushed and doesn't have any more data to return.
   typedef base::Callback<void(const scoped_refptr<Buffer>&)> ReadCallback;
   virtual void Read(const ReadCallback& read_callback) = 0;
 

@@ -48,10 +48,11 @@ class VideoRendererBaseTest : public ::testing::Test {
         event_(false, false),
         timeout_(base::TimeDelta::FromMilliseconds(
             TestTimeouts::action_timeout_ms())),
-        seeking_(false) {
+        seeking_(false),
+        paint_cv_(&lock_),
+        paint_was_called_(false) {
     renderer_ = new VideoRendererBase(
-        base::Bind(&VideoRendererBaseTest::PaintCBWasCalled,
-                   base::Unretained(this)),
+        base::Bind(&VideoRendererBaseTest::Paint, base::Unretained(this)),
         base::Bind(&VideoRendererBaseTest::SetOpaqueCBWasCalled,
                    base::Unretained(this)));
     renderer_->set_host(&host_);
@@ -73,8 +74,6 @@ class VideoRendererBaseTest : public ::testing::Test {
       Stop();
     }
   }
-
-  MOCK_METHOD0(PaintCBWasCalled, void());
 
   MOCK_CONST_METHOD1(SetOpaqueCBWasCalled, void(bool));
 
@@ -178,6 +177,18 @@ class VideoRendererBaseTest : public ::testing::Test {
     }
   }
 
+  void AbortRead() {
+    // Lock+swap to avoid re-entrancy issues.
+    VideoDecoder::ReadCB read_cb;
+    {
+      base::AutoLock l(lock_);
+      CHECK(!read_cb_.is_null()) << "Can't deliver a frame without a callback";
+      std::swap(read_cb, read_cb_);
+    }
+
+    read_cb.Run(NULL);
+  }
+
   void ExpectCurrentFrame(bool present) {
     scoped_refptr<VideoFrame> frame;
     renderer_->GetCurrentFrame(&frame);
@@ -220,10 +231,12 @@ class VideoRendererBaseTest : public ::testing::Test {
   void RenderFrame(int64 timestamp) {
     base::AutoLock l(lock_);
     time_ = base::TimeDelta::FromMicroseconds(timestamp);
+    paint_was_called_ = false;
     if (read_cb_.is_null()) {
       cv_.TimedWait(timeout_);
       CHECK(!read_cb_.is_null()) << "Timed out waiting for read to occur.";
     }
+    WaitForPaint_Locked();
   }
 
   // Advances clock to |timestamp| (which should be the timestamp of the last
@@ -240,6 +253,11 @@ class VideoRendererBaseTest : public ::testing::Test {
 
   base::WaitableEvent* event() { return &event_; }
   const base::TimeDelta& timeout() { return timeout_; }
+
+  void VerifyNotSeeking() {
+    base::AutoLock l(lock_);
+    ASSERT_FALSE(seeking_);
+  }
 
  protected:
   StatisticsCallback NewStatisticsCallback() {
@@ -280,13 +298,12 @@ class VideoRendererBaseTest : public ::testing::Test {
   }
 
   void FinishSeeking(int64 timestamp) {
-    EXPECT_CALL(*this, PaintCBWasCalled());
-    EXPECT_TRUE(seeking_);
-
     // Satisfy the read requests.  The callback must be executed in order
     // to exit the loop since VideoRendererBase can read a few extra frames
     // after |timestamp| in order to preroll.
     base::AutoLock l(lock_);
+    EXPECT_TRUE(seeking_);
+    paint_was_called_ = false;
     int i = 0;
     while (seeking_) {
       if (!read_cb_.is_null()) {
@@ -310,6 +327,21 @@ class VideoRendererBaseTest : public ::testing::Test {
     }
 
     EXPECT_TRUE(read_cb_.is_null());
+    WaitForPaint_Locked();
+  }
+
+  void Paint() {
+    base::AutoLock l(lock_);
+    paint_was_called_ = true;
+    paint_cv_.Signal();
+  }
+
+  void WaitForPaint_Locked() {
+    lock_.AssertAcquired();
+    if (paint_was_called_)
+      return;
+    paint_cv_.TimedWait(timeout_);
+    EXPECT_TRUE(paint_was_called_);
   }
 
   base::Lock lock_;
@@ -321,6 +353,10 @@ class VideoRendererBaseTest : public ::testing::Test {
   bool seeking_;
   VideoDecoder::ReadCB read_cb_;
   base::TimeDelta time_;
+
+  // Used in conjunction with |lock_| to wait for Paint() calls.
+  base::ConditionVariable paint_cv_;
+  bool paint_was_called_;
 
   DISALLOW_COPY_AND_ASSIGN(VideoRendererBaseTest);
 };
@@ -342,13 +378,8 @@ TEST_F(VideoRendererBaseTest, EndOfStream) {
   Play();
 
   // Finish rendering up to the next-to-last frame.
-  //
-  // Put the gmock expectation here to avoid racing with the rendering thread.
-  EXPECT_CALL(*this, PaintCBWasCalled())
-      .Times(limits::kMaxVideoFrames - 1);
-  for (int i = 1; i < limits::kMaxVideoFrames; ++i) {
+  for (int i = 1; i < limits::kMaxVideoFrames; ++i)
     RenderFrame(kFrameDuration * i);
-  }
 
   // Finish rendering the last frame, we should NOT get a new frame but instead
   // get notified of end of stream.
@@ -473,6 +504,46 @@ TEST_F(VideoRendererBaseTest, Shutdown_DuringPaint) {
   WaitForClosure();
 
   Stop();
+}
+
+TEST_F(VideoRendererBaseTest, AbortPendingRead_Playing) {
+  Initialize();
+  Play();
+
+  // Render a frame to trigger a Read().
+  RenderFrame(kFrameDuration);
+
+  AbortRead();
+
+  Pause();
+  Flush();
+  Seek(kFrameDuration * 6);
+  ExpectCurrentTimestamp(kFrameDuration * 6);
+  Shutdown();
+}
+
+TEST_F(VideoRendererBaseTest, AbortPendingRead_Flush) {
+  Initialize();
+  Play();
+
+  // Render a frame to trigger a Read().
+  RenderFrame(kFrameDuration);
+
+  Pause();
+  renderer_->Flush(NewWaitableClosure());
+  AbortRead();
+  WaitForClosure();
+  Shutdown();
+}
+
+TEST_F(VideoRendererBaseTest, AbortPendingRead_Seek) {
+  Initialize();
+  Pause();
+  Flush();
+  StartSeeking(kFrameDuration * 6);
+  AbortRead();
+  VerifyNotSeeking();
+  Shutdown();
 }
 
 }  // namespace media
