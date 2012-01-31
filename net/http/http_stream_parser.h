@@ -25,6 +25,7 @@ struct HttpRequestInfo;
 class HttpRequestHeaders;
 class HttpResponseInfo;
 class IOBuffer;
+class IOBufferWithSize;
 class SSLCertRequestInfo;
 class SSLInfo;
 
@@ -222,11 +223,9 @@ class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
 
   // Stores an encoded chunk for chunked uploads.
   // Note: This should perhaps be improved to not create copies of the data.
-  scoped_refptr<IOBuffer> chunk_buf_;
-  // The size of the chunk buffer (chunk_buf_). The chunk buffer is
-  // guaranteed to be large enough to hold the encoded chunk.
-  const size_t chunk_buffer_size_;
-  size_t chunk_length_;
+  scoped_refptr<IOBufferWithSize> raw_chunk_buf_;
+  // Wraps raw_chunk_buf_ to read the remaining data progressively.
+  scoped_refptr<DrainableIOBuffer> chunk_buf_;
   size_t chunk_length_without_encoding_;
   bool sent_last_chunk_;
 
