@@ -336,8 +336,6 @@ void VideoRendererBase::PutCurrentFrame(scoped_refptr<VideoFrame> frame) {
 }
 
 void VideoRendererBase::FrameReady(scoped_refptr<VideoFrame> frame) {
-  DCHECK(frame);
-
   base::AutoLock auto_lock(lock_);
   DCHECK_NE(state_, kUninitialized);
   DCHECK_NE(state_, kStopped);
@@ -349,6 +347,18 @@ void VideoRendererBase::FrameReady(scoped_refptr<VideoFrame> frame) {
 
   if (state_ == kFlushing) {
     AttemptFlush_Locked();
+    return;
+  }
+
+  if (!frame) {
+    if (state_ != kSeeking)
+      return;
+
+    // Abort seek early for a NULL frame because we won't get more frames.
+    // A new seek will be requested after this one completes so there is no
+    // point trying to collect more frames.
+    state_ = kPrerolled;
+    ResetAndRunCB(&seek_cb_, PIPELINE_OK);
     return;
   }
 

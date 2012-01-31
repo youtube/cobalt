@@ -438,4 +438,16 @@ TEST_F(FFmpegVideoDecoderTest, Stop_EndOfStream) {
   Stop();
 }
 
+// Test aborted read on the demuxer stream.
+TEST_F(FFmpegVideoDecoderTest, AbortPendingRead) {
+  Initialize();
+
+  EXPECT_CALL(*demuxer_, Read(_))
+      .WillOnce(ReturnBuffer(scoped_refptr<Buffer>()));
+
+  scoped_refptr<VideoFrame> video_frame;
+  Read(&video_frame);
+  EXPECT_FALSE(video_frame);
+}
+
 }  // namespace media

@@ -169,6 +169,12 @@ void FFmpegAudioDecoder::DoDecodeBuffer(const scoped_refptr<Buffer>& input) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(!read_cb_.is_null());
 
+  if (!input) {
+    // DemuxeStream::Read() was aborted so we abort the decoder's pending read.
+    DeliverSamples(NULL);
+    return;
+  }
+
   // FFmpeg tends to seek Ogg audio streams in the middle of nowhere, giving us
   // a whole bunch of AV_NOPTS_VALUE packets.  Discard them until we find
   // something valid.  Refer to http://crbug.com/49709
