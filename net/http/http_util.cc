@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -90,8 +90,12 @@ size_t HttpUtil::FindDelimiter(const string& line, size_t search_start,
 
 // static
 void HttpUtil::ParseContentType(const string& content_type_str,
-                                string* mime_type, string* charset,
-                                bool *had_charset) {
+                                string* mime_type,
+                                string* charset,
+                                bool* had_charset,
+                                string* boundary) {
+  const string::const_iterator begin = content_type_str.begin();
+
   // Trim leading and trailing whitespace from type.  We include '(' in
   // the trailing trim set to catch media-type comments, which are not at all
   // standard, but may occur in rare cases.
@@ -103,34 +107,40 @@ void HttpUtil::ParseContentType(const string& content_type_str,
 
   size_t charset_val = 0;
   size_t charset_end = 0;
+  bool type_has_charset = false;
 
   // Iterate over parameters
-  bool type_has_charset = false;
   size_t param_start = content_type_str.find_first_of(';', type_end);
   if (param_start != string::npos) {
-    // We have parameters.  Iterate over them.
-    size_t cur_param_start = param_start + 1;
-    do {
-      size_t cur_param_end =
-          FindDelimiter(content_type_str, cur_param_start, ';');
+    StringTokenizer tokenizer(begin + param_start, content_type_str.end(),
+                              ";");
+    tokenizer.set_quote_chars("\"");
+    while (tokenizer.GetNext()) {
+      string::const_iterator equals_sign =
+          std::find(tokenizer.token_begin(), tokenizer.token_end(), '=');
+      if (equals_sign == tokenizer.token_end())
+        continue;
 
-      size_t param_name_start = content_type_str.find_first_not_of(
-          HTTP_LWS, cur_param_start);
-      param_name_start = std::min(param_name_start, cur_param_end);
+      string::const_iterator param_name_begin = tokenizer.token_begin();
+      string::const_iterator param_name_end = equals_sign;
+      TrimLWS(&param_name_begin, &param_name_end);
 
-      static const char charset_str[] = "charset=";
-      size_t charset_end_offset = std::min(
-          param_name_start + sizeof(charset_str) - 1, cur_param_end);
-      if (LowerCaseEqualsASCII(
-              content_type_str.begin() + param_name_start,
-              content_type_str.begin() + charset_end_offset, charset_str)) {
-        charset_val = param_name_start + sizeof(charset_str) - 1;
-        charset_end = cur_param_end;
+      string::const_iterator param_value_begin = equals_sign + 1;
+      string::const_iterator param_value_end = tokenizer.token_end();
+      DCHECK(param_value_begin <= tokenizer.token_end());
+      TrimLWS(&param_value_begin, &param_value_end);
+
+      if (LowerCaseEqualsASCII(param_name_begin, param_name_end, "charset")) {
+        // TODO(abarth): Refactor this function to consistently use iterators.
+        charset_val = param_value_begin - begin;
+        charset_end = param_value_end - begin;
         type_has_charset = true;
+      } else if (LowerCaseEqualsASCII(param_name_begin, param_name_end,
+                                      "boundary")) {
+        if (boundary)
+          boundary->assign(param_value_begin, param_value_end);
       }
-
-      cur_param_start = cur_param_end + 1;
-    } while (cur_param_start < content_type_str.length());
+    }
   }
 
   if (type_has_charset) {
@@ -162,19 +172,16 @@ void HttpUtil::ParseContentType(const string& content_type_str,
       content_type_str != "*/*" &&
       content_type_str.find_first_of('/') != string::npos) {
     // Common case here is that mime_type is empty
-    bool eq = !mime_type->empty() &&
-              LowerCaseEqualsASCII(content_type_str.begin() + type_val,
-                                   content_type_str.begin() + type_end,
-                                   mime_type->data());
+    bool eq = !mime_type->empty() && LowerCaseEqualsASCII(begin + type_val,
+                                                          begin + type_end,
+                                                          mime_type->data());
     if (!eq) {
-      mime_type->assign(content_type_str.begin() + type_val,
-                        content_type_str.begin() + type_end);
+      mime_type->assign(begin + type_val, begin + type_end);
       StringToLowerASCII(mime_type);
     }
     if ((!eq && *had_charset) || type_has_charset) {
       *had_charset = true;
-      charset->assign(content_type_str.begin() + charset_val,
-                      content_type_str.begin() + charset_end);
+      charset->assign(begin + charset_val, begin + charset_end);
       StringToLowerASCII(charset);
     }
   }
