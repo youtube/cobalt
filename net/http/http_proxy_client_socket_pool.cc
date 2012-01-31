@@ -42,7 +42,7 @@ HttpProxySocketParams::HttpProxySocketParams(
     const scoped_refptr<SSLSocketParams>& ssl_params,
     const GURL& request_url,
     const std::string& user_agent,
-    HostPortPair endpoint,
+    const HostPortPair& endpoint,
     HttpAuthCache* http_auth_cache,
     HttpAuthHandlerFactory* http_auth_handler_factory,
     SpdySessionPool* spdy_session_pool,
