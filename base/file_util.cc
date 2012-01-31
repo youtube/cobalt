@@ -13,6 +13,7 @@
 
 #include "base/file_path.h"
 #include "base/logging.h"
+#include "base/stringprintf.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
@@ -20,6 +21,13 @@
 namespace {
 
 const FilePath::CharType kExtensionSeparator = FILE_PATH_LITERAL('.');
+
+// The maximum number of 'uniquified' files we will try to create.
+// This is used when the filename we're trying to download is already in use,
+// so we create a new unique filename by appending " (nnn)" before the
+// extension, where 1 <= nnn <= kMaxUniqueFiles.
+// Also used by code that cleans up said files.
+static const int kMaxUniqueFiles = 100;
 
 }  // namespace
 
@@ -235,6 +243,27 @@ bool TruncateFile(FILE* file) {
     return false;
 #endif
   return true;
+}
+
+int GetUniquePathNumber(
+    const FilePath& path,
+    const FilePath::StringType& suffix) {
+  bool have_suffix = !suffix.empty();
+  if (!PathExists(path) &&
+      (!have_suffix || !PathExists(FilePath(path.value() + suffix)))) {
+    return 0;
+  }
+
+  FilePath new_path;
+  for (int count = 1; count <= kMaxUniqueFiles; ++count) {
+    new_path = path.InsertBeforeExtensionASCII(StringPrintf(" (%d)", count));
+    if (!PathExists(new_path) &&
+        (!have_suffix || !PathExists(FilePath(new_path.value() + suffix)))) {
+      return count;
+    }
+  }
+
+  return -1;
 }
 
 bool ContainsPath(const FilePath &parent, const FilePath& child) {
