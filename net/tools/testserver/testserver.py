@@ -915,7 +915,7 @@ class TestPageHandler(BasePageHandler):
 
   def PostOnlyFileHandler(self):
     """This handler sends the contents of the requested file on a POST."""
-    prefix = self.server.file_root_url + '/post/'
+    prefix = urlparse.urljoin(self.server.file_root_url, 'post/')
     if not self.path.startswith(prefix):
       return False
     self.ReadRequestBody()
