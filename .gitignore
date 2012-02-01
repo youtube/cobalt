@@ -151,6 +151,7 @@ v8.log
 /third_party/speex
 /third_party/swig
 /third_party/syzygy/binaries
+/third_party/undoview
 /third_party/v8-i18n
 /third_party/valgrind
 /third_party/webdriver/pylib
