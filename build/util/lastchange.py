@@ -73,17 +73,20 @@ def RunGitCommand(directory, command):
     A process object or None.
   """
   command = ['git'] + command
-  # Force shell usage under cygwin & win32. This is a workaround for
+  shell = True
+  # Force shell usage under cygwin. This is a workaround for
   # mysterious loss of cwd while invoking cygwin's git.
   # We can't just pass shell=True to Popen, as under win32 this will
   # cause CMD to be used, while we explicitly want a cygwin shell.
-  if sys.platform in ('cygwin', 'win32'):
+  if sys.platform == 'cygwin':
     command = ['sh', '-c', ' '.join(command)]
+    shell = False
   try:
     proc = subprocess.Popen(command,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
-                            cwd=directory)
+                            cwd=directory,
+                            shell=shell)
     return proc
   except OSError:
     return None
@@ -207,7 +210,8 @@ def main(argv=None):
     parser.print_help()
     sys.exit(2)
 
-  version_info = FetchVersionInfo(opts.default_lastchange)
+  version_info = FetchVersionInfo(opts.default_lastchange,
+      os.path.dirname(sys.argv[0]))
 
   if version_info.revision == None:
     version_info.revision = '0'
