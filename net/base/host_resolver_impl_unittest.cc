@@ -27,10 +27,6 @@
 #include "net/base/test_completion_callback.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-// TODO(eroman):
-//  - Test mixing async with sync (in particular how does sync update the
-//    cache while an async is already pending).
-
 namespace net {
 
 using base::TimeDelta;
@@ -39,9 +35,37 @@ using base::TimeTicks;
 static const size_t kMaxJobs = 10u;
 static const size_t kMaxRetryAttempts = 4u;
 
+PrioritizedDispatcher::Limits DefaultLimits() {
+  PrioritizedDispatcher::Limits limits(NUM_PRIORITIES, kMaxJobs);
+  return limits;
+}
+
+HostResolverImpl::ProcTaskParams DefaultParams(
+    HostResolverProc* resolver_proc) {
+  return HostResolverImpl::ProcTaskParams(resolver_proc,
+                                          kMaxRetryAttempts);
+}
+
 HostResolverImpl* CreateHostResolverImpl(HostResolverProc* resolver_proc) {
-  return new HostResolverImpl(resolver_proc, HostCache::CreateDefaultCache(),
-                              kMaxJobs, kMaxRetryAttempts, NULL);
+  return new HostResolverImpl(
+      HostCache::CreateDefaultCache(),
+      DefaultLimits(),
+      DefaultParams(resolver_proc),
+      NULL);
+}
+
+// This HostResolverImpl will only allow 1 outstanding resolve at a time.
+HostResolverImpl* CreateSerialHostResolverImpl(
+    HostResolverProc* resolver_proc) {
+  HostResolverImpl::ProcTaskParams params = DefaultParams(resolver_proc);
+  params.max_retry_attempts = 0u;
+
+  PrioritizedDispatcher::Limits limits(NUM_PRIORITIES, 1);
+
+  return new HostResolverImpl(HostCache::CreateDefaultCache(),
+                              limits,
+                              params,
+                              NULL);
 }
 
 // Helper to create a HostResolver::RequestInfo.
@@ -482,18 +506,18 @@ class WaitingHostResolverProc : public HostResolverProc {
   base::WaitableEvent is_signaled_;
 };
 
-TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
+TEST_F(HostResolverImplTest, AbortedAsynchronousLookup) {
   scoped_refptr<WaitingHostResolverProc> resolver_proc(
       new WaitingHostResolverProc(NULL));
 
   CapturingNetLog net_log(CapturingNetLog::kUnbounded);
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   {
+    // This resolver will be destroyed while a lookup is running on WorkerPool.
     scoped_ptr<HostResolver> host_resolver(
-        new HostResolverImpl(resolver_proc,
-                             HostCache::CreateDefaultCache(),
-                             kMaxJobs,
-                             kMaxRetryAttempts,
+        new HostResolverImpl(HostCache::CreateDefaultCache(),
+                             DefaultLimits(),
+                             DefaultParams(resolver_proc),
                              &net_log));
     AddressList addrlist;
     const int kPortnum = 80;
@@ -526,17 +550,23 @@ TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
   pos = ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
       NetLog::TYPE_HOST_RESOLVER_IMPL_JOB,
       NetLog::PHASE_BEGIN);
-  // Both Job and Request need to be cancelled.
+  pos = ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
+        NetLog::TYPE_HOST_RESOLVER_IMPL_PROC_TASK,
+        NetLog::PHASE_BEGIN);
+  // Both Request and ProcTask need to be cancelled. (The Job is "aborted".)
   pos = ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
       NetLog::TYPE_CANCELLED,
       NetLog::PHASE_NONE);
-  // Don't care about order in which they end, or when the other one is
-  // cancelled.
+  // Don't care about order in which Request, Job and ProcTask end, or when the
+  // other one is cancelled.
   ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
       NetLog::TYPE_CANCELLED,
       NetLog::PHASE_NONE);
   ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
       NetLog::TYPE_HOST_RESOLVER_IMPL_REQUEST,
+      NetLog::PHASE_END);
+  ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
+      NetLog::TYPE_HOST_RESOLVER_IMPL_PROC_TASK,
       NetLog::PHASE_END);
   ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
       NetLog::TYPE_HOST_RESOLVER_IMPL_JOB,
@@ -942,9 +972,8 @@ TEST_F(HostResolverImplTest, StartWithinCallback) {
       new CapturingHostResolverProc(NULL));
 
   // Turn off caching for this host resolver.
-  scoped_ptr<HostResolver> host_resolver(
-      new HostResolverImpl(resolver_proc, NULL, kMaxJobs, kMaxRetryAttempts,
-                           NULL));
+  scoped_ptr<HostResolver> host_resolver(new HostResolverImpl(
+      NULL, DefaultLimits(), DefaultParams(resolver_proc), NULL));
 
   // The class will receive callbacks for when each resolve completes. It
   // checks that the right things happened.
@@ -1024,12 +1053,11 @@ TEST_F(HostResolverImplTest, BypassCache) {
 // Test that IP address changes flush the cache.
 TEST_F(HostResolverImplTest, FlushCacheOnIPAddressChange) {
   scoped_ptr<HostResolver> host_resolver(
-      new HostResolverImpl(NULL, HostCache::CreateDefaultCache(), kMaxJobs,
-                           kMaxRetryAttempts, NULL));
+      CreateHostResolverImpl(NULL));
 
   AddressList addrlist;
 
-  // Resolve "host1".
+  // Resolve "host1". Assume that ScopedDefaultHostResolverProc resolves all.
   HostResolver::RequestInfo info1(HostPortPair("host1", 70));
   TestCompletionCallback callback;
   int rv = host_resolver->Resolve(info1, &addrlist, callback.callback(), NULL,
@@ -1083,15 +1111,9 @@ TEST_F(HostResolverImplTest, AbortOnIPAddressChanged) {
 TEST_F(HostResolverImplTest, ObeyPoolConstraintsAfterIPAddressChange) {
   scoped_refptr<WaitingHostResolverProc> resolver_proc(
       new WaitingHostResolverProc(CreateCatchAllHostResolverProc()));
-  scoped_ptr<HostResolverImpl> host_resolver(
-      new HostResolverImpl(resolver_proc, HostCache::CreateDefaultCache(),
-                           kMaxJobs, kMaxRetryAttempts, NULL));
 
-  const size_t kMaxOutstandingJobs = 1u;
-  const size_t kMaxPendingRequests = 1000000u;  // not relevant.
-  host_resolver->SetPoolConstraints(HostResolverImpl::POOL_NORMAL,
-                                    kMaxOutstandingJobs,
-                                    kMaxPendingRequests);
+  scoped_ptr<HostResolverImpl> host_resolver(
+      CreateSerialHostResolverImpl(resolver_proc));
 
   // Resolve "host1".
   HostResolver::RequestInfo info(HostPortPair("host1", 70));
@@ -1179,12 +1201,8 @@ TEST_F(HostResolverImplTest, HigherPriorityRequestsStartedFirst) {
   scoped_refptr<CapturingHostResolverProc> resolver_proc(
       new CapturingHostResolverProc(NULL));
 
-  // This HostResolverImpl will only allow 1 outstanding resolve at a time.
-  size_t kMaxJobs = 1u;
-  const size_t kRetryAttempts = 0u;
-  scoped_ptr<HostResolver> host_resolver(
-      new HostResolverImpl(resolver_proc, HostCache::CreateDefaultCache(),
-                           kMaxJobs, kRetryAttempts, NULL));
+  scoped_ptr<HostResolverImpl> host_resolver(
+      CreateSerialHostResolverImpl(resolver_proc));
 
   // Note that at this point the CapturingHostResolverProc is blocked, so any
   // requests we make will not complete.
@@ -1241,12 +1259,8 @@ TEST_F(HostResolverImplTest, CancelPendingRequest) {
   scoped_refptr<CapturingHostResolverProc> resolver_proc(
       new CapturingHostResolverProc(NULL));
 
-  // This HostResolverImpl will only allow 1 outstanding resolve at a time.
-  const size_t kMaxJobs = 1u;
-  const size_t kRetryAttempts = 0u;
-  scoped_ptr<HostResolver> host_resolver(
-      new HostResolverImpl(resolver_proc, HostCache::CreateDefaultCache(),
-                           kMaxJobs, kRetryAttempts, NULL));
+  scoped_ptr<HostResolverImpl> host_resolver(
+      CreateSerialHostResolverImpl(resolver_proc));
 
   // Note that at this point the CapturingHostResolverProc is blocked, so any
   // requests we make will not complete.
@@ -1256,8 +1270,8 @@ TEST_F(HostResolverImplTest, CancelPendingRequest) {
       CreateResolverRequest("req1", HIGHEST),  // Will cancel.
       CreateResolverRequest("req2", MEDIUM),
       CreateResolverRequest("req3", LOW),
-      CreateResolverRequest("req4", HIGHEST),   // Will cancel.
-      CreateResolverRequest("req5", LOWEST),    // Will cancel.
+      CreateResolverRequest("req4", HIGHEST),  // Will cancel.
+      CreateResolverRequest("req5", LOWEST),   // Will cancel.
       CreateResolverRequest("req6", MEDIUM),
   };
 
@@ -1306,18 +1320,12 @@ TEST_F(HostResolverImplTest, QueueOverflow) {
   scoped_refptr<CapturingHostResolverProc> resolver_proc(
       new CapturingHostResolverProc(NULL));
 
-  // This HostResolverImpl will only allow 1 outstanding resolve at a time.
-  const size_t kMaxOutstandingJobs = 1u;
-  const size_t kRetryAttempts = 0u;
-  scoped_ptr<HostResolverImpl> host_resolver(new HostResolverImpl(
-      resolver_proc, HostCache::CreateDefaultCache(), kMaxOutstandingJobs,
-      kRetryAttempts, NULL));
+  scoped_ptr<HostResolverImpl> host_resolver(
+      CreateSerialHostResolverImpl(resolver_proc));
 
-  // Only allow up to 3 requests to be enqueued at a time.
-  const size_t kMaxPendingRequests = 3u;
-  host_resolver->SetPoolConstraints(HostResolverImpl::POOL_NORMAL,
-                                    kMaxOutstandingJobs,
-                                    kMaxPendingRequests);
+  // Allow only 3 queued jobs.
+  const size_t kMaxPendingJobs = 3u;
+  host_resolver->SetMaxQueuedJobs(kMaxPendingJobs);
 
   // Note that at this point the CapturingHostResolverProc is blocked, so any
   // requests we make will not complete.
@@ -1388,11 +1396,8 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_IPv4) {
       new CapturingHostResolverProc(new EchoingHostResolverProc));
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
-  const size_t kMaxOutstandingJobs = 1u;
-  const size_t kRetryAttempts = 0u;
-  scoped_ptr<HostResolverImpl> host_resolver(new HostResolverImpl(
-      resolver_proc, HostCache::CreateDefaultCache(), kMaxOutstandingJobs,
-      kRetryAttempts, NULL));
+  scoped_ptr<HostResolverImpl> host_resolver(
+      CreateSerialHostResolverImpl(resolver_proc));
 
   host_resolver->SetDefaultAddressFamily(ADDRESS_FAMILY_IPV4);
 
@@ -1458,12 +1463,8 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_IPv6) {
   scoped_refptr<CapturingHostResolverProc> resolver_proc(
       new CapturingHostResolverProc(new EchoingHostResolverProc));
 
-  // This HostResolverImpl will only allow 1 outstanding resolve at a time.
-  const size_t kMaxOutstandingJobs = 1u;
-  const size_t kRetryAttempts = 0u;
-  scoped_ptr<HostResolverImpl> host_resolver(new HostResolverImpl(
-      resolver_proc, HostCache::CreateDefaultCache(), kMaxOutstandingJobs,
-      kRetryAttempts, NULL));
+  scoped_ptr<HostResolverImpl> host_resolver(
+      CreateSerialHostResolverImpl(resolver_proc));
 
   host_resolver->SetDefaultAddressFamily(ADDRESS_FAMILY_IPV6);
 
@@ -1573,16 +1574,19 @@ TEST_F(HostResolverImplTest, MultipleAttempts) {
   scoped_refptr<LookupAttemptHostResolverProc> resolver_proc(
       new LookupAttemptHostResolverProc(
           NULL, kAttemptNumberToResolve, kTotalAttempts));
-  HostCache* cache = HostCache::CreateDefaultCache();
-  scoped_ptr<HostResolverImpl> host_resolver(
-      new HostResolverImpl(resolver_proc, cache, kMaxJobs, kMaxRetryAttempts,
-                           NULL));
+
+  HostResolverImpl::ProcTaskParams params = DefaultParams(resolver_proc);
 
   // Specify smaller interval for unresponsive_delay_ for HostResolverImpl so
   // that unit test runs faster. For example, this test finishes in 1.5 secs
   // (500ms * 3).
-  TimeDelta kUnresponsiveTime = TimeDelta::FromMilliseconds(500);
-  host_resolver->set_unresponsive_delay(kUnresponsiveTime);
+  params.unresponsive_delay = TimeDelta::FromMilliseconds(500);
+
+  scoped_ptr<HostResolverImpl> host_resolver(
+      new HostResolverImpl(HostCache::CreateDefaultCache(),
+                           DefaultLimits(),
+                           params,
+                           NULL));
 
   // Resolve "host1".
   HostResolver::RequestInfo info(HostPortPair("host1", 70));

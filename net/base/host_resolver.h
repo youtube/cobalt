@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -178,6 +178,12 @@ class NET_EXPORT HostResolver {
 // resolution. Pass HostResolver::kDefaultRetryAttempts to choose a default
 // value.
 NET_EXPORT HostResolver* CreateSystemHostResolver(
+    size_t max_concurrent_resolves,
+    size_t max_retry_attempts,
+    NetLog* net_log);
+
+// As above, but the created HostResolver does not use a cache.
+NET_EXPORT HostResolver* CreateNonCachingSystemHostResolver(
     size_t max_concurrent_resolves,
     size_t max_retry_attempts,
     NetLog* net_log);

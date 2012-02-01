@@ -58,70 +58,18 @@ EVENT_TYPE(HOST_RESOLVER_IMPL)
 //     "net_error": <The net error code integer for the failure>,
 //     "os_error": <The exact error code integer that getaddrinfo() returned>,
 //   }
-
 EVENT_TYPE(HOST_RESOLVER_IMPL_REQUEST)
 
 // This event is logged when a request is handled by a cache entry.
 EVENT_TYPE(HOST_RESOLVER_IMPL_CACHE_HIT)
 
-// This event means a request was queued/dequeued for subsequent job creation,
-// because there are already too many active HostResolverImpl::Jobs.
-//
-// The BEGIN phase contains the following parameters:
-//
-//   {
-//     "priority": <Priority of the queued request>,
-//   }
-EVENT_TYPE(HOST_RESOLVER_IMPL_JOB_POOL_QUEUE)
-
-// This event is created when a new HostResolverImpl::Request is evicted from
-// JobPool without a Job being created, because the limit on number of queued
-// Requests was reached.
-EVENT_TYPE(HOST_RESOLVER_IMPL_JOB_POOL_QUEUE_EVICTED)
-
 // This event is created when a new HostResolverImpl::Job is about to be created
 // for a request.
 EVENT_TYPE(HOST_RESOLVER_IMPL_CREATE_JOB)
 
-// This event is created when HostResolverImpl::Job is about to start a new
-// attempt to resolve the host.
+// The creation/completion of a HostResolverImpl::Job which is created for
+// Requests that cannot be resolved synchronously.
 //
-// The ATTEMPT_STARTED event has the parameters:
-//
-//   {
-//     "attempt_number": <the number of the attempt that is resolving the host>,
-//   }
-EVENT_TYPE(HOST_RESOLVER_IMPL_ATTEMPT_STARTED)
-
-// This event is created when HostResolverImpl::Job has finished resolving the
-// host.
-//
-// The ATTEMPT_FINISHED event has the parameters:
-//
-//   {
-//     "attempt_number": <the number of the attempt that has resolved the host>,
-//   }
-// If an error occurred, the END phase will contain these additional parameters:
-//   {
-//     "net_error": <The net error code integer for the failure>,
-//     "os_error": <The exact error code integer that getaddrinfo() returned>,
-//   }
-EVENT_TYPE(HOST_RESOLVER_IMPL_ATTEMPT_FINISHED)
-
-// This is logged for a request when it's attached to a
-// HostResolverImpl::Job.  When this occurs without a preceding
-// HOST_RESOLVER_IMPL_CREATE_JOB entry, it means the request was attached to an
-// existing HostResolverImpl::Job.
-//
-// If the BoundNetLog used to create the event has a valid source id, the BEGIN
-// phase contains the following parameters:
-//
-//   {
-//     "source_dependency": <Source identifier for the attached Job>,
-//   }
-EVENT_TYPE(HOST_RESOLVER_IMPL_JOB_ATTACH)
-
-// The creation/completion of a host resolve (DNS) job.
 // The BEGIN phase contains the following parameters:
 //
 //   {
@@ -139,6 +87,100 @@ EVENT_TYPE(HOST_RESOLVER_IMPL_JOB_ATTACH)
 //     "os_error": <The exact error code integer that getaddrinfo() returned>,
 //   }
 EVENT_TYPE(HOST_RESOLVER_IMPL_JOB)
+
+// This event is created when a HostResolverImpl::Job is evicted from
+// PriorityDispatch before it can start, because the limit on number of queued
+// Jobs was reached.
+EVENT_TYPE(HOST_RESOLVER_IMPL_JOB_EVICTED)
+
+// This event is created when a HostResolverImpl::Job is started by
+// PriorityDispatch.
+EVENT_TYPE(HOST_RESOLVER_IMPL_JOB_STARTED)
+
+// This event is created when HostResolverImpl::ProcJob is about to start a new
+// attempt to resolve the host.
+//
+// The ATTEMPT_STARTED event has the parameters:
+//
+//   {
+//     "attempt_number": <the number of the attempt that is resolving the host>,
+//   }
+EVENT_TYPE(HOST_RESOLVER_IMPL_ATTEMPT_STARTED)
+
+// This event is created when HostResolverImpl::ProcJob has finished resolving
+// the host.
+//
+// The ATTEMPT_FINISHED event has the parameters:
+//
+//   {
+//     "attempt_number": <the number of the attempt that has resolved the host>,
+//   }
+// If an error occurred, the END phase will contain these additional parameters:
+//   {
+//     "net_error": <The net error code integer for the failure>,
+//     "os_error": <The exact error code integer that getaddrinfo() returned>,
+//   }
+EVENT_TYPE(HOST_RESOLVER_IMPL_ATTEMPT_FINISHED)
+
+// This is logged for a request when it's attached to a
+// HostResolverImpl::Job. When this occurs without a preceding
+// HOST_RESOLVER_IMPL_CREATE_JOB entry, it means the request was attached to an
+// existing HostResolverImpl::Job.
+//
+// The event contains the following parameters:
+//
+//   {
+//     "source_dependency": <Source identifier for the attached Job>,
+//   }
+//
+EVENT_TYPE(HOST_RESOLVER_IMPL_JOB_ATTACH)
+
+// This event is logged for the job to which the request is attached.
+// In that case, the event contains the following parameters:
+//
+//   {
+//     "source_dependency": <Source identifier for the attached Request>,
+//     "priority": <New priority of the job>,
+//   }
+EVENT_TYPE(HOST_RESOLVER_IMPL_JOB_REQUEST_ATTACH)
+
+// This is logged for a job when a request is cancelled and detached.
+//
+// The event contains the following parameters:
+//
+//   {
+//     "source_dependency": <Source identifier for the detached Request>,
+//     "priority": <New priority of the job>,
+//   }
+EVENT_TYPE(HOST_RESOLVER_IMPL_JOB_REQUEST_DETACH)
+
+// Logged for a HostResolverImpl::Job when it creates a ProcTask.
+//
+// The event contains the following parameters:
+//
+//   {
+//     "source_dependency": <Source id of parent HostResolverImpl::Job>,
+//   }
+EVENT_TYPE(HOST_RESOLVER_IMPL_CREATE_PROC_TASK)
+
+// The creation/completion of a HostResolverImpl::ProcTask to call getaddrinfo.
+// The BEGIN phase contains the following parameters:
+//
+//   {
+//     "hostname": <Hostname associated with the request>,
+//     "source_dependency": <Source id of parent HostResolverImpl::Job>,
+//   }
+//
+// On success, the END phase has these parameters:
+//   {
+//     "address_list": <The host name being resolved>,
+//   }
+// If an error occurred, the END phase will contain these parameters:
+//   {
+//     "net_error": <The net error code integer for the failure>,
+//     "os_error": <The exact error code integer that getaddrinfo() returned>,
+//   }
+EVENT_TYPE(HOST_RESOLVER_IMPL_PROC_TASK)
 
 // ------------------------------------------------------------------------
 // InitProxyResolver
