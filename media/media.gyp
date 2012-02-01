@@ -292,6 +292,8 @@
             'filters/ffmpeg_video_decoder.h',
             'filters/gpu_video_decoder.cc',
             'filters/gpu_video_decoder.h',
+            'webm/webm_cluster_parser.cc',
+            'webm/webm_cluster_parser.h',
             'webm/webm_stream_parser.cc',
             'webm/webm_stream_parser.h',
           ],
