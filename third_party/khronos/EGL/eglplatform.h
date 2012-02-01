@@ -94,11 +94,16 @@ typedef Pixmap   EGLNativePixmapType;
 typedef Window   EGLNativeWindowType;
 
 #elif defined(__APPLE__)
+#ifdef __OBJC__
+@class NSView;
+#else
+struct NSView;
+#endif  // __OBJC__
 
 // TODO(gman): these are place holders.
-typedef void    *EGLNativeDisplayType;
-typedef int      EGLNativePixmapType;
-typedef int      EGLNativeWindowType;
+typedef void          *EGLNativeDisplayType;
+typedef int            EGLNativePixmapType;
+typedef struct NSView *EGLNativeWindowType;
 
 #else
 #error "Platform not recognized"
