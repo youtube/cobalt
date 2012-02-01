@@ -259,13 +259,8 @@ TEST(PlatformFile, TruncatePlatformFile) {
   base::ClosePlatformFile(file);
 }
 
-#if defined(OS_MACOSX)
 // Flakily fails: http://crbug.com/86494
-#define MAYBE_TouchGetInfoPlatformFile FLAKY_TouchGetInfoPlatformFile
-#else
-#define MAYBE_TouchGetInfoPlatformFile TouchGetInfoPlatformFile
-#endif
-TEST(PlatformFile, MAYBE_TouchGetInfoPlatformFile) {
+TEST(PlatformFile, FLAKY_TouchGetInfoPlatformFile) {
   ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
   base::PlatformFile file = base::CreatePlatformFile(
