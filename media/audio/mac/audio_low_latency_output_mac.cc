@@ -328,39 +328,8 @@ double AUAudioOutputStream::GetHardwareLatency() {
   OSSTATUS_DLOG_IF(WARNING, result != noErr, result)
       << "Could not get audio device latency";
 
-  // Get the stream latency.
-  property_address.mSelector = kAudioDevicePropertyStreams;
-  UInt32 stream_latency_frames = 0;
-  result = AudioObjectGetPropertyDataSize(output_device_id_,
-                                          &property_address,
-                                          0,
-                                          NULL,
-                                          &size);
-  if (!result) {
-    scoped_ptr_malloc<AudioStreamID>
-        streams(reinterpret_cast<AudioStreamID*>(malloc(size)));
-    AudioStreamID* stream_ids = streams.get();
-    result = AudioObjectGetPropertyData(output_device_id_,
-                                        &property_address,
-                                        0,
-                                        NULL,
-                                        &size,
-                                        stream_ids);
-    if (!result) {
-      property_address.mSelector = kAudioStreamPropertyLatency;
-      result = AudioObjectGetPropertyData(stream_ids[0],
-                                          &property_address,
-                                          0,
-                                          NULL,
-                                          &size,
-                                          &stream_latency_frames);
-    }
-  }
-  OSSTATUS_DLOG_IF(WARNING, result != noErr, result)
-      << "Could not get audio stream latency";
-
   return static_cast<double>((audio_unit_latency_sec *
-      format_.mSampleRate) + device_latency_frames + stream_latency_frames);
+      format_.mSampleRate) + device_latency_frames);
 }
 
 double AUAudioOutputStream::GetPlayoutLatency(
