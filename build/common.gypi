@@ -642,9 +642,6 @@
     # from disk by passing --debug-devtools cmdline switch.
     'debug_devtools%': 0,
 
-    # Point to ICU directory.
-    'icu_src_dir': '../third_party/icu',
-
     # The Java Bridge is not compiled in by default.
     'java_bridge%': 0,
 
