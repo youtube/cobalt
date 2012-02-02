@@ -38,8 +38,8 @@ class UploadDataStreamTest : public PlatformTest {
 
 TEST_F(UploadDataStreamTest, EmptyUploadData) {
   upload_data_->AppendBytes("", 0);
-  scoped_ptr<UploadDataStream> stream(
-      UploadDataStream::Create(upload_data_, NULL));
+  scoped_ptr<UploadDataStream> stream(new UploadDataStream(upload_data_));
+  ASSERT_EQ(OK, stream->Init());
   ASSERT_TRUE(stream.get());
   EXPECT_EQ(0U, stream->size());
   EXPECT_EQ(0U, stream->position());
@@ -48,8 +48,8 @@ TEST_F(UploadDataStreamTest, EmptyUploadData) {
 
 TEST_F(UploadDataStreamTest, ConsumeAll) {
   upload_data_->AppendBytes(kTestData, kTestDataSize);
-  scoped_ptr<UploadDataStream> stream(
-      UploadDataStream::Create(upload_data_, NULL));
+  scoped_ptr<UploadDataStream> stream(new UploadDataStream(upload_data_));
+  ASSERT_EQ(OK, stream->Init());
   ASSERT_TRUE(stream.get());
   EXPECT_EQ(kTestDataSize, stream->size());
   EXPECT_EQ(0U, stream->position());
@@ -75,8 +75,8 @@ TEST_F(UploadDataStreamTest, FileSmallerThanLength) {
   upload_data_->SetElements(elements);
   EXPECT_EQ(kFakeSize, upload_data_->GetContentLength());
 
-  scoped_ptr<UploadDataStream> stream(
-      UploadDataStream::Create(upload_data_, NULL));
+  scoped_ptr<UploadDataStream> stream(new UploadDataStream(upload_data_));
+  ASSERT_EQ(OK, stream->Init());
   ASSERT_TRUE(stream.get());
   EXPECT_EQ(kFakeSize, stream->size());
   EXPECT_EQ(0U, stream->position());
@@ -104,13 +104,12 @@ void UploadDataStreamTest::FileChangedHelper(const FilePath& file_path,
   elements.push_back(element);
   upload_data_->SetElements(elements);
 
-  int error_code;
-  scoped_ptr<UploadDataStream> stream(
-      UploadDataStream::Create(upload_data_, &error_code));
+  scoped_ptr<UploadDataStream> stream(new UploadDataStream(upload_data_));
+  int error_code = stream->Init();
   if (error_expected)
-    ASSERT_TRUE(!stream.get() && error_code == ERR_UPLOAD_FILE_CHANGED);
+    ASSERT_EQ(ERR_UPLOAD_FILE_CHANGED, error_code);
   else
-    ASSERT_TRUE(stream.get() && error_code == OK);
+    ASSERT_EQ(OK, error_code);
 }
 
 TEST_F(UploadDataStreamTest, FileChanged) {

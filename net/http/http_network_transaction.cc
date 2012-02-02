@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -732,11 +732,12 @@ int HttpNetworkTransaction::DoBuildRequest() {
   next_state_ = STATE_BUILD_REQUEST_COMPLETE;
   request_body_.reset(NULL);
   if (request_->upload_data) {
-    int error_code;
-    request_body_.reset(
-        UploadDataStream::Create(request_->upload_data, &error_code));
-    if (!request_body_.get())
+    request_body_.reset(new UploadDataStream(request_->upload_data));
+    const int error_code = request_body_->Init();
+    if (error_code != OK) {
+      request_body_.reset(NULL);
       return error_code;
+    }
   }
 
   headers_valid_ = false;
