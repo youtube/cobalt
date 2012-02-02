@@ -19,15 +19,13 @@ bool UploadDataStream::merge_chunks_ = true;
 UploadDataStream::~UploadDataStream() {
 }
 
-UploadDataStream* UploadDataStream::Create(UploadData* data, int* error_code) {
-  scoped_ptr<UploadDataStream> stream(new UploadDataStream(data));
-  int rv = stream->FillBuffer();
-  if (error_code)
-    *error_code = rv;
-  if (rv != OK)
-    return NULL;
+int UploadDataStream::Init() {
+  DCHECK(!initialized_successfully_);
 
-  return stream.release();
+  total_size_ = upload_data_->GetContentLength();
+  const int result = FillBuffer();
+  initialized_successfully_ = (result == OK);
+  return result;
 }
 
 // static
@@ -36,6 +34,7 @@ size_t UploadDataStream::GetBufferSize() {
 }
 
 void UploadDataStream::MarkConsumedAndFillBuffer(size_t num_bytes) {
+  DCHECK(initialized_successfully_);
   DCHECK_LE(num_bytes, buf_len_);
   DCHECK(!eof_);
 
@@ -58,9 +57,10 @@ UploadDataStream::UploadDataStream(UploadData* upload_data)
       element_index_(0),
       element_offset_(0),
       element_file_bytes_remaining_(0),
-      total_size_(upload_data->GetContentLength()),
+      total_size_(0),
       current_position_(0),
-      eof_(false) {
+      eof_(false),
+      initialized_successfully_(false) {
 }
 
 int UploadDataStream::FillBuffer() {
@@ -189,6 +189,8 @@ bool UploadDataStream::IsEOF() const {
 }
 
 bool UploadDataStream::IsOnLastChunk() const {
+  DCHECK(initialized_successfully_);
+
   const std::vector<UploadData::Element>& elements = *upload_data_->elements();
   DCHECK(upload_data_->is_chunked());
   return (eof_ ||
@@ -198,6 +200,8 @@ bool UploadDataStream::IsOnLastChunk() const {
 }
 
 bool UploadDataStream::IsInMemory() const {
+  DCHECK(initialized_successfully_);
+
   return upload_data_->IsInMemory();
 }
 

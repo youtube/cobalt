@@ -1690,8 +1690,9 @@ TEST_P(SpdyNetworkTransactionTest, EmptyPost) {
 
   // Http POST Content-Length is using UploadDataStream::size().
   // It is the same as request.upload_data->GetContentLength().
-  scoped_ptr<UploadDataStream> stream(UploadDataStream::Create(
-      request.upload_data, NULL));
+  scoped_ptr<UploadDataStream> stream(
+      new UploadDataStream(request.upload_data));
+  ASSERT_EQ(OK, stream->Init());
   ASSERT_EQ(request.upload_data->GetContentLength(), stream->size());
 
   scoped_ptr<spdy::SpdyFrame>
@@ -1736,8 +1737,9 @@ TEST_P(SpdyNetworkTransactionTest, PostWithEarlySynReply) {
 
   // Http POST Content-Length is using UploadDataStream::size().
   // It is the same as request.upload_data->GetContentLength().
-  scoped_ptr<UploadDataStream> stream(UploadDataStream::Create(
-      request.upload_data, NULL));
+  scoped_ptr<UploadDataStream> stream(
+      new UploadDataStream(request.upload_data));
+  ASSERT_EQ(OK, stream->Init());
   ASSERT_EQ(request.upload_data->GetContentLength(), stream->size());
   scoped_ptr<spdy::SpdyFrame> stream_reply(ConstructSpdyPostSynReply(NULL, 0));
   scoped_ptr<spdy::SpdyFrame> stream_body(ConstructSpdyBodyFrame(1, true));

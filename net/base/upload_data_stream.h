@@ -17,12 +17,17 @@ class IOBuffer;
 
 class NET_EXPORT UploadDataStream {
  public:
+  explicit UploadDataStream(UploadData* upload_data);
   ~UploadDataStream();
 
-  // Returns a new instance of UploadDataStream if it can be created and
-  // initialized successfully. If not, NULL will be returned and the error
-  // code will be set if the output parameter error_code is not empty.
-  static UploadDataStream* Create(UploadData* upload_data, int* error_code);
+  // Initializes the stream. This function must be called exactly once,
+  // before calling any other method. It is not valid to call any method
+  // (other than the destructor) if Init() returns a failure.
+  //
+  // Returns OK on success. Returns ERR_UPLOAD_FILE_CHANGED if the expected
+  // file modification time is set (usually not set, but set for sliced
+  // files) and the target file is changed.
+  int Init();
 
   // Returns the stream's buffer.
   IOBuffer* buf() const { return buf_; }
@@ -73,10 +78,6 @@ class NET_EXPORT UploadDataStream {
   static void set_merge_chunks(bool merge) { merge_chunks_ = merge; }
 
  private:
-  // Protects from public access since now we have a static creator function
-  // which will do both creation and initialization and might return an error.
-  explicit UploadDataStream(UploadData* upload_data);
-
   // Fills the buffer with any remaining data and sets eof_ if there was nothing
   // left to fill the buffer with.
   // Returns OK if the operation succeeds. Otherwise error code is returned.
@@ -121,6 +122,9 @@ class NET_EXPORT UploadDataStream {
 
   // Whether there is no data left to read.
   bool eof_;
+
+  // True if the initialization was successful.
+  bool initialized_successfully_;
 
   // TODO(satish): Remove this once we have a better way to unit test POST
   // requests with chunked uploads.
