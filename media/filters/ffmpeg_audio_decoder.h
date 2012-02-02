@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,7 +25,8 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
   virtual void Flush(const base::Closure& callback) OVERRIDE;
 
   // AudioDecoder implementation.
-  virtual void Initialize(DemuxerStream* stream, const base::Closure& callback,
+  virtual void Initialize(DemuxerStream* stream,
+                          const PipelineStatusCB& callback,
                           const StatisticsCallback& stats_callback) OVERRIDE;
   virtual void Read(const ReadCB& callback) OVERRIDE;
   virtual int bits_per_channel() OVERRIDE;
@@ -35,7 +36,7 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
  private:
   // Methods running on decoder thread.
   void DoInitialize(const scoped_refptr<DemuxerStream>& stream,
-                    const base::Closure& callback,
+                    const PipelineStatusCB& callback,
                     const StatisticsCallback& stats_callback);
   void DoFlush(const base::Closure& callback);
   void DoRead(const ReadCB& callback);
