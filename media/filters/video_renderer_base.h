@@ -53,7 +53,7 @@ class MEDIA_EXPORT VideoRendererBase
 
   // VideoRenderer implementation.
   virtual void Initialize(VideoDecoder* decoder,
-                          const base::Closure& callback,
+                          const PipelineStatusCB& callback,
                           const StatisticsCallback& stats_callback) OVERRIDE;
   virtual bool HasEnded() OVERRIDE;
 

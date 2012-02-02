@@ -76,7 +76,7 @@ void FFmpegAudioDecoder::Flush(const base::Closure& callback) {
 
 void FFmpegAudioDecoder::Initialize(
     DemuxerStream* stream,
-    const base::Closure& callback,
+    const PipelineStatusCB& callback,
     const StatisticsCallback& stats_callback) {
   // TODO(scherkus): change Initialize() signature to pass |stream| as a
   // scoped_refptr<>.
@@ -108,7 +108,7 @@ int FFmpegAudioDecoder::samples_per_second() {
 
 void FFmpegAudioDecoder::DoInitialize(
     const scoped_refptr<DemuxerStream>& stream,
-    const base::Closure& callback,
+    const PipelineStatusCB& callback,
     const StatisticsCallback& stats_callback) {
   demuxer_stream_ = stream;
   const AudioDecoderConfig& config = stream->audio_decoder_config();
@@ -123,8 +123,7 @@ void FFmpegAudioDecoder::DoInitialize(
                 << " bits per channel: " << config.bits_per_channel()
                 << " samples per second: " << config.samples_per_second();
 
-    host()->SetError(DECODER_ERROR_NOT_SUPPORTED);
-    callback.Run();
+    callback.Run(DECODER_ERROR_NOT_SUPPORTED);
     return;
   }
 
@@ -137,8 +136,7 @@ void FFmpegAudioDecoder::DoInitialize(
     DLOG(ERROR) << "Could not initialize audio decoder: "
                 << codec_context_->codec_id;
 
-    host()->SetError(DECODER_ERROR_NOT_SUPPORTED);
-    callback.Run();
+    callback.Run(DECODER_ERROR_NOT_SUPPORTED);
     return;
   }
 
@@ -147,7 +145,7 @@ void FFmpegAudioDecoder::DoInitialize(
   channel_layout_ = config.channel_layout();
   samples_per_second_ = config.samples_per_second();
 
-  callback.Run();
+  callback.Run(PIPELINE_OK);
 }
 
 void FFmpegAudioDecoder::DoFlush(const base::Closure& callback) {
