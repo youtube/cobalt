@@ -63,8 +63,8 @@
               '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/i86pc/ia32/")',
           }],
 
-          # Ash requires Aura.
-          ['use_ash==1', {
+          # Ash and ChromeOS require Aura.
+          ['use_ash==1 or chromeos==1', {
             'use_aura%': 1,
           }],
 
