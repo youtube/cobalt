@@ -143,8 +143,9 @@ TEST_F(SpdyHttpStreamTest, SendChunkedPost) {
       OK,
       http_stream.InitializeStream(&request, net_log, CompletionCallback()));
 
-  UploadDataStream* upload_stream =
-      UploadDataStream::Create(request.upload_data, NULL);
+  // http_stream.SendRequest() will take ownership of upload_stream.
+  UploadDataStream* upload_stream = new UploadDataStream(request.upload_data);
+  ASSERT_EQ(OK, upload_stream->Init());
   EXPECT_EQ(ERR_IO_PENDING, http_stream.SendRequest(
       headers, upload_stream, &response, callback.callback()));
   EXPECT_TRUE(http_session_->spdy_session_pool()->HasSession(pair));
