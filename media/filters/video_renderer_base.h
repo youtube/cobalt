@@ -54,7 +54,8 @@ class MEDIA_EXPORT VideoRendererBase
   // VideoRenderer implementation.
   virtual void Initialize(VideoDecoder* decoder,
                           const PipelineStatusCB& callback,
-                          const StatisticsCallback& stats_callback) OVERRIDE;
+                          const StatisticsCallback& stats_callback,
+                          const VideoTimeCB& video_time_cb) OVERRIDE;
   virtual bool HasEnded() OVERRIDE;
 
   // PlatformThread::Delegate implementation.
@@ -184,6 +185,7 @@ class MEDIA_EXPORT VideoRendererBase
   base::Closure flush_callback_;
   FilterStatusCB seek_cb_;
   StatisticsCallback statistics_callback_;
+  VideoTimeCB video_time_cb_;
 
   base::TimeDelta seek_timestamp_;
 

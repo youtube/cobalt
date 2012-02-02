@@ -64,6 +64,8 @@ void VideoRendererBase::Stop(const base::Closure& callback) {
     base::AutoLock auto_lock(lock_);
     state_ = kStopped;
 
+    statistics_callback_.Reset();
+    video_time_cb_.Reset();
     if (!pending_paint_ && !pending_paint_with_last_available_)
       DoStopOrError_Locked();
 
@@ -101,15 +103,18 @@ void VideoRendererBase::Seek(base::TimeDelta time, const FilterStatusCB& cb) {
 
 void VideoRendererBase::Initialize(VideoDecoder* decoder,
                                    const PipelineStatusCB& callback,
-                                   const StatisticsCallback& stats_callback) {
+                                   const StatisticsCallback& stats_callback,
+                                   const VideoTimeCB& video_time_cb) {
   base::AutoLock auto_lock(lock_);
   DCHECK(decoder);
   DCHECK(!callback.is_null());
   DCHECK(!stats_callback.is_null());
+  DCHECK(!video_time_cb.is_null());
   DCHECK_EQ(kUninitialized, state_);
   decoder_ = decoder;
 
   statistics_callback_ = stats_callback;
+  video_time_cb_ = video_time_cb;
 
   // Notify the pipeline of the video dimensions.
   host()->SetNaturalVideoSize(decoder_->natural_size());
@@ -383,6 +388,8 @@ void VideoRendererBase::FrameReady(scoped_refptr<VideoFrame> frame) {
   // This one's a keeper! Place it in the ready queue.
   ready_frames_.push_back(frame);
   DCHECK_LE(NumFrames_Locked(), limits::kMaxVideoFrames);
+  if (!frame->IsEndOfStream())
+    video_time_cb_.Run(frame->GetTimestamp() + frame->GetDuration());
   frame_available_.Signal();
 
   PipelineStatistics statistics;

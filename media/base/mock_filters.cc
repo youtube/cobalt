@@ -176,6 +176,11 @@ void RunPipelineStatusCB3(::testing::Unused, const PipelineStatusCB& callback,
   callback.Run(PIPELINE_OK);
 }
 
+void RunPipelineStatusCB4(::testing::Unused, const PipelineStatusCB& callback,
+                          ::testing::Unused, ::testing::Unused) {
+  callback.Run(PIPELINE_OK);
+}
+
 void RunStopFilterCallback(const base::Closure& callback) {
   callback.Run();
 }
