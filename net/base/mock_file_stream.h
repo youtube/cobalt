@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,10 +20,11 @@ namespace testing {
 
 class MockFileStream : public net::FileStream {
  public:
-  MockFileStream() : forced_error_(net::OK) {}
+  MockFileStream(net::NetLog* net_log)
+      : net::FileStream(net_log), forced_error_(net::OK) {}
 
-  MockFileStream(base::PlatformFile file, int flags)
-      : net::FileStream(file, flags), forced_error_(net::OK) {}
+  MockFileStream(base::PlatformFile file, int flags, net::NetLog* net_log)
+      : net::FileStream(file, flags, net_log), forced_error_(net::OK) {}
 
   // FileStream methods.
   virtual int Open(const FilePath& path, int open_flags) OVERRIDE;

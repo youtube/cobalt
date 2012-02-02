@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -86,6 +86,7 @@ URLRequestFileJob::URLRequestFileJob(URLRequest* request,
                                      const FilePath& file_path)
     : URLRequestJob(request),
       file_path_(file_path),
+      stream_(NULL),
       is_directory_(false),
       remaining_bytes_(0) {
 }
