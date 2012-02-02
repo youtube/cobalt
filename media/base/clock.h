@@ -48,25 +48,64 @@ class MEDIA_EXPORT Clock {
   // will now change.
   void SetPlaybackRate(float playback_rate);
 
-  // Forcefully sets the media time to the given time.  This should only be used
-  // where a discontinuity in the media is found (i.e., seeking).
-  void SetTime(const base::TimeDelta& time);
+  // Forcefully sets the media time to |current_time|. The second parameter is
+  // the |max_time| that the clock should progress after a call to Play(). This
+  // value is often the time of the end of the last frame buffered and decoded.
+  //
+  // These values are clamped to the duration of the video, which is initially
+  // set to 0 (before SetDuration() is called).
+  void SetTime(base::TimeDelta current_time, base::TimeDelta max_time);
 
-  // Returns the current elapsed media time.
-  base::TimeDelta Elapsed() const;
+  // Sets the |max_time| to be returned by a call to Elapsed(). |max_time| must
+  // be greater than or equal to the current Elapsed() time.
+  void SetMaxTime(base::TimeDelta max_time);
+
+  // Returns the current elapsed media time. Returns 0 if SetDuration() has
+  // never been called.
+  base::TimeDelta Elapsed();
+
+  // Sets the duration of the video. Clock expects the duration will be set
+  // exactly once.
+  void SetDuration(base::TimeDelta duration);
+
+  // Resets clock to an uninitialized state.
+  void Reset();
+
+  // Notifies the clock that the end of stream has been reached. The clock state
+  // is updated accordingly.
+  void EndOfStream();
+
+  // Returns the duration of the clock, or 0 if not set.
+  base::TimeDelta Duration() const;
 
  private:
+  // Updates the reference points based on the current calculated time.
+  void UpdateReferencePoints();
+
+  // Updates the reference points based on the given |current_time|.
+  void UpdateReferencePoints(base::TimeDelta current_time);
+
+  // Returns the time elapsed based on the current reference points, ignoring
+  // the |max_time_| cap.
+  base::TimeDelta EstimatedElapsedTime();
+
   // Returns the current media time treating the given time as the latest
   // value as returned by |time_provider_|.
   base::TimeDelta ElapsedViaProvidedTime(const base::Time& time) const;
 
   base::Time GetTimeFromProvider() const;
 
+  base::TimeDelta ClampToValidTimeRange(base::TimeDelta time) const;
+
   // Function returning current time in base::Time units.
   TimeProvider* time_provider_;
 
   // Whether the clock is running.
   bool playing_;
+
+  // Whether the clock is stalled because it has reached the |max_time_|
+  // allowed.
+  bool underflow_;
 
   // The system clock time when this clock last starting playing or had its
   // time set via SetTime().
@@ -78,6 +117,12 @@ class MEDIA_EXPORT Clock {
 
   // Current playback rate.
   float playback_rate_;
+
+  // The maximum time that can be returned by calls to GetCurrentTime.
+  base::TimeDelta max_time_;
+
+  // Duration of the media.
+  base::TimeDelta duration_;
 
   DISALLOW_COPY_AND_ASSIGN(Clock);
 };
