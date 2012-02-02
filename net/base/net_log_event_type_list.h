@@ -1449,3 +1449,43 @@ EVENT_TYPE(HTTP_PIPELINED_CONNECTION_RECEIVED_HEADERS)
 //     "must_close": <True if the pipeline must shut down>,
 //   }
 EVENT_TYPE(HTTP_PIPELINED_CONNECTION_STREAM_CLOSED)
+
+// ------------------------------------------------------------------------
+// FileStream events.
+// ------------------------------------------------------------------------
+
+// This event lasts the lifetime of a file stream.
+EVENT_TYPE(FILE_STREAM_ALIVE)
+
+// This event is created when a file stream is associated with a NetLog source.
+// It indicates what file stream event source is used.
+//   {
+//     "source_dependency": <Source id of the file stream>,
+//   }
+EVENT_TYPE(FILE_STREAM_SOURCE)
+
+// This event is created when a file stream is associated with a NetLog source.
+// It indicates what event source owns the file stream source.
+//   {
+//     "source_dependency": <Source id of the owner of the file stream>,
+//   }
+EVENT_TYPE(FILE_STREAM_BOUND_TO_OWNER)
+
+// Mark the opening/closing of a file stream.
+// The BEGIN event has the following parameters:
+//   {
+//     "file_name".
+//   }
+EVENT_TYPE(FILE_STREAM_OPEN)
+
+// This event is created when a file stream's Close() is called.
+// This may occur even when the file is not open.
+EVENT_TYPE(FILE_STREAM_CLOSE)
+
+// This event is created when a file stream operation has an error.
+//   {
+//     "operation": open, write, close, etc.
+//     "os_error": OS-dependent error code.
+//     "net_error": net::Error code.
+//   }
+EVENT_TYPE(FILE_STREAM_ERROR)

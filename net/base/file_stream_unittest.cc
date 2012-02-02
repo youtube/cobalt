@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -53,7 +53,7 @@ namespace {
 TEST_F(FileStreamTest, BasicOpenClose) {
   base::PlatformFile file = base::kInvalidPlatformFileValue;
   {
-    FileStream stream;
+    FileStream stream(NULL);
     int rv = stream.Open(temp_file_path(),
         base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ);
     EXPECT_EQ(OK, rv);
@@ -76,7 +76,7 @@ TEST_F(FileStreamTest, FileHandleLeftOpen) {
 
   {
     // Seek to the beginning of the file and read.
-    FileStream read_stream(file, flags);
+    FileStream read_stream(file, flags, NULL);
     EXPECT_TRUE(read_stream.IsOpen());
   }
 
@@ -100,7 +100,7 @@ TEST_F(FileStreamTest, UseFileHandle) {
       temp_file_path(), flags, &created, NULL);
 
   // Seek to the beginning of the file and read.
-  FileStream read_stream(file, flags);
+  FileStream read_stream(file, flags, NULL);
   ASSERT_EQ(0, read_stream.Seek(FROM_BEGIN, 0));
   ASSERT_EQ(kTestDataSize, read_stream.Available());
   // Read into buffer and compare.
@@ -115,7 +115,7 @@ TEST_F(FileStreamTest, UseFileHandle) {
   flags = base::PLATFORM_FILE_OPEN_ALWAYS | base::PLATFORM_FILE_WRITE;
   file = base::CreatePlatformFile(temp_file_path(), flags, &created, NULL);
 
-  FileStream write_stream(file, flags);
+  FileStream write_stream(file, flags, NULL);
   ASSERT_EQ(0, write_stream.Seek(FROM_BEGIN, 0));
   ASSERT_EQ(kTestDataSize,
             write_stream.Write(kTestData, kTestDataSize, CompletionCallback()));
@@ -128,7 +128,7 @@ TEST_F(FileStreamTest, UseFileHandle) {
 }
 
 TEST_F(FileStreamTest, UseClosedStream) {
-  FileStream stream;
+  FileStream stream(NULL);
 
   EXPECT_FALSE(stream.IsOpen());
 
@@ -151,7 +151,7 @@ TEST_F(FileStreamTest, BasicRead) {
   bool ok = file_util::GetFileSize(temp_file_path(), &file_size);
   EXPECT_TRUE(ok);
 
-  FileStream stream;
+  FileStream stream(NULL);
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_READ;
   int rv = stream.Open(temp_file_path(), flags);
@@ -181,7 +181,7 @@ TEST_F(FileStreamTest, AsyncRead) {
   bool ok = file_util::GetFileSize(temp_file_path(), &file_size);
   EXPECT_TRUE(ok);
 
-  FileStream stream;
+  FileStream stream(NULL);
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_READ |
               base::PLATFORM_FILE_ASYNC;
@@ -216,7 +216,7 @@ TEST_F(FileStreamTest, AsyncRead_EarlyClose) {
   bool ok = file_util::GetFileSize(temp_file_path(), &file_size);
   EXPECT_TRUE(ok);
 
-  FileStream stream;
+  FileStream stream(NULL);
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_READ |
               base::PLATFORM_FILE_ASYNC;
@@ -246,7 +246,7 @@ TEST_F(FileStreamTest, BasicRead_FromOffset) {
   bool ok = file_util::GetFileSize(temp_file_path(), &file_size);
   EXPECT_TRUE(ok);
 
-  FileStream stream;
+  FileStream stream(NULL);
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_READ;
   int rv = stream.Open(temp_file_path(), flags);
@@ -281,7 +281,7 @@ TEST_F(FileStreamTest, AsyncRead_FromOffset) {
   bool ok = file_util::GetFileSize(temp_file_path(), &file_size);
   EXPECT_TRUE(ok);
 
-  FileStream stream;
+  FileStream stream(NULL);
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_READ |
               base::PLATFORM_FILE_ASYNC;
@@ -316,7 +316,7 @@ TEST_F(FileStreamTest, AsyncRead_FromOffset) {
 }
 
 TEST_F(FileStreamTest, SeekAround) {
-  FileStream stream;
+  FileStream stream(NULL);
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_READ;
   int rv = stream.Open(temp_file_path(), flags);
@@ -339,7 +339,7 @@ TEST_F(FileStreamTest, SeekAround) {
 }
 
 TEST_F(FileStreamTest, BasicWrite) {
-  FileStream stream;
+  FileStream stream(NULL);
   int flags = base::PLATFORM_FILE_CREATE_ALWAYS |
               base::PLATFORM_FILE_WRITE;
   int rv = stream.Open(temp_file_path(), flags);
@@ -360,7 +360,7 @@ TEST_F(FileStreamTest, BasicWrite) {
 }
 
 TEST_F(FileStreamTest, AsyncWrite) {
-  FileStream stream;
+  FileStream stream(NULL);
   int flags = base::PLATFORM_FILE_CREATE_ALWAYS |
               base::PLATFORM_FILE_WRITE |
               base::PLATFORM_FILE_ASYNC;
@@ -392,7 +392,7 @@ TEST_F(FileStreamTest, AsyncWrite) {
 }
 
 TEST_F(FileStreamTest, AsyncWrite_EarlyClose) {
-  FileStream stream;
+  FileStream stream(NULL);
   int flags = base::PLATFORM_FILE_CREATE_ALWAYS |
               base::PLATFORM_FILE_WRITE |
               base::PLATFORM_FILE_ASYNC;
@@ -424,7 +424,7 @@ TEST_F(FileStreamTest, AsyncWrite_EarlyClose) {
 }
 
 TEST_F(FileStreamTest, BasicWrite_FromOffset) {
-  FileStream stream;
+  FileStream stream(NULL);
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_WRITE;
   int rv = stream.Open(temp_file_path(), flags);
@@ -453,7 +453,7 @@ TEST_F(FileStreamTest, AsyncWrite_FromOffset) {
   bool ok = file_util::GetFileSize(temp_file_path(), &file_size);
   EXPECT_TRUE(ok);
 
-  FileStream stream;
+  FileStream stream(NULL);
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_WRITE |
               base::PLATFORM_FILE_ASYNC;
@@ -488,7 +488,7 @@ TEST_F(FileStreamTest, BasicReadWrite) {
   bool ok = file_util::GetFileSize(temp_file_path(), &file_size);
   EXPECT_TRUE(ok);
 
-  FileStream stream;
+  FileStream stream(NULL);
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_READ |
               base::PLATFORM_FILE_WRITE;
@@ -527,7 +527,7 @@ TEST_F(FileStreamTest, BasicWriteRead) {
   bool ok = file_util::GetFileSize(temp_file_path(), &file_size);
   EXPECT_TRUE(ok);
 
-  FileStream stream;
+  FileStream stream(NULL);
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_READ |
               base::PLATFORM_FILE_WRITE;
@@ -575,7 +575,7 @@ TEST_F(FileStreamTest, BasicAsyncReadWrite) {
   bool ok = file_util::GetFileSize(temp_file_path(), &file_size);
   EXPECT_TRUE(ok);
 
-  FileStream stream;
+  FileStream stream(NULL);
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_READ |
               base::PLATFORM_FILE_WRITE |
@@ -630,7 +630,7 @@ TEST_F(FileStreamTest, BasicAsyncWriteRead) {
   bool ok = file_util::GetFileSize(temp_file_path(), &file_size);
   EXPECT_TRUE(ok);
 
-  FileStream stream;
+  FileStream stream(NULL);
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_READ |
               base::PLATFORM_FILE_WRITE |
@@ -785,7 +785,7 @@ TEST_F(FileStreamTest, AsyncWriteRead) {
   bool ok = file_util::GetFileSize(temp_file_path(), &file_size);
   EXPECT_TRUE(ok);
 
-  FileStream stream;
+  FileStream stream(NULL);
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_READ |
               base::PLATFORM_FILE_WRITE |
@@ -891,7 +891,7 @@ TEST_F(FileStreamTest, AsyncWriteClose) {
   bool ok = file_util::GetFileSize(temp_file_path(), &file_size);
   EXPECT_TRUE(ok);
 
-  FileStream stream;
+  FileStream stream(NULL);
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_READ |
               base::PLATFORM_FILE_WRITE |
@@ -923,7 +923,7 @@ TEST_F(FileStreamTest, AsyncWriteClose) {
 TEST_F(FileStreamTest, Truncate) {
   int flags = base::PLATFORM_FILE_CREATE_ALWAYS | base::PLATFORM_FILE_WRITE;
 
-  FileStream write_stream;
+  FileStream write_stream(NULL);
   ASSERT_EQ(OK, write_stream.Open(temp_file_path(), flags));
 
   // Write some data to the file.

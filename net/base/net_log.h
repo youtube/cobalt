@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -301,7 +301,7 @@ class NET_EXPORT NetLogStringParameter : public NetLog::EventParameters {
 
 // NetLogIntegerParameter is a subclass of EventParameters that encapsulates a
 // single integer parameter.
-class NetLogIntegerParameter : public NetLog::EventParameters {
+class NET_EXPORT NetLogIntegerParameter : public NetLog::EventParameters {
  public:
   // |name| must be a string literal.
   NetLogIntegerParameter(const char* name, int value)
