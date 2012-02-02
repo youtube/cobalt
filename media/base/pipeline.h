@@ -338,7 +338,6 @@ class MEDIA_EXPORT Pipeline
   virtual void SetError(PipelineStatus error) OVERRIDE;
   virtual base::TimeDelta GetTime() const OVERRIDE;
   virtual base::TimeDelta GetDuration() const OVERRIDE;
-  virtual void SetTime(base::TimeDelta time) OVERRIDE;
   virtual void SetNaturalVideoSize(const gfx::Size& size) OVERRIDE;
   virtual void NotifyEnded() OVERRIDE;
   virtual void DisableAudioRenderer() OVERRIDE;
@@ -357,6 +356,12 @@ class MEDIA_EXPORT Pipeline
 
   // Callback executed by filters to update statistics.
   void OnUpdateStatistics(const PipelineStatistics& stats);
+
+  // Callback executed by audio renderer to update clock time.
+  void OnAudioTimeUpdate(base::TimeDelta time, base::TimeDelta max_time);
+
+  // Callback executed by video renderer to update clock time.
+  void OnVideoTimeUpdate(base::TimeDelta max_time);
 
   // The following "task" methods correspond to the public methods, but these
   // methods are run as the result of posting a task to the PipelineInternal's
@@ -510,9 +515,6 @@ class MEDIA_EXPORT Pipeline
 
   // Whether or not a playback rate change should be done once seeking is done.
   bool playback_rate_change_pending_;
-
-  // Duration of the media in microseconds.  Set by filters.
-  base::TimeDelta duration_;
 
   // Amount of available buffered data in microseconds.  Set by filters.
   base::TimeDelta buffered_time_;

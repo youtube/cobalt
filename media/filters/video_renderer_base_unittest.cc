@@ -75,6 +75,8 @@ class VideoRendererBaseTest : public ::testing::Test {
     }
   }
 
+  MOCK_METHOD1(VideoTimeCBWasCalled, void(base::TimeDelta));
+
   MOCK_CONST_METHOD1(SetOpaqueCBWasCalled, void(bool));
 
   void Initialize() {
@@ -103,7 +105,8 @@ class VideoRendererBaseTest : public ::testing::Test {
     // Initialize, we shouldn't have any reads.
     renderer_->Initialize(decoder_,
                           NewExpectedStatusCB(PIPELINE_OK),
-                          NewStatisticsCallback());
+                          NewStatisticsCallback(),
+                          NewVideoTimeCallback());
 
     // Now seek to trigger prerolling.
     Seek(0);
@@ -264,6 +267,11 @@ class VideoRendererBaseTest : public ::testing::Test {
   StatisticsCallback NewStatisticsCallback() {
     return base::Bind(&MockStatisticsCallback::OnStatistics,
                       base::Unretained(&stats_callback_object_));
+  }
+
+  VideoRenderer::VideoTimeCB NewVideoTimeCallback() {
+    return base::Bind(&VideoRendererBaseTest::VideoTimeCBWasCalled,
+                      base::Unretained(this));
   }
 
   // Fixture members.

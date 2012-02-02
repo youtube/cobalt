@@ -237,9 +237,11 @@ class MockVideoRenderer : public VideoRenderer {
   MOCK_METHOD0(OnAudioRendererDisabled, void());
 
   // VideoRenderer implementation.
-  MOCK_METHOD3(Initialize, void(VideoDecoder* decoder,
+  MOCK_METHOD4(Initialize, void(VideoDecoder* decoder,
                                 const PipelineStatusCB& callback,
-                                const StatisticsCallback& stats_callback));
+                                const StatisticsCallback& stats_callback,
+                                const VideoTimeCB& time_cb));
+
   MOCK_METHOD0(HasEnded, bool());
 
   // TODO(scherkus): although VideoRendererBase defines this method, this really
@@ -264,9 +266,10 @@ class MockAudioRenderer : public AudioRenderer {
   MOCK_METHOD0(OnAudioRendererDisabled, void());
 
   // AudioRenderer implementation.
-  MOCK_METHOD3(Initialize, void(AudioDecoder* decoder,
+  MOCK_METHOD4(Initialize, void(AudioDecoder* decoder,
                                 const PipelineStatusCB& init_callback,
-                                const base::Closure& underflow_callback));
+                                const base::Closure& underflow_callback,
+                                const AudioTimeCB& time_cb));
   MOCK_METHOD0(HasEnded, bool());
   MOCK_METHOD1(SetVolume, void(float volume));
 
@@ -319,7 +322,8 @@ void RunFilterStatusCB(::testing::Unused, const FilterStatusCB& cb);
 void RunPipelineStatusCB(PipelineStatus status, const PipelineStatusCB& cb);
 void RunPipelineStatusCB3(::testing::Unused, const PipelineStatusCB& callback,
                           ::testing::Unused);
-
+void RunPipelineStatusCB4(::testing::Unused, const PipelineStatusCB& callback,
+                          ::testing::Unused, ::testing::Unused);
 // Helper gmock function that immediately executes the Closure on behalf of the
 // provided filter.  Can be used when mocking the Stop() method.
 void RunStopFilterCallback(const base::Closure& callback);
