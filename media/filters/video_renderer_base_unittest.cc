@@ -102,7 +102,8 @@ class VideoRendererBaseTest : public ::testing::Test {
 
     // Initialize, we shouldn't have any reads.
     renderer_->Initialize(decoder_,
-                          NewExpectedClosure(), NewStatisticsCallback());
+                          NewExpectedStatusCB(PIPELINE_OK),
+                          NewStatisticsCallback());
 
     // Now seek to trigger prerolling.
     Seek(0);

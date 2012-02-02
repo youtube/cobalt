@@ -100,7 +100,7 @@ void VideoRendererBase::Seek(base::TimeDelta time, const FilterStatusCB& cb) {
 }
 
 void VideoRendererBase::Initialize(VideoDecoder* decoder,
-                                   const base::Closure& callback,
+                                   const PipelineStatusCB& callback,
                                    const StatisticsCallback& stats_callback) {
   base::AutoLock auto_lock(lock_);
   DCHECK(decoder);
@@ -127,8 +127,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   if (!base::PlatformThread::Create(0, this, &thread_)) {
     NOTREACHED() << "Video thread creation failed";
     state_ = kError;
-    host()->SetError(PIPELINE_ERROR_INITIALIZATION_FAILED);
-    callback.Run();
+    callback.Run(PIPELINE_ERROR_INITIALIZATION_FAILED);
     return;
   }
 
@@ -137,7 +136,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   // TODO(scherkus): find out if this is necessary, but it seems to help.
   ::SetThreadPriority(thread_, THREAD_PRIORITY_ABOVE_NORMAL);
 #endif  // defined(OS_WIN)
-  callback.Run();
+  callback.Run(PIPELINE_OK);
 }
 
 bool VideoRendererBase::HasEnded() {

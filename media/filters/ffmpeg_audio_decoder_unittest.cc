@@ -70,7 +70,7 @@ class FFmpegAudioDecoderTest : public testing::Test {
         .WillOnce(ReturnRef(config_));
 
     decoder_->Initialize(demuxer_,
-                         NewExpectedClosure(),
+                         NewExpectedStatusCB(PIPELINE_OK),
                          base::Bind(&MockStatisticsCallback::OnStatistics,
                                     base::Unretained(&statistics_callback_)));
 
