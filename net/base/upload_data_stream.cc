@@ -165,7 +165,12 @@ void UploadDataStream::AdvanceToNextElement() {
   ++element_index_;
   element_offset_ = 0;
   element_file_bytes_remaining_ = 0;
-  element_file_stream_.reset();
+  if (element_file_stream_.get()) {
+    // Temporarily allow until fix: http://crbug.com/72001.
+    base::ThreadRestrictions::ScopedAllowIO allow_io;
+    element_file_stream_->Close();
+    element_file_stream_.reset();
+  }
 }
 
 bool UploadDataStream::IsEOF() const {
