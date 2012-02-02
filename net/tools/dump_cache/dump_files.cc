@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,7 +26,7 @@ const wchar_t kDataPrefix[] = L"data_";
 
 // Reads the |header_size| bytes from the beginning of file |name|.
 bool ReadHeader(const std::wstring& name, char* header, int header_size) {
-  net::FileStream file;
+  net::FileStream file(NULL);
   file.Open(FilePath::FromWStringHack(name),
       base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ);
   if (!file.IsOpen()) {

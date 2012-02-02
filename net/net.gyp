@@ -111,6 +111,8 @@
         'base/file_stream_metrics.h',
         'base/file_stream_metrics_posix.cc',
         'base/file_stream_metrics_win.cc',
+        'base/file_stream_net_log_parameters.cc',
+        'base/file_stream_net_log_parameters.h',
         'base/file_stream_posix.cc',
         'base/file_stream_win.cc',
         'base/filter.cc',

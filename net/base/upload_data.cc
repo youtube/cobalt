@@ -101,7 +101,7 @@ FileStream* UploadData::Element::NewFileStreamForReading() {
   // Temporary allow until fix: http://crbug.com/72001.
   base::ThreadRestrictions::ScopedAllowIO allow_io;
 
-  scoped_ptr<FileStream> file(new FileStream());
+  scoped_ptr<FileStream> file(new FileStream(NULL));
   int64 rv = file->Open(file_path_,
                       base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ);
   if (rv != OK) {

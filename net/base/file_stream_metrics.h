@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -35,6 +35,9 @@ int MaxFileErrorUmaValue();
 // |source| indicates the operation that resulted in the error.
 // |record| is a flag indicating that we are interested in this error.
 void RecordFileError(int error, FileErrorSource source, bool record);
+
+// Gets a description for the source of a file error.
+const char* GetFileErrorSourceName(FileErrorSource source);
 
 }  // namespace net
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,6 +15,7 @@
 #include "base/platform_file.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
+#include "net/base/net_log.h"
 
 class FilePath;
 
@@ -30,15 +31,19 @@ enum Whence {
 
 class NET_EXPORT FileStream {
  public:
-  FileStream();
+  // Creates a |FileStream| with a new |BoundNetLog| (based on |net_log|)
+  // attached.  |net_log| may be NULL if no logging is needed.
+  explicit FileStream(net::NetLog* net_log);
 
   // Construct a FileStream with an existing file handle and opening flags.
   // |file| is valid file handle.
   // |flags| is a bitfield of base::PlatformFileFlags when the file handle was
   // opened.
+  // |net_log| is the net log pointer to use to create a |BoundNetLog|.  May be
+  // NULL if logging is not needed.
   // The already opened file will not be automatically closed when FileStream
   // is destructed.
-  FileStream(base::PlatformFile file, int flags);
+  FileStream(base::PlatformFile file, int flags, net::NetLog* net_log);
 
   virtual ~FileStream();
 
@@ -136,6 +141,13 @@ class NET_EXPORT FileStream {
   // Turns on UMA error statistics gathering.
   void EnableErrorStatistics();
 
+  // Sets the source reference for net-internals logging.
+  // Creates source dependency events between |owner_bound_net_log| and
+  // |bound_net_log_|.  Each gets an event showing the dependency on the other.
+  // If only one of those is valid, it gets an event showing that a change
+  // of ownership happened, but without details.
+  void SetBoundNetLogSource(const net::BoundNetLog& owner_bound_net_log);
+
  private:
   class AsyncContext;
   friend class AsyncContext;
@@ -149,6 +161,7 @@ class NET_EXPORT FileStream {
   int open_flags_;
   bool auto_closed_;
   bool record_uma_;
+  net::BoundNetLog bound_net_log_;
 
   DISALLOW_COPY_AND_ASSIGN(FileStream);
 };
