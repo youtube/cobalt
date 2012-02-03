@@ -201,8 +201,6 @@
         'filters/in_memory_url_protocol.h',
         'filters/null_audio_renderer.cc',
         'filters/null_audio_renderer.h',
-        'filters/reference_audio_renderer.cc',
-        'filters/reference_audio_renderer.h',
         'filters/video_frame_generator.cc',
         'filters/video_frame_generator.h',
         'filters/video_renderer_base.cc',
