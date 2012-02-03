@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -461,9 +461,9 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
   void OnChangeNotification() {
     // See below. This check is to try and track bugs 75508 and 84673.
     // TODO(mdm): remove these checks once they give us some results.
-    CHECK(this_ != reinterpret_cast<SettingGetterImplGConf*>(
+    CHECK_NE(this_, reinterpret_cast<SettingGetterImplGConf*>(
         ~reinterpret_cast<uintptr_t>(this)));
-    CHECK(this_ == this);
+    CHECK_EQ(this_, this);
     // We don't use Reset() because the timer may not yet be running.
     // (In that case Stop() is a no-op.)
     debounce_timer_.Stop();
@@ -1032,7 +1032,7 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
 
   // Implement base::MessagePumpLibevent::Delegate.
   void OnFileCanReadWithoutBlocking(int fd) {
-    DCHECK(fd == inotify_fd_);
+    DCHECK_EQ(fd, inotify_fd_);
     DCHECK(MessageLoop::current() == file_loop_);
     OnChangeNotification();
   }
@@ -1303,7 +1303,7 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
   // from the inotify file descriptor and starts up a debounce timer if
   // an event for kioslaverc is seen.
   void OnChangeNotification() {
-    DCHECK(inotify_fd_ >= 0);
+    DCHECK_GE(inotify_fd_,  0);
     DCHECK(MessageLoop::current() == file_loop_);
     char event_buf[(sizeof(inotify_event) + NAME_MAX + 1) * 4];
     bool kioslaverc_touched = false;
