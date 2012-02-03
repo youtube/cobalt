@@ -28,15 +28,6 @@
 
 namespace net {
 
-namespace {
-
-std::string GetProxyUrl(const scoped_refptr<HttpProxySocketParams>& params) {
-  return (params->ssl_params() != NULL ? "https://" : "http://")
-      + params->destination().host_port_pair().ToString();
-}
-
-}  // namespace
-
 HttpProxySocketParams::HttpProxySocketParams(
     const scoped_refptr<TransportSocketParams>& transport_params,
     const scoped_refptr<SSLSocketParams>& ssl_params,
@@ -46,8 +37,7 @@ HttpProxySocketParams::HttpProxySocketParams(
     HttpAuthCache* http_auth_cache,
     HttpAuthHandlerFactory* http_auth_handler_factory,
     SpdySessionPool* spdy_session_pool,
-    bool tunnel,
-    TunnelAuthCallback auth_needed_callback)
+    bool tunnel)
     : transport_params_(transport_params),
       ssl_params_(ssl_params),
       spdy_session_pool_(spdy_session_pool),
@@ -56,8 +46,7 @@ HttpProxySocketParams::HttpProxySocketParams(
       endpoint_(endpoint),
       http_auth_cache_(tunnel ? http_auth_cache : NULL),
       http_auth_handler_factory_(tunnel ? http_auth_handler_factory : NULL),
-      tunnel_(tunnel),
-      auth_needed_callback_(auth_needed_callback) {
+      tunnel_(tunnel) {
   DCHECK((transport_params == NULL && ssl_params != NULL) ||
          (transport_params != NULL && ssl_params == NULL));
   if (transport_params_)
@@ -98,14 +87,7 @@ HttpProxyConnectJob::HttpProxyConnectJob(
           callback_(base::Bind(&HttpProxyConnectJob::OnIOComplete,
                                base::Unretained(this)))),
       using_spdy_(false),
-      protocol_negotiated_(SSLClientSocket::kProtoUnknown),
-      auth_(params->tunnel() ?
-            new HttpAuthController(HttpAuth::AUTH_PROXY,
-                                   GURL(GetProxyUrl(params_)),
-                                   params->http_auth_cache(),
-                                   params->http_auth_handler_factory())
-            : NULL),
-      ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)) {
+      protocol_negotiated_(SSLClientSocket::kProtoUnknown) {
 }
 
 HttpProxyConnectJob::~HttpProxyConnectJob() {}
@@ -121,8 +103,6 @@ LoadState HttpProxyConnectJob::GetLoadState() const {
     case STATE_HTTP_PROXY_CONNECT_COMPLETE:
     case STATE_SPDY_PROXY_CREATE_STREAM:
     case STATE_SPDY_PROXY_CREATE_STREAM_COMPLETE:
-    case STATE_RESTART_WITH_AUTH:
-    case STATE_RESTART_WITH_AUTH_COMPLETE:
       return LOAD_STATE_ESTABLISHING_PROXY_TUNNEL;
     default:
       NOTREACHED();
@@ -178,13 +158,6 @@ int HttpProxyConnectJob::DoLoop(int result) {
         break;
       case STATE_SPDY_PROXY_CREATE_STREAM_COMPLETE:
         rv = DoSpdyProxyCreateStreamComplete(rv);
-        break;
-      case STATE_RESTART_WITH_AUTH:
-        DCHECK_EQ(OK, rv);
-        rv = DoRestartWithAuth();
-        break;
-      case STATE_RESTART_WITH_AUTH_COMPLETE:
-        rv = DoRestartWithAuthComplete(rv);
         break;
       default:
         NOTREACHED() << "bad state";
@@ -293,7 +266,8 @@ int HttpProxyConnectJob::DoHttpProxyConnect() {
                                 params_->user_agent(),
                                 params_->endpoint(),
                                 proxy_server,
-                                auth_,
+                                params_->http_auth_cache(),
+                                params_->http_auth_handler_factory(),
                                 params_->tunnel(),
                                 using_spdy_,
                                 protocol_negotiated_,
@@ -301,54 +275,8 @@ int HttpProxyConnectJob::DoHttpProxyConnect() {
   return transport_socket_->Connect(callback_);
 }
 
-void HttpProxyConnectJob::HandleProxyAuthChallenge() {
-  next_state_ = STATE_RESTART_WITH_AUTH;
-  params_->auth_needed_callback().Run(
-    *transport_socket_->GetConnectResponseInfo(),
-    transport_socket_->GetAuthController(),
-    callback_);
-}
-
-int HttpProxyConnectJob::DoRestartWithAuth() {
-  // If no auth was added to the controller, then we should abort.
-  next_state_ = STATE_RESTART_WITH_AUTH_COMPLETE;
-  if (!transport_socket_->GetAuthController()->HaveAuth()) {
-    return ERR_PROXY_AUTH_REQUESTED;
-  }
-
-  return transport_socket_->RestartWithAuth(callback_);
-}
-
-int HttpProxyConnectJob::DoRestartWithAuthComplete(int result) {
-  if (result != OK) {
-    if (result == ERR_NO_KEEP_ALIVE_ON_AUTH_RESTART) {
-      next_state_ = params_->transport_params() ?
-          STATE_TCP_CONNECT : STATE_SSL_CONNECT;
-      return OK;
-    }
-    if (result == ERR_PROXY_AUTH_REQUESTED ||
-        result == ERR_HTTPS_PROXY_TUNNEL_RESPONSE) {
-      set_socket(transport_socket_.release());
-    }
-    return result;
-  }
-
-  next_state_ = STATE_HTTP_PROXY_CONNECT_COMPLETE;
-  return OK;
-}
-
 int HttpProxyConnectJob::DoHttpProxyConnectComplete(int result) {
-  // Handle a proxy auth challenge by asynchronously invoking the callback.
-  // We do this asynchronously so that the caller is notified of job
-  // completion only via NotifyDelegateOfCompletion.
-  if (result == ERR_PROXY_AUTH_REQUESTED) {
-    MessageLoop::current()->PostTask(
-        FROM_HERE,
-        base::Bind(&HttpProxyConnectJob::HandleProxyAuthChallenge,
-                   ptr_factory_.GetWeakPtr()));
-    return ERR_IO_PENDING;
-  }
-  if (result == OK ||
+  if (result == OK || result == ERR_PROXY_AUTH_REQUESTED ||
       result == ERR_HTTPS_PROXY_TUNNEL_RESPONSE) {
       set_socket(transport_socket_.release());
   }
@@ -398,7 +326,8 @@ int HttpProxyConnectJob::DoSpdyProxyCreateStreamComplete(int result) {
                                 params_->endpoint(),
                                 params_->request_url(),
                                 params_->destination().host_port_pair(),
-                                auth_));
+                                params_->http_auth_cache(),
+                                params_->http_auth_handler_factory()));
   return transport_socket_->Connect(callback_);
 }
 
