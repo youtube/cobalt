@@ -1066,12 +1066,14 @@ TEST_F(TraceEventTestFixture, ThreadNames) {
       if(static_cast<int>(thread_ids[j]) != tmp_int)
         continue;
 
-      std::string expected_name = StringPrintf("Thread %d", j).c_str();
+      std::string expected_name = StringPrintf("Thread %d", j);
       EXPECT_TRUE(item->GetString("ph", &tmp) && tmp == "M");
       EXPECT_TRUE(item->GetInteger("pid", &tmp_int) &&
                   tmp_int == static_cast<int>(base::GetCurrentProcId()));
+      // If the thread name changes or the tid gets reused, the name will be
+      // a comma-separated list of thread names, so look for a substring.
       EXPECT_TRUE(item->GetString("args.name", &tmp) &&
-                  tmp == expected_name);
+                  tmp.find(expected_name) != std::string::npos);
     }
   }
 }
