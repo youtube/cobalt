@@ -64,15 +64,11 @@ ACTION_P(SignalEvent, event) {
   event->Signal();
 }
 
-// Helper functions used to close audio controller.
-static void SignalClosedEvent(base::WaitableEvent* event) {
-  event->Signal();
-}
-
 // Closes AudioOutputController synchronously.
 static void CloseAudioController(AudioOutputController* controller) {
   base::WaitableEvent closed_event(true, false);
-  controller->Close(base::Bind(&SignalClosedEvent, &closed_event));
+  controller->Close(base::Bind(&base::WaitableEvent::Signal,
+                               base::Unretained(&closed_event)));
   closed_event.Wait();
 }
 
@@ -421,10 +417,12 @@ TEST(AudioOutputControllerTest, CloseTwice) {
   event.Wait();
 
   base::WaitableEvent closed_event_1(true, false);
-  controller->Close(base::Bind(&SignalClosedEvent, &closed_event_1));
+  controller->Close(base::Bind(&base::WaitableEvent::Signal,
+                               base::Unretained(&closed_event_1)));
 
   base::WaitableEvent closed_event_2(true, false);
-  controller->Close(base::Bind(&SignalClosedEvent, &closed_event_2));
+  controller->Close(base::Bind(&base::WaitableEvent::Signal,
+                                base::Unretained(&closed_event_2)));
 
   closed_event_1.Wait();
   closed_event_2.Wait();
