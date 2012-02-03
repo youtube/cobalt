@@ -22,6 +22,10 @@ TestAudioInputController::~TestAudioInputController() {
   factory_->OnTestAudioInputControllerDestroyed(this);
 }
 
+void TestAudioInputController::Close(const base::Closure& closed_task) {
+  audio_manager_->GetMessageLoop()->PostTask(FROM_HERE, closed_task);
+}
+
 TestAudioInputControllerFactory::TestAudioInputControllerFactory()
     : controller_(NULL) {
 }
