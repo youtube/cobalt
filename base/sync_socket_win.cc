@@ -126,7 +126,7 @@ size_t CancelableFileOperation(Function operation, HANDLE file,
     DWORD chunk = GetNextChunkSize(count, length);
     // This is either the ReadFile or WriteFile call depending on whether
     // we're receiving or sending data.
-    DWORD len;
+    DWORD len = 0;
     BOOL ok = operation(file, static_cast<BufferType*>(buffer) + count, chunk,
                         &len, &ol);
     if (!ok) {
@@ -135,7 +135,9 @@ size_t CancelableFileOperation(Function operation, HANDLE file,
         size_t signaled = WaitableEvent::WaitMany(events, arraysize(events));
         if (signaled == 1) {
           VLOG(1) << "Shutdown was signaled. Closing socket.";
+          CancelIo(file);
           socket->Close();
+          count = 0;
           break;
         } else {
           GetOverlappedResult(file, &ol, &len, TRUE);
