@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -27,6 +27,7 @@ namespace net {
 class AddressList;
 class ClientSocketHandle;
 class GrowableIOBuffer;
+class HttpAuthCache;
 class HttpStream;
 class HttpStreamParser;
 class IOBuffer;
@@ -41,7 +42,8 @@ class HttpProxyClientSocket : public ProxyClientSocket {
                         const std::string& user_agent,
                         const HostPortPair& endpoint,
                         const HostPortPair& proxy_server,
-                        HttpAuthController* http_auth_controller,
+                        HttpAuthCache* http_auth_cache,
+                        HttpAuthHandlerFactory* http_auth_handler_factory,
                         bool tunnel,
                         bool using_spdy,
                         SSLClientSocket::NextProto protocol_negotiated,
@@ -49,6 +51,15 @@ class HttpProxyClientSocket : public ProxyClientSocket {
 
   // On destruction Disconnect() is called.
   virtual ~HttpProxyClientSocket();
+
+  // If Connect (or its callback) returns PROXY_AUTH_REQUESTED, then
+  // credentials should be added to the HttpAuthController before calling
+  // RestartWithAuth.
+  int RestartWithAuth(const CompletionCallback& callback);
+
+  const scoped_refptr<HttpAuthController>& auth_controller() {
+    return auth_;
+  }
 
   bool using_spdy() {
     return using_spdy_;
@@ -61,8 +72,6 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   // ProxyClientSocket implementation.
   virtual const HttpResponseInfo* GetConnectResponseInfo() const OVERRIDE;
   virtual HttpStream* CreateConnectResponseStream() OVERRIDE;
-  virtual int RestartWithAuth(const CompletionCallback& callback) OVERRIDE;
-  virtual const scoped_refptr<HttpAuthController>& GetAuthController() OVERRIDE;
 
   // StreamSocket implementation.
   virtual int Connect(const CompletionCallback& callback) OVERRIDE;
@@ -100,6 +109,8 @@ class HttpProxyClientSocket : public ProxyClientSocket {
     STATE_READ_HEADERS_COMPLETE,
     STATE_DRAIN_BODY,
     STATE_DRAIN_BODY_COMPLETE,
+    STATE_TCP_RESTART,
+    STATE_TCP_RESTART_COMPLETE,
     STATE_DONE,
   };
 
@@ -110,6 +121,8 @@ class HttpProxyClientSocket : public ProxyClientSocket {
 
   int PrepareForAuthRestart();
   int DidDrainBodyForAuthRestart(bool keep_alive);
+
+  int HandleAuthChallenge();
 
   void LogBlockedTunnelResponse(int response_code) const;
 
