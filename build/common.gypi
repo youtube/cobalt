@@ -376,6 +376,15 @@
         }, {
           'enable_plugin_installation%': 1,
         }],
+
+        # Set to 0 to not use third_party/gold as the linker.
+        # On by default for x64 Linux.  Off for ChromeOS as cross-compiling
+        # makes things complicated.
+        ['chromeos==0 and host_arch=="x64"', {
+          'linux_use_gold_binary%': 1,
+        }, {
+          'linux_use_gold_binary%': 0,
+        }],
       ],
     },
 
@@ -434,6 +443,7 @@
     'enable_web_intents%': '<(enable_web_intents)',
     'enable_web_intents_tag%': '<(enable_web_intents_tag)',
     'enable_plugin_installation%': '<(enable_plugin_installation)',
+    'linux_use_gold_binary%': '<(linux_use_gold_binary)',
     'use_canvas_skia_skia%': '<(use_canvas_skia_skia)',
     # Whether to build for Wayland display server
     'use_wayland%': 0,
@@ -1980,6 +1990,19 @@
           ['linux_keep_shadow_stacks==1', {
             'defines': ['KEEP_SHADOW_STACKS'],
             'cflags': ['-finstrument-functions'],
+          }],
+          ['linux_use_gold_binary==1', {
+            'variables': {
+              # We pass the path to gold to the compiler.  gyp leaves
+              # unspecified what the cwd is when running the compiler,
+              # so the normal gyp path-munging fails us.  This hack
+              # gets the right path.
+              'gold_path': '<(PRODUCT_DIR)/../../third_party/gold',
+            },
+            'ldflags': [
+              # Put our gold binary in the search path for the linker.
+              '-B<(gold_path)',
+            ],
           }],
         ],
       },
