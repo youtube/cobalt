@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -24,8 +24,6 @@
 #if defined(OS_MACOSX)
 #include <AvailabilityMacros.h>
 #endif
-
-#include <iostream>
 
 #include "base/basictypes.h"
 #include "base/eintr_wrapper.h"
@@ -170,7 +168,7 @@ void StackTrace::PrintBacktrace() const {
   std::vector<std::string> trace_strings;
   GetBacktraceStrings(trace_, count_, &trace_strings, NULL);
   for (size_t i = 0; i < trace_strings.size(); ++i) {
-    std::cerr << "\t" << trace_strings[i] << "\n";
+    fprintf(stderr, "\t%s\n", trace_strings[i].c_str());
   }
 }
 
