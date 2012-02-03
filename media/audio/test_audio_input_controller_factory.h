@@ -6,6 +6,7 @@
 #define MEDIA_AUDIO_TEST_AUDIO_INPUT_CONTROLLER_FACTORY_H_
 #pragma once
 
+#include "base/bind.h"
 #include "media/audio/audio_input_controller.h"
 
 namespace media {
@@ -56,7 +57,9 @@ class TestAudioInputController : public AudioInputController {
   // Overriden to do nothing. It is assumed the caller will notify the event
   // handler with recorded data and other events.
   virtual void Record() OVERRIDE {}
-  virtual void Close() OVERRIDE {}
+
+  // Ensure that the closure is run on the audio-manager thread.
+  virtual void Close(const base::Closure& closed_task) OVERRIDE;
 
  private:
   // These are not owned by us and expected to be valid for this object's
