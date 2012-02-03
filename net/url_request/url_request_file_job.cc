@@ -158,9 +158,6 @@ void URLRequestFileJob::Start() {
 }
 
 void URLRequestFileJob::Kill() {
-  // URL requests should not block on the disk!
-  //   http://code.google.com/p/chromium/issues/detail?id=59849
-  base::ThreadRestrictions::ScopedAllowIO allow_io;
   stream_.Close();
 
   if (async_resolver_) {
