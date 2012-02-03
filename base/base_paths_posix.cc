@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -28,10 +28,6 @@ namespace base {
 #if defined(OS_LINUX)
 const char kSelfExe[] = "/proc/self/exe";
 #endif
-
-// The name of this file relative to the source root. This is used for checking
-// that the source checkout is in the correct place.
-static const char kThisSourceFile[] = "base/base_paths_posix.cc";
 
 bool PathProviderPosix(int key, FilePath* result) {
   FilePath path;
@@ -84,40 +80,21 @@ bool PathProviderPosix(int key, FilePath* result) {
       std::string cr_source_root;
       if (env->GetVar("CR_SOURCE_ROOT", &cr_source_root)) {
         path = FilePath(cr_source_root);
-        if (file_util::PathExists(path.Append(kThisSourceFile))) {
+        if (file_util::PathExists(path)) {
           *result = path;
           return true;
         } else {
           DLOG(WARNING) << "CR_SOURCE_ROOT is set, but it appears to not "
-                        << "point to the correct source root directory.";
+                        << "point to a directory.";
         }
       }
       // On POSIX, unit tests execute two levels deep from the source root.
       // For example:  out/{Debug|Release}/net_unittest
       if (PathService::Get(base::DIR_EXE, &path)) {
-        path = path.DirName().DirName();
-        if (file_util::PathExists(path.Append(kThisSourceFile))) {
-          *result = path;
-          return true;
-        }
-      }
-      // In a case of WebKit-only checkout, executable files are put into
-      // <root of checkout>/out/{Debug|Release}, and we should return
-      // <root of checkout>/Source/WebKit/chromium for DIR_SOURCE_ROOT.
-      if (PathService::Get(base::DIR_EXE, &path)) {
-        path = path.DirName().DirName().Append("Source/WebKit/chromium");
-        if (file_util::PathExists(path.Append(kThisSourceFile))) {
-          *result = path;
-          return true;
-        }
-      }
-      // If that failed (maybe the build output is symlinked to a different
-      // drive) try assuming the current directory is the source root.
-      if (file_util::GetCurrentDirectory(&path) &&
-          file_util::PathExists(path.Append(kThisSourceFile))) {
-        *result = path;
+        *result = path.DirName().DirName();
         return true;
       }
+
       DLOG(ERROR) << "Couldn't find your source root.  "
                   << "Try running from your chromium/src directory.";
       return false;
