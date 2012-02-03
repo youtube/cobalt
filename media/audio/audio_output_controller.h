@@ -25,14 +25,12 @@ class MessageLoop;
 // An AudioOutputController controls an AudioOutputStream and provides data
 // to this output stream. It has an important function that it executes
 // audio operations like play, pause, stop, etc. on a separate thread,
-// namely the audio controller thread.
+// namely the audio manager thread.
 //
 // All the public methods of AudioOutputController are non-blocking.
-// The actual operations are performed on the audio thread.
+// The actual operations are performed on the audio manager thread.
 //
-// Here is a state diagram for the AudioOutputController for default low
-// latency mode; in normal latency mode there is no "starting" or "paused when
-// starting" states, "created" immediately switches to "playing":
+// Here is a state diagram for the AudioOutputController:
 //
 //             .----------------------->  [ Closed / Error ]  <------.
 //             |                                   ^                 |
@@ -48,25 +46,20 @@ class MessageLoop;
 //
 // * Initial state
 //
-// There are two modes of buffering operations supported by this class.
+// The AudioOutputStream can request data from the AudioOutputController via the
+// AudioSourceCallback interface. AudioOutputController uses the SyncReader
+// passed to it via construction to synchronously fulfill this read request.
 //
-// Regular latency mode:
-//   In this mode we receive signals from AudioOutputController and then we
-//   enqueue data into it.
-//
-// Low latency mode:
-//   In this mode a DataSource object is given to the AudioOutputController
-//   and AudioOutputController reads from it synchronously.
-//
-// The audio thread itself is owned by the AudioManager that the
-// AudioOutputController holds a reference to.  When performing tasks on the
-// audio thread, the controller must not add or release references to the
+// The audio manager thread is owned by the AudioManager that the
+// AudioOutputController holds a reference to.  When performing tasks on this
+// thread, the controller must not add or release references to the
 // AudioManager or itself (since it in turn holds a reference to the manager),
 // for delayed tasks as it can slow down or even prevent normal shut down.
 // So, for tasks on the audio thread, the controller uses WeakPtr which enables
 // us to safely cancel pending polling tasks.
-// The owner of the audio thread, AudioManager, will take care of properly
-// shutting it down.
+//
+// AudioManager will take care of properly shutting down the audio manager
+// thread.
 //
 #include "media/base/media_export.h"
 
@@ -81,7 +74,7 @@ class MEDIA_EXPORT AudioOutputController
   static const int kPauseMark;
 
   // An event handler that receives events from the AudioOutputController. The
-  // following methods are called on the audio controller thread.
+  // following methods are called on the audio manager thread.
   class MEDIA_EXPORT EventHandler {
    public:
     virtual ~EventHandler() {}
@@ -89,12 +82,6 @@ class MEDIA_EXPORT AudioOutputController
     virtual void OnPlaying(AudioOutputController* controller) = 0;
     virtual void OnPaused(AudioOutputController* controller) = 0;
     virtual void OnError(AudioOutputController* controller, int error_code) = 0;
-
-    // Audio controller asks for more data.
-    // |pending_bytes| is the number of bytes still on the controller.
-    // |timestamp| is then time when |pending_bytes| is recorded.
-    virtual void OnMoreData(AudioOutputController* controller,
-                            AudioBuffersState buffers_state) = 0;
   };
 
   // A synchronous reader interface used by AudioOutputController for
@@ -124,19 +111,10 @@ class MEDIA_EXPORT AudioOutputController
   };
 
   // Factory method for creating an AudioOutputController.
-  // If successful, an audio controller thread is created. The audio device
-  // will be created on the audio controller thread and when that is done
-  // event handler will receive a OnCreated() call.
+  // This also creates and opens an AudioOutputStream on the audio manager
+  // thread, and if this is successful, the |event_handler| will receive an
+  // OnCreated() call from the same audio manager thread.
   static scoped_refptr<AudioOutputController> Create(
-      AudioManager* audio_manager,
-      EventHandler* event_handler,
-      const AudioParameters& params,
-      // Soft limit for buffer capacity in this controller. This parameter
-      // is used only in regular latency mode.
-      uint32 buffer_capacity);
-
-  // Factory method for creating a low latency audio stream.
-  static scoped_refptr<AudioOutputController> CreateLowLatency(
       AudioManager* audio_manager,
       EventHandler* event_handler,
       const AudioParameters& params,
@@ -156,7 +134,7 @@ class MEDIA_EXPORT AudioOutputController
   void Flush();
 
   // Closes the audio output stream. The state is changed and the resources
-  // are freed on the audio thread. closed_task is executed after that.
+  // are freed on the audio manager thread. closed_task is executed after that.
   // Callbacks (EventHandler and SyncReader) must exist until closed_task is
   // called.
   //
@@ -166,13 +144,6 @@ class MEDIA_EXPORT AudioOutputController
 
   // Sets the volume of the audio output stream.
   void SetVolume(double volume);
-
-  // Enqueue audio |data| into the controller. This method is used only in
-  // the regular latency mode and it is illegal to call this method when
-  // SyncReader is present.
-  void EnqueueData(const uint8* data, uint32 size);
-
-  bool LowLatencyMode() const { return sync_reader_ != NULL; }
 
   ///////////////////////////////////////////////////////////////////////////
   // AudioSourceCallback methods.
@@ -206,9 +177,9 @@ class MEDIA_EXPORT AudioOutputController
 
   AudioOutputController(AudioManager* audio_manager,
                         EventHandler* handler,
-                        uint32 capacity, SyncReader* sync_reader);
+                        SyncReader* sync_reader);
 
-  // The following methods are executed on the audio controller thread.
+  // The following methods are executed on the audio manager thread.
   void DoCreate(const AudioParameters& params);
   void DoPlay();
   void PollAndStartIfDataReady();
@@ -217,9 +188,6 @@ class MEDIA_EXPORT AudioOutputController
   void DoClose(const base::Closure& closed_task);
   void DoSetVolume(double volume);
   void DoReportError(int code);
-
-  // Helper method to submit a OnMoreData() call to the event handler.
-  void SubmitOnMoreData_Locked();
 
   // Helper method that starts physical stream.
   void StartStream();
@@ -236,24 +204,19 @@ class MEDIA_EXPORT AudioOutputController
   // The current volume of the audio stream.
   double volume_;
 
-  // |state_| is written on the audio controller thread and is read on the
+  // |state_| is written on the audio manager thread and is read on the
   // hardware audio thread. These operations need to be locked. But lock
-  // is not required for reading on the audio controller thread.
+  // is not required for reading on the audio manager thread.
   State state_;
 
-  AudioBuffersState buffers_state_;
-
-  // The |lock_| must be acquired whenever we access |buffer_|.
+  // The |lock_| must be acquired whenever we access |state_| from a thread
+  // other than the audio manager thread.
   base::Lock lock_;
-
-  media::SeekableBuffer buffer_;
-
-  bool pending_request_;
 
   // SyncReader is used only in low latency mode for synchronous reading.
   SyncReader* sync_reader_;
 
-  // The message loop of audio thread that this object runs on.
+  // The message loop of audio manager thread that this object runs on.
   scoped_refptr<base::MessageLoopProxy> message_loop_;
 
   // When starting stream we wait for data to become available.
