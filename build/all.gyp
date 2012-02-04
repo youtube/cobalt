@@ -611,7 +611,6 @@
             ['OS=="mac"', {
               # Exclude dependencies that are not currently implemented.
               'dependencies!': [
-                '../ash/ash.gyp:aura_shell_unittests',
                 '../chrome/chrome.gyp:chrome',
                 '../chrome/chrome.gyp:unit_tests',
                 '../chrome/chrome.gyp:ui_tests',
