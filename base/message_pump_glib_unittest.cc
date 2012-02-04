@@ -252,7 +252,9 @@ TEST_F(MessagePumpGLibTest, TestWorkWhileWaitingForEvents) {
   task_count = 0;
   for (int i = 0; i < 10; ++i) {
     loop()->PostDelayedTask(
-        FROM_HERE, base::Bind(&IncrementInt, &task_count), 10*i);
+        FROM_HERE,
+        base::Bind(&IncrementInt, &task_count),
+        base::TimeDelta::FromMilliseconds(10*i));
   }
   // After all the previous tasks have executed, enqueue an event that will
   // quit.
@@ -261,7 +263,8 @@ TEST_F(MessagePumpGLibTest, TestWorkWhileWaitingForEvents) {
   loop()->PostDelayedTask(
       FROM_HERE,
       base::Bind(&EventInjector::AddEvent, base::Unretained(injector()), 10,
-                 MessageLoop::QuitClosure()), 150);
+                 MessageLoop::QuitClosure()),
+      base::TimeDelta::FromMilliseconds(150));
   loop()->Run();
   ASSERT_EQ(10, task_count);
   EXPECT_EQ(1, injector()->processed_events());
@@ -497,9 +500,13 @@ void TestGLibLoopInternal(EventInjector* injector) {
   injector->AddDummyEvent(10);
   // Delayed work
   MessageLoop::current()->PostDelayedTask(
-      FROM_HERE, base::Bind(&IncrementInt, &task_count), 30);
+      FROM_HERE,
+      base::Bind(&IncrementInt, &task_count),
+      base::TimeDelta::FromMilliseconds(30));
   MessageLoop::current()->PostDelayedTask(
-      FROM_HERE, base::Bind(&GLibLoopRunner::Quit, runner.get()), 40);
+      FROM_HERE,
+      base::Bind(&GLibLoopRunner::Quit, runner.get()),
+      base::TimeDelta::FromMilliseconds(40));
 
   // Run a nested, straight GLib message loop.
   runner->RunGLib();
@@ -528,9 +535,13 @@ void TestGtkLoopInternal(EventInjector* injector) {
   injector->AddDummyEvent(10);
   // Delayed work
   MessageLoop::current()->PostDelayedTask(
-      FROM_HERE, base::Bind(&IncrementInt, &task_count), 30);
+      FROM_HERE,
+      base::Bind(&IncrementInt, &task_count),
+      base::TimeDelta::FromMilliseconds(30));
   MessageLoop::current()->PostDelayedTask(
-      FROM_HERE, base::Bind(&GLibLoopRunner::Quit, runner.get()), 40);
+      FROM_HERE,
+      base::Bind(&GLibLoopRunner::Quit, runner.get()),
+      base::TimeDelta::FromMilliseconds(40));
 
   // Run a nested, straight Gtk message loop.
   runner->RunLoop();
