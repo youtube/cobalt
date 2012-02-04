@@ -247,7 +247,7 @@ class TestConnectJob : public ConnectJob {
                        true /* successful */,
                        true /* async */,
                        false /* recoverable */),
-            kPendingConnectDelay);
+            base::TimeDelta::FromMilliseconds(kPendingConnectDelay));
         return ERR_IO_PENDING;
       case kMockPendingFailingJob:
         set_load_state(LOAD_STATE_CONNECTING);
@@ -258,7 +258,7 @@ class TestConnectJob : public ConnectJob {
                        false /* error */,
                        true  /* async */,
                        false /* recoverable */),
-            2);
+            base::TimeDelta::FromMilliseconds(2));
         return ERR_IO_PENDING;
       case kMockWaitingJob:
         client_socket_factory_->WaitForSignal(this);
@@ -281,7 +281,7 @@ class TestConnectJob : public ConnectJob {
                        false /* error */,
                        true  /* async */,
                        true  /* recoverable */),
-            2);
+            base::TimeDelta::FromMilliseconds(2));
         return ERR_IO_PENDING;
       case kMockAdditionalErrorStateJob:
         store_additional_error_state_ = true;
@@ -297,7 +297,7 @@ class TestConnectJob : public ConnectJob {
                        false /* error */,
                        true  /* async */,
                        false /* recoverable */),
-            2);
+            base::TimeDelta::FromMilliseconds(2));
         return ERR_IO_PENDING;
       default:
         NOTREACHED();
@@ -3323,8 +3323,8 @@ TEST_F(ClientSocketPoolBaseTest, PreconnectWithoutBackupJob) {
   // the backup job a pending job instead of a waiting job, so it
   // *would* complete if it were created.
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
-  MessageLoop::current()->PostDelayedTask(FROM_HERE,
-                                          MessageLoop::QuitClosure(), 1000);
+  MessageLoop::current()->PostDelayedTask(
+      FROM_HERE, MessageLoop::QuitClosure(), base::TimeDelta::FromSeconds(1));
   MessageLoop::current()->Run();
   EXPECT_FALSE(pool_->HasGroup("a"));
 }
