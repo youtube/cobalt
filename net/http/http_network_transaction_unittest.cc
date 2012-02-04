@@ -5356,7 +5356,13 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_ExtraHeadersStripped) {
   EXPECT_EQ(OK, rv);
 }
 
-TEST_F(HttpNetworkTransactionTest, SOCKS4_HTTP_GET) {
+#if defined(OS_MACOSX)
+#define MAYBE_SOCKS4_HTTP_GET FLAKY_SOCKS4_HTTP_GET
+#else
+#define MAYBE_SOCKS4_HTTP_GET SOCKS4_HTTP_GET
+#endif
+
+TEST_F(HttpNetworkTransactionTest, MAYBE_SOCKS4_HTTP_GET) {
   HttpRequestInfo request;
   request.method = "GET";
   request.url = GURL("http://www.google.com/");
@@ -5407,7 +5413,13 @@ TEST_F(HttpNetworkTransactionTest, SOCKS4_HTTP_GET) {
   EXPECT_EQ("Payload", response_text);
 }
 
-TEST_F(HttpNetworkTransactionTest, SOCKS4_SSL_GET) {
+#if defined(OS_MACOSX)
+#define MAYBE_SOCKS4_SSL_GET FLAKY_SOCKS4_SSL_GET
+#else
+#define MAYBE_SOCKS4_SSL_GET SOCKS4_SSL_GET
+#endif
+
+TEST_F(HttpNetworkTransactionTest, MAYBE_SOCKS4_SSL_GET) {
   HttpRequestInfo request;
   request.method = "GET";
   request.url = GURL("https://www.google.com/");
