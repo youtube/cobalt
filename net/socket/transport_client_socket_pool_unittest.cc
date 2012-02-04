@@ -995,7 +995,8 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketCancel) {
 
     if (index == CANCEL_AFTER_WAIT) {
       // Wait for the backup socket timer to fire.
-      base::PlatformThread::Sleep(ClientSocketPool::kMaxConnectRetryIntervalMs);
+      base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(
+          ClientSocketPool::kMaxConnectRetryIntervalMs));
     }
 
     // Let the appropriate socket connect.
@@ -1039,7 +1040,8 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterStall) {
   MessageLoop::current()->RunAllPending();
 
   // Wait for the backup socket timer to fire.
-  base::PlatformThread::Sleep(ClientSocketPool::kMaxConnectRetryIntervalMs);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(
+      ClientSocketPool::kMaxConnectRetryIntervalMs));
 
   // Let the second connect be synchronous. Otherwise, the emulated
   // host resolution takes an extra trip through the message loop.
@@ -1086,7 +1088,8 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterDelay) {
   MessageLoop::current()->RunAllPending();
 
   // Wait for the backup socket timer to fire.
-  base::PlatformThread::Sleep(ClientSocketPool::kMaxConnectRetryIntervalMs);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(
+      ClientSocketPool::kMaxConnectRetryIntervalMs));
 
   // Let the second connect be synchronous. Otherwise, the emulated
   // host resolution takes an extra trip through the message loop.
