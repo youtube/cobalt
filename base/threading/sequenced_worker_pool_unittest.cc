@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -71,7 +71,7 @@ class TestTracker : public base::RefCountedThreadSafe<TestTracker> {
     SignalWorkerDone(id);
   }
   void SlowTask(int id) {
-    base::PlatformThread::Sleep(1000);
+    base::PlatformThread::Sleep(base::TimeDelta::FromSeconds(1));
     SignalWorkerDone(id);
   }
 

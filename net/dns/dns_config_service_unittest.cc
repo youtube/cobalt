@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -88,7 +88,7 @@ TEST_F(DnsConfigServiceTest, GetSystemConfig) {
   scoped_ptr<DnsConfigService> service(DnsConfigService::CreateSystemService());
 
   // Quit the loop after timeout unless cancelled
-  const int64 kTimeout = TestTimeouts::action_timeout_ms();
+  const base::TimeDelta kTimeout = TestTimeouts::action_timeout();
   base::WeakPtrFactory<DnsConfigServiceTest> factory_(this);
   MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
@@ -100,7 +100,7 @@ TEST_F(DnsConfigServiceTest, GetSystemConfig) {
   quit_on_config_ = true;
   MessageLoop::current()->Run();
   ASSERT_TRUE(last_config_.IsValid()) << "Did not receive DnsConfig in " <<
-      kTimeout << "ms";
+      kTimeout.InMilliseconds() << "ms";
 }
 #endif  // OS_POSIX || OS_WIN
 
