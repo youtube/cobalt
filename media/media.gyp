@@ -467,14 +467,6 @@
         [ 'os_posix == 1 and OS != "mac" and OS != "android"', {
           'cflags': [
             '-msse2',
-            '-msse3',
-            '-mssse3',
-          ],
-        }],
-        [ 'OS == "openbsd"', {
-          # OpenBSD's gcc (4.2.1) does not support -mssse3
-          'cflags!': [
-            '-mssse3',
           ],
         }],
         [ 'OS == "mac"', {
