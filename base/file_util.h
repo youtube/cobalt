@@ -44,6 +44,8 @@ class Time;
 
 namespace file_util {
 
+extern bool g_bug108724_debug;
+
 //-----------------------------------------------------------------------------
 // Functions that operate purely on a path string w/o touching the filesystem:
 

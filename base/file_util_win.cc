@@ -101,6 +101,8 @@ bool Delete(const FilePath& path, bool recursive) {
   // into the rest of the buffer.
   wchar_t double_terminated_path[MAX_PATH + 1] = {0};
 #pragma warning(suppress:4996)  // don't complain about wcscpy deprecation
+  if (g_bug108724_debug)
+    LOG(WARNING) << "copying ";
   wcscpy(double_terminated_path, path.value().c_str());
 
   SHFILEOPSTRUCT file_operation = {0};
@@ -109,7 +111,11 @@ bool Delete(const FilePath& path, bool recursive) {
   file_operation.fFlags = FOF_NOERRORUI | FOF_SILENT | FOF_NOCONFIRMATION;
   if (!recursive)
     file_operation.fFlags |= FOF_NORECURSION | FOF_FILESONLY;
+  if (g_bug108724_debug)
+    LOG(WARNING) << "Performing shell operation";
   int err = SHFileOperation(&file_operation);
+  if (g_bug108724_debug)
+    LOG(WARNING) << "Done: " << err;
 
   // Since we're passing flags to the operation telling it to be silent,
   // it's possible for the operation to be aborted/cancelled without err
