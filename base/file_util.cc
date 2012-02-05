@@ -33,6 +33,8 @@ static const int kMaxUniqueFiles = 100;
 
 namespace file_util {
 
+bool g_bug108724_debug = false;
+
 bool EndsWithSeparator(const FilePath& path) {
   FilePath::StringType value = path.value();
   if (value.empty())
