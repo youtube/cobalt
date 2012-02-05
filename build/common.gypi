@@ -68,7 +68,7 @@
             'use_aura%': 1,
           }],
 
-          # Set default value of toolkit_views based on OS.
+          # Set value of toolkit_views based on OS.
           ['OS=="win" or chromeos==1 or use_aura==1', {
             'toolkit_views%': 1,
           }, {
@@ -294,31 +294,32 @@
         # Flags to use X11 on non-Mac POSIX platforms
         ['OS=="win" or OS=="mac" or OS=="android"', {
           'use_glib%': 0,
-          'toolkit_uses_gtk%': 0,
           'use_x11%': 0,
         }, {
-          # TODO(dnicoara) Wayland build should have these disabled, but
-          # currently GTK and X is too spread and it's hard to completely
-          # remove every dependency.
+          # TODO(dnicoara/msb) Wayland build should have these disabled.
           'use_glib%': 1,
-          'toolkit_uses_gtk%': 1,
           'use_x11%': 1,
         }],
+
+        # Aura and most platforms never use GTK. 
+        ['use_aura==1 or OS=="win" or OS=="mac" or OS=="android"', {
+          'toolkit_uses_gtk%': 0,
+        }, {
+          'toolkit_uses_gtk%': 1,
+        }],
+
         # We always use skia text rendering in Aura on Windows, since GDI
         # doesn't agree with our BackingStore.
         # TODO(beng): remove once skia text rendering is on by default.
         ['use_aura==1 and OS=="win"', {
           'enable_skia_text%': 1,
         }],
-        ['use_aura==1 and OS!="win"', {
-          'toolkit_uses_gtk%': 0,
-        }],
 
         # A flag to enable or disable our compile-time dependency
         # on gnome-keyring. If that dependency is disabled, no gnome-keyring
         # support will be available. This option is useful
         # for Linux distributions and for Aura.
-        ['chromeos==1 or use_aura==1', {
+        ['use_aura==1', {
           'use_gnome_keyring%': 0,
         }, {
           'use_gnome_keyring%': 1,
@@ -330,26 +331,17 @@
         }],
 
         # Enable some hacks to support Flapper only on Chrome OS.
+        # Enable file manager extension on ChromeOS.
         ['chromeos==1', {
           'enable_flapper_hacks%': 1,
-        }, {
-          'enable_flapper_hacks%': 0,
-        }],
-
-        # Enable file manager extension on Chrome OS or Aura.
-        ['chromeos==1 or use_aura==1', {
           'file_manager_extension%': 1,
         }, {
+          'enable_flapper_hacks%': 0,
           'file_manager_extension%': 0,
         }],
 
-        # ... except on Windows even with Aura.
-        ['use_aura==1 and OS=="win"', {
-          'file_manager_extension%': 0,
-        }],
-
-        # Enable WebUI TaskManager on Chrome OS or Aura.
-        ['chromeos==1 or use_aura==1', {
+        # Enable WebUI TaskManager on Aura.
+        ['use_aura==1', {
           'webui_task_manager%': 1,
         }],
 
@@ -371,7 +363,8 @@
           'chromium_win_pch%': 1
         }],
 
-        ['use_aura==1 or chromeos==1', {
+        # No plugin installation allowed under Aura.
+        ['use_aura==1', {
           'enable_plugin_installation%': 0,
         }, {
           'enable_plugin_installation%': 1,
