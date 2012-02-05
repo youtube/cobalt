@@ -1451,6 +1451,49 @@ EVENT_TYPE(HTTP_PIPELINED_CONNECTION_RECEIVED_HEADERS)
 EVENT_TYPE(HTTP_PIPELINED_CONNECTION_STREAM_CLOSED)
 
 // ------------------------------------------------------------------------
+// DownloadFile events.
+// ------------------------------------------------------------------------
+
+// This event is created when a download file is opened, and lasts until
+// the file is closed.
+// The BEGIN event has the following parameters:
+//   {
+//     "file_name": <The name of the file>,
+//     "start_offset": <The position at which to start writing>,
+//   }
+EVENT_TYPE(DOWNLOAD_FILE_OPENED)
+
+// This event is created when a download file is written to.
+//   {
+//     "byte_count": <Number of bytes written in this call>,
+//   }
+EVENT_TYPE(DOWNLOAD_FILE_WRITTEN)
+
+// This event is created when a download file is renamed.
+//   {
+//     "old_filename": <Old filename>,
+//     "new_filename": <New filename>,
+//   }
+EVENT_TYPE(DOWNLOAD_FILE_RENAMED)
+
+// This event is created when a download file is closed.  This event is allowed
+// to occur even if the file is not open.
+EVENT_TYPE(DOWNLOAD_FILE_CLOSED)
+
+// This event is created when a download file is detached.
+EVENT_TYPE(DOWNLOAD_FILE_DETACHED)
+
+// This event is created when a download file is deleted.
+EVENT_TYPE(DOWNLOAD_FILE_DELETED)
+
+// This event is created when a download file operation has an error.
+//   {
+//     "operation": <open, write, close, etc>,
+//     "net_error": <net::Error code>,
+//   }
+EVENT_TYPE(DOWNLOAD_FILE_ERROR)
+
+// ------------------------------------------------------------------------
 // FileStream events.
 // ------------------------------------------------------------------------
 
@@ -1484,8 +1527,8 @@ EVENT_TYPE(FILE_STREAM_CLOSE)
 
 // This event is created when a file stream operation has an error.
 //   {
-//     "operation": open, write, close, etc.
-//     "os_error": OS-dependent error code.
-//     "net_error": net::Error code.
+//     "operation": <open, write, close, etc>,
+//     "os_error": <OS-dependent error code>,
+//     "net_error": <net::Error code>,
 //   }
 EVENT_TYPE(FILE_STREAM_ERROR)
