@@ -33,6 +33,12 @@
 #include "third_party/apple_apsl/cssmapplePriv.h"
 #include "third_party/nss/mozilla/security/nss/lib/certdb/cert.h"
 
+// From 10.7.2 libsecurity_keychain-55035/lib/SecTrustPriv.h, for use with
+// SecTrustCopyExtendedResult.
+#ifndef kSecEVOrganizationName
+#define kSecEVOrganizationName CFSTR("Organization")
+#endif
+
 using base::mac::ScopedCFTypeRef;
 using base::Time;
 
@@ -894,7 +900,7 @@ X509Certificate* X509Certificate::CreateSelfSigned(
 
   CSSM_ENCODED_CERT* encCert =
       reinterpret_cast<CSSM_ENCODED_CERT*>(resultSet->Results);
-  base::mac::ScopedCFTypeRef<SecCertificateRef> scoped_cert;
+  ScopedCFTypeRef<SecCertificateRef> scoped_cert;
   SecCertificateRef certificate_ref = NULL;
   OSStatus os_status =
       SecCertificateCreateFromData(&encCert->CertBlob, encCert->CertType,
@@ -1140,16 +1146,25 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
               CFBundleGetFunctionPointerForName(bundle,
                   CFSTR("SecTrustCopyExtendedResult")));
       if (copy_extended_result) {
-        CFDictionaryRef ev_dict = NULL;
-        status = copy_extended_result(trust_ref, &ev_dict);
-        if (!status && ev_dict) {
-          // The returned dictionary contains the EV organization name from the
-          // server certificate, which we don't need at this point (and we
-          // have other ways to access, anyway). All we care is that
-          // SecTrustCopyExtendedResult() returned noErr and a non-NULL
-          // dictionary.
-          CFRelease(ev_dict);
-          verify_result->cert_status |= CERT_STATUS_IS_EV;
+        CFDictionaryRef ev_dict_temp = NULL;
+        status = copy_extended_result(trust_ref, &ev_dict_temp);
+        base::mac::ScopedCFTypeRef<CFDictionaryRef> ev_dict(ev_dict_temp);
+        ev_dict_temp = NULL;
+        if (status == noErr) {
+          // In 10.7.3, SecTrustCopyExtendedResult returns noErr and populates
+          // ev_dict even for non-EV certificates, but only EV certificates
+          // will cause ev_dict to contain kSecEVOrganizationName. In previous
+          // releases, SecTrustCopyExtendedResult would only return noErr and
+          // populate ev_dict for EV certificates, but would always include
+          // kSecEVOrganizationName in that case, so checking for this key is
+          // appropriate for all known versions of SecTrustCopyExtendedResult.
+          // The actual organization name is unneeded here and can be accessed
+          // through other means. All that matters here is the OS' conception
+          // of whether or not the certificate is EV.
+          if (CFDictionaryContainsKey(ev_dict,
+                                      kSecEVOrganizationName)) {
+            verify_result->cert_status |= CERT_STATUS_IS_EV;
+          }
         }
       }
     }
