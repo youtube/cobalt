@@ -106,6 +106,7 @@ v8.log
 /third_party/adobe/flash/symbols
 /third_party/ffmpeg
 /third_party/gles2_conform
+/third_party/gold
 /third_party/googlemac
 /third_party/hunspell
 /third_party/hunspell_dictionaries
