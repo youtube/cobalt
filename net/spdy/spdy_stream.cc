@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -154,7 +154,7 @@ void SpdyStream::IncreaseSendWindowSize(int delta_window_size) {
   send_window_size_ = new_window_size;
 
   net_log_.AddEvent(
-      NetLog::TYPE_SPDY_STREAM_SEND_WINDOW_UPDATE,
+      NetLog::TYPE_SPDY_STREAM_UPDATE_SEND_WINDOW,
       make_scoped_refptr(new NetLogSpdyStreamWindowUpdateParameter(
           stream_id_, delta_window_size, send_window_size_)));
   if (stalled_by_flow_control_) {
@@ -177,7 +177,7 @@ void SpdyStream::DecreaseSendWindowSize(int delta_window_size) {
   send_window_size_ -= delta_window_size;
 
   net_log_.AddEvent(
-      NetLog::TYPE_SPDY_STREAM_SEND_WINDOW_UPDATE,
+      NetLog::TYPE_SPDY_STREAM_UPDATE_SEND_WINDOW,
       make_scoped_refptr(new NetLogSpdyStreamWindowUpdateParameter(
           stream_id_, -delta_window_size, send_window_size_)));
 }
@@ -193,7 +193,7 @@ void SpdyStream::IncreaseRecvWindowSize(int delta_window_size) {
 
   recv_window_size_ = new_window_size;
   net_log_.AddEvent(
-      NetLog::TYPE_SPDY_STREAM_RECV_WINDOW_UPDATE,
+      NetLog::TYPE_SPDY_STREAM_UPDATE_RECV_WINDOW,
       make_scoped_refptr(new NetLogSpdyStreamWindowUpdateParameter(
           stream_id_, delta_window_size, recv_window_size_)));
   session_->SendWindowUpdate(stream_id_, delta_window_size);
@@ -204,14 +204,17 @@ void SpdyStream::DecreaseRecvWindowSize(int delta_window_size) {
 
   recv_window_size_ -= delta_window_size;
   net_log_.AddEvent(
-      NetLog::TYPE_SPDY_STREAM_RECV_WINDOW_UPDATE,
+      NetLog::TYPE_SPDY_STREAM_UPDATE_RECV_WINDOW,
       make_scoped_refptr(new NetLogSpdyStreamWindowUpdateParameter(
           stream_id_, -delta_window_size, recv_window_size_)));
 
   // Since we never decrease the initial window size, we should never hit
-  // a negative |recv_window_size_|, if we do, it's a flow-control violation.
-  if (recv_window_size_ < 0)
-    session_->ResetStream(stream_id_, spdy::FLOW_CONTROL_ERROR);
+  // a negative |recv_window_size_|, if we do, it's a client side bug, so we use
+  // PROTOCOL_ERROR for lack of a better error code.
+  if (recv_window_size_ < 0) {
+    session_->ResetStream(stream_id_, spdy::PROTOCOL_ERROR);
+    NOTREACHED();
+  }
 }
 
 int SpdyStream::GetPeerAddress(AddressList* address) const {

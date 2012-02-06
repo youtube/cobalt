@@ -107,16 +107,13 @@ class NetLogSpdySettingsParameter : public NetLog::EventParameters {
 
 class NetLogSpdyWindowUpdateParameter : public NetLog::EventParameters {
  public:
-  NetLogSpdyWindowUpdateParameter(spdy::SpdyStreamId stream_id,
-                                  int delta,
-                                  int window_size)
-      : stream_id_(stream_id), delta_(delta), window_size_(window_size) {}
+  NetLogSpdyWindowUpdateParameter(spdy::SpdyStreamId stream_id, int delta)
+      : stream_id_(stream_id), delta_(delta) {}
 
   virtual Value* ToValue() const {
     DictionaryValue* dict = new DictionaryValue();
     dict->SetInteger("stream_id", static_cast<int>(stream_id_));
     dict->SetInteger("delta", delta_);
-    dict->SetInteger("window_size", window_size_);
     return dict;
   }
 
@@ -124,7 +121,6 @@ class NetLogSpdyWindowUpdateParameter : public NetLog::EventParameters {
   ~NetLogSpdyWindowUpdateParameter() {}
   const spdy::SpdyStreamId stream_id_;
   const int delta_;
-  const int window_size_;
 
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdyWindowUpdateParameter);
 };
@@ -1454,12 +1450,17 @@ void SpdySession::OnSettings(const spdy::SpdySettingsControlFrame& frame) {
 void SpdySession::OnWindowUpdate(
     const spdy::SpdyWindowUpdateControlFrame& frame) {
   spdy::SpdyStreamId stream_id = frame.stream_id();
+  int delta_window_size = static_cast<int>(frame.delta_window_size());
+  net_log_.AddEvent(
+      NetLog::TYPE_SPDY_SESSION_RECEIVED_WINDOW_UPDATE,
+      make_scoped_refptr(new NetLogSpdyWindowUpdateParameter(
+          stream_id, delta_window_size)));
+
   if (!IsStreamActive(stream_id)) {
     LOG(WARNING) << "Received WINDOW_UPDATE for invalid stream " << stream_id;
     return;
   }
 
-  int delta_window_size = static_cast<int>(frame.delta_window_size());
   if (delta_window_size < 1) {
     LOG(WARNING) << "Received WINDOW_UPDATE with an invalid delta_window_size "
                  << delta_window_size;
@@ -1473,11 +1474,6 @@ void SpdySession::OnWindowUpdate(
 
   if (flow_control_)
     stream->IncreaseSendWindowSize(delta_window_size);
-
-  net_log_.AddEvent(
-      NetLog::TYPE_SPDY_SESSION_RECV_WINDOW_UPDATE,
-      make_scoped_refptr(new NetLogSpdyWindowUpdateParameter(
-          stream_id, delta_window_size, stream->send_window_size())));
 }
 
 void SpdySession::SendWindowUpdate(spdy::SpdyStreamId stream_id,
@@ -1487,9 +1483,9 @@ void SpdySession::SendWindowUpdate(spdy::SpdyStreamId stream_id,
   CHECK_EQ(stream->stream_id(), stream_id);
 
   net_log_.AddEvent(
-      NetLog::TYPE_SPDY_SESSION_SEND_WINDOW_UPDATE,
+      NetLog::TYPE_SPDY_SESSION_SENT_WINDOW_UPDATE,
       make_scoped_refptr(new NetLogSpdyWindowUpdateParameter(
-          stream_id, delta_window_size, stream->recv_window_size())));
+          stream_id, delta_window_size)));
 
   scoped_ptr<spdy::SpdyWindowUpdateControlFrame> window_update_frame(
       spdy::SpdyFramer::CreateWindowUpdate(stream_id, delta_window_size));
