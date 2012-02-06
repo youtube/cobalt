@@ -1010,17 +1010,15 @@ EVENT_TYPE(SPDY_SESSION_GOAWAY)
 //   {
 //     "stream_id": <The stream ID for the window update>,
 //     "delta"    : <The delta window size>,
-//     "new_size" : <The new window size (computed)>,
 //   }
-EVENT_TYPE(SPDY_SESSION_SEND_WINDOW_UPDATE)
+EVENT_TYPE(SPDY_SESSION_RECEIVED_WINDOW_UPDATE)
 
 // Sending of a SPDY WINDOW_UPDATE frame (which controls the receive window).
 //   {
 //     "stream_id": <The stream ID for the window update>,
 //     "delta"    : <The delta window size>,
-//     "new_size" : <The new window size (computed)>,
 //   }
-EVENT_TYPE(SPDY_SESSION_RECV_WINDOW_UPDATE)
+EVENT_TYPE(SPDY_SESSION_SENT_WINDOW_UPDATE)
 
 // Sending a data frame
 //   {
@@ -1102,7 +1100,7 @@ EVENT_TYPE(SPDY_STREAM_ADOPTED_PUSH_STREAM)
 //     "delta":      <The window size delta>,
 //     "new_window": <The new window size>,
 //   }
-EVENT_TYPE(SPDY_STREAM_SEND_WINDOW_UPDATE)
+EVENT_TYPE(SPDY_STREAM_UPDATE_SEND_WINDOW)
 
 // This event indicates that the recv window has been updated
 //   {
@@ -1110,7 +1108,7 @@ EVENT_TYPE(SPDY_STREAM_SEND_WINDOW_UPDATE)
 //     "delta":      <The window size delta>,
 //     "new_window": <The new window size>,
 //   }
-EVENT_TYPE(SPDY_STREAM_RECV_WINDOW_UPDATE)
+EVENT_TYPE(SPDY_STREAM_UPDATE_RECV_WINDOW)
 
 // ------------------------------------------------------------------------
 // HttpStreamParser
