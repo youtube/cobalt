@@ -149,8 +149,7 @@ scoped_ptr<FilterCollection> MockFilterCollection::filter_collection(
   if (run_build)
     EXPECT_CALL(*demuxer_factory, Build(_, _));
 
-  collection->SetDemuxerFactory(scoped_ptr<DemuxerFactory>(
-      demuxer_factory.release()));
+  collection->SetDemuxerFactory(demuxer_factory.PassAs<DemuxerFactory>());
   collection->AddVideoDecoder(video_decoder_);
   collection->AddAudioDecoder(audio_decoder_);
   collection->AddVideoRenderer(video_renderer_);
