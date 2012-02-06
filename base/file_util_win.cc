@@ -108,6 +108,7 @@ bool Delete(const FilePath& path, bool recursive) {
   SHFILEOPSTRUCT file_operation = {0};
   file_operation.wFunc = FO_DELETE;
   file_operation.pFrom = double_terminated_path;
+  file_operation.pTo = NULL;  // Must be NULL according to documentation.
   file_operation.fFlags = FOF_NOERRORUI | FOF_SILENT | FOF_NOCONFIRMATION;
   if (!recursive)
     file_operation.fFlags |= FOF_NORECURSION | FOF_FILESONLY;
