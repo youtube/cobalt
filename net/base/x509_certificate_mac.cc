@@ -1148,9 +1148,9 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
       if (copy_extended_result) {
         CFDictionaryRef ev_dict_temp = NULL;
         status = copy_extended_result(trust_ref, &ev_dict_temp);
-        base::mac::ScopedCFTypeRef<CFDictionaryRef> ev_dict(ev_dict_temp);
+        ScopedCFTypeRef<CFDictionaryRef> ev_dict(ev_dict_temp);
         ev_dict_temp = NULL;
-        if (status == noErr) {
+        if (status == noErr && ev_dict) {
           // In 10.7.3, SecTrustCopyExtendedResult returns noErr and populates
           // ev_dict even for non-EV certificates, but only EV certificates
           // will cause ev_dict to contain kSecEVOrganizationName. In previous
