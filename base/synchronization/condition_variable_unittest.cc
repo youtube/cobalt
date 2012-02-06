@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -216,49 +216,6 @@ TEST_F(ConditionVariableTest, MultiThreadConsumerTest) {
     EXPECT_EQ(0, queue.GetMaxCompletionsByWorkerThread());
     EXPECT_EQ(0, queue.GetMinCompletionsByWorkerThread());
     EXPECT_EQ(0, queue.GetNumberOfCompletedTasks());
-
-    // Set up to make one worker do 30ms tasks sequentially.
-    queue.ResetHistory();
-    queue.SetTaskCount(kTaskCount);
-    queue.SetWorkTime(kThirtyMs);
-    queue.SetAllowHelp(false);
-
-    start_time = Time::Now();
-  }
-
-  queue.work_is_available()->Signal();  // Start up one thread.
-  // Wait till we at least start to handle tasks (and we're not all waiting).
-  queue.SpinUntilTaskCountLessThan(kTaskCount);
-
-  {
-    // Wait until all 10 work tasks have at least been assigned.
-    base::AutoLock auto_lock(*queue.lock());
-    while (queue.task_count())
-      queue.no_more_tasks()->Wait();
-    // The last of the tasks *might* still be running, but... all but one should
-    // be done by now, since tasks are being done serially.
-    EXPECT_LE(queue.GetWorkTime().InMilliseconds() * (kTaskCount - 1),
-              (Time::Now() - start_time).InMilliseconds());
-
-    EXPECT_EQ(1, queue.GetNumThreadsTakingAssignments());
-    EXPECT_EQ(1, queue.GetNumThreadsCompletingTasks());
-    EXPECT_LE(kTaskCount - 1, queue.GetMaxCompletionsByWorkerThread());
-    EXPECT_EQ(0, queue.GetMinCompletionsByWorkerThread());
-    EXPECT_LE(kTaskCount - 1, queue.GetNumberOfCompletedTasks());
-  }
-
-  // Wait to be sure all tasks are done.
-  queue.SpinUntilAllThreadsAreWaiting();
-
-  {
-    // Check that all work was done by one thread id.
-    base::AutoLock auto_lock(*queue.lock());
-    EXPECT_EQ(1, queue.GetNumThreadsTakingAssignments());
-    EXPECT_EQ(1, queue.GetNumThreadsCompletingTasks());
-    EXPECT_EQ(0, queue.task_count());
-    EXPECT_EQ(kTaskCount, queue.GetMaxCompletionsByWorkerThread());
-    EXPECT_EQ(0, queue.GetMinCompletionsByWorkerThread());
-    EXPECT_EQ(kTaskCount, queue.GetNumberOfCompletedTasks());
 
     // Set up to make each task include getting help from another worker, so
     // so that the work gets done in paralell.
