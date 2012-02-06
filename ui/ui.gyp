@@ -316,6 +316,8 @@
         'gfx/render_text_win.h',
         'gfx/screen.h',
         'gfx/screen_aura.cc',
+        'gfx/screen_compatible_dc_win.cc',
+        'gfx/screen_compatible_dc_win.h',
         'gfx/screen_gtk.cc',
         'gfx/screen_mac.mm',
         'gfx/screen_wayland.cc',
