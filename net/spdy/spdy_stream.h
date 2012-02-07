@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -136,6 +136,9 @@ class NET_EXPORT_PRIVATE SpdyStream
   void set_stalled_by_flow_control(bool stalled) {
     stalled_by_flow_control_ = stalled;
   }
+
+  // Adjust the |send_window_size_| by |delta_window_size|.
+  void AdjustSendWindowSize(int delta_window_size);
 
   // Increases |send_window_size_| with delta extracted from a WINDOW_UPDATE
   // frame; sends a RST_STREAM if delta overflows |send_window_size_| and
