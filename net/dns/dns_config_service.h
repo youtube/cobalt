@@ -39,13 +39,15 @@ struct NET_EXPORT_PRIVATE DnsConfig {
   std::vector<IPEndPoint> nameservers;
   // Suffix search list; used on first lookup when number of dots in given name
   // is less than |ndots|.
-  // TODO(szym): Filter out duplicate entries from this list.
   std::vector<std::string> search;
 
   DnsHosts hosts;
 
+  // AppendToMultiLabelName: is suffix search performed for multi-label names?
+  // True, except on Windows where it can be configured.
+  bool append_to_multi_label_name;
+
   // Resolver options; see man resolv.conf.
-  // TODO(szym): implement DNS Devolution for windows
 
   // Minimum number of dots before global resolution precedes |search|.
   int ndots;

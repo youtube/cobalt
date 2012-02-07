@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -53,7 +53,7 @@ void CompareConfig(const struct __res_state &res, const DnsConfig& config) {
 }
 
 // Fills in |res| with sane configuration. Change |generation| to add diversity.
-void InitializeResState(res_state res, int generation) {
+void InitializeResState(res_state res, unsigned generation) {
   memset(res, 0, sizeof(*res));
   res->options = RES_INIT | RES_ROTATE;
   res->ndots = 2;
@@ -113,12 +113,12 @@ void CloseResState(res_state res) {
 TEST(DnsConfigTest, ResolverConfigConvertAndEquals) {
   struct __res_state res[2];
   DnsConfig config[2];
-  for (int i = 0; i < 2; ++i) {
+  for (unsigned i = 0; i < 2; ++i) {
     EXPECT_FALSE(config[i].IsValid());
     InitializeResState(&res[i], i);
-    ASSERT_TRUE(ConvertResToConfig(res[i], &config[i]));
+    ASSERT_TRUE(ConvertResStateToDnsConfig(res[i], &config[i]));
   }
-  for (int i = 0; i < 2; ++i) {
+  for (unsigned i = 0; i < 2; ++i) {
     EXPECT_TRUE(config[i].IsValid());
     CompareConfig(res[i], config[i]);
     CloseResState(&res[i]);

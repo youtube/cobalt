@@ -1,16 +1,17 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/dns/dns_config_service_win.h"
 
+#include "base/win/windows_version.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
 
 namespace {
 
-TEST(DnsConfigServiceWinTest, ParseDomain) {
+TEST(DnsConfigServiceWinTest, ParseSearchList) {
   const struct TestCase {
     const wchar_t* input;
     const char* output[4];  // NULL-terminated, empty if expected false
@@ -25,26 +26,301 @@ TEST(DnsConfigServiceWinTest, ParseDomain) {
     // Empty search list is invalid
     { L"", { NULL } },
     { L",,", { NULL } },
-    { NULL, { NULL } },
   };
 
   std::vector<std::string> actual_output, expected_output;
-  for (const TestCase* t = cases; t->input; ++t) {
+  for (unsigned i = 0; i < arraysize(cases); ++i) {
+    const TestCase& t = cases[i];
     actual_output.clear();
     actual_output.push_back("UNSET");
     expected_output.clear();
-    for (const char* const* output = t->output; *output; ++output) {
+    for (const char* const* output = t.output; *output; ++output) {
       expected_output.push_back(*output);
     }
-    bool result = ParseSearchList(t->input, &actual_output);
+    bool result = ParseSearchList(t.input, &actual_output);
     if (!expected_output.empty()) {
       EXPECT_TRUE(result);
       EXPECT_EQ(expected_output, actual_output);
     } else {
-      EXPECT_FALSE(result) << "Unexpected parse success on " << t->input;
-      expected_output.push_back("UNSET");
-      EXPECT_EQ(expected_output, actual_output);
+      EXPECT_FALSE(result) << "Unexpected parse success on " << t.input;
     }
+  }
+}
+
+struct AdapterInfo {
+  IFTYPE if_type;
+  IF_OPER_STATUS oper_status;
+  PWCHAR dns_suffix;
+  std::string dns_server_addresses[4];  // Empty string indicates end.
+};
+
+scoped_ptr_malloc<IP_ADAPTER_ADDRESSES> CreateAdapterAddresses(
+    const AdapterInfo* infos) {
+  size_t num_adapters = 0;
+  size_t num_addresses = 0;
+  for (size_t i = 0; infos[i].if_type; ++i) {
+    ++num_adapters;
+    for (size_t j = 0; !infos[i].dns_server_addresses[j].empty(); ++j) {
+      ++num_addresses;
+    }
+  }
+
+  size_t heap_size = num_adapters * sizeof(IP_ADAPTER_ADDRESSES) +
+                     num_addresses * (sizeof(IP_ADAPTER_DNS_SERVER_ADDRESS) +
+                                      sizeof(struct sockaddr_storage));
+  scoped_ptr_malloc<IP_ADAPTER_ADDRESSES> heap(
+      reinterpret_cast<IP_ADAPTER_ADDRESSES*>(malloc(heap_size)));
+  CHECK(heap.get());
+  memset(heap.get(), 0, heap_size);
+
+  IP_ADAPTER_ADDRESSES* adapters = heap.get();
+  IP_ADAPTER_DNS_SERVER_ADDRESS* addresses =
+      reinterpret_cast<IP_ADAPTER_DNS_SERVER_ADDRESS*>(adapters + num_adapters);
+  struct sockaddr_storage* storage =
+      reinterpret_cast<struct sockaddr_storage*>(addresses + num_addresses);
+
+  for (size_t i = 0; i < num_adapters; ++i) {
+    const AdapterInfo& info = infos[i];
+    IP_ADAPTER_ADDRESSES* adapter = adapters + i;
+    if (i + 1 < num_adapters)
+      adapter->Next = adapter + 1;
+    adapter->IfType = info.if_type;
+    adapter->OperStatus = info.oper_status;
+    adapter->DnsSuffix = info.dns_suffix;
+    IP_ADAPTER_DNS_SERVER_ADDRESS* address;
+    for (size_t j = 0; !info.dns_server_addresses[j].empty(); ++j) {
+      --num_addresses;
+      if (j == 0) {
+        address = adapter->FirstDnsServerAddress = addresses + num_addresses;
+      } else {
+        address = address->Next = address + 1;
+      }
+      IPAddressNumber ip;
+      CHECK(ParseIPLiteralToNumber(info.dns_server_addresses[j], &ip));
+      IPEndPoint ipe(ip, 53);
+      address->Address.lpSockaddr =
+          reinterpret_cast<LPSOCKADDR>(storage + num_addresses);
+      size_t length = sizeof(struct sockaddr_storage);
+      CHECK(ipe.ToSockAddr(address->Address.lpSockaddr, &length));
+      address->Address.iSockaddrLength = static_cast<int>(length);
+    }
+  }
+
+  return heap.Pass();
+}
+
+TEST(DnsConfigServiceWinTest, ConvertAdaptersAddresses) {
+  // Check nameservers and connection-specific suffix.
+  const struct TestCase {
+    AdapterInfo input_adapters[4];        // |if_type| == 0 indicates end.
+    std::string expected_nameservers[4];  // Empty string indicates end.
+    std::string expected_suffix;
+  } cases[] = {
+    {  // Ignore loopback and inactive adapters.
+      {
+        { IF_TYPE_SOFTWARE_LOOPBACK, IfOperStatusUp, L"funnyloop",
+          { "2.0.0.2" } },
+        { IF_TYPE_FASTETHER, IfOperStatusDormant, L"example.com",
+          { "1.0.0.1" } },
+        { IF_TYPE_USB, IfOperStatusUp, L"chromium.org",
+          { "10.0.0.10", "2001:FFFF::1111" } },
+        { 0 },
+      },
+      { "10.0.0.10", "2001:FFFF::1111" },
+      "chromium.org",
+    },
+    {  // No usable nameservers.
+      {
+        { IF_TYPE_SOFTWARE_LOOPBACK, IfOperStatusUp, L"localhost",
+          { "2.0.0.2" } },
+        { IF_TYPE_FASTETHER, IfOperStatusDormant, L"example.com",
+          { "1.0.0.1" } },
+        { IF_TYPE_USB, IfOperStatusUp, L"chromium.org" },
+        { 0 },
+      },
+    },
+  };
+
+  for (size_t i = 0; i < arraysize(cases); ++i) {
+    const TestCase& t = cases[i];
+    DnsSystemSettings settings = {
+      CreateAdapterAddresses(t.input_adapters),
+      // Default settings for the rest.
+    };
+    std::vector<IPEndPoint> expected_nameservers;
+    for (size_t j = 0; !t.expected_nameservers[j].empty(); ++j) {
+      IPAddressNumber ip;
+      ASSERT_TRUE(ParseIPLiteralToNumber(t.expected_nameservers[j], &ip));
+      expected_nameservers.push_back(IPEndPoint(ip, 53));
+    }
+
+    DnsConfig config;
+    bool result = ConvertSettingsToDnsConfig(settings, &config);
+    bool expected_result = !expected_nameservers.empty();
+    ASSERT_EQ(expected_result, result);
+    EXPECT_EQ(expected_nameservers, config.nameservers);
+    if (result) {
+      ASSERT_EQ(1u, config.search.size());
+      EXPECT_EQ(t.expected_suffix, config.search[0]);
+    }
+  }
+}
+
+TEST(DnsConfigServiceWinTest, ConvertSuffixSearch) {
+  AdapterInfo infos[2] = {
+    { IF_TYPE_USB, IfOperStatusUp, L"connection.suffix", { "1.0.0.1" } },
+    { 0 },
+  };
+
+  const struct TestCase {
+    DnsSystemSettings input_settings;
+    std::string expected_search[5];
+  } cases[] = {
+    {  // Policy SearchList override.
+      {
+        CreateAdapterAddresses(infos),
+        { true, L"policy.searchlist.a,policy.searchlist.b" },
+        { true, L"tcpip.searchlist.a,tcpip.searchlist.b" },
+        { true, L"tcpip.domain" },
+      },
+      { "policy.searchlist.a", "policy.searchlist.b" },
+    },
+    {  // User-specified SearchList override.
+      {
+        CreateAdapterAddresses(infos),
+        { false },
+        { true, L"tcpip.searchlist.a,tcpip.searchlist.b" },
+        { true, L"tcpip.domain" },
+      },
+      { "tcpip.searchlist.a", "tcpip.searchlist.b" },
+    },
+    {  // Void SearchList.
+      {
+        CreateAdapterAddresses(infos),
+        { true, L",bad.searchlist,parsed.as.empty" },
+        { true, L"tcpip.searchlist,good.but.overridden" },
+        { true, L"tcpip.domain" },
+      },
+      { "tcpip.domain", "connection.suffix" },
+    },
+    {  // Devolution enabled by policy, level by dnscache.
+      {
+        CreateAdapterAddresses(infos),
+        { false },
+        { false },
+        { true, L"a.b.c.d.e" },
+        { { true, 1 }, { false } },
+        { { true, 0 }, { true, 3 } },
+        { { true, 0 }, { true, 1 } },
+      },
+      { "a.b.c.d.e", "connection.suffix", "b.c.d.e", "c.d.e" },
+    },
+    {  // Devolution enabled by dnscache, level by policy.
+      {
+        CreateAdapterAddresses(infos),
+        { false },
+        { false },
+        { true, L"a.b.c.d.e" },
+        { { false }, { true, 4 } },
+        { { true, 1 }, { false } },
+        { { true, 0 }, { true, 3 } },
+      },
+      { "a.b.c.d.e", "connection.suffix", "b.c.d.e" },
+    },
+    {  // Devolution enabled by default.
+      {
+        CreateAdapterAddresses(infos),
+        { false },
+        { false },
+        { true, L"a.b.c.d.e" },
+        { { false }, { false } },
+        { { false }, { true, 3 } },
+        { { false }, { true, 1 } },
+      },
+      { "a.b.c.d.e", "connection.suffix", "b.c.d.e", "c.d.e" },
+    },
+    {  // Devolution disabled when no explicit level.
+       // Windows XP and Vista use a default level = 2, but we don't.
+      {
+        CreateAdapterAddresses(infos),
+        { false },
+        { false },
+        { true, L"a.b.c.d.e" },
+        { { true, 1 }, { false } },
+        { { true, 1 }, { false } },
+        { { true, 1 }, { false } },
+      },
+      { "a.b.c.d.e", "connection.suffix" },
+    },
+    {  // Devolution disabled by policy level.
+      {
+        CreateAdapterAddresses(infos),
+        { false },
+        { false },
+        { true, L"a.b.c.d.e" },
+        { { false }, { true, 1 } },
+        { { true, 1 }, { true, 3 } },
+        { { true, 1 }, { true, 4 } },
+      },
+      { "a.b.c.d.e", "connection.suffix" },
+    },
+    {  // Devolution disabled by user setting.
+      {
+        CreateAdapterAddresses(infos),
+        { false },
+        { false },
+        { true, L"a.b.c.d.e" },
+        { { false }, { true, 3 } },
+        { { false }, { true, 3 } },
+        { { true, 0 }, { true, 3 } },
+      },
+      { "a.b.c.d.e", "connection.suffix" },
+    },
+  };
+
+  for (size_t i = 0; i < arraysize(cases); ++i) {
+    const TestCase& t = cases[i];
+    DnsConfig config;
+    ASSERT_TRUE(ConvertSettingsToDnsConfig(t.input_settings, &config));
+    std::vector<std::string> expected_search;
+    for (size_t j = 0; !t.expected_search[j].empty(); ++j) {
+      expected_search.push_back(t.expected_search[j]);
+    }
+    EXPECT_EQ(expected_search, config.search);
+  }
+}
+
+TEST(DnsConfigServiceWinTest, AppendToMultiLabelName) {
+  AdapterInfo infos[2] = {
+    { IF_TYPE_USB, IfOperStatusUp, L"connection.suffix", { "1.0.0.1" } },
+    { 0 },
+  };
+
+  // The default setting was true pre-Vista.
+  bool default_value = (base::win::GetVersion() < base::win::VERSION_VISTA);
+
+  const struct TestCase {
+    DnsSystemSettings::RegDword input;
+    bool expected_output;
+  } cases[] = {
+    { { true, 0 }, false },
+    { { true, 1 }, true },
+    { { false, 0 }, default_value },
+  };
+
+  for (size_t i = 0; i < arraysize(cases); ++i) {
+    const TestCase& t = cases[i];
+    DnsSystemSettings settings = {
+      CreateAdapterAddresses(infos),
+      { false }, { false }, { false },
+      { { false }, { false } },
+      { { false }, { false } },
+      { { false }, { false } },
+      t.input,
+    };
+    DnsConfig config;
+    ASSERT_TRUE(ConvertSettingsToDnsConfig(settings, &config));
+    EXPECT_EQ(config.append_to_multi_label_name, t.expected_output);
   }
 }
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -38,12 +38,12 @@ class DnsConfigServicePosix::ConfigReader : public SerialWorker {
     // Note: res_ninit in glibc always returns 0 and sets RES_INIT.
     // res_init behaves the same way.
     if ((res_init() == 0) && (_res.options & RES_INIT)) {
-      success_ = ConvertResToConfig(_res, &dns_config_);
+      success_ = ConvertResStateToDnsConfig(_res, &dns_config_);
     }
 #else
     struct __res_state res;
     if ((res_ninit(&res) == 0) && (res.options & RES_INIT)) {
-      success_ = ConvertResToConfig(res, &dns_config_);
+      success_ = ConvertResStateToDnsConfig(res, &dns_config_);
     }
 #endif
 #if defined(OS_MACOSX)
@@ -89,7 +89,8 @@ DnsConfigService* DnsConfigService::CreateSystemService() {
 }
 
 #if !defined(OS_ANDROID)
-bool ConvertResToConfig(const struct __res_state& res, DnsConfig* dns_config) {
+bool ConvertResStateToDnsConfig(const struct __res_state& res,
+                                DnsConfig* dns_config) {
   CHECK(dns_config != NULL);
   DCHECK(res.options & RES_INIT);
 
