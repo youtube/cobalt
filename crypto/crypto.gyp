@@ -237,7 +237,7 @@
         '../testing/gtest.gyp:gtest',
       ],
       'conditions': [
-        [ 'os_posix == 1 and OS != "mac"', {
+        [ 'os_posix == 1 and OS != "mac" and OS != "android"', {
           'conditions': [
             [ 'linux_use_tcmalloc==1', {
                 'dependencies': [
@@ -249,7 +249,7 @@
           'dependencies': [
             '../build/linux/system.gyp:ssl',
           ],
-        }, {  # os_posix != 1 or OS == "mac"
+        }, {  # os_posix != 1 or OS == "mac" or OS == "android"
           'sources!': [
             'rsa_private_key_nss_unittest.cc',
             'openpgp_symmetric_encryption_unittest.cc',
