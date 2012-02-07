@@ -35,8 +35,7 @@ class TrackedObjectsTest : public testing::Test {
 
 TEST_F(TrackedObjectsTest, MinimalStartupShutdown) {
   // Minimal test doesn't even create any tasks.
-  if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
+  if (!ThreadData::InitializeAndSetTrackingStatus(true))
     return;
 
   EXPECT_FALSE(ThreadData::first());  // No activity even on this thread.
@@ -56,8 +55,7 @@ TEST_F(TrackedObjectsTest, MinimalStartupShutdown) {
   ShutdownSingleThreadedCleanup(false);
 
   // Do it again, just to be sure we reset state completely.
-  ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE);
+  ThreadData::InitializeAndSetTrackingStatus(true);
   EXPECT_FALSE(ThreadData::first());  // No activity even on this thread.
   data = ThreadData::Get();
   EXPECT_TRUE(ThreadData::first());  // Now class was constructed.
@@ -73,8 +71,7 @@ TEST_F(TrackedObjectsTest, MinimalStartupShutdown) {
 }
 
 TEST_F(TrackedObjectsTest, TinyStartupShutdown) {
-  if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
+  if (!ThreadData::InitializeAndSetTrackingStatus(true))
     return;
 
   // Instigate tracking on a single tracked object, on our thread.
@@ -116,7 +113,7 @@ TEST_F(TrackedObjectsTest, TinyStartupShutdown) {
   EXPECT_EQ(2, birth_map.begin()->second->birth_count());  // 2 births.
   EXPECT_EQ(1u, death_map.size());                         // 1 location.
   EXPECT_EQ(1, death_map.begin()->second.count());         // 1 death.
-  if (ThreadData::TrackingParentChildStatus()) {
+  if (ThreadData::tracking_parent_child_status()) {
     EXPECT_EQ(1u, parent_child_set.size());                  // 1 child.
     EXPECT_EQ(parent_child_set.begin()->first,
               parent_child_set.begin()->second);
@@ -129,10 +126,9 @@ TEST_F(TrackedObjectsTest, TinyStartupShutdown) {
 }
 
 TEST_F(TrackedObjectsTest, ParentChildTest) {
-  if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
+  if (!ThreadData::InitializeAndSetTrackingStatus(true))
     return;
-  if (!ThreadData::TrackingParentChildStatus())
+  if (!ThreadData::tracking_parent_child_status())
     return;   // Feature not compiled in.
 
   // Instigate tracking on a single tracked object, on our thread.
@@ -215,8 +211,7 @@ TEST_F(TrackedObjectsTest, ParentChildTest) {
 }
 
 TEST_F(TrackedObjectsTest, DeathDataTest) {
-  if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
+  if (!ThreadData::InitializeAndSetTrackingStatus(true))
     return;
 
   scoped_ptr<DeathData> data(new DeathData());
@@ -275,7 +270,7 @@ TEST_F(TrackedObjectsTest, DeathDataTest) {
 
 TEST_F(TrackedObjectsTest, DeactivatedBirthOnlyToValueWorkerThread) {
   // Transition to Deactivated state before doing anything.
-  if (!ThreadData::InitializeAndSetTrackingStatus(ThreadData::DEACTIVATED))
+  if (!ThreadData::InitializeAndSetTrackingStatus(false))
     return;
   // We don't initialize system with a thread name, so we're viewed as a worker
   // thread.
@@ -301,7 +296,7 @@ TEST_F(TrackedObjectsTest, DeactivatedBirthOnlyToValueWorkerThread) {
 
 TEST_F(TrackedObjectsTest, DeactivatedBirthOnlyToValueMainThread) {
   // Start in the deactivated state.
-  if (!ThreadData::InitializeAndSetTrackingStatus(ThreadData::DEACTIVATED))
+  if (!ThreadData::InitializeAndSetTrackingStatus(false))
     return;
 
   // Use a well named thread.
@@ -328,8 +323,7 @@ TEST_F(TrackedObjectsTest, DeactivatedBirthOnlyToValueMainThread) {
 }
 
 TEST_F(TrackedObjectsTest, BirthOnlyToValueWorkerThread) {
-  if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
+  if (!ThreadData::InitializeAndSetTrackingStatus(true))
     return;
   // We don't initialize system with a thread name, so we're viewed as a worker
   // thread.
@@ -371,8 +365,7 @@ TEST_F(TrackedObjectsTest, BirthOnlyToValueWorkerThread) {
 }
 
 TEST_F(TrackedObjectsTest, BirthOnlyToValueMainThread) {
-  if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
+  if (!ThreadData::InitializeAndSetTrackingStatus(true))
     return;
 
   // Use a well named thread.
@@ -416,8 +409,7 @@ TEST_F(TrackedObjectsTest, BirthOnlyToValueMainThread) {
 }
 
 TEST_F(TrackedObjectsTest, LifeCycleToValueMainThread) {
-  if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
+  if (!ThreadData::InitializeAndSetTrackingStatus(true))
     return;
 
   // Use a well named thread.
@@ -478,8 +470,7 @@ TEST_F(TrackedObjectsTest, LifeCycleToValueMainThread) {
 // our tallied births are matched by tallied deaths (except for when the
 // task is still running, or is queued).
 TEST_F(TrackedObjectsTest, LifeCycleMidDeactivatedToValueMainThread) {
-  if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
+  if (!ThreadData::InitializeAndSetTrackingStatus(true))
     return;
 
   // Use a well named thread.
@@ -500,8 +491,7 @@ TEST_F(TrackedObjectsTest, LifeCycleMidDeactivatedToValueMainThread) {
   pending_task.time_posted = kTimePosted;  // Overwrite implied Now().
 
   // Turn off tracking now that we have births.
-  EXPECT_TRUE(ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::DEACTIVATED));
+  EXPECT_TRUE(ThreadData::InitializeAndSetTrackingStatus(false));
 
   const TrackedTime kStartOfRun = TrackedTime() +
       Duration::FromMilliseconds(5);
@@ -542,7 +532,7 @@ TEST_F(TrackedObjectsTest, LifeCycleMidDeactivatedToValueMainThread) {
 // We will deactivate tracking before starting a life cycle, and neither
 // the birth nor the death will be recorded.
 TEST_F(TrackedObjectsTest, LifeCyclePreDeactivatedToValueMainThread) {
-  if (!ThreadData::InitializeAndSetTrackingStatus(ThreadData::DEACTIVATED))
+  if (!ThreadData::InitializeAndSetTrackingStatus(false))
     return;
 
   // Use a well named thread.
@@ -581,8 +571,7 @@ TEST_F(TrackedObjectsTest, LifeCyclePreDeactivatedToValueMainThread) {
 }
 
 TEST_F(TrackedObjectsTest, LifeCycleToValueWorkerThread) {
-  if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
+  if (!ThreadData::InitializeAndSetTrackingStatus(true))
     return;
 
   // Don't initialize thread, so that we appear as a worker thread.
@@ -673,8 +662,7 @@ TEST_F(TrackedObjectsTest, LifeCycleToValueWorkerThread) {
 }
 
 TEST_F(TrackedObjectsTest, TwoLives) {
-  if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
+  if (!ThreadData::InitializeAndSetTrackingStatus(true))
     return;
 
   // Use a well named thread.
@@ -739,8 +727,7 @@ TEST_F(TrackedObjectsTest, TwoLives) {
 }
 
 TEST_F(TrackedObjectsTest, DifferentLives) {
-  if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
+  if (!ThreadData::InitializeAndSetTrackingStatus(true))
     return;
 
   // Use a well named thread.

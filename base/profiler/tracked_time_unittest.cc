@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -76,7 +76,7 @@ TEST(TrackedTimeTest, TrackedTimerVsTimeTicks) {
 TEST(TrackedTimeTest, TrackedTimerDisabled) {
   // Check to be sure disabling the collection of data induces a null time
   // (which we know will return much faster).
-  if (!ThreadData::InitializeAndSetTrackingStatus(ThreadData::DEACTIVATED))
+  if (!ThreadData::InitializeAndSetTrackingStatus(false))
     return;
   // Since we disabled tracking, we should get a null response.
   TrackedTime track_now = ThreadData::Now();
@@ -88,8 +88,7 @@ TEST(TrackedTimeTest, TrackedTimerDisabled) {
 }
 
 TEST(TrackedTimeTest, TrackedTimerEnabled) {
-  if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
+  if (!ThreadData::InitializeAndSetTrackingStatus(true))
     return;
   // Make sure that when we enable tracking, we get a real timer result.
 
