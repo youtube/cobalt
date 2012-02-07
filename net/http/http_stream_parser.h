@@ -102,6 +102,8 @@ class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
   static const size_t kChunkHeaderFooterSize;
 
  private:
+  class SeekableIOBuffer;
+
   // FOO_COMPLETE states implement the second half of potentially asynchronous
   // operations and don't necessarily mean that FOO is complete.
   enum State {
@@ -223,9 +225,7 @@ class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
 
   // Stores an encoded chunk for chunked uploads.
   // Note: This should perhaps be improved to not create copies of the data.
-  scoped_refptr<IOBufferWithSize> raw_chunk_buf_;
-  // Wraps raw_chunk_buf_ to read the remaining data progressively.
-  scoped_refptr<DrainableIOBuffer> chunk_buf_;
+  scoped_refptr<SeekableIOBuffer> chunk_buf_;
   size_t chunk_length_without_encoding_;
   bool sent_last_chunk_;
 
