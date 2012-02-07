@@ -13,6 +13,8 @@
 
 namespace media {
 
+class AudioDecoder;
+
 // This is a collection of Filter objects used to form a media playback
 // pipeline. See src/media/base/pipeline.h for more information.
 class MEDIA_EXPORT FilterCollection {
@@ -26,7 +28,7 @@ class MEDIA_EXPORT FilterCollection {
 
   // Adds a filter to the collection.
   void AddVideoDecoder(VideoDecoder* filter);
-  void AddAudioDecoder(AudioDecoder* filter);
+  void AddAudioDecoder(AudioDecoder* audio_decoder);
   void AddVideoRenderer(VideoRenderer* filter);
   void AddAudioRenderer(AudioRenderer* filter);
 
@@ -41,7 +43,7 @@ class MEDIA_EXPORT FilterCollection {
   // If a filter is returned it is removed from the collection.
   // Filters are selected in FIFO order.
   void SelectVideoDecoder(scoped_refptr<VideoDecoder>* filter_out);
-  void SelectAudioDecoder(scoped_refptr<AudioDecoder>* filter_out);
+  void SelectAudioDecoder(scoped_refptr<AudioDecoder>* out);
   void SelectVideoRenderer(scoped_refptr<VideoRenderer>* filter_out);
   void SelectAudioRenderer(scoped_refptr<AudioRenderer>* filter_out);
 
@@ -50,7 +52,6 @@ class MEDIA_EXPORT FilterCollection {
   // the following types. This is used to mark, identify, and support
   // downcasting of different filter types stored in the filters_ list.
   enum FilterType {
-    AUDIO_DECODER,
     VIDEO_DECODER,
     AUDIO_RENDERER,
     VIDEO_RENDERER,
@@ -61,6 +62,7 @@ class MEDIA_EXPORT FilterCollection {
   typedef std::list<FilterListElement> FilterList;
   FilterList filters_;
   scoped_ptr<DemuxerFactory> demuxer_factory_;
+  std::list<scoped_refptr<AudioDecoder> > audio_decoders_;
 
   // Helper function that adds a filter to the filter list.
   void AddFilter(FilterType filter_type, Filter* filter);

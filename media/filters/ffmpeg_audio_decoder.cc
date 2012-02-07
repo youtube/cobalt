@@ -8,7 +8,6 @@
 #include "media/base/audio_decoder_config.h"
 #include "media/base/data_buffer.h"
 #include "media/base/demuxer.h"
-#include "media/base/filter_host.h"
 #include "media/base/pipeline.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 
@@ -59,8 +58,8 @@ FFmpegAudioDecoder::FFmpegAudioDecoder(MessageLoop* message_loop)
 FFmpegAudioDecoder::~FFmpegAudioDecoder() {
   av_free(decoded_audio_);
 
-  // XXX: should we require Stop() to be called? this might end up getting
-  // called on a random thread due to refcounting.
+  // TODO(scherkus): should we require Stop() to be called? this might end up
+  // getting called on a random thread due to refcounting.
   if (codec_context_) {
     av_free(codec_context_->extradata);
     avcodec_close(codec_context_);
@@ -68,23 +67,14 @@ FFmpegAudioDecoder::~FFmpegAudioDecoder() {
   }
 }
 
-void FFmpegAudioDecoder::Flush(const base::Closure& callback) {
-  message_loop_->PostTask(
-      FROM_HERE,
-      base::Bind(&FFmpegAudioDecoder::DoFlush, this, callback));
-}
-
 void FFmpegAudioDecoder::Initialize(
-    DemuxerStream* stream,
+    const scoped_refptr<DemuxerStream>& stream,
     const PipelineStatusCB& callback,
     const StatisticsCallback& stats_callback) {
-  // TODO(scherkus): change Initialize() signature to pass |stream| as a
-  // scoped_refptr<>.
-  scoped_refptr<DemuxerStream> ref_stream(stream);
   message_loop_->PostTask(
       FROM_HERE,
       base::Bind(&FFmpegAudioDecoder::DoInitialize, this,
-                 ref_stream, callback, stats_callback));
+                 stream, callback, stats_callback));
 }
 
 void FFmpegAudioDecoder::Read(const ReadCB& callback) {
@@ -104,6 +94,11 @@ ChannelLayout FFmpegAudioDecoder::channel_layout() {
 
 int FFmpegAudioDecoder::samples_per_second() {
   return samples_per_second_;
+}
+
+void FFmpegAudioDecoder::Reset(const base::Closure& closure) {
+  message_loop_->PostTask(FROM_HERE, base::Bind(
+      &FFmpegAudioDecoder::DoReset, this, closure));
 }
 
 void FFmpegAudioDecoder::DoInitialize(
@@ -148,10 +143,10 @@ void FFmpegAudioDecoder::DoInitialize(
   callback.Run(PIPELINE_OK);
 }
 
-void FFmpegAudioDecoder::DoFlush(const base::Closure& callback) {
+void FFmpegAudioDecoder::DoReset(const base::Closure& closure) {
   avcodec_flush_buffers(codec_context_);
   estimated_next_timestamp_ = kNoTimestamp();
-  callback.Run();
+  closure.Run();
 }
 
 void FFmpegAudioDecoder::DoRead(const ReadCB& callback) {
