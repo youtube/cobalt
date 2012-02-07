@@ -77,11 +77,6 @@ class FFmpegAudioDecoderTest : public testing::Test {
     message_loop_.RunAllPending();
   }
 
-  void Stop() {
-    decoder_->Stop(NewExpectedClosure());
-    message_loop_.RunAllPending();
-  }
-
   void ReadPacket(const DemuxerStream::ReadCallback& read_callback) {
     CHECK(!encoded_audio_.empty()) << "ReadPacket() called too many times";
 
@@ -134,17 +129,6 @@ TEST_F(FFmpegAudioDecoderTest, Initialize) {
   EXPECT_EQ(16, decoder_->bits_per_channel());
   EXPECT_EQ(CHANNEL_LAYOUT_STEREO, decoder_->channel_layout());
   EXPECT_EQ(44100, decoder_->samples_per_second());
-
-  Stop();
-}
-
-TEST_F(FFmpegAudioDecoderTest, Flush) {
-  Initialize();
-
-  decoder_->Flush(NewExpectedClosure());
-  message_loop_.RunAllPending();
-
-  Stop();
 }
 
 TEST_F(FFmpegAudioDecoderTest, ProduceAudioSamples) {
@@ -176,8 +160,6 @@ TEST_F(FFmpegAudioDecoderTest, ProduceAudioSamples) {
   Read();
   ASSERT_EQ(4u, decoded_audio_.size());
   ExpectEndOfStream(3);
-
-  Stop();
 }
 
 TEST_F(FFmpegAudioDecoderTest, ReadAbort) {
@@ -192,8 +174,6 @@ TEST_F(FFmpegAudioDecoderTest, ReadAbort) {
 
   EXPECT_EQ(decoded_audio_.size(), 1u);
   EXPECT_TRUE(decoded_audio_[0].get() ==  NULL);
-
-  Stop();
 }
 
 }  // namespace media

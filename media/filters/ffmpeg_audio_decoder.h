@@ -8,7 +8,7 @@
 #include <list>
 
 #include "base/message_loop.h"
-#include "media/base/filters.h"
+#include "media/base/audio_decoder.h"
 
 struct AVCodecContext;
 
@@ -21,24 +21,22 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
   explicit FFmpegAudioDecoder(MessageLoop* message_loop);
   virtual ~FFmpegAudioDecoder();
 
-  // Filter implementation.
-  virtual void Flush(const base::Closure& callback) OVERRIDE;
-
   // AudioDecoder implementation.
-  virtual void Initialize(DemuxerStream* stream,
+  virtual void Initialize(const scoped_refptr<DemuxerStream>& stream,
                           const PipelineStatusCB& callback,
                           const StatisticsCallback& stats_callback) OVERRIDE;
   virtual void Read(const ReadCB& callback) OVERRIDE;
   virtual int bits_per_channel() OVERRIDE;
   virtual ChannelLayout channel_layout() OVERRIDE;
   virtual int samples_per_second() OVERRIDE;
+  virtual void Reset(const base::Closure& closure) OVERRIDE;
 
  private:
   // Methods running on decoder thread.
   void DoInitialize(const scoped_refptr<DemuxerStream>& stream,
                     const PipelineStatusCB& callback,
                     const StatisticsCallback& stats_callback);
-  void DoFlush(const base::Closure& callback);
+  void DoReset(const base::Closure& closure);
   void DoRead(const ReadCB& callback);
   void DoDecodeBuffer(const scoped_refptr<Buffer>& input);
 

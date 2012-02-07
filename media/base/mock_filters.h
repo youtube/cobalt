@@ -16,6 +16,7 @@
 #include <string>
 
 #include "base/callback.h"
+#include "media/base/audio_decoder.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/demuxer.h"
 #include "media/base/filters.h"
@@ -203,21 +204,16 @@ class MockAudioDecoder : public AudioDecoder {
  public:
   MockAudioDecoder();
 
-  // Filter implementation.
-  MOCK_METHOD1(Stop, void(const base::Closure& callback));
-  MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
-  MOCK_METHOD2(Seek, void(base::TimeDelta time, const FilterStatusCB& cb));
-  MOCK_METHOD0(OnAudioRendererDisabled, void());
-
   // AudioDecoder implementation.
-  MOCK_METHOD3(Initialize, void(DemuxerStream* stream,
-                                const PipelineStatusCB& callback,
-                                const StatisticsCallback& stats_callback));
-  MOCK_METHOD1(Read, void(const ReadCB& callback));
+  MOCK_METHOD3(Initialize, void(const scoped_refptr<DemuxerStream>&,
+                                const PipelineStatusCB&,
+                                const StatisticsCallback&));
+  MOCK_METHOD1(Read, void(const ReadCB&));
   MOCK_METHOD1(ProduceAudioSamples, void(scoped_refptr<Buffer>));
   MOCK_METHOD0(bits_per_channel, int(void));
   MOCK_METHOD0(channel_layout, ChannelLayout(void));
   MOCK_METHOD0(samples_per_second, int(void));
+  MOCK_METHOD1(Reset, void(const base::Closure&));
 
  protected:
   virtual ~MockAudioDecoder();
@@ -266,7 +262,7 @@ class MockAudioRenderer : public AudioRenderer {
   MOCK_METHOD0(OnAudioRendererDisabled, void());
 
   // AudioRenderer implementation.
-  MOCK_METHOD4(Initialize, void(AudioDecoder* decoder,
+  MOCK_METHOD4(Initialize, void(const scoped_refptr<AudioDecoder>& decoder,
                                 const PipelineStatusCB& init_callback,
                                 const base::Closure& underflow_callback,
                                 const AudioTimeCB& time_cb));
