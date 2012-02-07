@@ -378,9 +378,8 @@
         }],
 
         # Set to 0 to not use third_party/gold as the linker.
-        # On by default for x64 Linux.  Off for ChromeOS as cross-compiling
-        # makes things complicated.
-        ['chromeos==0 and host_arch=="x64"', {
+        # On by default for x64 Linux.
+        ['host_arch=="x64"', {
           'linux_use_gold_binary%': 1,
         }, {
           'linux_use_gold_binary%': 0,
