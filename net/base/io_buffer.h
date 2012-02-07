@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -126,6 +126,21 @@ class NET_EXPORT StringIOBuffer : public IOBuffer {
 
 // This version wraps an existing IOBuffer and provides convenient functions
 // to progressively read all the data.
+//
+// DrainableIOBuffer is useful when you have an IOBuffer that contains data
+// to be written progressively, and Write() function takes an IOBuffer rather
+// than char*. DrainableIOBuffer can be used as follows:
+//
+// // payload is the IOBuffer containing the data to be written.
+// buf = new DrainableIOBuffer(payload, payload_size);
+//
+// while (buf->BytesRemaining() > 0) {
+//   // Write() takes an IOBuffer. If it takes char*, we could
+//   // simply use the regular IOBuffer like payload->data() + offset.
+//   int bytes_written = Write(buf, buf->BytesRemaining());
+//   buf->DidConsume(bytes_written);
+// }
+//
 class NET_EXPORT DrainableIOBuffer : public IOBuffer {
  public:
   DrainableIOBuffer(IOBuffer* base, int size);
@@ -155,6 +170,22 @@ class NET_EXPORT DrainableIOBuffer : public IOBuffer {
 };
 
 // This version provides a resizable buffer and a changeable offset.
+//
+// GrowableIOBuffer is useful when you read data progressively without
+// knowing the total size in advance. GrowableIOBuffer can be used as
+// follows:
+//
+// buf = new GrowableIOBuffer;
+// buf->SetCapacity(1024);  // Initial capacity.
+//
+// while (!some_stream->IsEOF()) {
+//   // Double the capacity if the remaining capacity is empty.
+//   if (buf->RemainingCapacity() == 0)
+//     buf->SetCapacity(buf->capacity() * 2);
+//   int bytes_read = some_stream->Read(buf, buf->RemainingCapacity());
+//   buf->set_offset(buf->offset() + bytes_read);
+// }
+//
 class NET_EXPORT GrowableIOBuffer : public IOBuffer {
  public:
   GrowableIOBuffer();
