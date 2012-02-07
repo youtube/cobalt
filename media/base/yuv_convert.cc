@@ -335,9 +335,8 @@ void ScaleYUVToRGB32WithRect(const uint8* y_buf,
 
   // Determine the parts of the Y, U and V buffers to interpolate.
   int source_y_left = source_left >> kFractionBits;
-  int source_y_right = std::min(
-      (source_right >> kFractionBits) + 2,
-      source_width + 1);
+  int source_y_right = (source_right >> kFractionBits) + 2;
+  DCHECK(source_y_right <= source_width);
 
   int source_uv_left = source_y_left / 2;
   int source_uv_right = std::min(
