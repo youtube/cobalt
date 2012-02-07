@@ -107,7 +107,7 @@ void AudioManagerBase::Shutdown() {
   }
 
   if (!audio_thread.get())
-      return;
+    return;
 
   CHECK_NE(MessageLoop::current(), audio_thread->message_loop());
 
