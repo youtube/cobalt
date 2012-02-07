@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,17 +11,19 @@ namespace net {
 
 // Default values are taken from glibc resolv.h.
 DnsConfig::DnsConfig()
-  : ndots(1),
-    timeout(base::TimeDelta::FromSeconds(5)),
-    attempts(2),
-    rotate(false),
-    edns0(false) {}
+    : append_to_multi_label_name(true),
+      ndots(1),
+      timeout(base::TimeDelta::FromSeconds(5)),
+      attempts(2),
+      rotate(false),
+      edns0(false) {}
 
 DnsConfig::~DnsConfig() {}
 
 bool DnsConfig::EqualsIgnoreHosts(const DnsConfig& d) const {
   return (nameservers == d.nameservers) &&
          (search == d.search) &&
+         (append_to_multi_label_name == d.append_to_multi_label_name) &&
          (ndots == d.ndots) &&
          (timeout == d.timeout) &&
          (attempts == d.attempts) &&
@@ -34,8 +36,8 @@ bool DnsConfig::Equals(const DnsConfig& d) const {
 }
 
 DnsConfigService::DnsConfigService()
-  : have_config_(false),
-    have_hosts_(false) {}
+    : have_config_(false),
+      have_hosts_(false) {}
 
 DnsConfigService::~DnsConfigService() {}
 
@@ -77,9 +79,9 @@ void DnsConfigService::OnHostsRead(const DnsHosts& hosts) {
 }
 
 DnsHostsReader::DnsHostsReader(const FilePath& path, DnsConfigService* service)
-  : path_(path),
-    service_(service),
-    success_(false) {
+    : path_(path),
+      service_(service),
+      success_(false) {
   DCHECK(service);
 }
 
