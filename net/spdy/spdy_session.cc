@@ -1213,6 +1213,8 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
       new SpdyStream(this, stream_id, true, net_log_));
 
   stream->set_path(gurl.PathForRequest());
+  stream->set_send_window_size(initial_send_window_size_);
+  stream->set_recv_window_size(initial_recv_window_size_);
 
   unclaimed_pushed_streams_[url] = stream;
 
@@ -1568,6 +1570,37 @@ void SpdySession::HandleSettings(const spdy::SpdySettings& settings) {
                                            max_concurrent_stream_limit_);
         ProcessPendingCreateStreams();
         break;
+      case spdy::SETTINGS_INITIAL_WINDOW_SIZE:
+        int prev_initial_send_window_size = initial_send_window_size_;
+        initial_send_window_size_ = static_cast<size_t>(val);
+        int32 delta_window_size =
+            initial_send_window_size_ - prev_initial_send_window_size;
+        UpdateStreamsSendWindowSize(delta_window_size);
+        break;
+    }
+  }
+}
+
+void SpdySession::UpdateStreamsSendWindowSize(int32 delta_window_size) {
+  ActiveStreamMap::iterator it;
+  for (it = active_streams_.begin(); it != active_streams_.end(); ++it) {
+    const scoped_refptr<SpdyStream>& stream = it->second;
+    DCHECK(stream);
+    stream->AdjustSendWindowSize(delta_window_size);
+  }
+
+  for (int i = 0; i < NUM_PRIORITIES; ++i) {
+    PendingCreateStreamQueue tmp;
+    while (!create_stream_queues_[i].empty()) {
+      PendingCreateStream pending_create = create_stream_queues_[i].front();
+      const scoped_refptr<SpdyStream>& stream = *(pending_create.spdy_stream);
+      stream->AdjustSendWindowSize(delta_window_size);
+      create_stream_queues_[i].pop();
+      tmp.push(pending_create);
+    }
+    while (!tmp.empty()) {
+      create_stream_queues_[i].push(tmp.front());
+      tmp.pop();
     }
   }
 }

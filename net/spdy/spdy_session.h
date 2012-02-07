@@ -330,6 +330,9 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // SETTINGS control frame, update our SpdySession accordingly.
   void HandleSettings(const spdy::SpdySettings& settings);
 
+  // Adjust the send window size of all ActiveStreams and PendingCreateStreams.
+  void UpdateStreamsSendWindowSize(int32 delta_window_size);
+
   // Send the PING (preface-PING and trailing-PING) frames.
   void SendPrefacePingIfNoneInFlight();
 
