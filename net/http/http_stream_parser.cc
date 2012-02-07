@@ -62,6 +62,100 @@ bool HeadersContainMultipleCopiesOfField(
 
 namespace net {
 
+// Similar to DrainableIOBuffer(), but this version comes with its own
+// storage. The motivation is to avoid repeated allocations of
+// DrainableIOBuffer.
+//
+// Example:
+//
+// scoped_refptr<SeekableIOBuffer> buf = new SeekableIOBuffer(1024);
+// // capacity() == 1024. size() == BytesRemaining == BytesConsumed() == 0.
+// // data() points to the beginning of the buffer.
+//
+// // Read() takes an IOBuffer.
+// int bytes_read = some_reader->Read(buf, buf->capacity());
+// buf->DidAppend(bytes_read);
+// // size() == BytesRemaining() == bytes_read. data() is unaffected.
+//
+// while (buf->BytesRemaining() > 0) {
+//   // Write() takes an IOBuffer. If it takes const char*, we could
+///  // simply use the regular IOBuffer like buf->data() + offset.
+//   int bytes_written = Write(buf, buf->BytesRemaining());
+//   buf->DidConsume(bytes_written);
+// }
+// // BytesRemaining() == 0. BytesConsumed() == size().
+// // data() points to the end of the comsumed bytes (exclusive).
+//
+// // If you want to reuse the buffer, be sure to clear the buffer.
+// buf->Clear();
+// // size() == BytesRemaining() == BytesConsumed() == 0.
+// // data() points to the beginning of the buffer.
+//
+class HttpStreamParser::SeekableIOBuffer : public net::IOBuffer {
+ public:
+  explicit SeekableIOBuffer(int capacity)
+    : IOBuffer(capacity),
+      real_data_(data_),
+      capacity_(capacity),
+      size_(0),
+      used_(0) {
+  }
+
+  // DidConsume() changes the |data_| pointer so that |data_| always points
+  // to the first unconsumed byte.
+  void DidConsume(int bytes) {
+    SetOffset(used_ + bytes);
+  }
+
+  // Returns the number of unconsumed bytes.
+  int BytesRemaining() const {
+    return size_ - used_;
+  }
+
+  // Seeks to an arbitrary point in the buffer. The notion of bytes consumed
+  // and remaining are updated appropriately.
+  void SetOffset(int bytes) {
+    DCHECK_GE(bytes, 0);
+    DCHECK_LE(bytes, size_);
+    used_ = bytes;
+    data_ = real_data_ + used_;
+  }
+
+  // Called after data is added to the buffer. Adds |bytes| added to
+  // |size_|. data() is unaffected.
+  void DidAppend(int bytes) {
+    DCHECK_GE(bytes, 0);
+    DCHECK_GE(size_ + bytes, 0);
+    DCHECK_LE(size_ + bytes, capacity_);
+    size_ += bytes;
+  }
+
+  // Changes the logical size to 0, and the offset to 0.
+  void Clear() {
+    size_ = 0;
+    SetOffset(0);
+  }
+
+  // Returns the logical size of the buffer (i.e the number of bytes of data
+  // in the buffer).
+  int size() const { return size_; }
+
+  // Returns the capacity of the buffer. The capacity is the size used when
+  // the object is created.
+  int capacity() const { return capacity_; };
+
+ private:
+  virtual ~SeekableIOBuffer() {
+    // data_ will be deleted in IOBuffer::~IOBuffer().
+    data_ = real_data_;
+  }
+
+  char* real_data_;
+  int capacity_;
+  int size_;
+  int used_;
+};
+
 // 2 CRLFs + max of 8 hex chars.
 const size_t HttpStreamParser::kChunkHeaderFooterSize = 12;
 
@@ -128,10 +222,10 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
   request_body_.reset(request_body);
   if (request_body_ != NULL && request_body_->is_chunked()) {
     request_body_->set_chunk_callback(this);
-    // The raw chunk buffer is guaranteed to be large enough to hold the
-    // encoded chunk.
-    raw_chunk_buf_ = new IOBufferWithSize(UploadDataStream::GetBufferSize() +
-                                          kChunkHeaderFooterSize);
+    // The chunk buffer is guaranteed to be large enough to hold the encoded
+    // chunk.
+    chunk_buf_ = new SeekableIOBuffer(UploadDataStream::GetBufferSize() +
+                                      kChunkHeaderFooterSize);
   }
 
   io_state_ = STATE_SENDING_HEADERS;
@@ -349,13 +443,11 @@ int HttpStreamParser::DoSendChunkedBody(int result) {
   // DoSendChunkedBody(), or 0 (i.e. OK) the first time.
 
   // Send the remaining data in the chunk buffer.
-  if (chunk_buf_.get()) {
-    chunk_buf_->DidConsume(result);
-    if (chunk_buf_->BytesRemaining() > 0) {
-      return connection_->socket()->Write(chunk_buf_,
-                                          chunk_buf_->BytesRemaining(),
-                                          io_callback_);
-    }
+  chunk_buf_->DidConsume(result);
+  if (chunk_buf_->BytesRemaining() > 0) {
+    return connection_->socket()->Write(chunk_buf_,
+                                        chunk_buf_->BytesRemaining(),
+                                        io_callback_);
   }
 
   if (sent_last_chunk_) {
@@ -369,17 +461,19 @@ int HttpStreamParser::DoSendChunkedBody(int result) {
   chunk_length_without_encoding_ = 0;
 
   if (request_body_->eof()) {
+    chunk_buf_->Clear();
     const int chunk_length = EncodeChunk(
-        base::StringPiece(), raw_chunk_buf_->data(), raw_chunk_buf_->size());
-    chunk_buf_ = new DrainableIOBuffer(raw_chunk_buf_, chunk_length);
+        base::StringPiece(), chunk_buf_->data(), chunk_buf_->capacity());
+    chunk_buf_->DidAppend(chunk_length);
     sent_last_chunk_ = true;
   } else if (request_body_->buf_len() > 0) {
     // Encode and send the buffer as 1 chunk.
     const base::StringPiece payload(request_body_->buf()->data(),
                                     request_body_->buf_len());
+    chunk_buf_->Clear();
     const int chunk_length = EncodeChunk(
-        payload, raw_chunk_buf_->data(), raw_chunk_buf_->size());
-    chunk_buf_ = new DrainableIOBuffer(raw_chunk_buf_, chunk_length);
+        payload, chunk_buf_->data(), chunk_buf_->capacity());
+    chunk_buf_->DidAppend(chunk_length);
     chunk_length_without_encoding_ = payload.size();
   } else {
     // Nothing to send. More POST data is yet to come?
