@@ -393,7 +393,7 @@ Births* ThreadData::TallyABirthIfActive(const Location& location) {
   if (!kTrackAllTaskObjects)
     return NULL;  // Not compiled in.
 
-  if (!TrackingStatus())
+  if (!tracking_status())
     return NULL;
   ThreadData* current_thread_data = Get();
   if (!current_thread_data)
@@ -622,31 +622,28 @@ bool ThreadData::Initialize() {
 }
 
 // static
-bool ThreadData::InitializeAndSetTrackingStatus(Status status) {
-  DCHECK_GE(status, DEACTIVATED);
-  DCHECK_LE(status, PROFILING_CHILDREN_ACTIVE);
-
+bool ThreadData::InitializeAndSetTrackingStatus(bool status) {
   if (!Initialize())  // No-op if already initialized.
     return false;  // Not compiled in.
 
-  if (!kTrackParentChildLinks && status > DEACTIVATED)
-    status = PROFILING_ACTIVE;
-  status_ = status;
+  if (!status) {
+    status_ = DEACTIVATED;
+  } else {
+    if (kTrackParentChildLinks)
+      status_ = PROFILING_CHILDREN_ACTIVE;
+    else
+      status_ = PROFILING_ACTIVE;
+  }
   return true;
 }
 
 // static
-ThreadData::Status ThreadData::status() {
-  return status_;
-}
-
-// static
-bool ThreadData::TrackingStatus() {
+bool ThreadData::tracking_status() {
   return status_ > DEACTIVATED;
 }
 
 // static
-bool ThreadData::TrackingParentChildStatus() {
+bool ThreadData::tracking_parent_child_status() {
   return status_ >= PROFILING_CHILDREN_ACTIVE;
 }
 
@@ -667,7 +664,7 @@ TrackedTime ThreadData::NowForEndOfRun() {
 
 // static
 TrackedTime ThreadData::Now() {
-  if (kTrackAllTaskObjects && TrackingStatus())
+  if (kTrackAllTaskObjects && tracking_status())
     return TrackedTime::Now();
   return TrackedTime();  // Super fast when disabled, or not compiled.
 }
@@ -689,7 +686,7 @@ void ThreadData::ShutdownSingleThreadedCleanup(bool leak) {
   // This is only called from test code, where we need to cleanup so that
   // additional tests can be run.
   // We must be single threaded... but be careful anyway.
-  if (!InitializeAndSetTrackingStatus(DEACTIVATED))
+  if (!InitializeAndSetTrackingStatus(false))
     return;
   ThreadData* thread_data_list;
   {
