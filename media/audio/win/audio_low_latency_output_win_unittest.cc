@@ -451,7 +451,10 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInSamples) {
   aos->Close();
 }
 
-TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestMono) {
+// TODO(henrika): enable this test again using an improved fall-back
+// mechanism for those platforms which does not support mono output.
+// See crbug.com/112986 for details.
+TEST(WinAudioOutputTest, DISABLED_WASAPIAudioOutputStreamTestMono) {
   scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
   if (!CanRunAudioTests(audio_manager))
     return;

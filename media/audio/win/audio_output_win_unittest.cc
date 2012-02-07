@@ -536,7 +536,10 @@ TEST(WinAudioTest, PCMWaveStreamPlayTwice200HzTone44Kss) {
 // With the low latency mode, WASAPI is utilized by default for Vista and
 // higher and Wave is used for XP and lower. It is possible to utilize a
 // smaller buffer size for WASAPI than for Wave.
-TEST(WinAudioTest, PCMWaveStreamPlay200HzToneLowLatency) {
+// TODO(henrika): enable this test again using an improved fall-back
+// mechanism for those platforms which does not support mono output.
+// See crbug.com/112986 for details.
+TEST(WinAudioTest, DISABLED_PCMWaveStreamPlay200HzToneLowLatency) {
   scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices()) {
     LOG(WARNING) << "No output device detected.";
