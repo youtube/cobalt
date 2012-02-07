@@ -308,22 +308,28 @@ class DnsTransactionImpl : public DnsTransaction, public base::NonThreadSafe {
   int PrepareSearch() {
     const DnsConfig& config = session_->config();
 
-    std::string labelled_hostname;
-    if (!DNSDomainFromDot(hostname_, &labelled_hostname))
+    std::string labeled_hostname;
+    if (!DNSDomainFromDot(hostname_, &labeled_hostname))
       return ERR_INVALID_ARGUMENT;
 
     if (hostname_[hostname_.size() - 1] == '.') {
       // It's a fully-qualified name, no suffix search.
-      qnames_.push_back(labelled_hostname);
+      qnames_.push_back(labeled_hostname);
       return OK;
     }
 
-    // Set true when |labelled_hostname| is put on the list.
+    int ndots = CountLabels(labeled_hostname) - 1;
+
+    if (ndots > 0 && !config.append_to_multi_label_name) {
+      qnames_.push_back(labeled_hostname);
+      return OK;
+    }
+
+    // Set true when |labeled_hostname| is put on the list.
     bool had_hostname = false;
 
-    int ndots = CountLabels(labelled_hostname) - 1;
     if (ndots >= config.ndots) {
-      qnames_.push_back(labelled_hostname);
+      qnames_.push_back(labeled_hostname);
       had_hostname = true;
     }
 
@@ -332,7 +338,7 @@ class DnsTransactionImpl : public DnsTransaction, public base::NonThreadSafe {
       // Ignore invalid (too long) combinations.
       if (!DNSDomainFromDot(hostname_ + "." + config.search[i], &qname))
         continue;
-      if (qname.size() == labelled_hostname.size()) {
+      if (qname.size() == labeled_hostname.size()) {
         if (had_hostname)
           continue;
         had_hostname = true;
@@ -340,10 +346,10 @@ class DnsTransactionImpl : public DnsTransaction, public base::NonThreadSafe {
       qnames_.push_back(qname);
     }
 
-    if (!had_hostname)
-      qnames_.push_back(labelled_hostname);
+    if (ndots > 0 && !had_hostname)
+      qnames_.push_back(labeled_hostname);
 
-    return OK;
+    return qnames_.empty() ? ERR_NAME_NOT_RESOLVED : OK;
   }
 
   void DoCallback(int rv, const DnsUDPAttempt* successful_attempt) {
