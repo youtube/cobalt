@@ -610,6 +610,7 @@
         'filters/ffmpeg_video_decoder_unittest.cc',
         'filters/file_data_source_unittest.cc',
         'filters/pipeline_integration_test.cc',
+        'filters/pipeline_integration_test_base.cc',
         'filters/video_renderer_base_unittest.cc',
         'video/capture/video_capture_device_unittest.cc',
         'webm/cluster_builder.cc',
