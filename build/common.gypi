@@ -385,6 +385,12 @@
         }, {
           'linux_use_gold_binary%': 0,
         }],
+
+        # Enable canvas_skia_skia.cc incrementally on different platforms.
+        # http://crbug.com/105550
+        ['OS=="win"', {
+          'use_canvas_skia_skia%': 1,
+        }],
       ],
     },
 
