@@ -8,7 +8,7 @@
     'VCCLCompilerTool': {
       'InlineFunctionExpansion': '2',
       'EnableIntrinsicFunctions': 'true',
-      'OmitFramePointers': 'true',
+      'OmitFramePointers': 'false',
       'EnableFiberSafeOptimizations': 'true',
     },
     'VCLibrarianTool': {
