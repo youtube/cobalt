@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -36,8 +36,8 @@ class NET_EXPORT_PRIVATE DnsConfigServicePosix
 };
 
 // Fills in |dns_config| from |res|. Exposed for tests.
-bool NET_EXPORT_PRIVATE ConvertResToConfig(const struct __res_state& res,
-                                           DnsConfig* dns_config);
+bool NET_EXPORT_PRIVATE ConvertResStateToDnsConfig(
+    const struct __res_state& res, DnsConfig* dns_config);
 
 }  // namespace net
 
