@@ -128,6 +128,10 @@ void SpdyStream::set_spdy_headers(
   request_ = headers;
 }
 
+void SpdyStream::AdjustSendWindowSize(int delta_window_size) {
+  send_window_size_ = send_window_size_ + delta_window_size;
+}
+
 void SpdyStream::IncreaseSendWindowSize(int delta_window_size) {
   DCHECK_GE(delta_window_size, 1);
   int new_window_size = send_window_size_ + delta_window_size;
@@ -157,7 +161,7 @@ void SpdyStream::IncreaseSendWindowSize(int delta_window_size) {
       NetLog::TYPE_SPDY_STREAM_UPDATE_SEND_WINDOW,
       make_scoped_refptr(new NetLogSpdyStreamWindowUpdateParameter(
           stream_id_, delta_window_size, send_window_size_)));
-  if (stalled_by_flow_control_) {
+  if (send_window_size_ > 0 && stalled_by_flow_control_) {
     stalled_by_flow_control_ = false;
     io_state_ = STATE_SEND_BODY;
     DoLoop(OK);
