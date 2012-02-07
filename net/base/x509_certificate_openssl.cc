@@ -365,6 +365,44 @@ void AppendPublicKeyHashes(X509_STORE_CTX* store_ctx,
   }
 }
 
+#if defined(OS_ANDROID)
+
+// Returns true if we have verification result in |verify_result| from Android
+// Trust Manager. Otherwise returns false.
+bool VerifyFromAndroidTrustManager(const std::vector<std::string>& cert_bytes,
+                                   CertVerifyResult* verify_result) {
+  // TODO(joth): Fetch the authentication type from SSL rather than hardcode.
+  // TODO(jnd): Remove unused |hostname| from net::android::VerifyX509CertChain.
+  bool verified = true;
+#if 0
+  android::VerifyResult result =
+      android::VerifyX509CertChain(cert_bytes, hostname, "RSA");
+#else
+  // TODO(jingzhao): Recover the original implementation once we support JNI.
+  android::VerifyResult result = android::VERIFY_INVOCATION_ERROR;
+  NOTIMPLEMENTED();
+#endif
+  switch (result) {
+    case android::VERIFY_OK:
+      break;
+    case android::VERIFY_BAD_HOSTNAME:
+      verify_result->cert_status |= CERT_STATUS_COMMON_NAME_INVALID;
+      break;
+    case android::VERIFY_NO_TRUSTED_ROOT:
+      verify_result->cert_status |= CERT_STATUS_AUTHORITY_INVALID;
+      break;
+    case android::VERIFY_INVOCATION_ERROR:
+      verified = false;
+      break;
+    default:
+      verify_result->cert_status |= CERT_STATUS_INVALID;
+      break;
+  }
+  return verified;
+}
+
+#endif
+
 }  // namespace
 
 // static
@@ -516,7 +554,6 @@ X509_STORE* X509Certificate::cert_store() {
   return X509InitSingleton::GetInstance()->store();
 }
 
-#if defined(OS_ANDROID)
 int X509Certificate::VerifyInternal(const std::string& hostname,
                                     int flags,
                                     CRLSet* crl_set,
@@ -524,79 +561,53 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   if (!VerifyNameMatch(hostname))
     verify_result->cert_status |= CERT_STATUS_COMMON_NAME_INVALID;
 
+  bool verify_attempted = false;
+
+#if defined(OS_ANDROID)
   std::vector<std::string> cert_bytes;
   GetChainDEREncodedBytes(&cert_bytes);
 
-  // TODO(joth): Fetch the authentication type from SSL rather than hardcode.
-  // TODO(jingzhao): Recover the original implementation once we support JNI.
-#if 0
-  android::VerifyResult result =
-      android::VerifyX509CertChain(cert_bytes, hostname, "RSA");
-#else
-  android::VerifyResult result = android::VERIFY_INVOCATION_ERROR;
-  NOTIMPLEMENTED();
+  verify_attempted = VerifyFromAndroidTrustManager(cert_bytes, verify_result);
 #endif
-  switch (result) {
-    case android::VERIFY_OK:
-      break;
-    case android::VERIFY_BAD_HOSTNAME:
-      verify_result->cert_status |= CERT_STATUS_COMMON_NAME_INVALID;
-      break;
-    case android::VERIFY_NO_TRUSTED_ROOT:
-      verify_result->cert_status |= CERT_STATUS_AUTHORITY_INVALID;
-      break;
-    case android::VERIFY_INVOCATION_ERROR:
-    default:
-      verify_result->cert_status |= CERT_STATUS_INVALID;
-      break;
-  }
-  if (IsCertStatusError(verify_result->cert_status))
-    return MapCertStatusToNetError(verify_result->cert_status);
-  return OK;
-}
 
-#else
-int X509Certificate::VerifyInternal(const std::string& hostname,
-                                    int flags,
-                                    CRLSet* crl_set,
-                                    CertVerifyResult* verify_result) const {
-  if (!VerifyNameMatch(hostname))
-    verify_result->cert_status |= CERT_STATUS_COMMON_NAME_INVALID;
+  if (verify_attempted) {
+    if (IsCertStatusError(verify_result->cert_status))
+      return MapCertStatusToNetError(verify_result->cert_status);
+  } else {
+    crypto::ScopedOpenSSL<X509_STORE_CTX, X509_STORE_CTX_free> ctx(
+        X509_STORE_CTX_new());
 
-  crypto::ScopedOpenSSL<X509_STORE_CTX, X509_STORE_CTX_free> ctx(
-      X509_STORE_CTX_new());
-
-  crypto::ScopedOpenSSL<STACK_OF(X509), sk_X509_free_fn> intermediates(
-      sk_X509_new_null());
-  if (!intermediates.get())
-    return ERR_OUT_OF_MEMORY;
-
-  for (OSCertHandles::const_iterator it = intermediate_ca_certs_.begin();
-       it != intermediate_ca_certs_.end(); ++it) {
-    if (!sk_X509_push(intermediates.get(), *it))
+    crypto::ScopedOpenSSL<STACK_OF(X509), sk_X509_free_fn> intermediates(
+        sk_X509_new_null());
+    if (!intermediates.get())
       return ERR_OUT_OF_MEMORY;
+
+    for (OSCertHandles::const_iterator it = intermediate_ca_certs_.begin();
+         it != intermediate_ca_certs_.end(); ++it) {
+      if (!sk_X509_push(intermediates.get(), *it))
+        return ERR_OUT_OF_MEMORY;
+    }
+    int rv = X509_STORE_CTX_init(ctx.get(), cert_store(),
+                                 cert_handle_, intermediates.get());
+    CHECK_EQ(1, rv);
+
+    if (X509_verify_cert(ctx.get()) != 1) {
+      int x509_error = X509_STORE_CTX_get_error(ctx.get());
+      CertStatus cert_status = MapCertErrorToCertStatus(x509_error);
+      LOG(ERROR) << "X509 Verification error "
+          << X509_verify_cert_error_string(x509_error)
+          << " : " << x509_error
+          << " : " << X509_STORE_CTX_get_error_depth(ctx.get())
+          << " : " << cert_status;
+      verify_result->cert_status |= cert_status;
+    }
+
+    GetCertChainInfo(ctx.get(), verify_result);
+    if (IsCertStatusError(verify_result->cert_status))
+      return MapCertStatusToNetError(verify_result->cert_status);
+    AppendPublicKeyHashes(ctx.get(), &verify_result->public_key_hashes);
   }
-  int rv = X509_STORE_CTX_init(ctx.get(), cert_store(),
-                               cert_handle_, intermediates.get());
-  CHECK_EQ(1, rv);
 
-  if (X509_verify_cert(ctx.get()) != 1) {
-    int x509_error = X509_STORE_CTX_get_error(ctx.get());
-    CertStatus cert_status = MapCertErrorToCertStatus(x509_error);
-    LOG(ERROR) << "X509 Verification error "
-        << X509_verify_cert_error_string(x509_error)
-        << " : " << x509_error
-        << " : " << X509_STORE_CTX_get_error_depth(ctx.get())
-        << " : " << cert_status;
-    verify_result->cert_status |= cert_status;
-  }
-
-  GetCertChainInfo(ctx.get(), verify_result);
-
-  if (IsCertStatusError(verify_result->cert_status))
-    return MapCertStatusToNetError(verify_result->cert_status);
-
-  AppendPublicKeyHashes(ctx.get(), &verify_result->public_key_hashes);
   // Currently we only ues OpenSSL's default root CA paths, so treat all
   // correctly verified certs as being from a known root. TODO(joth): if the
   // motivations described in http://src.chromium.org/viewvc/chrome?view=rev&revision=80778
@@ -606,8 +617,6 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
 
   return OK;
 }
-
-#endif  // defined(OS_ANDROID)
 
 // static
 bool X509Certificate::GetDEREncoded(X509Certificate::OSCertHandle cert_handle,
