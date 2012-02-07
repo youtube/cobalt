@@ -35,21 +35,6 @@ class MediaLog;
 class VideoDecoder;
 class VideoRenderer;
 
-// TODO(scherkus): this should be moved alongside host interface defintions.
-struct PipelineStatistics {
-  PipelineStatistics()
-      : audio_bytes_decoded(0),
-        video_bytes_decoded(0),
-        video_frames_decoded(0),
-        video_frames_dropped(0) {
-  }
-
-  uint32 audio_bytes_decoded;  // Should be uint64?
-  uint32 video_bytes_decoded;  // Should be uint64?
-  uint32 video_frames_decoded;
-  uint32 video_frames_dropped;
-};
-
 enum NetworkEvent {
   DOWNLOAD_CONTINUED,
   DOWNLOAD_PAUSED,
@@ -571,6 +556,9 @@ class MEDIA_EXPORT Pipeline
   PipelineStatus status_;
 
   // Whether the media contains rendered audio and video streams.
+  // TODO(fischman,scherkus): replace these with checks for
+  // {audio,video}_decoder_ once extraction of {Audio,Video}Decoder from the
+  // Filter heirarchy is done.
   bool has_audio_;
   bool has_video_;
 
@@ -628,7 +616,7 @@ class MEDIA_EXPORT Pipeline
 
   // Helper class that stores filter references during pipeline
   // initialization.
-  class PipelineInitState;
+  struct PipelineInitState;
   scoped_ptr<PipelineInitState> pipeline_init_state_;
 
   // Statistics.
