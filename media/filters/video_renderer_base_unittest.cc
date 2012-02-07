@@ -59,11 +59,11 @@ class VideoRendererBaseTest : public ::testing::Test {
 
     EXPECT_CALL(*decoder_, natural_size())
         .WillRepeatedly(ReturnRef(kNaturalSize));
-
     EXPECT_CALL(stats_callback_object_, OnStatistics(_))
         .Times(AnyNumber());
-
     EXPECT_CALL(*this, SetOpaqueCBWasCalled(_))
+        .WillRepeatedly(::testing::Return());
+    EXPECT_CALL(*this, VideoTimeCBWasCalled(_))
         .WillRepeatedly(::testing::Return());
   }
 
