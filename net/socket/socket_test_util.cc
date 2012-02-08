@@ -242,7 +242,8 @@ SSLSocketDataProvider::SSLSocketDataProvider(bool async, int result)
       was_npn_negotiated(false),
       protocol_negotiated(SSLClientSocket::kProtoUnknown),
       client_cert_sent(false),
-      cert_request_info(NULL) {
+      cert_request_info(NULL),
+      origin_bound_cert_type(CLIENT_CERT_INVALID_TYPE) {
 }
 
 SSLSocketDataProvider::~SSLSocketDataProvider() {
@@ -684,8 +685,13 @@ int MockClientSocket::ExportKeyingMaterial(const base::StringPiece& label,
                                            const base::StringPiece& context,
                                            unsigned char *out,
                                            unsigned int outlen) {
+  memset(out, 'A', outlen);
+  return OK;
+}
+
+OriginBoundCertService* MockClientSocket::GetOriginBoundCertService() const {
   NOTREACHED();
-  return ERR_NOT_IMPLEMENTED;
+  return NULL;
 }
 
 SSLClientSocket::NextProtoStatus
@@ -1162,6 +1168,23 @@ void MockSSLClientSocket::set_protocol_negotiated(
     SSLClientSocket::NextProto protocol_negotiated) {
   is_protocol_negotiated_set_ = true;
   protocol_negotiated_ = protocol_negotiated;
+}
+
+bool MockSSLClientSocket::WasOriginBoundCertSent() const {
+  return data_->origin_bound_cert_type != CLIENT_CERT_INVALID_TYPE;
+}
+
+SSLClientCertType MockSSLClientSocket::origin_bound_cert_type() const {
+  return data_->origin_bound_cert_type;
+}
+
+SSLClientCertType MockSSLClientSocket::set_origin_bound_cert_type(
+    SSLClientCertType type) {
+  return data_->origin_bound_cert_type = type;
+}
+
+OriginBoundCertService* MockSSLClientSocket::GetOriginBoundCertService() const {
+  return data_->origin_bound_cert_service;
 }
 
 void MockSSLClientSocket::OnReadComplete(const MockRead& data) {

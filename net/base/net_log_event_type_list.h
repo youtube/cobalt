@@ -1020,6 +1020,14 @@ EVENT_TYPE(SPDY_SESSION_RECEIVED_WINDOW_UPDATE)
 //   }
 EVENT_TYPE(SPDY_SESSION_SENT_WINDOW_UPDATE)
 
+// Sending of a SPDY CREDENTIAL frame (which sends a certificate or
+// certificate chain to the server).
+//   {
+//     "slot"     : <The slot that this certificate should be stored in >,
+//     "origin"   : <The origin this certificate should be used for>,
+//   }
+EVENT_TYPE(SPDY_SESSION_SEND_CREDENTIAL)
+
 // Sending a data frame
 //   {
 //     "stream_id": <The stream ID for the window update>,

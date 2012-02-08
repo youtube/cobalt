@@ -407,7 +407,7 @@ int SpdyStream::SendRequest(bool has_upload_data) {
     return ERR_IO_PENDING;
   }
   CHECK_EQ(STATE_NONE, io_state_);
-  io_state_ = STATE_SEND_HEADERS;
+  io_state_ = STATE_GET_ORIGIN_BOUND_CERT;
   return DoLoop(OK);
 }
 
@@ -464,12 +464,31 @@ GURL SpdyStream::GetUrl() const {
   return GURL(url);
 }
 
+void SpdyStream::OnGetOriginBoundCertComplete(int result) {
+  DCHECK_EQ(STATE_GET_ORIGIN_BOUND_CERT_COMPLETE, io_state_);
+  DoLoop(result);
+}
+
 int SpdyStream::DoLoop(int result) {
   do {
     State state = io_state_;
     io_state_ = STATE_NONE;
     switch (state) {
       // State machine 1: Send headers and body.
+      case STATE_GET_ORIGIN_BOUND_CERT:
+        CHECK_EQ(OK, result);
+        result = DoGetOriginBoundCert();
+        break;
+      case STATE_GET_ORIGIN_BOUND_CERT_COMPLETE:
+        result = DoGetOriginBoundCertComplete(result);
+        break;
+      case STATE_SEND_ORIGIN_BOUND_CERT:
+        CHECK_EQ(OK, result);
+        result = DoSendOriginBoundCert();
+        break;
+      case STATE_SEND_ORIGIN_BOUND_CERT_COMPLETE:
+        result = DoSendOriginBoundCertComplete(result);
+        break;
       case STATE_SEND_HEADERS:
         CHECK_EQ(OK, result);
         result = DoSendHeaders();
@@ -493,7 +512,7 @@ int SpdyStream::DoLoop(int result) {
       // State machine 2: connection is established.
       // In STATE_OPEN, OnResponseReceived has already been called.
       // OnDataReceived, OnClose and OnWriteCompelte can be called.
-      // Only OnWriteCompletee calls DoLoop(().
+      // Only OnWriteComplete calls DoLoop(().
       //
       // For HTTP streams, no data is sent from the client while in the OPEN
       // state, so OnWriteComplete is never called here.  The HTTP body is
@@ -519,6 +538,58 @@ int SpdyStream::DoLoop(int result) {
            io_state_ != STATE_OPEN);
 
   return result;
+}
+
+int SpdyStream::DoGetOriginBoundCert() {
+  CHECK(request_.get());
+  HostPortPair origin(HostPortPair::FromURL(GetUrl()));
+  if (!session_->NeedsCredentials(origin)) {
+    // Proceed directly to sending headers
+    io_state_ = STATE_SEND_HEADERS;
+    return OK;
+  }
+
+  io_state_ = STATE_GET_ORIGIN_BOUND_CERT_COMPLETE;
+  OriginBoundCertService* obc_service = session_->GetOriginBoundCertService();
+  DCHECK(obc_service != NULL);
+  std::vector<uint8> requested_cert_types;
+  requested_cert_types.push_back(session_->GetOriginBoundCertType());
+  int rv = obc_service->GetOriginBoundCert(
+      GetUrl().GetOrigin().spec(), requested_cert_types, &ob_cert_type_,
+      &ob_private_key_, &ob_cert_,
+      base::Bind(&SpdyStream::OnGetOriginBoundCertComplete,
+                 base::Unretained(this)),
+      &ob_cert_request_handle_);
+  return rv;
+}
+
+int SpdyStream::DoGetOriginBoundCertComplete(int result) {
+  if (result != OK)
+    return result;
+
+  io_state_ = STATE_SEND_ORIGIN_BOUND_CERT;
+  return OK;
+}
+
+int SpdyStream::DoSendOriginBoundCert() {
+  io_state_ = STATE_SEND_ORIGIN_BOUND_CERT_COMPLETE;
+  CHECK(request_.get());
+  std::string origin = GetUrl().GetOrigin().spec();
+  origin.erase(origin.length() - 1);  // trim trailing slash
+  int rv =  session_->WriteCredentialFrame(
+      origin, ob_cert_type_, ob_private_key_, ob_cert_,
+      static_cast<RequestPriority>(priority_));
+  if (rv != ERR_IO_PENDING)
+    return rv;
+  return OK;
+}
+
+int SpdyStream::DoSendOriginBoundCertComplete(int result) {
+  if (result < 0)
+    return result;
+
+  io_state_ = STATE_SEND_HEADERS;
+  return OK;
 }
 
 int SpdyStream::DoSendHeaders() {
