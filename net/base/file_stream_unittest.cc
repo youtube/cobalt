@@ -54,7 +54,7 @@ TEST_F(FileStreamTest, BasicOpenClose) {
   base::PlatformFile file = base::kInvalidPlatformFileValue;
   {
     FileStream stream(NULL);
-    int rv = stream.OpenSync(temp_file_path(),
+    int rv = stream.Open(temp_file_path(),
         base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ);
     EXPECT_EQ(OK, rv);
     EXPECT_TRUE(stream.IsOpen());
@@ -108,7 +108,7 @@ TEST_F(FileStreamTest, UseFileHandle) {
   ASSERT_EQ(kTestDataSize,
             read_stream.Read(buffer, kTestDataSize, CompletionCallback()));
   ASSERT_EQ(0, memcmp(kTestData, buffer, kTestDataSize));
-  read_stream.CloseSync();
+  read_stream.Close();
 
   // 2. Test writing with a file handle.
   file_util::Delete(temp_file_path(), false);
@@ -119,7 +119,7 @@ TEST_F(FileStreamTest, UseFileHandle) {
   ASSERT_EQ(0, write_stream.Seek(FROM_BEGIN, 0));
   ASSERT_EQ(kTestDataSize,
             write_stream.Write(kTestData, kTestDataSize, CompletionCallback()));
-  write_stream.CloseSync();
+  write_stream.Close();
 
   // Read into buffer and compare to make sure the handle worked fine.
   ASSERT_EQ(kTestDataSize,
@@ -154,7 +154,7 @@ TEST_F(FileStreamTest, BasicRead) {
   FileStream stream(NULL);
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_READ;
-  int rv = stream.OpenSync(temp_file_path(), flags);
+  int rv = stream.Open(temp_file_path(), flags);
   EXPECT_EQ(OK, rv);
 
   int64 total_bytes_avail = stream.Available();
@@ -185,7 +185,7 @@ TEST_F(FileStreamTest, AsyncRead) {
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_READ |
               base::PLATFORM_FILE_ASYNC;
-  int rv = stream.OpenSync(temp_file_path(), flags);
+  int rv = stream.Open(temp_file_path(), flags);
   EXPECT_EQ(OK, rv);
 
   int64 total_bytes_avail = stream.Available();
@@ -220,7 +220,7 @@ TEST_F(FileStreamTest, AsyncRead_EarlyClose) {
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_READ |
               base::PLATFORM_FILE_ASYNC;
-  int rv = stream.OpenSync(temp_file_path(), flags);
+  int rv = stream.Open(temp_file_path(), flags);
   EXPECT_EQ(OK, rv);
 
   int64 total_bytes_avail = stream.Available();
@@ -230,7 +230,7 @@ TEST_F(FileStreamTest, AsyncRead_EarlyClose) {
 
   char buf[4];
   rv = stream.Read(buf, arraysize(buf), callback.callback());
-  stream.CloseSync();
+  stream.Close();
   if (rv < 0) {
     EXPECT_EQ(ERR_IO_PENDING, rv);
     // The callback should not be called if the request is cancelled.
@@ -249,7 +249,7 @@ TEST_F(FileStreamTest, BasicRead_FromOffset) {
   FileStream stream(NULL);
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_READ;
-  int rv = stream.OpenSync(temp_file_path(), flags);
+  int rv = stream.Open(temp_file_path(), flags);
   EXPECT_EQ(OK, rv);
 
   const int64 kOffset = 3;
@@ -285,7 +285,7 @@ TEST_F(FileStreamTest, AsyncRead_FromOffset) {
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_READ |
               base::PLATFORM_FILE_ASYNC;
-  int rv = stream.OpenSync(temp_file_path(), flags);
+  int rv = stream.Open(temp_file_path(), flags);
   EXPECT_EQ(OK, rv);
 
   const int64 kOffset = 3;
@@ -319,7 +319,7 @@ TEST_F(FileStreamTest, SeekAround) {
   FileStream stream(NULL);
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_READ;
-  int rv = stream.OpenSync(temp_file_path(), flags);
+  int rv = stream.Open(temp_file_path(), flags);
   EXPECT_EQ(OK, rv);
 
   const int64 kOffset = 3;
@@ -342,7 +342,7 @@ TEST_F(FileStreamTest, BasicWrite) {
   FileStream stream(NULL);
   int flags = base::PLATFORM_FILE_CREATE_ALWAYS |
               base::PLATFORM_FILE_WRITE;
-  int rv = stream.OpenSync(temp_file_path(), flags);
+  int rv = stream.Open(temp_file_path(), flags);
   EXPECT_EQ(OK, rv);
 
   int64 file_size;
@@ -352,7 +352,7 @@ TEST_F(FileStreamTest, BasicWrite) {
 
   rv = stream.Write(kTestData, kTestDataSize, CompletionCallback());
   EXPECT_EQ(kTestDataSize, rv);
-  stream.CloseSync();
+  stream.Close();
 
   ok = file_util::GetFileSize(temp_file_path(), &file_size);
   EXPECT_TRUE(ok);
@@ -364,7 +364,7 @@ TEST_F(FileStreamTest, AsyncWrite) {
   int flags = base::PLATFORM_FILE_CREATE_ALWAYS |
               base::PLATFORM_FILE_WRITE |
               base::PLATFORM_FILE_ASYNC;
-  int rv = stream.OpenSync(temp_file_path(), flags);
+  int rv = stream.Open(temp_file_path(), flags);
   EXPECT_EQ(OK, rv);
 
   int64 file_size;
@@ -396,7 +396,7 @@ TEST_F(FileStreamTest, AsyncWrite_EarlyClose) {
   int flags = base::PLATFORM_FILE_CREATE_ALWAYS |
               base::PLATFORM_FILE_WRITE |
               base::PLATFORM_FILE_ASYNC;
-  int rv = stream.OpenSync(temp_file_path(), flags);
+  int rv = stream.Open(temp_file_path(), flags);
   EXPECT_EQ(OK, rv);
 
   int64 file_size;
@@ -410,7 +410,7 @@ TEST_F(FileStreamTest, AsyncWrite_EarlyClose) {
   rv = stream.Write(kTestData + total_bytes_written,
                     kTestDataSize - total_bytes_written,
                     callback.callback());
-  stream.CloseSync();
+  stream.Close();
   if (rv < 0) {
     EXPECT_EQ(ERR_IO_PENDING, rv);
     // The callback should not be called if the request is cancelled.
@@ -427,7 +427,7 @@ TEST_F(FileStreamTest, BasicWrite_FromOffset) {
   FileStream stream(NULL);
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_WRITE;
-  int rv = stream.OpenSync(temp_file_path(), flags);
+  int rv = stream.Open(temp_file_path(), flags);
   EXPECT_EQ(OK, rv);
 
   int64 file_size;
@@ -441,7 +441,7 @@ TEST_F(FileStreamTest, BasicWrite_FromOffset) {
 
   rv = stream.Write(kTestData, kTestDataSize, CompletionCallback());
   EXPECT_EQ(kTestDataSize, rv);
-  stream.CloseSync();
+  stream.Close();
 
   ok = file_util::GetFileSize(temp_file_path(), &file_size);
   EXPECT_TRUE(ok);
@@ -457,7 +457,7 @@ TEST_F(FileStreamTest, AsyncWrite_FromOffset) {
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_WRITE |
               base::PLATFORM_FILE_ASYNC;
-  int rv = stream.OpenSync(temp_file_path(), flags);
+  int rv = stream.Open(temp_file_path(), flags);
   EXPECT_EQ(OK, rv);
 
   const int64 kOffset = 0;
@@ -492,7 +492,7 @@ TEST_F(FileStreamTest, BasicReadWrite) {
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_READ |
               base::PLATFORM_FILE_WRITE;
-  int rv = stream.OpenSync(temp_file_path(), flags);
+  int rv = stream.Open(temp_file_path(), flags);
   EXPECT_EQ(OK, rv);
 
   int64 total_bytes_avail = stream.Available();
@@ -515,7 +515,7 @@ TEST_F(FileStreamTest, BasicReadWrite) {
 
   rv = stream.Write(kTestData, kTestDataSize, CompletionCallback());
   EXPECT_EQ(kTestDataSize, rv);
-  stream.CloseSync();
+  stream.Close();
 
   ok = file_util::GetFileSize(temp_file_path(), &file_size);
   EXPECT_TRUE(ok);
@@ -531,7 +531,7 @@ TEST_F(FileStreamTest, BasicWriteRead) {
   int flags = base::PLATFORM_FILE_OPEN |
               base::PLATFORM_FILE_READ |
               base::PLATFORM_FILE_WRITE;
-  int rv = stream.OpenSync(temp_file_path(), flags);
+  int rv = stream.Open(temp_file_path(), flags);
   EXPECT_EQ(OK, rv);
 
   int64 total_bytes_avail = stream.Available();
@@ -558,7 +558,7 @@ TEST_F(FileStreamTest, BasicWriteRead) {
     total_bytes_read += rv;
     data_read.append(buf, rv);
   }
-  stream.CloseSync();
+  stream.Close();
 
   ok = file_util::GetFileSize(temp_file_path(), &file_size);
   EXPECT_TRUE(ok);
@@ -580,7 +580,7 @@ TEST_F(FileStreamTest, BasicAsyncReadWrite) {
               base::PLATFORM_FILE_READ |
               base::PLATFORM_FILE_WRITE |
               base::PLATFORM_FILE_ASYNC;
-  int rv = stream.OpenSync(temp_file_path(), flags);
+  int rv = stream.Open(temp_file_path(), flags);
   EXPECT_EQ(OK, rv);
 
   int64 total_bytes_avail = stream.Available();
@@ -618,7 +618,7 @@ TEST_F(FileStreamTest, BasicAsyncReadWrite) {
     total_bytes_written += rv;
   }
 
-  stream.CloseSync();
+  stream.Close();
 
   ok = file_util::GetFileSize(temp_file_path(), &file_size);
   EXPECT_TRUE(ok);
@@ -635,7 +635,7 @@ TEST_F(FileStreamTest, BasicAsyncWriteRead) {
               base::PLATFORM_FILE_READ |
               base::PLATFORM_FILE_WRITE |
               base::PLATFORM_FILE_ASYNC;
-  int rv = stream.OpenSync(temp_file_path(), flags);
+  int rv = stream.Open(temp_file_path(), flags);
   EXPECT_EQ(OK, rv);
 
   int64 total_bytes_avail = stream.Available();
@@ -678,7 +678,7 @@ TEST_F(FileStreamTest, BasicAsyncWriteRead) {
     total_bytes_read += rv;
     data_read.append(buf, rv);
   }
-  stream.CloseSync();
+  stream.Close();
 
   ok = file_util::GetFileSize(temp_file_path(), &file_size);
   EXPECT_TRUE(ok);
@@ -790,7 +790,7 @@ TEST_F(FileStreamTest, AsyncWriteRead) {
               base::PLATFORM_FILE_READ |
               base::PLATFORM_FILE_WRITE |
               base::PLATFORM_FILE_ASYNC;
-  int rv = stream.OpenSync(temp_file_path(), flags);
+  int rv = stream.Open(temp_file_path(), flags);
   EXPECT_EQ(OK, rv);
 
   int64 total_bytes_avail = stream.Available();
@@ -813,7 +813,7 @@ TEST_F(FileStreamTest, AsyncWriteRead) {
   EXPECT_LT(0, rv);
   EXPECT_EQ(kTestDataSize, total_bytes_written);
 
-  stream.CloseSync();
+  stream.Close();
 
   ok = file_util::GetFileSize(temp_file_path(), &file_size);
   EXPECT_TRUE(ok);
@@ -867,7 +867,7 @@ class TestWriteCloseCompletionCallback {
       rv = callback.WaitForResult();
       *total_bytes_written_ += total_bytes_written;
     } else {  // We're done writing all data.  Close the file.
-      stream_->CloseSync();
+      stream_->Close();
     }
 
     result_ = *total_bytes_written_;
@@ -896,7 +896,7 @@ TEST_F(FileStreamTest, AsyncWriteClose) {
               base::PLATFORM_FILE_READ |
               base::PLATFORM_FILE_WRITE |
               base::PLATFORM_FILE_ASYNC;
-  int rv = stream.OpenSync(temp_file_path(), flags);
+  int rv = stream.Open(temp_file_path(), flags);
   EXPECT_EQ(OK, rv);
 
   int64 total_bytes_avail = stream.Available();
@@ -924,7 +924,7 @@ TEST_F(FileStreamTest, Truncate) {
   int flags = base::PLATFORM_FILE_CREATE_ALWAYS | base::PLATFORM_FILE_WRITE;
 
   FileStream write_stream(NULL);
-  ASSERT_EQ(OK, write_stream.OpenSync(temp_file_path(), flags));
+  ASSERT_EQ(OK, write_stream.Open(temp_file_path(), flags));
 
   // Write some data to the file.
   const char test_data[] = "0123456789";
@@ -937,7 +937,7 @@ TEST_F(FileStreamTest, Truncate) {
   write_stream.Write(test_data, 4, CompletionCallback());
 
   // Close the stream.
-  write_stream.CloseSync();
+  write_stream.Close();
 
   // Read in the contents and make sure we get back what we expected.
   std::string read_contents;

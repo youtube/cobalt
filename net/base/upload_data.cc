@@ -31,7 +31,7 @@ UploadData::Element::~Element() {
   if (file_stream_) {
     // Temporarily allow until fix: http://crbug.com/72001.
     base::ThreadRestrictions::ScopedAllowIO allow_io;
-    file_stream_->CloseSync();
+    file_stream_->Close();
     delete file_stream_;
   }
 }
@@ -107,9 +107,8 @@ FileStream* UploadData::Element::NewFileStreamForReading() {
   base::ThreadRestrictions::ScopedAllowIO allow_io;
 
   scoped_ptr<FileStream> file(new FileStream(NULL));
-  int64 rv = file->OpenSync(
-      file_path_,
-      base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ);
+  int64 rv = file->Open(file_path_,
+                      base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ);
   if (rv != OK) {
     // If the file can't be opened, we'll just upload an empty file.
     DLOG(WARNING) << "Failed to open \"" << file_path_.value()
