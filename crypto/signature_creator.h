@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,13 +22,14 @@ struct SGNContextStr;
 
 #include "base/basictypes.h"
 #include "crypto/crypto_export.h"
-#include "crypto/rsa_private_key.h"
 
 #if defined(OS_WIN)
 #include "crypto/scoped_capi_types.h"
 #endif
 
 namespace crypto {
+
+class RSAPrivateKey;
 
 // Signs data using a bare private key (as opposed to a full certificate).
 // Currently can only sign data using SHA-1 with RSA encryption.
