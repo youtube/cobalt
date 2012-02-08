@@ -697,6 +697,17 @@
         'tools/qt_faststart/qt_faststart.c'
       ],
     },
+    {
+      'target_name': 'seek_tester',
+      'type': 'executable',
+      'dependencies': [
+        'media',
+        '../base/base.gyp:base',
+      ],
+      'sources': [
+        'tools/seek_tester/seek_tester.cc',
+      ],
+    },
   ],
   'conditions': [
     ['OS=="win"', {
