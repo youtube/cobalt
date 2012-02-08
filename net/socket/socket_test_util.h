@@ -48,6 +48,7 @@ enum {
 
 class AsyncSocket;
 class MockClientSocket;
+class OriginBoundCertService;
 class SSLClientSocket;
 class SSLHostInfo;
 class StreamSocket;
@@ -269,6 +270,8 @@ struct SSLSocketDataProvider {
   bool client_cert_sent;
   SSLCertRequestInfo* cert_request_info;
   scoped_refptr<X509Certificate> cert;
+  SSLClientCertType origin_bound_cert_type;
+  OriginBoundCertService* origin_bound_cert_service;
 };
 
 // A DataProvider where the client must write a request before the reads (e.g.
@@ -588,6 +591,7 @@ class MockClientSocket : public SSLClientSocket {
                                    unsigned int outlen) OVERRIDE;
   virtual NextProtoStatus GetNextProto(std::string* proto,
                                        std::string* server_protos) OVERRIDE;
+  virtual OriginBoundCertService* GetOriginBoundCertService() const OVERRIDE;
 
  protected:
   virtual ~MockClientSocket();
@@ -741,6 +745,12 @@ class MockSSLClientSocket : public MockClientSocket, public AsyncSocket {
 
   // This MockSocket does not implement the manual async IO feature.
   virtual void OnReadComplete(const MockRead& data) OVERRIDE;
+
+  virtual bool WasOriginBoundCertSent() const OVERRIDE;
+  virtual SSLClientCertType origin_bound_cert_type() const OVERRIDE;
+  virtual SSLClientCertType set_origin_bound_cert_type(
+      SSLClientCertType type) OVERRIDE;
+  virtual OriginBoundCertService* GetOriginBoundCertService() const OVERRIDE;
 
  private:
   static void ConnectCallback(MockSSLClientSocket *ssl_client_socket,

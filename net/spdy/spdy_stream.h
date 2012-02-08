@@ -18,6 +18,8 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_export.h"
 #include "net/base/net_log.h"
+#include "net/base/origin_bound_cert_service.h"
+#include "net/base/ssl_client_cert_type.h"
 #include "net/base/upload_data.h"
 #include "net/socket/ssl_client_socket.h"
 #include "net/spdy/spdy_framer.h"
@@ -245,6 +247,10 @@ class NET_EXPORT_PRIVATE SpdyStream
  private:
   enum State {
     STATE_NONE,
+    STATE_GET_ORIGIN_BOUND_CERT,
+    STATE_GET_ORIGIN_BOUND_CERT_COMPLETE,
+    STATE_SEND_ORIGIN_BOUND_CERT,
+    STATE_SEND_ORIGIN_BOUND_CERT_COMPLETE,
     STATE_SEND_HEADERS,
     STATE_SEND_HEADERS_COMPLETE,
     STATE_SEND_BODY,
@@ -257,10 +263,16 @@ class NET_EXPORT_PRIVATE SpdyStream
   friend class base::RefCounted<SpdyStream>;
   virtual ~SpdyStream();
 
+  void OnGetOriginBoundCertComplete(int result);
+
   // Try to make progress sending/receiving the request/response.
   int DoLoop(int result);
 
   // The implementations of each state of the state machine.
+  int DoGetOriginBoundCert();
+  int DoGetOriginBoundCertComplete(int result);
+  int DoSendOriginBoundCert();
+  int DoSendOriginBoundCertComplete(int result);
   int DoSendHeaders();
   int DoSendHeadersComplete(int result);
   int DoSendBody();
@@ -328,6 +340,11 @@ class NET_EXPORT_PRIVATE SpdyStream
   int recv_bytes_;
   // Data received before delegate is attached.
   std::vector<scoped_refptr<IOBufferWithSize> > pending_buffers_;
+
+  SSLClientCertType ob_cert_type_;
+  std::string ob_private_key_;
+  std::string ob_cert_;
+  OriginBoundCertService::RequestHandle ob_cert_request_handle_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdyStream);
 };

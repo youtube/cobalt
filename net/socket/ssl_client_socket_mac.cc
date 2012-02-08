@@ -792,6 +792,10 @@ SSLClientSocketMac::GetNextProto(std::string* proto,
   return kNextProtoUnsupported;
 }
 
+OriginBoundCertService* SSLClientSocketMac::GetOriginBoundCertService() const {
+  return NULL;
+}
+
 int SSLClientSocketMac::InitializeSSLContext() {
   VLOG(1) << "----- InitializeSSLContext";
   OSStatus status = noErr;
