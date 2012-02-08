@@ -154,7 +154,7 @@ void UploadDataStream::AdvanceToNextElement() {
   if (element_file_stream_.get()) {
     // Temporarily allow until fix: http://crbug.com/72001.
     base::ThreadRestrictions::ScopedAllowIO allow_io;
-    element_file_stream_->Close();
+    element_file_stream_->CloseSync();
     element_file_stream_.reset();
   }
 }
