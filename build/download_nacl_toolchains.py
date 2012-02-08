@@ -25,9 +25,24 @@ def Main(args):
     sys.exit(0)
   sys.path.insert(0, nacl_build_dir)
   import download_toolchains
+
+  # TODO (robertm): Finish getting PNaCl ready for prime time.
+  # BUG:
+  # We remove this --optional-pnacl argument, and instead replace it with
+  # --no-pnacl for most cases.  However, if the bot name is the pnacl_sdk
+  # bot then we will go ahead and download it.  This prevents increasing the
+  # gclient sync time for developers, or standard Chrome bots.
+  if '--optional-pnacl' in args:
+    args.remove('--optional-pnacl')
+    if os.environ.get('BUILDBOT_BUILDERNAME', '') == 'linux_pnacl_sdk':
+      print '\n*** DOWNLOADING PNACL TOOLCHAIN ***\n'
+    else:
+      args.append('--no-pnacl')
+
   download_toolchains.Main(args)
   return 0
 
 
 if __name__ == '__main__':
   sys.exit(Main(sys.argv[1:]))
+
