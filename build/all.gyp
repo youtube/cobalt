@@ -521,50 +521,45 @@
         }], # branding=="Chrome"
        ], # conditions
     }], # OS="win"
-    ['chromeos==1', {
+    # Old ChromeOS target needed to build pre-Aura targets.
+    ['chromeos_gtk==1', {
       'targets': [
         {
           'target_name': 'chromeos_builder',
           'type': 'none',
           'dependencies': [
-            '../ash/ash.gyp:ash_shell',
-            '../ash/ash.gyp:aura_shell_unittests',
             '../base/base.gyp:base_unittests',
-            #'../chrome/chrome.gyp:browser_tests',
+            '../chrome/chrome.gyp:browser_tests',
             '../chrome/chrome.gyp:chrome',
-            #'../chrome/chrome.gyp:interactive_ui_tests',
-            #'../chrome/chrome.gyp:performance_browser_tests',
-            #'../chrome/chrome.gyp:performance_ui_tests',
-            #'../chrome/chrome.gyp:safe_browsing_tests',
-            #'../chrome/chrome.gyp:sync_integration_tests',
+            '../chrome/chrome.gyp:interactive_ui_tests',
+            '../chrome/chrome.gyp:performance_browser_tests',
+            '../chrome/chrome.gyp:performance_ui_tests',
+            '../chrome/chrome.gyp:safe_browsing_tests',
+            '../chrome/chrome.gyp:sync_integration_tests',
             '../chrome/chrome.gyp:sync_unit_tests',
             '../chrome/chrome.gyp:ui_tests',
             '../chrome/chrome.gyp:unit_tests',
-            #'../content/content.gyp:content_browsertests',
+            '../content/content.gyp:content_browsertests',
             '../content/content.gyp:content_unittests',
-            #'../crypto/crypto.gyp:crypto_unittests',
-            #'../dbus/dbus.gyp:dbus_unittests',
+            '../crypto/crypto.gyp:crypto_unittests',
+            '../dbus/dbus.gyp:dbus_unittests',
             '../ipc/ipc.gyp:ipc_tests',
-            #'../jingle/jingle.gyp:jingle_unittests',
-            #'../media/media.gyp:ffmpeg_tests',
-            #'../media/media.gyp:media_unittests',
-            #'../net/net.gyp:net_unittests',
-            #'../printing/printing.gyp:printing_unittests',
-            #'../remoting/remoting.gyp:remoting_unittests',
+            '../jingle/jingle.gyp:jingle_unittests',
+            '../media/media.gyp:ffmpeg_tests',
+            '../media/media.gyp:media_unittests',
+            '../net/net.gyp:net_unittests',
+            '../printing/printing.gyp:printing_unittests',
+            '../remoting/remoting.gyp:remoting_unittests',
             '../sql/sql.gyp:sql_unittests',
-            #'../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
-            #'../third_party/libphonenumber/libphonenumber.gyp:libphonenumber_unittests',
-            '../ui/aura/aura.gyp:*',
-            '../ui/gfx/compositor/compositor.gyp:*',
+            '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
+            '../third_party/libphonenumber/libphonenumber.gyp:libphonenumber_unittests',
             '../ui/ui.gyp:gfx_unittests',
-            '../ui/views/views.gyp:views',
             '../ui/views/views.gyp:views_unittests',
-            '../webkit/webkit.gyp:pull_in_webkit_unit_tests',
-            #'temp_gyp/googleurl.gyp:googleurl_unittests',
+            'temp_gyp/googleurl.gyp:googleurl_unittests',
           ],
         },
-      ],  # targets
-    }], # "chromeos==1"
+      ], # targets
+    }], # "chromeos_gtk==1"
     ['use_aura==1', {
       'targets': [
         {
