@@ -1953,7 +1953,7 @@ bool IPv6Supported() {
 }
 
 bool HaveOnlyLoopbackAddresses() {
-#if defined(OS_POSIX) && !defined(OS_ANDROID) && !defined(__LB_PS3__)
+#if defined(OS_POSIX) && !defined(OS_ANDROID) && !defined(__LB_SHELL__)
   struct ifaddrs* interface_addr = NULL;
   int rv = getifaddrs(&interface_addr);
   if (rv != 0) {
@@ -1991,6 +1991,8 @@ bool HaveOnlyLoopbackAddresses() {
 #elif defined(OS_WIN)
   // TODO(wtc): implement with the GetAdaptersAddresses function.
   NOTIMPLEMENTED();
+  return false;
+#elif defined(__LB_SHELL__)
   return false;
 #else
   NOTIMPLEMENTED();
