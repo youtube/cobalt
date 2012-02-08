@@ -29,23 +29,20 @@ class NET_EXPORT UploadDataStream {
   // files) and the target file is changed.
   int Init();
 
-  // Returns the stream's buffer.
-  IOBuffer* buf() const { return buf_; }
-  // Returns the length of the data in the stream's buffer.
-  size_t buf_len() const { return buf_len_; }
-
-  // TODO(satish): We should ideally have UploadDataStream expose a Read()
-  // method which returns data in a caller provided IOBuffer. That would do away
-  // with this function and make the interface cleaner as well with less memmove
-  // calls.
+  // Reads up to |buf_len| bytes from the upload data stream to |buf|. The
+  // number of bytes read is returned. Partial reads are allowed.  Zero is
+  // returned on a call to Read when there are no remaining bytes in the
+  // stream, and IsEof() will return true hereafter.
   //
-  // Returns the size of the stream's buffer pointed by buf().
-  static size_t GetBufferSize();
-
-  // Call to indicate that a portion of the stream's buffer was consumed.  This
-  // call modifies the stream's buffer so that it contains the next segment of
-  // the upload data to be consumed.
-  void MarkConsumedAndFillBuffer(size_t num_bytes);
+  // If there's less data to read than we initially observed (i.e. the actual
+  // upload data is smaller than size()), zeros are padded to ensure that
+  // size() bytes can be read, which can happen for TYPE_FILE payloads.
+  //
+  // If the upload data stream is chunked (i.e. is_chunked() is true),
+  // ERR_IO_PENDING is returned to indicate there is nothing to read at the
+  // moment, but more data to come at a later time. If not chunked, reads
+  // won't fail.
+  int Read(IOBuffer* buf, int buf_len);
 
   // Sets the callback to be invoked when new chunks are available to upload.
   void set_chunk_callback(ChunkCallback* callback) {
@@ -61,15 +58,9 @@ class NET_EXPORT UploadDataStream {
 
   bool is_chunked() const { return upload_data_->is_chunked(); }
 
-  // Returns whether there is no more data to read, regardless of whether
-  // position < size.
-  bool eof() const { return eof_; }
-
-  // Returns whether the data available in buf() includes the last chunk in a
-  // chunked data stream. This method returns true once the final chunk has been
-  // placed in the IOBuffer returned by buf(), in contrast to eof() which
-  // returns true only after the data in buf() has been consumed.
-  bool IsOnLastChunk() const;
+  // Returns true if all data has been consumed from this upload data
+  // stream.
+  bool IsEOF() const;
 
   // Returns true if the upload data in the stream is entirely in memory.
   bool IsInMemory() const;
@@ -78,26 +69,10 @@ class NET_EXPORT UploadDataStream {
   static void set_merge_chunks(bool merge) { merge_chunks_ = merge; }
 
  private:
-  // Fills the buffer with any remaining data and sets eof_ if there was nothing
-  // left to fill the buffer with.
-  // Returns OK if the operation succeeds. Otherwise error code is returned.
-  int FillBuffer();
-
   // Advances to the next element. Updates the internal states.
   void AdvanceToNextElement();
 
-  // Returns true if all data has been consumed from this upload data
-  // stream.
-  bool IsEOF() const;
-
   scoped_refptr<UploadData> upload_data_;
-
-  // This buffer is filled with data to be uploaded.  The data to be sent is
-  // always at the front of the buffer.  If we cannot send all of the buffer at
-  // once, then we memmove the remaining portion and back-fill the buffer for
-  // the next "write" call.  buf_len_ indicates how much data is in the buffer.
-  scoped_refptr<IOBuffer> buf_;
-  size_t buf_len_;
 
   // Index of the current upload element (i.e. the element currently being
   // read). The index is used as a cursor to iterate over elements in
@@ -120,17 +95,12 @@ class NET_EXPORT UploadDataStream {
   uint64 total_size_;
   uint64 current_position_;
 
-  // Whether there is no data left to read.
-  bool eof_;
-
   // True if the initialization was successful.
   bool initialized_successfully_;
 
   // TODO(satish): Remove this once we have a better way to unit test POST
   // requests with chunked uploads.
   static bool merge_chunks_;
-  // The size of the stream's buffer pointed by buf_.
-  static const size_t kBufferSize;
 
   DISALLOW_COPY_AND_ASSIGN(UploadDataStream);
 };
