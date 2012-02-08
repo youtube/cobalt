@@ -47,16 +47,20 @@ class NET_EXPORT FileStream {
 
   virtual ~FileStream();
 
-  // Call this method to close the FileStream.  It is OK to call Close
-  // multiple times.  Redundant calls are ignored.
+  // Call this method to close the FileStream synchronously.
+  // It is OK to call Close multiple times.  Redundant calls are ignored.
   // Note that if there are any pending async operations, they'll be aborted.
-  virtual void Close();
+  //
+  // TODO(satorux): Implement the asynchronous version of this.
+  virtual void CloseSync();
 
-  // Call this method to open the FileStream.  The remaining methods
-  // cannot be used unless this method returns OK.  If the file cannot be
-  // opened then an error code is returned.
-  // open_flags is a bitfield of base::PlatformFileFlags
-  virtual int Open(const FilePath& path, int open_flags);
+  // Call this method to open the FileStream synchronously.
+  // The remaining methods cannot be used unless this method returns OK.  If
+  // the file cannot be opened then an error code is returned.  open_flags is
+  // a bitfield of base::PlatformFileFlags
+  //
+  // TODO(satorux): Implement the asynchronous version of this.
+  virtual int OpenSync(const FilePath& path, int open_flags);
 
   // Returns true if Open succeeded and Close has not been called.
   virtual bool IsOpen() const;
