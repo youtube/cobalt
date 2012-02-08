@@ -27,7 +27,7 @@ const wchar_t kDataPrefix[] = L"data_";
 // Reads the |header_size| bytes from the beginning of file |name|.
 bool ReadHeader(const std::wstring& name, char* header, int header_size) {
   net::FileStream file(NULL);
-  file.Open(FilePath::FromWStringHack(name),
+  file.OpenSync(FilePath::FromWStringHack(name),
       base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ);
   if (!file.IsOpen()) {
     printf("Unable to open file %ls\n", name.c_str());
