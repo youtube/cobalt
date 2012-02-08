@@ -11,6 +11,7 @@
 #include "base/file_util.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/time.h"
+#include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/upload_data.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -22,6 +23,7 @@ namespace {
 
 const char kTestData[] = "0123456789";
 const size_t kTestDataSize = arraysize(kTestData) - 1;
+const size_t kTestBufferSize = 1 << 14;  // 16KB.
 
 }  // namespace
 
@@ -43,7 +45,7 @@ TEST_F(UploadDataStreamTest, EmptyUploadData) {
   ASSERT_TRUE(stream.get());
   EXPECT_EQ(0U, stream->size());
   EXPECT_EQ(0U, stream->position());
-  EXPECT_TRUE(stream->eof());
+  EXPECT_TRUE(stream->IsEOF());
 }
 
 TEST_F(UploadDataStreamTest, ConsumeAll) {
@@ -53,11 +55,14 @@ TEST_F(UploadDataStreamTest, ConsumeAll) {
   ASSERT_TRUE(stream.get());
   EXPECT_EQ(kTestDataSize, stream->size());
   EXPECT_EQ(0U, stream->position());
-  EXPECT_FALSE(stream->eof());
-  while (!stream->eof()) {
-    stream->MarkConsumedAndFillBuffer(stream->buf_len());
+  EXPECT_FALSE(stream->IsEOF());
+  scoped_refptr<IOBuffer> buf = new IOBuffer(kTestBufferSize);
+  while (!stream->IsEOF()) {
+    int bytes_read = stream->Read(buf, kTestBufferSize);
+    ASSERT_LE(0, bytes_read);  // Not an error.
   }
   EXPECT_EQ(kTestDataSize, stream->position());
+  ASSERT_TRUE(stream->IsEOF());
 }
 
 TEST_F(UploadDataStreamTest, FileSmallerThanLength) {
@@ -80,11 +85,13 @@ TEST_F(UploadDataStreamTest, FileSmallerThanLength) {
   ASSERT_TRUE(stream.get());
   EXPECT_EQ(kFakeSize, stream->size());
   EXPECT_EQ(0U, stream->position());
-  EXPECT_FALSE(stream->eof());
+  EXPECT_FALSE(stream->IsEOF());
   uint64 read_counter = 0;
-  while (!stream->eof()) {
-    read_counter += stream->buf_len();
-    stream->MarkConsumedAndFillBuffer(stream->buf_len());
+  scoped_refptr<IOBuffer> buf = new IOBuffer(kTestBufferSize);
+  while (!stream->IsEOF()) {
+    int bytes_read = stream->Read(buf, kTestBufferSize);
+    ASSERT_LE(0, bytes_read);  // Not an error.
+    read_counter += bytes_read;
     EXPECT_EQ(read_counter, stream->position());
   }
   // UpdateDataStream will pad out the file with 0 bytes so that the HTTP

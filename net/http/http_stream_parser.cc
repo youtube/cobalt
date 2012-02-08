@@ -21,7 +21,8 @@
 
 namespace {
 
-static const size_t kMaxMergedHeaderAndBodySize = 1400;
+const size_t kMaxMergedHeaderAndBodySize = 1400;
+const size_t kRequestBodyBufferSize = 1 << 14;  // 16KB
 
 std::string GetResponseHeaderLines(const net::HttpResponseHeaders& headers) {
   std::string raw_headers = headers.raw_headers();
@@ -181,7 +182,6 @@ HttpStreamParser::HttpStreamParser(ClientSocketHandle* connection,
           io_callback_(
               base::Bind(&HttpStreamParser::OnIOComplete,
                          base::Unretained(this)))),
-      chunk_length_without_encoding_(0),
       sent_last_chunk_(false) {
 }
 
@@ -220,12 +220,15 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
 
   std::string request = request_line + headers.ToString();
   request_body_.reset(request_body);
-  if (request_body_ != NULL && request_body_->is_chunked()) {
-    request_body_->set_chunk_callback(this);
-    // The chunk buffer is guaranteed to be large enough to hold the encoded
-    // chunk.
-    chunk_buf_ = new SeekableIOBuffer(UploadDataStream::GetBufferSize() +
-                                      kChunkHeaderFooterSize);
+  if (request_body_ != NULL) {
+    request_body_buf_ = new SeekableIOBuffer(kRequestBodyBufferSize);
+    if (request_body_->is_chunked()) {
+      request_body_->set_chunk_callback(this);
+      // The chunk buffer is adjusted to guarantee that |request_body_buf_|
+      // is large enough to hold the encoded chunk.
+      chunk_buf_ = new IOBufferWithSize(kRequestBodyBufferSize -
+                                        kChunkHeaderFooterSize);
+    }
   }
 
   io_state_ = STATE_SENDING_HEADERS;
@@ -242,19 +245,19 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
     request_headers_ = new DrainableIOBuffer(
         merged_request_headers_and_body, merged_size);
 
-    char *buf = request_headers_->data();
-    memcpy(buf, request.data(), request.size());
-    buf += request.size();
+    memcpy(request_headers_->data(), request.data(), request.size());
+    request_headers_->DidConsume(request.size());
 
     size_t todo = request_body_->size();
     while (todo) {
-      size_t buf_len = request_body_->buf_len();
-      memcpy(buf, request_body_->buf()->data(), buf_len);
-      todo -= buf_len;
-      buf += buf_len;
-      request_body_->MarkConsumedAndFillBuffer(buf_len);
+      int consumed = request_body_->Read(request_headers_, todo);
+      DCHECK_GT(consumed, 0);  // Read() won't fail if not chunked.
+      request_headers_->DidConsume(consumed);
+      todo -= consumed;
     }
-    DCHECK(request_body_->eof());
+    DCHECK(request_body_->IsEOF());
+    // Reset the offset, so the buffer can be read from the beginning.
+    request_headers_->SetOffset(0);
 
     did_merge = true;
   }
@@ -428,8 +431,8 @@ int HttpStreamParser::DoSendHeaders(int result) {
     io_state_ = STATE_SENDING_CHUNKED_BODY;
     result = OK;
   } else if (request_body_ != NULL && request_body_->size() > 0 &&
-             // !eof() indicates that the body wasn't merged.
-             !request_body_->eof()) {
+             // !IsEOF() indicates that the body wasn't merged.
+             !request_body_->IsEOF()) {
     io_state_ = STATE_SENDING_NON_CHUNKED_BODY;
     result = OK;
   } else {
@@ -442,11 +445,11 @@ int HttpStreamParser::DoSendChunkedBody(int result) {
   // |result| is the number of bytes sent from the last call to
   // DoSendChunkedBody(), or 0 (i.e. OK) the first time.
 
-  // Send the remaining data in the chunk buffer.
-  chunk_buf_->DidConsume(result);
-  if (chunk_buf_->BytesRemaining() > 0) {
-    return connection_->socket()->Write(chunk_buf_,
-                                        chunk_buf_->BytesRemaining(),
+  // Send the remaining data in the request body buffer.
+  request_body_buf_->DidConsume(result);
+  if (request_body_buf_->BytesRemaining() > 0) {
+    return connection_->socket()->Write(request_body_buf_,
+                                        request_body_buf_->BytesRemaining(),
                                         io_callback_);
   }
 
@@ -455,32 +458,33 @@ int HttpStreamParser::DoSendChunkedBody(int result) {
     return OK;
   }
 
-  // |chunk_length_without_encoding_| is 0 when DoSendBody() is first
-  // called, hence the first call to MarkConsumedAndFillBuffer() is a noop.
-  request_body_->MarkConsumedAndFillBuffer(chunk_length_without_encoding_);
-  chunk_length_without_encoding_ = 0;
-
-  if (request_body_->eof()) {
-    chunk_buf_->Clear();
-    const int chunk_length = EncodeChunk(
-        base::StringPiece(), chunk_buf_->data(), chunk_buf_->capacity());
-    chunk_buf_->DidAppend(chunk_length);
+  const int consumed = request_body_->Read(chunk_buf_, chunk_buf_->size());
+  if (consumed == 0) {  // Reached the end.
+    DCHECK(request_body_->IsEOF());
+    request_body_buf_->Clear();
+    const int chunk_length = EncodeChunk(base::StringPiece(),
+                                         request_body_buf_->data(),
+                                         request_body_buf_->capacity());
+    request_body_buf_->DidAppend(chunk_length);
     sent_last_chunk_ = true;
-  } else if (request_body_->buf_len() > 0) {
+  } else if (consumed > 0) {
     // Encode and send the buffer as 1 chunk.
-    const base::StringPiece payload(request_body_->buf()->data(),
-                                    request_body_->buf_len());
-    chunk_buf_->Clear();
-    const int chunk_length = EncodeChunk(
-        payload, chunk_buf_->data(), chunk_buf_->capacity());
-    chunk_buf_->DidAppend(chunk_length);
-    chunk_length_without_encoding_ = payload.size();
-  } else {
-    // Nothing to send. More POST data is yet to come?
+    const base::StringPiece payload(chunk_buf_->data(), consumed);
+    request_body_buf_->Clear();
+    const int chunk_length = EncodeChunk(payload,
+                                         request_body_buf_->data(),
+                                         request_body_buf_->capacity());
+    request_body_buf_->DidAppend(chunk_length);
+  } else if (consumed == ERR_IO_PENDING) {
+    // Nothing to send. More POST data is yet to come.
     return ERR_IO_PENDING;
+  } else {
+    // There won't be other errors.
+    NOTREACHED();
   }
 
-  return connection_->socket()->Write(chunk_buf_, chunk_buf_->BytesRemaining(),
+  return connection_->socket()->Write(request_body_buf_,
+                                      request_body_buf_->BytesRemaining(),
                                       io_callback_);
 }
 
@@ -488,15 +492,27 @@ int HttpStreamParser::DoSendNonChunkedBody(int result) {
   // |result| is the number of bytes sent from the last call to
   // DoSendNonChunkedBody(), or 0 (i.e. OK) the first time.
 
-  // The first call to MarkConsumedAndFillBuffer() is a noop as |result| is 0.
-  request_body_->MarkConsumedAndFillBuffer(result);
+  // Send the remaining data in the request body buffer.
+  request_body_buf_->DidConsume(result);
+  if (request_body_buf_->BytesRemaining() > 0) {
+    return connection_->socket()->Write(request_body_buf_,
+                                        request_body_buf_->BytesRemaining(),
+                                        io_callback_);
+  }
 
-  if (!request_body_->eof()) {
-    int buf_len = static_cast<int>(request_body_->buf_len());
-    result = connection_->socket()->Write(request_body_->buf(), buf_len,
+  request_body_buf_->Clear();
+  const int consumed = request_body_->Read(request_body_buf_,
+                                           request_body_buf_->capacity());
+  if (consumed == 0) {  // Reached the end.
+    io_state_ = STATE_REQUEST_SENT;
+  } else if (consumed > 0) {
+    request_body_buf_->DidAppend(consumed);
+    result = connection_->socket()->Write(request_body_buf_,
+                                          request_body_buf_->BytesRemaining(),
                                           io_callback_);
   } else {
-    io_state_ = STATE_REQUEST_SENT;
+    // UploadDataStream::Read() won't fail if not chunked.
+    NOTREACHED();
   }
   return result;
 }
