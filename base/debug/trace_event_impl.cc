@@ -147,6 +147,7 @@ TraceEvent::TraceEvent()
       flags_(0) {
   arg_names_[0] = NULL;
   arg_names_[1] = NULL;
+  memset(arg_values_, 0, sizeof(arg_values_));
 }
 
 TraceEvent::TraceEvent(int thread_id,
