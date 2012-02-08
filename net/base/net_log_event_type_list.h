@@ -1449,6 +1449,110 @@ EVENT_TYPE(HTTP_PIPELINED_CONNECTION_RECEIVED_HEADERS)
 EVENT_TYPE(HTTP_PIPELINED_CONNECTION_STREAM_CLOSED)
 
 // ------------------------------------------------------------------------
+// Download start events.
+// ------------------------------------------------------------------------
+
+// This event is created when a download is started, and lets the URL request
+// event source know what download source it is using.
+//   {
+//     "source_dependency": <Source id of the download>,
+//   }
+EVENT_TYPE(DOWNLOAD_STARTED)
+
+// This event is created when a download is started, and lets the download
+// event source know what URL request it's associated with.
+//   {
+//     "source_dependency": <Source id of the request being waited on>,
+//   }
+EVENT_TYPE(DOWNLOAD_URL_REQUEST)
+
+// ------------------------------------------------------------------------
+// DownloadItem events.
+// ------------------------------------------------------------------------
+
+// This event lives for as long as a download item is active.
+// The BEGIN event occurs right after constrction, and has the following
+// parameters:
+//   {
+//     "type": <New/history/save page>,
+//     "id": <Download ID>,
+//     "original_url": <URL that initiated the download>,
+//     "final_url": <URL of the actual download file>,
+//     "file_name": <initial file name, based on DownloadItem's members:
+//                   For History downloads it's the |full_path_|
+//                   For other downloads, uses the first non-empty variable of:
+//                     |state_info.force_filename|
+//                     |suggested_filename_|
+//                     the filename specified in the final URL>,
+//     "danger_type": <NOT,FILE,URL,CONTENT,MAYBE_CONTENT>,
+//     "safety_state": <SAFE, DANGEROUS, DANGEROUS_BUT_VALIDATED>,
+//     "start_offset": <Where to start writing (defaults to 0)>,
+//   }
+// The END event will occur when the download is interrupted, canceled or
+// completed.
+EVENT_TYPE(DOWNLOAD_ITEM_ACTIVE)
+
+// This event is created when a download item has been checked by the
+// safe browsing system.
+//   {
+//     "danger_type": <NOT,FILE,URL,CONTENT,MAYBE_CONTENT>,
+//     "safety_state": <SAFE, DANGEROUS, DANGEROUS_BUT_VALIDATED>,
+//   }
+EVENT_TYPE(DOWNLOAD_ITEM_SAFETY_STATE_UPDATED)
+
+// This event is created when a download item has been inserted into the
+// history database.
+//   {
+//     "db_handle": <The database handle for the item>,
+//   }
+EVENT_TYPE(DOWNLOAD_ITEM_IN_HISTORY)
+
+// This event is created when a download item is updated.
+//   {
+//     "bytes_so_far": <Number of bytes received>,
+//     "hash_state": <Current hash state, as a hex-encoded binary string>,
+//   }
+EVENT_TYPE(DOWNLOAD_ITEM_UPDATED)
+
+// This event is created when a download item is renamed.
+//   {
+//     "old_filename": <Old file name>,
+//     "new_filename": <New file name>,
+//   }
+EVENT_TYPE(DOWNLOAD_ITEM_RENAMED)
+
+// This event is created when a download item is interrupted.
+//   {
+//     "reason": <The reason for the interruption>,
+//     "bytes_so_far": <Number of bytes received>,
+//     "hash_state": <Current hash state, as a hex-encoded binary string>,
+//   }
+EVENT_TYPE(DOWNLOAD_ITEM_INTERRUPTED)
+
+// This event is created when a download item is resumed.
+//   {
+//     "user_initiated": <True if user initiated resume>,
+//     "reason": <The reason for the interruption>,
+//     "bytes_so_far": <Number of bytes received>,
+//     "hash_state": <Current hash state, as a hex-encoded binary string>,
+//   }
+EVENT_TYPE(DOWNLOAD_ITEM_RESUMED)
+
+// This event is created when a download item is finished.
+//   {
+//     "bytes_so_far": <Number of bytes received>,
+//     "final_hash": <Final hash, as a hex-encoded binary string>,
+//   }
+EVENT_TYPE(DOWNLOAD_ITEM_FINISHED)
+
+// This event is created when a download item is canceled.
+//   {
+//     "bytes_so_far": <Number of bytes received>,
+//     "hash_state": <Current hash state, as a hex-encoded binary string>,
+//   }
+EVENT_TYPE(DOWNLOAD_ITEM_CANCELED)
+
+// ------------------------------------------------------------------------
 // DownloadFile events.
 // ------------------------------------------------------------------------
 
