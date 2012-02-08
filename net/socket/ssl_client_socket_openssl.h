@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -64,6 +64,7 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
                                    unsigned int outlen);
   virtual NextProtoStatus GetNextProto(std::string* proto,
                                        std::string* server_protos);
+  virtual OriginBoundCertService* GetOriginBoundCertService() const;
 
   // StreamSocket implementation.
   virtual int Connect(const CompletionCallback& callback);

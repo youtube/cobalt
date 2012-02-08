@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,6 +11,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
+#include "net/base/ssl_client_cert_type.h"
 #include "net/socket/ssl_socket.h"
 #include "net/socket/stream_socket.h"
 
@@ -140,13 +141,21 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
   virtual void set_protocol_negotiated(
       SSLClientSocket::NextProto protocol_negotiated);
 
+  // Returns the OriginBoundCertService used by this socket, or NULL if
+  // origin bound certificates are not supported.
+  virtual OriginBoundCertService* GetOriginBoundCertService() const = 0;
+
   // Returns true if an origin bound certificate was sent on this connection.
   // This may be useful for protocols, like SPDY, which allow the same
   // connection to be shared between multiple origins, each of which need
   // an origin bound certificate.
-  virtual bool was_origin_bound_cert_sent() const;
+  virtual bool WasOriginBoundCertSent() const;
 
-  virtual bool set_was_origin_bound_cert_sent(bool sent);
+  // Returns the type of the origin bound cert that was sent, or
+  // CLIENT_CERT_INVALID_TYPE if none was sent.
+  virtual SSLClientCertType origin_bound_cert_type() const;
+
+  virtual SSLClientCertType set_origin_bound_cert_type(SSLClientCertType type);
 
  private:
   // True if NPN was responded to, independent of selecting SPDY or HTTP.
@@ -155,8 +164,9 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
   bool was_spdy_negotiated_;
   // Protocol that we negotiated with the server.
   SSLClientSocket::NextProto protocol_negotiated_;
-  // True if an origin bound certificate was sent.
-  bool was_origin_bound_cert_sent_;
+  // Type of the origin bound cert that was sent, or CLIENT_CERT_INVALID_TYPE
+  // if none was sent.
+  SSLClientCertType origin_bound_cert_type_;
 };
 
 }  // namespace net

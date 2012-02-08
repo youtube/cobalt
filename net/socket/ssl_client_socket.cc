@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,7 +12,7 @@ SSLClientSocket::SSLClientSocket()
     : was_npn_negotiated_(false),
       was_spdy_negotiated_(false),
       protocol_negotiated_(kProtoUnknown),
-      was_origin_bound_cert_sent_(false) {
+      origin_bound_cert_type_(CLIENT_CERT_INVALID_TYPE) {
 }
 
 SSLClientSocket::NextProto SSLClientSocket::NextProtoFromString(
@@ -120,12 +120,17 @@ void SSLClientSocket::set_protocol_negotiated(
   protocol_negotiated_ = protocol_negotiated;
 }
 
-bool SSLClientSocket::was_origin_bound_cert_sent() const {
-  return was_origin_bound_cert_sent_;
+bool SSLClientSocket::WasOriginBoundCertSent() const {
+  return origin_bound_cert_type_ != CLIENT_CERT_INVALID_TYPE;
 }
 
-bool SSLClientSocket::set_was_origin_bound_cert_sent(bool sent) {
-  return was_origin_bound_cert_sent_ = sent;
+SSLClientCertType SSLClientSocket::origin_bound_cert_type() const {
+  return origin_bound_cert_type_;
+}
+
+SSLClientCertType SSLClientSocket::set_origin_bound_cert_type(
+    SSLClientCertType type) {
+  return origin_bound_cert_type_ = type;
 }
 
 }  // namespace net

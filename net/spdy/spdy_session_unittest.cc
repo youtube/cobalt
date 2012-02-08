@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -905,6 +905,147 @@ TEST_F(SpdySessionTest, ClearSettingsStorageOnIPAddressChanged) {
   spdy_session_pool->OnIPAddressChanged();
   EXPECT_EQ(0u, test_http_server_properties->GetSpdySettings(
       test_host_port_pair).size());
+}
+
+TEST_F(SpdySessionTest, NeedsCredentials) {
+  SpdySessionDependencies session_deps;
+
+  MockConnect connect_data(false, OK);
+  MockRead reads[] = {
+    MockRead(false, ERR_IO_PENDING)  // Stall forever.
+  };
+  StaticSocketDataProvider data(reads, arraysize(reads), NULL, 0);
+  data.set_connect_data(connect_data);
+  session_deps.socket_factory->AddSocketDataProvider(&data);
+
+  SSLSocketDataProvider ssl(false, OK);
+  ssl.origin_bound_cert_type = CLIENT_CERT_RSA_SIGN;
+  session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
+
+  scoped_refptr<HttpNetworkSession> http_session(
+      SpdySessionDependencies::SpdyCreateSession(&session_deps));
+
+  const std::string kTestHost("www.foo.com");
+  const int kTestPort = 80;
+  HostPortPair test_host_port_pair(kTestHost, kTestPort);
+  HostPortProxyPair pair(test_host_port_pair, ProxyServer::Direct());
+
+  SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
+  EXPECT_FALSE(spdy_session_pool->HasSession(pair));
+  scoped_refptr<SpdySession> session =
+      spdy_session_pool->Get(pair, BoundNetLog());
+  EXPECT_TRUE(spdy_session_pool->HasSession(pair));
+
+  SSLConfig ssl_config;
+  scoped_refptr<TransportSocketParams> transport_params(
+      new TransportSocketParams(test_host_port_pair,
+                                MEDIUM,
+                                false,
+                                false));
+  scoped_refptr<SOCKSSocketParams> socks_params;
+  scoped_refptr<HttpProxySocketParams> http_proxy_params;
+  scoped_refptr<SSLSocketParams> ssl_params(
+      new SSLSocketParams(transport_params,
+                          socks_params,
+                          http_proxy_params,
+                          ProxyServer::SCHEME_DIRECT,
+                          test_host_port_pair,
+                          ssl_config,
+                          0,
+                          false,
+                          false));
+  scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
+  EXPECT_EQ(OK, connection->Init(test_host_port_pair.ToString(),
+                                 ssl_params, MEDIUM, CompletionCallback(),
+                                 http_session->GetSSLSocketPool(),
+                                 BoundNetLog()));
+
+  EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), true, OK));
+
+  EXPECT_FALSE(session->NeedsCredentials(test_host_port_pair));
+  const std::string kTestHost2("www.bar.com");
+  HostPortPair test_host_port_pair2(kTestHost2, kTestPort);
+  EXPECT_TRUE(session->NeedsCredentials(test_host_port_pair2));
+
+  // Flush the SpdySession::OnReadComplete() task.
+  MessageLoop::current()->RunAllPending();
+
+  spdy_session_pool->Remove(session);
+  EXPECT_FALSE(spdy_session_pool->HasSession(pair));
+}
+
+TEST_F(SpdySessionTest, SendCredentials) {
+  SpdySessionDependencies session_deps;
+
+  MockConnect connect_data(false, OK);
+  MockRead reads[] = {
+    MockRead(false, ERR_IO_PENDING)  // Stall forever.
+  };
+  spdy::SpdySettings settings;
+  scoped_ptr<spdy::SpdyFrame> settings_frame(
+      ConstructSpdySettings(settings));
+  MockWrite writes[] = {
+    CreateMockWrite(*settings_frame),
+  };
+  StaticSocketDataProvider data(reads, arraysize(reads),
+                                writes, arraysize(writes));
+  data.set_connect_data(connect_data);
+  session_deps.socket_factory->AddSocketDataProvider(&data);
+
+  SSLSocketDataProvider ssl(false, OK);
+  ssl.origin_bound_cert_type = CLIENT_CERT_RSA_SIGN;
+  session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
+
+  scoped_refptr<HttpNetworkSession> http_session(
+      SpdySessionDependencies::SpdyCreateSession(&session_deps));
+
+  const std::string kTestHost("www.foo.com");
+  const int kTestPort = 80;
+  HostPortPair test_host_port_pair(kTestHost, kTestPort);
+  HostPortProxyPair pair(test_host_port_pair, ProxyServer::Direct());
+
+  SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
+  EXPECT_FALSE(spdy_session_pool->HasSession(pair));
+  scoped_refptr<SpdySession> session =
+      spdy_session_pool->Get(pair, BoundNetLog());
+  EXPECT_TRUE(spdy_session_pool->HasSession(pair));
+
+  SSLConfig ssl_config;
+  scoped_refptr<TransportSocketParams> transport_params(
+      new TransportSocketParams(test_host_port_pair,
+                                MEDIUM,
+                                false,
+                                false));
+  scoped_refptr<SOCKSSocketParams> socks_params;
+  scoped_refptr<HttpProxySocketParams> http_proxy_params;
+  scoped_refptr<SSLSocketParams> ssl_params(
+      new SSLSocketParams(transport_params,
+                          socks_params,
+                          http_proxy_params,
+                          ProxyServer::SCHEME_DIRECT,
+                          test_host_port_pair,
+                          ssl_config,
+                          0,
+                          false,
+                          false));
+  scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
+  EXPECT_EQ(OK, connection->Init(test_host_port_pair.ToString(),
+                                 ssl_params, MEDIUM, CompletionCallback(),
+                                 http_session->GetSSLSocketPool(),
+                                 BoundNetLog()));
+
+  EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), true, OK));
+
+  EXPECT_FALSE(session->NeedsCredentials(test_host_port_pair));
+  const std::string kTestHost2("www.bar.com");
+  HostPortPair test_host_port_pair2(kTestHost2, kTestPort);
+  EXPECT_TRUE(session->NeedsCredentials(test_host_port_pair2));
+
+  // Flush the SpdySession::OnReadComplete() task.
+  MessageLoop::current()->RunAllPending();
+
+  spdy_session_pool->Remove(session);
+  EXPECT_FALSE(spdy_session_pool->HasSession(pair));
 }
 
 }  // namespace net
