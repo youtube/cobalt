@@ -1633,7 +1633,7 @@ int SSLClientSocketNSS::DoGetOBCertComplete(int result) {
     return MapNSSError(PORT_GetError());
 
   GotoState(STATE_HANDSHAKE);
-  set_was_origin_bound_cert_sent(true);
+  set_origin_bound_cert_type(ob_cert_type_);
   return OK;
 }
 
@@ -2231,7 +2231,7 @@ SECStatus SSLClientSocketNSS::OriginBoundClientAuthHandler(
     int result = ImportOBCertAndKey(result_certificate,
                                     result_private_key);
     if (result == OK) {
-      set_was_origin_bound_cert_sent(true);
+      set_origin_bound_cert_type(ob_cert_type_);
     } else {
       rv = SECFailure;
     }
@@ -2719,6 +2719,10 @@ bool SSLClientSocketNSS::CalledOnValidThread() const {
   EnsureThreadIdAssigned();
   base::AutoLock auto_lock(lock_);
   return valid_thread_id_ == base::PlatformThread::CurrentId();
+}
+
+OriginBoundCertService* SSLClientSocketNSS::GetOriginBoundCertService() const {
+  return origin_bound_cert_service_;
 }
 
 }  // namespace net

@@ -17,6 +17,10 @@
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
 #include "base/values.h"
+#include "crypto/ec_private_key.h"
+#include "crypto/ec_signature_creator.h"
+#include "crypto/rsa_private_key.h"
+#include "crypto/signature_creator.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
@@ -59,6 +63,23 @@ Value* NetLogSpdySynParameter::ToValue() const {
   dict->SetInteger("id", id_);
   if (associated_stream_)
     dict->SetInteger("associated_stream", associated_stream_);
+  return dict;
+}
+
+NetLogSpdyCredentialParameter::NetLogSpdyCredentialParameter(
+    size_t slot,
+    const std::string& origin)
+    : slot_(slot),
+      origin_(origin) {
+}
+
+NetLogSpdyCredentialParameter::~NetLogSpdyCredentialParameter() {
+}
+
+Value* NetLogSpdyCredentialParameter::ToValue() const {
+  DictionaryValue* dict = new DictionaryValue();
+  dict->SetInteger("slot", slot_);
+  dict->SetString("origin", origin_);
   return dict;
 }
 
@@ -283,7 +304,8 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       initial_send_window_size_(spdy::kSpdyStreamInitialWindowSize),
       initial_recv_window_size_(spdy::kSpdyStreamInitialWindowSize),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SPDY_SESSION)),
-      verify_domain_authentication_(verify_domain_authentication) {
+      verify_domain_authentication_(verify_domain_authentication),
+      credential_state_(SpdyCredentialState::kDefaultNumSlots) {
   DCHECK(HttpStreamFactory::spdy_enabled());
   net_log_.BeginEvent(
       NetLog::TYPE_SPDY_SESSION,
@@ -353,6 +375,11 @@ net::Error SpdySession::InitializeWithSocket(
       flow_control_ = (use_flow_control_ != SpdySession::kDisableFlowControl);
     else
       flow_control_ = (use_flow_control_ == SpdySession::kEnableFlowControl);
+    if (ssl_socket->WasOriginBoundCertSent()) {
+      // According to the SPDY spec, the credential associated with the TLS
+      // connection is stored in slot[0].
+      credential_state_.SetHasCredential(host_port_pair());
+    }
   }
 
   // Write out any data that we might have to send, such as the settings frame.
@@ -521,6 +548,16 @@ int SpdySession::CreateStreamImpl(
   return OK;
 }
 
+bool SpdySession::NeedsCredentials(const HostPortPair& origin) const {
+  if (!is_secure_)
+    return false;
+  SSLClientSocket* ssl_socket =
+      reinterpret_cast<SSLClientSocket*>(connection_->socket());
+  if (!ssl_socket->WasOriginBoundCertSent())
+    return false;
+  return !credential_state_.HasCredential(origin);
+}
+
 int SpdySession::WriteSynStream(
     spdy::SpdyStreamId stream_id,
     RequestPriority priority,
@@ -559,6 +596,77 @@ int SpdySession::WriteSynStream(
   // their responses to pings.
   need_to_send_ping_ = true;
 
+  return ERR_IO_PENDING;
+}
+
+int SpdySession::WriteCredentialFrame(const std::string& origin,
+                                      SSLClientCertType type,
+                                      const std::string& key,
+                                      const std::string& cert,
+                                      RequestPriority priority) {
+  DCHECK(is_secure_);
+  SSLClientSocket* ssl_socket =
+      reinterpret_cast<SSLClientSocket*>(connection_->socket());
+  unsigned char secret[32];  // 32 bytes from the spec
+  ssl_socket->ExportKeyingMaterial("SPDY certificate proof",
+                                   origin,
+                                   secret, arraysize(secret));
+
+  // Convert the key string into a vector<unit8>
+  std::vector<uint8> key_data;
+  for (size_t i = 0; i < key.length(); i++) {
+    key_data.push_back(key[i]);
+  }
+
+  std::vector<uint8> proof;
+  switch (type) {
+    case CLIENT_CERT_RSA_SIGN: {
+      scoped_ptr<crypto::RSAPrivateKey> private_key(
+          crypto::RSAPrivateKey::CreateFromPrivateKeyInfo(key_data));
+      scoped_ptr<crypto::SignatureCreator> creator(
+          crypto::SignatureCreator::Create(private_key.get()));
+      creator->Update(secret, arraysize(secret));
+      creator->Final(&proof);
+      break;
+    }
+    case CLIENT_CERT_ECDSA_SIGN: {
+      // Convert the cert string into a vector<unit8>
+      std::vector<uint8> cert_data;
+      for (size_t i = 0; i < cert.length(); i++) {
+        cert_data.push_back(cert[i]);
+      }
+      scoped_ptr<crypto::ECPrivateKey> private_key(
+          crypto::ECPrivateKey::CreateFromEncryptedPrivateKeyInfo("",
+                                                                  key_data,
+                                                                  cert_data));
+      scoped_ptr<crypto::ECSignatureCreator> creator(
+          crypto::ECSignatureCreator::Create(private_key.get()));
+      creator->Sign(secret, arraysize(secret), &proof);
+      break;
+    }
+    default:
+      NOTREACHED();
+  }
+
+  spdy::SpdyCredential credential;
+  GURL origin_url(origin);
+  credential.slot =
+      credential_state_.SetHasCredential(HostPortPair::FromURL(origin_url));
+  credential.origin = origin;
+  credential.certs.push_back(cert);
+  credential.proof.assign(proof.begin(), proof.end());
+
+  scoped_ptr<spdy::SpdyCredentialControlFrame> credential_frame(
+      spdy::SpdyFramer::CreateCredentialFrame(credential));
+  QueueFrame(credential_frame.get(), priority, NULL);
+
+  if (net_log().IsLoggingAllEvents()) {
+    net_log().AddEvent(
+        NetLog::TYPE_SPDY_SESSION_SEND_CREDENTIAL,
+        make_scoped_refptr(
+            new NetLogSpdyCredentialParameter(credential.slot,
+                                              credential.origin)));
+  }
   return ERR_IO_PENDING;
 }
 
@@ -1092,6 +1200,24 @@ bool SpdySession::GetSSLCertRequestInfo(
     return true;
   }
   return false;
+}
+
+OriginBoundCertService* SpdySession::GetOriginBoundCertService() const {
+  if (!is_secure_) {
+    return NULL;
+  }
+  SSLClientSocket* ssl_socket =
+      reinterpret_cast<SSLClientSocket*>(connection_->socket());
+  return ssl_socket->GetOriginBoundCertService();
+}
+
+SSLClientCertType SpdySession::GetOriginBoundCertType() const {
+  if (!is_secure_) {
+    return CLIENT_CERT_INVALID_TYPE;
+  }
+  SSLClientSocket* ssl_socket =
+      reinterpret_cast<SSLClientSocket*>(connection_->socket());
+  return ssl_socket->origin_bound_cert_type();
 }
 
 void SpdySession::OnError(spdy::SpdyFramer* framer) {

@@ -636,6 +636,11 @@ SSLClientSocket::NextProtoStatus SSLClientSocketOpenSSL::GetNextProto(
   return npn_status_;
 }
 
+OriginBoundCertService*
+SSLClientSocketOpenSSL::GetOriginBoundCertService() const {
+  return NULL;
+}
+
 void SSLClientSocketOpenSSL::DoReadCallback(int rv) {
   // Since Run may result in Read being called, clear |user_read_callback_|
   // up front.
