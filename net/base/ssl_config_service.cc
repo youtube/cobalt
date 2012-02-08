@@ -18,12 +18,15 @@ SSLConfig::CertAndStatus::CertAndStatus() : cert_status(0) {}
 SSLConfig::CertAndStatus::~CertAndStatus() {}
 
 SSLConfig::SSLConfig()
-    : rev_checking_enabled(true), ssl3_enabled(true),
+    : rev_checking_enabled(true),
+      ssl3_enabled(true),
       tls1_enabled(true),
-      dns_cert_provenance_checking_enabled(false), cached_info_enabled(false),
+      cached_info_enabled(false),
       origin_bound_certs_enabled(false),
       false_start_enabled(true),
-      send_client_cert(false), verify_ev_cert(false), ssl3_fallback(false) {
+      send_client_cert(false),
+      verify_ev_cert(false),
+      ssl3_fallback(false) {
 }
 
 SSLConfig::~SSLConfig() {
@@ -60,7 +63,6 @@ bool SSLConfigService::IsKnownFalseStartIncompatibleServer(
 }
 
 static bool g_cached_info_enabled = false;
-static bool g_dns_cert_provenance_checking = false;
 
 // GlobalCRLSet holds a reference to the global CRLSet. It simply wraps a lock
 // around a scoped_refptr so that getting a reference doesn't race with
@@ -83,16 +85,6 @@ class GlobalCRLSet {
 };
 
 base::LazyInstance<GlobalCRLSet>::Leaky g_crl_set = LAZY_INSTANCE_INITIALIZER;
-
-// static
-void SSLConfigService::EnableDNSCertProvenanceChecking() {
-  g_dns_cert_provenance_checking = true;
-}
-
-// static
-bool SSLConfigService::dns_cert_provenance_checking_enabled() {
-  return g_dns_cert_provenance_checking;
-}
 
 // static
 void SSLConfigService::SetCRLSet(scoped_refptr<CRLSet> crl_set) {
@@ -127,8 +119,6 @@ SSLConfigService::~SSLConfigService() {
 
 // static
 void SSLConfigService::SetSSLConfigFlags(SSLConfig* ssl_config) {
-  ssl_config->dns_cert_provenance_checking_enabled =
-      g_dns_cert_provenance_checking;
   ssl_config->cached_info_enabled = g_cached_info_enabled;
 }
 
