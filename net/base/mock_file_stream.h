@@ -27,7 +27,7 @@ class MockFileStream : public net::FileStream {
       : net::FileStream(file, flags, net_log), forced_error_(net::OK) {}
 
   // FileStream methods.
-  virtual int OpenSync(const FilePath& path, int open_flags) OVERRIDE;
+  virtual int Open(const FilePath& path, int open_flags) OVERRIDE;
   virtual int64 Seek(net::Whence whence, int64 offset) OVERRIDE;
   virtual int64 Available() OVERRIDE;
   virtual int Read(char* buf,
