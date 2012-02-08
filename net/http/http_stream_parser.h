@@ -225,7 +225,9 @@ class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
 
   // Stores an encoded chunk for chunked uploads.
   // Note: This should perhaps be improved to not create copies of the data.
-  scoped_refptr<SeekableIOBuffer> chunk_buf_;
+  scoped_refptr<IOBufferWithSize> chunk_buf_;
+  // Temporary buffer to read the request body from UploadDataStream.
+  scoped_refptr<SeekableIOBuffer> request_body_buf_;
   size_t chunk_length_without_encoding_;
   bool sent_last_chunk_;
 
