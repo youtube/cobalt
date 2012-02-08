@@ -27,6 +27,7 @@
 #include "net/socket/ssl_client_socket.h"
 #include "net/socket/stream_socket.h"
 #include "net/spdy/buffered_spdy_framer.h"
+#include "net/spdy/spdy_credential_state.h"
 #include "net/spdy/spdy_io_buffer.h"
 #include "net/spdy/spdy_protocol.h"
 #include "net/spdy/spdy_session_pool.h"
@@ -127,6 +128,13 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
       spdy::SpdyControlFlags flags,
       const linked_ptr<spdy::SpdyHeaderBlock>& headers);
 
+  // Write a CREDENTIAL frame to the session.
+  int WriteCredentialFrame(const std::string& origin,
+                           SSLClientCertType type,
+                           const std::string& key,
+                           const std::string& cert,
+                           RequestPriority priority);
+
   // Write a data frame to the stream.
   // Used to create and queue a data frame for the given stream.
   int WriteStreamData(spdy::SpdyStreamId stream_id, net::IOBuffer* data,
@@ -156,6 +164,14 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // Fills SSL Certificate Request info |cert_request_info| and returns
   // true when SSL is in use.
   bool GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
+
+  // Returns the OriginBoundCertService used by this Socket, or NULL
+  // Origin Bound Certs are not supported in this session.
+  OriginBoundCertService* GetOriginBoundCertService() const;
+
+  // Returns the type of the origin bound cert that was sent, or
+  // CLIENT_CERT_INVALID_TYPE if none was sent.
+  SSLClientCertType GetOriginBoundCertType() const;
 
   // Enable or disable SSL.
   static void SetSSLMode(bool enable) { use_ssl_ = enable; }
@@ -247,6 +263,10 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   int GetPeerAddress(AddressList* address) const;
   int GetLocalAddress(IPEndPoint* address) const;
+
+  // Returns true if a request for a resource in |origin| requires a
+  // SPDY CREDENTIAL frame to be sent first, with an origin bound certificate.
+  bool NeedsCredentials(const HostPortPair& origin) const;
 
  private:
   friend class base::RefCounted<SpdySession>;
@@ -593,6 +613,8 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // Outside of tests, this should always be true.
   bool verify_domain_authentication_;
 
+  SpdyCredentialState credential_state_;
+
   static bool use_ssl_;
   static FlowControl use_flow_control_;
   static size_t init_max_concurrent_streams_;
@@ -651,6 +673,22 @@ class NetLogSpdySynParameter : public NetLog::EventParameters {
   const spdy::SpdyStreamId associated_stream_;
 
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdySynParameter);
+};
+
+
+class NetLogSpdyCredentialParameter : public NetLog::EventParameters {
+ public:
+  NetLogSpdyCredentialParameter(size_t slot, const std::string& origin);
+
+  virtual base::Value* ToValue() const OVERRIDE;
+
+ private:
+  virtual ~NetLogSpdyCredentialParameter();
+
+  const size_t slot_;
+  const std::string origin_;
+
+  DISALLOW_COPY_AND_ASSIGN(NetLogSpdyCredentialParameter);
 };
 
 }  // namespace net
