@@ -41,8 +41,6 @@ struct NET_EXPORT SSLConfig {
   // SSL 2.0 is not supported.
   bool ssl3_enabled;  // True if SSL 3.0 is enabled.
   bool tls1_enabled;  // True if TLS 1.0 is enabled.
-  // True if we'll do async checks for certificate provenance using DNS.
-  bool dns_cert_provenance_checking_enabled;
 
   // Presorted list of cipher suites which should be explicitly prevented from
   // being used in addition to those disabled by the net built-in policy.
@@ -138,10 +136,6 @@ class NET_EXPORT SSLConfigService
   // Returns true if the given hostname is known to be incompatible with TLS
   // False Start.
   static bool IsKnownFalseStartIncompatibleServer(const std::string& hostname);
-
-  // Enables DNS side checks for certificates.
-  static void EnableDNSCertProvenanceChecking();
-  static bool dns_cert_provenance_checking_enabled();
 
   // Sets and gets the current, global CRL set.
   static void SetCRLSet(scoped_refptr<CRLSet> crl_set);
