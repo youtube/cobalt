@@ -211,10 +211,16 @@ int SpdyHttpStream::SendRequest(const HttpRequestHeaders& request_headers,
 
   CHECK(!request_body_stream_.get());
   if (request_body) {
-    if (request_body->size() || request_body->is_chunked())
+    if (request_body->size() || request_body->is_chunked()) {
       request_body_stream_.reset(request_body);
-    else
+      // Use kMaxSpdyFrameChunkSize as the buffer size, since the request
+      // body data is written with this size at a time.
+      raw_request_body_buf_ = new IOBufferWithSize(kMaxSpdyFrameChunkSize);
+      // The request body buffer is empty at first.
+      request_body_buf_ = new DrainableIOBuffer(raw_request_body_buf_, 0);
+    } else {
       delete request_body;
+    }
   }
 
   CHECK(!callback.is_null());
@@ -276,31 +282,50 @@ bool SpdyHttpStream::OnSendHeadersComplete(int status) {
 int SpdyHttpStream::OnSendBody() {
   CHECK(request_body_stream_.get());
 
-  int buf_len = static_cast<int>(request_body_stream_->buf_len());
-  if (!buf_len)
+  // TODO(satorux): Clean up the logic here. This behavior is weird. Reading
+  // of upload data should happen in OnSendBody(). crbug.com/113107.
+  //
+  // Nothing to send. This happens when OnSendBody() is first called.
+  // A read of the upload data stream is initiated in OnSendBodyComplete().
+  if (request_body_buf_->BytesRemaining() == 0)
     return OK;
-  bool is_chunked = request_body_stream_->is_chunked();
-  // TODO(satish): For non-chunked POST data, we set DATA_FLAG_FIN for all
-  // blocks of data written out. This is wrong if the POST data was larger than
-  // UploadDataStream::kBufSize as that is the largest buffer that
-  // UploadDataStream returns at a time and we'll be setting the FIN flag for
-  // each block of data written out.
-  bool eof = !is_chunked || request_body_stream_->IsOnLastChunk();
+
+  const bool eof = request_body_stream_->IsEOF();
   return stream_->WriteStreamData(
-      request_body_stream_->buf(), buf_len,
+      request_body_buf_,
+      request_body_buf_->BytesRemaining(),
       eof ? spdy::DATA_FLAG_FIN : spdy::DATA_FLAG_NONE);
 }
 
 int SpdyHttpStream::OnSendBodyComplete(int status, bool* eof) {
+  // |status| is the number of bytes written to the SPDY stream.
   CHECK(request_body_stream_.get());
+  *eof = false;
 
-  request_body_stream_->MarkConsumedAndFillBuffer(status);
-  *eof = request_body_stream_->eof();
-  if (!*eof &&
-      request_body_stream_->is_chunked() &&
-      !request_body_stream_->buf_len())
+  if (status > 0) {
+    request_body_buf_->DidConsume(status);
+    if (request_body_buf_->BytesRemaining()) {
+      // Go back to OnSendBody() to send the remaining data.
+      return OK;
+    }
+  }
+
+  // Check if the entire body data has been sent.
+  *eof = (request_body_stream_->IsEOF() &&
+          !request_body_buf_->BytesRemaining());
+  if (*eof)
+    return OK;
+
+  // Read the data from the request body stream.
+  const int bytes_read = request_body_stream_->Read(
+      raw_request_body_buf_, raw_request_body_buf_->size());
+  if (request_body_stream_->is_chunked() && bytes_read == ERR_IO_PENDING)
     return ERR_IO_PENDING;
+  // ERR_IO_PENDING with chunked encoding is the only possible error.
+  DCHECK_GE(bytes_read, 0);
 
+  request_body_buf_ = new DrainableIOBuffer(raw_request_body_buf_,
+                                            bytes_read);
   return OK;
 }
 

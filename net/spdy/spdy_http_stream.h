@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,6 +22,7 @@
 
 namespace net {
 
+class DrainableIOBuffer;
 class HttpResponseInfo;
 class IOBuffer;
 class SpdySession;
@@ -124,6 +125,11 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
   // User provided buffer for the ReadResponseBody() response.
   scoped_refptr<IOBuffer> user_buffer_;
   int user_buffer_len_;
+
+  // Temporary buffer used to read the request body from UploadDataStream.
+  scoped_refptr<IOBufferWithSize> raw_request_body_buf_;
+  // Wraps raw_request_body_buf_ to read the remaining data progressively.
+  scoped_refptr<DrainableIOBuffer> request_body_buf_;
 
   // Is there a scheduled read callback pending.
   bool buffered_read_callback_pending_;
