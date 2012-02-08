@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -49,7 +49,8 @@ ProxyScriptDecider::ProxyScriptDecider(
     ProxyScriptFetcher* proxy_script_fetcher,
     DhcpProxyScriptFetcher* dhcp_proxy_script_fetcher,
     NetLog* net_log)
-    : proxy_script_fetcher_(proxy_script_fetcher),
+    : resolver_(NULL),
+      proxy_script_fetcher_(proxy_script_fetcher),
       dhcp_proxy_script_fetcher_(dhcp_proxy_script_fetcher),
       current_pac_source_index_(0u),
       pac_mandatory_(false),
