@@ -244,8 +244,8 @@ TEST_F(WebMParserTest, ParseListElementWithMultipleCalls) {
 
   while (size > 0) {
     int result = parser.Parse(data, parse_size);
-    EXPECT_GE(result, 0);
-    EXPECT_LE(result, parse_size);
+    ASSERT_GE(result, 0);
+    ASSERT_LE(result, parse_size);
 
     if (result == 0) {
       // The parser needs more data so increase the parse_size a little.
