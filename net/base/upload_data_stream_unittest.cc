@@ -109,9 +109,12 @@ void UploadDataStreamTest::FileChangedHelper(const FilePath& file_path,
   UploadData::Element element;
   element.SetToFilePathRange(file_path, 1, 2, time);
   elements.push_back(element);
-  upload_data_->SetElements(elements);
+  // Don't use upload_data_ here, as this function is called twice, and
+  // reusing upload_data_ is wrong.
+  scoped_refptr<UploadData> upload_data(new UploadData);
+  upload_data->SetElements(elements);
 
-  scoped_ptr<UploadDataStream> stream(new UploadDataStream(upload_data_));
+  scoped_ptr<UploadDataStream> stream(new UploadDataStream(upload_data));
   int error_code = stream->Init();
   if (error_expected)
     ASSERT_EQ(ERR_UPLOAD_FILE_CHANGED, error_code);
