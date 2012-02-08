@@ -28,7 +28,12 @@ UploadData::Element::Element()
 
 UploadData::Element::~Element() {
   // In the common case |file__stream_| will be null.
-  delete file_stream_;
+  if (file_stream_) {
+    // Temporarily allow until fix: http://crbug.com/72001.
+    base::ThreadRestrictions::ScopedAllowIO allow_io;
+    file_stream_->Close();
+    delete file_stream_;
+  }
 }
 
 void UploadData::Element::SetToChunk(const char* bytes,
