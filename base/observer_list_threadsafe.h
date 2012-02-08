@@ -156,6 +156,12 @@ class ObserverListThreadSafe
       delete context;
   }
 
+  // Verifies that the list is currently empty (i.e. there are no observers).
+  void AssertEmpty() const {
+    base::AutoLock lock(list_lock_);
+    DCHECK(observer_lists_.empty());
+  }
+
   // Notify methods.
   // Make a thread-safe callback to each Observer in the list.
   // Note, these calls are effectively asynchronous.  You cannot assume
@@ -282,7 +288,7 @@ class ObserverListThreadSafe
   typedef std::map<base::PlatformThreadId, ObserverListContext*>
       ObserversListMap;
 
-  base::Lock list_lock_;  // Protects the observer_lists_.
+  mutable base::Lock list_lock_;  // Protects the observer_lists_.
   ObserversListMap observer_lists_;
   const NotificationType type_;
 
