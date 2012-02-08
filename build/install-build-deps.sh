@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -12,10 +12,7 @@ usage() {
   echo "Usage: $0 [--options]"
   echo "Options:"
   echo "--[no-]syms: enable or disable installation of debugging symbols"
-  echo "--[no-]gold: enable or disable installation of gold linker"
   echo "--[no-]lib32: enable or disable installation of 32 bit libraries"
-  echo "--[no-]restore-usr-bin-ld: enable or disable restoring /usr/bin/ld to"
-  echo "                           ld.bfd if it is currently gold"
   echo "Script will prompt interactively if options not given."
   exit 1
 }
@@ -25,59 +22,12 @@ do
   case "$1" in
   --syms)                   do_inst_syms=1;;
   --no-syms)                do_inst_syms=0;;
-  --gold)                   do_inst_gold=1;;
-  --no-gold)                do_inst_gold=0;;
   --lib32)                  do_inst_lib32=1;;
   --no-lib32)               do_inst_lib32=0;;
-  --restore-usr-bin-ld)     do_restore_usr_bin_ld=1;;
-  --no-restore-usr-bin-ld)  do_restore_usr_bin_ld=0;;
   *) usage;;
   esac
   shift
 done
-
-install_gold() {
-  # Gold is optional; it's a faster replacement for ld,
-  # and makes life on 2GB machines much more pleasant.
-
-  # First make sure root can access this directory, as that's tripped
-  # up some folks.
-  if sudo touch xyz.$$
-  then
-    sudo rm xyz.$$
-  else
-    echo root cannot write to the current directory, not installing gold
-    return
-  fi
-
-  BINUTILS=binutils-2.21.1
-  BINUTILS_URL=http://ftp.gnu.org/gnu/binutils/$BINUTILS.tar.bz2
-  BINUTILS_SHA1=525255ca6874b872540c9967a1d26acfbc7c8230
-
-  test -f $BINUTILS.tar.bz2 || wget $BINUTILS_URL
-  if test "`sha1sum $BINUTILS.tar.bz2|cut -d' ' -f1`" != "$BINUTILS_SHA1"
-  then
-    echo Bad sha1sum for $BINUTILS.tar.bz2
-    exit 1
-  fi
-
-  tar -xjvf $BINUTILS.tar.bz2
-  cd $BINUTILS
-  ./configure --prefix=/usr/local/gold --enable-gold=default --enable-threads \
-    --enable-bfd=yes
-  NCPU=`cat /proc/cpuinfo |grep ^processor|wc -l`
-  make maybe-all-binutils maybe-all-gold maybe-all-ld -j${NCPU}
-  if sudo make maybe-install-binutils maybe-install-gold maybe-install-ld
-  then
-    # Still need to figure out graceful way of pointing gyp to use
-    # /usr/local/gold/bin/ld without requiring him to set environment
-    # variables.
-    sudo strip /usr/local/gold/bin/ld.gold
-    sudo strip /usr/local/gold/bin/ld.bfd
-  else
-    echo "make install failed, not installing gold"
-  fi
-}
 
 if ! egrep -q \
     'Ubuntu (10\.04|10\.10|11\.04|11\.10|lucid|maverick|natty|oneiric)' \
@@ -244,82 +194,6 @@ else
   echo "You will have to install the above packages yourself."
   echo
   exit 100
-fi
-
-# Some operating systems already ship gold (on recent Debian and
-# Ubuntu you can do "apt-get install binutils-gold" to get it), but
-# older releases didn't.  Additionally, gold 2.20 (included in Ubuntu
-# Lucid) makes binaries that just segfault, and 2.20.1 does not support
-# --map-whole-files.
-# So install from source if we don't have a good version.
-
-case `ld --version` in
-*gold*2.2[1-9].*)
-  echo "*** Warning ***"
-  echo "If the default linker is gold, linking may fail for:"
-  echo "the Linux kernel, kernel modules, Valgrind, and Wine."
-  echo "If you previously installed gold as the default linker,"
-  echo "you can restore the original linker by running:"
-  echo "'cd /usr/bin; sudo rm ld; sudo mv ld.orig ld'"
-  echo
-  if [ "$do_restore_usr_bin_ld" = "" ]
-  then
-    echo -n "Restore /usr/bin/ld to the original linker? (Y/n) "
-    if yes_no 0
-    then
-      do_restore_usr_bin_ld=1
-    fi
-    echo
-  fi
-  if [ "$do_restore_usr_bin_ld" = "1" ]
-  then
-    if sudo mv /usr/bin/ld.orig /usr/bin/ld
-    then
-      echo "Restored /usr/bin/ld.orig as /usr/bin/ld"
-    else
-      echo "Failed to restore /usr/bin/ld.orig as /usr/bin/ld"
-    fi
-    echo
-  fi
-  ;;
-esac
-
-# Check the gold version first.
-gold_up_to_date="1"
-if [ -x "/usr/local/gold/bin/ld" ]
-then
-  case `/usr/local/gold/bin/ld --version` in
-  *gold*2.2[1-9].*) ;;
-  * )
-    gold_up_to_date="0"
-  esac
-fi
-
-# Then check and make sure ld.bfd exists.
-if [ "$gold_up_to_date" = "1" ] && [ ! -x "/usr/local/gold/bin/ld.bfd" ]
-then
-  gold_up_to_date="0"
-fi
-
-if [ "$gold_up_to_date" = "0" ]
-then
-  if test "$do_inst_gold" = ""
-  then
-    echo "Gold is a new linker that links Chrome 5x faster than GNU ld."
-    echo -n "*** To use the gold linker, "
-    echo "you must pass -B/usr/local/gold/bin/ to g++ ***"
-    echo -n "Install the gold linker? (y/N) "
-    if yes_no 1; then
-      do_inst_gold=1
-    fi
-  fi
-  if test "$do_inst_gold" = "1"
-  then
-    echo "Building binutils with gold..."
-    install_gold || exit 99
-  else
-    echo "Not installing gold."
-  fi
 fi
 
 # Install 32bit backwards compatibility support for 64bit systems
