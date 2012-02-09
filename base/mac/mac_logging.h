@@ -23,7 +23,7 @@
 
 namespace logging {
 
-class OSStatusLogMessage : public logging::LogMessage {
+class BASE_EXPORT OSStatusLogMessage : public logging::LogMessage {
  public:
   OSStatusLogMessage(const char* file_path,
                      int line,
