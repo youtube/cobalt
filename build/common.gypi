@@ -387,16 +387,12 @@
           'enable_plugin_installation%': 1,
         }],
 
-        # linux_use_gold_binary: whether to use the binary checked into
-        # third_party/gold.
-        # linux_use_gold_flags: whether to use build flags that rely on gold.
+        # Set to 0 to not use third_party/gold as the linker.
         # On by default for x64 Linux.
         ['host_arch=="x64"', {
           'linux_use_gold_binary%': 1,
-          'linux_use_gold_flags%': 1,
         }, {
           'linux_use_gold_binary%': 0,
-          'linux_use_gold_flags%': 0,
         }],
 
         # Enable canvas_skia_skia.cc incrementally on different platforms.
@@ -464,7 +460,6 @@
     'enable_web_intents_tag%': '<(enable_web_intents_tag)',
     'enable_plugin_installation%': '<(enable_plugin_installation)',
     'linux_use_gold_binary%': '<(linux_use_gold_binary)',
-    'linux_use_gold_flags%': '<(linux_use_gold_flags)',
     'use_canvas_skia_skia%': '<(use_canvas_skia_skia)',
     # Whether to build for Wayland display server
     'use_wayland%': 0,
@@ -635,8 +630,6 @@
     # used to control such things as the set of warnings to enable, and
     # whether warnings are treated as errors.
     'chromium_code%': 0,
-
-    'release_valgrind_build%': 0,
 
     # TODO(thakis): Make this a blacklist instead, http://crbug.com/101600
     'enable_wexit_time_destructors%': 0,
@@ -1009,8 +1002,7 @@
 
       'release_extra_cflags%': '',
       'debug_extra_cflags%': '',
-
-      'release_valgrind_build%': '<(release_valgrind_build)',
+      'release_valgrind_build%': 0,
 
       # the non-qualified versions are widely assumed to be *nix-only
       'win_release_extra_cflags%': '',
@@ -1733,7 +1725,23 @@
                   '-g',
                 ],
               }],
-            ],
+              # At gyp time, we test the linker for ICF support; this flag
+              # is then provided to us by gyp.  (Currently only gold supports
+              # an --icf flag.)
+              # There seems to be a conflict of --icf and -pie in gold which
+              # can generate crashy binaries. As a security measure, -pie
+              # takes precendence for now.
+              ['LINKER_SUPPORTS_ICF==1 and release_valgrind_build==0', {
+                'target_conditions': [
+                  ['_toolset=="target"', {
+                    'ldflags': [
+                      #'-Wl,--icf=safe',
+                      '-Wl,--icf=none',
+                    ]
+                  }]
+                ]
+              }],
+            ]
           },
         },
         'variants': {
@@ -1998,24 +2006,6 @@
           ['linux_keep_shadow_stacks==1', {
             'defines': ['KEEP_SHADOW_STACKS'],
             'cflags': ['-finstrument-functions'],
-          }],
-          ['linux_use_gold_flags==1', {
-            'conditions': [
-              ['release_valgrind_build==0', {
-                'target_conditions': [
-                  ['_toolset=="target"', {
-                    'ldflags': [
-                      # There seems to be a conflict of --icf and -pie
-                      # in gold which can generate crashy binaries. As
-                      # a security measure, -pie takes precendence for
-                      # now.
-                      #'-Wl,--icf=safe',
-                      '-Wl,--icf=none',
-                    ],
-                  }],
-                ],
-              }],
-            ],
           }],
           ['linux_use_gold_binary==1', {
             'variables': {
