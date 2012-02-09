@@ -677,7 +677,7 @@ class HostResolverImpl::ProcTask
     if (error != OK) {
       params = new HostResolveFailedParams(attempt_number, error, os_error);
     } else {
-      params = new NetLogIntegerParameter("attempt_number", attempt_number_);
+      params = new NetLogIntegerParameter("attempt_number", attempt_number);
     }
     net_log_.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_ATTEMPT_FINISHED, params);
 
