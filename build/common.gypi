@@ -2000,6 +2000,13 @@
             'cflags': ['-finstrument-functions'],
           }],
           ['linux_use_gold_flags==1', {
+            'ldflags': [
+              # Experimentation found that using four linking threads
+              # saved ~20% of link time.
+              # https://groups.google.com/a/chromium.org/group/chromium-dev/browse_thread/thread/281527606915bb36
+              '-Wl,--threads',
+              '-Wl,--thread-count=4',
+            ],
             'conditions': [
               ['release_valgrind_build==0', {
                 'target_conditions': [
