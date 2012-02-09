@@ -474,11 +474,7 @@
               ['include', '^worker_pool_linux\\.cc$'],
               # TODO(michaelbai): The below files are excluded because of the
               # missing JNI, add them back when JNI is ready.
-              ['exclude', '^android/'],
-              ['include', 'android/jni_android.cc'],
-              ['include', 'android/jni_android.h'],
-              ['include', 'android/scoped_java_ref.cc'],
-              ['include', 'android/scoped_java_ref.h'],
+              ['exclude', '^android/path_utils\\.cc$'],
               ['exclude', '^base_paths_android\\.cc$'],
               ['exclude', '^message_pump_android\\.cc$'],
             ],
