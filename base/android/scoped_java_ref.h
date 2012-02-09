@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 #include <jni.h>
 #include <stddef.h>
 
-#include "base/logging.h"
+#include "base/basictypes.h"
 
 namespace base {
 namespace android {
@@ -25,6 +25,8 @@ class JavaRef<jobject> {
   JNIEnv* env() const { return env_; }
   jobject obj() const { return obj_; }
 
+  bool is_null() const { return obj_ == NULL; }
+
  protected:
   // Initializes a NULL reference.
   JavaRef();
@@ -39,6 +41,8 @@ class JavaRef<jobject> {
   // use by the sub-classes.
   void SetNewLocalRef(JNIEnv* env, jobject obj);
   void SetNewGlobalRef(JNIEnv* env, jobject obj);
+  void ResetLocalRef();
+  void ResetGlobalRef();
   jobject ReleaseInternal();
 
  private:
@@ -104,7 +108,7 @@ class ScopedJavaLocalRef : public JavaRef<T> {
   }
 
   void Reset() {
-    this->SetNewLocalRef(NULL, NULL);
+    this->ResetLocalRef();
   }
 
   template<typename U>
@@ -148,7 +152,7 @@ class ScopedJavaGlobalRef : public JavaRef<T> {
   }
 
   void Reset() {
-    this->SetNewGlobalRef(NULL, NULL);
+    this->ResetGlobalRef();
   }
 
   template<typename U>

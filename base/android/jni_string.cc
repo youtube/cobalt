@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,17 @@
 #include "base/android/jni_android.h"
 #include "base/logging.h"
 #include "base/utf_string_conversions.h"
+
+namespace {
+
+// Internal version that does not use a scoped local pointer.
+jstring ConvertUTF16ToJavaStringImpl(JNIEnv* env, const string16& str) {
+  jstring result = env->NewString(str.data(), str.length());
+  base::android::CheckException(env);
+  return result;
+}
+
+}
 
 namespace base {
 namespace android {
@@ -17,7 +28,12 @@ std::string ConvertJavaStringToUTF8(JNIEnv* env, jstring str) {
   return UTF16ToUTF8(ConvertJavaStringToUTF16(env, str));
 }
 
-jstring ConvertUTF8ToJavaString(JNIEnv* env, const base::StringPiece& str) {
+std::string ConvertJavaStringToUTF8(const JavaRef<jstring>& str) {
+  return ConvertJavaStringToUTF8(str.env(), str.obj());
+}
+
+ScopedJavaLocalRef<jstring> ConvertUTF8ToJavaString(
+    JNIEnv* env, const base::StringPiece& str) {
   // JNI's NewStringUTF expects "modified" UTF8 so instead create the string
   // via our own UTF16 conversion utility.
   // Further, Dalvik requires the string passed into NewStringUTF() to come from
@@ -25,7 +41,8 @@ jstring ConvertUTF8ToJavaString(JNIEnv* env, const base::StringPiece& str) {
   // it gets here, so constructing via UTF16 side-steps this issue.
   // (Dalvik stores strings internally as UTF16 anyway, so there shouldn't be
   // a significant performance hit by doing it this way).
-  return ConvertUTF16ToJavaString(env, UTF8ToUTF16(str));
+  return ScopedJavaLocalRef<jstring>(env, ConvertUTF16ToJavaStringImpl(
+      env, UTF8ToUTF16(str)));
 }
 
 string16 ConvertJavaStringToUTF16(JNIEnv* env, jstring str) {
@@ -39,10 +56,15 @@ string16 ConvertJavaStringToUTF16(JNIEnv* env, jstring str) {
   return result;
 }
 
-jstring ConvertUTF16ToJavaString(JNIEnv* env, const string16& str) {
-  jstring result = env->NewString(str.data(), str.length());
-  CheckException(env);
-  return result;
+string16 ConvertJavaStringToUTF16(const JavaRef<jstring>& str) {
+  return ConvertJavaStringToUTF16(str.env(), str.obj());
+}
+
+// TODO(joth): change this to accept const StringPiece16&.
+ScopedJavaLocalRef<jstring> ConvertUTF16ToJavaString(JNIEnv* env,
+                                                     const string16& str) {
+  return ScopedJavaLocalRef<jstring>(env,
+                                     ConvertUTF16ToJavaStringImpl(env, str));
 }
 
 }  // namespace android
