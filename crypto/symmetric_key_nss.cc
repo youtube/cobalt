@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -83,6 +83,7 @@ SymmetricKey* SymmetricKey::DeriveKeyFromPassword(Algorithm algorithm,
 // static
 SymmetricKey* SymmetricKey::Import(Algorithm algorithm,
                                    const std::string& raw_key) {
+  EnsureNSSInit();
   CK_MECHANISM_TYPE cipher =
       algorithm == AES ? CKM_AES_CBC : CKM_SHA_1_HMAC;
 
