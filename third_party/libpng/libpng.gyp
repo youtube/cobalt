@@ -6,8 +6,9 @@
   'variables': {
     'conditions': [
       [ 'os_posix == 1 and OS != "mac" and OS != "android"', {
-        # Link to system .so since we already use it due to GTK.
-        'use_system_libpng%': 1,
+        # Maybe link to system .so once the security concerns are thought
+        # through, since we already use it due to GTK.
+        'use_system_libpng%': 0,
       }, {  # os_posix != 1 or OS == "mac"
         'use_system_libpng%': 0,
       }],
