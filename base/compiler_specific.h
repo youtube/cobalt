@@ -63,9 +63,9 @@
 //
 // MSVC Compiler warning C4275:
 // non dll-interface class 'Bar' used as base for dll-interface class 'Foo'.
-// Note that this is intended to be used only when no access to the base class
-// can be gained through the derived class. For more info, see
-// http://msdn.microsoft.com/en-us/library/3tdb471s(VS.80).aspx
+// Note that this is intended to be used only when no access to the base class'
+// static data is done through derived classes or inline methods. For more info,
+// see http://msdn.microsoft.com/en-us/library/3tdb471s(VS.80).aspx
 #define NON_EXPORTED_BASE(code) MSVC_SUPPRESS_WARNING(4275) \
                                 code
 
