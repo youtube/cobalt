@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -275,11 +275,11 @@ class MessagePumpMac {
   // UsingCrApp() returns false if the message pump was created before
   // NSApp was initialized, or if NSApp does not implement
   // CrAppProtocol.  NSApp must be initialized before calling.
-  static bool UsingCrApp();
+  BASE_EXPORT static bool UsingCrApp();
 
   // Wrapper to query -[NSApp isHandlingSendEvent] from C++ code.
   // Requires NSApp to implement CrAppProtocol.
-  static bool IsHandlingSendEvent();
+  BASE_EXPORT static bool IsHandlingSendEvent();
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(MessagePumpMac);
