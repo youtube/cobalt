@@ -1105,6 +1105,9 @@
       ['remoting==1', {
         'defines': ['ENABLE_REMOTING=1'],
       }],
+      ['enable_webrtc==1', {
+        'defines': ['ENABLE_WEBRTC=1'],
+      }],
       ['p2p_apis==1', {
         'defines': ['ENABLE_P2P_APIS=1'],
       }],
