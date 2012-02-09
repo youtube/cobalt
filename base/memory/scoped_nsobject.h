@@ -15,165 +15,63 @@
 // compatibility with scoped_ptr<>'s interface, with which everyone is already
 // familiar.
 //
-// When scoped_nsobject<> takes ownership of an object (in the constructor or
-// in reset()), it takes over the caller's existing ownership claim.  The
-// caller must own the object it gives to scoped_nsobject<>, and relinquishes
-// an ownership claim to that object.  scoped_nsobject<> does not call
-// -retain.
+// By default, scoped_nsobject<> takes ownership of an object (in the
+// constructor or in reset()) by taking over the caller's existing ownership
+// claim.  The caller must own the object it gives to scoped_nsobject<>, and
+// relinquishes an ownership claim to that object.  scoped_nsobject<> does not
+// call -retain. This behavior is parametrized by the |OwnershipPolicy| enum.
+// If the value |RETAIN| is passed (in the constructor or in reset()), then
+// scoped_nsobject<> will call -retain on the object, and the initial
+// ownership is not changed.
+//
+// scoped_nsprotocol<> has the same behavior as scoped_nsobject, but can be used
+// with protocols.
 //
 // scoped_nsobject<> is not to be used for NSAutoreleasePools. For
 // NSAutoreleasePools use ScopedNSAutoreleasePool from
 // scoped_nsautorelease_pool.h instead.
 // We check for bad uses of scoped_nsobject and NSAutoreleasePool at compile
 // time with a template specialization (see below).
-template<typename NST>
-class scoped_nsobject {
- public:
-  explicit scoped_nsobject(NST* object = nil)
-      : object_(object) {
-  }
 
-  ~scoped_nsobject() {
-    [object_ release];
-  }
-
-  void reset(NST* object = nil) {
-    // We intentionally do not check that object != object_ as the caller must
-    // already have an ownership claim over whatever it gives to
-    // scoped_nsobject and ScopedCFTypeRef, whether it's in the constructor or
-    // in a call to reset().  In either case, it relinquishes that claim and
-    // the scoper assumes it.
-    [object_ release];
-    object_ = object;
-  }
-
-  bool operator==(NST* that) const { return object_ == that; }
-  bool operator!=(NST* that) const { return object_ != that; }
-
-  operator NST*() const {
-    return object_;
-  }
-
-  NST* get() const {
-    return object_;
-  }
-
-  void swap(scoped_nsobject& that) {
-    NST* temp = that.object_;
-    that.object_ = object_;
-    object_ = temp;
-  }
-
-  // scoped_nsobject<>::release() is like scoped_ptr<>::release.  It is NOT
-  // a wrapper for [object_ release].  To force a scoped_nsobject<> object to
-  // call [object_ release], use scoped_nsobject<>::reset().
-  NST* release() WARN_UNUSED_RESULT {
-    NST* temp = object_;
-    object_ = nil;
-    return temp;
-  }
-
- private:
-  NST* object_;
-
-  DISALLOW_COPY_AND_ASSIGN(scoped_nsobject);
+namespace scoped_policy {
+enum OwnershipPolicy {
+  ASSUME,
+  RETAIN
 };
+}  // namespace scoped_policy
 
-// Free functions
-template <class C>
-void swap(scoped_nsobject<C>& p1, scoped_nsobject<C>& p2) {
-  p1.swap(p2);
-}
-
-template <class C>
-bool operator==(C* p1, const scoped_nsobject<C>& p2) {
-  return p1 == p2.get();
-}
-
-template <class C>
-bool operator!=(C* p1, const scoped_nsobject<C>& p2) {
-  return p1 != p2.get();
-}
-
-
-// Specialization to make scoped_nsobject<id> work.
-template<>
-class scoped_nsobject<id> {
- public:
-  explicit scoped_nsobject(id object = nil)
-      : object_(object) {
-  }
-
-  ~scoped_nsobject() {
-    [object_ release];
-  }
-
-  void reset(id object = nil) {
-    // We intentionally do not check that object != object_ as the caller must
-    // already have an ownership claim over whatever it gives to
-    // scoped_nsobject and ScopedCFTypeRef, whether it's in the constructor or
-    // in a call to reset().  In either case, it relinquishes that claim and
-    // the scoper assumes it.
-    [object_ release];
-    object_ = object;
-  }
-
-  bool operator==(id that) const { return object_ == that; }
-  bool operator!=(id that) const { return object_ != that; }
-
-  operator id() const {
-    return object_;
-  }
-
-  id get() const {
-    return object_;
-  }
-
-  void swap(scoped_nsobject& that) {
-    id temp = that.object_;
-    that.object_ = object_;
-    object_ = temp;
-  }
-
-  // scoped_nsobject<>::release() is like scoped_ptr<>::release.  It is NOT
-  // a wrapper for [object_ release].  To force a scoped_nsobject<> object to
-  // call [object_ release], use scoped_nsobject<>::reset().
-  id release() WARN_UNUSED_RESULT {
-    id temp = object_;
-    object_ = nil;
-    return temp;
-  }
-
- private:
-  id object_;
-
-  DISALLOW_COPY_AND_ASSIGN(scoped_nsobject);
-};
-
-// Do not use scoped_nsobject for NSAutoreleasePools, use
-// ScopedNSAutoreleasePool instead. This is a compile time check. See details
-// at top of header.
-template<>
-class scoped_nsobject<NSAutoreleasePool> {
- private:
-  explicit scoped_nsobject(NSAutoreleasePool* object = nil);
-  DISALLOW_COPY_AND_ASSIGN(scoped_nsobject);
-};
-
-// Equivalent of scoped_nsobject for a id<protocol>. This is exactly the same
-// class as scoped_nsobject, except that it doesn't handle any pointer
-// transformation.
 template<typename NST>
 class scoped_nsprotocol {
  public:
-  explicit scoped_nsprotocol(NST object = nil) : object_(object) {
+  explicit scoped_nsprotocol(
+      NST object = nil,
+      scoped_policy::OwnershipPolicy policy = scoped_policy::ASSUME)
+      : object_(object) {
+    if (policy == scoped_policy::RETAIN)
+      [object retain];
+  }
+
+  scoped_nsprotocol(const scoped_nsprotocol<NST>& that)
+      : object_([that.object_ retain]) {
   }
 
   ~scoped_nsprotocol() {
     [object_ release];
   }
 
-  void reset(NST object = nil) {
+  scoped_nsprotocol& operator=(const scoped_nsprotocol<NST>& that) {
+    reset(that.get(), scoped_policy::RETAIN);
+    return *this;
+  }
+
+  void reset(NST object = nil,
+             scoped_policy::OwnershipPolicy policy = scoped_policy::ASSUME) {
+    if (policy == scoped_policy::RETAIN)
+      [object retain];
+    // We intentionally do not check that object != object_ as the caller must
+    // either already have an ownership claim over whatever it passes to this
+    // method, or call it with the |RETAIN| policy which will have ensured that
+    // the object is retained once more when reaching this point.
     [object_ release];
     object_ = object;
   }
@@ -195,6 +93,9 @@ class scoped_nsprotocol {
     object_ = temp;
   }
 
+  // scoped_nsprotocol<>::release() is like scoped_ptr<>::release.  It is NOT a
+  // wrapper for [object_ release].  To force a scoped_nsprotocol<> to call
+  // [object_ release], use scoped_nsprotocol<>::reset().
   NST release() WARN_UNUSED_RESULT {
     NST temp = object_;
     object_ = nil;
@@ -203,8 +104,6 @@ class scoped_nsprotocol {
 
  private:
   NST object_;
-
-  DISALLOW_COPY_AND_ASSIGN(scoped_nsprotocol);
 };
 
 // Free functions
@@ -223,4 +122,54 @@ bool operator!=(C p1, const scoped_nsprotocol<C>& p2) {
   return p1 != p2.get();
 }
 
+template<typename NST>
+class scoped_nsobject : public scoped_nsprotocol<NST*> {
+ public:
+  explicit scoped_nsobject(
+      NST* object = nil,
+      scoped_policy::OwnershipPolicy policy = scoped_policy::ASSUME)
+      : scoped_nsprotocol<NST*>(object, policy) {
+  }
+
+  scoped_nsobject(const scoped_nsobject<NST>& that)
+      : scoped_nsprotocol<NST*>(that) {
+  }
+
+  scoped_nsobject& operator=(const scoped_nsobject<NST>& that) {
+    scoped_nsprotocol<NST*>::operator=(that);
+    return *this;
+  }
+};
+
+// Specialization to make scoped_nsobject<id> work.
+template<>
+class scoped_nsobject<id> : public scoped_nsprotocol<id> {
+ public:
+  explicit scoped_nsobject(
+      id object = nil,
+      scoped_policy::OwnershipPolicy policy = scoped_policy::ASSUME)
+      : scoped_nsprotocol<id>(object, policy) {
+  }
+
+  scoped_nsobject(const scoped_nsobject<id>& that)
+      : scoped_nsprotocol<id>(that) {
+  }
+
+  scoped_nsobject& operator=(const scoped_nsobject<id>& that) {
+    scoped_nsprotocol<id>::operator=(that);
+    return *this;
+  }
+};
+
+// Do not use scoped_nsobject for NSAutoreleasePools, use
+// ScopedNSAutoreleasePool instead. This is a compile time check. See details
+// at top of header.
+template<>
+class scoped_nsobject<NSAutoreleasePool> {
+ private:
+  explicit scoped_nsobject(
+      NSAutoreleasePool* object = nil,
+      scoped_policy::OwnershipPolicy policy = scoped_policy::ASSUME);
+  DISALLOW_COPY_AND_ASSIGN(scoped_nsobject);
+};
 #endif  // BASE_MEMORY_SCOPED_NSOBJECT_H_
