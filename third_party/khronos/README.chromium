@@ -18,5 +18,6 @@ GLES2/gl2.h
  - Added GL_CONTEXT_LOST constant.
 GLES2/gl2ext.h
  - Added Chromium and Angle extensions.
+ - Added ANGLE_instanced_arrays
 EGL/eglplatform.h
  - Added EGLNative*Type for Mac.
