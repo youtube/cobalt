@@ -12,8 +12,11 @@
 #include "base/threading/platform_thread.h"
 
 namespace {
-JavaVM* g_jvm = 0;
-jobject g_application_context = NULL;
+
+JavaVM* g_jvm = NULL;
+
+base::LazyInstance<base::android::ScopedJavaGlobalRef<jobject> >
+    g_application_context = LAZY_INSTANCE_INITIALIZER;
 
 struct MethodIdentifier {
   const char* class_name;
@@ -73,13 +76,106 @@ void InitVM(JavaVM* vm) {
 }
 
 void InitApplicationContext(const JavaRef<jobject>& context) {
-  DCHECK(!g_application_context);
-  g_application_context = context.env()->NewGlobalRef(context.obj());
+  DCHECK(g_application_context.Get().is_null());
+  g_application_context.Get().Reset(context);
 }
 
-jobject GetApplicationContext() {
-  DCHECK(g_application_context);
-  return g_application_context;
+const jobject GetApplicationContext() {
+  DCHECK(!g_application_context.Get().is_null());
+  return g_application_context.Get().obj();
+}
+
+ScopedJavaLocalRef<jclass> GetClass(JNIEnv* env, const char* class_name) {
+  jclass clazz = env->FindClass(class_name);
+  CHECK(clazz && !ClearException(env)) << "Failed to find class " << class_name;
+  return ScopedJavaLocalRef<jclass>(env, clazz);
+}
+
+bool HasClass(JNIEnv* env, const char* class_name) {
+  ScopedJavaLocalRef<jclass> clazz(env, env->FindClass(class_name));
+  if (!clazz.obj()) {
+    ClearException(env);
+    return false;
+  }
+  bool error = ClearException(env);
+  DCHECK(!error);
+  return true;
+}
+
+jmethodID GetMethodID(JNIEnv* env,
+                      const JavaRef<jclass>& clazz,
+                      const char* method_name,
+                      const char* jni_signature) {
+  jmethodID method_id =
+      env->GetMethodID(clazz.obj(), method_name, jni_signature);
+  CHECK(method_id && !ClearException(env)) << "Failed to find method " <<
+      method_name << " " << jni_signature;
+  return method_id;
+}
+
+jmethodID GetStaticMethodID(JNIEnv* env,
+                            const JavaRef<jclass>& clazz,
+                            const char* method_name,
+                            const char* jni_signature) {
+  jmethodID method_id =
+      env->GetStaticMethodID(clazz.obj(), method_name, jni_signature);
+  CHECK(method_id && !ClearException(env)) << "Failed to find static method " <<
+      method_name << " " << jni_signature;
+  return method_id;
+}
+
+bool HasMethod(JNIEnv* env,
+               const JavaRef<jclass>& clazz,
+               const char* method_name,
+               const char* jni_signature) {
+  jmethodID method_id =
+      env->GetMethodID(clazz.obj(), method_name, jni_signature);
+  if (!method_id) {
+    ClearException(env);
+    return false;
+  }
+  bool error = ClearException(env);
+  DCHECK(!error);
+  return true;
+}
+
+jfieldID GetFieldID(JNIEnv* env,
+                    const JavaRef<jclass>& clazz,
+                    const char* field_name,
+                    const char* jni_signature) {
+  jfieldID field_id = env->GetFieldID(clazz.obj(), field_name, jni_signature);
+  CHECK(field_id && !ClearException(env)) << "Failed to find field " <<
+      field_name << " " << jni_signature;
+  bool error = ClearException(env);
+  DCHECK(!error);
+  return field_id;
+}
+
+bool HasField(JNIEnv* env,
+              const JavaRef<jclass>& clazz,
+              const char* field_name,
+              const char* jni_signature) {
+  jfieldID field_id = env->GetFieldID(clazz.obj(), field_name, jni_signature);
+  if (!field_id) {
+    ClearException(env);
+    return false;
+  }
+  bool error = ClearException(env);
+  DCHECK(!error);
+  return true;
+}
+
+jfieldID GetStaticFieldID(JNIEnv* env,
+                          const JavaRef<jclass>& clazz,
+                          const char* field_name,
+                          const char* jni_signature) {
+  jfieldID field_id =
+      env->GetStaticFieldID(clazz.obj(), field_name, jni_signature);
+  CHECK(field_id && !ClearException(env)) << "Failed to find static field " <<
+      field_name << " " << jni_signature;
+  bool error = ClearException(env);
+  DCHECK(!error);
+  return field_id;
 }
 
 jmethodID GetMethodIDFromClassName(JNIEnv* env,
@@ -111,7 +207,7 @@ jmethodID GetMethodIDFromClassName(JNIEnv* env,
   }
 
   ScopedJavaLocalRef<jclass> clazz(env, env->FindClass(class_name));
-  jmethodID id = GetMethodID(env, clazz.obj(), method, jni_signature);
+  jmethodID id = GetMethodID(env, clazz, method, jni_signature);
 
   while (base::subtle::Acquire_CompareAndSwap(&g_method_id_map_lock,
                                               kUnlocked,
@@ -127,42 +223,22 @@ jmethodID GetMethodIDFromClassName(JNIEnv* env,
   return id;
 }
 
-jmethodID GetMethodID(JNIEnv* env,
-                      jclass clazz,
-                      const char* const method,
-                      const char* const jni_signature) {
-  jmethodID id = env->GetMethodID(clazz, method, jni_signature);
-  DCHECK(id) << method;
-  CheckException(env);
-  return id;
+bool HasException(JNIEnv* env) {
+  return env->ExceptionCheck() != JNI_FALSE;
 }
 
-jmethodID GetStaticMethodID(JNIEnv* env,
-                            jclass clazz,
-                            const char* const method,
-                            const char* const jni_signature) {
-  jmethodID id = env->GetStaticMethodID(clazz, method, jni_signature);
-  DCHECK(id) << method;
-  CheckException(env);
-  return id;
-}
-
-jfieldID GetFieldID(JNIEnv* env,
-                    jclass clazz,
-                    const char* field,
-                    const char* jni_signature) {
-  jfieldID id = env->GetFieldID(clazz, field, jni_signature);
-  DCHECK(id) << field;
-  CheckException(env);
-  return id;
-}
-
-bool CheckException(JNIEnv* env) {
-  if (env->ExceptionCheck() == JNI_FALSE)
+bool ClearException(JNIEnv* env) {
+  if (!HasException(env))
     return false;
-  env->ExceptionDescribe();
   env->ExceptionClear();
   return true;
+}
+
+void CheckException(JNIEnv* env) {
+  if (HasException(env)) {
+    env->ExceptionDescribe();
+    CHECK(false);
+  }
 }
 
 }  // namespace android
