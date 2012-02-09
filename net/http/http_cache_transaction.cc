@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -1191,8 +1191,7 @@ int HttpCache::Transaction::DoCacheReadResponseComplete(int result) {
   if (result != io_buf_len_ ||
       !HttpCache::ParseResponseInfo(read_buf_->data(), io_buf_len_,
                                     &response_, &truncated_)) {
-    DLOG(ERROR) << "ReadData failed: " << result;
-    return ERR_CACHE_READ_FAILURE;
+    return OnCacheReadError(result);
   }
 
   // Some resources may have slipped in as truncated when they're not.
@@ -1277,10 +1276,8 @@ int HttpCache::Transaction::DoCacheReadMetadata() {
 
 int HttpCache::Transaction::DoCacheReadMetadataComplete(int result) {
   net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HTTP_CACHE_READ_INFO, result);
-  if (result != response_.metadata->size()) {
-    DLOG(ERROR) << "ReadData failed: " << result;
-    return ERR_CACHE_READ_FAILURE;
-  }
+  if (result != response_.metadata->size())
+    return OnCacheReadError(result);;
 
   return OK;
 }
@@ -1332,6 +1329,8 @@ int HttpCache::Transaction::DoCacheReadDataComplete(int result) {
   } else if (result == 0) {  // End of file.
     cache_->DoneReadingFromEntry(entry_, this);
     entry_ = NULL;
+  } else {
+    return OnCacheReadError(result);
   }
   return result;
 }
@@ -1991,6 +1990,16 @@ void HttpCache::Transaction::DoneWritingToEntry(bool success) {
   mode_ = NONE;  // switch to 'pass through' mode
 }
 
+int HttpCache::Transaction::OnCacheReadError(int result) {
+  DLOG(ERROR) << "ReadData failed: " << result;
+
+  // Avoid using this entry in the future.
+  if (cache_)
+    cache_->DoomActiveEntry(cache_key_);
+
+  return ERR_CACHE_READ_FAILURE;
+}
+
 void HttpCache::Transaction::DoomPartialEntry(bool delete_object) {
   DVLOG(2) << "DoomPartialEntry";
   int rv = cache_->DoomEntry(cache_key_, NULL);
@@ -2019,6 +2028,8 @@ int HttpCache::Transaction::DoPartialCacheReadCompleted(int result) {
   if (result == 0 && mode_ == READ_WRITE) {
     // We need to move on to the next range.
     next_state_ = STATE_START_PARTIAL_CACHE_VALIDATION;
+  } else if (result < 0) {
+    return OnCacheReadError(result);
   }
   return result;
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -306,6 +306,10 @@ class HttpCache::Transaction : public HttpTransaction {
 
   // Called when we are done writing to the cache entry.
   void DoneWritingToEntry(bool success);
+
+  // Returns an error to signal the caller that the current read failed. The
+  // current operation |result| is also logged.
+  int OnCacheReadError(int result);
 
   // Deletes the current partial cache entry (sparse), and optionally removes
   // the control object (partial_).

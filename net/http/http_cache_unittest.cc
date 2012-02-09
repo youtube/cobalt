@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -530,7 +530,7 @@ TEST(HttpCache, SimpleGETWithDiskFailures2) {
   EXPECT_EQ(2, cache.disk_cache()->create_count());
 }
 
-// Tests that we don't crash after failures to read from the cache.
+// Tests that we handle failures to read from the cache.
 TEST(HttpCache, SimpleGETWithDiskFailures3) {
   MockHttpCache cache;
 
@@ -551,6 +551,19 @@ TEST(HttpCache, SimpleGETWithDiskFailures3) {
   MockHttpRequest request(kSimpleGET_Transaction);
   rv = c->trans->Start(&request, c->callback.callback(), net::BoundNetLog());
   EXPECT_EQ(net::ERR_CACHE_READ_FAILURE, c->callback.GetResult(rv));
+
+  // Now verify that the entry was removed from the cache.
+  cache.disk_cache()->set_soft_failures(false);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(2, cache.disk_cache()->create_count());
 }
 
 TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit) {

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -580,6 +580,17 @@ std::string HttpCache::GenerateCacheKey(const HttpRequestInfo* request) {
   result.append(request->method);
   result.append(url);
   return result;
+}
+
+void HttpCache::DoomActiveEntry(const std::string& key) {
+  ActiveEntriesMap::iterator it = active_entries_.find(key);
+  if (it == active_entries_.end())
+    return;
+
+  // This is not a performance critical operation, this is handling an error
+  // condition so it is OK to look up the entry again.
+  int rv = DoomEntry(key, NULL);
+  DCHECK_EQ(OK, rv);
 }
 
 int HttpCache::DoomEntry(const std::string& key, Transaction* trans) {
