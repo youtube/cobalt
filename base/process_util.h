@@ -140,6 +140,11 @@ BASE_EXPORT ProcessId GetCurrentProcId();
 // Returns the ProcessHandle of the current process.
 BASE_EXPORT ProcessHandle GetCurrentProcessHandle();
 
+#if defined(OS_WIN)
+// Returns the module handle to which an address belongs.
+BASE_EXPORT HMODULE GetModuleFromAddress(void* address);
+#endif
+
 // Converts a PID to a process handle. This handle must be closed by
 // CloseProcessHandle when you are done with it. Returns true on success.
 BASE_EXPORT bool OpenProcessHandle(ProcessId pid, ProcessHandle* handle);
