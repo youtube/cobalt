@@ -252,9 +252,15 @@
         '../chrome/chrome.gyp:gpu_tests',
         '../chrome/chrome.gyp:performance_browser_tests',
         '../chrome/chrome.gyp:performance_ui_tests',
-        '../webkit/webkit.gyp:pull_in_DumpRenderTree',
       ],
     }, # target_name: chromium_gpu_builder
+    {
+      'target_name': 'chromium_gpu_debug_builder',
+      'type': 'none',
+      'dependencies': [
+        '../chrome/chrome.gyp:gpu_tests',
+      ],
+    }, # target_name: chromium_gpu_debug_builder
     {
       'target_name': 'chromium_builder_qa',
       'type': 'none',
