@@ -883,6 +883,35 @@
           ],
         },
         {
+          'target_name': 'ffmpeg_regression_tests',
+          'type': 'executable',
+          'dependencies': [
+            'media',
+            'media_test_support',
+            '../base/base.gyp:test_support_base',
+            '../testing/gmock.gyp:gmock',
+            '../testing/gtest.gyp:gtest',
+            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+          ],
+          'sources': [
+            'base/test_data_util.cc',
+            'base/run_all_unittests.cc',
+            'ffmpeg/ffmpeg_regression_tests.cc',
+            'filters/pipeline_integration_test_base.cc',
+          ],
+          'conditions': [
+            ['os_posix==1 and OS!="mac"', {
+              'conditions': [
+                ['linux_use_tcmalloc==1', {
+                  'dependencies': [
+                    '../base/allocator/allocator.gyp:allocator',
+                  ],
+                }],
+              ],
+            }],
+          ],
+        },
+        {
           'target_name': 'ffmpeg_tests',
           'type': 'executable',
           'dependencies': [
