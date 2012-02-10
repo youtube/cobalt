@@ -282,13 +282,18 @@ bool SpdyHttpStream::OnSendHeadersComplete(int status) {
 int SpdyHttpStream::OnSendBody() {
   CHECK(request_body_stream_.get());
 
-  // TODO(satorux): Clean up the logic here. This behavior is weird. Reading
-  // of upload data should happen in OnSendBody(). crbug.com/113107.
-  //
-  // Nothing to send. This happens when OnSendBody() is first called.
-  // A read of the upload data stream is initiated in OnSendBodyComplete().
-  if (request_body_buf_->BytesRemaining() == 0)
-    return OK;
+  // Read the data from the request body stream if the buffer is empty.
+  if (!request_body_buf_->BytesRemaining()) {
+    const int bytes_read = request_body_stream_->Read(
+        raw_request_body_buf_, raw_request_body_buf_->size());
+    if (request_body_stream_->is_chunked() && bytes_read == ERR_IO_PENDING)
+      return ERR_IO_PENDING;
+    // ERR_IO_PENDING with chunked encoding is the only possible error.
+    DCHECK_GE(bytes_read, 0);
+
+    request_body_buf_ = new DrainableIOBuffer(raw_request_body_buf_,
+                                              bytes_read);
+  }
 
   const bool eof = request_body_stream_->IsEOF();
   return stream_->WriteStreamData(
@@ -300,32 +305,12 @@ int SpdyHttpStream::OnSendBody() {
 int SpdyHttpStream::OnSendBodyComplete(int status, bool* eof) {
   // |status| is the number of bytes written to the SPDY stream.
   CHECK(request_body_stream_.get());
-  *eof = false;
 
-  if (status > 0) {
-    request_body_buf_->DidConsume(status);
-    if (request_body_buf_->BytesRemaining()) {
-      // Go back to OnSendBody() to send the remaining data.
-      return OK;
-    }
-  }
+  request_body_buf_->DidConsume(status);
 
   // Check if the entire body data has been sent.
   *eof = (request_body_stream_->IsEOF() &&
           !request_body_buf_->BytesRemaining());
-  if (*eof)
-    return OK;
-
-  // Read the data from the request body stream.
-  const int bytes_read = request_body_stream_->Read(
-      raw_request_body_buf_, raw_request_body_buf_->size());
-  if (request_body_stream_->is_chunked() && bytes_read == ERR_IO_PENDING)
-    return ERR_IO_PENDING;
-  // ERR_IO_PENDING with chunked encoding is the only possible error.
-  DCHECK_GE(bytes_read, 0);
-
-  request_body_buf_ = new DrainableIOBuffer(raw_request_body_buf_,
-                                            bytes_read);
   return OK;
 }
 
