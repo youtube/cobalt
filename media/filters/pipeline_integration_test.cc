@@ -75,7 +75,9 @@ class MockMediaSource : public ChunkDemuxerClient {
   scoped_refptr<ChunkDemuxer> chunk_demuxer_;
 };
 
-class PipelineIntegrationTest : public PipelineIntegrationTestBase {
+class PipelineIntegrationTest
+    : public testing::Test,
+      public PipelineIntegrationTestBase {
  public:
   // Verifies that seeking works properly for ChunkDemuxer when the
   // seek happens while there is a pending read on the ChunkDemuxer

@@ -53,6 +53,7 @@ void PipelineIntegrationTestBase::OnEnded(PipelineStatus status) {
   DCHECK_EQ(status, PIPELINE_OK);
   DCHECK(!ended_);
   ended_ = true;
+  pipeline_status_ = status;
   message_loop_.PostTask(FROM_HERE, MessageLoop::QuitClosure());
 }
 
@@ -62,6 +63,11 @@ bool PipelineIntegrationTestBase::WaitUntilOnEnded() {
   message_loop_.Run();
   EXPECT_TRUE(ended_);
   return ended_ && (pipeline_status_ == PIPELINE_OK);
+}
+
+PipelineStatus PipelineIntegrationTestBase::WaitUntilEndedOrError() {
+  message_loop_.Run();
+  return pipeline_status_;
 }
 
 void PipelineIntegrationTestBase::OnError(PipelineStatus status) {
