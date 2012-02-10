@@ -174,6 +174,16 @@ ProcessHandle GetCurrentProcessHandle() {
   return ::GetCurrentProcess();
 }
 
+HMODULE GetModuleFromAddress(void* address) {
+  HMODULE hinst = NULL;
+  if (!::GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
+                            static_cast<char*>(address),
+                            &hinst)) {
+    NOTREACHED();
+  }
+  return hinst;
+}
+
 bool OpenProcessHandle(ProcessId pid, ProcessHandle* handle) {
   // We try to limit privileges granted to the handle. If you need this
   // for test code, consider using OpenPrivilegedProcessHandle instead of
