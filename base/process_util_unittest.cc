@@ -184,6 +184,25 @@ TEST_F(ProcessUtilTest, GetProcId) {
   EXPECT_NE(id1, id2);
   base::CloseProcessHandle(handle);
 }
+
+TEST_F(ProcessUtilTest, GetModuleFromAddress) {
+  // Since the unit tests are their own EXE, this should be
+  // equivalent to the EXE's HINSTANCE.
+  //
+  // kExpectedKilledExitCode is a constant in this file and
+  // therefore within the unit test EXE.
+  EXPECT_EQ(::GetModuleHandle(NULL),
+            base::GetModuleFromAddress(
+                const_cast<int*>(&kExpectedKilledExitCode)));
+
+  // Any address within the kernel32 module should return
+  // kernel32's HMODULE.  Our only assumption here is that
+  // kernel32 is larger than 4 bytes.
+  HMODULE kernel32 = ::GetModuleHandle(L"kernel32.dll");
+  HMODULE kernel32_from_address =
+      base::GetModuleFromAddress(reinterpret_cast<DWORD*>(kernel32) + 1);
+  EXPECT_EQ(kernel32, kernel32_from_address);
+}
 #endif
 
 #if !defined(OS_MACOSX)
