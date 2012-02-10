@@ -6,14 +6,28 @@
 
 #include <algorithm>
 
+#include "base/bind.h"
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/threading/worker_pool.h"
+#include "base/tracked_objects.h"
 #include "net/base/file_stream.h"
 #include "net/base/net_errors.h"
 
 namespace net {
+
+namespace {
+
+// Helper function for GetContentLength().
+void OnGetContentLengthComplete(
+    const UploadData::ContentLengthCallback& callback,
+    uint64* content_length) {
+  callback.Run(*content_length);
+}
+
+}  // namespace
 
 UploadData::Element::Element()
     : type_(TYPE_BYTES),
@@ -73,15 +87,8 @@ uint64 UploadData::Element::GetContentLength() {
     return 0;
 
   int64 length = 0;
-
-  {
-    // TODO(tzik):
-    // file_util::GetFileSize may cause blocking IO.
-    // Temporary allow until fix: http://crbug.com/72001.
-    base::ThreadRestrictions::ScopedAllowIO allow_io;
-    if (!file_util::GetFileSize(file_path_, &length))
+  if (!file_util::GetFileSize(file_path_, &length))
       return 0;
-  }
 
   if (file_range_offset_ >= static_cast<uint64>(length))
     return 0;  // range is beyond eof
@@ -100,11 +107,6 @@ FileStream* UploadData::Element::NewFileStreamForReading() {
     file_stream_ = NULL;
     return file;
   }
-
-  // TODO(tzik):
-  // FileStream::Open and FileStream::Seek may cause blocking IO.
-  // Temporary allow until fix: http://crbug.com/72001.
-  base::ThreadRestrictions::ScopedAllowIO allow_io;
 
   scoped_ptr<FileStream> file(new FileStream(NULL));
   int64 rv = file->OpenSync(
@@ -172,15 +174,21 @@ void UploadData::set_chunk_callback(ChunkCallback* callback) {
   chunk_callback_ = callback;
 }
 
-uint64 UploadData::GetContentLength() {
-  if (is_chunked_)
-    return 0;
+void UploadData::GetContentLength(const ContentLengthCallback& callback) {
+  uint64* result = new uint64(0);
+  const bool task_is_slow = true;
+  const bool posted = base::WorkerPool::PostTaskAndReply(
+      FROM_HERE,
+      base::Bind(&UploadData::DoGetContentLength, this, result),
+      base::Bind(&OnGetContentLengthComplete, callback, base::Owned(result)),
+      task_is_slow);
+  DCHECK(posted);
+}
 
-  uint64 len = 0;
-  std::vector<Element>::iterator it = elements_.begin();
-  for (; it != elements_.end(); ++it)
-    len += (*it).GetContentLength();
-  return len;
+uint64 UploadData::GetContentLengthSync() {
+  uint64 content_length = 0;
+  DoGetContentLength(&content_length);
+  return content_length;
 }
 
 bool UploadData::IsInMemory() const {
@@ -201,6 +209,16 @@ bool UploadData::IsInMemory() const {
 
 void UploadData::SetElements(const std::vector<Element>& elements) {
   elements_ = elements;
+}
+
+void UploadData::DoGetContentLength(uint64* content_length) {
+  *content_length = 0;
+
+  if (is_chunked_)
+    return;
+
+  for (size_t i = 0; i < elements_.size(); ++i)
+    *content_length += elements_[i].GetContentLength();
 }
 
 UploadData::~UploadData() {
