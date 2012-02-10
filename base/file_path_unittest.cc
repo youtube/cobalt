@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -1074,7 +1074,7 @@ TEST_F(FilePathTest, FromUTF8Unsafe_And_AsUTF8Unsafe) {
 }
 
 #if defined(FILE_PATH_USES_WIN_SEPARATORS)
-TEST_F(FilePathTest, NormalizeWindowsPathSeparators) {
+TEST_F(FilePathTest, NormalizePathSeparators) {
   const struct UnaryTestData cases[] = {
     { FPL("foo/bar"), FPL("foo\\bar") },
     { FPL("foo/bar\\betz"), FPL("foo\\bar\\betz") },
@@ -1110,7 +1110,7 @@ TEST_F(FilePathTest, NormalizeWindowsPathSeparators) {
   };
   for (size_t i = 0; i < arraysize(cases); ++i) {
     FilePath input(cases[i].input);
-    FilePath observed = input.NormalizeWindowsPathSeparators();
+    FilePath observed = input.NormalizePathSeparators();
     EXPECT_EQ(FilePath::StringType(cases[i].expected), observed.value()) <<
               "i: " << i << ", input: " << input.value();
   }
