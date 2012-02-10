@@ -21,6 +21,10 @@
       # until the full set supported.  If adding a new test here,
       # please also add it to build/android/run_tests.py, else the
       # test is not run.
+      #
+      # WARNING:
+      # Do not add targets here without communicating the implications
+      # on tryserver triggers and load.  Discuss with jrg please.
       'target_name': 'android_builder_tests',
       'type': 'none',
       'dependencies': [
