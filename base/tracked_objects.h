@@ -442,15 +442,17 @@ class BASE_EXPORT ThreadData {
   // PROFILING_ACTIVE (i.e., it can't be set to a higher level than what is
   // compiled into the binary, and parent-child tracking at the
   // PROFILING_CHILDREN_ACTIVE level might not be compiled in).
-  static bool InitializeAndSetTrackingStatus(bool status);
+  static bool InitializeAndSetTrackingStatus(Status status);
+
+  static Status status();
 
   // Indicate if any sort of profiling is being done (i.e., we are more than
   // DEACTIVATED).
-  static bool tracking_status();
+  static bool TrackingStatus();
 
   // For testing only, indicate if the status of parent-child tracking is turned
-  // on.  This is currently a compiled option, atop tracking_status().
-  static bool tracking_parent_child_status();
+  // on.  This is currently a compiled option, atop TrackingStatus().
+  static bool TrackingParentChildStatus();
 
   // Special versions of Now() for getting times at start and end of a tracked
   // run.  They are super fast when tracking is disabled, and have some internal
