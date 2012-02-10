@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -1210,12 +1210,14 @@ void FilePath::StripTrailingSeparatorsInternal() {
   }
 }
 
+FilePath FilePath::NormalizePathSeparators() const {
 #if defined(FILE_PATH_USES_WIN_SEPARATORS)
-FilePath FilePath::NormalizeWindowsPathSeparators() const {
   StringType copy = path_;
   for (size_t i = 1; i < arraysize(kSeparators); ++i) {
     std::replace(copy.begin(), copy.end(), kSeparators[i], kSeparators[0]);
   }
   return FilePath(copy);
-}
+#else
+  return *this;
 #endif
+}
