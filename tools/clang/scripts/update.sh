@@ -105,7 +105,8 @@ fi
 rm -f "${STAMP_FILE}"
 
 # Clobber pch files, since they only work with the compiler version that
-# created them.
+# created them. Also clobber .o files, to make sure everything will be built
+# with the new compiler.
 if [[ "${OS}" = "Darwin" ]]; then
   XCODEBUILD_DIR="${THIS_DIR}/../../../xcodebuild"
   if [ -f "${THIS_DIR}/../../../WebKit.gyp" ]; then
@@ -118,15 +119,19 @@ if [[ "${OS}" = "Darwin" ]]; then
     MAKE_DIR="${THIS_DIR}/../../../out"
   fi
   for CONFIG in Debug Release; do
-    if [[ -d "${MAKE_DIR}/${CONFIG}/obj.target" ]]; then
-      echo "Clobbering ${CONFIG} PCH files for make build"
+    if [[ -d "${MAKE_DIR}/${CONFIG}/obj.target" ||
+          -d "${MAKE_DIR}/${CONFIG}/obj.host" ]]; then
+      echo "Clobbering ${CONFIG} PCH and .o files for make build"
       find "${MAKE_DIR}/${CONFIG}/obj.target" -name '*.gch' -exec rm {} +
+      find "${MAKE_DIR}/${CONFIG}/obj.host" -name '*.o' -exec rm {} +
+      find "${MAKE_DIR}/${CONFIG}/obj.target" -name '*.o' -exec rm {} +
     fi
 
     # ninja puts its output below ${MAKE_DIR} as well.
     if [[ -d "${MAKE_DIR}/${CONFIG}/obj" ]]; then
-      echo "Clobbering ${CONFIG} PCH files for ninja build"
+      echo "Clobbering ${CONFIG} PCH and .o files for ninja build"
       find "${MAKE_DIR}/${CONFIG}/obj" -name '*.gch' -exec rm {} +
+      find "${MAKE_DIR}/${CONFIG}/obj" -name '*.o' -exec rm {} +
     fi
 
     if [[ -d "${XCODEBUILD_DIR}/${CONFIG}/SharedPrecompiledHeaders" ]]; then
@@ -134,6 +139,11 @@ if [[ "${OS}" = "Darwin" ]]; then
       rm -rf "${XCODEBUILD_DIR}/${CONFIG}/SharedPrecompiledHeaders"
     fi
   done
+  # Xcode groups .o files by project first, configuration second.
+  if [[ -d "${XCODEBUILD_DIR}" ]]; then
+    echo "Clobbering .o files for Xcode build"
+    find "${XCODEBUILD_DIR}" -name '*.o' -exec rm {} +
+  fi
 fi
 
 if [[ -z "$force_local_build" ]]; then
