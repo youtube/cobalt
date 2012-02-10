@@ -705,30 +705,6 @@ class BASE_EXPORT DataCollector {
   DISALLOW_COPY_AND_ASSIGN(DataCollector);
 };
 
-//------------------------------------------------------------------------------
-// Provide simple way to to start global tracking, and to tear down tracking
-// when done.  The design has evolved to *not* do any teardown (and just leak
-// all allocated data structures).  As a result, we don't have any code in this
-// destructor, and perhaps this whole class should go away.
-
-class BASE_EXPORT AutoTracking {
- public:
-  AutoTracking() {
-    ThreadData::Initialize();
-  }
-
-  ~AutoTracking() {
-    // TODO(jar): Consider emitting a CSV dump of the data at this point.  This
-    // should be called after the message loops have all terminated (or at least
-    // the main message loop is gone), so there is little chance for additional
-    // tasks to be Run.
-  }
-
- private:
-
-  DISALLOW_COPY_AND_ASSIGN(AutoTracking);
-};
-
 }  // namespace tracked_objects
 
 #endif  // BASE_TRACKED_OBJECTS_H_
