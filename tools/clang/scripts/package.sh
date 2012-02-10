@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 # to a tgz file.
 
 THIS_DIR="$(dirname "${0}")"
+LLVM_BOOTSTRAP_DIR="${THIS_DIR}/../../../third_party/llvm-bootstrap"
 LLVM_BUILD_DIR="${THIS_DIR}/../../../third_party/llvm-build"
 LLVM_BIN_DIR="${LLVM_BUILD_DIR}/Release+Asserts/bin"
 LLVM_LIB_DIR="${LLVM_BUILD_DIR}/Release+Asserts/lib"
@@ -14,8 +15,9 @@ LLVM_LIB_DIR="${LLVM_BUILD_DIR}/Release+Asserts/lib"
 set -ex
 
 # Do a clobber build.
+rm -rf "${LLVM_BOOTSTRAP_DIR}"
 rm -rf "${LLVM_BUILD_DIR}"
-"${THIS_DIR}"/update.sh --run-tests
+"${THIS_DIR}"/update.sh --run-tests --bootstrap --force-local-build
 
 R=$("${LLVM_BIN_DIR}/clang" --version | \
      sed -ne 's/clang version .*(trunk \([0-9]*\))/\1/p')
