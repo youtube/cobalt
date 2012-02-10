@@ -536,10 +536,7 @@ TEST(WinAudioTest, PCMWaveStreamPlayTwice200HzTone44Kss) {
 // With the low latency mode, WASAPI is utilized by default for Vista and
 // higher and Wave is used for XP and lower. It is possible to utilize a
 // smaller buffer size for WASAPI than for Wave.
-// TODO(henrika): enable this test again using an improved fall-back
-// mechanism for those platforms which does not support mono output.
-// See crbug.com/112986 for details.
-TEST(WinAudioTest, DISABLED_PCMWaveStreamPlay200HzToneLowLatency) {
+TEST(WinAudioTest, PCMWaveStreamPlay200HzToneLowLatency) {
   scoped_refptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices()) {
     LOG(WARNING) << "No output device detected.";
@@ -564,7 +561,14 @@ TEST(WinAudioTest, DISABLED_PCMWaveStreamPlay200HzToneLowLatency) {
   SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
                              200.0, sample_rate);
 
-  EXPECT_TRUE(oas->Open());
+  bool opened = oas->Open();
+  if (!opened) {
+    // It was not possible to open this audio device in mono.
+    // No point in continuing the test so let's break here.
+    LOG(WARNING) << "Mono is not supported. Skipping test.";
+    oas->Close();
+    return;
+  }
   oas->SetVolume(1.0);
 
   // Play the wave for .8 seconds.

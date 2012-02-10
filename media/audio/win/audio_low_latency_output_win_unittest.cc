@@ -451,10 +451,7 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInSamples) {
   aos->Close();
 }
 
-// TODO(henrika): enable this test again using an improved fall-back
-// mechanism for those platforms which does not support mono output.
-// See crbug.com/112986 for details.
-TEST(WinAudioOutputTest, DISABLED_WASAPIAudioOutputStreamTestMono) {
+TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestMono) {
   scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
   if (!CanRunAudioTests(audio_manager))
     return;
@@ -468,9 +465,12 @@ TEST(WinAudioOutputTest, DISABLED_WASAPIAudioOutputStreamTestMono) {
   // the shared mixing rate. The default buffer size is 10ms.
   AudioOutputStreamWrapper aosw(audio_manager);
   AudioOutputStream* aos = aosw.Create(CHANNEL_LAYOUT_MONO);
-  bool opened;
-  EXPECT_TRUE(opened = aos->Open());
+
+  bool opened = aos->Open();
   if (!opened) {
+    // It was not possible to open this audio device in mono.
+    // No point in continuing the test so let's break here.
+    LOG(WARNING) << "Mono is not supported. Skipping test.";
     aos->Close();
     return;
   }
