@@ -1419,7 +1419,6 @@ static const struct HSTSPreload kPreloadedSTS[] = {
   {12, true, "\006ubertt\003org", true, kNoPins, DOMAIN_NOT_PINNED },
   {9, true, "\004pixi\002me", true, kNoPins, DOMAIN_NOT_PINNED },
 
-  // Twitter pins disabled in order to track down pinning failures --agl
   {13, false, "\007twitter\003com", kTwitterHSTS,
       kTwitterComPins, DOMAIN_TWITTER_COM },
   {17, true, "\003www\007twitter\003com", kTwitterHSTS,
