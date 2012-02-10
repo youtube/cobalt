@@ -107,7 +107,7 @@
  "xp-release-dual-core/dromaeo_jslib/score/score": {"improve": 18, "regress": -6, "sha1": "bd9f8469"},
  "xp-release-dual-core/intl1/times/t": {"reva": 109829, "revb": 112020, "improve": 30, "regress": 546, "sha1": "0469d27b"},
  "xp-release-dual-core/intl2/times/t": {"reva": 120708, "revb": 120785, "improve": 306, "regress": 444, "sha1": "6be66770"},
- "xp-release-dual-core/morejs/times/t": {"reva": 117208, "revb": 117433, "improve": 12, "regress": 52, "sha1": "ec24ca08"},
+ "xp-release-dual-core/morejs/times/t": {"reva": 120574, "revb": 121453, "improve": 8, "regress": 71, "sha1": "d8c7d6fe"},
  "xp-release-dual-core/moz/times/t": {"reva": 120708, "revb": 120785, "improve": 218, "regress": 289, "sha1": "0d3eeac8"},
  "xp-release-dual-core/moz/total_byte_b/IO_b": {"reva": 109376, "revb": 109471, "improve": 1046, "regress": 2965, "sha1": "0b75c6e0"},
  "xp-release-dual-core/moz/total_byte_r/IO_r": {"reva": 120208, "revb": 120842, "improve": 369, "regress": 849, "sha1": "61d4731f"},
