@@ -7,9 +7,11 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/bind.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/message_loop.h"
 #include "base/time.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
@@ -78,7 +80,7 @@ TEST_F(UploadDataStreamTest, FileSmallerThanLength) {
   element.SetContentLength(kFakeSize);
   elements.push_back(element);
   upload_data_->SetElements(elements);
-  EXPECT_EQ(kFakeSize, upload_data_->GetContentLength());
+  EXPECT_EQ(kFakeSize, upload_data_->GetContentLengthSync());
 
   scoped_ptr<UploadDataStream> stream(new UploadDataStream(upload_data_));
   ASSERT_EQ(OK, stream->Init());

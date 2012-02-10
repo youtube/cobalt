@@ -31,7 +31,10 @@ UploadDataStream::~UploadDataStream() {
 int UploadDataStream::Init() {
   DCHECK(!initialized_successfully_);
 
-  total_size_ = upload_data_->GetContentLength();
+  {
+    base::ThreadRestrictions::ScopedAllowIO allow_io;
+    total_size_ = upload_data_->GetContentLengthSync();
+  }
 
   // If the underlying file has been changed and the expected file
   // modification time is set, treat it as error. Note that the expected
@@ -98,6 +101,8 @@ int UploadDataStream::Read(IOBuffer* buf, int buf_len) {
       // Open the file of the current element if not yet opened.
       if (!element_file_stream_.get()) {
         element_file_bytes_remaining_ = element.GetContentLength();
+        // Temporarily allow until fix: http://crbug.com/72001.
+        base::ThreadRestrictions::ScopedAllowIO allow_io;
         element_file_stream_.reset(element.NewFileStreamForReading());
       }
 
