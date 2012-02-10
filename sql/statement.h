@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -126,6 +126,7 @@ class SQL_EXPORT Statement {
   // where that type is not the native type. For safety, call ColumnType only
   // on a column before getting the value out in any way.
   ColType ColumnType(int col) const;
+  ColType DeclaredColumnType(int col) const;
 
   // These all take a 0-based argument index.
   bool ColumnBool(int col) const;
@@ -141,6 +142,7 @@ class SQL_EXPORT Statement {
   int ColumnByteLength(int col) const;
   const void* ColumnBlob(int col) const;
   bool ColumnBlobAsString(int col, std::string* blob);
+  bool ColumnBlobAsString16(int col, string16* val) const;
   bool ColumnBlobAsVector(int col, std::vector<char>* val) const;
   bool ColumnBlobAsVector(int col, std::vector<unsigned char>* val) const;
 
