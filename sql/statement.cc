@@ -4,9 +4,8 @@
 
 #include "sql/statement.h"
 
-#include <algorithm>
-
 #include "base/logging.h"
+#include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "third_party/sqlite/sqlite3.h"
 
@@ -159,8 +158,7 @@ ColType Statement::ColumnType(int col) const {
 
 ColType Statement::DeclaredColumnType(int col) const {
   std::string column_type(sqlite3_column_decltype(ref_->stmt(), col));
-  std::transform(column_type.begin(), column_type.end(), column_type.begin(),
-                 ::tolower);
+  StringToLowerASCII(&column_type);
 
   if (column_type == "integer")
     return COLUMN_TYPE_INTEGER;
