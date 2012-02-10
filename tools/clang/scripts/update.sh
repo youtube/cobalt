@@ -13,6 +13,7 @@ CLANG_REVISION=148911
 THIS_DIR="$(dirname "${0}")"
 LLVM_DIR="${THIS_DIR}/../../../third_party/llvm"
 LLVM_BUILD_DIR="${LLVM_DIR}/../llvm-build"
+LLVM_BOOTSTRAP_DIR="${LLVM_DIR}/../llvm-bootstrap"
 CLANG_DIR="${LLVM_DIR}/tools/clang"
 COMPILER_RT_DIR="${LLVM_DIR}/projects/compiler-rt"
 STAMP_FILE="${LLVM_BUILD_DIR}/cr_build_revision"
@@ -29,8 +30,12 @@ OS="$(uname -s)"
 force_local_build=
 mac_only=
 run_tests=
+bootstrap=
 while [[ $# > 0 ]]; do
   case $1 in
+    --bootstrap)
+      bootstrap=yes
+      ;;
     --force-local-build)
       force_local_build=yes
       ;;
@@ -42,6 +47,7 @@ while [[ $# > 0 ]]; do
       ;;
     --help)
       echo "usage: $0 [--force-local-build] [--mac-only] [--run-tests] "
+      echo "--bootstrap: First build clang with CC, then with itself."
       echo "--force-local-build: Don't try to download prebuilt binaries."
       echo "--mac-only: Do initial download only on Mac systems."
       echo "--run-tests: Run tests after building. Only for local builds."
@@ -87,7 +93,7 @@ fi
 
 
 # Check if there's anything to be done, exit early if not.
-if [ -f "${STAMP_FILE}" ]; then
+if [[ -f "${STAMP_FILE}" ]]; then
   PREVIOUSLY_BUILT_REVISON=$(cat "${STAMP_FILE}")
   if [[ -z "$force_local_build" ]] && \
        [[ "${PREVIOUSLY_BUILT_REVISON}" = "${CLANG_REVISION}" ]]; then
@@ -130,7 +136,7 @@ if [[ "${OS}" = "Darwin" ]]; then
   done
 fi
 
-if [ -z "$force_local_build" ]; then
+if [[ -z "$force_local_build" ]]; then
   # Check if there's a prebuilt binary and if so just fetch that. That's faster,
   # and goma relies on having matching binary hashes on client and server too.
   CDS_URL=https://commondatastorage.googleapis.com/chromium-browser-clang
@@ -183,12 +189,47 @@ svn co --force "${LLVM_REPO_URL}/compiler-rt/trunk@${CLANG_REVISION}" \
 # Echo all commands.
 set -x
 
+NUM_JOBS=3
+if [[ "${OS}" = "Linux" ]]; then
+  NUM_JOBS="$(grep -c "^processor" /proc/cpuinfo)"
+elif [ "${OS}" = "Darwin" ]; then
+  NUM_JOBS="$(sysctl -n hw.ncpu)"
+fi
+
+# Build bootstrap clang if requested.
+if [[ -n "${bootstrap}" ]]; then
+  echo "Building bootstrap compiler"
+  mkdir -p "${LLVM_BOOTSTRAP_DIR}"
+  cd "${LLVM_BOOTSTRAP_DIR}"
+  if [[ ! -f ./config.status ]]; then
+    # The bootstrap compiler only needs to be able to build the real compiler,
+    # so it needs no cross-compiler output support. In general, the host
+    # compiler should be as similar to the final compiler as possible, so do
+    # keep --disable-threads & co.
+    ../llvm/configure \
+        --enable-optimized \
+        --enable-targets=host-only \
+        --disable-threads \
+        --disable-pthreads \
+        --without-llvmgcc \
+        --without-llvmgxx
+    MACOSX_DEPLOYMENT_TARGET=10.5 make -j"${NUM_JOBS}"
+  fi
+  if [[ -n "${run_tests}" ]]; then
+    make check-all
+  fi
+  cd -
+  export CC="${PWD}/${LLVM_BOOTSTRAP_DIR}/Release+Asserts/bin/clang"
+  export CXX="${PWD}/${LLVM_BOOTSTRAP_DIR}/Release+Asserts/bin/clang++"
+  echo "Building final compiler"
+fi
+
 # Build clang (in a separate directory).
 # The clang bots have this path hardcoded in built/scripts/slave/compile.py,
 # so if you change it you also need to change these links.
 mkdir -p "${LLVM_BUILD_DIR}"
 cd "${LLVM_BUILD_DIR}"
-if [ ! -f ./config.status ]; then
+if [[ ! -f ./config.status ]]; then
   ../llvm/configure \
       --enable-optimized \
       --disable-threads \
@@ -197,12 +238,6 @@ if [ ! -f ./config.status ]; then
       --without-llvmgxx
 fi
 
-NUM_JOBS=3
-if [ "${OS}" = "Linux" ]; then
-  NUM_JOBS="$(grep -c "^processor" /proc/cpuinfo)"
-elif [ "${OS}" = "Darwin" ]; then
-  NUM_JOBS="$(sysctl -n hw.ncpu)"
-fi
 MACOSX_DEPLOYMENT_TARGET=10.5 make -j"${NUM_JOBS}"
 cd -
 
