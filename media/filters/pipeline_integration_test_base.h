@@ -23,13 +23,13 @@ namespace media {
 // display or audio device. Both of these devices are simulated since they have
 // little effect on verifying pipeline behavior and allow tests to run faster
 // than real-time.
-class PipelineIntegrationTestBase : public testing::Test {
+class PipelineIntegrationTestBase {
  public:
   PipelineIntegrationTestBase();
   virtual ~PipelineIntegrationTestBase();
 
   bool WaitUntilOnEnded();
-  void OnError(PipelineStatus status);
+  PipelineStatus WaitUntilEndedOrError();
   bool Start(const std::string& url, PipelineStatus expected_status);
   void Play();
   void Pause();
@@ -51,6 +51,7 @@ class PipelineIntegrationTestBase : public testing::Test {
                         PipelineStatus status);
   PipelineStatusCB QuitOnStatusCB(PipelineStatus expected_status);
   void OnEnded(PipelineStatus status);
+  void OnError(PipelineStatus status);
   void QuitAfterCurrentTimeTask(const base::TimeDelta& quit_time);
   scoped_ptr<FilterCollection> CreateFilterCollection(
       scoped_ptr<DemuxerFactory> demuxer_factory);
