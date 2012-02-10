@@ -208,8 +208,7 @@ class NET_EXPORT_PRIVATE SpdyStream
   void Close();
   bool cancelled() const { return cancelled_; }
   bool closed() const { return io_state_ == STATE_DONE; }
-  // TODO(satorux): This is only for testing. We should be able to remove
-  // this once crbug.com/113107 is addressed.
+  // This is only for testing.
   bool body_sent() const { return io_state_ > STATE_SEND_BODY_COMPLETE; }
 
   // Interface for Spdy[Http|WebSocket]Stream to use.
