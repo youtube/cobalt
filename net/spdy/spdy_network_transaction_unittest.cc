@@ -1689,14 +1689,16 @@ TEST_P(SpdyNetworkTransactionTest, EmptyPost) {
   request.upload_data = new UploadData();
 
   // Http POST Content-Length is using UploadDataStream::size().
-  // It is the same as request.upload_data->GetContentLength().
+  // It is the same as request.upload_data->GetContentLengthSync().
   scoped_ptr<UploadDataStream> stream(
       new UploadDataStream(request.upload_data));
   ASSERT_EQ(OK, stream->Init());
-  ASSERT_EQ(request.upload_data->GetContentLength(), stream->size());
+  ASSERT_EQ(request.upload_data->GetContentLengthSync(),
+            stream->size());
 
   scoped_ptr<spdy::SpdyFrame>
-      req(ConstructSpdyPost(request.upload_data->GetContentLength(), NULL, 0));
+      req(ConstructSpdyPost(
+          request.upload_data->GetContentLengthSync(), NULL, 0));
   // Set the FIN bit since there will be no body.
   req->set_flags(spdy::CONTROL_FLAG_FIN);
   MockWrite writes[] = {
@@ -1736,11 +1738,12 @@ TEST_P(SpdyNetworkTransactionTest, PostWithEarlySynReply) {
   request.upload_data->AppendBytes(upload, sizeof(upload));
 
   // Http POST Content-Length is using UploadDataStream::size().
-  // It is the same as request.upload_data->GetContentLength().
+  // It is the same as request.upload_data->GetContentLengthSync().
   scoped_ptr<UploadDataStream> stream(
       new UploadDataStream(request.upload_data));
   ASSERT_EQ(OK, stream->Init());
-  ASSERT_EQ(request.upload_data->GetContentLength(), stream->size());
+  ASSERT_EQ(request.upload_data->GetContentLengthSync(),
+            stream->size());
   scoped_ptr<spdy::SpdyFrame> stream_reply(ConstructSpdyPostSynReply(NULL, 0));
   scoped_ptr<spdy::SpdyFrame> stream_body(ConstructSpdyBodyFrame(1, true));
   MockRead reads[] = {
