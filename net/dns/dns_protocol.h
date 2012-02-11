@@ -13,6 +13,8 @@ namespace net {
 
 namespace dns_protocol {
 
+static const uint16 kDefaultPort = 53;
+
 // DNS packet consists of a header followed by questions and/or answers.
 // For the meaning of specific fields, please see RFC 1035 and 2535
 

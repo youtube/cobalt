@@ -336,6 +336,7 @@
         'dns/dns_config_service_win.h',
         'dns/dns_hosts.cc',
         'dns/dns_hosts.h',
+        'dns/dns_protocol.h',
         'dns/dns_query.cc',
         'dns/dns_query.h',
         'dns/dns_response.cc',
