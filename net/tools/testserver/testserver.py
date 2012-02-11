@@ -378,6 +378,7 @@ class TestPageHandler(BasePageHandler):
       self.MultipartHandler,
       self.MultipartSlowHandler,
       self.GetSSLSessionCacheHandler,
+      self.CloseSocketHandler,
       self.DefaultResponseHandler]
     post_handlers = [
       self.EchoTitleHandler,
@@ -922,6 +923,7 @@ class TestPageHandler(BasePageHandler):
     return self._FileHandlerHelper(prefix)
 
   def _FileHandlerHelper(self, prefix):
+    old_protocol_version = self.protocol_version
     _, _, url_path, _, query, _ = urlparse.urlparse(self.path)
     sub_path = url_path[len(prefix):]
     entries = sub_path.split('/')
@@ -948,7 +950,9 @@ class TestPageHandler(BasePageHandler):
 
       # "HTTP/1.1 200 OK"
       response = f.readline()
-      status_code = re.findall('HTTP/\d+.\d+ (\d+)', response)[0]
+      http_major, http_minor, status_code = re.findall(
+          'HTTP/(\d+).(\d+) (\d+)', response)[0]
+      self.protocol_version = "HTTP/%s.%s" % (http_major, http_minor)
       self.send_response(int(status_code))
 
       for line in f:
@@ -990,6 +994,7 @@ class TestPageHandler(BasePageHandler):
     if (self.command != 'HEAD'):
       self.wfile.write(data)
 
+    self.protocol_version = old_protocol_version
     return True
 
   def SetCookieHandler(self):
@@ -1425,6 +1430,15 @@ class TestPageHandler(BasePageHandler):
     except AttributeError, e:
       self.wfile.write('Pass --https-record-resume in order to use' +
                        ' this request')
+    return True
+
+  def CloseSocketHandler(self):
+    """Closes the socket without sending anything."""
+
+    if not self._ShouldHandleRequest('/close-socket'):
+      return False
+
+    self.wfile.close()
     return True
 
   def DefaultResponseHandler(self):
