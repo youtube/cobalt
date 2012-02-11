@@ -369,7 +369,7 @@ class ProxyResolverV8::Context {
 
     v8::Handle<v8::Value> argv[] = {
       ASCIIStringToV8String(query_url.spec()),
-      ASCIIStringToV8String(query_url.host()),
+      ASCIIStringToV8String(query_url.HostNoBrackets()),
     };
 
     v8::TryCatch try_catch;
