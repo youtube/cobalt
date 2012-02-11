@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 
 #include "base/basictypes.h"
 #include "base/file_path.h"
+#include "base/mac/foundation_util.h"
 #include "base/string_util.h"
 #include "base/threading/thread_restrictions.h"
 
@@ -18,7 +19,7 @@ bool GetTempDir(FilePath* path) {
   NSString* tmp = NSTemporaryDirectory();
   if (tmp == nil)
     return false;
-  *path = FilePath([tmp fileSystemRepresentation]);
+  *path = base::mac::NSStringToFilePath(tmp);
   return true;
 }
 

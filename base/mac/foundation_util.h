@@ -310,6 +310,12 @@ T GetValueFromDictionary(CFDictionaryRef dict, CFStringRef key) {
   return value_specific;
 }
 
+// Converts |path| to an autoreleased NSString. Returns nil if |path| is empty.
+NSString* FilePathToNSString(const FilePath& path);
+
+// Converts |str| to a FilePath. Returns an empty path if |str| is nil.
+FilePath NSStringToFilePath(NSString* str);
+
 }  // namespace mac
 }  // namespace base
 
