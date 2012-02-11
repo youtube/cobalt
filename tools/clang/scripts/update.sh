@@ -109,42 +109,47 @@ rm -f "${STAMP_FILE}"
 # with the new compiler.
 if [[ "${OS}" = "Darwin" ]]; then
   XCODEBUILD_DIR="${THIS_DIR}/../../../xcodebuild"
-  if [ -f "${THIS_DIR}/../../../WebKit.gyp" ]; then
-    # We're inside a WebKit checkout.
-    # TODO(thakis): try to unify the directory layout of the xcode- and
-    # make-based builds. http://crbug.com/110455
-    MAKE_DIR="${THIS_DIR}/../../../../../../out"
-  else
-    # We're inside a Chromium checkout.
-    MAKE_DIR="${THIS_DIR}/../../../out"
-  fi
-  for CONFIG in Debug Release; do
-    if [[ -d "${MAKE_DIR}/${CONFIG}/obj.target" ||
-          -d "${MAKE_DIR}/${CONFIG}/obj.host" ]]; then
-      echo "Clobbering ${CONFIG} PCH and .o files for make build"
-      find "${MAKE_DIR}/${CONFIG}/obj.target" -name '*.gch' -exec rm {} +
-      find "${MAKE_DIR}/${CONFIG}/obj.host" -name '*.o' -exec rm {} +
-      find "${MAKE_DIR}/${CONFIG}/obj.target" -name '*.o' -exec rm {} +
-    fi
 
-    # ninja puts its output below ${MAKE_DIR} as well.
-    if [[ -d "${MAKE_DIR}/${CONFIG}/obj" ]]; then
-      echo "Clobbering ${CONFIG} PCH and .o files for ninja build"
-      find "${MAKE_DIR}/${CONFIG}/obj" -name '*.gch' -exec rm {} +
-      find "${MAKE_DIR}/${CONFIG}/obj" -name '*.o' -exec rm {} +
-    fi
-
-    if [[ -d "${XCODEBUILD_DIR}/${CONFIG}/SharedPrecompiledHeaders" ]]; then
-      echo "Clobbering ${CONFIG} PCH files for Xcode build"
-      rm -rf "${XCODEBUILD_DIR}/${CONFIG}/SharedPrecompiledHeaders"
-    fi
-  done
   # Xcode groups .o files by project first, configuration second.
   if [[ -d "${XCODEBUILD_DIR}" ]]; then
     echo "Clobbering .o files for Xcode build"
     find "${XCODEBUILD_DIR}" -name '*.o' -exec rm {} +
   fi
 fi
+
+if [ -f "${THIS_DIR}/../../../WebKit.gyp" ]; then
+  # We're inside a WebKit checkout.
+  # TODO(thakis): try to unify the directory layout of the xcode- and
+  # make-based builds. http://crbug.com/110455
+  MAKE_DIR="${THIS_DIR}/../../../../../../out"
+else
+  # We're inside a Chromium checkout.
+  MAKE_DIR="${THIS_DIR}/../../../out"
+fi
+
+for CONFIG in Debug Release; do
+  if [[ -d "${MAKE_DIR}/${CONFIG}/obj.target" ||
+        -d "${MAKE_DIR}/${CONFIG}/obj.host" ]]; then
+    echo "Clobbering ${CONFIG} PCH and .o files for make build"
+    find "${MAKE_DIR}/${CONFIG}/obj.target" -name '*.gch' -exec rm {} +
+    find "${MAKE_DIR}/${CONFIG}/obj.host" -name '*.o' -exec rm {} +
+    find "${MAKE_DIR}/${CONFIG}/obj.target" -name '*.o' -exec rm {} +
+  fi
+
+  # ninja puts its output below ${MAKE_DIR} as well.
+  if [[ -d "${MAKE_DIR}/${CONFIG}/obj" ]]; then
+    echo "Clobbering ${CONFIG} PCH and .o files for ninja build"
+    find "${MAKE_DIR}/${CONFIG}/obj" -name '*.gch' -exec rm {} +
+    find "${MAKE_DIR}/${CONFIG}/obj" -name '*.o' -exec rm {} +
+  fi
+
+  if [[ "${OS}" = "Darwin" ]]; then
+    if [[ -d "${XCODEBUILD_DIR}/${CONFIG}/SharedPrecompiledHeaders" ]]; then
+      echo "Clobbering ${CONFIG} PCH files for Xcode build"
+      rm -rf "${XCODEBUILD_DIR}/${CONFIG}/SharedPrecompiledHeaders"
+    fi
+  fi
+done
 
 if [[ -z "$force_local_build" ]]; then
   # Check if there's a prebuilt binary and if so just fetch that. That's faster,
