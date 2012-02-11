@@ -117,7 +117,7 @@
  "xp-release-dual-core/dom_perf/Total/score": {"reva": 116084, "revb": 116312, "improve": 160, "regress": 0, "sha1": "4d8353a0"},
  "xp-release-dual-core/dromaeo_domcore/score/score": {"improve": 284, "regress": 236, "sha1": "35178029"},
  "xp-release-dual-core/dromaeo_jslib/score/score": {"improve": 18, "regress": -6, "sha1": "bd9f8469"},
- "xp-release-dual-core/intl1/times/t": {"reva": 109829, "revb": 112020, "improve": 30, "regress": 546, "sha1": "0469d27b"},
+ "xp-release-dual-core/intl1/times/t": {"reva": 120785, "revb": 121654, "improve": 383, "regress": 691, "sha1": "5bd26fea"},
  "xp-release-dual-core/intl2/times/t": {"reva": 120708, "revb": 120785, "improve": 306, "regress": 444, "sha1": "6be66770"},
  "xp-release-dual-core/morejs/times/t": {"reva": 120574, "revb": 121453, "improve": 8, "regress": 71, "sha1": "d8c7d6fe"},
  "xp-release-dual-core/moz/times/t": {"reva": 120708, "revb": 120785, "improve": 218, "regress": 289, "sha1": "0d3eeac8"},
