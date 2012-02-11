@@ -5,6 +5,7 @@
 #include "base/mac/bundle_locations.h"
 
 #include "base/logging.h"
+#include "base/mac/foundation_util.h"
 #include "base/sys_string_conversions.h"
 
 namespace base {
@@ -21,7 +22,7 @@ NSBundle* MainBundle() {
 
 FilePath MainBundlePath() {
   NSBundle* bundle = MainBundle();
-  return FilePath([[bundle bundlePath] fileSystemRepresentation]);
+  return NSStringToFilePath([bundle bundlePath]);
 }
 
 NSBundle* OuterBundle() {
@@ -32,7 +33,7 @@ NSBundle* OuterBundle() {
 
 FilePath OuterBundlePath() {
   NSBundle* bundle = OuterBundle();
-  return FilePath([[bundle bundlePath] fileSystemRepresentation]);
+  return NSStringToFilePath([bundle bundlePath]);
 }
 
 NSBundle* FrameworkBundle() {
@@ -43,7 +44,7 @@ NSBundle* FrameworkBundle() {
 
 FilePath FrameworkBundlePath() {
   NSBundle* bundle = FrameworkBundle();
-  return FilePath([[bundle bundlePath] fileSystemRepresentation]);
+  return NSStringToFilePath([bundle bundlePath]);
 }
 
 static void AssignOverrideBundle(NSBundle* new_bundle,
