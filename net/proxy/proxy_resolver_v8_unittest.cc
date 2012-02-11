@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -544,6 +544,29 @@ TEST(ProxyResolverV8Test, DNSResolutionOfInternationDomainName) {
 
   ASSERT_EQ(1u, bindings->dns_resolves_ex.size());
   EXPECT_EQ("xn--bcher-kva.ch", bindings->dns_resolves_ex[0]);
+}
+
+// Test that when resolving a URL which contains an IPv6 string literal, the
+// brackets are removed from the host before passing it down to the PAC script.
+// If we don't do this, then subsequent calls to dnsResolveEx(host) will be
+// doomed to fail since it won't correspond with a valid name.
+TEST(ProxyResolverV8Test, IPv6HostnamesNotBracketed) {
+  ProxyResolverV8WithMockBindings resolver;
+  int result = resolver.SetPacScriptFromDisk("resolve_host.js");
+  EXPECT_EQ(OK, result);
+
+  ProxyInfo proxy_info;
+  result = resolver.GetProxyForURL(
+      GURL("http://[abcd::efff]:99/watsupdawg"), &proxy_info,
+      CompletionCallback(), NULL, BoundNetLog());
+
+  EXPECT_EQ(OK, result);
+  EXPECT_TRUE(proxy_info.is_direct());
+
+  // We called dnsResolveEx() exactly once, by passing through the "host"
+  // argument to FindProxyForURL(). The brackets should have been stripped.
+  ASSERT_EQ(1U, resolver.mock_js_bindings()->dns_resolves_ex.size());
+  EXPECT_EQ("abcd::efff", resolver.mock_js_bindings()->dns_resolves_ex[0]);
 }
 
 }  // namespace
