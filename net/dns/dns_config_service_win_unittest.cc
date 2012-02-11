@@ -5,6 +5,7 @@
 #include "net/dns/dns_config_service_win.h"
 
 #include "base/win/windows_version.h"
+#include "net/dns/dns_protocol.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -52,6 +53,7 @@ struct AdapterInfo {
   IF_OPER_STATUS oper_status;
   PWCHAR dns_suffix;
   std::string dns_server_addresses[4];  // Empty string indicates end.
+  int ports[4];
 };
 
 scoped_ptr_malloc<IP_ADAPTER_ADDRESSES> CreateAdapterAddresses(
@@ -93,11 +95,12 @@ scoped_ptr_malloc<IP_ADAPTER_ADDRESSES> CreateAdapterAddresses(
       if (j == 0) {
         address = adapter->FirstDnsServerAddress = addresses + num_addresses;
       } else {
-        address = address->Next = address + 1;
+        // Note that |address| is moving backwards.
+        address = address->Next = address - 1;
       }
       IPAddressNumber ip;
       CHECK(ParseIPLiteralToNumber(info.dns_server_addresses[j], &ip));
-      IPEndPoint ipe(ip, 53);
+      IPEndPoint ipe(ip, info.ports[j]);
       address->Address.lpSockaddr =
           reinterpret_cast<LPSOCKADDR>(storage + num_addresses);
       size_t length = sizeof(struct sockaddr_storage);
@@ -109,12 +112,13 @@ scoped_ptr_malloc<IP_ADAPTER_ADDRESSES> CreateAdapterAddresses(
   return heap.Pass();
 }
 
-TEST(DnsConfigServiceWinTest, ConvertAdaptersAddresses) {
+TEST(DnsConfigServiceWinTest, ConvertAdapterAddresses) {
   // Check nameservers and connection-specific suffix.
   const struct TestCase {
     AdapterInfo input_adapters[4];        // |if_type| == 0 indicates end.
     std::string expected_nameservers[4];  // Empty string indicates end.
     std::string expected_suffix;
+    int expected_ports[4];
   } cases[] = {
     {  // Ignore loopback and inactive adapters.
       {
@@ -128,6 +132,16 @@ TEST(DnsConfigServiceWinTest, ConvertAdaptersAddresses) {
       },
       { "10.0.0.10", "2001:FFFF::1111" },
       "chromium.org",
+    },
+    {  // Respect configured ports.
+      {
+        { IF_TYPE_USB, IfOperStatusUp, L"chromium.org",
+        { "10.0.0.10", "2001:FFFF::1111" }, { 1024, 24 } },
+        { 0 },
+      },
+      { "10.0.0.10", "2001:FFFF::1111" },
+      "chromium.org",
+      { 1024, 24 },
     },
     {  // No usable nameservers.
       {
@@ -151,7 +165,10 @@ TEST(DnsConfigServiceWinTest, ConvertAdaptersAddresses) {
     for (size_t j = 0; !t.expected_nameservers[j].empty(); ++j) {
       IPAddressNumber ip;
       ASSERT_TRUE(ParseIPLiteralToNumber(t.expected_nameservers[j], &ip));
-      expected_nameservers.push_back(IPEndPoint(ip, 53));
+      int port = t.expected_ports[j];
+      if (!port)
+        port = dns_protocol::kDefaultPort;
+      expected_nameservers.push_back(IPEndPoint(ip, port));
     }
 
     DnsConfig config;
@@ -203,6 +220,16 @@ TEST(DnsConfigServiceWinTest, ConvertSuffixSearch) {
       },
       { "tcpip.domain", "connection.suffix" },
     },
+    {  // No primary suffix. Devolution does not matter.
+      {
+        CreateAdapterAddresses(infos),
+        { false },
+        { false },
+        { true },
+        { { true, 1 }, { true, 2 } },
+      },
+      { "connection.suffix" },
+    },
     {  // Devolution enabled by policy, level by dnscache.
       {
         CreateAdapterAddresses(infos),
@@ -238,6 +265,18 @@ TEST(DnsConfigServiceWinTest, ConvertSuffixSearch) {
         { { false }, { true, 1 } },
       },
       { "a.b.c.d.e", "connection.suffix", "b.c.d.e", "c.d.e" },
+    },
+    {  // Devolution enabled at level = 2, but nothing to devolve.
+      {
+        CreateAdapterAddresses(infos),
+        { false },
+        { false },
+        { true, L"a.b" },
+        { { false }, { false } },
+        { { false }, { true, 2 } },
+        { { false }, { true, 2 } },
+      },
+      { "a.b", "connection.suffix" },
     },
     {  // Devolution disabled when no explicit level.
        // Windows XP and Vista use a default level = 2, but we don't.

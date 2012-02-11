@@ -11,8 +11,6 @@
 
 namespace net {
 
-static const uint16 kDnsPort = 53;
-
 //-----------------------------------------------------------------------------
 // Query/response set for www.google.com, ID is fixed to 0.
 static const char kT0HostName[] = "www.google.com";

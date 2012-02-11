@@ -205,7 +205,8 @@ class DnsTransactionTest : public testing::Test {
     }
     for (unsigned i = 0; i < num_servers; ++i) {
       dns_ip[3] = i;
-      config_.nameservers.push_back(IPEndPoint(dns_ip, kDnsPort));
+      config_.nameservers.push_back(IPEndPoint(dns_ip,
+                                               dns_protocol::kDefaultPort));
     }
   }
 

@@ -21,6 +21,7 @@
 #include "base/win/windows_version.h"
 #include "googleurl/src/url_canon.h"
 #include "net/base/net_util.h"
+#include "net/dns/dns_protocol.h"
 #include "net/dns/serial_worker.h"
 #include "net/dns/watching_file_reader.h"
 
@@ -106,10 +107,13 @@ class RegistryWatcher : public base::win::ObjectWatcher::Delegate {
 };
 
 // Converts a string16 domain name to ASCII, possibly using punycode.
-// Returns true if the conversion succeeds. In case of failure, |domain| might
-// become dirty.
+// Returns true if the conversion succeeds and output is not empty. In case of
+// failure, |domain| might become dirty.
 bool ParseDomainASCII(const string16& widestr, std::string* domain) {
   DCHECK(domain);
+  if (widestr.empty())
+    return false;
+
   // Check if already ASCII.
   if (IsStringASCII(widestr)) {
     *domain = UTF16ToASCII(widestr);
@@ -129,7 +133,7 @@ bool ParseDomainASCII(const string16& widestr, std::string* domain) {
   bool success = UTF16ToUTF8(punycode.data(), punycode.length(), domain);
   DCHECK(success);
   DCHECK(IsStringASCII(*domain));
-  return success;
+  return success && !domain->empty();
 }
 
 }  // namespace
@@ -152,7 +156,7 @@ bool ParseSearchList(const string16& value, std::vector<std::string>* output) {
     // handle such suffixes.
     const string16& t = woutput[i];
     std::string parsed;
-    if (t.empty() || !ParseDomainASCII(t, &parsed))
+    if (!ParseDomainASCII(t, &parsed))
       break;
     output->push_back(parsed);
   }
@@ -181,6 +185,9 @@ bool ConvertSettingsToDnsConfig(const DnsSystemSettings& settings,
       IPEndPoint ipe;
       if (ipe.FromSockAddr(address->Address.lpSockaddr,
                            address->Address.iSockaddrLength)) {
+        // Override unset port.
+        if (!ipe.port())
+          ipe = IPEndPoint(ipe.address(), dns_protocol::kDefaultPort);
         config->nameservers.push_back(ipe);
       } else {
         return false;
