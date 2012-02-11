@@ -73,9 +73,7 @@ FilePath PathForFrameworkBundleResource(CFStringRef resourceName) {
   NSBundle* bundle = base::mac::FrameworkBundle();
   NSString* resourcePath = [bundle pathForResource:(NSString*)resourceName
                                             ofType:nil];
-  if (!resourcePath)
-    return FilePath();
-  return FilePath([resourcePath fileSystemRepresentation]);
+  return NSStringToFilePath(resourcePath);
 }
 
 OSType CreatorCodeForCFBundleRef(CFBundleRef bundle) {
@@ -101,8 +99,7 @@ bool GetSearchPathDirectory(NSSearchPathDirectory directory,
   if ([dirs count] < 1) {
     return false;
   }
-  NSString* path = [dirs objectAtIndex:0];
-  *result = FilePath([path fileSystemRepresentation]);
+  *result = NSStringToFilePath([dirs objectAtIndex:0]);
   return true;
 }
 
@@ -328,6 +325,18 @@ std::string GetValueFromDictionaryErrorMessage(
       " but it was " +
       base::SysCFStringRefToUTF8(actual_type_ref) +
       " instead";
+}
+
+NSString* FilePathToNSString(const FilePath& path) {
+  if (path.empty())
+    return nil;
+  return [NSString stringWithUTF8String:path.value().c_str()];
+}
+
+FilePath NSStringToFilePath(NSString* str) {
+  if (![str length])
+    return FilePath();
+  return FilePath([str fileSystemRepresentation]);
 }
 
 }  // namespace mac

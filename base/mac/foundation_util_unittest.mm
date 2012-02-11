@@ -1,13 +1,15 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/mac/foundation_util.h"
 
 #include "base/basictypes.h"
+#include "base/file_path.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/mac/scoped_nsautorelease_pool.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#import "testing/gtest_mac.h"
 
 TEST(FoundationUtilTest, CFCast) {
   // Build out the CF types to be tested as empty containers.
@@ -318,4 +320,15 @@ TEST(FoundationUtilTest, GetValueFromDictionary) {
                                                               CFSTR("four")));
   EXPECT_FALSE(base::mac::GetValueFromDictionary<CFStringRef>(test_dict,
                                                               CFSTR("one")));
+}
+
+TEST(FoundationUtilTest, FilePathToNSString) {
+  EXPECT_NSEQ(nil, base::mac::FilePathToNSString(FilePath()));
+  EXPECT_NSEQ(@"/a/b", base::mac::FilePathToNSString(FilePath("/a/b")));
+}
+
+TEST(FoundationUtilTest, NSStringToFilePath) {
+  EXPECT_EQ(FilePath(), base::mac::NSStringToFilePath(nil));
+  EXPECT_EQ(FilePath(), base::mac::NSStringToFilePath(@""));
+  EXPECT_EQ(FilePath("/a/b"), base::mac::NSStringToFilePath(@"/a/b"));
 }
