@@ -123,6 +123,20 @@ void CheckSSLInfo(const SSLInfo& ssl_info) {
   EXPECT_NE(0, cipher_suite);
 }
 
+bool FingerprintsEqual(const FingerprintVector& a, const FingerprintVector& b) {
+  size_t size = a.size();
+
+  if (size != b.size())
+    return false;
+
+  for (size_t i = 0; i < size; ++i) {
+    if (!a[i].Equals(b[i]))
+      return false;
+  }
+
+  return true;
+}
+
 }  // namespace
 
 // A network delegate that blocks requests, optionally cancelling or redirecting
@@ -1377,6 +1391,68 @@ TEST_F(HTTPSRequestTest, HTTPSPreloadedHSTSTest) {
   EXPECT_FALSE(d.received_data_before_response());
   EXPECT_TRUE(d.have_certificate_errors());
   EXPECT_TRUE(d.certificate_errors_are_fatal());
+}
+
+// This tests that cached HTTPS page loads do not cause any updates to the
+// TransportSecurityState.
+TEST_F(HTTPSRequestTest, HTTPSErrorsNoClobberTSSTest) {
+  // The actual problem -- CERT_MISMATCHED_NAME in this case -- doesn't
+  // matter. It just has to be any error.
+  TestServer::HTTPSOptions https_options(
+      TestServer::HTTPSOptions::CERT_MISMATCHED_NAME);
+  TestServer test_server(https_options,
+                         FilePath(FILE_PATH_LITERAL("net/data/ssl")));
+  ASSERT_TRUE(test_server.Start());
+
+  // We require that the URL be www.google.com in order to pick up the
+  // preloaded and dynamic HSTS and public key pin entries in the
+  // TransportSecurityState. This means that we have to use a
+  // MockHostResolver in order to direct www.google.com to the testserver.
+
+  MockHostResolver host_resolver;
+  host_resolver.rules()->AddRule("www.google.com", "127.0.0.1");
+  TestNetworkDelegate network_delegate;  // must outlive URLRequest
+  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext(true));
+  context->set_network_delegate(&network_delegate);
+  context->set_host_resolver(&host_resolver);
+  TransportSecurityState transport_security_state("");
+  TransportSecurityState::DomainState domain_state;
+  EXPECT_TRUE(transport_security_state.HasMetadata(&domain_state,
+                                                   "www.google.com", true));
+  context->set_transport_security_state(&transport_security_state);
+  context->Init();
+
+  TestDelegate d;
+  TestURLRequest r(GURL(StringPrintf("https://www.google.com:%d",
+                                     test_server.host_port_pair().port())),
+                   &d);
+  r.set_context(context);
+
+  r.Start();
+  EXPECT_TRUE(r.is_pending());
+
+  MessageLoop::current()->Run();
+
+  EXPECT_EQ(1, d.response_started_count());
+  EXPECT_FALSE(d.received_data_before_response());
+  EXPECT_TRUE(d.have_certificate_errors());
+  EXPECT_TRUE(d.certificate_errors_are_fatal());
+
+  // Get a fresh copy of the state, and check that it hasn't been updated.
+  TransportSecurityState::DomainState new_domain_state;
+  EXPECT_TRUE(transport_security_state.HasMetadata(&new_domain_state,
+                                                   "www.google.com", true));
+  EXPECT_EQ(new_domain_state.mode, domain_state.mode);
+  EXPECT_EQ(new_domain_state.created.ToTimeT(), domain_state.created.ToTimeT());
+  EXPECT_EQ(new_domain_state.expiry.ToTimeT(), domain_state.expiry.ToTimeT());
+  EXPECT_EQ(new_domain_state.include_subdomains,
+            domain_state.include_subdomains);
+  EXPECT_TRUE(FingerprintsEqual(new_domain_state.preloaded_spki_hashes,
+                                domain_state.preloaded_spki_hashes));
+  EXPECT_TRUE(FingerprintsEqual(new_domain_state.dynamic_spki_hashes,
+                                domain_state.dynamic_spki_hashes));
+  EXPECT_TRUE(FingerprintsEqual(new_domain_state.bad_preloaded_spki_hashes,
+                                domain_state.bad_preloaded_spki_hashes));
 }
 
 namespace {
