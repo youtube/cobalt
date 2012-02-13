@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -250,7 +250,8 @@ void HttpResponseInfo::Persist(Pickle* pickle,
         net::HttpResponseHeaders::PERSIST_SANS_CHALLENGES |
         net::HttpResponseHeaders::PERSIST_SANS_HOP_BY_HOP |
         net::HttpResponseHeaders::PERSIST_SANS_NON_CACHEABLE |
-        net::HttpResponseHeaders::PERSIST_SANS_RANGES;
+        net::HttpResponseHeaders::PERSIST_SANS_RANGES |
+        net::HttpResponseHeaders::PERSIST_SANS_SECURITY_STATE;
   }
 
   headers->Persist(pickle, persist_options);
