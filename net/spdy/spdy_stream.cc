@@ -58,7 +58,8 @@ SpdyStream::SpdyStream(SpdySession* session,
       has_upload_data_(false),
       net_log_(net_log),
       send_bytes_(0),
-      recv_bytes_(0) {
+      recv_bytes_(0),
+      ob_cert_type_(CLIENT_CERT_INVALID_TYPE) {
 }
 
 SpdyStream::~SpdyStream() {
