@@ -33,7 +33,7 @@ class AudioRendererSink
                           size_t audio_delay_milliseconds) = 0;
 
     // Signals an error has occurred.
-    virtual void OnError() = 0;
+    virtual void OnRenderError() = 0;
 
    protected:
     virtual ~RenderCallback() {}
