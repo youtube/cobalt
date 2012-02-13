@@ -56,6 +56,15 @@ const char* const kCookieResponseHeaders[] = {
   "set-cookie2"
 };
 
+// By default, do not cache Strict-Transport-Security or Public-Key-Pins.
+// This avoids erroneously re-processing them on page loads from cache ---
+// they are defined to be valid only on live and error-free HTTPS
+// connections.
+const char* const kSecurityStateHeaders[] = {
+  "strict-transport-security",
+  "public-key-pins"
+};
+
 // These response headers are not copied from a 304/206 response to the cached
 // response headers.  This list is based on Mozilla's nsHttpResponseHead.cpp.
 const char* const kNonUpdatedHeaders[] = {
@@ -190,6 +199,9 @@ void HttpResponseHeaders::Persist(Pickle* pickle, PersistOptions options) {
 
   if ((options & PERSIST_SANS_RANGES) == PERSIST_SANS_RANGES)
     AddHopContentRangeHeaders(&filter_headers);
+
+  if ((options & PERSIST_SANS_SECURITY_STATE) == PERSIST_SANS_SECURITY_STATE)
+    AddSecurityStateHeaders(&filter_headers);
 
   std::string blob;
   blob.reserve(raw_headers_.size());
@@ -830,6 +842,11 @@ void HttpResponseHeaders::AddChallengeHeaders(HeaderSet* result) {
 
 void HttpResponseHeaders::AddHopContentRangeHeaders(HeaderSet* result) {
   result->insert("content-range");
+}
+
+void HttpResponseHeaders::AddSecurityStateHeaders(HeaderSet* result) {
+  for (size_t i = 0; i < arraysize(kSecurityStateHeaders); ++i)
+    result->insert(std::string(kSecurityStateHeaders[i]));
 }
 
 void HttpResponseHeaders::GetMimeTypeAndCharset(std::string* mime_type,
