@@ -17,8 +17,8 @@ namespace {
 class NetLogSpdyStreamWindowUpdateParameter : public NetLog::EventParameters {
  public:
   NetLogSpdyStreamWindowUpdateParameter(spdy::SpdyStreamId stream_id,
-                                        int delta,
-                                        int window_size)
+                                        int32 delta,
+                                        int32 window_size)
       : stream_id_(stream_id), delta_(delta), window_size_(window_size) {}
   virtual Value* ToValue() const {
     DictionaryValue* dict = new DictionaryValue();
@@ -29,8 +29,8 @@ class NetLogSpdyStreamWindowUpdateParameter : public NetLog::EventParameters {
   }
  private:
   const spdy::SpdyStreamId stream_id_;
-  const int delta_;
-  const int window_size_;
+  const int32 delta_;
+  const int32 window_size_;
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdyStreamWindowUpdateParameter);
 };
 
@@ -129,13 +129,13 @@ void SpdyStream::set_spdy_headers(
   request_ = headers;
 }
 
-void SpdyStream::AdjustSendWindowSize(int delta_window_size) {
-  send_window_size_ = send_window_size_ + delta_window_size;
+void SpdyStream::AdjustSendWindowSize(int32 delta_window_size) {
+  send_window_size_ += delta_window_size;
 }
 
-void SpdyStream::IncreaseSendWindowSize(int delta_window_size) {
+void SpdyStream::IncreaseSendWindowSize(int32 delta_window_size) {
   DCHECK_GE(delta_window_size, 1);
-  int new_window_size = send_window_size_ + delta_window_size;
+  int32 new_window_size = send_window_size_ + delta_window_size;
 
   // We should ignore WINDOW_UPDATEs received before or after this state,
   // since before means we've not written SYN_STREAM yet (i.e. it's too
@@ -169,7 +169,7 @@ void SpdyStream::IncreaseSendWindowSize(int delta_window_size) {
   }
 }
 
-void SpdyStream::DecreaseSendWindowSize(int delta_window_size) {
+void SpdyStream::DecreaseSendWindowSize(int32 delta_window_size) {
   // we only call this method when sending a frame, therefore
   // |delta_window_size| should be within the valid frame size range.
   DCHECK_GE(delta_window_size, 1);
@@ -187,12 +187,12 @@ void SpdyStream::DecreaseSendWindowSize(int delta_window_size) {
           stream_id_, -delta_window_size, send_window_size_)));
 }
 
-void SpdyStream::IncreaseRecvWindowSize(int delta_window_size) {
+void SpdyStream::IncreaseRecvWindowSize(int32 delta_window_size) {
   DCHECK_GE(delta_window_size, 1);
   // By the time a read is isued, stream may become inactive.
   if (!session_->IsStreamActive(stream_id_))
     return;
-  int new_window_size = recv_window_size_ + delta_window_size;
+  int32 new_window_size = recv_window_size_ + delta_window_size;
   if (recv_window_size_ > 0)
     DCHECK(new_window_size > 0);
 
@@ -204,7 +204,7 @@ void SpdyStream::IncreaseRecvWindowSize(int delta_window_size) {
   session_->SendWindowUpdate(stream_id_, delta_window_size);
 }
 
-void SpdyStream::DecreaseRecvWindowSize(int delta_window_size) {
+void SpdyStream::DecreaseRecvWindowSize(int32 delta_window_size) {
   DCHECK_GE(delta_window_size, 1);
 
   recv_window_size_ -= delta_window_size;

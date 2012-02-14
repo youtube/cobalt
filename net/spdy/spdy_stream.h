@@ -125,13 +125,13 @@ class NET_EXPORT_PRIVATE SpdyStream
   int priority() const { return priority_; }
   void set_priority(int priority) { priority_ = priority; }
 
-  int send_window_size() const { return send_window_size_; }
-  void set_send_window_size(int window_size) {
+  int32 send_window_size() const { return send_window_size_; }
+  void set_send_window_size(int32 window_size) {
     send_window_size_ = window_size;
   }
 
-  int recv_window_size() const { return recv_window_size_; }
-  void set_recv_window_size(int window_size) {
+  int32 recv_window_size() const { return recv_window_size_; }
+  void set_recv_window_size(int32 window_size) {
     recv_window_size_ = window_size;
   }
 
@@ -140,15 +140,15 @@ class NET_EXPORT_PRIVATE SpdyStream
   }
 
   // Adjust the |send_window_size_| by |delta_window_size|.
-  void AdjustSendWindowSize(int delta_window_size);
+  void AdjustSendWindowSize(int32 delta_window_size);
 
   // Increases |send_window_size_| with delta extracted from a WINDOW_UPDATE
   // frame; sends a RST_STREAM if delta overflows |send_window_size_| and
   // removes the stream from the session.
-  void IncreaseSendWindowSize(int delta_window_size);
+  void IncreaseSendWindowSize(int32 delta_window_size);
 
   // Decreases |send_window_size_| by the given number of bytes.
-  void DecreaseSendWindowSize(int delta_window_size);
+  void DecreaseSendWindowSize(int32 delta_window_size);
 
   int GetPeerAddress(AddressList* address) const;
   int GetLocalAddress(IPEndPoint* address) const;
@@ -159,13 +159,13 @@ class NET_EXPORT_PRIVATE SpdyStream
 
   // Increases |recv_window_size_| by the given number of bytes, also sends
   // a WINDOW_UPDATE frame.
-  void IncreaseRecvWindowSize(int delta_window_size);
+  void IncreaseRecvWindowSize(int32 delta_window_size);
 
   // Decreases |recv_window_size_| by the given number of bytes, called
   // whenever data is read.  May also send a RST_STREAM and remove the
   // stream from the session if the resultant |recv_window_size_| is
   // negative, since that would be a flow control violation.
-  void DecreaseRecvWindowSize(int delta_window_size);
+  void DecreaseRecvWindowSize(int32 delta_window_size);
 
   const BoundNetLog& net_log() const { return net_log_; }
 
@@ -302,8 +302,8 @@ class NET_EXPORT_PRIVATE SpdyStream
 
   // Flow control variables.
   bool stalled_by_flow_control_;
-  int send_window_size_;
-  int recv_window_size_;
+  int32 send_window_size_;
+  int32 recv_window_size_;
 
   const bool pushed_;
   ScopedBandwidthMetrics metrics_;
