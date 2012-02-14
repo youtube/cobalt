@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -404,9 +404,9 @@ class SharedMemoryProcessTest : public MultiProcessTest {
 
 const char* const SharedMemoryProcessTest::s_test_name_ = "MPMem";
 
-
+// http://crbug.com/61589
 #if defined(OS_MACOSX)
-#define MAYBE_Tasks FLAKY_Tasks
+#define MAYBE_Tasks DISABLED_Tasks
 #else
 #define MAYBE_Tasks Tasks
 #endif
