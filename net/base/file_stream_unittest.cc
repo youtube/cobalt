@@ -749,10 +749,8 @@ class TestWriteReadCompletionCallback {
         char buf[4];
         rv = stream_->Read(buf, arraysize(buf), callback.callback());
         if (rv == ERR_IO_PENDING) {
-          bool old_state = MessageLoop::current()->NestableTasksAllowed();
-          MessageLoop::current()->SetNestableTasksAllowed(true);
+          MessageLoop::ScopedNestableTaskAllower allow(MessageLoop::current());
           rv = callback.WaitForResult();
-          MessageLoop::current()->SetNestableTasksAllowed(old_state);
         }
         EXPECT_LE(0, rv);
         if (rv <= 0)
