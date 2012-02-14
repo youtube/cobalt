@@ -1908,7 +1908,7 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateReceived) {
     CreateMockWrite(*body_end),
   };
 
-  static const int kDeltaWindowSize = 0xff;
+  static const int32 kDeltaWindowSize = 0xff;
   static const int kDeltaCount = 4;
   scoped_ptr<spdy::SpdyFrame> window_update(
       ConstructSpdyWindowUpdate(1, kDeltaWindowSize));
@@ -2075,7 +2075,7 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
     CreateMockWrite(*rst),
   };
 
-  static const int kDeltaWindowSize = 0x7fffffff;  // cause an overflow
+  static const int32 kDeltaWindowSize = 0x7fffffff;  // cause an overflow
   scoped_ptr<spdy::SpdyFrame> window_update(
       ConstructSpdyWindowUpdate(1, kDeltaWindowSize));
   scoped_ptr<spdy::SpdyFrame> window_update2(
