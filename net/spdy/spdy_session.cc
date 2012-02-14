@@ -128,7 +128,7 @@ class NetLogSpdySettingsParameter : public NetLog::EventParameters {
 
 class NetLogSpdyWindowUpdateParameter : public NetLog::EventParameters {
  public:
-  NetLogSpdyWindowUpdateParameter(spdy::SpdyStreamId stream_id, int delta)
+  NetLogSpdyWindowUpdateParameter(spdy::SpdyStreamId stream_id, int32 delta)
       : stream_id_(stream_id), delta_(delta) {}
 
   virtual Value* ToValue() const {
@@ -141,7 +141,7 @@ class NetLogSpdyWindowUpdateParameter : public NetLog::EventParameters {
  private:
   ~NetLogSpdyWindowUpdateParameter() {}
   const spdy::SpdyStreamId stream_id_;
-  const int delta_;
+  const int32 delta_;
 
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdyWindowUpdateParameter);
 };
@@ -1580,7 +1580,7 @@ void SpdySession::OnSettings(const spdy::SpdySettingsControlFrame& frame) {
 void SpdySession::OnWindowUpdate(
     const spdy::SpdyWindowUpdateControlFrame& frame) {
   spdy::SpdyStreamId stream_id = frame.stream_id();
-  int delta_window_size = static_cast<int>(frame.delta_window_size());
+  int32 delta_window_size = static_cast<int32>(frame.delta_window_size());
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_SESSION_RECEIVED_WINDOW_UPDATE,
       make_scoped_refptr(new NetLogSpdyWindowUpdateParameter(
@@ -1607,7 +1607,7 @@ void SpdySession::OnWindowUpdate(
 }
 
 void SpdySession::SendWindowUpdate(spdy::SpdyStreamId stream_id,
-                                   int delta_window_size) {
+                                   int32 delta_window_size) {
   DCHECK(IsStreamActive(stream_id));
   scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
   CHECK_EQ(stream->stream_id(), stream_id);
@@ -1699,8 +1699,11 @@ void SpdySession::HandleSettings(const spdy::SpdySettings& settings) {
         ProcessPendingCreateStreams();
         break;
       case spdy::SETTINGS_INITIAL_WINDOW_SIZE:
-        int prev_initial_send_window_size = initial_send_window_size_;
-        initial_send_window_size_ = static_cast<size_t>(val);
+        // INITIAL_WINDOW_SIZE updates initial_send_window_size_ only.
+        // TODO(rtenneti): discuss with the server team about
+        // initial_recv_window_size_.
+        int32 prev_initial_send_window_size = initial_send_window_size_;
+        initial_send_window_size_ = val;
         int32 delta_window_size =
             initial_send_window_size_ - prev_initial_send_window_size;
         UpdateStreamsSendWindowSize(delta_window_size);
@@ -1718,17 +1721,22 @@ void SpdySession::UpdateStreamsSendWindowSize(int32 delta_window_size) {
   }
 
   for (int i = 0; i < NUM_PRIORITIES; ++i) {
-    PendingCreateStreamQueue tmp;
+    PendingCreateStreamQueue temporary_queue;
+    // Lack of iterator for std::queue forces us to copy the entries to
+    // temporary_queue and copy them back.
+    // TODO(rtenneti): Use a different data type that has iterator for
+    // create_stream_queues_.
     while (!create_stream_queues_[i].empty()) {
       PendingCreateStream pending_create = create_stream_queues_[i].front();
       const scoped_refptr<SpdyStream>& stream = *(pending_create.spdy_stream);
       stream->AdjustSendWindowSize(delta_window_size);
       create_stream_queues_[i].pop();
-      tmp.push(pending_create);
+      temporary_queue.push(pending_create);
     }
-    while (!tmp.empty()) {
-      create_stream_queues_[i].push(tmp.front());
-      tmp.pop();
+    // Now copy it back.
+    while (!temporary_queue.empty()) {
+      create_stream_queues_[i].push(temporary_queue.front());
+      temporary_queue.pop();
     }
   }
 }

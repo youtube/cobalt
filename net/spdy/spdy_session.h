@@ -209,7 +209,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   // Send WINDOW_UPDATE frame, called by a stream whenever receive window
   // size is increased.
-  void SendWindowUpdate(spdy::SpdyStreamId stream_id, int delta_window_size);
+  void SendWindowUpdate(spdy::SpdyStreamId stream_id, int32 delta_window_size);
 
   // If session is closed, no new streams/transactions should be created.
   bool IsClosed() const { return state_ == CLOSED; }
@@ -600,13 +600,13 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // Initial send window size for the session; can be changed by an
   // arriving SETTINGS frame; newly created streams use this value for the
   // initial send window size.
-  int initial_send_window_size_;
+  int32 initial_send_window_size_;
 
   // Initial receive window size for the session; there are plans to add a
   // command line switch that would cause a SETTINGS frame with window size
   // announcement to be sent on startup; newly created streams will use
   // this value for the initial receive window size.
-  int initial_recv_window_size_;
+  int32 initial_recv_window_size_;
 
   BoundNetLog net_log_;
 
