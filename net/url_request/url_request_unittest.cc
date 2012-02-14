@@ -3642,7 +3642,7 @@ class URLRequestTestFTP : public URLRequestTest {
 };
 
 // Flaky, see http://crbug.com/25045.
-TEST_F(URLRequestTestFTP, FLAKY_FTPDirectoryListing) {
+TEST_F(URLRequestTestFTP, DISABLED_FTPDirectoryListing) {
   ASSERT_TRUE(test_server_.Start());
 
   TestDelegate d;
@@ -3666,7 +3666,7 @@ TEST_F(URLRequestTestFTP, FLAKY_FTPDirectoryListing) {
 }
 
 // Flaky, see http://crbug.com/25045.
-TEST_F(URLRequestTestFTP, FLAKY_FTPGetTestAnonymous) {
+TEST_F(URLRequestTestFTP, DISABLED_FTPGetTestAnonymous) {
   ASSERT_TRUE(test_server_.Start());
 
   FilePath app_path;
@@ -3696,7 +3696,7 @@ TEST_F(URLRequestTestFTP, FLAKY_FTPGetTestAnonymous) {
 }
 
 // Flaky, see http://crbug.com/25045.
-TEST_F(URLRequestTestFTP, FLAKY_FTPGetTest) {
+TEST_F(URLRequestTestFTP, DISABLED_FTPGetTest) {
   ASSERT_TRUE(test_server_.Start());
 
   FilePath app_path;
@@ -3728,7 +3728,7 @@ TEST_F(URLRequestTestFTP, FLAKY_FTPGetTest) {
 }
 
 // Flaky, see http://crbug.com/25045.
-TEST_F(URLRequestTestFTP, FLAKY_FTPCheckWrongPassword) {
+TEST_F(URLRequestTestFTP, DISABLED_FTPCheckWrongPassword) {
   ASSERT_TRUE(test_server_.Start());
 
   FilePath app_path;
@@ -3758,7 +3758,7 @@ TEST_F(URLRequestTestFTP, FLAKY_FTPCheckWrongPassword) {
 }
 
 // Flaky, see http://crbug.com/25045.
-TEST_F(URLRequestTestFTP, FLAKY_FTPCheckWrongPasswordRestart) {
+TEST_F(URLRequestTestFTP, DISABLED_FTPCheckWrongPasswordRestart) {
   ASSERT_TRUE(test_server_.Start());
 
   FilePath app_path;
@@ -3791,7 +3791,7 @@ TEST_F(URLRequestTestFTP, FLAKY_FTPCheckWrongPasswordRestart) {
 }
 
 // Flaky, see http://crbug.com/25045.
-TEST_F(URLRequestTestFTP, FLAKY_FTPCheckWrongUser) {
+TEST_F(URLRequestTestFTP, DISABLED_FTPCheckWrongUser) {
   ASSERT_TRUE(test_server_.Start());
 
   FilePath app_path;
@@ -3821,7 +3821,7 @@ TEST_F(URLRequestTestFTP, FLAKY_FTPCheckWrongUser) {
 }
 
 // Flaky, see http://crbug.com/25045.
-TEST_F(URLRequestTestFTP, FLAKY_FTPCheckWrongUserRestart) {
+TEST_F(URLRequestTestFTP, DISABLED_FTPCheckWrongUserRestart) {
   ASSERT_TRUE(test_server_.Start());
 
   FilePath app_path;
@@ -3854,7 +3854,7 @@ TEST_F(URLRequestTestFTP, FLAKY_FTPCheckWrongUserRestart) {
 }
 
 // Flaky, see http://crbug.com/25045.
-TEST_F(URLRequestTestFTP, FLAKY_FTPCacheURLCredentials) {
+TEST_F(URLRequestTestFTP, DISABLED_FTPCacheURLCredentials) {
   ASSERT_TRUE(test_server_.Start());
 
   FilePath app_path;
@@ -3905,7 +3905,7 @@ TEST_F(URLRequestTestFTP, FLAKY_FTPCacheURLCredentials) {
 }
 
 // Flaky, see http://crbug.com/25045.
-TEST_F(URLRequestTestFTP, FLAKY_FTPCacheLoginBoxCredentials) {
+TEST_F(URLRequestTestFTP, DISABLED_FTPCacheLoginBoxCredentials) {
   ASSERT_TRUE(test_server_.Start());
 
   FilePath app_path;
