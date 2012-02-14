@@ -87,6 +87,7 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
     kProtoSPDY1 = 2,
     kProtoSPDY2 = 3,
     kProtoSPDY21 = 4,
+    kProtoSPDY3 = 5,
   };
 
   // Gets the SSL connection information of the socket.
