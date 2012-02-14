@@ -317,6 +317,7 @@ TEST_F(SpdyHttpStreamTest, SendCredentials) {
   SSLSocketDataProvider ssl(false, OK);
   ssl.origin_bound_cert_type = CLIENT_CERT_RSA_SIGN;
   ssl.origin_bound_cert_service = obc_service.get();
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY3;
   socket_factory->AddSSLSocketDataProvider(&ssl);
   http_session_ = SpdySessionDependencies::SpdyCreateSessionDeterministic(
       &session_deps_);
