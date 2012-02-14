@@ -137,8 +137,8 @@ void NetworkManagerApi::Init() {
 
   // Ignore ServiceUnknown errors to avoid log spam: http://crbug.com/109696.
   dbus::ObjectProxy* proxy = system_bus_->GetObjectProxyWithOptions(
-      kNetworkManagerServiceName, dbus::ObjectPath(kNetworkManagerPath),
-      dbus::ObjectProxy::IGNORE_SERVICE_UNKNOWN_ERRORS);
+          kNetworkManagerServiceName, kNetworkManagerPath,
+          dbus::ObjectProxy::IGNORE_SERVICE_UNKNOWN_ERRORS);
 
   // Get the initial state asynchronously.
   dbus::MethodCall method_call(DBUS_INTERFACE_PROPERTIES, "Get");
