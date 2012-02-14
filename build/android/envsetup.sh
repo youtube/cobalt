@@ -57,8 +57,8 @@ if [ ! -d "${ANDROID_TOOLCHAIN}" ]; then
 fi
 
 if [ -z "${CHROME_SRC}" ]; then
-  # if $CHROME_SRC was not set, assume current directory is CHROME_SRC.
-  export CHROME_SRC=$(pwd)
+  # If $CHROME_SRC was not set, assume current directory is CHROME_SRC.
+  export CHROME_SRC=$(readlink -f .)
 fi
 
 if [ ! -d "${CHROME_SRC}" ]; then
