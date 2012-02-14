@@ -1410,8 +1410,10 @@ class RequestSocketCallback : public TestCompletionCallbackBase {
       handle_->socket()->Disconnect();
       handle_->Reset();
       {
-        MessageLoop::ScopedNestableTaskAllower nestable(
-            MessageLoop::current());
+        // TODO: Resolve conflicting intentions of stopping recursion with the
+        // |!within_callback_| test (above) and the call to |RunAllPending()|
+        // below.  http://crbug.com/114130.
+        MessageLoop::ScopedNestableTaskAllower allow(MessageLoop::current());
         MessageLoop::current()->RunAllPending();
       }
       within_callback_ = true;
@@ -1437,7 +1439,7 @@ class RequestSocketCallback : public TestCompletionCallbackBase {
           // operations that happen on timers (e.g. cleanup of idle
           // connections) can execute.
           {
-            MessageLoop::ScopedNestableTaskAllower nestable(
+            MessageLoop::ScopedNestableTaskAllower allow(
                 MessageLoop::current());
             base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(10));
             EXPECT_EQ(OK, next_job_callback.WaitForResult());
