@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -320,7 +320,7 @@ TEST(TimerTest, DelayTimer_OneCall) {
 }
 
 // It's flaky on the buildbot, http://crbug.com/25038.
-TEST(TimerTest, FLAKY_DelayTimer_Reset) {
+TEST(TimerTest, DISABLED_DelayTimer_Reset) {
   RunTest_DelayTimer_Reset(MessageLoop::TYPE_DEFAULT);
   RunTest_DelayTimer_Reset(MessageLoop::TYPE_UI);
   RunTest_DelayTimer_Reset(MessageLoop::TYPE_IO);

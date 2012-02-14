@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -270,7 +270,7 @@ TEST_F(FilePathWatcherTest, DeleteDuringNotify) {
 // notification.
 // Flaky on MacOS. http://crbug.com/85930
 #if defined(OS_MACOSX)
-#define MAYBE_DestroyWithPendingNotification FLAKY_DestroyWithPendingNotification
+#define MAYBE_DestroyWithPendingNotification DISABLED_DestroyWithPendingNotification
 #else
 #define MAYBE_DestroyWithPendingNotification DestroyWithPendingNotification
 #endif
@@ -352,7 +352,7 @@ TEST_F(FilePathWatcherTest, DirectoryChain) {
 
 #if defined(OS_MACOSX)
 // http://crbug.com/85930
-#define DisappearingDirectory FLAKY_DisappearingDirectory
+#define DisappearingDirectory DISABLED_DisappearingDirectory
 #endif
 TEST_F(FilePathWatcherTest, DisappearingDirectory) {
   FilePathWatcher watcher;
