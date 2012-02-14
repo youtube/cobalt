@@ -404,7 +404,6 @@
           'win/scoped_comptr.h',
           'win/scoped_gdi_object.h',
           'win/scoped_handle.h',
-          'win/scoped_hdc.cc',
           'win/scoped_hdc.h',
           'win/scoped_hglobal.h',
           'win/scoped_select_object.h',
