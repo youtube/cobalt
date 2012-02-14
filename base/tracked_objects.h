@@ -185,8 +185,6 @@
 // DeathData that is reset (as synchronously as possible) during each snapshot.
 // This will facilitate displaying a max value for each snapshot period.
 
-class MessageLoop;
-
 namespace tracked_objects {
 
 //------------------------------------------------------------------------------
