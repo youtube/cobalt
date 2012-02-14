@@ -920,6 +920,7 @@ TEST_F(SpdySessionTest, NeedsCredentials) {
 
   SSLSocketDataProvider ssl(false, OK);
   ssl.origin_bound_cert_type = CLIENT_CERT_RSA_SIGN;
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY3;
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
 
   scoped_refptr<HttpNetworkSession> http_session(
@@ -994,6 +995,7 @@ TEST_F(SpdySessionTest, SendCredentials) {
 
   SSLSocketDataProvider ssl(false, OK);
   ssl.origin_bound_cert_type = CLIENT_CERT_RSA_SIGN;
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY3;
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
 
   scoped_refptr<HttpNetworkSession> http_session(
