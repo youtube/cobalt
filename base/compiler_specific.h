@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -90,9 +90,18 @@
 //   int x ALLOW_UNUSED = ...;
 #if defined(COMPILER_GCC)
 #define ALLOW_UNUSED __attribute__((unused))
-#define NOINLINE __attribute__((noinline))
 #else
 #define ALLOW_UNUSED
+#endif
+
+// Annotate a function indicating it should not be inlined.
+// Use like:
+//   NOINLINE void DoStuff() { ... }
+#if defined(COMPILER_GCC)
+#define NOINLINE __attribute__((noinline))
+#elif defined(COMPILER_MSVC)
+#define NOINLINE __declspec(noinline)
+#else
 #define NOINLINE
 #endif
 
