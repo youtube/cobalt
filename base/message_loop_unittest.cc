@@ -985,10 +985,10 @@ void RunTest_RecursiveSupport2(MessageLoop::Type message_loop_type) {
 
 void FuncThatPumps(TaskList* order, int cookie) {
   order->RecordStart(PUMPS, cookie);
-  bool old_state = MessageLoop::current()->NestableTasksAllowed();
-  MessageLoop::current()->SetNestableTasksAllowed(true);
-  MessageLoop::current()->RunAllPending();
-  MessageLoop::current()->SetNestableTasksAllowed(old_state);
+  {
+    MessageLoop::ScopedNestableTaskAllower allow(MessageLoop::current());
+    MessageLoop::current()->RunAllPending();
+  }
   order->RecordEnd(PUMPS, cookie);
 }
 

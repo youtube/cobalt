@@ -797,8 +797,7 @@ class RequestSocketCallback : public TestCompletionCallbackBase {
       handle_->socket()->Disconnect();
       handle_->Reset();
       {
-        MessageLoop::ScopedNestableTaskAllower nestable(
-            MessageLoop::current());
+        MessageLoop::ScopedNestableTaskAllower allow(MessageLoop::current());
         MessageLoop::current()->RunAllPending();
       }
       within_callback_ = true;

@@ -67,11 +67,12 @@ class Histogram;
 // (DoDragDrop), printer functions (StartDoc) and *many* others.
 //
 // Sample workaround when inner task processing is needed:
-//   bool old_state = MessageLoop::current()->NestableTasksAllowed();
-//   MessageLoop::current()->SetNestableTasksAllowed(true);
-//   HRESULT hr = DoDragDrop(...); // Implicitly runs a modal message loop here.
-//   MessageLoop::current()->SetNestableTasksAllowed(old_state);
-//   // Process hr  (the result returned by DoDragDrop().
+//   HRESULT hr;
+//   {
+//     MessageLoop::ScopedNestableTaskAllower allow(MessageLoop::current());
+//     hr = DoDragDrop(...); // Implicitly runs a modal message loop.
+//   }
+//   // Process |hr| (the result returned by DoDragDrop()).
 //
 // Please be SURE your task is reentrant (nestable) and all global variables
 // are stable and accessible before calling SetNestableTasksAllowed(true).
@@ -263,6 +264,10 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   // of recursive message loops. Some unwanted message loop may occurs when
   // using common controls or printer functions. By default, recursive task
   // processing is disabled.
+  //
+  // Please utilize |ScopedNestableTaskAllower| instead of calling these methods
+  // directly.  In general nestable message loops are to be avoided.  They are
+  // dangerous and difficult to get right, so please use with extreme caution.
   //
   // The specific case where tasks get queued is:
   // - The thread is running a message loop.
