@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -82,7 +82,9 @@ void HttpStreamFactory::ProcessAlternateProtocol(
 
   AlternateProtocol protocol = ALTERNATE_PROTOCOL_BROKEN;
   // We skip NPN_SPDY_1 here, because we've rolled the protocol version to 2.
-  for (int i = NPN_SPDY_2; i < NUM_ALTERNATE_PROTOCOLS; ++i) {
+  // TODO(rtenneti): add support for SPDY/2.1 (use next_protos_ to determine the
+  // protocol).
+  for (int i = NPN_SPDY_2; i <= NPN_SPDY_2; ++i) {
     if (port_protocol_vector[1] == kAlternateProtocolStrings[i])
       protocol = static_cast<AlternateProtocol>(i);
   }
