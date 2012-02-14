@@ -41,11 +41,11 @@
 // }
 //
 // Unless you forward declare MyClassTest::TestMethod outside of namespace foo.
-// Use FORWARD_DECLARE_TEST_ALL_PREFIXES to do so for all possible prefixes.
+// Use FORWARD_DECLARE_TEST to do so for all possible prefixes.
 //
 // Example usage:
 //
-// FORWARD_DECLARE_TEST_ALL_PREFIXES(MyClassTest, TestMethod);
+// FORWARD_DECLARE_TEST(MyClassTest, TestMethod);
 //
 // namespace foo {
 // class MyClass {
@@ -61,12 +61,9 @@
 // }
 
 #define FORWARD_DECLARE_TEST(test_case_name, test_name) \
-class test_case_name##_##test_name##_Test\
-
-#define FORWARD_DECLARE_TEST_ALL_PREFIXES(test_case_name, test_name) \
-  FORWARD_DECLARE_TEST(test_case_name, test_name); \
-  FORWARD_DECLARE_TEST(test_case_name, DISABLED_##test_name); \
-  FORWARD_DECLARE_TEST(test_case_name, FLAKY_##test_name); \
-  FORWARD_DECLARE_TEST(test_case_name, FAILS_##test_name)
+  class test_case_name##_##test_name##_Test; \
+  class test_case_name##_##DISABLED_##test_name##_Test; \
+  class test_case_name##_##FLAKY_##test_name##_Test; \
+  class test_case_name##_##FAILS_##test_name##_Test
 
 #endif  // BASE_GTEST_PROD_UTIL_H_
