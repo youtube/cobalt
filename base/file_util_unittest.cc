@@ -340,7 +340,7 @@ static const struct dir_case {
 };
 
 // Flaky, http://crbug.com/46246
-TEST_F(FileUtilTest, FLAKY_CountFilesCreatedAfter) {
+TEST_F(FileUtilTest, DISABLED_CountFilesCreatedAfter) {
   // Create old file (that we don't want to count)
   FilePath old_file_name =
       temp_dir_.path().Append(FILE_PATH_LITERAL("Old File.txt"));
