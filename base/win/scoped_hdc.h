@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,91 +9,69 @@
 #include <windows.h>
 
 #include "base/basictypes.h"
-#include "base/compiler_specific.h"
+#include "base/logging.h"
 
 namespace base {
 namespace win {
 
-// The ScopedGetDC and ScopedCreateDC classes manage the default GDI objects
-// that are initially selected into a DC. They help you avoid the following
-// common mistake:
-//
-// HDC hdc = GetDC(NULL);
-// SelectObject(hdc, new_bitmap);
-// .. drawing code here ..
-// ReleaseDC(hdc);   <--- error: the DC has a custom object still selected!
-//
-// This code should be:
-//
-// HDC hdc = GetDC(NULL);
-// HGDIOBJ old_obj = SelectObject(hdc, new_bitmap);
-// .. drawing code here ..
-// SelectObject(hdc, old_obj);
-// ReleaseDC(hdc);    <--- ok to release now.
-//
-// But why work so hard? Use our handy classes:
-//
-// ScopedGetDC dc(NULL);
-// dc.SelectBitmap(hdc, new_bitmap);
-// .. drawing here
-// .. when dc goes out of scope it will select the original object before
-// .. being released.
-//
-class ScopedDC {
+// Like ScopedHandle but for HDC.  Only use this on HDCs returned from
+// GetDC.
+class ScopedGetDC {
  public:
-  virtual ~ScopedDC();
+  explicit ScopedGetDC(HWND hwnd)
+      : hwnd_(hwnd),
+        hdc_(GetDC(hwnd)) {
+    DCHECK(!hwnd_ || IsWindow(hwnd_));
+    DCHECK(hdc_);
+  }
 
-  virtual void DisposeDC(HDC hdc) = 0;
+  ~ScopedGetDC() {
+    if (hdc_)
+      ReleaseDC(hwnd_, hdc_);
+  }
 
-  HDC get() { return hdc_; }
-
-  void SelectBitmap(HBITMAP bitmap);
-  void SelectFont(HFONT font);
-  void SelectBrush(HBRUSH brush);
-  void SelectPen(HPEN pen);
-  void SelectRegion(HRGN region);
-
- protected:
-  ScopedDC(HDC hdc);
-  void Close();
-  void Reset(HDC hdc);
+  operator HDC() { return hdc_; }
 
  private:
-  void ResetObjects();
-  void Select(HGDIOBJ object, HGDIOBJ* holder);
-
-  HDC hdc_;
-  HGDIOBJ bitmap_;
-  HGDIOBJ font_;
-  HGDIOBJ brush_;
-  HGDIOBJ pen_;
-  HGDIOBJ region_;
-};
-
-// Creates and manages an HDC obtained by GetDC.
-class ScopedGetDC : public ScopedDC  {
- public:
-  explicit ScopedGetDC(HWND hwnd);
-  virtual ~ScopedGetDC();
-
- private:
-  virtual void DisposeDC(HDC hdc) OVERRIDE;
-
   HWND hwnd_;
+  HDC hdc_;
+
   DISALLOW_COPY_AND_ASSIGN(ScopedGetDC);
 };
 
 // Like ScopedHandle but for HDC.  Only use this on HDCs returned from
 // CreateCompatibleDC, CreateDC and CreateIC.
-class ScopedCreateDC : public ScopedDC {
+class ScopedCreateDC {
  public:
-  ScopedCreateDC();
-  explicit ScopedCreateDC(HDC hdc);
-  virtual ~ScopedCreateDC();
-  void Set(HDC hdc);
+  ScopedCreateDC() : hdc_(NULL) { }
+  explicit ScopedCreateDC(HDC h) : hdc_(h) { }
+
+  ~ScopedCreateDC() {
+    Close();
+  }
+
+  HDC Get() {
+    return hdc_;
+  }
+
+  void Set(HDC h) {
+    Close();
+    hdc_ = h;
+  }
+
+  operator HDC() { return hdc_; }
 
  private:
-  virtual void DisposeDC(HDC hdc) OVERRIDE;
+  void Close() {
+#ifdef NOGDI
+    assert(false);
+#else
+    if (hdc_)
+      DeleteDC(hdc_);
+#endif  // NOGDI
+  }
+
+  HDC hdc_;
 
   DISALLOW_COPY_AND_ASSIGN(ScopedCreateDC);
 };
