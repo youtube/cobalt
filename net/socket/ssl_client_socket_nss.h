@@ -261,6 +261,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   std::string ob_private_key_;
   std::string ob_cert_;
   OriginBoundCertService::RequestHandle ob_cert_request_handle_;
+  DebugOBCertRequestId ob_cert_request_id_;
 
   // True if NSS has called HandshakeCallback.
   bool handshake_callback_called_;
