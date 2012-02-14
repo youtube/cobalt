@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -107,7 +107,7 @@ void StatsTableThread::Run() {
 
 // Create a few threads and have them poke on their counters.
 // Flaky, http://crbug.com/10611.
-TEST_F(StatsTableTest, FLAKY_MultipleThreads) {
+TEST_F(StatsTableTest, DISABLED_MultipleThreads) {
   // Create a stats table.
   const std::string kTableName = "MultipleThreadStatTable";
   const int kMaxThreads = 20;
@@ -187,7 +187,7 @@ MULTIPROCESS_TEST_MAIN(StatsTableMultipleProcessMain) {
 
 // Create a few processes and have them poke on their counters.
 // This test is slow and flaky http://crbug.com/10611
-TEST_F(StatsTableTest, FLAKY_MultipleProcesses) {
+TEST_F(StatsTableTest, DISABLED_MultipleProcesses) {
   // Create a stats table.
   const int kMaxProcs = 20;
   const int kMaxCounter = 5;
