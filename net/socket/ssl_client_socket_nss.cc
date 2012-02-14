@@ -1610,6 +1610,11 @@ int SSLClientSocketNSS::DoGetOBCertComplete(int result) {
   net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_GET_ORIGIN_BOUND_CERT,
                                     result);
   client_auth_cert_needed_ = false;
+
+  if (ob_cert_request_handle_) {
+    CHECK(!origin_bound_cert_service_->DebugIsRequestAlive(
+        ob_cert_request_id_));
+  }
   ob_cert_request_handle_ = NULL;
 
   if (result != OK)
@@ -2207,6 +2212,8 @@ SECStatus SSLClientSocketNSS::OriginBoundClientAuthHandler(
   std::vector<uint8> requested_cert_types(cert_types->data,
                                           cert_types->data + cert_types->len);
   net_log_.BeginEvent(NetLog::TYPE_SSL_GET_ORIGIN_BOUND_CERT, NULL);
+
+  CHECK(!ob_cert_request_handle_);
   int error = origin_bound_cert_service_->GetOriginBoundCert(
       origin,
       requested_cert_types,
@@ -2218,6 +2225,10 @@ SECStatus SSLClientSocketNSS::OriginBoundClientAuthHandler(
       &ob_cert_request_handle_);
 
   if (error == ERR_IO_PENDING) {
+    CHECK(ob_cert_request_handle_);
+    origin_bound_cert_service_->DebugGetRequestId(
+        ob_cert_request_handle_, &ob_cert_request_id_);
+
     // Asynchronous case.
     client_auth_cert_needed_ = true;
     return SECWouldBlock;
