@@ -553,6 +553,8 @@ bool SpdySession::NeedsCredentials(const HostPortPair& origin) const {
     return false;
   SSLClientSocket* ssl_socket =
       reinterpret_cast<SSLClientSocket*>(connection_->socket());
+  if (ssl_socket->protocol_negotiated() < SSLClientSocket::kProtoSPDY3)
+    return false;
   if (!ssl_socket->WasOriginBoundCertSent())
     return false;
   return !credential_state_.HasCredential(origin);
