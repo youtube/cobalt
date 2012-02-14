@@ -377,7 +377,7 @@ CaptureGroupNameSSLSocketPool::CaptureGroupNameSocketPool(
 
 // This is the expected return from a current server advertising SPDY.
 static const char kAlternateProtocolHttpHeader[] =
-    "Alternate-Protocol: 443:npn-spdy/2.1\r\n\r\n";
+    "Alternate-Protocol: 443:npn-spdy/2\r\n\r\n";
 
 // Helper functions for validating that AuthChallengeInfo's are correctly
 // configured for common cases.
@@ -5482,7 +5482,7 @@ scoped_refptr<HttpNetworkSession> SetupSessionForGroupNameTests(
       session->http_server_properties();
   http_server_properties->SetAlternateProtocol(
       HostPortPair("host.with.alternate", 80), 443,
-      NPN_SPDY_21);
+      NPN_SPDY_2);
 
   return session;
 }
@@ -6422,7 +6422,7 @@ TEST_F(HttpNetworkTransactionTest, HonorAlternateProtocolHeader) {
       http_server_properties.GetAlternateProtocol(http_host_port_pair);
   PortAlternateProtocolPair expected_alternate;
   expected_alternate.port = 443;
-  expected_alternate.protocol = NPN_SPDY_21;
+  expected_alternate.protocol = NPN_SPDY_2;
   EXPECT_TRUE(expected_alternate.Equals(alternate));
 
   HttpStreamFactory::set_use_alternate_protocols(false);
@@ -6461,7 +6461,7 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocolAndFallback) {
   http_server_properties->SetAlternateProtocol(
       HostPortPair::FromURL(request.url),
       666 /* port is ignored by MockConnect anyway */,
-      NPN_SPDY_21);
+      NPN_SPDY_2);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestCompletionCallback callback;
@@ -6523,7 +6523,7 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortRestrictedBlocked) {
   http_server_properties->SetAlternateProtocol(
       HostPortPair::FromURL(restricted_port_request.url),
       kUnrestrictedAlternatePort,
-      NPN_SPDY_21);
+      NPN_SPDY_2);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestCompletionCallback callback;
@@ -6572,7 +6572,7 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortRestrictedAllowed) {
   http_server_properties->SetAlternateProtocol(
       HostPortPair::FromURL(restricted_port_request.url),
       kRestrictedAlternatePort,
-      NPN_SPDY_21);
+      NPN_SPDY_2);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestCompletionCallback callback;
@@ -6621,7 +6621,7 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortUnrestrictedAllowed1) {
   http_server_properties->SetAlternateProtocol(
       HostPortPair::FromURL(unrestricted_port_request.url),
       kRestrictedAlternatePort,
-      NPN_SPDY_21);
+      NPN_SPDY_2);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestCompletionCallback callback;
@@ -6670,7 +6670,7 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortUnrestrictedAllowed2) {
   http_server_properties->SetAlternateProtocol(
       HostPortPair::FromURL(unrestricted_port_request.url),
       kUnrestrictedAlternatePort,
-      NPN_SPDY_21);
+      NPN_SPDY_2);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestCompletionCallback callback;
@@ -8164,7 +8164,7 @@ TEST_F(HttpNetworkTransactionTest, SpdyAlternateProtocolThroughProxy) {
   MockRead data_reads_1[] = {
     MockRead(false, ERR_TEST_PEER_CLOSE_AFTER_NEXT_MOCK_READ),
     MockRead("HTTP/1.1 200 OK\r\n"
-             "Alternate-Protocol: 443:npn-spdy/2.1\r\n"
+             "Alternate-Protocol: 443:npn-spdy/2\r\n"
              "Proxy-Connection: close\r\n"
              "\r\n"),
   };
