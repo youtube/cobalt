@@ -909,6 +909,9 @@ class TestPageHandler(BasePageHandler):
     prefix = self.server.file_root_url
     if not self.path.startswith(prefix):
       return False
+    # Consume a request body if present.
+    if self.command == 'POST' or self.command == 'PUT' :
+      self.ReadRequestBody()
     return self._FileHandlerHelper(prefix)
 
   def PostOnlyFileHandler(self):
@@ -916,33 +919,12 @@ class TestPageHandler(BasePageHandler):
     prefix = urlparse.urljoin(self.server.file_root_url, 'post/')
     if not self.path.startswith(prefix):
       return False
+    self.ReadRequestBody()
     return self._FileHandlerHelper(prefix)
 
   def _FileHandlerHelper(self, prefix):
-    request_body = ''
-    if self.command == 'POST' or self.command == 'PUT':
-      # Consume a request body if present.
-      request_body = self.ReadRequestBody()
-
+    old_protocol_version = self.protocol_version
     _, _, url_path, _, query, _ = urlparse.urlparse(self.path)
-    query_dict = cgi.parse_qs(query)
-
-    expected_body = query_dict.get('expected_body', [])
-    if expected_body and request_body not in expected_body:
-      self.send_response(404)
-      self.end_headers()
-      self.wfile.write('')
-      return True
-
-    expected_headers = query_dict.get('expected_headers', [])
-    for expected_header in expected_headers:
-      header_name, expected_value = expected_header.split(':')
-      if self.headers.getheader(header_name) != expected_value:
-        self.send_response(404)
-        self.end_headers()
-        self.wfile.write('')
-        return True
-
     sub_path = url_path[len(prefix):]
     entries = sub_path.split('/')
     file_path = os.path.join(self.server.data_dir, *entries)
@@ -959,8 +941,6 @@ class TestPageHandler(BasePageHandler):
     f.close()
 
     data = self._ReplaceFileData(data, query)
-
-    old_protocol_version = self.protocol_version
 
     # If file.mock-http-headers exists, it contains the headers we
     # should send.  Read them in and parse them.
