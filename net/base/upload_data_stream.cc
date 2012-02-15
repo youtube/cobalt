@@ -117,9 +117,8 @@ int UploadDataStream::Read(IOBuffer* buf, int buf_len) {
         // missing or not readable.
         if (element_file_stream_.get()) {
           num_bytes_consumed =
-              element_file_stream_->Read(buf->data() + bytes_copied,
-                                         num_bytes_to_read,
-                                         CompletionCallback());
+              element_file_stream_->ReadSync(buf->data() + bytes_copied,
+                                             num_bytes_to_read);
         }
         if (num_bytes_consumed <= 0) {
           // If there's less data to read than we initially observed, then
