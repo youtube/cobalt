@@ -15,6 +15,7 @@
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
+#include "crypto/capi_util.h"
 #include "crypto/rsa_private_key.h"
 #include "crypto/scoped_capi_types.h"
 #include "crypto/sha2.h"
@@ -188,16 +189,6 @@ void ExplodedTimeToSystemTime(const base::Time::Exploded& exploded,
 
 //-----------------------------------------------------------------------------
 
-// Wrappers of malloc and free for CRYPT_DECODE_PARA, which requires the
-// WINAPI calling convention.
-void* WINAPI MyCryptAlloc(size_t size) {
-  return malloc(size);
-}
-
-void WINAPI MyCryptFree(void* p) {
-  free(p);
-}
-
 // Decodes the cert's subjectAltName extension into a CERT_ALT_NAME_INFO
 // structure and stores it in *output.
 void GetCertSubjectAltName(PCCERT_CONTEXT cert,
@@ -210,8 +201,8 @@ void GetCertSubjectAltName(PCCERT_CONTEXT cert,
 
   CRYPT_DECODE_PARA decode_para;
   decode_para.cbSize = sizeof(decode_para);
-  decode_para.pfnAlloc = MyCryptAlloc;
-  decode_para.pfnFree = MyCryptFree;
+  decode_para.pfnAlloc = crypto::CryptAlloc;
+  decode_para.pfnFree = crypto::CryptFree;
   CERT_ALT_NAME_INFO* alt_name_info = NULL;
   DWORD alt_name_info_size = 0;
   BOOL rv;
@@ -232,8 +223,8 @@ void GetCertSubjectAltName(PCCERT_CONTEXT cert,
 bool CertSubjectCommonNameHasNull(PCCERT_CONTEXT cert) {
   CRYPT_DECODE_PARA decode_para;
   decode_para.cbSize = sizeof(decode_para);
-  decode_para.pfnAlloc = MyCryptAlloc;
-  decode_para.pfnFree = MyCryptFree;
+  decode_para.pfnAlloc = crypto::CryptAlloc;
+  decode_para.pfnFree = crypto::CryptFree;
   CERT_NAME_INFO* name_info = NULL;
   DWORD name_info_size = 0;
   BOOL rv;
@@ -393,8 +384,8 @@ void GetCertPoliciesInfo(PCCERT_CONTEXT cert,
 
   CRYPT_DECODE_PARA decode_para;
   decode_para.cbSize = sizeof(decode_para);
-  decode_para.pfnAlloc = MyCryptAlloc;
-  decode_para.pfnFree = MyCryptFree;
+  decode_para.pfnAlloc = crypto::CryptAlloc;
+  decode_para.pfnFree = crypto::CryptFree;
   CERT_POLICIES_INFO* policies_info = NULL;
   DWORD policies_info_size = 0;
   BOOL rv;
@@ -544,119 +535,15 @@ void AppendPublicKeyHashes(PCCERT_CHAIN_CONTEXT chain,
   }
 }
 
-// A list of OIDs to decode. Any OID not on this list will be ignored for
-// purposes of parsing.
-const char* kOIDs[] = {
-  szOID_COMMON_NAME,
-  szOID_LOCALITY_NAME,
-  szOID_STATE_OR_PROVINCE_NAME,
-  szOID_COUNTRY_NAME,
-  szOID_STREET_ADDRESS,
-  szOID_ORGANIZATION_NAME,
-  szOID_ORGANIZATIONAL_UNIT_NAME,
-  szOID_DOMAIN_COMPONENT
-};
-
-// Converts the value for |attribute| to an ASCII string, storing the result
-// in |value|. Returns false if the string cannot be converted.
-bool GetAttributeValue(PCERT_RDN_ATTR attribute,
-                       std::string* value) {
-  DWORD bytes_needed = CertRDNValueToStrA(attribute->dwValueType,
-                                          &attribute->Value, NULL, 0);
-  if (bytes_needed == 0)
-    return false;
-  if (bytes_needed == 1) {
-    // The value is actually an empty string (bytes_needed includes a single
-    // byte for a NULL value). Don't bother converting - just clear the
-    // string.
-    value->clear();
-    return true;
-  }
-  DWORD bytes_written = CertRDNValueToStrA(
-      attribute->dwValueType, &attribute->Value,
-      WriteInto(value, bytes_needed), bytes_needed);
-  if (bytes_written <= 1)
-    return false;
-  return true;
-}
-
-// Adds a type+value pair to the appropriate vector from a C array.
-// The array is keyed by the matching OIDs from kOIDS[].
-bool AddTypeValuePair(PCERT_RDN_ATTR attribute,
-                      std::vector<std::string>* values[]) {
-  for (size_t oid = 0; oid < arraysize(kOIDs); ++oid) {
-    if (strcmp(attribute->pszObjId, kOIDs[oid]) == 0) {
-      std::string value;
-      if (!GetAttributeValue(attribute, &value))
-        return false;
-      values[oid]->push_back(value);
-      break;
-    }
-  }
-  return true;
-}
-
-// Stores the first string of the vector, if any, to *single_value.
-void SetSingle(const std::vector<std::string>& values,
-               std::string* single_value) {
-  // We don't expect to have more than one CN, L, S, and C.
-  LOG_IF(WARNING, values.size() > 1) << "Didn't expect multiple values";
-  if (!values.empty())
-    *single_value = values[0];
-}
-
-bool ParsePrincipal(CERT_NAME_BLOB* name, CertPrincipal* principal) {
-  CRYPT_DECODE_PARA decode_para;
-  decode_para.cbSize = sizeof(decode_para);
-  decode_para.pfnAlloc = MyCryptAlloc;
-  decode_para.pfnFree = MyCryptFree;
-  CERT_NAME_INFO* name_info = NULL;
-  DWORD name_info_size = 0;
-  BOOL rv;
-  rv = CryptDecodeObjectEx(X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
-                           X509_NAME, name->pbData, name->cbData,
-                           CRYPT_DECODE_ALLOC_FLAG | CRYPT_DECODE_NOCOPY_FLAG,
-                           &decode_para,
-                           &name_info, &name_info_size);
-  if (!rv)
-    return false;
-  scoped_ptr_malloc<CERT_NAME_INFO> scoped_name_info(name_info);
-
-  std::vector<std::string> common_names, locality_names, state_names,
-      country_names;
-
-  std::vector<std::string>* values[] = {
-      &common_names, &locality_names,
-      &state_names, &country_names,
-      &(principal->street_addresses),
-      &(principal->organization_names),
-      &(principal->organization_unit_names),
-      &(principal->domain_components)
-  };
-  DCHECK(arraysize(kOIDs) == arraysize(values));
-
-  for (DWORD cur_rdn = 0; cur_rdn < name_info->cRDN; ++cur_rdn) {
-    PCERT_RDN rdn = &name_info->rgRDN[cur_rdn];
-    for (DWORD cur_ava = 0; cur_ava < rdn->cRDNAttr; ++cur_ava) {
-      PCERT_RDN_ATTR ava = &rdn->rgRDNAttr[cur_ava];
-      if (!AddTypeValuePair(ava, values))
-        return false;
-    }
-  }
-
-  SetSingle(common_names, &principal->common_name);
-  SetSingle(locality_names, &principal->locality_name);
-  SetSingle(state_names, &principal->state_or_province_name);
-  SetSingle(country_names, &principal->country_name);
-  return true;
-}
 
 }  // namespace
 
 void X509Certificate::Initialize() {
   DCHECK(cert_handle_);
-  ParsePrincipal(&cert_handle_->pCertInfo->Subject, &subject_);
-  ParsePrincipal(&cert_handle_->pCertInfo->Issuer, &issuer_);
+  subject_.ParseDistinguishedName(cert_handle_->pCertInfo->Subject.pbData,
+                                  cert_handle_->pCertInfo->Subject.cbData);
+  issuer_.ParseDistinguishedName(cert_handle_->pCertInfo->Issuer.pbData,
+                                 cert_handle_->pCertInfo->Issuer.cbData);
 
   valid_start_ = Time::FromFileTime(cert_handle_->pCertInfo->NotBefore);
   valid_expiry_ = Time::FromFileTime(cert_handle_->pCertInfo->NotAfter);
