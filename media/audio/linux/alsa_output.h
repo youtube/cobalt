@@ -139,6 +139,10 @@ class MEDIA_EXPORT AlsaPcmOutputStream : public AudioOutputStream {
   InternalState TransitionTo(InternalState to);
   InternalState state();
 
+  // Returns true when we're on the audio thread or if the audio thread's
+  // message loop is NULL (which will happen during shutdown).
+  bool IsOnAudioThread() const;
+
   // API for Proxying calls to the AudioSourceCallback provided during
   // Start().
   //
