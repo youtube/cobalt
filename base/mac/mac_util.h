@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -172,6 +172,18 @@ inline bool IsOSLionOrLater() { return true; }
 inline bool IsOSLion() { return false; }
 inline bool IsOSLaterThanLion() { return true; }
 #endif
+
+// Retrieve the system's model identifier string from the IOKit registry:
+// for example, "MacPro4,1", "MacBookPro6,1". Returns empty string upon
+// failure.
+BASE_EXPORT std::string GetModelIdentifier();
+
+// Parse a model identifier string; for example, into ("MacBookPro", 6, 1).
+// If any error occurs, none of the input pointers are touched.
+BASE_EXPORT bool ParseModelIdentifier(const std::string& ident,
+                                      std::string* type,
+                                      int32* major,
+                                      int32* minor);
 
 }  // namespace mac
 }  // namespace base
