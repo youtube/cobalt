@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -80,14 +80,13 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
     }
   }
 
-  bool OnControlFrameHeaderData(const SpdyControlFrame* control_frame,
+  bool OnControlFrameHeaderData(SpdyStreamId stream_id,
                                 const char* header_data,
                                 size_t len) {
-    SpdyStreamId stream_id = SpdyFramer::GetControlFrameStreamId(control_frame);
     EXPECT_EQ(header_stream_id_, stream_id);
 
     bool result = buffered_spdy_framer_.OnControlFrameHeaderData(
-        control_frame, header_data, len);
+        stream_id, header_data, len);
     EXPECT_TRUE(result);
 
     ++control_frame_header_data_count_;

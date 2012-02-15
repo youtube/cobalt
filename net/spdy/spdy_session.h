@@ -431,10 +431,9 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
                                  size_t len) OVERRIDE;
   virtual void OnControl(const spdy::SpdyControlFrame* frame) OVERRIDE;
 
-  virtual bool OnControlFrameHeaderData(
-      const spdy::SpdyControlFrame* control_frame,
-      const char* header_data,
-      size_t len) OVERRIDE;
+  virtual bool OnControlFrameHeaderData(spdy::SpdyStreamId stream_id,
+                                        const char* header_data,
+                                        size_t len) OVERRIDE;
 
   virtual bool OnCredentialFrameData(const char* frame_data,
                                      size_t len) OVERRIDE;
