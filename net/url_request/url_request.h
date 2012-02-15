@@ -6,15 +6,14 @@
 #define NET_URL_REQUEST_URL_REQUEST_H_
 #pragma once
 
-#include <map>
 #include <string>
 #include <vector>
 
 #include "base/debug/leak_tracker.h"
 #include "base/logging.h"
-#include "base/memory/linked_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/string16.h"
+#include "base/supports_user_data.h"
 #include "base/time.h"
 #include "base/threading/non_thread_safe.h"
 #include "googleurl/src/gurl.h"
@@ -99,7 +98,8 @@ typedef std::vector<std::string> ResponseCookies;
 //
 // NOTE: All usage of all instances of this class should be on the same thread.
 //
-class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
+class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
+                              public base::SupportsUserData {
  public:
   // Callback function implemented by protocol handlers to create new jobs.
   // The factory may return NULL to indicate an error, which will cause other
@@ -114,14 +114,6 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
 #define HTTP_ATOM(x) HTTP_ ## x,
 #include "net/http/http_atom_list.h"
 #undef HTTP_ATOM
-  };
-
-  // Derive from this class and add your own data members to associate extra
-  // information with a URLRequest. Use GetUserData(key) and SetUserData()
-  class UserData {
-   public:
-    UserData() {}
-    virtual ~UserData() {}
   };
 
   // This class handles network interception.  Use with
@@ -307,14 +299,7 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // If destroyed after Start() has been called but while IO is pending,
   // then the request will be effectively canceled and the delegate
   // will not have any more of its methods called.
-  ~URLRequest();
-
-  // The user data allows the clients to associate data with this request.
-  // Multiple user data values can be stored under different keys.
-  // This request will TAKE OWNERSHIP of the given data pointer, and will
-  // delete the object if it is changed or the request is destroyed.
-  UserData* GetUserData(const void* key) const;
-  void SetUserData(const void* key, UserData* data);
+  virtual ~URLRequest();
 
   // Returns true if the scheme can be handled by URLRequest. False otherwise.
   static bool IsHandledProtocol(const std::string& scheme);
@@ -631,8 +616,6 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
  private:
   friend class URLRequestJob;
 
-  typedef std::map<const void*, linked_ptr<UserData> > UserDataMap;
-
   // Registers a new protocol handler for the given scheme. If the scheme is
   // already handled, this will overwrite the given factory. To delete the
   // protocol factory, use NULL for the factory BUT this WILL NOT put back
@@ -740,9 +723,6 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // Start() is called to the time we dispatch RequestComplete and indicates
   // whether the job is active.
   bool is_pending_;
-
-  // Externally-defined data accessible by key
-  UserDataMap user_data_;
 
   // Number of times we're willing to redirect.  Used to guard against
   // infinite redirects.
