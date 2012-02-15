@@ -1444,8 +1444,6 @@ TEST_F(HTTPSRequestTest, FLAKY_HTTPSErrorsNoClobberTSSTest) {
   EXPECT_TRUE(transport_security_state.HasMetadata(&new_domain_state,
                                                    "www.google.com", true));
   EXPECT_EQ(new_domain_state.mode, domain_state.mode);
-  EXPECT_EQ(new_domain_state.created.ToTimeT(), domain_state.created.ToTimeT());
-  EXPECT_EQ(new_domain_state.expiry.ToTimeT(), domain_state.expiry.ToTimeT());
   EXPECT_EQ(new_domain_state.include_subdomains,
             domain_state.include_subdomains);
   EXPECT_TRUE(FingerprintsEqual(new_domain_state.preloaded_spki_hashes,
