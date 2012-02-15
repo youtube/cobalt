@@ -238,6 +238,8 @@
           'process_win.cc',
           'profiler/scoped_profile.cc',
           'profiler/scoped_profile.h',
+          'profiler/alternate_timer.cc',
+          'profiler/alternate_timer.h',
           'profiler/tracked_time.cc',
           'profiler/tracked_time.h',
           'property_bag.cc',

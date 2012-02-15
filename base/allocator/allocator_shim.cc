@@ -5,6 +5,7 @@
 #include "base/allocator/allocator_shim.h"
 
 #include <config.h>
+#include "base/profiler/alternate_timer.h"
 #include "base/sysinfo.h"
 
 // When defined, different heap allocators can be used via an environment
@@ -48,8 +49,8 @@ static Allocator allocator = TCMALLOC;
 // selection of the allocator.  The primary may be used to control overall
 // allocator selection, and the secondary can be used to specify an allocator
 // to use in sub-processes.
-static const char* primary_name = "CHROME_ALLOCATOR";
-static const char* secondary_name = "CHROME_ALLOCATOR_2";
+static const char primary_name[] = "CHROME_ALLOCATOR";
+static const char secondary_name[] = "CHROME_ALLOCATOR_2";
 
 // We include tcmalloc and the win_allocator to get as much inlining as
 // possible.
@@ -261,6 +262,17 @@ extern "C" int _heap_init() {
   // lifetime.  Trying to teardown at _heap_term() is so late that
   // you can't do anything useful anyway.
   new TCMallocGuard();
+
+  // Provide optional hook for monitoring allocation quantities on a per-thread
+  // basis.  Only set the hook if the environment indicates this needs to be
+  // enabled.
+  const char* profiling =
+      GetenvBeforeMain(tracked_objects::kAlternateProfilerTime);
+  if (profiling && *profiling == '1') {
+    tracked_objects::SetAlternateTimeSource(
+        tcmalloc::ThreadCache::GetBytesAllocatedOnCurrentThread);
+  }
+
   return 1;
 }
 
@@ -302,5 +314,5 @@ void SetupSubprocessAllocator() {
 #endif  // ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
 }
 
-}  // namespace base.
 }  // namespace allocator.
+}  // namespace base.
