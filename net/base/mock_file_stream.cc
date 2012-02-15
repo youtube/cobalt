@@ -27,6 +27,10 @@ int MockFileStream::Read(char* buf,
   return ReturnError(FileStream::Read(buf, buf_len, callback));
 }
 
+int MockFileStream::ReadSync(char* buf, int buf_len) {
+  return ReturnError(FileStream::ReadSync(buf, buf_len));
+}
+
 int MockFileStream::ReadUntilComplete(char *buf, int buf_len) {
   return ReturnError(FileStream::ReadUntilComplete(buf, buf_len));
 }
@@ -35,6 +39,10 @@ int MockFileStream::Write(const char* buf,
                           int buf_len,
                           const CompletionCallback& callback) {
   return ReturnError(FileStream::Write(buf, buf_len, callback));
+}
+
+int MockFileStream::WriteSync(const char* buf, int buf_len) {
+  return ReturnError(FileStream::WriteSync(buf, buf_len));
 }
 
 int64 MockFileStream::Truncate(int64 bytes) {

@@ -75,55 +75,83 @@ class NET_EXPORT FileStream {
   // position until the end of the file.  Otherwise, an error code is returned.
   virtual int64 Available();
 
-  // Call this method to read data from the current stream position.  Up to
-  // buf_len bytes will be copied into buf.  (In other words, partial reads are
-  // allowed.)  Returns the number of bytes copied, 0 if at end-of-file, or an
-  // error code if the operation could not be performed.
+  // Call this method to read data from the current stream position
+  // asynchronously. Up to buf_len bytes will be copied into buf.  (In
+  // other words, partial reads are allowed.)  Returns the number of bytes
+  // copied, 0 if at end-of-file, or an error code if the operation could
+  // not be performed.
   //
-  // If opened with PLATFORM_FILE_ASYNC, then a non-null callback
-  // must be passed to this method.  In asynchronous mode, if the read could
-  // not complete synchronously, then ERR_IO_PENDING is returned, and the
-  // callback will be notified on the current thread (via the MessageLoop) when
-  // the read has completed.
+  // The file must be opened with PLATFORM_FILE_ASYNC, and a non-null
+  // callback must be passed to this method. If the read could not
+  // complete synchronously, then ERR_IO_PENDING is returned, and the
+  // callback will be notified on the current thread (via the MessageLoop)
+  // when the read has completed.
   //
-  // In the case of an asychronous read, the memory pointed to by |buf| must
-  // remain valid until the callback is notified.  However, it is valid to
-  // destroy or close the file stream while there is an asynchronous read in
-  // progress.  That will cancel the read and allow the buffer to be freed.
+  // The memory pointed to by |buf| must remain valid until the callback is
+  // notified. TODO(satorux): Use IOBuffer instead of char*.
   //
-  // This method should not be called if the stream was opened WRITE_ONLY.
+  // It is valid to destroy or close the file stream while there is an
+  // asynchronous read in progress.  That will cancel the read and allow
+  // the buffer to be freed.
   //
-  // You can pass a null callback for synchronous I/O.
+  // It is invalid to request any asynchronous operations while there is an
+  // in-flight asynchronous operation.
+  //
+  // This method must not be called if the stream was opened WRITE_ONLY.
   virtual int Read(char* buf, int buf_len, const CompletionCallback& callback);
 
-  // Performs the same as Read, but ensures that exactly buf_len bytes
+  // Call this method to read data from the current stream position
+  // synchronously. Up to buf_len bytes will be copied into buf.  (In
+  // other words, partial reads are allowed.)  Returns the number of bytes
+  // copied, 0 if at end-of-file, or an error code if the operation could
+  // not be performed.
+  //
+  // The file must not be opened with PLATFORM_FILE_ASYNC.
+  // This method must not be called if the stream was opened WRITE_ONLY.
+  virtual int ReadSync(char* buf, int buf_len);
+
+  // Performs the same as ReadSync, but ensures that exactly buf_len bytes
   // are copied into buf.  A partial read may occur, but only as a result of
   // end-of-file or fatal error.  Returns the number of bytes copied into buf,
   // 0 if at end-of-file and no bytes have been read into buf yet,
   // or an error code if the operation could not be performed.
   virtual int ReadUntilComplete(char *buf, int buf_len);
 
-  // Call this method to write data at the current stream position.  Up to
-  // buf_len bytes will be written from buf. (In other words, partial writes are
-  // allowed.)  Returns the number of bytes written, or an error code if the
-  // operation could not be performed.
+  // Call this method to write data at the current stream position
+  // asynchronously.  Up to buf_len bytes will be written from buf. (In
+  // other words, partial writes are allowed.)  Returns the number of
+  // bytes written, or an error code if the operation could not be
+  // performed.
   //
-  // If opened with PLATFORM_FILE_ASYNC, then a non-null callback
-  // must be passed to this method.  In asynchronous mode, if the write could
-  // not complete synchronously, then ERR_IO_PENDING is returned, and the
-  // callback will be notified on the current thread (via the MessageLoop) when
-  // the write has completed.
+  // The file must be opened with PLATFORM_FILE_ASYNC, and a non-null
+  // callback must be passed to this method. If the write could not
+  // complete synchronously, then ERR_IO_PENDING is returned, and the
+  // callback will be notified on the current thread (via the MessageLoop)
+  // when the write has completed.
   //
-  // In the case of an asychronous write, the memory pointed to by |buf| must
-  // remain valid until the callback is notified.  However, it is valid to
-  // destroy or close the file stream while there is an asynchronous write in
-  // progress.  That will cancel the write and allow the buffer to be freed.
+  // The memory pointed to by |buf| must remain valid until the callback
+  // is notified. TODO(satorux): Use IOBuffer instead of char*.
   //
-  // This method should not be called if the stream was opened READ_ONLY.
+  // It is valid to destroy or close the file stream while there is an
+  // asynchronous write in progress.  That will cancel the write and allow
+  // the buffer to be freed.
   //
-  // You can pass a null callback for synchronous I/O.
+  // It is invalid to request any asynchronous operations while there is an
+  // in-flight asynchronous operation.
+  //
+  // This method must not be called if the stream was opened READ_ONLY.
   virtual int Write(const char* buf, int buf_len,
                     const CompletionCallback& callback);
+
+  // Call this method to write data at the current stream position
+  // synchronously.  Up to buf_len bytes will be written from buf. (In
+  // other words, partial writes are allowed.)  Returns the number of
+  // bytes written, or an error code if the operation could not be
+  // performed.
+  //
+  // The file must not be opened with PLATFORM_FILE_ASYNC.
+  // This method must not be called if the stream was opened READ_ONLY.
+  virtual int WriteSync(const char* buf, int buf_len);
 
   // Truncates the file to be |bytes| length. This is only valid for writable
   // files. After truncation the file stream is positioned at |bytes|. The new
@@ -153,6 +181,12 @@ class NET_EXPORT FileStream {
   void SetBoundNetLogSource(const net::BoundNetLog& owner_bound_net_log);
 
  private:
+  // Helper functions used to implement reads and writes.
+  int ReadInternal(char* buf, int buf_len,
+                   const CompletionCallback& callback);
+  int WriteInternal(const char* buf, int buf_len,
+                    const CompletionCallback& callback);
+
   class AsyncContext;
   friend class AsyncContext;
   friend class FileStreamTest;
