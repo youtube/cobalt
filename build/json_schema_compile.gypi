@@ -8,6 +8,7 @@
     #   json_schema_files: an array of json files that comprise the api model.
     #   cc_dir: path to generated files
     #   root_namespace: the C++ namespace that all generated files go under
+    # Functions and namespaces can be excluded by setting "nocompile" to true.
     'api_gen_dir': '<(DEPTH)/tools/json_schema_compiler',
     'api_gen': '<(api_gen_dir)/compiler.py',
   },
@@ -16,13 +17,16 @@
       'rule_name': 'genapi',
       'extension': 'json',
       'inputs': [
+        '<(api_gen_dir)/cc_generator.py',
         '<(api_gen_dir)/code.py',
         '<(api_gen_dir)/compiler.py',
-        '<(api_gen_dir)/model.py',
-        '<(api_gen_dir)/cc_generator.py',
-        '<(api_gen_dir)/h_generator.py',
+        '<(api_gen_dir)/cpp_util.py',
         '<(api_gen_dir)/cpp_type_generator.py',
-        '<@(json_schema_files)',
+        '<(api_gen_dir)/h_generator.py',
+        '<(api_gen_dir)/model.py',
+        '<(api_gen_dir)/util.cc',
+        '<(api_gen_dir)/util.h',
+        '<(api_gen_dir)/util_cc_helper.py',
       ],
       'outputs': [
         '<(SHARED_INTERMEDIATE_DIR)/<(cc_dir)/<(RULE_INPUT_ROOT).cc',
