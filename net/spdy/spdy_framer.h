@@ -100,14 +100,14 @@ class NET_EXPORT_PRIVATE SpdyFramerVisitorInterface {
   // Called when a chunk of header data is available. This is called
   // after OnControl() is called with the control frame associated with the
   // header data being delivered here.
-  // |control_frame| header control frame.
+  // |stream_id| The stream receiving the header data.
   // |header_data| A buffer containing the header data chunk received.
   // |len| The length of the header data buffer. A length of zero indicates
   //       that the header data block has been completely sent.
   // When this function returns true the visitor indicates that it accepted
   // all of the data. Returning false indicates that that an unrecoverable
   // error has occurred, such as bad header data or resource exhaustion.
-  virtual bool OnControlFrameHeaderData(const SpdyControlFrame* control_frame,
+  virtual bool OnControlFrameHeaderData(SpdyStreamId stream_id,
                                         const char* header_data,
                                         size_t len) = 0;
 

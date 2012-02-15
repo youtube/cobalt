@@ -38,12 +38,9 @@ void BufferedSpdyFramer::OnControl(const SpdyControlFrame* frame) {
   }
 }
 
-bool BufferedSpdyFramer::OnControlFrameHeaderData(
-    const SpdyControlFrame* control_frame,
-    const char* header_data,
-    size_t len) {
-  SpdyStreamId stream_id =
-      SpdyFramer::GetControlFrameStreamId(control_frame);
+bool BufferedSpdyFramer::OnControlFrameHeaderData(SpdyStreamId stream_id,
+                                                  const char* header_data,
+                                                  size_t len) {
   CHECK_EQ(header_stream_id_, stream_id);
 
   if (len == 0) {
@@ -57,6 +54,8 @@ bool BufferedSpdyFramer::OnControlFrameHeaderData(
       LOG(WARNING) << "Could not parse Spdy Control Frame Header.";
       return false;
     }
+    SpdyControlFrame* control_frame =
+        reinterpret_cast<SpdyControlFrame*>(control_frame_.get());
     switch (control_frame->type()) {
       case SYN_STREAM:
         visitor_->OnSyn(
@@ -171,6 +170,25 @@ void BufferedSpdyFramer::InitHeaderStreaming(const SpdyControlFrame* frame) {
   header_buffer_valid_ = true;
   header_stream_id_ = SpdyFramer::GetControlFrameStreamId(frame);
   DCHECK_NE(header_stream_id_, SpdyFramer::kInvalidStream);
+
+  int32 frame_size_without_header_block = SpdyFrame::kHeaderSize;
+  switch (frame->type()) {
+    case SYN_STREAM:
+      frame_size_without_header_block = SpdySynStreamControlFrame::size();
+      break;
+    case SYN_REPLY:
+      frame_size_without_header_block = SpdySynReplyControlFrame::size();
+      break;
+    case HEADERS:
+      frame_size_without_header_block = SpdyHeadersControlFrame::size();
+      break;
+    default:
+      DCHECK(false);  // Error!
+      break;
+  }
+  control_frame_.reset(new SpdyFrame(frame_size_without_header_block));
+  memcpy(control_frame_.get()->data(), frame->data(),
+         frame_size_without_header_block);
 }
 
 }  // namespace spdy
