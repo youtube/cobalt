@@ -68,10 +68,8 @@ class MockAudioSourceCallback : public AudioOutputStream::AudioSourceCallback {
 class AudioOutputProxyTest : public testing::Test {
  protected:
   virtual void SetUp() {
-    MockAudioManager* manager = new MockAudioManager();
-    EXPECT_CALL(*manager, GetMessageLoop())
+    EXPECT_CALL(manager_, GetMessageLoop())
         .WillRepeatedly(Return(message_loop_.message_loop_proxy()));
-    manager_ = manager;
     InitDispatcher(base::TimeDelta::FromMilliseconds(kTestCloseDelayMs));
   }
 
@@ -95,13 +93,13 @@ class AudioOutputProxyTest : public testing::Test {
   }
 
   MockAudioManager& manager() {
-    return *manager_;
+    return manager_;
   }
 
   MessageLoop message_loop_;
   scoped_refptr<AudioOutputDispatcher> dispatcher_;
   base::TimeDelta pause_delay_;
-  scoped_refptr<MockAudioManager> manager_;
+  MockAudioManager manager_;
   MockAudioSourceCallback callback_;
 };
 

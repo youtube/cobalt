@@ -204,7 +204,7 @@ class AudioOutputStreamWrapper {
   }
 
   ScopedCOMInitializer com_init_;
-  scoped_refptr<AudioManager> audio_man_;
+  AudioManager* audio_man_;
   AudioParameters::Format format_;
   ChannelLayout channel_layout_;
   int bits_per_sample_;
@@ -230,8 +230,8 @@ static void QuitMessageLoop(base::MessageLoopProxy* proxy) {
 // endpoint device.
 // TODO(henrika): modify this test when we support full device enumeration.
 TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestHardwareSampleRate) {
-  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
-  if (!CanRunAudioTests(audio_manager))
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!CanRunAudioTests(audio_manager.get()))
     return;
 
   ScopedCOMInitializer com_init(ScopedCOMInitializer::kMTA);
@@ -255,29 +255,29 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestHardwareSampleRate) {
 
 // Test Create(), Close() calling sequence.
 TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestCreateAndClose) {
-  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
-  if (!CanRunAudioTests(audio_manager))
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!CanRunAudioTests(audio_manager.get()))
     return;
-  AudioOutputStream* aos = CreateDefaultAudioOutputStream(audio_manager);
+  AudioOutputStream* aos = CreateDefaultAudioOutputStream(audio_manager.get());
   aos->Close();
 }
 
 // Test Open(), Close() calling sequence.
 TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestOpenAndClose) {
-  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
-  if (!CanRunAudioTests(audio_manager))
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!CanRunAudioTests(audio_manager.get()))
     return;
-  AudioOutputStream* aos = CreateDefaultAudioOutputStream(audio_manager);
+  AudioOutputStream* aos = CreateDefaultAudioOutputStream(audio_manager.get());
   EXPECT_TRUE(aos->Open());
   aos->Close();
 }
 
 // Test Open(), Start(), Close() calling sequence.
 TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestOpenStartAndClose) {
-  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
-  if (!CanRunAudioTests(audio_manager))
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!CanRunAudioTests(audio_manager.get()))
     return;
-  AudioOutputStream* aos = CreateDefaultAudioOutputStream(audio_manager);
+  AudioOutputStream* aos = CreateDefaultAudioOutputStream(audio_manager.get());
   EXPECT_TRUE(aos->Open());
   MockAudioSourceCallback source;
   EXPECT_CALL(source, OnError(aos, _))
@@ -288,10 +288,10 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestOpenStartAndClose) {
 
 // Test Open(), Start(), Stop(), Close() calling sequence.
 TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestOpenStartStopAndClose) {
-  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
-  if (!CanRunAudioTests(audio_manager))
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!CanRunAudioTests(audio_manager.get()))
     return;
-  AudioOutputStream* aos = CreateDefaultAudioOutputStream(audio_manager);
+  AudioOutputStream* aos = CreateDefaultAudioOutputStream(audio_manager.get());
   EXPECT_TRUE(aos->Open());
   MockAudioSourceCallback source;
   EXPECT_CALL(source, OnError(aos, _))
@@ -303,10 +303,10 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestOpenStartStopAndClose) {
 
 // Test SetVolume(), GetVolume()
 TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestVolume) {
-  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
-  if (!CanRunAudioTests(audio_manager))
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!CanRunAudioTests(audio_manager.get()))
     return;
-  AudioOutputStream* aos = CreateDefaultAudioOutputStream(audio_manager);
+  AudioOutputStream* aos = CreateDefaultAudioOutputStream(audio_manager.get());
 
   // Initial volume should be full volume (1.0).
   double volume = 0.0;
@@ -340,11 +340,11 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestVolume) {
 
 // Test some additional calling sequences.
 TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestMiscCallingSequences) {
-  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
-  if (!CanRunAudioTests(audio_manager))
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!CanRunAudioTests(audio_manager.get()))
     return;
 
-  AudioOutputStream* aos = CreateDefaultAudioOutputStream(audio_manager);
+  AudioOutputStream* aos = CreateDefaultAudioOutputStream(audio_manager.get());
   WASAPIAudioOutputStream* waos = static_cast<WASAPIAudioOutputStream*>(aos);
 
   // Open(), Open() is a valid calling sequence (second call does nothing).
@@ -370,8 +370,8 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestMiscCallingSequences) {
 
 // Use default packet size (10ms) and verify that rendering starts.
 TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInMilliseconds) {
-  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
-  if (!CanRunAudioTests(audio_manager))
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!CanRunAudioTests(audio_manager.get()))
     return;
 
   MessageLoopForUI loop;
@@ -381,7 +381,7 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInMilliseconds) {
 
   // Create default WASAPI output stream which plays out in stereo using
   // the shared mixing rate. The default buffer size is 10ms.
-  AudioOutputStreamWrapper aosw(audio_manager);
+  AudioOutputStreamWrapper aosw(audio_manager.get());
   AudioOutputStream* aos = aosw.Create();
   EXPECT_TRUE(aos->Open());
 
@@ -412,8 +412,8 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInMilliseconds) {
 // Use a fixed packets size (independent of sample rate) and verify
 // that rendering starts.
 TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInSamples) {
-  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
-  if (!CanRunAudioTests(audio_manager))
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!CanRunAudioTests(audio_manager.get()))
     return;
 
   MessageLoopForUI loop;
@@ -423,7 +423,7 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInSamples) {
 
   // Create default WASAPI output stream which plays out in stereo using
   // the shared mixing rate. The buffer size is set to 1024 samples.
-  AudioOutputStreamWrapper aosw(audio_manager);
+  AudioOutputStreamWrapper aosw(audio_manager.get());
   AudioOutputStream* aos = aosw.Create(1024);
   EXPECT_TRUE(aos->Open());
 
@@ -452,8 +452,8 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInSamples) {
 }
 
 TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestMono) {
-  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
-  if (!CanRunAudioTests(audio_manager))
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!CanRunAudioTests(audio_manager.get()))
     return;
 
   MessageLoopForUI loop;
@@ -463,7 +463,7 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestMono) {
 
   // Create default WASAPI output stream which plays out in *mono* using
   // the shared mixing rate. The default buffer size is 10ms.
-  AudioOutputStreamWrapper aosw(audio_manager);
+  AudioOutputStreamWrapper aosw(audio_manager.get());
   AudioOutputStream* aos = aosw.Create(CHANNEL_LAYOUT_MONO);
 
   bool opened = aos->Open();
@@ -505,11 +505,11 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestMono) {
 // environment variable to a value greater than 0.
 // The test files are approximately 20 seconds long.
 TEST(WinAudioOutputTest, DISABLED_WASAPIAudioOutputStreamReadFromFile) {
-  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
-  if (!CanRunAudioTests(audio_manager))
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!CanRunAudioTests(audio_manager.get()))
     return;
 
-  AudioOutputStreamWrapper aosw(audio_manager);
+  AudioOutputStreamWrapper aosw(audio_manager.get());
   AudioOutputStream* aos = aosw.Create();
   EXPECT_TRUE(aos->Open());
 

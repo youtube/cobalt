@@ -72,7 +72,7 @@ static void CloseAudioController(AudioOutputController* controller) {
 }
 
 TEST(AudioOutputControllerTest, CreateAndClose) {
-  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!audio_manager->HasAudioOutputDevices())
     return;
 
@@ -88,7 +88,7 @@ TEST(AudioOutputControllerTest, CreateAndClose) {
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
   scoped_refptr<AudioOutputController> controller =
       AudioOutputController::Create(
-          audio_manager, &event_handler, params, &sync_reader);
+          audio_manager.get(), &event_handler, params, &sync_reader);
   ASSERT_TRUE(controller.get());
 
   // Close the controller immediately.
@@ -96,7 +96,7 @@ TEST(AudioOutputControllerTest, CreateAndClose) {
 }
 
 TEST(AudioOutputControllerTest, PlayPauseClose) {
-  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!audio_manager->HasAudioOutputDevices())
     return;
 
@@ -125,7 +125,7 @@ TEST(AudioOutputControllerTest, PlayPauseClose) {
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
   scoped_refptr<AudioOutputController> controller =
       AudioOutputController::Create(
-          audio_manager, &event_handler, params, &sync_reader);
+          audio_manager.get(), &event_handler, params, &sync_reader);
   ASSERT_TRUE(controller.get());
 
   // Wait for OnCreated() to be called.
@@ -142,7 +142,7 @@ TEST(AudioOutputControllerTest, PlayPauseClose) {
 
 
 TEST(AudioOutputControllerTest, HardwareBufferTooLarge) {
-  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!audio_manager->HasAudioOutputDevices())
     return;
 
@@ -155,7 +155,7 @@ TEST(AudioOutputControllerTest, HardwareBufferTooLarge) {
                          kSamplesPerPacket * 1000);
   scoped_refptr<AudioOutputController> controller =
       AudioOutputController::Create(
-          audio_manager, &event_handler, params, &sync_reader);
+          audio_manager.get(), &event_handler, params, &sync_reader);
 
   // Use assert because we don't stop the device and assume we can't
   // create one.

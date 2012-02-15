@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,8 +20,9 @@ using media::AudioDeviceNames;
 class AudioInputDeviceTest
     : public ::testing::Test {
  protected:
-  AudioInputDeviceTest() : com_init_(ScopedCOMInitializer::kMTA) {
-    audio_manager_ = AudioManager::Create();
+  AudioInputDeviceTest()
+      : audio_manager_(AudioManager::Create()),
+        com_init_(ScopedCOMInitializer::kMTA) {
   }
 
 #if defined(OS_WIN)
@@ -73,7 +74,7 @@ class AudioInputDeviceTest
     }
   }
 
-  scoped_refptr<AudioManager> audio_manager_;
+  scoped_ptr<AudioManager> audio_manager_;
 
   // The MMDevice API requires COM to be initialized on the current thread.
   ScopedCOMInitializer com_init_;

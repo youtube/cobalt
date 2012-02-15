@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,12 +18,9 @@ namespace media {
 // static
 AudioInputController::Factory* AudioInputController::factory_ = NULL;
 
-AudioInputController::AudioInputController(AudioManager* audio_manager,
-                                           EventHandler* handler,
+AudioInputController::AudioInputController(EventHandler* handler,
                                            SyncWriter* sync_writer)
     : creator_loop_(base::MessageLoopProxy::current()),
-      audio_manager_(audio_manager),
-      message_loop_(audio_manager->GetMessageLoop()),
       handler_(handler),
       stream_(NULL),
       ALLOW_THIS_IN_INITIALIZER_LIST(no_data_timer_(FROM_HERE,
@@ -49,19 +46,22 @@ scoped_refptr<AudioInputController> AudioInputController::Create(
   if (!params.IsValid() || (params.channels > kMaxInputChannels))
     return NULL;
 
-  if (factory_) {
+  if (factory_)
     return factory_->Create(audio_manager, event_handler, params);
-  }
 
   scoped_refptr<AudioInputController> controller(new AudioInputController(
-      audio_manager, event_handler, NULL));
+      event_handler, NULL));
+
+  controller->message_loop_ = audio_manager->GetMessageLoop();
 
   // Create and open a new audio input stream from the existing
   // audio-device thread. Use the default audio-input device.
   std::string device_id = AudioManagerBase::kDefaultDeviceId;
-  controller->message_loop_->PostTask(FROM_HERE, base::Bind(
-      &AudioInputController::DoCreate, base::Unretained(controller.get()),
-      params, device_id));
+  if (!controller->message_loop_->PostTask(FROM_HERE,
+          base::Bind(&AudioInputController::DoCreate, controller,
+                     base::Unretained(audio_manager), params, device_id))) {
+    controller = NULL;
+  }
 
   return controller;
 }
@@ -82,33 +82,37 @@ scoped_refptr<AudioInputController> AudioInputController::CreateLowLatency(
   // Create the AudioInputController object and ensure that it runs on
   // the audio-manager thread.
   scoped_refptr<AudioInputController> controller(new AudioInputController(
-      audio_manager, event_handler, sync_writer));
+      event_handler, sync_writer));
+  controller->message_loop_ = audio_manager->GetMessageLoop();
 
   // Create and open a new audio input stream from the existing
   // audio-device thread. Use the provided audio-input device.
-  controller->message_loop_->PostTask(FROM_HERE, base::Bind(
-      &AudioInputController::DoCreate, base::Unretained(controller.get()),
-      params, device_id));
+  if (!controller->message_loop_->PostTask(FROM_HERE,
+          base::Bind(&AudioInputController::DoCreate, controller,
+                     base::Unretained(audio_manager), params, device_id))) {
+    controller = NULL;
+  }
 
   return controller;
 }
 
 void AudioInputController::Record() {
   message_loop_->PostTask(FROM_HERE, base::Bind(
-      &AudioInputController::DoRecord, base::Unretained(this)));
+      &AudioInputController::DoRecord, this));
 }
 
 void AudioInputController::Close(const base::Closure& closed_task) {
   DCHECK(!closed_task.is_null());
   message_loop_->PostTask(FROM_HERE, base::Bind(
-      &AudioInputController::DoClose, base::Unretained(this), closed_task));
+      &AudioInputController::DoClose, this, closed_task));
 }
 
-void AudioInputController::DoCreate(const AudioParameters& params,
+void AudioInputController::DoCreate(AudioManager* audio_manager,
+                                    const AudioParameters& params,
                                     const std::string& device_id) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
-  stream_ = audio_manager_->MakeAudioInputStream(params, device_id);
+  stream_ = audio_manager->MakeAudioInputStream(params, device_id);
 
   if (!stream_) {
     // TODO(satish): Define error types.
@@ -173,7 +177,7 @@ void AudioInputController::DoReportNoDataError() {
   // Error notifications should be sent on the audio-manager thread.
   int code = 0;
   message_loop_->PostTask(FROM_HERE, base::Bind(
-      &AudioInputController::DoReportError, base::Unretained(this), code));
+      &AudioInputController::DoReportError, this, code));
 }
 
 void AudioInputController::DoResetNoDataTimer() {
@@ -212,7 +216,7 @@ void AudioInputController::OnClose(AudioInputStream* stream) {
 void AudioInputController::OnError(AudioInputStream* stream, int code) {
   // Handle error on the audio-manager thread.
   message_loop_->PostTask(FROM_HERE, base::Bind(
-      &AudioInputController::DoReportError, base::Unretained(this), code));
+      &AudioInputController::DoReportError, this, code));
 }
 
 void AudioInputController::DoStopCloseAndClearStream(
