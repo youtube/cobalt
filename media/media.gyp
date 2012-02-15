@@ -835,6 +835,8 @@
             ],
           },
           'sources': [
+            'tools/player_x11/data_source_logger.cc',
+            'tools/player_x11/data_source_logger.h',
             'tools/player_x11/gl_video_renderer.cc',
             'tools/player_x11/gl_video_renderer.h',
             'tools/player_x11/player_x11.cc',
