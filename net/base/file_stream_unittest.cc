@@ -106,7 +106,7 @@ TEST_F(FileStreamTest, UseFileHandle) {
   // Read into buffer and compare.
   char buffer[kTestDataSize];
   ASSERT_EQ(kTestDataSize,
-            read_stream.Read(buffer, kTestDataSize, CompletionCallback()));
+            read_stream.ReadSync(buffer, kTestDataSize));
   ASSERT_EQ(0, memcmp(kTestData, buffer, kTestDataSize));
   read_stream.CloseSync();
 
@@ -118,7 +118,7 @@ TEST_F(FileStreamTest, UseFileHandle) {
   FileStream write_stream(file, flags, NULL);
   ASSERT_EQ(0, write_stream.Seek(FROM_BEGIN, 0));
   ASSERT_EQ(kTestDataSize,
-            write_stream.Write(kTestData, kTestDataSize, CompletionCallback()));
+            write_stream.WriteSync(kTestData, kTestDataSize));
   write_stream.CloseSync();
 
   // Read into buffer and compare to make sure the handle worked fine.
@@ -142,7 +142,7 @@ TEST_F(FileStreamTest, UseClosedStream) {
 
   // Try reading...
   char buf[10];
-  int rv = stream.Read(buf, arraysize(buf), CompletionCallback());
+  int rv = stream.ReadSync(buf, arraysize(buf));
   EXPECT_EQ(ERR_UNEXPECTED, rv);
 }
 
@@ -165,7 +165,7 @@ TEST_F(FileStreamTest, BasicRead) {
   std::string data_read;
   for (;;) {
     char buf[4];
-    rv = stream.Read(buf, arraysize(buf), CompletionCallback());
+    rv = stream.ReadSync(buf, arraysize(buf));
     EXPECT_LE(0, rv);
     if (rv <= 0)
       break;
@@ -264,7 +264,7 @@ TEST_F(FileStreamTest, BasicRead_FromOffset) {
   std::string data_read;
   for (;;) {
     char buf[4];
-    rv = stream.Read(buf, arraysize(buf), CompletionCallback());
+    rv = stream.ReadSync(buf, arraysize(buf));
     EXPECT_LE(0, rv);
     if (rv <= 0)
       break;
@@ -350,7 +350,7 @@ TEST_F(FileStreamTest, BasicWrite) {
   EXPECT_TRUE(ok);
   EXPECT_EQ(0, file_size);
 
-  rv = stream.Write(kTestData, kTestDataSize, CompletionCallback());
+  rv = stream.WriteSync(kTestData, kTestDataSize);
   EXPECT_EQ(kTestDataSize, rv);
   stream.CloseSync();
 
@@ -439,7 +439,7 @@ TEST_F(FileStreamTest, BasicWrite_FromOffset) {
   int64 new_offset = stream.Seek(FROM_END, kOffset);
   EXPECT_EQ(kTestDataSize, new_offset);
 
-  rv = stream.Write(kTestData, kTestDataSize, CompletionCallback());
+  rv = stream.WriteSync(kTestData, kTestDataSize);
   EXPECT_EQ(kTestDataSize, rv);
   stream.CloseSync();
 
@@ -503,7 +503,7 @@ TEST_F(FileStreamTest, BasicReadWrite) {
   std::string data_read;
   for (;;) {
     char buf[4];
-    rv = stream.Read(buf, arraysize(buf), CompletionCallback());
+    rv = stream.ReadSync(buf, arraysize(buf));
     EXPECT_LE(0, rv);
     if (rv <= 0)
       break;
@@ -513,7 +513,7 @@ TEST_F(FileStreamTest, BasicReadWrite) {
   EXPECT_EQ(file_size, total_bytes_read);
   EXPECT_TRUE(data_read == kTestData);
 
-  rv = stream.Write(kTestData, kTestDataSize, CompletionCallback());
+  rv = stream.WriteSync(kTestData, kTestDataSize);
   EXPECT_EQ(kTestDataSize, rv);
   stream.CloseSync();
 
@@ -540,7 +540,7 @@ TEST_F(FileStreamTest, BasicWriteRead) {
   int64 offset = stream.Seek(FROM_END, 0);
   EXPECT_EQ(offset, file_size);
 
-  rv = stream.Write(kTestData, kTestDataSize, CompletionCallback());
+  rv = stream.WriteSync(kTestData, kTestDataSize);
   EXPECT_EQ(kTestDataSize, rv);
 
   offset = stream.Seek(FROM_BEGIN, 0);
@@ -551,7 +551,7 @@ TEST_F(FileStreamTest, BasicWriteRead) {
   std::string data_read;
   for (;;) {
     char buf[4];
-    rv = stream.Read(buf, arraysize(buf), CompletionCallback());
+    rv = stream.ReadSync(buf, arraysize(buf));
     EXPECT_LE(0, rv);
     if (rv <= 0)
       break;
@@ -926,13 +926,13 @@ TEST_F(FileStreamTest, Truncate) {
 
   // Write some data to the file.
   const char test_data[] = "0123456789";
-  write_stream.Write(test_data, arraysize(test_data), CompletionCallback());
+  write_stream.WriteSync(test_data, arraysize(test_data));
 
   // Truncate the file.
   ASSERT_EQ(4, write_stream.Truncate(4));
 
   // Write again.
-  write_stream.Write(test_data, 4, CompletionCallback());
+  write_stream.WriteSync(test_data, 4);
 
   // Close the stream.
   write_stream.CloseSync();
