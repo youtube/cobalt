@@ -5,6 +5,7 @@
 #include "base/mac/mac_util.h"
 
 #import <Cocoa/Cocoa.h>
+#import <IOKit/IOKitLib.h>
 #include <string.h>
 #include <sys/utsname.h>
 
@@ -14,6 +15,7 @@
 #include "base/mac/foundation_util.h"
 #include "base/mac/mac_logging.h"
 #include "base/mac/scoped_cftyperef.h"
+#include "base/memory/scoped_generic_obj.h"
 #include "base/memory/scoped_nsobject.h"
 #include "base/string_number_conversions.h"
 #include "base/string_piece.h"
@@ -621,6 +623,59 @@ bool IsOSLaterThanLion() {
   return MacOSXMinorVersion() > LION_MINOR_VERSION;
 }
 #endif
+
+namespace {
+
+// ScopedGenericObj functor for IOObjectRelease().
+class ScopedReleaseIOObject {
+ public:
+  void operator()(io_object_t x) const {
+    IOObjectRelease(x);
+  }
+};
+
+}  // namespace
+
+std::string GetModelIdentifier() {
+  ScopedGenericObj<io_service_t, ScopedReleaseIOObject>
+      platform_expert(IOServiceGetMatchingService(
+          kIOMasterPortDefault, IOServiceMatching("IOPlatformExpertDevice")));
+  if (!platform_expert)
+    return "";
+  ScopedCFTypeRef<CFDataRef> model_data(
+      static_cast<CFDataRef>(IORegistryEntryCreateCFProperty(
+          platform_expert,
+          CFSTR("model"),
+          kCFAllocatorDefault,
+          0)));
+  if (!model_data)
+    return "";
+  return reinterpret_cast<const char*>(
+      CFDataGetBytePtr(model_data));
+}
+
+bool ParseModelIdentifier(const std::string& ident,
+                          std::string* type,
+                          int32* major,
+                          int32* minor) {
+  size_t number_loc = ident.find_first_of("0123456789");
+  if (number_loc == std::string::npos)
+    return false;
+  size_t comma_loc = ident.find(',', number_loc);
+  if (comma_loc == std::string::npos)
+    return false;
+  int32 major_tmp, minor_tmp;
+  std::string::const_iterator begin = ident.begin();
+  if (!StringToInt(
+          StringPiece(begin + number_loc, begin + comma_loc), &major_tmp) ||
+      !StringToInt(
+          StringPiece(begin + comma_loc + 1, ident.end()), &minor_tmp))
+    return false;
+  *type = ident.substr(0, number_loc);
+  *major = major_tmp;
+  *minor = minor_tmp;
+  return true;
+}
 
 }  // namespace mac
 }  // namespace base

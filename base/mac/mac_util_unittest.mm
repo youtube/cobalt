@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -186,6 +186,27 @@ TEST_F(MacUtilTest, IsOSEllipsis) {
     // Not ten. What you gonna do?
     EXPECT_FALSE(true);
   }
+}
+
+TEST_F(MacUtilTest, ParseModelIdentifier) {
+  std::string model;
+  int32 major = 1, minor = 2;
+
+  EXPECT_FALSE(ParseModelIdentifier("", &model, &major, &minor));
+  EXPECT_EQ(0U, model.length());
+  EXPECT_EQ(1, major);
+  EXPECT_EQ(2, minor);
+  EXPECT_FALSE(ParseModelIdentifier("FooBar", &model, &major, &minor));
+
+  EXPECT_TRUE(ParseModelIdentifier("MacPro4,1", &model, &major, &minor));
+  EXPECT_EQ(model, "MacPro");
+  EXPECT_EQ(4, major);
+  EXPECT_EQ(1, minor);
+
+  EXPECT_TRUE(ParseModelIdentifier("MacBookPro6,2", &model, &major, &minor));
+  EXPECT_EQ(model, "MacBookPro");
+  EXPECT_EQ(6, major);
+  EXPECT_EQ(2, minor);
 }
 
 }  // namespace
