@@ -457,7 +457,7 @@ TEST_F(VideoRendererBaseTest, GetCurrentFrame_Flushed) {
 
 #if defined(OS_MACOSX)
 // http://crbug.com/109405
-#define MAYBE_GetCurrentFrame_EndOfStream FLAKY_GetCurrentFrame_EndOfStream
+#define MAYBE_GetCurrentFrame_EndOfStream DISABLED_GetCurrentFrame_EndOfStream
 #else
 #define MAYBE_GetCurrentFrame_EndOfStream GetCurrentFrame_EndOfStream
 #endif
