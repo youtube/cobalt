@@ -14,11 +14,11 @@
 #include "base/callback_forward.h"
 #include "base/location.h"
 #include "base/memory/ref_counted.h"
-#include "base/message_loop_helpers.h"
 #include "base/message_loop_proxy.h"
 #include "base/message_pump.h"
 #include "base/observer_list.h"
 #include "base/pending_task.h"
+#include "base/sequenced_task_runner_helpers.h"
 #include "base/synchronization/lock.h"
 #include "base/tracking_info.h"
 #include "base/time.h"
@@ -199,7 +199,7 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   // from RefCountedThreadSafe<T>!
   template <class T>
   void DeleteSoon(const tracked_objects::Location& from_here, const T* object) {
-    base::subtle::DeleteHelperInternal<T, void>::DeleteOnMessageLoop(
+    base::subtle::DeleteHelperInternal<T, void>::DeleteViaSequencedTaskRunner(
         this, from_here, object);
   }
 
@@ -216,7 +216,7 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   template <class T>
   void ReleaseSoon(const tracked_objects::Location& from_here,
                    const T* object) {
-    base::subtle::ReleaseHelperInternal<T, void>::ReleaseOnMessageLoop(
+    base::subtle::ReleaseHelperInternal<T, void>::ReleaseViaSequencedTaskRunner(
         this, from_here, object);
   }
 

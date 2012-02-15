@@ -12,21 +12,11 @@ namespace base {
 MessageLoopProxyImpl::~MessageLoopProxyImpl() {
 }
 
-bool MessageLoopProxyImpl::PostTask(const tracked_objects::Location& from_here,
-                                    const base::Closure& task) {
-  return PostTaskHelper(from_here, task, 0, true);
-}
-
 bool MessageLoopProxyImpl::PostDelayedTask(
     const tracked_objects::Location& from_here,
     const base::Closure& task,
     int64 delay_ms) {
   return PostTaskHelper(from_here, task, delay_ms, true);
-}
-
-bool MessageLoopProxyImpl::PostNonNestableTask(
-    const tracked_objects::Location& from_here, const base::Closure& task) {
-  return PostTaskHelper(from_here, task, 0, false);
 }
 
 bool MessageLoopProxyImpl::PostNonNestableDelayedTask(
@@ -36,7 +26,7 @@ bool MessageLoopProxyImpl::PostNonNestableDelayedTask(
   return PostTaskHelper(from_here, task, delay_ms, false);
 }
 
-bool MessageLoopProxyImpl::BelongsToCurrentThread() {
+bool MessageLoopProxyImpl::RunsTasksOnCurrentThread() const {
   // We shouldn't use MessageLoop::current() since it uses LazyInstance which
   // may be deleted by ~AtExitManager when a WorkerPool thread calls this
   // function.
