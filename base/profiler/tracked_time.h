@@ -62,6 +62,8 @@ class BASE_EXPORT TrackedTime {  // Similar to base::TimeTicks.
   TrackedTime operator+(const Duration& other) const;
   bool is_null() const;
 
+  static TrackedTime FromMilliseconds(int32 ms) { return TrackedTime(ms); }
+
  private:
   friend class Duration;
   explicit TrackedTime(int32 ms);
