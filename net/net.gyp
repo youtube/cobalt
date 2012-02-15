@@ -253,6 +253,7 @@
         'base/x509_cert_types.cc',
         'base/x509_cert_types.h',
         'base/x509_cert_types_mac.cc',
+        'base/x509_cert_types_win.cc',
         'base/x509_certificate.cc',
         'base/x509_certificate.h',
         'base/x509_certificate_mac.cc',
@@ -1060,7 +1061,7 @@
         'base/upload_data_unittest.cc',
         'base/upload_data_stream_unittest.cc',
         'base/x509_certificate_unittest.cc',
-        'base/x509_cert_types_mac_unittest.cc',
+        'base/x509_cert_types_unittest.cc',
         'base/x509_util_nss_unittest.cc',
         'base/x509_util_openssl_unittest.cc',
         'disk_cache/addr_unittest.cc',
@@ -1305,6 +1306,11 @@
             ],
           },
         ],
+        [ 'OS != "win" and OS != "mac"', {
+          'sources!': [
+            'base/x509_cert_types_unittest.cc',
+          ],
+        }]
       ],
     },
     {
