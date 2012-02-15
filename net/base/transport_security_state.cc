@@ -139,13 +139,13 @@ bool TransportSecurityState::HasMetadata(DomainState* result,
                                          bool sni_available) {
   DCHECK(CalledOnValidThread());
 
-  *result = DomainState();
+  DomainState state;
   const std::string canonicalized_host = CanonicalizeHost(host);
   if (canonicalized_host.empty())
     return false;
 
-  bool has_preload = IsPreloadedSTS(canonicalized_host, sni_available, result);
-  std::string canonicalized_preload = CanonicalizeHost(result->domain);
+  bool has_preload = IsPreloadedSTS(canonicalized_host, sni_available, &state);
+  std::string canonicalized_preload = CanonicalizeHost(state.domain);
 
   base::Time current_time(base::Time::Now());
 
@@ -153,8 +153,10 @@ bool TransportSecurityState::HasMetadata(DomainState* result,
     std::string host_sub_chunk(&canonicalized_host[i],
                                canonicalized_host.size() - i);
     // Exact match of a preload always wins.
-    if (has_preload && host_sub_chunk == canonicalized_preload)
+    if (has_preload && host_sub_chunk == canonicalized_preload) {
+      *result = state;
       return true;
+    }
 
     std::map<std::string, DomainState>::iterator j =
         enabled_hosts_.find(HashHost(host_sub_chunk));
@@ -168,15 +170,17 @@ bool TransportSecurityState::HasMetadata(DomainState* result,
       continue;
     }
 
-    *result = j->second;
-    result->domain = DNSDomainToString(host_sub_chunk);
+    state = j->second;
+    state.domain = DNSDomainToString(host_sub_chunk);
 
-    // If we matched the domain exactly, it doesn't matter what the value of
-    // include_subdomains is.
-    if (i == 0)
+    // Succeed if we matched the domain exactly or if subdomain matches are
+    // allowed.
+    if (i == 0 || j->second.include_subdomains) {
+      *result = state;
       return true;
+    }
 
-    return j->second.include_subdomains;
+    return false;
   }
 
   return false;
