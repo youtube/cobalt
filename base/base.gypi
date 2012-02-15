@@ -281,6 +281,8 @@
           'stringize_macros.h',
           'stringprintf.cc',
           'stringprintf.h',
+          'supports_user_data.cc',
+          'supports_user_data.h',
           'synchronization/cancellation_flag.cc',
           'synchronization/cancellation_flag.h',
           'synchronization/condition_variable.h',
