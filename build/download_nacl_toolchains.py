@@ -34,7 +34,8 @@ def Main(args):
   # gclient sync time for developers, or standard Chrome bots.
   if '--optional-pnacl' in args:
     args.remove('--optional-pnacl')
-    if os.environ.get('BUILDBOT_BUILDERNAME', '') == 'linux_pnacl_sdk':
+    buildbot_name = os.environ.get('BUILDBOT_BUILDERNAME', '')
+    if buildbot_name.contains('pnacl') and  buildbot_name.contains('sdk'):
       print '\n*** DOWNLOADING PNACL TOOLCHAIN ***\n'
     else:
       args.append('--no-pnacl')
