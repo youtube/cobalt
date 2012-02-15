@@ -175,12 +175,11 @@ class MEDIA_EXPORT AudioOutputController
   static const int kPollNumAttempts;
   static const int kPollPauseInMilliseconds;
 
-  AudioOutputController(AudioManager* audio_manager,
-                        EventHandler* handler,
+  AudioOutputController(EventHandler* handler,
                         SyncReader* sync_reader);
 
   // The following methods are executed on the audio manager thread.
-  void DoCreate(const AudioParameters& params);
+  void DoCreate(AudioManager* audio_manager, const AudioParameters& params);
   void DoPlay();
   void PollAndStartIfDataReady();
   void DoPause();
@@ -196,7 +195,6 @@ class MEDIA_EXPORT AudioOutputController
   // Signals event when done if it is not NULL.
   void DoStopCloseAndClearStream(base::WaitableEvent *done);
 
-  scoped_refptr<AudioManager> audio_manager_;
   // |handler_| may be called only if |state_| is not kClosed.
   EventHandler* handler_;
   AudioOutputStream* stream_;

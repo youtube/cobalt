@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,9 +12,10 @@ TestAudioInputController::TestAudioInputController(
     AudioManager* audio_manager,
     EventHandler* event_handler,
     SyncWriter* sync_writer)
-    : AudioInputController(audio_manager, event_handler, sync_writer),
+    : AudioInputController(event_handler, sync_writer),
       factory_(factory),
       event_handler_(event_handler) {
+  message_loop_ = audio_manager->GetMessageLoop();
 }
 
 TestAudioInputController::~TestAudioInputController() {
@@ -23,7 +24,7 @@ TestAudioInputController::~TestAudioInputController() {
 }
 
 void TestAudioInputController::Close(const base::Closure& closed_task) {
-  audio_manager_->GetMessageLoop()->PostTask(FROM_HERE, closed_task);
+  message_loop_->PostTask(FROM_HERE, closed_task);
 }
 
 TestAudioInputControllerFactory::TestAudioInputControllerFactory()

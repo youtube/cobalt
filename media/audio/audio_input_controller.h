@@ -178,11 +178,11 @@ class MEDIA_EXPORT AudioInputController
     kError
   };
 
-  AudioInputController(AudioManager* audio_manager, EventHandler* handler,
-                       SyncWriter* sync_writer);
+  AudioInputController(EventHandler* handler, SyncWriter* sync_writer);
 
   // Methods called on the audio thread (owned by the AudioManager).
-  void DoCreate(const AudioParameters& params, const std::string& device_id);
+  void DoCreate(AudioManager* audio_manager, const AudioParameters& params,
+                const std::string& device_id);
   void DoRecord();
   void DoClose(const base::Closure& closed_task);
   void DoReportError(int code);
@@ -198,9 +198,6 @@ class MEDIA_EXPORT AudioInputController
 
   // Gives access to the message loop of the creating thread.
   scoped_refptr<base::MessageLoopProxy> creator_loop_;
-
-  // Reference to the reference counted audio manager.
-  scoped_refptr<AudioManager> audio_manager_;
 
   // The message loop of audio-manager thread that this object runs on.
   scoped_refptr<base::MessageLoopProxy> message_loop_;

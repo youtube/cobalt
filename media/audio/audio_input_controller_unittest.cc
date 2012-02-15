@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -79,11 +79,11 @@ TEST_F(AudioInputControllerTest, CreateAndClose) {
   EXPECT_CALL(event_handler, OnCreated(NotNull()))
       .WillOnce(QuitMessageLoop(message_loop_.message_loop_proxy()));
 
-  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   AudioParameters params(AudioParameters::AUDIO_MOCK, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
   scoped_refptr<AudioInputController> controller =
-      AudioInputController::Create(audio_manager, &event_handler, params);
+      AudioInputController::Create(audio_manager.get(), &event_handler, params);
   ASSERT_TRUE(controller.get());
 
   // Close the AudioInputController synchronously.
@@ -109,13 +109,13 @@ TEST_F(AudioInputControllerTest, RecordAndClose) {
       .WillRepeatedly(CheckCountAndPostQuitTask(&count, 10,
           message_loop_.message_loop_proxy()));
 
-  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   AudioParameters params(AudioParameters::AUDIO_MOCK, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
 
   // Creating the AudioInputController should render an OnCreated() call.
   scoped_refptr<AudioInputController> controller =
-      AudioInputController::Create(audio_manager, &event_handler, params);
+      AudioInputController::Create(audio_manager.get(), &event_handler, params);
   ASSERT_TRUE(controller.get());
 
   // Start recording and trigger one OnRecording() call.
@@ -155,13 +155,13 @@ TEST_F(AudioInputControllerTest, RecordAndError) {
       .Times(Exactly(1))
       .WillOnce(QuitMessageLoop(message_loop_.message_loop_proxy()));
 
-  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   AudioParameters params(AudioParameters::AUDIO_MOCK, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
 
   // Creating the AudioInputController should render an OnCreated() call.
   scoped_refptr<AudioInputController> controller =
-      AudioInputController::Create(audio_manager, &event_handler, params);
+      AudioInputController::Create(audio_manager.get(), &event_handler, params);
   ASSERT_TRUE(controller.get());
 
   // Start recording and trigger one OnRecording() call.
@@ -188,11 +188,11 @@ TEST_F(AudioInputControllerTest, SamplesPerPacketTooLarge) {
   EXPECT_CALL(event_handler, OnCreated(NotNull()))
     .Times(Exactly(0));
 
-  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   AudioParameters params(AudioParameters::AUDIO_MOCK, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket * 1000);
   scoped_refptr<AudioInputController> controller =
-      AudioInputController::Create(audio_manager, &event_handler, params);
+      AudioInputController::Create(audio_manager.get(), &event_handler, params);
   ASSERT_FALSE(controller);
 }
 
@@ -207,11 +207,11 @@ TEST_F(AudioInputControllerTest, CloseTwice) {
   EXPECT_CALL(event_handler, OnRecording(NotNull()))
       .Times(Exactly(1));
 
-  scoped_refptr<AudioManager> audio_manager(AudioManager::Create());
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   AudioParameters params(AudioParameters::AUDIO_MOCK, kChannelLayout,
                          kSampleRate, kBitsPerSample, kSamplesPerPacket);
   scoped_refptr<AudioInputController> controller =
-      AudioInputController::Create(audio_manager, &event_handler, params);
+      AudioInputController::Create(audio_manager.get(), &event_handler, params);
   ASSERT_TRUE(controller.get());
 
   controller->Record();

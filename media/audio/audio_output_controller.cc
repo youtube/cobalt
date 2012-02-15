@@ -23,11 +23,9 @@ const int AudioOutputController::kPauseMark = -1;
 const int AudioOutputController::kPollNumAttempts = 3;
 const int AudioOutputController::kPollPauseInMilliseconds = 3;
 
-AudioOutputController::AudioOutputController(AudioManager* audio_manager,
-                                             EventHandler* handler,
+AudioOutputController::AudioOutputController(EventHandler* handler,
                                              SyncReader* sync_reader)
-    : audio_manager_(audio_manager),
-      handler_(handler),
+    : handler_(handler),
       stream_(NULL),
       volume_(1.0),
       state_(kEmpty),
@@ -68,12 +66,12 @@ scoped_refptr<AudioOutputController> AudioOutputController::Create(
 
   // Starts the audio controller thread.
   scoped_refptr<AudioOutputController> controller(new AudioOutputController(
-      audio_manager, event_handler, sync_reader));
+      event_handler, sync_reader));
 
   controller->message_loop_ = audio_manager->GetMessageLoop();
   controller->message_loop_->PostTask(FROM_HERE, base::Bind(
-      &AudioOutputController::DoCreate, base::Unretained(controller.get()),
-      params));
+      &AudioOutputController::DoCreate, controller,
+      base::Unretained(audio_manager), params));
   return controller;
 }
 
@@ -108,7 +106,8 @@ void AudioOutputController::SetVolume(double volume) {
       &AudioOutputController::DoSetVolume, base::Unretained(this), volume));
 }
 
-void AudioOutputController::DoCreate(const AudioParameters& params) {
+void AudioOutputController::DoCreate(AudioManager* audio_manager,
+                                     const AudioParameters& params) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   // Close() can be called before DoCreate() is executed.
@@ -117,7 +116,7 @@ void AudioOutputController::DoCreate(const AudioParameters& params) {
   DCHECK_EQ(kEmpty, state_);
 
   DoStopCloseAndClearStream(NULL);
-  stream_ = audio_manager_->MakeAudioOutputStreamProxy(params);
+  stream_ = audio_manager->MakeAudioOutputStreamProxy(params);
   if (!stream_) {
     // TODO(hclam): Define error types.
     handler_->OnError(this, 0);

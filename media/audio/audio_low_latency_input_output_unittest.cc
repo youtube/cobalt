@@ -94,19 +94,12 @@ class MockAudioManager : public AudioManagerAnyPlatform {
 // Test fixture class.
 class AudioLowLatencyInputOutputTest : public testing::Test {
  protected:
-  AudioLowLatencyInputOutputTest()
-      : mock_audio_manager_(new MockAudioManager()) {
-  }
+  AudioLowLatencyInputOutputTest() {}
 
-  virtual ~AudioLowLatencyInputOutputTest() { }
+  virtual ~AudioLowLatencyInputOutputTest() {}
 
-  AudioManager* audio_manager() {
-    return mock_audio_manager_.get();
-  }
-
-  MessageLoopForUI* message_loop() {
-    return &message_loop_;
-  }
+  AudioManager* audio_manager() { return &mock_audio_manager_; }
+  MessageLoopForUI* message_loop() { return &message_loop_; }
 
   // Convenience method which ensures that we are not running on the build
   // bots and that at least one valid input and output device can be found.
@@ -120,7 +113,7 @@ class AudioLowLatencyInputOutputTest : public testing::Test {
 
  private:
   MessageLoopForUI message_loop_;
-  scoped_refptr<MockAudioManager> mock_audio_manager_;
+  MockAudioManager mock_audio_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioLowLatencyInputOutputTest);
 };

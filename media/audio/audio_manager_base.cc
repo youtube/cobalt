@@ -23,28 +23,6 @@ AudioManagerBase::~AudioManagerBase() {
   Shutdown();
 }
 
-#ifndef NDEBUG
-void AudioManagerBase::AddRef() const {
-  {
-    base::AutoLock lock(audio_thread_lock_);
-    const MessageLoop* loop = audio_thread_.get() ?
-        audio_thread_->message_loop() : NULL;
-    DCHECK(loop == NULL || loop != MessageLoop::current());
-  }
-  AudioManager::AddRef();
-}
-
-void AudioManagerBase::Release() const {
-  {
-    base::AutoLock lock(audio_thread_lock_);
-    const MessageLoop* loop = audio_thread_.get() ?
-        audio_thread_->message_loop() : NULL;
-    DCHECK(loop == NULL || loop != MessageLoop::current());
-  }
-  AudioManager::Release();
-}
-#endif
-
 void AudioManagerBase::Init() {
   base::AutoLock lock(audio_thread_lock_);
   DCHECK(!audio_thread_.get());

@@ -51,7 +51,7 @@ TEST(MacAudioTest, SineWaveAudio16MonoTest) {
 
 // Test that can it be created and closed.
 TEST(MacAudioTest, PCMWaveStreamGetAndClose) {
-  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
+  scoped_ptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
@@ -63,7 +63,7 @@ TEST(MacAudioTest, PCMWaveStreamGetAndClose) {
 
 // Test that it can be opened and closed.
 TEST(MacAudioTest, PCMWaveStreamOpenAndClose) {
-  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
+  scoped_ptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas = audio_man->MakeAudioOutputStream(
@@ -79,7 +79,7 @@ TEST(MacAudioTest, PCMWaveStreamOpenAndClose) {
 // pops or noises while the sound is playing. The sound must also be identical
 // to the sound of PCMWaveStreamPlay200HzTone22KssMono test.
 TEST(MacAudioTest, PCMWaveStreamPlay200HzTone44KssMono) {
-  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
+  scoped_ptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
   uint32 frames_100_ms = AudioParameters::kAudioCDSampleRate / 10;
@@ -109,7 +109,7 @@ TEST(MacAudioTest, PCMWaveStreamPlay200HzTone44KssMono) {
 // or noises while the sound is playing. The sound must also be identical to the
 // sound of PCMWaveStreamPlay200HzTone44KssMono test.
 TEST(MacAudioTest, PCMWaveStreamPlay200HzTone22KssMono) {
-  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
+  scoped_ptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
   uint32 frames_100_ms = AudioParameters::kAudioCDSampleRate / 10;
@@ -135,7 +135,7 @@ static void ClearBuffer(AudioOutputStream* stream, uint8* dest,
 }
 
 TEST(MacAudioTest, PCMWaveStreamPendingBytes) {
-  scoped_refptr<AudioManager> audio_man(AudioManager::Create());
+  scoped_ptr<AudioManager> audio_man(AudioManager::Create());
   if (!audio_man->HasAudioOutputDevices())
     return;
 

@@ -27,15 +27,7 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
   // Unique Id of the generic "default" device.
   static const char kDefaultDeviceId[];
 
-  AudioManagerBase();
-
-#ifndef NDEBUG
-  // Overridden to make sure we don't accidentally get added reference counts on
-  // the audio thread.  The AudioManagerBase instance must always be deleted
-  // from outside the audio thread.
-  virtual void AddRef() const OVERRIDE;
-  virtual void Release() const OVERRIDE;
-#endif
+  virtual ~AudioManagerBase();
 
   virtual void Init() OVERRIDE;
 
@@ -63,7 +55,7 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
   void Shutdown();
 
  protected:
-  virtual ~AudioManagerBase();
+  AudioManagerBase();
 
   typedef std::map<AudioParameters, scoped_refptr<AudioOutputDispatcher>,
                    AudioParameters::Compare>
