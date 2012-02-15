@@ -669,36 +669,6 @@ void X509Certificate::GetSubjectAltName(
   }
 }
 
-class GlobalCertStore {
- public:
-  HCERTSTORE cert_store() {
-    return cert_store_;
-  }
-
- private:
-  friend struct base::DefaultLazyInstanceTraits<GlobalCertStore>;
-
-  GlobalCertStore()
-      : cert_store_(CertOpenStore(CERT_STORE_PROV_MEMORY, 0, NULL, 0, NULL)) {
-  }
-
-  ~GlobalCertStore() {
-    CertCloseStore(cert_store_, 0 /* flags */);
-  }
-
-  const HCERTSTORE cert_store_;
-
-  DISALLOW_COPY_AND_ASSIGN(GlobalCertStore);
-};
-
-static base::LazyInstance<GlobalCertStore>::Leaky
-    g_cert_store = LAZY_INSTANCE_INITIALIZER;
-
-// static
-HCERTSTORE X509Certificate::cert_store() {
-  return g_cert_store.Get().cert_store();
-}
-
 PCCERT_CONTEXT X509Certificate::CreateOSCertChainForCert() const {
   // Create an in-memory certificate store to hold this certificate and
   // any intermediate certificates in |intermediate_ca_certs_|. The store
@@ -1001,7 +971,7 @@ X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
     const char* data, int length) {
   OSCertHandle cert_handle = NULL;
   if (!CertAddEncodedCertificateToStore(
-      cert_store(), X509_ASN_ENCODING, reinterpret_cast<const BYTE*>(data),
+      NULL, X509_ASN_ENCODING, reinterpret_cast<const BYTE*>(data),
       length, CERT_STORE_ADD_USE_EXISTING, &cert_handle))
     return NULL;
 
@@ -1093,7 +1063,7 @@ X509Certificate::ReadOSCertHandleFromPickle(const Pickle& pickle,
 
   OSCertHandle cert_handle = NULL;
   if (!CertAddSerializedElementToStore(
-          cert_store(), reinterpret_cast<const BYTE*>(data), length,
+          NULL, reinterpret_cast<const BYTE*>(data), length,
           CERT_STORE_ADD_USE_EXISTING, 0, CERT_STORE_CERTIFICATE_CONTEXT_FLAG,
           NULL, reinterpret_cast<const void **>(&cert_handle))) {
     return NULL;

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -319,46 +319,28 @@ class NET_EXPORT X509Certificate
 #endif
 
 #if defined(OS_WIN)
-  // Returns a handle to a global, in-memory certificate store. We use it for
-  // two purposes:
-  // 1. Import server certificates into this store so that we can verify and
-  //    display the certificates using CryptoAPI.
-  // 2. Copy client certificates from the "MY" system certificate store into
-  //    this store so that we can close the system store when we finish
-  //    searching for client certificates.
-  static HCERTSTORE cert_store();
-
   // Returns a new PCCERT_CONTEXT containing this certificate and its
   // intermediate certificates, or NULL on failure. The returned
-  // PCCERT_CONTEXT *MUST NOT* be stored in an X509Certificate, as then
-  // os_cert_handle() will not return the correct result. This function is
-  // only necessary if the CERT_CONTEXT.hCertStore member will be accessed or
+  // PCCERT_CONTEXT *MUST NOT* be stored in an X509Certificate, as this will
+  // cause os_cert_handle() to return incorrect results. This function is only
+  // necessary if the CERT_CONTEXT.hCertStore member will be accessed or
   // enumerated, which is generally true for any CryptoAPI functions involving
   // certificate chains, including validation or certificate display.
   //
   // Remarks:
   // Depending on the CryptoAPI function, Windows may need to access the
   // HCERTSTORE that the passed-in PCCERT_CONTEXT belongs to, such as to
-  // locate additional intermediates. However, in the current X509Certificate
-  // implementation on Windows, all X509Certificate::OSCertHandles belong to
-  // the same HCERTSTORE - X509Certificate::cert_store(). Since certificates
-  // may be created and accessed on any number of threads, if CryptoAPI is
-  // trying to read this global store while additional certificates are being
-  // added, it may return inconsistent results while enumerating the store.
-  // While the memory accesses themselves are thread-safe, the resultant view
-  // of what is in the store may be altered.
+  // locate additional intermediates. However, all certificate handles are added
+  // to a NULL HCERTSTORE, allowing the system to manage the resources. As a
+  // result, intermediates for |cert_handle_| cannot be located simply via
+  // |cert_handle_->hCertStore|, as it refers to a magic value indicating
+  // "only this certificate".
   //
-  // If OSCertHandles were instead added to a NULL HCERTSTORE, which is valid
-  // in CryptoAPI, then Windows would be unable to locate any of the
-  // intermediates supplied in |intermediate_ca_certs_|, because the
-  // hCertStore will refer to a magic value that indicates "only this
-  // certificate."
-  //
-  // To avoid these problems, a new in-memory HCERTSTORE is created containing
+  // To avoid this problems, a new in-memory HCERTSTORE is created containing
   // just this certificate and its intermediates. The handle to the version of
-  // this certificate in the new HCERTSTORE is then returned, with the
-  // HCERTSTORE set to be automatically freed when the returned certificate
-  // is freed.
+  // the current certificate in the new HCERTSTORE is then returned, with the
+  // PCCERT_CONTEXT's HCERTSTORE set to be automatically freed when the returned
+  // certificate handle is freed.
   //
   // This function is only needed when the HCERTSTORE of the os_cert_handle()
   // will be accessed, which is generally only during certificate validation
