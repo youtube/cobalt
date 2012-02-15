@@ -49,6 +49,7 @@
         '../third_party/ots/ots.gyp:*',
         '../third_party/sqlite/sqlite.gyp:*',
         '../third_party/WebKit/Source/WebKit/chromium/All.gyp:*',
+        '../third_party/WebKit/Source/WebKit/chromium/WebKit.gyp:generate_devtools_zip',
         '../third_party/zlib/zlib.gyp:*',
         '../v8/tools/gyp/v8.gyp:*',
         '../webkit/support/webkit_support.gyp:*',
