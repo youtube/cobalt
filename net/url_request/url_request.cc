@@ -762,17 +762,6 @@ int64 URLRequest::GetExpectedContentSize() const {
   return expected_content_size;
 }
 
-URLRequest::UserData* URLRequest::GetUserData(const void* key) const {
-  UserDataMap::const_iterator found = user_data_.find(key);
-  if (found != user_data_.end())
-    return found->second.get();
-  return NULL;
-}
-
-void URLRequest::SetUserData(const void* key, UserData* data) {
-  user_data_[key] = linked_ptr<UserData>(data);
-}
-
 void URLRequest::NotifyAuthRequired(AuthChallengeInfo* auth_info) {
   NetworkDelegate::AuthRequiredResponse rv =
       NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION;
