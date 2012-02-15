@@ -2230,9 +2230,10 @@ TEST_P(SpdyNetworkTransactionTest, FlowControlStallResume) {
   ASSERT_TRUE(stream->stream() != NULL);
   EXPECT_EQ(0, stream->stream()->send_window_size());
   // All the body data should have been read.
+  // TODO(satorux): This is because of the weirdness in reading the request
+  // body in OnSendBodyComplete(). See crbug.com/113107.
   EXPECT_TRUE(stream->request_body_stream_->IsEOF());
-  // But the body is not yet fully sent ("hello!" is not yet sent, and
-  // left in the internal buffer of |stream|).
+  // But the body is not yet fully sent ("hello!" is not yet sent).
   EXPECT_FALSE(stream->stream()->body_sent());
 
   data->ForceNextRead();   // Read in WINDOW_UPDATE frame.
