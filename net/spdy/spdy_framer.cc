@@ -604,7 +604,8 @@ size_t SpdyFramer::ProcessControlFrameHeaderBlock(const char* data,
   if (remaining_control_payload_ == 0 && processed_successfully) {
     // The complete header block has been delivered. We send a zero-length
     // OnControlFrameHeaderData() to indicate this.
-    visitor_->OnControlFrameHeaderData(&control_frame, NULL, 0);
+    visitor_->OnControlFrameHeaderData(
+        GetControlFrameStreamId(&control_frame), NULL, 0);
 
     // If this is a FIN, tell the caller.
     if (control_frame.flags() & CONTROL_FLAG_FIN) {
@@ -1537,7 +1538,7 @@ bool SpdyFramer::IncrementallyDecompressControlFrameHeaderData(
       size_t decompressed_len = arraysize(buffer) - decomp->avail_out;
       if (decompressed_len > 0) {
         processed_successfully = visitor_->OnControlFrameHeaderData(
-            control_frame, buffer, decompressed_len);
+            stream_id, buffer, decompressed_len);
       }
       if (!processed_successfully) {
         // Assume that the problem was the header block was too large for the
@@ -1556,7 +1557,7 @@ bool SpdyFramer::IncrementallyDeliverControlFrameHeaderData(
   DCHECK_LT(0u, stream_id);
   while (read_successfully && len > 0) {
     size_t bytes_to_deliver = std::min(len, kHeaderDataChunkMaxSize);
-    read_successfully = visitor_->OnControlFrameHeaderData(control_frame, data,
+    read_successfully = visitor_->OnControlFrameHeaderData(stream_id, data,
                                                            bytes_to_deliver);
     data += bytes_to_deliver;
     len -= bytes_to_deliver;
