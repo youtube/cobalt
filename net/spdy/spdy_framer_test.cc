@@ -173,11 +173,10 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
       ++fin_flag_count_;
   }
 
-  bool OnControlFrameHeaderData(const SpdyControlFrame* control_frame,
+  bool OnControlFrameHeaderData(SpdyStreamId stream_id,
                                 const char* header_data,
                                 size_t len) {
     ++control_frame_header_data_count_;
-    SpdyStreamId stream_id = SpdyFramer::GetControlFrameStreamId(control_frame);
     CHECK_EQ(header_stream_id_, stream_id);
     if (len == 0) {
       ++zero_length_control_frame_header_data_count_;
