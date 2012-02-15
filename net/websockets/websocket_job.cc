@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,7 +20,6 @@
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
 #include "net/url_request/url_request_context.h"
-#include "net/websockets/websocket_frame_handler.h"
 #include "net/websockets/websocket_handshake_handler.h"
 #include "net/websockets/websocket_net_log_params.h"
 #include "net/websockets/websocket_throttle.h"
@@ -81,8 +80,6 @@ WebSocketJob::WebSocketJob(SocketStream::Delegate* delegate)
       started_to_send_handshake_request_(false),
       handshake_request_sent_(0),
       response_cookies_save_index_(0),
-      send_frame_handler_(new WebSocketFrameHandler),
-      receive_frame_handler_(new WebSocketFrameHandler),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_for_send_pending_(this)) {
 }
@@ -110,28 +107,15 @@ bool WebSocketJob::SendData(const char* data, int len) {
 
     case OPEN:
       {
-        send_frame_handler_->AppendData(data, len);
-        // If current buffer is sending now, this data will be sent in
-        // SendPending() after current data was sent.
-        // Do not buffer sending data for now.  Since
-        // WebCore::SocketStreamHandle controls traffic to keep number of
-        // pending bytes less than max_pending_send_allowed, so when sending
-        // larger message than max_pending_send_allowed should not be buffered.
-        // If we don't call OnSentData, WebCore::SocketStreamHandle would stop
-        // sending more data when pending data reaches
-        // max_pending_send_allowed.
-        // TODO(ukai): Fix this to support compression for larger message.
-        int err = 0;
-        if (!send_frame_handler_->GetCurrentBuffer() &&
-            (err = send_frame_handler_->UpdateCurrentBuffer(false)) > 0) {
-          DCHECK(!current_buffer_);
-          current_buffer_ = new DrainableIOBuffer(
-              send_frame_handler_->GetCurrentBuffer(),
-              send_frame_handler_->GetCurrentBufferSize());
-          return SendDataInternal(
-              current_buffer_->data(), current_buffer_->BytesRemaining());
+        scoped_refptr<IOBufferWithSize> buffer = new IOBufferWithSize(len);
+        memcpy(buffer->data(), data, len);
+        if (current_send_buffer_ || !send_buffer_queue_.empty()) {
+          send_buffer_queue_.push_back(buffer);
+          return true;
         }
-        return err >= 0;
+        current_send_buffer_ = new DrainableIOBuffer(buffer.get(), len);
+        return SendDataInternal(current_send_buffer_->data(),
+                                current_send_buffer_->BytesRemaining());
       }
 
     case CLOSING:
@@ -146,7 +130,7 @@ void WebSocketJob::Close() {
     return;
 
   state_ = CLOSING;
-  if (current_buffer_) {
+  if (current_send_buffer_) {
     // Will close in SendPending.
     return;
   }
@@ -219,20 +203,20 @@ void WebSocketJob::OnSentData(SocketStream* socket, int amount_sent) {
   }
   if (delegate_) {
     DCHECK(state_ == OPEN || state_ == CLOSING);
-    if (current_buffer_ == NULL) {
-      VLOG(1) << "OnSentData current_buffer=NULL amount_sent=" << amount_sent;
+    if (!current_send_buffer_) {
+      VLOG(1) << "OnSentData current_send_buffer=NULL amount_sent="
+              << amount_sent;
       return;
     }
-    current_buffer_->DidConsume(amount_sent);
-    if (current_buffer_->BytesRemaining() > 0)
+    current_send_buffer_->DidConsume(amount_sent);
+    if (current_send_buffer_->BytesRemaining() > 0)
       return;
 
     // We need to report amount_sent of original buffer size, instead of
     // amount sent to |socket|.
-    amount_sent = send_frame_handler_->GetOriginalBufferSize();
+    amount_sent = current_send_buffer_->size();
     DCHECK_GT(amount_sent, 0);
-    current_buffer_ = NULL;
-    send_frame_handler_->ReleaseCurrentBuffer();
+    current_send_buffer_ = NULL;
     if (!weak_ptr_factory_for_send_pending_.HasWeakPtrs()) {
       MessageLoopForIO::current()->PostTask(
           FROM_HERE,
@@ -253,19 +237,8 @@ void WebSocketJob::OnReceivedData(
     return;
   }
   DCHECK(state_ == OPEN || state_ == CLOSING);
-  std::string received_data;
-  receive_frame_handler_->AppendData(data, len);
-  // Don't buffer receiving data for now.
-  // TODO(ukai): fix performance of WebSocketFrameHandler.
-  while (receive_frame_handler_->UpdateCurrentBuffer(false) > 0) {
-    received_data +=
-        std::string(receive_frame_handler_->GetCurrentBuffer()->data(),
-                    receive_frame_handler_->GetCurrentBufferSize());
-    receive_frame_handler_->ReleaseCurrentBuffer();
-  }
-  if (delegate_ && !received_data.empty())
-      delegate_->OnReceivedData(
-          socket, received_data.data(), received_data.size());
+  if (delegate_ && len > 0)
+    delegate_->OnReceivedData(socket, data, len);
 }
 
 void WebSocketJob::OnClose(SocketStream* socket) {
@@ -449,7 +422,8 @@ void WebSocketJob::OnReceivedHandshakeResponse(
   if (handshake_response_->HasResponse()) {
     // If we already has handshake response, received data should be frame
     // data, not handshake message.
-    receive_frame_handler_->AppendData(data, len);
+    received_data_after_handshake_.insert(
+        received_data_after_handshake_.end(), data, data + len);
     return;
   }
 
@@ -465,8 +439,8 @@ void WebSocketJob::OnReceivedHandshakeResponse(
           handshake_response_->GetRawResponse())));
   if (len - response_length > 0) {
     // If we received extra data, it should be frame data.
-    receive_frame_handler_->AppendData(data + response_length,
-                                       len - response_length);
+    DCHECK(received_data_after_handshake_.empty());
+    received_data_after_handshake_.assign(data + response_length, data + len);
   }
   SaveCookiesAndNotifyHeaderComplete();
 }
@@ -494,20 +468,20 @@ void WebSocketJob::SaveNextCookie() {
     // Actual handshake should be done in WebKit.
     handshake_response_->RemoveHeaders(
         kSetCookieHeaders, arraysize(kSetCookieHeaders));
-    std::string received_data = handshake_response_->GetResponse();
-    // Don't buffer receiving data for now.
-    // TODO(ukai): fix performance of WebSocketFrameHandler.
-    while (receive_frame_handler_->UpdateCurrentBuffer(false) > 0) {
-      received_data +=
-          std::string(receive_frame_handler_->GetCurrentBuffer()->data(),
-                      receive_frame_handler_->GetCurrentBufferSize());
-      receive_frame_handler_->ReleaseCurrentBuffer();
-    }
+    std::string handshake_response = handshake_response_->GetResponse();
+    std::vector<char> received_data(handshake_response.begin(),
+                                    handshake_response.end());
+    received_data.insert(received_data.end(),
+                         received_data_after_handshake_.begin(),
+                         received_data_after_handshake_.end());
+    received_data_after_handshake_.clear();
 
     state_ = OPEN;
+
+    DCHECK(!received_data.empty());
     if (delegate_)
       delegate_->OnReceivedData(
-          socket_, received_data.data(), received_data.size());
+          socket_, &received_data.front(), received_data.size());
 
     handshake_response_.reset();
 
@@ -659,20 +633,23 @@ void WebSocketJob::CloseInternal() {
 }
 
 void WebSocketJob::SendPending() {
-  if (current_buffer_)
+  if (current_send_buffer_)
     return;
-  // Current buffer is done.  Try next buffer if any.
-  // Don't buffer sending data. See comment on case OPEN in SendData().
-  if (send_frame_handler_->UpdateCurrentBuffer(false) <= 0) {
+
+  // Current buffer has been sent. Try next if any.
+  if (send_buffer_queue_.empty()) {
     // No more data to send.
     if (state_ == CLOSING)
       CloseInternal();
     return;
   }
-  current_buffer_ = new DrainableIOBuffer(
-      send_frame_handler_->GetCurrentBuffer(),
-      send_frame_handler_->GetCurrentBufferSize());
-  SendDataInternal(current_buffer_->data(), current_buffer_->BytesRemaining());
+
+  scoped_refptr<IOBufferWithSize> next_buffer = send_buffer_queue_.front();
+  send_buffer_queue_.pop_front();
+  current_send_buffer_ = new DrainableIOBuffer(next_buffer,
+                                               next_buffer->size());
+  SendDataInternal(current_send_buffer_->data(),
+                   current_send_buffer_->BytesRemaining());
 }
 
 }  // namespace net
