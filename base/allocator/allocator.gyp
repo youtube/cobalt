@@ -416,6 +416,8 @@
       ],
       'sources': [
         'allocator_unittests.cc',
+        '../profiler/alternate_timer.cc',
+        '../profiler/alternate_timer.h',
       ],
     },
   ],
