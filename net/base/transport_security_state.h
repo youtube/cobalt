@@ -147,33 +147,54 @@ class NET_EXPORT TransportSecurityState
   // action is taken. Returns true iff an entry was deleted.
   bool DeleteHost(const std::string& host);
 
-  // Returns true if |host| has TransportSecurity enabled, in the context of
-  // |sni_available|. You should check |result->mode| before acting on this
-  // because the modes can be quite different.
+  // Returns true if |host| has TransportSecurity enabled. Before operating
+  // on this result, consult |result->mode|, as the expected behavior of
+  // TransportSecurity can significantly differ based on mode.
   //
-  // Note that *result is always overwritten on every call.
+  // If |sni_available| is true, searches the preloads defined for SNI-using
+  // hosts as well as the usual preload list.
+  //
+  // Note that |*result| is always overwritten on every call.
+  // TODO(palmer): Only update |*result| on success.
   bool GetDomainState(DomainState* result,
                       const std::string& host,
                       bool sni_available);
 
-  // Returns true if |host| has any SSL certificate pinning, in the context of
-  // |sni_available|. In that case, *result is filled out.
-  // Note that *result is always overwritten on every call.
+  // Returns true if there are any certificates pinned for |host|.
+  // If so, updates the |preloaded_spki_hashes|, |dynamic_spki_hashes|, and
+  // |bad_preloaded_spki_hashes| fields of |*result| with the pins.
+  //
+  // Note that |*result| is always overwritten on every call, regardless of
+  // whether or not pins are enabled.
+  //
+  // If |sni_available| is true, searches the preloads defined for SNI-using
+  // hosts as well as the usual preload list.
+  //
+  // TODO(palmer): Only update |*result| if pins exist.
   bool HasPinsForHost(DomainState* result,
                       const std::string& host,
                       bool sni_available);
 
-  // Returns true if |host| has any metadata, in the context of
-  // |sni_available|. In that case, *result is filled out. Note that *result
-  // is always overwritten on every call.
+  // Returns true and updates |*result| if there is any |DomainState|
+  // metadata for |host| in the local TransportSecurityState database;
+  // returns false otherwise. TODO(palmer): Unlike the other
+  // TransportSecurityState lookup functions in this class (e.g
+  // |HasPinsForHost|, |GetDomainState|), |*result| is updated iff metadata
+  // is found. The other functions are buggy and will be fixed to behave
+  // like this one.
+  //
+  // If |sni_available| is true, searches the preloads defined for SNI-using
+  // hosts as well as the usual preload list.
   bool HasMetadata(DomainState* result,
                    const std::string& host,
                    bool sni_available);
 
   // Returns true if we have a preloaded certificate pin for the |host| and if
   // its set of required certificates is the set we expect for Google
-  // properties. If |sni_available| is true, searches the preloads defined for
-  // SNI-using hosts as well as the usual preload list.
+  // properties.
+  //
+  // If |sni_available| is true, searches the preloads defined for SNI-using
+  // hosts as well as the usual preload list.
   //
   // Note that like HasMetadata, if |host| matches both an exact entry and is a
   // subdomain of another entry, the exact match determines the return value.
