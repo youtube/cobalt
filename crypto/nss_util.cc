@@ -382,10 +382,8 @@ class NSSInitSingleton {
       return PK11_ReferenceSlot(test_slot_);
 
 #if defined(OS_CHROMEOS)
-    // Make sure that if EnableTPMTokenForNSS has been called that we
-    // have successfully loaded Chaps.
     if (tpm_token_info_delegate_.get() != NULL) {
-      if (EnsureTPMTokenReady()) {
+      if (IsTPMTokenReady()) {
         return PK11_ReferenceSlot(tpm_slot_);
       } else {
         // If we were supposed to get the hardware token, but were
