@@ -1395,8 +1395,7 @@ TEST_F(HTTPSRequestTest, HTTPSPreloadedHSTSTest) {
 
 // This tests that cached HTTPS page loads do not cause any updates to the
 // TransportSecurityState.
-// Flaky, http://crbug.com/114164
-TEST_F(HTTPSRequestTest, FLAKY_HTTPSErrorsNoClobberTSSTest) {
+TEST_F(HTTPSRequestTest, HTTPSErrorsNoClobberTSSTest) {
   // The actual problem -- CERT_MISMATCHED_NAME in this case -- doesn't
   // matter. It just has to be any error.
   TestServer::HTTPSOptions https_options(
