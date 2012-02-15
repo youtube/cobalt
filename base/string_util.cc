@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -170,15 +170,15 @@ bool ReplaceCharsT(const STR& input,
                    const STR& replace_with,
                    STR* output) {
   bool removed = false;
-  size_t found;
+  size_t replace_length = replace_with.length();
 
   *output = input;
 
-  found = output->find_first_of(replace_chars);
+  size_t found = output->find_first_of(replace_chars);
   while (found != STR::npos) {
     removed = true;
     output->replace(found, 1, replace_with);
-    found = output->find_first_of(replace_chars, found);
+    found = output->find_first_of(replace_chars, found + replace_length);
   }
 
   return removed;
