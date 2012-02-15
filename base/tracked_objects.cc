@@ -8,6 +8,7 @@
 
 #include "base/format_macros.h"
 #include "base/message_loop.h"
+#include "base/profiler/alternate_timer.h"
 #include "base/stringprintf.h"
 #include "base/third_party/valgrind/memcheck.h"
 #include "base/threading/thread_restrictions.h"
@@ -35,6 +36,14 @@ const bool kTrackParentChildLinks = false;
 const ThreadData::Status kInitialStartupState =
     ThreadData::PROFILING_CHILDREN_ACTIVE;
 
+// Control whether an alternate time source (Now() function) is supported by
+// the ThreadData class.  This compile time flag should be set to true if we
+// want other modules (such as a memory allocator, or a thread-specific CPU time
+// clock) to be able to provide a thread-specific Now() function.  Without this
+// compile-time flag, the code will only support the wall-clock time.  This flag
+// can be flipped to efficiently disable this path (if there is a performance
+// problem with its presence).
+static const bool kAllowAlternateTimeSourceHandling = true;
 }  // namespace
 
 //------------------------------------------------------------------------------
@@ -175,6 +184,9 @@ void Births::Clear() { birth_count_ = 0; }
 // TODO(jar): We should pull all these static vars together, into a struct, and
 // optimize layout so that we benefit from locality of reference during accesses
 // to them.
+
+// static
+NowFunction* ThreadData::now_function_ = NULL;
 
 // A TLS slot which points to the ThreadData instance for the current thread. We
 // do a fake initialization here (zeroing out data), and then the real in-place
@@ -369,6 +381,12 @@ void ThreadData::TallyADeath(const Births& birth,
   random_number_ += queue_duration + run_duration + kSomePrimeNumber;
   // An address is going to have some randomness to it as well ;-).
   random_number_ ^= static_cast<int32>(&birth - reinterpret_cast<Births*>(0));
+
+  // We don't have queue durations without OS timer. OS timer is automatically
+  // used for task-post-timing, so the use of an alternate timer implies all
+  // queue times are invalid.
+  if (kAllowAlternateTimeSourceHandling && now_function_)
+    queue_duration = 0;
 
   DeathMap::iterator it = death_map_.find(&birth);
   DeathData* death_data;
@@ -579,6 +597,24 @@ void ThreadData::Reset() {
     it->second->Clear();
 }
 
+static void OptionallyInitializeAlternateTimer() {
+  char* alternate_selector = getenv(kAlternateProfilerTime);
+  if (!alternate_selector)
+    return;
+  switch (*alternate_selector) {
+    case '0':  // This is the default value, and uses the wall clock time.
+      break;
+    case '1':  {
+      // Use the TCMalloc allocations-on-thread as a pseudo-time.
+      ThreadData::SetAlternateTimeSource(GetAlternateTimeSource());
+      break;
+      }
+    default:
+      NOTREACHED();
+      break;
+  }
+}
+
 bool ThreadData::Initialize() {
   if (!kTrackAllTaskObjects)
     return false;  // Not compiled in.
@@ -593,6 +629,13 @@ bool ThreadData::Initialize() {
   base::AutoLock lock(*list_lock_.Pointer());
   if (status_ >= DEACTIVATED)
     return true;  // Someone raced in here and beat us.
+
+  // Put an alternate timer in place if the environment calls for it, such as
+  // for tracking TCMalloc allocations.  This insertion is idempotent, so we
+  // don't mind if there is a race, and we'd prefer not to be in a lock while
+  // doing this work.
+  if (kAllowAlternateTimeSourceHandling)
+    OptionallyInitializeAlternateTimer();
 
   // Perform the "real" TLS initialization now, and leave it intact through
   // process termination.
@@ -666,7 +709,16 @@ TrackedTime ThreadData::NowForEndOfRun() {
 }
 
 // static
+void ThreadData::SetAlternateTimeSource(NowFunction* now_function) {
+  DCHECK(now_function);
+  if (kAllowAlternateTimeSourceHandling)
+    now_function_ = now_function;
+}
+
+// static
 TrackedTime ThreadData::Now() {
+  if (kAllowAlternateTimeSourceHandling && now_function_)
+    return TrackedTime::FromMilliseconds((*now_function_)());
   if (kTrackAllTaskObjects && TrackingStatus())
     return TrackedTime::Now();
   return TrackedTime();  // Super fast when disabled, or not compiled.

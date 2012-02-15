@@ -17,6 +17,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/lazy_instance.h"
 #include "base/location.h"
+#include "base/profiler/alternate_timer.h"
 #include "base/profiler/tracked_time.h"
 #include "base/time.h"
 #include "base/synchronization/lock.h"
@@ -467,6 +468,12 @@ class BASE_EXPORT ThreadData {
   // the code).
   static TrackedTime Now();
 
+  // Use the function |now| to provide current times, instead of calling the
+  // TrackedTime::Now() function.  Since this alternate function is being used,
+  // the other time arguments (used for calculating queueing delay) will be
+  // ignored.
+  static void SetAlternateTimeSource(NowFunction* now);
+
   // This function can be called at process termination to validate that thread
   // cleanup routines have been called for at least some number of named
   // threads.
@@ -542,6 +549,10 @@ class BASE_EXPORT ThreadData {
   // delete recursively all data structures, starting with the list of
   // ThreadData instances.
   static void ShutdownSingleThreadedCleanup(bool leak);
+
+  // When non-null, this specifies an external function that supplies monotone
+  // increasing time functcion.
+  static NowFunction* now_function_;
 
   // We use thread local store to identify which ThreadData to interact with.
   static base::ThreadLocalStorage::StaticSlot tls_index_;
