@@ -3268,9 +3268,9 @@ TEST_F(URLRequestTest, Intercept) {
   TestDelegate d;
   TestURLRequest req(GURL("http://test_intercept/foo"), &d);
   req.set_context(default_context_);
-  URLRequest::UserData* user_data0 = new URLRequest::UserData();
-  URLRequest::UserData* user_data1 = new URLRequest::UserData();
-  URLRequest::UserData* user_data2 = new URLRequest::UserData();
+  base::SupportsUserData::Data* user_data0 = new base::SupportsUserData::Data();
+  base::SupportsUserData::Data* user_data1 = new base::SupportsUserData::Data();
+  base::SupportsUserData::Data* user_data2 = new base::SupportsUserData::Data();
   req.SetUserData(NULL, user_data0);
   req.SetUserData(&user_data1, user_data1);
   req.SetUserData(&user_data2, user_data2);
