@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -24,18 +24,8 @@ AudioManager::~AudioManager() {
   g_audio_manager = NULL;
 }
 
-#ifndef NDEBUG
-void AudioManager::AddRef() const {
-  base::RefCountedThreadSafe<AudioManager>::AddRef();
-}
-
-void AudioManager::Release() const {
-  base::RefCountedThreadSafe<AudioManager>::Release();
-}
-#endif
-
 // static
-scoped_refptr<AudioManager> AudioManager::Create() {
+AudioManager* AudioManager::Create() {
   AudioManager* ret = CreateAudioManager();
   DCHECK(ret == g_audio_manager);
   ret->Init();

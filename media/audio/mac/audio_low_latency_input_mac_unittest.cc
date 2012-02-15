@@ -125,7 +125,7 @@ class MacAudioInputTest : public testing::Test {
     return ais;
   }
 
-  scoped_refptr<AudioManager> audio_manager_;
+  scoped_ptr<AudioManager> audio_manager_;
 };
 
 // Test Create(), Close().
