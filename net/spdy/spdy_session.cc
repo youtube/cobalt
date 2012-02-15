@@ -1455,14 +1455,11 @@ void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
   }
 }
 
-bool SpdySession::OnControlFrameHeaderData(
-    const spdy::SpdyControlFrame* control_frame,
-    const char* header_data,
-    size_t len) {
+bool SpdySession::OnControlFrameHeaderData(spdy::SpdyStreamId stream_id,
+                                           const char* header_data,
+                                           size_t len) {
   if (!buffered_spdy_framer_.OnControlFrameHeaderData(
-          control_frame, header_data, len)) {
-    spdy::SpdyStreamId stream_id =
-        spdy::SpdyFramer::GetControlFrameStreamId(control_frame);
+          stream_id, header_data, len)) {
     if (IsStreamActive(stream_id))
       ResetStream(stream_id, spdy::PROTOCOL_ERROR);
     return false;

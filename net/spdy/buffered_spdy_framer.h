@@ -51,7 +51,7 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramer {
 
   void OnControl(const SpdyControlFrame* frame);
 
-  bool OnControlFrameHeaderData(const SpdyControlFrame* control_frame,
+  bool OnControlFrameHeaderData(SpdyStreamId stream_id,
                                 const char* header_data,
                                 size_t len);
 
@@ -100,6 +100,7 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramer {
   size_t header_buffer_used_;
   bool header_buffer_valid_;
   SpdyStreamId header_stream_id_;
+  scoped_ptr<SpdyFrame> control_frame_;
 
   DISALLOW_COPY_AND_ASSIGN(BufferedSpdyFramer);
 };
