@@ -734,8 +734,6 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
     verify_result->cert_status |= CERT_STATUS_REV_CHECKING_ENABLED;
   } else {
     chain_flags |= CERT_CHAIN_REVOCATION_CHECK_CACHE_ONLY;
-    // EV requires revocation checking.
-    flags &= ~VERIFY_EV_CERT;
   }
 
   // Get the certificatePolicies extension of the certificate.

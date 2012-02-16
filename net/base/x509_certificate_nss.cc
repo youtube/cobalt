@@ -444,7 +444,7 @@ SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
       CERT_REV_M_STOP_TESTING_ON_FRESH_INFO;
   PRUint64 revocation_method_independent_flags =
       CERT_REV_MI_TEST_ALL_LOCAL_INFORMATION_FIRST;
-  if (policy_oids && num_policy_oids > 0) {
+  if (check_revocation && policy_oids && num_policy_oids > 0) {
     // EV verification requires revocation checking.  Consider the certificate
     // revoked if we don't have revocation info.
     // TODO(wtc): Add a bool parameter to expressly specify we're doing EV
@@ -903,9 +903,6 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   bool check_revocation = (flags & VERIFY_REV_CHECKING_ENABLED);
   if (check_revocation) {
     verify_result->cert_status |= CERT_STATUS_REV_CHECKING_ENABLED;
-  } else {
-    // EV requires revocation checking.
-    flags &= ~VERIFY_EV_CERT;
   }
 
   status = PKIXVerifyCert(cert_handle_, check_revocation, NULL, 0, cvout);
@@ -952,8 +949,9 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   verify_result->is_issued_by_known_root =
       IsKnownRoot(cvout[cvout_trust_anchor_index].value.pointer.cert);
 
-  if ((flags & VERIFY_EV_CERT) && VerifyEV())
+  if ((flags & VERIFY_EV_CERT) && VerifyEV(flags))
     verify_result->cert_status |= CERT_STATUS_IS_EV;
+
   return OK;
 }
 
@@ -968,7 +966,7 @@ bool X509Certificate::VerifyNameMatch(const std::string& hostname) const {
 // anchor.  If the trust anchor has no EV policy, we know the cert isn't EV.
 // Otherwise, we pass just that EV policy (as opposed to all the EV policies)
 // to the second PKIXVerifyCert call.
-bool X509Certificate::VerifyEV() const {
+bool X509Certificate::VerifyEV(int flags) const {
   EVRootCAMetadata* metadata = EVRootCAMetadata::GetInstance();
 
   CERTValOutParam cvout[3];
@@ -981,7 +979,7 @@ bool X509Certificate::VerifyEV() const {
   ScopedCERTValOutParam scoped_cvout(cvout);
 
   SECStatus status = PKIXVerifyCert(cert_handle_,
-                                    true,
+                                    flags & VERIFY_REV_CHECKING_ENABLED,
                                     metadata->GetPolicyOIDs(),
                                     metadata->NumPolicyOIDs(),
                                     cvout);
