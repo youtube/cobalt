@@ -377,7 +377,7 @@ CaptureGroupNameSSLSocketPool::CaptureGroupNameSocketPool(
 
 // This is the expected return from a current server advertising SPDY.
 static const char kAlternateProtocolHttpHeader[] =
-    "Alternate-Protocol: 443:npn-spdy/2\r\n\r\n";
+    "Alternate-Protocol: 443:npn-spdy/2.1\r\n\r\n";
 
 // Helper functions for validating that AuthChallengeInfo's are correctly
 // configured for common cases.
@@ -2310,25 +2310,28 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyConnectHttps) {
     "Connection: keep-alive\r\n\r\n";
   scoped_ptr<spdy::SpdyFrame> wrapped_get(
       ConstructSpdyBodyFrame(1, get, strlen(get), false));
-  MockWrite spdy_writes[] = {
-      CreateMockWrite(*connect, 1),
-      CreateMockWrite(*wrapped_get, 3)
-  };
-
   scoped_ptr<spdy::SpdyFrame> conn_resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   const char resp[] = "HTTP/1.1 200 OK\r\n"
       "Content-Length: 10\r\n\r\n";
-
   scoped_ptr<spdy::SpdyFrame> wrapped_get_resp(
       ConstructSpdyBodyFrame(1, resp, strlen(resp), false));
   scoped_ptr<spdy::SpdyFrame> wrapped_body(
       ConstructSpdyBodyFrame(1, "1234567890", 10, false));
+  scoped_ptr<spdy::SpdyFrame> window_update(
+      ConstructSpdyWindowUpdate(1, wrapped_get_resp->length()));
+
+  MockWrite spdy_writes[] = {
+      CreateMockWrite(*connect, 1),
+      CreateMockWrite(*wrapped_get, 3),
+      CreateMockWrite(*window_update, 5)
+  };
+
   MockRead spdy_reads[] = {
     CreateMockRead(*conn_resp, 2, true),
     CreateMockRead(*wrapped_get_resp, 4, true),
-    CreateMockRead(*wrapped_body, 5, true),
     CreateMockRead(*wrapped_body, 6, true),
-    MockRead(true, 0, 7),
+    CreateMockRead(*wrapped_body, 7, true),
+    MockRead(true, 0, 8),
   };
 
   scoped_ptr<OrderedSocketData> spdy_data(
@@ -2388,22 +2391,29 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyConnectSpdy) {
   const char* const kMyUrl = "https://www.google.com/";
   scoped_ptr<spdy::SpdyFrame> get(ConstructSpdyGet(kMyUrl, false, 1, LOWEST));
   scoped_ptr<spdy::SpdyFrame> wrapped_get(ConstructWrappedSpdyFrame(get, 1));
-  MockWrite spdy_writes[] = {
-      CreateMockWrite(*connect, 1),
-      CreateMockWrite(*wrapped_get, 3)
-  };
-
   scoped_ptr<spdy::SpdyFrame> conn_resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   scoped_ptr<spdy::SpdyFrame> get_resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   scoped_ptr<spdy::SpdyFrame> wrapped_get_resp(
       ConstructWrappedSpdyFrame(get_resp, 1));
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
   scoped_ptr<spdy::SpdyFrame> wrapped_body(ConstructWrappedSpdyFrame(body, 1));
+  scoped_ptr<spdy::SpdyFrame> window_update_get_resp(
+      ConstructSpdyWindowUpdate(1, wrapped_get_resp->length()));
+  scoped_ptr<spdy::SpdyFrame> window_update_body(
+      ConstructSpdyWindowUpdate(1, wrapped_body->length()));
+
+  MockWrite spdy_writes[] = {
+      CreateMockWrite(*connect, 1),
+      CreateMockWrite(*wrapped_get, 3),
+      CreateMockWrite(*window_update_get_resp, 5),
+      CreateMockWrite(*window_update_body, 7),
+  };
+
   MockRead spdy_reads[] = {
     CreateMockRead(*conn_resp, 2, true),
     CreateMockRead(*wrapped_get_resp, 4, true),
-    CreateMockRead(*wrapped_body, 5, true),
-    MockRead(true, 0, 1),
+    CreateMockRead(*wrapped_body, 6, true),
+    MockRead(true, 0, 8),
   };
 
   scoped_ptr<OrderedSocketData> spdy_data(
@@ -5482,7 +5492,7 @@ scoped_refptr<HttpNetworkSession> SetupSessionForGroupNameTests(
       session->http_server_properties();
   http_server_properties->SetAlternateProtocol(
       HostPortPair("host.with.alternate", 80), 443,
-      NPN_SPDY_2);
+      NPN_SPDY_21);
 
   return session;
 }
@@ -6422,7 +6432,7 @@ TEST_F(HttpNetworkTransactionTest, HonorAlternateProtocolHeader) {
       http_server_properties.GetAlternateProtocol(http_host_port_pair);
   PortAlternateProtocolPair expected_alternate;
   expected_alternate.port = 443;
-  expected_alternate.protocol = NPN_SPDY_2;
+  expected_alternate.protocol = NPN_SPDY_21;
   EXPECT_TRUE(expected_alternate.Equals(alternate));
 
   HttpStreamFactory::set_use_alternate_protocols(false);
@@ -6461,7 +6471,7 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocolAndFallback) {
   http_server_properties->SetAlternateProtocol(
       HostPortPair::FromURL(request.url),
       666 /* port is ignored by MockConnect anyway */,
-      NPN_SPDY_2);
+      NPN_SPDY_21);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestCompletionCallback callback;
@@ -6523,7 +6533,7 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortRestrictedBlocked) {
   http_server_properties->SetAlternateProtocol(
       HostPortPair::FromURL(restricted_port_request.url),
       kUnrestrictedAlternatePort,
-      NPN_SPDY_2);
+      NPN_SPDY_21);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestCompletionCallback callback;
@@ -6572,7 +6582,7 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortRestrictedAllowed) {
   http_server_properties->SetAlternateProtocol(
       HostPortPair::FromURL(restricted_port_request.url),
       kRestrictedAlternatePort,
-      NPN_SPDY_2);
+      NPN_SPDY_21);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestCompletionCallback callback;
@@ -6621,7 +6631,7 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortUnrestrictedAllowed1) {
   http_server_properties->SetAlternateProtocol(
       HostPortPair::FromURL(unrestricted_port_request.url),
       kRestrictedAlternatePort,
-      NPN_SPDY_2);
+      NPN_SPDY_21);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestCompletionCallback callback;
@@ -6670,7 +6680,7 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortUnrestrictedAllowed2) {
   http_server_properties->SetAlternateProtocol(
       HostPortPair::FromURL(unrestricted_port_request.url),
       kUnrestrictedAlternatePort,
-      NPN_SPDY_2);
+      NPN_SPDY_21);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestCompletionCallback callback;
@@ -8164,7 +8174,7 @@ TEST_F(HttpNetworkTransactionTest, SpdyAlternateProtocolThroughProxy) {
   MockRead data_reads_1[] = {
     MockRead(false, ERR_TEST_PEER_CLOSE_AFTER_NEXT_MOCK_READ),
     MockRead("HTTP/1.1 200 OK\r\n"
-             "Alternate-Protocol: 443:npn-spdy/2\r\n"
+             "Alternate-Protocol: 443:npn-spdy/2.1\r\n"
              "Proxy-Connection: close\r\n"
              "\r\n"),
   };
