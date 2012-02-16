@@ -21,7 +21,7 @@ int64 MockFileStream::Available() {
   return ReturnError64(FileStream::Available());
 }
 
-int MockFileStream::Read(char* buf,
+int MockFileStream::Read(IOBuffer* buf,
                          int buf_len,
                          const CompletionCallback& callback) {
   return ReturnError(FileStream::Read(buf, buf_len, callback));
@@ -35,7 +35,7 @@ int MockFileStream::ReadUntilComplete(char *buf, int buf_len) {
   return ReturnError(FileStream::ReadUntilComplete(buf, buf_len));
 }
 
-int MockFileStream::Write(const char* buf,
+int MockFileStream::Write(IOBuffer* buf,
                           int buf_len,
                           const CompletionCallback& callback) {
   return ReturnError(FileStream::Write(buf, buf_len, callback));
