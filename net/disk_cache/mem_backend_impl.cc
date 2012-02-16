@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -296,8 +296,8 @@ bool MemBackendImpl::OpenNextEntry(void** iter, Entry** next_entry) {
 
 void MemBackendImpl::TrimCache(bool empty) {
   MemEntryImpl* next = rankings_.GetPrev(NULL);
-
-  DCHECK(next);
+  if (!next)
+    return;
 
   int target_size = empty ? 0 : LowWaterAdjust(max_size_);
   while (current_size_ > target_size && next) {
