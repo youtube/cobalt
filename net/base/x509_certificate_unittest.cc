@@ -319,6 +319,25 @@ TEST(X509CertificateTest, WebkitCertParsing) {
   EXPECT_FALSE(webkit_cert->VerifyNameMatch("www.foo.webkit.com"));
 }
 
+TEST(X509CertificateTest, WithoutRevocationChecking) {
+  // Check that verification without revocation checking works.
+  CertificateList certs = CreateCertificateListFromFile(
+      GetTestCertsDirectory(),
+      "googlenew.chain.pem",
+      X509Certificate::FORMAT_PEM_CERT_SEQUENCE);
+
+  X509Certificate::OSCertHandles intermediates;
+  intermediates.push_back(certs[1]->os_cert_handle());
+
+  scoped_refptr<X509Certificate> google_full_chain =
+      X509Certificate::CreateFromHandle(certs[0]->os_cert_handle(),
+                                        intermediates);
+
+  CertVerifyResult verify_result;
+  EXPECT_EQ(OK, google_full_chain->Verify("www.google.com", 0 /* flags */, NULL,
+                                          &verify_result));
+}
+
 TEST(X509CertificateTest, ThawteCertParsing) {
   scoped_refptr<X509Certificate> thawte_cert(X509Certificate::CreateFromBytes(
       reinterpret_cast<const char*>(thawte_der), sizeof(thawte_der)));

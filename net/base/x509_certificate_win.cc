@@ -728,10 +728,10 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   chain_para.RequestedUsage.Usage.rgpszUsageIdentifier =
       const_cast<LPSTR*>(usage);
   // We can set CERT_CHAIN_RETURN_LOWER_QUALITY_CONTEXTS to get more chains.
-  DWORD chain_flags = CERT_CHAIN_CACHE_END_CERT;
+  DWORD chain_flags = CERT_CHAIN_CACHE_END_CERT |
+                      CERT_CHAIN_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT;
   if (flags & VERIFY_REV_CHECKING_ENABLED) {
     verify_result->cert_status |= CERT_STATUS_REV_CHECKING_ENABLED;
-    chain_flags |= CERT_CHAIN_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT;
   } else {
     chain_flags |= CERT_CHAIN_REVOCATION_CHECK_CACHE_ONLY;
     // EV requires revocation checking.
@@ -902,6 +902,14 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   // TODO(wtc): Suppress CERT_STATUS_NO_REVOCATION_MECHANISM for now to be
   // compatible with WinHTTP, which doesn't report this error (bug 3004).
   verify_result->cert_status &= ~CERT_STATUS_NO_REVOCATION_MECHANISM;
+
+  if ((flags & VERIFY_REV_CHECKING_ENABLED) == 0) {
+    // If we didn't do online revocation checking then Windows will report
+    // CERT_UNABLE_TO_CHECK_REVOCATION unless it had cached OCSP or CRL
+    // information for every certificate. We only want to put up revoked
+    // statuses from the offline checks so we squash this error.
+    verify_result->cert_status &= ~CERT_STATUS_UNABLE_TO_CHECK_REVOCATION;
+  }
 
   if (IsCertStatusError(verify_result->cert_status))
     return MapCertStatusToNetError(verify_result->cert_status);
