@@ -22,6 +22,8 @@
 #include "media/audio/mac/audio_manager_mac.h"
 #elif defined(OS_WIN)
 #include "media/audio/win/audio_manager_win.h"
+#elif defined(OS_ANDROID)
+#include "media/audio/android/audio_manager_android.h"
 #endif
 #include "media/base/seekable_buffer.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -33,6 +35,8 @@ typedef AudioManagerLinux AudioManagerAnyPlatform;
 typedef AudioManagerMac AudioManagerAnyPlatform;
 #elif defined(OS_WIN)
 typedef AudioManagerWin AudioManagerAnyPlatform;
+#elif defined(OS_ANDROID)
+typedef AudioManagerAndroid AudioManagerAnyPlatform;
 #endif
 
 using base::win::ScopedCOMInitializer;
