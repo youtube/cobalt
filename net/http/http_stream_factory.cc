@@ -82,9 +82,7 @@ void HttpStreamFactory::ProcessAlternateProtocol(
 
   AlternateProtocol protocol = ALTERNATE_PROTOCOL_BROKEN;
   // We skip NPN_SPDY_1 here, because we've rolled the protocol version to 2.
-  // TODO(rtenneti): add support for SPDY/2.1 (use next_protos_ to determine the
-  // protocol).
-  for (int i = NPN_SPDY_2; i <= NPN_SPDY_2; ++i) {
+  for (int i = NPN_SPDY_2; i < NUM_ALTERNATE_PROTOCOLS; ++i) {
     if (port_protocol_vector[1] == kAlternateProtocolStrings[i])
       protocol = static_cast<AlternateProtocol>(i);
   }
