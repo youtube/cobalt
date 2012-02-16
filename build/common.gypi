@@ -2243,7 +2243,14 @@
           }],
           # Settings for building host targets using the system toolchain.
           ['_toolset=="host"', {
+            'cflags!': [
+              # Due to issues in Clang build system, using ASan on 32-bit
+              # binaries on x86_64 host is problematic.
+              # TODO(eugenis): re-enable.
+              '-faddress-sanitizer',
+            ],
             'ldflags!': [
+              '-faddress-sanitizer',
               '-Wl,-z,noexecstack',
               '-Wl,--gc-sections',
               '-Wl,-O1',
