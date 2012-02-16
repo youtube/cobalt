@@ -1716,26 +1716,6 @@ void SpdySession::UpdateStreamsSendWindowSize(int32 delta_window_size) {
     DCHECK(stream);
     stream->AdjustSendWindowSize(delta_window_size);
   }
-
-  for (int i = 0; i < NUM_PRIORITIES; ++i) {
-    PendingCreateStreamQueue temporary_queue;
-    // Lack of iterator for std::queue forces us to copy the entries to
-    // temporary_queue and copy them back.
-    // TODO(rtenneti): Use a different data type that has iterator for
-    // create_stream_queues_.
-    while (!create_stream_queues_[i].empty()) {
-      PendingCreateStream pending_create = create_stream_queues_[i].front();
-      const scoped_refptr<SpdyStream>& stream = *(pending_create.spdy_stream);
-      stream->AdjustSendWindowSize(delta_window_size);
-      create_stream_queues_[i].pop();
-      temporary_queue.push(pending_create);
-    }
-    // Now copy it back.
-    while (!temporary_queue.empty()) {
-      create_stream_queues_[i].push(temporary_queue.front());
-      temporary_queue.pop();
-    }
-  }
 }
 
 void SpdySession::SendPrefacePingIfNoneInFlight() {
