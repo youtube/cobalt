@@ -10,6 +10,7 @@
 #include "base/message_loop.h"
 #include "base/path_service.h"
 #include "base/platform_file.h"
+#include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -21,6 +22,13 @@ namespace {
 
 const char kTestData[] = "0123456789";
 const int kTestDataSize = arraysize(kTestData) - 1;
+
+// Creates an IOBufferWithSize that contains the kTestDataSize.
+IOBufferWithSize* CreateTestDataBuffer() {
+  IOBufferWithSize* buf = new IOBufferWithSize(kTestDataSize);
+  memcpy(buf->data(), kTestData, kTestDataSize);
+  return buf;
+}
 
 }  // namespace
 
@@ -197,15 +205,15 @@ TEST_F(FileStreamTest, AsyncRead) {
 
   std::string data_read;
   for (;;) {
-    char buf[4];
-    rv = stream.Read(buf, arraysize(buf), callback.callback());
+    scoped_refptr<IOBufferWithSize> buf = new IOBufferWithSize(4);
+    rv = stream.Read(buf, buf->size(), callback.callback());
     if (rv == ERR_IO_PENDING)
       rv = callback.WaitForResult();
     EXPECT_LE(0, rv);
     if (rv <= 0)
       break;
     total_bytes_read += rv;
-    data_read.append(buf, rv);
+    data_read.append(buf->data(), rv);
   }
   EXPECT_EQ(file_size, total_bytes_read);
   EXPECT_EQ(kTestData, data_read);
@@ -228,8 +236,8 @@ TEST_F(FileStreamTest, AsyncRead_EarlyClose) {
 
   TestCompletionCallback callback;
 
-  char buf[4];
-  rv = stream.Read(buf, arraysize(buf), callback.callback());
+  scoped_refptr<IOBufferWithSize> buf = new IOBufferWithSize(4);
+  rv = stream.Read(buf, buf->size(), callback.callback());
   stream.CloseSync();
   if (rv < 0) {
     EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -237,7 +245,7 @@ TEST_F(FileStreamTest, AsyncRead_EarlyClose) {
     MessageLoop::current()->RunAllPending();
     EXPECT_FALSE(callback.have_result());
   } else {
-    EXPECT_EQ(std::string(kTestData, rv), std::string(buf, rv));
+    EXPECT_EQ(std::string(kTestData, rv), std::string(buf->data(), rv));
   }
 }
 
@@ -301,15 +309,15 @@ TEST_F(FileStreamTest, AsyncRead_FromOffset) {
 
   std::string data_read;
   for (;;) {
-    char buf[4];
-    rv = stream.Read(buf, arraysize(buf), callback.callback());
+    scoped_refptr<IOBufferWithSize> buf = new IOBufferWithSize(4);
+    rv = stream.Read(buf, buf->size(), callback.callback());
     if (rv == ERR_IO_PENDING)
       rv = callback.WaitForResult();
     EXPECT_LE(0, rv);
     if (rv <= 0)
       break;
     total_bytes_read += rv;
-    data_read.append(buf, rv);
+    data_read.append(buf->data(), rv);
   }
   EXPECT_EQ(file_size - kOffset, total_bytes_read);
   EXPECT_EQ(kTestData + kOffset, data_read);
@@ -375,15 +383,18 @@ TEST_F(FileStreamTest, AsyncWrite) {
   TestCompletionCallback callback;
   int total_bytes_written = 0;
 
+  scoped_refptr<IOBufferWithSize> buf = CreateTestDataBuffer();
+  scoped_refptr<DrainableIOBuffer> drainable =
+      new DrainableIOBuffer(buf, buf->size());
   while (total_bytes_written != kTestDataSize) {
-    rv = stream.Write(kTestData + total_bytes_written,
-                      kTestDataSize - total_bytes_written,
+    rv = stream.Write(drainable, drainable->BytesRemaining(),
                       callback.callback());
     if (rv == ERR_IO_PENDING)
       rv = callback.WaitForResult();
     EXPECT_LT(0, rv);
     if (rv <= 0)
       break;
+    drainable->DidConsume(rv);
     total_bytes_written += rv;
   }
   ok = file_util::GetFileSize(temp_file_path(), &file_size);
@@ -405,11 +416,9 @@ TEST_F(FileStreamTest, AsyncWrite_EarlyClose) {
   EXPECT_EQ(0, file_size);
 
   TestCompletionCallback callback;
-  int total_bytes_written = 0;
 
-  rv = stream.Write(kTestData + total_bytes_written,
-                    kTestDataSize - total_bytes_written,
-                    callback.callback());
+  scoped_refptr<IOBufferWithSize> buf = CreateTestDataBuffer();
+  rv = stream.Write(buf, buf->size(), callback.callback());
   stream.CloseSync();
   if (rv < 0) {
     EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -467,15 +476,18 @@ TEST_F(FileStreamTest, AsyncWrite_FromOffset) {
   TestCompletionCallback callback;
   int total_bytes_written = 0;
 
+  scoped_refptr<IOBufferWithSize> buf = CreateTestDataBuffer();
+  scoped_refptr<DrainableIOBuffer> drainable =
+      new DrainableIOBuffer(buf, buf->size());
   while (total_bytes_written != kTestDataSize) {
-    rv = stream.Write(kTestData + total_bytes_written,
-                      kTestDataSize - total_bytes_written,
+    rv = stream.Write(drainable, drainable->BytesRemaining(),
                       callback.callback());
     if (rv == ERR_IO_PENDING)
       rv = callback.WaitForResult();
     EXPECT_LT(0, rv);
     if (rv <= 0)
       break;
+    drainable->DidConsume(rv);
     total_bytes_written += rv;
   }
   ok = file_util::GetFileSize(temp_file_path(), &file_size);
@@ -591,30 +603,33 @@ TEST_F(FileStreamTest, BasicAsyncReadWrite) {
 
   std::string data_read;
   for (;;) {
-    char buf[4];
-    rv = stream.Read(buf, arraysize(buf), callback.callback());
+    scoped_refptr<IOBufferWithSize> buf = new IOBufferWithSize(4);
+    rv = stream.Read(buf, buf->size(), callback.callback());
     if (rv == ERR_IO_PENDING)
       rv = callback.WaitForResult();
     EXPECT_LE(0, rv);
     if (rv <= 0)
       break;
     total_bytes_read += rv;
-    data_read.append(buf, rv);
+    data_read.append(buf->data(), rv);
   }
   EXPECT_EQ(file_size, total_bytes_read);
   EXPECT_TRUE(data_read == kTestData);
 
   int total_bytes_written = 0;
 
+  scoped_refptr<IOBufferWithSize> buf = CreateTestDataBuffer();
+  scoped_refptr<DrainableIOBuffer> drainable =
+      new DrainableIOBuffer(buf, buf->size());
   while (total_bytes_written != kTestDataSize) {
-    rv = stream.Write(kTestData + total_bytes_written,
-                      kTestDataSize - total_bytes_written,
+    rv = stream.Write(drainable, drainable->BytesRemaining(),
                       callback.callback());
     if (rv == ERR_IO_PENDING)
       rv = callback.WaitForResult();
     EXPECT_LT(0, rv);
     if (rv <= 0)
       break;
+    drainable->DidConsume(rv);
     total_bytes_written += rv;
   }
 
@@ -647,15 +662,18 @@ TEST_F(FileStreamTest, BasicAsyncWriteRead) {
   TestCompletionCallback callback;
   int total_bytes_written = 0;
 
+  scoped_refptr<IOBufferWithSize> buf = CreateTestDataBuffer();
+  scoped_refptr<DrainableIOBuffer> drainable =
+      new DrainableIOBuffer(buf, buf->size());
   while (total_bytes_written != kTestDataSize) {
-    rv = stream.Write(kTestData + total_bytes_written,
-                      kTestDataSize - total_bytes_written,
+    rv = stream.Write(drainable, drainable->BytesRemaining(),
                       callback.callback());
     if (rv == ERR_IO_PENDING)
       rv = callback.WaitForResult();
     EXPECT_LT(0, rv);
     if (rv <= 0)
       break;
+    drainable->DidConsume(rv);
     total_bytes_written += rv;
   }
 
@@ -668,15 +686,15 @@ TEST_F(FileStreamTest, BasicAsyncWriteRead) {
 
   std::string data_read;
   for (;;) {
-    char buf[4];
-    rv = stream.Read(buf, arraysize(buf), callback.callback());
+    scoped_refptr<IOBufferWithSize> buf = new IOBufferWithSize(4);
+    rv = stream.Read(buf, buf->size(), callback.callback());
     if (rv == ERR_IO_PENDING)
       rv = callback.WaitForResult();
     EXPECT_LE(0, rv);
     if (rv <= 0)
       break;
     total_bytes_read += rv;
-    data_read.append(buf, rv);
+    data_read.append(buf->data(), rv);
   }
   stream.CloseSync();
 
@@ -705,7 +723,10 @@ class TestWriteReadCompletionCallback {
         total_bytes_read_(total_bytes_read),
         data_read_(data_read),
         callback_(base::Bind(&TestWriteReadCompletionCallback::OnComplete,
-                             base::Unretained(this))) {}
+                             base::Unretained(this))),
+        test_data_(CreateTestDataBuffer()),
+        drainable_(new DrainableIOBuffer(test_data_, kTestDataSize)) {
+  }
 
   int WaitForResult() {
     DCHECK(!waiting_for_result_);
@@ -733,11 +754,11 @@ class TestWriteReadCompletionCallback {
       std::string data_read;
       TestWriteReadCompletionCallback callback(
           stream_, &total_bytes_written, &total_bytes_read, &data_read);
-      rv = stream_->Write(kTestData + *total_bytes_written_,
-                          kTestDataSize - *total_bytes_written_,
+      rv = stream_->Write(drainable_, drainable_->BytesRemaining(),
                           callback.callback());
       DCHECK_EQ(ERR_IO_PENDING, rv);
       rv = callback.WaitForResult();
+      drainable_->DidConsume(total_bytes_written);
       *total_bytes_written_ += total_bytes_written;
       *total_bytes_read_ += total_bytes_read;
       *data_read_ += data_read;
@@ -746,8 +767,8 @@ class TestWriteReadCompletionCallback {
 
       TestCompletionCallback callback;
       for (;;) {
-        char buf[4];
-        rv = stream_->Read(buf, arraysize(buf), callback.callback());
+        scoped_refptr<IOBufferWithSize> buf = new IOBufferWithSize(4);
+        rv = stream_->Read(buf, buf->size(), callback.callback());
         if (rv == ERR_IO_PENDING) {
           MessageLoop::ScopedNestableTaskAllower allow(MessageLoop::current());
           rv = callback.WaitForResult();
@@ -756,7 +777,7 @@ class TestWriteReadCompletionCallback {
         if (rv <= 0)
           break;
         *total_bytes_read_ += rv;
-        data_read_->append(buf, rv);
+        data_read_->append(buf->data(), rv);
       }
     }
 
@@ -774,6 +795,8 @@ class TestWriteReadCompletionCallback {
   int* total_bytes_read_;
   std::string* data_read_;
   const CompletionCallback callback_;
+  scoped_refptr<IOBufferWithSize> test_data_;
+  scoped_refptr<DrainableIOBuffer> drainable_;
 
   DISALLOW_COPY_AND_ASSIGN(TestWriteReadCompletionCallback);
 };
@@ -803,9 +826,8 @@ TEST_F(FileStreamTest, AsyncWriteRead) {
   TestWriteReadCompletionCallback callback(&stream, &total_bytes_written,
                                            &total_bytes_read, &data_read);
 
-  rv = stream.Write(kTestData + total_bytes_written,
-                    kTestDataSize - static_cast<int>(total_bytes_written),
-                    callback.callback());
+  scoped_refptr<IOBufferWithSize> buf = CreateTestDataBuffer();
+  rv = stream.Write(buf, buf->size(), callback.callback());
   if (rv == ERR_IO_PENDING)
     rv = callback.WaitForResult();
   EXPECT_LT(0, rv);
@@ -832,7 +854,10 @@ class TestWriteCloseCompletionCallback {
         stream_(stream),
         total_bytes_written_(total_bytes_written),
         callback_(base::Bind(&TestWriteCloseCompletionCallback::OnComplete,
-                             base::Unretained(this))) {}
+                             base::Unretained(this))),
+        test_data_(CreateTestDataBuffer()),
+        drainable_(new DrainableIOBuffer(test_data_, kTestDataSize)) {
+  }
 
   int WaitForResult() {
     DCHECK(!waiting_for_result_);
@@ -858,11 +883,11 @@ class TestWriteCloseCompletionCallback {
       // Recurse to finish writing all data.
       int total_bytes_written = 0;
       TestWriteCloseCompletionCallback callback(stream_, &total_bytes_written);
-      rv = stream_->Write(kTestData + *total_bytes_written_,
-                          kTestDataSize - *total_bytes_written_,
+      rv = stream_->Write(drainable_, drainable_->BytesRemaining(),
                           callback.callback());
       DCHECK_EQ(ERR_IO_PENDING, rv);
       rv = callback.WaitForResult();
+      drainable_->DidConsume(total_bytes_written);
       *total_bytes_written_ += total_bytes_written;
     } else {  // We're done writing all data.  Close the file.
       stream_->CloseSync();
@@ -880,6 +905,8 @@ class TestWriteCloseCompletionCallback {
   FileStream* stream_;
   int* total_bytes_written_;
   const CompletionCallback callback_;
+  scoped_refptr<IOBufferWithSize> test_data_;
+  scoped_refptr<DrainableIOBuffer> drainable_;
 
   DISALLOW_COPY_AND_ASSIGN(TestWriteCloseCompletionCallback);
 };
@@ -906,7 +933,8 @@ TEST_F(FileStreamTest, AsyncWriteClose) {
   int total_bytes_written = 0;
   TestWriteCloseCompletionCallback callback(&stream, &total_bytes_written);
 
-  rv = stream.Write(kTestData, kTestDataSize, callback.callback());
+  scoped_refptr<IOBufferWithSize> buf = CreateTestDataBuffer();
+  rv = stream.Write(buf, buf->size(), callback.callback());
   if (rv == ERR_IO_PENDING)
     total_bytes_written = callback.WaitForResult();
   EXPECT_LT(0, total_bytes_written);
