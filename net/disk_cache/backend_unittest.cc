@@ -2196,6 +2196,8 @@ void DiskCacheBackendTest::BackendDoomAll() {
   ASSERT_EQ(2, cache_->GetEntryCount());
   EXPECT_EQ(net::OK, DoomAllEntries());
   ASSERT_EQ(0, cache_->GetEntryCount());
+
+  EXPECT_EQ(net::OK, DoomAllEntries());
 }
 
 TEST_F(DiskCacheBackendTest, DoomAll) {
