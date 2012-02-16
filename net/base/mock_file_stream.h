@@ -16,6 +16,8 @@
 
 namespace net {
 
+class IOBuffer;
+
 namespace testing {
 
 class MockFileStream : public net::FileStream {
@@ -30,12 +32,12 @@ class MockFileStream : public net::FileStream {
   virtual int OpenSync(const FilePath& path, int open_flags) OVERRIDE;
   virtual int64 Seek(net::Whence whence, int64 offset) OVERRIDE;
   virtual int64 Available() OVERRIDE;
-  virtual int Read(char* buf,
+  virtual int Read(IOBuffer* buf,
                    int buf_len,
                    const CompletionCallback& callback) OVERRIDE;
   virtual int ReadSync(char* buf, int buf_len) OVERRIDE;
   virtual int ReadUntilComplete(char *buf, int buf_len) OVERRIDE;
-  virtual int Write(const char* buf,
+  virtual int Write(IOBuffer* buf,
                     int buf_len,
                     const CompletionCallback& callback) OVERRIDE;
   virtual int WriteSync(const char* buf, int buf_len) OVERRIDE;

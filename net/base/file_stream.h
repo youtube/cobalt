@@ -21,6 +21,8 @@ class FilePath;
 
 namespace net {
 
+class IOBuffer;
+
 // TODO(darin): Move this to a more generic location.
 // This explicit mapping matches both FILE_ on Windows and SEEK_ on Linux.
 enum Whence {
@@ -87,9 +89,6 @@ class NET_EXPORT FileStream {
   // callback will be notified on the current thread (via the MessageLoop)
   // when the read has completed.
   //
-  // The memory pointed to by |buf| must remain valid until the callback is
-  // notified. TODO(satorux): Use IOBuffer instead of char*.
-  //
   // It is valid to destroy or close the file stream while there is an
   // asynchronous read in progress.  That will cancel the read and allow
   // the buffer to be freed.
@@ -98,7 +97,8 @@ class NET_EXPORT FileStream {
   // in-flight asynchronous operation.
   //
   // This method must not be called if the stream was opened WRITE_ONLY.
-  virtual int Read(char* buf, int buf_len, const CompletionCallback& callback);
+  virtual int Read(IOBuffer* buf, int buf_len,
+                   const CompletionCallback& callback);
 
   // Call this method to read data from the current stream position
   // synchronously. Up to buf_len bytes will be copied into buf.  (In
@@ -129,9 +129,6 @@ class NET_EXPORT FileStream {
   // callback will be notified on the current thread (via the MessageLoop)
   // when the write has completed.
   //
-  // The memory pointed to by |buf| must remain valid until the callback
-  // is notified. TODO(satorux): Use IOBuffer instead of char*.
-  //
   // It is valid to destroy or close the file stream while there is an
   // asynchronous write in progress.  That will cancel the write and allow
   // the buffer to be freed.
@@ -140,7 +137,7 @@ class NET_EXPORT FileStream {
   // in-flight asynchronous operation.
   //
   // This method must not be called if the stream was opened READ_ONLY.
-  virtual int Write(const char* buf, int buf_len,
+  virtual int Write(IOBuffer* buf, int buf_len,
                     const CompletionCallback& callback);
 
   // Call this method to write data at the current stream position
@@ -181,12 +178,6 @@ class NET_EXPORT FileStream {
   void SetBoundNetLogSource(const net::BoundNetLog& owner_bound_net_log);
 
  private:
-  // Helper functions used to implement reads and writes.
-  int ReadInternal(char* buf, int buf_len,
-                   const CompletionCallback& callback);
-  int WriteInternal(const char* buf, int buf_len,
-                    const CompletionCallback& callback);
-
   class AsyncContext;
   friend class AsyncContext;
   friend class FileStreamTest;

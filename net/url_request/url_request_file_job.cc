@@ -187,7 +187,7 @@ bool URLRequestFileJob::ReadRawData(IOBuffer* dest, int dest_size,
     return true;
   }
 
-  int rv = stream_.Read(dest->data(), dest_size,
+  int rv = stream_.Read(dest, dest_size,
                         base::Bind(&URLRequestFileJob::DidRead,
                                    base::Unretained(this)));
   if (rv >= 0) {
