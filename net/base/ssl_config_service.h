@@ -36,8 +36,10 @@ struct NET_EXPORT SSLConfig {
   bool IsAllowedBadCert(const base::StringPiece& der_cert,
                         CertStatus* cert_status) const;
 
-  bool rev_checking_enabled;  // True if server certificate revocation
-                              // checking is enabled.
+  // rev_checking_enabled is true if online certificate revocation checking is
+  // enabled (i.e. OCSP). If a CRLSet is given then CRLSet checking is always
+  // enabled, regardless of this flag.
+  bool rev_checking_enabled;
   // SSL 2.0 is not supported.
   bool ssl3_enabled;  // True if SSL 3.0 is enabled.
   bool tls1_enabled;  // True if TLS 1.0 is enabled.
