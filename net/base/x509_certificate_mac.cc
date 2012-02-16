@@ -1014,14 +1014,12 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
     // CERT_STATUS_UNABLE_TO_CHECK_REVOCATION.
     tp_action_data.ActionFlags |= CSSM_TP_ACTION_REQUIRE_REV_PER_CERT;
     verify_result->cert_status |= CERT_STATUS_REV_CHECKING_ENABLED;
-  } else {
-    // EV requires revocation checking.
-    // Note, under the hood, SecTrustEvaluate() will modify the OCSP options
-    // so as to attempt OCSP checking if it believes a certificate may chain
-    // to an EV root. However, because network fetches are disabled in
-    // CreateTrustPolicies() when revocation checking is disabled, these
-    // will only go against the local cache.
-    flags &= ~VERIFY_EV_CERT;
+
+    // Note, even if revocation checking is disabled, SecTrustEvaluate() will
+    // modify the OCSP options so as to attempt OCSP checking if it believes a
+    // certificate may chain to an EV root. However, because network fetches
+    // are disabled in CreateTrustPolicies() when revocation checking is
+    // disabled, these will only go against the local cache.
   }
 
   CFDataRef action_data_ref =
