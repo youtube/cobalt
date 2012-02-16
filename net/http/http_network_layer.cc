@@ -101,6 +101,7 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
       std::vector<std::string> next_protos;
       next_protos.push_back("http/1.1");
       next_protos.push_back("spdy/2");
+      next_protos.push_back("spdy/2.1");
       HttpStreamFactory::set_next_protos(next_protos);
     } else if (option == kEnableNpnHttpOnly) {
       // Avoid alternate protocol in this case. Otherwise, browser will try SSL
@@ -129,7 +130,7 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
     } else if (option == kForceAltProtocols) {
       PortAlternateProtocolPair pair;
       pair.port = 443;
-      pair.protocol = NPN_SPDY_2;
+      pair.protocol = NPN_SPDY_21;
       HttpServerPropertiesImpl::ForceAlternateProtocol(pair);
     } else if (option == kSingleDomain) {
       SpdySessionPool::ForceSingleDomain();
