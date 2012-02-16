@@ -192,6 +192,10 @@ void SpdyStream::IncreaseRecvWindowSize(int32 delta_window_size) {
   // By the time a read is isued, stream may become inactive.
   if (!session_->IsStreamActive(stream_id_))
     return;
+
+  if (!session_->is_flow_control_enabled())
+    return;
+
   int32 new_window_size = recv_window_size_ + delta_window_size;
   if (recv_window_size_ > 0)
     DCHECK(new_window_size > 0);
@@ -206,6 +210,9 @@ void SpdyStream::IncreaseRecvWindowSize(int32 delta_window_size) {
 
 void SpdyStream::DecreaseRecvWindowSize(int32 delta_window_size) {
   DCHECK_GE(delta_window_size, 1);
+
+  if (!session_->is_flow_control_enabled())
+    return;
 
   recv_window_size_ -= delta_window_size;
   net_log_.AddEvent(
@@ -333,8 +340,7 @@ void SpdyStream::OnDataReceived(const char* data, int length) {
     return;
   }
 
-  if (session_->is_flow_control_enabled())
-    DecreaseRecvWindowSize(length);
+  DecreaseRecvWindowSize(length);
 
   // Track our bandwidth.
   metrics_.RecordBytes(length);

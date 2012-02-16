@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -172,12 +172,14 @@ int SpdyProxyClientSocket::PopulateUserReadBuffer() {
   if (!user_buffer_)
     return ERR_IO_PENDING;
 
+  int bytes_read = 0;
   while (!read_buffer_.empty() && user_buffer_->BytesRemaining() > 0) {
     scoped_refptr<DrainableIOBuffer> data = read_buffer_.front();
     const int bytes_to_copy = std::min(user_buffer_->BytesRemaining(),
                                        data->BytesRemaining());
     memcpy(user_buffer_->data(), data->data(), bytes_to_copy);
     user_buffer_->DidConsume(bytes_to_copy);
+    bytes_read += bytes_to_copy;
     if (data->BytesRemaining() == bytes_to_copy) {
       // Consumed all data from this buffer
       read_buffer_.pop_front();
@@ -185,6 +187,9 @@ int SpdyProxyClientSocket::PopulateUserReadBuffer() {
       data->DidConsume(bytes_to_copy);
     }
   }
+
+  if (bytes_read > 0 && spdy_stream_)
+    spdy_stream_->IncreaseRecvWindowSize(bytes_read);
 
   return user_buffer_->BytesConsumed();
 }
