@@ -71,6 +71,12 @@ static const EVMetadata ev_root_ca_metadata[] = {
         0x31, 0xd8, 0x23, 0x10, 0x8d, 0xc2, 0x81, 0x92, 0xe2, 0xbb } },
     {"1.3.6.1.4.1.22234.2.5.2.3.1", NULL},
   },
+  // Certum Trusted Network CA
+  // https://juice.certum.pl/
+  { { { 0x07, 0xe0, 0x32, 0xe0, 0x20, 0xb7, 0x2c, 0x3f, 0x19, 0x2f,
+        0x06, 0x28, 0xa2, 0x59, 0x3a, 0x19, 0xa7, 0x0f, 0x06, 0x9e } },
+    {"1.2.616.1.113527.2.5.1.1", NULL},
+  },
   // COMODO Certification Authority
   // https://secure.comodo.com/
   { { { 0x66, 0x31, 0xbf, 0x9e, 0xf7, 0x4f, 0x9e, 0xb6, 0xc9, 0xd5,
@@ -288,6 +294,7 @@ static const EVMetadata ev_root_ca_metadata[] = {
 const EVRootCAMetadata::PolicyOID EVRootCAMetadata::policy_oids_[] = {
   // The OIDs must be sorted in ascending order.
   "1.2.392.200091.100.721.1",
+  "1.2.616.1.113527.2.5.1.1",
   "1.3.6.1.4.1.14370.1.6",
   "1.3.6.1.4.1.14777.6.1.1",
   "1.3.6.1.4.1.14777.6.1.2",
