@@ -298,6 +298,7 @@
         'gfx/path_gtk.cc',
         'gfx/path_win.cc',
         'gfx/platform_font.h',
+        'gfx/platform_font_android.cc',
         'gfx/platform_font_pango.h',
         'gfx/platform_font_pango.cc',
         'gfx/platform_font_mac.h',
