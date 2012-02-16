@@ -378,10 +378,15 @@ class NET_EXPORT X509Certificate
   // |verify_result->cert_status|, and the error code for the most serious
   // error is returned.
   //
-  // |flags| is bitwise OR'd of VerifyFlags.
-  // If VERIFY_REV_CHECKING_ENABLED is set in |flags|, certificate revocation
-  // checking is performed.  If VERIFY_EV_CERT is set in |flags| too,
-  // EV certificate verification is performed.
+  // |flags| is bitwise OR'd of VerifyFlags:
+  //
+  // If VERIFY_REV_CHECKING_ENABLED is set in |flags|, online certificate
+  // revocation checking is performed (i.e. OCSP and downloading CRLs). CRLSet
+  // based revocation checking is always enabled, regardless of this flag, if
+  // |crl_set| is given.
+  //
+  // If VERIFY_EV_CERT is set in |flags| too, EV certificate verification is
+  // performed.
   //
   // |crl_set| points to an optional CRLSet structure which can be used to
   // avoid revocation checks over the network.
@@ -495,7 +500,7 @@ class NET_EXPORT X509Certificate
   static bool IsIssuedByKnownRoot(CFArrayRef chain);
 #endif
 #if defined(USE_NSS)
-  bool VerifyEV() const;
+  bool VerifyEV(int flags) const;
 #endif
 #if defined(USE_OPENSSL)
   // Resets the store returned by cert_store() to default state. Used by
