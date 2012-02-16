@@ -131,9 +131,13 @@ for CONFIG in Debug Release; do
   if [[ -d "${MAKE_DIR}/${CONFIG}/obj.target" ||
         -d "${MAKE_DIR}/${CONFIG}/obj.host" ]]; then
     echo "Clobbering ${CONFIG} PCH and .o files for make build"
-    find "${MAKE_DIR}/${CONFIG}/obj.target" -name '*.gch' -exec rm {} +
-    find "${MAKE_DIR}/${CONFIG}/obj.host" -name '*.o' -exec rm {} +
-    find "${MAKE_DIR}/${CONFIG}/obj.target" -name '*.o' -exec rm {} +
+    if [[ -d "${MAKE_DIR}/${CONFIG}/obj.target" ]]; then
+      find "${MAKE_DIR}/${CONFIG}/obj.target" -name '*.gch' -exec rm {} +
+      find "${MAKE_DIR}/${CONFIG}/obj.target" -name '*.o' -exec rm {} +
+    fi
+    if [[ -d "${MAKE_DIR}/${CONFIG}/obj.host" ]]; then
+      find "${MAKE_DIR}/${CONFIG}/obj.host" -name '*.o' -exec rm {} +
+    fi
   fi
 
   # ninja puts its output below ${MAKE_DIR} as well.
