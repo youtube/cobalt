@@ -7,17 +7,31 @@
 # to a tgz file.
 
 THIS_DIR="$(dirname "${0}")"
+LLVM_DIR="${THIS_DIR}/../../../third_party/llvm"
 LLVM_BOOTSTRAP_DIR="${THIS_DIR}/../../../third_party/llvm-bootstrap"
 LLVM_BUILD_DIR="${THIS_DIR}/../../../third_party/llvm-build"
 LLVM_BIN_DIR="${LLVM_BUILD_DIR}/Release+Asserts/bin"
 LLVM_LIB_DIR="${LLVM_BUILD_DIR}/Release+Asserts/lib"
+
+echo "Diff in llvm:" | tee buildlog.txt
+svn stat "${LLVM_DIR}" 2>&1 | tee -a buildlog.txt
+svn diff "${LLVM_DIR}" 2>&1 | tee -a buildlog.txt
+echo "Diff in llvm/tools/clang:" | tee -a buildlog.txt
+svn stat "${LLVM_DIR}/tools/clang" 2>&1 | tee -a buildlog.txt
+svn diff "${LLVM_DIR}/tools/clang" 2>&1 | tee -a buildlog.txt
+echo "Diff in llvm/projects/compiler-rt:" | tee -a buildlog.txt
+svn stat "${LLVM_DIR}/projects/compiler-rt" 2>&1 | tee -a buildlog.txt
+svn diff "${LLVM_DIR}/projects/compiler-rt" 2>&1 | tee -a buildlog.txt
+
+echo "Starting build" | tee -a buildlog.txt
 
 set -ex
 
 # Do a clobber build.
 rm -rf "${LLVM_BOOTSTRAP_DIR}"
 rm -rf "${LLVM_BUILD_DIR}"
-"${THIS_DIR}"/update.sh --run-tests --bootstrap --force-local-build
+"${THIS_DIR}"/update.sh --run-tests --bootstrap --force-local-build 2>&1 | \
+    tee -a buildlog.txt
 
 R=$("${LLVM_BIN_DIR}/clang" --version | \
      sed -ne 's/clang version .*(trunk \([0-9]*\))/\1/p')
@@ -27,6 +41,9 @@ rm -rf $PDIR
 mkdir $PDIR
 mkdir $PDIR/bin
 mkdir $PDIR/lib
+
+# Copy buildlog over.
+cp buildlog.txt $PDIR/
 
 # Copy clang into pdir, symlink clang++ to it.
 cp "${LLVM_BIN_DIR}/clang" $PDIR/bin/
@@ -56,7 +73,7 @@ fi
 
 cp -R "${LLVM_LIB_DIR}/clang" $PDIR/lib
 
-tar zcf $PDIR.tgz -C $PDIR bin lib
+tar zcf $PDIR.tgz -C $PDIR bin lib buildlog.txt
 
 if [ "$(uname -s)" = "Darwin" ]; then
   PLATFORM=Mac
