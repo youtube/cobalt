@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 
 #include "base/atomic_sequence_num.h"
 #include "base/bind.h"
+#include "base/debug/leak_annotations.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
@@ -209,6 +210,8 @@ TEST_F(MessageLoopProxyTest, PostTaskAndReply_SameLoop) {
 }
 
 TEST_F(MessageLoopProxyTest, PostTaskAndReply_DeadReplyLoopDoesNotDelete) {
+  // Annotate the scope as having memory leaks to suppress heapchecker reports.
+  ANNOTATE_SCOPED_MEMORY_LEAK;
   MessageLoop* task_run_on = NULL;
   MessageLoop* task_deleted_on = NULL;
   int task_delete_order = -1;
