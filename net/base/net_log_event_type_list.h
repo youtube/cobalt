@@ -986,6 +986,7 @@ EVENT_TYPE(SPDY_SESSION_RST_STREAM)
 //   {
 //     "stream_id": <The stream ID for the window update>,
 //     "status": <The reason for the RST_STREAM>,
+//     "description": <The textual description for the RST_STREAM>,
 //   }
 EVENT_TYPE(SPDY_SESSION_SEND_RST_STREAM)
 
