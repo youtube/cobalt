@@ -2541,6 +2541,136 @@ TEST_P(SpdyNetworkTransactionTest, RedirectGetRequest) {
   EXPECT_TRUE(data2->at_write_eof());
 }
 
+// Detect response with upper case headers and reset the stream.
+TEST_P(SpdyNetworkTransactionTest, UpperCaseHeaders) {
+  scoped_ptr<spdy::SpdyFrame>
+      syn(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame>
+      rst(ConstructSpdyRstStream(1, spdy::PROTOCOL_ERROR));
+  MockWrite writes[] = {
+    CreateMockWrite(*syn, 0),
+    CreateMockWrite(*rst, 2),
+  };
+
+  const char* const kExtraHeaders[] = {"X-UpperCase", "yes"};
+  scoped_ptr<spdy::SpdyFrame>
+      reply(ConstructSpdyGetSynReply(kExtraHeaders, 1, 1));
+  MockRead reads[] = {
+    CreateMockRead(*reply, 1),
+    MockRead(true, ERR_IO_PENDING, 3),  // Force a pause
+  };
+
+  HttpResponseInfo response;
+  HttpResponseInfo response2;
+  scoped_ptr<OrderedSocketData> data(new OrderedSocketData(
+      reads,
+      arraysize(reads),
+      writes,
+      arraysize(writes)));
+  NormalSpdyTransactionHelper helper(CreateGetRequest(),
+                                     BoundNetLog(), GetParam());
+  helper.RunToCompletion(data.get());
+  TransactionHelperResult out = helper.output();
+  EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, out.rv);
+}
+
+// Detect response with upper case headers in a HEADERS frame and reset the
+// stream.
+TEST_P(SpdyNetworkTransactionTest, UpperCaseHeadersInHeadersFrame) {
+  scoped_ptr<spdy::SpdyFrame>
+      syn(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame>
+      rst(ConstructSpdyRstStream(1, spdy::PROTOCOL_ERROR));
+  MockWrite writes[] = {
+    CreateMockWrite(*syn, 0),
+    CreateMockWrite(*rst, 2),
+  };
+
+  static const char* const kInitialHeaders[] = {
+    "status", "200 OK",
+    "version", "HTTP/1.1"
+  };
+  static const char* const kLateHeaders[] = {
+    "X-UpperCase", "yes",
+  };
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_reply(ConstructSpdyControlFrame(kInitialHeaders,
+                                              arraysize(kInitialHeaders) / 2,
+                                              false,
+                                              1,
+                                              LOWEST,
+                                              spdy::SYN_REPLY,
+                                              spdy::CONTROL_FLAG_NONE,
+                                              NULL,
+                                              0,
+                                              0));
+  scoped_ptr<spdy::SpdyFrame>
+      stream1_headers(ConstructSpdyControlFrame(kLateHeaders,
+                                                arraysize(kLateHeaders) / 2,
+                                                false,
+                                                1,
+                                                LOWEST,
+                                                spdy::HEADERS,
+                                                spdy::CONTROL_FLAG_NONE,
+                                                NULL,
+                                                0,
+                                                0));
+  scoped_ptr<spdy::SpdyFrame> stream1_body(ConstructSpdyBodyFrame(1, true));
+  MockRead reads[] = {
+    CreateMockRead(*stream1_reply),
+    CreateMockRead(*stream1_headers),
+    CreateMockRead(*stream1_body),
+    MockRead(true, 0, 0)  // EOF
+  };
+
+  scoped_ptr<DelayedSocketData> data(
+      new DelayedSocketData(1, reads, arraysize(reads),
+                            writes, arraysize(writes)));
+  NormalSpdyTransactionHelper helper(CreateGetRequest(),
+                                     BoundNetLog(), GetParam());
+  helper.RunToCompletion(data.get());
+  TransactionHelperResult out = helper.output();
+  EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, out.rv);
+}
+
+// Detect push stream with upper case headers and reset the stream.
+TEST_P(SpdyNetworkTransactionTest, UpperCaseHeadersOnPush) {
+  scoped_ptr<spdy::SpdyFrame>
+      syn(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<spdy::SpdyFrame>
+      rst(ConstructSpdyRstStream(2, spdy::PROTOCOL_ERROR));
+  MockWrite writes[] = {
+    CreateMockWrite(*syn, 0),
+    CreateMockWrite(*rst, 2),
+  };
+
+  scoped_ptr<spdy::SpdyFrame>
+      reply(ConstructSpdyGetSynReply(NULL, 0, 1));
+  const char* const extra_headers[] = {"X-UpperCase", "yes"};
+  scoped_ptr<spdy::SpdyFrame>
+      push(ConstructSpdyPush(extra_headers, 1, 2, 1));
+  scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
+  MockRead reads[] = {
+    CreateMockRead(*reply, 1),
+    CreateMockRead(*push, 1),
+    CreateMockRead(*body, 1),
+    MockRead(true, ERR_IO_PENDING, 3),  // Force a pause
+  };
+
+  HttpResponseInfo response;
+  HttpResponseInfo response2;
+  scoped_ptr<OrderedSocketData> data(new OrderedSocketData(
+      reads,
+      arraysize(reads),
+      writes,
+      arraysize(writes)));
+  NormalSpdyTransactionHelper helper(CreateGetRequest(),
+                                     BoundNetLog(), GetParam());
+  helper.RunToCompletion(data.get());
+  TransactionHelperResult out = helper.output();
+  EXPECT_EQ(OK, out.rv);
+}
+
 // Send a spdy request to www.google.com. Get a pushed stream that redirects to
 // www.foo.com.
 TEST_P(SpdyNetworkTransactionTest, RedirectServerPush) {
@@ -4928,7 +5058,7 @@ TEST_P(SpdyNetworkTransactionTest, SpdyBasicAuth) {
   // response will be a 200 response since the second request includes a valid
   // Authorization header.
   const char* const kExtraAuthenticationHeaders[] = {
-    "WWW-Authenticate",
+    "www-authenticate",
     "Basic realm=\"MyRealm\""
   };
   scoped_ptr<spdy::SpdyFrame> resp_authentication(

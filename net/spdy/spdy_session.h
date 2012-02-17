@@ -147,7 +147,9 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // Reset a stream by sending a RST_STREAM frame with given status code.
   // Also closes the stream.  Was not piggybacked to CloseStream since not
   // all of the calls to CloseStream necessitate sending a RST_STREAM.
-  void ResetStream(spdy::SpdyStreamId stream_id, spdy::SpdyStatusCodes status);
+  void ResetStream(spdy::SpdyStreamId stream_id,
+                   spdy::SpdyStatusCodes status,
+                   const std::string& description);
 
   // Check if a stream is active.
   bool IsStreamActive(spdy::SpdyStreamId stream_id) const;
