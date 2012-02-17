@@ -10,6 +10,9 @@
 #include "base/message_loop.h"
 #include "base/path_service.h"
 #include "base/platform_file.h"
+#include "base/synchronization/waitable_event.h"
+#include "base/test/test_timeouts.h"
+#include "net/base/capturing_net_log.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
@@ -29,6 +32,45 @@ IOBufferWithSize* CreateTestDataBuffer() {
   memcpy(buf->data(), kTestData, kTestDataSize);
   return buf;
 }
+
+// This NetLog is used for notifying when a file stream is closed
+// (i.e. TYPE_FILE_STREAM_CLOSE event is recorded).
+class NetLogForNotifyingFileClosure : public NetLog {
+ public:
+  NetLogForNotifyingFileClosure()
+      : id_(0),
+        on_closure_(false /* manual_reset */, false /* initially_signaled */) {
+  }
+
+  // Wait until a file closure event is recorded.
+  bool WaitForClosure() {
+    const base::TimeDelta timeout(
+        base::TimeDelta::FromMilliseconds(
+            TestTimeouts::action_max_timeout_ms()));
+    return on_closure_.TimedWait(timeout);
+  }
+
+  // NetLog overrides:
+  virtual void AddEntry(EventType type,
+                        const base::TimeTicks& time,
+                        const Source& source,
+                        EventPhase phase,
+                        EventParameters* extra_parameters) {
+    if (type == TYPE_FILE_STREAM_CLOSE) {
+      on_closure_.Signal();
+    }
+  }
+
+  virtual uint32 NextID() { return id_++; }
+  virtual LogLevel GetLogLevel() const { return LOG_ALL; }
+  virtual void AddThreadSafeObserver(ThreadSafeObserver* observer) {}
+  virtual void RemoveThreadSafeObserver(ThreadSafeObserver* observer) {};
+
+
+ private:
+  uint32 id_;
+  base::WaitableEvent on_closure_;
+};
 
 }  // namespace
 
@@ -970,6 +1012,59 @@ TEST_F(FileStreamTest, Truncate) {
   EXPECT_TRUE(file_util::ReadFileToString(temp_file_path(), &read_contents));
 
   EXPECT_EQ("01230123", read_contents);
+}
+
+TEST_F(FileStreamTest, AsyncBasicOpenClose) {
+  FileStream stream(NULL);
+  int flags = base::PLATFORM_FILE_OPEN |
+              base::PLATFORM_FILE_READ |
+              base::PLATFORM_FILE_ASYNC;
+  TestCompletionCallback callback;
+  int rv = stream.Open(temp_file_path(), flags, callback.callback());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_TRUE(stream.IsOpen());
+
+  stream.Close(callback.callback());
+  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_FALSE(stream.IsOpen());
+}
+
+TEST_F(FileStreamTest, SyncCloseTwice) {
+  FileStream stream(NULL);
+  int flags = base::PLATFORM_FILE_OPEN |
+              base::PLATFORM_FILE_READ;
+  int rv = stream.OpenSync(temp_file_path(), flags);
+  EXPECT_EQ(OK, rv);
+  EXPECT_TRUE(stream.IsOpen());
+
+  // Closing twice should be safe.
+  stream.CloseSync();
+  EXPECT_FALSE(stream.IsOpen());
+
+  stream.CloseSync();
+  EXPECT_FALSE(stream.IsOpen());
+}
+
+TEST_F(FileStreamTest, AsyncCloseTwice) {
+  FileStream stream(NULL);
+  int flags = base::PLATFORM_FILE_OPEN |
+      base::PLATFORM_FILE_READ |
+      base::PLATFORM_FILE_ASYNC;
+  TestCompletionCallback callback;
+  int rv = stream.Open(temp_file_path(), flags, callback.callback());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_TRUE(stream.IsOpen());
+
+  // Closing twice should be safe.
+  stream.Close(callback.callback());
+  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_FALSE(stream.IsOpen());
+
+  stream.Close(callback.callback());
+  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_FALSE(stream.IsOpen());
 }
 
 }  // namespace
