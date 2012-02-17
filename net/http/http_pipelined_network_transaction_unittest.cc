@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -70,7 +70,7 @@ class HttpPipelinedNetworkTransactionTest : public testing::Test {
                              MockWrite* writes, size_t writes_count) {
     DeterministicSocketData* data = new DeterministicSocketData(
         reads, reads_count, writes, writes_count);
-    data->set_connect_data(MockConnect(false, 0));
+    data->set_connect_data(MockConnect(SYNCHRONOUS, OK));
     if (reads_count || writes_count) {
       data->StopAfter(reads_count + writes_count);
     }

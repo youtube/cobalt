@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -146,7 +146,7 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
     return socket_factory_;
   }
 
-  void Initialize(bool async, MockRead* reads, size_t reads_count,
+  void Initialize(MockRead* reads, size_t reads_count,
                   MockWrite* writes, size_t writes_count,
                   MockRead* spdy_reads, size_t spdy_reads_count,
                   MockWrite* spdy_writes, size_t spdy_writes_count) {
@@ -157,13 +157,13 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
       data_ = new DeterministicSocketData(reads, reads_count, writes,
                                           writes_count);
 
-    data_->set_connect_data(MockConnect(async, 0));
+    data_->set_connect_data(MockConnect(SYNCHRONOUS, OK));
     data_->StopAfter(2);  // Request / Response
 
     socket_factory_.AddSocketDataProvider(data_.get());
 
     if (GetParam() != HTTP) {
-      ssl_data_.reset(new SSLSocketDataProvider(async, OK));
+      ssl_data_.reset(new SSLSocketDataProvider(false, OK));
       if (GetParam() == SPDY) {
         InitializeSpdySsl();
       }
@@ -227,7 +227,7 @@ INSTANTIATE_TEST_CASE_P(HttpProxyClientSocketPoolTests,
                         ::testing::Values(HTTP, HTTPS, SPDY));
 
 TEST_P(HttpProxyClientSocketPoolTest, NoTunnel) {
-  Initialize(false, NULL, 0, NULL, 0, NULL, 0, NULL, 0);
+  Initialize(NULL, 0, NULL, 0, NULL, 0, NULL, 0);
 
   int rv = handle_.Init("a", GetNoTunnelParams(), LOW, CompletionCallback(),
                         &pool_, BoundNetLog());
@@ -266,7 +266,7 @@ TEST_P(HttpProxyClientSocketPoolTest, NeedAuth) {
     MockRead(true, 0, 3)
   };
 
-  Initialize(false, reads, arraysize(reads), writes, arraysize(writes),
+  Initialize(reads, arraysize(reads), writes, arraysize(writes),
              spdy_reads, arraysize(spdy_reads), spdy_writes,
              arraysize(spdy_writes));
 
@@ -311,7 +311,7 @@ TEST_P(HttpProxyClientSocketPoolTest, HaveAuth) {
     MockRead(false, 1, "HTTP/1.1 200 Connection Established\r\n\r\n"),
   };
 
-  Initialize(false, reads, arraysize(reads), writes, arraysize(writes), NULL, 0,
+  Initialize(reads, arraysize(reads), writes, arraysize(writes), NULL, 0,
              NULL, 0);
   AddAuthToCache();
 
@@ -347,7 +347,7 @@ TEST_P(HttpProxyClientSocketPoolTest, AsyncHaveAuth) {
     MockRead(true, 0, 2)
   };
 
-  Initialize(false, reads, arraysize(reads), writes, arraysize(writes),
+  Initialize(reads, arraysize(reads), writes, arraysize(writes),
              spdy_reads, arraysize(spdy_reads), spdy_writes,
              arraysize(spdy_writes));
   AddAuthToCache();
@@ -370,7 +370,7 @@ TEST_P(HttpProxyClientSocketPoolTest, AsyncHaveAuth) {
 TEST_P(HttpProxyClientSocketPoolTest, TCPError) {
   if (GetParam() == SPDY) return;
   data_ = new DeterministicSocketData(NULL, 0, NULL, 0);
-  data_->set_connect_data(MockConnect(true, ERR_CONNECTION_CLOSED));
+  data_->set_connect_data(MockConnect(ASYNC, ERR_CONNECTION_CLOSED));
 
   socket_factory().AddSocketDataProvider(data_.get());
 
@@ -389,7 +389,7 @@ TEST_P(HttpProxyClientSocketPoolTest, TCPError) {
 TEST_P(HttpProxyClientSocketPoolTest, SSLError) {
   if (GetParam() == HTTP) return;
   data_ = new DeterministicSocketData(NULL, 0, NULL, 0);
-  data_->set_connect_data(MockConnect(true, OK));
+  data_->set_connect_data(MockConnect(ASYNC, OK));
   socket_factory().AddSocketDataProvider(data_.get());
 
   ssl_data_.reset(new SSLSocketDataProvider(true,
@@ -414,7 +414,7 @@ TEST_P(HttpProxyClientSocketPoolTest, SSLError) {
 TEST_P(HttpProxyClientSocketPoolTest, SslClientAuth) {
   if (GetParam() == HTTP) return;
   data_ = new DeterministicSocketData(NULL, 0, NULL, 0);
-  data_->set_connect_data(MockConnect(true, OK));
+  data_->set_connect_data(MockConnect(ASYNC, OK));
   socket_factory().AddSocketDataProvider(data_.get());
 
   ssl_data_.reset(new SSLSocketDataProvider(true,
@@ -457,7 +457,7 @@ TEST_P(HttpProxyClientSocketPoolTest, TunnelUnexpectedClose) {
     MockRead(true, ERR_CONNECTION_CLOSED, 1),
   };
 
-  Initialize(false, reads, arraysize(reads), writes, arraysize(writes),
+  Initialize(reads, arraysize(reads), writes, arraysize(writes),
              spdy_reads, arraysize(spdy_reads), spdy_writes,
              arraysize(spdy_writes));
   AddAuthToCache();
@@ -498,7 +498,7 @@ TEST_P(HttpProxyClientSocketPoolTest, TunnelSetupError) {
     MockRead(true, 0, 3),
   };
 
-  Initialize(false, reads, arraysize(reads), writes, arraysize(writes),
+  Initialize(reads, arraysize(reads), writes, arraysize(writes),
              spdy_reads, arraysize(spdy_reads), spdy_writes,
              arraysize(spdy_writes));
   AddAuthToCache();

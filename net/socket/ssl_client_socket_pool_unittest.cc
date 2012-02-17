@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -174,7 +174,7 @@ class SSLClientSocketPoolTest : public testing::Test {
 
 TEST_F(SSLClientSocketPoolTest, TCPFail) {
   StaticSocketDataProvider data;
-  data.set_connect_data(MockConnect(false, ERR_CONNECTION_FAILED));
+  data.set_connect_data(MockConnect(SYNCHRONOUS, ERR_CONNECTION_FAILED));
   socket_factory_.AddSocketDataProvider(&data);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -192,7 +192,7 @@ TEST_F(SSLClientSocketPoolTest, TCPFail) {
 
 TEST_F(SSLClientSocketPoolTest, TCPFailAsync) {
   StaticSocketDataProvider data;
-  data.set_connect_data(MockConnect(true, ERR_CONNECTION_FAILED));
+  data.set_connect_data(MockConnect(ASYNC, ERR_CONNECTION_FAILED));
   socket_factory_.AddSocketDataProvider(&data);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -215,7 +215,7 @@ TEST_F(SSLClientSocketPoolTest, TCPFailAsync) {
 
 TEST_F(SSLClientSocketPoolTest, BasicDirect) {
   StaticSocketDataProvider data;
-  data.set_connect_data(MockConnect(false, OK));
+  data.set_connect_data(MockConnect(SYNCHRONOUS, OK));
   socket_factory_.AddSocketDataProvider(&data);
   SSLSocketDataProvider ssl(false, OK);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
@@ -428,7 +428,7 @@ TEST_F(SSLClientSocketPoolTest, DirectGotBonusSPDY) {
 
 TEST_F(SSLClientSocketPoolTest, SOCKSFail) {
   StaticSocketDataProvider data;
-  data.set_connect_data(MockConnect(false, ERR_CONNECTION_FAILED));
+  data.set_connect_data(MockConnect(SYNCHRONOUS, ERR_CONNECTION_FAILED));
   socket_factory_.AddSocketDataProvider(&data);
 
   CreatePool(false, true /* http proxy pool */, true /* socks pool */);
@@ -447,7 +447,7 @@ TEST_F(SSLClientSocketPoolTest, SOCKSFail) {
 
 TEST_F(SSLClientSocketPoolTest, SOCKSFailAsync) {
   StaticSocketDataProvider data;
-  data.set_connect_data(MockConnect(true, ERR_CONNECTION_FAILED));
+  data.set_connect_data(MockConnect(ASYNC, ERR_CONNECTION_FAILED));
   socket_factory_.AddSocketDataProvider(&data);
 
   CreatePool(false, true /* http proxy pool */, true /* socks pool */);
@@ -470,7 +470,7 @@ TEST_F(SSLClientSocketPoolTest, SOCKSFailAsync) {
 
 TEST_F(SSLClientSocketPoolTest, SOCKSBasic) {
   StaticSocketDataProvider data;
-  data.set_connect_data(MockConnect(false, OK));
+  data.set_connect_data(MockConnect(SYNCHRONOUS, OK));
   socket_factory_.AddSocketDataProvider(&data);
   SSLSocketDataProvider ssl(false, OK);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
@@ -513,7 +513,7 @@ TEST_F(SSLClientSocketPoolTest, SOCKSBasicAsync) {
 
 TEST_F(SSLClientSocketPoolTest, HttpProxyFail) {
   StaticSocketDataProvider data;
-  data.set_connect_data(MockConnect(false, ERR_CONNECTION_FAILED));
+  data.set_connect_data(MockConnect(SYNCHRONOUS, ERR_CONNECTION_FAILED));
   socket_factory_.AddSocketDataProvider(&data);
 
   CreatePool(false, true /* http proxy pool */, true /* socks pool */);
@@ -532,7 +532,7 @@ TEST_F(SSLClientSocketPoolTest, HttpProxyFail) {
 
 TEST_F(SSLClientSocketPoolTest, HttpProxyFailAsync) {
   StaticSocketDataProvider data;
-  data.set_connect_data(MockConnect(true, ERR_CONNECTION_FAILED));
+  data.set_connect_data(MockConnect(ASYNC, ERR_CONNECTION_FAILED));
   socket_factory_.AddSocketDataProvider(&data);
 
   CreatePool(false, true /* http proxy pool */, true /* socks pool */);
@@ -566,7 +566,7 @@ TEST_F(SSLClientSocketPoolTest, HttpProxyBasic) {
   };
   StaticSocketDataProvider data(reads, arraysize(reads), writes,
                                 arraysize(writes));
-  data.set_connect_data(MockConnect(false, OK));
+  data.set_connect_data(MockConnect(SYNCHRONOUS, OK));
   socket_factory_.AddSocketDataProvider(&data);
   AddAuthToCache();
   SSLSocketDataProvider ssl(false, OK);
