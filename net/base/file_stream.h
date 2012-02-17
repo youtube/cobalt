@@ -12,6 +12,7 @@
 #pragma once
 
 #include "base/memory/scoped_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/platform_file.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
@@ -47,21 +48,52 @@ class NET_EXPORT FileStream {
   // is destructed.
   FileStream(base::PlatformFile file, int flags, net::NetLog* net_log);
 
+  // If the file stream was opened with Open() or OpenSync(), the underlying
+  // file will be closed automatically by the destructor, if not closed
+  // manually.
+  //
+  // If the file was opened in the async mode, there must never be any
+  // pending async operations by the time the destructor is called.
   virtual ~FileStream();
 
-  // Call this method to close the FileStream synchronously.
-  // It is OK to call Close multiple times.  Redundant calls are ignored.
-  // Note that if there are any pending async operations, they'll be aborted.
+  // Call this method to close the FileStream, which was previously opened in
+  // the async mode (PLATFORM_FILE_ASYNC) asynchronously.
   //
-  // TODO(satorux): Implement the asynchronous version of this.
+  // Once the operation is done |callback| is run with OK (i.e. an error is
+  // not propagated just like CloseSync() does not).
+  //
+  // It is not OK to call Close() multiple times. The behavior is not defined.
+  //
+  // Note that there must never be any pending async operations.
+  virtual void Close(const CompletionCallback& callback);
+
+  // Call this method to close the FileStream synchronously.
+  // It is OK to call CloseSync() multiple times.  Redundant calls are
+  // ignored. Note that if there are any pending async operations, they'll
+  // be aborted.
   virtual void CloseSync();
+
+  // Call this method to open the FileStream asynchronously.  The remaining
+  // methods cannot be used unless the file is opened successfully. Returns
+  // ERR_IO_PENDING if the operation is started. If the operation cannot be
+  // started then an error code is returned. Once the operation is done,
+  // |callback| is run with the result code. open_flags is a bitfield of
+  // base::PlatformFileFlags.
+  //
+  // If the file stream is not closed manually, the underlying file will be
+  // automatically closed when FileStream is destructed in an asynchronous
+  // manner (i.e. the file stream is closed in the background but you don't
+  // know when).
+  virtual int Open(const FilePath& path, int open_flags,
+                   const CompletionCallback& callback);
 
   // Call this method to open the FileStream synchronously.
   // The remaining methods cannot be used unless this method returns OK.  If
   // the file cannot be opened then an error code is returned.  open_flags is
   // a bitfield of base::PlatformFileFlags
   //
-  // TODO(satorux): Implement the asynchronous version of this.
+  // If the file stream is not closed manually, the underlying file will be
+  // automatically closed when FileStream is destructed.
   virtual int OpenSync(const FilePath& path, int open_flags);
 
   // Returns true if Open succeeded and Close has not been called.
@@ -152,7 +184,7 @@ class NET_EXPORT FileStream {
 
   // Truncates the file to be |bytes| length. This is only valid for writable
   // files. After truncation the file stream is positioned at |bytes|. The new
-  // position is retured, or a value < 0 on error.
+  // position is returned, or a value < 0 on error.
   // WARNING: one may not truncate a file beyond its current length on any
   //   platform with this call.
   virtual int64 Truncate(int64 bytes);
@@ -182,6 +214,14 @@ class NET_EXPORT FileStream {
   friend class AsyncContext;
   friend class FileStreamTest;
 
+  // Called when the file_ is opened asynchronously. |file| contains the
+  // platform file opened. |result| contains the result as a network error
+  // code.
+  void OnOpened(base::PlatformFile *file, int* result);
+
+  // Called when the file_ is closed asynchronously.
+  void OnClosed();
+
   // This member is used to support asynchronous reads.  It is non-null when
   // the FileStream was opened with PLATFORM_FILE_ASYNC.
   scoped_ptr<AsyncContext> async_context_;
@@ -191,6 +231,8 @@ class NET_EXPORT FileStream {
   bool auto_closed_;
   bool record_uma_;
   net::BoundNetLog bound_net_log_;
+  base::WeakPtrFactory<FileStream> weak_ptr_factory_;
+  CompletionCallback callback_;
 
   DISALLOW_COPY_AND_ASSIGN(FileStream);
 };
