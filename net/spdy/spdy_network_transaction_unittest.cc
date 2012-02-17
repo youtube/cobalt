@@ -243,7 +243,7 @@ class SpdyNetworkTransactionTest
         session_deps_->socket_factory->AddSSLSocketDataProvider(ssl_.get());
       session_deps_->socket_factory->AddSocketDataProvider(data);
       if (test_type_ == SPDYNPN) {
-        MockConnect never_finishing_connect(false, ERR_IO_PENDING);
+        MockConnect never_finishing_connect(SYNCHRONOUS, ERR_IO_PENDING);
         linked_ptr<StaticSocketDataProvider>
             hanging_non_alternate_protocol_socket(
                 new StaticSocketDataProvider(NULL, 0, NULL, 0));
@@ -273,7 +273,7 @@ class SpdyNetworkTransactionTest
       }
       session_deps_->deterministic_socket_factory->AddSocketDataProvider(data);
       if (test_type_ == SPDYNPN) {
-        MockConnect never_finishing_connect(false, ERR_IO_PENDING);
+        MockConnect never_finishing_connect(SYNCHRONOUS, ERR_IO_PENDING);
         scoped_refptr<DeterministicSocketData>
             hanging_non_alternate_protocol_socket(
             new DeterministicSocketData(NULL, 0, NULL, 0));
@@ -758,7 +758,7 @@ TEST_P(SpdyNetworkTransactionTest, TwoGetsLateBinding) {
       new OrderedSocketData(reads, arraysize(reads),
                             writes, arraysize(writes)));
 
-  MockConnect never_finishing_connect(false, ERR_IO_PENDING);
+  MockConnect never_finishing_connect(SYNCHRONOUS, ERR_IO_PENDING);
 
   scoped_ptr<OrderedSocketData> data_placeholder(
       new OrderedSocketData(NULL, 0, NULL, 0));
@@ -845,7 +845,7 @@ TEST_P(SpdyNetworkTransactionTest, TwoGetsLateBindingFromPreconnect) {
       new OrderedSocketData(reads, arraysize(reads),
                             writes, arraysize(writes)));
 
-  MockConnect never_finishing_connect(true, ERR_IO_PENDING);
+  MockConnect never_finishing_connect(ASYNC, ERR_IO_PENDING);
 
   scoped_ptr<OrderedSocketData> data_placeholder(
       new OrderedSocketData(NULL, 0, NULL, 0));

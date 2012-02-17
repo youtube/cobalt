@@ -53,10 +53,15 @@ class SSLClientSocket;
 class SSLHostInfo;
 class StreamSocket;
 
+enum ConnectMode {
+  ASYNC,
+  SYNCHRONOUS
+};
+
 struct MockConnect {
   // Asynchronous connection success.
   MockConnect() : async(true), result(OK) { }
-  MockConnect(bool a, int r) : async(a), result(r) { }
+  MockConnect(ConnectMode m, int r) : async(m == ASYNC), result(r) { }
 
   bool async;
   int result;

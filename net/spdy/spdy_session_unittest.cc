@@ -108,7 +108,7 @@ TEST_F(SpdySessionTest, GoAway) {
   SpdySessionDependencies session_deps;
   session_deps.host_resolver->set_synchronous_mode(true);
 
-  MockConnect connect_data(false, OK);
+  MockConnect connect_data(SYNCHRONOUS, OK);
   scoped_ptr<spdy::SpdyFrame> goaway(ConstructSpdyGoAway());
   MockRead reads[] = {
     CreateMockRead(*goaway),
@@ -167,7 +167,7 @@ TEST_F(SpdySessionTest, Ping) {
   SpdySessionDependencies session_deps;
   session_deps.host_resolver->set_synchronous_mode(true);
 
-  MockConnect connect_data(false, OK);
+  MockConnect connect_data(SYNCHRONOUS, OK);
   scoped_ptr<spdy::SpdyFrame> read_ping(ConstructSpdyPing());
   MockRead reads[] = {
     CreateMockRead(*read_ping),
@@ -258,7 +258,7 @@ TEST_F(SpdySessionTest, FailedPing) {
   SpdySessionDependencies session_deps;
   session_deps.host_resolver->set_synchronous_mode(true);
 
-  MockConnect connect_data(false, OK);
+  MockConnect connect_data(SYNCHRONOUS, OK);
   scoped_ptr<spdy::SpdyFrame> read_ping(ConstructSpdyPing());
   MockRead reads[] = {
     CreateMockRead(*read_ping),
@@ -501,7 +501,7 @@ TEST_F(SpdySessionTest, OnSettings) {
 
   // Set up the socket so we read a SETTINGS frame that raises max concurrent
   // streams to 2.
-  MockConnect connect_data(false, OK);
+  MockConnect connect_data(SYNCHRONOUS, OK);
   scoped_ptr<spdy::SpdyFrame> settings_frame(
       ConstructSpdySettings(new_settings));
   MockRead reads[] = {
@@ -590,7 +590,7 @@ TEST_F(SpdySessionTest, CancelPendingCreateStream) {
   };
 
   StaticSocketDataProvider data(reads, arraysize(reads), NULL, 0);
-  MockConnect connect_data(false, OK);
+  MockConnect connect_data(SYNCHRONOUS, OK);
 
   data.set_connect_data(connect_data);
   session_deps.socket_factory->AddSocketDataProvider(&data);
@@ -686,7 +686,7 @@ TEST_F(SpdySessionTest, SendSettingsOnNewSession) {
   id.set_id(kBogusSettingId);
   id.set_flags(spdy::SETTINGS_FLAG_PERSISTED);
   settings.push_back(spdy::SpdySetting(id, kBogusSettingValue));
-  MockConnect connect_data(false, OK);
+  MockConnect connect_data(SYNCHRONOUS, OK);
   scoped_ptr<spdy::SpdyFrame> settings_frame(
       ConstructSpdySettings(settings));
   MockWrite writes[] = {
@@ -770,7 +770,7 @@ void IPPoolingTest(bool clean_via_close_current_sessions) {
         HostPortPair(test_hosts[i].name, kTestPort), ProxyServer::Direct());
   }
 
-  MockConnect connect_data(false, OK);
+  MockConnect connect_data(SYNCHRONOUS, OK);
   MockRead reads[] = {
     MockRead(false, ERR_IO_PENDING)  // Stall forever.
   };
@@ -910,7 +910,7 @@ TEST_F(SpdySessionTest, ClearSettingsStorageOnIPAddressChanged) {
 TEST_F(SpdySessionTest, NeedsCredentials) {
   SpdySessionDependencies session_deps;
 
-  MockConnect connect_data(false, OK);
+  MockConnect connect_data(SYNCHRONOUS, OK);
   MockRead reads[] = {
     MockRead(false, ERR_IO_PENDING)  // Stall forever.
   };
@@ -978,7 +978,7 @@ TEST_F(SpdySessionTest, NeedsCredentials) {
 TEST_F(SpdySessionTest, SendCredentials) {
   SpdySessionDependencies session_deps;
 
-  MockConnect connect_data(false, OK);
+  MockConnect connect_data(SYNCHRONOUS, OK);
   MockRead reads[] = {
     MockRead(false, ERR_IO_PENDING)  // Stall forever.
   };

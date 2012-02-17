@@ -6448,7 +6448,7 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocolAndFallback) {
   request.url = GURL("http://www.google.com/");
   request.load_flags = 0;
 
-  MockConnect mock_connect(true, ERR_CONNECTION_REFUSED);
+  MockConnect mock_connect(ASYNC, ERR_CONNECTION_REFUSED);
   StaticSocketDataProvider first_data;
   first_data.set_connect_data(mock_connect);
   session_deps.socket_factory.AddSocketDataProvider(&first_data);
@@ -6511,7 +6511,7 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortRestrictedBlocked) {
   restricted_port_request.url = GURL("http://www.google.com:1023/");
   restricted_port_request.load_flags = 0;
 
-  MockConnect mock_connect(true, ERR_CONNECTION_REFUSED);
+  MockConnect mock_connect(ASYNC, ERR_CONNECTION_REFUSED);
   StaticSocketDataProvider first_data;
   first_data.set_connect_data(mock_connect);
   session_deps.socket_factory.AddSocketDataProvider(&first_data);
@@ -6560,7 +6560,7 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortRestrictedAllowed) {
   restricted_port_request.url = GURL("http://www.google.com:1023/");
   restricted_port_request.load_flags = 0;
 
-  MockConnect mock_connect(true, ERR_CONNECTION_REFUSED);
+  MockConnect mock_connect(ASYNC, ERR_CONNECTION_REFUSED);
   StaticSocketDataProvider first_data;
   first_data.set_connect_data(mock_connect);
   session_deps.socket_factory.AddSocketDataProvider(&first_data);
@@ -6609,7 +6609,7 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortUnrestrictedAllowed1) {
   unrestricted_port_request.url = GURL("http://www.google.com:1024/");
   unrestricted_port_request.load_flags = 0;
 
-  MockConnect mock_connect(true, ERR_CONNECTION_REFUSED);
+  MockConnect mock_connect(ASYNC, ERR_CONNECTION_REFUSED);
   StaticSocketDataProvider first_data;
   first_data.set_connect_data(mock_connect);
   session_deps.socket_factory.AddSocketDataProvider(&first_data);
@@ -6658,7 +6658,7 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolPortUnrestrictedAllowed2) {
   unrestricted_port_request.url = GURL("http://www.google.com:1024/");
   unrestricted_port_request.load_flags = 0;
 
-  MockConnect mock_connect(true, ERR_CONNECTION_REFUSED);
+  MockConnect mock_connect(ASYNC, ERR_CONNECTION_REFUSED);
   StaticSocketDataProvider first_data;
   first_data.set_connect_data(mock_connect);
   session_deps.socket_factory.AddSocketDataProvider(&first_data);
@@ -6794,7 +6794,7 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForNpnSpdy) {
           spdy_writes, arraysize(spdy_writes)));
   session_deps.socket_factory.AddSocketDataProvider(spdy_data.get());
 
-  MockConnect never_finishing_connect(false, ERR_IO_PENDING);
+  MockConnect never_finishing_connect(SYNCHRONOUS, ERR_IO_PENDING);
   StaticSocketDataProvider hanging_non_alternate_protocol_socket(
       NULL, 0, NULL, 0);
   hanging_non_alternate_protocol_socket.set_connect_data(
@@ -6862,7 +6862,7 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolWithSpdyLateBinding) {
   // Socket 1 is the HTTP transaction with the Alternate-Protocol header.
   session_deps.socket_factory.AddSocketDataProvider(&first_transaction);
 
-  MockConnect never_finishing_connect(false, ERR_IO_PENDING);
+  MockConnect never_finishing_connect(SYNCHRONOUS, ERR_IO_PENDING);
   StaticSocketDataProvider hanging_socket(
       NULL, 0, NULL, 0);
   hanging_socket.set_connect_data(never_finishing_connect);
@@ -6987,7 +6987,7 @@ TEST_F(HttpNetworkTransactionTest, StallAlternateProtocolForNpnSpdy) {
   ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
-  MockConnect never_finishing_connect(false, ERR_IO_PENDING);
+  MockConnect never_finishing_connect(SYNCHRONOUS, ERR_IO_PENDING);
   StaticSocketDataProvider hanging_alternate_protocol_socket(
       NULL, 0, NULL, 0);
   hanging_alternate_protocol_socket.set_connect_data(
@@ -7147,7 +7147,7 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
           spdy_writes, arraysize(spdy_writes)));
   session_deps.socket_factory.AddSocketDataProvider(spdy_data.get());
 
-  MockConnect never_finishing_connect(false, ERR_IO_PENDING);
+  MockConnect never_finishing_connect(SYNCHRONOUS, ERR_IO_PENDING);
   StaticSocketDataProvider hanging_non_alternate_protocol_socket(
       NULL, 0, NULL, 0);
   hanging_non_alternate_protocol_socket.set_connect_data(
@@ -7971,7 +7971,7 @@ TEST_F(HttpNetworkTransactionTest, RestartAfterTLSDecompressionFailure) {
 
   // Work around http://crbug.com/37454
   StaticSocketDataProvider bug37454_connection;
-  bug37454_connection.set_connect_data(MockConnect(true, ERR_UNEXPECTED));
+  bug37454_connection.set_connect_data(MockConnect(ASYNC, ERR_UNEXPECTED));
   session_deps.socket_factory.AddSocketDataProvider(&bug37454_connection);
 
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
@@ -8249,7 +8249,7 @@ TEST_F(HttpNetworkTransactionTest, SpdyAlternateProtocolThroughProxy) {
   ssl.was_npn_negotiated = true;
   ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
 
-  MockConnect never_finishing_connect(false, ERR_IO_PENDING);
+  MockConnect never_finishing_connect(SYNCHRONOUS, ERR_IO_PENDING);
   StaticSocketDataProvider hanging_non_alternate_protocol_socket(
       NULL, 0, NULL, 0);
   hanging_non_alternate_protocol_socket.set_connect_data(
@@ -8304,7 +8304,7 @@ TEST_F(HttpNetworkTransactionTest, SimpleCancel) {
   // for is the callback from the HttpStreamRequest.
   // Then cancel the transaction.
   // Verify that we don't crash.
-  MockConnect mock_connect(false, OK);
+  MockConnect mock_connect(SYNCHRONOUS, OK);
   MockRead data_reads[] = {
     MockRead(false, "HTTP/1.0 200 OK\r\n\r\n"),
     MockRead(false, "hello world"),
