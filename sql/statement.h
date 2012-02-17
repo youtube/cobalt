@@ -55,6 +55,10 @@ class SQL_EXPORT Statement {
   // be valid. Use is_valid() to check if it's OK.
   void Assign(scoped_refptr<Connection::StatementRef> ref);
 
+  // Resets the statement to an uninitialized state corrosponding to
+  // the default constructor, releasing the StatementRef.
+  void Clear();
+
   // Returns true if the statement can be executed. All functions can still
   // be used if the statement is invalid, but they will return failure or some
   // default value. This is because the statement can become invalid in the

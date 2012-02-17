@@ -36,6 +36,11 @@ void Statement::Assign(scoped_refptr<Connection::StatementRef> ref) {
   ref_ = ref;
 }
 
+void Statement::Clear() {
+  Assign(new Connection::StatementRef);
+  succeeded_ = false;
+}
+
 bool Statement::CheckValid() const {
   if (!is_valid())
     DLOG(FATAL) << "Cannot call mutating statements on an invalid statement.";
