@@ -20,6 +20,7 @@
 #include "base/utf_string_conversions.h"
 #include "base/stl_util.h"
 #include "base/sys_info.h"
+#include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/time.h"
 
 #if defined(OS_WIN)
@@ -323,6 +324,12 @@ TraceLog* TraceLog::GetInstance() {
 TraceLog::TraceLog()
     : enabled_(false) {
   SetProcessID(static_cast<int>(base::GetCurrentProcId()));
+  // Trace is enabled or disabled on one thread while other threads are
+  // accessing the enabled flag. We don't care whether edge-case events are
+  // traced or not, so we allow races on the enabled flag to keep the trace
+  // macros fast.
+  ANNOTATE_BENIGN_RACE_SIZED(g_category_enabled, sizeof(g_category_enabled),
+                             "trace_event category enabled");
 }
 
 TraceLog::~TraceLog() {
@@ -361,8 +368,6 @@ static void EnableMatchingCategory(int category_index,
     if (is_match)
       break;
   }
-  ANNOTATE_BENIGN_RACE(&g_category_enabled[category_index],
-                       "trace_event category enabled");
   g_category_enabled[category_index] = is_match ?
       is_included : (is_included ^ 1);
 }
@@ -401,8 +406,6 @@ const unsigned char* TraceLog::GetCategoryEnabledInternal(const char* name) {
       else
         EnableMatchingCategory(new_index, excluded_categories_, 0);
     } else {
-      ANNOTATE_BENIGN_RACE(&g_category_enabled[new_index],
-                           "trace_event category enabled");
       g_category_enabled[new_index] = 0;
     }
     return &g_category_enabled[new_index];
