@@ -339,37 +339,26 @@ static const struct dir_case {
 #endif
 };
 
-// Flaky, http://crbug.com/46246
-TEST_F(FileUtilTest, DISABLED_CountFilesCreatedAfter) {
-  // Create old file (that we don't want to count)
-  FilePath old_file_name =
-      temp_dir_.path().Append(FILE_PATH_LITERAL("Old File.txt"));
-  CreateTextFile(old_file_name, L"Just call me Mr. Creakybits");
+TEST_F(FileUtilTest, CountFilesCreatedAfter) {
+  FilePath file_name =
+      temp_dir_.path().Append(FILE_PATH_LITERAL("f.txt"));
+  CreateTextFile(file_name, L"test");
 
-  // Age to perfection
-#if defined(OS_WIN)
-  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(100));
-#elif defined(OS_POSIX)
-  // We need to wait at least one second here because the precision of
-  // file creation time is one second.
-  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(1500));
-#endif
+  base::PlatformFileInfo info;
+  file_util::GetFileInfo(file_name, &info);
+  base::Time file_time = info.creation_time;
 
-  // Establish our cutoff time
-  base::Time now(base::Time::NowFromSystemTime());
-  EXPECT_EQ(0, file_util::CountFilesCreatedAfter(temp_dir_.path(), now));
+  base::TimeDelta two_secs = base::TimeDelta::FromSeconds(2);
+  base::Time after = file_time + two_secs;
+  EXPECT_EQ(0, file_util::CountFilesCreatedAfter(temp_dir_.path(), after));
 
-  // Create a new file (that we do want to count)
-  FilePath new_file_name =
-      temp_dir_.path().Append(FILE_PATH_LITERAL("New File.txt"));
-  CreateTextFile(new_file_name, L"Waaaaaaaaaaaaaah.");
+  base::Time before = file_time - two_secs;
+  EXPECT_EQ(1, file_util::CountFilesCreatedAfter(temp_dir_.path(), before));
 
-  // We should see only the new file.
-  EXPECT_EQ(1, file_util::CountFilesCreatedAfter(temp_dir_.path(), now));
-
-  // Delete new file, we should see no files after cutoff now
-  EXPECT_TRUE(file_util::Delete(new_file_name, false));
-  EXPECT_EQ(0, file_util::CountFilesCreatedAfter(temp_dir_.path(), now));
+  // After deleting the file, shouldn't find it any more.
+  EXPECT_TRUE(file_util::Delete(file_name, false));
+  EXPECT_EQ(0, file_util::CountFilesCreatedAfter(temp_dir_.path(), before));
+  EXPECT_EQ(0, file_util::CountFilesCreatedAfter(temp_dir_.path(), after));
 }
 
 TEST_F(FileUtilTest, FileAndDirectorySize) {
