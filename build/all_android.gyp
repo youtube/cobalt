@@ -34,6 +34,10 @@
         '../net/net.gyp:net_unittests',
         # From here down: not added to run_tests.py yet.
         '../jingle/jingle.gyp:jingle_unittests',
+        # Workaround of crbug.com/109763.
+        # TODO(wangxianzhu): Enable them in the next CL.
+        # '../tools/android/fake_dns/fake_dns.gyp:fake_dns',
+        # '../tools/android/forwarder/forwarder.gyp:forwarder',
       ],
     },
     { 
