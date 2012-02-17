@@ -74,6 +74,7 @@
         'base/animation/tween.h',
         'base/clipboard/clipboard.cc',
         'base/clipboard/clipboard.h',
+        'base/clipboard/clipboard_android.cc',
         'base/clipboard/clipboard_aurax11.cc',
         'base/clipboard/clipboard_gtk.cc',
         'base/clipboard/clipboard_mac.mm',
