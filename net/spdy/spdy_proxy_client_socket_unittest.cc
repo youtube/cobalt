@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -131,7 +131,7 @@ SpdyProxyClientSocketTest::SpdyProxyClientSocketTest()
       session_(NULL),
       read_buf_(NULL),
       session_deps_(),
-      connect_data_(false, OK),
+      connect_data_(SYNCHRONOUS, OK),
       spdy_session_(NULL),
       spdy_stream_(NULL),
       framer_(),

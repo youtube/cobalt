@@ -81,7 +81,7 @@ class HttpPipelinedConnectionImplTest : public testing::Test {
                   MockWrite* writes, size_t writes_count) {
     data_ = new DeterministicSocketData(reads, reads_count,
                                         writes, writes_count);
-    data_->set_connect_data(MockConnect(false, 0));
+    data_->set_connect_data(MockConnect(SYNCHRONOUS, OK));
     if (reads_count || writes_count) {
       data_->StopAfter(reads_count + writes_count);
     }

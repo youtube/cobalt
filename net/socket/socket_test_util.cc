@@ -237,7 +237,7 @@ void DynamicSocketDataProvider::SimulateRead(const char* data,
 }
 
 SSLSocketDataProvider::SSLSocketDataProvider(bool async, int result)
-    : connect(async, result),
+    : connect(async ? ASYNC : SYNCHRONOUS, result),
       next_proto_status(SSLClientSocket::kNextProtoUnsupported),
       was_npn_negotiated(false),
       protocol_negotiated(SSLClientSocket::kProtoUnknown),
