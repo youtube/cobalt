@@ -424,12 +424,12 @@ TEST(HttpStreamFactoryTest, JobNotifiesProxy) {
 
   // First connection attempt fails
   StaticSocketDataProvider socket_data1;
-  socket_data1.set_connect_data(MockConnect(true, ERR_ADDRESS_UNREACHABLE));
+  socket_data1.set_connect_data(MockConnect(ASYNC, ERR_ADDRESS_UNREACHABLE));
   session_deps.socket_factory.AddSocketDataProvider(&socket_data1);
 
   // Second connection attempt succeeds
   StaticSocketDataProvider socket_data2;
-  socket_data2.set_connect_data(MockConnect(true, OK));
+  socket_data2.set_connect_data(MockConnect(ASYNC, OK));
   session_deps.socket_factory.AddSocketDataProvider(&socket_data2);
 
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
