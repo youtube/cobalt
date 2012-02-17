@@ -7,6 +7,7 @@
 #include "base/bind.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
+#include "base/stringprintf.h"
 #include "base/values.h"
 #include "net/spdy/spdy_session.h"
 
@@ -34,7 +35,16 @@ class NetLogSpdyStreamWindowUpdateParameter : public NetLog::EventParameters {
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdyStreamWindowUpdateParameter);
 };
 
+bool ContainsUpperAscii(const std::string& str) {
+  for (std::string::const_iterator i(str.begin()); i != str.end(); ++i) {
+    if (*i >= 'A' && *i <= 'Z') {
+      return true;
+    }
+  }
+  return false;
 }
+
+}  // namespace
 
 SpdyStream::SpdyStream(SpdySession* session,
                        spdy::SpdyStreamId stream_id,
@@ -152,7 +162,11 @@ void SpdyStream::IncreaseSendWindowSize(int32 delta_window_size) {
                  << "] for stream " << stream_id_
                  << " overflows send_window_size_ [current:"
                  << send_window_size_ << "]";
-    session_->ResetStream(stream_id_, spdy::FLOW_CONTROL_ERROR);
+    std::string desc = base::StringPrintf(
+        "Received WINDOW_UPDATE [delta: %d] for stream %d overflows "
+        "send_window_size_ [current: %d]", delta_window_size, stream_id_,
+        send_window_size_);
+    session_->ResetStream(stream_id_, spdy::FLOW_CONTROL_ERROR, desc);
     return;
   }
 
@@ -224,7 +238,8 @@ void SpdyStream::DecreaseRecvWindowSize(int32 delta_window_size) {
   // a negative |recv_window_size_|, if we do, it's a client side bug, so we use
   // PROTOCOL_ERROR for lack of a better error code.
   if (recv_window_size_ < 0) {
-    session_->ResetStream(stream_id_, spdy::PROTOCOL_ERROR);
+    session_->ResetStream(stream_id_, spdy::PROTOCOL_ERROR,
+                          "Negative recv window size");
     NOTREACHED();
   }
 }
@@ -268,6 +283,19 @@ int SpdyStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response) {
     CHECK(io_state_ == STATE_NONE);
   io_state_ = STATE_OPEN;
 
+  // Append all the headers into the response header block.
+  for (spdy::SpdyHeaderBlock::const_iterator it = response.begin();
+       it != response.end(); ++it) {
+    // Disallow uppercase headers.
+    if (ContainsUpperAscii(it->first)) {
+      LOG(WARNING) << "Upper case characters in header: " << it->first;
+      session_->ResetStream(stream_id_, spdy::PROTOCOL_ERROR,
+                            "Upper case characters in header: " + it->first);
+      response_status_ = ERR_SPDY_PROTOCOL_ERROR;
+      return ERR_SPDY_PROTOCOL_ERROR;
+    }
+  }
+
   if (delegate_)
     rv = delegate_->OnResponseReceived(*response_, response_time_, rv);
   // If delegate_ is not yet attached, we'll call OnResponseReceived after the
@@ -285,6 +313,15 @@ int SpdyStream::OnHeaders(const spdy::SpdyHeaderBlock& headers) {
     // Disallow duplicate headers.  This is just to be conservative.
     if ((*response_).find(it->first) != (*response_).end()) {
       LOG(WARNING) << "HEADERS duplicate header";
+      response_status_ = ERR_SPDY_PROTOCOL_ERROR;
+      return ERR_SPDY_PROTOCOL_ERROR;
+    }
+
+    // Disallow uppercase headers.
+    if (ContainsUpperAscii(it->first)) {
+      LOG(WARNING) << "Upper case characters in header: " << it->first;
+      session_->ResetStream(stream_id_, spdy::PROTOCOL_ERROR,
+                            "Upper case characters in header: " + it->first);
       response_status_ = ERR_SPDY_PROTOCOL_ERROR;
       return ERR_SPDY_PROTOCOL_ERROR;
     }
@@ -392,7 +429,7 @@ void SpdyStream::Cancel() {
 
   cancelled_ = true;
   if (session_->IsStreamActive(stream_id_))
-    session_->ResetStream(stream_id_, spdy::CANCEL);
+    session_->ResetStream(stream_id_, spdy::CANCEL, "");
 }
 
 void SpdyStream::Close() {

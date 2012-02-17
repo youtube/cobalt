@@ -2217,7 +2217,7 @@ TEST_F(HttpNetworkTransactionTest, HttpsProxySpdyGetWithProxyAuth) {
   // response will be a 200 response since the second request includes a valid
   // Authorization header.
   const char* const kExtraAuthenticationHeaders[] = {
-    "Proxy-Authenticate",
+    "proxy-authenticate",
     "Basic realm=\"MyRealm1\""
   };
   scoped_ptr<spdy::SpdyFrame> resp_authentication(
