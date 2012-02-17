@@ -172,13 +172,18 @@ class NetLogSpdyDataParameter : public NetLog::EventParameters {
 
 class NetLogSpdyRstParameter : public NetLog::EventParameters {
  public:
-  NetLogSpdyRstParameter(spdy::SpdyStreamId stream_id, int status)
-      : stream_id_(stream_id), status_(status) {}
+  NetLogSpdyRstParameter(spdy::SpdyStreamId stream_id,
+                         int status,
+                         const std::string& description)
+      : stream_id_(stream_id),
+        status_(status),
+        description_(description) {}
 
   virtual Value* ToValue() const {
     DictionaryValue* dict = new DictionaryValue();
     dict->SetInteger("stream_id", static_cast<int>(stream_id_));
     dict->SetInteger("status", status_);
+    dict->SetString("description", description_);
     return dict;
   }
 
@@ -186,6 +191,7 @@ class NetLogSpdyRstParameter : public NetLog::EventParameters {
   ~NetLogSpdyRstParameter() {}
   const spdy::SpdyStreamId stream_id_;
   const int status_;
+  const std::string description_;
 
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdyRstParameter);
 };
@@ -745,12 +751,14 @@ void SpdySession::CloseStream(spdy::SpdyStreamId stream_id, int status) {
   DeleteStream(stream_id, status);
 }
 
-void SpdySession::ResetStream(
-    spdy::SpdyStreamId stream_id, spdy::SpdyStatusCodes status) {
+void SpdySession::ResetStream(spdy::SpdyStreamId stream_id,
+                              spdy::SpdyStatusCodes status,
+                              const std::string& description) {
 
   net_log().AddEvent(
       NetLog::TYPE_SPDY_SESSION_SEND_RST_STREAM,
-      make_scoped_refptr(new NetLogSpdyRstParameter(stream_id, status)));
+      make_scoped_refptr(new NetLogSpdyRstParameter(stream_id, status,
+                                                    description)));
 
   scoped_ptr<spdy::SpdyRstStreamControlFrame> rst_frame(
       spdy::SpdyFramer::CreateRstStream(stream_id, status));
@@ -1287,7 +1295,10 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
     LOG(WARNING) << "Received invalid OnSyn associated stream id "
                  << associated_stream_id
                  << " for stream " << stream_id;
-    ResetStream(stream_id, spdy::INVALID_STREAM);
+    std::string desc = base::StringPrintf(
+        "Received invalid OnSyn associated stream id %d for stream %d",
+        associated_stream_id, stream_id);
+    ResetStream(stream_id, spdy::INVALID_STREAM, desc);
     return;
   }
 
@@ -1299,14 +1310,16 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
   const std::string& url = ContainsKey(*headers, "url") ?
       headers->find("url")->second : "";
   if (url.empty()) {
-    ResetStream(stream_id, spdy::PROTOCOL_ERROR);
+    ResetStream(stream_id, spdy::PROTOCOL_ERROR,
+                "Pushed stream did not contain a url.");
     LOG(WARNING) << "Pushed stream did not contain a url.";
     return;
   }
 
   GURL gurl(url);
   if (!gurl.is_valid()) {
-    ResetStream(stream_id, spdy::PROTOCOL_ERROR);
+    ResetStream(stream_id, spdy::PROTOCOL_ERROR,
+                "Pushed stream url was invalid: " + url);
     LOG(WARNING) << "Pushed stream url was invalid: " << url;
     return;
   }
@@ -1315,7 +1328,9 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
   if (!IsStreamActive(associated_stream_id)) {
     LOG(WARNING) << "Received OnSyn with inactive associated stream "
                << associated_stream_id;
-    ResetStream(stream_id, spdy::INVALID_ASSOCIATED_STREAM);
+    ResetStream(stream_id, spdy::INVALID_ASSOCIATED_STREAM,
+                "Received OnSyn with inactive associated stream " +
+                associated_stream_id);
     return;
   }
 
@@ -1325,7 +1340,8 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
   if (associated_url.GetOrigin() != gurl.GetOrigin()) {
     LOG(WARNING) << "Rejected Cross Origin Push Stream "
                  << associated_stream_id;
-    ResetStream(stream_id, spdy::REFUSED_STREAM);
+    ResetStream(stream_id, spdy::REFUSED_STREAM,
+                "Rejected Cross Origin Push Stream " + associated_stream_id);
     return;
   }
 
@@ -1333,7 +1349,8 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
   PushedStreamMap::iterator it = unclaimed_pushed_streams_.find(url);
   if (it != unclaimed_pushed_streams_.end()) {
     LOG(WARNING) << "Received duplicate pushed stream with url: " << url;
-    ResetStream(stream_id, spdy::PROTOCOL_ERROR);
+    ResetStream(stream_id, spdy::PROTOCOL_ERROR,
+                "Received duplicate pushed stream with url: " + url);
     return;
   }
 
@@ -1461,7 +1478,7 @@ bool SpdySession::OnControlFrameHeaderData(spdy::SpdyStreamId stream_id,
   if (!buffered_spdy_framer_.OnControlFrameHeaderData(
           stream_id, header_data, len)) {
     if (IsStreamActive(stream_id))
-      ResetStream(stream_id, spdy::PROTOCOL_ERROR);
+      ResetStream(stream_id, spdy::PROTOCOL_ERROR, "");
     return false;
   }
   if (len == 0) {
@@ -1487,7 +1504,7 @@ void SpdySession::OnRst(const spdy::SpdyRstStreamControlFrame& frame) {
   net_log().AddEvent(
       NetLog::TYPE_SPDY_SESSION_RST_STREAM,
       make_scoped_refptr(
-          new NetLogSpdyRstParameter(stream_id, frame.status())));
+          new NetLogSpdyRstParameter(stream_id, frame.status(), "")));
 
   bool valid_stream = IsStreamActive(stream_id);
   if (!valid_stream) {
@@ -1591,7 +1608,9 @@ void SpdySession::OnWindowUpdate(
   if (delta_window_size < 1) {
     LOG(WARNING) << "Received WINDOW_UPDATE with an invalid delta_window_size "
                  << delta_window_size;
-    ResetStream(stream_id, spdy::FLOW_CONTROL_ERROR);
+    ResetStream(stream_id, spdy::FLOW_CONTROL_ERROR,
+                "Received WINDOW_UPDATE with an invalid delta_window_size "
+                + delta_window_size);
     return;
   }
 
