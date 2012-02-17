@@ -20,3 +20,6 @@ Local changes:
  * Removed examples/, documentation and build related files, keeping only
    the contents of src/.
  * Merged COPYING/PATENTS to LICENSE
+Upstream cherry-picks:
+7bb6a9c idec: fix internal state corruption
+89cd1bb idec: fix WebPIUpdate failure
