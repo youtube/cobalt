@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -28,6 +28,8 @@ SDK_MD5SUM="3ba457f731d51da3741c29c8830a4583"
 SDK_TARGET_ID=android-14
 
 # Using NDK r7; The package is about 64M.
+# *** DO NOT UPDATE THE NDK without updating the 64-bit linker changes ***
+# *** at the end of this file ***
 NDK_FILE_NAME="android-ndk-r7-linux-x86.tar.bz2"
 NDK_DOWNLOAD_URL="http://dl.google.com/android/ndk/${NDK_FILE_NAME}"
 NDK_MD5SUM="bf15e6b47bf50824c4b96849bf003ca3"
@@ -97,8 +99,9 @@ fi
 # Install the target if it doesn't exist. The package installed above contains
 # no platform, platform-tool or tool, all those should be installed by
 # ${ANDROID_SDK_ROOT}/tools/android.
-if [[ ! $("${ANDROID_SDK_ROOT}/tools/android" list targets \
-  | grep -q "${SDK_TARGET_ID}") ]]; then
+found=$("${ANDROID_SDK_ROOT}/tools/android" list targets \
+        | grep "${SDK_TARGET_ID}" | wc -l)
+if [[ "$found" = "0" ]]; then
   # Updates the SDK by installing the necessary components.
   # From current configuration, all android platforms will be installed.
   # This will take a little bit long time.
@@ -121,3 +124,38 @@ if [[ ! -d "${ANDROID_NDK_ROOT}" ]]; then
   (install_dev_kit "${NDK_FILE_NAME}" "${NDK_DOWNLOAD_URL}" "${NDK_MD5SUM}" \
                   $(dirname "${ANDROID_NDK_ROOT}"))
 fi
+
+# Install the 64-bit linker if needed.
+ROOT=$(cd "$(dirname $0)/.."; pwd)
+LINKER_DIR_PREFIX="$ANDROID_NDK_ROOT/toolchains/\
+arm-linux-androideabi-4.4.3/prebuilt/linux-x86"
+LINKER_DIRNAME_1="$LINKER_DIR_PREFIX/bin"
+LINKER_BASENAME_1=arm-linux-androideabi-ld
+LINKER_DIRNAME_2="$LINKER_DIR_PREFIX/arm-linux-androideabi/bin"
+LINKER_BASENAME_2=ld
+NEW_LINKER=arm-linux-androideabi-ld.e4df3e0a5bb640ccfa2f30ee67fe9b3146b152d6
+
+# $1: destination directory
+# $2: destination binary
+function replace_linker {
+  local linker_dirname=$1
+  local linker_basename=$2
+  if [[ -f "$ROOT/third_party/aosp/$NEW_LINKER" ]]; then
+    if [[ -d "$linker_dirname" ]]; then
+      if [[ ! -f "$linker_dirname/$NEW_LINKER" ]]; then
+        echo "Installing linker in $linker_dirname"
+        cp $ROOT/third_party/aosp/$NEW_LINKER "$linker_dirname/$NEW_LINKER"
+        mv "$linker_dirname/$linker_basename" \
+          "$linker_dirname/$linker_basename.orig"
+        ( cd "$linker_dirname" ; ln -s "$NEW_LINKER" "$linker_basename" )
+      fi
+      if [[ ! -f "$linker_dirname/$NEW_LINKER" ]]; then
+        echo "Could not copy linker"
+        exit 1
+      fi
+    fi
+  fi
+}
+
+replace_linker $LINKER_DIRNAME_1 $LINKER_BASENAME_1
+replace_linker $LINKER_DIRNAME_2 $LINKER_BASENAME_2
