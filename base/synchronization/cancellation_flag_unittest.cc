@@ -9,7 +9,7 @@
 #include "base/bind.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
-#include "base/spin_wait.h"
+#include "base/synchronization/spin_wait.h"
 #include "base/time.h"
 #include "base/threading/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
