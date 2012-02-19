@@ -59,8 +59,9 @@ class NET_EXPORT FileStream {
   // Call this method to close the FileStream, which was previously opened in
   // the async mode (PLATFORM_FILE_ASYNC) asynchronously.
   //
-  // Once the operation is done |callback| is run with OK (i.e. an error is
-  // not propagated just like CloseSync() does not).
+  // Once the operation is done, |callback| will be run on the thread where
+  // Close() was called, with OK (i.e. an error is not propagated just like
+  // CloseSync() does not).
   //
   // It is not OK to call Close() multiple times. The behavior is not defined.
   //
@@ -76,8 +77,10 @@ class NET_EXPORT FileStream {
   // Call this method to open the FileStream asynchronously.  The remaining
   // methods cannot be used unless the file is opened successfully. Returns
   // ERR_IO_PENDING if the operation is started. If the operation cannot be
-  // started then an error code is returned. Once the operation is done,
-  // |callback| is run with the result code. open_flags is a bitfield of
+  // started then an error code is returned.
+  //
+  // Once the operation is done, |callback| will be run on the thread where
+  // Open() was called, with the result code. open_flags is a bitfield of
   // base::PlatformFileFlags.
   //
   // If the file stream is not closed manually, the underlying file will be
@@ -118,8 +121,8 @@ class NET_EXPORT FileStream {
   // The file must be opened with PLATFORM_FILE_ASYNC, and a non-null
   // callback must be passed to this method. If the read could not
   // complete synchronously, then ERR_IO_PENDING is returned, and the
-  // callback will be notified on the current thread (via the MessageLoop)
-  // when the read has completed.
+  // callback will be run on the thread where Read() was called, when the
+  // read has completed.
   //
   // It is valid to destroy or close the file stream while there is an
   // asynchronous read in progress.  That will cancel the read and allow
@@ -158,8 +161,8 @@ class NET_EXPORT FileStream {
   // The file must be opened with PLATFORM_FILE_ASYNC, and a non-null
   // callback must be passed to this method. If the write could not
   // complete synchronously, then ERR_IO_PENDING is returned, and the
-  // callback will be notified on the current thread (via the MessageLoop)
-  // when the write has completed.
+  // callback will be run on the thread where Write() was called when
+  // the write has completed.
   //
   // It is valid to destroy or close the file stream while there is an
   // asynchronous write in progress.  That will cancel the write and allow
