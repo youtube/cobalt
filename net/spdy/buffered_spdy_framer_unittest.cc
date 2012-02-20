@@ -18,34 +18,39 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
       syn_frame_count_(0),
       syn_reply_frame_count_(0),
       headers_frame_count_(0),
-      control_frame_header_data_count_(0),
-      zero_length_control_frame_header_data_count_(0),
       header_stream_id_(-1) {
   }
 
-  void OnError(SpdyFramer* f) {
-    LOG(INFO) << "SpdyFramer Error: "
-              << SpdyFramer::ErrorCodeToString(f->error_code());
+  void OnError() {
+    LOG(INFO) << "SpdyFramer Error";
     error_count_++;
   }
 
-  void OnSyn(const SpdySynStreamControlFrame& frame,
+  void OnStreamError(spdy::SpdyStreamId stream_id) {
+    LOG(INFO) << "SpdyFramer Error on stream: " << stream_id;
+    error_count_++;
+  }
+
+  void OnSynStream(const SpdySynStreamControlFrame& frame,
              const linked_ptr<SpdyHeaderBlock>& headers) {
-    EXPECT_EQ(header_stream_id_, frame.stream_id());
+    header_stream_id_ = frame.stream_id();
+    EXPECT_NE(header_stream_id_, SpdyFramer::kInvalidStream);
     syn_frame_count_++;
     headers_ = *headers;
   }
 
   void OnSynReply(const SpdySynReplyControlFrame& frame,
                   const linked_ptr<SpdyHeaderBlock>& headers) {
-    EXPECT_EQ(header_stream_id_, frame.stream_id());
+    header_stream_id_ = frame.stream_id();
+    EXPECT_NE(header_stream_id_, SpdyFramer::kInvalidStream);
     syn_reply_frame_count_++;
     headers_ = *headers;
   }
 
   void OnHeaders(const SpdyHeadersControlFrame& frame,
                  const linked_ptr<SpdyHeaderBlock>& headers) {
-    EXPECT_EQ(header_stream_id_, frame.stream_id());
+    header_stream_id_ = frame.stream_id();
+    EXPECT_NE(header_stream_id_, SpdyFramer::kInvalidStream);
     headers_frame_count_++;
     headers_ = *headers;
   }
@@ -80,22 +85,12 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
     }
   }
 
-  bool OnControlFrameHeaderData(SpdyStreamId stream_id,
-                                const char* header_data,
-                                size_t len) {
-    EXPECT_EQ(header_stream_id_, stream_id);
-
-    bool result = buffered_spdy_framer_.OnControlFrameHeaderData(
-        stream_id, header_data, len);
-    EXPECT_TRUE(result);
-
-    ++control_frame_header_data_count_;
-
-    if (len == 0)
-      ++zero_length_control_frame_header_data_count_;
-
-    return true;
-  }
+  void OnRstStream(const spdy::SpdyRstStreamControlFrame& frame) {}
+  void OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) {}
+  void OnPing(const spdy::SpdyPingControlFrame& frame) {}
+  void OnSettings(const spdy::SpdySettingsControlFrame& frame) {}
+  void OnWindowUpdate(const spdy::SpdyWindowUpdateControlFrame& frame) {}
+  void OnCredential(const spdy::SpdyCredentialControlFrame& frame) {}
 
   // Convenience function which runs a framer simulation with particular input.
   void SimulateInFramer(const unsigned char* input, size_t size) {
@@ -126,9 +121,6 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
   int syn_frame_count_;
   int syn_reply_frame_count_;
   int headers_frame_count_;
-  int control_frame_header_data_count_;  // The count of chunks received.
-  // The count of zero-length control frame header data chunks received.
-  int zero_length_control_frame_header_data_count_;
 
   // Header block streaming state:
   SpdyStreamId header_stream_id_;
@@ -200,8 +192,6 @@ TEST_F(BufferedSpdyFramerTest, ReadSynStreamHeaderBlock) {
       reinterpret_cast<unsigned char*>(control_frame.get()->data()),
       control_frame.get()->length() + SpdyControlFrame::kHeaderSize);
   EXPECT_EQ(0, visitor.error_count_);
-  EXPECT_GT(visitor.control_frame_header_data_count_, 0);
-  EXPECT_EQ(1, visitor.zero_length_control_frame_header_data_count_);
   EXPECT_EQ(1, visitor.syn_frame_count_);
   EXPECT_EQ(0, visitor.syn_reply_frame_count_);
   EXPECT_EQ(0, visitor.headers_frame_count_);
@@ -227,8 +217,6 @@ TEST_F(BufferedSpdyFramerTest, ReadSynReplyHeaderBlock) {
       reinterpret_cast<unsigned char*>(control_frame.get()->data()),
        control_frame.get()->length() + SpdyControlFrame::kHeaderSize);
   EXPECT_EQ(0, visitor.error_count_);
-  EXPECT_GT(visitor.control_frame_header_data_count_, 0);
-  EXPECT_EQ(1, visitor.zero_length_control_frame_header_data_count_);
   EXPECT_EQ(0, visitor.syn_frame_count_);
   EXPECT_EQ(1, visitor.syn_reply_frame_count_);
   EXPECT_EQ(0, visitor.headers_frame_count_);
@@ -254,8 +242,6 @@ TEST_F(BufferedSpdyFramerTest, ReadHeadersHeaderBlock) {
       reinterpret_cast<unsigned char*>(control_frame.get()->data()),
        control_frame.get()->length() + SpdyControlFrame::kHeaderSize);
   EXPECT_EQ(0, visitor.error_count_);
-  EXPECT_GT(visitor.control_frame_header_data_count_, 0);
-  EXPECT_EQ(1, visitor.zero_length_control_frame_header_data_count_);
   EXPECT_EQ(0, visitor.syn_frame_count_);
   EXPECT_EQ(0, visitor.syn_reply_frame_count_);
   EXPECT_EQ(1, visitor.headers_frame_count_);
