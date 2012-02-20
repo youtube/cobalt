@@ -12,7 +12,8 @@ BufferedSpdyFramer::BufferedSpdyFramer()
     : visitor_(NULL),
       header_buffer_used_(0),
       header_buffer_valid_(false),
-      header_stream_id_(SpdyFramer::kInvalidStream) {
+      header_stream_id_(SpdyFramer::kInvalidStream),
+      frames_received_(0) {
   memset(header_buffer_, 0, sizeof(header_buffer_));
 }
 
