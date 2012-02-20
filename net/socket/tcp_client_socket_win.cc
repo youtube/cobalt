@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -256,6 +256,9 @@ TCPClientSocketWin::Core::Core(
       slow_start_throttle_(kInitialSlowStartThrottle) {
   memset(&read_overlapped_, 0, sizeof(read_overlapped_));
   memset(&write_overlapped_, 0, sizeof(write_overlapped_));
+
+  read_overlapped_.hEvent = WSACreateEvent();
+  write_overlapped_.hEvent = WSACreateEvent();
 }
 
 TCPClientSocketWin::Core::~Core() {
@@ -342,7 +345,10 @@ int TCPClientSocketWin::AdoptSocket(SOCKET socket) {
     return MapSystemError(error);
 
   socket_ = socket;
+  SetNonBlocking(socket_);
+
   core_ = new Core(this);
+
   current_ai_ = addresses_.head();
   use_history_.set_was_ever_connected();
 
@@ -474,14 +480,9 @@ int TCPClientSocketWin::DoConnect() {
 
   DCHECK(!core_);
   core_ = new Core(this);
-
-  // WSACreateEvent creates a manual-reset event object.
-  core_->read_overlapped_.hEvent = WSACreateEvent();
   // WSAEventSelect sets the socket to non-blocking mode as a side effect.
   // Our connect() and recv() calls require that the socket be non-blocking.
   WSAEventSelect(socket_, core_->read_overlapped_.hEvent, FD_CONNECT);
-
-  core_->write_overlapped_.hEvent = WSACreateEvent();
 
   connect_start_time_ = base::TimeTicks::Now();
   if (!connect(socket_, ai->ai_addr, static_cast<int>(ai->ai_addrlen))) {
