@@ -1,14 +1,16 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/socket/tcp_server_socket.h"
 
 #include <string>
+#include <vector>
 
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
 #include "net/base/address_list.h"
+#include "net/base/io_buffer.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
 #include "net/base/sys_addrinfo.h"
@@ -189,6 +191,65 @@ TEST_F(TCPServerSocketTest, AcceptIPv6) {
             local_address_.address());
 
   EXPECT_EQ(OK, connect_callback.WaitForResult());
+}
+
+TEST_F(TCPServerSocketTest, AcceptIO) {
+  ASSERT_NO_FATAL_FAILURE(SetUpIPv4());
+
+  TestCompletionCallback connect_callback;
+  TCPClientSocket connecting_socket(local_address_list(),
+                                    NULL, NetLog::Source());
+  connecting_socket.Connect(connect_callback.callback());
+
+  TestCompletionCallback accept_callback;
+  scoped_ptr<StreamSocket> accepted_socket;
+  int result = socket_.Accept(&accepted_socket, accept_callback.callback());
+  ASSERT_EQ(OK, accept_callback.GetResult(result));
+
+  ASSERT_TRUE(accepted_socket.get() != NULL);
+
+  // Both sockets should be on the loopback network interface.
+  EXPECT_EQ(GetPeerAddress(accepted_socket.get()).address(),
+            local_address_.address());
+
+  EXPECT_EQ(OK, connect_callback.WaitForResult());
+
+  const std::string message("test message");
+  std::vector<char> buffer(message.size());
+
+  size_t bytes_written = 0;
+  while (bytes_written < message.size()) {
+    net::IOBufferWithSize* write_buffer =
+        new net::IOBufferWithSize(message.size() - bytes_written);
+    memmove(write_buffer->data(), message.data(), message.size());
+
+    TestCompletionCallback write_callback;
+    int write_result = accepted_socket->Write(write_buffer,
+                                              write_buffer->size(),
+                                              write_callback.callback());
+    write_result = write_callback.GetResult(write_result);
+    ASSERT_TRUE(write_result >= 0);
+    ASSERT_TRUE(bytes_written + write_result <= message.size());
+    bytes_written += write_result;
+  }
+
+  size_t bytes_read = 0;
+  while (bytes_read < message.size()) {
+    net::IOBufferWithSize* read_buffer =
+        new net::IOBufferWithSize(message.size() - bytes_read);
+    TestCompletionCallback read_callback;
+    int read_result = connecting_socket.Read(read_buffer,
+                                             read_buffer->size(),
+                                             read_callback.callback());
+    read_result = read_callback.GetResult(read_result);
+    ASSERT_TRUE(read_result >= 0);
+    ASSERT_TRUE(bytes_read + read_result <= message.size());
+    memmove(&buffer[bytes_read], read_buffer->data(), read_result);
+    bytes_read += read_result;
+  }
+
+  std::string received_message(buffer.begin(), buffer.end());
+  ASSERT_EQ(message, received_message);
 }
 
 }  // namespace
