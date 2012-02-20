@@ -62,6 +62,8 @@ class TraceEventTestFixture : public testing::Test {
     old_thread_name_ = PlatformThread::GetName();
   }
   virtual void TearDown() {
+    if (TraceLog::GetInstance())
+      EXPECT_FALSE(TraceLog::GetInstance()->IsEnabled());
     PlatformThread::SetName(old_thread_name_ ? old_thread_name_  : "");
   }
 
@@ -623,6 +625,84 @@ TEST_F(TraceEventTestFixture, DataCaptured) {
   TraceLog::GetInstance()->SetEnabled(false);
 
   ValidateAllTraceMacrosCreatedData(trace_parsed_);
+}
+
+class MockEnabledStateChangedObserver :
+      public base::debug::TraceLog::EnabledStateChangedObserver {
+ public:
+  MOCK_METHOD0(OnTraceLogWillEnable, void());
+  MOCK_METHOD0(OnTraceLogWillDisable, void());
+};
+
+TEST_F(TraceEventTestFixture, EnabledObserverFiresOnEnable) {
+  ManualTestSetUp();
+
+  MockEnabledStateChangedObserver observer;
+  TraceLog::GetInstance()->AddEnabledStateObserver(&observer);
+
+  EXPECT_CALL(observer, OnTraceLogWillEnable())
+      .Times(1);
+  TraceLog::GetInstance()->SetEnabled(true);
+  testing::Mock::VerifyAndClear(&observer);
+
+  // Cleanup.
+  TraceLog::GetInstance()->RemoveEnabledStateObserver(&observer);
+  TraceLog::GetInstance()->SetEnabled(false);
+}
+
+TEST_F(TraceEventTestFixture, EnabledObserverDoesntFireOnSecondEnable) {
+  ManualTestSetUp();
+
+  TraceLog::GetInstance()->SetEnabled(true);
+
+  testing::StrictMock<MockEnabledStateChangedObserver> observer;
+  TraceLog::GetInstance()->AddEnabledStateObserver(&observer);
+
+  EXPECT_CALL(observer, OnTraceLogWillEnable())
+      .Times(0);
+  EXPECT_CALL(observer, OnTraceLogWillDisable())
+      .Times(0);
+  TraceLog::GetInstance()->SetEnabled(true);
+  testing::Mock::VerifyAndClear(&observer);
+
+  // Cleanup.
+  TraceLog::GetInstance()->RemoveEnabledStateObserver(&observer);
+  TraceLog::GetInstance()->SetEnabled(false);
+}
+
+TEST_F(TraceEventTestFixture, EnabledObserverDoesntFireOnUselessDisable) {
+  ManualTestSetUp();
+
+
+  testing::StrictMock<MockEnabledStateChangedObserver> observer;
+  TraceLog::GetInstance()->AddEnabledStateObserver(&observer);
+
+  EXPECT_CALL(observer, OnTraceLogWillEnable())
+      .Times(0);
+  EXPECT_CALL(observer, OnTraceLogWillDisable())
+      .Times(0);
+  TraceLog::GetInstance()->SetEnabled(false);
+  testing::Mock::VerifyAndClear(&observer);
+
+  // Cleanup.
+  TraceLog::GetInstance()->RemoveEnabledStateObserver(&observer);
+}
+
+TEST_F(TraceEventTestFixture, EnabledObserverFiresOnDisable) {
+  ManualTestSetUp();
+
+  TraceLog::GetInstance()->SetEnabled(true);
+
+  MockEnabledStateChangedObserver observer;
+  TraceLog::GetInstance()->AddEnabledStateObserver(&observer);
+
+  EXPECT_CALL(observer, OnTraceLogWillDisable())
+      .Times(1);
+  TraceLog::GetInstance()->SetEnabled(false);
+  testing::Mock::VerifyAndClear(&observer);
+
+  // Cleanup.
+  TraceLog::GetInstance()->RemoveEnabledStateObserver(&observer);
 }
 
 // Test that categories work.
