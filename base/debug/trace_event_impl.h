@@ -15,6 +15,7 @@
 #include "base/callback.h"
 #include "base/hash_tables.h"
 #include "base/memory/ref_counted_memory.h"
+#include "base/observer_list.h"
 #include "base/string_util.h"
 #include "base/synchronization/lock.h"
 #include "base/timer.h"
@@ -194,6 +195,25 @@ class BASE_EXPORT TraceLog {
   void SetEnabled(bool enabled);
   bool IsEnabled() { return enabled_; }
 
+  // Enabled state listeners give a callback when tracing is enabled or
+  // disabled. This can be used to tie into other library's tracing systems
+  // on-demand.
+  class EnabledStateChangedObserver {
+   public:
+    // Called just before the tracing system becomes
+    // enabled. TraceLog::IsEnabled will return false at this point and trace
+    // macros and methods called within the observer will deadlock.
+    virtual void OnTraceLogWillEnable() { }
+
+    // Called just before the tracing system disables. TraceLog::IsEnabled is
+    // still false at this point TRACE macros will still be capturing
+    // data. However, trace macros and methods called within the observer will
+    // deadlock.
+    virtual void OnTraceLogWillDisable() { }
+  };
+  void AddEnabledStateObserver(EnabledStateChangedObserver* listener);
+  void RemoveEnabledStateObserver(EnabledStateChangedObserver* listener);
+
   float GetBufferPercentFull() const;
 
   // When enough events are collected, they are handed (in bulk) to
@@ -286,6 +306,8 @@ class BASE_EXPORT TraceLog {
   std::vector<TraceEvent> logged_events_;
   std::vector<std::string> included_categories_;
   std::vector<std::string> excluded_categories_;
+  bool dispatching_to_observer_list_;
+  ObserverList<EnabledStateChangedObserver> enabled_state_observer_list_;
 
   base::hash_map<int, std::string> thread_names_;
 
