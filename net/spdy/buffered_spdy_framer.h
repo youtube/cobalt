@@ -16,15 +16,20 @@
 
 namespace spdy {
 
-class NET_EXPORT_PRIVATE BufferedSpdyFramerVisitorInterface
-    : public SpdyFramerVisitorInterface  {
+class NET_EXPORT_PRIVATE BufferedSpdyFramerVisitorInterface {
  public:
   BufferedSpdyFramerVisitorInterface() {}
   virtual ~BufferedSpdyFramerVisitorInterface() {}
 
+  // Called if an error is detected in the SpdyFrame protocol.
+  virtual void OnError() = 0;
+
+  // Called if an error is detected in a SPDY stream.
+  virtual void OnStreamError(spdy::SpdyStreamId stream_id) = 0;
+
   // Called after all the header data for SYN_STREAM control frame is received.
-  virtual void OnSyn(const SpdySynStreamControlFrame& frame,
-                     const linked_ptr<SpdyHeaderBlock>& headers) = 0;
+  virtual void OnSynStream(const SpdySynStreamControlFrame& frame,
+                           const linked_ptr<SpdyHeaderBlock>& headers) = 0;
 
   // Called after all the header data for SYN_REPLY control frame is received.
   virtual void OnSynReply(const SpdySynReplyControlFrame& frame,
@@ -34,11 +39,37 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramerVisitorInterface
   virtual void OnHeaders(const SpdyHeadersControlFrame& frame,
                          const linked_ptr<SpdyHeaderBlock>& headers) = 0;
 
+  // Called after a RST_STREAM frame is received.
+  virtual void OnRstStream(const spdy::SpdyRstStreamControlFrame& frame) = 0;
+
+  // Called after a GOAWAY frame is received.
+  virtual void OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) = 0;
+
+  // Called after a PING frame is received.
+  virtual void OnPing(const spdy::SpdyPingControlFrame& frame) = 0;
+
+  // Called after a SETTINGS frame is received.
+  virtual void OnSettings(const spdy::SpdySettingsControlFrame& frame) = 0;
+
+  // Called after a WINDOW_UPDATE frame is received.
+  virtual void OnWindowUpdate(
+      const spdy::SpdyWindowUpdateControlFrame& frame) = 0;
+
+  // Called when data is received.
+  // |stream_id| The stream receiving data.
+  // |data| A buffer containing the data received.
+  // |len| The length of the data buffer.
+  // When the other side has finished sending data on this stream,
+  // this method will be called with a zero-length buffer.
+  virtual void OnStreamFrameData(SpdyStreamId stream_id,
+                                 const char* data,
+                                 size_t len) = 0;
  private:
   DISALLOW_COPY_AND_ASSIGN(BufferedSpdyFramerVisitorInterface);
 };
 
-class NET_EXPORT_PRIVATE BufferedSpdyFramer {
+class NET_EXPORT_PRIVATE BufferedSpdyFramer
+    : public SpdyFramerVisitorInterface {
  public:
   BufferedSpdyFramer();
   virtual ~BufferedSpdyFramer();
@@ -49,15 +80,20 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramer {
   // visitor will be used.
   void set_visitor(BufferedSpdyFramerVisitorInterface* visitor);
 
-  void OnControl(const SpdyControlFrame* frame);
+  // SpdyFramerVisitorInterface
+  virtual void OnError(SpdyFramer* /*framer*/) OVERRIDE;
+  virtual void OnControl(const SpdyControlFrame* frame) OVERRIDE;
+  virtual bool OnCredentialFrameData(const char* frame_data,
+                                     size_t len) OVERRIDE;
+  virtual bool OnControlFrameHeaderData(SpdyStreamId stream_id,
+                                        const char* header_data,
+                                        size_t len) OVERRIDE;
+  virtual void OnStreamFrameData(SpdyStreamId stream_id,
+                                 const char* data,
+                                 size_t len) OVERRIDE;
+  virtual void OnDataFrameHeader(const SpdyDataFrame* frame) OVERRIDE;
 
-  bool OnControlFrameHeaderData(SpdyStreamId stream_id,
-                                const char* header_data,
-                                size_t len);
-
-  void OnDataFrameHeader(const SpdyDataFrame* frame);
-
-  // spdy_framer_ methods.
+  // SpdyFramer methods.
   size_t ProcessInput(const char* data, size_t len);
   void Reset();
   SpdyFramer::SpdyError error_code() const;
@@ -86,6 +122,8 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramer {
   SpdyFrame* CompressFrame(const SpdyFrame& frame);
   bool IsCompressible(const SpdyFrame& frame) const;
 
+  int frames_received() const { return frames_received_; }
+
  private:
   // The size of the header_buffer_.
   enum { kHeaderBufferSize = 32 * 1024 };
@@ -101,6 +139,7 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramer {
   bool header_buffer_valid_;
   SpdyStreamId header_stream_id_;
   scoped_ptr<SpdyFrame> control_frame_;
+  int frames_received_;
 
   DISALLOW_COPY_AND_ASSIGN(BufferedSpdyFramer);
 };

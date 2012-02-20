@@ -295,7 +295,6 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       streams_pushed_count_(0),
       streams_pushed_and_claimed_count_(0),
       streams_abandoned_count_(0),
-      frames_received_(0),
       bytes_received_(0),
       sent_settings_(false),
       received_settings_(false),
@@ -1105,7 +1104,7 @@ Value* SpdySession::GetInfoAsValue() const {
   dict->SetInteger("streams_pushed_and_claimed_count",
       streams_pushed_and_claimed_count_);
   dict->SetInteger("streams_abandoned_count", streams_abandoned_count_);
-  dict->SetInteger("frames_received", frames_received_);
+  dict->SetInteger("frames_received", buffered_spdy_framer_.frames_received());
 
   dict->SetBoolean("sent_settings", sent_settings_);
   dict->SetBoolean("received_settings", received_settings_);
@@ -1230,8 +1229,13 @@ SSLClientCertType SpdySession::GetOriginBoundCertType() const {
   return ssl_socket->origin_bound_cert_type();
 }
 
-void SpdySession::OnError(spdy::SpdyFramer* framer) {
+void SpdySession::OnError() {
   CloseSessionOnError(net::ERR_SPDY_PROTOCOL_ERROR, true);
+}
+
+void SpdySession::OnStreamError(spdy::SpdyStreamId stream_id) {
+  if (IsStreamActive(stream_id))
+    ResetStream(stream_id, spdy::PROTOCOL_ERROR, "");
 }
 
 void SpdySession::OnStreamFrameData(spdy::SpdyStreamId stream_id,
@@ -1267,8 +1271,9 @@ bool SpdySession::Respond(const spdy::SpdyHeaderBlock& headers,
   return true;
 }
 
-void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
-                        const linked_ptr<spdy::SpdyHeaderBlock>& headers) {
+void SpdySession::OnSynStream(
+    const spdy::SpdySynStreamControlFrame& frame,
+    const linked_ptr<spdy::SpdyHeaderBlock>& headers) {
   spdy::SpdyStreamId stream_id = frame.stream_id();
   spdy::SpdyStreamId associated_stream_id = frame.associated_stream_id();
 
@@ -1438,67 +1443,7 @@ void SpdySession::OnHeaders(const spdy::SpdyHeadersControlFrame& frame,
   }
 }
 
-void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
-  uint32 type = frame->type();
-  if (type == spdy::SYN_STREAM ||
-      type == spdy::SYN_REPLY ||
-      type == spdy::HEADERS) {
-    buffered_spdy_framer_.OnControl(frame);
-    return;
-  }
-
-  frames_received_++;
-
-  switch (type) {
-    case spdy::GOAWAY:
-      OnGoAway(*reinterpret_cast<const spdy::SpdyGoAwayControlFrame*>(frame));
-      break;
-    case spdy::PING:
-      OnPing(*reinterpret_cast<const spdy::SpdyPingControlFrame*>(frame));
-      break;
-    case spdy::SETTINGS:
-      OnSettings(
-          *reinterpret_cast<const spdy::SpdySettingsControlFrame*>(frame));
-      break;
-    case spdy::RST_STREAM:
-      OnRst(*reinterpret_cast<const spdy::SpdyRstStreamControlFrame*>(frame));
-      break;
-    case spdy::WINDOW_UPDATE:
-      OnWindowUpdate(
-          *reinterpret_cast<const spdy::SpdyWindowUpdateControlFrame*>(frame));
-      break;
-    default:
-      DCHECK(false);  // Error!
-  }
-}
-
-bool SpdySession::OnControlFrameHeaderData(spdy::SpdyStreamId stream_id,
-                                           const char* header_data,
-                                           size_t len) {
-  if (!buffered_spdy_framer_.OnControlFrameHeaderData(
-          stream_id, header_data, len)) {
-    if (IsStreamActive(stream_id))
-      ResetStream(stream_id, spdy::PROTOCOL_ERROR, "");
-    return false;
-  }
-  if (len == 0) {
-    // Indicates end-of-header-block.
-    frames_received_++;
-  }
-  return true;
-}
-
-bool SpdySession::OnCredentialFrameData(const char* frame_data,
-                                        size_t len) {
-  DCHECK(false);
-  return false;
-}
-
-void SpdySession::OnDataFrameHeader(const spdy::SpdyDataFrame* frame) {
-  buffered_spdy_framer_.OnDataFrameHeader(frame);
-}
-
-void SpdySession::OnRst(const spdy::SpdyRstStreamControlFrame& frame) {
+void SpdySession::OnRstStream(const spdy::SpdyRstStreamControlFrame& frame) {
   spdy::SpdyStreamId stream_id = frame.stream_id();
 
   net_log().AddEvent(

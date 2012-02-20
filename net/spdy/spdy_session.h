@@ -231,7 +231,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // Indicates whether the session is being reused after having successfully
   // used to send/receive data in the past.
   bool IsReused() const {
-    return frames_received_ > 0;
+    return buffered_spdy_framer_.frames_received() > 0;
   }
 
   // Returns true if the underlying transport socket ever had any reads or
@@ -333,14 +333,6 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
       scoped_refptr<SpdyStream>* spdy_stream,
       const BoundNetLog& stream_net_log);
 
-  // Control frame handlers.
-  void OnRst(const spdy::SpdyRstStreamControlFrame& frame);
-  void OnGoAway(const spdy::SpdyGoAwayControlFrame& frame);
-  void OnPing(const spdy::SpdyPingControlFrame& frame);
-  void OnSettings(const spdy::SpdySettingsControlFrame& frame);
-  void OnWindowUpdate(const spdy::SpdyWindowUpdateControlFrame& frame);
-  void OnCredential(const spdy::SpdyCredentialControlFrame& frame);
-
   // IO Callbacks
   void OnReadComplete(int result);
   void OnWriteComplete(int result);
@@ -427,23 +419,21 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   void InvokeUserStreamCreationCallback(scoped_refptr<SpdyStream>* stream);
 
   // BufferedSpdyFramerVisitorInterface:
-  virtual void OnError(spdy::SpdyFramer*) OVERRIDE;
+  virtual void OnError() OVERRIDE;
+  virtual void OnStreamError(spdy::SpdyStreamId stream_id) OVERRIDE;
+  virtual void OnRstStream(
+      const spdy::SpdyRstStreamControlFrame& frame) OVERRIDE;
+  virtual void OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) OVERRIDE;
+  virtual void OnPing(const spdy::SpdyPingControlFrame& frame) OVERRIDE;
+  virtual void OnSettings(const spdy::SpdySettingsControlFrame& frame) OVERRIDE;
+  virtual void OnWindowUpdate(
+      const spdy::SpdyWindowUpdateControlFrame& frame) OVERRIDE;
   virtual void OnStreamFrameData(spdy::SpdyStreamId stream_id,
                                  const char* data,
                                  size_t len) OVERRIDE;
-  virtual void OnControl(const spdy::SpdyControlFrame* frame) OVERRIDE;
-
-  virtual bool OnControlFrameHeaderData(spdy::SpdyStreamId stream_id,
-                                        const char* header_data,
-                                        size_t len) OVERRIDE;
-
-  virtual bool OnCredentialFrameData(const char* frame_data,
-                                     size_t len) OVERRIDE;
-
-  virtual void OnDataFrameHeader(const spdy::SpdyDataFrame* frame) OVERRIDE;
-
-  virtual void OnSyn(const spdy::SpdySynStreamControlFrame& frame,
-                     const linked_ptr<spdy::SpdyHeaderBlock>& headers) OVERRIDE;
+  virtual void OnSynStream(
+      const spdy::SpdySynStreamControlFrame& frame,
+      const linked_ptr<spdy::SpdyHeaderBlock>& headers) OVERRIDE;
   virtual void OnSynReply(
       const spdy::SpdySynReplyControlFrame& frame,
       const linked_ptr<spdy::SpdyHeaderBlock>& headers) OVERRIDE;
@@ -563,7 +553,6 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   int streams_pushed_count_;
   int streams_pushed_and_claimed_count_;
   int streams_abandoned_count_;
-  int frames_received_;
   int bytes_received_;
   bool sent_settings_;      // Did this session send settings when it started.
   bool received_settings_;  // Did this session receive at least one settings

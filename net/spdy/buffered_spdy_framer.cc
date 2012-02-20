@@ -22,20 +22,50 @@ BufferedSpdyFramer::~BufferedSpdyFramer() {
 void BufferedSpdyFramer::set_visitor(
     BufferedSpdyFramerVisitorInterface* visitor) {
   visitor_ = visitor;
-  spdy_framer_.set_visitor(visitor);
+  spdy_framer_.set_visitor(this);
+}
+
+void BufferedSpdyFramer::OnError(spdy::SpdyFramer* /*framer*/) {
+  visitor_->OnError();
 }
 
 void BufferedSpdyFramer::OnControl(const SpdyControlFrame* frame) {
+  frames_received_++;
   switch (frame->type()) {
     case SYN_STREAM:
     case SYN_REPLY:
     case HEADERS:
       InitHeaderStreaming(frame);
       break;
-    default:
-      DCHECK(false);  // Error!
+    case spdy::GOAWAY:
+      visitor_->OnGoAway(
+          *reinterpret_cast<const spdy::SpdyGoAwayControlFrame*>(frame));
       break;
+    case spdy::PING:
+      visitor_->OnPing(
+          *reinterpret_cast<const spdy::SpdyPingControlFrame*>(frame));
+      break;
+    case spdy::SETTINGS:
+      visitor_->OnSettings(
+          *reinterpret_cast<const spdy::SpdySettingsControlFrame*>(frame));
+      break;
+    case spdy::RST_STREAM:
+      visitor_->OnRstStream(
+          *reinterpret_cast<const spdy::SpdyRstStreamControlFrame*>(frame));
+      break;
+    case spdy::WINDOW_UPDATE:
+      visitor_->OnWindowUpdate(
+          *reinterpret_cast<const spdy::SpdyWindowUpdateControlFrame*>(frame));
+      break;
+    default:
+      NOTREACHED();  // Error!
   }
+}
+
+bool BufferedSpdyFramer::OnCredentialFrameData(const char* frame_data,
+                                               size_t len) {
+  DCHECK(false);
+  return false;
 }
 
 bool BufferedSpdyFramer::OnControlFrameHeaderData(SpdyStreamId stream_id,
@@ -52,13 +82,14 @@ bool BufferedSpdyFramer::OnControlFrameHeaderData(SpdyStreamId stream_id,
         header_buffer_, header_buffer_used_, headers.get());
     if (!parsed_headers) {
       LOG(WARNING) << "Could not parse Spdy Control Frame Header.";
+      visitor_->OnStreamError(stream_id);
       return false;
     }
     SpdyControlFrame* control_frame =
         reinterpret_cast<SpdyControlFrame*>(control_frame_.get());
     switch (control_frame->type()) {
       case SYN_STREAM:
-        visitor_->OnSyn(
+        visitor_->OnSynStream(
             *reinterpret_cast<const SpdySynStreamControlFrame*>(
                 control_frame), headers);
         break;
@@ -82,6 +113,7 @@ bool BufferedSpdyFramer::OnControlFrameHeaderData(SpdyStreamId stream_id,
   const size_t available = kHeaderBufferSize - header_buffer_used_;
   if (len > available) {
     header_buffer_valid_ = false;
+    visitor_->OnStreamError(stream_id);
     return false;
   }
   memcpy(header_buffer_ + header_buffer_used_, header_data, len);
@@ -90,8 +122,16 @@ bool BufferedSpdyFramer::OnControlFrameHeaderData(SpdyStreamId stream_id,
 }
 
 void BufferedSpdyFramer::OnDataFrameHeader(const SpdyDataFrame* frame) {
+  frames_received_++;
   header_stream_id_ = frame->stream_id();
 }
+
+void BufferedSpdyFramer::OnStreamFrameData(SpdyStreamId stream_id,
+                                           const char* data,
+                                           size_t len) {
+  visitor_->OnStreamFrameData(stream_id, data, len);
+}
+
 
 size_t BufferedSpdyFramer::ProcessInput(const char* data, size_t len) {
   return spdy_framer_.ProcessInput(data, len);
