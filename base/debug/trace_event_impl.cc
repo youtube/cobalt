@@ -322,7 +322,8 @@ TraceLog* TraceLog::GetInstance() {
 }
 
 TraceLog::TraceLog()
-    : enabled_(false) {
+    : enabled_(false)
+    , dispatching_to_observer_list_(false) {
   SetProcessID(static_cast<int>(base::GetCurrentProcId()));
   // Trace is enabled or disabled on one thread while other threads are
   // accessing the enabled flag. We don't care whether edge-case events are
@@ -425,6 +426,18 @@ void TraceLog::SetEnabled(const std::vector<std::string>& included_categories,
   AutoLock lock(lock_);
   if (enabled_)
     return;
+
+  if (dispatching_to_observer_list_) {
+    DLOG(ERROR) <<
+        "Cannot manipulate TraceLog::Enabled state from an observer.";
+    return;
+  }
+
+  dispatching_to_observer_list_ = true;
+  FOR_EACH_OBSERVER(EnabledStateChangedObserver, enabled_state_observer_list_,
+                    OnTraceLogWillEnable());
+  dispatching_to_observer_list_ = false;
+
   logged_events_.reserve(1024);
   enabled_ = true;
   included_categories_ = included_categories;
@@ -474,6 +487,17 @@ void TraceLog::SetDisabled() {
     if (!enabled_)
       return;
 
+    if (dispatching_to_observer_list_) {
+      DLOG(ERROR)
+          << "Cannot manipulate TraceLog::Enabled state from an observer.";
+      return;
+    }
+
+    dispatching_to_observer_list_ = true;
+    FOR_EACH_OBSERVER(EnabledStateChangedObserver, enabled_state_observer_list_,
+                      OnTraceLogWillDisable());
+    dispatching_to_observer_list_ = false;
+
     enabled_ = false;
     included_categories_.clear();
     excluded_categories_.clear();
@@ -490,6 +514,15 @@ void TraceLog::SetEnabled(bool enabled) {
     SetEnabled(std::vector<std::string>(), std::vector<std::string>());
   else
     SetDisabled();
+}
+
+void TraceLog::AddEnabledStateObserver(EnabledStateChangedObserver* listener) {
+  enabled_state_observer_list_.AddObserver(listener);
+}
+
+void TraceLog::RemoveEnabledStateObserver(
+    EnabledStateChangedObserver* listener) {
+  enabled_state_observer_list_.RemoveObserver(listener);
 }
 
 float TraceLog::GetBufferPercentFull() const {
