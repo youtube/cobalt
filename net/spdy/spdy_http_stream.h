@@ -36,7 +36,7 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
   SpdyHttpStream(SpdySession* spdy_session, bool direct);
   virtual ~SpdyHttpStream();
 
-  // Initializes this SpdyHttpStream by wraping an existing SpdyStream.
+  // Initializes this SpdyHttpStream by wrapping an existing SpdyStream.
   void InitializeWithExistingStream(SpdyStream* spdy_stream);
 
   SpdyStream* stream() { return stream_.get(); }
