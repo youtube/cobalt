@@ -5,6 +5,7 @@
 #include "media/base/video_frame.h"
 
 #include "base/logging.h"
+#include "media/base/limits.h"
 #include "media/base/video_util.h"
 
 namespace media {
@@ -16,8 +17,7 @@ scoped_refptr<VideoFrame> VideoFrame::CreateFrame(
     size_t height,
     base::TimeDelta timestamp,
     base::TimeDelta duration) {
-  DCHECK(width > 0 && height > 0);
-  DCHECK(width * height < 100000000);
+  DCHECK(IsValidConfig(format, width, height));
   scoped_refptr<VideoFrame> frame(new VideoFrame(
       format, width, height, timestamp, duration));
   switch (format) {
@@ -44,6 +44,18 @@ scoped_refptr<VideoFrame> VideoFrame::CreateFrame(
       return NULL;
   }
   return frame;
+}
+
+// static
+bool VideoFrame::IsValidConfig(
+    VideoFrame::Format format,
+    size_t width,
+    size_t height) {
+
+  return (format != VideoFrame::INVALID &&
+          width > 0 && height > 0 &&
+          width <= limits::kMaxDimension && height <= limits::kMaxDimension &&
+          width * height <= limits::kMaxCanvas);
 }
 
 // static
