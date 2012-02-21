@@ -9,6 +9,7 @@
 
 #include "base/base_export.h"
 #include "base/memory/linked_ptr.h"
+#include "base/memory/ref_counted.h"
 
 namespace base {
 
@@ -40,6 +41,25 @@ class BASE_EXPORT SupportsUserData {
   DataMap user_data_;
 
   DISALLOW_COPY_AND_ASSIGN(SupportsUserData);
+};
+
+// Adapter class that releases a refcounted object when the
+// SupportsUserData::Data object is deleted.
+template <typename T>
+class UserDataAdapter : public base::SupportsUserData::Data {
+ public:
+  static T* Get(SupportsUserData* supports_user_data, const char* key) {
+   UserDataAdapter* data =
+      static_cast<UserDataAdapter*>(supports_user_data->GetUserData(key));
+    return static_cast<T*>(data->object_.get());
+  }
+
+  UserDataAdapter(T* object) : object_(object) {}
+
+ private:
+  scoped_refptr<T> object_;
+
+  DISALLOW_COPY_AND_ASSIGN(UserDataAdapter);
 };
 
 }  // namespace base
