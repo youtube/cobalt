@@ -1440,7 +1440,7 @@ ssl2_CreateSessionCypher(sslSocket *ss, sslSessionID *sid, PRBool isClient)
     writeKey.data = 0;
 
     PORT_Assert( ss->opt.noLocks || ssl_Have1stHandshakeLock(ss) );
-    if((ss->sec.ci.sid == 0))
+    if(ss->sec.ci.sid == 0)
     	goto sec_loser;	/* don't crash if asserts are off */
 
     /* Trying to cut down on all these switch statements that should be tables.
