@@ -23,11 +23,14 @@
 #include "net/base/net_log.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/prioritized_dispatcher.h"
+#include "net/dns/dns_config_service.h"
 
 namespace net {
 
+class DnsTransactionFactory;
+
 // For each hostname that is requested, HostResolver creates a
-// HostResolverImpl::Job. When this job gets dispatched it creates a ProcJob
+// HostResolverImpl::Job. When this job gets dispatched it creates a ProcTask
 // which runs the given HostResolverProc on a WorkerPool thread. If requests for
 // that same host are made during the job's lifetime, they are attached to the
 // existing job rather than creating a new one. This avoids doing parallel
@@ -55,11 +58,13 @@ namespace net {
 //
 // Jobs are ordered in the queue based on their priority and order of arrival.
 //
+// TODO(szym): Change DnsConfigService::Observer to Callback.
 class NET_EXPORT HostResolverImpl
     : public HostResolver,
       NON_EXPORTED_BASE(public base::NonThreadSafe),
       public NetworkChangeNotifier::IPAddressObserver,
       public NetworkChangeNotifier::DNSObserver,
+      NON_EXPORTED_BASE(public DnsConfigService::Observer),
       public base::SupportsWeakPtr<HostResolverImpl> {
  public:
   // Parameters for ProcTask which resolves hostnames using HostResolveProc.
@@ -105,13 +110,18 @@ class NET_EXPORT HostResolverImpl
   // ownership of the |cache| pointer, and will free it during destruction.
   //
   // |job_limits| specifies the maximum number of jobs that the resolver will
-  // run at once (not counting potential duplicate attempts).
+  // run at once. This upper-bounds the total number of outstanding
+  // DNS transactions (not counting retransmissions and retries).
+  //
+  // |dns_config_service| will be used to obtain DnsConfig for
+  // DnsTransactionFactory.
   //
   // |net_log| must remain valid for the life of the HostResolverImpl.
   // TODO(szym): change to scoped_ptr<HostCache>.
   HostResolverImpl(HostCache* cache,
                    const PrioritizedDispatcher::Limits& job_limits,
                    const ProcTaskParams& proc_params,
+                   scoped_ptr<DnsConfigService> dns_config_service,
                    NetLog* net_log);
 
   // If any completion callbacks are pending when the resolver is destroyed,
@@ -142,6 +152,7 @@ class NET_EXPORT HostResolverImpl
   class Job;
   class ProcTask;
   class IPv6ProbeJob;
+  class DnsTask;
   class Request;
   typedef HostCache::Key Key;
   typedef std::map<Key, Job*> JobMap;
@@ -183,9 +194,12 @@ class NET_EXPORT HostResolverImpl
   // family when the request leaves it unspecified.
   Key GetEffectiveKeyForRequest(const RequestInfo& info) const;
 
-  // Called by |job| when it has finished running. Records the result in cache
+  // Called by |job| when it has completed. Records the result in cache
   // if necessary and dispatches another job if possible.
-  void OnJobFinished(Job* job, const AddressList& addrlist);
+  void OnJobFinished(Job* job,
+                     int net_error,
+                     const AddressList& addr_list,
+                     base::TimeDelta ttl);
 
   // Removes |job| from |jobs_|.
   void RemoveJob(Job* job);
@@ -194,11 +208,14 @@ class NET_EXPORT HostResolverImpl
   // Might start new jobs.
   void AbortAllInProgressJobs();
 
-  // NetworkChangeNotifier::IPAddressObserver methods:
+  // NetworkChangeNotifier::IPAddressObserver:
   virtual void OnIPAddressChanged() OVERRIDE;
 
-  // NetworkChangeNotifier::OnDNSChanged methods:
+  // NetworkChangeNotifier::DNSObserver:
   virtual void OnDNSChanged() OVERRIDE;
+
+  // DnsConfigService::Observer:
+  virtual void OnConfigChanged(const DnsConfig& dns_config) OVERRIDE;
 
   // Cache of host resolution results.
   scoped_ptr<HostCache> cache_;
@@ -215,8 +232,12 @@ class NET_EXPORT HostResolverImpl
   // Parameters for ProcTask.
   ProcTaskParams proc_params_;
 
+  scoped_ptr<DnsTransactionFactory> dns_transaction_factory_;
+
   // Address family to use when the request doesn't specify one.
   AddressFamily default_address_family_;
+
+  scoped_ptr<DnsConfigService> dns_config_service_;
 
   // Indicate if probing is done after each network change event to set address
   // family.

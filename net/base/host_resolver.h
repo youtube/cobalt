@@ -188,10 +188,12 @@ NET_EXPORT HostResolver* CreateNonCachingSystemHostResolver(
     size_t max_retry_attempts,
     NetLog* net_log);
 
-// Creates a HostResolver implementation that sends actual DNS queries to
-// the specified DNS server and parses response and returns results.
+// As above, but the HostResolver will use the asynchronous DNS client in
+// DnsTransaction, which will be configured using DnsConfigService to match
+// the system DNS settings. If the client fails, the resolver falls back to
+// the global HostResolverProc.
 NET_EXPORT HostResolver* CreateAsyncHostResolver(size_t max_concurrent_resolves,
-                                                 const IPAddressNumber& dns_ip,
+                                                 size_t max_retry_attempts,
                                                  NetLog* net_log);
 }  // namespace net
 

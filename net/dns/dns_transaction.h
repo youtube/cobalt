@@ -61,12 +61,12 @@ class NET_EXPORT_PRIVATE DnsTransactionFactory {
   // search. |hostname| should not be an IP literal.
   //
   // The transaction will run |callback| upon asynchronous completion.
-  // The source of |source_net_log| is used as source dependency in log.
+  // The |net_log| is used as the parent log.
   virtual scoped_ptr<DnsTransaction> CreateTransaction(
       const std::string& hostname,
       uint16 qtype,
       const CallbackType& callback,
-      const BoundNetLog& source_net_log) WARN_UNUSED_RESULT = 0;
+      const BoundNetLog& net_log) WARN_UNUSED_RESULT = 0;
 
   // Creates a DnsTransactionFactory which creates DnsTransactionImpl using the
   // |session|.

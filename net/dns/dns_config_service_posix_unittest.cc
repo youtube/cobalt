@@ -110,7 +110,7 @@ void CloseResState(res_state res) {
 
 }  // namespace
 
-TEST(DnsConfigTest, ResolverConfigConvertAndEquals) {
+TEST(DnsConfigServicePosixTest, ConvertResStateToDnsConfig) {
   struct __res_state res[2];
   DnsConfig config[2];
   for (unsigned i = 0; i < 2; ++i) {

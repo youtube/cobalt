@@ -56,7 +56,6 @@ EVENT_TYPE(HOST_RESOLVER_IMPL)
 // If an error occurred, the END phase will contain these parameters:
 //   {
 //     "net_error": <The net error code integer for the failure>,
-//     "os_error": <The exact error code integer that getaddrinfo() returned>,
 //   }
 EVENT_TYPE(HOST_RESOLVER_IMPL_REQUEST)
 
@@ -84,7 +83,6 @@ EVENT_TYPE(HOST_RESOLVER_IMPL_CREATE_JOB)
 // If an error occurred, the END phase will contain these parameters:
 //   {
 //     "net_error": <The net error code integer for the failure>,
-//     "os_error": <The exact error code integer that getaddrinfo() returned>,
 //   }
 EVENT_TYPE(HOST_RESOLVER_IMPL_JOB)
 
@@ -154,26 +152,16 @@ EVENT_TYPE(HOST_RESOLVER_IMPL_JOB_REQUEST_ATTACH)
 //   }
 EVENT_TYPE(HOST_RESOLVER_IMPL_JOB_REQUEST_DETACH)
 
-// Logged for a HostResolverImpl::Job when it creates a ProcTask.
-//
-// The event contains the following parameters:
-//
-//   {
-//     "source_dependency": <Source id of parent HostResolverImpl::Job>,
-//   }
-EVENT_TYPE(HOST_RESOLVER_IMPL_CREATE_PROC_TASK)
-
 // The creation/completion of a HostResolverImpl::ProcTask to call getaddrinfo.
 // The BEGIN phase contains the following parameters:
 //
 //   {
 //     "hostname": <Hostname associated with the request>,
-//     "source_dependency": <Source id of parent HostResolverImpl::Job>,
 //   }
 //
 // On success, the END phase has these parameters:
 //   {
-//     "address_list": <The host name being resolved>,
+//     "address_list": <The resolved addresses>,
 //   }
 // If an error occurred, the END phase will contain these parameters:
 //   {
@@ -181,6 +169,24 @@ EVENT_TYPE(HOST_RESOLVER_IMPL_CREATE_PROC_TASK)
 //     "os_error": <The exact error code integer that getaddrinfo() returned>,
 //   }
 EVENT_TYPE(HOST_RESOLVER_IMPL_PROC_TASK)
+
+// The creation/completion of a HostResolverImpl::DnsTask to manage a
+// DnsTransaction. The BEGIN phase contains the following parameters:
+//
+//   {
+//     "source_dependency": <Source id of DnsTransaction>,
+//   }
+//
+// On success, the END phase has these parameters:
+//   {
+//     "address_list": <The resolved addresses>,
+//   }
+// If an error occurred, the END phase will contain these parameters:
+//   {
+//     "net_error": <The net error code integer for the failure>,
+//     "dns_error": <The detailed DnsResponse::Result>
+//   }
+EVENT_TYPE(HOST_RESOLVER_IMPL_DNS_TASK)
 
 // ------------------------------------------------------------------------
 // InitProxyResolver
@@ -1256,8 +1262,6 @@ EVENT_TYPE(THROTTLING_GOT_CUSTOM_RETRY_AFTER)
 // {
 //   "hostname": <The hostname it is trying to resolve>,
 //   "query_type": <Type of the query>,
-//   "source_dependency":  <Source id, if any, of what created the
-//                          transaction>,
 // }
 //
 // The END phase contains the following parameters:
@@ -1288,7 +1292,8 @@ EVENT_TYPE(DNS_TRANSACTION_QUERY)
 // It has a single parameter:
 //
 //   {
-//     "socket_source": <Source id of the UDP socket created for the attempt>,
+//     "source_dependency": <Source id of the UDP socket created for the
+//                           attempt>,
 //   }
 EVENT_TYPE(DNS_TRANSACTION_ATTEMPT)
 
@@ -1299,49 +1304,10 @@ EVENT_TYPE(DNS_TRANSACTION_ATTEMPT)
 //   {
 //     "rcode": <rcode in the received response>,
 //     "answer_count": <answer_count in the received response>,
-//     "socket_source": <Source id of the UDP socket that received the
-//                       response>,
+//     "source_dependency": <Source id of the UDP socket that received the
+//                           response>,
 //   }
 EVENT_TYPE(DNS_TRANSACTION_RESPONSE)
-
-// ------------------------------------------------------------------------
-// AsyncHostResolver
-// ------------------------------------------------------------------------
-
-// The start/end of waiting on a host resolve (DNS) request.
-// The BEGIN phase contains the following parameters:
-//
-//   {
-//     "source_dependency": <Source id of the request being waited on>,
-//   }
-EVENT_TYPE(ASYNC_HOST_RESOLVER)
-
-// The start/end of a host resolve (DNS) request.
-//
-// The BEGIN phase contains the following parameters:
-//
-//   {
-//     "hostname": <Hostname associated with the request>,
-//     "address_family": <Address family of the request>,
-//     "allow_cached_response": <Whether to allow cached response>,
-//     "only_use_cached_response": <Use cached results only>,
-//     "is_speculative": <Whether the lookup is speculative>,
-//     "priority": <Priority of the request>,
-//     "source_dependency": <Source id, if any, of what created the request>,
-//   }
-//
-// If an error occurred, the END phase will contain this parameter:
-//   {
-//     "net_error": <The net error code integer for the failure>,
-//   }
-EVENT_TYPE(ASYNC_HOST_RESOLVER_REQUEST)
-
-// This event is created when a new DnsTransaction is about to be created
-// for a request.
-EVENT_TYPE(ASYNC_HOST_RESOLVER_CREATE_DNS_TRANSACTION)
-
-// This event is logged when a request is handled by a cache entry.
-EVENT_TYPE(ASYNC_HOST_RESOLVER_CACHE_HIT)
 
 // ------------------------------------------------------------------------
 // ChromeExtension

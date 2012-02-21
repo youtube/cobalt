@@ -34,7 +34,7 @@ class NET_EXPORT_PRIVATE DnsSession
   const DnsConfig& config() const { return config_; }
   NetLog* net_log() const { return net_log_; }
 
-  ClientSocketFactory* socket_factory() { return socket_factory_.get(); }
+  ClientSocketFactory* socket_factory() { return socket_factory_; }
 
   // Return the next random query ID.
   int NextQueryId() const;
@@ -50,7 +50,7 @@ class NET_EXPORT_PRIVATE DnsSession
   ~DnsSession();
 
   const DnsConfig config_;
-  scoped_ptr<ClientSocketFactory> socket_factory_;
+  ClientSocketFactory* socket_factory_;
   RandCallback rand_callback_;
   NetLog* net_log_;
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -31,7 +31,7 @@ class NET_EXPORT AddressList {
   // Creates an address list for a list of IP literals.
   static AddressList CreateFromIPAddressList(
       const IPAddressList& addresses,
-      uint16 port);
+      const std::string& canonical_name);
 
   // Creates an address list for a single IP literal.
   static AddressList CreateFromIPAddress(
