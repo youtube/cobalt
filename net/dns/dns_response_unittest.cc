@@ -4,9 +4,14 @@
 
 #include "net/dns/dns_response.h"
 
+#include "base/time.h"
+#include "net/base/address_list.h"
 #include "net/base/io_buffer.h"
+#include "net/base/net_util.h"
+#include "net/base/sys_addrinfo.h"
 #include "net/dns/dns_protocol.h"
 #include "net/dns/dns_query.h"
+#include "net/dns/dns_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -24,7 +29,7 @@ TEST(DnsRecordParserTest, Constructor) {
   EXPECT_TRUE(DnsRecordParser(data, 1, 1).AtEnd());
 }
 
-TEST(DnsRecordParserTest, ParseName) {
+TEST(DnsRecordParserTest, ReadName) {
   const uint8 data[] = {
       // all labels "foo.example.com"
       0x03, 'f', 'o', 'o',
@@ -46,31 +51,31 @@ TEST(DnsRecordParserTest, ParseName) {
   DnsRecordParser parser(data, sizeof(data), 0);
   ASSERT_TRUE(parser.IsValid());
 
-  EXPECT_EQ(0x11, parser.ParseName(data + 0x00, &out));
+  EXPECT_EQ(0x11u, parser.ReadName(data + 0x00, &out));
   EXPECT_EQ("foo.example.com", out);
   // Check that the last "." is never stored.
   out.clear();
-  EXPECT_EQ(0x1, parser.ParseName(data + 0x10, &out));
+  EXPECT_EQ(0x1u, parser.ReadName(data + 0x10, &out));
   EXPECT_EQ("", out);
   out.clear();
-  EXPECT_EQ(0x6, parser.ParseName(data + 0x11, &out));
+  EXPECT_EQ(0x6u, parser.ReadName(data + 0x11, &out));
   EXPECT_EQ("bar.example.com", out);
   out.clear();
-  EXPECT_EQ(0x2, parser.ParseName(data + 0x17, &out));
+  EXPECT_EQ(0x2u, parser.ReadName(data + 0x17, &out));
   EXPECT_EQ("bar.example.com", out);
 
   // Parse name without storing it.
-  EXPECT_EQ(0x11, parser.ParseName(data + 0x00, NULL));
-  EXPECT_EQ(0x1, parser.ParseName(data + 0x10, NULL));
-  EXPECT_EQ(0x6, parser.ParseName(data + 0x11, NULL));
-  EXPECT_EQ(0x2, parser.ParseName(data + 0x17, NULL));
+  EXPECT_EQ(0x11u, parser.ReadName(data + 0x00, NULL));
+  EXPECT_EQ(0x1u, parser.ReadName(data + 0x10, NULL));
+  EXPECT_EQ(0x6u, parser.ReadName(data + 0x11, NULL));
+  EXPECT_EQ(0x2u, parser.ReadName(data + 0x17, NULL));
 
   // Check that it works even if initial position is different.
   parser = DnsRecordParser(data, sizeof(data), 0x12);
-  EXPECT_EQ(0x6, parser.ParseName(data + 0x11, NULL));
+  EXPECT_EQ(0x6u, parser.ReadName(data + 0x11, NULL));
 }
 
-TEST(DnsRecordParserTest, ParseNameFail) {
+TEST(DnsRecordParserTest, ReadNameFail) {
   const uint8 data[] = {
       // label length beyond packet
       0x30, 'x', 'x',
@@ -90,15 +95,15 @@ TEST(DnsRecordParserTest, ParseNameFail) {
   ASSERT_TRUE(parser.IsValid());
 
   std::string out;
-  EXPECT_EQ(0, parser.ParseName(data + 0x00, &out));
-  EXPECT_EQ(0, parser.ParseName(data + 0x04, &out));
-  EXPECT_EQ(0, parser.ParseName(data + 0x08, &out));
-  EXPECT_EQ(0, parser.ParseName(data + 0x0a, &out));
-  EXPECT_EQ(0, parser.ParseName(data + 0x0c, &out));
-  EXPECT_EQ(0, parser.ParseName(data + 0x0e, &out));
+  EXPECT_EQ(0u, parser.ReadName(data + 0x00, &out));
+  EXPECT_EQ(0u, parser.ReadName(data + 0x04, &out));
+  EXPECT_EQ(0u, parser.ReadName(data + 0x08, &out));
+  EXPECT_EQ(0u, parser.ReadName(data + 0x0a, &out));
+  EXPECT_EQ(0u, parser.ReadName(data + 0x0c, &out));
+  EXPECT_EQ(0u, parser.ReadName(data + 0x0e, &out));
 }
 
-TEST(DnsRecordParserTest, ParseRecord) {
+TEST(DnsRecordParserTest, ReadRecord) {
   const uint8 data[] = {
       // Type CNAME record.
       0x07, 'e', 'x', 'a', 'm', 'p', 'l', 'e',
@@ -124,17 +129,17 @@ TEST(DnsRecordParserTest, ParseRecord) {
   DnsRecordParser parser(data, sizeof(data), 0);
 
   DnsResourceRecord record;
-  EXPECT_TRUE(parser.ParseRecord(&record));
+  EXPECT_TRUE(parser.ReadRecord(&record));
   EXPECT_EQ("example.com", record.name);
   EXPECT_EQ(dns_protocol::kTypeCNAME, record.type);
   EXPECT_EQ(dns_protocol::kClassIN, record.klass);
   EXPECT_EQ(0x00012474u, record.ttl);
   EXPECT_EQ(6u, record.rdata.length());
-  EXPECT_EQ(6, parser.ParseName(record.rdata.data(), &out));
+  EXPECT_EQ(6u, parser.ReadName(record.rdata.data(), &out));
   EXPECT_EQ("foo.example.com", out);
   EXPECT_FALSE(parser.AtEnd());
 
-  EXPECT_TRUE(parser.ParseRecord(&record));
+  EXPECT_TRUE(parser.ReadRecord(&record));
   EXPECT_EQ("bar.example.com", record.name);
   EXPECT_EQ(dns_protocol::kTypeA, record.type);
   EXPECT_EQ(dns_protocol::kClassIN, record.klass);
@@ -145,9 +150,9 @@ TEST(DnsRecordParserTest, ParseRecord) {
 
   // Test truncated record.
   parser = DnsRecordParser(data, sizeof(data) - 2, 0);
-  EXPECT_TRUE(parser.ParseRecord(&record));
+  EXPECT_TRUE(parser.ReadRecord(&record));
   EXPECT_FALSE(parser.AtEnd());
-  EXPECT_FALSE(parser.ParseRecord(&record));
+  EXPECT_FALSE(parser.ReadRecord(&record));
 }
 
 TEST(DnsResponseTest, InitParse) {
@@ -225,7 +230,7 @@ TEST(DnsResponseTest, InitParse) {
   // Check header access.
   EXPECT_EQ(0x8180, resp.flags());
   EXPECT_EQ(0x0, resp.rcode());
-  EXPECT_EQ(2, resp.answer_count());
+  EXPECT_EQ(2u, resp.answer_count());
 
   // Check question access.
   EXPECT_EQ(query->qname(), resp.qname());
@@ -234,11 +239,224 @@ TEST(DnsResponseTest, InitParse) {
 
   DnsResourceRecord record;
   DnsRecordParser parser = resp.Parser();
-  EXPECT_TRUE(parser.ParseRecord(&record));
+  EXPECT_TRUE(parser.ReadRecord(&record));
   EXPECT_FALSE(parser.AtEnd());
-  EXPECT_TRUE(parser.ParseRecord(&record));
+  EXPECT_TRUE(parser.ReadRecord(&record));
   EXPECT_TRUE(parser.AtEnd());
-  EXPECT_FALSE(parser.ParseRecord(&record));
+  EXPECT_FALSE(parser.ReadRecord(&record));
+}
+
+void VerifyAddressList(const std::vector<const char*>& ip_addresses,
+                       const AddressList& addrlist) {
+  ASSERT_GT(ip_addresses.size(), 0u);
+  ASSERT_NE(static_cast<addrinfo*>(NULL), addrlist.head());
+
+  IPAddressNumber ip_number;
+  const struct addrinfo* ainfo = addrlist.head();
+  for (std::vector<const char*>::const_iterator i = ip_addresses.begin();
+       i != ip_addresses.end(); ++i, ainfo = ainfo->ai_next) {
+    ASSERT_NE(static_cast<addrinfo*>(NULL), ainfo);
+    EXPECT_EQ(sizeof(struct sockaddr_in),
+              static_cast<size_t>(ainfo->ai_addrlen));
+
+    const struct sockaddr* sa = ainfo->ai_addr;
+    EXPECT_STREQ(*i, NetAddressToString(sa, ainfo->ai_addrlen).c_str());
+  }
+  ASSERT_EQ(static_cast<addrinfo*>(NULL), ainfo);
+}
+
+TEST(DnsResponseTest, ParseToAddressList) {
+  const struct TestCase {
+    size_t query_size;
+    const uint8* response_data;
+    size_t response_size;
+    const char* const* expected_addresses;
+    size_t num_expected_addresses;
+    const char* expected_cname;
+    int expected_ttl_sec;
+  } cases[] = {
+      {
+        kT0QuerySize,
+        kT0ResponseDatagram, arraysize(kT0ResponseDatagram),
+        kT0IpAddresses, arraysize(kT0IpAddresses),
+        kT0CanonName,
+        kT0TTL,
+      },
+      {
+        kT1QuerySize,
+        kT1ResponseDatagram, arraysize(kT1ResponseDatagram),
+        kT1IpAddresses, arraysize(kT1IpAddresses),
+        kT1CanonName,
+        kT1TTL,
+      },
+      {
+        kT2QuerySize,
+        kT2ResponseDatagram, arraysize(kT2ResponseDatagram),
+        kT2IpAddresses, arraysize(kT2IpAddresses),
+        kT2CanonName,
+        kT2TTL,
+      },
+      {
+        kT3QuerySize,
+        kT3ResponseDatagram, arraysize(kT3ResponseDatagram),
+        kT3IpAddresses, arraysize(kT3IpAddresses),
+        kT3CanonName,
+        kT3TTL,
+      },
+  };
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
+    const TestCase& t = cases[i];
+    DnsResponse response(t.response_data, t.response_size, t.query_size);
+    AddressList addr_list;
+    base::TimeDelta ttl;
+    EXPECT_EQ(DnsResponse::DNS_SUCCESS,
+              response.ParseToAddressList(&addr_list, &ttl));
+    std::vector<const char*> expected_addresses(
+        t.expected_addresses,
+        t.expected_addresses + t.num_expected_addresses);
+    VerifyAddressList(expected_addresses, addr_list);
+    std::string cname;
+    ASSERT_TRUE(addr_list.GetCanonicalName(&cname));
+    EXPECT_EQ(t.expected_cname, cname);
+    EXPECT_EQ(base::TimeDelta::FromSeconds(t.expected_ttl_sec), ttl);
+  }
+}
+
+const uint8 kResponseTruncatedRecord[] = {
+  // Header: 1 question, 1 answer RR
+  0x00, 0x00, 0x81, 0x80, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+  // Question: name = 'a', type = A (0x1)
+  0x01,  'a', 0x00, 0x00, 0x01, 0x00, 0x01,
+  // Answer: name = 'a', type = A, TTL = 0xFF, RDATA = 10.10.10.10
+  0x01,  'a', 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF,
+  0x00, 0x04, 0x0A, 0x0A, 0x0A,  // Truncated RDATA.
+};
+
+const uint8 kResponseTruncatedCNAME[] = {
+  // Header: 1 question, 1 answer RR
+  0x00, 0x00, 0x81, 0x80, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+  // Question: name = 'a', type = A (0x1)
+  0x01,  'a', 0x00, 0x00, 0x01, 0x00, 0x01,
+  // Answer: name = 'a', type = CNAME, TTL = 0xFF, RDATA = 'foo' (truncated)
+  0x01,  'a', 0x00, 0x00, 0x05, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF,
+  0x00, 0x03, 0x03,  'f',  'o',  // Truncated name.
+};
+
+const uint8 kResponseNameMismatch[] = {
+  // Header: 1 question, 1 answer RR
+  0x00, 0x00, 0x81, 0x80, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+  // Question: name = 'a', type = A (0x1)
+  0x01,  'a', 0x00, 0x00, 0x01, 0x00, 0x01,
+  // Answer: name = 'b', type = A, TTL = 0xFF, RDATA = 10.10.10.10
+  0x01,  'b', 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF,
+  0x00, 0x04, 0x0A, 0x0A, 0x0A, 0x0A,
+};
+
+const uint8 kResponseNameMismatchInChain[] = {
+  // Header: 1 question, 3 answer RR
+  0x00, 0x00, 0x81, 0x80, 0x00, 0x01, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
+  // Question: name = 'a', type = A (0x1)
+  0x01,  'a', 0x00, 0x00, 0x01, 0x00, 0x01,
+  // Answer: name = 'a', type = CNAME, TTL = 0xFF, RDATA = "b"
+  0x01,  'a', 0x00, 0x00, 0x05, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF,
+  0x00, 0x03, 0x01,  'b', 0x00,
+  // Answer: name = 'b', type = A, TTL = 0xFF, RDATA = 10.10.10.10
+  0x01,  'b', 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF,
+  0x00, 0x04, 0x0A, 0x0A, 0x0A, 0x0A,
+  // Answer: name = 'c', type = A, TTL = 0xFF, RDATA = 10.10.10.11
+  0x01,  'c', 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF,
+  0x00, 0x04, 0x0A, 0x0A, 0x0A, 0x0B,
+};
+
+const uint8 kResponseSizeMismatch[] = {
+  // Header: 1 answer RR
+  0x00, 0x00, 0x81, 0x80, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+  // Question: name = 'a', type = AAAA (0x1c)
+  0x01,  'a', 0x00, 0x00, 0x1c, 0x00, 0x01,
+  // Answer: name = 'a', type = AAAA, TTL = 0xFF, RDATA = 10.10.10.10
+  0x01,  'a', 0x00, 0x00, 0x1c, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF,
+  0x00, 0x04, 0x0A, 0x0A, 0x0A, 0x0A,
+};
+
+const uint8 kResponseCNAMEAfterAddress[] = {
+  // Header: 2 answer RR
+  0x00, 0x00, 0x81, 0x80, 0x00, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00,
+  // Question: name = 'a', type = A (0x1)
+  0x01,  'a', 0x00, 0x00, 0x01, 0x00, 0x01,
+  // Answer: name = 'a', type = A, TTL = 0xFF, RDATA = 10.10.10.10.
+  0x01,  'a', 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF,
+  0x00, 0x04, 0x0A, 0x0A, 0x0A, 0x0A,
+  // Answer: name = 'a', type = CNAME, TTL = 0xFF, RDATA = "b"
+  0x01,  'a', 0x00, 0x00, 0x05, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF,
+  0x00, 0x03, 0x01,  'b', 0x00,
+};
+
+const uint8 kResponseTTLMismatch[] = {
+  // Header: 1 question, 3 answer RR
+  0x00, 0x00, 0x81, 0x80, 0x00, 0x01, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
+  // Question: name = 'a', type = A (0x1)
+  0x01,  'a', 0x00, 0x00, 0x01, 0x00, 0x01,
+  // Answer: name = 'a', type = CNAME, TTL = 0xFF, RDATA = "b"
+  0x01,  'a', 0x00, 0x00, 0x05, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF,
+  0x00, 0x03, 0x01,  'b', 0x00,
+  // Answer: name = 'b', type = A, TTL = 0xFF, RDATA = 10.10.10.10
+  0x01,  'b', 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF,
+  0x00, 0x04, 0x0A, 0x0A, 0x0A, 0x0A,
+  // Answer: name = 'b', type = A, TTL = 0xBB, RDATA = 10.10.10.11
+  0x01,  'b', 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0xBB,
+  0x00, 0x04, 0x0A, 0x0A, 0x0A, 0x0B,
+};
+
+const uint8 kResponseNoAddresses[] = {
+  // Header: 1 question, 1 answer RR, 1 authority RR
+  0x00, 0x00, 0x81, 0x80, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+  // Question: name = 'a', type = A (0x1)
+  0x01,  'a', 0x00, 0x00, 0x01, 0x00, 0x01,
+  // Answer: name = 'a', type = CNAME, TTL = 0xFF, RDATA = "b"
+  0x01,  'a', 0x00, 0x00, 0x05, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF,
+  0x00, 0x03, 0x01, 'b', 0x00,
+  // Authority section
+  // Answer: name = 'b', type = A, TTL = 0xFF, RDATA = 10.10.10.10
+  0x01,  'b', 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0xFF,
+  0x00, 0x04, 0x0A, 0x0A, 0x0A, 0x0A,
+};
+
+TEST(DnsResponseTest, ParseToAddressListFail) {
+  const struct TestCase {
+    const uint8* data;
+    size_t size;
+    DnsResponse::Result expected_result;
+  } cases[] = {
+    { kResponseTruncatedRecord, arraysize(kResponseTruncatedRecord),
+      DnsResponse::DNS_MALFORMED_RESPONSE },
+    { kResponseTruncatedCNAME, arraysize(kResponseTruncatedCNAME),
+      DnsResponse::DNS_MALFORMED_CNAME },
+    { kResponseNameMismatch, arraysize(kResponseNameMismatch),
+      DnsResponse::DNS_NAME_MISMATCH },
+    { kResponseNameMismatchInChain, arraysize(kResponseNameMismatchInChain),
+      DnsResponse::DNS_NAME_MISMATCH },
+    { kResponseSizeMismatch, arraysize(kResponseSizeMismatch),
+      DnsResponse::DNS_SIZE_MISMATCH },
+    { kResponseCNAMEAfterAddress, arraysize(kResponseCNAMEAfterAddress),
+      DnsResponse::DNS_CNAME_AFTER_ADDRESS },
+    { kResponseTTLMismatch, arraysize(kResponseTTLMismatch),
+      DnsResponse::DNS_ADDRESS_TTL_MISMATCH },
+    { kResponseNoAddresses, arraysize(kResponseNoAddresses),
+      DnsResponse::DNS_NO_ADDRESSES },
+  };
+
+  const size_t kQuerySize = 12 + 7;
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
+    const TestCase& t = cases[i];
+
+    DnsResponse response(t.data, t.size, kQuerySize);
+    AddressList addr_list;
+    base::TimeDelta ttl;
+    EXPECT_EQ(t.expected_result,
+              response.ParseToAddressList(&addr_list, &ttl));
+  }
 }
 
 }  // namespace
