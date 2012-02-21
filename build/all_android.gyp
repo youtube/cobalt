@@ -47,9 +47,8 @@
       'dependencies': [
         '../webkit/webkit.gyp:pull_in_webkit_unit_tests',
         '../webkit/webkit.gyp:pull_in_DumpRenderTree',
-        '../chrome/chrome.gyp:unit_tests',
-        # Requires 64-bit linker.
         '../content/content.gyp:content_unittests',
+        '../chrome/chrome.gyp:browser',
       ],
     },
     {
@@ -60,6 +59,7 @@
       'dependencies': [
         '../content/content.gyp:content_browsertests',
         '../chrome/chrome.gyp:sync_unit_tests',
+        '../chrome/chrome.gyp:unit_tests',
         '../ui/ui.gyp:gfx_unittests',
       ],
     },
