@@ -51,9 +51,6 @@ class NET_EXPORT FileStream {
   // If the file stream was opened with Open() or OpenSync(), the underlying
   // file will be closed automatically by the destructor, if not closed
   // manually.
-  //
-  // If the file was opened in the async mode, there must never be any
-  // pending async operations by the time the destructor is called.
   virtual ~FileStream();
 
   // Call this method to close the FileStream, which was previously opened in
