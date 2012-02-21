@@ -276,9 +276,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // True iff we believe that the user has an ESET product intercepting our
   // HTTPS connections.
   bool eset_mitm_detected_;
-  // True iff we believe that the user has a Kaspersky product intercepting our
-  // HTTPS connections.
-  bool kaspersky_mitm_detected_;
 
   // True iff |ssl_host_info_| contained a predicted certificate chain and
   // that we found the prediction to be correct.
