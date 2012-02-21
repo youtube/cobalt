@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -112,7 +112,7 @@ AddressList& AddressList::operator=(const AddressList& addresslist) {
 // static
 AddressList AddressList::CreateFromIPAddressList(
     const IPAddressList& addresses,
-    uint16 port) {
+    const std::string& canonical_name) {
   DCHECK(!addresses.empty());
   struct addrinfo* head = NULL;
   struct addrinfo* next = NULL;
@@ -121,13 +121,15 @@ AddressList AddressList::CreateFromIPAddressList(
        it != addresses.end(); ++it) {
     if (head == NULL) {
       head = next = CreateAddrInfo(*it, false);
+      if (!canonical_name.empty()) {
+        head->ai_canonname = do_strdup(canonical_name.c_str());
+      }
     } else {
       next->ai_next = CreateAddrInfo(*it, false);
       next = next->ai_next;
     }
   }
 
-  SetPortForAllAddrinfos(head, port);
   return AddressList(new Data(head, false));
 }
 

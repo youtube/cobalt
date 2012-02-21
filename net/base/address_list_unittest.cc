@@ -216,7 +216,7 @@ TEST(AddressListTest, IPLiteralConstructor) {
     const struct addrinfo* good_ai = expected_list.head();
 
     IPAddressNumber ip_number;
-    ParseIPLiteralToNumber(tests[i].ip_address, &ip_number);
+    ASSERT_TRUE(ParseIPLiteralToNumber(tests[i].ip_address, &ip_number));
     AddressList test_list = AddressList::CreateFromIPAddressWithCname(
         ip_number, 80, true);
     const struct addrinfo* test_ai = test_list.head();
@@ -305,18 +305,21 @@ TEST(AddressListTest, CreateFromIPAddressList) {
       sizeof(struct in_addr),
     },
   };
-  const uint16 kPort = 80;
+  const std::string kCanonicalName = "canonical.example.com";
 
   // Construct a list of ip addresses.
   IPAddressList ip_list;
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     IPAddressNumber ip_number;
-    ParseIPLiteralToNumber(tests[i].ip_address, &ip_number);
+    ASSERT_TRUE(ParseIPLiteralToNumber(tests[i].ip_address, &ip_number));
     ip_list.push_back(ip_number);
   }
 
-  AddressList test_list = AddressList::CreateFromIPAddressList(ip_list, kPort);
-  EXPECT_EQ(kPort, test_list.GetPort());
+  AddressList test_list = AddressList::CreateFromIPAddressList(ip_list,
+                                                               kCanonicalName);
+  std::string canonical_name;
+  EXPECT_TRUE(test_list.GetCanonicalName(&canonical_name));
+  EXPECT_EQ(kCanonicalName, canonical_name);
 
   // Make sure that CreateFromIPAddressList has created an addrinfo
   // chain of exactly the same length as the |tests| with correct content.
