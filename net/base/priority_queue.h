@@ -47,7 +47,11 @@ class PriorityQueue : public base::NonThreadSafe {
   class Pointer {
    public:
     // Constructs a null pointer.
-    Pointer() : priority_(kNullPriority) {}
+    Pointer() : priority_(kNullPriority) {
+#if !defined(NDEBUG)
+      id_ = static_cast<size_t>(-1);
+#endif
+    }
 
     bool is_null() const { return priority_ == kNullPriority; }
 
@@ -62,6 +66,10 @@ class PriorityQueue : public base::NonThreadSafe {
     // Comparing to Pointer from a different PriorityQueue is undefined.
     bool Equals(const Pointer& other) const {
       return (priority_ == other.priority_) && (iterator_ == other.iterator_);
+    }
+
+    void Reset() {
+      *this = Pointer();
     }
 
    private:

@@ -12,6 +12,7 @@
 
 #include "base/file_path.h"
 #include "base/gtest_prod_util.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/observer_list.h"
 #include "base/threading/non_thread_safe.h"
 #include "base/time.h"
@@ -64,6 +65,7 @@ struct NET_EXPORT_PRIVATE DnsConfig {
 
 // Service for watching when the system DNS settings have changed.
 // Depending on the platform, watches files in /etc/ or win registry.
+// This class also serves as the do-nothing mock implementation.
 class NET_EXPORT_PRIVATE DnsConfigService
   : NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
@@ -78,7 +80,7 @@ class NET_EXPORT_PRIVATE DnsConfigService
   };
 
   // Creates the platform-specific DnsConfigService.
-  static DnsConfigService* CreateSystemService();
+  static scoped_ptr<DnsConfigService> CreateSystemService();
 
   DnsConfigService();
   virtual ~DnsConfigService();

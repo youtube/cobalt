@@ -84,8 +84,8 @@ void DnsConfigServicePosix::Watch() {
 }
 
 // static
-DnsConfigService* DnsConfigService::CreateSystemService() {
-  return new DnsConfigServicePosix();
+scoped_ptr<DnsConfigService> DnsConfigService::CreateSystemService() {
+  return scoped_ptr<DnsConfigService>(new DnsConfigServicePosix());
 }
 
 #if !defined(OS_ANDROID)

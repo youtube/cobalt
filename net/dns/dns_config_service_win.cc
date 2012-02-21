@@ -307,9 +307,6 @@ class DnsConfigServiceWin::ConfigReader : public SerialWorker {
   bool StartWatch() {
     DCHECK(loop()->BelongsToCurrentThread());
 
-    // This is done only once per lifetime so open the keys on this thread.
-    base::ThreadRestrictions::ScopedAllowIO allow_io;
-
     base::Closure callback = base::Bind(&SerialWorker::WorkNow,
                                         base::Unretained(this));
 
@@ -448,6 +445,12 @@ DnsConfigServiceWin::~DnsConfigServiceWin() {
 
 void DnsConfigServiceWin::Watch() {
   DCHECK(CalledOnValidThread());
+
+  // This is done only once per lifetime so open the keys and file watcher
+  // handles on this thread.
+  // TODO(szym): Should/can this be avoided? http://crbug.com/114223
+  base::ThreadRestrictions::ScopedAllowIO allow_io;
+
   bool started = config_reader_->StartWatch();
   // TODO(szym): handle possible failure
   DCHECK(started);
@@ -461,8 +464,8 @@ void DnsConfigServiceWin::Watch() {
 }
 
 // static
-DnsConfigService* DnsConfigService::CreateSystemService() {
-  return new DnsConfigServiceWin();
+scoped_ptr<DnsConfigService> DnsConfigService::CreateSystemService() {
+  return scoped_ptr<DnsConfigService>(new DnsConfigServiceWin());
 }
 
 }  // namespace net

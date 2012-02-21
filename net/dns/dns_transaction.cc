@@ -51,22 +51,19 @@ bool IsIPLiteral(const std::string& hostname) {
 class StartParameters : public NetLog::EventParameters {
  public:
   StartParameters(const std::string& hostname,
-                  uint16 qtype,
-                  const NetLog::Source& source)
-      : hostname_(hostname), qtype_(qtype), source_(source) {}
+                  uint16 qtype)
+      : hostname_(hostname), qtype_(qtype) {}
 
   virtual Value* ToValue() const OVERRIDE {
     DictionaryValue* dict = new DictionaryValue();
     dict->SetString("hostname", hostname_);
     dict->SetInteger("query_type", qtype_);
-    dict->Set("source_dependency", source_.ToValue());
     return dict;
   }
 
  private:
   const std::string hostname_;
   const uint16 qtype_;
-  const NetLog::Source source_;
 };
 
 class ResponseParameters : public NetLog::EventParameters {
@@ -78,7 +75,7 @@ class ResponseParameters : public NetLog::EventParameters {
     DictionaryValue* dict = new DictionaryValue();
     dict->SetInteger("rcode", rcode_);
     dict->SetInteger("answer_count", answer_count_);
-    dict->Set("socket_source", source_.ToValue());
+    dict->Set("source_dependency", source_.ToValue());
     return dict;
   }
 
@@ -211,8 +208,14 @@ class DnsUDPAttempt {
       return rv;
 
     DCHECK(rv);
-    if (!response_->InitParse(rv, *query_))
+    if (!response_->InitParse(rv, *query_)) {
+      // TODO(szym): Consider making this reaction less aggressive.
+      // Other implementations simply ignore mismatched responses. Since each
+      // DnsUDPAttempt binds to a different port, we might find that responses
+      // to previously timed out queries lead to failures in the future.
+      // http://crbug.com/107413
       return ERR_DNS_MALFORMED_RESPONSE;
+    }
     if (response_->flags() & dns_protocol::kFlagTC)
       return ERR_DNS_SERVER_REQUIRES_TCP;
     if (response_->rcode() != dns_protocol::kRcodeNOERROR &&
@@ -258,13 +261,12 @@ class DnsTransactionImpl : public DnsTransaction, public base::NonThreadSafe {
                      const std::string& hostname,
                      uint16 qtype,
                      const DnsTransactionFactory::CallbackType& callback,
-                     const BoundNetLog& source_net_log)
+                     const BoundNetLog& net_log)
     : session_(session),
       hostname_(hostname),
       qtype_(qtype),
       callback_(callback),
-      net_log_(BoundNetLog::Make(session->net_log(),
-                                 NetLog::SOURCE_DNS_TRANSACTION)),
+      net_log_(net_log),
       first_server_index_(0) {
     DCHECK(session_);
     DCHECK(!hostname_.empty());
@@ -273,7 +275,7 @@ class DnsTransactionImpl : public DnsTransaction, public base::NonThreadSafe {
     DCHECK(!IsIPLiteral(hostname_));
 
     net_log_.BeginEvent(NetLog::TYPE_DNS_TRANSACTION, make_scoped_refptr(
-        new StartParameters(hostname_, qtype_, source_net_log.source())));
+        new StartParameters(hostname_, qtype_)));
   }
 
   virtual ~DnsTransactionImpl() {
@@ -299,7 +301,19 @@ class DnsTransactionImpl : public DnsTransaction, public base::NonThreadSafe {
     int rv = PrepareSearch();
     if (rv == OK)
       rv = StartQuery();
-    DCHECK_NE(OK, rv);
+    if (rv == OK) {
+      // In the very unlikely case that we immediately received the response, we
+      // cannot simply return OK nor run the callback, but instead complete
+      // asynchronously.
+      // TODO(szym): replace Unretained with WeakPtr factory.
+      MessageLoop::current()->PostTask(
+          FROM_HERE,
+          base::Bind(&DnsTransactionImpl::DoCallback,
+                     base::Unretained(this),
+                     OK,
+                     attempts_.back()));
+      return ERR_IO_PENDING;
+    }
     return rv;
   }
 
@@ -387,7 +401,8 @@ class DnsTransactionImpl : public DnsTransaction, public base::NonThreadSafe {
     }
 
     net_log_.AddEvent(NetLog::TYPE_DNS_TRANSACTION_ATTEMPT, make_scoped_refptr(
-        new NetLogSourceParameter("socket_source", socket->NetLog().source())));
+        new NetLogSourceParameter("source_dependency",
+                                  socket->NetLog().source())));
 
     const DnsConfig& config = session_->config();
 
@@ -451,7 +466,7 @@ class DnsTransactionImpl : public DnsTransaction, public base::NonThreadSafe {
         DoCallback(rv, attempt);
         return;
       default:
-        // TODO(szym): Some nameservers could fail so try the next one.
+        // Some nameservers could fail so try the next one.
         const DnsConfig& config = session_->config();
         if (attempts_.size() < config.attempts * config.nameservers.size()) {
           rv = MakeAttempt();
@@ -512,12 +527,12 @@ class DnsTransactionFactoryImpl : public DnsTransactionFactory {
       const std::string& hostname,
       uint16 qtype,
       const CallbackType& callback,
-      const BoundNetLog& source_net_log) OVERRIDE {
+      const BoundNetLog& net_log) OVERRIDE {
     return scoped_ptr<DnsTransaction>(new DnsTransactionImpl(session_,
                                                              hostname,
                                                              qtype,
                                                              callback,
-                                                             source_net_log));
+                                                             net_log));
   }
 
  private:
