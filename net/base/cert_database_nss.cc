@@ -52,10 +52,9 @@ int CertDatabase::CheckUserCert(X509Certificate* cert_obj) {
 
   CERTCertificate* cert = cert_obj->os_cert_handle();
   PK11SlotInfo* slot = PK11_KeyForCertExists(cert, NULL, NULL);
-  if (!slot) {
-    LOG(ERROR) << "No corresponding private key in store";
+  if (!slot)
     return ERR_NO_PRIVATE_KEY_FOR_CERT;
-  }
+
   PK11_FreeSlot(slot);
 
   return OK;
