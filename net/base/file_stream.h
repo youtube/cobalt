@@ -14,6 +14,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/platform_file.h"
+#include "base/synchronization/waitable_event.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
 #include "net/base/net_log.h"
@@ -210,8 +211,6 @@ class NET_EXPORT FileStream {
   void SetBoundNetLogSource(const net::BoundNetLog& owner_bound_net_log);
 
  private:
-  class AsyncContext;
-  friend class AsyncContext;
   friend class FileStreamTest;
 
   // Called when the file_ is opened asynchronously. |file| contains the
@@ -222,9 +221,19 @@ class NET_EXPORT FileStream {
   // Called when the file_ is closed asynchronously.
   void OnClosed();
 
+#if defined(OS_WIN)
+  class AsyncContext;
+  friend class AsyncContext;
   // This member is used to support asynchronous reads.  It is non-null when
   // the FileStream was opened with PLATFORM_FILE_ASYNC.
   scoped_ptr<AsyncContext> async_context_;
+#else
+  // Called when Read() or Write() is completed (used only for POSIX).
+  // |result| contains the result as a network error code.
+  void OnIOComplete(int* result);
+
+  scoped_ptr<base::WaitableEvent> on_io_complete_;
+#endif
 
   base::PlatformFile file_;
   int open_flags_;
