@@ -44,7 +44,7 @@ static AudioCodec CodecIDToAudioCodec(CodecID codec_id) {
     case CODEC_ID_PCM_MULAW:
       return kCodecPCM_MULAW;
     default:
-      NOTREACHED();
+      DVLOG(1) << "Unknown audio CodecID: " << codec_id;
   }
   return kUnknownAudioCodec;
 }
@@ -52,8 +52,6 @@ static AudioCodec CodecIDToAudioCodec(CodecID codec_id) {
 static CodecID AudioCodecToCodecID(AudioCodec audio_codec,
                                    int bits_per_channel) {
   switch (audio_codec) {
-    case kUnknownAudioCodec:
-      return CODEC_ID_NONE;
     case kCodecAAC:
       return CODEC_ID_AAC;
     case kCodecMP3:
@@ -67,8 +65,9 @@ static CodecID AudioCodecToCodecID(AudioCodec audio_codec,
         case 32:
           return CODEC_ID_PCM_S32LE;
         default:
-          NOTREACHED() << "Unsupported bits_per_channel: " << bits_per_channel;
+          DVLOG(1) << "Unsupported bits per channel: " << bits_per_channel;
       }
+      break;
     case kCodecVorbis:
       return CODEC_ID_VORBIS;
     case kCodecFLAC:
@@ -80,7 +79,7 @@ static CodecID AudioCodecToCodecID(AudioCodec audio_codec,
     case kCodecPCM_MULAW:
       return CODEC_ID_PCM_MULAW;
     default:
-      NOTREACHED();
+      DVLOG(1) << "Unknown AudioCodec: " << audio_codec;
   }
   return CODEC_ID_NONE;
 }
@@ -100,15 +99,13 @@ static VideoCodec CodecIDToVideoCodec(CodecID codec_id) {
     case CODEC_ID_VP8:
       return kCodecVP8;
     default:
-      NOTREACHED();
+      DVLOG(1) << "Unknown video CodecID: " << codec_id;
   }
   return kUnknownVideoCodec;
 }
 
 static CodecID VideoCodecToCodecID(VideoCodec video_codec) {
   switch (video_codec) {
-    case kUnknownVideoCodec:
-      return CODEC_ID_NONE;
     case kCodecVC1:
       return CODEC_ID_VC1;
     case kCodecH264:
@@ -122,7 +119,7 @@ static CodecID VideoCodecToCodecID(VideoCodec video_codec) {
     case kCodecVP8:
       return CODEC_ID_VP8;
     default:
-      NOTREACHED();
+      DVLOG(1) << "Unknown VideoCodec: " << video_codec;
   }
   return CODEC_ID_NONE;
 }
@@ -148,8 +145,9 @@ static VideoCodecProfile ProfileIDToVideoCodecProfile(int profile) {
     case FF_PROFILE_H264_HIGH_444_PREDICTIVE:
       return H264PROFILE_HIGH444PREDICTIVEPROFILE;
     default:
-      return VIDEO_CODEC_PROFILE_UNKNOWN;
+      DVLOG(1) << "Unknown profile id: " << profile;
   }
+  return VIDEO_CODEC_PROFILE_UNKNOWN;
 }
 
 static int VideoCodecProfileToProfileID(VideoCodecProfile profile) {
@@ -169,8 +167,9 @@ static int VideoCodecProfileToProfileID(VideoCodecProfile profile) {
     case H264PROFILE_HIGH444PREDICTIVEPROFILE:
       return FF_PROFILE_H264_HIGH_444_PREDICTIVE;
     default:
-      return FF_PROFILE_UNKNOWN;
+      DVLOG(1) << "Unknown VideoCodecProfile: " << profile;
   }
+  return FF_PROFILE_UNKNOWN;
 }
 
 void AVCodecContextToAudioDecoderConfig(
@@ -211,7 +210,7 @@ void AudioDecoderConfigToAVCodecContext(const AudioDecoderConfig& config,
       codec_context->sample_fmt = AV_SAMPLE_FMT_S32;
       break;
     default:
-      NOTIMPLEMENTED() << "TODO(scherkus): DO SOMETHING BETTER HERE?";
+      DVLOG(1) << "Unsupported bits per channel: " << config.bits_per_channel();
       codec_context->sample_fmt = AV_SAMPLE_FMT_NONE;
   }
 
@@ -327,9 +326,9 @@ ChannelLayout ChannelLayoutToChromeChannelLayout(int64_t layout,
         return CHANNEL_LAYOUT_MONO;
       if (channels == 2)
         return CHANNEL_LAYOUT_STEREO;
-      DLOG(WARNING) << "Unsupported/unencountered channel layout values";
-      return CHANNEL_LAYOUT_UNSUPPORTED;
+      DVLOG(1) << "Unsupported channel layout: " << layout;
   }
+  return CHANNEL_LAYOUT_UNSUPPORTED;
 }
 
 VideoFrame::Format PixelFormatToVideoFormat(PixelFormat pixel_format) {
@@ -339,9 +338,9 @@ VideoFrame::Format PixelFormatToVideoFormat(PixelFormat pixel_format) {
     case PIX_FMT_YUV420P:
       return VideoFrame::YV12;
     default:
-      DLOG(WARNING) << "Unsupported PixelFormat: " << pixel_format;
-      return VideoFrame::INVALID;
+      DVLOG(1) << "Unsupported PixelFormat: " << pixel_format;
   }
+  return VideoFrame::INVALID;
 }
 
 PixelFormat VideoFormatToPixelFormat(VideoFrame::Format video_format) {
@@ -351,9 +350,9 @@ PixelFormat VideoFormatToPixelFormat(VideoFrame::Format video_format) {
     case VideoFrame::YV12:
       return PIX_FMT_YUV420P;
     default:
-      DLOG(WARNING) << "Unsupported VideoFrame Format: " << video_format;
-      return PIX_FMT_NONE;
+      DVLOG(1) << "Unsupported VideoFrame::Format: " << video_format;
   }
+  return PIX_FMT_NONE;
 }
 
 base::TimeDelta GetFrameDuration(const VideoDecoderConfig& config) {

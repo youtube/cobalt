@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -50,6 +50,13 @@ class MEDIA_EXPORT VideoFrame : public StreamSample {
       size_t height,
       base::TimeDelta timestamp,
       base::TimeDelta duration);
+
+  // Call prior to CreateFrame to ensure validity of frame configuration. Called
+  // automatically by VideoDecoderConfig::IsValidConfig().
+  static bool IsValidConfig(
+      Format format,
+      size_t width,
+      size_t height);
 
   // Wraps a native texture of the given parameters with a VideoFrame.  When the
   // frame is destroyed |no_longer_needed.Run()| will be called.
