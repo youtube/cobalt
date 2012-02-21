@@ -21,13 +21,7 @@ static const char kT0DnsName[] = {
   0x03, 'c', 'o', 'm',
   0x00
 };
-static const uint8 kT0QueryDatagram[] = {
-  // query for www.google.com, type A.
-  0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x03, 0x77, 0x77, 0x77,
-  0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x03,
-  0x63, 0x6f, 0x6d, 0x00, 0x00, 0x01, 0x00, 0x01
-};
+static const size_t kT0QuerySize = 32;
 static const uint8 kT0ResponseDatagram[] = {
   // response contains one CNAME for www.l.google.com and the following
   // IP addresses: 74.125.226.{179,180,176,177,178}
@@ -53,6 +47,8 @@ static const char* const kT0IpAddresses[] = {
   "74.125.226.179", "74.125.226.180", "74.125.226.176",
   "74.125.226.177", "74.125.226.178"
 };
+static const char kT0CanonName[] = "www.l.google.com";
+static const int kT0TTL = 0x000000e4;
 
 //-----------------------------------------------------------------------------
 // Query/response set for codereview.chromium.org, ID is fixed to 1.
@@ -64,15 +60,7 @@ static const char kT1DnsName[] = {
   0x03, 'o', 'r', 'g',
   0x00
 };
-static const uint8 kT1QueryDatagram[] = {
-  // query for codereview.chromium.org, type A.
-  0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x0a, 0x63, 0x6f, 0x64,
-  0x65, 0x72, 0x65, 0x76, 0x69, 0x65, 0x77, 0x08,
-  0x63, 0x68, 0x72, 0x6f, 0x6d, 0x69, 0x75, 0x6d,
-  0x03, 0x6f, 0x72, 0x67, 0x00, 0x00, 0x01, 0x00,
-  0x01
-};
+static const size_t kT1QuerySize = 41;
 static const uint8 kT1ResponseDatagram[] = {
   // response contains one CNAME for ghs.l.google.com and the following
   // IP address: 64.233.169.121
@@ -91,6 +79,8 @@ static const uint8 kT1ResponseDatagram[] = {
 static const char* const kT1IpAddresses[] = {
   "64.233.169.121"
 };
+static const char kT1CanonName[] = "ghs.l.google.com";
+static const int kT1TTL = 0x0000010b;
 
 //-----------------------------------------------------------------------------
 // Query/response set for www.ccs.neu.edu, ID is fixed to 2.
@@ -103,14 +93,7 @@ static const char kT2DnsName[] = {
   0x03, 'e', 'd', 'u',
   0x00
 };
-static const uint8 kT2QueryDatagram[] = {
-  // query for www.ccs.neu.edu, type A.
-  0x00, 0x02, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x03, 0x77, 0x77, 0x77,
-  0x03, 0x63, 0x63, 0x73, 0x03, 0x6e, 0x65, 0x75,
-  0x03, 0x65, 0x64, 0x75, 0x00, 0x00, 0x01, 0x00,
-  0x01
-};
+static const size_t kT2QuerySize = 33;
 static const uint8 kT2ResponseDatagram[] = {
   // response contains one CNAME for vulcan.ccs.neu.edu and the following
   // IP address: 129.10.116.81
@@ -127,6 +110,8 @@ static const uint8 kT2ResponseDatagram[] = {
 static const char* const kT2IpAddresses[] = {
   "129.10.116.81"
 };
+static const char kT2CanonName[] = "vulcan.ccs.neu.edu";
+static const int kT2TTL = 0x0000012c;
 
 //-----------------------------------------------------------------------------
 // Query/response set for www.google.az, ID is fixed to 3.
@@ -138,13 +123,7 @@ static const char kT3DnsName[] = {
   0x02, 'a', 'z',
   0x00
 };
-static const uint8 kT3QueryDatagram[] = {
-  // query for www.google.az, type A.
-  0x00, 0x03, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00,
-  0x00, 0x00, 0x00, 0x00, 0x03, 0x77, 0x77, 0x77,
-  0x06, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x02,
-  0x61, 0x7a, 0x00, 0x00, 0x01, 0x00, 0x01
-};
+static const size_t kT3QuerySize = 31;
 static const uint8 kT3ResponseDatagram[] = {
   // response contains www.google.com as CNAME for www.google.az and
   // www.l.google.com as CNAME for www.google.com and the following
@@ -174,6 +153,8 @@ static const char* const kT3IpAddresses[] = {
   "74.125.226.178", "74.125.226.179", "74.125.226.180",
   "74.125.226.176", "74.125.226.177"
 };
+static const char kT3CanonName[] = "www.l.google.com";
+static const int kT3TTL = 0x00000015;
 
 }  // namespace net
 

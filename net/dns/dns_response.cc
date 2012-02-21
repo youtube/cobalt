@@ -4,7 +4,9 @@
 
 #include "net/dns/dns_response.h"
 
+#include "base/string_util.h"
 #include "base/sys_byteorder.h"
+#include "net/base/address_list.h"
 #include "net/base/big_endian.h"
 #include "net/base/dns_util.h"
 #include "net/base/io_buffer.h"
@@ -32,7 +34,8 @@ DnsRecordParser::DnsRecordParser(const void* packet,
   DCHECK_LE(offset, length);
 }
 
-int DnsRecordParser::ParseName(const void* const vpos, std::string* out) const {
+unsigned DnsRecordParser::ReadName(const void* const vpos,
+                                   std::string* out) const {
   const char* const pos = reinterpret_cast<const char*>(vpos);
   DCHECK(packet_);
   DCHECK_LE(packet_, pos);
@@ -41,9 +44,9 @@ int DnsRecordParser::ParseName(const void* const vpos, std::string* out) const {
   const char* p = pos;
   const char* end = packet_ + length_;
   // Count number of seen bytes to detect loops.
-  size_t seen = 0;
+  unsigned seen = 0;
   // Remember how many bytes were consumed before first jump.
-  size_t consumed = 0;
+  unsigned consumed = 0;
 
   if (pos >= end)
     return 0;
@@ -54,7 +57,7 @@ int DnsRecordParser::ParseName(const void* const vpos, std::string* out) const {
   }
 
   for (;;) {
-    // The two couple of bits of the length give the type of the length. It's
+    // The first two bits of the length give the type of the length. It's
     // either a direct length or a pointer to the remainder of the name.
     switch (*p & dns_protocol::kLabelMask) {
       case dns_protocol::kLabelPointer: {
@@ -105,9 +108,9 @@ int DnsRecordParser::ParseName(const void* const vpos, std::string* out) const {
   }
 }
 
-bool DnsRecordParser::ParseRecord(DnsResourceRecord* out) {
+bool DnsRecordParser::ReadRecord(DnsResourceRecord* out) {
   DCHECK(packet_);
-  size_t consumed = ParseName(cur_, &out->name);
+  size_t consumed = ReadName(cur_, &out->name);
   if (!consumed)
     return false;
   BigEndianReader reader(cur_ + consumed,
@@ -182,7 +185,7 @@ uint8 DnsResponse::rcode() const {
   return ntohs(header()->flags) & dns_protocol::kRcodeMask;
 }
 
-int DnsResponse::answer_count() const {
+unsigned DnsResponse::answer_count() const {
   DCHECK(parser_.IsValid());
   return ntohs(header()->ancount);
 }
@@ -218,6 +221,73 @@ DnsRecordParser DnsResponse::Parser() const {
 
 const dns_protocol::Header* DnsResponse::header() const {
   return reinterpret_cast<const dns_protocol::Header*>(io_buffer_->data());
+}
+
+DnsResponse::Result DnsResponse::ParseToAddressList(
+    AddressList* addr_list,
+    base::TimeDelta* ttl) const {
+  DCHECK(IsValid());
+  // DnsTransaction already verified that |response| matches the issued query.
+  // We still need to determine if there is a valid chain of CNAMEs from the
+  // query name to the RR owner name.
+  // We err on the side of caution with the assumption that if we are too picky,
+  // we can always fall back to the system getaddrinfo.
+
+  // Expected owner of record. No trailing dot.
+  std::string expected_name = GetDottedName();
+
+  uint16 expected_type = qtype();
+  DCHECK(expected_type == dns_protocol::kTypeA ||
+         expected_type == dns_protocol::kTypeAAAA);
+
+  size_t expected_size = (expected_type == dns_protocol::kTypeAAAA)
+      ? kIPv6AddressSize : kIPv4AddressSize;
+
+  uint32 cname_ttl_sec = kuint32max;
+  uint32 addr_ttl_sec = kuint32max;
+  IPAddressList ip_addresses;
+  DnsRecordParser parser = Parser();
+  DnsResourceRecord record;
+  unsigned ancount = answer_count();
+  for (unsigned i = 0; i < ancount; ++i) {
+    if (!parser.ReadRecord(&record))
+      return DNS_MALFORMED_RESPONSE;
+
+    if (base::strcasecmp(record.name.c_str(), expected_name.c_str()) != 0)
+      return DNS_NAME_MISMATCH;
+    if (record.type == dns_protocol::kTypeCNAME) {
+      // Following the CNAME chain, only if no addresses seen.
+      if (!ip_addresses.empty())
+        return DNS_CNAME_AFTER_ADDRESS;
+
+      if (record.rdata.size() !=
+          parser.ReadName(record.rdata.begin(), &expected_name))
+        return DNS_MALFORMED_CNAME;
+
+      cname_ttl_sec = std::min(cname_ttl_sec, record.ttl);
+    } else if (record.type == expected_type) {
+      if (record.rdata.size() != expected_size)
+        return DNS_SIZE_MISMATCH;
+      if (ip_addresses.empty()) {
+        addr_ttl_sec = record.ttl;
+      } else {
+        if (addr_ttl_sec != record.ttl)
+          return DNS_ADDRESS_TTL_MISMATCH;
+      }
+      ip_addresses.push_back(IPAddressNumber(record.rdata.begin(),
+                                             record.rdata.end()));
+    }
+  }
+
+  if (ip_addresses.empty())
+    return DNS_NO_ADDRESSES;
+
+  // getcanonname in eglibc returns the first owner name of an A or AAAA RR.
+  // If the response passed all the checks so far, then |expected_name| is it.
+  *addr_list = AddressList::CreateFromIPAddressList(ip_addresses,
+                                                    expected_name);
+  *ttl = base::TimeDelta::FromSeconds(std::min(cname_ttl_sec, addr_ttl_sec));
+  return DNS_SUCCESS;
 }
 
 }  // namespace net

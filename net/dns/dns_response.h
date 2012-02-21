@@ -11,11 +11,13 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/string_piece.h"
+#include "base/time.h"
 #include "net/base/net_export.h"
 #include "net/base/net_util.h"
 
 namespace net {
 
+class AddressList;
 class DnsQuery;
 class IOBufferWithSize;
 
@@ -61,10 +63,10 @@ class NET_EXPORT_PRIVATE DnsRecordParser {
   // This is exposed to allow parsing compressed names within RRDATA for TYPEs
   // such as NS, CNAME, PTR, MX, SOA.
   // See RFC 1035 section 4.1.4.
-  int ParseName(const void* pos, std::string* out) const;
+  unsigned ReadName(const void* pos, std::string* out) const;
 
-  // Parses the next resource record. Returns true if succeeded.
-  bool ParseRecord(DnsResourceRecord* record);
+  // Parses the next resource record into |record|. Returns true if succeeded.
+  bool ReadRecord(DnsResourceRecord* record);
 
  private:
   const char* packet_;
@@ -78,6 +80,20 @@ class NET_EXPORT_PRIVATE DnsRecordParser {
 // position the RR parser.
 class NET_EXPORT_PRIVATE DnsResponse {
  public:
+  // Possible results from ParseToAddressList
+  enum Result {
+    DNS_SUCCESS = 0,
+    DNS_MALFORMED_RESPONSE,    // DnsRecordParser failed before the end of
+                               // packet.
+    DNS_MALFORMED_CNAME,       // Could not parse CNAME out of RRDATA.
+    DNS_NAME_MISMATCH,         // Got an address but no ordered chain of CNAMEs
+                               // leads there.
+    DNS_SIZE_MISMATCH,         // Got an address but size does not match.
+    DNS_CNAME_AFTER_ADDRESS,   // Found CNAME after an address record.
+    DNS_ADDRESS_TTL_MISMATCH,  // TTL of all address records are not identical.
+    DNS_NO_ADDRESSES,          // No address records found.
+  };
+
   // Constructs an object with an IOBuffer large enough to read
   // one byte more than largest possible response, to detect malformed
   // responses.
@@ -102,7 +118,7 @@ class NET_EXPORT_PRIVATE DnsResponse {
   // Accessors for the header.
   uint16 flags() const;  // excluding rcode
   uint8 rcode() const;
-  int answer_count() const;
+  unsigned answer_count() const;
 
   // Accessors to the question. The qname is unparsed.
   base::StringPiece qname() const;
@@ -115,6 +131,10 @@ class NET_EXPORT_PRIVATE DnsResponse {
   // The iterator is valid only in the scope of the DnsResponse.
   // This operation is idempotent.
   DnsRecordParser Parser() const;
+
+  // Extracts an AddressList from this response. Returns SUCCESS if succeeded.
+  // Otherwise returns a detailed error number.
+  Result ParseToAddressList(AddressList* addr_list, base::TimeDelta* ttl) const;
 
  private:
   // Convenience for header access.

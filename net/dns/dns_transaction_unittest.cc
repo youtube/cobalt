@@ -141,14 +141,16 @@ class TransactionHelper {
 
     if (expected_answer_count_ >= 0) {
       EXPECT_EQ(OK, rv);
-      EXPECT_EQ(expected_answer_count_, response->answer_count());
+      EXPECT_EQ(static_cast<unsigned>(expected_answer_count_),
+                response->answer_count());
       EXPECT_EQ(qtype_, response->qtype());
 
       DnsRecordParser parser = response->Parser();
       DnsResourceRecord record;
       for (int i = 0; i < expected_answer_count_; ++i) {
-        EXPECT_TRUE(parser.ParseRecord(&record));
+        EXPECT_TRUE(parser.ReadRecord(&record));
       }
+      // Technically, there could be additional RRs, but not in our test data.
       EXPECT_TRUE(parser.AtEnd());
     } else {
       EXPECT_EQ(expected_answer_count_, rv);
@@ -212,10 +214,10 @@ class DnsTransactionTest : public testing::Test {
 
   // Called after fully configuring |config|.
   void ConfigureFactory() {
-    socket_factory_ = new TestSocketFactory();
+    socket_factory_.reset(new TestSocketFactory());
     session_ = new DnsSession(
         config_,
-        socket_factory_,
+        socket_factory_.get(),
         base::Bind(&DnsTransactionTest::GetNextId, base::Unretained(this)),
         NULL /* NetLog */);
     transaction_factory_ = DnsTransactionFactory::CreateFactory(session_.get());
@@ -232,7 +234,7 @@ class DnsTransactionTest : public testing::Test {
                    uint16 id,
                    const char* data,
                    size_t data_length) {
-    CHECK(socket_factory_);
+    CHECK(socket_factory_.get());
     DnsQuery* query = new DnsQuery(id, DomainFromDot(dotted_name), qtype);
     queries_.push_back(query);
 
@@ -252,7 +254,7 @@ class DnsTransactionTest : public testing::Test {
 
   // Add expected query of |dotted_name| and |qtype| and no response.
   void AddTimeout(const char* dotted_name, uint16 qtype) {
-    CHECK(socket_factory_);
+    CHECK(socket_factory_.get());
     uint16 id = base::RandInt(0, kuint16max);
     DnsQuery* query = new DnsQuery(id, DomainFromDot(dotted_name), qtype);
     queries_.push_back(query);
@@ -268,7 +270,7 @@ class DnsTransactionTest : public testing::Test {
   // Add expected query of |dotted_name| and |qtype| and response with no answer
   // and rcode set to |rcode|.
   void AddRcode(const char* dotted_name, uint16 qtype, int rcode) {
-    CHECK(socket_factory_);
+    CHECK(socket_factory_.get());
     CHECK_NE(dns_protocol::kRcodeNOERROR, rcode);
     uint16 id = base::RandInt(0, kuint16max);
     DnsQuery* query = new DnsQuery(id, DomainFromDot(dotted_name), qtype);
@@ -360,8 +362,7 @@ class DnsTransactionTest : public testing::Test {
   ScopedVector<DelayedSocketData> socket_data_;
 
   std::deque<int> transaction_ids_;
-  // Owned by |session_|.
-  TestSocketFactory* socket_factory_;
+  scoped_ptr<TestSocketFactory> socket_factory_;
   scoped_refptr<DnsSession> session_;
   scoped_ptr<DnsTransactionFactory> transaction_factory_;
 };
