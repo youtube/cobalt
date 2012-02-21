@@ -454,7 +454,6 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       completed_handshake_(false),
       ssl_session_cache_shard_(context.ssl_session_cache_shard),
       eset_mitm_detected_(false),
-      kaspersky_mitm_detected_(false),
       predicted_cert_chain_correct_(false),
       next_handshake_state_(STATE_NONE),
       nss_fd_(NULL),
@@ -652,7 +651,6 @@ void SSLClientSocketNSS::Disconnect() {
   ssl_connection_status_ = 0;
   completed_handshake_   = false;
   eset_mitm_detected_    = false;
-  kaspersky_mitm_detected_ = false;
   start_cert_verification_time_ = base::TimeTicks();
   predicted_cert_chain_correct_ = false;
   nss_bufs_              = NULL;
@@ -1446,8 +1444,6 @@ int SSLClientSocketNSS::DoHandshake() {
     if (handshake_callback_called_) {
       if (eset_mitm_detected_) {
         net_error = ERR_ESET_ANTI_VIRUS_SSL_INTERCEPTION;
-      } else if (kaspersky_mitm_detected_) {
-        net_error = ERR_KASPERSKY_ANTI_VIRUS_SSL_INTERCEPTION;
       } else {
         // We need to see if the predicted certificate chain (in
         // |ssl_host_info_->state().certs) matches the actual certificate chain
@@ -2148,18 +2144,13 @@ SECStatus SSLClientSocketNSS::OwnAuthCertHandler(void* arg,
   if (cert) {
     char* common_name = CERT_GetCommonName(&cert->issuer);
     if (common_name) {
-      if (false_start && strcmp(common_name, "ESET_RootSslCert") == 0)
+      if (false_start && strcmp(common_name, "ESET_RootSslCert") == 0) {
         // ESET anti-virus is capable of intercepting HTTPS connections on
         // Windows.  However, it is False Start intolerant and causes the
         // connections to hang forever. We detect ESET by the issuer of the
         // leaf certificate and set a flag to return a specific error, giving
         // the user instructions for reconfiguring ESET.
         that->eset_mitm_detected_ = true;
-      if (strcmp(common_name,
-                 "Kaspersky Anti-Virus personal root certificate") == 0) {
-        // Kaspersky has an unknown intolerance to our HTTPS handshakes and so
-        // we detect and give a more helpful error message.
-        that->kaspersky_mitm_detected_ = true;
       }
       if (false_start &&
           strcmp(common_name, "ContentWatch Root Certificate Authority") == 0) {
