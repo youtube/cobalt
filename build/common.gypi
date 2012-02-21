@@ -1955,6 +1955,7 @@
               '-faddress-sanitizer',
               '-fno-omit-frame-pointer',
               '-w',
+              '-mllvm', '-asan-blacklist=third_party/asan/ignore.txt',
             ],
             'ldflags': [
               '-faddress-sanitizer',
@@ -2366,6 +2367,7 @@
               'OTHER_CFLAGS': [
                 '-faddress-sanitizer',
                 '-w',
+                '-mllvm', '-asan-blacklist=third_party/asan/ignore.txt',
               ],
               'OTHER_LDFLAGS': [
                 '-faddress-sanitizer',
