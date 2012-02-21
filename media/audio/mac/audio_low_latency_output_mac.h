@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -10,7 +10,7 @@
 // - Calling Close() also leads to self destruction.
 // - The latency consists of two parts:
 //   1) Hardware latency, which includes Audio Unit latency, audio device
-//      latency and audio stream latency;
+//      latency;
 //   2) The delay between the moment getting the callback and the scheduled time
 //      stamp that tells when the data is going to be played out.
 //
