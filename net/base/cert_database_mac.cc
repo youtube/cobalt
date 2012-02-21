@@ -28,10 +28,9 @@ int CertDatabase::CheckUserCert(X509Certificate* cert) {
   SecIdentityRef identity = NULL;
   OSStatus err = SecIdentityCreateWithCertificate(NULL, cert->os_cert_handle(),
                                                   &identity);
-  if (err == errSecItemNotFound) {
-    LOG(ERROR) << "CertDatabase couldn't find private key for user cert";
+  if (err == errSecItemNotFound)
     return ERR_NO_PRIVATE_KEY_FOR_CERT;
-  }
+
   if (err != noErr || !identity) {
     // TODO(snej): Map the error code more intelligently.
     return ERR_CERT_INVALID;
