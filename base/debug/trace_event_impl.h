@@ -18,6 +18,7 @@
 #include "base/observer_list.h"
 #include "base/string_util.h"
 #include "base/synchronization/lock.h"
+#include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/timer.h"
 
 // Older style trace macros with explicit id and extra data
