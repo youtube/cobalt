@@ -8,7 +8,6 @@
 
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
-#include "media/base/limits.h"
 
 namespace media {
 
@@ -140,14 +139,12 @@ void VideoDecoderConfig::CopyFrom(const VideoDecoderConfig& video_config) {
 
 bool VideoDecoderConfig::IsValidConfig() const {
   return codec_ != kUnknownVideoCodec &&
-      format_ != VideoFrame::INVALID &&
       frame_rate_numerator_ > 0 &&
       frame_rate_denominator_ > 0 &&
       aspect_ratio_numerator_ > 0 &&
       aspect_ratio_denominator_ > 0 &&
-      natural_size_.width() <= limits::kMaxDimension &&
-      natural_size_.height() <= limits::kMaxDimension &&
-      natural_size_.GetArea() <= limits::kMaxCanvas;
+      VideoFrame::IsValidConfig(
+          format_, natural_size_.width(), natural_size_.height());
 }
 
 std::string VideoDecoderConfig::AsHumanReadableString() const {
