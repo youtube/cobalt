@@ -145,6 +145,9 @@
 // Without the use of these static category pointers and enabled flags all
 // trace points would carry a significant performance cost of aquiring a lock
 // and resolving the category.
+//
+// ANNOTATE_BENIGN_RACE is used to suppress the warning on the static category
+// pointers.
 
 
 #ifndef BASE_DEBUG_TRACE_EVENT_H_
@@ -153,9 +156,8 @@
 
 #include <string>
 
-#include "base/atomicops.h"
-#include "base/debug/trace_event_impl.h"
 #include "build/build_config.h"
+#include "base/debug/trace_event_impl.h"
 
 // By default, const char* argument values are assumed to have long-lived scope
 // and will not be copied. Use this macro to force a const char* to be copied.
@@ -483,21 +485,14 @@
     INTERNAL_TRACE_EVENT_UID2(name_prefix, __LINE__)
 
 // Implementation detail: internal macro to create static category.
-// No barriers are needed, because this code is designed to operate safely
-// even when the unsigned char* points to garbage data (which may be the case
-// on processors without cache coherency).
+// - ANNOTATE_BENIGN_RACE, see Thread Safety above.
 #define INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category) \
-    static base::subtle::AtomicWord INTERNAL_TRACE_EVENT_UID(atomic) = 0; \
-    const uint8* INTERNAL_TRACE_EVENT_UID(catstatic) = \
-        reinterpret_cast<const uint8*>( \
-            base::subtle::NoBarrier_Load(&INTERNAL_TRACE_EVENT_UID(atomic))); \
-    if (!INTERNAL_TRACE_EVENT_UID(catstatic)) { \
+    static const unsigned char* INTERNAL_TRACE_EVENT_UID(catstatic) = NULL; \
+    ANNOTATE_BENIGN_RACE(&INTERNAL_TRACE_EVENT_UID(catstatic), \
+                         "trace_event category"); \
+    if (!INTERNAL_TRACE_EVENT_UID(catstatic)) \
       INTERNAL_TRACE_EVENT_UID(catstatic) = \
-          TRACE_EVENT_API_GET_CATEGORY_ENABLED(category); \
-      base::subtle::NoBarrier_Store(&INTERNAL_TRACE_EVENT_UID(atomic), \
-          reinterpret_cast<base::subtle::AtomicWord>( \
-              INTERNAL_TRACE_EVENT_UID(catstatic))); \
-    }
+          TRACE_EVENT_API_GET_CATEGORY_ENABLED(category);
 
 // Implementation detail: internal macro to create static category and add
 // event if the category is enabled.
