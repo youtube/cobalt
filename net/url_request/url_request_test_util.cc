@@ -504,3 +504,23 @@ net::NetworkDelegate::AuthRequiredResponse TestNetworkDelegate::OnAuthRequired(
       kStageBeforeRedirect;  // a delegate can trigger a redirection
   return net::NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION;
 }
+
+// static
+std::string ScopedCustomUrlRequestTestHttpHost::value_("127.0.0.1");
+
+ScopedCustomUrlRequestTestHttpHost::ScopedCustomUrlRequestTestHttpHost(
+  const std::string& new_value)
+    : old_value_(value_),
+      new_value_(new_value) {
+  value_ = new_value_;
+}
+
+ScopedCustomUrlRequestTestHttpHost::~ScopedCustomUrlRequestTestHttpHost() {
+  DCHECK_EQ(value_, new_value_);
+  value_ = old_value_;
+}
+
+// static
+const std::string& ScopedCustomUrlRequestTestHttpHost::value() {
+  return value_;
+}

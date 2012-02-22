@@ -11,6 +11,7 @@
 #include <map>
 #include <string>
 
+#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/path_service.h"
 #include "base/process_util.h"
@@ -240,6 +241,31 @@ class TestNetworkDelegate : public net::NetworkDelegate {
   // A log that records for each request id (key) the order in which On...
   // functions were called.
   std::map<int, std::string> event_order_;
+};
+
+// Overrides the host used by the LocalHttpTestServer in
+// url_request_unittest.cc . This is used by the chrome_frame_net_tests due to
+// a mysterious bug when tests execute over the loopback adapter. See
+// http://crbug.com/114369 .
+class ScopedCustomUrlRequestTestHttpHost {
+ public:
+  // Sets the host name to be used. The previous hostname will be stored and
+  // restored upon destruction. Note that if the lifetimes of two or more
+  // instances of this class overlap, they must be strictly nested.
+  explicit ScopedCustomUrlRequestTestHttpHost(const std::string& new_value);
+
+  ~ScopedCustomUrlRequestTestHttpHost();
+
+  // Returns the current value to be used by HTTP tests in
+  // url_request_unittest.cc .
+  static const std::string& value();
+
+ private:
+  static std::string value_;
+  const std::string old_value_;
+  const std::string new_value_;
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedCustomUrlRequestTestHttpHost);
 };
 
 #endif  // NET_URL_REQUEST_URL_REQUEST_TEST_UTIL_H_

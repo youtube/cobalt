@@ -64,6 +64,21 @@ namespace net {
 
 namespace {
 
+// A subclass of TestServer that uses a statically-configured hostname. This is
+// to work around mysterious failures in chrome_frame_net_tests. See:
+// http://crbug.com/114369
+class LocalHttpTestServer : public TestServer {
+ public:
+  explicit LocalHttpTestServer(const FilePath& document_root)
+      : TestServer(TestServer::TYPE_HTTP,
+                   ScopedCustomUrlRequestTestHttpHost::value(),
+                   document_root) {}
+  LocalHttpTestServer()
+      : TestServer(TestServer::TYPE_HTTP,
+                   ScopedCustomUrlRequestTestHttpHost::value(),
+                   FilePath()) {}
+};
+
 const string16 kChrome(ASCIIToUTF16("chrome"));
 const string16 kSecret(ASCIIToUTF16("secret"));
 const string16 kUser(ASCIIToUTF16("user"));
@@ -409,8 +424,7 @@ class URLRequestTest : public PlatformTest {
 class URLRequestTestHTTP : public URLRequestTest {
  public:
   URLRequestTestHTTP()
-      : test_server_(TestServer::TYPE_HTTP,
-                     FilePath(FILE_PATH_LITERAL(
+      : test_server_(FilePath(FILE_PATH_LITERAL(
                                   "net/data/url_request_unittest"))) {
   }
 
@@ -520,7 +534,7 @@ class URLRequestTestHTTP : public URLRequestTest {
                         strlen(expected_data)));
   }
 
-  TestServer test_server_;
+  LocalHttpTestServer test_server_;
 };
 
 // In this unit test, we're using the HTTPTestServer as a proxy server and
@@ -2542,7 +2556,7 @@ TEST_F(URLRequestTestHTTP, BasicAuthWithCookies) {
 }
 
 TEST_F(URLRequestTest, DelayedCookieCallback) {
-  TestServer test_server(TestServer::TYPE_HTTP, FilePath());
+  LocalHttpTestServer test_server;
   ASSERT_TRUE(test_server.Start());
 
   scoped_refptr<URLRequestContext> context(new TestURLRequestContext());
@@ -2579,7 +2593,7 @@ TEST_F(URLRequestTest, DelayedCookieCallback) {
 }
 
 TEST_F(URLRequestTest, DoNotSendCookies) {
-  TestServer test_server(TestServer::TYPE_HTTP, FilePath());
+  LocalHttpTestServer test_server;
   ASSERT_TRUE(test_server.Start());
 
   // Set up a cookie.
@@ -2626,7 +2640,7 @@ TEST_F(URLRequestTest, DoNotSendCookies) {
 }
 
 TEST_F(URLRequestTest, DoNotSaveCookies) {
-  TestServer test_server(TestServer::TYPE_HTTP, FilePath());
+  LocalHttpTestServer test_server;
   ASSERT_TRUE(test_server.Start());
 
   // Set up a cookie.
@@ -2679,7 +2693,7 @@ TEST_F(URLRequestTest, DoNotSaveCookies) {
 }
 
 TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy) {
-  TestServer test_server(TestServer::TYPE_HTTP, FilePath());
+  LocalHttpTestServer test_server;
   ASSERT_TRUE(test_server.Start());
 
   // Set up a cookie.
@@ -2727,7 +2741,7 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy) {
 }
 
 TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy) {
-  TestServer test_server(TestServer::TYPE_HTTP, FilePath());
+  LocalHttpTestServer test_server;
   ASSERT_TRUE(test_server.Start());
 
   // Set up a cookie.
@@ -2777,7 +2791,7 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy) {
 }
 
 TEST_F(URLRequestTest, DoNotSaveEmptyCookies) {
-  TestServer test_server(TestServer::TYPE_HTTP, FilePath());
+  LocalHttpTestServer test_server;
   ASSERT_TRUE(test_server.Start());
 
   // Set up an empty cookie.
@@ -2795,7 +2809,7 @@ TEST_F(URLRequestTest, DoNotSaveEmptyCookies) {
 }
 
 TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy_Async) {
-  TestServer test_server(TestServer::TYPE_HTTP, FilePath());
+  LocalHttpTestServer test_server;
   ASSERT_TRUE(test_server.Start());
 
   // Set up a cookie.
@@ -2843,7 +2857,7 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy_Async) {
 }
 
 TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy_Async) {
-  TestServer test_server(TestServer::TYPE_HTTP, FilePath());
+  LocalHttpTestServer test_server;
   ASSERT_TRUE(test_server.Start());
 
   // Set up a cookie.
@@ -2899,7 +2913,7 @@ void CheckCookiePolicyCallback(bool* was_run, const CookieList& cookies) {
 }
 
 TEST_F(URLRequestTest, CookiePolicy_ForceSession) {
-  TestServer test_server(TestServer::TYPE_HTTP, FilePath());
+  LocalHttpTestServer test_server;
   ASSERT_TRUE(test_server.Start());
 
   // Set up a cookie.
@@ -3577,7 +3591,7 @@ TEST_F(URLRequestTest, NetworkDelegateProxyError) {
 // Check that it is impossible to change the referrer in the extra headers of
 // an URLRequest.
 TEST_F(URLRequestTest, DoNotOverrideReferrer) {
-  TestServer test_server(TestServer::TYPE_HTTP, FilePath());
+  LocalHttpTestServer test_server;
   ASSERT_TRUE(test_server.Start());
 
   // If extra headers contain referer and the request contains a referer,
