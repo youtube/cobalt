@@ -1334,8 +1334,9 @@ void SpdySession::OnSynStream(
     LOG(WARNING) << "Received OnSyn with inactive associated stream "
                << associated_stream_id;
     ResetStream(stream_id, spdy::INVALID_ASSOCIATED_STREAM,
-                "Received OnSyn with inactive associated stream " +
-                associated_stream_id);
+                base::StringPrintf(
+                    "Received OnSyn with inactive associated stream %d",
+                    associated_stream_id));
     return;
   }
 
@@ -1346,7 +1347,9 @@ void SpdySession::OnSynStream(
     LOG(WARNING) << "Rejected Cross Origin Push Stream "
                  << associated_stream_id;
     ResetStream(stream_id, spdy::REFUSED_STREAM,
-                "Rejected Cross Origin Push Stream " + associated_stream_id);
+                base::StringPrintf(
+                    "Rejected Cross Origin Push Stream %d",
+                    associated_stream_id));
     return;
   }
 
@@ -1554,8 +1557,9 @@ void SpdySession::OnWindowUpdate(
     LOG(WARNING) << "Received WINDOW_UPDATE with an invalid delta_window_size "
                  << delta_window_size;
     ResetStream(stream_id, spdy::FLOW_CONTROL_ERROR,
-                "Received WINDOW_UPDATE with an invalid delta_window_size "
-                + delta_window_size);
+                base::StringPrintf(
+                    "Received WINDOW_UPDATE with an invalid "
+                    "delta_window_size %d", delta_window_size));
     return;
   }
 
