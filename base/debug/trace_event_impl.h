@@ -42,8 +42,6 @@ struct StaticMemorySingletonTraits;
 
 namespace base {
 
-class RefCountedString;
-
 namespace debug {
 
 const int kTraceMaxNumArgs = 2;
@@ -221,8 +219,7 @@ class BASE_EXPORT TraceLog {
   // silently dropped. The callback must be thread safe. The string format is
   // undefined. Use TraceResultBuffer to convert one or more trace strings to
   // JSON.
-  typedef RefCountedData<std::string> RefCountedString;
-  typedef base::Callback<void(const scoped_refptr<RefCountedString>&)>
+  typedef base::Callback<void(const scoped_refptr<base::RefCountedString>&)>
       OutputCallback;
   void SetOutputCallback(const OutputCallback& cb);
 
