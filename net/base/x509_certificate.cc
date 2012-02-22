@@ -45,6 +45,7 @@ const char kCertificateHeader[] = "CERTIFICATE";
 // The PEM block header used for PKCS#7 data
 const char kPKCS7Header[] = "PKCS7";
 
+#if !defined(USE_NSS)
 // A thread-safe cache for OS certificate handles.
 //
 // Within each of the supported underlying crypto libraries, a certificate
@@ -182,6 +183,22 @@ void X509CertificateCache::Remove(X509Certificate::OSCertHandle cert_handle) {
     X509Certificate::FreeOSCertHandle(pos->second.cert_handle);
     cache_.erase(pos);
   }
+}
+#endif  // !defined(USE_NSS)
+
+// See X509CertificateCache::InsertOrUpdate. NSS has a built-in cache, so there
+// is no point in wrapping another cache around it.
+void InsertOrUpdateCache(X509Certificate::OSCertHandle* cert_handle) {
+#if !defined(USE_NSS)
+  g_x509_certificate_cache.Pointer()->InsertOrUpdate(cert_handle);
+#endif
+}
+
+// See X509CertificateCache::Remove.
+void RemoveFromCache(X509Certificate::OSCertHandle cert_handle) {
+#if !defined(USE_NSS)
+  g_x509_certificate_cache.Pointer()->Remove(cert_handle);
+#endif
 }
 
 // CompareSHA1Hashes is a helper function for using bsearch() with an array of
@@ -696,15 +713,14 @@ bool X509Certificate::GetPEMEncodedChain(
 X509Certificate::X509Certificate(OSCertHandle cert_handle,
                                  const OSCertHandles& intermediates)
     : cert_handle_(DupOSCertHandle(cert_handle)) {
-  X509CertificateCache* cache = g_x509_certificate_cache.Pointer();
-  cache->InsertOrUpdate(&cert_handle_);
+  InsertOrUpdateCache(&cert_handle_);
   for (size_t i = 0; i < intermediates.size(); ++i) {
     // Duplicate the incoming certificate, as the caller retains ownership
     // of |intermediates|.
     OSCertHandle intermediate = DupOSCertHandle(intermediates[i]);
     // Update the cache, which will assume ownership of the duplicated
     // handle and return a suitable equivalent, potentially from the cache.
-    cache->InsertOrUpdate(&intermediate);
+    InsertOrUpdateCache(&intermediate);
     intermediate_ca_certs_.push_back(intermediate);
   }
   // Platform-specific initialization.
@@ -712,14 +728,12 @@ X509Certificate::X509Certificate(OSCertHandle cert_handle,
 }
 
 X509Certificate::~X509Certificate() {
-  // We might not be in the cache, but it is safe to remove ourselves anyway.
-  X509CertificateCache* cache = g_x509_certificate_cache.Pointer();
   if (cert_handle_) {
-    cache->Remove(cert_handle_);
+    RemoveFromCache(cert_handle_);
     FreeOSCertHandle(cert_handle_);
   }
   for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i) {
-    cache->Remove(intermediate_ca_certs_[i]);
+    RemoveFromCache(intermediate_ca_certs_[i]);
     FreeOSCertHandle(intermediate_ca_certs_[i]);
   }
 }
