@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,9 +25,9 @@ static FilePath::CharType* GetDLLName(FFmpegDLLKeys dll_key) {
   // TODO(ajwong): Do we want to lock to a specific ffmpeg version?
   switch (dll_key) {
     case FILE_LIBAVCODEC:
-      return FILE_PATH_LITERAL("avcodec-53.dll");
+      return FILE_PATH_LITERAL("avcodec-54.dll");
     case FILE_LIBAVFORMAT:
-      return FILE_PATH_LITERAL("avformat-53.dll");
+      return FILE_PATH_LITERAL("avformat-54.dll");
     case FILE_LIBAVUTIL:
       return FILE_PATH_LITERAL("avutil-51.dll");
     default:

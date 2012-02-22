@@ -1,6 +1,18 @@
 // Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+//
+// Regression tests for FFmpeg.  Security test files can be found in the
+// internal media test data directory:
+//
+//    svn://svn.chromium.org/chrome-internal/trunk/data/media/security/
+//
+// Simply symlink or copy the security directory into media/test/data folder and
+// build the ffmpeg_regression_tests target to run these tests.
+//
+// Many of the files here do not cause issues outside of tooling, so you'll need
+// to run this test under ASAN, TSAN, and Valgrind to ensure that all issues are
+// caught.
 
 #include "media/filters/pipeline_integration_test_base.h"
 
@@ -36,8 +48,6 @@ class FFmpegRegressionTest
 
 // Test cases from issues.
 FFMPEG_TEST_CASE(Cr93620, "security/93620.ogg", PIPELINE_OK, PIPELINE_OK);
-FFMPEG_TEST_CASE(Cr99652, "security/99652.webm", PIPELINE_OK,
-                 PIPELINE_ERROR_DECODE);
 FFMPEG_TEST_CASE(Cr100492, "security/100492.webm", DECODER_ERROR_NOT_SUPPORTED,
                  DECODER_ERROR_NOT_SUPPORTED);
 FFMPEG_TEST_CASE(Cr100543, "security/100543.webm", PIPELINE_OK, PIPELINE_OK);
@@ -72,19 +82,12 @@ FFMPEG_TEST_CASE(MP4_9, "security/smclockmp4aac_1_0.mp4",
                  DEMUXER_ERROR_COULD_NOT_OPEN, DEMUXER_ERROR_COULD_NOT_OPEN);
 
 // General OGV test cases.
-FFMPEG_TEST_CASE(OGV_0, "security/big_dims.ogv", PIPELINE_ERROR_DECODE,
-                 PIPELINE_ERROR_DECODE);
 FFMPEG_TEST_CASE(OGV_1, "security/out.163.ogv", DECODER_ERROR_NOT_SUPPORTED,
                  DECODER_ERROR_NOT_SUPPORTED);
 FFMPEG_TEST_CASE(OGV_2, "security/out.391.ogv", DECODER_ERROR_NOT_SUPPORTED,
                  DECODER_ERROR_NOT_SUPPORTED);
-FFMPEG_TEST_CASE(OGV_3, "security/smclock_1_0.ogv", PIPELINE_OK, PIPELINE_OK);
-FFMPEG_TEST_CASE(OGV_4, "security/smclock.ogv.1.0.ogv", PIPELINE_OK,
-                 PIPELINE_OK);
 FFMPEG_TEST_CASE(OGV_5, "security/smclocktheora_1_0.ogv",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED);
-FFMPEG_TEST_CASE(OGV_6, "security/smclocktheora_1_10000.ogv",
-                 PIPELINE_ERROR_DECODE, PIPELINE_ERROR_DECODE);
 FFMPEG_TEST_CASE(OGV_7, "security/smclocktheora_1_102.ogv",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED);
 FFMPEG_TEST_CASE(OGV_8, "security/smclocktheora_1_104.ogv",
@@ -97,14 +100,16 @@ FFMPEG_TEST_CASE(OGV_11, "security/smclocktheora_1_20.ogv",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED);
 FFMPEG_TEST_CASE(OGV_12, "security/smclocktheora_1_723.ogv",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED);
-FFMPEG_TEST_CASE(OGV_13, "security/smclocktheora_1_790.ogv", PIPELINE_OK,
-                 PIPELINE_OK);
 FFMPEG_TEST_CASE(OGV_14, "security/smclocktheora_2_10405.ogv",
+                 DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED);
+FFMPEG_TEST_CASE(OGV_15, "security/smclocktheora_2_10619.ogv",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED);
 FFMPEG_TEST_CASE(OGV_16, "security/smclocktheora_2_1075.ogv",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED);
 FFMPEG_TEST_CASE(OGV_17, "security/vorbis.482086.ogv",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED);
+FFMPEG_TEST_CASE(OGV_18, "security/wav.711.ogv", DECODER_ERROR_NOT_SUPPORTED,
+                 DECODER_ERROR_NOT_SUPPORTED);
 
 // General WebM test cases.
 FFMPEG_TEST_CASE(WEBM_1, "security/no-bug.webm", PIPELINE_OK, PIPELINE_OK);
@@ -115,15 +120,25 @@ FFMPEG_TEST_CASE(WEBM_3, "security/out.webm.139771.2965",
 FFMPEG_TEST_CASE(WEBM_4, "security/out.webm.68798.1929",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED);
 
-// Flaky, maybe larger issues.
-FFMPEG_TEST_CASE(Cr100464, "security/100464.webm", PIPELINE_OK,
+// Flaky, maybe larger issues.  All eventually fail in the browser.
+FFMPEG_TEST_CASE(FLAKY_Cr99652, "security/99652.webm", PIPELINE_OK,
                  PIPELINE_ERROR_DECODE);
+FFMPEG_TEST_CASE(FLAKY_Cr100464, "security/100464.webm", PIPELINE_OK,
+                 PIPELINE_ERROR_DECODE);
+FFMPEG_TEST_CASE(FLAKY_Cr111342, "security/111342.ogm", PIPELINE_OK,
+                 PIPELINE_ERROR_DECODE);
+FFMPEG_TEST_CASE(FLAKY_OGV_0, "security/big_dims.ogv", PIPELINE_OK,
+                 PIPELINE_ERROR_DECODE);
+FFMPEG_TEST_CASE(FLAKY_OGV_3, "security/smclock_1_0.ogv", PIPELINE_ERROR_DECODE,
+                 PIPELINE_ERROR_DECODE);
+FFMPEG_TEST_CASE(FLAKY_OGV_4, "security/smclock.ogv.1.0.ogv",
+                 PIPELINE_OK, PIPELINE_ERROR_DECODE);
+FFMPEG_TEST_CASE(FLAKY_OGV_6, "security/smclocktheora_1_10000.ogv",
+                 PIPELINE_OK, PIPELINE_ERROR_DECODE);
+FFMPEG_TEST_CASE(FLAKY_OGV_13, "security/smclocktheora_1_790.ogv",
+                 PIPELINE_ERROR_DECODE, PIPELINE_ERROR_DECODE);
 
 // Current crashers.
-// FFMPEG_TEST_CASE(Cr111342, "security/111342.ogm", PIPELINE_OK, PIPELINE_OK);
-// FFMPEG_TEST_CASE(OGV_15, "security/smclocktheora_2_10619.ogv",
-//                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED);
-// FFMPEG_TEST_CASE(OGV_18, "security/wav.711.ogv", PIPELINE_OK, PIPELINE_OK);
 // FFMPEG_TEST_CASE(Cr112976, "security/112976.ogg", PIPELINE_OK, PIPELINE_OK);
 
 // Clock failures.  http://crbug.com/113037

@@ -1,27 +1,27 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 // FFmpegGlue is an adapter for FFmpeg's URLProtocol interface that allows us to
-// use a DataSource implementation with FFmpeg. For convenience we use FFmpeg's
-// av_open_input_file function, which analyzes the filename given to it and
+// use a DataSource implementation with FFmpeg.  For convenience we use FFmpeg's
+// avformat_open_input() function, which analyzes the filename given to it and
 // automatically initializes the appropriate URLProtocol.
 //
-// Since the DataSource is already open by time we call av_open_input_file, we
-// need a way for av_open_input_file to find the correct DataSource instance.
-// The solution is to maintain a map of "filenames" to DataSource instances,
-// where filenames are actually just a unique identifier.  For simplicity,
-// FFmpegGlue is registered as an HTTP handler and generates filenames based on
-// the memory address of the DataSource, i.e., http://0xc0bf4870.  Since there
-// may be multiple FFmpegDemuxers active at one time, FFmpegGlue is a
-// thread-safe singleton.
+// Since the DataSource is already open by time we call avformat_open_input(),
+// we need a way for avformat_open_input() to find the correct DataSource
+// instance.  The solution is to maintain a map of "filenames" to DataSource
+// instances, where filenames are actually just a unique identifier.  For
+// simplicity, FFmpegGlue is registered as an HTTP handler and generates
+// filenames based on the memory address of the DataSource, i.e.,
+// http://0xc0bf4870.  Since there may be multiple FFmpegDemuxers active at one
+// time, FFmpegGlue is a thread-safe singleton.
 //
 // Usage: FFmpegDemuxer adds the DataSource to FFmpegGlue's map and is given a
-// filename to pass to av_open_input_file.  FFmpegDemuxer calls
-// av_open_input_file with the filename, which results in FFmpegGlue returning
-// the DataSource as a URLProtocol instance to FFmpeg.  Since FFmpegGlue is only
-// needed for opening files, when av_open_input_file returns FFmpegDemuxer
-// removes the DataSource from FFmpegGlue's map.
+// filename to pass to avformat_open_input().  FFmpegDemuxer calls
+// avformat_open_input() with the filename, which results in FFmpegGlue
+// returning the DataSource as a URLProtocol instance to FFmpeg.  Since
+// FFmpegGlue is only needed for opening files, when avformat_open_input()
+// returns FFmpegDemuxer removes the DataSource from FFmpegGlue's map.
 
 #ifndef MEDIA_FILTERS_FFMPEG_GLUE_H_
 #define MEDIA_FILTERS_FFMPEG_GLUE_H_
@@ -90,7 +90,7 @@ class MEDIA_EXPORT FFmpegGlue {
   virtual ~FFmpegGlue();
 
   // Returns the unique key for this data source, which can be passed to
-  // av_open_input_file as the filename.
+  // avformat_open_input() as the filename.
   std::string GetProtocolKey(FFmpegURLProtocol* protocol);
 
   // Mutual exclusion while adding/removing items from the map.

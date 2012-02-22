@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -144,7 +144,7 @@ class FFmpegDemuxerTest : public testing::Test {
 };
 
 TEST_F(FFmpegDemuxerTest, Initialize_OpenFails) {
-  // Simulate av_open_input_file() failing.
+  // Simulate avformat_open_input() failing.
   EXPECT_CALL(host_, SetCurrentReadPosition(_));
   demuxer_->Initialize(CreateDataSource("ten_byte_file"),
                        NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
@@ -153,7 +153,7 @@ TEST_F(FFmpegDemuxerTest, Initialize_OpenFails) {
 }
 
 // TODO(acolwell): Uncomment this test when we discover a file that passes
-// av_open_input_file(), but has av_find_stream_info() fail.
+// avformat_open_input(), but has avformat_find_stream_info() fail.
 //
 //TEST_F(FFmpegDemuxerTest, Initialize_ParseFails) {
 //  demuxer_->Initialize(
@@ -639,7 +639,7 @@ TEST_F(FFmpegDemuxerTest, GetBitrate_SetInContainer_NoFileSize) {
 }
 
 TEST_F(FFmpegDemuxerTest, GetBitrate_UnsetInContainer_NoFileSize) {
-  EXPECT_FALSE(VideoHasValidBitrate("bear-320x240.webm", true));
+  EXPECT_TRUE(VideoHasValidBitrate("bear-320x240.webm", true));
 }
 
 TEST_F(FFmpegDemuxerTest, ProtocolGetSetPosition) {
