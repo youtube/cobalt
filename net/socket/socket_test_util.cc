@@ -249,6 +249,13 @@ SSLSocketDataProvider::SSLSocketDataProvider(bool async, int result)
 SSLSocketDataProvider::~SSLSocketDataProvider() {
 }
 
+void SSLSocketDataProvider::SetNextProto(SSLClientSocket::NextProto proto) {
+  was_npn_negotiated = true;
+  next_proto_status = SSLClientSocket::kNextProtoNegotiated;
+  protocol_negotiated = proto;
+  next_proto = SSLClientSocket::NextProtoToString(proto);
+}
+
 DelayedSocketData::DelayedSocketData(
     int write_delay, MockRead* reads, size_t reads_count,
     MockWrite* writes, size_t writes_count)

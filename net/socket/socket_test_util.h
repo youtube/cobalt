@@ -266,6 +266,8 @@ struct SSLSocketDataProvider {
   SSLSocketDataProvider(bool async, int result);
   ~SSLSocketDataProvider();
 
+  void SetNextProto(SSLClientSocket::NextProto proto);
+
   MockConnect connect;
   SSLClientSocket::NextProtoStatus next_proto_status;
   std::string next_proto;
