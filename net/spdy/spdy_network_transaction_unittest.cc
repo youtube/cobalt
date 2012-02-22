@@ -233,10 +233,7 @@ class SpdyNetworkTransactionTest
       linked_ptr<SSLSocketDataProvider> ssl_(
           new SSLSocketDataProvider(true, OK));
       if (test_type_ == SPDYNPN) {
-        ssl_->next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-        ssl_->next_proto = "spdy/2.1";
-        ssl_->was_npn_negotiated = true;
-        ssl_->protocol_negotiated = SSLClientSocket::kProtoSPDY21;
+        ssl_->SetNextProto(SSLClientSocket::kProtoSPDY21);
       }
       ssl_vector_.push_back(ssl_);
       if (test_type_ == SPDYNPN || test_type_ == SPDYSSL)
@@ -261,10 +258,7 @@ class SpdyNetworkTransactionTest
       linked_ptr<SSLSocketDataProvider> ssl_(
           new SSLSocketDataProvider(true, OK));
       if (test_type_ == SPDYNPN) {
-        ssl_->next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-        ssl_->next_proto = "spdy/2.1";
-        ssl_->was_npn_negotiated = true;
-        ssl_->protocol_negotiated = SSLClientSocket::kProtoSPDY21;
+        ssl_->SetNextProto(SSLClientSocket::kProtoSPDY21);
       }
       ssl_vector_.push_back(ssl_);
       if (test_type_ == SPDYNPN || test_type_ == SPDYSSL) {
