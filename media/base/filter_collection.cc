@@ -23,10 +23,6 @@ DemuxerFactory* FilterCollection::GetDemuxerFactory() {
 }
 
 void FilterCollection::AddVideoDecoder(VideoDecoder* filter) {
-  scoped_refptr<media::VideoDecoder> old_videodecoder;
-  do {
-    SelectVideoDecoder(&old_videodecoder);
-  } while (old_videodecoder);
   AddFilter(VIDEO_DECODER, filter);
 }
 
