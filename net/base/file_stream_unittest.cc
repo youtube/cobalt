@@ -291,6 +291,38 @@ TEST_F(FileStreamTest, AsyncRead_EarlyClose) {
   }
 }
 
+// Similar to AsyncRead_EarlyClose but deletes a stream instead, to ensure
+// that deleting a stream is safe while an async read is in flight.
+TEST_F(FileStreamTest, AsyncRead_EarlyDelete) {
+  int64 file_size;
+  bool ok = file_util::GetFileSize(temp_file_path(), &file_size);
+  EXPECT_TRUE(ok);
+
+  scoped_ptr<FileStream> stream(new FileStream(NULL));
+  int flags = base::PLATFORM_FILE_OPEN |
+              base::PLATFORM_FILE_READ |
+              base::PLATFORM_FILE_ASYNC;
+  TestCompletionCallback callback;
+  int rv = stream->Open(temp_file_path(), flags, callback.callback());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  int64 total_bytes_avail = stream->Available();
+  EXPECT_EQ(file_size, total_bytes_avail);
+
+  scoped_refptr<IOBufferWithSize> buf = new IOBufferWithSize(4);
+  rv = stream->Read(buf, buf->size(), callback.callback());
+  stream.reset();  // Delete instead of closing it.
+  if (rv < 0) {
+    EXPECT_EQ(ERR_IO_PENDING, rv);
+    // The callback should not be called if the request is cancelled.
+    MessageLoop::current()->RunAllPending();
+    EXPECT_FALSE(callback.have_result());
+  } else {
+    EXPECT_EQ(std::string(kTestData, rv), std::string(buf->data(), rv));
+  }
+}
+
 TEST_F(FileStreamTest, BasicRead_FromOffset) {
   int64 file_size;
   bool ok = file_util::GetFileSize(temp_file_path(), &file_size);
