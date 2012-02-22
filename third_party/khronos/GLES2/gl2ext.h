@@ -1693,6 +1693,7 @@ typedef void (GL_APIENTRYP PFNGLENDTILINGQCOMPROC) (GLbitfield preserveMask);
 #define GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE_EXT GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE
 #endif
 
+#if 0  // Defined in GL_EXT_multisampled_render_to_texture
 #ifdef GL_GLEXT_PROTOTYPES
 #define glRenderbufferStorageMultisampleEXT GLES2_GET_FUN(RenderbufferStorageMultisampleEXT)
 #if !defined(GLES2_USE_CPP_BINDINGS)
@@ -1700,6 +1701,7 @@ GL_APICALL void GL_APIENTRY glRenderbufferStorageMultisampleEXT (GLenum target, 
 #endif
 #endif /* GL_GLEXT_PROTOTYPES */
 typedef void (GL_APIENTRYP PFNGLRENDERBUFFERSTORAGEMULTISAMPLEEXTPROC) (GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height);
+#endif
 #endif
 
 #ifndef GL_EXT_framebuffer_blit
