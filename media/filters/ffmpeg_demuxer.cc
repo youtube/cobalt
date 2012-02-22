@@ -465,7 +465,7 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   // Open FFmpeg AVFormatContext.
   DCHECK(!format_context_);
   AVFormatContext* context = NULL;
-  int result = av_open_input_file(&context, key.c_str(), NULL, 0, NULL);
+  int result = avformat_open_input(&context, key.c_str(), NULL, NULL);
 
   // Remove ourself from protocol list.
   FFmpegGlue::GetInstance()->RemoveProtocol(this);
@@ -479,7 +479,7 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   format_context_ = context;
 
   // Fully initialize AVFormatContext by parsing the stream a little.
-  result = av_find_stream_info(format_context_);
+  result = avformat_find_stream_info(format_context_, NULL);
   if (result < 0) {
     callback.Run(DEMUXER_ERROR_COULD_NOT_PARSE);
     return;

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -55,9 +55,9 @@ static std::string GetDSOName(tp_ffmpeg::StubModules stub_key) {
   // TODO(ajwong): Remove this once mac is migrated. Either that, or have GYP
   // set a constant that we can switch implementations based off of.
   switch (stub_key) {
-    case tp_ffmpeg::kModuleAvcodec53:
+    case tp_ffmpeg::kModuleAvcodec54:
       return FILE_PATH_LITERAL(DSO_NAME("avcodec", AVCODEC_VERSION));
-    case tp_ffmpeg::kModuleAvformat53:
+    case tp_ffmpeg::kModuleAvformat54:
       return FILE_PATH_LITERAL(DSO_NAME("avformat", AVFORMAT_VERSION));
     case tp_ffmpeg::kModuleAvutil51:
       return FILE_PATH_LITERAL(DSO_NAME("avutil", AVUTIL_VERSION));

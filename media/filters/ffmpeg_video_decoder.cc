@@ -101,7 +101,7 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
   // Enable motion vector search (potentially slow), strong deblocking filter
   // for damaged macroblocks, and set our error detection sensitivity.
   codec_context_->error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK;
-  codec_context_->error_recognition = FF_ER_CAREFUL;
+  codec_context_->err_recognition = AV_EF_CAREFUL;
   codec_context_->thread_count = GetThreadCount(codec_context_->codec_id);
 
   AVCodec* codec = avcodec_find_decoder(codec_context_->codec_id);
@@ -110,7 +110,7 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
     return;
   }
 
-  if (avcodec_open(codec_context_, codec) < 0) {
+  if (avcodec_open2(codec_context_, codec, NULL) < 0) {
     callback.Run(PIPELINE_ERROR_DECODE);
     return;
   }
