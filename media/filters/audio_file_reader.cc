@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -51,15 +51,15 @@ bool AudioFileReader::Open() {
   DCHECK(!format_context_);
   AVFormatContext* context = NULL;
 
-  int result = av_open_input_file(&context, key.c_str(), NULL, 0, NULL);
+  int result = avformat_open_input(&context, key.c_str(), NULL, NULL);
 
-  // Remove our data reader from protocol list since av_open_input_file() setup
+  // Remove our data reader from protocol list since avformat_open_input() setup
   // the AVFormatContext with the data reader.
   FFmpegGlue::GetInstance()->RemoveProtocol(protocol_);
 
   if (result) {
     DLOG(WARNING)
-        << "AudioFileReader::Open() : error in av_open_input_file() -"
+        << "AudioFileReader::Open() : error in avformat_open_input() -"
         << " result: " << result;
     return false;
   }
@@ -81,10 +81,10 @@ bool AudioFileReader::Open() {
   if (!codec_context_)
     return false;
 
-  av_find_stream_info(format_context_);
+  avformat_find_stream_info(format_context_, NULL);
   codec_ = avcodec_find_decoder(codec_context_->codec_id);
   if (codec_) {
-    if ((result = avcodec_open(codec_context_, codec_)) < 0) {
+    if ((result = avcodec_open2(codec_context_, codec_, NULL)) < 0) {
       DLOG(WARNING) << "AudioFileReader::Open() : could not open codec -"
           << " result: " << result;
       return false;
@@ -112,7 +112,7 @@ void AudioFileReader::Close() {
   codec_ = NULL;
 
   if (format_context_) {
-    av_close_input_file(format_context_);
+    avformat_close_input(&format_context_);
     format_context_ = NULL;
   }
 }
@@ -157,7 +157,7 @@ bool AudioFileReader::Read(const std::vector<float*>& audio_data,
 
     // Determine the number of sample-frames we just decoded.
     size_t bytes_per_sample =
-        av_get_bits_per_sample_fmt(codec_context_->sample_fmt) >> 3;
+        av_get_bytes_per_sample(codec_context_->sample_fmt);
     size_t frames_read = out_size / (channels * bytes_per_sample);
 
     // Truncate, if necessary, if the destination isn't big enough.

@@ -35,6 +35,9 @@ enum AudioCodec {
   kAudioCodecMax = kCodecPCM_MULAW  // Must equal the last "real" codec above.
 };
 
+// TODO(dalecurtis): FFmpeg API uses |bytes_per_channel| instead of
+// |bits_per_channel|, we should switch over since bits are generally confusing
+// to work with.
 class MEDIA_EXPORT AudioDecoderConfig {
  public:
   // Constructs an uninitialized object. Clients should call Initialize() with
