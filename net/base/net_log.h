@@ -7,7 +7,6 @@
 #pragma once
 
 #include <string>
-#include <vector>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
@@ -36,6 +35,7 @@ class NET_EXPORT NetLog {
 #define EVENT_TYPE(label) TYPE_ ## label,
 #include "net/base/net_log_event_type_list.h"
 #undef EVENT_TYPE
+    EVENT_COUNT
   };
 
   // The 'phase' of an event trace (whether it marks the beginning or end
@@ -48,9 +48,10 @@ class NET_EXPORT NetLog {
 
   // The "source" identifies the entity that generated the log message.
   enum SourceType {
-#define SOURCE_TYPE(label, value) SOURCE_ ## label = value,
+#define SOURCE_TYPE(label) SOURCE_ ## label,
 #include "net/base/net_log_source_type_list.h"
 #undef SOURCE_TYPE
+    SOURCE_COUNT
   };
 
   // Identifies the entity that generated this log. The |id| field should
@@ -187,11 +188,16 @@ class NET_EXPORT NetLog {
   // Returns a C-String symbolic name for |event_type|.
   static const char* EventTypeToString(EventType event_type);
 
-  // Returns a list of all the available EventTypes.
-  static std::vector<EventType> GetAllEventTypes();
+  // Returns a dictionary that maps event type symbolic names to their enum
+  // values.  Caller takes ownership of the returned Value.
+  static base::Value* GetEventTypesAsValue();
 
   // Returns a C-String symbolic name for |source_type|.
   static const char* SourceTypeToString(SourceType source_type);
+
+  // Returns a dictionary that maps source type symbolic names to their enum
+  // values.  Caller takes ownership of the returned Value.
+  static base::Value* GetSourceTypesAsValue();
 
   // Returns a C-String symbolic name for |event_phase|.
   static const char* EventPhaseToString(EventPhase event_phase);
