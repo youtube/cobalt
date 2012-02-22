@@ -1529,11 +1529,9 @@ int SSLClientSocketWin::DidCompleteHandshake() {
   scoped_refptr<X509Certificate> new_server_cert(
       X509Certificate::CreateFromHandle(server_cert_handle,
                                         X509Certificate::OSCertHandles()));
-  if (net_log_.IsLoggingBytes()) {
-    net_log_.AddEvent(
-        NetLog::TYPE_SSL_CERTIFICATES_RECEIVED,
-        make_scoped_refptr(new X509CertificateNetLogParam(new_server_cert)));
-  }
+  net_log_.AddEvent(
+      NetLog::TYPE_SSL_CERTIFICATES_RECEIVED,
+      make_scoped_refptr(new X509CertificateNetLogParam(new_server_cert)));
   if (renegotiating_ &&
       X509Certificate::IsSameOSCert(server_cert_->os_cert_handle(),
                                     server_cert_handle)) {
