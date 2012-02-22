@@ -82,8 +82,17 @@ class RecordingSSLSessionCache(object):
   def __setitem__(self, sessionID, session):
     self.log.append(('insert', sessionID))
 
+
+class ClientRestrictingServerMixIn:
+  """Implements verify_request to limit connections to our configured IP
+  address."""
+
+  def verify_request(self, request, client_address):
+    return client_address[0] == self.server_address[0]
+
+
 class StoppableHTTPServer(BaseHTTPServer.HTTPServer):
-  """This is a specialization of of BaseHTTPServer to allow it
+  """This is a specialization of BaseHTTPServer to allow it
   to be exited cleanly (by setting its "stop" member to True)."""
 
   def serve_forever(self):
@@ -93,8 +102,19 @@ class StoppableHTTPServer(BaseHTTPServer.HTTPServer):
       self.handle_request()
     self.socket.close()
 
-class HTTPSServer(tlslite.api.TLSSocketServerMixIn, StoppableHTTPServer):
-  """This is a specialization of StoppableHTTPerver that add https support."""
+
+class HTTPServer(ClientRestrictingServerMixIn, StoppableHTTPServer):
+  """This is a specialization of StoppableHTTPerver that adds client
+  verification."""
+
+  pass
+
+
+class HTTPSServer(tlslite.api.TLSSocketServerMixIn,
+                  ClientRestrictingServerMixIn,
+                  StoppableHTTPServer):
+  """This is a specialization of StoppableHTTPerver that add https support and
+  client verification."""
 
   def __init__(self, server_address, request_hander_class, cert_path,
                ssl_client_auth, ssl_client_cas, ssl_bulk_ciphers,
@@ -143,7 +163,7 @@ class HTTPSServer(tlslite.api.TLSSocketServerMixIn, StoppableHTTPServer):
       return False
 
 
-class SyncHTTPServer(StoppableHTTPServer):
+class SyncHTTPServer(ClientRestrictingServerMixIn, StoppableHTTPServer):
   """An HTTP server that handles sync commands."""
 
   def __init__(self, server_address, request_handler_class):
@@ -248,7 +268,13 @@ class SyncHTTPServer(StoppableHTTPServer):
                          asyncore.dispatcher.handle_expt_event)
 
 
-class TCPEchoServer(SocketServer.TCPServer):
+class FTPServer(ClientRestrictingServerMixIn, pyftpdlib.ftpserver.FTPServer):
+  """This is a specialization of FTPServer that adds client verification."""
+
+  pass
+
+
+class TCPEchoServer(ClientRestrictingServerMixIn, SocketServer.TCPServer):
   """A TCP echo server that echoes back what it has received."""
 
   def server_bind(self):
@@ -266,7 +292,7 @@ class TCPEchoServer(SocketServer.TCPServer):
     self.socket.close()
 
 
-class UDPEchoServer(SocketServer.UDPServer):
+class UDPEchoServer(ClientRestrictingServerMixIn, SocketServer.UDPServer):
   """A UDP echo server that echoes back what it has received."""
 
   def server_bind(self):
@@ -1622,7 +1648,8 @@ class SyncPageHandler(BasePageHandler):
     raw_reply = None
     if not self.server.GetAuthenticated():
       http_response = 401
-      challenge = 'GoogleLogin realm="http://127.0.0.1", service="chromiumsync"'
+      challenge = 'GoogleLogin realm="http://%s", service="chromiumsync"' % (
+        self.server.server_address[0])
     else:
       http_response, raw_reply = self.server.HandleCommand(
           self.path, raw_request)
@@ -1869,8 +1896,10 @@ def main(options, args):
     sys.stdout = logfile
 
   port = options.port
+  host = options.host
 
   server_data = {}
+  server_data['host'] = host
 
   if options.server_type == SERVER_HTTP:
     if options.cert:
@@ -1884,13 +1913,13 @@ def main(options, args):
           print 'specified trusted client CA file not found: ' + ca_cert + \
                 ' exiting...'
           return
-      server = HTTPSServer(('127.0.0.1', port), TestPageHandler, options.cert,
+      server = HTTPSServer((host, port), TestPageHandler, options.cert,
                            options.ssl_client_auth, options.ssl_client_ca,
                            options.ssl_bulk_cipher, options.record_resume)
-      print 'HTTPS server started on port %d...' % server.server_port
+      print 'HTTPS server started on %s:%d...' % (host, server.server_port)
     else:
-      server = StoppableHTTPServer(('127.0.0.1', port), TestPageHandler)
-      print 'HTTP server started on port %d...' % server.server_port
+      server = HTTPServer((host, port), TestPageHandler)
+      print 'HTTP server started on %s:%d...' % (host, server.server_port)
 
     server.data_dir = MakeDataDir()
     server.file_root_url = options.file_root_url
@@ -1899,7 +1928,7 @@ def main(options, args):
     server.policy_keys = options.policy_keys
     server.policy_user = options.policy_user
   elif options.server_type == SERVER_SYNC:
-    server = SyncHTTPServer(('127.0.0.1', port), SyncPageHandler)
+    server = SyncHTTPServer((host, port), SyncPageHandler)
     print 'Sync HTTP server started on port %d...' % server.server_port
     print 'Sync XMPP server started on port %d...' % server.xmpp_port
     server_data['port'] = server.server_port
@@ -1908,14 +1937,14 @@ def main(options, args):
     # Used for generating the key (randomly) that encodes the "echo request"
     # message.
     random.seed()
-    server = TCPEchoServer(('127.0.0.1', port), TCPEchoHandler)
+    server = TCPEchoServer((host, port), TCPEchoHandler)
     print 'Echo TCP server started on port %d...' % server.server_port
     server_data['port'] = server.server_port
   elif options.server_type == SERVER_UDP_ECHO:
     # Used for generating the key (randomly) that encodes the "echo request"
     # message.
     random.seed()
-    server = UDPEchoServer(('127.0.0.1', port), UDPEchoHandler)
+    server = UDPEchoServer((host, port), UDPEchoHandler)
     print 'Echo UDP server started on port %d...' % server.server_port
     server_data['port'] = server.server_port
   # means FTP Server
@@ -1939,9 +1968,8 @@ def main(options, args):
     ftp_handler.banner = ("pyftpdlib %s based ftpd ready." %
                           pyftpdlib.ftpserver.__ver__)
 
-    # Instantiate FTP server class and listen to 127.0.0.1:port
-    address = ('127.0.0.1', port)
-    server = pyftpdlib.ftpserver.FTPServer(address, ftp_handler)
+    # Instantiate FTP server class and listen to address:port
+    server = pyftpdlib.ftpserver.FTPServer((host, port), ftp_handler)
     server_data['port'] = server.socket.getsockname()[1]
     print 'FTP server started on port %d...' % server_data['port']
 
@@ -2043,6 +2071,11 @@ if __name__ == '__main__':
                            help='Specify the user name the server should '
                            'report back to the client as the user owning the '
                            'token used for making the policy request.')
+  option_parser.add_option('', '--host', default='127.0.0.1',
+                           dest='host',
+                           help='Hostname or IP upon which the server will '
+                           'listen. Client connections will also only be '
+                           'allowed from this address.')
   options, args = option_parser.parse_args()
 
   sys.exit(main(options, args))
