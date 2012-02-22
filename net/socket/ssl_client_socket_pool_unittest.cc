@@ -307,9 +307,7 @@ TEST_F(SSLClientSocketPoolTest, DirectWithNPN) {
   StaticSocketDataProvider data;
   socket_factory_.AddSocketDataProvider(&data);
   SSLSocketDataProvider ssl(true, OK);
-  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "http/1.1";
-  ssl.protocol_negotiated = SSLClientSocket::kProtoHTTP11;
+  ssl.SetNextProto(SSLClientSocket::kProtoHTTP11);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -335,9 +333,7 @@ TEST_F(SSLClientSocketPoolTest, DirectNoSPDY) {
   StaticSocketDataProvider data;
   socket_factory_.AddSocketDataProvider(&data);
   SSLSocketDataProvider ssl(true, OK);
-  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "http/1.1";
-  ssl.protocol_negotiated = SSLClientSocket::kProtoHTTP11;
+  ssl.SetNextProto(SSLClientSocket::kProtoHTTP11);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -362,9 +358,7 @@ TEST_F(SSLClientSocketPoolTest, DirectGotSPDY) {
   StaticSocketDataProvider data;
   socket_factory_.AddSocketDataProvider(&data);
   SSLSocketDataProvider ssl(true, OK);
-  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2.1";
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
+  ssl.SetNextProto(SSLClientSocket::kProtoSPDY21);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -396,9 +390,7 @@ TEST_F(SSLClientSocketPoolTest, DirectGotBonusSPDY) {
   StaticSocketDataProvider data;
   socket_factory_.AddSocketDataProvider(&data);
   SSLSocketDataProvider ssl(true, OK);
-  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2.1";
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
+  ssl.SetNextProto(SSLClientSocket::kProtoSPDY21);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -698,9 +690,7 @@ TEST_F(SSLClientSocketPoolTest, IPPooling) {
   SSLSocketDataProvider ssl(true, OK);
   ssl.cert = X509Certificate::CreateFromBytes(
       reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der));
-  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2.1";
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
+  ssl.SetNextProto(SSLClientSocket::kProtoSPDY21);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -786,10 +776,8 @@ TEST_F(SSLClientSocketPoolTest, IPPoolingClientCert) {
   SSLSocketDataProvider ssl(true, OK);
   ssl.cert = X509Certificate::CreateFromBytes(
       reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der));
-  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2.1";
   ssl.client_cert_sent = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
+  ssl.SetNextProto(SSLClientSocket::kProtoSPDY21);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
