@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -266,9 +266,8 @@ class CertVerifierJob {
       : start_time_(base::TimeTicks::Now()),
         worker_(worker),
         net_log_(net_log) {
-    scoped_refptr<NetLog::EventParameters> params;
-    if (net_log_.IsLoggingBytes())
-      params = new X509CertificateNetLogParam(worker_->certificate());
+    scoped_refptr<NetLog::EventParameters> params(
+        new X509CertificateNetLogParam(worker_->certificate()));
     net_log_.BeginEvent(NetLog::TYPE_CERT_VERIFIER_JOB, params);
   }
 

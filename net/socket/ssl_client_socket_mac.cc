@@ -1284,11 +1284,9 @@ int SSLClientSocketMac::DidCompleteHandshake() {
       GetServerCert(ssl_context_));
   if (!new_server_cert)
     return ERR_UNEXPECTED;
-  if (net_log_.IsLoggingBytes()) {
-    net_log_.AddEvent(
-        NetLog::TYPE_SSL_CERTIFICATES_RECEIVED,
-        make_scoped_refptr(new X509CertificateNetLogParam(new_server_cert)));
-  }
+  net_log_.AddEvent(
+      NetLog::TYPE_SSL_CERTIFICATES_RECEIVED,
+      make_scoped_refptr(new X509CertificateNetLogParam(new_server_cert)));
 
   if (renegotiating_ &&
       X509Certificate::IsSameOSCert(server_cert_->os_cert_handle(),
