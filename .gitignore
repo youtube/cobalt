@@ -62,6 +62,7 @@ v8.log
 /chrome/test/data/firefox3_searchplugins
 /chrome/test/data/layout_tests
 /chrome/test/data/osdd
+/chrome/test/data/perf/canvas_bench
 /chrome/test/data/perf/frame_rate/content
 /chrome/test/data/perf/frame_rate/private
 /chrome/test/data/perf/private/
