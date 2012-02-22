@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -121,7 +121,15 @@ void PlatformThread::Sleep(TimeDelta duration) {
 // static
 void PlatformThread::SetName(const char* name) {
   current_thread_name.Set(const_cast<char*>(name));
-  tracked_objects::ThreadData::InitializeThreadContext(name);
+
+  // On Windows only, we don't need to tell the profiler about the "BrokerEvent"
+  // thread, as it exists only in the chrome.exe image, and never spawns or runs
+  // tasks (items which could be profiled).  This test avoids the notification,
+  // which would also (as a side effect) initialize the profiler in this unused
+  // context, including setting up thread local storage, etc.  The performance
+  // impact is not terrible, but there is no reason to do initialize it.
+  if (0 != strcmp(name, "BrokerEvent"))
+    tracked_objects::ThreadData::InitializeThreadContext(name);
 
   // The debugger needs to be around to catch the name in the exception.  If
   // there isn't a debugger, we are just needlessly throwing an exception.
