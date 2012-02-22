@@ -1329,6 +1329,8 @@ static const struct HSTSPreload kPreloadedSTS[] = {
       DOMAIN_GOOGLEPLEX_COM },
   {19, true, "\006groups\006google\003com", true, kGooglePins,
       DOMAIN_GOOGLE_COM },
+  {17, true, "\004apis\006google\003com", true, kGooglePins,
+      DOMAIN_GOOGLE_COM },
   // Other Google-related domains that must use an acceptable certificate
   // iff using SSL.
   {11, true, "\005ytimg\003com", false, kGooglePins,

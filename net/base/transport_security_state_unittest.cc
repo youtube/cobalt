@@ -607,6 +607,7 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(ShouldRedirect("talk.google.com"));
   EXPECT_TRUE(ShouldRedirect("plus.google.com"));
   EXPECT_TRUE(ShouldRedirect("groups.google.com"));
+  EXPECT_TRUE(ShouldRedirect("apis.google.com"));
   EXPECT_TRUE(ShouldRedirect("ssl.google-analytics.com"));
   EXPECT_TRUE(ShouldRedirect("gmail.com"));
   EXPECT_TRUE(ShouldRedirect("www.gmail.com"));
@@ -899,6 +900,7 @@ TEST_F(TransportSecurityStateTest, BuiltinCertPins) {
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "talk.google.com", true));
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "plus.google.com", true));
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "groups.google.com", true));
+  EXPECT_TRUE(state.HasPinsForHost(&domain_state, "apis.google.com", true));
 
   EXPECT_TRUE(state.HasPinsForHost(&domain_state, "ssl.gstatic.com", true));
   EXPECT_FALSE(state.HasPinsForHost(&domain_state, "www.gstatic.com", true));
