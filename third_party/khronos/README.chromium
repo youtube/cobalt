@@ -19,5 +19,6 @@ GLES2/gl2.h
 GLES2/gl2ext.h
  - Added Chromium and Angle extensions.
  - Added ANGLE_instanced_arrays
+ - Added GL_EXT_framebuffer_multisample
 EGL/eglplatform.h
  - Added EGLNative*Type for Mac.
