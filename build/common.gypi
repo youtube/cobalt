@@ -42,6 +42,9 @@
           # Disable Virtual keyboard support by default.
           'use_virtual_keyboard%': 0,
 
+          # Disable viewport meta tag by default.
+          'enable_viewport%': 0,
+
           # Default setting for use_skia on mac platform.
           # This is typically overridden in use_skia_on_mac.gypi.
           'use_skia_on_mac%': 0,
@@ -53,6 +56,7 @@
         'use_ash%': '<(use_ash)',
         'use_openssl%': '<(use_openssl)',
         'use_virtual_keyboard%': '<(use_virtual_keyboard)',
+        'enable_viewport%': '<(enable_viewport)',
         'use_skia_on_mac%': '<(use_skia_on_mac)',
 
         # Compute the architecture that we're building on.
@@ -95,6 +99,7 @@
       'use_ash%': '<(use_ash)',
       'use_openssl%': '<(use_openssl)',
       'use_virtual_keyboard%': '<(use_virtual_keyboard)',
+      'enable_viewport%': '<(enable_viewport)',
       'use_skia_on_mac%': '<(use_skia_on_mac)',
 
       # We used to provide a variable for changing how libraries were built.
@@ -426,6 +431,7 @@
     'chromeos%': '<(chromeos)',
     'chromeos_gtk%': '<(chromeos_gtk)',
     'use_virtual_keyboard%': '<(use_virtual_keyboard)',
+    'enable_viewport%': '<(enable_viewport)',
     'use_skia_on_mac%': '<(use_skia_on_mac)',
     'use_xi2_mt%':'<(use_xi2_mt)',
     'file_manager_extension%': '<(file_manager_extension)',
@@ -1109,6 +1115,9 @@
       }],
       ['enable_pepper_threading==1', {
         'defines': ['ENABLE_PEPPER_THREADING'],
+      }],
+      ['enable_viewport==1', {
+        'defines': ['ENABLE_VIEWPORT'],
       }],
       ['configuration_policy==1', {
         'defines': ['ENABLE_CONFIGURATION_POLICY'],
