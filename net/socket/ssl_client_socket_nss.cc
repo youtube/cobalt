@@ -1073,7 +1073,7 @@ void SSLClientSocketNSS::UpdateServerCert() {
       // case CreateFromDERCertChain() returns NULL.
       server_cert_ = X509Certificate::CreateFromDERCertChain(
           certs.AsStringPieceVector());
-      if (server_cert_ && net_log_.IsLoggingBytes()) {
+      if (server_cert_) {
         net_log_.AddEvent(
             NetLog::TYPE_SSL_CERTIFICATES_RECEIVED,
             make_scoped_refptr(new X509CertificateNetLogParam(server_cert_)));
