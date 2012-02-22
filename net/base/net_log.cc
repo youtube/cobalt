@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -79,28 +79,40 @@ const char* NetLog::EventTypeToString(EventType event) {
 #define EVENT_TYPE(label) case TYPE_ ## label: return #label;
 #include "net/base/net_log_event_type_list.h"
 #undef EVENT_TYPE
+    default:
+      NOTREACHED();
+      return NULL;
   }
-  return NULL;
 }
 
 // static
-std::vector<NetLog::EventType> NetLog::GetAllEventTypes() {
-  std::vector<NetLog::EventType> types;
-#define EVENT_TYPE(label) types.push_back(TYPE_ ## label);
-#include "net/base/net_log_event_type_list.h"
-#undef EVENT_TYPE
-  return types;
+base::Value* NetLog::GetEventTypesAsValue() {
+  DictionaryValue* dict = new DictionaryValue();
+  for (int i = 0; i < EVENT_COUNT; ++i) {
+    dict->SetInteger(EventTypeToString(static_cast<EventType>(i)), i);
+  }
+  return dict;
 }
 
 // static
 const char* NetLog::SourceTypeToString(SourceType source) {
   switch (source) {
-#define SOURCE_TYPE(label, id) case id: return #label;
+#define SOURCE_TYPE(label) case SOURCE_ ## label: return #label;
 #include "net/base/net_log_source_type_list.h"
 #undef SOURCE_TYPE
+    default:
+      NOTREACHED();
+      return NULL;
   }
-  NOTREACHED();
-  return NULL;
+}
+
+// static
+base::Value* NetLog::GetSourceTypesAsValue() {
+  DictionaryValue* dict = new DictionaryValue();
+  for (int i = 0; i < SOURCE_COUNT; ++i) {
+    dict->SetInteger(SourceTypeToString(static_cast<SourceType>(i)), i);
+  }
+  return dict;
 }
 
 // static
