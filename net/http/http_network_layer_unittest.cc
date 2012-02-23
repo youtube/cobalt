@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -77,7 +77,7 @@ TEST_F(HttpNetworkLayerTest, GET) {
   MockRead data_reads[] = {
     MockRead("HTTP/1.0 200 OK\r\n\r\n"),
     MockRead("hello world"),
-    MockRead(false, OK),
+    MockRead(SYNCHRONOUS, OK),
   };
   MockWrite data_writes[] = {
     MockWrite("GET / HTTP/1.1\r\n"
