@@ -83,6 +83,22 @@ Value* NetLogSpdyCredentialParameter::ToValue() const {
   return dict;
 }
 
+NetLogSpdySessionCloseParameter::NetLogSpdySessionCloseParameter(
+    int status,
+    const std::string& description)
+    : status_(status),
+      description_(description) {}
+
+NetLogSpdySessionCloseParameter::~NetLogSpdySessionCloseParameter() {
+}
+
+Value* NetLogSpdySessionCloseParameter::ToValue() const {
+  DictionaryValue* dict = new DictionaryValue();
+  dict->SetInteger("status", status_);
+  dict->SetString("description", description_);
+  return dict;
+}
+
 namespace {
 
 const int kReadBufferSize = 8 * 1024;
@@ -341,7 +357,7 @@ SpdySession::~SpdySession() {
   }
 
   if (connection_->is_initialized()) {
-    // With Spdy we can't recycle sockets.
+    // With SPDY we can't recycle sockets.
     connection_->socket()->Disconnect();
   }
 
@@ -424,9 +440,11 @@ int SpdySession::GetPushStream(
   // encrypted SSL socket.
   if (is_secure_ && certificate_error_code_ != OK &&
       (url.SchemeIs("https") || url.SchemeIs("wss"))) {
-    LOG(ERROR) << "Tried to get pushed spdy stream for secure content over an "
-               << "unauthenticated session.";
-    CloseSessionOnError(static_cast<net::Error>(certificate_error_code_), true);
+    CloseSessionOnError(
+        static_cast<net::Error>(certificate_error_code_),
+        true,
+        "Tried to get SPDY stream for secure content over an unauthenticated "
+        "session.");
     return ERR_SPDY_PROTOCOL_ERROR;
   }
 
@@ -521,9 +539,11 @@ int SpdySession::CreateStreamImpl(
   // encrypted SSL socket.
   if (is_secure_ && certificate_error_code_ != OK &&
       (url.SchemeIs("https") || url.SchemeIs("wss"))) {
-    LOG(ERROR) << "Tried to create spdy stream for secure content over an "
-               << "unauthenticated session.";
-    CloseSessionOnError(static_cast<net::Error>(certificate_error_code_), true);
+    CloseSessionOnError(
+        static_cast<net::Error>(certificate_error_code_),
+        true,
+        "Tried to create SPDY stream for secure content over an "
+        "unauthenticated session.");
     return ERR_SPDY_PROTOCOL_ERROR;
   }
 
@@ -803,7 +823,7 @@ void SpdySession::OnReadComplete(int bytes_read) {
     net::Error error = static_cast<net::Error>(bytes_read);
     if (bytes_read == 0)
       error = ERR_CONNECTION_CLOSED;
-    CloseSessionOnError(error, true);
+    CloseSessionOnError(error, true, "bytes_read is <= 0.");
     return;
   }
 
@@ -879,7 +899,8 @@ void SpdySession::OnWriteComplete(int result) {
     in_flight_write_.release();
 
     // The stream is now errored.  Close it down.
-    CloseSessionOnError(static_cast<net::Error>(result), true);
+    CloseSessionOnError(
+        static_cast<net::Error>(result), true, "The stream has errored.");
   }
 }
 
@@ -901,7 +922,7 @@ net::Error SpdySession::ReadSocket() {
   switch (bytes_read) {
     case 0:
       // Socket is closed!
-      CloseSessionOnError(ERR_CONNECTION_CLOSED, true);
+      CloseSessionOnError(ERR_CONNECTION_CLOSED, true, "bytes_read is 0.");
       return ERR_CONNECTION_CLOSED;
     case net::ERR_IO_PENDING:
       // Waiting for data.  Nothing to do now.
@@ -964,8 +985,8 @@ void SpdySession::WriteSocket() {
         scoped_ptr<spdy::SpdyFrame> compressed_frame(
             buffered_spdy_framer_.CompressFrame(uncompressed_frame));
         if (!compressed_frame.get()) {
-          LOG(ERROR) << "SPDY Compression failure";
-          CloseSessionOnError(net::ERR_SPDY_PROTOCOL_ERROR, true);
+          CloseSessionOnError(
+              net::ERR_SPDY_PROTOCOL_ERROR, true, "SPDY Compression failure.");
           return;
         }
 
@@ -1030,8 +1051,9 @@ void SpdySession::CloseAllStreams(net::Error status) {
     ActiveStreamMap::iterator it = active_streams_.begin();
     const scoped_refptr<SpdyStream>& stream = it->second;
     DCHECK(stream);
-    VLOG(1) << "ABANDONED (stream_id=" << stream->stream_id()
-            << "): " << stream->path();
+    std::string description = base::StringPrintf(
+        "ABANDONED (stream_id=%d): ", stream->stream_id()) + stream->path();
+    stream->LogStreamError(status, description);
     DeleteStream(stream->stream_id(), status);
   }
 
@@ -1059,7 +1081,9 @@ void SpdySession::QueueFrame(spdy::SpdyFrame* frame,
   WriteSocketLater();
 }
 
-void SpdySession::CloseSessionOnError(net::Error err, bool remove_from_pool) {
+void SpdySession::CloseSessionOnError(net::Error err,
+                                      bool remove_from_pool,
+                                      const std::string& description) {
   // Closing all streams can have a side-effect of dropping the last reference
   // to |this|.  Hold a reference through this function.
   scoped_refptr<SpdySession> self(this);
@@ -1067,7 +1091,8 @@ void SpdySession::CloseSessionOnError(net::Error err, bool remove_from_pool) {
   DCHECK_LT(err, OK);
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_SESSION_CLOSE,
-      make_scoped_refptr(new NetLogIntegerParameter("status", err)));
+      make_scoped_refptr(
+          new NetLogSpdySessionCloseParameter(err, description)));
 
   // Don't close twice.  This can occur because we can have both
   // a read and a write outstanding, and each can complete with
@@ -1229,13 +1254,16 @@ SSLClientCertType SpdySession::GetOriginBoundCertType() const {
   return ssl_socket->origin_bound_cert_type();
 }
 
-void SpdySession::OnError() {
-  CloseSessionOnError(net::ERR_SPDY_PROTOCOL_ERROR, true);
+void SpdySession::OnError(int error_code) {
+  std::string description = base::StringPrintf(
+      "SPDY_ERROR error_code: %d.", error_code);
+  CloseSessionOnError(net::ERR_SPDY_PROTOCOL_ERROR, true, description);
 }
 
-void SpdySession::OnStreamError(spdy::SpdyStreamId stream_id) {
+void SpdySession::OnStreamError(spdy::SpdyStreamId stream_id,
+                                const std::string& description) {
   if (IsStreamActive(stream_id))
-    ResetStream(stream_id, spdy::PROTOCOL_ERROR, "");
+    ResetStream(stream_id, spdy::PROTOCOL_ERROR, description);
 }
 
 void SpdySession::OnStreamFrameData(spdy::SpdyStreamId stream_id,
@@ -1297,13 +1325,10 @@ void SpdySession::OnSynStream(
   }
 
   if (associated_stream_id == 0) {
-    LOG(WARNING) << "Received invalid OnSyn associated stream id "
-                 << associated_stream_id
-                 << " for stream " << stream_id;
-    std::string desc = base::StringPrintf(
+    std::string description = base::StringPrintf(
         "Received invalid OnSyn associated stream id %d for stream %d",
         associated_stream_id, stream_id);
-    ResetStream(stream_id, spdy::INVALID_STREAM, desc);
+    ResetStream(stream_id, spdy::INVALID_STREAM, description);
     return;
   }
 
@@ -1317,7 +1342,6 @@ void SpdySession::OnSynStream(
   if (url.empty()) {
     ResetStream(stream_id, spdy::PROTOCOL_ERROR,
                 "Pushed stream did not contain a url.");
-    LOG(WARNING) << "Pushed stream did not contain a url.";
     return;
   }
 
@@ -1325,14 +1349,11 @@ void SpdySession::OnSynStream(
   if (!gurl.is_valid()) {
     ResetStream(stream_id, spdy::PROTOCOL_ERROR,
                 "Pushed stream url was invalid: " + url);
-    LOG(WARNING) << "Pushed stream url was invalid: " << url;
     return;
   }
 
   // Verify we have a valid stream association.
   if (!IsStreamActive(associated_stream_id)) {
-    LOG(WARNING) << "Received OnSyn with inactive associated stream "
-               << associated_stream_id;
     ResetStream(stream_id, spdy::INVALID_ASSOCIATED_STREAM,
                 base::StringPrintf(
                     "Received OnSyn with inactive associated stream %d",
@@ -1344,8 +1365,6 @@ void SpdySession::OnSynStream(
       active_streams_[associated_stream_id];
   GURL associated_url(associated_stream->GetUrl());
   if (associated_url.GetOrigin() != gurl.GetOrigin()) {
-    LOG(WARNING) << "Rejected Cross Origin Push Stream "
-                 << associated_stream_id;
     ResetStream(stream_id, spdy::REFUSED_STREAM,
                 base::StringPrintf(
                     "Rejected Cross Origin Push Stream %d",
@@ -1356,7 +1375,6 @@ void SpdySession::OnSynStream(
   // There should not be an existing pushed stream with the same path.
   PushedStreamMap::iterator it = unclaimed_pushed_streams_.find(url);
   if (it != unclaimed_pushed_streams_.end()) {
-    LOG(WARNING) << "Received duplicate pushed stream with url: " << url;
     ResetStream(stream_id, spdy::PROTOCOL_ERROR,
                 "Received duplicate pushed stream with url: " + url);
     return;
@@ -1386,6 +1404,14 @@ void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
                              const linked_ptr<spdy::SpdyHeaderBlock>& headers) {
   spdy::SpdyStreamId stream_id = frame.stream_id();
 
+  if (net_log().IsLoggingAllEvents()) {
+    net_log().AddEvent(
+        NetLog::TYPE_SPDY_SESSION_SYN_REPLY,
+        make_scoped_refptr(new NetLogSpdySynParameter(
+            headers, static_cast<spdy::SpdyControlFlags>(frame.flags()),
+            stream_id, 0)));
+  }
+
   bool valid_stream = IsStreamActive(stream_id);
   if (!valid_stream) {
     // NOTE:  it may just be that the stream was cancelled.
@@ -1398,19 +1424,12 @@ void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
   CHECK(!stream->cancelled());
 
   if (stream->response_received()) {
-    LOG(WARNING) << "Received duplicate SYN_REPLY for stream " << stream_id;
+    stream->LogStreamError(ERR_SYN_REPLY_NOT_RECEIVED,
+                           "Received duplicate SYN_REPLY for stream.");
     CloseStream(stream->stream_id(), ERR_SPDY_PROTOCOL_ERROR);
     return;
   }
   stream->set_response_received();
-
-  if (net_log().IsLoggingAllEvents()) {
-    net_log().AddEvent(
-        NetLog::TYPE_SPDY_SESSION_SYN_REPLY,
-        make_scoped_refptr(new NetLogSpdySynParameter(
-            headers, static_cast<spdy::SpdyControlFlags>(frame.flags()),
-            stream_id, 0)));
-  }
 
   Respond(*headers, stream);
 }
@@ -1418,6 +1437,14 @@ void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
 void SpdySession::OnHeaders(const spdy::SpdyHeadersControlFrame& frame,
                             const linked_ptr<spdy::SpdyHeaderBlock>& headers) {
   spdy::SpdyStreamId stream_id = frame.stream_id();
+
+  if (net_log().IsLoggingAllEvents()) {
+    net_log().AddEvent(
+        NetLog::TYPE_SPDY_SESSION_HEADERS,
+        make_scoped_refptr(new NetLogSpdySynParameter(
+            headers, static_cast<spdy::SpdyControlFlags>(frame.flags()),
+            stream_id, 0)));
+  }
 
   bool valid_stream = IsStreamActive(stream_id);
   if (!valid_stream) {
@@ -1429,14 +1456,6 @@ void SpdySession::OnHeaders(const spdy::SpdyHeadersControlFrame& frame,
   scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
   CHECK_EQ(stream->stream_id(), stream_id);
   CHECK(!stream->cancelled());
-
-  if (net_log().IsLoggingAllEvents()) {
-    net_log().AddEvent(
-        NetLog::TYPE_SPDY_SESSION_HEADERS,
-        make_scoped_refptr(new NetLogSpdySynParameter(
-            headers, static_cast<spdy::SpdyControlFlags>(frame.flags()),
-            stream_id, 0)));
-  }
 
   int rv = stream->OnHeaders(*headers);
   if (rv < 0) {
@@ -1469,7 +1488,9 @@ void SpdySession::OnRstStream(const spdy::SpdyRstStreamControlFrame& frame) {
   } else if (frame.status() == spdy::REFUSED_STREAM) {
     DeleteStream(stream_id, ERR_SPDY_SERVER_REFUSED_STREAM);
   } else {
-    LOG(ERROR) << "Spdy stream closed: " << frame.status();
+    stream->LogStreamError(ERR_SPDY_PROTOCOL_ERROR,
+                           base::StringPrintf("SPDY stream closed: %d",
+                                              frame.status()));
     // TODO(mbelshe): Map from Spdy-protocol errors to something sensical.
     //                For now, it doesn't matter much - it is a protocol error.
     DeleteStream(stream_id, ERR_SPDY_PROTOCOL_ERROR);
@@ -1508,7 +1529,8 @@ void SpdySession::OnPing(const spdy::SpdyPingControlFrame& frame) {
 
   --pings_in_flight_;
   if (pings_in_flight_ < 0) {
-    CloseSessionOnError(net::ERR_SPDY_PROTOCOL_ERROR, true);
+    CloseSessionOnError(
+        net::ERR_SPDY_PROTOCOL_ERROR, true, "pings_in_flight_ is < 0.");
     return;
   }
 
@@ -1554,8 +1576,6 @@ void SpdySession::OnWindowUpdate(
   }
 
   if (delta_window_size < 1) {
-    LOG(WARNING) << "Received WINDOW_UPDATE with an invalid delta_window_size "
-                 << delta_window_size;
     ResetStream(stream_id, spdy::FLOW_CONTROL_ERROR,
                 base::StringPrintf(
                     "Received WINDOW_UPDATE with an invalid "
@@ -1769,7 +1789,7 @@ void SpdySession::CheckPingStatus(base::TimeTicks last_check_time) {
       (now - received_data_time_);
 
   if (delay.InMilliseconds() < 0 || received_data_time_ < last_check_time) {
-    CloseSessionOnError(net::ERR_SPDY_PING_FAILED, true);
+    CloseSessionOnError(net::ERR_SPDY_PING_FAILED, true, "Failed ping.");
     // Track all failed PING messages in a separate bucket.
     const base::TimeDelta kFailedPing =
         base::TimeDelta::FromInternalValue(INT_MAX);

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -385,7 +385,8 @@ void SpdySessionPool::CloseAllSessions() {
     CHECK(session);
     // This call takes care of removing the session from the pool, as well as
     // removing the session list if the list is empty.
-    session->CloseSessionOnError(net::ERR_ABORTED, true);
+    session->CloseSessionOnError(
+        net::ERR_ABORTED, true, "Closing all sessions.");
   }
 }
 
@@ -406,7 +407,8 @@ void SpdySessionPool::CloseCurrentSessions() {
     CHECK(list);
     const scoped_refptr<SpdySession>& session = list->front();
     CHECK(session);
-    session->CloseSessionOnError(net::ERR_ABORTED, false);
+    session->CloseSessionOnError(
+        net::ERR_ABORTED, false, "Closing current sessions.");
     list->pop_front();
     if (list->empty()) {
       delete list;
@@ -429,8 +431,10 @@ void SpdySessionPool::CloseIdleSessions() {
     SpdySessionList::iterator session_it = list->begin();
     const scoped_refptr<SpdySession>& session = *session_it;
     CHECK(session);
-    if (!session->is_active())
-      session->CloseSessionOnError(net::ERR_ABORTED, true);
+    if (!session->is_active()) {
+      session->CloseSessionOnError(
+          net::ERR_ABORTED, true, "Closing idle sessions.");
+    }
   }
 }
 
