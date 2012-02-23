@@ -242,10 +242,10 @@ class DnsTransactionTest : public testing::Test {
     DnsResponse* response = new DnsResponse(data, data_length, 0);
     responses_.push_back(response);
 
-    writes_.push_back(MockWrite(true,
+    writes_.push_back(MockWrite(ASYNC,
                                 query->io_buffer()->data(),
                                 query->io_buffer()->size()));
-    reads_.push_back(MockRead(true,
+    reads_.push_back(MockRead(ASYNC,
                               response->io_buffer()->data(),
                               data_length));
 
@@ -259,7 +259,7 @@ class DnsTransactionTest : public testing::Test {
     DnsQuery* query = new DnsQuery(id, DomainFromDot(dotted_name), qtype);
     queries_.push_back(query);
 
-    writes_.push_back(MockWrite(true,
+    writes_.push_back(MockWrite(ASYNC,
                                 query->io_buffer()->data(),
                                 query->io_buffer()->size()));
     // Empty MockRead indicates no data.
@@ -284,10 +284,10 @@ class DnsTransactionTest : public testing::Test {
     header->flags |= htons(dns_protocol::kFlagResponse | rcode);
     responses_.push_back(response);
 
-    writes_.push_back(MockWrite(true,
+    writes_.push_back(MockWrite(ASYNC,
                                 query->io_buffer()->data(),
                                 query->io_buffer()->size()));
-    reads_.push_back(MockRead(true,
+    reads_.push_back(MockRead(ASYNC,
                               response->io_buffer()->data(),
                               query->io_buffer()->size()));
     transaction_ids_.push_back(id);

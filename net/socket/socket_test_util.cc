@@ -107,7 +107,7 @@ void DumpData(const char* data, int data_len) {
 void DumpMockRead(const MockRead& r) {
   if (logging::LOG_INFO < logging::GetMinLogLevel())
     return;
-  DVLOG(1) << "Async:   " << r.async
+  DVLOG(1) << "Async:   " << (r.mode == ASYNC)
            << "\nResult:  " << r.result;
   DumpData(r.data, r.data_len);
   const char* stop = (r.sequence_number & MockRead::STOPLOOP) ? " (STOP)" : "";
@@ -169,9 +169,9 @@ MockRead StaticSocketDataProvider::GetNextRead() {
 MockWriteResult StaticSocketDataProvider::OnWrite(const std::string& data) {
   if (!writes_) {
     // Not using mock writes; succeed synchronously.
-    return MockWriteResult(false, data.length());
+    return MockWriteResult(SYNCHRONOUS, data.length());
   }
-
+  LOG(INFO) << "about to write: " << data;
   DCHECK(!at_write_eof());
 
   // Check that what we are writing matches the expectation.
@@ -191,11 +191,11 @@ MockWriteResult StaticSocketDataProvider::OnWrite(const std::string& data) {
     std::string actual_data(data.substr(0, w->data_len));
     EXPECT_EQ(expected_data, actual_data);
     if (expected_data != actual_data)
-      return MockWriteResult(false, ERR_UNEXPECTED);
+      return MockWriteResult(SYNCHRONOUS, ERR_UNEXPECTED);
     if (result == OK)
       result = w->data_len;
   }
-  return MockWriteResult(w->async, result);
+  return MockWriteResult(w->mode, result);
 }
 
 void StaticSocketDataProvider::Reset() {
@@ -212,7 +212,7 @@ DynamicSocketDataProvider::~DynamicSocketDataProvider() {}
 
 MockRead DynamicSocketDataProvider::GetNextRead() {
   if (reads_.empty())
-    return MockRead(false, ERR_UNEXPECTED);
+    return MockRead(SYNCHRONOUS, ERR_UNEXPECTED);
   MockRead result = reads_.front();
   if (short_read_limit_ == 0 || result.data_len <= short_read_limit_) {
     reads_.pop_front();
@@ -233,11 +233,11 @@ void DynamicSocketDataProvider::SimulateRead(const char* data,
   if (!allow_unconsumed_reads_) {
     EXPECT_TRUE(reads_.empty()) << "Unconsumed read: " << reads_.front().data;
   }
-  reads_.push_back(MockRead(true, data, length));
+  reads_.push_back(MockRead(ASYNC, data, length));
 }
 
-SSLSocketDataProvider::SSLSocketDataProvider(bool async, int result)
-    : connect(async ? ASYNC : SYNCHRONOUS, result),
+SSLSocketDataProvider::SSLSocketDataProvider(IoMode mode, int result)
+    : connect(mode, result),
       next_proto_status(SSLClientSocket::kNextProtoUnsupported),
       was_npn_negotiated(false),
       protocol_negotiated(SSLClientSocket::kProtoUnknown),
@@ -287,7 +287,7 @@ void DelayedSocketData::ForceNextRead() {
 }
 
 MockRead DelayedSocketData::GetNextRead() {
-  MockRead out = MockRead(true, ERR_IO_PENDING);
+  MockRead out = MockRead(ASYNC, ERR_IO_PENDING);
   if (write_delay_ <= 0)
     out = StaticSocketDataProvider::GetNextRead();
   read_in_progress_ = (out.result == ERR_IO_PENDING);
@@ -372,7 +372,7 @@ MockRead OrderedSocketData::GetNextRead() {
   }
   NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_ - 1
                             << ": I/O Pending";
-  MockRead result = MockRead(true, ERR_IO_PENDING);
+  MockRead result = MockRead(ASYNC, ERR_IO_PENDING);
   DumpMockRead(result);
   blocked_ = true;
   return result;
@@ -475,21 +475,21 @@ MockRead DeterministicSocketData::GetNextRead() {
   EXPECT_LE(sequence_number_, current_read_.sequence_number);
 
   // Synchronous read while stopped is an error
-  if (stopped() && !current_read_.async) {
+  if (stopped() && current_read_.mode == SYNCHRONOUS) {
     LOG(ERROR) << "Unable to perform synchronous IO while stopped";
-    return MockRead(false, ERR_UNEXPECTED);
+    return MockRead(SYNCHRONOUS, ERR_UNEXPECTED);
   }
 
   // Async read which will be called back in a future step.
   if (sequence_number_ < current_read_.sequence_number) {
     NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_
                               << ": I/O Pending";
-    MockRead result = MockRead(false, ERR_IO_PENDING);
-    if (!current_read_.async) {
+    MockRead result = MockRead(SYNCHRONOUS, ERR_IO_PENDING);
+    if (current_read_.mode == SYNCHRONOUS) {
       LOG(ERROR) << "Unable to perform synchronous read: "
           << current_read_.sequence_number
           << " at stage: " << sequence_number_;
-      result = MockRead(false, ERR_UNEXPECTED);
+      result = MockRead(SYNCHRONOUS, ERR_UNEXPECTED);
     }
     if (print_debug_)
       DumpMockRead(result);
@@ -502,7 +502,7 @@ MockRead DeterministicSocketData::GetNextRead() {
     DumpMockRead(current_read_);
 
   // Increment the sequence number if IO is complete
-  if (!current_read_.async)
+  if (current_read_.mode == SYNCHRONOUS)
     NextStep();
 
   DCHECK_NE(ERR_IO_PENDING, current_read_.result);
@@ -516,19 +516,19 @@ MockWriteResult DeterministicSocketData::OnWrite(const std::string& data) {
   current_write_ = next_write;
 
   // Synchronous write while stopped is an error
-  if (stopped() && !next_write.async) {
+  if (stopped() && next_write.mode == SYNCHRONOUS) {
     LOG(ERROR) << "Unable to perform synchronous IO while stopped";
-    return MockWriteResult(false, ERR_UNEXPECTED);
+    return MockWriteResult(SYNCHRONOUS, ERR_UNEXPECTED);
   }
 
   // Async write which will be called back in a future step.
   if (sequence_number_ < next_write.sequence_number) {
     NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_
                               << ": I/O Pending";
-    if (!next_write.async) {
+    if (next_write.mode == SYNCHRONOUS) {
       LOG(ERROR) << "Unable to perform synchronous write: "
           << next_write.sequence_number << " at stage: " << sequence_number_;
-      return MockWriteResult(false, ERR_UNEXPECTED);
+      return MockWriteResult(SYNCHRONOUS, ERR_UNEXPECTED);
     }
   } else {
     NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_
@@ -540,7 +540,7 @@ MockWriteResult DeterministicSocketData::OnWrite(const std::string& data) {
 
   // Move to the next step if I/O is synchronous, since the operation will
   // complete when this method returns.
-  if (!next_write.async)
+  if (next_write.mode == SYNCHRONOUS)
     NextStep();
 
   // This is either a sync write for this step, or an async write.
@@ -731,7 +731,7 @@ MockTCPClientSocket::MockTCPClientSocket(const AddressList& addresses,
       data_(data),
       read_offset_(0),
       num_bytes_read_(0),
-      read_data_(false, ERR_UNEXPECTED),
+      read_data_(SYNCHRONOUS, ERR_UNEXPECTED),
       need_read_data_(true),
       peer_closed_connection_(false),
       pending_buf_(NULL),
@@ -790,7 +790,7 @@ int MockTCPClientSocket::Write(IOBuffer* buf, int buf_len,
 
   was_used_to_convey_data_ = true;
 
-  if (write_result.async) {
+  if (write_result.mode == ASYNC) {
     RunCallbackAsync(callback, write_result.result);
     return ERR_IO_PENDING;
   }
@@ -803,7 +803,7 @@ int MockTCPClientSocket::Connect(const CompletionCallback& callback) {
     return OK;
   connected_ = true;
   peer_closed_connection_ = false;
-  if (data_->connect_data().async) {
+  if (data_->connect_data().mode == ASYNC) {
     RunCallbackAsync(callback, data_->connect_data().result);
     return ERR_IO_PENDING;
   }
@@ -861,7 +861,7 @@ void MockTCPClientSocket::OnReadComplete(const MockRead& data) {
 
   // The caller is simulating that this IO completes right now.  Don't
   // let CompleteRead() schedule a callback.
-  read_data_.async = false;
+  read_data_.mode = SYNCHRONOUS;
 
   CompletionCallback callback = pending_callback_;
   int rv = CompleteRead();
@@ -900,7 +900,7 @@ int MockTCPClientSocket::CompleteRead() {
     }
   }
 
-  if (read_data_.async) {
+  if (read_data_.mode == ASYNC) {
     DCHECK(!callback.is_null());
     RunCallbackAsync(callback, result);
     return ERR_IO_PENDING;
@@ -938,7 +938,7 @@ int DeterministicMockTCPClientSocket::CompleteRead() {
   if (read_data_.result == ERR_IO_PENDING)
     read_data_ = data_->GetNextRead();
   DCHECK_NE(ERR_IO_PENDING, read_data_.result);
-  // If read_data_.async is true, we do not need to wait, since this is already
+  // If read_data_.mode is ASYNC, we do not need to wait, since this is already
   // the callback. Therefore we don't even bother to check it.
   int result = read_data_.result;
 
@@ -967,7 +967,7 @@ int DeterministicMockTCPClientSocket::Write(
   std::string data(buf->data(), buf_len);
   MockWriteResult write_result = data_->OnWrite(data);
 
-  if (write_result.async) {
+  if (write_result.mode == ASYNC) {
     write_callback_ = callback;
     write_result_ = write_result.result;
     DCHECK(!write_callback_.is_null());
@@ -994,7 +994,7 @@ int DeterministicMockTCPClientSocket::Read(
   read_buf_len_ = buf_len;
   read_callback_ = callback;
 
-  if (read_data_.async || (read_data_.result == ERR_IO_PENDING)) {
+  if (read_data_.mode == ASYNC || (read_data_.result == ERR_IO_PENDING)) {
     read_pending_ = true;
     DCHECK(!read_callback_.is_null());
     return ERR_IO_PENDING;
@@ -1010,7 +1010,7 @@ int DeterministicMockTCPClientSocket::Connect(
   if (connected_)
     return OK;
   connected_ = true;
-  if (data_->connect_data().async) {
+  if (data_->connect_data().mode == ASYNC) {
     RunCallbackAsync(callback, data_->connect_data().result);
     return ERR_IO_PENDING;
   }
@@ -1094,7 +1094,7 @@ int MockSSLClientSocket::Connect(const CompletionCallback& callback) {
   if (rv == OK) {
     if (data_->connect.result == OK)
       connected_ = true;
-    if (data_->connect.async) {
+    if (data_->connect.mode == ASYNC) {
       RunCallbackAsync(callback, data_->connect.result);
       return ERR_IO_PENDING;
     }
@@ -1203,7 +1203,7 @@ MockUDPClientSocket::MockUDPClientSocket(SocketDataProvider* data,
     : connected_(false),
       data_(data),
       read_offset_(0),
-      read_data_(false, ERR_UNEXPECTED),
+      read_data_(SYNCHRONOUS, ERR_UNEXPECTED),
       need_read_data_(true),
       pending_buf_(NULL),
       pending_buf_len_(0),
@@ -1254,7 +1254,7 @@ int MockUDPClientSocket::Write(IOBuffer* buf, int buf_len,
   std::string data(buf->data(), buf_len);
   MockWriteResult write_result = data_->OnWrite(data);
 
-  if (write_result.async) {
+  if (write_result.mode == ASYNC) {
     RunCallbackAsync(callback, write_result.result);
     return ERR_IO_PENDING;
   }
@@ -1305,7 +1305,7 @@ void MockUDPClientSocket::OnReadComplete(const MockRead& data) {
 
   // The caller is simulating that this IO completes right now.  Don't
   // let CompleteRead() schedule a callback.
-  read_data_.async = false;
+  read_data_.mode = SYNCHRONOUS;
 
   net::CompletionCallback callback = pending_callback_;
   int rv = CompleteRead();
@@ -1341,7 +1341,7 @@ int MockUDPClientSocket::CompleteRead() {
     }
   }
 
-  if (read_data_.async) {
+  if (read_data_.mode == ASYNC) {
     DCHECK(!callback.is_null());
     RunCallbackAsync(callback, result);
     return ERR_IO_PENDING;

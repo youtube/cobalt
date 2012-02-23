@@ -163,7 +163,7 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
     socket_factory_.AddSocketDataProvider(data_.get());
 
     if (GetParam() != HTTP) {
-      ssl_data_.reset(new SSLSocketDataProvider(false, OK));
+      ssl_data_.reset(new SSLSocketDataProvider(SYNCHRONOUS, OK));
       if (GetParam() == SPDY) {
         InitializeSpdySsl();
       }
@@ -241,29 +241,29 @@ TEST_P(HttpProxyClientSocketPoolTest, NoTunnel) {
 
 TEST_P(HttpProxyClientSocketPoolTest, NeedAuth) {
   MockWrite writes[] = {
-    MockWrite(true, 0, "CONNECT www.google.com:443 HTTP/1.1\r\n"
+    MockWrite(ASYNC, 0, "CONNECT www.google.com:443 HTTP/1.1\r\n"
               "Host: www.google.com\r\n"
               "Proxy-Connection: keep-alive\r\n\r\n"),
   };
   MockRead reads[] = {
     // No credentials.
-    MockRead(true, 1, "HTTP/1.1 407 Proxy Authentication Required\r\n"),
-    MockRead(true, 2, "Proxy-Authenticate: Basic realm=\"MyRealm1\"\r\n"),
-    MockRead(true, 3, "Content-Length: 10\r\n\r\n"),
-    MockRead(true, 4, "0123456789"),
+    MockRead(ASYNC, 1, "HTTP/1.1 407 Proxy Authentication Required\r\n"),
+    MockRead(ASYNC, 2, "Proxy-Authenticate: Basic realm=\"MyRealm1\"\r\n"),
+    MockRead(ASYNC, 3, "Content-Length: 10\r\n\r\n"),
+    MockRead(ASYNC, 4, "0123456789"),
   };
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyConnect(NULL, 0, 1));
   scoped_ptr<spdy::SpdyFrame> rst(ConstructSpdyRstStream(1, spdy::CANCEL));
   MockWrite spdy_writes[] = {
-    CreateMockWrite(*req, 0, true),
-    CreateMockWrite(*rst, 2, true),
+    CreateMockWrite(*req, 0, ASYNC),
+    CreateMockWrite(*rst, 2, ASYNC),
   };
   scoped_ptr<spdy::SpdyFrame> resp(
       ConstructSpdySynReplyError(
           "407 Proxy Authentication Required", NULL, 0, 1));
   MockRead spdy_reads[] = {
-    CreateMockWrite(*resp, 1, true),
-    MockRead(true, 0, 3)
+    CreateMockWrite(*resp, 1, ASYNC),
+    MockRead(ASYNC, 0, 3)
   };
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes),
@@ -301,14 +301,14 @@ TEST_P(HttpProxyClientSocketPoolTest, HaveAuth) {
   if (GetParam() == SPDY)
     return;
   MockWrite writes[] = {
-    MockWrite(false, 0,
+    MockWrite(SYNCHRONOUS, 0,
               "CONNECT www.google.com:443 HTTP/1.1\r\n"
               "Host: www.google.com\r\n"
               "Proxy-Connection: keep-alive\r\n"
               "Proxy-Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.1 200 Connection Established\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 Connection Established\r\n\r\n"),
   };
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes), NULL, 0,
@@ -333,18 +333,18 @@ TEST_P(HttpProxyClientSocketPoolTest, AsyncHaveAuth) {
               "Proxy-Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, "HTTP/1.1 200 Connection Established\r\n\r\n"),
+    MockRead(SYNCHRONOUS, "HTTP/1.1 200 Connection Established\r\n\r\n"),
   };
 
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyConnect(kAuthHeaders,
                                                        kAuthHeadersSize, 1));
   MockWrite spdy_writes[] = {
-    CreateMockWrite(*req, 0, true)
+    CreateMockWrite(*req, 0, ASYNC)
   };
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   MockRead spdy_reads[] = {
-    CreateMockRead(*resp, 1, true),
-    MockRead(true, 0, 2)
+    CreateMockRead(*resp, 1, ASYNC),
+    MockRead(ASYNC, 0, 2)
   };
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes),
@@ -392,7 +392,7 @@ TEST_P(HttpProxyClientSocketPoolTest, SSLError) {
   data_->set_connect_data(MockConnect(ASYNC, OK));
   socket_factory().AddSocketDataProvider(data_.get());
 
-  ssl_data_.reset(new SSLSocketDataProvider(true,
+  ssl_data_.reset(new SSLSocketDataProvider(ASYNC,
                                             ERR_CERT_AUTHORITY_INVALID));
   if (GetParam() == SPDY) {
     InitializeSpdySsl();
@@ -417,7 +417,7 @@ TEST_P(HttpProxyClientSocketPoolTest, SslClientAuth) {
   data_->set_connect_data(MockConnect(ASYNC, OK));
   socket_factory().AddSocketDataProvider(data_.get());
 
-  ssl_data_.reset(new SSLSocketDataProvider(true,
+  ssl_data_.reset(new SSLSocketDataProvider(ASYNC,
                                             ERR_SSL_CLIENT_AUTH_CERT_NEEDED));
   if (GetParam() == SPDY) {
     InitializeSpdySsl();
@@ -438,23 +438,23 @@ TEST_P(HttpProxyClientSocketPoolTest, SslClientAuth) {
 
 TEST_P(HttpProxyClientSocketPoolTest, TunnelUnexpectedClose) {
   MockWrite writes[] = {
-    MockWrite(true, 0,
+    MockWrite(ASYNC, 0,
               "CONNECT www.google.com:443 HTTP/1.1\r\n"
               "Host: www.google.com\r\n"
               "Proxy-Connection: keep-alive\r\n"
               "Proxy-Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(true, 1, "HTTP/1.1 200 Conn"),
-    MockRead(true, ERR_CONNECTION_CLOSED, 2),
+    MockRead(ASYNC, 1, "HTTP/1.1 200 Conn"),
+    MockRead(ASYNC, ERR_CONNECTION_CLOSED, 2),
   };
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyConnect(kAuthHeaders,
                                                        kAuthHeadersSize, 1));
   MockWrite spdy_writes[] = {
-    CreateMockWrite(*req, 0, true)
+    CreateMockWrite(*req, 0, ASYNC)
   };
   MockRead spdy_reads[] = {
-    MockRead(true, ERR_CONNECTION_CLOSED, 1),
+    MockRead(ASYNC, ERR_CONNECTION_CLOSED, 1),
   };
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes),
@@ -476,26 +476,26 @@ TEST_P(HttpProxyClientSocketPoolTest, TunnelUnexpectedClose) {
 
 TEST_P(HttpProxyClientSocketPoolTest, TunnelSetupError) {
   MockWrite writes[] = {
-    MockWrite(true, 0,
+    MockWrite(ASYNC, 0,
               "CONNECT www.google.com:443 HTTP/1.1\r\n"
               "Host: www.google.com\r\n"
               "Proxy-Connection: keep-alive\r\n"
               "Proxy-Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(true, 1, "HTTP/1.1 304 Not Modified\r\n\r\n"),
+    MockRead(ASYNC, 1, "HTTP/1.1 304 Not Modified\r\n\r\n"),
   };
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyConnect(kAuthHeaders,
                                                        kAuthHeadersSize, 1));
   scoped_ptr<spdy::SpdyFrame> rst(ConstructSpdyRstStream(1, spdy::CANCEL));
   MockWrite spdy_writes[] = {
-    CreateMockWrite(*req, 0, true),
-    CreateMockWrite(*rst, 2, true),
+    CreateMockWrite(*req, 0, ASYNC),
+    CreateMockWrite(*rst, 2, ASYNC),
   };
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdySynReplyError(1));
   MockRead spdy_reads[] = {
-    CreateMockRead(*resp, 1, true),
-    MockRead(true, 0, 3),
+    CreateMockRead(*resp, 1, ASYNC),
+    MockRead(ASYNC, 0, 3),
   };
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes),
