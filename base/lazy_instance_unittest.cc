@@ -5,6 +5,7 @@
 #include "base/at_exit.h"
 #include "base/atomic_sequence_num.h"
 #include "base/lazy_instance.h"
+#include "base/memory/aligned_memory.h"
 #include "base/threading/simple_thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -138,4 +139,34 @@ TEST(LazyInstanceTest, LeakyLazyInstance) {
     test.Get().SetDeletedPtr(&deleted2);
   }
   EXPECT_FALSE(deleted2);
+}
+
+namespace {
+
+template <size_t alignment>
+class AlignedData {
+ public:
+  AlignedData() {}
+  ~AlignedData() {}
+  base::AlignedMemory<alignment, alignment> data_;
+};
+
+}  // anonymous namespace
+
+#define EXPECT_ALIGNED(ptr, align) \
+    EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(ptr) & (align - 1))
+
+TEST(LazyInstanceTest, Alignment) {
+  using base::LazyInstance;
+
+  // Create some static instances with increasing sizes and alignment
+  // requirements. By ordering this way, the linker will need to do some work to
+  // ensure proper alignment of the static data.
+  static LazyInstance<AlignedData<4> > align4 = LAZY_INSTANCE_INITIALIZER;
+  static LazyInstance<AlignedData<32> > align32 = LAZY_INSTANCE_INITIALIZER;
+  static LazyInstance<AlignedData<4096> > align4096 = LAZY_INSTANCE_INITIALIZER;
+
+  EXPECT_ALIGNED(align4.Pointer(), 4);
+  EXPECT_ALIGNED(align32.Pointer(), 32);
+  EXPECT_ALIGNED(align4096.Pointer(), 4096);
 }
