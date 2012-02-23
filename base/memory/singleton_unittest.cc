@@ -110,6 +110,19 @@ struct CallbackSingletonWithStaticTrait::Trait
   }
 };
 
+template <class Type>
+class AlignedTestSingleton {
+ public:
+  AlignedTestSingleton() {}
+  ~AlignedTestSingleton() {}
+  static AlignedTestSingleton* GetInstance() {
+    return Singleton<AlignedTestSingleton,
+        StaticMemorySingletonTraits<AlignedTestSingleton> >::get();
+  }
+
+  Type type_;
+};
+
 
 void SingletonNoLeak(CallbackFunc CallOnQuit) {
   CallbackSingletonWithNoLeakTrait::GetInstance()->callback_ = CallOnQuit;
@@ -249,4 +262,28 @@ TEST_F(SingletonTest, Basic) {
   }
   // The leaky singleton shouldn't leak since SingletonLeak has not been called.
   VerifiesCallbacksNotCalled();
+}
+
+#define EXPECT_ALIGNED(ptr, align) \
+    EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(ptr) & (align - 1))
+
+TEST_F(SingletonTest, Alignment) {
+  using base::AlignedMemory;
+
+  // Create some static singletons with increasing sizes and alignment
+  // requirements. By ordering this way, the linker will need to do some work to
+  // ensure proper alignment of the static data.
+  AlignedTestSingleton<int32>* align4 =
+      AlignedTestSingleton<int32>::GetInstance();
+  AlignedTestSingleton<AlignedMemory<32, 32> >* align32 =
+      AlignedTestSingleton<AlignedMemory<32, 32> >::GetInstance();
+  AlignedTestSingleton<AlignedMemory<128, 128> >* align128 =
+      AlignedTestSingleton<AlignedMemory<128, 128> >::GetInstance();
+  AlignedTestSingleton<AlignedMemory<4096, 4096> >* align4096 =
+      AlignedTestSingleton<AlignedMemory<4096, 4096> >::GetInstance();
+
+  EXPECT_ALIGNED(align4, 4);
+  EXPECT_ALIGNED(align32, 32);
+  EXPECT_ALIGNED(align128, 128);
+  EXPECT_ALIGNED(align4096, 4096);
 }
