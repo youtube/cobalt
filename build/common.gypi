@@ -1986,7 +1986,12 @@
           }],
           ['linux_keep_shadow_stacks==1', {
             'defines': ['KEEP_SHADOW_STACKS'],
-            'cflags': ['-finstrument-functions'],
+            'cflags': [
+              '-finstrument-functions',
+              # Allow mmx intrinsics to inline, so that the compiler can expand
+              # the intrinsics.
+              '-finstrument-functions-exclude-file-list=mmintrin.h',
+            ],
           }],
           ['linux_use_gold_flags==1', {
             'ldflags': [
