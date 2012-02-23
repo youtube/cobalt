@@ -127,7 +127,7 @@ void FFmpegAudioDecoder::DoInitialize(
   AudioDecoderConfigToAVCodecContext(config, codec_context_);
 
   AVCodec* codec = avcodec_find_decoder(codec_context_->codec_id);
-  if (!codec || avcodec_open2(codec_context_, codec, NULL) < 0) {
+  if (!codec || avcodec_open(codec_context_, codec) < 0) {
     DLOG(ERROR) << "Could not initialize audio decoder: "
                 << codec_context_->codec_id;
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -154,7 +154,7 @@ TEST_F(FFmpegGlueTest, OpenClose) {
 
   // Test opening a URLContext with our protocol.
   EXPECT_EQ(0, protocol_->url_open(&context, key.c_str(), 0));
-  EXPECT_EQ(AVIO_FLAG_READ, context.flags);
+  EXPECT_EQ(URL_RDONLY, context.flags);
   EXPECT_EQ(protocol.get(), context.priv_data);
   EXPECT_TRUE(context.is_streamed);
 
