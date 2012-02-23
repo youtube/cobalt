@@ -81,7 +81,7 @@ void WorkerThread::ThreadMain() {
     PendingTask pending_task = pool_->WaitForTask();
     if (pending_task.task.is_null())
       break;
-    UNSHIPPED_TRACE_EVENT2("task", "WorkerThread::ThreadMain::Run",
+    TRACE_EVENT2("task", "WorkerThread::ThreadMain::Run",
         "src_file", pending_task.posted_from.file_name(),
         "src_func", pending_task.posted_from.function_name());
 
