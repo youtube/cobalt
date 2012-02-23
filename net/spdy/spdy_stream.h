@@ -204,6 +204,9 @@ class NET_EXPORT_PRIVATE SpdyStream
   // |status| is an error code or OK.
   void OnClose(int status);
 
+  // Called by the SpdySession to log stream related errors.
+  void LogStreamError(int status, const std::string& description);
+
   void Cancel();
   void Close();
   bool cancelled() const { return cancelled_; }
@@ -350,6 +353,25 @@ class NET_EXPORT_PRIVATE SpdyStream
   OriginBoundCertService::RequestHandle ob_cert_request_handle_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdyStream);
+};
+
+class NetLogSpdyStreamErrorParameter : public NetLog::EventParameters {
+ public:
+  NetLogSpdyStreamErrorParameter(spdy::SpdyStreamId stream_id,
+                                 int status,
+                                 const std::string& description);
+
+  spdy::SpdyStreamId stream_id() const { return stream_id_; }
+  virtual base::Value* ToValue() const OVERRIDE;
+
+ private:
+  virtual ~NetLogSpdyStreamErrorParameter();
+
+  const spdy::SpdyStreamId stream_id_;
+  const int status_;
+  const std::string description_;
+
+  DISALLOW_COPY_AND_ASSIGN(NetLogSpdyStreamErrorParameter);
 };
 
 }  // namespace net
