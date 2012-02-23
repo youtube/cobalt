@@ -13,6 +13,26 @@
 
 namespace net {
 
+NetLogSpdyStreamErrorParameter::NetLogSpdyStreamErrorParameter(
+    spdy::SpdyStreamId stream_id,
+    int status,
+    const std::string& description)
+    : stream_id_(stream_id),
+      status_(status),
+      description_(description) {
+}
+
+NetLogSpdyStreamErrorParameter::~NetLogSpdyStreamErrorParameter() {
+}
+
+Value* NetLogSpdyStreamErrorParameter::ToValue() const {
+  DictionaryValue* dict = new DictionaryValue();
+  dict->SetInteger("stream_id", static_cast<int>(stream_id_));
+  dict->SetInteger("status", status_);
+  dict->SetString("description", description_);
+  return dict;
+}
+
 namespace {
 
 class NetLogSpdyStreamWindowUpdateParameter : public NetLog::EventParameters {
@@ -158,10 +178,6 @@ void SpdyStream::IncreaseSendWindowSize(int32 delta_window_size) {
   // it positive; however, if send_window_size_ is positive and incoming
   // WINDOW_UPDATE makes it negative, we have an overflow.
   if (send_window_size_ > 0 && new_window_size < 0) {
-    LOG(WARNING) << "Received WINDOW_UPDATE [delta:" << delta_window_size
-                 << "] for stream " << stream_id_
-                 << " overflows send_window_size_ [current:"
-                 << send_window_size_ << "]";
     std::string desc = base::StringPrintf(
         "Received WINDOW_UPDATE [delta: %d] for stream %d overflows "
         "send_window_size_ [current: %d]", delta_window_size, stream_id_,
@@ -288,7 +304,6 @@ int SpdyStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response) {
        it != response.end(); ++it) {
     // Disallow uppercase headers.
     if (ContainsUpperAscii(it->first)) {
-      LOG(WARNING) << "Upper case characters in header: " << it->first;
       session_->ResetStream(stream_id_, spdy::PROTOCOL_ERROR,
                             "Upper case characters in header: " + it->first);
       response_status_ = ERR_SPDY_PROTOCOL_ERROR;
@@ -312,14 +327,13 @@ int SpdyStream::OnHeaders(const spdy::SpdyHeaderBlock& headers) {
       it != headers.end(); ++it) {
     // Disallow duplicate headers.  This is just to be conservative.
     if ((*response_).find(it->first) != (*response_).end()) {
-      LOG(WARNING) << "HEADERS duplicate header";
+      LogStreamError(ERR_SPDY_PROTOCOL_ERROR, "HEADERS duplicate header");
       response_status_ = ERR_SPDY_PROTOCOL_ERROR;
       return ERR_SPDY_PROTOCOL_ERROR;
     }
 
     // Disallow uppercase headers.
     if (ContainsUpperAscii(it->first)) {
-      LOG(WARNING) << "Upper case characters in header: " << it->first;
       session_->ResetStream(stream_id_, spdy::PROTOCOL_ERROR,
                             "Upper case characters in header: " + it->first);
       response_status_ = ERR_SPDY_PROTOCOL_ERROR;
@@ -347,6 +361,7 @@ void SpdyStream::OnDataReceived(const char* data, int length) {
   // We cannot pass data up to the caller unless the reply headers have been
   // received.
   if (!response_received()) {
+    LogStreamError(ERR_SYN_REPLY_NOT_RECEIVED, "Didn't receive a response.");
     session_->CloseStream(stream_id_, ERR_SYN_REPLY_NOT_RECEIVED);
     return;
   }
@@ -410,6 +425,13 @@ void SpdyStream::OnChunkAvailable() {
          io_state_ == STATE_SEND_BODY_COMPLETE);
   if (io_state_ == STATE_SEND_BODY)
     OnWriteComplete(0);
+}
+
+void SpdyStream::LogStreamError(int status, const std::string& description) {
+  net_log_.AddEvent(
+      NetLog::TYPE_SPDY_STREAM_ERROR,
+      make_scoped_refptr(
+          new NetLogSpdyStreamErrorParameter(stream_id_, status, description)));
 }
 
 void SpdyStream::OnClose(int status) {

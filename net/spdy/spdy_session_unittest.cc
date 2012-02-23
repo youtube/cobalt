@@ -5,6 +5,7 @@
 #include "net/spdy/spdy_session.h"
 
 #include "net/base/ip_endpoint.h"
+#include "net/base/net_log_unittest.h"
 #include "net/spdy/spdy_io_buffer.h"
 #include "net/spdy/spdy_session_pool.h"
 #include "net/spdy/spdy_stream.h"
@@ -367,7 +368,7 @@ class StreamReleaserCallback : public TestCompletionCallbackBase {
 
  private:
   void OnComplete(int result) {
-    session_->CloseSessionOnError(ERR_FAILED, false);
+    session_->CloseSessionOnError(ERR_FAILED, false, "On complete.");
     session_ = NULL;
     first_stream_->Cancel();
     first_stream_ = NULL;
@@ -1048,6 +1049,75 @@ TEST_F(SpdySessionTest, SendCredentials) {
 
   spdy_session_pool->Remove(session);
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
+}
+
+TEST_F(SpdySessionTest, CloseSessionOnError) {
+  SpdySessionDependencies session_deps;
+  session_deps.host_resolver->set_synchronous_mode(true);
+
+  MockConnect connect_data(SYNCHRONOUS, OK);
+  scoped_ptr<spdy::SpdyFrame> goaway(ConstructSpdyGoAway());
+  MockRead reads[] = {
+    CreateMockRead(*goaway),
+    MockRead(SYNCHRONOUS, 0, 0)  // EOF
+  };
+
+  net::CapturingBoundNetLog log(net::CapturingNetLog::kUnbounded);
+
+  StaticSocketDataProvider data(reads, arraysize(reads), NULL, 0);
+  data.set_connect_data(connect_data);
+  session_deps.socket_factory->AddSocketDataProvider(&data);
+
+  SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
+  session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
+
+  scoped_refptr<HttpNetworkSession> http_session(
+      SpdySessionDependencies::SpdyCreateSession(&session_deps));
+
+  const std::string kTestHost("www.foo.com");
+  const int kTestPort = 80;
+  HostPortPair test_host_port_pair(kTestHost, kTestPort);
+  HostPortProxyPair pair(test_host_port_pair, ProxyServer::Direct());
+
+  SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
+  EXPECT_FALSE(spdy_session_pool->HasSession(pair));
+  scoped_refptr<SpdySession> session =
+      spdy_session_pool->Get(pair, log.bound());
+  EXPECT_TRUE(spdy_session_pool->HasSession(pair));
+
+  scoped_refptr<TransportSocketParams> transport_params(
+      new TransportSocketParams(test_host_port_pair,
+                                MEDIUM,
+                                false,
+                                false));
+  scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
+  EXPECT_EQ(OK, connection->Init(test_host_port_pair.ToString(),
+                                 transport_params, MEDIUM, CompletionCallback(),
+                                 http_session->GetTransportSocketPool(),
+                                 log.bound()));
+  EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
+
+  // Flush the SpdySession::OnReadComplete() task.
+  MessageLoop::current()->RunAllPending();
+
+  EXPECT_FALSE(spdy_session_pool->HasSession(pair));
+
+  // Check that the NetLog was filled reasonably.
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
+  EXPECT_LT(0u, entries.size());
+
+  // Check that we logged SPDY_SESSION_CLOSE correctly.
+  int pos = net::ExpectLogContainsSomewhere(
+      entries, 0,
+      net::NetLog::TYPE_SPDY_SESSION_CLOSE,
+      net::NetLog::PHASE_NONE);
+
+  CapturingNetLog::Entry entry = entries[pos];
+  NetLogSpdySessionCloseParameter* request_params =
+      static_cast<NetLogSpdySessionCloseParameter*>(
+          entry.extra_parameters.get());
+  EXPECT_EQ(ERR_CONNECTION_CLOSED, request_params->status());
 }
 
 }  // namespace net
