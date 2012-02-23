@@ -18,7 +18,7 @@ SSLConfig::CertAndStatus::CertAndStatus() : cert_status(0) {}
 SSLConfig::CertAndStatus::~CertAndStatus() {}
 
 SSLConfig::SSLConfig()
-    : rev_checking_enabled(true),
+    : rev_checking_enabled(false),
       ssl3_enabled(true),
       tls1_enabled(true),
       cached_info_enabled(false),
