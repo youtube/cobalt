@@ -27,18 +27,18 @@ class SOCKSClientSocketPoolTest : public testing::Test {
  protected:
   class SOCKS5MockData {
    public:
-    explicit SOCKS5MockData(bool async) {
+    explicit SOCKS5MockData(IoMode mode) {
       writes_.reset(new MockWrite[3]);
-      writes_[0] = MockWrite(async, kSOCKS5GreetRequest,
+      writes_[0] = MockWrite(mode, kSOCKS5GreetRequest,
                              kSOCKS5GreetRequestLength);
-      writes_[1] = MockWrite(async, kSOCKS5OkRequest, kSOCKS5OkRequestLength);
-      writes_[2] = MockWrite(async, 0);
+      writes_[1] = MockWrite(mode, kSOCKS5OkRequest, kSOCKS5OkRequestLength);
+      writes_[2] = MockWrite(mode, 0);
 
       reads_.reset(new MockRead[3]);
-      reads_[0] = MockRead(async, kSOCKS5GreetResponse,
+      reads_[0] = MockRead(mode, kSOCKS5GreetResponse,
                            kSOCKS5GreetResponseLength);
-      reads_[1] = MockRead(async, kSOCKS5OkResponse, kSOCKS5OkResponseLength);
-      reads_[2] = MockRead(async, 0);
+      reads_[1] = MockRead(mode, kSOCKS5OkResponse, kSOCKS5OkResponseLength);
+      reads_[2] = MockRead(mode, 0);
 
       data_.reset(new StaticSocketDataProvider(reads_.get(), 3,
                                                writes_.get(), 3));
@@ -96,7 +96,7 @@ class SOCKSClientSocketPoolTest : public testing::Test {
 };
 
 TEST_F(SOCKSClientSocketPoolTest, Simple) {
-  SOCKS5MockData data(false);
+  SOCKS5MockData data(SYNCHRONOUS);
   data.data_provider()->set_connect_data(MockConnect(SYNCHRONOUS, OK));
   transport_client_socket_factory_.AddSocketDataProvider(data.data_provider());
 
@@ -109,7 +109,7 @@ TEST_F(SOCKSClientSocketPoolTest, Simple) {
 }
 
 TEST_F(SOCKSClientSocketPoolTest, Async) {
-  SOCKS5MockData data(true);
+  SOCKS5MockData data(ASYNC);
   transport_client_socket_factory_.AddSocketDataProvider(data.data_provider());
 
   TestCompletionCallback callback;
@@ -159,7 +159,7 @@ TEST_F(SOCKSClientSocketPoolTest, AsyncTransportConnectError) {
 
 TEST_F(SOCKSClientSocketPoolTest, SOCKSConnectError) {
   MockRead failed_read[] = {
-    MockRead(false, 0),
+    MockRead(SYNCHRONOUS, 0),
   };
   scoped_ptr<SocketDataProvider> socket_data(new StaticSocketDataProvider(
         failed_read, arraysize(failed_read), NULL, 0));
@@ -178,7 +178,7 @@ TEST_F(SOCKSClientSocketPoolTest, SOCKSConnectError) {
 
 TEST_F(SOCKSClientSocketPoolTest, AsyncSOCKSConnectError) {
   MockRead failed_read[] = {
-    MockRead(true, 0),
+    MockRead(ASYNC, 0),
   };
   scoped_ptr<SocketDataProvider> socket_data(new StaticSocketDataProvider(
         failed_read, arraysize(failed_read), NULL, 0));
@@ -201,11 +201,11 @@ TEST_F(SOCKSClientSocketPoolTest, AsyncSOCKSConnectError) {
 }
 
 TEST_F(SOCKSClientSocketPoolTest, CancelDuringTransportConnect) {
-  SOCKS5MockData data(false);
+  SOCKS5MockData data(SYNCHRONOUS);
   transport_client_socket_factory_.AddSocketDataProvider(data.data_provider());
   // We need two connections because the pool base lets one cancelled
   // connect job proceed for potential future use.
-  SOCKS5MockData data2(false);
+  SOCKS5MockData data2(SYNCHRONOUS);
   transport_client_socket_factory_.AddSocketDataProvider(data2.data_provider());
 
   EXPECT_EQ(0, transport_socket_pool_.cancel_count());
@@ -233,12 +233,12 @@ TEST_F(SOCKSClientSocketPoolTest, CancelDuringTransportConnect) {
 }
 
 TEST_F(SOCKSClientSocketPoolTest, CancelDuringSOCKSConnect) {
-  SOCKS5MockData data(true);
+  SOCKS5MockData data(ASYNC);
   data.data_provider()->set_connect_data(MockConnect(SYNCHRONOUS, OK));
   transport_client_socket_factory_.AddSocketDataProvider(data.data_provider());
   // We need two connections because the pool base lets one cancelled
   // connect job proceed for potential future use.
-  SOCKS5MockData data2(true);
+  SOCKS5MockData data2(ASYNC);
   data2.data_provider()->set_connect_data(MockConnect(SYNCHRONOUS, OK));
   transport_client_socket_factory_.AddSocketDataProvider(data2.data_provider());
 

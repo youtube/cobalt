@@ -231,7 +231,7 @@ class SpdyNetworkTransactionTest
       DCHECK(!deterministic_);
       data_vector_.push_back(data);
       linked_ptr<SSLSocketDataProvider> ssl_(
-          new SSLSocketDataProvider(true, OK));
+          new SSLSocketDataProvider(ASYNC, OK));
       if (test_type_ == SPDYNPN) {
         ssl_->SetNextProto(SSLClientSocket::kProtoSPDY21);
       }
@@ -256,7 +256,7 @@ class SpdyNetworkTransactionTest
       DCHECK(deterministic_);
       data_vector_.push_back(data);
       linked_ptr<SSLSocketDataProvider> ssl_(
-          new SSLSocketDataProvider(true, OK));
+          new SSLSocketDataProvider(ASYNC, OK));
       if (test_type_ == SPDYNPN) {
         ssl_->SetNextProto(SSLClientSocket::kProtoSPDY21);
       }
@@ -551,7 +551,7 @@ TEST_P(SpdyNetworkTransactionTest, Get) {
   MockRead reads[] = {
     CreateMockRead(*resp),
     CreateMockRead(*body),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -601,7 +601,7 @@ TEST_P(SpdyNetworkTransactionTest, GetAtEachPriority) {
     MockRead reads[] = {
       CreateMockRead(*resp),
       CreateMockRead(*body),
-      MockRead(true, 0, 0)  // EOF
+      MockRead(ASYNC, 0, 0)  // EOF
     };
 
     scoped_ptr<DelayedSocketData> data(
@@ -662,7 +662,7 @@ TEST_P(SpdyNetworkTransactionTest, ThreeGets) {
     CreateMockRead(*fbody2),
     CreateMockRead(*fbody3),
 
-    MockRead(true, 0, 0),  // EOF
+    MockRead(ASYNC, 0, 0),  // EOF
   };
   scoped_ptr<OrderedSocketData> data(
       new OrderedSocketData(reads, arraysize(reads),
@@ -746,7 +746,7 @@ TEST_P(SpdyNetworkTransactionTest, TwoGetsLateBinding) {
     CreateMockRead(*body2),
     CreateMockRead(*fbody),
     CreateMockRead(*fbody2),
-    MockRead(true, 0, 0),  // EOF
+    MockRead(ASYNC, 0, 0),  // EOF
   };
   scoped_ptr<OrderedSocketData> data(
       new OrderedSocketData(reads, arraysize(reads),
@@ -833,7 +833,7 @@ TEST_P(SpdyNetworkTransactionTest, TwoGetsLateBindingFromPreconnect) {
     CreateMockRead(*body2),
     CreateMockRead(*fbody),
     CreateMockRead(*fbody2),
-    MockRead(true, 0, 0),  // EOF
+    MockRead(ASYNC, 0, 0),  // EOF
   };
   scoped_ptr<OrderedSocketData> preconnect_data(
       new OrderedSocketData(reads, arraysize(reads),
@@ -959,7 +959,7 @@ TEST_P(SpdyNetworkTransactionTest, ThreeGetsWithMaxConcurrent) {
     CreateMockRead(*body3),
     CreateMockRead(*fbody3),
 
-    MockRead(true, 0, 0),  // EOF
+    MockRead(ASYNC, 0, 0),  // EOF
   };
 
   scoped_ptr<OrderedSocketData> data(
@@ -1099,7 +1099,7 @@ TEST_P(SpdyNetworkTransactionTest, FourGetsWithMaxConcurrentPriority) {
     CreateMockRead(*body3),
     CreateMockRead(*fbody3),
 
-    MockRead(true, 0, 0),  // EOF
+    MockRead(ASYNC, 0, 0),  // EOF
   };
 
   scoped_ptr<OrderedSocketData> data(
@@ -1236,7 +1236,7 @@ TEST_P(SpdyNetworkTransactionTest, ThreeGetsWithMaxConcurrentDelete) {
     CreateMockRead(*resp2, 7),
     CreateMockRead(*body2),
     CreateMockRead(*fbody2),
-    MockRead(true, 0, 0),  // EOF
+    MockRead(ASYNC, 0, 0),  // EOF
   };
 
   scoped_ptr<OrderedSocketData> data(
@@ -1366,7 +1366,7 @@ TEST_P(SpdyNetworkTransactionTest, ThreeGetsWithMaxConcurrentSocketClose) {
     CreateMockRead(*body),
     CreateMockRead(*fin_body),
     CreateMockRead(*resp2, 7),
-    MockRead(true, ERR_CONNECTION_RESET, 0),  // Abort!
+    MockRead(ASYNC, ERR_CONNECTION_RESET, 0),  // Abort!
   };
 
   scoped_ptr<OrderedSocketData> data(
@@ -1488,7 +1488,7 @@ TEST_P(SpdyNetworkTransactionTest, Put) {
   MockRead reads[] = {
     CreateMockRead(*resp),
     CreateMockRead(*body),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -1559,7 +1559,7 @@ TEST_P(SpdyNetworkTransactionTest, Head) {
   MockRead reads[] = {
     CreateMockRead(*resp),
     CreateMockRead(*body),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -1587,7 +1587,7 @@ TEST_P(SpdyNetworkTransactionTest, Post) {
   MockRead reads[] = {
     CreateMockRead(*resp),
     CreateMockRead(*body),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -1619,7 +1619,7 @@ TEST_P(SpdyNetworkTransactionTest, ChunkedPost) {
     CreateMockRead(*resp),
     CreateMockRead(*chunk1),
     CreateMockRead(*chunk2),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -1657,7 +1657,7 @@ TEST_P(SpdyNetworkTransactionTest, NullPost) {
   MockRead reads[] = {
     CreateMockRead(*resp),
     CreateMockRead(*body),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -1704,7 +1704,7 @@ TEST_P(SpdyNetworkTransactionTest, EmptyPost) {
   MockRead reads[] = {
     CreateMockRead(*resp),
     CreateMockRead(*body),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -1743,7 +1743,7 @@ TEST_P(SpdyNetworkTransactionTest, PostWithEarlySynReply) {
   MockRead reads[] = {
     CreateMockRead(*stream_reply, 2),
     CreateMockRead(*stream_body, 3),
-    MockRead(false, 0, 0)  // EOF
+    MockRead(SYNCHRONOUS, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -1767,15 +1767,15 @@ TEST_P(SpdyNetworkTransactionTest, SocketWriteReturnsZero) {
   scoped_ptr<spdy::SpdyFrame> rst(
       ConstructSpdyRstStream(1, spdy::CANCEL));
   MockWrite writes[] = {
-    CreateMockWrite(*req.get(), 0, false),
-    MockWrite(false, 0, 0, 2),
-    CreateMockWrite(*rst.get(), 3, false),
+    CreateMockWrite(*req.get(), 0, SYNCHRONOUS),
+    MockWrite(SYNCHRONOUS, 0, 0, 2),
+    CreateMockWrite(*rst.get(), 3, SYNCHRONOUS),
   };
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   MockRead reads[] = {
-    CreateMockRead(*resp.get(), 1, true),
-    MockRead(true, 0, 0, 4)  // EOF
+    CreateMockRead(*resp.get(), 1, ASYNC),
+    MockRead(ASYNC, 0, 0, 4)  // EOF
   };
 
   scoped_refptr<DeterministicSocketData> data(
@@ -1807,7 +1807,7 @@ TEST_P(SpdyNetworkTransactionTest, ResponseWithoutSynReply) {
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
   MockRead reads[] = {
     CreateMockRead(*body),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -1831,7 +1831,7 @@ TEST_P(SpdyNetworkTransactionTest, ResponseWithTwoSynReplies) {
     CreateMockRead(*resp),
     CreateMockRead(*resp),
     CreateMockRead(*body),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -1919,7 +1919,7 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateReceived) {
     CreateMockRead(*window_update),
     CreateMockRead(*resp),
     CreateMockRead(*body_end),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -1982,10 +1982,10 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateSent) {
   MockRead reads[] = {
     CreateMockRead(*resp),
     CreateMockRead(*body_no_fin),
-    MockRead(true, ERR_IO_PENDING, 0),  // Force a pause
+    MockRead(ASYNC, ERR_IO_PENDING, 0),  // Force a pause
     CreateMockRead(*body_fin),
-    MockRead(true, ERR_IO_PENDING, 0),  // Force a pause
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, ERR_IO_PENDING, 0),  // Force a pause
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -2082,8 +2082,8 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateOverflow) {
     CreateMockRead(*window_update),
     CreateMockRead(*window_update),
     CreateMockRead(*window_update),
-    MockRead(true, ERR_IO_PENDING, 0),  // Wait for the RST to be written.
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, ERR_IO_PENDING, 0),  // Wait for the RST to be written.
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -2189,7 +2189,7 @@ TEST_P(SpdyNetworkTransactionTest, FlowControlStallResume) {
     CreateMockRead(*reply),
     CreateMockRead(*body2),
     CreateMockRead(*body3),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   // Force all writes to happen before any read, last write will not
@@ -2251,7 +2251,7 @@ TEST_P(SpdyNetworkTransactionTest, CancelledTransaction) {
     // RunAllPending() call at the end since the SpdySession survives the
     // HttpNetworkTransaction and still tries to continue Read()'ing.  Any
     // MockRead will do here.
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   StaticSocketDataProvider data(reads, arraysize(reads),
@@ -2281,14 +2281,14 @@ TEST_P(SpdyNetworkTransactionTest, CancelledTransactionSendRst) {
   scoped_ptr<spdy::SpdyFrame> rst(
       ConstructSpdyRstStream(1, spdy::CANCEL));
   MockWrite writes[] = {
-    CreateMockWrite(*req, 0, false),
-    CreateMockWrite(*rst, 2, false),
+    CreateMockWrite(*req, 0, SYNCHRONOUS),
+    CreateMockWrite(*rst, 2, SYNCHRONOUS),
   };
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   MockRead reads[] = {
-    CreateMockRead(*resp, 1, true),
-    MockRead(true, 0, 0, 3)  // EOF
+    CreateMockRead(*resp, 1, ASYNC),
+    MockRead(ASYNC, 0, 0, 3)  // EOF
   };
 
   scoped_refptr<DeterministicSocketData> data(
@@ -2338,15 +2338,15 @@ TEST_P(SpdyNetworkTransactionTest, StartTransactionOnReadCallback) {
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   MockRead reads[] = {
     CreateMockRead(*resp, 2),
-    MockRead(true, ERR_IO_PENDING, 3),  // Force a pause
-    MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame2),
+    MockRead(ASYNC, ERR_IO_PENDING, 3),  // Force a pause
+    MockRead(ASYNC, reinterpret_cast<const char*>(kGetBodyFrame2),
              arraysize(kGetBodyFrame2), 4),
-    MockRead(true, ERR_IO_PENDING, 5),  // Force a pause
-    MockRead(true, 0, 0, 6),  // EOF
+    MockRead(ASYNC, ERR_IO_PENDING, 5),  // Force a pause
+    MockRead(ASYNC, 0, 0, 6),  // EOF
   };
   MockRead reads2[] = {
     CreateMockRead(*resp, 2),
-    MockRead(true, 0, 0, 3),  // EOF
+    MockRead(ASYNC, 0, 0, 3),  // EOF
   };
 
   scoped_ptr<OrderedSocketData> data(
@@ -2393,9 +2393,9 @@ TEST_P(SpdyNetworkTransactionTest, DeleteSessionOnReadCallback) {
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
   MockRead reads[] = {
     CreateMockRead(*resp.get(), 2),
-    MockRead(true, ERR_IO_PENDING, 3),  // Force a pause
+    MockRead(ASYNC, ERR_IO_PENDING, 3),  // Force a pause
     CreateMockRead(*body.get(), 4),
-    MockRead(true, 0, 0, 5),  // EOF
+    MockRead(ASYNC, 0, 0, 5),  // EOF
   };
 
   scoped_ptr<OrderedSocketData> data(
@@ -2480,7 +2480,7 @@ TEST_P(SpdyNetworkTransactionTest, RedirectGetRequest) {
   };
   MockRead reads[] = {
     CreateMockRead(*resp, 2),
-    MockRead(true, 0, 0, 3)  // EOF
+    MockRead(ASYNC, 0, 0, 3)  // EOF
   };
 
   // Setup writes/reads to www.foo.com
@@ -2492,7 +2492,7 @@ TEST_P(SpdyNetworkTransactionTest, RedirectGetRequest) {
   MockRead reads2[] = {
     CreateMockRead(*resp2, 2),
     CreateMockRead(*body2, 3),
-    MockRead(true, 0, 0, 4)  // EOF
+    MockRead(ASYNC, 0, 0, 4)  // EOF
   };
   scoped_ptr<OrderedSocketData> data(
       new OrderedSocketData(reads, arraysize(reads),
@@ -2551,7 +2551,7 @@ TEST_P(SpdyNetworkTransactionTest, UpperCaseHeaders) {
       reply(ConstructSpdyGetSynReply(kExtraHeaders, 1, 1));
   MockRead reads[] = {
     CreateMockRead(*reply, 1),
-    MockRead(true, ERR_IO_PENDING, 3),  // Force a pause
+    MockRead(ASYNC, ERR_IO_PENDING, 3),  // Force a pause
   };
 
   HttpResponseInfo response;
@@ -2614,7 +2614,7 @@ TEST_P(SpdyNetworkTransactionTest, UpperCaseHeadersInHeadersFrame) {
     CreateMockRead(*stream1_reply),
     CreateMockRead(*stream1_headers),
     CreateMockRead(*stream1_body),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -2648,7 +2648,7 @@ TEST_P(SpdyNetworkTransactionTest, UpperCaseHeadersOnPush) {
     CreateMockRead(*reply, 1),
     CreateMockRead(*push, 1),
     CreateMockRead(*body, 1),
-    MockRead(true, ERR_IO_PENDING, 3),  // Force a pause
+    MockRead(ASYNC, ERR_IO_PENDING, 3),  // Force a pause
   };
 
   HttpResponseInfo response;
@@ -2715,8 +2715,8 @@ TEST_P(SpdyNetworkTransactionTest, RedirectServerPush) {
     CreateMockRead(*resp, 2),
     CreateMockRead(*rep, 3),
     CreateMockRead(*body, 4),
-    MockRead(true, ERR_IO_PENDING, 5),  // Force a pause
-    MockRead(true, 0, 0, 7)  // EOF
+    MockRead(ASYNC, ERR_IO_PENDING, 5),  // Force a pause
+    MockRead(ASYNC, 0, 0, 7)  // EOF
   };
 
   // Setup writes/reads to www.foo.com
@@ -2748,7 +2748,7 @@ TEST_P(SpdyNetworkTransactionTest, RedirectServerPush) {
   MockRead reads2[] = {
     CreateMockRead(*resp2, 2),
     CreateMockRead(*body2, 3),
-    MockRead(true, 0, 0, 5)  // EOF
+    MockRead(ASYNC, 0, 0, 5)  // EOF
   };
   scoped_ptr<OrderedSocketData> data(
       new OrderedSocketData(reads, arraysize(reads),
@@ -2828,10 +2828,10 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushSingleDataFrame) {
   MockRead reads[] = {
     CreateMockRead(*stream1_reply, 2),
     CreateMockRead(*stream2_syn, 3),
-    CreateMockRead(*stream1_body, 4, false),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame),
+    CreateMockRead(*stream1_body, 4, SYNCHRONOUS),
+    MockRead(ASYNC, reinterpret_cast<const char*>(kPushBodyFrame),
              arraysize(kPushBodyFrame), 5),
-    MockRead(true, ERR_IO_PENDING, 6),  // Force a pause
+    MockRead(ASYNC, ERR_IO_PENDING, 6),  // Force a pause
   };
 
   HttpResponseInfo response;
@@ -2881,10 +2881,10 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushSingleDataFrame2) {
   MockRead reads[] = {
     CreateMockRead(*stream1_reply, 2),
     CreateMockRead(*stream2_syn, 3),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame),
+    MockRead(ASYNC, reinterpret_cast<const char*>(kPushBodyFrame),
              arraysize(kPushBodyFrame), 5),
-    CreateMockRead(*stream1_body, 4, false),
-    MockRead(true, ERR_IO_PENDING, 6),  // Force a pause
+    CreateMockRead(*stream1_body, 4, SYNCHRONOUS),
+    MockRead(ASYNC, ERR_IO_PENDING, 6),  // Force a pause
   };
 
   HttpResponseInfo response;
@@ -2932,8 +2932,8 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushServerAborted) {
     CreateMockRead(*stream1_reply, 2),
     CreateMockRead(*stream2_syn, 3),
     CreateMockRead(*stream2_rst, 4),
-    CreateMockRead(*stream1_body, 5, false),
-    MockRead(true, ERR_IO_PENDING, 6),  // Force a pause
+    CreateMockRead(*stream1_body, 5, SYNCHRONOUS),
+    MockRead(ASYNC, ERR_IO_PENDING, 6),  // Force a pause
   };
 
   scoped_ptr<OrderedSocketData> data(
@@ -3009,10 +3009,10 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushDuplicate) {
     CreateMockRead(*stream1_reply, 2),
     CreateMockRead(*stream2_syn, 3),
     CreateMockRead(*stream3_syn, 4),
-    CreateMockRead(*stream1_body, 6, false),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame),
+    CreateMockRead(*stream1_body, 6, SYNCHRONOUS),
+    MockRead(ASYNC, reinterpret_cast<const char*>(kPushBodyFrame),
              arraysize(kPushBodyFrame), 7),
-    MockRead(true, ERR_IO_PENDING, 8),  // Force a pause
+    MockRead(ASYNC, ERR_IO_PENDING, 8),  // Force a pause
   };
 
   HttpResponseInfo response;
@@ -3066,16 +3066,16 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushMultipleDataFrame) {
   MockRead reads[] = {
     CreateMockRead(*stream1_reply, 2),
     CreateMockRead(*stream2_syn, 3),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame1),
+    MockRead(ASYNC, reinterpret_cast<const char*>(kPushBodyFrame1),
              arraysize(kPushBodyFrame1), 4),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame2),
+    MockRead(ASYNC, reinterpret_cast<const char*>(kPushBodyFrame2),
              arraysize(kPushBodyFrame2) - 1, 5),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame3),
+    MockRead(ASYNC, reinterpret_cast<const char*>(kPushBodyFrame3),
              arraysize(kPushBodyFrame3) - 1, 6),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame4),
+    MockRead(ASYNC, reinterpret_cast<const char*>(kPushBodyFrame4),
              arraysize(kPushBodyFrame4) - 1, 7),
-    CreateMockRead(*stream1_body, 8, false),
-    MockRead(true, ERR_IO_PENDING, 9),  // Force a pause
+    CreateMockRead(*stream1_body, 8, SYNCHRONOUS),
+    MockRead(ASYNC, ERR_IO_PENDING, 9),  // Force a pause
   };
 
   HttpResponseInfo response;
@@ -3131,17 +3131,17 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushMultipleDataFrameInterrupted) {
   MockRead reads[] = {
     CreateMockRead(*stream1_reply, 2),
     CreateMockRead(*stream2_syn, 3),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame1),
+    MockRead(ASYNC, reinterpret_cast<const char*>(kPushBodyFrame1),
              arraysize(kPushBodyFrame1), 4),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame2),
+    MockRead(ASYNC, reinterpret_cast<const char*>(kPushBodyFrame2),
              arraysize(kPushBodyFrame2) - 1, 5),
-    MockRead(true, ERR_IO_PENDING, 6),  // Force a pause
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame3),
+    MockRead(ASYNC, ERR_IO_PENDING, 6),  // Force a pause
+    MockRead(ASYNC, reinterpret_cast<const char*>(kPushBodyFrame3),
              arraysize(kPushBodyFrame3) - 1, 7),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame4),
+    MockRead(ASYNC, reinterpret_cast<const char*>(kPushBodyFrame4),
              arraysize(kPushBodyFrame4) - 1, 8),
-    CreateMockRead(*stream1_body.get(), 9, false),
-    MockRead(true, ERR_IO_PENDING, 10)  // Force a pause.
+    CreateMockRead(*stream1_body.get(), 9, SYNCHRONOUS),
+    MockRead(ASYNC, ERR_IO_PENDING, 10)  // Force a pause.
   };
 
   HttpResponseInfo response;
@@ -3192,7 +3192,7 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushInvalidAssociatedStreamID0) {
     CreateMockRead(*stream1_reply, 2),
     CreateMockRead(*stream2_syn, 3),
     CreateMockRead(*stream1_body, 4),
-    MockRead(true, ERR_IO_PENDING, 5)  // Force a pause
+    MockRead(ASYNC, ERR_IO_PENDING, 5)  // Force a pause
   };
 
   scoped_ptr<OrderedSocketData> data(
@@ -3254,7 +3254,7 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushInvalidAssociatedStreamID9) {
     CreateMockRead(*stream1_reply, 2),
     CreateMockRead(*stream2_syn, 3),
     CreateMockRead(*stream1_body, 4),
-    MockRead(true, ERR_IO_PENDING, 5),  // Force a pause
+    MockRead(ASYNC, ERR_IO_PENDING, 5),  // Force a pause
   };
 
   scoped_ptr<OrderedSocketData> data(
@@ -3312,7 +3312,7 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushNoURL) {
     CreateMockRead(*stream1_reply, 2),
     CreateMockRead(*stream2_syn, 3),
     CreateMockRead(*stream1_body, 4),
-    MockRead(true, ERR_IO_PENDING, 5)  // Force a pause
+    MockRead(ASYNC, ERR_IO_PENDING, 5)  // Force a pause
   };
 
   scoped_ptr<OrderedSocketData> data(
@@ -3401,7 +3401,7 @@ TEST_P(SpdyNetworkTransactionTest, SynReplyHeaders) {
     MockRead reads[] = {
       CreateMockRead(*resp),
       CreateMockRead(*body),
-      MockRead(true, 0, 0)  // EOF
+      MockRead(ASYNC, 0, 0)  // EOF
     };
 
     scoped_ptr<DelayedSocketData> data(
@@ -3540,7 +3540,7 @@ TEST_P(SpdyNetworkTransactionTest, SynReplyHeadersVary) {
     MockRead reads[] = {
       CreateMockRead(*frame_reply),
       CreateMockRead(*body),
-      MockRead(true, 0, 0)  // EOF
+      MockRead(ASYNC, 0, 0)  // EOF
     };
 
     // Attach the headers to the request.
@@ -3656,7 +3656,7 @@ TEST_P(SpdyNetworkTransactionTest, InvalidSynReply) {
     MockRead reads[] = {
       CreateMockRead(*resp),
       CreateMockRead(*body),
-      MockRead(true, 0, 0)  // EOF
+      MockRead(ASYNC, 0, 0)  // EOF
     };
 
     scoped_ptr<DelayedSocketData> data(
@@ -3688,14 +3688,14 @@ TEST_P(SpdyNetworkTransactionTest, CorruptFrameSessionError) {
         ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
     MockWrite writes[] = {
       CreateMockWrite(*req),
-      MockWrite(true, 0, 0)  // EOF
+      MockWrite(ASYNC, 0, 0)  // EOF
     };
 
     scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
     MockRead reads[] = {
       CreateMockRead(*test_cases[i].syn_reply),
       CreateMockRead(*body),
-      MockRead(true, 0, 0)  // EOF
+      MockRead(ASYNC, 0, 0)  // EOF
     };
 
     scoped_ptr<DelayedSocketData> data(
@@ -3714,9 +3714,9 @@ TEST_P(SpdyNetworkTransactionTest, WriteError) {
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
   MockWrite writes[] = {
     // We'll write 10 bytes successfully
-    MockWrite(true, req->data(), 10),
+    MockWrite(ASYNC, req->data(), 10),
     // Followed by ERROR!
-    MockWrite(true, ERR_FAILED),
+    MockWrite(ASYNC, ERR_FAILED),
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -3742,7 +3742,7 @@ TEST_P(SpdyNetworkTransactionTest, PartialWrite) {
   MockRead reads[] = {
     CreateMockRead(*resp),
     CreateMockRead(*body),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -3804,7 +3804,7 @@ TEST_P(SpdyNetworkTransactionTest, NetLog) {
   MockRead reads[] = {
     CreateMockRead(*resp),
     CreateMockRead(*body),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   net::CapturingBoundNetLog log(net::CapturingNetLog::kUnbounded);
@@ -3906,11 +3906,11 @@ TEST_P(SpdyNetworkTransactionTest, BufferFull) {
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   MockRead reads[] = {
     CreateMockRead(*resp),
-    MockRead(true, ERR_IO_PENDING),  // Force a pause
-    MockRead(true, combined_data_frames, combined_data_frames_len),
-    MockRead(true, ERR_IO_PENDING),  // Force a pause
+    MockRead(ASYNC, ERR_IO_PENDING),  // Force a pause
+    MockRead(ASYNC, combined_data_frames, combined_data_frames_len),
+    MockRead(ASYNC, ERR_IO_PENDING),  // Force a pause
     CreateMockRead(*last_frame),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -4005,9 +4005,9 @@ TEST_P(SpdyNetworkTransactionTest, Buffering) {
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   MockRead reads[] = {
     CreateMockRead(*resp),
-    MockRead(true, ERR_IO_PENDING),  // Force a pause
-    MockRead(true, combined_data_frames, combined_data_frames_len),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, ERR_IO_PENDING),  // Force a pause
+    MockRead(ASYNC, combined_data_frames, combined_data_frames_len),
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -4104,8 +4104,8 @@ TEST_P(SpdyNetworkTransactionTest, BufferedAll) {
                     combined_frames, arraysize(combined_frames));
 
   MockRead reads[] = {
-    MockRead(true, combined_frames, combined_frames_len),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, combined_frames, combined_frames_len),
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -4192,9 +4192,9 @@ TEST_P(SpdyNetworkTransactionTest, BufferedClosed) {
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   MockRead reads[] = {
     CreateMockRead(*resp),
-    MockRead(true, ERR_IO_PENDING),  // Force a wait
-    MockRead(true, combined_data_frames, combined_data_frames_len),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, ERR_IO_PENDING),  // Force a wait
+    MockRead(ASYNC, combined_data_frames, combined_data_frames_len),
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -4273,9 +4273,9 @@ TEST_P(SpdyNetworkTransactionTest, BufferedCancelled) {
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   MockRead reads[] = {
     CreateMockRead(*resp),
-    MockRead(true, ERR_IO_PENDING),  // Force a wait
+    MockRead(ASYNC, ERR_IO_PENDING),  // Force a wait
     CreateMockRead(*data_frame),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -4404,7 +4404,7 @@ TEST_P(SpdyNetworkTransactionTest, SettingsSaved) {
     CreateMockRead(*reply),
     CreateMockRead(*body),
     CreateMockRead(*settings_frame),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -4522,7 +4522,7 @@ TEST_P(SpdyNetworkTransactionTest, SettingsPlayback) {
   MockRead reads[] = {
     CreateMockRead(*reply),
     CreateMockRead(*body),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -4566,7 +4566,7 @@ TEST_P(SpdyNetworkTransactionTest, GoAwayWithActiveStream) {
   scoped_ptr<spdy::SpdyFrame> go_away(ConstructSpdyGoAway());
   MockRead reads[] = {
     CreateMockRead(*go_away),
-    MockRead(true, 0, 0),  // EOF
+    MockRead(ASYNC, 0, 0),  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -4587,7 +4587,7 @@ TEST_P(SpdyNetworkTransactionTest, CloseWithActiveStream) {
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   MockRead reads[] = {
     CreateMockRead(*resp),
-    MockRead(false, 0, 0)  // EOF
+    MockRead(SYNCHRONOUS, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -4641,25 +4641,25 @@ TEST_P(SpdyNetworkTransactionTest, ProxyConnect) {
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
 
   MockWrite writes_SPDYNPN[] = {
-    MockWrite(false, kConnect443, arraysize(kConnect443) - 1, 0),
+    MockWrite(SYNCHRONOUS, kConnect443, arraysize(kConnect443) - 1, 0),
     CreateMockWrite(*req, 2),
   };
   MockRead reads_SPDYNPN[] = {
-    MockRead(false, kHTTP200, arraysize(kHTTP200) - 1, 1),
+    MockRead(SYNCHRONOUS, kHTTP200, arraysize(kHTTP200) - 1, 1),
     CreateMockRead(*resp, 3),
     CreateMockRead(*body.get(), 4),
-    MockRead(true, 0, 0, 5),
+    MockRead(ASYNC, 0, 0, 5),
   };
 
   MockWrite writes_SPDYSSL[] = {
-    MockWrite(false, kConnect80, arraysize(kConnect80) - 1, 0),
+    MockWrite(SYNCHRONOUS, kConnect80, arraysize(kConnect80) - 1, 0),
     CreateMockWrite(*req, 2),
   };
   MockRead reads_SPDYSSL[] = {
-    MockRead(false, kHTTP200, arraysize(kHTTP200) - 1, 1),
+    MockRead(SYNCHRONOUS, kHTTP200, arraysize(kHTTP200) - 1, 1),
     CreateMockRead(*resp, 3),
     CreateMockRead(*body.get(), 4),
-    MockRead(true, 0, 0, 5),
+    MockRead(ASYNC, 0, 0, 5),
   };
 
   MockWrite writes_SPDYNOSSL[] = {
@@ -4669,7 +4669,7 @@ TEST_P(SpdyNetworkTransactionTest, ProxyConnect) {
   MockRead reads_SPDYNOSSL[] = {
     CreateMockRead(*resp, 1),
     CreateMockRead(*body.get(), 2),
-    MockRead(true, 0, 0, 3),
+    MockRead(ASYNC, 0, 0, 3),
   };
 
   scoped_ptr<OrderedSocketData> data;
@@ -4749,8 +4749,8 @@ TEST_P(SpdyNetworkTransactionTest, DirectConnectProxyReconnect) {
   MockRead reads[] = {
     CreateMockRead(*resp, 2),
     CreateMockRead(*body, 3),
-    MockRead(true, ERR_IO_PENDING, 4),  // Force a pause
-    MockRead(true, 0, 5)  // EOF
+    MockRead(ASYNC, ERR_IO_PENDING, 4),  // Force a pause
+    MockRead(ASYNC, 0, 5)  // EOF
   };
   scoped_ptr<OrderedSocketData> data(
       new OrderedSocketData(reads, arraysize(reads),
@@ -4800,14 +4800,14 @@ TEST_P(SpdyNetworkTransactionTest, DirectConnectProxyReconnect) {
   scoped_ptr<spdy::SpdyFrame> body2(ConstructSpdyBodyFrame(1, true));
 
   MockWrite writes_SPDYNPN[] = {
-    MockWrite(false, kConnect443, arraysize(kConnect443) - 1, 0),
+    MockWrite(SYNCHRONOUS, kConnect443, arraysize(kConnect443) - 1, 0),
     CreateMockWrite(*req2, 2),
   };
   MockRead reads_SPDYNPN[] = {
-    MockRead(false, kHTTP200, arraysize(kHTTP200) - 1, 1),
+    MockRead(SYNCHRONOUS, kHTTP200, arraysize(kHTTP200) - 1, 1),
     CreateMockRead(*resp2, 3),
     CreateMockRead(*body2, 4),
-    MockRead(true, 0, 5)  // EOF
+    MockRead(ASYNC, 0, 5)  // EOF
   };
 
   MockWrite writes_SPDYNOSSL[] = {
@@ -4816,18 +4816,18 @@ TEST_P(SpdyNetworkTransactionTest, DirectConnectProxyReconnect) {
   MockRead reads_SPDYNOSSL[] = {
     CreateMockRead(*resp2, 1),
     CreateMockRead(*body2, 2),
-    MockRead(true, 0, 3)  // EOF
+    MockRead(ASYNC, 0, 3)  // EOF
   };
 
   MockWrite writes_SPDYSSL[] = {
-    MockWrite(false, kConnect80, arraysize(kConnect80) - 1, 0),
+    MockWrite(SYNCHRONOUS, kConnect80, arraysize(kConnect80) - 1, 0),
     CreateMockWrite(*req2, 2),
   };
   MockRead reads_SPDYSSL[] = {
-    MockRead(false, kHTTP200, arraysize(kHTTP200) - 1, 1),
+    MockRead(SYNCHRONOUS, kHTTP200, arraysize(kHTTP200) - 1, 1),
     CreateMockRead(*resp2, 3),
     CreateMockRead(*body2, 4),
-    MockRead(true, 0, 0, 5),
+    MockRead(ASYNC, 0, 0, 5),
   };
 
   scoped_ptr<OrderedSocketData> data_proxy;
@@ -4904,14 +4904,14 @@ TEST_P(SpdyNetworkTransactionTest, VerifyRetryOnConnectionReset) {
   MockRead reads[] = {
     CreateMockRead(*resp),
     CreateMockRead(*body),
-    MockRead(true, ERR_IO_PENDING),
-    MockRead(true, ERR_CONNECTION_RESET),
+    MockRead(ASYNC, ERR_IO_PENDING),
+    MockRead(ASYNC, ERR_CONNECTION_RESET),
   };
 
   MockRead reads2[] = {
     CreateMockRead(*resp),
     CreateMockRead(*body),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   // This test has a couple of variants.
@@ -4990,7 +4990,7 @@ TEST_P(SpdyNetworkTransactionTest, SpdyOnOffToggle) {
   MockRead spdy_reads[] = {
     CreateMockRead(*resp),
     CreateMockRead(*body),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -5009,7 +5009,7 @@ TEST_P(SpdyNetworkTransactionTest, SpdyOnOffToggle) {
   MockRead http_reads[] = {
     MockRead("HTTP/1.1 200 OK\r\n\r\n"),
     MockRead("hello from http"),
-    MockRead(false, OK),
+    MockRead(SYNCHRONOUS, OK),
   };
   scoped_ptr<DelayedSocketData> data2(
       new DelayedSocketData(1, http_reads, arraysize(http_reads),
@@ -5070,7 +5070,7 @@ TEST_P(SpdyNetworkTransactionTest, SpdyBasicAuth) {
     CreateMockRead(*body_authentication, 3),
     CreateMockRead(*resp_data, 5),
     CreateMockRead(*body_data, 6),
-    MockRead(true, 0, 7),
+    MockRead(ASYNC, 0, 7),
   };
 
   scoped_ptr<OrderedSocketData> data(
@@ -5173,10 +5173,10 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushWithHeaders) {
     CreateMockRead(*stream1_reply, 2),
     CreateMockRead(*stream2_syn, 3),
     CreateMockRead(*stream2_headers, 4),
-    CreateMockRead(*stream1_body, 5, false),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame),
+    CreateMockRead(*stream1_body, 5, SYNCHRONOUS),
+    MockRead(ASYNC, reinterpret_cast<const char*>(kPushBodyFrame),
              arraysize(kPushBodyFrame), 6),
-    MockRead(true, ERR_IO_PENDING, 7),  // Force a pause
+    MockRead(ASYNC, ERR_IO_PENDING, 7),  // Force a pause
   };
 
   HttpResponseInfo response;
@@ -5213,7 +5213,7 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushClaimBeforeHeaders) {
   scoped_ptr<spdy::SpdyFrame>
       stream1_body(ConstructSpdyBodyFrame(1, true));
   MockWrite writes[] = {
-    CreateMockWrite(*stream1_syn, 0, false),
+    CreateMockWrite(*stream1_syn, 0, SYNCHRONOUS),
   };
 
   static const char* const kInitialHeaders[] = {
@@ -5258,9 +5258,9 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushClaimBeforeHeaders) {
     CreateMockRead(*stream2_syn, 2),
     CreateMockRead(*stream1_body, 3),
     CreateMockRead(*stream2_headers, 4),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame),
+    MockRead(ASYNC, reinterpret_cast<const char*>(kPushBodyFrame),
              arraysize(kPushBodyFrame), 5),
-    MockRead(true, 0, 5),  // EOF
+    MockRead(ASYNC, 0, 5),  // EOF
   };
 
   HttpResponseInfo response;
@@ -5350,7 +5350,7 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushWithTwoHeaderFrames) {
   scoped_ptr<spdy::SpdyFrame>
       stream1_body(ConstructSpdyBodyFrame(1, true));
   MockWrite writes[] = {
-    CreateMockWrite(*stream1_syn, 0, false),
+    CreateMockWrite(*stream1_syn, 0, SYNCHRONOUS),
   };
 
   static const char* const kInitialHeaders[] = {
@@ -5409,9 +5409,9 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushWithTwoHeaderFrames) {
     CreateMockRead(*stream1_body, 3),
     CreateMockRead(*stream2_headers1, 4),
     CreateMockRead(*stream2_headers2, 5),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame),
+    MockRead(ASYNC, reinterpret_cast<const char*>(kPushBodyFrame),
              arraysize(kPushBodyFrame), 6),
-    MockRead(true, 0, 6),  // EOF
+    MockRead(ASYNC, 0, 6),  // EOF
   };
 
   HttpResponseInfo response;
@@ -5538,7 +5538,7 @@ TEST_P(SpdyNetworkTransactionTest, SynReplyWithHeaders) {
     CreateMockRead(*stream1_reply),
     CreateMockRead(*stream1_headers),
     CreateMockRead(*stream1_body),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -5596,7 +5596,7 @@ TEST_P(SpdyNetworkTransactionTest, SynReplyWithLateHeaders) {
     CreateMockRead(*stream1_body),
     CreateMockRead(*stream1_headers),
     CreateMockRead(*stream1_body2),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -5654,7 +5654,7 @@ TEST_P(SpdyNetworkTransactionTest, SynReplyWithDuplicateLateHeaders) {
     CreateMockRead(*stream1_body),
     CreateMockRead(*stream1_headers),
     CreateMockRead(*stream1_body2),
-    MockRead(true, 0, 0)  // EOF
+    MockRead(ASYNC, 0, 0)  // EOF
   };
 
   scoped_ptr<DelayedSocketData> data(
@@ -5728,10 +5728,10 @@ TEST_P(SpdyNetworkTransactionTest, ServerPushCrossOriginCorrectness) {
     MockRead reads[] = {
       CreateMockRead(*stream1_reply, 2),
       CreateMockRead(*stream2_syn, 3),
-      CreateMockRead(*stream1_body, 5, false),
-      MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame),
+      CreateMockRead(*stream1_body, 5, SYNCHRONOUS),
+      MockRead(ASYNC, reinterpret_cast<const char*>(kPushBodyFrame),
                arraysize(kPushBodyFrame), 6),
-      MockRead(true, ERR_IO_PENDING, 7),  // Force a pause
+      MockRead(ASYNC, ERR_IO_PENDING, 7),  // Force a pause
     };
 
     HttpResponseInfo response;
@@ -5796,7 +5796,7 @@ TEST_P(SpdyNetworkTransactionTest, RetryAfterRefused) {
     CreateMockRead(*refused, 2),
     CreateMockRead(*resp, 4),
     CreateMockRead(*body, 5),
-    MockRead(true, 0, 6)  // EOF
+    MockRead(ASYNC, 0, 6)  // EOF
   };
 
   scoped_ptr<OrderedSocketData> data(

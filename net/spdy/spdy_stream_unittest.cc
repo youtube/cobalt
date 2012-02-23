@@ -164,7 +164,7 @@ TEST_F(SpdyStreamTest, SendDataAfterOpen) {
   MockRead reads[] = {
     CreateMockRead(*resp),
     CreateMockRead(*echo),
-    MockRead(true, 0, 0), // EOF
+    MockRead(ASYNC, 0, 0), // EOF
   };
   reads[0].sequence_number = 1;
   reads[1].sequence_number = 3;

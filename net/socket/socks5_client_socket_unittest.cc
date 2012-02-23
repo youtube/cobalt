@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -115,13 +115,13 @@ TEST_F(SOCKS5ClientSocketTest, CompleteHandshake) {
   };
 
   MockWrite data_writes[] = {
-      MockWrite(true, kSOCKS5GreetRequest, kSOCKS5GreetRequestLength),
-      MockWrite(true, kOkRequest, arraysize(kOkRequest)),
-      MockWrite(true, payload_write.data(), payload_write.size()) };
+      MockWrite(ASYNC, kSOCKS5GreetRequest, kSOCKS5GreetRequestLength),
+      MockWrite(ASYNC, kOkRequest, arraysize(kOkRequest)),
+      MockWrite(ASYNC, payload_write.data(), payload_write.size()) };
   MockRead data_reads[] = {
-      MockRead(true, kSOCKS5GreetResponse, kSOCKS5GreetResponseLength),
-      MockRead(true, kSOCKS5OkResponse, kSOCKS5OkResponseLength),
-      MockRead(true, payload_read.data(), payload_read.size()) };
+      MockRead(ASYNC, kSOCKS5GreetResponse, kSOCKS5GreetResponseLength),
+      MockRead(ASYNC, kSOCKS5OkResponse, kSOCKS5OkResponseLength),
+      MockRead(ASYNC, payload_read.data(), payload_read.size()) };
 
   user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                    data_writes, arraysize(data_writes),
@@ -185,12 +185,12 @@ TEST_F(SOCKS5ClientSocketTest, ConnectAndDisconnectTwice) {
 
   for (int i = 0; i < 2; ++i) {
     MockWrite data_writes[] = {
-        MockWrite(false, kSOCKS5GreetRequest, kSOCKS5GreetRequestLength),
-        MockWrite(false, request.data(), request.size())
+        MockWrite(SYNCHRONOUS, kSOCKS5GreetRequest, kSOCKS5GreetRequestLength),
+        MockWrite(SYNCHRONOUS, request.data(), request.size())
     };
     MockRead data_reads[] = {
-        MockRead(false, kSOCKS5GreetResponse, kSOCKS5GreetResponseLength),
-        MockRead(false, kSOCKS5OkResponse, kSOCKS5OkResponseLength)
+        MockRead(SYNCHRONOUS, kSOCKS5GreetResponse, kSOCKS5GreetResponseLength),
+        MockRead(SYNCHRONOUS, kSOCKS5OkResponse, kSOCKS5OkResponseLength)
     };
 
     user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
@@ -245,12 +245,12 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
     const char partial1[] = { 0x05, 0x01 };
     const char partial2[] = { 0x00 };
     MockWrite data_writes[] = {
-        MockWrite(true, arraysize(partial1)),
-        MockWrite(true, partial2, arraysize(partial2)),
-        MockWrite(true, kOkRequest, arraysize(kOkRequest)) };
+        MockWrite(ASYNC, arraysize(partial1)),
+        MockWrite(ASYNC, partial2, arraysize(partial2)),
+        MockWrite(ASYNC, kOkRequest, arraysize(kOkRequest)) };
     MockRead data_reads[] = {
-        MockRead(true, kSOCKS5GreetResponse, kSOCKS5GreetResponseLength),
-        MockRead(true, kSOCKS5OkResponse, kSOCKS5OkResponseLength) };
+        MockRead(ASYNC, kSOCKS5GreetResponse, kSOCKS5GreetResponseLength),
+        MockRead(ASYNC, kSOCKS5OkResponse, kSOCKS5OkResponseLength) };
     user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                      data_writes, arraysize(data_writes),
                                      hostname, 80, &net_log_));
@@ -276,12 +276,12 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
     const char partial1[] = { 0x05 };
     const char partial2[] = { 0x00 };
     MockWrite data_writes[] = {
-        MockWrite(true, kSOCKS5GreetRequest, kSOCKS5GreetRequestLength),
-        MockWrite(true, kOkRequest, arraysize(kOkRequest)) };
+        MockWrite(ASYNC, kSOCKS5GreetRequest, kSOCKS5GreetRequestLength),
+        MockWrite(ASYNC, kOkRequest, arraysize(kOkRequest)) };
     MockRead data_reads[] = {
-        MockRead(true, partial1, arraysize(partial1)),
-        MockRead(true, partial2, arraysize(partial2)),
-        MockRead(true, kSOCKS5OkResponse, kSOCKS5OkResponseLength) };
+        MockRead(ASYNC, partial1, arraysize(partial1)),
+        MockRead(ASYNC, partial2, arraysize(partial2)),
+        MockRead(ASYNC, kSOCKS5OkResponse, kSOCKS5OkResponseLength) };
     user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                      data_writes, arraysize(data_writes),
                                      hostname, 80, &net_log_));
@@ -304,14 +304,14 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
   {
     const int kSplitPoint = 3;  // Break handshake write into two parts.
     MockWrite data_writes[] = {
-        MockWrite(true, kSOCKS5GreetRequest, kSOCKS5GreetRequestLength),
-        MockWrite(true, kOkRequest, kSplitPoint),
-        MockWrite(true, kOkRequest + kSplitPoint,
+        MockWrite(ASYNC, kSOCKS5GreetRequest, kSOCKS5GreetRequestLength),
+        MockWrite(ASYNC, kOkRequest, kSplitPoint),
+        MockWrite(ASYNC, kOkRequest + kSplitPoint,
                   arraysize(kOkRequest) - kSplitPoint)
     };
     MockRead data_reads[] = {
-        MockRead(true, kSOCKS5GreetResponse, kSOCKS5GreetResponseLength),
-        MockRead(true, kSOCKS5OkResponse, kSOCKS5OkResponseLength) };
+        MockRead(ASYNC, kSOCKS5GreetResponse, kSOCKS5GreetResponseLength),
+        MockRead(ASYNC, kSOCKS5OkResponse, kSOCKS5OkResponseLength) };
     user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                      data_writes, arraysize(data_writes),
                                      hostname, 80, &net_log_));
@@ -333,13 +333,13 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
   {
     const int kSplitPoint = 6;  // Break the handshake read into two parts.
     MockWrite data_writes[] = {
-        MockWrite(true, kSOCKS5GreetRequest, kSOCKS5GreetRequestLength),
-        MockWrite(true, kOkRequest, arraysize(kOkRequest))
+        MockWrite(ASYNC, kSOCKS5GreetRequest, kSOCKS5GreetRequestLength),
+        MockWrite(ASYNC, kOkRequest, arraysize(kOkRequest))
     };
     MockRead data_reads[] = {
-        MockRead(true, kSOCKS5GreetResponse, kSOCKS5GreetResponseLength),
-        MockRead(true, kSOCKS5OkResponse, kSplitPoint),
-        MockRead(true, kSOCKS5OkResponse + kSplitPoint,
+        MockRead(ASYNC, kSOCKS5GreetResponse, kSOCKS5GreetResponseLength),
+        MockRead(ASYNC, kSOCKS5OkResponse, kSplitPoint),
+        MockRead(ASYNC, kSOCKS5OkResponse + kSplitPoint,
                  kSOCKS5OkResponseLength - kSplitPoint)
     };
 

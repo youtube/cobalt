@@ -112,13 +112,13 @@ TEST_F(SpdySessionTest, GoAway) {
   scoped_ptr<spdy::SpdyFrame> goaway(ConstructSpdyGoAway());
   MockRead reads[] = {
     CreateMockRead(*goaway),
-    MockRead(false, 0, 0)  // EOF
+    MockRead(SYNCHRONOUS, 0, 0)  // EOF
   };
   StaticSocketDataProvider data(reads, arraysize(reads), NULL, 0);
   data.set_connect_data(connect_data);
   session_deps.socket_factory->AddSocketDataProvider(&data);
 
-  SSLSocketDataProvider ssl(false, OK);
+  SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
 
   scoped_refptr<HttpNetworkSession> http_session(
@@ -172,7 +172,7 @@ TEST_F(SpdySessionTest, Ping) {
   MockRead reads[] = {
     CreateMockRead(*read_ping),
     CreateMockRead(*read_ping),
-    MockRead(false, 0, 0)  // EOF
+    MockRead(SYNCHRONOUS, 0, 0)  // EOF
   };
   scoped_ptr<spdy::SpdyFrame> write_ping(ConstructSpdyPing());
   MockRead writes[] = {
@@ -184,7 +184,7 @@ TEST_F(SpdySessionTest, Ping) {
   data.set_connect_data(connect_data);
   session_deps.socket_factory->AddSocketDataProvider(&data);
 
-  SSLSocketDataProvider ssl(false, OK);
+  SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
 
   scoped_refptr<HttpNetworkSession> http_session(
@@ -262,7 +262,7 @@ TEST_F(SpdySessionTest, FailedPing) {
   scoped_ptr<spdy::SpdyFrame> read_ping(ConstructSpdyPing());
   MockRead reads[] = {
     CreateMockRead(*read_ping),
-    MockRead(false, 0, 0)  // EOF
+    MockRead(SYNCHRONOUS, 0, 0)  // EOF
   };
   scoped_ptr<spdy::SpdyFrame> write_ping(ConstructSpdyPing());
   MockRead writes[] = {
@@ -273,7 +273,7 @@ TEST_F(SpdySessionTest, FailedPing) {
   data.set_connect_data(connect_data);
   session_deps.socket_factory->AddSocketDataProvider(&data);
 
-  SSLSocketDataProvider ssl(false, OK);
+  SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
 
   scoped_refptr<HttpNetworkSession> http_session(
@@ -506,14 +506,14 @@ TEST_F(SpdySessionTest, OnSettings) {
       ConstructSpdySettings(new_settings));
   MockRead reads[] = {
     CreateMockRead(*settings_frame),
-    MockRead(false, 0, 0)  // EOF
+    MockRead(SYNCHRONOUS, 0, 0)  // EOF
   };
 
   StaticSocketDataProvider data(reads, arraysize(reads), NULL, 0);
   data.set_connect_data(connect_data);
   session_deps.socket_factory->AddSocketDataProvider(&data);
 
-  SSLSocketDataProvider ssl(false, OK);
+  SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
 
   scoped_refptr<HttpNetworkSession> http_session(
@@ -586,7 +586,7 @@ TEST_F(SpdySessionTest, CancelPendingCreateStream) {
   session_deps.host_resolver->set_synchronous_mode(true);
 
   MockRead reads[] = {
-    MockRead(false, ERR_IO_PENDING)  // Stall forever.
+    MockRead(SYNCHRONOUS, ERR_IO_PENDING)  // Stall forever.
   };
 
   StaticSocketDataProvider data(reads, arraysize(reads), NULL, 0);
@@ -595,7 +595,7 @@ TEST_F(SpdySessionTest, CancelPendingCreateStream) {
   data.set_connect_data(connect_data);
   session_deps.socket_factory->AddSocketDataProvider(&data);
 
-  SSLSocketDataProvider ssl(false, OK);
+  SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
 
   scoped_refptr<HttpNetworkSession> http_session(
@@ -672,7 +672,7 @@ TEST_F(SpdySessionTest, SendSettingsOnNewSession) {
   session_deps.host_resolver->set_synchronous_mode(true);
 
   MockRead reads[] = {
-    MockRead(false, ERR_IO_PENDING)  // Stall forever.
+    MockRead(SYNCHRONOUS, ERR_IO_PENDING)  // Stall forever.
   };
 
   // Create the bogus setting that we want to verify is sent out.
@@ -698,7 +698,7 @@ TEST_F(SpdySessionTest, SendSettingsOnNewSession) {
   data.set_connect_data(connect_data);
   session_deps.socket_factory->AddSocketDataProvider(&data);
 
-  SSLSocketDataProvider ssl(false, OK);
+  SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
 
   scoped_refptr<HttpNetworkSession> http_session(
@@ -772,14 +772,14 @@ void IPPoolingTest(bool clean_via_close_current_sessions) {
 
   MockConnect connect_data(SYNCHRONOUS, OK);
   MockRead reads[] = {
-    MockRead(false, ERR_IO_PENDING)  // Stall forever.
+    MockRead(SYNCHRONOUS, ERR_IO_PENDING)  // Stall forever.
   };
 
   StaticSocketDataProvider data(reads, arraysize(reads), NULL, 0);
   data.set_connect_data(connect_data);
   session_deps.socket_factory->AddSocketDataProvider(&data);
 
-  SSLSocketDataProvider ssl(false, OK);
+  SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
 
   scoped_refptr<HttpNetworkSession> http_session(
@@ -912,13 +912,13 @@ TEST_F(SpdySessionTest, NeedsCredentials) {
 
   MockConnect connect_data(SYNCHRONOUS, OK);
   MockRead reads[] = {
-    MockRead(false, ERR_IO_PENDING)  // Stall forever.
+    MockRead(SYNCHRONOUS, ERR_IO_PENDING)  // Stall forever.
   };
   StaticSocketDataProvider data(reads, arraysize(reads), NULL, 0);
   data.set_connect_data(connect_data);
   session_deps.socket_factory->AddSocketDataProvider(&data);
 
-  SSLSocketDataProvider ssl(false, OK);
+  SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
   ssl.origin_bound_cert_type = CLIENT_CERT_RSA_SIGN;
   ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY3;
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
@@ -980,7 +980,7 @@ TEST_F(SpdySessionTest, SendCredentials) {
 
   MockConnect connect_data(SYNCHRONOUS, OK);
   MockRead reads[] = {
-    MockRead(false, ERR_IO_PENDING)  // Stall forever.
+    MockRead(SYNCHRONOUS, ERR_IO_PENDING)  // Stall forever.
   };
   spdy::SpdySettings settings;
   scoped_ptr<spdy::SpdyFrame> settings_frame(
@@ -993,7 +993,7 @@ TEST_F(SpdySessionTest, SendCredentials) {
   data.set_connect_data(connect_data);
   session_deps.socket_factory->AddSocketDataProvider(&data);
 
-  SSLSocketDataProvider ssl(false, OK);
+  SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
   ssl.origin_bound_cert_type = CLIENT_CERT_RSA_SIGN;
   ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY3;
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
