@@ -42,6 +42,7 @@
 #include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/memory/aligned_memory.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/thread_restrictions.h"
 
@@ -59,7 +60,7 @@ struct DefaultLazyInstanceTraits {
   static const bool kAllowedToAccessOnNonjoinableThread = false;
 
   static Type* New(void* instance) {
-    DCHECK_EQ(reinterpret_cast<uintptr_t>(instance) % sizeof(instance), 0u)
+    DCHECK_EQ(reinterpret_cast<uintptr_t>(instance) & (ALIGNOF(Type) - 1), 0u)
         << ": Bad boy, the buffer passed to placement new is not aligned!\n"
         "This may break some stuff like SSE-based optimizations assuming the "
         "<Type> objects are word aligned.";
@@ -155,7 +156,8 @@ class LazyInstance {
     if (!(value & kLazyInstanceCreatedMask) &&
         internal::NeedsLazyInstance(&private_instance_)) {
       // Create the instance in the space provided by |private_buf_|.
-      value = reinterpret_cast<subtle::AtomicWord>(Traits::New(private_buf_));
+      value = reinterpret_cast<subtle::AtomicWord>(
+          Traits::New(private_buf_.void_data()));
       internal::CompleteLazyInstance(&private_instance_, value, this,
                                      Traits::kRegisterOnExit ? OnExit : NULL);
     }
@@ -174,20 +176,19 @@ class LazyInstance {
       case 0:
         return p == NULL;
       case internal::kLazyInstanceStateCreating:
-        return static_cast<int8*>(static_cast<void*>(p)) == private_buf_;
+        return static_cast<void*>(p) == private_buf_.void_data();
       default:
         return p == instance();
     }
   }
 
   // Effectively private: member data is only public to allow the linker to
-  // statically initialize it. DO NOT USE FROM OUTSIDE THIS CLASS.
+  // statically initialize it and to maintain a POD class. DO NOT USE FROM
+  // OUTSIDE THIS CLASS.
 
-  // Note this must use AtomicWord, not Atomic32, to ensure correct alignment
-  // of |private_buf_| on 64 bit architectures. (This member must be first to
-  // allow the syntax used in LAZY_INSTANCE_INITIALIZER to work correctly.)
   subtle::AtomicWord private_instance_;
-  int8 private_buf_[sizeof(Type)];  // Preallocated space for the Type instance.
+  // Preallocated space for the Type instance.
+  base::AlignedMemory<sizeof(Type), ALIGNOF(Type)> private_buf_;
 
  private:
   Type* instance() {
@@ -201,7 +202,7 @@ class LazyInstance {
     LazyInstance<Type, Traits>* me =
         reinterpret_cast<LazyInstance<Type, Traits>*>(lazy_instance);
     Traits::Delete(me->instance());
-    subtle::Release_Store(&me->private_instance_, 0);
+    subtle::NoBarrier_Store(&me->private_instance_, 0);
   }
 };
 

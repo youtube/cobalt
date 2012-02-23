@@ -23,6 +23,7 @@
 #include "base/at_exit.h"
 #include "base/atomicops.h"
 #include "base/base_export.h"
+#include "base/memory/aligned_memory.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/thread_restrictions.h"
 
@@ -106,18 +107,14 @@ struct StaticMemorySingletonTraits {
   // WARNING: User has to deal with get() in the singleton class
   // this is traits for returning NULL.
   static Type* New() {
+    // Only constructs once and returns pointer; otherwise returns NULL.
     if (base::subtle::NoBarrier_AtomicExchange(&dead_, 1))
       return NULL;
-    Type* ptr = reinterpret_cast<Type*>(buffer_);
 
-    // We are protected by a memory barrier.
-    new(ptr) Type();
-    return ptr;
+    return new(buffer_.void_data()) Type();
   }
 
   static void Delete(Type* p) {
-    base::subtle::NoBarrier_Store(&dead_, 1);
-    base::subtle::MemoryBarrier();
     if (p != NULL)
       p->Type::~Type();
   }
@@ -131,16 +128,13 @@ struct StaticMemorySingletonTraits {
   }
 
  private:
-  static const size_t kBufferSize = (sizeof(Type) +
-                                     sizeof(intptr_t) - 1) / sizeof(intptr_t);
-  static intptr_t buffer_[kBufferSize];
-
+  static base::AlignedMemory<sizeof(Type), ALIGNOF(Type)> buffer_;
   // Signal the object was already deleted, so it is not revived.
   static base::subtle::Atomic32 dead_;
 };
 
-template <typename Type> intptr_t
-    StaticMemorySingletonTraits<Type>::buffer_[kBufferSize];
+template <typename Type> base::AlignedMemory<sizeof(Type), ALIGNOF(Type)>
+    StaticMemorySingletonTraits<Type>::buffer_;
 template <typename Type> base::subtle::Atomic32
     StaticMemorySingletonTraits<Type>::dead_ = 0;
 
