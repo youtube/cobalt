@@ -26,8 +26,9 @@ void BufferedSpdyFramer::set_visitor(
   spdy_framer_.set_visitor(this);
 }
 
-void BufferedSpdyFramer::OnError(spdy::SpdyFramer* /*framer*/) {
-  visitor_->OnError();
+void BufferedSpdyFramer::OnError(spdy::SpdyFramer* spdy_framer) {
+  DCHECK(spdy_framer);
+  visitor_->OnError(spdy_framer->error_code());
 }
 
 void BufferedSpdyFramer::OnControl(const SpdyControlFrame* frame) {
@@ -82,8 +83,8 @@ bool BufferedSpdyFramer::OnControlFrameHeaderData(SpdyStreamId stream_id,
     bool parsed_headers = SpdyFramer::ParseHeaderBlockInBuffer(
         header_buffer_, header_buffer_used_, headers.get());
     if (!parsed_headers) {
-      LOG(WARNING) << "Could not parse Spdy Control Frame Header.";
-      visitor_->OnStreamError(stream_id);
+      visitor_->OnStreamError(
+          stream_id, "Could not parse Spdy Control Frame Header.");
       return false;
     }
     SpdyControlFrame* control_frame =
@@ -114,7 +115,8 @@ bool BufferedSpdyFramer::OnControlFrameHeaderData(SpdyStreamId stream_id,
   const size_t available = kHeaderBufferSize - header_buffer_used_;
   if (len > available) {
     header_buffer_valid_ = false;
-    visitor_->OnStreamError(stream_id);
+    visitor_->OnStreamError(
+        stream_id, "Received more data than the allocated size.");
     return false;
   }
   memcpy(header_buffer_ + header_buffer_used_, header_data, len);

@@ -21,13 +21,15 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
       header_stream_id_(-1) {
   }
 
-  void OnError() {
-    LOG(INFO) << "SpdyFramer Error";
+  void OnError(int error_code) {
+    LOG(INFO) << "SpdyFramer Error: " << error_code;
     error_count_++;
   }
 
-  void OnStreamError(spdy::SpdyStreamId stream_id) {
-    LOG(INFO) << "SpdyFramer Error on stream: " << stream_id;
+  void OnStreamError(spdy::SpdyStreamId stream_id,
+                     const std::string& description) {
+    LOG(INFO) << "SpdyFramer Error on stream: " << stream_id  << " "
+              << description;
     error_count_++;
   }
 
