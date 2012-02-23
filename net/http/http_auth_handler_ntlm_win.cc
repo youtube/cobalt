@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -63,7 +63,7 @@ int HttpAuthHandlerNTLM::Factory::CreateAuthHandler(
   if (is_unsupported_ || reason == CREATE_PREEMPTIVE)
     return ERR_UNSUPPORTED_AUTH_SCHEME;
   if (max_token_length_ == 0) {
-    int rv = DetermineMaxTokenLength(sspi_library_, NTLMSP_NAME,
+    int rv = DetermineMaxTokenLength(sspi_library_.get(), NTLMSP_NAME,
                                      &max_token_length_);
     if (rv == ERR_UNSUPPORTED_AUTH_SCHEME)
       is_unsupported_ = true;
@@ -73,7 +73,7 @@ int HttpAuthHandlerNTLM::Factory::CreateAuthHandler(
   // TODO(cbentzel): Move towards model of parsing in the factory
   //                 method and only constructing when valid.
   scoped_ptr<HttpAuthHandler> tmp_handler(
-      new HttpAuthHandlerNTLM(sspi_library_, max_token_length_,
+      new HttpAuthHandlerNTLM(sspi_library_.get(), max_token_length_,
                               url_security_manager()));
   if (!tmp_handler->InitFromChallenge(challenge, target, origin, net_log))
     return ERR_INVALID_RESPONSE;

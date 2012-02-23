@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 #include "net/disk_cache/storage_block.h"
 
 #include "base/logging.h"
+#include "net/disk_cache/hash.h"
 #include "net/disk_cache/trace.h"
 
 namespace disk_cache {
@@ -98,6 +99,11 @@ template<typename T> bool StorageBlock<T>::HasData() const {
   return (NULL != data_);
 }
 
+template<typename T> bool StorageBlock<T>::VerifyHash() const {
+  uint32 hash = CalculateHash();
+  return (!data_->self_hash || data_->self_hash == hash);
+}
+
 template<typename T> bool StorageBlock<T>::own_data() const {
   return own_data_;
 }
@@ -123,6 +129,7 @@ template<typename T> bool StorageBlock<T>::Load() {
 
 template<typename T> bool StorageBlock<T>::Store() {
   if (file_ && data_) {
+    data_->self_hash = CalculateHash();
     if (file_->Store(this)) {
       modified_ = false;
       return true;
@@ -154,6 +161,10 @@ template<typename T> void StorageBlock<T>::DeleteData() {
     }
     own_data_ = false;
   }
+}
+
+template<typename T> uint32 StorageBlock<T>::CalculateHash() const {
+  return Hash(reinterpret_cast<char*>(data_), offsetof(T, self_hash));
 }
 
 }  // namespace disk_cache

@@ -6,8 +6,8 @@
 #define NET_URL_REQUEST_URL_REQUEST_REDIRECT_JOB_H_
 #pragma once
 
-#include "base/task.h"
-#include "net/base/net_api.h"
+#include "base/memory/weak_ptr.h"
+#include "net/base/net_export.h"
 #include "net/url_request/url_request_job.h"
 
 class GURL;
@@ -17,13 +17,27 @@ namespace net {
 // A URLRequestJob that will redirect the request to the specified
 // URL.  This is useful to restart a request at a different URL based
 // on the result of another job.
-class NET_API URLRequestRedirectJob : public URLRequestJob {
+class NET_EXPORT URLRequestRedirectJob : public URLRequestJob {
  public:
+  // Valid status codes for the redirect job. Other 30x codes are theoretically
+  // valid, but unused so far.
+  enum StatusCode {
+    REDIRECT_302_FOUND = 302,
+    REDIRECT_307_TEMPORARY_REDIRECT = 307,
+  };
+
   // Constructs a job that redirects to the specified URL.
   URLRequestRedirectJob(URLRequest* request, const GURL& redirect_destination);
 
-  virtual void Start();
-  virtual bool IsRedirectResponse(GURL* location, int* http_status_code);
+  // Change the HTTP status code to use for the redirect. Default is
+  // REDIRECT_302_FOUND.
+  void set_redirect_code(StatusCode code) {
+    http_status_code_ = static_cast<int>(code);
+  }
+
+  virtual void Start() OVERRIDE;
+  virtual bool IsRedirectResponse(GURL* location,
+                                  int* http_status_code) OVERRIDE;
 
  private:
   virtual ~URLRequestRedirectJob();
@@ -31,8 +45,9 @@ class NET_API URLRequestRedirectJob : public URLRequestJob {
   void StartAsync();
 
   GURL redirect_destination_;
+  int http_status_code_;
 
-  ScopedRunnableMethodFactory<URLRequestRedirectJob> method_factory_;
+  base::WeakPtrFactory<URLRequestRedirectJob> weak_factory_;
 };
 
 }  // namespace net

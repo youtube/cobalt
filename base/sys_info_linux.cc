@@ -1,11 +1,14 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/sys_info.h"
 
+#include <limits>
+
 #include "base/file_util.h"
 #include "base/logging.h"
+#include "base/string_number_conversions.h"
 
 namespace base {
 
@@ -22,15 +25,25 @@ int64 SysInfo::AmountOfPhysicalMemory() {
 
 // static
 size_t SysInfo::MaxSharedMemorySize() {
-  static size_t limit;
+  static int64 limit;
   static bool limit_valid = false;
   if (!limit_valid) {
     std::string contents;
     file_util::ReadFileToString(FilePath("/proc/sys/kernel/shmmax"), &contents);
-    limit = strtoul(contents.c_str(), NULL, 0);
-    limit_valid = true;
+    DCHECK(!contents.empty());
+    if (!contents.empty() && contents[contents.length() - 1] == '\n') {
+      contents.erase(contents.length() - 1);
+    }
+    if (base::StringToInt64(contents, &limit)) {
+      DCHECK(limit >= 0);
+      DCHECK(static_cast<uint64>(limit) <= std::numeric_limits<size_t>::max());
+      limit_valid = true;
+    } else {
+      NOTREACHED();
+      return 0;
+    }
   }
-  return limit;
+  return static_cast<size_t>(limit);
 }
 
 }  // namespace base

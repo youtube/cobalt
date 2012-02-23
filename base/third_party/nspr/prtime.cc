@@ -71,6 +71,9 @@
 #include <windows.h>
 #elif defined(OS_MACOSX)
 #include <CoreFoundation/CoreFoundation.h>
+#elif defined(OS_ANDROID)
+#include <ctype.h>
+#include "base/os_compat_android.h"  // For timegm()
 #endif
 #include <errno.h>  /* for EINVAL */
 #include <time.h>
@@ -138,10 +141,10 @@ PR_ImplodeTime(const PRExplodedTime *exploded)
     gregorian_date.minute = exploded->tm_min;
     gregorian_date.second = exploded->tm_sec;
 
-    // Compute |absolute_time| in seconds, correct for gmt and dst 
+    // Compute |absolute_time| in seconds, correct for gmt and dst
     // (note the combined offset will be negative when we need to add it), then
     // convert to microseconds which is what PRTime expects.
-    CFAbsoluteTime absolute_time = 
+    CFAbsoluteTime absolute_time =
         CFGregorianDateGetAbsoluteTime(gregorian_date, NULL);
     PRTime result = static_cast<PRTime>(absolute_time);
     result -= exploded->tm_params.tp_gmt_offset +

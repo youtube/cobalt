@@ -1,28 +1,36 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_AUDIO_AUDIO_MANAGER_H_
 #define MEDIA_AUDIO_AUDIO_MANAGER_H_
 
+#include <string>
+
 #include "base/basictypes.h"
+#include "base/memory/ref_counted.h"
 #include "base/string16.h"
-#include "base/task.h"
 #include "media/audio/audio_device_name.h"
 #include "media/audio/audio_parameters.h"
 
 class AudioInputStream;
 class AudioOutputStream;
 class MessageLoop;
-
-// TODO(sergeyu): In this interface and some other places AudioParameters struct
-// is passed by value. It is better to change it to const reference.
+namespace base {
+class MessageLoopProxy;
+}
 
 // Manages all audio resources. In particular it owns the AudioOutputStream
 // objects. Provides some convenience functions that avoid the need to provide
 // iterators over the existing streams.
-class AudioManager {
+class MEDIA_EXPORT AudioManager {
  public:
+  virtual ~AudioManager();
+
+  // Use to construct the audio manager.
+  // NOTE: There should only be one instance.
+  static AudioManager* Create();
+
   // Returns true if the OS reports existence of audio devices. This does not
   // guarantee that the existing devices support all formats and sample rates.
   virtual bool HasAudioOutputDevices() = 0;
@@ -93,36 +101,27 @@ class AudioManager {
   // Do not free the returned AudioInputStream. It is owned by AudioManager.
   // When you are done with it, call |Stop()| and |Close()| to release it.
   virtual AudioInputStream* MakeAudioInputStream(
-      const AudioParameters& params) = 0;
+      const AudioParameters& params, const std::string& device_id) = 0;
 
   // Muting continues playback but effectively the volume is set to zero.
   // Un-muting returns the volume to the previous level.
   virtual void MuteAll() = 0;
   virtual void UnMuteAll() = 0;
 
-  // Returns message loop used for audio IO.
-  virtual MessageLoop* GetMessageLoop() = 0;
+  // Used to determine if something else is currently making use of audio input.
+  virtual bool IsRecordingInProcess() = 0;
 
-  // Get AudioManager singleton.
-  // TODO(cpu): Define threading requirements for interacting with AudioManager.
-  static AudioManager* GetAudioManager();
+  // Returns message loop used for audio IO.
+  virtual scoped_refptr<base::MessageLoopProxy> GetMessageLoop() = 0;
 
  protected:
-  virtual ~AudioManager() {}
+  AudioManager();
 
-  // Called from GetAudioManager() to initialiaze the instance.
+  // Called from Create() to initialize the instance.
   virtual void Init() = 0;
 
-  // Called by Destroy() to cleanup the instance before destruction.
-  virtual void Cleanup() = 0;
-
  private:
-  static void Destroy(void*);
-
-  // Called by GetAudioManager() to create platform-specific audio manager.
-  static AudioManager* CreateAudioManager();
+  DISALLOW_COPY_AND_ASSIGN(AudioManager);
 };
-
-DISABLE_RUNNABLE_METHOD_REFCOUNT(AudioManager);
 
 #endif  // MEDIA_AUDIO_AUDIO_MANAGER_H_

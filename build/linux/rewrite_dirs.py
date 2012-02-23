@@ -1,5 +1,5 @@
-#!/usr/bin/python
-# Copyright (c) 2009 The Chromium Authors. All rights reserved.
+#!/usr/bin/env python
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -31,6 +31,7 @@ def RewritePath(path, opts):
   else:
     return path
 
+
 def RewriteLine(line, opts):
   """Rewrites all the paths in recognized options."""
   args = line.split()
@@ -53,6 +54,7 @@ def RewriteLine(line, opts):
 
   return ' '.join(args)
 
+
 def main(argv):
   parser = optparse.OptionParser()
   parser.add_option('-s', '--sysroot', default='/', help='sysroot to prepend')
@@ -63,6 +65,7 @@ def main(argv):
     line = RewriteLine(line.strip(), opts)
     print line
   return 0
+
 
 if __name__ == '__main__':
   sys.exit(main(sys.argv))

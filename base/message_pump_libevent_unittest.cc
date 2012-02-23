@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -59,7 +59,7 @@ class StupidWatcher : public MessagePumpLibevent::Watcher {
   virtual void OnFileCanWriteWithoutBlocking(int fd) {}
 };
 
-#if GTEST_HAS_DEATH_TEST
+#if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 
 // Test to make sure that we catch calling WatchFileDescriptor off of the
 // wrong thread.
@@ -67,13 +67,13 @@ TEST_F(MessagePumpLibeventTest, TestWatchingFromBadThread) {
   MessagePumpLibevent::FileDescriptorWatcher watcher;
   StupidWatcher delegate;
 
-  ASSERT_DEBUG_DEATH(io_loop()->WatchFileDescriptor(
+  ASSERT_DEATH(io_loop()->WatchFileDescriptor(
       STDOUT_FILENO, false, MessageLoopForIO::WATCH_READ, &watcher, &delegate),
       "Check failed: "
       "watch_file_descriptor_caller_checker_.CalledOnValidThread()");
 }
 
-#endif  // GTEST_HAS_DEATH_TEST
+#endif  // GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 
 class DeleteWatcher : public MessagePumpLibevent::Watcher {
  public:

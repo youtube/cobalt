@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,6 +22,10 @@
 namespace net {
 
 namespace {
+
+// TTL for the per-request DNS cache. Applies to both successful and failed
+// DNS resolutions.
+const unsigned kCacheEntryTTLSeconds = 5 * 60;
 
 // Event parameters for a PAC error message (line number + message).
 class ErrorNetlogParams : public NetLog::EventParameters {
@@ -258,23 +262,35 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
     }
 
     // Otherwise ask the host resolver.
-    int result = host_resolver_->Resolve(info, address_list);
+    const BoundNetLog* net_log = GetNetLogForCurrentRequest();
+    int result = host_resolver_->Resolve(info,
+                                         address_list,
+                                         net_log ? *net_log : BoundNetLog());
 
     // Save the result back to the per-request DNS cache.
     if (host_cache) {
       host_cache->Set(cache_key, result, *address_list,
-                      base::TimeTicks::Now());
+                      base::TimeTicks::Now(),
+                      base::TimeDelta::FromSeconds(kCacheEntryTTLSeconds));
     }
 
     return result;
+  }
+
+  // May return NULL.
+  const BoundNetLog* GetNetLogForCurrentRequest() {
+    if (!current_request_context())
+      return NULL;
+    return current_request_context()->net_log;
   }
 
   void LogEventToCurrentRequest(
       NetLog::EventPhase phase,
       NetLog::EventType type,
       scoped_refptr<NetLog::EventParameters> params) {
-    if (current_request_context() && current_request_context()->net_log)
-      current_request_context()->net_log->AddEntry(type, phase, params);
+    const BoundNetLog* net_log = GetNetLogForCurrentRequest();
+    if (net_log)
+      net_log->AddEntry(type, phase, params);
   }
 
   void LogEventToCurrentRequestAndGlobally(

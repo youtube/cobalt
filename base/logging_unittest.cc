@@ -166,6 +166,9 @@ TEST_F(LoggingTest, LoggingIsLazy) {
   DVLOG_IF(1, true) << mock_log_source.Log();
 }
 
+// Official builds have CHECKs directly call BreakDebugger.
+#if !defined(LOGGING_IS_OFFICIAL_BUILD)
+
 TEST_F(LoggingTest, CheckStreamsAreLazy) {
   MockLogSource mock_log_source, uncalled_mock_log_source;
   EXPECT_CALL(mock_log_source, Log()).Times(8).
@@ -182,6 +185,8 @@ TEST_F(LoggingTest, CheckStreamsAreLazy) {
       << mock_log_source.Log();
 }
 
+#endif
+
 TEST_F(LoggingTest, DebugLoggingReleaseBehavior) {
 #if !defined(NDEBUG)
   int debug_only_variable = 1;
@@ -197,27 +202,33 @@ TEST_F(LoggingTest, DebugLoggingReleaseBehavior) {
 TEST_F(LoggingTest, DcheckStreamsAreLazy) {
   MockLogSource mock_log_source;
   EXPECT_CALL(mock_log_source, Log()).Times(0);
-
-#if !defined(LOGGING_IS_OFFICIAL_BUILD) && defined(NDEBUG)
-  // Unofficial release build.
+#if !defined(LOGGING_IS_OFFICIAL_BUILD) && defined(NDEBUG) && \
+    !defined(DCHECK_ALWAYS_ON)
+  // Unofficial release build without dcheck enabled.
   g_dcheck_state = DISABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS;
   DCHECK(mock_log_source.Log()) << mock_log_source.Log();
   DPCHECK(mock_log_source.Log()) << mock_log_source.Log();
   DCHECK_EQ(0, 0) << mock_log_source.Log();
   DCHECK_EQ(mock_log_source.Log(), static_cast<const char*>(NULL))
       << mock_log_source.Log();
-#endif  // !defined(LOGGING_IS_OFFICIAL_BUILD) && defined(NDEBUG)
+#endif
 }
 
 TEST_F(LoggingTest, Dcheck) {
-#if defined(LOGGING_IS_OFFICIAL_BUILD)
+#if LOGGING_IS_OFFICIAL_BUILD
   // Official build.
   EXPECT_FALSE(DCHECK_IS_ON());
   EXPECT_FALSE(DLOG_IS_ON(DCHECK));
-#elif defined(NDEBUG)
+#elif defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON)
   // Unofficial release build.
   g_dcheck_state = ENABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS;
   SetLogReportHandler(&LogSink);
+  EXPECT_TRUE(DCHECK_IS_ON());
+  EXPECT_FALSE(DLOG_IS_ON(DCHECK));
+#elif defined(NDEBUG) && defined(DCHECK_ALWAYS_ON)
+  // Unofficial release build with real DCHECKS.
+  g_dcheck_state = ENABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS;
+  SetLogAssertHandler(&LogSink);
   EXPECT_TRUE(DCHECK_IS_ON());
   EXPECT_FALSE(DLOG_IS_ON(DCHECK));
 #else

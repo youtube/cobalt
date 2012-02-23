@@ -127,4 +127,42 @@
 #define inflatePrime MOZ_Z_inflatePrime
 #define inflateGetHeader MOZ_Z_inflateGetHeader
 
+/* New as of zlib 1.2.5 */
+#define gzoffset MOZ_Z_gzoffset
+#define gzopen64 MOZ_Z_gzopen64
+#define gzseek64 MOZ_Z_gzseek64
+#define gztell64 MOZ_Z_gztell64
+#define gzoffset64 MOZ_Z_gzoffset64
+#define adler32_combine64 MOZ_Z_adler32_combine64
+#define crc32_combine64 MOZ_Z_crc32_combine64
+#define gz_error MOZ_Z_gz_error
+#define gz_intmax MOZ_Z_gz_intmax
+#define gz_strwinerror MOZ_Z_gz_strwinerror
+#define gzbuffer MOZ_Z_gzbuffer
+#define gzclose_r MOZ_Z_gzclose_r
+#define gzclose_w MOZ_Z_gzclose_w
+#define inflateMark MOZ_Z_inflateMark
+#define inflateReset2 MOZ_Z_inflateReset2
+#define inflateUndermine MOZ_Z_inflateUndermine
+#define charf MOZ_Z_charf
+#define gzFile MOZ_Z_gzFile
+#define gz_header MOZ_Z_gz_header
+#define gz_headerp MOZ_Z_gz_headerp
+#define intf MOZ_Z_intf
+#define uInt MOZ_Z_uInt
+#define uIntf MOZ_Z_uIntf
+#define uLong MOZ_Z_uLong
+#define uLongf MOZ_Z_uLongf
+#define voidp MOZ_Z_voidp
+#define voidpc MOZ_Z_voidpc
+#define voidpf MOZ_Z_voidpf
+#define gz_header_s MOZ_Z_gz_header_s
+#define internal_state MOZ_Z_internal_state
+
+/* Mangle Byte types except on Mac. */
+#if !defined(__MACTYPES__)
+#define Byte MOZ_Z_Byte
+#define Bytef MOZ_Z_Bytef
+#endif
+
 #endif

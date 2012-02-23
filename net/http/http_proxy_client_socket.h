@@ -18,6 +18,7 @@
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_info.h"
 #include "net/http/proxy_client_socket.h"
+#include "net/socket/ssl_client_socket.h"
 
 class GURL;
 
@@ -27,7 +28,6 @@ class AddressList;
 class ClientSocketHandle;
 class GrowableIOBuffer;
 class HttpAuthCache;
-class HttpAuthHandleFactory;
 class HttpStream;
 class HttpStreamParser;
 class IOBuffer;
@@ -46,6 +46,7 @@ class HttpProxyClientSocket : public ProxyClientSocket {
                         HttpAuthHandlerFactory* http_auth_handler_factory,
                         bool tunnel,
                         bool using_spdy,
+                        SSLClientSocket::NextProto protocol_negotiated,
                         bool is_https_proxy);
 
   // On destruction Disconnect() is called.
@@ -54,7 +55,7 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   // If Connect (or its callback) returns PROXY_AUTH_REQUESTED, then
   // credentials should be added to the HttpAuthController before calling
   // RestartWithAuth.
-  int RestartWithAuth(CompletionCallback* callback);
+  int RestartWithAuth(const CompletionCallback& callback);
 
   const scoped_refptr<HttpAuthController>& auth_controller() {
     return auth_;
@@ -64,30 +65,38 @@ class HttpProxyClientSocket : public ProxyClientSocket {
     return using_spdy_;
   }
 
-  // ProxyClientSocket methods:
-  virtual const HttpResponseInfo* GetConnectResponseInfo() const;
-  virtual HttpStream* CreateConnectResponseStream();
+  SSLClientSocket::NextProto protocol_negotiated() {
+    return protocol_negotiated_;
+  }
 
-  // StreamSocket methods:
-  virtual int Connect(CompletionCallback* callback);
-  virtual void Disconnect();
-  virtual bool IsConnected() const;
-  virtual bool IsConnectedAndIdle() const;
-  virtual const BoundNetLog& NetLog() const;
-  virtual void SetSubresourceSpeculation();
-  virtual void SetOmniboxSpeculation();
-  virtual bool WasEverUsed() const;
-  virtual bool UsingTCPFastOpen() const;
-  virtual int64 NumBytesRead() const;
-  virtual base::TimeDelta GetConnectTimeMicros() const;
+  // ProxyClientSocket implementation.
+  virtual const HttpResponseInfo* GetConnectResponseInfo() const OVERRIDE;
+  virtual HttpStream* CreateConnectResponseStream() OVERRIDE;
 
-  // Socket methods:
-  virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
-  virtual int Write(IOBuffer* buf, int buf_len, CompletionCallback* callback);
-  virtual bool SetReceiveBufferSize(int32 size);
-  virtual bool SetSendBufferSize(int32 size);
-  virtual int GetPeerAddress(AddressList* address) const;
-  virtual int GetLocalAddress(IPEndPoint* address) const;
+  // StreamSocket implementation.
+  virtual int Connect(const CompletionCallback& callback) OVERRIDE;
+  virtual void Disconnect() OVERRIDE;
+  virtual bool IsConnected() const OVERRIDE;
+  virtual bool IsConnectedAndIdle() const OVERRIDE;
+  virtual const BoundNetLog& NetLog() const OVERRIDE;
+  virtual void SetSubresourceSpeculation() OVERRIDE;
+  virtual void SetOmniboxSpeculation() OVERRIDE;
+  virtual bool WasEverUsed() const OVERRIDE;
+  virtual bool UsingTCPFastOpen() const OVERRIDE;
+  virtual int64 NumBytesRead() const OVERRIDE;
+  virtual base::TimeDelta GetConnectTimeMicros() const OVERRIDE;
+
+  // Socket implementation.
+  virtual int Read(IOBuffer* buf,
+                   int buf_len,
+                   const CompletionCallback& callback) OVERRIDE;
+  virtual int Write(IOBuffer* buf,
+                    int buf_len,
+                    const CompletionCallback& callback) OVERRIDE;
+  virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
+  virtual bool SetSendBufferSize(int32 size) OVERRIDE;
+  virtual int GetPeerAddress(AddressList* address) const OVERRIDE;
+  virtual int GetLocalAddress(IPEndPoint* address) const OVERRIDE;
 
  private:
   enum State {
@@ -132,11 +141,11 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   int DoTCPRestart();
   int DoTCPRestartComplete(int result);
 
-  CompletionCallbackImpl<HttpProxyClientSocket> io_callback_;
+  CompletionCallback io_callback_;
   State next_state_;
 
   // Stores the callback to the layer above, called on completing Connect().
-  CompletionCallback* user_callback_;
+  CompletionCallback user_callback_;
 
   HttpRequestInfo request_;
   HttpResponseInfo response_;
@@ -155,6 +164,8 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   const bool tunnel_;
   // If true, then the connection to the proxy is a SPDY connection.
   const bool using_spdy_;
+  // Protocol negotiated with the server.
+  SSLClientSocket::NextProto protocol_negotiated_;
   // If true, then SSL is used to communicate with this proxy
   const bool is_https_proxy_;
 

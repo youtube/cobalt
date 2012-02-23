@@ -1,9 +1,10 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/test/test_file_util.h"
 
+#include <aclapi.h>
 #include <shlwapi.h>
 #include <windows.h>
 
@@ -20,9 +21,51 @@ namespace file_util {
 
 static const ptrdiff_t kOneMB = 1024 * 1024;
 
+namespace {
+
+// Deny |permission| on the file |path|, for the current user.
+bool DenyFilePermission(const FilePath& path, DWORD permission) {
+  PACL old_dacl;
+  PSECURITY_DESCRIPTOR security_descriptor;
+  if (GetNamedSecurityInfo(const_cast<wchar_t*>(path.value().c_str()),
+                           SE_FILE_OBJECT,
+                           DACL_SECURITY_INFORMATION, NULL, NULL, &old_dacl,
+                           NULL, &security_descriptor) != ERROR_SUCCESS) {
+    return false;
+  }
+
+  EXPLICIT_ACCESS change;
+  change.grfAccessPermissions = permission;
+  change.grfAccessMode = DENY_ACCESS;
+  change.grfInheritance = 0;
+  change.Trustee.pMultipleTrustee = NULL;
+  change.Trustee.MultipleTrusteeOperation = NO_MULTIPLE_TRUSTEE;
+  change.Trustee.TrusteeForm = TRUSTEE_IS_NAME;
+  change.Trustee.TrusteeType = TRUSTEE_IS_USER;
+  change.Trustee.ptstrName = L"CURRENT_USER";
+
+  PACL new_dacl;
+  if (SetEntriesInAcl(1, &change, old_dacl, &new_dacl) != ERROR_SUCCESS) {
+    LocalFree(security_descriptor);
+    return false;
+  }
+
+  DWORD rc = SetNamedSecurityInfo(const_cast<wchar_t*>(path.value().c_str()),
+                                  SE_FILE_OBJECT, DACL_SECURITY_INFORMATION,
+                                  NULL, NULL, new_dacl, NULL);
+  LocalFree(security_descriptor);
+  LocalFree(new_dacl);
+
+  return rc == ERROR_SUCCESS;
+}
+
+}  // namespace
+
 bool DieFileDie(const FilePath& file, bool recurse) {
   // It turns out that to not induce flakiness a long timeout is needed.
-  const int kTimeoutMs = 10000;
+  const int kIterations = 25;
+  const base::TimeDelta kTimeout = base::TimeDelta::FromSeconds(10) /
+                                   kIterations;
 
   if (!file_util::PathExists(file))
     return true;
@@ -30,10 +73,10 @@ bool DieFileDie(const FilePath& file, bool recurse) {
   // Sometimes Delete fails, so try a few more times. Divide the timeout
   // into short chunks, so that if a try succeeds, we won't delay the test
   // for too long.
-  for (int i = 0; i < 25; ++i) {
+  for (int i = 0; i < kIterations; ++i) {
     if (file_util::Delete(file, recurse))
       return true;
-    base::PlatformThread::Sleep(kTimeoutMs / 25);
+    base::PlatformThread::Sleep(kTimeout);
   }
   return false;
 }
@@ -225,6 +268,14 @@ std::wstring FilePathAsWString(const FilePath& path) {
 }
 FilePath WStringAsFilePath(const std::wstring& path) {
   return FilePath(path);
+}
+
+bool MakeFileUnreadable(const FilePath& path) {
+  return DenyFilePermission(path, GENERIC_READ);
+}
+
+bool MakeFileUnwritable(const FilePath& path) {
+  return DenyFilePermission(path, GENERIC_WRITE);
 }
 
 }  // namespace file_util

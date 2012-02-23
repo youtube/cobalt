@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,9 +10,19 @@
 #include <mach/mach_time.h>
 #include <mach/thread_policy.h>
 
+#include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/threading/thread_local.h"
+#include "base/tracked_objects.h"
 
 namespace base {
+
+namespace {
+
+LazyInstance<ThreadLocalPointer<char> >::Leaky
+    current_thread_name = LAZY_INSTANCE_INITIALIZER;
+
+}  // namespace
 
 // If Cocoa is to be used on more than one thread, it must know that the
 // application is multithreaded.  Since it's possible to enter Cocoa code
@@ -37,6 +47,9 @@ void InitThreading() {
 
 // static
 void PlatformThread::SetName(const char* name) {
+  current_thread_name.Pointer()->Set(const_cast<char*>(name));
+  tracked_objects::ThreadData::InitializeThreadContext(name);
+
   // pthread_setname_np is only available in 10.6 or later, so test
   // for it at runtime.
   int (*dynamic_pthread_setname_np)(const char*);
@@ -54,17 +67,25 @@ void PlatformThread::SetName(const char* name) {
   dynamic_pthread_setname_np(shortened_name.c_str());
 }
 
+// static
+const char* PlatformThread::GetName() {
+  return current_thread_name.Pointer()->Get();
+}
+
 namespace {
 
 void SetPriorityNormal(mach_port_t mach_thread_id) {
   // Make thread standard policy.
+  // Please note that this call could fail in rare cases depending
+  // on runtime conditions.
   thread_standard_policy policy;
   kern_return_t result = thread_policy_set(mach_thread_id,
                                            THREAD_STANDARD_POLICY,
                                            (thread_policy_t)&policy,
                                            THREAD_STANDARD_POLICY_COUNT);
 
-  DCHECK_EQ(KERN_SUCCESS, result);
+  if (result != KERN_SUCCESS)
+    DVLOG(1) << "thread_policy_set() failure: " << result;
 }
 
 // Enables time-contraint policy and priority suitable for low-latency,
@@ -74,6 +95,11 @@ void SetPriorityRealtimeAudio(mach_port_t mach_thread_id) {
 
   // Increase thread priority to real-time.
 
+  // Please note that the thread_policy_set() calls may fail in
+  // rare cases if the kernel decides the system is under heavy load
+  // and is unable to handle boosting the thread priority.
+  // In these cases we just return early and go on with life.
+
   // Make thread fixed priority.
   thread_extended_policy_data_t policy;
   policy.timeshare = 0;  // Set to 1 for a non-fixed thread.
@@ -81,8 +107,10 @@ void SetPriorityRealtimeAudio(mach_port_t mach_thread_id) {
                              THREAD_EXTENDED_POLICY,
                              (thread_policy_t)&policy,
                              THREAD_EXTENDED_POLICY_COUNT);
-
-  DCHECK_EQ(KERN_SUCCESS, result);
+  if (result != KERN_SUCCESS) {
+    DVLOG(1) << "thread_policy_set() failure: " << result;
+    return;
+  }
 
   // Set to relatively high priority.
   thread_precedence_policy_data_t precedence;
@@ -91,7 +119,10 @@ void SetPriorityRealtimeAudio(mach_port_t mach_thread_id) {
                              THREAD_PRECEDENCE_POLICY,
                              (thread_policy_t)&precedence,
                              THREAD_PRECEDENCE_POLICY_COUNT);
-  DCHECK_EQ(KERN_SUCCESS, result);
+  if (result != KERN_SUCCESS) {
+    DVLOG(1) << "thread_policy_set() failure: " << result;
+    return;
+  }
 
   // Most important, set real-time constraints.
 
@@ -132,7 +163,10 @@ void SetPriorityRealtimeAudio(mach_port_t mach_thread_id) {
                              THREAD_TIME_CONSTRAINT_POLICY,
                              (thread_policy_t)&time_constraints,
                              THREAD_TIME_CONSTRAINT_POLICY_COUNT);
-  DCHECK_EQ(KERN_SUCCESS, result);
+  if (result != KERN_SUCCESS)
+    DVLOG(1) << "thread_policy_set() failure: " << result;
+
+  return;
 }
 
 }  // anonymous namespace

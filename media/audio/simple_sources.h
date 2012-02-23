@@ -11,7 +11,8 @@
 #include "media/base/seekable_buffer.h"
 
 // An audio source that produces a pure sinusoidal tone.
-class SineWaveAudioSource : public AudioOutputStream::AudioSourceCallback {
+class MEDIA_EXPORT SineWaveAudioSource
+    : public AudioOutputStream::AudioSourceCallback {
  public:
   enum Format {
     FORMAT_8BIT_LINEAR_PCM,
@@ -27,19 +28,20 @@ class SineWaveAudioSource : public AudioOutputStream::AudioSourceCallback {
   // Implementation of AudioSourceCallback.
   virtual uint32 OnMoreData(
       AudioOutputStream* stream, uint8* dest, uint32 max_size,
-      AudioBuffersState audio_buffers);
-  virtual void OnError(AudioOutputStream* stream, int code);
+      AudioBuffersState audio_buffers) OVERRIDE;
+  virtual void OnError(AudioOutputStream* stream, int code) OVERRIDE;
 
  protected:
   Format format_;
   int channels_;
   double freq_;
   double sample_freq_;
+  int time_state_;
 };
 
 // Defines an interface for pushing audio output. In contrast, the interfaces
 // defined by AudioSourceCallback are pull model only.
-class PushAudioOutput {
+class MEDIA_EXPORT PushAudioOutput {
  public:
   virtual ~PushAudioOutput() {}
 
@@ -56,7 +58,7 @@ class PushAudioOutput {
 // a pull model provider AudioSourceCallback. Fundamentally it manages a series
 // of audio buffers and is unaware of the actual audio format.
 // Note that the PushSource is not thread safe and user need to provide locking.
-class PushSource
+class MEDIA_EXPORT PushSource
     : public AudioOutputStream::AudioSourceCallback,
       public PushAudioOutput {
  public:
@@ -64,15 +66,17 @@ class PushSource
   virtual ~PushSource();
 
   // Write one buffer.
-  virtual bool Write(const void* data, uint32 len);
+  virtual bool Write(const void* data, uint32 len) OVERRIDE;
 
   // Return the total number of bytes not given to the audio device yet.
-  virtual uint32 UnProcessedBytes();
+  virtual uint32 UnProcessedBytes() OVERRIDE;
 
   // Implementation of AudioSourceCallback.
-  virtual uint32 OnMoreData(AudioOutputStream* stream, uint8* dest,
-                            uint32 max_size, AudioBuffersState buffers_state);
-  virtual void OnError(AudioOutputStream* stream, int code);
+  virtual uint32 OnMoreData(AudioOutputStream* stream,
+                            uint8* dest,
+                            uint32 max_size,
+                            AudioBuffersState buffers_state) OVERRIDE;
+  virtual void OnError(AudioOutputStream* stream, int code) OVERRIDE;
 
   // Discard all buffered data and reset to initial state.
   void ClearAll();

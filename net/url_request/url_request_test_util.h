@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,15 +8,17 @@
 
 #include <stdlib.h>
 
-#include <sstream>
+#include <map>
 #include <string>
 
+#include "base/compiler_specific.h"
 #include "base/path_service.h"
 #include "base/process_util.h"
 #include "base/string_util.h"
 #include "base/string16.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
+#include "googleurl/src/url_util.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/cookie_monster.h"
 #include "net/base/host_resolver.h"
@@ -29,18 +31,13 @@
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_network_layer.h"
+#include "net/proxy/proxy_service.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_storage.h"
-#include "net/proxy/proxy_service.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "googleurl/src/url_util.h"
 
 using base::TimeDelta;
-
-namespace net {
-class HostPortPair;
-}
 
 //-----------------------------------------------------------------------------
 
@@ -106,8 +103,9 @@ class TestDelegate : public net::URLRequest::Delegate {
     allow_certificate_errors_ = val;
   }
   void set_cookie_options(int o) {cookie_options_bit_mask_ = o; }
-  void set_username(const string16& u) { username_ = u; }
-  void set_password(const string16& p) { password_ = p; }
+  void set_credentials(const net::AuthCredentials& credentials) {
+    credentials_ = credentials;
+  }
 
   // query state
   const std::string& data_received() const { return data_received_; }
@@ -122,15 +120,22 @@ class TestDelegate : public net::URLRequest::Delegate {
   }
   bool request_failed() const { return request_failed_; }
   bool have_certificate_errors() const { return have_certificate_errors_; }
+  bool certificate_errors_are_fatal() const {
+    return certificate_errors_are_fatal_;
+  }
+  bool auth_required_called() const { return auth_required_; }
 
   // net::URLRequest::Delegate:
   virtual void OnReceivedRedirect(net::URLRequest* request, const GURL& new_url,
                                   bool* defer_redirect) OVERRIDE;
   virtual void OnAuthRequired(net::URLRequest* request,
                               net::AuthChallengeInfo* auth_info) OVERRIDE;
+  // NOTE: |fatal| causes |certificate_errors_are_fatal_| to be set to true.
+  // (Unit tests use this as a post-condition.) But for policy, this method
+  // consults |allow_certificate_errors_|.
   virtual void OnSSLCertificateError(net::URLRequest* request,
-                                     int cert_error,
-                                     net::X509Certificate* cert) OVERRIDE;
+                                     const net::SSLInfo& ssl_info,
+                                     bool fatal) OVERRIDE;
   virtual bool CanGetCookies(const net::URLRequest* request,
                              const net::CookieList& cookie_list) const OVERRIDE;
   virtual bool CanSetCookie(const net::URLRequest* request,
@@ -154,9 +159,7 @@ class TestDelegate : public net::URLRequest::Delegate {
   bool quit_on_redirect_;
   bool allow_certificate_errors_;
   int cookie_options_bit_mask_;
-
-  string16 username_;
-  string16 password_;
+  net::AuthCredentials credentials_;
 
   // tracks status of callbacks
   int response_started_count_;
@@ -168,6 +171,8 @@ class TestDelegate : public net::URLRequest::Delegate {
   bool received_data_before_response_;
   bool request_failed_;
   bool have_certificate_errors_;
+  bool certificate_errors_are_fatal_;
+  bool auth_required_;
   std::string data_received_;
 
   // our read buffer
@@ -181,7 +186,7 @@ class TestNetworkDelegate : public net::NetworkDelegate {
   TestNetworkDelegate();
   virtual ~TestNetworkDelegate();
 
-  int last_os_error() const { return last_os_error_; }
+  int last_error() const { return last_error_; }
   int error_count() const { return error_count_; }
   int created_requests() const { return created_requests_; }
   int destroyed_requests() const { return destroyed_requests_; }
@@ -190,29 +195,37 @@ class TestNetworkDelegate : public net::NetworkDelegate {
  protected:
   // net::NetworkDelegate:
   virtual int OnBeforeURLRequest(net::URLRequest* request,
-                                 net::CompletionCallback* callback,
-                                 GURL* new_url);
+                                 const net::CompletionCallback& callback,
+                                 GURL* new_url) OVERRIDE;
   virtual int OnBeforeSendHeaders(net::URLRequest* request,
-                                  net::CompletionCallback* callback,
-                                  net::HttpRequestHeaders* headers);
+                                  const net::CompletionCallback& callback,
+                                  net::HttpRequestHeaders* headers) OVERRIDE;
   virtual void OnSendHeaders(net::URLRequest* request,
-                             const net::HttpRequestHeaders& headers);
+                             const net::HttpRequestHeaders& headers) OVERRIDE;
+  virtual int OnHeadersReceived(
+      net::URLRequest* request,
+      const net::CompletionCallback& callback,
+      net::HttpResponseHeaders* original_response_headers,
+      scoped_refptr<net::HttpResponseHeaders>* override_response_headers)
+      OVERRIDE;
   virtual void OnBeforeRedirect(net::URLRequest* request,
-                                const GURL& new_location);
-  virtual void OnResponseStarted(net::URLRequest* request);
-  virtual void OnRawBytesRead(const net::URLRequest& request, int bytes_read);
-  virtual void OnCompleted(net::URLRequest* request);
-  virtual void OnURLRequestDestroyed(net::URLRequest* request);
-  virtual void OnHttpTransactionDestroyed(uint64 request_id);
-  virtual net::URLRequestJob* OnMaybeCreateURLRequestJob(
-      net::URLRequest* request);
-  virtual void OnPACScriptError(int line_number, const string16& error);
-  virtual void OnAuthRequired(net::URLRequest* request,
-                              const net::AuthChallengeInfo& auth_info);
+                                const GURL& new_location) OVERRIDE;
+  virtual void OnResponseStarted(net::URLRequest* request) OVERRIDE;
+  virtual void OnRawBytesRead(const net::URLRequest& request,
+                              int bytes_read) OVERRIDE;
+  virtual void OnCompleted(net::URLRequest* request, bool started) OVERRIDE;
+  virtual void OnURLRequestDestroyed(net::URLRequest* request) OVERRIDE;
+  virtual void OnPACScriptError(int line_number,
+                                const string16& error) OVERRIDE;
+  virtual net::NetworkDelegate::AuthRequiredResponse OnAuthRequired(
+      net::URLRequest* request,
+      const net::AuthChallengeInfo& auth_info,
+      const AuthCallback& callback,
+      net::AuthCredentials* credentials) OVERRIDE;
 
   void InitRequestStatesIfNew(int request_id);
 
-  int last_os_error_;
+  int last_error_;
   int error_count_;
   int created_requests_;
   int destroyed_requests_;

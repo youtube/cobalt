@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 #define MEDIA_BASE_VIDEO_UTIL_H_
 
 #include "base/basictypes.h"
+#include "media/base/media_export.h"
 
 namespace media {
 
@@ -15,9 +16,15 @@ class VideoFrame;
 // source and destinations dimensions.
 //
 // NOTE: rows is *not* the same as height!
-void CopyYPlane(const uint8* source, int stride, int rows, VideoFrame* frame);
-void CopyUPlane(const uint8* source, int stride, int rows, VideoFrame* frame);
-void CopyVPlane(const uint8* source, int stride, int rows, VideoFrame* frame);
+MEDIA_EXPORT void CopyYPlane(const uint8* source, int stride, int rows,
+                             VideoFrame* frame);
+MEDIA_EXPORT void CopyUPlane(const uint8* source, int stride, int rows,
+                             VideoFrame* frame);
+MEDIA_EXPORT void CopyVPlane(const uint8* source, int stride, int rows,
+                             VideoFrame* frame);
+
+// Fills |frame| containing YUV data to the given color values.
+MEDIA_EXPORT void FillYUV(VideoFrame* frame, uint8 y, uint8 u, uint8 v);
 
 }  // namespace media
 

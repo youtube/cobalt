@@ -37,7 +37,7 @@ typedef struct {
   CostArray*  cost;
 } VP8Residual;
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Tables for level coding
 
 const uint8_t VP8EncBands[16 + 1] = {
@@ -51,18 +51,16 @@ static const uint8_t kCat5[] = { 180, 157, 141, 134, 130 };
 static const uint8_t kCat6[] =
     { 254, 254, 243, 230, 196, 177, 153, 140, 133, 130, 129 };
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Reset the statistics about: number of skips, token proba, level cost,...
 
 static void ResetStats(VP8Encoder* const enc, int precalc_cost) {
   VP8Proba* const proba = &enc->proba_;
   if (precalc_cost) VP8CalculateLevelCosts(proba);
   proba->nb_skip_ = 0;
-  proba->nb_i4_ = 0;
-  proba->nb_i16_ = 0;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Skip decision probability
 
 static int CalcSkipProba(uint64_t nb, uint64_t total) {
@@ -86,7 +84,7 @@ static int FinalizeSkipProba(VP8Encoder* const enc) {
   return size;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Recording of token probabilities.
 
 static void ResetTokenStats(VP8Encoder* const enc) {
@@ -101,6 +99,9 @@ static int Record(int bit, uint64_t* const stats) {
   return bit;
 }
 
+// We keep the table free variant around for reference, in case.
+#define USE_LEVEL_CODE_TABLE
+
 // Simulate block coding, but only record statistics.
 // Note: no need to record the fixed probas.
 static int RecordCoeffs(int ctx, VP8Residual* res) {
@@ -111,14 +112,16 @@ static int RecordCoeffs(int ctx, VP8Residual* res) {
   }
 
   while (1) {
-    const int v = abs(res->coeffs[n++]);
+    int v = res->coeffs[n++];
     if (!Record(v != 0, s[1])) {
       s = res->stats[VP8EncBands[n]][0];
       continue;
     }
-    if (!Record(v > 1, s[2])) {
+    if (!Record(2u < (unsigned int)(v + 1), s[2])) {  // v = -1 or 1
       s = res->stats[VP8EncBands[n]][1];
     } else {
+      v = abs(v);
+#if !defined(USE_LEVEL_CODE_TABLE)
       if (!Record(v > 4, s[3])) {
         if (Record(v != 2, s[4]))
           Record(v == 4, s[5]);
@@ -129,6 +132,20 @@ static int RecordCoeffs(int ctx, VP8Residual* res) {
       } else {
         Record((v >= 3 + (8 << 3)), s[10]);
       }
+#else
+      if (v > MAX_VARIABLE_LEVEL)
+        v = MAX_VARIABLE_LEVEL;
+
+      {
+        const int bits = VP8LevelCodes[v - 1][1];
+        int pattern = VP8LevelCodes[v - 1][0];
+        int i;
+        for (i = 0; (pattern >>= 1) != 0; ++i) {
+          const int mask = 2 << i;
+          if (pattern & 1) Record(!!(bits & mask), s[3 + i]);
+        }
+      }
+#endif
       s = res->stats[VP8EncBands[n]][2];
     }
     if (n == 16 || !Record(n <= res->last, s[0])) {
@@ -174,7 +191,7 @@ static int FinalizeTokenProbas(VP8Encoder* const enc) {
   return size;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // helper functions for residuals struct VP8Residual.
 
 static void InitResidual(int first, int coeff_type,
@@ -199,7 +216,7 @@ static void SetResidualCoeffs(const int16_t* const coeffs,
   res->coeffs = coeffs;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Mode costs
 
 static int GetResidualCost(int ctx, const VP8Residual* const res) {
@@ -213,16 +230,18 @@ static int GetResidualCost(int ctx, const VP8Residual* const res) {
     return cost;
   }
   while (n <= res->last) {
-    const int v = abs(res->coeffs[n++]);
-    cost += VP8LevelCost(t, v);
+    const int v = res->coeffs[n++];
     if (v == 0) {
+      cost += VP8LevelCost(t, 0);
       p = res->prob[VP8EncBands[n]][0];
       t = res->cost[VP8EncBands[n]][0];
       continue;
-    } else if (v == 1) {
+    } else if (2u >= (unsigned int)(v + 1)) {   // v = -1 or 1
+      cost += VP8LevelCost(t, 1);
       p = res->prob[VP8EncBands[n]][1];
       t = res->cost[VP8EncBands[n]][1];
     } else {
+      cost += VP8LevelCost(t, abs(v));
       p = res->prob[VP8EncBands[n]][2];
       t = res->cost[VP8EncBands[n]][2];
     }
@@ -292,7 +311,7 @@ int VP8GetCostUV(VP8EncIterator* const it, const VP8ModeScore* const rd) {
   return R;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Coefficient coding
 
 static int PutCoeffs(VP8BitWriter* const bw, int ctx, const VP8Residual* res) {
@@ -462,7 +481,7 @@ static void RecordResiduals(VP8EncIterator* const it,
   VP8IteratorBytesToNz(it);
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // ExtraInfo map / Debug function
 
 #if SEGMENT_VISU
@@ -525,7 +544,7 @@ static void StoreSideInfo(const VP8EncIterator* const it) {
 #endif
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // Main loops
 //
 //  VP8EncLoop(): does the final bitstream coding.
@@ -568,6 +587,14 @@ int VP8EncLoop(VP8Encoder* const enc) {
     } else {   // reset predictors after a skip
       ResetAfterSkip(&it);
     }
+#ifdef WEBP_EXPERIMENTAL_FEATURES
+    if (enc->has_alpha_) {
+      VP8EncCodeAlphaBlock(&it);
+    }
+    if (enc->use_layer_) {
+      VP8EncCodeLayerBlock(&it);
+    }
+#endif
     StoreSideInfo(&it);
     VP8StoreFilterStats(&it);
     VP8IteratorExport(&it);
@@ -589,7 +616,7 @@ int VP8EncLoop(VP8Encoder* const enc) {
   return 1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 //  VP8StatLoop(): only collect statistics (number of skips, token usage, ...)
 //                 This is used for deciding optimal probabilities. It also
 //                 modifies the quantizer value if some target (size, PNSR)
@@ -664,7 +691,7 @@ int VP8StatLoop(VP8Encoder* const enc) {
   }
 
   // binary search for a size close to target
-  for (pass = 0; pass < enc->config_->pass || (dqs[pass] > 0); ++pass) {
+  for (pass = 0; pass < enc->config_->pass && (dqs[pass] > 0); ++pass) {
     const int rd_opt = 1;
     float PSNR;
     int criterion;
@@ -688,7 +715,7 @@ int VP8StatLoop(VP8Encoder* const enc) {
   return 1;
 }
 
-//-----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }    // extern "C"

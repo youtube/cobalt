@@ -1,8 +1,10 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# For instructions see:
+# http://www.chromium.org/developers/tree-sheriffs/perf-sheriffs
 
 import hashlib
 import math
@@ -22,8 +24,10 @@ except ImportError:
 
 
 __version__ = '1.0'
-DEFAULT_CONFIG_FILE = 'chromium_perf_expectations.cfg'
-DEFAULT_VARIANCE = 0.05
+EXPECTATIONS_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_CONFIG_FILE = os.path.join(EXPECTATIONS_DIR,
+                                   'chromium_perf_expectations.cfg')
+DEFAULT_TOLERANCE = 0.05
 USAGE = ''
 
 
@@ -79,11 +83,11 @@ def GetRowData(data, key):
     if subkey in data[key]:
       rowdata.append('"%s": %s' % (subkey, data[key][subkey]))
   # Strings, like type, come next.
-  for subkey in ['type']:
+  for subkey in ['type', 'better']:
     if subkey in data[key]:
       rowdata.append('"%s": "%s"' % (subkey, data[key][subkey]))
-  # Finally improve/regress numbers come last.
-  for subkey in ['improve', 'regress']:
+  # Finally the main numbers come last.
+  for subkey in ['improve', 'regress', 'tolerance']:
     if subkey in data[key]:
       rowdata.append('"%s": %s' % (subkey, data[key][subkey]))
   return rowdata
@@ -133,6 +137,8 @@ def Main(args):
   parser = optparse.OptionParser(usage=USAGE, version=__version__)
   parser.add_option('-v', '--verbose', action='store_true', default=False,
                     help='enable verbose output')
+  parser.add_option('-s', '--checksum', action='store_true',
+                    help='test if any changes are pending')
   parser.add_option('-c', '--config', dest='config_file',
                     default=DEFAULT_CONFIG_FILE,
                     help='set the config file to FILE', metavar='FILE')
@@ -157,9 +163,11 @@ def Main(args):
   perfkeys.sort()
 
   write_new_expectations = False
+  found_checksum_mismatch = False
   for key in perfkeys:
     value = perf[key]
-    variance = DEFAULT_VARIANCE
+    tolerance = value.get('tolerance', DEFAULT_TOLERANCE)
+    better = value.get('better', None)
 
     # Verify the checksum.
     original_checksum = value.get('sha1', '')
@@ -169,6 +177,9 @@ def Main(args):
     computed_checksum = GetRowDigest(rowdata, key)
     if original_checksum == computed_checksum:
       OutputMessage('checksum matches, skipping')
+      continue
+    elif options.checksum:
+      found_checksum_mismatch = True
       continue
 
     # Skip expectations that are missing a reva or revb.  We can't generate
@@ -202,8 +213,9 @@ def Main(args):
     summary_url = '%s/%s/%s/%s-summary.dat' % (base_url, system, test, graph)
     summaryjson = FetchUrlContents(summary_url)
     if not summaryjson:
-      OutputMessage('missing json data, skipping')
-      continue
+      OutputMessage('ERROR: cannot find json data, please verify',
+                    verbose_message=False)
+      return 0
 
     # Set value's type to 'relative' by default.
     value_type = value.get('type', 'relative')
@@ -267,20 +279,37 @@ def Main(args):
       regress = float(trace_values[tracename]['high'])
       improve = float(trace_values[tracename]['low'])
 
+    # So far we've assumed better is lower (regress > improve).  If the actual
+    # values for regress and improve are equal, though, and better was not
+    # specified, alert the user so we don't let them create a new file with
+    # ambiguous rules.
+    if better == None and regress == improve:
+      OutputMessage('regress (%s) is equal to improve (%s), and "better" is '
+                    'unspecified, please fix by setting "better": "lower" or '
+                    '"better": "higher" in this perf trace\'s expectation' % (
+                    regress, improve), verbose_message=False)
+      return 1
+
     # If the existing values assume regressions are low deltas relative to
     # improvements, swap our regress and improve.  This value must be a
     # scores-like result.
     if ('regress' in perf[key] and 'improve' in perf[key] and
         perf[key]['regress'] < perf[key]['improve']):
+      assert(better != 'lower')
+      better = 'higher'
       temp = regress
       regress = improve
       improve = temp
-    if regress < improve:
-      regress = int(math.floor(regress - abs(regress*variance)))
-      improve = int(math.ceil(improve + abs(improve*variance)))
     else:
-      improve = int(math.floor(improve - abs(improve*variance)))
-      regress = int(math.ceil(regress + abs(regress*variance)))
+      assert(better != 'higher')
+      better = 'lower'
+
+    if better == 'higher':
+      regress = int(math.floor(regress - abs(regress*tolerance)))
+      improve = int(math.ceil(improve + abs(improve*tolerance)))
+    else:
+      improve = int(math.floor(improve - abs(improve*tolerance)))
+      regress = int(math.ceil(regress + abs(regress*tolerance)))
 
     # Calculate the new checksum to test if this is the only thing that may have
     # changed.
@@ -300,6 +329,12 @@ def Main(args):
     perf[key]['improve'] = improve
     OutputMessage('after: %s' % perf[key], verbose_message=False)
 
+  if options.checksum:
+    if found_checksum_mismatch:
+      return 1
+    else:
+      return 0
+
   if write_new_expectations:
     print '\nWriting expectations... ',
     WriteJson(perf_file, perf, perfkeys)
@@ -308,6 +343,7 @@ def Main(args):
     if options.verbose:
       print ''
     print 'No changes.'
+  return 0
 
 
 if __name__ == '__main__':

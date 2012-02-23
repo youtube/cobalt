@@ -5,20 +5,12 @@
 #include <limits>
 
 #include "base/i18n/number_formatting.h"
+#include "base/i18n/rtl.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "unicode/locid.h"
 
+namespace base {
 namespace {
-
-void SetICUDefaultLocale(const std::string& locale_string) {
-  icu::Locale locale(locale_string.c_str());
-  UErrorCode error_code = U_ZERO_ERROR;
-  icu::Locale::setDefault(locale, error_code);
-  EXPECT_TRUE(U_SUCCESS(error_code));
-}
-
-}  // namespace
 
 TEST(NumberFormattingTest, FormatNumber) {
   static const struct {
@@ -36,14 +28,14 @@ TEST(NumberFormattingTest, FormatNumber) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
-    SetICUDefaultLocale("en");
-    base::testing::ResetFormatters();
+    i18n::SetICUDefaultLocale("en");
+    testing::ResetFormatters();
     EXPECT_EQ(cases[i].expected_english,
-              UTF16ToUTF8(base::FormatNumber(cases[i].number)));
-    SetICUDefaultLocale("de");
-    base::testing::ResetFormatters();
+              UTF16ToUTF8(FormatNumber(cases[i].number)));
+    i18n::SetICUDefaultLocale("de");
+    testing::ResetFormatters();
     EXPECT_EQ(cases[i].expected_german,
-              UTF16ToUTF8(base::FormatNumber(cases[i].number)));
+              UTF16ToUTF8(FormatNumber(cases[i].number)));
   }
 }
 
@@ -55,7 +47,10 @@ TEST(NumberFormattingTest, FormatDouble) {
     const char* expected_german;
   } cases[] = {
     {0.0, 0, "0", "0"},
+#if !defined(OS_ANDROID)
+    // Bionic can't printf negative zero correctly.
     {-0.0, 4, "-0.0000", "-0,0000"},
+#endif
     {1024.2, 0, "1,024", "1.024"},
     {-1024.223, 2, "-1,024.22", "-1.024,22"},
     {std::numeric_limits<double>::max(), 6,
@@ -78,15 +73,16 @@ TEST(NumberFormattingTest, FormatDouble) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
-  SetICUDefaultLocale("en");
-  base::testing::ResetFormatters();
-  EXPECT_EQ(cases[i].expected_english,
-            UTF16ToUTF8(base::FormatDouble(cases[i].number,
-                                           cases[i].frac_digits)));
-  SetICUDefaultLocale("de");
-  base::testing::ResetFormatters();
-  EXPECT_EQ(cases[i].expected_german,
-            UTF16ToUTF8(base::FormatDouble(cases[i].number,
-                                           cases[i].frac_digits)));
+    i18n::SetICUDefaultLocale("en");
+    testing::ResetFormatters();
+    EXPECT_EQ(cases[i].expected_english,
+              UTF16ToUTF8(FormatDouble(cases[i].number, cases[i].frac_digits)));
+    i18n::SetICUDefaultLocale("de");
+    testing::ResetFormatters();
+    EXPECT_EQ(cases[i].expected_german,
+              UTF16ToUTF8(FormatDouble(cases[i].number, cases[i].frac_digits)));
   }
 }
+
+}  // namespace
+}  // namespace base

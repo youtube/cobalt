@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,6 +15,7 @@
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_proxy_client_socket.h"
+#include "net/http/http_server_properties_impl.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_histograms.h"
@@ -49,7 +50,7 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
   HttpProxyClientSocketPoolTest()
       : ssl_config_(),
         ignored_transport_socket_params_(new TransportSocketParams(
-            HostPortPair("proxy", 80), LOWEST, GURL(), false, false)),
+            HostPortPair("proxy", 80), LOWEST, false, false)),
         ignored_ssl_socket_params_(new SSLSocketParams(
             ignored_transport_socket_params_, NULL, NULL,
             ProxyServer::SCHEME_DIRECT, HostPortPair("www.google.com", 443),
@@ -67,9 +68,9 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
                          &host_resolver_,
                          &cert_verifier_,
                          NULL /* origin_bound_cert_store */,
-                         NULL /* dnsrr_resolver */,
-                         NULL /* dns_cert_checker */,
+                         NULL /* transport_security_state */,
                          NULL /* ssl_host_info_factory */,
+                         ""   /* ssl_session_cache_shard */,
                          &socket_factory_,
                          &transport_socket_pool_,
                          NULL,
@@ -101,8 +102,7 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
                                      "MyRealm1",
                                      HttpAuth::AUTH_SCHEME_BASIC,
                                      "Basic realm=MyRealm1",
-                                     kFoo,
-                                     kBar,
+                                     AuthCredentials(kFoo, kBar),
                                      "/");
   }
 
@@ -146,7 +146,7 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
     return socket_factory_;
   }
 
-  void Initialize(bool async, MockRead* reads, size_t reads_count,
+  void Initialize(MockRead* reads, size_t reads_count,
                   MockWrite* writes, size_t writes_count,
                   MockRead* spdy_reads, size_t spdy_reads_count,
                   MockWrite* spdy_writes, size_t spdy_writes_count) {
@@ -157,13 +157,13 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
       data_ = new DeterministicSocketData(reads, reads_count, writes,
                                           writes_count);
 
-    data_->set_connect_data(MockConnect(async, 0));
+    data_->set_connect_data(MockConnect(SYNCHRONOUS, OK));
     data_->StopAfter(2);  // Request / Response
 
     socket_factory_.AddSocketDataProvider(data_.get());
 
     if (GetParam() != HTTP) {
-      ssl_data_.reset(new SSLSocketDataProvider(async, OK));
+      ssl_data_.reset(new SSLSocketDataProvider(false, OK));
       if (GetParam() == SPDY) {
         InitializeSpdySsl();
       }
@@ -174,8 +174,9 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
   void InitializeSpdySsl() {
     spdy::SpdyFramer::set_enable_compression_default(false);
     ssl_data_->next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-    ssl_data_->next_proto = "spdy/2";
+    ssl_data_->next_proto = "spdy/2.1";
     ssl_data_->was_npn_negotiated = true;
+    ssl_data_->protocol_negotiated = SSLClientSocket::kProtoSPDY21;
   }
 
   HttpNetworkSession* CreateNetworkSession() {
@@ -186,6 +187,7 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
     params.client_socket_factory = &socket_factory_;
     params.ssl_config_service = ssl_config_service_;
     params.http_auth_handler_factory = http_auth_handler_factory_.get();
+    params.http_server_properties = &http_server_properties_;
     return new HttpNetworkSession(params);
   }
 
@@ -205,6 +207,7 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
   SSLClientSocketPool ssl_socket_pool_;
 
   const scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory_;
+  HttpServerPropertiesImpl http_server_properties_;
   const scoped_refptr<HttpNetworkSession> session_;
   ClientSocketPoolHistograms http_proxy_histograms_;
 
@@ -224,10 +227,10 @@ INSTANTIATE_TEST_CASE_P(HttpProxyClientSocketPoolTests,
                         ::testing::Values(HTTP, HTTPS, SPDY));
 
 TEST_P(HttpProxyClientSocketPoolTest, NoTunnel) {
-  Initialize(false, NULL, 0, NULL, 0, NULL, 0, NULL, 0);
+  Initialize(NULL, 0, NULL, 0, NULL, 0, NULL, 0);
 
-  int rv = handle_.Init("a", GetNoTunnelParams(), LOW, NULL, &pool_,
-                       BoundNetLog());
+  int rv = handle_.Init("a", GetNoTunnelParams(), LOW, CompletionCallback(),
+                        &pool_, BoundNetLog());
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(handle_.is_initialized());
   ASSERT_TRUE(handle_.socket());
@@ -263,13 +266,13 @@ TEST_P(HttpProxyClientSocketPoolTest, NeedAuth) {
     MockRead(true, 0, 3)
   };
 
-  Initialize(false, reads, arraysize(reads), writes, arraysize(writes),
+  Initialize(reads, arraysize(reads), writes, arraysize(writes),
              spdy_reads, arraysize(spdy_reads), spdy_writes,
              arraysize(spdy_writes));
 
   data_->StopAfter(4);
-  int rv = handle_.Init("a", GetTunnelParams(), LOW, &callback_, &pool_,
-                       BoundNetLog());
+  int rv = handle_.Init("a", GetTunnelParams(), LOW, callback_.callback(),
+                        &pool_, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle_.is_initialized());
   EXPECT_FALSE(handle_.socket());
@@ -293,7 +296,7 @@ TEST_P(HttpProxyClientSocketPoolTest, NeedAuth) {
 }
 
 TEST_P(HttpProxyClientSocketPoolTest, HaveAuth) {
-  // It's pretty much impossible to make the SPDY case becave synchronously
+  // It's pretty much impossible to make the SPDY case behave synchronously
   // so we skip this test for SPDY
   if (GetParam() == SPDY)
     return;
@@ -308,12 +311,12 @@ TEST_P(HttpProxyClientSocketPoolTest, HaveAuth) {
     MockRead(false, 1, "HTTP/1.1 200 Connection Established\r\n\r\n"),
   };
 
-  Initialize(false, reads, arraysize(reads), writes, arraysize(writes), NULL, 0,
+  Initialize(reads, arraysize(reads), writes, arraysize(writes), NULL, 0,
              NULL, 0);
   AddAuthToCache();
 
-  int rv = handle_.Init("a", GetTunnelParams(), LOW, &callback_, &pool_,
-                       BoundNetLog());
+  int rv = handle_.Init("a", GetTunnelParams(), LOW, callback_.callback(),
+                        &pool_, BoundNetLog());
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(handle_.is_initialized());
   ASSERT_TRUE(handle_.socket());
@@ -344,13 +347,13 @@ TEST_P(HttpProxyClientSocketPoolTest, AsyncHaveAuth) {
     MockRead(true, 0, 2)
   };
 
-  Initialize(false, reads, arraysize(reads), writes, arraysize(writes),
+  Initialize(reads, arraysize(reads), writes, arraysize(writes),
              spdy_reads, arraysize(spdy_reads), spdy_writes,
              arraysize(spdy_writes));
   AddAuthToCache();
 
-  int rv = handle_.Init("a", GetTunnelParams(), LOW, &callback_, &pool_,
-                       BoundNetLog());
+  int rv = handle_.Init("a", GetTunnelParams(), LOW, callback_.callback(),
+                        &pool_, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle_.is_initialized());
   EXPECT_FALSE(handle_.socket());
@@ -367,12 +370,12 @@ TEST_P(HttpProxyClientSocketPoolTest, AsyncHaveAuth) {
 TEST_P(HttpProxyClientSocketPoolTest, TCPError) {
   if (GetParam() == SPDY) return;
   data_ = new DeterministicSocketData(NULL, 0, NULL, 0);
-  data_->set_connect_data(MockConnect(true, ERR_CONNECTION_CLOSED));
+  data_->set_connect_data(MockConnect(ASYNC, ERR_CONNECTION_CLOSED));
 
   socket_factory().AddSocketDataProvider(data_.get());
 
-  int rv = handle_.Init("a", GetTunnelParams(), LOW, &callback_, &pool_,
-                       BoundNetLog());
+  int rv = handle_.Init("a", GetTunnelParams(), LOW, callback_.callback(),
+                        &pool_, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle_.is_initialized());
   EXPECT_FALSE(handle_.socket());
@@ -386,7 +389,7 @@ TEST_P(HttpProxyClientSocketPoolTest, TCPError) {
 TEST_P(HttpProxyClientSocketPoolTest, SSLError) {
   if (GetParam() == HTTP) return;
   data_ = new DeterministicSocketData(NULL, 0, NULL, 0);
-  data_->set_connect_data(MockConnect(true, OK));
+  data_->set_connect_data(MockConnect(ASYNC, OK));
   socket_factory().AddSocketDataProvider(data_.get());
 
   ssl_data_.reset(new SSLSocketDataProvider(true,
@@ -396,8 +399,8 @@ TEST_P(HttpProxyClientSocketPoolTest, SSLError) {
   }
   socket_factory().AddSSLSocketDataProvider(ssl_data_.get());
 
-  int rv = handle_.Init("a", GetTunnelParams(), LOW, &callback_, &pool_,
-                        BoundNetLog());
+  int rv = handle_.Init("a", GetTunnelParams(), LOW, callback_.callback(),
+                        &pool_, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle_.is_initialized());
   EXPECT_FALSE(handle_.socket());
@@ -411,7 +414,7 @@ TEST_P(HttpProxyClientSocketPoolTest, SSLError) {
 TEST_P(HttpProxyClientSocketPoolTest, SslClientAuth) {
   if (GetParam() == HTTP) return;
   data_ = new DeterministicSocketData(NULL, 0, NULL, 0);
-  data_->set_connect_data(MockConnect(true, OK));
+  data_->set_connect_data(MockConnect(ASYNC, OK));
   socket_factory().AddSocketDataProvider(data_.get());
 
   ssl_data_.reset(new SSLSocketDataProvider(true,
@@ -421,8 +424,8 @@ TEST_P(HttpProxyClientSocketPoolTest, SslClientAuth) {
   }
   socket_factory().AddSSLSocketDataProvider(ssl_data_.get());
 
-  int rv = handle_.Init("a", GetTunnelParams(), LOW, &callback_, &pool_,
-                       BoundNetLog());
+  int rv = handle_.Init("a", GetTunnelParams(), LOW, callback_.callback(),
+                        &pool_, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle_.is_initialized());
   EXPECT_FALSE(handle_.socket());
@@ -454,13 +457,13 @@ TEST_P(HttpProxyClientSocketPoolTest, TunnelUnexpectedClose) {
     MockRead(true, ERR_CONNECTION_CLOSED, 1),
   };
 
-  Initialize(false, reads, arraysize(reads), writes, arraysize(writes),
+  Initialize(reads, arraysize(reads), writes, arraysize(writes),
              spdy_reads, arraysize(spdy_reads), spdy_writes,
              arraysize(spdy_writes));
   AddAuthToCache();
 
-  int rv = handle_.Init("a", GetTunnelParams(), LOW, &callback_, &pool_,
-                       BoundNetLog());
+  int rv = handle_.Init("a", GetTunnelParams(), LOW, callback_.callback(),
+                        &pool_, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle_.is_initialized());
   EXPECT_FALSE(handle_.socket());
@@ -495,13 +498,13 @@ TEST_P(HttpProxyClientSocketPoolTest, TunnelSetupError) {
     MockRead(true, 0, 3),
   };
 
-  Initialize(false, reads, arraysize(reads), writes, arraysize(writes),
+  Initialize(reads, arraysize(reads), writes, arraysize(writes),
              spdy_reads, arraysize(spdy_reads), spdy_writes,
              arraysize(spdy_writes));
   AddAuthToCache();
 
-  int rv = handle_.Init("a", GetTunnelParams(), LOW, &callback_, &pool_,
-                       BoundNetLog());
+  int rv = handle_.Init("a", GetTunnelParams(), LOW, callback_.callback(),
+                        &pool_, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle_.is_initialized());
   EXPECT_FALSE(handle_.socket());

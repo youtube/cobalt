@@ -283,27 +283,27 @@ TEST(StringSplitTest, StringSplitDontTrim) {
 
 TEST(StringSplitTest, SplitStringAlongWhitespace) {
   struct TestData {
-    const std::wstring input;
+    const char* input;
     const size_t expected_result_count;
-    const std::wstring output1;
-    const std::wstring output2;
+    const char* output1;
+    const char* output2;
   } data[] = {
-    { L"a",       1, L"a",  L""   },
-    { L" ",       0, L"",   L""   },
-    { L" a",      1, L"a",  L""   },
-    { L" ab ",    1, L"ab", L""   },
-    { L" ab c",   2, L"ab", L"c"  },
-    { L" ab c ",  2, L"ab", L"c"  },
-    { L" ab cd",  2, L"ab", L"cd" },
-    { L" ab cd ", 2, L"ab", L"cd" },
-    { L" \ta\t",  1, L"a",  L""   },
-    { L" b\ta\t", 2, L"b",  L"a"  },
-    { L" b\tat",  2, L"b",  L"at" },
-    { L"b\tat",   2, L"b",  L"at" },
-    { L"b\t at",  2, L"b",  L"at" },
+    { "a",       1, "a",  ""   },
+    { " ",       0, "",   ""   },
+    { " a",      1, "a",  ""   },
+    { " ab ",    1, "ab", ""   },
+    { " ab c",   2, "ab", "c"  },
+    { " ab c ",  2, "ab", "c"  },
+    { " ab cd",  2, "ab", "cd" },
+    { " ab cd ", 2, "ab", "cd" },
+    { " \ta\t",  1, "a",  ""   },
+    { " b\ta\t", 2, "b",  "a"  },
+    { " b\tat",  2, "b",  "at" },
+    { "b\tat",   2, "b",  "at" },
+    { "b\t at",  2, "b",  "at" },
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(data); ++i) {
-    std::vector<std::wstring> results;
+    std::vector<std::string> results;
     SplitStringAlongWhitespace(data[i].input, &results);
     ASSERT_EQ(data[i].expected_result_count, results.size());
     if (data[i].expected_result_count > 0)

@@ -8,9 +8,8 @@
 
 #include <string>
 
-#include "base/string16.h"
 #include "net/base/completion_callback.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/net_log.h"
 #include "net/http/http_auth.h"
 
@@ -21,14 +20,14 @@ struct HttpRequestInfo;
 // HttpAuthHandler is the interface for the authentication schemes
 // (basic, digest, NTLM, Negotiate).
 // HttpAuthHandler objects are typically created by an HttpAuthHandlerFactory.
-class NET_TEST HttpAuthHandler {
+class NET_EXPORT_PRIVATE HttpAuthHandler {
  public:
   HttpAuthHandler();
   virtual ~HttpAuthHandler();
 
   // Initializes the handler using a challenge issued by a server.
   // |challenge| must be non-NULL and have already tokenized the
-  // authentication scheme, but none of the tokens occuring after the
+  // authentication scheme, but none of the tokens occurring after the
   // authentication scheme. |target| and |origin| are both stored
   // for later use, and are not part of the initial challenge.
   bool InitFromChallenge(HttpAuth::ChallengeTokenizer* challenge,
@@ -47,33 +46,34 @@ class NET_TEST HttpAuthHandler {
   // be made with a different nonce provided in the challenge.
   //
   // |challenge| must be non-NULL and have already tokenized the
-  // authentication scheme, but none of the tokens occuring after the
+  // authentication scheme, but none of the tokens occurring after the
   // authentication scheme.
   virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
       HttpAuth::ChallengeTokenizer* challenge) = 0;
 
   // Generates an authentication token, potentially asynchronously.
   //
-  // When |username| and |password| are NULL, the default credentials for
-  // the currently logged in user are used. |AllowsDefaultCredentials()| MUST be
-  // true in this case.
+  // When |credentials| is NULL, the default credentials for the currently
+  // logged in user are used. |AllowsDefaultCredentials()| MUST be true in this
+  // case.
   //
   // |request|, |callback|, and |auth_token| must be non-NULL.
   //
   // The return value is a net error code.
+  //
   // If |OK| is returned, |*auth_token| is filled in with an authentication
   // token which can be inserted in the HTTP request.
+  //
   // If |ERR_IO_PENDING| is returned, |*auth_token| will be filled in
   // asynchronously and |callback| will be invoked. The lifetime of
   // |request|, |callback|, and |auth_token| must last until |callback| is
-  // invoked, but |username| and |password| are only used during the initial
-  // call.
-  // Otherwise, there was a problem generating a token synchronously, and the
-  // value of |*auth_token| is unspecified.
-  int GenerateAuthToken(const string16* username,
-                        const string16* password,
+  // invoked, but |credentials| is only used during the initial call.
+  //
+  // All other return codes indicate that there was a problem generating a
+  // token, and the value of |*auth_token| is unspecified.
+  int GenerateAuthToken(const AuthCredentials* credentials,
                         const HttpRequestInfo* request,
-                        CompletionCallback* callback,
+                        const CompletionCallback& callback,
                         std::string* auth_token);
 
   // The authentication scheme as an enumerated value.
@@ -81,7 +81,7 @@ class NET_TEST HttpAuthHandler {
     return auth_scheme_;
   }
 
-  // The realm value that was parsed during Init().
+  // The realm, encoded as UTF-8. This may be empty.
   const std::string& realm() const {
     return realm_;
   }
@@ -135,6 +135,11 @@ class NET_TEST HttpAuthHandler {
   // TODO(cbentzel): Add a pointer to Firefox documentation about risk.
   virtual bool AllowsDefaultCredentials();
 
+  // Returns whether explicit credentials can be used with this handler.  If
+  // true the user may be prompted for credentials if an implicit identity
+  // cannot be determined.
+  virtual bool AllowsExplicitCredentials();
+
  protected:
   enum Property {
     ENCRYPTS_IDENTITY = 1 << 0,
@@ -143,25 +148,24 @@ class NET_TEST HttpAuthHandler {
 
   // Initializes the handler using a challenge issued by a server.
   // |challenge| must be non-NULL and have already tokenized the
-  // authentication scheme, but none of the tokens occuring after the
+  // authentication scheme, but none of the tokens occurring after the
   // authentication scheme.
-  // Implementations are expcted to initialize the following members:
+  // Implementations are expected to initialize the following members:
   // scheme_, realm_, score_, properties_
   virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) = 0;
 
   // |GenerateAuthTokenImpl()} is the auth-scheme specific implementation
-  // of generating the next auth token. Callers sohuld use |GenerateAuthToken()|
+  // of generating the next auth token. Callers should use |GenerateAuthToken()|
   // which will in turn call |GenerateAuthTokenImpl()|
-  virtual int GenerateAuthTokenImpl(const string16* username,
-                                    const string16* password,
+  virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
                                     const HttpRequestInfo* request,
-                                    CompletionCallback* callback,
+                                    const CompletionCallback& callback,
                                     std::string* auth_token) = 0;
 
   // The auth-scheme as an enumerated value.
   HttpAuth::Scheme auth_scheme_;
 
-  // The realm.  Used by "basic" and "digest".
+  // The realm, encoded as UTF-8. Used by "basic" and "digest".
   std::string realm_;
 
   // The auth challenge.
@@ -187,8 +191,7 @@ class NET_TEST HttpAuthHandler {
   void OnGenerateAuthTokenComplete(int rv);
   void FinishGenerateAuthToken();
 
-  CompletionCallback* original_callback_;
-  CompletionCallbackImpl<HttpAuthHandler> wrapper_callback_;
+  CompletionCallback callback_;
 };
 
 }  // namespace net

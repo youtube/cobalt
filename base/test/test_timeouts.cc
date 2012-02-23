@@ -11,10 +11,18 @@
 
 namespace {
 
+#ifdef ADDRESS_SANITIZER
+static const int kTimeoutMultiplier = 2;
+#else
+static const int kTimeoutMultiplier = 1;
+#endif
+
 // Sets value to the greatest of:
-// 1) value's current value.
+// 1) value's current value multiplied by kTimeoutMultiplier (assuming
+// InitializeTimeout is called only once per value).
 // 2) min_value.
-// 3) the numerical value given by switch_name on the command line.
+// 3) the numerical value given by switch_name on the command line multiplied
+// by kTimeoutMultiplier.
 void InitializeTimeout(const char* switch_name, int min_value, int* value) {
   DCHECK(value);
   if (CommandLine::ForCurrentProcess()->HasSwitch(switch_name)) {
@@ -24,13 +32,15 @@ void InitializeTimeout(const char* switch_name, int min_value, int* value) {
     base::StringToInt(string_value, &timeout);
     *value = std::max(*value, timeout);
   }
+  *value *= kTimeoutMultiplier;
   *value = std::max(*value, min_value);
 }
 
 // Sets value to the greatest of:
-// 1) value's current value.
+// 1) value's current value multiplied by kTimeoutMultiplier.
 // 2) 0
-// 3) the numerical value given by switch_name on the command line.
+// 3) the numerical value given by switch_name on the command line multiplied
+// by kTimeoutMultiplier.
 void InitializeTimeout(const char* switch_name, int* value) {
   InitializeTimeout(switch_name, 0, value);
 }
@@ -43,13 +53,9 @@ bool TestTimeouts::initialized_ = false;
 // The timeout values should increase in the order they appear in this block.
 // static
 int TestTimeouts::tiny_timeout_ms_ = 100;
-int TestTimeouts::action_timeout_ms_ = 2000;
-int TestTimeouts::action_max_timeout_ms_ = 25000;
-int TestTimeouts::large_test_timeout_ms_ = 3 * 60 * 1000;
-int TestTimeouts::huge_test_timeout_ms_ = 10 * 60 * 1000;
-
-// static
-int TestTimeouts::live_operation_timeout_ms_ = 45000;
+int TestTimeouts::action_timeout_ms_ = 10000;
+int TestTimeouts::action_max_timeout_ms_ = 45000;
+int TestTimeouts::large_test_timeout_ms_ = 10 * 60 * 1000;
 
 // static
 void TestTimeouts::Initialize() {
@@ -66,19 +72,11 @@ void TestTimeouts::Initialize() {
                     &action_timeout_ms_);
   InitializeTimeout(switches::kUiTestActionMaxTimeout, action_timeout_ms_,
                     &action_max_timeout_ms_);
-  // TODO(phajdan.jr): Fix callers and remove kTestTerminateTimeout.
-  InitializeTimeout(switches::kTestTerminateTimeout, &action_max_timeout_ms_);
   InitializeTimeout(switches::kTestLargeTimeout, action_max_timeout_ms_,
                     &large_test_timeout_ms_);
-  InitializeTimeout(switches::kUiTestTimeout, large_test_timeout_ms_,
-                    &huge_test_timeout_ms_);
 
   // The timeout values should be increasing in the right order.
   CHECK(tiny_timeout_ms_ <= action_timeout_ms_);
   CHECK(action_timeout_ms_ <= action_max_timeout_ms_);
   CHECK(action_max_timeout_ms_ <= large_test_timeout_ms_);
-  CHECK(large_test_timeout_ms_ <= huge_test_timeout_ms_);
-
-  InitializeTimeout(switches::kLiveOperationTimeout,
-                    &live_operation_timeout_ms_);
 }

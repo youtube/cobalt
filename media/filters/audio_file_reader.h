@@ -18,7 +18,7 @@ namespace media {
 
 class FFmpegURLProtocol;
 
-class AudioFileReader {
+class MEDIA_EXPORT AudioFileReader {
  public:
   // Audio file data will be read using the given protocol.
   // The AudioFileReader does not take ownership of |protocol| and

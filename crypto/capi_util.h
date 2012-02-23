@@ -29,6 +29,12 @@ CRYPTO_EXPORT BOOL CryptAcquireContextLocked(HCRYPTPROV* prov,
                                              DWORD prov_type,
                                              DWORD flags);
 
+// Wrappers of malloc and free for CryptoAPI routines that need memory
+// allocators, such as in CRYPT_DECODE_PARA. Such routines require WINAPI
+// calling conventions.
+CRYPTO_EXPORT void* WINAPI CryptAlloc(size_t size);
+CRYPTO_EXPORT void WINAPI CryptFree(void* p);
+
 }  // namespace crypto
 
 #endif  // CRYPTO_CAPI_UTIL_H_

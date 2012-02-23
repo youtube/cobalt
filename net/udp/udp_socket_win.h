@@ -21,8 +21,6 @@
 
 namespace net {
 
-class BoundNetLog;
-
 class UDPSocketWin : public base::NonThreadSafe {
  public:
   UDPSocketWin(DatagramSocket::BindType bind_type,
@@ -57,12 +55,12 @@ class UDPSocketWin : public base::NonThreadSafe {
   // Read from the socket.
   // Only usable from the client-side of a UDP socket, after the socket
   // has been connected.
-  int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
+  int Read(IOBuffer* buf, int buf_len, const CompletionCallback& callback);
 
   // Write to the socket.
   // Only usable from the client-side of a UDP socket, after the socket
   // has been connected.
-  int Write(IOBuffer* buf, int buf_len, CompletionCallback* callback);
+  int Write(IOBuffer* buf, int buf_len, const CompletionCallback& callback);
 
   // Read from a socket and receive sender address information.
   // |buf| is the buffer to read data into.
@@ -80,7 +78,7 @@ class UDPSocketWin : public base::NonThreadSafe {
   int RecvFrom(IOBuffer* buf,
                int buf_len,
                IPEndPoint* address,
-               CompletionCallback* callback);
+               const CompletionCallback& callback);
 
   // Send to a socket with a particular destination.
   // |buf| is the buffer to send
@@ -94,7 +92,13 @@ class UDPSocketWin : public base::NonThreadSafe {
   int SendTo(IOBuffer* buf,
              int buf_len,
              const IPEndPoint& address,
-             CompletionCallback* callback);
+             const CompletionCallback& callback);
+
+  // Set the receive buffer size (in bytes) for the socket.
+  bool SetReceiveBufferSize(int32 size);
+
+  // Set the send buffer size (in bytes) for the socket.
+  bool SetSendBufferSize(int32 size);
 
   // Returns true if the socket is already connected or bound.
   bool is_connected() const { return socket_ != INVALID_SOCKET; }
@@ -130,8 +134,12 @@ class UDPSocketWin : public base::NonThreadSafe {
   void DoWriteCallback(int rv);
   void DidCompleteRead();
   void DidCompleteWrite();
-  bool ProcessSuccessfulRead(int num_bytes, IPEndPoint* address);
-  void ProcessSuccessfulWrite(int num_bytes);
+
+  // Handles stats and logging. |result| is the number of bytes transferred, on
+  // success, or the net error code on failure. LogRead retrieves the address
+  // from |recv_addr_storage_|, while LogWrite takes it as an optional argument.
+  void LogRead(int result, const char* bytes) const;
+  void LogWrite(int result, const char* bytes, const IPEndPoint* address) const;
 
   // Returns the OS error code (or 0 on success).
   int CreateSocket(const IPEndPoint& address);
@@ -142,13 +150,18 @@ class UDPSocketWin : public base::NonThreadSafe {
   int SendToOrWrite(IOBuffer* buf,
                     int buf_len,
                     const IPEndPoint* address,
-                    CompletionCallback* callback);
+                    const CompletionCallback& callback);
 
+  int InternalConnect(const IPEndPoint& address);
   int InternalRecvFrom(IOBuffer* buf, int buf_len, IPEndPoint* address);
   int InternalSendTo(IOBuffer* buf, int buf_len, const IPEndPoint* address);
 
   int DoBind(const IPEndPoint& address);
   int RandomBind(const IPEndPoint& address);
+
+  // Attempts to convert the data in |recv_addr_storage_| and |recv_addr_len_|
+  // to an IPEndPoint and writes it to |address|. Returns true on success.
+  bool ReceiveAddressToIPEndpoint(IPEndPoint* address) const;
 
   SOCKET socket_;
 
@@ -182,14 +195,18 @@ class UDPSocketWin : public base::NonThreadSafe {
   socklen_t recv_addr_len_;
   IPEndPoint* recv_from_address_;
 
+  // Cached copy of the current address we're sending to, if any.  Used for
+  // logging.
+  scoped_ptr<IPEndPoint> send_to_address_;
+
   // The buffer used by InternalWrite() to retry Write requests
   scoped_refptr<IOBuffer> write_iobuffer_;
 
   // External callback; called when read is complete.
-  CompletionCallback* read_callback_;
+  CompletionCallback read_callback_;
 
   // External callback; called when write is complete.
-  CompletionCallback* write_callback_;
+  CompletionCallback write_callback_;
 
   BoundNetLog net_log_;
 

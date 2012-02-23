@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,6 +12,7 @@
 #include "base/logging.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
+#include "base/synchronization/lock.h"
 #include "base/utf_string_conversions.h"
 #include "googleurl/src/gurl.h"
 #include "googleurl/src/url_canon.h"
@@ -138,8 +139,10 @@ const size_t kMaxStringBytesForCopy = 256;
 
 // Converts a V8 String to a UTF8 std::string.
 std::string V8StringToUTF8(v8::Handle<v8::String> s) {
+  int len = s->Length();
   std::string result;
-  s->WriteUtf8(WriteInto(&result, s->Length() + 1));
+  if (len > 0)
+    s->WriteUtf8(WriteInto(&result, len + 1));
   return result;
 }
 
@@ -149,7 +152,8 @@ string16 V8StringToUTF16(v8::Handle<v8::String> s) {
   string16 result;
   // Note that the reinterpret cast is because on Windows string16 is an alias
   // to wstring, and hence has character type wchar_t not uint16_t.
-  s->Write(reinterpret_cast<uint16_t*>(WriteInto(&result, len + 1)), 0, len);
+  if (len > 0)
+    s->Write(reinterpret_cast<uint16_t*>(WriteInto(&result, len + 1)), 0, len);
   return result;
 }
 
@@ -332,7 +336,8 @@ bool IsInNetEx(const std::string& ip_address, const std::string& ip_prefix) {
 class ProxyResolverV8::Context {
  public:
   explicit Context(ProxyResolverJSBindings* js_bindings)
-      : js_bindings_(js_bindings) {
+      : is_resolving_host_(false),
+        js_bindings_(js_bindings) {
     DCHECK(js_bindings != NULL);
   }
 
@@ -364,7 +369,7 @@ class ProxyResolverV8::Context {
 
     v8::Handle<v8::Value> argv[] = {
       ASCIIStringToV8String(query_url.spec()),
-      ASCIIStringToV8String(query_url.host()),
+      ASCIIStringToV8String(query_url.HostNoBrackets()),
     };
 
     v8::TryCatch try_catch;
@@ -484,15 +489,43 @@ class ProxyResolverV8::Context {
 
   void PurgeMemory() {
     v8::Locker locked;
-    // Repeatedly call the V8 idle notification until it returns true ("nothing
-    // more to free").  Note that it makes more sense to do this than to
-    // implement a new "delete everything" pass because object references make
-    // it difficult to free everything possible in just one pass.
-    while (!v8::V8::IdleNotification())
-      ;
+    v8::V8::LowMemoryNotification();
+  }
+
+  bool is_resolving_host() const {
+    base::AutoLock auto_lock(lock_);
+    return is_resolving_host_;
   }
 
  private:
+  class ScopedHostResolve {
+   public:
+    explicit ScopedHostResolve(Context* context)
+        : context_(context) {
+      context_->BeginHostResolve();
+    }
+
+    ~ScopedHostResolve() {
+      context_->EndHostResolve();
+    }
+
+   private:
+    Context* const context_;
+    DISALLOW_COPY_AND_ASSIGN(ScopedHostResolve);
+  };
+
+  void BeginHostResolve() {
+    base::AutoLock auto_lock(lock_);
+    DCHECK(!is_resolving_host_);
+    is_resolving_host_ = true;
+  }
+
+  void EndHostResolve() {
+    base::AutoLock auto_lock(lock_);
+    DCHECK(is_resolving_host_);
+    is_resolving_host_ = false;
+  }
+
   bool GetFindProxyForURL(v8::Local<v8::Value>* function) {
     *function = v8_context_->Global()->Get(
         ASCIILiteralToV8String("FindProxyForURL"));
@@ -563,6 +596,7 @@ class ProxyResolverV8::Context {
 
     {
       v8::Unlocker unlocker;
+      ScopedHostResolve scoped_host_resolve(context);
 
       // We shouldn't be called with any arguments, but will not complain if
       // we are.
@@ -585,6 +619,7 @@ class ProxyResolverV8::Context {
 
     {
       v8::Unlocker unlocker;
+      ScopedHostResolve scoped_host_resolve(context);
 
       // We shouldn't be called with any arguments, but will not complain if
       // we are.
@@ -611,6 +646,7 @@ class ProxyResolverV8::Context {
 
     {
       v8::Unlocker unlocker;
+      ScopedHostResolve scoped_host_resolve(context);
       success = context->js_bindings_->DnsResolve(hostname, &ip_address);
     }
 
@@ -632,6 +668,7 @@ class ProxyResolverV8::Context {
 
     {
       v8::Unlocker unlocker;
+      ScopedHostResolve scoped_host_resolve(context);
       success = context->js_bindings_->DnsResolveEx(hostname, &ip_address_list);
     }
 
@@ -674,6 +711,8 @@ class ProxyResolverV8::Context {
     return IsInNetEx(ip_address, ip_prefix) ? v8::True() : v8::False();
   }
 
+  mutable base::Lock lock_;
+  bool is_resolving_host_;
   ProxyResolverJSBindings* js_bindings_;
   v8::Persistent<v8::External> v8_this_;
   v8::Persistent<v8::Context> v8_context_;
@@ -689,11 +728,11 @@ ProxyResolverV8::ProxyResolverV8(
 
 ProxyResolverV8::~ProxyResolverV8() {}
 
-int ProxyResolverV8::GetProxyForURL(const GURL& query_url,
-                                    ProxyInfo* results,
-                                    CompletionCallback* /*callback*/,
-                                    RequestHandle* /*request*/,
-                                    const BoundNetLog& net_log) {
+int ProxyResolverV8::GetProxyForURL(
+    const GURL& query_url, ProxyInfo* results,
+    const CompletionCallback& /*callback*/,
+    RequestHandle* /*request*/,
+    const BoundNetLog& net_log) {
   // If the V8 instance has not been initialized (either because
   // SetPacScript() wasn't called yet, or because it failed.
   if (!context_.get())
@@ -703,12 +742,10 @@ int ProxyResolverV8::GetProxyForURL(const GURL& query_url,
   // available to any of the javascript "bindings" that are subsequently invoked
   // from the javascript.
   //
-  // In particular, we create a HostCache that is aggressive about caching
-  // failed DNS resolves.
-  HostCache host_cache(
-      50,
-      base::TimeDelta::FromMinutes(5),
-      base::TimeDelta::FromMinutes(5));
+  // In particular, we create a HostCache to aggressively cache failed DNS
+  // resolves.
+  const unsigned kMaxCacheEntries = 50;
+  HostCache host_cache(kMaxCacheEntries);
 
   ProxyResolverRequestContext request_context(&net_log, &host_cache);
 
@@ -725,6 +762,17 @@ void ProxyResolverV8::CancelRequest(RequestHandle request) {
   NOTREACHED();
 }
 
+LoadState ProxyResolverV8::GetLoadState(RequestHandle request) const {
+  NOTREACHED();
+  return LOAD_STATE_IDLE;
+}
+
+LoadState ProxyResolverV8::GetLoadStateThreadSafe(RequestHandle request) const {
+  if (context_->is_resolving_host())
+    return LOAD_STATE_RESOLVING_HOST_IN_PROXY_SCRIPT;
+  return LOAD_STATE_RESOLVING_PROXY_FOR_URL;
+}
+
 void ProxyResolverV8::CancelSetPacScript() {
   NOTREACHED();
 }
@@ -739,7 +787,7 @@ void ProxyResolverV8::Shutdown() {
 
 int ProxyResolverV8::SetPacScript(
     const scoped_refptr<ProxyResolverScriptData>& script_data,
-    CompletionCallback* /*callback*/) {
+    const CompletionCallback& /*callback*/) {
   DCHECK(script_data.get());
   context_.reset();
   if (script_data->utf16().empty())

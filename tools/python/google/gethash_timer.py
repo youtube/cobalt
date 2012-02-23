@@ -1,24 +1,25 @@
-#!/usr/bin/python
-# Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+#!/usr/bin/env python
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# Issue a series of GetHash requests to the SafeBrowsing servers and measure the
-# response times.
-#
-# Usage:
-#
-#   $ ./gethash_timer.py --period=600 --samples=20 --output=resp.csv
-#
-#   --period (or -p):  The amount of time (in seconds) to wait between GetHash
-#                      requests. Using a value of more than 300 (5 minutes) to
-#                      include the effect of DNS.
-#
-#   --samples (or -s): The number of requests to issue. If this parameter is not
-#                      specified, the test will run indefinitely.
-#
-#   --output (or -o):  The path to a file where the output will be written in
-#                      CSV format: sample_number,response_code,elapsed_time_ms
+"""Issue a series of GetHash requests to the SafeBrowsing servers and measure
+the response times.
+
+Usage:
+
+  $ ./gethash_timer.py --period=600 --samples=20 --output=resp.csv
+
+  --period (or -p):  The amount of time (in seconds) to wait between GetHash
+                     requests. Using a value of more than 300 (5 minutes) to
+                     include the effect of DNS.
+
+  --samples (or -s): The number of requests to issue. If this parameter is not
+                     specified, the test will run indefinitely.
+
+  --output (or -o):  The path to a file where the output will be written in
+                     CSV format: sample_number,response_code,elapsed_time_ms
+"""
 
 import getopt
 import httplib
@@ -26,7 +27,8 @@ import sys
 import time
 
 _GETHASH_HOST = 'safebrowsing.clients.google.com'
-_GETHASH_REQUEST = '/safebrowsing/gethash?client=googleclient&appver=1.0&pver=2.1'
+_GETHASH_REQUEST = (
+    '/safebrowsing/gethash?client=googleclient&appver=1.0&pver=2.1')
 
 # Global logging file handle.
 g_file_handle = None
@@ -115,7 +117,7 @@ def SetupOutputFile(file_name):
   g_file_handle = open(file_name, 'w')
 
 
-if __name__ == '__main__':
+def main():
   period = 10
   samples = None
 
@@ -131,7 +133,7 @@ if __name__ == '__main__':
       file_name = value
     else:
       print 'Bad option: %s' % option
-      sys.exit(1)
+      return 1
   try:
     print 'Starting Timed GetHash ----------'
     SetupOutputFile(file_name)
@@ -142,3 +144,6 @@ if __name__ == '__main__':
   print 'Timed GetHash complete ----------'
   g_file_handle.close()
 
+
+if __name__ == '__main__':
+  sys.exit(main())

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,46 +9,67 @@
 
 namespace media {
 
+// Values for TrackType element.
+static const int kWebMTrackTypeVideo = 1;
+static const int kWebMTrackTypeAudio = 2;
+
 WebMTracksParser::WebMTracksParser(int64 timecode_scale)
     : timecode_scale_(timecode_scale),
       track_type_(-1),
       track_num_(-1),
       track_default_duration_(-1),
       audio_track_num_(-1),
-      audio_default_duration_(base::TimeDelta::FromMicroseconds(-1)),
-      video_track_num_(-1),
-      video_default_duration_(base::TimeDelta::FromMicroseconds(-1)) {
+      video_track_num_(-1) {
 }
 
 WebMTracksParser::~WebMTracksParser() {}
 
 int WebMTracksParser::Parse(const uint8* buf, int size) {
-  return WebMParseListElement(buf, size, kWebMIdTracks, 1, this);
+  track_type_ =-1;
+  track_num_ = -1;
+  track_default_duration_ = -1;
+  audio_track_num_ = -1;
+  audio_default_duration_ = base::TimeDelta();
+  video_track_num_ = -1;
+  video_default_duration_ = base::TimeDelta();
+
+  WebMListParser parser(kWebMIdTracks, this);
+  int result = parser.Parse(buf, size);
+
+  if (result <= 0)
+    return result;
+
+  // For now we do all or nothing parsing.
+  return parser.IsParsingComplete() ? result : 0;
 }
 
 
-bool WebMTracksParser::OnListStart(int id) {
+WebMParserClient* WebMTracksParser::OnListStart(int id) {
   if (id == kWebMIdTrackEntry) {
     track_type_ = -1;
     track_num_ = -1;
     track_default_duration_ = -1;
   }
 
-  return true;
+  return this;
 }
 
 bool WebMTracksParser::OnListEnd(int id) {
   if (id == kWebMIdTrackEntry) {
     if (track_type_ == -1 || track_num_ == -1) {
-      VLOG(1) << "Missing TrackEntry data"
-              << " TrackType " << track_type_
-              << " TrackNum " << track_num_;
+      DVLOG(1) << "Missing TrackEntry data"
+               << " TrackType " << track_type_
+               << " TrackNum " << track_num_;
       return false;
     }
 
-    // Convert nanoseconds to base::TimeDelta.
-    base::TimeDelta default_duration = base::TimeDelta::FromMicroseconds(
-        track_default_duration_ / 1000.0);
+    base::TimeDelta default_duration;
+
+    if (track_default_duration_ > 0) {
+      // Convert nanoseconds to base::TimeDelta.
+      default_duration= base::TimeDelta::FromMicroseconds(
+          track_default_duration_ / 1000.0);
+    }
 
     if (track_type_ == kWebMTrackTypeVideo) {
       video_track_num_ = track_num_;
@@ -57,7 +78,7 @@ bool WebMTracksParser::OnListEnd(int id) {
       audio_track_num_ = track_num_;
       audio_default_duration_ = default_duration;
     } else {
-      VLOG(1) << "Unexpected TrackType " << track_type_;
+      DVLOG(1) << "Unexpected TrackType " << track_type_;
       return false;
     }
 
@@ -78,7 +99,7 @@ bool WebMTracksParser::OnUInt(int id, int64 val) {
     case kWebMIdTrackType:
       dst = &track_type_;
       break;
-    case  kWebMIdDefaultDuration:
+    case kWebMIdDefaultDuration:
       dst = &track_default_duration_;
       break;
     default:
@@ -86,7 +107,7 @@ bool WebMTracksParser::OnUInt(int id, int64 val) {
   }
 
   if (*dst != -1) {
-    VLOG(1) << "Multiple values for id " << std::hex << id << " specified";
+    DVLOG(1) << "Multiple values for id " << std::hex << id << " specified";
     return false;
   }
 
@@ -95,8 +116,7 @@ bool WebMTracksParser::OnUInt(int id, int64 val) {
 }
 
 bool WebMTracksParser::OnFloat(int id, double val) {
-  VLOG(1) << "Unexpected float for id" << std::hex << id;
-  return false;
+  return true;
 }
 
 bool WebMTracksParser::OnBinary(int id, const uint8* data, int size) {
@@ -104,20 +124,12 @@ bool WebMTracksParser::OnBinary(int id, const uint8* data, int size) {
 }
 
 bool WebMTracksParser::OnString(int id, const std::string& str) {
-  if (id != kWebMIdCodecID)
-    return false;
-
-  if (str != "A_VORBIS" && str != "V_VP8") {
-    VLOG(1) << "Unexpected CodecID " << str;
+  if (id == kWebMIdCodecID && str != "A_VORBIS" && str != "V_VP8") {
+    DVLOG(1) << "Unexpected CodecID " << str;
     return false;
   }
 
   return true;
-}
-
-bool WebMTracksParser::OnSimpleBlock(int track_num, int timecode, int flags,
-                                     const uint8* data, int size) {
-  return false;
 }
 
 }  // namespace media

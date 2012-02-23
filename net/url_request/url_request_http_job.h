@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,10 +9,9 @@
 #include <string>
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/string16.h"
-#include "base/task.h"
 #include "base/time.h"
 #include "net/base/auth.h"
 #include "net/base/completion_callback.h"
@@ -23,6 +22,7 @@
 
 namespace net {
 
+class HttpResponseHeaders;
 class HttpResponseInfo;
 class HttpTransaction;
 class URLRequestContext;
@@ -47,47 +47,51 @@ class URLRequestHttpJob : public URLRequestJob {
 
   void AddExtraHeaders();
   void AddCookieHeaderAndStart();
-  void SaveCookiesAndNotifyHeadersComplete();
+  void SaveCookiesAndNotifyHeadersComplete(int result);
   void SaveNextCookie();
-  void FetchResponseCookies(const HttpResponseInfo* response_info,
-                            std::vector<std::string>* cookies);
+  void FetchResponseCookies(std::vector<std::string>* cookies);
 
-  // Process the Strict-Transport-Security header, if one exists.
+  // Processes the Strict-Transport-Security header, if one exists.
   void ProcessStrictTransportSecurityHeader();
 
+  // Processes the Public-Key-Pins header, if one exists.
+  void ProcessPublicKeyPinsHeader();
+
+  // |result| should be net::OK, or the request is canceled.
+  void OnHeadersReceivedCallback(int result);
   void OnStartCompleted(int result);
   void OnReadCompleted(int result);
   void NotifyBeforeSendHeadersCallback(int result);
 
-  bool ShouldTreatAsCertificateError(int result);
-
-  void RestartTransactionWithAuth(const string16& username,
-                                  const string16& password);
+  void RestartTransactionWithAuth(const AuthCredentials& credentials);
 
   // Overridden from URLRequestJob:
-  virtual void SetUpload(UploadData* upload);
-  virtual void SetExtraRequestHeaders(const HttpRequestHeaders& headers);
-  virtual void Start();
-  virtual void Kill();
-  virtual LoadState GetLoadState() const;
-  virtual uint64 GetUploadProgress() const;
-  virtual bool GetMimeType(std::string* mime_type) const;
-  virtual bool GetCharset(std::string* charset);
-  virtual void GetResponseInfo(HttpResponseInfo* info);
-  virtual bool GetResponseCookies(std::vector<std::string>* cookies);
-  virtual int GetResponseCode() const;
-  virtual Filter* SetupFilter() const;
-  virtual bool IsSafeRedirect(const GURL& location);
-  virtual bool NeedsAuth();
-  virtual void GetAuthChallengeInfo(scoped_refptr<AuthChallengeInfo>*);
-  virtual void SetAuth(const string16& username,
-                       const string16& password);
-  virtual void CancelAuth();
-  virtual void ContinueWithCertificate(X509Certificate* client_cert);
-  virtual void ContinueDespiteLastError();
-  virtual bool ReadRawData(IOBuffer* buf, int buf_size, int *bytes_read);
-  virtual void StopCaching();
-  virtual HostPortPair GetSocketAddress() const;
+  virtual void SetUpload(UploadData* upload) OVERRIDE;
+  virtual void SetExtraRequestHeaders(
+      const HttpRequestHeaders& headers) OVERRIDE;
+  virtual void Start() OVERRIDE;
+  virtual void Kill() OVERRIDE;
+  virtual LoadState GetLoadState() const OVERRIDE;
+  virtual uint64 GetUploadProgress() const OVERRIDE;
+  virtual bool GetMimeType(std::string* mime_type) const OVERRIDE;
+  virtual bool GetCharset(std::string* charset) OVERRIDE;
+  virtual void GetResponseInfo(HttpResponseInfo* info) OVERRIDE;
+  virtual bool GetResponseCookies(std::vector<std::string>* cookies) OVERRIDE;
+  virtual int GetResponseCode() const OVERRIDE;
+  virtual Filter* SetupFilter() const OVERRIDE;
+  virtual bool IsSafeRedirect(const GURL& location) OVERRIDE;
+  virtual bool NeedsAuth() OVERRIDE;
+  virtual void GetAuthChallengeInfo(scoped_refptr<AuthChallengeInfo>*) OVERRIDE;
+  virtual void SetAuth(const AuthCredentials& credentials) OVERRIDE;
+  virtual void CancelAuth() OVERRIDE;
+  virtual void ContinueWithCertificate(X509Certificate* client_cert) OVERRIDE;
+  virtual void ContinueDespiteLastError() OVERRIDE;
+  virtual bool ReadRawData(IOBuffer* buf, int buf_size,
+                           int* bytes_read) OVERRIDE;
+  virtual void StopCaching() OVERRIDE;
+  virtual void DoneReading() OVERRIDE;
+  virtual HostPortPair GetSocketAddress() const OVERRIDE;
+  virtual void NotifyURLRequestDestroyed() OVERRIDE;
 
   // Keep a reference to the url request context to be sure it's not deleted
   // before us.
@@ -102,14 +106,10 @@ class URLRequestHttpJob : public URLRequestJob {
   // Auth states for proxy and origin server.
   AuthState proxy_auth_state_;
   AuthState server_auth_state_;
+  AuthCredentials auth_credentials_;
 
-  string16 username_;
-  string16 password_;
-
-  CompletionCallbackImpl<URLRequestHttpJob> start_callback_;
-  CompletionCallbackImpl<URLRequestHttpJob> read_callback_;
-  CompletionCallbackImpl<URLRequestHttpJob>
-      notify_before_headers_sent_callback_;
+  CompletionCallback start_callback_;
+  CompletionCallback notify_before_headers_sent_callback_;
 
   bool read_in_progress_;
 
@@ -149,7 +149,7 @@ class URLRequestHttpJob : public URLRequestJob {
   void RecordTimer();
   void ResetTimer();
 
-  virtual void UpdatePacketReadTimes();
+  virtual void UpdatePacketReadTimes() OVERRIDE;
   void RecordPacketStats(FilterContext::StatisticSelector statistic) const;
 
   void RecordCompressionHistograms();
@@ -164,10 +164,11 @@ class URLRequestHttpJob : public URLRequestJob {
   void DoneWithRequest(CompletionCause reason);
 
   // Callback functions for Cookie Monster
+  void DoLoadCookies();
   void CheckCookiePolicyAndLoad(const CookieList& cookie_list);
   void OnCookiesLoaded(
-      std::string* cookie_line,
-      std::vector<CookieStore::CookieInfo>* cookie_infos);
+      const std::string& cookie_line,
+      const std::vector<CookieStore::CookieInfo>& cookie_infos);
   void DoStartTransaction();
   void OnCookieSaved(bool cookie_status);
   void CookieHandled();
@@ -178,6 +179,10 @@ class URLRequestHttpJob : public URLRequestJob {
   // |rv| is the standard return value of a read function indicating the number
   // of bytes read or, if negative, an error code.
   bool ShouldFixMismatchedContentLength(int rv) const;
+
+  // Returns the effective response headers, considering that they may be
+  // overridden by |override_response_headers_|.
+  HttpResponseHeaders* GetResponseHeaders() const;
 
   base::Time request_creation_time_;
 
@@ -210,8 +215,21 @@ class URLRequestHttpJob : public URLRequestJob {
   base::TimeTicks start_time_;
 
   scoped_ptr<HttpFilterContext> filter_context_;
-  ScopedRunnableMethodFactory<URLRequestHttpJob> method_factory_;
-  base::WeakPtrFactory<URLRequestHttpJob> weak_ptr_factory_;
+  base::WeakPtrFactory<URLRequestHttpJob> weak_factory_;
+
+  CompletionCallback on_headers_received_callback_;
+
+  // We allow the network delegate to modify a copy of the response headers.
+  // This prevents modifications of headers that are shared with the underlying
+  // layers of the network stack.
+  scoped_refptr<HttpResponseHeaders> override_response_headers_;
+
+  // Flag used to verify that |this| is not deleted while we are awaiting
+  // a callback from the NetworkDelegate. Used as a fail-fast mechanism.
+  // True if we are waiting a callback and
+  // NetworkDelegate::NotifyURLRequestDestroyed has not been called, yet,
+  // to inform the NetworkDelegate that it may not call back.
+  bool awaiting_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestHttpJob);
 };

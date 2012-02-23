@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,6 +23,8 @@ class Time;
 // is included by various (non-crypto) parts of chrome to call the
 // initialization functions.
 namespace crypto {
+
+class SymmetricKey;
 
 #if defined(USE_NSS)
 // EarlySetupForNSSInit performs lightweight setup which must occur before the
@@ -108,7 +110,7 @@ class CRYPTO_EXPORT TPMTokenInfoDelegate {
                             std::string* user_pin) const = 0;
 };
 
-// Indicates that NSS should load the opencryptoki library so that we
+// Indicates that NSS should load the Chaps library so that we
 // can access the TPM through NSS.  Once this is called,
 // GetPrivateNSSKeySlot() will return the TPM slot if one was found.
 // Takes ownership of the passed-in delegate object so it can access
@@ -126,25 +128,38 @@ CRYPTO_EXPORT bool IsTPMTokenAvailable();
 
 // Returns true if the TPM is owned and PKCS#11 initialized with the
 // user and security officer PINs, and has been enabled in NSS by
-// calling EnableTPMForNSS, and opencryptoki has been successfully
+// calling EnableTPMForNSS, and Chaps has been successfully
 // loaded into NSS.
 CRYPTO_EXPORT bool IsTPMTokenReady();
 
 // Same as IsTPMTokenReady() except this attempts to initialize the token
 // if necessary.
 CRYPTO_EXPORT bool EnsureTPMTokenReady();
+
+// Gets supplemental user key. Creates one in NSS database if it does not exist.
+// The supplemental user key is used for AES encryption of user data that is
+// stored and protected by cryptohome. This additional layer of encryption of
+// provided to ensure that sensitive data wouldn't be exposed in plain text in
+// case when an attacker would somehow gain access to all content within
+// cryptohome.
+CRYPTO_EXPORT SymmetricKey* GetSupplementalUserKey();
 #endif
 
 // Convert a NSS PRTime value into a base::Time object.
 // We use a int64 instead of PRTime here to avoid depending on NSPR headers.
 CRYPTO_EXPORT base::Time PRTimeToBaseTime(int64 prtime);
 
+// Convert a base::Time object into a PRTime value.
+// We use a int64 instead of PRTime here to avoid depending on NSPR headers.
+CRYPTO_EXPORT int64 BaseTimeToPRTime(base::Time time);
+
 #if defined(USE_NSS)
-// Exposed for unittests only.  |path| should be an existing directory under
-// which the DB files will be placed.  |description| is a user-visible name for
-// the DB, as a utf8 string, which will be truncated at 32 bytes.
-CRYPTO_EXPORT bool OpenTestNSSDB(const FilePath& path, const char* description);
-CRYPTO_EXPORT void CloseTestNSSDB();
+// Exposed for unittests only.
+// TODO(mattm): when https://bugzilla.mozilla.org/show_bug.cgi?id=588269 is
+// fixed, switch back to using a separate userdb for each test.  (Maybe refactor
+// to provide a ScopedTestNSSDB instead of open/close methods.)
+CRYPTO_EXPORT bool OpenTestNSSDB();
+// NOTE: due to NSS bug 588269, mentioned above, there is no CloseTestNSSDB.
 
 // NSS has a bug which can cause a deadlock or stall in some cases when writing
 // to the certDB and keyDB. It also has a bug which causes concurrent key pair

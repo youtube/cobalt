@@ -21,11 +21,11 @@ namespace net {
 // The SpdyWebSocketStream is a WebSocket-specific type of stream known to a
 // SpdySession. WebSocket's opening handshake is converted to SPDY's
 // SYN_STREAM/SYN_REPLY. WebSocket frames are encapsulated as SPDY data frames.
-class NET_TEST SpdyWebSocketStream
+class NET_EXPORT_PRIVATE SpdyWebSocketStream
     : public SpdyStream::Delegate {
  public:
   // Delegate handles asynchronous events.
-  class NET_TEST Delegate {
+  class NET_EXPORT_PRIVATE Delegate {
    public:
     // Called when InitializeStream() finishes asynchronously. This delegate is
     // called if InitializeStream() returns ERR_IO_PENDING. |status| indicates
@@ -69,16 +69,16 @@ class NET_TEST SpdyWebSocketStream
   void Close();
 
   // SpdyStream::Delegate
-  virtual bool OnSendHeadersComplete(int status);
-  virtual int OnSendBody();
-  virtual int OnSendBodyComplete(int status, bool* eof);
+  virtual bool OnSendHeadersComplete(int status) OVERRIDE;
+  virtual int OnSendBody() OVERRIDE;
+  virtual int OnSendBodyComplete(int status, bool* eof) OVERRIDE;
   virtual int OnResponseReceived(const spdy::SpdyHeaderBlock& response,
                                  base::Time response_time,
-                                 int status);
-  virtual void OnDataReceived(const char* data, int length);
-  virtual void OnDataSent(int length);
-  virtual void OnClose(int status);
-  virtual void set_chunk_callback(ChunkCallback* callback);
+                                 int status) OVERRIDE;
+  virtual void OnDataReceived(const char* data, int length) OVERRIDE;
+  virtual void OnDataSent(int length) OVERRIDE;
+  virtual void OnClose(int status) OVERRIDE;
+  virtual void set_chunk_callback(ChunkCallback* callback) OVERRIDE;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(SpdyWebSocketStreamTest, Basic);
@@ -88,8 +88,6 @@ class NET_TEST SpdyWebSocketStream
   scoped_refptr<SpdyStream> stream_;
   scoped_refptr<SpdySession> spdy_session_;
   Delegate* delegate_;
-
-  CompletionCallbackImpl<SpdyWebSocketStream> spdy_stream_created_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdyWebSocketStream);
 };

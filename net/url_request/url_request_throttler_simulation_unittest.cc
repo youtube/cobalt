@@ -425,7 +425,7 @@ class Requester : public DiscreteTimeSimulation::Actor {
 
     if (throttler_entry_->fake_now() - time_of_last_attempt_ >
         effective_delay) {
-      if (!throttler_entry_->IsDuringExponentialBackoff()) {
+      if (!throttler_entry_->ShouldRejectRequest(0)) {
         int status_code = server_->HandleRequest();
         MockURLRequestThrottlerHeaderAdapter response_headers(status_code);
         throttler_entry_->UpdateWithResponse("", &response_headers);

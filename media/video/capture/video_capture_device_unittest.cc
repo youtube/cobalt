@@ -3,12 +3,29 @@
 // found in the LICENSE file.
 
 #include "base/memory/scoped_ptr.h"
+#include "base/message_loop.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/test/test_timeouts.h"
 #include "base/threading/thread.h"
 #include "media/video/capture/fake_video_capture_device.h"
 #include "media/video/capture/video_capture_device.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if defined(OS_MACOSX)
+// The camera is 'locked' by the application once started on Mac OS X, not when
+// allocated as for Windows and Linux, and this test case will fail.
+#define MAYBE_AllocateSameCameraTwice DISABLED_AllocateSameCameraTwice
+#else
+#define MAYBE_AllocateSameCameraTwice AllocateSameCameraTwice
+#endif
+
+#if defined(OS_MACOSX)
+// Mac/QTKit will always give you the size you ask for and this case will fail.
+#define MAYBE_AllocateBadSize DISABLED_AllocateBadSize
+#else
+#define MAYBE_AllocateBadSize AllocateBadSize
+#endif
 
 using ::testing::_;
 using ::testing::AnyNumber;
@@ -16,9 +33,8 @@ using ::testing::Return;
 using ::testing::AtLeast;
 
 namespace media {
-const int kWaitTime = 3000;
 
-class MockFrameObserver: public media::VideoCaptureDevice::EventHandler {
+class MockFrameObserver : public media::VideoCaptureDevice::EventHandler {
  public:
   MOCK_METHOD0(OnErr, void());
   MOCK_METHOD3(OnFrameInfo, void(int width, int height, int frame_rate));
@@ -48,9 +64,15 @@ class VideoCaptureDeviceTest : public testing::Test {
  public:
   VideoCaptureDeviceTest(): wait_event_(false, false) { }
 
+  void PostQuitTask() {
+    loop_->PostTask(FROM_HERE, MessageLoop::QuitClosure());
+    loop_->Run();
+  }
+
  protected:
   virtual void SetUp() {
     frame_observer_.reset(new MockFrameObserver(&wait_event_));
+    loop_.reset(new MessageLoopForUI());
   }
 
   virtual void TearDown() {
@@ -59,6 +81,7 @@ class VideoCaptureDeviceTest : public testing::Test {
   base::WaitableEvent wait_event_;
   scoped_ptr<MockFrameObserver> frame_observer_;
   VideoCaptureDevice::Names names_;
+  scoped_ptr<MessageLoop> loop_;
 };
 
 TEST_F(VideoCaptureDeviceTest, OpenInvalidDevice) {
@@ -71,7 +94,6 @@ TEST_F(VideoCaptureDeviceTest, OpenInvalidDevice) {
 
 TEST_F(VideoCaptureDeviceTest, CaptureVGA) {
   VideoCaptureDevice::GetDeviceNames(&names_);
-    // Make sure there are more than 0 cameras.
   if (!names_.size()) {
     LOG(WARNING) << "No camera available. Exiting test.";
     return;
@@ -90,16 +112,16 @@ TEST_F(VideoCaptureDeviceTest, CaptureVGA) {
 
   device->Allocate(640, 480, 30, frame_observer_.get());
   device->Start();
-  // Wait for 3s or for captured frame.
-  EXPECT_TRUE(wait_event_.TimedWait(
-      base::TimeDelta::FromMilliseconds(kWaitTime)));
+  // Get captured video frames.
+  PostQuitTask();
+  EXPECT_TRUE(wait_event_.TimedWait(base::TimeDelta::FromMilliseconds(
+      TestTimeouts::action_max_timeout_ms())));
   device->Stop();
   device->DeAllocate();
 }
 
 TEST_F(VideoCaptureDeviceTest, Capture720p) {
   VideoCaptureDevice::GetDeviceNames(&names_);
-    // Make sure there are more than 0 cameras.
   if (!names_.size()) {
     LOG(WARNING) << "No camera available. Exiting test.";
     return;
@@ -121,13 +143,14 @@ TEST_F(VideoCaptureDeviceTest, Capture720p) {
   device->Allocate(1280, 720, 30, frame_observer_.get());
   device->Start();
   // Get captured video frames.
-  EXPECT_TRUE(wait_event_.TimedWait(
-      base::TimeDelta::FromMilliseconds(kWaitTime)));
+  PostQuitTask();
+  EXPECT_TRUE(wait_event_.TimedWait(base::TimeDelta::FromMilliseconds(
+      TestTimeouts::action_max_timeout_ms())));
   device->Stop();
   device->DeAllocate();
 }
 
-TEST_F(VideoCaptureDeviceTest, AllocateSameCameraTwice) {
+TEST_F(VideoCaptureDeviceTest, MAYBE_AllocateSameCameraTwice) {
   VideoCaptureDevice::GetDeviceNames(&names_);
   if (!names_.size()) {
     LOG(WARNING) << "No camera available. Exiting test.";
@@ -154,7 +177,7 @@ TEST_F(VideoCaptureDeviceTest, AllocateSameCameraTwice) {
   device2->DeAllocate();
 }
 
-TEST_F(VideoCaptureDeviceTest, AllocateBadSize) {
+TEST_F(VideoCaptureDeviceTest, MAYBE_AllocateBadSize) {
   VideoCaptureDevice::GetDeviceNames(&names_);
   if (!names_.size()) {
     LOG(WARNING) << "No camera available. Exiting test.";
@@ -201,8 +224,9 @@ TEST_F(VideoCaptureDeviceTest, ReAllocateCamera) {
 
   device->Start();
   // Get captured video frames.
-  EXPECT_TRUE(wait_event_.TimedWait(
-      base::TimeDelta::FromMilliseconds(kWaitTime)));
+  PostQuitTask();
+  EXPECT_TRUE(wait_event_.TimedWait(base::TimeDelta::FromMilliseconds(
+      TestTimeouts::action_max_timeout_ms())));
   device->Stop();
   device->DeAllocate();
 }
@@ -226,8 +250,9 @@ TEST_F(VideoCaptureDeviceTest, DeAllocateCameraWhileRunning) {
 
   device->Start();
   // Get captured video frames.
-  EXPECT_TRUE(wait_event_.TimedWait(
-      base::TimeDelta::FromMilliseconds(kWaitTime)));
+  PostQuitTask();
+  EXPECT_TRUE(wait_event_.TimedWait(base::TimeDelta::FromMilliseconds(
+      TestTimeouts::action_max_timeout_ms())));
   device->DeAllocate();
 }
 
@@ -252,8 +277,8 @@ TEST_F(VideoCaptureDeviceTest, TestFakeCapture) {
   device->Allocate(640, 480, 30, frame_observer_.get());
 
   device->Start();
-  EXPECT_TRUE(wait_event_.TimedWait(
-      base::TimeDelta::FromMilliseconds(kWaitTime)));
+  EXPECT_TRUE(wait_event_.TimedWait(base::TimeDelta::FromMilliseconds(
+      TestTimeouts::action_max_timeout_ms())));
   device->Stop();
   device->DeAllocate();
 }

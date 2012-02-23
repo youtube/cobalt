@@ -112,8 +112,7 @@ HttpAuthCache::Entry* HttpAuthCache::Add(const GURL& origin,
                                          const std::string& realm,
                                          HttpAuth::Scheme scheme,
                                          const std::string& auth_challenge,
-                                         const string16& username,
-                                         const string16& password,
+                                         const AuthCredentials& credentials,
                                          const std::string& path) {
   CheckOriginIsValid(origin);
   CheckPathIsValid(path);
@@ -138,8 +137,7 @@ HttpAuthCache::Entry* HttpAuthCache::Add(const GURL& origin,
   DCHECK_EQ(scheme, entry->scheme_);
 
   entry->auth_challenge_ = auth_challenge;
-  entry->username_ = username;
-  entry->password_ = password;
+  entry->credentials_ = credentials;
   entry->nonce_count_ = 1;
   entry->AddPath(path);
 
@@ -199,12 +197,11 @@ bool HttpAuthCache::Entry::HasEnclosingPath(const std::string& dir,
 bool HttpAuthCache::Remove(const GURL& origin,
                            const std::string& realm,
                            HttpAuth::Scheme scheme,
-                           const string16& username,
-                           const string16& password) {
+                           const AuthCredentials& credentials) {
   for (EntryList::iterator it = entries_.begin(); it != entries_.end(); ++it) {
     if (it->origin() == origin && it->realm() == realm &&
         it->scheme() == scheme) {
-      if (username == it->username() && password == it->password()) {
+      if (credentials.Equals(it->credentials())) {
         entries_.erase(it);
         return true;
       }
@@ -223,6 +220,23 @@ bool HttpAuthCache::UpdateStaleChallenge(const GURL& origin,
     return false;
   entry->UpdateStaleChallenge(auth_challenge);
   return true;
+}
+
+void HttpAuthCache::UpdateAllFrom(const HttpAuthCache& other) {
+  for (EntryList::const_iterator it = other.entries_.begin();
+       it != other.entries_.end(); ++it) {
+    // Add an Entry with one of the original entry's paths.
+    DCHECK(it->paths_.size() > 0);
+    Entry* entry = Add(it->origin(), it->realm(), it->scheme(),
+                       it->auth_challenge(), it->credentials(),
+                       it->paths_.back());
+    // Copy all other paths.
+    for (Entry::PathList::const_reverse_iterator it2 = ++it->paths_.rbegin();
+         it2 != it->paths_.rend(); ++it2)
+      entry->AddPath(*it2);
+    // Copy nonce count (for digest authentication).
+    entry->nonce_count_ = it->nonce_count_;
+  }
 }
 
 }  // namespace net

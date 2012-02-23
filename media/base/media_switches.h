@@ -8,6 +8,7 @@
 #define MEDIA_BASE_MEDIA_SWITCHES_H_
 
 #include "build/build_config.h"
+#include "media/base/media_export.h"
 
 namespace switches {
 
@@ -16,8 +17,11 @@ extern const char kAlsaOutputDevice[];
 extern const char kAlsaInputDevice[];
 #endif
 
-extern const char kEnableAdaptive[];
-extern const char kVideoThreads[];
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
+MEDIA_EXPORT extern const char kUsePulseAudio[];
+#endif
+
+MEDIA_EXPORT extern const char kVideoThreads[];
 
 }  // namespace switches
 

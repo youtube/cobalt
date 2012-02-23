@@ -6,7 +6,7 @@
 #define NET_OCSP_NSS_OCSP_H_
 #pragma once
 
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
@@ -15,19 +15,19 @@ class URLRequestContext;
 // Sets the MessageLoop for OCSP to the current message loop.
 // This should be called before EnsureOCSPInit() if you want to
 // control the message loop for OCSP.
-NET_API void SetMessageLoopForOCSP();
+NET_EXPORT void SetMessageLoopForOCSP();
 
 // Initializes OCSP handlers for NSS.  This must be called before any
 // certificate verification functions.  This function is thread-safe, and OCSP
 // handlers will only ever be initialized once.  ShutdownOCSP() must be called
 // on shutdown.
-NET_API void EnsureOCSPInit();
+NET_EXPORT void EnsureOCSPInit();
 
 // This should be called once on shutdown to stop issuing URLRequests for OCSP.
-NET_API void ShutdownOCSP();
+NET_EXPORT void ShutdownOCSP();
 
 // Set URLRequestContext for OCSP handlers.
-NET_API void SetURLRequestContextForOCSP(URLRequestContext* request_context);
+NET_EXPORT void SetURLRequestContextForOCSP(URLRequestContext* request_context);
 
 }  // namespace net
 

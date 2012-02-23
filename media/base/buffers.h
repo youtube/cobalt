@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -30,13 +30,22 @@
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
+#include "media/base/media_export.h"
 
 namespace media {
 
 // Indicates an invalid or missing timestamp.
-extern const base::TimeDelta kNoTimestamp;
+MEDIA_EXPORT extern inline base::TimeDelta kNoTimestamp() {
+  return base::TimeDelta::FromMicroseconds(kint64min);
+}
 
-class StreamSample : public base::RefCountedThreadSafe<StreamSample> {
+// Represents an infinite stream duration.
+MEDIA_EXPORT extern inline base::TimeDelta kInfiniteDuration() {
+  return base::TimeDelta::FromMicroseconds(kint64max);
+}
+
+class MEDIA_EXPORT StreamSample
+    : public base::RefCountedThreadSafe<StreamSample> {
  public:
   // Returns the timestamp of this buffer in microseconds.
   base::TimeDelta GetTimestamp() const {
@@ -76,7 +85,7 @@ class StreamSample : public base::RefCountedThreadSafe<StreamSample> {
 };
 
 
-class Buffer : public StreamSample {
+class MEDIA_EXPORT Buffer : public StreamSample {
  public:
   // Returns a read only pointer to the buffer data.
   virtual const uint8* GetData() const = 0;
@@ -85,7 +94,7 @@ class Buffer : public StreamSample {
   virtual size_t GetDataSize() const = 0;
 
   // If there's no data in this buffer, it represents end of stream.
-  virtual bool IsEndOfStream() const;
+  virtual bool IsEndOfStream() const OVERRIDE;
 
  protected:
   virtual ~Buffer() {}

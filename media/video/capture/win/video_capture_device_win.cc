@@ -252,7 +252,8 @@ VideoCaptureDevice* VideoCaptureDevice::Create(const Name& device_name) {
 
 VideoCaptureDeviceWin::VideoCaptureDeviceWin(const Name& device_name)
     : device_name_(device_name),
-      state_(kIdle) {
+      state_(kIdle),
+      observer_(NULL) {
 }
 
 VideoCaptureDeviceWin::~VideoCaptureDeviceWin() {

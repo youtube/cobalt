@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,7 +8,7 @@
 #include "base/message_loop.h"
 #include "base/threading/platform_thread.h"
 #include "media/audio/audio_io.h"
-#include "media/audio/audio_manager.h"
+#include "media/audio/audio_manager_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 static const int kSamplingRate = 8000;
@@ -25,13 +25,13 @@ class TestInputCallback : public AudioInputStream::AudioInputCallback {
         max_data_bytes_(max_data_bytes) {
   }
   virtual void OnData(AudioInputStream* stream, const uint8* data,
-                      uint32 size) {
+                      uint32 size, uint32 hardware_delay_bytes) {
     ++callback_count_;
     // Read the first byte to make sure memory is good.
     if (size) {
       ASSERT_LE(static_cast<int>(size), max_data_bytes_);
       int value = data[0];
-      EXPECT_TRUE(value >= 0);
+      EXPECT_GE(value, 0);
     }
   }
   virtual void OnClose(AudioInputStream* stream) {
@@ -64,103 +64,83 @@ class TestInputCallback : public AudioInputStream::AudioInputCallback {
   int max_data_bytes_;
 };
 
-// Specializes TestInputCallback to simulate a sink that blocks for some time
-// in the OnData callback.
-class TestInputCallbackBlocking : public TestInputCallback {
- public:
-  TestInputCallbackBlocking(int max_data_bytes, int block_after_callback,
-                            int block_for_ms)
-      : TestInputCallback(max_data_bytes),
-        block_after_callback_(block_after_callback),
-        block_for_ms_(block_for_ms) {
-  }
-  virtual void OnData(AudioInputStream* stream, const uint8* data,
-                      uint32 size) {
-    // Call the base, which increments the callback_count_.
-    TestInputCallback::OnData(stream, data, size);
-    if (callback_count() > block_after_callback_)
-      base::PlatformThread::Sleep(block_for_ms_);
-  }
+static bool CanRunAudioTests(AudioManager* audio_man) {
+  bool has_input = audio_man->HasAudioInputDevices();
 
- private:
-  int block_after_callback_;
-  int block_for_ms_;
-};
+  if (!has_input)
+    LOG(WARNING) << "No input devices detected";
 
-static bool CanRunAudioTests() {
-  scoped_ptr<base::Environment> env(base::Environment::Create());
-  if (env->HasVar("CHROME_HEADLESS"))
-    return false;
-
-  AudioManager* audio_man = AudioManager::GetAudioManager();
-  if (NULL == audio_man)
-    return false;
-
-  return audio_man->HasAudioInputDevices();
+  return has_input;
 }
 
-static AudioInputStream* CreateTestAudioInputStream() {
-  AudioManager* audio_man = AudioManager::GetAudioManager();
+static AudioInputStream* CreateTestAudioInputStream(AudioManager* audio_man) {
   AudioInputStream* ais = audio_man->MakeAudioInputStream(
       AudioParameters(AudioParameters::AUDIO_PCM_LINEAR, CHANNEL_LAYOUT_STEREO,
-                      kSamplingRate, 16, kSamplesPerPacket));
+                      kSamplingRate, 16, kSamplesPerPacket),
+                      AudioManagerBase::kDefaultDeviceId);
   EXPECT_TRUE(NULL != ais);
   return ais;
 }
 
 // Test that AudioInputStream rejects out of range parameters.
 TEST(AudioInputTest, SanityOnMakeParams) {
-  if (!CanRunAudioTests())
+  scoped_ptr<AudioManager> audio_man(AudioManager::Create());
+  if (!CanRunAudioTests(audio_man.get()))
     return;
-  AudioManager* audio_man = AudioManager::GetAudioManager();
+
   AudioParameters::Format fmt = AudioParameters::AUDIO_PCM_LINEAR;
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
       AudioParameters(fmt, CHANNEL_LAYOUT_7POINT1, 8000, 16,
-                      kSamplesPerPacket)));
+                      kSamplesPerPacket), AudioManagerBase::kDefaultDeviceId));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
       AudioParameters(fmt, CHANNEL_LAYOUT_MONO, 1024 * 1024, 16,
-                      kSamplesPerPacket)));
+                      kSamplesPerPacket), AudioManagerBase::kDefaultDeviceId));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
       AudioParameters(fmt, CHANNEL_LAYOUT_STEREO, 8000, 80,
-                      kSamplesPerPacket)));
+                      kSamplesPerPacket), AudioManagerBase::kDefaultDeviceId));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
       AudioParameters(fmt, CHANNEL_LAYOUT_STEREO, 8000, 80,
-                      1000 * kSamplesPerPacket)));
+                      1000 * kSamplesPerPacket),
+                      AudioManagerBase::kDefaultDeviceId));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
       AudioParameters(fmt, CHANNEL_LAYOUT_UNSUPPORTED, 8000, 16,
-                      kSamplesPerPacket)));
+                      kSamplesPerPacket), AudioManagerBase::kDefaultDeviceId));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
       AudioParameters(fmt, CHANNEL_LAYOUT_STEREO, -8000, 16,
-                      kSamplesPerPacket)));
+                      kSamplesPerPacket), AudioManagerBase::kDefaultDeviceId));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
       AudioParameters(fmt, CHANNEL_LAYOUT_STEREO, 8000, -16,
-                      kSamplesPerPacket)));
+                      kSamplesPerPacket), AudioManagerBase::kDefaultDeviceId));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
-      AudioParameters(fmt, CHANNEL_LAYOUT_STEREO, 8000, 16, -1024)));
+      AudioParameters(fmt, CHANNEL_LAYOUT_STEREO, 8000, 16, -1024),
+      AudioManagerBase::kDefaultDeviceId));
 }
 
 // Test create and close of an AudioInputStream without recording audio.
 TEST(AudioInputTest, CreateAndClose) {
-  if (!CanRunAudioTests())
+  scoped_ptr<AudioManager> audio_man(AudioManager::Create());
+  if (!CanRunAudioTests(audio_man.get()))
     return;
-  AudioInputStream* ais = CreateTestAudioInputStream();
+  AudioInputStream* ais = CreateTestAudioInputStream(audio_man.get());
   ais->Close();
 }
 
 // Test create, open and close of an AudioInputStream without recording audio.
 TEST(AudioInputTest, OpenAndClose) {
-  if (!CanRunAudioTests())
+  scoped_ptr<AudioManager> audio_man(AudioManager::Create());
+  if (!CanRunAudioTests(audio_man.get()))
     return;
-  AudioInputStream* ais = CreateTestAudioInputStream();
+  AudioInputStream* ais = CreateTestAudioInputStream(audio_man.get());
   EXPECT_TRUE(ais->Open());
   ais->Close();
 }
 
 // Test create, open, stop and close of an AudioInputStream without recording.
 TEST(AudioInputTest, OpenStopAndClose) {
-  if (!CanRunAudioTests())
+  scoped_ptr<AudioManager> audio_man(AudioManager::Create());
+  if (!CanRunAudioTests(audio_man.get()))
     return;
-  AudioInputStream* ais = CreateTestAudioInputStream();
+  AudioInputStream* ais = CreateTestAudioInputStream(audio_man.get());
   EXPECT_TRUE(ais->Open());
   ais->Stop();
   ais->Close();
@@ -168,40 +148,18 @@ TEST(AudioInputTest, OpenStopAndClose) {
 
 // Test a normal recording sequence using an AudioInputStream.
 TEST(AudioInputTest, Record) {
-  if (!CanRunAudioTests())
+  scoped_ptr<AudioManager> audio_man(AudioManager::Create());
+  if (!CanRunAudioTests(audio_man.get()))
     return;
   MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
-  AudioInputStream* ais = CreateTestAudioInputStream();
+  AudioInputStream* ais = CreateTestAudioInputStream(audio_man.get());
   EXPECT_TRUE(ais->Open());
 
   TestInputCallback test_callback(kSamplesPerPacket * 4);
   ais->Start(&test_callback);
   // Verify at least 500ms worth of audio was recorded, after giving sufficient
   // extra time.
-  message_loop.PostDelayedTask(FROM_HERE, new MessageLoop::QuitTask(), 590);
-  message_loop.Run();
-  EXPECT_GE(test_callback.callback_count(), 10);
-  EXPECT_FALSE(test_callback.had_error());
-
-  ais->Stop();
-  ais->Close();
-}
-
-// Test a recording sequence with delays in the audio callback.
-TEST(AudioInputTest, RecordWithSlowSink) {
-  if (!CanRunAudioTests())
-    return;
-  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
-  AudioInputStream* ais = CreateTestAudioInputStream();
-  EXPECT_TRUE(ais->Open());
-
-  // We should normally get a callback every 50ms, and a 20ms delay inside each
-  // callback should not change this sequence.
-  TestInputCallbackBlocking test_callback(kSamplesPerPacket * 4, 0, 20);
-  ais->Start(&test_callback);
-  // Verify at least 500ms worth of audio was recorded, after giving sufficient
-  // extra time.
-  message_loop.PostDelayedTask(FROM_HERE, new MessageLoop::QuitTask(), 590);
+  message_loop.PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(), 590);
   message_loop.Run();
   EXPECT_GE(test_callback.callback_count(), 10);
   EXPECT_FALSE(test_callback.had_error());

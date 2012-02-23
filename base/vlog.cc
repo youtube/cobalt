@@ -52,23 +52,23 @@ VlogInfo::VlogInfo(const std::string& v_switch,
     if (base::StringToInt(v_switch, &vlog_level)) {
       SetMaxVlogLevel(vlog_level);
     } else {
-      LOG(WARNING) << "Could not parse v switch \"" << v_switch << "\"";
+      DLOG(WARNING) << "Could not parse v switch \"" << v_switch << "\"";
     }
   }
 
   std::vector<KVPair> kv_pairs;
   if (!base::SplitStringIntoKeyValuePairs(
           vmodule_switch, '=', ',', &kv_pairs)) {
-    LOG(WARNING) << "Could not fully parse vmodule switch \""
-                 << vmodule_switch << "\"";
+    DLOG(WARNING) << "Could not fully parse vmodule switch \""
+                  << vmodule_switch << "\"";
   }
   for (std::vector<KVPair>::const_iterator it = kv_pairs.begin();
        it != kv_pairs.end(); ++it) {
     VmodulePattern pattern(it->first);
     if (!base::StringToInt(it->second, &pattern.vlog_level)) {
-      LOG(WARNING) << "Parsed vlog level for \""
-                   << it->first << "=" << it->second
-                   << "\" as " << pattern.vlog_level;
+      DLOG(WARNING) << "Parsed vlog level for \""
+                    << it->first << "=" << it->second
+                    << "\" as " << pattern.vlog_level;
     }
     vmodule_levels_.push_back(pattern);
   }

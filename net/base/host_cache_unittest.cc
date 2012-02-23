@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,10 +14,8 @@
 namespace net {
 
 namespace {
-const int kMaxCacheEntries = 10;
 
-const base::TimeDelta kSuccessEntryTTL = base::TimeDelta::FromSeconds(10);
-const base::TimeDelta kFailureEntryTTL = base::TimeDelta::FromSeconds(0);
+const int kMaxCacheEntries = 10;
 
 // Builds a key for |hostname|, defaulting the address family to unspecified.
 HostCache::Key Key(const std::string& hostname) {
@@ -27,7 +25,9 @@ HostCache::Key Key(const std::string& hostname) {
 }  // namespace
 
 TEST(HostCacheTest, Basic) {
-  HostCache cache(kMaxCacheEntries, kSuccessEntryTTL, kFailureEntryTTL);
+  const base::TimeDelta kTTL = base::TimeDelta::FromSeconds(10);
+
+  HostCache cache(kMaxCacheEntries);
 
   // Start at t=0.
   base::TimeTicks now;
@@ -39,7 +39,7 @@ TEST(HostCacheTest, Basic) {
 
   // Add an entry for "foobar.com" at t=0.
   EXPECT_TRUE(cache.Lookup(Key("foobar.com"), base::TimeTicks()) == NULL);
-  cache.Set(Key("foobar.com"), OK, AddressList(), now);
+  cache.Set(Key("foobar.com"), OK, AddressList(), now, kTTL);
   entry1 = cache.Lookup(Key("foobar.com"), base::TimeTicks());
   EXPECT_FALSE(entry1 == NULL);
   EXPECT_EQ(1U, cache.size());
@@ -49,7 +49,7 @@ TEST(HostCacheTest, Basic) {
 
   // Add an entry for "foobar2.com" at t=5.
   EXPECT_TRUE(cache.Lookup(Key("foobar2.com"), base::TimeTicks()) == NULL);
-  cache.Set(Key("foobar2.com"), OK, AddressList(), now);
+  cache.Set(Key("foobar2.com"), OK, AddressList(), now, kTTL);
   entry2 = cache.Lookup(Key("foobar2.com"), base::TimeTicks());
   EXPECT_FALSE(NULL == entry1);
   EXPECT_EQ(2U, cache.size());
@@ -68,7 +68,7 @@ TEST(HostCacheTest, Basic) {
   EXPECT_EQ(entry2, cache.Lookup(Key("foobar2.com"), now));
 
   // Update entry1, so it is no longer expired.
-  cache.Set(Key("foobar.com"), OK, AddressList(), now);
+  cache.Set(Key("foobar.com"), OK, AddressList(), now, kTTL);
   // Re-uses existing entry storage.
   EXPECT_EQ(entry1, cache.Lookup(Key("foobar.com"), now));
   EXPECT_EQ(2U, cache.size());
@@ -84,16 +84,20 @@ TEST(HostCacheTest, Basic) {
   EXPECT_TRUE(cache.Lookup(Key("foobar2.com"), now) == NULL);
 }
 
-// Try caching entries for a failed resolve attempt -- since we set
-// the TTL of such entries to 0 it won't work.
+// Try caching entries for a failed resolve attempt -- since we set the TTL of
+// such entries to 0 it won't store, but it will kick out the previous result.
 TEST(HostCacheTest, NoCacheNegative) {
-  HostCache cache(kMaxCacheEntries, kSuccessEntryTTL, kFailureEntryTTL);
+  const base::TimeDelta kSuccessEntryTTL = base::TimeDelta::FromSeconds(10);
+  const base::TimeDelta kFailureEntryTTL = base::TimeDelta::FromSeconds(0);
+
+  HostCache cache(kMaxCacheEntries);
 
   // Set t=0.
   base::TimeTicks now;
 
   EXPECT_TRUE(cache.Lookup(Key("foobar.com"), base::TimeTicks()) == NULL);
-  cache.Set(Key("foobar.com"), ERR_NAME_NOT_RESOLVED, AddressList(), now);
+  cache.Set(Key("foobar.com"), ERR_NAME_NOT_RESOLVED, AddressList(),
+            now, kFailureEntryTTL);
   EXPECT_EQ(1U, cache.size());
 
   // We disallow use of negative entries.
@@ -101,17 +105,18 @@ TEST(HostCacheTest, NoCacheNegative) {
 
   // Now overwrite with a valid entry, and then overwrite with negative entry
   // again -- the valid entry should be kicked out.
-  cache.Set(Key("foobar.com"), OK, AddressList(), now);
+  cache.Set(Key("foobar.com"), OK, AddressList(), now, kSuccessEntryTTL);
   EXPECT_FALSE(cache.Lookup(Key("foobar.com"), now) == NULL);
-  cache.Set(Key("foobar.com"), ERR_NAME_NOT_RESOLVED, AddressList(), now);
+  cache.Set(Key("foobar.com"), ERR_NAME_NOT_RESOLVED, AddressList(),
+            now, kFailureEntryTTL);
   EXPECT_TRUE(cache.Lookup(Key("foobar.com"), now) == NULL);
 }
 
 // Try caching entries for a failed resolves for 10 seconds.
 TEST(HostCacheTest, CacheNegativeEntry) {
-  HostCache cache(kMaxCacheEntries,
-                  base::TimeDelta::FromSeconds(0), // success entry TTL.
-                  base::TimeDelta::FromSeconds(10)); // failure entry TTL.
+  const base::TimeDelta kFailureEntryTTL = base::TimeDelta::FromSeconds(10);
+
+  HostCache cache(kMaxCacheEntries);
 
   // Start at t=0.
   base::TimeTicks now;
@@ -123,7 +128,8 @@ TEST(HostCacheTest, CacheNegativeEntry) {
 
   // Add an entry for "foobar.com" at t=0.
   EXPECT_TRUE(cache.Lookup(Key("foobar.com"), base::TimeTicks()) == NULL);
-  cache.Set(Key("foobar.com"), ERR_NAME_NOT_RESOLVED, AddressList(), now);
+  cache.Set(Key("foobar.com"), ERR_NAME_NOT_RESOLVED, AddressList(),
+            now, kFailureEntryTTL);
   entry1 = cache.Lookup(Key("foobar.com"), base::TimeTicks());
   EXPECT_FALSE(entry1 == NULL);
   EXPECT_EQ(1U, cache.size());
@@ -133,7 +139,8 @@ TEST(HostCacheTest, CacheNegativeEntry) {
 
   // Add an entry for "foobar2.com" at t=5.
   EXPECT_TRUE(cache.Lookup(Key("foobar2.com"), base::TimeTicks()) == NULL);
-  cache.Set(Key("foobar2.com"), ERR_NAME_NOT_RESOLVED, AddressList(), now);
+  cache.Set(Key("foobar2.com"), ERR_NAME_NOT_RESOLVED, AddressList(),
+            now, kFailureEntryTTL);
   entry2 = cache.Lookup(Key("foobar2.com"), base::TimeTicks());
   EXPECT_FALSE(NULL == entry1);
   EXPECT_EQ(2U, cache.size());
@@ -152,7 +159,8 @@ TEST(HostCacheTest, CacheNegativeEntry) {
   EXPECT_EQ(entry2, cache.Lookup(Key("foobar2.com"), now));
 
   // Update entry1, so it is no longer expired.
-  cache.Set(Key("foobar.com"), ERR_NAME_NOT_RESOLVED, AddressList(), now);
+  cache.Set(Key("foobar.com"), ERR_NAME_NOT_RESOLVED, AddressList(),
+            now, kFailureEntryTTL);
   // Re-uses existing entry storage.
   EXPECT_EQ(entry1, cache.Lookup(Key("foobar.com"), now));
   EXPECT_EQ(2U, cache.size());
@@ -170,7 +178,9 @@ TEST(HostCacheTest, CacheNegativeEntry) {
 
 TEST(HostCacheTest, Compact) {
   // Initial entries limit is big enough to accomadate everything we add.
-  HostCache cache(kMaxCacheEntries, kSuccessEntryTTL, kFailureEntryTTL);
+  const base::TimeDelta kSuccessEntryTTL = base::TimeDelta::FromSeconds(10);
+  const base::TimeDelta kFailureEntryTTL = base::TimeDelta::FromSeconds(0);
+  HostCache cache(kMaxCacheEntries);
 
   EXPECT_EQ(0U, cache.size());
 
@@ -180,7 +190,7 @@ TEST(HostCacheTest, Compact) {
   // Add five valid entries at t=10.
   for (int i = 0; i < 5; ++i) {
     std::string hostname = base::StringPrintf("valid%d", i);
-    cache.Set(Key(hostname), OK, AddressList(), now);
+    cache.Set(Key(hostname), OK, AddressList(), now, kSuccessEntryTTL);
   }
   EXPECT_EQ(5U, cache.size());
 
@@ -188,14 +198,15 @@ TEST(HostCacheTest, Compact) {
   for (int i = 0; i < 3; ++i) {
     std::string hostname = base::StringPrintf("expired%d", i);
     base::TimeTicks t = now - base::TimeDelta::FromSeconds(10);
-    cache.Set(Key(hostname), OK, AddressList(), t);
+    cache.Set(Key(hostname), OK, AddressList(), t, kSuccessEntryTTL);
   }
   EXPECT_EQ(8U, cache.size());
 
   // Add 2 negative entries at t=10
   for (int i = 0; i < 2; ++i) {
     std::string hostname = base::StringPrintf("negative%d", i);
-    cache.Set(Key(hostname), ERR_NAME_NOT_RESOLVED, AddressList(), now);
+    cache.Set(Key(hostname), ERR_NAME_NOT_RESOLVED, AddressList(),
+              now, kFailureEntryTTL);
   }
   EXPECT_EQ(10U, cache.size());
 
@@ -236,14 +247,16 @@ TEST(HostCacheTest, Compact) {
 
 // Add entries while the cache is at capacity, causing evictions.
 TEST(HostCacheTest, SetWithCompact) {
-  HostCache cache(3, kSuccessEntryTTL, kFailureEntryTTL);
+  const base::TimeDelta kTTL = base::TimeDelta::FromSeconds(10);
+
+  HostCache cache(3);
 
   // t=10
-  base::TimeTicks now = base::TimeTicks() + kSuccessEntryTTL;
+  base::TimeTicks now = base::TimeTicks() + kTTL;
 
-  cache.Set(Key("host1"), OK, AddressList(), now);
-  cache.Set(Key("host2"), OK, AddressList(), now);
-  cache.Set(Key("expired"), OK, AddressList(), now - kSuccessEntryTTL);
+  cache.Set(Key("host1"), OK, AddressList(), now, kTTL);
+  cache.Set(Key("host2"), OK, AddressList(), now, kTTL);
+  cache.Set(Key("expired"), OK, AddressList(), now, kTTL - kTTL);
 
   EXPECT_EQ(3U, cache.size());
 
@@ -253,7 +266,7 @@ TEST(HostCacheTest, SetWithCompact) {
   EXPECT_TRUE(NULL == cache.Lookup(Key("expired"), now));
 
   // Adding the fourth entry will cause "expired" to be evicted.
-  cache.Set(Key("host3"), OK, AddressList(), now);
+  cache.Set(Key("host3"), OK, AddressList(), now, kTTL);
   EXPECT_EQ(3U, cache.size());
   EXPECT_TRUE(cache.Lookup(Key("expired"), now) == NULL);
   EXPECT_FALSE(cache.Lookup(Key("host1"), now) == NULL);
@@ -262,9 +275,9 @@ TEST(HostCacheTest, SetWithCompact) {
 
   // Add two more entries. Something should be evicted, however "host5"
   // should definitely be in there (since it was last inserted).
-  cache.Set(Key("host4"), OK, AddressList(), now);
+  cache.Set(Key("host4"), OK, AddressList(), now, kTTL);
   EXPECT_EQ(3U, cache.size());
-  cache.Set(Key("host5"), OK, AddressList(), now);
+  cache.Set(Key("host5"), OK, AddressList(), now, kTTL);
   EXPECT_EQ(3U, cache.size());
   EXPECT_FALSE(cache.Lookup(Key("host5"), now) == NULL);
 }
@@ -272,7 +285,9 @@ TEST(HostCacheTest, SetWithCompact) {
 // Tests that the same hostname can be duplicated in the cache, so long as
 // the address family differs.
 TEST(HostCacheTest, AddressFamilyIsPartOfKey) {
-  HostCache cache(kMaxCacheEntries, kSuccessEntryTTL, kFailureEntryTTL);
+  const base::TimeDelta kSuccessEntryTTL = base::TimeDelta::FromSeconds(10);
+
+  HostCache cache(kMaxCacheEntries);
 
   // t=0.
   base::TimeTicks now;
@@ -287,14 +302,14 @@ TEST(HostCacheTest, AddressFamilyIsPartOfKey) {
 
   // Add an entry for ("foobar.com", UNSPECIFIED) at t=0.
   EXPECT_TRUE(cache.Lookup(key1, base::TimeTicks()) == NULL);
-  cache.Set(key1, OK, AddressList(), now);
+  cache.Set(key1, OK, AddressList(), now, kSuccessEntryTTL);
   entry1 = cache.Lookup(key1, base::TimeTicks());
   EXPECT_FALSE(entry1 == NULL);
   EXPECT_EQ(1U, cache.size());
 
   // Add an entry for ("foobar.com", IPV4_ONLY) at t=0.
   EXPECT_TRUE(cache.Lookup(key2, base::TimeTicks()) == NULL);
-  cache.Set(key2, OK, AddressList(), now);
+  cache.Set(key2, OK, AddressList(), now, kSuccessEntryTTL);
   entry2 = cache.Lookup(key2, base::TimeTicks());
   EXPECT_FALSE(entry2 == NULL);
   EXPECT_EQ(2U, cache.size());
@@ -307,7 +322,9 @@ TEST(HostCacheTest, AddressFamilyIsPartOfKey) {
 // Tests that the same hostname can be duplicated in the cache, so long as
 // the HostResolverFlags differ.
 TEST(HostCacheTest, HostResolverFlagsArePartOfKey) {
-  HostCache cache(kMaxCacheEntries, kSuccessEntryTTL, kFailureEntryTTL);
+  const base::TimeDelta kTTL = base::TimeDelta::FromSeconds(10);
+
+  HostCache cache(kMaxCacheEntries);
 
   // t=0.
   base::TimeTicks now;
@@ -326,21 +343,21 @@ TEST(HostCacheTest, HostResolverFlagsArePartOfKey) {
 
   // Add an entry for ("foobar.com", IPV4, NONE) at t=0.
   EXPECT_TRUE(cache.Lookup(key1, base::TimeTicks()) == NULL);
-  cache.Set(key1, OK, AddressList(), now);
+  cache.Set(key1, OK, AddressList(), now, kTTL);
   entry1 = cache.Lookup(key1, base::TimeTicks());
   EXPECT_FALSE(entry1 == NULL);
   EXPECT_EQ(1U, cache.size());
 
   // Add an entry for ("foobar.com", IPV4, CANONNAME) at t=0.
   EXPECT_TRUE(cache.Lookup(key2, base::TimeTicks()) == NULL);
-  cache.Set(key2, OK, AddressList(), now);
+  cache.Set(key2, OK, AddressList(), now, kTTL);
   entry2 = cache.Lookup(key2, base::TimeTicks());
   EXPECT_FALSE(entry2 == NULL);
   EXPECT_EQ(2U, cache.size());
 
   // Add an entry for ("foobar.com", IPV4, LOOPBACK_ONLY) at t=0.
   EXPECT_TRUE(cache.Lookup(key3, base::TimeTicks()) == NULL);
-  cache.Set(key3, OK, AddressList(), now);
+  cache.Set(key3, OK, AddressList(), now, kTTL);
   entry3 = cache.Lookup(key3, base::TimeTicks());
   EXPECT_FALSE(entry3 == NULL);
   EXPECT_EQ(3U, cache.size());
@@ -354,7 +371,9 @@ TEST(HostCacheTest, HostResolverFlagsArePartOfKey) {
 
 TEST(HostCacheTest, NoCache) {
   // Disable caching.
-  HostCache cache(0, kSuccessEntryTTL, kFailureEntryTTL);
+  const base::TimeDelta kTTL = base::TimeDelta::FromSeconds(10);
+
+  HostCache cache(0);
   EXPECT_TRUE(cache.caching_is_disabled());
 
   // Set t=0.
@@ -362,14 +381,16 @@ TEST(HostCacheTest, NoCache) {
 
   // Lookup and Set should have no effect.
   EXPECT_TRUE(cache.Lookup(Key("foobar.com"), base::TimeTicks()) == NULL);
-  cache.Set(Key("foobar.com"), OK, AddressList(), now);
+  cache.Set(Key("foobar.com"), OK, AddressList(), now, kTTL);
   EXPECT_TRUE(cache.Lookup(Key("foobar.com"), base::TimeTicks()) == NULL);
 
   EXPECT_EQ(0U, cache.size());
 }
 
 TEST(HostCacheTest, Clear) {
-  HostCache cache(kMaxCacheEntries, kSuccessEntryTTL, kFailureEntryTTL);
+  const base::TimeDelta kTTL = base::TimeDelta::FromSeconds(10);
+
+  HostCache cache(kMaxCacheEntries);
 
   // Set t=0.
   base::TimeTicks now;
@@ -377,9 +398,9 @@ TEST(HostCacheTest, Clear) {
   EXPECT_EQ(0u, cache.size());
 
   // Add three entries.
-  cache.Set(Key("foobar1.com"), OK, AddressList(), now);
-  cache.Set(Key("foobar2.com"), OK, AddressList(), now);
-  cache.Set(Key("foobar3.com"), OK, AddressList(), now);
+  cache.Set(Key("foobar1.com"), OK, AddressList(), now, kTTL);
+  cache.Set(Key("foobar2.com"), OK, AddressList(), now, kTTL);
+  cache.Set(Key("foobar3.com"), OK, AddressList(), now, kTTL);
 
   EXPECT_EQ(3u, cache.size());
 

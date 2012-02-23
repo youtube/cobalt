@@ -4,6 +4,8 @@
 
 #include "net/proxy/polling_proxy_config_service.h"
 
+#include "base/bind.h"
+#include "base/location.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop_proxy.h"
 #include "base/observer_list.h"
@@ -90,7 +92,7 @@ class PollingProxyConfigService::Core
     poll_task_queued_ = false;
     base::WorkerPool::PostTask(
         FROM_HERE,
-        NewRunnableMethod(this, &Core::PollOnWorkerThread, get_config_func_),
+        base::Bind(&Core::PollOnWorkerThread, this, get_config_func_),
         true);
   }
 
@@ -103,7 +105,7 @@ class PollingProxyConfigService::Core
     if (origin_loop_proxy_) {
       origin_loop_proxy_->PostTask(
           FROM_HERE,
-          NewRunnableMethod(this, &Core::GetConfigCompleted, config));
+          base::Bind(&Core::GetConfigCompleted, this, config));
     }
   }
 
@@ -136,7 +138,7 @@ class PollingProxyConfigService::Core
     //               UI thread so we can't cache the IO thread for the purpose
     //               of DCHECKs until the first call is made.
     if (!have_initialized_origin_loop_) {
-      origin_loop_proxy_ = base::MessageLoopProxy::CreateForCurrentThread();
+      origin_loop_proxy_ = base::MessageLoopProxy::current();
       have_initialized_origin_loop_ = true;
     }
   }

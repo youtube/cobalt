@@ -38,7 +38,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/time.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 class GURL;
 
@@ -53,7 +53,7 @@ class IOBuffer;
 // is passed to the constructor of all those filters.  To be clear, the context
 // does NOT reflect the position in a chain, or the fact that there are prior
 // or later filters in a chain.
-class NET_TEST FilterContext {
+class NET_EXPORT_PRIVATE FilterContext {
  public:
   // Enum to control what histograms are emitted near end-of-life of this
   // instance.
@@ -101,7 +101,7 @@ class NET_TEST FilterContext {
 };
 
 //------------------------------------------------------------------------------
-class NET_TEST Filter {
+class NET_EXPORT_PRIVATE Filter {
  public:
   // Return values of function ReadFilteredData.
   enum FilterStatus {

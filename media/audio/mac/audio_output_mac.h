@@ -9,6 +9,8 @@
 #include <AudioToolbox/AudioQueue.h>
 #include <AudioUnit/AudioUnit.h>
 
+#include "base/compiler_specific.h"
+#include "base/synchronization/lock.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
@@ -28,12 +30,12 @@ class PCMQueueOutAudioOutputStream : public AudioOutputStream {
   virtual ~PCMQueueOutAudioOutputStream();
 
   // Implementation of AudioOutputStream.
-  virtual bool Open();
-  virtual void Close();
-  virtual void Start(AudioSourceCallback* callback);
-  virtual void Stop();
-  virtual void SetVolume(double volume);
-  virtual void GetVolume(double* volume);
+  virtual bool Open() OVERRIDE;
+  virtual void Close() OVERRIDE;
+  virtual void Start(AudioSourceCallback* callback) OVERRIDE;
+  virtual void Stop() OVERRIDE;
+  virtual void SetVolume(double volume) OVERRIDE;
+  virtual void GetVolume(double* volume) OVERRIDE;
 
  private:
   // The audio is double buffered.
@@ -52,12 +54,19 @@ class PCMQueueOutAudioOutputStream : public AudioOutputStream {
   // Called when an error occurs.
   void HandleError(OSStatus err);
 
+  // Atomic operations for setting/getting the source callback.
+  void SetSource(AudioSourceCallback* source);
+  AudioSourceCallback* GetSource();
+
   // Structure that holds the stream format details such as bitrate.
   AudioStreamBasicDescription format_;
   // Handle to the OS audio queue object.
   AudioQueueRef audio_queue_;
   // Array of pointers to the OS managed audio buffers.
   AudioQueueBufferRef buffer_[kNumBuffers];
+  // Mutex for the |source_| to implment atomic set and get.
+  // It is important to NOT wait on any other locks while this is held.
+  base::Lock source_lock_;
   // Pointer to the object that will provide the audio samples.
   AudioSourceCallback* source_;
   // Our creator, the audio manager needs to be notified when we close.

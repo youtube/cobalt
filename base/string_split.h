@@ -72,8 +72,6 @@ BASE_EXPORT void SplitStringDontTrim(const std::string& str,
 // Splits the string along whitespace (where whitespace is the five space
 // characters defined by HTML 5). Each contiguous block of non-whitespace
 // characters is added to result.
-BASE_EXPORT void SplitStringAlongWhitespace(const std::wstring& str,
-                                            std::vector<std::wstring>* result);
 BASE_EXPORT void SplitStringAlongWhitespace(const string16& str,
                                             std::vector<string16>* result);
 BASE_EXPORT void SplitStringAlongWhitespace(const std::string& str,

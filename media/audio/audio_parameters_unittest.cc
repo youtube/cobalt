@@ -7,8 +7,6 @@
 #include "media/audio/audio_parameters.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using media::AudioDecoderConfig;
-
 TEST(AudioParameters, Constructor_Default) {
   AudioParameters::Format expected_format = AudioParameters::AUDIO_PCM_LINEAR;
   int expected_bits = 0;
@@ -18,26 +16,6 @@ TEST(AudioParameters, Constructor_Default) {
   int expected_samples = 0;
 
   AudioParameters params;
-
-  EXPECT_EQ(expected_format, params.format);
-  EXPECT_EQ(expected_bits, params.bits_per_sample);
-  EXPECT_EQ(expected_channels, params.channels);
-  EXPECT_EQ(expected_channel_layout, params.channel_layout);
-  EXPECT_EQ(expected_rate, params.sample_rate);
-  EXPECT_EQ(expected_samples, params.samples_per_packet);
-}
-
-TEST(AudioParameters, Constructor_AudioDecoderConfig) {
-  AudioParameters::Format expected_format = AudioParameters::AUDIO_PCM_LINEAR;
-  int expected_bits = 8;
-  int expected_channels = 2;
-  ChannelLayout expected_channel_layout = CHANNEL_LAYOUT_STEREO;
-  int expected_rate = 44000;
-  int expected_samples = 0;
-
-  AudioDecoderConfig config(expected_bits, expected_channel_layout,
-                            expected_rate);
-  AudioParameters params(config);
 
   EXPECT_EQ(expected_format, params.format);
   EXPECT_EQ(expected_bits, params.bits_per_sample);

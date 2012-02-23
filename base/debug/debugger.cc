@@ -15,8 +15,8 @@ bool WaitForDebugger(int wait_seconds, bool silent) {
 #if defined(OS_ANDROID)
   // The pid from which we know which process to attach to are not output by
   // android ddms, so we have to print it out explicitly.
-  LOG(INFO) << "DebugUtil::WaitForDebugger(pid=" << static_cast<int>(getpid())
-      << ")";
+  DLOG(INFO) << "DebugUtil::WaitForDebugger(pid=" << static_cast<int>(getpid())
+             << ")";
 #endif
   for (int i = 0; i < wait_seconds * 10; ++i) {
     if (BeingDebugged()) {
@@ -24,7 +24,7 @@ bool WaitForDebugger(int wait_seconds, bool silent) {
         BreakDebugger();
       return true;
     }
-    PlatformThread::Sleep(100);
+    PlatformThread::Sleep(TimeDelta::FromMilliseconds(100));
   }
   return false;
 }

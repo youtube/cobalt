@@ -9,12 +9,14 @@
 
 #include <string>
 
+#include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/task.h"
+#include "base/memory/weak_ptr.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
 class AlsaWrapper;
+class AudioManagerLinux;
 
 // Provides an input stream for audio capture based on the ALSA PCM interface.
 // This object is not thread safe and all methods should be invoked in the
@@ -28,16 +30,17 @@ class AlsaPcmInputStream : public AudioInputStream {
   // Create a PCM Output stream for the ALSA device identified by
   // |device_name|. If unsure of what to use for |device_name|, use
   // |kAutoSelectDevice|.
-  AlsaPcmInputStream(const std::string& device_name,
+  AlsaPcmInputStream(AudioManagerLinux* audio_manager,
+                     const std::string& device_name,
                      const AudioParameters& params,
                      AlsaWrapper* wrapper);
   virtual ~AlsaPcmInputStream();
 
   // Implementation of AudioOutputStream.
-  virtual bool Open();
-  virtual void Start(AudioInputCallback* callback);
-  virtual void Stop();
-  virtual void Close();
+  virtual bool Open() OVERRIDE;
+  virtual void Start(AudioInputCallback* callback) OVERRIDE;
+  virtual void Stop() OVERRIDE;
+  virtual void Close() OVERRIDE;
 
  private:
   // Logs the error and invokes any registered callbacks.
@@ -50,6 +53,15 @@ class AlsaPcmInputStream : public AudioInputStream {
   // Recovers from any device errors if possible.
   bool Recover(int error);
 
+  // Utility function for talking with the ALSA API.
+  snd_pcm_sframes_t GetCurrentDelay();
+
+  // Non-refcounted pointer back to the audio manager.
+  // The AudioManager indirectly holds on to stream objects, so we don't
+  // want circular references.  Additionally, stream objects live on the audio
+  // thread, which is owned by the audio manager and we don't want to addref
+  // the manager from that thread.
+  AudioManagerLinux* audio_manager_;
   std::string device_name_;
   AudioParameters params_;
   int bytes_per_packet_;
@@ -58,8 +70,9 @@ class AlsaPcmInputStream : public AudioInputStream {
   AudioInputCallback* callback_;  // Valid during a recording session.
   base::Time next_read_time_;  // Scheduled time for the next read callback.
   snd_pcm_t* device_handle_;  // Handle to the ALSA PCM recording device.
-  ScopedRunnableMethodFactory<AlsaPcmInputStream> task_factory_;
+  base::WeakPtrFactory<AlsaPcmInputStream> weak_factory_;
   scoped_array<uint8> audio_packet_;  // Buffer used for reading audio data.
+  bool read_callback_behind_schedule_;
 
   DISALLOW_COPY_AND_ASSIGN(AlsaPcmInputStream);
 };

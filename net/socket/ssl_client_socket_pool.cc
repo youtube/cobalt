@@ -1,9 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/socket/ssl_client_socket_pool.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram.h"
 #include "base/values.h"
@@ -94,7 +96,8 @@ SSLConnectJob::SSLConnectJob(const std::string& group_name,
       host_resolver_(host_resolver),
       context_(context),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          callback_(this, &SSLConnectJob::OnIOComplete)) {}
+          callback_(base::Bind(&SSLConnectJob::OnIOComplete,
+                               base::Unretained(this)))) {}
 
 SSLConnectJob::~SSLConnectJob() {}
 
@@ -119,7 +122,7 @@ LoadState SSLConnectJob::GetLoadState() const {
   }
 }
 
-void SSLConnectJob::GetAdditionalErrorState(ClientSocketHandle * handle) {
+void SSLConnectJob::GetAdditionalErrorState(ClientSocketHandle* handle) {
   // Headers in |error_response_info_| indicate a proxy tunnel setup
   // problem. See DoTunnelConnectComplete.
   if (error_response_info_.headers) {
@@ -194,9 +197,6 @@ int SSLConnectJob::DoTransportConnect() {
   }
 
   if (ssl_host_info_.get()) {
-    if (context_.dnsrr_resolver)
-      ssl_host_info_->StartDnsLookup(context_.dnsrr_resolver);
-
     // This starts fetching the SSL host info from the disk cache for early
     // certificate verification and the TLS cached information extension.
     ssl_host_info_->Start();
@@ -207,10 +207,9 @@ int SSLConnectJob::DoTransportConnect() {
   scoped_refptr<TransportSocketParams> transport_params =
       params_->transport_params();
   return transport_socket_handle_->Init(
-      group_name(),
-      transport_params,
-      transport_params->destination().priority(),
-      &callback_, transport_pool_, net_log());
+      group_name(), transport_params,
+      transport_params->destination().priority(), callback_, transport_pool_,
+      net_log());
 }
 
 int SSLConnectJob::DoTransportConnectComplete(int result) {
@@ -225,9 +224,9 @@ int SSLConnectJob::DoSOCKSConnect() {
   next_state_ = STATE_SOCKS_CONNECT_COMPLETE;
   transport_socket_handle_.reset(new ClientSocketHandle());
   scoped_refptr<SOCKSSocketParams> socks_params = params_->socks_params();
-  return transport_socket_handle_->Init(group_name(), socks_params,
-                                        socks_params->destination().priority(),
-                                        &callback_, socks_pool_, net_log());
+  return transport_socket_handle_->Init(
+      group_name(), socks_params, socks_params->destination().priority(),
+      callback_, socks_pool_, net_log());
 }
 
 int SSLConnectJob::DoSOCKSConnectComplete(int result) {
@@ -246,8 +245,8 @@ int SSLConnectJob::DoTunnelConnect() {
       params_->http_proxy_params();
   return transport_socket_handle_->Init(
       group_name(), http_proxy_params,
-      http_proxy_params->destination().priority(), &callback_,
-      http_proxy_pool_, net_log());
+      http_proxy_params->destination().priority(), callback_, http_proxy_pool_,
+      net_log());
 }
 
 int SSLConnectJob::DoTunnelConnectComplete(int result) {
@@ -279,29 +278,32 @@ int SSLConnectJob::DoSSLConnect() {
   ssl_socket_.reset(client_socket_factory_->CreateSSLClientSocket(
       transport_socket_handle_.release(), params_->host_and_port(),
       params_->ssl_config(), ssl_host_info_.release(), context_));
-  return ssl_socket_->Connect(&callback_);
+  return ssl_socket_->Connect(callback_);
 }
 
 int SSLConnectJob::DoSSLConnectComplete(int result) {
   SSLClientSocket::NextProtoStatus status =
       SSLClientSocket::kNextProtoUnsupported;
   std::string proto;
+  std::string server_protos;
   // GetNextProto will fail and and trigger a NOTREACHED if we pass in a socket
   // that hasn't had SSL_ImportFD called on it. If we get a certificate error
   // here, then we know that we called SSL_ImportFD.
   if (result == OK || IsCertificateError(result))
-    status = ssl_socket_->GetNextProto(&proto);
+    status = ssl_socket_->GetNextProto(&proto, &server_protos);
 
   // If we want spdy over npn, make sure it succeeded.
   if (status == SSLClientSocket::kNextProtoNegotiated) {
     ssl_socket_->set_was_npn_negotiated(true);
-    SSLClientSocket::NextProto next_protocol =
+    SSLClientSocket::NextProto protocol_negotiated =
         SSLClientSocket::NextProtoFromString(proto);
+    ssl_socket_->set_protocol_negotiated(protocol_negotiated);
     // If we negotiated either version of SPDY, we must have
     // advertised it, so allow it.
     // TODO(mbelshe): verify it was a protocol we advertised?
-    if (next_protocol == SSLClientSocket::kProtoSPDY1 ||
-        next_protocol == SSLClientSocket::kProtoSPDY2) {
+    if (protocol_negotiated == SSLClientSocket::kProtoSPDY1 ||
+        protocol_negotiated == SSLClientSocket::kProtoSPDY2 ||
+        protocol_negotiated == SSLClientSocket::kProtoSPDY21) {
       ssl_socket_->set_was_spdy_negotiated(true);
     }
   }
@@ -446,9 +448,9 @@ SSLClientSocketPool::SSLClientSocketPool(
     HostResolver* host_resolver,
     CertVerifier* cert_verifier,
     OriginBoundCertService* origin_bound_cert_service,
-    DnsRRResolver* dnsrr_resolver,
-    DnsCertProvenanceChecker* dns_cert_checker,
+    TransportSecurityState* transport_security_state,
     SSLHostInfoFactory* ssl_host_info_factory,
+    const std::string& ssl_session_cache_shard,
     ClientSocketFactory* client_socket_factory,
     TransportClientSocketPool* transport_pool,
     SOCKSClientSocketPool* socks_pool,
@@ -459,9 +461,8 @@ SSLClientSocketPool::SSLClientSocketPool(
       socks_pool_(socks_pool),
       http_proxy_pool_(http_proxy_pool),
       base_(max_sockets, max_sockets_per_group, histograms,
-            base::TimeDelta::FromSeconds(
-                ClientSocketPool::unused_idle_socket_timeout()),
-            base::TimeDelta::FromSeconds(kUsedIdleSocketTimeout),
+            ClientSocketPool::unused_idle_socket_timeout(),
+            ClientSocketPool::used_idle_socket_timeout(),
             new SSLConnectJobFactory(transport_pool,
                                      socks_pool,
                                      http_proxy_pool,
@@ -470,9 +471,9 @@ SSLClientSocketPool::SSLClientSocketPool(
                                      SSLClientSocketContext(
                                          cert_verifier,
                                          origin_bound_cert_service,
-                                         dnsrr_resolver,
-                                         dns_cert_checker,
-                                         ssl_host_info_factory),
+                                         transport_security_state,
+                                         ssl_host_info_factory,
+                                         ssl_session_cache_shard),
                                      net_log)),
       ssl_config_service_(ssl_config_service) {
   if (ssl_config_service_)
@@ -498,7 +499,7 @@ int SSLClientSocketPool::RequestSocket(const std::string& group_name,
                                        const void* socket_params,
                                        RequestPriority priority,
                                        ClientSocketHandle* handle,
-                                       CompletionCallback* callback,
+                                       const CompletionCallback& callback,
                                        const BoundNetLog& net_log) {
   const scoped_refptr<SSLSocketParams>* casted_socket_params =
       static_cast<const scoped_refptr<SSLSocketParams>*>(socket_params);

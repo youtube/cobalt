@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -308,6 +308,19 @@ class BASE_EXPORT MachPortSender {
 
   DISALLOW_COPY_AND_ASSIGN(MachPortSender);
 };
+
+//==============================================================================
+// Static utility functions.
+
+namespace mac {
+
+// Returns the number of Mach ports to which the given task has a right.
+// Note that unless the calling task has send rights to the passed task port,
+// this will fail unless the calling task is running as root.
+kern_return_t BASE_EXPORT GetNumberOfMachPorts(mach_port_t task_port,
+                                               int* port_count);
+
+}  // namespace mac
 
 }  // namespace base
 

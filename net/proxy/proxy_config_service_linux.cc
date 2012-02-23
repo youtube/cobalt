@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,6 +23,7 @@
 
 #include <map>
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/environment.h"
 #include "base/file_path.h"
@@ -33,7 +34,6 @@
 #include "base/string_number_conversions.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
-#include "base/task.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/timer.h"
 #include "googleurl/src/url_canon.h"
@@ -200,15 +200,16 @@ const int kDebounceTimeoutMilliseconds = 250;
 class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
  public:
   SettingGetterImplGConf()
-      : this_(this), client_(NULL), notify_delegate_(NULL), loop_(NULL) {}
+      : client_(NULL), system_proxy_id_(0), system_http_proxy_id_(0),
+        notify_delegate_(NULL), loop_(NULL) {
+  }
 
   virtual ~SettingGetterImplGConf() {
     // client_ should have been released before now, from
     // Delegate::OnDestroy(), while running on the UI thread. However
-    // on exiting the process, it may happen that
-    // Delegate::OnDestroy() task is left pending on the glib loop
-    // after the loop was quit, and pending tasks may then be deleted
-    // without being run.
+    // on exiting the process, it may happen that Delegate::OnDestroy()
+    // task is left pending on the glib loop after the loop was quit,
+    // and pending tasks may then be deleted without being run.
     if (client_) {
       // gconf client was not cleaned up.
       if (MessageLoop::current() == loop_) {
@@ -218,8 +219,12 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
         VLOG(1) << "~SettingGetterImplGConf: releasing gconf client";
         ShutDown();
       } else {
-        LOG(WARNING) << "~SettingGetterImplGConf: leaking gconf client";
-        client_ = NULL;
+        // This is very bad! We are deleting the setting getter but we're not on
+        // the UI thread. This is not supposed to happen: the setting getter is
+        // owned by the proxy config service's delegate, which is supposed to be
+        // destroyed on the UI thread only. We will get change notifications to
+        // a deleted object if we continue here, so fail now.
+        LOG(FATAL) << "~SettingGetterImplGConf: deleting on wrong thread!";
       }
     }
     DCHECK(!client_);
@@ -239,18 +244,26 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
       return false;
     }
     GError* error = NULL;
+    bool added_system_proxy = false;
     // We need to add the directories for which we'll be asking
-    // notifications, and we might as well ask to preload them.
+    // for notifications, and we might as well ask to preload them.
+    // These need to be removed again in ShutDown(); we are careful
+    // here to only leave client_ non-NULL if both have been added.
     gconf_client_add_dir(client_, "/system/proxy",
                          GCONF_CLIENT_PRELOAD_ONELEVEL, &error);
     if (error == NULL) {
+      added_system_proxy = true;
       gconf_client_add_dir(client_, "/system/http_proxy",
                            GCONF_CLIENT_PRELOAD_ONELEVEL, &error);
     }
     if (error != NULL) {
       LOG(ERROR) << "Error requesting gconf directory: " << error->message;
       g_error_free(error);
-      ShutDown();
+      if (added_system_proxy)
+        gconf_client_remove_dir(client_, "/system/proxy", NULL);
+      g_object_unref(client_);
+      client_ = NULL;
+      loop_ = NULL;
       return false;
     }
     return true;
@@ -259,7 +272,14 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
   void ShutDown() {
     if (client_) {
       DCHECK(MessageLoop::current() == loop_);
-      // This also disables gconf notifications.
+      // We must explicitly disable gconf notifications here, because the gconf
+      // client will be shared between all setting getters, and they do not all
+      // have the same lifetimes. (For instance, incognito sessions get their
+      // own, which is destroyed when the session ends.)
+      gconf_client_notify_remove(client_, system_http_proxy_id_);
+      gconf_client_notify_remove(client_, system_proxy_id_);
+      gconf_client_remove_dir(client_, "/system/http_proxy", NULL);
+      gconf_client_remove_dir(client_, "/system/proxy", NULL);
       g_object_unref(client_);
       client_ = NULL;
       loop_ = NULL;
@@ -271,12 +291,15 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
     DCHECK(MessageLoop::current() == loop_);
     GError* error = NULL;
     notify_delegate_ = delegate;
-    gconf_client_notify_add(
+    // We have to keep track of the IDs returned by gconf_client_notify_add() so
+    // that we can remove them in ShutDown(). (Otherwise, notifications will be
+    // delivered to this object after it is deleted, which is bad, m'kay?)
+    system_proxy_id_ = gconf_client_notify_add(
         client_, "/system/proxy",
         OnGConfChangeNotification, this,
         NULL, &error);
     if (error == NULL) {
-      gconf_client_notify_add(
+      system_http_proxy_id_ = gconf_client_notify_add(
           client_, "/system/http_proxy",
           OnGConfChangeNotification, this,
           NULL, &error);
@@ -447,13 +470,10 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
   }
 
   void OnChangeNotification() {
-    // See below. This check is to try and track bugs 75508 and 84673.
-    // TODO(mdm): remove this check once it gives us some results.
-    CHECK(this_ == this);
     // We don't use Reset() because the timer may not yet be running.
     // (In that case Stop() is a no-op.)
     debounce_timer_.Stop();
-    debounce_timer_.Start(
+    debounce_timer_.Start(FROM_HERE,
         base::TimeDelta::FromMilliseconds(kDebounceTimeoutMilliseconds),
         this, &SettingGetterImplGConf::OnDebouncedNotification);
   }
@@ -469,13 +489,12 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
     setting_getter->OnChangeNotification();
   }
 
-  // See bugs 75508 and 84673. I kind of suspect we're getting bogus pointers to
-  // this object somehow in callbacks from GConf; this pointer is always set to
-  // |this| on construction and should help verify whether this object has been
-  // scribbled upon or if we have a stray pointer somehow.
-  SettingGetterImplGConf* this_;
-
   GConfClient* client_;
+  // These ids are the values returned from gconf_client_notify_add(), which we
+  // will need in order to later call gconf_client_notify_remove().
+  guint system_proxy_id_;
+  guint system_http_proxy_id_;
+
   ProxyConfigServiceLinux::Delegate* notify_delegate_;
   base::OneShotTimer<SettingGetterImplGConf> debounce_timer_;
 
@@ -493,18 +512,6 @@ class SettingGetterImplGConf : public ProxyConfigServiceLinux::SettingGetter {
 class SettingGetterImplGSettings
     : public ProxyConfigServiceLinux::SettingGetter {
  public:
-#if 0
-GSettings* (*g_settings_new)(const gchar* schema);
-  GSettings* (*g_settings_get_child)(GSettings* settings, const gchar* name);
-  gboolean (*g_settings_get_boolean)(GSettings* settings, const gchar* key);
-  gchar* (*g_settings_get_string)(GSettings* settings, const gchar* key);
-  gint (*g_settings_get_int)(GSettings* settings, const gchar* key);
-  gchar** (*g_settings_get_strv)(GSettings* settings, const gchar* key);
-  const gchar* const* (*g_settings_list_schemas)();
-
-  // The library handle.
-  void* gio_handle_;
-#endif
   SettingGetterImplGSettings() :
 #if defined(DLOPEN_GSETTINGS)
     g_settings_new(NULL),
@@ -557,7 +564,7 @@ GSettings* (*g_settings_new)(const gchar* schema);
   bool SchemaExists(const char* schema_name) {
     const gchar* const* schemas = g_settings_list_schemas();
     while (*schemas) {
-      if (strcmp(schema_name, reinterpret_cast<const char*>(schemas)) == 0)
+      if (strcmp(schema_name, static_cast<const char*>(*schemas)) == 0)
         return true;
       schemas++;
     }
@@ -781,7 +788,7 @@ GSettings* (*g_settings_new)(const gchar* schema);
     // We don't use Reset() because the timer may not yet be running.
     // (In that case Stop() is a no-op.)
     debounce_timer_.Stop();
-    debounce_timer_.Start(
+    debounce_timer_.Start(FROM_HERE,
         base::TimeDelta::FromMilliseconds(kDebounceTimeoutMilliseconds),
         this, &SettingGetterImplGSettings::OnDebouncedNotification);
   }
@@ -830,10 +837,14 @@ bool SettingGetterImplGSettings::LoadAndCheckVersion(
   // binary, so we detect these systems that way.
 
 #ifdef DLOPEN_GSETTINGS
-  gio_handle_ = dlopen("libgio-2.0.so", RTLD_NOW | RTLD_GLOBAL);
+  gio_handle_ = dlopen("libgio-2.0.so.0", RTLD_NOW | RTLD_GLOBAL);
   if (!gio_handle_) {
-    VLOG(1) << "Cannot load gio library. Will fall back to gconf.";
-    return false;
+    // Try again without .0 at the end; on some systems this may be required.
+    gio_handle_ = dlopen("libgio-2.0.so", RTLD_NOW | RTLD_GLOBAL);
+    if (!gio_handle_) {
+      VLOG(1) << "Cannot load gio library. Will fall back to gconf.";
+      return false;
+    }
   }
   if (!LoadSymbol("g_settings_new",
                   reinterpret_cast<void**>(&g_settings_new)) ||
@@ -1024,9 +1035,9 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
     return file_loop_;
   }
 
-  // Implement base::MessagePumpLibevent::Delegate.
+  // Implement base::MessagePumpLibevent::Watcher.
   void OnFileCanReadWithoutBlocking(int fd) {
-    DCHECK(fd == inotify_fd_);
+    DCHECK_EQ(fd, inotify_fd_);
     DCHECK(MessageLoop::current() == file_loop_);
     OnChangeNotification();
   }
@@ -1297,7 +1308,7 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
   // from the inotify file descriptor and starts up a debounce timer if
   // an event for kioslaverc is seen.
   void OnChangeNotification() {
-    DCHECK(inotify_fd_ >= 0);
+    DCHECK_GE(inotify_fd_,  0);
     DCHECK(MessageLoop::current() == file_loop_);
     char event_buf[(sizeof(inotify_event) + NAME_MAX + 1) * 4];
     bool kioslaverc_touched = false;
@@ -1341,7 +1352,7 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
       // We don't use Reset() because the timer may not yet be running.
       // (In that case Stop() is a no-op.)
       debounce_timer_.Stop();
-      debounce_timer_.Start(base::TimeDelta::FromMilliseconds(
+      debounce_timer_.Start(FROM_HERE, base::TimeDelta::FromMilliseconds(
           kDebounceTimeoutMilliseconds), this,
           &SettingGetterImplKDE::OnDebouncedNotification);
     }
@@ -1643,11 +1654,8 @@ void ProxyConfigServiceLinux::Delegate::SetUpAndFetchInitialConfig(
         SetUpNotifications();
       } else {
         // Post a task to set up notifications. We don't wait for success.
-        required_loop->PostTask(
-            FROM_HERE,
-            NewRunnableMethod(
-                this,
-                &ProxyConfigServiceLinux::Delegate::SetUpNotifications));
+        required_loop->PostTask(FROM_HERE, base::Bind(
+            &ProxyConfigServiceLinux::Delegate::SetUpNotifications, this));
       }
     }
   }
@@ -1715,12 +1723,9 @@ void ProxyConfigServiceLinux::Delegate::OnCheckProxyConfigSettings() {
       !new_config.Equals(reference_config_)) {
     // Post a task to |io_loop| with the new configuration, so it can
     // update |cached_config_|.
-    io_loop_->PostTask(
-        FROM_HERE,
-        NewRunnableMethod(
-            this,
-            &ProxyConfigServiceLinux::Delegate::SetNewProxyConfig,
-            new_config));
+    io_loop_->PostTask(FROM_HERE, base::Bind(
+        &ProxyConfigServiceLinux::Delegate::SetNewProxyConfig,
+        this, new_config));
     // Update the thread-private copy in |reference_config_| as well.
     reference_config_ = new_config;
   } else {
@@ -1749,11 +1754,8 @@ void ProxyConfigServiceLinux::Delegate::PostDestroyTask() {
   } else {
     // Post to shutdown thread. Note that on browser shutdown, we may quit
     // this MessageLoop and exit the program before ever running this.
-    shutdown_loop->PostTask(
-        FROM_HERE,
-        NewRunnableMethod(
-            this,
-            &ProxyConfigServiceLinux::Delegate::OnDestroy));
+    shutdown_loop->PostTask(FROM_HERE, base::Bind(
+        &ProxyConfigServiceLinux::Delegate::OnDestroy, this));
   }
 }
 void ProxyConfigServiceLinux::Delegate::OnDestroy() {

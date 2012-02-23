@@ -8,7 +8,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/ftp/ftp_transaction_factory.h"
 
 namespace net {
@@ -16,7 +16,7 @@ namespace net {
 class FtpNetworkSession;
 class HostResolver;
 
-class NET_API FtpNetworkLayer : public FtpTransactionFactory {
+class NET_EXPORT FtpNetworkLayer : public FtpTransactionFactory {
  public:
   explicit FtpNetworkLayer(HostResolver* host_resolver);
   virtual ~FtpNetworkLayer();

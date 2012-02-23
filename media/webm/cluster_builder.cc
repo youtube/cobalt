@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -31,7 +31,8 @@ const int kSimpleBlockSizeOffset = 1;
 
 const int kInitialBufferSize = 32768;
 
-Cluster::Cluster(const uint8* data, int size) : data_(data), size_(size) {}
+Cluster::Cluster(scoped_array<uint8> data, int size)
+    : data_(data.Pass()), size_(size) {}
 Cluster::~Cluster() {}
 
 ClusterBuilder::ClusterBuilder() { Reset(); }
@@ -84,14 +85,14 @@ void ClusterBuilder::AddSimpleBlock(int track_num, int64 timecode, int flags,
   bytes_used_ += bytes_needed;
 }
 
-Cluster* ClusterBuilder::Finish() {
+scoped_ptr<Cluster> ClusterBuilder::Finish() {
   DCHECK_NE(cluster_timecode_, -1);
 
   UpdateUInt64(kClusterSizeOffset, bytes_used_ - (kClusterSizeOffset + 8));
 
-  scoped_ptr<Cluster> ret(new Cluster(buffer_.release(), bytes_used_));
+  scoped_ptr<Cluster> ret(new Cluster(buffer_.Pass(), bytes_used_));
   Reset();
-  return ret.release();
+  return ret.Pass();
 }
 
 void ClusterBuilder::Reset() {

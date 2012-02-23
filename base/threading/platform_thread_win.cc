@@ -4,13 +4,19 @@
 
 #include "base/threading/platform_thread.h"
 
+#include "base/debug/alias.h"
 #include "base/logging.h"
+#include "base/threading/thread_local.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/tracked_objects.h"
+
 #include "base/win/windows_version.h"
 
 namespace base {
 
 namespace {
+
+static ThreadLocalPointer<char> current_thread_name;
 
 // The information on how to set the thread name comes from
 // a MSDN article: http://msdn2.microsoft.com/en-us/library/xcb2z8hs.aspx
@@ -22,6 +28,21 @@ typedef struct tagTHREADNAME_INFO {
   DWORD dwThreadID;  // Thread ID (-1=caller thread).
   DWORD dwFlags;  // Reserved for future use, must be zero.
 } THREADNAME_INFO;
+
+// This function has try handling, so it is separated out of its caller.
+void SetNameInternal(PlatformThreadId thread_id, const char* name) {
+  THREADNAME_INFO info;
+  info.dwType = 0x1000;
+  info.szName = name;
+  info.dwThreadID = thread_id;
+  info.dwFlags = 0;
+
+  __try {
+    RaiseException(kVCThreadNameException, 0, sizeof(info)/sizeof(DWORD),
+                   reinterpret_cast<DWORD_PTR*>(&info));
+  } __except(EXCEPTION_CONTINUE_EXECUTION) {
+  }
+}
 
 struct ThreadParams {
   PlatformThread::Delegate* delegate;
@@ -93,23 +114,26 @@ void PlatformThread::Sleep(int duration_ms) {
 }
 
 // static
+void PlatformThread::Sleep(TimeDelta duration) {
+  ::Sleep(duration.InMillisecondsRoundedUp());
+}
+
+// static
 void PlatformThread::SetName(const char* name) {
+  current_thread_name.Set(const_cast<char*>(name));
+  tracked_objects::ThreadData::InitializeThreadContext(name);
+
   // The debugger needs to be around to catch the name in the exception.  If
   // there isn't a debugger, we are just needlessly throwing an exception.
   if (!::IsDebuggerPresent())
     return;
 
-  THREADNAME_INFO info;
-  info.dwType = 0x1000;
-  info.szName = name;
-  info.dwThreadID = CurrentId();
-  info.dwFlags = 0;
+  SetNameInternal(CurrentId(), name);
+}
 
-  __try {
-    RaiseException(kVCThreadNameException, 0, sizeof(info)/sizeof(DWORD),
-                   reinterpret_cast<DWORD_PTR*>(&info));
-  } __except(EXCEPTION_CONTINUE_EXECUTION) {
-  }
+// static
+const char* PlatformThread::GetName() {
+  return current_thread_name.Get();
 }
 
 // static
@@ -145,9 +169,19 @@ void PlatformThread::Join(PlatformThreadHandle thread_handle) {
 }
 
 // static
-void PlatformThread::SetThreadPriority(PlatformThreadHandle, ThreadPriority) {
-  // TODO(crogers): implement
-  NOTIMPLEMENTED();
+void PlatformThread::SetThreadPriority(PlatformThreadHandle handle,
+                                       ThreadPriority priority) {
+  switch (priority) {
+    case kThreadPriority_Normal:
+      ::SetThreadPriority(handle, THREAD_PRIORITY_NORMAL);
+      break;
+    case kThreadPriority_RealtimeAudio:
+      ::SetThreadPriority(handle, THREAD_PRIORITY_TIME_CRITICAL);
+      break;
+    default:
+      NOTIMPLEMENTED();
+      break;
+  }
 }
 
 }  // namespace base

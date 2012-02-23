@@ -10,6 +10,8 @@
 
 #include <string>
 
+#include "base/compiler_specific.h"
+
 class FilePath;
 
 namespace file_util {
@@ -48,6 +50,11 @@ bool HasInternetZoneIdentifier(const FilePath& full_path);
 // convenient to be able to compare paths to literals like L"foobar".
 std::wstring FilePathAsWString(const FilePath& path);
 FilePath WStringAsFilePath(const std::wstring& path);
+
+// For testing, make the file unreadable or unwritable.
+// In POSIX, this does not apply to the root user.
+bool MakeFileUnreadable(const FilePath& path) WARN_UNUSED_RESULT;
+bool MakeFileUnwritable(const FilePath& path) WARN_UNUSED_RESULT;
 
 }  // namespace file_util
 

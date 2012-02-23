@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,12 +8,28 @@
 // Implemented as templates to allow 8, 16 and 32 bit implementations.
 // 8 bit is unsigned and biased by 128.
 
+#include <algorithm>
+
+#include "base/atomicops.h"
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/shared_memory.h"
+#if defined(OS_WIN)
+#include "base/win/windows_version.h"
+#endif
 #include "media/audio/audio_util.h"
 #if defined(OS_MACOSX)
+#include "media/audio/mac/audio_low_latency_input_mac.h"
 #include "media/audio/mac/audio_low_latency_output_mac.h"
 #endif
+#if defined(OS_WIN)
+#include "media/audio/win/audio_low_latency_input_win.h"
+#include "media/audio/win/audio_low_latency_output_win.h"
+#endif
+
+using base::subtle::Atomic32;
+
+const uint32 kUnknownDataSize = static_cast<uint32>(-1);
 
 namespace media {
 
@@ -30,6 +46,30 @@ static void AdjustVolume(Format* buf_out,
   for (int i = 0; i < sample_count; ++i) {
     buf_out[i] = static_cast<Format>(ScaleChannel<Fixed>(buf_out[i] - bias,
                                                          fixed_volume) + bias);
+  }
+}
+
+// Type is the datatype of a data point in the waveform (i.e. uint8, int16,
+// int32, etc).
+template <class Type>
+static void DoCrossfade(int bytes_to_crossfade, int number_of_channels,
+                        int bytes_per_channel, const Type* src, Type* dest) {
+  DCHECK_EQ(sizeof(Type), static_cast<size_t>(bytes_per_channel));
+  int number_of_samples =
+      bytes_to_crossfade / (bytes_per_channel * number_of_channels);
+
+  const Type* dest_end = dest + number_of_samples * number_of_channels;
+  const Type* src_end = src + number_of_samples * number_of_channels;
+
+  for (int i = 0; i < number_of_samples; ++i) {
+    double crossfade_ratio = static_cast<double>(i) / number_of_samples;
+    for (int j = 0; j < number_of_channels; ++j) {
+      DCHECK_LT(dest, dest_end);
+      DCHECK_LT(src, src_end);
+      *dest = (*dest) * (1.0 - crossfade_ratio) + (*src) * crossfade_ratio;
+      ++src;
+      ++dest;
+    }
   }
 }
 
@@ -169,7 +209,7 @@ bool DeinterleaveAudioChannel(void* source,
       uint8* source8 = static_cast<uint8*>(source) + channel_index;
       const float kScale = 1.0f / 128.0f;
       for (unsigned i = 0; i < number_of_frames; ++i) {
-        destination[i] = kScale * static_cast<int>(*source8 + 128);
+        destination[i] = kScale * (static_cast<int>(*source8) - 128);
         source8 += channels;
       }
       return true;
@@ -222,16 +262,178 @@ void InterleaveFloatToInt16(const std::vector<float*>& source,
   }
 }
 
-double GetAudioHardwareSampleRate()
-{
+double GetAudioHardwareSampleRate() {
 #if defined(OS_MACOSX)
     // Hardware sample-rate on the Mac can be configured, so we must query.
     return AUAudioOutputStream::HardwareSampleRate();
+#elif defined(OS_WIN)
+  if (!IsWASAPISupported()) {
+    // Fall back to Windows Wave implementation on Windows XP or lower
+    // and use 48kHz as default input sample rate.
+    return 48000.0;
+  }
+
+  // Hardware sample-rate on Windows can be configured, so we must query.
+  // TODO(henrika): improve possibility to specify audio endpoint.
+  // Use the default device (same as for Wave) for now to be compatible.
+  return WASAPIAudioOutputStream::HardwareSampleRate(eConsole);
 #else
-    // Hardware for Windows and Linux is nearly always 48KHz.
+    // Hardware for Linux is nearly always 48KHz.
     // TODO(crogers) : return correct value in rare non-48KHz cases.
     return 48000.0;
 #endif
+}
+
+double GetAudioInputHardwareSampleRate() {
+#if defined(OS_MACOSX)
+  // Hardware sample-rate on the Mac can be configured, so we must query.
+  return AUAudioInputStream::HardwareSampleRate();
+#elif defined(OS_WIN)
+  if (!IsWASAPISupported()) {
+    // Fall back to Windows Wave implementation on Windows XP or lower
+    // and use 48kHz as default input sample rate.
+    return 48000.0;
+  }
+
+  // Hardware sample-rate on Windows can be configured, so we must query.
+  // TODO(henrika): improve possibility to specify audio endpoint.
+  // Use the default device (same as for Wave) for now to be compatible.
+  return WASAPIAudioInputStream::HardwareSampleRate(eConsole);
+#else
+  // Hardware for Linux is nearly always 48KHz.
+  // TODO(henrika): return correct value in rare non-48KHz cases.
+  return 48000.0;
+#endif
+}
+
+size_t GetAudioHardwareBufferSize() {
+  // The sizes here were determined by experimentation and are roughly
+  // the lowest value (for low latency) that still allowed glitch-free
+  // audio under high loads.
+  //
+  // For Mac OS X and Windows the chromium audio backend uses a low-latency
+  // Core Audio API, so a low buffer size is possible. For Linux, further
+  // tuning may be needed.
+#if defined(OS_MACOSX)
+  return 128;
+#elif defined(OS_WIN)
+  if (!IsWASAPISupported()) {
+    // Fall back to Windows Wave implementation on Windows XP or lower
+    // and assume 48kHz as default sample rate.
+    return 2048;
+  }
+  // This call must be done on a COM thread configured as MTA.
+  // TODO(tommi): http://code.google.com/p/chromium/issues/detail?id=103835.
+  int mixing_sample_rate =
+      static_cast<int>(WASAPIAudioOutputStream::HardwareSampleRate(eConsole));
+  if (mixing_sample_rate == 48000)
+    return 480;
+  else if (mixing_sample_rate == 44100)
+    return 448;
+  else
+    return 960;
+#else
+  return 2048;
+#endif
+}
+
+uint32 GetAudioInputHardwareChannelCount() {
+  enum channel_layout { MONO = 1, STEREO = 2 };
+#if defined(OS_MACOSX)
+  return MONO;
+#elif defined(OS_WIN)
+  if (!IsWASAPISupported()) {
+    // Fall back to Windows Wave implementation on Windows XP or lower and
+    // use stereo by default.
+    return STEREO;
+  }
+  return WASAPIAudioInputStream::HardwareChannelCount(eConsole);
+#else
+  return STEREO;
+#endif
+}
+
+// When transferring data in the shared memory, first word is size of data
+// in bytes. Actual data starts immediately after it.
+
+uint32 TotalSharedMemorySizeInBytes(uint32 packet_size) {
+  // Need to reserve extra 4 bytes for size of data.
+  return packet_size + sizeof(Atomic32);
+}
+
+uint32 PacketSizeSizeInBytes(uint32 shared_memory_created_size) {
+  return shared_memory_created_size - sizeof(Atomic32);
+}
+
+uint32 GetActualDataSizeInBytes(base::SharedMemory* shared_memory,
+                                uint32 shared_memory_size) {
+  char* ptr = static_cast<char*>(shared_memory->memory()) + shared_memory_size;
+  DCHECK_EQ(0u, reinterpret_cast<size_t>(ptr) & 3);
+
+  // Actual data size stored at the end of the buffer.
+  uint32 actual_data_size =
+      base::subtle::Acquire_Load(reinterpret_cast<volatile Atomic32*>(ptr));
+  return std::min(actual_data_size, shared_memory_size);
+}
+
+void SetActualDataSizeInBytes(base::SharedMemory* shared_memory,
+                              uint32 shared_memory_size,
+                              uint32 actual_data_size) {
+  char* ptr = static_cast<char*>(shared_memory->memory()) + shared_memory_size;
+  DCHECK_EQ(0u, reinterpret_cast<size_t>(ptr) & 3);
+
+  // Set actual data size at the end of the buffer.
+  base::subtle::Release_Store(reinterpret_cast<volatile Atomic32*>(ptr),
+                              actual_data_size);
+}
+
+void SetUnknownDataSize(base::SharedMemory* shared_memory,
+                        uint32 shared_memory_size) {
+  SetActualDataSizeInBytes(shared_memory, shared_memory_size, kUnknownDataSize);
+}
+
+bool IsUnknownDataSize(base::SharedMemory* shared_memory,
+                       uint32 shared_memory_size) {
+  char* ptr = static_cast<char*>(shared_memory->memory()) + shared_memory_size;
+  DCHECK_EQ(0u, reinterpret_cast<size_t>(ptr) & 3);
+
+  // Actual data size stored at the end of the buffer.
+  uint32 actual_data_size =
+      base::subtle::Acquire_Load(reinterpret_cast<volatile Atomic32*>(ptr));
+  return actual_data_size == kUnknownDataSize;
+}
+
+#if defined(OS_WIN)
+
+bool IsWASAPISupported() {
+  // Note: that function correctly returns that Windows Server 2003 does not
+  // support WASAPI.
+  return base::win::GetVersion() >= base::win::VERSION_VISTA;
+}
+
+#endif
+
+void Crossfade(int bytes_to_crossfade, int number_of_channels,
+               int bytes_per_channel, const uint8* src, uint8* dest) {
+  // TODO(vrk): The type punning below is no good!
+  switch (bytes_per_channel) {
+    case 4:
+      DoCrossfade(bytes_to_crossfade, number_of_channels, bytes_per_channel,
+                  reinterpret_cast<const int32*>(src),
+                  reinterpret_cast<int32*>(dest));
+      break;
+    case 2:
+      DoCrossfade(bytes_to_crossfade, number_of_channels, bytes_per_channel,
+                  reinterpret_cast<const int16*>(src),
+                  reinterpret_cast<int16*>(dest));
+      break;
+    case 1:
+      DoCrossfade(bytes_to_crossfade, number_of_channels, bytes_per_channel,
+                  src, dest);
+      break;
+    default:
+      NOTREACHED() << "Unsupported audio bit depth in crossfade.";
+  }
 }
 
 }  // namespace media

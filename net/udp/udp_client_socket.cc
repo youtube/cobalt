@@ -24,13 +24,13 @@ int UDPClientSocket::Connect(const IPEndPoint& address) {
 
 int UDPClientSocket::Read(IOBuffer* buf,
                           int buf_len,
-                          CompletionCallback* callback) {
+                          const CompletionCallback& callback) {
   return socket_.Read(buf, buf_len, callback);
 }
 
 int UDPClientSocket::Write(IOBuffer* buf,
                           int buf_len,
-                          CompletionCallback* callback) {
+                          const CompletionCallback& callback) {
   return socket_.Write(buf, buf_len, callback);
 }
 
@@ -47,11 +47,11 @@ int UDPClientSocket::GetLocalAddress(IPEndPoint* address) const {
 }
 
 bool UDPClientSocket::SetReceiveBufferSize(int32 size) {
-  return true;
+  return socket_.SetReceiveBufferSize(size);
 }
 
 bool UDPClientSocket::SetSendBufferSize(int32 size) {
-  return true;
+  return socket_.SetSendBufferSize(size);
 }
 
 const BoundNetLog& UDPClientSocket::NetLog() const {

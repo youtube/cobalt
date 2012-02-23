@@ -21,7 +21,6 @@ class ChromeClassTester : public clang::ASTConsumer {
   explicit ChromeClassTester(clang::CompilerInstance& instance);
   virtual ~ChromeClassTester();
 
-  void FigureOutSrcRoot();
   void BuildBannedLists();
 
   // ASTConsumer:
@@ -29,7 +28,7 @@ class ChromeClassTester : public clang::ASTConsumer {
 
  protected:
   clang::CompilerInstance& instance() { return instance_; }
-  clang::Diagnostic& diagnostic() { return diagnostic_; }
+  clang::DiagnosticsEngine& diagnostic() { return diagnostic_; }
 
   // Emits a simple warning; this shouldn't be used if you require printf-style
   // printing.
@@ -38,7 +37,11 @@ class ChromeClassTester : public clang::ASTConsumer {
   // Utility method for subclasses to check if testing details are in this
   // class. Some tests won't care if a class has a ::testing member and others
   // will.
-  bool InTestingNamespace(clang::Decl* record);
+  bool InTestingNamespace(const clang::Decl* record);
+
+  // Utility method for subclasses to check if this class is in a banned
+  // namespace.
+  bool InBannedNamespace(const clang::Decl* record);
 
  private:
   // Filtered versions of tags that are only called with things defined in
@@ -47,18 +50,15 @@ class ChromeClassTester : public clang::ASTConsumer {
                                 clang::CXXRecordDecl* record) = 0;
 
   // Utility methods used for filtering out non-chrome classes (and ones we
-  // delibrately ignore) in HandleTagDeclDefinition().
-  bool InBannedNamespace(clang::Decl* record);
-  std::string GetNamespace(clang::Decl* record);
+  // deliberately ignore) in HandleTagDeclDefinition().
+  std::string GetNamespace(const clang::Decl* record);
   std::string GetNamespaceImpl(const clang::DeclContext* context,
                                std::string candidate);
   bool InBannedDirectory(clang::SourceLocation loc);
   bool IsIgnoredType(const std::string& base_name);
 
   clang::CompilerInstance& instance_;
-  clang::Diagnostic& diagnostic_;
-
-  std::string src_root_;
+  clang::DiagnosticsEngine& diagnostic_;
 
   // List of banned namespaces.
   std::vector<std::string> banned_namespaces_;

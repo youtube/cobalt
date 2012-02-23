@@ -80,11 +80,11 @@ TEST_F(TCPServerSocketTest, Accept) {
   TestCompletionCallback connect_callback;
   TCPClientSocket connecting_socket(local_address_list(),
                                     NULL, NetLog::Source());
-  connecting_socket.Connect(&connect_callback);
+  connecting_socket.Connect(connect_callback.callback());
 
   TestCompletionCallback accept_callback;
   scoped_ptr<StreamSocket> accepted_socket;
-  int result = socket_.Accept(&accepted_socket, &accept_callback);
+  int result = socket_.Accept(&accepted_socket, accept_callback.callback());
   if (result == ERR_IO_PENDING)
     result = accept_callback.WaitForResult();
   ASSERT_EQ(OK, result);
@@ -105,12 +105,13 @@ TEST_F(TCPServerSocketTest, AcceptAsync) {
   TestCompletionCallback accept_callback;
   scoped_ptr<StreamSocket> accepted_socket;
 
-  ASSERT_EQ(ERR_IO_PENDING, socket_.Accept(&accepted_socket, &accept_callback));
+  ASSERT_EQ(ERR_IO_PENDING,
+            socket_.Accept(&accepted_socket, accept_callback.callback()));
 
   TestCompletionCallback connect_callback;
   TCPClientSocket connecting_socket(local_address_list(),
                                     NULL, NetLog::Source());
-  connecting_socket.Connect(&connect_callback);
+  connecting_socket.Connect(connect_callback.callback());
 
   EXPECT_EQ(OK, connect_callback.WaitForResult());
   EXPECT_EQ(OK, accept_callback.WaitForResult());
@@ -130,23 +131,23 @@ TEST_F(TCPServerSocketTest, Accept2Connections) {
   scoped_ptr<StreamSocket> accepted_socket;
 
   ASSERT_EQ(ERR_IO_PENDING,
-            socket_.Accept(&accepted_socket, &accept_callback));
+            socket_.Accept(&accepted_socket, accept_callback.callback()));
 
   TestCompletionCallback connect_callback;
   TCPClientSocket connecting_socket(local_address_list(),
                                     NULL, NetLog::Source());
-  connecting_socket.Connect(&connect_callback);
+  connecting_socket.Connect(connect_callback.callback());
 
   TestCompletionCallback connect_callback2;
   TCPClientSocket connecting_socket2(local_address_list(),
                                      NULL, NetLog::Source());
-  connecting_socket2.Connect(&connect_callback2);
+  connecting_socket2.Connect(connect_callback2.callback());
 
   EXPECT_EQ(OK, accept_callback.WaitForResult());
 
   TestCompletionCallback accept_callback2;
   scoped_ptr<StreamSocket> accepted_socket2;
-  int result = socket_.Accept(&accepted_socket2, &accept_callback2);
+  int result = socket_.Accept(&accepted_socket2, accept_callback2.callback());
   if (result == ERR_IO_PENDING)
     result = accept_callback2.WaitForResult();
   ASSERT_EQ(OK, result);
@@ -172,11 +173,11 @@ TEST_F(TCPServerSocketTest, AcceptIPv6) {
   TestCompletionCallback connect_callback;
   TCPClientSocket connecting_socket(local_address_list(),
                                     NULL, NetLog::Source());
-  connecting_socket.Connect(&connect_callback);
+  connecting_socket.Connect(connect_callback.callback());
 
   TestCompletionCallback accept_callback;
   scoped_ptr<StreamSocket> accepted_socket;
-  int result = socket_.Accept(&accepted_socket, &accept_callback);
+  int result = socket_.Accept(&accepted_socket, accept_callback.callback());
   if (result == ERR_IO_PENDING)
     result = accept_callback.WaitForResult();
   ASSERT_EQ(OK, result);

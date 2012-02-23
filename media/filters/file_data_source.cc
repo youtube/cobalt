@@ -16,7 +16,14 @@ namespace media {
 
 FileDataSource::FileDataSource()
     : file_(NULL),
-      file_size_(0) {
+      file_size_(0),
+      disable_file_size_(false) {
+}
+
+FileDataSource::FileDataSource(bool disable_file_size)
+    : file_(NULL),
+      file_size_(0),
+      disable_file_size_(disable_file_size) {
 }
 
 FileDataSource::~FileDataSource() {
@@ -37,65 +44,60 @@ PipelineStatus FileDataSource::Initialize(const std::string& url) {
     file_size_ = 0;
     return PIPELINE_ERROR_URL_NOT_FOUND;
   }
-  if (host()) {
-    host()->SetTotalBytes(file_size_);
-    host()->SetBufferedBytes(file_size_);
-  }
+  UpdateHostBytes();
 
   return PIPELINE_OK;
 }
 
-void FileDataSource::set_host(FilterHost* filter_host) {
-  DataSource::set_host(filter_host);
-  if (file_) {
+void FileDataSource::set_host(DataSourceHost* host) {
+  DataSource::set_host(host);
+  UpdateHostBytes();
+}
+
+void FileDataSource::UpdateHostBytes() {
+  if (host() && file_) {
     host()->SetTotalBytes(file_size_);
     host()->SetBufferedBytes(file_size_);
   }
 }
 
-void FileDataSource::Stop(FilterCallback* callback) {
+void FileDataSource::Stop(const base::Closure& callback) {
   base::AutoLock l(lock_);
   if (file_) {
     file_util::CloseFile(file_);
     file_ = NULL;
     file_size_ = 0;
   }
-  if (callback) {
-    callback->Run();
-    delete callback;
-  }
+  if (!callback.is_null())
+    callback.Run();
 }
 
 void FileDataSource::Read(int64 position, size_t size, uint8* data,
-                          ReadCallback* read_callback) {
+                          const DataSource::ReadCallback& read_callback) {
   DCHECK(file_);
   base::AutoLock l(lock_);
-  scoped_ptr<ReadCallback> callback(read_callback);
   if (file_) {
 #if defined(OS_WIN)
     if (_fseeki64(file_, position, SEEK_SET)) {
-      callback->RunWithParams(
-          Tuple1<size_t>(static_cast<size_t>(DataSource::kReadError)));
+      read_callback.Run(DataSource::kReadError);
       return;
     }
 #else
     CHECK(position <= std::numeric_limits<int32>::max());
     // TODO(hclam): Change fseek() to support 64-bit position.
     if (fseek(file_, static_cast<int32>(position), SEEK_SET)) {
-      callback->RunWithParams(
-          Tuple1<size_t>(static_cast<size_t>(DataSource::kReadError)));
+      read_callback.Run(DataSource::kReadError);
       return;
     }
 #endif
     size_t size_read = fread(data, 1, size, file_);
     if (size_read == size || !ferror(file_)) {
-      callback->RunWithParams(
-          Tuple1<size_t>(static_cast<size_t>(size_read)));
+      read_callback.Run(size_read);
       return;
     }
   }
 
-  callback->RunWithParams(Tuple1<size_t>(static_cast<size_t>(kReadError)));
+  read_callback.Run(kReadError);
 }
 
 bool FileDataSource::GetSize(int64* size_out) {
@@ -103,13 +105,17 @@ bool FileDataSource::GetSize(int64* size_out) {
   DCHECK(file_);
   base::AutoLock l(lock_);
   *size_out = file_size_;
-  return (NULL != file_);
+  return (NULL != file_ && !disable_file_size_);
 }
 
 bool FileDataSource::IsStreaming() {
   return false;
 }
 
-void FileDataSource::SetPreload(Preload preload) {}
+void FileDataSource::SetPreload(Preload preload) {
+}
+
+void FileDataSource::SetBitrate(int bitrate) {
+}
 
 }  // namespace media

@@ -1,10 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/allocator/allocator_shim.h"
 
 #include <config.h>
+#include "base/profiler/alternate_timer.h"
 #include "base/sysinfo.h"
 
 // When defined, different heap allocators can be used via an environment
@@ -48,8 +49,8 @@ static Allocator allocator = TCMALLOC;
 // selection of the allocator.  The primary may be used to control overall
 // allocator selection, and the secondary can be used to specify an allocator
 // to use in sub-processes.
-static const char* primary_name = "CHROME_ALLOCATOR";
-static const char* secondary_name = "CHROME_ALLOCATOR_2";
+static const char primary_name[] = "CHROME_ALLOCATOR";
+static const char secondary_name[] = "CHROME_ALLOCATOR_2";
 
 // We include tcmalloc and the win_allocator to get as much inlining as
 // possible.
@@ -261,6 +262,17 @@ extern "C" int _heap_init() {
   // lifetime.  Trying to teardown at _heap_term() is so late that
   // you can't do anything useful anyway.
   new TCMallocGuard();
+
+  // Provide optional hook for monitoring allocation quantities on a per-thread
+  // basis.  Only set the hook if the environment indicates this needs to be
+  // enabled.
+  const char* profiling =
+      GetenvBeforeMain(tracked_objects::kAlternateProfilerTime);
+  if (profiling && *profiling == '1') {
+    tracked_objects::SetAlternateTimeSource(
+        tcmalloc::ThreadCache::GetBytesAllocatedOnCurrentThread);
+  }
+
   return 1;
 }
 
@@ -294,13 +306,13 @@ void SetupSubprocessAllocator() {
   buffer[sizeof(buffer) - 1] = '\0';
 
   if (secondary_length || !primary_length) {
-    char* secondary_value = secondary_length ? buffer : "TCMALLOC";
+    const char* secondary_value = secondary_length ? buffer : "TCMALLOC";
     // Force renderer (or other subprocesses) to use secondary_value.
     int ret_val = _putenv_s(primary_name, secondary_value);
-    CHECK_EQ(0, ret_val);
+    DCHECK_EQ(0, ret_val);
   }
 #endif  // ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
 }
 
-}  // namespace base.
 }  // namespace allocator.
+}  // namespace base.

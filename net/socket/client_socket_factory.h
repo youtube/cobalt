@@ -9,7 +9,7 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/net_log.h"
 #include "net/base/rand_callback.h"
 #include "net/udp/datagram_socket.h"
@@ -17,10 +17,8 @@
 namespace net {
 
 class AddressList;
-class CertVerifier;
 class ClientSocketHandle;
 class DatagramClientSocket;
-class DnsCertProvenanceChecker;
 class HostPortPair;
 class SSLClientSocket;
 struct SSLClientSocketContext;
@@ -30,7 +28,7 @@ class StreamSocket;
 
 // An interface used to instantiate StreamSocket objects.  Used to facilitate
 // testing code with mock socket implementations.
-class NET_API ClientSocketFactory {
+class NET_EXPORT ClientSocketFactory {
  public:
   virtual ~ClientSocketFactory() {}
 
@@ -47,6 +45,9 @@ class NET_API ClientSocketFactory {
       NetLog* net_log,
       const NetLog::Source& source) = 0;
 
+  // It is allowed to pass in a |transport_socket| that is not obtained from a
+  // socket pool. The caller could create a ClientSocketHandle directly and call
+  // set_socket() on it to set a valid StreamSocket instance.
   virtual SSLClientSocket* CreateSSLClientSocket(
       ClientSocketHandle* transport_socket,
       const HostPortPair& host_and_port,

@@ -1,10 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
-#include "base/task.h"
 #include "base/timer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -19,7 +18,7 @@ class OneShotTimerTester {
         delay_ms_(milliseconds) {
   }
   void Start() {
-    timer_.Start(TimeDelta::FromMilliseconds(delay_ms_), this,
+    timer_.Start(FROM_HERE, TimeDelta::FromMilliseconds(delay_ms_), this,
                  &OneShotTimerTester::Run);
   }
  private:
@@ -39,7 +38,7 @@ class OneShotSelfDeletingTimerTester {
       timer_(new base::OneShotTimer<OneShotSelfDeletingTimerTester>()) {
   }
   void Start() {
-    timer_->Start(TimeDelta::FromMilliseconds(10), this,
+    timer_->Start(FROM_HERE, TimeDelta::FromMilliseconds(10), this,
                   &OneShotSelfDeletingTimerTester::Run);
   }
  private:
@@ -59,7 +58,7 @@ class RepeatingTimerTester {
   }
 
   void Start() {
-    timer_.Start(TimeDelta::FromMilliseconds(10), this,
+    timer_.Start(FROM_HERE, TimeDelta::FromMilliseconds(10), this,
                  &RepeatingTimerTester::Run);
   }
  private:
@@ -176,7 +175,7 @@ void RunTest_DelayTimer_NoCall(MessageLoop::Type message_loop_type) {
 
   // If Delay is never called, the timer shouldn't go off.
   DelayTimerTarget target;
-  base::DelayTimer<DelayTimerTarget> timer(
+  base::DelayTimer<DelayTimerTarget> timer(FROM_HERE,
       TimeDelta::FromMilliseconds(1), &target, &DelayTimerTarget::Signal);
 
   bool did_run = false;
@@ -191,7 +190,7 @@ void RunTest_DelayTimer_OneCall(MessageLoop::Type message_loop_type) {
   MessageLoop loop(message_loop_type);
 
   DelayTimerTarget target;
-  base::DelayTimer<DelayTimerTarget> timer(
+  base::DelayTimer<DelayTimerTarget> timer(FROM_HERE,
       TimeDelta::FromMilliseconds(1), &target, &DelayTimerTarget::Signal);
   timer.Reset();
 
@@ -225,7 +224,7 @@ void RunTest_DelayTimer_Reset(MessageLoop::Type message_loop_type) {
 
   // If Delay is never called, the timer shouldn't go off.
   DelayTimerTarget target;
-  base::DelayTimer<DelayTimerTarget> timer(
+  base::DelayTimer<DelayTimerTarget> timer(FROM_HERE,
       TimeDelta::FromMilliseconds(50), &target, &DelayTimerTarget::Signal);
   timer.Reset();
 
@@ -233,8 +232,8 @@ void RunTest_DelayTimer_Reset(MessageLoop::Type message_loop_type) {
 
   base::OneShotTimer<ResetHelper> timers[20];
   for (size_t i = 0; i < arraysize(timers); ++i) {
-    timers[i].Start(TimeDelta::FromMilliseconds(i * 10), &reset_helper,
-                    &ResetHelper::Reset);
+    timers[i].Start(FROM_HERE, TimeDelta::FromMilliseconds(i * 10),
+                    &reset_helper, &ResetHelper::Reset);
   }
 
   bool did_run = false;
@@ -260,14 +259,14 @@ void RunTest_DelayTimer_Deleted(MessageLoop::Type message_loop_type) {
 
   {
     base::DelayTimer<DelayTimerFatalTarget> timer(
-        TimeDelta::FromMilliseconds(50), &target,
+        FROM_HERE, TimeDelta::FromMilliseconds(50), &target,
         &DelayTimerFatalTarget::Signal);
     timer.Reset();
   }
 
   // When the timer is deleted, the DelayTimerFatalTarget should never be
   // called.
-  base::PlatformThread::Sleep(100);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(100));
 }
 
 }  // namespace
@@ -289,7 +288,7 @@ TEST(TimerTest, OneShotTimer_Cancel) {
 }
 
 // If underline timer does not handle properly, we will crash or fail
-// in full page heap or purify environment.
+// in full page heap environment.
 TEST(TimerTest, OneShotSelfDeletingTimer) {
   RunTest_OneShotSelfDeletingTimer(MessageLoop::TYPE_DEFAULT);
   RunTest_OneShotSelfDeletingTimer(MessageLoop::TYPE_UI);
@@ -321,7 +320,7 @@ TEST(TimerTest, DelayTimer_OneCall) {
 }
 
 // It's flaky on the buildbot, http://crbug.com/25038.
-TEST(TimerTest, FLAKY_DelayTimer_Reset) {
+TEST(TimerTest, DISABLED_DelayTimer_Reset) {
   RunTest_DelayTimer_Reset(MessageLoop::TYPE_DEFAULT);
   RunTest_DelayTimer_Reset(MessageLoop::TYPE_UI);
   RunTest_DelayTimer_Reset(MessageLoop::TYPE_IO);
@@ -337,7 +336,7 @@ TEST(TimerTest, MessageLoopShutdown) {
   // This test is designed to verify that shutdown of the
   // message loop does not cause crashes if there were pending
   // timers not yet fired.  It may only trigger exceptions
-  // if debug heap checking (or purify) is enabled.
+  // if debug heap checking is enabled.
   bool did_run = false;
   {
     OneShotTimerTester a(&did_run);

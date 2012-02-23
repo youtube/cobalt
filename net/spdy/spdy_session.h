@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,7 +15,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/linked_ptr.h"
 #include "base/memory/ref_counted.h"
-#include "base/task.h"
+#include "base/memory/weak_ptr.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_states.h"
 #include "net/base/net_errors.h"
@@ -24,8 +24,10 @@
 #include "net/base/ssl_config_service.h"
 #include "net/base/upload_data_stream.h"
 #include "net/socket/client_socket_handle.h"
+#include "net/socket/ssl_client_socket.h"
 #include "net/socket/stream_socket.h"
-#include "net/spdy/spdy_framer.h"
+#include "net/spdy/buffered_spdy_framer.h"
+#include "net/spdy/spdy_credential_state.h"
 #include "net/spdy/spdy_io_buffer.h"
 #include "net/spdy/spdy_protocol.h"
 #include "net/spdy/spdy_session_pool.h"
@@ -37,16 +39,26 @@ namespace net {
 // somewhat arbitrary, but is reasonably small and ensures that we elicit
 // ACKs quickly from TCP (because TCP tries to only ACK every other packet).
 const int kMss = 1430;
-const int kMaxSpdyFrameChunkSize = (2 * kMss) - spdy::SpdyFrame::size();
+const int kMaxSpdyFrameChunkSize = (2 * kMss) - spdy::SpdyFrame::kHeaderSize;
 
 class BoundNetLog;
 class SpdySettingsStorage;
 class SpdyStream;
 class SSLInfo;
 
-class NET_API SpdySession : public base::RefCounted<SpdySession>,
-                            public spdy::SpdyFramerVisitorInterface {
+class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
+                               public spdy::BufferedSpdyFramerVisitorInterface {
  public:
+  // FlowControl provides the ability for unit tests to either enable or disable
+  // flow control (independent of NPN protocol negotiated). If
+  // |use_flow_control_| is set to kFlowControlBasedOnNPN then flow control is
+  // determined by the NPN protocol negotiated with the server.
+  enum FlowControl {
+    kFlowControlBasedOnNPN = 0,
+    kDisableFlowControl = 1,
+    kEnableFlowControl = 2,
+  };
+
   // Create a new SpdySession.
   // |host_port_proxy_pair| is the host/port that this session connects to, and
   // the proxy configuration settings that it's using.
@@ -56,7 +68,7 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
   // network events to.
   SpdySession(const HostPortProxyPair& host_port_proxy_pair,
               SpdySessionPool* spdy_session_pool,
-              SpdySettingsStorage* spdy_settings,
+              HttpServerProperties* http_server_properties,
               bool verify_domain_authentication,
               NetLog* net_log);
 
@@ -84,7 +96,7 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
       RequestPriority priority,
       scoped_refptr<SpdyStream>* spdy_stream,
       const BoundNetLog& stream_net_log,
-      CompletionCallback* callback);
+      const CompletionCallback& callback);
 
   // Remove PendingCreateStream objects on transaction deletion
   void CancelPendingCreateStreams(const scoped_refptr<SpdyStream>* spdy_stream);
@@ -99,17 +111,29 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
 
   // Check to see if this SPDY session can support an additional domain.
   // If the session is un-authenticated, then this call always returns true.
-  // For SSL-based sessions, verifies that the certificate in use by this
-  // session provides authentication for the domain.
+  // For SSL-based sessions, verifies that the server certificate in use by
+  // this session provides authentication for the domain and no client
+  // certificate was sent to the original server during the SSL handshake.
   // NOTE:  This function can have false negatives on some platforms.
+  // TODO(wtc): rename this function and the Net.SpdyIPPoolDomainMatch
+  // histogram because this function does more than verifying domain
+  // authentication now.
   bool VerifyDomainAuthentication(const std::string& domain);
 
-  // Send the SYN frame for |stream_id|.
+  // Send the SYN frame for |stream_id|. This also sends PING message to check
+  // the status of the connection.
   int WriteSynStream(
       spdy::SpdyStreamId stream_id,
       RequestPriority priority,
       spdy::SpdyControlFlags flags,
       const linked_ptr<spdy::SpdyHeaderBlock>& headers);
+
+  // Write a CREDENTIAL frame to the session.
+  int WriteCredentialFrame(const std::string& origin,
+                           SSLClientCertType type,
+                           const std::string& key,
+                           const std::string& cert,
+                           RequestPriority priority);
 
   // Write a data frame to the stream.
   // Used to create and queue a data frame for the given stream.
@@ -123,7 +147,9 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
   // Reset a stream by sending a RST_STREAM frame with given status code.
   // Also closes the stream.  Was not piggybacked to CloseStream since not
   // all of the calls to CloseStream necessitate sending a RST_STREAM.
-  void ResetStream(spdy::SpdyStreamId stream_id, spdy::SpdyStatusCodes status);
+  void ResetStream(spdy::SpdyStreamId stream_id,
+                   spdy::SpdyStatusCodes status,
+                   const std::string& description);
 
   // Check if a stream is active.
   bool IsStreamActive(spdy::SpdyStreamId stream_id) const;
@@ -133,31 +159,59 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
   LoadState GetLoadState() const;
 
   // Fills SSL info in |ssl_info| and returns true when SSL is in use.
-  bool GetSSLInfo(SSLInfo* ssl_info, bool* was_npn_negotiated);
+  bool GetSSLInfo(SSLInfo* ssl_info,
+                  bool* was_npn_negotiated,
+                  SSLClientSocket::NextProto* protocol_negotiated);
 
   // Fills SSL Certificate Request info |cert_request_info| and returns
   // true when SSL is in use.
   bool GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
 
+  // Returns the OriginBoundCertService used by this Socket, or NULL
+  // Origin Bound Certs are not supported in this session.
+  OriginBoundCertService* GetOriginBoundCertService() const;
+
+  // Returns the type of the origin bound cert that was sent, or
+  // CLIENT_CERT_INVALID_TYPE if none was sent.
+  SSLClientCertType GetOriginBoundCertType() const;
+
   // Enable or disable SSL.
   static void SetSSLMode(bool enable) { use_ssl_ = enable; }
   static bool SSLMode() { return use_ssl_; }
 
-  // Enable or disable flow control.
-  static void set_flow_control(bool enable) { use_flow_control_ = enable; }
-  static bool flow_control() { return use_flow_control_; }
+  // Enable or disable flow control used by unit tests. This only applies for
+  // new SpdySessions.
+  static void set_use_flow_control(FlowControl flow_control) {
+    use_flow_control_ = flow_control;
+  }
 
-  // Sets the max concurrent streams per session.
+  // Sets the max concurrent streams per session, as a ceiling on any server
+  // specific SETTINGS value.
   static void set_max_concurrent_streams(size_t value) {
     max_concurrent_stream_limit_ = value;
   }
   static size_t max_concurrent_streams() {
-      return max_concurrent_stream_limit_;
+    return max_concurrent_stream_limit_;
+  }
+
+  // Enable sending of PING frame with each request.
+  static void set_enable_ping_based_connection_checking(bool enable) {
+    enable_ping_based_connection_checking_ = enable;
+  }
+  static bool enable_ping_based_connection_checking() {
+    return enable_ping_based_connection_checking_;
+  }
+
+  // The initial max concurrent streams per session, can be overridden by the
+  // server via SETTINGS.
+  static void set_init_max_concurrent_streams(size_t value) {
+    init_max_concurrent_streams_ =
+        std::min(value, max_concurrent_stream_limit_);
   }
 
   // Send WINDOW_UPDATE frame, called by a stream whenever receive window
   // size is increased.
-  void SendWindowUpdate(spdy::SpdyStreamId stream_id, int delta_window_size);
+  void SendWindowUpdate(spdy::SpdyStreamId stream_id, int32 delta_window_size);
 
   // If session is closed, no new streams/transactions should be created.
   bool IsClosed() const { return state_ == CLOSED; }
@@ -177,7 +231,7 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
   // Indicates whether the session is being reused after having successfully
   // used to send/receive data in the past.
   bool IsReused() const {
-    return frames_received_ > 0;
+    return buffered_spdy_framer_.frames_received() > 0;
   }
 
   // Returns true if the underlying transport socket ever had any reads or
@@ -190,6 +244,11 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
     spdy_session_pool_ = NULL;
   }
 
+  // Returns true if session is not currently active
+  bool is_active() const {
+    return !active_streams_.empty();
+  }
+
   // Access to the number of active and pending streams.  These are primarily
   // available for testing and diagnostics.
   size_t num_active_streams() const { return active_streams_.size(); }
@@ -197,28 +256,47 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
       return unclaimed_pushed_streams_.size();
   }
 
+  // Returns true if flow control is enabled for the session.
+  bool is_flow_control_enabled() const {
+    return flow_control_;
+  }
+
   const BoundNetLog& net_log() const { return net_log_; }
 
   int GetPeerAddress(AddressList* address) const;
   int GetLocalAddress(IPEndPoint* address) const;
 
+  // Returns true if a request for a resource in |origin| requires a
+  // SPDY CREDENTIAL frame to be sent first, with an origin bound certificate.
+  bool NeedsCredentials(const HostPortPair& origin) const;
+
  private:
   friend class base::RefCounted<SpdySession>;
+
+  // Allow tests to access our innards for testing purposes.
+  FRIEND_TEST_ALL_PREFIXES(SpdySessionTest, Ping);
+  FRIEND_TEST_ALL_PREFIXES(SpdySessionTest, FailedPing);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionTest, GetActivePushStream);
 
   struct PendingCreateStream {
     PendingCreateStream(const GURL& url, RequestPriority priority,
                         scoped_refptr<SpdyStream>* spdy_stream,
                         const BoundNetLog& stream_net_log,
-                        CompletionCallback* callback)
-        : url(&url), priority(priority), spdy_stream(spdy_stream),
-          stream_net_log(&stream_net_log), callback(callback) { }
+                        const CompletionCallback& callback)
+        : url(&url),
+          priority(priority),
+          spdy_stream(spdy_stream),
+          stream_net_log(&stream_net_log),
+          callback(callback) {
+    }
+
+    ~PendingCreateStream();
 
     const GURL* url;
     RequestPriority priority;
     scoped_refptr<SpdyStream>* spdy_stream;
     const BoundNetLog* stream_net_log;
-    CompletionCallback* callback;
+    CompletionCallback callback;
   };
   typedef std::queue<PendingCreateStream, std::list< PendingCreateStream> >
       PendingCreateStreamQueue;
@@ -228,11 +306,11 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
   typedef std::priority_queue<SpdyIOBuffer> OutputQueue;
 
   struct CallbackResultPair {
-    CallbackResultPair() : callback(NULL), result(OK) {}
-    CallbackResultPair(CompletionCallback* callback_in, int result_in)
+    CallbackResultPair(const CompletionCallback& callback_in, int result_in)
         : callback(callback_in), result(result_in) {}
+    ~CallbackResultPair();
 
-    CompletionCallback* callback;
+    CompletionCallback callback;
     int result;
   };
 
@@ -246,8 +324,6 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
     CLOSED
   };
 
-  enum { kDefaultMaxConcurrentStreams = 10 };
-
   virtual ~SpdySession();
 
   void ProcessPendingCreateStreams();
@@ -257,18 +333,6 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
       scoped_refptr<SpdyStream>* spdy_stream,
       const BoundNetLog& stream_net_log);
 
-  // Control frame handlers.
-  void OnSyn(const spdy::SpdySynStreamControlFrame& frame,
-             const linked_ptr<spdy::SpdyHeaderBlock>& headers);
-  void OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
-                  const linked_ptr<spdy::SpdyHeaderBlock>& headers);
-  void OnHeaders(const spdy::SpdyHeadersControlFrame& frame,
-                 const linked_ptr<spdy::SpdyHeaderBlock>& headers);
-  void OnRst(const spdy::SpdyRstStreamControlFrame& frame);
-  void OnGoAway(const spdy::SpdyGoAwayControlFrame& frame);
-  void OnSettings(const spdy::SpdySettingsControlFrame& frame);
-  void OnWindowUpdate(const spdy::SpdyWindowUpdateControlFrame& frame);
-
   // IO Callbacks
   void OnReadComplete(int result);
   void OnWriteComplete(int result);
@@ -277,8 +341,36 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
   void SendSettings();
 
   // Handle SETTINGS.  Either when we send settings, or when we receive a
-  // SETTINGS ontrol frame, update our SpdySession accordingly.
+  // SETTINGS control frame, update our SpdySession accordingly.
   void HandleSettings(const spdy::SpdySettings& settings);
+
+  // Adjust the send window size of all ActiveStreams and PendingCreateStreams.
+  void UpdateStreamsSendWindowSize(int32 delta_window_size);
+
+  // Send the PING (preface-PING and trailing-PING) frames.
+  void SendPrefacePingIfNoneInFlight();
+
+  // Send PING if there are no PINGs in flight and we haven't heard from server.
+  void SendPrefacePing();
+
+  // Send a PING after delay. Don't post a PING if there is already
+  // a trailing PING pending.
+  void PlanToSendTrailingPing();
+
+  // Send a PING if there is no |trailing_ping_pending_|. This PING verifies
+  // that the requests are being received by the server.
+  void SendTrailingPing();
+
+  // Send the PING frame.
+  void WritePingFrame(uint32 unique_id);
+
+  // Post a CheckPingStatus call after delay. Don't post if there is already
+  // CheckPingStatus running.
+  void PlanToCheckPingStatus();
+
+  // Check the status of the connection. It calls |CloseSessionOnError| if we
+  // haven't received any data in |kHungInterval| time period.
+  void CheckPingStatus(base::TimeTicks last_check_time);
 
   // Start reading from the socket.
   // Returns OK on success, or an error on failure.
@@ -315,6 +407,8 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
   bool Respond(const spdy::SpdyHeaderBlock& headers,
                const scoped_refptr<SpdyStream> stream);
 
+
+  void RecordPingRTTHistogram(base::TimeDelta duration);
   void RecordHistograms();
 
   // Closes all streams.  Used as part of shutdown.
@@ -324,22 +418,68 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
   // can be deferred to the MessageLoop, so we avoid re-entrancy problems.
   void InvokeUserStreamCreationCallback(scoped_refptr<SpdyStream>* stream);
 
-  // SpdyFramerVisitorInterface:
-  virtual void OnError(spdy::SpdyFramer*);
+  // BufferedSpdyFramerVisitorInterface:
+  virtual void OnError() OVERRIDE;
+  virtual void OnStreamError(spdy::SpdyStreamId stream_id) OVERRIDE;
+  virtual void OnRstStream(
+      const spdy::SpdyRstStreamControlFrame& frame) OVERRIDE;
+  virtual void OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) OVERRIDE;
+  virtual void OnPing(const spdy::SpdyPingControlFrame& frame) OVERRIDE;
+  virtual void OnSettings(const spdy::SpdySettingsControlFrame& frame) OVERRIDE;
+  virtual void OnWindowUpdate(
+      const spdy::SpdyWindowUpdateControlFrame& frame) OVERRIDE;
   virtual void OnStreamFrameData(spdy::SpdyStreamId stream_id,
                                  const char* data,
-                                 size_t len);
-  virtual void OnControl(const spdy::SpdyControlFrame* frame);
+                                 size_t len) OVERRIDE;
+  virtual void OnSynStream(
+      const spdy::SpdySynStreamControlFrame& frame,
+      const linked_ptr<spdy::SpdyHeaderBlock>& headers) OVERRIDE;
+  virtual void OnSynReply(
+      const spdy::SpdySynReplyControlFrame& frame,
+      const linked_ptr<spdy::SpdyHeaderBlock>& headers) OVERRIDE;
+  virtual void OnHeaders(
+      const spdy::SpdyHeadersControlFrame& frame,
+      const linked_ptr<spdy::SpdyHeaderBlock>& headers) OVERRIDE;
 
-  // Callbacks for the Spdy session.
-  CompletionCallbackImpl<SpdySession> read_callback_;
-  CompletionCallbackImpl<SpdySession> write_callback_;
+  // --------------------------
+  // Helper methods for testing
+  // --------------------------
+  static void set_connection_at_risk_of_loss_seconds(int duration) {
+    connection_at_risk_of_loss_seconds_ = duration;
+  }
+  static int connection_at_risk_of_loss_seconds() {
+    return connection_at_risk_of_loss_seconds_;
+  }
+
+  static void set_trailing_ping_delay_time_ms(int duration) {
+    trailing_ping_delay_time_ms_ = duration;
+  }
+  static int trailing_ping_delay_time_ms() {
+    return trailing_ping_delay_time_ms_;
+  }
+
+  static void set_hung_interval_ms(int duration) {
+    hung_interval_ms_ = duration;
+  }
+  static int hung_interval_ms() {
+    return hung_interval_ms_;
+  }
+
+  int64 pings_in_flight() const { return pings_in_flight_; }
+
+  uint32 next_ping_id() const { return next_ping_id_; }
+
+  base::TimeTicks received_data_time() const { return received_data_time_; }
+
+  bool trailing_ping_pending() const { return trailing_ping_pending_; }
+
+  bool check_ping_status_pending() const { return check_ping_status_pending_; }
 
   // Used for posting asynchronous IO tasks.  We use this even though
   // SpdySession is refcounted because we don't need to keep the SpdySession
   // alive if the last reference is within a RunnableMethod.  Just revoke the
   // method.
-  ScopedRunnableMethodFactory<SpdySession> method_factory_;
+  base::WeakPtrFactory<SpdySession> weak_factory_;
 
   // Map of the SpdyStreams for which we have a pending Task to invoke a
   // callback.  This is necessary since, before we invoke said callback, it's
@@ -352,7 +492,7 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
   // |spdy_session_pool_| owns us, therefore its lifetime must exceed ours.  We
   // set this to NULL after we are removed from the pool.
   SpdySessionPool* spdy_session_pool_;
-  SpdySettingsStorage* const spdy_settings_;
+  HttpServerProperties* const http_server_properties_;
 
   // The socket handle for this session.
   scoped_ptr<ClientSocketHandle> connection_;
@@ -397,7 +537,7 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
   int certificate_error_code_;
 
   // Spdy Frame state.
-  spdy::SpdyFramer spdy_framer_;
+  spdy::BufferedSpdyFramer buffered_spdy_framer_;
 
   // If an error has occurred on the session, the session is effectively
   // dead.  Record this error here.  When no error has occurred, |error_| will
@@ -413,32 +553,92 @@ class NET_API SpdySession : public base::RefCounted<SpdySession>,
   int streams_pushed_count_;
   int streams_pushed_and_claimed_count_;
   int streams_abandoned_count_;
-  int frames_received_;
   int bytes_received_;
   bool sent_settings_;      // Did this session send settings when it started.
   bool received_settings_;  // Did this session receive at least one settings
                             // frame.
   int stalled_streams_;     // Count of streams that were ever stalled.
 
+  // Count of all pings on the wire, for which we have not gotten a response.
+  int64 pings_in_flight_;
+
+  // This is the next ping_id (unique_id) to be sent in PING frame.
+  uint32 next_ping_id_;
+
+  // This is the last time we have sent a PING.
+  base::TimeTicks last_ping_sent_time_;
+
+  // This is the last time we have received data.
+  base::TimeTicks received_data_time_;
+
+  // Indicate if we have already scheduled a delayed task to send a trailing
+  // ping (and we never have more than one scheduled at a time).
+  bool trailing_ping_pending_;
+
+  // Indicate if we have already scheduled a delayed task to check the ping
+  // status.
+  bool check_ping_status_pending_;
+
+  // Indicate if we need to send a ping (generally, a trailing ping). This helps
+  // us to decide if we need yet another trailing ping, or if it would be a
+  // waste of effort (and MUST not be done).
+  bool need_to_send_ping_;
+
+  // Indicate if flow control is enabled or not.
+  bool flow_control_;
+
   // Initial send window size for the session; can be changed by an
   // arriving SETTINGS frame; newly created streams use this value for the
   // initial send window size.
-  int initial_send_window_size_;
+  int32 initial_send_window_size_;
 
   // Initial receive window size for the session; there are plans to add a
   // command line switch that would cause a SETTINGS frame with window size
   // announcement to be sent on startup; newly created streams will use
   // this value for the initial receive window size.
-  int initial_recv_window_size_;
+  int32 initial_recv_window_size_;
 
   BoundNetLog net_log_;
 
   // Outside of tests, this should always be true.
   bool verify_domain_authentication_;
 
+  SpdyCredentialState credential_state_;
+
   static bool use_ssl_;
-  static bool use_flow_control_;
+  static FlowControl use_flow_control_;
+  static size_t init_max_concurrent_streams_;
   static size_t max_concurrent_stream_limit_;
+
+  // This enables or disables connection health checking system.
+  static bool enable_ping_based_connection_checking_;
+
+  // |connection_at_risk_of_loss_seconds_| is an optimization to avoid sending
+  // wasteful preface pings (when we just got some data).
+  //
+  // If it is zero (the most conservative figure), then we always send the
+  // preface ping (when none are in flight).
+  //
+  // It is common for TCP/IP sessions to time out in about 3-5 minutes.
+  // Certainly if it has been more than 3 minutes, we do want to send a preface
+  // ping.
+  //
+  // We don't think any connection will time out in under about 10 seconds. So
+  // this might as well be set to something conservative like 10 seconds. Later,
+  // we could adjust it to send fewer pings perhaps.
+  static int connection_at_risk_of_loss_seconds_;
+
+  // This is the amount of time (in milliseconds) we wait before sending a
+  // trailing ping. We use a trailing ping (sent after all data) to get an
+  // effective acknowlegement from the server that it has indeed received all
+  // (prior) data frames. With that assurance, we are willing to enter into a
+  // wait state for responses to our last data frame(s) without further pings.
+  static int trailing_ping_delay_time_ms_;
+
+  // The amount of time (in milliseconds) that we are willing to tolerate with
+  // no data received (of any form), while there is a ping in flight, before w e
+  // declare the connection to be hung.
+  static int hung_interval_ms_;
 };
 
 class NetLogSpdySynParameter : public NetLog::EventParameters {
@@ -452,7 +652,7 @@ class NetLogSpdySynParameter : public NetLog::EventParameters {
     return headers_;
   }
 
-  virtual base::Value* ToValue() const;
+  virtual base::Value* ToValue() const OVERRIDE;
 
  private:
   virtual ~NetLogSpdySynParameter();
@@ -463,6 +663,22 @@ class NetLogSpdySynParameter : public NetLog::EventParameters {
   const spdy::SpdyStreamId associated_stream_;
 
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdySynParameter);
+};
+
+
+class NetLogSpdyCredentialParameter : public NetLog::EventParameters {
+ public:
+  NetLogSpdyCredentialParameter(size_t slot, const std::string& origin);
+
+  virtual base::Value* ToValue() const OVERRIDE;
+
+ private:
+  virtual ~NetLogSpdyCredentialParameter();
+
+  const size_t slot_;
+  const std::string origin_;
+
+  DISALLOW_COPY_AND_ASSIGN(NetLogSpdyCredentialParameter);
 };
 
 }  // namespace net

@@ -7,7 +7,7 @@
 #pragma once
 
 #include "base/md5.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 class Pickle;
 
@@ -28,7 +28,7 @@ class HttpResponseHeaders;
 // Instead, it relies on the consumer to store that and to supply it again to
 // the MatchesRequest function for comparing against future HTTP requests.
 //
-class NET_TEST HttpVaryData {
+class NET_EXPORT_PRIVATE HttpVaryData {
  public:
   HttpVaryData();
 

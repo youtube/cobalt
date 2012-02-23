@@ -32,34 +32,34 @@ class SSLServerSocketNSS : public SSLServerSocket {
   virtual ~SSLServerSocketNSS();
 
   // SSLServerSocket interface.
-  virtual int Handshake(CompletionCallback* callback);
+  virtual int Handshake(const CompletionCallback& callback) OVERRIDE;
   virtual int ExportKeyingMaterial(const base::StringPiece& label,
                                    const base::StringPiece& context,
                                    unsigned char *out,
-                                   unsigned int outlen);
+                                   unsigned int outlen) OVERRIDE;
 
   // Socket interface (via StreamSocket).
   virtual int Read(IOBuffer* buf, int buf_len,
-                   CompletionCallback* callback);
+                   const CompletionCallback& callback) OVERRIDE;
   virtual int Write(IOBuffer* buf, int buf_len,
-                    CompletionCallback* callback);
-  virtual bool SetReceiveBufferSize(int32 size);
-  virtual bool SetSendBufferSize(int32 size);
+                    const CompletionCallback& callback) OVERRIDE;
+  virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
+  virtual bool SetSendBufferSize(int32 size) OVERRIDE;
 
-  // StreamSocket interface.
-  virtual int Connect(CompletionCallback* callback);
-  virtual void Disconnect();
-  virtual bool IsConnected() const;
-  virtual bool IsConnectedAndIdle() const;
-  virtual int GetPeerAddress(AddressList* address) const;
-  virtual int GetLocalAddress(IPEndPoint* address) const;
-  virtual const BoundNetLog& NetLog() const;
-  virtual void SetSubresourceSpeculation();
-  virtual void SetOmniboxSpeculation();
-  virtual bool WasEverUsed() const;
-  virtual bool UsingTCPFastOpen() const;
-  virtual int64 NumBytesRead() const;
-  virtual base::TimeDelta GetConnectTimeMicros() const;
+  // StreamSocket implementation.
+  virtual int Connect(const CompletionCallback& callback) OVERRIDE;
+  virtual void Disconnect() OVERRIDE;
+  virtual bool IsConnected() const OVERRIDE;
+  virtual bool IsConnectedAndIdle() const OVERRIDE;
+  virtual int GetPeerAddress(AddressList* address) const OVERRIDE;
+  virtual int GetLocalAddress(IPEndPoint* address) const OVERRIDE;
+  virtual const BoundNetLog& NetLog() const OVERRIDE;
+  virtual void SetSubresourceSpeculation() OVERRIDE;
+  virtual void SetOmniboxSpeculation() OVERRIDE;
+  virtual bool WasEverUsed() const OVERRIDE;
+  virtual bool UsingTCPFastOpen() const OVERRIDE;
+  virtual int64 NumBytesRead() const OVERRIDE;
+  virtual base::TimeDelta GetConnectTimeMicros() const OVERRIDE;
 
  private:
   enum State {
@@ -98,8 +98,6 @@ class SSLServerSocketNSS : public SSLServerSocket {
   virtual int Init();
 
   // Members used to send and receive buffer.
-  CompletionCallbackImpl<SSLServerSocketNSS> buffer_send_callback_;
-  CompletionCallbackImpl<SSLServerSocketNSS> buffer_recv_callback_;
   bool transport_send_busy_;
   bool transport_recv_busy_;
 
@@ -107,9 +105,9 @@ class SSLServerSocketNSS : public SSLServerSocket {
 
   BoundNetLog net_log_;
 
-  CompletionCallback* user_handshake_callback_;
-  CompletionCallback* user_read_callback_;
-  CompletionCallback* user_write_callback_;
+  CompletionCallback user_handshake_callback_;
+  CompletionCallback user_read_callback_;
+  CompletionCallback user_write_callback_;
 
   // Used by Read function.
   scoped_refptr<IOBuffer> user_read_buf_;

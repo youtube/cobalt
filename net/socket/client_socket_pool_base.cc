@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,6 +22,10 @@
 using base::TimeDelta;
 
 namespace {
+
+// Indicate whether we should enable idle socket cleanup timer. When timer is
+// disabled, sockets are closed next time a socket request is made.
+bool g_cleanup_timer_enabled = true;
 
 // The timeout value, in seconds, used to clean up idle sockets that can't be
 // reused.
@@ -90,7 +94,7 @@ void ConnectJob::Initialize(bool is_preconnect) {
 
 int ConnectJob::Connect() {
   if (timeout_duration_ != base::TimeDelta())
-    timer_.Start(timeout_duration_, this, &ConnectJob::OnTimeout);
+    timer_.Start(FROM_HERE, timeout_duration_, this, &ConnectJob::OnTimeout);
 
   idle_ = false;
 
@@ -131,7 +135,7 @@ void ConnectJob::NotifyDelegateOfCompletion(int rv) {
 
 void ConnectJob::ResetTimer(base::TimeDelta remaining_time) {
   timer_.Stop();
-  timer_.Start(remaining_time, this, &ConnectJob::OnTimeout);
+  timer_.Start(FROM_HERE, remaining_time, this, &ConnectJob::OnTimeout);
 }
 
 void ConnectJob::LogConnectStart() {
@@ -157,7 +161,7 @@ namespace internal {
 
 ClientSocketPoolBaseHelper::Request::Request(
     ClientSocketHandle* handle,
-    CompletionCallback* callback,
+    const CompletionCallback& callback,
     RequestPriority priority,
     bool ignore_limits,
     Flags flags,
@@ -182,12 +186,13 @@ ClientSocketPoolBaseHelper::ClientSocketPoolBaseHelper(
       handed_out_socket_count_(0),
       max_sockets_(max_sockets),
       max_sockets_per_group_(max_sockets_per_group),
+      use_cleanup_timer_(g_cleanup_timer_enabled),
       unused_idle_socket_timeout_(unused_idle_socket_timeout),
       used_idle_socket_timeout_(used_idle_socket_timeout),
       connect_job_factory_(connect_job_factory),
       connect_backup_jobs_enabled_(false),
       pool_generation_number_(0),
-      method_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
   DCHECK_LE(0, max_sockets_per_group);
   DCHECK_LE(max_sockets_per_group, max_sockets);
 
@@ -205,6 +210,8 @@ ClientSocketPoolBaseHelper::~ClientSocketPoolBaseHelper() {
 
   NetworkChangeNotifier::RemoveIPAddressObserver(this);
 }
+
+ClientSocketPoolBaseHelper::CallbackResultPair::~CallbackResultPair() {}
 
 // InsertRequestIntoQueue inserts the request into the queue based on
 // priority.  Highest priorities are closest to the front.  Older requests are
@@ -234,8 +241,12 @@ ClientSocketPoolBaseHelper::RemoveRequestFromQueue(
 int ClientSocketPoolBaseHelper::RequestSocket(
     const std::string& group_name,
     const Request* request) {
-  CHECK(request->callback());
+  CHECK(!request->callback().is_null());
   CHECK(request->handle());
+
+  // Cleanup any timed-out idle sockets if no timer is used.
+  if (!use_cleanup_timer_)
+    CleanupIdleSockets(false);
 
   request->net_log().BeginEvent(NetLog::TYPE_SOCKET_POOL, NULL);
   Group* group = GetOrCreateGroup(group_name);
@@ -255,8 +266,12 @@ void ClientSocketPoolBaseHelper::RequestSockets(
     const std::string& group_name,
     const Request& request,
     int num_sockets) {
-  DCHECK(!request.callback());
+  DCHECK(request.callback().is_null());
   DCHECK(!request.handle());
+
+  // Cleanup any timed out idle sockets if no timer is used.
+  if (!use_cleanup_timer_)
+    CleanupIdleSockets(false);
 
   if (num_sockets > max_sockets_per_group_) {
     num_sockets = max_sockets_per_group_;
@@ -696,14 +711,30 @@ void ClientSocketPoolBaseHelper::EnableConnectBackupJobs() {
 }
 
 void ClientSocketPoolBaseHelper::IncrementIdleCount() {
-  if (++idle_socket_count_ == 1)
-    timer_.Start(TimeDelta::FromSeconds(kCleanupInterval), this,
-                 &ClientSocketPoolBaseHelper::OnCleanupTimerFired);
+  if (++idle_socket_count_ == 1 && use_cleanup_timer_)
+    StartIdleSocketTimer();
 }
 
 void ClientSocketPoolBaseHelper::DecrementIdleCount() {
   if (--idle_socket_count_ == 0)
     timer_.Stop();
+}
+
+// static
+bool ClientSocketPoolBaseHelper::cleanup_timer_enabled() {
+  return g_cleanup_timer_enabled;
+}
+
+// static
+bool ClientSocketPoolBaseHelper::set_cleanup_timer_enabled(bool enabled) {
+  bool old_value = g_cleanup_timer_enabled;
+  g_cleanup_timer_enabled = enabled;
+  return old_value;
+}
+
+void ClientSocketPoolBaseHelper::StartIdleSocketTimer() {
+  timer_.Start(FROM_HERE, TimeDelta::FromSeconds(kCleanupInterval), this,
+               &ClientSocketPoolBaseHelper::OnCleanupTimerFired);
 }
 
 void ClientSocketPoolBaseHelper::ReleaseSocket(const std::string& group_name,
@@ -896,8 +927,7 @@ void ClientSocketPoolBaseHelper::ProcessPendingRequest(
       RemoveGroup(group_name);
 
     request->net_log().EndEventWithNetErrorCode(NetLog::TYPE_SOCKET_POOL, rv);
-    InvokeUserCallbackLater(
-        request->handle(), request->callback(), rv);
+    InvokeUserCallbackLater(request->handle(), request->callback(), rv);
   }
 }
 
@@ -1027,14 +1057,13 @@ bool ClientSocketPoolBaseHelper::CloseOneIdleSocketExceptInGroup(
 }
 
 void ClientSocketPoolBaseHelper::InvokeUserCallbackLater(
-    ClientSocketHandle* handle, CompletionCallback* callback, int rv) {
+    ClientSocketHandle* handle, const CompletionCallback& callback, int rv) {
   CHECK(!ContainsKey(pending_callback_map_, handle));
   pending_callback_map_[handle] = CallbackResultPair(callback, rv);
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      method_factory_.NewRunnableMethod(
-          &ClientSocketPoolBaseHelper::InvokeUserCallback,
-          handle));
+      base::Bind(&ClientSocketPoolBaseHelper::InvokeUserCallback,
+                 weak_factory_.GetWeakPtr(), handle));
 }
 
 void ClientSocketPoolBaseHelper::InvokeUserCallback(
@@ -1046,15 +1075,15 @@ void ClientSocketPoolBaseHelper::InvokeUserCallback(
     return;
 
   CHECK(!handle->is_initialized());
-  CompletionCallback* callback = it->second.callback;
+  CompletionCallback callback = it->second.callback;
   int result = it->second.result;
   pending_callback_map_.erase(it);
-  callback->Run(result);
+  callback.Run(result);
 }
 
 ClientSocketPoolBaseHelper::Group::Group()
     : active_socket_count_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {}
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {}
 
 ClientSocketPoolBaseHelper::Group::~Group() {
   CleanupBackupJob();
@@ -1064,14 +1093,14 @@ void ClientSocketPoolBaseHelper::Group::StartBackupSocketTimer(
     const std::string& group_name,
     ClientSocketPoolBaseHelper* pool) {
   // Only allow one timer pending to create a backup socket.
-  if (!method_factory_.empty())
+  if (weak_factory_.HasWeakPtrs())
     return;
 
   MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
-      method_factory_.NewRunnableMethod(
-          &Group::OnBackupSocketTimerFired, group_name, pool),
-      pool->ConnectRetryIntervalMs());
+      base::Bind(&Group::OnBackupSocketTimerFired, weak_factory_.GetWeakPtr(),
+                 group_name, pool),
+      pool->ConnectRetryInterval());
 }
 
 bool ClientSocketPoolBaseHelper::Group::TryToUsePreconnectConnectJob() {
@@ -1124,7 +1153,7 @@ void ClientSocketPoolBaseHelper::Group::RemoveAllJobs() {
   STLDeleteElements(&jobs_);
 
   // Cancel pending backup job.
-  method_factory_.RevokeAll();
+  weak_factory_.InvalidateWeakPtrs();
 }
 
 }  // namespace internal

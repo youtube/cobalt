@@ -8,6 +8,7 @@
 
 #include "base/basictypes.h"
 #include "base/string16.h"
+#include "base/i18n/base_i18n_export.h"
 
 // The BreakIterator class iterates through the words, word breaks, and
 // line breaks in a UTF-16 string.
@@ -55,7 +56,7 @@
 namespace base {
 namespace i18n {
 
-class BreakIterator {
+class BASE_I18N_EXPORT BreakIterator {
  public:
   enum BreakType {
     BREAK_WORD,
@@ -86,6 +87,12 @@ class BreakIterator {
   // whitespace or punctuation.)  Under BREAK_LINE and BREAK_NEWLINE modes,
   // this distinction doesn't apply and it always retuns false.
   bool IsWord() const;
+
+  // Under BREAK_WORD mode, returns true if |position| is at the end of word or
+  // at the start of word. It always retuns false under BREAK_LINE and
+  // BREAK_NEWLINE modes.
+  bool IsEndOfWord(size_t position) const;
+  bool IsStartOfWord(size_t position) const;
 
   // Returns the string between prev() and pos().
   // Advance() must have been called successfully at least once for pos() to

@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,23 +14,40 @@
 namespace net {
 
 HttpResponseBodyDrainer::HttpResponseBodyDrainer(HttpStream* stream)
-    : stream_(stream),
+    : read_size_(0),
+      stream_(stream),
       next_state_(STATE_NONE),
       total_read_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          io_callback_(this, &HttpResponseBodyDrainer::OnIOComplete)),
-      user_callback_(NULL),
       session_(NULL) {}
 
 HttpResponseBodyDrainer::~HttpResponseBodyDrainer() {}
 
 void HttpResponseBodyDrainer::Start(HttpNetworkSession* session) {
-  read_buf_ = new IOBuffer(kDrainBodyBufferSize);
+  StartWithSize(session, kDrainBodyBufferSize);
+}
+
+void HttpResponseBodyDrainer::StartWithSize(HttpNetworkSession* session,
+                                            int num_bytes_to_drain) {
+  DCHECK_LE(0, num_bytes_to_drain);
+  // TODO(simonjam): Consider raising this limit if we're pipelining. If we have
+  // a bunch of responses in the pipeline, we should be less willing to give up
+  // while draining.
+  if (num_bytes_to_drain > kDrainBodyBufferSize) {
+    Finish(ERR_RESPONSE_BODY_TOO_BIG_TO_DRAIN);
+    return;
+  } else if (num_bytes_to_drain == 0) {
+    Finish(OK);
+    return;
+  }
+
+  read_size_ = num_bytes_to_drain;
+  read_buf_ = new IOBuffer(read_size_);
   next_state_ = STATE_DRAIN_RESPONSE_BODY;
   int rv = DoLoop(OK);
 
   if (rv == ERR_IO_PENDING) {
-    timer_.Start(base::TimeDelta::FromSeconds(kTimeoutInSeconds),
+    timer_.Start(FROM_HERE,
+                 base::TimeDelta::FromSeconds(kTimeoutInSeconds),
                  this,
                  &HttpResponseBodyDrainer::OnTimerFired);
     session_ = session;
@@ -70,8 +87,9 @@ int HttpResponseBodyDrainer::DoDrainResponseBody() {
   next_state_ = STATE_DRAIN_RESPONSE_BODY_COMPLETE;
 
   return stream_->ReadResponseBody(
-      read_buf_, kDrainBodyBufferSize - total_read_,
-      &io_callback_);
+      read_buf_, read_size_ - total_read_,
+      base::Bind(&HttpResponseBodyDrainer::OnIOComplete,
+                 base::Unretained(this)));
 }
 
 int HttpResponseBodyDrainer::DoDrainResponseBodyComplete(int result) {

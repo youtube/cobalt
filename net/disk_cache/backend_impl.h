@@ -17,6 +17,7 @@
 #include "net/disk_cache/in_flight_backend_io.h"
 #include "net/disk_cache/rankings.h"
 #include "net/disk_cache/stats.h"
+#include "net/disk_cache/stress_support.h"
 #include "net/disk_cache/trace.h"
 
 namespace net {
@@ -39,7 +40,7 @@ enum BackendFlags {
 
 // This class implements the Backend interface. An object of this
 // class handles the operations of the cache for a particular profile.
-class NET_TEST BackendImpl : public Backend {
+class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   friend class Eviction;
  public:
   BackendImpl(const FilePath& path, base::MessageLoopProxy* cache_thread,
@@ -55,18 +56,18 @@ class NET_TEST BackendImpl : public Backend {
                            int max_bytes, net::CacheType type,
                            uint32 flags, base::MessageLoopProxy* thread,
                            net::NetLog* net_log, Backend** backend,
-                           CompletionCallback* callback);
+                           const net::CompletionCallback& callback);
 
   // Performs general initialization for this current instance of the cache.
-  int Init(CompletionCallback* callback);
+  int Init(const net::CompletionCallback& callback);
 
   // Performs the actual initialization and final cleanup on destruction.
   int SyncInit();
   void CleanupCache();
 
-  // Same bahavior as OpenNextEntry but walks the list from back to front.
+  // Same behavior as OpenNextEntry but walks the list from back to front.
   int OpenPrevEntry(void** iter, Entry** prev_entry,
-                    CompletionCallback* callback);
+                    const net::CompletionCallback& callback);
 
   // Synchronous implementation of the asynchronous interface.
   int SyncOpenEntry(const std::string& key, Entry** entry);
@@ -114,7 +115,7 @@ class NET_TEST BackendImpl : public Backend {
   // the related storage in addition of releasing the related block.
   void DeleteBlock(Addr block_address, bool deep);
 
-  // Retrieves a pointer to the lru-related data.
+  // Retrieves a pointer to the LRU-related data.
   LruData* GetLruData();
 
   // Updates the ranking information for an entry.
@@ -126,6 +127,14 @@ class NET_TEST BackendImpl : public Backend {
 
   // Permanently deletes an entry, but still keeps track of it.
   void InternalDoomEntry(EntryImpl* entry);
+
+#if defined(NET_BUILD_STRESS_CACHE)
+  // Returns the address of the entry linked to the entry at a given |address|.
+  CacheAddr GetNextAddr(Addr address);
+
+  // Verifies that |entry| is not currently reachable through the index.
+  void NotLinked(EntryImpl* entry);
+#endif
 
   // Removes all references to this entry.
   void RemoveEntry(EntryImpl* entry);
@@ -202,7 +211,7 @@ class NET_TEST BackendImpl : public Backend {
   // Called when an interesting event should be logged (counted).
   void OnEvent(Stats::Counters an_event);
 
-  // Keeps track of paylod access (doesn't include metadata).
+  // Keeps track of payload access (doesn't include metadata).
   void OnRead(int bytes);
   void OnWrite(int bytes);
 
@@ -229,11 +238,12 @@ class NET_TEST BackendImpl : public Backend {
   void ClearRefCountForTest();
 
   // Sends a dummy operation through the operation queue, for unit tests.
-  int FlushQueueForTest(CompletionCallback* callback);
+  int FlushQueueForTest(const net::CompletionCallback& callback);
 
   // Runs the provided task on the cache thread. The task will be automatically
   // deleted after it runs.
-  int RunTaskForTest(Task* task, CompletionCallback* callback);
+  int RunTaskForTest(const base::Closure& task,
+                     const net::CompletionCallback& callback);
 
   // Trims an entry (all if |empty| is true) from the list of deleted
   // entries. This method should be called directly on the cache thread.
@@ -243,28 +253,31 @@ class NET_TEST BackendImpl : public Backend {
   // entries. This method should be called directly on the cache thread.
   void TrimDeletedListForTest(bool empty);
 
-  // Peforms a simple self-check, and returns the number of dirty items
+  // Performs a simple self-check, and returns the number of dirty items
   // or an error code (negative value).
   int SelfCheck();
 
-  // Backend interface.
-  virtual int32 GetEntryCount() const;
+  // Backend implementation.
+  virtual int32 GetEntryCount() const OVERRIDE;
   virtual int OpenEntry(const std::string& key, Entry** entry,
-                        CompletionCallback* callback);
+                        const net::CompletionCallback& callback) OVERRIDE;
   virtual int CreateEntry(const std::string& key, Entry** entry,
-                          CompletionCallback* callback);
-  virtual int DoomEntry(const std::string& key, CompletionCallback* callback);
-  virtual int DoomAllEntries(CompletionCallback* callback);
-  virtual int DoomEntriesBetween(const base::Time initial_time,
-                                 const base::Time end_time,
-                                 CompletionCallback* callback);
-  virtual int DoomEntriesSince(const base::Time initial_time,
-                               CompletionCallback* callback);
+                          const net::CompletionCallback& callback) OVERRIDE;
+  virtual int DoomEntry(const std::string& key,
+                        const net::CompletionCallback& callback) OVERRIDE;
+  virtual int DoomAllEntries(const net::CompletionCallback& callback) OVERRIDE;
+  virtual int DoomEntriesBetween(
+      const base::Time initial_time,
+      const base::Time end_time,
+      const net::CompletionCallback& callback) OVERRIDE;
+  virtual int DoomEntriesSince(
+      const base::Time initial_time,
+      const net::CompletionCallback& callback) OVERRIDE;
   virtual int OpenNextEntry(void** iter, Entry** next_entry,
-                            CompletionCallback* callback);
-  virtual void EndEnumeration(void** iter);
-  virtual void GetStats(StatsItems* stats);
-  virtual void OnExternalCacheHit(const std::string& key);
+                            const net::CompletionCallback& callback) OVERRIDE;
+  virtual void EndEnumeration(void** iter) OVERRIDE;
+  virtual void GetStats(StatsItems* stats) OVERRIDE;
+  virtual void OnExternalCacheHit(const std::string& key) OVERRIDE;
 
  private:
   typedef base::hash_map<CacheAddr, EntryImpl*> EntriesMap;
@@ -295,15 +308,15 @@ class NET_TEST BackendImpl : public Backend {
   // Opens the next or previous entry on a cache iteration.
   EntryImpl* OpenFollowingEntry(bool forward, void** iter);
 
-  // Opens the next or previous entry on a single list. If successfull,
+  // Opens the next or previous entry on a single list. If successful,
   // |from_entry| will be updated to point to the new entry, otherwise it will
   // be set to NULL; in other words, it is used as an explicit iterator.
   bool OpenFollowingEntryFromList(bool forward, Rankings::List list,
                                   CacheRankingsBlock** from_entry,
                                   EntryImpl** next_entry);
 
-  // Returns the entry that is pointed by |next|.
-  EntryImpl* GetEnumeratedEntry(CacheRankingsBlock* next);
+  // Returns the entry that is pointed by |next|, from the given |list|.
+  EntryImpl* GetEnumeratedEntry(CacheRankingsBlock* next, Rankings::List list);
 
   // Re-opens an entry that was previously deleted.
   EntryImpl* ResurrectEntry(EntryImpl* deleted_entry);
@@ -332,7 +345,7 @@ class NET_TEST BackendImpl : public Backend {
   // Performs basic checks on the index file. Returns false on failure.
   bool CheckIndex();
 
-  // Part of the selt test. Returns the number or dirty entries, or an error.
+  // Part of the self test. Returns the number or dirty entries, or an error.
   int CheckAllEntries();
 
   // Part of the self test. Returns false if the entry is corrupt.
@@ -357,9 +370,9 @@ class NET_TEST BackendImpl : public Backend {
   int entry_count_;  // Number of entries accessed lately.
   int byte_count_;  // Number of bytes read/written lately.
   int buffer_bytes_;  // Total size of the temporary entries' buffers.
-  int io_delay_;  // Average time (ms) required to complete some IO operations.
+  int up_ticks_;  // The number of timer ticks received (OnStatsTimer).
   net::CacheType cache_type_;
-  int uma_report_;  // Controls transmision of UMA data.
+  int uma_report_;  // Controls transmission of UMA data.
   uint32 user_flags_;  // Flags set by the user.
   bool init_;  // controls the initialization of the system.
   bool restarted_;
@@ -368,22 +381,21 @@ class NET_TEST BackendImpl : public Backend {
   bool disabled_;
   bool new_eviction_;  // What eviction algorithm should be used.
   bool first_timer_;  // True if the timer has not been called.
-  bool throttle_requests_;
+  bool user_load_;  // True if we see a high load coming from the caller.
 
   net::NetLog* net_log_;
 
-  Stats stats_;  // Usage statistcs.
+  Stats stats_;  // Usage statistics.
   base::RepeatingTimer<BackendImpl> timer_;  // Usage timer.
   base::WaitableEvent done_;  // Signals the end of background work.
-  scoped_refptr<TraceObject> trace_object_;  // Inits internal tracing.
-  ScopedRunnableMethodFactory<BackendImpl> factory_;
+  scoped_refptr<TraceObject> trace_object_;  // Initializes internal tracing.
   base::WeakPtrFactory<BackendImpl> ptr_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(BackendImpl);
 };
 
-// Returns the prefered max cache size given the available disk space.
-NET_TEST int PreferedCacheSize(int64 available);
+// Returns the preferred max cache size given the available disk space.
+NET_EXPORT_PRIVATE int PreferedCacheSize(int64 available);
 
 }  // namespace disk_cache
 

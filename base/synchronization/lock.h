@@ -62,8 +62,11 @@ class BASE_EXPORT Lock {
   // The posix implementation of ConditionVariable needs to be able
   // to see our lock and tweak our debugging counters, as it releases
   // and acquires locks inside of pthread_cond_{timed,}wait.
-  // Windows doesn't need to do this as it calls the Lock::* methods.
   friend class ConditionVariable;
+#elif defined(OS_WIN)
+  // The Windows Vista implementation of ConditionVariable needs the
+  // native handle of the critical section.
+  friend class WinVistaCondVar;
 #endif
 
  private:

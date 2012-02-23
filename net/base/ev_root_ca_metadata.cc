@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -33,7 +33,13 @@ static const EVMetadata ev_root_ca_metadata[] = {
   // https://addtrustexternalcaroot-ev.comodoca.com
   { { { 0x02, 0xfa, 0xf3, 0xe2, 0x91, 0x43, 0x54, 0x68, 0x60, 0x78,
         0x57, 0x69, 0x4d, 0xf5, 0xe4, 0x5b, 0x68, 0x85, 0x18, 0x68 } },
-    {"1.3.6.1.4.1.6449.1.2.1.5.1", NULL},
+    {
+      "1.3.6.1.4.1.6449.1.2.1.5.1",
+      // This is the Network Solutions EV OID. However, this root
+      // cross-certifies NetSol and so we need it here too.
+      "1.3.6.1.4.1.782.1.2.1.8.1",
+      NULL,
+    },
   },
   // AffirmTrust Commercial
   // https://commercial.affirmtrust.com/
@@ -65,10 +71,23 @@ static const EVMetadata ev_root_ca_metadata[] = {
         0x31, 0xd8, 0x23, 0x10, 0x8d, 0xc2, 0x81, 0x92, 0xe2, 0xbb } },
     {"1.3.6.1.4.1.22234.2.5.2.3.1", NULL},
   },
+  // Certum Trusted Network CA
+  // https://juice.certum.pl/
+  { { { 0x07, 0xe0, 0x32, 0xe0, 0x20, 0xb7, 0x2c, 0x3f, 0x19, 0x2f,
+        0x06, 0x28, 0xa2, 0x59, 0x3a, 0x19, 0xa7, 0x0f, 0x06, 0x9e } },
+    {"1.2.616.1.113527.2.5.1.1", NULL},
+  },
   // COMODO Certification Authority
   // https://secure.comodo.com/
   { { { 0x66, 0x31, 0xbf, 0x9e, 0xf7, 0x4f, 0x9e, 0xb6, 0xc9, 0xd5,
         0xa6, 0x0c, 0xba, 0x6a, 0xbe, 0xd1, 0xf7, 0xbd, 0xef, 0x7b } },
+    {"1.3.6.1.4.1.6449.1.2.1.5.1", NULL},
+  },
+  // COMODO Certification Authority (reissued certificate with NotBefore of Jan
+  // 1 00:00:00 2011 GMT)
+  // https://secure.comodo.com/
+  { { { 0xee, 0x86, 0x93, 0x87, 0xff, 0xfd, 0x83, 0x49, 0xab, 0x5a,
+        0xd1, 0x43, 0x22, 0x58, 0x87, 0x89, 0xa4, 0x57, 0xb0, 0x12 } },
     {"1.3.6.1.4.1.6449.1.2.1.5.1", NULL},
   },
   // COMODO ECC Certification Authority
@@ -88,13 +107,6 @@ static const EVMetadata ev_root_ca_metadata[] = {
   { { { 0x5f, 0xb7, 0xee, 0x06, 0x33, 0xe2, 0x59, 0xdb, 0xad, 0x0c,
         0x4c, 0x9a, 0xe6, 0xd3, 0x8f, 0x1a, 0x61, 0xc7, 0xdc, 0x25 } },
     {"2.16.840.1.114412.2.1", NULL},
-  },
-  // DigiNotar Root CA
-  // https://www.evssl.nl
-  // https://www.polisdirect.nl
-  { { { 0xc0, 0x60, 0xed, 0x44, 0xcb, 0xd8, 0x81, 0xbd, 0x0e, 0xf8,
-        0x6c, 0x0b, 0xa2, 0x87, 0xdd, 0xcf, 0x81, 0x67, 0x47, 0x8c } },
-    {"2.16.528.1.1001.1.1.1.12.6.1.1.1", NULL},
   },
   // Entrust.net Secure Server Certification Authority
   // https://www.entrust.net/
@@ -162,6 +174,13 @@ static const EVMetadata ev_root_ca_metadata[] = {
   //  https://www.networksolutions.com/website-packages/index.jsp
   { { { 0x74, 0xf8, 0xa3, 0xc3, 0xef, 0xe7, 0xb3, 0x90, 0x06, 0x4b,
         0x83, 0x90, 0x3c, 0x21, 0x64, 0x60, 0x20, 0xe5, 0xdf, 0xce } },
+    {"1.3.6.1.4.1.782.1.2.1.8.1", NULL},
+  },
+  //  Network Solutions Certificate Authority (reissued certificate with
+  //  NotBefore of Jan  1 00:00:00 2011 GMT).
+  //  https://www.networksolutions.com/website-packages/index.jsp
+  { { { 0x71, 0x89, 0x9a, 0x67, 0xbf, 0x33, 0xaf, 0x31, 0xbe, 0xfd,
+        0xc0, 0x71, 0xf8, 0xf7, 0x33, 0xb1, 0x83, 0x85, 0x63, 0x32 } },
     {"1.3.6.1.4.1.782.1.2.1.8.1", NULL},
   },
   // QuoVadis Root CA 2
@@ -232,7 +251,13 @@ static const EVMetadata ev_root_ca_metadata[] = {
   // UTN-USERFirst-Hardware
   { { { 0x04, 0x83, 0xed, 0x33, 0x99, 0xac, 0x36, 0x08, 0x05, 0x87,
         0x22, 0xed, 0xbc, 0x5e, 0x46, 0x00, 0xe3, 0xbe, 0xf9, 0xd7 } },
-    {"1.3.6.1.4.1.6449.1.2.1.5.1", NULL},
+    {
+      "1.3.6.1.4.1.6449.1.2.1.5.1",
+      // This is the Network Solutions EV OID. However, this root
+      // cross-certifies NetSol and so we need it here too.
+      "1.3.6.1.4.1.782.1.2.1.8.1",
+      NULL,
+    },
   },
   // ValiCert Class 2 Policy Validation Authority
   { { { 0x31, 0x7a, 0x2a, 0xd0, 0x7f, 0x2b, 0x33, 0x5e, 0xf5, 0xa1,
@@ -269,6 +294,7 @@ static const EVMetadata ev_root_ca_metadata[] = {
 const EVRootCAMetadata::PolicyOID EVRootCAMetadata::policy_oids_[] = {
   // The OIDs must be sorted in ascending order.
   "1.2.392.200091.100.721.1",
+  "1.2.616.1.113527.2.5.1.1",
   "1.3.6.1.4.1.14370.1.6",
   "1.3.6.1.4.1.14777.6.1.1",
   "1.3.6.1.4.1.14777.6.1.2",
@@ -283,7 +309,6 @@ const EVRootCAMetadata::PolicyOID EVRootCAMetadata::policy_oids_[] = {
   "1.3.6.1.4.1.6449.1.2.1.5.1",
   "1.3.6.1.4.1.782.1.2.1.8.1",
   "1.3.6.1.4.1.8024.0.2.100.1.2",
-  "2.16.528.1.1001.1.1.1.12.6.1.1.1",
   "2.16.756.1.89.1.2.1.1",
   "2.16.840.1.113733.1.7.23.6",
   "2.16.840.1.113733.1.7.48.1",
@@ -296,9 +321,8 @@ const EVRootCAMetadata::PolicyOID EVRootCAMetadata::policy_oids_[] = {
 };
 #endif
 
-static base::LazyInstance<EVRootCAMetadata,
-                          base::LeakyLazyInstanceTraits<EVRootCAMetadata> >
-    g_ev_root_ca_metadata(base::LINKER_INITIALIZED);
+static base::LazyInstance<EVRootCAMetadata>::Leaky
+    g_ev_root_ca_metadata = LAZY_INSTANCE_INITIALIZER;
 
 // static
 EVRootCAMetadata* EVRootCAMetadata::GetInstance() {

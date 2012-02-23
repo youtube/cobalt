@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -70,13 +70,13 @@ bool Initialize() {
 
   HMODULE module = LoadLibrary(data_path.value().c_str());
   if (!module) {
-    LOG(ERROR) << "Failed to load " << ICU_UTIL_DATA_SHARED_MODULE_NAME;
+    DLOG(ERROR) << "Failed to load " << ICU_UTIL_DATA_SHARED_MODULE_NAME;
     return false;
   }
 
   FARPROC addr = GetProcAddress(module, ICU_UTIL_DATA_SYMBOL);
   if (!addr) {
-    LOG(ERROR) << ICU_UTIL_DATA_SYMBOL << ": not found in "
+    DLOG(ERROR) << ICU_UTIL_DATA_SYMBOL << ": not found in "
                << ICU_UTIL_DATA_SHARED_MODULE_NAME;
     return false;
   }
@@ -122,15 +122,15 @@ bool Initialize() {
   // be released.
   static file_util::MemoryMappedFile mapped_file;
   if (!mapped_file.IsValid()) {
-    // Assume it is in the MainBundle's Resources directory.
+    // Assume it is in the framework bundle's Resources directory.
     FilePath data_path =
-      base::mac::PathForMainAppBundleResource(CFSTR(ICU_UTIL_DATA_FILE_NAME));
+      base::mac::PathForFrameworkBundleResource(CFSTR(ICU_UTIL_DATA_FILE_NAME));
     if (data_path.empty()) {
-      LOG(ERROR) << ICU_UTIL_DATA_FILE_NAME << " not found in bundle";
+      DLOG(ERROR) << ICU_UTIL_DATA_FILE_NAME << " not found in bundle";
       return false;
     }
     if (!mapped_file.Initialize(data_path)) {
-      LOG(ERROR) << "Couldn't mmap " << data_path.value();
+      DLOG(ERROR) << "Couldn't mmap " << data_path.value();
       return false;
     }
   }

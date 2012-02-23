@@ -15,10 +15,13 @@ namespace {
 class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate {
  public:
   virtual bool Watch(const FilePath& path,
-                     FileWatcher::Delegate* delegate,
-                     base::MessageLoopProxy*) OVERRIDE {
+                     FilePathWatcher::Delegate* delegate) OVERRIDE {
     return false;
   }
+
+  virtual void Cancel() OVERRIDE {}
+
+  virtual void CancelOnMessageLoopThread() OVERRIDE {}
 };
 
 }  // namespace

@@ -10,10 +10,8 @@
 #include <vector>
 
 #include "base/file_path.h"
-#include "base/task.h"
-#include "net/base/completion_callback.h"
 #include "net/base/file_stream.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/http/http_byte_range.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_job.h"
@@ -25,7 +23,7 @@ struct FileInfo;
 namespace net {
 
 // A request job that handles reading file URLs
-class NET_API URLRequestFileJob : public URLRequestJob {
+class NET_EXPORT URLRequestFileJob : public URLRequestJob {
  public:
   URLRequestFileJob(URLRequest* request, const FilePath& file_path);
 
@@ -36,13 +34,17 @@ class NET_API URLRequestFileJob : public URLRequestJob {
 #endif
 
   // URLRequestJob:
-  virtual void Start();
-  virtual void Kill();
-  virtual bool ReadRawData(IOBuffer* buf, int buf_size, int* bytes_read);
-  virtual bool IsRedirectResponse(GURL* location, int* http_status_code);
-  virtual Filter* SetupFilter() const;
-  virtual bool GetMimeType(std::string* mime_type) const;
-  virtual void SetExtraRequestHeaders(const HttpRequestHeaders& headers);
+  virtual void Start() OVERRIDE;
+  virtual void Kill() OVERRIDE;
+  virtual bool ReadRawData(IOBuffer* buf,
+                           int buf_size,
+                           int* bytes_read) OVERRIDE;
+  virtual bool IsRedirectResponse(GURL* location,
+                                  int* http_status_code) OVERRIDE;
+  virtual Filter* SetupFilter() const OVERRIDE;
+  virtual bool GetMimeType(std::string* mime_type) const OVERRIDE;
+  virtual void SetExtraRequestHeaders(
+      const HttpRequestHeaders& headers) OVERRIDE;
 
  protected:
   virtual ~URLRequestFileJob();
@@ -51,23 +53,23 @@ class NET_API URLRequestFileJob : public URLRequestJob {
   FilePath file_path_;
 
  private:
+  // Callback after fetching file info on a background thread.
   void DidResolve(bool exists, const base::PlatformFileInfo& file_info);
+
+  // Callback after data is asynchronously read from the file.
   void DidRead(int result);
 
-  CompletionCallbackImpl<URLRequestFileJob> io_callback_;
   FileStream stream_;
   bool is_directory_;
 
   HttpByteRange byte_range_;
   int64 remaining_bytes_;
 
-#if defined(OS_WIN)
+  // The initial file metadata is fetched on a background thread.
+  // AsyncResolver runs that task.
   class AsyncResolver;
   friend class AsyncResolver;
   scoped_refptr<AsyncResolver> async_resolver_;
-#endif
-
-  ScopedRunnableMethodFactory<URLRequestFileJob> method_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestFileJob);
 };

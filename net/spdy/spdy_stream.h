@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,9 +16,12 @@
 #include "googleurl/src/gurl.h"
 #include "net/base/bandwidth_metrics.h"
 #include "net/base/io_buffer.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/net_log.h"
+#include "net/base/origin_bound_cert_service.h"
+#include "net/base/ssl_client_cert_type.h"
 #include "net/base/upload_data.h"
+#include "net/socket/ssl_client_socket.h"
 #include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_protocol.h"
 
@@ -37,12 +40,12 @@ class SSLInfo;
 // a SpdyNetworkTransaction) will maintain a reference to the stream.  When
 // initiated by the server, only the SpdySession will maintain any reference,
 // until such a time as a client object requests a stream for the path.
-class NET_TEST SpdyStream
+class NET_EXPORT_PRIVATE SpdyStream
     : public base::RefCounted<SpdyStream>,
       public ChunkCallback {
  public:
   // Delegate handles protocol specific behavior of spdy stream.
-  class NET_TEST Delegate {
+  class NET_EXPORT_PRIVATE Delegate {
    public:
     Delegate() {}
 
@@ -122,13 +125,13 @@ class NET_TEST SpdyStream
   int priority() const { return priority_; }
   void set_priority(int priority) { priority_ = priority; }
 
-  int send_window_size() const { return send_window_size_; }
-  void set_send_window_size(int window_size) {
+  int32 send_window_size() const { return send_window_size_; }
+  void set_send_window_size(int32 window_size) {
     send_window_size_ = window_size;
   }
 
-  int recv_window_size() const { return recv_window_size_; }
-  void set_recv_window_size(int window_size) {
+  int32 recv_window_size() const { return recv_window_size_; }
+  void set_recv_window_size(int32 window_size) {
     recv_window_size_ = window_size;
   }
 
@@ -136,13 +139,16 @@ class NET_TEST SpdyStream
     stalled_by_flow_control_ = stalled;
   }
 
+  // Adjust the |send_window_size_| by |delta_window_size|.
+  void AdjustSendWindowSize(int32 delta_window_size);
+
   // Increases |send_window_size_| with delta extracted from a WINDOW_UPDATE
   // frame; sends a RST_STREAM if delta overflows |send_window_size_| and
   // removes the stream from the session.
-  void IncreaseSendWindowSize(int delta_window_size);
+  void IncreaseSendWindowSize(int32 delta_window_size);
 
   // Decreases |send_window_size_| by the given number of bytes.
-  void DecreaseSendWindowSize(int delta_window_size);
+  void DecreaseSendWindowSize(int32 delta_window_size);
 
   int GetPeerAddress(AddressList* address) const;
   int GetLocalAddress(IPEndPoint* address) const;
@@ -153,13 +159,13 @@ class NET_TEST SpdyStream
 
   // Increases |recv_window_size_| by the given number of bytes, also sends
   // a WINDOW_UPDATE frame.
-  void IncreaseRecvWindowSize(int delta_window_size);
+  void IncreaseRecvWindowSize(int32 delta_window_size);
 
   // Decreases |recv_window_size_| by the given number of bytes, called
   // whenever data is read.  May also send a RST_STREAM and remove the
   // stream from the session if the resultant |recv_window_size_| is
   // negative, since that would be a flow control violation.
-  void DecreaseRecvWindowSize(int delta_window_size);
+  void DecreaseRecvWindowSize(int32 delta_window_size);
 
   const BoundNetLog& net_log() const { return net_log_; }
 
@@ -202,6 +208,9 @@ class NET_TEST SpdyStream
   void Close();
   bool cancelled() const { return cancelled_; }
   bool closed() const { return io_state_ == STATE_DONE; }
+  // TODO(satorux): This is only for testing. We should be able to remove
+  // this once crbug.com/113107 is addressed.
+  bool body_sent() const { return io_state_ > STATE_SEND_BODY_COMPLETE; }
 
   // Interface for Spdy[Http|WebSocket]Stream to use.
 
@@ -214,7 +223,9 @@ class NET_TEST SpdyStream
                       spdy::SpdyDataFlags flags);
 
   // Fills SSL info in |ssl_info| and returns true when SSL is in use.
-  bool GetSSLInfo(SSLInfo* ssl_info, bool* was_npn_negotiated);
+  bool GetSSLInfo(SSLInfo* ssl_info,
+                  bool* was_npn_negotiated,
+                  SSLClientSocket::NextProto* protocol_negotiated);
 
   // Fills SSL Certificate Request info |cert_request_info| and returns
   // true when SSL is in use.
@@ -234,11 +245,15 @@ class NET_TEST SpdyStream
   GURL GetUrl() const;
 
   // ChunkCallback methods.
-  virtual void OnChunkAvailable();
+  virtual void OnChunkAvailable() OVERRIDE;
 
  private:
   enum State {
     STATE_NONE,
+    STATE_GET_ORIGIN_BOUND_CERT,
+    STATE_GET_ORIGIN_BOUND_CERT_COMPLETE,
+    STATE_SEND_ORIGIN_BOUND_CERT,
+    STATE_SEND_ORIGIN_BOUND_CERT_COMPLETE,
     STATE_SEND_HEADERS,
     STATE_SEND_HEADERS_COMPLETE,
     STATE_SEND_BODY,
@@ -251,10 +266,16 @@ class NET_TEST SpdyStream
   friend class base::RefCounted<SpdyStream>;
   virtual ~SpdyStream();
 
+  void OnGetOriginBoundCertComplete(int result);
+
   // Try to make progress sending/receiving the request/response.
   int DoLoop(int result);
 
   // The implementations of each state of the state machine.
+  int DoGetOriginBoundCert();
+  int DoGetOriginBoundCertComplete(int result);
+  int DoSendOriginBoundCert();
+  int DoSendOriginBoundCertComplete(int result);
   int DoSendHeaders();
   int DoSendHeadersComplete(int result);
   int DoSendBody();
@@ -282,8 +303,8 @@ class NET_TEST SpdyStream
 
   // Flow control variables.
   bool stalled_by_flow_control_;
-  int send_window_size_;
-  int recv_window_size_;
+  int32 send_window_size_;
+  int32 recv_window_size_;
 
   const bool pushed_;
   ScopedBandwidthMetrics metrics_;
@@ -322,6 +343,11 @@ class NET_TEST SpdyStream
   int recv_bytes_;
   // Data received before delegate is attached.
   std::vector<scoped_refptr<IOBufferWithSize> > pending_buffers_;
+
+  SSLClientCertType ob_cert_type_;
+  std::string ob_private_key_;
+  std::string ob_cert_;
+  OriginBoundCertService::RequestHandle ob_cert_request_handle_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdyStream);
 };

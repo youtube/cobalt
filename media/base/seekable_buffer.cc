@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,7 +18,7 @@ SeekableBuffer::SeekableBuffer(size_t backward_capacity,
       backward_bytes_(0),
       forward_capacity_(forward_capacity),
       forward_bytes_(0),
-      current_time_(kNoTimestamp) {
+      current_time_(kNoTimestamp()) {
   current_buffer_ = buffers_.begin();
 }
 
@@ -31,7 +31,7 @@ void SeekableBuffer::Clear() {
   current_buffer_offset_ = 0;
   backward_bytes_ = 0;
   forward_bytes_ = 0;
-  current_time_ = kNoTimestamp;
+  current_time_ = kNoTimestamp();
 }
 
 size_t SeekableBuffer::Read(uint8* data, size_t size) {

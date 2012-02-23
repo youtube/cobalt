@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,6 +18,8 @@ namespace base {
 
 namespace {
 
+// A simple wrapper around icu::NumberFormat that allows for resetting it
+// (as LazyInstance does not).
 struct NumberFormatWrapper {
   NumberFormatWrapper() {
     Reset();
@@ -36,8 +38,10 @@ struct NumberFormatWrapper {
   scoped_ptr<icu::NumberFormat> number_format;
 };
 
-LazyInstance<NumberFormatWrapper> g_number_format_int(LINKER_INITIALIZED);
-LazyInstance<NumberFormatWrapper> g_number_format_float(LINKER_INITIALIZED);
+LazyInstance<NumberFormatWrapper> g_number_format_int =
+    LAZY_INSTANCE_INITIALIZER;
+LazyInstance<NumberFormatWrapper> g_number_format_float =
+    LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 

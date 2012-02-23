@@ -78,6 +78,12 @@ static PRInt32 ssl3_SendRenegotiationInfoXtn(sslSocket * ss,
     PRBool append, PRUint32 maxBytes);
 static SECStatus ssl3_HandleRenegotiationInfoXtn(sslSocket *ss, 
     PRUint16 ex_type, SECItem *data);
+static SECStatus ssl3_ServerHandleEncryptedClientCertsXtn(sslSocket *ss,
+    PRUint16 ex_type, SECItem *data);
+static SECStatus ssl3_ClientHandleEncryptedClientCertsXtn(sslSocket *ss,
+    PRUint16 ex_type, SECItem *data);
+static PRInt32 ssl3_SendEncryptedClientCertsXtn(sslSocket *ss,
+    PRBool append, PRUint32 maxBytes);
 
 /*
  * Write bytes.  Using this function means the SECItem structure
@@ -234,6 +240,7 @@ static const ssl3HelloExtensionHandler clientHelloHandlers[] = {
     { ssl_ec_point_formats_xtn,   &ssl3_HandleSupportedPointFormatsXtn },
 #endif
     { ssl_session_ticket_xtn,     &ssl3_ServerHandleSessionTicketXtn },
+    { ssl_encrypted_client_certs, &ssl3_ServerHandleEncryptedClientCertsXtn },
     { ssl_renegotiation_info_xtn, &ssl3_HandleRenegotiationInfoXtn },
     { ssl_next_proto_neg_xtn,     &ssl3_ServerHandleNextProtoNegoXtn },
     { ssl_cached_info_xtn,        &ssl3_ServerHandleCachedInfoXtn },
@@ -247,6 +254,7 @@ static const ssl3HelloExtensionHandler serverHelloHandlersTLS[] = {
     { ssl_server_name_xtn,        &ssl3_HandleServerNameXtn },
     /* TODO: add a handler for ssl_ec_point_formats_xtn */
     { ssl_session_ticket_xtn,     &ssl3_ClientHandleSessionTicketXtn },
+    { ssl_encrypted_client_certs, &ssl3_ClientHandleEncryptedClientCertsXtn },
     { ssl_renegotiation_info_xtn, &ssl3_HandleRenegotiationInfoXtn },
     { ssl_next_proto_neg_xtn,     &ssl3_ClientHandleNextProtoNegoXtn },
     { ssl_cached_info_xtn,        &ssl3_ClientHandleCachedInfoXtn },
@@ -275,6 +283,7 @@ ssl3HelloExtensionSender clientHelloSendersTLS[SSL_MAX_EXTENSIONS] = {
     { ssl_ec_point_formats_xtn,   &ssl3_SendSupportedPointFormatsXtn },
 #endif
     { ssl_session_ticket_xtn,     &ssl3_SendSessionTicketXtn },
+    { ssl_encrypted_client_certs, &ssl3_SendEncryptedClientCertsXtn },
     { ssl_next_proto_neg_xtn,     &ssl3_ClientSendNextProtoNegoXtn },
     { ssl_cached_info_xtn,        &ssl3_ClientSendCachedInfoXtn },
     { ssl_cert_status_xtn,        &ssl3_ClientSendStatusRequestXtn },
@@ -554,12 +563,11 @@ ssl3_ServerHandleNextProtoNegoXtn(sslSocket * ss, PRUint16 ex_type, SECItem *dat
 	return SECFailure;
     }
 
-    ss->ssl3.hs.nextProtoNego = PR_TRUE;
     return SECSuccess;
 }
 
 /* ssl3_ValidateNextProtoNego checks that the given block of data is valid: none
- * of the length may be 0 and the sum of the lengths must equal the length of
+ * of the lengths may be 0 and the sum of the lengths must equal the length of
  * the block. */
 SECStatus
 ssl3_ValidateNextProtoNego(const unsigned char* data, unsigned short length)
@@ -568,63 +576,46 @@ ssl3_ValidateNextProtoNego(const unsigned char* data, unsigned short length)
 
     while (offset < length) {
 	if (data[offset] == 0) {
+	    PORT_SetError(SSL_ERROR_NEXT_PROTOCOL_DATA_INVALID);
 	    return SECFailure;
 	}
 	offset += (unsigned int)data[offset] + 1;
     }
 
-    if (offset > length)
+    if (offset > length) {
+	PORT_SetError(SSL_ERROR_NEXT_PROTOCOL_DATA_INVALID);
 	return SECFailure;
+    }
 
     return SECSuccess;
 }
 
 SECStatus
 ssl3_ClientHandleNextProtoNegoXtn(sslSocket *ss, PRUint16 ex_type,
-                                 SECItem *data)
+                                  SECItem *data)
 {
-    unsigned int i, j;
     SECStatus rv;
-    unsigned char *result;
-
-    if (data->len == 0) {
-	/* The server supports the extension, but doesn't have any
-	 * protocols configured. In this case we request our favoured
-	 * protocol. */
-	goto pick_first;
-    }
+    unsigned char result[255];
+    unsigned int result_len;
 
     rv = ssl3_ValidateNextProtoNego(data->data, data->len);
     if (rv != SECSuccess)
 	return rv;
 
-    /* For each protocol in server preference order, see if we support it. */
-    for (i = 0; i < data->len; ) {
-	for (j = 0; j < ss->opt.nextProtoNego.len; ) {
-	    if (data->data[i] == ss->opt.nextProtoNego.data[j] &&
-		memcmp(&data->data[i+1], &ss->opt.nextProtoNego.data[j+1],
-		       data->data[i]) == 0) {
-		/* We found a match */
-		ss->ssl3.nextProtoState = SSL_NEXT_PROTO_NEGOTIATED;
-		result = &data->data[i];
-		goto found;
-	    }
-	    j += (unsigned int)ss->opt.nextProtoNego.data[j] + 1;
-	}
+    rv = ss->nextProtoCallback(ss->nextProtoArg, ss->fd,
+                               data->data, data->len,
+                               result, &result_len);
+    if (rv != SECSuccess)
+	return rv;
+    /* If the callback wrote more than allowed to |result| it has corrupted our
+     * stack. */
+    PORT_Assert(result_len <= sizeof(result));
 
-	i += (unsigned int)data->data[i] + 1;
-    }
-
-  pick_first:
-    ss->ssl3.nextProtoState = SSL_NEXT_PROTO_NO_OVERLAP;
-    result = ss->opt.nextProtoNego.data;
-
-  found:
     if (ss->ssl3.nextProto.data)
 	PORT_Free(ss->ssl3.nextProto.data);
-    ss->ssl3.nextProto.data = PORT_Alloc(result[0]);
-    PORT_Memcpy(ss->ssl3.nextProto.data, result + 1, result[0]);
-    ss->ssl3.nextProto.len = result[0];
+    ss->ssl3.nextProto.data = PORT_Alloc(result_len);
+    PORT_Memcpy(ss->ssl3.nextProto.data, result, result_len);
+    ss->ssl3.nextProto.len = result_len;
     return SECSuccess;
 }
 
@@ -636,7 +627,7 @@ ssl3_ClientSendNextProtoNegoXtn(sslSocket * ss,
     PRInt32 extension_length;
 
     /* Renegotiations do not send this extension. */
-    if (ss->opt.nextProtoNego.len == 0 || ss->firstHsDone) {
+    if (!ss->nextProtoCallback || ss->firstHsDone) {
 	return 0;
     }
 
@@ -1336,6 +1327,18 @@ ssl3_ClientHandleSessionTicketXtn(sslSocket *ss, PRUint16 ex_type,
     return SECSuccess;
 }
 
+static SECStatus
+ssl3_ClientHandleEncryptedClientCertsXtn(sslSocket *ss, PRUint16 ex_type,
+	                                 SECItem *data)
+{
+    if (data->len != 0)
+	return SECFailure;
+
+    /* Keep track of negotiated extensions. */
+    ss->xtnData.negotiated[ss->xtnData.numNegotiated++] = ex_type;
+    return SECSuccess;
+}
+
 SECStatus
 ssl3_ServerHandleSessionTicketXtn(sslSocket *ss, PRUint16 ex_type,
                                   SECItem *data)
@@ -1746,6 +1749,24 @@ loser:
     return rv;
 }
 
+static SECStatus
+ssl3_ServerHandleEncryptedClientCertsXtn(sslSocket *ss, PRUint16 ex_type,
+	                                 SECItem *data)
+{
+    SECStatus rv = SECSuccess;
+
+    if (data->len != 0)
+	return SECFailure;
+
+    if (ss->opt.encryptClientCerts) {
+	ss->xtnData.negotiated[ss->xtnData.numNegotiated++] = ex_type;
+	rv = ssl3_RegisterServerHelloExtensionSender(
+	    ss, ex_type, ssl3_SendEncryptedClientCertsXtn);
+    }
+
+    return rv;
+}
+
 /*
  * Read bytes.  Using this function means the SECItem structure
  * cannot be freed.  The caller is expected to call this function
@@ -1942,6 +1963,33 @@ ssl3_SendRenegotiationInfoXtn(
 	                                           ssl_renegotiation_info_xtn;
 	}
     }
+    return needed;
+}
+
+static PRInt32
+ssl3_SendEncryptedClientCertsXtn(
+			sslSocket * ss,
+			PRBool      append,
+			PRUint32    maxBytes)
+{
+    PRInt32 needed;
+
+    if (!ss->opt.encryptClientCerts)
+	return 0;
+
+    needed = 4; /* two bytes of type and two of length. */
+    if (append && maxBytes >= needed) {
+	SECStatus rv;
+	rv = ssl3_AppendHandshakeNumber(ss, ssl_encrypted_client_certs, 2);
+	if (rv != SECSuccess)
+	    return -1;
+	rv = ssl3_AppendHandshakeNumber(ss, 0 /* length */, 2);
+	if (rv != SECSuccess)
+	    return -1;
+	ss->xtnData.advertised[ss->xtnData.numAdvertised++] =
+	    ssl_encrypted_client_certs;
+    }
+
     return needed;
 }
 

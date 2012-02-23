@@ -1,0 +1,196 @@
+From 3c9aa423a3e721fc2223dc5f64d21cc5b4898d4e Mon Sep 17 00:00:00 2001
+From: Adam Langley <agl@chromium.org>
+Date: Mon, 3 Oct 2011 12:27:03 -0400
+Subject: [PATCH] restartclientauth.patch
+
+---
+ mozilla/security/nss/lib/ssl/ssl.h      |    5 ++
+ mozilla/security/nss/lib/ssl/ssl3con.c  |   70 +++++++++++++++++++++----------
+ mozilla/security/nss/lib/ssl/sslimpl.h  |    4 --
+ mozilla/security/nss/lib/ssl/sslsecur.c |   35 ++++++++++++---
+ 4 files changed, 80 insertions(+), 34 deletions(-)
+
+diff --git a/mozilla/security/nss/lib/ssl/ssl.h b/mozilla/security/nss/lib/ssl/ssl.h
+index 835d3cf..7e748bd 100644
+--- a/mozilla/security/nss/lib/ssl/ssl.h
++++ b/mozilla/security/nss/lib/ssl/ssl.h
+@@ -236,6 +236,11 @@ SSL_IMPORT SECStatus SSL_ForceHandshake(PRFileDesc *fd);
+ SSL_IMPORT SECStatus SSL_ForceHandshakeWithTimeout(PRFileDesc *fd,
+                                                    PRIntervalTime timeout);
+ 
++SSL_IMPORT SECStatus SSL_RestartHandshakeAfterCertReq(PRFileDesc *fd,
++					    CERTCertificate *cert,
++					    SECKEYPrivateKey *key,
++					    CERTCertificateList *certChain);
++
+ /*
+ ** Query security status of socket. *on is set to one if security is
+ ** enabled. *keySize will contain the stream key size used. *issuer will
+diff --git a/mozilla/security/nss/lib/ssl/ssl3con.c b/mozilla/security/nss/lib/ssl/ssl3con.c
+index f8838d6..d372ee2 100644
+--- a/mozilla/security/nss/lib/ssl/ssl3con.c
++++ b/mozilla/security/nss/lib/ssl/ssl3con.c
+@@ -5667,9 +5667,10 @@ done:
+  *		reference count.  The caller should drop its reference
+  *		without calling CERT_DestroyCert after calling this function.
+  *
+- *	key	Private key associated with cert.  This function makes a
+- *		copy of the private key, so the caller remains responsible
+- *		for destroying its copy after this function returns.
++ *	key	Private key associated with cert.  This function takes
++ *		ownership of the private key, so the caller should drop its
++ *		reference without destroying the private key after this
++ *		function returns.
+  *
+  *	certChain  DER-encoded certs, client cert and its signers.
+  *		Note: ssl takes this reference, and does not copy the chain.
+@@ -5689,27 +5690,50 @@ ssl3_RestartHandshakeAfterCertReq(sslSocket *         ss,
+ 				SECKEYPrivateKey *   key,
+ 				CERTCertificateList *certChain)
+ {
+-    SECStatus        rv          = SECSuccess;
++    SECStatus        rv          = SECFailure;
+ 
+-    if (MSB(ss->version) == MSB(SSL_LIBRARY_VERSION_3_0)) {
+-	/* XXX This code only works on the initial handshake on a connection,
+-	** XXX It does not work on a subsequent handshake (redo).
+-	*/
+-	if (ss->handshake != 0) {
+-	    ss->handshake               = ssl_GatherRecord1stHandshake;
+-	    ss->ssl3.clientCertificate = cert;
+-	    ss->ssl3.clientCertChain   = certChain;
+-	    if (key == NULL) {
+-		(void)SSL3_SendAlert(ss, alert_warning, no_certificate);
+-		ss->ssl3.clientPrivateKey = NULL;
+-	    } else {
+-		ss->ssl3.clientPrivateKey = SECKEY_CopyPrivateKey(key);
+-	    }
+-	    ssl_GetRecvBufLock(ss);
+-	    if (ss->ssl3.hs.msgState.buf != NULL) {
+-		rv = ssl3_HandleRecord(ss, NULL, &ss->gs.buf);
+-	    }
+-	    ssl_ReleaseRecvBufLock(ss);
++    /* XXX This code only works on the initial handshake on a connection,
++    ** XXX It does not work on a subsequent handshake (redo).
++    */
++    if (ss->handshake != 0) {
++	ss->handshake              = ssl_GatherRecord1stHandshake;
++	ss->ssl3.clientCertificate = cert;
++	ss->ssl3.clientPrivateKey  = key;
++	ss->ssl3.clientCertChain   = certChain;
++        if (!cert || !key || !certChain) {
++            /* we are missing the key, cert, or cert chain */
++            if (ss->ssl3.clientCertificate) {
++                CERT_DestroyCertificate(ss->ssl3.clientCertificate);
++                ss->ssl3.clientCertificate = NULL;
++            }
++            if (ss->ssl3.clientPrivateKey) {
++                SECKEY_DestroyPrivateKey(ss->ssl3.clientPrivateKey);
++                ss->ssl3.clientPrivateKey = NULL;
++            }
++            if (ss->ssl3.clientCertChain != NULL) {
++                CERT_DestroyCertificateList(ss->ssl3.clientCertChain);
++                ss->ssl3.clientCertChain = NULL;
++            }
++            if (ss->ssl3.prSpec->version > SSL_LIBRARY_VERSION_3_0) {
++                ss->ssl3.sendEmptyCert = PR_TRUE;
++            } else {
++                (void)SSL3_SendAlert(ss, alert_warning, no_certificate);
++            }
++	}
++	ssl_GetRecvBufLock(ss);
++	if (ss->ssl3.hs.msgState.buf != NULL) {
++	    rv = ssl3_HandleRecord(ss, NULL, &ss->gs.buf);
++	}
++	ssl_ReleaseRecvBufLock(ss);
++    } else {
++	if (cert) {
++	    CERT_DestroyCertificate(cert);
++	}
++	if (key) {
++	    SECKEY_DestroyPrivateKey(key);
++	}
++	if (certChain) {
++	    CERT_DestroyCertificateList(certChain);
+ 	}
+     }
+     return rv;
+diff --git a/mozilla/security/nss/lib/ssl/sslimpl.h b/mozilla/security/nss/lib/ssl/sslimpl.h
+index 906874a..70ff4c3 100644
+--- a/mozilla/security/nss/lib/ssl/sslimpl.h
++++ b/mozilla/security/nss/lib/ssl/sslimpl.h
+@@ -1356,10 +1356,6 @@ extern  SECStatus ssl3_MasterKeyDeriveBypass( ssl3CipherSpec * pwSpec,
+ 
+ extern int ssl2_SendErrorMessage(struct sslSocketStr *ss, int error);
+ extern int SSL_RestartHandshakeAfterServerCert(struct sslSocketStr *ss);
+-extern int SSL_RestartHandshakeAfterCertReq(struct sslSocketStr *ss,
+-					    CERTCertificate *cert,
+-					    SECKEYPrivateKey *key,
+-					    CERTCertificateList *certChain);
+ extern sslSocket *ssl_FindSocket(PRFileDesc *fd);
+ extern void ssl_FreeSocket(struct sslSocketStr *ssl);
+ extern SECStatus SSL3_SendAlert(sslSocket *ss, SSL3AlertLevel level,
+diff --git a/mozilla/security/nss/lib/ssl/sslsecur.c b/mozilla/security/nss/lib/ssl/sslsecur.c
+index dc374e0..bb5f0eb 100644
+--- a/mozilla/security/nss/lib/ssl/sslsecur.c
++++ b/mozilla/security/nss/lib/ssl/sslsecur.c
+@@ -1460,11 +1460,13 @@ SSL_CertDBHandleSet(PRFileDesc *fd, CERTCertDBHandle *dbHandle)
+  *	cert	Client cert chosen by application.
+  *		Note: ssl takes this reference, and does not bump the 
+  *		reference count.  The caller should drop its reference
+- *		without calling CERT_DestroyCert after calling this function.
++ *		without calling CERT_DestroyCertificate after calling this
++ *		function.
+  *
+- *	key	Private key associated with cert.  This function makes a 
+- *		copy of the private key, so the caller remains responsible 
+- *		for destroying its copy after this function returns.
++ *	key	Private key associated with cert.  This function takes
++ *		ownership of the private key, so the caller should drop its
++ *		reference without destroying the private key after this
++ *		function returns.
+  *
+  *	certChain  Chain of signers for cert.  
+  *		Note: ssl takes this reference, and does not copy the chain.
+@@ -1476,19 +1478,38 @@ SSL_CertDBHandleSet(PRFileDesc *fd, CERTCertDBHandle *dbHandle)
+  * XXX This code only works on the initial handshake on a connection, XXX
+  *     It does not work on a subsequent handshake (redo).
+  */
+-int
+-SSL_RestartHandshakeAfterCertReq(sslSocket *         ss,
++SECStatus
++SSL_RestartHandshakeAfterCertReq(PRFileDesc *        fd,
+ 				CERTCertificate *    cert, 
+ 				SECKEYPrivateKey *   key,
+ 				CERTCertificateList *certChain)
+ {
+-    int              ret;
++    sslSocket *   ss = ssl_FindSocket(fd);
++    SECStatus     ret;
++
++    if (!ss) {
++	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_RestartHandshakeAfterCertReq",
++		 SSL_GETPID(), fd));
++	if (cert) {
++	    CERT_DestroyCertificate(cert);
++	}
++	if (key) {
++	    SECKEY_DestroyPrivateKey(key);
++	}
++	if (certChain) {
++	    CERT_DestroyCertificateList(certChain);
++	}
++	return SECFailure;
++    }
+ 
+     ssl_Get1stHandshakeLock(ss);   /************************************/
+ 
+     if (ss->version >= SSL_LIBRARY_VERSION_3_0) {
+ 	ret = ssl3_RestartHandshakeAfterCertReq(ss, cert, key, certChain);
+     } else {
++	if (certChain != NULL) {
++	    CERT_DestroyCertificateList(certChain);
++	}
+     	ret = ssl2_RestartHandshakeAfterCertReq(ss, cert, key);
+     }
+ 

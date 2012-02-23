@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/base/x509_util.h"
 #include "net/base/x509_util_openssl.h"
 
 #include <algorithm>
@@ -13,6 +14,28 @@
 namespace net {
 
 namespace x509_util {
+
+bool CreateOriginBoundCertRSA(
+    crypto::RSAPrivateKey* key,
+    const std::string& origin,
+    uint32 serial_number,
+    base::Time not_valid_before,
+    base::Time not_valid_after,
+    std::string* der_cert) {
+  NOTIMPLEMENTED();
+  return false;
+}
+
+bool CreateOriginBoundCertEC(
+    crypto::ECPrivateKey* key,
+    const std::string& origin,
+    uint32 serial_number,
+    base::Time not_valid_before,
+    base::Time not_valid_after,
+    std::string* der_cert) {
+  NOTIMPLEMENTED();
+  return false;
+}
 
 bool ParsePrincipalKeyAndValueByIndex(X509_NAME* name,
                                       int index,

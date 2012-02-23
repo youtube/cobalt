@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,7 +15,7 @@ namespace net {
 
 // Wrapper around HostResolver to give a sync API while running the resolver
 // in async mode on |host_resolver_loop|.
-class NET_TEST SyncHostResolverBridge : public SyncHostResolver {
+class NET_EXPORT_PRIVATE SyncHostResolverBridge : public SyncHostResolver {
  public:
   SyncHostResolverBridge(HostResolver* host_resolver,
                          MessageLoop* host_resolver_loop);
@@ -24,7 +24,8 @@ class NET_TEST SyncHostResolverBridge : public SyncHostResolver {
 
   // SyncHostResolver methods:
   virtual int Resolve(const HostResolver::RequestInfo& info,
-                      AddressList* addresses) OVERRIDE;
+                      AddressList* addresses,
+                      const BoundNetLog& net_log) OVERRIDE;
 
   // The Shutdown() method should be called prior to destruction, from
   // |host_resolver_loop_|. It aborts any in progress synchronous resolves, to

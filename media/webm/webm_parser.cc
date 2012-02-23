@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,12 +15,9 @@
 
 namespace media {
 
-// Maximum depth of WebM elements. Some WebM elements are lists of
-// other elements. This limits the number levels of recursion allowed.
-static const int kMaxLevelDepth = 6;
-
 enum ElementType {
-  LIST,
+  UNKNOWN,
+  LIST,  // Referred to as Master Element in the Matroska spec.
   UINT,
   FLOAT,
   BINARY,
@@ -30,15 +27,15 @@ enum ElementType {
 };
 
 struct ElementIdInfo {
-  int level_;
   ElementType type_;
   int id_;
 };
 
 struct ListElementInfo {
   int id_;
+  int level_;
   const ElementIdInfo* id_info_;
-  int id_info_size_;
+  int id_info_count_;
 };
 
 // The following are tables indicating what IDs are valid sub-elements
@@ -46,84 +43,358 @@ struct ListElementInfo {
 // appear in the list, a parsing error is signalled. Some elements are
 // marked as SKIP because they are valid, but we don't care about them
 // right now.
-static const ElementIdInfo kClusterIds[] = {
-  {2, UINT, kWebMIdTimecode},
-  {2, SBLOCK, kWebMIdSimpleBlock},
-  {2, LIST, kWebMIdBlockGroup},
+static const ElementIdInfo kEBMLHeaderIds[] = {
+  {UINT, kWebMIdEBMLVersion},
+  {UINT, kWebMIdEBMLReadVersion},
+  {UINT, kWebMIdEBMLMaxIDLength},
+  {UINT, kWebMIdEBMLMaxSizeLength},
+  {STRING, kWebMIdDocType},
+  {UINT, kWebMIdDocTypeVersion},
+  {UINT, kWebMIdDocTypeReadVersion},
+};
+
+static const ElementIdInfo kSegmentIds[] = {
+  {LIST, kWebMIdSeekHead},
+  {LIST, kWebMIdInfo},
+  {LIST, kWebMIdCluster},
+  {LIST, kWebMIdTracks},
+  {LIST, kWebMIdCues},
+  {LIST, kWebMIdAttachments},
+  {LIST, kWebMIdChapters},
+  {LIST, kWebMIdTags},
+};
+
+static const ElementIdInfo kSeekHeadIds[] = {
+  {LIST, kWebMIdSeek},
+};
+
+static const ElementIdInfo kSeekIds[] = {
+  {BINARY, kWebMIdSeekID},
+  {UINT, kWebMIdSeekPosition},
 };
 
 static const ElementIdInfo kInfoIds[] = {
-  {2, SKIP, kWebMIdSegmentUID},
-  {2, UINT, kWebMIdTimecodeScale},
-  {2, FLOAT, kWebMIdDuration},
-  {2, SKIP, kWebMIdDateUTC},
-  {2, SKIP, kWebMIdTitle},
-  {2, SKIP, kWebMIdMuxingApp},
-  {2, SKIP, kWebMIdWritingApp},
+  {BINARY, kWebMIdSegmentUID},
+  {STRING, kWebMIdSegmentFilename},
+  {BINARY, kWebMIdPrevUID},
+  {STRING, kWebMIdPrevFilename},
+  {BINARY, kWebMIdNextUID},
+  {STRING, kWebMIdNextFilename},
+  {BINARY, kWebMIdSegmentFamily},
+  {LIST, kWebMIdChapterTranslate},
+  {UINT, kWebMIdTimecodeScale},
+  {FLOAT, kWebMIdDuration},
+  {BINARY, kWebMIdDateUTC},
+  {STRING, kWebMIdTitle},
+  {STRING, kWebMIdMuxingApp},
+  {STRING, kWebMIdWritingApp},
+};
+
+static const ElementIdInfo kChapterTranslateIds[] = {
+  {UINT, kWebMIdChapterTranslateEditionUID},
+  {UINT, kWebMIdChapterTranslateCodec},
+  {BINARY, kWebMIdChapterTranslateID},
+};
+
+static const ElementIdInfo kClusterIds[] = {
+  {SBLOCK, kWebMIdSimpleBlock},
+  {UINT, kWebMIdTimecode},
+  {LIST, kWebMIdSilentTracks},
+  {UINT, kWebMIdPosition},
+  {UINT, kWebMIdPrevSize},
+  {LIST, kWebMIdBlockGroup},
+};
+
+static const ElementIdInfo kSilentTracksIds[] = {
+  {UINT, kWebMIdSilentTrackNumber},
+};
+
+static const ElementIdInfo kBlockGroupIds[] = {
+  {BINARY, kWebMIdBlock},
+  {LIST, kWebMIdBlockAdditions},
+  {UINT, kWebMIdBlockDuration},
+  {UINT, kWebMIdReferencePriority},
+  {BINARY, kWebMIdReferenceBlock},
+  {BINARY, kWebMIdCodecState},
+  {LIST, kWebMIdSlices},
+};
+
+static const ElementIdInfo kBlockAdditionsIds[] = {
+  {LIST, kWebMIdBlockMore},
+};
+
+static const ElementIdInfo kBlockMoreIds[] = {
+  {UINT, kWebMIdBlockAddID},
+  {BINARY, kWebMIdBlockAdditional},
+};
+
+static const ElementIdInfo kSlicesIds[] = {
+  {LIST, kWebMIdTimeSlice},
+};
+
+static const ElementIdInfo kTimeSliceIds[] = {
+  {UINT, kWebMIdLaceNumber},
 };
 
 static const ElementIdInfo kTracksIds[] = {
-  {2, LIST, kWebMIdTrackEntry},
+  {LIST, kWebMIdTrackEntry},
 };
 
 static const ElementIdInfo kTrackEntryIds[] = {
-  {3, UINT, kWebMIdTrackNumber},
-  {3, SKIP, kWebMIdTrackUID},
-  {3, UINT, kWebMIdTrackType},
-  {3, SKIP, kWebMIdFlagEnabled},
-  {3, SKIP, kWebMIdFlagDefault},
-  {3, SKIP, kWebMIdFlagForced},
-  {3, UINT, kWebMIdFlagLacing},
-  {3, UINT, kWebMIdDefaultDuration},
-  {3, SKIP, kWebMIdName},
-  {3, SKIP, kWebMIdLanguage},
-  {3, STRING, kWebMIdCodecID},
-  {3, BINARY, kWebMIdCodecPrivate},
-  {3, SKIP, kWebMIdCodecName},
-  {3, LIST, kWebMIdVideo},
-  {3, LIST, kWebMIdAudio},
+  {UINT, kWebMIdTrackNumber},
+  {UINT, kWebMIdTrackUID},
+  {UINT, kWebMIdTrackType},
+  {UINT, kWebMIdFlagEnabled},
+  {UINT, kWebMIdFlagDefault},
+  {UINT, kWebMIdFlagForced},
+  {UINT, kWebMIdFlagLacing},
+  {UINT, kWebMIdMinCache},
+  {UINT, kWebMIdMaxCache},
+  {UINT, kWebMIdDefaultDuration},
+  {FLOAT, kWebMIdTrackTimecodeScale},
+  {UINT, kWebMIdMaxBlockAdditionId},
+  {STRING, kWebMIdName},
+  {STRING, kWebMIdLanguage},
+  {STRING, kWebMIdCodecID},
+  {BINARY, kWebMIdCodecPrivate},
+  {STRING, kWebMIdCodecName},
+  {UINT, kWebMIdAttachmentLink},
+  {UINT, kWebMIdCodecDecodeAll},
+  {UINT, kWebMIdTrackOverlay},
+  {LIST, kWebMIdTrackTranslate},
+  {LIST, kWebMIdVideo},
+  {LIST, kWebMIdAudio},
+  {LIST, kWebMIdTrackOperation},
+  {LIST, kWebMIdContentEncodings},
+};
+
+static const ElementIdInfo kTrackTranslateIds[] = {
+  {UINT, kWebMIdTrackTranslateEditionUID},
+  {UINT, kWebMIdTrackTranslateCodec},
+  {BINARY, kWebMIdTrackTranslateTrackID},
 };
 
 static const ElementIdInfo kVideoIds[] = {
-  {4, SKIP, kWebMIdFlagInterlaced},
-  {4, SKIP, kWebMIdStereoMode},
-  {4, UINT, kWebMIdPixelWidth},
-  {4, UINT, kWebMIdPixelHeight},
-  {4, SKIP, kWebMIdPixelCropBottom},
-  {4, SKIP, kWebMIdPixelCropTop},
-  {4, SKIP, kWebMIdPixelCropLeft},
-  {4, SKIP, kWebMIdPixelCropRight},
-  {4, SKIP, kWebMIdDisplayWidth},
-  {4, SKIP, kWebMIdDisplayHeight},
-  {4, SKIP, kWebMIdDisplayUnit},
-  {4, SKIP, kWebMIdAspectRatioType},
+  {UINT, kWebMIdFlagInterlaced},
+  {UINT, kWebMIdStereoMode},
+  {UINT, kWebMIdPixelWidth},
+  {UINT, kWebMIdPixelHeight},
+  {UINT, kWebMIdPixelCropBottom},
+  {UINT, kWebMIdPixelCropTop},
+  {UINT, kWebMIdPixelCropLeft},
+  {UINT, kWebMIdPixelCropRight},
+  {UINT, kWebMIdDisplayWidth},
+  {UINT, kWebMIdDisplayHeight},
+  {UINT, kWebMIdDisplayUnit},
+  {UINT, kWebMIdAspectRatioType},
+  {BINARY, kWebMIdColorSpace},
 };
 
 static const ElementIdInfo kAudioIds[] = {
-  {4, SKIP, kWebMIdSamplingFrequency},
-  {4, SKIP, kWebMIdOutputSamplingFrequency},
-  {4, UINT, kWebMIdChannels},
-  {4, SKIP, kWebMIdBitDepth},
+  {FLOAT, kWebMIdSamplingFrequency},
+  {FLOAT, kWebMIdOutputSamplingFrequency},
+  {UINT, kWebMIdChannels},
+  {UINT, kWebMIdBitDepth},
 };
 
-static const ElementIdInfo kClustersOnly[] = {
-  {1, LIST, kWebMIdCluster},
+static const ElementIdInfo kTrackOperationIds[] = {
+  {LIST, kWebMIdTrackCombinePlanes},
+  {LIST, kWebMIdJoinBlocks},
 };
+
+static const ElementIdInfo kTrackCombinePlanesIds[] = {
+  {LIST, kWebMIdTrackPlane},
+};
+
+static const ElementIdInfo kTrackPlaneIds[] = {
+  {UINT, kWebMIdTrackPlaneUID},
+  {UINT, kWebMIdTrackPlaneType},
+};
+
+static const ElementIdInfo kJoinBlocksIds[] = {
+  {UINT, kWebMIdTrackJoinUID},
+};
+
+static const ElementIdInfo kContentEncodingsIds[] = {
+  {LIST, kWebMIdContentEncoding},
+};
+
+static const ElementIdInfo kContentEncodingIds[] = {
+  {UINT, kWebMIdContentEncodingOrder},
+  {UINT, kWebMIdContentEncodingScope},
+  {UINT, kWebMIdContentEncodingType},
+  {LIST, kWebMIdContentCompression},
+  {LIST, kWebMIdContentEncryption},
+};
+
+static const ElementIdInfo kContentCompressionIds[] = {
+  {UINT, kWebMIdContentCompAlgo},
+  {BINARY, kWebMIdContentCompSettings},
+};
+
+static const ElementIdInfo kContentEncryptionIds[] = {
+  {UINT, kWebMIdContentEncAlgo},
+  {BINARY, kWebMIdContentEncKeyID},
+  {BINARY, kWebMIdContentSignature},
+  {BINARY, kWebMIdContentSigKeyID},
+  {UINT, kWebMIdContentSigAlgo},
+  {UINT, kWebMIdContentSigHashAlgo},
+};
+
+static const ElementIdInfo kCuesIds[] = {
+  {LIST, kWebMIdCuePoint},
+};
+
+static const ElementIdInfo kCuePointIds[] = {
+  {UINT, kWebMIdCueTime},
+  {LIST, kWebMIdCueTrackPositions},
+};
+
+static const ElementIdInfo kCueTrackPositionsIds[] = {
+  {UINT, kWebMIdCueTrack},
+  {UINT, kWebMIdCueClusterPosition},
+  {UINT, kWebMIdCueBlockNumber},
+  {UINT, kWebMIdCueCodecState},
+  {LIST, kWebMIdCueReference},
+};
+
+static const ElementIdInfo kCueReferenceIds[] = {
+  {UINT, kWebMIdCueRefTime},
+};
+
+static const ElementIdInfo kAttachmentsIds[] = {
+  {LIST, kWebMIdAttachedFile},
+};
+
+static const ElementIdInfo kAttachedFileIds[] = {
+  {STRING, kWebMIdFileDescription},
+  {STRING, kWebMIdFileName},
+  {STRING, kWebMIdFileMimeType},
+  {BINARY, kWebMIdFileData},
+  {UINT, kWebMIdFileUID},
+};
+
+static const ElementIdInfo kChaptersIds[] = {
+  {LIST, kWebMIdEditionEntry},
+};
+
+static const ElementIdInfo kEditionEntryIds[] = {
+  {UINT, kWebMIdEditionUID},
+  {UINT, kWebMIdEditionFlagHidden},
+  {UINT, kWebMIdEditionFlagDefault},
+  {UINT, kWebMIdEditionFlagOrdered},
+  {LIST, kWebMIdChapterAtom},
+};
+
+static const ElementIdInfo kChapterAtomIds[] = {
+  {UINT, kWebMIdChapterUID},
+  {UINT, kWebMIdChapterTimeStart},
+  {UINT, kWebMIdChapterTimeEnd},
+  {UINT, kWebMIdChapterFlagHidden},
+  {UINT, kWebMIdChapterFlagEnabled},
+  {BINARY, kWebMIdChapterSegmentUID},
+  {UINT, kWebMIdChapterSegmentEditionUID},
+  {UINT, kWebMIdChapterPhysicalEquiv},
+  {LIST, kWebMIdChapterTrack},
+  {LIST, kWebMIdChapterDisplay},
+  {LIST, kWebMIdChapProcess},
+};
+
+static const ElementIdInfo kChapterTrackIds[] = {
+  {UINT, kWebMIdChapterTrackNumber},
+};
+
+static const ElementIdInfo kChapterDisplayIds[] = {
+  {STRING, kWebMIdChapString},
+  {STRING, kWebMIdChapLanguage},
+  {STRING, kWebMIdChapCountry},
+};
+
+static const ElementIdInfo kChapProcessIds[] = {
+  {UINT, kWebMIdChapProcessCodecID},
+  {BINARY, kWebMIdChapProcessPrivate},
+  {LIST, kWebMIdChapProcessCommand},
+};
+
+static const ElementIdInfo kChapProcessCommandIds[] = {
+  {UINT, kWebMIdChapProcessTime},
+  {BINARY, kWebMIdChapProcessData},
+};
+
+static const ElementIdInfo kTagsIds[] = {
+  {LIST, kWebMIdTag},
+};
+
+static const ElementIdInfo kTagIds[] = {
+  {LIST, kWebMIdTargets},
+  {LIST, kWebMIdSimpleTag},
+};
+
+static const ElementIdInfo kTargetsIds[] = {
+  {UINT, kWebMIdTargetTypeValue},
+  {STRING, kWebMIdTargetType},
+  {UINT, kWebMIdTagTrackUID},
+  {UINT, kWebMIdTagEditionUID},
+  {UINT, kWebMIdTagChapterUID},
+  {UINT, kWebMIdTagAttachmentUID},
+};
+
+static const ElementIdInfo kSimpleTagIds[] = {
+  {STRING, kWebMIdTagName},
+  {STRING, kWebMIdTagLanguage},
+  {UINT, kWebMIdTagDefault},
+  {STRING, kWebMIdTagString},
+  {BINARY, kWebMIdTagBinary},
+};
+
+#define LIST_ELEMENT_INFO(id, level, id_info) \
+    { (id), (level), (id_info), arraysize(id_info) }
 
 static const ListElementInfo kListElementInfo[] = {
-  { kWebMIdCluster,    kClusterIds,    sizeof(kClusterIds) },
-  { kWebMIdInfo,       kInfoIds,       sizeof(kInfoIds) },
-  { kWebMIdTracks,     kTracksIds,     sizeof(kTracksIds) },
-  { kWebMIdTrackEntry, kTrackEntryIds, sizeof(kTrackEntryIds) },
-  { kWebMIdVideo,      kVideoIds,      sizeof(kVideoIds) },
-  { kWebMIdAudio,      kAudioIds,      sizeof(kAudioIds) },
+  LIST_ELEMENT_INFO(kWebMIdCluster, 1, kClusterIds),
+  LIST_ELEMENT_INFO(kWebMIdEBMLHeader, 0, kEBMLHeaderIds),
+  LIST_ELEMENT_INFO(kWebMIdSegment, 0, kSegmentIds),
+  LIST_ELEMENT_INFO(kWebMIdSeekHead, 1, kSeekHeadIds),
+  LIST_ELEMENT_INFO(kWebMIdSeek, 2, kSeekIds),
+  LIST_ELEMENT_INFO(kWebMIdInfo, 1, kInfoIds),
+  LIST_ELEMENT_INFO(kWebMIdChapterTranslate, 2, kChapterTranslateIds),
+  LIST_ELEMENT_INFO(kWebMIdSilentTracks, 2, kSilentTracksIds),
+  LIST_ELEMENT_INFO(kWebMIdBlockGroup, 2, kBlockGroupIds),
+  LIST_ELEMENT_INFO(kWebMIdBlockAdditions, 3, kBlockAdditionsIds),
+  LIST_ELEMENT_INFO(kWebMIdBlockMore, 4, kBlockMoreIds),
+  LIST_ELEMENT_INFO(kWebMIdSlices, 3, kSlicesIds),
+  LIST_ELEMENT_INFO(kWebMIdTimeSlice, 4, kTimeSliceIds),
+  LIST_ELEMENT_INFO(kWebMIdTracks, 1, kTracksIds),
+  LIST_ELEMENT_INFO(kWebMIdTrackEntry, 2, kTrackEntryIds),
+  LIST_ELEMENT_INFO(kWebMIdTrackTranslate, 3, kTrackTranslateIds),
+  LIST_ELEMENT_INFO(kWebMIdVideo, 3, kVideoIds),
+  LIST_ELEMENT_INFO(kWebMIdAudio, 3, kAudioIds),
+  LIST_ELEMENT_INFO(kWebMIdTrackOperation, 3, kTrackOperationIds),
+  LIST_ELEMENT_INFO(kWebMIdTrackCombinePlanes, 4, kTrackCombinePlanesIds),
+  LIST_ELEMENT_INFO(kWebMIdTrackPlane, 5, kTrackPlaneIds),
+  LIST_ELEMENT_INFO(kWebMIdJoinBlocks, 4, kJoinBlocksIds),
+  LIST_ELEMENT_INFO(kWebMIdContentEncodings, 3, kContentEncodingsIds),
+  LIST_ELEMENT_INFO(kWebMIdContentEncoding, 4, kContentEncodingIds),
+  LIST_ELEMENT_INFO(kWebMIdContentCompression, 5, kContentCompressionIds),
+  LIST_ELEMENT_INFO(kWebMIdContentEncryption, 5, kContentEncryptionIds),
+  LIST_ELEMENT_INFO(kWebMIdCues, 1, kCuesIds),
+  LIST_ELEMENT_INFO(kWebMIdCuePoint, 2, kCuePointIds),
+  LIST_ELEMENT_INFO(kWebMIdCueTrackPositions, 3, kCueTrackPositionsIds),
+  LIST_ELEMENT_INFO(kWebMIdCueReference, 4, kCueReferenceIds),
+  LIST_ELEMENT_INFO(kWebMIdAttachments, 1, kAttachmentsIds),
+  LIST_ELEMENT_INFO(kWebMIdAttachedFile, 2, kAttachedFileIds),
+  LIST_ELEMENT_INFO(kWebMIdChapters, 1, kChaptersIds),
+  LIST_ELEMENT_INFO(kWebMIdEditionEntry, 2, kEditionEntryIds),
+  LIST_ELEMENT_INFO(kWebMIdChapterAtom, 3, kChapterAtomIds),
+  LIST_ELEMENT_INFO(kWebMIdChapterTrack, 4, kChapterTrackIds),
+  LIST_ELEMENT_INFO(kWebMIdChapterDisplay, 4, kChapterDisplayIds),
+  LIST_ELEMENT_INFO(kWebMIdChapProcess, 4, kChapProcessIds),
+  LIST_ELEMENT_INFO(kWebMIdChapProcessCommand, 5, kChapProcessCommandIds),
+  LIST_ELEMENT_INFO(kWebMIdTags, 1, kTagsIds),
+  LIST_ELEMENT_INFO(kWebMIdTag, 2, kTagIds),
+  LIST_ELEMENT_INFO(kWebMIdTargets, 3, kTargetsIds),
+  LIST_ELEMENT_INFO(kWebMIdSimpleTag, 3, kSimpleTagIds),
 };
-
-// Number of elements in kListElementInfo.
-const int kListElementInfoCount =
-    sizeof(kListElementInfo) / sizeof(ListElementInfo);
-
-WebMParserClient::~WebMParserClient() {}
 
 // Parses an element header id or size field. These fields are variable length
 // encoded. The first byte indicates how many bytes the field occupies.
@@ -144,8 +415,11 @@ static int ParseWebMElementHeaderField(const uint8* buf, int size,
   DCHECK(buf);
   DCHECK(num);
 
-  if (size <= 0)
+  if (size < 0)
     return -1;
+
+  if (size == 0)
+    return 0;
 
   int mask = 0x80;
   uint8 ch = buf[0];
@@ -159,8 +433,12 @@ static int ParseWebMElementHeaderField(const uint8* buf, int size,
     mask >>= 1;
   }
 
-  if ((extra_bytes == -1) || ((1 + extra_bytes) > size))
+  if (extra_bytes == -1)
     return -1;
+
+  // Return 0 if we need more data.
+  if ((1 + extra_bytes) > size)
+    return 0;
 
   int bytes_used = 1;
 
@@ -170,13 +448,8 @@ static int ParseWebMElementHeaderField(const uint8* buf, int size,
   return bytes_used;
 }
 
-// Parses an element header & returns the ID and element size.
-//
-// Returns: The number of bytes parsed on success. -1 on error.
-// |*id| contains the element ID on success & undefined on error.
-// |*element_size| contains the element size on success & undefined on error.
-static int ParseWebMElementHeader(const uint8* buf, int size,
-                                  int* id, int64* element_size) {
+int WebMParseElementHeader(const uint8* buf, int size,
+                           int* id, int64* element_size) {
   DCHECK(buf);
   DCHECK_GE(size, 0);
   DCHECK(id);
@@ -204,27 +477,39 @@ static int ParseWebMElementHeader(const uint8* buf, int size,
   return num_id_bytes + num_size_bytes;
 }
 
-// Finds ElementIdInfo for a specific ID.
-static const ElementIdInfo* FindIdInfo(int id,
-                                       const ElementIdInfo* id_info,
-                                       int id_info_size) {
-  int count = id_info_size / sizeof(*id_info);
-  for (int i = 0; i < count; ++i) {
+// Finds ElementType for a specific ID.
+static ElementType FindIdType(int id,
+                              const ElementIdInfo* id_info,
+                              int id_info_count) {
+
+  // Check for global element IDs that can be anywhere.
+  if (id == kWebMIdVoid || id == kWebMIdCRC32)
+    return SKIP;
+
+  for (int i = 0; i < id_info_count; ++i) {
     if (id == id_info[i].id_)
-      return &id_info[i];
+      return id_info[i].type_;
   }
 
-  return NULL;
+  return UNKNOWN;
 }
 
 // Finds ListElementInfo for a specific ID.
 static const ListElementInfo* FindListInfo(int id) {
-  for (int i = 0; i < kListElementInfoCount; ++i) {
+  for (size_t i = 0; i < arraysize(kListElementInfo); ++i) {
     if (id == kListElementInfo[i].id_)
       return &kListElementInfo[i];
   }
 
   return NULL;
+}
+
+static int FindListLevel(int id) {
+  const ListElementInfo* list_info = FindListInfo(id);
+  if (list_info)
+    return list_info->level_;
+
+  return -1;
 }
 
 static int ParseSimpleBlock(const uint8* buf, int size,
@@ -235,7 +520,7 @@ static int ParseSimpleBlock(const uint8* buf, int size,
   // Return an error if the trackNum > 127. We just aren't
   // going to support large track numbers right now.
   if ((buf[0] & 0x80) != 0x80) {
-    VLOG(1) << "TrackNumber over 127 not supported";
+    DVLOG(1) << "TrackNumber over 127 not supported";
     return -1;
   }
 
@@ -245,7 +530,7 @@ static int ParseSimpleBlock(const uint8* buf, int size,
   int lacing = (flags >> 1) & 0x3;
 
   if (lacing != 0) {
-    VLOG(1) << "Lacing " << lacing << " not supported yet.";
+    DVLOG(1) << "Lacing " << lacing << " not supported yet.";
     return -1;
   }
 
@@ -263,39 +548,6 @@ static int ParseSimpleBlock(const uint8* buf, int size,
   return size;
 }
 
-static int ParseElements(const ElementIdInfo* id_info,
-                         int id_info_size,
-                         const uint8* buf, int size, int level,
-                         WebMParserClient* client);
-
-static int ParseElementList(const uint8* buf, int size,
-                            int id, int level,
-                            WebMParserClient* client) {
-  const ListElementInfo* list_info = FindListInfo(id);
-
-  if (!list_info) {
-    VLOG(1) << "Failed to find list info for ID " << std::hex << id;
-    return -1;
-  }
-
-  if (!client->OnListStart(id))
-    return -1;
-
-  int res = ParseElements(list_info->id_info_,
-                          list_info->id_info_size_,
-                          buf, size,
-                          level + 1,
-                          client);
-
-  if (res < 0)
-    return -1;
-
-  if (!client->OnListEnd(id))
-    return -1;
-
-  DCHECK_EQ(res, size);
-  return res;
-}
 
 static int ParseUInt(const uint8* buf, int size, int id,
                      WebMParserClient* client) {
@@ -352,134 +604,325 @@ static int ParseFloat(const uint8* buf, int size, int id,
   return size;
 }
 
-static int ParseElements(const ElementIdInfo* id_info,
-                         int id_info_size,
-                         const uint8* buf, int size, int level,
-                         WebMParserClient* client) {
-  DCHECK_GE(id_info_size, 0);
-  DCHECK_GE(size, 0);
-  DCHECK_GE(level, 0);
-
-  const uint8* cur = buf;
-  int cur_size = size;
-  int used = 0;
-
-  if (level > kMaxLevelDepth)
-    return -1;
-
-  while (cur_size > 0) {
-    int id = 0;
-    int64 element_size = 0;
-    int res = ParseWebMElementHeader(cur, cur_size, &id, &element_size);
-
-    if (res < 0)
-      return res;
-
-    if (res == 0)
-      break;
-
-    cur += res;
-    cur_size -= res;
-    used += res;
-
-    // Check to see if the element is larger than the remaining data.
-    if (element_size > cur_size)
-      return -1;
-
-    const ElementIdInfo* info = FindIdInfo(id, id_info, id_info_size);
-
-    if (info == NULL) {
-      VLOG(1) << "No info for ID " << std::hex << id;
-
-      // TODO(acolwell): Change this to return -1 after the API has solidified.
-      // We don't want to allow elements we don't recognize.
-      cur += element_size;
-      cur_size -= element_size;
-      used += element_size;
-      continue;
-    }
-
-    if (info->level_ != level) {
-      VLOG(1) << "ID " << std::hex << id << std::dec << " at level "
-              << level << " instead of " << info->level_;
-      return -1;
-    }
-
-    switch(info->type_) {
-      case SBLOCK:
-        if (ParseSimpleBlock(cur, element_size, client) <= 0)
-          return -1;
-        break;
-      case LIST:
-        if (ParseElementList(cur, element_size, id, level, client) < 0)
-          return -1;
-        break;
-      case UINT:
-        if (ParseUInt(cur, element_size, id, client) <= 0)
-          return -1;
-        break;
-      case FLOAT:
-        if (ParseFloat(cur, element_size, id, client) <= 0)
-          return -1;
-        break;
-      case BINARY:
-        if (!client->OnBinary(id, cur, element_size))
-          return -1;
-        break;
-      case STRING:
-        if (!client->OnString(id,
-                              std::string(reinterpret_cast<const char*>(cur),
-                                          element_size)))
-          return -1;
-        break;
-      case SKIP:
-        // Do nothing.
-        break;
-      default:
-        VLOG(1) << "Unhandled id type " << info->type_;
-        return -1;
-    };
-
-    cur += element_size;
-    cur_size -= element_size;
-    used += element_size;
-  }
-
-  return used;
+static int ParseBinary(const uint8* buf, int size, int id,
+                       WebMParserClient* client) {
+  return client->OnBinary(id, buf, size) ? size : -1;
 }
 
-// Parses a single list element that matches |id|. This method fails if the
-// buffer points to an element that does not match |id|.
-int WebMParseListElement(const uint8* buf, int size, int id,
-                         int level, WebMParserClient* client) {
-  if (size == 0)
+static int ParseString(const uint8* buf, int size, int id,
+                       WebMParserClient* client) {
+  std::string str(reinterpret_cast<const char*>(buf), size);
+  return client->OnString(id, str) ? size : -1;
+}
+
+static int ParseNonListElement(ElementType type, int id, int64 element_size,
+                               const uint8* buf, int size,
+                               WebMParserClient* client) {
+  DCHECK_GE(size, element_size);
+
+  int result = -1;
+  switch(type) {
+    case SBLOCK:
+      result = ParseSimpleBlock(buf, element_size, client);
+      break;
+    case LIST:
+      NOTIMPLEMENTED();
+      result = -1;
+      break;
+    case UINT:
+      result = ParseUInt(buf, element_size, id, client);
+      break;
+    case FLOAT:
+      result = ParseFloat(buf, element_size, id, client);
+      break;
+    case BINARY:
+      result = ParseBinary(buf, element_size, id, client);
+      break;
+    case STRING:
+      result = ParseString(buf, element_size, id, client);
+      break;
+    case SKIP:
+      result = element_size;
+      break;
+    default:
+      DVLOG(1) << "Unhandled ID type " << type;
+      return -1;
+  };
+
+  DCHECK_LE(result, size);
+  return result;
+}
+
+WebMParserClient::WebMParserClient() {}
+WebMParserClient::~WebMParserClient() {}
+
+WebMParserClient* WebMParserClient::OnListStart(int id) {
+  DVLOG(1) << "Unexpected list element start with ID " << std::hex << id;
+  return NULL;
+}
+
+bool WebMParserClient::OnListEnd(int id) {
+  DVLOG(1) << "Unexpected list element end with ID " << std::hex << id;
+  return false;
+}
+
+bool WebMParserClient::OnUInt(int id, int64 val) {
+  DVLOG(1) << "Unexpected unsigned integer element with ID " << std::hex << id;
+  return false;
+}
+
+bool WebMParserClient::OnFloat(int id, double val) {
+  DVLOG(1) << "Unexpected float element with ID " << std::hex << id;
+  return false;
+}
+
+bool WebMParserClient::OnBinary(int id, const uint8* data, int size) {
+  DVLOG(1) << "Unexpected binary element with ID " << std::hex << id;
+  return false;
+}
+
+bool WebMParserClient::OnString(int id, const std::string& str) {
+  DVLOG(1) << "Unexpected string element with ID " << std::hex << id;
+  return false;
+}
+
+bool WebMParserClient::OnSimpleBlock(int track_num, int timecode, int flags,
+                                     const uint8* data, int size) {
+  DVLOG(1) << "Unexpected simple block element";
+  return false;
+}
+
+WebMListParser::WebMListParser(int id, WebMParserClient* client)
+    : state_(NEED_LIST_HEADER),
+      root_id_(id),
+      root_level_(FindListLevel(id)),
+      root_client_(client) {
+  DCHECK_GE(root_level_, 0);
+  DCHECK(client);
+}
+
+WebMListParser::~WebMListParser() {}
+
+void WebMListParser::Reset() {
+  ChangeState(NEED_LIST_HEADER);
+  list_state_stack_.clear();
+}
+
+int WebMListParser::Parse(const uint8* buf, int size) {
+  DCHECK(buf);
+
+  if (size < 0 || state_ == PARSE_ERROR || state_ == DONE_PARSING_LIST)
     return -1;
+
+  if (size == 0)
+    return 0;
 
   const uint8* cur = buf;
   int cur_size = size;
+  int bytes_parsed = 0;
 
-  int element_id = 0;
-  int64 element_size = 0;
-  int res = ParseWebMElementHeader(cur, cur_size, &element_id, &element_size);
+  while (cur_size > 0 && state_ != PARSE_ERROR && state_ != DONE_PARSING_LIST) {
+    int element_id = 0;
+    int64 element_size = 0;
+    int result = WebMParseElementHeader(cur, cur_size, &element_id,
+                                        &element_size);
 
-  if (res <= 0)
-    return res;
+    if (result < 0)
+      return result;
 
-  cur += res;
-  cur_size -= res;
+    if (result == 0)
+      return bytes_parsed;
 
-  if (element_id != id || element_size > cur_size)
+    switch(state_) {
+      case NEED_LIST_HEADER: {
+        if (element_id != root_id_) {
+          ChangeState(PARSE_ERROR);
+          return -1;
+        }
+
+        // TODO(acolwell): Add support for lists of unknown size.
+        if (element_size == kWebMUnknownSize) {
+          ChangeState(PARSE_ERROR);
+          return -1;
+        }
+
+        ChangeState(INSIDE_LIST);
+        if (!OnListStart(root_id_, element_size))
+          return -1;
+
+        break;
+      }
+
+      case INSIDE_LIST: {
+        int header_size = result;
+        const uint8* element_data = cur + header_size;
+        int element_data_size = cur_size - header_size;
+
+        if (element_size < element_data_size)
+          element_data_size = element_size;
+
+        result = ParseListElement(header_size, element_id, element_size,
+                                  element_data, element_data_size);
+
+        DCHECK_LE(result, header_size + element_data_size);
+        if (result < 0) {
+          ChangeState(PARSE_ERROR);
+          return -1;
+        }
+
+        if (result == 0)
+          return bytes_parsed;
+
+        break;
+      }
+      case DONE_PARSING_LIST:
+      case PARSE_ERROR:
+        // Shouldn't be able to get here.
+        NOTIMPLEMENTED();
+        break;
+    }
+
+    cur += result;
+    cur_size -= result;
+    bytes_parsed += result;
+  }
+
+  return (state_ == PARSE_ERROR) ? -1 : bytes_parsed;
+}
+
+bool WebMListParser::IsParsingComplete() const {
+  return state_ == DONE_PARSING_LIST;
+}
+
+void WebMListParser::ChangeState(State new_state) {
+  state_ = new_state;
+}
+
+int WebMListParser::ParseListElement(int header_size,
+                                     int id, int64 element_size,
+                                     const uint8* data, int size) {
+  DCHECK_GT(list_state_stack_.size(), 0u);
+
+  ListState& list_state = list_state_stack_.back();
+  DCHECK(list_state.element_info_);
+
+  const ListElementInfo* element_info = list_state.element_info_;
+  ElementType id_type =
+      FindIdType(id, element_info->id_info_, element_info->id_info_count_);
+
+  // Unexpected ID.
+  if (id_type == UNKNOWN) {
+    DVLOG(1) << "No ElementType info for ID 0x" << std::hex << id;
     return -1;
+  }
 
-  res = ParseElementList(cur, element_size, element_id, level, client);
-
-  if (res < 0)
+  // Make sure the whole element can fit inside the current list.
+  int64 total_element_size = header_size + element_size;
+  if (list_state.size_ != kWebMUnknownSize &&
+      list_state.size_ < list_state.bytes_parsed_ + total_element_size) {
     return -1;
+  }
 
-  cur += res;
-  cur_size -= res;
+  if (id_type == LIST) {
+    list_state.bytes_parsed_ += header_size;
 
-  return size - cur_size;
+    if (!OnListStart(id, element_size))
+      return -1;
+    return header_size;
+  }
+
+  // Make sure we have the entire element before trying to parse a non-list
+  // element.
+  if (size < element_size)
+    return 0;
+
+  int bytes_parsed = ParseNonListElement(id_type, id, element_size,
+                                         data, size, list_state.client_);
+  DCHECK_LE(bytes_parsed, size);
+
+  // Return if an error occurred or we need more data.
+  // Note: bytes_parsed is 0 for a successful parse of a size 0 element. We
+  // need to check the element_size to disambiguate the "need more data" case
+  // from a successful parse.
+  if (bytes_parsed < 0 || (bytes_parsed == 0 && element_size != 0))
+    return bytes_parsed;
+
+  int result = header_size + bytes_parsed;
+  list_state.bytes_parsed_ += result;
+
+  // See if we have reached the end of the current list.
+  if (list_state.bytes_parsed_ == list_state.size_) {
+    if (!OnListEnd())
+      return -1;
+  }
+
+  return result;
+}
+
+bool WebMListParser::OnListStart(int id, int64 size) {
+  const ListElementInfo* element_info = FindListInfo(id);
+  if (!element_info)
+    return false;
+
+  int current_level = root_level_ + list_state_stack_.size() - 1;
+  if (current_level + 1 != element_info->level_)
+    return false;
+
+  WebMParserClient* current_list_client = NULL;
+  if (!list_state_stack_.empty()) {
+    // Make sure the new list doesn't go past the end of the current list.
+    ListState current_list_state = list_state_stack_.back();
+    if (current_list_state.size_ != kWebMUnknownSize &&
+        current_list_state.size_ < current_list_state.bytes_parsed_ + size)
+      return false;
+    current_list_client = current_list_state.client_;
+  } else {
+    current_list_client = root_client_;
+  }
+
+  WebMParserClient* new_list_client = current_list_client->OnListStart(id);
+  if (!new_list_client)
+    return false;
+
+  ListState new_list_state = { id, size, 0, element_info, new_list_client };
+  list_state_stack_.push_back(new_list_state);
+
+  if (size == 0)
+    return OnListEnd();
+
+  return true;
+}
+
+bool WebMListParser::OnListEnd() {
+  int lists_ended = 0;
+  for (; !list_state_stack_.empty(); ++lists_ended) {
+    const ListState& list_state = list_state_stack_.back();
+
+    if (list_state.bytes_parsed_ != list_state.size_)
+      break;
+
+    list_state_stack_.pop_back();
+
+    int64 bytes_parsed = list_state.bytes_parsed_;
+    WebMParserClient* client = NULL;
+    if (!list_state_stack_.empty()) {
+      // Update the bytes_parsed_ for the parent element.
+      list_state_stack_.back().bytes_parsed_ += bytes_parsed;
+      client = list_state_stack_.back().client_;
+    } else {
+      client = root_client_;
+    }
+
+    if (!client->OnListEnd(list_state.id_))
+      return false;
+  }
+
+  DCHECK_GE(lists_ended, 1);
+
+  if (list_state_stack_.empty())
+    ChangeState(DONE_PARSING_LIST);
+
+  return true;
 }
 
 }  // namespace media

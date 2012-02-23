@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -49,6 +49,12 @@ void CertDatabase::RemoveObserver(Observer* observer) {
 void CertDatabase::NotifyObserversOfUserCertAdded(const X509Certificate* cert) {
   CertDatabaseNotifier::GetInstance()->observer_list_->Notify(
       &CertDatabase::Observer::OnUserCertAdded, make_scoped_refptr(cert));
+}
+
+void CertDatabase::NotifyObserversOfUserCertRemoved(
+    const X509Certificate* cert) {
+  CertDatabaseNotifier::GetInstance()->observer_list_->Notify(
+      &CertDatabase::Observer::OnUserCertRemoved, make_scoped_refptr(cert));
 }
 
 void CertDatabase::NotifyObserversOfCertTrustChanged(

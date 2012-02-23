@@ -9,31 +9,22 @@
 #include "base/base_export.h"
 #include "base/basictypes.h"
 
-#if defined(OS_MACOSX)
 #if defined(__OBJC__)
 @class NSAutoreleasePool;
 #else  // __OBJC__
 class NSAutoreleasePool;
 #endif  // __OBJC__
-#endif  // OS_MACOSX
 
 namespace base {
 namespace mac {
 
-// On the Mac, ScopedNSAutoreleasePool allocates an NSAutoreleasePool when
-// instantiated and sends it a -drain message when destroyed.  This allows an
-// autorelease pool to be maintained in ordinary C++ code without bringing in
-// any direct Objective-C dependency.
-//
-// On other platforms, ScopedNSAutoreleasePool is an empty object with no
-// effects.  This allows it to be used directly in cross-platform code without
-// ugly #ifdefs.
+// ScopedNSAutoreleasePool allocates an NSAutoreleasePool when instantiated and
+// sends it a -drain message when destroyed.  This allows an autorelease pool to
+// be maintained in ordinary C++ code without bringing in any direct Objective-C
+// dependency.
+
 class BASE_EXPORT ScopedNSAutoreleasePool {
  public:
-#if !defined(OS_MACOSX)
-  ScopedNSAutoreleasePool() {}
-  void Recycle() { }
-#else  // OS_MACOSX
   ScopedNSAutoreleasePool();
   ~ScopedNSAutoreleasePool();
 
@@ -44,7 +35,6 @@ class BASE_EXPORT ScopedNSAutoreleasePool {
   void Recycle();
  private:
   NSAutoreleasePool* autorelease_pool_;
-#endif  // OS_MACOSX
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ScopedNSAutoreleasePool);

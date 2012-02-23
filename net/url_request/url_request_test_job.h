@@ -8,7 +8,7 @@
 
 #include <string>
 
-#include "base/task.h"
+#include "base/memory/weak_ptr.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_job.h"
 
@@ -36,7 +36,7 @@ namespace net {
 //
 // Optionally, you can also construct test jobs that advance automatically
 // without having to call ProcessOnePendingMessage.
-class NET_TEST URLRequestTestJob : public URLRequestJob {
+class NET_EXPORT_PRIVATE URLRequestTestJob : public URLRequestJob {
  public:
   // Constructs a job to return one of the canned responses depending on the
   // request url, with auto advance disabled.
@@ -92,13 +92,16 @@ class NET_TEST URLRequestTestJob : public URLRequestJob {
   static URLRequest::ProtocolFactory Factory;
 
   // Job functions
-  virtual void Start();
-  virtual bool ReadRawData(IOBuffer* buf, int buf_size, int *bytes_read);
-  virtual void Kill();
-  virtual bool GetMimeType(std::string* mime_type) const;
-  virtual void GetResponseInfo(HttpResponseInfo* info);
-  virtual int GetResponseCode() const;
-  virtual bool IsRedirectResponse(GURL* location, int* http_status_code);
+  virtual void Start() OVERRIDE;
+  virtual bool ReadRawData(IOBuffer* buf,
+                           int buf_size,
+                           int *bytes_read) OVERRIDE;
+  virtual void Kill() OVERRIDE;
+  virtual bool GetMimeType(std::string* mime_type) const OVERRIDE;
+  virtual void GetResponseInfo(HttpResponseInfo* info) OVERRIDE;
+  virtual int GetResponseCode() const OVERRIDE;
+  virtual bool IsRedirectResponse(GURL* location,
+                                  int* http_status_code) OVERRIDE;
 
  protected:
   // This is what operation we are going to do next when this job is handled.
@@ -136,7 +139,7 @@ class NET_TEST URLRequestTestJob : public URLRequestJob {
   IOBuffer* async_buf_;
   int async_buf_size_;
 
-  ScopedRunnableMethodFactory<URLRequestTestJob> method_factory_;
+  base::WeakPtrFactory<URLRequestTestJob> weak_factory_;
 };
 
 }  // namespace net

@@ -7,14 +7,26 @@
 #pragma once
 
 #include <list>
+#include <map>
 
+#include "base/memory/weak_ptr.h"
 #include "base/synchronization/waitable_event.h"
-#include "net/base/host_resolver_impl.h"
+#include "base/threading/non_thread_safe.h"
+#include "net/base/host_resolver.h"
 #include "net/base/host_resolver_proc.h"
 
 namespace net {
 
+class HostCache;
 class RuleBasedHostResolverProc;
+
+// Fills |*addrlist| with a socket address for |host_list| which should be a
+// comma-separated list of IPv4 or IPv6 literal(s) without enclosing brackets.
+// If |canonical_name| is non-empty it is used as the DNS canonical name for
+// the host. Returns OK on success, ERR_UNEXPECTED otherwise.
+int ParseAddressList(const std::string& host_list,
+                     const std::string& canonical_name,
+                     AddressList* addrlist);
 
 // In most cases, it is important that unit tests avoid relying on making actual
 // DNS queries since the resulting tests can be flaky, especially if the network
@@ -37,7 +49,9 @@ class RuleBasedHostResolverProc;
 // re-map one hostname to another as well.
 
 // Base class shared by MockHostResolver and MockCachingHostResolver.
-class MockHostResolverBase : public HostResolver {
+class MockHostResolverBase : public HostResolver,
+                             public base::SupportsWeakPtr<MockHostResolverBase>,
+                             public base::NonThreadSafe {
  public:
   virtual ~MockHostResolverBase();
 
@@ -48,38 +62,41 @@ class MockHostResolverBase : public HostResolver {
     synchronous_mode_ = is_synchronous;
   }
 
-  // Resets the mock.
-  void Reset(HostResolverProc* interceptor);
-
-  void SetPoolConstraints(HostResolverImpl::JobPoolIndex pool_index,
-                          size_t max_outstanding_jobs,
-                          size_t max_pending_requests) {
-    impl_->SetPoolConstraints(
-        pool_index, max_outstanding_jobs, max_pending_requests);
-  }
-
   // HostResolver methods:
   virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
-                      CompletionCallback* callback,
+                      const CompletionCallback& callback,
                       RequestHandle* out_req,
                       const BoundNetLog& net_log) OVERRIDE;
   virtual int ResolveFromCache(const RequestInfo& info,
                                AddressList* addresses,
                                const BoundNetLog& net_log) OVERRIDE;
   virtual void CancelRequest(RequestHandle req) OVERRIDE;
-  virtual void AddObserver(Observer* observer) OVERRIDE;
-  virtual void RemoveObserver(Observer* observer) OVERRIDE;
+  virtual HostCache* GetHostCache() OVERRIDE;
 
  protected:
-  MockHostResolverBase(bool use_caching);
-
-  scoped_ptr<HostResolverImpl> impl_;
-  scoped_refptr<RuleBasedHostResolverProc> rules_;
-  bool synchronous_mode_;
-  bool use_caching_;
+  explicit MockHostResolverBase(bool use_caching);
 
  private:
+  struct Request;
+  typedef std::map<size_t, Request*> RequestMap;
+
+  // Resolve as IP or from |cache_| return cached error or
+  // DNS_CACHE_MISS if failed.
+  int ResolveFromIPLiteralOrCache(const RequestInfo& info,
+                                  AddressList* addresses);
+  // Resolve via |proc_|.
+  int ResolveProc(size_t id, const RequestInfo& info, AddressList* addresses);
+  // Resolve request stored in |requests_|. Pass rv to callback.
+  void ResolveNow(size_t id);
+
+  bool synchronous_mode_;
+  scoped_refptr<RuleBasedHostResolverProc> rules_;
+  scoped_refptr<HostResolverProc> proc_;
+  scoped_ptr<HostCache> cache_;
+  RequestMap requests_;
+  size_t next_request_id_;
+
   DISALLOW_COPY_AND_ASSIGN(MockHostResolverBase);
 };
 
@@ -143,7 +160,7 @@ class RuleBasedHostResolverProc : public HostResolverProc {
                       AddressFamily address_family,
                       HostResolverFlags host_resolver_flags,
                       AddressList* addrlist,
-                      int* os_error);
+                      int* os_error) OVERRIDE;
 
  private:
   struct Rule;
@@ -154,24 +171,21 @@ class RuleBasedHostResolverProc : public HostResolverProc {
   RuleList rules_;
 };
 
-// Using WaitingHostResolverProc you can simulate very long lookups.
-class WaitingHostResolverProc : public HostResolverProc {
+// Create rules that map all requests to localhost.
+RuleBasedHostResolverProc* CreateCatchAllHostResolverProc();
+
+// HangingHostResolver never completes its |Resolve| request.
+class HangingHostResolver : public HostResolver {
  public:
-  explicit WaitingHostResolverProc(HostResolverProc* previous);
-
-  void Signal();
-
-  // HostResolverProc methods:
-  virtual int Resolve(const std::string& host,
-                      AddressFamily address_family,
-                      HostResolverFlags host_resolver_flags,
-                      AddressList* addrlist,
-                      int* os_error);
-
- private:
-  virtual ~WaitingHostResolverProc();
-
-  base::WaitableEvent event_;
+  virtual int Resolve(const RequestInfo& info,
+                      AddressList* addresses,
+                      const CompletionCallback& callback,
+                      RequestHandle* out_req,
+                      const BoundNetLog& net_log) OVERRIDE;
+  virtual int ResolveFromCache(const RequestInfo& info,
+                               AddressList* addresses,
+                               const BoundNetLog& net_log) OVERRIDE;
+  virtual void CancelRequest(RequestHandle req) OVERRIDE {}
 };
 
 // This class sets the default HostResolverProc for a particular scope.  The

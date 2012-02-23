@@ -1,10 +1,12 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/ffmpeg/ffmpeg_common.h"
 
 #include "base/logging.h"
+#include "media/base/audio_decoder_config.h"
+#include "media/base/video_decoder_config.h"
 
 namespace media {
 
@@ -21,7 +23,69 @@ int64 ConvertToTimeBase(const AVRational& time_base,
   return av_rescale_q(timestamp.InMicroseconds(), kMicrosBase, time_base);
 }
 
-VideoCodec CodecIDToVideoCodec(CodecID codec_id) {
+static AudioCodec CodecIDToAudioCodec(CodecID codec_id) {
+  switch (codec_id) {
+    case CODEC_ID_AAC:
+      return kCodecAAC;
+    case CODEC_ID_MP3:
+      return kCodecMP3;
+    case CODEC_ID_VORBIS:
+      return kCodecVorbis;
+    case CODEC_ID_PCM_U8:
+    case CODEC_ID_PCM_S16LE:
+    case CODEC_ID_PCM_S32LE:
+      return kCodecPCM;
+    case CODEC_ID_FLAC:
+      return kCodecFLAC;
+    case CODEC_ID_AMR_NB:
+      return kCodecAMR_NB;
+    case CODEC_ID_AMR_WB:
+      return kCodecAMR_WB;
+    case CODEC_ID_PCM_MULAW:
+      return kCodecPCM_MULAW;
+    default:
+      NOTREACHED();
+  }
+  return kUnknownAudioCodec;
+}
+
+static CodecID AudioCodecToCodecID(AudioCodec audio_codec,
+                                   int bits_per_channel) {
+  switch (audio_codec) {
+    case kUnknownAudioCodec:
+      return CODEC_ID_NONE;
+    case kCodecAAC:
+      return CODEC_ID_AAC;
+    case kCodecMP3:
+      return CODEC_ID_MP3;
+    case kCodecPCM:
+      switch (bits_per_channel) {
+        case 8:
+          return CODEC_ID_PCM_U8;
+        case 16:
+          return CODEC_ID_PCM_S16LE;
+        case 32:
+          return CODEC_ID_PCM_S32LE;
+        default:
+          NOTREACHED() << "Unsupported bits_per_channel: " << bits_per_channel;
+      }
+    case kCodecVorbis:
+      return CODEC_ID_VORBIS;
+    case kCodecFLAC:
+      return CODEC_ID_FLAC;
+    case kCodecAMR_NB:
+      return CODEC_ID_AMR_NB;
+    case kCodecAMR_WB:
+      return CODEC_ID_AMR_WB;
+    case kCodecPCM_MULAW:
+      return CODEC_ID_PCM_MULAW;
+    default:
+      NOTREACHED();
+  }
+  return CODEC_ID_NONE;
+}
+
+static VideoCodec CodecIDToVideoCodec(CodecID codec_id) {
   switch (codec_id) {
     case CODEC_ID_VC1:
       return kCodecVC1;
@@ -38,11 +102,13 @@ VideoCodec CodecIDToVideoCodec(CodecID codec_id) {
     default:
       NOTREACHED();
   }
-  return kUnknown;
+  return kUnknownVideoCodec;
 }
 
-CodecID VideoCodecToCodecID(VideoCodec video_codec) {
+static CodecID VideoCodecToCodecID(VideoCodec video_codec) {
   switch (video_codec) {
+    case kUnknownVideoCodec:
+      return CODEC_ID_NONE;
     case kCodecVC1:
       return CODEC_ID_VC1;
     case kCodecH264:
@@ -59,6 +125,166 @@ CodecID VideoCodecToCodecID(VideoCodec video_codec) {
       NOTREACHED();
   }
   return CODEC_ID_NONE;
+}
+
+static VideoCodecProfile ProfileIDToVideoCodecProfile(int profile) {
+  // Clear out the CONSTRAINED & INTRA flags which are strict subsets of the
+  // corresponding profiles with which they're used.
+  profile &= ~FF_PROFILE_H264_CONSTRAINED;
+  profile &= ~FF_PROFILE_H264_INTRA;
+  switch (profile) {
+    case FF_PROFILE_H264_BASELINE:
+      return H264PROFILE_BASELINE;
+    case FF_PROFILE_H264_MAIN:
+      return H264PROFILE_MAIN;
+    case FF_PROFILE_H264_EXTENDED:
+      return H264PROFILE_EXTENDED;
+    case FF_PROFILE_H264_HIGH:
+      return H264PROFILE_HIGH;
+    case FF_PROFILE_H264_HIGH_10:
+      return H264PROFILE_HIGH10PROFILE;
+    case FF_PROFILE_H264_HIGH_422:
+      return H264PROFILE_HIGH422PROFILE;
+    case FF_PROFILE_H264_HIGH_444_PREDICTIVE:
+      return H264PROFILE_HIGH444PREDICTIVEPROFILE;
+    default:
+      return VIDEO_CODEC_PROFILE_UNKNOWN;
+  }
+}
+
+static int VideoCodecProfileToProfileID(VideoCodecProfile profile) {
+  switch (profile) {
+    case H264PROFILE_BASELINE:
+      return FF_PROFILE_H264_BASELINE;
+    case H264PROFILE_MAIN:
+      return FF_PROFILE_H264_MAIN;
+    case H264PROFILE_EXTENDED:
+      return FF_PROFILE_H264_EXTENDED;
+    case H264PROFILE_HIGH:
+      return FF_PROFILE_H264_HIGH;
+    case H264PROFILE_HIGH10PROFILE:
+      return FF_PROFILE_H264_HIGH_10;
+    case H264PROFILE_HIGH422PROFILE:
+      return FF_PROFILE_H264_HIGH_422;
+    case H264PROFILE_HIGH444PREDICTIVEPROFILE:
+      return FF_PROFILE_H264_HIGH_444_PREDICTIVE;
+    default:
+      return FF_PROFILE_UNKNOWN;
+  }
+}
+
+void AVCodecContextToAudioDecoderConfig(
+    const AVCodecContext* codec_context,
+    AudioDecoderConfig* config) {
+  DCHECK_EQ(codec_context->codec_type, AVMEDIA_TYPE_AUDIO);
+
+  AudioCodec codec = CodecIDToAudioCodec(codec_context->codec_id);
+  int bits_per_channel = av_get_bits_per_sample_fmt(codec_context->sample_fmt);
+  ChannelLayout channel_layout =
+      ChannelLayoutToChromeChannelLayout(codec_context->channel_layout,
+                                         codec_context->channels);
+  int samples_per_second = codec_context->sample_rate;
+
+  config->Initialize(codec,
+                     bits_per_channel,
+                     channel_layout,
+                     samples_per_second,
+                     codec_context->extradata,
+                     codec_context->extradata_size,
+                     true);
+}
+
+void AudioDecoderConfigToAVCodecContext(const AudioDecoderConfig& config,
+                                        AVCodecContext* codec_context) {
+  codec_context->codec_type = AVMEDIA_TYPE_AUDIO;
+  codec_context->codec_id = AudioCodecToCodecID(config.codec(),
+                                                config.bits_per_channel());
+
+  switch (config.bits_per_channel()) {
+    case 8:
+      codec_context->sample_fmt = AV_SAMPLE_FMT_U8;
+      break;
+    case 16:
+      codec_context->sample_fmt = AV_SAMPLE_FMT_S16;
+      break;
+    case 32:
+      codec_context->sample_fmt = AV_SAMPLE_FMT_S32;
+      break;
+    default:
+      NOTIMPLEMENTED() << "TODO(scherkus): DO SOMETHING BETTER HERE?";
+      codec_context->sample_fmt = AV_SAMPLE_FMT_NONE;
+  }
+
+  // TODO(scherkus): should we set |channel_layout|? I'm not sure if FFmpeg uses
+  // said information to decode.
+  codec_context->channels =
+      ChannelLayoutToChannelCount(config.channel_layout());
+  codec_context->sample_rate = config.samples_per_second();
+
+  if (config.extra_data()) {
+    codec_context->extradata_size = config.extra_data_size();
+    codec_context->extradata = reinterpret_cast<uint8_t*>(
+        av_malloc(config.extra_data_size() + FF_INPUT_BUFFER_PADDING_SIZE));
+    memcpy(codec_context->extradata, config.extra_data(),
+           config.extra_data_size());
+    memset(codec_context->extradata + config.extra_data_size(), '\0',
+           FF_INPUT_BUFFER_PADDING_SIZE);
+  } else {
+    codec_context->extradata = NULL;
+    codec_context->extradata_size = 0;
+  }
+}
+
+void AVStreamToVideoDecoderConfig(
+    const AVStream* stream,
+    VideoDecoderConfig* config) {
+  gfx::Size coded_size(stream->codec->coded_width, stream->codec->coded_height);
+
+  // TODO(vrk): This assumes decoded frame data starts at (0, 0), which is true
+  // for now, but may not always be true forever. Fix this in the future.
+  gfx::Rect visible_rect(stream->codec->width, stream->codec->height);
+
+  AVRational aspect_ratio = { 1, 1 };
+  if (stream->sample_aspect_ratio.num)
+    aspect_ratio = stream->sample_aspect_ratio;
+  else if (stream->codec->sample_aspect_ratio.num)
+    aspect_ratio = stream->codec->sample_aspect_ratio;
+
+  config->Initialize(CodecIDToVideoCodec(stream->codec->codec_id),
+                     ProfileIDToVideoCodecProfile(stream->codec->profile),
+                     PixelFormatToVideoFormat(stream->codec->pix_fmt),
+                     coded_size, visible_rect,
+                     stream->r_frame_rate.num,
+                     stream->r_frame_rate.den,
+                     aspect_ratio.num,
+                     aspect_ratio.den,
+                     stream->codec->extradata,
+                     stream->codec->extradata_size,
+                     true);
+}
+
+void VideoDecoderConfigToAVCodecContext(
+    const VideoDecoderConfig& config,
+    AVCodecContext* codec_context) {
+  codec_context->codec_type = AVMEDIA_TYPE_VIDEO;
+  codec_context->codec_id = VideoCodecToCodecID(config.codec());
+  codec_context->profile = VideoCodecProfileToProfileID(config.profile());
+  codec_context->coded_width = config.coded_size().width();
+  codec_context->coded_height = config.coded_size().height();
+  codec_context->pix_fmt = VideoFormatToPixelFormat(config.format());
+
+  if (config.extra_data()) {
+    codec_context->extradata_size = config.extra_data_size();
+    codec_context->extradata = reinterpret_cast<uint8_t*>(
+        av_malloc(config.extra_data_size() + FF_INPUT_BUFFER_PADDING_SIZE));
+    memcpy(codec_context->extradata, config.extra_data(),
+           config.extra_data_size());
+    memset(codec_context->extradata + config.extra_data_size(), '\0',
+           FF_INPUT_BUFFER_PADDING_SIZE);
+  } else {
+    codec_context->extradata = NULL;
+    codec_context->extradata_size = 0;
+  }
 }
 
 ChannelLayout ChannelLayoutToChromeChannelLayout(int64_t layout,
@@ -106,104 +332,36 @@ ChannelLayout ChannelLayoutToChromeChannelLayout(int64_t layout,
   }
 }
 
-base::TimeDelta GetFrameDuration(AVStream* stream) {
-  AVRational time_base = { stream->r_frame_rate.den, stream->r_frame_rate.num };
-  return ConvertFromTimeBase(time_base, 1);
-}
-
-bool GetSeekTimeAfter(AVStream* stream, const base::TimeDelta& timestamp,
-                      base::TimeDelta* seek_time) {
-  DCHECK(stream);
-  DCHECK(timestamp >= base::TimeDelta::FromSeconds(0));
-  DCHECK(seek_time);
-
-  // Make sure we have index data.
-  if (!stream->index_entries || stream->nb_index_entries <= 0)
-    return false;
-
-  // Search for the index entry >= the specified timestamp.
-  int64 stream_ts = ConvertToTimeBase(stream->time_base, timestamp);
-  int i = av_index_search_timestamp(stream, stream_ts, 0);
-
-  if (i < 0)
-    return false;
-
-  if (stream->index_entries[i].timestamp == static_cast<int64>(AV_NOPTS_VALUE))
-    return false;
-
-  *seek_time = ConvertFromTimeBase(stream->time_base,
-                                   stream->index_entries[i].timestamp);
-  return true;
-}
-
-
-bool GetStreamByteCountOverRange(AVStream* stream,
-                                 const base::TimeDelta& start_time,
-                                 const base::TimeDelta& end_time,
-                                 int64* bytes,
-                                 base::TimeDelta* range_start,
-                                 base::TimeDelta* range_end) {
-  DCHECK(stream);
-  DCHECK(start_time < end_time);
-  DCHECK(start_time >= base::TimeDelta::FromSeconds(0));
-  DCHECK(bytes);
-  DCHECK(range_start);
-  DCHECK(range_end);
-
-  // Make sure the stream has index data.
-  if (!stream->index_entries || stream->nb_index_entries <= 1)
-    return false;
-
-  // Search for the index entries associated with the timestamps.
-  int64 start_ts = ConvertToTimeBase(stream->time_base, start_time);
-  int64 end_ts = ConvertToTimeBase(stream->time_base, end_time);
-  int i = av_index_search_timestamp(stream, start_ts, AVSEEK_FLAG_BACKWARD);
-  int j = av_index_search_timestamp(stream, end_ts, 0);
-
-  // Make sure start & end indexes are valid.
-  if (i < 0 || j < 0)
-    return false;
-
-  // Shouldn't happen because start & end use different seek flags, but we want
-  // to know about it if they end up pointing to the same index entry.
-  DCHECK_NE(i, j);
-
-  AVIndexEntry* start_ie = &stream->index_entries[i];
-  AVIndexEntry* end_ie = &stream->index_entries[j];
-
-  // Make sure index entries have valid timestamps & position data.
-  if (start_ie->timestamp == static_cast<int64>(AV_NOPTS_VALUE) ||
-      end_ie->timestamp == static_cast<int64>(AV_NOPTS_VALUE) ||
-      start_ie->timestamp >= end_ie->timestamp ||
-      start_ie->pos >= end_ie->pos) {
-    return false;
+VideoFrame::Format PixelFormatToVideoFormat(PixelFormat pixel_format) {
+  switch (pixel_format) {
+    case PIX_FMT_YUV422P:
+      return VideoFrame::YV16;
+    case PIX_FMT_YUV420P:
+      return VideoFrame::YV12;
+    default:
+      DLOG(WARNING) << "Unsupported PixelFormat: " << pixel_format;
+      return VideoFrame::INVALID;
   }
-
-  *bytes = end_ie->pos - start_ie->pos;
-  *range_start = ConvertFromTimeBase(stream->time_base, start_ie->timestamp);
-  *range_end = ConvertFromTimeBase(stream->time_base, end_ie->timestamp);
-  return true;
 }
 
-int GetSurfaceHeight(AVStream* stream) {
-  return stream->codec->coded_height;
+PixelFormat VideoFormatToPixelFormat(VideoFrame::Format video_format) {
+  switch (video_format) {
+    case VideoFrame::YV16:
+      return PIX_FMT_YUV422P;
+    case VideoFrame::YV12:
+      return PIX_FMT_YUV420P;
+    default:
+      DLOG(WARNING) << "Unsupported VideoFrame Format: " << video_format;
+      return PIX_FMT_NONE;
+  }
 }
 
-int GetSurfaceWidth(AVStream* stream) {
-  double aspect_ratio;
-
-  if (stream->sample_aspect_ratio.num)
-    aspect_ratio = av_q2d(stream->sample_aspect_ratio);
-  else if (stream->codec->sample_aspect_ratio.num)
-    aspect_ratio = av_q2d(stream->codec->sample_aspect_ratio);
-  else
-    aspect_ratio = 1.0;
-
-  int width = floor(stream->codec->coded_width * aspect_ratio + 0.5);
-
-  // An even width makes things easier for YV12 and appears to be the behavior
-  // expected by WebKit layout tests.
-  return width & ~1;
+base::TimeDelta GetFrameDuration(const VideoDecoderConfig& config) {
+  AVRational time_base = {
+    config.frame_rate_denominator(),
+    config.frame_rate_numerator()
+  };
+  return ConvertFromTimeBase(time_base, 1);
 }
 
 void DestroyAVFormatContext(AVFormatContext* format_context) {

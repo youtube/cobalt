@@ -62,7 +62,7 @@ struct MockTransaction {
   const char* data;
   int test_mode;
   MockTransactionHandler handler;
-  int cert_status;
+  net::CertStatus cert_status;
 };
 
 extern const MockTransaction kSimpleGET_Transaction;
@@ -103,7 +103,7 @@ class MockHttpRequest : public net::HttpRequestInfo {
 //-----------------------------------------------------------------------------
 // use this class to test completely consuming a transaction
 
-class TestTransactionConsumer : public CallbackRunner< Tuple1<int> > {
+class TestTransactionConsumer {
  public:
   explicit TestTransactionConsumer(net::HttpTransactionFactory* factory);
   virtual ~TestTransactionConsumer();
@@ -132,8 +132,7 @@ class TestTransactionConsumer : public CallbackRunner< Tuple1<int> > {
   void DidFinish(int result);
   void Read();
 
-  // Callback implementation:
-  virtual void RunWithParams(const Tuple1<int>& params);
+  void OnIOComplete(int result);
 
   State state_;
   scoped_ptr<net::HttpTransaction> trans_;
@@ -147,66 +146,78 @@ class TestTransactionConsumer : public CallbackRunner< Tuple1<int> > {
 //-----------------------------------------------------------------------------
 // mock network layer
 
+class MockNetworkLayer;
+
 // This transaction class inspects the available set of mock transactions to
 // find data for the request URL.  It supports IO operations that complete
 // synchronously or asynchronously to help exercise different code paths in the
 // HttpCache implementation.
 class MockNetworkTransaction : public net::HttpTransaction {
  public:
-  MockNetworkTransaction();
+  explicit MockNetworkTransaction(MockNetworkLayer* factory);
   virtual ~MockNetworkTransaction();
 
   virtual int Start(const net::HttpRequestInfo* request,
-                    net::CompletionCallback* callback,
-                    const net::BoundNetLog& net_log);
+                    const net::CompletionCallback& callback,
+                    const net::BoundNetLog& net_log) OVERRIDE;
 
-  virtual int RestartIgnoringLastError(net::CompletionCallback* callback);
+  virtual int RestartIgnoringLastError(
+      const net::CompletionCallback& callback) OVERRIDE;
 
-  virtual int RestartWithCertificate(net::X509Certificate* client_cert,
-                                     net::CompletionCallback* callback);
+  virtual int RestartWithCertificate(
+      net::X509Certificate* client_cert,
+      const net::CompletionCallback& callback) OVERRIDE;
 
-  virtual int RestartWithAuth(const string16& username,
-                              const string16& password,
-                              net::CompletionCallback* callback);
+  virtual int RestartWithAuth(
+      const net::AuthCredentials& credentials,
+      const net::CompletionCallback& callback) OVERRIDE;
 
-  virtual bool IsReadyToRestartForAuth();
+  virtual bool IsReadyToRestartForAuth() OVERRIDE;
 
   virtual int Read(net::IOBuffer* buf, int buf_len,
-                   net::CompletionCallback* callback);
+                   const net::CompletionCallback& callback) OVERRIDE;
 
-  virtual void StopCaching();
+  virtual void StopCaching() OVERRIDE;
 
-  virtual const net::HttpResponseInfo* GetResponseInfo() const;
+  virtual void DoneReading() OVERRIDE;
 
-  virtual net::LoadState GetLoadState() const;
+  virtual const net::HttpResponseInfo* GetResponseInfo() const OVERRIDE;
 
-  virtual uint64 GetUploadProgress() const;
+  virtual net::LoadState GetLoadState() const OVERRIDE;
+
+  virtual uint64 GetUploadProgress() const OVERRIDE;
 
  private:
-  void CallbackLater(net::CompletionCallback* callback, int result);
-  void RunCallback(net::CompletionCallback* callback, int result);
+  void CallbackLater(const net::CompletionCallback& callback, int result);
+  void RunCallback(const net::CompletionCallback& callback, int result);
 
-  ScopedRunnableMethodFactory<MockNetworkTransaction> task_factory_;
+  base::WeakPtrFactory<MockNetworkTransaction> weak_factory_;
   net::HttpResponseInfo response_;
   std::string data_;
   int data_cursor_;
   int test_mode_;
+  base::WeakPtr<MockNetworkLayer> transaction_factory_;
 };
 
-class MockNetworkLayer : public net::HttpTransactionFactory {
+class MockNetworkLayer : public net::HttpTransactionFactory,
+                         public base::SupportsWeakPtr<MockNetworkLayer> {
  public:
   MockNetworkLayer();
   virtual ~MockNetworkLayer();
 
   int transaction_count() const { return transaction_count_; }
+  bool done_reading_called() const { return done_reading_called_; }
+  void TransactionDoneReading();
 
   // net::HttpTransactionFactory:
-  virtual int CreateTransaction(scoped_ptr<net::HttpTransaction>* trans);
-  virtual net::HttpCache* GetCache();
-  virtual net::HttpNetworkSession* GetSession();
+  virtual int CreateTransaction(
+      scoped_ptr<net::HttpTransaction>* trans) OVERRIDE;
+  virtual net::HttpCache* GetCache() OVERRIDE;
+  virtual net::HttpNetworkSession* GetSession() OVERRIDE;
 
  private:
   int transaction_count_;
+  bool done_reading_called_;
 };
 
 //-----------------------------------------------------------------------------

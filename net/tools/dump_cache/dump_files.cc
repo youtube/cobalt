@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,15 +26,15 @@ const wchar_t kDataPrefix[] = L"data_";
 
 // Reads the |header_size| bytes from the beginning of file |name|.
 bool ReadHeader(const std::wstring& name, char* header, int header_size) {
-  net::FileStream file;
-  file.Open(FilePath::FromWStringHack(name),
+  net::FileStream file(NULL);
+  file.OpenSync(FilePath::FromWStringHack(name),
       base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ);
   if (!file.IsOpen()) {
     printf("Unable to open file %ls\n", name.c_str());
     return false;
   }
 
-  int read = file.Read(header, header_size, NULL);
+  int read = file.ReadSync(header, header_size);
   if (read != header_size) {
     printf("Unable to read file %ls\n", name.c_str());
     return false;
@@ -257,7 +257,7 @@ void DumpRankings(const disk_cache::RankingsNode& rankings) {
   printf("prev: 0x%x\n", rankings.prev);
   printf("entry: 0x%x\n", rankings.contents);
   printf("dirty: %d\n", rankings.dirty);
-  printf("pointer: 0x%x\n", rankings.dummy);
+  printf("hash: 0x%x\n", rankings.self_hash);
   printf("----------\n\n");
 }
 
