@@ -37,9 +37,12 @@ struct NET_EXPORT SSLConfig {
                         CertStatus* cert_status) const;
 
   // rev_checking_enabled is true if online certificate revocation checking is
-  // enabled (i.e. OCSP). If a CRLSet is given then CRLSet checking is always
-  // enabled, regardless of this flag.
+  // enabled (i.e. OCSP and CRL fetching).
+  //
+  // Regardless of this flag, CRLSet checking is always enabled and locally
+  // cached revocation information will be considered.
   bool rev_checking_enabled;
+
   // SSL 2.0 is not supported.
   bool ssl3_enabled;  // True if SSL 3.0 is enabled.
   bool tls1_enabled;  // True if TLS 1.0 is enabled.
