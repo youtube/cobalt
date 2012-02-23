@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -140,60 +140,16 @@ bool DelayedCacheCleanup(const FilePath& full_path) {
   return true;
 }
 
-// Initializes the field trial structures to allow performance measurements
-// for the current cache configuration.
-void SetFieldTrialInfo(int group) {
-  static bool first = true;
-  if (!first)
-    return;
-
-  // Field trials involve static objects so we have to do this only once.
-  first = false;
-  std::string group1 = base::StringPrintf("CacheListSize_%d", group);
-  int probability = 10;
-  scoped_refptr<base::FieldTrial> trial1(
-      new base::FieldTrial("CacheListSize", probability, group1, 2011, 9, 30));
-  trial1->AppendGroup(group1, probability);
-}
-
 // Sets group for the current experiment. Returns false if the files should be
 // discarded.
-bool InitExperiment(disk_cache::IndexHeader* header, uint32 mask) {
+bool InitExperiment(disk_cache::IndexHeader* header) {
   if (header->experiment == disk_cache::EXPERIMENT_OLD_FILE1 ||
       header->experiment == disk_cache::EXPERIMENT_OLD_FILE2) {
     // Discard current cache.
     return false;
   }
 
-  // See if we already defined the group for this profile.
-  if (header->experiment > disk_cache::EXPERIMENT_DELETED_LIST_OUT) {
-    SetFieldTrialInfo(header->experiment);
-    return true;
-  }
-
-  if (!header->create_time || !header->lru.filled)
-    return true;  // Wait until we fill up the cache.
-
-  int index_load = header->num_entries * 100 / (mask + 1);
-  if (index_load > 25) {
-    // Out of the experiment (~18% users).
-    header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_OUT2;
-    return true;
-  }
-
-  int option = base::RandInt(0, 4);
-  if (option > 1) {
-    // 60% out (49% of the total).
-    header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_OUT2;
-  } else if (!option) {
-    // About 16% of the total.
-    header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_CONTROL;
-  } else {
-    // About 16% of the total.
-    header->experiment = disk_cache::EXPERIMENT_DELETED_LIST_IN;
-  }
-
-  SetFieldTrialInfo(header->experiment);
+  header->experiment = disk_cache::NO_EXPERIMENT;
   return true;
 }
 
@@ -483,8 +439,7 @@ int BackendImpl::SyncInit() {
   }
 
   if (!(user_flags_ & disk_cache::kNoRandom) &&
-      cache_type_ == net::DISK_CACHE &&
-      !InitExperiment(&data_->header, mask_))
+      cache_type_ == net::DISK_CACHE && !InitExperiment(&data_->header))
     return net::ERR_FAILED;
 
   // We don't care if the value overflows. The only thing we care about is that
@@ -1139,13 +1094,6 @@ void BackendImpl::FirstEviction() {
   DCHECK(data_->header.create_time);
   if (!GetEntryCount())
     return;  // This is just for unit tests.
-
-  if (!(user_flags_ & disk_cache::kNoRandom) &&
-      cache_type_ == net::DISK_CACHE) {
-    // We were waiting for the first eviction to init the experiment.
-    bool rv = InitExperiment(&data_->header, mask_);
-    DCHECK(rv);
-  }
 
   Time create_time = Time::FromInternalValue(data_->header.create_time);
   CACHE_UMA(AGE, "FillupAge", 0, create_time);

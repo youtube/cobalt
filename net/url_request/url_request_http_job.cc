@@ -1414,36 +1414,11 @@ void URLRequestHttpJob::RecordPerfHistograms(CompletionCause reason) {
     UMA_HISTOGRAM_TIMES("Net.HttpJob.TotalTimeCancel", total_time);
   }
 
-  static bool cache_experiment = false;
-  if (!cache_experiment)
-    cache_experiment = base::FieldTrialList::TrialExists("CacheListSize");
-  if (cache_experiment) {
-    UMA_HISTOGRAM_TIMES(
-        base::FieldTrial::MakeName("Net.HttpJob.TotalTime", "CacheListSize"),
-        total_time);
-    if (reason == FINISHED) {
-      UMA_HISTOGRAM_TIMES(
-          base::FieldTrial::MakeName("Net.HttpJob.TotalTimeSuccess",
-                                     "CacheListSize"),
-          total_time);
-    } else {
-      UMA_HISTOGRAM_TIMES(
-          base::FieldTrial::MakeName("Net.HttpJob.TotalTimeCancel",
-                                     "CacheListSize"),
-          total_time);
-    }
-    if (response_info_) {
-      if (response_info_->was_cached) {
-        UMA_HISTOGRAM_TIMES(
-            base::FieldTrial::MakeName("Net.HttpJob.TotalTimeCached",
-                                       "CacheListSize"),
-            total_time);
-      } else  {
-        UMA_HISTOGRAM_TIMES(
-            base::FieldTrial::MakeName("Net.HttpJob.TotalTimeNotCached",
-                                       "CacheListSize"),
-            total_time);
-      }
+  if (response_info_) {
+    if (response_info_->was_cached) {
+      UMA_HISTOGRAM_TIMES("Net.HttpJob.TotalTimeCached", total_time);
+    } else  {
+      UMA_HISTOGRAM_TIMES("Net.HttpJob.TotalTimeNotCached", total_time);
     }
   }
 
