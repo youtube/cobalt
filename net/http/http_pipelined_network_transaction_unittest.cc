@@ -192,14 +192,14 @@ TEST_F(HttpPipelinedNetworkTransactionTest, OneRequest) {
   Initialize();
 
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /test.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 0, "GET /test.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 2, "Content-Length: 9\r\n\r\n"),
-    MockRead(false, 3, "test.html"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 2, "Content-Length: 9\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 3, "test.html"),
   };
   AddExpectedConnection(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -215,20 +215,20 @@ TEST_F(HttpPipelinedNetworkTransactionTest, ReusePipeline) {
   Initialize();
 
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /one.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 0, "GET /one.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
-    MockWrite(false, 3, "GET /two.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 3, "GET /two.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 2, "Content-Length: 8\r\n\r\n"),
-    MockRead(true, 4, "one.html"),
-    MockRead(false, 5, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 6, "Content-Length: 8\r\n\r\n"),
-    MockRead(false, 7, "two.html"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 2, "Content-Length: 8\r\n\r\n"),
+    MockRead(ASYNC, 4, "one.html"),
+    MockRead(SYNCHRONOUS, 5, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 6, "Content-Length: 8\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 7, "two.html"),
   };
   AddExpectedConnection(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -241,32 +241,32 @@ TEST_F(HttpPipelinedNetworkTransactionTest, ReusesOnSpaceAvailable) {
   Initialize();
 
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /one.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 0, "GET /one.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
-    MockWrite(false, 4, "GET /two.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 4, "GET /two.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
-    MockWrite(false, 7, "GET /three.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 7, "GET /three.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
-    MockWrite(false, 12, "GET /four.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 12, "GET /four.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 2, "Content-Length: 8\r\n\r\n"),
-    MockRead(false, 3, "one.html"),
-    MockRead(false, 5, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 6, "Content-Length: 8\r\n\r\n"),
-    MockRead(false, 8, "two.html"),
-    MockRead(false, 9, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 10, "Content-Length: 10\r\n\r\n"),
-    MockRead(false, 11, "three.html"),
-    MockRead(false, 13, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 14, "Content-Length: 9\r\n\r\n"),
-    MockRead(false, 15, "four.html"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 2, "Content-Length: 8\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 3, "one.html"),
+    MockRead(SYNCHRONOUS, 5, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 6, "Content-Length: 8\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 8, "two.html"),
+    MockRead(SYNCHRONOUS, 9, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 10, "Content-Length: 10\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 11, "three.html"),
+    MockRead(SYNCHRONOUS, 13, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 14, "Content-Length: 9\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 15, "four.html"),
   };
   AddExpectedConnection(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -279,26 +279,26 @@ TEST_F(HttpPipelinedNetworkTransactionTest, UnknownSizeEvictsToNewPipeline) {
   Initialize();
 
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /one.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 0, "GET /one.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n\r\n"),
-    MockRead(true, 2, "one.html"),
-    MockRead(false, OK, 3),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n\r\n"),
+    MockRead(ASYNC, 2, "one.html"),
+    MockRead(SYNCHRONOUS, OK, 3),
   };
   AddExpectedConnection(reads, arraysize(reads), writes, arraysize(writes));
 
   MockWrite writes2[] = {
-    MockWrite(false, 0, "GET /two.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 0, "GET /two.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
   };
   MockRead reads2[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 2, "Content-Length: 8\r\n\r\n"),
-    MockRead(false, 3, "two.html"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 2, "Content-Length: 8\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 3, "two.html"),
   };
   AddExpectedConnection(reads2, arraysize(reads2), writes2, arraysize(writes2));
 
@@ -309,30 +309,30 @@ TEST_F(HttpPipelinedNetworkTransactionTest, ConnectionCloseEvictToNewPipeline) {
   Initialize();
 
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /one.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 0, "GET /one.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
-    MockWrite(false, 3, "GET /two.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 3, "GET /two.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 2, "Content-Length: 8\r\n\r\n"),
-    MockRead(true, 4, "one.html"),
-    MockRead(false, ERR_SOCKET_NOT_CONNECTED, 5),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 2, "Content-Length: 8\r\n\r\n"),
+    MockRead(ASYNC, 4, "one.html"),
+    MockRead(SYNCHRONOUS, ERR_SOCKET_NOT_CONNECTED, 5),
   };
   AddExpectedConnection(reads, arraysize(reads), writes, arraysize(writes));
 
   MockWrite writes2[] = {
-    MockWrite(false, 0, "GET /two.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 0, "GET /two.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
   };
   MockRead reads2[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 2, "Content-Length: 8\r\n\r\n"),
-    MockRead(false, 3, "two.html"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 2, "Content-Length: 8\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 3, "two.html"),
   };
   AddExpectedConnection(reads2, arraysize(reads2), writes2, arraysize(writes2));
 
@@ -343,28 +343,28 @@ TEST_F(HttpPipelinedNetworkTransactionTest, ErrorEvictsToNewPipeline) {
   Initialize();
 
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /one.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 0, "GET /one.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
-    MockWrite(false, 3, "GET /two.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 3, "GET /two.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n\r\n"),
-    MockRead(false, ERR_FAILED, 2),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n\r\n"),
+    MockRead(SYNCHRONOUS, ERR_FAILED, 2),
   };
   AddExpectedConnection(reads, arraysize(reads), writes, arraysize(writes));
 
   MockWrite writes2[] = {
-    MockWrite(false, 0, "GET /two.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 0, "GET /two.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
   };
   MockRead reads2[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 2, "Content-Length: 8\r\n\r\n"),
-    MockRead(false, 3, "two.html"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 2, "Content-Length: 8\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 3, "two.html"),
   };
   AddExpectedConnection(reads2, arraysize(reads2), writes2, arraysize(writes2));
 
@@ -392,19 +392,19 @@ TEST_F(HttpPipelinedNetworkTransactionTest, SendErrorEvictsToNewPipeline) {
   Initialize();
 
   MockWrite writes[] = {
-    MockWrite(true, ERR_FAILED, 0),
+    MockWrite(ASYNC, ERR_FAILED, 0),
   };
   AddExpectedConnection(NULL, 0, writes, arraysize(writes));
 
   MockWrite writes2[] = {
-    MockWrite(false, 0, "GET /two.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 0, "GET /two.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
   };
   MockRead reads2[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 2, "Content-Length: 8\r\n\r\n"),
-    MockRead(false, 3, "two.html"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 2, "Content-Length: 8\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 3, "two.html"),
   };
   AddExpectedConnection(reads2, arraysize(reads2), writes2, arraysize(writes2));
 
@@ -431,20 +431,20 @@ TEST_F(HttpPipelinedNetworkTransactionTest, RedirectDrained) {
   Initialize();
 
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /redirect.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 0, "GET /redirect.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
-    MockWrite(false, 3, "GET /two.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 3, "GET /two.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.1 302 OK\r\n"),
-    MockRead(false, 2, "Content-Length: 8\r\n\r\n"),
-    MockRead(true, 4, "redirect"),
-    MockRead(false, 5, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 6, "Content-Length: 8\r\n\r\n"),
-    MockRead(false, 7, "two.html"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 302 OK\r\n"),
+    MockRead(SYNCHRONOUS, 2, "Content-Length: 8\r\n\r\n"),
+    MockRead(ASYNC, 4, "redirect"),
+    MockRead(SYNCHRONOUS, 5, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 6, "Content-Length: 8\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 7, "two.html"),
   };
   AddExpectedConnection(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -474,22 +474,23 @@ TEST_F(HttpPipelinedNetworkTransactionTest, BasicHttpAuthentication) {
   Initialize();
 
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /one.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 0, "GET /one.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
-    MockWrite(false, 5, "GET /one.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 5, "GET /one.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n"
               "Authorization: auth_token\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.1 401 Authentication Required\r\n"),
-    MockRead(false, 2, "WWW-Authenticate: Basic realm=\"Secure Area\"\r\n"),
-    MockRead(false, 3, "Content-Length: 20\r\n\r\n"),
-    MockRead(false, 4, "needs authentication"),
-    MockRead(false, 6, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 7, "Content-Length: 8\r\n\r\n"),
-    MockRead(false, 8, "one.html"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 401 Authentication Required\r\n"),
+    MockRead(SYNCHRONOUS, 2,
+             "WWW-Authenticate: Basic realm=\"Secure Area\"\r\n"),
+    MockRead(SYNCHRONOUS, 3, "Content-Length: 20\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 4, "needs authentication"),
+    MockRead(SYNCHRONOUS, 6, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 7, "Content-Length: 8\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 8, "one.html"),
   };
   AddExpectedConnection(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -520,40 +521,40 @@ TEST_F(HttpPipelinedNetworkTransactionTest, OldVersionDisablesPipelining) {
   Initialize();
 
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /pipelined.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 0, "GET /pipelined.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.0 200 OK\r\n"),
-    MockRead(false, 2, "Content-Length: 14\r\n\r\n"),
-    MockRead(false, 3, "pipelined.html"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.0 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 2, "Content-Length: 14\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 3, "pipelined.html"),
   };
   AddExpectedConnection(reads, arraysize(reads), writes, arraysize(writes));
 
   MockWrite writes2[] = {
-    MockWrite(false, 0, "GET /one.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 0, "GET /one.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
   };
   MockRead reads2[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 2, "Content-Length: 8\r\n\r\n"),
-    MockRead(true, 3, "one.html"),
-    MockRead(false, OK, 4),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 2, "Content-Length: 8\r\n\r\n"),
+    MockRead(ASYNC, 3, "one.html"),
+    MockRead(SYNCHRONOUS, OK, 4),
   };
   AddExpectedConnection(reads2, arraysize(reads2), writes2, arraysize(writes2));
 
   MockWrite writes3[] = {
-    MockWrite(false, 0, "GET /two.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 0, "GET /two.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
   };
   MockRead reads3[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 2, "Content-Length: 8\r\n\r\n"),
-    MockRead(false, 3, "two.html"),
-    MockRead(false, OK, 4),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 2, "Content-Length: 8\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 3, "two.html"),
+    MockRead(SYNCHRONOUS, OK, 4),
   };
   AddExpectedConnection(reads3, arraysize(reads3), writes3, arraysize(writes3));
 
@@ -578,44 +579,44 @@ TEST_F(HttpPipelinedNetworkTransactionTest, PipelinesImmediatelyIfKnownGood) {
   Initialize();
 
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /one.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 0, "GET /one.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
-    MockWrite(false, 4, "GET /two.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 4, "GET /two.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
-    MockWrite(false, 7, "GET /three.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 7, "GET /three.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
-    MockWrite(false, 12, "GET /four.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 12, "GET /four.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
-    MockWrite(false, 16, "GET /second-pipeline-one.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 16, "GET /second-pipeline-one.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
-    MockWrite(false, 17, "GET /second-pipeline-two.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 17, "GET /second-pipeline-two.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 2, "Content-Length: 8\r\n\r\n"),
-    MockRead(false, 3, "one.html"),
-    MockRead(false, 5, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 6, "Content-Length: 8\r\n\r\n"),
-    MockRead(false, 8, "two.html"),
-    MockRead(false, 9, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 10, "Content-Length: 10\r\n\r\n"),
-    MockRead(false, 11, "three.html"),
-    MockRead(false, 13, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 14, "Content-Length: 9\r\n\r\n"),
-    MockRead(false, 15, "four.html"),
-    MockRead(true, 18, "HTTP/1.1 200 OK\r\n"),
-    MockRead(true, 19, "Content-Length: 24\r\n\r\n"),
-    MockRead(false, 20, "second-pipeline-one.html"),
-    MockRead(false, 21, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 22, "Content-Length: 24\r\n\r\n"),
-    MockRead(false, 23, "second-pipeline-two.html"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 2, "Content-Length: 8\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 3, "one.html"),
+    MockRead(SYNCHRONOUS, 5, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 6, "Content-Length: 8\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 8, "two.html"),
+    MockRead(SYNCHRONOUS, 9, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 10, "Content-Length: 10\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 11, "three.html"),
+    MockRead(SYNCHRONOUS, 13, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 14, "Content-Length: 9\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 15, "four.html"),
+    MockRead(ASYNC, 18, "HTTP/1.1 200 OK\r\n"),
+    MockRead(ASYNC, 19, "Content-Length: 24\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 20, "second-pipeline-one.html"),
+    MockRead(SYNCHRONOUS, 21, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 22, "Content-Length: 24\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 23, "second-pipeline-two.html"),
   };
   AddExpectedConnection(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -686,20 +687,20 @@ TEST_F(HttpPipelinedNetworkTransactionTest, OpenPipelinesWhileBinding) {
   Initialize();
 
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /one.html HTTP/1.1\r\n"
+    MockWrite(SYNCHRONOUS, 0, "GET /one.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
-    MockWrite(true, 3, "GET /two.html HTTP/1.1\r\n"
+    MockWrite(ASYNC, 3, "GET /two.html HTTP/1.1\r\n"
               "Host: localhost\r\n"
               "Connection: keep-alive\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(true, 2, "Content-Length: 8\r\n\r\n"),
-    MockRead(false, 4, "one.html"),
-    MockRead(false, 5, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 6, "Content-Length: 8\r\n\r\n"),
-    MockRead(false, 7, "two.html"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(ASYNC, 2, "Content-Length: 8\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 4, "one.html"),
+    MockRead(SYNCHRONOUS, 5, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 6, "Content-Length: 8\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 7, "two.html"),
   };
   AddExpectedConnection(reads, arraysize(reads), writes, arraysize(writes));
 

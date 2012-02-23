@@ -288,13 +288,13 @@ TEST_F(SocketStreamTest, CloseFlushPendingWrite) {
 
   MockWrite data_writes[] = {
     MockWrite(SocketStreamTest::kWebSocketHandshakeRequest),
-    MockWrite(true, "\0message1\xff", 10),
-    MockWrite(true, "\0message2\xff", 10)
+    MockWrite(ASYNC, "\0message1\xff", 10),
+    MockWrite(ASYNC, "\0message2\xff", 10)
   };
   MockRead data_reads[] = {
     MockRead(SocketStreamTest::kWebSocketHandshakeResponse),
     // Server doesn't close the connection after handshake.
-    MockRead(true, ERR_IO_PENDING)
+    MockRead(ASYNC, ERR_IO_PENDING)
   };
   AddWebSocketMessage("message1");
   AddWebSocketMessage("message2");
@@ -358,7 +358,7 @@ TEST_F(SocketStreamTest, BasicAuthProxy) {
     // SocketStream::DoClose is run asynchronously.  Socket can be read after
     // "\r\n".  We have to give ERR_IO_PENDING to SocketStream then to indicate
     // server doesn't close the connection.
-    MockRead(true, ERR_IO_PENDING)
+    MockRead(ASYNC, ERR_IO_PENDING)
   };
   StaticSocketDataProvider data2(data_reads2, arraysize(data_reads2),
                                  data_writes2, arraysize(data_writes2));
@@ -425,13 +425,13 @@ TEST_F(SocketStreamTest, IOPending) {
 
   MockWrite data_writes[] = {
     MockWrite(SocketStreamTest::kWebSocketHandshakeRequest),
-    MockWrite(true, "\0message1\xff", 10),
-    MockWrite(true, "\0message2\xff", 10)
+    MockWrite(ASYNC, "\0message1\xff", 10),
+    MockWrite(ASYNC, "\0message2\xff", 10)
   };
   MockRead data_reads[] = {
     MockRead(SocketStreamTest::kWebSocketHandshakeResponse),
     // Server doesn't close the connection after handshake.
-    MockRead(true, ERR_IO_PENDING)
+    MockRead(ASYNC, ERR_IO_PENDING)
   };
   AddWebSocketMessage("message1");
   AddWebSocketMessage("message2");
@@ -547,12 +547,12 @@ TEST_F(SocketStreamTest, SecureProxyConnectError) {
     // SocketStream::DoClose is run asynchronously.  Socket can be read after
     // "\r\n".  We have to give ERR_IO_PENDING to SocketStream then to indicate
     // server doesn't close the connection.
-    MockRead(true, ERR_IO_PENDING)
+    MockRead(ASYNC, ERR_IO_PENDING)
   };
   StaticSocketDataProvider data(data_reads, arraysize(data_reads),
                                 data_writes, arraysize(data_writes));
   mock_socket_factory.AddSocketDataProvider(&data);
-  SSLSocketDataProvider ssl(false, ERR_SSL_PROTOCOL_ERROR);
+  SSLSocketDataProvider ssl(SYNCHRONOUS, ERR_SSL_PROTOCOL_ERROR);
   mock_socket_factory.AddSSLSocketDataProvider(&ssl);
 
   TestCompletionCallback test_callback;
@@ -599,12 +599,12 @@ TEST_F(SocketStreamTest, SecureProxyConnect) {
     // SocketStream::DoClose is run asynchronously.  Socket can be read after
     // "\r\n".  We have to give ERR_IO_PENDING to SocketStream then to indicate
     // server doesn't close the connection.
-    MockRead(true, ERR_IO_PENDING)
+    MockRead(ASYNC, ERR_IO_PENDING)
   };
   StaticSocketDataProvider data(data_reads, arraysize(data_reads),
                                 data_writes, arraysize(data_writes));
   mock_socket_factory.AddSocketDataProvider(&data);
-  SSLSocketDataProvider ssl(false, OK);
+  SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
   mock_socket_factory.AddSSLSocketDataProvider(&ssl);
 
   TestCompletionCallback test_callback;
