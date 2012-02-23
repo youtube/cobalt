@@ -79,8 +79,11 @@ void VideoDecoderConfig::Initialize(VideoCodec codec,
 
   if (record_stats) {
     UMA_HISTOGRAM_ENUMERATION("Media.VideoCodec", codec, kVideoCodecMax + 1);
-    UMA_HISTOGRAM_ENUMERATION("Media.VideoCodecProfile", profile,
-                              VIDEO_CODEC_PROFILE_MAX + 1);
+    // Drop UNKNOWN because U_H_E() uses one bucket for all values less than 1.
+    if (profile >= 0) {
+      UMA_HISTOGRAM_ENUMERATION("Media.VideoCodecProfile", profile,
+                                VIDEO_CODEC_PROFILE_MAX + 1);
+    }
     UMA_HISTOGRAM_COUNTS_10000("Media.VideoCodedWidth", coded_size.width());
     UmaHistogramAspectRatio("Media.VideoCodedAspectRatio", coded_size);
     UMA_HISTOGRAM_COUNTS_10000("Media.VideoVisibleWidth", visible_rect.width());
