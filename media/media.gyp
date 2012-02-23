@@ -644,6 +644,8 @@
             'filters/ffmpeg_glue_unittest.cc',
             'filters/ffmpeg_h264_bitstream_converter_unittest.cc',
             'filters/ffmpeg_video_decoder_unittest.cc',
+            'filters/pipeline_integration_test.cc',
+            'filters/pipeline_integration_test_base.cc',
           ],
         }],
         [ 'target_arch=="ia32" or target_arch=="x64"', {
