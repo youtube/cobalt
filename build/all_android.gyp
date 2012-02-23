@@ -49,6 +49,7 @@
         '../webkit/webkit.gyp:pull_in_DumpRenderTree',
         '../content/content.gyp:content_unittests',
         '../chrome/chrome.gyp:browser',
+        '../media/media.gyp:media_unittests',
       ],
     },
     {
