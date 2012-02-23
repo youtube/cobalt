@@ -17,9 +17,9 @@ namespace {
 
 DWORD CALLBACK WorkItemCallback(void* param) {
   PendingTask* pending_task = static_cast<PendingTask*>(param);
-  UNSHIPPED_TRACE_EVENT2("task", "WorkItemCallback::Run",
-                         "src_file", pending_task->posted_from.file_name(),
-                         "src_func", pending_task->posted_from.function_name());
+  TRACE_EVENT2("task", "WorkItemCallback::Run",
+               "src_file", pending_task->posted_from.file_name(),
+               "src_func", pending_task->posted_from.function_name());
 
   tracked_objects::TrackedTime start_time =
       tracked_objects::ThreadData::NowForStartOfRun(pending_task->birth_tally);
