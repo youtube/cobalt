@@ -48,7 +48,7 @@ bool HMAC::Init(const unsigned char *key, int key_length) {
     return false;
   }
 
-  plat_->slot_.reset(PK11_GetBestSlot(plat_->mechanism_, NULL));
+  plat_->slot_.reset(PK11_GetInternalSlot());
   if (!plat_->slot_.get()) {
     NOTREACHED();
     return false;

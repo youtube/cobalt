@@ -16,13 +16,15 @@
 #include "net/base/cert_database.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/completion_callback.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/x509_cert_types.h"
 
 namespace net {
 
+class BoundNetLog;
 class CertVerifierJob;
 class CertVerifierWorker;
+class CRLSet;
 class X509Certificate;
 
 // CachedCertVerifyResult contains the result of a certificate verification.
@@ -48,8 +50,8 @@ struct CachedCertVerifyResult {
 // request at a time is to create a SingleRequestCertVerifier wrapper around
 // CertVerifier (which will automatically cancel the single request when it
 // goes out of scope).
-class NET_API CertVerifier : NON_EXPORTED_BASE(public base::NonThreadSafe),
-                             public CertDatabase::Observer {
+class NET_EXPORT CertVerifier : NON_EXPORTED_BASE(public base::NonThreadSafe),
+                                public CertDatabase::Observer {
  public:
   // Opaque type used to cancel a request.
   typedef void* RequestHandle;
@@ -91,6 +93,9 @@ class NET_API CertVerifier : NON_EXPORTED_BASE(public base::NonThreadSafe),
   // VERIFY_REV_CHECKING_ENABLED is not set), EV certificate verification will
   // not be performed.
   //
+  // |crl_set| points to an optional CRLSet structure which can be used to
+  // avoid revocation checks over the network.
+  //
   // |callback| must not be null.  ERR_IO_PENDING is returned if the operation
   // could not be completed synchronously, in which case the result code will
   // be passed to the callback when available.
@@ -101,9 +106,11 @@ class NET_API CertVerifier : NON_EXPORTED_BASE(public base::NonThreadSafe),
   int Verify(X509Certificate* cert,
              const std::string& hostname,
              int flags,
+             CRLSet* crl_set,
              CertVerifyResult* verify_result,
-             CompletionCallback* callback,
-             RequestHandle* out_req);
+             const CompletionCallback& callback,
+             RequestHandle* out_req,
+             const BoundNetLog& net_log);
 
   // Cancels the specified request. |req| is the handle returned by Verify().
   // After a request is canceled, its completion callback will not be called.
@@ -114,6 +121,8 @@ class NET_API CertVerifier : NON_EXPORTED_BASE(public base::NonThreadSafe),
 
   size_t GetCacheSize() const;
 
+  void set_max_cache_entries(size_t max) { max_cache_entries_ = max; }
+
   uint64 requests() const { return requests_; }
   uint64 cache_hits() const { return cache_hits_; }
   uint64 inflight_joins() const { return inflight_joins_; }
@@ -123,30 +132,46 @@ class NET_API CertVerifier : NON_EXPORTED_BASE(public base::NonThreadSafe),
 
   // Input parameters of a certificate verification request.
   struct RequestParams {
+    RequestParams(const SHA1Fingerprint& cert_fingerprint_arg,
+                  const SHA1Fingerprint& ca_fingerprint_arg,
+                  const std::string& hostname_arg,
+                  int flags_arg)
+        : cert_fingerprint(cert_fingerprint_arg),
+          ca_fingerprint(ca_fingerprint_arg),
+          hostname(hostname_arg),
+          flags(flags_arg) {}
+
     bool operator==(const RequestParams& other) const {
-      // |flags| is compared before |cert_fingerprint| and |hostname| under
-      // assumption that integer comparisons are faster than memory and string
-      // comparisons.
+      // |flags| is compared before |cert_fingerprint|, |ca_fingerprint|, and
+      // |hostname| under assumption that integer comparisons are faster than
+      // memory and string comparisons.
       return (flags == other.flags &&
               memcmp(cert_fingerprint.data, other.cert_fingerprint.data,
                      sizeof(cert_fingerprint.data)) == 0 &&
+              memcmp(ca_fingerprint.data, other.ca_fingerprint.data,
+                     sizeof(ca_fingerprint.data)) == 0 &&
               hostname == other.hostname);
     }
 
     bool operator<(const RequestParams& other) const {
-      // |flags| is compared before |cert_fingerprint| and |hostname| under
-      // assumption that integer comparisons are faster than memory and string
-      // comparisons.
+      // |flags| is compared before |cert_fingerprint|, |ca_fingerprint|, and
+      // |hostname| under assumption that integer comparisons are faster than
+      // memory and string comparisons.
       if (flags != other.flags)
         return flags < other.flags;
       int rv = memcmp(cert_fingerprint.data, other.cert_fingerprint.data,
                       sizeof(cert_fingerprint.data));
       if (rv != 0)
         return rv < 0;
+      rv = memcmp(ca_fingerprint.data, other.ca_fingerprint.data,
+                  sizeof(ca_fingerprint.data));
+      if (rv != 0)
+        return rv < 0;
       return hostname < other.hostname;
     }
 
     SHA1Fingerprint cert_fingerprint;
+    SHA1Fingerprint ca_fingerprint;
     std::string hostname;
     int flags;
   };
@@ -158,10 +183,10 @@ class NET_API CertVerifier : NON_EXPORTED_BASE(public base::NonThreadSafe),
                     const CertVerifyResult& verify_result);
 
   // CertDatabase::Observer methods:
-  virtual void OnCertTrustChanged(const X509Certificate* cert);
+  virtual void OnCertTrustChanged(const X509Certificate* cert) OVERRIDE;
 
   // cache_ maps from a request to a cached result. The cached result may
-  // have expired and the size of |cache_| must be <= kMaxCacheEntries.
+  // have expired and the size of |cache_| must be <= max_cache_entries_.
   std::map<RequestParams, CachedCertVerifyResult> cache_;
 
   // inflight_ maps from a request to an active verification which is taking
@@ -169,6 +194,9 @@ class NET_API CertVerifier : NON_EXPORTED_BASE(public base::NonThreadSafe),
   std::map<RequestParams, CertVerifierJob*> inflight_;
 
   scoped_ptr<TimeService> time_service_;
+
+  // The number of CachedCertVerifyResult objects that we'll cache.
+  size_t max_cache_entries_;
 
   uint64 requests_;
   uint64 cache_hits_;
@@ -195,8 +223,10 @@ class SingleRequestCertVerifier {
   int Verify(X509Certificate* cert,
              const std::string& hostname,
              int flags,
+             CRLSet* crl_set,
              CertVerifyResult* verify_result,
-             CompletionCallback* callback);
+             const CompletionCallback& callback,
+             const BoundNetLog& net_log);
 
  private:
   // Callback for when the request to |cert_verifier_| completes, so we
@@ -208,10 +238,7 @@ class SingleRequestCertVerifier {
 
   // The current request (if any).
   CertVerifier::RequestHandle cur_request_;
-  CompletionCallback* cur_request_callback_;
-
-  // Completion callback for when request to |cert_verifier_| completes.
-  CompletionCallbackImpl<SingleRequestCertVerifier> callback_;
+  CompletionCallback cur_request_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(SingleRequestCertVerifier);
 };

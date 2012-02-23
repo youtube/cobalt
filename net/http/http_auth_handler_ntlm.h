@@ -35,29 +35,28 @@ namespace net {
 class URLSecurityManager;
 
 // Code for handling HTTP NTLM authentication.
-class NET_TEST HttpAuthHandlerNTLM : public HttpAuthHandler {
+class NET_EXPORT_PRIVATE HttpAuthHandlerNTLM : public HttpAuthHandler {
  public:
   class Factory : public HttpAuthHandlerFactory {
    public:
     Factory();
     virtual ~Factory();
 
-    virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
-                                  HttpAuth::Target target,
-                                  const GURL& origin,
-                                  CreateReason reason,
-                                  int digest_nonce_count,
-                                  const BoundNetLog& net_log,
-                                  scoped_ptr<HttpAuthHandler>* handler);
+    virtual int CreateAuthHandler(
+        HttpAuth::ChallengeTokenizer* challenge,
+        HttpAuth::Target target,
+        const GURL& origin,
+        CreateReason reason,
+        int digest_nonce_count,
+        const BoundNetLog& net_log,
+        scoped_ptr<HttpAuthHandler>* handler) OVERRIDE;
 #if defined(NTLM_SSPI)
-    // Set the SSPILibrary to use. Typically the only callers which need to
-    // use this are unit tests which pass in a mocked-out version of the
-    // SSPI library.
-    // The caller is responsible for managing the lifetime of |*sspi_library|,
-    // and the lifetime must exceed that of this Factory object and all
-    // HttpAuthHandler's that this Factory object creates.
+    // Set the SSPILibrary to use. Typically the only callers which need to use
+    // this are unit tests which pass in a mocked-out version of the SSPI
+    // library.  After the call |sspi_library| will be owned by this Factory and
+    // will be destroyed when the Factory is destroyed.
     void set_sspi_library(SSPILibrary* sspi_library) {
-      sspi_library_ = sspi_library;
+      sspi_library_.reset(sspi_library);
     }
 #endif  // defined(NTLM_SSPI)
    private:
@@ -65,7 +64,7 @@ class NET_TEST HttpAuthHandlerNTLM : public HttpAuthHandler {
     ULONG max_token_length_;
     bool first_creation_;
     bool is_unsupported_;
-    SSPILibrary* sspi_library_;
+    scoped_ptr<SSPILibrary> sspi_library_;
 #endif  // defined(NTLM_SSPI)
   };
 
@@ -106,25 +105,24 @@ class NET_TEST HttpAuthHandlerNTLM : public HttpAuthHandler {
                       URLSecurityManager* url_security_manager);
 #endif
 
-  virtual bool NeedsIdentity();
+  virtual bool NeedsIdentity() OVERRIDE;
 
-  virtual bool AllowsDefaultCredentials();
+  virtual bool AllowsDefaultCredentials() OVERRIDE;
 
   virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
-      HttpAuth::ChallengeTokenizer* challenge);
+      HttpAuth::ChallengeTokenizer* challenge) OVERRIDE;
 
  protected:
   // This function acquires a credentials handle in the SSPI implementation.
   // It does nothing in the portable implementation.
   int InitializeBeforeFirstChallenge();
 
-  virtual bool Init(HttpAuth::ChallengeTokenizer* tok);
+  virtual bool Init(HttpAuth::ChallengeTokenizer* tok) OVERRIDE;
 
-  virtual int GenerateAuthTokenImpl(const string16* username,
-                                    const string16* password,
+  virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
                                     const HttpRequestInfo* request,
-                                    CompletionCallback* callback,
-                                    std::string* auth_token);
+                                    const CompletionCallback& callback,
+                                    std::string* auth_token) OVERRIDE;
 
  private:
   virtual ~HttpAuthHandlerNTLM();
@@ -160,8 +158,7 @@ class NET_TEST HttpAuthHandlerNTLM : public HttpAuthHandler {
 #endif
 
   string16 domain_;
-  string16 username_;
-  string16 password_;
+  AuthCredentials credentials_;
 
   // The base64-encoded string following "NTLM" in the "WWW-Authenticate" or
   // "Proxy-Authenticate" response header.

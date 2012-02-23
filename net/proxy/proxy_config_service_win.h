@@ -40,7 +40,7 @@ namespace net {
 // implementation details of  WinHttpGetIEProxyConfigForCurrentUser() ever
 // change, or in case we got it wrong (and are not checking all possible
 // registry dependencies).
-class NET_TEST ProxyConfigServiceWin
+class NET_EXPORT_PRIVATE ProxyConfigServiceWin
     : public PollingProxyConfigService,
       public base::win::ObjectWatcher::Delegate {
  public:

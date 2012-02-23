@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -93,6 +93,32 @@ TEST(JSONWriterTest, Writing) {
   period_dict3.SetWithoutPathExpansion("a.b", Value::CreateIntegerValue(1));
   JSONWriter::Write(&period_dict3, false, &output_js);
   ASSERT_EQ("{\"a\":{\"b\":2},\"a.b\":1}", output_js);
+
+  // Test ignoring binary values.
+  root = BinaryValue::CreateWithCopiedBuffer("asdf", 4);
+  JSONWriter::WriteWithOptions(root, false,
+                               JSONWriter::OPTIONS_OMIT_BINARY_VALUES,
+                               &output_js);
+  ASSERT_TRUE(output_js.empty());
+  delete root;
+
+  ListValue binary_list;
+  binary_list.Append(Value::CreateIntegerValue(5));
+  binary_list.Append(BinaryValue::CreateWithCopiedBuffer("asdf", 4));
+  binary_list.Append(Value::CreateIntegerValue(2));
+  JSONWriter::WriteWithOptions(&binary_list, false,
+                               JSONWriter::OPTIONS_OMIT_BINARY_VALUES,
+                               &output_js);
+  ASSERT_EQ("[5,2]", output_js);
+
+  DictionaryValue binary_dict;
+  binary_dict.Set("a", Value::CreateIntegerValue(5));
+  binary_dict.Set("b", BinaryValue::CreateWithCopiedBuffer("asdf", 4));
+  binary_dict.Set("c", Value::CreateIntegerValue(2));
+  JSONWriter::WriteWithOptions(&binary_dict, false,
+                               JSONWriter::OPTIONS_OMIT_BINARY_VALUES,
+                               &output_js);
+  ASSERT_EQ("{\"a\":5,\"c\":2}", output_js);
 }
 
 }  // namespace base

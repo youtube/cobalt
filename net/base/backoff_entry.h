@@ -8,7 +8,7 @@
 
 #include "base/threading/non_thread_safe.h"
 #include "base/time.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
@@ -17,7 +17,8 @@ namespace net {
 //
 // This utility class knows nothing about network specifics; it is
 // intended for reuse in various networking scenarios.
-class NET_TEST BackoffEntry : NON_EXPORTED_BASE(public base::NonThreadSafe) {
+class NET_EXPORT_PRIVATE BackoffEntry
+    : NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   // The set of parameters that define a back-off policy.
   struct Policy {

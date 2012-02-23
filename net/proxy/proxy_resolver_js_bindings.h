@@ -9,7 +9,7 @@
 #include <string>
 
 #include "base/string16.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
@@ -20,7 +20,7 @@ struct ProxyResolverRequestContext;
 class SyncHostResolver;
 
 // Interface for the javascript bindings.
-class NET_TEST ProxyResolverJSBindings {
+class NET_EXPORT_PRIVATE ProxyResolverJSBindings {
  public:
   ProxyResolverJSBindings() : current_request_context_(NULL) {}
 

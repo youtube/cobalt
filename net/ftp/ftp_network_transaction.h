@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,8 +12,8 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/string16.h"
 #include "net/base/address_list.h"
+#include "net/base/auth.h"
 #include "net/base/host_resolver.h"
 #include "net/base/net_log.h"
 #include "net/base/single_request_host_resolver.h"
@@ -27,29 +27,31 @@ class ClientSocketFactory;
 class FtpNetworkSession;
 class StreamSocket;
 
-class NET_TEST FtpNetworkTransaction : public FtpTransaction {
+class NET_EXPORT_PRIVATE FtpNetworkTransaction : public FtpTransaction {
  public:
   FtpNetworkTransaction(FtpNetworkSession* session,
                         ClientSocketFactory* socket_factory);
   virtual ~FtpNetworkTransaction();
 
   virtual int Stop(int error);
-  virtual int RestartIgnoringLastError(CompletionCallback* callback);
+  virtual int RestartIgnoringLastError(const CompletionCallback& callback);
 
   // FtpTransaction methods:
   virtual int Start(const FtpRequestInfo* request_info,
-                    CompletionCallback* callback,
+                    const CompletionCallback& callback,
                     const BoundNetLog& net_log) OVERRIDE;
-  virtual int RestartWithAuth(const string16& username,
-                              const string16& password,
-                              CompletionCallback* callback) OVERRIDE;
-  virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback)
-      OVERRIDE;
+  virtual int RestartWithAuth(const AuthCredentials& credentials,
+                              const CompletionCallback& callback) OVERRIDE;
+  virtual int Read(IOBuffer* buf, int buf_len,
+                   const CompletionCallback& callback) OVERRIDE;
   virtual const FtpResponseInfo* GetResponseInfo() const OVERRIDE;
   virtual LoadState GetLoadState() const OVERRIDE;
   virtual uint64 GetUploadProgress() const OVERRIDE;
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(FtpNetworkTransactionTest,
+                           DownloadTransactionEvilPasvUnsafeHost);
+
   enum Command {
     COMMAND_NONE,
     COMMAND_USER,
@@ -175,6 +177,7 @@ class NET_TEST FtpNetworkTransaction : public FtpTransaction {
   int ProcessResponseSIZE(const FtpCtrlResponse& response);
   int DoCtrlWriteCWD();
   int ProcessResponseCWD(const FtpCtrlResponse& response);
+  int ProcessResponseCWDNotADirectory();
   int DoCtrlWriteLIST();
   int ProcessResponseLIST(const FtpCtrlResponse& response);
   int DoCtrlWriteQUIT();
@@ -189,8 +192,8 @@ class NET_TEST FtpNetworkTransaction : public FtpTransaction {
 
   Command command_sent_;
 
-  CompletionCallbackImpl<FtpNetworkTransaction> io_callback_;
-  CompletionCallback* user_callback_;
+  CompletionCallback io_callback_;
+  CompletionCallback user_callback_;
 
   scoped_refptr<FtpNetworkSession> session_;
 
@@ -231,8 +234,7 @@ class NET_TEST FtpNetworkTransaction : public FtpTransaction {
   // EPSV fail, we fall back to PASV for the duration of connection.
   bool use_epsv_;
 
-  string16 username_;
-  string16 password_;
+  AuthCredentials credentials_;
 
   // Current directory on the remote server, as returned by last PWD command,
   // with any trailing slash removed.

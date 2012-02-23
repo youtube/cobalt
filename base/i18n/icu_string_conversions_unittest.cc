@@ -238,6 +238,13 @@ static const struct {
    L"\x0E2A\x0E27\x0E31\x0E2A\x0E14\x0E35"
    L"\x0E04\x0E23\x0e31\x0E1A",
    NULL},
+  // Empty text
+  {"iscii-dev",
+   "",
+   OnStringConversionError::FAIL,
+   true,
+   L"",
+   NULL},
 };
 
 TEST(ICUStringConversionsTest, ConvertBetweenCodepageAndWide) {
@@ -358,6 +365,7 @@ static const struct {
   // Windows-1258 does have a combining character at xD2 (which is U+0309).
   // The sequence of (U+00E2, U+0309) is also encoded as U+1EA9.
   {"foo\xE2\xD2", "windows-1258", true, "foo\xE1\xBA\xA9"},
+  {"", "iso-8859-1", true, ""},
 };
 TEST(ICUStringConversionsTest, ConvertToUtf8AndNormalize) {
   std::string result;

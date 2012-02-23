@@ -39,11 +39,11 @@ TEST(TCPClientSocketTest, BindLoopbackToLoopback) {
   EXPECT_EQ(OK, socket.Bind(IPEndPoint(lo_address, 0)));
 
   TestCompletionCallback connect_callback;
-  EXPECT_EQ(ERR_IO_PENDING, socket.Connect(&connect_callback));
+  EXPECT_EQ(ERR_IO_PENDING, socket.Connect(connect_callback.callback()));
 
   TestCompletionCallback accept_callback;
   scoped_ptr<StreamSocket> accepted_socket;
-  int result = server.Accept(&accepted_socket, &accept_callback);
+  int result = server.Accept(&accepted_socket, accept_callback.callback());
   if (result == ERR_IO_PENDING)
     result = accept_callback.WaitForResult();
   ASSERT_EQ(OK, result);
@@ -64,7 +64,7 @@ TEST(TCPClientSocketTest, BindLoopbackToExternal) {
   EXPECT_EQ(OK, socket.Bind(IPEndPoint(lo_address, 0)));
 
   TestCompletionCallback connect_callback;
-  int result = socket.Connect(&connect_callback);
+  int result = socket.Connect(connect_callback.callback());
   if (result == ERR_IO_PENDING)
     result = connect_callback.WaitForResult();
 
@@ -98,7 +98,7 @@ TEST(TCPClientSocketTest, BindLoopbackToIPv6) {
   EXPECT_EQ(OK, socket.Bind(IPEndPoint(ipv4_lo_ip, 0)));
 
   TestCompletionCallback connect_callback;
-  int result = socket.Connect(&connect_callback);
+  int result = socket.Connect(connect_callback.callback());
   if (result == ERR_IO_PENDING)
     result = connect_callback.WaitForResult();
 

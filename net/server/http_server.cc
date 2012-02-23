@@ -8,16 +8,11 @@
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "base/sys_byteorder.h"
 #include "build/build_config.h"
 #include "net/server/http_connection.h"
 #include "net/server/http_server_request_info.h"
 #include "net/server/web_socket.h"
-
-#if defined(OS_WIN)
-#include <winsock2.h>
-#else
-#include <arpa/inet.h>
-#endif
 
 namespace net {
 
@@ -80,7 +75,9 @@ void HttpServer::Close(int connection_id)
   if (connection == NULL)
     return;
 
-  connection->DetachSocket();
+  // Initiating close from server-side does not lead to the DidClose call.
+  // Do it manually here.
+  DidClose(connection->socket_);
 }
 
 //
@@ -237,7 +234,8 @@ void HttpServer::DidRead(ListenSocket* socket,
       if (result == WebSocket::FRAME_INCOMPLETE)
         break;
 
-      if (result == WebSocket::FRAME_ERROR) {
+      if (result == WebSocket::FRAME_CLOSE ||
+          result == WebSocket::FRAME_ERROR) {
         Close(connection->id());
         break;
       }

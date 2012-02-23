@@ -6,20 +6,20 @@
 #define NET_FTP_FTP_TRANSACTION_H_
 #pragma once
 
-#include "base/string16.h"
 #include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_states.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
+class AuthCredentials;
 class FtpResponseInfo;
 class FtpRequestInfo;
 class BoundNetLog;
 
 // Represents a single FTP transaction.
-class NET_TEST FtpTransaction {
+class NET_EXPORT_PRIVATE FtpTransaction {
  public:
   // Stops any pending IO and destroys the transaction object.
   virtual ~FtpTransaction() {}
@@ -40,13 +40,12 @@ class NET_TEST FtpTransaction {
   //
   // Profiling information for the request is saved to |net_log| if non-NULL.
   virtual int Start(const FtpRequestInfo* request_info,
-                    CompletionCallback* callback,
+                    const CompletionCallback& callback,
                     const BoundNetLog& net_log) = 0;
 
   // Restarts the FTP transaction with authentication credentials.
-  virtual int RestartWithAuth(const string16& username,
-                              const string16& password,
-                              CompletionCallback* callback) = 0;
+  virtual int RestartWithAuth(const AuthCredentials& credentials,
+                              const CompletionCallback& callback) = 0;
 
   // Once response info is available for the transaction, response data may be
   // read by calling this method.
@@ -63,7 +62,7 @@ class NET_TEST FtpTransaction {
   //
   virtual int Read(IOBuffer* buf,
                    int buf_len,
-                   CompletionCallback* callback) = 0;
+                   const CompletionCallback& callback) = 0;
 
   // Returns the response info for this transaction or NULL if the response
   // info is not available.

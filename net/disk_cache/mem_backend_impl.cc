@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -129,7 +129,7 @@ int32 MemBackendImpl::GetEntryCount() const {
 }
 
 int MemBackendImpl::OpenEntry(const std::string& key, Entry** entry,
-                              CompletionCallback* callback) {
+                              const net::CompletionCallback& callback) {
   if (OpenEntry(key, entry))
     return net::OK;
 
@@ -137,7 +137,7 @@ int MemBackendImpl::OpenEntry(const std::string& key, Entry** entry,
 }
 
 int MemBackendImpl::CreateEntry(const std::string& key, Entry** entry,
-                                CompletionCallback* callback) {
+                                const net::CompletionCallback& callback) {
   if (CreateEntry(key, entry))
     return net::OK;
 
@@ -145,23 +145,23 @@ int MemBackendImpl::CreateEntry(const std::string& key, Entry** entry,
 }
 
 int MemBackendImpl::DoomEntry(const std::string& key,
-                              CompletionCallback* callback) {
+                              const net::CompletionCallback& callback) {
   if (DoomEntry(key))
     return net::OK;
 
   return net::ERR_FAILED;
 }
 
-int MemBackendImpl::DoomAllEntries(CompletionCallback* callback) {
+int MemBackendImpl::DoomAllEntries(const net::CompletionCallback& callback) {
   if (DoomAllEntries())
     return net::OK;
 
   return net::ERR_FAILED;
 }
 
-int MemBackendImpl::DoomEntriesBetween(const base::Time initial_time,
-                                       const base::Time end_time,
-                                       CompletionCallback* callback) {
+int MemBackendImpl::DoomEntriesBetween(
+    const base::Time initial_time, const base::Time end_time,
+    const net::CompletionCallback& callback) {
   if (DoomEntriesBetween(initial_time, end_time))
     return net::OK;
 
@@ -169,7 +169,7 @@ int MemBackendImpl::DoomEntriesBetween(const base::Time initial_time,
 }
 
 int MemBackendImpl::DoomEntriesSince(const base::Time initial_time,
-                                     CompletionCallback* callback) {
+                                     const net::CompletionCallback& callback) {
   if (DoomEntriesSince(initial_time))
     return net::OK;
 
@@ -177,7 +177,7 @@ int MemBackendImpl::DoomEntriesSince(const base::Time initial_time,
 }
 
 int MemBackendImpl::OpenNextEntry(void** iter, Entry** next_entry,
-                                  CompletionCallback* callback) {
+                                  const net::CompletionCallback& callback) {
   if (OpenNextEntry(iter, next_entry))
     return net::OK;
 
@@ -296,8 +296,8 @@ bool MemBackendImpl::OpenNextEntry(void** iter, Entry** next_entry) {
 
 void MemBackendImpl::TrimCache(bool empty) {
   MemEntryImpl* next = rankings_.GetPrev(NULL);
-
-  DCHECK(next);
+  if (!next)
+    return;
 
   int target_size = empty ? 0 : LowWaterAdjust(max_size_);
   while (current_size_ > target_size && next) {

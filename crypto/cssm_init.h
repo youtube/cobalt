@@ -19,7 +19,7 @@ namespace crypto {
 CRYPTO_EXPORT void EnsureCSSMInit();
 
 // Returns the shared CSP handle used by CSSM functions.
-CSSM_CSP_HANDLE GetSharedCSPHandle();
+CRYPTO_EXPORT CSSM_CSP_HANDLE GetSharedCSPHandle();
 
 // Returns the shared CL handle used by CSSM functions.
 CRYPTO_EXPORT CSSM_CL_HANDLE GetSharedCLHandle();

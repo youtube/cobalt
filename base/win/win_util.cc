@@ -23,9 +23,6 @@
 namespace base {
 namespace win {
 
-#define SIZEOF_STRUCT_WITH_SPECIFIED_LAST_MEMBER(struct_name, member) \
-    offsetof(struct_name, member) + \
-    (sizeof static_cast<struct_name*>(NULL)->member)
 #define NONCLIENTMETRICS_SIZE_PRE_VISTA \
     SIZEOF_STRUCT_WITH_SPECIFIED_LAST_MEMBER(NONCLIENTMETRICS, lfMessageFont)
 
@@ -100,26 +97,33 @@ bool UserAccountControlIsEnabled() {
   return (uac_enabled != 0);
 }
 
-bool SetAppIdForPropertyStore(IPropertyStore* property_store,
-                              const wchar_t* app_id) {
+bool SetStringValueForPropertyStore(IPropertyStore* property_store,
+                                    const PROPERTYKEY& property_key,
+                                    const wchar_t* property_string_value) {
   DCHECK(property_store);
 
-  // App id should be less than 128 chars and contain no space. And recommended
-  // format is CompanyName.ProductName[.SubProduct.ProductNumber].
-  // See http://msdn.microsoft.com/en-us/library/dd378459%28VS.85%29.aspx
-  DCHECK(lstrlen(app_id) < 128 && wcschr(app_id, L' ') == NULL);
-
   PROPVARIANT property_value;
-  if (FAILED(InitPropVariantFromString(app_id, &property_value)))
+  if (FAILED(InitPropVariantFromString(property_string_value, &property_value)))
     return false;
 
-  HRESULT result = property_store->SetValue(PKEY_AppUserModel_ID,
-                                            property_value);
+  HRESULT result = property_store->SetValue(property_key, property_value);
   if (S_OK == result)
     result = property_store->Commit();
 
   PropVariantClear(&property_value);
   return SUCCEEDED(result);
+}
+
+bool SetAppIdForPropertyStore(IPropertyStore* property_store,
+                              const wchar_t* app_id) {
+  // App id should be less than 128 chars and contain no space. And recommended
+  // format is CompanyName.ProductName[.SubProduct.ProductNumber].
+  // See http://msdn.microsoft.com/en-us/library/dd378459%28VS.85%29.aspx
+  DCHECK(lstrlen(app_id) < 128 && wcschr(app_id, L' ') == NULL);
+
+  return SetStringValueForPropertyStore(property_store,
+                                        PKEY_AppUserModel_ID,
+                                        app_id);
 }
 
 static const char16 kAutoRunKeyPath[] =

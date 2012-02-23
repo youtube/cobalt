@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,13 +8,13 @@
 
 namespace base {
 
-ThreadLocalStorage::Slot::Slot(TLSDestructorFunc destructor)
-    : initialized_(false),
-      key_(0) {
+ThreadLocalStorage::Slot::Slot(TLSDestructorFunc destructor) {
+  initialized_ = false;
+  key_ = 0;
   Initialize(destructor);
 }
 
-bool ThreadLocalStorage::Slot::Initialize(TLSDestructorFunc destructor) {
+bool ThreadLocalStorage::StaticSlot::Initialize(TLSDestructorFunc destructor) {
   DCHECK(!initialized_);
   int error = pthread_key_create(&key_, destructor);
   if (error) {
@@ -26,7 +26,7 @@ bool ThreadLocalStorage::Slot::Initialize(TLSDestructorFunc destructor) {
   return true;
 }
 
-void ThreadLocalStorage::Slot::Free() {
+void ThreadLocalStorage::StaticSlot::Free() {
   DCHECK(initialized_);
   int error = pthread_key_delete(key_);
   if (error)
@@ -34,12 +34,12 @@ void ThreadLocalStorage::Slot::Free() {
   initialized_ = false;
 }
 
-void* ThreadLocalStorage::Slot::Get() const {
+void* ThreadLocalStorage::StaticSlot::Get() const {
   DCHECK(initialized_);
   return pthread_getspecific(key_);
 }
 
-void ThreadLocalStorage::Slot::Set(void* value) {
+void ThreadLocalStorage::StaticSlot::Set(void* value) {
   DCHECK(initialized_);
   int error = pthread_setspecific(key_, value);
   if (error)

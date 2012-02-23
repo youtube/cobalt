@@ -6,28 +6,26 @@
 #define NET_HTTP_HTTP_AUTH_GSSAPI_POSIX_H_
 #pragma once
 
+#include <gssapi.h>
+
 #include <string>
 
 #include "base/gtest_prod_util.h"
 #include "base/native_library.h"
-#include "base/string16.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/http/http_auth.h"
-
-#define GSS_USE_FUNCTION_POINTERS
-#include "net/third_party/gssapi/gssapi.h"
 
 namespace net {
 
-NET_TEST extern gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE_X;
-NET_TEST extern gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE;
-NET_TEST extern gss_OID CHROME_GSS_KRB5_MECH_OID_DESC;
+NET_EXPORT_PRIVATE extern gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE_X;
+NET_EXPORT_PRIVATE extern gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE;
+NET_EXPORT_PRIVATE extern gss_OID CHROME_GSS_KRB5_MECH_OID_DESC;
 
 // GSSAPILibrary is introduced so unit tests can mock the calls to the GSSAPI
 // library. The default implementation attempts to load one of the standard
 // GSSAPI library implementations, then simply passes the arguments on to
 // that implementation.
-class NET_TEST GSSAPILibrary {
+class NET_EXPORT_PRIVATE GSSAPILibrary {
  public:
   virtual ~GSSAPILibrary() {}
 
@@ -99,7 +97,7 @@ class NET_TEST GSSAPILibrary {
 };
 
 // GSSAPISharedLibrary class is defined here so that unit tests can access it.
-class NET_TEST GSSAPISharedLibrary : public GSSAPILibrary {
+class NET_EXPORT_PRIVATE GSSAPISharedLibrary : public GSSAPILibrary {
  public:
   // If |gssapi_library_name| is empty, hard-coded default library names are
   // used.
@@ -107,30 +105,30 @@ class NET_TEST GSSAPISharedLibrary : public GSSAPILibrary {
   virtual ~GSSAPISharedLibrary();
 
   // GSSAPILibrary methods:
-  virtual bool Init();
+  virtual bool Init() OVERRIDE;
   virtual OM_uint32 import_name(
       OM_uint32* minor_status,
       const gss_buffer_t input_name_buffer,
       const gss_OID input_name_type,
-      gss_name_t* output_name);
+      gss_name_t* output_name) OVERRIDE;
   virtual OM_uint32 release_name(
       OM_uint32* minor_status,
-      gss_name_t* input_name);
+      gss_name_t* input_name) OVERRIDE;
   virtual OM_uint32 release_buffer(
       OM_uint32* minor_status,
-      gss_buffer_t buffer);
+      gss_buffer_t buffer) OVERRIDE;
   virtual OM_uint32 display_name(
       OM_uint32* minor_status,
       const gss_name_t input_name,
       gss_buffer_t output_name_buffer,
-      gss_OID* output_name_type);
+      gss_OID* output_name_type) OVERRIDE;
   virtual OM_uint32 display_status(
       OM_uint32* minor_status,
       OM_uint32 status_value,
       int status_type,
       const gss_OID mech_type,
       OM_uint32* message_contex,
-      gss_buffer_t status_string);
+      gss_buffer_t status_string) OVERRIDE;
   virtual OM_uint32 init_sec_context(
       OM_uint32* minor_status,
       const gss_cred_id_t initiator_cred_handle,
@@ -144,18 +142,18 @@ class NET_TEST GSSAPISharedLibrary : public GSSAPILibrary {
       gss_OID* actual_mech_type,
       gss_buffer_t output_token,
       OM_uint32* ret_flags,
-      OM_uint32* time_rec);
+      OM_uint32* time_rec) OVERRIDE;
   virtual OM_uint32 wrap_size_limit(
       OM_uint32* minor_status,
       const gss_ctx_id_t context_handle,
       int conf_req_flag,
       gss_qop_t qop_req,
       OM_uint32 req_output_size,
-      OM_uint32* max_input_size);
+      OM_uint32* max_input_size) OVERRIDE;
   virtual OM_uint32 delete_sec_context(
       OM_uint32* minor_status,
       gss_ctx_id_t* context_handle,
-      gss_buffer_t output_token);
+      gss_buffer_t output_token) OVERRIDE;
   virtual OM_uint32 inquire_context(
       OM_uint32* minor_status,
       const gss_ctx_id_t context_handle,
@@ -165,9 +163,19 @@ class NET_TEST GSSAPISharedLibrary : public GSSAPILibrary {
       gss_OID* mech_type,
       OM_uint32* ctx_flags,
       int* locally_initiated,
-      int* open);
+      int* open) OVERRIDE;
 
  private:
+  typedef typeof(&gss_import_name) gss_import_name_type;
+  typedef typeof(&gss_release_name) gss_release_name_type;
+  typedef typeof(&gss_release_buffer) gss_release_buffer_type;
+  typedef typeof(&gss_display_name) gss_display_name_type;
+  typedef typeof(&gss_display_status) gss_display_status_type;
+  typedef typeof(&gss_init_sec_context) gss_init_sec_context_type;
+  typedef typeof(&gss_wrap_size_limit) gss_wrap_size_limit_type;
+  typedef typeof(&gss_delete_sec_context) gss_delete_sec_context_type;
+  typedef typeof(&gss_inquire_context) gss_inquire_context_type;
+
   FRIEND_TEST_ALL_PREFIXES(HttpAuthGSSAPIPOSIXTest, GSSAPIStartup);
 
   bool InitImpl();
@@ -214,7 +222,7 @@ class ScopedSecurityContext {
 
 
 // TODO(ahendrickson): Share code with HttpAuthSSPI.
-class NET_TEST HttpAuthGSSAPI {
+class NET_EXPORT_PRIVATE HttpAuthGSSAPI {
  public:
   HttpAuthGSSAPI(GSSAPILibrary* library,
                  const std::string& scheme,
@@ -225,6 +233,8 @@ class NET_TEST HttpAuthGSSAPI {
 
   bool NeedsIdentity() const;
 
+  bool AllowsExplicitCredentials() const;
+
   HttpAuth::AuthorizationResult ParseChallenge(
       HttpAuth::ChallengeTokenizer* tok);
 
@@ -234,10 +244,9 @@ class NET_TEST HttpAuthGSSAPI {
   // |spn| is the Service Principal Name of the server that the token is
   // being generated for.
   // If this is the first round of a multiple round scheme, credentials are
-  // obtained using |*username| and |*password|. If |username| and |password|
-  // are NULL, the default credentials are used instead.
-  int GenerateAuthToken(const string16* username,
-                        const string16* password,
+  // obtained using |*credentials|. If |credentials| is NULL, the default
+  // credentials are used instead.
+  int GenerateAuthToken(const AuthCredentials* credentials,
                         const std::wstring& spn,
                         std::string* auth_token);
 

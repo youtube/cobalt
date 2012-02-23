@@ -16,7 +16,7 @@ namespace net {
 
 // An implementation of ProxyResolver that uses WinHTTP and the system
 // proxy settings.
-class NET_TEST ProxyResolverWinHttp : public ProxyResolver {
+class NET_EXPORT_PRIVATE ProxyResolverWinHttp : public ProxyResolver {
  public:
   ProxyResolverWinHttp();
   virtual ~ProxyResolverWinHttp();
@@ -24,16 +24,21 @@ class NET_TEST ProxyResolverWinHttp : public ProxyResolver {
   // ProxyResolver implementation:
   virtual int GetProxyForURL(const GURL& url,
                              ProxyInfo* results,
-                             CompletionCallback* /*callback*/,
+                             const net::CompletionCallback& /*callback*/,
                              RequestHandle* /*request*/,
                              const BoundNetLog& /*net_log*/) OVERRIDE;
   virtual void CancelRequest(RequestHandle request) OVERRIDE;
+
+  virtual LoadState GetLoadState(RequestHandle request) const OVERRIDE;
+
+  virtual LoadState GetLoadStateThreadSafe(
+      RequestHandle request) const OVERRIDE;
 
   virtual void CancelSetPacScript() OVERRIDE;
 
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      CompletionCallback* /*callback*/) OVERRIDE;
+      const net::CompletionCallback& /*callback*/) OVERRIDE;
 
  private:
   bool OpenWinHttpSession();

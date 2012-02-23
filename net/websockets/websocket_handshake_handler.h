@@ -33,14 +33,14 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_info.h"
 #include "net/spdy/spdy_framer.h"
 
 namespace net {
 
-class NET_TEST WebSocketHandshakeRequestHandler {
+class NET_EXPORT_PRIVATE WebSocketHandshakeRequestHandler {
  public:
   WebSocketHandshakeRequestHandler();
   ~WebSocketHandshakeRequestHandler() {}
@@ -93,7 +93,7 @@ class NET_TEST WebSocketHandshakeRequestHandler {
   DISALLOW_COPY_AND_ASSIGN(WebSocketHandshakeRequestHandler);
 };
 
-class NET_TEST WebSocketHandshakeResponseHandler {
+class NET_EXPORT_PRIVATE WebSocketHandshakeResponseHandler {
  public:
   WebSocketHandshakeResponseHandler();
   ~WebSocketHandshakeResponseHandler();

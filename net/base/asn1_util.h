@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "base/string_piece.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
@@ -60,8 +60,8 @@ bool GetElement(base::StringPiece* in,
 // ExtractSPKIFromDERCert parses the DER encoded certificate in |cert| and
 // extracts the bytes of the SubjectPublicKeyInfo. On successful return,
 // |spki_out| is set to contain the SPKI, pointing into |cert|.
-NET_TEST bool ExtractSPKIFromDERCert(base::StringPiece cert,
-                                     base::StringPiece* spki_out);
+NET_EXPORT_PRIVATE bool ExtractSPKIFromDERCert(base::StringPiece cert,
+                                               base::StringPiece* spki_out);
 
 // ExtractCRLURLsFromDERCert parses the DER encoded certificate in |cert| and
 // extracts the URL of each CRL. On successful return, the elements of
@@ -75,7 +75,7 @@ NET_TEST bool ExtractSPKIFromDERCert(base::StringPiece cert,
 // The nested set of GeneralNames is flattened into a single list because
 // having several CRLs with one location is equivalent to having one CRL with
 // several locations as far as a CRL filter is concerned.
-NET_TEST bool ExtractCRLURLsFromDERCert(
+NET_EXPORT_PRIVATE bool ExtractCRLURLsFromDERCert(
     base::StringPiece cert,
     std::vector<base::StringPiece>* urls_out);
 

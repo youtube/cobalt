@@ -4,6 +4,9 @@
 
 #include "base/values.h"
 
+#include <algorithm>
+
+#include "base/float_util.h"
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
@@ -57,6 +60,22 @@ Value* CopyWithoutEmptyChildren(Value* node) {
   }
 }
 
+// A small functor for comparing Values for std::find_if and similar.
+class ValueEquals {
+ public:
+  // Pass the value against which all consecutive calls of the () operator will
+  // compare their argument to. This Value object must not be destroyed while
+  // the ValueEquals is  in use.
+  ValueEquals(const Value* first) : first_(first) { }
+
+  bool operator ()(const Value* second) const {
+    return first_->Equals(second);
+  }
+
+ private:
+  const Value* first_;
+};
+
 }  // namespace
 
 namespace base {
@@ -96,11 +115,6 @@ StringValue* Value::CreateStringValue(const string16& in_value) {
   return new StringValue(in_value);
 }
 
-// static
-BinaryValue* Value::CreateBinaryValue(char* buffer, size_t size) {
-  return BinaryValue::Create(buffer, size);
-}
-
 bool Value::GetAsBoolean(bool* out_value) const {
   return false;
 }
@@ -129,6 +143,14 @@ bool Value::GetAsList(const ListValue** out_value) const {
   return false;
 }
 
+bool Value::GetAsDictionary(DictionaryValue** out_value) {
+  return false;
+}
+
+bool Value::GetAsDictionary(const DictionaryValue** out_value) const {
+  return false;
+}
+
 Value* Value::DeepCopy() const {
   // This method should only be getting called for null Values--all subclasses
   // need to provide their own implementation;.
@@ -150,7 +172,7 @@ bool Value::Equals(const Value* a, const Value* b) {
   return a->Equals(b);
 }
 
-Value::Value(ValueType type) : type_(type) {
+Value::Value(Type type) : type_(type) {
 }
 
 ///////////////////// FundamentalValue ////////////////////
@@ -165,6 +187,11 @@ FundamentalValue::FundamentalValue(int in_value)
 
 FundamentalValue::FundamentalValue(double in_value)
     : Value(TYPE_DOUBLE), double_value_(in_value) {
+  if (!IsFinite(double_value_)) {
+    NOTREACHED() << "Non-finite (i.e. NaN or positive/negative infinity) "
+                 << "values cannot be represented in JSON";
+    double_value_ = 0.0;
+  }
 }
 
 FundamentalValue::~FundamentalValue() {
@@ -326,6 +353,18 @@ DictionaryValue::~DictionaryValue() {
   Clear();
 }
 
+bool DictionaryValue::GetAsDictionary(DictionaryValue** out_value) {
+  if (out_value)
+    *out_value = this;
+  return true;
+}
+
+bool DictionaryValue::GetAsDictionary(const DictionaryValue** out_value) const {
+  if (out_value)
+    *out_value = this;
+  return true;
+}
+
 bool DictionaryValue::HasKey(const std::string& key) const {
   DCHECK(IsStringUTF8(key));
   ValueMap::const_iterator current_entry = dictionary_.find(key);
@@ -393,12 +432,13 @@ void DictionaryValue::SetWithoutPathExpansion(const std::string& key,
                                               Value* in_value) {
   // If there's an existing value here, we need to delete it, because
   // we own all our children.
-  if (HasKey(key)) {
-    DCHECK(dictionary_[key] != in_value);  // This would be bogus
-    delete dictionary_[key];
+  std::pair<ValueMap::iterator, bool> ins_res =
+      dictionary_.insert(std::make_pair(key, in_value));
+  if (!ins_res.second) {
+    DCHECK_NE(ins_res.first->second, in_value);  // This would be bogus
+    delete ins_res.first->second;
+    ins_res.first->second = in_value;
   }
-
-  dictionary_[key] = in_value;
 }
 
 bool DictionaryValue::Get(const std::string& path, Value** out_value) const {
@@ -823,21 +863,19 @@ bool ListValue::Remove(size_t index, Value** out_value) {
   return true;
 }
 
-int ListValue::Remove(const Value& value) {
+bool ListValue::Remove(const Value& value, size_t* index) {
   for (ValueVector::iterator i(list_.begin()); i != list_.end(); ++i) {
     if ((*i)->Equals(&value)) {
-      size_t index = i - list_.begin();
+      size_t previous_index = i - list_.begin();
       delete *i;
       list_.erase(i);
 
-      // TODO(anyone): Returning a signed int type here is just wrong.
-      // Change this interface to return a size_t.
-      DCHECK(index <= INT_MAX);
-      int return_index = static_cast<int>(index);
-      return return_index;
+      if (index)
+        *index = previous_index;
+      return true;
     }
   }
-  return -1;
+  return false;
 }
 
 void ListValue::Append(Value* in_value) {
@@ -864,6 +902,10 @@ bool ListValue::Insert(size_t index, Value* in_value) {
 
   list_.insert(list_.begin() + index, in_value);
   return true;
+}
+
+ListValue::const_iterator ListValue::Find(const Value& value) const {
+  return std::find_if(list_.begin(), list_.end(), ValueEquals(&value));
 }
 
 bool ListValue::GetAsList(ListValue** out_value) {

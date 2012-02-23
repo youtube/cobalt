@@ -19,9 +19,9 @@ TEST(Sha256Test, Test1) {
                       0xb4, 0x10, 0xff, 0x61,
                       0xf2, 0x00, 0x15, 0xad };
 
-  uint8 output1[crypto::SHA256_LENGTH];
+  uint8 output1[crypto::kSHA256Length];
   crypto::SHA256HashString(input1, output1, sizeof(output1));
-  for (size_t i = 0; i < crypto::SHA256_LENGTH; i++)
+  for (size_t i = 0; i < crypto::kSHA256Length; i++)
     EXPECT_EQ(expected1[i], static_cast<int>(output1[i]));
 
   uint8 output_truncated1[4];  // 4 bytes == 32 bits
@@ -45,8 +45,8 @@ TEST(Sha256Test, Test1_String) {
                       0xf2, 0x00, 0x15, 0xad };
 
   std::string output1 = crypto::SHA256HashString(input1);
-  ASSERT_EQ(crypto::SHA256_LENGTH, output1.size());
-  for (size_t i = 0; i < crypto::SHA256_LENGTH; i++)
+  ASSERT_EQ(crypto::kSHA256Length, output1.size());
+  for (size_t i = 0; i < crypto::kSHA256Length; i++)
     EXPECT_EQ(expected1[i], static_cast<uint8>(output1[i]));
 }
 
@@ -63,9 +63,9 @@ TEST(Sha256Test, Test2) {
                       0xf6, 0xec, 0xed, 0xd4,
                       0x19, 0xdb, 0x06, 0xc1 };
 
-  uint8 output2[crypto::SHA256_LENGTH];
+  uint8 output2[crypto::kSHA256Length];
   crypto::SHA256HashString(input2, output2, sizeof(output2));
-  for (size_t i = 0; i < crypto::SHA256_LENGTH; i++)
+  for (size_t i = 0; i < crypto::kSHA256Length; i++)
     EXPECT_EQ(expected2[i], static_cast<int>(output2[i]));
 
   uint8 output_truncated2[6];
@@ -87,9 +87,9 @@ TEST(Sha256Test, Test3) {
                       0x04, 0x6d, 0x39, 0xcc,
                       0xc7, 0x11, 0x2c, 0xd0 };
 
-  uint8 output3[crypto::SHA256_LENGTH];
+  uint8 output3[crypto::kSHA256Length];
   crypto::SHA256HashString(input3, output3, sizeof(output3));
-  for (size_t i = 0; i < crypto::SHA256_LENGTH; i++)
+  for (size_t i = 0; i < crypto::kSHA256Length; i++)
     EXPECT_EQ(expected3[i], static_cast<int>(output3[i]));
 
   uint8 output_truncated3[12];

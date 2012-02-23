@@ -223,11 +223,14 @@ class CRYPTO_EXPORT RSAPrivateKey {
   CSSM_KEY_PTR public_key() { return &public_key_; }
 #endif
 
+  // Creates a copy of the object.
+  RSAPrivateKey* Copy() const;
+
   // Exports the private key to a PKCS #1 PrivateKey block.
-  bool ExportPrivateKey(std::vector<uint8>* output);
+  bool ExportPrivateKey(std::vector<uint8>* output) const;
 
   // Exports the public key to an X509 SubjectPublicKeyInfo block.
-  bool ExportPublicKey(std::vector<uint8>* output);
+  bool ExportPublicKey(std::vector<uint8>* output) const;
 
  private:
 #if defined(USE_NSS)

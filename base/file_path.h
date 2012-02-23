@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,6 +17,7 @@
 //
 // * The encoding need not be specified on POSIX systems, although some
 //   POSIX-compliant systems do specify an encoding.  Mac OS X uses UTF-8.
+//   Chrome OS also uses UTF-8.
 //   Linux does not specify an encoding, but in practice, the locale's
 //   character set may be used.
 //
@@ -294,6 +295,21 @@ class BASE_EXPORT FilePath {
   // known-ASCII filename.
   std::string MaybeAsASCII() const;
 
+  // Return the path as UTF-8.
+  //
+  // This function is *unsafe* as there is no way to tell what encoding is
+  // used in file names on POSIX systems other than Mac and Chrome OS,
+  // although UTF-8 is practically used everywhere these days. To mitigate
+  // the encoding issue, this function internally calls
+  // SysNativeMBToWide() on POSIX systems other than Mac and Chrome OS,
+  // per assumption that the current locale's encoding is used in file
+  // names, but this isn't a perfect solution.
+  //
+  // Once it becomes safe to to stop caring about non-UTF-8 file names,
+  // the SysNativeMBToWide() hack will be removed from the code, along
+  // with "Unsafe" in the function name.
+  std::string AsUTF8Unsafe() const;
+
   // Older Chromium code assumes that paths are always wstrings.
   // This function converts wstrings to FilePaths, and is
   // useful to smooth porting that old code to the FilePath API.
@@ -312,13 +328,22 @@ class BASE_EXPORT FilePath {
   //   ever use the result of that again as a path.
   static FilePath FromWStringHack(const std::wstring& wstring);
 
+  // Returns a FilePath object from a path name in UTF-8. This function
+  // should only be used for cases where you are sure that the input
+  // string is UTF-8.
+  //
+  // Like AsUTF8Unsafe(), this function is unsafe. This function
+  // internally calls SysWideToNativeMB() on POSIX systems other than Mac
+  // and Chrome OS, to mitigate the encoding issue. See the comment at
+  // AsUTF8Unsafe() for details.
+  static FilePath FromUTF8Unsafe(const std::string& utf8);
+
   void WriteToPickle(Pickle* pickle);
   bool ReadFromPickle(Pickle* pickle, void** iter);
 
-#if defined(FILE_PATH_USES_WIN_SEPARATORS)
-  // Normalize all path separators to backslash.
-  FilePath NormalizeWindowsPathSeparators() const;
-#endif
+  // Normalize all path separators to backslash on Windows
+  // (if FILE_PATH_USES_WIN_SEPARATORS is true), or do nothing on POSIX systems.
+  FilePath NormalizePathSeparators() const;
 
   // Compare two strings in the same way the file system does.
   // Note that these always ignore case, even on file systems that are case-

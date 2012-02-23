@@ -4,8 +4,10 @@
 
 #include "net/base/single_request_host_resolver.h"
 
+#include "net/base/address_list.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_log.h"
 #include "net/base/test_completion_callback.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -30,7 +32,7 @@ class HangingHostResolver : public HostResolver {
 
   virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
-                      CompletionCallback* callback,
+                      const CompletionCallback& callback,
                       RequestHandle* out_req,
                       const BoundNetLog& net_log) OVERRIDE {
     EXPECT_FALSE(has_outstanding_request());
@@ -55,14 +57,6 @@ class HangingHostResolver : public HostResolver {
     outstanding_request_ = NULL;
   }
 
-  virtual void AddObserver(Observer* observer) OVERRIDE {
-    FAIL();
-  }
-
-  virtual void RemoveObserver(Observer* observer) OVERRIDE {
-    FAIL();
-  }
-
  private:
   RequestHandle outstanding_request_;
 
@@ -83,7 +77,7 @@ TEST(SingleRequestHostResolverTest, NormalResolve) {
   TestCompletionCallback callback;
   HostResolver::RequestInfo request(HostPortPair("watsup", 90));
   int rv = single_request_resolver.Resolve(
-      request, &addrlist, &callback, BoundNetLog());
+      request, &addrlist, callback.callback(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(OK, callback.WaitForResult());
 
@@ -103,7 +97,7 @@ TEST(SingleRequestHostResolverTest, Cancel) {
     TestCompletionCallback callback;
     HostResolver::RequestInfo request(HostPortPair("watsup", 90));
     int rv = single_request_resolver.Resolve(
-        request, &addrlist, &callback, BoundNetLog());
+        request, &addrlist, callback.callback(), BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv);
     EXPECT_TRUE(resolver.has_outstanding_request());
   }

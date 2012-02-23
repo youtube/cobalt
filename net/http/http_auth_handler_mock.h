@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,8 +8,8 @@
 
 #include <string>
 
-#include "base/string16.h"
-#include "base/task.h"
+#include "base/memory/scoped_vector.h"
+#include "base/memory/weak_ptr.h"
 #include "googleurl/src/gurl.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
@@ -29,30 +29,31 @@ class HttpAuthHandlerMock : public HttpAuthHandler {
     RESOLVE_TESTED,
   };
 
-  // The Factory class simply returns the same handler each time
-  // CreateAuthHandler is called.
+  // The Factory class returns handlers in the order they were added via
+  // AddMockHandler.
   class Factory : public HttpAuthHandlerFactory {
    public:
     Factory();
     virtual ~Factory();
 
-    void set_mock_handler(HttpAuthHandler* handler, HttpAuth::Target target);
+    void AddMockHandler(HttpAuthHandler* handler, HttpAuth::Target target);
 
     void set_do_init_from_challenge(bool do_init_from_challenge) {
       do_init_from_challenge_ = do_init_from_challenge;
     }
 
     // HttpAuthHandlerFactory:
-    virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
-                                  HttpAuth::Target target,
-                                  const GURL& origin,
-                                  CreateReason reason,
-                                  int nonce_count,
-                                  const BoundNetLog& net_log,
-                                  scoped_ptr<HttpAuthHandler>* handler);
+    virtual int CreateAuthHandler(
+        HttpAuth::ChallengeTokenizer* challenge,
+        HttpAuth::Target target,
+        const GURL& origin,
+        CreateReason reason,
+        int nonce_count,
+        const BoundNetLog& net_log,
+        scoped_ptr<HttpAuthHandler>* handler) OVERRIDE;
 
    private:
-    scoped_ptr<HttpAuthHandler> handlers_[HttpAuth::AUTH_NUM_TARGETS];
+    ScopedVector<HttpAuthHandler> handlers_[HttpAuth::AUTH_NUM_TARGETS];
     bool do_init_from_challenge_;
   };
 
@@ -65,7 +66,7 @@ class HttpAuthHandlerMock : public HttpAuthHandler {
   virtual bool NeedsCanonicalName();
 
   virtual int ResolveCanonicalName(HostResolver* host_resolver,
-                                   CompletionCallback* callback);
+                                   const CompletionCallback& callback);
 
 
   void SetGenerateExpectation(bool async, int rv);
@@ -74,23 +75,32 @@ class HttpAuthHandlerMock : public HttpAuthHandler {
     connection_based_ = connection_based;
   }
 
+  void set_allows_default_credentials(bool allows_default_credentials) {
+    allows_default_credentials_ = allows_default_credentials;
+  }
+
+  void set_allows_explicit_credentials(bool allows_explicit_credentials) {
+    allows_explicit_credentials_ = allows_explicit_credentials;
+  }
+
   const GURL& request_url() const {
     return request_url_;
   }
 
   // HttpAuthHandler:
   virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
-      HttpAuth::ChallengeTokenizer* challenge);
-  virtual bool NeedsIdentity();
+      HttpAuth::ChallengeTokenizer* challenge) OVERRIDE;
+  virtual bool NeedsIdentity() OVERRIDE;
+  virtual bool AllowsDefaultCredentials() OVERRIDE;
+  virtual bool AllowsExplicitCredentials() OVERRIDE;
 
  protected:
-  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge);
+  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) OVERRIDE;
 
-  virtual int GenerateAuthTokenImpl(const string16* username,
-                                    const string16* password,
+  virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
                                     const HttpRequestInfo* request,
-                                    CompletionCallback* callback,
-                                    std::string* auth_token);
+                                    const CompletionCallback& callback,
+                                    std::string* auth_token) OVERRIDE;
 
  private:
   void OnResolveCanonicalName();
@@ -98,13 +108,15 @@ class HttpAuthHandlerMock : public HttpAuthHandler {
   void OnGenerateAuthToken();
 
   Resolve resolve_;
-  CompletionCallback* user_callback_;
-  ScopedRunnableMethodFactory<HttpAuthHandlerMock> method_factory_;
+  CompletionCallback callback_;
+  base::WeakPtrFactory<HttpAuthHandlerMock> weak_factory_;
   bool generate_async_;
   int generate_rv_;
   std::string* auth_token_;
   bool first_round_;
   bool connection_based_;
+  bool allows_default_credentials_;
+  bool allows_explicit_credentials_;
   GURL request_url_;
 };
 

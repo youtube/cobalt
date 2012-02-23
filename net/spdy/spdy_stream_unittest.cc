@@ -1,8 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/memory/ref_counted.h"
+#include "net/base/completion_callback.h"
 #include "net/spdy/spdy_stream.h"
 #include "net/spdy/spdy_http_utils.h"
 #include "net/spdy/spdy_session.h"
@@ -19,7 +20,7 @@ class TestSpdyStreamDelegate : public SpdyStream::Delegate {
  public:
   TestSpdyStreamDelegate(SpdyStream* stream,
                          IOBufferWithSize* buf,
-                         CompletionCallback* callback)
+                         const CompletionCallback& callback)
       : stream_(stream),
         buf_(buf),
         callback_(callback),
@@ -62,9 +63,9 @@ class TestSpdyStreamDelegate : public SpdyStream::Delegate {
   }
   virtual void OnClose(int status) {
     closed_ = true;
-    CompletionCallback* callback = callback_;
-    callback_ = NULL;
-    callback->Run(OK);
+    CompletionCallback callback = callback_;
+    callback_.Reset();
+    callback.Run(OK);
   }
   virtual void set_chunk_callback(net::ChunkCallback *) {}
 
@@ -79,7 +80,7 @@ class TestSpdyStreamDelegate : public SpdyStream::Delegate {
  private:
   SpdyStream* stream_;
   scoped_refptr<IOBufferWithSize> buf_;
-  CompletionCallback* callback_;
+  CompletionCallback callback_;
   bool send_headers_completed_;
   linked_ptr<spdy::SpdyHeaderBlock> response_;
   std::string received_data_;
@@ -169,10 +170,10 @@ TEST_F(SpdyStreamTest, SendDataAfterOpen) {
   reads[1].sequence_number = 3;
   reads[2].sequence_number = 4;
 
-  scoped_refptr<OrderedSocketData> data(
+  scoped_ptr<OrderedSocketData> data(
       new OrderedSocketData(reads, arraysize(reads),
                             writes, arraysize(writes)));
-  MockConnect connect_data(false, OK);
+  MockConnect connect_data(SYNCHRONOUS, OK);
   data->set_connect_data(connect_data);
 
   session_deps.socket_factory->AddSocketDataProvider(data.get());
@@ -184,28 +185,26 @@ TEST_F(SpdyStreamTest, SendDataAfterOpen) {
 
   HostPortPair host_port_pair("www.google.com", 80);
   scoped_refptr<TransportSocketParams> transport_params(
-      new TransportSocketParams(host_port_pair, LOWEST, GURL(), false, false));
+      new TransportSocketParams(host_port_pair, LOWEST, false, false));
 
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
-  EXPECT_EQ(OK,
-            connection->Init(host_port_pair.ToString(),
-                             transport_params,
-                             LOWEST,
-                             NULL,
-                             session_->transport_socket_pool(),
-                             BoundNetLog()));
+  EXPECT_EQ(OK, connection->Init(host_port_pair.ToString(), transport_params,
+                                 LOWEST, CompletionCallback(),
+                                 session_->GetTransportSocketPool(),
+                                 BoundNetLog()));
   session->InitializeWithSocket(connection.release(), false, OK);
 
   scoped_refptr<SpdyStream> stream;
   ASSERT_EQ(
       OK,
-      session->CreateStream(url, LOWEST, &stream, BoundNetLog(), NULL));
+      session->CreateStream(url, LOWEST, &stream, BoundNetLog(),
+                            CompletionCallback()));
   scoped_refptr<IOBufferWithSize> buf(new IOBufferWithSize(8));
   memcpy(buf->data(), "\0hello!\xff", 8);
   TestCompletionCallback callback;
 
   scoped_ptr<TestSpdyStreamDelegate> delegate(
-      new TestSpdyStreamDelegate(stream.get(), buf.get(), &callback));
+      new TestSpdyStreamDelegate(stream.get(), buf.get(), callback.callback()));
   stream->SetDelegate(delegate.get());
 
   EXPECT_FALSE(stream->HasUrl());

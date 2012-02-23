@@ -1,24 +1,30 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/x509_certificate.h"
 
+#define PRArenaPool PLArenaPool  // Required by <blapi.h>.
+#include <blapi.h>  // Implement CalculateChainFingerprint() with NSS.
+
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/pickle.h"
 #include "base/sha1.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
+#include "crypto/capi_util.h"
 #include "crypto/rsa_private_key.h"
 #include "crypto/scoped_capi_types.h"
+#include "crypto/sha2.h"
 #include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
+#include "net/base/crl_set.h"
 #include "net/base/ev_root_ca_metadata.h"
 #include "net/base/net_errors.h"
-#include "net/base/scoped_cert_chain_context.h"
 #include "net/base/test_root_certs.h"
 #include "net/base/x509_certificate_known_roots_win.h"
 
@@ -30,11 +36,6 @@ namespace net {
 
 namespace {
 
-typedef crypto::ScopedCAPIHandle<
-    HCERTSTORE,
-    crypto::CAPIDestroyerWithFlags<HCERTSTORE,
-                                   CertCloseStore, 0> > ScopedHCERTSTORE;
-
 struct FreeChainEngineFunctor {
   void operator()(HCERTCHAINENGINE engine) const {
     if (engine)
@@ -42,8 +43,34 @@ struct FreeChainEngineFunctor {
   }
 };
 
+struct FreeCertContextFunctor {
+  void operator()(PCCERT_CONTEXT context) const {
+    if (context)
+      CertFreeCertificateContext(context);
+  }
+};
+
+struct FreeCertChainContextFunctor {
+  void operator()(PCCERT_CHAIN_CONTEXT chain_context) const {
+    if (chain_context)
+      CertFreeCertificateChain(chain_context);
+  }
+};
+
 typedef crypto::ScopedCAPIHandle<HCERTCHAINENGINE, FreeChainEngineFunctor>
     ScopedHCERTCHAINENGINE;
+
+typedef crypto::ScopedCAPIHandle<
+    HCERTSTORE,
+    crypto::CAPIDestroyerWithFlags<HCERTSTORE,
+                                   CertCloseStore, 0> > ScopedHCERTSTORE;
+
+typedef scoped_ptr_malloc<const CERT_CONTEXT,
+                          FreeCertContextFunctor> ScopedPCCERT_CONTEXT;
+
+typedef scoped_ptr_malloc<const CERT_CHAIN_CONTEXT,
+                          FreeCertChainContextFunctor>
+    ScopedPCCERT_CHAIN_CONTEXT;
 
 //-----------------------------------------------------------------------------
 
@@ -95,7 +122,7 @@ int MapSecurityError(SECURITY_STATUS err) {
 // Map the errors in the chain_context->TrustStatus.dwErrorStatus returned by
 // CertGetCertificateChain to our certificate status flags.
 int MapCertChainErrorStatusToCertStatus(DWORD error_status) {
-  int cert_status = 0;
+  CertStatus cert_status = 0;
 
   // We don't include CERT_TRUST_IS_NOT_TIME_NESTED because it's obsolete and
   // we wouldn't consider it an error anyway
@@ -162,16 +189,6 @@ void ExplodedTimeToSystemTime(const base::Time::Exploded& exploded,
 
 //-----------------------------------------------------------------------------
 
-// Wrappers of malloc and free for CRYPT_DECODE_PARA, which requires the
-// WINAPI calling convention.
-void* WINAPI MyCryptAlloc(size_t size) {
-  return malloc(size);
-}
-
-void WINAPI MyCryptFree(void* p) {
-  free(p);
-}
-
 // Decodes the cert's subjectAltName extension into a CERT_ALT_NAME_INFO
 // structure and stores it in *output.
 void GetCertSubjectAltName(PCCERT_CONTEXT cert,
@@ -184,8 +201,8 @@ void GetCertSubjectAltName(PCCERT_CONTEXT cert,
 
   CRYPT_DECODE_PARA decode_para;
   decode_para.cbSize = sizeof(decode_para);
-  decode_para.pfnAlloc = MyCryptAlloc;
-  decode_para.pfnFree = MyCryptFree;
+  decode_para.pfnAlloc = crypto::CryptAlloc;
+  decode_para.pfnFree = crypto::CryptFree;
   CERT_ALT_NAME_INFO* alt_name_info = NULL;
   DWORD alt_name_info_size = 0;
   BOOL rv;
@@ -206,8 +223,8 @@ void GetCertSubjectAltName(PCCERT_CONTEXT cert,
 bool CertSubjectCommonNameHasNull(PCCERT_CONTEXT cert) {
   CRYPT_DECODE_PARA decode_para;
   decode_para.cbSize = sizeof(decode_para);
-  decode_para.pfnAlloc = MyCryptAlloc;
-  decode_para.pfnFree = MyCryptFree;
+  decode_para.pfnAlloc = crypto::CryptAlloc;
+  decode_para.pfnFree = crypto::CryptFree;
   CERT_NAME_INFO* name_info = NULL;
   DWORD name_info_size = 0;
   BOOL rv;
@@ -291,9 +308,9 @@ bool CertSubjectCommonNameHasNull(PCCERT_CONTEXT cert) {
   return false;
 }
 
-// Saves some information about the certificate chain chain_context in
-// *verify_result.  The caller MUST initialize *verify_result before calling
-// this function.
+// Saves some information about the certificate chain |chain_context| in
+// |*verify_result|. The caller MUST initialize |*verify_result| before
+// calling this function.
 void GetCertChainInfo(PCCERT_CHAIN_CONTEXT chain_context,
                       CertVerifyResult* verify_result) {
   if (chain_context->cChain == 0)
@@ -306,11 +323,22 @@ void GetCertChainInfo(PCCERT_CHAIN_CONTEXT chain_context,
   PCCERT_CONTEXT verified_cert = NULL;
   std::vector<PCCERT_CONTEXT> verified_chain;
 
+  bool has_root_ca = num_elements > 1 &&
+      !(chain_context->TrustStatus.dwErrorStatus &
+          CERT_TRUST_IS_PARTIAL_CHAIN);
+
   // Each chain starts with the end entity certificate (i = 0) and ends with
-  // the root CA certificate (i = num_elements - 1).  Do not inspect the
-  // signature algorithm of the root CA certificate because the signature on
-  // the trust anchor is not important.
-  for (int i = 0; i < num_elements - 1; ++i) {
+  // either the root CA certificate or the last available intermediate. If a
+  // root CA certificate is present, do not inspect the signature algorithm of
+  // the root CA certificate because the signature on the trust anchor is not
+  // important.
+  if (has_root_ca) {
+    // If a full chain was constructed, regardless of whether it was trusted,
+    // don't inspect the root's signature algorithm.
+    num_elements -= 1;
+  }
+
+  for (int i = 0; i < num_elements; ++i) {
     PCCERT_CONTEXT cert = element[i]->pCertContext;
     if (i == 0) {
       verified_cert = cert;
@@ -337,8 +365,8 @@ void GetCertChainInfo(PCCERT_CHAIN_CONTEXT chain_context,
 
   if (verified_cert) {
     // Add the root certificate, if present, as it was not added above.
-    if (num_elements > 1)
-      verified_chain.push_back(element[num_elements - 1]->pCertContext);
+    if (has_root_ca)
+      verified_chain.push_back(element[num_elements]->pCertContext);
     verify_result->verified_cert =
           X509Certificate::CreateFromHandle(verified_cert, verified_chain);
   }
@@ -356,8 +384,8 @@ void GetCertPoliciesInfo(PCCERT_CONTEXT cert,
 
   CRYPT_DECODE_PARA decode_para;
   decode_para.cbSize = sizeof(decode_para);
-  decode_para.pfnAlloc = MyCryptAlloc;
-  decode_para.pfnFree = MyCryptFree;
+  decode_para.pfnAlloc = crypto::CryptAlloc;
+  decode_para.pfnFree = crypto::CryptFree;
   CERT_POLICIES_INFO* policies_info = NULL;
   DWORD policies_info_size = 0;
   BOOL rv;
@@ -371,70 +399,6 @@ void GetCertPoliciesInfo(PCCERT_CONTEXT cert,
                            &policies_info_size);
   if (rv)
     output->reset(policies_info);
-}
-
-// Helper function to parse a principal from a WinInet description of that
-// principal.
-void ParsePrincipal(const std::string& description,
-                    CertPrincipal* principal) {
-  // The description of the principal is a string with each LDAP value on
-  // a separate line.
-  const std::string kDelimiters("\r\n");
-
-  std::vector<std::string> common_names, locality_names, state_names,
-      country_names;
-
-  // TODO(jcampan): add business_category and serial_number.
-  const std::string kPrefixes[] = { std::string("CN="),
-                                    std::string("L="),
-                                    std::string("S="),
-                                    std::string("C="),
-                                    std::string("STREET="),
-                                    std::string("O="),
-                                    std::string("OU="),
-                                    std::string("DC=") };
-
-  std::vector<std::string>* values[] = {
-      &common_names, &locality_names,
-      &state_names, &country_names,
-      &(principal->street_addresses),
-      &(principal->organization_names),
-      &(principal->organization_unit_names),
-      &(principal->domain_components) };
-  DCHECK(arraysize(kPrefixes) == arraysize(values));
-
-  StringTokenizer str_tok(description, kDelimiters);
-  while (str_tok.GetNext()) {
-    std::string entry = str_tok.token();
-    for (int i = 0; i < arraysize(kPrefixes); i++) {
-      if (!entry.compare(0, kPrefixes[i].length(), kPrefixes[i])) {
-        std::string value = entry.substr(kPrefixes[i].length());
-        // Remove enclosing double-quotes if any.
-        if (value.size() >= 2 &&
-            value[0] == '"' && value[value.size() - 1] == '"')
-          value = value.substr(1, value.size() - 2);
-        values[i]->push_back(value);
-        break;
-      }
-    }
-  }
-
-  // We don't expect to have more than one CN, L, S, and C. If there is more
-  // than one entry for CN, L, S, and C, we will use the first entry. Although
-  // RFC 2818 Section 3.1 says the "most specific" CN should be used, that term
-  // has been removed in draft-saintandre-tls-server-id-check, which requires
-  // that the Subject field contains only one CN. So it is fine for us to just
-  // use the first CN.
-  std::vector<std::string>* single_value_lists[4] = {
-      &common_names, &locality_names, &state_names, &country_names };
-  std::string* single_values[4] = {
-      &principal->common_name, &principal->locality_name,
-      &principal->state_or_province_name, &principal->country_name };
-  for (int i = 0; i < arraysize(single_value_lists); ++i) {
-    int length = static_cast<int>(single_value_lists[i]->size());
-    if (!single_value_lists[i]->empty())
-      *(single_values[i]) = (*(single_value_lists[i]))[0];
-  }
 }
 
 void AddCertsFromStore(HCERTSTORE store,
@@ -485,6 +449,66 @@ X509Certificate::OSCertHandles ParsePKCS7(const char* data, size_t length) {
   return results;
 }
 
+bool CheckRevocationWithCRLSet(PCCERT_CHAIN_CONTEXT chain,
+                               CRLSet* crl_set) {
+  if (chain->cChain == 0)
+    return true;
+
+  const PCERT_SIMPLE_CHAIN first_chain = chain->rgpChain[0];
+  const PCERT_CHAIN_ELEMENT* element = first_chain->rgpElement;
+
+  const int num_elements = first_chain->cElement;
+  if (num_elements == 0)
+    return true;
+
+  // We iterate from the root certificate down to the leaf, keeping track of
+  // the issuer's SPKI at each step.
+  std::string issuer_spki_hash;
+  for (int i = num_elements - 1; i >= 0; i--) {
+    PCCERT_CONTEXT cert = element[i]->pCertContext;
+
+    base::StringPiece der_bytes(
+        reinterpret_cast<const char*>(cert->pbCertEncoded),
+        cert->cbCertEncoded);
+
+    base::StringPiece spki;
+    if (!asn1::ExtractSPKIFromDERCert(der_bytes, &spki)) {
+      NOTREACHED();
+      continue;
+    }
+
+    const std::string spki_hash = crypto::SHA256HashString(spki);
+
+    const CRYPT_INTEGER_BLOB* serial_blob = &cert->pCertInfo->SerialNumber;
+    scoped_array<uint8> serial_bytes(new uint8[serial_blob->cbData]);
+    // The bytes of the serial number are stored little-endian.
+    for (unsigned j = 0; j < serial_blob->cbData; j++)
+      serial_bytes[j] = serial_blob->pbData[serial_blob->cbData - j - 1];
+    base::StringPiece serial(reinterpret_cast<const char*>(serial_bytes.get()),
+                             serial_blob->cbData);
+
+    CRLSet::Result result = crl_set->CheckSPKI(spki_hash);
+
+    if (result != CRLSet::REVOKED && !issuer_spki_hash.empty())
+      result = crl_set->CheckSerial(serial, issuer_spki_hash);
+
+    issuer_spki_hash = spki_hash;
+
+    switch (result) {
+      case CRLSet::REVOKED:
+        return false;
+      case CRLSet::UNKNOWN:
+      case CRLSet::GOOD:
+        continue;
+      default:
+        NOTREACHED();
+        continue;
+    }
+  }
+
+  return true;
+}
+
 void AppendPublicKeyHashes(PCCERT_CHAIN_CONTEXT chain,
                            std::vector<SHA1Fingerprint>* hashes) {
   if (chain->cChain == 0)
@@ -511,36 +535,21 @@ void AppendPublicKeyHashes(PCCERT_CHAIN_CONTEXT chain,
   }
 }
 
+
 }  // namespace
 
 void X509Certificate::Initialize() {
-  std::wstring subject_info;
-  std::wstring issuer_info;
-  DWORD name_size;
   DCHECK(cert_handle_);
-  name_size = CertNameToStr(cert_handle_->dwCertEncodingType,
-                            &cert_handle_->pCertInfo->Subject,
-                            CERT_X500_NAME_STR | CERT_NAME_STR_CRLF_FLAG,
-                            NULL, 0);
-  name_size = CertNameToStr(cert_handle_->dwCertEncodingType,
-                            &cert_handle_->pCertInfo->Subject,
-                            CERT_X500_NAME_STR | CERT_NAME_STR_CRLF_FLAG,
-                            WriteInto(&subject_info, name_size), name_size);
-  name_size = CertNameToStr(cert_handle_->dwCertEncodingType,
-                            &cert_handle_->pCertInfo->Issuer,
-                            CERT_X500_NAME_STR | CERT_NAME_STR_CRLF_FLAG,
-                            NULL, 0);
-  name_size = CertNameToStr(cert_handle_->dwCertEncodingType,
-                            &cert_handle_->pCertInfo->Issuer,
-                            CERT_X500_NAME_STR | CERT_NAME_STR_CRLF_FLAG,
-                            WriteInto(&issuer_info, name_size), name_size);
-  ParsePrincipal(WideToUTF8(subject_info), &subject_);
-  ParsePrincipal(WideToUTF8(issuer_info), &issuer_);
+  subject_.ParseDistinguishedName(cert_handle_->pCertInfo->Subject.pbData,
+                                  cert_handle_->pCertInfo->Subject.cbData);
+  issuer_.ParseDistinguishedName(cert_handle_->pCertInfo->Issuer.pbData,
+                                 cert_handle_->pCertInfo->Issuer.cbData);
 
   valid_start_ = Time::FromFileTime(cert_handle_->pCertInfo->NotBefore);
   valid_expiry_ = Time::FromFileTime(cert_handle_->pCertInfo->NotAfter);
 
   fingerprint_ = CalculateFingerprint(cert_handle_);
+  ca_fingerprint_ = CalculateCAFingerprint(intermediate_ca_certs_);
 
   const CRYPT_INTEGER_BLOB* serial = &cert_handle_->pCertInfo->SerialNumber;
   scoped_array<uint8> serial_bytes(new uint8[serial->cbData]);
@@ -548,9 +557,6 @@ void X509Certificate::Initialize() {
     serial_bytes[i] = serial->pbData[serial->cbData - i - 1];
   serial_number_ = std::string(
       reinterpret_cast<char*>(serial_bytes.get()), serial->cbData);
-  // Remove leading zeros.
-  while (serial_number_.size() > 1 && serial_number_[0] == 0)
-    serial_number_ = serial_number_.substr(1, serial_number_.size() - 1);
 }
 
 // IsIssuedByKnownRoot returns true if the given chain is rooted at a root CA
@@ -663,39 +669,43 @@ void X509Certificate::GetSubjectAltName(
   }
 }
 
-class GlobalCertStore {
- public:
-  HCERTSTORE cert_store() {
-    return cert_store_;
+PCCERT_CONTEXT X509Certificate::CreateOSCertChainForCert() const {
+  // Create an in-memory certificate store to hold this certificate and
+  // any intermediate certificates in |intermediate_ca_certs_|. The store
+  // will be referenced in the returned PCCERT_CONTEXT, and will not be freed
+  // until the PCCERT_CONTEXT is freed.
+  ScopedHCERTSTORE store(CertOpenStore(
+      CERT_STORE_PROV_MEMORY, 0, NULL,
+      CERT_STORE_DEFER_CLOSE_UNTIL_LAST_FREE_FLAG, NULL));
+  if (!store.get())
+    return NULL;
+
+  // NOTE: This preserves all of the properties of |os_cert_handle()| except
+  // for CERT_KEY_PROV_HANDLE_PROP_ID and CERT_KEY_CONTEXT_PROP_ID - the two
+  // properties that hold access to already-opened private keys. If a handle
+  // has already been unlocked (eg: PIN prompt), then the first time that the
+  // identity is used for client auth, it may prompt the user again.
+  PCCERT_CONTEXT primary_cert;
+  BOOL ok = CertAddCertificateContextToStore(store.get(), os_cert_handle(),
+                                             CERT_STORE_ADD_ALWAYS,
+                                             &primary_cert);
+  if (!ok || !primary_cert)
+    return NULL;
+
+  for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i) {
+    CertAddCertificateContextToStore(store.get(), intermediate_ca_certs_[i],
+                                     CERT_STORE_ADD_ALWAYS, NULL);
   }
 
- private:
-  friend struct base::DefaultLazyInstanceTraits<GlobalCertStore>;
-
-  GlobalCertStore()
-      : cert_store_(CertOpenStore(CERT_STORE_PROV_MEMORY, 0, NULL, 0, NULL)) {
-  }
-
-  ~GlobalCertStore() {
-    CertCloseStore(cert_store_, 0 /* flags */);
-  }
-
-  const HCERTSTORE cert_store_;
-
-  DISALLOW_COPY_AND_ASSIGN(GlobalCertStore);
-};
-
-static base::LazyInstance<GlobalCertStore,
-                          base::LeakyLazyInstanceTraits<GlobalCertStore> >
-    g_cert_store(base::LINKER_INITIALIZED);
-
-// static
-HCERTSTORE X509Certificate::cert_store() {
-  return g_cert_store.Get().cert_store();
+  // Note: |store| is explicitly not released, as the call to CertCloseStore()
+  // when |store| goes out of scope will not actually free the store. Instead,
+  // the store will be freed when |primary_cert| is freed.
+  return primary_cert;
 }
 
 int X509Certificate::VerifyInternal(const std::string& hostname,
                                     int flags,
+                                    CRLSet* crl_set,
                                     CertVerifyResult* verify_result) const {
   if (!cert_handle_)
     return ERR_UNEXPECTED;
@@ -718,14 +728,12 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   chain_para.RequestedUsage.Usage.rgpszUsageIdentifier =
       const_cast<LPSTR*>(usage);
   // We can set CERT_CHAIN_RETURN_LOWER_QUALITY_CONTEXTS to get more chains.
-  DWORD chain_flags = CERT_CHAIN_CACHE_END_CERT;
+  DWORD chain_flags = CERT_CHAIN_CACHE_END_CERT |
+                      CERT_CHAIN_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT;
   if (flags & VERIFY_REV_CHECKING_ENABLED) {
     verify_result->cert_status |= CERT_STATUS_REV_CHECKING_ENABLED;
-    chain_flags |= CERT_CHAIN_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT;
   } else {
     chain_flags |= CERT_CHAIN_REVOCATION_CHECK_CACHE_ONLY;
-    // EV requires revocation checking.
-    flags &= ~VERIFY_EV_CERT;
   }
 
   // Get the certificatePolicies extension of the certificate.
@@ -760,21 +768,24 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   if (TestRootCerts::HasInstance())
     chain_engine.reset(TestRootCerts::GetInstance()->GetChainEngine());
 
+  ScopedPCCERT_CONTEXT cert_list(CreateOSCertChainForCert());
   PCCERT_CHAIN_CONTEXT chain_context;
   // IE passes a non-NULL pTime argument that specifies the current system
   // time.  IE passes CERT_CHAIN_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT as the
   // chain_flags argument.
   if (!CertGetCertificateChain(
            chain_engine,
-           cert_handle_,
+           cert_list.get(),
            NULL,  // current system time
-           cert_handle_->hCertStore,
+           cert_list->hCertStore,
            &chain_para,
            chain_flags,
            NULL,  // reserved
            &chain_context)) {
+    verify_result->cert_status |= CERT_STATUS_INVALID;
     return MapSecurityError(GetLastError());
   }
+
   if (chain_context->TrustStatus.dwErrorStatus &
       CERT_TRUST_IS_NOT_VALID_FOR_USAGE) {
     ev_policy_oid = NULL;
@@ -783,33 +794,30 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
     CertFreeCertificateChain(chain_context);
     if (!CertGetCertificateChain(
              chain_engine,
-             cert_handle_,
+             cert_list.get(),
              NULL,  // current system time
-             cert_handle_->hCertStore,
+             cert_list->hCertStore,
              &chain_para,
              chain_flags,
              NULL,  // reserved
              &chain_context)) {
+      verify_result->cert_status |= CERT_STATUS_INVALID;
       return MapSecurityError(GetLastError());
     }
   }
-  ScopedCertChainContext scoped_chain_context(chain_context);
+
+  ScopedPCCERT_CHAIN_CONTEXT scoped_chain_context(chain_context);
 
   GetCertChainInfo(chain_context, verify_result);
   verify_result->cert_status |= MapCertChainErrorStatusToCertStatus(
       chain_context->TrustStatus.dwErrorStatus);
 
-  // Treat certificates signed using broken signature algorithms as invalid.
-  if (verify_result->has_md4)
-    verify_result->cert_status |= CERT_STATUS_INVALID;
-
-  // Flag certificates signed using weak signature algorithms.
-  if (verify_result->has_md2)
-    verify_result->cert_status |= CERT_STATUS_WEAK_SIGNATURE_ALGORITHM;
-
   // Flag certificates that have a Subject common name with a NULL character.
   if (CertSubjectCommonNameHasNull(cert_handle_))
     verify_result->cert_status |= CERT_STATUS_INVALID;
+
+  if (crl_set && !CheckRevocationWithCRLSet(chain_context, crl_set))
+    verify_result->cert_status |= CERT_STATUS_REVOKED;
 
   std::wstring wstr_hostname = ASCIIToWide(hostname);
 
@@ -893,6 +901,14 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   // compatible with WinHTTP, which doesn't report this error (bug 3004).
   verify_result->cert_status &= ~CERT_STATUS_NO_REVOCATION_MECHANISM;
 
+  if ((flags & VERIFY_REV_CHECKING_ENABLED) == 0) {
+    // If we didn't do online revocation checking then Windows will report
+    // CERT_UNABLE_TO_CHECK_REVOCATION unless it had cached OCSP or CRL
+    // information for every certificate. We only want to put up revoked
+    // statuses from the offline checks so we squash this error.
+    verify_result->cert_status &= ~CERT_STATUS_UNABLE_TO_CHECK_REVOCATION;
+  }
+
   if (IsCertStatusError(verify_result->cert_status))
     return MapCertStatusToNetError(verify_result->cert_status);
 
@@ -904,12 +920,13 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   return OK;
 }
 
-bool X509Certificate::GetDEREncoded(std::string* encoded) {
-  if (!cert_handle_->pbCertEncoded || !cert_handle_->cbCertEncoded)
+// static
+bool X509Certificate::GetDEREncoded(X509Certificate::OSCertHandle cert_handle,
+                                    std::string* encoded) {
+  if (!cert_handle->pbCertEncoded || !cert_handle->cbCertEncoded)
     return false;
-  encoded->clear();
-  encoded->append(reinterpret_cast<char*>(cert_handle_->pbCertEncoded),
-                  cert_handle_->cbCertEncoded);
+  encoded->assign(reinterpret_cast<char*>(cert_handle->pbCertEncoded),
+                  cert_handle->cbCertEncoded);
   return true;
 }
 
@@ -960,7 +977,7 @@ X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
     const char* data, int length) {
   OSCertHandle cert_handle = NULL;
   if (!CertAddEncodedCertificateToStore(
-      cert_store(), X509_ASN_ENCODING, reinterpret_cast<const BYTE*>(data),
+      NULL, X509_ASN_ENCODING, reinterpret_cast<const BYTE*>(data),
       length, CERT_STORE_ADD_USE_EXISTING, &cert_handle))
     return NULL;
 
@@ -1017,6 +1034,30 @@ SHA1Fingerprint X509Certificate::CalculateFingerprint(
   return sha1;
 }
 
+// TODO(wtc): This function is implemented with NSS low-level hash
+// functions to ensure it is fast.  Reimplement this function with
+// CryptoAPI.  May need to cache the HCRYPTPROV to reduce the overhead.
+// static
+SHA1Fingerprint X509Certificate::CalculateCAFingerprint(
+    const OSCertHandles& intermediates) {
+  SHA1Fingerprint sha1;
+  memset(sha1.data, 0, sizeof(sha1.data));
+
+  SHA1Context* sha1_ctx = SHA1_NewContext();
+  if (!sha1_ctx)
+    return sha1;
+  SHA1_Begin(sha1_ctx);
+  for (size_t i = 0; i < intermediates.size(); ++i) {
+    PCCERT_CONTEXT ca_cert = intermediates[i];
+    SHA1_Update(sha1_ctx, ca_cert->pbCertEncoded, ca_cert->cbCertEncoded);
+  }
+  unsigned int result_len;
+  SHA1_End(sha1_ctx, sha1.data, &result_len, SHA1_LENGTH);
+  SHA1_DestroyContext(sha1_ctx, PR_TRUE);
+
+  return sha1;
+}
+
 // static
 X509Certificate::OSCertHandle
 X509Certificate::ReadOSCertHandleFromPickle(const Pickle& pickle,
@@ -1028,7 +1069,7 @@ X509Certificate::ReadOSCertHandleFromPickle(const Pickle& pickle,
 
   OSCertHandle cert_handle = NULL;
   if (!CertAddSerializedElementToStore(
-          cert_store(), reinterpret_cast<const BYTE*>(data), length,
+          NULL, reinterpret_cast<const BYTE*>(data), length,
           CERT_STORE_ADD_USE_EXISTING, 0, CERT_STORE_CERTIFICATE_CONTEXT_FLAG,
           NULL, reinterpret_cast<const void **>(&cert_handle))) {
     return NULL;
@@ -1055,6 +1096,42 @@ bool X509Certificate::WriteOSCertHandleToPickle(OSCertHandle cert_handle,
 
   return pickle->WriteData(reinterpret_cast<const char*>(&buffer[0]),
                            length);
+}
+
+// static
+void X509Certificate::GetPublicKeyInfo(OSCertHandle cert_handle,
+                                       size_t* size_bits,
+                                       PublicKeyType* type) {
+  PCCRYPT_OID_INFO oid_info = CryptFindOIDInfo(
+      CRYPT_OID_INFO_OID_KEY,
+      cert_handle->pCertInfo->SubjectPublicKeyInfo.Algorithm.pszObjId,
+      CRYPT_PUBKEY_ALG_OID_GROUP_ID);
+  PCHECK(oid_info);
+  CHECK(oid_info->dwGroupId == CRYPT_PUBKEY_ALG_OID_GROUP_ID);
+
+  *size_bits = CertGetPublicKeyLength(
+      X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+      &cert_handle->pCertInfo->SubjectPublicKeyInfo);
+
+  switch (oid_info->Algid) {
+    case CALG_RSA_SIGN:
+    case CALG_RSA_KEYX:
+      *type = kPublicKeyTypeRSA;
+      break;
+    case CALG_DSS_SIGN:
+      *type = kPublicKeyTypeDSA;
+      break;
+    case CALG_ECDSA:
+      *type = kPublicKeyTypeECDSA;
+      break;
+    case CALG_ECDH:
+      *type = kPublicKeyTypeECDH;
+      break;
+    default:
+      *type = kPublicKeyTypeUnknown;
+      *size_bits = 0;
+      break;
+  }
 }
 
 }  // namespace net

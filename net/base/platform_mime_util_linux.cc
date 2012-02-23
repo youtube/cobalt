@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,13 +6,32 @@
 
 #include <string>
 
-#include "base/mime_util.h"
+#include "base/logging.h"
+#include "build/build_config.h"
+
+#if defined(OS_ANDROID)
+#include "net/android/network_library.h"
+#else
+#include "base/nix/mime_util_xdg.h"
+#endif
 
 namespace net {
 
+#if defined(OS_ANDROID)
 bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
     const FilePath::StringType& ext, std::string* result) const {
-  // TODO(thestig) This is a temporary hack until we can fix this
+  // TODO(jingzhao): Recover the original implementation once we support JNI.
+#if 0
+  return android::GetMimeTypeFromExtension(ext, result);
+#else
+  NOTIMPLEMENTED();
+  return false;
+#endif
+}
+#else
+bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
+    const FilePath::StringType& ext, std::string* result) const {
+  // TODO(thestig): This is a temporary hack until we can fix this
   // properly in test shell / webkit.
   // We have to play dumb and not return application/x-perl here
   // to make the reload-subframe-object layout test happy.
@@ -20,7 +39,7 @@ bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
     return false;
 
   FilePath dummy_path("foo." + ext);
-  std::string out = mime_util::GetFileMimeType(dummy_path);
+  std::string out = base::nix::GetFileMimeType(dummy_path);
 
   // GetFileMimeType likes to return application/octet-stream
   // for everything it doesn't know - ignore that.
@@ -38,6 +57,8 @@ bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
   *result = out;
   return true;
 }
+
+#endif  // defined(OS_ANDROID)
 
 struct MimeToExt {
   const char* mime_type;

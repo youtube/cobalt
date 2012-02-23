@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -31,7 +31,15 @@
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_restrictions.h"
-#include "base/time.h"
+
+#if defined(OS_CHROMEOS)
+#include <sys/ioctl.h>
+#endif
+
+#if defined(OS_FREEBSD)
+#include <sys/event.h>
+#include <sys/ucontext.h>
+#endif
 
 #if defined(OS_MACOSX)
 #include <crt_externs.h>
@@ -131,7 +139,7 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, ucontext_t* context) {
   if (debug::BeingDebugged())
     debug::BreakDebugger();
 
-  LOG(ERROR) << "Received signal " << signal;
+  DLOG(ERROR) << "Received signal " << signal;
   debug::StackTrace().PrintBacktrace();
 
   // TODO(shess): Port to Linux.
@@ -183,8 +191,9 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, ucontext_t* context) {
 void ResetChildSignalHandlersToDefaults() {
   // The previous signal handlers are likely to be meaningless in the child's
   // context so we reset them to the defaults for now. http://crbug.com/44953
-  // These signal handlers are set up at least in browser_main.cc:BrowserMain
-  // and process_util_posix.cc:EnableInProcessStackDumping.
+  // These signal handlers are set up at least in browser_main_posix.cc:
+  // BrowserMainPartsPosix::PreEarlyInitialization and process_util_posix.cc:
+  // EnableInProcessStackDumping.
   signal(SIGHUP, SIG_DFL);
   signal(SIGINT, SIG_DFL);
   signal(SIGILL, SIG_DFL);
@@ -295,7 +304,7 @@ bool KillProcess(ProcessHandle process_id, int exit_code, bool wait) {
 bool KillProcessGroup(ProcessHandle process_group_id) {
   bool result = kill(-1 * process_group_id, SIGKILL) == 0;
   if (!result)
-    PLOG(ERROR) << "Unable to terminate process group " << process_group_id;
+    DPLOG(ERROR) << "Unable to terminate process group " << process_group_id;
   return result;
 }
 
@@ -530,32 +539,72 @@ char** AlterEnvironment(const environment_vector& changes,
 bool LaunchProcess(const std::vector<std::string>& argv,
                    const LaunchOptions& options,
                    ProcessHandle* process_handle) {
-  pid_t pid;
-  InjectiveMultimap fd_shuffle1, fd_shuffle2;
+  size_t fd_shuffle_size = 0;
   if (options.fds_to_remap) {
-    fd_shuffle1.reserve(options.fds_to_remap->size());
-    fd_shuffle2.reserve(options.fds_to_remap->size());
+    fd_shuffle_size = options.fds_to_remap->size();
   }
+
+#if defined(OS_MACOSX)
+  if (options.synchronize) {
+    // When synchronizing, the "read" end of the synchronization pipe needs
+    // to make it to the child process. This is handled by mapping it back to
+    // itself.
+    ++fd_shuffle_size;
+  }
+#endif  // defined(OS_MACOSX)
+
+  InjectiveMultimap fd_shuffle1;
+  InjectiveMultimap fd_shuffle2;
+  fd_shuffle1.reserve(fd_shuffle_size);
+  fd_shuffle2.reserve(fd_shuffle_size);
+
   scoped_array<char*> argv_cstr(new char*[argv.size() + 1]);
   scoped_array<char*> new_environ;
   if (options.environ)
     new_environ.reset(AlterEnvironment(*options.environ, GetEnvironment()));
 
-  if (options.clone_flags) {
+#if defined(OS_MACOSX)
+  int synchronization_pipe_fds[2];
+  file_util::ScopedFD synchronization_read_fd;
+  file_util::ScopedFD synchronization_write_fd;
+
+  if (options.synchronize) {
+    // wait means "don't return from LaunchProcess until the child exits", and
+    // synchronize means "return from LaunchProcess but don't let the child
+    // run until LaunchSynchronize is called". These two options are highly
+    // incompatible.
+    DCHECK(!options.wait);
+
+    // Create the pipe used for synchronization.
+    if (HANDLE_EINTR(pipe(synchronization_pipe_fds)) != 0) {
+      DPLOG(ERROR) << "pipe";
+      return false;
+    }
+
+    // The parent process will only use synchronization_write_fd as the write
+    // side of the pipe. It can close the read side as soon as the child
+    // process has forked off. The child process will only use
+    // synchronization_read_fd as the read side of the pipe. In that process,
+    // the write side can be closed as soon as it has forked.
+    synchronization_read_fd.reset(&synchronization_pipe_fds[0]);
+    synchronization_write_fd.reset(&synchronization_pipe_fds[1]);
+  }
+#endif  // OS_MACOSX
+
+  pid_t pid;
 #if defined(OS_LINUX)
+  if (options.clone_flags) {
     pid = syscall(__NR_clone, options.clone_flags, 0, 0, 0);
-#else
-    pid = -1;  // hygiene; prevent clang warnings
-    NOTREACHED() << "Tried to use clone() on non-Linux system";
+  } else
 #endif
-  } else {
+  {
     pid = fork();
   }
+
   if (pid < 0) {
-    PLOG(ERROR) << "fork";
+    DPLOG(ERROR) << "fork";
     return false;
-  }
-  if (pid == 0) {
+  } else if (pid == 0) {
     // Child process
 
     // DANGER: fork() rule: in the child, if you don't end up doing exec*(),
@@ -588,11 +637,37 @@ bool LaunchProcess(const std::vector<std::string>& argv,
         _exit(127);
       }
     }
+
+    if (options.maximize_rlimits) {
+      // Some resource limits need to be maximal in this child.
+      std::set<int>::const_iterator resource;
+      for (resource = options.maximize_rlimits->begin();
+           resource != options.maximize_rlimits->end();
+           ++resource) {
+        struct rlimit limit;
+        if (getrlimit(*resource, &limit) < 0) {
+          RAW_LOG(WARNING, "getrlimit failed");
+        } else if (limit.rlim_cur < limit.rlim_max) {
+          limit.rlim_cur = limit.rlim_max;
+          if (setrlimit(*resource, &limit) < 0) {
+            RAW_LOG(WARNING, "setrlimit failed");
+          }
+        }
+      }
+    }
+
 #if defined(OS_MACOSX)
     RestoreDefaultExceptionHandler();
-#endif
+#endif  // defined(OS_MACOSX)
 
     ResetChildSignalHandlersToDefaults();
+
+#if defined(OS_MACOSX)
+    if (options.synchronize) {
+      // The "write" side of the synchronization pipe belongs to the parent.
+      synchronization_write_fd.reset();  // closes synchronization_pipe_fds[1]
+    }
+#endif  // defined(OS_MACOSX)
 
 #if 0
     // When debugging it can be helpful to check that we really aren't making
@@ -601,10 +676,24 @@ bool LaunchProcess(const std::vector<std::string>& argv,
         reinterpret_cast<void*>(reinterpret_cast<intptr_t>(malloc) & ~4095);
     mprotect(malloc_thunk, 4096, PROT_READ | PROT_WRITE | PROT_EXEC);
     memset(reinterpret_cast<void*>(malloc), 0xff, 8);
-#endif
+#endif  // 0
 
     // DANGER: no calls to malloc are allowed from now on:
     // http://crbug.com/36678
+
+#if defined(OS_CHROMEOS)
+    if (options.ctrl_terminal_fd >= 0) {
+      // Set process' controlling terminal.
+      if (HANDLE_EINTR(setsid()) != -1) {
+        if (HANDLE_EINTR(
+                ioctl(options.ctrl_terminal_fd, TIOCSCTTY, NULL)) == -1) {
+          RAW_LOG(WARNING, "ioctl(TIOCSCTTY), ctrl terminal not set");
+        }
+      } else {
+        RAW_LOG(WARNING, "setsid failed, ctrl terminal not set");
+      }
+    }
+#endif  // defined(OS_CHROMEOS)
 
     if (options.fds_to_remap) {
       for (file_handle_mapping_vector::const_iterator
@@ -615,6 +704,16 @@ bool LaunchProcess(const std::vector<std::string>& argv,
       }
     }
 
+#if defined(OS_MACOSX)
+    if (options.synchronize) {
+      // Remap the read side of the synchronization pipe back onto itself,
+      // ensuring that it won't be closed by CloseSuperfluousFds.
+      int keep_fd = *synchronization_read_fd.get();
+      fd_shuffle1.push_back(InjectionArc(keep_fd, keep_fd, false));
+      fd_shuffle2.push_back(InjectionArc(keep_fd, keep_fd, false));
+    }
+#endif  // defined(OS_MACOSX)
+
     if (options.environ)
       SetEnvironment(new_environ.get());
 
@@ -624,10 +723,29 @@ bool LaunchProcess(const std::vector<std::string>& argv,
 
     CloseSuperfluousFds(fd_shuffle2);
 
+#if defined(OS_MACOSX)
+    if (options.synchronize) {
+      // Do a blocking read to wait until the parent says it's OK to proceed.
+      // The byte that's read here is written by LaunchSynchronize.
+      char read_char;
+      int read_result =
+          HANDLE_EINTR(read(*synchronization_read_fd.get(), &read_char, 1));
+      if (read_result != 1) {
+        RAW_LOG(ERROR, "LaunchProcess: synchronization read: error");
+        _exit(127);
+      }
+
+      // The pipe is no longer useful. Don't let it live on in the new process
+      // after exec.
+      synchronization_read_fd.reset();  // closes synchronization_pipe_fds[0]
+    }
+#endif  // defined(OS_MACOSX)
+
     for (size_t i = 0; i < argv.size(); i++)
       argv_cstr[i] = const_cast<char*>(argv[i].c_str());
     argv_cstr[argv.size()] = NULL;
     execvp(argv_cstr[0], argv_cstr.get());
+
     RAW_LOG(ERROR, "LaunchProcess: failed to execvp:");
     RAW_LOG(ERROR, argv_cstr[0]);
     _exit(127);
@@ -643,10 +761,19 @@ bool LaunchProcess(const std::vector<std::string>& argv,
 
     if (process_handle)
       *process_handle = pid;
+
+#if defined(OS_MACOSX)
+    if (options.synchronize) {
+      // The "read" side of the synchronization pipe belongs to the child.
+      synchronization_read_fd.reset();  // closes synchronization_pipe_fds[0]
+      *options.synchronize = new int(*synchronization_write_fd.release());
+    }
+#endif  // defined(OS_MACOSX)
   }
 
   return true;
 }
+
 
 bool LaunchProcess(const CommandLine& cmdline,
                    const LaunchOptions& options,
@@ -654,11 +781,20 @@ bool LaunchProcess(const CommandLine& cmdline,
   return LaunchProcess(cmdline.argv(), options, process_handle);
 }
 
-ProcessMetrics::~ProcessMetrics() { }
+#if defined(OS_MACOSX)
+void LaunchSynchronize(LaunchSynchronizationHandle handle) {
+  int synchronization_fd = *handle;
+  file_util::ScopedFD synchronization_fd_closer(&synchronization_fd);
+  delete handle;
 
-void EnableTerminationOnHeapCorruption() {
-  // On POSIX, there nothing to do AFAIK.
+  // Write a '\0' character to the pipe.
+  if (HANDLE_EINTR(write(synchronization_fd, "", 1)) != 1) {
+    DPLOG(ERROR) << "write";
+  }
 }
+#endif  // defined(OS_MACOSX)
+
+ProcessMetrics::~ProcessMetrics() { }
 
 bool EnableInProcessStackDumping() {
   // When running in an application, our code typically expects SIGPIPE
@@ -693,7 +829,7 @@ TerminationStatus GetTerminationStatus(ProcessHandle handle, int* exit_code) {
   int status = 0;
   const pid_t result = HANDLE_EINTR(waitpid(handle, &status, WNOHANG));
   if (result == -1) {
-    PLOG(ERROR) << "waitpid(" << handle << ")";
+    DPLOG(ERROR) << "waitpid(" << handle << ")";
     if (exit_code)
       *exit_code = 0;
     return TERMINATION_STATUS_NORMAL_TERMINATION;
@@ -773,58 +909,89 @@ bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
 // our own children using wait.
 static bool WaitForSingleNonChildProcess(ProcessHandle handle,
                                          int64 wait_milliseconds) {
+  DCHECK_GT(handle, 0);
+  DCHECK(wait_milliseconds == base::kNoTimeout || wait_milliseconds > 0);
+
   int kq = kqueue();
   if (kq == -1) {
-    PLOG(ERROR) << "kqueue";
+    DPLOG(ERROR) << "kqueue";
+    return false;
+  }
+  file_util::ScopedFD kq_closer(&kq);
+
+  struct kevent change = {0};
+  EV_SET(&change, handle, EVFILT_PROC, EV_ADD, NOTE_EXIT, 0, NULL);
+  int result = HANDLE_EINTR(kevent(kq, &change, 1, NULL, 0, NULL));
+  if (result == -1) {
+    if (errno == ESRCH) {
+      // If the process wasn't found, it must be dead.
+      return true;
+    }
+
+    DPLOG(ERROR) << "kevent (setup " << handle << ")";
     return false;
   }
 
-  struct kevent change = { 0 };
-  EV_SET(&change, handle, EVFILT_PROC, EV_ADD, NOTE_EXIT, 0, NULL);
-
-  struct timespec spec;
-  struct timespec *spec_ptr;
-  if (wait_milliseconds != base::kNoTimeout) {
-    time_t sec = static_cast<time_t>(wait_milliseconds / 1000);
-    wait_milliseconds = wait_milliseconds - (sec * 1000);
-    spec.tv_sec = sec;
-    spec.tv_nsec = wait_milliseconds * 1000000L;
-    spec_ptr = &spec;
-  } else {
-    spec_ptr = NULL;
+  // Keep track of the elapsed time to be able to restart kevent if it's
+  // interrupted.
+  bool wait_forever = wait_milliseconds == base::kNoTimeout;
+  base::TimeDelta remaining_delta;
+  base::Time deadline;
+  if (!wait_forever) {
+    remaining_delta = base::TimeDelta::FromMilliseconds(wait_milliseconds);
+    deadline = base::Time::Now() + remaining_delta;
   }
 
-  while(true) {
-    struct kevent event = { 0 };
-    int event_count = HANDLE_EINTR(kevent(kq, &change, 1, &event, 1, spec_ptr));
-    if (close(kq) != 0) {
-      PLOG(ERROR) << "close";
-    }
-    if (event_count < 0) {
-      PLOG(ERROR) << "kevent";
-      return false;
-    } else if (event_count == 0) {
-      if (wait_milliseconds != base::kNoTimeout) {
-        // Timed out.
-        return false;
-      }
-    } else if ((event_count == 1) &&
-               (handle == static_cast<pid_t>(event.ident)) &&
-               (event.filter == EVFILT_PROC)) {
-      if (event.fflags == NOTE_EXIT) {
-        return true;
-      } else if (event.flags == EV_ERROR) {
-        LOG(ERROR) << "kevent error " << event.data;
-        return false;
-      } else {
-        NOTREACHED();
-        return false;
-      }
+  result = -1;
+  struct kevent event = {0};
+
+  while (wait_forever || remaining_delta.InMilliseconds() > 0) {
+    struct timespec remaining_timespec;
+    struct timespec* remaining_timespec_ptr;
+    if (wait_forever) {
+      remaining_timespec_ptr = NULL;
     } else {
-      NOTREACHED();
-      return false;
+      remaining_timespec = remaining_delta.ToTimeSpec();
+      remaining_timespec_ptr = &remaining_timespec;
+    }
+
+    result = kevent(kq, NULL, 0, &event, 1, remaining_timespec_ptr);
+
+    if (result == -1 && errno == EINTR) {
+      if (!wait_forever) {
+        remaining_delta = deadline - base::Time::Now();
+      }
+      result = 0;
+    } else {
+      break;
     }
   }
+
+  if (result < 0) {
+    DPLOG(ERROR) << "kevent (wait " << handle << ")";
+    return false;
+  } else if (result > 1) {
+    DLOG(ERROR) << "kevent (wait " << handle << "): unexpected result "
+                << result;
+    return false;
+  } else if (result == 0) {
+    // Timed out.
+    return false;
+  }
+
+  DCHECK_EQ(result, 1);
+
+  if (event.filter != EVFILT_PROC ||
+      (event.fflags & NOTE_EXIT) == 0 ||
+      event.ident != static_cast<uintptr_t>(handle)) {
+    DLOG(ERROR) << "kevent (wait " << handle
+                << "): unexpected event: filter=" << event.filter
+                << ", fflags=" << event.fflags
+                << ", ident=" << event.ident;
+    return false;
+  }
+
+  return true;
 }
 #endif  // OS_MACOSX
 
@@ -840,12 +1007,14 @@ bool WaitForSingleProcess(ProcessHandle handle, int64 wait_milliseconds) {
     NOTIMPLEMENTED();
 #endif  // OS_MACOSX
   }
+
   bool waitpid_success;
-  int status;
+  int status = -1;
   if (wait_milliseconds == base::kNoTimeout)
     waitpid_success = (HANDLE_EINTR(waitpid(handle, &status, 0)) != -1);
   else
     status = WaitpidWithTimeout(handle, wait_milliseconds, &waitpid_success);
+
   if (status != -1) {
     DCHECK(waitpid_success);
     return WIFEXITED(status);
@@ -1045,7 +1214,7 @@ bool WaitForProcessesToExit(const FilePath::StringType& executable_name,
       result = true;
       break;
     }
-    base::PlatformThread::Sleep(100);
+    base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(100));
   } while ((end_time - base::Time::Now()) > base::TimeDelta());
 
   return result;
@@ -1062,5 +1231,102 @@ bool CleanupProcesses(const FilePath::StringType& executable_name,
     KillProcesses(executable_name, exit_code, filter);
   return exited_cleanly;
 }
+
+#if !defined(OS_MACOSX)
+
+namespace {
+
+// Return true if the given child is dead. This will also reap the process.
+// Doesn't block.
+static bool IsChildDead(pid_t child) {
+  const pid_t result = HANDLE_EINTR(waitpid(child, NULL, WNOHANG));
+  if (result == -1) {
+    DPLOG(ERROR) << "waitpid(" << child << ")";
+    NOTREACHED();
+  } else if (result > 0) {
+    // The child has died.
+    return true;
+  }
+
+  return false;
+}
+
+// A thread class which waits for the given child to exit and reaps it.
+// If the child doesn't exit within a couple of seconds, kill it.
+class BackgroundReaper : public PlatformThread::Delegate {
+ public:
+  BackgroundReaper(pid_t child, unsigned timeout)
+      : child_(child),
+        timeout_(timeout) {
+  }
+
+  void ThreadMain() {
+    WaitForChildToDie();
+    delete this;
+  }
+
+  void WaitForChildToDie() {
+    // Wait forever case.
+    if (timeout_ == 0) {
+      pid_t r = HANDLE_EINTR(waitpid(child_, NULL, 0));
+      if (r != child_) {
+        DPLOG(ERROR) << "While waiting for " << child_
+                     << " to terminate, we got the following result: " << r;
+      }
+      return;
+    }
+
+    // There's no good way to wait for a specific child to exit in a timed
+    // fashion. (No kqueue on Linux), so we just loop and sleep.
+
+    // Wait for 2 * timeout_ 500 milliseconds intervals.
+    for (unsigned i = 0; i < 2 * timeout_; ++i) {
+      PlatformThread::Sleep(TimeDelta::FromMilliseconds(500));
+      if (IsChildDead(child_))
+        return;
+    }
+
+    if (kill(child_, SIGKILL) == 0) {
+      // SIGKILL is uncatchable. Since the signal was delivered, we can
+      // just wait for the process to die now in a blocking manner.
+      if (HANDLE_EINTR(waitpid(child_, NULL, 0)) < 0)
+        DPLOG(WARNING) << "waitpid";
+    } else {
+      DLOG(ERROR) << "While waiting for " << child_ << " to terminate we"
+                  << " failed to deliver a SIGKILL signal (" << errno << ").";
+    }
+  }
+
+ private:
+  const pid_t child_;
+  // Number of seconds to wait, if 0 then wait forever and do not attempt to
+  // kill |child_|.
+  const unsigned timeout_;
+
+  DISALLOW_COPY_AND_ASSIGN(BackgroundReaper);
+};
+
+}  // namespace
+
+void EnsureProcessTerminated(ProcessHandle process) {
+  // If the child is already dead, then there's nothing to do.
+  if (IsChildDead(process))
+    return;
+
+  const unsigned timeout = 2;  // seconds
+  BackgroundReaper* reaper = new BackgroundReaper(process, timeout);
+  PlatformThread::CreateNonJoinable(0, reaper);
+}
+
+void EnsureProcessGetsReaped(ProcessHandle process) {
+  // If the child is already dead, then there's nothing to do.
+  if (IsChildDead(process))
+    return;
+
+  BackgroundReaper* reaper = new BackgroundReaper(process, 0);
+  PlatformThread::CreateNonJoinable(0, reaper);
+}
+
+#endif  // !defined(OS_MACOSX)
 
 }  // namespace base

@@ -281,21 +281,3 @@ TEST(EncryptorTest, EmptyEncrypt) {
   EXPECT_EQ(expected_ciphertext_hex, base::HexEncode(ciphertext.data(),
                                                      ciphertext.size()));
 }
-
-TEST(EncryptorTest, EmptyDecrypt) {
-  std::string key = "128=SixteenBytes";
-  std::string iv = "Sweet Sixteen IV";
-
-  scoped_ptr<crypto::SymmetricKey> sym_key(crypto::SymmetricKey::Import(
-      crypto::SymmetricKey::AES, key));
-  ASSERT_TRUE(NULL != sym_key.get());
-
-  crypto::Encryptor encryptor;
-  // The IV must be exactly as long a the cipher block size.
-  EXPECT_EQ(16U, iv.size());
-  EXPECT_TRUE(encryptor.Init(sym_key.get(), crypto::Encryptor::CBC, iv));
-
-  std::string decrypted;
-  EXPECT_FALSE(encryptor.Decrypt("", &decrypted));
-  EXPECT_EQ("", decrypted);
-}

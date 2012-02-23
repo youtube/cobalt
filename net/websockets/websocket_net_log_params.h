@@ -19,12 +19,12 @@
 
 namespace net {
 
-class NET_TEST NetLogWebSocketHandshakeParameter
+class NET_EXPORT_PRIVATE NetLogWebSocketHandshakeParameter
     : public NetLog::EventParameters {
  public:
   explicit NetLogWebSocketHandshakeParameter(const std::string& headers);
 
-  virtual Value* ToValue() const;
+  virtual Value* ToValue() const OVERRIDE;
 
  private:
   virtual ~NetLogWebSocketHandshakeParameter();

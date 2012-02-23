@@ -20,11 +20,6 @@
 #include "base/string16.h"
 #include "base/string_piece.h"  // For implicit conversions.
 
-// TODO(brettw) remove this dependency. Previously StringPrintf lived in this
-// file. We need to convert the callers over to using stringprintf.h instead
-// and then remove this.
-#include "base/stringprintf.h"
-
 // Safe standard library wrappers for all platforms.
 
 namespace base {
@@ -178,9 +173,9 @@ BASE_EXPORT extern const char kWhitespaceASCII[];
 
 BASE_EXPORT extern const char kUtf8ByteOrderMark[];
 
-// Removes characters in remove_chars from anywhere in input.  Returns true if
-// any characters were removed.
-// NOTE: Safe to use the same variable for both input and output.
+// Removes characters in |remove_chars| from anywhere in |input|.  Returns true
+// if any characters were removed.  |remove_chars| must be null-terminated.
+// NOTE: Safe to use the same variable for both |input| and |output|.
 BASE_EXPORT bool RemoveChars(const string16& input,
                              const char16 remove_chars[],
                              string16* output);
@@ -188,8 +183,23 @@ BASE_EXPORT bool RemoveChars(const std::string& input,
                              const char remove_chars[],
                              std::string* output);
 
-// Removes characters in trim_chars from the beginning and end of input.
-// NOTE: Safe to use the same variable for both input and output.
+// Replaces characters in |replace_chars| from anywhere in |input| with
+// |replace_with|.  Each character in |replace_chars| will be replaced with
+// the |replace_with| string.  Returns true if any characters were replaced.
+// |replace_chars| must be null-terminated.
+// NOTE: Safe to use the same variable for both |input| and |output|.
+BASE_EXPORT bool ReplaceChars(const string16& input,
+                              const char16 replace_chars[],
+                              const string16& replace_with,
+                              string16* output);
+BASE_EXPORT bool ReplaceChars(const std::string& input,
+                              const char replace_chars[],
+                              const std::string& replace_with,
+                              std::string* output);
+
+// Removes characters in |trim_chars| from the beginning and end of |input|.
+// |trim_chars| must be null-terminated.
+// NOTE: Safe to use the same variable for both |input| and |output|.
 BASE_EXPORT bool TrimString(const std::wstring& input,
                             const wchar_t trim_chars[],
                             std::wstring* output);
@@ -447,24 +457,30 @@ BASE_EXPORT void ReplaceSubstringsAfterOffset(
     const std::string& find_this,
     const std::string& replace_with);
 
-// This is mpcomplete's pattern for saving a string copy when dealing with
-// a function that writes results into a wchar_t[] and wanting the result to
-// end up in a std::wstring.  It ensures that the std::wstring's internal
-// buffer has enough room to store the characters to be written into it, and
-// sets its .length() attribute to the right value.
+// Reserves enough memory in |str| to accommodate |length_with_null| characters,
+// sets the size of |str| to |length_with_null - 1| characters, and returns a
+// pointer to the underlying contiguous array of characters.  This is typically
+// used when calling a function that writes results into a character array, but
+// the caller wants the data to be managed by a string-like object.  It is
+// convenient in that is can be used inline in the call, and fast in that it
+// avoids copying the results of the call from a char* into a string.
 //
-// The reserve() call allocates the memory required to hold the string
-// plus a terminating null.  This is done because resize() isn't
-// guaranteed to reserve space for the null.  The resize() call is
-// simply the only way to change the string's 'length' member.
+// |length_with_null| must be at least 2, since otherwise the underlying string
+// would have size 0, and trying to access &((*str)[0]) in that case can result
+// in a number of problems.
 //
-// XXX-performance: the call to wide.resize() takes linear time, since it fills
-// the string's buffer with nulls.  I call it to change the length of the
-// string (needed because writing directly to the buffer doesn't do this).
-// Perhaps there's a constant-time way to change the string's length.
+// Internally, this takes linear time because the resize() call 0-fills the
+// underlying array for potentially all
+// (|length_with_null - 1| * sizeof(string_type::value_type)) bytes.  Ideally we
+// could avoid this aspect of the resize() call, as we expect the caller to
+// immediately write over this memory, but there is no other way to set the size
+// of the string, and not doing that will mean people who access |str| rather
+// than str.c_str() will get back a string of whatever size |str| had on entry
+// to this function (probably 0).
 template <class string_type>
 inline typename string_type::value_type* WriteInto(string_type* str,
                                                    size_t length_with_null) {
+  DCHECK_GT(length_with_null, 1u);
   str->reserve(length_with_null);
   str->resize(length_with_null - 1);
   return &((*str)[0]);

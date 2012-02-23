@@ -4,6 +4,8 @@
 
 #include "net/http/http_auth_handler_negotiate.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
@@ -20,6 +22,7 @@ namespace net {
 HttpAuthHandlerNegotiate::Factory::Factory()
     : disable_cname_lookup_(false),
       use_port_(false),
+      resolver_(NULL),
 #if defined(OS_WIN)
       max_token_length_(0),
       first_creation_(true),
@@ -101,12 +104,9 @@ HttpAuthHandlerNegotiate::HttpAuthHandlerNegotiate(
 #endif
       disable_cname_lookup_(disable_cname_lookup),
       use_port_(use_port),
-      ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(
-          this, &HttpAuthHandlerNegotiate::OnIOComplete)),
       resolver_(resolver),
       already_called_(false),
-      has_username_and_password_(false),
-      user_callback_(NULL),
+      has_credentials_(false),
       auth_token_(NULL),
       next_state_(STATE_NONE),
       url_security_manager_(url_security_manager) {
@@ -182,6 +182,10 @@ bool HttpAuthHandlerNegotiate::AllowsDefaultCredentials() {
   return url_security_manager_->CanUseDefaultCredentials(origin_);
 }
 
+bool HttpAuthHandlerNegotiate::AllowsExplicitCredentials() {
+  return auth_system_.AllowsExplicitCredentials();
+}
+
 // The Negotiate challenge header looks like:
 //   WWW-Authenticate: NEGOTIATE auth-data
 bool HttpAuthHandlerNegotiate::Init(HttpAuth::ChallengeTokenizer* challenge) {
@@ -208,32 +212,26 @@ bool HttpAuthHandlerNegotiate::Init(HttpAuth::ChallengeTokenizer* challenge) {
 }
 
 int HttpAuthHandlerNegotiate::GenerateAuthTokenImpl(
-    const string16* username,
-    const string16* password,
-    const HttpRequestInfo* request,
-    CompletionCallback* callback,
-    std::string* auth_token) {
-  DCHECK(user_callback_ == NULL);
-  DCHECK((username == NULL) == (password == NULL));
+    const AuthCredentials* credentials, const HttpRequestInfo* request,
+    const CompletionCallback& callback, std::string* auth_token) {
+  DCHECK(callback_.is_null());
   DCHECK(auth_token_ == NULL);
   auth_token_ = auth_token;
   if (already_called_) {
-    DCHECK((!has_username_and_password_ && username == NULL) ||
-           (has_username_and_password_ && *username == username_ &&
-            *password == password_));
+    DCHECK((!has_credentials_ && credentials == NULL) ||
+           (has_credentials_ && credentials->Equals(credentials_)));
     next_state_ = STATE_GENERATE_AUTH_TOKEN;
   } else {
     already_called_ = true;
-    if (username) {
-      has_username_and_password_ = true;
-      username_ = *username;
-      password_ = *password;
+    if (credentials) {
+      has_credentials_ = true;
+      credentials_ = *credentials;
     }
     next_state_ = STATE_RESOLVE_CANONICAL_NAME;
   }
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING)
-    user_callback_ = callback;
+    callback_ = callback;
   return rv;
 }
 
@@ -245,10 +243,10 @@ void HttpAuthHandlerNegotiate::OnIOComplete(int result) {
 
 void HttpAuthHandlerNegotiate::DoCallback(int rv) {
   DCHECK(rv != ERR_IO_PENDING);
-  DCHECK(user_callback_);
-  CompletionCallback* callback = user_callback_;
-  user_callback_ = NULL;
-  callback->Run(rv);
+  DCHECK(!callback_.is_null());
+  CompletionCallback callback = callback_;
+  callback_.Reset();
+  callback.Run(rv);
 }
 
 int HttpAuthHandlerNegotiate::DoLoop(int result) {
@@ -293,8 +291,11 @@ int HttpAuthHandlerNegotiate::DoResolveCanonicalName() {
   HostResolver::RequestInfo info(HostPortPair(origin_.host(), 0));
   info.set_host_resolver_flags(HOST_RESOLVER_CANONNAME);
   single_resolve_.reset(new SingleRequestHostResolver(resolver_));
-  return single_resolve_->Resolve(info, &address_list_, &io_callback_,
-                                  net_log_);
+  return single_resolve_->Resolve(
+      info, &address_list_,
+      base::Bind(&HttpAuthHandlerNegotiate::OnIOComplete,
+                 base::Unretained(this)),
+      net_log_);
 }
 
 int HttpAuthHandlerNegotiate::DoResolveCanonicalNameComplete(int rv) {
@@ -315,10 +316,9 @@ int HttpAuthHandlerNegotiate::DoResolveCanonicalNameComplete(int rv) {
 
 int HttpAuthHandlerNegotiate::DoGenerateAuthToken() {
   next_state_ = STATE_GENERATE_AUTH_TOKEN_COMPLETE;
-  string16* username = has_username_and_password_ ? &username_ : NULL;
-  string16* password = has_username_and_password_ ? &password_ : NULL;
+  AuthCredentials* credentials = has_credentials_ ? &credentials_ : NULL;
   // TODO(cbentzel): This should possibly be done async.
-  return auth_system_.GenerateAuthToken(username, password, spn_, auth_token_);
+  return auth_system_.GenerateAuthToken(credentials, spn_, auth_token_);
 }
 
 int HttpAuthHandlerNegotiate::DoGenerateAuthTokenComplete(int rv) {

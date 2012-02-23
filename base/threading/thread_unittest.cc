@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 
 #include <vector>
 
+#include "base/bind.h"
 #include "base/message_loop.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -17,37 +18,25 @@ typedef PlatformTest ThreadTest;
 
 namespace {
 
-class ToggleValue : public Task {
- public:
-  explicit ToggleValue(bool* value) : value_(value) {
-    ANNOTATE_BENIGN_RACE(value, "Test-only data race on boolean "
-                         "in base/thread_unittest");
-  }
-  virtual void Run() {
-    *value_ = !*value_;
-  }
- private:
-  bool* value_;
-};
-
-class SleepSome : public Task {
- public:
-  explicit SleepSome(int msec) : msec_(msec) {
-  }
-  virtual void Run() {
-    base::PlatformThread::Sleep(msec_);
-  }
- private:
-  int msec_;
-};
+void ToggleValue(bool* value) {
+  ANNOTATE_BENIGN_RACE(value, "Test-only data race on boolean "
+                       "in base/thread_unittest");
+  *value = !*value;
+}
 
 class SleepInsideInitThread : public Thread {
  public:
-  SleepInsideInitThread() : Thread("none") { init_called_ = false; }
-  virtual ~SleepInsideInitThread() { }
+  SleepInsideInitThread() : Thread("none") {
+    init_called_ = false;
+    ANNOTATE_BENIGN_RACE(
+        this, "Benign test-only data race on vptr - http://crbug.com/98219");
+  }
+  virtual ~SleepInsideInitThread() {
+    Stop();
+  }
 
   virtual void Init() {
-    base::PlatformThread::Sleep(500);
+    base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(500));
     init_called_ = true;
   }
   bool InitCalled() { return init_called_; }
@@ -81,7 +70,6 @@ class CaptureToEventList : public Thread {
   }
 
   virtual ~CaptureToEventList() {
-    // Must call Stop() manually to have our CleanUp() function called.
     Stop();
   }
 
@@ -117,21 +105,9 @@ class CapturingDestructionObserver : public MessageLoop::DestructionObserver {
 };
 
 // Task that adds a destruction observer to the current message loop.
-class RegisterDestructionObserver : public Task {
- public:
-  explicit RegisterDestructionObserver(
-      MessageLoop::DestructionObserver* observer)
-      : observer_(observer) {
-  }
-
-  virtual void Run() {
-    MessageLoop::current()->AddDestructionObserver(observer_);
-    observer_ = NULL;
-  }
-
- private:
-  MessageLoop::DestructionObserver* observer_;
-};
+void RegisterDestructionObserver(MessageLoop::DestructionObserver* observer) {
+  MessageLoop::current()->AddDestructionObserver(observer);
+}
 
 }  // namespace
 
@@ -168,13 +144,13 @@ TEST_F(ThreadTest, StartWithOptions_StackSize) {
   EXPECT_TRUE(a.IsRunning());
 
   bool was_invoked = false;
-  a.message_loop()->PostTask(FROM_HERE, new ToggleValue(&was_invoked));
+  a.message_loop()->PostTask(FROM_HERE, base::Bind(&ToggleValue, &was_invoked));
 
   // wait for the task to run (we could use a kernel event here
   // instead to avoid busy waiting, but this is sufficient for
   // testing purposes).
   for (int i = 100; i >= 0 && !was_invoked; --i) {
-    base::PlatformThread::Sleep(10);
+    base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(10));
   }
   EXPECT_TRUE(was_invoked);
 }
@@ -189,8 +165,14 @@ TEST_F(ThreadTest, TwoTasks) {
     // Test that all events are dispatched before the Thread object is
     // destroyed.  We do this by dispatching a sleep event before the
     // event that will toggle our sentinel value.
-    a.message_loop()->PostTask(FROM_HERE, new SleepSome(20));
-    a.message_loop()->PostTask(FROM_HERE, new ToggleValue(&was_invoked));
+    a.message_loop()->PostTask(
+        FROM_HERE,
+        base::Bind(
+            static_cast<void (*)(base::TimeDelta)>(
+                &base::PlatformThread::Sleep),
+            base::TimeDelta::FromMilliseconds(20)));
+    a.message_loop()->PostTask(FROM_HERE, base::Bind(&ToggleValue,
+                                                     &was_invoked));
   }
   EXPECT_TRUE(was_invoked);
 }
@@ -240,8 +222,8 @@ TEST_F(ThreadTest, CleanUp) {
     // Register an observer that writes into |captured_events| once the
     // thread's message loop is destroyed.
     t.message_loop()->PostTask(
-        FROM_HERE,
-        new RegisterDestructionObserver(&loop_destruction_observer));
+        FROM_HERE, base::Bind(&RegisterDestructionObserver,
+                              base::Unretained(&loop_destruction_observer)));
 
     // Upon leaving this scope, the thread is deleted.
   }

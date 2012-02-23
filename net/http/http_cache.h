@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,12 +25,12 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop_proxy.h"
-#include "base/task.h"
+#include "base/time.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/cache_type.h"
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/http/http_transaction_factory.h"
 
 class GURL;
@@ -43,23 +43,24 @@ class Entry;
 namespace net {
 
 class CertVerifier;
-class DnsCertProvenanceChecker;
-class DnsRRResolver;
 class HostResolver;
 class HttpAuthHandlerFactory;
 class HttpNetworkSession;
-struct HttpRequestInfo;
 class HttpResponseInfo;
+class HttpServerProperties;
 class IOBuffer;
 class NetLog;
 class NetworkDelegate;
+class OriginBoundCertService;
 class ProxyService;
 class SSLConfigService;
+class TransportSecurityState;
 class ViewCacheHelper;
+struct HttpRequestInfo;
 
-class NET_API HttpCache : public HttpTransactionFactory,
-                          public base::SupportsWeakPtr<HttpCache>,
-                          NON_EXPORTED_BASE(public base::NonThreadSafe) {
+class NET_EXPORT HttpCache : public HttpTransactionFactory,
+                             public base::SupportsWeakPtr<HttpCache>,
+                             NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   // The cache mode of operation.
   enum Mode {
@@ -76,7 +77,7 @@ class NET_API HttpCache : public HttpTransactionFactory,
   };
 
   // A BackendFactory creates a backend object to be used by the HttpCache.
-  class NET_API BackendFactory {
+  class NET_EXPORT BackendFactory {
    public:
     virtual ~BackendFactory() {}
 
@@ -88,11 +89,11 @@ class NET_API HttpCache : public HttpTransactionFactory,
     // |callback| because the object can be deleted from within the callback.
     virtual int CreateBackend(NetLog* net_log,
                               disk_cache::Backend** backend,
-                              CompletionCallback* callback) = 0;
+                              const CompletionCallback& callback) = 0;
   };
 
   // A default backend factory for the common use cases.
-  class NET_API DefaultBackend : public BackendFactory {
+  class NET_EXPORT DefaultBackend : public BackendFactory {
    public:
     // |path| is the destination for any files used by the backend, and
     // |cache_thread| is the thread where disk operations should take place. If
@@ -107,7 +108,7 @@ class NET_API HttpCache : public HttpTransactionFactory,
     // BackendFactory implementation.
     virtual int CreateBackend(NetLog* net_log,
                               disk_cache::Backend** backend,
-                              CompletionCallback* callback);
+                              const CompletionCallback& callback) OVERRIDE;
 
    private:
     CacheType type_;
@@ -120,12 +121,14 @@ class NET_API HttpCache : public HttpTransactionFactory,
   // The HttpCache takes ownership of the |backend_factory|.
   HttpCache(HostResolver* host_resolver,
             CertVerifier* cert_verifier,
-            DnsRRResolver* dnsrr_resolver,
-            DnsCertProvenanceChecker* dns_cert_checker,
+            OriginBoundCertService* origin_bound_cert_service,
+            TransportSecurityState* transport_security_state,
             ProxyService* proxy_service,
+            const std::string& ssl_session_cache_shard,
             SSLConfigService* ssl_config_service,
             HttpAuthHandlerFactory* http_auth_handler_factory,
             NetworkDelegate* network_delegate,
+            HttpServerProperties* http_server_properties,
             NetLog* net_log,
             BackendFactory* backend_factory);
 
@@ -153,10 +156,11 @@ class NET_API HttpCache : public HttpTransactionFactory,
   // a network error code, and it could be ERR_IO_PENDING, in which case the
   // |callback| will be notified when the operation completes. The pointer that
   // receives the |backend| must remain valid until the operation completes.
-  int GetBackend(disk_cache::Backend** backend, CompletionCallback* callback);
+  int GetBackend(disk_cache::Backend** backend,
+                 const net::CompletionCallback& callback);
 
   // Returns the current backend (can be NULL).
-  disk_cache::Backend* GetCurrentBackend();
+  disk_cache::Backend* GetCurrentBackend() const;
 
   // Given a header data blob, convert it to a response info object.
   static bool ParseResponseInfo(const char* data, int len,
@@ -179,14 +183,17 @@ class NET_API HttpCache : public HttpTransactionFactory,
   // immediately, but they will not be reusable. This is for debugging.
   void CloseAllConnections();
 
+  // Close all idle connections. Will close all sockets not in active use.
+  void CloseIdleConnections();
+
   // Called whenever an external cache in the system reuses the resource
   // referred to by |url| and |http_method|.
   void OnExternalCacheHit(const GURL& url, const std::string& http_method);
 
   // HttpTransactionFactory implementation:
-  virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans);
-  virtual HttpCache* GetCache();
-  virtual HttpNetworkSession* GetSession();
+  virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans) OVERRIDE;
+  virtual HttpCache* GetCache() OVERRIDE;
+  virtual HttpNetworkSession* GetSession() OVERRIDE;
 
  protected:
   // Disk cache entry data indices.
@@ -203,7 +210,6 @@ class NET_API HttpCache : public HttpTransactionFactory,
  private:
   // Types --------------------------------------------------------------------
 
-  class BackendCallback;
   class MetadataWriter;
   class SSLHostInfoFactoryAdaptor;
   class Transaction;
@@ -236,7 +242,7 @@ class NET_API HttpCache : public HttpTransactionFactory,
   // Creates the |backend| object and notifies the |callback| when the operation
   // completes. Returns an error code.
   int CreateBackend(disk_cache::Backend** backend,
-                    CompletionCallback* callback);
+                    const net::CompletionCallback& callback);
 
   // Makes sure that the backend creation is complete before allowing the
   // provided transaction to use the object. Returns an error code.  |trans|
@@ -247,6 +253,10 @@ class NET_API HttpCache : public HttpTransactionFactory,
 
   // Generates the cache key for this request.
   std::string GenerateCacheKey(const HttpRequestInfo*);
+
+  // Dooms the entry selected by |key|, if it is currently in the list of active
+  // entries.
+  void DoomActiveEntry(const std::string& key);
 
   // Dooms the entry selected by |key|. |trans| will be notified via its IO
   // callback if this method returns ERR_IO_PENDING. The entry can be
@@ -308,14 +318,14 @@ class NET_API HttpCache : public HttpTransactionFactory,
   // to completion.
   void DoneWithEntry(ActiveEntry* entry, Transaction* trans, bool cancel);
 
-  // Called when the transaction has finished writting to this entry. |success|
+  // Called when the transaction has finished writing to this entry. |success|
   // is false if the cache entry should be deleted.
   void DoneWritingToEntry(ActiveEntry* entry, bool success);
 
   // Called when the transaction has finished reading from this entry.
   void DoneReadingFromEntry(ActiveEntry* entry, Transaction* trans);
 
-  // Convers the active writter transaction to a reader so that other
+  // Converts the active writer transaction to a reader so that other
   // transactions can start reading from this entry.
   void ConvertWriterToReader(ActiveEntry* entry);
 
@@ -346,6 +356,16 @@ class NET_API HttpCache : public HttpTransactionFactory,
   // Processes BackendCallback notifications.
   void OnIOComplete(int result, PendingOp* entry);
 
+  // Helper to conditionally delete |pending_op| if the HttpCache object it
+  // is meant for has been deleted.
+  //
+  // TODO(ajwong): The PendingOp lifetime management is very tricky.  It might
+  // be possible to simplify it using either base::Owned() or base::Passed()
+  // with the callback.
+  static void OnPendingOpComplete(const base::WeakPtr<HttpCache>& cache,
+                                  PendingOp* pending_op,
+                                  int result);
+
   // Processes the backend creation notification.
   void OnBackendCreated(int result, PendingOp* pending_op);
 
@@ -372,8 +392,6 @@ class NET_API HttpCache : public HttpTransactionFactory,
 
   // The set of entries "under construction".
   PendingOpsMap pending_ops_;
-
-  ScopedRunnableMethodFactory<HttpCache> task_factory_;
 
   scoped_ptr<PlaybackCacheMap> playback_cache_map_;
 

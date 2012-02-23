@@ -11,8 +11,10 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
+#include "sql/sql_export.h"
 
 class FilePath;
 struct sqlite3;
@@ -76,7 +78,7 @@ class Connection;
 // the OnError() callback.
 // The tipical usage is to centralize the code designed to handle database
 // corruption, low-level IO errors or locking violations.
-class ErrorDelegate : public base::RefCounted<ErrorDelegate> {
+class SQL_EXPORT ErrorDelegate : public base::RefCounted<ErrorDelegate> {
  public:
   ErrorDelegate();
 
@@ -99,7 +101,7 @@ class ErrorDelegate : public base::RefCounted<ErrorDelegate> {
   virtual ~ErrorDelegate();
 };
 
-class Connection {
+class SQL_EXPORT Connection {
  private:
   class StatementRef;  // Forward declaration, see real one below.
 
@@ -148,12 +150,12 @@ class Connection {
 
   // Initializes the SQL connection for the given file, returning true if the
   // file could be opened. You can call this or OpenInMemory.
-  bool Open(const FilePath& path);
+  bool Open(const FilePath& path) WARN_UNUSED_RESULT;
 
   // Initializes the SQL connection for a temporary in-memory database. There
   // will be no associated file on disk, and the initial database will be
   // empty. You can call this or Open.
-  bool OpenInMemory();
+  bool OpenInMemory() WARN_UNUSED_RESULT;
 
   // Returns trie if the database has been successfully opened.
   bool is_open() const { return !!db_; }
@@ -203,7 +205,15 @@ class Connection {
   // Executes the given SQL string, returning true on success. This is
   // normally used for simple, 1-off statements that don't take any bound
   // parameters and don't return any data (e.g. CREATE TABLE).
-  bool Execute(const char* sql);
+  //
+  // This will DCHECK if the |sql| contains errors.
+  //
+  // Do not use ignore_result() to ignore all errors.  Use
+  // ExecuteAndReturnErrorCode() and ignore only specific errors.
+  bool Execute(const char* sql) WARN_UNUSED_RESULT;
+
+  // Like Execute(), but returns the error code given by SQLite.
+  int ExecuteAndReturnErrorCode(const char* sql) WARN_UNUSED_RESULT;
 
   // Returns true if we have a statement with the given identifier already
   // cached. This is normally not necessary to call, but can be useful if the
@@ -216,8 +226,10 @@ class Connection {
   // keeping commonly-used ones around for future use is important for
   // performance.
   //
-  // The SQL may have an error, so the caller must check validity of the
-  // statement before using it.
+  // If the |sql| has an error, an invalid, inert StatementRef is returned (and
+  // the code will crash in debug). The caller must deal with this eventuality,
+  // either by checking validity of the |sql| before calling, by correctly
+  // handling the return of an inert statement, or both.
   //
   // The StatementID and the SQL must always correspond to one-another. The
   // ID is the lookup into the cache, so crazy things will happen if you use
@@ -235,6 +247,10 @@ class Connection {
   scoped_refptr<StatementRef> GetCachedStatement(const StatementID& id,
                                                  const char* sql);
 
+  // Used to check a |sql| statement for syntactic validity. If the statement is
+  // valid SQL, returns true.
+  bool IsSQLValid(const char* sql);
+
   // Returns a non-cached statement for the given SQL. Use this for SQL that
   // is only executed once or only rarely (there is overhead associated with
   // keeping a statement cached).
@@ -246,6 +262,9 @@ class Connection {
 
   // Returns true if the given table exists.
   bool DoesTableExist(const char* table_name) const;
+
+  // Returns true if the given index exists.
+  bool DoesIndexExist(const char* index_name) const;
 
   // Returns true if a column with the given name exists in the given table.
   bool DoesColumnExist(const char* table_name, const char* column_name) const;
@@ -273,7 +292,7 @@ class Connection {
   const char* GetErrorMessage() const;
 
  private:
-  // Statement access StatementRef which we don't want to expose to erverybody
+  // Statement accesses StatementRef which we don't want to expose to everybody
   // (they should go through Statement).
   friend class Statement;
 
@@ -281,6 +300,9 @@ class Connection {
   // name is always 8 bits since we want to use the 8-bit version of
   // sqlite3_open. The string can also be sqlite's special ":memory:" string.
   bool OpenInternal(const std::string& file_name);
+
+  // Internal helper for DoesTableExist and DoesIndexExist.
+  bool DoesTableOrIndexExist(const char* name, const char* type) const;
 
   // A StatementRef is a refcounted wrapper around a sqlite statement pointer.
   // Refcounting allows us to give these statements out to sql::Statement
@@ -293,7 +315,7 @@ class Connection {
   //
   // The Connection may revoke a StatementRef in some error cases, so callers
   // should always check validity before using.
-  class StatementRef : public base::RefCounted<StatementRef> {
+  class SQL_EXPORT StatementRef : public base::RefCounted<StatementRef> {
    public:
     // Default constructor initializes to an invalid statement.
     StatementRef();
@@ -343,7 +365,8 @@ class Connection {
   int OnSqliteError(int err, Statement* stmt);
 
   // Like |Execute()|, but retries if the database is locked.
-  bool ExecuteWithTimeout(const char* sql, base::TimeDelta ms_timeout);
+  bool ExecuteWithTimeout(const char* sql, base::TimeDelta ms_timeout)
+      WARN_UNUSED_RESULT;
 
   // The actual sqlite database. Will be NULL before Init has been called or if
   // Init resulted in an error.

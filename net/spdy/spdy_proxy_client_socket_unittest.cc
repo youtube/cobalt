@@ -1,9 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/spdy/spdy_proxy_client_socket.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/address_list.h"
 #include "net/base/net_log.h"
@@ -40,7 +42,7 @@ static const int kStreamId = 1;
 
 static const char kMsg1[] = "\0hello!\xff";
 static const int kLen1 = 8;
-static const char kMsg2[] = "\012345678\0";
+static const char kMsg2[] = "\00012345678\0";
 static const int kLen2 = 10;
 static const char kMsg3[] = "bye!";
 static const int kLen3 = 4;
@@ -89,8 +91,7 @@ class SpdyProxyClientSocketTest : public PlatformTest {
                                      "MyRealm1",
                                      HttpAuth::AUTH_SCHEME_BASIC,
                                      "Basic realm=MyRealm1",
-                                     kFoo,
-                                     kBar,
+                                     AuthCredentials(kFoo, kBar),
                                      "/");
   }
 
@@ -126,13 +127,11 @@ class SpdyProxyClientSocketTest : public PlatformTest {
 
 SpdyProxyClientSocketTest::SpdyProxyClientSocketTest()
     : sock_(NULL),
-      read_callback_(),
-      write_callback_(),
       data_(NULL),
       session_(NULL),
       read_buf_(NULL),
       session_deps_(),
-      connect_data_(false, OK),
+      connect_data_(SYNCHRONOUS, OK),
       spdy_session_(NULL),
       spdy_stream_(NULL),
       framer_(),
@@ -144,12 +143,12 @@ SpdyProxyClientSocketTest::SpdyProxyClientSocketTest()
       endpoint_host_port_proxy_pair_(endpoint_host_port_pair_, proxy_),
       transport_params_(new TransportSocketParams(proxy_host_port_,
                                             LOWEST,
-                                            url_,
                                             false,
                                             false)) {
 }
 
 void SpdyProxyClientSocketTest::TearDown() {
+  sock_.reset(NULL);
   if (session_ != NULL)
     session_->spdy_session_pool()->CloseAllSessions();
 
@@ -185,8 +184,8 @@ void SpdyProxyClientSocketTest::Initialize(MockRead* reads,
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK,
             connection->Init(endpoint_host_port_pair_.ToString(),
-                             transport_params_,
-                             LOWEST, NULL, session_->transport_socket_pool(),
+                             transport_params_, LOWEST, CompletionCallback(),
+                             session_->GetTransportSocketPool(),
                              BoundNetLog()));
   spdy_session_->InitializeWithSocket(connection.release(), false, OK);
 
@@ -194,7 +193,7 @@ void SpdyProxyClientSocketTest::Initialize(MockRead* reads,
   ASSERT_EQ(
       OK,
       spdy_session_->CreateStream(url_, LOWEST, &spdy_stream_, BoundNetLog(),
-                                  NULL));
+                                  CompletionCallback()));
 
   // Create the SpdyProxyClientSocket
   sock_.reset(
@@ -212,13 +211,13 @@ scoped_refptr<IOBufferWithSize> SpdyProxyClientSocketTest::CreateBuffer(
 }
 
 void SpdyProxyClientSocketTest::AssertConnectSucceeds() {
-  ASSERT_EQ(ERR_IO_PENDING, sock_->Connect(&read_callback_));
+  ASSERT_EQ(ERR_IO_PENDING, sock_->Connect(read_callback_.callback()));
   data_->Run();
   ASSERT_EQ(OK, read_callback_.WaitForResult());
 }
 
 void SpdyProxyClientSocketTest::AssertConnectFails(int result) {
-  ASSERT_EQ(ERR_IO_PENDING, sock_->Connect(&read_callback_));
+  ASSERT_EQ(ERR_IO_PENDING, sock_->Connect(read_callback_.callback()));
   data_->Run();
   ASSERT_EQ(result, read_callback_.WaitForResult());
 }
@@ -233,7 +232,7 @@ void SpdyProxyClientSocketTest::AssertConnectionEstablished() {
 void SpdyProxyClientSocketTest::AssertSyncReadEquals(const char* data,
                                                      int len) {
   scoped_refptr<IOBuffer> buf(new IOBuffer(len));
-  ASSERT_EQ(len, sock_->Read(buf, len, NULL));
+  ASSERT_EQ(len, sock_->Read(buf, len, CompletionCallback()));
   ASSERT_EQ(std::string(data, len), std::string(buf->data(), len));
   ASSERT_TRUE(sock_->IsConnected());
 }
@@ -243,7 +242,7 @@ void SpdyProxyClientSocketTest::AssertAsyncReadEquals(const char* data,
   data_->StopAfter(1);
   // Issue the read, which will be completed asynchronously
   scoped_refptr<IOBuffer> buf(new IOBuffer(len));
-  ASSERT_EQ(ERR_IO_PENDING, sock_->Read(buf, len, &read_callback_));
+  ASSERT_EQ(ERR_IO_PENDING, sock_->Read(buf, len, read_callback_.callback()));
   EXPECT_TRUE(sock_->IsConnected());
   data_->Run();
 
@@ -258,7 +257,8 @@ void SpdyProxyClientSocketTest::AssertReadStarts(const char* data, int len) {
   data_->StopAfter(1);
   // Issue the read, which will be completed asynchronously
   read_buf_ = new IOBuffer(len);
-  ASSERT_EQ(ERR_IO_PENDING, sock_->Read(read_buf_, len, &read_callback_));
+  ASSERT_EQ(ERR_IO_PENDING,
+            sock_->Read(read_buf_, len, read_callback_.callback()));
   EXPECT_TRUE(sock_->IsConnected());
 }
 
@@ -280,7 +280,7 @@ void SpdyProxyClientSocketTest::AssertAsyncWriteSucceeds(const char* data,
 void SpdyProxyClientSocketTest::AssertWriteReturns(const char* data, int len,
                                                    int rv) {
   scoped_refptr<IOBufferWithSize> buf(CreateBuffer(data, len));
-  EXPECT_EQ(rv, sock_->Write(buf, buf->size(), &write_callback_));
+  EXPECT_EQ(rv, sock_->Write(buf, buf->size(), write_callback_.callback()));
 }
 
 void SpdyProxyClientSocketTest::AssertWriteLength(int len) {
@@ -291,7 +291,8 @@ void SpdyProxyClientSocketTest::AssertAsyncWriteWithReadsSucceeds(
     const char* data, int len, int num_reads) {
   scoped_refptr<IOBufferWithSize> buf(CreateBuffer(data, len));
 
-  EXPECT_EQ(ERR_IO_PENDING, sock_->Write(buf, buf->size(), &write_callback_));
+  EXPECT_EQ(ERR_IO_PENDING, sock_->Write(buf, buf->size(),
+                                         write_callback_.callback()));
 
   for (int i = 0; i < num_reads; i++) {
     Run(1);
@@ -544,7 +545,13 @@ TEST_F(SpdyProxyClientSocketTest, GetPeerAddressReturnsCorrectValues) {
   EXPECT_TRUE(sock_->IsConnected());
   EXPECT_EQ(OK, sock_->GetPeerAddress(&addr));
 
+  Run(1);
+
+  EXPECT_FALSE(sock_->IsConnected());
+  EXPECT_EQ(ERR_SOCKET_NOT_CONNECTED, sock_->GetPeerAddress(&addr));
+
   sock_->Disconnect();
+
   EXPECT_EQ(ERR_SOCKET_NOT_CONNECTED, sock_->GetPeerAddress(&addr));
 }
 
@@ -600,7 +607,8 @@ TEST_F(SpdyProxyClientSocketTest, WriteSplitsLargeDataIntoMultipleFrames) {
   scoped_refptr<IOBufferWithSize> buf(CreateBuffer(big_data.data(),
                                                    big_data.length()));
 
-  EXPECT_EQ(ERR_IO_PENDING, sock_->Write(buf, buf->size(), &write_callback_));
+  EXPECT_EQ(ERR_IO_PENDING, sock_->Write(buf, buf->size(),
+                                         write_callback_.callback()));
   data_->RunFor(3);
 
   EXPECT_EQ(buf->size(), write_callback_.WaitForResult());
@@ -800,7 +808,7 @@ TEST_F(SpdyProxyClientSocketTest, MultipleReadsFromSameLargeFrame) {
 
   // Now attempt to do a read of more data than remains buffered
   scoped_refptr<IOBuffer> buf(new IOBuffer(kLen33));
-  ASSERT_EQ(kLen3, sock_->Read(buf, kLen33, &read_callback_));
+  ASSERT_EQ(kLen3, sock_->Read(buf, kLen33, read_callback_.callback()));
   ASSERT_EQ(std::string(kMsg3, kLen3), std::string(buf->data(), kLen3));
   ASSERT_TRUE(sock_->IsConnected());
 }
@@ -853,10 +861,11 @@ TEST_F(SpdyProxyClientSocketTest, ReadErrorResponseBody) {
 
   Run(2);  // SpdySession consumes the next two reads and sends then to
            // sock_ to be buffered.
-  EXPECT_EQ(ERR_SOCKET_NOT_CONNECTED, sock_->Read(NULL, 1, NULL));
+  EXPECT_EQ(ERR_SOCKET_NOT_CONNECTED,
+            sock_->Read(NULL, 1, CompletionCallback()));
   scoped_refptr<IOBuffer> buf(new IOBuffer(kLen1 + kLen2));
   scoped_ptr<HttpStream> stream(sock_->CreateConnectResponseStream());
-  stream->ReadResponseBody(buf, kLen1 + kLen2, &read_callback_);
+  stream->ReadResponseBody(buf, kLen1 + kLen2, read_callback_.callback());
 }
 
 // ----------- Reads and Writes
@@ -954,9 +963,10 @@ TEST_F(SpdyProxyClientSocketTest, ReadOnClosedSocketReturnsZero) {
 
   Run(1);
 
-  ASSERT_EQ(0, sock_->Read(NULL, 1, NULL));
-  ASSERT_EQ(ERR_CONNECTION_CLOSED, sock_->Read(NULL, 1, NULL));
-  ASSERT_EQ(ERR_CONNECTION_CLOSED, sock_->Read(NULL, 1, NULL));
+  ASSERT_FALSE(sock_->IsConnected());
+  ASSERT_EQ(0, sock_->Read(NULL, 1, CompletionCallback()));
+  ASSERT_EQ(0, sock_->Read(NULL, 1, CompletionCallback()));
+  ASSERT_EQ(0, sock_->Read(NULL, 1, CompletionCallback()));
   ASSERT_FALSE(sock_->IsConnectedAndIdle());
 }
 
@@ -1003,7 +1013,8 @@ TEST_F(SpdyProxyClientSocketTest, ReadOnDisconnectSocketReturnsNotConnected) {
 
   sock_->Disconnect();
 
-  ASSERT_EQ(ERR_SOCKET_NOT_CONNECTED, sock_->Read(NULL, 1, NULL));
+  ASSERT_EQ(ERR_SOCKET_NOT_CONNECTED,
+            sock_->Read(NULL, 1, CompletionCallback()));
 }
 
 // Reading buffered data from an already closed socket should return
@@ -1028,11 +1039,16 @@ TEST_F(SpdyProxyClientSocketTest, ReadOnClosedSocketReturnsBufferedData) {
 
   Run(2);
 
-  AssertSyncReadEquals(kMsg1, kLen1);
-  ASSERT_EQ(0, sock_->Read(NULL, 1, NULL));
-  ASSERT_EQ(ERR_CONNECTION_CLOSED, sock_->Read(NULL, 1, NULL));
-  // Verify that read *still* returns ERR_CONNECTION_CLOSED
-  ASSERT_EQ(ERR_CONNECTION_CLOSED, sock_->Read(NULL, 1, NULL));
+  ASSERT_FALSE(sock_->IsConnected());
+  scoped_refptr<IOBuffer> buf(new IOBuffer(kLen1));
+  ASSERT_EQ(kLen1, sock_->Read(buf, kLen1, CompletionCallback()));
+  ASSERT_EQ(std::string(kMsg1, kLen1), std::string(buf->data(), kLen1));
+
+  ASSERT_EQ(0, sock_->Read(NULL, 1, CompletionCallback()));
+  ASSERT_EQ(0, sock_->Read(NULL, 1, CompletionCallback()));
+  sock_->Disconnect();
+  ASSERT_EQ(ERR_SOCKET_NOT_CONNECTED,
+            sock_->Read(NULL, 1, CompletionCallback()));
 }
 
 // Calling Write() on a closed socket is an error
@@ -1055,7 +1071,8 @@ TEST_F(SpdyProxyClientSocketTest, WriteOnClosedStream) {
 
   Run(1);  // Read EOF which will close the stream
   scoped_refptr<IOBufferWithSize> buf(CreateBuffer(kMsg1, kLen1));
-  EXPECT_EQ(ERR_CONNECTION_CLOSED, sock_->Write(buf, buf->size(), NULL));
+  EXPECT_EQ(ERR_SOCKET_NOT_CONNECTED,
+            sock_->Write(buf, buf->size(), CompletionCallback()));
 }
 
 // Calling Write() on a disconnected socket is an error
@@ -1079,7 +1096,8 @@ TEST_F(SpdyProxyClientSocketTest, WriteOnDisconnectedSocket) {
   sock_->Disconnect();
 
   scoped_refptr<IOBufferWithSize> buf(CreateBuffer(kMsg1, kLen1));
-  EXPECT_EQ(ERR_SOCKET_NOT_CONNECTED, sock_->Write(buf, buf->size(), NULL));
+  EXPECT_EQ(ERR_SOCKET_NOT_CONNECTED,
+            sock_->Write(buf, buf->size(), CompletionCallback()));
 }
 
 // If the socket is closed with a pending Write(), the callback
@@ -1104,7 +1122,8 @@ TEST_F(SpdyProxyClientSocketTest, WritePendingOnClose) {
   EXPECT_TRUE(sock_->IsConnected());
 
   scoped_refptr<IOBufferWithSize> buf(CreateBuffer(kMsg1, kLen1));
-  EXPECT_EQ(ERR_IO_PENDING, sock_->Write(buf, buf->size(), &write_callback_));
+  EXPECT_EQ(ERR_IO_PENDING,
+            sock_->Write(buf, buf->size(), write_callback_.callback()));
 
   Run(1);
 
@@ -1133,7 +1152,8 @@ TEST_F(SpdyProxyClientSocketTest, DisconnectWithWritePending) {
   EXPECT_TRUE(sock_->IsConnected());
 
   scoped_refptr<IOBufferWithSize> buf(CreateBuffer(kMsg1, kLen1));
-  EXPECT_EQ(ERR_IO_PENDING, sock_->Write(buf, buf->size(), &write_callback_));
+  EXPECT_EQ(ERR_IO_PENDING,
+            sock_->Write(buf, buf->size(), write_callback_.callback()));
 
   sock_->Disconnect();
 
@@ -1162,12 +1182,119 @@ TEST_F(SpdyProxyClientSocketTest, DisconnectWithReadPending) {
   EXPECT_TRUE(sock_->IsConnected());
 
   scoped_refptr<IOBuffer> buf(new IOBuffer(kLen1));
-  ASSERT_EQ(ERR_IO_PENDING, sock_->Read(buf, kLen1, &read_callback_));
+  ASSERT_EQ(ERR_IO_PENDING,
+            sock_->Read(buf, kLen1, read_callback_.callback()));
 
   sock_->Disconnect();
 
   EXPECT_FALSE(sock_->IsConnected());
   EXPECT_FALSE(read_callback_.have_result());
+}
+
+// If the socket is Reset when both a read and write are pending,
+// both should be called back.
+TEST_F(SpdyProxyClientSocketTest, RstWithReadAndWritePending) {
+  scoped_ptr<spdy::SpdyFrame> conn(ConstructConnectRequestFrame());
+  MockWrite writes[] = {
+    CreateMockWrite(*conn, 0, false),
+    MockWrite(true, ERR_IO_PENDING, 2),
+  };
+
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructConnectReplyFrame());
+  scoped_ptr<spdy::SpdyFrame> rst(ConstructSpdyRstStream(1, spdy::CANCEL));
+  MockRead reads[] = {
+    CreateMockRead(*resp, 1, true),
+    CreateMockRead(*rst, 3, true),
+  };
+
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  AssertConnectSucceeds();
+
+  EXPECT_TRUE(sock_->IsConnected());
+
+  scoped_refptr<IOBuffer> read_buf(new IOBuffer(kLen1));
+  ASSERT_EQ(ERR_IO_PENDING,
+            sock_->Read(read_buf, kLen1, read_callback_.callback()));
+
+  scoped_refptr<IOBufferWithSize> write_buf(CreateBuffer(kMsg1, kLen1));
+  EXPECT_EQ(ERR_IO_PENDING,
+            sock_->Write(write_buf, write_buf->size(),
+                         write_callback_.callback()));
+
+  Run(2);
+
+  EXPECT_TRUE(sock_.get());
+  EXPECT_TRUE(read_callback_.have_result());
+  EXPECT_TRUE(write_callback_.have_result());
+}
+
+// CompletionCallback that causes the SpdyProxyClientSocket to be
+// deleted when Run is invoked.
+class DeleteSockCallback : public TestCompletionCallbackBase {
+ public:
+  explicit DeleteSockCallback(scoped_ptr<SpdyProxyClientSocket>* sock)
+    : sock_(sock),
+      ALLOW_THIS_IN_INITIALIZER_LIST(callback_(
+          base::Bind(&DeleteSockCallback::OnComplete,
+                     base::Unretained(this)))) {
+  }
+
+  virtual ~DeleteSockCallback() {
+  }
+
+  const CompletionCallback& callback() const { return callback_; }
+
+ private:
+  void OnComplete(int result) {
+    sock_->reset(NULL);
+    SetResult(result);
+  }
+
+  scoped_ptr<SpdyProxyClientSocket>* sock_;
+  CompletionCallback callback_;
+
+  DISALLOW_COPY_AND_ASSIGN(DeleteSockCallback);
+};
+
+// If the socket is Reset when both a read and write are pending, and the
+// read callback causes the socket to be deleted, the write callback should
+// not be called.
+TEST_F(SpdyProxyClientSocketTest, RstWithReadAndWritePendingDelete) {
+  scoped_ptr<spdy::SpdyFrame> conn(ConstructConnectRequestFrame());
+  MockWrite writes[] = {
+    CreateMockWrite(*conn, 0, false),
+    MockWrite(true, ERR_IO_PENDING, 2),
+  };
+
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructConnectReplyFrame());
+  scoped_ptr<spdy::SpdyFrame> rst(ConstructSpdyRstStream(1, spdy::CANCEL));
+  MockRead reads[] = {
+    CreateMockRead(*resp, 1, true),
+    CreateMockRead(*rst, 3, true),
+  };
+
+  Initialize(reads, arraysize(reads), writes, arraysize(writes));
+
+  AssertConnectSucceeds();
+
+  EXPECT_TRUE(sock_->IsConnected());
+
+  DeleteSockCallback read_callback(&sock_);
+
+  scoped_refptr<IOBuffer> read_buf(new IOBuffer(kLen1));
+  ASSERT_EQ(ERR_IO_PENDING,
+            sock_->Read(read_buf, kLen1, read_callback.callback()));
+
+  scoped_refptr<IOBufferWithSize> write_buf(CreateBuffer(kMsg1, kLen1));
+  EXPECT_EQ(ERR_IO_PENDING, sock_->Write(write_buf, write_buf->size(),
+                                         write_callback_.callback()));
+
+  Run(2);
+
+  EXPECT_FALSE(sock_.get());
+  EXPECT_TRUE(read_callback.have_result());
+  EXPECT_FALSE(write_callback_.have_result());
 }
 
 }  // namespace net

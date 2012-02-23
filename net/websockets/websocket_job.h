@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,11 +6,11 @@
 #define NET_WEBSOCKETS_WEBSOCKET_JOB_H_
 #pragma once
 
+#include <deque>
 #include <string>
 #include <vector>
 
 #include "base/memory/weak_ptr.h"
-#include "base/string16.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/socket_stream/socket_stream_job.h"
@@ -21,7 +21,6 @@ class GURL;
 namespace net {
 
 class DrainableIOBuffer;
-class WebSocketFrameHandler;
 class WebSocketHandshakeRequestHandler;
 class WebSocketHandshakeResponseHandler;
 
@@ -31,7 +30,7 @@ class WebSocketHandshakeResponseHandler;
 // see HttpOnly cookies, so it injects cookie header in handshake request and
 // strips set-cookie headers in handshake response.
 // TODO(ukai): refactor websocket.cc to use this.
-class NET_API WebSocketJob
+class NET_EXPORT WebSocketJob
     : public SocketStreamJob,
       public SocketStream::Delegate,
       public SpdyWebSocketStream::Delegate {
@@ -54,33 +53,34 @@ class NET_API WebSocketJob
   static void set_websocket_over_spdy_enabled(bool enabled);
 
   State state() const { return state_; }
-  virtual void Connect();
-  virtual bool SendData(const char* data, int len);
-  virtual void Close();
-  virtual void RestartWithAuth(
-      const string16& username,
-      const string16& password);
-  virtual void DetachDelegate();
+  virtual void Connect() OVERRIDE;
+  virtual bool SendData(const char* data, int len) OVERRIDE;
+  virtual void Close() OVERRIDE;
+  virtual void RestartWithAuth(const AuthCredentials& credentials) OVERRIDE;
+  virtual void DetachDelegate() OVERRIDE;
 
   // SocketStream::Delegate methods.
   virtual int OnStartOpenConnection(
-      SocketStream* socket, CompletionCallback* callback);
-  virtual void OnConnected(SocketStream* socket, int max_pending_send_allowed);
-  virtual void OnSentData(SocketStream* socket, int amount_sent);
-  virtual void OnReceivedData(SocketStream* socket, const char* data, int len);
-  virtual void OnClose(SocketStream* socket);
+      SocketStream* socket, const CompletionCallback& callback) OVERRIDE;
+  virtual void OnConnected(SocketStream* socket,
+                           int max_pending_send_allowed) OVERRIDE;
+  virtual void OnSentData(SocketStream* socket, int amount_sent) OVERRIDE;
+  virtual void OnReceivedData(SocketStream* socket,
+                              const char* data,
+                              int len) OVERRIDE;
+  virtual void OnClose(SocketStream* socket) OVERRIDE;
   virtual void OnAuthRequired(
-      SocketStream* socket, AuthChallengeInfo* auth_info);
-  virtual void OnError(const SocketStream* socket, int error);
+      SocketStream* socket, AuthChallengeInfo* auth_info) OVERRIDE;
+  virtual void OnError(const SocketStream* socket, int error) OVERRIDE;
 
   // SpdyWebSocketStream::Delegate methods.
-  virtual void OnCreatedSpdyStream(int status);
-  virtual void OnSentSpdyHeaders(int status);
+  virtual void OnCreatedSpdyStream(int status) OVERRIDE;
+  virtual void OnSentSpdyHeaders(int status) OVERRIDE;
   virtual int OnReceivedSpdyResponseHeader(
-      const spdy::SpdyHeaderBlock& headers, int status);
-  virtual void OnSentSpdyData(int amount_sent);
-  virtual void OnReceivedSpdyData(const char* data, int length);
-  virtual void OnCloseSpdyStream();
+      const spdy::SpdyHeaderBlock& headers, int status) OVERRIDE;
+  virtual void OnSentSpdyData(int amount_sent) OVERRIDE;
+  virtual void OnReceivedSpdyData(const char* data, int length) OVERRIDE;
+  virtual void OnCloseSpdyStream() OVERRIDE;
 
  private:
   friend class WebSocketThrottle;
@@ -119,7 +119,7 @@ class NET_API WebSocketJob
   State state_;
   bool waiting_;
   AddressList addresses_;
-  CompletionCallback* callback_;  // for throttling.
+  CompletionCallback callback_;  // for throttling.
 
   scoped_ptr<WebSocketHandshakeRequestHandler> handshake_request_;
   scoped_ptr<WebSocketHandshakeResponseHandler> handshake_response_;
@@ -130,15 +130,15 @@ class NET_API WebSocketJob
   std::vector<std::string> response_cookies_;
   size_t response_cookies_save_index_;
 
-  scoped_ptr<WebSocketFrameHandler> send_frame_handler_;
-  scoped_refptr<DrainableIOBuffer> current_buffer_;
-  scoped_ptr<WebSocketFrameHandler> receive_frame_handler_;
+  std::deque<scoped_refptr<IOBufferWithSize> > send_buffer_queue_;
+  scoped_refptr<DrainableIOBuffer> current_send_buffer_;
+  std::vector<char> received_data_after_handshake_;
 
   scoped_ptr<SpdyWebSocketStream> spdy_websocket_stream_;
   std::string challenge_;
 
-  ScopedRunnableMethodFactory<WebSocketJob> method_factory_;
   base::WeakPtrFactory<WebSocketJob> weak_ptr_factory_;
+  base::WeakPtrFactory<WebSocketJob> weak_ptr_factory_for_send_pending_;
 
   DISALLOW_COPY_AND_ASSIGN(WebSocketJob);
 };

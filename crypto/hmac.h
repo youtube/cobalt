@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,6 +19,7 @@ namespace crypto {
 
 // Simplify the interface and reduce includes by abstracting out the internals.
 struct HMACPlatformData;
+class SymmetricKey;
 
 class CRYPTO_EXPORT HMAC {
  public:
@@ -40,6 +41,10 @@ class CRYPTO_EXPORT HMAC {
   // only once. It returns false on the second or later calls.
   // TODO(abarth): key_length should be a size_t.
   bool Init(const unsigned char* key, int key_length) WARN_UNUSED_RESULT;
+
+  // Initializes this instance using |key|. Call Init
+  // only once. It returns false on the second or later calls.
+  bool Init(SymmetricKey* key) WARN_UNUSED_RESULT;
 
   // Initializes this instance using |key|. Call Init only once. It returns
   // false on the second or later calls.

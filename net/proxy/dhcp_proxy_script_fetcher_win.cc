@@ -1,9 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/proxy/dhcp_proxy_script_fetcher_win.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/metrics/histogram.h"
 #include "base/perftimer.h"
 #include "base/threading/worker_pool.h"
@@ -36,9 +38,8 @@ namespace net {
 DhcpProxyScriptFetcherWin::DhcpProxyScriptFetcherWin(
     URLRequestContext* url_request_context)
     : state_(STATE_START),
-      ALLOW_THIS_IN_INITIALIZER_LIST(fetcher_callback_(
-          this, &DhcpProxyScriptFetcherWin::OnFetcherDone)),
       num_pending_fetchers_(0),
+      destination_string_(NULL),
       url_request_context_(url_request_context) {
   DCHECK(url_request_context_);
 }
@@ -54,7 +55,7 @@ DhcpProxyScriptFetcherWin::~DhcpProxyScriptFetcherWin() {
 }
 
 int DhcpProxyScriptFetcherWin::Fetch(string16* utf16_text,
-                                     CompletionCallback* callback) {
+                                     const CompletionCallback& callback) {
   DCHECK(CalledOnValidThread());
   if (state_ != STATE_START && state_ != STATE_DONE) {
     NOTREACHED();
@@ -64,11 +65,20 @@ int DhcpProxyScriptFetcherWin::Fetch(string16* utf16_text,
   fetch_start_time_ = base::TimeTicks::Now();
 
   state_ = STATE_WAIT_ADAPTERS;
-  client_callback_ = callback;
+  callback_ = callback;
   destination_string_ = utf16_text;
 
-  worker_thread_ = ImplCreateWorkerThread(AsWeakPtr());
-  worker_thread_->Start();
+  last_query_ = ImplCreateAdapterQuery();
+  base::WorkerPool::PostTaskAndReply(
+      FROM_HERE,
+      base::Bind(
+          &DhcpProxyScriptFetcherWin::AdapterQuery::GetCandidateAdapterNames,
+          last_query_.get()),
+      base::Bind(
+          &DhcpProxyScriptFetcherWin::OnGetCandidateAdapterNamesDone,
+          AsWeakPtr(),
+          last_query_),
+      true);
 
   return ERR_IO_PENDING;
 }
@@ -90,7 +100,7 @@ void DhcpProxyScriptFetcherWin::CancelImpl() {
   DCHECK(CalledOnValidThread());
 
   if (state_ != STATE_DONE) {
-    client_callback_ = NULL;
+    callback_.Reset();
     wait_timer_.Stop();
     state_ = STATE_DONE;
 
@@ -105,14 +115,26 @@ void DhcpProxyScriptFetcherWin::CancelImpl() {
 }
 
 void DhcpProxyScriptFetcherWin::OnGetCandidateAdapterNamesDone(
-    const std::set<std::string>& adapter_names) {
+    scoped_refptr<AdapterQuery> query) {
   DCHECK(CalledOnValidThread());
+
+  // This can happen if this object is reused for multiple queries,
+  // and a previous query was cancelled before it completed.
+  if (query.get() != last_query_.get())
+    return;
+  last_query_ = NULL;
+
+  // Enable unit tests to wait for this to happen; in production this function
+  // call is a no-op.
+  ImplOnGetCandidateAdapterNamesDone();
 
   // We may have been cancelled.
   if (state_ != STATE_WAIT_ADAPTERS)
     return;
 
   state_ = STATE_NO_RESULTS;
+
+  const std::set<std::string>& adapter_names = query->adapter_names();
 
   if (adapter_names.empty()) {
     TransitionToDone();
@@ -123,7 +145,9 @@ void DhcpProxyScriptFetcherWin::OnGetCandidateAdapterNamesDone(
        it != adapter_names.end();
        ++it) {
     DhcpProxyScriptAdapterFetcher* fetcher(ImplCreateAdapterFetcher());
-    fetcher->Fetch(*it, &fetcher_callback_);
+    fetcher->Fetch(
+        *it, base::Bind(&DhcpProxyScriptFetcherWin::OnFetcherDone,
+                        base::Unretained(this)));
     fetchers_.push_back(fetcher);
   }
   num_pending_fetchers_ = fetchers_.size();
@@ -169,7 +193,7 @@ void DhcpProxyScriptFetcherWin::OnFetcherDone(int result) {
   // for the rest of the results.
   if (state_ == STATE_NO_RESULTS) {
     state_ = STATE_SOME_RESULTS;
-    wait_timer_.Start(
+    wait_timer_.Start(FROM_HERE,
         base::TimeDelta::FromMilliseconds(ImplGetMaxWaitMs()),
         this, &DhcpProxyScriptFetcherWin::OnWaitTimer);
   }
@@ -223,11 +247,11 @@ void DhcpProxyScriptFetcherWin::TransitionToDone() {
     }
   }
 
-  CompletionCallback* callback = client_callback_;
+  CompletionCallback callback = callback_;
   CancelImpl();
   DCHECK_EQ(state_, STATE_DONE);
   DCHECK(fetchers_.empty());
-  DCHECK(!client_callback_);  // Invariant of data.
+  DCHECK(callback_.is_null());  // Invariant of data.
 
   UMA_HISTOGRAM_TIMES("Net.DhcpWpadCompletionTime",
                       base::TimeTicks::Now() - fetch_start_time_);
@@ -238,7 +262,7 @@ void DhcpProxyScriptFetcherWin::TransitionToDone() {
   }
 
   // We may be deleted re-entrantly within this outcall.
-  callback->Run(result);
+  callback.Run(result);
 }
 
 int DhcpProxyScriptFetcherWin::num_pending_fetchers() const {
@@ -254,10 +278,9 @@ DhcpProxyScriptAdapterFetcher*
   return new DhcpProxyScriptAdapterFetcher(url_request_context_);
 }
 
-DhcpProxyScriptFetcherWin::WorkerThread*
-    DhcpProxyScriptFetcherWin::ImplCreateWorkerThread(
-        const base::WeakPtr<DhcpProxyScriptFetcherWin>& owner) {
-  return new WorkerThread(owner);
+DhcpProxyScriptFetcherWin::AdapterQuery*
+    DhcpProxyScriptFetcherWin::ImplCreateAdapterQuery() {
+  return new AdapterQuery();
 }
 
 int DhcpProxyScriptFetcherWin::ImplGetMaxWaitMs() {
@@ -330,51 +353,22 @@ bool DhcpProxyScriptFetcherWin::GetCandidateAdapterNames(
   return true;
 }
 
-DhcpProxyScriptFetcherWin::WorkerThread::WorkerThread(
-    const base::WeakPtr<DhcpProxyScriptFetcherWin>& owner) {
-  Init(owner);
+DhcpProxyScriptFetcherWin::AdapterQuery::AdapterQuery() {
 }
 
-DhcpProxyScriptFetcherWin::WorkerThread::~WorkerThread() {
+DhcpProxyScriptFetcherWin::AdapterQuery::~AdapterQuery() {
 }
 
-void DhcpProxyScriptFetcherWin::WorkerThread::Start() {
-  bool succeeded = base::WorkerPool::PostTask(
-      FROM_HERE,
-      NewRunnableMethod(
-          this,
-          &DhcpProxyScriptFetcherWin::WorkerThread::ThreadFunc),
-      true);
-  DCHECK(succeeded);
-}
-
-void DhcpProxyScriptFetcherWin::WorkerThread::ThreadFunc() {
+void DhcpProxyScriptFetcherWin::AdapterQuery::GetCandidateAdapterNames() {
   ImplGetCandidateAdapterNames(&adapter_names_);
-
-  bool succeeded = origin_loop_->PostTask(
-      FROM_HERE,
-      NewRunnableMethod(
-          this,
-          &DhcpProxyScriptFetcherWin::WorkerThread::OnThreadDone));
-  DCHECK(succeeded);
 }
 
-void DhcpProxyScriptFetcherWin::WorkerThread::OnThreadDone() {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  if (owner_)
-    owner_->OnGetCandidateAdapterNamesDone(adapter_names_);
+const std::set<std::string>&
+    DhcpProxyScriptFetcherWin::AdapterQuery::adapter_names() const {
+  return adapter_names_;
 }
 
-DhcpProxyScriptFetcherWin::WorkerThread::WorkerThread() {
-}
-
-void DhcpProxyScriptFetcherWin::WorkerThread::Init(
-    const base::WeakPtr<DhcpProxyScriptFetcherWin>& owner) {
-  owner_ = owner;
-  origin_loop_ = base::MessageLoopProxy::CreateForCurrentThread();
-}
-
-bool DhcpProxyScriptFetcherWin::WorkerThread::ImplGetCandidateAdapterNames(
+bool DhcpProxyScriptFetcherWin::AdapterQuery::ImplGetCandidateAdapterNames(
     std::set<std::string>* adapter_names) {
   return DhcpProxyScriptFetcherWin::GetCandidateAdapterNames(adapter_names);
 }

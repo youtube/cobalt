@@ -24,7 +24,7 @@
 #include <string>
 
 #include "base/hash_tables.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/url_request/url_request.h"
 
 class GURL;
@@ -32,7 +32,7 @@ class GURL;
 namespace net {
 class URLRequestJob;
 
-class NET_API URLRequestFilter {
+class NET_EXPORT URLRequestFilter {
  public:
   // scheme,hostname -> ProtocolFactory
   typedef std::map<std::pair<std::string, std::string>,

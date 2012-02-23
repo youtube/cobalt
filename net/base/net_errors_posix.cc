@@ -5,12 +5,19 @@
 #include "net/base/net_errors.h"
 
 #include <errno.h>
+#include <stdlib.h>
+#include <string>
+#include <unistd.h>
 
 #include "base/logging.h"
+#include "base/stringprintf.h"
 
 namespace net {
 
 Error MapSystemError(int os_error) {
+  if (os_error != 0)
+    DVLOG(2) << "Error " << os_error;
+
   // There are numerous posix error codes, but these are the ones we thus far
   // find interesting.
   switch (os_error) {
@@ -26,7 +33,7 @@ Error MapSystemError(int os_error) {
     case ETIMEDOUT:
       return ERR_TIMED_OUT;
     case ECONNRESET:
-    case ENETRESET:  // Related to keep-alive
+    case ENETRESET:  // Related to keep-alive.
     case EPIPE:
       return ERR_CONNECTION_RESET;
     case ECONNABORTED:
@@ -48,6 +55,59 @@ Error MapSystemError(int os_error) {
       return ERR_INVALID_ARGUMENT;
     case EADDRINUSE:
       return ERR_ADDRESS_IN_USE;
+    case E2BIG:  // Argument list too long.
+      return ERR_INVALID_ARGUMENT;
+    case EBADF:  // Bad file descriptor.
+      return ERR_INVALID_HANDLE;
+    case EBUSY:  // Device or resource busy.
+      return ERR_INSUFFICIENT_RESOURCES;
+    case ECANCELED:  // Operation canceled.
+      return ERR_ABORTED;
+    case EDEADLK:  // Resource deadlock avoided.
+      return ERR_INSUFFICIENT_RESOURCES;
+    case EDQUOT:  // Disk quota exceeded.
+      return ERR_FILE_NO_SPACE;
+    case EEXIST:  // File exists.
+      return ERR_FILE_EXISTS;
+    case EFAULT:  // Bad address.
+      return ERR_INVALID_ARGUMENT;
+    case EFBIG:  // File too large.
+      return ERR_FILE_TOO_BIG;
+    case EISDIR:  // Is a directory.
+      return ERR_FILE_NOT_FOUND;
+    case ENAMETOOLONG:  // Filename too long.
+      return ERR_FILE_PATH_TOO_LONG;
+    case ENFILE:  // Too many open files in system.
+      return ERR_INSUFFICIENT_RESOURCES;
+    case ENOBUFS:  // No buffer space available.
+      return ERR_OUT_OF_MEMORY;
+    case ENODEV:  // No such device.
+      return ERR_INVALID_ARGUMENT;
+    case ENOENT:  // No such file or directory.
+      return ERR_FILE_NOT_FOUND;
+    case ENOLCK:  // No locks available.
+      return ERR_INSUFFICIENT_RESOURCES;
+    case ENOMEM:  // Not enough space.
+      return ERR_OUT_OF_MEMORY;
+    case ENOSPC:  // No space left on device.
+      return ERR_FILE_NO_SPACE;
+    case ENOSYS:  // Function not implemented.
+      return ERR_NOT_IMPLEMENTED;
+    case ENOTDIR:  // Not a directory.
+      return ERR_FILE_NOT_FOUND;
+    case ENOTSUP:  // Operation not supported.
+      return ERR_NOT_IMPLEMENTED;
+    case EPERM:  // Operation not permitted.
+      return ERR_ACCESS_DENIED;
+    case EROFS:  // Read-only file system.
+      return ERR_ACCESS_DENIED;
+    case ETXTBSY:  // Text file busy.
+      return ERR_ACCESS_DENIED;
+    case EUSERS:  // Too many users.
+      return ERR_INSUFFICIENT_RESOURCES;
+    case EMFILE:  // Too many open files.
+      return ERR_INSUFFICIENT_RESOURCES;
+
     case 0:
       return OK;
     default:

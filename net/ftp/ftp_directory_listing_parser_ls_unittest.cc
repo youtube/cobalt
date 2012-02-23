@@ -50,6 +50,9 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
     { "lrwxrwxrwx 1 0  0 26 Sep 18 2008 pub",
       FtpDirectoryListingEntry::SYMLINK, "pub", -1,
       2008, 9, 18, 0, 0 },
+    { "-rw-r--r--    1 ftp      ftp           -528 Nov 01  2007 README",
+      FtpDirectoryListingEntry::FILE, "README", -1,
+      2007, 11, 1, 0, 0 },
 
     // Tests for the wu-ftpd variant:
     { "drwxr-xr-x   2 sys          512 Mar 27  2009 pub",
@@ -108,6 +111,11 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
     { "ar-xr-xr-x   2 none     none         512 Apr 26 17:52 plan9",
       FtpDirectoryListingEntry::FILE, "plan9", 512,
       1994, 4, 26, 17, 52 },
+
+    // Hylafax sends a shorter permission listing.
+    { "drwxrwx   2       10     4096 Jul 28 02:41 tmp",
+      FtpDirectoryListingEntry::DIRECTORY, "tmp", -1,
+      1994, 7, 28, 2, 41 },
   };
   for (size_t i = 0; i < arraysize(good_cases); i++) {
     SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,
@@ -128,6 +136,7 @@ TEST_F(FtpDirectoryListingParserLsTest, Ignored) {
 
     "ftpd: .: Permission denied",
     "ftpd-BSD: .: Permission denied",
+    "ls: .: EDC5111I Permission denied.",
 
     // Tests important for security: verify that after we detect the column
     // offset we don't try to access invalid memory on malformed input.
@@ -153,16 +162,12 @@ TEST_F(FtpDirectoryListingParserLsTest, Bad) {
     " foo",
     "garbage",
     "-rw-r--r-- ftp ftp",
-    "-rw-r--rgb ftp ftp 528 Nov 01 2007 README",
     "-rw-rgbr-- ftp ftp 528 Nov 01 2007 README",
     "qrwwr--r-- ftp ftp 528 Nov 01 2007 README",
-    "-rw-r--r-- ftp ftp -528 Nov 01 2007 README",
     "-rw-r--r-- ftp ftp 528 Foo 01 2007 README",
     "-rw-r--r-- 1 ftp ftp",
-    "-rw-r--rgb 1 ftp ftp 528 Nov 01 2007 README",
     "-rw-rgbr-- 1 ftp ftp 528 Nov 01 2007 README",
     "qrwwr--r-- 1 ftp ftp 528 Nov 01 2007 README",
-    "-rw-r--r-- 1 ftp ftp -528 Nov 01 2007 README",
     "-rw-r--r-- 1 ftp ftp 528 Foo 01 2007 README",
     "drwxrwxrwx   1 owner    group               1024 Sep 13  0:3 audio",
 

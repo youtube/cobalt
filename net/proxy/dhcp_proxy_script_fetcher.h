@@ -10,7 +10,7 @@
 #include "base/compiler_specific.h"
 #include "base/string16.h"
 #include "net/base/completion_callback.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/proxy/proxy_script_fetcher.h"
 #include "net/url_request/url_request_context.h"
 
@@ -24,7 +24,7 @@ namespace net {
 // Normally there are zero or one DHCP scripts configured, but in the
 // presence of multiple adapters with DHCP enabled, the fetcher resolves
 // which PAC script to use if one or more are available.
-class NET_TEST DhcpProxyScriptFetcher {
+class NET_EXPORT_PRIVATE DhcpProxyScriptFetcher {
  public:
   // Destruction should cancel any outstanding requests.
   virtual ~DhcpProxyScriptFetcher();
@@ -58,7 +58,7 @@ class NET_TEST DhcpProxyScriptFetcher {
   //
   // Only one fetch is allowed to be outstanding at a time.
   virtual int Fetch(string16* utf16_text,
-                    CompletionCallback* callback) = 0;
+                    const CompletionCallback& callback) = 0;
 
   // Aborts the in-progress fetch (if any).
   virtual void Cancel() = 0;
@@ -80,13 +80,14 @@ class NET_TEST DhcpProxyScriptFetcher {
 
 // A do-nothing retriever, always returns synchronously with
 // ERR_NOT_IMPLEMENTED result and empty text.
-class NET_TEST DoNothingDhcpProxyScriptFetcher : public DhcpProxyScriptFetcher {
+class NET_EXPORT_PRIVATE DoNothingDhcpProxyScriptFetcher
+    : public DhcpProxyScriptFetcher {
  public:
   DoNothingDhcpProxyScriptFetcher();
   virtual ~DoNothingDhcpProxyScriptFetcher();
 
   virtual int Fetch(string16* utf16_text,
-                    CompletionCallback* callback) OVERRIDE;
+                    const CompletionCallback& callback) OVERRIDE;
   virtual void Cancel() OVERRIDE;
   virtual const GURL& GetPacURL() const OVERRIDE;
  private:

@@ -1,10 +1,11 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <algorithm>
 
 #include "base/basictypes.h"
+#include "base/string_util.h"
 #include "net/http/http_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -12,6 +13,84 @@ using net::HttpUtil;
 
 namespace {
 class HttpUtilTest : public testing::Test {};
+}
+
+TEST(HttpUtilTest, IsSafeHeader) {
+  static const char* unsafe_headers[] = {
+    "sec-",
+    "sEc-",
+    "sec-foo",
+    "sEc-FoO",
+    "proxy-",
+    "pRoXy-",
+    "proxy-foo",
+    "pRoXy-FoO",
+    "accept-charset",
+    "accept-encoding",
+    "connection",
+    "content-length",
+    "cookie",
+    "cookie2",
+    "content-transfer-encoding",
+    "date",
+    "expect",
+    "host",
+    "keep-alive",
+    "origin",
+    "referer",
+    "te",
+    "trailer",
+    "transfer-encoding",
+    "upgrade",
+    "user-agent",
+    "via",
+  };
+  for (size_t i = 0; i < arraysize(unsafe_headers); ++i) {
+    EXPECT_FALSE(HttpUtil::IsSafeHeader(unsafe_headers[i]))
+      << unsafe_headers[i];
+    EXPECT_FALSE(HttpUtil::IsSafeHeader(StringToUpperASCII(std::string(
+        unsafe_headers[i])))) << unsafe_headers[i];
+  }
+  static const char* safe_headers[] = {
+    "foo",
+    "x-",
+    "x-foo",
+    "content-disposition",
+    "update",
+    "accept-charseta",
+    "accept_charset",
+    "accept-encodinga",
+    "accept_encoding",
+    "connectiona",
+    "content-lengtha",
+    "content_length",
+    "cookiea",
+    "cookie2a",
+    "cookie3",
+    "content-transfer-encodinga",
+    "content_transfer_encoding",
+    "datea",
+    "expecta",
+    "hosta",
+    "keep-alivea",
+    "keep_alive",
+    "origina",
+    "referera",
+    "referrer",
+    "tea",
+    "trailera",
+    "transfer-encodinga",
+    "transfer_encoding",
+    "upgradea",
+    "user-agenta",
+    "user_agent",
+    "viaa",
+  };
+  for (size_t i = 0; i < arraysize(safe_headers); ++i) {
+    EXPECT_TRUE(HttpUtil::IsSafeHeader(safe_headers[i])) << safe_headers[i];
+    EXPECT_TRUE(HttpUtil::IsSafeHeader(StringToUpperASCII(std::string(
+        safe_headers[i])))) << safe_headers[i];
+  }
 }
 
 TEST(HttpUtilTest, HasHeader) {
@@ -195,7 +274,7 @@ TEST(HttpUtilTest, LocateEndOfHeaders) {
 
 TEST(HttpUtilTest, AssembleRawHeaders) {
   struct {
-    const char* input;
+    const char* input;  // with '|' representing '\0'
     const char* expected_result;  // with '\0' changed to '|'
   } tests[] = {
     { "HTTP/1.0 200 OK\r\nFoo: 1\r\nBar: 2\r\n\r\n",
@@ -482,12 +561,26 @@ TEST(HttpUtilTest, AssembleRawHeaders) {
       "Bar: 2||",
     },
 
+    // Embed NULLs in the status line. They should not be understood
+    // as line separators.
+    {
+      "HTTP/1.0 200 OK|Bar2:0|Baz2:1\r\nFoo: 1\r\nBar: 2\r\n\r\n",
+      "HTTP/1.0 200 OKBar2:0Baz2:1|Foo: 1|Bar: 2||"
+    },
+
+    // Embed NULLs in a header line. They should not be understood as
+    // line separators.
+    {
+      "HTTP/1.0 200 OK\nFoo: 1|Foo2: 3\nBar: 2\n\n",
+      "HTTP/1.0 200 OK|Foo: 1Foo2: 3|Bar: 2||"
+    },
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    int input_len = static_cast<int>(strlen(tests[i].input));
-    std::string raw = HttpUtil::AssembleRawHeaders(tests[i].input, input_len);
+    std::string input = tests[i].input;
+    std::replace(input.begin(), input.end(), '|', '\0');
+    std::string raw = HttpUtil::AssembleRawHeaders(input.data(), input.size());
     std::replace(raw.begin(), raw.end(), '\0', '|');
-    EXPECT_TRUE(raw == tests[i].expected_result);
+    EXPECT_EQ(tests[i].expected_result, raw);
   }
 }
 
@@ -537,6 +630,91 @@ TEST(HttpUtilTest, GenerateAcceptCharsetHeader) {
             HttpUtil::GenerateAcceptCharsetHeader("utf-8"));
   EXPECT_EQ(std::string("EUC-JP,utf-8;q=0.7,*;q=0.3"),
             HttpUtil::GenerateAcceptCharsetHeader("EUC-JP"));
+}
+
+// HttpResponseHeadersTest.GetMimeType also tests ParseContentType.
+TEST(HttpUtilTest, ParseContentType) {
+  const struct {
+    const char* content_type;
+    const char* expected_mime_type;
+    const char* expected_charset;
+    const bool expected_had_charset;
+    const char* expected_boundary;
+  } tests[] = {
+    { "text/html; charset=utf-8",
+      "text/html",
+      "utf-8",
+      true,
+      ""
+    },
+    { "text/html; charset =utf-8",
+      "text/html",
+      "utf-8",
+      true,
+      ""
+    },
+    { "text/html; charset= utf-8",
+      "text/html",
+      "utf-8",
+      true,
+      ""
+    },
+    { "text/html; charset=utf-8 ",
+      "text/html",
+      "utf-8",
+      true,
+      ""
+    },
+    { "text/html; boundary=\"WebKit-ada-df-dsf-adsfadsfs\"",
+      "text/html",
+      "",
+      false,
+      "\"WebKit-ada-df-dsf-adsfadsfs\""
+    },
+    { "text/html; boundary =\"WebKit-ada-df-dsf-adsfadsfs\"",
+      "text/html",
+      "",
+      false,
+      "\"WebKit-ada-df-dsf-adsfadsfs\""
+    },
+    { "text/html; boundary= \"WebKit-ada-df-dsf-adsfadsfs\"",
+      "text/html",
+      "",
+      false,
+      "\"WebKit-ada-df-dsf-adsfadsfs\""
+    },
+    { "text/html; boundary= \"WebKit-ada-df-dsf-adsfadsfs\"   ",
+      "text/html",
+      "",
+      false,
+      "\"WebKit-ada-df-dsf-adsfadsfs\""
+    },
+    { "text/html; boundary=\"WebKit-ada-df-dsf-adsfadsfs  \"",
+      "text/html",
+      "",
+      false,
+      "\"WebKit-ada-df-dsf-adsfadsfs  \""
+    },
+    { "text/html; boundary=WebKit-ada-df-dsf-adsfadsfs",
+      "text/html",
+      "",
+      false,
+      "WebKit-ada-df-dsf-adsfadsfs"
+    },
+    // TODO(abarth): Add more interesting test cases.
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    std::string mime_type;
+    std::string charset;
+    bool had_charset = false;
+    std::string boundary;
+    net::HttpUtil::ParseContentType(tests[i].content_type, &mime_type,
+                                    &charset, &had_charset, &boundary);
+    EXPECT_EQ(tests[i].expected_mime_type, mime_type) << "i=" << i;
+    EXPECT_EQ(tests[i].expected_charset, charset) << "i=" << i;
+    EXPECT_EQ(tests[i].expected_had_charset, had_charset) << "i=" << i;
+    EXPECT_EQ(tests[i].expected_boundary, boundary) << "i=" << i;
+  }
 }
 
 TEST(HttpUtilTest, ParseRanges) {

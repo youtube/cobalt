@@ -13,7 +13,8 @@ namespace net {
 
 class IPEndPoint;
 
-class NET_TEST DatagramClientSocket : public DatagramSocket, public Socket {
+class NET_EXPORT_PRIVATE DatagramClientSocket : public DatagramSocket,
+                                                public Socket {
  public:
   virtual ~DatagramClientSocket() {}
 

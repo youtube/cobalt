@@ -16,12 +16,13 @@ namespace base {
 // all the file descriptors from different processes associated with the region
 // are closed, the memory buffer will go away.
 
-bool SharedMemory::CreateNamed(const std::string& name,
-                               bool open_existing, uint32 size) {
+bool SharedMemory::Create(const SharedMemoryCreateOptions& options) {
   DCHECK_EQ(-1, mapped_file_ );
 
   // "name" is just a label in ashmem. It is visible in /proc/pid/maps.
-  mapped_file_ = ashmem_create_region(name.c_str(), size);
+  mapped_file_ = ashmem_create_region(
+      options.name == NULL ? "" : options.name->c_str(),
+      options.size);
   if (-1 == mapped_file_) {
     DLOG(ERROR) << "Shared memory creation failed";
     return false;
@@ -33,15 +34,15 @@ bool SharedMemory::CreateNamed(const std::string& name,
     DLOG(ERROR) << "Error " << err << " when setting protection of ashmem";
     return false;
   }
-  created_size_ = size;
+  created_size_ = options.size;
 
   return true;
 }
 
 bool SharedMemory::Delete(const std::string& name) {
-  // ashmem doesn't support name mapping
-  NOTIMPLEMENTED();
-  return false;
+  // Like on Windows, this is intentionally returning true as ashmem will
+  // automatically releases the resource when all FDs on it are closed.
+  return true;
 }
 
 bool SharedMemory::Open(const std::string& name, bool read_only) {

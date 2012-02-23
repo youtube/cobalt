@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -32,10 +32,10 @@ class BlockableHostResolver : public HostResolver {
 
   virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
-                      CompletionCallback* callback,
+                      const CompletionCallback& callback,
                       RequestHandle* out_req,
                       const BoundNetLog& net_log) OVERRIDE {
-    EXPECT_TRUE(callback);
+    EXPECT_FALSE(callback.is_null());
     EXPECT_TRUE(out_req);
     *out_req = reinterpret_cast<RequestHandle*>(1);  // Magic value.
 
@@ -57,14 +57,6 @@ class BlockableHostResolver : public HostResolver {
   virtual void CancelRequest(RequestHandle req) OVERRIDE {
     EXPECT_EQ(reinterpret_cast<RequestHandle*>(1), req);
     was_request_cancelled_ = true;
-  }
-
-  virtual void AddObserver(Observer* observer) OVERRIDE {
-    NOTREACHED();
-  }
-
-  virtual void RemoveObserver(Observer* observer) OVERRIDE {
-    NOTREACHED();
   }
 
   // Waits until Resolve() has been called.
@@ -91,16 +83,16 @@ class SyncProxyResolver : public ProxyResolver {
 
   virtual int GetProxyForURL(const GURL& url,
                              ProxyInfo* results,
-                             CompletionCallback* callback,
+                             const CompletionCallback& callback,
                              RequestHandle* request,
                              const BoundNetLog& net_log) {
-    EXPECT_FALSE(callback);
+    EXPECT_FALSE(!callback.is_null());
     EXPECT_FALSE(request);
 
     // Do a synchronous host resolve.
     HostResolver::RequestInfo info(HostPortPair::FromURL(url));
     AddressList addresses;
-    int rv = host_resolver_->Resolve(info, &addresses);
+    int rv = host_resolver_->Resolve(info, &addresses, net_log);
 
     EXPECT_EQ(ERR_ABORTED, rv);
 
@@ -109,6 +101,17 @@ class SyncProxyResolver : public ProxyResolver {
 
   virtual void CancelRequest(RequestHandle request) OVERRIDE {
     NOTREACHED();
+  }
+
+  virtual LoadState GetLoadState(RequestHandle request) const OVERRIDE {
+    NOTREACHED();
+    return LOAD_STATE_IDLE;
+  }
+
+  virtual LoadState GetLoadStateThreadSafe(
+      RequestHandle request) const OVERRIDE {
+    NOTREACHED();
+    return LOAD_STATE_IDLE;
   }
 
   virtual void Shutdown() OVERRIDE {
@@ -121,7 +124,7 @@ class SyncProxyResolver : public ProxyResolver {
 
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      CompletionCallback* callback) OVERRIDE {
+      const CompletionCallback& callback) OVERRIDE {
     return OK;
   }
 
@@ -177,13 +180,14 @@ class IOThread : public base::Thread {
     // Initialize the resolver.
     TestCompletionCallback callback;
     proxy_resolver_->SetPacScript(ProxyResolverScriptData::FromURL(GURL()),
-                                  &callback);
+                                  callback.callback());
     EXPECT_EQ(OK, callback.WaitForResult());
 
     // Start an asynchronous request to the proxy resolver
     // (note that it will never complete).
-    proxy_resolver_->GetProxyForURL(GURL("http://test/"), &results_,
-                                    &callback_, &request_, BoundNetLog());
+    proxy_resolver_->GetProxyForURL(
+        GURL("http://test/"), &results_, callback_.callback(), &request_,
+        BoundNetLog());
   }
 
   virtual void CleanUp() OVERRIDE {

@@ -61,7 +61,6 @@ class SdchFilterTest : public testing::Test {
                               sizeof(kSdchCompressedTestData) - 1),
       expanded_(kTestData, sizeof(kTestData) - 1),
       sdch_manager_(new SdchManager) {
-    sdch_manager_->EnableSdchSupport("");
   }
 
   std::string NewSdchCompressedData(const std::string dictionary);
@@ -1147,13 +1146,11 @@ TEST_F(SdchFilterTest, AcceptGzipGzipSdchIfGzip) {
 }
 
 TEST_F(SdchFilterTest, DomainSupported) {
-  GURL test_url("http://www.test.com");
   GURL google_url("http://www.google.com");
 
-  EXPECT_TRUE(SdchManager::sdch_enabled());
-  EXPECT_TRUE(SdchManager::Global()->IsInSupportedDomain(test_url));
-  sdch_manager_->EnableSdchSupport(".google.com");
-  EXPECT_FALSE(SdchManager::Global()->IsInSupportedDomain(test_url));
+  net::SdchManager::EnableSdchSupport(false);
+  EXPECT_FALSE(SdchManager::Global()->IsInSupportedDomain(google_url));
+  net::SdchManager::EnableSdchSupport(true);
   EXPECT_TRUE(SdchManager::Global()->IsInSupportedDomain(google_url));
 }
 

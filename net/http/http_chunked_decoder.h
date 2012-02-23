@@ -48,7 +48,7 @@
 
 #include <string>
 
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
@@ -76,7 +76,7 @@ namespace net {
 // NOTE: This implementation does not bother to parse trailers since they are
 // not used on the web.
 //
-class NET_TEST HttpChunkedDecoder {
+class NET_EXPORT_PRIVATE HttpChunkedDecoder {
  public:
   HttpChunkedDecoder();
 

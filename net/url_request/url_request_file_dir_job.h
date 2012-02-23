@@ -10,7 +10,7 @@
 
 #include "base/file_path.h"
 #include "base/file_util.h"
-#include "base/task.h"
+#include "base/memory/weak_ptr.h"
 #include "net/base/directory_lister.h"
 #include "net/url_request/url_request_job.h"
 
@@ -27,16 +27,18 @@ class URLRequestFileDirJob
   virtual void StartAsync();
 
   // Overridden from URLRequestJob:
-  virtual void Start();
-  virtual void Kill();
-  virtual bool ReadRawData(IOBuffer* buf, int buf_size, int *bytes_read);
-  virtual bool GetMimeType(std::string* mime_type) const;
-  virtual bool GetCharset(std::string* charset);
+  virtual void Start() OVERRIDE;
+  virtual void Kill() OVERRIDE;
+  virtual bool ReadRawData(IOBuffer* buf,
+                           int buf_size,
+                           int *bytes_read) OVERRIDE;
+  virtual bool GetMimeType(std::string* mime_type) const OVERRIDE;
+  virtual bool GetCharset(std::string* charset) OVERRIDE;
 
   // Overridden from DirectoryLister::DirectoryListerDelegate:
   virtual void OnListFile(
-      const DirectoryLister::DirectoryListerData& data);
-  virtual void OnListDone(int error);
+      const DirectoryLister::DirectoryListerData& data) OVERRIDE;
+  virtual void OnListDone(int error) OVERRIDE;
 
  private:
   virtual ~URLRequestFileDirJob();
@@ -68,7 +70,7 @@ class URLRequestFileDirJob
   bool read_pending_;
   scoped_refptr<IOBuffer> read_buffer_;
   int read_buffer_length_;
-  ScopedRunnableMethodFactory<URLRequestFileDirJob> method_factory_;
+  base::WeakPtrFactory<URLRequestFileDirJob> weak_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestFileDirJob);
 };

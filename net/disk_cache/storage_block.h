@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -61,6 +61,9 @@ class StorageBlock : public FileBlock {
   // Returns true if there is data associated with this object.
   bool HasData() const;
 
+  // Returns true if the internal hash is correct.
+  bool VerifyHash() const;
+
   // Returns true if this object owns the data buffer, false if it is shared.
   bool own_data() const;
 
@@ -73,6 +76,7 @@ class StorageBlock : public FileBlock {
  private:
   void AllocateData();
   void DeleteData();
+  uint32 CalculateHash() const;
 
   T* data_;
   MappedFile* file_;

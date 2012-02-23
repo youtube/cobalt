@@ -51,13 +51,16 @@ NetworkChangeNotifier* NetworkChangeNotifier::Create() {
     return g_network_change_notifier_factory->CreateInstance();
 
 #if defined(OS_WIN)
-  return new NetworkChangeNotifierWin();
+  NetworkChangeNotifierWin* network_change_notifier =
+      new NetworkChangeNotifierWin();
+  network_change_notifier->WatchForAddressChange();
+  return network_change_notifier;
 #elif defined(OS_CHROMEOS)
   // ChromeOS builds MUST use its own class factory.
   CHECK(false);
   return NULL;
 #elif defined(OS_LINUX) || defined(OS_ANDROID)
-  return new NetworkChangeNotifierLinux();
+  return NetworkChangeNotifierLinux::Create();
 #elif defined(OS_MACOSX)
   return new NetworkChangeNotifierMac();
 #else
@@ -90,6 +93,13 @@ void NetworkChangeNotifier::AddOnlineStateObserver(
   }
 }
 
+void NetworkChangeNotifier::AddDNSObserver(DNSObserver* observer) {
+  if (g_network_change_notifier) {
+    g_network_change_notifier->resolver_state_observer_list_->AddObserver(
+        observer);
+  }
+}
+
 void NetworkChangeNotifier::RemoveIPAddressObserver(
     IPAddressObserver* observer) {
   if (g_network_change_notifier) {
@@ -106,13 +116,23 @@ void NetworkChangeNotifier::RemoveOnlineStateObserver(
   }
 }
 
+void NetworkChangeNotifier::RemoveDNSObserver(DNSObserver* observer) {
+  if (g_network_change_notifier) {
+    g_network_change_notifier->resolver_state_observer_list_->RemoveObserver(
+        observer);
+  }
+}
+
 NetworkChangeNotifier::NetworkChangeNotifier()
     : ip_address_observer_list_(
         new ObserverListThreadSafe<IPAddressObserver>(
             ObserverListBase<IPAddressObserver>::NOTIFY_EXISTING_ONLY)),
       online_state_observer_list_(
         new ObserverListThreadSafe<OnlineStateObserver>(
-            ObserverListBase<OnlineStateObserver>::NOTIFY_EXISTING_ONLY)) {
+            ObserverListBase<OnlineStateObserver>::NOTIFY_EXISTING_ONLY)),
+      resolver_state_observer_list_(
+        new ObserverListThreadSafe<DNSObserver>(
+            ObserverListBase<DNSObserver>::NOTIFY_EXISTING_ONLY)) {
   DCHECK(!g_network_change_notifier);
   g_network_change_notifier = this;
 }
@@ -124,11 +144,29 @@ void NetworkChangeNotifier::NotifyObserversOfIPAddressChange() {
   }
 }
 
+void NetworkChangeNotifier::NotifyObserversOfDNSChange() {
+  if (g_network_change_notifier) {
+    g_network_change_notifier->resolver_state_observer_list_->Notify(
+        &DNSObserver::OnDNSChanged);
+  }
+}
+
 void NetworkChangeNotifier::NotifyObserversOfOnlineStateChange() {
   if (g_network_change_notifier) {
     g_network_change_notifier->online_state_observer_list_->Notify(
         &OnlineStateObserver::OnOnlineStateChanged, !IsOffline());
   }
+}
+
+NetworkChangeNotifier::DisableForTest::DisableForTest()
+    : network_change_notifier_(g_network_change_notifier) {
+  DCHECK(g_network_change_notifier);
+  g_network_change_notifier = NULL;
+}
+
+NetworkChangeNotifier::DisableForTest::~DisableForTest() {
+  DCHECK(!g_network_change_notifier);
+  g_network_change_notifier = network_change_notifier_;
 }
 
 }  // namespace net

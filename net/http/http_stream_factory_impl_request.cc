@@ -22,6 +22,7 @@ HttpStreamFactoryImpl::Request::Request(const GURL& url,
       net_log_(net_log),
       completed_(false),
       was_npn_negotiated_(false),
+      protocol_negotiated_(SSLClientSocket::kProtoUnknown),
       using_spdy_(false) {
   DCHECK(factory_);
   DCHECK(delegate_);
@@ -40,9 +41,10 @@ HttpStreamFactoryImpl::Request::~Request() {
   for (std::set<Job*>::iterator it = jobs_.begin(); it != jobs_.end(); ++it)
     factory_->request_map_.erase(*it);
 
-  STLDeleteElements(&jobs_);
-
   RemoveRequestFromSpdySessionRequestMap();
+  RemoveRequestFromHttpPipeliningRequestMap();
+
+  STLDeleteElements(&jobs_);
 }
 
 void HttpStreamFactoryImpl::Request::SetSpdySessionKey(
@@ -55,6 +57,16 @@ void HttpStreamFactoryImpl::Request::SetSpdySessionKey(
   request_set.insert(this);
 }
 
+void HttpStreamFactoryImpl::Request::SetHttpPipeliningKey(
+    const HostPortPair& http_pipelining_key) {
+  DCHECK(!http_pipelining_key_.get());
+  http_pipelining_key_.reset(new HostPortPair(http_pipelining_key));
+  RequestSet& request_set =
+      factory_->http_pipelining_request_map_[http_pipelining_key];
+  DCHECK(!ContainsKey(request_set, this));
+  request_set.insert(this);
+}
+
 void HttpStreamFactoryImpl::Request::AttachJob(Job* job) {
   DCHECK(job);
   jobs_.insert(job);
@@ -63,16 +75,22 @@ void HttpStreamFactoryImpl::Request::AttachJob(Job* job) {
 
 void HttpStreamFactoryImpl::Request::Complete(
     bool was_npn_negotiated,
+    SSLClientSocket::NextProto protocol_negotiated,
     bool using_spdy,
-    const NetLog::Source& job_source) {
+    const BoundNetLog& job_net_log) {
   DCHECK(!completed_);
   completed_ = true;
   was_npn_negotiated_ = was_npn_negotiated;
+  protocol_negotiated_ = protocol_negotiated;
   using_spdy_ = using_spdy;
   net_log_.AddEvent(
       NetLog::TYPE_HTTP_STREAM_REQUEST_BOUND_TO_JOB,
       make_scoped_refptr(new NetLogSourceParameter(
-          "source_dependency", job_source)));
+          "source_dependency", job_net_log.source())));
+  job_net_log.AddEvent(
+      NetLog::TYPE_HTTP_STREAM_JOB_BOUND_TO_REQUEST,
+      make_scoped_refptr(new NetLogSourceParameter(
+          "source_dependency", net_log_.source())));
 }
 
 void HttpStreamFactoryImpl::Request::OnStreamReady(
@@ -84,7 +102,8 @@ void HttpStreamFactoryImpl::Request::OnStreamReady(
   DCHECK(completed_);
 
   // |job| should only be NULL if we're being serviced by a late bound
-  // SpdySession (one that was not created by a job in our |jobs_| set).
+  // SpdySession or HttpPipelinedConnection (one that was not created by a job
+  // in our |jobs_| set).
   if (!job) {
     DCHECK(!bound_job_.get());
     DCHECK(!jobs_.empty());
@@ -184,10 +203,9 @@ void HttpStreamFactoryImpl::Request::OnHttpsProxyTunnelResponse(
 }
 
 int HttpStreamFactoryImpl::Request::RestartTunnelWithProxyAuth(
-    const string16& username,
-    const string16& password) {
+    const AuthCredentials& credentials) {
   DCHECK(bound_job_.get());
-  return bound_job_->RestartTunnelWithProxyAuth(username, password);
+  return bound_job_->RestartTunnelWithProxyAuth(credentials);
 }
 
 LoadState HttpStreamFactoryImpl::Request::GetLoadState() const {
@@ -202,6 +220,12 @@ LoadState HttpStreamFactoryImpl::Request::GetLoadState() const {
 bool HttpStreamFactoryImpl::Request::was_npn_negotiated() const {
   DCHECK(completed_);
   return was_npn_negotiated_;
+}
+
+SSLClientSocket::NextProto HttpStreamFactoryImpl::Request::protocol_negotiated()
+    const {
+  DCHECK(completed_);
+  return protocol_negotiated_;
 }
 
 bool HttpStreamFactoryImpl::Request::using_spdy() const {
@@ -225,6 +249,22 @@ HttpStreamFactoryImpl::Request::RemoveRequestFromSpdySessionRequestMap() {
   }
 }
 
+void
+HttpStreamFactoryImpl::Request::RemoveRequestFromHttpPipeliningRequestMap() {
+  if (http_pipelining_key_.get()) {
+    HttpPipeliningRequestMap& http_pipelining_request_map =
+        factory_->http_pipelining_request_map_;
+    DCHECK(ContainsKey(http_pipelining_request_map, *http_pipelining_key_));
+    RequestSet& request_set =
+        http_pipelining_request_map[*http_pipelining_key_];
+    DCHECK(ContainsKey(request_set, this));
+    request_set.erase(this);
+    if (request_set.empty())
+      http_pipelining_request_map.erase(*http_pipelining_key_);
+    http_pipelining_key_.reset();
+  }
+}
+
 void HttpStreamFactoryImpl::Request::OnSpdySessionReady(
     Job* job,
     scoped_refptr<SpdySession> spdy_session,
@@ -241,28 +281,28 @@ void HttpStreamFactoryImpl::Request::OnSpdySessionReady(
   }
 
   // Cache these values in case the job gets deleted.
-  const SSLConfig used_ssl_config = job->ssl_config();
+  const SSLConfig used_ssl_config = job->server_ssl_config();
   const ProxyInfo used_proxy_info = job->proxy_info();
   const bool was_npn_negotiated = job->was_npn_negotiated();
+  const SSLClientSocket::NextProto protocol_negotiated =
+      job->protocol_negotiated();
   const bool using_spdy = job->using_spdy();
-  const NetLog::Source source = job->net_log().source();
+  const BoundNetLog net_log = job->net_log();
 
-  Complete(was_npn_negotiated,
-           using_spdy,
-           source);
+  Complete(was_npn_negotiated, protocol_negotiated, using_spdy, net_log);
 
   // Cache this so we can still use it if the request is deleted.
   HttpStreamFactoryImpl* factory = factory_;
 
   bool use_relative_url = direct || url().SchemeIs("https");
   delegate_->OnStreamReady(
-      job->ssl_config(),
+      job->server_ssl_config(),
       job->proxy_info(),
       new SpdyHttpStream(spdy_session, use_relative_url));
   // |this| may be deleted after this point.
   factory->OnSpdySessionReady(
       spdy_session, direct, used_ssl_config, used_proxy_info,
-      was_npn_negotiated, using_spdy, source);
+      was_npn_negotiated, protocol_negotiated, using_spdy, net_log);
 }
 
 void HttpStreamFactoryImpl::Request::OrphanJobsExcept(Job* job) {
@@ -278,6 +318,7 @@ void HttpStreamFactoryImpl::Request::OrphanJobsExcept(Job* job) {
 
 void HttpStreamFactoryImpl::Request::OrphanJobs() {
   RemoveRequestFromSpdySessionRequestMap();
+  RemoveRequestFromHttpPipeliningRequestMap();
 
   std::set<Job*> tmp;
   tmp.swap(jobs_);

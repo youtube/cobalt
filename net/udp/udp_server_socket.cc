@@ -26,15 +26,23 @@ int UDPServerSocket::Listen(const IPEndPoint& address) {
 int UDPServerSocket::RecvFrom(IOBuffer* buf,
                               int buf_len,
                               IPEndPoint* address,
-                              CompletionCallback* callback) {
+                              const CompletionCallback& callback) {
   return socket_.RecvFrom(buf, buf_len, address, callback);
 }
 
 int UDPServerSocket::SendTo(IOBuffer* buf,
                             int buf_len,
                             const IPEndPoint& address,
-                            CompletionCallback* callback) {
+                            const CompletionCallback& callback) {
   return socket_.SendTo(buf, buf_len, address, callback);
+}
+
+bool UDPServerSocket::SetReceiveBufferSize(int32 size) {
+  return socket_.SetReceiveBufferSize(size);
+}
+
+bool UDPServerSocket::SetSendBufferSize(int32 size) {
+  return socket_.SetSendBufferSize(size);
 }
 
 void UDPServerSocket::Close() {

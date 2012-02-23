@@ -10,21 +10,23 @@
 #include <string>
 
 #include "base/message_loop_proxy.h"
+#include "base/time.h"
 #include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
-#include "net/disk_cache/entry_impl.h"
 #include "net/disk_cache/in_flight_io.h"
 
 namespace disk_cache {
 
 class BackendImpl;
+class Entry;
+class EntryImpl;
 
 // This class represents a single asynchronous disk cache IO operation while it
 // is being bounced between threads.
 class BackendIO : public BackgroundIO {
  public:
   BackendIO(InFlightIO* controller, BackendImpl* backend,
-            net::CompletionCallback* callback);
+            const net::CompletionCallback& callback);
 
   // Runs the actual operation on the background thread.
   void ExecuteOperation();
@@ -35,7 +37,7 @@ class BackendIO : public BackgroundIO {
   // Returns true if this operation is directed to an entry (vs. the backend).
   bool IsEntryOperation();
 
-  net::CompletionCallback* callback() { return callback_; }
+  net::CompletionCallback callback() const { return callback_; }
 
   // Grabs an extra reference of entry_.
   void ReferenceEntry();
@@ -59,7 +61,7 @@ class BackendIO : public BackgroundIO {
   void CloseEntryImpl(EntryImpl* entry);
   void DoomEntryImpl(EntryImpl* entry);
   void FlushQueue();  // Dummy operation.
-  void RunTask(Task* task);
+  void RunTask(const base::Closure& task);
   void ReadData(EntryImpl* entry, int index, int offset, net::IOBuffer* buf,
                 int buf_len);
   void WriteData(EntryImpl* entry, int index, int offset, net::IOBuffer* buf,
@@ -111,9 +113,8 @@ class BackendIO : public BackgroundIO {
   void ExecuteEntryOperation();
 
   BackendImpl* backend_;
-  net::CompletionCallback* callback_;
+  net::CompletionCallback callback_;
   Operation operation_;
-  net::CompletionCallbackImpl<BackendIO> my_callback_;
 
   // The arguments of all the operations we proxy:
   std::string key_;
@@ -131,7 +132,7 @@ class BackendIO : public BackgroundIO {
   int64 offset64_;
   int64* start_;
   base::TimeTicks start_time_;
-  Task* task_;
+  base::Closure task_;
 
   DISALLOW_COPY_AND_ASSIGN(BackendIO);
 };
@@ -143,41 +144,45 @@ class InFlightBackendIO : public InFlightIO {
                     base::MessageLoopProxy* background_thread);
   virtual ~InFlightBackendIO();
 
-  // The operations we proxy:
-  void Init(net::CompletionCallback* callback);
+  // Proxied operations.
+  void Init(const net::CompletionCallback& callback);
   void OpenEntry(const std::string& key, Entry** entry,
-                 net::CompletionCallback* callback);
+                 const net::CompletionCallback& callback);
   void CreateEntry(const std::string& key, Entry** entry,
-                   net::CompletionCallback* callback);
-  void DoomEntry(const std::string& key, net::CompletionCallback* callback);
-  void DoomAllEntries(net::CompletionCallback* callback);
+                   const net::CompletionCallback& callback);
+  void DoomEntry(const std::string& key,
+                 const net::CompletionCallback& callback);
+  void DoomAllEntries(const net::CompletionCallback& callback);
   void DoomEntriesBetween(const base::Time initial_time,
                           const base::Time end_time,
-                          net::CompletionCallback* callback);
+                          const net::CompletionCallback& callback);
   void DoomEntriesSince(const base::Time initial_time,
-                        net::CompletionCallback* callback);
+                        const net::CompletionCallback& callback);
   void OpenNextEntry(void** iter, Entry** next_entry,
-                     net::CompletionCallback* callback);
+                     const net::CompletionCallback& callback);
   void OpenPrevEntry(void** iter, Entry** prev_entry,
-                     net::CompletionCallback* callback);
+                     const net::CompletionCallback& callback);
   void EndEnumeration(void* iterator);
   void OnExternalCacheHit(const std::string& key);
   void CloseEntryImpl(EntryImpl* entry);
   void DoomEntryImpl(EntryImpl* entry);
-  void FlushQueue(net::CompletionCallback* callback);
-  void RunTask(Task* task, net::CompletionCallback* callback);
+  void FlushQueue(const net::CompletionCallback& callback);
+  void RunTask(const base::Closure& task,
+               const net::CompletionCallback& callback);
   void ReadData(EntryImpl* entry, int index, int offset, net::IOBuffer* buf,
-                int buf_len, net::CompletionCallback* callback);
-  void WriteData(EntryImpl* entry, int index, int offset, net::IOBuffer* buf,
-                 int buf_len, bool truncate, net::CompletionCallback* callback);
+                int buf_len, const net::CompletionCallback& callback);
+  void WriteData(
+      EntryImpl* entry, int index, int offset, net::IOBuffer* buf,
+      int buf_len, bool truncate, const net::CompletionCallback& callback);
   void ReadSparseData(EntryImpl* entry, int64 offset, net::IOBuffer* buf,
-                      int buf_len, net::CompletionCallback* callback);
+                      int buf_len, const net::CompletionCallback& callback);
   void WriteSparseData(EntryImpl* entry, int64 offset, net::IOBuffer* buf,
-                       int buf_len, net::CompletionCallback* callback);
+                       int buf_len, const net::CompletionCallback& callback);
   void GetAvailableRange(EntryImpl* entry, int64 offset, int len, int64* start,
-                         net::CompletionCallback* callback);
+                         const net::CompletionCallback& callback);
   void CancelSparseIO(EntryImpl* entry);
-  void ReadyForSparseIO(EntryImpl* entry, net::CompletionCallback* callback);
+  void ReadyForSparseIO(EntryImpl* entry,
+                        const net::CompletionCallback& callback);
 
   // Blocks until all operations are cancelled or completed.
   void WaitForPendingIO();
@@ -192,7 +197,8 @@ class InFlightBackendIO : public InFlightIO {
   }
 
  protected:
-  virtual void OnOperationComplete(BackgroundIO* operation, bool cancel);
+  virtual void OnOperationComplete(BackgroundIO* operation,
+                                   bool cancel) OVERRIDE;
 
  private:
   void PostOperation(BackendIO* operation);

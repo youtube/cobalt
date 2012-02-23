@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,9 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/string_piece.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_export.h"
 #include "net/base/net_log.h"
 #include "net/base/upload_data_stream.h"
 #include "net/http/http_chunked_decoder.h"
@@ -23,10 +25,11 @@ struct HttpRequestInfo;
 class HttpRequestHeaders;
 class HttpResponseInfo;
 class IOBuffer;
+class IOBufferWithSize;
 class SSLCertRequestInfo;
 class SSLInfo;
 
-class HttpStreamParser  : public ChunkCallback {
+class NET_EXPORT_PRIVATE HttpStreamParser  : public ChunkCallback {
  public:
   // Any data in |read_buffer| will be used before reading from the socket
   // and any data left over after parsing the stream will be put into
@@ -44,12 +47,13 @@ class HttpStreamParser  : public ChunkCallback {
   int SendRequest(const std::string& request_line,
                   const HttpRequestHeaders& headers,
                   UploadDataStream* request_body,
-                  HttpResponseInfo* response, CompletionCallback* callback);
+                  HttpResponseInfo* response,
+                  const CompletionCallback& callback);
 
-  int ReadResponseHeaders(CompletionCallback* callback);
+  int ReadResponseHeaders(const CompletionCallback& callback);
 
   int ReadResponseBody(IOBuffer* buf, int buf_len,
-                       CompletionCallback* callback);
+                       const CompletionCallback& callback);
 
   void Close(bool not_reusable);
 
@@ -74,15 +78,42 @@ class HttpStreamParser  : public ChunkCallback {
   void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
 
   // ChunkCallback methods.
-  virtual void OnChunkAvailable();
+  virtual void OnChunkAvailable() OVERRIDE;
+
+  // Encodes the given |payload| in the chunked format to |output|.
+  // Returns the number of bytes written to |output|. |output_size| should
+  // be large enough to store the encoded chunk, which is payload.size() +
+  // kChunkHeaderFooterSize. Returns ERR_INVALID_ARGUMENT if |output_size|
+  // is not large enough.
+  //
+  // The output will look like: "HEX\r\n[payload]\r\n"
+  // where HEX is a length in hexdecimal (without the "0x" prefix).
+  static int EncodeChunk(const base::StringPiece& payload,
+                         char* output,
+                         size_t output_size);
+
+  // Returns true if request headers and body should be merged (i.e. the
+  // sum is small enough and the body is in memory, and not chunked).
+  static bool ShouldMergeRequestHeadersAndBody(
+      const std::string& request_headers,
+      const UploadDataStream* request_body);
+
+  // The number of extra bytes required to encode a chunk.
+  static const size_t kChunkHeaderFooterSize;
 
  private:
+  class SeekableIOBuffer;
+
   // FOO_COMPLETE states implement the second half of potentially asynchronous
   // operations and don't necessarily mean that FOO is complete.
   enum State {
     STATE_NONE,
     STATE_SENDING_HEADERS,
-    STATE_SENDING_BODY,
+    // If the request comes with a body, either of the following two
+    // states will be executed, depending on whether the body is chunked
+    // or not.
+    STATE_SENDING_CHUNKED_BODY,
+    STATE_SENDING_NON_CHUNKED_BODY,
     STATE_REQUEST_SENT,
     STATE_READ_HEADERS,
     STATE_READ_HEADERS_COMPLETE,
@@ -94,16 +125,16 @@ class HttpStreamParser  : public ChunkCallback {
 
   // The number of bytes by which the header buffer is grown when it reaches
   // capacity.
-  enum { kHeaderBufInitialSize = 4096 };
+  static const int kHeaderBufInitialSize = 4 * 1024;  // 4K
 
   // |kMaxHeaderBufSize| is the number of bytes that the response headers can
   // grow to. If the body start is not found within this range of the
   // response, the transaction will fail with ERR_RESPONSE_HEADERS_TOO_BIG.
   // Note: |kMaxHeaderBufSize| should be a multiple of |kHeaderBufInitialSize|.
-  enum { kMaxHeaderBufSize = 256 * 1024 };  // 256 kilobytes.
+  static const int kMaxHeaderBufSize = kHeaderBufInitialSize * 64;  // 256K
 
   // The maximum sane buffer size.
-  enum { kMaxBufSize = 2 * 1024 * 1024 };  // 2 megabytes.
+  static const int kMaxBufSize = 2 * 1024 * 1024;  // 2M
 
   // Handle callbacks.
   void OnIOComplete(int result);
@@ -113,7 +144,8 @@ class HttpStreamParser  : public ChunkCallback {
 
   // The implementations of each state of the state machine.
   int DoSendHeaders(int result);
-  int DoSendBody(int result);
+  int DoSendChunkedBody(int result);
+  int DoSendNonChunkedBody(int result);
   int DoReadHeaders();
   int DoReadHeadersComplete(int result);
   int DoReadBody();
@@ -175,13 +207,13 @@ class HttpStreamParser  : public ChunkCallback {
 
   // The callback to notify a user that their request or response is
   // complete or there was an error
-  CompletionCallback* user_callback_;
+  CompletionCallback callback_;
 
   // In the client callback, the client can do anything, including
   // destroying this class, so any pending callback must be issued
   // after everything else is done.  When it is time to issue the client
-  // callback, move it from |user_callback_| to |scheduled_callback_|.
-  CompletionCallback* scheduled_callback_;
+  // callback, move it from |callback_| to |scheduled_callback_|.
+  CompletionCallback scheduled_callback_;
 
   // The underlying socket.
   ClientSocketHandle* const connection_;
@@ -189,12 +221,13 @@ class HttpStreamParser  : public ChunkCallback {
   BoundNetLog net_log_;
 
   // Callback to be used when doing IO.
-  CompletionCallbackImpl<HttpStreamParser> io_callback_;
+  CompletionCallback io_callback_;
 
   // Stores an encoded chunk for chunked uploads.
   // Note: This should perhaps be improved to not create copies of the data.
-  scoped_refptr<IOBuffer> chunk_buf_;
-  size_t chunk_length_;
+  scoped_refptr<IOBufferWithSize> chunk_buf_;
+  // Temporary buffer to read the request body from UploadDataStream.
+  scoped_refptr<SeekableIOBuffer> request_body_buf_;
   size_t chunk_length_without_encoding_;
   bool sent_last_chunk_;
 

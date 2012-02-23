@@ -45,12 +45,10 @@ class BASE_EXPORT LockImpl {
   // a successful call to Try, or a call to Lock.
   void Unlock();
 
-  // Return the native underlying lock.  Not supported for Windows builds.
+  // Return the native underlying lock.
   // TODO(awalker): refactor lock and condition variables so that this is
   // unnecessary.
-#if !defined(OS_WIN)
   OSLockType* os_lock() { return &os_lock_; }
-#endif
 
  private:
   OSLockType os_lock_;

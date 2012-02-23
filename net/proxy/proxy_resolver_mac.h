@@ -8,7 +8,7 @@
 
 #include "base/compiler_specific.h"
 #include "googleurl/src/gurl.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/net_errors.h"
 #include "net/proxy/proxy_resolver.h"
 
@@ -16,7 +16,7 @@ namespace net {
 
 // Implementation of ProxyResolver that uses the Mac CFProxySupport to implement
 // proxies.
-class NET_API ProxyResolverMac : public ProxyResolver {
+class NET_EXPORT ProxyResolverMac : public ProxyResolver {
  public:
   ProxyResolverMac();
   virtual ~ProxyResolverMac();
@@ -24,17 +24,22 @@ class NET_API ProxyResolverMac : public ProxyResolver {
   // ProxyResolver methods:
   virtual int GetProxyForURL(const GURL& url,
                              ProxyInfo* results,
-                             CompletionCallback* callback,
+                             const net::CompletionCallback& callback,
                              RequestHandle* request,
                              const BoundNetLog& net_log) OVERRIDE;
 
   virtual void CancelRequest(RequestHandle request) OVERRIDE;
 
+  virtual LoadState GetLoadState(RequestHandle request) const OVERRIDE;
+
+  virtual LoadState GetLoadStateThreadSafe(
+      RequestHandle request) const OVERRIDE;
+
   virtual void CancelSetPacScript() OVERRIDE;
 
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      CompletionCallback* /*callback*/) OVERRIDE;
+      const net::CompletionCallback& /*callback*/) OVERRIDE;
 
  private:
   scoped_refptr<ProxyResolverScriptData> script_data_;

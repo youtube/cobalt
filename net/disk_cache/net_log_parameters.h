@@ -19,7 +19,7 @@ namespace disk_cache {
 class EntryCreationParameters : public net::NetLog::EventParameters {
  public:
   EntryCreationParameters(const std::string& key, bool created);
-  virtual base::Value* ToValue() const;
+  virtual base::Value* ToValue() const OVERRIDE;
 
  private:
   const std::string key_;
@@ -33,7 +33,7 @@ class ReadWriteDataParameters : public net::NetLog::EventParameters {
  public:
   // For reads, |truncate| must be false.
   ReadWriteDataParameters(int index, int offset, int buf_len, bool truncate);
-  virtual base::Value* ToValue() const;
+  virtual base::Value* ToValue() const OVERRIDE;
 
  private:
   const int index_;
@@ -51,7 +51,7 @@ class ReadWriteCompleteParameters : public net::NetLog::EventParameters {
   // code.  |bytes_copied| must not be ERR_IO_PENDING, as it's not a valid
   // result for an operation.
   explicit ReadWriteCompleteParameters(int bytes_copied);
-  virtual base::Value* ToValue() const;
+  virtual base::Value* ToValue() const OVERRIDE;
 
  private:
   const int bytes_copied_;
@@ -63,7 +63,7 @@ class ReadWriteCompleteParameters : public net::NetLog::EventParameters {
 class SparseOperationParameters : public net::NetLog::EventParameters {
  public:
   SparseOperationParameters(int64 offset, int buff_len);
-  virtual base::Value* ToValue() const;
+  virtual base::Value* ToValue() const OVERRIDE;
 
  private:
   const int64 offset_;
@@ -75,7 +75,7 @@ class SparseOperationParameters : public net::NetLog::EventParameters {
 class SparseReadWriteParameters : public net::NetLog::EventParameters {
  public:
   SparseReadWriteParameters(const net::NetLog::Source& source, int child_len);
-  virtual base::Value* ToValue() const;
+  virtual base::Value* ToValue() const OVERRIDE;
 
  private:
   const net::NetLog::Source source_;
@@ -87,7 +87,7 @@ class GetAvailableRangeResultParameters : public net::NetLog::EventParameters {
  public:
   // |start| is ignored when |result| < 0.
   GetAvailableRangeResultParameters(int64 start, int result);
-  virtual base::Value* ToValue() const;
+  virtual base::Value* ToValue() const OVERRIDE;
 
  private:
   const int64 start_;

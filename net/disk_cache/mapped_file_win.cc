@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 
 #include "base/file_path.h"
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "net/disk_cache/disk_cache.h"
 
 namespace disk_cache {
@@ -25,6 +26,12 @@ void* MappedFile::Init(const FilePath& name, size_t size) {
   buffer_ = MapViewOfFile(section_, FILE_MAP_READ | FILE_MAP_WRITE, 0, 0, size);
   DCHECK(buffer_);
   view_size_ = size;
+
+  // Make sure we detect hardware failures reading the headers.
+  size_t temp_len = size ? size : 4096;
+  scoped_array<char> temp(new char[temp_len]);
+  if (!Read(temp.get(), temp_len, 0))
+    return NULL;
 
   return buffer_;
 }

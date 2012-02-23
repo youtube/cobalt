@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,11 +25,12 @@ class ConnectJobFactory;
 class TransportClientSocketPool;
 class TransportSocketParams;
 
-class NET_TEST SOCKSSocketParams : public base::RefCounted<SOCKSSocketParams> {
+class NET_EXPORT_PRIVATE SOCKSSocketParams
+    : public base::RefCounted<SOCKSSocketParams> {
  public:
   SOCKSSocketParams(const scoped_refptr<TransportSocketParams>& proxy_server,
                     bool socks_v5, const HostPortPair& host_port_pair,
-                    RequestPriority priority, const GURL& referrer);
+                    RequestPriority priority);
 
   const scoped_refptr<TransportSocketParams>& transport_params() const {
     return transport_params_;
@@ -66,7 +67,7 @@ class SOCKSConnectJob : public ConnectJob {
   virtual ~SOCKSConnectJob();
 
   // ConnectJob methods.
-  virtual LoadState GetLoadState() const;
+  virtual LoadState GetLoadState() const OVERRIDE;
 
  private:
   enum State {
@@ -90,21 +91,21 @@ class SOCKSConnectJob : public ConnectJob {
   // Begins the transport connection and the SOCKS handshake.  Returns OK on
   // success and ERR_IO_PENDING if it cannot immediately service the request.
   // Otherwise, it returns a net error code.
-  virtual int ConnectInternal();
+  virtual int ConnectInternal() OVERRIDE;
 
   scoped_refptr<SOCKSSocketParams> socks_params_;
   TransportClientSocketPool* const transport_pool_;
   HostResolver* const resolver_;
 
   State next_state_;
-  CompletionCallbackImpl<SOCKSConnectJob> callback_;
+  CompletionCallback callback_;
   scoped_ptr<ClientSocketHandle> transport_socket_handle_;
   scoped_ptr<StreamSocket> socket_;
 
   DISALLOW_COPY_AND_ASSIGN(SOCKSConnectJob);
 };
 
-class NET_TEST SOCKSClientSocketPool : public ClientSocketPool {
+class NET_EXPORT_PRIVATE SOCKSClientSocketPool : public ClientSocketPool {
  public:
   SOCKSClientSocketPool(
       int max_sockets,
@@ -116,45 +117,47 @@ class NET_TEST SOCKSClientSocketPool : public ClientSocketPool {
 
   virtual ~SOCKSClientSocketPool();
 
-  // ClientSocketPool methods:
+  // ClientSocketPool implementation.
   virtual int RequestSocket(const std::string& group_name,
                             const void* connect_params,
                             RequestPriority priority,
                             ClientSocketHandle* handle,
-                            CompletionCallback* callback,
-                            const BoundNetLog& net_log);
+                            const CompletionCallback& callback,
+                            const BoundNetLog& net_log) OVERRIDE;
 
   virtual void RequestSockets(const std::string& group_name,
                               const void* params,
                               int num_sockets,
-                              const BoundNetLog& net_log);
+                              const BoundNetLog& net_log) OVERRIDE;
 
   virtual void CancelRequest(const std::string& group_name,
-                             ClientSocketHandle* handle);
+                             ClientSocketHandle* handle) OVERRIDE;
 
   virtual void ReleaseSocket(const std::string& group_name,
                              StreamSocket* socket,
-                             int id);
+                             int id) OVERRIDE;
 
-  virtual void Flush();
+  virtual void Flush() OVERRIDE;
 
-  virtual void CloseIdleSockets();
+  virtual void CloseIdleSockets() OVERRIDE;
 
-  virtual int IdleSocketCount() const;
+  virtual int IdleSocketCount() const OVERRIDE;
 
-  virtual int IdleSocketCountInGroup(const std::string& group_name) const;
+  virtual int IdleSocketCountInGroup(
+      const std::string& group_name) const OVERRIDE;
 
-  virtual LoadState GetLoadState(const std::string& group_name,
-                                 const ClientSocketHandle* handle) const;
+  virtual LoadState GetLoadState(
+      const std::string& group_name,
+      const ClientSocketHandle* handle) const OVERRIDE;
 
   virtual base::DictionaryValue* GetInfoAsValue(
       const std::string& name,
       const std::string& type,
-      bool include_nested_pools) const;
+      bool include_nested_pools) const OVERRIDE;
 
-  virtual base::TimeDelta ConnectionTimeout() const;
+  virtual base::TimeDelta ConnectionTimeout() const OVERRIDE;
 
-  virtual ClientSocketPoolHistograms* histograms() const;
+  virtual ClientSocketPoolHistograms* histograms() const OVERRIDE;
 
  private:
   typedef ClientSocketPoolBase<SOCKSSocketParams> PoolBase;
@@ -174,9 +177,9 @@ class NET_TEST SOCKSClientSocketPool : public ClientSocketPool {
     virtual ConnectJob* NewConnectJob(
         const std::string& group_name,
         const PoolBase::Request& request,
-        ConnectJob::Delegate* delegate) const;
+        ConnectJob::Delegate* delegate) const OVERRIDE;
 
-    virtual base::TimeDelta ConnectionTimeout() const;
+    virtual base::TimeDelta ConnectionTimeout() const OVERRIDE;
 
    private:
     TransportClientSocketPool* const transport_pool_;

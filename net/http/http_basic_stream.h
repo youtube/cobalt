@@ -42,21 +42,21 @@ class HttpBasicStream : public HttpStream {
   // HttpStream methods:
   virtual int InitializeStream(const HttpRequestInfo* request_info,
                                const BoundNetLog& net_log,
-                               CompletionCallback* callback) OVERRIDE;
+                               const CompletionCallback& callback) OVERRIDE;
 
   virtual int SendRequest(const HttpRequestHeaders& headers,
                           UploadDataStream* request_body,
                           HttpResponseInfo* response,
-                          CompletionCallback* callback) OVERRIDE;
+                          const CompletionCallback& callback) OVERRIDE;
 
   virtual uint64 GetUploadProgress() const OVERRIDE;
 
-  virtual int ReadResponseHeaders(CompletionCallback* callback) OVERRIDE;
+  virtual int ReadResponseHeaders(const CompletionCallback& callback) OVERRIDE;
 
   virtual const HttpResponseInfo* GetResponseInfo() const OVERRIDE;
 
   virtual int ReadResponseBody(IOBuffer* buf, int buf_len,
-                               CompletionCallback* callback) OVERRIDE;
+                               const CompletionCallback& callback) OVERRIDE;
 
   virtual void Close(bool not_reusable) OVERRIDE;
 
@@ -82,6 +82,8 @@ class HttpBasicStream : public HttpStream {
   virtual bool IsSpdyHttpStream() const OVERRIDE;
 
   virtual void LogNumRttVsBytesMetrics() const OVERRIDE;
+
+  virtual void Drain(HttpNetworkSession* session) OVERRIDE;
 
  private:
   scoped_refptr<GrowableIOBuffer> read_buf_;

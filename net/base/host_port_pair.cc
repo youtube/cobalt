@@ -1,9 +1,11 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/host_port_pair.h"
 
+#include "base/string_number_conversions.h"
+#include "base/string_split.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "googleurl/src/gurl.h"
@@ -25,6 +27,21 @@ HostPortPair HostPortPair::FromURL(const GURL& url) {
 HostPortPair HostPortPair::FromAddrInfo(const struct addrinfo* ai) {
   return HostPortPair(NetAddressToString(ai),
                       GetPortFromSockaddr(ai->ai_addr, ai->ai_addrlen));
+}
+
+HostPortPair HostPortPair::FromString(const std::string& str) {
+  std::vector<std::string> key_port;
+  base::SplitString(str, ':', &key_port);
+  if (key_port.size() != 2)
+    return HostPortPair();
+  int port;
+  if (!base::StringToInt(key_port[1], &port))
+    return HostPortPair();
+  DCHECK_LT(port, 1 << 16);
+  HostPortPair host_port_pair;
+  host_port_pair.set_host(key_port[0]);
+  host_port_pair.set_port(port);
+  return host_port_pair;
 }
 
 std::string HostPortPair::ToString() const {

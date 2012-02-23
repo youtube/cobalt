@@ -1,14 +1,15 @@
-# Copyright (c) 2009 The Chromium Authors. All rights reserved.
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 {
   'variables': {
     'conditions': [
-      [ 'os_posix == 1 and OS != "mac" and OS != "lb_shell"', {
-        # Link to system .so since we already use it due to GTK.
-        'use_system_libpng%': 1,
-      }, {  # os_posix != 1 or OS == "mac" or OS == "lb_shell"
+      [ 'os_posix == 1 and OS != "mac" and OS != "android"', {
+        # Maybe link to system .so once the security concerns are thought
+        # through, since we already use it due to GTK.
+        'use_system_libpng%': 0,
+      }, {  # os_posix != 1 or OS == "mac"
         'use_system_libpng%': 0,
       }],
     ],
@@ -18,7 +19,6 @@
       'targets': [
         {
           'target_name': 'libpng',
-          'type': '<(component)',
           'dependencies': [
             '../zlib/zlib.gyp:zlib',
           ],
@@ -62,6 +62,13 @@
           ],
           'conditions': [
             ['OS!="win"', {'product_name': 'png'}],
+            ['OS=="win"', {
+              'type': '<(component)',
+            }, {
+              # Chromium libpng does not support building as a shared_library
+              # on non-Windows platforms.
+              'type': 'static_library',
+            }],
             ['OS=="win" and component=="shared_library"', {
               'defines': [
                 'PNG_BUILD_DLL',
@@ -72,6 +79,9 @@
                   'PNG_USE_DLL',
                 ],
               },          
+            }],
+            ['OS=="android"', {
+              'toolsets': ['target', 'host'],
             }],
           ],
         },
@@ -91,7 +101,7 @@
       'targets': [
         {
           'target_name': 'libpng',
-          'type': 'settings',
+          'type': 'none',
           'dependencies': [
             '../zlib/zlib.gyp:zlib',
           ],

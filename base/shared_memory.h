@@ -38,6 +38,29 @@ typedef ino_t SharedMemoryId;
 // needed.
 #endif
 
+// Options for creating a shared memory object.
+struct SharedMemoryCreateOptions {
+  SharedMemoryCreateOptions() : name(NULL), size(0), open_existing(false),
+                                executable(false) {}
+
+  // If NULL, the object is anonymous.  This pointer is owned by the caller
+  // and must live through the call to Create().
+  const std::string* name;
+
+  // Size of the shared memory object to be created.
+  // When opening an existing object, this has no effect.
+  uint32 size;
+
+  // If true, and the shared memory already exists, Create() will open the
+  // existing shared memory and ignore the size parameter.  If false,
+  // shared memory must not exist.  This flag is meaningless unless name is
+  // non-NULL.
+  bool open_existing;
+
+  // If true, mappings might need to be made executable later.
+  bool executable;
+};
+
 // Platform abstraction for shared memory.  Provides a C++ wrapper
 // around the OS primitive for a memory mapped file.
 class BASE_EXPORT SharedMemory {
@@ -74,13 +97,21 @@ class BASE_EXPORT SharedMemory {
   // Closes a shared memory handle.
   static void CloseHandle(const SharedMemoryHandle& handle);
 
+  // Creates a shared memory object as described by the options struct.
+  // Returns true on success and false on failure.
+  bool Create(const SharedMemoryCreateOptions& options);
+
   // Creates and maps an anonymous shared memory segment of size size.
   // Returns true on success and false on failure.
   bool CreateAndMapAnonymous(uint32 size);
 
   // Creates an anonymous shared memory segment of size size.
   // Returns true on success and false on failure.
-  bool CreateAnonymous(uint32 size);
+  bool CreateAnonymous(uint32 size) {
+    SharedMemoryCreateOptions options;
+    options.size = size;
+    return Create(options);
+  }
 
   // Creates or opens a shared memory segment based on a name.
   // If open_existing is true, and the shared memory already exists,
@@ -88,7 +119,13 @@ class BASE_EXPORT SharedMemory {
   // If open_existing is false, shared memory must not exist.
   // size is the size of the block to be created.
   // Returns true on success, false on failure.
-  bool CreateNamed(const std::string& name, bool open_existing, uint32 size);
+  bool CreateNamed(const std::string& name, bool open_existing, uint32 size) {
+    SharedMemoryCreateOptions options;
+    options.name = &name;
+    options.open_existing = open_existing;
+    options.size = size;
+    return Create(options);
+  }
 
   // Deletes resources associated with a shared memory segment based on name.
   // Not all platforms require this call.

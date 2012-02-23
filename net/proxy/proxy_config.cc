@@ -159,7 +159,7 @@ ProxyServer* ProxyConfig::ProxyRules::MapUrlSchemeToProxyNoFallback(
 }
 
 ProxyConfig::ProxyConfig()
-    : auto_detect_(false), pac_mandatory_(false), id_(INVALID_ID)  {
+    : auto_detect_(false), pac_mandatory_(false), id_(kInvalidConfigID)  {
 }
 
 ProxyConfig::ProxyConfig(const ProxyConfig& config)
