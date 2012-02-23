@@ -13,18 +13,13 @@ class BASE_EXPORT MessagePumpShell : public MessagePump {
 
   MessagePumpShell();
 
-  // ------------------------------------------- UI
-  class Observer {
-    // __LB_SHELL__WRITE_ME__
-  };
-
   class Dispatcher {
-    // __LB_SHELL__WRITE_ME__
   };
 
-  // ------------------------------------------- IO
+  class Observer {
+  };
+
   class IOObserver {
-     // __LB_SHELL__WRITE_ME__
   };
 
   class Watcher {
@@ -64,7 +59,12 @@ class BASE_EXPORT MessagePumpShell : public MessagePump {
 
   // cribbed from message_pump_glib.h
   virtual void RunWithDispatcher(Delegate* delegate, Dispatcher* dispatcher);
+
+  // Add an Observer, which will start receiving notifications immediately.
   void AddObserver(Observer* observer);
+
+  // Remove an Observer.  It is safe to call this method while an Observer is
+  // receiving a notification callback.
   void RemoveObserver(Observer* observer);
 
   // ------------------------------------------- IO

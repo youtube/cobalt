@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,6 @@
 
 #include "base/logging.h"
 #include "base/message_loop.h"
-#include "base/task.h"
 #include "media/audio/audio_manager.h"
 #include "media/audio/audio_output_dispatcher.h"
 
@@ -15,17 +14,16 @@ AudioOutputProxy::AudioOutputProxy(AudioOutputDispatcher* dispatcher)
       state_(kCreated),
       physical_stream_(NULL),
       volume_(1.0) {
-  DCHECK_EQ(MessageLoop::current(), dispatcher_->message_loop());
 }
 
 AudioOutputProxy::~AudioOutputProxy() {
-  DCHECK_EQ(MessageLoop::current(), dispatcher_->message_loop());
+  DCHECK(CalledOnValidThread());
   DCHECK(state_ == kCreated || state_ == kClosed);
   DCHECK(!physical_stream_);
 }
 
 bool AudioOutputProxy::Open() {
-  DCHECK_EQ(MessageLoop::current(), dispatcher_->message_loop());
+  DCHECK(CalledOnValidThread());
   DCHECK_EQ(state_, kCreated);
 
   if (!dispatcher_->StreamOpened()) {
@@ -38,7 +36,7 @@ bool AudioOutputProxy::Open() {
 }
 
 void AudioOutputProxy::Start(AudioSourceCallback* callback) {
-  DCHECK_EQ(MessageLoop::current(), dispatcher_->message_loop());
+  DCHECK(CalledOnValidThread());
   DCHECK(physical_stream_ == NULL);
   DCHECK_EQ(state_, kOpened);
 
@@ -55,7 +53,7 @@ void AudioOutputProxy::Start(AudioSourceCallback* callback) {
 }
 
 void AudioOutputProxy::Stop() {
-  DCHECK_EQ(MessageLoop::current(), dispatcher_->message_loop());
+  DCHECK(CalledOnValidThread());
   if (state_ != kPlaying)
     return;
 
@@ -67,7 +65,7 @@ void AudioOutputProxy::Stop() {
 }
 
 void AudioOutputProxy::SetVolume(double volume) {
-  DCHECK_EQ(MessageLoop::current(), dispatcher_->message_loop());
+  DCHECK(CalledOnValidThread());
   volume_ = volume;
   if (physical_stream_) {
     physical_stream_->SetVolume(volume);
@@ -75,18 +73,23 @@ void AudioOutputProxy::SetVolume(double volume) {
 }
 
 void AudioOutputProxy::GetVolume(double* volume) {
-  DCHECK_EQ(MessageLoop::current(), dispatcher_->message_loop());
+  DCHECK(CalledOnValidThread());
   *volume = volume_;
 }
 
 void AudioOutputProxy::Close() {
-  DCHECK_EQ(MessageLoop::current(), dispatcher_->message_loop());
+  DCHECK(CalledOnValidThread());
   DCHECK(state_ == kCreated || state_ == kError || state_ == kOpened);
   DCHECK(!physical_stream_);
 
-  if (state_ != kCreated) {
+  if (state_ != kCreated)
     dispatcher_->StreamClosed();
-  }
-  dispatcher_->message_loop()->DeleteSoon(FROM_HERE, this);
+
   state_ = kClosed;
+
+  // Delete the object now like is done in the Close() implementation of
+  // physical stream objects.  If we delete the object via DeleteSoon, we
+  // unnecessarily complicate the Shutdown procedure of the
+  // dispatcher+audio manager.
+  delete this;
 }

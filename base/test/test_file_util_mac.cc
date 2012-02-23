@@ -19,27 +19,27 @@ bool EvictFileFromSystemCache(const FilePath& file) {
 
   int64 length;
   if (!file_util::GetFileSize(file, &length)) {
-    LOG(ERROR) << "failed to get size of " << file.value();
+    DLOG(ERROR) << "failed to get size of " << file.value();
     return false;
   }
 
   // When a file is empty, we do not need to evict it from cache.
   // In fact, an attempt to map it to memory will result in error.
   if (length == 0) {
-    LOG(WARNING) << "file size is zero, will not attempt to map to memory";
+    DLOG(WARNING) << "file size is zero, will not attempt to map to memory";
     return true;
   }
 
   file_util::MemoryMappedFile mapped_file;
   if (!mapped_file.Initialize(file)) {
-    LOG(WARNING) << "failed to memory map " << file.value();
+    DLOG(WARNING) << "failed to memory map " << file.value();
     return false;
   }
 
   if (msync(const_cast<uint8*>(mapped_file.data()), mapped_file.length(),
             MS_INVALIDATE) != 0) {
-    LOG(WARNING) << "failed to invalidate memory map of " << file.value()
-        << ", errno: " << errno;
+    DLOG(WARNING) << "failed to invalidate memory map of " << file.value()
+                  << ", errno: " << errno;
     return false;
   }
 

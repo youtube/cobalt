@@ -50,6 +50,11 @@ class BASE_EXPORT Pickle {
   // Initializes a Pickle as a deep copy of another Pickle.
   Pickle(const Pickle& other);
 
+  // Note: There are no virtual methods in this class.  This destructor is
+  // virtual as an element of defensive coding.  Other classes have derived from
+  // this class, and there is a *chance* that they will cast into this base
+  // class before destruction.  At least one such class does have a virtual
+  // destructor, suggesting at least some need to call more derived destructors.
   virtual ~Pickle();
 
   // Performs a deep copy.

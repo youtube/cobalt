@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -32,7 +32,6 @@ struct SocketStreamEvent {
                     int num,
                     const std::string& str,
                     net::AuthChallengeInfo* auth_challenge_info,
-                    net::CompletionCallback* callback,
                     int error)
       : event_type(type), socket(socket_stream), number(num), data(str),
         auth_info(auth_challenge_info), error_code(error) {}
@@ -47,7 +46,7 @@ struct SocketStreamEvent {
 
 class SocketStreamEventRecorder : public net::SocketStream::Delegate {
  public:
-  explicit SocketStreamEventRecorder(net::CompletionCallback* callback)
+  explicit SocketStreamEventRecorder(const net::CompletionCallback& callback)
       : callback_(callback) {}
   virtual ~SocketStreamEventRecorder() {}
 
@@ -78,83 +77,82 @@ class SocketStreamEventRecorder : public net::SocketStream::Delegate {
     on_error_ = callback;
   }
 
-  virtual int OnStartOpenConnection(net::SocketStream* socket,
-                                    net::CompletionCallback* callback) {
+  virtual int OnStartOpenConnection(
+      net::SocketStream* socket,
+      const net::CompletionCallback& callback) OVERRIDE {
     connection_callback_ = callback;
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_START_OPEN_CONNECTION,
-                          socket, 0, std::string(), NULL, callback, net::OK));
+                          socket, 0, std::string(), NULL, net::OK));
     if (!on_start_open_connection_.is_null())
       return on_start_open_connection_.Run(&events_.back());
     return net::OK;
   }
   virtual void OnConnected(net::SocketStream* socket,
-                           int num_pending_send_allowed) {
+                           int num_pending_send_allowed) OVERRIDE {
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_CONNECTED,
                           socket, num_pending_send_allowed, std::string(),
-                          NULL, NULL, net::OK));
+                          NULL, net::OK));
     if (!on_connected_.is_null())
       on_connected_.Run(&events_.back());
   }
   virtual void OnSentData(net::SocketStream* socket,
-                          int amount_sent) {
+                          int amount_sent) OVERRIDE {
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_SENT_DATA, socket,
-                          amount_sent, std::string(), NULL, NULL, net::OK));
+                          amount_sent, std::string(), NULL, net::OK));
     if (!on_sent_data_.is_null())
       on_sent_data_.Run(&events_.back());
   }
   virtual void OnReceivedData(net::SocketStream* socket,
-                              const char* data, int len) {
+                              const char* data, int len) OVERRIDE {
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_RECEIVED_DATA, socket, len,
-                          std::string(data, len), NULL, NULL, net::OK));
+                          std::string(data, len), NULL, net::OK));
     if (!on_received_data_.is_null())
       on_received_data_.Run(&events_.back());
   }
-  virtual void OnClose(net::SocketStream* socket) {
+  virtual void OnClose(net::SocketStream* socket) OVERRIDE {
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_CLOSE, socket, 0,
-                          std::string(), NULL, NULL, net::OK));
+                          std::string(), NULL, net::OK));
     if (!on_close_.is_null())
       on_close_.Run(&events_.back());
-    if (callback_)
-      callback_->Run(net::OK);
+    if (!callback_.is_null())
+      callback_.Run(net::OK);
   }
   virtual void OnAuthRequired(net::SocketStream* socket,
-                              net::AuthChallengeInfo* auth_info) {
+                              net::AuthChallengeInfo* auth_info) OVERRIDE {
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_AUTH_REQUIRED, socket, 0,
-                          std::string(), auth_info, NULL, net::OK));
+                          std::string(), auth_info, net::OK));
     if (!on_auth_required_.is_null())
       on_auth_required_.Run(&events_.back());
   }
-  virtual void OnError(const net::SocketStream* socket, int error) {
+  virtual void OnError(const net::SocketStream* socket, int error) OVERRIDE {
     events_.push_back(
         SocketStreamEvent(SocketStreamEvent::EVENT_ERROR, NULL, 0,
-                          std::string(), NULL, NULL, error));
+                          std::string(), NULL, error));
     if (!on_error_.is_null())
       on_error_.Run(&events_.back());
-    if (callback_)
-      callback_->Run(error);
+    if (!callback_.is_null())
+      callback_.Run(error);
   }
 
   void DoClose(SocketStreamEvent* event) {
     event->socket->Close();
   }
   void DoRestartWithAuth(SocketStreamEvent* event) {
-    VLOG(1) << "RestartWithAuth username=" << username_
-            << " password=" << password_;
-    event->socket->RestartWithAuth(username_, password_);
+    VLOG(1) << "RestartWithAuth username=" << credentials_.username()
+            << " password=" << credentials_.password();
+    event->socket->RestartWithAuth(credentials_);
   }
-  void SetAuthInfo(const string16& username,
-                   const string16& password) {
-    username_ = username;
-    password_ = password;
+  void SetAuthInfo(const net::AuthCredentials& credentials) {
+    credentials_ = credentials;
   }
   void CompleteConnection(int result) {
-    connection_callback_->Run(result);
+    connection_callback_.Run(result);
   }
 
   const std::vector<SocketStreamEvent>& GetSeenEvents() const {
@@ -170,11 +168,9 @@ class SocketStreamEventRecorder : public net::SocketStream::Delegate {
   base::Callback<void(SocketStreamEvent*)> on_close_;
   base::Callback<void(SocketStreamEvent*)> on_auth_required_;
   base::Callback<void(SocketStreamEvent*)> on_error_;
-  net::CompletionCallback* callback_;
-  net::CompletionCallback* connection_callback_;
-
-  string16 username_;
-  string16 password_;
+  const net::CompletionCallback callback_;
+  net::CompletionCallback connection_callback_;
+  net::AuthCredentials credentials_;
 
   DISALLOW_COPY_AND_ASSIGN(SocketStreamEventRecorder);
 };
@@ -231,7 +227,7 @@ class SocketStreamTest : public PlatformTest {
   }
 
   virtual int DoIOPending(SocketStreamEvent* event) {
-    io_callback_.Run(net::OK);
+    io_test_callback_.callback().Run(net::OK);
     return net::ERR_IO_PENDING;
   }
 
@@ -239,7 +235,7 @@ class SocketStreamTest : public PlatformTest {
   static const char kWebSocketHandshakeResponse[];
 
  protected:
-  TestCompletionCallback io_callback_;
+  TestCompletionCallback io_test_callback_;
 
  private:
   std::string handshake_request_;
@@ -272,10 +268,10 @@ const char SocketStreamTest::kWebSocketHandshakeResponse[] =
     "8jKS'y:G*Co,Wxa-";
 
 TEST_F(SocketStreamTest, CloseFlushPendingWrite) {
-  TestCompletionCallback callback;
+  TestCompletionCallback test_callback;
 
   scoped_ptr<SocketStreamEventRecorder> delegate(
-      new SocketStreamEventRecorder(&callback));
+      new SocketStreamEventRecorder(test_callback.callback()));
   delegate->SetOnConnected(base::Bind(
       &SocketStreamTest::DoSendWebSocketHandshake, base::Unretained(this)));
   delegate->SetOnReceivedData(base::Bind(
@@ -303,7 +299,7 @@ TEST_F(SocketStreamTest, CloseFlushPendingWrite) {
   AddWebSocketMessage("message1");
   AddWebSocketMessage("message2");
 
-  scoped_refptr<DelayedSocketData> data_provider(
+  scoped_ptr<DelayedSocketData> data_provider(
       new DelayedSocketData(1,
                             data_reads, arraysize(data_reads),
                             data_writes, arraysize(data_writes)));
@@ -316,7 +312,7 @@ TEST_F(SocketStreamTest, CloseFlushPendingWrite) {
 
   socket_stream->Connect();
 
-  callback.WaitForResult();
+  test_callback.WaitForResult();
 
   const std::vector<SocketStreamEvent>& events = delegate->GetSeenEvents();
   ASSERT_EQ(8U, events.size());
@@ -368,13 +364,14 @@ TEST_F(SocketStreamTest, BasicAuthProxy) {
                                  data_writes2, arraysize(data_writes2));
   mock_socket_factory.AddSocketDataProvider(&data2);
 
-  TestCompletionCallback callback;
+  TestCompletionCallback test_callback;
 
   scoped_ptr<SocketStreamEventRecorder> delegate(
-      new SocketStreamEventRecorder(&callback));
+      new SocketStreamEventRecorder(test_callback.callback()));
   delegate->SetOnConnected(base::Bind(&SocketStreamEventRecorder::DoClose,
                                       base::Unretained(delegate.get())));
-  delegate->SetAuthInfo(ASCIIToUTF16("foo"), ASCIIToUTF16("bar"));
+  delegate->SetAuthInfo(net::AuthCredentials(ASCIIToUTF16("foo"),
+                                             ASCIIToUTF16("bar")));
   delegate->SetOnAuthRequired(base::Bind(
       &SocketStreamEventRecorder::DoRestartWithAuth,
       base::Unretained(delegate.get())));
@@ -389,7 +386,7 @@ TEST_F(SocketStreamTest, BasicAuthProxy) {
 
   socket_stream->Connect();
 
-  callback.WaitForResult();
+  test_callback.WaitForResult();
 
   const std::vector<SocketStreamEvent>& events = delegate->GetSeenEvents();
   ASSERT_EQ(5U, events.size());
@@ -406,10 +403,10 @@ TEST_F(SocketStreamTest, BasicAuthProxy) {
 }
 
 TEST_F(SocketStreamTest, IOPending) {
-  TestCompletionCallback callback;
+  TestCompletionCallback test_callback;
 
   scoped_ptr<SocketStreamEventRecorder> delegate(
-      new SocketStreamEventRecorder(&callback));
+      new SocketStreamEventRecorder(test_callback.callback()));
   delegate->SetOnConnected(base::Bind(
       &SocketStreamTest::DoSendWebSocketHandshake, base::Unretained(this)));
   delegate->SetOnReceivedData(base::Bind(
@@ -439,7 +436,7 @@ TEST_F(SocketStreamTest, IOPending) {
   AddWebSocketMessage("message1");
   AddWebSocketMessage("message2");
 
-  scoped_refptr<DelayedSocketData> data_provider(
+  scoped_ptr<DelayedSocketData> data_provider(
       new DelayedSocketData(1,
                             data_reads, arraysize(data_reads),
                             data_writes, arraysize(data_writes)));
@@ -451,12 +448,12 @@ TEST_F(SocketStreamTest, IOPending) {
   socket_stream->SetClientSocketFactory(mock_socket_factory);
 
   socket_stream->Connect();
-  io_callback_.WaitForResult();
+  io_test_callback_.WaitForResult();
   EXPECT_EQ(net::SocketStream::STATE_RESOLVE_PROTOCOL_COMPLETE,
             socket_stream->next_state_);
   delegate->CompleteConnection(net::OK);
 
-  EXPECT_EQ(net::OK, callback.WaitForResult());
+  EXPECT_EQ(net::OK, test_callback.WaitForResult());
 
   const std::vector<SocketStreamEvent>& events = delegate->GetSeenEvents();
   ASSERT_EQ(8U, events.size());
@@ -474,10 +471,10 @@ TEST_F(SocketStreamTest, IOPending) {
 }
 
 TEST_F(SocketStreamTest, SwitchToSpdy) {
-  TestCompletionCallback callback;
+  TestCompletionCallback test_callback;
 
   scoped_ptr<SocketStreamEventRecorder> delegate(
-      new SocketStreamEventRecorder(&callback));
+      new SocketStreamEventRecorder(test_callback.callback()));
   delegate->SetOnStartOpenConnection(base::Bind(
       &SocketStreamTest::DoSwitchToSpdyTest, base::Unretained(this)));
 
@@ -491,7 +488,7 @@ TEST_F(SocketStreamTest, SwitchToSpdy) {
 
   socket_stream->Connect();
 
-  EXPECT_EQ(net::ERR_PROTOCOL_SWITCHED, callback.WaitForResult());
+  EXPECT_EQ(net::ERR_PROTOCOL_SWITCHED, test_callback.WaitForResult());
 
   const std::vector<SocketStreamEvent>& events = delegate->GetSeenEvents();
   ASSERT_EQ(2U, events.size());
@@ -503,10 +500,10 @@ TEST_F(SocketStreamTest, SwitchToSpdy) {
 }
 
 TEST_F(SocketStreamTest, SwitchAfterPending) {
-  TestCompletionCallback callback;
+  TestCompletionCallback test_callback;
 
   scoped_ptr<SocketStreamEventRecorder> delegate(
-      new SocketStreamEventRecorder(&callback));
+      new SocketStreamEventRecorder(test_callback.callback()));
   delegate->SetOnStartOpenConnection(base::Bind(
       &SocketStreamTest::DoIOPending, base::Unretained(this)));
 
@@ -519,12 +516,12 @@ TEST_F(SocketStreamTest, SwitchAfterPending) {
   socket_stream->SetHostResolver(&host_resolver);
 
   socket_stream->Connect();
-  io_callback_.WaitForResult();
+  io_test_callback_.WaitForResult();
   EXPECT_EQ(net::SocketStream::STATE_RESOLVE_PROTOCOL_COMPLETE,
             socket_stream->next_state_);
   delegate->CompleteConnection(net::ERR_PROTOCOL_SWITCHED);
 
-  EXPECT_EQ(net::ERR_PROTOCOL_SWITCHED, callback.WaitForResult());
+  EXPECT_EQ(net::ERR_PROTOCOL_SWITCHED, test_callback.WaitForResult());
 
   const std::vector<SocketStreamEvent>& events = delegate->GetSeenEvents();
   ASSERT_EQ(2U, events.size());
@@ -558,10 +555,10 @@ TEST_F(SocketStreamTest, SecureProxyConnectError) {
   SSLSocketDataProvider ssl(false, ERR_SSL_PROTOCOL_ERROR);
   mock_socket_factory.AddSSLSocketDataProvider(&ssl);
 
-  TestCompletionCallback callback;
+  TestCompletionCallback test_callback;
 
   scoped_ptr<SocketStreamEventRecorder> delegate(
-      new SocketStreamEventRecorder(&callback));
+      new SocketStreamEventRecorder(test_callback.callback()));
   delegate->SetOnConnected(base::Bind(&SocketStreamEventRecorder::DoClose,
                                       base::Unretained(delegate.get())));
 
@@ -575,7 +572,7 @@ TEST_F(SocketStreamTest, SecureProxyConnectError) {
 
   socket_stream->Connect();
 
-  callback.WaitForResult();
+  test_callback.WaitForResult();
 
   const std::vector<SocketStreamEvent>& events = delegate->GetSeenEvents();
   ASSERT_EQ(3U, events.size());
@@ -610,10 +607,10 @@ TEST_F(SocketStreamTest, SecureProxyConnect) {
   SSLSocketDataProvider ssl(false, OK);
   mock_socket_factory.AddSSLSocketDataProvider(&ssl);
 
-  TestCompletionCallback callback;
+  TestCompletionCallback test_callback;
 
   scoped_ptr<SocketStreamEventRecorder> delegate(
-      new SocketStreamEventRecorder(&callback));
+      new SocketStreamEventRecorder(test_callback.callback()));
   delegate->SetOnConnected(base::Bind(&SocketStreamEventRecorder::DoClose,
                                       base::Unretained(delegate.get())));
 
@@ -627,7 +624,7 @@ TEST_F(SocketStreamTest, SecureProxyConnect) {
 
   socket_stream->Connect();
 
-  callback.WaitForResult();
+  test_callback.WaitForResult();
 
   const std::vector<SocketStreamEvent>& events = delegate->GetSeenEvents();
   ASSERT_EQ(4U, events.size());

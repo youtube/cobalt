@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/string16.h"
 #include "googleurl/src/gurl.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
@@ -19,7 +19,7 @@ namespace net {
 //
 // This is thread-safe so it can be used by multi-threaded implementations of
 // ProxyResolver to share the data between threads.
-class NET_TEST ProxyResolverScriptData
+class NET_EXPORT_PRIVATE ProxyResolverScriptData
     : public base::RefCountedThreadSafe<ProxyResolverScriptData> {
  public:
   enum Type {
@@ -53,6 +53,9 @@ class NET_TEST ProxyResolverScriptData
   // Returns the URL of the script.
   // (only valid for type() == TYPE_SCRIPT_URL).
   const GURL& url() const;
+
+  // Returns true if |this| matches |other|.
+  bool Equals(const ProxyResolverScriptData* other) const;
 
  private:
   friend class base::RefCountedThreadSafe<ProxyResolverScriptData>;

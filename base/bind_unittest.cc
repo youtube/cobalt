@@ -4,13 +4,10 @@
 
 #include "base/bind.h"
 
-#if defined(BASE_CALLBACK_H_)
-// We explicitly do not want to include callback.h so people are not tempted
-// to use bind.h in a headerfile for getting the Callback types.
-#error "base/bind.h should avoid pulling in callback.h by default."
-#endif
-
 #include "base/callback.h"
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -20,6 +17,8 @@ using ::testing::StrictMock;
 
 namespace base {
 namespace {
+
+class IncompleteType;
 
 class NoRef {
  public:
@@ -106,7 +105,7 @@ class CopyCounter {
     (*copies_)++;
   }
 
-  // Probing for copies from coerscion.
+  // Probing for copies from coercion.
   CopyCounter(const DerivedCopyCounter& other)
       : copies_(other.copies_),
         assigns_(other.assigns_) {
@@ -137,6 +136,27 @@ class CopyCounter {
   int* assigns_;
 };
 
+class DeleteCounter {
+ public:
+  explicit DeleteCounter(int* deletes)
+      : deletes_(deletes) {
+  }
+
+  ~DeleteCounter() {
+    (*deletes_)++;
+  }
+
+  void VoidMethod0() {}
+
+ private:
+  int* deletes_;
+};
+
+template <typename T>
+T PassThru(T scoper) {
+  return scoper.Pass();
+}
+
 // Some test functions that we can Bind to.
 template <typename T>
 T PolymorphicIdentity(T t) {
@@ -157,6 +177,10 @@ int ArrayGet(const int array[], int n) {
 
 int Sum(int a, int b, int c, int d, int e, int f) {
   return a + b + c + d + e + f;
+}
+
+void OutputSum(int* output, int a, int b, int c, int d, int e) {
+  *output = a + b + c + d + e;
 }
 
 const char* CStringIdentity(const char* s) {
@@ -183,13 +207,16 @@ void RefArgSet(int &n) {
   n = 2;
 }
 
+void PtrArgSet(int *n) {
+  *n = 2;
+}
+
 int FunctionWithWeakFirstParam(WeakPtr<NoRef> o, int n) {
   return n;
 }
 
-// Only useful in no-compile tests.
-int UnwrapNoRefParentRef(Parent& p) {
-  return p.value;
+void TakesACallback(const Closure& callback) {
+  callback.Run();
 }
 
 class BindTest : public ::testing::Test {
@@ -249,9 +276,54 @@ TEST_F(BindTest, ArityTest) {
   EXPECT_EQ(69, c6.Run(13, 12, 11, 10, 9, 14));
 }
 
+// Test the Currying ability of the Callback system.
+TEST_F(BindTest, CurryingTest) {
+  Callback<int(int,int,int,int,int,int)> c6 = Bind(&Sum);
+  EXPECT_EQ(69, c6.Run(13, 12, 11, 10, 9, 14));
+
+  Callback<int(int,int,int,int,int)> c5 = Bind(c6, 32);
+  EXPECT_EQ(87, c5.Run(13, 12, 11, 10, 9));
+
+  Callback<int(int,int,int,int)> c4 = Bind(c5, 16);
+  EXPECT_EQ(94, c4.Run(13, 12, 11, 10));
+
+  Callback<int(int,int,int)> c3 = Bind(c4, 8);
+  EXPECT_EQ(92, c3.Run(13, 12, 11));
+
+  Callback<int(int,int)> c2 = Bind(c3, 4);
+  EXPECT_EQ(85, c2.Run(13, 12));
+
+  Callback<int(int)> c1 = Bind(c2, 2);
+  EXPECT_EQ(75, c1.Run(13));
+
+  Callback<int(void)> c0 = Bind(c1, 1);
+  EXPECT_EQ(63, c0.Run());
+}
+
+// Test that currying the rvalue result of another Bind() works correctly.
+//   - rvalue should be usable as argument to Bind().
+//   - multiple runs of resulting Callback remain valid.
+TEST_F(BindTest, CurryingRvalueResultOfBind) {
+  int n = 0;
+  Closure cb = base::Bind(&TakesACallback, base::Bind(&PtrArgSet, &n));
+
+  // If we implement Bind() such that the return value has auto_ptr-like
+  // semantics, the second call here will fail because ownership of
+  // the internal BindState<> would have been transfered to a *temporary*
+  // constructon of a Callback object on the first call.
+  cb.Run();
+  EXPECT_EQ(2, n);
+
+  n = 0;
+  cb.Run();
+  EXPECT_EQ(2, n);
+}
+
 // Function type support.
 //   - Normal function.
+//   - Normal function bound with non-refcounted first argument.
 //   - Method bound to non-const object.
+//   - Method bound to scoped_refptr.
 //   - Const method bound to non-const object.
 //   - Const method bound to const object.
 //   - Derived classes can be used with pointers to non-virtual base functions.
@@ -259,19 +331,26 @@ TEST_F(BindTest, ArityTest) {
 //     preserve virtual dispatch).
 TEST_F(BindTest, FunctionTypeSupport) {
   EXPECT_CALL(static_func_mock_, VoidMethod0());
-  EXPECT_CALL(has_ref_, AddRef()).Times(3);
-  EXPECT_CALL(has_ref_, Release()).Times(3);
-  EXPECT_CALL(has_ref_, VoidMethod0());
+  EXPECT_CALL(has_ref_, AddRef()).Times(5);
+  EXPECT_CALL(has_ref_, Release()).Times(5);
+  EXPECT_CALL(has_ref_, VoidMethod0()).Times(2);
   EXPECT_CALL(has_ref_, VoidConstMethod0()).Times(2);
 
   Closure normal_cb = Bind(&VoidFunc0);
+  Callback<NoRef*(void)> normal_non_refcounted_cb =
+      Bind(&PolymorphicIdentity<NoRef*>, &no_ref_);
+  normal_cb.Run();
+  EXPECT_EQ(&no_ref_, normal_non_refcounted_cb.Run());
+
   Closure method_cb = Bind(&HasRef::VoidMethod0, &has_ref_);
+  Closure method_refptr_cb = Bind(&HasRef::VoidMethod0,
+                                  make_scoped_refptr(&has_ref_));
   Closure const_method_nonconst_obj_cb = Bind(&HasRef::VoidConstMethod0,
                                               &has_ref_);
   Closure const_method_const_obj_cb = Bind(&HasRef::VoidConstMethod0,
                                            const_has_ref_ptr_);
-  normal_cb.Run();
   method_cb.Run();
+  method_refptr_cb.Run();
   const_method_nonconst_obj_cb.Run();
   const_method_const_obj_cb.Run();
 
@@ -312,6 +391,48 @@ TEST_F(BindTest, ReturnValues) {
   EXPECT_EQ(51337, const_method_const_obj_cb.Run());
 }
 
+// IgnoreResult adapter test.
+//   - Function with return value.
+//   - Method with return value.
+//   - Const Method with return.
+//   - Method with return value bound to WeakPtr<>.
+//   - Const Method with return bound to WeakPtr<>.
+TEST_F(BindTest, IgnoreResult) {
+  EXPECT_CALL(static_func_mock_, IntMethod0()).WillOnce(Return(1337));
+  EXPECT_CALL(has_ref_, AddRef()).Times(2);
+  EXPECT_CALL(has_ref_, Release()).Times(2);
+  EXPECT_CALL(has_ref_, IntMethod0()).WillOnce(Return(10));
+  EXPECT_CALL(has_ref_, IntConstMethod0()).WillOnce(Return(11));
+  EXPECT_CALL(no_ref_, IntMethod0()).WillOnce(Return(12));
+  EXPECT_CALL(no_ref_, IntConstMethod0()).WillOnce(Return(13));
+
+  Closure normal_func_cb = Bind(IgnoreResult(&IntFunc0));
+  normal_func_cb.Run();
+
+  Closure non_void_method_cb =
+      Bind(IgnoreResult(&HasRef::IntMethod0), &has_ref_);
+  non_void_method_cb.Run();
+
+  Closure non_void_const_method_cb =
+      Bind(IgnoreResult(&HasRef::IntConstMethod0), &has_ref_);
+  non_void_const_method_cb.Run();
+
+  WeakPtrFactory<NoRef> weak_factory(&no_ref_);
+  WeakPtrFactory<const NoRef> const_weak_factory(const_no_ref_ptr_);
+
+  Closure non_void_weak_method_cb  =
+      Bind(IgnoreResult(&NoRef::IntMethod0), weak_factory.GetWeakPtr());
+  non_void_weak_method_cb.Run();
+
+  Closure non_void_weak_const_method_cb =
+      Bind(IgnoreResult(&NoRef::IntConstMethod0), weak_factory.GetWeakPtr());
+  non_void_weak_const_method_cb.Run();
+
+  weak_factory.InvalidateWeakPtrs();
+  non_void_weak_const_method_cb.Run();
+  non_void_weak_method_cb.Run();
+}
+
 // Argument binding tests.
 //   - Argument binding to primitive.
 //   - Argument binding to primitive pointer.
@@ -319,6 +440,7 @@ TEST_F(BindTest, ReturnValues) {
 //   - Argument binding to a literal string.
 //   - Argument binding with template function.
 //   - Argument binding to an object.
+//   - Argument binding to pointer to incomplete type.
 //   - Argument gets type converted.
 //   - Pointer argument gets converted.
 //   - Const Reference forces conversion.
@@ -347,6 +469,11 @@ TEST_F(BindTest, ArgumentBinding) {
   p.value = 5;
   Callback<int(void)> bind_object_cb = Bind(&UnwrapNoRefParent, p);
   EXPECT_EQ(5, bind_object_cb.Run());
+
+  IncompleteType* incomplete_ptr = reinterpret_cast<IncompleteType*>(123);
+  Callback<IncompleteType*(void)> bind_incomplete_ptr_cb =
+      Bind(&PolymorphicIdentity<IncompleteType*>, incomplete_ptr);
+  EXPECT_EQ(incomplete_ptr, bind_incomplete_ptr_cb.Run());
 
   NoRefChild c;
   c.value = 6;
@@ -387,7 +514,7 @@ TEST_F(BindTest, UnboundArgumentTypeSupport) {
 }
 
 // Function with unbound reference parameter.
-//   - Original paraemter is modified by callback.
+//   - Original parameter is modified by callback.
 TEST_F(BindTest, UnboundReferenceSupport) {
   int n = 0;
   Callback<void(int&)> unbound_ref_cb = Bind(&RefArgSet);
@@ -488,15 +615,15 @@ TEST_F(BindTest, WeakPtr) {
   WeakPtrFactory<NoRef> weak_factory(&no_ref_);
   WeakPtrFactory<const NoRef> const_weak_factory(const_no_ref_ptr_);
 
-  Callback<void(void)> method_cb =
+  Closure method_cb =
       Bind(&NoRef::VoidMethod0, weak_factory.GetWeakPtr());
   method_cb.Run();
 
-  Callback<void(void)> const_method_cb =
+  Closure const_method_cb =
       Bind(&NoRef::VoidConstMethod0, const_weak_factory.GetWeakPtr());
   const_method_cb.Run();
 
-  Callback<void(void)> const_method_const_ptr_cb =
+  Closure const_method_const_ptr_cb =
       Bind(&NoRef::VoidConstMethod0, const_weak_factory.GetWeakPtr());
   const_method_const_ptr_cb.Run();
 
@@ -540,11 +667,85 @@ TEST_F(BindTest, ConstRef) {
   EXPECT_EQ(0, assigns);
 }
 
+// Test Owned() support.
+TEST_F(BindTest, Owned) {
+  int deletes = 0;
+  DeleteCounter* counter = new DeleteCounter(&deletes);
+
+  // If we don't capture, delete happens on Callback destruction/reset.
+  // return the same value.
+  Callback<DeleteCounter*(void)> no_capture_cb =
+      Bind(&PolymorphicIdentity<DeleteCounter*>, Owned(counter));
+  ASSERT_EQ(counter, no_capture_cb.Run());
+  ASSERT_EQ(counter, no_capture_cb.Run());
+  EXPECT_EQ(0, deletes);
+  no_capture_cb.Reset();  // This should trigger a delete.
+  EXPECT_EQ(1, deletes);
+
+  deletes = 0;
+  counter = new DeleteCounter(&deletes);
+  base::Closure own_object_cb =
+      Bind(&DeleteCounter::VoidMethod0, Owned(counter));
+  own_object_cb.Run();
+  EXPECT_EQ(0, deletes);
+  own_object_cb.Reset();
+  EXPECT_EQ(1, deletes);
+}
+
+// Passed() wrapper support.
+//   - Passed() can be constructed from a pointer to scoper.
+//   - Passed() can be constructed from a scoper rvalue.
+//   - Using Passed() gives Callback Ownership.
+//   - Ownership is transferred from Callback to callee on the first Run().
+//   - Callback supports unbound arguments.
+TEST_F(BindTest, ScopedPtr) {
+  int deletes = 0;
+
+  // Tests the Passed() function's support for pointers.
+  scoped_ptr<DeleteCounter> ptr(new DeleteCounter(&deletes));
+  Callback<scoped_ptr<DeleteCounter>(void)> unused_callback =
+      Bind(&PassThru<scoped_ptr<DeleteCounter> >, Passed(&ptr));
+  EXPECT_FALSE(ptr.get());
+  EXPECT_EQ(0, deletes);
+
+  // If we never invoke the Callback, it retains ownership and deletes.
+  unused_callback.Reset();
+  EXPECT_EQ(1, deletes);
+
+  // Tests the Passed() function's support for rvalues.
+  deletes = 0;
+  DeleteCounter* counter = new DeleteCounter(&deletes);
+  Callback<scoped_ptr<DeleteCounter>(void)> callback =
+      Bind(&PassThru<scoped_ptr<DeleteCounter> >,
+           Passed(scoped_ptr<DeleteCounter>(counter)));
+  EXPECT_FALSE(ptr.get());
+  EXPECT_EQ(0, deletes);
+
+  // Check that ownership can be transferred back out.
+  scoped_ptr<DeleteCounter> result = callback.Run();
+  ASSERT_EQ(counter, result.get());
+  EXPECT_EQ(0, deletes);
+
+  // Resetting does not delete since ownership was transferred.
+  callback.Reset();
+  EXPECT_EQ(0, deletes);
+
+  // Ensure that we actually did get ownership.
+  result.reset();
+  EXPECT_EQ(1, deletes);
+
+  // Test unbound argument forwarding.
+  Callback<scoped_ptr<DeleteCounter>(scoped_ptr<DeleteCounter>)> cb_unbound =
+      Bind(&PassThru<scoped_ptr<DeleteCounter> >);
+  ptr.reset(new DeleteCounter(&deletes));
+  cb_unbound.Run(ptr.Pass());
+}
+
 // Argument Copy-constructor usage for non-reference parameters.
 //   - Bound arguments are only copied once.
 //   - Forwarded arguments are only copied once.
-//   - Forwarded arguments with coerscions are only copied twice (once for the
-//     coerscion, and one for the final dispatch).
+//   - Forwarded arguments with coercions are only copied twice (once for the
+//     coercion, and one for the final dispatch).
 TEST_F(BindTest, ArgumentCopies) {
   int copies = 0;
   int assigns = 0;
@@ -579,107 +780,6 @@ TEST_F(BindTest, ArgumentCopies) {
 //   - Assignment from other callback should only cause one ref
 //
 // TODO(ajwong): Is there actually a way to test this?
-
-// No-compile tests. These should not compile. If they do, we are allowing
-// error-prone, or incorrect behavior in the callback system.  Uncomment the
-// tests to check.
-TEST_F(BindTest, NoCompile) {
-  // - Method bound to const-object.
-  //
-  // Only const methods should be allowed to work with const objects.
-  //
-  // Callback<void(void)> method_to_const_cb =
-  //     Bind(&HasRef::VoidMethod0, const_has_ref_ptr_);
-  // method_to_const_cb.Run();
-
-  // - Method bound to non-refcounted object.
-  // - Const Method bound to non-refcounted object.
-  //
-  // We require refcounts unless you have Unretained().
-  //
-  // Callback<void(void)> no_ref_cb =
-  //     Bind(&NoRef::VoidMethod0, &no_ref_);
-  // no_ref_cb.Run();
-  // Callback<void(void)> no_ref_const_cb =
-  //     Bind(&NoRef::VoidConstMethod0, &no_ref_);
-  // no_ref_const_cb.Run();
-
-  // - Unretained() used with a refcounted object.
-  //
-  // If the object supports refcounts, unretaining it in the callback is a
-  // memory management contract break.
-  // Callback<void(void)> unretained_cb =
-  //     Bind(&HasRef::VoidConstMethod0, Unretained(&has_ref_));
-  // unretained_cb.Run();
-
-  // - Const argument used with non-const pointer parameter of same type.
-  // - Const argument used with non-const pointer parameter of super type.
-  //
-  // This is just a const-correctness check.
-  //
-  // const Parent* const_parent_ptr;
-  // const Child* const_child_ptr;
-  // Callback<Parent*(void)> pointer_same_cb =
-  //     Bind(&PolymorphicIdentity<Parent*>, const_parent_ptr);
-  // pointer_same_cb.Run();
-  // Callback<Parent*(void)> pointer_super_cb =
-  //     Bind(&PolymorphicIdentity<Parent*>, const_child_ptr);
-  // pointer_super_cb.Run();
-
-  // - Construction of Callback<A> from Callback<B> if A is supertype of B.
-  //   Specific example: Callback<void(void)> a; Callback<int(void)> b; a = b;
-  //
-  // While this is technically safe, most people aren't used to it when coding
-  // C++ so if this is happening, it is almost certainly an error.
-  //
-  // Callback<int(void)> cb_a0 = Bind(&Identity, 1);
-  // Callback<void(void)> cb_b0 = cb_a0;
-
-  // - Assignment of Callback<A> from Callback<B> if A is supertype of B.
-  // See explanation above.
-  //
-  // Callback<int(void)> cb_a1 = Bind(&Identity, 1);
-  // Callback<void(void)> cb_b1;
-  // cb_a1 = cb_b1;
-
-  // - Functions with reference parameters, unsupported.
-  //
-  // First, non-const reference parameters are disallowed by the Google
-  // style guide. Seconds, since we are doing argument forwarding it becomes
-  // very tricky to avoid copies, maintain const correctness, and not
-  // accidentally have the function be modifying a temporary, or a copy.
-  //
-  // NoRefParent p;
-  // Callback<int(Parent&)> ref_arg_cb = Bind(&UnwrapNoRefParentRef);
-  // ref_arg_cb.Run(p);
-  // Callback<int(void)> ref_cb = Bind(&UnwrapNoRefParentRef, p);
-  // ref_cb.Run();
-
-  // - A method should not be bindable with an array of objects.
-  //
-  // This is likely not wanted behavior. We specifically check for it though
-  // because it is possible, depending on how you implement prebinding, to
-  // implicitly convert an array type to a pointer type.
-  //
-  // HasRef p[10];
-  // Callback<void(void)> method_bound_to_array_cb =
-  //     Bind(&HasRef::VoidConstMethod0, p);
-  // method_bound_to_array_cb.Run();
-
-  // - Refcounted types should not be bound as a raw pointer.
-  // HasRef for_raw_ptr;
-  // Callback<void(void)> ref_count_as_raw_ptr =
-  //     Bind(&VoidPolymorphic1<HasRef*>, &for_raw_ptr);
-
-  // - WeakPtrs cannot be bound to methods with return types.
-  // HasRef for_raw_ptr;
-  // WeakPtrFactory<NoRef> weak_factory(&no_ref_);
-  // Callback<int(void)> weak_ptr_with_non_void_return_type =
-  //     Bind(&NoRef::IntMethod0, weak_factory.GetWeakPtr());
-
-  // - Bind result cannot be assigned to Callbacks with a mismatching type.
-  // Closure callback_mismatches_bind_type = Bind(&VoidPolymorphic1<int>);
-}
 
 #if defined(OS_WIN)
 int __fastcall FastCallFunc(int n) {

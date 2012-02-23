@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,6 +19,7 @@
 
 #include "net/url_request/url_request_file_job.h"
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
 #include "base/platform_file.h"
@@ -42,7 +43,6 @@ extern std::string *global_game_content_path;
 
 namespace net {
 
-#if defined(OS_WIN)
 class URLRequestFileJob::AsyncResolver
     : public base::RefCountedThreadSafe<URLRequestFileJob::AsyncResolver> {
  public:
@@ -55,8 +55,9 @@ class URLRequestFileJob::AsyncResolver
     bool exists = file_util::GetFileInfo(file_path, &file_info);
     base::AutoLock locked(lock_);
     if (owner_loop_) {
-      owner_loop_->PostTask(FROM_HERE, NewRunnableMethod(
-          this, &AsyncResolver::ReturnResults, exists, file_info));
+      owner_loop_->PostTask(
+          FROM_HERE,
+          base::Bind(&AsyncResolver::ReturnResults, this, exists, file_info));
     }
   }
 
@@ -82,17 +83,14 @@ class URLRequestFileJob::AsyncResolver
   base::Lock lock_;
   MessageLoop* owner_loop_;
 };
-#endif
 
 URLRequestFileJob::URLRequestFileJob(URLRequest* request,
                                      const FilePath& file_path)
     : URLRequestJob(request),
       file_path_(file_path),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          io_callback_(this, &URLRequestFileJob::DidRead)),
+      stream_(NULL),
       is_directory_(false),
-      remaining_bytes_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
+      remaining_bytes_(0) {
 }
 
 // static
@@ -164,48 +162,29 @@ bool URLRequestFileJob::AccessDisabled(const FilePath& file_path) {
   }
   return true;
 }
-#endif
+#endif  // OS_CHROMEOS
 
 void URLRequestFileJob::Start() {
-#if defined(OS_WIN)
-  // Resolve UNC paths on a background thread.
-  if (!file_path_.value().compare(0, 2, L"\\\\")) {
-    DCHECK(!async_resolver_);
-    async_resolver_ = new AsyncResolver(this);
-    base::WorkerPool::PostTask(FROM_HERE, NewRunnableMethod(
-        async_resolver_.get(), &AsyncResolver::Resolve, file_path_), true);
-    return;
-  }
-#endif
-
-  // URL requests should not block on the disk!
-  //   http://code.google.com/p/chromium/issues/detail?id=59849
-  bool exists;
-  base::PlatformFileInfo file_info;
-  {
-    base::ThreadRestrictions::ScopedAllowIO allow_io;
-    exists = file_util::GetFileInfo(file_path_, &file_info);
-  }
-
-  // Continue asynchronously.
-  MessageLoop::current()->PostTask(
+  DCHECK(!async_resolver_);
+  async_resolver_ = new AsyncResolver(this);
+  base::WorkerPool::PostTask(
       FROM_HERE,
-      method_factory_.NewRunnableMethod(
-          &URLRequestFileJob::DidResolve, exists, file_info));
+      base::Bind(&AsyncResolver::Resolve, async_resolver_.get(), file_path_),
+      true);
 }
 
 void URLRequestFileJob::Kill() {
-  stream_.Close();
+  // URL requests should not block on the disk!
+  //   http://code.google.com/p/chromium/issues/detail?id=59849
+  base::ThreadRestrictions::ScopedAllowIO allow_io;
+  stream_.CloseSync();
 
-#if defined(OS_WIN)
   if (async_resolver_) {
     async_resolver_->Cancel();
     async_resolver_ = NULL;
   }
-#endif
 
   URLRequestJob::Kill();
-  method_factory_.RevokeAll();
 }
 
 bool URLRequestFileJob::ReadRawData(IOBuffer* dest, int dest_size,
@@ -224,7 +203,9 @@ bool URLRequestFileJob::ReadRawData(IOBuffer* dest, int dest_size,
     return true;
   }
 
-  int rv = stream_.Read(dest->data(), dest_size, &io_callback_);
+  int rv = stream_.Read(dest, dest_size,
+                        base::Bind(&URLRequestFileJob::DidRead,
+                                   base::Unretained(this)));
   if (rv >= 0) {
     // Data is immediately available.
     *bytes_read = rv;
@@ -316,16 +297,12 @@ void URLRequestFileJob::SetExtraRequestHeaders(
 }
 
 URLRequestFileJob::~URLRequestFileJob() {
-#if defined(OS_WIN)
   DCHECK(!async_resolver_);
-#endif
 }
 
 void URLRequestFileJob::DidResolve(
     bool exists, const base::PlatformFileInfo& file_info) {
-#if defined(OS_WIN)
   async_resolver_ = NULL;
-#endif
 
   // We may have been orphaned...
   if (!request_)
@@ -352,7 +329,7 @@ void URLRequestFileJob::DidResolve(
     int flags = base::PLATFORM_FILE_OPEN |
                 base::PLATFORM_FILE_READ |
                 base::PLATFORM_FILE_ASYNC;
-    rv = stream_.Open(file_path_, flags);
+    rv = stream_.OpenSync(file_path_, flags);
   }
 
   if (rv != OK) {

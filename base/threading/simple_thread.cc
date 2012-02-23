@@ -29,7 +29,7 @@ SimpleThread::~SimpleThread() {
 void SimpleThread::Start() {
   DCHECK(!HasBeenStarted()) << "Tried to Start a thread multiple times.";
   bool success = PlatformThread::Create(options_.stack_size(), this, &thread_);
-  CHECK(success);
+  DCHECK(success);
   event_.Wait();  // Wait for the thread to complete initialization.
 }
 

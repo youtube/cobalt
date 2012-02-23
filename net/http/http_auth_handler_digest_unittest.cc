@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -67,10 +67,9 @@ bool RespondToChallenge(HttpAuth::Target target,
   TestCompletionCallback callback;
   scoped_ptr<HttpRequestInfo> request(new HttpRequestInfo());
   request->url = GURL(request_url);
-  const string16 kFoo = ASCIIToUTF16("foo");
-  const string16 kBar = ASCIIToUTF16("bar");
+  AuthCredentials credentials(ASCIIToUTF16("foo"), ASCIIToUTF16("bar"));
   int rv_generate = handler->GenerateAuthToken(
-      &kFoo, &kBar, request.get(), &callback, token);
+      &credentials, request.get(), callback.callback(), token);
   if (rv_generate != OK) {
     ADD_FAILURE() << "Problems generating auth token";
     return false;
@@ -144,6 +143,20 @@ TEST(HttpAuthHandlerDigestTest, ParseChallenge) {
       false,
       HttpAuthHandlerDigest::ALGORITHM_UNSPECIFIED,
       HttpAuthHandlerDigest::QOP_UNSPECIFIED
+    },
+
+    // Handle ISO-8859-1 character as part of the realm. The realm is converted
+    // to UTF-8. However, the credentials will still use the original encoding.
+    {
+      "Digest nonce=\"xyz\", realm=\"foo-\xE5\"",
+      true,
+      "foo-\xC3\xA5",
+      "xyz",
+      "",
+      "",
+      false,
+      HttpAuthHandlerDigest::ALGORITHM_UNSPECIFIED,
+      HttpAuthHandlerDigest::QOP_UNSPECIFIED,
     },
 
     { // At a minimum, a nonce must be provided.
@@ -516,8 +529,9 @@ TEST(HttpAuthHandlerDigestTest, AssembleCredentials) {
     std::string creds =
         digest->AssembleCredentials(tests[i].req_method,
                                     tests[i].req_path,
-                                    ASCIIToUTF16(tests[i].username),
-                                    ASCIIToUTF16(tests[i].password),
+                                    AuthCredentials(
+                                        ASCIIToUTF16(tests[i].username),
+                                        ASCIIToUTF16(tests[i].password)),
                                     tests[i].cnonce,
                                     tests[i].nonce_count);
 

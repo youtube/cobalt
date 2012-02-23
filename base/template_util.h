@@ -70,7 +70,7 @@ struct ConvertHelper {
   static NoType Test(...);
 
   template <typename From>
-  static From Create();
+  static From& Create();
 };
 
 // Used to determine if a type is a struct/union/class. Inspired by Boost's

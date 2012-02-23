@@ -8,7 +8,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "net/base/io_buffer.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/spdy/spdy_stream.h"
 
 namespace net {
@@ -17,7 +17,7 @@ namespace net {
 // so that the SpdySession sends them in the right order.  Further, they need
 // to track the SpdyStream which they are associated with so that incremental
 // completion of the IO can notify the appropriate stream of completion.
-class NET_TEST SpdyIOBuffer {
+class NET_EXPORT_PRIVATE SpdyIOBuffer {
  public:
   // Constructor
   // |buffer| is the actual data buffer.

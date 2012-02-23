@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -45,13 +45,13 @@
 // as the data is written to the audio device. Size of each packet is determined
 // by |samples_per_packet| specified in AudioParameters  when the stream is
 // created.
-class AudioOutputStream {
+class MEDIA_EXPORT AudioOutputStream {
  public:
   // Audio sources must implement AudioSourceCallback. This interface will be
   // called in a random thread which very likely is a high priority thread. Do
   // not rely on using this thread TLS or make calls that alter the thread
   // itself such as creating Windows or initializing COM.
-  class AudioSourceCallback {
+  class MEDIA_EXPORT AudioSourceCallback {
    public:
     virtual ~AudioSourceCallback() {}
 
@@ -72,6 +72,16 @@ class AudioOutputStream {
     // playback will not continue. |code| is an error code that is platform
     // specific.
     virtual void OnError(AudioOutputStream* stream, int code) = 0;
+
+    // Waits till data becomes available. Used when buffering data starting
+    // new audio stream.
+    // Polling is not the best approach, but incorporating messaging loop
+    // with delayed tasks into guts of complex code is even worse, as it is
+    // very error-prone. We cannot easily add synchronization, interface is
+    // already cut in stone because of need of backward compatibility with
+    // plugins. In any case, data is usually immediately available,
+    // so there would be no delay.
+    virtual void WaitTillDataReady() {}
   };
 
   virtual ~AudioOutputStream() {}
@@ -102,9 +112,9 @@ class AudioOutputStream {
 };
 
 // Models an audio sink receiving recorded audio from the audio driver.
-class AudioInputStream {
+class MEDIA_EXPORT AudioInputStream {
  public:
-  class AudioInputCallback {
+  class MEDIA_EXPORT AudioInputCallback {
    public:
     virtual ~AudioInputCallback() {}
 
@@ -112,7 +122,7 @@ class AudioInputStream {
     // available. This is called from a special audio thread and the
     // implementation should return as soon as possible.
     virtual void OnData(AudioInputStream* stream, const uint8* src,
-                        uint32 size) = 0;
+                        uint32 size, uint32 hardware_delay_bytes) = 0;
 
     // The stream is done with this callback, the last call received by this
     // audio sink.
@@ -125,6 +135,8 @@ class AudioInputStream {
     // specific.
     virtual void OnError(AudioInputStream* stream, int code) = 0;
   };
+
+  virtual ~AudioInputStream() {}
 
   // Open the stream and prepares it for recording. Call Start() to actually
   // begin recording.
@@ -142,9 +154,6 @@ class AudioInputStream {
   // Close the stream. This also generates AudioInputCallback::OnClose(). This
   // should be the last call made on this object.
   virtual void Close() = 0;
-
- protected:
-  virtual ~AudioInputStream() {}
 };
 
 #endif  // MEDIA_AUDIO_AUDIO_IO_H_

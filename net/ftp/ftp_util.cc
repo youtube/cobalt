@@ -12,6 +12,8 @@
 #include "base/logging.h"
 #include "base/memory/singleton.h"
 #include "base/string_number_conversions.h"
+#include "base/string_piece.h"
+#include "base/string_split.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/time.h"
@@ -19,6 +21,8 @@
 #include "unicode/datefmt.h"
 #include "unicode/dtfmtsym.h"
 #include "unicode/uchar.h"
+
+using base::StringPiece16;
 
 // For examples of Unix<->VMS path conversions, see the unit test file. On VMS
 // a path looks differently depending on whether it's a file or directory.
@@ -210,26 +214,26 @@ bool FtpUtil::LsDateListingToTime(const string16& month, const string16& day,
   if (!base::StringToInt(rest, &time_exploded.year)) {
     // Maybe it's time. Does it look like time (HH:MM)?
     if (rest.length() == 5 && rest[2] == ':') {
-      if (!base::StringToInt(rest.begin(),
-                             rest.begin() + 2,
-                             &time_exploded.hour))
+      if (!base::StringToInt(StringPiece16(rest.begin(), rest.begin() + 2),
+                             &time_exploded.hour)) {
         return false;
+      }
 
-      if (!base::StringToInt(rest.begin() + 3,
-                             rest.begin() + 5,
-                             &time_exploded.minute))
+      if (!base::StringToInt(StringPiece16(rest.begin() + 3, rest.begin() + 5),
+                             &time_exploded.minute)) {
         return false;
+      }
     } else if (rest.length() == 4 && rest[1] == ':') {
       // Sometimes it's just H:MM.
-      if (!base::StringToInt(rest.begin(),
-                             rest.begin() + 1,
-                             &time_exploded.hour))
+      if (!base::StringToInt(StringPiece16(rest.begin(), rest.begin() + 1),
+                             &time_exploded.hour)) {
         return false;
+      }
 
-      if (!base::StringToInt(rest.begin() + 2,
-                             rest.begin() + 4,
-                             &time_exploded.minute))
+      if (!base::StringToInt(StringPiece16(rest.begin() + 2, rest.begin() + 4),
+                             &time_exploded.minute)) {
         return false;
+      }
     } else {
       return false;
     }
@@ -250,6 +254,67 @@ bool FtpUtil::LsDateListingToTime(const string16& month, const string16& day,
   }
 
   // We don't know the time zone of the listing, so just use local time.
+  *result = base::Time::FromLocalExploded(time_exploded);
+  return true;
+}
+
+// static
+bool FtpUtil::WindowsDateListingToTime(const string16& date,
+                                       const string16& time,
+                                       base::Time* result) {
+  base::Time::Exploded time_exploded = { 0 };
+
+  // Date should be in format MM-DD-YY[YY].
+  std::vector<string16> date_parts;
+  base::SplitString(date, '-', &date_parts);
+  if (date_parts.size() != 3)
+    return false;
+  if (!base::StringToInt(date_parts[0], &time_exploded.month))
+    return false;
+  if (!base::StringToInt(date_parts[1], &time_exploded.day_of_month))
+    return false;
+  if (!base::StringToInt(date_parts[2], &time_exploded.year))
+    return false;
+  if (time_exploded.year < 0)
+    return false;
+  // If year has only two digits then assume that 00-79 is 2000-2079,
+  // and 80-99 is 1980-1999.
+  if (time_exploded.year < 80)
+    time_exploded.year += 2000;
+  else if (time_exploded.year < 100)
+    time_exploded.year += 1900;
+
+  // Time should be in format HH:MM[(AM|PM)]
+  if (time.length() < 5)
+    return false;
+
+  std::vector<string16> time_parts;
+  base::SplitString(time.substr(0, 5), ':', &time_parts);
+  if (time_parts.size() != 2)
+    return false;
+  if (!base::StringToInt(time_parts[0], &time_exploded.hour))
+    return false;
+  if (!base::StringToInt(time_parts[1], &time_exploded.minute))
+    return false;
+  if (!time_exploded.HasValidValues())
+    return false;
+
+  if (time.length() > 5) {
+    if (time.length() != 7)
+      return false;
+    string16 am_or_pm(time.substr(5, 2));
+    if (EqualsASCII(am_or_pm, "PM")) {
+      if (time_exploded.hour < 12)
+        time_exploded.hour += 12;
+    } else if (EqualsASCII(am_or_pm, "AM")) {
+      if (time_exploded.hour == 12)
+        time_exploded.hour = 0;
+    } else {
+      return false;
+    }
+  }
+
+  // We don't know the time zone of the server, so just use local time.
   *result = base::Time::FromLocalExploded(time_exploded);
   return true;
 }

@@ -13,7 +13,6 @@
 #include "base/file_path.h"
 #include "base/i18n/icu_util.h"
 #include "base/logging.h"
-#include "base/mac/scoped_nsautorelease_pool.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/path_service.h"
 #include "base/process_util.h"
@@ -24,7 +23,12 @@
 #include "testing/multiprocess_func_list.h"
 
 #if defined(OS_MACOSX)
+#include "base/mac/scoped_nsautorelease_pool.h"
 #include "base/test/mock_chrome_application_mac.h"
+#endif
+
+#if defined(OS_ANDROID)
+#include "base/test/test_stub_android.h"
 #endif
 
 #if defined(TOOLKIT_USES_GTK)
@@ -43,28 +47,65 @@ class MaybeTestDisabler : public testing::EmptyTestEventListener {
   }
 };
 
+class TestClientInitializer : public testing::EmptyTestEventListener {
+ public:
+  TestClientInitializer()
+      : old_command_line_(CommandLine::NO_PROGRAM) {
+  }
+
+  virtual void OnTestStart(const testing::TestInfo& test_info) OVERRIDE {
+    old_command_line_ = *CommandLine::ForCurrentProcess();
+  }
+
+  virtual void OnTestEnd(const testing::TestInfo& test_info) OVERRIDE {
+    *CommandLine::ForCurrentProcess() = old_command_line_;
+  }
+
+ private:
+  CommandLine old_command_line_;
+
+  DISALLOW_COPY_AND_ASSIGN(TestClientInitializer);
+};
+
 }  // namespace
 
 const char TestSuite::kStrictFailureHandling[] = "strict_failure_handling";
 
 TestSuite::TestSuite(int argc, char** argv) {
+  PreInitialize(argc, argv, true);
+}
+
+TestSuite::TestSuite(int argc, char** argv, bool create_at_exit_manager) {
+  PreInitialize(argc, argv, create_at_exit_manager);
+}
+
+TestSuite::~TestSuite() {
+  CommandLine::Reset();
+}
+
+void TestSuite::PreInitialize(int argc, char** argv,
+                              bool create_at_exit_manager) {
 #if defined(OS_WIN)
   testing::GTEST_FLAG(catch_exceptions) = false;
 #endif
   base::EnableTerminationOnHeapCorruption();
   CommandLine::Init(argc, argv);
   testing::InitGoogleTest(&argc, argv);
-#if defined(TOOLKIT_USES_GTK)
-  g_thread_init(NULL);
+#if defined(OS_LINUX) && defined(USE_AURA)
+  // When calling native char conversion functions (e.g wrctomb) we need to
+  // have the locale set. In the absence of such a call the "C" locale is the
+  // default. In the gtk code (below) gtk_init() implicitly sets a locale.
+  setlocale(LC_ALL, "");
+#elif defined(TOOLKIT_USES_GTK)
   gtk_init_check(&argc, &argv);
 #endif  // defined(TOOLKIT_USES_GTK)
-  // Don't add additional code to this constructor.  Instead add it to
+  if (create_at_exit_manager)
+    at_exit_manager_.reset(new base::AtExitManager);
+
+  // Don't add additional code to this function.  Instead add it to
   // Initialize().  See bug 6436.
 }
 
-TestSuite::~TestSuite() {
-  CommandLine::Reset();
-}
 
 // static
 bool TestSuite::IsMarkedFlaky(const testing::TestInfo& test) {
@@ -116,10 +157,18 @@ void TestSuite::CatchMaybeTests() {
   listeners.Append(new MaybeTestDisabler);
 }
 
+void TestSuite::ResetCommandLine() {
+  testing::TestEventListeners& listeners =
+      testing::UnitTest::GetInstance()->listeners();
+  listeners.Append(new TestClientInitializer);
+}
+
 // Don't add additional code to this method.  Instead add it to
 // Initialize().  See bug 6436.
 int TestSuite::Run() {
+#if defined(OS_MACOSX)
   base::mac::ScopedNSAutoreleasePool scoped_pool;
+#endif
 
   Initialize();
   std::string client_func =
@@ -148,10 +197,12 @@ int TestSuite::Run() {
            failing_count, failing_count == 1 ? "test" : "tests");
   }
 
+#if defined(OS_MACOSX)
   // This MUST happen before Shutdown() since Shutdown() tears down
   // objects (such as NotificationService::current()) that Cocoa
   // objects use to remove themselves as observers.
   scoped_pool.Recycle();
+#endif
 
   Shutdown();
 
@@ -180,6 +231,10 @@ void TestSuite::Initialize() {
 #if defined(OS_MACOSX)
   // Some of the app unit tests spin runloops.
   mock_cr_app::RegisterMockCrApp();
+#endif
+
+#if defined(OS_ANDROID)
+  InitAndroidTestStub();
 #endif
 
   // Initialize logging.
@@ -211,9 +266,14 @@ void TestSuite::Initialize() {
     logging::SetLogAssertHandler(UnitTestAssertHandler);
   }
 
+#if !defined(OS_ANDROID)
+  // TODO(michaelbai): The icu can not be compiled in Android now, this should
+  // be enabled once icu is ready. http://b/5406077.
   icu_util::Initialize();
+#endif
 
   CatchMaybeTests();
+  ResetCommandLine();
 
   TestTimeouts::Initialize();
 }

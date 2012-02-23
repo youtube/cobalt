@@ -92,6 +92,27 @@ bool BreakIterator::IsWord() const {
   return (break_type_ == BREAK_WORD && status != UBRK_WORD_NONE);
 }
 
+bool BreakIterator::IsEndOfWord(size_t position) const {
+  if (break_type_ != BREAK_WORD)
+    return false;
+
+  UBreakIterator* iter = static_cast<UBreakIterator*>(iter_);
+  UBool boundary = ubrk_isBoundary(iter, static_cast<int32_t>(position));
+  int32_t status = ubrk_getRuleStatus(iter);
+  return (!!boundary && status != UBRK_WORD_NONE);
+}
+
+bool BreakIterator::IsStartOfWord(size_t position) const {
+  if (break_type_ != BREAK_WORD)
+    return false;
+
+  UBreakIterator* iter = static_cast<UBreakIterator*>(iter_);
+  UBool boundary = ubrk_isBoundary(iter, static_cast<int32_t>(position));
+  ubrk_next(iter);
+  int32_t next_status = ubrk_getRuleStatus(iter);
+  return (!!boundary && next_status != UBRK_WORD_NONE);
+}
+
 string16 BreakIterator::GetString() const {
   DCHECK(prev_ != npos && pos_ != npos);
   return string_.substr(prev_, pos_ - prev_);

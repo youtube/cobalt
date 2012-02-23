@@ -1,8 +1,19 @@
-commit 5edecc25e3c8ec46e7708274f37096224c9b8b94
-Author: Adam Langley <agl@chromium.org>
-Date:   Mon Jun 20 16:12:27 2011 -0400
+From 5d8c33901f2b1be41afd1b0211bee5d5236a868d Mon Sep 17 00:00:00 2001
+From: Adam Langley <agl@chromium.org>
+Date: Mon, 3 Oct 2011 12:21:00 -0400
+Subject: [PATCH] ocspstapling.patch
 
-    ocspstapling.patch
+---
+ mozilla/security/nss/lib/ssl/ssl.def    |    1 +
+ mozilla/security/nss/lib/ssl/ssl.h      |   18 +++++
+ mozilla/security/nss/lib/ssl/ssl3con.c  |  111 +++++++++++++++++++++++++++++++
+ mozilla/security/nss/lib/ssl/ssl3ext.c  |   78 +++++++++++++++++++++-
+ mozilla/security/nss/lib/ssl/ssl3prot.h |    1 +
+ mozilla/security/nss/lib/ssl/sslerr.h   |    2 +
+ mozilla/security/nss/lib/ssl/sslimpl.h  |   13 ++++
+ mozilla/security/nss/lib/ssl/sslsock.c  |   43 ++++++++++++
+ mozilla/security/nss/lib/ssl/sslt.h     |    3 +-
+ 9 files changed, 268 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/security/nss/lib/ssl/ssl.def b/mozilla/security/nss/lib/ssl/ssl.def
 index 0fa8777..35cc1e3 100644

@@ -1,8 +1,11 @@
-commit f11613336a772057cd102a02759a6e4d111503d1
-Author: Adam Langley <agl@chromium.org>
-Date:   Mon Jun 20 15:52:10 2011 -0400
+From 552c8d41b9ac9d55c8f1a861d81fc070a2a72aba Mon Sep 17 00:00:00 2001
+From: Adam Langley <agl@chromium.org>
+Date: Mon, 3 Oct 2011 12:20:10 -0400
+Subject: [PATCH] renegoscsv.patch
 
-    renegoscsv.patch
+---
+ mozilla/security/nss/lib/ssl/ssl3con.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/security/nss/lib/ssl/ssl3con.c b/mozilla/security/nss/lib/ssl/ssl3con.c
 index e0cb4e9..455a532 100644

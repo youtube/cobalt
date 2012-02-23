@@ -9,8 +9,7 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "base/string16.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/socket_stream/socket_stream.h"
 
 class GURL;
@@ -26,7 +25,7 @@ class TransportSecurityState;
 // WebSocketJob) to do some work on data over SocketStream.
 // Registers the protocol specific SocketStreamJob by RegisterProtocolFactory
 // and call CreateSocketStreamJob to create SocketStreamJob for the URL.
-class NET_API SocketStreamJob
+class NET_EXPORT SocketStreamJob
     : public base::RefCountedThreadSafe<SocketStreamJob> {
  public:
   // Callback function implemented by protocol handlers to create new jobs.
@@ -63,8 +62,7 @@ class NET_API SocketStreamJob
 
   virtual void Close();
 
-  virtual void RestartWithAuth(const string16& username,
-                               const string16& password);
+  virtual void RestartWithAuth(const AuthCredentials& credentials);
 
   virtual void DetachDelegate();
 

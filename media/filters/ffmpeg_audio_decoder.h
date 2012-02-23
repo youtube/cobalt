@@ -1,57 +1,82 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef MEDIA_FILTERS_FFMPEG_AUDIO_DECODER_H_
 #define MEDIA_FILTERS_FFMPEG_AUDIO_DECODER_H_
 
-#include "media/filters/decoder_base.h"
+#include <list>
+
+#include "base/message_loop.h"
+#include "media/base/audio_decoder.h"
 
 struct AVCodecContext;
 
 namespace media {
 
-// Forward declaration for scoped_ptr_malloc.
-class ScopedPtrAVFree;
+class DataBuffer;
 
-class FFmpegAudioDecoder : public DecoderBase<AudioDecoder, Buffer> {
+class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
  public:
   explicit FFmpegAudioDecoder(MessageLoop* message_loop);
   virtual ~FFmpegAudioDecoder();
 
   // AudioDecoder implementation.
-  virtual AudioDecoderConfig config();
-  virtual void ProduceAudioSamples(scoped_refptr<Buffer> output);
-
- protected:
-  virtual void DoInitialize(DemuxerStream* demuxer_stream, bool* success,
-                            Task* done_cb);
-
-  virtual void DoSeek(base::TimeDelta time, Task* done_cb);
-
-  virtual void DoDecode(Buffer* input);
+  virtual void Initialize(const scoped_refptr<DemuxerStream>& stream,
+                          const PipelineStatusCB& callback,
+                          const StatisticsCallback& stats_callback) OVERRIDE;
+  virtual void Read(const ReadCB& callback) OVERRIDE;
+  virtual int bits_per_channel() OVERRIDE;
+  virtual ChannelLayout channel_layout() OVERRIDE;
+  virtual int samples_per_second() OVERRIDE;
+  virtual void Reset(const base::Closure& closure) OVERRIDE;
 
  private:
-  // Calculates the duration of an audio buffer based on the sample rate,
-  // channels and bits per sample given the size in bytes.
-  base::TimeDelta CalculateDuration(size_t size);
+  // Methods running on decoder thread.
+  void DoInitialize(const scoped_refptr<DemuxerStream>& stream,
+                    const PipelineStatusCB& callback,
+                    const StatisticsCallback& stats_callback);
+  void DoReset(const base::Closure& closure);
+  void DoRead(const ReadCB& callback);
+  void DoDecodeBuffer(const scoped_refptr<Buffer>& input);
 
-  // A FFmpeg defined structure that holds decoder information, this variable
-  // is initialized in OnInitialize().
+  // Reads from the demuxer stream with corresponding callback method.
+  void ReadFromDemuxerStream();
+  void DecodeBuffer(const scoped_refptr<Buffer>& buffer);
+
+  // Updates the output buffer's duration and timestamp based on the input
+  // buffer. Will fall back to an estimated timestamp if the input lacks a
+  // valid timestamp.
+  void UpdateDurationAndTimestamp(const Buffer* input, DataBuffer* output);
+
+  // Calculates duration based on size of decoded audio bytes.
+  base::TimeDelta CalculateDuration(int size);
+
+  // Delivers decoded samples to |read_cb_| and resets the callback.
+  void DeliverSamples(const scoped_refptr<Buffer>& samples);
+
+  MessageLoop* message_loop_;
+
+  scoped_refptr<DemuxerStream> demuxer_stream_;
+  StatisticsCallback stats_callback_;
   AVCodecContext* codec_context_;
 
-  AudioDecoderConfig config_;
+  // Decoded audio format.
+  int bits_per_channel_;
+  ChannelLayout channel_layout_;
+  int samples_per_second_;
 
-  // Estimated timestamp for next packet. Useful for packets without timestamps.
   base::TimeDelta estimated_next_timestamp_;
 
-  // Data buffer to carry decoded raw PCM samples. This buffer is created by
-  // av_malloc() and is used throughout the lifetime of this class.
-  scoped_ptr_malloc<uint8, ScopedPtrAVFree> output_buffer_;
+  // Holds decoded audio. As required by FFmpeg, input/output buffers should
+  // be allocated with suitable padding and alignment. av_malloc() provides
+  // us that guarantee.
+  const int decoded_audio_size_;
+  uint8* decoded_audio_;  // Allocated via av_malloc().
 
-  static const size_t kOutputBufferSize;
+  ReadCB read_cb_;
 
-  DISALLOW_COPY_AND_ASSIGN(FFmpegAudioDecoder);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(FFmpegAudioDecoder);
 };
 
 }  // namespace media

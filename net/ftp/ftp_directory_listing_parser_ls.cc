@@ -33,7 +33,7 @@ bool LooksLikeUnixPermission(const string16& text) {
 }
 
 bool LooksLikeUnixPermissionsListing(const string16& text) {
-  if (text.length() < 10)
+  if (text.length() < 7)
     return false;
 
   // Do not check the first character (entry type). There are many weird
@@ -44,9 +44,11 @@ bool LooksLikeUnixPermissionsListing(const string16& text) {
   // separate this column from the next column (number of links), resulting
   // in additional characters at the end. Also, sometimes there is a "+"
   // sign at the end indicating the file has ACLs set.
+
+  // In fact, we don't even expect three "rwx" triplets of permission
+  // listing, as some FTP servers like Hylafax only send two.
   return (LooksLikeUnixPermission(text.substr(1, 3)) &&
-          LooksLikeUnixPermission(text.substr(4, 3)) &&
-          LooksLikeUnixPermission(text.substr(7, 3)));
+          LooksLikeUnixPermission(text.substr(4, 3)));
 }
 
 bool LooksLikePermissionDeniedError(const string16& text) {
@@ -61,7 +63,7 @@ bool LooksLikePermissionDeniedError(const string16& text) {
   if (parts.size() != 3)
     return false;
 
-  return parts[2] == ASCIIToUTF16("Permission denied");
+  return parts[2].find(ASCIIToUTF16("Permission denied")) != string16::npos;
 }
 
 // Returns the column index of the end of the date listing and detected
@@ -185,8 +187,13 @@ bool ParseFtpDirectoryListingLs(
       // TODO(phajdan.jr): Use a value that means "unknown" instead of 0 bytes.
       entry.size = 0;
     }
-    if (entry.size < 0)
-      return false;
+    if (entry.size < 0) {
+      // Some FTP servers have bugs that cause them to display the file size
+      // as negative. They're most likely big files like DVD ISO images.
+      // We still want to display them, so just say the real file size
+      // is unknown.
+      entry.size = -1;
+    }
     if (entry.type != FtpDirectoryListingEntry::FILE)
       entry.size = -1;
 

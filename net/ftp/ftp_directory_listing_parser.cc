@@ -12,6 +12,7 @@
 #include "net/base/net_errors.h"
 #include "net/ftp/ftp_directory_listing_parser_ls.h"
 #include "net/ftp/ftp_directory_listing_parser_netware.h"
+#include "net/ftp/ftp_directory_listing_parser_os2.h"
 #include "net/ftp/ftp_directory_listing_parser_vms.h"
 #include "net/ftp/ftp_directory_listing_parser_windows.h"
 #include "net/ftp/ftp_server_type_histograms.h"
@@ -68,6 +69,12 @@ int ParseListing(const string16& text,
   entries->clear();
   if (ParseFtpDirectoryListingNetware(lines, current_time, entries)) {
     *server_type = SERVER_NETWARE;
+    return FillInRawName(encoding, entries);
+  }
+
+  entries->clear();
+  if (ParseFtpDirectoryListingOS2(lines, entries)) {
+    *server_type = SERVER_OS2;
     return FillInRawName(encoding, entries);
   }
 

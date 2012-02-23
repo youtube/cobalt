@@ -18,7 +18,7 @@ namespace net {
 //
 // It runs code to get the current proxy settings on a background worker
 // thread, and notifies registered observers when the value changes.
-class NET_TEST PollingProxyConfigService : public ProxyConfigService {
+class NET_EXPORT_PRIVATE PollingProxyConfigService : public ProxyConfigService {
  public:
   // ProxyConfigService implementation:
   virtual void AddObserver(Observer* observer) OVERRIDE;

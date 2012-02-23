@@ -51,9 +51,10 @@ Patches:
     previous session.
     patches/didhandshakeresume.patch
 
-  * Precede each set of CBC encrypted application data records, resulting from
-    a single call to ssl3_SendApplicationData, with an empty application data
-    record in order to randomize the IV in a backwards compatible manner.
+  * Start each set of CBC encrypted application data records, resulting from
+    a single call to ssl3_SendApplicationData, with a one-byte application
+    data record in order to randomize the IV in a backward compatible manner.
+    https://bugzilla.mozilla.org/show_bug.cgi?id=665814
     patches/cbcrandomiv.patch
 
   * Support origin bound certificates.
@@ -68,6 +69,22 @@ Patches:
   * Send saved write data in the SSL socket in SSL_ForceHandshake.
     patches/handshakeshortwrite.patch
     https://bugzilla.mozilla.org/show_bug.cgi?id=676729
+
+  * Add a function to restart a handshake after a client certificate request.
+    patches/restartclientauth.patch
+
+  * Allow SSL_HandshakeNegotiatedExtension to be called before the handshake
+    is finished.
+    https://bugzilla.mozilla.org/show_bug.cgi?id=681839
+    patches/negotiatedextension.patch
+
+  * Support the encrypted client certificates extension.
+    https://bugzilla.mozilla.org/show_bug.cgi?id=691991
+    patches/encryptedclientcerts.patch
+
+  * Add function to retrieve TLS client cert types requested by server.
+    https://bugzilla.mozilla.org/show_bug.cgi?id=51413
+    patches/getrequestedclientcerttypes.patch
 
 Apply the patches to NSS by running the patches/applypatches.sh script.  Read
 the comments at the top of patches/applypatches.sh for instructions.

@@ -14,7 +14,7 @@ namespace allocator {
 // then a default value (typically set to TCMALLOC).
 void SetupSubprocessAllocator();
 
-}  // namespace base.
 }  // namespace allocator.
+}  // namespace base.
 
 #endif   // BASE_ALLOCATOR_ALLOCATOR_SHIM_H_

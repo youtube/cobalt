@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -79,23 +79,35 @@ Time Time::FromExploded(bool is_local, const Exploded& exploded) {
 }
 
 void Time::Explode(bool is_local, Exploded* exploded) const {
-  CFAbsoluteTime seconds =
-      ((static_cast<double>(us_) - kWindowsEpochDeltaMicroseconds) /
-      kMicrosecondsPerSecond) - kCFAbsoluteTimeIntervalSince1970;
+  // Avoid rounding issues, by only putting the integral number of seconds
+  // (rounded towards -infinity) into a |CFAbsoluteTime| (which is a |double|).
+  int64 microsecond = us_ % kMicrosecondsPerSecond;
+  if (microsecond < 0)
+    microsecond += kMicrosecondsPerSecond;
+  CFAbsoluteTime seconds = ((us_ - microsecond) / kMicrosecondsPerSecond) -
+                           kWindowsEpochDeltaSeconds -
+                           kCFAbsoluteTimeIntervalSince1970;
 
   base::mac::ScopedCFTypeRef<CFTimeZoneRef>
       time_zone(is_local ? CFTimeZoneCopySystem() : NULL);
   CFGregorianDate date = CFAbsoluteTimeGetGregorianDate(seconds, time_zone);
+  // 1 = Monday, ..., 7 = Sunday.
+  int cf_day_of_week = CFAbsoluteTimeGetDayOfWeek(seconds, time_zone);
 
   exploded->year = date.year;
   exploded->month = date.month;
+  exploded->day_of_week = (cf_day_of_week == 7) ? 0 : cf_day_of_week - 1;
   exploded->day_of_month = date.day;
   exploded->hour = date.hour;
   exploded->minute = date.minute;
-  exploded->second = date.second;
-  exploded->millisecond  =
-      static_cast<int>(date.second * kMillisecondsPerSecond) %
-      kMillisecondsPerSecond;
+  // Make sure seconds are rounded down towards -infinity.
+  exploded->second = floor(date.second);
+  // Calculate milliseconds ourselves, since we rounded the |seconds|, making
+  // sure to round towards -infinity.
+  exploded->millisecond =
+      (microsecond >= 0) ? microsecond / kMicrosecondsPerMillisecond :
+                           (microsecond - kMicrosecondsPerMillisecond + 1) /
+                               kMicrosecondsPerMillisecond;
 }
 
 // TimeTicks ------------------------------------------------------------------

@@ -15,7 +15,7 @@ class IPEndPoint;
 class IOBuffer;
 
 // A UDP Socket.
-class NET_API DatagramServerSocket : public DatagramSocket {
+class NET_EXPORT DatagramServerSocket : public DatagramSocket {
  public:
   virtual ~DatagramServerSocket() {}
 
@@ -39,7 +39,7 @@ class NET_API DatagramServerSocket : public DatagramSocket {
   virtual int RecvFrom(IOBuffer* buf,
                        int buf_len,
                        IPEndPoint* address,
-                       CompletionCallback* callback) = 0;
+                       const CompletionCallback& callback) = 0;
 
   // Send to a socket with a particular destination.
   // |buf| is the buffer to send
@@ -53,7 +53,13 @@ class NET_API DatagramServerSocket : public DatagramSocket {
   virtual int SendTo(IOBuffer* buf,
                      int buf_len,
                      const IPEndPoint& address,
-                     CompletionCallback* callback) = 0;
+                     const CompletionCallback& callback) = 0;
+
+  // Set the receive buffer size (in bytes) for the socket.
+  virtual bool SetReceiveBufferSize(int32 size) = 0;
+
+  // Set the send buffer size (in bytes) for the socket.
+  virtual bool SetSendBufferSize(int32 size) = 0;
 };
 
 }  // namespace net

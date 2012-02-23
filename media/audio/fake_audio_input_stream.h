@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -22,10 +22,10 @@ class FakeAudioInputStream
  public:
   static AudioInputStream* MakeFakeStream(const AudioParameters& params);
 
-  virtual bool Open();
-  virtual void Start(AudioInputCallback* callback);
-  virtual void Stop();
-  virtual void Close();
+  virtual bool Open() OVERRIDE;
+  virtual void Start(AudioInputCallback* callback) OVERRIDE;
+  virtual void Stop() OVERRIDE;
+  virtual void Close() OVERRIDE;
 
  private:
   // Give RefCountedThreadSafe access our destructor.
@@ -41,7 +41,7 @@ class FakeAudioInputStream
   int buffer_size_;
   base::Thread thread_;
   base::Time last_callback_time_;
-  int callback_interval_ms_;
+  base::TimeDelta callback_interval_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeAudioInputStream);
 };

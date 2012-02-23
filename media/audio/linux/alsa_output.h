@@ -11,19 +11,12 @@
 // will return false, and Start() will call OnError() immediately on the
 // provided callback.
 //
-// TODO(ajwong): The OnClose() and OnError() calling needing fixing.
+// If the stream is successfully opened, Close() must be called.  After Close
+// has been called, the object should be regarded as deleted and not touched.
 //
-// If the stream is successfully opened, Close() must be called before the
-// stream is deleted as Close() is responsible for ensuring resource cleanup
-// occurs.
-//
-// This object's thread-safety is a little tricky.  This object's public API
-// can only be called from the thread that created the object.  Calling the
-// public APIs in any method that may cause concurrent execution will result in
-// a race condition.  When modifying the code in this class, please read the
-// threading assumptions at the top of the implementation file to avoid
-// introducing race conditions between tasks posted to the internal
-// message_loop, and the thread calling the public APIs.
+// AlsaPcmOutputStream is a single threaded class that should only be used from
+// the audio thread. When modifying the code in this class, please read the
+// threading assumptions at the top of the implementation.
 
 #ifndef MEDIA_AUDIO_LINUX_ALSA_OUTPUT_H_
 #define MEDIA_AUDIO_LINUX_ALSA_OUTPUT_H_
@@ -32,9 +25,10 @@
 
 #include <string>
 
+#include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/task.h"
+#include "base/memory/weak_ptr.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
@@ -46,7 +40,7 @@ class AlsaWrapper;
 class AudioManagerLinux;
 class MessageLoop;
 
-class AlsaPcmOutputStream : public AudioOutputStream {
+class MEDIA_EXPORT AlsaPcmOutputStream : public AudioOutputStream {
  public:
   // String for the generic "default" ALSA device that has the highest
   // compatibility and chance of working.
@@ -72,18 +66,17 @@ class AlsaPcmOutputStream : public AudioOutputStream {
   AlsaPcmOutputStream(const std::string& device_name,
                       const AudioParameters& params,
                       AlsaWrapper* wrapper,
-                      AudioManagerLinux* manager,
-                      MessageLoop* message_loop);
+                      AudioManagerLinux* manager);
 
   virtual ~AlsaPcmOutputStream();
 
   // Implementation of AudioOutputStream.
-  virtual bool Open();
-  virtual void Close();
-  virtual void Start(AudioSourceCallback* callback);
-  virtual void Stop();
-  virtual void SetVolume(double volume);
-  virtual void GetVolume(double* volume);
+  virtual bool Open() OVERRIDE;
+  virtual void Close() OVERRIDE;
+  virtual void Start(AudioSourceCallback* callback) OVERRIDE;
+  virtual void Stop() OVERRIDE;
+  virtual void SetVolume(double volume) OVERRIDE;
+  virtual void GetVolume(double* volume) OVERRIDE;
 
  private:
   friend class AlsaPcmOutputStreamTest;
@@ -122,11 +115,6 @@ class AlsaPcmOutputStream : public AudioOutputStream {
   };
   friend std::ostream& operator<<(std::ostream& os, InternalState);
 
-  // Various tasks that complete actions started in the public API.
-  void OpenTask();
-  void StartTask();
-  void CloseTask();
-
   // Functions to get another packet from the data source and write it into the
   // ALSA device.
   void BufferPacket(bool* source_exhausted);
@@ -150,6 +138,10 @@ class AlsaPcmOutputStream : public AudioOutputStream {
   bool CanTransitionTo(InternalState to);
   InternalState TransitionTo(InternalState to);
   InternalState state();
+
+  // Returns true when we're on the audio thread or if the audio thread's
+  // message loop is NULL (which will happen during shutdown).
+  bool IsOnAudioThread() const;
 
   // API for Proxying calls to the AudioSourceCallback provided during
   // Start().
@@ -203,13 +195,9 @@ class AlsaPcmOutputStream : public AudioOutputStream {
   scoped_ptr<media::SeekableBuffer> buffer_;
   uint32 frames_per_packet_;
 
-  // The message loop responsible for querying the data source, and writing to
-  // the output device.
-  MessageLoop* message_loop_;
-
   // Allows us to run tasks on the AlsaPcmOutputStream instance which are
   // bound by its lifetime.
-  ScopedRunnableMethodFactory<AlsaPcmOutputStream> method_factory_;
+  base::WeakPtrFactory<AlsaPcmOutputStream> weak_factory_;
 
   InternalState state_;
   float volume_;  // Volume level from 0.0 to 1.0.
@@ -218,5 +206,8 @@ class AlsaPcmOutputStream : public AudioOutputStream {
 
   DISALLOW_COPY_AND_ASSIGN(AlsaPcmOutputStream);
 };
+
+MEDIA_EXPORT std::ostream& operator<<(std::ostream& os,
+                                      AlsaPcmOutputStream::InternalState);
 
 #endif  // MEDIA_AUDIO_LINUX_ALSA_OUTPUT_H_

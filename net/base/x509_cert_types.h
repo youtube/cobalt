@@ -12,8 +12,9 @@
 #include <string>
 #include <vector>
 
+#include "base/string_piece.h"
 #include "build/build_config.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 #if defined(OS_MACOSX)
 #include <Security/x509defs.h>
@@ -21,7 +22,6 @@
 
 namespace base {
 class Time;
-class StringPiece;
 }  // namespace base
 
 namespace net {
@@ -46,18 +46,17 @@ class SHA1FingerprintLessThan {
 };
 
 // CertPrincipal represents the issuer or subject field of an X.509 certificate.
-struct NET_API CertPrincipal {
+struct NET_EXPORT CertPrincipal {
   CertPrincipal();
   explicit CertPrincipal(const std::string& name);
   ~CertPrincipal();
 
-#if defined(OS_MACOSX)
+#if defined(OS_MACOSX) || defined(OS_WIN)
   // Parses a BER-format DistinguishedName.
   bool ParseDistinguishedName(const void* ber_name_data, size_t length);
+#endif
 
-  // Parses a CSSM_X509_NAME struct.
-  void Parse(const CSSM_X509_NAME* name);
-
+#if defined(OS_MACOSX)
   // Compare this CertPrincipal with |against|, returning true if they're
   // equal enough to be a possible match. This should NOT be used for any
   // security relevant decisions.
@@ -69,7 +68,7 @@ struct NET_API CertPrincipal {
   // order: CN, O and OU and returns the first non-empty one found.
   std::string GetDisplayName() const;
 
-  // The different attributes for a principal.  They may be "".
+  // The different attributes for a principal, stored in UTF-8.  They may be "".
   // Note that some of them can have several values.
 
   std::string common_name;
@@ -85,7 +84,7 @@ struct NET_API CertPrincipal {
 
 // This class is useful for maintaining policies about which certificates are
 // permitted or forbidden for a particular purpose.
-class NET_API CertPolicy {
+class NET_EXPORT CertPolicy {
  public:
   // The judgments this policy can reach.
   enum Judgment {

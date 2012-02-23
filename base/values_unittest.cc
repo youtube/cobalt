@@ -93,6 +93,15 @@ TEST(ValuesTest, List) {
   ASSERT_EQ(88.8, double_value);
   ASSERT_TRUE(mixed_list->GetString(3, &string_value));
   ASSERT_EQ("foo", string_value);
+
+  // Try searching in the mixed list.
+  scoped_ptr<Value> sought_value(Value::CreateIntegerValue(42));
+  scoped_ptr<Value> not_found_value(Value::CreateBooleanValue(false));
+
+  ASSERT_NE(mixed_list->end(), mixed_list->Find(*sought_value));
+  ASSERT_TRUE((*mixed_list->Find(*sought_value))->GetAsInteger(&int_value));
+  ASSERT_EQ(42, int_value);
+  ASSERT_EQ(mixed_list->end(), mixed_list->Find(*not_found_value));
 }
 
 TEST(ValuesTest, BinaryValue) {
@@ -236,7 +245,9 @@ TEST(ValuesTest, ListRemoval) {
     DeletionTestValue* value = new DeletionTestValue(&deletion_flag);
     list.Append(value);
     EXPECT_FALSE(deletion_flag);
-    EXPECT_EQ(0, list.Remove(*value));
+    size_t index = 0;
+    list.Remove(*value, &index);
+    EXPECT_EQ(0U, index);
     EXPECT_TRUE(deletion_flag);
     EXPECT_EQ(0U, list.GetSize());
   }
@@ -341,7 +352,7 @@ TEST(ValuesTest, DeepCopy) {
 
   char* original_buffer = new char[42];
   memset(original_buffer, '!', 42);
-  BinaryValue* original_binary = Value::CreateBinaryValue(original_buffer, 42);
+  BinaryValue* original_binary = BinaryValue::Create(original_buffer, 42);
   original_dict.Set("binary", original_binary);
 
   ListValue* original_list = new ListValue();
@@ -350,6 +361,10 @@ TEST(ValuesTest, DeepCopy) {
   FundamentalValue* original_list_element_1 = Value::CreateIntegerValue(1);
   original_list->Append(original_list_element_1);
   original_dict.Set("list", original_list);
+
+  DictionaryValue* original_nested_dictionary = new DictionaryValue();
+  original_nested_dictionary->Set("key", Value::CreateStringValue("value"));
+  original_dict.Set("dictionary", original_nested_dictionary);
 
   scoped_ptr<DictionaryValue> copy_dict(original_dict.DeepCopy());
   ASSERT_TRUE(copy_dict.get());
@@ -428,7 +443,9 @@ TEST(ValuesTest, DeepCopy) {
   ASSERT_TRUE(copy_value);
   ASSERT_NE(copy_value, original_list);
   ASSERT_TRUE(copy_value->IsType(Value::TYPE_LIST));
-  ListValue* copy_list = static_cast<ListValue*>(copy_value);
+  ListValue* copy_list = NULL;
+  ASSERT_TRUE(copy_value->GetAsList(&copy_list));
+  ASSERT_TRUE(copy_list);
   ASSERT_EQ(2U, copy_list->GetSize());
 
   Value* copy_list_element_0;
@@ -446,6 +463,16 @@ TEST(ValuesTest, DeepCopy) {
   int copy_list_element_1_value;
   ASSERT_TRUE(copy_list_element_1->GetAsInteger(&copy_list_element_1_value));
   ASSERT_EQ(1, copy_list_element_1_value);
+
+  copy_value = NULL;
+  ASSERT_TRUE(copy_dict->Get("dictionary", &copy_value));
+  ASSERT_TRUE(copy_value);
+  ASSERT_NE(copy_value, original_nested_dictionary);
+  ASSERT_TRUE(copy_value->IsType(Value::TYPE_DICTIONARY));
+  DictionaryValue* copy_nested_dictionary = NULL;
+  ASSERT_TRUE(copy_value->GetAsDictionary(&copy_nested_dictionary));
+  ASSERT_TRUE(copy_nested_dictionary);
+  EXPECT_TRUE(copy_nested_dictionary->HasKey("key"));
 }
 
 TEST(ValuesTest, Equals) {
@@ -533,7 +560,7 @@ TEST(ValuesTest, DeepCopyCovariantReturnTypes) {
 
   char* original_buffer = new char[42];
   memset(original_buffer, '!', 42);
-  BinaryValue* original_binary = Value::CreateBinaryValue(original_buffer, 42);
+  BinaryValue* original_binary = BinaryValue::Create(original_buffer, 42);
   original_dict.Set("binary", original_binary);
 
   ListValue* original_list = new ListValue();
@@ -689,6 +716,43 @@ TEST(ValuesTest, MergeDictionary) {
   std::string sub_merge_key_value;
   EXPECT_TRUE(res_sub_dict->GetString("sub_merge_key", &sub_merge_key_value));
   EXPECT_EQ("sub_merge_key_value_merge", sub_merge_key_value); // Merged in.
+}
+
+TEST(ValuesTest, DictionaryIterator) {
+  DictionaryValue dict;
+  for (DictionaryValue::Iterator it(dict); it.HasNext(); it.Advance()) {
+    ADD_FAILURE();
+  }
+
+  StringValue value1("value1");
+  dict.Set("key1", value1.DeepCopy());
+  bool seen1 = false;
+  for (DictionaryValue::Iterator it(dict); it.HasNext(); it.Advance()) {
+    EXPECT_FALSE(seen1);
+    EXPECT_EQ("key1", it.key());
+    EXPECT_TRUE(value1.Equals(&it.value()));
+    seen1 = true;
+  }
+  EXPECT_TRUE(seen1);
+
+  StringValue value2("value2");
+  dict.Set("key2", value2.DeepCopy());
+  bool seen2 = seen1 = false;
+  for (DictionaryValue::Iterator it(dict); it.HasNext(); it.Advance()) {
+    if (it.key() == "key1") {
+      EXPECT_FALSE(seen1);
+      EXPECT_TRUE(value1.Equals(&it.value()));
+      seen1 = true;
+    } else if (it.key() == "key2") {
+      EXPECT_FALSE(seen2);
+      EXPECT_TRUE(value2.Equals(&it.value()));
+      seen2 = true;
+    } else {
+      ADD_FAILURE();
+    }
+  }
+  EXPECT_TRUE(seen1);
+  EXPECT_TRUE(seen2);
 }
 
 }  // namespace base

@@ -47,6 +47,7 @@
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "base/threading/platform_thread.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
@@ -102,7 +103,7 @@ class BASE_EXPORT SimpleThread : public PlatformThread::Delegate {
   bool HasBeenJoined() { return joined_; }
 
   // Overridden from PlatformThread::Delegate:
-  virtual void ThreadMain();
+  virtual void ThreadMain() OVERRIDE;
 
   // Only set priorities with a careful understanding of the consequences.
   // This is meant for very limited use cases.
@@ -136,7 +137,7 @@ class BASE_EXPORT DelegateSimpleThread : public SimpleThread {
                        const Options& options);
 
   virtual ~DelegateSimpleThread();
-  virtual void Run();
+  virtual void Run() OVERRIDE;
  private:
   Delegate* delegate_;
 };
@@ -174,7 +175,7 @@ class BASE_EXPORT DelegateSimpleThreadPool
   }
 
   // We implement the Delegate interface, for running our internal threads.
-  virtual void Run();
+  virtual void Run() OVERRIDE;
 
  private:
   const std::string name_prefix_;

@@ -8,8 +8,8 @@
 #define NET_DISK_CACHE_MEM_BACKEND_IMPL_H__
 #pragma once
 
+#include "base/compiler_specific.h"
 #include "base/hash_tables.h"
-
 #include "net/disk_cache/disk_cache.h"
 #include "net/disk_cache/mem_rankings.h"
 
@@ -23,7 +23,7 @@ class MemEntryImpl;
 
 // This class implements the Backend interface. An object of this class handles
 // the operations of the cache without writing to disk.
-class NET_TEST MemBackendImpl : public Backend {
+class NET_EXPORT_PRIVATE MemBackendImpl : public Backend {
  public:
   explicit MemBackendImpl(net::NetLog* net_log);
   virtual ~MemBackendImpl();
@@ -63,24 +63,27 @@ class NET_TEST MemBackendImpl : public Backend {
   void RemoveFromRankingList(MemEntryImpl* entry);
 
   // Backend interface.
-  virtual int32 GetEntryCount() const;
+  virtual int32 GetEntryCount() const OVERRIDE;
   virtual int OpenEntry(const std::string& key, Entry** entry,
-                        CompletionCallback* callback);
+                        const net::CompletionCallback& callback) OVERRIDE;
   virtual int CreateEntry(const std::string& key, Entry** entry,
-                          CompletionCallback* callback);
-  virtual int DoomEntry(const std::string& key, CompletionCallback* callback);
-  virtual int DoomAllEntries(CompletionCallback* callback);
-  virtual int DoomEntriesBetween(const base::Time initial_time,
-                                 const base::Time end_time,
-                                 CompletionCallback* callback);
-  virtual int DoomEntriesSince(const base::Time initial_time,
-                               CompletionCallback* callback);
+                          const net::CompletionCallback& callback) OVERRIDE;
+  virtual int DoomEntry(const std::string& key,
+                        const net::CompletionCallback& callback) OVERRIDE;
+  virtual int DoomAllEntries(const net::CompletionCallback& callback) OVERRIDE;
+  virtual int DoomEntriesBetween(
+      const base::Time initial_time,
+      const base::Time end_time,
+      const net::CompletionCallback& callback) OVERRIDE;
+  virtual int DoomEntriesSince(
+      const base::Time initial_time,
+      const net::CompletionCallback& callback) OVERRIDE;
   virtual int OpenNextEntry(void** iter, Entry** next_entry,
-                            CompletionCallback* callback);
-  virtual void EndEnumeration(void** iter);
+                            const net::CompletionCallback& callback) OVERRIDE;
+  virtual void EndEnumeration(void** iter) OVERRIDE;
   virtual void GetStats(
-      std::vector<std::pair<std::string, std::string> >* stats) {}
-  virtual void OnExternalCacheHit(const std::string& key);
+      std::vector<std::pair<std::string, std::string> >* stats) OVERRIDE {}
+  virtual void OnExternalCacheHit(const std::string& key) OVERRIDE;
 
  private:
   typedef base::hash_map<std::string, MemEntryImpl*> EntryMap;

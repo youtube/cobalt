@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <fnmatch.h>
+#include <grp.h>
 #include <libgen.h>
 #include <limits.h>
 #include <stdio.h>
@@ -37,6 +38,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/singleton.h"
+#include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/sys_string_conversions.h"
@@ -52,6 +54,29 @@ namespace file_util {
 
 namespace {
 
+#if defined(OS_BSD) || (defined(OS_MACOSX) && \
+    MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5)
+typedef struct stat stat_wrapper_t;
+static int CallStat(const char *path, stat_wrapper_t *sb) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  return stat(path, sb);
+}
+static int CallLstat(const char *path, stat_wrapper_t *sb) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  return lstat(path, sb);
+}
+#else
+typedef struct stat64 stat_wrapper_t;
+static int CallStat(const char *path, stat_wrapper_t *sb) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  return stat64(path, sb);
+}
+static int CallLstat(const char *path, stat_wrapper_t *sb) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  return lstat64(path, sb);
+}
+#endif
+
 // Helper for NormalizeFilePath(), defined below.
 bool RealPath(const FilePath& path, FilePath* real_path) {
   base::ThreadRestrictions::AssertIOAllowed();  // For realpath().
@@ -63,23 +88,46 @@ bool RealPath(const FilePath& path, FilePath* real_path) {
   return true;
 }
 
-}  // namespace
+// Helper for VerifyPathControlledByUser.
+bool VerifySpecificPathControlledByUser(const FilePath& path,
+                                        uid_t owner_uid,
+                                        const std::set<gid_t>& group_gids) {
+  stat_wrapper_t stat_info;
+  if (CallLstat(path.value().c_str(), &stat_info) != 0) {
+    DPLOG(ERROR) << "Failed to get information on path "
+                 << path.value();
+    return false;
+  }
 
-#if defined(OS_OPENBSD) || defined(OS_FREEBSD) || \
-    (defined(OS_MACOSX) && \
-     MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5)
-typedef struct stat stat_wrapper_t;
-static int CallStat(const char *path, stat_wrapper_t *sb) {
-  base::ThreadRestrictions::AssertIOAllowed();
-  return stat(path, sb);
+  if (S_ISLNK(stat_info.st_mode)) {
+    DLOG(ERROR) << "Path " << path.value()
+               << " is a symbolic link.";
+    return false;
+  }
+
+  if (stat_info.st_uid != owner_uid) {
+    DLOG(ERROR) << "Path " << path.value()
+                << " is owned by the wrong user.";
+    return false;
+  }
+
+  if ((stat_info.st_mode & S_IWGRP) &&
+      !ContainsKey(group_gids, stat_info.st_gid)) {
+    DLOG(ERROR) << "Path " << path.value()
+                << " is writable by an unprivileged group.";
+    return false;
+  }
+
+  if (stat_info.st_mode & S_IWOTH) {
+    DLOG(ERROR) << "Path " << path.value()
+                << " is writable by any user.";
+    return false;
+  }
+
+  return true;
 }
-#else
-typedef struct stat64 stat_wrapper_t;
-static int CallStat(const char *path, stat_wrapper_t *sb) {
-  base::ThreadRestrictions::AssertIOAllowed();
-  return stat64(path, sb);
-}
-#endif
+
+}  // namespace
 
 static std::string TempFileName() {
 #if defined(OS_MACOSX)
@@ -109,8 +157,8 @@ int CountFilesCreatedAfter(const FilePath& path,
 
   DIR* dir = opendir(path.value().c_str());
   if (dir) {
-#if !defined(OS_LINUX) && !defined(OS_MACOSX) && !defined(OS_FREEBSD) && \
-    !defined(OS_OPENBSD) && !defined(OS_SOLARIS) && !defined(OS_ANDROID)
+#if !defined(OS_LINUX) && !defined(OS_MACOSX) && !defined(OS_BSD) && \
+    !defined(OS_SOLARIS) && !defined(OS_ANDROID)
   #error Port warning: depending on the definition of struct dirent, \
          additional space for pathname may be needed
 #endif
@@ -124,7 +172,7 @@ int CountFilesCreatedAfter(const FilePath& path,
       stat_wrapper_t st;
       int test = CallStat(path.Append(ent->d_name).value().c_str(), &st);
       if (test != 0) {
-        PLOG(ERROR) << "stat64 failed";
+        DPLOG(ERROR) << "stat64 failed";
         continue;
       }
       // Here, we use Time::TimeT(), which discards microseconds. This
@@ -172,7 +220,7 @@ bool Delete(const FilePath& path, bool recursive) {
   bool success = true;
   std::stack<std::string> directories;
   directories.push(path.value());
-  FileEnumerator traversal(path, true, static_cast<FileEnumerator::FILE_TYPE>(
+  FileEnumerator traversal(path, true, static_cast<FileEnumerator::FileType>(
         FileEnumerator::FILES | FileEnumerator::DIRECTORIES |
         FileEnumerator::SHOW_SYM_LINKS));
   for (FilePath current = traversal.Next(); success && !current.empty();
@@ -260,11 +308,11 @@ bool CopyDirectory(const FilePath& from_path,
     return false;
 
   bool success = true;
-  FileEnumerator::FILE_TYPE traverse_type =
-      static_cast<FileEnumerator::FILE_TYPE>(FileEnumerator::FILES |
+  FileEnumerator::FileType traverse_type =
+      static_cast<FileEnumerator::FileType>(FileEnumerator::FILES |
       FileEnumerator::SHOW_SYM_LINKS);
   if (recursive)
-    traverse_type = static_cast<FileEnumerator::FILE_TYPE>(
+    traverse_type = static_cast<FileEnumerator::FileType>(
         traverse_type | FileEnumerator::DIRECTORIES);
   FileEnumerator traversal(from_path, recursive, traverse_type);
 
@@ -273,8 +321,8 @@ bool CopyDirectory(const FilePath& from_path,
   FileEnumerator::FindInfo info;
   FilePath current = from_path;
   if (stat(from_path.value().c_str(), &info.stat) < 0) {
-    LOG(ERROR) << "CopyDirectory() couldn't stat source directory: " <<
-        from_path.value() << " errno = " << errno;
+    DLOG(ERROR) << "CopyDirectory() couldn't stat source directory: "
+                << from_path.value() << " errno = " << errno;
     success = false;
   }
   struct stat to_path_stat;
@@ -304,19 +352,19 @@ bool CopyDirectory(const FilePath& from_path,
     if (S_ISDIR(info.stat.st_mode)) {
       if (mkdir(target_path.value().c_str(), info.stat.st_mode & 01777) != 0 &&
           errno != EEXIST) {
-        LOG(ERROR) << "CopyDirectory() couldn't create directory: " <<
-            target_path.value() << " errno = " << errno;
+        DLOG(ERROR) << "CopyDirectory() couldn't create directory: "
+                    << target_path.value() << " errno = " << errno;
         success = false;
       }
     } else if (S_ISREG(info.stat.st_mode)) {
       if (!CopyFile(current, target_path)) {
-        LOG(ERROR) << "CopyDirectory() couldn't create file: " <<
-            target_path.value();
+        DLOG(ERROR) << "CopyDirectory() couldn't create file: "
+                    << target_path.value();
         success = false;
       }
     } else {
-      LOG(WARNING) << "CopyDirectory() skipping non-regular file: " <<
-          current.value();
+      DLOG(WARNING) << "CopyDirectory() skipping non-regular file: "
+                    << current.value();
     }
 
     current = traversal.Next();
@@ -433,9 +481,9 @@ bool CreateTemporaryFile(FilePath* path) {
   return true;
 }
 
-FILE* CreateAndOpenTemporaryShmemFile(FilePath* path) {
+FILE* CreateAndOpenTemporaryShmemFile(FilePath* path, bool executable) {
   FilePath directory;
-  if (!GetShmemTempDir(&directory))
+  if (!GetShmemTempDir(&directory, executable))
     return NULL;
 
   return CreateAndOpenTemporaryFileInDir(directory, path);
@@ -462,8 +510,8 @@ static bool CreateTemporaryDirInDirImpl(const FilePath& base_dir,
                                         const FilePath::StringType& name_tmpl,
                                         FilePath* new_dir) {
   base::ThreadRestrictions::AssertIOAllowed();  // For call to mkdtemp().
-  CHECK(name_tmpl.find("XXXXXX") != FilePath::StringType::npos)
-    << "Directory name template must contain \"XXXXXX\".";
+  DCHECK(name_tmpl.find("XXXXXX") != FilePath::StringType::npos)
+      << "Directory name template must contain \"XXXXXX\".";
 
   FilePath sub_dir = base_dir.Append(name_tmpl);
   std::string sub_dir_string = sub_dir.value();
@@ -642,7 +690,7 @@ bool SetCurrentDirectory(const FilePath& path) {
 
 FileEnumerator::FileEnumerator(const FilePath& root_path,
                                bool recursive,
-                               FileEnumerator::FILE_TYPE file_type)
+                               FileType file_type)
     : current_directory_entry_(0),
       root_path_(root_path),
       recursive_(recursive),
@@ -654,7 +702,7 @@ FileEnumerator::FileEnumerator(const FilePath& root_path,
 
 FileEnumerator::FileEnumerator(const FilePath& root_path,
                                bool recursive,
-                               FileEnumerator::FILE_TYPE file_type,
+                               FileType file_type,
                                const FilePath::StringType& pattern)
     : current_directory_entry_(0),
       root_path_(root_path),
@@ -752,8 +800,8 @@ bool FileEnumerator::ReadDirectory(std::vector<DirectoryEntryInfo>* entries,
   if (!dir)
     return false;
 
-#if !defined(OS_LINUX) && !defined(OS_MACOSX) && !defined(OS_FREEBSD) && \
-    !defined(OS_OPENBSD) && !defined(OS_SOLARIS) && !defined(OS_ANDROID)
+#if !defined(OS_LINUX) && !defined(OS_MACOSX) && !defined(OS_BSD) && \
+    !defined(OS_SOLARIS) && !defined(OS_ANDROID)
   #error Port warning: depending on the definition of struct dirent, \
          additional space for pathname may be needed
 #endif
@@ -774,8 +822,8 @@ bool FileEnumerator::ReadDirectory(std::vector<DirectoryEntryInfo>* entries,
       // Print the stat() error message unless it was ENOENT and we're
       // following symlinks.
       if (!(errno == ENOENT && !show_links)) {
-        PLOG(ERROR) << "Couldn't stat "
-                    << source.Append(dent->d_name).value();
+        DPLOG(ERROR) << "Couldn't stat "
+                     << source.Append(dent->d_name).value();
       }
       memset(&info.stat, 0, sizeof(info.stat));
     }
@@ -800,7 +848,7 @@ bool MemoryMappedFile::MapFileToMemoryInternal() {
 
   struct stat file_stat;
   if (fstat(file_, &file_stat) == base::kInvalidPlatformFileValue) {
-    LOG(ERROR) << "Couldn't fstat " << file_ << ", errno " << errno;
+    DLOG(ERROR) << "Couldn't fstat " << file_ << ", errno " << errno;
     return false;
   }
   length_ = file_stat.st_size;
@@ -808,7 +856,7 @@ bool MemoryMappedFile::MapFileToMemoryInternal() {
   data_ = static_cast<uint8*>(
       mmap(NULL, length_, PROT_READ, MAP_SHARED, file_, 0));
   if (data_ == MAP_FAILED)
-    LOG(ERROR) << "Couldn't mmap " << file_ << ", errno " << errno;
+    DLOG(ERROR) << "Couldn't mmap " << file_ << ", errno " << errno;
 
   return data_ != MAP_FAILED;
 }
@@ -862,11 +910,55 @@ bool GetTempDir(FilePath* path) {
 }
 
 #if !defined(OS_ANDROID)
-bool GetShmemTempDir(FilePath* path) {
-  *path = FilePath("/dev/shm");
-  return true;
+
+#if defined(OS_LINUX)
+// Determine if /dev/shm files can be mapped and then mprotect'd PROT_EXEC.
+// This depends on the mount options used for /dev/shm, which vary among
+// different Linux distributions and possibly local configuration.  It also
+// depends on details of kernel--ChromeOS uses the noexec option for /dev/shm
+// but its kernel allows mprotect with PROT_EXEC anyway.
+
+namespace {
+
+bool DetermineDevShmExecutable() {
+  bool result = false;
+  FilePath path;
+  int fd = CreateAndOpenFdForTemporaryFile(FilePath("/dev/shm"), &path);
+  if (fd >= 0) {
+    ScopedFD shm_fd_closer(&fd);
+    Delete(path, false);
+    long sysconf_result = sysconf(_SC_PAGESIZE);
+    CHECK_GE(sysconf_result, 0);
+    size_t pagesize = static_cast<size_t>(sysconf_result);
+    CHECK_GE(sizeof(pagesize), sizeof(sysconf_result));
+    void *mapping = mmap(NULL, pagesize, PROT_READ, MAP_SHARED, fd, 0);
+    if (mapping != MAP_FAILED) {
+      if (mprotect(mapping, pagesize, PROT_READ | PROT_EXEC) == 0)
+        result = true;
+      munmap(mapping, pagesize);
+    }
+  }
+  return result;
 }
+
+};  // namespace
+#endif  // defined(OS_LINUX)
+
+bool GetShmemTempDir(FilePath* path, bool executable) {
+#if defined(OS_LINUX)
+  bool use_dev_shm = true;
+  if (executable) {
+    static const bool s_dev_shm_executable = DetermineDevShmExecutable();
+    use_dev_shm = s_dev_shm_executable;
+  }
+  if (use_dev_shm) {
+    *path = FilePath("/dev/shm");
+    return true;
+  }
 #endif
+  return GetTempDir(path);
+}
+#endif  // !defined(OS_ANDROID)
 
 FilePath GetHomeDir() {
   const char* home_dir = getenv("HOME");
@@ -874,7 +966,7 @@ FilePath GetHomeDir() {
     return FilePath(home_dir);
 
 #if defined(OS_ANDROID)
-  LOG(WARNING) << "OS_ANDROID: Home directory lookup not yet implemented.";
+  DLOG(WARNING) << "OS_ANDROID: Home directory lookup not yet implemented.";
 #else
   // g_get_home_dir calls getpwent, which can fall through to LDAP calls.
   base::ThreadRestrictions::AssertIOAllowed();
@@ -937,6 +1029,76 @@ bool CopyFile(const FilePath& from_path, const FilePath& to_path) {
     result = false;
 
   return result;
+}
+#endif  // defined(OS_MACOSX)
+
+bool VerifyPathControlledByUser(const FilePath& base,
+                                const FilePath& path,
+                                uid_t owner_uid,
+                                const std::set<gid_t>& group_gids) {
+  if (base != path && !base.IsParent(path)) {
+     DLOG(ERROR) << "|base| must be a subdirectory of |path|.  base = \""
+                 << base.value() << "\", path = \"" << path.value() << "\"";
+     return false;
+  }
+
+  std::vector<FilePath::StringType> base_components;
+  std::vector<FilePath::StringType> path_components;
+
+  base.GetComponents(&base_components);
+  path.GetComponents(&path_components);
+
+  std::vector<FilePath::StringType>::const_iterator ib, ip;
+  for (ib = base_components.begin(), ip = path_components.begin();
+       ib != base_components.end(); ++ib, ++ip) {
+    // |base| must be a subpath of |path|, so all components should match.
+    // If these CHECKs fail, look at the test that base is a parent of
+    // path at the top of this function.
+    DCHECK(ip != path_components.end());
+    DCHECK(*ip == *ib);
+  }
+
+  FilePath current_path = base;
+  if (!VerifySpecificPathControlledByUser(current_path, owner_uid, group_gids))
+    return false;
+
+  for (; ip != path_components.end(); ++ip) {
+    current_path = current_path.Append(*ip);
+    if (!VerifySpecificPathControlledByUser(
+            current_path, owner_uid, group_gids))
+      return false;
+  }
+  return true;
+}
+
+#if defined(OS_MACOSX)
+bool VerifyPathControlledByAdmin(const FilePath& path) {
+  const unsigned kRootUid = 0;
+  const FilePath kFileSystemRoot("/");
+
+  // The name of the administrator group on mac os.
+  const char* const kAdminGroupNames[] = {
+    "admin",
+    "wheel"
+  };
+
+  // Reading the groups database may touch the file system.
+  base::ThreadRestrictions::AssertIOAllowed();
+
+  std::set<gid_t> allowed_group_ids;
+  for (int i = 0, ie = arraysize(kAdminGroupNames); i < ie; ++i) {
+    struct group *group_record = getgrnam(kAdminGroupNames[i]);
+    if (!group_record) {
+      DPLOG(ERROR) << "Could not get the group ID of group \""
+                   << kAdminGroupNames[i] << "\".";
+      continue;
+    }
+
+    allowed_group_ids.insert(group_record->gr_gid);
+  }
+
+  return VerifyPathControlledByUser(
+      kFileSystemRoot, path, kRootUid, allowed_group_ids);
 }
 #endif  // defined(OS_MACOSX)
 

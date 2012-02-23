@@ -12,11 +12,11 @@
 #include <vector>
 
 #include "base/basictypes.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
-struct NET_TEST FtpCtrlResponse {
+struct NET_EXPORT_PRIVATE FtpCtrlResponse {
   static const int kInvalidStatusCode;
 
   FtpCtrlResponse();
@@ -26,7 +26,7 @@ struct NET_TEST FtpCtrlResponse {
   std::vector<std::string> lines;  // Response lines, without CRLFs.
 };
 
-class NET_TEST FtpCtrlResponseBuffer {
+class NET_EXPORT_PRIVATE FtpCtrlResponseBuffer {
  public:
   FtpCtrlResponseBuffer();
   ~FtpCtrlResponseBuffer();

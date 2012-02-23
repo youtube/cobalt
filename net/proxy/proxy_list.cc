@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -115,7 +115,8 @@ std::string ProxyList::ToPacString() const {
   return proxy_list.empty() ? std::string() : proxy_list;
 }
 
-bool ProxyList::Fallback(ProxyRetryInfoMap* proxy_retry_info) {
+bool ProxyList::Fallback(ProxyRetryInfoMap* proxy_retry_info,
+                         const BoundNetLog& net_log) {
   // Number of minutes to wait before retrying a bad proxy server.
   const TimeDelta kProxyRetryDelay = TimeDelta::FromMinutes(5);
 
@@ -152,6 +153,9 @@ bool ProxyList::Fallback(ProxyRetryInfoMap* proxy_retry_info) {
       retry_info.bad_until = TimeTicks().Now() + retry_info.current_delay;
       (*proxy_retry_info)[key] = retry_info;
     }
+    net_log.AddEvent(
+        NetLog::TYPE_PROXY_LIST_FALLBACK,
+        make_scoped_refptr(new NetLogStringParameter("bad_proxy", key)));
   }
 
   // Remove this proxy from our list.

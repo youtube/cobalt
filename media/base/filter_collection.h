@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,26 +8,27 @@
 #include <list>
 
 #include "base/memory/ref_counted.h"
+#include "media/base/demuxer_factory.h"
 #include "media/base/filters.h"
-#include "media/base/filter_factories.h"
 
 namespace media {
 
+class AudioDecoder;
+
 // This is a collection of Filter objects used to form a media playback
 // pipeline. See src/media/base/pipeline.h for more information.
-class FilterCollection {
+class MEDIA_EXPORT FilterCollection {
  public:
   FilterCollection();
   ~FilterCollection();
 
   // DemuxerFactory accessor methods.
-  // FilterCollection takes ownership of the factory here.
-  void SetDemuxerFactory(DemuxerFactory* factory);
+  void SetDemuxerFactory(scoped_ptr<DemuxerFactory> factory);
   DemuxerFactory* GetDemuxerFactory();
 
   // Adds a filter to the collection.
   void AddVideoDecoder(VideoDecoder* filter);
-  void AddAudioDecoder(AudioDecoder* filter);
+  void AddAudioDecoder(AudioDecoder* audio_decoder);
   void AddVideoRenderer(VideoRenderer* filter);
   void AddAudioRenderer(AudioRenderer* filter);
 
@@ -40,8 +41,9 @@ class FilterCollection {
   // Selects a filter of the specified type from the collection.
   // If the required filter cannot be found, NULL is returned.
   // If a filter is returned it is removed from the collection.
+  // Filters are selected in FIFO order.
   void SelectVideoDecoder(scoped_refptr<VideoDecoder>* filter_out);
-  void SelectAudioDecoder(scoped_refptr<AudioDecoder>* filter_out);
+  void SelectAudioDecoder(scoped_refptr<AudioDecoder>* out);
   void SelectVideoRenderer(scoped_refptr<VideoRenderer>* filter_out);
   void SelectAudioRenderer(scoped_refptr<AudioRenderer>* filter_out);
 
@@ -50,7 +52,6 @@ class FilterCollection {
   // the following types. This is used to mark, identify, and support
   // downcasting of different filter types stored in the filters_ list.
   enum FilterType {
-    AUDIO_DECODER,
     VIDEO_DECODER,
     AUDIO_RENDERER,
     VIDEO_RENDERER,
@@ -61,6 +62,7 @@ class FilterCollection {
   typedef std::list<FilterListElement> FilterList;
   FilterList filters_;
   scoped_ptr<DemuxerFactory> demuxer_factory_;
+  std::list<scoped_refptr<AudioDecoder> > audio_decoders_;
 
   // Helper function that adds a filter to the filter list.
   void AddFilter(FilterType filter_type, Filter* filter);

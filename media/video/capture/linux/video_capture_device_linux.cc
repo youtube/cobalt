@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,19 +6,36 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#if defined(OS_OPENBSD)
+#include <sys/videoio.h>
+#else
 #include <linux/videodev2.h>
+#endif
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
 #include <string>
 
+#include "base/bind.h"
 #include "base/file_util.h"
 #include "base/stringprintf.h"
 
+// Workaround for some device. This query of all controls magically brings
+// device back to normal from bad state.
+// See http://crbug.com/94134.
+static void ResetCameraByEnumeratingIoctlsHACK(int fd) {
+  struct v4l2_queryctrl query_ctrl;
+  memset(&query_ctrl, 0, sizeof(query_ctrl));
+
+  for (query_ctrl.id = V4L2_CID_BASE;
+       query_ctrl.id < V4L2_CID_LASTP1;
+       query_ctrl.id++) {
+    ioctl(fd, VIDIOC_QUERYCTRL, &query_ctrl);
+  }
+}
+
 namespace media {
 
-// Number of supported v4l2 color formats.
-enum { kColorFormats = 2 };
 // Max number of video buffers VideoCaptureDeviceLinux can allocate.
 enum { kMaxVideoBuffers = 2 };
 // Timeout in microseconds v4l2_thread_ blocks waiting for a frame from the hw.
@@ -28,7 +45,7 @@ enum { kCaptureTimeoutUs = 200000 };
 enum { kCaptureSelectWaitMs = 10 };
 
 // V4L2 color formats VideoCaptureDeviceLinux support.
-static const int32 kV4l2Fmts[kColorFormats] = {
+static const int32 kV4l2Fmts[] = {
   V4L2_PIX_FMT_YUV420,
   V4L2_PIX_FMT_YUYV
 };
@@ -84,10 +101,17 @@ VideoCaptureDevice* VideoCaptureDevice::Create(const Name& device_name) {
   VideoCaptureDeviceLinux* self = new VideoCaptureDeviceLinux(device_name);
   if (!self)
     return NULL;
-  if (self->Init() != true) {
+  // Test opening the device driver. This is to make sure it is available.
+  // We will reopen it again in our worker thread when someone
+  // allocates the camera.
+  int fd = open(device_name.unique_id.c_str(), O_RDONLY);
+  if (fd < 0) {
+    DPLOG(ERROR) << "Cannot open device";
     delete self;
     return NULL;
   }
+  close(fd);
+
   return self;
 }
 
@@ -113,13 +137,6 @@ VideoCaptureDeviceLinux::~VideoCaptureDeviceLinux() {
   }
 }
 
-bool VideoCaptureDeviceLinux::Init() {
-  if ((device_fd_ = open(device_name_.unique_id.c_str(), O_RDONLY)) < 0) {
-    return false;
-  }
-  return true;
-}
-
 void VideoCaptureDeviceLinux::Allocate(int width,
                                        int height,
                                        int frame_rate,
@@ -130,8 +147,8 @@ void VideoCaptureDeviceLinux::Allocate(int width,
   v4l2_thread_.Start();
   v4l2_thread_.message_loop()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &VideoCaptureDeviceLinux::OnAllocate,
-                        width, height, frame_rate, observer));
+      base::Bind(&VideoCaptureDeviceLinux::OnAllocate, base::Unretained(this),
+                 width, height, frame_rate, observer));
 }
 
 void VideoCaptureDeviceLinux::Start() {
@@ -140,7 +157,7 @@ void VideoCaptureDeviceLinux::Start() {
   }
   v4l2_thread_.message_loop()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &VideoCaptureDeviceLinux::OnStart));
+      base::Bind(&VideoCaptureDeviceLinux::OnStart, base::Unretained(this)));
 }
 
 void VideoCaptureDeviceLinux::Stop() {
@@ -149,7 +166,7 @@ void VideoCaptureDeviceLinux::Stop() {
   }
   v4l2_thread_.message_loop()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &VideoCaptureDeviceLinux::OnStop));
+      base::Bind(&VideoCaptureDeviceLinux::OnStop, base::Unretained(this)));
 }
 
 void VideoCaptureDeviceLinux::DeAllocate() {
@@ -158,24 +175,14 @@ void VideoCaptureDeviceLinux::DeAllocate() {
   }
   v4l2_thread_.message_loop()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &VideoCaptureDeviceLinux::OnDeAllocate));
+      base::Bind(&VideoCaptureDeviceLinux::OnDeAllocate,
+                 base::Unretained(this)));
   v4l2_thread_.Stop();
-
-  // We need to close and open the device if we want to change the settings
-  // Otherwise VIDIOC_S_FMT will return error
-  // Sad but true. We still open the device in the Init function.
-  close(device_fd_);
-  device_fd_ = -1;
 
   // Make sure no buffers are still allocated.
   // This can happen (theoretically) if an error occurs when trying to stop
   // the camera.
   DeAllocateVideoBuffers();
-
-  if (!Init() && state_ != kError) {
-    SetErrorState("Failed to reinitialize camera");
-    return;
-  }
 }
 
 const VideoCaptureDevice::Name& VideoCaptureDeviceLinux::device_name() {
@@ -189,6 +196,11 @@ void VideoCaptureDeviceLinux::OnAllocate(int width,
   DCHECK_EQ(v4l2_thread_.message_loop(), MessageLoop::current());
 
   observer_ = observer;
+
+  if ((device_fd_ = open(device_name_.unique_id.c_str(), O_RDONLY)) < 0) {
+    SetErrorState("Failed to open V4L2 device driver.");
+    return;
+  }
 
   // Test if this is a V4L2 device.
   v4l2_capability cap;
@@ -208,13 +220,21 @@ void VideoCaptureDeviceLinux::OnAllocate(int width,
   video_fmt.fmt.pix.width = width;
   video_fmt.fmt.pix.height = height;
 
+  // Some device failed in first VIDIOC_TRY_FMT with EBUSY or EIO.
+  // But second VIDIOC_TRY_FMT succeeds.
+  // See http://crbug.com/94134.
   bool format_match = false;
-  for (int i = 0; i < kColorFormats; i++) {
+  for (unsigned int i = 0; i < arraysize(kV4l2Fmts) && !format_match; i++) {
     video_fmt.fmt.pix.pixelformat = kV4l2Fmts[i];
-    if (ioctl(device_fd_, VIDIOC_TRY_FMT, &video_fmt) < 0) {
-      continue;
+    for (int attempt = 0; attempt < 2 && !format_match; attempt++) {
+      ResetCameraByEnumeratingIoctlsHACK(device_fd_);
+      if (ioctl(device_fd_, VIDIOC_TRY_FMT, &video_fmt) < 0) {
+        if (errno != EIO)
+          break;
+      } else {
+        format_match = true;
+      }
     }
-    format_match = true;
   }
 
   if (!format_match) {
@@ -251,6 +271,12 @@ void VideoCaptureDeviceLinux::OnDeAllocate() {
   if (state_ == kAllocated) {
     state_ = kIdle;
   }
+
+  // We need to close and open the device if we want to change the settings
+  // Otherwise VIDIOC_S_FMT will return error
+  // Sad but true.
+  close(device_fd_);
+  device_fd_ = -1;
 }
 
 void VideoCaptureDeviceLinux::OnStart() {
@@ -277,7 +303,8 @@ void VideoCaptureDeviceLinux::OnStart() {
   // Post task to start fetching frames from v4l2.
   v4l2_thread_.message_loop()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &VideoCaptureDeviceLinux::OnCaptureTask));
+      base::Bind(&VideoCaptureDeviceLinux::OnCaptureTask,
+                 base::Unretained(this)));
 }
 
 void VideoCaptureDeviceLinux::OnStop() {
@@ -322,8 +349,9 @@ void VideoCaptureDeviceLinux::OnCaptureTask() {
     }
     v4l2_thread_.message_loop()->PostDelayedTask(
         FROM_HERE,
-        NewRunnableMethod(this, &VideoCaptureDeviceLinux::OnCaptureTask),
-        kCaptureSelectWaitMs);
+        base::Bind(&VideoCaptureDeviceLinux::OnCaptureTask,
+                   base::Unretained(this)),
+        base::TimeDelta::FromMilliseconds(kCaptureSelectWaitMs));
   }
 
   // Check if the driver have filled a buffer.
@@ -348,7 +376,8 @@ void VideoCaptureDeviceLinux::OnCaptureTask() {
 
   v4l2_thread_.message_loop()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &VideoCaptureDeviceLinux::OnCaptureTask));
+      base::Bind(&VideoCaptureDeviceLinux::OnCaptureTask,
+                 base::Unretained(this)));
 }
 
 bool VideoCaptureDeviceLinux::AllocateVideoBuffers() {
@@ -397,10 +426,23 @@ bool VideoCaptureDeviceLinux::AllocateVideoBuffers() {
 }
 
 void VideoCaptureDeviceLinux::DeAllocateVideoBuffers() {
+  if (!buffer_pool_)
+    return;
+
   // Unmaps buffers.
   for (int i = 0; i < buffer_pool_size_; i++) {
     munmap(buffer_pool_[i].start, buffer_pool_[i].length);
   }
+  v4l2_requestbuffers r_buffer;
+  memset(&r_buffer, 0, sizeof(r_buffer));
+  r_buffer.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  r_buffer.memory = V4L2_MEMORY_MMAP;
+  r_buffer.count = 0;
+
+  if (ioctl(device_fd_, VIDIOC_REQBUFS, &r_buffer) < 0) {
+    SetErrorState("Failed to reset buf.");
+  }
+
   delete [] buffer_pool_;
   buffer_pool_ = NULL;
   buffer_pool_size_ = 0;

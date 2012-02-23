@@ -9,13 +9,14 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "sql/sql_export.h"
 
 namespace sql {
 
 class Connection;
 class Statement;
 
-class MetaTable {
+class SQL_EXPORT MetaTable {
  public:
   MetaTable();
   ~MetaTable();
@@ -70,7 +71,7 @@ class MetaTable {
  private:
   // Conveniences to prepare the two types of statements used by
   // MetaTableHelper.
-  bool PrepareSetStatement(Statement* statement, const char* key);
+  void PrepareSetStatement(Statement* statement, const char* key);
   bool PrepareGetStatement(Statement* statement, const char* key);
 
   Connection* db_;

@@ -1,9 +1,10 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/http/http_auth_handler_mock.h"
 
+#include "base/bind.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
 #include "net/base/net_errors.h"
@@ -13,12 +14,15 @@
 namespace net {
 
 HttpAuthHandlerMock::HttpAuthHandlerMock()
-  : resolve_(RESOLVE_INIT), user_callback_(NULL),
-    ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
-    generate_async_(false), generate_rv_(OK),
+  : resolve_(RESOLVE_INIT),
+    ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
+    generate_async_(false),
+    generate_rv_(OK),
     auth_token_(NULL),
     first_round_(true),
-    connection_based_(false) {
+    connection_based_(false),
+    allows_default_credentials_(false),
+    allows_explicit_credentials_(true) {
 }
 
 HttpAuthHandlerMock::~HttpAuthHandlerMock() {
@@ -43,8 +47,8 @@ bool HttpAuthHandlerMock::NeedsCanonicalName() {
   }
 }
 
-int HttpAuthHandlerMock::ResolveCanonicalName(HostResolver* host_resolver,
-                                              CompletionCallback* callback) {
+int HttpAuthHandlerMock::ResolveCanonicalName(
+    HostResolver* host_resolver, const CompletionCallback& callback) {
   EXPECT_NE(RESOLVE_TESTED, resolve_);
   int rv = OK;
   switch (resolve_) {
@@ -52,12 +56,13 @@ int HttpAuthHandlerMock::ResolveCanonicalName(HostResolver* host_resolver,
       resolve_ = RESOLVE_TESTED;
       break;
     case RESOLVE_ASYNC:
-      EXPECT_TRUE(user_callback_ == NULL);
+      EXPECT_TRUE(callback_.is_null());
       rv = ERR_IO_PENDING;
-      user_callback_ = callback;
+      callback_ = callback;
       MessageLoop::current()->PostTask(
-          FROM_HERE, method_factory_.NewRunnableMethod(
-              &HttpAuthHandlerMock::OnResolveCanonicalName));
+          FROM_HERE, base::Bind(
+              &HttpAuthHandlerMock::OnResolveCanonicalName,
+              weak_factory_.GetWeakPtr()));
       break;
     default:
       NOTREACHED();
@@ -73,7 +78,9 @@ void HttpAuthHandlerMock::SetGenerateExpectation(bool async, int rv) {
 
 HttpAuth::AuthorizationResult HttpAuthHandlerMock::HandleAnotherChallenge(
     HttpAuth::ChallengeTokenizer* challenge) {
-  if (!is_connection_based())
+  // If we receive an empty challenge for a connection based scheme, or a second
+  // challenge for a non connection based scheme, assume it's a rejection.
+  if (!is_connection_based() || challenge->base64_param().empty())
     return HttpAuth::AUTHORIZATION_RESULT_REJECT;
   if (!LowerCaseEqualsASCII(challenge->scheme(), "mock"))
     return HttpAuth::AUTHORIZATION_RESULT_INVALID;
@@ -84,6 +91,14 @@ bool HttpAuthHandlerMock::NeedsIdentity() {
   return first_round_;
 }
 
+bool HttpAuthHandlerMock::AllowsDefaultCredentials() {
+  return allows_default_credentials_;
+}
+
+bool HttpAuthHandlerMock::AllowsExplicitCredentials() {
+  return allows_explicit_credentials_;
+}
+
 bool HttpAuthHandlerMock::Init(HttpAuth::ChallengeTokenizer* challenge) {
   auth_scheme_ = HttpAuth::AUTH_SCHEME_MOCK;
   score_ = 1;
@@ -91,21 +106,22 @@ bool HttpAuthHandlerMock::Init(HttpAuth::ChallengeTokenizer* challenge) {
   return true;
 }
 
-int HttpAuthHandlerMock::GenerateAuthTokenImpl(const string16* username,
-                                               const string16* password,
-                                               const HttpRequestInfo* request,
-                                               CompletionCallback* callback,
-                                               std::string* auth_token) {
+int HttpAuthHandlerMock::GenerateAuthTokenImpl(
+    const AuthCredentials* credentials,
+    const HttpRequestInfo* request,
+    const CompletionCallback& callback,
+    std::string* auth_token) {
   first_round_ = false;
   request_url_ = request->url;
   if (generate_async_) {
-    EXPECT_TRUE(user_callback_ == NULL);
+    EXPECT_TRUE(callback_.is_null());
     EXPECT_TRUE(auth_token_ == NULL);
-    user_callback_ = callback;
+    callback_ = callback;
     auth_token_ = auth_token;
     MessageLoop::current()->PostTask(
-        FROM_HERE, method_factory_.NewRunnableMethod(
-            &HttpAuthHandlerMock::OnGenerateAuthToken));
+        FROM_HERE, base::Bind(
+            &HttpAuthHandlerMock::OnGenerateAuthToken,
+            weak_factory_.GetWeakPtr()));
     return ERR_IO_PENDING;
   } else {
     if (generate_rv_ == OK)
@@ -116,22 +132,22 @@ int HttpAuthHandlerMock::GenerateAuthTokenImpl(const string16* username,
 
 void HttpAuthHandlerMock::OnResolveCanonicalName() {
   EXPECT_EQ(RESOLVE_ASYNC, resolve_);
-  EXPECT_TRUE(user_callback_ != NULL);
+  EXPECT_TRUE(!callback_.is_null());
   resolve_ = RESOLVE_TESTED;
-  CompletionCallback* callback = user_callback_;
-  user_callback_ = NULL;
-  callback->Run(OK);
+  CompletionCallback callback = callback_;
+  callback_.Reset();
+  callback.Run(OK);
 }
 
 void HttpAuthHandlerMock::OnGenerateAuthToken() {
   EXPECT_TRUE(generate_async_);
-  EXPECT_TRUE(user_callback_ != NULL);
+  EXPECT_TRUE(!callback_.is_null());
   if (generate_rv_ == OK)
     *auth_token_ = "auth_token";
   auth_token_ = NULL;
-  CompletionCallback* callback = user_callback_;
-  user_callback_ = NULL;
-  callback->Run(generate_rv_);
+  CompletionCallback callback = callback_;
+  callback_.Reset();
+  callback.Run(generate_rv_);
 }
 
 HttpAuthHandlerMock::Factory::Factory()
@@ -142,10 +158,9 @@ HttpAuthHandlerMock::Factory::Factory()
 HttpAuthHandlerMock::Factory::~Factory() {
 }
 
-void HttpAuthHandlerMock::Factory::set_mock_handler(
+void HttpAuthHandlerMock::Factory::AddMockHandler(
     HttpAuthHandler* handler, HttpAuth::Target target) {
-  EXPECT_TRUE(handlers_[target].get() == NULL);
-  handlers_[target].reset(handler);
+  handlers_[target].push_back(handler);
 }
 
 int HttpAuthHandlerMock::Factory::CreateAuthHandler(
@@ -156,9 +171,11 @@ int HttpAuthHandlerMock::Factory::CreateAuthHandler(
     int nonce_count,
     const BoundNetLog& net_log,
     scoped_ptr<HttpAuthHandler>* handler) {
-  if (!handlers_[target].get())
+  if (handlers_[target].empty())
     return ERR_UNEXPECTED;
-  scoped_ptr<HttpAuthHandler> tmp_handler(handlers_[target].release());
+  scoped_ptr<HttpAuthHandler> tmp_handler(handlers_[target][0]);
+  std::vector<HttpAuthHandler*>& handlers = handlers_[target].get();
+  handlers.erase(handlers.begin());
   if (do_init_from_challenge_ &&
       !tmp_handler->InitFromChallenge(challenge, target, origin, net_log))
     return ERR_INVALID_RESPONSE;

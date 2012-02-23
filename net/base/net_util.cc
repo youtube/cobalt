@@ -1,16 +1,9 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/net_util.h"
 
-#include <unicode/regex.h>
-#include <unicode/ucnv.h>
-#include <unicode/uidna.h>
-#include <unicode/ulocdata.h>
-#include <unicode/uniset.h>
-#include <unicode/uscript.h>
-#include <unicode/uset.h>
 #include <algorithm>
 #include <iterator>
 #include <map>
@@ -40,6 +33,7 @@
 #include "base/i18n/icu_string_conversions.h"
 #include "base/i18n/time_formatting.h"
 #include "base/json/string_escape.h"
+#include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
 #include "base/message_loop.h"
@@ -64,11 +58,20 @@
 #include "grit/net_resources.h"
 #include "net/base/dns_util.h"
 #include "net/base/escape.h"
+#include "net/base/mime_util.h"
 #include "net/base/net_module.h"
 #if defined(OS_WIN)
 #include "net/base/winsock_init.h"
 #endif
+#include "net/http/http_content_disposition.h"
 #include "unicode/datefmt.h"
+#include "unicode/regex.h"
+#include "unicode/ucnv.h"
+#include "unicode/uidna.h"
+#include "unicode/ulocdata.h"
+#include "unicode/uniset.h"
+#include "unicode/uscript.h"
+#include "unicode/uset.h"
 
 using base::Time;
 
@@ -157,76 +160,81 @@ static const int kAllowedFtpPorts[] = {
   22,   // ssh
 };
 
+std::string::size_type CountTrailingChars(
+    const std::string& input,
+    const std::string::value_type trailing_chars[]) {
+  const size_t last_good_char = input.find_last_not_of(trailing_chars);
+  return (last_good_char == std::string::npos) ?
+      input.length() : (input.length() - last_good_char - 1);
+}
+
 // Similar to Base64Decode. Decodes a Q-encoded string to a sequence
 // of bytes. If input is invalid, return false.
 bool QPDecode(const std::string& input, std::string* output) {
   std::string temp;
   temp.reserve(input.size());
-  std::string::const_iterator it = input.begin();
-  while (it != input.end()) {
+  for (std::string::const_iterator it = input.begin(); it != input.end();
+       ++it) {
     if (*it == '_') {
       temp.push_back(' ');
     } else if (*it == '=') {
-      if (input.end() - it < 3) {
+      if ((input.end() - it < 3) ||
+          !IsHexDigit(static_cast<unsigned char>(*(it + 1))) ||
+          !IsHexDigit(static_cast<unsigned char>(*(it + 2))))
         return false;
-      }
-      if (IsHexDigit(static_cast<unsigned char>(*(it + 1))) &&
-          IsHexDigit(static_cast<unsigned char>(*(it + 2)))) {
-        unsigned char ch = HexDigitToInt(*(it + 1)) * 16 +
-                           HexDigitToInt(*(it + 2));
-        temp.push_back(static_cast<char>(ch));
-        ++it;
-        ++it;
-      } else {
-        return false;
-      }
+      unsigned char ch = HexDigitToInt(*(it + 1)) * 16 +
+                         HexDigitToInt(*(it + 2));
+      temp.push_back(static_cast<char>(ch));
+      ++it;
+      ++it;
     } else if (0x20 < *it && *it < 0x7F) {
       // In a Q-encoded word, only printable ASCII characters
       // represent themselves. Besides, space, '=', '_' and '?' are
       // not allowed, but they're already filtered out.
-      DCHECK(*it != 0x3D && *it != 0x5F && *it != 0x3F);
+      DCHECK_NE('=', *it);
+      DCHECK_NE('?', *it);
+      DCHECK_NE('_', *it);
       temp.push_back(*it);
     } else {
       return false;
     }
-    ++it;
   }
   output->swap(temp);
   return true;
 }
 
 enum RFC2047EncodingType {Q_ENCODING, B_ENCODING};
-bool DecodeBQEncoding(const std::string& part, RFC2047EncodingType enc_type,
-                       const std::string& charset, std::string* output) {
+bool DecodeBQEncoding(const std::string& part,
+                      RFC2047EncodingType enc_type,
+                      const std::string& charset,
+                      std::string* output) {
   std::string decoded;
-  if (enc_type == B_ENCODING) {
-    if (!base::Base64Decode(part, &decoded)) {
-      return false;
-    }
-  } else {
-    if (!QPDecode(part, &decoded)) {
-      return false;
-    }
+  if (!((enc_type == B_ENCODING) ?
+      base::Base64Decode(part, &decoded) : QPDecode(part, &decoded)))
+    return false;
+
+  if (decoded.empty()) {
+    output->clear();
+    return true;
   }
 
   UErrorCode err = U_ZERO_ERROR;
   UConverter* converter(ucnv_open(charset.c_str(), &err));
-  if (U_FAILURE(err)) {
+  if (U_FAILURE(err))
     return false;
-  }
 
   // A single byte in a legacy encoding can be expanded to 3 bytes in UTF-8.
   // A 'two-byte character' in a legacy encoding can be expanded to 4 bytes
-  // in UTF-8. Therefore, the expansion ratio is 3 at most.
-  int length = static_cast<int>(decoded.length());
-  char* buf = WriteInto(output, length * 3);
-  length = ucnv_toAlgorithmic(UCNV_UTF8, converter, buf, length * 3,
-      decoded.data(), length, &err);
+  // in UTF-8. Therefore, the expansion ratio is 3 at most. Add one for a
+  // trailing '\0'.
+  size_t output_length = decoded.length() * 3 + 1;
+  char* buf = WriteInto(output, output_length);
+  output_length = ucnv_toAlgorithmic(UCNV_UTF8, converter, buf, output_length,
+                                     decoded.data(), decoded.length(), &err);
   ucnv_close(converter);
-  if (U_FAILURE(err)) {
+  if (U_FAILURE(err))
     return false;
-  }
-  output->resize(length);
+  output->resize(output_length);
   return true;
 }
 
@@ -350,38 +358,6 @@ bool DecodeWord(const std::string& encoded_word,
   return false;
 }
 
-bool DecodeParamValue(const std::string& input,
-                      const std::string& referrer_charset,
-                      std::string* output) {
-  std::string tmp;
-  // Tokenize with whitespace characters.
-  StringTokenizer t(input, " \t\n\r");
-  t.set_options(StringTokenizer::RETURN_DELIMS);
-  bool is_previous_token_rfc2047 = true;
-  while (t.GetNext()) {
-    if (t.token_is_delim()) {
-      // If the previous non-delimeter token is not RFC2047-encoded,
-      // put in a space in its place. Otheriwse, skip over it.
-      if (!is_previous_token_rfc2047) {
-        tmp.push_back(' ');
-      }
-      continue;
-    }
-    // We don't support a single multibyte character split into
-    // adjacent encoded words. Some broken mail clients emit headers
-    // with that problem, but most web servers usually encode a filename
-    // in a single encoded-word. Firefox/Thunderbird do not support
-    // it, either.
-    std::string decoded;
-    if (!DecodeWord(t.token(), referrer_charset, &is_previous_token_rfc2047,
-                    &decoded))
-      return false;
-    tmp.append(decoded);
-  }
-  output->swap(tmp);
-  return true;
-}
-
 // Does some simple normalization of scripts so we can allow certain scripts
 // to exist together.
 // TODO(brettw) bug 880223: we should allow some other languages to be
@@ -477,17 +453,19 @@ void SetExemplarSetForLang(const std::string& lang,
   map.insert(std::make_pair(lang, lang_set));
 }
 
-static base::Lock lang_set_lock;
+static base::LazyInstance<base::Lock>::Leaky
+    g_lang_set_lock = LAZY_INSTANCE_INITIALIZER;
 
 // Returns true if all the characters in component_characters are used by
 // the language |lang|.
 bool IsComponentCoveredByLang(const icu::UnicodeSet& component_characters,
                               const std::string& lang) {
-  static const icu::UnicodeSet kASCIILetters(0x61, 0x7a);  // [a-z]
+  CR_DEFINE_STATIC_LOCAL(
+      const icu::UnicodeSet, kASCIILetters, ('a', 'z'));
   icu::UnicodeSet* lang_set;
   // We're called from both the UI thread and the history thread.
   {
-    base::AutoLock lock(lang_set_lock);
+    base::AutoLock lock(g_lang_set_lock.Get());
     if (!GetExemplarSetForLang(lang, &lang_set)) {
       UErrorCode status = U_ZERO_ERROR;
       ULocaleData* uld = ulocdata_open(lang.c_str(), &status);
@@ -921,6 +899,176 @@ char* do_strdup(const char* src) {
 #endif
 }
 
+void SanitizeGeneratedFileName(std::string& filename) {
+  if (!filename.empty()) {
+    // Remove "." from the beginning and end of the file name to avoid tricks
+    // with hidden files, "..", and "."
+    TrimString(filename, ".", &filename);
+#if defined(OS_WIN)
+    // Handle CreateFile() stripping trailing dots and spaces on filenames
+    // http://support.microsoft.com/kb/115827
+    std::string::size_type pos = filename.find_last_not_of(" .");
+    if (pos == std::string::npos)
+      filename.resize(0);
+    else
+      filename.resize(++pos);
+#endif
+    // Replace any path information by changing path separators with
+    // underscores.
+    ReplaceSubstringsAfterOffset(&filename, 0, "/", "_");
+    ReplaceSubstringsAfterOffset(&filename, 0, "\\", "_");
+  }
+}
+
+// Returns the filename determined from the last component of the path portion
+// of the URL.  Returns an empty string if the URL doesn't have a path or is
+// invalid. If the generated filename is not reliable,
+// |should_overwrite_extension| will be set to true, in which case a better
+// extension should be determined based on the content type.
+std::string GetFileNameFromURL(const GURL& url,
+                               const std::string& referrer_charset,
+                               bool* should_overwrite_extension) {
+  // about: and data: URLs don't have file names, but esp. data: URLs may
+  // contain parts that look like ones (i.e., contain a slash).  Therefore we
+  // don't attempt to divine a file name out of them.
+  if (!url.is_valid() || url.SchemeIs("about") || url.SchemeIs("data"))
+    return std::string();
+
+  const std::string unescaped_url_filename = UnescapeURLComponent(
+      url.ExtractFileName(),
+      UnescapeRule::SPACES | UnescapeRule::URL_SPECIAL_CHARS);
+
+  // The URL's path should be escaped UTF-8, but may not be.
+  std::string decoded_filename = unescaped_url_filename;
+  if (!IsStringASCII(decoded_filename)) {
+    bool ignore;
+    // TODO(jshin): this is probably not robust enough. To be sure, we need
+    // encoding detection.
+    DecodeWord(unescaped_url_filename, referrer_charset, &ignore,
+               &decoded_filename);
+  }
+  // If the URL contains a (possibly empty) query, assume it is a generator, and
+  // allow the determined extension to be overwritten.
+  *should_overwrite_extension = !decoded_filename.empty() && url.has_query();
+
+  return decoded_filename;
+}
+
+#if defined(OS_WIN)
+// Returns whether the specified extension is automatically integrated into the
+// windows shell.
+bool IsShellIntegratedExtension(const string16& extension) {
+  string16 extension_lower = StringToLowerASCII(extension);
+
+  static const wchar_t* const integrated_extensions[] = {
+    // See <http://msdn.microsoft.com/en-us/library/ms811694.aspx>.
+    L"local",
+    // Right-clicking on shortcuts can be magical.
+    L"lnk",
+  };
+
+  for (int i = 0; i < arraysize(integrated_extensions); ++i) {
+    if (extension_lower == integrated_extensions[i])
+      return true;
+  }
+
+  // See <http://www.juniper.net/security/auto/vulnerabilities/vuln2612.html>.
+  // That vulnerability report is not exactly on point, but files become magical
+  // if their end in a CLSID.  Here we block extensions that look like CLSIDs.
+  if (!extension_lower.empty() && extension_lower[0] == L'{' &&
+      extension_lower[extension_lower.length() - 1] == L'}')
+    return true;
+
+  return false;
+}
+
+// Returns whether the specified file name is a reserved name on windows.
+// This includes names like "com2.zip" (which correspond to devices) and
+// desktop.ini and thumbs.db which have special meaning to the windows shell.
+bool IsReservedName(const string16& filename) {
+  // This list is taken from the MSDN article "Naming a file"
+  // http://msdn2.microsoft.com/en-us/library/aa365247(VS.85).aspx
+  // I also added clock$ because GetSaveFileName seems to consider it as a
+  // reserved name too.
+  static const wchar_t* const known_devices[] = {
+    L"con", L"prn", L"aux", L"nul", L"com1", L"com2", L"com3", L"com4", L"com5",
+    L"com6", L"com7", L"com8", L"com9", L"lpt1", L"lpt2", L"lpt3", L"lpt4",
+    L"lpt5", L"lpt6", L"lpt7", L"lpt8", L"lpt9", L"clock$"
+  };
+  string16 filename_lower = StringToLowerASCII(filename);
+
+  for (int i = 0; i < arraysize(known_devices); ++i) {
+    // Exact match.
+    if (filename_lower == known_devices[i])
+      return true;
+    // Starts with "DEVICE.".
+    if (filename_lower.find(string16(known_devices[i]) + L".") == 0)
+      return true;
+  }
+
+  static const wchar_t* const magic_names[] = {
+    // These file names are used by the "Customize folder" feature of the shell.
+    L"desktop.ini",
+    L"thumbs.db",
+  };
+
+  for (int i = 0; i < arraysize(magic_names); ++i) {
+    if (filename_lower == magic_names[i])
+      return true;
+  }
+
+  return false;
+}
+#endif  // OS_WIN
+
+// Examines the current extension in |file_name| and modifies it if necessary in
+// order to ensure the filename is safe.  If |file_name| doesn't contain an
+// extension or if |ignore_extension| is true, then a new extension will be
+// constructed based on the |mime_type|.
+//
+// We're addressing two things here:
+//
+// 1) Usability.  If there is no reliable file extension, we want to guess a
+//    reasonable file extension based on the content type.
+//
+// 2) Shell integration.  Some file extensions automatically integrate with the
+//    shell.  We block these extensions to prevent a malicious web site from
+//    integrating with the user's shell.
+void EnsureSafeExtension(const std::string& mime_type,
+                         bool ignore_extension,
+                         FilePath* file_name) {
+  // See if our file name already contains an extension.
+  FilePath::StringType extension = file_name->Extension();
+  if (!extension.empty())
+    extension.erase(extension.begin());  // Erase preceding '.'.
+
+  if ((ignore_extension || extension.empty()) && !mime_type.empty()) {
+    FilePath::StringType mime_extension;
+    // The GetPreferredExtensionForMimeType call will end up going to disk.  Do
+    // this on another thread to avoid slowing the IO thread.
+    // http://crbug.com/61827
+    // TODO(asanka): Remove this ScopedAllowIO once all callers have switched
+    // over to IO safe threads.
+    base::ThreadRestrictions::ScopedAllowIO allow_io;
+    net::GetPreferredExtensionForMimeType(mime_type, &mime_extension);
+    if (!mime_extension.empty())
+      extension = mime_extension;
+  }
+
+#if defined(OS_WIN)
+  static const FilePath::CharType default_extension[] =
+      FILE_PATH_LITERAL("download");
+
+  // Rename shell-integrated extensions.
+  // TODO(asanka): Consider stripping out the bad extension and replacing it
+  // with the preferred extension for the MIME type if one is available.
+  if (IsShellIntegratedExtension(extension))
+    extension.assign(default_extension);
+#endif
+
+  *file_name = file_name->ReplaceExtension(extension);
+}
+
 }  // namespace
 
 const FormatUrlType kFormatUrlOmitNothing                     = 0;
@@ -930,8 +1078,12 @@ const FormatUrlType kFormatUrlOmitTrailingSlashOnBareHostname = 1 << 2;
 const FormatUrlType kFormatUrlOmitAll = kFormatUrlOmitUsernamePassword |
     kFormatUrlOmitHTTP | kFormatUrlOmitTrailingSlashOnBareHostname;
 
-// TODO(viettrungluu): We don't want non-POD globals; change this.
-std::multiset<int> explicitly_allowed_ports;
+static base::LazyInstance<std::multiset<int> >::Leaky
+    g_explicitly_allowed_ports = LAZY_INSTANCE_INITIALIZER;
+
+size_t GetCountOfExplicitlyAllowedPorts() {
+  return g_explicitly_allowed_ports.Get().size();
+}
 
 GURL FilePathToFileURL(const FilePath& path) {
   // Produce a URL like "file:///C:/foo" for a regular file, or
@@ -968,7 +1120,7 @@ GURL FilePathToFileURL(const FilePath& path) {
 }
 
 std::string GetSpecificHeader(const std::string& headers,
-                               const std::string& name) {
+                              const std::string& name) {
   // We want to grab the Value from the "Key: Value" pairs in the headers,
   // which should look like this (no leading spaces, \n-separated) (we format
   // them this way in url_request_inet.cc):
@@ -1034,89 +1186,62 @@ bool DecodeCharset(const std::string& input,
   return true;
 }
 
-std::string GetFileNameFromCD(const std::string& header,
-                              const std::string& referrer_charset) {
-  std::string decoded;
-  std::string param_value = GetHeaderParamValue(header, "filename*",
-                                                QuoteRule::KEEP_OUTER_QUOTES);
-  if (!param_value.empty()) {
-    if (param_value.find('"') == std::string::npos) {
-      std::string charset;
-      std::string value;
-      if (DecodeCharset(param_value, &charset, &value)) {
-        // RFC 5987 value should be ASCII-only.
-        if (!IsStringASCII(value))
-          return std::string();
-        std::string tmp = UnescapeURLComponent(
-            value,
-            UnescapeRule::SPACES | UnescapeRule::URL_SPECIAL_CHARS);
-        if (base::ConvertToUtf8AndNormalize(tmp, charset, &decoded))
-          return decoded;
+bool DecodeFilenameValue(const std::string& input,
+                         const std::string& referrer_charset,
+                         std::string* output) {
+  std::string tmp;
+  // Tokenize with whitespace characters.
+  StringTokenizer t(input, " \t\n\r");
+  t.set_options(StringTokenizer::RETURN_DELIMS);
+  bool is_previous_token_rfc2047 = true;
+  while (t.GetNext()) {
+    if (t.token_is_delim()) {
+      // If the previous non-delimeter token is not RFC2047-encoded,
+      // put in a space in its place. Otheriwse, skip over it.
+      if (!is_previous_token_rfc2047) {
+        tmp.push_back(' ');
       }
+      continue;
     }
+    // We don't support a single multibyte character split into
+    // adjacent encoded words. Some broken mail clients emit headers
+    // with that problem, but most web servers usually encode a filename
+    // in a single encoded-word. Firefox/Thunderbird do not support
+    // it, either.
+    std::string decoded;
+    if (!DecodeWord(t.token(), referrer_charset, &is_previous_token_rfc2047,
+                    &decoded))
+      return false;
+    tmp.append(decoded);
   }
-  param_value = GetHeaderParamValue(header, "filename",
-                                    QuoteRule::REMOVE_OUTER_QUOTES);
-  if (param_value.empty()) {
-    // Some servers use 'name' parameter.
-    param_value = GetHeaderParamValue(header, "name",
-                                      QuoteRule::REMOVE_OUTER_QUOTES);
-  }
-  if (param_value.empty())
-    return std::string();
-  if (DecodeParamValue(param_value, referrer_charset, &decoded))
-    return decoded;
-  return std::string();
+  output->swap(tmp);
+  return true;
 }
 
-// TODO(mpcomplete): This is a quick and dirty implementation for now.  I'm
-// sure this doesn't properly handle all (most?) cases.
-std::string GetHeaderParamValue(const std::string& header,
-                                const std::string& param_name,
-                                QuoteRule::Type quote_rule) {
-  // This assumes args are formatted exactly like "bla; arg1=value; arg2=value".
-  std::string::const_iterator param_begin =
-      std::search(header.begin(), header.end(), param_name.begin(),
-                  param_name.end(), base::CaseInsensitiveCompareASCII<char>());
+bool DecodeExtValue(const std::string& param_value, std::string* decoded) {
+  if (param_value.find('"') != std::string::npos)
+    return false;
 
-  if (param_begin == header.end())
-    return std::string();
-  param_begin += param_name.length();
+  std::string charset;
+  std::string value;
+  if (!DecodeCharset(param_value, &charset, &value))
+    return false;
 
-  std::string whitespace(" \t");
-  size_t equals_offset =
-      header.find_first_not_of(whitespace, param_begin - header.begin());
-  if (equals_offset == std::string::npos || header[equals_offset] != '=')
-    return std::string();
-
-  size_t param_value_offset =
-      header.find_first_not_of(whitespace, equals_offset + 1);
-  if (param_value_offset == std::string::npos)
-    return std::string();
-
-  param_begin = header.begin() + param_value_offset;
-  if (param_begin == header.end())
-    return std::string();
-
-  std::string::const_iterator param_end;
-  if (*param_begin == '"' && quote_rule == QuoteRule::REMOVE_OUTER_QUOTES) {
-    ++param_begin;  // skip past the quote.
-    param_end = std::find(param_begin, header.end(), '"');
-    // If the closing quote is missing, we will treat the rest of the
-    // string as the parameter.  We can't set |param_end| to the
-    // location of the separator (';'), since the separator is
-    // technically quoted. See: http://crbug.com/58840
-  } else {
-    param_end = std::find(param_begin + 1, header.end(), ';');
+  // RFC 5987 value should be ASCII-only.
+  if (!IsStringASCII(value)) {
+    decoded->clear();
+    return true;
   }
 
-  return std::string(param_begin, param_end);
+  std::string unescaped = UnescapeURLComponent(value,
+      UnescapeRule::SPACES | UnescapeRule::URL_SPECIAL_CHARS);
+
+  return base::ConvertToUtf8AndNormalize(unescaped, charset, decoded);
 }
 
 string16 IDNToUnicode(const std::string& host,
                       const std::string& languages) {
-  std::vector<size_t> offsets;
-  return IDNToUnicodeWithOffsets(host, languages, &offsets);
+  return IDNToUnicodeWithOffsets(host, languages, NULL);
 }
 
 std::string CanonicalizeHost(const std::string& host,
@@ -1227,7 +1352,11 @@ std::string GetDirectoryListingEntry(const string16& name,
     result.append(",0,");
   }
 
-  base::JsonDoubleQuote(FormatBytesUnlocalized(size), true, &result);
+  // Negative size means unknown or not applicable (e.g. directory).
+  string16 size_string;
+  if (size >= 0)
+    size_string = FormatBytesUnlocalized(size);
+  base::JsonDoubleQuote(size_string, true, &result);
 
   result.append(",");
 
@@ -1248,104 +1377,128 @@ string16 StripWWW(const string16& text) {
   return StartsWith(text, www, true) ? text.substr(www.length()) : text;
 }
 
+void GenerateSafeFileName(const std::string& mime_type,
+                          bool ignore_extension,
+                          FilePath* file_path) {
+  // Make sure we get the right file extension
+  EnsureSafeExtension(mime_type, ignore_extension, file_path);
+
+#if defined(OS_WIN)
+  // Prepend "_" to the file name if it's a reserved name
+  FilePath::StringType leaf_name = file_path->BaseName().value();
+  DCHECK(!leaf_name.empty());
+  if (IsReservedName(leaf_name)) {
+    leaf_name = FilePath::StringType(FILE_PATH_LITERAL("_")) + leaf_name;
+    *file_path = file_path->DirName();
+    if (file_path->value() == FilePath::kCurrentDirectory) {
+      *file_path = FilePath(leaf_name);
+    } else {
+      *file_path = file_path->Append(leaf_name);
+    }
+  }
+#endif
+}
+
 string16 GetSuggestedFilename(const GURL& url,
                               const std::string& content_disposition,
                               const std::string& referrer_charset,
                               const std::string& suggested_name,
-                              const string16& default_name) {
+                              const std::string& mime_type,
+                              const std::string& default_name) {
   // TODO: this function to be updated to match the httpbis recommendations.
   // Talk to abarth for the latest news.
 
   // We don't translate this fallback string, "download". If localization is
-  // needed, the caller should provide localized fallback default_name.
+  // needed, the caller should provide localized fallback in |default_name|.
   static const char* kFinalFallbackName = "download";
+  std::string filename;  // In UTF-8
+  bool overwrite_extension = false;
 
-  std::string filename;
+  // Try to extract a filename from content-disposition first.
+  if (!content_disposition.empty()) {
+    HttpContentDisposition header(content_disposition, referrer_charset);
+    filename = header.filename();
+  }
 
-  // Try to extract from content-disposition first.
-  if (!content_disposition.empty())
-    filename = GetFileNameFromCD(content_disposition, referrer_charset);
-
-  // Then try to use suggested name.
+  // Then try to use the suggested name.
   if (filename.empty() && !suggested_name.empty())
     filename = suggested_name;
 
-  if (!filename.empty()) {
-    // Replace any path information the server may have sent, by changing
-    // path separators with underscores.
-    ReplaceSubstringsAfterOffset(&filename, 0, "/", "_");
-    ReplaceSubstringsAfterOffset(&filename, 0, "\\", "_");
+  // Now try extracting the filename from the URL.  GetFileNameFromURL() only
+  // looks at the last component of the URL and doesn't return the hostname as a
+  // failover.
+  if (filename.empty())
+    filename = GetFileNameFromURL(url, referrer_charset, &overwrite_extension);
 
-    // Next, remove "." from the beginning and end of the file name to avoid
-    // tricks with hidden files, "..", and "."
-    TrimString(filename, ".", &filename);
-  }
-
-  if (filename.empty()) {
-    // about: and data: URLs don't have file names, but esp. data: URLs may
-    // contain parts that look like ones (i.e., contain a slash).
-    // Therefore we don't attempt to divine a file name out of them.
-    if (url.SchemeIs("about") || url.SchemeIs("data")) {
-      return default_name.empty() ? ASCIIToUTF16(kFinalFallbackName)
-                                  : default_name;
-    }
-
-    if (url.is_valid()) {
-      const std::string unescaped_url_filename = UnescapeURLComponent(
-          url.ExtractFileName(),
-          UnescapeRule::SPACES | UnescapeRule::URL_SPECIAL_CHARS);
-
-      // The URL's path should be escaped UTF-8, but may not be.
-      std::string decoded_filename = unescaped_url_filename;
-      if (!IsStringASCII(decoded_filename)) {
-        bool ignore;
-        // TODO(jshin): this is probably not robust enough. To be sure, we
-        // need encoding detection.
-        DecodeWord(unescaped_url_filename, referrer_charset, &ignore,
-                   &decoded_filename);
-      }
-
-      filename = decoded_filename;
-    }
+  // Finally try the URL hostname, but only if there's no default specified in
+  // |default_name|.  Some schemes (e.g.: file:, about:, data:) do not have a
+  // host name.
+  if (filename.empty() && default_name.empty() &&
+      url.is_valid() && !url.host().empty()) {
+    // TODO(jungshik) : Decode a 'punycoded' IDN hostname. (bug 1264451)
+    filename = url.host();
   }
 
 #if defined(OS_WIN)
-  { // Handle CreateFile() stripping trailing dots and spaces on filenames
-    // http://support.microsoft.com/kb/115827
-    std::string::size_type pos = filename.find_last_not_of(" .");
-    if (pos == std::string::npos)
-      filename.resize(0);
-    else
-      filename.resize(++pos);
-  }
+  std::string::size_type trimmed_trailing_character_count =
+      CountTrailingChars(filename, " .");
 #endif
-  // Trim '.' once more.
-  TrimString(filename, ".", &filename);
-
-  // If there's no filename or it gets trimed to be empty, use
-  // the URL hostname or default_name
+  SanitizeGeneratedFileName(filename);
+  // Sanitization can cause the filename to disappear (e.g.: if the filename
+  // consisted entirely of spaces and '.'s), in which case we use the default.
   if (filename.empty()) {
-    if (!default_name.empty()) {
-      return default_name;
-    } else if (url.is_valid()) {
-      // Some schemes (e.g. file) do not have a hostname. Even though it's
-      // not likely to reach here, let's hardcode the last fallback name.
-      // TODO(jungshik) : Decode a 'punycoded' IDN hostname. (bug 1264451)
-      filename = url.host().empty() ? kFinalFallbackName : url.host();
-    } else {
-      NOTREACHED();
-    }
+#if defined(OS_WIN)
+    trimmed_trailing_character_count = 0;
+#endif
+    overwrite_extension = false;
+    if (default_name.empty())
+      filename = kFinalFallbackName;
   }
 
 #if defined(OS_WIN)
-  string16 path = UTF8ToUTF16(filename);
+  string16 path = UTF8ToUTF16(filename.empty() ? default_name : filename);
+  // On Windows we want to preserve or replace all characters including
+  // whitespace to prevent file extension obfuscation on trusted websites
+  // e.g. Gmail might think evil.exe. is safe, so we don't want it to become
+  // evil.exe when we download it
+  string16::size_type path_length_before_trim = path.length();
+  TrimWhitespace(path, TRIM_TRAILING, &path);
+  trimmed_trailing_character_count += path_length_before_trim - path.length();
   file_util::ReplaceIllegalCharactersInPath(&path, '-');
-  return path;
+  path.append(trimmed_trailing_character_count, '-');
+  FilePath result(path);
+  GenerateSafeFileName(mime_type, overwrite_extension, &result);
+  return result.value();
 #else
-  std::string path = filename;
+  std::string path = filename.empty() ? default_name : filename;
   file_util::ReplaceIllegalCharactersInPath(&path, '-');
-  return UTF8ToUTF16(path);
+  FilePath result(path);
+  GenerateSafeFileName(mime_type, overwrite_extension, &result);
+  return UTF8ToUTF16(result.value());
 #endif
+}
+
+FilePath GenerateFileName(const GURL& url,
+                          const std::string& content_disposition,
+                          const std::string& referrer_charset,
+                          const std::string& suggested_name,
+                          const std::string& mime_type,
+                          const std::string& default_file_name) {
+  string16 file_name = GetSuggestedFilename(url,
+                                            content_disposition,
+                                            referrer_charset,
+                                            suggested_name,
+                                            mime_type,
+                                            default_file_name);
+
+#if defined(OS_WIN)
+  FilePath generated_name(file_name);
+#else
+  FilePath generated_name(base::SysWideToNativeMB(UTF16ToWide(file_name)));
+#endif
+  DCHECK(!generated_name.empty());
+
+  return generated_name;
 }
 
 bool IsPortAllowedByDefault(int port) {
@@ -1370,10 +1523,10 @@ bool IsPortAllowedByFtp(int port) {
 }
 
 bool IsPortAllowedByOverride(int port) {
-  if (explicitly_allowed_ports.empty())
+  if (g_explicitly_allowed_ports.Get().empty())
     return false;
 
-  return explicitly_allowed_ports.count(port) > 0;
+  return g_explicitly_allowed_ports.Get().count(port) > 0;
 }
 
 int SetNonBlocking(int fd) {
@@ -1782,25 +1935,26 @@ void SetExplicitlyAllowedPorts(const std::string& allowed_ports) {
     if (i == size || allowed_ports[i] == kComma) {
       if (i > last) {
         int port;
-        base::StringToInt(allowed_ports.begin() + last,
-                          allowed_ports.begin() + i,
+        base::StringToInt(base::StringPiece(allowed_ports.begin() + last,
+                                            allowed_ports.begin() + i),
                           &port);
         ports.insert(port);
       }
       last = i + 1;
     }
   }
-  explicitly_allowed_ports = ports;
+  g_explicitly_allowed_ports.Get() = ports;
 }
 
 ScopedPortException::ScopedPortException(int port) : port_(port) {
-  explicitly_allowed_ports.insert(port);
+  g_explicitly_allowed_ports.Get().insert(port);
 }
 
 ScopedPortException::~ScopedPortException() {
-  std::multiset<int>::iterator it = explicitly_allowed_ports.find(port_);
-  if (it != explicitly_allowed_ports.end())
-    explicitly_allowed_ports.erase(it);
+  std::multiset<int>::iterator it =
+      g_explicitly_allowed_ports.Get().find(port_);
+  if (it != g_explicitly_allowed_ports.Get().end())
+    g_explicitly_allowed_ports.Get().erase(it);
   else
     NOTREACHED();
 }
@@ -1835,6 +1989,8 @@ bool IPv6Supported() {
   // Another approach is implementing the similar feature by
   // java.net.NetworkInterface through JNI.
   NOTIMPLEMENTED();
+  // so we don't get a 'defined but not used' warning/err
+  IPv6SupportResults(IPV6_GETIFADDRS_FAILED);
   return true;
 #elif defined(__LB_PS3__)
   return false;

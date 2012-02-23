@@ -1,9 +1,10 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/audio/audio_output_dispatcher.h"
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
 #include "base/time.h"
@@ -11,19 +12,26 @@
 
 AudioOutputDispatcher::AudioOutputDispatcher(
     AudioManager* audio_manager, const AudioParameters& params,
-    int close_delay_ms)
+    base::TimeDelta close_delay)
     : audio_manager_(audio_manager),
-      message_loop_(audio_manager->GetMessageLoop()),
+      message_loop_(MessageLoop::current()),
       params_(params),
-      pause_delay_milliseconds_(2 * params.samples_per_packet *
-          base::Time::kMillisecondsPerSecond / params.sample_rate),
+      pause_delay_(base::TimeDelta::FromMilliseconds(
+          2 * params.samples_per_packet *
+          base::Time::kMillisecondsPerSecond / params.sample_rate)),
       paused_proxies_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(close_timer_(
-          base::TimeDelta::FromMilliseconds(close_delay_ms),
-          this, &AudioOutputDispatcher::ClosePendingStreams)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_this_(this)),
+      close_timer_(FROM_HERE,
+          close_delay,
+          weak_this_.GetWeakPtr(),
+          &AudioOutputDispatcher::ClosePendingStreams) {
+  // We expect to be instantiated on the audio thread.  Otherwise the
+  // message_loop_ member will point to the wrong message loop!
+  DCHECK(audio_manager->GetMessageLoop()->BelongsToCurrentThread());
 }
 
 AudioOutputDispatcher::~AudioOutputDispatcher() {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
 }
 
 bool AudioOutputDispatcher::StreamOpened() {
@@ -56,8 +64,8 @@ AudioOutputStream* AudioOutputDispatcher::StreamStarted() {
   close_timer_.Reset();
 
   // Schedule task to allocate streams for other proxies if we need to.
-  message_loop_->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &AudioOutputDispatcher::OpenTask));
+  message_loop_->PostTask(FROM_HERE, base::Bind(
+      &AudioOutputDispatcher::OpenTask, weak_this_.GetWeakPtr()));
 
   return stream;
 }
@@ -68,21 +76,25 @@ void AudioOutputDispatcher::StreamStopped(AudioOutputStream* stream) {
   paused_proxies_++;
 
   pausing_streams_.push_front(stream);
-  close_timer_.Reset();
 
   // Don't recycle stream until two buffers worth of time has elapsed.
   message_loop_->PostDelayedTask(
       FROM_HERE,
-      NewRunnableMethod(this, &AudioOutputDispatcher::StopStreamTask),
-      pause_delay_milliseconds_);
+      base::Bind(&AudioOutputDispatcher::StopStreamTask,
+                 weak_this_.GetWeakPtr()),
+      pause_delay_);
 }
 
 void AudioOutputDispatcher::StopStreamTask() {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+
   if (pausing_streams_.empty())
     return;
+
   AudioOutputStream* stream = pausing_streams_.back();
   pausing_streams_.pop_back();
   idle_streams_.push_back(stream);
+  close_timer_.Reset();
 }
 
 void AudioOutputDispatcher::StreamClosed() {
@@ -102,16 +114,32 @@ void AudioOutputDispatcher::StreamClosed() {
   }
 }
 
-MessageLoop* AudioOutputDispatcher::message_loop() {
-  return message_loop_;
+void AudioOutputDispatcher::Shutdown() {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+
+  // Cancel any pending tasks to close paused streams or create new ones.
+  weak_this_.InvalidateWeakPtrs();
+
+  // No AudioOutputProxy objects should hold a reference to us when we get
+  // to this stage.
+  DCHECK(HasOneRef()) << "Only the AudioManager should hold a reference";
+
+  AudioOutputStreamList::iterator it = idle_streams_.begin();
+  for (; it != idle_streams_.end(); ++it)
+    (*it)->Close();
+  idle_streams_.clear();
+
+  it = pausing_streams_.begin();
+  for (; it != pausing_streams_.end(); ++it)
+    (*it)->Close();
+  pausing_streams_.clear();
 }
 
 bool AudioOutputDispatcher::CreateAndOpenStream() {
-  AudioOutputStream* stream =
-      audio_manager_->MakeAudioOutputStream(params_);
-  if (!stream) {
+  AudioOutputStream* stream = audio_manager_->MakeAudioOutputStream(params_);
+  if (!stream)
     return false;
-  }
+
   if (!stream->Open()) {
     stream->Close();
     return false;
@@ -133,6 +161,8 @@ void AudioOutputDispatcher::OpenTask() {
 
 // This method is called by |close_timer_|.
 void AudioOutputDispatcher::ClosePendingStreams() {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+
   while (!idle_streams_.empty()) {
     idle_streams_.back()->Close();
     idle_streams_.pop_back();

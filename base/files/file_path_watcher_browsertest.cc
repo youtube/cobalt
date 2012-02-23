@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,6 +14,7 @@
 #endif
 
 #include "base/basictypes.h"
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
@@ -24,6 +25,7 @@
 #include "base/stl_util.h"
 #include "base/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/test/test_file_util.h"
 #include "base/test/test_timeouts.h"
 #include "base/threading/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -41,14 +43,13 @@ class NotificationCollector
     : public base::RefCountedThreadSafe<NotificationCollector> {
  public:
   NotificationCollector()
-      : loop_(base::MessageLoopProxy::CreateForCurrentThread()) {}
+      : loop_(base::MessageLoopProxy::current()) {}
 
   // Called from the file thread by the delegates.
   void OnChange(TestDelegate* delegate) {
     loop_->PostTask(FROM_HERE,
-                    NewRunnableMethod(this,
-                                      &NotificationCollector::RecordChange,
-                                      make_scoped_refptr(delegate)));
+                    base::Bind(&NotificationCollector::RecordChange, this,
+                               make_scoped_refptr(delegate)));
   }
 
   void Register(TestDelegate* delegate) {
@@ -71,7 +72,7 @@ class NotificationCollector
 
     // Check whether all delegates have been signaled.
     if (signaled_ == delegates_)
-      loop_->PostTask(FROM_HERE, new MessageLoop::QuitTask());
+      loop_->PostTask(FROM_HERE, MessageLoop::QuitClosure());
   }
 
   // Set of registered delegates.
@@ -112,34 +113,14 @@ class TestDelegate : public FilePathWatcher::Delegate {
   DISALLOW_COPY_AND_ASSIGN(TestDelegate);
 };
 
-// A helper class for setting up watches on the file thread.
-class SetupWatchTask : public Task {
- public:
-  SetupWatchTask(const FilePath& target,
-                 FilePathWatcher* watcher,
-                 FilePathWatcher::Delegate* delegate,
-                 bool* result,
-                 base::WaitableEvent* completion)
-      : target_(target),
-        watcher_(watcher),
-        delegate_(delegate),
-        result_(result),
-        completion_(completion) {}
-
-  void Run() {
-    *result_ = watcher_->Watch(target_, delegate_);
-    completion_->Signal();
-  }
-
- private:
-  const FilePath target_;
-  FilePathWatcher* watcher_;
-  FilePathWatcher::Delegate* delegate_;
-  bool* result_;
-  base::WaitableEvent* completion_;
-
-  DISALLOW_COPY_AND_ASSIGN(SetupWatchTask);
-};
+void SetupWatchCallback(const FilePath& target,
+                        FilePathWatcher* watcher,
+                        FilePathWatcher::Delegate* delegate,
+                        bool* result,
+                        base::WaitableEvent* completion) {
+  *result = watcher->Watch(target, delegate);
+  completion->Signal();
+}
 
 class FilePathWatcherTest : public testing::Test {
  public:
@@ -165,6 +146,10 @@ class FilePathWatcherTest : public testing::Test {
     return temp_dir_.path().AppendASCII("FilePathWatcherTest");
   }
 
+  FilePath test_link() {
+    return temp_dir_.path().AppendASCII("FilePathWatcherTest.lnk");
+  }
+
   // Write |content| to |file|. Returns true on success.
   bool WriteFile(const FilePath& file, const std::string& content) {
     int write_size = file_util::WriteFile(file, content.c_str(),
@@ -177,12 +162,10 @@ class FilePathWatcherTest : public testing::Test {
                   FilePathWatcher::Delegate* delegate) WARN_UNUSED_RESULT {
     base::WaitableEvent completion(false, false);
     bool result;
-    file_thread_.message_loop_proxy()->PostTask(FROM_HERE,
-         new SetupWatchTask(target,
-                            watcher,
-                            delegate,
-                            &result,
-                            &completion));
+    file_thread_.message_loop_proxy()->PostTask(
+        FROM_HERE,
+        base::Bind(SetupWatchCallback, target, watcher,
+                   make_scoped_refptr(delegate), &result, &completion));
     completion.Wait();
     return result;
   }
@@ -261,7 +244,7 @@ class Deleter : public FilePathWatcher::Delegate {
 
   virtual void OnFilePathChanged(const FilePath& path) {
     watcher_.reset();
-    loop_->PostTask(FROM_HERE, new MessageLoop::QuitTask());
+    loop_->PostTask(FROM_HERE, MessageLoop::QuitClosure());
   }
 
   scoped_ptr<FilePathWatcher> watcher_;
@@ -287,7 +270,7 @@ TEST_F(FilePathWatcherTest, DeleteDuringNotify) {
 // notification.
 // Flaky on MacOS. http://crbug.com/85930
 #if defined(OS_MACOSX)
-#define MAYBE_DestroyWithPendingNotification FLAKY_DestroyWithPendingNotification
+#define MAYBE_DestroyWithPendingNotification DISABLED_DestroyWithPendingNotification
 #else
 #define MAYBE_DestroyWithPendingNotification DestroyWithPendingNotification
 #endif
@@ -367,6 +350,10 @@ TEST_F(FilePathWatcherTest, DirectoryChain) {
   ASSERT_TRUE(WaitForEvents());
 }
 
+#if defined(OS_MACOSX)
+// http://crbug.com/85930
+#define DisappearingDirectory DISABLED_DisappearingDirectory
+#endif
 TEST_F(FilePathWatcherTest, DisappearingDirectory) {
   FilePathWatcher watcher;
   FilePath dir(temp_dir_.path().AppendASCII("dir"));
@@ -494,6 +481,166 @@ TEST_F(FilePathWatcherTest, FileAttributesChanged) {
 
 #endif  // !OS_LINUX
 
+#if defined(OS_LINUX)
+
+// Verify that creating a symlink is caught.
+TEST_F(FilePathWatcherTest, CreateLink) {
+  FilePathWatcher watcher;
+  scoped_refptr<TestDelegate> delegate(new TestDelegate(collector()));
+  // Note that we are watching the symlink
+  ASSERT_TRUE(SetupWatch(test_link(), &watcher, delegate.get()));
+
+  // Now make sure we get notified if the link is created.
+  // Note that test_file() doesn't have to exist.
+  ASSERT_TRUE(file_util::CreateSymbolicLink(test_file(), test_link()));
+  ASSERT_TRUE(WaitForEvents());
+}
+
+// Verify that deleting a symlink is caught.
+TEST_F(FilePathWatcherTest, DeleteLink) {
+  // Unfortunately this test case only works if the link target exists.
+  // TODO(craig) fix this as part of crbug.com/91561.
+  ASSERT_TRUE(WriteFile(test_file(), "content"));
+  ASSERT_TRUE(file_util::CreateSymbolicLink(test_file(), test_link()));
+  FilePathWatcher watcher;
+  scoped_refptr<TestDelegate> delegate(new TestDelegate(collector()));
+  ASSERT_TRUE(SetupWatch(test_link(), &watcher, delegate.get()));
+
+  // Now make sure we get notified if the link is deleted.
+  ASSERT_TRUE(file_util::Delete(test_link(), false));
+  ASSERT_TRUE(WaitForEvents());
+}
+
+// Verify that modifying a target file that a link is pointing to
+// when we are watching the link is caught.
+TEST_F(FilePathWatcherTest, ModifiedLinkedFile) {
+  ASSERT_TRUE(WriteFile(test_file(), "content"));
+  ASSERT_TRUE(file_util::CreateSymbolicLink(test_file(), test_link()));
+  FilePathWatcher watcher;
+  scoped_refptr<TestDelegate> delegate(new TestDelegate(collector()));
+  // Note that we are watching the symlink.
+  ASSERT_TRUE(SetupWatch(test_link(), &watcher, delegate.get()));
+
+  // Now make sure we get notified if the file is modified.
+  ASSERT_TRUE(WriteFile(test_file(), "new content"));
+  ASSERT_TRUE(WaitForEvents());
+}
+
+// Verify that creating a target file that a link is pointing to
+// when we are watching the link is caught.
+TEST_F(FilePathWatcherTest, CreateTargetLinkedFile) {
+  ASSERT_TRUE(file_util::CreateSymbolicLink(test_file(), test_link()));
+  FilePathWatcher watcher;
+  scoped_refptr<TestDelegate> delegate(new TestDelegate(collector()));
+  // Note that we are watching the symlink.
+  ASSERT_TRUE(SetupWatch(test_link(), &watcher, delegate.get()));
+
+  // Now make sure we get notified if the target file is created.
+  ASSERT_TRUE(WriteFile(test_file(), "content"));
+  ASSERT_TRUE(WaitForEvents());
+}
+
+// Verify that deleting a target file that a link is pointing to
+// when we are watching the link is caught.
+TEST_F(FilePathWatcherTest, DeleteTargetLinkedFile) {
+  ASSERT_TRUE(WriteFile(test_file(), "content"));
+  ASSERT_TRUE(file_util::CreateSymbolicLink(test_file(), test_link()));
+  FilePathWatcher watcher;
+  scoped_refptr<TestDelegate> delegate(new TestDelegate(collector()));
+  // Note that we are watching the symlink.
+  ASSERT_TRUE(SetupWatch(test_link(), &watcher, delegate.get()));
+
+  // Now make sure we get notified if the target file is deleted.
+  ASSERT_TRUE(file_util::Delete(test_file(), false));
+  ASSERT_TRUE(WaitForEvents());
+}
+
+// Verify that watching a file whose parent directory is a link that
+// doesn't exist yet works if the symlink is created eventually.
+TEST_F(FilePathWatcherTest, LinkedDirectoryPart1) {
+  FilePathWatcher watcher;
+  FilePath dir(temp_dir_.path().AppendASCII("dir"));
+  FilePath link_dir(temp_dir_.path().AppendASCII("dir.lnk"));
+  FilePath file(dir.AppendASCII("file"));
+  FilePath linkfile(link_dir.AppendASCII("file"));
+  scoped_refptr<TestDelegate> delegate(new TestDelegate(collector()));
+  // dir/file should exist.
+  ASSERT_TRUE(file_util::CreateDirectory(dir));
+  ASSERT_TRUE(WriteFile(file, "content"));
+  // Note that we are watching dir.lnk/file which doesn't exist yet.
+  ASSERT_TRUE(SetupWatch(linkfile, &watcher, delegate.get()));
+
+  ASSERT_TRUE(file_util::CreateSymbolicLink(dir, link_dir));
+  VLOG(1) << "Waiting for link creation";
+  ASSERT_TRUE(WaitForEvents());
+
+  ASSERT_TRUE(WriteFile(file, "content v2"));
+  VLOG(1) << "Waiting for file change";
+  ASSERT_TRUE(WaitForEvents());
+
+  ASSERT_TRUE(file_util::Delete(file, false));
+  VLOG(1) << "Waiting for file deletion";
+  ASSERT_TRUE(WaitForEvents());
+}
+
+// Verify that watching a file whose parent directory is a
+// dangling symlink works if the directory is created eventually.
+TEST_F(FilePathWatcherTest, LinkedDirectoryPart2) {
+  FilePathWatcher watcher;
+  FilePath dir(temp_dir_.path().AppendASCII("dir"));
+  FilePath link_dir(temp_dir_.path().AppendASCII("dir.lnk"));
+  FilePath file(dir.AppendASCII("file"));
+  FilePath linkfile(link_dir.AppendASCII("file"));
+  scoped_refptr<TestDelegate> delegate(new TestDelegate(collector()));
+  // Now create the link from dir.lnk pointing to dir but
+  // neither dir nor dir/file exist yet.
+  ASSERT_TRUE(file_util::CreateSymbolicLink(dir, link_dir));
+  // Note that we are watching dir.lnk/file.
+  ASSERT_TRUE(SetupWatch(linkfile, &watcher, delegate.get()));
+
+  ASSERT_TRUE(file_util::CreateDirectory(dir));
+  ASSERT_TRUE(WriteFile(file, "content"));
+  VLOG(1) << "Waiting for dir/file creation";
+  ASSERT_TRUE(WaitForEvents());
+
+  ASSERT_TRUE(WriteFile(file, "content v2"));
+  VLOG(1) << "Waiting for file change";
+  ASSERT_TRUE(WaitForEvents());
+
+  ASSERT_TRUE(file_util::Delete(file, false));
+  VLOG(1) << "Waiting for file deletion";
+  ASSERT_TRUE(WaitForEvents());
+}
+
+// Verify that watching a file with a symlink on the path
+// to the file works.
+TEST_F(FilePathWatcherTest, LinkedDirectoryPart3) {
+  FilePathWatcher watcher;
+  FilePath dir(temp_dir_.path().AppendASCII("dir"));
+  FilePath link_dir(temp_dir_.path().AppendASCII("dir.lnk"));
+  FilePath file(dir.AppendASCII("file"));
+  FilePath linkfile(link_dir.AppendASCII("file"));
+  scoped_refptr<TestDelegate> delegate(new TestDelegate(collector()));
+  ASSERT_TRUE(file_util::CreateDirectory(dir));
+  ASSERT_TRUE(file_util::CreateSymbolicLink(dir, link_dir));
+  // Note that we are watching dir.lnk/file but the file doesn't exist yet.
+  ASSERT_TRUE(SetupWatch(linkfile, &watcher, delegate.get()));
+
+  ASSERT_TRUE(WriteFile(file, "content"));
+  VLOG(1) << "Waiting for file creation";
+  ASSERT_TRUE(WaitForEvents());
+
+  ASSERT_TRUE(WriteFile(file, "content v2"));
+  VLOG(1) << "Waiting for file change";
+  ASSERT_TRUE(WaitForEvents());
+
+  ASSERT_TRUE(file_util::Delete(file, false));
+  VLOG(1) << "Waiting for file deletion";
+  ASSERT_TRUE(WaitForEvents());
+}
+
+#endif  // OS_LINUX
+
 enum Permission {
   Read,
   Write,
@@ -609,7 +756,7 @@ TEST_F(FilePathWatcherTest, DirAttributesChanged) {
   // to access the file.
   ASSERT_TRUE(ChangeFilePermissions(test_dir1, Read, false));
   loop_.PostDelayedTask(FROM_HERE,
-                        new MessageLoop::QuitTask,
+                        MessageLoop::QuitClosure(),
                         TestTimeouts::tiny_timeout_ms());
   ASSERT_FALSE(WaitForEvents());
   ASSERT_TRUE(ChangeFilePermissions(test_dir1, Read, true));

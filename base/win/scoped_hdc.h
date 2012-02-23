@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,18 +9,44 @@
 #include <windows.h>
 
 #include "base/basictypes.h"
+#include "base/logging.h"
 
 namespace base {
 namespace win {
 
 // Like ScopedHandle but for HDC.  Only use this on HDCs returned from
-// CreateCompatibleDC.  For an HDC returned by GetDC, use ReleaseDC instead.
-class ScopedHDC {
+// GetDC.
+class ScopedGetDC {
  public:
-  ScopedHDC() : hdc_(NULL) { }
-  explicit ScopedHDC(HDC h) : hdc_(h) { }
+  explicit ScopedGetDC(HWND hwnd)
+      : hwnd_(hwnd),
+        hdc_(GetDC(hwnd)) {
+    DCHECK(!hwnd_ || IsWindow(hwnd_));
+    DCHECK(hdc_);
+  }
 
-  ~ScopedHDC() {
+  ~ScopedGetDC() {
+    if (hdc_)
+      ReleaseDC(hwnd_, hdc_);
+  }
+
+  operator HDC() { return hdc_; }
+
+ private:
+  HWND hwnd_;
+  HDC hdc_;
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedGetDC);
+};
+
+// Like ScopedHandle but for HDC.  Only use this on HDCs returned from
+// CreateCompatibleDC, CreateDC and CreateIC.
+class ScopedCreateDC {
+ public:
+  ScopedCreateDC() : hdc_(NULL) { }
+  explicit ScopedCreateDC(HDC h) : hdc_(h) { }
+
+  ~ScopedCreateDC() {
     Close();
   }
 
@@ -46,7 +72,8 @@ class ScopedHDC {
   }
 
   HDC hdc_;
-  DISALLOW_COPY_AND_ASSIGN(ScopedHDC);
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedCreateDC);
 };
 
 }  // namespace win

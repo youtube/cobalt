@@ -8,7 +8,6 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/memory/memory_debug.h"
 #include "base/metrics/stats_counters.h"
 #include "base/string_util.h"
 #include "base/win/object_watcher.h"
@@ -318,8 +317,6 @@ TCPClientSocketWin::TCPClientSocketWin(const AddressList& addresses,
       current_ai_(NULL),
       waiting_read_(false),
       waiting_write_(false),
-      read_callback_(NULL),
-      write_callback_(NULL),
       next_connect_state_(CONNECT_STATE_NONE),
       connect_os_error_(0),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)),
@@ -383,7 +380,7 @@ int TCPClientSocketWin::Bind(const IPEndPoint& address) {
 }
 
 
-int TCPClientSocketWin::Connect(CompletionCallback* callback) {
+int TCPClientSocketWin::Connect(const CompletionCallback& callback) {
   DCHECK(CalledOnValidThread());
 
   // If already connected, then just return OK.
@@ -404,7 +401,8 @@ int TCPClientSocketWin::Connect(CompletionCallback* callback) {
   int rv = DoConnectLoop(OK);
   if (rv == ERR_IO_PENDING) {
     // Synchronous operation not supported.
-    DCHECK(callback);
+    DCHECK(!callback.is_null());
+    // TODO(ajwong): Is setting read_callback_ the right thing to do here??
     read_callback_ = callback;
   } else {
     LogConnectCompletion(rv);
@@ -590,6 +588,9 @@ bool TCPClientSocketWin::IsConnected() const {
   if (socket_ == INVALID_SOCKET || waiting_connect())
     return false;
 
+  if (waiting_read_)
+    return true;
+
   // Check if connection is alive.
   char c;
   int rv = recv(socket_, &c, 1, MSG_PEEK);
@@ -606,6 +607,9 @@ bool TCPClientSocketWin::IsConnectedAndIdle() const {
 
   if (socket_ == INVALID_SOCKET || waiting_connect())
     return false;
+
+  if (waiting_read_)
+    return true;
 
   // Check if connection is alive and we haven't received any data
   // unexpectedly.
@@ -671,11 +675,11 @@ base::TimeDelta TCPClientSocketWin::GetConnectTimeMicros() const {
 
 int TCPClientSocketWin::Read(IOBuffer* buf,
                              int buf_len,
-                             CompletionCallback* callback) {
+                             const CompletionCallback& callback) {
   DCHECK(CalledOnValidThread());
   DCHECK_NE(socket_, INVALID_SOCKET);
   DCHECK(!waiting_read_);
-  DCHECK(!read_callback_);
+  DCHECK(read_callback_.is_null());
   DCHECK(!core_->read_iobuffer_);
 
   buf_len = core_->ThrottleReadSize(buf_len);
@@ -690,13 +694,6 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
                    &core_->read_overlapped_, NULL);
   if (rv == 0) {
     if (ResetEventIfSignaled(core_->read_overlapped_.hEvent)) {
-      // Because of how WSARecv fills memory when used asynchronously, Purify
-      // isn't able to detect that it's been initialized, so it scans for 0xcd
-      // in the buffer and reports UMRs (uninitialized memory reads) for those
-      // individual bytes. We override that in PURIFY builds to avoid the
-      // false error reports.
-      // See bug 5297.
-      base::MemoryDebug::MarkAsInitialized(core_->read_buffer_.buf, num);
       base::StatsCounter read_bytes("tcp.read_bytes");
       read_bytes.Add(num);
       num_bytes_read_ += num;
@@ -720,11 +717,11 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
 
 int TCPClientSocketWin::Write(IOBuffer* buf,
                               int buf_len,
-                              CompletionCallback* callback) {
+                              const CompletionCallback& callback) {
   DCHECK(CalledOnValidThread());
   DCHECK_NE(socket_, INVALID_SOCKET);
   DCHECK(!waiting_write_);
-  DCHECK(!write_callback_);
+  DCHECK(write_callback_.is_null());
   DCHECK_GT(buf_len, 0);
   DCHECK(!core_->write_iobuffer_);
 
@@ -807,28 +804,28 @@ void TCPClientSocketWin::LogConnectCompletion(int net_error) {
           sizeof(source_address));
   net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT,
                     make_scoped_refptr(new NetLogStringParameter(
-                        "source address",
+                        "source_address",
                         source_address_str)));
 }
 
 void TCPClientSocketWin::DoReadCallback(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
-  DCHECK(read_callback_);
+  DCHECK(!read_callback_.is_null());
 
-  // since Run may result in Read being called, clear read_callback_ up front.
-  CompletionCallback* c = read_callback_;
-  read_callback_ = NULL;
-  c->Run(rv);
+  // Since Run may result in Read being called, clear read_callback_ up front.
+  CompletionCallback c = read_callback_;
+  read_callback_.Reset();
+  c.Run(rv);
 }
 
 void TCPClientSocketWin::DoWriteCallback(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
-  DCHECK(write_callback_);
+  DCHECK(!write_callback_.is_null());
 
   // since Run may result in Write being called, clear write_callback_ up front.
-  CompletionCallback* c = write_callback_;
-  write_callback_ = NULL;
-  c->Run(rv);
+  CompletionCallback c = write_callback_;
+  write_callback_.Reset();
+  c.Run(rv);
 }
 
 void TCPClientSocketWin::DidCompleteConnect() {

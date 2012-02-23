@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -27,6 +27,9 @@ TEST(StackTrace, MAYBE_OutputToStream) {
   std::ostringstream os;
   trace.OutputToStream(&os);
   std::string backtrace_message = os.str();
+
+  // ToString() should produce the same output.
+  EXPECT_EQ(backtrace_message, trace.ToString());
 
 #if defined(OS_POSIX) && !defined(OS_MACOSX) && NDEBUG
   // Stack traces require an extra data table that bloats our binaries,

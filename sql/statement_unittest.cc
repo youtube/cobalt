@@ -70,13 +70,9 @@ class SQLStatementTest : public testing::Test {
 
 TEST_F(SQLStatementTest, Assign) {
   sql::Statement s;
-  EXPECT_FALSE(s);  // bool conversion operator.
-  EXPECT_TRUE(!s);  // ! operator.
   EXPECT_FALSE(s.is_valid());
 
   s.Assign(db().GetUniqueStatement("CREATE TABLE foo (a, b)"));
-  EXPECT_TRUE(s);
-  EXPECT_FALSE(!s);
   EXPECT_TRUE(s.is_valid());
 }
 

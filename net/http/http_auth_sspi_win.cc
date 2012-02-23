@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -210,6 +210,10 @@ bool HttpAuthSSPI::NeedsIdentity() const {
   return decoded_server_auth_token_.empty();
 }
 
+bool HttpAuthSSPI::AllowsExplicitCredentials() const {
+  return true;
+}
+
 void HttpAuthSSPI::Delegate() {
   can_delegate_ = true;
 }
@@ -250,15 +254,12 @@ HttpAuth::AuthorizationResult HttpAuthSSPI::ParseChallenge(
   return HttpAuth::AUTHORIZATION_RESULT_ACCEPT;
 }
 
-int HttpAuthSSPI::GenerateAuthToken(const string16* username,
-                                    const string16* password,
+int HttpAuthSSPI::GenerateAuthToken(const AuthCredentials* credentials,
                                     const std::wstring& spn,
                                     std::string* auth_token) {
-  DCHECK((username == NULL) == (password == NULL));
-
   // Initial challenge.
   if (!SecIsValidHandle(&cred_)) {
-    int rv = OnFirstRound(username, password);
+    int rv = OnFirstRound(credentials);
     if (rv != OK)
       return rv;
   }
@@ -290,17 +291,15 @@ int HttpAuthSSPI::GenerateAuthToken(const string16* username,
   return OK;
 }
 
-int HttpAuthSSPI::OnFirstRound(const string16* username,
-                               const string16* password) {
-  DCHECK((username == NULL) == (password == NULL));
+int HttpAuthSSPI::OnFirstRound(const AuthCredentials* credentials) {
   DCHECK(!SecIsValidHandle(&cred_));
   int rv = OK;
-  if (username) {
+  if (credentials) {
     string16 domain;
     string16 user;
-    SplitDomainAndUser(*username, &domain, &user);
+    SplitDomainAndUser(credentials->username(), &domain, &user);
     rv = AcquireExplicitCredentials(library_, security_package_, domain,
-                                    user, *password, &cred_);
+                                    user, credentials->password(), &cred_);
     if (rv != OK)
       return rv;
   } else {

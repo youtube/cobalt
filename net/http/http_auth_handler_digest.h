@@ -11,20 +11,19 @@
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/string16.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
 
 namespace net {
 
 // Code for handling http digest authentication.
-class NET_TEST HttpAuthHandlerDigest : public HttpAuthHandler {
+class NET_EXPORT_PRIVATE HttpAuthHandlerDigest : public HttpAuthHandler {
  public:
   // A NonceGenerator is a simple interface for generating client nonces.
   // Unit tests can override the default client nonce behavior with fixed
   // nonce generation to get reproducible results.
-  class NET_TEST NonceGenerator {
+  class NET_EXPORT_PRIVATE NonceGenerator {
    public:
     NonceGenerator();
     virtual ~NonceGenerator();
@@ -40,25 +39,25 @@ class NET_TEST HttpAuthHandlerDigest : public HttpAuthHandler {
   class DynamicNonceGenerator : public NonceGenerator {
    public:
     DynamicNonceGenerator();
-    virtual std::string GenerateNonce() const;
+    virtual std::string GenerateNonce() const OVERRIDE;
    private:
     DISALLOW_COPY_AND_ASSIGN(DynamicNonceGenerator);
   };
 
   // FixedNonceGenerator always uses the same string specified at
   // construction time as the client nonce.
-  class NET_TEST FixedNonceGenerator : public NonceGenerator {
+  class NET_EXPORT_PRIVATE FixedNonceGenerator : public NonceGenerator {
    public:
     explicit FixedNonceGenerator(const std::string& nonce);
 
-    virtual std::string GenerateNonce() const;
+    virtual std::string GenerateNonce() const OVERRIDE;
 
    private:
     const std::string nonce_;
     DISALLOW_COPY_AND_ASSIGN(FixedNonceGenerator);
   };
 
-  class NET_TEST Factory : public HttpAuthHandlerFactory {
+  class NET_EXPORT_PRIVATE Factory : public HttpAuthHandlerFactory {
    public:
     Factory();
     virtual ~Factory();
@@ -66,29 +65,29 @@ class NET_TEST HttpAuthHandlerDigest : public HttpAuthHandler {
     // This factory owns the passed in |nonce_generator|.
     void set_nonce_generator(const NonceGenerator* nonce_generator);
 
-    virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
-                                  HttpAuth::Target target,
-                                  const GURL& origin,
-                                  CreateReason reason,
-                                  int digest_nonce_count,
-                                  const BoundNetLog& net_log,
-                                  scoped_ptr<HttpAuthHandler>* handler);
+    virtual int CreateAuthHandler(
+        HttpAuth::ChallengeTokenizer* challenge,
+        HttpAuth::Target target,
+        const GURL& origin,
+        CreateReason reason,
+        int digest_nonce_count,
+        const BoundNetLog& net_log,
+        scoped_ptr<HttpAuthHandler>* handler) OVERRIDE;
 
    private:
     scoped_ptr<const NonceGenerator> nonce_generator_;
   };
 
   virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
-      HttpAuth::ChallengeTokenizer* challenge);
+      HttpAuth::ChallengeTokenizer* challenge) OVERRIDE;
 
  protected:
-  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge);
+  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) OVERRIDE;
 
-  virtual int GenerateAuthTokenImpl(const string16* username,
-                                    const string16* password,
+  virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
                                     const HttpRequestInfo* request,
-                                    CompletionCallback* callback,
-                                    std::string* auth_token);
+                                    const CompletionCallback& callback,
+                                    std::string* auth_token) OVERRIDE;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(HttpAuthHandlerDigestTest, ParseChallenge);
@@ -148,16 +147,14 @@ class NET_TEST HttpAuthHandlerDigest : public HttpAuthHandler {
   // Build up  the 'response' production.
   std::string AssembleResponseDigest(const std::string& method,
                                      const std::string& path,
-                                     const string16& username,
-                                     const string16& password,
+                                     const AuthCredentials& credentials,
                                      const std::string& cnonce,
                                      const std::string& nc) const;
 
   // Build up  the value for (Authorization/Proxy-Authorization).
   std::string AssembleCredentials(const std::string& method,
                                   const std::string& path,
-                                  const string16& username,
-                                  const string16& password,
+                                  const AuthCredentials& credentials,
                                   const std::string& cnonce,
                                   int nonce_count) const;
 
@@ -168,6 +165,11 @@ class NET_TEST HttpAuthHandlerDigest : public HttpAuthHandler {
   bool stale_;
   DigestAlgorithm algorithm_;
   QualityOfProtection qop_;
+
+  // The realm as initially encoded over-the-wire. This is used in the
+  // challenge text, rather than |realm_| which has been converted to
+  // UTF-8.
+  std::string original_realm_;
 
   int nonce_count_;
   const NonceGenerator* nonce_generator_;

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,20 +12,13 @@
 
 // A regular build should never crash.
 // To test that the disk cache doesn't generate critical errors with regular
-// application level crashes, add the following code and re-compile:
-//
-//     void BackendImpl::CriticalError(int error) {
-//       NOTREACHED();
-//
-//     void BackendImpl::ReportError(int error) {
-//       if (error && error != ERR_PREVIOUS_CRASH) {
-//         NOTREACHED();
-//       }
+// application level crashes, edit stress_support.h.
 
 #include <string>
 #include <vector>
 
 #include "base/at_exit.h"
+#include "base/bind.h"
 #include "base/command_line.h"
 #include "base/debug/debugger.h"
 #include "base/file_path.h"
@@ -44,6 +37,12 @@
 #include "net/disk_cache/backend_impl.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/disk_cache/disk_cache_test_util.h"
+#include "net/disk_cache/stress_support.h"
+#include "net/disk_cache/trace.h"
+
+#if defined(OS_WIN)
+#include "base/logging_win.h"
+#endif
 
 using base::Time;
 
@@ -87,11 +86,21 @@ int MasterCode() {
 
 // -----------------------------------------------------------------------
 
+std::string GenerateStressKey() {
+  char key[20 * 1024];
+  size_t size = 50 + rand() % 20000;
+  CacheTestFillBuffer(key, size, true);
+
+  key[size - 1] = '\0';
+  return std::string(key);
+}
+
 // This thread will loop forever, adding and removing entries from the cache.
 // iteration is the current crash cycle, so the entries on the cache are marked
 // to know which instance of the application wrote them.
 void StressTheCache(int iteration) {
-  int cache_size = 0x800000;  // 8MB
+  int cache_size = 0x2000000;  // 32MB.
+  uint32 mask = 0xfff;  // 4096 entries.
   FilePath path = GetCacheFilePath().InsertBeforeExtensionASCII("_stress");
 
   base::Thread cache_thread("CacheThread");
@@ -99,12 +108,14 @@ void StressTheCache(int iteration) {
           base::Thread::Options(MessageLoop::TYPE_IO, 0)))
     return;
 
-  TestCompletionCallback cb;
-  disk_cache::Backend* cache;
-  int rv = disk_cache::BackendImpl::CreateBackend(
-               path, false, cache_size, net::DISK_CACHE,
-               disk_cache::kNoLoadProtection | disk_cache::kNoRandom,
-               cache_thread.message_loop_proxy(), NULL, &cache, &cb);
+  disk_cache::BackendImpl* cache =
+      new disk_cache::BackendImpl(path, mask, cache_thread.message_loop_proxy(),
+                                  NULL);
+  cache->SetMaxSize(cache_size);
+  cache->SetFlags(disk_cache::kNoLoadProtection);
+
+  net::TestCompletionCallback cb;
+  int rv = cache->Init(cb.callback());
 
   if (cb.GetResult(rv) != net::OK) {
     printf("Unable to initialize cache.\n");
@@ -116,20 +127,22 @@ void StressTheCache(int iteration) {
   int seed = static_cast<int>(Time::Now().ToInternalValue());
   srand(seed);
 
+  // kNumKeys is meant to be enough to have about 3x or 4x iterations before
+  // the process crashes.
 #ifdef NDEBUG
-  const int kNumKeys = 5000;
+  const int kNumKeys = 4000;
 #else
-  const int kNumKeys = 1700;
+  const int kNumKeys = 1200;
 #endif
   const int kNumEntries = 30;
   std::string keys[kNumKeys];
   disk_cache::Entry* entries[kNumEntries] = {0};
 
   for (int i = 0; i < kNumKeys; i++) {
-    keys[i] = GenerateKey(true);
+    keys[i] = GenerateStressKey();
   }
 
-  const int kSize = 4000;
+  const int kSize = 20000;
   scoped_refptr<net::IOBuffer> buffer(new net::IOBuffer(kSize));
   memset(buffer->data(), 'k', kSize);
 
@@ -137,27 +150,29 @@ void StressTheCache(int iteration) {
     int slot = rand() % kNumEntries;
     int key = rand() % kNumKeys;
     bool truncate = rand() % 2 ? false : true;
-    int size = kSize - (rand() % 4) * kSize / 4;
+    int size = kSize - (rand() % 20) * kSize / 20;
 
     if (entries[slot])
       entries[slot]->Close();
 
-    rv = cache->OpenEntry(keys[key], &entries[slot], &cb);
+    net::TestCompletionCallback cb;
+    rv = cache->OpenEntry(keys[key], &entries[slot], cb.callback());
     if (cb.GetResult(rv) != net::OK) {
-      rv = cache->CreateEntry(keys[key], &entries[slot], &cb);
+      rv = cache->CreateEntry(keys[key], &entries[slot], cb.callback());
       CHECK_EQ(net::OK, cb.GetResult(rv));
     }
 
     base::snprintf(buffer->data(), kSize,
-                   "i: %d iter: %d, size: %d, truncate: %d", i, iteration, size,
-                   truncate ? 1 : 0);
-    rv = entries[slot]->WriteData(0, 0, buffer, size, &cb, truncate);
+                   "i: %d iter: %d, size: %d, truncate: %d     ", i, iteration,
+                   size, truncate ? 1 : 0);
+    rv = entries[slot]->WriteData(0, 0, buffer, size, cb.callback(), truncate);
     CHECK_EQ(size, cb.GetResult(rv));
 
     if (rand() % 100 > 80) {
       key = rand() % kNumKeys;
-      rv = cache->DoomEntry(keys[key], &cb);
-      cb.GetResult(rv);
+      net::TestCompletionCallback cb2;
+      rv = cache->DoomEntry(keys[key], cb2.callback());
+      cb2.GetResult(rv);
     }
 
     if (!(i % 100))
@@ -169,37 +184,34 @@ void StressTheCache(int iteration) {
 // waiting for the debugger to attach.
 bool g_crashing = false;
 
-class CrashTask : public Task {
- public:
-  CrashTask() {}
-  ~CrashTask() {}
+// RunSoon() and CrashCallback() reference each other, unfortunately.
+void RunSoon(MessageLoop* target_loop);
 
-  virtual void Run() {
-    // Keep trying to run.
-    RunSoon(MessageLoop::current());
+void CrashCallback() {
+  // Keep trying to run.
+  RunSoon(MessageLoop::current());
 
-    if (g_crashing)
-      return;
+  if (g_crashing)
+    return;
 
-    if (rand() % 100 > 1) {
-      printf("sweet death...\n");
+  if (rand() % 100 > 30) {
+    printf("sweet death...\n");
 #if defined(OS_WIN)
-      // Windows does more work on _exit() that we would like, so we use Kill.
-      base::KillProcessById(base::GetCurrentProcId(), kExpectedCrash, false);
+    // Windows does more work on _exit() that we would like, so we use Kill.
+    base::KillProcessById(base::GetCurrentProcId(), kExpectedCrash, false);
 #elif defined(OS_POSIX)
-      // On POSIX, _exit() will terminate the process with minimal cleanup,
-      // and it is cleaner than killing.
-      _exit(kExpectedCrash);
+    // On POSIX, _exit() will terminate the process with minimal cleanup,
+    // and it is cleaner than killing.
+    _exit(kExpectedCrash);
 #endif
-    }
   }
+}
 
-  static void RunSoon(MessageLoop* target_loop) {
-    int task_delay = 10000;  // 10 seconds
-    CrashTask* task = new CrashTask();
-    target_loop->PostDelayedTask(FROM_HERE, task, task_delay);
-  }
-};
+void RunSoon(MessageLoop* target_loop) {
+  const int kTaskDelay = 10000;  // 10 seconds
+  target_loop->PostDelayedTask(
+      FROM_HERE, base::Bind(&CrashCallback), kTaskDelay);
+}
 
 // We leak everything here :)
 bool StartCrashThread() {
@@ -207,7 +219,7 @@ bool StartCrashThread() {
   if (!thread->Start())
     return false;
 
-  CrashTask::RunSoon(thread->message_loop());
+  RunSoon(thread->message_loop());
   return true;
 }
 
@@ -216,7 +228,28 @@ void CrashHandler(const std::string& str) {
   base::debug::BreakDebugger();
 }
 
+bool MessageHandler(int severity, const char* file, int line,
+                    size_t message_start, const std::string& str) {
+  const size_t kMaxMessageLen = 48;
+  char message[kMaxMessageLen];
+  size_t len = std::min(str.length() - message_start, kMaxMessageLen - 1);
+
+  memcpy(message, str.c_str() + message_start, len);
+  message[len] = '\0';
+#if !defined(DISK_CACHE_TRACE_TO_LOG)
+  disk_cache::Trace("%s", message);
+#endif
+  return false;
+}
+
 // -----------------------------------------------------------------------
+
+#if defined(OS_WIN)
+// {B9A153D4-31C3-48e4-9ABF-D54383F14A0D}
+const GUID kStressCacheTraceProviderName = {
+    0xb9a153d4, 0x31c3, 0x48e4,
+        { 0x9a, 0xbf, 0xd5, 0x43, 0x83, 0xf1, 0x4a, 0xd } };
+#endif
 
 int main(int argc, const char* argv[]) {
   // Setup an AtExitManager so Singleton objects will be destructed.
@@ -226,9 +259,19 @@ int main(int argc, const char* argv[]) {
     return MasterCode();
 
   logging::SetLogAssertHandler(CrashHandler);
+  logging::SetLogMessageHandler(MessageHandler);
+
+#if defined(OS_WIN)
+  logging::LogEventProvider::Initialize(kStressCacheTraceProviderName);
+#else
+  CommandLine::Init(argc, argv);
+  logging::InitLogging(NULL, logging::LOG_ONLY_TO_SYSTEM_DEBUG_LOG,
+                       logging::LOCK_LOG_FILE, logging::DELETE_OLD_LOG_FILE,
+                       logging::DISABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS);
+#endif
 
   // Some time for the memory manager to flush stuff.
-  base::PlatformThread::Sleep(3000);
+  base::PlatformThread::Sleep(base::TimeDelta::FromSeconds(3));
   MessageLoop message_loop(MessageLoop::TYPE_IO);
 
   char* end;

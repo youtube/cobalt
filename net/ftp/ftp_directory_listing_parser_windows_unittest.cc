@@ -73,6 +73,8 @@ TEST_F(FtpDirectoryListingParserWindowsTest, Ignored) {
   const char* ignored_cases[] = {
     "12-07-10  12:05AM       <DIR>    ",  // http://crbug.com/66097
     "12-07-10  12:05AM       1234    ",
+    "11-02-09  05:32         <DIR>",
+    "11-02-09  05:32PM       <DIR>",
   };
   for (size_t i = 0; i < arraysize(ignored_cases); i++) {
     SCOPED_TRACE(base::StringPrintf("Test[%" PRIuS "]: %s", i,
@@ -91,11 +93,9 @@ TEST_F(FtpDirectoryListingParserWindowsTest, Bad) {
     "garbage",
     "11-02-09  05:32PM       <GARBAGE>",
     "11-02-09  05:32PM       <GARBAGE>      NT",
-    "11-02-09  05:32         <DIR>",
     "11-FEB-09 05:32PM       <DIR>",
     "11-02     05:32PM       <DIR>",
     "11-02-09  05:32PM                 -1",
-    "11-02-09  05:32         <DIR>          NT",
     "11-FEB-09 05:32PM       <DIR>          NT",
     "11-02     05:32PM       <DIR>          NT",
     "11-02-09  05:32PM                 -1   NT",

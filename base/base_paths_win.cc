@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -117,14 +117,6 @@ bool PathProviderWin(int key, FilePath* result) {
       // For example:  chrome/{Debug|Release}/ui_tests.exe
       PathService::Get(base::DIR_EXE, &executableDir);
       cur = executableDir.DirName().DirName();
-      FilePath checkedPath =
-          cur.Append(FILE_PATH_LITERAL("base/base_paths_win.cc"));
-      if (!file_util::PathExists(checkedPath)) {
-        // Check for WebKit-only checkout. Executable files are put into
-        // WebKit/WebKit/chromium/{Debug|Relese}, and we should return
-        // WebKit/WebKit/chromium.
-        cur = executableDir.DirName();
-      }
       break;
     }
     default:

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 #include "base/debug/trace_event_win.h"
@@ -42,7 +42,7 @@ bool TraceEventETWProvider::StartTracing() {
 
 void TraceEventETWProvider::TraceEvent(const char* name,
                                        size_t name_len,
-                                       TraceEventPhase type,
+                                       char type,
                                        const void* id,
                                        const char* extra,
                                        size_t extra_len) {
@@ -96,7 +96,7 @@ void TraceEventETWProvider::TraceEvent(const char* name,
 
 void TraceEventETWProvider::Trace(const char* name,
                                   size_t name_len,
-                                  TraceEventPhase type,
+                                  char type,
                                   const void* id,
                                   const char* extra,
                                   size_t extra_len) {

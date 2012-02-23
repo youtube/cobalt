@@ -81,7 +81,8 @@ class SQLiteFeaturesTest : public testing::Test {
 // Do not include fts1 support, it is not useful, and nobody is
 // looking at it.
 TEST_F(SQLiteFeaturesTest, NoFTS1) {
-  ASSERT_FALSE(db().Execute("CREATE VIRTUAL TABLE foo USING fts1(x)"));
+  ASSERT_EQ(SQLITE_ERROR, db().ExecuteAndReturnErrorCode(
+      "CREATE VIRTUAL TABLE foo USING fts1(x)"));
 }
 
 // fts2 is used for older history files, so we're signed on for

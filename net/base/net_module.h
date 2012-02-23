@@ -8,7 +8,7 @@
 
 #include "base/basictypes.h"
 #include "base/string_piece.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
@@ -19,7 +19,7 @@ namespace net {
 // cannot see the ResourceBundle class used by Chrome), so it uses this API to
 // get access to such resources.
 //
-class NET_API NetModule {
+class NET_EXPORT NetModule {
  public:
   typedef base::StringPiece (*ResourceProvider)(int key);
 

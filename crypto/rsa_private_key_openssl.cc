@@ -124,11 +124,22 @@ RSAPrivateKey::~RSAPrivateKey() {
     EVP_PKEY_free(key_);
 }
 
-bool RSAPrivateKey::ExportPrivateKey(std::vector<uint8>* output) {
+RSAPrivateKey* RSAPrivateKey::Copy() const {
+  scoped_ptr<RSAPrivateKey> copy(new RSAPrivateKey());
+  RSA* rsa = EVP_PKEY_get1_RSA(key_);
+  if (!rsa)
+    return NULL;
+  copy->key_ = EVP_PKEY_new();
+  if (!EVP_PKEY_set1_RSA(copy->key_, rsa))
+    return NULL;
+  return copy.release();
+}
+
+bool RSAPrivateKey::ExportPrivateKey(std::vector<uint8>* output) const {
   return ExportKey(key_, i2d_PKCS8PrivateKeyInfo_bio, output);
 }
 
-bool RSAPrivateKey::ExportPublicKey(std::vector<uint8>* output) {
+bool RSAPrivateKey::ExportPublicKey(std::vector<uint8>* output) const {
   return ExportKey(key_, i2d_PUBKEY_bio, output);
 }
 

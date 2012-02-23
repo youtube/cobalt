@@ -135,8 +135,11 @@ const char* kTestFiles[] = {
   "dir-listing-ls-26",  // KOI8-R
   "dir-listing-ls-27",  // windows-1251
 
+  "dir-listing-ls-28",  // Hylafax FTP server
+
   "dir-listing-netware-1",
   "dir-listing-netware-2",
+  "dir-listing-os2-1",
   "dir-listing-vms-1",
   "dir-listing-vms-2",
   "dir-listing-vms-3",

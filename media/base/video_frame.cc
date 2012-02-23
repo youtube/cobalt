@@ -1,10 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/base/video_frame.h"
 
 #include "base/logging.h"
+#include "media/base/video_util.h"
 
 namespace media {
 
@@ -17,9 +18,8 @@ scoped_refptr<VideoFrame> VideoFrame::CreateFrame(
     base::TimeDelta duration) {
   DCHECK(width > 0 && height > 0);
   DCHECK(width * height < 100000000);
-  scoped_refptr<VideoFrame> frame(new VideoFrame(format, width, height));
-  frame->SetTimestamp(timestamp);
-  frame->SetDuration(duration);
+  scoped_refptr<VideoFrame> frame(new VideoFrame(
+      format, width, height, timestamp, duration));
   switch (format) {
     case VideoFrame::RGB555:
     case VideoFrame::RGB565:
@@ -47,8 +47,24 @@ scoped_refptr<VideoFrame> VideoFrame::CreateFrame(
 }
 
 // static
+scoped_refptr<VideoFrame> VideoFrame::WrapNativeTexture(
+    uint32 texture_id,
+    size_t width,
+    size_t height,
+    base::TimeDelta timestamp,
+    base::TimeDelta duration,
+    const base::Closure& no_longer_needed) {
+  scoped_refptr<VideoFrame> frame(
+      new VideoFrame(NATIVE_TEXTURE, width, height, timestamp, duration));
+  frame->texture_id_ = texture_id;
+  frame->texture_no_longer_needed_ = no_longer_needed;
+  return frame;
+}
+
+// static
 scoped_refptr<VideoFrame> VideoFrame::CreateEmptyFrame() {
-  return new VideoFrame(VideoFrame::EMPTY, 0, 0);
+  return new VideoFrame(
+      VideoFrame::EMPTY, 0, 0, base::TimeDelta(), base::TimeDelta());
 }
 
 // static
@@ -64,24 +80,7 @@ scoped_refptr<VideoFrame> VideoFrame::CreateBlackFrame(int width, int height) {
   // Now set the data to YUV(0,128,128).
   const uint8 kBlackY = 0x00;
   const uint8 kBlackUV = 0x80;
-
-  // Fill the Y plane.
-  uint8* y_plane = frame->data(VideoFrame::kYPlane);
-  for (size_t i = 0; i < frame->height_; ++i) {
-    memset(y_plane, kBlackY, frame->width_);
-    y_plane += frame->stride(VideoFrame::kYPlane);
-  }
-
-  // Fill the U and V planes.
-  uint8* u_plane = frame->data(VideoFrame::kUPlane);
-  uint8* v_plane = frame->data(VideoFrame::kVPlane);
-  for (size_t i = 0; i < (frame->height_ / 2); ++i) {
-    memset(u_plane, kBlackUV, frame->width_ / 2);
-    memset(v_plane, kBlackUV, frame->width_ / 2);
-    u_plane += frame->stride(VideoFrame::kUPlane);
-    v_plane += frame->stride(VideoFrame::kVPlane);
-  }
-
+  FillYUV(frame, kBlackY, kBlackUV, kBlackUV);
   return frame;
 }
 
@@ -95,7 +94,6 @@ void VideoFrame::AllocateRGB(size_t bytes_per_pixel) {
   // Round up to align at a 64-bit (8 byte) boundary for each row.  This
   // is sufficient for MMX reads (movq).
   size_t bytes_per_row = RoundUp(width_ * bytes_per_pixel, 8);
-  planes_ = VideoFrame::kNumRGBPlanes;
   strides_[VideoFrame::kRGBPlane] = bytes_per_row;
   data_[VideoFrame::kRGBPlane] = new uint8[bytes_per_row * height_];
   DCHECK(!(reinterpret_cast<intptr_t>(data_[VideoFrame::kRGBPlane]) & 7));
@@ -115,37 +113,44 @@ void VideoFrame::AllocateYUV() {
   // to avoid any potential of faulting by code that attempts to access the Y
   // values of the final row, but assumes that the last row of U & V applies to
   // a full two rows of Y.
-  size_t alloc_height = RoundUp(height_, 2);
-  size_t y_bytes_per_row = RoundUp(width_, 4);
-  size_t uv_stride = RoundUp(y_bytes_per_row / 2, 4);
-  size_t y_bytes = alloc_height * y_bytes_per_row;
-  size_t uv_bytes = alloc_height * uv_stride;
-  if (format_ == VideoFrame::YV12) {
-    uv_bytes /= 2;
-  }
+  size_t y_height = rows(VideoFrame::kYPlane);
+  size_t y_stride = RoundUp(row_bytes(VideoFrame::kYPlane), 4);
+  size_t uv_stride = RoundUp(row_bytes(VideoFrame::kUPlane), 4);
+  size_t uv_height = rows(VideoFrame::kUPlane);
+  size_t y_bytes = y_height * y_stride;
+  size_t uv_bytes = uv_height * uv_stride;
+
   uint8* data = new uint8[y_bytes + (uv_bytes * 2) + kFramePadBytes];
-  planes_ = VideoFrame::kNumYUVPlanes;
   COMPILE_ASSERT(0 == VideoFrame::kYPlane, y_plane_data_must_be_index_0);
   data_[VideoFrame::kYPlane] = data;
   data_[VideoFrame::kUPlane] = data + y_bytes;
   data_[VideoFrame::kVPlane] = data + y_bytes + uv_bytes;
-  strides_[VideoFrame::kYPlane] = y_bytes_per_row;
+  strides_[VideoFrame::kYPlane] = y_stride;
   strides_[VideoFrame::kUPlane] = uv_stride;
   strides_[VideoFrame::kVPlane] = uv_stride;
 }
 
 VideoFrame::VideoFrame(VideoFrame::Format format,
                        size_t width,
-                       size_t height)
+                       size_t height,
+                       base::TimeDelta timestamp,
+                       base::TimeDelta duration)
     : format_(format),
       width_(width),
       height_(height),
-      planes_(0) {
+      texture_id_(0) {
+  SetTimestamp(timestamp);
+  SetDuration(duration);
   memset(&strides_, 0, sizeof(strides_));
   memset(&data_, 0, sizeof(data_));
 }
 
 VideoFrame::~VideoFrame() {
+  if (format_ == NATIVE_TEXTURE && !texture_no_longer_needed_.is_null()) {
+    texture_no_longer_needed_.Run();
+    texture_no_longer_needed_.Reset();
+  }
+
   // In multi-plane allocations, only a single block of memory is allocated
   // on the heap, and other |data| pointers point inside the same, single block
   // so just delete index 0.
@@ -164,6 +169,10 @@ bool VideoFrame::IsValidPlane(size_t plane) const {
     case YV12:
     case YV16:
       return plane == kYPlane || plane == kUPlane || plane == kVPlane;
+
+    case NATIVE_TEXTURE:
+      NOTREACHED() << "NATIVE_TEXTUREs don't use plane-related methods!";
+      return false;
 
     default:
       break;
@@ -193,7 +202,7 @@ int VideoFrame::row_bytes(size_t plane) const {
     case YV16:
       if (plane == kYPlane)
         return width_;
-      return width_ / 2;
+      return RoundUp(width_, 2) / 2;
 
     default:
       break;
@@ -218,7 +227,7 @@ int VideoFrame::rows(size_t plane) const {
     case YV12:
       if (plane == kYPlane)
         return height_;
-      return height_ / 2;
+      return RoundUp(height_, 2) / 2;
 
     default:
       break;
@@ -232,6 +241,11 @@ int VideoFrame::rows(size_t plane) const {
 uint8* VideoFrame::data(size_t plane) const {
   DCHECK(IsValidPlane(plane));
   return data_[plane];
+}
+
+uint32 VideoFrame::texture_id() const {
+  DCHECK_EQ(format_, NATIVE_TEXTURE);
+  return texture_id_;
 }
 
 bool VideoFrame::IsEndOfStream() const {

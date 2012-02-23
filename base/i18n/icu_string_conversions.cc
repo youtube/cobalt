@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "unicode/ucnv.h"
@@ -187,7 +188,8 @@ bool CodepageToUTF16(const std::string& encoded,
   size_t uchar_max_length = encoded.length() + 1;
 
   SetUpErrorHandlerForToUChars(on_error, converter, &status);
-  int actual_size = ucnv_toUChars(converter, WriteInto(utf16, uchar_max_length),
+  scoped_array<char16> buffer(new char16[uchar_max_length]);
+  int actual_size = ucnv_toUChars(converter, buffer.get(),
       static_cast<int>(uchar_max_length), encoded.data(),
       static_cast<int>(encoded.length()), &status);
   ucnv_close(converter);
@@ -196,7 +198,7 @@ bool CodepageToUTF16(const std::string& encoded,
     return false;
   }
 
-  utf16->resize(actual_size);
+  utf16->assign(buffer.get(), actual_size);
   return true;
 }
 
@@ -251,8 +253,9 @@ bool CodepageToWide(const std::string& encoded,
   size_t wchar_max_length = encoded.length() + 1;
 
   SetUpErrorHandlerForToUChars(on_error, converter, &status);
+  scoped_array<wchar_t> buffer(new wchar_t[wchar_max_length]);
   int actual_size = ucnv_toAlgorithmic(utf32_platform_endian(), converter,
-      reinterpret_cast<char*>(WriteInto(wide, wchar_max_length)),
+      reinterpret_cast<char*>(buffer.get()),
       static_cast<int>(wchar_max_length) * sizeof(wchar_t), encoded.data(),
       static_cast<int>(encoded.length()), &status);
   ucnv_close(converter);
@@ -262,7 +265,7 @@ bool CodepageToWide(const std::string& encoded,
   }
 
   // actual_size is # of bytes.
-  wide->resize(actual_size / sizeof(wchar_t));
+  wide->assign(buffer.get(), actual_size / sizeof(wchar_t));
   return true;
 #endif  // defined(WCHAR_T_IS_UTF32)
 }
@@ -279,13 +282,13 @@ bool ConvertToUtf8AndNormalize(const std::string& text,
   UErrorCode status = U_ZERO_ERROR;
   size_t max_length = utf16.length() + 1;
   string16 normalized_utf16;
+  scoped_array<char16> buffer(new char16[max_length]);
   int actual_length = unorm_normalize(
       utf16.c_str(), utf16.length(), UNORM_NFC, 0,
-      WriteInto(&normalized_utf16, max_length),
-      static_cast<int>(max_length), &status);
+      buffer.get(), static_cast<int>(max_length), &status);
   if (!U_SUCCESS(status))
     return false;
-  normalized_utf16.resize(actual_length);
+  normalized_utf16.assign(buffer.get(), actual_length);
 
   return UTF16ToUTF8(normalized_utf16.data(),
                      normalized_utf16.length(), result);

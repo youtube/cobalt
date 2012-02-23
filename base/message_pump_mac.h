@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -65,11 +65,11 @@ class MessagePumpCFRunLoopBase : public MessagePump {
   // in the DoRun method.  MessagePumpCFRunLoopBase::Run calls DoRun directly.
   // This arrangement is used because MessagePumpCFRunLoopBase needs to set
   // up and tear down things before and after the "meat" of DoRun.
-  virtual void Run(Delegate* delegate);
+  virtual void Run(Delegate* delegate) OVERRIDE;
   virtual void DoRun(Delegate* delegate) = 0;
 
-  virtual void ScheduleWork();
-  virtual void ScheduleDelayedWork(const TimeTicks& delayed_work_time);
+  virtual void ScheduleWork() OVERRIDE;
+  virtual void ScheduleDelayedWork(const TimeTicks& delayed_work_time) OVERRIDE;
 
  protected:
   // Accessors for private data members to be used by subclasses.
@@ -191,11 +191,11 @@ class MessagePumpCFRunLoop : public MessagePumpCFRunLoopBase {
  public:
   MessagePumpCFRunLoop();
 
-  virtual void DoRun(Delegate* delegate);
-  virtual void Quit();
+  virtual void DoRun(Delegate* delegate) OVERRIDE;
+  virtual void Quit() OVERRIDE;
 
  private:
-  virtual void EnterExitRunLoop(CFRunLoopActivity activity);
+  virtual void EnterExitRunLoop(CFRunLoopActivity activity) OVERRIDE;
 
   // True if Quit is called to stop the innermost MessagePump
   // (innermost_quittable_) but some other CFRunLoopRun loop (nesting_level_)
@@ -210,8 +210,8 @@ class MessagePumpNSRunLoop : public MessagePumpCFRunLoopBase {
   MessagePumpNSRunLoop();
   virtual ~MessagePumpNSRunLoop();
 
-  virtual void DoRun(Delegate* delegate);
-  virtual void Quit();
+  virtual void DoRun(Delegate* delegate) OVERRIDE;
+  virtual void Quit() OVERRIDE;
 
  private:
   // A source that doesn't do anything but provide something signalable
@@ -229,12 +229,8 @@ class MessagePumpNSApplication : public MessagePumpCFRunLoopBase {
  public:
   MessagePumpNSApplication();
 
-  virtual void DoRun(Delegate* delegate);
-  virtual void Quit();
-
- protected:
-  // Returns nil if NSApp is currently in the middle of calling -sendEvent.
-  virtual NSAutoreleasePool* CreateAutoreleasePool();
+  virtual void DoRun(Delegate* delegate) OVERRIDE;
+  virtual void Quit() OVERRIDE;
 
  private:
   // False after Quit is called.
@@ -249,11 +245,41 @@ class MessagePumpNSApplication : public MessagePumpCFRunLoopBase {
   DISALLOW_COPY_AND_ASSIGN(MessagePumpNSApplication);
 };
 
+class MessagePumpCrApplication : public MessagePumpNSApplication {
+ public:
+  MessagePumpCrApplication();
+
+ protected:
+  // Returns nil if NSApp is currently in the middle of calling
+  // -sendEvent.  Requires NSApp implementing CrAppProtocol.
+  virtual NSAutoreleasePool* CreateAutoreleasePool() OVERRIDE;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MessagePumpCrApplication);
+};
+
 class MessagePumpMac {
  public:
-  // Returns a new instance of MessagePumpNSApplication if called on the main
-  // thread.  Otherwise, returns a new instance of MessagePumpNSRunLoop.
+  // If not on the main thread, returns a new instance of
+  // MessagePumpNSRunLoop.
+  //
+  // On the main thread, if NSApp exists and conforms to
+  // CrAppProtocol, creates an instances of MessagePumpCrApplication.
+  //
+  // Otherwise creates an instance of MessagePumpNSApplication using a
+  // default NSApplication.
   static MessagePump* Create();
+
+  // If a pump is created before the required CrAppProtocol is
+  // created, the wrong MessagePump subclass could be used.
+  // UsingCrApp() returns false if the message pump was created before
+  // NSApp was initialized, or if NSApp does not implement
+  // CrAppProtocol.  NSApp must be initialized before calling.
+  BASE_EXPORT static bool UsingCrApp();
+
+  // Wrapper to query -[NSApp isHandlingSendEvent] from C++ code.
+  // Requires NSApp to implement CrAppProtocol.
+  BASE_EXPORT static bool IsHandlingSendEvent();
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(MessagePumpMac);

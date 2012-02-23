@@ -6,14 +6,16 @@
 
 #include <cstring>
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
+#include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
-#include "base/task.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_config_service_defaults.h"
 #include "net/base/test_completion_callback.h"
 #include "net/http/http_network_session.h"
+#include "net/http/http_server_properties_impl.h"
 #include "net/http/http_stream.h"
 #include "net/proxy/proxy_service.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -63,28 +65,27 @@ class MockHttpStream : public HttpStream {
  public:
   MockHttpStream(CloseResultWaiter* result_waiter)
       : result_waiter_(result_waiter),
-        user_callback_(NULL),
         closed_(false),
         stall_reads_forever_(false),
         num_chunks_(0),
         is_complete_(false),
-        ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {}
+        ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {}
   virtual ~MockHttpStream() {}
 
-  // HttpStream implementation:
+  // HttpStream implementation.
   virtual int InitializeStream(const HttpRequestInfo* request_info,
                                const BoundNetLog& net_log,
-                               CompletionCallback* callback) OVERRIDE {
+                               const CompletionCallback& callback) OVERRIDE {
     return ERR_UNEXPECTED;
   }
   virtual int SendRequest(const HttpRequestHeaders& request_headers,
                           UploadDataStream* request_body,
                           HttpResponseInfo* response,
-                          CompletionCallback* callback) OVERRIDE {
+                          const CompletionCallback& callback) OVERRIDE {
     return ERR_UNEXPECTED;
   }
   virtual uint64 GetUploadProgress() const OVERRIDE { return 0; }
-  virtual int ReadResponseHeaders(CompletionCallback* callback) OVERRIDE {
+  virtual int ReadResponseHeaders(const CompletionCallback& callback) OVERRIDE {
     return ERR_UNEXPECTED;
   }
   virtual const HttpResponseInfo* GetResponseInfo() const OVERRIDE {
@@ -102,7 +103,7 @@ class MockHttpStream : public HttpStream {
 
   // Mocked API
   virtual int ReadResponseBody(IOBuffer* buf, int buf_len,
-                               CompletionCallback* callback) OVERRIDE;
+                               const CompletionCallback& callback) OVERRIDE;
   virtual void Close(bool not_reusable) OVERRIDE {
     DCHECK(!closed_);
     closed_ = true;
@@ -119,6 +120,8 @@ class MockHttpStream : public HttpStream {
 
   virtual void LogNumRttVsBytesMetrics() const OVERRIDE {}
 
+  virtual void Drain(HttpNetworkSession*) OVERRIDE {}
+
   // Methods to tweak/observer mock behavior:
   void StallReadsForever() { stall_reads_forever_ = true; }
 
@@ -131,18 +134,18 @@ class MockHttpStream : public HttpStream {
 
   CloseResultWaiter* const result_waiter_;
   scoped_refptr<IOBuffer> user_buf_;
-  CompletionCallback* user_callback_;
+  CompletionCallback callback_;
   bool closed_;
   bool stall_reads_forever_;
   int num_chunks_;
   bool is_complete_;
-  ScopedRunnableMethodFactory<MockHttpStream> method_factory_;
+  base::WeakPtrFactory<MockHttpStream> weak_factory_;
 };
 
 int MockHttpStream::ReadResponseBody(
-    IOBuffer* buf, int buf_len, CompletionCallback* callback) {
-  DCHECK(callback);
-  DCHECK(!user_callback_);
+    IOBuffer* buf, int buf_len, const CompletionCallback& callback) {
+  DCHECK(!callback.is_null());
+  DCHECK(callback_.is_null());
   DCHECK(buf);
 
   if (stall_reads_forever_)
@@ -153,10 +156,10 @@ int MockHttpStream::ReadResponseBody(
 
   if (buf_len > kMagicChunkSize && num_chunks_ > 1) {
     user_buf_ = buf;
-    user_callback_ = callback;
+    callback_ = callback;
     MessageLoop::current()->PostTask(
         FROM_HERE,
-        method_factory_.NewRunnableMethod(&MockHttpStream::CompleteRead));
+        base::Bind(&MockHttpStream::CompleteRead, weak_factory_.GetWeakPtr()));
     return ERR_IO_PENDING;
   }
 
@@ -168,14 +171,14 @@ int MockHttpStream::ReadResponseBody(
 }
 
 void MockHttpStream::CompleteRead() {
-  CompletionCallback* callback = user_callback_;
+  CompletionCallback callback = callback_;
   std::memset(user_buf_->data(), 1, kMagicChunkSize);
   user_buf_ = NULL;
-  user_callback_ = NULL;
+  callback_.Reset();
   num_chunks_--;
   if (!num_chunks_)
     is_complete_ = true;
-  callback->Run(kMagicChunkSize);
+  callback.Run(kMagicChunkSize);
 }
 
 class HttpResponseBodyDrainerTest : public testing::Test {
@@ -183,6 +186,7 @@ class HttpResponseBodyDrainerTest : public testing::Test {
   HttpResponseBodyDrainerTest()
       : proxy_service_(ProxyService::CreateDirect()),
         ssl_config_service_(new SSLConfigServiceDefaults),
+        http_server_properties_(new HttpServerPropertiesImpl),
         session_(CreateNetworkSession()),
         mock_stream_(new MockHttpStream(&result_waiter_)),
         drainer_(new HttpResponseBodyDrainer(mock_stream_)) {}
@@ -193,11 +197,13 @@ class HttpResponseBodyDrainerTest : public testing::Test {
     HttpNetworkSession::Params params;
     params.proxy_service = proxy_service_.get();
     params.ssl_config_service = ssl_config_service_;
+    params.http_server_properties = http_server_properties_.get();
     return new HttpNetworkSession(params);
   }
 
   scoped_ptr<ProxyService> proxy_service_;
   scoped_refptr<SSLConfigService> ssl_config_service_;
+  scoped_ptr<HttpServerPropertiesImpl> http_server_properties_;
   const scoped_refptr<HttpNetworkSession> session_;
   CloseResultWaiter result_waiter_;
   MockHttpStream* const mock_stream_;  // Owned by |drainer_|.
@@ -238,7 +244,6 @@ TEST_F(HttpResponseBodyDrainerTest, CancelledBySession) {
 }
 
 TEST_F(HttpResponseBodyDrainerTest, DrainBodyTooLarge) {
-  TestCompletionCallback callback;
   int too_many_chunks =
       HttpResponseBodyDrainer::kDrainBodyBufferSize / kMagicChunkSize;
   too_many_chunks += 1;  // Now it's too large.
@@ -246,6 +251,22 @@ TEST_F(HttpResponseBodyDrainerTest, DrainBodyTooLarge) {
   mock_stream_->set_num_chunks(too_many_chunks);
   drainer_->Start(session_);
   EXPECT_TRUE(result_waiter_.WaitForResult());
+}
+
+TEST_F(HttpResponseBodyDrainerTest, StartBodyTooLarge) {
+  int too_many_chunks =
+      HttpResponseBodyDrainer::kDrainBodyBufferSize / kMagicChunkSize;
+  too_many_chunks += 1;  // Now it's too large.
+
+  mock_stream_->set_num_chunks(0);
+  drainer_->StartWithSize(session_, too_many_chunks * kMagicChunkSize);
+  EXPECT_TRUE(result_waiter_.WaitForResult());
+}
+
+TEST_F(HttpResponseBodyDrainerTest, StartWithNothingToDo) {
+  mock_stream_->set_num_chunks(0);
+  drainer_->StartWithSize(session_, 0);
+  EXPECT_FALSE(result_waiter_.WaitForResult());
 }
 
 }  // namespace

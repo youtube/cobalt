@@ -6,8 +6,10 @@
 #define CRYPTO_SCOPED_NSS_TYPES_H_
 #pragma once
 
+#include <keyhi.h>
 #include <nss.h>
 #include <pk11pub.h>
+#include <plarena.h>
 
 #include "base/memory/scoped_ptr.h"
 
@@ -39,6 +41,12 @@ typedef scoped_ptr_malloc<
 typedef scoped_ptr_malloc<
     PK11SymKey, NSSDestroyer<PK11SymKey, PK11_FreeSymKey> > ScopedPK11SymKey;
 typedef scoped_ptr_malloc<
+    SECKEYPublicKey, NSSDestroyer<SECKEYPublicKey, SECKEY_DestroyPublicKey> >
+    ScopedSECKEYPublicKey;
+typedef scoped_ptr_malloc<
+    SECKEYPrivateKey, NSSDestroyer<SECKEYPrivateKey, SECKEY_DestroyPrivateKey> >
+    ScopedSECKEYPrivateKey;
+typedef scoped_ptr_malloc<
     SECAlgorithmID, NSSDestroyer1<SECAlgorithmID,
                                   SECOID_DestroyAlgorithmID,
                                   PR_TRUE> > ScopedSECAlgorithmID;
@@ -46,6 +54,10 @@ typedef scoped_ptr_malloc<
     SECItem, NSSDestroyer1<SECItem,
                            SECITEM_FreeItem,
                            PR_TRUE> > ScopedSECItem;
+typedef scoped_ptr_malloc<
+    PLArenaPool, NSSDestroyer1<PLArenaPool,
+                               PORT_FreeArena,
+                               PR_FALSE> > ScopedPLArenaPool;
 
 }  // namespace crypto
 

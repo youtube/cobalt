@@ -20,8 +20,8 @@ namespace net {
 class BoundNetLog;
 
 // A client socket that uses TCP as the transport layer.
-class NET_TEST TCPClientSocketLibevent : public StreamSocket,
-                                         public base::NonThreadSafe {
+class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
+                                                   public base::NonThreadSafe {
  public:
   // The IP address(es) and port number to connect to.  The TCP socket will try
   // each IP address in the list until it succeeds in establishing a
@@ -42,28 +42,32 @@ class NET_TEST TCPClientSocketLibevent : public StreamSocket,
   // Binds the socket to a local IP address and port.
   int Bind(const IPEndPoint& address);
 
-  // StreamSocket methods:
-  virtual int Connect(CompletionCallback* callback);
-  virtual void Disconnect();
-  virtual bool IsConnected() const;
-  virtual bool IsConnectedAndIdle() const;
-  virtual int GetPeerAddress(AddressList* address) const;
-  virtual int GetLocalAddress(IPEndPoint* address) const;
-  virtual const BoundNetLog& NetLog() const;
-  virtual void SetSubresourceSpeculation();
-  virtual void SetOmniboxSpeculation();
-  virtual bool WasEverUsed() const;
-  virtual bool UsingTCPFastOpen() const;
-  virtual int64 NumBytesRead() const;
-  virtual base::TimeDelta GetConnectTimeMicros() const;
+  // StreamSocket implementation.
+  virtual int Connect(const CompletionCallback& callback) OVERRIDE;
+  virtual void Disconnect() OVERRIDE;
+  virtual bool IsConnected() const OVERRIDE;
+  virtual bool IsConnectedAndIdle() const OVERRIDE;
+  virtual int GetPeerAddress(AddressList* address) const OVERRIDE;
+  virtual int GetLocalAddress(IPEndPoint* address) const OVERRIDE;
+  virtual const BoundNetLog& NetLog() const OVERRIDE;
+  virtual void SetSubresourceSpeculation() OVERRIDE;
+  virtual void SetOmniboxSpeculation() OVERRIDE;
+  virtual bool WasEverUsed() const OVERRIDE;
+  virtual bool UsingTCPFastOpen() const OVERRIDE;
+  virtual int64 NumBytesRead() const OVERRIDE;
+  virtual base::TimeDelta GetConnectTimeMicros() const OVERRIDE;
 
-  // Socket methods:
+  // Socket implementation.
   // Multiple outstanding requests are not supported.
   // Full duplex mode (reading and writing at the same time) is supported
-  virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
-  virtual int Write(IOBuffer* buf, int buf_len, CompletionCallback* callback);
-  virtual bool SetReceiveBufferSize(int32 size);
-  virtual bool SetSendBufferSize(int32 size);
+  virtual int Read(IOBuffer* buf,
+                   int buf_len,
+                   const CompletionCallback& callback) OVERRIDE;
+  virtual int Write(IOBuffer* buf,
+                    int buf_len,
+                    const CompletionCallback& callback) OVERRIDE;
+  virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
+  virtual bool SetSendBufferSize(int32 size) OVERRIDE;
 
  private:
   // State machine for connecting the socket.
@@ -79,12 +83,12 @@ class NET_TEST TCPClientSocketLibevent : public StreamSocket,
 
     // MessageLoopForIO::Watcher methods
 
-    virtual void OnFileCanReadWithoutBlocking(int /* fd */) {
-      if (socket_->read_callback_)
+    virtual void OnFileCanReadWithoutBlocking(int /* fd */) OVERRIDE {
+      if (!socket_->read_callback_.is_null())
         socket_->DidCompleteRead();
     }
 
-    virtual void OnFileCanWriteWithoutBlocking(int /* fd */) {}
+    virtual void OnFileCanWriteWithoutBlocking(int /* fd */) OVERRIDE {}
 
    private:
     TCPClientSocketLibevent* const socket_;
@@ -96,14 +100,12 @@ class NET_TEST TCPClientSocketLibevent : public StreamSocket,
    public:
     explicit WriteWatcher(TCPClientSocketLibevent* socket) : socket_(socket) {}
 
-    // MessageLoopForIO::Watcher methods
-
-    virtual void OnFileCanReadWithoutBlocking(int /* fd */) {}
-
-    virtual void OnFileCanWriteWithoutBlocking(int /* fd */) {
+    // MessageLoopForIO::Watcher implementation.
+    virtual void OnFileCanReadWithoutBlocking(int /* fd */) OVERRIDE {}
+    virtual void OnFileCanWriteWithoutBlocking(int /* fd */) OVERRIDE {
       if (socket_->waiting_connect()) {
         socket_->DidCompleteConnect();
-      } else if (socket_->write_callback_) {
+      } else if (!socket_->write_callback_.is_null()) {
         socket_->DidCompleteWrite();
       }
     }
@@ -172,10 +174,10 @@ class NET_TEST TCPClientSocketLibevent : public StreamSocket,
   int write_buf_len_;
 
   // External callback; called when read is complete.
-  CompletionCallback* read_callback_;
+  CompletionCallback read_callback_;
 
   // External callback; called when write is complete.
-  CompletionCallback* write_callback_;
+  CompletionCallback write_callback_;
 
   // The next state for the Connect() state machine.
   ConnectState next_connect_state_;

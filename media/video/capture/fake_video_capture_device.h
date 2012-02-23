@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,7 +16,7 @@
 
 namespace media {
 
-class FakeVideoCaptureDevice : public VideoCaptureDevice {
+class MEDIA_EXPORT FakeVideoCaptureDevice : public VideoCaptureDevice {
  public:
   static VideoCaptureDevice* Create(const Name& device_name);
   virtual ~FakeVideoCaptureDevice();
@@ -27,11 +27,11 @@ class FakeVideoCaptureDevice : public VideoCaptureDevice {
   virtual void Allocate(int width,
                         int height,
                         int frame_rate,
-                        VideoCaptureDevice::EventHandler* observer);
-  virtual void Start();
-  virtual void Stop();
-  virtual void DeAllocate();
-  virtual const Name& device_name();
+                        VideoCaptureDevice::EventHandler* observer) OVERRIDE;
+  virtual void Start() OVERRIDE;
+  virtual void Stop() OVERRIDE;
+  virtual void DeAllocate() OVERRIDE;
+  virtual const Name& device_name() OVERRIDE;
 
  private:
   // Flag indicating the internal state.
@@ -56,7 +56,5 @@ class FakeVideoCaptureDevice : public VideoCaptureDevice {
 };
 
 }  // namespace media
-
-DISABLE_RUNNABLE_METHOD_REFCOUNT(media::FakeVideoCaptureDevice);
 
 #endif  // MEDIA_VIDEO_CAPTURE_FAKE_VIDEO_CAPTURE_DEVICE_H_

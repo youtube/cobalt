@@ -73,7 +73,7 @@ class LinuxDistroHelper {
 #endif  // if defined(OS_LINUX)
 
 // expected prefix of the target of the /proc/self/fd/%d link for a socket
-static const char kSocketLinkPrefix[] = "socket:[";
+const char kSocketLinkPrefix[] = "socket:[";
 
 // Parse a symlink in /proc/pid/fd/$x and return the inode number of the
 // socket.
@@ -88,7 +88,7 @@ bool ProcPathGetInode(ino_t* inode_out, const char* path, bool log = false) {
   const ssize_t n = readlink(path, buf, sizeof(buf) - 1);
   if (n == -1) {
     if (log) {
-      LOG(WARNING) << "Failed to read the inode number for a socket from /proc"
+      DLOG(WARNING) << "Failed to read the inode number for a socket from /proc"
                       "(" << errno << ")";
     }
     return false;
@@ -97,8 +97,8 @@ bool ProcPathGetInode(ino_t* inode_out, const char* path, bool log = false) {
 
   if (memcmp(kSocketLinkPrefix, buf, sizeof(kSocketLinkPrefix) - 1)) {
     if (log) {
-      LOG(WARNING) << "The descriptor passed from the crashing process wasn't a"
-                      " UNIX domain socket.";
+      DLOG(WARNING) << "The descriptor passed from the crashing process wasn't "
+                      " a UNIX domain socket.";
     }
     return false;
   }
@@ -111,8 +111,8 @@ bool ProcPathGetInode(ino_t* inode_out, const char* path, bool log = false) {
 
   if (inode_ul == ULLONG_MAX) {
     if (log) {
-      LOG(WARNING) << "Failed to parse a socket's inode number: the number was "
-                      "too large. Please report this bug: " << buf;
+      DLOG(WARNING) << "Failed to parse a socket's inode number: the number "
+                       "was too large. Please report this bug: " << buf;
     }
     return false;
   }
@@ -131,7 +131,9 @@ static const int kDistroSize = 128 + 1;
 // We use this static string to hold the Linux distro info. If we
 // crash, the crash handler code will send this in the crash dump.
 char g_linux_distro[kDistroSize] =
-#if defined(OS_CHROMEOS)
+#if defined(OS_CHROMEOS) && defined(USE_AURA)
+    "CrOS Aura";
+#elif defined(OS_CHROMEOS)
     "CrOS";
 #else  // if defined(OS_LINUX)
     "Unknown";
@@ -154,9 +156,9 @@ std::string GetLinuxDistro() {
     base::GetAppOutput(CommandLine(argv), &output);
     if (output.length() > 0) {
       // lsb_release -d should return: Description:<tab>Distro Info
-      static const std::string field = "Description:\t";
-      if (output.compare(0, field.length(), field) == 0) {
-        SetLinuxDistro(output.substr(field.length()));
+      const char field[] = "Description:\t";
+      if (output.compare(0, strlen(field), field) == 0) {
+        SetLinuxDistro(output.substr(strlen(field)));
       }
     }
     distro_state_singleton->CheckFinished();
@@ -171,6 +173,7 @@ std::string GetLinuxDistro() {
   }
 #else
   NOTIMPLEMENTED();
+  return "Unknown";
 #endif
 }
 
@@ -200,7 +203,7 @@ bool FindProcessHoldingSocket(pid_t* pid_out, ino_t socket_inode) {
 
   DIR* proc = opendir("/proc");
   if (!proc) {
-    LOG(WARNING) << "Cannot open /proc";
+    DLOG(WARNING) << "Cannot open /proc";
     return false;
   }
 
@@ -262,7 +265,7 @@ pid_t FindThreadIDWithSyscall(pid_t pid, const std::string& expected_data,
 
   DIR* task = opendir(buf);
   if (!task) {
-    LOG(WARNING) << "Cannot open " << buf;
+    DLOG(WARNING) << "Cannot open " << buf;
     return -1;
   }
 

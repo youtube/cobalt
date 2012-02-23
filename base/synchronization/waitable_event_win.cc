@@ -46,12 +46,11 @@ bool WaitableEvent::IsSignaled() {
   return TimedWait(TimeDelta::FromMilliseconds(0));
 }
 
-bool WaitableEvent::Wait() {
+void WaitableEvent::Wait() {
   DWORD result = WaitForSingleObject(handle_, INFINITE);
   // It is most unexpected that this should ever fail.  Help consumers learn
   // about it if it should ever fail.
   DCHECK_EQ(WAIT_OBJECT_0, result) << "WaitForSingleObject failed";
-  return result == WAIT_OBJECT_0;
 }
 
 bool WaitableEvent::TimedWait(const TimeDelta& max_time) {

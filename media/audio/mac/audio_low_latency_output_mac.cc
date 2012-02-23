@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/mac/mac_logging.h"
 #include "media/audio/audio_util.h"
 #include "media/audio/mac/audio_manager_mac.h"
 
@@ -47,7 +48,9 @@ AUAudioOutputStream::AUAudioOutputStream(
     : manager_(manager),
       source_(NULL),
       output_unit_(0),
-      volume_(1) {
+      output_device_id_(kAudioObjectUnknown),
+      volume_(1),
+      hardware_latency_frames_(0) {
   // We must have a manager.
   DCHECK(manager_);
   // A frame is one sample across all channels. In interleaved audio the per
@@ -72,6 +75,23 @@ AUAudioOutputStream::~AUAudioOutputStream() {
 }
 
 bool AUAudioOutputStream::Open() {
+  // Obtain the current input device selected by the user.
+  UInt32 size = sizeof(output_device_id_);
+  AudioObjectPropertyAddress default_output_device_address = {
+    kAudioHardwarePropertyDefaultOutputDevice,
+    kAudioObjectPropertyScopeGlobal,
+    kAudioObjectPropertyElementMaster
+  };
+  OSStatus result = AudioObjectGetPropertyData(kAudioObjectSystemObject,
+                                               &default_output_device_address,
+                                               0,
+                                               0,
+                                               &size,
+                                               &output_device_id_);
+  OSSTATUS_DCHECK(result == noErr, result);
+  if (result)
+    return false;
+
   // Open and initialize the DefaultOutputUnit.
   Component comp;
   ComponentDescription desc;
@@ -84,16 +104,17 @@ bool AUAudioOutputStream::Open() {
   comp = FindNextComponent(0, &desc);
   DCHECK(comp);
 
-  OSStatus result = OpenAComponent(comp, &output_unit_);
-  DCHECK_EQ(result, 0);
+  result = OpenAComponent(comp, &output_unit_);
+  OSSTATUS_DCHECK(result == noErr, result);
   if (result)
     return false;
 
   result = AudioUnitInitialize(output_unit_);
-
-  DCHECK_EQ(result, 0);
+  OSSTATUS_DCHECK(result == noErr, result);
   if (result)
     return false;
+
+  hardware_latency_frames_ = GetHardwareLatency();
 
   return Configure();
 }
@@ -110,8 +131,7 @@ bool AUAudioOutputStream::Configure() {
       0,
       &input,
       sizeof(input));
-
-  DCHECK_EQ(result, 0);
+  OSSTATUS_DCHECK(result == noErr, result);
   if (result)
     return false;
 
@@ -123,7 +143,7 @@ bool AUAudioOutputStream::Configure() {
       0,
       &format_,
       sizeof(format_));
-  DCHECK_EQ(result, 0);
+  OSSTATUS_DCHECK(result == noErr, result);
   if (result)
     return false;
 
@@ -136,7 +156,7 @@ bool AUAudioOutputStream::Configure() {
       0,
       &buffer_size,
       sizeof(buffer_size));
-  DCHECK_EQ(result, 0);
+  OSSTATUS_DCHECK(result == noErr, result);
   if (result)
     return false;
 
@@ -154,6 +174,10 @@ void AUAudioOutputStream::Close() {
 
 void AUAudioOutputStream::Start(AudioSourceCallback* callback) {
   DCHECK(callback);
+  DLOG_IF(ERROR, !output_unit_) << "Open() has not been called successfully";
+  if (!output_unit_)
+    return;
+
   source_ = callback;
 
   AudioOutputUnitStart(output_unit_);
@@ -185,11 +209,18 @@ void AUAudioOutputStream::GetVolume(double* volume) {
 // Note to future hackers of this function: Do not add locks here because this
 // is running on a real-time thread (for low-latency).
 OSStatus AUAudioOutputStream::Render(UInt32 number_of_frames,
-                                     AudioBufferList* io_data) {
+                                     AudioBufferList* io_data,
+                                     const AudioTimeStamp* output_time_stamp) {
+  // Update the playout latency.
+  double playout_latency_frames = GetPlayoutLatency(output_time_stamp);
+
   AudioBuffer& buffer = io_data->mBuffers[0];
   uint8* audio_data = reinterpret_cast<uint8*>(buffer.mData);
+  uint32 hardware_pending_bytes = static_cast<uint32>
+      ((playout_latency_frames + 0.5) * format_.mBytesPerFrame);
   uint32 filled = source_->OnMoreData(
-      this, audio_data, buffer.mDataByteSize, AudioBuffersState(0, 0));
+      this, audio_data, buffer.mDataByteSize,
+      AudioBuffersState(0, hardware_pending_bytes));
 
   // Handle channel order for 5.1 audio.
   if (format_.mChannelsPerFrame == 6) {
@@ -208,7 +239,7 @@ OSStatus AUAudioOutputStream::Render(UInt32 number_of_frames,
 // DefaultOutputUnit callback
 OSStatus AUAudioOutputStream::InputProc(void* user_data,
                                         AudioUnitRenderActionFlags*,
-                                        const AudioTimeStamp*,
+                                        const AudioTimeStamp* output_time_stamp,
                                         UInt32,
                                         UInt32 number_of_frames,
                                         AudioBufferList* io_data) {
@@ -218,12 +249,12 @@ OSStatus AUAudioOutputStream::InputProc(void* user_data,
   if (!audio_output)
     return -1;
 
-  return audio_output->Render(number_of_frames, io_data);
+  return audio_output->Render(number_of_frames, io_data, output_time_stamp);
 }
 
 double AUAudioOutputStream::HardwareSampleRate() {
   // Determine the default output device's sample-rate.
-  AudioDeviceID device_id = kAudioDeviceUnknown;
+  AudioDeviceID device_id = kAudioObjectUnknown;
   UInt32 info_size = sizeof(device_id);
 
   AudioObjectPropertyAddress default_output_device_address = {
@@ -237,7 +268,7 @@ double AUAudioOutputStream::HardwareSampleRate() {
                                                0,
                                                &info_size,
                                                &device_id);
-  DCHECK_EQ(result, 0);
+  OSSTATUS_DCHECK(result == noErr, result);
   if (result)
     return 0.0;  // error
 
@@ -255,9 +286,61 @@ double AUAudioOutputStream::HardwareSampleRate() {
                                       0,
                                       &info_size,
                                       &nominal_sample_rate);
-  DCHECK_EQ(result, 0);
+  OSSTATUS_DCHECK(result == noErr, result);
   if (result)
     return 0.0;  // error
 
   return nominal_sample_rate;
+}
+
+double AUAudioOutputStream::GetHardwareLatency() {
+  if (!output_unit_ || output_device_id_ == kAudioObjectUnknown) {
+    DLOG(WARNING) << "Audio unit object is NULL or device ID is unknown";
+    return 0.0;
+  }
+
+  // Get audio unit latency.
+  Float64 audio_unit_latency_sec = 0.0;
+  UInt32 size = sizeof(audio_unit_latency_sec);
+  OSStatus result = AudioUnitGetProperty(output_unit_,
+                                         kAudioUnitProperty_Latency,
+                                         kAudioUnitScope_Global,
+                                         0,
+                                         &audio_unit_latency_sec,
+                                         &size);
+  OSSTATUS_DLOG_IF(WARNING, result != noErr, result)
+      << "Could not get audio unit latency";
+
+  // Get output audio device latency.
+  AudioObjectPropertyAddress property_address = {
+    kAudioDevicePropertyLatency,
+    kAudioDevicePropertyScopeOutput,
+    kAudioObjectPropertyElementMaster
+  };
+  UInt32 device_latency_frames = 0;
+  size = sizeof(device_latency_frames);
+  result = AudioObjectGetPropertyData(output_device_id_,
+                                      &property_address,
+                                      0,
+                                      NULL,
+                                      &size,
+                                      &device_latency_frames);
+  OSSTATUS_DLOG_IF(WARNING, result != noErr, result)
+      << "Could not get audio device latency";
+
+  return static_cast<double>((audio_unit_latency_sec *
+      format_.mSampleRate) + device_latency_frames);
+}
+
+double AUAudioOutputStream::GetPlayoutLatency(
+    const AudioTimeStamp* output_time_stamp) {
+  // Get the delay between the moment getting the callback and the scheduled
+  // time stamp that tells when the data is going to be played out.
+  UInt64 output_time_ns = AudioConvertHostTimeToNanos(
+      output_time_stamp->mHostTime);
+  UInt64 now_ns = AudioConvertHostTimeToNanos(AudioGetCurrentHostTime());
+  double delay_frames = static_cast<double>
+      (1e-9 * (output_time_ns - now_ns) * format_.mSampleRate);
+
+  return (delay_frames + hardware_latency_frames_);
 }

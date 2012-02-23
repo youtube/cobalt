@@ -114,7 +114,7 @@ void SetICUDefaultLocale(const std::string& locale_string) {
 bool IsRTL() {
 #if defined(TOOLKIT_GTK)
   GtkTextDirection gtk_dir = gtk_widget_get_default_direction();
-  return (gtk_dir == GTK_TEXT_DIR_RTL);
+  return gtk_dir == GTK_TEXT_DIR_RTL;
 #else
   return ICUIsRTL();
 #endif
@@ -180,6 +180,14 @@ bool AdjustStringForLocaleDirection(string16* text) {
 
   return true;
 }
+
+bool UnadjustStringForLocaleDirection(string16* text) {
+  if (!IsRTL() || text->empty())
+    return false;
+
+  *text = StripWrappingBidiControlCharacters(*text);
+  return true;
+}
 #else
 bool AdjustStringForLocaleDirection(string16* text) {
   // On OS X & GTK the directionality of a label is determined by the first
@@ -215,18 +223,44 @@ bool AdjustStringForLocaleDirection(string16* text) {
   bool has_rtl_chars = StringContainsStrongRTLChars(*text);
   if (!ui_direction_is_rtl && has_rtl_chars) {
     WrapStringWithRTLFormatting(text);
-    text->insert(0, 1, kLeftToRightMark);
+    text->insert(0U, 1U, kLeftToRightMark);
     text->push_back(kLeftToRightMark);
   } else if (ui_direction_is_rtl && has_rtl_chars) {
     WrapStringWithRTLFormatting(text);
-    text->insert(0, 1, kRightToLeftMark);
+    text->insert(0U, 1U, kRightToLeftMark);
     text->push_back(kRightToLeftMark);
   } else if (ui_direction_is_rtl) {
     WrapStringWithLTRFormatting(text);
-    text->insert(0, 1, kRightToLeftMark);
+    text->insert(0U, 1U, kRightToLeftMark);
     text->push_back(kRightToLeftMark);
+  } else {
+    return false;
   }
 
+  return true;
+}
+
+bool UnadjustStringForLocaleDirection(string16* text) {
+  if (text->empty())
+    return false;
+
+  size_t begin_index = 0;
+  char16 begin = text->at(begin_index);
+  if (begin == kLeftToRightMark ||
+      begin == kRightToLeftMark) {
+    ++begin_index;
+  }
+
+  size_t end_index = text->length() - 1;
+  char16 end = text->at(end_index);
+  if (end == kLeftToRightMark ||
+      end == kRightToLeftMark) {
+    --end_index;
+  }
+
+  string16 unmarked_text =
+      text->substr(begin_index, end_index - begin_index + 1);
+  *text = StripWrappingBidiControlCharacters(unmarked_text);
   return true;
 }
 
@@ -258,7 +292,7 @@ void WrapStringWithLTRFormatting(string16* text) {
     return;
 
   // Inserting an LRE (Left-To-Right Embedding) mark as the first character.
-  text->insert(0, 1, kLeftToRightEmbeddingMark);
+  text->insert(0U, 1U, kLeftToRightEmbeddingMark);
 
   // Inserting a PDF (Pop Directional Formatting) mark as the last character.
   text->push_back(kPopDirectionalFormatting);
@@ -269,7 +303,7 @@ void WrapStringWithRTLFormatting(string16* text) {
     return;
 
   // Inserting an RLE (Right-To-Left Embedding) mark as the first character.
-  text->insert(0, 1, kRightToLeftEmbeddingMark);
+  text->insert(0U, 1U, kRightToLeftEmbeddingMark);
 
   // Inserting a PDF (Pop Directional Formatting) mark as the last character.
   text->push_back(kPopDirectionalFormatting);
@@ -301,7 +335,7 @@ string16 GetDisplayStringInLTRDirectionality(const string16& text) {
   return text_mutable;
 }
 
-const string16 StripWrappingBidiControlCharacters(const string16& text) {
+string16 StripWrappingBidiControlCharacters(const string16& text) {
   if (text.empty())
     return text;
   size_t begin_index = 0;

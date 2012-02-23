@@ -1,13 +1,22 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/dns/dns_transaction.h"
 
-#include <deque>
-#include <vector>
-
 #include "base/bind.h"
+#include "base/memory/scoped_ptr.h"
+#include "base/memory/scoped_vector.h"
+#include "base/rand_util.h"
+#include "base/test/test_timeouts.h"
+#include "net/base/big_endian.h"
+#include "net/base/dns_util.h"
+#include "net/base/net_log.h"
+#include "net/base/sys_addrinfo.h"
+#include "net/dns/dns_protocol.h"
+#include "net/dns/dns_query.h"
+#include "net/dns/dns_response.h"
+#include "net/dns/dns_session.h"
 #include "net/dns/dns_test_util.h"
 #include "net/socket/socket_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -16,327 +25,659 @@ namespace net {
 
 namespace {
 
-static const base::TimeDelta kTimeoutsMs[] = {
-  base::TimeDelta::FromMilliseconds(20),
-  base::TimeDelta::FromMilliseconds(20),
-  base::TimeDelta::FromMilliseconds(20),
+std::string DomainFromDot(const base::StringPiece& dotted) {
+  std::string out;
+  EXPECT_TRUE(DNSDomainFromDot(dotted, &out));
+  return out;
+}
+
+class TestSocketFactory;
+
+// A variant of MockUDPClientSocket which notifies the factory OnConnect.
+class TestUDPClientSocket : public MockUDPClientSocket {
+ public:
+  TestUDPClientSocket(TestSocketFactory* factory,
+                      SocketDataProvider* data,
+                      net::NetLog* net_log)
+      : MockUDPClientSocket(data, net_log), factory_(factory) {
+  }
+  virtual ~TestUDPClientSocket() {}
+  virtual int Connect(const IPEndPoint& endpoint) OVERRIDE;
+ private:
+  TestSocketFactory* factory_;
 };
 
-}  // namespace
-
-class TestDelegate : public DnsTransaction::Delegate {
+// Creates TestUDPClientSockets and keeps endpoints reported via OnConnect.
+class TestSocketFactory : public MockClientSocketFactory {
  public:
-  TestDelegate() : result_(ERR_UNEXPECTED), transaction_(NULL) {}
-  virtual ~TestDelegate() {}
-  virtual void OnTransactionComplete(
-      int result,
-      const DnsTransaction* transaction,
-      const IPAddressList& ip_addresses) {
-    result_ = result;
-    transaction_ = transaction;
-    ip_addresses_ = ip_addresses;
-    MessageLoop::current()->Quit();
+  TestSocketFactory() {}
+  virtual ~TestSocketFactory() {}
+
+  virtual DatagramClientSocket* CreateDatagramClientSocket(
+      DatagramSocket::BindType bind_type,
+      const RandIntCallback& rand_int_cb,
+      net::NetLog* net_log,
+      const net::NetLog::Source& source) OVERRIDE {
+    SocketDataProvider* data_provider = mock_data().GetNext();
+    TestUDPClientSocket* socket = new TestUDPClientSocket(this,
+                                                          data_provider,
+                                                          net_log);
+    data_provider->set_socket(socket);
+    return socket;
   }
-  int result() const { return result_; }
-  const DnsTransaction* transaction() const { return transaction_; }
-  const IPAddressList& ip_addresses() const {
-    return ip_addresses_;
+
+  void OnConnect(const IPEndPoint& endpoint) {
+    remote_endpoints.push_back(endpoint);
+  }
+
+  std::vector<IPEndPoint> remote_endpoints;
+};
+
+int TestUDPClientSocket::Connect(const IPEndPoint& endpoint) {
+  factory_->OnConnect(endpoint);
+  return MockUDPClientSocket::Connect(endpoint);
+}
+
+// Helper class that holds a DnsTransaction and handles OnTransactionComplete.
+class TransactionHelper {
+ public:
+  // If |expected_answer_count| < 0 then it is the expected net error.
+  TransactionHelper(const char* hostname,
+                    uint16 qtype,
+                    int expected_answer_count)
+      : hostname_(hostname),
+        qtype_(qtype),
+        expected_answer_count_(expected_answer_count),
+        cancel_in_callback_(false),
+        quit_in_callback_(false),
+        completed_(false) {
+  }
+
+  // Mark that the transaction shall be destroyed immediately upon callback.
+  void set_cancel_in_callback() {
+    cancel_in_callback_ = true;
+  }
+
+  // Mark to call MessageLoop::Quit() upon callback.
+  void set_quit_in_callback() {
+    quit_in_callback_ = true;
+  }
+
+  void StartTransaction(DnsTransactionFactory* factory) {
+    EXPECT_EQ(NULL, transaction_.get());
+    transaction_ = factory->CreateTransaction(
+        hostname_,
+        qtype_,
+        base::Bind(&TransactionHelper::OnTransactionComplete,
+                   base::Unretained(this)),
+        BoundNetLog());
+    EXPECT_EQ(hostname_, transaction_->GetHostname());
+    EXPECT_EQ(qtype_, transaction_->GetType());
+    int rv = transaction_->Start();
+    if (rv != ERR_IO_PENDING) {
+      EXPECT_NE(OK, rv);
+      EXPECT_EQ(expected_answer_count_, rv);
+      completed_ = true;
+    }
+  }
+
+  void Cancel() {
+    ASSERT_TRUE(transaction_.get() != NULL);
+    transaction_.reset(NULL);
+  }
+
+  void OnTransactionComplete(DnsTransaction* t,
+                             int rv,
+                             const DnsResponse* response) {
+    EXPECT_FALSE(completed_);
+    EXPECT_EQ(transaction_.get(), t);
+
+    completed_ = true;
+
+    if (cancel_in_callback_) {
+      Cancel();
+      return;
+    }
+
+    if (expected_answer_count_ >= 0) {
+      EXPECT_EQ(OK, rv);
+      EXPECT_EQ(expected_answer_count_, response->answer_count());
+      EXPECT_EQ(qtype_, response->qtype());
+
+      DnsRecordParser parser = response->Parser();
+      DnsResourceRecord record;
+      for (int i = 0; i < expected_answer_count_; ++i) {
+        EXPECT_TRUE(parser.ParseRecord(&record));
+      }
+      EXPECT_TRUE(parser.AtEnd());
+    } else {
+      EXPECT_EQ(expected_answer_count_, rv);
+      EXPECT_EQ(NULL, response);
+    }
+
+    if (quit_in_callback_)
+      MessageLoop::current()->Quit();
+  }
+
+  bool has_completed() const {
+    return completed_;
+  }
+
+  // Shorthands for commonly used commands.
+
+  bool Run(DnsTransactionFactory* factory) {
+    StartTransaction(factory);
+    MessageLoop::current()->RunAllPending();
+    return has_completed();
+  }
+
+  // Use when some of the responses are timeouts.
+  bool RunUntilDone(DnsTransactionFactory* factory) {
+    set_quit_in_callback();
+    StartTransaction(factory);
+    MessageLoop::current()->Run();
+    return has_completed();
   }
 
  private:
-  int result_;
-  const DnsTransaction* transaction_;
-  IPAddressList ip_addresses_;
+  std::string hostname_;
+  uint16 qtype_;
+  scoped_ptr<DnsTransaction> transaction_;
+  int expected_answer_count_;
+  bool cancel_in_callback_;
+  bool quit_in_callback_;
 
-  DISALLOW_COPY_AND_ASSIGN(TestDelegate);
+  bool completed_;
 };
 
+class DnsTransactionTest : public testing::Test {
+ public:
+  DnsTransactionTest() : socket_factory_(NULL) {}
 
-TEST(DnsTransactionTest, NormalQueryResponseTest) {
-  MockWrite writes0[] = {
-    MockWrite(true, reinterpret_cast<const char*>(kT0QueryDatagram),
-              arraysize(kT0QueryDatagram))
-  };
+  // Generates |nameservers| for DnsConfig.
+  void ConfigureNumServers(unsigned num_servers) {
+    CHECK_LE(num_servers, 255u);
+    config_.nameservers.clear();
+    IPAddressNumber dns_ip;
+    {
+      bool rv = ParseIPLiteralToNumber("192.128.1.0", &dns_ip);
+      EXPECT_TRUE(rv);
+    }
+    for (unsigned i = 0; i < num_servers; ++i) {
+      dns_ip[3] = i;
+      config_.nameservers.push_back(IPEndPoint(dns_ip,
+                                               dns_protocol::kDefaultPort));
+    }
+  }
 
-  MockRead reads0[] = {
-    MockRead(true, reinterpret_cast<const char*>(kT0ResponseDatagram),
-             arraysize(kT0ResponseDatagram))
-  };
+  // Called after fully configuring |config|.
+  void ConfigureFactory() {
+    socket_factory_ = new TestSocketFactory();
+    session_ = new DnsSession(
+        config_,
+        socket_factory_,
+        base::Bind(&DnsTransactionTest::GetNextId, base::Unretained(this)),
+        NULL /* NetLog */);
+    transaction_factory_ = DnsTransactionFactory::CreateFactory(session_.get());
+  }
 
-  StaticSocketDataProvider data(reads0, arraysize(reads0),
-                                writes0, arraysize(writes0));
-  MockClientSocketFactory factory;
-  factory.AddSocketDataProvider(&data);
+  // Each socket used by a DnsTransaction expects only one write and zero or one
+  // reads.
 
-  TestPrng test_prng(std::deque<int>(1, 0));
-  RandIntCallback rand_int_cb =
-      base::Bind(&TestPrng::GetNext, base::Unretained(&test_prng));
-  std::string t0_dns_name(kT0DnsName, arraysize(kT0DnsName));
+  // Add expected query for |dotted_name| and |qtype| with |id| and response
+  // taken verbatim from |data| of |data_length| bytes. The transaction id in
+  // |data| should equal |id|, unless testing mismatched response.
+  void AddResponse(const std::string& dotted_name,
+                   uint16 qtype,
+                   uint16 id,
+                   const char* data,
+                   size_t data_length) {
+    CHECK(socket_factory_);
+    DnsQuery* query = new DnsQuery(id, DomainFromDot(dotted_name), qtype);
+    queries_.push_back(query);
 
-  IPEndPoint dns_server;
-  bool rv = CreateDnsAddress(kDnsIp, kDnsPort, &dns_server);
-  ASSERT_TRUE(rv);
+    // The response is only used to hold the IOBuffer.
+    DnsResponse* response = new DnsResponse(data, data_length, 0);
+    responses_.push_back(response);
 
-  DnsTransaction t(dns_server, t0_dns_name, kT1Qtype, rand_int_cb, &factory,
-                   BoundNetLog(), NULL);
+    writes_.push_back(MockWrite(true,
+                                query->io_buffer()->data(),
+                                query->io_buffer()->size()));
+    reads_.push_back(MockRead(true,
+                              response->io_buffer()->data(),
+                              data_length));
 
-  TestDelegate delegate;
-  t.SetDelegate(&delegate);
+    transaction_ids_.push_back(id);
+  }
 
-  IPAddressList expected_ip_addresses;
-  rv = ConvertStringsToIPAddressList(kT0IpAddresses,
-                                     arraysize(kT0IpAddresses),
-                                     &expected_ip_addresses);
-  ASSERT_TRUE(rv);
+  // Add expected query of |dotted_name| and |qtype| and no response.
+  void AddTimeout(const char* dotted_name, uint16 qtype) {
+    CHECK(socket_factory_);
+    uint16 id = base::RandInt(0, kuint16max);
+    DnsQuery* query = new DnsQuery(id, DomainFromDot(dotted_name), qtype);
+    queries_.push_back(query);
 
-  int rv0 = t.Start();
-  EXPECT_EQ(ERR_IO_PENDING, rv0);
+    writes_.push_back(MockWrite(true,
+                                query->io_buffer()->data(),
+                                query->io_buffer()->size()));
+    // Empty MockRead indicates no data.
+    reads_.push_back(MockRead());
+    transaction_ids_.push_back(id);
+  }
 
-  MessageLoop::current()->Run();
+  // Add expected query of |dotted_name| and |qtype| and response with no answer
+  // and rcode set to |rcode|.
+  void AddRcode(const char* dotted_name, uint16 qtype, int rcode) {
+    CHECK(socket_factory_);
+    CHECK_NE(dns_protocol::kRcodeNOERROR, rcode);
+    uint16 id = base::RandInt(0, kuint16max);
+    DnsQuery* query = new DnsQuery(id, DomainFromDot(dotted_name), qtype);
+    queries_.push_back(query);
 
-  EXPECT_TRUE(DnsTransaction::Key(t0_dns_name, kT0Qtype) == t.key());
-  EXPECT_EQ(OK, delegate.result());
-  EXPECT_EQ(&t, delegate.transaction());
-  EXPECT_TRUE(expected_ip_addresses == delegate.ip_addresses());
+    DnsResponse* response = new DnsResponse(query->io_buffer()->data(),
+                                            query->io_buffer()->size(),
+                                            0);
+    dns_protocol::Header* header =
+        reinterpret_cast<dns_protocol::Header*>(response->io_buffer()->data());
+    header->flags |= htons(dns_protocol::kFlagResponse | rcode);
+    responses_.push_back(response);
 
-  EXPECT_TRUE(data.at_read_eof());
-  EXPECT_TRUE(data.at_write_eof());
+    writes_.push_back(MockWrite(true,
+                                query->io_buffer()->data(),
+                                query->io_buffer()->size()));
+    reads_.push_back(MockRead(true,
+                              response->io_buffer()->data(),
+                              query->io_buffer()->size()));
+    transaction_ids_.push_back(id);
+  }
+
+  // Call after all Add* calls to prepare data for |socket_factory_|.
+  // This separation is necessary because the |reads_| and |writes_| vectors
+  // could reallocate their data during those calls.
+  void PrepareSockets() {
+    CHECK_EQ(writes_.size(), reads_.size());
+    for (size_t i = 0; i < writes_.size(); ++i) {
+      DelayedSocketData* data;
+      if (reads_[i].data) {
+        data = new DelayedSocketData(1, &reads_[i], 1, &writes_[i], 1);
+      } else {
+        // Timeout.
+        data = new DelayedSocketData(2, NULL, 0, &writes_[i], 1);
+      }
+      socket_data_.push_back(data);
+      socket_factory_->AddSocketDataProvider(data);
+    }
+  }
+
+  // Checks if the sockets were connected in the order matching the indices in
+  // |servers|.
+  void CheckServerOrder(const unsigned* servers, size_t num_attempts) {
+    ASSERT_EQ(num_attempts, socket_factory_->remote_endpoints.size());
+    for (size_t i = 0; i < num_attempts; ++i) {
+      EXPECT_EQ(socket_factory_->remote_endpoints[i],
+                session_->config().nameservers[servers[i]]);
+    }
+  }
+
+  void SetUp() OVERRIDE {
+    // By default set one server,
+    ConfigureNumServers(1);
+    // and no retransmissions,
+    config_.attempts = 1;
+    // but long enough timeout for memory tests.
+    config_.timeout = TestTimeouts::action_timeout();
+    ConfigureFactory();
+  }
+
+  void TearDown() OVERRIDE {
+    // Check that all socket data was at least written to.
+    for (size_t i = 0; i < socket_data_.size(); ++i) {
+      EXPECT_GT(socket_data_[i]->write_index(), 0u);
+    }
+  }
+
+ protected:
+  int GetNextId(int min, int max) {
+    EXPECT_FALSE(transaction_ids_.empty());
+    int id = transaction_ids_.front();
+    transaction_ids_.pop_front();
+    EXPECT_GE(id, min);
+    EXPECT_LE(id, max);
+    return id;
+  }
+
+  DnsConfig config_;
+
+  // Holders for the buffers behind MockRead/MockWrites (they do not own them).
+  ScopedVector<DnsQuery> queries_;
+  ScopedVector<DnsResponse> responses_;
+
+  // Holders for MockRead/MockWrites (SocketDataProvider does not own it).
+  std::vector<MockRead> reads_;
+  std::vector<MockWrite> writes_;
+
+  // Holder for the socket data (MockClientSocketFactory does not own it).
+  ScopedVector<DelayedSocketData> socket_data_;
+
+  std::deque<int> transaction_ids_;
+  // Owned by |session_|.
+  TestSocketFactory* socket_factory_;
+  scoped_refptr<DnsSession> session_;
+  scoped_ptr<DnsTransactionFactory> transaction_factory_;
+};
+
+TEST_F(DnsTransactionTest, Lookup) {
+  AddResponse(kT0HostName,
+              kT0Qtype,
+              0 /* id */,
+              reinterpret_cast<const char*>(kT0ResponseDatagram),
+              arraysize(kT0ResponseDatagram));
+  PrepareSockets();
+
+  TransactionHelper helper0(kT0HostName,
+                            kT0Qtype,
+                            arraysize(kT0IpAddresses) + 1);
+  EXPECT_TRUE(helper0.Run(transaction_factory_.get()));
 }
 
-TEST(DnsTransactionTest, MismatchedQueryResponseTest) {
-  MockWrite writes0[] = {
-    MockWrite(true, reinterpret_cast<const char*>(kT0QueryDatagram),
-              arraysize(kT0QueryDatagram))
-  };
+// Concurrent lookup tests assume that DnsTransaction::Start immediately
+// consumes a socket from ClientSocketFactory.
+TEST_F(DnsTransactionTest, ConcurrentLookup) {
+  AddResponse(kT0HostName,
+              kT0Qtype,
+              0 /* id */,
+              reinterpret_cast<const char*>(kT0ResponseDatagram),
+              arraysize(kT0ResponseDatagram));
+  AddResponse(kT1HostName,
+              kT1Qtype,
+              1 /* id */,
+              reinterpret_cast<const char*>(kT1ResponseDatagram),
+              arraysize(kT1ResponseDatagram));
+  PrepareSockets();
 
-  MockRead reads1[] = {
-    MockRead(true, reinterpret_cast<const char*>(kT1ResponseDatagram),
-             arraysize(kT1ResponseDatagram))
-  };
+  TransactionHelper helper0(kT0HostName,
+                            kT0Qtype,
+                            arraysize(kT0IpAddresses) + 1);
+  helper0.StartTransaction(transaction_factory_.get());
+  TransactionHelper helper1(kT1HostName,
+                            kT1Qtype,
+                            arraysize(kT1IpAddresses) + 1);
+  helper1.StartTransaction(transaction_factory_.get());
 
-  StaticSocketDataProvider data(reads1, arraysize(reads1),
-                                writes0, arraysize(writes0));
-  MockClientSocketFactory factory;
-  factory.AddSocketDataProvider(&data);
+  MessageLoop::current()->RunAllPending();
 
-  TestPrng test_prng(std::deque<int>(1, 0));
-  RandIntCallback rand_int_cb =
-      base::Bind(&TestPrng::GetNext, base::Unretained(&test_prng));
-  std::string t0_dns_name(kT0DnsName, arraysize(kT0DnsName));
-
-  IPEndPoint dns_server;
-  bool rv = CreateDnsAddress(kDnsIp, kDnsPort, &dns_server);
-  ASSERT_TRUE(rv);
-
-  DnsTransaction t(dns_server, t0_dns_name, kT1Qtype, rand_int_cb, &factory,
-                   BoundNetLog(), NULL);
-
-  TestDelegate delegate;
-  t.SetDelegate(&delegate);
-
-  int rv0 = t.Start();
-  EXPECT_EQ(ERR_IO_PENDING, rv0);
-
-  MessageLoop::current()->Run();
-
-  EXPECT_TRUE(DnsTransaction::Key(t0_dns_name, kT0Qtype) == t.key());
-  EXPECT_EQ(ERR_DNS_MALFORMED_RESPONSE, delegate.result());
-  EXPECT_EQ(0u, delegate.ip_addresses().size());
-  EXPECT_EQ(&t, delegate.transaction());
-  EXPECT_TRUE(data.at_read_eof());
-  EXPECT_TRUE(data.at_write_eof());
+  EXPECT_TRUE(helper0.has_completed());
+  EXPECT_TRUE(helper1.has_completed());
 }
 
-// Test that after the first timeout we do a fresh connection and if we get
-// a response on the new connection, we return it.
-TEST(DnsTransactionTest, FirstTimeoutTest) {
-  MockWrite writes0[] = {
-    MockWrite(true, reinterpret_cast<const char*>(kT0QueryDatagram),
-              arraysize(kT0QueryDatagram))
-  };
+TEST_F(DnsTransactionTest, CancelLookup) {
+  AddResponse(kT0HostName,
+              kT0Qtype,
+              0 /* id */,
+              reinterpret_cast<const char*>(kT0ResponseDatagram),
+              arraysize(kT0ResponseDatagram));
+  AddResponse(kT1HostName,
+              kT1Qtype,
+              1 /* id */,
+              reinterpret_cast<const char*>(kT1ResponseDatagram),
+              arraysize(kT1ResponseDatagram));
+  PrepareSockets();
 
-  MockRead reads0[] = {
-    MockRead(true, reinterpret_cast<const char*>(kT0ResponseDatagram),
-             arraysize(kT0ResponseDatagram))
-  };
+  TransactionHelper helper0(kT0HostName,
+                            kT0Qtype,
+                            arraysize(kT0IpAddresses) + 1);
+  helper0.StartTransaction(transaction_factory_.get());
+  TransactionHelper helper1(kT1HostName,
+                            kT1Qtype,
+                            arraysize(kT1IpAddresses) + 1);
+  helper1.StartTransaction(transaction_factory_.get());
 
-  scoped_refptr<DelayedSocketData> socket0_data(
-      new DelayedSocketData(2, NULL, 0, writes0, arraysize(writes0)));
-  scoped_refptr<DelayedSocketData> socket1_data(
-      new DelayedSocketData(0, reads0, arraysize(reads0),
-                            writes0, arraysize(writes0)));
-  MockClientSocketFactory factory;
-  factory.AddSocketDataProvider(socket0_data.get());
-  factory.AddSocketDataProvider(socket1_data.get());
+  helper0.Cancel();
 
-  TestPrng test_prng(std::deque<int>(2, 0));
-  RandIntCallback rand_int_cb =
-      base::Bind(&TestPrng::GetNext, base::Unretained(&test_prng));
-  std::string t0_dns_name(kT0DnsName, arraysize(kT0DnsName));
+  MessageLoop::current()->RunAllPending();
 
-  IPEndPoint dns_server;
-  bool rv = CreateDnsAddress(kDnsIp, kDnsPort, &dns_server);
-  ASSERT_TRUE(rv);
-
-  DnsTransaction t(dns_server, t0_dns_name, kT1Qtype, rand_int_cb, &factory,
-                   BoundNetLog(), NULL);
-
-  TestDelegate delegate;
-  t.SetDelegate(&delegate);
-
-  t.set_timeouts_ms(
-      std::vector<base::TimeDelta>(kTimeoutsMs,
-                                   kTimeoutsMs + arraysize(kTimeoutsMs)));
-
-  IPAddressList expected_ip_addresses;
-  rv = ConvertStringsToIPAddressList(kT0IpAddresses,
-                                     arraysize(kT0IpAddresses),
-                                     &expected_ip_addresses);
-  ASSERT_TRUE(rv);
-
-  int rv0 = t.Start();
-  EXPECT_EQ(ERR_IO_PENDING, rv0);
-
-
-  MessageLoop::current()->Run();
-
-  EXPECT_TRUE(DnsTransaction::Key(t0_dns_name, kT0Qtype) == t.key());
-  EXPECT_EQ(OK, delegate.result());
-  EXPECT_EQ(&t, delegate.transaction());
-  EXPECT_TRUE(expected_ip_addresses == delegate.ip_addresses());
-
-  EXPECT_TRUE(socket0_data->at_read_eof());
-  EXPECT_TRUE(socket0_data->at_write_eof());
-  EXPECT_TRUE(socket1_data->at_read_eof());
-  EXPECT_TRUE(socket1_data->at_write_eof());
-  EXPECT_EQ(2u, factory.udp_client_sockets().size());
+  EXPECT_FALSE(helper0.has_completed());
+  EXPECT_TRUE(helper1.has_completed());
 }
 
-// Test that after the first timeout we do a fresh connection, and after
-// the second timeout we do another fresh connection, and if we get a
-// response on the second connection, we return it.
-TEST(DnsTransactionTest, SecondTimeoutTest) {
-  MockWrite writes0[] = {
-    MockWrite(true, reinterpret_cast<const char*>(kT0QueryDatagram),
-              arraysize(kT0QueryDatagram))
-  };
+TEST_F(DnsTransactionTest, DestroyFactory) {
+  AddResponse(kT0HostName,
+              kT0Qtype,
+              0 /* id */,
+              reinterpret_cast<const char*>(kT0ResponseDatagram),
+              arraysize(kT0ResponseDatagram));
+  PrepareSockets();
 
-  MockRead reads0[] = {
-    MockRead(true, reinterpret_cast<const char*>(kT0ResponseDatagram),
-             arraysize(kT0ResponseDatagram))
-  };
+  TransactionHelper helper0(kT0HostName,
+                            kT0Qtype,
+                            arraysize(kT0IpAddresses) + 1);
+  helper0.StartTransaction(transaction_factory_.get());
 
-  scoped_refptr<DelayedSocketData> socket0_data(
-      new DelayedSocketData(2, NULL, 0, writes0, arraysize(writes0)));
-  scoped_refptr<DelayedSocketData> socket1_data(
-      new DelayedSocketData(2, NULL, 0, writes0, arraysize(writes0)));
-  scoped_refptr<DelayedSocketData> socket2_data(
-      new DelayedSocketData(0, reads0, arraysize(reads0),
-                            writes0, arraysize(writes0)));
-  MockClientSocketFactory factory;
-  factory.AddSocketDataProvider(socket0_data.get());
-  factory.AddSocketDataProvider(socket1_data.get());
-  factory.AddSocketDataProvider(socket2_data.get());
+  // Destroying the client does not affect running requests.
+  transaction_factory_.reset(NULL);
 
-  TestPrng test_prng(std::deque<int>(3, 0));
-  RandIntCallback rand_int_cb =
-      base::Bind(&TestPrng::GetNext, base::Unretained(&test_prng));
-  std::string t0_dns_name(kT0DnsName, arraysize(kT0DnsName));
+  MessageLoop::current()->RunAllPending();
 
-  IPEndPoint dns_server;
-  bool rv = CreateDnsAddress(kDnsIp, kDnsPort, &dns_server);
-  ASSERT_TRUE(rv);
-
-  DnsTransaction t(dns_server, t0_dns_name, kT1Qtype, rand_int_cb, &factory,
-                   BoundNetLog(), NULL);
-
-  TestDelegate delegate;
-  t.SetDelegate(&delegate);
-
-  t.set_timeouts_ms(
-      std::vector<base::TimeDelta>(kTimeoutsMs,
-                                   kTimeoutsMs + arraysize(kTimeoutsMs)));
-
-  IPAddressList expected_ip_addresses;
-  rv = ConvertStringsToIPAddressList(kT0IpAddresses,
-                                     arraysize(kT0IpAddresses),
-                                     &expected_ip_addresses);
-  ASSERT_TRUE(rv);
-
-  int rv0 = t.Start();
-  EXPECT_EQ(ERR_IO_PENDING, rv0);
-
-  MessageLoop::current()->Run();
-
-  EXPECT_TRUE(DnsTransaction::Key(t0_dns_name, kT1Qtype) == t.key());
-  EXPECT_EQ(OK, delegate.result());
-  EXPECT_EQ(&t, delegate.transaction());
-  EXPECT_TRUE(expected_ip_addresses == delegate.ip_addresses());
-
-  EXPECT_TRUE(socket0_data->at_read_eof());
-  EXPECT_TRUE(socket0_data->at_write_eof());
-  EXPECT_TRUE(socket1_data->at_read_eof());
-  EXPECT_TRUE(socket1_data->at_write_eof());
-  EXPECT_TRUE(socket2_data->at_read_eof());
-  EXPECT_TRUE(socket2_data->at_write_eof());
-  EXPECT_EQ(3u, factory.udp_client_sockets().size());
+  EXPECT_TRUE(helper0.has_completed());
 }
 
-// Test that after the first timeout we do a fresh connection, and after
-// the second timeout we do another fresh connection and after the third
-// timeout we give up and return a timeout error.
-TEST(DnsTransactionTest, ThirdTimeoutTest) {
-  MockWrite writes0[] = {
-    MockWrite(true, reinterpret_cast<const char*>(kT0QueryDatagram),
-              arraysize(kT0QueryDatagram))
-  };
+TEST_F(DnsTransactionTest, CancelFromCallback) {
+  AddResponse(kT0HostName,
+              kT0Qtype,
+              0 /* id */,
+              reinterpret_cast<const char*>(kT0ResponseDatagram),
+              arraysize(kT0ResponseDatagram));
+  PrepareSockets();
 
-  scoped_refptr<DelayedSocketData> socket0_data(
-      new DelayedSocketData(2, NULL, 0, writes0, arraysize(writes0)));
-  scoped_refptr<DelayedSocketData> socket1_data(
-      new DelayedSocketData(2, NULL, 0, writes0, arraysize(writes0)));
-  scoped_refptr<DelayedSocketData> socket2_data(
-      new DelayedSocketData(2, NULL, 0, writes0, arraysize(writes0)));
-  MockClientSocketFactory factory;
-  factory.AddSocketDataProvider(socket0_data.get());
-  factory.AddSocketDataProvider(socket1_data.get());
-  factory.AddSocketDataProvider(socket2_data.get());
-
-  TestPrng test_prng(std::deque<int>(3, 0));
-  RandIntCallback rand_int_cb =
-      base::Bind(&TestPrng::GetNext, base::Unretained(&test_prng));
-  std::string t0_dns_name(kT0DnsName, arraysize(kT0DnsName));
-
-  IPEndPoint dns_server;
-  bool rv = CreateDnsAddress(kDnsIp, kDnsPort, &dns_server);
-  ASSERT_TRUE(rv);
-
-  DnsTransaction t(dns_server, t0_dns_name, kT1Qtype, rand_int_cb, &factory,
-                   BoundNetLog(), NULL);
-
-  TestDelegate delegate;
-  t.SetDelegate(&delegate);
-
-  t.set_timeouts_ms(
-      std::vector<base::TimeDelta>(kTimeoutsMs,
-                                   kTimeoutsMs + arraysize(kTimeoutsMs)));
-
-  int rv0 = t.Start();
-  EXPECT_EQ(ERR_IO_PENDING, rv0);
-
-  MessageLoop::current()->Run();
-
-  EXPECT_TRUE(DnsTransaction::Key(t0_dns_name, kT0Qtype) == t.key());
-  EXPECT_EQ(ERR_DNS_TIMED_OUT, delegate.result());
-  EXPECT_EQ(&t, delegate.transaction());
-
-  EXPECT_TRUE(socket0_data->at_read_eof());
-  EXPECT_TRUE(socket0_data->at_write_eof());
-  EXPECT_TRUE(socket1_data->at_read_eof());
-  EXPECT_TRUE(socket1_data->at_write_eof());
-  EXPECT_TRUE(socket2_data->at_read_eof());
-  EXPECT_TRUE(socket2_data->at_write_eof());
-  EXPECT_EQ(3u, factory.udp_client_sockets().size());
+  TransactionHelper helper0(kT0HostName,
+                            kT0Qtype,
+                            arraysize(kT0IpAddresses) + 1);
+  helper0.set_cancel_in_callback();
+  EXPECT_TRUE(helper0.Run(transaction_factory_.get()));
 }
+
+TEST_F(DnsTransactionTest, ServerFail) {
+  AddRcode(kT0HostName, kT0Qtype, dns_protocol::kRcodeSERVFAIL);
+  PrepareSockets();
+
+  TransactionHelper helper0(kT0HostName,
+                            kT0Qtype,
+                            ERR_DNS_SERVER_FAILED);
+  EXPECT_TRUE(helper0.Run(transaction_factory_.get()));
+}
+
+TEST_F(DnsTransactionTest, NoDomain) {
+  AddRcode(kT0HostName, kT0Qtype, dns_protocol::kRcodeNXDOMAIN);
+  PrepareSockets();
+
+  TransactionHelper helper0(kT0HostName,
+                            kT0Qtype,
+                            ERR_NAME_NOT_RESOLVED);
+  EXPECT_TRUE(helper0.Run(transaction_factory_.get()));
+}
+
+TEST_F(DnsTransactionTest, Timeout) {
+  config_.attempts = 3;
+  // Use short timeout to speed up the test.
+  config_.timeout = base::TimeDelta::FromMilliseconds(
+      TestTimeouts::tiny_timeout_ms());
+  ConfigureFactory();
+
+  AddTimeout(kT0HostName, kT0Qtype);
+  AddTimeout(kT0HostName, kT0Qtype);
+  AddTimeout(kT0HostName, kT0Qtype);
+  PrepareSockets();
+
+  TransactionHelper helper0(kT0HostName,
+                            kT0Qtype,
+                            ERR_DNS_TIMED_OUT);
+  EXPECT_TRUE(helper0.RunUntilDone(transaction_factory_.get()));
+  MessageLoop::current()->AssertIdle();
+}
+
+TEST_F(DnsTransactionTest, ServerFallbackAndRotate) {
+  // Test that we fallback on both server failure and timeout.
+  config_.attempts = 2;
+  // The next request should start from the next server.
+  config_.rotate = true;
+  ConfigureNumServers(3);
+  // Use short timeout to speed up the test.
+  config_.timeout = base::TimeDelta::FromMilliseconds(
+      TestTimeouts::tiny_timeout_ms());
+  ConfigureFactory();
+
+  // Responses for first request.
+  AddTimeout(kT0HostName, kT0Qtype);
+  AddRcode(kT0HostName, kT0Qtype, dns_protocol::kRcodeSERVFAIL);
+  AddTimeout(kT0HostName, kT0Qtype);
+  AddRcode(kT0HostName, kT0Qtype, dns_protocol::kRcodeSERVFAIL);
+  AddRcode(kT0HostName, kT0Qtype, dns_protocol::kRcodeNXDOMAIN);
+  // Responses for second request.
+  AddRcode(kT1HostName, kT1Qtype, dns_protocol::kRcodeSERVFAIL);
+  AddRcode(kT1HostName, kT1Qtype, dns_protocol::kRcodeNXDOMAIN);
+  PrepareSockets();
+
+  TransactionHelper helper0(kT0HostName,
+                            kT0Qtype,
+                            ERR_NAME_NOT_RESOLVED);
+  TransactionHelper helper1(kT1HostName,
+                            kT1Qtype,
+                            ERR_NAME_NOT_RESOLVED);
+
+  EXPECT_TRUE(helper0.RunUntilDone(transaction_factory_.get()));
+  EXPECT_TRUE(helper1.Run(transaction_factory_.get()));
+
+  unsigned kOrder[] = {
+      0, 1, 2, 0, 1,    // The first transaction.
+      1, 2,             // The second transaction starts from the next server.
+  };
+  CheckServerOrder(kOrder, arraysize(kOrder));
+}
+
+TEST_F(DnsTransactionTest, SuffixSearchAboveNdots) {
+  config_.ndots = 2;
+  config_.search.push_back("a");
+  config_.search.push_back("b");
+  config_.search.push_back("c");
+  config_.rotate = true;
+  ConfigureNumServers(2);
+  ConfigureFactory();
+
+  AddRcode("x.y.z", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddRcode("x.y.z.a", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddRcode("x.y.z.b", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddRcode("x.y.z.c", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  PrepareSockets();
+
+  TransactionHelper helper0("x.y.z",
+                            dns_protocol::kTypeA,
+                            ERR_NAME_NOT_RESOLVED);
+
+  EXPECT_TRUE(helper0.Run(transaction_factory_.get()));
+
+  // Also check if suffix search causes server rotation.
+  unsigned kOrder0[] = { 0, 1, 0, 1 };
+  CheckServerOrder(kOrder0, arraysize(kOrder0));
+}
+
+TEST_F(DnsTransactionTest, SuffixSearchBelowNdots) {
+  config_.ndots = 2;
+  config_.search.push_back("a");
+  config_.search.push_back("b");
+  config_.search.push_back("c");
+  ConfigureFactory();
+
+  // Responses for first transaction.
+  AddRcode("x.y.a", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddRcode("x.y.b", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddRcode("x.y.c", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddRcode("x.y", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  // Responses for second transaction.
+  AddRcode("x.a", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddRcode("x.b", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddRcode("x.c", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  // Responses for third transaction.
+  AddRcode("x", dns_protocol::kTypeAAAA, dns_protocol::kRcodeNXDOMAIN);
+  PrepareSockets();
+
+  TransactionHelper helper0("x.y",
+                            dns_protocol::kTypeA,
+                            ERR_NAME_NOT_RESOLVED);
+
+  EXPECT_TRUE(helper0.Run(transaction_factory_.get()));
+
+  // A single-label name.
+  TransactionHelper helper1("x",
+                            dns_protocol::kTypeA,
+                            ERR_NAME_NOT_RESOLVED);
+
+  EXPECT_TRUE(helper1.Run(transaction_factory_.get()));
+
+  // A fully-qualified name.
+  TransactionHelper helper2("x.",
+                            dns_protocol::kTypeAAAA,
+                            ERR_NAME_NOT_RESOLVED);
+
+  EXPECT_TRUE(helper2.Run(transaction_factory_.get()));
+}
+
+TEST_F(DnsTransactionTest, EmptySuffixSearch) {
+  ConfigureFactory();
+
+  // Responses for first transaction.
+  AddRcode("x", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  PrepareSockets();
+
+  // A fully-qualified name.
+  TransactionHelper helper0("x.",
+                            dns_protocol::kTypeA,
+                            ERR_NAME_NOT_RESOLVED);
+
+  EXPECT_TRUE(helper0.Run(transaction_factory_.get()));
+
+  // A single label name is not even attempted.
+  TransactionHelper helper1("singlelabel",
+                            dns_protocol::kTypeA,
+                            ERR_NAME_NOT_RESOLVED);
+
+  helper1.StartTransaction(transaction_factory_.get());
+  EXPECT_TRUE(helper1.has_completed());
+}
+
+TEST_F(DnsTransactionTest, DontAppendToMultiLabelName) {
+  config_.search.push_back("a");
+  config_.search.push_back("b");
+  config_.search.push_back("c");
+  config_.append_to_multi_label_name = false;
+  ConfigureFactory();
+
+  // Responses for first transaction.
+  AddRcode("x.y.z", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  // Responses for second transaction.
+  AddRcode("x.y", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  // Responses for third transaction.
+  AddRcode("x.a", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddRcode("x.b", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  AddRcode("x.c", dns_protocol::kTypeA, dns_protocol::kRcodeNXDOMAIN);
+  PrepareSockets();
+
+  TransactionHelper helper0("x.y.z",
+                            dns_protocol::kTypeA,
+                            ERR_NAME_NOT_RESOLVED);
+  EXPECT_TRUE(helper0.Run(transaction_factory_.get()));
+
+  TransactionHelper helper1("x.y",
+                            dns_protocol::kTypeA,
+                            ERR_NAME_NOT_RESOLVED);
+  EXPECT_TRUE(helper1.Run(transaction_factory_.get()));
+
+  TransactionHelper helper2("x",
+                            dns_protocol::kTypeA,
+                            ERR_NAME_NOT_RESOLVED);
+  EXPECT_TRUE(helper2.Run(transaction_factory_.get()));
+}
+
+}  // namespace
 
 }  // namespace net
+

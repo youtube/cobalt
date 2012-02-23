@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,8 +25,6 @@ namespace net {
 class CertVerifier;
 class ClientSocketFactory;
 class ConnectJobFactory;
-class DnsCertProvenanceChecker;
-class DnsRRResolver;
 class HostPortPair;
 class HttpProxyClientSocketPool;
 class HttpProxySocketParams;
@@ -34,13 +32,14 @@ class SOCKSClientSocketPool;
 class SOCKSSocketParams;
 class SSLClientSocket;
 class SSLHostInfoFactory;
-class TransportSocketParams;
 class TransportClientSocketPool;
-struct RRResponse;
+class TransportSecurityState;
+class TransportSocketParams;
 
 // SSLSocketParams only needs the socket params for the transport socket
 // that will be used (denoted by |proxy|).
-class NET_TEST SSLSocketParams : public base::RefCounted<SSLSocketParams> {
+class NET_EXPORT_PRIVATE SSLSocketParams
+    : public base::RefCounted<SSLSocketParams> {
  public:
   SSLSocketParams(const scoped_refptr<TransportSocketParams>& transport_params,
                   const scoped_refptr<SOCKSSocketParams>& socks_params,
@@ -106,9 +105,9 @@ class SSLConnectJob : public ConnectJob {
   virtual ~SSLConnectJob();
 
   // ConnectJob methods.
-  virtual LoadState GetLoadState() const;
+  virtual LoadState GetLoadState() const OVERRIDE;
 
-  virtual void GetAdditionalErrorState(ClientSocketHandle * handle);
+  virtual void GetAdditionalErrorState(ClientSocketHandle * handle) OVERRIDE;
 
  private:
   enum State {
@@ -140,7 +139,7 @@ class SSLConnectJob : public ConnectJob {
   // Starts the SSL connection process.  Returns OK on success and
   // ERR_IO_PENDING if it cannot immediately service the request.
   // Otherwise, it returns a net error code.
-  virtual int ConnectInternal();
+  virtual int ConnectInternal() OVERRIDE;
 
   scoped_refptr<SSLSocketParams> params_;
   TransportClientSocketPool* const transport_pool_;
@@ -152,7 +151,7 @@ class SSLConnectJob : public ConnectJob {
   const SSLClientSocketContext context_;
 
   State next_state_;
-  CompletionCallbackImpl<SSLConnectJob> callback_;
+  CompletionCallback callback_;
   scoped_ptr<ClientSocketHandle> transport_socket_handle_;
   scoped_ptr<SSLClientSocket> ssl_socket_;
   scoped_ptr<SSLHostInfo> ssl_host_info_;
@@ -165,8 +164,9 @@ class SSLConnectJob : public ConnectJob {
   DISALLOW_COPY_AND_ASSIGN(SSLConnectJob);
 };
 
-class NET_TEST SSLClientSocketPool : public ClientSocketPool,
-                                     public SSLConfigService::Observer {
+class NET_EXPORT_PRIVATE SSLClientSocketPool
+    : public ClientSocketPool,
+      public SSLConfigService::Observer {
  public:
   // Only the pools that will be used are required. i.e. if you never
   // try to create an SSL over SOCKS socket, |socks_pool| may be NULL.
@@ -177,9 +177,9 @@ class NET_TEST SSLClientSocketPool : public ClientSocketPool,
       HostResolver* host_resolver,
       CertVerifier* cert_verifier,
       OriginBoundCertService* origin_bound_cert_service,
-      DnsRRResolver* dnsrr_resolver,
-      DnsCertProvenanceChecker* dns_cert_checker,
+      TransportSecurityState* transport_security_state,
       SSLHostInfoFactory* ssl_host_info_factory,
+      const std::string& ssl_session_cache_shard,
       ClientSocketFactory* client_socket_factory,
       TransportClientSocketPool* transport_pool,
       SOCKSClientSocketPool* socks_pool,
@@ -189,54 +189,56 @@ class NET_TEST SSLClientSocketPool : public ClientSocketPool,
 
   virtual ~SSLClientSocketPool();
 
-  // ClientSocketPool methods:
+  // ClientSocketPool implementation.
   virtual int RequestSocket(const std::string& group_name,
                             const void* connect_params,
                             RequestPriority priority,
                             ClientSocketHandle* handle,
-                            CompletionCallback* callback,
-                            const BoundNetLog& net_log);
+                            const CompletionCallback& callback,
+                            const BoundNetLog& net_log) OVERRIDE;
 
   virtual void RequestSockets(const std::string& group_name,
                               const void* params,
                               int num_sockets,
-                              const BoundNetLog& net_log);
+                              const BoundNetLog& net_log) OVERRIDE;
 
   virtual void CancelRequest(const std::string& group_name,
-                             ClientSocketHandle* handle);
+                             ClientSocketHandle* handle) OVERRIDE;
 
   virtual void ReleaseSocket(const std::string& group_name,
                              StreamSocket* socket,
-                             int id);
+                             int id) OVERRIDE;
 
-  virtual void Flush();
+  virtual void Flush() OVERRIDE;
 
-  virtual void CloseIdleSockets();
+  virtual void CloseIdleSockets() OVERRIDE;
 
-  virtual int IdleSocketCount() const;
+  virtual int IdleSocketCount() const OVERRIDE;
 
-  virtual int IdleSocketCountInGroup(const std::string& group_name) const;
+  virtual int IdleSocketCountInGroup(
+      const std::string& group_name) const OVERRIDE;
 
-  virtual LoadState GetLoadState(const std::string& group_name,
-                                 const ClientSocketHandle* handle) const;
+  virtual LoadState GetLoadState(
+      const std::string& group_name,
+      const ClientSocketHandle* handle) const OVERRIDE;
 
   virtual base::DictionaryValue* GetInfoAsValue(
       const std::string& name,
       const std::string& type,
-      bool include_nested_pools) const;
+      bool include_nested_pools) const OVERRIDE;
 
-  virtual base::TimeDelta ConnectionTimeout() const;
+  virtual base::TimeDelta ConnectionTimeout() const OVERRIDE;
 
-  virtual ClientSocketPoolHistograms* histograms() const;
+  virtual ClientSocketPoolHistograms* histograms() const OVERRIDE;
 
  private:
   typedef ClientSocketPoolBase<SSLSocketParams> PoolBase;
 
-  // SSLConfigService::Observer methods:
+  // SSLConfigService::Observer implementation.
 
   // When the user changes the SSL config, we flush all idle sockets so they
   // won't get re-used.
-  virtual void OnSSLConfigChanged();
+  virtual void OnSSLConfigChanged() OVERRIDE;
 
   class SSLConnectJobFactory : public PoolBase::ConnectJobFactory {
    public:
@@ -255,9 +257,11 @@ class NET_TEST SSLClientSocketPool : public ClientSocketPool,
     virtual ConnectJob* NewConnectJob(
         const std::string& group_name,
         const PoolBase::Request& request,
-        ConnectJob::Delegate* delegate) const;
+        ConnectJob::Delegate* delegate) const OVERRIDE;
 
-    virtual base::TimeDelta ConnectionTimeout() const { return timeout_; }
+    virtual base::TimeDelta ConnectionTimeout() const OVERRIDE {
+      return timeout_;
+    }
 
    private:
     TransportClientSocketPool* const transport_pool_;

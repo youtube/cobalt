@@ -7,9 +7,11 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <SystemConfiguration/SystemConfiguration.h>
 
+#include "base/bind.h"
 #include "base/logging.h"
-#include "base/mac/mac_util.h"
+#include "base/mac/foundation_util.h"
 #include "base/mac/scoped_cftyperef.h"
+#include "base/message_loop.h"
 #include "base/sys_string_conversions.h"
 #include "net/base/net_errors.h"
 #include "net/proxy/proxy_config.h"
@@ -27,8 +29,8 @@ const int kPollIntervalSec = 5;
 bool GetBoolFromDictionary(CFDictionaryRef dict,
                            CFStringRef key,
                            bool default_value) {
-  CFNumberRef number = (CFNumberRef)base::mac::GetValueFromDictionary(
-      dict, key, CFNumberGetTypeID());
+  CFNumberRef number = base::mac::GetValueFromDictionary<CFNumberRef>(dict,
+                                                                      key);
   if (!number)
     return default_value;
 
@@ -59,10 +61,8 @@ void GetCurrentProxyConfig(ProxyConfig* config) {
   if (GetBoolFromDictionary(config_dict.get(),
                             kSCPropNetProxiesProxyAutoConfigEnable,
                             false)) {
-    CFStringRef pac_url_ref = (CFStringRef)base::mac::GetValueFromDictionary(
-        config_dict.get(),
-        kSCPropNetProxiesProxyAutoConfigURLString,
-        CFStringGetTypeID());
+    CFStringRef pac_url_ref = base::mac::GetValueFromDictionary<CFStringRef>(
+        config_dict.get(), kSCPropNetProxiesProxyAutoConfigURLString);
     if (pac_url_ref)
       config->set_pac_url(GURL(base::SysCFStringRefToUTF8(pac_url_ref)));
   }
@@ -128,17 +128,14 @@ void GetCurrentProxyConfig(ProxyConfig* config) {
 
   // proxy bypass list
 
-  CFArrayRef bypass_array_ref =
-      (CFArrayRef)base::mac::GetValueFromDictionary(
-          config_dict.get(),
-          kSCPropNetProxiesExceptionsList,
-          CFArrayGetTypeID());
+  CFArrayRef bypass_array_ref = base::mac::GetValueFromDictionary<CFArrayRef>(
+      config_dict.get(), kSCPropNetProxiesExceptionsList);
   if (bypass_array_ref) {
     CFIndex bypass_array_count = CFArrayGetCount(bypass_array_ref);
     for (CFIndex i = 0; i < bypass_array_count; ++i) {
-      CFStringRef bypass_item_ref =
-          (CFStringRef)CFArrayGetValueAtIndex(bypass_array_ref, i);
-      if (CFGetTypeID(bypass_item_ref) != CFStringGetTypeID()) {
+      CFStringRef bypass_item_ref = base::mac::CFCast<CFStringRef>(
+          CFArrayGetValueAtIndex(bypass_array_ref, i));
+      if (!bypass_item_ref) {
         LOG(WARNING) << "Expected value for item " << i
                      << " in the kSCPropNetProxiesExceptionsList"
                         " to be a CFStringRef but it was not";
@@ -187,17 +184,19 @@ class ProxyConfigServiceMac::Helper
 
 ProxyConfigServiceMac::ProxyConfigServiceMac(MessageLoop* io_loop)
     : forwarder_(this),
-      config_watcher_(&forwarder_),
       has_fetched_config_(false),
       helper_(new Helper(this)),
       io_loop_(io_loop) {
   DCHECK(io_loop);
+  config_watcher_.reset(new NetworkConfigWatcherMac(&forwarder_));
 }
 
 ProxyConfigServiceMac::~ProxyConfigServiceMac() {
   DCHECK_EQ(io_loop_, MessageLoop::current());
+  // Delete the config_watcher_ to ensure the notifier thread finishes before
+  // this object is destroyed.
+  config_watcher_.reset();
   helper_->Orphan();
-  io_loop_ = NULL;
 }
 
 void ProxyConfigServiceMac::AddObserver(Observer* observer) {
@@ -250,8 +249,7 @@ void ProxyConfigServiceMac::OnNetworkConfigChange(CFArrayRef changed_keys) {
   // Call OnProxyConfigChanged() on the IO thread to notify our observers.
   io_loop_->PostTask(
       FROM_HERE,
-      NewRunnableMethod(
-          helper_.get(), &Helper::OnProxyConfigChanged, new_config));
+      base::Bind(&Helper::OnProxyConfigChanged, helper_.get(), new_config));
 }
 
 void ProxyConfigServiceMac::OnProxyConfigChanged(

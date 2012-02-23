@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,6 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop.h"
-#include "base/task.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -81,38 +80,6 @@ class Foo : public base::RefCounted<Foo> {
   std::string result_;
 };
 
-// TODO(ajwong): Remove this once we've finished getting rid of the PostTask()
-// compatibility methods.
-void RunTest_PostLegacyTask(MessageLoop::Type message_loop_type) {
-  MessageLoop loop(message_loop_type);
-
-  // Add tests to message loop
-  scoped_refptr<Foo> foo(new Foo());
-  std::string a("a"), b("b"), c("c"), d("d");
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      foo.get(), &Foo::Test0));
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-    foo.get(), &Foo::Test1ConstRef, a));
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      foo.get(), &Foo::Test1Ptr, &b));
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      foo.get(), &Foo::Test1Int, 100));
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      foo.get(), &Foo::Test2Ptr, &a, &c));
-  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-    foo.get(), &Foo::Test2Mixed, a, &d));
-
-  // After all tests, post a message that will shut down the message loop
-  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
-      &MessageLoop::Quit, base::Unretained(MessageLoop::current())));
-
-  // Now kick things off
-  MessageLoop::current()->Run();
-
-  EXPECT_EQ(foo->test_count(), 105);
-  EXPECT_EQ(foo->result(), "abacad");
-}
-
 void RunTest_PostTask(MessageLoop::Type message_loop_type) {
   MessageLoop loop(message_loop_type);
 
@@ -176,8 +143,8 @@ void RunTest_PostTask_SEH(MessageLoop::Type message_loop_type) {
 }
 
 // This function runs slowly to simulate a large amount of work being done.
-static void SlowFunc(int pause_ms, int* quit_counter) {
-    PlatformThread::Sleep(pause_ms);
+static void SlowFunc(TimeDelta pause, int* quit_counter) {
+    PlatformThread::Sleep(pause);
     if (--(*quit_counter) == 0)
       MessageLoop::current()->Quit();
 }
@@ -190,7 +157,7 @@ static void RecordRunTimeFunc(Time* run_time, int* quit_counter) {
     // Cause our Run function to take some time to execute.  As a result we can
     // count on subsequent RecordRunTimeFunc()s running at a future time,
     // without worry about the resolution of our system clock being an issue.
-  SlowFunc(10, quit_counter);
+  SlowFunc(TimeDelta::FromMilliseconds(10), quit_counter);
 }
 
 void RunTest_PostDelayedTask_Basic(MessageLoop::Type message_loop_type) {
@@ -198,21 +165,21 @@ void RunTest_PostDelayedTask_Basic(MessageLoop::Type message_loop_type) {
 
   // Test that PostDelayedTask results in a delayed task.
 
-  const int kDelayMS = 100;
+  const TimeDelta kDelay = TimeDelta::FromMilliseconds(100);
 
   int num_tasks = 1;
   Time run_time;
 
   loop.PostDelayedTask(
       FROM_HERE, base::Bind(&RecordRunTimeFunc, &run_time, &num_tasks),
-      kDelayMS);
+      kDelay);
 
   Time time_before_run = Time::Now();
   loop.Run();
   Time time_after_run = Time::Now();
 
   EXPECT_EQ(0, num_tasks);
-  EXPECT_LT(kDelayMS, (time_after_run - time_before_run).InMilliseconds());
+  EXPECT_LT(kDelay, time_after_run - time_before_run);
 }
 
 void RunTest_PostDelayedTask_InDelayOrder(
@@ -224,11 +191,15 @@ void RunTest_PostDelayedTask_InDelayOrder(
   Time run_time1, run_time2;
 
   loop.PostDelayedTask(
-      FROM_HERE, base::Bind(&RecordRunTimeFunc, &run_time1, &num_tasks), 200);
+      FROM_HERE,
+      base::Bind(&RecordRunTimeFunc, &run_time1, &num_tasks),
+      TimeDelta::FromMilliseconds(200));
   // If we get a large pause in execution (due to a context switch) here, this
   // test could fail.
   loop.PostDelayedTask(
-      FROM_HERE, base::Bind(&RecordRunTimeFunc, &run_time2, &num_tasks), 10);
+      FROM_HERE,
+      base::Bind(&RecordRunTimeFunc, &run_time2, &num_tasks),
+      TimeDelta::FromMilliseconds(10));
 
   loop.Run();
   EXPECT_EQ(0, num_tasks);
@@ -248,17 +219,17 @@ void RunTest_PostDelayedTask_InPostOrder(
   // posted at the exact same time.  It would be nice if the API allowed us to
   // specify the desired run time.
 
-  const int kDelayMS = 100;
+  const TimeDelta kDelay = TimeDelta::FromMilliseconds(100);
 
   int num_tasks = 2;
   Time run_time1, run_time2;
 
   loop.PostDelayedTask(
       FROM_HERE,
-      base::Bind(&RecordRunTimeFunc, &run_time1, &num_tasks), kDelayMS);
+      base::Bind(&RecordRunTimeFunc, &run_time1, &num_tasks), kDelay);
   loop.PostDelayedTask(
       FROM_HERE,
-      base::Bind(&RecordRunTimeFunc, &run_time2, &num_tasks), kDelayMS);
+      base::Bind(&RecordRunTimeFunc, &run_time2, &num_tasks), kDelay);
 
   loop.Run();
   EXPECT_EQ(0, num_tasks);
@@ -273,14 +244,16 @@ void RunTest_PostDelayedTask_InPostOrder_2(
   // Test that a delayed task still runs after a normal tasks even if the
   // normal tasks take a long time to run.
 
-  const int kPauseMS = 50;
+  const TimeDelta kPause = TimeDelta::FromMilliseconds(50);
 
   int num_tasks = 2;
   Time run_time;
 
-  loop.PostTask(FROM_HERE, base::Bind(&SlowFunc, kPauseMS, &num_tasks));
+  loop.PostTask(FROM_HERE, base::Bind(&SlowFunc, kPause, &num_tasks));
   loop.PostDelayedTask(
-      FROM_HERE, base::Bind(&RecordRunTimeFunc, &run_time, &num_tasks), 10);
+      FROM_HERE,
+      base::Bind(&RecordRunTimeFunc, &run_time, &num_tasks),
+      TimeDelta::FromMilliseconds(10));
 
   Time time_before_run = Time::Now();
   loop.Run();
@@ -288,7 +261,7 @@ void RunTest_PostDelayedTask_InPostOrder_2(
 
   EXPECT_EQ(0, num_tasks);
 
-  EXPECT_LT(kPauseMS, (time_after_run - time_before_run).InMilliseconds());
+  EXPECT_LT(kPause, time_after_run - time_before_run);
 }
 
 void RunTest_PostDelayedTask_InPostOrder_3(
@@ -310,7 +283,8 @@ void RunTest_PostDelayedTask_InPostOrder_3(
                   base::Bind(&RecordRunTimeFunc, &run_time1, &num_tasks));
 
   loop.PostDelayedTask(
-      FROM_HERE, base::Bind(&RecordRunTimeFunc, &run_time2, &num_tasks), 1);
+      FROM_HERE, base::Bind(&RecordRunTimeFunc, &run_time2, &num_tasks),
+      TimeDelta::FromMilliseconds(1));
 
   loop.Run();
   EXPECT_EQ(0, num_tasks);
@@ -333,9 +307,11 @@ void RunTest_PostDelayedTask_SharedTimer(
   loop.PostDelayedTask(
       FROM_HERE,
       base::Bind(&RecordRunTimeFunc, &run_time1, &num_tasks),
-      1000000);
+      TimeDelta::FromSeconds(1000));
   loop.PostDelayedTask(
-      FROM_HERE, base::Bind(&RecordRunTimeFunc, &run_time2, &num_tasks), 10);
+      FROM_HERE,
+      base::Bind(&RecordRunTimeFunc, &run_time2, &num_tasks),
+      TimeDelta::FromMilliseconds(10));
 
   Time start_time = Time::Now();
 
@@ -349,7 +325,7 @@ void RunTest_PostDelayedTask_SharedTimer(
   // In case both timers somehow run at nearly the same time, sleep a little
   // and then run all pending to force them both to have run.  This is just
   // encouraging flakiness if there is any.
-  PlatformThread::Sleep(100);
+  PlatformThread::Sleep(TimeDelta::FromMilliseconds(100));
   loop.RunAllPending();
 
   EXPECT_TRUE(run_time1.is_null());
@@ -385,10 +361,13 @@ void RunTest_PostDelayedTask_SharedTimer_SubPump() {
   loop.PostDelayedTask(
       FROM_HERE,
       base::Bind(&RecordRunTimeFunc, &run_time, &num_tasks),
-      1000000);
+      TimeDelta::FromSeconds(1000));
 
   // This slightly delayed task should run from within SubPumpFunc).
-  loop.PostDelayedTask(FROM_HERE, base::Bind(&PostQuitMessage, 0), 10);
+  loop.PostDelayedTask(
+      FROM_HERE,
+      base::Bind(&PostQuitMessage, 0),
+      TimeDelta::FromMilliseconds(10));
 
   Time start_time = Time::Now();
 
@@ -402,7 +381,7 @@ void RunTest_PostDelayedTask_SharedTimer_SubPump() {
   // In case both timers somehow run at nearly the same time, sleep a little
   // and then run all pending to force them both to have run.  This is just
   // encouraging flakiness if there is any.
-  PlatformThread::Sleep(100);
+  PlatformThread::Sleep(TimeDelta::FromMilliseconds(100));
   loop.RunAllPending();
 
   EXPECT_TRUE(run_time.is_null());
@@ -439,10 +418,11 @@ void RunTest_EnsureDeletion(MessageLoop::Type message_loop_type) {
     loop.PostTask(
         FROM_HERE, base::Bind(&RecordDeletionProbe::Run,
                               new RecordDeletionProbe(NULL, &a_was_deleted)));
+    // TODO(ajwong): Do we really need 1000ms here?
     loop.PostDelayedTask(
         FROM_HERE, base::Bind(&RecordDeletionProbe::Run,
                               new RecordDeletionProbe(NULL, &b_was_deleted)),
-        1000);  // TODO(ajwong): Do we really need 1000ms here?
+        TimeDelta::FromMilliseconds(1000));
   }
   EXPECT_TRUE(a_was_deleted);
   EXPECT_TRUE(b_was_deleted);
@@ -497,7 +477,7 @@ class Crasher : public base::RefCounted<Crasher> {
   }
 
   void Run() {
-    PlatformThread::Sleep(1);
+    PlatformThread::Sleep(TimeDelta::FromMilliseconds(1));
     if (trash_SEH_handler_)
       ::SetUnhandledExceptionFilter(&BadExceptionHandler);
     // Generate a SEH fault. We do it in asm to make sure we know how to undo
@@ -736,7 +716,7 @@ void RecursiveFunc(TaskList* order, int cookie, int depth,
 void RecursiveSlowFunc(TaskList* order, int cookie, int depth,
                        bool is_reentrant) {
   RecursiveFunc(order, cookie, depth, is_reentrant);
-  PlatformThread::Sleep(10);  // milliseconds
+  PlatformThread::Sleep(TimeDelta::FromMilliseconds(10));
 }
 
 void QuitFunc(TaskList* order, int cookie) {
@@ -745,9 +725,9 @@ void QuitFunc(TaskList* order, int cookie) {
   order->RecordEnd(QUITMESSAGELOOP, cookie);
 }
 
-void SleepFunc(TaskList* order, int cookie, int ms) {
+void SleepFunc(TaskList* order, int cookie, TimeDelta delay) {
   order->RecordStart(SLEEP, cookie);
-  PlatformThread::Sleep(ms);
+  PlatformThread::Sleep(delay);
   order->RecordEnd(SLEEP, cookie);
 }
 
@@ -844,9 +824,13 @@ void RunTest_RecursiveDenial3(MessageLoop::Type message_loop_type) {
   MessageLoop::current()->PostTask(
       FROM_HERE, base::Bind(&RecursiveSlowFunc, &order, 2, 2, false));
   MessageLoop::current()->PostDelayedTask(
-      FROM_HERE, base::Bind(&OrderedFunc, &order, 3), 5);
+      FROM_HERE,
+      base::Bind(&OrderedFunc, &order, 3),
+      TimeDelta::FromMilliseconds(5));
   MessageLoop::current()->PostDelayedTask(
-      FROM_HERE, base::Bind(&QuitFunc, &order, 4), 5);
+      FROM_HERE,
+      base::Bind(&QuitFunc, &order, 4),
+      TimeDelta::FromMilliseconds(5));
 
   MessageLoop::current()->Run();
 
@@ -1001,10 +985,10 @@ void RunTest_RecursiveSupport2(MessageLoop::Type message_loop_type) {
 
 void FuncThatPumps(TaskList* order, int cookie) {
   order->RecordStart(PUMPS, cookie);
-  bool old_state = MessageLoop::current()->NestableTasksAllowed();
-  MessageLoop::current()->SetNestableTasksAllowed(true);
-  MessageLoop::current()->RunAllPending();
-  MessageLoop::current()->SetNestableTasksAllowed(old_state);
+  {
+    MessageLoop::ScopedNestableTaskAllower allow(MessageLoop::current());
+    MessageLoop::current()->RunAllPending();
+  }
   order->RecordEnd(PUMPS, cookie);
 }
 
@@ -1048,7 +1032,7 @@ void RunTest_NonNestableInNestedLoop(MessageLoop::Type message_loop_type,
     MessageLoop::current()->PostNonNestableDelayedTask(
         FROM_HERE,
         base::Bind(&OrderedFunc, &order, 2),
-        1);
+        TimeDelta::FromMilliseconds(1));
   } else {
     MessageLoop::current()->PostNonNestableTask(
         FROM_HERE,
@@ -1056,15 +1040,16 @@ void RunTest_NonNestableInNestedLoop(MessageLoop::Type message_loop_type,
   }
   MessageLoop::current()->PostTask(FROM_HERE,
                                    base::Bind(&OrderedFunc, &order, 3));
-  MessageLoop::current()->PostTask(FROM_HERE,
-                                   base::Bind(&SleepFunc, &order, 4, 50));
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      base::Bind(&SleepFunc, &order, 4, TimeDelta::FromMilliseconds(50)));
   MessageLoop::current()->PostTask(FROM_HERE,
                                    base::Bind(&OrderedFunc, &order, 5));
   if (use_delayed) {
     MessageLoop::current()->PostNonNestableDelayedTask(
         FROM_HERE,
         base::Bind(&QuitFunc, &order, 6),
-        2);
+        TimeDelta::FromMilliseconds(2));
   } else {
     MessageLoop::current()->PostNonNestableTask(
         FROM_HERE,
@@ -1117,10 +1102,12 @@ void MouseDownUp() {
 void RunTest_Dispatcher(MessageLoop::Type message_loop_type) {
   MessageLoop loop(message_loop_type);
 
-  MessageLoop::current()->PostDelayedTask(FROM_HERE,
-                                          base::Bind(&MouseDownUp), 100);
+  MessageLoop::current()->PostDelayedTask(
+      FROM_HERE,
+      base::Bind(&MouseDownUp),
+      TimeDelta::FromMilliseconds(100));
   DispatcherImpl dispatcher;
-  MessageLoopForUI::current()->Run(&dispatcher);
+  MessageLoopForUI::current()->RunWithDispatcher(&dispatcher);
   ASSERT_EQ(2, dispatcher.dispatch_count_);
 }
 
@@ -1136,14 +1123,16 @@ LRESULT CALLBACK MsgFilterProc(int code, WPARAM wparam, LPARAM lparam) {
 void RunTest_DispatcherWithMessageHook(MessageLoop::Type message_loop_type) {
   MessageLoop loop(message_loop_type);
 
-  MessageLoop::current()->PostDelayedTask(FROM_HERE,
-                                          base::Bind(&MouseDownUp), 100);
+  MessageLoop::current()->PostDelayedTask(
+      FROM_HERE,
+      base::Bind(&MouseDownUp),
+      TimeDelta::FromMilliseconds(100));
   HHOOK msg_hook = SetWindowsHookEx(WH_MSGFILTER,
                                     MsgFilterProc,
                                     NULL,
                                     GetCurrentThreadId());
   DispatcherImpl dispatcher;
-  MessageLoopForUI::current()->Run(&dispatcher);
+  MessageLoopForUI::current()->RunWithDispatcher(&dispatcher);
   ASSERT_EQ(1, dispatcher.dispatch_count_);
   UnhookWindowsHookEx(msg_hook);
 }
@@ -1220,7 +1209,8 @@ void RunTest_IOHandler() {
   TestIOHandler handler(kPipeName, callback_called, false);
   thread_loop->PostTask(FROM_HERE, base::Bind(&TestIOHandler::Init,
                                               base::Unretained(&handler)));
-  Sleep(100);  // Make sure the thread runs and sleeps for lack of work.
+  // Make sure the thread runs and sleeps for lack of work.
+  base::PlatformThread::Sleep(TimeDelta::FromMilliseconds(100));
 
   const char buffer[] = "Hello there!";
   DWORD written;
@@ -1262,10 +1252,12 @@ void RunTest_WaitForIO() {
   thread_loop->PostTask(FROM_HERE, base::Bind(&TestIOHandler::Init,
                                               base::Unretained(&handler1)));
   // TODO(ajwong): Do we really need such long Sleeps in ths function?
-  Sleep(100);  // Make sure the thread runs and sleeps for lack of work.
+  // Make sure the thread runs and sleeps for lack of work.
+  TimeDelta delay = TimeDelta::FromMilliseconds(100);
+  base::PlatformThread::Sleep(delay);
   thread_loop->PostTask(FROM_HERE, base::Bind(&TestIOHandler::Init,
                                               base::Unretained(&handler2)));
-  Sleep(100);
+  base::PlatformThread::Sleep(delay);
 
   // At this time handler1 is waiting to be called, and the thread is waiting
   // on the Init method of handler2, filtering only handler2 callbacks.
@@ -1273,7 +1265,7 @@ void RunTest_WaitForIO() {
   const char buffer[] = "Hello there!";
   DWORD written;
   EXPECT_TRUE(WriteFile(server1, buffer, sizeof(buffer), &written, NULL));
-  Sleep(200);
+  base::PlatformThread::Sleep(2 * delay);
   EXPECT_EQ(WAIT_TIMEOUT, WaitForSingleObject(callback1_called, 0)) <<
       "handler1 has not been called";
 
@@ -1294,12 +1286,6 @@ void RunTest_WaitForIO() {
 // Each test is run against each type of MessageLoop.  That way we are sure
 // that message loops work properly in all configurations.  Of course, in some
 // cases, a unit test may only be for a particular type of loop.
-
-TEST(MessageLoopTest, PostLegacyTask) {
-  RunTest_PostLegacyTask(MessageLoop::TYPE_DEFAULT);
-  RunTest_PostLegacyTask(MessageLoop::TYPE_UI);
-  RunTest_PostLegacyTask(MessageLoop::TYPE_IO);
-}
 
 TEST(MessageLoopTest, PostTask) {
   RunTest_PostTask(MessageLoop::TYPE_DEFAULT);
@@ -1523,30 +1509,31 @@ TEST(MessageLoopTest, WaitForIO) {
 TEST(MessageLoopTest, HighResolutionTimer) {
   MessageLoop loop;
 
-  const int kFastTimerMs = 5;
-  const int kSlowTimerMs = 100;
+  const TimeDelta kFastTimer = TimeDelta::FromMilliseconds(5);
+  const TimeDelta kSlowTimer = TimeDelta::FromMilliseconds(100);
 
   EXPECT_FALSE(loop.high_resolution_timers_enabled());
 
   // Post a fast task to enable the high resolution timers.
   loop.PostDelayedTask(FROM_HERE, base::Bind(&PostNTasksThenQuit, 1),
-                       kFastTimerMs);
+                       kFastTimer);
   loop.Run();
   EXPECT_TRUE(loop.high_resolution_timers_enabled());
 
   // Post a slow task and verify high resolution timers
   // are still enabled.
   loop.PostDelayedTask(FROM_HERE, base::Bind(&PostNTasksThenQuit, 1),
-                       kSlowTimerMs);
+                       kSlowTimer);
   loop.Run();
   EXPECT_TRUE(loop.high_resolution_timers_enabled());
 
   // Wait for a while so that high-resolution mode elapses.
-  Sleep(MessageLoop::kHighResolutionTimerModeLeaseTimeMs);
+  base::PlatformThread::Sleep(TimeDelta::FromMilliseconds(
+      MessageLoop::kHighResolutionTimerModeLeaseTimeMs));
 
   // Post a slow task to disable the high resolution timers.
   loop.PostDelayedTask(FROM_HERE, base::Bind(&PostNTasksThenQuit, 1),
-                       kSlowTimerMs);
+                       kSlowTimer);
   loop.Run();
   EXPECT_FALSE(loop.high_resolution_timers_enabled());
 }
@@ -1676,7 +1663,7 @@ TEST(MessageLoopTest, DestructionObserverTest) {
   // Verify that the destruction observer gets called at the very end (after
   // all the pending tasks have been destroyed).
   MessageLoop* loop = new MessageLoop;
-  const int kDelayMS = 100;
+  const TimeDelta kDelay = TimeDelta::FromMilliseconds(100);
 
   bool task_destroyed = false;
   bool destruction_observer_called = false;
@@ -1688,7 +1675,7 @@ TEST(MessageLoopTest, DestructionObserverTest) {
       base::Bind(&DestructionObserverProbe::Run,
                  new DestructionObserverProbe(&task_destroyed,
                                               &destruction_observer_called)),
-      kDelayMS);
+      kDelay);
   delete loop;
   EXPECT_TRUE(observer.task_destroyed_before_message_loop());
   // The task should have been destroyed when we deleted the loop.

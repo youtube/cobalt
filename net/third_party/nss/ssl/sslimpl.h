@@ -322,9 +322,8 @@ typedef struct {
 #endif /* NSS_ENABLE_ECC */
 
 typedef struct sslOptionsStr {
-    /* For clients, this is a validated list of protocols in preference order
-     * and wire format. For servers, this is the list of support protocols,
-     * also in wire format. */
+    /* If SSL_SetNextProtoNego has been called, then this contains the
+     * list of supported protocols. */
     SECItem      nextProtoNego;
 
     unsigned int useSecurity		: 1;  /*  1 */
@@ -351,6 +350,7 @@ typedef struct sslOptionsStr {
     unsigned int enableOCSPStapling     : 1;  /* 24 */
     unsigned int enableCachedInfo       : 1;  /* 25 */
     unsigned int enableOBCerts          : 1;  /* 26 */
+    unsigned int encryptClientCerts     : 1;  /* 27 */
 } sslOptions;
 
 typedef enum { sslHandshakingUndetermined = 0,
@@ -473,14 +473,12 @@ typedef SECStatus (*SSLCompressor)(void *               context,
                                    int                  inlen);
 typedef SECStatus (*SSLDestroy)(void *context, PRBool freeit);
 
-#ifdef NSS_PLATFORM_CLIENT_AUTH
-#if defined(XP_WIN32)
+#if defined(NSS_PLATFORM_CLIENT_AUTH) && defined(XP_WIN32)
 typedef PCERT_KEY_CONTEXT PlatformKey;
-#elif defined(XP_MACOSX)
+#elif defined(NSS_PLATFORM_CLIENT_AUTH) && defined(XP_MACOSX)
 typedef SecKeyRef PlatformKey;
 #else
 typedef void *PlatformKey;
-#endif
 #endif
 
 
@@ -829,7 +827,6 @@ const ssl3CipherSuiteDef *suite_def;
 #ifdef NSS_ENABLE_ECC
     PRUint32              negotiatedECCurves; /* bit mask */
 #endif /* NSS_ENABLE_ECC */
-    PRBool                nextProtoNego;/* Our peer has sent this extension */
 } SSL3HandshakeState;
 
 
@@ -855,9 +852,10 @@ struct ssl3StateStr {
 
     CERTCertificate *    clientCertificate;  /* used by client */
     SECKEYPrivateKey *   clientPrivateKey;   /* used by client */
-#ifdef NSS_PLATFORM_CLIENT_AUTH
+    /* platformClientKey is present even when NSS_PLATFORM_CLIENT_AUTH is not
+     * defined in order to allow cleaner conditional code.
+     * At most one of clientPrivateKey and platformClientKey may be set. */
     PlatformKey          platformClientKey;  /* used by client */
-#endif  /* NSS_PLATFORM_CLIENT_AUTH */
     CERTCertificateList *clientCertChain;    /* used by client */
     PRBool               sendEmptyCert;      /* used by client */
 
@@ -887,14 +885,11 @@ struct ssl3StateStr {
     ssl3CipherSpec       specs[2];	/* one is current, one is pending. */
 
     /* In a client: if the server supports Next Protocol Negotiation, then
-     * this is the protocol that was requested.
-     * In a server: this is the protocol that the client requested via Next
-     * Protocol Negotiation.
+     * this is the protocol that was negotiated.
      *
-     * In either case, if the data pointer is non-NULL, then it is malloced
-     * data.  */
+     * If the data pointer is non-NULL, then it is malloced data.  */
     SECItem		nextProto;
-    int			nextProtoState;	/* See SSL_NEXT_PROTO_* defines */
+    int			nextProtoState; /* See NEXT_PROTO_* defines */
 };
 
 typedef struct {
@@ -1112,6 +1107,10 @@ struct sslSocketStr {
     unsigned int     sizeCipherSpecs;
 const unsigned char *  preferredCipher;
 
+    /* TLS ClientCertificateTypes requested during HandleCertificateRequest. */
+    /* Will be NULL at all other times. */
+    const SECItem      *requestedCertTypes;
+
     ssl3KeyPair *         stepDownKeyPair;	/* RSA step down keys */
 
     /* Callbacks */
@@ -1130,6 +1129,8 @@ const unsigned char *  preferredCipher;
     SSLHandshakeCallback      handshakeCallback;
     void                     *handshakeCallbackData;
     void                     *pkcs11PinArg;
+    SSLNextProtoCallback      nextProtoCallback;
+    void                     *nextProtoArg;
 
     PRIntervalTime            rTimeout; /* timeout for NSPR I/O */
     PRIntervalTime            wTimeout; /* timeout for NSPR I/O */
@@ -1382,10 +1383,6 @@ extern  SECStatus ssl3_MasterKeyDeriveBypass( ssl3CipherSpec * pwSpec,
 
 extern int ssl2_SendErrorMessage(struct sslSocketStr *ss, int error);
 extern int SSL_RestartHandshakeAfterServerCert(struct sslSocketStr *ss);
-extern int SSL_RestartHandshakeAfterCertReq(struct sslSocketStr *ss,
-					    CERTCertificate *cert,
-					    SECKEYPrivateKey *key,
-					    CERTCertificateList *certChain);
 extern sslSocket *ssl_FindSocket(PRFileDesc *fd);
 extern void ssl_FreeSocket(struct sslSocketStr *ssl);
 extern SECStatus SSL3_SendAlert(sslSocket *ss, SSL3AlertLevel level,

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,6 @@
 
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
-#include "base/task.h"
 #include "media/video/capture/video_capture.h"
 
 namespace base {
@@ -25,7 +24,8 @@ namespace media {
 // state from the "main thread" is fundamentally racy. Instead this class keeps
 // track of the state every time it is called by the VideoCapture (on the VC
 // thread), and forwards that information to the main thread.
-class VideoCaptureHandlerProxy : public VideoCapture::EventHandler {
+class MEDIA_EXPORT VideoCaptureHandlerProxy
+    : public VideoCapture::EventHandler {
  public:
   struct VideoCaptureState {
     VideoCaptureState() : started(false), width(0), height(0), frame_rate(0) {}
@@ -50,6 +50,7 @@ class VideoCaptureHandlerProxy : public VideoCapture::EventHandler {
   virtual void OnStopped(VideoCapture* capture) OVERRIDE;
   virtual void OnPaused(VideoCapture* capture) OVERRIDE;
   virtual void OnError(VideoCapture* capture, int error_code) OVERRIDE;
+  virtual void OnRemoved(VideoCapture* capture) OVERRIDE;
   virtual void OnBufferReady(
       VideoCapture* capture,
       scoped_refptr<VideoCapture::VideoFrameBuffer> buffer) OVERRIDE;
@@ -72,6 +73,9 @@ class VideoCaptureHandlerProxy : public VideoCapture::EventHandler {
       VideoCapture* capture,
       const VideoCaptureState& state,
       int error_code);
+  void OnRemovedOnMainThread(
+      VideoCapture* capture,
+      const VideoCaptureState& state);
   void OnBufferReadyOnMainThread(
       VideoCapture* capture,
       const VideoCaptureState& state,
@@ -89,6 +93,5 @@ class VideoCaptureHandlerProxy : public VideoCapture::EventHandler {
 };
 
 }  // namespace media
-DISABLE_RUNNABLE_METHOD_REFCOUNT(media::VideoCaptureHandlerProxy);
 
 #endif  // MEDIA_VIDEO_CAPTURE_VIDEO_CAPTURE_PROXY_H_

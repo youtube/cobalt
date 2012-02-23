@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,13 +13,14 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/time.h"
 #include "net/base/host_port_pair.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/http/http_auth.h"
 #include "net/http/http_response_info.h"
 #include "net/http/proxy_client_socket.h"
 #include "net/socket/client_socket_pool_base.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/client_socket_pool.h"
+#include "net/socket/ssl_client_socket.h"
 
 namespace net {
 
@@ -37,7 +38,7 @@ class TransportSocketParams;
 // types.  The other param must be NULL.  When using an HTTP Proxy,
 // |transport_params| must be set.  When using an HTTPS Proxy, |ssl_params|
 // must be set.
-class NET_TEST HttpProxySocketParams
+class NET_EXPORT_PRIVATE HttpProxySocketParams
     : public base::RefCounted<HttpProxySocketParams> {
  public:
   HttpProxySocketParams(
@@ -45,7 +46,7 @@ class NET_TEST HttpProxySocketParams
       const scoped_refptr<SSLSocketParams>& ssl_params,
       const GURL& request_url,
       const std::string& user_agent,
-      HostPortPair endpoint,
+      const HostPortPair& endpoint,
       HttpAuthCache* http_auth_cache,
       HttpAuthHandlerFactory* http_auth_handler_factory,
       SpdySessionPool* spdy_session_pool,
@@ -104,9 +105,9 @@ class HttpProxyConnectJob : public ConnectJob {
   virtual ~HttpProxyConnectJob();
 
   // ConnectJob methods.
-  virtual LoadState GetLoadState() const;
+  virtual LoadState GetLoadState() const OVERRIDE;
 
-  virtual void GetAdditionalErrorState(ClientSocketHandle* handle);
+  virtual void GetAdditionalErrorState(ClientSocketHandle* handle) OVERRIDE;
 
  private:
   enum State {
@@ -147,7 +148,7 @@ class HttpProxyConnectJob : public ConnectJob {
   // that the tunnel needs authentication credentials, the socket will be
   // returned in this case, and must be release back to the pool; or
   // a standard net error code will be returned.
-  virtual int ConnectInternal();
+  virtual int ConnectInternal() OVERRIDE;
 
   scoped_refptr<HttpProxySocketParams> params_;
   TransportClientSocketPool* const transport_pool_;
@@ -155,10 +156,12 @@ class HttpProxyConnectJob : public ConnectJob {
   HostResolver* const resolver_;
 
   State next_state_;
-  CompletionCallbackImpl<HttpProxyConnectJob> callback_;
+  CompletionCallback callback_;
   scoped_ptr<ClientSocketHandle> transport_socket_handle_;
   scoped_ptr<ProxyClientSocket> transport_socket_;
   bool using_spdy_;
+  // Protocol negotiated with the server.
+  SSLClientSocket::NextProto protocol_negotiated_;
 
   HttpResponseInfo error_response_info_;
 
@@ -167,7 +170,7 @@ class HttpProxyConnectJob : public ConnectJob {
   DISALLOW_COPY_AND_ASSIGN(HttpProxyConnectJob);
 };
 
-class NET_TEST HttpProxyClientSocketPool : public ClientSocketPool {
+class NET_EXPORT_PRIVATE HttpProxyClientSocketPool : public ClientSocketPool {
  public:
   HttpProxyClientSocketPool(
       int max_sockets,
@@ -180,45 +183,47 @@ class NET_TEST HttpProxyClientSocketPool : public ClientSocketPool {
 
   virtual ~HttpProxyClientSocketPool();
 
-  // ClientSocketPool methods:
+  // ClientSocketPool implementation.
   virtual int RequestSocket(const std::string& group_name,
                             const void* connect_params,
                             RequestPriority priority,
                             ClientSocketHandle* handle,
-                            CompletionCallback* callback,
-                            const BoundNetLog& net_log);
+                            const CompletionCallback& callback,
+                            const BoundNetLog& net_log) OVERRIDE;
 
   virtual void RequestSockets(const std::string& group_name,
                               const void* params,
                               int num_sockets,
-                              const BoundNetLog& net_log);
+                              const BoundNetLog& net_log) OVERRIDE;
 
   virtual void CancelRequest(const std::string& group_name,
-                             ClientSocketHandle* handle);
+                             ClientSocketHandle* handle) OVERRIDE;
 
   virtual void ReleaseSocket(const std::string& group_name,
                              StreamSocket* socket,
-                             int id);
+                             int id) OVERRIDE;
 
-  virtual void Flush();
+  virtual void Flush() OVERRIDE;
 
-  virtual void CloseIdleSockets();
+  virtual void CloseIdleSockets() OVERRIDE;
 
-  virtual int IdleSocketCount() const;
+  virtual int IdleSocketCount() const OVERRIDE;
 
-  virtual int IdleSocketCountInGroup(const std::string& group_name) const;
+  virtual int IdleSocketCountInGroup(
+      const std::string& group_name) const OVERRIDE;
 
-  virtual LoadState GetLoadState(const std::string& group_name,
-                                 const ClientSocketHandle* handle) const;
+  virtual LoadState GetLoadState(
+      const std::string& group_name,
+      const ClientSocketHandle* handle) const OVERRIDE;
 
   virtual base::DictionaryValue* GetInfoAsValue(
       const std::string& name,
       const std::string& type,
-      bool include_nested_pools) const;
+      bool include_nested_pools) const OVERRIDE;
 
-  virtual base::TimeDelta ConnectionTimeout() const;
+  virtual base::TimeDelta ConnectionTimeout() const OVERRIDE;
 
-  virtual ClientSocketPoolHistograms* histograms() const;
+  virtual ClientSocketPoolHistograms* histograms() const OVERRIDE;
 
  private:
   typedef ClientSocketPoolBase<HttpProxySocketParams> PoolBase;
@@ -232,11 +237,14 @@ class NET_TEST HttpProxyClientSocketPool : public ClientSocketPool {
         NetLog* net_log);
 
     // ClientSocketPoolBase::ConnectJobFactory methods.
-    virtual ConnectJob* NewConnectJob(const std::string& group_name,
-                                      const PoolBase::Request& request,
-                                      ConnectJob::Delegate* delegate) const;
+    virtual ConnectJob* NewConnectJob(
+        const std::string& group_name,
+        const PoolBase::Request& request,
+        ConnectJob::Delegate* delegate) const OVERRIDE;
 
-    virtual base::TimeDelta ConnectionTimeout() const { return timeout_; }
+    virtual base::TimeDelta ConnectionTimeout() const OVERRIDE {
+      return timeout_;
+    }
 
    private:
     TransportClientSocketPool* const transport_pool_;

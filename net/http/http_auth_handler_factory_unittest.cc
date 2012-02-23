@@ -172,6 +172,7 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
         server_origin,
         BoundNetLog(),
         &handler);
+#if defined(USE_KERBEROS)
     EXPECT_EQ(OK, rv);
     ASSERT_FALSE(handler.get() == NULL);
     EXPECT_EQ(HttpAuth::AUTH_SCHEME_NEGOTIATE, handler->auth_scheme());
@@ -179,6 +180,10 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
     EXPECT_EQ(HttpAuth::AUTH_SERVER, handler->target());
     EXPECT_TRUE(handler->encrypts_identity());
     EXPECT_TRUE(handler->is_connection_based());
+#else
+    EXPECT_EQ(ERR_UNSUPPORTED_AUTH_SCHEME, rv);
+    EXPECT_TRUE(handler.get() == NULL);
+#endif  // defined(USE_KERBEROS)
   }
 }
 

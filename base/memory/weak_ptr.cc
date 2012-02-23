@@ -7,28 +7,28 @@
 namespace base {
 namespace internal {
 
-WeakReference::Flag::Flag(Flag** handle) : handle_(handle) {
+WeakReference::Flag::Flag() : is_valid_(true) {
 }
 
 void WeakReference::Flag::Invalidate() {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  handle_ = NULL;
+  // The flag being invalidated with a single ref implies that there are no
+  // weak pointers in existence. Allow deletion on other thread in this case.
+  DCHECK(thread_checker_.CalledOnValidThread() || HasOneRef());
+  is_valid_ = false;
 }
 
 bool WeakReference::Flag::IsValid() const {
   DCHECK(thread_checker_.CalledOnValidThread());
-  return handle_ != NULL;
+  return is_valid_;
 }
 
 WeakReference::Flag::~Flag() {
-  if (handle_)
-    *handle_ = NULL;
 }
 
 WeakReference::WeakReference() {
 }
 
-WeakReference::WeakReference(Flag* flag) : flag_(flag) {
+WeakReference::WeakReference(const Flag* flag) : flag_(flag) {
 }
 
 WeakReference::~WeakReference() {
@@ -38,7 +38,7 @@ bool WeakReference::is_valid() const {
   return flag_ && flag_->IsValid();
 }
 
-WeakReferenceOwner::WeakReferenceOwner() : flag_(NULL) {
+WeakReferenceOwner::WeakReferenceOwner() {
 }
 
 WeakReferenceOwner::~WeakReferenceOwner() {
@@ -46,8 +46,10 @@ WeakReferenceOwner::~WeakReferenceOwner() {
 }
 
 WeakReference WeakReferenceOwner::GetRef() const {
-  if (!flag_)
-    flag_ = new WeakReference::Flag(&flag_);
+  // We also want to reattach to the current thread if all previous references
+  // have gone away.
+  if (!HasRefs())
+    flag_ = new WeakReference::Flag();
   return WeakReference(flag_);
 }
 
