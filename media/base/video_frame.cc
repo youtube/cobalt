@@ -61,6 +61,7 @@ bool VideoFrame::IsValidConfig(
 // static
 scoped_refptr<VideoFrame> VideoFrame::WrapNativeTexture(
     uint32 texture_id,
+    uint32 texture_target,
     size_t width,
     size_t height,
     base::TimeDelta timestamp,
@@ -69,6 +70,7 @@ scoped_refptr<VideoFrame> VideoFrame::WrapNativeTexture(
   scoped_refptr<VideoFrame> frame(
       new VideoFrame(NATIVE_TEXTURE, width, height, timestamp, duration));
   frame->texture_id_ = texture_id;
+  frame->texture_target_ = texture_target;
   frame->texture_no_longer_needed_ = no_longer_needed;
   return frame;
 }
@@ -150,7 +152,8 @@ VideoFrame::VideoFrame(VideoFrame::Format format,
     : format_(format),
       width_(width),
       height_(height),
-      texture_id_(0) {
+      texture_id_(0),
+      texture_target_(0) {
   SetTimestamp(timestamp);
   SetDuration(duration);
   memset(&strides_, 0, sizeof(strides_));
@@ -258,6 +261,11 @@ uint8* VideoFrame::data(size_t plane) const {
 uint32 VideoFrame::texture_id() const {
   DCHECK_EQ(format_, NATIVE_TEXTURE);
   return texture_id_;
+}
+
+uint32 VideoFrame::texture_target() const {
+  DCHECK_EQ(format_, NATIVE_TEXTURE);
+  return texture_target_;
 }
 
 bool VideoFrame::IsEndOfStream() const {

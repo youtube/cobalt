@@ -62,6 +62,7 @@ class MEDIA_EXPORT VideoFrame : public StreamSample {
   // frame is destroyed |no_longer_needed.Run()| will be called.
   static scoped_refptr<VideoFrame> WrapNativeTexture(
       uint32 texture_id,
+      uint32 texture_target,
       size_t width,
       size_t height,
       base::TimeDelta timestamp,
@@ -98,6 +99,9 @@ class MEDIA_EXPORT VideoFrame : public StreamSample {
   // Returns the ID of the native texture wrapped by this frame.  Only valid to
   // call if this is a NATIVE_TEXTURE frame.
   uint32 texture_id() const;
+
+  // Returns the texture target. Only valid for NATIVE_TEXTURE frames.
+  uint32 texture_target() const;
 
   // StreamSample interface.
   virtual bool IsEndOfStream() const OVERRIDE;
@@ -136,6 +140,7 @@ class MEDIA_EXPORT VideoFrame : public StreamSample {
 
   // Native texture ID, if this is a NATIVE_TEXTURE frame.
   uint32 texture_id_;
+  uint32 texture_target_;
   base::Closure texture_no_longer_needed_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(VideoFrame);
