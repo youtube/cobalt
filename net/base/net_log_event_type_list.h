@@ -1056,7 +1056,8 @@ EVENT_TYPE(SPDY_SESSION_STALLED_ON_SEND_WINDOW)
 
 // Session is closing
 //   {
-//     "status": <The error status of the closure>,
+//     "status"     : <The error status of the closure>,
+//     "description": <The textual description for the closure>,
 //   }
 EVENT_TYPE(SPDY_SESSION_CLOSE)
 
@@ -1124,6 +1125,14 @@ EVENT_TYPE(SPDY_STREAM_UPDATE_SEND_WINDOW)
 //     "new_window": <The new window size>,
 //   }
 EVENT_TYPE(SPDY_STREAM_UPDATE_RECV_WINDOW)
+
+// This event indicates a stream error
+//   {
+//     "id":          <The stream id>,
+//     "status":      <The error status>,
+//     "description": <The textual description for the error>,
+//   }
+EVENT_TYPE(SPDY_STREAM_ERROR)
 
 // ------------------------------------------------------------------------
 // HttpStreamParser

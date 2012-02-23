@@ -222,7 +222,10 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // error.
   // |remove_from_pool| indicates whether to also remove the session from the
   // session pool.
-  void CloseSessionOnError(net::Error err, bool remove_from_pool);
+  // |description| indicates the reason for the error.
+  void CloseSessionOnError(net::Error err,
+                           bool remove_from_pool,
+                           const std::string& description);
 
   // Retrieves information on the current state of the SPDY session as a
   // Value.  Caller takes possession of the returned value.
@@ -419,8 +422,9 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   void InvokeUserStreamCreationCallback(scoped_refptr<SpdyStream>* stream);
 
   // BufferedSpdyFramerVisitorInterface:
-  virtual void OnError() OVERRIDE;
-  virtual void OnStreamError(spdy::SpdyStreamId stream_id) OVERRIDE;
+  virtual void OnError(int error_code) OVERRIDE;
+  virtual void OnStreamError(spdy::SpdyStreamId stream_id,
+                             const std::string& description) OVERRIDE;
   virtual void OnRstStream(
       const spdy::SpdyRstStreamControlFrame& frame) OVERRIDE;
   virtual void OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) OVERRIDE;
@@ -679,6 +683,23 @@ class NetLogSpdyCredentialParameter : public NetLog::EventParameters {
   const std::string origin_;
 
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdyCredentialParameter);
+};
+
+class NetLogSpdySessionCloseParameter : public NetLog::EventParameters {
+ public:
+  NetLogSpdySessionCloseParameter(int status,
+                                  const std::string& description);
+
+  int status() const { return status_; }
+  virtual Value* ToValue() const  OVERRIDE;
+
+ private:
+  virtual ~NetLogSpdySessionCloseParameter();
+
+  const int status_;
+  const std::string description_;
+
+  DISALLOW_COPY_AND_ASSIGN(NetLogSpdySessionCloseParameter);
 };
 
 }  // namespace net

@@ -6,6 +6,8 @@
 #define NET_SPDY_BUFFERED_SPDY_FRAMER_H_
 #pragma once
 
+#include <string>
+
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/linked_ptr.h"
@@ -22,10 +24,11 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramerVisitorInterface {
   virtual ~BufferedSpdyFramerVisitorInterface() {}
 
   // Called if an error is detected in the SpdyFrame protocol.
-  virtual void OnError() = 0;
+  virtual void OnError(int error_code) = 0;
 
   // Called if an error is detected in a SPDY stream.
-  virtual void OnStreamError(spdy::SpdyStreamId stream_id) = 0;
+  virtual void OnStreamError(spdy::SpdyStreamId stream_id,
+                             const std::string& description) = 0;
 
   // Called after all the header data for SYN_STREAM control frame is received.
   virtual void OnSynStream(const SpdySynStreamControlFrame& frame,
@@ -81,7 +84,7 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramer
   void set_visitor(BufferedSpdyFramerVisitorInterface* visitor);
 
   // SpdyFramerVisitorInterface
-  virtual void OnError(SpdyFramer* /*framer*/) OVERRIDE;
+  virtual void OnError(spdy::SpdyFramer* spdy_framer) OVERRIDE;
   virtual void OnControl(const SpdyControlFrame* frame) OVERRIDE;
   virtual bool OnCredentialFrameData(const char* frame_data,
                                      size_t len) OVERRIDE;
