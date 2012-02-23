@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -73,17 +73,18 @@ def RunGitCommand(directory, command):
     A process object or None.
   """
   command = ['git'] + command
-  # Force shell usage under cygwin & win32. This is a workaround for
+  # Force shell usage under cygwin. This is a workaround for
   # mysterious loss of cwd while invoking cygwin's git.
   # We can't just pass shell=True to Popen, as under win32 this will
   # cause CMD to be used, while we explicitly want a cygwin shell.
-  if sys.platform in ('cygwin', 'win32'):
+  if sys.platform == 'cygwin':
     command = ['sh', '-c', ' '.join(command)]
   try:
     proc = subprocess.Popen(command,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
-                            cwd=directory)
+                            cwd=directory,
+                            shell=(sys.platform=='win32'))
     return proc
   except OSError:
     return None
@@ -135,30 +136,6 @@ def FetchGitSVNURLAndRevision(directory, svn_url_regex):
   return None, None
 
 
-def IsGitSVNDirty(directory):
-  """
-  Checks whether our git-svn tree contains clean trunk or any local changes.
-
-  Errors are swallowed.
-  """
-  proc = RunGitCommand(directory, ['log', '-1'])
-  if proc:
-    output = proc.communicate()[0].strip()
-    if proc.returncode == 0 and output:
-      # Extract the latest SVN revision and the SVN URL.
-      # The target line is the last "git-svn-id: ..." line like this:
-      # git-svn-id: svn://svn.chromium.org/chrome/trunk/src@85528 0039d316....
-      match = _GIT_SVN_ID_REGEX.search(output)
-      if match:
-        # Check if there are any local uncommitted changes.
-        proc = RunGitCommand(directory, ['checkout'])
-        if proc:
-          output = proc.communicate()[0].strip()
-          if proc.returncode == 0 and not output:
-            return False
-  return True
-
-
 def FetchGitSVNRevision(directory, svn_url_regex):
   """
   Fetch the Git-SVN identifier for the local tree.
@@ -167,8 +144,6 @@ def FetchGitSVNRevision(directory, svn_url_regex):
   """
   url, revision = FetchGitSVNURLAndRevision(directory, svn_url_regex)
   if url and revision:
-    if IsGitSVNDirty(directory):
-      revision = revision + '-dirty'
     return VersionInfo(url, revision)
   return None
 
@@ -233,7 +208,8 @@ def main(argv=None):
     parser.print_help()
     sys.exit(2)
 
-  version_info = FetchVersionInfo(opts.default_lastchange)
+  version_info = FetchVersionInfo(opts.default_lastchange,
+      os.path.dirname(sys.argv[0]))
 
   if version_info.revision == None:
     version_info.revision = '0'

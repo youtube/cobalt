@@ -9,7 +9,8 @@
 #include <string>
 #include <vector>
 
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
+#include "net/base/net_log.h"
 #include "net/proxy/proxy_retry_info.h"
 
 namespace net {
@@ -19,7 +20,7 @@ class ProxyServer;
 // This class is used to hold a list of proxies returned by GetProxyForUrl or
 // manually configured. It handles proxy fallback if multiple servers are
 // specified.
-class NET_TEST ProxyList {
+class NET_EXPORT_PRIVATE ProxyList {
  public:
   ProxyList();
   ~ProxyList();
@@ -61,7 +62,8 @@ class NET_TEST ProxyList {
   // Marks the current proxy server as bad and deletes it from the list.  The
   // list of known bad proxies is given by proxy_retry_info.  Returns true if
   // there is another server available in the list.
-  bool Fallback(ProxyRetryInfoMap* proxy_retry_info);
+  bool Fallback(ProxyRetryInfoMap* proxy_retry_info,
+                const BoundNetLog& net_log);
 
  private:
   // List of proxies.

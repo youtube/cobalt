@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,39 +11,19 @@
 #include "net/base/completion_callback.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
+#include "net/base/ssl_client_cert_type.h"
+#include "net/socket/ssl_socket.h"
 #include "net/socket/stream_socket.h"
-
-namespace base {
-class StringPiece;
-}  // namespace base
 
 namespace net {
 
 class CertVerifier;
-class DnsCertProvenanceChecker;
-class DnsRRResolver;
 class OriginBoundCertService;
 class SSLCertRequestInfo;
 class SSLHostInfo;
 class SSLHostInfoFactory;
 class SSLInfo;
-struct RRResponse;
-
-// DNSSECProvider is an interface to an object that can return DNSSEC data.
-class DNSSECProvider {
- public:
-  // GetDNSSECRecords will either:
-  //   1) set |*out| to NULL and return OK.
-  //   2) set |*out| to a pointer, which is owned by this object, and return OK.
-  //   3) return IO_PENDING and call |callback| on the current MessageLoop at
-  //      some point in the future. Once the callback has been made, this
-  //      function will return OK if called again.
-  virtual int GetDNSSECRecords(RRResponse** out,
-                               CompletionCallback* callback) = 0;
-
- private:
-  ~DNSSECProvider() {}
-};
+class TransportSecurityState;
 
 // This struct groups together several fields which are used by various
 // classes related to SSLClientSocket.
@@ -51,26 +31,28 @@ struct SSLClientSocketContext {
   SSLClientSocketContext()
       : cert_verifier(NULL),
         origin_bound_cert_service(NULL),
-        dnsrr_resolver(NULL),
-        dns_cert_checker(NULL),
+        transport_security_state(NULL),
         ssl_host_info_factory(NULL) {}
 
   SSLClientSocketContext(CertVerifier* cert_verifier_arg,
                          OriginBoundCertService* origin_bound_cert_service_arg,
-                         DnsRRResolver* dnsrr_resolver_arg,
-                         DnsCertProvenanceChecker* dns_cert_checker_arg,
-                         SSLHostInfoFactory* ssl_host_info_factory_arg)
+                         TransportSecurityState* transport_security_state_arg,
+                         SSLHostInfoFactory* ssl_host_info_factory_arg,
+                         const std::string& ssl_session_cache_shard_arg)
       : cert_verifier(cert_verifier_arg),
         origin_bound_cert_service(origin_bound_cert_service_arg),
-        dnsrr_resolver(dnsrr_resolver_arg),
-        dns_cert_checker(dns_cert_checker_arg),
-        ssl_host_info_factory(ssl_host_info_factory_arg) {}
+        transport_security_state(transport_security_state_arg),
+        ssl_host_info_factory(ssl_host_info_factory_arg),
+        ssl_session_cache_shard(ssl_session_cache_shard_arg) {}
 
   CertVerifier* cert_verifier;
   OriginBoundCertService* origin_bound_cert_service;
-  DnsRRResolver* dnsrr_resolver;
-  DnsCertProvenanceChecker* dns_cert_checker;
+  TransportSecurityState* transport_security_state;
   SSLHostInfoFactory* ssl_host_info_factory;
+  // ssl_session_cache_shard is an opaque string that identifies a shard of the
+  // SSL session cache. SSL sockets with the same ssl_session_cache_shard may
+  // resume each other's SSL sessions but we'll never sessions between shards.
+  const std::string ssl_session_cache_shard;
 };
 
 // A client socket that uses SSL as the transport layer.
@@ -79,7 +61,7 @@ struct SSLClientSocketContext {
 // connection is established.  If a SSL error occurs during the handshake,
 // Connect will fail.
 //
-class NET_API SSLClientSocket : public StreamSocket {
+class NET_EXPORT SSLClientSocket : public SSLSocket {
  public:
   SSLClientSocket();
 
@@ -87,7 +69,7 @@ class NET_API SSLClientSocket : public StreamSocket {
   // an agreement about the application level protocol to speak over a
   // connection.
   enum NextProtoStatus {
-    // WARNING: These values are serialised to disk. Don't change them.
+    // WARNING: These values are serialized to disk. Don't change them.
 
     kNextProtoUnsupported = 0,  // The server doesn't support NPN.
     kNextProtoNegotiated = 1,   // We agreed on a protocol.
@@ -104,23 +86,20 @@ class NET_API SSLClientSocket : public StreamSocket {
     kProtoHTTP11 = 1,
     kProtoSPDY1 = 2,
     kProtoSPDY2 = 3,
+    kProtoSPDY21 = 4,
+    kProtoSPDY3 = 5,
   };
 
   // Gets the SSL connection information of the socket.
+  //
+  // TODO(sergeyu): Move this method to the SSLSocket interface and
+  // implemented in SSLServerSocket too.
   virtual void GetSSLInfo(SSLInfo* ssl_info) = 0;
 
   // Gets the SSL CertificateRequest info of the socket after Connect failed
   // with ERR_SSL_CLIENT_AUTH_CERT_NEEDED.
   virtual void GetSSLCertRequestInfo(
       SSLCertRequestInfo* cert_request_info) = 0;
-
-  // Exports data derived from the SSL master-secret (see RFC 5705).
-  // The call will fail with an error if the socket is not connected, or the
-  // SSL implementation does not support the operation.
-  virtual int ExportKeyingMaterial(const base::StringPiece& label,
-                                   const base::StringPiece& context,
-                                   unsigned char *out,
-                                   unsigned int outlen) = 0;
 
   // Get the application level protocol that we negotiated with the server.
   // *proto is set to the resulting protocol (n.b. that the string may have
@@ -129,27 +108,66 @@ class NET_API SSLClientSocket : public StreamSocket {
   //   kNextProtoNegotiated:  *proto is set to the negotiated protocol.
   //   kNextProtoNoOverlap:   *proto is set to the first protocol in the
   //                          supported list.
-  virtual NextProtoStatus GetNextProto(std::string* proto) = 0;
+  // *server_protos is set to the server advertised protocols.
+  virtual NextProtoStatus GetNextProto(std::string* proto,
+                                       std::string* server_protos) = 0;
 
   static NextProto NextProtoFromString(const std::string& proto_string);
 
+  static const char* NextProtoToString(SSLClientSocket::NextProto next_proto);
+
+  static const char* NextProtoStatusToString(
+      const SSLClientSocket::NextProtoStatus status);
+
+  // Can be used with the second argument(|server_protos|) of |GetNextProto| to
+  // construct a comma separated string of server advertised protocols.
+  static std::string ServerProtosToString(const std::string& server_protos);
+
   static bool IgnoreCertError(int error, int load_flags);
+
+  // ClearSessionCache clears the SSL session cache, used to resume SSL
+  // sessions.
+  static void ClearSessionCache();
 
   virtual bool was_npn_negotiated() const;
 
   virtual bool set_was_npn_negotiated(bool negotiated);
 
-  virtual void UseDNSSEC(DNSSECProvider*) { }
-
   virtual bool was_spdy_negotiated() const;
 
   virtual bool set_was_spdy_negotiated(bool negotiated);
+
+  virtual SSLClientSocket::NextProto protocol_negotiated() const;
+
+  virtual void set_protocol_negotiated(
+      SSLClientSocket::NextProto protocol_negotiated);
+
+  // Returns the OriginBoundCertService used by this socket, or NULL if
+  // origin bound certificates are not supported.
+  virtual OriginBoundCertService* GetOriginBoundCertService() const = 0;
+
+  // Returns true if an origin bound certificate was sent on this connection.
+  // This may be useful for protocols, like SPDY, which allow the same
+  // connection to be shared between multiple origins, each of which need
+  // an origin bound certificate.
+  virtual bool WasOriginBoundCertSent() const;
+
+  // Returns the type of the origin bound cert that was sent, or
+  // CLIENT_CERT_INVALID_TYPE if none was sent.
+  virtual SSLClientCertType origin_bound_cert_type() const;
+
+  virtual SSLClientCertType set_origin_bound_cert_type(SSLClientCertType type);
 
  private:
   // True if NPN was responded to, independent of selecting SPDY or HTTP.
   bool was_npn_negotiated_;
   // True if NPN successfully negotiated SPDY.
   bool was_spdy_negotiated_;
+  // Protocol that we negotiated with the server.
+  SSLClientSocket::NextProto protocol_negotiated_;
+  // Type of the origin bound cert that was sent, or CLIENT_CERT_INVALID_TYPE
+  // if none was sent.
+  SSLClientCertType origin_bound_cert_type_;
 };
 
 }  // namespace net

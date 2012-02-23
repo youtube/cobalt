@@ -1,15 +1,30 @@
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 {
   'variables': {
     'chromium_code': 1,
+
+    'linux_link_kerberos%': 0,
+    'conditions': [
+      ['chromeos==1 or OS=="android"', {
+        # Disable Kerberos on ChromeOS and Android, at least for now.
+        # It needs configuration (krb5.conf and so on).
+        'use_kerberos%': 0,
+      }, {  # chromeos == 0
+        'use_kerberos%': 1,
+      }],
+    ],
   },
+  'includes': [
+    '../build/win_precompile.gypi',
+  ],
   'targets': [
     {
       'target_name': 'net',
       'type': '<(component)',
+      'variables': { 'enable_wexit_time_destructors': 1, },
       'dependencies': [
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
@@ -22,6 +37,8 @@
         'net_resources',
       ],
       'sources': [
+        'android/network_library.cc',
+        'android/network_library.h',
         'base/address_family.h',
         'base/address_list.cc',
         'base/address_list.h',
@@ -35,6 +52,8 @@
         'base/backoff_entry.h',
         'base/bandwidth_metrics.cc',
         'base/bandwidth_metrics.h',
+        'base/big_endian.cc',
+        'base/big_endian.h',
         'base/cache_type.h',
         'base/capturing_net_log.cc',
         'base/capturing_net_log.h',
@@ -58,8 +77,10 @@
         'base/cookie_options.h',
         'base/cookie_store.cc',
         'base/cookie_store.h',
-        'base/crl_filter.cc',
-        'base/crl_filter.h',
+        'base/cookie_util.cc',
+        'base/cookie_util.h',
+        'base/crl_set.cc',
+        'base/crl_set.h',
         'base/crypto_module.h',
         'base/crypto_module_nss.cc',
         'base/crypto_module_openssl.cc',
@@ -69,22 +90,26 @@
         'base/default_origin_bound_cert_store.h',
         'base/directory_lister.cc',
         'base/directory_lister.h',
-        'base/dns_reload_timer.cc',
-        'base/dns_reload_timer.h',
+        'base/dns_reloader.cc',
+        'base/dns_reloader.h',
+        'base/dns_util.cc',
+        'base/dns_util.h',
         'base/dnssec_chain_verifier.cc',
         'base/dnssec_chain_verifier.h',
         'base/dnssec_keyset.cc',
         'base/dnssec_keyset.h',
-        'base/dns_util.cc',
-        'base/dns_util.h',
-        'base/dnsrr_resolver.cc',
-        'base/dnsrr_resolver.h',
         'base/escape.cc',
         'base/escape.h',
         'base/escape_icu.cc',
         'base/ev_root_ca_metadata.cc',
         'base/ev_root_ca_metadata.h',
         'base/file_stream.h',
+        'base/file_stream_metrics.cc',
+        'base/file_stream_metrics.h',
+        'base/file_stream_metrics_posix.cc',
+        'base/file_stream_metrics_win.cc',
+        'base/file_stream_net_log_parameters.cc',
+        'base/file_stream_net_log_parameters.h',
         'base/file_stream_posix.cc',
         'base/file_stream_win.cc',
         'base/filter.cc',
@@ -126,12 +151,12 @@
         'base/mime_sniffer.h',
         'base/mime_util.cc',
         'base/mime_util.h',
-        'base/net_api.h',
         'base/net_error_list.h',
         'base/net_errors.cc',
         'base/net_errors.h',
         'base/net_errors_posix.cc',
         'base/net_errors_win.cc',
+        'base/net_export.h',
         'base/net_log.cc',
         'base/net_log.h',
         'base/net_log_event_type_list.h',
@@ -161,8 +186,10 @@
         'base/nss_memio.h',
         'base/openssl_memory_private_key_store.cc',
         'base/openssl_private_key_store.h',
+        'base/openssl_private_key_store_android.cc',
         'base/origin_bound_cert_service.cc',
         'base/origin_bound_cert_service.h',
+        'base/origin_bound_cert_store.cc',
         'base/origin_bound_cert_store.h',
         'base/pem_tokenizer.cc',
         'base/pem_tokenizer.h',
@@ -171,10 +198,13 @@
         'base/platform_mime_util_linux.cc',
         'base/platform_mime_util_mac.cc',
         'base/platform_mime_util_win.cc',
+        'base/prioritized_dispatcher.cc',
+        'base/prioritized_dispatcher.h',
+        'base/priority_queue.h',
         'base/rand_callback.h',
         'base/registry_controlled_domain.cc',
         'base/registry_controlled_domain.h',
-        'base/scoped_cert_chain_context.h',
+        'base/request_priority.h',
         'base/sdch_filter.cc',
         'base/sdch_filter.h',
         'base/sdch_manager.cc',
@@ -187,15 +217,18 @@
         'base/ssl_cipher_suite_names.h',
         'base/ssl_client_auth_cache.cc',
         'base/ssl_client_auth_cache.h',
+        'base/ssl_client_cert_type.h',
         'base/ssl_config_service.cc',
         'base/ssl_config_service.h',
         'base/ssl_config_service_defaults.cc',
         'base/ssl_config_service_defaults.h',
         'base/ssl_false_start_blacklist.cc',
+        'base/ssl_false_start_blacklist.h',
         'base/ssl_info.cc',
         'base/ssl_info.h',
         'base/static_cookie_policy.cc',
         'base/static_cookie_policy.h',
+        'base/sys_addrinfo.h',
         'base/test_data_stream.cc',
         'base/test_data_stream.h',
         'base/test_root_certs.cc',
@@ -206,8 +239,6 @@
         'base/test_root_certs_win.cc',
         'base/transport_security_state.cc',
         'base/transport_security_state.h',
-        'base/sys_addrinfo.h',
-        'base/sys_byteorder.h',
         'base/upload_data.cc',
         'base/upload_data.h',
         'base/upload_data_stream.cc',
@@ -216,17 +247,25 @@
         'base/winsock_init.h',
         'base/winsock_util.cc',
         'base/winsock_util.h',
-        'base/x509_certificate.cc',
-        'base/x509_certificate.h',
-        'base/x509_certificate_mac.cc',
-        'base/x509_certificate_nss.cc',
-        'base/x509_certificate_openssl.cc',
-        'base/x509_certificate_win.cc',
         'base/x509_cert_types.cc',
         'base/x509_cert_types.h',
         'base/x509_cert_types_mac.cc',
+        'base/x509_cert_types_win.cc',
+        'base/x509_certificate.cc',
+        'base/x509_certificate.h',
+        'base/x509_certificate_mac.cc',
+        'base/x509_certificate_net_log_param.cc',
+        'base/x509_certificate_net_log_param.h',
+        'base/x509_certificate_nss.cc',
+        'base/x509_certificate_openssl.cc',
+        'base/x509_certificate_win.cc',
+        'base/x509_util.h',
+        'base/x509_util_nss.cc',
+        'base/x509_util_nss.h',
         'base/x509_util_openssl.cc',
         'base/x509_util_openssl.h',
+        'base/zap.cc',
+        'base/zap.h',
         'disk_cache/addr.cc',
         'disk_cache/addr.h',
         'disk_cache/backend_impl.cc',
@@ -247,8 +286,6 @@
         'disk_cache/eviction.cc',
         'disk_cache/eviction.h',
         'disk_cache/experiments.h',
-        'disk_cache/net_log_parameters.cc',
-        'disk_cache/net_log_parameters.h',
         'disk_cache/file.cc',
         'disk_cache/file.h',
         'disk_cache/file_block.h',
@@ -272,6 +309,8 @@
         'disk_cache/mem_entry_impl.h',
         'disk_cache/mem_rankings.cc',
         'disk_cache/mem_rankings.h',
+        'disk_cache/net_log_parameters.cc',
+        'disk_cache/net_log_parameters.h',
         'disk_cache/rankings.cc',
         'disk_cache/rankings.h',
         'disk_cache/sparse_control.cc',
@@ -282,16 +321,32 @@
         'disk_cache/stats_histogram.h',
         'disk_cache/storage_block-inl.h',
         'disk_cache/storage_block.h',
+        'disk_cache/stress_support.h',
         'disk_cache/trace.cc',
         'disk_cache/trace.h',
         'dns/async_host_resolver.cc',
         'dns/async_host_resolver.h',
+        'dns/dns_config_service.cc',
+        'dns/dns_config_service.h',
+        'dns/dns_config_service_posix.cc',
+        'dns/dns_config_service_posix.h',
+        'dns/dns_config_service_win.cc',
+        'dns/dns_config_service_win.h',
+        'dns/dns_hosts.cc',
+        'dns/dns_hosts.h',
+        'dns/dns_protocol.h',
         'dns/dns_query.cc',
         'dns/dns_query.h',
         'dns/dns_response.cc',
         'dns/dns_response.h',
+        'dns/dns_session.cc',
+        'dns/dns_session.h',
         'dns/dns_transaction.cc',
         'dns/dns_transaction.h',
+        'dns/serial_worker.cc',
+        'dns/serial_worker.h',
+        'dns/watching_file_reader.cc',
+        'dns/watching_file_reader.h',
         'ftp/ftp_auth_cache.cc',
         'ftp/ftp_auth_cache.h',
         'ftp/ftp_ctrl_response_buffer.cc',
@@ -302,6 +357,8 @@
         'ftp/ftp_directory_listing_parser_ls.h',
         'ftp/ftp_directory_listing_parser_netware.cc',
         'ftp/ftp_directory_listing_parser_netware.h',
+        'ftp/ftp_directory_listing_parser_os2.cc',
+        'ftp/ftp_directory_listing_parser_os2.h',
         'ftp/ftp_directory_listing_parser_vms.cc',
         'ftp/ftp_directory_listing_parser_vms.h',
         'ftp/ftp_directory_listing_parser_windows.cc',
@@ -325,8 +382,6 @@
         'http/des.h',
         'http/disk_cache_based_ssl_host_info.cc',
         'http/disk_cache_based_ssl_host_info.h',
-        'http/http_alternate_protocols.cc',
-        'http/http_alternate_protocols.h',
         'http/http_atom_list.h',
         'http/http_auth.cc',
         'http/http_auth.h',
@@ -347,8 +402,8 @@
         'http/http_auth_handler_digest.h',
         'http/http_auth_handler_factory.cc',
         'http/http_auth_handler_factory.h',
-        'http/http_auth_handler_negotiate.h',
         'http/http_auth_handler_negotiate.cc',
+        'http/http_auth_handler_negotiate.h',
         'http/http_auth_handler_ntlm.cc',
         'http/http_auth_handler_ntlm.h',
         'http/http_auth_handler_ntlm_portable.cc',
@@ -363,6 +418,8 @@
         'http/http_cache.h',
         'http/http_cache_transaction.cc',
         'http/http_cache_transaction.h',
+        'http/http_content_disposition.cc',
+        'http/http_content_disposition.h',
         'http/http_chunked_decoder.cc',
         'http/http_chunked_decoder.h',
         'http/http_mac_signature.cc',
@@ -377,6 +434,23 @@
         'http/http_network_session_peer.h',
         'http/http_network_transaction.cc',
         'http/http_network_transaction.h',
+        'http/http_pipelined_connection.h',
+        'http/http_pipelined_connection_impl.cc',
+        'http/http_pipelined_connection_impl.h',
+        'http/http_pipelined_host.h',
+        'http/http_pipelined_host_capability.h',
+        'http/http_pipelined_host_impl.cc',
+        'http/http_pipelined_host_impl.h',
+        'http/http_pipelined_host_pool.cc',
+        'http/http_pipelined_host_pool.h',
+        'http/http_pipelined_stream.cc',
+        'http/http_pipelined_stream.h',
+        'http/http_proxy_client_socket.cc',
+        'http/http_proxy_client_socket.h',
+        'http/http_proxy_client_socket_pool.cc',
+        'http/http_proxy_client_socket_pool.h',
+        'http/http_proxy_utils.cc',
+        'http/http_proxy_utils.h',
         'http/http_request_headers.cc',
         'http/http_request_headers.h',
         'http/http_request_info.cc',
@@ -387,6 +461,10 @@
         'http/http_response_headers.h',
         'http/http_response_info.cc',
         'http/http_response_info.h',
+        'http/http_server_properties.cc',
+        'http/http_server_properties.h',
+        'http/http_server_properties_impl.cc',
+        'http/http_server_properties_impl.h',
         'http/http_stream.h',
         'http/http_stream_factory.cc',
         'http/http_stream_factory.h',
@@ -400,19 +478,9 @@
         'http/http_stream_parser.h',
         'http/http_transaction.h',
         'http/http_transaction_factory.h',
-        'http/url_security_manager.h',
-        'http/url_security_manager.cc',
-        'http/url_security_manager_posix.cc',
-        'http/url_security_manager_win.cc',
-        'http/http_proxy_client_socket.cc',
-        'http/http_proxy_client_socket.h',
-        'http/http_proxy_client_socket_pool.cc',
-        'http/http_proxy_client_socket_pool.h',
-        'http/http_proxy_utils.cc',
-        'http/http_proxy_utils.h',
         'http/http_util.cc',
-        'http/http_util_icu.cc',
         'http/http_util.h',
+        'http/http_util_icu.cc',
         'http/http_vary_data.cc',
         'http/http_vary_data.h',
         'http/http_version.h',
@@ -421,20 +489,22 @@
         'http/partial_data.cc',
         'http/partial_data.h',
         'http/proxy_client_socket.h',
+        'http/url_security_manager.cc',
+        'http/url_security_manager.h',
+        'http/url_security_manager_posix.cc',
+        'http/url_security_manager_win.cc',
         'ocsp/nss_ocsp.cc',
         'ocsp/nss_ocsp.h',
+        'proxy/dhcp_proxy_script_adapter_fetcher_win.cc',
+        'proxy/dhcp_proxy_script_adapter_fetcher_win.h',
         'proxy/dhcp_proxy_script_fetcher.cc',
         'proxy/dhcp_proxy_script_fetcher.h',
         'proxy/dhcp_proxy_script_fetcher_factory.cc',
         'proxy/dhcp_proxy_script_fetcher_factory.h',
-        'proxy/dhcp_proxy_script_adapter_fetcher_win.cc',
-        'proxy/dhcp_proxy_script_adapter_fetcher_win.h',
         'proxy/dhcp_proxy_script_fetcher_win.cc',
         'proxy/dhcp_proxy_script_fetcher_win.h',
         'proxy/dhcpcsvc_init_win.cc',
         'proxy/dhcpcsvc_init_win.h',
-        'proxy/init_proxy_resolver.cc',
-        'proxy/init_proxy_resolver.h',
         'proxy/multi_threaded_proxy_resolver.cc',
         'proxy/multi_threaded_proxy_resolver.h',
         'proxy/network_delegate_error_observer.cc',
@@ -473,12 +543,14 @@
         'proxy/proxy_resolver_winhttp.cc',
         'proxy/proxy_resolver_winhttp.h',
         'proxy/proxy_retry_info.h',
+        'proxy/proxy_script_decider.cc',
+        'proxy/proxy_script_decider.h',
         'proxy/proxy_script_fetcher.h',
         'proxy/proxy_script_fetcher_impl.cc',
         'proxy/proxy_script_fetcher_impl.h',
         'proxy/proxy_server.cc',
-        'proxy/proxy_server_mac.cc',
         'proxy/proxy_server.h',
+        'proxy/proxy_server_mac.cc',
         'proxy/proxy_service.cc',
         'proxy/proxy_service.h',
         'proxy/sync_host_resolver.h',
@@ -488,16 +560,16 @@
         'socket/client_socket_factory.h',
         'socket/client_socket_handle.cc',
         'socket/client_socket_handle.h',
-        'socket/client_socket_pool.h',
         'socket/client_socket_pool.cc',
+        'socket/client_socket_pool.h',
         'socket/client_socket_pool_base.cc',
         'socket/client_socket_pool_base.h',
         'socket/client_socket_pool_histograms.cc',
         'socket/client_socket_pool_histograms.h',
         'socket/client_socket_pool_manager.cc',
         'socket/client_socket_pool_manager.h',
-        'socket/dns_cert_provenance_checker.cc',
-        'socket/dns_cert_provenance_checker.h',
+        'socket/client_socket_pool_manager_impl.cc',
+        'socket/client_socket_pool_manager_impl.h',
         'socket/nss_ssl_util.cc',
         'socket/nss_ssl_util.h',
         'socket/server_socket.h',
@@ -522,12 +594,13 @@
         'socket/ssl_client_socket_win.h',
         'socket/ssl_error_params.cc',
         'socket/ssl_error_params.h',
+        'socket/ssl_host_info.cc',
+        'socket/ssl_host_info.h',
         'socket/ssl_server_socket.h',
         'socket/ssl_server_socket_nss.cc',
         'socket/ssl_server_socket_nss.h',
         'socket/ssl_server_socket_openssl.cc',
-        'socket/ssl_host_info.cc',
-        'socket/ssl_host_info.h',
+        'socket/ssl_socket.h',
         'socket/stream_socket.cc',
         'socket/stream_socket.h',
         'socket/tcp_client_socket.cc',
@@ -553,7 +626,11 @@
         'socket_stream/socket_stream_job_manager.h',
         'socket_stream/socket_stream_metrics.cc',
         'socket_stream/socket_stream_metrics.h',
+        'spdy/buffered_spdy_framer.cc',
+        'spdy/buffered_spdy_framer.h',
         'spdy/spdy_bitmasks.h',
+        'spdy/spdy_credential_state.cc',
+        'spdy/spdy_credential_state.h',
         'spdy/spdy_frame_builder.cc',
         'spdy/spdy_frame_builder.h',
         'spdy/spdy_framer.cc',
@@ -579,10 +656,10 @@
         'spdy/spdy_websocket_stream.h',
         'third_party/mozilla_security_manager/nsKeygenHandler.cpp',
         'third_party/mozilla_security_manager/nsKeygenHandler.h',
-        'third_party/mozilla_security_manager/nsNSSCertificateDB.cpp',
-        'third_party/mozilla_security_manager/nsNSSCertificateDB.h',
         'third_party/mozilla_security_manager/nsNSSCertTrust.cpp',
         'third_party/mozilla_security_manager/nsNSSCertTrust.h',
+        'third_party/mozilla_security_manager/nsNSSCertificateDB.cpp',
+        'third_party/mozilla_security_manager/nsNSSCertificateDB.h',
         'third_party/mozilla_security_manager/nsPKCS12Blob.cpp',
         'third_party/mozilla_security_manager/nsPKCS12Blob.h',
         'udp/datagram_client_socket.h',
@@ -590,6 +667,8 @@
         'udp/datagram_socket.h',
         'udp/udp_client_socket.cc',
         'udp/udp_client_socket.h',
+        'udp/udp_data_transfer_param.cc',
+        'udp/udp_data_transfer_param.h',
         'udp/udp_server_socket.cc',
         'udp/udp_server_socket.h',
         'udp/udp_socket.h',
@@ -597,8 +676,7 @@
         'udp/udp_socket_libevent.h',
         'udp/udp_socket_win.cc',
         'udp/udp_socket_win.h',
-        'url_request/https_prober.h',
-        'url_request/https_prober.cc',
+        'url_request/fraudulent_certificate_reporter.h',
         'url_request/url_request.cc',
         'url_request/url_request.h',
         'url_request/url_request_about_job.cc',
@@ -641,15 +719,13 @@
         'url_request/url_request_throttler_entry.cc',
         'url_request/url_request_throttler_entry.h',
         'url_request/url_request_throttler_entry_interface.h',
-        'url_request/url_request_throttler_header_adapter.h',
         'url_request/url_request_throttler_header_adapter.cc',
+        'url_request/url_request_throttler_header_adapter.h',
         'url_request/url_request_throttler_header_interface.h',
         'url_request/url_request_throttler_manager.cc',
         'url_request/url_request_throttler_manager.h',
         'url_request/view_cache_helper.cc',
         'url_request/view_cache_helper.h',
-        'websockets/websocket_frame_handler.cc',
-        'websockets/websocket_frame_handler.h',
         'websockets/websocket_handshake_handler.cc',
         'websockets/websocket_handshake_handler.h',
         'websockets/websocket_job.cc',
@@ -664,6 +740,25 @@
       ],
       'export_dependent_settings': [
         '../base/base.gyp:base',
+      ],
+      'actions': [
+        {
+          'action_name': 'ssl_false_start_blacklist',
+          'inputs': [
+            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)ssl_false_start_blacklist_process<(EXECUTABLE_SUFFIX)',
+            'base/ssl_false_start_blacklist.txt',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/net/base/ssl_false_start_blacklist_data.cc',
+          ],
+          'action':
+            ['<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)ssl_false_start_blacklist_process<(EXECUTABLE_SUFFIX)',
+             'base/ssl_false_start_blacklist.txt',
+              '<(SHARED_INTERMEDIATE_DIR)/net/base/ssl_false_start_blacklist_data.cc',
+            ],
+          'message': 'Generating SSL False Start blacklist',
+          'process_outputs_as_sources': 1,
+        },
       ],
       'conditions': [
         ['OS=="lb_shell"', {
@@ -695,44 +790,44 @@
         }, { # os is not lb_shell
           'dependencies': [
             '../sdch/sdch.gyp:sdch',
-            'ssl_false_start_blacklist_process#host',
-          ],
-          'actions': [
-            {
-              'action_name': 'ssl_false_start_blacklist',
-              'inputs': [
-                '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)ssl_false_start_blacklist_process<(EXECUTABLE_SUFFIX)',
-                'base/ssl_false_start_blacklist.txt',
-              ],
-              'outputs': [
-                '<(SHARED_INTERMEDIATE_DIR)/net/base/ssl_false_start_blacklist_data.cc',
-              ],
-              'action':
-                ['<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)ssl_false_start_blacklist_process<(EXECUTABLE_SUFFIX)',
-                 'base/ssl_false_start_blacklist.txt',
-                  '<(SHARED_INTERMEDIATE_DIR)/net/base/ssl_false_start_blacklist_data.cc',
-                ],
-              'message': 'Generating SSL False Start blacklist',
-              'process_outputs_as_sources': 1,
-            },
-          ],
-          'conditions': [
-            ['OS!="win"', { # Windows doesn't like libevent either
-              'dependencies': [
-                '../third_party/libevent/libevent.gyp:libevent',
-              ]
-            }]
-          ]
-        }],
-        ['javascript_engine=="v8"', {
-          'dependencies': [
             '../v8/tools/gyp/v8.gyp:v8',
+            'ssl_false_start_blacklist_process#host',
           ],
         }],
         ['chromeos==1', {
           'sources!': [
              'proxy/proxy_config_service_linux.cc',
              'proxy/proxy_config_service_linux.h',
+          ],
+        }],
+        ['use_kerberos==1', {
+          'defines': [
+            'USE_KERBEROS',
+          ],
+          'conditions': [
+            ['OS=="openbsd"', {
+              'include_dirs': [
+                '/usr/include/kerberosV'
+              ],
+            }],
+            ['linux_link_kerberos==1', {
+              'link_settings': {
+                'ldflags': [
+                  '<!@(krb5-config --libs gssapi)',
+                ],
+              },
+            }, { # linux_link_kerberos==0
+              'defines': [
+                'DLOPEN_KERBEROS',
+              ],
+            }],
+          ],
+        }, { # use_kerberos == 0
+          'sources!': [
+            'http/http_auth_gssapi_posix.cc',
+            'http/http_auth_gssapi_posix.h',
+            'http/http_auth_handler_negotiate.h',
+            'http/http_auth_handler_negotiate.cc',
           ],
         }],
         ['use_openssl==1', {
@@ -746,10 +841,10 @@
               'base/nss_memio.h',
               'base/test_root_certs_nss.cc',
               'base/x509_certificate_nss.cc',
+              'base/x509_util_nss.cc',
+              'base/x509_util_nss.h',
               'ocsp/nss_ocsp.cc',
               'ocsp/nss_ocsp.h',
-              'socket/dns_cert_provenance_check.cc',
-              'socket/dns_cert_provenance_check.h',
               'socket/nss_ssl_util.cc',
               'socket/nss_ssl_util.h',
               'socket/ssl_client_socket_nss.cc',
@@ -783,12 +878,10 @@
             ],
           },
         ],
-        [ 'toolkit_uses_gtk == 1', {
+        [ 'use_glib == 1', {
             'dependencies': [
               '../build/linux/system.gyp:gconf',
-              '../build/linux/system.gyp:gdk',
               '../build/linux/system.gyp:gio',
-              '../build/linux/system.gyp:libresolv',
             ],
             'conditions': [
               ['use_openssl==1 and OS != "lb_shell"', {
@@ -799,6 +892,17 @@
               {  # else use_openssl==0, use NSS
                 'dependencies': [
                   '../build/linux/system.gyp:ssl',
+                ],
+              }],
+              ['os_bsd==1', {
+                'sources!': [
+                  'base/network_change_notifier_linux.cc',
+                  'base/network_change_notifier_netlink_linux.cc',
+                  'proxy/proxy_config_service_linux.cc',
+                ],
+              },{
+                'dependencies': [
+                  '../build/linux/system.gyp:libresolv',
                 ],
               }],
               ['OS=="solaris"', {
@@ -830,6 +934,11 @@
             ],
           },
         ],
+        [ 'toolkit_uses_gtk == 1', {
+          'dependencies': [
+            '../build/linux/system.gyp:gdk',
+          ],
+        }],
         [ 'OS == "win"', {
             'sources!': [
               'http/http_auth_handler_ntlm_portable.cc',
@@ -843,7 +952,7 @@
             'dependencies': [
               '../third_party/nss/nss.gyp:nspr',
               '../third_party/nss/nss.gyp:nss',
-              'third_party/nss/ssl.gyp:ssl',
+              'third_party/nss/ssl.gyp:libssl',
               'tld_cleanup',
             ],
           }, { # else: OS != "win"
@@ -861,7 +970,7 @@
             'dependencies': [
               '../third_party/nss/nss.gyp:nspr',
               '../third_party/nss/nss.gyp:nss',
-              'third_party/nss/ssl.gyp:ssl',
+              'third_party/nss/ssl.gyp:libssl',
             ],
             'link_settings': {
               'libraries': [
@@ -877,6 +986,14 @@
               # Android can shut down our app at any time, so we persist session cookies.
               'ENABLE_PERSISTENT_SESSION_COOKIES'
             ],
+            'dependencies': [
+              '../build/android/system.gyp:ssl',
+            ],
+            'sources/': [
+              # TODO(jingzhao): The below files are excluded because of the
+              # missing JNI, add them back when JNI is ready.
+              ['exclude', '^android/'],
+            ],
           }, {  # else OS! = "android"
             'defines': [
               # These are the features Android doesn't support.
@@ -885,6 +1002,20 @@
             ],
           },
         ],
+        [ 'OS == "linux"', {
+            'dependencies': [
+              '../build/linux/system.gyp:dbus',
+              '../dbus/dbus.gyp:dbus',
+            ],
+          },
+        ],
+      ],
+      'target_conditions': [
+        ['OS == "android"', {
+          'sources/': [
+            ['include', '^base/platform_mime_util_linux\\.cc$'],
+          ],
+        }],
       ],
     },
     {
@@ -905,22 +1036,25 @@
       'sources': [
         'base/address_list_unittest.cc',
         'base/backoff_entry_unittest.cc',
+        'base/big_endian_unittest.cc',
         'base/cert_database_nss_unittest.cc',
         'base/cert_verifier_unittest.cc',
         'base/cookie_monster_unittest.cc',
-        'base/crl_filter_unittest.cc',
+        'base/cookie_store_unittest.h',
+        'base/cookie_util_unittest.cc',
+        'base/crl_set_unittest.cc',
         'base/data_url_unittest.cc',
         'base/default_origin_bound_cert_store_unittest.cc',
         'base/directory_lister_unittest.cc',
         'base/dnssec_unittest.cc',
         'base/dns_util_unittest.cc',
-        'base/dnsrr_resolver_unittest.cc',
         'base/escape_unittest.cc',
         'base/file_stream_unittest.cc',
         'base/filter_unittest.cc',
         'base/gzip_filter_unittest.cc',
         'base/host_cache_unittest.cc',
         'base/host_mapping_rules_unittest.cc',
+        'base/host_port_pair_unittest.cc',
         'base/host_resolver_impl_unittest.cc',
         'base/ip_endpoint_unittest.cc',
         'base/keygen_handler_unittest.cc',
@@ -934,8 +1068,12 @@
         'base/net_log_unittest.cc',
         'base/net_log_unittest.h',
         'base/net_util_unittest.cc',
+        'base/network_change_notifier_linux_unittest.cc',
+        'base/network_change_notifier_win_unittest.cc',
         'base/origin_bound_cert_service_unittest.cc',
         'base/pem_tokenizer_unittest.cc',
+        'base/prioritized_dispatcher_unittest.cc',
+        'base/priority_queue_unittest.cc',
         'base/registry_controlled_domain_unittest.cc',
         'base/run_all_unittests.cc',
         'base/sdch_filter_unittest.cc',
@@ -945,37 +1083,46 @@
         'base/ssl_config_service_unittest.cc',
         'base/ssl_false_start_blacklist_unittest.cc',
         'base/static_cookie_policy_unittest.cc',
-        'base/transport_security_state_unittest.cc',
         'base/test_certificate_data.h',
         'base/test_completion_callback_unittest.cc',
+        'base/transport_security_state_unittest.cc',
+        'base/upload_data_unittest.cc',
         'base/upload_data_stream_unittest.cc',
         'base/x509_certificate_unittest.cc',
-        'base/x509_cert_types_mac_unittest.cc',
+        'base/x509_cert_types_unittest.cc',
+        'base/x509_util_nss_unittest.cc',
+        'base/x509_util_openssl_unittest.cc',
         'disk_cache/addr_unittest.cc',
         'disk_cache/backend_unittest.cc',
         'disk_cache/bitmap_unittest.cc',
         'disk_cache/block_files_unittest.cc',
         'disk_cache/cache_util_unittest.cc',
-        'disk_cache/disk_cache_test_base.cc',
-        'disk_cache/disk_cache_test_base.h',
         'disk_cache/entry_unittest.cc',
         'disk_cache/mapped_file_unittest.cc',
         'disk_cache/storage_block_unittest.cc',
         'dns/async_host_resolver_unittest.cc',
+        'dns/dns_config_service_posix_unittest.cc',
+        'dns/dns_config_service_unittest.cc',
+        'dns/dns_config_service_win_unittest.cc',
+        'dns/dns_hosts_unittest.cc',
         'dns/dns_query_unittest.cc',
         'dns/dns_response_unittest.cc',
         'dns/dns_transaction_unittest.cc',
+        'dns/serial_worker_unittest.cc',
+        'dns/watching_file_reader_unittest.cc',
         'ftp/ftp_auth_cache_unittest.cc',
         'ftp/ftp_ctrl_response_buffer_unittest.cc',
         'ftp/ftp_directory_listing_parser_ls_unittest.cc',
         'ftp/ftp_directory_listing_parser_netware_unittest.cc',
+        'ftp/ftp_directory_listing_parser_os2_unittest.cc',
         'ftp/ftp_directory_listing_parser_unittest.cc',
+        'ftp/ftp_directory_listing_parser_unittest.h',
         'ftp/ftp_directory_listing_parser_vms_unittest.cc',
         'ftp/ftp_directory_listing_parser_windows_unittest.cc',
         'ftp/ftp_network_transaction_unittest.cc',
         'ftp/ftp_util_unittest.cc',
         'http/des_unittest.cc',
-        'http/http_alternate_protocols_unittest.cc',
+        'http/disk_cache_based_ssl_host_info_unittest.cc',
         'http/http_auth_cache_unittest.cc',
         'http/http_auth_controller_unittest.cc',
         'http/http_auth_filter_unittest.cc',
@@ -992,14 +1139,21 @@
         'http/http_byte_range_unittest.cc',
         'http/http_cache_unittest.cc',
         'http/http_chunked_decoder_unittest.cc',
+        'http/http_content_disposition_unittest.cc',
         'http/http_mac_signature_unittest.cc',
         'http/http_network_layer_unittest.cc',
         'http/http_network_transaction_unittest.cc',
+        'http/http_pipelined_connection_impl_unittest.cc',
+        'http/http_pipelined_host_impl_unittest.cc',
+        'http/http_pipelined_host_pool_unittest.cc',
+        'http/http_pipelined_network_transaction_unittest.cc',
         'http/http_proxy_client_socket_pool_unittest.cc',
         'http/http_request_headers_unittest.cc',
         'http/http_response_body_drainer_unittest.cc',
         'http/http_response_headers_unittest.cc',
+        'http/http_server_properties_impl_unittest.cc',
         'http/http_stream_factory_impl_unittest.cc',
+        'http/http_stream_parser_unittest.cc',
         'http/http_transaction_unittest.cc',
         'http/http_transaction_unittest.h',
         'http/http_util_unittest.cc',
@@ -1008,13 +1162,14 @@
         'http/mock_allow_url_security_manager.h',
         'http/mock_gssapi_library_posix.cc',
         'http/mock_gssapi_library_posix.h',
+        'http/mock_http_cache.cc',
+        'http/mock_http_cache.h',
         'http/mock_sspi_library_win.h',
         'http/mock_sspi_library_win.cc',
         'http/url_security_manager_unittest.cc',
         'proxy/dhcp_proxy_script_adapter_fetcher_win_unittest.cc',
         'proxy/dhcp_proxy_script_fetcher_factory_unittest.cc',
         'proxy/dhcp_proxy_script_fetcher_win_unittest.cc',
-        'proxy/init_proxy_resolver_unittest.cc',
         'proxy/multi_threaded_proxy_resolver_unittest.cc',
         'proxy/network_delegate_error_observer_unittest.cc',
         'proxy/proxy_bypass_rules_unittest.cc',
@@ -1024,17 +1179,20 @@
         'proxy/proxy_list_unittest.cc',
         'proxy/proxy_resolver_js_bindings_unittest.cc',
         'proxy/proxy_resolver_v8_unittest.cc',
+        'proxy/proxy_script_decider_unittest.cc',
         'proxy/proxy_script_fetcher_impl_unittest.cc',
         'proxy/proxy_server_unittest.cc',
         'proxy/proxy_service_unittest.cc',
         'proxy/sync_host_resolver_bridge_unittest.cc',
         'socket/client_socket_pool_base_unittest.cc',
         'socket/deterministic_socket_data_unittest.cc',
+        'socket/mock_client_socket_pool_manager.cc',
+        'socket/mock_client_socket_pool_manager.h',
         'socket/socks5_client_socket_unittest.cc',
         'socket/socks_client_socket_pool_unittest.cc',
         'socket/socks_client_socket_unittest.cc',
-        'socket/ssl_client_socket_unittest.cc',
         'socket/ssl_client_socket_pool_unittest.cc',
+        'socket/ssl_client_socket_unittest.cc',
         'socket/ssl_server_socket_unittest.cc',
         'socket/tcp_client_socket_unittest.cc',
         'socket/tcp_server_socket_unittest.cc',
@@ -1043,6 +1201,8 @@
         'socket/web_socket_server_socket_unittest.cc',
         'socket_stream/socket_stream_metrics_unittest.cc',
         'socket_stream/socket_stream_unittest.cc',
+        'spdy/buffered_spdy_framer_unittest.cc',
+        'spdy/spdy_credential_state_unittest.cc',
         'spdy/spdy_framer_test.cc',
         'spdy/spdy_http_stream_unittest.cc',
         'spdy/spdy_network_transaction_unittest.cc',
@@ -1064,13 +1224,13 @@
         'tools/dump_cache/url_utilities_unittest.cc',
         'udp/udp_socket_unittest.cc',
         'url_request/url_request_job_factory_unittest.cc',
+        'url_request/url_request_job_unittest.cc',
         'url_request/url_request_throttler_simulation_unittest.cc',
         'url_request/url_request_throttler_test_support.cc',
         'url_request/url_request_throttler_test_support.h',
         'url_request/url_request_throttler_unittest.cc',
         'url_request/url_request_unittest.cc',
         'url_request/view_cache_helper_unittest.cc',
-        'websockets/websocket_frame_handler_unittest.cc',
         'websockets/websocket_handshake_handler_unittest.cc',
         'websockets/websocket_job_unittest.cc',
         'websockets/websocket_net_log_params_unittest.cc',
@@ -1082,19 +1242,23 @@
              'proxy/proxy_config_service_linux_unittest.cc',
           ],
         }],
-        [ 'toolkit_uses_gtk == 1', {
+        [ 'use_glib == 1', {
             'dependencies': [
-              '../build/linux/system.gyp:gtk',
               '../build/linux/system.gyp:ssl',
             ],
-          },
-          {  # else: OS is not in the above list
+          }, {  # else: OS is not in the above list
             'sources!': [
               'base/cert_database_nss_unittest.cc',
             ],
-          }
+          },
         ],
-        [ 'os_posix == 1 and OS != "mac"', {
+        [ 'toolkit_uses_gtk == 1', {
+            'dependencies': [
+              '../build/linux/system.gyp:gtk',
+            ],
+          },
+        ],
+        [ 'os_posix == 1 and OS != "mac" and OS != "android"', {
           'conditions': [
             ['linux_use_tcmalloc==1', {
               'dependencies': [
@@ -1103,27 +1267,77 @@
             }],
           ],
         }],
+        [ 'use_kerberos==1', {
+          'defines': [
+            'USE_KERBEROS',
+          ],
+        }, { # use_kerberos == 0
+          'sources!': [
+            'http/http_auth_gssapi_posix_unittest.cc',
+            'http/http_auth_handler_negotiate_unittest.cc',
+            'http/mock_gssapi_library_posix.cc',
+            'http/mock_gssapi_library_posix.h',
+          ],
+        }],
         [ 'use_openssl==1', {
             # When building for OpenSSL, we need to exclude NSS specific tests.
             # TODO(bulach): Add equivalent tests when the underlying
             #               functionality is ported to OpenSSL.
             'sources!': [
+              'base/x509_util_nss_unittest.cc',
               'base/cert_database_nss_unittest.cc',
               'base/dnssec_unittest.cc',
+            ],
+          }, {  # else !use_openssl: remove the unneeded files
+            'sources!': [
+              'base/x509_util_openssl_unittest.cc',
             ],
           },
         ],
         [ 'OS == "win"', {
             'sources!': [
+              'dns/dns_config_service_posix_unittest.cc',
               'http/http_auth_gssapi_posix_unittest.cc',
             ],
             # This is needed to trigger the dll copy step on windows.
             # TODO(mark): Specifying this here shouldn't be necessary.
             'dependencies': [
               '../third_party/icu/icu.gyp:icudata',
+              '../third_party/nss/nss.gyp:nspr',
+              '../third_party/nss/nss.gyp:nss',
+              'third_party/nss/ssl.gyp:libssl',
             ],
           },
         ],
+        [ 'OS == "mac"', {
+            'dependencies': [
+              '../third_party/nss/nss.gyp:nspr',
+              '../third_party/nss/nss.gyp:nss',
+              'third_party/nss/ssl.gyp:libssl',
+            ],
+          },
+        ],
+        [ 'OS == "linux"', {
+            'dependencies': [
+              '../build/linux/system.gyp:dbus',
+              '../dbus/dbus.gyp:dbus_test_support',
+            ],
+          },
+        ],
+        [ 'OS == "android"', {
+            'dependencies': [
+              '../build/android/system.gyp:ssl',
+            ],
+            'sources!': [
+              'dns/dns_config_service_posix_unittest.cc',
+            ],
+          },
+        ],
+        [ 'OS != "win" and OS != "mac"', {
+          'sources!': [
+            'base/x509_cert_types_unittest.cc',
+          ],
+        }]
       ],
     },
     {
@@ -1218,19 +1432,22 @@
         'base/cert_test_util.h',
         'base/cookie_monster_store_test.cc',
         'base/cookie_monster_store_test.h',
+        'base/cookie_store_test_callbacks.cc',
+        'base/cookie_store_test_callbacks.h',
         'base/cookie_store_test_helpers.cc',
         'base/cookie_store_test_helpers.h',
+        'base/mock_file_stream.cc',
+        'base/mock_file_stream.h',
         'base/mock_host_resolver.cc',
         'base/mock_host_resolver.h',
         'base/net_test_suite.cc',
         'base/net_test_suite.h',
         'base/test_completion_callback.cc',
         'base/test_completion_callback.h',
-        'base/test_host_resolver_observer.cc',
-        'base/test_host_resolver_observer.h',
+        'disk_cache/disk_cache_test_base.cc',
+        'disk_cache/disk_cache_test_base.h',
         'disk_cache/disk_cache_test_util.cc',
         'disk_cache/disk_cache_test_util.h',
-        'dns/dns_test_util.cc',
         'dns/dns_test_util.h',
         'proxy/mock_proxy_resolver.cc',
         'proxy/mock_proxy_resolver.h',
@@ -1253,11 +1470,12 @@
         ['inside_chromium_build==1', {
           'dependencies': [
             '../chrome/app/policy/cloud_policy_codegen.gyp:cloud_policy_proto_compile',
+            # The test server uses Python modules generated by the sync protos.
             '../chrome/browser/sync/protocol/sync_proto.gyp:sync_proto',
             '../third_party/protobuf/protobuf.gyp:py_proto',
           ],
         }],
-        ['os_posix == 1 and OS != "mac" and OS != "lb_shell"', {
+        ['os_posix == 1 and OS != "mac" and OS != "android" and OS != "lb_shell"', {
           'conditions': [
             ['use_openssl==1', {
               'dependencies': [
@@ -1270,7 +1488,7 @@
             }],
           ],
         }],
-        ['os_posix == 1 and OS != "mac"', {
+        ['os_posix == 1 and OS != "mac" and OS != "android"', {
           'conditions': [
             ['linux_use_tcmalloc==1', {
               'dependencies': [
@@ -1301,6 +1519,7 @@
     {
       'target_name': 'fetch_client',
       'type': 'executable',
+      'variables': { 'enable_wexit_time_destructors': 1, },
       'dependencies': [
         'net',
         '../base/base.gyp:base',
@@ -1315,11 +1534,11 @@
     {
       'target_name': 'fetch_server',
       'type': 'executable',
+      'variables': { 'enable_wexit_time_destructors': 1, },
       'dependencies': [
         'net',
         '../base/base.gyp:base',
         '../build/temp_gyp/googleurl.gyp:googleurl',
-        '../testing/gtest.gyp:gtest',
       ],
       'sources': [
         'tools/fetch/fetch_server.cc',
@@ -1338,10 +1557,10 @@
     {
       'target_name': 'http_server',
       'type': 'static_library',
+      'variables': { 'enable_wexit_time_destructors': 1, },
       'dependencies': [
         'net',
         '../base/base.gyp:base',
-        '../testing/gtest.gyp:gtest',
       ],
       'sources': [
         'server/http_connection.cc',
@@ -1363,22 +1582,45 @@
       ],
       'sources': [
         'tools/dnssec_chain_verify/dnssec_chain_verify.cc',
-      ]
+      ],
+    },
+    {
+      'target_name': 'crl_set_dump',
+      'type': 'executable',
+      'dependencies': [
+        'net',
+        '../base/base.gyp:base',
+      ],
+      'sources': [
+        'tools/crl_set_dump/crl_set_dump.cc',
+      ],
     },
     {
       'target_name': 'ssl_false_start_blacklist_process',
       'type': 'executable',
       'toolsets': ['host'],
+      'dependencies': [
+        '../base/base.gyp:base',
+        '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
+      ],
       'include_dirs': [
         '..',
       ],
       'sources': [
         'base/ssl_false_start_blacklist_process.cc',
+        'base/ssl_false_start_blacklist.h',
+      ],
+      'conditions': [
+        ['OS == "android" and host_os == "linux"', {
+          'ldflags': [
+            '-ldl',
+          ],
+        }],
       ],
     },
   ],
   'conditions': [
-     ['os_posix == 1 and OS != "mac" and OS != "lb_shell"', {
+     ['os_posix == 1 and OS != "mac" and OS != "android" and OS != "lb_shell"', {
        'targets': [
          {
            'target_name': 'flip_in_mem_edsm_server',
@@ -1388,7 +1630,7 @@
            ],
            'dependencies': [
              '../base/base.gyp:base',
-             'net.gyp:net',
+             'net',
              '../third_party/openssl/openssl.gyp:openssl',
            ],
            'sources': [
@@ -1448,9 +1690,10 @@
          {
            'target_name': 'curvecp',
            'type': 'static_library',
+           'variables': { 'enable_wexit_time_destructors': 1, },
            'dependencies': [
              '../base/base.gyp:base',
-             'net.gyp:net',
+             'net',
            ],
            'sources': [
              'curvecp/circular_buffer.cc',
@@ -1485,8 +1728,8 @@
            'type': 'executable',
            'dependencies': [
              '../base/base.gyp:base',
-             'net.gyp:curvecp',
-             'net.gyp:net',
+             'curvecp',
+             'net',
              'net_test_support',
              '../testing/gmock.gyp:gmock',
              '../testing/gtest.gyp:gtest',

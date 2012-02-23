@@ -10,11 +10,14 @@
 #include <sys/types.h>
 #include <utime.h>
 
-// Not implemented in Bionic. See platform_file_android.cc.
+// Not implemented in Bionic.
 extern "C" int futimes(int fd, const struct timeval tv[2]);
 
 // The prototype of mkdtemp is missing.
 extern "C" char* mkdtemp(char* path);
+
+// Android has no timegm().
+extern "C" time_t timegm(struct tm* const t);
 
 // The lockf() function is not available on Android; we translate to flock().
 #define F_LOCK LOCK_EX

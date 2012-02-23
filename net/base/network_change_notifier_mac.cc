@@ -1,16 +1,10 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/network_change_notifier_mac.h"
 
 #include <netinet/in.h>
-#include <SystemConfiguration/SCDynamicStoreKey.h>
-#include <SystemConfiguration/SCNetworkReachability.h>
-#include <SystemConfiguration/SCSchemaDefinitions.h>
-
-#include "base/mac/scoped_cftyperef.h"
-#include "base/synchronization/lock.h"
 
 namespace net {
 
@@ -21,11 +15,21 @@ static bool CalculateReachability(SCNetworkConnectionFlags flags) {
 }
 
 NetworkChangeNotifierMac::NetworkChangeNotifierMac()
-    : forwarder_(this),
-      config_watcher_(&forwarder_),
-      network_reachable_(true) {}
+    : online_state_(UNINITIALIZED),
+      initial_state_cv_(&online_state_lock_),
+      forwarder_(this) {
+  // Must be initialized after the rest of this object, as it may call back into
+  // SetInitialState().
+  config_watcher_.reset(new NetworkConfigWatcherMac(&forwarder_));
+}
 
 NetworkChangeNotifierMac::~NetworkChangeNotifierMac() {
+  // Delete the ConfigWatcher to join the notifier thread, ensuring that
+  // StartReachabilityNotifications() has an opportunity to run to completion.
+  config_watcher_.reset();
+
+  // Now that StartReachabilityNotifications() has either run to completion or
+  // never run at all, unschedule reachability_ if it was previously scheduled.
   if (reachability_.get() && run_loop_.get()) {
     SCNetworkReachabilityUnscheduleFromRunLoop(reachability_.get(),
                                                run_loop_.get(),
@@ -34,16 +38,71 @@ NetworkChangeNotifierMac::~NetworkChangeNotifierMac() {
 }
 
 bool NetworkChangeNotifierMac::IsCurrentlyOffline() const {
-  base::AutoLock lock(network_reachable_lock_);
-  return !network_reachable_;
+  base::AutoLock lock(online_state_lock_);
+  // Make sure the initial state is set before returning.
+  while (online_state_ == UNINITIALIZED) {
+    initial_state_cv_.Wait();
+  }
+  return online_state_ == OFFLINE;
 }
 
-void NetworkChangeNotifierMac::SetDynamicStoreNotificationKeys(
-    SCDynamicStoreRef store) {
+void NetworkChangeNotifierMac::SetInitialState() {
+  // Called on notifier thread.
+
+  // Try to reach 0.0.0.0. This is the approach taken by Firefox:
+  //
+  // http://mxr.mozilla.org/mozilla2.0/source/netwerk/system/mac/nsNetworkLinkService.mm
+  //
+  // From my (adamk) testing on Snow Leopard, 0.0.0.0
+  // seems to be reachable if any network connection is available.
+  struct sockaddr_in addr = {0};
+  addr.sin_len = sizeof(addr);
+  addr.sin_family = AF_INET;
+  reachability_.reset(SCNetworkReachabilityCreateWithAddress(
+      kCFAllocatorDefault, reinterpret_cast<struct sockaddr*>(&addr)));
+
+  SCNetworkConnectionFlags flags;
+  bool reachable = true;
+  if (SCNetworkReachabilityGetFlags(reachability_, &flags))
+    reachable = CalculateReachability(flags);
+  else
+    LOG(ERROR) << "Could not get initial network state, assuming online.";
+  {
+    base::AutoLock lock(online_state_lock_);
+    online_state_ = reachable ? ONLINE : OFFLINE;
+    initial_state_cv_.Signal();
+  }
+}
+
+void NetworkChangeNotifierMac::StartReachabilityNotifications() {
   // Called on notifier thread.
   run_loop_.reset(CFRunLoopGetCurrent());
   CFRetain(run_loop_.get());
 
+  DCHECK(reachability_);
+  SCNetworkReachabilityContext reachability_context = {
+    0,     // version
+    this,  // user data
+    NULL,  // retain
+    NULL,  // release
+    NULL   // description
+  };
+  if (!SCNetworkReachabilitySetCallback(
+          reachability_,
+          &NetworkChangeNotifierMac::ReachabilityCallback,
+          &reachability_context)) {
+    LOG(DFATAL) << "Could not set network reachability callback";
+    reachability_.reset();
+  } else if (!SCNetworkReachabilityScheduleWithRunLoop(reachability_,
+                                                       run_loop_,
+                                                       kCFRunLoopCommonModes)) {
+    LOG(DFATAL) << "Could not schedule network reachability on run loop";
+    reachability_.reset();
+  }
+}
+
+void NetworkChangeNotifierMac::SetDynamicStoreNotificationKeys(
+    SCDynamicStoreRef store) {
   base::mac::ScopedCFTypeRef<CFMutableArrayRef> notification_keys(
       CFArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks));
   base::mac::ScopedCFTypeRef<CFStringRef> key(
@@ -62,48 +121,6 @@ void NetworkChangeNotifierMac::SetDynamicStoreNotificationKeys(
       store, notification_keys.get(), NULL);
   // TODO(willchan): Figure out a proper way to handle this rather than crash.
   CHECK(ret);
-
-  // Try to reach 0.0.0.0. This is the approach taken by Firefox:
-  //
-  // http://mxr.mozilla.org/mozilla2.0/source/netwerk/system/mac/nsNetworkLinkService.mm
-  //
-  // From my (adamk) testing on Snow Leopard, 0.0.0.0
-  // seems to be reachable if any network connection is available.
-  struct sockaddr_in addr = {0};
-  addr.sin_len = sizeof(addr);
-  addr.sin_family = AF_INET;
-  reachability_.reset(SCNetworkReachabilityCreateWithAddress(
-      kCFAllocatorDefault, reinterpret_cast<struct sockaddr*>(&addr)));
-
-  // 1. Get the initial network state synchronously.
-  SCNetworkConnectionFlags flags;
-  if (SCNetworkReachabilityGetFlags(reachability_.get(), &flags)) {
-    bool reachable = CalculateReachability(flags);
-    base::AutoLock lock(network_reachable_lock_);
-    network_reachable_ = reachable;
-  } else
-    LOG(ERROR) << "Could not get initial network state.";
-
-  // 2. Set up periodic callbacks when the state changes.
-  SCNetworkReachabilityContext reachability_context = {
-    0,     // version
-    this,  // user data
-    NULL,  // retain
-    NULL,  // release
-    NULL   // description
-  };
-  if (!SCNetworkReachabilitySetCallback(
-          reachability_.get(),
-          &NetworkChangeNotifierMac::ReachabilityCallback,
-          &reachability_context)) {
-    LOG(DFATAL) << "Could not set network reachability callback";
-    reachability_.reset();
-  } else if (!SCNetworkReachabilityScheduleWithRunLoop(reachability_.get(),
-                                                       run_loop_,
-                                                       kCFRunLoopCommonModes)) {
-    LOG(DFATAL) << "Could not schedule network reachability on run loop";
-    reachability_.reset();
-  }
 }
 
 void NetworkChangeNotifierMac::OnNetworkConfigChange(CFArrayRef changed_keys) {
@@ -136,14 +153,14 @@ void NetworkChangeNotifierMac::ReachabilityCallback(
 
   DCHECK_EQ(notifier_mac->run_loop_.get(), CFRunLoopGetCurrent());
 
-  bool new_reachability = CalculateReachability(flags);
-  bool old_reachability;
+  OnlineState new_state = CalculateReachability(flags) ? ONLINE : OFFLINE;
+  OnlineState old_state;
   {
-    base::AutoLock lock(notifier_mac->network_reachable_lock_);
-    old_reachability = notifier_mac->network_reachable_;
-    notifier_mac->network_reachable_ = new_reachability;
+    base::AutoLock lock(notifier_mac->online_state_lock_);
+    old_state = notifier_mac->online_state_;
+    notifier_mac->online_state_ = new_state;
   }
-  if (old_reachability != new_reachability)
+  if (old_state != new_state)
     NotifyObserversOfOnlineStateChange();
 }
 

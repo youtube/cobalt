@@ -16,11 +16,11 @@
 
 #include "base/basictypes.h"
 #include "base/string_piece.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
-class NET_API HttpRequestHeaders {
+class NET_EXPORT HttpRequestHeaders {
  public:
   struct HeaderKeyValuePair {
     HeaderKeyValuePair();
@@ -33,7 +33,7 @@ class NET_API HttpRequestHeaders {
 
   typedef std::vector<HeaderKeyValuePair> HeaderVector;
 
-  class NET_API Iterator {
+  class NET_EXPORT Iterator {
    public:
     explicit Iterator(const HttpRequestHeaders& headers);
     ~Iterator();

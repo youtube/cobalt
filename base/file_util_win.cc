@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,14 +17,14 @@
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
-#include "base/win/pe_image.h"
-#include "base/win/scoped_handle.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
+#include "base/win/pe_image.h"
 #include "base/win/scoped_comptr.h"
+#include "base/win/scoped_handle.h"
 #include "base/win/win_util.h"
 #include "base/win/windows_version.h"
 
@@ -34,48 +34,6 @@ namespace {
 
 const DWORD kFileShareAll =
     FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
-
-// Helper for NormalizeFilePath(), defined below.
-bool DevicePathToDriveLetterPath(const FilePath& device_path,
-                                 FilePath* drive_letter_path) {
-  base::ThreadRestrictions::AssertIOAllowed();
-
-  // Get the mapping of drive letters to device paths.
-  const int kDriveMappingSize = 1024;
-  wchar_t drive_mapping[kDriveMappingSize] = {'\0'};
-  if (!::GetLogicalDriveStrings(kDriveMappingSize - 1, drive_mapping)) {
-    LOG(ERROR) << "Failed to get drive mapping.";
-    return false;
-  }
-
-  // The drive mapping is a sequence of null terminated strings.
-  // The last string is empty.
-  wchar_t* drive_map_ptr = drive_mapping;
-  wchar_t device_name[MAX_PATH];
-  wchar_t drive[] = L" :";
-
-  // For each string in the drive mapping, get the junction that links
-  // to it.  If that junction is a prefix of |device_path|, then we
-  // know that |drive| is the real path prefix.
-  while (*drive_map_ptr) {
-    drive[0] = drive_map_ptr[0];  // Copy the drive letter.
-
-    if (QueryDosDevice(drive, device_name, MAX_PATH) &&
-        StartsWith(device_path.value(), device_name, true)) {
-      *drive_letter_path = FilePath(drive +
-          device_path.value().substr(wcslen(device_name)));
-      return true;
-    }
-    // Move to the next drive letter string, which starts one
-    // increment after the '\0' that terminates the current string.
-    while (*drive_map_ptr++);
-  }
-
-  // No drive matched.  The path does not start with a device junction
-  // that is mounted as a drive letter.  This means there is no drive
-  // letter path to the volume that holds |device_path|, so fail.
-  return false;
-}
 
 }  // namespace
 
@@ -143,6 +101,8 @@ bool Delete(const FilePath& path, bool recursive) {
   // into the rest of the buffer.
   wchar_t double_terminated_path[MAX_PATH + 1] = {0};
 #pragma warning(suppress:4996)  // don't complain about wcscpy deprecation
+  if (g_bug108724_debug)
+    LOG(WARNING) << "copying ";
   wcscpy(double_terminated_path, path.value().c_str());
 
   SHFILEOPSTRUCT file_operation = {0};
@@ -151,7 +111,11 @@ bool Delete(const FilePath& path, bool recursive) {
   file_operation.fFlags = FOF_NOERRORUI | FOF_SILENT | FOF_NOCONFIRMATION;
   if (!recursive)
     file_operation.fFlags |= FOF_NORECURSION | FOF_FILESONLY;
+  if (g_bug108724_debug)
+    LOG(WARNING) << "Performing shell operation";
   int err = SHFileOperation(&file_operation);
+  if (g_bug108724_debug)
+    LOG(WARNING) << "Done: " << err;
 
   // Since we're passing flags to the operation telling it to be silent,
   // it's possible for the operation to be aborted/cancelled without err
@@ -556,7 +520,7 @@ bool GetTempDir(FilePath* path) {
   return true;
 }
 
-bool GetShmemTempDir(FilePath* path) {
+bool GetShmemTempDir(FilePath* path, bool executable) {
   return GetTempDir(path);
 }
 
@@ -576,7 +540,7 @@ bool CreateTemporaryFile(FilePath* path) {
   return false;
 }
 
-FILE* CreateAndOpenTemporaryShmemFile(FilePath* path) {
+FILE* CreateAndOpenTemporaryShmemFile(FilePath* path, bool executable) {
   base::ThreadRestrictions::AssertIOAllowed();
   return CreateAndOpenTemporaryFile(path);
 }
@@ -603,13 +567,13 @@ bool CreateTemporaryFileInDir(const FilePath& dir,
   wchar_t temp_name[MAX_PATH + 1];
 
   if (!GetTempFileName(dir.value().c_str(), L"", 0, temp_name)) {
-    PLOG(WARNING) << "Failed to get temporary file name in " << dir.value();
+    DPLOG(WARNING) << "Failed to get temporary file name in " << dir.value();
     return false;
   }
 
   DWORD path_len = GetLongPathName(temp_name, temp_name, MAX_PATH);
   if (path_len > MAX_PATH + 1 || path_len == 0) {
-    PLOG(WARNING) << "Failed to get long path name for " << temp_name;
+    DPLOG(WARNING) << "Failed to get long path name for " << temp_name;
     return false;
   }
 
@@ -667,8 +631,8 @@ bool CreateDirectory(const FilePath& full_path) {
                << "directory already exists.";
       return true;
     }
-    LOG(WARNING) << "CreateDirectory(" << full_path_str << "), "
-                 << "conflicts with existing file.";
+    DLOG(WARNING) << "CreateDirectory(" << full_path_str << "), "
+                  << "conflicts with existing file.";
     return false;
   }
 
@@ -695,8 +659,8 @@ bool CreateDirectory(const FilePath& full_path) {
       // race to create the same directory.
       return true;
     } else {
-      LOG(WARNING) << "Failed to create directory " << full_path_str
-                   << ", last error is " << error_code << ".";
+      DLOG(WARNING) << "Failed to create directory " << full_path_str
+                    << ", last error is " << error_code << ".";
       return false;
     }
   } else {
@@ -773,8 +737,8 @@ int WriteFile(const FilePath& filename, const char* data, int size) {
                                           0,
                                           NULL));
   if (!file) {
-    LOG(WARNING) << "CreateFile failed for path " << filename.value()
-                 << " error code=" << GetLastError();
+    DLOG(WARNING) << "CreateFile failed for path " << filename.value()
+                  << " error code=" << GetLastError();
     return -1;
   }
 
@@ -785,38 +749,14 @@ int WriteFile(const FilePath& filename, const char* data, int size) {
 
   if (!result) {
     // WriteFile failed.
-    LOG(WARNING) << "writing file " << filename.value()
-                 << " failed, error code=" << GetLastError();
+    DLOG(WARNING) << "writing file " << filename.value()
+                  << " failed, error code=" << GetLastError();
   } else {
     // Didn't write all the bytes.
-    LOG(WARNING) << "wrote" << written << " bytes to " <<
-        filename.value() << " expected " << size;
+    DLOG(WARNING) << "wrote" << written << " bytes to "
+                  << filename.value() << " expected " << size;
   }
   return -1;
-}
-
-bool RenameFileAndResetSecurityDescriptor(const FilePath& source_file_path,
-                                          const FilePath& target_file_path) {
-  base::ThreadRestrictions::AssertIOAllowed();
-
-  // The parameters to SHFileOperation must be terminated with 2 NULL chars.
-  std::wstring source = source_file_path.value();
-  std::wstring target = target_file_path.value();
-
-  source.append(1, L'\0');
-  target.append(1, L'\0');
-
-  SHFILEOPSTRUCT move_info = {0};
-  move_info.wFunc = FO_MOVE;
-  move_info.pFrom = source.c_str();
-  move_info.pTo = target.c_str();
-  move_info.fFlags = FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOERRORUI |
-                     FOF_NOCONFIRMMKDIR | FOF_NOCOPYSECURITYATTRIBS;
-
-  if (0 != SHFileOperation(&move_info))
-    return false;
-
-  return true;
 }
 
 // Gets the current working directory for the process.
@@ -848,19 +788,20 @@ bool SetCurrentDirectory(const FilePath& directory) {
 
 FileEnumerator::FileEnumerator(const FilePath& root_path,
                                bool recursive,
-                               FileEnumerator::FILE_TYPE file_type)
+                               FileType file_type)
     : recursive_(recursive),
       file_type_(file_type),
       has_find_data_(false),
       find_handle_(INVALID_HANDLE_VALUE) {
   // INCLUDE_DOT_DOT must not be specified if recursive.
   DCHECK(!(recursive && (INCLUDE_DOT_DOT & file_type_)));
+  memset(&find_data_, 0, sizeof(find_data_));
   pending_paths_.push(root_path);
 }
 
 FileEnumerator::FileEnumerator(const FilePath& root_path,
                                bool recursive,
-                               FileEnumerator::FILE_TYPE file_type,
+                               FileType file_type,
                                const FilePath::StringType& pattern)
     : recursive_(recursive),
       file_type_(file_type),
@@ -869,6 +810,7 @@ FileEnumerator::FileEnumerator(const FilePath& root_path,
       find_handle_(INVALID_HANDLE_VALUE) {
   // INCLUDE_DOT_DOT must not be specified if recursive.
   DCHECK(!(recursive && (INCLUDE_DOT_DOT & file_type_)));
+  memset(&find_data_, 0, sizeof(find_data_));
   pending_paths_.push(root_path);
 }
 
@@ -991,7 +933,7 @@ bool MemoryMappedFile::InitializeAsImageSection(const FilePath& file_name) {
       NULL, NULL);
 
   if (file_ == base::kInvalidPlatformFileValue) {
-    LOG(ERROR) << "Couldn't open " << file_name.value();
+    DLOG(ERROR) << "Couldn't open " << file_name.value();
     return false;
   }
 
@@ -1052,8 +994,9 @@ void MemoryMappedFile::CloseHandles() {
 bool HasFileBeenModifiedSince(const FileEnumerator::FindInfo& find_info,
                               const base::Time& cutoff_time) {
   base::ThreadRestrictions::AssertIOAllowed();
+  FILETIME file_time = cutoff_time.ToFileTime();
   long result = CompareFileTime(&find_info.ftLastWriteTime,  // NOLINT
-                                &cutoff_time.ToFileTime());
+                                &file_time);
   return result == 1 || result == 0;
 }
 
@@ -1067,6 +1010,50 @@ bool NormalizeFilePath(const FilePath& path, FilePath* real_path) {
   // will find a drive letter which maps to the path's device, so
   // that we return a path starting with a drive letter.
   return DevicePathToDriveLetterPath(mapped_file, real_path);
+}
+
+bool DevicePathToDriveLetterPath(const FilePath& nt_device_path,
+                                 FilePath* out_drive_letter_path) {
+  base::ThreadRestrictions::AssertIOAllowed();
+
+  // Get the mapping of drive letters to device paths.
+  const int kDriveMappingSize = 1024;
+  wchar_t drive_mapping[kDriveMappingSize] = {'\0'};
+  if (!::GetLogicalDriveStrings(kDriveMappingSize - 1, drive_mapping)) {
+    DLOG(ERROR) << "Failed to get drive mapping.";
+    return false;
+  }
+
+  // The drive mapping is a sequence of null terminated strings.
+  // The last string is empty.
+  wchar_t* drive_map_ptr = drive_mapping;
+  wchar_t device_path_as_string[MAX_PATH];
+  wchar_t drive[] = L" :";
+
+  // For each string in the drive mapping, get the junction that links
+  // to it.  If that junction is a prefix of |device_path|, then we
+  // know that |drive| is the real path prefix.
+  while (*drive_map_ptr) {
+    drive[0] = drive_map_ptr[0];  // Copy the drive letter.
+
+    if (QueryDosDevice(drive, device_path_as_string, MAX_PATH)) {
+      FilePath device_path(device_path_as_string);
+      if (device_path == nt_device_path ||
+          device_path.IsParent(nt_device_path)) {
+        *out_drive_letter_path = FilePath(drive +
+            nt_device_path.value().substr(wcslen(device_path_as_string)));
+        return true;
+      }
+    }
+    // Move to the next drive letter string, which starts one
+    // increment after the '\0' that terminates the current string.
+    while (*drive_map_ptr++);
+  }
+
+  // No drive matched.  The path does not start with a device junction
+  // that is mounted as a drive letter.  This means there is no drive
+  // letter path to the volume that holds |device_path|, so fail.
+  return false;
 }
 
 bool NormalizeToNativeFilePath(const FilePath& path, FilePath* nt_path) {
@@ -1122,72 +1109,6 @@ bool NormalizeToNativeFilePath(const FilePath& path, FilePath* nt_path) {
   }
   ::UnmapViewOfFile(file_view);
   return success;
-}
-
-bool PreReadImage(const wchar_t* file_path, size_t size_to_read,
-                  size_t step_size) {
-  base::ThreadRestrictions::AssertIOAllowed();
-  if (base::win::GetVersion() > base::win::VERSION_XP) {
-    // Vista+ branch. On these OSes, the forced reads through the DLL actually
-    // slows warm starts. The solution is to sequentially read file contents
-    // with an optional cap on total amount to read.
-    base::win::ScopedHandle file(
-        CreateFile(file_path,
-                   GENERIC_READ,
-                   FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                   NULL,
-                   OPEN_EXISTING,
-                   FILE_FLAG_SEQUENTIAL_SCAN,
-                   NULL));
-
-    if (!file.IsValid())
-      return false;
-
-    // Default to 1MB sequential reads.
-    const DWORD actual_step_size = std::max(static_cast<DWORD>(step_size),
-                                            static_cast<DWORD>(1024*1024));
-    LPVOID buffer = ::VirtualAlloc(NULL,
-                                   actual_step_size,
-                                   MEM_COMMIT,
-                                   PAGE_READWRITE);
-
-    if (buffer == NULL)
-      return false;
-
-    DWORD len;
-    size_t total_read = 0;
-    while (::ReadFile(file, buffer, actual_step_size, &len, NULL) &&
-           len > 0 &&
-           (size_to_read ? total_read < size_to_read : true)) {
-      total_read += static_cast<size_t>(len);
-    }
-    ::VirtualFree(buffer, 0, MEM_RELEASE);
-  } else {
-    // WinXP branch. Here, reading the DLL from disk doesn't do
-    // what we want so instead we pull the pages into memory by loading
-    // the DLL and touching pages at a stride.
-    HMODULE dll_module = ::LoadLibraryExW(
-        file_path,
-        NULL,
-        LOAD_WITH_ALTERED_SEARCH_PATH | DONT_RESOLVE_DLL_REFERENCES);
-
-    if (!dll_module)
-      return false;
-
-    base::win::PEImage pe_image(dll_module);
-    PIMAGE_NT_HEADERS nt_headers = pe_image.GetNTHeaders();
-    size_t actual_size_to_read = size_to_read ? size_to_read :
-                                 nt_headers->OptionalHeader.SizeOfImage;
-    volatile uint8* touch = reinterpret_cast<uint8*>(dll_module);
-    size_t offset = 0;
-    while (offset < actual_size_to_read) {
-      uint8 unused = *(touch + offset);
-      offset += step_size;
-    }
-    FreeLibrary(dll_module);
-  }
-
-  return true;
 }
 
 }  // namespace file_util

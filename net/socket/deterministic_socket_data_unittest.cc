@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -50,7 +50,6 @@ class DeterministicSocketDataTest : public PlatformTest {
   scoped_refptr<IOBuffer> read_buf_;
   MockConnect connect_data_;
 
-  GURL url_;
   HostPortPair endpoint_;
   scoped_refptr<TransportSocketParams> tcp_params_;
   ClientSocketPoolHistograms histograms_;
@@ -62,17 +61,13 @@ class DeterministicSocketDataTest : public PlatformTest {
 };
 
 DeterministicSocketDataTest::DeterministicSocketDataTest()
-    : read_callback_(),
-      write_callback_(),
-      sock_(NULL),
+    : sock_(NULL),
       data_(NULL),
       read_buf_(NULL),
-      connect_data_(false, OK),
-      url_("https://www.google.com"),
+      connect_data_(SYNCHRONOUS, OK),
       endpoint_("www.google.com", 443),
       tcp_params_(new TransportSocketParams(endpoint_,
                                             LOWEST,
-                                            url_,
                                             false,
                                             false)),
       histograms_(""),
@@ -98,7 +93,7 @@ void DeterministicSocketDataTest::Initialize(MockRead* reads,
             connection_.Init(endpoint_.ToString(),
                 tcp_params_,
                 LOWEST,
-                NULL,
+                CompletionCallback(),
                 reinterpret_cast<TransportClientSocketPool*>(&socket_pool_),
                 BoundNetLog()));
   sock_ = connection_.socket();
@@ -128,7 +123,7 @@ void DeterministicSocketDataTest::AssertAsyncReadEquals(const char* data,
 void DeterministicSocketDataTest::AssertReadReturns(const char* data,
                                                     int len, int rv) {
   read_buf_ = new IOBuffer(len);
-  ASSERT_EQ(rv, sock_->Read(read_buf_, len, &read_callback_));
+  ASSERT_EQ(rv, sock_->Read(read_buf_, len, read_callback_.callback()));
 }
 
 void DeterministicSocketDataTest::AssertReadBufferEquals(const char* data,
@@ -142,7 +137,7 @@ void DeterministicSocketDataTest::AssertSyncWriteEquals(const char* data,
   memcpy(buf->data(), data, len);
 
   // Issue the write, which will complete immediately
-  ASSERT_EQ(len, sock_->Write(buf, len, &write_callback_));
+  ASSERT_EQ(len, sock_->Write(buf, len, write_callback_.callback()));
 }
 
 void DeterministicSocketDataTest::AssertAsyncWriteEquals(const char* data,
@@ -163,7 +158,7 @@ void DeterministicSocketDataTest::AssertWriteReturns(const char* data,
   memcpy(buf->data(), data, len);
 
   // Issue the read, which will complete asynchronously
-  ASSERT_EQ(rv, sock_->Write(buf, len, &write_callback_));
+  ASSERT_EQ(rv, sock_->Write(buf, len, write_callback_.callback()));
 }
 
 // ----------- Read

@@ -25,6 +25,11 @@ net::ProxyServer::Scheme GetProxyServerScheme(CFStringRef proxy_type) {
     return net::ProxyServer::SCHEME_DIRECT;
   if (CFEqual(proxy_type, kCFProxyTypeHTTP))
     return net::ProxyServer::SCHEME_HTTP;
+  if (CFEqual(proxy_type, kCFProxyTypeHTTPS)) {
+    // The "HTTPS" on the Mac side here means "proxy applies to https://" URLs;
+    // the proxy itself is still expected to be an HTTP proxy.
+    return net::ProxyServer::SCHEME_HTTP;
+  }
   if (CFEqual(proxy_type, kCFProxyTypeSOCKS)) {
     // We can't tell whether this was v4 or v5. We will assume it is
     // v5 since that is the only version OS X supports.
@@ -64,7 +69,7 @@ ProxyResolverMac::~ProxyResolverMac() {}
 // inspired by http://developer.apple.com/samplecode/CFProxySupportTool/
 int ProxyResolverMac::GetProxyForURL(const GURL& query_url,
                                      ProxyInfo* results,
-                                     CompletionCallback* /*callback*/,
+                                     const CompletionCallback& /*callback*/,
                                      RequestHandle* /*request*/,
                                      const BoundNetLog& net_log) {
   base::mac::ScopedCFTypeRef<CFStringRef> query_ref(
@@ -125,8 +130,9 @@ int ProxyResolverMac::GetProxyForURL(const GURL& query_url,
     CFRelease(result);
     return ERR_FAILED;
   }
-  DCHECK(CFGetTypeID(result) == CFArrayGetTypeID());
-  base::mac::ScopedCFTypeRef<CFArrayRef> proxy_array_ref((CFArrayRef)result);
+  base::mac::ScopedCFTypeRef<CFArrayRef> proxy_array_ref(
+      base::mac::CFCastStrict<CFArrayRef>(result));
+  DCHECK(proxy_array_ref != NULL);
 
   // This string will be an ordered list of <proxy-uri> entries, separated by
   // semi-colons. It is the format that ProxyInfo::UseNamedProxy() expects.
@@ -136,9 +142,9 @@ int ProxyResolverMac::GetProxyForURL(const GURL& query_url,
 
   CFIndex proxy_array_count = CFArrayGetCount(proxy_array_ref.get());
   for (CFIndex i = 0; i < proxy_array_count; ++i) {
-    CFDictionaryRef proxy_dictionary =
-        (CFDictionaryRef)CFArrayGetValueAtIndex(proxy_array_ref.get(), i);
-    DCHECK(CFGetTypeID(proxy_dictionary) == CFDictionaryGetTypeID());
+    CFDictionaryRef proxy_dictionary = base::mac::CFCastStrict<CFDictionaryRef>(
+        CFArrayGetValueAtIndex(proxy_array_ref.get(), i));
+    DCHECK(proxy_dictionary != NULL);
 
     // The dictionary may have the following keys:
     // - kCFProxyTypeKey : The type of the proxy
@@ -154,10 +160,8 @@ int ProxyResolverMac::GetProxyForURL(const GURL& query_url,
     // - kCFProxyAutoConfigurationURLKey : If the PAC file specifies another
     //                                     PAC file, I'm going home.
 
-    CFStringRef proxy_type =
-        (CFStringRef)base::mac::GetValueFromDictionary(proxy_dictionary,
-                                                      kCFProxyTypeKey,
-                                                      CFStringGetTypeID());
+    CFStringRef proxy_type = base::mac::GetValueFromDictionary<CFStringRef>(
+        proxy_dictionary, kCFProxyTypeKey);
     ProxyServer proxy_server = ProxyServer::FromDictionary(
         GetProxyServerScheme(proxy_type),
         proxy_dictionary,
@@ -182,13 +186,23 @@ void ProxyResolverMac::CancelRequest(RequestHandle request) {
   NOTREACHED();
 }
 
+LoadState ProxyResolverMac::GetLoadState(RequestHandle request) const {
+  NOTREACHED();
+  return LOAD_STATE_IDLE;
+}
+
+LoadState ProxyResolverMac::GetLoadStateThreadSafe(
+    RequestHandle request) const {
+  return LOAD_STATE_IDLE;
+}
+
 void ProxyResolverMac::CancelSetPacScript() {
   NOTREACHED();
 }
 
 int ProxyResolverMac::SetPacScript(
     const scoped_refptr<ProxyResolverScriptData>& script_data,
-    CompletionCallback* /*callback*/) {
+    const CompletionCallback& /*callback*/) {
   script_data_ = script_data;
   return OK;
 }

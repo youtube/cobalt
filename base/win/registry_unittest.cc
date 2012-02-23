@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -60,10 +60,10 @@ TEST_F(RegistryTest, ValueTest) {
     ASSERT_EQ(ERROR_SUCCESS, key.WriteValue(kDWORDValueName, kDWORDData));
     ASSERT_EQ(ERROR_SUCCESS, key.WriteValue(kInt64ValueName, &kInt64Data,
                                             sizeof(kInt64Data), REG_QWORD));
-    EXPECT_EQ(3U, key.ValueCount());
-    EXPECT_TRUE(key.ValueExists(kStringValueName));
-    EXPECT_TRUE(key.ValueExists(kDWORDValueName));
-    EXPECT_TRUE(key.ValueExists(kInt64ValueName));
+    EXPECT_EQ(3U, key.GetValueCount());
+    EXPECT_TRUE(key.HasValue(kStringValueName));
+    EXPECT_TRUE(key.HasValue(kDWORDValueName));
+    EXPECT_TRUE(key.HasValue(kInt64ValueName));
 
     // Test Read
     std::wstring string_value;
@@ -89,10 +89,10 @@ TEST_F(RegistryTest, ValueTest) {
     ASSERT_EQ(ERROR_SUCCESS, key.DeleteValue(kStringValueName));
     ASSERT_EQ(ERROR_SUCCESS, key.DeleteValue(kDWORDValueName));
     ASSERT_EQ(ERROR_SUCCESS, key.DeleteValue(kInt64ValueName));
-    EXPECT_EQ(0U, key.ValueCount());
-    EXPECT_FALSE(key.ValueExists(kStringValueName));
-    EXPECT_FALSE(key.ValueExists(kDWORDValueName));
-    EXPECT_FALSE(key.ValueExists(kInt64ValueName));
+    EXPECT_EQ(0U, key.GetValueCount());
+    EXPECT_FALSE(key.HasValue(kStringValueName));
+    EXPECT_FALSE(key.HasValue(kDWORDValueName));
+    EXPECT_FALSE(key.HasValue(kInt64ValueName));
   }
 }
 

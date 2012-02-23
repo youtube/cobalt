@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,7 +23,6 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
-#include "base/third_party/dmg_fp/dmg_fp.h"
 #include "base/utf_string_conversion_utils.h"
 #include "base/utf_string_conversions.h"
 #include "base/third_party/icu/icu_utf.h"
@@ -166,34 +165,49 @@ const char kWhitespaceASCII[] = {
 const char kUtf8ByteOrderMark[] = "\xEF\xBB\xBF";
 
 template<typename STR>
-bool RemoveCharsT(const STR& input,
-                  const typename STR::value_type remove_chars[],
-                  STR* output) {
+bool ReplaceCharsT(const STR& input,
+                   const typename STR::value_type replace_chars[],
+                   const STR& replace_with,
+                   STR* output) {
   bool removed = false;
-  size_t found;
+  size_t replace_length = replace_with.length();
 
   *output = input;
 
-  found = output->find_first_of(remove_chars);
+  size_t found = output->find_first_of(replace_chars);
   while (found != STR::npos) {
     removed = true;
-    output->replace(found, 1, STR());
-    found = output->find_first_of(remove_chars, found);
+    output->replace(found, 1, replace_with);
+    found = output->find_first_of(replace_chars, found + replace_length);
   }
 
   return removed;
 }
 
+bool ReplaceChars(const string16& input,
+                  const char16 replace_chars[],
+                  const string16& replace_with,
+                  string16* output) {
+  return ReplaceCharsT(input, replace_chars, replace_with, output);
+}
+
+bool ReplaceChars(const std::string& input,
+                  const char replace_chars[],
+                  const std::string& replace_with,
+                  std::string* output) {
+  return ReplaceCharsT(input, replace_chars, replace_with, output);
+}
+
 bool RemoveChars(const string16& input,
                  const char16 remove_chars[],
                  string16* output) {
-  return RemoveCharsT(input, remove_chars, output);
+  return ReplaceChars(input, remove_chars, string16(), output);
 }
 
 bool RemoveChars(const std::string& input,
                  const char remove_chars[],
                  std::string* output) {
-  return RemoveCharsT(input, remove_chars, output);
+  return ReplaceChars(input, remove_chars, std::string(), output);
 }
 
 template<typename STR>

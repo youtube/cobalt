@@ -9,8 +9,8 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "net/base/net_api.h"
-#include "net/base/sys_byteorder.h"
+#include "base/sys_byteorder.h"
+#include "net/base/net_export.h"
 #include "net/spdy/spdy_protocol.h"
 
 namespace spdy {
@@ -26,17 +26,21 @@ namespace spdy {
 // When reading from a SpdyFrameBuilder the consumer must know what value types
 // to read and in what order to read them as the SpdyFrameBuilder does not keep
 // track of the type of data written to it.
-class NET_TEST SpdyFrameBuilder {
+class NET_EXPORT_PRIVATE SpdyFrameBuilder {
  public:
+  ~SpdyFrameBuilder();
+
   SpdyFrameBuilder();
+
+  // Initiailizes a SpdyFrameBuilder with a buffer of given size.
+  // The buffer will still be resized as necessary.
+  explicit SpdyFrameBuilder(size_t size);
 
   // Initializes a SpdyFrameBuilder from a const block of data.  The data is
   // not copied; instead the data is merely referenced by this
   // SpdyFrameBuilder.  Only const methods should be used when initialized
   // this way.
   SpdyFrameBuilder(const char* data, int data_len);
-
-  ~SpdyFrameBuilder();
 
   // Returns the size of the SpdyFrameBuilder's data.
   int length() const { return length_; }
@@ -57,8 +61,11 @@ class NET_TEST SpdyFrameBuilder {
   bool ReadUInt16(void** iter, uint16* result) const;
   bool ReadUInt32(void** iter, uint32* result) const;
   bool ReadString(void** iter, std::string* result) const;
-  bool ReadBytes(void** iter, const char** data, uint16 length) const;
+  bool ReadBytes(void** iter, const char** data, uint32 length) const;
   bool ReadData(void** iter, const char** data, uint16* length) const;
+  bool ReadReadLen32PrefixedData(void** iter,
+                                 const char** data,
+                                 uint32* length) const;
 
   // Methods for adding to the payload.  These values are appended to the end
   // of the SpdyFrameBuilder payload.  When reading values, you must read them
@@ -73,7 +80,7 @@ class NET_TEST SpdyFrameBuilder {
     return WriteBytes(&value, sizeof(value));
   }
   bool WriteString(const std::string& value);
-  bool WriteBytes(const void* data, uint16 data_len);
+  bool WriteBytes(const void* data, uint32 data_len);
 
   // Write an integer to a particular offset in the data buffer.
   bool WriteUInt32ToOffset(int offset, uint32 value) {

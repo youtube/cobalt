@@ -24,9 +24,6 @@
 // TODO(tc): Add a parsing option to to relax object keys being wrapped in
 //   double quotes
 // TODO(tc): Add an option to disable comment stripping
-// TODO(aa): Consider making the constructor public and the static Read() method
-// only a convenience for the common uses with more complex configuration going
-// on the instance.
 
 #ifndef BASE_JSON_JSON_READER_H_
 #define BASE_JSON_JSON_READER_H_
@@ -42,6 +39,12 @@
 // its only contents -- this will need to be updated if the macro ever changes.
 #define FRIEND_TEST(test_case_name, test_name)\
 friend class test_case_name##_##test_name##_Test
+
+#define FRIEND_TEST_ALL_PREFIXES(test_case_name, test_name) \
+  FRIEND_TEST(test_case_name, test_name); \
+  FRIEND_TEST(test_case_name, DISABLED_##test_name); \
+  FRIEND_TEST(test_case_name, FLAKY_##test_name); \
+  FRIEND_TEST(test_case_name, FAILS_##test_name)
 
 namespace base {
 
@@ -67,12 +70,17 @@ class BASE_EXPORT JSONReader {
      END_OF_INPUT,
      INVALID_TOKEN,
     };
+
     Token(Type t, const wchar_t* b, int len)
-      : type(t), begin(b), length(len) {}
+        : type(t), begin(b), length(len) {}
 
     // Get the character that's one past the end of this token.
     wchar_t NextChar() {
       return *(begin + length);
+    }
+
+    static Token CreateInvalidToken() {
+      return Token(INVALID_TOKEN, 0, 0);
     }
 
     Type type;
@@ -147,8 +155,8 @@ class BASE_EXPORT JSONReader {
                      bool allow_trailing_comma);
 
  private:
-  FRIEND_TEST(JSONReaderTest, Reading);
-  FRIEND_TEST(JSONReaderTest, ErrorMessages);
+  FRIEND_TEST_ALL_PREFIXES(JSONReaderTest, Reading);
+  FRIEND_TEST_ALL_PREFIXES(JSONReaderTest, ErrorMessages);
 
   static std::string FormatErrorMessage(int line, int column,
                                         const std::string& description);
@@ -190,7 +198,7 @@ class BASE_EXPORT JSONReader {
   bool EatComment();
 
   // Checks if |json_pos_| matches str.
-  bool NextStringMatch(const std::wstring& str);
+  bool NextStringMatch(const wchar_t* str, size_t length);
 
   // Sets the error code that will be returned to the caller. The current
   // line and column are determined and added into the final message.

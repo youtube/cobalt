@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,7 +19,7 @@ namespace {
 // Spin for up to a second waiting for the lock to clear when setting
 // up the database.
 // TODO(shess): Better story on this.  http://crbug.com/56559
-const base::TimeDelta kBusyTimeout = base::TimeDelta::FromSeconds(1);
+const int kBusyTimeoutSeconds = 1;
 
 class ScopedBusyTimeout {
  public:
@@ -111,6 +111,20 @@ void Connection::Close() {
   statement_cache_.clear();
   DCHECK(open_statements_.empty());
   if (db_) {
+    // TODO(shess): Some additional code to debug http://crbug.com/95527 .
+    // If you are reading this due to link errors or something, it can
+    // be safely removed.
+#if defined(HAS_SQLITE3_95527)
+    unsigned int nTouched = 0;
+    sqlite3_95527(db_, &nTouched);
+
+    // If a VERY large amount of memory was touched, crash.  This
+    // should never happen.
+    // TODO(shess): Pull this in.  It should be page_size * page_cache
+    // or something like that, 4M or 16M.  For now it's just to
+    // prevent optimization.
+    CHECK_LT(nTouched, 1000*1000*1000U);
+#endif
     sqlite3_close(db_);
     db_ = NULL;
   }
@@ -118,7 +132,7 @@ void Connection::Close() {
 
 void Connection::Preload() {
   if (!db_) {
-    NOTREACHED();
+    DLOG(FATAL) << "Cannot preload null db";
     return;
   }
 
@@ -128,7 +142,7 @@ void Connection::Preload() {
   if (!DoesTableExist("meta"))
     return;
   Statement dummy(GetUniqueStatement("SELECT * FROM meta"));
-  if (!dummy || !dummy.Step())
+  if (!dummy.Step())
     return;
 
 #if !defined(USE_SYSTEM_SQLITE)
@@ -152,7 +166,7 @@ bool Connection::BeginTransaction() {
     needs_rollback_ = false;
 
     Statement begin(GetCachedStatement(SQL_FROM_HERE, "BEGIN TRANSACTION"));
-    if (!begin || !begin.Run())
+    if (!begin.Run())
       return false;
   }
   transaction_nesting_++;
@@ -161,7 +175,7 @@ bool Connection::BeginTransaction() {
 
 void Connection::RollbackTransaction() {
   if (!transaction_nesting_) {
-    NOTREACHED() << "Rolling back a nonexistent transaction";
+    DLOG(FATAL) << "Rolling back a nonexistent transaction";
     return;
   }
 
@@ -178,7 +192,7 @@ void Connection::RollbackTransaction() {
 
 bool Connection::CommitTransaction() {
   if (!transaction_nesting_) {
-    NOTREACHED() << "Rolling back a nonexistent transaction";
+    DLOG(FATAL) << "Rolling back a nonexistent transaction";
     return false;
   }
   transaction_nesting_--;
@@ -194,15 +208,22 @@ bool Connection::CommitTransaction() {
   }
 
   Statement commit(GetCachedStatement(SQL_FROM_HERE, "COMMIT"));
-  if (!commit)
-    return false;
   return commit.Run();
 }
 
-bool Connection::Execute(const char* sql) {
+int Connection::ExecuteAndReturnErrorCode(const char* sql) {
   if (!db_)
     return false;
-  return sqlite3_exec(db_, sql, NULL, NULL, NULL) == SQLITE_OK;
+  return sqlite3_exec(db_, sql, NULL, NULL, NULL);
+}
+
+bool Connection::Execute(const char* sql) {
+  int error = ExecuteAndReturnErrorCode(sql);
+  // TODO(shess,gbillock): DLOG(FATAL) once Execute() clients are
+  // converted.
+  if (error == SQLITE_ERROR)
+    DLOG(ERROR) << "SQL Error in " << sql << ", " << GetErrorMessage();
+  return error == SQLITE_OK;
 }
 
 bool Connection::ExecuteWithTimeout(const char* sql, base::TimeDelta timeout) {
@@ -211,7 +232,7 @@ bool Connection::ExecuteWithTimeout(const char* sql, base::TimeDelta timeout) {
 
   ScopedBusyTimeout busy_timeout(db_);
   busy_timeout.SetTimeout(timeout);
-  return sqlite3_exec(db_, sql, NULL, NULL, NULL) == SQLITE_OK;
+  return Execute(sql);
 }
 
 bool Connection::HasCachedStatement(const StatementID& id) const {
@@ -245,23 +266,39 @@ scoped_refptr<Connection::StatementRef> Connection::GetUniqueStatement(
 
   sqlite3_stmt* stmt = NULL;
   if (sqlite3_prepare_v2(db_, sql, -1, &stmt, NULL) != SQLITE_OK) {
-    // Treat this as non-fatal, it can occur in a number of valid cases, and
-    // callers should be doing their own error handling.
-    DLOG(WARNING) << "SQL compile error " << GetErrorMessage();
+    // This is evidence of a syntax error in the incoming SQL.
+    DLOG(FATAL) << "SQL compile error " << GetErrorMessage();
     return new StatementRef(this, NULL);
   }
   return new StatementRef(this, stmt);
 }
 
+bool Connection::IsSQLValid(const char* sql) {
+  sqlite3_stmt* stmt = NULL;
+  if (sqlite3_prepare_v2(db_, sql, -1, &stmt, NULL) != SQLITE_OK)
+    return false;
+
+  sqlite3_finalize(stmt);
+  return true;
+}
+
 bool Connection::DoesTableExist(const char* table_name) const {
+  return DoesTableOrIndexExist(table_name, "table");
+}
+
+bool Connection::DoesIndexExist(const char* index_name) const {
+  return DoesTableOrIndexExist(index_name, "index");
+}
+
+bool Connection::DoesTableOrIndexExist(
+    const char* name, const char* type) const {
   // GetUniqueStatement can't be const since statements may modify the
   // database, but we know ours doesn't modify it, so the cast is safe.
   Statement statement(const_cast<Connection*>(this)->GetUniqueStatement(
       "SELECT name FROM sqlite_master "
-      "WHERE type='table' AND name=?"));
-  if (!statement)
-    return false;
-  statement.BindString(0, table_name);
+      "WHERE type=? AND name=?"));
+  statement.BindString(0, type);
+  statement.BindString(1, name);
   return statement.Step();  // Table exists if any row was returned.
 }
 
@@ -274,8 +311,6 @@ bool Connection::DoesColumnExist(const char* table_name,
   // Our SQL is non-mutating, so this cast is OK.
   Statement statement(const_cast<Connection*>(this)->GetUniqueStatement(
       sql.c_str()));
-  if (!statement)
-    return false;
 
   while (statement.Step()) {
     if (!statement.ColumnString(1).compare(column_name))
@@ -286,7 +321,7 @@ bool Connection::DoesColumnExist(const char* table_name,
 
 int64 Connection::GetLastInsertRowId() const {
   if (!db_) {
-    NOTREACHED();
+    DLOG(FATAL) << "Illegal use of connection without a db";
     return 0;
   }
   return sqlite3_last_insert_rowid(db_);
@@ -294,7 +329,7 @@ int64 Connection::GetLastInsertRowId() const {
 
 int Connection::GetLastChangeCount() const {
   if (!db_) {
-    NOTREACHED();
+    DLOG(FATAL) << "Illegal use of connection without a db";
     return 0;
   }
   return sqlite3_changes(db_);
@@ -325,13 +360,14 @@ const char* Connection::GetErrorMessage() const {
 
 bool Connection::OpenInternal(const std::string& file_name) {
   if (db_) {
-    NOTREACHED() << "sql::Connection is already open.";
+    DLOG(FATAL) << "sql::Connection is already open.";
     return false;
   }
 
   int err = sqlite3_open(file_name.c_str(), &db_);
   if (err != SQLITE_OK) {
     OnSqliteError(err, NULL);
+    Close();
     db_ = NULL;
     return false;
   }
@@ -356,8 +392,11 @@ bool Connection::OpenInternal(const std::string& file_name) {
     // which requests exclusive locking but doesn't get it is almost
     // certain to be ill-tested.
     if (!Execute("PRAGMA locking_mode=EXCLUSIVE"))
-      NOTREACHED() << "Could not set locking mode: " << GetErrorMessage();
+      DLOG(FATAL) << "Could not set locking mode: " << GetErrorMessage();
   }
+
+  const base::TimeDelta kBusyTimeout =
+    base::TimeDelta::FromSeconds(kBusyTimeoutSeconds);
 
   if (page_size_ != 0) {
     // Enforce SQLite restrictions on |page_size_|.
@@ -367,13 +406,19 @@ bool Connection::OpenInternal(const std::string& file_name) {
     DCHECK_LE(page_size_, kSqliteMaxPageSize);
     const std::string sql = StringPrintf("PRAGMA page_size=%d", page_size_);
     if (!ExecuteWithTimeout(sql.c_str(), kBusyTimeout))
-      NOTREACHED() << "Could not set page size: " << GetErrorMessage();
+      DLOG(FATAL) << "Could not set page size: " << GetErrorMessage();
   }
 
   if (cache_size_ != 0) {
     const std::string sql = StringPrintf("PRAGMA cache_size=%d", cache_size_);
     if (!ExecuteWithTimeout(sql.c_str(), kBusyTimeout))
-      NOTREACHED() << "Could not set cache size: " << GetErrorMessage();
+      DLOG(FATAL) << "Could not set cache size: " << GetErrorMessage();
+  }
+
+  if (!ExecuteWithTimeout("PRAGMA secure_delete=ON", kBusyTimeout)) {
+    DLOG(FATAL) << "Could not enable secure_delete: " << GetErrorMessage();
+    Close();
+    return false;
   }
 
   return true;
@@ -381,8 +426,7 @@ bool Connection::OpenInternal(const std::string& file_name) {
 
 void Connection::DoRollback() {
   Statement rollback(GetCachedStatement(SQL_FROM_HERE, "ROLLBACK"));
-  if (rollback)
-    rollback.Run();
+  rollback.Run();
 }
 
 void Connection::StatementRefCreated(StatementRef* ref) {
@@ -393,7 +437,7 @@ void Connection::StatementRefCreated(StatementRef* ref) {
 void Connection::StatementRefDeleted(StatementRef* ref) {
   StatementRefSet::iterator i = open_statements_.find(ref);
   if (i == open_statements_.end())
-    NOTREACHED();
+    DLOG(FATAL) << "Could not find statement";
   else
     open_statements_.erase(i);
 }
@@ -413,7 +457,7 @@ int Connection::OnSqliteError(int err, sql::Statement *stmt) {
   if (error_delegate_.get())
     return error_delegate_->OnError(err, this, stmt);
   // The default handling is to assert on debug and to ignore on release.
-  NOTREACHED() << GetErrorMessage();
+  DLOG(FATAL) << GetErrorMessage();
   return err;
 }
 

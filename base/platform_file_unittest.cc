@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,47 +13,14 @@ namespace {
 // Reads from a file the given number of bytes, or until EOF is reached.
 // Returns the number of bytes read.
 int ReadFully(base::PlatformFile file, int64 offset, char* data, int size) {
-  int total_bytes_read = 0;
-  int bytes_read;
-  while (total_bytes_read < size) {
-    bytes_read = base::ReadPlatformFile(
-        file, offset + total_bytes_read, &data[total_bytes_read],
-        size - total_bytes_read);
-
-    // If we reached EOF, bytes_read will be 0.
-    if (bytes_read == 0)
-      return total_bytes_read;
-
-    if ((bytes_read < 0) || (bytes_read > size - total_bytes_read))
-      return -1;
-
-    total_bytes_read += bytes_read;
-  }
-
-  return total_bytes_read;
+  return base::ReadPlatformFile(file, offset, data, size);
 }
 
 // Writes the given number of bytes to a file.
 // Returns the number of bytes written.
 int WriteFully(base::PlatformFile file, int64 offset,
                const char* data, int size) {
-  int total_bytes_written = 0;
-  int bytes_written;
-  while (total_bytes_written < size) {
-    bytes_written = base::WritePlatformFile(
-        file, offset + total_bytes_written, &data[total_bytes_written],
-        size - total_bytes_written);
-
-    if ((bytes_written == 0) && (size == 0))
-      return 0;
-
-    if ((bytes_written <= 0) || (bytes_written > size - total_bytes_written))
-      return -1;
-
-    total_bytes_written += bytes_written;
-  }
-
-  return total_bytes_written;
+  return base::WritePlatformFile(file, offset, data, size);
 }
 
 } // namespace
@@ -208,6 +175,13 @@ TEST(PlatformFile, ReadWritePlatformFile) {
   for (int i = 0; i < bytes_read; i++)
     EXPECT_EQ(data_to_write[i], data_read_1[i]);
 
+  // Read again, but using the trivial native wrapper.
+  bytes_read = base::ReadPlatformFileNoBestEffort(file, 0, data_read_1,
+                                                  kTestDataSize);
+  EXPECT_LE(bytes_read, kTestDataSize);
+  for (int i = 0; i < bytes_read; i++)
+    EXPECT_EQ(data_to_write[i], data_read_1[i]);
+
   // Write past the end of the file.
   const int kOffsetBeyondEndOfFile = 10;
   const int kPartialWriteLength = 2;
@@ -285,13 +259,8 @@ TEST(PlatformFile, TruncatePlatformFile) {
   base::ClosePlatformFile(file);
 }
 
-#if defined(OS_MACOSX)
 // Flakily fails: http://crbug.com/86494
-#define MAYBE_TouchGetInfoPlatformFile FLAKY_TouchGetInfoPlatformFile
-#else
-#define MAYBE_TouchGetInfoPlatformFile TouchGetInfoPlatformFile
-#endif
-TEST(PlatformFile, MAYBE_TouchGetInfoPlatformFile) {
+TEST(PlatformFile, DISABLED_TouchGetInfoPlatformFile) {
   ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
   base::PlatformFile file = base::CreatePlatformFile(

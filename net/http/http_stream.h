@@ -18,11 +18,12 @@
 
 #include "base/basictypes.h"
 #include "net/base/completion_callback.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
 class BoundNetLog;
+class HttpNetworkSession;
 class HttpRequestHeaders;
 struct HttpRequestInfo;
 class HttpResponseInfo;
@@ -31,7 +32,7 @@ class SSLCertRequestInfo;
 class SSLInfo;
 class UploadDataStream;
 
-class NET_TEST HttpStream {
+class NET_EXPORT_PRIVATE HttpStream {
  public:
   HttpStream() {}
   virtual ~HttpStream() {}
@@ -40,7 +41,7 @@ class NET_TEST HttpStream {
   // Returns a net error code, possibly ERR_IO_PENDING.
   virtual int InitializeStream(const HttpRequestInfo* request_info,
                                const BoundNetLog& net_log,
-                               CompletionCallback* callback) = 0;
+                               const CompletionCallback& callback) = 0;
 
   // Writes the headers and uploads body data to the underlying socket.
   // ERR_IO_PENDING is returned if the operation could not be completed
@@ -50,7 +51,7 @@ class NET_TEST HttpStream {
   virtual int SendRequest(const HttpRequestHeaders& request_headers,
                           UploadDataStream* request_body,
                           HttpResponseInfo* response,
-                          CompletionCallback* callback) = 0;
+                          const CompletionCallback& callback) = 0;
 
   // Queries the UploadDataStream for its progress (bytes sent).
   virtual uint64 GetUploadProgress() const = 0;
@@ -60,7 +61,7 @@ class NET_TEST HttpStream {
   // not be completed synchronously, in which case the result will be passed
   // to the callback when available. Returns OK on success.  The response
   // headers are available in the HttpResponseInfo returned by GetResponseInfo
-  virtual int ReadResponseHeaders(CompletionCallback* callback) = 0;
+  virtual int ReadResponseHeaders(const CompletionCallback& callback) = 0;
 
   // Provides access to HttpResponseInfo (owned by HttpStream).
   virtual const HttpResponseInfo* GetResponseInfo() const = 0;
@@ -76,7 +77,7 @@ class NET_TEST HttpStream {
   // the socket acquires a reference to the provided buffer until the callback
   // is invoked or the socket is destroyed.
   virtual int ReadResponseBody(IOBuffer* buf, int buf_len,
-                               CompletionCallback* callback) = 0;
+                               const CompletionCallback& callback) = 0;
 
   // Closes the stream.
   // |not_reusable| indicates if the stream can be used for further requests.
@@ -138,6 +139,12 @@ class NET_TEST HttpStream {
   // Record histogram of number of round trips taken to download the full
   // response body vs bytes transferred.
   virtual void LogNumRttVsBytesMetrics() const = 0;
+
+  // In the case of an HTTP error or redirect, flush the response body (usually
+  // a simple error or "this page has moved") so that we can re-use the
+  // underlying connection. This stream is responsible for deleting itself when
+  // draining is complete.
+  virtual void Drain(HttpNetworkSession* session) = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(HttpStream);

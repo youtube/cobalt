@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -324,7 +324,7 @@ TEST(AddressListTest, CreateFromIPAddressList) {
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     ASSERT_TRUE(next_ai != NULL);
     EXPECT_EQ(tests[i].ai_family, next_ai->ai_family);
-    EXPECT_EQ(tests[i].ai_addrlen, next_ai->ai_addrlen);
+    EXPECT_EQ(tests[i].ai_addrlen, static_cast<size_t>(next_ai->ai_addrlen));
 
     char* ai_addr = reinterpret_cast<char*>(next_ai->ai_addr);
     int rv = memcmp(tests[i].in_addr,

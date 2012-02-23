@@ -8,9 +8,10 @@
 
 #include <string>
 
+#include "base/memory/weak_ptr.h"
 #include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace disk_cache {
 class Backend;
@@ -21,7 +22,7 @@ namespace net {
 
 class URLRequestContext;
 
-class NET_API ViewCacheHelper {
+class NET_EXPORT ViewCacheHelper {
  public:
   ViewCacheHelper();
   ~ViewCacheHelper();
@@ -33,7 +34,7 @@ class NET_API ViewCacheHelper {
   int GetEntryInfoHTML(const std::string& key,
                        const URLRequestContext* context,
                        std::string* out,
-                       CompletionCallback* callback);
+                       const CompletionCallback& callback);
 
   // Formats the cache contents as HTML. Returns a net error code.
   // If this method returns ERR_IO_PENDING, |callback| will be notified when the
@@ -43,7 +44,7 @@ class NET_API ViewCacheHelper {
   int GetContentsHTML(const URLRequestContext* context,
                       const std::string& url_prefix,
                       std::string* out,
-                      CompletionCallback* callback);
+                      const CompletionCallback& callback);
 
   // Lower-level helper to produce a textual representation of binary data.
   // The results are appended to |result| and can be used in HTML pages
@@ -70,7 +71,7 @@ class NET_API ViewCacheHelper {
                   const URLRequestContext* context,
                   const std::string& url_prefix,
                   std::string* out,
-                  CompletionCallback* callback);
+                  const CompletionCallback& callback);
 
   // This is a helper function used to trigger a completion callback. It may
   // only be called if callback_ is non-null.
@@ -110,12 +111,11 @@ class NET_API ViewCacheHelper {
   std::string key_;
   std::string url_prefix_;
   std::string* data_;
-  CompletionCallback* callback_;
+  CompletionCallback callback_;
 
   State next_state_;
 
-  CompletionCallbackImpl<ViewCacheHelper> cache_callback_;
-  scoped_refptr<CancelableCompletionCallback<ViewCacheHelper> > entry_callback_;
+  base::WeakPtrFactory<ViewCacheHelper> weak_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(ViewCacheHelper);
 };

@@ -103,14 +103,19 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
       "",
     },
     {
+      "WWW-Authenticate: Negotiate\n"
+      "WWW-Authenticate: NTLM\n",
+
+#if defined(USE_KERBEROS)
       // Choose Negotiate over NTLM on all platforms.
       // TODO(ahendrickson): This may be flaky on Linux and OSX as it
       // relies on being able to load one of the known .so files
       // for gssapi.
-      "WWW-Authenticate: Negotiate\n"
-      "WWW-Authenticate: NTLM\n",
-
       HttpAuth::AUTH_SCHEME_NEGOTIATE,
+#else
+      // On systems that don't use Kerberos fall back to NTLM.
+      HttpAuth::AUTH_SCHEME_NTLM,
+#endif  // defined(USE_KERBEROS)
       "",
     }
   };

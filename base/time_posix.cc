@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,7 +13,15 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 
+#if defined(OS_ANDROID)
+#include "base/os_compat_android.h"
+#endif
+
 namespace base {
+
+#if defined(OS_ANDROID)
+#define _POSIX_MONOTONIC_CLOCK 1
+#endif
 
 struct timespec TimeDelta::ToTimeSpec() const {
   int64 microseconds = InMicroseconds();
@@ -78,9 +86,27 @@ void Time::Explode(bool is_local, Exploded* exploded) const {
   // Time stores times with microsecond resolution, but Exploded only carries
   // millisecond resolution, so begin by being lossy.  Adjust from Windows
   // epoch (1601) to Unix epoch (1970);
-  int64 milliseconds = (us_ - kWindowsEpochDeltaMicroseconds) /
-      kMicrosecondsPerMillisecond;
-  time_t seconds = milliseconds / kMillisecondsPerSecond;
+  int64 microseconds = us_ - kWindowsEpochDeltaMicroseconds;
+  // The following values are all rounded towards -infinity.
+  int64 milliseconds;  // Milliseconds since epoch.
+  time_t seconds;  // Seconds since epoch.
+  int millisecond;  // Exploded millisecond value (0-999).
+  if (microseconds >= 0) {
+    // Rounding towards -infinity <=> rounding towards 0, in this case.
+    milliseconds = microseconds / kMicrosecondsPerMillisecond;
+    seconds = milliseconds / kMillisecondsPerSecond;
+    millisecond = milliseconds % kMillisecondsPerSecond;
+  } else {
+    // Round these *down* (towards -infinity).
+    milliseconds = (microseconds - kMicrosecondsPerMillisecond + 1) /
+                   kMicrosecondsPerMillisecond;
+    seconds = (milliseconds - kMillisecondsPerSecond + 1) /
+              kMillisecondsPerSecond;
+    // Make this nonnegative (and between 0 and 999 inclusive).
+    millisecond = milliseconds % kMillisecondsPerSecond;
+    if (millisecond < 0)
+      millisecond += kMillisecondsPerSecond;
+  }
 
   struct tm timestruct;
   if (is_local)
@@ -95,7 +121,7 @@ void Time::Explode(bool is_local, Exploded* exploded) const {
   exploded->hour         = timestruct.tm_hour;
   exploded->minute       = timestruct.tm_min;
   exploded->second       = timestruct.tm_sec;
-  exploded->millisecond  = milliseconds % kMillisecondsPerSecond;
+  exploded->millisecond  = millisecond;
 }
 
 // static
@@ -163,7 +189,7 @@ Time Time::FromExploded(bool is_local, const Exploded& exploded) {
 // FreeBSD 6 has CLOCK_MONOLITHIC but defines _POSIX_MONOTONIC_CLOCK to -1.
 #if (defined(OS_POSIX) &&                                               \
      defined(_POSIX_MONOTONIC_CLOCK) && _POSIX_MONOTONIC_CLOCK >= 0) || \
-     defined(OS_FREEBSD) || defined(OS_OPENBSD) || defined(OS_ANDROID)
+     defined(OS_BSD) || defined(OS_ANDROID)
 
 // static
 TimeTicks TimeTicks::Now() {

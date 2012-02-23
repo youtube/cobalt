@@ -8,7 +8,7 @@
 #define NET_DISK_CACHE_MAPPED_FILE_H_
 #pragma once
 
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/disk_cache/disk_format.h"
 #include "net/disk_cache/file.h"
 #include "net/disk_cache/file_block.h"
@@ -21,7 +21,7 @@ namespace disk_cache {
 // idea is that the header and bitmap will be memory mapped all the time, and
 // the actual data for the blocks will be access asynchronously (most of the
 // time).
-class NET_TEST MappedFile : public File {
+class NET_EXPORT_PRIVATE MappedFile : public File {
  public:
   MappedFile() : File(true), init_(false) {}
 

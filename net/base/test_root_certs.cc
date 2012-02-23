@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,9 +17,8 @@ namespace {
 
 bool g_has_instance = false;
 
-base::LazyInstance<TestRootCerts,
-                   base::LeakyLazyInstanceTraits<TestRootCerts> >
-    g_test_root_certs(base::LINKER_INITIALIZED);
+base::LazyInstance<TestRootCerts>::Leaky
+    g_test_root_certs = LAZY_INSTANCE_INITIALIZER;
 
 CertificateList LoadCertificates(const FilePath& filename) {
   std::string raw_cert;

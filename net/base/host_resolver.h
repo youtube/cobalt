@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,11 +9,10 @@
 #include <string>
 
 #include "base/memory/scoped_ptr.h"
-#include "googleurl/src/gurl.h"
 #include "net/base/address_family.h"
 #include "net/base/completion_callback.h"
 #include "net/base/host_port_pair.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/net_util.h"
 #include "net/base/request_priority.h"
 
@@ -21,7 +20,7 @@ namespace net {
 
 class AddressList;
 class BoundNetLog;
-class HostResolverImpl;
+class HostCache;
 class HostResolverProc;
 class NetLog;
 
@@ -34,11 +33,11 @@ class NetLog;
 // request at a time is to create a SingleRequestHostResolver wrapper around
 // HostResolver (which will automatically cancel the single request when it
 // goes out of scope).
-class NET_API HostResolver {
+class NET_EXPORT HostResolver {
  public:
   // The parameters for doing a Resolve(). A hostname and port are required,
   // the rest are optional (and have reasonable defaults).
-  class NET_API RequestInfo {
+  class NET_EXPORT RequestInfo {
    public:
     explicit RequestInfo(const HostPortPair& host_port_pair);
 
@@ -71,9 +70,6 @@ class NET_API HostResolver {
     RequestPriority priority() const { return priority_; }
     void set_priority(RequestPriority priority) { priority_ = priority; }
 
-    const GURL& referrer() const { return referrer_; }
-    void set_referrer(const GURL& referrer) { referrer_ = referrer; }
-
    private:
     // The hostname to resolve, and the port to use in resulting sockaddrs.
     HostPortPair host_port_pair_;
@@ -92,31 +88,6 @@ class NET_API HostResolver {
 
     // The priority for the request.
     RequestPriority priority_;
-
-    // Optional data for consumption by observers. This is the URL of the
-    // page that lead us to the navigation, for DNS prefetcher's benefit.
-    GURL referrer_;
-  };
-
-  // Interface for observing the requests that flow through a HostResolver.
-  class Observer {
-   public:
-    virtual ~Observer() {}
-
-    // Called at the start of HostResolver::Resolve(). |id| is a unique number
-    // given to the request, so it can be matched up with a corresponding call
-    // to OnFinishResolutionWithStatus() or OnCancelResolution().
-    virtual void OnStartResolution(int id, const RequestInfo& info) = 0;
-
-    // Called on completion of request |id|. Note that if the request was
-    // cancelled, OnCancelResolution() will be called instead.
-    virtual void OnFinishResolutionWithStatus(int id, bool was_resolved,
-                                              const RequestInfo& info) = 0;
-
-    // Called when request |id| has been cancelled. A request is "cancelled"
-    // if either the HostResolver is destroyed while a resolution is in
-    // progress, or HostResolver::CancelRequest() is called.
-    virtual void OnCancelResolution(int id, const RequestInfo& info) = 0;
   };
 
   // Opaque type used to cancel a request.
@@ -145,7 +116,7 @@ class NET_API HostResolver {
   // incompatible IP literal (e.g. IPv6 is disabled and it is an IPv6
   // literal).
   //
-  // If the operation cannnot be completed synchronously, ERR_IO_PENDING will
+  // If the operation cannot be completed synchronously, ERR_IO_PENDING will
   // be returned and the real result code will be passed to the completion
   // callback.  Otherwise the result code is returned immediately from this
   // call.
@@ -157,7 +128,7 @@ class NET_API HostResolver {
   // Profiling information for the request is saved to |net_log| if non-NULL.
   virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
-                      CompletionCallback* callback,
+                      const CompletionCallback& callback,
                       RequestHandle* out_req,
                       const BoundNetLog& net_log) = 0;
 
@@ -170,16 +141,10 @@ class NET_API HostResolver {
                                const BoundNetLog& net_log) = 0;
 
   // Cancels the specified request. |req| is the handle returned by Resolve().
-  // After a request is cancelled, its completion callback will not be called.
+  // After a request is canceled, its completion callback will not be called.
+  // CancelRequest must NOT be called after the request's completion callback
+  // has already run or the request was canceled.
   virtual void CancelRequest(RequestHandle req) = 0;
-
-  // Adds an observer to this resolver. The observer will be notified of the
-  // start and completion of all requests (excluding cancellation). |observer|
-  // must remain valid for the duration of this HostResolver's lifetime.
-  virtual void AddObserver(Observer* observer) = 0;
-
-  // Unregisters an observer previously added by AddObserver().
-  virtual void RemoveObserver(Observer* observer) = 0;
 
   // Sets the default AddressFamily to use when requests have left it
   // unspecified. For example, this could be used to restrict resolution
@@ -188,10 +153,13 @@ class NET_API HostResolver {
   virtual void SetDefaultAddressFamily(AddressFamily address_family) {}
   virtual AddressFamily GetDefaultAddressFamily() const;
 
-  // Returns |this| cast to a HostResolverImpl*, or NULL if the subclass
-  // is not compatible with HostResolverImpl. Used primarily to expose
-  // additional functionality on the about:net-internals page.
-  virtual HostResolverImpl* GetAsHostResolverImpl();
+  // Continuously observe whether IPv6 is supported, and set the allowable
+  // address family to IPv4 iff IPv6 is not supported.
+  virtual void ProbeIPv6Support();
+
+  // Returns the HostResolverCache |this| uses, or NULL if there isn't one.
+  // Used primarily to clear the cache and for getting debug information.
+  virtual HostCache* GetHostCache();
 
  protected:
   HostResolver();
@@ -209,15 +177,22 @@ class NET_API HostResolver {
 // |max_retry_attempts| is the maximum number of times we will retry for host
 // resolution. Pass HostResolver::kDefaultRetryAttempts to choose a default
 // value.
-NET_API HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves,
-                                               size_t max_retry_attempts,
-                                               NetLog* net_log);
+NET_EXPORT HostResolver* CreateSystemHostResolver(
+    size_t max_concurrent_resolves,
+    size_t max_retry_attempts,
+    NetLog* net_log);
+
+// As above, but the created HostResolver does not use a cache.
+NET_EXPORT HostResolver* CreateNonCachingSystemHostResolver(
+    size_t max_concurrent_resolves,
+    size_t max_retry_attempts,
+    NetLog* net_log);
 
 // Creates a HostResolver implementation that sends actual DNS queries to
 // the specified DNS server and parses response and returns results.
-NET_API HostResolver* CreateAsyncHostResolver(size_t max_concurrent_resolves,
-                                              const IPAddressNumber& dns_ip,
-                                              NetLog* net_log);
+NET_EXPORT HostResolver* CreateAsyncHostResolver(size_t max_concurrent_resolves,
+                                                 const IPAddressNumber& dns_ip,
+                                                 NetLog* net_log);
 }  // namespace net
 
 #endif  // NET_BASE_HOST_RESOLVER_H_

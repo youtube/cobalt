@@ -90,15 +90,26 @@ class BASE_EXPORT SystemMonitor {
     virtual ~PowerObserver() {}
   };
 
+  class BASE_EXPORT DevicesChangedObserver {
+   public:
+    // Notification that the devices connected to the system have changed.
+    virtual void OnDevicesChanged() {}
+
+   protected:
+    virtual ~DevicesChangedObserver() {}
+  };
+
   // Add a new observer.
   // Can be called from any thread.
   // Must not be called from within a notification callback.
-  void AddObserver(PowerObserver* obs);
+  void AddPowerObserver(PowerObserver* obs);
+  void AddDevicesChangedObserver(DevicesChangedObserver* obs);
 
   // Remove an existing observer.
   // Can be called from any thread.
   // Must not be called from within a notification callback.
-  void RemoveObserver(PowerObserver* obs);
+  void RemovePowerObserver(PowerObserver* obs);
+  void RemoveDevicesChangedObserver(DevicesChangedObserver* obs);
 
 #if defined(OS_WIN)
   // Windows-specific handling of a WM_POWERBROADCAST message.
@@ -109,6 +120,9 @@ class BASE_EXPORT SystemMonitor {
 
   // Cross-platform handling of a power event.
   void ProcessPowerMessage(PowerEvent event_id);
+
+  // Cross-platform handling of a device change event.
+  void ProcessDevicesChanged();
 
  private:
 #if defined(OS_MACOSX)
@@ -126,11 +140,14 @@ class BASE_EXPORT SystemMonitor {
   void BatteryCheck();
 
   // Functions to trigger notifications.
+  void NotifyDevicesChanged();
   void NotifyPowerStateChange();
   void NotifySuspend();
   void NotifyResume();
 
-  scoped_refptr<ObserverListThreadSafe<PowerObserver> > observer_list_;
+  scoped_refptr<ObserverListThreadSafe<PowerObserver> > power_observer_list_;
+  scoped_refptr<ObserverListThreadSafe<DevicesChangedObserver> >
+      devices_changed_observer_list_;
   bool battery_in_use_;
   bool suspended_;
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,7 +9,15 @@
 
 namespace net {
 
-int MapNetErrorToCertStatus(int error) {
+bool IsCertStatusMinorError(CertStatus cert_status) {
+  static const CertStatus kMinorErrors =
+      CERT_STATUS_UNABLE_TO_CHECK_REVOCATION |
+      CERT_STATUS_NO_REVOCATION_MECHANISM;
+  cert_status &= CERT_STATUS_ALL_ERRORS;
+  return cert_status != 0 && (cert_status & ~kMinorErrors) == 0;
+}
+
+CertStatus MapNetErrorToCertStatus(int error) {
   switch (error) {
     case ERR_CERT_COMMON_NAME_INVALID:
       return CERT_STATUS_COMMON_NAME_INVALID;
@@ -33,6 +41,8 @@ int MapNetErrorToCertStatus(int error) {
       return CERT_STATUS_INVALID;
     case ERR_CERT_WEAK_SIGNATURE_ALGORITHM:
       return CERT_STATUS_WEAK_SIGNATURE_ALGORITHM;
+    case ERR_CERT_WEAK_KEY:
+      return CERT_STATUS_WEAK_KEY;
     case ERR_CERT_NOT_IN_DNS:
       return CERT_STATUS_NOT_IN_DNS;
     default:
@@ -40,7 +50,7 @@ int MapNetErrorToCertStatus(int error) {
   }
 }
 
-int MapCertStatusToNetError(int cert_status) {
+int MapCertStatusToNetError(CertStatus cert_status) {
   // A certificate may have multiple errors.  We report the most
   // serious error.
 
@@ -57,6 +67,8 @@ int MapCertStatusToNetError(int cert_status) {
     return ERR_CERT_COMMON_NAME_INVALID;
   if (cert_status & CERT_STATUS_WEAK_SIGNATURE_ALGORITHM)
     return ERR_CERT_WEAK_SIGNATURE_ALGORITHM;
+  if (cert_status & CERT_STATUS_WEAK_KEY)
+    return ERR_CERT_WEAK_KEY;
   if (cert_status & CERT_STATUS_DATE_INVALID)
     return ERR_CERT_DATE_INVALID;
 

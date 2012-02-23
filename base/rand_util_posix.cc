@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,7 +23,7 @@ class URandomFd {
  public:
   URandomFd() {
     fd_ = open("/dev/urandom", O_RDONLY);
-    CHECK_GE(fd_, 0) << "Cannot open /dev/urandom: " << errno;
+    DCHECK_GE(fd_, 0) << "Cannot open /dev/urandom: " << errno;
   }
 
   ~URandomFd() {
@@ -36,7 +36,7 @@ class URandomFd {
   int fd_;
 };
 
-base::LazyInstance<URandomFd> g_urandom_fd(base::LINKER_INITIALIZED);
+base::LazyInstance<URandomFd> g_urandom_fd = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 

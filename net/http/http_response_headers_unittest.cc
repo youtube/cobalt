@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -451,6 +451,18 @@ TEST(HttpResponseHeadersTest, Persist) {
       "HTTP/1.1 200 OK\n"
       "Content-Length: 450\n"
       "Content-Encoding: gzip\n"
+    },
+    // Test filtering of transport security state headers.
+    { net::HttpResponseHeaders::PERSIST_SANS_SECURITY_STATE,
+      "HTTP/1.1 200 OK\n"
+      "Strict-Transport-Security: max-age=1576800\n"
+      "Bar: 1\n"
+      "Public-Key-Pins: max-age=100000; "
+          "pin-sha1=\"ObT42aoSpAqWdY9WfRfL7i0HsVk=\";"
+          "pin-sha1=\"7kW49EVwZG0hSNx41ZO/fUPN0ek=\"",
+
+      "HTTP/1.1 200 OK\n"
+      "Bar: 1\n"
     },
   };
 
@@ -1617,6 +1629,72 @@ TEST(HttpResponseHeadersTest, RemoveHeader) {
 
     std::string name(tests[i].to_remove);
     parsed->RemoveHeader(name);
+
+    std::string resulting_headers;
+    parsed->GetNormalizedHeaders(&resulting_headers);
+    EXPECT_EQ(std::string(tests[i].expected_headers), resulting_headers);
+  }
+}
+
+TEST(HttpResponseHeadersTest, RemoveIndividualHeader) {
+  const struct {
+    const char* orig_headers;
+    const char* to_remove_name;
+    const char* to_remove_value;
+    const char* expected_headers;
+  } tests[] = {
+    { "HTTP/1.1 200 OK\n"
+      "connection: keep-alive\n"
+      "Cache-control: max-age=10000\n"
+      "Content-Length: 450\n",
+
+      "Content-Length",
+
+      "450",
+
+      "HTTP/1.1 200 OK\n"
+      "connection: keep-alive\n"
+      "Cache-control: max-age=10000\n"
+    },
+    { "HTTP/1.1 200 OK\n"
+      "connection: keep-alive  \n"
+      "Content-Length  : 450  \n"
+      "Cache-control: max-age=10000\n",
+
+      "Content-Length",
+
+      "450",
+
+      "HTTP/1.1 200 OK\n"
+      "connection: keep-alive\n"
+      "Cache-control: max-age=10000\n"
+    },
+    { "HTTP/1.1 200 OK\n"
+      "connection: keep-alive  \n"
+      "Content-Length: 450\n"
+      "Cache-control: max-age=10000\n",
+
+      "Content-Length",  // Matching name.
+
+      "999",  // Mismatching value.
+
+      "HTTP/1.1 200 OK\n"
+      "connection: keep-alive\n"
+      "Content-Length: 450\n"
+      "Cache-control: max-age=10000\n"
+    },
+
+  };
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    std::string orig_headers(tests[i].orig_headers);
+    HeadersToRaw(&orig_headers);
+    scoped_refptr<net::HttpResponseHeaders> parsed(
+        new net::HttpResponseHeaders(orig_headers));
+
+    std::string name(tests[i].to_remove_name);
+    std::string value(tests[i].to_remove_value);
+    parsed->RemoveHeaderWithValue(name, value);
 
     std::string resulting_headers;
     parsed->GetNormalizedHeaders(&resulting_headers);

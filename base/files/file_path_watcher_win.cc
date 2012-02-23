@@ -4,6 +4,7 @@
 
 #include "base/files/file_path_watcher.h"
 
+#include "base/bind.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/logging.h"
@@ -81,7 +82,7 @@ bool FilePathWatcherImpl::Watch(const FilePath& path,
                                 FilePathWatcher::Delegate* delegate) {
   DCHECK(target_.value().empty());  // Can only watch one path.
 
-  set_message_loop(base::MessageLoopProxy::CreateForCurrentThread());
+  set_message_loop(base::MessageLoopProxy::current());
   delegate_ = delegate;
   target_ = path;
   MessageLoop::current()->AddDestructionObserver(this);
@@ -104,7 +105,8 @@ void FilePathWatcherImpl::Cancel() {
   // Switch to the file thread if necessary so we can stop |watcher_|.
   if (!message_loop()->BelongsToCurrentThread()) {
     message_loop()->PostTask(FROM_HERE,
-                             new FilePathWatcher::CancelTask(this));
+                             base::Bind(&FilePathWatcher::CancelWatch,
+                                        make_scoped_refptr(this)));
   } else {
     CancelOnMessageLoopThread();
   }
@@ -206,8 +208,8 @@ bool FilePathWatcherImpl::SetupWatchHandle(const FilePath& dir,
       error_code != ERROR_SHARING_VIOLATION &&
       error_code != ERROR_DIRECTORY) {
     using ::operator<<; // Pick the right operator<< below.
-    PLOG(ERROR) << "FindFirstChangeNotification failed for "
-                << dir.value();
+    DPLOG(ERROR) << "FindFirstChangeNotification failed for "
+                 << dir.value();
     return false;
   }
 
@@ -241,7 +243,7 @@ bool FilePathWatcherImpl::UpdateWatch() {
     child_dirs.push_back(watched_path.BaseName());
     FilePath parent(watched_path.DirName());
     if (parent == watched_path) {
-      LOG(ERROR) << "Reached the root directory";
+      DLOG(ERROR) << "Reached the root directory";
       return false;
     }
     watched_path = parent;

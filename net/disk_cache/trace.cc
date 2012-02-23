@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,7 @@
 #endif
 
 #include "base/logging.h"
+#include "net/disk_cache/stress_support.h"
 
 // Change this value to 1 to enable tracing on a release build. By default,
 // tracing is enabled only on debug builds.
@@ -23,7 +24,13 @@
 namespace {
 
 const int kEntrySize = 48;
+#if defined(NET_BUILD_STRESS_CACHE)
+const int kNumberOfEntries = 500000;
+#else
 const int kNumberOfEntries = 5000;  // 240 KB.
+#endif
+
+bool s_trace_enabled = false;
 
 struct TraceBuffer {
   int num_traces;
@@ -67,11 +74,16 @@ TraceObject::~TraceObject() {
   DestroyTrace();
 }
 
+void TraceObject::EnableTracing(bool enable) {
+  s_trace_enabled = enable;
+}
+
 #if ENABLE_TRACING
 
 static TraceBuffer* s_trace_buffer = NULL;
 
 void InitTrace(void) {
+  s_trace_enabled = true;
   if (s_trace_buffer)
     return;
 
@@ -86,7 +98,7 @@ void DestroyTrace(void) {
 }
 
 void Trace(const char* format, ...) {
-  if (!s_trace_buffer)
+  if (!s_trace_buffer || !s_trace_enabled)
     return;
 
   va_list ap;
@@ -99,6 +111,14 @@ void Trace(const char* format, ...) {
             sizeof(s_trace_buffer->buffer[s_trace_buffer->current]), format,
             ap);
 #endif
+
+#if defined(DISK_CACHE_TRACE_TO_LOG)
+  char line[kEntrySize + 2];
+  memcpy(line, s_trace_buffer->buffer[s_trace_buffer->current], kEntrySize);
+  line[kEntrySize] = '\0';
+  LOG(INFO) << line;
+#endif
+
   s_trace_buffer->num_traces++;
   s_trace_buffer->current++;
   if (s_trace_buffer->current == kNumberOfEntries)

@@ -69,8 +69,8 @@ class NSSSSLInitSingleton {
   }
 };
 
-static base::LazyInstance<NSSSSLInitSingleton> g_nss_ssl_init_singleton(
-    base::LINKER_INITIALIZED);
+static base::LazyInstance<NSSSSLInitSingleton> g_nss_ssl_init_singleton =
+    LAZY_INSTANCE_INITIALIZER;
 
 // Initialize the NSS SSL library if it isn't already initialized.  This must
 // be called before any other NSS SSL functions.  This function is

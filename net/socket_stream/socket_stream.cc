@@ -10,6 +10,8 @@
 #include <set>
 #include <string>
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
@@ -21,9 +23,12 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
+#include "net/base/ssl_cert_request_info.h"
 #include "net/http/http_auth_handler_factory.h"
+#include "net/http/http_network_session.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
+#include "net/http/http_transaction_factory.h"
 #include "net/http/http_util.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/socks5_client_socket.h"
@@ -59,12 +64,11 @@ SocketStream::SocketStream(const GURL& url, Delegate* delegate)
       proxy_mode_(kDirectConnection),
       proxy_url_(url),
       pac_request_(NULL),
+      // Unretained() is required; without it, Bind() creates a circular
+      // dependency and the SocketStream object will not be freed.
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          io_callback_(this, &SocketStream::OnIOCompleted)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          read_callback_(this, &SocketStream::OnReadCompleted)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          write_callback_(this, &SocketStream::OnWriteCompleted)),
+          io_callback_(base::Bind(&SocketStream::OnIOCompleted,
+                                  base::Unretained(this)))),
       read_buf_(NULL),
       write_buf_(NULL),
       current_write_buf_(NULL),
@@ -132,8 +136,10 @@ void SocketStream::Connect() {
       "The current MessageLoop must exist";
   DCHECK_EQ(MessageLoop::TYPE_IO, MessageLoop::current()->type()) <<
       "The current MessageLoop must be TYPE_IO";
-  if (context_)
-    ssl_config_service()->GetSSLConfig(&ssl_config_);
+  if (context_) {
+    ssl_config_service()->GetSSLConfig(&server_ssl_config_);
+    proxy_ssl_config_ = server_ssl_config_;
+  }
   DCHECK_EQ(next_state_, STATE_NONE);
 
   AddRef();  // Released in Finish()
@@ -146,7 +152,7 @@ void SocketStream::Connect() {
           new NetLogStringParameter("url", url_.possibly_invalid_spec())));
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &SocketStream::DoLoop, OK));
+      base::Bind(&SocketStream::DoLoop, this, OK));
 }
 
 bool SocketStream::SendData(const char* data, int len) {
@@ -181,7 +187,7 @@ bool SocketStream::SendData(const char* data, int len) {
   // back before returning SendData().
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &SocketStream::DoLoop, OK));
+      base::Bind(&SocketStream::DoLoop, this, OK));
   return true;
 }
 
@@ -198,11 +204,10 @@ void SocketStream::Close() {
     return;
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &SocketStream::DoClose));
+      base::Bind(&SocketStream::DoClose, this));
 }
 
-void SocketStream::RestartWithAuth(
-    const string16& username, const string16& password) {
+void SocketStream::RestartWithAuth(const AuthCredentials& credentials) {
   DCHECK(MessageLoop::current()) <<
       "The current MessageLoop must exist";
   DCHECK_EQ(MessageLoop::TYPE_IO, MessageLoop::current()->type()) <<
@@ -214,16 +219,15 @@ void SocketStream::RestartWithAuth(
   }
 
   if (auth_identity_.invalid) {
-    // Update the username/password.
+    // Update the credentials.
     auth_identity_.source = HttpAuth::IDENT_SRC_EXTERNAL;
     auth_identity_.invalid = false;
-    auth_identity_.username = username;
-    auth_identity_.password = password;
+    auth_identity_.credentials = credentials;
   }
 
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &SocketStream::DoRestartWithAuth));
+      base::Bind(&SocketStream::DoRestartWithAuth, this));
 }
 
 void SocketStream::DetachDelegate() {
@@ -304,7 +308,8 @@ void SocketStream::Finish(int result) {
   Release();
 }
 
-int SocketStream::DidEstablishSSL(int result) {
+int SocketStream::DidEstablishSSL(int result, SSLConfig* ssl_config) {
+  DCHECK(ssl_config);
   if (IsCertificateError(result)) {
     if (socket_->IsConnectedAndIdle()) {
       result = HandleCertificateError(result);
@@ -313,15 +318,15 @@ int SocketStream::DidEstablishSSL(int result) {
       // if it returns cert verification error.  It didn't perform
       // SSLHandshake yet.
       // So, we should restart establishing connection with the
-      // certificate in allowed bad certificates in |ssl_config_|.
+      // certificate in allowed bad certificates in |ssl_config|.
       // See also net/http/http_network_transaction.cc
       //  HandleCertificateError() and RestartIgnoringLastError().
       SSLClientSocket* ssl_socket =
-        reinterpret_cast<SSLClientSocket*>(socket_.get());
+          static_cast<SSLClientSocket*>(socket_.get());
       SSLInfo ssl_info;
       ssl_socket->GetSSLInfo(&ssl_info);
       if (ssl_info.cert == NULL ||
-          ssl_config_.IsAllowedBadCert(ssl_info.cert, NULL)) {
+          ssl_config->IsAllowedBadCert(ssl_info.cert, NULL)) {
         // If we already have the certificate in the set of allowed bad
         // certificates, we did try it and failed again, so we should not
         // retry again: the connection should fail at last.
@@ -331,12 +336,13 @@ int SocketStream::DidEstablishSSL(int result) {
       // Add the bad certificate to the set of allowed certificates in the
       // SSL config object.
       SSLConfig::CertAndStatus bad_cert;
-      if (!ssl_info.cert->GetDEREncoded(&bad_cert.der_cert)) {
+      if (!X509Certificate::GetDEREncoded(ssl_info.cert->os_cert_handle(),
+                                          &bad_cert.der_cert)) {
         next_state_ = STATE_CLOSE;
         return result;
       }
       bad_cert.cert_status = ssl_info.cert_status;
-      ssl_config_.allowed_bad_certs.push_back(bad_cert);
+      ssl_config->allowed_bad_certs.push_back(bad_cert);
       // Restart connection ignoring the bad certificate.
       socket_->Disconnect();
       socket_.reset();
@@ -418,7 +424,7 @@ void SocketStream::OnReadCompleted(int result) {
 }
 
 void SocketStream::OnWriteCompleted(int result) {
-  if (result >= 0 && write_buf_) {
+  if (result > 0 && write_buf_) {
     result = DidSendData(result);
   }
   DoLoop(result);
@@ -543,7 +549,7 @@ int SocketStream::DoResolveProxy() {
   // Alternate-Protocol header here for ws:// or TLS NPN extension for wss:// .
 
   return proxy_service()->ResolveProxy(
-      proxy_url_, &proxy_info_, &io_callback_, &pac_request_, net_log_);
+      proxy_url_, &proxy_info_, io_callback_, &pac_request_, net_log_);
 }
 
 int SocketStream::DoResolveProxyComplete(int result) {
@@ -603,8 +609,9 @@ int SocketStream::DoResolveHost() {
 
   DCHECK(host_resolver_);
   resolver_.reset(new SingleRequestHostResolver(host_resolver_));
-  return resolver_->Resolve(resolve_info, &addresses_, &io_callback_,
-                            net_log_);
+  return resolver_->Resolve(
+      resolve_info, &addresses_, base::Bind(&SocketStream::OnIOCompleted, this),
+      net_log_);
 }
 
 int SocketStream::DoResolveHostComplete(int result) {
@@ -619,7 +626,7 @@ int SocketStream::DoResolveHostComplete(int result) {
 int SocketStream::DoResolveProtocol(int result) {
   DCHECK_EQ(OK, result);
   next_state_ = STATE_RESOLVE_PROTOCOL_COMPLETE;
-  result = delegate_->OnStartOpenConnection(this, &io_callback_);
+  result = delegate_->OnStartOpenConnection(this, io_callback_);
   if (result == ERR_IO_PENDING)
     metrics_->OnWaitConnection();
   else if (result != OK && result != ERR_PROTOCOL_SWITCHED)
@@ -655,7 +662,7 @@ int SocketStream::DoTcpConnect(int result) {
                                                       net_log_.net_log(),
                                                       net_log_.source()));
   metrics_->OnStartConnection();
-  return socket_->Connect(&io_callback_);
+  return socket_->Connect(io_callback_);
 }
 
 int SocketStream::DoTcpConnectComplete(int result) {
@@ -707,8 +714,7 @@ int SocketStream::DoWriteTunnelHeaders() {
         if (rv_create == OK) {
           auth_identity_.source = HttpAuth::IDENT_SRC_PATH_LOOKUP;
           auth_identity_.invalid = false;
-          auth_identity_.username = entry->username();
-          auth_identity_.password = entry->password();
+          auth_identity_.credentials = AuthCredentials();
           auth_handler_.swap(handler_preemptive);
         }
       }
@@ -722,10 +728,9 @@ int SocketStream::DoWriteTunnelHeaders() {
       HttpRequestInfo request_info;
       std::string auth_token;
       int rv = auth_handler_->GenerateAuthToken(
-          &auth_identity_.username,
-          &auth_identity_.password,
+          &auth_identity_.credentials,
           &request_info,
-          NULL,
+          CompletionCallback(),
           &auth_token);
       // TODO(cbentzel): Support async auth handlers.
       DCHECK_NE(ERR_IO_PENDING, rv);
@@ -750,7 +755,7 @@ int SocketStream::DoWriteTunnelHeaders() {
   int buf_len = static_cast<int>(tunnel_request_headers_->headers_.size() -
                                  tunnel_request_headers_bytes_sent_);
   DCHECK_GT(buf_len, 0);
-  return socket_->Write(tunnel_request_headers_, buf_len, &io_callback_);
+  return socket_->Write(tunnel_request_headers_, buf_len, io_callback_);
 }
 
 int SocketStream::DoWriteTunnelHeadersComplete(int result) {
@@ -787,7 +792,7 @@ int SocketStream::DoReadTunnelHeaders() {
   tunnel_response_headers_->SetDataOffset(tunnel_response_headers_len_);
   CHECK(tunnel_response_headers_->data());
 
-  return socket_->Read(tunnel_response_headers_, buf_len, &io_callback_);
+  return socket_->Read(tunnel_response_headers_, buf_len, io_callback_);
 }
 
 int SocketStream::DoReadTunnelHeadersComplete(int result) {
@@ -851,15 +856,14 @@ int SocketStream::DoReadTunnelHeadersComplete(int result) {
         DCHECK(!proxy_info_.is_empty());
         auth_info_ = new AuthChallengeInfo;
         auth_info_->is_proxy = true;
-        auth_info_->host_and_port =
-            ASCIIToWide(proxy_info_.proxy_server().host_port_pair().ToString());
-        auth_info_->scheme = ASCIIToWide(
-            HttpAuth::SchemeToString(auth_handler_->auth_scheme()));
-        auth_info_->realm = ASCIIToWide(auth_handler_->realm());
+        auth_info_->challenger = proxy_info_.proxy_server().host_port_pair();
+        auth_info_->scheme = HttpAuth::SchemeToString(
+            auth_handler_->auth_scheme());
+        auth_info_->realm = auth_handler_->realm();
         // Wait until RestartWithAuth or Close is called.
         MessageLoop::current()->PostTask(
             FROM_HERE,
-            NewRunnableMethod(this, &SocketStream::DoAuthRequired));
+            base::Bind(&SocketStream::DoAuthRequired, this));
         next_state_ = STATE_AUTH_REQUIRED;
         return ERR_IO_PENDING;
       }
@@ -885,7 +889,7 @@ int SocketStream::DoSOCKSConnect() {
     s = new SOCKSClientSocket(s, req_info, host_resolver_);
   socket_.reset(s);
   metrics_->OnCountConnectionType(SocketStreamMetrics::SOCKS_CONNECTION);
-  return socket_->Connect(&io_callback_);
+  return socket_->Connect(io_callback_);
 }
 
 int SocketStream::DoSOCKSConnectComplete(int result) {
@@ -911,19 +915,21 @@ int SocketStream::DoSecureProxyConnect() {
   socket_.reset(factory_->CreateSSLClientSocket(
       socket_.release(),
       proxy_info_.proxy_server().host_port_pair(),
-      ssl_config_,
+      proxy_ssl_config_,
       NULL /* ssl_host_info */,
       ssl_context));
   next_state_ = STATE_SECURE_PROXY_CONNECT_COMPLETE;
   metrics_->OnCountConnectionType(SocketStreamMetrics::SECURE_PROXY_CONNECTION);
-  return socket_->Connect(&io_callback_);
+  return socket_->Connect(io_callback_);
 }
 
 int SocketStream::DoSecureProxyConnectComplete(int result) {
   DCHECK_EQ(STATE_NONE, next_state_);
-  result = DidEstablishSSL(result);
+  result = DidEstablishSSL(result, &proxy_ssl_config_);
   if (next_state_ != STATE_NONE)
     return result;
+  if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED)
+    return HandleCertificateRequest(result);
   if (result == OK)
     next_state_ = STATE_WRITE_TUNNEL_HEADERS;
   else
@@ -939,17 +945,17 @@ int SocketStream::DoSSLConnect() {
   // TODO(agl): look into plumbing SSLHostInfo here.
   socket_.reset(factory_->CreateSSLClientSocket(socket_.release(),
                                                 HostPortPair::FromURL(url_),
-                                                ssl_config_,
+                                                server_ssl_config_,
                                                 NULL /* ssl_host_info */,
                                                 ssl_context));
   next_state_ = STATE_SSL_CONNECT_COMPLETE;
   metrics_->OnCountConnectionType(SocketStreamMetrics::SSL_CONNECTION);
-  return socket_->Connect(&io_callback_);
+  return socket_->Connect(io_callback_);
 }
 
 int SocketStream::DoSSLConnectComplete(int result) {
   DCHECK_EQ(STATE_NONE, next_state_);
-  result = DidEstablishSSL(result);
+  result = DidEstablishSSL(result, &server_ssl_config_);
   if (next_state_ != STATE_NONE)
     return result;
   // TODO(toyoshim): Upgrade to SPDY through TLS NPN extension if possible.
@@ -989,7 +995,9 @@ int SocketStream::DoReadWrite(int result) {
     if (!read_buf_) {
       // No read pending and server didn't close the socket.
       read_buf_ = new IOBuffer(kReadBufferSize);
-      result = socket_->Read(read_buf_, kReadBufferSize, &read_callback_);
+      result = socket_->Read(read_buf_, kReadBufferSize,
+                             base::Bind(&SocketStream::OnReadCompleted,
+                                        base::Unretained(this)));
       if (result > 0) {
         return DidReceiveData(result);
       } else if (result == 0) {
@@ -1017,7 +1025,8 @@ int SocketStream::DoReadWrite(int result) {
     current_write_buf_->SetOffset(write_buf_offset_);
     result = socket_->Write(current_write_buf_,
                             current_write_buf_->BytesRemaining(),
-                            &write_callback_);
+                            base::Bind(&SocketStream::OnWriteCompleted,
+                                       base::Unretained(this)));
     if (result > 0) {
       return DidSendData(result);
     }
@@ -1054,8 +1063,7 @@ int SocketStream::HandleAuthChallenge(const HttpResponseHeaders* headers) {
       auth_cache_.Remove(auth_origin,
                          auth_handler_->realm(),
                          auth_handler_->auth_scheme(),
-                         auth_identity_.username,
-                         auth_identity_.password);
+                         auth_identity_.credentials);
     auth_handler_.reset();
     auth_identity_ = HttpAuth::Identity();
   }
@@ -1078,8 +1086,7 @@ int SocketStream::HandleAuthChallenge(const HttpResponseHeaders* headers) {
     if (entry) {
       auth_identity_.source = HttpAuth::IDENT_SRC_REALM_LOOKUP;
       auth_identity_.invalid = false;
-      auth_identity_.username = entry->username();
-      auth_identity_.password = entry->password();
+      auth_identity_.credentials = AuthCredentials();
       // Restart with auth info.
     }
     return ERR_PROXY_AUTH_UNSUPPORTED;
@@ -1087,6 +1094,53 @@ int SocketStream::HandleAuthChallenge(const HttpResponseHeaders* headers) {
     auth_identity_.invalid = false;
   }
   return ERR_TUNNEL_CONNECTION_FAILED;
+}
+
+int SocketStream::HandleCertificateRequest(int result) {
+  // TODO(toyoshim): We must support SSL client authentication for not only
+  // secure proxy but also secure server.
+
+  if (proxy_ssl_config_.send_client_cert)
+    // We already have performed SSL client authentication once and failed.
+    return result;
+
+  DCHECK(socket_.get());
+  scoped_refptr<SSLCertRequestInfo> cert_request_info = new SSLCertRequestInfo;
+  SSLClientSocket* ssl_socket =
+      static_cast<SSLClientSocket*>(socket_.get());
+  ssl_socket->GetSSLCertRequestInfo(cert_request_info);
+
+  HttpTransactionFactory* factory = context_->http_transaction_factory();
+  if (!factory)
+    return result;
+  scoped_refptr<HttpNetworkSession> session = factory->GetSession();
+  if (!session.get())
+    return result;
+
+  scoped_refptr<X509Certificate> client_cert;
+  bool found_cached_cert = session->ssl_client_auth_cache()->Lookup(
+      cert_request_info->host_and_port, &client_cert);
+  if (!found_cached_cert)
+    return result;
+  if (!client_cert)
+    return result;
+
+  const std::vector<scoped_refptr<X509Certificate> >& client_certs =
+      cert_request_info->client_certs;
+  bool cert_still_valid = false;
+  for (size_t i = 0; i < client_certs.size(); ++i) {
+    if (client_cert->Equals(client_certs[i])) {
+      cert_still_valid = true;
+      break;
+    }
+  }
+  if (!cert_still_valid)
+    return result;
+
+  proxy_ssl_config_.send_client_cert = true;
+  proxy_ssl_config_.client_cert = client_cert;
+  next_state_ = STATE_TCP_CONNECT;
+  return OK;
 }
 
 void SocketStream::DoAuthRequired() {
@@ -1102,8 +1156,7 @@ void SocketStream::DoRestartWithAuth() {
                   auth_handler_->realm(),
                   auth_handler_->auth_scheme(),
                   auth_handler_->challenge(),
-                  auth_identity_.username,
-                  auth_identity_.password,
+                  auth_identity_.credentials,
                   std::string());
 
   tunnel_request_headers_ = NULL;

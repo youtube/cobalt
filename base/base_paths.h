@@ -19,7 +19,7 @@
 
 namespace base {
 
-enum {
+enum BasePathKey {
   PATH_START = 0,
 
   DIR_CURRENT,  // current directory

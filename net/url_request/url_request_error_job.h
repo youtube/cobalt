@@ -9,17 +9,17 @@
 #define NET_URL_REQUEST_URL_REQUEST_ERROR_JOB_H_
 #pragma once
 
-#include "base/task.h"
-#include "net/base/net_api.h"
+#include "base/memory/weak_ptr.h"
+#include "net/base/net_export.h"
 #include "net/url_request/url_request_job.h"
 
 namespace net {
 
-class NET_API URLRequestErrorJob : public URLRequestJob {
+class NET_EXPORT URLRequestErrorJob : public URLRequestJob {
  public:
   URLRequestErrorJob(URLRequest* request, int error);
 
-  virtual void Start();
+  virtual void Start() OVERRIDE;
 
  private:
   virtual ~URLRequestErrorJob();
@@ -28,7 +28,7 @@ class NET_API URLRequestErrorJob : public URLRequestJob {
 
   int error_;
 
-  ScopedRunnableMethodFactory<URLRequestErrorJob> method_factory_;
+  base::WeakPtrFactory<URLRequestErrorJob> weak_factory_;
 };
 
 }  // namespace net

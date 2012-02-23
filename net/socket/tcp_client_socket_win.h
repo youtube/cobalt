@@ -19,8 +19,8 @@ namespace net {
 
 class BoundNetLog;
 
-class NET_API TCPClientSocketWin : public StreamSocket,
-                                   NON_EXPORTED_BASE(base::NonThreadSafe) {
+class NET_EXPORT TCPClientSocketWin : public StreamSocket,
+                                      NON_EXPORTED_BASE(base::NonThreadSafe) {
  public:
   // The IP address(es) and port number to connect to.  The TCP socket will try
   // each IP address in the list until it succeeds in establishing a
@@ -41,8 +41,8 @@ class NET_API TCPClientSocketWin : public StreamSocket,
   // Binds the socket to a local IP address and port.
   int Bind(const IPEndPoint& address);
 
-  // StreamSocket methods:
-  virtual int Connect(CompletionCallback* callback);
+  // StreamSocket implementation.
+  virtual int Connect(const CompletionCallback& callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -56,11 +56,13 @@ class NET_API TCPClientSocketWin : public StreamSocket,
   virtual int64 NumBytesRead() const;
   virtual base::TimeDelta GetConnectTimeMicros() const;
 
-  // Socket methods:
+  // Socket implementation.
   // Multiple outstanding requests are not supported.
   // Full duplex mode (reading and writing at the same time) is supported
-  virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
-  virtual int Write(IOBuffer* buf, int buf_len, CompletionCallback* callback);
+  virtual int Read(IOBuffer* buf, int buf_len,
+                   const CompletionCallback& callback);
+  virtual int Write(IOBuffer* buf, int buf_len,
+                    const CompletionCallback& callback);
 
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
@@ -123,10 +125,10 @@ class NET_API TCPClientSocketWin : public StreamSocket,
   scoped_refptr<Core> core_;
 
   // External callback; called when connect or read is complete.
-  CompletionCallback* read_callback_;
+  CompletionCallback read_callback_;
 
   // External callback; called when write is complete.
-  CompletionCallback* write_callback_;
+  CompletionCallback write_callback_;
 
   // The next state for the Connect() state machine.
   ConnectState next_connect_state_;

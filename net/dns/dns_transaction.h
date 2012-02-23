@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,141 +6,75 @@
 #define NET_DNS_DNS_TRANSACTION_H_
 #pragma once
 
-#include <set>
 #include <string>
-#include <utility>
-#include <vector>
 
-#include "base/gtest_prod_util.h"
-#include "base/scoped_ptr.h"
-#include "base/timer.h"
-#include "base/threading/non_thread_safe.h"
-#include "net/base/completion_callback.h"
-#include "net/base/ip_endpoint.h"
-#include "net/base/net_api.h"
-#include "net/base/net_log.h"
-#include "net/base/rand_callback.h"
+#include "base/basictypes.h"
+#include "base/callback_forward.h"
+#include "base/memory/scoped_ptr.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
-class ClientSocketFactory;
-class DatagramClientSocket;
-class DnsQuery;
+class BoundNetLog;
 class DnsResponse;
+class DnsSession;
 
-// Performs (with fixed retries) a single asynchronous DNS transaction,
-// which consists of sending out a DNS query, waiting for response, and
-// parsing and returning the IP addresses that it matches.
-class NET_TEST DnsTransaction : NON_EXPORTED_BASE(public base::NonThreadSafe) {
+// DnsTransaction implements a stub DNS resolver as defined in RFC 1034.
+// The DnsTransaction takes care of retransmissions, name server fallback (or
+// round-robin), suffix search, and simple response validation ("does it match
+// the query") to fight poisoning.
+//
+// Destroying DnsTransaction cancels the underlying network effort.
+class NET_EXPORT_PRIVATE DnsTransaction {
  public:
-  typedef std::pair<std::string, uint16> Key;
+  virtual ~DnsTransaction() {}
 
-  // Interface that should implemented by DnsTransaction consumer and
-  // passed to |Start| method to be notified when the transaction has
-  // completed.
-  class NET_TEST Delegate {
-   public:
-    Delegate();
-    virtual ~Delegate();
+  // Returns the original |hostname|.
+  virtual const std::string& GetHostname() const = 0;
 
-    // A consumer of DnsTransaction should override |OnTransactionComplete|
-    // and call |set_delegate(this)|.  The method will be called once the
-    // resolution has completed, results passed in as arguments.
-    virtual void OnTransactionComplete(
-        int result,
-        const DnsTransaction* transaction,
-        const IPAddressList& ip_addresses);
+  // Returns the |qtype|.
+  virtual uint16 GetType() const = 0;
 
-   private:
-    friend class DnsTransaction;
+  // Starts the transaction. Returns the net error on synchronous failure or
+  // ERR_IO_PENDING in which case the result will be passed via the callback.
+  virtual int Start() = 0;
+};
 
-    void Attach(DnsTransaction* transaction);
-    void Detach(DnsTransaction* transaction);
+// Creates DnsTransaction which performs asynchronous DNS search.
+// It does NOT perform caching, aggregation or prioritization of transactions.
+//
+// Destroying the factory does NOT affect any already created DnsTransactions.
+class NET_EXPORT_PRIVATE DnsTransactionFactory {
+ public:
+  // Called with the response or NULL if no matching response was received.
+  // Note that the |GetDottedName()| of the response may be different than the
+  // original |hostname| as a result of suffix search.
+  typedef base::Callback<void(DnsTransaction* transaction,
+                              int neterror,
+                              const DnsResponse* response)> CallbackType;
 
-    std::set<DnsTransaction*> registered_transactions_;
+  virtual ~DnsTransactionFactory() {}
 
-    DISALLOW_COPY_AND_ASSIGN(Delegate);
-  };
+  // Creates DnsTransaction for the given |hostname| and |qtype| (assuming
+  // QCLASS is IN). |hostname| should be in the dotted form. A dot at the end
+  // implies the domain name is fully-qualified and will be exempt from suffix
+  // search. |hostname| should not be an IP literal.
+  //
+  // The transaction will run |callback| upon asynchronous completion.
+  // The source of |source_net_log| is used as source dependency in log.
+  virtual scoped_ptr<DnsTransaction> CreateTransaction(
+      const std::string& hostname,
+      uint16 qtype,
+      const CallbackType& callback,
+      const BoundNetLog& source_net_log) WARN_UNUSED_RESULT = 0;
 
-  // |dns_server| is the address of the DNS server, |dns_name| is the
-  // hostname (in DNS format) to be resolved, |query_type| is the type of
-  // the query, either kDNS_A or kDNS_AAAA, |rand_int| is the PRNG used for
-  // generating DNS query.
-  DnsTransaction(const IPEndPoint& dns_server,
-                 const std::string& dns_name,
-                 uint16 query_type,
-                 const RandIntCallback& rand_int,
-                 ClientSocketFactory* socket_factory,
-                 const BoundNetLog& source_net_log,
-                 NetLog* net_log);
-  ~DnsTransaction();
-  void SetDelegate(Delegate* delegate);
-  const Key& key() const { return key_; }
-
-  // Starts the resolution process.  Will return ERR_IO_PENDING and will
-  // notify the caller via |delegate|.  Should only be called once.
-  int Start();
-
- private:
-  FRIEND_TEST_ALL_PREFIXES(DnsTransactionTest, FirstTimeoutTest);
-  FRIEND_TEST_ALL_PREFIXES(DnsTransactionTest, SecondTimeoutTest);
-  FRIEND_TEST_ALL_PREFIXES(DnsTransactionTest, ThirdTimeoutTest);
-
-  enum State {
-    STATE_CONNECT,
-    STATE_CONNECT_COMPLETE,
-    STATE_SEND_QUERY,
-    STATE_SEND_QUERY_COMPLETE,
-    STATE_READ_RESPONSE,
-    STATE_READ_RESPONSE_COMPLETE,
-    STATE_NONE,
-  };
-
-  int DoLoop(int result);
-  void DoCallback(int result);
-  void OnIOComplete(int result);
-
-  int DoConnect();
-  int DoConnectComplete(int result);
-  int DoSendQuery();
-  int DoSendQueryComplete(int result);
-  int DoReadResponse();
-  int DoReadResponseComplete(int result);
-
-  // Fixed number of attempts are made to send a query and read a response,
-  // and at the start of each, a timer is started with increasing delays.
-  void StartTimer(base::TimeDelta delay);
-  void RevokeTimer();
-  void OnTimeout();
-
-  // This is to be used by unit tests only.
-  void set_timeouts_ms(const std::vector<base::TimeDelta>& timeouts_ms);
-
-  const IPEndPoint dns_server_;
-  Key key_;
-  IPAddressList ip_addresses_;
-  Delegate* delegate_;
-
-  scoped_ptr<DnsQuery> query_;
-  scoped_ptr<DnsResponse> response_;
-  scoped_ptr<DatagramClientSocket> socket_;
-
-  // Number of retry attempts so far.
-  size_t attempts_;
-
-  // Timeouts in milliseconds.
-  std::vector<base::TimeDelta> timeouts_ms_;
-
-  State next_state_;
-  ClientSocketFactory* socket_factory_;
-  base::OneShotTimer<DnsTransaction> timer_;
-  CompletionCallbackImpl<DnsTransaction> io_callback_;
-
-  BoundNetLog net_log_;
-
-  DISALLOW_COPY_AND_ASSIGN(DnsTransaction);
+  // Creates a DnsTransactionFactory which creates DnsTransactionImpl using the
+  // |session|.
+  static scoped_ptr<DnsTransactionFactory> CreateFactory(
+      DnsSession* session) WARN_UNUSED_RESULT;
 };
 
 }  // namespace net
 
 #endif  // NET_DNS_DNS_TRANSACTION_H_
+

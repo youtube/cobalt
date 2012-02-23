@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,7 +15,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
 #include "net/base/net_errors.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/net_log.h"
 #include "net/base/request_priority.h"
 #include "net/http/http_response_info.h"
@@ -30,7 +30,7 @@ namespace net {
 // connection.  It is used by the ClientSocketPool to group similar connected
 // client socket objects.
 //
-class NET_API ClientSocketHandle {
+class NET_EXPORT ClientSocketHandle {
  public:
   enum SocketReuseType {
     UNUSED = 0,   // unused socket that just finished connecting
@@ -74,7 +74,7 @@ class NET_API ClientSocketHandle {
   int Init(const std::string& group_name,
            const scoped_refptr<SocketParams>& socket_params,
            RequestPriority priority,
-           CompletionCallback* callback,
+           const CompletionCallback& callback,
            PoolType* pool,
            const BoundNetLog& net_log);
 
@@ -167,8 +167,8 @@ class NET_API ClientSocketHandle {
   scoped_ptr<StreamSocket> socket_;
   std::string group_name_;
   bool is_reused_;
-  CompletionCallbackImpl<ClientSocketHandle> callback_;
-  CompletionCallback* user_callback_;
+  CompletionCallback callback_;
+  CompletionCallback user_callback_;
   base::TimeDelta idle_time_;
   int pool_id_;  // See ClientSocketPool::ReleaseSocket() for an explanation.
   bool is_ssl_error_;
@@ -187,7 +187,7 @@ template <typename SocketParams, typename PoolType>
 int ClientSocketHandle::Init(const std::string& group_name,
                              const scoped_refptr<SocketParams>& socket_params,
                              RequestPriority priority,
-                             CompletionCallback* callback,
+                             const CompletionCallback& callback,
                              PoolType* pool,
                              const BoundNetLog& net_log) {
   requesting_source_ = net_log.source();
@@ -203,7 +203,7 @@ int ClientSocketHandle::Init(const std::string& group_name,
   group_name_ = group_name;
   init_time_ = base::TimeTicks::Now();
   int rv = pool_->RequestSocket(
-      group_name, &socket_params, priority, this, &callback_, net_log);
+      group_name, &socket_params, priority, this, callback_, net_log);
   if (rv == ERR_IO_PENDING) {
     user_callback_ = callback;
   } else {

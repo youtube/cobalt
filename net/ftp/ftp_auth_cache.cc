@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,11 +13,9 @@ namespace net {
 const size_t FtpAuthCache::kMaxEntries = 10;
 
 FtpAuthCache::Entry::Entry(const GURL& origin,
-                           const string16& username,
-                           const string16& password)
+                           const AuthCredentials& credentials)
     : origin(origin),
-      username(username),
-      password(password) {
+      credentials(credentials) {
 }
 
 FtpAuthCache::Entry::~Entry() {}
@@ -34,17 +32,15 @@ FtpAuthCache::Entry* FtpAuthCache::Lookup(const GURL& origin) {
   return NULL;
 }
 
-void FtpAuthCache::Add(const GURL& origin, const string16& username,
-                       const string16& password) {
+void FtpAuthCache::Add(const GURL& origin, const AuthCredentials& credentials) {
   DCHECK(origin.SchemeIs("ftp"));
   DCHECK_EQ(origin.GetOrigin(), origin);
 
   Entry* entry = Lookup(origin);
   if (entry) {
-    entry->username = username;
-    entry->password = password;
+    entry->credentials = credentials;
   } else {
-    entries_.push_front(Entry(origin, username, password));
+    entries_.push_front(Entry(origin, credentials));
 
     // Prevent unbound memory growth of the cache.
     if (entries_.size() > kMaxEntries)
@@ -52,11 +48,10 @@ void FtpAuthCache::Add(const GURL& origin, const string16& username,
   }
 }
 
-void FtpAuthCache::Remove(const GURL& origin, const string16& username,
-                          const string16& password) {
+void FtpAuthCache::Remove(const GURL& origin,
+                          const AuthCredentials& credentials) {
   for (EntryList::iterator it = entries_.begin(); it != entries_.end(); ++it) {
-    if (it->origin == origin && it->username == username &&
-        it->password == password) {
+    if (it->origin == origin && it->credentials.Equals(credentials)) {
       entries_.erase(it);
       DCHECK(!Lookup(origin));
       return;

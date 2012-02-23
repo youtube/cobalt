@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "base/base64.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
@@ -109,9 +110,8 @@ class X509CertificateCache {
   DISALLOW_COPY_AND_ASSIGN(X509CertificateCache);
 };
 
-base::LazyInstance<X509CertificateCache,
-                   base::LeakyLazyInstanceTraits<X509CertificateCache> >
-    g_x509_certificate_cache(base::LINKER_INITIALIZED);
+base::LazyInstance<X509CertificateCache>::Leaky
+    g_x509_certificate_cache = LAZY_INSTANCE_INITIALIZER;
 
 void X509CertificateCache::InsertOrUpdate(
     X509Certificate::OSCertHandle* cert_handle) {
@@ -187,7 +187,7 @@ void X509CertificateCache::Remove(X509Certificate::OSCertHandle cert_handle) {
 // CompareSHA1Hashes is a helper function for using bsearch() with an array of
 // SHA1 hashes.
 int CompareSHA1Hashes(const void* a, const void* b) {
-  return memcmp(a, b, base::SHA1_LENGTH);
+  return memcmp(a, b, base::kSHA1Length);
 }
 
 // Utility to split |src| on the first occurrence of |c|, if any. |right| will
@@ -207,21 +207,19 @@ void SplitOnChar(const base::StringPiece& src,
   }
 }
 
-#if defined(OS_WIN)
-X509Certificate::OSCertHandle CreateOSCert(base::StringPiece der_cert) {
-  X509Certificate::OSCertHandle cert_handle = NULL;
-  BOOL ok = CertAddEncodedCertificateToStore(
-      X509Certificate::cert_store(), X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
-      reinterpret_cast<const BYTE*>(der_cert.data()), der_cert.size(),
-      CERT_STORE_ADD_USE_EXISTING, &cert_handle);
-  return ok ? cert_handle : NULL;
+// Returns true if |type| is |kPublicKeyTypeRSA| or |kPublicKeyTypeDSA|, and
+// if |size_bits| is < 1024. Note that this means there may be false
+// negatives: keys for other algorithms and which are weak will pass this
+// test.
+bool IsWeakKey(X509Certificate::PublicKeyType type, size_t size_bits) {
+  switch (type) {
+    case X509Certificate::kPublicKeyTypeRSA:
+    case X509Certificate::kPublicKeyTypeDSA:
+      return size_bits < 1024;
+    default:
+      return false;
+  }
 }
-#else
-X509Certificate::OSCertHandle CreateOSCert(base::StringPiece der_cert) {
-  return X509Certificate::CreateOSCertHandleFromBytes(
-      const_cast<char*>(der_cert.data()), der_cert.size());
-}
-#endif
 
 }  // namespace
 
@@ -230,8 +228,14 @@ bool X509Certificate::LessThan::operator()(X509Certificate* lhs,
   if (lhs == rhs)
     return false;
 
-  SHA1FingerprintLessThan fingerprint_functor;
-  return fingerprint_functor(lhs->fingerprint_, rhs->fingerprint_);
+  int rv = memcmp(lhs->fingerprint_.data, rhs->fingerprint_.data,
+                  sizeof(lhs->fingerprint_.data));
+  if (rv != 0)
+    return rv < 0;
+
+  rv = memcmp(lhs->ca_fingerprint_.data, rhs->ca_fingerprint_.data,
+              sizeof(lhs->ca_fingerprint_.data));
+  return rv < 0;
 }
 
 X509Certificate::X509Certificate(const std::string& subject,
@@ -244,6 +248,7 @@ X509Certificate::X509Certificate(const std::string& subject,
       valid_expiry_(expiration_date),
       cert_handle_(NULL) {
   memset(fingerprint_.data, 0, sizeof(fingerprint_.data));
+  memset(ca_fingerprint_.data, 0, sizeof(ca_fingerprint_.data));
 }
 
 // static
@@ -262,7 +267,8 @@ X509Certificate* X509Certificate::CreateFromDERCertChain(
 
   X509Certificate::OSCertHandles intermediate_ca_certs;
   for (size_t i = 1; i < der_certs.size(); i++) {
-    OSCertHandle handle = CreateOSCert(der_certs[i]);
+    OSCertHandle handle = CreateOSCertHandleFromBytes(
+        const_cast<char*>(der_certs[i].data()), der_certs[i].size());
     if (!handle)
       break;
     intermediate_ca_certs.push_back(handle);
@@ -270,8 +276,10 @@ X509Certificate* X509Certificate::CreateFromDERCertChain(
 
   OSCertHandle handle = NULL;
   // Return NULL if we failed to parse any of the certs.
-  if (der_certs.size() - 1 == intermediate_ca_certs.size())
-    handle = CreateOSCert(der_certs[0]);
+  if (der_certs.size() - 1 == intermediate_ca_certs.size()) {
+    handle = CreateOSCertHandleFromBytes(
+        const_cast<char*>(der_certs[0].data()), der_certs[0].size());
+  }
 
   X509Certificate* cert = NULL;
   if (handle) {
@@ -443,22 +451,6 @@ bool X509Certificate::Equals(const X509Certificate* other) const {
   return IsSameOSCert(cert_handle_, other->cert_handle_);
 }
 
-bool X509Certificate::HasIntermediateCertificate(OSCertHandle cert) {
-  for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i) {
-    if (IsSameOSCert(cert, intermediate_ca_certs_[i]))
-      return true;
-  }
-  return false;
-}
-
-bool X509Certificate::HasIntermediateCertificates(const OSCertHandles& certs) {
-  for (size_t i = 0; i < certs.size(); ++i) {
-    if (!HasIntermediateCertificate(certs[i]))
-      return false;
-  }
-  return true;
-}
-
 // static
 bool X509Certificate::VerifyHostname(
     const std::string& hostname,
@@ -476,7 +468,12 @@ bool X509Certificate::VerifyHostname(
   const std::string host_or_ip = hostname.find(':') != std::string::npos ?
       "[" + hostname + "]" : hostname;
   url_canon::CanonHostInfo host_info;
-  const std::string reference_name = CanonicalizeHost(host_or_ip, &host_info);
+  std::string reference_name = CanonicalizeHost(host_or_ip, &host_info);
+  // CanonicalizeHost does not normalize absolute vs relative DNS names. If
+  // the input name was absolute (included trailing .), normalize it as if it
+  // was relative.
+  if (!reference_name.empty() && *reference_name.rbegin() == '.')
+    reference_name.resize(reference_name.size() - 1);
   if (reference_name.empty())
     return false;
 
@@ -579,7 +576,9 @@ bool X509Certificate::VerifyHostname(
   return false;
 }
 
-int X509Certificate::Verify(const std::string& hostname, int flags,
+int X509Certificate::Verify(const std::string& hostname,
+                            int flags,
+                            CRLSet* crl_set,
                             CertVerifyResult* verify_result) const {
   verify_result->Reset();
   verify_result->verified_cert = const_cast<X509Certificate*>(this);
@@ -589,9 +588,60 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
     return ERR_CERT_REVOKED;
   }
 
-  int rv = VerifyInternal(hostname, flags, verify_result);
+  int rv = VerifyInternal(hostname, flags, crl_set, verify_result);
 
-  // If needed, do any post-validation here.
+  // This check is done after VerifyInternal so that VerifyInternal can fill in
+  // the list of public key hashes.
+  if (IsPublicKeyBlacklisted(verify_result->public_key_hashes)) {
+    verify_result->cert_status |= CERT_STATUS_REVOKED;
+    rv = MapCertStatusToNetError(verify_result->cert_status);
+  }
+
+  // Check for weak keys in the entire verified chain.
+  size_t size_bits = 0;
+  PublicKeyType type = kPublicKeyTypeUnknown;
+  bool weak_key = false;
+
+  GetPublicKeyInfo(verify_result->verified_cert->os_cert_handle(), &size_bits,
+                   &type);
+  if (IsWeakKey(type, size_bits)) {
+    weak_key = true;
+  } else {
+    const OSCertHandles& intermediates =
+        verify_result->verified_cert->GetIntermediateCertificates();
+    for (OSCertHandles::const_iterator i = intermediates.begin();
+         i != intermediates.end(); ++i) {
+      GetPublicKeyInfo(*i, &size_bits, &type);
+      if (IsWeakKey(type, size_bits))
+        weak_key = true;
+    }
+  }
+
+  if (weak_key) {
+    verify_result->cert_status |= CERT_STATUS_WEAK_KEY;
+    // Avoid replacing a more serious error, such as an OS/library failure,
+    // by ensuring that if verification failed, it failed with a certificate
+    // error.
+    if (rv == OK || IsCertificateError(rv))
+      rv = MapCertStatusToNetError(verify_result->cert_status);
+  }
+
+  // Treat certificates signed using broken signature algorithms as invalid.
+  if (verify_result->has_md2 || verify_result->has_md4) {
+    verify_result->cert_status |= CERT_STATUS_INVALID;
+    rv = MapCertStatusToNetError(verify_result->cert_status);
+  }
+
+  // Flag certificates using weak signature algorithms.
+  if (verify_result->has_md5) {
+    verify_result->cert_status |= CERT_STATUS_WEAK_SIGNATURE_ALGORITHM;
+    // Avoid replacing a more serious error, such as an OS/library failure,
+    // by ensuring that if verification failed, it failed with a certificate
+    // error.
+    if (rv == OK || IsCertificateError(rv))
+      rv = MapCertStatusToNetError(verify_result->cert_status);
+  }
+
   return rv;
 }
 
@@ -602,6 +652,46 @@ bool X509Certificate::VerifyNameMatch(const std::string& hostname) const {
   return VerifyHostname(hostname, subject_.common_name, dns_names, ip_addrs);
 }
 #endif
+
+// static
+bool X509Certificate::GetPEMEncoded(OSCertHandle cert_handle,
+                                    std::string* pem_encoded) {
+  std::string der_encoded;
+  if (!GetDEREncoded(cert_handle, &der_encoded) || der_encoded.empty())
+    return false;
+  std::string b64_encoded;
+  if (!base::Base64Encode(der_encoded, &b64_encoded) || b64_encoded.empty())
+    return false;
+  *pem_encoded = "-----BEGIN CERTIFICATE-----\n";
+
+  // Divide the Base-64 encoded data into 64-character chunks, as per
+  // 4.3.2.4 of RFC 1421.
+  static const size_t kChunkSize = 64;
+  size_t chunks = (b64_encoded.size() + (kChunkSize - 1)) / kChunkSize;
+  for (size_t i = 0, chunk_offset = 0; i < chunks;
+       ++i, chunk_offset += kChunkSize) {
+    pem_encoded->append(b64_encoded, chunk_offset, kChunkSize);
+    pem_encoded->append("\n");
+  }
+  pem_encoded->append("-----END CERTIFICATE-----\n");
+  return true;
+}
+
+bool X509Certificate::GetPEMEncodedChain(
+    std::vector<std::string>* pem_encoded) const {
+  std::vector<std::string> encoded_chain;
+  std::string pem_data;
+  if (!GetPEMEncoded(os_cert_handle(), &pem_data))
+    return false;
+  encoded_chain.push_back(pem_data);
+  for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i) {
+    if (!GetPEMEncoded(intermediate_ca_certs_[i], &pem_data))
+      return false;
+    encoded_chain.push_back(pem_data);
+  }
+  pem_encoded->swap(encoded_chain);
+  return true;
+}
 
 X509Certificate::X509Certificate(OSCertHandle cert_handle,
                                  const OSCertHandles& intermediates)
@@ -635,9 +725,8 @@ X509Certificate::~X509Certificate() {
 }
 
 bool X509Certificate::IsBlacklisted() const {
-  static const unsigned kNumSerials = 10;
-  static const unsigned kSerialBytes = 16;
-  static const uint8 kSerials[kNumSerials][kSerialBytes] = {
+  static const unsigned kComodoSerialBytes = 16;
+  static const uint8 kComodoSerials[][kComodoSerialBytes] = {
     // Not a real certificate. For testing only.
     {0x07,0x7a,0x59,0xbc,0xd5,0x34,0x59,0x60,0x1c,0xa6,0x90,0x72,0x67,0xa6,0xdd,0x1c},
 
@@ -676,12 +765,74 @@ bool X509Certificate::IsBlacklisted() const {
     {0x3e,0x75,0xce,0xd4,0x6b,0x69,0x30,0x21,0x21,0x88,0x30,0xae,0x86,0xa8,0x2a,0x71},
   };
 
-  if (serial_number_.size() == kSerialBytes) {
-    for (unsigned i = 0; i < kNumSerials; i++) {
-      if (memcmp(kSerials[i], serial_number_.data(), kSerialBytes) == 0) {
-        UMA_HISTOGRAM_ENUMERATION("Net.SSLCertBlacklisted", i, kNumSerials);
+  if (!serial_number_.empty() && (serial_number_[0] & 0x80) != 0) {
+    // This is a negative serial number, which isn't technically allowed but
+    // which probably happens. In order to avoid confusing a negative serial
+    // number with a positive one once the leading zeros have been removed, we
+    // disregard it.
+    return false;
+  }
+
+  base::StringPiece serial(serial_number_);
+  // Remove leading zeros.
+  while (serial.size() > 1 && serial[0] == 0)
+    serial.remove_prefix(1);
+
+  if (serial.size() == kComodoSerialBytes) {
+    for (unsigned i = 0; i < arraysize(kComodoSerials); i++) {
+      if (memcmp(kComodoSerials[i], serial.data(), kComodoSerialBytes) == 0) {
+        UMA_HISTOGRAM_ENUMERATION("Net.SSLCertBlacklisted", i,
+                                  arraysize(kComodoSerials) + 1);
         return true;
       }
+    }
+  }
+
+  return false;
+}
+
+// static
+bool X509Certificate::IsPublicKeyBlacklisted(
+    const std::vector<SHA1Fingerprint>& public_key_hashes) {
+  static const unsigned kNumHashes = 7;
+  static const uint8 kHashes[kNumHashes][base::kSHA1Length] = {
+    // Subject: CN=DigiNotar Root CA
+    // Issuer: CN=Entrust.net x2 and self-signed
+    {0x41, 0x0f, 0x36, 0x36, 0x32, 0x58, 0xf3, 0x0b, 0x34, 0x7d,
+     0x12, 0xce, 0x48, 0x63, 0xe4, 0x33, 0x43, 0x78, 0x06, 0xa8},
+    // Subject: CN=DigiNotar Cyber CA
+    // Issuer: CN=GTE CyberTrust Global Root
+    {0xc4, 0xf9, 0x66, 0x37, 0x16, 0xcd, 0x5e, 0x71, 0xd6, 0x95,
+     0x0b, 0x5f, 0x33, 0xce, 0x04, 0x1c, 0x95, 0xb4, 0x35, 0xd1},
+    // Subject: CN=DigiNotar Services 1024 CA
+    // Issuer: CN=Entrust.net
+    {0xe2, 0x3b, 0x8d, 0x10, 0x5f, 0x87, 0x71, 0x0a, 0x68, 0xd9,
+     0x24, 0x80, 0x50, 0xeb, 0xef, 0xc6, 0x27, 0xbe, 0x4c, 0xa6},
+    // Subject: CN=DigiNotar PKIoverheid CA Organisatie - G2
+    // Issuer: CN=Staat der Nederlanden Organisatie CA - G2
+    {0x7b, 0x2e, 0x16, 0xbc, 0x39, 0xbc, 0xd7, 0x2b, 0x45, 0x6e,
+     0x9f, 0x05, 0x5d, 0x1d, 0xe6, 0x15, 0xb7, 0x49, 0x45, 0xdb},
+    // Subject: CN=DigiNotar PKIoverheid CA Overheid en Bedrijven
+    // Issuer: CN=Staat der Nederlanden Overheid CA
+    {0xe8, 0xf9, 0x12, 0x00, 0xc6, 0x5c, 0xee, 0x16, 0xe0, 0x39,
+     0xb9, 0xf8, 0x83, 0x84, 0x16, 0x61, 0x63, 0x5f, 0x81, 0xc5},
+    // Subject: O=Digicert Sdn. Bhd.
+    // Issuer: CN=GTE CyberTrust Global Root
+    // Expires: Jul 17 15:16:54 2012 GMT
+    {0x01, 0x29, 0xbc, 0xd5, 0xb4, 0x48, 0xae, 0x8d, 0x24, 0x96,
+     0xd1, 0xc3, 0xe1, 0x97, 0x23, 0x91, 0x90, 0x88, 0xe1, 0x52},
+    // Subject: O=Digicert Sdn. Bhd.
+    // Issuer: CN=Entrust.net Certification Authority (2048)
+    // Expires: Jul 16 17:53:37 2015 GMT
+    {0xd3, 0x3c, 0x5b, 0x41, 0xe4, 0x5c, 0xc4, 0xb3, 0xbe, 0x9a,
+     0xd6, 0x95, 0x2c, 0x4e, 0xcc, 0x25, 0x28, 0x03, 0x29, 0x81},
+  };
+
+  for (unsigned i = 0; i < kNumHashes; i++) {
+    for (std::vector<SHA1Fingerprint>::const_iterator
+         j = public_key_hashes.begin(); j != public_key_hashes.end(); ++j) {
+      if (memcmp(j->data, kHashes[i], base::kSHA1Length) == 0)
+        return true;
     }
   }
 
@@ -692,9 +843,9 @@ bool X509Certificate::IsBlacklisted() const {
 bool X509Certificate::IsSHA1HashInSortedArray(const SHA1Fingerprint& hash,
                                               const uint8* array,
                                               size_t array_byte_len) {
-  DCHECK_EQ(0u, array_byte_len % base::SHA1_LENGTH);
-  const unsigned arraylen = array_byte_len / base::SHA1_LENGTH;
-  return NULL != bsearch(hash.data, array, arraylen, base::SHA1_LENGTH,
+  DCHECK_EQ(0u, array_byte_len % base::kSHA1Length);
+  const size_t arraylen = array_byte_len / base::kSHA1Length;
+  return NULL != bsearch(hash.data, array, arraylen, base::kSHA1Length,
                          CompareSHA1Hashes);
 }
 

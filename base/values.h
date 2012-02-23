@@ -29,6 +29,7 @@
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "base/string16.h"
 
 // This file declares "using base::Value", etc. at the bottom, so that
@@ -53,7 +54,7 @@ typedef std::map<std::string, Value*> ValueMap;
 // the subclasses.
 class BASE_EXPORT Value {
  public:
-  enum ValueType {
+  enum Type {
     TYPE_NULL = 0,
     TYPE_BOOLEAN,
     TYPE_INTEGER,
@@ -76,19 +77,15 @@ class BASE_EXPORT Value {
   static StringValue* CreateStringValue(const std::string& in_value);
   static StringValue* CreateStringValue(const string16& in_value);
 
-  // This one can return NULL if the input isn't valid.  If the return value
-  // is non-null, the new object has taken ownership of the buffer pointer.
-  static BinaryValue* CreateBinaryValue(char* buffer, size_t size);
-
   // Returns the type of the value stored by the current Value object.
   // Each type will be implemented by only one subclass of Value, so it's
-  // safe to use the ValueType to determine whether you can cast from
+  // safe to use the Type to determine whether you can cast from
   // Value* to (Implementing Class)*.  Also, a Value object never changes
   // its type after construction.
-  ValueType GetType() const { return type_; }
+  Type GetType() const { return type_; }
 
   // Returns true if the current object represents a given type.
-  bool IsType(ValueType type) const { return type == type_; }
+  bool IsType(Type type) const { return type == type_; }
 
   // These methods allow the convenient retrieval of settings.
   // If the current setting object can be converted into the given type,
@@ -101,6 +98,8 @@ class BASE_EXPORT Value {
   virtual bool GetAsString(string16* out_value) const;
   virtual bool GetAsList(ListValue** out_value);
   virtual bool GetAsList(const ListValue** out_value) const;
+  virtual bool GetAsDictionary(DictionaryValue** out_value);
+  virtual bool GetAsDictionary(const DictionaryValue** out_value) const;
 
   // This creates a deep copy of the entire Value tree, and returns a pointer
   // to the copy.  The caller gets ownership of the copy, of course.
@@ -119,12 +118,12 @@ class BASE_EXPORT Value {
  protected:
   // This isn't safe for end-users (they should use the Create*Value()
   // static methods above), but it's useful for subclasses.
-  explicit Value(ValueType type);
+  explicit Value(Type type);
 
  private:
   Value();
 
-  ValueType type_;
+  Type type_;
 
   DISALLOW_COPY_AND_ASSIGN(Value);
 };
@@ -137,12 +136,12 @@ class BASE_EXPORT FundamentalValue : public Value {
   explicit FundamentalValue(double in_value);
   virtual ~FundamentalValue();
 
-  // Subclassed methods
-  virtual bool GetAsBoolean(bool* out_value) const;
-  virtual bool GetAsInteger(int* out_value) const;
-  virtual bool GetAsDouble(double* out_value) const;
-  virtual FundamentalValue* DeepCopy() const;
-  virtual bool Equals(const Value* other) const;
+  // Overridden from Value:
+  virtual bool GetAsBoolean(bool* out_value) const OVERRIDE;
+  virtual bool GetAsInteger(int* out_value) const OVERRIDE;
+  virtual bool GetAsDouble(double* out_value) const OVERRIDE;
+  virtual FundamentalValue* DeepCopy() const OVERRIDE;
+  virtual bool Equals(const Value* other) const OVERRIDE;
 
  private:
   union {
@@ -164,11 +163,11 @@ class BASE_EXPORT StringValue : public Value {
 
   virtual ~StringValue();
 
-  // Subclassed methods
-  virtual bool GetAsString(std::string* out_value) const;
-  virtual bool GetAsString(string16* out_value) const;
-  virtual StringValue* DeepCopy() const;
-  virtual bool Equals(const Value* other) const;
+  // Overridden from Value:
+  virtual bool GetAsString(std::string* out_value) const OVERRIDE;
+  virtual bool GetAsString(string16* out_value) const OVERRIDE;
+  virtual StringValue* DeepCopy() const OVERRIDE;
+  virtual bool Equals(const Value* other) const OVERRIDE;
 
  private:
   std::string value_;
@@ -196,8 +195,8 @@ class BASE_EXPORT BinaryValue: public Value {
   const char* GetBuffer() const { return buffer_; }
 
   // Overridden from Value:
-  virtual BinaryValue* DeepCopy() const;
-  virtual bool Equals(const Value* other) const;
+  virtual BinaryValue* DeepCopy() const OVERRIDE;
+  virtual bool Equals(const Value* other) const OVERRIDE;
 
  private:
   // Constructor is private so that only objects with valid buffer pointers
@@ -217,6 +216,11 @@ class BASE_EXPORT DictionaryValue : public Value {
  public:
   DictionaryValue();
   virtual ~DictionaryValue();
+
+  // Overridden from Value:
+  virtual bool GetAsDictionary(DictionaryValue** out_value) OVERRIDE;
+  virtual bool GetAsDictionary(
+      const DictionaryValue** out_value) const OVERRIDE;
 
   // Returns true if the current dictionary has a value for the given key.
   bool HasKey(const std::string& key) const;
@@ -345,9 +349,27 @@ class BASE_EXPORT DictionaryValue : public Value {
   key_iterator begin_keys() const { return key_iterator(dictionary_.begin()); }
   key_iterator end_keys() const { return key_iterator(dictionary_.end()); }
 
+  // This class provides an iterator over both keys and values in the
+  // dictionary.  It can't be used to modify the dictionary.
+  class Iterator {
+   public:
+    explicit Iterator(const DictionaryValue& target)
+        : target_(target), it_(target.dictionary_.begin()) {}
+
+    bool HasNext() const { return it_ != target_.dictionary_.end(); }
+    void Advance() { ++it_; }
+
+    const std::string& key() const { return it_->first; }
+    const Value& value() const { return *it_->second; }
+
+   private:
+    const DictionaryValue& target_;
+    ValueMap::const_iterator it_;
+  };
+
   // Overridden from Value:
-  virtual DictionaryValue* DeepCopy() const;
-  virtual bool Equals(const Value* other) const;
+  virtual DictionaryValue* DeepCopy() const OVERRIDE;
+  virtual bool Equals(const Value* other) const OVERRIDE;
 
  private:
   ValueMap dictionary_;
@@ -405,8 +427,9 @@ class BASE_EXPORT ListValue : public Value {
   bool Remove(size_t index, Value** out_value);
 
   // Removes the first instance of |value| found in the list, if any, and
-  // deletes it.  Returns the index that it was located at (-1 for not present).
-  int Remove(const Value& value);
+  // deletes it. |index| is the location where |value| was found. Returns false
+  // if not found.
+  bool Remove(const Value& value, size_t* index);
 
   // Appends a Value to the end of the list.
   void Append(Value* in_value);
@@ -420,23 +443,28 @@ class BASE_EXPORT ListValue : public Value {
   // Returns true if successful, or false if the index was out of range.
   bool Insert(size_t index, Value* in_value);
 
+  // Searches for the first instance of |value| in the list using the Equals
+  // method of the Value type.
+  // Returns a const_iterator to the found item or to end() if none exists.
+  const_iterator Find(const Value& value) const;
+
   // Swaps contents with the |other| list.
   void Swap(ListValue* other) {
     list_.swap(other->list_);
   }
 
-  // Iteration
-  ListValue::iterator begin() { return list_.begin(); }
-  ListValue::iterator end() { return list_.end(); }
+  // Iteration.
+  iterator begin() { return list_.begin(); }
+  iterator end() { return list_.end(); }
 
-  ListValue::const_iterator begin() const { return list_.begin(); }
-  ListValue::const_iterator end() const { return list_.end(); }
+  const_iterator begin() const { return list_.begin(); }
+  const_iterator end() const { return list_.end(); }
 
   // Overridden from Value:
-  virtual bool GetAsList(ListValue** out_value);
-  virtual bool GetAsList(const ListValue** out_value) const;
-  virtual ListValue* DeepCopy() const;
-  virtual bool Equals(const Value* other) const;
+  virtual bool GetAsList(ListValue** out_value) OVERRIDE;
+  virtual bool GetAsList(const ListValue** out_value) const OVERRIDE;
+  virtual ListValue* DeepCopy() const OVERRIDE;
+  virtual bool Equals(const Value* other) const OVERRIDE;
 
  private:
   ValueVector list_;
@@ -465,7 +493,6 @@ class BASE_EXPORT ValueSerializer {
 
 // http://crbug.com/88666
 using base::DictionaryValue;
-using base::FundamentalValue;
 using base::ListValue;
 using base::StringValue;
 using base::Value;

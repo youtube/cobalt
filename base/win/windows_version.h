@@ -7,7 +7,7 @@
 #pragma once
 
 #include "base/base_export.h"
-#include "base/memory/singleton.h"
+#include "base/basictypes.h"
 
 typedef void* HANDLE;
 
@@ -25,10 +25,13 @@ enum Version {
   VERSION_VISTA,
   VERSION_SERVER_2008,
   VERSION_WIN7,
+  VERSION_WIN8,
+  VERSION_WIN_LAST,  // Indicates error condition.
 };
 
-// A Singleton that can be used to query various pieces of information about the
-// OS and process state.
+// A singleton that can be used to query various pieces of information about the
+// OS and process state. Note that this doesn't use the base Singleton class, so
+// it can be used without an AtExitManager.
 class BASE_EXPORT OSInfo {
  public:
   struct VersionNumber {
@@ -92,7 +95,6 @@ class BASE_EXPORT OSInfo {
   size_t allocation_granularity_;
   WOW64Status wow64_status_;
 
-  friend struct DefaultSingletonTraits<OSInfo>;
   DISALLOW_COPY_AND_ASSIGN(OSInfo);
 };
 

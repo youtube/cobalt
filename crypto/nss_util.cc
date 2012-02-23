@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,6 +16,9 @@
 #if defined(OS_LINUX)
 #include <linux/nfs_fs.h>
 #include <sys/vfs.h>
+#elif defined(OS_OPENBSD)
+#include <sys/mount.h>
+#include <sys/param.h>
 #endif
 
 #include <vector>
@@ -27,9 +30,15 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/native_library.h"
+#include "base/scoped_temp_dir.h"
 #include "base/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
+#include "build/build_config.h"
 #include "crypto/scoped_nss_types.h"
+
+#if defined(OS_CHROMEOS)
+#include "crypto/symmetric_key.h"
+#endif
 
 // USE_NSS means we use NSS for everything crypto-related.  If USE_NSS is not
 // defined, such as on Mac and Windows, we use NSS for SSL only -- we don't
@@ -47,9 +56,9 @@ namespace {
 #if defined(OS_CHROMEOS)
 const char kNSSDatabaseName[] = "Real NSS database";
 
-// Constants for loading opencryptoki.
-const char kOpencryptokiModuleName[] = "opencryptoki";
-const char kOpencryptokiPath[] = "/usr/lib/opencryptoki/libopencryptoki.so";
+// Constants for loading the Chrome OS TPM-backed PKCS #11 library.
+const char kChapsModuleName[] = "Chaps";
+const char kChapsPath[] = "libchaps.so";
 
 // Fake certificate authority database used for testing.
 static const FilePath::CharType kReadOnlyCertDB[] =
@@ -82,6 +91,15 @@ FilePath GetDefaultConfigDirectory() {
   }
   return dir;
 }
+
+#if defined(OS_CHROMEOS)
+// Supplemental user key id.
+unsigned char kSupplementalUserKeyId[] = {
+  0xCC, 0x13, 0x19, 0xDE, 0x75, 0x5E, 0xFE, 0xFA,
+  0x5E, 0x71, 0xD4, 0xA6, 0xFB, 0x00, 0x00, 0xCC
+};
+#endif  // defined(OS_CHROMEOS)
+
 
 // On non-chromeos platforms, return the default config directory.
 // On chromeos, return a read-only directory with fake root CA certs for testing
@@ -137,22 +155,27 @@ char* PKCS11PasswordFunc(PK11SlotInfo* slot, PRBool retry, void* arg) {
 // detection when database_dir is on NFS.  See http://crbug.com/48585.
 //
 // TODO(wtc): port this function to other USE_NSS platforms.  It is defined
-// only for OS_LINUX simply because the statfs structure is OS-specific.
+// only for OS_LINUX and OS_OPENBSD simply because the statfs structure
+// is OS-specific.
 //
 // Because this function sets an environment variable it must be run before we
 // go multi-threaded.
 void UseLocalCacheOfNSSDatabaseIfNFS(const FilePath& database_dir) {
-#if defined(OS_LINUX)
+#if defined(OS_LINUX) || defined(OS_OPENBSD)
   struct statfs buf;
   if (statfs(database_dir.value().c_str(), &buf) == 0) {
+#if defined(OS_LINUX)
     if (buf.f_type == NFS_SUPER_MAGIC) {
+#elif defined(OS_OPENBSD)
+    if (strcmp(buf.f_fstypename, MOUNT_NFS) == 0) {
+#endif
       scoped_ptr<base::Environment> env(base::Environment::Create());
       const char* use_cache_env_var = "NSS_SDB_USE_CACHE";
       if (!env->HasVar(use_cache_env_var))
         env->SetVar(use_cache_env_var, "yes");
     }
   }
-#endif  // defined(OS_LINUX)
+#endif  // defined(OS_LINUX) || defined(OS_OPENBSD)
 }
 
 PK11SlotInfo* FindSlotWithTokenName(const std::string& token_name) {
@@ -195,9 +218,13 @@ class NSPRInitSingleton {
   }
 };
 
-base::LazyInstance<NSPRInitSingleton,
-                   base::LeakyLazyInstanceTraits<NSPRInitSingleton> >
-    g_nspr_singleton(base::LINKER_INITIALIZED);
+base::LazyInstance<NSPRInitSingleton>::Leaky
+    g_nspr_singleton = LAZY_INSTANCE_INITIALIZER;
+
+// This is a LazyInstance so that it will be deleted automatically when the
+// unittest exits.  NSSInitSingleton is a LeakySingleton, so it would not be
+// deleted if it were a regular member.
+base::LazyInstance<ScopedTempDir> g_test_nss_db_dir = LAZY_INSTANCE_INITIALIZER;
 
 class NSSInitSingleton {
  public:
@@ -221,12 +248,9 @@ class NSSInitSingleton {
   void EnableTPMTokenForNSS(TPMTokenInfoDelegate* info_delegate) {
     CHECK(info_delegate);
     tpm_token_info_delegate_.reset(info_delegate);
-    // Try to load once to avoid jank later.  Ignore the return value,
-    // because if it fails we will try again later.
-    EnsureTPMTokenReady();
   }
 
-  // This is called whenever we want to make sure opencryptoki is
+  // This is called whenever we want to make sure Chaps is
   // properly loaded, because it can fail shortly after the initial
   // login while the PINs are being initialized, and we want to retry
   // if this happens.
@@ -236,16 +260,16 @@ class NSSInitSingleton {
       return false;
 
     // If everything is already initialized, then return true.
-    if (opencryptoki_module_ && tpm_slot_)
+    if (chaps_module_ && tpm_slot_)
       return true;
 
     if (tpm_token_info_delegate_->IsTokenReady()) {
-      // This tries to load the opencryptoki module so NSS can talk to
-      // the hardware TPM.
-      if (!opencryptoki_module_) {
-        opencryptoki_module_ = LoadModule(
-            kOpencryptokiModuleName,
-            kOpencryptokiPath,
+      // This tries to load the Chaps module so NSS can talk to the hardware
+      // TPM.
+      if (!chaps_module_) {
+        chaps_module_ = LoadModule(
+            kChapsModuleName,
+            kChapsPath,
             // trustOrder=100 -- means it'll select this as the most
             //   trusted slot for the mechanisms it provides.
             // slotParams=... -- selects RSA as the only mechanism, and only
@@ -253,7 +277,7 @@ class NSSInitSingleton {
             //   time, or after a timeout).
             "trustOrder=100 slotParams=(1={slotFlags=[RSA] askpw=only})");
       }
-      if (opencryptoki_module_) {
+      if (chaps_module_) {
         // If this gets set, then we'll use the TPM for certs with
         // private keys, otherwise we'll fall back to the software
         // implementation.
@@ -288,11 +312,49 @@ class NSSInitSingleton {
     return FindSlotWithTokenName(token_name);
   }
 
+  SymmetricKey* GetSupplementalUserKey() {
+    DCHECK(chromeos_user_logged_in_);
+
+    PK11SlotInfo* slot = NULL;
+    PK11SymKey* key = NULL;
+    SECItem keyID;
+    CK_MECHANISM_TYPE type = CKM_AES_ECB;
+
+    slot = GetPublicNSSKeySlot();
+    if (!slot)
+      goto done;
+
+    if (PK11_Authenticate(slot, PR_TRUE, NULL) != SECSuccess)
+      goto done;
+
+    keyID.type = siBuffer;
+    keyID.data = kSupplementalUserKeyId;
+    keyID.len = static_cast<int>(sizeof(kSupplementalUserKeyId));
+
+    // Find/generate AES key.
+    key = PK11_FindFixedKey(slot, type, &keyID, NULL);
+    if (!key) {
+      const int kKeySizeInBytes = 32;
+      key = PK11_TokenKeyGen(slot, type, NULL,
+                             kKeySizeInBytes,
+                             &keyID, PR_TRUE, NULL);
+    }
+
+  done:
+    if (slot)
+      PK11_FreeSlot(slot);
+
+    return key ? SymmetricKey::CreateFromKey(key) : NULL;
+  }
 #endif  // defined(OS_CHROMEOS)
 
 
-  bool OpenTestNSSDB(const FilePath& path, const char* description) {
-    test_slot_ = OpenUserDB(path, description);
+  bool OpenTestNSSDB() {
+    if (test_slot_)
+      return true;
+    if (!g_test_nss_db_dir.Get().CreateUniqueTempDir())
+      return false;
+    test_slot_ = OpenUserDB(g_test_nss_db_dir.Get().path(), "Test DB");
     return !!test_slot_;
   }
 
@@ -300,9 +362,10 @@ class NSSInitSingleton {
     if (test_slot_) {
       SECStatus status = SECMOD_CloseUserDB(test_slot_);
       if (status != SECSuccess)
-        LOG(ERROR) << "SECMOD_CloseUserDB failed: " << PORT_GetError();
+        PLOG(ERROR) << "SECMOD_CloseUserDB failed: " << PORT_GetError();
       PK11_FreeSlot(test_slot_);
       test_slot_ = NULL;
+      ignore_result(g_test_nss_db_dir.Get().Delete());
     }
   }
 
@@ -319,10 +382,8 @@ class NSSInitSingleton {
       return PK11_ReferenceSlot(test_slot_);
 
 #if defined(OS_CHROMEOS)
-    // Make sure that if EnableTPMTokenForNSS has been called that we
-    // have successfully loaded opencryptoki.
     if (tpm_token_info_delegate_.get() != NULL) {
-      if (EnsureTPMTokenReady()) {
+      if (IsTPMTokenReady()) {
         return PK11_ReferenceSlot(tpm_slot_);
       } else {
         // If we were supposed to get the hardware token, but were
@@ -354,7 +415,7 @@ class NSSInitSingleton {
   friend struct base::DefaultLazyInstanceTraits<NSSInitSingleton>;
 
   NSSInitSingleton()
-      : opencryptoki_module_(NULL),
+      : chaps_module_(NULL),
         software_slot_(NULL),
         test_slot_(NULL),
         tpm_slot_(NULL),
@@ -469,10 +530,10 @@ class NSSInitSingleton {
       SECMOD_DestroyModule(root_);
       root_ = NULL;
     }
-    if (opencryptoki_module_) {
-      SECMOD_UnloadUserModule(opencryptoki_module_);
-      SECMOD_DestroyModule(opencryptoki_module_);
-      opencryptoki_module_ = NULL;
+    if (chaps_module_) {
+      SECMOD_UnloadUserModule(chaps_module_);
+      SECMOD_DestroyModule(chaps_module_);
+      chaps_module_ = NULL;
     }
 
     SECStatus status = NSS_Shutdown();
@@ -543,7 +604,7 @@ class NSSInitSingleton {
   scoped_ptr<TPMTokenInfoDelegate> tpm_token_info_delegate_;
 #endif
 
-  SECMODModule* opencryptoki_module_;
+  SECMODModule* chaps_module_;
   PK11SlotInfo* software_slot_;
   PK11SlotInfo* test_slot_;
   PK11SlotInfo* tpm_slot_;
@@ -559,9 +620,8 @@ class NSSInitSingleton {
 // static
 bool NSSInitSingleton::force_nodb_init_ = false;
 
-base::LazyInstance<NSSInitSingleton,
-                   base::LeakyLazyInstanceTraits<NSSInitSingleton> >
-    g_nss_singleton(base::LINKER_INITIALIZED);
+base::LazyInstance<NSSInitSingleton>::Leaky
+    g_nss_singleton = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 
@@ -603,8 +663,17 @@ void LoadNSSLibraries() {
   // Use relative path to Search PATH for the library files.
   paths.push_back(FilePath());
 
-  // For Debian derivaties NSS libraries are located here.
+  // For Debian derivatives NSS libraries are located here.
   paths.push_back(FilePath("/usr/lib/nss"));
+
+  // Ubuntu 11.10 (Oneiric) places the libraries here.
+#if defined(ARCH_CPU_X86_64)
+  paths.push_back(FilePath("/usr/lib/x86_64-linux-gnu/nss"));
+#elif defined(ARCH_CPU_X86)
+  paths.push_back(FilePath("/usr/lib/i386-linux-gnu/nss"));
+#elif defined(ARCH_CPU_ARMEL)
+  paths.push_back(FilePath("/usr/lib/arm-linux-gnueabi/nss"));
+#endif
 
   // A list of library files to load.
   std::vector<std::string> libs;
@@ -628,7 +697,7 @@ void LoadNSSLibraries() {
   if (loaded == libs.size()) {
     VLOG(3) << "NSS libraries loaded.";
   } else {
-    LOG(WARNING) << "Failed to load NSS libraries.";
+    LOG(ERROR) << "Failed to load NSS libraries.";
   }
 #endif
 }
@@ -638,12 +707,8 @@ bool CheckNSSVersion(const char* version) {
 }
 
 #if defined(USE_NSS)
-bool OpenTestNSSDB(const FilePath& path, const char* description) {
-  return g_nss_singleton.Get().OpenTestNSSDB(path, description);
-}
-
-void CloseTestNSSDB() {
-  g_nss_singleton.Get().CloseTestNSSDB();
+bool OpenTestNSSDB() {
+  return g_nss_singleton.Get().OpenTestNSSDB();
 }
 
 base::Lock* GetNSSWriteLock() {
@@ -702,25 +767,18 @@ bool EnsureTPMTokenReady() {
   return g_nss_singleton.Get().EnsureTPMTokenReady();
 }
 
+SymmetricKey* GetSupplementalUserKey() {
+  return g_nss_singleton.Get().GetSupplementalUserKey();
+}
 #endif  // defined(OS_CHROMEOS)
 
-// TODO(port): Implement this more simply.  We can convert by subtracting an
-// offset (the difference between NSPR's and base::Time's epochs).
 base::Time PRTimeToBaseTime(PRTime prtime) {
-  PRExplodedTime prxtime;
-  PR_ExplodeTime(prtime, PR_GMTParameters, &prxtime);
+  return base::Time::FromInternalValue(
+      prtime + base::Time::UnixEpoch().ToInternalValue());
+}
 
-  base::Time::Exploded exploded;
-  exploded.year         = prxtime.tm_year;
-  exploded.month        = prxtime.tm_month + 1;
-  exploded.day_of_week  = prxtime.tm_wday;
-  exploded.day_of_month = prxtime.tm_mday;
-  exploded.hour         = prxtime.tm_hour;
-  exploded.minute       = prxtime.tm_min;
-  exploded.second       = prxtime.tm_sec;
-  exploded.millisecond  = prxtime.tm_usec / 1000;
-
-  return base::Time::FromUTCExploded(exploded);
+PRTime BaseTimeToPRTime(base::Time time) {
+  return time.ToInternalValue() - base::Time::UnixEpoch().ToInternalValue();
 }
 
 PK11SlotInfo* GetPublicNSSKeySlot() {

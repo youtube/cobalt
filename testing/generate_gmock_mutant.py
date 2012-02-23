@@ -1,12 +1,13 @@
-﻿#!/usr/bin/python
-# Copyright (c) 2009 The Chromium Authors. All rights reserved.
+#!/usr/bin/env python
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 import string
+import sys
 
 HEADER = """\
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -56,7 +57,7 @@ HEADER = """\
 //
 //   void QuitMessageLoop(int seconds) {
 //     MessageLoop* loop = MessageLoop::current();
-//     loop->PostDelayedTask(FROM_HERE, new MessageLoop::QuitTask,
+//     loop->PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(),
 //                           1000 * seconds);
 //   }
 // };
@@ -111,7 +112,7 @@ HEADER = """\
 //        CreateFunctor(&mock->demiurge_, &Demiurge::DecreaseMonsters))));
 //
 
-#include "base/linked_ptr.h"
+#include "base/memory/linked_ptr.h"
 #include "base/tuple.h"  // for Tuple
 
 namespace testing {"""
@@ -447,6 +448,8 @@ def main():
     for args in xrange(0, 6 + 1):
       GenerateCreateFunctor(prebound, args)
   print FOOTER
+  return 0
+
 
 if __name__ == "__main__":
-  main()
+  sys.exit(main())

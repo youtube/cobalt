@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -68,6 +68,21 @@ NET_ERROR(UPLOAD_FILE_CHANGED, -14)
 
 // The socket is not connected.
 NET_ERROR(SOCKET_NOT_CONNECTED, -15)
+
+// The file already exists.
+NET_ERROR(FILE_EXISTS, -16)
+
+// The path or file name is too long.
+NET_ERROR(FILE_PATH_TOO_LONG, -17)
+
+// Not enough room left on the disk.
+NET_ERROR(FILE_NO_SPACE, -18)
+
+// The file has a virus.
+NET_ERROR(FILE_VIRUS_INFECTED, -19)
+
+// The client chose to block the request.
+NET_ERROR(BLOCKED_BY_CLIENT, -20)
 
 // A connection was closed (corresponding to a TCP FIN).
 NET_ERROR(CONNECTION_CLOSED, -100)
@@ -258,6 +273,18 @@ NET_ERROR(SSL_HANDSHAKE_NOT_COMPLETED, -148)
 // SSL peer's public key is invalid.
 NET_ERROR(SSL_BAD_PEER_PUBLIC_KEY, -149)
 
+// The certificate didn't match the built-in public key pins for the host name.
+// The pins are set in net/base/transport_security_state.cc and require that
+// one of a set of public keys exist on the path from the leaf to the root.
+NET_ERROR(SSL_PINNED_KEY_NOT_IN_CERT_CHAIN, -150)
+
+// Server request for client certificate did not contain any types we support.
+NET_ERROR(CLIENT_AUTH_CERT_TYPE_UNSUPPORTED, -151)
+
+// Server requested one type of cert, then requested a different type while the
+// first was still being generated.
+NET_ERROR(ORIGIN_BOUND_CERT_GENERATION_TYPE_MISMATCH, -152)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.
@@ -353,13 +380,17 @@ NET_ERROR(CERT_NOT_IN_DNS, -209)
 // The host name specified in the certificate is not unique.
 NET_ERROR(CERT_NON_UNIQUE_NAME, -210)
 
+// The server responded with a certificate that contains a weak key (e.g.
+// a too-small RSA key).
+NET_ERROR(CERT_WEAK_KEY, -211)
+
 // Add new certificate error codes here.
 //
 // Update the value of CERT_END whenever you add a new certificate error
 // code.
 
 // The value immediately past the last certificate error code.
-NET_ERROR(CERT_END, -211)
+NET_ERROR(CERT_END, -212)
 
 // The URL is invalid.
 NET_ERROR(INVALID_URL, -300)
@@ -466,7 +497,7 @@ NET_ERROR(UNDOCUMENTED_SECURITY_LIBRARY_STATUS, -344)
 // The HTTP response was too big to drain.
 NET_ERROR(RESPONSE_BODY_TOO_BIG_TO_DRAIN, -345)
 
-// The HTTP response was too big to drain.
+// The HTTP response contained multiple distinct Content-Length headers.
 NET_ERROR(RESPONSE_HEADERS_MULTIPLE_CONTENT_LENGTH, -346)
 
 // SPDY Headers have been received, but not all of them - status or version
@@ -477,6 +508,22 @@ NET_ERROR(INCOMPLETE_SPDY_HEADERS, -347)
 // either a failure to retrieve the DHCP configuration, or that there was no
 // PAC URL configured in DHCP.
 NET_ERROR(PAC_NOT_IN_DHCP, -348)
+
+// The HTTP response contained multiple Content-Disposition headers.
+NET_ERROR(RESPONSE_HEADERS_MULTIPLE_CONTENT_DISPOSITION, -349)
+
+// The HTTP response contained multiple Location headers.
+NET_ERROR(RESPONSE_HEADERS_MULTIPLE_LOCATION, -350)
+
+// SPDY server refused the stream. Client should retry. This should never be a
+// user-visible error.
+NET_ERROR(SPDY_SERVER_REFUSED_STREAM, -351)
+
+// SPDY server didn't respond to the PING message.
+NET_ERROR(SPDY_PING_FAILED, -352)
+
+// The request couldn't be completed on an HTTP pipeline. Client should retry.
+NET_ERROR(PIPELINE_EVICTION, -353)
 
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
@@ -573,6 +620,15 @@ NET_ERROR(PKCS12_IMPORT_INVALID_FILE, -708)
 
 // PKCS #12 import failed due to unsupported features.
 NET_ERROR(PKCS12_IMPORT_UNSUPPORTED, -709)
+
+// Key generation failed.
+NET_ERROR(KEY_GENERATION_FAILED, -710)
+
+// Origin-bound certificate generation failed.
+NET_ERROR(ORIGIN_BOUND_CERT_GENERATION_FAILED, -711)
+
+// Failure to export private key.
+NET_ERROR(PRIVATE_KEY_EXPORT_FAILED, -712)
 
 // DNS error codes.
 

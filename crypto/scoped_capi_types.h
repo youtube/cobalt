@@ -51,12 +51,13 @@ class ScopedCAPIHandle {
   explicit ScopedCAPIHandle(CAPIHandle handle = NULL) : handle_(handle) {}
 
   ~ScopedCAPIHandle() {
-    free_(handle_);
+    reset();
   }
 
   void reset(CAPIHandle handle = NULL) {
     if (handle_ != handle) {
-      free_(handle_);
+      FreeProc free_proc;
+      free_proc(handle_);
       handle_ = handle;
     }
   }
@@ -91,13 +92,9 @@ class ScopedCAPIHandle {
 
  private:
   CAPIHandle handle_;
-  static const FreeProc free_;
 
   DISALLOW_COPY_AND_ASSIGN(ScopedCAPIHandle);
 };
-
-template<class CH, typename FP>
-const FP ScopedCAPIHandle<CH, FP>::free_ = FP();
 
 template<class CH, typename FP> inline
 bool operator==(CH h, const ScopedCAPIHandle<CH, FP>& b) {

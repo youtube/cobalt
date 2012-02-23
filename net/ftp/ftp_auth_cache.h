@@ -8,9 +8,9 @@
 
 #include <list>
 
-#include "base/string16.h"
 #include "googleurl/src/gurl.h"
-#include "net/base/net_api.h"
+#include "net/base/auth.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
@@ -22,19 +22,17 @@ namespace net {
 //   GURL("ftp://myserver") -- OK (implied port of 21)
 //   GURL("ftp://myserver:21") -- OK
 //   GURL("ftp://myserver/PATH") -- WRONG, paths not allowed
-class NET_TEST FtpAuthCache {
+class NET_EXPORT_PRIVATE FtpAuthCache {
  public:
   // Maximum number of entries we allow in the cache.
   static const size_t kMaxEntries;
 
   struct Entry {
-    Entry(const GURL& origin, const string16& username,
-          const string16& password);
+    Entry(const GURL& origin, const AuthCredentials& credentials);
     ~Entry();
 
     const GURL origin;
-    string16 username;
-    string16 password;
+    AuthCredentials credentials;
   };
 
   FtpAuthCache();
@@ -43,16 +41,13 @@ class NET_TEST FtpAuthCache {
   // Return Entry corresponding to given |origin| or NULL if not found.
   Entry* Lookup(const GURL& origin);
 
-  // Add an entry for |origin| to the cache (consisting of |username| and
-  // |password|). If there is already an entry for |origin|, it will be
-  // overwritten.
-  void Add(const GURL& origin, const string16& username,
-           const string16& password);
+  // Add an entry for |origin| to the cache using |credentials|. If there is
+  // already an entry for |origin|, it will be overwritten.
+  void Add(const GURL& origin, const AuthCredentials& credentials);
 
   // Remove the entry for |origin| from the cache, if one exists and matches
-  // |username| and |password|.
-  void Remove(const GURL& origin, const string16& username,
-              const string16& password);
+  // |credentials|.
+  void Remove(const GURL& origin, const AuthCredentials& credentials);
 
  private:
   typedef std::list<Entry> EntryList;

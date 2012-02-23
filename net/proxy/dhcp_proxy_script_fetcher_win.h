@@ -23,7 +23,7 @@ class DhcpProxyScriptAdapterFetcher;
 class URLRequestContext;
 
 // Windows-specific implementation.
-class NET_TEST DhcpProxyScriptFetcherWin
+class NET_EXPORT_PRIVATE DhcpProxyScriptFetcherWin
     : public DhcpProxyScriptFetcher,
       public base::SupportsWeakPtr<DhcpProxyScriptFetcherWin>,
       NON_EXPORTED_BASE(public base::NonThreadSafe) {
@@ -35,7 +35,8 @@ class NET_TEST DhcpProxyScriptFetcherWin
   virtual ~DhcpProxyScriptFetcherWin();
 
   // DhcpProxyScriptFetcher implementation.
-  int Fetch(string16* utf16_text, CompletionCallback* callback) OVERRIDE;
+  int Fetch(string16* utf16_text,
+            const net::CompletionCallback& callback) OVERRIDE;
   void Cancel() OVERRIDE;
   const GURL& GetPacURL() const OVERRIDE;
   std::string GetFetcherName() const OVERRIDE;
@@ -50,71 +51,46 @@ class NET_TEST DhcpProxyScriptFetcherWin
 
   URLRequestContext* url_request_context() const;
 
-  // This inner class is used to encapsulate a worker thread that calls
-  // GetCandidateAdapterNames as it can take a couple of hundred
-  // milliseconds.
-  //
-  // TODO(joi): Replace with PostTaskAndReply once http://crbug.com/86301
-  // has been implemented.
-  class NET_TEST WorkerThread
-      : public base::RefCountedThreadSafe<WorkerThread> {
+  // This inner class encapsulate work done on a worker pool thread.
+  // The class calls GetCandidateAdapterNames, which can take a couple of
+  // hundred milliseconds.
+  class NET_EXPORT_PRIVATE AdapterQuery
+      : public base::RefCountedThreadSafe<AdapterQuery> {
    public:
-    // Creates and initializes (but does not start) the worker thread.
-    explicit WorkerThread(
-        const base::WeakPtr<DhcpProxyScriptFetcherWin>& owner);
-    virtual ~WorkerThread();
+    AdapterQuery();
+    virtual ~AdapterQuery();
 
-    // Starts the worker thread.
-    void Start();
+    // This is the method that runs on the worker pool thread.
+    void GetCandidateAdapterNames();
+
+    // This set is valid after GetCandidateAdapterNames has
+    // been run. Its lifetime is scoped by this object.
+    const std::set<std::string>& adapter_names() const;
 
    protected:
-    WorkerThread();  // To override in unit tests only.
-    void Init(const base::WeakPtr<DhcpProxyScriptFetcherWin>& owner);
-
     // Virtual method introduced to allow unit testing.
     virtual bool ImplGetCandidateAdapterNames(
         std::set<std::string>* adapter_names);
 
-    // Callback for ThreadFunc; this executes back on the main thread,
-    // not the worker thread. May be overridden by unit tests.
-    virtual void OnThreadDone();
-
    private:
-    // This is the method that runs on the worker thread.
-    void ThreadFunc();
-
-    // All work except ThreadFunc and (sometimes) destruction should occur
-    // on the thread that constructs the object.
-    base::ThreadChecker thread_checker_;
-
-    // May only be accessed on the thread that constructs the object.
-    base::WeakPtr<DhcpProxyScriptFetcherWin> owner_;
-
-    // Used by worker thread to post a message back to the original
-    // thread.  Fine to use a proxy since in the case where the original
-    // thread has gone away, that would mean the |owner_| object is gone
-    // anyway, so there is nobody to receive the result.
-    scoped_refptr<base::MessageLoopProxy> origin_loop_;
-
     // This is constructed on the originating thread, then used on the
     // worker thread, then used again on the originating thread only when
     // the task has completed on the worker thread. No locking required.
     std::set<std::string> adapter_names_;
 
-    DISALLOW_COPY_AND_ASSIGN(WorkerThread);
+    DISALLOW_COPY_AND_ASSIGN(AdapterQuery);
   };
 
   // Virtual methods introduced to allow unit testing.
   virtual DhcpProxyScriptAdapterFetcher* ImplCreateAdapterFetcher();
-  virtual WorkerThread* ImplCreateWorkerThread(
-      const base::WeakPtr<DhcpProxyScriptFetcherWin>& owner);
+  virtual AdapterQuery* ImplCreateAdapterQuery();
   virtual int ImplGetMaxWaitMs();
+  virtual void ImplOnGetCandidateAdapterNamesDone() {}
 
  private:
   // Event/state transition handlers
   void CancelImpl();
-  void OnGetCandidateAdapterNamesDone(
-      const std::set<std::string>& adapter_names);
+  void OnGetCandidateAdapterNamesDone(scoped_refptr<AdapterQuery> query);
   void OnFetcherDone(int result);
   void OnWaitTimer();
   void TransitionToDone();
@@ -163,14 +139,11 @@ class NET_TEST DhcpProxyScriptFetcherWin
   typedef ScopedVector<DhcpProxyScriptAdapterFetcher> FetcherVector;
   FetcherVector fetchers_;
 
-  // Callback invoked when any fetcher completes.
-  CompletionCallbackImpl<DhcpProxyScriptFetcherWin> fetcher_callback_;
-
   // Number of fetchers we are waiting for.
   int num_pending_fetchers_;
 
   // Lets our client know we're done. Not valid in states START or DONE.
-  CompletionCallback* client_callback_;
+  net::CompletionCallback callback_;
 
   // Pointer to string we will write results to. Not valid in states
   // START and DONE.
@@ -183,7 +156,8 @@ class NET_TEST DhcpProxyScriptFetcherWin
 
   scoped_refptr<URLRequestContext> url_request_context_;
 
-  scoped_refptr<WorkerThread> worker_thread_;
+  // NULL or the AdapterQuery currently in flight.
+  scoped_refptr<AdapterQuery> last_query_;
 
   // Time |Fetch()| was last called, 0 if never.
   base::TimeTicks fetch_start_time_;

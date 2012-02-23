@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -220,7 +220,8 @@ TEST(TimeTicks, Drift) {
     // Sleep for a few milliseconds (note that it means 1000 microseconds).
     // If we check the drift too frequently, it's going to increase
     // monotonically, making our measurement less realistic.
-    base::PlatformThread::Sleep((i % 2 == 0) ? 1 : 2);
+    base::PlatformThread::Sleep(
+        base::TimeDelta::FromMilliseconds((i % 2 == 0) ? 1 : 2));
 
     total_drift += drift_microseconds;
   }

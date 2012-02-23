@@ -4,6 +4,8 @@
 
 #include "net/http/http_proxy_client_socket.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "googleurl/src/gurl.h"
@@ -33,11 +35,12 @@ HttpProxyClientSocket::HttpProxyClientSocket(
     HttpAuthHandlerFactory* http_auth_handler_factory,
     bool tunnel,
     bool using_spdy,
+    SSLClientSocket::NextProto protocol_negotiated,
     bool is_https_proxy)
-    : ALLOW_THIS_IN_INITIALIZER_LIST(
-          io_callback_(this, &HttpProxyClientSocket::OnIOComplete)),
+    : ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(
+        base::Bind(&HttpProxyClientSocket::OnIOComplete,
+                   base::Unretained(this)))),
       next_state_(STATE_NONE),
-      user_callback_(NULL),
       transport_(transport_socket),
       endpoint_(endpoint),
       auth_(tunnel ?
@@ -49,6 +52,7 @@ HttpProxyClientSocket::HttpProxyClientSocket(
           : NULL),
       tunnel_(tunnel),
       using_spdy_(using_spdy),
+      protocol_negotiated_(protocol_negotiated),
       is_https_proxy_(is_https_proxy),
       net_log_(transport_socket->socket()->NetLog()) {
   // Synthesize the bits of a request that we actually use.
@@ -63,17 +67,20 @@ HttpProxyClientSocket::~HttpProxyClientSocket() {
   Disconnect();
 }
 
-int HttpProxyClientSocket::RestartWithAuth(CompletionCallback* callback) {
+int HttpProxyClientSocket::RestartWithAuth(const CompletionCallback& callback) {
   DCHECK_EQ(STATE_NONE, next_state_);
-  DCHECK(!user_callback_);
+  DCHECK(user_callback_.is_null());
 
   int rv = PrepareForAuthRestart();
   if (rv != OK)
     return rv;
 
   rv = DoLoop(OK);
-  if (rv == ERR_IO_PENDING)
-    user_callback_ = callback;
+  if (rv == ERR_IO_PENDING) {
+    if (!callback.is_null())
+      user_callback_ =  callback;
+  }
+
   return rv;
 }
 
@@ -87,10 +94,10 @@ HttpStream* HttpProxyClientSocket::CreateConnectResponseStream() {
 }
 
 
-int HttpProxyClientSocket::Connect(CompletionCallback* callback) {
+int HttpProxyClientSocket::Connect(const CompletionCallback& callback) {
   DCHECK(transport_.get());
   DCHECK(transport_->socket());
-  DCHECK(!user_callback_);
+  DCHECK(user_callback_.is_null());
 
   // TODO(rch): figure out the right way to set up a tunnel with SPDY.
   // This approach sends the complete HTTPS request to the proxy
@@ -118,7 +125,7 @@ void HttpProxyClientSocket::Disconnect() {
   // Reset other states to make sure they aren't mistakenly used later.
   // These are the states initialized by Connect().
   next_state_ = STATE_NONE;
-  user_callback_ = NULL;
+  user_callback_.Reset();
 }
 
 bool HttpProxyClientSocket::IsConnected() const {
@@ -183,8 +190,8 @@ base::TimeDelta HttpProxyClientSocket::GetConnectTimeMicros() const {
 }
 
 int HttpProxyClientSocket::Read(IOBuffer* buf, int buf_len,
-                                CompletionCallback* callback) {
-  DCHECK(!user_callback_);
+                                const CompletionCallback& callback) {
+  DCHECK(user_callback_.is_null());
   if (next_state_ != STATE_DONE) {
     // We're trying to read the body of the response but we're still trying
     // to establish an SSL tunnel through the proxy.  We can't read these
@@ -203,9 +210,9 @@ int HttpProxyClientSocket::Read(IOBuffer* buf, int buf_len,
 }
 
 int HttpProxyClientSocket::Write(IOBuffer* buf, int buf_len,
-                                 CompletionCallback* callback) {
+                                 const CompletionCallback& callback) {
   DCHECK_EQ(STATE_DONE, next_state_);
-  DCHECK(!user_callback_);
+  DCHECK(user_callback_.is_null());
 
   return transport_->socket()->Write(buf, buf_len, callback);
 }
@@ -286,13 +293,13 @@ void HttpProxyClientSocket::LogBlockedTunnelResponse(int response_code) const {
 
 void HttpProxyClientSocket::DoCallback(int result) {
   DCHECK_NE(ERR_IO_PENDING, result);
-  DCHECK(user_callback_);
+  DCHECK(!user_callback_.is_null());
 
   // Since Run() may result in Read being called,
   // clear user_callback_ up front.
-  CompletionCallback* c = user_callback_;
-  user_callback_ = NULL;
-  c->Run(result);
+  CompletionCallback c = user_callback_;
+  user_callback_.Reset();
+  c.Run(result);
 }
 
 void HttpProxyClientSocket::OnIOComplete(int result) {
@@ -368,7 +375,7 @@ int HttpProxyClientSocket::DoLoop(int last_io_result) {
 
 int HttpProxyClientSocket::DoGenerateAuthToken() {
   next_state_ = STATE_GENERATE_AUTH_TOKEN_COMPLETE;
-  return auth_->MaybeGenerateAuthToken(&request_, &io_callback_, net_log_);
+  return auth_->MaybeGenerateAuthToken(&request_, io_callback_, net_log_);
 }
 
 int HttpProxyClientSocket::DoGenerateAuthTokenComplete(int result) {
@@ -402,7 +409,7 @@ int HttpProxyClientSocket::DoSendRequest() {
   http_stream_parser_.reset(
       new HttpStreamParser(transport_.get(), &request_, parser_buf_, net_log_));
   return http_stream_parser_->SendRequest(request_line_, request_headers_, NULL,
-                                          &response_, &io_callback_);
+                                          &response_, io_callback_);
 }
 
 int HttpProxyClientSocket::DoSendRequestComplete(int result) {
@@ -415,7 +422,7 @@ int HttpProxyClientSocket::DoSendRequestComplete(int result) {
 
 int HttpProxyClientSocket::DoReadHeaders() {
   next_state_ = STATE_READ_HEADERS_COMPLETE;
-  return http_stream_parser_->ReadResponseHeaders(&io_callback_);
+  return http_stream_parser_->ReadResponseHeaders(io_callback_);
 }
 
 int HttpProxyClientSocket::DoReadHeadersComplete(int result) {
@@ -473,7 +480,7 @@ int HttpProxyClientSocket::DoDrainBody() {
   DCHECK(transport_->is_initialized());
   next_state_ = STATE_DRAIN_BODY_COMPLETE;
   return http_stream_parser_->ReadResponseBody(drain_buf_, kDrainBodyBufferSize,
-                                               &io_callback_);
+                                               io_callback_);
 }
 
 int HttpProxyClientSocket::DoDrainBodyComplete(int result) {
@@ -490,7 +497,8 @@ int HttpProxyClientSocket::DoDrainBodyComplete(int result) {
 
 int HttpProxyClientSocket::DoTCPRestart() {
   next_state_ = STATE_TCP_RESTART_COMPLETE;
-  return transport_->socket()->Connect(&io_callback_);
+  return transport_->socket()->Connect(
+      base::Bind(&HttpProxyClientSocket::OnIOComplete, base::Unretained(this)));
 }
 
 int HttpProxyClientSocket::DoTCPRestartComplete(int result) {

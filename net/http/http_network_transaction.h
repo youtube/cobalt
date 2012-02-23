@@ -30,10 +30,12 @@ class HttpNetworkSession;
 class HttpStream;
 class HttpStreamRequest;
 class IOBuffer;
+class UploadDataStream;
 struct HttpRequestInfo;
 
-class NET_TEST HttpNetworkTransaction : public HttpTransaction,
-                                        public HttpStreamRequest::Delegate {
+class NET_EXPORT_PRIVATE HttpNetworkTransaction
+    : public HttpTransaction,
+      public HttpStreamRequest::Delegate {
  public:
   explicit HttpNetworkTransaction(HttpNetworkSession* session);
 
@@ -41,42 +43,46 @@ class NET_TEST HttpNetworkTransaction : public HttpTransaction,
 
   // HttpTransaction methods:
   virtual int Start(const HttpRequestInfo* request_info,
-                    CompletionCallback* callback,
-                    const BoundNetLog& net_log);
-  virtual int RestartIgnoringLastError(CompletionCallback* callback);
-  virtual int RestartWithCertificate(X509Certificate* client_cert,
-                                     CompletionCallback* callback);
-  virtual int RestartWithAuth(const string16& username,
-                              const string16& password,
-                              CompletionCallback* callback);
-  virtual bool IsReadyToRestartForAuth();
+                    const CompletionCallback& callback,
+                    const BoundNetLog& net_log) OVERRIDE;
+  virtual int RestartIgnoringLastError(
+      const CompletionCallback& callback) OVERRIDE;
+  virtual int RestartWithCertificate(
+      X509Certificate* client_cert,
+      const CompletionCallback& callback) OVERRIDE;
+  virtual int RestartWithAuth(const AuthCredentials& credentials,
+                              const CompletionCallback& callback) OVERRIDE;
+  virtual bool IsReadyToRestartForAuth() OVERRIDE;
 
-  virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
-  virtual void StopCaching() {}
-  virtual const HttpResponseInfo* GetResponseInfo() const;
-  virtual LoadState GetLoadState() const;
-  virtual uint64 GetUploadProgress() const;
+  virtual int Read(IOBuffer* buf,
+                   int buf_len,
+                   const CompletionCallback& callback) OVERRIDE;
+  virtual void StopCaching() OVERRIDE {}
+  virtual void DoneReading() OVERRIDE {}
+  virtual const HttpResponseInfo* GetResponseInfo() const OVERRIDE;
+  virtual LoadState GetLoadState() const OVERRIDE;
+  virtual uint64 GetUploadProgress() const OVERRIDE;
 
   // HttpStreamRequest::Delegate methods:
   virtual void OnStreamReady(const SSLConfig& used_ssl_config,
                              const ProxyInfo& used_proxy_info,
-                             HttpStream* stream);
+                             HttpStream* stream) OVERRIDE;
   virtual void OnStreamFailed(int status,
-                              const SSLConfig& used_ssl_config);
+                              const SSLConfig& used_ssl_config) OVERRIDE;
   virtual void OnCertificateError(int status,
                                   const SSLConfig& used_ssl_config,
-                                  const SSLInfo& ssl_info);
+                                  const SSLInfo& ssl_info) OVERRIDE;
   virtual void OnNeedsProxyAuth(
       const HttpResponseInfo& response_info,
       const SSLConfig& used_ssl_config,
       const ProxyInfo& used_proxy_info,
-      HttpAuthController* auth_controller);
+      HttpAuthController* auth_controller) OVERRIDE;
   virtual void OnNeedsClientAuth(const SSLConfig& used_ssl_config,
-                                 SSLCertRequestInfo* cert_info);
+                                 SSLCertRequestInfo* cert_info) OVERRIDE;
   virtual void OnHttpsProxyTunnelResponse(const HttpResponseInfo& response_info,
                                           const SSLConfig& used_ssl_config,
                                           const ProxyInfo& used_proxy_info,
-                                          HttpStream* stream);
+                                          HttpStream* stream) OVERRIDE;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionTest, ResetStateForRestart);
@@ -222,8 +228,8 @@ class NET_TEST HttpNetworkTransaction : public HttpTransaction,
   // cleared by RestartWithAuth().
   HttpAuth::Target pending_auth_target_;
 
-  CompletionCallbackImpl<HttpNetworkTransaction> io_callback_;
-  CompletionCallback* user_callback_;
+  CompletionCallback io_callback_;
+  CompletionCallback callback_;
   scoped_ptr<UploadDataStream> request_body_;
 
   scoped_refptr<HttpNetworkSession> session_;
@@ -246,7 +252,8 @@ class NET_TEST HttpNetworkTransaction : public HttpTransaction,
   // responses.
   bool logged_response_time_;
 
-  SSLConfig ssl_config_;
+  SSLConfig server_ssl_config_;
+  SSLConfig proxy_ssl_config_;
 
   HttpRequestHeaders request_headers_;
 

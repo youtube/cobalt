@@ -123,7 +123,8 @@ void TransportClientSocketTest::SetUp() {
                                NULL));
   HostResolver::RequestInfo info(HostPortPair("localhost", listen_port_));
   TestCompletionCallback callback;
-  int rv = resolver->Resolve(info, &addr, &callback, NULL, BoundNetLog());
+  int rv = resolver->Resolve(info, &addr, callback.callback(), NULL,
+                             BoundNetLog());
   CHECK_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   CHECK_EQ(rv, OK);
@@ -140,7 +141,7 @@ int TransportClientSocketTest::DrainClientSocket(
   uint32 bytes_read = 0;
 
   while (bytes_read < bytes_to_read) {
-    rv = sock_->Read(buf, buf_len, callback);
+    rv = sock_->Read(buf, buf_len, callback->callback());
     EXPECT_TRUE(rv >= 0 || rv == ERR_IO_PENDING);
 
     if (rv == ERR_IO_PENDING)
@@ -161,7 +162,8 @@ void TransportClientSocketTest::SendClientRequest() {
   int rv;
 
   memcpy(request_buffer->data(), request_text, arraysize(request_text) - 1);
-  rv = sock_->Write(request_buffer, arraysize(request_text) - 1, &callback);
+  rv = sock_->Write(request_buffer, arraysize(request_text) - 1,
+                    callback.callback());
   EXPECT_TRUE(rv >= 0 || rv == ERR_IO_PENDING);
 
   if (rv == ERR_IO_PENDING)
@@ -178,7 +180,7 @@ TEST_P(TransportClientSocketTest, Connect) {
   TestCompletionCallback callback;
   EXPECT_FALSE(sock_->IsConnected());
 
-  int rv = sock_->Connect(&callback);
+  int rv = sock_->Connect(callback.callback());
 
   net::CapturingNetLog::EntryList net_log_entries;
   net_log_.GetEntries(&net_log_entries);
@@ -208,7 +210,7 @@ TEST_P(TransportClientSocketTest, IsConnected) {
 
   EXPECT_FALSE(sock_->IsConnected());
   EXPECT_FALSE(sock_->IsConnectedAndIdle());
-  int rv = sock_->Connect(&callback);
+  int rv = sock_->Connect(callback.callback());
   if (rv != OK) {
     ASSERT_EQ(rv, ERR_IO_PENDING);
     rv = callback.WaitForResult();
@@ -261,7 +263,7 @@ TEST_P(TransportClientSocketTest, IsConnected) {
 
 TEST_P(TransportClientSocketTest, Read) {
   TestCompletionCallback callback;
-  int rv = sock_->Connect(&callback);
+  int rv = sock_->Connect(callback.callback());
   if (rv != OK) {
     ASSERT_EQ(rv, ERR_IO_PENDING);
 
@@ -278,7 +280,7 @@ TEST_P(TransportClientSocketTest, Read) {
   // All data has been read now.  Read once more to force an ERR_IO_PENDING, and
   // then close the server socket, and note the close.
 
-  rv = sock_->Read(buf, 4096, &callback);
+  rv = sock_->Read(buf, 4096, callback.callback());
   ASSERT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(static_cast<int64>(std::string(kServerReply).size()),
             sock_->NumBytesRead());
@@ -288,7 +290,7 @@ TEST_P(TransportClientSocketTest, Read) {
 
 TEST_P(TransportClientSocketTest, Read_SmallChunks) {
   TestCompletionCallback callback;
-  int rv = sock_->Connect(&callback);
+  int rv = sock_->Connect(callback.callback());
   if (rv != OK) {
     ASSERT_EQ(rv, ERR_IO_PENDING);
 
@@ -300,7 +302,7 @@ TEST_P(TransportClientSocketTest, Read_SmallChunks) {
   scoped_refptr<IOBuffer> buf(new IOBuffer(1));
   uint32 bytes_read = 0;
   while (bytes_read < arraysize(kServerReply) - 1) {
-    rv = sock_->Read(buf, 1, &callback);
+    rv = sock_->Read(buf, 1, callback.callback());
     EXPECT_TRUE(rv >= 0 || rv == ERR_IO_PENDING);
 
     if (rv == ERR_IO_PENDING)
@@ -313,7 +315,7 @@ TEST_P(TransportClientSocketTest, Read_SmallChunks) {
   // All data has been read now.  Read once more to force an ERR_IO_PENDING, and
   // then close the server socket, and note the close.
 
-  rv = sock_->Read(buf, 1, &callback);
+  rv = sock_->Read(buf, 1, callback.callback());
   EXPECT_EQ(static_cast<int64>(std::string(kServerReply).size()),
             sock_->NumBytesRead());
   ASSERT_EQ(ERR_IO_PENDING, rv);
@@ -323,7 +325,7 @@ TEST_P(TransportClientSocketTest, Read_SmallChunks) {
 
 TEST_P(TransportClientSocketTest, Read_Interrupted) {
   TestCompletionCallback callback;
-  int rv = sock_->Connect(&callback);
+  int rv = sock_->Connect(callback.callback());
   if (rv != OK) {
     ASSERT_EQ(ERR_IO_PENDING, rv);
 
@@ -334,7 +336,7 @@ TEST_P(TransportClientSocketTest, Read_Interrupted) {
 
   // Do a partial read and then exit.  This test should not crash!
   scoped_refptr<IOBuffer> buf(new IOBuffer(16));
-  rv = sock_->Read(buf, 16, &callback);
+  rv = sock_->Read(buf, 16, callback.callback());
   EXPECT_TRUE(rv >= 0 || rv == ERR_IO_PENDING);
   EXPECT_EQ(0, sock_->NumBytesRead());
 
@@ -348,7 +350,7 @@ TEST_P(TransportClientSocketTest, Read_Interrupted) {
 
 TEST_P(TransportClientSocketTest, DISABLED_FullDuplex_ReadFirst) {
   TestCompletionCallback callback;
-  int rv = sock_->Connect(&callback);
+  int rv = sock_->Connect(callback.callback());
   if (rv != OK) {
     ASSERT_EQ(rv, ERR_IO_PENDING);
 
@@ -359,7 +361,7 @@ TEST_P(TransportClientSocketTest, DISABLED_FullDuplex_ReadFirst) {
   // Read first.  There's no data, so it should return ERR_IO_PENDING.
   const int kBufLen = 4096;
   scoped_refptr<IOBuffer> buf(new IOBuffer(kBufLen));
-  rv = sock_->Read(buf, kBufLen, &callback);
+  rv = sock_->Read(buf, kBufLen, callback.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   PauseServerReads();
@@ -370,7 +372,7 @@ TEST_P(TransportClientSocketTest, DISABLED_FullDuplex_ReadFirst) {
   TestCompletionCallback write_callback;
 
   while (true) {
-    rv = sock_->Write(request_buffer, kWriteBufLen, &write_callback);
+    rv = sock_->Write(request_buffer, kWriteBufLen, write_callback.callback());
     ASSERT_TRUE(rv >= 0 || rv == ERR_IO_PENDING);
 
     if (rv == ERR_IO_PENDING) {
@@ -390,7 +392,7 @@ TEST_P(TransportClientSocketTest, DISABLED_FullDuplex_ReadFirst) {
 
 TEST_P(TransportClientSocketTest, DISABLED_FullDuplex_WriteFirst) {
   TestCompletionCallback callback;
-  int rv = sock_->Connect(&callback);
+  int rv = sock_->Connect(callback.callback());
   if (rv != OK) {
     ASSERT_EQ(ERR_IO_PENDING, rv);
 
@@ -406,7 +408,7 @@ TEST_P(TransportClientSocketTest, DISABLED_FullDuplex_WriteFirst) {
   TestCompletionCallback write_callback;
 
   while (true) {
-    rv = sock_->Write(request_buffer, kWriteBufLen, &write_callback);
+    rv = sock_->Write(request_buffer, kWriteBufLen, write_callback.callback());
     ASSERT_TRUE(rv >= 0 || rv == ERR_IO_PENDING);
 
     if (rv == ERR_IO_PENDING)
@@ -419,7 +421,7 @@ TEST_P(TransportClientSocketTest, DISABLED_FullDuplex_WriteFirst) {
   const int kBufLen = 4096;
   scoped_refptr<IOBuffer> buf(new IOBuffer(kBufLen));
   while (true) {
-    rv = sock_->Read(buf, kBufLen, &callback);
+    rv = sock_->Read(buf, kBufLen, callback.callback());
     ASSERT_TRUE(rv >= 0 || rv == ERR_IO_PENDING);
     if (rv == ERR_IO_PENDING)
       break;

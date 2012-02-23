@@ -47,8 +47,8 @@ void WriteHeaders(disk_cache::Entry* entry, int flags, const std::string data) {
       reinterpret_cast<const char*>(pickle.data())));
   int len = static_cast<int>(pickle.size());
 
-  TestCompletionCallback cb;
-  int rv = entry->WriteData(0, 0, buf, len, &cb, true);
+  net::TestCompletionCallback cb;
+  int rv = entry->WriteData(0, 0, buf, len, cb.callback(), true);
   ASSERT_EQ(len, cb.GetResult(rv));
 }
 
@@ -60,20 +60,20 @@ void WriteData(disk_cache::Entry* entry, int index, const std::string data) {
   scoped_refptr<IOBuffer> buf(new IOBuffer(len));
   memcpy(buf->data(), data.data(), data.length());
 
-  TestCompletionCallback cb;
-  int rv = entry->WriteData(index, 0, buf, len, &cb, true);
+  net::TestCompletionCallback cb;
+  int rv = entry->WriteData(index, 0, buf, len, cb.callback(), true);
   ASSERT_EQ(len, cb.GetResult(rv));
 }
 
 void WriteToEntry(disk_cache::Backend* cache, const std::string key,
                   const std::string data0, const std::string data1,
                   const std::string data2) {
-  TestCompletionCallback cb;
+  net::TestCompletionCallback cb;
   disk_cache::Entry* entry;
-  int rv = cache->CreateEntry(key, &entry, &cb);
+  int rv = cache->CreateEntry(key, &entry, cb.callback());
   rv = cb.GetResult(rv);
   if (rv != OK) {
-    rv = cache->OpenEntry(key, &entry, &cb);
+    rv = cache->OpenEntry(key, &entry, cb.callback());
     ASSERT_EQ(OK, cb.GetResult(rv));
   }
 
@@ -85,10 +85,11 @@ void WriteToEntry(disk_cache::Backend* cache, const std::string key,
 }
 
 void FillCache(URLRequestContext* context) {
-  TestCompletionCallback cb;
+  net::TestCompletionCallback cb;
   disk_cache::Backend* cache;
   int rv =
-      context->http_transaction_factory()->GetCache()->GetBackend(&cache, &cb);
+      context->http_transaction_factory()->GetCache()->GetBackend(
+          &cache, cb.callback());
   ASSERT_EQ(OK, cb.GetResult(rv));
 
   std::string empty;
@@ -105,7 +106,7 @@ TEST(ViewCacheHelper, EmptyCache) {
 
   TestCompletionCallback cb;
   std::string prefix, data;
-  int rv = helper.GetContentsHTML(context, prefix, &data, &cb);
+  int rv = helper.GetContentsHTML(context, prefix, &data, cb.callback());
   EXPECT_EQ(OK, cb.GetResult(rv));
   EXPECT_FALSE(data.empty());
 }
@@ -118,7 +119,7 @@ TEST(ViewCacheHelper, ListContents) {
 
   std::string prefix, data;
   TestCompletionCallback cb;
-  int rv = helper.GetContentsHTML(context, prefix, &data, &cb);
+  int rv = helper.GetContentsHTML(context, prefix, &data, cb.callback());
   EXPECT_EQ(OK, cb.GetResult(rv));
 
   EXPECT_EQ(0U, data.find("<html>"));
@@ -140,7 +141,7 @@ TEST(ViewCacheHelper, DumpEntry) {
 
   std::string data;
   TestCompletionCallback cb;
-  int rv = helper.GetEntryInfoHTML("second", context, &data, &cb);
+  int rv = helper.GetEntryInfoHTML("second", context, &data, cb.callback());
   EXPECT_EQ(OK, cb.GetResult(rv));
 
   EXPECT_EQ(0U, data.find("<html>"));
@@ -166,7 +167,7 @@ TEST(ViewCacheHelper, Prefix) {
   std::string key, data;
   std::string prefix("prefix:");
   TestCompletionCallback cb;
-  int rv = helper.GetContentsHTML(context, prefix, &data, &cb);
+  int rv = helper.GetContentsHTML(context, prefix, &data, cb.callback());
   EXPECT_EQ(OK, cb.GetResult(rv));
 
   EXPECT_EQ(0U, data.find("<html>"));
@@ -180,15 +181,16 @@ TEST(ViewCacheHelper, TruncatedFlag) {
   scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext());
   ViewCacheHelper helper;
 
-  TestCompletionCallback cb;
+  net::TestCompletionCallback cb;
   disk_cache::Backend* cache;
   int rv =
-      context->http_transaction_factory()->GetCache()->GetBackend(&cache, &cb);
+      context->http_transaction_factory()->GetCache()->GetBackend(
+          &cache, cb.callback());
   ASSERT_EQ(OK, cb.GetResult(rv));
 
   std::string key("the key");
   disk_cache::Entry* entry;
-  rv = cache->CreateEntry(key, &entry, &cb);
+  rv = cache->CreateEntry(key, &entry, cb.callback());
   ASSERT_EQ(OK, cb.GetResult(rv));
 
   // RESPONSE_INFO_TRUNCATED defined on response_info.cc
@@ -197,8 +199,9 @@ TEST(ViewCacheHelper, TruncatedFlag) {
   entry->Close();
 
   std::string data;
-  rv = helper.GetEntryInfoHTML(key, context, &data, &cb);
-  EXPECT_EQ(OK, cb.GetResult(rv));
+  TestCompletionCallback cb1;
+  rv = helper.GetEntryInfoHTML(key, context, &data, cb1.callback());
+  EXPECT_EQ(OK, cb1.GetResult(rv));
 
   EXPECT_NE(std::string::npos, data.find("RESPONSE_INFO_TRUNCATED"));
 }

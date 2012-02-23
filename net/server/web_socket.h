@@ -21,6 +21,7 @@ class WebSocket {
   enum ParseResult {
     FRAME_OK,
     FRAME_INCOMPLETE,
+    FRAME_CLOSE,
     FRAME_ERROR
   };
 

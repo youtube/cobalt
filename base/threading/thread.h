@@ -21,6 +21,8 @@ namespace base {
 // pending tasks queued on the thread's message loop will run to completion
 // before the thread is terminated.
 //
+// NOTE: Subclasses must call Stop() in their destructor. See ~Thread below.
+//
 // After the thread is stopped, the destruction sequence is:
 //
 //  (1) Thread::CleanUp()
@@ -48,9 +50,13 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
 
   // Destroys the thread, stopping it if necessary.
   //
-  // NOTE: If you are subclassing from Thread, and you wish for your CleanUp
-  // method to be called, then you need to call Stop() from your destructor.
-  //
+  // NOTE: All subclasses of Thread must call Stop() in their
+  // destructor, or otherwise ensure Stop() is called before the
+  // subclass is destructed.  This is required to avoid a data race
+  // between the destructor modifying the vtable, and the thread's
+  // ThreadMain calling the virtual method Run.  It also ensures that
+  // the CleanUp() virtual method is called on the subclass before it
+  // is destructed.
   virtual ~Thread();
 
   // Starts the thread.  Returns true if the thread was successfully started;
@@ -113,10 +119,10 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // is gone.
   // TODO(sanjeevr): Look into merging MessageLoop and MessageLoopProxy.
   scoped_refptr<MessageLoopProxy> message_loop_proxy() const {
-    return message_loop_proxy_;
+    return message_loop_->message_loop_proxy();
   }
 
-  // Set the name of this thread (for display in debugger too).
+  // Returns the name of this thread (for display in debugger too).
   const std::string &thread_name() { return name_; }
 
   // The native thread handle.
@@ -139,11 +145,6 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // Called just after the message loop ends
   virtual void CleanUp() {}
 
-  // Called after the message loop has been deleted. In general clients
-  // should prefer to use CleanUp(). This method is used when code needs to
-  // be run after all of the MessageLoop::DestructionObservers have completed.
-  virtual void CleanUpAfterMessageLoopDestruction() {}
-
   static void SetThreadWasQuitProperly(bool flag);
   static bool GetThreadWasQuitProperly();
 
@@ -155,7 +156,7 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   bool thread_was_started() const { return started_; }
 
   // PlatformThread::Delegate methods:
-  virtual void ThreadMain();
+  virtual void ThreadMain() OVERRIDE;
 
   // Whether we successfully started the thread.
   bool started_;
@@ -175,17 +176,13 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // by the created thread.
   MessageLoop* message_loop_;
 
-  // A MessageLoopProxy implementation that targets this thread. This can
-  // outlive the thread.
-  scoped_refptr<MessageLoopProxy> message_loop_proxy_;
-
   // Our thread's ID.
   PlatformThreadId thread_id_;
 
   // The name of the thread.  Used for debugging purposes.
   std::string name_;
 
-  friend class ThreadQuitTask;
+  friend void ThreadQuitHelper();
 
   DISALLOW_COPY_AND_ASSIGN(Thread);
 };

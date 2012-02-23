@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -40,7 +40,7 @@ class FieldTrialTest : public testing::Test {
 };
 
 // Test registration, and also check that destructors are called for trials
-// (and that Purify doesn't catch us leaking).
+// (and that Valgrind doesn't catch us leaking).
 TEST_F(FieldTrialTest, Registration) {
   const char* name1 = "name 1 test";
   const char* name2 = "name 2 test";
@@ -219,6 +219,76 @@ TEST_F(FieldTrialTest, DisableProbability) {
 
   // And that default_group_name should ALWAYS win.
   EXPECT_EQ(default_group_name, trial->group_name());
+}
+
+TEST_F(FieldTrialTest, HashName) {
+  // Make sure hashing is stable on all platforms.
+  struct {
+    const char* name;
+    uint32 hash_value;
+  } known_hashes[] = {
+    {"a", 937752454u},
+    {"1", 723085877u},
+    {"Trial Name", 2713117220u},
+    {"Group Name", 3201815843u},
+    {"My Favorite Experiment", 3722155194u},
+    {"My Awesome Group Name", 4109503236u},
+    {"abcdefghijklmonpqrstuvwxyz", 787728696u},
+    {"0123456789ABCDEF", 348858318U}
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(known_hashes); ++i) {
+    EXPECT_EQ(known_hashes[i].hash_value,
+              FieldTrial::HashName(known_hashes[i].name));
+  }
+}
+
+TEST_F(FieldTrialTest, NameGroupIds) {
+  std::string no_group("No Group");
+  uint32 no_group_id = FieldTrial::HashName(no_group);
+  scoped_refptr<FieldTrial> trial(new FieldTrial(
+      no_group, 10, "Default", next_year_, 12, 31));
+
+  // There is no winner yet, so no NameGroupId should be returned.
+  FieldTrial::NameGroupId name_group_id;
+  EXPECT_FALSE(trial->GetNameGroupId(&name_group_id));
+
+  // Create a single winning group.
+  std::string one_winner("One Winner");
+  uint32 one_winner_id = FieldTrial::HashName(one_winner);
+  trial = new FieldTrial(one_winner, 10, "Default", next_year_, 12, 31);
+  std::string winner("Winner");
+  uint32 winner_group_id = FieldTrial::HashName(winner);
+  trial->AppendGroup(winner, 10);
+  EXPECT_TRUE(trial->GetNameGroupId(&name_group_id));
+  EXPECT_EQ(one_winner_id, name_group_id.name);
+  EXPECT_EQ(winner_group_id, name_group_id.group);
+
+  std::string multi_group("MultiGroup");
+  uint32 multi_group_id = FieldTrial::HashName(multi_group);
+  scoped_refptr<FieldTrial> multi_group_trial =
+      new FieldTrial(multi_group, 9, "Default", next_year_, 12, 31);
+
+  multi_group_trial->AppendGroup("Me", 3);
+  multi_group_trial->AppendGroup("You", 3);
+  multi_group_trial->AppendGroup("Them", 3);
+  EXPECT_TRUE(multi_group_trial->GetNameGroupId(&name_group_id));
+  EXPECT_EQ(multi_group_id, name_group_id.name);
+  uint32 multi_group_winner_id =
+      FieldTrial::HashName(multi_group_trial->group_name());
+  EXPECT_EQ(multi_group_winner_id, name_group_id.group);
+
+  // Now check if the list is built properly...
+  std::vector<FieldTrial::NameGroupId> name_group_ids;
+  FieldTrialList::GetFieldTrialNameGroupIds(&name_group_ids);
+  EXPECT_EQ(2U, name_group_ids.size());
+  for (size_t i = 0; i < name_group_ids.size(); ++i) {
+    // Order is not guaranteed, so check all values.
+    EXPECT_NE(no_group_id, name_group_ids[i].name);
+    EXPECT_TRUE(one_winner_id != name_group_ids[i].name ||
+                winner_group_id == name_group_ids[i].group);
+    EXPECT_TRUE(multi_group_id != name_group_ids[i].name ||
+                multi_group_winner_id == name_group_ids[i].group);
+  }
 }
 
 TEST_F(FieldTrialTest, Save) {

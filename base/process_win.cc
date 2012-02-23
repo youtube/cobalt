@@ -13,16 +13,26 @@ namespace base {
 void Process::Close() {
   if (!process_)
     return;
+
   // Don't call CloseHandle on a pseudo-handle.
   if (process_ != ::GetCurrentProcess())
     ::CloseHandle(process_);
+
   process_ = NULL;
 }
 
 void Process::Terminate(int result_code) {
   if (!process_)
     return;
-  ::TerminateProcess(process_, result_code);
+
+  // Call NtTerminateProcess directly, without going through the import table,
+  // which might have been hooked with a buggy replacement by third party
+  // software. http://crbug.com/81449.
+  HMODULE module = GetModuleHandle(L"ntdll.dll");
+  typedef UINT (WINAPI *TerminateProcessPtr)(HANDLE handle, UINT code);
+  TerminateProcessPtr terminate_process = reinterpret_cast<TerminateProcessPtr>(
+      GetProcAddress(module, "NtTerminateProcess"));
+  terminate_process(process_, result_code);
 }
 
 bool Process::IsProcessBackgrounded() const {
@@ -67,6 +77,11 @@ bool Process::is_current() const {
 // static
 Process Process::Current() {
   return Process(::GetCurrentProcess());
+}
+
+// static
+bool Process::CanBackgroundProcesses() {
+  return true;
 }
 
 int Process::GetPriority() const {

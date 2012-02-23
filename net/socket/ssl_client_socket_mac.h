@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -40,35 +40,42 @@ class SSLClientSocketMac : public SSLClientSocket {
                      const SSLClientSocketContext& context);
   virtual ~SSLClientSocketMac();
 
-  // SSLClientSocket methods:
-  virtual void GetSSLInfo(SSLInfo* ssl_info);
-  virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
+  // SSLClientSocket implementation.
+  virtual void GetSSLInfo(SSLInfo* ssl_info) OVERRIDE;
+  virtual void GetSSLCertRequestInfo(
+      SSLCertRequestInfo* cert_request_info) OVERRIDE;
   virtual int ExportKeyingMaterial(const base::StringPiece& label,
                                    const base::StringPiece& context,
                                    unsigned char *out,
-                                   unsigned int outlen);
-  virtual NextProtoStatus GetNextProto(std::string* proto);
+                                   unsigned int outlen) OVERRIDE;
+  virtual NextProtoStatus GetNextProto(std::string* proto,
+                                       std::string* server_protos) OVERRIDE;
+  virtual OriginBoundCertService* GetOriginBoundCertService() const OVERRIDE;
 
-  // StreamSocket methods:
-  virtual int Connect(CompletionCallback* callback);
-  virtual void Disconnect();
-  virtual bool IsConnected() const;
-  virtual bool IsConnectedAndIdle() const;
-  virtual int GetPeerAddress(AddressList* address) const;
-  virtual int GetLocalAddress(IPEndPoint* address) const;
-  virtual const BoundNetLog& NetLog() const;
-  virtual void SetSubresourceSpeculation();
-  virtual void SetOmniboxSpeculation();
-  virtual bool WasEverUsed() const;
-  virtual bool UsingTCPFastOpen() const;
-  virtual int64 NumBytesRead() const;
-  virtual base::TimeDelta GetConnectTimeMicros() const;
+  // StreamSocket implementation.
+  virtual int Connect(const CompletionCallback& callback) OVERRIDE;
+  virtual void Disconnect() OVERRIDE;
+  virtual bool IsConnected() const OVERRIDE;
+  virtual bool IsConnectedAndIdle() const OVERRIDE;
+  virtual int GetPeerAddress(AddressList* address) const OVERRIDE;
+  virtual int GetLocalAddress(IPEndPoint* address) const OVERRIDE;
+  virtual const BoundNetLog& NetLog() const OVERRIDE;
+  virtual void SetSubresourceSpeculation() OVERRIDE;
+  virtual void SetOmniboxSpeculation() OVERRIDE;
+  virtual bool WasEverUsed() const OVERRIDE;
+  virtual bool UsingTCPFastOpen() const OVERRIDE;
+  virtual int64 NumBytesRead() const OVERRIDE;
+  virtual base::TimeDelta GetConnectTimeMicros() const OVERRIDE;
 
-  // Socket methods:
-  virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
-  virtual int Write(IOBuffer* buf, int buf_len, CompletionCallback* callback);
-  virtual bool SetReceiveBufferSize(int32 size);
-  virtual bool SetSendBufferSize(int32 size);
+  // Socket implementation.
+  virtual int Read(IOBuffer* buf,
+                   int buf_len,
+                   const CompletionCallback& callback) OVERRIDE;
+  virtual int Write(IOBuffer* buf,
+                    int buf_len,
+                    const CompletionCallback& callback) OVERRIDE;
+  virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
+  virtual bool SetSendBufferSize(int32 size) OVERRIDE;
 
  private:
   bool completed_handshake() const {
@@ -105,17 +112,13 @@ class SSLClientSocketMac : public SSLClientSocket {
                                    const void* data,
                                    size_t* data_length);
 
-  CompletionCallbackImpl<SSLClientSocketMac> handshake_io_callback_;
-  CompletionCallbackImpl<SSLClientSocketMac> transport_read_callback_;
-  CompletionCallbackImpl<SSLClientSocketMac> transport_write_callback_;
-
   scoped_ptr<ClientSocketHandle> transport_;
   HostPortPair host_and_port_;
   SSLConfig ssl_config_;
 
-  CompletionCallback* user_connect_callback_;
-  CompletionCallback* user_read_callback_;
-  CompletionCallback* user_write_callback_;
+  CompletionCallback user_connect_callback_;
+  CompletionCallback user_read_callback_;
+  CompletionCallback user_write_callback_;
 
   // Used by Read function.
   scoped_refptr<IOBuffer> user_read_buf_;

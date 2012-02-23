@@ -1,4 +1,4 @@
-# Copyright (c) 2009 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -11,6 +11,11 @@
     {
       'target_name': 'allocator',
       'type': 'static_library',
+      # Make sure the allocation library is optimized to
+      # the hilt in official builds.
+      'variables': {
+        'optimize': 'max',
+      },
       'include_dirs': [
         '.',
         '<(tcmalloc_dir)/src/base',
@@ -94,6 +99,8 @@
         '<(tcmalloc_dir)/src/common.cc',
         '<(tcmalloc_dir)/src/common.h',
         '<(tcmalloc_dir)/src/debugallocation.cc',
+        '<(tcmalloc_dir)/src/free_list.cc',
+        '<(tcmalloc_dir)/src/free_list.h',
         '<(tcmalloc_dir)/src/getpc.h',
         '<(tcmalloc_dir)/src/google/heap-checker.h',
         '<(tcmalloc_dir)/src/google/heap-profiler.h',
@@ -360,8 +367,8 @@
             # so only one of them should be used.
             '<(tcmalloc_dir)/src/tcmalloc.cc',
           ],
-          'cflags': [
-            '-DTCMALLOC_FOR_DEBUGALLOCATION',
+          'defines': [
+            'TCMALLOC_FOR_DEBUGALLOCATION',
           ],
         }, { # linux_use_debugallocation != 1
           'sources!': [
@@ -376,7 +383,9 @@
           ],
           'cflags': [
             '-finstrument-functions',
-            '-DKEEP_SHADOW_STACKS',
+          ],
+          'defines': [
+            'KEEP_SHADOW_STACKS',
           ],
         }],
         [ 'linux_use_heapchecker==0', {
@@ -386,8 +395,8 @@
             '<(tcmalloc_dir)/src/heap-checker.cc',
           ],
           # Disable the heap checker in tcmalloc.
-          'cflags': [
-            '-DNO_HEAP_CHECK',
+          'defines': [
+            'NO_HEAP_CHECK',
           ],
         }],
       ],
@@ -407,6 +416,8 @@
       ],
       'sources': [
         'allocator_unittests.cc',
+        '../profiler/alternate_timer.cc',
+        '../profiler/alternate_timer.h',
       ],
     },
   ],

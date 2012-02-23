@@ -93,7 +93,8 @@ class ThreadLocalPointer {
   }
 
   void Set(Type* ptr) {
-    internal::ThreadLocalPlatform::SetValueInSlot(slot_, ptr);
+    internal::ThreadLocalPlatform::SetValueInSlot(
+        slot_, const_cast<void*>(static_cast<const void*>(ptr)));
   }
 
  private:
@@ -114,7 +115,7 @@ class ThreadLocalBoolean {
   }
 
   void Set(bool val) {
-    tlp_.Set(reinterpret_cast<void*>(val ? 1 : 0));
+    tlp_.Set(val ? this : NULL);
   }
 
  private:

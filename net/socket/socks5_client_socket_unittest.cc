@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -68,8 +68,8 @@ void SOCKS5ClientSocketTest::SetUp() {
   // Resolve the "localhost" AddressList used by the TCP connection to connect.
   HostResolver::RequestInfo info(HostPortPair("www.socks-proxy.com", 1080));
   TestCompletionCallback callback;
-  int rv = host_resolver_->Resolve(info, &address_list_, &callback, NULL,
-                                   BoundNetLog());
+  int rv = host_resolver_->Resolve(info, &address_list_, callback.callback(),
+                                   NULL, BoundNetLog());
   ASSERT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   ASSERT_EQ(OK, rv);
@@ -88,7 +88,7 @@ SOCKS5ClientSocket* SOCKS5ClientSocketTest::BuildMockSocket(
                                            writes, writes_count));
   tcp_sock_ = new MockTCPClientSocket(address_list_, net_log, data_.get());
 
-  int rv = tcp_sock_->Connect(&callback);
+  int rv = tcp_sock_->Connect(callback.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -131,7 +131,7 @@ TEST_F(SOCKS5ClientSocketTest, CompleteHandshake) {
   EXPECT_TRUE(tcp_sock_->IsConnected());
   EXPECT_FALSE(user_sock_->IsConnected());
 
-  int rv = user_sock_->Connect(&callback_);
+  int rv = user_sock_->Connect(callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(user_sock_->IsConnected());
 
@@ -151,13 +151,13 @@ TEST_F(SOCKS5ClientSocketTest, CompleteHandshake) {
 
   scoped_refptr<IOBuffer> buffer(new IOBuffer(payload_write.size()));
   memcpy(buffer->data(), payload_write.data(), payload_write.size());
-  rv = user_sock_->Write(buffer, payload_write.size(), &callback_);
+  rv = user_sock_->Write(buffer, payload_write.size(), callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback_.WaitForResult();
   EXPECT_EQ(static_cast<int>(payload_write.size()), rv);
 
   buffer = new IOBuffer(payload_read.size());
-  rv = user_sock_->Read(buffer, payload_read.size(), &callback_);
+  rv = user_sock_->Read(buffer, payload_read.size(), callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback_.WaitForResult();
   EXPECT_EQ(static_cast<int>(payload_read.size()), rv);
@@ -197,7 +197,7 @@ TEST_F(SOCKS5ClientSocketTest, ConnectAndDisconnectTwice) {
                                      data_writes, arraysize(data_writes),
                                      hostname, 80, NULL));
 
-    int rv = user_sock_->Connect(&callback_);
+    int rv = user_sock_->Connect(callback_.callback());
     EXPECT_EQ(OK, rv);
     EXPECT_TRUE(user_sock_->IsConnected());
 
@@ -222,7 +222,7 @@ TEST_F(SOCKS5ClientSocketTest, LargeHostNameFails) {
   // Try to connect -- should fail (without having read/written anything to
   // the transport socket first) because the hostname is too long.
   TestCompletionCallback callback;
-  int rv = user_sock_->Connect(&callback);
+  int rv = user_sock_->Connect(callback.callback());
   EXPECT_EQ(ERR_SOCKS_CONNECTION_FAILED, rv);
 }
 
@@ -254,7 +254,7 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
     user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                      data_writes, arraysize(data_writes),
                                      hostname, 80, &net_log_));
-    int rv = user_sock_->Connect(&callback_);
+    int rv = user_sock_->Connect(callback_.callback());
     EXPECT_EQ(ERR_IO_PENDING, rv);
 
     net::CapturingNetLog::EntryList net_log_entries;
@@ -285,7 +285,7 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
     user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                      data_writes, arraysize(data_writes),
                                      hostname, 80, &net_log_));
-    int rv = user_sock_->Connect(&callback_);
+    int rv = user_sock_->Connect(callback_.callback());
     EXPECT_EQ(ERR_IO_PENDING, rv);
 
     net::CapturingNetLog::EntryList net_log_entries;
@@ -315,7 +315,7 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
     user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                      data_writes, arraysize(data_writes),
                                      hostname, 80, &net_log_));
-    int rv = user_sock_->Connect(&callback_);
+    int rv = user_sock_->Connect(callback_.callback());
     EXPECT_EQ(ERR_IO_PENDING, rv);
     net::CapturingNetLog::EntryList net_log_entries;
     net_log_.GetEntries(&net_log_entries);
@@ -346,7 +346,7 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
     user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                      data_writes, arraysize(data_writes),
                                      hostname, 80, &net_log_));
-    int rv = user_sock_->Connect(&callback_);
+    int rv = user_sock_->Connect(callback_.callback());
     EXPECT_EQ(ERR_IO_PENDING, rv);
     net::CapturingNetLog::EntryList net_log_entries;
     net_log_.GetEntries(&net_log_entries);

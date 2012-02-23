@@ -6,6 +6,8 @@
 
 #include <fcntl.h>
 
+#include "base/bind.h"
+#include "base/location.h"
 #include "base/logging.h"
 #include "base/threading/worker_pool.h"
 #include "net/base/net_errors.h"
@@ -115,7 +117,7 @@ void FileInFlightIO::PostRead(disk_cache::File *file, void* buf, size_t buf_len,
   file->AddRef();  // Balanced on OnOperationComplete()
 
   base::WorkerPool::PostTask(FROM_HERE,
-      NewRunnableMethod(operation.get(), &FileBackgroundIO::Read), true);
+      base::Bind(&FileBackgroundIO::Read, operation.get()), true);
   OnOperationPosted(operation);
 }
 
@@ -127,7 +129,7 @@ void FileInFlightIO::PostWrite(disk_cache::File* file, const void* buf,
   file->AddRef();  // Balanced on OnOperationComplete()
 
   base::WorkerPool::PostTask(FROM_HERE,
-      NewRunnableMethod(operation.get(), &FileBackgroundIO::Write), true);
+      base::Bind(&FileBackgroundIO::Write, operation.get()), true);
   OnOperationPosted(operation);
 }
 
@@ -202,19 +204,24 @@ bool File::IsValid() const {
 
 bool File::Read(void* buffer, size_t buffer_len, size_t offset) {
   DCHECK(init_);
-  if (buffer_len > ULONG_MAX || offset > LONG_MAX)
+  if (buffer_len > static_cast<size_t>(kint32max) ||
+      offset > static_cast<size_t>(kint32max))
     return false;
 
-  int ret = pread(platform_file_, buffer, buffer_len, offset);
+  int ret = base::ReadPlatformFile(platform_file_, offset,
+                                   static_cast<char*>(buffer), buffer_len);
   return (static_cast<size_t>(ret) == buffer_len);
 }
 
 bool File::Write(const void* buffer, size_t buffer_len, size_t offset) {
   DCHECK(init_);
-  if (buffer_len > ULONG_MAX || offset > ULONG_MAX)
+  if (buffer_len > static_cast<size_t>(kint32max) ||
+      offset > static_cast<size_t>(kint32max))
     return false;
 
-  int ret = pwrite(platform_file_, buffer, buffer_len, offset);
+  int ret = base::WritePlatformFile(platform_file_, offset,
+                                    static_cast<const char*>(buffer),
+                                    buffer_len);
   return (static_cast<size_t>(ret) == buffer_len);
 }
 
@@ -256,7 +263,7 @@ bool File::SetLength(size_t length) {
   if (length > ULONG_MAX)
     return false;
 
-  return 0 == ftruncate(platform_file_, length);
+  return base::TruncatePlatformFile(platform_file_, length);
 }
 
 size_t File::GetLength() {
@@ -277,7 +284,7 @@ void File::WaitForPendingIO(int* num_pending_io) {
 
 File::~File() {
   if (IsValid())
-    close(platform_file_);
+    base::ClosePlatformFile(platform_file_);
 }
 
 bool File::AsyncWrite(const void* buffer, size_t buffer_len, size_t offset,

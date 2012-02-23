@@ -223,8 +223,7 @@ TEST_F(SingletonTest, Basic) {
 
   // Verify that only the expected callback has been called.
   VerifiesCallbacks();
-  // Delete the leaky singleton. It is interesting to note that Purify does
-  // *not* detect the leak when this call is commented out. :(
+  // Delete the leaky singleton.
   DeleteLeakySingleton();
 
   // The static singleton can't be acquired post-atexit.

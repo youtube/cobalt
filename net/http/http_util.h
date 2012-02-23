@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,7 +12,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/string_tokenizer.h"
 #include "googleurl/src/gurl.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/http/http_byte_range.h"
 
 // This is a macro to support extending this string literal at compile time.
@@ -21,9 +21,7 @@
 
 namespace net {
 
-class UploadDataStream;
-
-class NET_API HttpUtil {
+class NET_EXPORT HttpUtil {
  public:
   // Returns the absolute path of the URL, to be used for the http request.
   // The absolute path starts with a '/' and may contain a query.
@@ -45,11 +43,14 @@ class NET_API HttpUtil {
   // Parses the value of a Content-Type header.  The resulting mime_type and
   // charset values are normalized to lowercase.  The mime_type and charset
   // output values are only modified if the content_type_str contains a mime
-  // type and charset value, respectively.
+  // type and charset value, respectively.  The boundary output value is
+  // optional and will be assigned the (quoted) value of the boundary
+  // paramter, if any.
   static void ParseContentType(const std::string& content_type_str,
                                std::string* mime_type,
                                std::string* charset,
-                               bool *had_charset);
+                               bool* had_charset,
+                               std::string* boundary);
 
   // Scans the headers and look for the first "Range" header in |headers|,
   // if "Range" exists and the first one of it is well formatted then returns
@@ -69,6 +70,10 @@ class NET_API HttpUtil {
   // true if a match is found.  Input is assumed to be well-formed.
   // TODO(darin): kill this
   static bool HasHeader(const std::string& headers, const char* name);
+
+  // Returns true if it is safe to allow users and scripts to specify the header
+  // named |name|.
+  static bool IsSafeHeader(const std::string& name);
 
   // Strips all header lines from |headers| whose name matches
   // |headers_to_remove|. |headers_to_remove| is a list of null-terminated
@@ -98,6 +103,13 @@ class NET_API HttpUtil {
 
   // Whether the character is the start of a quotation mark.
   static bool IsQuote(char c);
+
+  // Whether the string is a valid |token| as defined in RFC 2616 Sec 2.2.
+  static bool IsToken(std::string::const_iterator begin,
+                      std::string::const_iterator end);
+  static bool IsToken(const std::string& str) {
+    return IsToken(str.begin(), str.end());
+  }
 
   // RFC 2616 Sec 2.2:
   // quoted-string = ( <"> *(qdtext | quoted-pair ) <"> )
@@ -131,6 +143,14 @@ class NET_API HttpUtil {
   // handling HTTP line continuations (i.e., lines starting with LWS are
   // continuations of the previous line).  |buf_len| indicates the position of
   // the end-of-headers marker as defined by LocateEndOfHeaders.
+  // If a \0 appears within the headers themselves, it will be stripped. This
+  // is a workaround to avoid later code from incorrectly interpreting it as
+  // a line terminator.
+  //
+  // TODO(eroman): we should use \n as the canonical line separator rather than
+  //               \0 to avoid this problem. Unfortunately the persistence layer
+  //               is already dependent on newlines being replaced by NULL so
+  //               this is hard to change without breaking things.
   static std::string AssembleRawHeaders(const char* buf, int buf_len);
 
   // Converts assembled "raw headers" back to the HTTP response format. That is
@@ -171,7 +191,7 @@ class NET_API HttpUtil {
   // over the values in a multi-value header, use ValuesIterator.
   // See AssembleRawHeaders for joining line continuations (this iterator
   // does not expect any).
-  class NET_API HeadersIterator {
+  class NET_EXPORT HeadersIterator {
    public:
     HeadersIterator(std::string::const_iterator headers_begin,
                     std::string::const_iterator headers_end,
@@ -234,7 +254,7 @@ class NET_API HttpUtil {
   // This iterator is careful to skip over delimiters found inside an HTTP
   // quoted string.
   //
-  class NET_TEST ValuesIterator {
+  class NET_EXPORT_PRIVATE ValuesIterator {
    public:
     ValuesIterator(std::string::const_iterator values_begin,
                    std::string::const_iterator values_end,
@@ -268,7 +288,7 @@ class NET_API HttpUtil {
   //
   // String iterators returned from this class' methods may be invalidated upon
   // calls to GetNext() or after the NameValuePairsIterator is destroyed.
-  class NET_API NameValuePairsIterator {
+  class NET_EXPORT NameValuePairsIterator {
    public:
     NameValuePairsIterator(std::string::const_iterator begin,
                            std::string::const_iterator end,
@@ -297,8 +317,12 @@ class NET_API HttpUtil {
     }
     std::string value() const {
       return value_is_quoted_ ? unquoted_value_ : std::string(value_begin_,
-                                                               value_end_);
+                                                              value_end_);
     }
+
+    // The value before unquoting (if any).
+    std::string raw_value() const { return std::string(value_begin_,
+                                                       value_end_); }
 
    private:
     HttpUtil::ValuesIterator props_;

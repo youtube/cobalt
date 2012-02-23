@@ -1,9 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/http/partial_data.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/format_macros.h"
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
@@ -66,13 +68,12 @@ class PartialData::Core {
 
   PartialData* owner_;
   int64 start_;
-  net::CompletionCallbackImpl<Core> callback_;
+
   DISALLOW_COPY_AND_ASSIGN(Core);
 };
 
 PartialData::Core::Core(PartialData* owner)
-    : owner_(owner),
-      ALLOW_THIS_IN_INITIALIZER_LIST(callback_(this, &Core::OnIOComplete)) {
+    : owner_(owner), start_(0) {
   DCHECK(!owner_->core_);
   owner_->core_ = this;
 }
@@ -89,7 +90,9 @@ void PartialData::Core::Cancel() {
 
 int PartialData::Core::GetAvailableRange(disk_cache::Entry* entry, int64 offset,
                                          int len, int64* start) {
-  int rv = entry->GetAvailableRange(offset, len, &start_, &callback_);
+  int rv = entry->GetAvailableRange(
+      offset, len, &start_, base::Bind(&PartialData::Core::OnIOComplete,
+                                       base::Unretained(this)));
   if (rv != net::ERR_IO_PENDING) {
     // The callback will not be invoked. Lets cleanup.
     *start = start_;
@@ -112,8 +115,7 @@ PartialData::PartialData()
       sparse_entry_(true),
       truncated_(false),
       initial_validation_(false),
-      core_(NULL),
-      callback_(NULL) {
+      core_(NULL) {
 }
 
 PartialData::~PartialData() {
@@ -159,7 +161,7 @@ void PartialData::RestoreHeaders(HttpRequestHeaders* headers) const {
 }
 
 int PartialData::ShouldValidateCache(disk_cache::Entry* entry,
-                                     CompletionCallback* callback) {
+                                     const CompletionCallback& callback) {
   DCHECK_GE(current_range_start_, 0);
 
   // Scan the disk cache for the first cached portion within this range.
@@ -170,7 +172,7 @@ int PartialData::ShouldValidateCache(disk_cache::Entry* entry,
   DVLOG(3) << "ShouldValidateCache len: " << len;
 
   if (sparse_entry_) {
-    DCHECK(!callback_);
+    DCHECK(callback_.is_null());
     Core* core = Core::CreateCore(this);
     cached_min_len_ = core->GetAvailableRange(entry, current_range_start_, len,
                                               &cached_start_);
@@ -416,8 +418,9 @@ void PartialData::FixContentLength(HttpResponseHeaders* headers) {
                                         resource_size_));
 }
 
-int PartialData::CacheRead(disk_cache::Entry* entry, IOBuffer* data,
-                           int data_len, CompletionCallback* callback) {
+int PartialData::CacheRead(
+    disk_cache::Entry* entry, IOBuffer* data, int data_len,
+    const net::CompletionCallback& callback) {
   int read_len = std::min(data_len, cached_min_len_);
   if (!read_len)
     return 0;
@@ -436,12 +439,13 @@ int PartialData::CacheRead(disk_cache::Entry* entry, IOBuffer* data,
   return rv;
 }
 
-int PartialData::CacheWrite(disk_cache::Entry* entry, IOBuffer* data,
-                            int data_len, CompletionCallback* callback) {
+int PartialData::CacheWrite(
+    disk_cache::Entry* entry, IOBuffer* data, int data_len,
+    const net::CompletionCallback& callback) {
   DVLOG(3) << "To write: " << data_len;
   if (sparse_entry_) {
-    return entry->WriteSparseData(current_range_start_, data, data_len,
-                                  callback);
+    return entry->WriteSparseData(
+        current_range_start_, data, data_len, callback);
   } else  {
     if (current_range_start_ > kint32max)
       return ERR_INVALID_ARGUMENT;
@@ -476,7 +480,7 @@ int PartialData::GetNextRangeLen() {
 }
 
 void PartialData::GetAvailableRangeCompleted(int result, int64 start) {
-  DCHECK(callback_);
+  DCHECK(!callback_.is_null());
   DCHECK_NE(ERR_IO_PENDING, result);
 
   cached_start_ = start;
@@ -484,9 +488,9 @@ void PartialData::GetAvailableRangeCompleted(int result, int64 start) {
   if (result >= 0)
     result = 1;  // Return success, go ahead and validate the entry.
 
-  CompletionCallback* cb = callback_;
-  callback_ = NULL;
-  cb->Run(result);
+  CompletionCallback cb = callback_;
+  callback_.Reset();
+  cb.Run(result);
 }
 
 }  // namespace net

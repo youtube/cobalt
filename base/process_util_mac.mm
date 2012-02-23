@@ -7,14 +7,19 @@
 #import <Cocoa/Cocoa.h>
 #include <crt_externs.h>
 #include <dlfcn.h>
+#include <errno.h>
 #include <mach/mach.h>
 #include <mach/mach_init.h>
 #include <mach/mach_vm.h>
 #include <mach/shared_region.h>
 #include <mach/task.h>
+#include <mach-o/dyld.h>
+#include <mach-o/nlist.h>
 #include <malloc/malloc.h>
 #import <objc/runtime.h>
+#include <signal.h>
 #include <spawn.h>
+#include <sys/event.h>
 #include <sys/mman.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
@@ -25,6 +30,7 @@
 
 #include "base/debug/debugger.h"
 #include "base/eintr_wrapper.h"
+#include "base/file_util.h"
 #include "base/hash_tables.h"
 #include "base/logging.h"
 #include "base/mac/mac_util.h"
@@ -34,6 +40,7 @@
 #include "base/time.h"
 #include "third_party/apple_apsl/CFBase.h"
 #include "third_party/apple_apsl/malloc.h"
+#include "third_party/mach_override/mach_override.h"
 
 namespace base {
 
@@ -72,7 +79,7 @@ ProcessIterator::ProcessIterator(const ProcessFilter* filter)
     // Get the size of the buffer
     size_t len = 0;
     if (sysctl(mib, arraysize(mib), NULL, &len, NULL, 0) < 0) {
-      LOG(ERROR) << "failed to get the size needed for the process list";
+      DLOG(ERROR) << "failed to get the size needed for the process list";
       kinfo_procs_.resize(0);
       done = true;
     } else {
@@ -87,7 +94,7 @@ ProcessIterator::ProcessIterator(const ProcessFilter* filter)
         // If we get a mem error, it just means we need a bigger buffer, so
         // loop around again.  Anything else is a real error and give up.
         if (errno != ENOMEM) {
-          LOG(ERROR) << "failed to get the process list";
+          DLOG(ERROR) << "failed to get the process list";
           kinfo_procs_.resize(0);
           done = true;
         }
@@ -101,7 +108,7 @@ ProcessIterator::ProcessIterator(const ProcessFilter* filter)
   } while (!done && (try_num++ < max_tries));
 
   if (!done) {
-    LOG(ERROR) << "failed to collect the process list in a few tries";
+    DLOG(ERROR) << "failed to collect the process list in a few tries";
     kinfo_procs_.resize(0);
   }
 }
@@ -146,7 +153,7 @@ bool ProcessIterator::CheckForNextProcess() {
     // to populate |entry_.exe_file_|.
     size_t exec_name_end = data.find('\0');
     if (exec_name_end == std::string::npos) {
-      LOG(ERROR) << "command line data didn't match expected format";
+      DLOG(ERROR) << "command line data didn't match expected format";
       continue;
     }
 
@@ -245,7 +252,7 @@ static bool GetCPUTypeForProcess(pid_t pid, cpu_type_t* cpu_type) {
                             NULL,
                             0);
   if (result != 0) {
-    PLOG(ERROR) << "sysctlbyname(""sysctl.proc_cputype"")";
+    DPLOG(ERROR) << "sysctlbyname(""sysctl.proc_cputype"")";
     return false;
   }
 
@@ -277,7 +284,7 @@ bool ProcessMetrics::GetMemoryBytes(size_t* private_bytes,
 
   mach_port_t task = TaskForPid(process_);
   if (task == MACH_PORT_NULL) {
-    LOG(ERROR) << "Invalid process";
+    DLOG(ERROR) << "Invalid process";
     return false;
   }
 
@@ -316,7 +323,7 @@ bool ProcessMetrics::GetMemoryBytes(size_t* private_bytes,
       // We're at the end of the address space.
       break;
     } else if (kr != KERN_SUCCESS) {
-      LOG(ERROR) << "Calling mach_vm_region failed with error: "
+      DLOG(ERROR) << "Calling mach_vm_region failed with error: "
                  << mach_error_string(kr);
       return false;
     }
@@ -351,7 +358,7 @@ bool ProcessMetrics::GetMemoryBytes(size_t* private_bytes,
   vm_size_t page_size;
   kr = host_page_size(task, &page_size);
   if (kr != KERN_SUCCESS) {
-    LOG(ERROR) << "Failed to fetch host page size, error: "
+    DLOG(ERROR) << "Failed to fetch host page size, error: "
                << mach_error_string(kr);
     return false;
   }
@@ -469,18 +476,107 @@ size_t GetSystemCommitCharge() {
                                      reinterpret_cast<host_info_t>(&data),
                                      &count);
   if (kr) {
-    LOG(WARNING) << "Failed to fetch host statistics.";
+    DLOG(WARNING) << "Failed to fetch host statistics.";
     return 0;
   }
 
   vm_size_t page_size;
   kr = host_page_size(host, &page_size);
   if (kr) {
-    LOG(ERROR) << "Failed to fetch host page size.";
+    DLOG(ERROR) << "Failed to fetch host page size.";
     return 0;
   }
 
   return (data.active_count * page_size) / 1024;
+}
+
+namespace {
+
+// Finds the library path for malloc() and thus the libC part of libSystem,
+// which in Lion is in a separate image.
+const char* LookUpLibCPath() {
+  const void* addr = reinterpret_cast<void*>(&malloc);
+
+  Dl_info info;
+  if (dladdr(addr, &info))
+    return info.dli_fname;
+
+  DLOG(WARNING) << "Could not find image path for malloc()";
+  return NULL;
+}
+
+typedef void(*malloc_error_break_t)(void);
+malloc_error_break_t g_original_malloc_error_break = NULL;
+
+// Returns the function pointer for malloc_error_break. This symbol is declared
+// as __private_extern__ and cannot be dlsym()ed. Instead, use nlist() to
+// get it.
+malloc_error_break_t LookUpMallocErrorBreak() {
+#if ARCH_CPU_32_BITS
+  const char* lib_c_path = LookUpLibCPath();
+  if (!lib_c_path)
+    return NULL;
+
+  // Only need to look up two symbols, but nlist() requires a NULL-terminated
+  // array and takes no count.
+  struct nlist nl[3];
+  bzero(&nl, sizeof(nl));
+
+  // The symbol to find.
+  nl[0].n_un.n_name = const_cast<char*>("_malloc_error_break");
+
+  // A reference symbol by which the address of the desired symbol will be
+  // calculated.
+  nl[1].n_un.n_name = const_cast<char*>("_malloc");
+
+  int rv = nlist(lib_c_path, nl);
+  if (rv != 0 || nl[0].n_type == N_UNDF || nl[1].n_type == N_UNDF) {
+    return NULL;
+  }
+
+  // nlist() returns addresses as offsets in the image, not the instruction
+  // pointer in memory. Use the known in-memory address of malloc()
+  // to compute the offset for malloc_error_break().
+  uintptr_t reference_addr = reinterpret_cast<uintptr_t>(&malloc);
+  reference_addr -= nl[1].n_value;
+  reference_addr += nl[0].n_value;
+
+  return reinterpret_cast<malloc_error_break_t>(reference_addr);
+#endif  // ARCH_CPU_32_BITS
+
+  return NULL;
+}
+
+void CrMallocErrorBreak() {
+  g_original_malloc_error_break();
+  // A unit test checks this error message, so it needs to be in release builds.
+  LOG(ERROR) <<
+      "Terminating process due to a potential for future heap corruption";
+  int* death_ptr = NULL;
+  *death_ptr = 0xf00bad;
+}
+
+}  // namespace
+
+void EnableTerminationOnHeapCorruption() {
+#ifdef ADDRESS_SANITIZER
+  // Don't do anything special on heap corruption, because it should be handled
+  // by AddressSanitizer.
+  return;
+#endif
+  malloc_error_break_t malloc_error_break = LookUpMallocErrorBreak();
+  if (!malloc_error_break) {
+    DLOG(WARNING) << "Could not find malloc_error_break";
+    return;
+  }
+
+  mach_error_t err = mach_override_ptr(
+     (void*)malloc_error_break,
+     (void*)&CrMallocErrorBreak,
+     (void**)&g_original_malloc_error_break);
+
+  if (err != err_none)
+    DLOG(WARNING) << "Could not override malloc_error_break; error = " << err;
 }
 
 // ------------------------------------------------------------------------
@@ -890,12 +986,167 @@ ProcessId GetParentProcessId(ProcessHandle process) {
   size_t length = sizeof(struct kinfo_proc);
   int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, process };
   if (sysctl(mib, 4, &info, &length, NULL, 0) < 0) {
-    PLOG(ERROR) << "sysctl";
+    DPLOG(ERROR) << "sysctl";
     return -1;
   }
   if (length == 0)
     return -1;
   return info.kp_eproc.e_ppid;
+}
+
+namespace {
+
+const int kWaitBeforeKillSeconds = 2;
+
+// Reap |child| process. This call blocks until completion.
+void BlockingReap(pid_t child) {
+  const pid_t result = HANDLE_EINTR(waitpid(child, NULL, 0));
+  if (result == -1) {
+    DPLOG(ERROR) << "waitpid(" << child << ", NULL, 0)";
+  }
+}
+
+// Waits for |timeout| seconds for the given |child| to exit and reap it. If
+// the child doesn't exit within the time specified, kills it.
+//
+// This function takes two approaches: first, it tries to use kqueue to
+// observe when the process exits. kevent can monitor a kqueue with a
+// timeout, so this method is preferred to wait for a specified period of
+// time. Once the kqueue indicates the process has exited, waitpid will reap
+// the exited child. If the kqueue doesn't provide an exit event notification,
+// before the timeout expires, or if the kqueue fails or misbehaves, the
+// process will be mercilessly killed and reaped.
+//
+// A child process passed to this function may be in one of several states:
+// running, terminated and not yet reaped, and (apparently, and unfortunately)
+// terminated and already reaped. Normally, a process will at least have been
+// asked to exit before this function is called, but this is not required.
+// If a process is terminating and unreaped, there may be a window between the
+// time that kqueue will no longer recognize it and when it becomes an actual
+// zombie that a non-blocking (WNOHANG) waitpid can reap. This condition is
+// detected when kqueue indicates that the process is not running and a
+// non-blocking waitpid fails to reap the process but indicates that it is
+// still running. In this event, a blocking attempt to reap the process
+// collects the known-dying child, preventing zombies from congregating.
+//
+// In the event that the kqueue misbehaves entirely, as it might under a
+// EMFILE condition ("too many open files", or out of file descriptors), this
+// function will forcibly kill and reap the child without delay. This
+// eliminates another potential zombie vector. (If you're out of file
+// descriptors, you're probably deep into something else, but that doesn't
+// mean that zombies be allowed to kick you while you're down.)
+//
+// The fact that this function seemingly can be called to wait on a child
+// that's not only already terminated but already reaped is a bit of a
+// problem: a reaped child's pid can be reclaimed and may refer to a distinct
+// process in that case. The fact that this function can seemingly be called
+// to wait on a process that's not even a child is also a problem: kqueue will
+// work in that case, but waitpid won't, and killing a non-child might not be
+// the best approach.
+void WaitForChildToDie(pid_t child, int timeout) {
+  DCHECK(child > 0);
+  DCHECK(timeout > 0);
+
+  // DON'T ADD ANY EARLY RETURNS TO THIS FUNCTION without ensuring that
+  // |child| has been reaped. Specifically, even if a kqueue, kevent, or other
+  // call fails, this function should fall back to the last resort of trying
+  // to kill and reap the process. Not observing this rule will resurrect
+  // zombies.
+
+  int result;
+
+  int kq = HANDLE_EINTR(kqueue());
+  if (kq == -1) {
+    DPLOG(ERROR) << "kqueue()";
+  } else {
+    file_util::ScopedFD auto_close_kq(&kq);
+
+    struct kevent change = {0};
+    EV_SET(&change, child, EVFILT_PROC, EV_ADD, NOTE_EXIT, 0, NULL);
+    result = HANDLE_EINTR(kevent(kq, &change, 1, NULL, 0, NULL));
+
+    if (result == -1) {
+      if (errno != ESRCH) {
+        DPLOG(ERROR) << "kevent (setup " << child << ")";
+      } else {
+        // At this point, one of the following has occurred:
+        // 1. The process has died but has not yet been reaped.
+        // 2. The process has died and has already been reaped.
+        // 3. The process is in the process of dying. It's no longer
+        //    kqueueable, but it may not be waitable yet either. Mark calls
+        //    this case the "zombie death race".
+
+        result = HANDLE_EINTR(waitpid(child, NULL, WNOHANG));
+
+        if (result != 0) {
+          // A positive result indicates case 1. waitpid succeeded and reaped
+          // the child. A result of -1 indicates case 2. The child has already
+          // been reaped. In both of these cases, no further action is
+          // necessary.
+          return;
+        }
+
+        // |result| is 0, indicating case 3. The process will be waitable in
+        // short order. Fall back out of the kqueue code to kill it (for good
+        // measure) and reap it.
+      }
+    } else {
+      // Keep track of the elapsed time to be able to restart kevent if it's
+      // interrupted.
+      TimeDelta remaining_delta = TimeDelta::FromSeconds(timeout);
+      Time deadline = Time::Now() + remaining_delta;
+      result = -1;
+      struct kevent event = {0};
+      while (remaining_delta.InMilliseconds() > 0) {
+        const struct timespec remaining_timespec = remaining_delta.ToTimeSpec();
+        result = kevent(kq, NULL, 0, &event, 1, &remaining_timespec);
+        if (result == -1 && errno == EINTR) {
+          remaining_delta = deadline - Time::Now();
+          result = 0;
+        } else {
+          break;
+        }
+      }
+
+      if (result == -1) {
+        DPLOG(ERROR) << "kevent (wait " << child << ")";
+      } else if (result > 1) {
+        DLOG(ERROR) << "kevent (wait " << child << "): unexpected result "
+                    << result;
+      } else if (result == 1) {
+        if ((event.fflags & NOTE_EXIT) &&
+            (event.ident == static_cast<uintptr_t>(child))) {
+          // The process is dead or dying. This won't block for long, if at
+          // all.
+          BlockingReap(child);
+          return;
+        } else {
+          DLOG(ERROR) << "kevent (wait " << child
+                      << "): unexpected event: fflags=" << event.fflags
+                      << ", ident=" << event.ident;
+        }
+      }
+    }
+  }
+
+  // The child is still alive, or is very freshly dead. Be sure by sending it
+  // a signal. This is safe even if it's freshly dead, because it will be a
+  // zombie (or on the way to zombiedom) and kill will return 0 even if the
+  // signal is not delivered to a live process.
+  result = kill(child, SIGKILL);
+  if (result == -1) {
+    DPLOG(ERROR) << "kill(" << child << ", SIGKILL)";
+  } else {
+    // The child is definitely on the way out now. BlockingReap won't need to
+    // wait for long, if at all.
+    BlockingReap(child);
+  }
+}
+
+}  // namespace
+
+void EnsureProcessTerminated(ProcessHandle process) {
+  WaitForChildToDie(process, kWaitBeforeKillSeconds);
 }
 
 }  // namespace base

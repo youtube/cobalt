@@ -7,15 +7,13 @@
 #include <stdlib.h>
 
 #include <algorithm>  // for max()
-#include <limits>
 
 //------------------------------------------------------------------------------
 
 // static
 const int Pickle::kPayloadUnit = 64;
 
-// We mark a read only pickle with a special capacity_.
-static const size_t kCapacityReadOnly = std::numeric_limits<size_t>::max();
+static const size_t kCapacityReadOnly = static_cast<size_t>(-1);
 
 // Payload is uint32 aligned.
 
@@ -386,7 +384,7 @@ char* Pickle::BeginWrite(size_t length) {
     return NULL;
 
 #ifdef ARCH_CPU_64_BITS
-  DCHECK_LE(length, std::numeric_limits<uint32>::max());
+  DCHECK_LE(length, kuint32max);
 #endif
 
   header_->payload_size = static_cast<uint32>(new_size);
@@ -394,7 +392,7 @@ char* Pickle::BeginWrite(size_t length) {
 }
 
 void Pickle::EndWrite(char* dest, int length) {
-  // Zero-pad to keep tools like purify from complaining about uninitialized
+  // Zero-pad to keep tools like valgrind from complaining about uninitialized
   // memory.
   if (length % sizeof(uint32))
     memset(dest + length, 0, sizeof(uint32) - (length % sizeof(uint32)));

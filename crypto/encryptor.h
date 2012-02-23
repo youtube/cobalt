@@ -9,7 +9,7 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "base/scoped_ptr.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/string_piece.h"
 #include "build/build_config.h"
 #include "crypto/crypto_export.h"
@@ -35,7 +35,7 @@ class CRYPTO_EXPORT Encryptor {
   // Only 128-bits counter is supported in this class.
   class Counter {
    public:
-    Counter(const base::StringPiece& counter);
+    explicit Counter(const base::StringPiece& counter);
     ~Counter();
 
     // Increment the counter value.
@@ -61,13 +61,15 @@ class CRYPTO_EXPORT Encryptor {
   // Initializes the encryptor using |key| and |iv|. Returns false if either the
   // key or the initialization vector cannot be used.
   //
-  // When |mode| is CTR then |iv| should be empty.
+  // If |mode| is CBC, |iv| must not be empty; if it is CTR, then |iv| must be
+  // empty.
   bool Init(SymmetricKey* key, Mode mode, const base::StringPiece& iv);
 
-  // Encrypts |plaintext| into |ciphertext|.
+  // Encrypts |plaintext| into |ciphertext|.  |plaintext| may only be empty if
+  // the mode is CBC.
   bool Encrypt(const base::StringPiece& plaintext, std::string* ciphertext);
 
-  // Decrypts |ciphertext| into |plaintext|.
+  // Decrypts |ciphertext| into |plaintext|.  |ciphertext| must not be empty.
   bool Decrypt(const base::StringPiece& ciphertext, std::string* plaintext);
 
   // Sets the counter value when in CTR mode. Currently only 128-bits

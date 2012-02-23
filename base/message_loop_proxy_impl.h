@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,62 +13,43 @@
 
 namespace base {
 
-// A stock implementation of MessageLoopProxy that takes in a MessageLoop
-// and keeps track of its lifetime using the MessageLoop DestructionObserver.
-// For now a MessageLoopProxyImpl can only be created for the current thread.
+// A stock implementation of MessageLoopProxy that is created and managed by a
+// MessageLoop. For now a MessageLoopProxyImpl can only be created as part of a
+// MessageLoop.
 class BASE_EXPORT MessageLoopProxyImpl
-    : public MessageLoopProxy,
-      public MessageLoop::DestructionObserver {
+    : public MessageLoopProxy {
  public:
   virtual ~MessageLoopProxyImpl();
 
   // MessageLoopProxy implementation
-  virtual bool PostTask(const tracked_objects::Location& from_here,
-                        Task* task);
-  virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
-                               Task* task,
-                               int64 delay_ms);
-  virtual bool PostNonNestableTask(const tracked_objects::Location& from_here,
-                                   Task* task);
-  virtual bool PostNonNestableDelayedTask(
-      const tracked_objects::Location& from_here,
-      Task* task,
-      int64 delay_ms);
-  virtual bool PostTask(const tracked_objects::Location& from_here,
-                        const base::Closure& task);
   virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
                                const base::Closure& task,
-                               int64 delay_ms);
-  virtual bool PostNonNestableTask(const tracked_objects::Location& from_here,
-                                   const base::Closure& task);
+                               int64 delay_ms) OVERRIDE;
   virtual bool PostNonNestableDelayedTask(
       const tracked_objects::Location& from_here,
       const base::Closure& task,
-      int64 delay_ms);
-  virtual bool BelongsToCurrentThread();
-
-  // MessageLoop::DestructionObserver implementation
-  virtual void WillDestroyCurrentMessageLoop();
+      int64 delay_ms) OVERRIDE;
+  virtual bool RunsTasksOnCurrentThread() const OVERRIDE;
 
  protected:
   // Override OnDestruct so that we can delete the object on the target message
   // loop if it still exists.
-  virtual void OnDestruct() const;
+  virtual void OnDestruct() const OVERRIDE;
 
  private:
   MessageLoopProxyImpl();
-  // TODO(ajwong): Remove this after we've fully migrated to base::Closure.
-  bool PostTaskHelper(const tracked_objects::Location& from_here,
-                      Task* task,
-                      int64 delay_ms,
-                      bool nestable);
+
+  // Called directly by MessageLoop::~MessageLoop.
+  virtual void WillDestroyCurrentMessageLoop();
+
+
   bool PostTaskHelper(const tracked_objects::Location& from_here,
                       const base::Closure& task,
                       int64 delay_ms,
                       bool nestable);
 
-  // For the factory method to work
-  friend class MessageLoopProxy;
+  // Allow the messageLoop to create a MessageLoopProxyImpl.
+  friend class ::MessageLoop;
 
   // The lock that protects access to target_message_loop_.
   mutable base::Lock message_loop_lock_;

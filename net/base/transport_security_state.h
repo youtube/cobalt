@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,106 +12,121 @@
 
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
-#include "base/memory/ref_counted.h"
+#include "base/threading/non_thread_safe.h"
 #include "base/time.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
+#include "net/base/x509_certificate.h"
 #include "net/base/x509_cert_types.h"
 
 namespace net {
+
+class SSLInfo;
+
+typedef std::vector<SHA1Fingerprint> FingerprintVector;
 
 // TransportSecurityState
 //
 // Tracks which hosts have enabled *-Transport-Security. This object manages
 // the in-memory store. A separate object must register itself with this object
 // in order to persist the state to disk.
-class NET_API TransportSecurityState :
-    public base::RefCountedThreadSafe<TransportSecurityState> {
+class NET_EXPORT TransportSecurityState
+    : NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   // If non-empty, |hsts_hosts| is a JSON-formatted string to treat as if it
   // were a built-in entry (same format as persisted metadata in the
   // TransportSecurityState file).
   explicit TransportSecurityState(const std::string& hsts_hosts);
+  ~TransportSecurityState();
 
   // A DomainState is the information that we persist about a given domain.
-  struct NET_API DomainState {
+  struct NET_EXPORT DomainState {
     enum Mode {
       // Strict mode implies:
       //   * We generate internal redirects from HTTP -> HTTPS.
       //   * Certificate issues are fatal.
       MODE_STRICT = 0,
-      // Opportunistic mode implies:
-      //   * We'll request HTTP URLs over HTTPS
-      //   * Certificate issues are ignored.
-      MODE_OPPORTUNISTIC = 1,
+      // This used to be opportunistic HTTPS, but we removed support.
+      MODE_OPPORTUNISTIC_REMOVED = 1,
       // SPDY_ONLY (aka X-Bodge-Transport-Security) is a hopefully temporary
       // measure. It implies:
       //   * We'll request HTTP URLs over HTTPS iff we have SPDY support.
       //   * Certificate issues are fatal.
       MODE_SPDY_ONLY = 2,
-      // None means there is no HSTS for this domain.
-      MODE_NONE = 3,
+      // Pinning means there are no HTTP -> HTTPS redirects, however certificate
+      // issues are still fatal and there may be public key pins.
+      MODE_PINNING_ONLY = 3,
     };
 
     DomainState();
     ~DomainState();
 
-    // IsChainOfPublicKeysPermitted takes a set of public key hashes and
-    // returns true if:
-    //   1) |public_key_hashes| is empty, i.e. no public keys have been pinned.
-    //   2) |hashes| and |public_key_hashes| are not disjoint.
-    bool IsChainOfPublicKeysPermitted(
-        const std::vector<SHA1Fingerprint>& hashes);
+    // Takes a set of SubjectPublicKeyInfo |hashes| and returns true if:
+    //   1) |bad_preloaded_spki_hashes| does not intersect |hashes|; AND
+    //   2) Both |preloaded_spki_hashes| and |dynamic_spki_hashes| are empty
+    //      or at least one of them intersects |hashes|.
+    //
+    // |{dynamic,preloaded}_spki_hashes| contain trustworthy public key
+    // hashes, any one of which is sufficient to validate the certificate
+    // chain in question. The public keys could be of a root CA, intermediate
+    // CA, or leaf certificate, depending on the security vs. disaster
+    // recovery tradeoff selected. (Pinning only to leaf certifiates increases
+    // security because you no longer trust any CAs, but it hampers disaster
+    // recovery because you can't just get a new certificate signed by the
+    // CA.)
+    //
+    // |bad_preloaded_spki_hashes| contains public keys that we don't want to
+    // trust.
+    bool IsChainOfPublicKeysPermitted(const FingerprintVector& hashes);
+
+    // Returns true if |this| describes a more strict policy than |other|.
+    // Used to see if a dynamic DomainState should override a preloaded one.
+    bool IsMoreStrict(const DomainState& other);
+
+    // ShouldCertificateErrorsBeFatal returns true iff, given the |mode| of this
+    // DomainState, certificate errors on this domain should be fatal (i.e. no
+    // user bypass).
+    bool ShouldCertificateErrorsBeFatal() const;
+
+    // ShouldRedirectHTTPToHTTPS returns true iff, given the |mode| of this
+    // DomainState, HTTP requests should be internally redirected to HTTPS.
+    bool ShouldRedirectHTTPToHTTPS() const;
 
     Mode mode;
     base::Time created;  // when this host entry was first created
     base::Time expiry;  // the absolute time (UTC) when this record expires
     bool include_subdomains;  // subdomains included?
-    std::vector<SHA1Fingerprint> public_key_hashes;  // optional; permitted keys
 
-    // The follow members are not valid when stored in |enabled_hosts_|.
+    // Optional; hashes of preloaded "pinned" SubjectPublicKeyInfos. Unless
+    // both are empty, at least one of |preloaded_spki_hashes| and
+    // |dynamic_spki_hashes| MUST intersect with the set of SPKIs in the TLS
+    // server's certificate chain.
+    //
+    // |dynamic_spki_hashes| take precedence over |preloaded_spki_hashes|.
+    // That is, when performing pin validation, first check dynamic and then
+    // check preloaded.
+    FingerprintVector preloaded_spki_hashes;
+
+    // Optional; hashes of dynamically pinned SubjectPublicKeyInfos. (They
+    // could be set e.g. by an HTTP header or by a superfluous certificate.)
+    FingerprintVector dynamic_spki_hashes;
+
+    // The absolute time (UTC) when the |dynamic_spki_hashes| expire.
+    base::Time dynamic_spki_hashes_expiry;
+
+    // The max-age directive of the Public-Key-Pins header as parsed. Do not
+    // persist this; it is only for testing. TODO(palmer): Therefore, get rid
+    // of it and find a better way to test.
+    int max_age;
+
+    // Optional; hashes of preloaded known-bad SubjectPublicKeyInfos which
+    // MUST NOT intersect with the set of SPKIs in the TLS server's
+    // certificate chain.
+    FingerprintVector bad_preloaded_spki_hashes;
+
+    // The following members are not valid when stored in |enabled_hosts_|.
     bool preloaded;  // is this a preloaded entry?
     std::string domain;  // the domain which matched
   };
-
-  // Enable TransportSecurity for |host|.
-  void EnableHost(const std::string& host, const DomainState& state);
-
-  // Delete any entry for |host|. If |host| doesn't have an exact entry then no
-  // action is taken. Returns true iff an entry was deleted.
-  bool DeleteHost(const std::string& host);
-
-  // Returns true if |host| has TransportSecurity enabled, in the context of
-  // |sni_available|. In that case, *result is filled out.
-  // Note that *result is always overwritten on every call.
-  bool IsEnabledForHost(DomainState* result,
-                        const std::string& host,
-                        bool sni_available);
-
-  // Returns true if |host| has any SSL certificate pinning, in the context of
-  // |sni_available|. In that case, *result is filled out.
-  // Note that *result is always overwritten on every call.
-  bool HasPinsForHost(DomainState* result,
-                      const std::string& host,
-                      bool sni_available);
-
-  // Returns true if |host| has any HSTS metadata, in the context of
-  // |sni_available|. (This include cert-pin-only metadata).
-  // In that case, *result is filled out.
-  // Note that *result is always overwritten on every call.
-  bool HasMetadata(DomainState* result,
-                   const std::string& host,
-                   bool sni_available);
-
-  // Deletes all records created since a given time.
-  void DeleteSince(const base::Time& time);
-
-  // Returns |true| if |value| parses as a valid *-Transport-Security
-  // header value.  The values of max-age and and includeSubDomains are
-  // returned in |max_age| and |include_subdomains|, respectively.  The out
-  // parameters are not modified if the function returns |false|.
-  static bool ParseHeader(const std::string& value,
-                          int* max_age,
-                          bool* include_subdomains);
 
   class Delegate {
    public:
@@ -123,7 +138,110 @@ class NET_API TransportSecurityState :
     virtual ~Delegate() {}
   };
 
-  void SetDelegate(Delegate*);
+  void SetDelegate(Delegate* delegate);
+
+  // Enable TransportSecurity for |host|.
+  void EnableHost(const std::string& host, const DomainState& state);
+
+  // Delete any entry for |host|. If |host| doesn't have an exact entry then no
+  // action is taken. Returns true iff an entry was deleted.
+  bool DeleteHost(const std::string& host);
+
+  // Returns true if |host| has TransportSecurity enabled. Before operating
+  // on this result, consult |result->mode|, as the expected behavior of
+  // TransportSecurity can significantly differ based on mode.
+  //
+  // If |sni_available| is true, searches the preloads defined for SNI-using
+  // hosts as well as the usual preload list.
+  //
+  // Note that |*result| is always overwritten on every call.
+  // TODO(palmer): Only update |*result| on success.
+  bool GetDomainState(DomainState* result,
+                      const std::string& host,
+                      bool sni_available);
+
+  // Returns true if there are any certificates pinned for |host|.
+  // If so, updates the |preloaded_spki_hashes|, |dynamic_spki_hashes|, and
+  // |bad_preloaded_spki_hashes| fields of |*result| with the pins.
+  //
+  // Note that |*result| is always overwritten on every call, regardless of
+  // whether or not pins are enabled.
+  //
+  // If |sni_available| is true, searches the preloads defined for SNI-using
+  // hosts as well as the usual preload list.
+  //
+  // TODO(palmer): Only update |*result| if pins exist.
+  bool HasPinsForHost(DomainState* result,
+                      const std::string& host,
+                      bool sni_available);
+
+  // Returns true and updates |*result| if there is any |DomainState|
+  // metadata for |host| in the local TransportSecurityState database;
+  // returns false otherwise. TODO(palmer): Unlike the other
+  // TransportSecurityState lookup functions in this class (e.g
+  // |HasPinsForHost|, |GetDomainState|), |*result| is updated iff metadata
+  // is found. The other functions are buggy and will be fixed to behave
+  // like this one.
+  //
+  // If |sni_available| is true, searches the preloads defined for SNI-using
+  // hosts as well as the usual preload list.
+  bool HasMetadata(DomainState* result,
+                   const std::string& host,
+                   bool sni_available);
+
+  // Returns true if we have a preloaded certificate pin for the |host| and if
+  // its set of required certificates is the set we expect for Google
+  // properties.
+  //
+  // If |sni_available| is true, searches the preloads defined for SNI-using
+  // hosts as well as the usual preload list.
+  //
+  // Note that like HasMetadata, if |host| matches both an exact entry and is a
+  // subdomain of another entry, the exact match determines the return value.
+  static bool IsGooglePinnedProperty(const std::string& host,
+                                     bool sni_available);
+
+  // Reports UMA statistics upon public key pin failure. Reports only down to
+  // the second-level domain of |host| (e.g. google.com if |host| is
+  // mail.google.com), and only if |host| is a preloaded STS host.
+  static void ReportUMAOnPinFailure(const std::string& host);
+
+  // Parses |cert|'s Subject Public Key Info structure, hashes it, and writes
+  // the hash into |spki_hash|. Returns true on parse success, false on
+  // failure.
+  static bool GetPublicKeyHash(const X509Certificate& cert,
+                               SHA1Fingerprint* spki_hash);
+
+  // Decodes a pin string |value| (e.g. "sha1/hvfkN/qlp/zhXR3cuerq6jd2Z7g=")
+  // and populates |out|.
+  static bool ParsePin(const std::string& value, SHA1Fingerprint* out);
+
+  // Deletes all records created since a given time.
+  void DeleteSince(const base::Time& time);
+
+  // Parses |value| as a Public-Key-Pins header. If successful, returns |true|
+  // and updates the |dynamic_spki_hashes| and |dynamic_spki_hashes_expiry|
+  // fields of |*state|; otherwise, returns |false| without updating |*state|.
+  static bool ParsePinsHeader(const std::string& value,
+                              const SSLInfo& ssl_info,
+                              DomainState* state);
+
+  // Returns |true| if |value| parses as a valid *-Transport-Security
+  // header value.  The values of max-age and and includeSubDomains are
+  // returned in |max_age| and |include_subdomains|, respectively.  The out
+  // parameters are not modified if the function returns |false|.
+  static bool ParseHeader(const std::string& value,
+                          int* max_age,
+                          bool* include_subdomains);
+
+  // ParseSidePin attempts to parse a side pin from |side_info| which signs the
+  // SubjectPublicKeyInfo in |leaf_spki|. A side pin is a way for a site to
+  // sign their public key with a key that is offline but still controlled by
+  // them. If successful, the hash of the public key used to sign |leaf_spki|
+  // is put into |out_pub_key_hash|.
+  static bool ParseSidePin(const base::StringPiece& leaf_spki,
+                           const base::StringPiece& side_info,
+                           FingerprintVector* out_pub_key_hash);
 
   bool Serialise(std::string* output);
   // Existing non-preloaded entries are cleared and repopulated from the
@@ -134,10 +252,7 @@ class NET_API TransportSecurityState :
   static const long int kMaxHSTSAgeSecs;
 
  private:
-  friend class base::RefCountedThreadSafe<TransportSecurityState>;
   FRIEND_TEST_ALL_PREFIXES(TransportSecurityStateTest, IsPreloaded);
-
-  ~TransportSecurityState();
 
   // If we have a callback configured, call it to let our serialiser know that
   // our state is dirty.

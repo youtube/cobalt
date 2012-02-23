@@ -6,16 +6,16 @@
 #define BASE_SYNCHRONIZATION_WAITABLE_EVENT_WATCHER_H_
 #pragma once
 
+#include "base/base_export.h"
 #include "build/build_config.h"
 
 #if defined(OS_WIN)
 #include "base/win/object_watcher.h"
 #else
+#include "base/callback.h"
 #include "base/message_loop.h"
 #include "base/synchronization/waitable_event.h"
 #endif
-
-#include "base/base_export.h"
 
 namespace base {
 
@@ -61,7 +61,7 @@ class WaitableEvent;
 // -----------------------------------------------------------------------------
 
 class BASE_EXPORT WaitableEventWatcher
-#if defined(OS_POSIX)
+#if !defined(OS_WIN)
     : public MessageLoop::DestructionObserver
 #endif
 {
@@ -70,7 +70,7 @@ class BASE_EXPORT WaitableEventWatcher
   WaitableEventWatcher();
   virtual ~WaitableEventWatcher();
 
-  class Delegate {
+  class BASE_EXPORT Delegate {
    public:
     virtual ~Delegate() { }
 
@@ -145,12 +145,12 @@ class BASE_EXPORT WaitableEventWatcher
   // ---------------------------------------------------------------------------
   // Implementation of MessageLoop::DestructionObserver
   // ---------------------------------------------------------------------------
-  virtual void WillDestroyCurrentMessageLoop();
+  virtual void WillDestroyCurrentMessageLoop() OVERRIDE;
 
   MessageLoop* message_loop_;
   scoped_refptr<Flag> cancel_flag_;
   AsyncWaiter* waiter_;
-  AsyncCallbackTask* callback_task_;
+  base::Closure callback_;
   scoped_refptr<WaitableEvent::WaitableEventKernel> kernel_;
 #endif
 

@@ -18,24 +18,18 @@
 
 namespace {
 
-bool GetNSExecutablePath(FilePath* path) WARN_UNUSED_RESULT;
-
-bool GetNSExecutablePath(FilePath* path) {
+void GetNSExecutablePath(FilePath* path) {
   DCHECK(path);
   // Executable path can have relative references ("..") depending on
   // how the app was launched.
   uint32_t executable_length = 0;
   _NSGetExecutablePath(NULL, &executable_length);
-  DCHECK_GE(executable_length, 1u);
+  DCHECK_GT(executable_length, 1u);
   std::string executable_path;
-  char* executable_path_c = WriteInto(&executable_path, executable_length);
-  int rv = _NSGetExecutablePath(executable_path_c, &executable_length);
+  int rv = _NSGetExecutablePath(WriteInto(&executable_path, executable_length),
+                                &executable_length);
   DCHECK_EQ(rv, 0);
-  DCHECK(!executable_path.empty());
-  if ((rv != 0) || (executable_path.empty()))
-    return false;
   *path = FilePath(executable_path);
-  return true;
 }
 
 // Returns true if the module for |address| is found. |path| will contain
@@ -58,7 +52,8 @@ namespace base {
 bool PathProviderMac(int key, FilePath* result) {
   switch (key) {
     case base::FILE_EXE:
-      return GetNSExecutablePath(result);
+      GetNSExecutablePath(result);
+      return true;
     case base::FILE_MODULE:
       return GetModulePathForAddress(result,
           reinterpret_cast<const void*>(&base::PathProviderMac));

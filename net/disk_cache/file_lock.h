@@ -8,7 +8,7 @@
 #define NET_DISK_CACHE_FILE_LOCK_H__
 #pragma once
 
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/disk_cache/disk_format.h"
 
 namespace disk_cache {
@@ -28,7 +28,7 @@ namespace disk_cache {
 // because otherwise the desired effect of the "lock" will not be achieved. If
 // the operations are inlined / optimized, the "locked" operations can happen
 // outside the lock.
-class NET_TEST FileLock {
+class NET_EXPORT_PRIVATE FileLock {
  public:
   explicit FileLock(BlockFileHeader* header);
   virtual ~FileLock();

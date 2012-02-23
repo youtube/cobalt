@@ -4,37 +4,54 @@
 
 #include "net/base/test_completion_callback.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
+#include "base/compiler_specific.h"
 #include "base/message_loop.h"
 #include "net/base/net_errors.h"
 
-TestCompletionCallback::TestCompletionCallback()
-    : result_(0),
-      have_result_(false),
-      waiting_for_result_(false) {
+void TestCompletionCallbackBase::SetResult(int result) {
+  result_ = result;
+  have_result_ = true;
+  if (waiting_for_result_)
+    MessageLoop::current()->Quit();
 }
 
-TestCompletionCallback::~TestCompletionCallback() {}
-
-int TestCompletionCallback::WaitForResult() {
+int TestCompletionCallbackBase::WaitForResult() {
   DCHECK(!waiting_for_result_);
+
   while (!have_result_) {
     waiting_for_result_ = true;
     MessageLoop::current()->Run();
     waiting_for_result_ = false;
   }
-  have_result_ = false;  // auto-reset for next callback
+
+  have_result_ = false;  // Auto-reset for next callback.
   return result_;
 }
 
-int TestCompletionCallback::GetResult(int result) {
+int TestCompletionCallbackBase::GetResult(int result) {
   if (net::ERR_IO_PENDING != result)
     return result;
+
   return WaitForResult();
 }
 
-void TestCompletionCallback::RunWithParams(const Tuple1<int>& params) {
-  result_ = params.a;
-  have_result_ = true;
-  if (waiting_for_result_)
-    MessageLoop::current()->Quit();
+TestCompletionCallbackBase::TestCompletionCallbackBase()
+    : result_(0),
+      have_result_(false),
+      waiting_for_result_(false) {
 }
+
+namespace net {
+
+TestCompletionCallback::TestCompletionCallback()
+    : ALLOW_THIS_IN_INITIALIZER_LIST(callback_(
+        base::Bind(&TestCompletionCallback::SetResult,
+                   base::Unretained(this)))) {
+}
+
+TestCompletionCallback::~TestCompletionCallback() {}
+
+
+}  // namespace net

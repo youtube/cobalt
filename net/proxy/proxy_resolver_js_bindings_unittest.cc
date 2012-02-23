@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/string_util.h"
 #include "net/base/address_list.h"
+#include "net/base/host_cache.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
@@ -32,41 +33,16 @@ class MockHostResolverWithMultipleResults : public SyncHostResolver {
  public:
   // HostResolver methods:
   virtual int Resolve(const HostResolver::RequestInfo& info,
-                      AddressList* addresses) OVERRIDE {
-    // Build up the result list (in reverse).
-    AddressList temp_list = ResolveIPLiteral("200.100.1.2");
-    temp_list = PrependAddressToList("172.22.34.1", temp_list);
-    temp_list = PrependAddressToList("192.168.1.1", temp_list);
-    *addresses = temp_list;
-    return OK;
+                      AddressList* addresses,
+                      const net::BoundNetLog& bound_net_log) OVERRIDE {
+    return ParseAddressList("192.168.1.1,172.22.34.1,200.100.1.2", "",
+                            addresses);
   }
 
   virtual void Shutdown() OVERRIDE {}
 
  private:
   virtual ~MockHostResolverWithMultipleResults() {}
-
-  // Resolves an IP literal to an address list.
-  AddressList ResolveIPLiteral(const char* ip_literal) {
-    AddressList result;
-    int rv = SystemHostResolverProc(ip_literal,
-                                    ADDRESS_FAMILY_UNSPECIFIED,
-                                    0,
-                                    &result, NULL);
-    EXPECT_EQ(OK, rv);
-    EXPECT_EQ(NULL, result.head()->ai_next);
-    return result;
-  }
-
-  // Builds an AddressList that is |ip_literal| + |orig_list|.
-  // |orig_list| must not be empty.
-  AddressList PrependAddressToList(const char* ip_literal,
-                                   const AddressList& orig_list) {
-    // Build an addrinfo for |ip_literal|.
-    AddressList result = ResolveIPLiteral(ip_literal);
-    result.Append(orig_list.head());
-    return result;
-  }
 };
 
 class MockFailingHostResolver : public SyncHostResolver {
@@ -75,7 +51,8 @@ class MockFailingHostResolver : public SyncHostResolver {
 
   // HostResolver methods:
   virtual int Resolve(const HostResolver::RequestInfo& info,
-                      AddressList* addresses) OVERRIDE {
+                      AddressList* addresses,
+                      const net::BoundNetLog& bound_net_log) OVERRIDE {
     count_++;
     return ERR_NAME_NOT_RESOLVED;
   }
@@ -97,8 +74,10 @@ class MockSyncHostResolver : public SyncHostResolver {
   }
 
   virtual int Resolve(const HostResolver::RequestInfo& info,
-                      AddressList* addresses) OVERRIDE {
-    return resolver_.Resolve(info, addresses, NULL, NULL, BoundNetLog());
+                      AddressList* addresses,
+                      const net::BoundNetLog& bound_net_log) OVERRIDE {
+    return resolver_.Resolve(info, addresses, CompletionCallback(), NULL,
+                             bound_net_log);
   }
 
   virtual void Shutdown() OVERRIDE {}
@@ -188,11 +167,11 @@ TEST(ProxyResolverJSBindingsTest, RestrictAddressFamily) {
   // depending if the address family was IPV4_ONLY or not.
   HostResolver::RequestInfo info(HostPortPair("foo", 80));
   AddressList address_list;
-  EXPECT_EQ(OK, host_resolver->Resolve(info, &address_list));
+  EXPECT_EQ(OK, host_resolver->Resolve(info, &address_list, BoundNetLog()));
   EXPECT_EQ("192.168.2.1", NetAddressToString(address_list.head()));
 
   info.set_address_family(ADDRESS_FAMILY_IPV4);
-  EXPECT_EQ(OK, host_resolver->Resolve(info, &address_list));
+  EXPECT_EQ(OK, host_resolver->Resolve(info, &address_list, BoundNetLog()));
   EXPECT_EQ("192.168.1.1", NetAddressToString(address_list.head()));
 
   std::string ip_address;
@@ -259,9 +238,8 @@ TEST(ProxyResolverJSBindingsTest, PerRequestDNSCache) {
   // Now setup a per-request context, and try the same experiment -- we
   // expect the underlying host resolver to receive only 1 request this time,
   // since it will service the others from the per-request DNS cache.
-  HostCache cache(50,
-                  base::TimeDelta::FromMinutes(10),
-                  base::TimeDelta::FromMinutes(10));
+  const unsigned kMaxCacheEntries = 50;
+  HostCache cache(kMaxCacheEntries);
   ProxyResolverRequestContext context(NULL, &cache);
   bindings->set_current_request_context(&context);
 

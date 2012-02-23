@@ -1,14 +1,16 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 # based on an almost identical script by: jyrki@google.com (Jyrki Alakuijala)
-#
-# This script prints out include dependencies in chrome. Since it ignores
-# defines, it gives just a rough estimation of file size.
-#
-# Usage:
-#   python tools/include_tracer.py chrome/browser/ui/browser.h
+
+"""Prints out include dependencies in chrome.
+
+Since it ignores defines, it gives just a rough estimation of file size.
+
+Usage:
+  tools/include_tracer.py chrome/browser/ui/browser.h
+"""
 
 import os
 import sys
@@ -194,6 +196,11 @@ def Walk(seen, filename, parent, indent):
   return total_bytes + len("".join(lines))
 
 
-bytes = Walk(set(), sys.argv[1], '', 0)
-print
-print float(bytes) / (1 << 20), "megabytes of chrome source"
+def main():
+  bytes = Walk(set(), sys.argv[1], '', 0)
+  print
+  print float(bytes) / (1 << 20), "megabytes of chrome source"
+
+
+if __name__ == '__main__':
+  sys.exit(main())

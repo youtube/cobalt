@@ -36,12 +36,12 @@ TEST(HttpAuthHandlerBasicTest, GenerateAuthToken) {
     scoped_ptr<HttpAuthHandler> basic;
     EXPECT_EQ(OK, factory.CreateAuthHandlerFromString(
         challenge, HttpAuth::AUTH_SERVER, origin, BoundNetLog(), &basic));
-    string16 username(ASCIIToUTF16(tests[i].username));
-    string16 password(ASCIIToUTF16(tests[i].password));
+    AuthCredentials credentials(ASCIIToUTF16(tests[i].username),
+                                ASCIIToUTF16(tests[i].password));
     HttpRequestInfo request_info;
     std::string auth_token;
-    int rv = basic->GenerateAuthToken(&username, &password, &request_info,
-                                      NULL, &auth_token);
+    int rv = basic->GenerateAuthToken(&credentials, &request_info,
+                                      CompletionCallback(), &auth_token);
     EXPECT_EQ(OK, rv);
     EXPECT_STREQ(tests[i].expected_credentials, auth_token.c_str());
   }
@@ -170,6 +170,14 @@ TEST(HttpAuthHandlerBasicTest, InitFromChallenge) {
       "Basic realm=\"foo\",realm=\"bar\"",
       OK,
       "bar",
+    },
+
+    // Handle ISO-8859-1 character as part of the realm. The realm is converted
+    // to UTF-8.
+    {
+      "Basic realm=\"foo-\xE5\"",
+      OK,
+      "foo-\xC3\xA5",
     },
   };
   HttpAuthHandlerBasic::Factory factory;

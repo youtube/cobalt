@@ -78,23 +78,9 @@ bool DeleteCache(const FilePath& path) {
   return true;
 }
 
-bool CopyTestCache(const std::string& name) {
-  FilePath path;
-  PathService::Get(base::DIR_SOURCE_ROOT, &path);
-  path = path.AppendASCII("net");
-  path = path.AppendASCII("data");
-  path = path.AppendASCII("cache_tests");
-  path = path.AppendASCII(name);
-
-  FilePath dest = GetCacheFilePath();
-  if (!DeleteCache(dest))
-    return false;
-  return file_util::CopyDirectory(path, dest, false);
-}
-
-bool CheckCacheIntegrity(const FilePath& path, bool new_eviction) {
+bool CheckCacheIntegrity(const FilePath& path, bool new_eviction, uint32 mask) {
   scoped_ptr<disk_cache::BackendImpl> cache(new disk_cache::BackendImpl(
-      path, base::MessageLoopProxy::CreateForCurrentThread(), NULL));
+      path, mask, base::MessageLoopProxy::current(), NULL));
   if (!cache.get())
     return false;
   if (new_eviction)
@@ -105,7 +91,7 @@ bool CheckCacheIntegrity(const FilePath& path, bool new_eviction) {
   return cache->SelfCheck() >= 0;
 }
 
-ScopedTestCache::ScopedTestCache() : path_(GetCacheFilePath()) {
+ScopedTestCache::ScopedTestCache(const FilePath& path) : path_(path) {
   bool result = DeleteCache(path_);
   DCHECK(result);
 }
@@ -141,7 +127,7 @@ bool MessageLoopHelper::WaitUntilCacheIoFinished(int num_callbacks) {
   ExpectCallbacks(num_callbacks);
   // Create a recurrent timer of 50 mS.
   if (!timer_.IsRunning())
-    timer_.Start(TimeDelta::FromMilliseconds(50), this,
+    timer_.Start(FROM_HERE, TimeDelta::FromMilliseconds(50), this,
                  &MessageLoopHelper::TimerExpired);
   MessageLoop::current()->Run();
   return completed_;
@@ -178,7 +164,7 @@ CallbackTest::~CallbackTest() {
 
 // On the actual callback, increase the number of tests received and check for
 // errors (an unexpected test received)
-void CallbackTest::RunWithParams(const Tuple1<int>& params) {
+void CallbackTest::Run(int params) {
   if (reuse_) {
     DCHECK_EQ(1, reuse_);
     if (2 == reuse_)

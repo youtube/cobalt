@@ -1,9 +1,11 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/disk_cache/in_flight_io.h"
 
+#include "base/bind.h"
+#include "base/location.h"
 #include "base/logging.h"
 
 namespace disk_cache {
@@ -33,7 +35,7 @@ void BackgroundIO::NotifyController() {
 // ---------------------------------------------------------------------------
 
 InFlightIO::InFlightIO()
-    : callback_thread_(base::MessageLoopProxy::CreateForCurrentThread()),
+    : callback_thread_(base::MessageLoopProxy::current()),
       running_(false), single_thread_(false) {
 }
 
@@ -58,8 +60,8 @@ void InFlightIO::OnIOComplete(BackgroundIO* operation) {
 #endif
 
   callback_thread_->PostTask(FROM_HERE,
-                             NewRunnableMethod(operation,
-                                               &BackgroundIO::OnIOSignalled));
+                             base::Bind(&BackgroundIO::OnIOSignalled,
+                                        operation));
   operation->io_completed()->Signal();
 }
 

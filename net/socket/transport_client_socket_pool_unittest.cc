@@ -1,9 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/socket/transport_client_socket_pool.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
@@ -51,8 +53,8 @@ class MockClientSocket : public StreamSocket {
       : connected_(false),
         addrlist_(addrlist) {}
 
-  // StreamSocket methods:
-  virtual int Connect(CompletionCallback* callback) {
+  // StreamSocket implementation.
+  virtual int Connect(const CompletionCallback& callback) {
     connected_ = true;
     return OK;
   }
@@ -90,13 +92,13 @@ class MockClientSocket : public StreamSocket {
     return base::TimeDelta::FromMicroseconds(-1);
   }
 
-  // Socket methods:
+  // Socket implementation.
   virtual int Read(IOBuffer* buf, int buf_len,
-                   CompletionCallback* callback) {
+                   const CompletionCallback& callback) {
     return ERR_FAILED;
   }
   virtual int Write(IOBuffer* buf, int buf_len,
-                    CompletionCallback* callback) {
+                    const CompletionCallback& callback) {
     return ERR_FAILED;
   }
   virtual bool SetReceiveBufferSize(int32 size) { return true; }
@@ -112,8 +114,8 @@ class MockFailingClientSocket : public StreamSocket {
  public:
   MockFailingClientSocket(const AddressList& addrlist) : addrlist_(addrlist) {}
 
-  // StreamSocket methods:
-  virtual int Connect(CompletionCallback* callback) {
+  // StreamSocket implementation.
+  virtual int Connect(const CompletionCallback& callback) {
     return ERR_CONNECTION_FAILED;
   }
 
@@ -144,14 +146,14 @@ class MockFailingClientSocket : public StreamSocket {
     return base::TimeDelta::FromMicroseconds(-1);
   }
 
-  // Socket methods:
+  // Socket implementation.
   virtual int Read(IOBuffer* buf, int buf_len,
-                   CompletionCallback* callback) {
+                   const CompletionCallback& callback) {
     return ERR_FAILED;
   }
 
   virtual int Write(IOBuffer* buf, int buf_len,
-                    CompletionCallback* callback) {
+                    const CompletionCallback& callback) {
     return ERR_FAILED;
   }
   virtual bool SetReceiveBufferSize(int32 size) { return true; }
@@ -172,20 +174,21 @@ class MockPendingClientSocket : public StreamSocket {
       const AddressList& addrlist,
       bool should_connect,
       bool should_stall,
-      int delay_ms)
-      : method_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)),
+      base::TimeDelta delay)
+      : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
         should_connect_(should_connect),
         should_stall_(should_stall),
-        delay_ms_(delay_ms),
+        delay_(delay),
         is_connected_(false),
         addrlist_(addrlist) {}
 
-  // StreamSocket methods:
-  virtual int Connect(CompletionCallback* callback) {
+  // StreamSocket implementation.
+  virtual int Connect(const CompletionCallback& callback) {
     MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
-        method_factory_.NewRunnableMethod(
-           &MockPendingClientSocket::DoCallback, callback), delay_ms_);
+        base::Bind(&MockPendingClientSocket::DoCallback,
+                   weak_factory_.GetWeakPtr(), callback),
+        delay_);
     return ERR_IO_PENDING;
   }
 
@@ -222,37 +225,37 @@ class MockPendingClientSocket : public StreamSocket {
     return base::TimeDelta::FromMicroseconds(-1);
   }
 
-  // Socket methods:
+  // Socket implementation.
   virtual int Read(IOBuffer* buf, int buf_len,
-                   CompletionCallback* callback) {
+                   const CompletionCallback& callback) {
     return ERR_FAILED;
   }
 
   virtual int Write(IOBuffer* buf, int buf_len,
-                    CompletionCallback* callback) {
+                    const CompletionCallback& callback) {
     return ERR_FAILED;
   }
   virtual bool SetReceiveBufferSize(int32 size) { return true; }
   virtual bool SetSendBufferSize(int32 size) { return true; }
 
  private:
-  void DoCallback(CompletionCallback* callback) {
+  void DoCallback(const CompletionCallback& callback) {
     if (should_stall_)
       return;
 
     if (should_connect_) {
       is_connected_ = true;
-      callback->Run(OK);
+      callback.Run(OK);
     } else {
       is_connected_ = false;
-      callback->Run(ERR_CONNECTION_FAILED);
+      callback.Run(ERR_CONNECTION_FAILED);
     }
   }
 
-  ScopedRunnableMethodFactory<MockPendingClientSocket> method_factory_;
+  base::WeakPtrFactory<MockPendingClientSocket> weak_factory_;
   bool should_connect_;
   bool should_stall_;
-  int delay_ms_;
+  base::TimeDelta delay_;
   bool is_connected_;
   const AddressList addrlist_;
   BoundNetLog net_log_;
@@ -275,7 +278,8 @@ class MockClientSocketFactory : public ClientSocketFactory {
       : allocation_count_(0), client_socket_type_(MOCK_CLIENT_SOCKET),
         client_socket_types_(NULL), client_socket_index_(0),
         client_socket_index_max_(0),
-        delay_ms_(ClientSocketPool::kMaxConnectRetryIntervalMs) {}
+        delay_(base::TimeDelta::FromMilliseconds(
+            ClientSocketPool::kMaxConnectRetryIntervalMs)) {}
 
   virtual DatagramClientSocket* CreateDatagramClientSocket(
       DatagramSocket::BindType bind_type,
@@ -304,13 +308,16 @@ class MockClientSocketFactory : public ClientSocketFactory {
       case MOCK_FAILING_CLIENT_SOCKET:
         return new MockFailingClientSocket(addresses);
       case MOCK_PENDING_CLIENT_SOCKET:
-        return new MockPendingClientSocket(addresses, true, false, 0);
+        return new MockPendingClientSocket(
+            addresses, true, false, base::TimeDelta());
       case MOCK_PENDING_FAILING_CLIENT_SOCKET:
-        return new MockPendingClientSocket(addresses, false, false, 0);
+        return new MockPendingClientSocket(
+            addresses, false, false, base::TimeDelta());
       case MOCK_DELAYED_CLIENT_SOCKET:
-        return new MockPendingClientSocket(addresses, true, false, delay_ms_);
+        return new MockPendingClientSocket(addresses, true, false, delay_);
       case MOCK_STALLED_CLIENT_SOCKET:
-        return new MockPendingClientSocket(addresses, true, true, 0);
+        return new MockPendingClientSocket(
+            addresses, true, true, base::TimeDelta());
       default:
         NOTREACHED();
         return new MockClientSocket(addresses);
@@ -347,7 +354,7 @@ class MockClientSocketFactory : public ClientSocketFactory {
     client_socket_index_max_ = num_types;
   }
 
-  void set_delay_ms(int delay_ms) { delay_ms_ = delay_ms; }
+  void set_delay(base::TimeDelta delay) { delay_ = delay; }
 
  private:
   int allocation_count_;
@@ -355,20 +362,20 @@ class MockClientSocketFactory : public ClientSocketFactory {
   ClientSocketType* client_socket_types_;
   int client_socket_index_;
   int client_socket_index_max_;
-  int delay_ms_;
+  base::TimeDelta delay_;
 };
 
 class TransportClientSocketPoolTest : public testing::Test {
  protected:
   TransportClientSocketPoolTest()
       : connect_backup_jobs_enabled_(
-          ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(true)),
+            ClientSocketPoolBaseHelper::set_connect_backup_jobs_enabled(true)),
         params_(
             new TransportSocketParams(HostPortPair("www.google.com", 80),
-                                     kDefaultPriority, GURL(), false, false)),
+                                     kDefaultPriority, false, false)),
         low_params_(
             new TransportSocketParams(HostPortPair("www.google.com", 80),
-                                      LOW, GURL(), false, false)),
+                                      LOW, false, false)),
         histograms_(new ClientSocketPoolHistograms("TCPUnitTest")),
         host_resolver_(new MockHostResolver),
         pool_(kMaxSockets,
@@ -386,7 +393,7 @@ class TransportClientSocketPoolTest : public testing::Test {
 
   int StartRequest(const std::string& group_name, RequestPriority priority) {
     scoped_refptr<TransportSocketParams> params(new TransportSocketParams(
-        HostPortPair("www.google.com", 80), MEDIUM, GURL(), false, false));
+        HostPortPair("www.google.com", 80), MEDIUM, false, false));
     return test_base_.StartRequestUsingPool(
         &pool_, group_name, priority, params);
   }
@@ -502,7 +509,8 @@ TEST(TransportConnectJobTest, MakeAddrListStartWithIPv4) {
 TEST_F(TransportClientSocketPoolTest, Basic) {
   TestCompletionCallback callback;
   ClientSocketHandle handle;
-  int rv = handle.Init("a", low_params_, LOW, &callback, &pool_, BoundNetLog());
+  int rv = handle.Init("a", low_params_, LOW, callback.callback(), &pool_,
+                       BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
@@ -520,10 +528,10 @@ TEST_F(TransportClientSocketPoolTest, InitHostResolutionFailure) {
   ClientSocketHandle handle;
   HostPortPair host_port_pair("unresolvable.host.name", 80);
   scoped_refptr<TransportSocketParams> dest(new TransportSocketParams(
-          host_port_pair, kDefaultPriority, GURL(), false, false));
+          host_port_pair, kDefaultPriority, false, false));
   EXPECT_EQ(ERR_IO_PENDING,
-            handle.Init("a", dest, kDefaultPriority, &callback, &pool_,
-                        BoundNetLog()));
+            handle.Init("a", dest, kDefaultPriority, callback.callback(),
+                        &pool_, BoundNetLog()));
   EXPECT_EQ(ERR_NAME_NOT_RESOLVED, callback.WaitForResult());
 }
 
@@ -532,15 +540,16 @@ TEST_F(TransportClientSocketPoolTest, InitConnectionFailure) {
       MockClientSocketFactory::MOCK_FAILING_CLIENT_SOCKET);
   TestCompletionCallback callback;
   ClientSocketHandle handle;
-  EXPECT_EQ(ERR_IO_PENDING, handle.Init("a", params_, kDefaultPriority,
-                                        &callback, &pool_, BoundNetLog()));
+  EXPECT_EQ(ERR_IO_PENDING,
+            handle.Init("a", params_, kDefaultPriority, callback.callback(),
+                        &pool_, BoundNetLog()));
   EXPECT_EQ(ERR_CONNECTION_FAILED, callback.WaitForResult());
 
   // Make the host resolutions complete synchronously this time.
   host_resolver_->set_synchronous_mode(true);
-  EXPECT_EQ(ERR_CONNECTION_FAILED, handle.Init("a", params_,
-                                               kDefaultPriority, &callback,
-                                               &pool_, BoundNetLog()));
+  EXPECT_EQ(ERR_CONNECTION_FAILED,
+            handle.Init("a", params_, kDefaultPriority, callback.callback(),
+                        &pool_, BoundNetLog()));
 }
 
 TEST_F(TransportClientSocketPoolTest, PendingRequests) {
@@ -645,8 +654,9 @@ TEST_F(TransportClientSocketPoolTest, PendingRequests_NoKeepAlive) {
 TEST_F(TransportClientSocketPoolTest, CancelRequestClearGroup) {
   TestCompletionCallback callback;
   ClientSocketHandle handle;
-  EXPECT_EQ(ERR_IO_PENDING, handle.Init("a", params_, kDefaultPriority,
-                                        &callback, &pool_, BoundNetLog()));
+  EXPECT_EQ(ERR_IO_PENDING,
+            handle.Init("a", params_, kDefaultPriority, callback.callback(),
+                        &pool_, BoundNetLog()));
   handle.Reset();
 }
 
@@ -656,10 +666,12 @@ TEST_F(TransportClientSocketPoolTest, TwoRequestsCancelOne) {
   ClientSocketHandle handle2;
   TestCompletionCallback callback2;
 
-  EXPECT_EQ(ERR_IO_PENDING, handle.Init("a", params_, kDefaultPriority,
-                                        &callback, &pool_, BoundNetLog()));
-  EXPECT_EQ(ERR_IO_PENDING, handle2.Init("a", params_, kDefaultPriority,
-                                         &callback2, &pool_, BoundNetLog()));
+  EXPECT_EQ(ERR_IO_PENDING,
+            handle.Init("a", params_, kDefaultPriority, callback.callback(),
+                        &pool_, BoundNetLog()));
+  EXPECT_EQ(ERR_IO_PENDING,
+            handle2.Init("a", params_, kDefaultPriority, callback2.callback(),
+                         &pool_, BoundNetLog()));
 
   handle.Reset();
 
@@ -672,14 +684,16 @@ TEST_F(TransportClientSocketPoolTest, ConnectCancelConnect) {
       MockClientSocketFactory::MOCK_PENDING_CLIENT_SOCKET);
   ClientSocketHandle handle;
   TestCompletionCallback callback;
-  EXPECT_EQ(ERR_IO_PENDING, handle.Init("a", params_, kDefaultPriority,
-                                        &callback, &pool_, BoundNetLog()));
+  EXPECT_EQ(ERR_IO_PENDING,
+            handle.Init("a", params_, kDefaultPriority, callback.callback(),
+                        &pool_, BoundNetLog()));
 
   handle.Reset();
 
   TestCompletionCallback callback2;
-  EXPECT_EQ(ERR_IO_PENDING, handle.Init("a", params_, kDefaultPriority,
-                                        &callback2, &pool_, BoundNetLog()));
+  EXPECT_EQ(ERR_IO_PENDING,
+            handle.Init("a", params_, kDefaultPriority, callback2.callback(),
+                        &pool_, BoundNetLog()));
 
   host_resolver_->set_synchronous_mode(true);
   // At this point, handle has two ConnectingSockets out for it.  Due to the
@@ -756,17 +770,26 @@ TEST_F(TransportClientSocketPoolTest, CancelRequest) {
   EXPECT_EQ(ClientSocketPoolTest::kIndexOutOfBounds, GetOrderOfRequest(17));
 }
 
-class RequestSocketCallback : public CallbackRunner< Tuple1<int> > {
+class RequestSocketCallback : public TestCompletionCallbackBase {
  public:
   RequestSocketCallback(ClientSocketHandle* handle,
                         TransportClientSocketPool* pool)
       : handle_(handle),
         pool_(pool),
-        within_callback_(false) {}
+        within_callback_(false),
+        ALLOW_THIS_IN_INITIALIZER_LIST(callback_(
+            base::Bind(&RequestSocketCallback::OnComplete,
+                       base::Unretained(this)))) {
+  }
 
-  virtual void RunWithParams(const Tuple1<int>& params) {
-    callback_.RunWithParams(params);
-    ASSERT_EQ(OK, params.a);
+  virtual ~RequestSocketCallback() {}
+
+  const CompletionCallback& callback() const { return callback_; }
+
+ private:
+  void OnComplete(int result) {
+    SetResult(result);
+    ASSERT_EQ(OK, result);
 
     if (!within_callback_) {
       // Don't allow reuse of the socket.  Disconnect it and then release it and
@@ -774,35 +797,32 @@ class RequestSocketCallback : public CallbackRunner< Tuple1<int> > {
       handle_->socket()->Disconnect();
       handle_->Reset();
       {
-        MessageLoop::ScopedNestableTaskAllower nestable(
-            MessageLoop::current());
+        MessageLoop::ScopedNestableTaskAllower allow(MessageLoop::current());
         MessageLoop::current()->RunAllPending();
       }
       within_callback_ = true;
       scoped_refptr<TransportSocketParams> dest(new TransportSocketParams(
-          HostPortPair("www.google.com", 80), LOWEST, GURL(), false, false));
-      int rv = handle_->Init("a", dest, LOWEST, this, pool_, BoundNetLog());
+          HostPortPair("www.google.com", 80), LOWEST, false, false));
+      int rv = handle_->Init("a", dest, LOWEST, callback(), pool_,
+                             BoundNetLog());
       EXPECT_EQ(OK, rv);
     }
   }
 
-  int WaitForResult() {
-    return callback_.WaitForResult();
-  }
-
- private:
   ClientSocketHandle* const handle_;
   TransportClientSocketPool* const pool_;
   bool within_callback_;
-  TestCompletionCallback callback_;
+  CompletionCallback callback_;
+
+  DISALLOW_COPY_AND_ASSIGN(RequestSocketCallback);
 };
 
 TEST_F(TransportClientSocketPoolTest, RequestTwice) {
   ClientSocketHandle handle;
   RequestSocketCallback callback(&handle, &pool_);
   scoped_refptr<TransportSocketParams> dest(new TransportSocketParams(
-      HostPortPair("www.google.com", 80), LOWEST, GURL(), false, false));
-  int rv = handle.Init("a", dest, LOWEST, &callback, &pool_,
+      HostPortPair("www.google.com", 80), LOWEST, false, false));
+  int rv = handle.Init("a", dest, LOWEST, callback.callback(), &pool_,
                        BoundNetLog());
   ASSERT_EQ(ERR_IO_PENDING, rv);
 
@@ -865,7 +885,8 @@ TEST_F(TransportClientSocketPoolTest, FailingActiveRequestWithPendingRequests) {
 TEST_F(TransportClientSocketPoolTest, ResetIdleSocketsOnIPAddressChange) {
   TestCompletionCallback callback;
   ClientSocketHandle handle;
-  int rv = handle.Init("a", low_params_, LOW, &callback, &pool_, BoundNetLog());
+  int rv = handle.Init("a", low_params_, LOW, callback.callback(), &pool_,
+                       BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
@@ -920,7 +941,7 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketConnect) {
 
     TestCompletionCallback callback;
     ClientSocketHandle handle;
-    int rv = handle.Init("b", low_params_, LOW, &callback, &pool_,
+    int rv = handle.Init("b", low_params_, LOW, callback.callback(), &pool_,
                          BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv);
     EXPECT_FALSE(handle.is_initialized());
@@ -930,8 +951,8 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketConnect) {
     MessageLoop::current()->RunAllPending();
 
     // Wait for the backup socket timer to fire.
-    base::PlatformThread::Sleep(
-        ClientSocketPool::kMaxConnectRetryIntervalMs + 50);
+    base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(
+        ClientSocketPool::kMaxConnectRetryIntervalMs + 50));
 
     // Let the appropriate socket connect.
     MessageLoop::current()->RunAllPending();
@@ -962,7 +983,7 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketCancel) {
 
     TestCompletionCallback callback;
     ClientSocketHandle handle;
-    int rv = handle.Init("c", low_params_, LOW, &callback, &pool_,
+    int rv = handle.Init("c", low_params_, LOW, callback.callback(), &pool_,
                          BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv);
     EXPECT_FALSE(handle.is_initialized());
@@ -973,7 +994,8 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketCancel) {
 
     if (index == CANCEL_AFTER_WAIT) {
       // Wait for the backup socket timer to fire.
-      base::PlatformThread::Sleep(ClientSocketPool::kMaxConnectRetryIntervalMs);
+      base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(
+          ClientSocketPool::kMaxConnectRetryIntervalMs));
     }
 
     // Let the appropriate socket connect.
@@ -993,15 +1015,7 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketCancel) {
 // Test the case where a socket took long enough to start the creation
 // of the backup socket and never completes, and then the backup
 // connection fails.
-//
-// Flaky on Mac + Linux - http://crbug.com/86550
-// Flaky on ChromeOS - http://crbug.com/89273
-#if defined(OS_MACOSX) || defined(OS_CHROMEOS) || defined(OS_LINUX)
-#define MAYBE_BackupSocketFailAfterStall FLAKY_BackupSocketFailAfterStall
-#else
-#define MAYBE_BackupSocketFailAfterStall BackupSocketFailAfterStall
-#endif
-TEST_F(TransportClientSocketPoolTest, MAYBE_BackupSocketFailAfterStall) {
+TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterStall) {
   MockClientSocketFactory::ClientSocketType case_types[] = {
     // The first socket will not connect.
     MockClientSocketFactory::MOCK_STALLED_CLIENT_SOCKET,
@@ -1015,7 +1029,8 @@ TEST_F(TransportClientSocketPoolTest, MAYBE_BackupSocketFailAfterStall) {
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
-  int rv = handle.Init("b", low_params_, LOW, &callback, &pool_, BoundNetLog());
+  int rv = handle.Init("b", low_params_, LOW, callback.callback(), &pool_,
+                       BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
@@ -1024,7 +1039,8 @@ TEST_F(TransportClientSocketPoolTest, MAYBE_BackupSocketFailAfterStall) {
   MessageLoop::current()->RunAllPending();
 
   // Wait for the backup socket timer to fire.
-  base::PlatformThread::Sleep(ClientSocketPool::kMaxConnectRetryIntervalMs);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(
+      ClientSocketPool::kMaxConnectRetryIntervalMs));
 
   // Let the second connect be synchronous. Otherwise, the emulated
   // host resolution takes an extra trip through the message loop.
@@ -1055,13 +1071,14 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterDelay) {
   };
 
   client_socket_factory_.set_client_socket_types(case_types, 2);
-  client_socket_factory_.set_delay_ms(5000);
+  client_socket_factory_.set_delay(base::TimeDelta::FromSeconds(5));
 
   EXPECT_EQ(0, pool_.IdleSocketCount());
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
-  int rv = handle.Init("b", low_params_, LOW, &callback, &pool_, BoundNetLog());
+  int rv = handle.Init("b", low_params_, LOW, callback.callback(), &pool_,
+                       BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
@@ -1070,7 +1087,8 @@ TEST_F(TransportClientSocketPoolTest, BackupSocketFailAfterDelay) {
   MessageLoop::current()->RunAllPending();
 
   // Wait for the backup socket timer to fire.
-  base::PlatformThread::Sleep(ClientSocketPool::kMaxConnectRetryIntervalMs);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(
+      ClientSocketPool::kMaxConnectRetryIntervalMs));
 
   // Let the second connect be synchronous. Otherwise, the emulated
   // host resolution takes an extra trip through the message loop.
@@ -1115,7 +1133,8 @@ TEST_F(TransportClientSocketPoolTest, IPv6FallbackSocketIPv4FinishesFirst) {
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
-  int rv = handle.Init("a", low_params_, LOW, &callback, &pool, BoundNetLog());
+  int rv = handle.Init("a", low_params_, LOW, callback.callback(), &pool,
+                       BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
@@ -1150,8 +1169,8 @@ TEST_F(TransportClientSocketPoolTest, IPv6FallbackSocketIPv6FinishesFirst) {
   };
 
   client_socket_factory_.set_client_socket_types(case_types, 2);
-  client_socket_factory_.set_delay_ms(
-      TransportConnectJob::kIPv6FallbackTimerInMs + 50);
+  client_socket_factory_.set_delay(base::TimeDelta::FromMilliseconds(
+      TransportConnectJob::kIPv6FallbackTimerInMs + 50));
 
   // Resolve an AddressList with a IPv6 address first and then a IPv4 address.
   host_resolver_->rules()->AddIPLiteralRule(
@@ -1159,7 +1178,8 @@ TEST_F(TransportClientSocketPoolTest, IPv6FallbackSocketIPv6FinishesFirst) {
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
-  int rv = handle.Init("a", low_params_, LOW, &callback, &pool, BoundNetLog());
+  int rv = handle.Init("a", low_params_, LOW, callback.callback(), &pool,
+                       BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
@@ -1192,7 +1212,8 @@ TEST_F(TransportClientSocketPoolTest, IPv6NoIPv4AddressesToFallbackTo) {
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
-  int rv = handle.Init("a", low_params_, LOW, &callback, &pool, BoundNetLog());
+  int rv = handle.Init("a", low_params_, LOW, callback.callback(), &pool,
+                       BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
@@ -1225,7 +1246,8 @@ TEST_F(TransportClientSocketPoolTest, IPv4HasNoFallback) {
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
-  int rv = handle.Init("a", low_params_, LOW, &callback, &pool, BoundNetLog());
+  int rv = handle.Init("a", low_params_, LOW, callback.callback(), &pool,
+                       BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());

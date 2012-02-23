@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,11 +26,11 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
     Request(MockAsyncProxyResolverBase* resolver,
             const GURL& url,
             ProxyInfo* results,
-            CompletionCallback* callback);
+            const net::CompletionCallback& callback);
 
     const GURL& url() const { return url_; }
     ProxyInfo* results() const { return results_; }
-    CompletionCallback* callback() const { return callback_; }
+    const net::CompletionCallback& callback() const { return callback_; }
 
     void CompleteNow(int rv);
 
@@ -42,7 +42,7 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
     MockAsyncProxyResolverBase* resolver_;
     const GURL url_;
     ProxyInfo* results_;
-    CompletionCallback* callback_;
+    net::CompletionCallback callback_;
     MessageLoop* origin_loop_;
   };
 
@@ -51,7 +51,7 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
     SetPacScriptRequest(
         MockAsyncProxyResolverBase* resolver,
         const scoped_refptr<ProxyResolverScriptData>& script_data,
-        CompletionCallback* callback);
+        const net::CompletionCallback& callback);
     ~SetPacScriptRequest();
 
     const ProxyResolverScriptData* script_data() const { return script_data_; }
@@ -61,7 +61,7 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
    private:
     MockAsyncProxyResolverBase* resolver_;
     const scoped_refptr<ProxyResolverScriptData> script_data_;
-    CompletionCallback* callback_;
+    net::CompletionCallback callback_;
     MessageLoop* origin_loop_;
   };
 
@@ -69,16 +69,19 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
 
   virtual ~MockAsyncProxyResolverBase();
 
-  // ProxyResolver implementation:
+  // ProxyResolver implementation.
   virtual int GetProxyForURL(const GURL& url,
                              ProxyInfo* results,
-                             CompletionCallback* callback,
+                             const net::CompletionCallback& callback,
                              RequestHandle* request_handle,
                              const BoundNetLog& /*net_log*/) OVERRIDE;
   virtual void CancelRequest(RequestHandle request_handle) OVERRIDE;
+  virtual LoadState GetLoadState(RequestHandle request_handle) const OVERRIDE;
+  virtual LoadState GetLoadStateThreadSafe(
+      RequestHandle request_handle) const OVERRIDE;
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      CompletionCallback* callback) OVERRIDE;
+      const net::CompletionCallback& callback) OVERRIDE;
   virtual void CancelSetPacScript() OVERRIDE;
 
   const RequestsList& pending_requests() const {
@@ -90,6 +93,10 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
   }
 
   SetPacScriptRequest* pending_set_pac_script_request() const;
+
+  bool has_pending_set_pac_script_request() const {
+    return pending_set_pac_script_request_.get() != NULL;
+  }
 
   void RemovePendingRequest(Request* request);
 

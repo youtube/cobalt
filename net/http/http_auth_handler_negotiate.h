@@ -8,10 +8,9 @@
 
 #include <string>
 
-#include "base/string16.h"
 #include "build/build_config.h"
 #include "net/base/address_list.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
 
@@ -32,7 +31,7 @@ class URLSecurityManager;
 // See http://tools.ietf.org/html/rfc4178 and http://tools.ietf.org/html/rfc4559
 // for more information about the protocol.
 
-class NET_TEST HttpAuthHandlerNegotiate : public HttpAuthHandler {
+class NET_EXPORT_PRIVATE HttpAuthHandlerNegotiate : public HttpAuthHandler {
  public:
 #if defined(OS_WIN)
   typedef SSPILibrary AuthLibrary;
@@ -42,7 +41,7 @@ class NET_TEST HttpAuthHandlerNegotiate : public HttpAuthHandler {
   typedef HttpAuthGSSAPI AuthSystem;
 #endif
 
-  class NET_TEST Factory : public HttpAuthHandlerFactory {
+  class NET_EXPORT_PRIVATE Factory : public HttpAuthHandlerFactory {
    public:
     Factory();
     virtual ~Factory();
@@ -71,13 +70,14 @@ class NET_TEST HttpAuthHandlerNegotiate : public HttpAuthHandler {
       auth_library_.reset(auth_library);
     }
 
-    virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
-                                  HttpAuth::Target target,
-                                  const GURL& origin,
-                                  CreateReason reason,
-                                  int digest_nonce_count,
-                                  const BoundNetLog& net_log,
-                                  scoped_ptr<HttpAuthHandler>* handler);
+    virtual int CreateAuthHandler(
+        HttpAuth::ChallengeTokenizer* challenge,
+        HttpAuth::Target target,
+        const GURL& origin,
+        CreateReason reason,
+        int digest_nonce_count,
+        const BoundNetLog& net_log,
+        scoped_ptr<HttpAuthHandler>* handler) OVERRIDE;
 
    private:
     bool disable_cname_lookup_;
@@ -108,18 +108,18 @@ class NET_TEST HttpAuthHandlerNegotiate : public HttpAuthHandler {
 
   // HttpAuthHandler:
   virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
-      HttpAuth::ChallengeTokenizer* challenge);
-  virtual bool NeedsIdentity();
-  virtual bool AllowsDefaultCredentials();
+      HttpAuth::ChallengeTokenizer* challenge) OVERRIDE;
+  virtual bool NeedsIdentity() OVERRIDE;
+  virtual bool AllowsDefaultCredentials() OVERRIDE;
+  virtual bool AllowsExplicitCredentials() OVERRIDE;
 
  protected:
-  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge);
+  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) OVERRIDE;
 
-  virtual int GenerateAuthTokenImpl(const string16* username,
-                                    const string16* password,
+  virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
                                     const HttpRequestInfo* request,
-                                    CompletionCallback* callback,
-                                    std::string* auth_token);
+                                    const CompletionCallback& callback,
+                                    std::string* auth_token) OVERRIDE;
 
  private:
   enum State {
@@ -143,7 +143,6 @@ class NET_TEST HttpAuthHandlerNegotiate : public HttpAuthHandler {
   AuthSystem auth_system_;
   bool disable_cname_lookup_;
   bool use_port_;
-  CompletionCallbackImpl<HttpAuthHandlerNegotiate> io_callback_;
   HostResolver* const resolver_;
 
   // Members which are needed for DNS lookup + SPN.
@@ -152,13 +151,12 @@ class NET_TEST HttpAuthHandlerNegotiate : public HttpAuthHandler {
 
   // Things which should be consistent after first call to GenerateAuthToken.
   bool already_called_;
-  bool has_username_and_password_;
-  string16 username_;
-  string16 password_;
+  bool has_credentials_;
+  AuthCredentials credentials_;
   std::wstring spn_;
 
   // Things which vary each round.
-  CompletionCallback* user_callback_;
+  CompletionCallback callback_;
   std::string* auth_token_;
 
   State next_state_;

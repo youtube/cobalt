@@ -4,10 +4,11 @@
 
 #include "net/proxy/dhcp_proxy_script_adapter_fetcher_win.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/message_loop_proxy.h"
 #include "base/metrics/histogram.h"
 #include "base/sys_string_conversions.h"
-#include "base/task.h"
 #include "base/threading/worker_pool.h"
 #include "base/time.h"
 #include "net/base/net_errors.h"
@@ -33,10 +34,6 @@ DhcpProxyScriptAdapterFetcher::DhcpProxyScriptAdapterFetcher(
     URLRequestContext* url_request_context)
     : state_(STATE_START),
       result_(ERR_IO_PENDING),
-      callback_(NULL),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          script_fetcher_callback_(
-              this, &DhcpProxyScriptAdapterFetcher::OnFetcherDone)),
       url_request_context_(url_request_context) {
 }
 
@@ -50,7 +47,7 @@ DhcpProxyScriptAdapterFetcher::~DhcpProxyScriptAdapterFetcher() {
 }
 
 void DhcpProxyScriptAdapterFetcher::Fetch(
-    const std::string& adapter_name, CompletionCallback* callback) {
+    const std::string& adapter_name, const CompletionCallback& callback) {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(state_, STATE_START);
   result_ = ERR_IO_PENDING;
@@ -58,15 +55,25 @@ void DhcpProxyScriptAdapterFetcher::Fetch(
   state_ = STATE_WAIT_DHCP;
   callback_ = callback;
 
-  wait_timer_.Start(ImplGetTimeout(),
+  wait_timer_.Start(FROM_HERE, ImplGetTimeout(),
                     this, &DhcpProxyScriptAdapterFetcher::OnTimeout);
-  worker_thread_ = ImplCreateWorkerThread(AsWeakPtr());
-  worker_thread_->Start(adapter_name);
+  scoped_refptr<DhcpQuery> dhcp_query(ImplCreateDhcpQuery());
+  base::WorkerPool::PostTaskAndReply(
+      FROM_HERE,
+      base::Bind(
+          &DhcpProxyScriptAdapterFetcher::DhcpQuery::GetPacURLForAdapter,
+          dhcp_query.get(),
+          adapter_name),
+      base::Bind(
+          &DhcpProxyScriptAdapterFetcher::OnDhcpQueryDone,
+          AsWeakPtr(),
+          dhcp_query),
+      true);
 }
 
 void DhcpProxyScriptAdapterFetcher::Cancel() {
   DCHECK(CalledOnValidThread());
-  callback_ = NULL;
+  callback_.Reset();
   wait_timer_.Stop();
   script_fetcher_.reset();
 
@@ -109,55 +116,29 @@ GURL DhcpProxyScriptAdapterFetcher::GetPacURL() const {
   return pac_url_;
 }
 
-DhcpProxyScriptAdapterFetcher::WorkerThread::WorkerThread(
-    const base::WeakPtr<DhcpProxyScriptAdapterFetcher>& owner)
-        : owner_(owner),
-          origin_loop_(base::MessageLoopProxy::CreateForCurrentThread()) {
+DhcpProxyScriptAdapterFetcher::DhcpQuery::DhcpQuery() {
 }
 
-DhcpProxyScriptAdapterFetcher::WorkerThread::~WorkerThread() {
+DhcpProxyScriptAdapterFetcher::DhcpQuery::~DhcpQuery() {
 }
 
-void DhcpProxyScriptAdapterFetcher::WorkerThread::Start(
+void DhcpProxyScriptAdapterFetcher::DhcpQuery::GetPacURLForAdapter(
     const std::string& adapter_name) {
-  bool succeeded = base::WorkerPool::PostTask(
-      FROM_HERE,
-      NewRunnableMethod(
-          this,
-          &DhcpProxyScriptAdapterFetcher::WorkerThread::ThreadFunc,
-          adapter_name),
-      true);
-  DCHECK(succeeded);
+  url_ = ImplGetPacURLFromDhcp(adapter_name);
 }
 
-void DhcpProxyScriptAdapterFetcher::WorkerThread::ThreadFunc(
-    const std::string& adapter_name) {
-  std::string url = ImplGetPacURLFromDhcp(adapter_name);
-
-  bool succeeded = origin_loop_->PostTask(
-      FROM_HERE,
-      NewRunnableMethod(
-          this,
-          &DhcpProxyScriptAdapterFetcher::WorkerThread::OnThreadDone,
-          url));
-  DCHECK(succeeded);
-}
-
-void DhcpProxyScriptAdapterFetcher::WorkerThread::OnThreadDone(
-    const std::string& url) {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  if (owner_)
-    owner_->OnQueryDhcpDone(url);
+const std::string& DhcpProxyScriptAdapterFetcher::DhcpQuery::url() const {
+  return url_;
 }
 
 std::string
-    DhcpProxyScriptAdapterFetcher::WorkerThread::ImplGetPacURLFromDhcp(
+    DhcpProxyScriptAdapterFetcher::DhcpQuery::ImplGetPacURLFromDhcp(
         const std::string& adapter_name) {
   return DhcpProxyScriptAdapterFetcher::GetPacURLFromDhcp(adapter_name);
 }
 
-void DhcpProxyScriptAdapterFetcher::OnQueryDhcpDone(
-    const std::string& url) {
+void DhcpProxyScriptAdapterFetcher::OnDhcpQueryDone(
+    scoped_refptr<DhcpQuery> dhcp_query) {
   DCHECK(CalledOnValidThread());
   // Because we can't cancel the call to the Win32 API, we can expect
   // it to finish while we are in a few different states.  The expected
@@ -170,14 +151,17 @@ void DhcpProxyScriptAdapterFetcher::OnQueryDhcpDone(
 
   wait_timer_.Stop();
 
-  pac_url_ = GURL(url);
+  pac_url_ = GURL(dhcp_query->url());
   if (pac_url_.is_empty() || !pac_url_.is_valid()) {
     result_ = ERR_PAC_NOT_IN_DHCP;
     TransitionToFinish();
   } else {
     state_ = STATE_WAIT_URL;
     script_fetcher_.reset(ImplCreateScriptFetcher());
-    script_fetcher_->Fetch(pac_url_, &pac_script_, &script_fetcher_callback_);
+    script_fetcher_->Fetch(
+        pac_url_, &pac_script_,
+        base::Bind(&DhcpProxyScriptAdapterFetcher::OnFetcherDone,
+                   base::Unretained(this)));
   }
 }
 
@@ -202,12 +186,12 @@ void DhcpProxyScriptAdapterFetcher::OnFetcherDone(int result) {
 void DhcpProxyScriptAdapterFetcher::TransitionToFinish() {
   DCHECK(state_ == STATE_WAIT_DHCP || state_ == STATE_WAIT_URL);
   state_ = STATE_FINISH;
-  CompletionCallback* callback = callback_;
-  callback_ = NULL;
+  CompletionCallback callback = callback_;
+  callback_.Reset();
 
   // Be careful not to touch any member state after this, as the client
   // may delete us during this callback.
-  callback->Run(result_);
+  callback.Run(result_);
 }
 
 DhcpProxyScriptAdapterFetcher::State
@@ -219,10 +203,9 @@ ProxyScriptFetcher* DhcpProxyScriptAdapterFetcher::ImplCreateScriptFetcher() {
   return new ProxyScriptFetcherImpl(url_request_context_);
 }
 
-DhcpProxyScriptAdapterFetcher::WorkerThread*
-    DhcpProxyScriptAdapterFetcher::ImplCreateWorkerThread(
-        const base::WeakPtr<DhcpProxyScriptAdapterFetcher>& owner) {
-  return new WorkerThread(owner);
+DhcpProxyScriptAdapterFetcher::DhcpQuery*
+    DhcpProxyScriptAdapterFetcher::ImplCreateDhcpQuery() {
+  return new DhcpQuery();
 }
 
 base::TimeDelta DhcpProxyScriptAdapterFetcher::ImplGetTimeout() const {
@@ -282,13 +265,24 @@ std::string DhcpProxyScriptAdapterFetcher::GetPacURLFromDhcp(
     LOG(INFO) << "Error fetching PAC URL from DHCP: " << res;
     UMA_HISTOGRAM_COUNTS("Net.DhcpWpadUnhandledDhcpError", 1);
   } else if (wpad_params.nBytesData) {
-    // The result should be ASCII, not wide character.
-    DCHECK_EQ(strlen(reinterpret_cast<const char*>(wpad_params.Data)) + 1,
-              wpad_params.nBytesData);
-    // Return only up to the first null in case of embedded NULLs; if the
-    // server is giving us back a buffer with embedded NULLs, something is
-    // broken anyway.
-    return std::string(reinterpret_cast<const char *>(wpad_params.Data));
+#ifndef NDEBUG
+    // The result should be ASCII, not wide character.  Some DHCP
+    // servers appear to count the trailing NULL in nBytesData, others
+    // do not.
+    size_t count_without_null =
+        strlen(reinterpret_cast<const char*>(wpad_params.Data));
+    DCHECK(count_without_null == wpad_params.nBytesData ||
+           count_without_null + 1 == wpad_params.nBytesData);
+#endif
+    // Belt and suspenders: First, ensure we NULL-terminate after
+    // nBytesData; this is the inner constructor with nBytesData as a
+    // parameter.  Then, return only up to the first null in case of
+    // embedded NULLs; this is the outer constructor that takes the
+    // result of c_str() on the inner.  If the server is giving us
+    // back a buffer with embedded NULLs, something is broken anyway.
+    return std::string(
+        std::string(reinterpret_cast<const char *>(wpad_params.Data),
+                    wpad_params.nBytesData).c_str());
   }
 
   return "";
