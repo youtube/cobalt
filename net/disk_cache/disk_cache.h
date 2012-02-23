@@ -14,9 +14,9 @@
 
 #include "base/basictypes.h"
 #include "base/time.h"
-#include "net/base/net_api.h"
 #include "net/base/cache_type.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_export.h"
 
 class FilePath;
 
@@ -33,7 +33,6 @@ namespace disk_cache {
 
 class Entry;
 class Backend;
-typedef net::CompletionCallback CompletionCallback;
 
 // Returns an instance of a Backend of the given |type|. |path| points to a
 // folder where the cached data will be stored (if appropriate). This cache
@@ -50,14 +49,14 @@ typedef net::CompletionCallback CompletionCallback;
 // be invoked when a backend is available or a fatal error condition is reached.
 // The pointer to receive the |backend| must remain valid until the operation
 // completes (the callback is notified).
-NET_API int CreateCacheBackend(net::CacheType type, const FilePath& path,
-                               int max_bytes, bool force,
-                               base::MessageLoopProxy* thread,
-                               net::NetLog* net_log, Backend** backend,
-                               CompletionCallback* callback);
+NET_EXPORT int CreateCacheBackend(net::CacheType type, const FilePath& path,
+                                  int max_bytes, bool force,
+                                  base::MessageLoopProxy* thread,
+                                  net::NetLog* net_log, Backend** backend,
+                                  const net::CompletionCallback& callback);
 
 // The root interface for a disk cache instance.
-class NET_API Backend {
+class NET_EXPORT Backend {
  public:
   // If the backend is destroyed when there are operations in progress (any
   // callback that has not been invoked yet), this method cancels said
@@ -77,7 +76,7 @@ class NET_API Backend {
   // will be invoked when the entry is available. The pointer to receive the
   // |entry| must remain valid until the operation completes.
   virtual int OpenEntry(const std::string& key, Entry** entry,
-                        CompletionCallback* callback) = 0;
+                        const net::CompletionCallback& callback) = 0;
 
   // Creates a new entry. Upon success, the out param holds a pointer to an
   // Entry object representing the newly created disk cache entry. When the
@@ -86,18 +85,18 @@ class NET_API Backend {
   // the |callback| will be invoked when the entry is available. The pointer to
   // receive the |entry| must remain valid until the operation completes.
   virtual int CreateEntry(const std::string& key, Entry** entry,
-                          CompletionCallback* callback) = 0;
+                          const net::CompletionCallback& callback) = 0;
 
   // Marks the entry, specified by the given key, for deletion. The return value
   // is a net error code. If this method returns ERR_IO_PENDING, the |callback|
   // will be invoked after the entry is doomed.
   virtual int DoomEntry(const std::string& key,
-                        CompletionCallback* callback) = 0;
+                        const net::CompletionCallback& callback) = 0;
 
   // Marks all entries for deletion. The return value is a net error code. If
   // this method returns ERR_IO_PENDING, the |callback| will be invoked when the
   // operation completes.
-  virtual int DoomAllEntries(CompletionCallback* callback) = 0;
+  virtual int DoomAllEntries(const net::CompletionCallback& callback) = 0;
 
   // Marks a range of entries for deletion. This supports unbounded deletes in
   // either direction by using null Time values for either argument. The return
@@ -105,13 +104,13 @@ class NET_API Backend {
   // |callback| will be invoked when the operation completes.
   virtual int DoomEntriesBetween(const base::Time initial_time,
                                  const base::Time end_time,
-                                 CompletionCallback* callback) = 0;
+                                 const net::CompletionCallback& callback) = 0;
 
   // Marks all entries accessed since |initial_time| for deletion. The return
   // value is a net error code. If this method returns ERR_IO_PENDING, the
   // |callback| will be invoked when the operation completes.
   virtual int DoomEntriesSince(const base::Time initial_time,
-                               CompletionCallback* callback) = 0;
+                               const net::CompletionCallback& callback) = 0;
 
   // Enumerates the cache. Initialize |iter| to NULL before calling this method
   // the first time. That will cause the enumeration to start at the head of
@@ -126,7 +125,7 @@ class NET_API Backend {
   // NOTE: This method does not modify the last_used field of the entry, and
   // therefore it does not impact the eviction ranking of the entry.
   virtual int OpenNextEntry(void** iter, Entry** next_entry,
-                            CompletionCallback* callback) = 0;
+                            const net::CompletionCallback& callback) = 0;
 
   // Releases iter without returning the next entry. Whenever OpenNextEntry()
   // returns true, but the caller is not interested in continuing the
@@ -144,7 +143,7 @@ class NET_API Backend {
 };
 
 // This interface represents an entry in the disk cache.
-class NET_TEST Entry {
+class NET_EXPORT Entry {
  public:
   // Marks this cache entry for deletion.
   virtual void Doom() = 0;
@@ -178,7 +177,7 @@ class NET_TEST Entry {
   // having to wait for all the callbacks, and still rely on the cleanup
   // performed from the callback code.
   virtual int ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                       CompletionCallback* completion_callback) = 0;
+                       const net::CompletionCallback& callback) = 0;
 
   // Copies cache data from the given buffer of length |buf_len|.  If
   // completion_callback is null, then this call blocks until the write
@@ -194,7 +193,7 @@ class NET_TEST Entry {
   // If truncate is true, this call will truncate the stored data at the end of
   // what we are writing here.
   virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                        CompletionCallback* completion_callback,
+                        const net::CompletionCallback& callback,
                         bool truncate) = 0;
 
   // Sparse entries support:
@@ -242,7 +241,7 @@ class NET_TEST Entry {
   // Behaves like ReadData() except that this method is used to access sparse
   // entries.
   virtual int ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                             CompletionCallback* completion_callback) = 0;
+                             const net::CompletionCallback& callback) = 0;
 
   // Behaves like WriteData() except that this method is used to access sparse
   // entries. |truncate| is not part of this interface because a sparse entry
@@ -251,7 +250,7 @@ class NET_TEST Entry {
   // that the content has changed), the whole entry should be doomed and
   // re-created.
   virtual int WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                              CompletionCallback* completion_callback) = 0;
+                              const net::CompletionCallback& callback) = 0;
 
   // Returns information about the currently stored portion of a sparse entry.
   // |offset| and |len| describe a particular range that should be scanned to
@@ -263,13 +262,13 @@ class NET_TEST Entry {
   // this method returns ERR_IO_PENDING, the |callback| will be invoked when the
   // operation completes, and |start| must remain valid until that point.
   virtual int GetAvailableRange(int64 offset, int len, int64* start,
-                                CompletionCallback* callback) = 0;
+                                const net::CompletionCallback& callback) = 0;
 
   // Returns true if this entry could be a sparse entry or false otherwise. This
   // is a quick test that may return true even if the entry is not really
   // sparse. This method doesn't modify the state of this entry (it will not
   // create sparse tracking data). GetAvailableRange or ReadSparseData can be
-  // used to perfom a definitive test of wether an existing entry is sparse or
+  // used to perform a definitive test of whether an existing entry is sparse or
   // not, but that method may modify the current state of the entry (making it
   // sparse, for instance). The purpose of this method is to test an existing
   // entry, but without generating actual IO to perform a thorough check.
@@ -293,7 +292,8 @@ class NET_TEST Entry {
   // Note that CancelSparseIO may have been called on another instance of this
   // object that refers to the same physical disk entry.
   // Note: This method is deprecated.
-  virtual int ReadyForSparseIO(CompletionCallback* completion_callback) = 0;
+  virtual int ReadyForSparseIO(
+      const net::CompletionCallback& completion_callback) = 0;
 
  protected:
   virtual ~Entry() {}

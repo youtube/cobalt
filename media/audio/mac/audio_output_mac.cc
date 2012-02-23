@@ -1,10 +1,13 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/audio/mac/audio_output_mac.h"
 
+#include <CoreServices/CoreServices.h>
+
 #include "base/basictypes.h"
+#include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "media/audio/audio_util.h"
@@ -90,10 +93,11 @@ void PCMQueueOutAudioOutputStream::HandleError(OSStatus err) {
   // source_ can be set to NULL from another thread. We need to cache its
   // pointer while we operate here. Note that does not mean that the source
   // has been destroyed.
-  AudioSourceCallback* source = source_;
+  AudioSourceCallback* source = GetSource();
   if (source)
     source->OnError(this, static_cast<int>(err));
-  NOTREACHED() << "error code " << err;
+  NOTREACHED() << "error " << GetMacOSStatusErrorString(err)
+               << " (" << err << ")";
 }
 
 bool PCMQueueOutAudioOutputStream::Open() {
@@ -156,7 +160,7 @@ bool PCMQueueOutAudioOutputStream::Open() {
   // Create the actual queue object and let the OS use its own thread to
   // run its CFRunLoop.
   err = AudioQueueNewOutput(&format_, RenderCallback, this, NULL,
-                                     kCFRunLoopCommonModes, 0, &audio_queue_);
+                            kCFRunLoopCommonModes, 0, &audio_queue_);
   if (err != noErr) {
     HandleError(err);
     return false;
@@ -313,7 +317,8 @@ void PCMQueueOutAudioOutputStream::Close() {
 void PCMQueueOutAudioOutputStream::Stop() {
   // We request a synchronous stop, so the next call can take some time. In
   // the windows implementation we block here as well.
-  source_ = NULL;
+  SetSource(NULL);
+
   // We set the source to null to signal to the data queueing thread it can stop
   // queueing data, however at most one callback might still be in flight which
   // could attempt to enqueue right after the next call. Rather that trying to
@@ -377,18 +382,20 @@ bool PCMQueueOutAudioOutputStream::CheckForAdjustedLayout(
   return false;
 }
 
-// Note to future hackers of this function: Do not add locks here because we
-// call out to third party source that might do crazy things including adquire
-// external locks or somehow re-enter here because its legal for them to call
-// some audio functions.
+// Note to future hackers of this function: Do not add locks to this function
+// that are held through any calls made back into AudioQueue APIs, or other
+// OS audio functions.  This is because the OS dispatch may grab external
+// locks, or possibly re-enter this function which can lead to a deadlock.
 void PCMQueueOutAudioOutputStream::RenderCallback(void* p_this,
                                                   AudioQueueRef queue,
                                                   AudioQueueBufferRef buffer) {
+  TRACE_EVENT0("audio", "PCMQueueOutAudioOutputStream::RenderCallback");
+
   PCMQueueOutAudioOutputStream* audio_stream =
       static_cast<PCMQueueOutAudioOutputStream*>(p_this);
   // Call the audio source to fill the free buffer with data. Not having a
   // source means that the queue has been closed. This is not an error.
-  AudioSourceCallback* source = audio_stream->source_;
+  AudioSourceCallback* source = audio_stream->GetSource();
   if (!source)
     return;
 
@@ -464,8 +471,9 @@ void PCMQueueOutAudioOutputStream::RenderCallback(void* p_this,
     if (err == kAudioQueueErr_EnqueueDuringReset) {
       // This is the error you get if you try to enqueue a buffer and the
       // queue has been closed. Not really a problem if indeed the queue
-      // has been closed.
-      if (!audio_stream->source_)
+      // has been closed.  We recheck the value of source now to see if it has
+      // indeed been closed.
+      if (!audio_stream->GetSource())
         return;
     }
     audio_stream->HandleError(err);
@@ -474,12 +482,23 @@ void PCMQueueOutAudioOutputStream::RenderCallback(void* p_this,
 
 void PCMQueueOutAudioOutputStream::Start(AudioSourceCallback* callback) {
   DCHECK(callback);
+  DLOG_IF(ERROR, !audio_queue_) << "Open() has not been called successfully";
+  if (!audio_queue_)
+    return;
+
   OSStatus err = noErr;
-  source_ = callback;
+  SetSource(callback);
   pending_bytes_ = 0;
   // Ask the source to pre-fill all our buffers before playing.
   for (uint32 ix = 0; ix != kNumBuffers; ++ix) {
     buffer_[ix]->mAudioDataByteSize = 0;
+    // Caller waits for 1st packet to become available, but not for others,
+    // so we wait for them here.
+    if (ix != 0) {
+      AudioSourceCallback* source = GetSource();
+      if (source)
+        source->WaitTillDataReady();
+    }
     RenderCallback(this, NULL, buffer_[ix]);
   }
 
@@ -496,4 +515,15 @@ void PCMQueueOutAudioOutputStream::Start(AudioSourceCallback* callback) {
     HandleError(err);
     return;
   }
+}
+
+void PCMQueueOutAudioOutputStream::SetSource(AudioSourceCallback* source) {
+  base::AutoLock lock(source_lock_);
+  source_ = source;
+}
+
+AudioOutputStream::AudioSourceCallback*
+PCMQueueOutAudioOutputStream::GetSource() {
+  base::AutoLock lock(source_lock_);
+  return source_;
 }

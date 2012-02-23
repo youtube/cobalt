@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,17 +12,14 @@
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
+#include "base/time.h"
 #include "build/build_config.h"
 
 #if defined(OS_WIN)
 #include <windows.h>
 #elif defined(OS_POSIX)
 #include <pthread.h>
-#if defined(OS_MACOSX)
-#include <mach/mach.h>
-#else  // OS_POSIX && !OS_MACOSX
 #include <unistd.h>
-#endif
 #endif
 
 namespace base {
@@ -38,11 +35,7 @@ const PlatformThreadHandle kNullThreadHandle = NULL;
 #elif defined(OS_POSIX)
 typedef pthread_t PlatformThreadHandle;
 const PlatformThreadHandle kNullThreadHandle = 0;
-#if defined(OS_MACOSX)
-typedef mach_port_t PlatformThreadId;
-#else  // OS_POSIX && !OS_MACOSX
 typedef pid_t PlatformThreadId;
-#endif
 #endif
 
 const PlatformThreadId kInvalidThreadId = 0;
@@ -74,8 +67,16 @@ class BASE_EXPORT PlatformThread {
   // Sleeps for the specified duration (units are milliseconds).
   static void Sleep(int duration_ms);
 
-  // Sets the thread name visible to a debugger.  This has no effect otherwise.
+  // Sleeps for the specified duration.
+  static void Sleep(base::TimeDelta duration);
+
+  // Sets the thread name visible to debuggers/tools. This has no effect
+  // otherwise. This name pointer is not copied internally. Thus, it must stay
+  // valid until the thread ends.
   static void SetName(const char* name);
+
+  // Gets the thread name, if previously set by SetName.
+  static const char* GetName();
 
   // Creates a new thread.  The |stack_size| parameter can be 0 to indicate
   // that the default stack size should be used.  Upon success,

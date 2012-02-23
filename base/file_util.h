@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,9 +13,6 @@
 
 #if defined(OS_WIN)
 #include <windows.h>
-#if defined(UNIT_TEST)
-#include <aclapi.h>
-#endif
 #elif defined(OS_POSIX)
 #include <sys/stat.h>
 #include <unistd.h>
@@ -23,6 +20,7 @@
 
 #include <stdio.h>
 
+#include <set>
 #include <stack>
 #include <string>
 #include <vector>
@@ -45,6 +43,8 @@ class Time;
 }
 
 namespace file_util {
+
+extern bool g_bug108724_debug;
 
 //-----------------------------------------------------------------------------
 // Functions that operate purely on a path string w/o touching the filesystem:
@@ -261,7 +261,7 @@ BASE_EXPORT bool IsDirectoryEmpty(const FilePath& dir_path);
 BASE_EXPORT bool GetTempDir(FilePath* path);
 // Get a temporary directory for shared memory files.
 // Only useful on POSIX; redirects to GetTempDir() on Windows.
-BASE_EXPORT bool GetShmemTempDir(FilePath* path);
+BASE_EXPORT bool GetShmemTempDir(FilePath* path, bool executable);
 
 // Get the home directory.  This is more complicated than just getenv("HOME")
 // as it knows to fall back on getpwent() etc.
@@ -281,7 +281,10 @@ BASE_EXPORT bool CreateTemporaryFileInDir(const FilePath& dir,
 // Returns a handle to the opened file or NULL if an error occured.
 BASE_EXPORT FILE* CreateAndOpenTemporaryFile(FilePath* path);
 // Like above but for shmem files.  Only useful for POSIX.
-BASE_EXPORT FILE* CreateAndOpenTemporaryShmemFile(FilePath* path);
+// The executable flag says the file needs to support using
+// mprotect with PROT_EXEC after mapping.
+BASE_EXPORT FILE* CreateAndOpenTemporaryShmemFile(FilePath* path,
+                                                  bool executable);
 // Similar to CreateAndOpenTemporaryFile, but the file is created in |dir|.
 BASE_EXPORT FILE* CreateAndOpenTemporaryFileInDir(const FilePath& dir,
                                                   FilePath* path);
@@ -323,10 +326,17 @@ BASE_EXPORT bool IsDotDot(const FilePath& path);
 BASE_EXPORT bool NormalizeFilePath(const FilePath& path, FilePath* real_path);
 
 #if defined(OS_WIN)
-// Given an existing file in |path|, it returns in |real_path| the path
-// in the native NT format, of the form "\Device\HarddiskVolumeXX\..".
-// Returns false it it fails. Empty files cannot be resolved with this
-// function.
+
+// Given a path in NT native form ("\Device\HarddiskVolumeXX\..."),
+// return in |drive_letter_path| the equivalent path that starts with
+// a drive letter ("C:\...").  Return false if no such path exists.
+BASE_EXPORT bool DevicePathToDriveLetterPath(const FilePath& device_path,
+                                             FilePath* drive_letter_path);
+
+// Given an existing file in |path|, set |real_path| to the path
+// in native NT format, of the form "\Device\HarddiskVolumeXX\..".
+// Returns false if the path can not be found. Empty files cannot
+// be resolved with this function.
 BASE_EXPORT bool NormalizeToNativeFilePath(const FilePath& path,
                                            FilePath* nt_path);
 #endif
@@ -380,6 +390,42 @@ BASE_EXPORT bool GetCurrentDirectory(FilePath* path);
 // Sets the current working directory for the process.
 BASE_EXPORT bool SetCurrentDirectory(const FilePath& path);
 
+// Attempts to find a number that can be appended to the |path| to make it
+// unique. If |path| does not exist, 0 is returned.  If it fails to find such
+// a number, -1 is returned. If |suffix| is not empty, also checks the
+// existence of it with the given suffix.
+BASE_EXPORT int GetUniquePathNumber(const FilePath& path,
+                                    const FilePath::StringType& suffix);
+
+#if defined(OS_POSIX)
+// Test that |path| can only be changed by a given user and members of
+// a given set of groups.
+// Specifically, test that all parts of |path| under (and including) |base|:
+// * Exist.
+// * Are owned by a specific user.
+// * Are not writable by all users.
+// * Are owned by a memeber of a given set of groups, or are not writable by
+//   their group.
+// * Are not symbolic links.
+// This is useful for checking that a config file is administrator-controlled.
+// |base| must contain |path|.
+BASE_EXPORT bool VerifyPathControlledByUser(const FilePath& base,
+                                            const FilePath& path,
+                                            uid_t owner_uid,
+                                            const std::set<gid_t>& group_gids);
+#endif  // defined(OS_POSIX)
+
+#if defined(OS_MACOSX)
+// Is |path| writable only by a user with administrator privileges?
+// This function uses Mac OS conventions.  The super user is assumed to have
+// uid 0, and the administrator group is assumed to be named "admin".
+// Testing that |path|, and every parent directory including the root of
+// the filesystem, are owned by the superuser, controlled by the group
+// "admin", are not writable by all users, and contain no symbolic links.
+// Will return false if |path| does not exist.
+BASE_EXPORT bool VerifyPathControlledByAdmin(const FilePath& path);
+#endif  // defined(OS_MACOSX)
+
 // A class to handle auto-closing of FILE*'s.
 class ScopedFILEClose {
  public:
@@ -399,7 +445,7 @@ class ScopedFDClose {
   inline void operator()(int* x) const {
     if (x && *x >= 0) {
       if (HANDLE_EINTR(close(*x)) < 0)
-        PLOG(ERROR) << "close";
+        DPLOG(ERROR) << "close";
     }
   }
 };
@@ -423,7 +469,7 @@ class BASE_EXPORT FileEnumerator {
   } FindInfo;
 #endif
 
-  enum FILE_TYPE {
+  enum FileType {
     FILES                 = 1 << 0,
     DIRECTORIES           = 1 << 1,
     INCLUDE_DOT_DOT       = 1 << 2,
@@ -454,10 +500,10 @@ class BASE_EXPORT FileEnumerator {
   // TODO(erikkay): Fix the pattern matching to work at all levels.
   FileEnumerator(const FilePath& root_path,
                  bool recursive,
-                 FileEnumerator::FILE_TYPE file_type);
+                 FileType file_type);
   FileEnumerator(const FilePath& root_path,
                  bool recursive,
-                 FileEnumerator::FILE_TYPE file_type,
+                 FileType file_type,
                  const FilePath::StringType& pattern);
   ~FileEnumerator();
 
@@ -503,7 +549,7 @@ class BASE_EXPORT FileEnumerator {
 
   FilePath root_path_;
   bool recursive_;
-  FILE_TYPE file_type_;
+  FileType file_type_;
   FilePath::StringType pattern_;  // Empty when we want to find everything.
 
   // A stack that keeps track of which subdirectories we still need to
@@ -568,78 +614,10 @@ class BASE_EXPORT MemoryMappedFile {
 };
 #endif
 
-// Renames a file using the SHFileOperation API to ensure that the target file
-// gets the correct default security descriptor in the new path.
-BASE_EXPORT bool RenameFileAndResetSecurityDescriptor(
-    const FilePath& source_file_path,
-    const FilePath& target_file_path);
-
 // Returns whether the file has been modified since a particular date.
 BASE_EXPORT bool HasFileBeenModifiedSince(
     const FileEnumerator::FindInfo& find_info,
     const base::Time& cutoff_time);
-
-#ifdef UNIT_TEST
-
-inline bool MakeFileUnreadable(const FilePath& path) {
-#if defined(OS_POSIX)
-  struct stat stat_buf;
-  if (stat(path.value().c_str(), &stat_buf) != 0)
-    return false;
-  stat_buf.st_mode &= ~(S_IRUSR | S_IRGRP | S_IROTH);
-
-  return chmod(path.value().c_str(), stat_buf.st_mode) == 0;
-
-#elif defined(OS_WIN)
-  PACL old_dacl;
-  PSECURITY_DESCRIPTOR security_descriptor;
-  if (GetNamedSecurityInfo(const_cast<wchar_t*>(path.value().c_str()),
-                           SE_FILE_OBJECT,
-                           DACL_SECURITY_INFORMATION, NULL, NULL, &old_dacl,
-                           NULL, &security_descriptor) != ERROR_SUCCESS)
-    return false;
-
-  // Deny Read access for the current user.
-  EXPLICIT_ACCESS change;
-  change.grfAccessPermissions = GENERIC_READ;
-  change.grfAccessMode = DENY_ACCESS;
-  change.grfInheritance = 0;
-  change.Trustee.pMultipleTrustee = NULL;
-  change.Trustee.MultipleTrusteeOperation = NO_MULTIPLE_TRUSTEE;
-  change.Trustee.TrusteeForm = TRUSTEE_IS_NAME;
-  change.Trustee.TrusteeType = TRUSTEE_IS_USER;
-  change.Trustee.ptstrName = L"CURRENT_USER";
-
-  PACL new_dacl;
-  if (SetEntriesInAcl(1, &change, old_dacl, &new_dacl) != ERROR_SUCCESS) {
-    LocalFree(security_descriptor);
-    return false;
-  }
-
-  DWORD rc = SetNamedSecurityInfo(const_cast<wchar_t*>(path.value().c_str()),
-                                  SE_FILE_OBJECT, DACL_SECURITY_INFORMATION,
-                                  NULL, NULL, new_dacl, NULL);
-  LocalFree(security_descriptor);
-  LocalFree(new_dacl);
-
-  return rc == ERROR_SUCCESS;
-#else
-  NOTIMPLEMENTED();
-  return false;
-#endif
-}
-
-#endif  // UNIT_TEST
-
-#if defined(OS_WIN)
-  // Loads the file passed in as an image section and touches pages to avoid
-  // subsequent hard page faults during LoadLibrary. The size to be pre read
-  // is passed in. If it is 0 then the whole file is paged in. The step size
-  // which indicates the number of bytes to skip after every page touched is
-  // also passed in.
-bool BASE_EXPORT PreReadImage(const wchar_t* file_path, size_t size_to_read,
-                              size_t step_size);
-#endif  // OS_WIN
 
 #if defined(OS_LINUX)
 // Broad categories of file systems as returned by statfs() on Linux.

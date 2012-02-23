@@ -30,7 +30,7 @@ class URLRequestThrottlerManager;
 // destination and provide guidance (to the application level only) on whether
 // too many requests have been sent and when a good time to send the next one
 // would be. This is never used to deny requests at the network level.
-class NET_API URLRequestThrottlerEntry
+class NET_EXPORT URLRequestThrottlerEntry
     : public URLRequestThrottlerEntryInterface {
  public:
   // Sliding window period.
@@ -97,14 +97,14 @@ class NET_API URLRequestThrottlerEntry
   void DetachManager();
 
   // Implementation of URLRequestThrottlerEntryInterface.
-  virtual bool IsDuringExponentialBackoff() const;
+  virtual bool ShouldRejectRequest(int load_flags) const OVERRIDE;
   virtual int64 ReserveSendingTimeForNextRequest(
-      const base::TimeTicks& earliest_time);
-  virtual base::TimeTicks GetExponentialBackoffReleaseTime() const;
+      const base::TimeTicks& earliest_time) OVERRIDE;
+  virtual base::TimeTicks GetExponentialBackoffReleaseTime() const OVERRIDE;
   virtual void UpdateWithResponse(
       const std::string& host,
-      const URLRequestThrottlerHeaderInterface* response);
-  virtual void ReceivedContentWasMalformed(int response_code);
+      const URLRequestThrottlerHeaderInterface* response) OVERRIDE;
+  virtual void ReceivedContentWasMalformed(int response_code) OVERRIDE;
 
  protected:
   virtual ~URLRequestThrottlerEntry();
@@ -133,6 +133,11 @@ class NET_API URLRequestThrottlerEntry
   // unit testing seam for dependency injection in tests.
   virtual const BackoffEntry* GetBackoffEntry() const;
   virtual BackoffEntry* GetBackoffEntry();
+
+  // Returns true if |load_flags| contains a flag that indicates an
+  // explicit request by the user to load the resource. We never
+  // throttle requests with such load flags.
+  static bool ExplicitUserRequest(const int load_flags);
 
   // Used by tests.
   base::TimeTicks sliding_window_release_time() const {

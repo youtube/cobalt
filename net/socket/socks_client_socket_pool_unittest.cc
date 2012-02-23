@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -54,7 +54,7 @@ class SOCKSClientSocketPoolTest : public testing::Test {
 
   SOCKSClientSocketPoolTest()
       : ignored_transport_socket_params_(new TransportSocketParams(
-            HostPortPair("proxy", 80), MEDIUM, GURL(), false, false)),
+            HostPortPair("proxy", 80), MEDIUM, false, false)),
         transport_histograms_("MockTCP"),
         transport_socket_pool_(
             kMaxSockets, kMaxSocketsPerGroup,
@@ -62,7 +62,7 @@ class SOCKSClientSocketPoolTest : public testing::Test {
             &transport_client_socket_factory_),
         ignored_socket_params_(new SOCKSSocketParams(
             ignored_transport_socket_params_, true, HostPortPair("host", 80),
-            MEDIUM, GURL())),
+            MEDIUM)),
         socks_histograms_("SOCKSUnitTest"),
         pool_(kMaxSockets, kMaxSocketsPerGroup,
               &socks_histograms_,
@@ -97,12 +97,12 @@ class SOCKSClientSocketPoolTest : public testing::Test {
 
 TEST_F(SOCKSClientSocketPoolTest, Simple) {
   SOCKS5MockData data(false);
-  data.data_provider()->set_connect_data(MockConnect(false, 0));
+  data.data_provider()->set_connect_data(MockConnect(SYNCHRONOUS, OK));
   transport_client_socket_factory_.AddSocketDataProvider(data.data_provider());
 
   ClientSocketHandle handle;
-  int rv = handle.Init("a", ignored_socket_params_, LOW, NULL, &pool_,
-                       BoundNetLog());
+  int rv = handle.Init("a", ignored_socket_params_, LOW, CompletionCallback(),
+                       &pool_, BoundNetLog());
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(handle.is_initialized());
   EXPECT_TRUE(handle.socket());
@@ -114,8 +114,8 @@ TEST_F(SOCKSClientSocketPoolTest, Async) {
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
-  int rv = handle.Init("a", ignored_socket_params_, LOW, &callback, &pool_,
-                       BoundNetLog());
+  int rv = handle.Init("a", ignored_socket_params_, LOW, callback.callback(),
+                       &pool_, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
@@ -127,12 +127,13 @@ TEST_F(SOCKSClientSocketPoolTest, Async) {
 
 TEST_F(SOCKSClientSocketPoolTest, TransportConnectError) {
   scoped_ptr<SocketDataProvider> socket_data(new StaticSocketDataProvider());
-  socket_data->set_connect_data(MockConnect(false, ERR_CONNECTION_REFUSED));
+  socket_data->set_connect_data(MockConnect(SYNCHRONOUS,
+                                            ERR_CONNECTION_REFUSED));
   transport_client_socket_factory_.AddSocketDataProvider(socket_data.get());
 
   ClientSocketHandle handle;
-  int rv = handle.Init("a", ignored_socket_params_, LOW, NULL, &pool_,
-                       BoundNetLog());
+  int rv = handle.Init("a", ignored_socket_params_, LOW, CompletionCallback(),
+                       &pool_, BoundNetLog());
   EXPECT_EQ(ERR_PROXY_CONNECTION_FAILED, rv);
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
@@ -140,13 +141,13 @@ TEST_F(SOCKSClientSocketPoolTest, TransportConnectError) {
 
 TEST_F(SOCKSClientSocketPoolTest, AsyncTransportConnectError) {
   scoped_ptr<SocketDataProvider> socket_data(new StaticSocketDataProvider());
-  socket_data->set_connect_data(MockConnect(true, ERR_CONNECTION_REFUSED));
+  socket_data->set_connect_data(MockConnect(ASYNC, ERR_CONNECTION_REFUSED));
   transport_client_socket_factory_.AddSocketDataProvider(socket_data.get());
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
-  int rv = handle.Init("a", ignored_socket_params_, LOW, &callback, &pool_,
-                       BoundNetLog());
+  int rv = handle.Init("a", ignored_socket_params_, LOW, callback.callback(),
+                       &pool_, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
@@ -162,13 +163,13 @@ TEST_F(SOCKSClientSocketPoolTest, SOCKSConnectError) {
   };
   scoped_ptr<SocketDataProvider> socket_data(new StaticSocketDataProvider(
         failed_read, arraysize(failed_read), NULL, 0));
-  socket_data->set_connect_data(MockConnect(false, 0));
+  socket_data->set_connect_data(MockConnect(SYNCHRONOUS, OK));
   transport_client_socket_factory_.AddSocketDataProvider(socket_data.get());
 
   ClientSocketHandle handle;
   EXPECT_EQ(0, transport_socket_pool_.release_count());
-  int rv = handle.Init("a", ignored_socket_params_, LOW, NULL, &pool_,
-                       BoundNetLog());
+  int rv = handle.Init("a", ignored_socket_params_, LOW, CompletionCallback(),
+                       &pool_, BoundNetLog());
   EXPECT_EQ(ERR_SOCKS_CONNECTION_FAILED, rv);
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
@@ -181,14 +182,14 @@ TEST_F(SOCKSClientSocketPoolTest, AsyncSOCKSConnectError) {
   };
   scoped_ptr<SocketDataProvider> socket_data(new StaticSocketDataProvider(
         failed_read, arraysize(failed_read), NULL, 0));
-  socket_data->set_connect_data(MockConnect(false, 0));
+  socket_data->set_connect_data(MockConnect(SYNCHRONOUS, OK));
   transport_client_socket_factory_.AddSocketDataProvider(socket_data.get());
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
   EXPECT_EQ(0, transport_socket_pool_.release_count());
-  int rv = handle.Init("a", ignored_socket_params_, LOW, &callback, &pool_,
-                       BoundNetLog());
+  int rv = handle.Init("a", ignored_socket_params_, LOW, callback.callback(),
+                       &pool_, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
@@ -233,12 +234,12 @@ TEST_F(SOCKSClientSocketPoolTest, CancelDuringTransportConnect) {
 
 TEST_F(SOCKSClientSocketPoolTest, CancelDuringSOCKSConnect) {
   SOCKS5MockData data(true);
-  data.data_provider()->set_connect_data(MockConnect(false, 0));
+  data.data_provider()->set_connect_data(MockConnect(SYNCHRONOUS, OK));
   transport_client_socket_factory_.AddSocketDataProvider(data.data_provider());
   // We need two connections because the pool base lets one cancelled
   // connect job proceed for potential future use.
   SOCKS5MockData data2(true);
-  data2.data_provider()->set_connect_data(MockConnect(false, 0));
+  data2.data_provider()->set_connect_data(MockConnect(SYNCHRONOUS, OK));
   transport_client_socket_factory_.AddSocketDataProvider(data2.data_provider());
 
   EXPECT_EQ(0, transport_socket_pool_.cancel_count());

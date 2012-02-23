@@ -1,4 +1,4 @@
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -7,14 +7,20 @@
     'chromium_code': 1,
   },
   'includes': [
+    '../build/win_precompile.gypi',
     'base.gypi',
   ],
   'targets': [
     {
       'target_name': 'base_i18n',
-      'type': 'static_library',
+      'type': '<(component)',
+      'variables': {
+        'enable_wexit_time_destructors': 1,
+        'optimize': 'max',
+      },
       'dependencies': [
         'base',
+        'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
         '../third_party/icu/icu.gyp:icui18n',
         '../third_party/icu/icu.gyp:icuuc',
       ],
@@ -29,7 +35,11 @@
       'export_dependent_settings': [
         'base',
       ],
+      'defines': [
+        'BASE_I18N_IMPLEMENTATION',
+      ],
       'sources': [
+        'i18n/base_i18n_export.h',
         'i18n/bidi_line_iterator.cc',
         'i18n/bidi_line_iterator.h',
         'i18n/break_iterator.cc',
@@ -50,6 +60,8 @@
         'i18n/number_formatting.h',
         'i18n/rtl.cc',
         'i18n/rtl.h',
+        'i18n/string_search.cc',
+        'i18n/string_search.h',
         'i18n/time_formatting.cc',
         'i18n/time_formatting.h',
       ],
@@ -60,6 +72,11 @@
       # base depends on base_static.
       'target_name': 'base_static',
       'type': 'static_library',
+      'variables': {
+        'enable_wexit_time_destructors': 1,
+        'optimize': 'max',
+      },
+      'toolsets': ['host', 'target'],
       'sources': [
         'base_switches.cc',
         'base_switches.h',
@@ -105,12 +122,19 @@
         'test/run_all_unittests.cc',
 
         # Tests.
+        'android/jni_android_unittest.cc',
+        'android/scoped_java_ref_unittest.cc',
         'at_exit_unittest.cc',
         'atomicops_unittest.cc',
         'base64_unittest.cc',
+        'bind_helpers_unittest.cc',
         'bind_unittest.cc',
+        'bind_unittest.nc',
         'bits_unittest.cc',
+        'build_time_unittest.cc',
         'callback_unittest.cc',
+        'callback_unittest.nc',
+        'cancelable_callback_unittest.cc',
         'command_line_unittest.cc',
         'cpu_unittest.cc',
         'debug/leak_tracker_unittest.cc',
@@ -132,25 +156,33 @@
         'i18n/icu_string_conversions_unittest.cc',
         'i18n/number_formatting_unittest.cc',
         'i18n/rtl_unittest.cc',
+        'i18n/string_search_unittest.cc',
         'i18n/time_formatting_unittest.cc',
         'json/json_reader_unittest.cc',
+        'json/json_value_converter_unittest.cc',
+        'json/json_value_serializer_unittest.cc',
         'json/json_writer_unittest.cc',
         'json/string_escape_unittest.cc',
         'lazy_instance_unittest.cc',
         'linked_list_unittest.cc',
         'logging_unittest.cc',
+        'mac/foundation_util_unittest.mm',
         'mac/mac_util_unittest.mm',
         'mac/objc_property_releaser_unittest.mm',
+        'mac/scoped_sending_event_unittest.mm',
         'md5_unittest.cc',
         'memory/linked_ptr_unittest.cc',
         'memory/mru_cache_unittest.cc',
         'memory/ref_counted_memory_unittest.cc',
         'memory/ref_counted_unittest.cc',
+        'memory/scoped_nsobject_unittest.mm',
         'memory/scoped_ptr_unittest.cc',
+        'memory/scoped_ptr_unittest.nc',
         'memory/scoped_vector_unittest.cc',
         'memory/singleton_unittest.cc',
         'memory/weak_ptr_unittest.cc',
         'message_loop_proxy_impl_unittest.cc',
+        'message_loop_proxy_unittest.cc',
         'message_loop_unittest.cc',
         'message_pump_glib_unittest.cc',
         'message_pump_libevent_unittest.cc',
@@ -165,6 +197,8 @@
         'process_util_unittest.cc',
         'process_util_unittest_mac.h',
         'process_util_unittest_mac.mm',
+        'profiler/tracked_time_unittest.cc',
+        'property_bag_unittest.cc',
         'rand_util_unittest.cc',
         'scoped_native_library_unittest.cc',
         'scoped_temp_dir_unittest.cc',
@@ -188,11 +222,11 @@
         'sys_string_conversions_mac_unittest.mm',
         'sys_string_conversions_unittest.cc',
         'system_monitor/system_monitor_unittest.cc',
-        'task_queue_unittest.cc',
-        'task_unittest.cc',
         'template_util_unittest.cc',
+        'test/trace_event_analyzer_unittest.cc',
         'threading/non_thread_safe_unittest.cc',
         'threading/platform_thread_unittest.cc',
+        'threading/sequenced_worker_pool_unittest.cc',
         'threading/simple_thread_unittest.cc',
         'threading/thread_checker_unittest.cc',
         'threading/thread_collision_warner_unittest.cc',
@@ -213,13 +247,17 @@
         'values_unittest.cc',
         'version_unittest.cc',
         'vlog_unittest.cc',
+        'win/dllmain.cc',
+        'win/enum_variant_unittest.cc',
         'win/event_trace_consumer_unittest.cc',
         'win/event_trace_controller_unittest.cc',
         'win/event_trace_provider_unittest.cc',
         'win/i18n_unittest.cc',
+        'win/iunknown_impl_unittest.cc',
         'win/object_watcher_unittest.cc',
         'win/pe_image_unittest.cc',
         'win/registry_unittest.cc',
+        'win/sampling_profiler_unittest.cc',
         'win/scoped_bstr_unittest.cc',
         'win/scoped_comptr_unittest.cc',
         'win/scoped_variant_unittest.cc',
@@ -237,13 +275,28 @@
         '../third_party/icu/icu.gyp:icui18n',
         '../third_party/icu/icu.gyp:icuuc',
       ],
+      'includes': ['../build/nocompile.gypi'],
+      'variables': {
+         # TODO(ajwong): Is there a way to autodetect this?
+        'module_dir': 'base'
+      },
       'conditions': [
-        ['toolkit_uses_gtk==1', {
+        ['OS == "android"', {
+          'sources!': [
+            # TODO(michaelbai): Removed the below once the fix upstreamed.
+            'memory/mru_cache_unittest.cc',
+            'process_util_unittest.cc',
+            'synchronization/cancellation_flag_unittest.cc',
+            # TODO(michaelbai): The below files are excluded because of the
+            # missing JNI and should be added back once JNI is ready.
+            'android/jni_android_unittest.cc',
+            'android/scoped_java_ref_unittest.cc',
+            'debug/stack_trace_unittest.cc',
+          ],
+        }],
+        ['use_glib==1', {
           'sources!': [
             'file_version_info_unittest.cc',
-          ],
-          'sources': [
-            'nix/xdg_util_unittest.cc',
           ],
           'conditions': [
             [ 'linux_use_tcmalloc==1', {
@@ -252,20 +305,21 @@
                 ],
               },
             ],
-            ['gcc_version==44', {
-              # Avoid gcc 4.4 strict aliasing issues in stl_tree.h when
-              # building mru_cache_unittest.cc.
-              'cflags': [
-                '-fno-strict-aliasing',
+            [ 'toolkit_uses_gtk==1', {
+              'sources': [
+                'nix/xdg_util_unittest.cc',
               ],
+              'dependencies': [
+                '../build/linux/system.gyp:gtk',
+              ]
             }],
           ],
           'dependencies': [
-            '../build/linux/system.gyp:gtk',
+            '../build/linux/system.gyp:glib',
             '../build/linux/system.gyp:ssl',
             '../tools/xdisplaycheck/xdisplaycheck.gyp:xdisplaycheck',
           ],
-        }, {  # toolkit_uses_gtk!=1
+        }, {  # use_glib!=1
           'sources!': [
             'message_pump_glib_unittest.cc',
           ]
@@ -298,6 +352,16 @@
       ],
     },
     {
+      'target_name': 'check_example',
+      'type': 'executable',
+      'sources': [
+        'check_example.cc',
+      ],
+      'dependencies': [
+        'base',
+      ],
+    },
+    {
       'target_name': 'test_support_base',
       'type': 'static_library',
       'dependencies': [
@@ -323,6 +387,11 @@
             'test/scoped_locale.h',
           ],
         }],
+        ['os_bsd==1', {
+          'sources!': [
+            'test/test_file_util_linux.cc',
+          ],
+        }],
       ],
       'sources': [
         'perftimer.cc',
@@ -341,14 +410,19 @@
         'test/test_file_util_mac.cc',
         'test/test_file_util_posix.cc',
         'test/test_file_util_win.cc',
+        'test/test_reg_util_win.cc',
+        'test/test_reg_util_win.h',
         'test/test_suite.cc',
         'test/test_suite.h',
+        'test/test_stub_android.cc',
         'test/test_switches.cc',
         'test/test_switches.h',
         'test/test_timeouts.cc',
         'test/test_timeouts.h',
         'test/thread_test_helper.cc',
         'test/thread_test_helper.h',
+        'test/trace_event_analyzer.cc',
+        'test/trace_event_analyzer.h',
       ],
     },
     {

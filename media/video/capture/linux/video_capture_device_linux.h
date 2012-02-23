@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,19 +22,15 @@ class VideoCaptureDeviceLinux : public VideoCaptureDevice {
   explicit VideoCaptureDeviceLinux(const Name& device_name);
   virtual ~VideoCaptureDeviceLinux();
 
-  // Opens the device driver for this device.
-  // This function is used by the static VideoCaptureDevice::Create function.
-  bool Init();
-
   // VideoCaptureDevice implementation.
   virtual void Allocate(int width,
                         int height,
                         int frame_rate,
-                        EventHandler* observer);
-  virtual void Start();
-  virtual void Stop();
-  virtual void DeAllocate();
-  virtual const Name& device_name();
+                        EventHandler* observer) OVERRIDE;
+  virtual void Start() OVERRIDE;
+  virtual void Stop() OVERRIDE;
+  virtual void DeAllocate() OVERRIDE;
+  virtual const Name& device_name() OVERRIDE;
 
  private:
   enum InternalState {
@@ -78,7 +74,5 @@ class VideoCaptureDeviceLinux : public VideoCaptureDevice {
 };
 
 }  // namespace media
-
-DISABLE_RUNNABLE_METHOD_REFCOUNT(media::VideoCaptureDeviceLinux);
 
 #endif  // MEDIA_VIDEO_CAPTURE_LINUX_VIDEO_CAPTURE_DEVICE_LINUX_H_

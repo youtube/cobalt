@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -28,9 +28,11 @@
 #include "base/callback.h"
 #include "base/gtest_prod_util.h"
 #include "base/synchronization/waitable_event.h"
+#include "media/base/audio_decoder_config.h"
 #include "media/base/buffers.h"
-#include "media/base/filters.h"
+#include "media/base/demuxer.h"
 #include "media/base/pipeline.h"
+#include "media/base/video_decoder_config.h"
 #include "media/filters/ffmpeg_glue.h"
 
 // FFmpeg forward declarations.
@@ -38,14 +40,12 @@ struct AVFormatContext;
 struct AVPacket;
 struct AVRational;
 struct AVStream;
+class ScopedPtrAVFreePacket;
 
 namespace media {
 
 class BitstreamConverter;
 class FFmpegDemuxer;
-
-// Forward declaration for scoped_ptr_malloc.
-class ScopedPtrAVFree;
 
 class FFmpegDemuxerStream : public DemuxerStream {
  public:
@@ -56,22 +56,22 @@ class FFmpegDemuxerStream : public DemuxerStream {
   // Returns true is this stream has pending reads, false otherwise.
   //
   // Safe to call on any thread.
-  virtual bool HasPendingReads();
+  bool HasPendingReads();
 
-  // Enqueues and takes ownership over the given AVPacket.
-  virtual void EnqueuePacket(AVPacket* packet);
+  // Enqueues the given AVPacket.
+  void EnqueuePacket(scoped_ptr_malloc<AVPacket, ScopedPtrAVFreePacket> packet);
 
   // Signals to empty the buffer queue and mark next packet as discontinuous.
-  virtual void FlushBuffers();
+  void FlushBuffers();
 
   // Empties the queues and ignores any additional calls to Read().
-  virtual void Stop();
+  void Stop();
 
   // Returns the duration of this stream.
-  virtual base::TimeDelta duration();
+  base::TimeDelta duration();
 
   // DemuxerStream implementation.
-  virtual Type type();
+  virtual Type type() OVERRIDE;
 
   // If |buffer_queue_| is not empty will execute on caller's thread, otherwise
   // will post ReadTask to execute on demuxer's thread. Read will acquire
@@ -79,12 +79,13 @@ class FFmpegDemuxerStream : public DemuxerStream {
   // not make calls into FFmpegDemuxerStream directly or that may cause a
   // deadlock. |read_callback| should execute as quickly as possible because
   // |lock_| is held throughout the life of the callback.
-  virtual void Read(const ReadCallback& read_callback);
-  // Bitstream converter to convert input packet.
-  virtual void EnableBitstreamConverter();
-  virtual AVStream* GetAVStream();
+  virtual void Read(const ReadCallback& read_callback) OVERRIDE;
+  virtual void EnableBitstreamConverter() OVERRIDE;
+  virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
+  virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
 
  private:
+  friend class FFmpegDemuxerTest;
   virtual ~FFmpegDemuxerStream();
 
   // Carries out enqueuing a pending read on the demuxer thread.
@@ -101,6 +102,8 @@ class FFmpegDemuxerStream : public DemuxerStream {
 
   FFmpegDemuxer* demuxer_;
   AVStream* stream_;
+  AudioDecoderConfig audio_config_;
+  VideoDecoderConfig video_config_;
   Type type_;
   base::TimeDelta duration_;
   bool discontinuous_;
@@ -125,35 +128,37 @@ class FFmpegDemuxerStream : public DemuxerStream {
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxerStream);
 };
 
-class FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
+class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
  public:
-  explicit FFmpegDemuxer(MessageLoop* message_loop);
+  FFmpegDemuxer(MessageLoop* message_loop, bool local_source);
   virtual ~FFmpegDemuxer();
 
   // Posts a task to perform additional demuxing.
   virtual void PostDemuxTask();
 
   void Initialize(
-      DataSource* data_source, PipelineStatusCallback* callback);
-
-  // Filter implementation.
-  virtual void Stop(FilterCallback* callback);
-  virtual void Seek(base::TimeDelta time, const FilterStatusCB& cb);
-  virtual void OnAudioRendererDisabled();
-  virtual void set_host(FilterHost* filter_host);
-  virtual void SetPlaybackRate(float playback_rate);
-  virtual void SetPreload(Preload preload);
+      DataSource* data_source, const PipelineStatusCB& callback);
 
   // Demuxer implementation.
-  virtual scoped_refptr<DemuxerStream> GetStream(DemuxerStream::Type type);
-  virtual base::TimeDelta GetStartTime() const;
+  virtual void Stop(const base::Closure& callback) OVERRIDE;
+  virtual void Seek(base::TimeDelta time, const PipelineStatusCB& cb) OVERRIDE;
+  virtual void OnAudioRendererDisabled() OVERRIDE;
+  virtual void set_host(DemuxerHost* demuxer_host) OVERRIDE;
+  virtual void SetPlaybackRate(float playback_rate) OVERRIDE;
+  virtual scoped_refptr<DemuxerStream> GetStream(
+      DemuxerStream::Type type) OVERRIDE;
+  virtual void SetPreload(Preload preload) OVERRIDE;
+  virtual base::TimeDelta GetStartTime() const OVERRIDE;
+  virtual int GetBitrate() OVERRIDE;
+  virtual bool IsLocalSource() OVERRIDE;
+  virtual bool IsSeekable() OVERRIDE;
 
-  // FFmpegProtocol implementation.
-  virtual int Read(int size, uint8* data);
-  virtual bool GetPosition(int64* position_out);
-  virtual bool SetPosition(int64 position);
-  virtual bool GetSize(int64* size_out);
-  virtual bool IsStreaming();
+  // FFmpegURLProtocol implementation.
+  virtual size_t Read(size_t size, uint8* data) OVERRIDE;
+  virtual bool GetPosition(int64* position_out) OVERRIDE;
+  virtual bool SetPosition(int64 position) OVERRIDE;
+  virtual bool GetSize(int64* size_out) OVERRIDE;
+  virtual bool IsStreaming() OVERRIDE;
 
   // Provide access to FFmpegDemuxerStream.
   MessageLoop* message_loop();
@@ -168,16 +173,16 @@ class FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
 
   // Carries out initialization on the demuxer thread.
   void InitializeTask(
-      DataSource* data_source, PipelineStatusCallback* callback);
+      DataSource* data_source, const PipelineStatusCB& callback);
 
   // Carries out a seek on the demuxer thread.
-  void SeekTask(base::TimeDelta time, const FilterStatusCB& cb);
+  void SeekTask(base::TimeDelta time, const PipelineStatusCB& cb);
 
   // Carries out demuxing and satisfying stream reads on the demuxer thread.
   void DemuxTask();
 
   // Carries out stopping the demuxer streams on the demuxer thread.
-  void StopTask(FilterCallback* callback);
+  void StopTask(const base::Closure& callback);
 
   // Carries out disabling the audio stream on the demuxer thread.
   void DisableAudioStreamTask();
@@ -207,23 +212,24 @@ class FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
 
   MessageLoop* message_loop_;
 
+  // True if the media is a local resource, false if the media require network
+  // access to be loaded.
+  bool local_source_;
+
   // FFmpeg context handle.
   AVFormatContext* format_context_;
 
-  // Two vector of streams:
-  //   - |streams_| is indexed by type for the Demuxer interface GetStream(),
-  //     and contains NULLs for types which aren't present.
-  //   - |packet_streams_| is indexed to mirror AVFormatContext when dealing
-  //     with AVPackets returned from av_read_frame() and contain NULL entries
-  //     representing unsupported streams where we throw away the data.
+  // |streams_| mirrors the AVStream array in |format_context_|. It contains
+  // FFmpegDemuxerStreams encapsluating AVStream objects at the same index.
   //
-  // Ownership is handled via reference counting.
+  // Since we only support a single audio and video stream, |streams_| will
+  // contain NULL entries for additional audio/video streams as well as for
+  // stream types that we do not currently support.
   //
   // Once initialized, operations on FFmpegDemuxerStreams should be carried out
   // on the demuxer thread.
-  typedef std::vector< scoped_refptr<FFmpegDemuxerStream> > StreamVector;
+  typedef std::vector<scoped_refptr<FFmpegDemuxerStream> > StreamVector;
   StreamVector streams_;
-  StreamVector packet_streams_;
 
   // Reference to the data source. Asynchronous read requests are submitted to
   // this object.
@@ -242,7 +248,7 @@ class FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   int64 read_position_;
 
   // Initialization can happen before set_host() is called, in which case we
-  // store these bits for deferred reporting to the FilterHost when we get one.
+  // store these bits for deferred reporting to the DemuxerHost when we get one.
   base::TimeDelta max_duration_;
   PipelineStatus deferred_status_;
 
@@ -254,6 +260,10 @@ class FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   // starting clock value to match the timestamps in the media file. Default
   // is 0.
   base::TimeDelta start_time_;
+
+  // Whether audio has been disabled for this demuxer (in which case this class
+  // drops packets destined for AUDIO demuxer streams on the floor).
+  bool audio_disabled_;
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxer);
 };

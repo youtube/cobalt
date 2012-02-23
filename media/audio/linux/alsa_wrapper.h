@@ -9,8 +9,9 @@
 #include <alsa/asoundlib.h>
 
 #include "base/basictypes.h"
+#include "media/base/media_export.h"
 
-class AlsaWrapper {
+class MEDIA_EXPORT AlsaWrapper {
  public:
   AlsaWrapper();
   virtual ~AlsaWrapper();
@@ -18,6 +19,7 @@ class AlsaWrapper {
   virtual int DeviceNameHint(int card, const char* iface, void*** hints);
   virtual char* DeviceNameGetHint(const void* hint, const char* id);
   virtual int DeviceNameFreeHint(void** hints);
+  virtual int CardNext(int* rcard);
 
   virtual int PcmOpen(snd_pcm_t** handle, const char* name,
                       snd_pcm_stream_t stream, int mode);

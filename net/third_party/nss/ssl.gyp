@@ -21,7 +21,7 @@
 
   'targets': [
     {
-      'target_name': 'ssl',
+      'target_name': 'libssl',
       'type': 'static_library',
       'sources': [
         'ssl/authcert.c',
@@ -81,6 +81,9 @@
         # Regrettably, NSS can't be compiled with NO_NSPR_10_SUPPORT yet.
         'NO_NSPR_10_SUPPORT',
       ],
+      'dependencies': [
+        '../../../third_party/zlib/zlib.gyp:zlib',
+      ],
       'msvs_disabled_warnings': [4018, 4244],
       'conditions': [
         [ 'OS=="mac"', {
@@ -133,7 +136,6 @@
             'NSS_PLATFORM_CLIENT_AUTH',
           ],
           'dependencies': [
-            '../../../third_party/zlib/zlib.gyp:zlib',
             '../../../third_party/nss/nss.gyp:nspr',
             '../../../third_party/nss/nss.gyp:nss',
           ],

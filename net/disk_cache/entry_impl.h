@@ -19,7 +19,9 @@ class SparseControl;
 
 // This class implements the Entry interface. An object of this
 // class represents a single entry on the cache.
-class NET_TEST EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
+class NET_EXPORT_PRIVATE EntryImpl
+    : public Entry,
+      public base::RefCounted<EntryImpl> {
   friend class base::RefCounted<EntryImpl>;
   friend class SparseControl;
  public:
@@ -28,7 +30,9 @@ class NET_TEST EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
     kWrite,
     kSparseRead,
     kSparseWrite,
-    kAsyncIO
+    kAsyncIO,
+    kReadAsync1,
+    kWriteAsync1
   };
 
   EntryImpl(BackendImpl* backend, Addr address, bool read_only);
@@ -36,16 +40,16 @@ class NET_TEST EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
   // Background implementation of the Entry interface.
   void DoomImpl();
   int ReadDataImpl(int index, int offset, net::IOBuffer* buf, int buf_len,
-                   CompletionCallback* callback);
+                   const net::CompletionCallback& callback);
   int WriteDataImpl(int index, int offset, net::IOBuffer* buf, int buf_len,
-                    CompletionCallback* callback, bool truncate);
+                    const net::CompletionCallback& callback, bool truncate);
   int ReadSparseDataImpl(int64 offset, net::IOBuffer* buf, int buf_len,
-                         CompletionCallback* callback);
+                         const net::CompletionCallback& callback);
   int WriteSparseDataImpl(int64 offset, net::IOBuffer* buf, int buf_len,
-                          CompletionCallback* callback);
+                          const net::CompletionCallback& callback);
   int GetAvailableRangeImpl(int64 offset, int len, int64* start);
   void CancelSparseIOImpl();
-  int ReadyForSparseIOImpl(CompletionCallback* callback);
+  int ReadyForSparseIOImpl(const net::CompletionCallback& callback);
 
   inline CacheEntryBlock* entry() {
     return &entry_;
@@ -102,8 +106,16 @@ class NET_TEST EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
   // Fixes this entry so it can be treated as valid (to delete it).
   void SetPointerForInvalidEntry(int32 new_id);
 
+  // Returns true if this entry is so meesed up that not everything is going to
+  // be removed.
+  bool LeaveRankingsBehind();
+
   // Returns false if the entry is clearly invalid.
   bool SanityCheck();
+  bool DataSanityCheck();
+
+  // Attempts to make this entry reachable though the key.
+  void FixForDelete();
 
   // Handle the pending asynchronous IO count.
   void IncrementIoCount();
@@ -128,26 +140,31 @@ class NET_TEST EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
   static int NumBlocksForEntry(int key_size);
 
   // Entry interface.
-  virtual void Doom();
-  virtual void Close();
-  virtual std::string GetKey() const;
-  virtual base::Time GetLastUsed() const;
-  virtual base::Time GetLastModified() const;
-  virtual int32 GetDataSize(int index) const;
-  virtual int ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                       net::CompletionCallback* completion_callback);
+  virtual void Doom() OVERRIDE;
+  virtual void Close() OVERRIDE;
+  virtual std::string GetKey() const OVERRIDE;
+  virtual base::Time GetLastUsed() const OVERRIDE;
+  virtual base::Time GetLastModified() const OVERRIDE;
+  virtual int32 GetDataSize(int index) const OVERRIDE;
+  virtual int ReadData(
+      int index, int offset, net::IOBuffer* buf, int buf_len,
+      const net::CompletionCallback& callback) OVERRIDE;
   virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                        net::CompletionCallback* completion_callback,
-                        bool truncate);
-  virtual int ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                             net::CompletionCallback* completion_callback);
-  virtual int WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                              net::CompletionCallback* completion_callback);
-  virtual int GetAvailableRange(int64 offset, int len, int64* start,
-                                CompletionCallback* callback);
-  virtual bool CouldBeSparse() const;
-  virtual void CancelSparseIO();
-  virtual int ReadyForSparseIO(net::CompletionCallback* completion_callback);
+                        const net::CompletionCallback& callback,
+                        bool truncate) OVERRIDE;
+  virtual int ReadSparseData(
+      int64 offset, net::IOBuffer* buf, int buf_len,
+      const net::CompletionCallback& callback) OVERRIDE;
+  virtual int WriteSparseData(
+      int64 offset, net::IOBuffer* buf, int buf_len,
+      const net::CompletionCallback& callback) OVERRIDE;
+  virtual int GetAvailableRange(
+      int64 offset, int len, int64* start,
+      const net::CompletionCallback& callback) OVERRIDE;
+  virtual bool CouldBeSparse() const OVERRIDE;
+  virtual void CancelSparseIO() OVERRIDE;
+  virtual int ReadyForSparseIO(
+      const net::CompletionCallback& callback) OVERRIDE;
 
  private:
   enum {
@@ -160,9 +177,9 @@ class NET_TEST EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
   // Do all the work for ReadDataImpl and WriteDataImpl.  Implemented as
   // separate functions to make logging of results simpler.
   int InternalReadData(int index, int offset, net::IOBuffer* buf,
-                       int buf_len, CompletionCallback* callback);
+                       int buf_len, const net::CompletionCallback& callback);
   int InternalWriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                        CompletionCallback* callback, bool truncate);
+                        const net::CompletionCallback& callback, bool truncate);
 
   // Initializes the storage for an internal or external data block.
   bool CreateDataBlock(int index, int size);

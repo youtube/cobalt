@@ -1,9 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/basictypes.h"
+#if defined(OS_MACOSX)
 #include "base/mac/scoped_nsautorelease_pool.h"
+#endif
 #include "base/memory/scoped_ptr.h"
 #include "base/shared_memory.h"
 #include "base/test/multiprocess_test.h"
@@ -11,6 +13,14 @@
 #include "base/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
+
+#if defined(OS_MACOSX)
+#include "base/mac/scoped_nsautorelease_pool.h"
+#endif
+
+#if defined(OS_POSIX)
+#include <sys/mman.h>
+#endif
 
 static const int kNumThreads = 5;
 static const int kNumTasks = 5;
@@ -34,7 +44,9 @@ class MultipleThreadMain : public PlatformThread::Delegate {
 
   // PlatformThread::Delegate interface.
   void ThreadMain() {
-    mac::ScopedNSAutoreleasePool pool;  // noop if not OSX
+#if defined(OS_MACOSX)
+    mac::ScopedNSAutoreleasePool pool;
+#endif
     const uint32 kDataSize = 1024;
     SharedMemory memory;
     bool rv = memory.CreateNamed(s_test_name_, true, kDataSize);
@@ -42,13 +54,15 @@ class MultipleThreadMain : public PlatformThread::Delegate {
     rv = memory.Map(kDataSize);
     EXPECT_TRUE(rv);
     int *ptr = static_cast<int*>(memory.memory()) + id_;
-    EXPECT_EQ(*ptr, 0);
+    EXPECT_EQ(0, *ptr);
 
     for (int idx = 0; idx < 100; idx++) {
       *ptr = idx;
-      PlatformThread::Sleep(1);  // Short wait.
+      PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(1));
       EXPECT_EQ(*ptr, idx);
     }
+    // Reset back to 0 for the next test that uses the same name.
+    *ptr = 0;
 
     memory.Close();
   }
@@ -99,7 +113,7 @@ class MultipleLockThread : public PlatformThread::Delegate {
       memory2.Lock();
       int i = (id_ << 16) + idx;
       *ptr = i;
-      PlatformThread::Sleep(1);  // Short wait.
+      PlatformThread::Sleep(TimeDelta::FromMilliseconds(1));
       EXPECT_EQ(*ptr, i);
       memory2.Unlock();
     }
@@ -228,7 +242,7 @@ TEST(SharedMemoryTest, MultipleThreads) {
   // kNumThreads.
 
   int threadcounts[] = { 1, kNumThreads };
-  for (size_t i = 0; i < sizeof(threadcounts) / sizeof(threadcounts); i++) {
+  for (size_t i = 0; i < arraysize(threadcounts); i++) {
     int numthreads = threadcounts[i];
     scoped_array<PlatformThreadHandle> thread_handles;
     scoped_array<MultipleThreadMain*> thread_delegates;
@@ -325,6 +339,24 @@ TEST(SharedMemoryTest, AnonymousPrivate) {
   }
 }
 
+#if defined(OS_POSIX)
+// Create a shared memory object, mmap it, and mprotect it to PROT_EXEC.
+TEST(SharedMemoryTest, AnonymousExecutable) {
+  const uint32 kTestSize = 1 << 16;
+
+  SharedMemory shared_memory;
+  SharedMemoryCreateOptions options;
+  options.size = kTestSize;
+  options.executable = true;
+
+  EXPECT_TRUE(shared_memory.Create(options));
+  EXPECT_TRUE(shared_memory.Map(shared_memory.created_size()));
+
+  EXPECT_EQ(0, mprotect(shared_memory.memory(), shared_memory.created_size(),
+                        PROT_READ | PROT_EXEC));
+}
+#endif
+
 // On POSIX it is especially important we test shmem across processes,
 // not just across threads.  But the test is enabled on all platforms.
 class SharedMemoryProcessTest : public MultiProcessTest {
@@ -337,7 +369,9 @@ class SharedMemoryProcessTest : public MultiProcessTest {
 
   static int TaskTestMain() {
     int errors = 0;
-    mac::ScopedNSAutoreleasePool pool;  // noop if not OSX
+#if defined(OS_MACOSX)
+    mac::ScopedNSAutoreleasePool pool;
+#endif
     const uint32 kDataSize = 1024;
     SharedMemory memory;
     bool rv = memory.CreateNamed(s_test_name_, true, kDataSize);
@@ -354,7 +388,7 @@ class SharedMemoryProcessTest : public MultiProcessTest {
       memory.Lock();
       int i = (1 << 16) + idx;
       *ptr = i;
-      PlatformThread::Sleep(10);  // Short wait.
+      PlatformThread::Sleep(TimeDelta::FromMilliseconds(10));
       if (*ptr != i)
         errors++;
       memory.Unlock();
@@ -370,9 +404,9 @@ class SharedMemoryProcessTest : public MultiProcessTest {
 
 const char* const SharedMemoryProcessTest::s_test_name_ = "MPMem";
 
-
+// http://crbug.com/61589
 #if defined(OS_MACOSX)
-#define MAYBE_Tasks FLAKY_Tasks
+#define MAYBE_Tasks DISABLED_Tasks
 #else
 #define MAYBE_Tasks Tasks
 #endif

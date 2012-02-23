@@ -18,10 +18,13 @@
 #include "base/process_util.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
-#include "base/win/windows_version.h"
+#include "media/audio/audio_util.h"
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
+#include "media/audio/win/audio_low_latency_input_win.h"
+#include "media/audio/win/audio_low_latency_output_win.h"
 #include "media/audio/win/audio_manager_win.h"
+#include "media/audio/win/device_enumeration_win.h"
 #include "media/audio/win/wavein_input_win.h"
 #include "media/audio/win/waveout_output_win.h"
 #include "media/base/limits.h"
@@ -97,9 +100,18 @@ static string16 GetDeviceAndDriverInfo(HDEVINFO device_info,
 
 AudioManagerWin::AudioManagerWin()
     : num_output_streams_(0) {
+  if (!media::IsWASAPISupported()) {
+    // Use the Wave API for device enumeration if XP or lower.
+    enumeration_type_ = kWaveEnumeration;
+  } else {
+    // Use the MMDevice API for device enumeration if Vista or higher.
+    enumeration_type_ = kMMDeviceEnumeration;
+  }
 }
 
 AudioManagerWin::~AudioManagerWin() {
+  // All output streams should be released upon termination.
+  DCHECK_EQ(0, num_output_streams_);
 }
 
 bool AudioManagerWin::HasAudioOutputDevices() {
@@ -112,8 +124,8 @@ bool AudioManagerWin::HasAudioInputDevices() {
 
 // Factory for the implementations of AudioOutputStream. Two implementations
 // should suffice most windows user's needs.
-// - PCMWaveOutAudioOutputStream: Based on the waveOutWrite API (in progress)
-// - PCMDXSoundAudioOutputStream: Based on DirectSound or XAudio (future work).
+// - PCMWaveOutAudioOutputStream: Based on the waveOut API.
+// - WASAPIAudioOutputStream: Based on Core Audio (WASAPI) API.
 AudioOutputStream* AudioManagerWin::MakeAudioOutputStream(
     const AudioParameters& params) {
   if (!params.IsValid() || (params.channels > kWinMaxChannels))
@@ -131,34 +143,51 @@ AudioOutputStream* AudioManagerWin::MakeAudioOutputStream(
     return new PCMWaveOutAudioOutputStream(this, params, 3, WAVE_MAPPER);
   } else if (params.format == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
     num_output_streams_++;
-    // TODO(cpu): waveout cannot hit 20ms latency. Use other method.
-    return new PCMWaveOutAudioOutputStream(this, params, 2, WAVE_MAPPER);
+    if (!media::IsWASAPISupported()) {
+      // Fall back to Windows Wave implementation on Windows XP or lower.
+      DLOG(INFO) << "Using WaveOut since WASAPI requires at least Vista.";
+      return new PCMWaveOutAudioOutputStream(this, params, 2, WAVE_MAPPER);
+    } else {
+      // TODO(henrika): improve possibility to specify audio endpoint.
+      // Use the default device (same as for Wave) for now to be compatible.
+      return new WASAPIAudioOutputStream(this, params, eConsole);
+    }
   }
   return NULL;
 }
 
 // Factory for the implementations of AudioInputStream.
 AudioInputStream* AudioManagerWin::MakeAudioInputStream(
-    const AudioParameters& params) {
-  if (!params.IsValid() || (params.channels > kWinMaxInputChannels))
+    const AudioParameters& params, const std::string& device_id) {
+  if (!params.IsValid() || (params.channels > kWinMaxInputChannels) ||
+      device_id.empty())
     return NULL;
 
   if (params.format == AudioParameters::AUDIO_MOCK) {
     return FakeAudioInputStream::MakeFakeStream(params);
   } else if (params.format == AudioParameters::AUDIO_PCM_LINEAR) {
     return new PCMWaveInAudioInputStream(this, params, kNumInputBuffers,
-                                         WAVE_MAPPER);
+                                         AudioManagerBase::kDefaultDeviceId);
+  } else if (params.format == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
+    if (!media::IsWASAPISupported()) {
+      // Fall back to Windows Wave implementation on Windows XP or lower.
+      DLOG(INFO) << "Using WaveIn since WASAPI requires at least Vista.";
+      return new PCMWaveInAudioInputStream(this, params, kNumInputBuffers,
+                                           device_id);
+    } else {
+      return new WASAPIAudioInputStream(this, params, device_id);
+    }
   }
   return NULL;
 }
 
-void AudioManagerWin::ReleaseOutputStream(PCMWaveOutAudioOutputStream* stream) {
+void AudioManagerWin::ReleaseOutputStream(AudioOutputStream* stream) {
   DCHECK(stream);
   num_output_streams_--;
   delete stream;
 }
 
-void AudioManagerWin::ReleaseInputStream(PCMWaveInAudioInputStream* stream) {
+void AudioManagerWin::ReleaseInputStream(AudioInputStream* stream) {
   delete stream;
 }
 
@@ -178,12 +207,14 @@ string16 AudioManagerWin::GetAudioInputDeviceModel() {
   waveInMessage(reinterpret_cast<HWAVEIN>(device_id),
                 DRV_QUERYDEVICEINTERFACESIZE,
                 reinterpret_cast<DWORD_PTR>(&device_interface_name_size), 0);
-  if (device_interface_name_size == 0)  // No audio capture device?
-    return string16();
+  size_t bytes_in_char16 = sizeof(string16::value_type);
+  DCHECK_EQ(0u, device_interface_name_size % bytes_in_char16);
+  if (device_interface_name_size <= bytes_in_char16)
+    return string16();  // No audio capture device.
 
   string16 device_interface_name;
   string16::value_type* name_ptr = WriteInto(&device_interface_name,
-      device_interface_name_size / sizeof(string16::value_type));
+      device_interface_name_size / bytes_in_char16);
   waveInMessage(reinterpret_cast<HWAVEIN>(device_id),
                 DRV_QUERYDEVICEINTERFACE,
                 reinterpret_cast<DWORD_PTR>(name_ptr),
@@ -237,7 +268,7 @@ bool AudioManagerWin::CanShowAudioInputSettings() {
 void AudioManagerWin::ShowAudioInputSettings() {
   std::wstring program;
   std::string argument;
-  if (base::win::GetVersion() <= base::win::VERSION_XP) {
+  if (!media::IsWASAPISupported()) {
     program = L"sndvol32.exe";
     argument = "-R";
   } else {
@@ -255,19 +286,26 @@ void AudioManagerWin::ShowAudioInputSettings() {
 
 void AudioManagerWin::GetAudioInputDeviceNames(
     media::AudioDeviceNames* device_names) {
-  // TODO(xians): query a full list of valid devices.
-  if (HasAudioInputDevices()) {
-    // Add the default device to the list.
-    // We use index 0 to make up the unique_id to identify the
-    // default devices.
+  DCHECK(enumeration_type() !=  kUninitializedEnumeration);
+  // Enumerate all active audio-endpoint capture devices.
+  if (enumeration_type() == kWaveEnumeration) {
+    // Utilize the Wave API for Windows XP.
+    GetInputDeviceNamesWinXP(device_names);
+  } else {
+    // Utilize the MMDevice API (part of Core Audio) for Vista and higher.
+    GetInputDeviceNamesWin(device_names);
+  }
+
+  // Always add default device parameters as first element.
+  if (!device_names->empty()) {
     media::AudioDeviceName name;
     name.device_name = AudioManagerBase::kDefaultDeviceName;
-    name.unique_id = "0";
-    device_names->push_back(name);
+    name.unique_id = AudioManagerBase::kDefaultDeviceId;
+    device_names->push_front(name);
   }
 }
 
-// static
-AudioManager* AudioManager::CreateAudioManager() {
+/// static
+AudioManager* CreateAudioManager() {
   return new AudioManagerWin();
 }

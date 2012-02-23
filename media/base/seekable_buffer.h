@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -41,7 +41,7 @@
 
 namespace media {
 
-class SeekableBuffer {
+class MEDIA_EXPORT SeekableBuffer {
  public:
   // Constructs an instance with |forward_capacity| and |backward_capacity|.
   // The values are in bytes.
@@ -103,6 +103,11 @@ class SeekableBuffer {
     forward_capacity_ = new_forward_capacity;
   }
 
+  // Sets the backward_capacity to |new_backward_capacity| bytes.
+  void set_backward_capacity(size_t new_backward_capacity) {
+    backward_capacity_ = new_backward_capacity;
+  }
+
   // Returns the maximum number of bytes that should be kept in the forward
   // direction.
   size_t forward_capacity() const { return forward_capacity_; }
@@ -116,7 +121,7 @@ class SeekableBuffer {
   // timestamp for the current buffer is set to 0 or the data was added with
   // Append(const uint*, size_t), then returns value that corresponds to the
   // last position in a buffer that had timestamp set.
-  // kNoTimestamp is returned if no buffers we read from had timestamp set.
+  // kNoTimestamp() is returned if no buffers we read from had timestamp set.
   base::TimeDelta current_time() const { return current_time_; }
 
  private:

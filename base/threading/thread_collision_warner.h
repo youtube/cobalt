@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,8 +8,9 @@
 
 #include <memory>
 
-#include "base/base_export.h"
 #include "base/atomicops.h"
+#include "base/base_export.h"
+#include "base/compiler_specific.h"
 
 // A helper class alongside macros to be used to verify assumptions about thread
 // safety of a class.
@@ -79,7 +80,7 @@
 //
 //
 // Example: Class that has to be contructed/destroyed on same thread, it has
-//          a "shareable" method (with external syncronization) and a not
+//          a "shareable" method (with external synchronization) and a not
 //          shareable method (even with external synchronization).
 //
 //          In this case 3 Critical sections have to be defined
@@ -118,7 +119,7 @@
 
 #else
 
-#define DFAKE_MUTEX(obj)
+#define DFAKE_MUTEX(obj) typedef void InternalFakeMutexType##obj
 #define DFAKE_SCOPED_LOCK(obj) ((void)0)
 #define DFAKE_SCOPED_RECURSIVE_LOCK(obj) ((void)0)
 #define DFAKE_SCOPED_LOCK_THREAD_LOCKED(obj) ((void)0)
@@ -138,7 +139,7 @@ struct BASE_EXPORT AsserterBase {
 
 struct BASE_EXPORT DCheckAsserter : public AsserterBase {
   virtual ~DCheckAsserter() {}
-  virtual void warn();
+  virtual void warn() OVERRIDE;
 };
 
 class BASE_EXPORT ThreadCollisionWarner {

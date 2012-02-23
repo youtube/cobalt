@@ -8,7 +8,8 @@
 
 #include <string>
 
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
+#include "net/base/net_log.h"
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_list.h"
 #include "net/proxy/proxy_retry_info.h"
@@ -17,7 +18,7 @@
 namespace net {
 
 // This object holds proxy information returned by ResolveProxy.
-class NET_API ProxyInfo {
+class NET_EXPORT ProxyInfo {
  public:
   ProxyInfo();
   ~ProxyInfo();
@@ -86,7 +87,7 @@ class NET_API ProxyInfo {
 
   // Marks the current proxy as bad. Returns true if there is another proxy
   // available to try in proxy list_.
-  bool Fallback(ProxyRetryInfoMap* proxy_retry_info);
+  bool Fallback(const BoundNetLog& net_log);
 
   // De-prioritizes the proxies that we have cached as not working, by moving
   // them to the end of the proxy list.
@@ -100,9 +101,16 @@ class NET_API ProxyInfo {
 #endif
   friend class ProxyService;
 
+  const ProxyRetryInfoMap& proxy_retry_info() const {
+    return proxy_retry_info_;
+  }
+
   // The ordered list of proxy servers (including DIRECT attempts) remaining to
   // try. If proxy_list_ is empty, then there is nothing left to fall back to.
   ProxyList proxy_list_;
+
+  // List of proxies that have been tried already.
+  ProxyRetryInfoMap proxy_retry_info_;
 
   // This value identifies the proxy config used to initialize this object.
   ProxyConfig::ID config_id_;

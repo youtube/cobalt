@@ -67,7 +67,7 @@ SOCKSClientSocket* SOCKSClientSocketTest::BuildMockSocket(
                                            writes, writes_count));
   tcp_sock_ = new MockTCPClientSocket(address_list_, net_log, data_.get());
 
-  int rv = tcp_sock_->Connect(&callback);
+  int rv = tcp_sock_->Connect(callback.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -81,17 +81,17 @@ SOCKSClientSocket* SOCKSClientSocketTest::BuildMockSocket(
 // Implementation of HostResolver that never completes its resolve request.
 // We use this in the test "DisconnectWhileHostResolveInProgress" to make
 // sure that the outstanding resolve request gets cancelled.
-class HangingHostResolver : public HostResolver {
+class HangingHostResolverWithCancel : public HostResolver {
  public:
-  HangingHostResolver() : outstanding_request_(NULL) {}
+  HangingHostResolverWithCancel() : outstanding_request_(NULL) {}
 
   virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
-                      CompletionCallback* callback,
+                      const CompletionCallback& callback,
                       RequestHandle* out_req,
                       const BoundNetLog& net_log) OVERRIDE {
     DCHECK(addresses);
-    DCHECK(callback);
+    DCHECK_EQ(false, callback.is_null());
     EXPECT_FALSE(HasOutstandingRequest());
     outstanding_request_ = reinterpret_cast<RequestHandle>(1);
     *out_req = outstanding_request_;
@@ -111,9 +111,6 @@ class HangingHostResolver : public HostResolver {
     outstanding_request_ = NULL;
   }
 
-  virtual void AddObserver(Observer* observer) OVERRIDE {}
-  virtual void RemoveObserver(Observer* observer) OVERRIDE {}
-
   bool HasOutstandingRequest() {
     return outstanding_request_ != NULL;
   }
@@ -121,7 +118,7 @@ class HangingHostResolver : public HostResolver {
  private:
   RequestHandle outstanding_request_;
 
-  DISALLOW_COPY_AND_ASSIGN(HangingHostResolver);
+  DISALLOW_COPY_AND_ASSIGN(HangingHostResolverWithCancel);
 };
 
 // Tests a complete handshake and the disconnection.
@@ -147,7 +144,7 @@ TEST_F(SOCKSClientSocketTest, CompleteHandshake) {
   EXPECT_TRUE(tcp_sock_->IsConnected());
   EXPECT_FALSE(user_sock_->IsConnected());
 
-  int rv = user_sock_->Connect(&callback_);
+  int rv = user_sock_->Connect(callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   net::CapturingNetLog::EntryList entries;
@@ -165,13 +162,13 @@ TEST_F(SOCKSClientSocketTest, CompleteHandshake) {
 
   scoped_refptr<IOBuffer> buffer(new IOBuffer(payload_write.size()));
   memcpy(buffer->data(), payload_write.data(), payload_write.size());
-  rv = user_sock_->Write(buffer, payload_write.size(), &callback_);
+  rv = user_sock_->Write(buffer, payload_write.size(), callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback_.WaitForResult();
   EXPECT_EQ(static_cast<int>(payload_write.size()), rv);
 
   buffer = new IOBuffer(payload_read.size());
-  rv = user_sock_->Read(buffer, payload_read.size(), &callback_);
+  rv = user_sock_->Read(buffer, payload_read.size(), callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback_.WaitForResult();
   EXPECT_EQ(static_cast<int>(payload_read.size()), rv);
@@ -216,7 +213,7 @@ TEST_F(SOCKSClientSocketTest, HandshakeFailures) {
                                      "localhost", 80,
                                      &log));
 
-    int rv = user_sock_->Connect(&callback_);
+    int rv = user_sock_->Connect(callback_.callback());
     EXPECT_EQ(ERR_IO_PENDING, rv);
 
     net::CapturingNetLog::EntryList entries;
@@ -253,7 +250,7 @@ TEST_F(SOCKSClientSocketTest, PartialServerReads) {
                                    "localhost", 80,
                                    &log));
 
-  int rv = user_sock_->Connect(&callback_);
+  int rv = user_sock_->Connect(callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   net::CapturingNetLog::EntryList entries;
   log.GetEntries(&entries);
@@ -291,7 +288,7 @@ TEST_F(SOCKSClientSocketTest, PartialClientWrites) {
                                    "localhost", 80,
                                    &log));
 
-  int rv = user_sock_->Connect(&callback_);
+  int rv = user_sock_->Connect(callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   net::CapturingNetLog::EntryList entries;
   log.GetEntries(&entries);
@@ -323,7 +320,7 @@ TEST_F(SOCKSClientSocketTest, FailedSocketRead) {
                                    "localhost", 80,
                                    &log));
 
-  int rv = user_sock_->Connect(&callback_);
+  int rv = user_sock_->Connect(callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   net::CapturingNetLog::EntryList entries;
   log.GetEntries(&entries);
@@ -353,7 +350,7 @@ TEST_F(SOCKSClientSocketTest, FailedDNS) {
                                    hostname, 80,
                                    &log));
 
-  int rv = user_sock_->Connect(&callback_);
+  int rv = user_sock_->Connect(callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   net::CapturingNetLog::EntryList entries;
   log.GetEntries(&entries);
@@ -371,7 +368,8 @@ TEST_F(SOCKSClientSocketTest, FailedDNS) {
 // Calls Disconnect() while a host resolve is in progress. The outstanding host
 // resolve should be cancelled.
 TEST_F(SOCKSClientSocketTest, DisconnectWhileHostResolveInProgress) {
-  scoped_ptr<HangingHostResolver> hanging_resolver(new HangingHostResolver());
+  scoped_ptr<HangingHostResolverWithCancel> hanging_resolver(
+    new HangingHostResolverWithCancel());
 
   // Doesn't matter what the socket data is, we will never use it -- garbage.
   MockWrite data_writes[] = { MockWrite(false, "", 0) };
@@ -384,7 +382,7 @@ TEST_F(SOCKSClientSocketTest, DisconnectWhileHostResolveInProgress) {
                                    NULL));
 
   // Start connecting (will get stuck waiting for the host to resolve).
-  int rv = user_sock_->Connect(&callback_);
+  int rv = user_sock_->Connect(callback_.callback());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_FALSE(user_sock_->IsConnected());

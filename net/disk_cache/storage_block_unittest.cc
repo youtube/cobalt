@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 TEST_F(DiskCacheTest, StorageBlock_LoadStore) {
-  FilePath filename = GetCacheFilePath().AppendASCII("a_test");
+  FilePath filename = cache_path_.AppendASCII("a_test");
   scoped_refptr<disk_cache::MappedFile> file(new disk_cache::MappedFile);
   ASSERT_TRUE(CreateCacheTestFile(filename));
   ASSERT_TRUE(file->Init(filename, 8192));
@@ -30,7 +30,7 @@ TEST_F(DiskCacheTest, StorageBlock_LoadStore) {
 }
 
 TEST_F(DiskCacheTest, StorageBlock_SetData) {
-  FilePath filename = GetCacheFilePath().AppendASCII("a_test");
+  FilePath filename = cache_path_.AppendASCII("a_test");
   scoped_refptr<disk_cache::MappedFile> file(new disk_cache::MappedFile);
   ASSERT_TRUE(CreateCacheTestFile(filename));
   ASSERT_TRUE(file->Init(filename, 8192));
@@ -50,7 +50,7 @@ TEST_F(DiskCacheTest, StorageBlock_SetData) {
 }
 
 TEST_F(DiskCacheTest, StorageBlock_SetModified) {
-  FilePath filename = GetCacheFilePath().AppendASCII("a_test");
+  FilePath filename = cache_path_.AppendASCII("a_test");
   scoped_refptr<disk_cache::MappedFile> file(new disk_cache::MappedFile);
   ASSERT_TRUE(CreateCacheTestFile(filename));
   ASSERT_TRUE(file->Init(filename, 8192));

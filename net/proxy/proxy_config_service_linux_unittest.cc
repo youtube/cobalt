@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
@@ -16,7 +17,6 @@
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
-#include "base/task.h"
 #include "base/threading/thread.h"
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_config_service_common_unittest.h"
@@ -269,8 +269,8 @@ class SynchConfigGetter {
     io_thread_.StartWithOptions(options);
 
     // Make sure the thread started.
-    io_thread_.message_loop()->PostTask(FROM_HERE, NewRunnableMethod(
-        this, &SynchConfigGetter::Init));
+    io_thread_.message_loop()->PostTask(FROM_HERE,
+        base::Bind(&SynchConfigGetter::Init, base::Unretained(this)));
     Wait();
   }
 
@@ -279,8 +279,8 @@ class SynchConfigGetter {
     // before cleaning up that thread.
     delete config_service_;
     // Clean up the IO thread.
-    io_thread_.message_loop()->PostTask(FROM_HERE, NewRunnableMethod(
-        this, &SynchConfigGetter::Cleanup));
+    io_thread_.message_loop()->PostTask(FROM_HERE,
+        base::Bind(&SynchConfigGetter::CleanUp, base::Unretained(this)));
     Wait();
   }
 
@@ -298,8 +298,9 @@ class SynchConfigGetter {
   // Synchronously gets the proxy config.
   net::ProxyConfigService::ConfigAvailability SyncGetLatestProxyConfig(
       net::ProxyConfig* config) {
-    io_thread_.message_loop()->PostTask(FROM_HERE, NewRunnableMethod(
-        this, &SynchConfigGetter::GetLatestConfigOnIOThread));
+    io_thread_.message_loop()->PostTask(FROM_HERE,
+        base::Bind(&SynchConfigGetter::GetLatestConfigOnIOThread,
+                   base::Unretained(this)));
     Wait();
     *config = proxy_config_;
     return get_latest_config_result_;
@@ -320,7 +321,7 @@ class SynchConfigGetter {
   }
 
   // [Runs on |io_thread_|] Signals |event_| on cleanup completion.
-  void Cleanup() {
+  void CleanUp() {
     MessageLoop::current()->RunAllPending();
     event_.Signal();
   }
@@ -342,8 +343,6 @@ class SynchConfigGetter {
   // Return value from GetLatestProxyConfig().
   net::ProxyConfigService::ConfigAvailability get_latest_config_result_;
 };
-
-DISABLE_RUNNABLE_METHOD_REFCOUNT(SynchConfigGetter);
 
 namespace net {
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,63 +7,152 @@
 
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
+#include "media/base/media_export.h"
+#include "media/base/video_frame.h"
+#include "ui/gfx/rect.h"
+#include "ui/gfx/size.h"
 
 namespace media {
 
-enum VideoCodec {
-  kUnknown,
+enum MEDIA_EXPORT VideoCodec {
+  // These values are histogrammed over time; do not change their ordinal
+  // values.  When deleting a codec replace it with a dummy value; when adding a
+  // codec, do so at the bottom (and update kVideoCodecMax).
+  kUnknownVideoCodec = 0,
   kCodecH264,
   kCodecVC1,
   kCodecMPEG2,
   kCodecMPEG4,
   kCodecTheora,
   kCodecVP8,
-
   // DO NOT ADD RANDOM VIDEO CODECS!
   //
   // The only acceptable time to add a new codec is if there is production code
   // that uses said codec in the same CL.
+
+  kVideoCodecMax = kCodecVP8  // Must equal the last "real" codec above.
 };
 
-class VideoDecoderConfig {
+// Video stream profile.  This *must* match PP_VideoDecoder_Profile.
+enum MEDIA_EXPORT VideoCodecProfile {
+  // Keep the values in this enum unique, as they imply format (h.264 vs. VP8,
+  // for example), and keep the values for a particular format grouped
+  // together for clarity.
+  VIDEO_CODEC_PROFILE_UNKNOWN = -1,
+  H264PROFILE_MIN = 0,
+  H264PROFILE_BASELINE = H264PROFILE_MIN,
+  H264PROFILE_MAIN,
+  H264PROFILE_EXTENDED,
+  H264PROFILE_HIGH,
+  H264PROFILE_HIGH10PROFILE,
+  H264PROFILE_HIGH422PROFILE,
+  H264PROFILE_HIGH444PREDICTIVEPROFILE,
+  H264PROFILE_SCALABLEBASELINE,
+  H264PROFILE_SCALABLEHIGH,
+  H264PROFILE_STEREOHIGH,
+  H264PROFILE_MULTIVIEWHIGH,
+  H264PROFILE_MAX = H264PROFILE_MULTIVIEWHIGH,
+  VIDEO_CODEC_PROFILE_MAX = H264PROFILE_MAX,
+};
+
+class MEDIA_EXPORT VideoDecoderConfig {
  public:
-  VideoDecoderConfig(VideoCodec codec, int width, int height,
-                     int surface_width, int surface_height,
+  // Constructs an uninitialized object. Clients should call Initialize() with
+  // appropriate values before using.
+  VideoDecoderConfig();
+
+  // Constructs an initialized object. It is acceptable to pass in NULL for
+  // |extra_data|, otherwise the memory is copied.
+  VideoDecoderConfig(VideoCodec codec,
+                     VideoCodecProfile profile,
+                     VideoFrame::Format format,
+                     const gfx::Size& coded_size,
+                     const gfx::Rect& visible_rect,
                      int frame_rate_numerator, int frame_rate_denominator,
-                     uint8* extra_data, size_t extra_data_size);
+                     int aspect_ratio_numerator, int aspect_ratio_denominator,
+                     const uint8* extra_data, size_t extra_data_size);
+
   ~VideoDecoderConfig();
 
+  // Resets the internal state of this object.
+  void Initialize(VideoCodec codec,
+                  VideoCodecProfile profile,
+                  VideoFrame::Format format,
+                  const gfx::Size& coded_size,
+                  const gfx::Rect& visible_rect,
+                  int frame_rate_numerator, int frame_rate_denominator,
+                  int aspect_ratio_numerator, int aspect_ratio_denominator,
+                  const uint8* extra_data, size_t extra_data_size,
+                  bool record_stats);
+
+  // Deep copies |video_config|.
+  void CopyFrom(const VideoDecoderConfig& video_config);
+
+  // Returns true if this object has appropriate configuration values, false
+  // otherwise.
+  bool IsValidConfig() const;
+
+  // Returns a human-readable string describing |*this|.  For debugging & test
+  // output only.
+  std::string AsHumanReadableString() const;
+
   VideoCodec codec() const;
-  int width() const;
-  int height() const;
-  int surface_width() const;
-  int surface_height() const;
+  VideoCodecProfile profile() const;
+
+  // Video format used to determine YUV buffer sizes.
+  VideoFrame::Format format() const;
+
+  // Width and height of video frame immediately post-decode. Not all pixels
+  // in this region are valid.
+  gfx::Size coded_size() const;
+
+  // Region of |coded_size_| that is visible.
+  gfx::Rect visible_rect() const;
+
+  // Final visible width and height of a video frame with aspect ratio taken
+  // into account.
+  gfx::Size natural_size() const;
+
+  // Frame rate in seconds expressed as a fraction.
+  //
+  // This information is required to properly timestamp video frames for
+  // codecs that contain repeated frames, such as found in H.264's
+  // supplemental enhancement information.
   int frame_rate_numerator() const;
   int frame_rate_denominator() const;
+
+  // Aspect ratio of the decoded video frame expressed as a fraction.
+  //
+  // TODO(scherkus): think of a better way to avoid having video decoders
+  // handle tricky aspect ratio dimension calculations.
+  int aspect_ratio_numerator() const;
+  int aspect_ratio_denominator() const;
+
+  // Optional byte data required to initialize video decoders, such as H.264
+  // AAVC data.
   uint8* extra_data() const;
   size_t extra_data_size() const;
 
  private:
   VideoCodec codec_;
+  VideoCodecProfile profile_;
 
-  // Container's concept of width and height of this video.
-  int width_;
-  int height_;
+  VideoFrame::Format format_;
 
-  // Width and height of the display surface for this video.
-  int surface_width_;
-  int surface_height_;
+  gfx::Size coded_size_;
+  gfx::Rect visible_rect_;
+  gfx::Size natural_size_;
 
-  // Frame rate in seconds expressed as a fraction.
-  // TODO(scherkus): fairly certain decoders don't require frame rates.
   int frame_rate_numerator_;
   int frame_rate_denominator_;
 
-  // Optional byte data required to initialize video decoders.
+  int aspect_ratio_numerator_;
+  int aspect_ratio_denominator_;
+
   scoped_array<uint8> extra_data_;
   size_t extra_data_size_;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(VideoDecoderConfig);
+  DISALLOW_COPY_AND_ASSIGN(VideoDecoderConfig);
 };
 
 }  // namespace media

@@ -112,8 +112,12 @@ class Rankings {
   // Inserts a given entry at the head of the queue.
   void Insert(CacheRankingsBlock* node, bool modified, List list);
 
-  // Removes a given entry from the LRU list.
-  void Remove(CacheRankingsBlock* node, List list);
+  // Removes a given entry from the LRU list. If |strict| is true, this method
+  // assumes that |node| is not pointed to by an active iterator. On the other
+  // hand, removing that restriction allows the current "head" of an iterator
+  // to be removed from the list (basically without control of the code that is
+  // performing the iteration), so it should be used with extra care.
+  void Remove(CacheRankingsBlock* node, List list, bool strict);
 
   // Moves a given entry to the head.
   void UpdateRank(CacheRankingsBlock* node, bool modified, List list);
@@ -132,7 +136,11 @@ class Rankings {
 
   // Returns false if the entry is clearly invalid. from_list is true if the
   // node comes from the LRU list.
-  bool SanityCheck(CacheRankingsBlock* node, bool from_list);
+  bool SanityCheck(CacheRankingsBlock* node, bool from_list) const;
+  bool DataSanityCheck(CacheRankingsBlock* node, bool from_list) const;
+
+  // Sets the |contents| field of |node| to |address|.
+  void SetContents(CacheRankingsBlock* node, CacheAddr address);
 
  private:
   typedef std::pair<CacheAddr, CacheRankingsBlock*> IteratorPair;
@@ -174,8 +182,8 @@ class Rankings {
 
   // Returns true if addr is the head or tail of any list. When there is a
   // match |list| will contain the list number for |addr|.
-  bool IsHead(CacheAddr addr, List* list);
-  bool IsTail(CacheAddr addr, List* list);
+  bool IsHead(CacheAddr addr, List* list) const;
+  bool IsTail(CacheAddr addr, List* list) const;
 
   // Updates the iterators whenever node is being changed.
   void UpdateIterators(CacheRankingsBlock* node);

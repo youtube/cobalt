@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,6 +26,10 @@
 #include "base/threading/thread_restrictions.h"
 
 namespace {
+
+// Max score for the old oom_adj range.  Used for conversion of new
+// values to old values.
+const int kMaxOldOomScore = 15;
 
 enum ParsingState {
   KEY_NAME,
@@ -80,7 +84,7 @@ int GetProcessCPU(pid_t pid) {
 
   DIR* dir = opendir(path.value().c_str());
   if (!dir) {
-    PLOG(ERROR) << "opendir(" << path.value() << ")";
+    DPLOG(ERROR) << "opendir(" << path.value() << ")";
     return -1;
   }
 
@@ -119,18 +123,18 @@ ProcessId GetParentProcessId(ProcessHandle process) {
 
   StringTokenizer tokenizer(status, ":\n");
   ParsingState state = KEY_NAME;
-  std::string last_key_name;
+  StringPiece last_key_name;
   while (tokenizer.GetNext()) {
     switch (state) {
       case KEY_NAME:
-        last_key_name = tokenizer.token();
+        last_key_name = tokenizer.token_piece();
         state = KEY_VALUE;
         break;
       case KEY_VALUE:
         DCHECK(!last_key_name.empty());
         if (last_key_name == "PPid") {
           int ppid;
-          base::StringToInt(tokenizer.token(), &ppid);
+          base::StringToInt(tokenizer.token_piece(), &ppid);
           return ppid;
         }
         state = KEY_NAME;
@@ -269,7 +273,7 @@ ProcessMetrics* ProcessMetrics::CreateProcessMetrics(ProcessHandle process) {
 size_t ProcessMetrics::GetPagefileUsage() const {
   std::vector<std::string> proc_stats;
   if (!GetProcStats(process_, &proc_stats))
-    LOG(WARNING) << "Failed to get process stats.";
+    DLOG(WARNING) << "Failed to get process stats.";
   const size_t kVmSize = 22;
   if (proc_stats.size() > kVmSize) {
     int vm_size;
@@ -283,7 +287,7 @@ size_t ProcessMetrics::GetPagefileUsage() const {
 size_t ProcessMetrics::GetPeakPagefileUsage() const {
   std::vector<std::string> proc_stats;
   if (!GetProcStats(process_, &proc_stats))
-    LOG(WARNING) << "Failed to get process stats.";
+    DLOG(WARNING) << "Failed to get process stats.";
   const size_t kVmPeak = 21;
   if (proc_stats.size() > kVmPeak) {
     int vm_peak;
@@ -297,7 +301,7 @@ size_t ProcessMetrics::GetPeakPagefileUsage() const {
 size_t ProcessMetrics::GetWorkingSetSize() const {
   std::vector<std::string> proc_stats;
   if (!GetProcStats(process_, &proc_stats))
-    LOG(WARNING) << "Failed to get process stats.";
+    DLOG(WARNING) << "Failed to get process stats.";
   const size_t kVmRss = 23;
   if (proc_stats.size() > kVmRss) {
     int num_pages;
@@ -311,7 +315,7 @@ size_t ProcessMetrics::GetWorkingSetSize() const {
 size_t ProcessMetrics::GetPeakWorkingSetSize() const {
   std::vector<std::string> proc_stats;
   if (!GetProcStats(process_, &proc_stats))
-    LOG(WARNING) << "Failed to get process stats.";
+    DLOG(WARNING) << "Failed to get process stats.";
   const size_t kVmHwm = 23;
   if (proc_stats.size() > kVmHwm) {
     int num_pages;
@@ -376,12 +380,12 @@ bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
           }
           if (last_key_name.starts_with(private_prefix)) {
             int cur;
-            base::StringToInt(tokenizer.token(), &cur);
+            base::StringToInt(tokenizer.token_piece(), &cur);
             private_kb += cur;
           } else if (last_key_name.starts_with(pss_prefix)) {
             have_pss = true;
             int cur;
-            base::StringToInt(tokenizer.token(), &cur);
+            base::StringToInt(tokenizer.token_piece(), &cur);
             pss_kb += cur;
           }
           state = KEY_NAME;
@@ -486,26 +490,26 @@ bool ProcessMetrics::GetIOCounters(IoCounters* io_counters) const {
 
   StringTokenizer tokenizer(proc_io_contents, ": \n");
   ParsingState state = KEY_NAME;
-  std::string last_key_name;
+  StringPiece last_key_name;
   while (tokenizer.GetNext()) {
     switch (state) {
       case KEY_NAME:
-        last_key_name = tokenizer.token();
+        last_key_name = tokenizer.token_piece();
         state = KEY_VALUE;
         break;
       case KEY_VALUE:
         DCHECK(!last_key_name.empty());
         if (last_key_name == "syscr") {
-          base::StringToInt64(tokenizer.token(),
+          base::StringToInt64(tokenizer.token_piece(),
               reinterpret_cast<int64*>(&(*io_counters).ReadOperationCount));
         } else if (last_key_name == "syscw") {
-          base::StringToInt64(tokenizer.token(),
+          base::StringToInt64(tokenizer.token_piece(),
               reinterpret_cast<int64*>(&(*io_counters).WriteOperationCount));
         } else if (last_key_name == "rchar") {
-          base::StringToInt64(tokenizer.token(),
+          base::StringToInt64(tokenizer.token_piece(),
               reinterpret_cast<int64*>(&(*io_counters).ReadTransferCount));
         } else if (last_key_name == "wchar") {
-          base::StringToInt64(tokenizer.token(),
+          base::StringToInt64(tokenizer.token_piece(),
               reinterpret_cast<int64*>(&(*io_counters).WriteTransferCount));
         }
         state = KEY_NAME;
@@ -558,12 +562,13 @@ namespace {
 const size_t kMemTotalIndex = 1;
 const size_t kMemFreeIndex = 4;
 const size_t kMemBuffersIndex = 7;
-const size_t kMemCacheIndex = 10;
+const size_t kMemCachedIndex = 10;
+const size_t kMemActiveAnonIndex = 22;
+const size_t kMemInactiveAnonIndex = 25;
 
 }  // namespace
 
-bool GetSystemMemoryInfo(int* mem_total, int* mem_free, int* mem_buffers,
-                         int* mem_cache, int* shmem) {
+bool GetSystemMemoryInfo(SystemMemoryInfoKB* meminfo) {
   // Synchronously reading files in /proc is safe.
   base::ThreadRestrictions::ScopedAllowIO allow_io;
 
@@ -571,14 +576,14 @@ bool GetSystemMemoryInfo(int* mem_total, int* mem_free, int* mem_buffers,
   FilePath meminfo_file("/proc/meminfo");
   std::string meminfo_data;
   if (!file_util::ReadFileToString(meminfo_file, &meminfo_data)) {
-    LOG(WARNING) << "Failed to open /proc/meminfo.";
+    DLOG(WARNING) << "Failed to open /proc/meminfo.";
     return false;
   }
   std::vector<std::string> meminfo_fields;
   SplitStringAlongWhitespace(meminfo_data, &meminfo_fields);
 
-  if (meminfo_fields.size() < kMemCacheIndex) {
-    LOG(WARNING) << "Failed to parse /proc/meminfo.  Only found " <<
+  if (meminfo_fields.size() < kMemCachedIndex) {
+    DLOG(WARNING) << "Failed to parse /proc/meminfo.  Only found " <<
       meminfo_fields.size() << " fields.";
     return false;
   }
@@ -586,20 +591,25 @@ bool GetSystemMemoryInfo(int* mem_total, int* mem_free, int* mem_buffers,
   DCHECK_EQ(meminfo_fields[kMemTotalIndex-1], "MemTotal:");
   DCHECK_EQ(meminfo_fields[kMemFreeIndex-1], "MemFree:");
   DCHECK_EQ(meminfo_fields[kMemBuffersIndex-1], "Buffers:");
-  DCHECK_EQ(meminfo_fields[kMemCacheIndex-1], "Cached:");
+  DCHECK_EQ(meminfo_fields[kMemCachedIndex-1], "Cached:");
+  DCHECK_EQ(meminfo_fields[kMemActiveAnonIndex-1], "Active(anon):");
+  DCHECK_EQ(meminfo_fields[kMemInactiveAnonIndex-1], "Inactive(anon):");
 
-  base::StringToInt(meminfo_fields[kMemTotalIndex], mem_total);
-  base::StringToInt(meminfo_fields[kMemFreeIndex], mem_free);
-  base::StringToInt(meminfo_fields[kMemBuffersIndex], mem_buffers);
-  base::StringToInt(meminfo_fields[kMemCacheIndex], mem_cache);
+  base::StringToInt(meminfo_fields[kMemTotalIndex], &meminfo->total);
+  base::StringToInt(meminfo_fields[kMemFreeIndex], &meminfo->free);
+  base::StringToInt(meminfo_fields[kMemBuffersIndex], &meminfo->buffers);
+  base::StringToInt(meminfo_fields[kMemCachedIndex], &meminfo->cached);
+  base::StringToInt(meminfo_fields[kMemActiveAnonIndex], &meminfo->active_anon);
+  base::StringToInt(meminfo_fields[kMemInactiveAnonIndex],
+                    &meminfo->inactive_anon);
 #if defined(OS_CHROMEOS)
   // Chrome OS has a tweaked kernel that allows us to query Shmem, which is
   // usually video memory otherwise invisible to the OS.  Unfortunately, the
   // meminfo format varies on different hardware so we have to search for the
   // string.  It always appears after "Cached:".
-  for (size_t i = kMemCacheIndex+2; i < meminfo_fields.size(); i += 3) {
+  for (size_t i = kMemCachedIndex+2; i < meminfo_fields.size(); i += 3) {
     if (meminfo_fields[i] == "Shmem:") {
-      base::StringToInt(meminfo_fields[i+1], shmem);
+      base::StringToInt(meminfo_fields[i+1], &meminfo->shmem);
       break;
     }
   }
@@ -608,10 +618,10 @@ bool GetSystemMemoryInfo(int* mem_total, int* mem_free, int* mem_buffers,
 }
 
 size_t GetSystemCommitCharge() {
-  int total, free, buffers, cache, shmem;
-  if (!GetSystemMemoryInfo(&total, &free, &buffers, &cache, &shmem))
+  SystemMemoryInfoKB meminfo;
+  if (!GetSystemMemoryInfo(&meminfo))
     return 0;
-  return total - free - buffers - cache;
+  return meminfo.total - meminfo.free - meminfo.buffers - meminfo.cached;
 }
 
 namespace {
@@ -712,6 +722,10 @@ int posix_memalign(void** ptr, size_t alignment, size_t size) {
 #endif  // !defined(USE_TCMALLOC)
 }  // extern C
 
+void EnableTerminationOnHeapCorruption() {
+  // On Linux, there nothing to do AFAIK.
+}
+
 void EnableTerminationOnOutOfMemory() {
 #if defined(OS_ANDROID)
   // Android doesn't support setting a new handler.
@@ -724,20 +738,42 @@ void EnableTerminationOnOutOfMemory() {
 #endif
 }
 
+// NOTE: This is not the only version of this function in the source:
+// the setuid sandbox (in process_util_linux.c, in the sandbox source)
+// also has it's own C version.
 bool AdjustOOMScore(ProcessId process, int score) {
-  if (score < 0 || score > 15)
+  if (score < 0 || score > kMaxOomScore)
     return false;
 
-  FilePath oom_adj("/proc");
-  oom_adj = oom_adj.Append(base::Int64ToString(process));
-  oom_adj = oom_adj.AppendASCII("oom_adj");
+  FilePath oom_path("/proc");
+  oom_path = oom_path.Append(base::Int64ToString(process));
 
-  if (!file_util::PathExists(oom_adj))
-    return false;
+  // Attempt to write the newer oom_score_adj file first.
+  FilePath oom_file = oom_path.AppendASCII("oom_score_adj");
+  if (file_util::PathExists(oom_file)) {
+    std::string score_str = base::IntToString(score);
+    DVLOG(1) << "Adjusting oom_score_adj of " << process << " to "
+             << score_str;
+    int score_len = static_cast<int>(score_str.length());
+    return (score_len == file_util::WriteFile(oom_file,
+                                              score_str.c_str(),
+                                              score_len));
+  }
 
-  std::string score_str = base::IntToString(score);
-  return (static_cast<int>(score_str.length()) ==
-          file_util::WriteFile(oom_adj, score_str.c_str(), score_str.length()));
+  // If the oom_score_adj file doesn't exist, then we write the old
+  // style file and translate the oom_adj score to the range 0-15.
+  oom_file = oom_path.AppendASCII("oom_adj");
+  if (file_util::PathExists(oom_file)) {
+    std::string score_str = base::IntToString(
+        score * kMaxOldOomScore / kMaxOomScore);
+    DVLOG(1) << "Adjusting oom_adj of " << process << " to " << score_str;
+    int score_len = static_cast<int>(score_str.length());
+    return (score_len == file_util::WriteFile(oom_file,
+                                              score_str.c_str(),
+                                              score_len));
+  }
+
+  return false;
 }
 
 }  // namespace base

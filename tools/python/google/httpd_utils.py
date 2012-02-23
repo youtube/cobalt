@@ -1,5 +1,5 @@
-#!/bin/env python
-# Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+#!/usr/bin/env python
+# Copyright (c) 2011 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -169,7 +169,8 @@ class ApacheHttpd(object):
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE)
 
-if '__main__' == __name__:
+
+def main():
   # Provide some command line params for starting/stopping the http server
   # manually.
   option_parser = optparse.OptionParser()
@@ -183,7 +184,7 @@ if '__main__' == __name__:
   if not options.server:
     print ("Usage: %s -k {start|stop} [-r document_root] [--apache2]" %
            sys.argv[0])
-    sys.exit(0)
+    return 1
 
   document_root = None
   if options.root:
@@ -194,3 +195,6 @@ if '__main__' == __name__:
   else:
     StopServers(apache2=options.apache2)
 
+
+if '__main__' == __name__:
+  sys.exit(main())

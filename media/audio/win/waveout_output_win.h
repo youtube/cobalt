@@ -11,6 +11,8 @@
 #include <mmreg.h>
 
 #include "base/basictypes.h"
+#include "base/memory/scoped_ptr.h"
+#include "base/synchronization/lock.h"
 #include "base/win/scoped_handle.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
@@ -28,9 +30,9 @@ class AudioManagerWin;
 // you are keeping state in it.
 class PCMWaveOutAudioOutputStream : public AudioOutputStream {
  public:
-  // The ctor takes all the usual parameters, plus |manager| which is the
-  // the audio manager who is creating this object and |device_id| which
-  // is provided by the operating system.
+  // The ctor takes all the usual parameters, plus |manager| which is the the
+  // audio manager who is creating this object and |device_id| which is provided
+  // by the operating system.
   PCMWaveOutAudioOutputStream(AudioManagerWin* manager,
                               const AudioParameters& params,
                               int num_buffers,
@@ -53,22 +55,27 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
     PCMA_BRAND_NEW,    // Initial state.
     PCMA_READY,        // Device obtained and ready to play.
     PCMA_PLAYING,      // Playing audio.
-    PCMA_STOPPING,     // Trying to stop, waiting for callback to finish.
-    PCMA_STOPPED,      // Stopped. Device was reset.
+    PCMA_STOPPING,     // Audio is stopping, do not "feed" data to Windows.
     PCMA_CLOSED        // Device has been released.
   };
 
-  // Windows calls us back to feed more data to the device here. See msdn
-  // documentation for 'waveOutProc' for details about the parameters.
-  static void CALLBACK WaveCallback(HWAVEOUT hwo, UINT msg, DWORD_PTR instance,
-                                    DWORD_PTR param1, DWORD_PTR param2);
+  // Returns pointer to the n-th buffer.
+  inline WAVEHDR* GetBuffer(int n) const;
+
+  // Size of one buffer in bytes, rounded up if necessary.
+  inline size_t BufferSize() const;
+
+  // Windows calls us back asking for more data when buffer_event_ signalled.
+  // See MSDN for help on RegisterWaitForSingleObject() and waveOutOpen().
+  static void NTAPI BufferCallback(PVOID lpParameter, BOOLEAN timer_fired);
 
   // If windows reports an error this function handles it and passes it to
   // the attached AudioSourceCallback::OnError().
   void HandleError(MMRESULT error);
-  // Allocates and prepares the memory that will be used for playback. Only
-  // two buffers are created.
+
+  // Allocates and prepares the memory that will be used for playback.
   void SetupBuffers();
+
   // Deallocates the memory allocated in SetupBuffers.
   void FreeBuffers();
 
@@ -109,11 +116,18 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   // Handle to the instance of the wave device.
   HWAVEOUT waveout_;
 
-  // Pointer to the first allocated audio buffer. This object owns it.
-  WAVEHDR* buffer_;
+  // Handle to the buffer event.
+  base::win::ScopedHandle buffer_event_;
 
-  // An event that is signaled when the callback thread is ready to stop.
-  base::win::ScopedHandle stopped_event_;
+  // Handle returned by RegisterWaitForSingleObject().
+  base::win::ScopedHandle waiting_handle_;
+
+  // Pointer to the allocated audio buffers, we allocate all buffers in one big
+  // chunk. This object owns them.
+  scoped_array<char> buffers_;
+
+  // Lock used to avoid the conflict when callbacks are called simultaneously.
+  base::Lock lock_;
 
   DISALLOW_COPY_AND_ASSIGN(PCMWaveOutAudioOutputStream);
 };

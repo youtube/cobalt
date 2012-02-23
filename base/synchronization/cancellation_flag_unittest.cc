@@ -6,9 +6,10 @@
 
 #include "base/synchronization/cancellation_flag.h"
 
+#include "base/bind.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
-#include "base/spin_wait.h"
+#include "base/synchronization/spin_wait.h"
 #include "base/time.h"
 #include "base/threading/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -22,15 +23,11 @@ namespace {
 // Define our test class.
 //------------------------------------------------------------------------------
 
-class CancelTask : public Task {
- public:
-  explicit CancelTask(CancellationFlag* flag) : flag_(flag) {}
-  virtual void Run() {
-    ASSERT_DEBUG_DEATH(flag_->Set(), "");
-  }
- private:
-  CancellationFlag* flag_;
-};
+void CancelHelper(CancellationFlag* flag) {
+#if GTEST_HAS_DEATH_TEST
+  ASSERT_DEBUG_DEATH(flag->Set(), "");
+#endif
+}
 
 TEST(CancellationFlagTest, SimpleSingleThreadedTest) {
   CancellationFlag flag;
@@ -59,7 +56,7 @@ TEST(CancellationFlagTest, SetOnDifferentThreadDeathTest) {
   ASSERT_TRUE(t.IsRunning());
 
   CancellationFlag flag;
-  t.message_loop()->PostTask(FROM_HERE, new CancelTask(&flag));
+  t.message_loop()->PostTask(FROM_HERE, base::Bind(&CancelHelper, &flag));
 }
 
 }  // namespace

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "base/bind.h"
 #include "base/message_loop.h"
 #include "base/stringprintf.h"
 #include "net/base/net_errors.h"
@@ -160,7 +161,9 @@ TestTransactionConsumer::~TestTransactionConsumer() {
 void TestTransactionConsumer::Start(const net::HttpRequestInfo* request,
                                     const net::BoundNetLog& net_log) {
   state_ = STARTING;
-  int result = trans_->Start(request, this, net_log);
+  int result = trans_->Start(
+      request, base::Bind(&TestTransactionConsumer::OnIOComplete,
+                          base::Unretained(this)), net_log);
   if (result != net::ERR_IO_PENDING)
     DidStart(result);
 }
@@ -192,13 +195,14 @@ void TestTransactionConsumer::DidFinish(int result) {
 void TestTransactionConsumer::Read() {
   state_ = READING;
   read_buf_ = new net::IOBuffer(1024);
-  int result = trans_->Read(read_buf_, 1024, this);
+  int result = trans_->Read(read_buf_, 1024,
+                            base::Bind(&TestTransactionConsumer::OnIOComplete,
+                                       base::Unretained(this)));
   if (result != net::ERR_IO_PENDING)
     DidRead(result);
 }
 
-void TestTransactionConsumer::RunWithParams(const Tuple1<int>& params) {
-  int result = params.a;
+void TestTransactionConsumer::OnIOComplete(int result) {
   switch (state_) {
     case STARTING:
       DidStart(result);
@@ -211,15 +215,16 @@ void TestTransactionConsumer::RunWithParams(const Tuple1<int>& params) {
   }
 }
 
-
-MockNetworkTransaction::MockNetworkTransaction() :
-    ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)), data_cursor_(0) {
+MockNetworkTransaction::MockNetworkTransaction(MockNetworkLayer* factory)
+    : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
+      data_cursor_(0),
+      transaction_factory_(factory->AsWeakPtr()) {
 }
 
 MockNetworkTransaction::~MockNetworkTransaction() {}
 
 int MockNetworkTransaction::Start(const net::HttpRequestInfo* request,
-                                  net::CompletionCallback* callback,
+                                  const net::CompletionCallback& callback,
                                   const net::BoundNetLog& net_log) {
   const MockTransaction* t = FindMockTransaction(request->url);
   if (!t)
@@ -258,19 +263,19 @@ int MockNetworkTransaction::Start(const net::HttpRequestInfo* request,
 }
 
 int MockNetworkTransaction::RestartIgnoringLastError(
-    net::CompletionCallback* callback) {
+    const net::CompletionCallback& callback) {
   return net::ERR_FAILED;
 }
 
 int MockNetworkTransaction::RestartWithCertificate(
     net::X509Certificate* client_cert,
-    net::CompletionCallback* callback) {
+    const net::CompletionCallback& callback) {
   return net::ERR_FAILED;
 }
 
-int MockNetworkTransaction::RestartWithAuth(const string16& username,
-                                            const string16& password,
-                                            net::CompletionCallback* callback) {
+int MockNetworkTransaction::RestartWithAuth(
+    const net::AuthCredentials& credentials,
+    const net::CompletionCallback& callback) {
   return net::ERR_FAILED;
 }
 
@@ -279,7 +284,7 @@ bool MockNetworkTransaction::IsReadyToRestartForAuth() {
 }
 
 int MockNetworkTransaction::Read(net::IOBuffer* buf, int buf_len,
-                                 net::CompletionCallback* callback) {
+                                 const net::CompletionCallback& callback) {
   int data_len = static_cast<int>(data_.size());
   int num = std::min(buf_len, data_len - data_cursor_);
   if (num) {
@@ -295,6 +300,11 @@ int MockNetworkTransaction::Read(net::IOBuffer* buf, int buf_len,
 
 void MockNetworkTransaction::StopCaching() {}
 
+void MockNetworkTransaction::DoneReading() {
+  if (transaction_factory_)
+    transaction_factory_->TransactionDoneReading();
+}
+
 const net::HttpResponseInfo* MockNetworkTransaction::GetResponseInfo() const {
   return &response_;
 }
@@ -309,25 +319,31 @@ uint64 MockNetworkTransaction::GetUploadProgress() const {
   return 0;
 }
 
-void MockNetworkTransaction::CallbackLater(net::CompletionCallback* callback,
-                                           int result) {
-  MessageLoop::current()->PostTask(FROM_HERE, task_factory_.NewRunnableMethod(
-      &MockNetworkTransaction::RunCallback, callback, result));
+void MockNetworkTransaction::CallbackLater(
+    const net::CompletionCallback& callback, int result) {
+  MessageLoop::current()->PostTask(
+      FROM_HERE, base::Bind(&MockNetworkTransaction::RunCallback,
+                            weak_factory_.GetWeakPtr(), callback, result));
 }
 
-void MockNetworkTransaction::RunCallback(net::CompletionCallback* callback,
-                                         int result) {
-  callback->Run(result);
+void MockNetworkTransaction::RunCallback(
+    const net::CompletionCallback& callback, int result) {
+  callback.Run(result);
 }
 
-MockNetworkLayer::MockNetworkLayer() : transaction_count_(0) {}
+MockNetworkLayer::MockNetworkLayer()
+    : transaction_count_(0), done_reading_called_(false) {}
 
 MockNetworkLayer::~MockNetworkLayer() {}
+
+void MockNetworkLayer::TransactionDoneReading() {
+  done_reading_called_ = true;
+}
 
 int MockNetworkLayer::CreateTransaction(
     scoped_ptr<net::HttpTransaction>* trans) {
   transaction_count_++;
-  trans->reset(new MockNetworkTransaction());
+  trans->reset(new MockNetworkTransaction(this));
   return net::OK;
 }
 
@@ -345,19 +361,19 @@ net::HttpNetworkSession* MockNetworkLayer::GetSession() {
 int ReadTransaction(net::HttpTransaction* trans, std::string* result) {
   int rv;
 
-  TestCompletionCallback callback;
+  net::TestCompletionCallback callback;
 
   std::string content;
   do {
     scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(256));
-    rv = trans->Read(buf, 256, &callback);
+    rv = trans->Read(buf, 256, callback.callback());
     if (rv == net::ERR_IO_PENDING)
       rv = callback.WaitForResult();
-    if (rv > 0) {
+
+    if (rv > 0)
       content.append(buf->data(), rv);
-    } else if (rv < 0) {
+    else if (rv < 0)
       return rv;
-    }
   } while (rv > 0);
 
   result->swap(content);

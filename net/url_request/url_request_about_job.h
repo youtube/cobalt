@@ -8,28 +8,28 @@
 
 #include <string>
 
-#include "base/task.h"
+#include "base/memory/weak_ptr.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_job.h"
 
 namespace net {
 
-class NET_API URLRequestAboutJob : public URLRequestJob {
+class NET_EXPORT URLRequestAboutJob : public URLRequestJob {
  public:
   explicit URLRequestAboutJob(URLRequest* request);
 
   static URLRequest::ProtocolFactory Factory;
 
   // URLRequestJob:
-  virtual void Start();
-  virtual bool GetMimeType(std::string* mime_type) const;
+  virtual void Start() OVERRIDE;
+  virtual bool GetMimeType(std::string* mime_type) const OVERRIDE;
 
  private:
   virtual ~URLRequestAboutJob();
 
   void StartAsync();
 
-  ScopedRunnableMethodFactory<URLRequestAboutJob> method_factory_;
+  base::WeakPtrFactory<URLRequestAboutJob> weak_factory_;
 };
 
 }  // namespace net

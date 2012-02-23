@@ -10,7 +10,7 @@
 #include <string>
 
 #include "base/hash_tables.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 template <typename T> struct DefaultSingletonTraits;
 
@@ -27,7 +27,7 @@ class WebSocketJob;
 //        remote host (IP address) identified by /host/, even if known by
 //        another name, wait until that connection has been established or
 //        for that connection to have failed.
-class NET_TEST WebSocketThrottle {
+class NET_EXPORT_PRIVATE WebSocketThrottle {
  public:
   // Returns the singleton instance.
   static WebSocketThrottle* GetInstance();

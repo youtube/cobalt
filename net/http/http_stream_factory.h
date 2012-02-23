@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,29 +7,35 @@
 
 #include <list>
 #include <string>
+#include <vector>
 
+#include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
 #include "base/string16.h"
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
+#include "net/socket/ssl_client_socket.h"
 
 class GURL;
 
+namespace base {
+class Value;
+}
+
 namespace net {
 
+class AuthCredentials;
 class BoundNetLog;
 class HostMappingRules;
 class HostPortPair;
-class HttpAlternateProtocols;
 class HttpAuthController;
-class HttpNetworkSession;
 class HttpResponseInfo;
+class HttpServerProperties;
 class HttpStream;
 class ProxyInfo;
 class SSLCertRequestInfo;
 class SSLInfo;
-class X509Certificate;
 struct HttpRequestInfo;
 struct SSLConfig;
 
@@ -38,12 +44,12 @@ struct SSLConfig;
 // created, this object is the creator's handle for interacting with the
 // HttpStream creation process.  The request is cancelled by deleting it, after
 // which no callbacks will be invoked.
-class NET_TEST HttpStreamRequest {
+class NET_EXPORT_PRIVATE HttpStreamRequest {
  public:
   // The HttpStreamRequest::Delegate is a set of callback methods for a
   // HttpStreamRequestJob.  Generally, only one of these methods will be
   // called as a result of a stream request.
-  class NET_TEST Delegate {
+  class NET_EXPORT_PRIVATE Delegate {
    public:
     virtual ~Delegate() {}
 
@@ -130,8 +136,8 @@ class NET_TEST HttpStreamRequest {
   // will have been called.  It now becomes the delegate's responsibility
   // to collect the necessary credentials, and then call this method to
   // resume the HttpStream creation process.
-  virtual int RestartTunnelWithProxyAuth(const string16& username,
-                                         const string16& password) = 0;
+  virtual int RestartTunnelWithProxyAuth(
+      const AuthCredentials& credentials) = 0;
 
   // Returns the LoadState for the request.
   virtual LoadState GetLoadState() const = 0;
@@ -139,17 +145,20 @@ class NET_TEST HttpStreamRequest {
   // Returns true if TLS/NPN was negotiated for this stream.
   virtual bool was_npn_negotiated() const = 0;
 
+  // Protocol negotiated with the server.
+  virtual SSLClientSocket::NextProto protocol_negotiated() const = 0;
+
   // Returns true if this stream is being fetched over SPDY.
   virtual bool using_spdy() const = 0;
 };
 
 // The HttpStreamFactory defines an interface for creating usable HttpStreams.
-class NET_API HttpStreamFactory {
+class NET_EXPORT HttpStreamFactory {
  public:
   virtual ~HttpStreamFactory();
 
   void ProcessAlternateProtocol(
-      HttpAlternateProtocols* alternate_protocols,
+      HttpServerProperties* http_server_properties,
       const std::string& alternate_protocol_str,
       const HostPortPair& http_host_port_pair);
 
@@ -159,27 +168,39 @@ class NET_API HttpStreamFactory {
   // Will callback to the HttpStreamRequestDelegate upon completion.
   virtual HttpStreamRequest* RequestStream(
       const HttpRequestInfo& info,
-      const SSLConfig& ssl_config,
+      const SSLConfig& server_ssl_config,
+      const SSLConfig& proxy_ssl_config,
       HttpStreamRequest::Delegate* delegate,
       const BoundNetLog& net_log) = 0;
 
   // Requests that enough connections for |num_streams| be opened.
   virtual void PreconnectStreams(int num_streams,
                                  const HttpRequestInfo& info,
-                                 const SSLConfig& ssl_config,
-                                 const BoundNetLog& net_log) = 0;
+                                 const SSLConfig& server_ssl_config,
+                                 const SSLConfig& proxy_ssl_config) = 0;
 
   virtual void AddTLSIntolerantServer(const HostPortPair& server) = 0;
   virtual bool IsTLSIntolerantServer(const HostPortPair& server) const = 0;
 
+  // If pipelining is supported, creates a Value summary of the currently active
+  // pipelines. Caller assumes ownership of the returned value. Otherwise,
+  // returns an empty Value.
+  virtual base::Value* PipelineInfoToValue() const = 0;
+
   // Static settings
+
+  // Reset all static settings to initialized values. Used to init test suite.
+  static void ResetStaticSettingsToInit();
+
   static GURL ApplyHostMappingRules(const GURL& url, HostPortPair* endpoint);
 
   // Turns spdy on or off.
   static void set_spdy_enabled(bool value) {
     spdy_enabled_ = value;
-    if (value == false)
-      set_next_protos("");
+    if (!spdy_enabled_) {
+      delete next_protos_;
+      next_protos_ = NULL;
+    }
   }
   static bool spdy_enabled() { return spdy_enabled_; }
 
@@ -209,11 +230,15 @@ class NET_API HttpStreamFactory {
   static bool HasSpdyExclusion(const HostPortPair& endpoint);
 
   // Sets the next protocol negotiation value used during the SSL handshake.
-  static void set_next_protos(const std::string& value) {
-    delete next_protos_;
-    next_protos_ = new std::string(value);
+  static void set_next_protos(const std::vector<std::string>& value) {
+    if (!next_protos_)
+      next_protos_ = new std::vector<std::string>;
+    *next_protos_ = value;
   }
-  static const std::string* next_protos() { return next_protos_; }
+  static bool has_next_protos() { return next_protos_ != NULL; }
+  static const std::vector<std::string>& next_protos() {
+    return *next_protos_;
+  }
 
   // Sets the HttpStreamFactoryImpl into a mode where it can ignore certificate
   // errors.  This is for testing.
@@ -226,6 +251,21 @@ class NET_API HttpStreamFactory {
 
   static void SetHostMappingRules(const std::string& rules);
 
+  static void set_http_pipelining_enabled(bool value) {
+    http_pipelining_enabled_ = value;
+  }
+  static bool http_pipelining_enabled() { return http_pipelining_enabled_; }
+
+  static void set_testing_fixed_http_port(int port) {
+    testing_fixed_http_port_ = port;
+  }
+  static uint16 testing_fixed_http_port() { return testing_fixed_http_port_; }
+
+  static void set_testing_fixed_https_port(int port) {
+    testing_fixed_https_port_ = port;
+  }
+  static uint16 testing_fixed_https_port() { return testing_fixed_https_port_; }
+
  protected:
   HttpStreamFactory();
 
@@ -233,13 +273,16 @@ class NET_API HttpStreamFactory {
   static const HostMappingRules& host_mapping_rules();
 
   static const HostMappingRules* host_mapping_rules_;
-  static const std::string* next_protos_;
+  static std::vector<std::string>* next_protos_;
   static bool spdy_enabled_;
   static bool use_alternate_protocols_;
   static bool force_spdy_over_ssl_;
   static bool force_spdy_always_;
   static std::list<HostPortPair>* forced_spdy_exclusions_;
   static bool ignore_certificate_errors_;
+  static bool http_pipelining_enabled_;
+  static uint16 testing_fixed_http_port_;
+  static uint16 testing_fixed_https_port_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpStreamFactory);
 };

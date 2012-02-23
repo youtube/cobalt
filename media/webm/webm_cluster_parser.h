@@ -6,8 +6,9 @@
 #define MEDIA_WEBM_WEBM_CLUSTER_PARSER_H_
 
 #include <deque>
+#include <string>
 
-#include "base/scoped_ptr.h"
+#include "base/memory/scoped_ptr.h"
 #include "media/base/buffers.h"
 #include "media/webm/webm_parser.h"
 
@@ -24,10 +25,14 @@ class WebMClusterParser : public WebMParserClient {
                     base::TimeDelta video_default_duration);
   virtual ~WebMClusterParser();
 
+  // Resets the parser state so it can accept a new cluster.
+  void Reset();
+
   // Parses a WebM cluster element in |buf|.
   //
-  // Returns the number of bytes parsed on success. Returns -1
-  // if a parse error occurs.
+  // Returns -1 if the parse fails.
+  // Returns 0 if more data is needed.
+  // Returns the number of bytes parsed on success.
   int Parse(const uint8* buf, int size);
 
   const BufferQueue& audio_buffers() const { return audio_buffers_; }
@@ -35,21 +40,20 @@ class WebMClusterParser : public WebMParserClient {
 
  private:
   // WebMParserClient methods.
-  virtual bool OnListStart(int id);
-  virtual bool OnListEnd(int id);
-  virtual bool OnUInt(int id, int64 val);
-  virtual bool OnFloat(int id, double val);
-  virtual bool OnBinary(int id, const uint8* data, int size);
-  virtual bool OnString(int id, const std::string& str);
+  virtual WebMParserClient* OnListStart(int id) OVERRIDE;
+  virtual bool OnListEnd(int id) OVERRIDE;
+  virtual bool OnUInt(int id, int64 val) OVERRIDE;
   virtual bool OnSimpleBlock(int track_num, int timecode, int flags,
-                             const uint8* data, int size);
+                             const uint8* data, int size) OVERRIDE;
 
-  double timecode_multiplier_; // Multiplier used to convert timecodes into
-                               // microseconds.
+  double timecode_multiplier_;  // Multiplier used to convert timecodes into
+                                // microseconds.
   int audio_track_num_;
   base::TimeDelta audio_default_duration_;
   int video_track_num_;
   base::TimeDelta  video_default_duration_;
+
+  WebMListParser parser_;
 
   int64 last_block_timecode_;
 
@@ -62,4 +66,4 @@ class WebMClusterParser : public WebMParserClient {
 
 }  // namespace media
 
-#endif // MEDIA_WEBM_WEBM_CLUSTER_PARSER_H_
+#endif  // MEDIA_WEBM_WEBM_CLUSTER_PARSER_H_

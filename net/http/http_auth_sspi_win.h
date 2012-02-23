@@ -18,7 +18,7 @@
 #include <string>
 
 #include "base/string16.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/http/http_auth.h"
 
 namespace net {
@@ -122,7 +122,7 @@ class SSPILibraryDefault : public SSPILibrary {
   }
 };
 
-class NET_TEST HttpAuthSSPI {
+class NET_EXPORT_PRIVATE HttpAuthSSPI {
  public:
   HttpAuthSSPI(SSPILibrary* sspi_library,
                const std::string& scheme,
@@ -132,6 +132,8 @@ class NET_TEST HttpAuthSSPI {
 
   bool NeedsIdentity() const;
 
+  bool AllowsExplicitCredentials() const;
+
   HttpAuth::AuthorizationResult ParseChallenge(
       HttpAuth::ChallengeTokenizer* tok);
 
@@ -140,11 +142,9 @@ class NET_TEST HttpAuthSSPI {
   // If the return value is not |OK|, then the value of |*auth_token| is
   // unspecified. ERR_IO_PENDING is not a valid return code.
   // If this is the first round of a multiple round scheme, credentials are
-  // obtained using |*username| and |*password|. If |username| and |password|
-  // are both NULL, the credentials for the currently logged in user are used
-  // instead.
-  int GenerateAuthToken(const string16* username,
-                        const string16* password,
+  // obtained using |*credentials|. If |credentials| is NULL, the credentials
+  // for the currently logged in user are used instead.
+  int GenerateAuthToken(const AuthCredentials* credentials,
                         const std::wstring& spn,
                         std::string* auth_token);
 
@@ -154,7 +154,7 @@ class NET_TEST HttpAuthSSPI {
   void Delegate();
 
  private:
-  int OnFirstRound(const string16* username, const string16* password);
+  int OnFirstRound(const AuthCredentials* credentials);
 
   int GetNextSecurityToken(
       const std::wstring& spn,
@@ -181,9 +181,9 @@ class NET_TEST HttpAuthSSPI {
 // If |combined| is of form "bar", |domain| will be empty and |user| will
 // contain "bar".
 // |domain| and |user| must be non-NULL.
-NET_TEST void SplitDomainAndUser(const string16& combined,
-                                 string16* domain,
-                                 string16* user);
+NET_EXPORT_PRIVATE void SplitDomainAndUser(const string16& combined,
+                                           string16* domain,
+                                           string16* user);
 
 // Determines the maximum token length in bytes for a particular SSPI package.
 //
@@ -199,9 +199,9 @@ NET_TEST void SplitDomainAndUser(const string16& combined,
 // If the return value is ERR_UNEXPECTED, there was an unanticipated problem
 // in the underlying SSPI call. The details are logged, and |*max_token_length|
 // is not changed.
-NET_TEST int DetermineMaxTokenLength(SSPILibrary* library,
-                                     const std::wstring& package,
-                                     ULONG* max_token_length);
+NET_EXPORT_PRIVATE int DetermineMaxTokenLength(SSPILibrary* library,
+                                               const std::wstring& package,
+                                               ULONG* max_token_length);
 
 }  // namespace net
 

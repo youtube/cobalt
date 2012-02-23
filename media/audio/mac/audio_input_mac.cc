@@ -1,8 +1,10 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/audio/mac/audio_input_mac.h"
+
+#include <CoreServices/CoreServices.h>
 
 #include "base/basictypes.h"
 #include "base/logging.h"
@@ -21,7 +23,8 @@ PCMQueueInAudioInputStream::PCMQueueInAudioInputStream(
     : manager_(manager),
       callback_(NULL),
       audio_queue_(NULL),
-      buffer_size_bytes_(0) {
+      buffer_size_bytes_(0),
+      started_(false) {
   // We must have a manager.
   DCHECK(manager_);
   // A frame is one sample across all channels. In interleaved audio the per
@@ -63,23 +66,34 @@ bool PCMQueueInAudioInputStream::Open() {
 
 void PCMQueueInAudioInputStream::Start(AudioInputCallback* callback) {
   DCHECK(callback);
-  DCHECK(audio_queue_) << "Must call Open() first";
-  if (callback_)
+  DLOG_IF(ERROR, !audio_queue_) << "Open() has not been called successfully";
+  if (callback_ || !audio_queue_)
     return;
   callback_ = callback;
   OSStatus err = AudioQueueStart(audio_queue_, NULL);
-  if (err != noErr)
+  if (err != noErr) {
     HandleError(err);
+  } else {
+    started_ = true;
+    manager_->IncreaseActiveInputStreamCount();
+  }
 }
 
 void PCMQueueInAudioInputStream::Stop() {
-  if (!audio_queue_)
+  if (!audio_queue_ || !started_)
     return;
+
+  // Stop is always called before Close. In case of error, this will be
+  // also called when closing the input controller.
+  manager_->DecreaseActiveInputStreamCount();
+
   // We request a synchronous stop, so the next call can take some time. In
   // the windows implementation we block here as well.
   OSStatus err = AudioQueueStop(audio_queue_, true);
   if (err != noErr)
     HandleError(err);
+
+  started_ = false;
 }
 
 void PCMQueueInAudioInputStream::Close() {
@@ -102,7 +116,8 @@ void PCMQueueInAudioInputStream::Close() {
 void PCMQueueInAudioInputStream::HandleError(OSStatus err) {
   if (callback_)
     callback_->OnError(this, static_cast<int>(err));
-  NOTREACHED() << "error code " << err;
+  NOTREACHED() << "error " << GetMacOSStatusErrorString(err)
+               << " (" << err << ")";
 }
 
 bool PCMQueueInAudioInputStream::SetupBuffers() {
@@ -159,6 +174,7 @@ void PCMQueueInAudioInputStream::HandleInputBuffer(
   if (audio_buffer->mAudioDataByteSize)
     callback_->OnData(this,
                       reinterpret_cast<const uint8*>(audio_buffer->mAudioData),
+                      audio_buffer->mAudioDataByteSize,
                       audio_buffer->mAudioDataByteSize);
   // Recycle the buffer.
   OSStatus err = QueueNextBuffer(audio_buffer);

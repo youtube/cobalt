@@ -41,11 +41,6 @@ class MessagePumpGlib : public MessagePump {
   virtual void RunWithDispatcher(Delegate* delegate,
                                  MessagePumpDispatcher* dispatcher);
 
-  // Run a single iteration of the mainloop. A return value of true indicates
-  // that an event was handled. |block| indicates if it should wait if no event
-  // is ready for processing.
-  virtual bool RunOnce(GMainContext* context, bool block) = 0;
-
   // Internal methods used for processing the pump callbacks.  They are
   // public for simplicity but should not be used directly.  HandlePrepare
   // is called during the prepare step of glib, and returns a timeout that
@@ -64,10 +59,10 @@ class MessagePumpGlib : public MessagePump {
   void RemoveObserver(MessagePumpObserver* observer);
 
   // Overridden from MessagePump:
-  virtual void Run(Delegate* delegate);
-  virtual void Quit();
-  virtual void ScheduleWork();
-  virtual void ScheduleDelayedWork(const TimeTicks& delayed_work_time);
+  virtual void Run(Delegate* delegate) OVERRIDE;
+  virtual void Quit() OVERRIDE;
+  virtual void ScheduleWork() OVERRIDE;
+  virtual void ScheduleDelayedWork(const TimeTicks& delayed_work_time) OVERRIDE;
 
  protected:
   // Returns the dispatcher for the current run state (|state_->dispatcher|).

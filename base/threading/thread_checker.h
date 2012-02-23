@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,18 @@
 #define BASE_THREADING_THREAD_CHECKER_H_
 #pragma once
 
-#ifndef NDEBUG
+// Apart from debug builds, we also enable the thread checker in
+// builds with DCHECK_ALWAYS_ON so that trybots and waterfall bots
+// with this define will get the same level of thread checking as
+// debug bots.
+//
+// Note that this does not perfectly match situations where DCHECK is
+// enabled.  For example a non-official release build may have
+// DCHECK_ALWAYS_ON undefined (and therefore ThreadChecker would be
+// disabled) but have DCHECKs enabled at runtime.
+#define ENABLE_THREAD_CHECKER (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON))
+
+#if ENABLE_THREAD_CHECKER
 #include "base/threading/thread_checker_impl.h"
 #endif
 
@@ -46,13 +57,15 @@ class ThreadCheckerDoNothing {
 // }
 //
 // In Release mode, CalledOnValidThread will always return true.
-#ifndef NDEBUG
+#if ENABLE_THREAD_CHECKER
 class ThreadChecker : public ThreadCheckerImpl {
 };
 #else
 class ThreadChecker : public ThreadCheckerDoNothing {
 };
-#endif  // NDEBUG
+#endif  // ENABLE_THREAD_CHECKER
+
+#undef ENABLE_THREAD_CHECKER
 
 }  // namespace base
 

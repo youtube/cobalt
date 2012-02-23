@@ -6,14 +6,14 @@
 #define NET_FTP_FTP_TRANSACTION_FACTORY_H_
 #pragma once
 
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
 class FtpTransaction;
 
 // An interface to a class that can create FtpTransaction objects.
-class NET_API FtpTransactionFactory {
+class NET_EXPORT FtpTransactionFactory {
  public:
   virtual ~FtpTransactionFactory() {}
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,10 +22,15 @@
 #include "base/time.h"
 #include "crypto/nss_util.h"
 #include "crypto/rsa_private_key.h"
+#include "crypto/scoped_nss_types.h"
+#include "crypto/sha2.h"
+#include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
+#include "net/base/crl_set.h"
 #include "net/base/ev_root_ca_metadata.h"
 #include "net/base/net_errors.h"
+#include "net/base/x509_util_nss.h"
 
 namespace net {
 
@@ -127,7 +132,7 @@ int MapSecurityError(int err) {
 }
 
 // Map PORT_GetError() return values to our cert status flags.
-int MapCertErrorToCertStatus(int err) {
+CertStatus MapCertErrorToCertStatus(int err) {
   switch (err) {
     case SSL_ERROR_BAD_CERT_DOMAIN:
       return CERT_STATUS_COMMON_NAME_INVALID;
@@ -187,8 +192,32 @@ void GetCertChainInfo(CERTCertList* cert_list,
     if (i == 0) {
       verified_cert = node->cert;
     } else {
+      // Because of an NSS bug, CERT_PKIXVerifyCert may chain a self-signed
+      // certificate of a root CA to another certificate of the same root CA
+      // key.  Detect that error and ignore the root CA certificate.
+      // See https://bugzilla.mozilla.org/show_bug.cgi?id=721288.
+      if (node->cert->isRoot) {
+        // NOTE: isRoot doesn't mean the certificate is a trust anchor.  It
+        // means the certificate is self-signed.  Here we assume isRoot only
+        // implies the certificate is self-issued.
+        CERTCertListNode* next_node = CERT_LIST_NEXT(node);
+        CERTCertificate* next_cert;
+        if (!CERT_LIST_END(next_node, cert_list)) {
+          next_cert = next_node->cert;
+        } else {
+          next_cert = root_cert;
+        }
+        // Test that |node->cert| is actually a self-signed certificate
+        // whose key is equal to |next_cert|, and not a self-issued
+        // certificate signed by another key of the same CA.
+        if (next_cert && SECITEM_ItemsAreEqual(&node->cert->derPublicKey,
+                                               &next_cert->derPublicKey)) {
+          continue;
+        }
+      }
       verified_chain.push_back(node->cert);
     }
+
     SECAlgorithmID& signature = node->cert->signature;
     SECOidTag oid_tag = SECOID_FindOIDTag(&signature.algorithm);
     switch (oid_tag) {
@@ -226,6 +255,75 @@ bool IsKnownRoot(CERTCertificate* root) {
   // http://bonsai.mozilla.org/cvsblame.cgi?file=mozilla/security/nss/lib/ckfw/builtins/constants.c&rev=1.13&mark=86,89#79
   return 0 == strcmp(PK11_GetSlotName(root->slot),
                      "NSS Builtin Objects");
+}
+
+enum CRLSetResult {
+  kCRLSetRevoked,
+  kCRLSetOk,
+  kCRLSetError,
+};
+
+// CheckRevocationWithCRLSet attempts to check each element of |cert_list|
+// against |crl_set|. It returns:
+//   kCRLSetRevoked: if any element of the chain is known to have been revoked.
+//   kCRLSetError: if an error occurs in processing.
+//   kCRLSetOk: if no element in the chain is known to have been revoked.
+CRLSetResult CheckRevocationWithCRLSet(CERTCertList* cert_list,
+                                       CERTCertificate* root,
+                                       CRLSet* crl_set) {
+  std::vector<CERTCertificate*> certs;
+
+  if (cert_list) {
+    for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
+         !CERT_LIST_END(node, cert_list);
+         node = CERT_LIST_NEXT(node)) {
+      certs.push_back(node->cert);
+    }
+  }
+  if (root)
+    certs.push_back(root);
+
+  // We iterate from the root certificate down to the leaf, keeping track of
+  // the issuer's SPKI at each step.
+  std::string issuer_spki_hash;
+  for (std::vector<CERTCertificate*>::reverse_iterator i = certs.rbegin();
+       i != certs.rend(); ++i) {
+    CERTCertificate* cert = *i;
+
+    base::StringPiece der(reinterpret_cast<char*>(cert->derCert.data),
+                          cert->derCert.len);
+
+    base::StringPiece spki;
+    if (!asn1::ExtractSPKIFromDERCert(der, &spki)) {
+      NOTREACHED();
+      return kCRLSetError;
+    }
+    const std::string spki_hash = crypto::SHA256HashString(spki);
+
+    base::StringPiece serial_number = base::StringPiece(
+        reinterpret_cast<char*>(cert->serialNumber.data),
+        cert->serialNumber.len);
+
+    CRLSet::Result result = crl_set->CheckSPKI(spki_hash);
+
+    if (result != CRLSet::REVOKED && !issuer_spki_hash.empty())
+      result = crl_set->CheckSerial(serial_number, issuer_spki_hash);
+
+    issuer_spki_hash = spki_hash;
+
+    switch (result) {
+      case CRLSet::REVOKED:
+        return kCRLSetRevoked;
+      case CRLSet::UNKNOWN:
+      case CRLSet::GOOD:
+        continue;
+      default:
+        NOTREACHED();
+        return kCRLSetError;
+    }
+  }
+
+  return kCRLSetOk;
 }
 
 void ParsePrincipal(CERTName* name,
@@ -346,7 +444,7 @@ SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
       CERT_REV_M_STOP_TESTING_ON_FRESH_INFO;
   PRUint64 revocation_method_independent_flags =
       CERT_REV_MI_TEST_ALL_LOCAL_INFORMATION_FIRST;
-  if (policy_oids && num_policy_oids > 0) {
+  if (check_revocation && policy_oids && num_policy_oids > 0) {
     // EV verification requires revocation checking.  Consider the certificate
     // revoked if we don't have revocation info.
     // TODO(wtc): Add a bool parameter to expressly specify we're doing EV
@@ -614,13 +712,95 @@ void X509Certificate::Initialize() {
   ParseDate(&cert_handle_->validity.notAfter, &valid_expiry_);
 
   fingerprint_ = CalculateFingerprint(cert_handle_);
+  ca_fingerprint_ = CalculateCAFingerprint(intermediate_ca_certs_);
 
   serial_number_ = std::string(
       reinterpret_cast<char*>(cert_handle_->serialNumber.data),
       cert_handle_->serialNumber.len);
-  // Remove leading zeros.
-  while (serial_number_.size() > 1 && serial_number_[0] == 0)
-    serial_number_ = serial_number_.substr(1, serial_number_.size() - 1);
+}
+
+// static
+X509Certificate* X509Certificate::CreateFromBytesWithNickname(
+    const char* data,
+    int length,
+    const char* nickname) {
+  OSCertHandle cert_handle = CreateOSCertHandleFromBytesWithNickname(data,
+                                                                     length,
+                                                                     nickname);
+  if (!cert_handle)
+    return NULL;
+
+  X509Certificate* cert = CreateFromHandle(cert_handle, OSCertHandles());
+  FreeOSCertHandle(cert_handle);
+
+  if (nickname)
+    cert->default_nickname_ = nickname;
+
+  return cert;
+}
+
+std::string X509Certificate::GetDefaultNickname(CertType type) const {
+  if (!default_nickname_.empty())
+    return default_nickname_;
+
+  std::string result;
+  if (type == USER_CERT && cert_handle_->slot) {
+    // Find the private key for this certificate and see if it has a
+    // nickname.  If there is a private key, and it has a nickname, then
+    // we return that nickname.
+    SECKEYPrivateKey* private_key = PK11_FindPrivateKeyFromCert(
+        cert_handle_->slot,
+        cert_handle_,
+        NULL);  // wincx
+    if (private_key) {
+      char* private_key_nickname = PK11_GetPrivateKeyNickname(private_key);
+      if (private_key_nickname) {
+        result = private_key_nickname;
+        PORT_Free(private_key_nickname);
+        SECKEY_DestroyPrivateKey(private_key);
+        return result;
+      }
+      SECKEY_DestroyPrivateKey(private_key);
+    }
+  }
+
+  switch (type) {
+    case CA_CERT: {
+      char* nickname = CERT_MakeCANickname(cert_handle_);
+      result = nickname;
+      PORT_Free(nickname);
+      break;
+    }
+    case USER_CERT: {
+      // Create a nickname for a user certificate.
+      // We use the scheme used by Firefox:
+      // --> <subject's common name>'s <issuer's common name> ID.
+      // TODO(gspencer): internationalize this: it's wrong to
+      // hard code English.
+
+      std::string username, ca_name;
+      char* temp_username = CERT_GetCommonName(
+          &cert_handle_->subject);
+      char* temp_ca_name = CERT_GetCommonName(&cert_handle_->issuer);
+      if (temp_username) {
+        username = temp_username;
+        PORT_Free(temp_username);
+      }
+      if (temp_ca_name) {
+        ca_name = temp_ca_name;
+        PORT_Free(temp_ca_name);
+      }
+      result = username + "'s " + ca_name + " ID";
+      break;
+    }
+    case SERVER_CERT:
+      result = subject_.GetDisplayName();
+      break;
+    case UNKNOWN_CERT:
+    default:
+      break;
+  }
+  return result;
 }
 
 // static
@@ -631,98 +811,20 @@ X509Certificate* X509Certificate::CreateSelfSigned(
     base::TimeDelta valid_duration) {
   DCHECK(key);
 
-  // Create info about public key.
-  CERTSubjectPublicKeyInfo* spki =
-      SECKEY_CreateSubjectPublicKeyInfo(key->public_key());
-  if (!spki)
-    return NULL;
-
-  // Create the certificate request.
-  CERTName* subject_name =
-      CERT_AsciiToName(const_cast<char*>(subject.c_str()));
-  CERTCertificateRequest* cert_request =
-      CERT_CreateCertificateRequest(subject_name, spki, NULL);
-  SECKEY_DestroySubjectPublicKeyInfo(spki);
-
-  if (!cert_request) {
-    PRErrorCode prerr = PR_GetError();
-    LOG(ERROR) << "Failed to create certificate request: " << prerr;
-    CERT_DestroyName(subject_name);
-    return NULL;
-  }
-
-  PRTime now = PR_Now();
-  PRTime not_after = now + valid_duration.InMicroseconds();
-
-  // Note that the time is now in micro-second unit.
-  CERTValidity* validity = CERT_CreateValidity(now, not_after);
-  CERTCertificate* cert = CERT_CreateCertificate(serial_number, subject_name,
-                                                 validity, cert_request);
-  if (!cert) {
-    PRErrorCode prerr = PR_GetError();
-    LOG(ERROR) << "Failed to create certificate: " << prerr;
-  }
-
-  // Cleanup for resources used to generate the cert.
-  CERT_DestroyName(subject_name);
-  CERT_DestroyValidity(validity);
-  CERT_DestroyCertificateRequest(cert_request);
+  base::Time not_valid_before = base::Time::Now();
+  base::Time not_valid_after = not_valid_before + valid_duration;
+  CERTCertificate* cert = x509_util::CreateSelfSignedCert(key->public_key(),
+                                                          key->key(),
+                                                          subject,
+                                                          serial_number,
+                                                          not_valid_before,
+                                                          not_valid_after);
 
   if (!cert)
     return NULL;
 
-  // Sign the cert here. The logic of this method references SignCert() in NSS
-  // utility certutil: http://mxr.mozilla.org/security/ident?i=SignCert.
-
-  // |arena| is used to encode the cert.
-  PRArenaPool* arena = cert->arena;
-  SECOidTag algo_id = SEC_GetSignatureAlgorithmOidTag(key->key()->keyType,
-                                                      SEC_OID_SHA1);
-  if (algo_id == SEC_OID_UNKNOWN) {
-    CERT_DestroyCertificate(cert);
-    return NULL;
-  }
-
-  SECStatus rv = SECOID_SetAlgorithmID(arena, &cert->signature, algo_id, 0);
-  if (rv != SECSuccess) {
-    CERT_DestroyCertificate(cert);
-    return NULL;
-  }
-
-  // Generate a cert of version 3.
-  *(cert->version.data) = 2;
-  cert->version.len = 1;
-
-  SECItem der;
-  der.len = 0;
-  der.data = NULL;
-
-  // Use ASN1 DER to encode the cert.
-  void* encode_result = SEC_ASN1EncodeItem(
-      arena, &der, cert, SEC_ASN1_GET(CERT_CertificateTemplate));
-  if (!encode_result) {
-    CERT_DestroyCertificate(cert);
-    return NULL;
-  }
-
-  // Allocate space to contain the signed cert.
-  SECItem* result = SECITEM_AllocItem(arena, NULL, 0);
-  if (!result) {
-    CERT_DestroyCertificate(cert);
-    return NULL;
-  }
-
-  // Sign the ASN1 encoded cert and save it to |result|.
-  rv = SEC_DerSignData(arena, result, der.data, der.len, key->key(), algo_id);
-  if (rv != SECSuccess) {
-    CERT_DestroyCertificate(cert);
-    return NULL;
-  }
-
-  // Save the signed result to the cert.
-  cert->derCert = *result;
-
-  X509Certificate* x509_cert = CreateFromHandle(cert, OSCertHandles());
+  X509Certificate* x509_cert = X509Certificate::CreateFromHandle(
+      cert, X509Certificate::OSCertHandles());
   CERT_DestroyCertificate(cert);
   return x509_cert;
 }
@@ -772,6 +874,7 @@ void X509Certificate::GetSubjectAltName(
 
 int X509Certificate::VerifyInternal(const std::string& hostname,
                                     int flags,
+                                    CRLSet* crl_set,
                                     CertVerifyResult* verify_result) const {
   // Make sure that the hostname matches with the common name of the cert.
   SECStatus status = CERT_VerifyCertName(cert_handle_, hostname.c_str());
@@ -800,11 +903,21 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   bool check_revocation = (flags & VERIFY_REV_CHECKING_ENABLED);
   if (check_revocation) {
     verify_result->cert_status |= CERT_STATUS_REV_CHECKING_ENABLED;
-  } else {
-    // EV requires revocation checking.
-    flags &= ~VERIFY_EV_CERT;
   }
+
   status = PKIXVerifyCert(cert_handle_, check_revocation, NULL, 0, cvout);
+
+  if (crl_set) {
+    CRLSetResult crl_set_result = CheckRevocationWithCRLSet(
+        cvout[cvout_cert_list_index].value.pointer.chain,
+        cvout[cvout_trust_anchor_index].value.pointer.cert,
+        crl_set);
+    if (crl_set_result == kCRLSetRevoked) {
+      PORT_SetError(SEC_ERROR_REVOKED_CERTIFICATE);
+      status = SECFailure;
+    }
+  }
+
   if (status != SECSuccess) {
     int err = PORT_GetError();
     LOG(ERROR) << "CERT_PKIXVerifyCert for " << hostname
@@ -812,9 +925,9 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
     // CERT_PKIXVerifyCert rerports the wrong error code for
     // expired certificates (NSS bug 491174)
     if (err == SEC_ERROR_CERT_NOT_VALID &&
-        (verify_result->cert_status & CERT_STATUS_DATE_INVALID) != 0)
+        (verify_result->cert_status & CERT_STATUS_DATE_INVALID))
       err = SEC_ERROR_EXPIRED_CERTIFICATE;
-    int cert_status = MapCertErrorToCertStatus(err);
+    CertStatus cert_status = MapCertErrorToCertStatus(err);
     if (cert_status) {
       verify_result->cert_status |= cert_status;
       return MapCertStatusToNetError(verify_result->cert_status);
@@ -836,8 +949,9 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   verify_result->is_issued_by_known_root =
       IsKnownRoot(cvout[cvout_trust_anchor_index].value.pointer.cert);
 
-  if ((flags & VERIFY_EV_CERT) && VerifyEV())
+  if ((flags & VERIFY_EV_CERT) && VerifyEV(flags))
     verify_result->cert_status |= CERT_STATUS_IS_EV;
+
   return OK;
 }
 
@@ -852,7 +966,7 @@ bool X509Certificate::VerifyNameMatch(const std::string& hostname) const {
 // anchor.  If the trust anchor has no EV policy, we know the cert isn't EV.
 // Otherwise, we pass just that EV policy (as opposed to all the EV policies)
 // to the second PKIXVerifyCert call.
-bool X509Certificate::VerifyEV() const {
+bool X509Certificate::VerifyEV(int flags) const {
   EVRootCAMetadata* metadata = EVRootCAMetadata::GetInstance();
 
   CERTValOutParam cvout[3];
@@ -865,7 +979,7 @@ bool X509Certificate::VerifyEV() const {
   ScopedCERTValOutParam scoped_cvout(cvout);
 
   SECStatus status = PKIXVerifyCert(cert_handle_,
-                                    true,
+                                    flags & VERIFY_REV_CHECKING_ENABLED,
                                     metadata->GetPolicyOIDs(),
                                     metadata->NumPolicyOIDs(),
                                     cvout);
@@ -891,12 +1005,13 @@ bool X509Certificate::VerifyEV() const {
   return false;
 }
 
-bool X509Certificate::GetDEREncoded(std::string* encoded) {
-  if (!cert_handle_->derCert.len)
+// static
+bool X509Certificate::GetDEREncoded(X509Certificate::OSCertHandle cert_handle,
+                                    std::string* encoded) {
+  if (!cert_handle->derCert.len)
     return false;
-  encoded->clear();
-  encoded->append(reinterpret_cast<char*>(cert_handle_->derCert.data),
-                  cert_handle_->derCert.len);
+  encoded->assign(reinterpret_cast<char*>(cert_handle->derCert.data),
+                  cert_handle->derCert.len);
   return true;
 }
 
@@ -913,6 +1028,15 @@ bool X509Certificate::IsSameOSCert(X509Certificate::OSCertHandle a,
 // static
 X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
     const char* data, int length) {
+  return CreateOSCertHandleFromBytesWithNickname(data, length, NULL);
+}
+
+// static
+X509Certificate::OSCertHandle
+X509Certificate::CreateOSCertHandleFromBytesWithNickname(
+    const char* data,
+    int length,
+    const char* nickname) {
   if (length < 0)
     return NULL;
 
@@ -927,13 +1051,16 @@ X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
   der_cert.type = siDERCertBuffer;
 
   // Parse into a certificate structure.
-  return CERT_NewTempCertificate(CERT_GetDefaultCertDB(), &der_cert, NULL,
+  return CERT_NewTempCertificate(CERT_GetDefaultCertDB(), &der_cert,
+                                 const_cast<char*>(nickname),
                                  PR_FALSE, PR_TRUE);
 }
 
 // static
 X509Certificate::OSCertHandles X509Certificate::CreateOSCertHandlesFromBytes(
-    const char* data, int length, Format format) {
+    const char* data,
+    int length,
+    Format format) {
   OSCertHandles results;
   if (length < 0)
     return results;
@@ -996,6 +1123,27 @@ SHA1Fingerprint X509Certificate::CalculateFingerprint(
 }
 
 // static
+SHA1Fingerprint X509Certificate::CalculateCAFingerprint(
+    const OSCertHandles& intermediates) {
+  SHA1Fingerprint sha1;
+  memset(sha1.data, 0, sizeof(sha1.data));
+
+  HASHContext* sha1_ctx = HASH_Create(HASH_AlgSHA1);
+  if (!sha1_ctx)
+    return sha1;
+  HASH_Begin(sha1_ctx);
+  for (size_t i = 0; i < intermediates.size(); ++i) {
+    CERTCertificate* ca_cert = intermediates[i];
+    HASH_Update(sha1_ctx, ca_cert->derCert.data, ca_cert->derCert.len);
+  }
+  unsigned int result_len;
+  HASH_End(sha1_ctx, sha1.data, &result_len, HASH_ResultLenContext(sha1_ctx));
+  HASH_Destroy(sha1_ctx);
+
+  return sha1;
+}
+
+// static
 X509Certificate::OSCertHandle
 X509Certificate::ReadOSCertHandleFromPickle(const Pickle& pickle,
                                             void** pickle_iter) {
@@ -1013,6 +1161,40 @@ bool X509Certificate::WriteOSCertHandleToPickle(OSCertHandle cert_handle,
   return pickle->WriteData(
       reinterpret_cast<const char*>(cert_handle->derCert.data),
       cert_handle->derCert.len);
+}
+
+// static
+void X509Certificate::GetPublicKeyInfo(OSCertHandle cert_handle,
+                                       size_t* size_bits,
+                                       PublicKeyType* type) {
+  // Since we might fail, set the output parameters to default values first.
+  *type = kPublicKeyTypeUnknown;
+  *size_bits = 0;
+
+  crypto::ScopedSECKEYPublicKey key(CERT_ExtractPublicKey(cert_handle));
+  if (!key.get())
+    return;
+
+  *size_bits = SECKEY_PublicKeyStrengthInBits(key.get());
+
+  switch (key->keyType) {
+    case rsaKey:
+      *type = kPublicKeyTypeRSA;
+      break;
+    case dsaKey:
+      *type = kPublicKeyTypeDSA;
+      break;
+    case dhKey:
+      *type = kPublicKeyTypeDH;
+      break;
+    case ecKey:
+      *type = kPublicKeyTypeECDSA;
+      break;
+    default:
+      *type = kPublicKeyTypeUnknown;
+      *size_bits = 0;
+      break;
+  }
 }
 
 }  // namespace net

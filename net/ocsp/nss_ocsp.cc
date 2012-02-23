@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,6 +15,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
@@ -59,7 +60,8 @@ class OCSPIOLoop {
   }
 
   // Called from worker thread.
-  void PostTaskToIOLoop(const tracked_objects::Location& from_here, Task* task);
+  void PostTaskToIOLoop(const tracked_objects::Location& from_here,
+                        const base::Closure& task);
 
   void EnsureIOLoop();
 
@@ -85,8 +87,8 @@ class OCSPIOLoop {
   DISALLOW_COPY_AND_ASSIGN(OCSPIOLoop);
 };
 
-base::LazyInstance<OCSPIOLoop, base::LeakyLazyInstanceTraits<OCSPIOLoop> >
-    g_ocsp_io_loop(base::LINKER_INITIALIZED);
+base::LazyInstance<OCSPIOLoop>::Leaky
+    g_ocsp_io_loop = LAZY_INSTANCE_INITIALIZER;
 
 const int kRecvBufferSize = 4096;
 
@@ -136,8 +138,8 @@ class OCSPNSSInitialization {
   DISALLOW_COPY_AND_ASSIGN(OCSPNSSInitialization);
 };
 
-base::LazyInstance<OCSPNSSInitialization> g_ocsp_nss_initialization(
-    base::LINKER_INITIALIZED);
+base::LazyInstance<OCSPNSSInitialization> g_ocsp_nss_initialization =
+    LAZY_INSTANCE_INITIALIZER;
 
 // Concrete class for SEC_HTTP_REQUEST_SESSION.
 // Public methods except virtual methods of net::URLRequest::Delegate
@@ -179,7 +181,7 @@ class OCSPRequestSession
     DCHECK(!io_loop_);
     g_ocsp_io_loop.Get().PostTaskToIOLoop(
         FROM_HERE,
-        NewRunnableMethod(this, &OCSPRequestSession::StartURLRequest));
+        base::Bind(&OCSPRequestSession::StartURLRequest, this));
   }
 
   bool Started() const {
@@ -340,7 +342,7 @@ class OCSPRequestSession
     if (io_loop_) {
       io_loop_->PostTask(
           FROM_HERE,
-          NewRunnableMethod(this, &OCSPRequestSession::CancelURLRequest));
+          base::Bind(&OCSPRequestSession::CancelURLRequest, this));
     }
   }
 
@@ -493,7 +495,7 @@ void OCSPIOLoop::Shutdown() {
 }
 
 void OCSPIOLoop::PostTaskToIOLoop(
-    const tracked_objects::Location& from_here, Task* task) {
+    const tracked_objects::Location& from_here, const base::Closure& task) {
   base::AutoLock autolock(lock_);
   if (io_loop_)
     io_loop_->PostTask(from_here, task);
@@ -566,7 +568,12 @@ OCSPNSSInitialization::OCSPNSSInitialization() {
   }
 }
 
-OCSPNSSInitialization::~OCSPNSSInitialization() {}
+OCSPNSSInitialization::~OCSPNSSInitialization() {
+  SECStatus status = CERT_RegisterAlternateOCSPAIAInfoCallBack(NULL, NULL);
+  if (status != SECSuccess) {
+    LOG(ERROR) << "Error unregistering OCSP: " << PR_GetError();
+  }
+}
 
 
 // OCSP Http Client functions.

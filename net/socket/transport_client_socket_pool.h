@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -24,12 +24,11 @@ namespace net {
 
 class ClientSocketFactory;
 
-class NET_TEST TransportSocketParams
+class NET_EXPORT_PRIVATE TransportSocketParams
     : public base::RefCounted<TransportSocketParams> {
  public:
   TransportSocketParams(const HostPortPair& host_port_pair,
                         RequestPriority priority,
-                        const GURL& referrer,
                         bool disable_resolver_cache,
                         bool ignore_limits);
 
@@ -40,8 +39,7 @@ class NET_TEST TransportSocketParams
   friend class base::RefCounted<TransportSocketParams>;
   ~TransportSocketParams();
 
-  void Initialize(RequestPriority priority, const GURL& referrer,
-                  bool disable_resolver_cache);
+  void Initialize(RequestPriority priority, bool disable_resolver_cache);
 
   HostResolver::RequestInfo destination_;
   bool ignore_limits_;
@@ -57,7 +55,7 @@ class NET_TEST TransportSocketParams
 // (kIPv6FallbackTimerInMs) and start a connect() to a IPv4 address if the timer
 // fires. Then we race the IPv4 connect() against the IPv6 connect() (which has
 // a headstart) and return the one that completes first to the socket pool.
-class NET_TEST TransportConnectJob : public ConnectJob {
+class NET_EXPORT_PRIVATE TransportConnectJob : public ConnectJob {
  public:
   TransportConnectJob(const std::string& group_name,
                       const scoped_refptr<TransportSocketParams>& params,
@@ -69,7 +67,7 @@ class NET_TEST TransportConnectJob : public ConnectJob {
   virtual ~TransportConnectJob();
 
   // ConnectJob methods.
-  virtual LoadState GetLoadState() const;
+  virtual LoadState GetLoadState() const OVERRIDE;
 
   // Makes |addrlist| start with an IPv4 address if |addrlist| contains any
   // IPv4 address.
@@ -106,11 +104,10 @@ class NET_TEST TransportConnectJob : public ConnectJob {
   // Begins the host resolution and the TCP connect.  Returns OK on success
   // and ERR_IO_PENDING if it cannot immediately service the request.
   // Otherwise, it returns a net error code.
-  virtual int ConnectInternal();
+  virtual int ConnectInternal() OVERRIDE;
 
   scoped_refptr<TransportSocketParams> params_;
   ClientSocketFactory* const client_socket_factory_;
-  CompletionCallbackImpl<TransportConnectJob> callback_;
   SingleRequestHostResolver resolver_;
   AddressList addresses_;
   State next_state_;
@@ -125,14 +122,13 @@ class NET_TEST TransportConnectJob : public ConnectJob {
 
   scoped_ptr<StreamSocket> fallback_transport_socket_;
   scoped_ptr<AddressList> fallback_addresses_;
-  CompletionCallbackImpl<TransportConnectJob> fallback_callback_;
   base::TimeTicks fallback_connect_start_time_;
   base::OneShotTimer<TransportConnectJob> fallback_timer_;
 
   DISALLOW_COPY_AND_ASSIGN(TransportConnectJob);
 };
 
-class NET_TEST TransportClientSocketPool : public ClientSocketPool {
+class NET_EXPORT_PRIVATE TransportClientSocketPool : public ClientSocketPool {
  public:
   TransportClientSocketPool(
       int max_sockets,
@@ -144,46 +140,36 @@ class NET_TEST TransportClientSocketPool : public ClientSocketPool {
 
   virtual ~TransportClientSocketPool();
 
-  // ClientSocketPool methods:
-
+  // ClientSocketPool implementation.
   virtual int RequestSocket(const std::string& group_name,
                             const void* resolve_info,
                             RequestPriority priority,
                             ClientSocketHandle* handle,
-                            CompletionCallback* callback,
-                            const BoundNetLog& net_log);
-
+                            const CompletionCallback& callback,
+                            const BoundNetLog& net_log) OVERRIDE;
   virtual void RequestSockets(const std::string& group_name,
                               const void* params,
                               int num_sockets,
-                              const BoundNetLog& net_log);
-
+                              const BoundNetLog& net_log) OVERRIDE;
   virtual void CancelRequest(const std::string& group_name,
-                             ClientSocketHandle* handle);
-
+                             ClientSocketHandle* handle) OVERRIDE;
   virtual void ReleaseSocket(const std::string& group_name,
                              StreamSocket* socket,
-                             int id);
-
-  virtual void Flush();
-
-  virtual void CloseIdleSockets();
-
-  virtual int IdleSocketCount() const;
-
-  virtual int IdleSocketCountInGroup(const std::string& group_name) const;
-
-  virtual LoadState GetLoadState(const std::string& group_name,
-                                 const ClientSocketHandle* handle) const;
-
+                             int id) OVERRIDE;
+  virtual void Flush() OVERRIDE;
+  virtual void CloseIdleSockets() OVERRIDE;
+  virtual int IdleSocketCount() const OVERRIDE;
+  virtual int IdleSocketCountInGroup(
+      const std::string& group_name) const OVERRIDE;
+  virtual LoadState GetLoadState(
+      const std::string& group_name,
+      const ClientSocketHandle* handle) const OVERRIDE;
   virtual base::DictionaryValue* GetInfoAsValue(
       const std::string& name,
       const std::string& type,
-      bool include_nested_pools) const;
-
-  virtual base::TimeDelta ConnectionTimeout() const;
-
-  virtual ClientSocketPoolHistograms* histograms() const;
+      bool include_nested_pools) const OVERRIDE;
+  virtual base::TimeDelta ConnectionTimeout() const OVERRIDE;
+  virtual ClientSocketPoolHistograms* histograms() const OVERRIDE;
 
  private:
   typedef ClientSocketPoolBase<TransportSocketParams> PoolBase;
@@ -205,9 +191,9 @@ class NET_TEST TransportClientSocketPool : public ClientSocketPool {
     virtual ConnectJob* NewConnectJob(
         const std::string& group_name,
         const PoolBase::Request& request,
-        ConnectJob::Delegate* delegate) const;
+        ConnectJob::Delegate* delegate) const OVERRIDE;
 
-    virtual base::TimeDelta ConnectionTimeout() const;
+    virtual base::TimeDelta ConnectionTimeout() const OVERRIDE;
 
    private:
     ClientSocketFactory* const client_socket_factory_;

@@ -1,11 +1,15 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/basictypes.h"
+#include "base/bind.h"
+#include "base/bind_helpers.h"
+#include "base/file_util.h"
 #include "base/threading/platform_thread.h"
 #include "base/timer.h"
 #include "base/string_util.h"
+#include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
@@ -17,6 +21,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using base::Time;
+
+static const int kDiskDelayMs = 20;
 
 // Tests that can run with different types of caches.
 class DiskCacheEntryTest : public DiskCacheTestWithCache {
@@ -50,37 +56,19 @@ class DiskCacheEntryTest : public DiskCacheTestWithCache {
   void PartialSparseEntry();
 };
 
-// Simple task to run part of a test from the cache thread.
-class SyncIOTask : public Task {
- public:
-  SyncIOTask(DiskCacheEntryTest* test, disk_cache::Entry* entry)
-      : test_(test), entry_(entry) {}
-
- protected:
-  DiskCacheEntryTest* test_;
-  disk_cache::Entry* entry_;
-};
-
-class InternalSyncIOTask : public SyncIOTask {
- public:
-  InternalSyncIOTask(DiskCacheEntryTest* test, disk_cache::Entry* entry)
-      : SyncIOTask(test, entry) {}
-
-  virtual void Run() {
-    test_->InternalSyncIOBackground(entry_);
-  }
-};
-
 // This part of the test runs on the background thread.
 void DiskCacheEntryTest::InternalSyncIOBackground(disk_cache::Entry* entry) {
   const int kSize1 = 10;
   scoped_refptr<net::IOBuffer> buffer1(new net::IOBuffer(kSize1));
   CacheTestFillBuffer(buffer1->data(), kSize1, false);
-  EXPECT_EQ(0, entry->ReadData(0, 0, buffer1, kSize1, NULL));
+  EXPECT_EQ(0, entry->ReadData(
+      0, 0, buffer1, kSize1, net::CompletionCallback()));
   base::strlcpy(buffer1->data(), "the data", kSize1);
-  EXPECT_EQ(10, entry->WriteData(0, 0, buffer1, kSize1, NULL, false));
+  EXPECT_EQ(10, entry->WriteData(
+      0, 0, buffer1, kSize1, net::CompletionCallback(), false));
   memset(buffer1->data(), 0, kSize1);
-  EXPECT_EQ(10, entry->ReadData(0, 0, buffer1, kSize1, NULL));
+  EXPECT_EQ(10, entry->ReadData(
+      0, 0, buffer1, kSize1, net::CompletionCallback()));
   EXPECT_STREQ("the data", buffer1->data());
 
   const int kSize2 = 5000;
@@ -90,23 +78,33 @@ void DiskCacheEntryTest::InternalSyncIOBackground(disk_cache::Entry* entry) {
   memset(buffer3->data(), 0, kSize3);
   CacheTestFillBuffer(buffer2->data(), kSize2, false);
   base::strlcpy(buffer2->data(), "The really big data goes here", kSize2);
-  EXPECT_EQ(5000, entry->WriteData(1, 1500, buffer2, kSize2, NULL, false));
+  EXPECT_EQ(5000, entry->WriteData(
+      1, 1500, buffer2, kSize2, net::CompletionCallback(), false));
   memset(buffer2->data(), 0, kSize2);
-  EXPECT_EQ(4989, entry->ReadData(1, 1511, buffer2, kSize2, NULL));
+  EXPECT_EQ(4989, entry->ReadData(
+      1, 1511, buffer2, kSize2, net::CompletionCallback()));
   EXPECT_STREQ("big data goes here", buffer2->data());
-  EXPECT_EQ(5000, entry->ReadData(1, 0, buffer2, kSize2, NULL));
+  EXPECT_EQ(5000, entry->ReadData(
+      1, 0, buffer2, kSize2, net::CompletionCallback()));
   EXPECT_EQ(0, memcmp(buffer2->data(), buffer3->data(), 1500));
-  EXPECT_EQ(1500, entry->ReadData(1, 5000, buffer2, kSize2, NULL));
+  EXPECT_EQ(1500, entry->ReadData(
+      1, 5000, buffer2, kSize2, net::CompletionCallback()));
 
-  EXPECT_EQ(0, entry->ReadData(1, 6500, buffer2, kSize2, NULL));
-  EXPECT_EQ(6500, entry->ReadData(1, 0, buffer3, kSize3, NULL));
-  EXPECT_EQ(8192, entry->WriteData(1, 0, buffer3, 8192, NULL, false));
-  EXPECT_EQ(8192, entry->ReadData(1, 0, buffer3, kSize3, NULL));
+  EXPECT_EQ(0, entry->ReadData(
+      1, 6500, buffer2, kSize2, net::CompletionCallback()));
+  EXPECT_EQ(6500, entry->ReadData(
+      1, 0, buffer3, kSize3, net::CompletionCallback()));
+  EXPECT_EQ(8192, entry->WriteData(
+      1, 0, buffer3, 8192, net::CompletionCallback(), false));
+  EXPECT_EQ(8192, entry->ReadData(
+      1, 0, buffer3, kSize3, net::CompletionCallback()));
   EXPECT_EQ(8192, entry->GetDataSize(1));
 
   // We need to delete the memory buffer on this thread.
-  EXPECT_EQ(0, entry->WriteData(0, 0, NULL, 0, NULL, true));
-  EXPECT_EQ(0, entry->WriteData(1, 0, NULL, 0, NULL, true));
+  EXPECT_EQ(0, entry->WriteData(
+      0, 0, NULL, 0, net::CompletionCallback(), true));
+  EXPECT_EQ(0, entry->WriteData(
+      1, 0, NULL, 0, net::CompletionCallback(), true));
 }
 
 // We need to support synchronous IO even though it is not a supported operation
@@ -118,8 +116,11 @@ void DiskCacheEntryTest::InternalSyncIO() {
   ASSERT_EQ(net::OK, CreateEntry("the first key", &entry));
   ASSERT_TRUE(NULL != entry);
 
-  // The bulk of the test runs from within the task, on the cache thread.
-  RunTaskForTest(new InternalSyncIOTask(this, entry));
+  // The bulk of the test runs from within the callback, on the cache thread.
+  RunTaskForTest(base::Bind(&DiskCacheEntryTest::InternalSyncIOBackground,
+                            base::Unretained(this),
+                            entry));
+
 
   entry->Doom();
   entry->Close();
@@ -180,17 +181,23 @@ void DiskCacheEntryTest::InternalAsyncIO() {
   CacheTestFillBuffer(buffer2->data(), kSize2, false);
   CacheTestFillBuffer(buffer3->data(), kSize3, false);
 
-  EXPECT_EQ(0, entry->ReadData(0, 15 * 1024, buffer1, kSize1, &callback1));
+  EXPECT_EQ(0, entry->ReadData(
+      0, 15 * 1024, buffer1, kSize1,
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback1))));
   base::strlcpy(buffer1->data(), "the data", kSize1);
   int expected = 0;
-  int ret = entry->WriteData(0, 0, buffer1, kSize1, &callback2, false);
+  int ret = entry->WriteData(
+      0, 0, buffer1, kSize1,
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback2)), false);
   EXPECT_TRUE(10 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
 
   EXPECT_TRUE(helper.WaitUntilCacheIoFinished(expected));
   memset(buffer2->data(), 0, kSize2);
-  ret = entry->ReadData(0, 0, buffer2, kSize1, &callback3);
+  ret = entry->ReadData(
+      0, 0, buffer2, kSize1,
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback3)));
   EXPECT_TRUE(10 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
@@ -199,21 +206,27 @@ void DiskCacheEntryTest::InternalAsyncIO() {
   EXPECT_STREQ("the data", buffer2->data());
 
   base::strlcpy(buffer2->data(), "The really big data goes here", kSize2);
-  ret = entry->WriteData(1, 1500, buffer2, kSize2, &callback4, true);
+  ret = entry->WriteData(
+      1, 1500, buffer2, kSize2,
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback4)), true);
   EXPECT_TRUE(5000 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
 
   EXPECT_TRUE(helper.WaitUntilCacheIoFinished(expected));
   memset(buffer3->data(), 0, kSize3);
-  ret = entry->ReadData(1, 1511, buffer3, kSize2, &callback5);
+  ret = entry->ReadData(
+      1, 1511, buffer3, kSize2,
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback5)));
   EXPECT_TRUE(4989 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
 
   EXPECT_TRUE(helper.WaitUntilCacheIoFinished(expected));
   EXPECT_STREQ("big data goes here", buffer3->data());
-  ret = entry->ReadData(1, 0, buffer2, kSize2, &callback6);
+  ret = entry->ReadData(
+      1, 0, buffer2, kSize2,
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback6)));
   EXPECT_TRUE(5000 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
@@ -222,35 +235,47 @@ void DiskCacheEntryTest::InternalAsyncIO() {
 
   EXPECT_TRUE(helper.WaitUntilCacheIoFinished(expected));
   EXPECT_EQ(0, memcmp(buffer2->data(), buffer3->data(), 1500));
-  ret = entry->ReadData(1, 5000, buffer2, kSize2, &callback7);
+  ret = entry->ReadData(
+      1, 5000, buffer2, kSize2,
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback7)));
   EXPECT_TRUE(1500 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
 
-  ret = entry->ReadData(1, 0, buffer3, kSize3, &callback9);
+  ret = entry->ReadData(
+      1, 0, buffer3, kSize3,
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback9)));
   EXPECT_TRUE(6500 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
 
-  ret = entry->WriteData(1, 0, buffer3, 8192, &callback10, true);
+  ret = entry->WriteData(
+      1, 0, buffer3, 8192,
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback10)), true);
   EXPECT_TRUE(8192 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
 
   EXPECT_TRUE(helper.WaitUntilCacheIoFinished(expected));
-  ret = entry->ReadData(1, 0, buffer3, kSize3, &callback11);
+  ret = entry->ReadData(
+      1, 0, buffer3, kSize3,
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback11)));
   EXPECT_TRUE(8192 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
 
   EXPECT_EQ(8192, entry->GetDataSize(1));
 
-  ret = entry->ReadData(0, 0, buffer1, kSize1, &callback12);
+  ret = entry->ReadData(
+      0, 0, buffer1, kSize1,
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback12)));
   EXPECT_TRUE(10 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
 
-  ret = entry->ReadData(1, 0, buffer2, kSize2, &callback13);
+  ret = entry->ReadData(
+      1, 0, buffer2, kSize2,
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback13)));
   EXPECT_TRUE(5000 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
@@ -277,16 +302,6 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyInternalAsyncIO) {
   InternalAsyncIO();
 }
 
-class ExternalSyncIOTask : public SyncIOTask {
- public:
-  ExternalSyncIOTask(DiskCacheEntryTest* test, disk_cache::Entry* entry)
-      : SyncIOTask(test, entry) {}
-
-  virtual void Run() {
-    test_->ExternalSyncIOBackground(entry_);
-  }
-};
-
 // This part of the test runs on the background thread.
 void DiskCacheEntryTest::ExternalSyncIOBackground(disk_cache::Entry* entry) {
   const int kSize1 = 17000;
@@ -296,36 +311,49 @@ void DiskCacheEntryTest::ExternalSyncIOBackground(disk_cache::Entry* entry) {
   CacheTestFillBuffer(buffer1->data(), kSize1, false);
   CacheTestFillBuffer(buffer2->data(), kSize2, false);
   base::strlcpy(buffer1->data(), "the data", kSize1);
-  EXPECT_EQ(17000, entry->WriteData(0, 0, buffer1, kSize1, NULL, false));
+  EXPECT_EQ(17000, entry->WriteData(
+      0, 0, buffer1, kSize1, net::CompletionCallback(), false));
   memset(buffer1->data(), 0, kSize1);
-  EXPECT_EQ(17000, entry->ReadData(0, 0, buffer1, kSize1, NULL));
+  EXPECT_EQ(17000, entry->ReadData(
+      0, 0, buffer1, kSize1, net::CompletionCallback()));
   EXPECT_STREQ("the data", buffer1->data());
 
   base::strlcpy(buffer2->data(), "The really big data goes here", kSize2);
-  EXPECT_EQ(25000, entry->WriteData(1, 10000, buffer2, kSize2, NULL, false));
+  EXPECT_EQ(25000, entry->WriteData(
+      1, 10000, buffer2, kSize2, net::CompletionCallback(), false));
   memset(buffer2->data(), 0, kSize2);
-  EXPECT_EQ(24989, entry->ReadData(1, 10011, buffer2, kSize2, NULL));
+  EXPECT_EQ(24989, entry->ReadData(
+      1, 10011, buffer2, kSize2, net::CompletionCallback()));
   EXPECT_STREQ("big data goes here", buffer2->data());
-  EXPECT_EQ(25000, entry->ReadData(1, 0, buffer2, kSize2, NULL));
+  EXPECT_EQ(25000, entry->ReadData(
+      1, 0, buffer2, kSize2, net::CompletionCallback()));
   EXPECT_EQ(0, memcmp(buffer2->data(), buffer2->data(), 10000));
-  EXPECT_EQ(5000, entry->ReadData(1, 30000, buffer2, kSize2, NULL));
+  EXPECT_EQ(5000, entry->ReadData(
+      1, 30000, buffer2, kSize2, net::CompletionCallback()));
 
-  EXPECT_EQ(0, entry->ReadData(1, 35000, buffer2, kSize2, NULL));
-  EXPECT_EQ(17000, entry->ReadData(1, 0, buffer1, kSize1, NULL));
-  EXPECT_EQ(17000, entry->WriteData(1, 20000, buffer1, kSize1, NULL, false));
+  EXPECT_EQ(0, entry->ReadData(
+      1, 35000, buffer2, kSize2, net::CompletionCallback()));
+  EXPECT_EQ(17000, entry->ReadData(
+      1, 0, buffer1, kSize1, net::CompletionCallback()));
+  EXPECT_EQ(17000, entry->WriteData(
+      1, 20000, buffer1, kSize1, net::CompletionCallback(), false));
   EXPECT_EQ(37000, entry->GetDataSize(1));
 
   // We need to delete the memory buffer on this thread.
-  EXPECT_EQ(0, entry->WriteData(0, 0, NULL, 0, NULL, true));
-  EXPECT_EQ(0, entry->WriteData(1, 0, NULL, 0, NULL, true));
+  EXPECT_EQ(0, entry->WriteData(
+      0, 0, NULL, 0, net::CompletionCallback(), true));
+  EXPECT_EQ(0, entry->WriteData(
+      1, 0, NULL, 0, net::CompletionCallback(), true));
 }
 
 void DiskCacheEntryTest::ExternalSyncIO() {
   disk_cache::Entry* entry;
   ASSERT_EQ(net::OK, CreateEntry("the first key", &entry));
 
-  // The bulk of the test runs from within the task, on the cache thread.
-  RunTaskForTest(new ExternalSyncIOTask(this, entry));
+  // The bulk of the test runs from within the callback, on the cache thread.
+  RunTaskForTest(base::Bind(&DiskCacheEntryTest::ExternalSyncIOBackground,
+                            base::Unretained(this),
+                            entry));
 
   entry->Doom();
   entry->Close();
@@ -380,7 +408,9 @@ void DiskCacheEntryTest::ExternalAsyncIO() {
   CacheTestFillBuffer(buffer2->data(), kSize2, false);
   CacheTestFillBuffer(buffer3->data(), kSize3, false);
   base::strlcpy(buffer1->data(), "the data", kSize1);
-  int ret = entry->WriteData(0, 0, buffer1, kSize1, &callback1, false);
+  int ret = entry->WriteData(
+      0, 0, buffer1, kSize1,
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback1)), false);
   EXPECT_TRUE(17000 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
@@ -388,7 +418,9 @@ void DiskCacheEntryTest::ExternalAsyncIO() {
   EXPECT_TRUE(helper.WaitUntilCacheIoFinished(expected));
 
   memset(buffer2->data(), 0, kSize1);
-  ret = entry->ReadData(0, 0, buffer2, kSize1, &callback2);
+  ret = entry->ReadData(
+      0, 0, buffer2, kSize1,
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback2)));
   EXPECT_TRUE(17000 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
@@ -397,7 +429,9 @@ void DiskCacheEntryTest::ExternalAsyncIO() {
   EXPECT_STREQ("the data", buffer1->data());
 
   base::strlcpy(buffer2->data(), "The really big data goes here", kSize2);
-  ret = entry->WriteData(1, 10000, buffer2, kSize2, &callback3, false);
+  ret = entry->WriteData(
+      1, 10000, buffer2, kSize2,
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback3)), false);
   EXPECT_TRUE(25000 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
@@ -405,31 +439,43 @@ void DiskCacheEntryTest::ExternalAsyncIO() {
   EXPECT_TRUE(helper.WaitUntilCacheIoFinished(expected));
 
   memset(buffer3->data(), 0, kSize3);
-  ret = entry->ReadData(1, 10011, buffer3, kSize3, &callback4);
+  ret = entry->ReadData(
+      1, 10011, buffer3, kSize3,
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback4)));
   EXPECT_TRUE(24989 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
 
   EXPECT_TRUE(helper.WaitUntilCacheIoFinished(expected));
   EXPECT_STREQ("big data goes here", buffer3->data());
-  ret = entry->ReadData(1, 0, buffer2, kSize2, &callback5);
+  ret = entry->ReadData(
+      1, 0, buffer2, kSize2,
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback5)));
   EXPECT_TRUE(25000 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
 
   EXPECT_TRUE(helper.WaitUntilCacheIoFinished(expected));
   EXPECT_EQ(0, memcmp(buffer2->data(), buffer2->data(), 10000));
-  ret = entry->ReadData(1, 30000, buffer2, kSize2, &callback6);
+  ret = entry->ReadData(
+      1, 30000, buffer2, kSize2,
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback6)));
   EXPECT_TRUE(5000 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
 
-  EXPECT_EQ(0, entry->ReadData(1, 35000, buffer2, kSize2, &callback7));
-  ret = entry->ReadData(1, 0, buffer1, kSize1, &callback8);
+  EXPECT_EQ(0, entry->ReadData(
+      1, 35000, buffer2, kSize2,
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback7))));
+  ret = entry->ReadData(
+      1, 0, buffer1, kSize1,
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback8)));
   EXPECT_TRUE(17000 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
-  ret = entry->WriteData(1, 20000, buffer1, kSize1, &callback9, false);
+  ret = entry->WriteData(
+      1, 20000, buffer1, kSize1,
+      base::Bind(&CallbackTest::Run, base::Unretained(&callback9)), false);
   EXPECT_TRUE(17000 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
@@ -531,6 +577,14 @@ void DiskCacheEntryTest::GetKey() {
   ASSERT_EQ(net::OK, CreateEntry(key, &entry));
   EXPECT_TRUE(key == entry->GetKey()) << "long key";
   entry->Close();
+
+  CacheTestFillBuffer(key_buffer, 0x4000, true);
+  key_buffer[0x4000] = '\0';
+
+  key = key_buffer;
+  ASSERT_EQ(net::OK, CreateEntry(key, &entry));
+  EXPECT_TRUE(key == entry->GetKey()) << "16KB key";
+  entry->Close();
 }
 
 TEST_F(DiskCacheEntryTest, GetKey) {
@@ -553,7 +607,7 @@ void DiskCacheEntryTest::GetTimes() {
   EXPECT_TRUE(entry->GetLastModified() >= t1);
   EXPECT_TRUE(entry->GetLastModified() == entry->GetLastUsed());
 
-  base::PlatformThread::Sleep(20);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(kDiskDelayMs));
   Time t2 = Time::Now();
   EXPECT_TRUE(t2 > t1);
   EXPECT_EQ(0, WriteData(entry, 0, 200, NULL, 0, false));
@@ -564,7 +618,7 @@ void DiskCacheEntryTest::GetTimes() {
   }
   EXPECT_TRUE(entry->GetLastModified() == entry->GetLastUsed());
 
-  base::PlatformThread::Sleep(20);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(kDiskDelayMs));
   Time t3 = Time::Now();
   EXPECT_TRUE(t3 > t2);
   const int kSize = 200;
@@ -1141,9 +1195,9 @@ TEST_F(DiskCacheEntryTest, ReadWriteDestroyBuffer) {
   scoped_refptr<net::IOBuffer> buffer(new net::IOBuffer(kSize));
   CacheTestFillBuffer(buffer->data(), kSize, false);
 
-  TestCompletionCallback cb;
+  net::TestCompletionCallback cb;
   EXPECT_EQ(net::ERR_IO_PENDING,
-            entry->WriteData(0, 0, buffer, kSize, &cb, false));
+            entry->WriteData(0, 0, buffer, kSize, cb.callback(), false));
 
   // Release our reference to the buffer.
   buffer = NULL;
@@ -1153,7 +1207,8 @@ TEST_F(DiskCacheEntryTest, ReadWriteDestroyBuffer) {
   buffer = new net::IOBuffer(kSize);
   CacheTestFillBuffer(buffer->data(), kSize, false);
 
-  EXPECT_EQ(net::ERR_IO_PENDING, entry->ReadData(0, 0, buffer, kSize, &cb));
+  EXPECT_EQ(net::ERR_IO_PENDING,
+            entry->ReadData(0, 0, buffer, kSize, cb.callback()));
   buffer = NULL;
   EXPECT_EQ(kSize, cb.WaitForResult());
 
@@ -1205,7 +1260,7 @@ void DiskCacheEntryTest::DoomedEntry() {
   FlushQueueForTest();
   EXPECT_EQ(0, cache_->GetEntryCount());
   Time initial = Time::Now();
-  base::PlatformThread::Sleep(20);
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(kDiskDelayMs));
 
   const int kSize1 = 2000;
   const int kSize2 = 2000;
@@ -1236,6 +1291,36 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyDoomedEntry) {
   DoomedEntry();
 }
 
+// Tests that we discard entries if the data is missing.
+TEST_F(DiskCacheEntryTest, MissingData) {
+  SetDirectMode();
+  InitCache();
+
+  std::string key("the first key");
+  disk_cache::Entry* entry;
+  ASSERT_EQ(net::OK, CreateEntry(key, &entry));
+
+  // Write to an external file.
+  const int kSize = 20000;
+  scoped_refptr<net::IOBuffer> buffer(new net::IOBuffer(kSize));
+  CacheTestFillBuffer(buffer->data(), kSize, false);
+  EXPECT_EQ(kSize, WriteData(entry, 0, 0, buffer, kSize, false));
+  entry->Close();
+  FlushQueueForTest();
+
+  disk_cache::Addr address(0x80000001);
+  FilePath name = cache_impl_->GetFileName(address);
+  EXPECT_TRUE(file_util::Delete(name, false));
+
+  // Attempt to read the data.
+  ASSERT_EQ(net::OK, OpenEntry(key, &entry));
+  EXPECT_EQ(net::ERR_FAILED, ReadData(entry, 0, 0, buffer, kSize));
+  entry->Close();
+
+  // The entry should be gone.
+  ASSERT_NE(net::OK, OpenEntry(key, &entry));
+}
+
 // Test that child entries in a memory cache backend are not visible from
 // enumerations.
 TEST_F(DiskCacheEntryTest, MemoryOnlyEnumerationWithSparseEntries) {
@@ -1251,10 +1336,12 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyEnumerationWithSparseEntries) {
   ASSERT_EQ(net::OK, CreateEntry(key, &parent_entry));
 
   // Writes to the parent entry.
-  EXPECT_EQ(kSize, parent_entry->WriteSparseData(0, buf, kSize, NULL));
+  EXPECT_EQ(kSize, parent_entry->WriteSparseData(0, buf, kSize,
+                                                 net::CompletionCallback()));
 
   // This write creates a child entry and writes to it.
-  EXPECT_EQ(kSize, parent_entry->WriteSparseData(8192, buf, kSize, NULL));
+  EXPECT_EQ(kSize, parent_entry->WriteSparseData(8192, buf, kSize,
+                                                 net::CompletionCallback()));
 
   parent_entry->Close();
 
@@ -1276,16 +1363,16 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyEnumerationWithSparseEntries) {
 // Writes |buf_1| to offset and reads it back as |buf_2|.
 void VerifySparseIO(disk_cache::Entry* entry, int64 offset,
                     net::IOBuffer* buf_1, int size, net::IOBuffer* buf_2) {
-  TestCompletionCallback cb;
+  net::TestCompletionCallback cb;
 
   memset(buf_2->data(), 0, size);
-  int ret = entry->ReadSparseData(offset, buf_2, size, &cb);
+  int ret = entry->ReadSparseData(offset, buf_2, size, cb.callback());
   EXPECT_EQ(0, cb.GetResult(ret));
 
-  ret = entry->WriteSparseData(offset, buf_1, size, &cb);
+  ret = entry->WriteSparseData(offset, buf_1, size, cb.callback());
   EXPECT_EQ(size, cb.GetResult(ret));
 
-  ret = entry->ReadSparseData(offset, buf_2, size, &cb);
+  ret = entry->ReadSparseData(offset, buf_2, size, cb.callback());
   EXPECT_EQ(size, cb.GetResult(ret));
 
   EXPECT_EQ(0, memcmp(buf_1->data(), buf_2->data(), size));
@@ -1295,13 +1382,12 @@ void VerifySparseIO(disk_cache::Entry* entry, int64 offset,
 // same as the content of the provided |buffer|.
 void VerifyContentSparseIO(disk_cache::Entry* entry, int64 offset, char* buffer,
                            int size) {
-  TestCompletionCallback cb;
+  net::TestCompletionCallback cb;
 
   scoped_refptr<net::IOBuffer> buf_1(new net::IOBuffer(size));
   memset(buf_1->data(), 0, size);
-  int ret = entry->ReadSparseData(offset, buf_1, size, &cb);
+  int ret = entry->ReadSparseData(offset, buf_1, size, cb.callback());
   EXPECT_EQ(size, cb.GetResult(ret));
-
   EXPECT_EQ(0, memcmp(buf_1->data(), buffer, size));
 }
 
@@ -1392,36 +1478,39 @@ void DiskCacheEntryTest::GetAvailableRange() {
 
   // We stop at the first empty block.
   int64 start;
-  TestCompletionCallback cb;
-  int rv = entry->GetAvailableRange(0x20F0000, kSize * 2, &start, &cb);
+  net::TestCompletionCallback cb;
+  int rv = entry->GetAvailableRange(
+      0x20F0000, kSize * 2, &start, cb.callback());
   EXPECT_EQ(kSize, cb.GetResult(rv));
   EXPECT_EQ(0x20F0000, start);
 
   start = 0;
-  rv = entry->GetAvailableRange(0, kSize, &start, &cb);
+  rv = entry->GetAvailableRange(0, kSize, &start, cb.callback());
   EXPECT_EQ(0, cb.GetResult(rv));
-  rv = entry->GetAvailableRange(0x20F0000 - kSize, kSize, &start, &cb);
+  rv = entry->GetAvailableRange(
+      0x20F0000 - kSize, kSize, &start, cb.callback());
   EXPECT_EQ(0, cb.GetResult(rv));
-  rv = entry->GetAvailableRange(0, 0x2100000, &start, &cb);
+  rv = entry->GetAvailableRange(0, 0x2100000, &start, cb.callback());
   EXPECT_EQ(kSize, cb.GetResult(rv));
   EXPECT_EQ(0x20F0000, start);
 
   // We should be able to Read based on the results of GetAvailableRange.
   start = -1;
-  rv = entry->GetAvailableRange(0x2100000, kSize, &start, &cb);
+  rv = entry->GetAvailableRange(0x2100000, kSize, &start, cb.callback());
   EXPECT_EQ(0, cb.GetResult(rv));
-  rv = entry->ReadSparseData(start, buf, kSize, &cb);
+  rv = entry->ReadSparseData(start, buf, kSize, cb.callback());
   EXPECT_EQ(0, cb.GetResult(rv));
 
   start = 0;
-  rv = entry->GetAvailableRange(0x20F2000, kSize, &start, &cb);
+  rv = entry->GetAvailableRange(0x20F2000, kSize, &start, cb.callback());
   EXPECT_EQ(0x2000, cb.GetResult(rv));
   EXPECT_EQ(0x20F2000, start);
   EXPECT_EQ(0x2000, ReadSparseData(entry, start, buf, kSize));
 
   // Make sure that we respect the |len| argument.
   start = 0;
-  rv = entry->GetAvailableRange(0x20F0001 - kSize, kSize, &start, &cb);
+  rv = entry->GetAvailableRange(
+      0x20F0001 - kSize, kSize, &start, cb.callback());
   EXPECT_EQ(1, cb.GetResult(rv));
   EXPECT_EQ(0x20F0000, start);
 
@@ -1530,45 +1619,49 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyMisalignedGetAvailableRange) {
   ASSERT_EQ(net::OK, CreateEntry(key, &entry));
 
   // Writes in the middle of an entry.
-  EXPECT_EQ(1024, entry->WriteSparseData(0, buf, 1024, NULL));
-  EXPECT_EQ(1024, entry->WriteSparseData(5120, buf, 1024, NULL));
-  EXPECT_EQ(1024, entry->WriteSparseData(10000, buf, 1024, NULL));
+  EXPECT_EQ(1024, entry->WriteSparseData(
+      0, buf, 1024, net::CompletionCallback()));
+  EXPECT_EQ(1024, entry->WriteSparseData(
+      5120, buf, 1024, net::CompletionCallback()));
+  EXPECT_EQ(1024, entry->WriteSparseData(
+      10000, buf, 1024, net::CompletionCallback()));
 
   // Writes in the middle of an entry and spans 2 child entries.
-  EXPECT_EQ(8192, entry->WriteSparseData(50000, buf, 8192, NULL));
+  EXPECT_EQ(8192, entry->WriteSparseData(
+      50000, buf, 8192, net::CompletionCallback()));
 
   int64 start;
-  TestCompletionCallback cb;
+  net::TestCompletionCallback cb;
   // Test that we stop at a discontinuous child at the second block.
-  int rv = entry->GetAvailableRange(0, 10000, &start, &cb);
+  int rv = entry->GetAvailableRange(0, 10000, &start, cb.callback());
   EXPECT_EQ(1024, cb.GetResult(rv));
   EXPECT_EQ(0, start);
 
   // Test that number of bytes is reported correctly when we start from the
   // middle of a filled region.
-  rv = entry->GetAvailableRange(512, 10000, &start, &cb);
+  rv = entry->GetAvailableRange(512, 10000, &start, cb.callback());
   EXPECT_EQ(512, cb.GetResult(rv));
   EXPECT_EQ(512, start);
 
   // Test that we found bytes in the child of next block.
-  rv = entry->GetAvailableRange(1024, 10000, &start, &cb);
+  rv = entry->GetAvailableRange(1024, 10000, &start, cb.callback());
   EXPECT_EQ(1024, cb.GetResult(rv));
   EXPECT_EQ(5120, start);
 
   // Test that the desired length is respected. It starts within a filled
   // region.
-  rv = entry->GetAvailableRange(5500, 512, &start, &cb);
+  rv = entry->GetAvailableRange(5500, 512, &start, cb.callback());
   EXPECT_EQ(512, cb.GetResult(rv));
   EXPECT_EQ(5500, start);
 
   // Test that the desired length is respected. It starts before a filled
   // region.
-  rv = entry->GetAvailableRange(5000, 620, &start, &cb);
+  rv = entry->GetAvailableRange(5000, 620, &start, cb.callback());
   EXPECT_EQ(500, cb.GetResult(rv));
   EXPECT_EQ(5120, start);
 
   // Test that multiple blocks are scanned.
-  rv = entry->GetAvailableRange(40000, 20000, &start, &cb);
+  rv = entry->GetAvailableRange(40000, 20000, &start, cb.callback());
   EXPECT_EQ(8192, cb.GetResult(rv));
   EXPECT_EQ(50000, start);
 
@@ -1633,10 +1726,14 @@ void DiskCacheEntryTest::DoomSparseEntry() {
   int64 offset = 1024;
   // Write to a bunch of ranges.
   for (int i = 0; i < 12; i++) {
-    EXPECT_EQ(kSize, entry1->WriteSparseData(offset, buf, kSize, NULL));
+    EXPECT_EQ(kSize, entry1->WriteSparseData(offset, buf, kSize,
+                                             net::CompletionCallback()));
     // Keep the second map under the default size.
-    if (i < 9)
-      EXPECT_EQ(kSize, entry2->WriteSparseData(offset, buf, kSize, NULL));
+    if (i < 9) {
+      EXPECT_EQ(kSize, entry2->WriteSparseData(offset, buf, kSize,
+                                               net::CompletionCallback()));
+    }
+
     offset *= 4;
   }
 
@@ -1665,7 +1762,7 @@ void DiskCacheEntryTest::DoomSparseEntry() {
       // Most likely we are waiting for the result of reading the sparse info
       // (it's always async on Posix so it is easy to miss). Unfortunately we
       // don't have any signal to watch for so we can only wait.
-      base::PlatformThread::Sleep(500);
+      base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(500));
       MessageLoop::current()->RunAllPending();
     }
     EXPECT_EQ(0, cache_->GetEntryCount());
@@ -1685,21 +1782,30 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyDoomSparseEntry) {
   DoomSparseEntry();
 }
 
-// A CompletionCallback that deletes the cache from within the callback. The way
-// a TestCompletionCallback works means that all tasks (even new ones) are
-// executed by the message loop before returning to the caller so the only way
-// to simulate a race is to execute what we want on the callback.
-class SparseTestCompletionCallback : public TestCompletionCallback {
+// A CompletionCallback wrapper that deletes the cache from within the callback.
+// The way an CompletionCallback works means that all tasks (even new ones)
+// are executed by the message loop before returning to the caller so the only
+// way to simulate a race is to execute what we want on the callback.
+class SparseTestCompletionCallback: public TestCompletionCallbackBase {
  public:
   explicit SparseTestCompletionCallback(disk_cache::Backend* cache)
-      : cache_(cache) {}
-
-  virtual void RunWithParams(const Tuple1<int>& params) {
-    delete cache_;
-    TestCompletionCallback::RunWithParams(params);
+      : cache_(cache),
+        ALLOW_THIS_IN_INITIALIZER_LIST(callback_(
+            base::Bind(&SparseTestCompletionCallback::OnComplete,
+                       base::Unretained(this)))) {
   }
+
+  const net::CompletionCallback& callback() const { return callback_; }
+
  private:
+  void OnComplete(int result) {
+    delete cache_;
+    SetResult(result);
+  }
+
   disk_cache::Backend* cache_;
+  net::CompletionCallback callback_;
+
   DISALLOW_COPY_AND_ASSIGN(SparseTestCompletionCallback);
 };
 
@@ -1720,14 +1826,15 @@ TEST_F(DiskCacheEntryTest, DoomSparseEntry2) {
   int64 offset = 1024;
   // Write to a bunch of ranges.
   for (int i = 0; i < 12; i++) {
-    EXPECT_EQ(kSize, entry->WriteSparseData(offset, buf, kSize, NULL));
+    EXPECT_EQ(kSize, entry->WriteSparseData(offset, buf, kSize,
+                                            net::CompletionCallback()));
     offset *= 4;
   }
   EXPECT_EQ(9, cache_->GetEntryCount());
 
   entry->Close();
   SparseTestCompletionCallback cb(cache_);
-  int rv = cache_->DoomEntry(key, &cb);
+  int rv = cache_->DoomEntry(key, cb.callback());
   EXPECT_EQ(net::ERR_IO_PENDING, rv);
   EXPECT_EQ(net::OK, cb.WaitForResult());
 
@@ -1771,20 +1878,20 @@ void DiskCacheEntryTest::PartialSparseEntry() {
 
   int rv;
   int64 start;
-  TestCompletionCallback cb;
+  net::TestCompletionCallback cb;
   if (memory_only_) {
-    rv = entry->GetAvailableRange(0, 600, &start, &cb);
+    rv = entry->GetAvailableRange(0, 600, &start, cb.callback());
     EXPECT_EQ(100, cb.GetResult(rv));
     EXPECT_EQ(500, start);
   } else {
-    rv = entry->GetAvailableRange(0, 2048, &start, &cb);
+    rv = entry->GetAvailableRange(0, 2048, &start, cb.callback());
     EXPECT_EQ(1024, cb.GetResult(rv));
     EXPECT_EQ(1024, start);
   }
-  rv = entry->GetAvailableRange(kSize, kSize, &start, &cb);
+  rv = entry->GetAvailableRange(kSize, kSize, &start, cb.callback());
   EXPECT_EQ(500, cb.GetResult(rv));
   EXPECT_EQ(kSize, start);
-  rv = entry->GetAvailableRange(20 * 1024, 10000, &start, &cb);
+  rv = entry->GetAvailableRange(20 * 1024, 10000, &start, cb.callback());
   EXPECT_EQ(3616, cb.GetResult(rv));
   EXPECT_EQ(20 * 1024, start);
 
@@ -1792,24 +1899,24 @@ void DiskCacheEntryTest::PartialSparseEntry() {
   // 2. Query within a filled 1KB block.
   // 3. Query beyond a filled 1KB block.
   if (memory_only_) {
-    rv = entry->GetAvailableRange(19400, kSize, &start, &cb);
+    rv = entry->GetAvailableRange(19400, kSize, &start, cb.callback());
     EXPECT_EQ(3496, cb.GetResult(rv));
     EXPECT_EQ(20000, start);
   } else {
-    rv = entry->GetAvailableRange(19400, kSize, &start, &cb);
+    rv = entry->GetAvailableRange(19400, kSize, &start, cb.callback());
     EXPECT_EQ(3016, cb.GetResult(rv));
     EXPECT_EQ(20480, start);
   }
-  rv = entry->GetAvailableRange(3073, kSize, &start, &cb);
+  rv = entry->GetAvailableRange(3073, kSize, &start, cb.callback());
   EXPECT_EQ(1523, cb.GetResult(rv));
   EXPECT_EQ(3073, start);
-  rv = entry->GetAvailableRange(4600, kSize, &start, &cb);
+  rv = entry->GetAvailableRange(4600, kSize, &start, cb.callback());
   EXPECT_EQ(0, cb.GetResult(rv));
   EXPECT_EQ(4600, start);
 
   // Now make another write and verify that there is no hole in between.
   EXPECT_EQ(kSize, WriteSparseData(entry, 500 + kSize, buf1, kSize));
-  rv = entry->GetAvailableRange(1024, 10000, &start, &cb);
+  rv = entry->GetAvailableRange(1024, 10000, &start, cb.callback());
   EXPECT_EQ(7 * 1024 + 500, cb.GetResult(rv));
   EXPECT_EQ(1024, start);
   EXPECT_EQ(kSize, ReadSparseData(entry, kSize, buf2, kSize));
@@ -1893,12 +2000,13 @@ TEST_F(DiskCacheEntryTest, CancelSparseIO) {
   CacheTestFillBuffer(buf->data(), kSize, false);
 
   // This will open and write two "real" entries.
-  TestCompletionCallback cb1, cb2, cb3, cb4, cb5;
-  int rv = entry->WriteSparseData(1024 * 1024 - 4096, buf, kSize, &cb1);
+  net::TestCompletionCallback cb1, cb2, cb3, cb4, cb5;
+  int rv = entry->WriteSparseData(
+      1024 * 1024 - 4096, buf, kSize, cb1.callback());
   EXPECT_EQ(net::ERR_IO_PENDING, rv);
 
   int64 offset = 0;
-  rv = entry->GetAvailableRange(offset, kSize, &offset, &cb5);
+  rv = entry->GetAvailableRange(offset, kSize, &offset, cb5.callback());
   rv = cb5.GetResult(rv);
   if (!cb1.have_result()) {
     // We may or may not have finished writing to the entry. If we have not,
@@ -1908,16 +2016,18 @@ TEST_F(DiskCacheEntryTest, CancelSparseIO) {
 
   // We cancel the pending operation, and register multiple notifications.
   entry->CancelSparseIO();
-  EXPECT_EQ(net::ERR_IO_PENDING, entry->ReadyForSparseIO(&cb2));
-  EXPECT_EQ(net::ERR_IO_PENDING, entry->ReadyForSparseIO(&cb3));
+  EXPECT_EQ(net::ERR_IO_PENDING, entry->ReadyForSparseIO(cb2.callback()));
+  EXPECT_EQ(net::ERR_IO_PENDING, entry->ReadyForSparseIO(cb3.callback()));
   entry->CancelSparseIO();  // Should be a no op at this point.
-  EXPECT_EQ(net::ERR_IO_PENDING, entry->ReadyForSparseIO(&cb4));
+  EXPECT_EQ(net::ERR_IO_PENDING, entry->ReadyForSparseIO(cb4.callback()));
 
   if (!cb1.have_result()) {
     EXPECT_EQ(net::ERR_CACHE_OPERATION_NOT_SUPPORTED,
-              entry->ReadSparseData(offset, buf, kSize, NULL));
+              entry->ReadSparseData(offset, buf, kSize,
+                                    net::CompletionCallback()));
     EXPECT_EQ(net::ERR_CACHE_OPERATION_NOT_SUPPORTED,
-              entry->WriteSparseData(offset, buf, kSize, NULL));
+              entry->WriteSparseData(offset, buf, kSize,
+                                     net::CompletionCallback()));
   }
 
   // Now see if we receive all notifications. Note that we should not be able
@@ -1928,7 +2038,7 @@ TEST_F(DiskCacheEntryTest, CancelSparseIO) {
   EXPECT_EQ(net::OK, cb3.WaitForResult());
   EXPECT_EQ(net::OK, cb4.WaitForResult());
 
-  rv = entry->GetAvailableRange(offset, kSize, &offset, &cb5);
+  rv = entry->GetAvailableRange(offset, kSize, &offset, cb5.callback());
   EXPECT_EQ(0, cb5.GetResult(rv));
   entry->Close();
 }

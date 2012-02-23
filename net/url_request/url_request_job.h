@@ -11,32 +11,33 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/string16.h"
+#include "base/memory/weak_ptr.h"
 #include "base/system_monitor/system_monitor.h"
-#include "base/task.h"
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/filter.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/load_states.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
 class AuthChallengeInfo;
+class AuthCredentials;
 class CookieList;
 class CookieOptions;
 class HttpRequestHeaders;
 class HttpResponseInfo;
 class IOBuffer;
 class SSLCertRequestInfo;
+class SSLInfo;
 class URLRequest;
 class UploadData;
 class URLRequestStatus;
 class X509Certificate;
 
-class NET_API URLRequestJob : public base::RefCounted<URLRequestJob>,
-                              public base::SystemMonitor::PowerObserver {
+class NET_EXPORT URLRequestJob : public base::RefCounted<URLRequestJob>,
+                                 public base::SystemMonitor::PowerObserver {
  public:
   explicit URLRequestJob(URLRequest* request);
 
@@ -151,8 +152,7 @@ class NET_API URLRequestJob : public base::RefCounted<URLRequestJob>,
       scoped_refptr<AuthChallengeInfo>* auth_info);
 
   // Resend the request with authentication credentials.
-  virtual void SetAuth(const string16& username,
-                       const string16& password);
+  virtual void SetAuth(const AuthCredentials& credentials);
 
   // Display the error page without asking for credentials again.
   virtual void CancelAuth();
@@ -187,7 +187,13 @@ class NET_API URLRequestJob : public base::RefCounted<URLRequestJob>,
 
   // base::SystemMonitor::PowerObserver methods:
   // We invoke URLRequestJob::Kill on suspend (crbug.com/4606).
-  virtual void OnSuspend();
+  virtual void OnSuspend() OVERRIDE;
+
+  // Called after a NetworkDelegate has been informed that the URLRequest
+  // will be destroyed. This is used to track that no pending callbacks
+  // exist at destruction time of the URLRequestJob, unless they have been
+  // canceled by an explicit NetworkDelegate::NotifyURLRequestDestroyed() call.
+  virtual void NotifyURLRequestDestroyed();
 
  protected:
   friend class base::RefCounted<URLRequestJob>;
@@ -197,7 +203,7 @@ class NET_API URLRequestJob : public base::RefCounted<URLRequestJob>,
   void NotifyCertificateRequested(SSLCertRequestInfo* cert_request_info);
 
   // Notifies the job about an SSL certificate error.
-  void NotifySSLCertificateError(int cert_error, X509Certificate* cert);
+  void NotifySSLCertificateError(const SSLInfo& ssl_info, bool fatal);
 
   // Delegates to URLRequest::Delegate.
   bool CanGetCookies(const CookieList& cookie_list) const;
@@ -234,6 +240,11 @@ class NET_API URLRequestJob : public base::RefCounted<URLRequestJob>,
   // Should only be called if the job has not started a resposne.
   void NotifyRestartRequired();
 
+  // Called when the delegate blocks or unblocks this request when intercepting
+  // certain requests.
+  void SetBlockedOnDelegate();
+  void SetUnblockedOnDelegate();
+
   // Called to read raw (pre-filtered) data from this Job.
   // If returning true, data was read from the job.  buf will contain
   // the data, and bytes_read will receive the number of bytes read.
@@ -245,6 +256,10 @@ class NET_API URLRequestJob : public base::RefCounted<URLRequestJob>,
   // operation is completed.  See comments on URLRequest::Read for more
   // info.
   virtual bool ReadRawData(IOBuffer* buf, int buf_size, int *bytes_read);
+
+  // Called to tell the job that a filter has successfully reached the end of
+  // the stream.
+  virtual void DoneReading();
 
   // Informs the filter that data has been read into its buffer
   void FilteredDataRead(int bytes_read);
@@ -357,7 +372,7 @@ class NET_API URLRequestJob : public base::RefCounted<URLRequestJob>,
   GURL deferred_redirect_url_;
   int deferred_redirect_status_code_;
 
-  ScopedRunnableMethodFactory<URLRequestJob> method_factory_;
+  base::WeakPtrFactory<URLRequestJob> weak_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestJob);
 };

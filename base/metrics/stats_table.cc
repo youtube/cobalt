@@ -265,7 +265,7 @@ StatsTable::StatsTable(const std::string& name, int max_threads,
   impl_ = Private::New(name, table_size, max_threads, max_counters);
 
   if (!impl_)
-    PLOG(ERROR) << "StatsTable did not initialize";
+    DPLOG(ERROR) << "StatsTable did not initialize";
 }
 
 StatsTable::~StatsTable() {

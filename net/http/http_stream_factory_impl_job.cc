@@ -1,9 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/http/http_stream_factory_impl_job.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/logging.h"
 #include "base/stl_util.h"
 #include "base/string_util.h"
@@ -16,9 +18,15 @@
 #include "net/base/ssl_cert_request_info.h"
 #include "net/http/http_basic_stream.h"
 #include "net/http/http_network_session.h"
+#include "net/http/http_pipelined_connection.h"
+#include "net/http/http_pipelined_host.h"
+#include "net/http/http_pipelined_host_pool.h"
+#include "net/http/http_pipelined_stream.h"
 #include "net/http/http_proxy_client_socket.h"
 #include "net/http/http_proxy_client_socket_pool.h"
 #include "net/http/http_request_info.h"
+#include "net/http/http_server_properties.h"
+#include "net/http/http_stream_factory.h"
 #include "net/http/http_stream_factory_impl_request.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool.h"
@@ -58,24 +66,63 @@ Value* HttpStreamJobParameters::ToValue() const {
   return dict;
 }
 
+// Parameters associated with the Proto (with NPN negotiation) of a HTTP stream.
+class HttpStreamProtoParameters : public NetLog::EventParameters {
+ public:
+  static scoped_refptr<HttpStreamProtoParameters> Create(
+      const SSLClientSocket::NextProtoStatus status,
+      const std::string& proto,
+      const std::string& server_protos) {
+    return make_scoped_refptr(new HttpStreamProtoParameters(
+        status, proto, server_protos));
+  }
+
+  virtual Value* ToValue() const;
+
+ private:
+  HttpStreamProtoParameters(const SSLClientSocket::NextProtoStatus status,
+                            const std::string& proto,
+                            const std::string& server_protos)
+      : status_(status),
+        proto_(proto),
+        server_protos_(server_protos) {}
+
+  const SSLClientSocket::NextProtoStatus status_;
+  const std::string proto_;
+  const std::string server_protos_;
+};
+
+Value* HttpStreamProtoParameters::ToValue() const {
+  DictionaryValue* dict = new DictionaryValue();
+
+  dict->SetString("next_proto_status",
+                  SSLClientSocket::NextProtoStatusToString(status_));
+  dict->SetString("proto", proto_);
+  dict->SetString("server_protos",
+                  SSLClientSocket::ServerProtosToString(server_protos_));
+  return dict;
+}
+
 HttpStreamFactoryImpl::Job::Job(HttpStreamFactoryImpl* stream_factory,
                                 HttpNetworkSession* session,
                                 const HttpRequestInfo& request_info,
-                                const SSLConfig& ssl_config,
-                                const BoundNetLog& net_log)
+                                const SSLConfig& server_ssl_config,
+                                const SSLConfig& proxy_ssl_config,
+                                NetLog* net_log)
     : request_(NULL),
       request_info_(request_info),
-      ssl_config_(ssl_config),
-      net_log_(BoundNetLog::Make(net_log.net_log(),
-                                 NetLog::SOURCE_HTTP_STREAM_JOB)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(this, &Job::OnIOComplete)),
+      server_ssl_config_(server_ssl_config),
+      proxy_ssl_config_(proxy_ssl_config),
+      net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_HTTP_STREAM_JOB)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(
+          base::Bind(&Job::OnIOComplete, base::Unretained(this)))),
       connection_(new ClientSocketHandle),
       session_(session),
       stream_factory_(stream_factory),
       next_state_(STATE_NONE),
       pac_request_(NULL),
       blocking_job_(NULL),
-      dependent_job_(NULL),
+      waiting_job_(NULL),
       using_ssl_(false),
       using_spdy_(false),
       force_spdy_always_(HttpStreamFactory::force_spdy_always()),
@@ -83,9 +130,11 @@ HttpStreamFactoryImpl::Job::Job(HttpStreamFactoryImpl* stream_factory,
       spdy_certificate_error_(OK),
       establishing_tunnel_(false),
       was_npn_negotiated_(false),
+      protocol_negotiated_(SSLClientSocket::kProtoUnknown),
       num_streams_(0),
       spdy_session_direct_(false),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
+      existing_available_pipeline_(false),
+      ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)) {
   DCHECK(stream_factory);
   DCHECK(session);
 }
@@ -117,12 +166,22 @@ void HttpStreamFactoryImpl::Job::Start(Request* request) {
 
 int HttpStreamFactoryImpl::Job::Preconnect(int num_streams) {
   DCHECK_GT(num_streams, 0);
-  num_streams_ = num_streams;
+  HostPortPair origin_server =
+      HostPortPair(request_info_.url.HostNoBrackets(),
+                   request_info_.url.EffectiveIntPort());
+  HttpServerProperties* http_server_properties =
+      session_->http_server_properties();
+  if (http_server_properties &&
+      http_server_properties->SupportsSpdy(origin_server)) {
+    num_streams_ = 1;
+  } else {
+    num_streams_ = num_streams;
+  }
   return StartInternal();
 }
 
 int HttpStreamFactoryImpl::Job::RestartTunnelWithProxyAuth(
-    const string16& username, const string16& password) {
+    const AuthCredentials& credentials) {
   DCHECK(establishing_tunnel_);
   next_state_ = STATE_RESTART_TUNNEL_AUTH;
   stream_.reset();
@@ -132,7 +191,7 @@ int HttpStreamFactoryImpl::Job::RestartTunnelWithProxyAuth(
 LoadState HttpStreamFactoryImpl::Job::GetLoadState() const {
   switch (next_state_) {
     case STATE_RESOLVE_PROXY_COMPLETE:
-      return LOAD_STATE_RESOLVING_PROXY_FOR_URL;
+      return session_->proxy_service()->GetLoadState(pac_request_);
     case STATE_CREATE_STREAM_COMPLETE:
       return connection_->GetLoadState();
     case STATE_INIT_CONNECTION_COMPLETE:
@@ -151,9 +210,9 @@ void HttpStreamFactoryImpl::Job::WaitFor(Job* job) {
   DCHECK_EQ(STATE_NONE, next_state_);
   DCHECK_EQ(STATE_NONE, job->next_state_);
   DCHECK(!blocking_job_);
-  DCHECK(!job->dependent_job_);
+  DCHECK(!job->waiting_job_);
   blocking_job_ = job;
-  job->dependent_job_ = this;
+  job->waiting_job_ = this;
 }
 
 void HttpStreamFactoryImpl::Job::Resume(Job* job) {
@@ -165,8 +224,8 @@ void HttpStreamFactoryImpl::Job::Resume(Job* job) {
   if (next_state_ == STATE_WAIT_FOR_JOB_COMPLETE) {
     MessageLoop::current()->PostTask(
         FROM_HERE,
-        method_factory_.NewRunnableMethod(
-            &HttpStreamFactoryImpl::Job::OnIOComplete, OK));
+        base::Bind(&HttpStreamFactoryImpl::Job::OnIOComplete,
+                   ptr_factory_.GetWeakPtr(), OK));
   }
 }
 
@@ -176,8 +235,8 @@ void HttpStreamFactoryImpl::Job::Orphan(const Request* request) {
   // We've been orphaned, but there's a job we're blocked on. Don't bother
   // racing, just cancel ourself.
   if (blocking_job_) {
-    DCHECK(blocking_job_->dependent_job_);
-    blocking_job_->dependent_job_ = NULL;
+    DCHECK(blocking_job_->waiting_job_);
+    blocking_job_->waiting_job_ = NULL;
     blocking_job_ = NULL;
     stream_factory_->OnOrphanedJobComplete(this);
   }
@@ -187,12 +246,21 @@ bool HttpStreamFactoryImpl::Job::was_npn_negotiated() const {
   return was_npn_negotiated_;
 }
 
+SSLClientSocket::NextProto HttpStreamFactoryImpl::Job::protocol_negotiated()
+    const {
+  return protocol_negotiated_;
+}
+
 bool HttpStreamFactoryImpl::Job::using_spdy() const {
   return using_spdy_;
 }
 
-const SSLConfig& HttpStreamFactoryImpl::Job::ssl_config() const {
-  return ssl_config_;
+const SSLConfig& HttpStreamFactoryImpl::Job::server_ssl_config() const {
+  return server_ssl_config_;
+}
+
+const SSLConfig& HttpStreamFactoryImpl::Job::proxy_ssl_config() const {
+  return proxy_ssl_config_;
 }
 
 const ProxyInfo& HttpStreamFactoryImpl::Job::proxy_info() const {
@@ -215,9 +283,11 @@ void HttpStreamFactoryImpl::Job::OnStreamReadyCallback() {
     stream_factory_->OnOrphanedJobComplete(this);
   } else {
     request_->Complete(was_npn_negotiated(),
+                       protocol_negotiated(),
                        using_spdy(),
-                       net_log_.source());
-    request_->OnStreamReady(this, ssl_config_, proxy_info_, stream_.release());
+                       net_log_);
+    request_->OnStreamReady(this, server_ssl_config_, proxy_info_,
+                            stream_.release());
   }
   // |this| may be deleted after this call.
 }
@@ -231,8 +301,8 @@ void HttpStreamFactoryImpl::Job::OnSpdySessionReadyCallback() {
   new_spdy_session_ = NULL;
   if (IsOrphaned()) {
     stream_factory_->OnSpdySessionReady(
-        spdy_session, spdy_session_direct_, ssl_config_, proxy_info_,
-        was_npn_negotiated(), using_spdy(), net_log_.source());
+        spdy_session, spdy_session_direct_, server_ssl_config_, proxy_info_,
+        was_npn_negotiated(), protocol_negotiated(), using_spdy(), net_log_);
     stream_factory_->OnOrphanedJobComplete(this);
   } else {
     request_->OnSpdySessionReady(this, spdy_session, spdy_session_direct_);
@@ -245,7 +315,7 @@ void HttpStreamFactoryImpl::Job::OnStreamFailedCallback(int result) {
   if (IsOrphaned())
     stream_factory_->OnOrphanedJobComplete(this);
   else
-    request_->OnStreamFailed(this, result, ssl_config_);
+    request_->OnStreamFailed(this, result, server_ssl_config_);
   // |this| may be deleted after this call.
 }
 
@@ -255,7 +325,7 @@ void HttpStreamFactoryImpl::Job::OnCertificateErrorCallback(
   if (IsOrphaned())
     stream_factory_->OnOrphanedJobComplete(this);
   else
-    request_->OnCertificateError(this, result, ssl_config_, ssl_info);
+    request_->OnCertificateError(this, result, server_ssl_config_, ssl_info);
   // |this| may be deleted after this call.
 }
 
@@ -267,7 +337,7 @@ void HttpStreamFactoryImpl::Job::OnNeedsProxyAuthCallback(
     stream_factory_->OnOrphanedJobComplete(this);
   else
     request_->OnNeedsProxyAuth(
-        this, response, ssl_config_, proxy_info_, auth_controller);
+        this, response, server_ssl_config_, proxy_info_, auth_controller);
   // |this| may be deleted after this call.
 }
 
@@ -277,7 +347,7 @@ void HttpStreamFactoryImpl::Job::OnNeedsClientAuthCallback(
   if (IsOrphaned())
     stream_factory_->OnOrphanedJobComplete(this);
   else
-    request_->OnNeedsClientAuth(this, ssl_config_, cert_info);
+    request_->OnNeedsClientAuth(this, server_ssl_config_, cert_info);
   // |this| may be deleted after this call.
 }
 
@@ -289,7 +359,7 @@ void HttpStreamFactoryImpl::Job::OnHttpsProxyTunnelResponseCallback(
     stream_factory_->OnOrphanedJobComplete(this);
   else
     request_->OnHttpsProxyTunnelResponse(
-        this, response_info, ssl_config_, proxy_info_, stream);
+        this, response_info, server_ssl_config_, proxy_info_, stream);
   // |this| may be deleted after this call.
 }
 
@@ -297,8 +367,9 @@ void HttpStreamFactoryImpl::Job::OnPreconnectsComplete() {
   DCHECK(!request_);
   if (new_spdy_session_) {
     stream_factory_->OnSpdySessionReady(
-        new_spdy_session_, spdy_session_direct_, ssl_config_,
-        proxy_info_, was_npn_negotiated(), using_spdy(), net_log_.source());
+        new_spdy_session_, spdy_session_direct_, server_ssl_config_,
+        proxy_info_, was_npn_negotiated(), protocol_negotiated(), using_spdy(),
+        net_log_);
   }
   stream_factory_->OnPreconnectsComplete(this);
   // |this| may be deleted after this call.
@@ -314,11 +385,16 @@ int HttpStreamFactoryImpl::Job::RunLoop(int result) {
   if (result == ERR_IO_PENDING)
     return result;
 
+  // If there was an error, we should have already resumed the |waiting_job_|,
+  // if there was one.
+  DCHECK(result == OK || waiting_job_ == NULL);
+
   if (IsPreconnecting()) {
     MessageLoop::current()->PostTask(
         FROM_HERE,
-        method_factory_.NewRunnableMethod(
-            &HttpStreamFactoryImpl::Job::OnPreconnectsComplete));
+        base::Bind(
+            &HttpStreamFactoryImpl::Job::OnPreconnectsComplete,
+            ptr_factory_.GetWeakPtr()));
     return ERR_IO_PENDING;
   }
 
@@ -329,8 +405,9 @@ int HttpStreamFactoryImpl::Job::RunLoop(int result) {
     next_state_ = STATE_WAITING_USER_ACTION;
     MessageLoop::current()->PostTask(
         FROM_HERE,
-        method_factory_.NewRunnableMethod(
+        base::Bind(
             &HttpStreamFactoryImpl::Job::OnCertificateErrorCallback,
+            ptr_factory_.GetWeakPtr(),
             result, ssl_info_));
     return ERR_IO_PENDING;
   }
@@ -350,8 +427,9 @@ int HttpStreamFactoryImpl::Job::RunLoop(int result) {
         next_state_ = STATE_WAITING_USER_ACTION;
         MessageLoop::current()->PostTask(
             FROM_HERE,
-            method_factory_.NewRunnableMethod(
+            base::Bind(
                 &HttpStreamFactoryImpl::Job::OnNeedsProxyAuthCallback,
+                ptr_factory_.GetWeakPtr(),
                 *tunnel_auth_response,
                 http_proxy_socket->auth_controller()));
       }
@@ -360,8 +438,9 @@ int HttpStreamFactoryImpl::Job::RunLoop(int result) {
     case ERR_SSL_CLIENT_AUTH_CERT_NEEDED:
       MessageLoop::current()->PostTask(
           FROM_HERE,
-          method_factory_.NewRunnableMethod(
+          base::Bind(
               &HttpStreamFactoryImpl::Job::OnNeedsClientAuthCallback,
+              ptr_factory_.GetWeakPtr(),
               connection_->ssl_error_response_info().cert_request_info));
       return ERR_IO_PENDING;
 
@@ -375,8 +454,9 @@ int HttpStreamFactoryImpl::Job::RunLoop(int result) {
             static_cast<ProxyClientSocket*>(connection_->socket());
         MessageLoop::current()->PostTask(
             FROM_HERE,
-            method_factory_.NewRunnableMethod(
+            base::Bind(
                 &HttpStreamFactoryImpl::Job::OnHttpsProxyTunnelResponseCallback,
+                ptr_factory_.GetWeakPtr(),
                 *proxy_socket->GetConnectResponseInfo(),
                 proxy_socket->CreateConnectResponseStream()));
         return ERR_IO_PENDING;
@@ -387,21 +467,24 @@ int HttpStreamFactoryImpl::Job::RunLoop(int result) {
       if (new_spdy_session_) {
         MessageLoop::current()->PostTask(
             FROM_HERE,
-            method_factory_.NewRunnableMethod(
-                &HttpStreamFactoryImpl::Job::OnSpdySessionReadyCallback));
+            base::Bind(
+                &HttpStreamFactoryImpl::Job::OnSpdySessionReadyCallback,
+                ptr_factory_.GetWeakPtr()));
       } else {
         MessageLoop::current()->PostTask(
             FROM_HERE,
-            method_factory_.NewRunnableMethod(
-                &HttpStreamFactoryImpl::Job::OnStreamReadyCallback));
+            base::Bind(
+                &HttpStreamFactoryImpl::Job::OnStreamReadyCallback,
+                ptr_factory_.GetWeakPtr()));
       }
       return ERR_IO_PENDING;
 
     default:
       MessageLoop::current()->PostTask(
           FROM_HERE,
-          method_factory_.NewRunnableMethod(
+          base::Bind(
               &HttpStreamFactoryImpl::Job::OnStreamFailedCallback,
+              ptr_factory_.GetWeakPtr(),
               result));
       return ERR_IO_PENDING;
   }
@@ -415,6 +498,10 @@ int HttpStreamFactoryImpl::Job::DoLoop(int result) {
     State state = next_state_;
     next_state_ = STATE_NONE;
     switch (state) {
+      case STATE_START:
+        DCHECK_EQ(OK, rv);
+        rv = DoStart();
+        break;
       case STATE_RESOLVE_PROXY:
         DCHECK_EQ(OK, rv);
         rv = DoResolveProxy();
@@ -464,19 +551,33 @@ int HttpStreamFactoryImpl::Job::DoLoop(int result) {
 
 int HttpStreamFactoryImpl::Job::StartInternal() {
   CHECK_EQ(STATE_NONE, next_state_);
+  next_state_ = STATE_START;
+  int rv = RunLoop(OK);
+  DCHECK_EQ(ERR_IO_PENDING, rv);
+  return rv;
+}
 
-  origin_ = HostPortPair(request_info_.url.HostNoBrackets(),
-                         request_info_.url.EffectiveIntPort());
+int HttpStreamFactoryImpl::Job::DoStart() {
+  int port = request_info_.url.EffectiveIntPort();
+  origin_ = HostPortPair(request_info_.url.HostNoBrackets(), port);
   origin_url_ = HttpStreamFactory::ApplyHostMappingRules(
       request_info_.url, &origin_);
 
   net_log_.BeginEvent(NetLog::TYPE_HTTP_STREAM_JOB,
                       HttpStreamJobParameters::Create(request_info_.url,
                                                       origin_url_));
+
+  // Don't connect to restricted ports.
+  if (!IsPortAllowedByDefault(port) && !IsPortAllowedByOverride(port)) {
+    if (waiting_job_) {
+      waiting_job_->Resume(this);
+      waiting_job_ = NULL;
+    }
+    return ERR_UNSAFE_PORT;
+  }
+
   next_state_ = STATE_RESOLVE_PROXY;
-  int rv = RunLoop(OK);
-  DCHECK_EQ(ERR_IO_PENDING, rv);
-  return rv;
+  return OK;
 }
 
 int HttpStreamFactoryImpl::Job::DoResolveProxy() {
@@ -490,8 +591,7 @@ int HttpStreamFactoryImpl::Job::DoResolveProxy() {
   }
 
   return session_->proxy_service()->ResolveProxy(
-      request_info_.url, &proxy_info_, &io_callback_, &pac_request_,
-      net_log_);
+      request_info_.url, &proxy_info_, io_callback_, &pac_request_, net_log_);
 }
 
 int HttpStreamFactoryImpl::Job::DoResolveProxyComplete(int result) {
@@ -512,8 +612,10 @@ int HttpStreamFactoryImpl::Job::DoResolveProxyComplete(int result) {
   }
 
   if (result != OK) {
-    if (dependent_job_)
-      dependent_job_->Resume(this);
+    if (waiting_job_) {
+      waiting_job_->Resume(this);
+      waiting_job_ = NULL;
+    }
     return result;
   }
 
@@ -580,14 +682,25 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
   } else if (request_ && (using_ssl_ || ShouldForceSpdyWithoutSSL())) {
     // Update the spdy session key for the request that launched this job.
     request_->SetSpdySessionKey(spdy_session_key);
+  } else if (IsRequestEligibleForPipelining()) {
+    // TODO(simonjam): With pipelining, we might be better off using fewer
+    // connections and thus should make fewer preconnections. Explore
+    // preconnecting fewer than the requested num_connections.
+    existing_available_pipeline_ = stream_factory_->http_pipelined_host_pool_.
+        IsExistingPipelineAvailableForOrigin(origin_);
+    if (existing_available_pipeline_) {
+      return OK;
+    } else {
+      request_->SetHttpPipeliningKey(origin_);
+    }
   }
 
-  // OK, there's no available SPDY session. Let |dependent_job_| resume if it's
+  // OK, there's no available SPDY session. Let |waiting_job_| resume if it's
   // paused.
 
-  if (dependent_job_) {
-    dependent_job_->Resume(this);
-    dependent_job_ = NULL;
+  if (waiting_job_) {
+    waiting_job_->Resume(this);
+    waiting_job_ = NULL;
   }
 
   if (proxy_info_.is_http() || proxy_info_.is_https())
@@ -595,17 +708,19 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
 
   bool want_spdy_over_npn = original_url_.get() ? true : false;
 
-  SSLConfig ssl_config_for_proxy = ssl_config_;
   if (proxy_info_.is_https()) {
     InitSSLConfig(proxy_info_.proxy_server().host_port_pair(),
-                  &ssl_config_for_proxy);
+                  &proxy_ssl_config_);
+    // Disable revocation checking for HTTPS proxies since the revocation
+    // requests are probably going to need to go through the proxy too.
+    proxy_ssl_config_.rev_checking_enabled = false;
   }
   if (using_ssl_) {
-    InitSSLConfig(origin_, &ssl_config_);
+    InitSSLConfig(origin_, &server_ssl_config_);
   }
 
   if (IsPreconnecting()) {
-    return ClientSocketPoolManager::PreconnectSocketsForHttpRequest(
+    return PreconnectSocketsForHttpRequest(
         origin_url_,
         request_info_.extra_headers,
         request_info_.load_flags,
@@ -614,25 +729,16 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
         proxy_info_,
         ShouldForceSpdySSL(),
         want_spdy_over_npn,
-        ssl_config_,
-        ssl_config_for_proxy,
+        server_ssl_config_,
+        proxy_ssl_config_,
         net_log_,
         num_streams_);
   } else {
-    return ClientSocketPoolManager::InitSocketHandleForHttpRequest(
-        origin_url_,
-        request_info_.extra_headers,
-        request_info_.load_flags,
-        request_info_.priority,
-        session_,
-        proxy_info_,
-        ShouldForceSpdySSL(),
-        want_spdy_over_npn,
-        ssl_config_,
-        ssl_config_for_proxy,
-        net_log_,
-        connection_.get(),
-        &io_callback_);
+    return InitSocketHandleForHttpRequest(
+        origin_url_, request_info_.extra_headers, request_info_.load_flags,
+        request_info_.priority, session_, proxy_info_, ShouldForceSpdySSL(),
+        want_spdy_over_npn, server_ssl_config_, proxy_ssl_config_, net_log_,
+        connection_.get(), io_callback_);
   }
 }
 
@@ -644,9 +750,9 @@ int HttpStreamFactoryImpl::Job::DoInitConnectionComplete(int result) {
 
   // TODO(willchan): Make this a bit more exact. Maybe there are recoverable
   // errors, such as ignoring certificate errors for Alternate-Protocol.
-  if (result < 0 && dependent_job_) {
-    dependent_job_->Resume(this);
-    dependent_job_ = NULL;
+  if (result < 0 && waiting_job_) {
+    waiting_job_->Resume(this);
+    waiting_job_ = NULL;
   }
 
   // |result| may be the result of any of the stacked pools. The following
@@ -665,6 +771,16 @@ int HttpStreamFactoryImpl::Job::DoInitConnectionComplete(int result) {
       static_cast<SSLClientSocket*>(connection_->socket());
     if (ssl_socket->was_npn_negotiated()) {
       was_npn_negotiated_ = true;
+      std::string proto;
+      std::string server_protos;
+      SSLClientSocket::NextProtoStatus status =
+          ssl_socket->GetNextProto(&proto, &server_protos);
+      SSLClientSocket::NextProto protocol_negotiated =
+          SSLClientSocket::NextProtoFromString(proto);
+      protocol_negotiated_ = protocol_negotiated;
+      net_log_.AddEvent(
+           NetLog::TYPE_HTTP_STREAM_REQUEST_PROTO,
+           HttpStreamProtoParameters::Create(status, proto, server_protos));
       if (ssl_socket->was_spdy_negotiated())
         SwitchToSpdyMode();
     }
@@ -676,6 +792,7 @@ int HttpStreamFactoryImpl::Job::DoInitConnectionComplete(int result) {
       static_cast<HttpProxyClientSocket*>(connection_->socket());
     if (proxy_socket->using_spdy()) {
       was_npn_negotiated_ = true;
+      protocol_negotiated_ = proxy_socket->protocol_negotiated();
       SwitchToSpdyMode();
     }
   }
@@ -699,7 +816,7 @@ int HttpStreamFactoryImpl::Job::DoInitConnectionComplete(int result) {
 
   if (!ssl_started && result < 0 && original_url_.get()) {
     // Mark the alternate protocol as broken and fallback.
-    session_->mutable_alternate_protocols()->MarkBrokenAlternateProtocolFor(
+    session_->http_server_properties()->SetBrokenAlternateProtocol(
         HostPortPair::FromURL(*original_url_));
     return result;
   }
@@ -739,10 +856,6 @@ int HttpStreamFactoryImpl::Job::DoInitConnectionComplete(int result) {
       return result;
   }
 
-  if (!connection_->socket()) {
-    HACKCrashHereToDebug80095();
-  }
-
   next_state_ = STATE_CREATE_STREAM;
   return OK;
 }
@@ -757,8 +870,8 @@ int HttpStreamFactoryImpl::Job::DoWaitingUserAction(int result) {
 }
 
 int HttpStreamFactoryImpl::Job::DoCreateStream() {
-  if (!connection_->socket() && !existing_spdy_session_)
-    HACKCrashHereToDebug80095();
+  DCHECK(connection_->socket() || existing_spdy_session_ ||
+         existing_available_pipeline_);
 
   next_state_ = STATE_CREATE_STREAM_COMPLETE;
 
@@ -773,15 +886,30 @@ int HttpStreamFactoryImpl::Job::DoCreateStream() {
   if (!using_spdy_) {
     bool using_proxy = (proxy_info_.is_http() || proxy_info_.is_https()) &&
         request_info_.url.SchemeIs("http");
-    stream_.reset(new HttpBasicStream(connection_.release(), NULL,
-                                      using_proxy));
+    // TODO(simonjam): Support proxies.
+    if (existing_available_pipeline_) {
+      stream_.reset(stream_factory_->http_pipelined_host_pool_.
+                    CreateStreamOnExistingPipeline(origin_));
+      CHECK(stream_.get());
+    } else if (!using_proxy && IsRequestEligibleForPipelining()) {
+      stream_.reset(
+          stream_factory_->http_pipelined_host_pool_.CreateStreamOnNewPipeline(
+              origin_,
+              connection_.release(),
+              server_ssl_config_,
+              proxy_info_,
+              net_log_,
+              was_npn_negotiated_,
+              protocol_negotiated_));
+      CHECK(stream_.get());
+    } else {
+      stream_.reset(new HttpBasicStream(connection_.release(), NULL,
+                                        using_proxy));
+    }
     return OK;
   }
 
   CHECK(!stream_.get());
-
-  if (!connection_->socket() && !existing_spdy_session_)
-    HACKCrashHereToDebug80095();
 
   bool direct = true;
   HostPortProxyPair pair(origin_, proxy_server);
@@ -804,17 +932,16 @@ int HttpStreamFactoryImpl::Job::DoCreateStream() {
     SpdySessionPool* spdy_pool = session_->spdy_session_pool();
     spdy_session = spdy_pool->GetIfExists(pair, net_log_);
     if (!spdy_session) {
-      // SPDY can be negotiated using the TLS next protocol negotiation (NPN)
-      // extension, or just directly using SSL. Either way, |connection_| must
-      // contain an SSLClientSocket.
-      if (!connection_->socket())
-        HACKCrashHereToDebug80095();
-
       int error = spdy_pool->GetSpdySessionFromSocket(
           pair, connection_.release(), net_log_, spdy_certificate_error_,
           &new_spdy_session_, using_ssl_);
       if (error != OK)
         return error;
+      const HostPortPair& host_port_pair = pair.first;
+      HttpServerProperties* http_server_properties =
+          session_->http_server_properties();
+      if (http_server_properties)
+        http_server_properties->SetSupportsSpdy(host_port_pair, true);
       spdy_session_direct_ = direct;
       return OK;
     }
@@ -836,6 +963,7 @@ int HttpStreamFactoryImpl::Job::DoCreateStreamComplete(int result) {
   if (result < 0)
     return result;
 
+  session_->proxy_service()->ReportSuccess(proxy_info_);
   next_state_ = STATE_NONE;
   return OK;
 }
@@ -844,7 +972,7 @@ int HttpStreamFactoryImpl::Job::DoRestartTunnelAuth() {
   next_state_ = STATE_RESTART_TUNNEL_AUTH_COMPLETE;
   HttpProxyClientSocket* http_proxy_socket =
       static_cast<HttpProxyClientSocket*>(connection_->socket());
-  return http_proxy_socket->RestartWithAuth(&io_callback_);
+  return http_proxy_socket->RestartWithAuth(io_callback_);
 }
 
 int HttpStreamFactoryImpl::Job::DoRestartTunnelAuthComplete(int result) {
@@ -972,14 +1100,13 @@ int HttpStreamFactoryImpl::Job::ReconsiderProxyAfterError(int error) {
     return error;
   }
 
-  if (proxy_info_.is_https() && ssl_config_.send_client_cert) {
+  if (proxy_info_.is_https() && proxy_ssl_config_.send_client_cert) {
     session_->ssl_client_auth_cache()->Remove(
         proxy_info_.proxy_server().host_port_pair().ToString());
   }
 
   int rv = session_->proxy_service()->ReconsiderProxyAfterError(
-      request_info_.url, &proxy_info_, &io_callback_, &pac_request_,
-      net_log_);
+      request_info_.url, &proxy_info_, io_callback_, &pac_request_, net_log_);
   if (rv == OK || rv == ERR_IO_PENDING) {
     // If the error was during connection setup, there is no socket to
     // disconnect.
@@ -1018,10 +1145,12 @@ int HttpStreamFactoryImpl::Job::HandleCertificateError(int error) {
   // X509Certificate for whatever reason, but normally it shouldn't
   // happen, unless this code is used inside sandbox.
   if (ssl_info_.cert == NULL ||
-      !ssl_info_.cert->GetDEREncoded(&bad_cert.der_cert))
+      !X509Certificate::GetDEREncoded(ssl_info_.cert->os_cert_handle(),
+                                      &bad_cert.der_cert)) {
     return error;
+  }
   bad_cert.cert_status = ssl_info_.cert_status;
-  ssl_config_.allowed_bad_certs.push_back(bad_cert);
+  server_ssl_config_.allowed_bad_certs.push_back(bad_cert);
 
   int load_flags = request_info_.load_flags;
   if (HttpStreamFactory::ignore_certificate_errors())
@@ -1079,47 +1208,21 @@ bool HttpStreamFactoryImpl::Job::IsOrphaned() const {
   return !IsPreconnecting() && !request_;
 }
 
-#if defined(OS_WIN)
-#pragma warning (disable: 4748)
-#pragma optimize( "", off )
-#endif
-
-void HttpStreamFactoryImpl::Job::HACKCrashHereToDebug80095() {
-  // If we enter this code path, then we'll cause a crash later in
-  // DoCreateStream(). Crash now and figure out what happened:
-  // http://crbug.com/80095.
-  GURL url = original_url_.get() ? *original_url_ : request_info_.url;
-  bool using_ssl = using_ssl_;
-  bool using_spdy = using_spdy_;
-  char url_buf[512];
-  base::strlcpy(url_buf, url.spec().data(), arraysize(url_buf));
-
-  // Note that these local variables have their addresses referenced to
-  // prevent the compiler from optimizing them away.
-  if (using_spdy) {
-    LOG(FATAL) << "Crashing here because willchan doesn't know why we're "
-               << "crashing later. Sorry! I'll give you a cookie later. "
-               << "Cheers mate!\n"
-               << "url[" << &url << "]: " << url << "\n"
-               << "using_ssl[" << &using_ssl << "]: "
-               << (using_ssl ? "true\n" : "false\n")
-               << "using_spdy[" << &using_spdy << "]: "
-               << (using_spdy ? "true\n" : "false\n");
-  } else {
-    LOG(FATAL) << "Crashing here because willchan doesn't know why we're "
-               << "crashing later. Sorry! I'll give you a cookie later. "
-               << "Cheers mate!\n"
-               << "url[" << &url << "]: " << url << "\n"
-               << "using_ssl[" << &using_ssl << "]: "
-               << (using_ssl ? "true\n" : "false\n")
-               << "using_spdy[" << &using_spdy << "]: "
-               << (using_spdy ? "true\n" : "false\n");
+bool HttpStreamFactoryImpl::Job::IsRequestEligibleForPipelining() {
+  if (!HttpStreamFactory::http_pipelining_enabled()) {
+    return false;
   }
+  if (IsPreconnecting() || !request_) {
+    return false;
+  }
+  if (using_ssl_) {
+    return false;
+  }
+  if (request_info_.method != "GET" && request_info_.method != "HEAD") {
+    return false;
+  }
+  return stream_factory_->http_pipelined_host_pool_.IsHostEligibleForPipelining(
+      origin_);
 }
-
-#if defined(OS_WIN)
-#pragma optimize( "", on )
-#pragma warning (default: 4748)
-#endif
 
 }  // namespace net

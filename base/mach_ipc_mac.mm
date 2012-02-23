@@ -1,10 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/mach_ipc_mac.h"
 
 #import <Foundation/Foundation.h>
+#include <mach/vm_map.h>
 
 #include <stdio.h>
 #include "base/logging.h"
@@ -321,5 +322,37 @@ kern_return_t MachPortSender::SendMessage(MachSendMessage &message,
 
   return result;
 }
+
+//==============================================================================
+
+namespace mac {
+
+kern_return_t GetNumberOfMachPorts(mach_port_t task_port, int* num_ports) {
+  mach_port_name_array_t names;
+  mach_msg_type_number_t names_count;
+  mach_port_type_array_t types;
+  mach_msg_type_number_t types_count;
+
+  // A friendlier interface would allow NULL buffers to only get the counts.
+  kern_return_t kr = mach_port_names(task_port, &names, &names_count,
+                                     &types, &types_count);
+  if (kr != KERN_SUCCESS)
+    return kr;
+
+  // The documentation states this is an invariant.
+  DCHECK_EQ(names_count, types_count);
+  *num_ports = names_count;
+
+  kr = vm_deallocate(mach_task_self(),
+      reinterpret_cast<vm_address_t>(names),
+      names_count * sizeof(mach_port_name_array_t));
+  kr = vm_deallocate(mach_task_self(),
+      reinterpret_cast<vm_address_t>(types),
+      types_count * sizeof(mach_port_type_array_t));
+
+  return kr;
+}
+
+}  // namespace mac
 
 }  // namespace base

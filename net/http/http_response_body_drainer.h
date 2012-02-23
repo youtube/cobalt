@@ -11,7 +11,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/timer.h"
 #include "net/base/completion_callback.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/http/http_network_session.h"
 
 namespace net {
@@ -19,7 +19,7 @@ namespace net {
 class HttpStream;
 class IOBuffer;
 
-class NET_TEST HttpResponseBodyDrainer {
+class NET_EXPORT_PRIVATE HttpResponseBodyDrainer {
  public:
   // The size in bytes of the buffer we use to drain the response body that
   // we want to throw away.  The response body is typically a small page just a
@@ -35,6 +35,9 @@ class NET_TEST HttpResponseBodyDrainer {
   // timeout.  After Start(), |this| will eventually delete itself.  If it
   // doesn't complete immediately, it will add itself to |session|.
   void Start(HttpNetworkSession* session);
+
+  // As above, but stop reading once |num_bytes_to_drain| has been reached.
+  void StartWithSize(HttpNetworkSession* session, int num_bytes_to_drain);
 
  private:
   enum State {
@@ -52,12 +55,12 @@ class NET_TEST HttpResponseBodyDrainer {
   void OnTimerFired();
   void Finish(int result);
 
+  int read_size_;
   scoped_refptr<IOBuffer> read_buf_;
   const scoped_ptr<HttpStream> stream_;
   State next_state_;
   int total_read_;
-  CompletionCallbackImpl<HttpResponseBodyDrainer> io_callback_;
-  CompletionCallback* user_callback_;
+  CompletionCallback user_callback_;
   base::OneShotTimer<HttpResponseBodyDrainer> timer_;
   HttpNetworkSession* session_;
 

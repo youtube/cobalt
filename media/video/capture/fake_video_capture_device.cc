@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "base/bind.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/stringprintf.h"
 
@@ -87,7 +88,8 @@ void FakeVideoCaptureDevice::Start() {
   capture_thread_.Start();
   capture_thread_.message_loop()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &FakeVideoCaptureDevice::OnCaptureTask));
+      base::Bind(&FakeVideoCaptureDevice::OnCaptureTask,
+                 base::Unretained(this)));
 }
 
 void FakeVideoCaptureDevice::Stop() {
@@ -121,8 +123,9 @@ void FakeVideoCaptureDevice::OnCaptureTask() {
   // Reschedule next CaptureTask.
   capture_thread_.message_loop()->PostDelayedTask(
         FROM_HERE,
-        NewRunnableMethod(this, &FakeVideoCaptureDevice::OnCaptureTask),
-        kFakeCaptureTimeoutMs);
+        base::Bind(&FakeVideoCaptureDevice::OnCaptureTask,
+                   base::Unretained(this)),
+        base::TimeDelta::FromMilliseconds(kFakeCaptureTimeoutMs));
 }
 
 }  // namespace media

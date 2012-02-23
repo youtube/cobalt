@@ -12,7 +12,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
-#include "net/base/sys_byteorder.h"
+#include "base/sys_byteorder.h"
 #include "net/spdy/spdy_bitmasks.h"
 
 //  Data Frame Format
@@ -123,6 +123,26 @@
 //  +----------------------------------+
 //  |   Delta-Window-Size (32 bits)    |
 //  +----------------------------------+
+//
+//  Control Frame: CREDENTIAL
+//  +----------------------------------+
+//  |1|000000000000001|0000000000001010|
+//  +----------------------------------+
+//  | flags (8)  |  Length (24 bits)   | >= 12
+//  +----------------------------------+
+//  |  Slot (16 bits) | Origin Len (16)|
+//  +----------------------------------+
+//  |              Origin              |
+//  +----------------------------------+
+//  |      Proof Length (32 bits)      |
+//  +----------------------------------+
+//  |               Proof              |
+//  +----------------------------------+ <+
+//  |   Certificate Length (32 bits)   |  |
+//  +----------------------------------+  | Repeated until end of frame
+//  |            Certificate           |  |
+//  +----------------------------------+ <+
+//
 namespace spdy {
 
 // This implementation of Spdy is version 2; It's like version 1, with some
@@ -133,7 +153,7 @@ const int kSpdyProtocolVersion = 2;
 const size_t kSpdyStreamInitialWindowSize = 64 * 1024;  // 64 KBytes
 
 // Maximum window size for a Spdy stream
-const size_t kSpdyStreamMaximumWindowSize = std::numeric_limits<int32>::max();
+const size_t kSpdyStreamMaximumWindowSize = 0x7FFFFFFF;  // Max signed 32bit int
 
 // HTTP-over-SPDY header constants
 const char kMethod[] = "method";
@@ -159,6 +179,7 @@ enum SpdyControlType {
   GOAWAY,
   HEADERS,
   WINDOW_UPDATE,
+  CREDENTIAL,
   NUM_CONTROL_FRAME_TYPES
 };
 
@@ -166,6 +187,7 @@ enum SpdyControlType {
 enum SpdyDataFlags {
   DATA_FLAG_NONE = 0,
   DATA_FLAG_FIN = 1,
+  // TODO(hkhalil): Remove.
   DATA_FLAG_COMPRESSED = 2
 };
 
@@ -191,8 +213,10 @@ enum SpdySettingsFlags {
 enum SpdySettingsIds {
   SETTINGS_UPLOAD_BANDWIDTH = 0x1,
   SETTINGS_DOWNLOAD_BANDWIDTH = 0x2,
+  // Network round trip time in milliseconds.
   SETTINGS_ROUND_TRIP_TIME = 0x3,
   SETTINGS_MAX_CONCURRENT_STREAMS = 0x4,
+  // TCP congestion window in packets.
   SETTINGS_CURRENT_CWND = 0x5,
   // Downstream byte retransmission rate in percentage.
   SETTINGS_DOWNLOAD_RETRANS_RATE = 0x6,
@@ -278,6 +302,26 @@ struct SpdySettingsControlFrameBlock : SpdyFrameBlock {
   // Variable data here.
 };
 
+// A NOOP Control Frame structure.
+struct SpdyNoopControlFrameBlock : SpdyFrameBlock {
+};
+
+// A PING Control Frame structure.
+struct SpdyPingControlFrameBlock : SpdyFrameBlock {
+  uint32 unique_id_;
+};
+
+// A CREDENTIAL Control Frame structure.
+struct SpdyCredentialControlFrameBlock : SpdyFrameBlock {
+  uint16 slot_;
+  uint16 origin_len_;
+  uint32 proof_len_;
+  // Variable data here.
+  // origin data
+  // proof data
+  // for each certificate: unit32 certificate_len + certificate_data[i]
+};
+
 // A GOAWAY Control Frame structure.
 struct SpdyGoAwayControlFrameBlock : SpdyFrameBlock {
   SpdyStreamId last_accepted_stream_id_;
@@ -297,6 +341,7 @@ struct SpdyWindowUpdateControlFrameBlock : SpdyFrameBlock {
 
 // A structure for the 8 bit flags and 24 bit ID fields.
 union SettingsFlagsAndId {
+  // Sets both flags and id to the value for flags-and-id as sent over the wire
   SettingsFlagsAndId(uint32 val) : id_(val) {}
   uint8 flags() const { return flags_[0]; }
   void set_flags(uint8 flags) { flags_[0] = flags; }
@@ -369,11 +414,11 @@ class SpdyFrame {
         kControlFlagMask;
   }
 
-  // Returns the size of the SpdyFrameBlock structure.
+  // The size of the SpdyFrameBlock structure.
   // Every SpdyFrame* class has a static size() method for accessing
   // the size of the data structure which will be sent over the wire.
   // Note:  this is not the same as sizeof(SpdyFrame).
-  static size_t size() { return sizeof(struct SpdyFrameBlock); }
+  enum { kHeaderSize = sizeof(struct SpdyFrameBlock) };
 
  protected:
   SpdyFrameBlock* frame_;
@@ -404,7 +449,7 @@ class SpdyDataFrame : public SpdyFrame {
 
   // Returns the size of the SpdyFrameBlock structure.
   // Note: this is not the size of the SpdyDataFrame class.
-  static size_t size() { return SpdyFrame::size(); }
+  static size_t size() { return SpdyFrame::kHeaderSize; }
 
   const char* payload() const {
     return reinterpret_cast<const char*>(frame_) + size();
@@ -450,9 +495,20 @@ class SpdyControlFrame : public SpdyFrame {
     mutable_block()->control_.type_ = htons(type);
   }
 
-  // Returns the size of the SpdyFrameBlock structure.
-  // Note: this is not the size of the SpdyControlFrame class.
-  static size_t size() { return sizeof(SpdyFrameBlock); }
+  // Returns true if this control frame is of a type that has a header block,
+  // otherwise it returns false.
+  bool has_header_block() const {
+    return type() == SYN_STREAM || type() == SYN_REPLY || type() == HEADERS;
+  }
+
+  // The size of the 'Number of Name/Value pairs' field in a Name/Value block.
+  static const size_t kNumNameValuePairsSize = 2;
+
+  // The size of the 'Length of a name' field in a Name/Value block.
+  static const size_t kLengthOfNameSize = 2;
+
+  // The size of the 'Length of a value' field in a Name/Value block.
+  static const size_t kLengthOfValueSize = 2;
 
  private:
   const struct SpdyFrameBlock* block() const {
@@ -493,7 +549,7 @@ class SpdySynStreamControlFrame : public SpdyControlFrame {
 
   // The number of bytes in the header block beyond the frame header length.
   int header_block_len() const {
-    return length() - (size() - SpdyFrame::size());
+    return length() - (size() - SpdyFrame::kHeaderSize);
   }
 
   const char* header_block() const {
@@ -530,7 +586,7 @@ class SpdySynReplyControlFrame : public SpdyControlFrame {
   }
 
   int header_block_len() const {
-    return length() - (size() - SpdyFrame::size());
+    return length() - (size() - SpdyFrame::kHeaderSize);
   }
 
   const char* header_block() const {
@@ -567,7 +623,12 @@ class SpdyRstStreamControlFrame : public SpdyControlFrame {
   }
 
   SpdyStatusCodes status() const {
-    return static_cast<SpdyStatusCodes>(ntohl(block()->status_));
+    SpdyStatusCodes status =
+        static_cast<SpdyStatusCodes>(ntohl(block()->status_));
+    if (status < INVALID || status >= NUM_STATUS_CODES) {
+      status = INVALID;
+    }
+    return status;
   }
   void set_status(SpdyStatusCodes status) {
     mutable_block()->status_ = htonl(static_cast<uint32>(status));
@@ -602,7 +663,7 @@ class SpdySettingsControlFrame : public SpdyControlFrame {
   }
 
   int header_block_len() const {
-    return length() - (size() - SpdyFrame::size());
+    return length() - (size() - SpdyFrame::kHeaderSize);
   }
 
   const char* header_block() const {
@@ -621,6 +682,59 @@ class SpdySettingsControlFrame : public SpdyControlFrame {
     return static_cast<SpdySettingsControlFrameBlock*>(frame_);
   }
   DISALLOW_COPY_AND_ASSIGN(SpdySettingsControlFrame);
+};
+
+class SpdyNoOpControlFrame : public SpdyControlFrame {
+ public:
+  SpdyNoOpControlFrame() : SpdyControlFrame(size()) {}
+  SpdyNoOpControlFrame(char* data, bool owns_buffer)
+      : SpdyControlFrame(data, owns_buffer) {}
+
+  static size_t size() { return sizeof(SpdyNoopControlFrameBlock); }
+};
+
+class SpdyPingControlFrame : public SpdyControlFrame {
+ public:
+  SpdyPingControlFrame() : SpdyControlFrame(size()) {}
+  SpdyPingControlFrame(char* data, bool owns_buffer)
+      : SpdyControlFrame(data, owns_buffer) {}
+
+  uint32 unique_id() const {
+    return ntohl(block()->unique_id_);
+  }
+
+  void set_unique_id(uint32 unique_id) {
+    mutable_block()->unique_id_ = htonl(unique_id);
+  }
+
+  static size_t size() { return sizeof(SpdyPingControlFrameBlock); }
+
+ private:
+  const struct SpdyPingControlFrameBlock* block() const {
+    return static_cast<SpdyPingControlFrameBlock*>(frame_);
+  }
+  struct SpdyPingControlFrameBlock* mutable_block() {
+    return static_cast<SpdyPingControlFrameBlock*>(frame_);
+  }
+};
+
+class SpdyCredentialControlFrame : public SpdyControlFrame {
+ public:
+  SpdyCredentialControlFrame() : SpdyControlFrame(size()) {}
+  SpdyCredentialControlFrame(char* data, bool owns_buffer)
+      : SpdyControlFrame(data, owns_buffer) {}
+
+  const char* payload() const {
+    return reinterpret_cast<const char*>(block()) + SpdyFrame::kHeaderSize;
+  }
+
+  static size_t size() { return sizeof(SpdyCredentialControlFrameBlock); }
+
+ private:
+  const struct SpdyCredentialControlFrameBlock* block() const {
+    return static_cast<SpdyCredentialControlFrameBlock*>(frame_);
+  }
+  DISALLOW_COPY_AND_ASSIGN(SpdyCredentialControlFrame);
 };
 
 class SpdyGoAwayControlFrame : public SpdyControlFrame {
@@ -666,7 +780,7 @@ class SpdyHeadersControlFrame : public SpdyControlFrame {
 
   // The number of bytes in the header block beyond the frame header length.
   int header_block_len() const {
-    return length() - (size() - SpdyFrame::size());
+    return length() - (size() - SpdyFrame::kHeaderSize);
   }
 
   const char* header_block() const {

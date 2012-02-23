@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -61,22 +61,16 @@ bool AddressListOnlyContainsIPv6Addresses(const AddressList& addrlist) {
 TransportSocketParams::TransportSocketParams(
     const HostPortPair& host_port_pair,
     RequestPriority priority,
-    const GURL& referrer,
     bool disable_resolver_cache,
     bool ignore_limits)
     : destination_(host_port_pair), ignore_limits_(ignore_limits) {
-  Initialize(priority, referrer, disable_resolver_cache);
+  Initialize(priority, disable_resolver_cache);
 }
 
 TransportSocketParams::~TransportSocketParams() {}
 
 void TransportSocketParams::Initialize(RequestPriority priority,
-                                       const GURL& referrer,
                                        bool disable_resolver_cache) {
-  // The referrer is used by the DNS prefetch system to correlate resolutions
-  // with the page that triggered them. It doesn't impact the actual addresses
-  // that we resolve to.
-  destination_.set_referrer(referrer);
   destination_.set_priority(priority);
   if (disable_resolver_cache)
     destination_.set_allow_cached_response(false);
@@ -105,14 +99,9 @@ TransportConnectJob::TransportConnectJob(
                  BoundNetLog::Make(net_log, NetLog::SOURCE_CONNECT_JOB)),
       params_(params),
       client_socket_factory_(client_socket_factory),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          callback_(this,
-                    &TransportConnectJob::OnIOComplete)),
       resolver_(host_resolver),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          fallback_callback_(
-              this,
-              &TransportConnectJob::DoIPv6FallbackTransportConnectComplete)) {}
+      next_state_(STATE_NONE) {
+}
 
 TransportConnectJob::~TransportConnectJob() {
   // We don't worry about cancelling the host resolution and TCP connect, since
@@ -205,8 +194,10 @@ int TransportConnectJob::DoLoop(int result) {
 
 int TransportConnectJob::DoResolveHost() {
   next_state_ = STATE_RESOLVE_HOST_COMPLETE;
-  return resolver_.Resolve(params_->destination(), &addresses_, &callback_,
-                           net_log());
+  return resolver_.Resolve(
+      params_->destination(), &addresses_,
+      base::Bind(&TransportConnectJob::OnIOComplete, base::Unretained(this)),
+      net_log());
 }
 
 int TransportConnectJob::DoResolveHostComplete(int result) {
@@ -220,10 +211,11 @@ int TransportConnectJob::DoTransportConnect() {
   transport_socket_.reset(client_socket_factory_->CreateTransportClientSocket(
         addresses_, net_log().net_log(), net_log().source()));
   connect_start_time_ = base::TimeTicks::Now();
-  int rv = transport_socket_->Connect(&callback_);
+  int rv = transport_socket_->Connect(
+      base::Bind(&TransportConnectJob::OnIOComplete, base::Unretained(this)));
   if (rv == ERR_IO_PENDING &&
       AddressListStartsWithIPv6AndHasAnIPv4Addr(addresses_)) {
-    fallback_timer_.Start(
+    fallback_timer_.Start(FROM_HERE,
         base::TimeDelta::FromMilliseconds(kIPv6FallbackTimerInMs),
         this, &TransportConnectJob::DoIPv6FallbackTransportConnect);
   }
@@ -300,7 +292,10 @@ void TransportConnectJob::DoIPv6FallbackTransportConnect() {
       client_socket_factory_->CreateTransportClientSocket(
           *fallback_addresses_, net_log().net_log(), net_log().source()));
   fallback_connect_start_time_ = base::TimeTicks::Now();
-  int rv = fallback_transport_socket_->Connect(&fallback_callback_);
+  int rv = fallback_transport_socket_->Connect(
+      base::Bind(
+          &TransportConnectJob::DoIPv6FallbackTransportConnectComplete,
+          base::Unretained(this)));
   if (rv != ERR_IO_PENDING)
     DoIPv6FallbackTransportConnectComplete(rv);
 }
@@ -385,9 +380,8 @@ TransportClientSocketPool::TransportClientSocketPool(
     ClientSocketFactory* client_socket_factory,
     NetLog* net_log)
     : base_(max_sockets, max_sockets_per_group, histograms,
-            base::TimeDelta::FromSeconds(
-                ClientSocketPool::unused_idle_socket_timeout()),
-            base::TimeDelta::FromSeconds(kUsedIdleSocketTimeout),
+            ClientSocketPool::unused_idle_socket_timeout(),
+            ClientSocketPool::used_idle_socket_timeout(),
             new TransportConnectJobFactory(client_socket_factory,
                                      host_resolver, net_log)) {
   base_.EnableConnectBackupJobs();
@@ -400,7 +394,7 @@ int TransportClientSocketPool::RequestSocket(
     const void* params,
     RequestPriority priority,
     ClientSocketHandle* handle,
-    CompletionCallback* callback,
+    const CompletionCallback& callback,
     const BoundNetLog& net_log) {
   const scoped_refptr<TransportSocketParams>* casted_params =
       static_cast<const scoped_refptr<TransportSocketParams>*>(params);

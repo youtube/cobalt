@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -45,24 +45,14 @@
 #error Please add support for your platform in build/build_config.h
 #endif
 
-// A flag derived from the above flags, used to cover GTK code in
-// both TOOLKIT_GTK and TOOLKIT_VIEWS.
-#if defined(TOOLKIT_GTK) || (defined(TOOLKIT_VIEWS) && !defined(OS_WIN))
-#define TOOLKIT_USES_GTK 1
-#endif
-
-#if defined(OS_LINUX) || defined(OS_FREEBSD) || defined(OS_OPENBSD) || \
-    defined(OS_SOLARIS) || defined(OS_ANDROID)
-#if !defined(USE_OPENSSL)
-#define USE_NSS 1  // Default to use NSS for crypto, unless OpenSSL is chosen.
-#endif
-#ifndef OS_ANDROID
-#define USE_X11 1  // Use X for graphics.
-#endif
-#endif
-
 #if defined(USE_OPENSSL) && defined(USE_NSS)
 #error Cannot use both OpenSSL and NSS
+#endif
+
+// For access to standard BSD features, use OS_BSD instead of a
+// more specific macro.
+#if defined(OS_FREEBSD) || defined(OS_OPENBSD)
+#define OS_BSD 1
 #endif
 
 // For access to standard POSIXish features, use OS_POSIX instead of a
@@ -73,14 +63,14 @@
 #define OS_POSIX 1
 #endif
 
+#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_ANDROID) && \
+    !defined(OS_NACL)
+#define USE_X11 1  // Use X for graphics.
+#endif
+
 // Use tcmalloc
 #if (defined(OS_WIN) || defined(OS_LINUX)) && !defined(NO_TCMALLOC)
 #define USE_TCMALLOC 1
-#endif
-
-// Use heapchecker.
-#if defined(OS_LINUX) && !defined(NO_HEAPCHECKER)
-#define USE_HEAPCHECKER 1
 #endif
 
 // Compiler detection.
@@ -116,6 +106,8 @@
 #define ARCH_CPU_32_BITS 1
 #define ARCH_CPU_LITTLE_ENDIAN 1
 #define WCHAR_T_IS_UNSIGNED 1
+#elif defined(__pnacl__)
+#define ARCH_CPU_32_BITS 1
 #else
 #error Please add support for your architecture in build/build_config.h
 #endif

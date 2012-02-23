@@ -1,9 +1,10 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/mapped_host_resolver.h"
 
+#include "net/base/address_list.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
@@ -35,7 +36,8 @@ TEST(MappedHostResolverTest, Inclusion) {
   TestCompletionCallback callback;
   rv = resolver->Resolve(HostResolver::RequestInfo(
                              HostPortPair("www.google.com", 80)),
-                         &address_list, &callback, NULL, BoundNetLog());
+                         &address_list, callback.callback(), NULL,
+                         BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   EXPECT_EQ(ERR_NAME_NOT_RESOLVED, rv);
@@ -46,7 +48,8 @@ TEST(MappedHostResolverTest, Inclusion) {
   // Try resolving "www.google.com:80". Should be remapped to "baz.com:80".
   rv = resolver->Resolve(HostResolver::RequestInfo(
                              HostPortPair("www.google.com", 80)),
-                         &address_list, &callback, NULL, BoundNetLog());
+                         &address_list, callback.callback(), NULL,
+                         BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -56,7 +59,8 @@ TEST(MappedHostResolverTest, Inclusion) {
   // Try resolving "foo.com:77". This will NOT be remapped, so result
   // is "foo.com:77".
   rv = resolver->Resolve(HostResolver::RequestInfo(HostPortPair("foo.com", 77)),
-                         &address_list, &callback, NULL, BoundNetLog());
+                         &address_list, callback.callback(), NULL,
+                         BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -69,7 +73,8 @@ TEST(MappedHostResolverTest, Inclusion) {
   // Try resolving "chromium.org:61". Should be remapped to "proxy:99".
   rv = resolver->Resolve(HostResolver::RequestInfo
                              (HostPortPair("chromium.org", 61)),
-                         &address_list, &callback, NULL, BoundNetLog());
+                         &address_list, callback.callback(), NULL,
+                         BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -101,7 +106,8 @@ TEST(MappedHostResolverTest, Exclusion) {
   // Try resolving "www.google.com". Should not be remapped due to exclusion).
   rv = resolver->Resolve(HostResolver::RequestInfo(
                              HostPortPair("www.google.com", 80)),
-                         &address_list, &callback, NULL, BoundNetLog());
+                         &address_list, callback.callback(), NULL,
+                         BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -111,7 +117,8 @@ TEST(MappedHostResolverTest, Exclusion) {
   // Try resolving "chrome.com:80". Should be remapped to "baz:80".
   rv = resolver->Resolve(HostResolver::RequestInfo(
                              HostPortPair("chrome.com", 80)),
-                         &address_list, &callback, NULL, BoundNetLog());
+                         &address_list, callback.callback(), NULL,
+                         BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -139,7 +146,8 @@ TEST(MappedHostResolverTest, SetRulesFromString) {
   // Try resolving "www.google.com". Should be remapped to "baz".
   rv = resolver->Resolve(HostResolver::RequestInfo(
                              HostPortPair("www.google.com", 80)),
-                         &address_list, &callback, NULL, BoundNetLog());
+                         &address_list, callback.callback(), NULL,
+                         BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -149,7 +157,8 @@ TEST(MappedHostResolverTest, SetRulesFromString) {
   // Try resolving "chrome.net:80". Should be remapped to "bar:60".
   rv = resolver->Resolve(HostResolver::RequestInfo(
                              HostPortPair("chrome.net", 80)),
-                         &address_list, &callback, NULL, BoundNetLog());
+                         &address_list, callback.callback(), NULL,
+                         BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);

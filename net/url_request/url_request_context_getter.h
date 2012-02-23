@@ -7,8 +7,8 @@
 #pragma once
 
 #include "base/memory/ref_counted.h"
-#include "base/task.h"
-#include "net/base/net_api.h"
+#include "base/message_loop_helpers.h"
+#include "net/base/net_export.h"
 
 namespace base {
 class MessageLoopProxy;
@@ -21,7 +21,7 @@ class URLRequestContext;
 struct URLRequestContextGetterTraits;
 
 // Interface for retrieving an net::URLRequestContext.
-class NET_API URLRequestContextGetter
+class NET_EXPORT URLRequestContextGetter
     : public base::RefCountedThreadSafe<URLRequestContextGetter,
                                         URLRequestContextGetterTraits> {
  public:
@@ -40,7 +40,7 @@ class NET_API URLRequestContextGetter
  protected:
   friend class base::RefCountedThreadSafe<URLRequestContextGetter,
                                           URLRequestContextGetterTraits>;
-  friend class DeleteTask<const URLRequestContextGetter>;
+  friend class base::DeleteHelper<URLRequestContextGetter>;
   friend struct URLRequestContextGetterTraits;
 
   URLRequestContextGetter();

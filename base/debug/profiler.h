@@ -31,6 +31,9 @@ BASE_EXPORT void FlushProfiling();
 // Returns true if process is being profiled.
 BASE_EXPORT bool BeingProfiled();
 
+// Reset profiling after a fork, which disables timers.
+BASE_EXPORT void RestartProfilingAfterFork();
+
 }  // namespace debug
 }  // namespace base
 

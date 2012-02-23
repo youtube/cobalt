@@ -108,6 +108,15 @@ TEST_F(IPEndPointTest, ToSockAddrBufTooSmall) {
   }
 }
 
+TEST_F(IPEndPointTest, FromSockAddrBufTooSmall) {
+  struct sockaddr_in addr;
+  memset(&addr, 0, sizeof(addr));
+  addr.sin_family = AF_INET;
+  IPEndPoint ip_endpoint;
+  struct sockaddr* sockaddr = reinterpret_cast<struct sockaddr*>(&addr);
+  EXPECT_FALSE(ip_endpoint.FromSockAddr(sockaddr, sizeof(addr) - 1));
+}
+
 TEST_F(IPEndPointTest, Equality) {
   for (int index = 0; index < test_count; ++index) {
     IPEndPoint src(tests[index].ip_address, index);

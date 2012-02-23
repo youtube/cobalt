@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 #include "base/bind.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
+#include "base/message_loop_proxy.h"
 #include "base/threading/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -20,15 +21,19 @@ class MessageLoopProxyImplTest : public testing::Test {
   }
 
   void Quit() const {
-    loop_.PostTask(FROM_HERE, new MessageLoop::QuitTask);
+    loop_.PostTask(FROM_HERE, MessageLoop::QuitClosure());
   }
 
   void AssertOnIOThread() const {
     ASSERT_TRUE(io_thread_->message_loop_proxy()->BelongsToCurrentThread());
+    ASSERT_EQ(io_thread_->message_loop_proxy(),
+              base::MessageLoopProxy::current());
   }
 
   void AssertOnFileThread() const {
     ASSERT_TRUE(file_thread_->message_loop_proxy()->BelongsToCurrentThread());
+    ASSERT_EQ(file_thread_->message_loop_proxy(),
+              base::MessageLoopProxy::current());
   }
 
  protected:
@@ -53,21 +58,6 @@ class MessageLoopProxyImplTest : public testing::Test {
     FAIL() << "Callback Should not get executed.";
   }
 
-  class DummyTask : public Task {
-   public:
-    explicit DummyTask(bool* deleted) : deleted_(deleted) { }
-    ~DummyTask() {
-      *deleted_ = true;
-    }
-
-    void Run() {
-      FAIL();
-    }
-
-   private:
-    bool* deleted_;
-  };
-
   class DeletedOnFile {
    public:
     explicit DeletedOnFile(MessageLoopProxyImplTest* test) : test_(test) {}
@@ -88,13 +78,6 @@ class MessageLoopProxyImplTest : public testing::Test {
   mutable MessageLoop loop_;
 };
 
-
-TEST_F(MessageLoopProxyImplTest, LegacyPostTask) {
-  EXPECT_TRUE(file_thread_->message_loop_proxy()->PostTask(
-      FROM_HERE, NewRunnableFunction(&BasicFunction, this)));
-  MessageLoop::current()->Run();
-}
-
 TEST_F(MessageLoopProxyImplTest, Release) {
   EXPECT_TRUE(io_thread_->message_loop_proxy()->ReleaseSoon(FROM_HERE, this));
   MessageLoop::current()->Run();
@@ -105,35 +88,6 @@ TEST_F(MessageLoopProxyImplTest, Delete) {
   EXPECT_TRUE(file_thread_->message_loop_proxy()->DeleteSoon(
       FROM_HERE, deleted_on_file));
   MessageLoop::current()->Run();
-}
-
-TEST_F(MessageLoopProxyImplTest, LegacyPostTaskAfterThreadExits) {
-  scoped_ptr<base::Thread> test_thread(
-      new base::Thread("MessageLoopProxyImplTest_Dummy"));
-  test_thread->Start();
-  scoped_refptr<base::MessageLoopProxy> message_loop_proxy =
-      test_thread->message_loop_proxy();
-  test_thread->Stop();
-
-  bool deleted = false;
-  bool ret = message_loop_proxy->PostTask(
-      FROM_HERE, new DummyTask(&deleted));
-  EXPECT_FALSE(ret);
-  EXPECT_TRUE(deleted);
-}
-
-TEST_F(MessageLoopProxyImplTest, LegacyPostTaskAfterThreadIsDeleted) {
-  scoped_refptr<base::MessageLoopProxy> message_loop_proxy;
-  {
-    scoped_ptr<base::Thread> test_thread(
-        new base::Thread("MessageLoopProxyImplTest_Dummy"));
-    test_thread->Start();
-    message_loop_proxy = test_thread->message_loop_proxy();
-  }
-  bool deleted = false;
-  bool ret = message_loop_proxy->PostTask(FROM_HERE, new DummyTask(&deleted));
-  EXPECT_FALSE(ret);
-  EXPECT_TRUE(deleted);
 }
 
 TEST_F(MessageLoopProxyImplTest, PostTask) {

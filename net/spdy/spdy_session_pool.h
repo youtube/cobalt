@@ -17,8 +17,8 @@
 #include "net/base/cert_database.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/ip_endpoint.h"
-#include "net/base/net_api.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_export.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/ssl_config_service.h"
 #include "net/proxy/proxy_config.h"
@@ -31,17 +31,18 @@ class AddressList;
 class BoundNetLog;
 class ClientSocketHandle;
 class HostResolver;
-class HttpNetworkSession;
+class HttpServerProperties;
 class SpdySession;
 
 // This is a very simple pool for open SpdySessions.
-class NET_API SpdySessionPool
+class NET_EXPORT SpdySessionPool
     : public NetworkChangeNotifier::IPAddressObserver,
       public SSLConfigService::Observer,
       public CertDatabase::Observer {
  public:
   SpdySessionPool(HostResolver* host_resolver,
-                  SSLConfigService* ssl_config_service);
+                  SSLConfigService* ssl_config_service,
+                  HttpServerProperties* http_server_properties);
   virtual ~SpdySessionPool();
 
   // Either returns an existing SpdySession or creates a new SpdySession for
@@ -92,6 +93,8 @@ class NET_API SpdySessionPool
   // Close only the currently existing SpdySessions. Let any new ones created
   // continue to live.
   void CloseCurrentSessions();
+  // Close only the idle SpdySessions.
+  void CloseIdleSessions();
 
   // Removes a SpdySession from the SpdySessionPool. This should only be called
   // by SpdySession, because otherwise session->state_ is not set to CLOSED.
@@ -104,17 +107,21 @@ class NET_API SpdySessionPool
   SpdySettingsStorage* mutable_spdy_settings() { return &spdy_settings_; }
   const SpdySettingsStorage& spdy_settings() const { return spdy_settings_; }
 
+  HttpServerProperties* http_server_properties() {
+    return http_server_properties_;
+  }
+
   // NetworkChangeNotifier::IPAddressObserver methods:
 
   // We flush all idle sessions and release references to the active ones so
   // they won't get re-used.  The active ones will either complete successfully
   // or error out due to the IP address change.
-  virtual void OnIPAddressChanged();
+  virtual void OnIPAddressChanged() OVERRIDE;
 
   // SSLConfigService::Observer methods:
 
   // We perform the same flushing as described above when SSL settings change.
-  virtual void OnSSLConfigChanged();
+  virtual void OnSSLConfigChanged() OVERRIDE;
 
   // A debugging mode where we compress all accesses through a single domain.
   static void ForceSingleDomain() { g_force_single_domain = true; }
@@ -124,8 +131,8 @@ class NET_API SpdySessionPool
   static void enable_ip_pooling(bool value) { g_enable_ip_pooling = value; }
 
   // CertDatabase::Observer methods:
-  virtual void OnUserCertAdded(const X509Certificate* cert);
-  virtual void OnCertTrustChanged(const X509Certificate* cert);
+  virtual void OnUserCertAdded(const X509Certificate* cert) OVERRIDE;
+  virtual void OnCertTrustChanged(const X509Certificate* cert) OVERRIDE;
 
  private:
   friend class SpdySessionPoolPeer;  // For testing.
@@ -170,6 +177,7 @@ class NET_API SpdySessionPool
   void RemoveAliases(const HostPortProxyPair& pair);
 
   SpdySettingsStorage spdy_settings_;
+  HttpServerProperties* const http_server_properties_;
 
   // This is our weak session pool - one session per domain.
   SpdySessionsMap sessions_;

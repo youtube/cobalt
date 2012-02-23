@@ -19,11 +19,11 @@ URLRequestContext::URLRequestContext()
       host_resolver_(NULL),
       cert_verifier_(NULL),
       origin_bound_cert_service_(NULL),
-      dnsrr_resolver_(NULL),
-      dns_cert_checker_(NULL),
+      fraudulent_certificate_reporter_(NULL),
       http_auth_handler_factory_(NULL),
       proxy_service_(NULL),
       network_delegate_(NULL),
+      http_server_properties_(NULL),
       transport_security_state_(NULL),
       ftp_auth_cache_(new FtpAuthCache),
       http_transaction_factory_(NULL),
@@ -37,12 +37,12 @@ void URLRequestContext::CopyFrom(URLRequestContext* other) {
   set_host_resolver(other->host_resolver());
   set_cert_verifier(other->cert_verifier());
   set_origin_bound_cert_service(other->origin_bound_cert_service());
-  set_dnsrr_resolver(other->dnsrr_resolver());
-  set_dns_cert_checker(other->dns_cert_checker());
+  set_fraudulent_certificate_reporter(other->fraudulent_certificate_reporter());
   set_http_auth_handler_factory(other->http_auth_handler_factory());
   set_proxy_service(other->proxy_service());
   set_ssl_config_service(other->ssl_config_service());
   set_network_delegate(other->network_delegate());
+  set_http_server_properties(other->http_server_properties());
   set_cookie_store(other->cookie_store());
   set_transport_security_state(other->transport_security_state());
   // FTPAuthCache is unique per context.

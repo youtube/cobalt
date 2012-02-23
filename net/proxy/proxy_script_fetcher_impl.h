@@ -6,18 +6,19 @@
 #define NET_PROXY_PROXY_SCRIPT_FETCHER_IMPL_H_
 #pragma once
 
+#include <string>
+
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/string16.h"
-#include "base/task.h"
 #include "base/time.h"
 #include "net/proxy/proxy_script_fetcher.h"
 #include "net/url_request/url_request.h"
 
 class GURL;
-class X509Certificate;
 
 namespace net {
 
@@ -25,8 +26,8 @@ class URLRequestContext;
 
 // Implementation of ProxyScriptFetcher that downloads scripts using the
 // specified request context.
-class NET_API ProxyScriptFetcherImpl : public ProxyScriptFetcher,
-                                       public URLRequest::Delegate {
+class NET_EXPORT ProxyScriptFetcherImpl : public ProxyScriptFetcher,
+                                          public URLRequest::Delegate {
  public:
   // Creates a ProxyScriptFetcher that issues requests through
   // |url_request_context|. |url_request_context| must remain valid for the
@@ -46,15 +47,16 @@ class NET_API ProxyScriptFetcherImpl : public ProxyScriptFetcher,
 
   // ProxyScriptFetcher methods:
   virtual int Fetch(const GURL& url, string16* text,
-                    CompletionCallback* callback) OVERRIDE;
+                    const net::CompletionCallback& callback) OVERRIDE;
   virtual void Cancel() OVERRIDE;
   virtual URLRequestContext* GetRequestContext() const OVERRIDE;
 
   // URLRequest::Delegate methods:
   virtual void OnAuthRequired(URLRequest* request,
                               AuthChallengeInfo* auth_info) OVERRIDE;
-  virtual void OnSSLCertificateError(URLRequest* request, int cert_error,
-                                     X509Certificate* cert) OVERRIDE;
+  virtual void OnSSLCertificateError(URLRequest* request,
+                                     const SSLInfo& ssl_info,
+                                     bool is_hsts_ok) OVERRIDE;
   virtual void OnResponseStarted(URLRequest* request) OVERRIDE;
   virtual void OnReadCompleted(URLRequest* request, int num_bytes) OVERRIDE;
 
@@ -80,7 +82,7 @@ class NET_API ProxyScriptFetcherImpl : public ProxyScriptFetcher,
 
   // Factory for creating the time-out task. This takes care of revoking
   // outstanding tasks when |this| is deleted.
-  ScopedRunnableMethodFactory<ProxyScriptFetcherImpl> task_factory_;
+  base::WeakPtrFactory<ProxyScriptFetcherImpl> weak_factory_;
 
   // The context used for making network requests.
   URLRequestContext* url_request_context_;
@@ -100,7 +102,7 @@ class NET_API ProxyScriptFetcherImpl : public ProxyScriptFetcher,
   int cur_request_id_;
 
   // Callback to invoke on completion of the fetch.
-  CompletionCallback* callback_;
+  net::CompletionCallback callback_;
 
   // Holds the error condition that was hit on the current request, or OK.
   int result_code_;

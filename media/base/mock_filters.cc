@@ -1,15 +1,17 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/base/mock_filters.h"
 
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "media/base/filter_host.h"
 
 using ::testing::_;
 using ::testing::Invoke;
 using ::testing::NotNull;
+using ::testing::Return;
 
 namespace media {
 
@@ -20,8 +22,8 @@ MockDataSource::MockDataSource()
 
 MockDataSource::~MockDataSource() {}
 
-void MockDataSource::set_host(FilterHost* filter_host) {
-  Filter::set_host(filter_host);
+void MockDataSource::set_host(DataSourceHost* data_source_host) {
+  DataSource::set_host(data_source_host);
 
   if (total_bytes_ > 0)
     host()->SetTotalBytes(total_bytes_);
@@ -48,12 +50,9 @@ void MockDemuxerFactory::SetError(PipelineStatus error) {
 }
 
 void MockDemuxerFactory::RunBuildCallback(const std::string& url,
-                                          BuildCallback* callback) {
-  scoped_ptr<BuildCallback> cb(callback);
-
+                                          const BuildCallback& callback) {
   if (!demuxer_.get()) {
-    cb->Run(PIPELINE_ERROR_REQUIRED_FILTER_MISSING,
-            static_cast<Demuxer*>(NULL));
+    callback.Run(PIPELINE_ERROR_REQUIRED_FILTER_MISSING, NULL);
     return;
   }
 
@@ -61,29 +60,24 @@ void MockDemuxerFactory::RunBuildCallback(const std::string& url,
   demuxer_ = NULL;
 
   if (status_ == PIPELINE_OK) {
-    cb->Run(PIPELINE_OK, demuxer.get());
+    callback.Run(PIPELINE_OK, demuxer.get());
     return;
   }
 
-  cb->Run(status_, static_cast<Demuxer*>(NULL));
-}
-
-void MockDemuxerFactory::DestroyBuildCallback(const std::string& url,
-                                              BuildCallback* callback) {
-  delete callback;
-}
-
-DemuxerFactory* MockDemuxerFactory::Clone() const {
-  return new MockDemuxerFactory(demuxer_.get());
+  callback.Run(status_, NULL);
 }
 
 MockDemuxer::MockDemuxer()
-  : total_bytes_(-1), buffered_bytes_(-1), duration_() {}
+    : total_bytes_(-1), buffered_bytes_(-1), duration_() {
+  EXPECT_CALL(*this, GetBitrate()).WillRepeatedly(Return(0));
+  EXPECT_CALL(*this, IsLocalSource()).WillRepeatedly(Return(false));
+  EXPECT_CALL(*this, IsSeekable()).WillRepeatedly(Return(false));
+}
 
 MockDemuxer::~MockDemuxer() {}
 
-void MockDemuxer::set_host(FilterHost* filter_host) {
-  Filter::set_host(filter_host);
+void MockDemuxer::set_host(DemuxerHost* demuxer_host) {
+  Demuxer::set_host(demuxer_host);
 
   if (total_bytes_ > 0)
     host()->SetTotalBytes(total_bytes_);
@@ -106,7 +100,9 @@ MockDemuxerStream::MockDemuxerStream() {}
 
 MockDemuxerStream::~MockDemuxerStream() {}
 
-MockVideoDecoder::MockVideoDecoder() {}
+MockVideoDecoder::MockVideoDecoder() {
+  EXPECT_CALL(*this, HasAlpha()).WillRepeatedly(Return(false));
+}
 
 MockVideoDecoder::~MockVideoDecoder() {}
 
@@ -132,66 +128,60 @@ MockFilterCollection::MockFilterCollection()
 
 MockFilterCollection::~MockFilterCollection() {}
 
-FilterCollection* MockFilterCollection::filter_collection(
+scoped_ptr<FilterCollection> MockFilterCollection::filter_collection(
     bool include_demuxer,
     bool run_build_callback,
     bool run_build,
     PipelineStatus build_status) const {
-  FilterCollection* collection = new FilterCollection();
+  scoped_ptr<FilterCollection> collection(new FilterCollection());
 
-  MockDemuxerFactory* demuxer_factory =
-      new MockDemuxerFactory(include_demuxer ? demuxer_ : NULL);
+  scoped_ptr<MockDemuxerFactory> demuxer_factory(
+      new MockDemuxerFactory(include_demuxer ? demuxer_ : NULL));
 
   if (build_status != PIPELINE_OK)
     demuxer_factory->SetError(build_status);
 
   if (run_build_callback) {
-    ON_CALL(*demuxer_factory, Build(_, NotNull())).WillByDefault(Invoke(
-        demuxer_factory, &MockDemuxerFactory::RunBuildCallback));
-  } else {
-    ON_CALL(*demuxer_factory, Build(_, NotNull())).WillByDefault(Invoke(
-        demuxer_factory, &MockDemuxerFactory::DestroyBuildCallback));
-  }
+    ON_CALL(*demuxer_factory, Build(_, _)).WillByDefault(Invoke(
+        demuxer_factory.get(), &MockDemuxerFactory::RunBuildCallback));
+  }  // else ignore Build calls.
 
   if (run_build)
-    EXPECT_CALL(*demuxer_factory, Build(_, NotNull()));
+    EXPECT_CALL(*demuxer_factory, Build(_, _));
 
-  collection->SetDemuxerFactory(demuxer_factory);
+  collection->SetDemuxerFactory(demuxer_factory.PassAs<DemuxerFactory>());
   collection->AddVideoDecoder(video_decoder_);
   collection->AddAudioDecoder(audio_decoder_);
   collection->AddVideoRenderer(video_renderer_);
   collection->AddAudioRenderer(audio_renderer_);
-  return collection;
+  return collection.Pass();
 }
 
-void RunFilterCallback(::testing::Unused, FilterCallback* callback) {
-  callback->Run();
-  delete callback;
+void RunFilterCallback(::testing::Unused, const base::Closure& callback) {
+  callback.Run();
+
 }
 
 void RunFilterStatusCB(::testing::Unused, const FilterStatusCB& cb) {
   cb.Run(PIPELINE_OK);
 }
 
-void RunPipelineStatusCallback(
-    PipelineStatus status, PipelineStatusCallback* callback) {
-  callback->Run(status);
-  delete callback;
+void RunPipelineStatusCB(PipelineStatus status, const PipelineStatusCB& cb) {
+  cb.Run(status);
 }
 
-void RunFilterCallback3(::testing::Unused, FilterCallback* callback,
-                        ::testing::Unused) {
-  callback->Run();
-  delete callback;
+void RunPipelineStatusCB3(::testing::Unused, const PipelineStatusCB& callback,
+                          ::testing::Unused) {
+  callback.Run(PIPELINE_OK);
 }
 
-void DestroyFilterCallback(::testing::Unused, FilterCallback* callback) {
-  delete callback;
+void RunPipelineStatusCB4(::testing::Unused, const PipelineStatusCB& callback,
+                          ::testing::Unused, ::testing::Unused) {
+  callback.Run(PIPELINE_OK);
 }
 
-void RunStopFilterCallback(FilterCallback* callback) {
-  callback->Run();
-  delete callback;
+void RunStopFilterCallback(const base::Closure& callback) {
+  callback.Run();
 }
 
 MockFilter::MockFilter() {

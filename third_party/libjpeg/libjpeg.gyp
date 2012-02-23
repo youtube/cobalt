@@ -89,7 +89,7 @@
       'targets': [
         {
           'target_name': 'libjpeg',
-          'type': 'settings',
+          'type': 'none',
           'direct_dependent_settings': {
             'defines': [
               'USE_SYSTEM_LIBJPEG',

@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -38,7 +38,7 @@ ProxyResolverWinHttp::~ProxyResolverWinHttp() {
 
 int ProxyResolverWinHttp::GetProxyForURL(const GURL& query_url,
                                          ProxyInfo* results,
-                                         CompletionCallback* /*callback*/,
+                                         const CompletionCallback& /*callback*/,
                                          RequestHandle* /*request*/,
                                          const BoundNetLog& /*net_log*/) {
   // If we don't have a WinHTTP session, then create a new one.
@@ -124,13 +124,23 @@ void ProxyResolverWinHttp::CancelRequest(RequestHandle request) {
   NOTREACHED();
 }
 
+LoadState ProxyResolverWinHttp::GetLoadState(RequestHandle request) const {
+  NOTREACHED();
+  return LOAD_STATE_IDLE;
+}
+
+LoadState ProxyResolverWinHttp::GetLoadStateThreadSafe(
+    RequestHandle request) const {
+  return LOAD_STATE_IDLE;
+}
+
 void ProxyResolverWinHttp::CancelSetPacScript() {
   NOTREACHED();
 }
 
 int ProxyResolverWinHttp::SetPacScript(
     const scoped_refptr<ProxyResolverScriptData>& script_data,
-    CompletionCallback* /*callback*/) {
+    const CompletionCallback& /*callback*/) {
   if (script_data->type() == ProxyResolverScriptData::TYPE_AUTO_DETECT) {
     pac_url_ = GURL("http://wpad/wpad.dat");
   } else {

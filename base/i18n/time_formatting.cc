@@ -75,15 +75,15 @@ string16 TimeFormatTimeOfDayWithHourClockType(const Time& time,
   UErrorCode status = U_ZERO_ERROR;
   scoped_ptr<icu::DateTimePatternGenerator> generator(
       icu::DateTimePatternGenerator::createInstance(status));
-  CHECK(U_SUCCESS(status));
+  DCHECK(U_SUCCESS(status));
   const char* base_pattern = (type == k12HourClock ? "ahm" : "Hm");
   icu::UnicodeString generated_pattern =
       generator->getBestPattern(icu::UnicodeString(base_pattern), status);
-  CHECK(U_SUCCESS(status));
+  DCHECK(U_SUCCESS(status));
 
   // Then, format the time using the generated pattern.
   icu::SimpleDateFormat formatter(generated_pattern, status);
-  CHECK(U_SUCCESS(status));
+  DCHECK(U_SUCCESS(status));
   if (ampm == kKeepAmPm) {
     return TimeFormat(&formatter, time);
   } else {

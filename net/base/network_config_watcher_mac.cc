@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,10 +6,12 @@
 
 #include <algorithm>
 
+#include "base/bind.h"
 #include "base/compiler_specific.h"
+#include "base/memory/weak_ptr.h"
+#include "base/message_loop.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_restrictions.h"
-#include "base/mac/scoped_cftyperef.h"
 
 namespace net {
 
@@ -31,8 +33,8 @@ class NetworkConfigWatcherMacThread : public base::Thread {
 
  protected:
   // base::Thread
-  virtual void Init();
-  virtual void CleanUp();
+  virtual void Init() OVERRIDE;
+  virtual void CleanUp() OVERRIDE;
 
  private:
   // The SystemConfiguration calls in this function can lead to contention early
@@ -41,7 +43,7 @@ class NetworkConfigWatcherMacThread : public base::Thread {
 
   base::mac::ScopedCFTypeRef<CFRunLoopSourceRef> run_loop_source_;
   NetworkConfigWatcherMac::Delegate* const delegate_;
-  ScopedRunnableMethodFactory<NetworkConfigWatcherMacThread> method_factory_;
+  base::WeakPtrFactory<NetworkConfigWatcherMacThread> weak_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkConfigWatcherMacThread);
 };
@@ -50,7 +52,7 @@ NetworkConfigWatcherMacThread::NetworkConfigWatcherMacThread(
     NetworkConfigWatcherMac::Delegate* delegate)
     : base::Thread("NetworkConfigWatcher"),
       delegate_(delegate),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {}
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {}
 
 NetworkConfigWatcherMacThread::~NetworkConfigWatcherMacThread() {
   // Allow IO because Stop() calls PlatformThread::Join(), which is a blocking
@@ -65,13 +67,15 @@ void NetworkConfigWatcherMacThread::Init() {
   // not perform blocking operations.
   base::ThreadRestrictions::SetIOAllowed(false);
 
+  delegate_->Init();
+
   // TODO(willchan): Look to see if there's a better signal for when it's ok to
   // initialize this, rather than just delaying it by a fixed time.
   const int kInitializationDelayMS = 1000;
   message_loop()->PostDelayedTask(
       FROM_HERE,
-      method_factory_.NewRunnableMethod(
-          &NetworkConfigWatcherMacThread::InitNotifications),
+      base::Bind(&NetworkConfigWatcherMacThread::InitNotifications,
+                 weak_factory_.GetWeakPtr()),
       kInitializationDelayMS);
 }
 
@@ -101,6 +105,7 @@ void NetworkConfigWatcherMacThread::InitNotifications() {
                      kCFRunLoopCommonModes);
 
   // Set up notifications for interface and IP address changes.
+  delegate_->StartReachabilityNotifications();
   delegate_->SetDynamicStoreNotificationKeys(store.get());
 }
 

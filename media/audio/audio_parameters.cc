@@ -15,15 +15,6 @@ AudioParameters::AudioParameters()
       channels(0) {
 }
 
-AudioParameters::AudioParameters(const media::AudioDecoderConfig& config)
-    : format(AUDIO_PCM_LINEAR),
-      channel_layout(config.channel_layout),
-      sample_rate(config.sample_rate),
-      bits_per_sample(config.bits_per_channel),
-      samples_per_packet(0),
-      channels(ChannelLayoutToChannelCount(config.channel_layout)) {
-}
-
 AudioParameters::AudioParameters(Format format, ChannelLayout channel_layout,
                                  int sample_rate, int bits_per_sample,
                                  int samples_per_packet)
@@ -37,12 +28,12 @@ AudioParameters::AudioParameters(Format format, ChannelLayout channel_layout,
 
 bool AudioParameters::IsValid() const {
   return (format >= 0) && (format < AUDIO_LAST_FORMAT) &&
-      (channels > 0) && (channels <= media::Limits::kMaxChannels) &&
-      (sample_rate > 0) && (sample_rate <= media::Limits::kMaxSampleRate) &&
+      (channels > 0) && (channels <= media::limits::kMaxChannels) &&
+      (sample_rate > 0) && (sample_rate <= media::limits::kMaxSampleRate) &&
       (bits_per_sample > 0) &&
-      (bits_per_sample <= media::Limits::kMaxBitsPerSample) &&
+      (bits_per_sample <= media::limits::kMaxBitsPerSample) &&
       (samples_per_packet > 0) &&
-      (samples_per_packet <= media::Limits::kMaxSamplesPerPacket);
+      (samples_per_packet <= media::limits::kMaxSamplesPerPacket);
 }
 
 int AudioParameters::GetPacketSize() const {

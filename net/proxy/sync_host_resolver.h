@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,18 +7,21 @@
 #pragma once
 
 #include "net/base/host_resolver.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 
 namespace net {
 
+class BoundNetLog;
+
 // Interface used by ProxyResolverJSBindings to abstract a synchronous host
 // resolver module (which includes a Shutdown method).
-class NET_TEST SyncHostResolver {
+class NET_EXPORT_PRIVATE SyncHostResolver {
  public:
   virtual ~SyncHostResolver() {}
 
   virtual int Resolve(const HostResolver::RequestInfo& info,
-                      AddressList* addresses) = 0;
+                      AddressList* addresses,
+                      const BoundNetLog& net_log) = 0;
 
   // Optionally aborts any blocking resolves that are in progress.
   virtual void Shutdown() = 0;

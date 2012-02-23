@@ -1,9 +1,11 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/socket/client_socket_handle.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/metrics/histogram.h"
 #include "base/logging.h"
@@ -16,8 +18,9 @@ namespace net {
 ClientSocketHandle::ClientSocketHandle()
     : is_initialized_(false),
       is_reused_(false),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          callback_(this, &ClientSocketHandle::OnIOComplete)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(callback_(
+          base::Bind(&ClientSocketHandle::OnIOComplete,
+                     base::Unretained(this)))),
       is_ssl_error_(false) {}
 
 ClientSocketHandle::~ClientSocketHandle() {
@@ -48,7 +51,7 @@ void ClientSocketHandle::ResetInternal(bool cancel) {
   is_initialized_ = false;
   group_name_.clear();
   is_reused_ = false;
-  user_callback_ = NULL;
+  user_callback_.Reset();
   pool_ = NULL;
   idle_time_ = base::TimeDelta();
   init_time_ = base::TimeTicks();
@@ -73,10 +76,10 @@ LoadState ClientSocketHandle::GetLoadState() const {
 }
 
 void ClientSocketHandle::OnIOComplete(int result) {
-  CompletionCallback* callback = user_callback_;
-  user_callback_ = NULL;
+  CompletionCallback callback = user_callback_;
+  user_callback_.Reset();
   HandleInitCompletion(result);
-  callback->Run(result);
+  callback.Run(result);
 }
 
 void ClientSocketHandle::HandleInitCompletion(int result) {

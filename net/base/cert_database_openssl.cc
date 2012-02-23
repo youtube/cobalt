@@ -62,7 +62,8 @@ void CertDatabase::ListModules(CryptoModuleList* modules, bool need_rw) const {
 int CertDatabase::ImportFromPKCS12(CryptoModule* module,
                                    const std::string& data,
                                    const string16& password,
-                                   bool is_extractable) {
+                                   bool is_extractable,
+                                   CertificateList* imported_certs) {
   // TODO(bulach): implement me.
   NOTIMPLEMENTED();
   return ERR_NOT_IMPLEMENTED;
@@ -82,8 +83,8 @@ bool CertDatabase::DeleteCertAndKey(const X509Certificate* cert) {
   return false;
 }
 
-unsigned int CertDatabase::GetCertTrust(const X509Certificate* cert,
-                                        CertType type) const {
+CertDatabase::TrustBits CertDatabase::GetCertTrust(const X509Certificate* cert,
+                                                   CertType type) const {
   // TODO(bulach): implement me.
   NOTIMPLEMENTED();
   return 0;
@@ -91,7 +92,7 @@ unsigned int CertDatabase::GetCertTrust(const X509Certificate* cert,
 
 bool CertDatabase::SetCertTrust(const X509Certificate* cert,
                                 CertType type,
-                                unsigned int trust_bits) {
+                                TrustBits trust_bits) {
   // TODO(bulach): implement me.
   NOTIMPLEMENTED();
   return false;

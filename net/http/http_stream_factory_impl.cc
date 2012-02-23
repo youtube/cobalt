@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,10 @@
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
 #include "net/http/http_network_session.h"
+#include "net/http/http_pipelined_connection.h"
+#include "net/http/http_pipelined_host.h"
+#include "net/http/http_pipelined_stream.h"
+#include "net/http/http_server_properties.h"
 #include "net/http/http_stream_factory_impl_job.h"
 #include "net/http/http_stream_factory_impl_request.h"
 #include "net/spdy/spdy_http_stream.h"
@@ -18,12 +22,12 @@ namespace net {
 
 namespace {
 
-GURL UpgradeUrlToHttps(const GURL& original_url) {
+GURL UpgradeUrlToHttps(const GURL& original_url, int port) {
   GURL::Replacements replacements;
   // new_sheme and new_port need to be in scope here because GURL::Replacements
   // references the memory contained by them directly.
   const std::string new_scheme = "https";
-  const std::string new_port = base::IntToString(443);
+  const std::string new_port = base::IntToString(port);
   replacements.SetSchemeStr(new_scheme);
   replacements.SetPortStr(new_port);
   return original_url.ReplaceComponents(replacements);
@@ -32,7 +36,9 @@ GURL UpgradeUrlToHttps(const GURL& original_url) {
 }  // namespace
 
 HttpStreamFactoryImpl::HttpStreamFactoryImpl(HttpNetworkSession* session)
-    : session_(session) {}
+    : session_(session),
+      http_pipelined_host_pool_(this, NULL,
+                                session_->http_server_properties()) {}
 
 HttpStreamFactoryImpl::~HttpStreamFactoryImpl() {
   DCHECK(request_map_.empty());
@@ -51,7 +57,8 @@ HttpStreamFactoryImpl::~HttpStreamFactoryImpl() {
 
 HttpStreamRequest* HttpStreamFactoryImpl::RequestStream(
     const HttpRequestInfo& request_info,
-    const SSLConfig& ssl_config,
+    const SSLConfig& server_ssl_config,
+    const SSLConfig& proxy_ssl_config,
     HttpStreamRequest::Delegate* delegate,
     const BoundNetLog& net_log) {
   Request* request = new Request(request_info.url, this, delegate, net_log);
@@ -64,12 +71,14 @@ HttpStreamRequest* HttpStreamFactoryImpl::RequestStream(
     HttpRequestInfo alternate_request_info = request_info;
     alternate_request_info.url = alternate_url;
     alternate_job =
-        new Job(this, session_, alternate_request_info, ssl_config, net_log);
+        new Job(this, session_, alternate_request_info, server_ssl_config,
+                proxy_ssl_config, net_log.net_log());
     request->AttachJob(alternate_job);
     alternate_job->MarkAsAlternate(request_info.url);
   }
 
-  Job* job = new Job(this, session_, request_info, ssl_config, net_log);
+  Job* job = new Job(this, session_, request_info, server_ssl_config,
+                     proxy_ssl_config, net_log.net_log());
   request->AttachJob(job);
   if (alternate_job) {
     job->WaitFor(alternate_job);
@@ -88,8 +97,8 @@ HttpStreamRequest* HttpStreamFactoryImpl::RequestStream(
 void HttpStreamFactoryImpl::PreconnectStreams(
     int num_streams,
     const HttpRequestInfo& request_info,
-    const SSLConfig& ssl_config,
-    const BoundNetLog& net_log) {
+    const SSLConfig& server_ssl_config,
+    const SSLConfig& proxy_ssl_config) {
   GURL alternate_url;
   bool has_alternate_protocol =
       GetAlternateProtocolRequestFor(request_info.url, &alternate_url);
@@ -97,10 +106,12 @@ void HttpStreamFactoryImpl::PreconnectStreams(
   if (has_alternate_protocol) {
     HttpRequestInfo alternate_request_info = request_info;
     alternate_request_info.url = alternate_url;
-    job = new Job(this, session_, alternate_request_info, ssl_config, net_log);
+    job = new Job(this, session_, alternate_request_info, server_ssl_config,
+                  proxy_ssl_config, session_->net_log());
     job->MarkAsAlternate(request_info.url);
   } else {
-    job = new Job(this, session_, request_info, ssl_config, net_log);
+    job = new Job(this, session_, request_info, server_ssl_config,
+                  proxy_ssl_config, session_->net_log());
   }
   preconnect_job_set_.insert(job);
   job->Preconnect(num_streams);
@@ -115,6 +126,10 @@ bool HttpStreamFactoryImpl::IsTLSIntolerantServer(
   return ContainsKey(tls_intolerant_servers_, server);
 }
 
+base::Value* HttpStreamFactoryImpl::PipelineInfoToValue() const {
+  return http_pipelined_host_pool_.PipelineInfoToValue();
+}
+
 bool HttpStreamFactoryImpl::GetAlternateProtocolRequestFor(
     const GURL& original_url,
     GURL* alternate_url) const {
@@ -127,28 +142,37 @@ bool HttpStreamFactoryImpl::GetAlternateProtocolRequestFor(
   HostPortPair origin = HostPortPair(original_url.HostNoBrackets(),
                                      original_url.EffectiveIntPort());
 
-  const HttpAlternateProtocols& alternate_protocols =
-      session_->alternate_protocols();
-  if (!alternate_protocols.HasAlternateProtocolFor(origin))
+  const HttpServerProperties& http_server_properties =
+      *session_->http_server_properties();
+  if (!http_server_properties.HasAlternateProtocol(origin))
     return false;
 
-  HttpAlternateProtocols::PortProtocolPair alternate =
-      alternate_protocols.GetAlternateProtocolFor(origin);
-  if (alternate.protocol == HttpAlternateProtocols::BROKEN)
+  PortAlternateProtocolPair alternate =
+      http_server_properties.GetAlternateProtocol(origin);
+  if (alternate.protocol == ALTERNATE_PROTOCOL_BROKEN)
     return false;
 
-  DCHECK_LE(HttpAlternateProtocols::NPN_SPDY_1, alternate.protocol);
-  DCHECK_GT(HttpAlternateProtocols::NUM_ALTERNATE_PROTOCOLS,
-            alternate.protocol);
+  DCHECK_LE(NPN_SPDY_1, alternate.protocol);
+  DCHECK_GT(NUM_ALTERNATE_PROTOCOLS, alternate.protocol);
 
-  if (alternate.protocol != HttpAlternateProtocols::NPN_SPDY_2)
+  if (alternate.protocol < NPN_SPDY_2)
+    return false;
+
+  // Some shared unix systems may have user home directories (like
+  // http://foo.com/~mike) which allow users to emit headers.  This is a bad
+  // idea already, but with Alternate-Protocol, it provides the ability for a
+  // single user on a multi-user system to hijack the alternate protocol.
+  // These systems also enforce ports <1024 as restricted ports.  So don't
+  // allow protocol upgrades to user-controllable ports.
+  const int kUnrestrictedPort = 1024;
+  if (alternate.port >= kUnrestrictedPort && origin.port() < kUnrestrictedPort)
     return false;
 
   origin.set_port(alternate.port);
   if (HttpStreamFactory::HasSpdyExclusion(origin))
     return false;
 
-  *alternate_url = UpgradeUrlToHttps(original_url);
+  *alternate_url = UpgradeUrlToHttps(original_url, alternate.port);
   return true;
 }
 
@@ -169,8 +193,9 @@ void HttpStreamFactoryImpl::OnSpdySessionReady(
     const SSLConfig& used_ssl_config,
     const ProxyInfo& used_proxy_info,
     bool was_npn_negotiated,
+    SSLClientSocket::NextProto protocol_negotiated,
     bool using_spdy,
-    const NetLog::Source& source) {
+    const BoundNetLog& net_log) {
   const HostPortProxyPair& spdy_session_key =
       spdy_session->host_port_proxy_pair();
   while (!spdy_session->IsClosed()) {
@@ -185,8 +210,9 @@ void HttpStreamFactoryImpl::OnSpdySessionReady(
       break;
     Request* request = *spdy_session_request_map_[spdy_session_key].begin();
     request->Complete(was_npn_negotiated,
+                      protocol_negotiated,
                       using_spdy,
-                      source);
+                      net_log);
     bool use_relative_url = direct || request->url().SchemeIs("https");
     request->OnStreamReady(NULL, used_ssl_config, used_proxy_info,
                            new SpdyHttpStream(spdy_session, use_relative_url));
@@ -203,6 +229,24 @@ void HttpStreamFactoryImpl::OnPreconnectsComplete(const Job* job) {
   preconnect_job_set_.erase(job);
   delete job;
   OnPreconnectsCompleteInternal();
+}
+
+void HttpStreamFactoryImpl::OnHttpPipelinedHostHasAdditionalCapacity(
+    const HostPortPair& origin) {
+  HttpPipelinedStream* stream;
+  while (ContainsKey(http_pipelining_request_map_, origin) &&
+         (stream = http_pipelined_host_pool_.CreateStreamOnExistingPipeline(
+             origin))) {
+    Request* request = *http_pipelining_request_map_[origin].begin();
+    request->Complete(stream->was_npn_negotiated(),
+                      stream->protocol_negotiated(),
+                      false,  // not using_spdy
+                      stream->net_log());
+    request->OnStreamReady(NULL,
+                           stream->used_ssl_config(),
+                           stream->used_proxy_info(),
+                           stream);
+  }
 }
 
 }  // namespace net

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,8 +6,10 @@
 #define NET_BASE_NETWORK_DELEGATE_H_
 #pragma once
 
+#include "base/callback.h"
 #include "base/string16.h"
 #include "base/threading/non_thread_safe.h"
+#include "net/base/auth.h"
 #include "net/base/completion_callback.h"
 
 class GURL;
@@ -24,14 +26,23 @@ namespace net {
 // NOTE: It is not okay to add any compile-time dependencies on symbols outside
 // of net/base here, because we have a net_base library. Forward declarations
 // are ok.
-class AuthChallengeInfo;
-class HostPortPair;
 class HttpRequestHeaders;
+class HttpResponseHeaders;
 class URLRequest;
-class URLRequestJob;
 
 class NetworkDelegate : public base::NonThreadSafe {
  public:
+  // AuthRequiredResponse indicates how a NetworkDelegate handles an
+  // OnAuthRequired call. It's placed in this file to prevent url_request.h
+  // from having to include network_delegate.h.
+  enum AuthRequiredResponse {
+    AUTH_REQUIRED_RESPONSE_NO_ACTION,
+    AUTH_REQUIRED_RESPONSE_SET_AUTH,
+    AUTH_REQUIRED_RESPONSE_CANCEL_AUTH,
+    AUTH_REQUIRED_RESPONSE_IO_PENDING,
+  };
+  typedef base::Callback<void(AuthRequiredResponse)> AuthCallback;
+
   virtual ~NetworkDelegate() {}
 
   // Notification interface called by the network stack. Note that these
@@ -39,22 +50,29 @@ class NetworkDelegate : public base::NonThreadSafe {
   // checking on parameters. See the corresponding virtuals for explanations of
   // the methods and their arguments.
   int NotifyBeforeURLRequest(URLRequest* request,
-                             CompletionCallback* callback,
+                             const CompletionCallback& callback,
                              GURL* new_url);
   int NotifyBeforeSendHeaders(URLRequest* request,
-                              CompletionCallback* callback,
+                              const CompletionCallback& callback,
                               HttpRequestHeaders* headers);
   void NotifySendHeaders(URLRequest* request,
                          const HttpRequestHeaders& headers);
+  int NotifyHeadersReceived(
+      URLRequest* request,
+      const CompletionCallback& callback,
+      HttpResponseHeaders* original_response_headers,
+      scoped_refptr<HttpResponseHeaders>* override_response_headers);
   void NotifyBeforeRedirect(URLRequest* request,
                             const GURL& new_location);
   void NotifyResponseStarted(URLRequest* request);
   void NotifyRawBytesRead(const URLRequest& request, int bytes_read);
-  void NotifyCompleted(URLRequest* request);
+  void NotifyCompleted(URLRequest* request, bool started);
   void NotifyURLRequestDestroyed(URLRequest* request);
   void NotifyPACScriptError(int line_number, const string16& error);
-  void NotifyAuthRequired(URLRequest* request,
-                          const AuthChallengeInfo& auth_info);
+  AuthRequiredResponse NotifyAuthRequired(URLRequest* request,
+                                          const AuthChallengeInfo& auth_info,
+                                          const AuthCallback& callback,
+                                          AuthCredentials* credentials);
 
  private:
   // This is the interface for subclasses of NetworkDelegate to implement. This
@@ -65,24 +83,48 @@ class NetworkDelegate : public base::NonThreadSafe {
   // being fetched by modifying |new_url|. |callback| and |new_url| are valid
   // only until OnURLRequestDestroyed is called for this request. Returns a net
   // status code, generally either OK to continue with the request or
-  // ERR_IO_PENDING if the result is not ready yet.
+  // ERR_IO_PENDING if the result is not ready yet. A status code other than OK
+  // and ERR_IO_PENDING will cancel the request and report the status code as
+  // the reason.
   virtual int OnBeforeURLRequest(URLRequest* request,
-                                 CompletionCallback* callback,
+                                 const CompletionCallback& callback,
                                  GURL* new_url) = 0;
 
   // Called right before the HTTP headers are sent. Allows the delegate to
   // read/write |headers| before they get sent out. |callback| and |headers| are
-  // valid only until OnHttpTransactionDestroyed is called for this request.
+  // valid only until OnCompleted or OnURLRequestDestroyed is called for this
+  // request.
   // Returns a net status code.
   virtual int OnBeforeSendHeaders(URLRequest* request,
-                                  CompletionCallback* callback,
+                                  const CompletionCallback& callback,
                                   HttpRequestHeaders* headers) = 0;
 
   // Called right before the HTTP request(s) are being sent to the network.
+  // |headers| is only valid until OnCompleted or OnURLRequestDestroyed is
+  // called for this request.
   virtual void OnSendHeaders(URLRequest* request,
                              const HttpRequestHeaders& headers) = 0;
 
+  // Called for HTTP requests when the headers have been received. Returns a net
+  // status code, generally either OK to continue with the request or
+  // ERR_IO_PENDING if the result is not ready yet.  A status code other than OK
+  // and ERR_IO_PENDING will cancel the request and report the status code as
+  // the reason.
+  // |original_response_headers| contains the headers as received over the
+  // network, these must not be modified. |override_response_headers| can be set
+  // to new values, that should be considered as overriding
+  // |original_response_headers|.
+  // |callback|, |original_response_headers|, and |override_response_headers|
+  // are only valid until OnURLRequestDestroyed is called for this request.
+  virtual int OnHeadersReceived(
+      URLRequest* request,
+      const CompletionCallback& callback,
+      HttpResponseHeaders* original_response_headers,
+      scoped_refptr<HttpResponseHeaders>* override_response_headers) = 0;
+
   // Called right after a redirect response code was received.
+  // |new_location| is only valid until OnURLRequestDestroyed is called for this
+  // request.
   virtual void OnBeforeRedirect(URLRequest* request,
                                 const GURL& new_location) = 0;
 
@@ -93,7 +135,9 @@ class NetworkDelegate : public base::NonThreadSafe {
   virtual void OnRawBytesRead(const URLRequest& request, int bytes_read) = 0;
 
   // Indicates that the URL request has been completed or failed.
-  virtual void OnCompleted(URLRequest* request) = 0;
+  // |started| indicates whether the request has been started. If false,
+  // some information like the socket address is not available.
+  virtual void OnCompleted(URLRequest* request, bool started) = 0;
 
   // Called when an URLRequest is being destroyed. Note that the request is
   // being deleted, so it's not safe to call any methods that may result in
@@ -103,9 +147,28 @@ class NetworkDelegate : public base::NonThreadSafe {
   // Corresponds to ProxyResolverJSBindings::OnError.
   virtual void OnPACScriptError(int line_number, const string16& error) = 0;
 
-  // Corresponds to URLRequest::Delegate::OnAuthRequired.
-  virtual void OnAuthRequired(URLRequest* reqest,
-                              const AuthChallengeInfo& auth_info) = 0;
+  // Called when a request receives an authentication challenge
+  // specified by |auth_info|, and is unable to respond using cached
+  // credentials. |callback| and |credentials| must be non-NULL, and must
+  // be valid until OnURLRequestDestroyed is called for |request|.
+  //
+  // The following return values are allowed:
+  //  - AUTH_REQUIRED_RESPONSE_NO_ACTION: |auth_info| is observed, but
+  //    no action is being taken on it.
+  //  - AUTH_REQUIRED_RESPONSE_SET_AUTH: |credentials| is filled in with
+  //    a username and password, which should be used in a response to
+  //    |auth_info|.
+  //  - AUTH_REQUIRED_RESPONSE_CANCEL_AUTH: The authentication challenge
+  //    should not be attempted.
+  //  - AUTH_REQUIRED_RESPONSE_IO_PENDING: The action will be decided
+  //    asynchronously. |callback| will be invoked when the decision is made,
+  //    and one of the other AuthRequiredResponse values will be passed in with
+  //    the same semantics as described above.
+  virtual AuthRequiredResponse OnAuthRequired(
+      URLRequest* request,
+      const AuthChallengeInfo& auth_info,
+      const AuthCallback& callback,
+      AuthCredentials* credentials) = 0;
 };
 
 }  // namespace net

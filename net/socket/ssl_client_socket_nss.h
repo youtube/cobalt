@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,8 +22,10 @@
 #include "net/base/cert_verify_result.h"
 #include "net/base/completion_callback.h"
 #include "net/base/host_port_pair.h"
+#include "net/base/net_export.h"
 #include "net/base/net_log.h"
 #include "net/base/nss_memio.h"
+#include "net/base/origin_bound_cert_service.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/x509_certificate.h"
 #include "net/socket/ssl_client_socket.h"
@@ -33,10 +35,10 @@ namespace net {
 class BoundNetLog;
 class CertVerifier;
 class ClientSocketHandle;
-class DnsCertProvenanceChecker;
 class OriginBoundCertService;
 class SingleRequestCertVerifier;
 class SSLHostInfo;
+class TransportSecurityState;
 class X509Certificate;
 
 // An SSL client socket implemented with Mozilla NSS.
@@ -55,44 +57,49 @@ class SSLClientSocketNSS : public SSLClientSocket {
                      const SSLClientSocketContext& context);
   virtual ~SSLClientSocketNSS();
 
-  // For tests
-  static void ClearSessionCache();
-
-  // SSLClientSocket methods:
-  virtual void GetSSLInfo(SSLInfo* ssl_info);
-  virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
+  // SSLClientSocket implementation.
+  virtual void GetSSLInfo(SSLInfo* ssl_info) OVERRIDE;
+  virtual void GetSSLCertRequestInfo(
+      SSLCertRequestInfo* cert_request_info) OVERRIDE;
   virtual int ExportKeyingMaterial(const base::StringPiece& label,
                                    const base::StringPiece& context,
                                    unsigned char *out,
-                                   unsigned int outlen);
-  virtual NextProtoStatus GetNextProto(std::string* proto);
+                                   unsigned int outlen) OVERRIDE;
+  virtual NextProtoStatus GetNextProto(std::string* proto,
+                                       std::string* server_protos) OVERRIDE;
 
-  // StreamSocket methods:
-  virtual int Connect(CompletionCallback* callback);
-  virtual void Disconnect();
-  virtual bool IsConnected() const;
-  virtual bool IsConnectedAndIdle() const;
-  virtual int GetPeerAddress(AddressList* address) const;
-  virtual int GetLocalAddress(IPEndPoint* address) const;
-  virtual const BoundNetLog& NetLog() const;
-  virtual void SetSubresourceSpeculation();
-  virtual void SetOmniboxSpeculation();
-  virtual bool WasEverUsed() const;
-  virtual bool UsingTCPFastOpen() const;
-  virtual int64 NumBytesRead() const;
-  virtual base::TimeDelta GetConnectTimeMicros() const;
+  // StreamSocket implementation.
+  virtual int Connect(const CompletionCallback& callback) OVERRIDE;
+  virtual void Disconnect() OVERRIDE;
+  virtual bool IsConnected() const OVERRIDE;
+  virtual bool IsConnectedAndIdle() const OVERRIDE;
+  virtual int GetPeerAddress(AddressList* address) const OVERRIDE;
+  virtual int GetLocalAddress(IPEndPoint* address) const OVERRIDE;
+  virtual const BoundNetLog& NetLog() const OVERRIDE;
+  virtual void SetSubresourceSpeculation() OVERRIDE;
+  virtual void SetOmniboxSpeculation() OVERRIDE;
+  virtual bool WasEverUsed() const OVERRIDE;
+  virtual bool UsingTCPFastOpen() const OVERRIDE;
+  virtual int64 NumBytesRead() const OVERRIDE;
+  virtual base::TimeDelta GetConnectTimeMicros() const OVERRIDE;
 
-  // Socket methods:
-  virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
-  virtual int Write(IOBuffer* buf, int buf_len, CompletionCallback* callback);
-  virtual bool SetReceiveBufferSize(int32 size);
-  virtual bool SetSendBufferSize(int32 size);
+  // Socket implementation.
+  virtual int Read(IOBuffer* buf,
+                   int buf_len,
+                   const CompletionCallback& callback) OVERRIDE;
+  virtual int Write(IOBuffer* buf,
+                    int buf_len,
+                    const CompletionCallback& callback) OVERRIDE;
+  virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
+  virtual bool SetSendBufferSize(int32 size) OVERRIDE;
+  virtual OriginBoundCertService* GetOriginBoundCertService() const OVERRIDE;
 
  private:
   enum State {
     STATE_NONE,
     STATE_LOAD_SSL_HOST_INFO,
     STATE_HANDSHAKE,
+    STATE_GET_OB_CERT_COMPLETE,
     STATE_VERIFY_DNSSEC,
     STATE_VERIFY_CERT,
     STATE_VERIFY_CERT_COMPLETE,
@@ -121,8 +128,17 @@ class SSLClientSocketNSS : public SSLClientSocket {
 
   bool LoadSSLHostInfo();
   int DoLoadSSLHostInfo();
+
   int DoHandshake();
 
+  // ImportOBCertAndKey is a helper function for turning a DER-encoded cert and
+  // key into a CERTCertificate and SECKEYPrivateKey. Returns OK upon success
+  // and an error code otherwise.
+  // Requires |ob_private_key_| and |ob_cert_| to have been set by a call to
+  // OriginBoundCertService->GetOriginBoundCert. The caller takes ownership of
+  // the |*cert| and |*key|.
+  int ImportOBCertAndKey(CERTCertificate** cert, SECKEYPrivateKey** key);
+  int DoGetOBCertComplete(int result);
   int DoVerifyDNSSEC(int result);
   int DoVerifyCert(int result);
   int DoVerifyCertComplete(int result);
@@ -146,14 +162,29 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // argument.
   static SECStatus OwnAuthCertHandler(void* arg, PRFileDesc* socket,
                                       PRBool checksig, PRBool is_server);
-  // NSS calls this when client authentication is requested.
+  // Returns true if connection negotiated the origin bound cert extension.
+  static bool OriginBoundCertNegotiated(PRFileDesc* socket);
+  // Origin bound cert client auth handler.
+  // Returns the value the ClientAuthHandler function should return.
+  SECStatus OriginBoundClientAuthHandler(
+      const SECItem* cert_types,
+      CERTCertificate** result_certificate,
+      SECKEYPrivateKey** result_private_key);
 #if defined(NSS_PLATFORM_CLIENT_AUTH)
-  static SECStatus PlatformClientAuthHandler(void* arg,
-                                             PRFileDesc* socket,
-                                             CERTDistNames* ca_names,
-                                             CERTCertList** result_certs,
-                                             void** result_private_key);
+  // On platforms where we use the native certificate store, NSS calls this
+  // instead when client authentication is requested.  At most one of
+  // (result_certs, result_private_key) or
+  // (result_nss_certificate, result_nss_private_key) should be set.
+  static SECStatus PlatformClientAuthHandler(
+      void* arg,
+      PRFileDesc* socket,
+      CERTDistNames* ca_names,
+      CERTCertList** result_certs,
+      void** result_private_key,
+      CERTCertificate** result_nss_certificate,
+      SECKEYPrivateKey** result_nss_private_key);
 #else
+  // NSS calls this when client authentication is requested.
   static SECStatus ClientAuthHandler(void* arg,
                                      PRFileDesc* socket,
                                      CERTDistNames* ca_names,
@@ -164,13 +195,18 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // argument.
   static void HandshakeCallback(PRFileDesc* socket, void* arg);
 
+  static SECStatus NextProtoCallback(void* arg,
+                                     PRFileDesc* fd,
+                                     const unsigned char* protos,
+                                     unsigned int protos_len,
+                                     unsigned char* proto_out,
+                                     unsigned int* proto_out_len);
+
   // The following methods are for debugging bug 65948. Will remove this code
   // after fixing bug 65948.
   void EnsureThreadIdAssigned() const;
   bool CalledOnValidThread() const;
 
-  CompletionCallbackImpl<SSLClientSocketNSS> buffer_send_callback_;
-  CompletionCallbackImpl<SSLClientSocketNSS> buffer_recv_callback_;
   bool transport_send_busy_;
   bool transport_recv_busy_;
   // corked_ is true if we are currently suspending writes to the network. This
@@ -181,14 +217,13 @@ class SSLClientSocketNSS : public SSLClientSocket {
   base::OneShotTimer<SSLClientSocketNSS> uncork_timer_;
   scoped_refptr<IOBuffer> recv_buffer_;
 
-  CompletionCallbackImpl<SSLClientSocketNSS> handshake_io_callback_;
   scoped_ptr<ClientSocketHandle> transport_;
   HostPortPair host_and_port_;
   SSLConfig ssl_config_;
 
-  CompletionCallback* user_connect_callback_;
-  CompletionCallback* user_read_callback_;
-  CompletionCallback* user_write_callback_;
+  CompletionCallback user_connect_callback_;
+  CompletionCallback user_read_callback_;
+  CompletionCallback user_write_callback_;
 
   // Used by Read function.
   scoped_refptr<IOBuffer> user_read_buf_;
@@ -208,6 +243,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // we used an SSLHostInfo's verification.
   const CertVerifyResult* server_cert_verify_result_;
   CertVerifyResult local_server_cert_verify_result_;
+  std::vector<SHA1Fingerprint> side_pinned_public_keys_;
   int ssl_connection_status_;
 
   // Stores client authentication information between ClientAuthHandler and
@@ -218,14 +254,24 @@ class SSLClientSocketNSS : public SSLClientSocket {
   CertVerifier* const cert_verifier_;
   scoped_ptr<SingleRequestCertVerifier> verifier_;
 
-  // For the use of origin bound certificates for client auth.
+  // For origin bound certificates in client auth.
+  bool ob_cert_xtn_negotiated_;
   OriginBoundCertService* origin_bound_cert_service_;
+  SSLClientCertType ob_cert_type_;
+  std::string ob_private_key_;
+  std::string ob_cert_;
+  OriginBoundCertService::RequestHandle ob_cert_request_handle_;
 
   // True if NSS has called HandshakeCallback.
   bool handshake_callback_called_;
 
   // True if the SSL handshake has been completed.
   bool completed_handshake_;
+
+  // ssl_session_cache_shard_ is an opaque string that partitions the SSL
+  // session cache. i.e. sessions created with one value will not attempt to
+  // resume on the socket with a different value.
+  const std::string ssl_session_cache_shard_;
 
   // True iff we believe that the user has an ESET product intercepting our
   // HTTPS connections.
@@ -237,9 +283,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // True iff |ssl_host_info_| contained a predicted certificate chain and
   // that we found the prediction to be correct.
   bool predicted_cert_chain_correct_;
-
-  // The time when we started waiting for DNSSEC records.
-  base::Time dnssec_wait_start_time_;
 
   State next_handshake_state_;
 
@@ -254,7 +297,14 @@ class SSLClientSocketNSS : public SSLClientSocket {
   base::TimeTicks start_cert_verification_time_;
 
   scoped_ptr<SSLHostInfo> ssl_host_info_;
-  DnsCertProvenanceChecker* const dns_cert_checker_;
+
+  TransportSecurityState* transport_security_state_;
+
+  // next_proto_ is the protocol that we selected by NPN.
+  std::string next_proto_;
+  NextProtoStatus next_proto_status_;
+  // Server's NPN advertised protocols.
+  std::string server_protos_;
 
   // The following two variables are added for debugging bug 65948. Will
   // remove this code after fixing bug 65948.

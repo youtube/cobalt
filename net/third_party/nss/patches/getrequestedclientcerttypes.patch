@@ -1,0 +1,103 @@
+Index: security/nss/lib/ssl/ssl.h
+===================================================================
+RCS file: /cvsroot/mozilla/security/nss/lib/ssl/ssl.h,v
+retrieving revision 1.38.2.1
+diff -u -r1.38.2.1 ssl.h
+--- security/nss/lib/ssl/ssl.h	31 Jul 2010 04:33:52 -0000	1.38.2.1
++++ security/nss/lib/ssl/ssl.h	6 Dec 2011 00:24:08 -0000
+@@ -459,6 +459,16 @@
+                                                 PRBool flushCache,
+                                                 PRIntervalTime timeout);
+ 
++/* Returns a SECItem containing the certificate_types field of the
++** CertificateRequest message.  Each byte of the data is a TLS
++** ClientCertificateType value, and they are ordered from most preferred to
++** least.  This function should only be called from the
++** SSL_GetClientAuthDataHook callback, and will return NULL if called at any
++** other time.  The returned value is valid only until the callback returns, and
++** should not be freed.
++*/
++SSL_IMPORT const SECItem *
++SSL_GetRequestedClientCertificateTypes(PRFileDesc *fd);
+ 
+ #ifdef SSL_DEPRECATED_FUNCTION 
+ /* deprecated!
+Index: security/nss/lib/ssl/ssl3con.c
+===================================================================
+RCS file: /cvsroot/mozilla/security/nss/lib/ssl/ssl3con.c,v
+retrieving revision 1.142.2.4
+diff -u -r1.142.2.4 ssl3con.c
+--- security/nss/lib/ssl/ssl3con.c	1 Sep 2010 19:47:11 -0000	1.142.2.4
++++ security/nss/lib/ssl/ssl3con.c	6 Dec 2011 00:24:08 -0000
+@@ -5473,6 +5473,9 @@
+     if (rv != SECSuccess)
+     	goto loser;		/* malformed, alert has been sent */
+ 
++    PORT_Assert(!ss->requestedCertTypes);
++    ss->requestedCertTypes = &cert_types;
++
+     arena = ca_list.arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
+     if (arena == NULL)
+     	goto no_mem;
+@@ -5608,6 +5611,7 @@
+     PORT_SetError(errCode);
+     rv = SECFailure;
+ done:
++    ss->requestedCertTypes = NULL;
+     if (arena != NULL)
+     	PORT_FreeArena(arena, PR_FALSE);
+     return rv;
+Index: security/nss/lib/ssl/sslimpl.h
+===================================================================
+RCS file: /cvsroot/mozilla/security/nss/lib/ssl/sslimpl.h,v
+retrieving revision 1.77.2.1
+diff -u -r1.77.2.1 sslimpl.h
+--- security/nss/lib/ssl/sslimpl.h	31 Jul 2010 04:33:52 -0000	1.77.2.1
++++ security/nss/lib/ssl/sslimpl.h	6 Dec 2011 00:24:08 -0000
+@@ -1044,6 +1044,10 @@
+     unsigned int     sizeCipherSpecs;
+ const unsigned char *  preferredCipher;
+ 
++    /* TLS ClientCertificateTypes requested during HandleCertificateRequest. */
++    /* Will be NULL at all other times. */
++    const SECItem      *requestedCertTypes;
++
+     ssl3KeyPair *         stepDownKeyPair;	/* RSA step down keys */
+ 
+     /* Callbacks */
+Index: security/nss/lib/ssl/sslsock.c
+===================================================================
+RCS file: /cvsroot/mozilla/security/nss/lib/ssl/sslsock.c,v
+retrieving revision 1.67.2.1
+diff -u -r1.67.2.1 sslsock.c
+--- security/nss/lib/ssl/sslsock.c	31 Jul 2010 04:33:52 -0000	1.67.2.1
++++ security/nss/lib/ssl/sslsock.c	6 Dec 2011 00:24:08 -0000
+@@ -1373,6 +1373,20 @@
+     return NULL;
+ }
+ 
++const SECItem *
++SSL_GetRequestedClientCertificateTypes(PRFileDesc *fd)
++{
++  sslSocket *ss = ssl_FindSocket(fd);
++
++  if (!ss) {
++      SSL_DBG(("%d: SSL[%d]: bad socket in "
++               "SSL_GetRequestedClientCertificateTypes", SSL_GETPID(), fd));
++      return NULL;
++  }
++
++  return ss->requestedCertTypes;
++}
++
+ /************************************************************************/
+ /* The following functions are the TOP LEVEL SSL functions.
+ ** They all get called through the NSPRIOMethods table below.
+@@ -2357,6 +2371,7 @@
+ 	    sc->serverKeyPair   = NULL;
+ 	    sc->serverKeyBits   = 0;
+ 	}
++	ss->requestedCertTypes = NULL;
+ 	ss->stepDownKeyPair    = NULL;
+ 	ss->dbHandle           = CERT_GetDefaultCertDB();
+ 

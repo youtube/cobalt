@@ -1,10 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "media/base/filter_collection.h"
 
 #include "base/logging.h"
+#include "media/base/audio_decoder.h"
 
 namespace media {
 
@@ -12,9 +13,9 @@ FilterCollection::FilterCollection() {}
 
 FilterCollection::~FilterCollection() {}
 
-void FilterCollection::SetDemuxerFactory(DemuxerFactory* factory) {
-  DCHECK(factory);
-  demuxer_factory_.reset(factory);
+void FilterCollection::SetDemuxerFactory(scoped_ptr<DemuxerFactory> factory) {
+  DCHECK(factory.get());
+  demuxer_factory_ = factory.Pass();
 }
 
 DemuxerFactory* FilterCollection::GetDemuxerFactory() {
@@ -22,11 +23,15 @@ DemuxerFactory* FilterCollection::GetDemuxerFactory() {
 }
 
 void FilterCollection::AddVideoDecoder(VideoDecoder* filter) {
+  scoped_refptr<media::VideoDecoder> old_videodecoder;
+  do {
+    SelectVideoDecoder(&old_videodecoder);
+  } while (old_videodecoder);
   AddFilter(VIDEO_DECODER, filter);
 }
 
-void FilterCollection::AddAudioDecoder(AudioDecoder* filter) {
-  AddFilter(AUDIO_DECODER, filter);
+void FilterCollection::AddAudioDecoder(AudioDecoder* audio_decoder) {
+  audio_decoders_.push_back(audio_decoder);
 }
 
 void FilterCollection::AddVideoRenderer(VideoRenderer* filter) {
@@ -38,11 +43,12 @@ void FilterCollection::AddAudioRenderer(AudioRenderer* filter) {
 }
 
 bool FilterCollection::IsEmpty() const {
-  return filters_.empty();
+  return filters_.empty() && audio_decoders_.empty();
 }
 
 void FilterCollection::Clear() {
   filters_.clear();
+  audio_decoders_.clear();
 }
 
 void FilterCollection::SelectVideoDecoder(
@@ -50,9 +56,13 @@ void FilterCollection::SelectVideoDecoder(
   SelectFilter<VIDEO_DECODER>(filter_out);
 }
 
-void FilterCollection::SelectAudioDecoder(
-    scoped_refptr<AudioDecoder>* filter_out) {
-  SelectFilter<AUDIO_DECODER>(filter_out);
+void FilterCollection::SelectAudioDecoder(scoped_refptr<AudioDecoder>* out) {
+  if (audio_decoders_.empty()) {
+    *out = NULL;
+    return;
+  }
+  *out = audio_decoders_.front();
+  audio_decoders_.pop_front();
 }
 
 void FilterCollection::SelectVideoRenderer(

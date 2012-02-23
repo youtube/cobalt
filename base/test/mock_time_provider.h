@@ -39,11 +39,12 @@
 //   ASSERT_EQ(elapsed, TimeDelta::FromSeconds(6));
 // }
 
-#include "base/time.h"
-#include "testing/gmock/include/gmock/gmock.h"
-
 #ifndef BASE_TEST_MOCK_TIME_PROVIDER_H_
 #define BASE_TEST_MOCK_TIME_PROVIDER_H_
+#pragma once
+
+#include "base/time.h"
+#include "testing/gmock/include/gmock/gmock.h"
 
 namespace base {
 

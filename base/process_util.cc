@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -60,6 +60,17 @@ NamedProcessIterator::NamedProcessIterator(
     const FilePath::StringType& executable_name,
     const ProcessFilter* filter) : ProcessIterator(filter),
                                    executable_name_(executable_name) {
+#if defined(OS_ANDROID)
+  // On Android, the process name contains only the last 15 characters, which
+  // is in file /proc/<pid>/stat, the string between open parenthesis and close
+  // parenthesis. Please See ProcessIterator::CheckForNextProcess for details.
+  // Now if the length of input process name is greater than 15, only save the
+  // last 15 characters.
+  if (executable_name_.size() > 15) {
+    executable_name_ = FilePath::StringType(executable_name_,
+                                            executable_name_.size() - 15, 15);
+  }
+#endif
 }
 
 NamedProcessIterator::~NamedProcessIterator() {

@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_PROXY_DHCP_SCRIPT_ADAPTER_FETCHER_WIN_H_
-#define NET_PROXY_DHCP_SCRIPT_ADAPTER_FETCHER_WIN_H_
+#ifndef NET_PROXY_DHCP_PROXY_SCRIPT_ADAPTER_FETCHER_WIN_H_
+#define NET_PROXY_DHCP_PROXY_SCRIPT_ADAPTER_FETCHER_WIN_H_
 #pragma once
+
+#include <string>
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
@@ -13,12 +15,8 @@
 #include "base/threading/non_thread_safe.h"
 #include "base/timer.h"
 #include "net/base/completion_callback.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "googleurl/src/gurl.h"
-
-namespace base {
-class MessageLoopProxy;
-}
 
 namespace net {
 
@@ -27,7 +25,7 @@ class URLRequestContext;
 
 // For a given adapter, this class takes care of first doing a DHCP lookup
 // to get the PAC URL, then if there is one, trying to fetch it.
-class NET_TEST DhcpProxyScriptAdapterFetcher
+class NET_EXPORT_PRIVATE DhcpProxyScriptAdapterFetcher
     : public base::SupportsWeakPtr<DhcpProxyScriptAdapterFetcher>,
       NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
@@ -45,7 +43,7 @@ class NET_TEST DhcpProxyScriptAdapterFetcher
   // You may only call Fetch() once on a given instance of
   // DhcpProxyScriptAdapterFetcher.
   virtual void Fetch(const std::string& adapter_name,
-                     CompletionCallback* callback);
+                     const net::CompletionCallback& callback);
 
   // Cancels the fetch on this adapter.
   virtual void Cancel();
@@ -107,62 +105,42 @@ class NET_TEST DhcpProxyScriptAdapterFetcher
 
   State state() const;
 
-  // This inner class is used to encapsulate the worker thread, which has
-  // only a weak reference back to the main object, so that the main object
-  // can be destroyed before the thread ends.  This also keeps the main
-  // object completely thread safe and allows it to be non-refcounted.
-  //
-  // TODO(joi): Replace with PostTaskAndReply once http://crbug.com/86301
-  // has been implemented.
-  class NET_TEST WorkerThread
-      : public base::RefCountedThreadSafe<WorkerThread> {
+  // This inner class encapsulates work done on a worker pool thread.
+  // By using a separate object, we can keep the main object completely
+  // thread safe and let it be non-refcounted.
+  class NET_EXPORT_PRIVATE DhcpQuery
+      : public base::RefCountedThreadSafe<DhcpQuery> {
    public:
-    // Creates and initializes (but does not start) the worker thread.
-    explicit WorkerThread(
-        const base::WeakPtr<DhcpProxyScriptAdapterFetcher>& owner);
-    virtual ~WorkerThread();
+    DhcpQuery();
+    virtual ~DhcpQuery();
 
-    // Starts the worker thread, fetching information for |adapter_name| using
-    // |get_pac_from_url_func|.
-    void Start(const std::string& adapter_name);
+    // This method should run on a worker pool thread, via PostTaskAndReply.
+    // After it has run, the |url()| method on this object will return the
+    // URL retrieved.
+    void GetPacURLForAdapter(const std::string& adapter_name);
+
+    // Returns the URL retrieved for the given adapter, once the task has run.
+    const std::string& url() const;
 
    protected:
     // Virtual method introduced to allow unit testing.
     virtual std::string ImplGetPacURLFromDhcp(const std::string& adapter_name);
 
    private:
-    // This is the method that runs on the worker thread.
-    void ThreadFunc(const std::string& adapter_name);
+    // The URL retrieved for the given adapter.
+    std::string url_;
 
-    // Callback for the above; this executes back on the main thread,
-    // not the worker thread.
-    void OnThreadDone(const std::string& url);
-
-    // All work except ThreadFunc and (sometimes) destruction should occur
-    // on the thread that constructs the object.
-    base::ThreadChecker thread_checker_;
-
-    // May only be accessed on the thread that constructs the object.
-    base::WeakPtr<DhcpProxyScriptAdapterFetcher> owner_;
-
-    // Used by worker thread to post a message back to the original
-    // thread.  Fine to use a proxy since in the case where the original
-    // thread has gone away, that would mean the |owner_| object is gone
-    // anyway, so there is nobody to receive the result.
-    scoped_refptr<base::MessageLoopProxy> origin_loop_;
-
-    DISALLOW_COPY_AND_ASSIGN(WorkerThread);
+    DISALLOW_COPY_AND_ASSIGN(DhcpQuery);
   };
 
   // Virtual methods introduced to allow unit testing.
   virtual ProxyScriptFetcher* ImplCreateScriptFetcher();
-  virtual WorkerThread* ImplCreateWorkerThread(
-      const base::WeakPtr<DhcpProxyScriptAdapterFetcher>& owner);
+  virtual DhcpQuery* ImplCreateDhcpQuery();
   virtual base::TimeDelta ImplGetTimeout() const;
 
  private:
   // Event/state transition handlers
-  void OnQueryDhcpDone(const std::string& url);
+  void OnDhcpQueryDone(scoped_refptr<DhcpQuery> dhcp_query);
   void OnTimeout();
   void OnFetcherDone(int result);
   void TransitionToFinish();
@@ -181,17 +159,10 @@ class NET_TEST DhcpProxyScriptAdapterFetcher
 
   // Callback to let our client know we're done. Invalid in states
   // START, FINISH and CANCEL.
-  CompletionCallback* callback_;
-
-  // Container for our worker thread. NULL if not currently running.
-  scoped_refptr<WorkerThread> worker_thread_;
+  net::CompletionCallback callback_;
 
   // Fetcher to retrieve PAC files once URL is known.
   scoped_ptr<ProxyScriptFetcher> script_fetcher_;
-
-  // Callback from the script fetcher.
-  CompletionCallbackImpl<DhcpProxyScriptAdapterFetcher>
-      script_fetcher_callback_;
 
   // Implements a timeout on the call to the Win32 DHCP API.
   base::OneShotTimer<DhcpProxyScriptAdapterFetcher> wait_timer_;
@@ -203,4 +174,4 @@ class NET_TEST DhcpProxyScriptAdapterFetcher
 
 }  // namespace net
 
-#endif  // NET_PROXY_DHCP_SCRIPT_ADAPTER_FETCHER_WIN_H_
+#endif  // NET_PROXY_DHCP_PROXY_SCRIPT_ADAPTER_FETCHER_WIN_H_

@@ -48,7 +48,7 @@ struct Provider {
   bool is_static;
 };
 
-static Provider base_provider = {
+Provider base_provider = {
   base::PathProvider,
   NULL,
 #ifndef NDEBUG
@@ -59,7 +59,7 @@ static Provider base_provider = {
 };
 
 #if defined(OS_WIN)
-static Provider base_provider_win = {
+Provider base_provider_win = {
   base::PathProviderWin,
   &base_provider,
 #ifndef NDEBUG
@@ -71,7 +71,7 @@ static Provider base_provider_win = {
 #endif
 
 #if defined(OS_MACOSX)
-static Provider base_provider_mac = {
+Provider base_provider_mac = {
   base::PathProviderMac,
   &base_provider,
 #ifndef NDEBUG
@@ -83,7 +83,7 @@ static Provider base_provider_mac = {
 #endif
 
 #if defined(OS_ANDROID)
-static Provider base_provider_android = {
+Provider base_provider_android = {
   base::PathProviderAndroid,
   &base_provider,
 #ifndef NDEBUG
@@ -95,7 +95,7 @@ static Provider base_provider_android = {
 #endif
 
 #if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_ANDROID)
-static Provider base_provider_posix = {
+Provider base_provider_posix = {
 #if defined(__LB_SHELL__)
   base::PathProviderShell,
 #else
@@ -140,7 +140,7 @@ struct PathData {
   }
 };
 
-static base::LazyInstance<PathData> g_path_data(base::LINKER_INITIALIZED);
+static base::LazyInstance<PathData> g_path_data = LAZY_INSTANCE_INITIALIZER;
 
 static PathData* GetPathData() {
   return g_path_data.Pointer();
@@ -168,7 +168,7 @@ bool PathService::GetFromOverrides(int key, FilePath* result) {
   PathData* path_data = GetPathData();
   base::AutoLock scoped_lock(path_data->lock);
 
-  // check for an overriden version.
+  // check for an overridden version.
   PathMap::const_iterator it = path_data->overrides.find(key);
   if (it != path_data->overrides.end()) {
     *result = it->second;
@@ -236,13 +236,13 @@ bool PathService::Override(int key, const FilePath& path) {
 
   // Make sure the directory exists. We need to do this before we translate
   // this to the absolute path because on POSIX, AbsolutePath fails if called
-  // on a non-existant path.
+  // on a non-existent path.
   if (!file_util::PathExists(file_path) &&
       !file_util::CreateDirectory(file_path))
     return false;
 
   // We need to have an absolute path, as extensions and plugins don't like
-  // relative paths, and will glady crash the browser in CHECK()s if they get a
+  // relative paths, and will gladly crash the browser in CHECK()s if they get a
   // relative path.
   if (!file_util::AbsolutePath(&file_path))
     return false;

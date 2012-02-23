@@ -9,7 +9,7 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "net/base/net_api.h"
+#include "net/base/net_export.h"
 #include "net/base/net_util.h"
 
 struct addrinfo;
@@ -18,7 +18,7 @@ namespace net {
 
 // An AddressList object contains a linked list of addrinfo structures.  This
 // class is designed to be copied around by value.
-class NET_API AddressList {
+class NET_EXPORT AddressList {
  public:
   // Constructs an invalid address list. Should not call any methods on this
   // other than assignment.
@@ -114,7 +114,8 @@ class NET_API AddressList {
 // Helper to create an AddressList that has a particular port. It has an
 // optimization to avoid allocating a new address linked list when the
 // port is already what we want.
-AddressList CreateAddressListUsingPort(const AddressList& src, int port);
+AddressList NET_EXPORT CreateAddressListUsingPort(const AddressList& src,
+                                                  int port);
 
 }  // namespace net
 

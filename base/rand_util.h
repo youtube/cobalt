@@ -19,12 +19,12 @@ BASE_EXPORT uint64 RandUint64();
 // Returns a random number between min and max (inclusive). Thread-safe.
 BASE_EXPORT int RandInt(int min, int max);
 
-// Returns a random number in range [0, max).  Thread-safe.
+// Returns a random number in range [0, range).  Thread-safe.
 //
 // Note that this can be used as an adapter for std::random_shuffle():
 // Given a pre-populated |std::vector<int> myvector|, shuffle it as
 //   std::random_shuffle(myvector.begin(), myvector.end(), base::RandGenerator);
-BASE_EXPORT uint64 RandGenerator(uint64 max);
+BASE_EXPORT uint64 RandGenerator(uint64 range);
 
 // Returns a random double in range [0, 1). Thread-safe.
 BASE_EXPORT double RandDouble();
@@ -38,9 +38,9 @@ BASE_EXPORT double BitsToOpenEndedUnitInterval(uint64 bits);
 BASE_EXPORT void RandBytes(void* output, size_t output_length);
 
 // Fills a string of length |length| with with cryptographically strong random
-// data and returns it.
+// data and returns it.  |length| should be nonzero.
 //
-// Not that this is a variation of |RandBytes| with a different return type.
+// Note that this is a variation of |RandBytes| with a different return type.
 BASE_EXPORT std::string RandBytesAsString(size_t length);
 
 }  // namespace base

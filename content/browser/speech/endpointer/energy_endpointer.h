@@ -42,6 +42,7 @@
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
 #include "content/browser/speech/endpointer/energy_endpointer_params.h"
+#include "content/common/content_export.h"
 
 namespace speech_input {
 
@@ -54,7 +55,7 @@ enum EpStatus {
   EP_POST_SPEECH,
 };
 
-class EnergyEndpointer {
+class CONTENT_EXPORT EnergyEndpointer {
  public:
   // The default construction MUST be followed by Init(), before any
   // other use can be made of the instance.

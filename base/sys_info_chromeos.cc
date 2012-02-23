@@ -9,6 +9,7 @@
 #include "base/file_util.h"
 #include "base/lazy_instance.h"
 #include "base/string_number_conversions.h"
+#include "base/string_piece.h"
 #include "base/string_tokenizer.h"
 #include "base/threading/thread_restrictions.h"
 
@@ -40,7 +41,7 @@ struct ChromeOSVersionNumbers {
 };
 
 static base::LazyInstance<ChromeOSVersionNumbers>
-    g_chrome_os_version_numbers(base::LINKER_INITIALIZED);
+    g_chrome_os_version_numbers = LAZY_INSTANCE_INITIALIZER;
 
 // static
 void SysInfo::OperatingSystemVersionNumbers(int32* major_version,
@@ -94,22 +95,19 @@ void SysInfo::ParseLsbRelease(const std::string& lsb_release,
   size_t length = lsb_release.find_first_of('\n', start_index) - start_index;
   std::string version = lsb_release.substr(start_index, length);
   StringTokenizer tokenizer(version, ".");
-  // TODO(rkc): Ignore the 0. here; fix this once we move Chrome OS version
-  // numbers from the 0.xx.yyy.zz format to the xx.yyy.zz format.
-  // Refer to http://code.google.com/p/chromium-os/issues/detail?id=15789
-  for (int i = 0; i < 4 && tokenizer.GetNext(); i++) {
-    if (1 == i) {
-      StringToInt(tokenizer.token_begin(),
-                  tokenizer.token_end(),
+  for (int i = 0; i < 3 && tokenizer.GetNext(); ++i) {
+    if (0 == i) {
+      StringToInt(StringPiece(tokenizer.token_begin(),
+                              tokenizer.token_end()),
                   major_version);
       *minor_version = *bugfix_version = 0;
-    } else if (2 == i) {
-      StringToInt(tokenizer.token_begin(),
-                  tokenizer.token_end(),
+    } else if (1 == i) {
+      StringToInt(StringPiece(tokenizer.token_begin(),
+                              tokenizer.token_end()),
                   minor_version);
-    } else {  // 3 == i
-      StringToInt(tokenizer.token_begin(),
-                  tokenizer.token_end(),
+    } else {  // 2 == i
+      StringToInt(StringPiece(tokenizer.token_begin(),
+                              tokenizer.token_end()),
                   bugfix_version);
     }
   }

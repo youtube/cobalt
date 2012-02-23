@@ -1,9 +1,11 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/http/http_auth_handler.h"
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "base/logging.h"
 #include "net/base/net_errors.h"
 
@@ -13,11 +15,7 @@ HttpAuthHandler::HttpAuthHandler()
     : auth_scheme_(HttpAuth::AUTH_SCHEME_MAX),
       score_(-1),
       target_(HttpAuth::AUTH_NONE),
-      properties_(-1),
-      original_callback_(NULL),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          wrapper_callback_(
-              this, &HttpAuthHandler::OnGenerateAuthTokenComplete)) {
+      properties_(-1) {
 }
 
 HttpAuthHandler::~HttpAuthHandler() {
@@ -62,21 +60,21 @@ NetLog::EventType EventTypeFromAuthTarget(HttpAuth::Target target) {
 
 }  // namespace
 
-int HttpAuthHandler::GenerateAuthToken(const string16* username,
-                                       const string16* password,
-                                       const HttpRequestInfo* request,
-                                       CompletionCallback* callback,
-                                       std::string* auth_token) {
+int HttpAuthHandler::GenerateAuthToken(
+    const AuthCredentials* credentials, const HttpRequestInfo* request,
+    const CompletionCallback& callback, std::string* auth_token) {
   // TODO(cbentzel): Enforce non-NULL callback after cleaning up SocketStream.
   DCHECK(request);
-  DCHECK((username == NULL) == (password == NULL));
-  DCHECK(username != NULL || AllowsDefaultCredentials());
+  DCHECK(credentials != NULL || AllowsDefaultCredentials());
   DCHECK(auth_token != NULL);
-  DCHECK(original_callback_ == NULL);
-  original_callback_ = callback;
+  DCHECK(callback_.is_null());
+  callback_ = callback;
   net_log_.BeginEvent(EventTypeFromAuthTarget(target_), NULL);
-  int rv = GenerateAuthTokenImpl(username, password, request,
-                                 &wrapper_callback_, auth_token);
+  int rv = GenerateAuthTokenImpl(
+      credentials, request,
+      base::Bind(&HttpAuthHandler::OnGenerateAuthTokenComplete,
+                 base::Unretained(this)),
+      auth_token);
   if (rv != ERR_IO_PENDING)
     FinishGenerateAuthToken();
   return rv;
@@ -90,17 +88,21 @@ bool HttpAuthHandler::AllowsDefaultCredentials() {
   return false;
 }
 
+bool HttpAuthHandler::AllowsExplicitCredentials() {
+  return true;
+}
+
 void HttpAuthHandler::OnGenerateAuthTokenComplete(int rv) {
-  CompletionCallback* callback = original_callback_;
+  CompletionCallback callback = callback_;
   FinishGenerateAuthToken();
-  if (callback)
-    callback->Run(rv);
+  if (!callback.is_null())
+    callback.Run(rv);
 }
 
 void HttpAuthHandler::FinishGenerateAuthToken() {
   // TOOD(cbentzel): Should this be done in OK case only?
   net_log_.EndEvent(EventTypeFromAuthTarget(target_), NULL);
-  original_callback_ = NULL;
+  callback_.Reset();
 }
 
 }  // namespace net
