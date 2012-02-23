@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -75,13 +75,13 @@ class Eviction {
   IndexHeader* header_;
   int max_size_;
   int trim_delays_;
+  int index_size_;
   bool new_eviction_;
   bool first_trim_;
   bool trimming_;
   bool delay_trim_;
   bool init_;
   bool test_mode_;
-  bool in_experiment_;
   base::WeakPtrFactory<Eviction> ptr_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(Eviction);
