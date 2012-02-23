@@ -14,9 +14,11 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/shared_memory.h"
+#include "base/time.h"
 #if defined(OS_WIN)
 #include "base/win/windows_version.h"
 #endif
+#include "media/audio/audio_parameters.h"
 #include "media/audio/audio_util.h"
 #if defined(OS_MACOSX)
 #include "media/audio/mac/audio_low_latency_input_mac.h"
@@ -434,6 +436,31 @@ void Crossfade(int bytes_to_crossfade, int number_of_channels,
     default:
       NOTREACHED() << "Unsupported audio bit depth in crossfade.";
   }
+}
+
+// The minimum number of samples in a hardware packet.
+// This value is selected so that we can handle down to 5khz sample rate.
+static const int kMinSamplesPerHardwarePacket = 1024;
+
+// The maximum number of samples in a hardware packet.
+// This value is selected so that we can handle up to 192khz sample rate.
+static const int kMaxSamplesPerHardwarePacket = 64 * 1024;
+
+// This constant governs the hardware audio buffer size, this value should be
+// chosen carefully.
+// This value is selected so that we have 8192 samples for 48khz streams.
+static const int kMillisecondsPerHardwarePacket = 170;
+
+uint32 SelectSamplesPerPacket(int sample_rate) {
+  // Select the number of samples that can provide at least
+  // |kMillisecondsPerHardwarePacket| worth of audio data.
+  int samples = kMinSamplesPerHardwarePacket;
+  while (samples <= kMaxSamplesPerHardwarePacket &&
+         samples * base::Time::kMillisecondsPerSecond <
+         sample_rate * kMillisecondsPerHardwarePacket) {
+    samples *= 2;
+  }
+  return samples;
 }
 
 }  // namespace media
