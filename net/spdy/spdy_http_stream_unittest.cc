@@ -69,7 +69,7 @@ TEST_F(SpdyHttpStreamTest, SendRequest) {
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   MockRead reads[] = {
     CreateMockRead(*resp, 2),
-    MockRead(false, 0, 3)  // EOF
+    MockRead(SYNCHRONOUS, 0, 3)  // EOF
   };
 
   HostPortPair host_port_pair("www.google.com", 80);
@@ -125,7 +125,7 @@ TEST_F(SpdyHttpStreamTest, SendChunkedPost) {
     CreateMockRead(*resp, 4),
     CreateMockRead(*chunk1, 5),
     CreateMockRead(*chunk2, 5),
-    MockRead(false, 0, 6)  // EOF
+    MockRead(SYNCHRONOUS, 0, 6)  // EOF
   };
 
   HostPortPair host_port_pair("www.google.com", 80);
@@ -184,7 +184,7 @@ TEST_F(SpdyHttpStreamTest, SpdyURLTest) {
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   MockRead reads[] = {
     CreateMockRead(*resp, 2),
-    MockRead(false, 0, 3)  // EOF
+    MockRead(SYNCHRONOUS, 0, 3)  // EOF
   };
 
   HostPortPair host_port_pair("www.google.com", 80);
@@ -302,7 +302,7 @@ TEST_F(SpdyHttpStreamTest, SendCredentials) {
   MockRead reads[] = {
     CreateMockRead(*resp, 1),
     CreateMockRead(*resp2, 4),
-    MockRead(false, 0, 5)  // EOF
+    MockRead(SYNCHRONOUS, 0, 5)  // EOF
   };
 
   HostPortPair host_port_pair("www.google.com", 80);
@@ -314,7 +314,7 @@ TEST_F(SpdyHttpStreamTest, SendCredentials) {
       new DeterministicSocketData(reads, arraysize(reads),
                                   writes, arraysize(writes)));
   socket_factory->AddSocketDataProvider(data.get());
-  SSLSocketDataProvider ssl(false, OK);
+  SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
   ssl.origin_bound_cert_type = CLIENT_CERT_RSA_SIGN;
   ssl.origin_bound_cert_service = obc_service.get();
   ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY3;

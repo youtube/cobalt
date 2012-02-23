@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -616,9 +616,10 @@ TEST_F(SSLClientSocketTest, PrematureApplicationData) {
 
   // All reads and writes complete synchronously (async=false).
   net::MockRead data_reads[] = {
-    net::MockRead(false, reinterpret_cast<const char*>(application_data),
+    net::MockRead(net::SYNCHRONOUS,
+                  reinterpret_cast<const char*>(application_data),
                   arraysize(application_data)),
-    net::MockRead(false, net::OK),
+    net::MockRead(net::SYNCHRONOUS, net::OK),
   };
 
   net::StaticSocketDataProvider data(data_reads, arraysize(data_reads),

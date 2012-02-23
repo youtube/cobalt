@@ -179,12 +179,12 @@ TEST_F(HttpPipelinedConnectionImplTest, StreamBoundButNotUsed) {
 
 TEST_F(HttpPipelinedConnectionImplTest, SyncSingleRequest) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 2, "Content-Length: 7\r\n\r\n"),
-    MockRead(false, 3, "ok.html"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 2, "Content-Length: 7\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 3, "ok.html"),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -194,12 +194,12 @@ TEST_F(HttpPipelinedConnectionImplTest, SyncSingleRequest) {
 
 TEST_F(HttpPipelinedConnectionImplTest, AsyncSingleRequest) {
   MockWrite writes[] = {
-    MockWrite(true, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(ASYNC, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(true, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(true, 2, "Content-Length: 7\r\n\r\n"),
-    MockRead(true, 3, "ok.html"),
+    MockRead(ASYNC, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(ASYNC, 2, "Content-Length: 7\r\n\r\n"),
+    MockRead(ASYNC, 3, "ok.html"),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -223,16 +223,16 @@ TEST_F(HttpPipelinedConnectionImplTest, AsyncSingleRequest) {
 
 TEST_F(HttpPipelinedConnectionImplTest, LockStepAsyncRequests) {
   MockWrite writes[] = {
-    MockWrite(true, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
-    MockWrite(true, 1, "GET /ko.html HTTP/1.1\r\n\r\n"),
+    MockWrite(ASYNC, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(ASYNC, 1, "GET /ko.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(true, 2, "HTTP/1.1 200 OK\r\n"),
-    MockRead(true, 3, "Content-Length: 7\r\n\r\n"),
-    MockRead(true, 4, "ok.html"),
-    MockRead(true, 5, "HTTP/1.1 200 OK\r\n"),
-    MockRead(true, 6, "Content-Length: 7\r\n\r\n"),
-    MockRead(true, 7, "ko.html"),
+    MockRead(ASYNC, 2, "HTTP/1.1 200 OK\r\n"),
+    MockRead(ASYNC, 3, "Content-Length: 7\r\n\r\n"),
+    MockRead(ASYNC, 4, "ok.html"),
+    MockRead(ASYNC, 5, "HTTP/1.1 200 OK\r\n"),
+    MockRead(ASYNC, 6, "Content-Length: 7\r\n\r\n"),
+    MockRead(ASYNC, 7, "ko.html"),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -274,11 +274,11 @@ TEST_F(HttpPipelinedConnectionImplTest, LockStepAsyncRequests) {
 
 TEST_F(HttpPipelinedConnectionImplTest, TwoResponsesInOnePacket) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 1, "GET /ko.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 1, "GET /ko.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 2,
+    MockRead(SYNCHRONOUS, 2,
              "HTTP/1.1 200 OK\r\n"
              "Content-Length: 7\r\n\r\n"
              "ok.html"
@@ -311,16 +311,16 @@ TEST_F(HttpPipelinedConnectionImplTest, TwoResponsesInOnePacket) {
 
 TEST_F(HttpPipelinedConnectionImplTest, SendOrderSwapped) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ko.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 4, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /ko.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 4, "GET /ok.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 2, "Content-Length: 7\r\n\r\n"),
-    MockRead(false, 3, "ko.html"),
-    MockRead(false, 5, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 6, "Content-Length: 7\r\n\r\n"),
-    MockRead(false, 7, "ok.html"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 2, "Content-Length: 7\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 3, "ko.html"),
+    MockRead(SYNCHRONOUS, 5, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 6, "Content-Length: 7\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 7, "ok.html"),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -333,16 +333,16 @@ TEST_F(HttpPipelinedConnectionImplTest, SendOrderSwapped) {
 
 TEST_F(HttpPipelinedConnectionImplTest, ReadOrderSwapped) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 1, "GET /ko.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 1, "GET /ko.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 2, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 3, "Content-Length: 7\r\n\r\n"),
-    MockRead(false, 4, "ok.html"),
-    MockRead(false, 5, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 6, "Content-Length: 7\r\n\r\n"),
-    MockRead(false, 7, "ko.html"),
+    MockRead(SYNCHRONOUS, 2, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 3, "Content-Length: 7\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 4, "ok.html"),
+    MockRead(SYNCHRONOUS, 5, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 6, "Content-Length: 7\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 7, "ko.html"),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -374,16 +374,16 @@ TEST_F(HttpPipelinedConnectionImplTest, ReadOrderSwapped) {
 
 TEST_F(HttpPipelinedConnectionImplTest, SendWhileReading) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 3, "GET /ko.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 3, "GET /ko.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 2, "Content-Length: 7\r\n\r\n"),
-    MockRead(false, 4, "ok.html"),
-    MockRead(false, 5, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 6, "Content-Length: 7\r\n\r\n"),
-    MockRead(false, 7, "ko.html"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 2, "Content-Length: 7\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 4, "ok.html"),
+    MockRead(SYNCHRONOUS, 5, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 6, "Content-Length: 7\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 7, "ko.html"),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -411,16 +411,16 @@ TEST_F(HttpPipelinedConnectionImplTest, SendWhileReading) {
 
 TEST_F(HttpPipelinedConnectionImplTest, AsyncSendWhileAsyncReadBlocked) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
-    MockWrite(true, 3, "GET /ko.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(ASYNC, 3, "GET /ko.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 2, "Content-Length: 7\r\n\r\n"),
-    MockRead(true, 4, "ok.html"),
-    MockRead(false, 5, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 6, "Content-Length: 7\r\n\r\n"),
-    MockRead(false, 7, "ko.html"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 2, "Content-Length: 7\r\n\r\n"),
+    MockRead(ASYNC, 4, "ok.html"),
+    MockRead(SYNCHRONOUS, 5, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 6, "Content-Length: 7\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 7, "ko.html"),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -464,12 +464,12 @@ TEST_F(HttpPipelinedConnectionImplTest, AsyncSendWhileAsyncReadBlocked) {
 
 TEST_F(HttpPipelinedConnectionImplTest, UnusedStreamAllowsLaterUse) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 2, "Content-Length: 7\r\n\r\n"),
-    MockRead(false, 3, "ok.html"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 2, "Content-Length: 7\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 3, "ok.html"),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -482,16 +482,16 @@ TEST_F(HttpPipelinedConnectionImplTest, UnusedStreamAllowsLaterUse) {
 
 TEST_F(HttpPipelinedConnectionImplTest, UnsentStreamAllowsLaterUse) {
   MockWrite writes[] = {
-    MockWrite(true, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 4, "GET /ko.html HTTP/1.1\r\n\r\n"),
+    MockWrite(ASYNC, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 4, "GET /ko.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(true, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(true, 2, "Content-Length: 7\r\n\r\n"),
-    MockRead(true, 3, "ok.html"),
-    MockRead(false, 5, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 6, "Content-Length: 7\r\n\r\n"),
-    MockRead(false, 7, "ko.html"),
+    MockRead(ASYNC, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(ASYNC, 2, "Content-Length: 7\r\n\r\n"),
+    MockRead(ASYNC, 3, "ok.html"),
+    MockRead(SYNCHRONOUS, 5, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 6, "Content-Length: 7\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 7, "ko.html"),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -528,7 +528,7 @@ TEST_F(HttpPipelinedConnectionImplTest, UnsentStreamAllowsLaterUse) {
 
 TEST_F(HttpPipelinedConnectionImplTest, FailedSend) {
   MockWrite writes[] = {
-    MockWrite(true, ERR_FAILED),
+    MockWrite(ASYNC, ERR_FAILED),
   };
   Initialize(NULL, 0, writes, arraysize(writes));
 
@@ -566,14 +566,14 @@ TEST_F(HttpPipelinedConnectionImplTest, FailedSend) {
 
 TEST_F(HttpPipelinedConnectionImplTest, ConnectionSuddenlyClosedAfterResponse) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 1, "GET /read_evicted.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 2, "GET /read_rejected.html HTTP/1.1\r\n\r\n"),
-    MockWrite(true, ERR_SOCKET_NOT_CONNECTED, 5),
+    MockWrite(SYNCHRONOUS, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 1, "GET /read_evicted.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 2, "GET /read_rejected.html HTTP/1.1\r\n\r\n"),
+    MockWrite(ASYNC, ERR_SOCKET_NOT_CONNECTED, 5),
   };
   MockRead reads[] = {
-    MockRead(false, 3, "HTTP/1.1 200 OK\r\n\r\n"),
-    MockRead(false, 4, "ok.html"),
+    MockRead(SYNCHRONOUS, 3, "HTTP/1.1 200 OK\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 4, "ok.html"),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -637,7 +637,7 @@ TEST_F(HttpPipelinedConnectionImplTest, ConnectionSuddenlyClosedAfterResponse) {
 
 TEST_F(HttpPipelinedConnectionImplTest, AbortWhileSending) {
   MockWrite writes[] = {
-    MockWrite(true, 0, "GET /aborts.html HTTP/1.1\r\n\r\n"),
+    MockWrite(ASYNC, 0, "GET /aborts.html HTTP/1.1\r\n\r\n"),
   };
   Initialize(NULL, 0, writes, arraysize(writes));
 
@@ -663,8 +663,8 @@ TEST_F(HttpPipelinedConnectionImplTest, AbortWhileSending) {
 
 TEST_F(HttpPipelinedConnectionImplTest, AbortWhileSendingSecondRequest) {
   MockWrite writes[] = {
-    MockWrite(true, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
-    MockWrite(true, 1, "GET /aborts.html HTTP/1.1\r\n\r\n"),
+    MockWrite(ASYNC, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(ASYNC, 1, "GET /aborts.html HTTP/1.1\r\n\r\n"),
   };
   Initialize(NULL, 0, writes, arraysize(writes));
 
@@ -699,11 +699,11 @@ TEST_F(HttpPipelinedConnectionImplTest, AbortWhileSendingSecondRequest) {
 
 TEST_F(HttpPipelinedConnectionImplTest, AbortWhileReadingHeaders) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /aborts.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 1, "GET /evicted.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /aborts.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 1, "GET /evicted.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(true, ERR_FAILED, 2),
+    MockRead(ASYNC, ERR_FAILED, 2),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -736,14 +736,14 @@ TEST_F(HttpPipelinedConnectionImplTest, AbortWhileReadingHeaders) {
 
 TEST_F(HttpPipelinedConnectionImplTest, PendingResponseAbandoned) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 1, "GET /abandoned.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 2, "GET /evicted.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 1, "GET /abandoned.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 2, "GET /evicted.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 3, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 4, "Content-Length: 7\r\n\r\n"),
-    MockRead(false, 5, "ok.html"),
+    MockRead(SYNCHRONOUS, 3, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 4, "Content-Length: 7\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 5, "ok.html"),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -780,16 +780,16 @@ TEST_F(HttpPipelinedConnectionImplTest, PendingResponseAbandoned) {
 
 TEST_F(HttpPipelinedConnectionImplTest, DisconnectedAfterOneRequestRecovery) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 1, "GET /rejected.html HTTP/1.1\r\n\r\n"),
-    MockWrite(true, ERR_SOCKET_NOT_CONNECTED, 5),
-    MockWrite(false, ERR_SOCKET_NOT_CONNECTED, 7),
+    MockWrite(SYNCHRONOUS, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 1, "GET /rejected.html HTTP/1.1\r\n\r\n"),
+    MockWrite(ASYNC, ERR_SOCKET_NOT_CONNECTED, 5),
+    MockWrite(SYNCHRONOUS, ERR_SOCKET_NOT_CONNECTED, 7),
   };
   MockRead reads[] = {
-    MockRead(false, 2, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 3, "Content-Length: 7\r\n\r\n"),
-    MockRead(false, 4, "ok.html"),
-    MockRead(false, ERR_SOCKET_NOT_CONNECTED, 6),
+    MockRead(SYNCHRONOUS, 2, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 3, "Content-Length: 7\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 4, "ok.html"),
+    MockRead(SYNCHRONOUS, ERR_SOCKET_NOT_CONNECTED, 6),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -828,14 +828,14 @@ TEST_F(HttpPipelinedConnectionImplTest, DisconnectedAfterOneRequestRecovery) {
 
 TEST_F(HttpPipelinedConnectionImplTest, DisconnectedPendingReadRecovery) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 1, "GET /evicted.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 1, "GET /evicted.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 2, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 3, "Content-Length: 7\r\n\r\n"),
-    MockRead(false, 4, "ok.html"),
-    MockRead(false, ERR_SOCKET_NOT_CONNECTED, 5),
+    MockRead(SYNCHRONOUS, 2, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 3, "Content-Length: 7\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 4, "ok.html"),
+    MockRead(SYNCHRONOUS, ERR_SOCKET_NOT_CONNECTED, 5),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -864,14 +864,14 @@ TEST_F(HttpPipelinedConnectionImplTest, DisconnectedPendingReadRecovery) {
 
 TEST_F(HttpPipelinedConnectionImplTest, CloseCalledBeforeNextReadLoop) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 1, "GET /evicted.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 1, "GET /evicted.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 2, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 3, "Content-Length: 7\r\n\r\n"),
-    MockRead(false, 4, "ok.html"),
-    MockRead(false, ERR_SOCKET_NOT_CONNECTED, 5),
+    MockRead(SYNCHRONOUS, 2, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 3, "Content-Length: 7\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 4, "ok.html"),
+    MockRead(SYNCHRONOUS, ERR_SOCKET_NOT_CONNECTED, 5),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -898,14 +898,14 @@ TEST_F(HttpPipelinedConnectionImplTest, CloseCalledBeforeNextReadLoop) {
 
 TEST_F(HttpPipelinedConnectionImplTest, CloseCalledBeforeReadCallback) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 1, "GET /evicted.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 1, "GET /evicted.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 2, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 3, "Content-Length: 7\r\n\r\n"),
-    MockRead(false, 4, "ok.html"),
-    MockRead(false, ERR_SOCKET_NOT_CONNECTED, 5),
+    MockRead(SYNCHRONOUS, 2, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 3, "Content-Length: 7\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 4, "ok.html"),
+    MockRead(SYNCHRONOUS, ERR_SOCKET_NOT_CONNECTED, 5),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -958,7 +958,7 @@ class StreamDeleter {
 
 TEST_F(HttpPipelinedConnectionImplTest, CloseCalledDuringSendCallback) {
   MockWrite writes[] = {
-    MockWrite(true, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(ASYNC, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
   };
   Initialize(NULL, 0, writes, arraysize(writes));
 
@@ -974,11 +974,11 @@ TEST_F(HttpPipelinedConnectionImplTest, CloseCalledDuringSendCallback) {
 
 TEST_F(HttpPipelinedConnectionImplTest, CloseCalledDuringReadCallback) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(true, 2, "Content-Length: 7\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(ASYNC, 2, "Content-Length: 7\r\n\r\n"),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -997,12 +997,12 @@ TEST_F(HttpPipelinedConnectionImplTest, CloseCalledDuringReadCallback) {
 TEST_F(HttpPipelinedConnectionImplTest,
        CloseCalledDuringReadCallbackWithPendingRead) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /failed.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 1, "GET /evicted.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /failed.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 1, "GET /evicted.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 2, "HTTP/1.1 200 OK\r\n"),
-    MockRead(true, 3, "Content-Length: 7\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 2, "HTTP/1.1 200 OK\r\n"),
+    MockRead(ASYNC, 3, "Content-Length: 7\r\n\r\n"),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -1027,12 +1027,12 @@ TEST_F(HttpPipelinedConnectionImplTest,
 
 TEST_F(HttpPipelinedConnectionImplTest, CloseOtherDuringReadCallback) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /deleter.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 1, "GET /deleted.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /deleter.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 1, "GET /deleted.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 2, "HTTP/1.1 200 OK\r\n"),
-    MockRead(true, 3, "Content-Length: 7\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 2, "HTTP/1.1 200 OK\r\n"),
+    MockRead(ASYNC, 3, "Content-Length: 7\r\n\r\n"),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -1056,8 +1056,8 @@ TEST_F(HttpPipelinedConnectionImplTest, CloseOtherDuringReadCallback) {
 
 TEST_F(HttpPipelinedConnectionImplTest, CloseBeforeSendCallbackRuns) {
   MockWrite writes[] = {
-    MockWrite(true, 0, "GET /close.html HTTP/1.1\r\n\r\n"),
-    MockWrite(true, 1, "GET /dummy.html HTTP/1.1\r\n\r\n"),
+    MockWrite(ASYNC, 0, "GET /close.html HTTP/1.1\r\n\r\n"),
+    MockWrite(ASYNC, 1, "GET /dummy.html HTTP/1.1\r\n\r\n"),
   };
   Initialize(NULL, 0, writes, arraysize(writes));
 
@@ -1083,12 +1083,12 @@ TEST_F(HttpPipelinedConnectionImplTest, CloseBeforeSendCallbackRuns) {
 
 TEST_F(HttpPipelinedConnectionImplTest, CloseBeforeReadCallbackRuns) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /close.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 3, "GET /dummy.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /close.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 3, "GET /dummy.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(true, 2, "Content-Length: 7\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(ASYNC, 2, "Content-Length: 7\r\n\r\n"),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -1117,12 +1117,12 @@ TEST_F(HttpPipelinedConnectionImplTest, CloseBeforeReadCallbackRuns) {
 
 TEST_F(HttpPipelinedConnectionImplTest, NoGapBetweenCloseAndEviction) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /close.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 2, "GET /dummy.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /close.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 2, "GET /dummy.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(true, 3, "Content-Length: 7\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(ASYNC, 3, "Content-Length: 7\r\n\r\n"),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -1157,15 +1157,15 @@ TEST_F(HttpPipelinedConnectionImplTest, NoGapBetweenCloseAndEviction) {
 
 TEST_F(HttpPipelinedConnectionImplTest, RecoverFromDrainOnRedirect) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /redirect.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 1, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /redirect.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 1, "GET /ok.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 2,
+    MockRead(SYNCHRONOUS, 2,
              "HTTP/1.1 302 OK\r\n"
              "Content-Length: 8\r\n\r\n"
              "redirect"),
-    MockRead(false, 3,
+    MockRead(SYNCHRONOUS, 3,
              "HTTP/1.1 200 OK\r\n"
              "Content-Length: 7\r\n\r\n"
              "ok.html"),
@@ -1194,11 +1194,11 @@ TEST_F(HttpPipelinedConnectionImplTest, RecoverFromDrainOnRedirect) {
 
 TEST_F(HttpPipelinedConnectionImplTest, EvictAfterDrainOfUnknownSize) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /redirect.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 1, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /redirect.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 1, "GET /ok.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 2,
+    MockRead(SYNCHRONOUS, 2,
              "HTTP/1.1 302 OK\r\n\r\n"
              "redirect"),
   };
@@ -1226,14 +1226,14 @@ TEST_F(HttpPipelinedConnectionImplTest, EvictAfterDrainOfUnknownSize) {
 
 TEST_F(HttpPipelinedConnectionImplTest, EvictAfterFailedDrain) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /redirect.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 1, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /redirect.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 1, "GET /ok.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 2,
+    MockRead(SYNCHRONOUS, 2,
              "HTTP/1.1 302 OK\r\n"
              "Content-Length: 8\r\n\r\n"),
-    MockRead(false, ERR_SOCKET_NOT_CONNECTED, 3),
+    MockRead(SYNCHRONOUS, ERR_SOCKET_NOT_CONNECTED, 3),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -1259,14 +1259,14 @@ TEST_F(HttpPipelinedConnectionImplTest, EvictAfterFailedDrain) {
 
 TEST_F(HttpPipelinedConnectionImplTest, EvictIfDrainingChunkedEncoding) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /redirect.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 1, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /redirect.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 1, "GET /ok.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 2,
+    MockRead(SYNCHRONOUS, 2,
              "HTTP/1.1 302 OK\r\n"
              "Transfer-Encoding: chunked\r\n\r\n"),
-    MockRead(false, 3,
+    MockRead(SYNCHRONOUS, 3,
              "jibberish"),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
@@ -1293,14 +1293,14 @@ TEST_F(HttpPipelinedConnectionImplTest, EvictIfDrainingChunkedEncoding) {
 
 TEST_F(HttpPipelinedConnectionImplTest, EvictionDueToMissingContentLength) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 1, "GET /evicted.html HTTP/1.1\r\n\r\n"),
-    MockWrite(false, 2, "GET /rejected.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 1, "GET /evicted.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 2, "GET /rejected.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(true, 3, "HTTP/1.1 200 OK\r\n\r\n"),
-    MockRead(false, 4, "ok.html"),
-    MockRead(false, OK, 5),
+    MockRead(ASYNC, 3, "HTTP/1.1 200 OK\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 4, "ok.html"),
+    MockRead(SYNCHRONOUS, OK, 5),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -1341,10 +1341,10 @@ TEST_F(HttpPipelinedConnectionImplTest, EvictionDueToMissingContentLength) {
 
 TEST_F(HttpPipelinedConnectionImplTest, FeedbackOnSocketError) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, ERR_FAILED, 1),
+    MockRead(SYNCHRONOUS, ERR_FAILED, 1),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -1364,10 +1364,10 @@ TEST_F(HttpPipelinedConnectionImplTest, FeedbackOnSocketError) {
 
 TEST_F(HttpPipelinedConnectionImplTest, FeedbackOnNoInternetConnection) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, ERR_INTERNET_DISCONNECTED, 1),
+    MockRead(SYNCHRONOUS, ERR_INTERNET_DISCONNECTED, 1),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -1385,13 +1385,13 @@ TEST_F(HttpPipelinedConnectionImplTest, FeedbackOnNoInternetConnection) {
 
 TEST_F(HttpPipelinedConnectionImplTest, FeedbackOnHttp10) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.0 200 OK\r\n"),
-    MockRead(false, 2, "Content-Length: 7\r\n"),
-    MockRead(false, 3, "Connection: keep-alive\r\n\r\n"),
-    MockRead(false, 4, "ok.html"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.0 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 2, "Content-Length: 7\r\n"),
+    MockRead(SYNCHRONOUS, 3, "Connection: keep-alive\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 4, "ok.html"),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -1406,13 +1406,13 @@ TEST_F(HttpPipelinedConnectionImplTest, FeedbackOnHttp10) {
 
 TEST_F(HttpPipelinedConnectionImplTest, FeedbackOnMustClose) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n"),
-    MockRead(false, 2, "Content-Length: 7\r\n"),
-    MockRead(false, 3, "Connection: close\r\n\r\n"),
-    MockRead(false, 4, "ok.html"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(SYNCHRONOUS, 2, "Content-Length: 7\r\n"),
+    MockRead(SYNCHRONOUS, 3, "Connection: close\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 4, "ok.html"),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -1428,11 +1428,11 @@ TEST_F(HttpPipelinedConnectionImplTest, FeedbackOnMustClose) {
 
 TEST_F(HttpPipelinedConnectionImplTest, FeedbackOnNoContentLength) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.1 200 OK\r\n\r\n"),
-    MockRead(false, 2, "ok.html"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 OK\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 2, "ok.html"),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -1448,13 +1448,13 @@ TEST_F(HttpPipelinedConnectionImplTest, FeedbackOnNoContentLength) {
 
 TEST_F(HttpPipelinedConnectionImplTest, FeedbackOnAuthenticationRequired) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
   };
   MockRead reads[] = {
-    MockRead(false, 1, "HTTP/1.1 401 Unauthorized\r\n"),
-    MockRead(false, 2, "WWW-Authenticate: NTLM\r\n"),
-    MockRead(false, 3, "Content-Length: 7\r\n\r\n"),
-    MockRead(false, 4, "ok.html"),
+    MockRead(SYNCHRONOUS, 1, "HTTP/1.1 401 Unauthorized\r\n"),
+    MockRead(SYNCHRONOUS, 2, "WWW-Authenticate: NTLM\r\n"),
+    MockRead(SYNCHRONOUS, 3, "Content-Length: 7\r\n\r\n"),
+    MockRead(SYNCHRONOUS, 4, "ok.html"),
   };
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
@@ -1470,7 +1470,7 @@ TEST_F(HttpPipelinedConnectionImplTest, FeedbackOnAuthenticationRequired) {
 
 TEST_F(HttpPipelinedConnectionImplTest, OnPipelineHasCapacity) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
   };
   Initialize(NULL, 0, writes, arraysize(writes));
 
@@ -1493,7 +1493,7 @@ TEST_F(HttpPipelinedConnectionImplTest, OnPipelineHasCapacity) {
 
 TEST_F(HttpPipelinedConnectionImplTest, OnPipelineHasCapacityWithoutSend) {
   MockWrite writes[] = {
-    MockWrite(false, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(SYNCHRONOUS, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
   };
   Initialize(NULL, 0, writes, arraysize(writes));
 
