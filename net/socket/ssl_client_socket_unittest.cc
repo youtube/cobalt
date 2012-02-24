@@ -67,7 +67,9 @@ static bool LogContainsSSLConnectEndEvent(
 };
 
 TEST_F(SSLClientSocketTest, Connect) {
-  net::TestServer test_server(net::TestServer::TYPE_HTTPS, FilePath());
+  net::TestServer test_server(net::TestServer::TYPE_HTTPS,
+                              net::TestServer::kLocalhost,
+                              FilePath());
   ASSERT_TRUE(test_server.Start());
 
   net::AddressList addr;
@@ -317,7 +319,9 @@ TEST_F(SSLClientSocketTest, ConnectClientAuthSendNullCert) {
 //   - Server sends data unexpectedly.
 
 TEST_F(SSLClientSocketTest, Read) {
-  net::TestServer test_server(net::TestServer::TYPE_HTTPS, FilePath());
+  net::TestServer test_server(net::TestServer::TYPE_HTTPS,
+                              net::TestServer::kLocalhost,
+                              FilePath());
   ASSERT_TRUE(test_server.Start());
 
   net::AddressList addr;
@@ -371,7 +375,9 @@ TEST_F(SSLClientSocketTest, Read) {
 // Test the full duplex mode, with Read and Write pending at the same time.
 // This test also serves as a regression test for http://crbug.com/29815.
 TEST_F(SSLClientSocketTest, Read_FullDuplex) {
-  net::TestServer test_server(net::TestServer::TYPE_HTTPS, FilePath());
+  net::TestServer test_server(net::TestServer::TYPE_HTTPS,
+                              net::TestServer::kLocalhost,
+                              FilePath());
   ASSERT_TRUE(test_server.Start());
 
   net::AddressList addr;
@@ -430,7 +436,9 @@ TEST_F(SSLClientSocketTest, Read_FullDuplex) {
 }
 
 TEST_F(SSLClientSocketTest, Read_SmallChunks) {
-  net::TestServer test_server(net::TestServer::TYPE_HTTPS, FilePath());
+  net::TestServer test_server(net::TestServer::TYPE_HTTPS,
+                              net::TestServer::kLocalhost,
+                              FilePath());
   ASSERT_TRUE(test_server.Start());
 
   net::AddressList addr;
@@ -481,7 +489,9 @@ TEST_F(SSLClientSocketTest, Read_SmallChunks) {
 }
 
 TEST_F(SSLClientSocketTest, Read_Interrupted) {
-  net::TestServer test_server(net::TestServer::TYPE_HTTPS, FilePath());
+  net::TestServer test_server(net::TestServer::TYPE_HTTPS,
+                              net::TestServer::kLocalhost,
+                              FilePath());
   ASSERT_TRUE(test_server.Start());
 
   net::AddressList addr;
@@ -529,7 +539,9 @@ TEST_F(SSLClientSocketTest, Read_Interrupted) {
 }
 
 TEST_F(SSLClientSocketTest, Read_FullLogging) {
-  net::TestServer test_server(net::TestServer::TYPE_HTTPS, FilePath());
+  net::TestServer test_server(net::TestServer::TYPE_HTTPS,
+                              net::TestServer::kLocalhost,
+                              FilePath());
   ASSERT_TRUE(test_server.Start());
 
   net::AddressList addr;
@@ -595,7 +607,9 @@ TEST_F(SSLClientSocketTest, Read_FullLogging) {
 
 // Regression test for http://crbug.com/42538
 TEST_F(SSLClientSocketTest, PrematureApplicationData) {
-  net::TestServer test_server(net::TestServer::TYPE_HTTPS, FilePath());
+  net::TestServer test_server(net::TestServer::TYPE_HTTPS,
+                              net::TestServer::kLocalhost,
+                              FilePath());
   ASSERT_TRUE(test_server.Start());
 
   net::AddressList addr;
@@ -724,7 +738,9 @@ TEST_F(SSLClientSocketTest, CipherSuiteDisables) {
 // Here we verify that such a simple ClientSocketHandle, not associated with any
 // client socket pool, can be destroyed safely.
 TEST_F(SSLClientSocketTest, ClientSocketHandleNotFromPool) {
-  net::TestServer test_server(net::TestServer::TYPE_HTTPS, FilePath());
+  net::TestServer test_server(net::TestServer::TYPE_HTTPS,
+                              net::TestServer::kLocalhost,
+                              FilePath());
   ASSERT_TRUE(test_server.Start());
 
   net::AddressList addr;
