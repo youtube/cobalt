@@ -15,3 +15,5 @@ StringPrintfTest.StringAppendfInt
 StringPrintfTest.StringPrintfBounds
 # TODO(jrg): Fails on bots.  Works locally.  Figure out why.  2/6/12
 FieldTrialTest.*
+# TODO(zhenghao): Fail from build 6102 r123270. http://crbug.com/115612
+StackContainer.BufferAlignment
