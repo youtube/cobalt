@@ -11,9 +11,10 @@ namespace net {
 
 //-----------------------------------------------------------------------------
 
-HostCache::Entry::Entry(int error, const AddressList& addrlist)
-    : error(error),
-      addrlist(addrlist) {
+HostCache::Entry::Entry(int error,
+                        const AddressList& addrlist,
+                        base::TimeTicks expiration)
+    : error(error), addrlist(addrlist), expiration(expiration) {
 }
 
 HostCache::Entry::~Entry() {
@@ -22,36 +23,63 @@ HostCache::Entry::~Entry() {
 //-----------------------------------------------------------------------------
 
 HostCache::HostCache(size_t max_entries)
-    : entries_(max_entries) {
+    : max_entries_(max_entries) {
 }
 
 HostCache::~HostCache() {
 }
 
 const HostCache::Entry* HostCache::Lookup(const Key& key,
-                                          base::TimeTicks now) {
+                                          base::TimeTicks now) const {
   DCHECK(CalledOnValidThread());
   if (caching_is_disabled())
     return NULL;
 
-  return entries_.Get(key, now);
+  EntryMap::const_iterator it = entries_.find(key);
+  if (it == entries_.end())
+    return NULL;  // Not found.
+
+  Entry* entry = it->second.get();
+  if (CanUseEntry(entry, now))
+    return entry;
+
+  return NULL;
 }
 
-void HostCache::Set(const Key& key,
-                    int error,
-                    const AddressList& addrlist,
-                    base::TimeTicks now,
-                    base::TimeDelta ttl) {
+HostCache::Entry* HostCache::Set(const Key& key,
+                                 int error,
+                                 const AddressList& addrlist,
+                                 base::TimeTicks now,
+                                 base::TimeDelta ttl) {
   DCHECK(CalledOnValidThread());
   if (caching_is_disabled())
-    return;
+    return NULL;
 
-  entries_.Put(key, Entry(error, addrlist), now, ttl);
+  base::TimeTicks expiration = now + ttl;
+
+  scoped_refptr<Entry>& entry = entries_[key];
+  if (!entry) {
+    // Entry didn't exist, creating one now.
+    Entry* ptr = new Entry(error, addrlist, expiration);
+    entry = ptr;
+
+    // Compact the cache if we grew it beyond limit -- exclude |entry| from
+    // being pruned though!
+    if (entries_.size() > max_entries_)
+      Compact(now, ptr);
+    return ptr;
+  } else {
+    // Update an existing cache entry.
+    entry->error = error;
+    entry->addrlist = addrlist;
+    entry->expiration = expiration;
+    return entry.get();
+  }
 }
 
 void HostCache::clear() {
   DCHECK(CalledOnValidThread());
-  entries_.Clear();
+  entries_.clear();
 }
 
 size_t HostCache::size() const {
@@ -61,7 +89,7 @@ size_t HostCache::size() const {
 
 size_t HostCache::max_entries() const {
   DCHECK(CalledOnValidThread());
-  return entries_.max_entries();
+  return max_entries_;
 }
 
 // Note that this map may contain expired entries.
@@ -71,9 +99,46 @@ const HostCache::EntryMap& HostCache::entries() const {
 }
 
 // static
+bool HostCache::CanUseEntry(const Entry* entry, const base::TimeTicks now) {
+  return entry->expiration > now;
+}
+
+// static
 HostCache* HostCache::CreateDefaultCache() {
   static const size_t kMaxHostCacheEntries = 100;
   return new HostCache(kMaxHostCacheEntries);
+}
+
+void HostCache::Compact(base::TimeTicks now, const Entry* pinned_entry) {
+  // Clear out expired entries.
+  for (EntryMap::iterator it = entries_.begin(); it != entries_.end(); ) {
+    Entry* entry = (it->second).get();
+    if (entry != pinned_entry && !CanUseEntry(entry, now)) {
+      entries_.erase(it++);
+    } else {
+      ++it;
+    }
+  }
+
+  if (entries_.size() <= max_entries_)
+    return;
+
+  // If we still have too many entries, start removing unexpired entries
+  // at random.
+  // TODO(eroman): this eviction policy could be better (access count FIFO
+  // or whatever).
+  for (EntryMap::iterator it = entries_.begin();
+       it != entries_.end() && entries_.size() > max_entries_; ) {
+    Entry* entry = (it->second).get();
+    if (entry != pinned_entry) {
+      entries_.erase(it++);
+    } else {
+      ++it;
+    }
+  }
+
+  if (entries_.size() > max_entries_)
+    DLOG(WARNING) << "Still above max entries limit";
 }
 
 }  // namespace net
