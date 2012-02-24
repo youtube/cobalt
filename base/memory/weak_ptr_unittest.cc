@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -333,6 +333,14 @@ TEST(WeakPtrTest, OwnerThreadDeletesObject) {
   }
   EXPECT_TRUE(consumer_copy->producer == NULL);
   thread.DeleteConsumer(consumer_copy);
+}
+
+TEST(WeakPtrTest, Dereference) {
+  Base data;
+  WeakPtrFactory<Base> factory(&data);
+  WeakPtr<Base> ptr = factory.GetWeakPtr();
+  EXPECT_EQ(&data, ptr.get());
+  EXPECT_EQ(&data, *ptr);
 }
 
 }  // namespace base
