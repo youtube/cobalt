@@ -294,6 +294,9 @@
             'android/scoped_java_ref_unittest.cc',
             'debug/stack_trace_unittest.cc',
           ],
+          'dependencies': [
+            'android/jni_generator/jni_generator.gyp:jni_generator_py_tests',
+          ],
         }],
         ['use_glib==1', {
           'sources!': [
