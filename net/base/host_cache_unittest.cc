@@ -176,112 +176,6 @@ TEST(HostCacheTest, CacheNegativeEntry) {
   EXPECT_TRUE(cache.Lookup(Key("foobar2.com"), now) == NULL);
 }
 
-TEST(HostCacheTest, Compact) {
-  // Initial entries limit is big enough to accomadate everything we add.
-  const base::TimeDelta kSuccessEntryTTL = base::TimeDelta::FromSeconds(10);
-  const base::TimeDelta kFailureEntryTTL = base::TimeDelta::FromSeconds(0);
-  HostCache cache(kMaxCacheEntries);
-
-  EXPECT_EQ(0U, cache.size());
-
-  // t=10
-  base::TimeTicks now = base::TimeTicks() + base::TimeDelta::FromSeconds(10);
-
-  // Add five valid entries at t=10.
-  for (int i = 0; i < 5; ++i) {
-    std::string hostname = base::StringPrintf("valid%d", i);
-    cache.Set(Key(hostname), OK, AddressList(), now, kSuccessEntryTTL);
-  }
-  EXPECT_EQ(5U, cache.size());
-
-  // Add 3 expired entries at t=0.
-  for (int i = 0; i < 3; ++i) {
-    std::string hostname = base::StringPrintf("expired%d", i);
-    base::TimeTicks t = now - base::TimeDelta::FromSeconds(10);
-    cache.Set(Key(hostname), OK, AddressList(), t, kSuccessEntryTTL);
-  }
-  EXPECT_EQ(8U, cache.size());
-
-  // Add 2 negative entries at t=10
-  for (int i = 0; i < 2; ++i) {
-    std::string hostname = base::StringPrintf("negative%d", i);
-    cache.Set(Key(hostname), ERR_NAME_NOT_RESOLVED, AddressList(),
-              now, kFailureEntryTTL);
-  }
-  EXPECT_EQ(10U, cache.size());
-
-  EXPECT_TRUE(ContainsKey(cache.entries_, Key("valid0")));
-  EXPECT_TRUE(ContainsKey(cache.entries_, Key("valid1")));
-  EXPECT_TRUE(ContainsKey(cache.entries_, Key("valid2")));
-  EXPECT_TRUE(ContainsKey(cache.entries_, Key("valid3")));
-  EXPECT_TRUE(ContainsKey(cache.entries_, Key("valid4")));
-  EXPECT_TRUE(ContainsKey(cache.entries_, Key("expired0")));
-  EXPECT_TRUE(ContainsKey(cache.entries_, Key("expired1")));
-  EXPECT_TRUE(ContainsKey(cache.entries_, Key("expired2")));
-  EXPECT_TRUE(ContainsKey(cache.entries_, Key("negative0")));
-  EXPECT_TRUE(ContainsKey(cache.entries_, Key("negative1")));
-
-  // Shrink the max constraints bound and compact. We expect the "negative"
-  // and "expired" entries to have been dropped.
-  cache.max_entries_ = 5;
-  cache.Compact(now, NULL);
-  EXPECT_EQ(5U, cache.entries_.size());
-
-  EXPECT_TRUE(ContainsKey(cache.entries_, Key("valid0")));
-  EXPECT_TRUE(ContainsKey(cache.entries_, Key("valid1")));
-  EXPECT_TRUE(ContainsKey(cache.entries_, Key("valid2")));
-  EXPECT_TRUE(ContainsKey(cache.entries_, Key("valid3")));
-  EXPECT_TRUE(ContainsKey(cache.entries_, Key("valid4")));
-  EXPECT_FALSE(ContainsKey(cache.entries_, Key("expired0")));
-  EXPECT_FALSE(ContainsKey(cache.entries_, Key("expired1")));
-  EXPECT_FALSE(ContainsKey(cache.entries_, Key("expired2")));
-  EXPECT_FALSE(ContainsKey(cache.entries_, Key("negative0")));
-  EXPECT_FALSE(ContainsKey(cache.entries_, Key("negative1")));
-
-  // Shrink further -- this time the compact will start dropping valid entries
-  // to make space.
-  cache.max_entries_ = 3;
-  cache.Compact(now, NULL);
-  EXPECT_EQ(3U, cache.size());
-}
-
-// Add entries while the cache is at capacity, causing evictions.
-TEST(HostCacheTest, SetWithCompact) {
-  const base::TimeDelta kTTL = base::TimeDelta::FromSeconds(10);
-
-  HostCache cache(3);
-
-  // t=10
-  base::TimeTicks now = base::TimeTicks() + kTTL;
-
-  cache.Set(Key("host1"), OK, AddressList(), now, kTTL);
-  cache.Set(Key("host2"), OK, AddressList(), now, kTTL);
-  cache.Set(Key("expired"), OK, AddressList(), now, kTTL - kTTL);
-
-  EXPECT_EQ(3U, cache.size());
-
-  // Should all be retrievable except "expired".
-  EXPECT_FALSE(NULL == cache.Lookup(Key("host1"), now));
-  EXPECT_FALSE(NULL == cache.Lookup(Key("host2"), now));
-  EXPECT_TRUE(NULL == cache.Lookup(Key("expired"), now));
-
-  // Adding the fourth entry will cause "expired" to be evicted.
-  cache.Set(Key("host3"), OK, AddressList(), now, kTTL);
-  EXPECT_EQ(3U, cache.size());
-  EXPECT_TRUE(cache.Lookup(Key("expired"), now) == NULL);
-  EXPECT_FALSE(cache.Lookup(Key("host1"), now) == NULL);
-  EXPECT_FALSE(cache.Lookup(Key("host2"), now) == NULL);
-  EXPECT_FALSE(cache.Lookup(Key("host3"), now) == NULL);
-
-  // Add two more entries. Something should be evicted, however "host5"
-  // should definitely be in there (since it was last inserted).
-  cache.Set(Key("host4"), OK, AddressList(), now, kTTL);
-  EXPECT_EQ(3U, cache.size());
-  cache.Set(Key("host5"), OK, AddressList(), now, kTTL);
-  EXPECT_EQ(3U, cache.size());
-  EXPECT_FALSE(cache.Lookup(Key("host5"), now) == NULL);
-}
-
 // Tests that the same hostname can be duplicated in the cache, so long as
 // the address family differs.
 TEST(HostCacheTest, AddressFamilyIsPartOfKey) {
@@ -452,7 +346,7 @@ TEST(HostCacheTest, KeyComparators) {
       HostCache::Key("host2", ADDRESS_FAMILY_IPV4, 0),
       -1
     },
-        {
+    {
       HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED, 0),
       HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED,
                      HOST_RESOLVER_CANONNAME),
@@ -483,17 +377,14 @@ TEST(HostCacheTest, KeyComparators) {
       case -1:
         EXPECT_TRUE(key1 < key2);
         EXPECT_FALSE(key2 < key1);
-        EXPECT_FALSE(key2 == key1);
         break;
       case 0:
         EXPECT_FALSE(key1 < key2);
         EXPECT_FALSE(key2 < key1);
-        EXPECT_TRUE(key2 == key1);
         break;
       case 1:
         EXPECT_FALSE(key1 < key2);
         EXPECT_TRUE(key2 < key1);
-        EXPECT_FALSE(key2 == key1);
         break;
       default:
         FAIL() << "Invalid expectation. Can be only -1, 0, 1";

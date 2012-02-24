@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,12 +10,13 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/non_thread_safe.h"
-#include "base/time.h"
 #include "net/base/cert_database.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/completion_callback.h"
+#include "net/base/expiring_cache.h"
 #include "net/base/net_export.h"
 #include "net/base/x509_cert_types.h"
 
@@ -26,21 +27,6 @@ class CertVerifierJob;
 class CertVerifierWorker;
 class CRLSet;
 class X509Certificate;
-
-// CachedCertVerifyResult contains the result of a certificate verification.
-struct CachedCertVerifyResult {
-  CachedCertVerifyResult();
-  ~CachedCertVerifyResult();
-
-  // Returns true if |current_time| is greater than or equal to |expiry|.
-  bool HasExpired(base::Time current_time) const;
-
-  int error;  // The return value of CertVerifier::Verify.
-  CertVerifyResult result;  // The output of CertVerifier::Verify.
-
-  // The time at which the certificate verification result expires.
-  base::Time expiry;
-};
 
 // CertVerifier represents a service for verifying certificates.
 //
@@ -56,20 +42,7 @@ class NET_EXPORT CertVerifier : NON_EXPORTED_BASE(public base::NonThreadSafe),
   // Opaque type used to cancel a request.
   typedef void* RequestHandle;
 
-  // CertVerifier must not call base::Time::Now() directly.  It must call
-  // time_service_->Now().  This allows unit tests to mock the current time.
-  class TimeService {
-   public:
-    virtual ~TimeService() {}
-
-    virtual base::Time Now() = 0;
-  };
-
   CertVerifier();
-
-  // Used by unit tests to mock the current time.  Takes ownership of
-  // |time_service|.
-  explicit CertVerifier(TimeService* time_service);
 
   // When the verifier is destroyed, all certificate verifications requests are
   // canceled, and their completion callbacks will not be called.
@@ -116,19 +89,15 @@ class NET_EXPORT CertVerifier : NON_EXPORTED_BASE(public base::NonThreadSafe),
   // After a request is canceled, its completion callback will not be called.
   void CancelRequest(RequestHandle req);
 
-  // Clears the verification result cache.
-  void ClearCache();
-
-  size_t GetCacheSize() const;
-
-  void set_max_cache_entries(size_t max) { max_cache_entries_ = max; }
-
-  uint64 requests() const { return requests_; }
-  uint64 cache_hits() const { return cache_hits_; }
-  uint64 inflight_joins() const { return inflight_joins_; }
-
  private:
   friend class CertVerifierWorker;  // Calls HandleResult.
+  friend class CertVerifierRequest;
+  friend class CertVerifierJob;
+  FRIEND_TEST_ALL_PREFIXES(CertVerifierTest, CacheHit);
+  FRIEND_TEST_ALL_PREFIXES(CertVerifierTest, DifferentCACerts);
+  FRIEND_TEST_ALL_PREFIXES(CertVerifierTest, InflightJoin);
+  FRIEND_TEST_ALL_PREFIXES(CertVerifierTest, CancelRequest);
+  FRIEND_TEST_ALL_PREFIXES(CertVerifierTest, RequestParamsComparators);
 
   // Input parameters of a certificate verification request.
   struct RequestParams {
@@ -140,18 +109,6 @@ class NET_EXPORT CertVerifier : NON_EXPORTED_BASE(public base::NonThreadSafe),
           ca_fingerprint(ca_fingerprint_arg),
           hostname(hostname_arg),
           flags(flags_arg) {}
-
-    bool operator==(const RequestParams& other) const {
-      // |flags| is compared before |cert_fingerprint|, |ca_fingerprint|, and
-      // |hostname| under assumption that integer comparisons are faster than
-      // memory and string comparisons.
-      return (flags == other.flags &&
-              memcmp(cert_fingerprint.data, other.cert_fingerprint.data,
-                     sizeof(cert_fingerprint.data)) == 0 &&
-              memcmp(ca_fingerprint.data, other.ca_fingerprint.data,
-                     sizeof(ca_fingerprint.data)) == 0 &&
-              hostname == other.hostname);
-    }
 
     bool operator<(const RequestParams& other) const {
       // |flags| is compared before |cert_fingerprint|, |ca_fingerprint|, and
@@ -176,6 +133,15 @@ class NET_EXPORT CertVerifier : NON_EXPORTED_BASE(public base::NonThreadSafe),
     int flags;
   };
 
+  // CachedResult contains the result of a certificate verification.
+  struct CachedResult {
+    CachedResult();
+    ~CachedResult();
+
+    int error;  // The return value of CertVerifier::Verify.
+    CertVerifyResult result;  // The output of CertVerifier::Verify.
+  };
+
   void HandleResult(X509Certificate* cert,
                     const std::string& hostname,
                     int flags,
@@ -185,18 +151,20 @@ class NET_EXPORT CertVerifier : NON_EXPORTED_BASE(public base::NonThreadSafe),
   // CertDatabase::Observer methods:
   virtual void OnCertTrustChanged(const X509Certificate* cert) OVERRIDE;
 
-  // cache_ maps from a request to a cached result. The cached result may
-  // have expired and the size of |cache_| must be <= max_cache_entries_.
-  std::map<RequestParams, CachedCertVerifyResult> cache_;
+  // For unit testing.
+  void ClearCache() { cache_.Clear(); }
+  size_t GetCacheSize() const { return cache_.size(); }
+  uint64 cache_hits() const { return cache_hits_; }
+  uint64 requests() const { return requests_; }
+  uint64 inflight_joins() const { return inflight_joins_; }
+
+  // cache_ maps from a request to a cached result.
+  typedef ExpiringCache<RequestParams, CachedResult> CertVerifierCache;
+  CertVerifierCache cache_;
 
   // inflight_ maps from a request to an active verification which is taking
   // place.
   std::map<RequestParams, CertVerifierJob*> inflight_;
-
-  scoped_ptr<TimeService> time_service_;
-
-  // The number of CachedCertVerifyResult objects that we'll cache.
-  size_t max_cache_entries_;
 
   uint64 requests_;
   uint64 cache_hits_;
