@@ -6,15 +6,14 @@
 #define NET_BASE_HOST_CACHE_H_
 #pragma once
 
-#include <map>
 #include <string>
 
 #include "base/gtest_prod_util.h"
-#include "base/memory/ref_counted.h"
 #include "base/threading/non_thread_safe.h"
 #include "base/time.h"
 #include "net/base/address_family.h"
 #include "net/base/address_list.h"
+#include "net/base/expiring_cache.h"
 #include "net/base/net_export.h"
 
 namespace net {
@@ -23,20 +22,13 @@ namespace net {
 class NET_EXPORT HostCache : NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   // Stores the latest address list that was looked up for a hostname.
-  struct Entry : public base::RefCounted<Entry> {
-    Entry(int error, const AddressList& addrlist, base::TimeTicks expiration);
+  struct Entry {
+    Entry(int error, const AddressList& addrlist);
+    ~Entry();
 
     // The resolve results for this entry.
     int error;
     AddressList addrlist;
-
-    // The time when this entry expires.
-    base::TimeTicks expiration;
-
-   private:
-    friend class base::RefCounted<Entry>;
-
-    ~Entry();
   };
 
   struct Key {
@@ -45,15 +37,6 @@ class NET_EXPORT HostCache : NON_EXPORTED_BASE(public base::NonThreadSafe) {
         : hostname(hostname),
           address_family(address_family),
           host_resolver_flags(host_resolver_flags) {}
-
-    bool operator==(const Key& other) const {
-      // |address_family| and |host_resolver_flags| are compared before
-      // |hostname| under assumption that integer comparisons are faster than
-      // string comparisons.
-      return (other.address_family == address_family &&
-              other.host_resolver_flags == host_resolver_flags &&
-              other.hostname == hostname);
-    }
 
     bool operator<(const Key& other) const {
       // |address_family| and |host_resolver_flags| are compared before
@@ -71,7 +54,7 @@ class NET_EXPORT HostCache : NON_EXPORTED_BASE(public base::NonThreadSafe) {
     HostResolverFlags host_resolver_flags;
   };
 
-  typedef std::map<Key, scoped_refptr<Entry> > EntryMap;
+  typedef ExpiringCache<Key, Entry> EntryMap;
 
   // Constructs a HostCache that stores up to |max_entries|.
   explicit HostCache(size_t max_entries);
@@ -80,17 +63,16 @@ class NET_EXPORT HostCache : NON_EXPORTED_BASE(public base::NonThreadSafe) {
 
   // Returns a pointer to the entry for |key|, which is valid at time
   // |now|. If there is no such entry, returns NULL.
-  const Entry* Lookup(const Key& key, base::TimeTicks now) const;
+  const Entry* Lookup(const Key& key, base::TimeTicks now);
 
-  // Overwrites or creates an entry for |key|. Returns the pointer to the
-  // entry, or NULL on failure (fails if caching is disabled).
+  // Overwrites or creates an entry for |key|.
   // (|error|, |addrlist|) is the value to set, |now| is the current time
   // |ttl| is the "time to live".
-  Entry* Set(const Key& key,
-             int error,
-             const AddressList& addrlist,
-             base::TimeTicks now,
-             base::TimeDelta ttl);
+  void Set(const Key& key,
+           int error,
+           const AddressList& addrlist,
+           base::TimeTicks now,
+           base::TimeDelta ttl);
 
   // Empties the cache
   void clear();
@@ -101,30 +83,18 @@ class NET_EXPORT HostCache : NON_EXPORTED_BASE(public base::NonThreadSafe) {
   // Following are used by net_internals UI.
   size_t max_entries() const;
 
-  // Note that this map may contain expired entries.
   const EntryMap& entries() const;
 
   // Creates a default cache.
   static HostCache* CreateDefaultCache();
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(HostCacheTest, Compact);
   FRIEND_TEST_ALL_PREFIXES(HostCacheTest, NoCache);
-
-  // Returns true if this cache entry's result is valid at time |now|.
-  static bool CanUseEntry(const Entry* entry, const base::TimeTicks now);
-
-  // Prunes entries from the cache to bring it below max entry bound. Entries
-  // matching |pinned_entry| will NOT be pruned.
-  void Compact(base::TimeTicks now, const Entry* pinned_entry);
 
   // Returns true if this HostCache can contain no entries.
   bool caching_is_disabled() const {
-    return max_entries_ == 0;
+    return entries_.max_entries() == 0;
   }
-
-  // Bound on total size of the cache.
-  size_t max_entries_;
 
   // Map from hostname (presumably in lowercase canonicalized format) to
   // a resolved result entry.
