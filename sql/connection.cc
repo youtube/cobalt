@@ -108,8 +108,17 @@ bool Connection::OpenInMemory() {
 }
 
 void Connection::Close() {
+  // sqlite3_close() needs all prepared statements to be finalized.
+  // Release all cached statements, then assert that the client has
+  // released all statements.
   statement_cache_.clear();
   DCHECK(open_statements_.empty());
+
+  // Additionally clear the prepared statements, because they contain
+  // weak references to this connection.  This case has come up when
+  // error-handling code is hit in production.
+  ClearCache();
+
   if (db_) {
     // TODO(shess): Some additional code to debug http://crbug.com/95527 .
     // If you are reading this due to link errors or something, it can
@@ -125,6 +134,8 @@ void Connection::Close() {
     // prevent optimization.
     CHECK_LT(nTouched, 1000*1000*1000U);
 #endif
+
+    // TODO(shess): Histogram for failure.
     sqlite3_close(db_);
     db_ = NULL;
   }
