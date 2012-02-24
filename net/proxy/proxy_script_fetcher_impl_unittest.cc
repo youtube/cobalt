@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -118,7 +118,9 @@ GURL GetTestFileUrl(const std::string& relpath) {
 class ProxyScriptFetcherImplTest : public PlatformTest {
  public:
   ProxyScriptFetcherImplTest()
-      : test_server_(TestServer::TYPE_HTTP, FilePath(kDocRoot)) {
+      : test_server_(TestServer::TYPE_HTTP,
+                     net::TestServer::kLocalhost,
+                     FilePath(kDocRoot)) {
   }
 
   static void SetUpTestCase() {
