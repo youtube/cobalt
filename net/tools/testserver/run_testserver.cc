@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -83,7 +83,9 @@ int main(int argc, const char* argv[]) {
   if (server_type == net::TestServer::TYPE_HTTPS)
     test_server.reset(new net::TestServer(https_options, doc_root));
   else
-    test_server.reset(new net::TestServer(server_type, doc_root));
+    test_server.reset(new net::TestServer(server_type,
+                                          net::TestServer::kLocalhost,
+                                          doc_root));
 
   if (!test_server->Start()) {
     printf("Error: failed to start test server. Exiting.\n");
