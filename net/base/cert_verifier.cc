@@ -74,22 +74,11 @@ const unsigned kMaxCacheEntries = 256;
 // The number of seconds for which we'll cache a cache entry.
 const unsigned kTTLSecs = 1800;  // 30 minutes.
 
-class DefaultTimeService : public CertVerifier::TimeService {
- public:
-  // CertVerifier::TimeService methods:
-  virtual base::Time Now() { return base::Time::Now(); }
-};
-
 }  // namespace
 
-CachedCertVerifyResult::CachedCertVerifyResult() : error(ERR_FAILED) {
-}
+CertVerifier::CachedResult::CachedResult() : error(ERR_FAILED) {}
 
-CachedCertVerifyResult::~CachedCertVerifyResult() {}
-
-bool CachedCertVerifyResult::HasExpired(const base::Time current_time) const {
-  return current_time >= expiry;
-}
+CertVerifier::CachedResult::~CachedResult() {}
 
 // Represents the output and result callback of a request.
 class CertVerifierRequest {
@@ -116,7 +105,7 @@ class CertVerifierRequest {
 
   // Copies the contents of |verify_result| to the caller's
   // CertVerifyResult and calls the callback.
-  void Post(const CachedCertVerifyResult& verify_result) {
+  void Post(const CertVerifier::CachedResult& verify_result) {
     if (!callback_.is_null()) {
       net_log_.EndEvent(NetLog::TYPE_CERT_VERIFIER_REQUEST, NULL);
       *verify_result_ = verify_result.result;
@@ -289,7 +278,7 @@ class CertVerifierJob {
     requests_.push_back(request);
   }
 
-  void HandleResult(const CachedCertVerifyResult& verify_result) {
+  void HandleResult(const CertVerifier::CachedResult& verify_result) {
     worker_ = NULL;
     net_log_.EndEvent(NetLog::TYPE_CERT_VERIFIER_JOB, NULL);
     UMA_HISTOGRAM_CUSTOM_TIMES("Net.CertVerifier_Job_Latency",
@@ -301,7 +290,7 @@ class CertVerifierJob {
   }
 
  private:
-  void PostAll(const CachedCertVerifyResult& verify_result) {
+  void PostAll(const CertVerifier::CachedResult& verify_result) {
     std::vector<CertVerifierRequest*> requests;
     requests_.swap(requests);
 
@@ -329,19 +318,8 @@ class CertVerifierJob {
   const BoundNetLog net_log_;
 };
 
-
 CertVerifier::CertVerifier()
-    : time_service_(new DefaultTimeService),
-      max_cache_entries_(kMaxCacheEntries),
-      requests_(0),
-      cache_hits_(0),
-      inflight_joins_(0) {
-  CertDatabase::AddObserver(this);
-}
-
-CertVerifier::CertVerifier(TimeService* time_service)
-    : time_service_(time_service),
-      max_cache_entries_(kMaxCacheEntries),
+    : cache_(kMaxCacheEntries),
       requests_(0),
       cache_hits_(0),
       inflight_joins_(0) {
@@ -373,18 +351,13 @@ int CertVerifier::Verify(X509Certificate* cert,
 
   const RequestParams key(cert->fingerprint(), cert->ca_fingerprint(),
                           hostname, flags);
-  // First check the cache.
-  std::map<RequestParams, CachedCertVerifyResult>::iterator i;
-  i = cache_.find(key);
-  if (i != cache_.end()) {
-    if (!i->second.HasExpired(time_service_->Now())) {
-      cache_hits_++;
-      *out_req = NULL;
-      *verify_result = i->second.result;
-      return i->second.error;
-    }
-    // Cache entry has expired.
-    cache_.erase(i);
+  const CertVerifierCache::value_type* cached_entry =
+      cache_.Get(key, base::TimeTicks::Now());
+  if (cached_entry) {
+    ++cache_hits_;
+    *out_req = NULL;
+    *verify_result = cached_entry->result;
+    return cached_entry->error;
   }
 
   // No cache hit. See if an identical request is currently in flight.
@@ -427,19 +400,6 @@ void CertVerifier::CancelRequest(RequestHandle req) {
   request->Cancel();
 }
 
-void CertVerifier::ClearCache() {
-  DCHECK(CalledOnValidThread());
-
-  cache_.clear();
-  // Leaves inflight_ alone.
-}
-
-size_t CertVerifier::GetCacheSize() const {
-  DCHECK(CalledOnValidThread());
-
-  return cache_.size();
-}
-
 // HandleResult is called by CertVerifierWorker on the origin message loop.
 // It deletes CertVerifierJob.
 void CertVerifier::HandleResult(X509Certificate* cert,
@@ -449,35 +409,14 @@ void CertVerifier::HandleResult(X509Certificate* cert,
                                 const CertVerifyResult& verify_result) {
   DCHECK(CalledOnValidThread());
 
-  const base::Time current_time(time_service_->Now());
-
-  CachedCertVerifyResult cached_result;
-  cached_result.error = error;
-  cached_result.result = verify_result;
-  uint32 ttl = kTTLSecs;
-  cached_result.expiry = current_time + base::TimeDelta::FromSeconds(ttl);
-
   const RequestParams key(cert->fingerprint(), cert->ca_fingerprint(),
                           hostname, flags);
 
-  DCHECK_GE(max_cache_entries_, 1u);
-  DCHECK_LE(cache_.size(), max_cache_entries_);
-  if (cache_.size() == max_cache_entries_) {
-    // Need to remove an element of the cache.
-    std::map<RequestParams, CachedCertVerifyResult>::iterator i, cur;
-    for (i = cache_.begin(); i != cache_.end(); ) {
-      cur = i++;
-      if (cur->second.HasExpired(current_time))
-        cache_.erase(cur);
-    }
-  }
-  if (cache_.size() == max_cache_entries_) {
-    // If we didn't clear out any expired entries, we just remove the first
-    // element. Crummy but simple.
-    cache_.erase(cache_.begin());
-  }
-
-  cache_.insert(std::make_pair(key, cached_result));
+  CachedResult cached_result;
+  cached_result.error = error;
+  cached_result.result = verify_result;
+  cache_.Put(key, cached_result, base::TimeTicks::Now(),
+             base::TimeDelta::FromSeconds(kTTLSecs));
 
   std::map<RequestParams, CertVerifierJob*>::iterator j;
   j = inflight_.find(key);
