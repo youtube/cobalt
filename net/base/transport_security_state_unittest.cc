@@ -799,6 +799,9 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(ShouldRedirect("pixi.me"));
   EXPECT_TRUE(ShouldRedirect("www.pixi.me"));
 
+  EXPECT_TRUE(ShouldRedirect("grepular.com"));
+  EXPECT_TRUE(ShouldRedirect("www.grepular.com"));
+
 #if defined(OS_CHROMEOS)
   static const bool kTwitterHSTS = true;
 #else
