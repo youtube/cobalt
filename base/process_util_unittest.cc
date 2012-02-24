@@ -72,7 +72,7 @@ const int kExpectedStillRunningExitCode = 0;
 
 // Sleeps until file filename is created.
 void WaitToDie(const char* filename) {
-  FILE *fp;
+  FILE* fp;
   do {
     base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(10));
     fp = fopen(filename, "r");
@@ -82,7 +82,7 @@ void WaitToDie(const char* filename) {
 
 // Signals children they should die now.
 void SignalChildren(const char* filename) {
-  FILE *fp = fopen(filename, "w");
+  FILE* fp = fopen(filename, "w");
   fclose(fp);
 }
 
@@ -260,7 +260,7 @@ TEST_F(ProcessUtilTest, MAYBE_GetTerminationStatusCrash) {
   base::EnableInProcessStackDumping();
   remove(kSignalFileCrash);
 }
-#endif // !defined(OS_MACOSX)
+#endif  // !defined(OS_MACOSX)
 
 MULTIPROCESS_TEST_MAIN(KilledChildProcess) {
   WaitToDie(kSignalFileKill);
@@ -518,7 +518,7 @@ int ProcessUtilTest::CountOpenFDsInChild() {
   if (pipe(fds) < 0)
     NOTREACHED();
 
-  base::file_handle_mapping_vector fd_mapping_vec;
+  base::FileHandleMappingVector fd_mapping_vec;
   fd_mapping_vec.push_back(std::pair<int, int>(fds[1], kChildPipe));
   base::ProcessHandle handle = this->SpawnChild(
       "ProcessUtilsLeakFDChildProcess", fd_mapping_vec, false);
@@ -564,10 +564,10 @@ TEST_F(ProcessUtilTest, FDRemapping) {
 
 namespace {
 
-std::string TestLaunchProcess(const base::environment_vector& env_changes,
+std::string TestLaunchProcess(const base::EnvironmentVector& env_changes,
                               const int clone_flags) {
   std::vector<std::string> args;
-  base::file_handle_mapping_vector fds_to_remap;
+  base::FileHandleMappingVector fds_to_remap;
 
   args.push_back(kPosixShell);
   args.push_back("-c");
@@ -610,7 +610,7 @@ const char kLargeString[] =
 }  // namespace
 
 TEST_F(ProcessUtilTest, LaunchProcess) {
-  base::environment_vector env_changes;
+  base::EnvironmentVector env_changes;
   const int no_clone_flags = 0;
 
   env_changes.push_back(std::make_pair(std::string("BASE_TEST"),
@@ -649,7 +649,7 @@ TEST_F(ProcessUtilTest, LaunchProcess) {
 TEST_F(ProcessUtilTest, AlterEnvironment) {
   const char* const empty[] = { NULL };
   const char* const a2[] = { "A=2", NULL };
-  base::environment_vector changes;
+  base::EnvironmentVector changes;
   char** e;
 
   e = base::AlterEnvironment(changes, empty);
