@@ -1424,6 +1424,7 @@ static const struct HSTSPreload kPreloadedSTS[] = {
       DOMAIN_NOT_PINNED },
   {12, true, "\006ubertt\003org", true, kNoPins, DOMAIN_NOT_PINNED },
   {9, true, "\004pixi\002me", true, kNoPins, DOMAIN_NOT_PINNED },
+  {14, true, "\010grepular\003com", true, kNoPins, DOMAIN_NOT_PINNED },
 
   {13, false, "\007twitter\003com", kTwitterHSTS,
       kTwitterComPins, DOMAIN_TWITTER_COM },
