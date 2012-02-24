@@ -415,7 +415,7 @@ void CloseSuperfluousFds(const base::InjectiveMultimap& saved_mapping) {
   }
 }
 
-char** AlterEnvironment(const environment_vector& changes,
+char** AlterEnvironment(const EnvironmentVector& changes,
                         const char* const* const env) {
   unsigned count = 0;
   unsigned size = 0;
@@ -427,8 +427,9 @@ char** AlterEnvironment(const environment_vector& changes,
     size += strlen(pair) + 1 /* terminating NUL */;
   }
 
-  for (environment_vector::const_iterator
-       j = changes.begin(); j != changes.end(); j++) {
+  for (EnvironmentVector::const_iterator j = changes.begin();
+       j != changes.end();
+       ++j) {
     bool found = false;
     const char *pair;
 
@@ -478,7 +479,7 @@ char** AlterEnvironment(const environment_vector& changes,
     }
     const unsigned keylen = equals - pair;
     bool handled = false;
-    for (environment_vector::const_iterator
+    for (EnvironmentVector::const_iterator
          j = changes.begin(); j != changes.end(); j++) {
       if (j->first.size() == keylen &&
           memcmp(j->first.data(), pair, keylen) == 0) {
@@ -503,7 +504,7 @@ char** AlterEnvironment(const environment_vector& changes,
   }
 
   // Now handle new elements
-  for (environment_vector::const_iterator
+  for (EnvironmentVector::const_iterator
        j = changes.begin(); j != changes.end(); j++) {
     if (j->second.empty())
       continue;
@@ -696,7 +697,7 @@ bool LaunchProcess(const std::vector<std::string>& argv,
 #endif  // defined(OS_CHROMEOS)
 
     if (options.fds_to_remap) {
-      for (file_handle_mapping_vector::const_iterator
+      for (FileHandleMappingVector::const_iterator
                it = options.fds_to_remap->begin();
            it != options.fds_to_remap->end(); ++it) {
         fd_shuffle1.push_back(InjectionArc(it->first, it->second, false));
