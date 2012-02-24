@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,11 +7,6 @@
 #include "base/base_switches.h"
 #include "base/command_line.h"
 
-#if defined(OS_POSIX)
-#include <sys/types.h>
-#include <unistd.h>
-#endif
-
 namespace base {
 
 MultiProcessTest::MultiProcessTest() {
@@ -19,14 +14,14 @@ MultiProcessTest::MultiProcessTest() {
 
 ProcessHandle MultiProcessTest::SpawnChild(const std::string& procname,
                                            bool debug_on_start) {
-  file_handle_mapping_vector empty_file_list;
+  FileHandleMappingVector empty_file_list;
   return SpawnChildImpl(procname, empty_file_list, debug_on_start);
 }
 
 #if defined(OS_POSIX)
 ProcessHandle MultiProcessTest::SpawnChild(
     const std::string& procname,
-    const file_handle_mapping_vector& fds_to_map,
+    const FileHandleMappingVector& fds_to_map,
     bool debug_on_start) {
   return SpawnChildImpl(procname, fds_to_map, debug_on_start);
 }
@@ -43,7 +38,7 @@ CommandLine MultiProcessTest::MakeCmdLine(const std::string& procname,
 
 ProcessHandle MultiProcessTest::SpawnChildImpl(
     const std::string& procname,
-    const file_handle_mapping_vector& fds_to_map,
+    const FileHandleMappingVector& fds_to_map,
     bool debug_on_start) {
   ProcessHandle handle = kNullProcessHandle;
   base::LaunchOptions options;

@@ -206,9 +206,8 @@ BASE_EXPORT ProcessId GetParentProcessId(ProcessHandle process);
 BASE_EXPORT void CloseSuperfluousFds(const InjectiveMultimap& saved_map);
 #endif  // defined(OS_POSIX)
 
-// TODO(evan): rename these to use StudlyCaps.
-typedef std::vector<std::pair<std::string, std::string> > environment_vector;
-typedef std::vector<std::pair<int, int> > file_handle_mapping_vector;
+typedef std::vector<std::pair<std::string, std::string> > EnvironmentVector;
+typedef std::vector<std::pair<int, int> > FileHandleMappingVector;
 
 #if defined(OS_MACOSX)
 // Used with LaunchOptions::synchronize and LaunchSynchronize, a
@@ -267,13 +266,13 @@ struct LaunchOptions {
   // See documentation of AlterEnvironment().
   // This pointer is owned by the caller and must live through the
   // call to LaunchProcess().
-  const environment_vector* environ;
+  const EnvironmentVector* environ;
 
   // If non-NULL, remap file descriptors according to the mapping of
   // src fd->dest fd to propagate FDs into the child process.
   // This pointer is owned by the caller and must live through the
   // call to LaunchProcess().
-  const file_handle_mapping_vector* fds_to_remap;
+  const FileHandleMappingVector* fds_to_remap;
 
   // Each element is an RLIMIT_* constant that should be raised to its
   // rlim_max.  This pointer is owned by the caller and must live through
@@ -352,7 +351,7 @@ enum IntegrityLevel {
 // if the system does not support integrity levels (pre-Vista) or in the case
 // of an underlying system failure.
 BASE_EXPORT bool GetProcessIntegrityLevel(ProcessHandle process,
-                                          IntegrityLevel *level);
+                                          IntegrityLevel* level);
 
 // Windows-specific LaunchProcess that takes the command line as a
 // string.  Useful for situations where you need to control the
@@ -384,7 +383,7 @@ BASE_EXPORT bool LaunchProcess(const std::vector<std::string>& argv,
 // the second is empty, in which case the key-value is removed.
 //
 // The returned array is allocated using new[] and must be freed by the caller.
-BASE_EXPORT char** AlterEnvironment(const environment_vector& changes,
+BASE_EXPORT char** AlterEnvironment(const EnvironmentVector& changes,
                                     const char* const* const env);
 
 #if defined(OS_MACOSX)
@@ -586,7 +585,7 @@ class BASE_EXPORT ProcessIterator {
   std::vector<kinfo_proc> kinfo_procs_;
   size_t index_of_kinfo_proc_;
 #elif defined(OS_POSIX)
-  DIR *procfs_dir_;
+  DIR* procfs_dir_;
 #endif
   ProcessEntry entry_;
   const ProcessFilter* filter_;
