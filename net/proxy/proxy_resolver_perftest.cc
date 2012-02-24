@@ -98,7 +98,9 @@ class PacPerfSuiteRunner {
                      const std::string& resolver_name)
       : resolver_(resolver),
         resolver_name_(resolver_name),
-        test_server_(net::TestServer::TYPE_HTTP,
+        test_server_(
+            net::TestServer::TYPE_HTTP,
+            net::TestServer::kLocalhost,
             FilePath(FILE_PATH_LITERAL("net/data/proxy_resolver_perftest"))) {
   }
 

@@ -1211,8 +1211,9 @@ TEST_F(URLRequestTestHTTP, GetZippedTest) {
 TEST_F(URLRequestTestHTTP, DISABLED_HTTPSToHTTPRedirectNoRefererTest) {
   ASSERT_TRUE(test_server_.Start());
 
-  TestServer https_test_server(
-      TestServer::TYPE_HTTPS, FilePath(FILE_PATH_LITERAL("net/data/ssl")));
+  TestServer https_test_server(TestServer::TYPE_HTTPS,
+                               TestServer::kLocalhost,
+                               FilePath(FILE_PATH_LITERAL("net/data/ssl")));
   ASSERT_TRUE(https_test_server.Start());
 
   // An https server is sent a request with an https referer,
@@ -1274,6 +1275,7 @@ class HTTPSRequestTest : public testing::Test {
 // (see bug 102991).
 TEST_F(HTTPSRequestTest, DISABLED_HTTPSGetTest) {
   TestServer test_server(TestServer::TYPE_HTTPS,
+                         TestServer::kLocalhost,
                          FilePath(FILE_PATH_LITERAL("net/data/ssl")));
   ASSERT_TRUE(test_server.Start());
 
@@ -3646,7 +3648,8 @@ TEST_F(URLRequestTest, RequestCompletionForEmptyResponse) {
 
 class URLRequestTestFTP : public URLRequestTest {
  public:
-  URLRequestTestFTP() : test_server_(TestServer::TYPE_FTP, FilePath()) {
+  URLRequestTestFTP()
+      : test_server_(TestServer::TYPE_FTP, TestServer::kLocalhost, FilePath()) {
   }
 
  protected:
