@@ -1095,6 +1095,27 @@ TEST_F(FileStreamTest, AsyncCloseTwice) {
   EXPECT_FALSE(stream.IsOpen());
 }
 
+// TODO(satorux): This should be gone once all once all async clients are
+// migrated to use Close(). crbug.com/114783
+TEST_F(FileStreamTest, AsyncWriteAndCloseSync) {
+  FileStream stream(NULL);
+  int flags = base::PLATFORM_FILE_OPEN |
+      base::PLATFORM_FILE_WRITE |
+      base::PLATFORM_FILE_ASYNC;
+  TestCompletionCallback callback;
+  int rv = stream.Open(temp_file_path(), flags, callback.callback());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_TRUE(stream.IsOpen());
+
+  // Write some data asynchronously.
+  scoped_refptr<IOBufferWithSize> buf = CreateTestDataBuffer();
+  stream.Write(buf, buf->size(), callback.callback());
+
+  // Close the stream without waiting for the completion.
+  stream.CloseSync();
+}
+
 }  // namespace
 
 }  // namespace net
