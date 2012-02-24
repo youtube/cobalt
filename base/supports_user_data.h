@@ -55,6 +55,7 @@ class UserDataAdapter : public base::SupportsUserData::Data {
   }
 
   UserDataAdapter(T* object) : object_(object) {}
+  T* release() { return object_.release(); }
 
  private:
   scoped_refptr<T> object_;
