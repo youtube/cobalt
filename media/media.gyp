@@ -240,6 +240,10 @@
         'webm/webm_constants.h',
         'webm/webm_cluster_parser.cc',
         'webm/webm_cluster_parser.h',
+        'webm/webm_content_encodings.cc',
+        'webm/webm_content_encodings.h',
+        'webm/webm_content_encodings_client.cc',
+        'webm/webm_content_encodings_client.h',
         'webm/webm_info_parser.cc',
         'webm/webm_info_parser.h',
         'webm/webm_parser.cc',
@@ -616,6 +620,7 @@
         'webm/cluster_builder.cc',
         'webm/cluster_builder.h',
         'webm/webm_parser_unittest.cc',
+        'webm/webm_content_encodings_client_unittest.cc',
       ],
       'conditions': [
         ['os_posix==1 and OS!="mac"', {
