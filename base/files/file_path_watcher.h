@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -91,7 +91,7 @@ class BASE_EXPORT FilePathWatcher {
   };
 
   FilePathWatcher();
-  ~FilePathWatcher();
+  virtual ~FilePathWatcher();
 
   // A callback that always cleans up the PlatformDelegate, either when executed
   // or when deleted without having been executed at all, as can happen during
@@ -102,7 +102,8 @@ class BASE_EXPORT FilePathWatcher {
   // back for each change. Returns true on success.
   // OnFilePathChanged() will be called on the same thread as Watch() is called,
   // which should have a MessageLoop of TYPE_IO.
-  bool Watch(const FilePath& path, Delegate* delegate) WARN_UNUSED_RESULT;
+  virtual bool Watch(const FilePath& path, Delegate* delegate)
+      WARN_UNUSED_RESULT;
 
  private:
   scoped_refptr<PlatformDelegate> impl_;
