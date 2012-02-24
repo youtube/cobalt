@@ -90,10 +90,6 @@ class FileStreamTest : public PlatformTest {
 
   const FilePath temp_file_path() const { return temp_file_path_; }
 
-  static base::PlatformFile GetFile(const FileStream& stream) {
-    return stream.file_;
-  }
-
  private:
   FilePath temp_file_path_;
 };
@@ -108,7 +104,7 @@ TEST_F(FileStreamTest, BasicOpenClose) {
         base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ);
     EXPECT_EQ(OK, rv);
     EXPECT_TRUE(stream.IsOpen());
-    file = GetFile(stream);
+    file = stream.GetPlatformFileForTesting();
   }
   EXPECT_NE(base::kInvalidPlatformFileValue, file);
   base::PlatformFileInfo info;
