@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -28,7 +28,7 @@ class UI_EXPORT Size {
   explicit Size(const CGSize& s);
 #endif
 
-  ~Size() {}
+  ~Size();
 
 #if defined(OS_MACOSX)
   Size& operator=(const CGSize& s);
