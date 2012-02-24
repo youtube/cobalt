@@ -11,27 +11,22 @@
 #define NET_BASE_FILE_STREAM_H_
 #pragma once
 
-#include "base/memory/scoped_ptr.h"
-#include "base/memory/weak_ptr.h"
 #include "base/platform_file.h"
-#include "base/synchronization/waitable_event.h"
 #include "net/base/completion_callback.h"
+#include "net/base/file_stream_whence.h"
 #include "net/base/net_export.h"
 #include "net/base/net_log.h"
+#if defined(OS_WIN)
+#include "net/base/file_stream_win.h"
+#elif defined(OS_POSIX)
+#include "net/base/file_stream_posix.h"
+#endif
 
 class FilePath;
 
 namespace net {
 
 class IOBuffer;
-
-// TODO(darin): Move this to a more generic location.
-// This explicit mapping matches both FILE_ on Windows and SEEK_ on Linux.
-enum Whence {
-  FROM_BEGIN   = 0,
-  FROM_CURRENT = 1,
-  FROM_END     = 2
-};
 
 class NET_EXPORT FileStream {
  public:
@@ -210,38 +205,15 @@ class NET_EXPORT FileStream {
   // of ownership happened, but without details.
   void SetBoundNetLogSource(const net::BoundNetLog& owner_bound_net_log);
 
+  // Returns the underlying platform file for testing.
+  base::PlatformFile GetPlatformFileForTesting();
+
  private:
-  friend class FileStreamTest;
-
-  // Called when the file_ is opened asynchronously. |file| contains the
-  // platform file opened. |result| contains the result as a network error
-  // code.
-  void OnOpened(base::PlatformFile *file, int* result);
-
-  // Called when the file_ is closed asynchronously.
-  void OnClosed();
-
 #if defined(OS_WIN)
-  class AsyncContext;
-  friend class AsyncContext;
-  // This member is used to support asynchronous reads.  It is non-null when
-  // the FileStream was opened with PLATFORM_FILE_ASYNC.
-  scoped_ptr<AsyncContext> async_context_;
-#else
-  // Called when Read() or Write() is completed (used only for POSIX).
-  // |result| contains the result as a network error code.
-  void OnIOComplete(int* result);
-
-  scoped_ptr<base::WaitableEvent> on_io_complete_;
+  FileStreamWin impl_;
+#elif defined(OS_POSIX)
+  FileStreamPosix impl_;
 #endif
-
-  base::PlatformFile file_;
-  int open_flags_;
-  bool auto_closed_;
-  bool record_uma_;
-  net::BoundNetLog bound_net_log_;
-  base::WeakPtrFactory<FileStream> weak_ptr_factory_;
-  CompletionCallback callback_;
 
   DISALLOW_COPY_AND_ASSIGN(FileStream);
 };
