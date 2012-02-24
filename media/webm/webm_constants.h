@@ -5,6 +5,8 @@
 #ifndef MEDIA_WEBM_WEBM_CONSTANTS_H_
 #define MEDIA_WEBM_WEBM_CONSTANTS_H_
 
+#include "base/basictypes.h"
+
 namespace media {
 
 // WebM element IDs.

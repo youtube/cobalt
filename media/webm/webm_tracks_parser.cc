@@ -45,16 +45,28 @@ int WebMTracksParser::Parse(const uint8* buf, int size) {
 
 
 WebMParserClient* WebMTracksParser::OnListStart(int id) {
+  if (id == kWebMIdContentEncodings) {
+    DCHECK(!track_content_encodings_client_.get());
+    track_content_encodings_client_.reset(new WebMContentEncodingsClient);
+    return track_content_encodings_client_->OnListStart(id);
+  }
+
   if (id == kWebMIdTrackEntry) {
     track_type_ = -1;
     track_num_ = -1;
     track_default_duration_ = -1;
+    return this;
   }
 
   return this;
 }
 
 bool WebMTracksParser::OnListEnd(int id) {
+  if (id == kWebMIdContentEncodings) {
+    DCHECK(track_content_encodings_client_.get());
+    return track_content_encodings_client_->OnListEnd(id);
+  }
+
   if (id == kWebMIdTrackEntry) {
     if (track_type_ == -1 || track_num_ == -1) {
       DVLOG(1) << "Missing TrackEntry data"
@@ -74,9 +86,17 @@ bool WebMTracksParser::OnListEnd(int id) {
     if (track_type_ == kWebMTrackTypeVideo) {
       video_track_num_ = track_num_;
       video_default_duration_ = default_duration;
+      if (track_content_encodings_client_.get()) {
+        video_content_encodings_ =
+            track_content_encodings_client_->content_encodings();
+      }
     } else if (track_type_ == kWebMTrackTypeAudio) {
       audio_track_num_ = track_num_;
       audio_default_duration_ = default_duration;
+      if (track_content_encodings_client_.get()) {
+        audio_content_encodings_ =
+            track_content_encodings_client_->content_encodings();
+      }
     } else {
       DVLOG(1) << "Unexpected TrackType " << track_type_;
       return false;
@@ -84,6 +104,8 @@ bool WebMTracksParser::OnListEnd(int id) {
 
     track_type_ = -1;
     track_num_ = -1;
+    track_content_encodings_client_.reset();
+    return true;
   }
 
   return true;
