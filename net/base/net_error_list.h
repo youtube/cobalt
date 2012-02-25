@@ -279,6 +279,9 @@ NET_ERROR(CLIENT_AUTH_CERT_TYPE_UNSUPPORTED, -151)
 // first was still being generated.
 NET_ERROR(ORIGIN_BOUND_CERT_GENERATION_TYPE_MISMATCH, -152)
 
+// The proxy does not support restarting a request on the existing connection.
+NET_ERROR(NO_KEEP_ALIVE_ON_AUTH_RESTART, -153)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.

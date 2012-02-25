@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,7 +17,6 @@
 #include "net/http/http_basic_stream.h"
 #include "net/http/http_net_log_params.h"
 #include "net/http/http_network_session.h"
-#include "net/http/http_proxy_utils.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_stream_parser.h"
@@ -82,6 +81,20 @@ int HttpProxyClientSocket::RestartWithAuth(const CompletionCallback& callback) {
   }
 
   return rv;
+}
+
+const scoped_refptr<HttpAuthController>&
+HttpProxyClientSocket::GetAuthController() const {
+  return auth_;
+}
+
+bool HttpProxyClientSocket::IsUsingSpdy() const {
+  return using_spdy_;
+}
+
+SSLClientSocket::NextProto
+HttpProxyClientSocket::GetProtocolNegotiated() const {
+  return protocol_negotiated_;
 }
 
 const HttpResponseInfo* HttpProxyClientSocket::GetConnectResponseInfo() const {
@@ -274,17 +287,6 @@ int HttpProxyClientSocket::DidDrainBodyForAuthRestart(bool keep_alive) {
   return OK;
 }
 
-int HttpProxyClientSocket::HandleAuthChallenge() {
-  DCHECK(response_.headers);
-
-  int rv = auth_->HandleAuthChallenge(response_.headers, false, true, net_log_);
-  response_.auth_challenge = auth_->auth_info();
-  if (rv == OK)
-    return ERR_PROXY_AUTH_REQUESTED;
-
-  return rv;
-}
-
 void HttpProxyClientSocket::LogBlockedTunnelResponse(int response_code) const {
   LOG(WARNING) << "Blocked proxy response with status " << response_code
                << " to CONNECT request for "
@@ -459,7 +461,7 @@ int HttpProxyClientSocket::DoReadHeadersComplete(int result) {
       // authentication code is smart enough to avoid being tricked by an
       // active network attacker.
       // The next state is intentionally not set as it should be STATE_NONE;
-      return HandleAuthChallenge();
+      return HandleProxyAuthChallenge(auth_, &response_, net_log_);
 
     default:
       if (is_https_proxy_)
