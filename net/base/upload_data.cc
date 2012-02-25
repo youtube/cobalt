@@ -37,6 +37,7 @@ UploadData::Element::Element()
       override_content_length_(false),
       content_length_computed_(false),
       content_length_(-1),
+      offset_(0),
       file_stream_(NULL) {
 }
 
@@ -82,7 +83,7 @@ uint64 UploadData::Element::GetContentLength() {
   // We need to open the file here to decide if we should report the file's
   // size or zero.  We cache the open file, so that we can still read it when
   // it comes time to.
-  file_stream_ = NewFileStreamForReading();
+  file_stream_ = OpenFileStream();
   if (!file_stream_)
     return 0;
 
@@ -98,16 +99,22 @@ uint64 UploadData::Element::GetContentLength() {
   return content_length_;
 }
 
-FileStream* UploadData::Element::NewFileStreamForReading() {
-  // In common usage GetContentLength() will call this first and store the
-  // result into |file_| and a subsequent call (from UploadDataStream) will
-  // get the cached open FileStream.
-  if (file_stream_) {
-    FileStream* file = file_stream_;
-    file_stream_ = NULL;
-    return file;
+int UploadData::Element::ReadSync(char* buf, int buf_len) {
+  if (type_ == UploadData::TYPE_BYTES || type_ == UploadData::TYPE_CHUNK) {
+    return ReadFromMemorySync(buf, buf_len);
+  } else if (type_ == UploadData::TYPE_FILE) {
+    return ReadFromFileSync(buf, buf_len);
   }
 
+  NOTREACHED();
+  return 0;
+}
+
+uint64 UploadData::Element::BytesRemaining() {
+  return GetContentLength() - offset_;
+}
+
+FileStream* UploadData::Element::OpenFileStream() {
   scoped_ptr<FileStream> file(new FileStream(NULL));
   int64 rv = file->OpenSync(
       file_path_,
@@ -129,6 +136,61 @@ FileStream* UploadData::Element::NewFileStreamForReading() {
   }
 
   return file.release();
+}
+
+int UploadData::Element::ReadFromMemorySync(char* buf, int buf_len) {
+  DCHECK_LT(0, buf_len);
+  DCHECK(type_ == UploadData::TYPE_BYTES || type_ == UploadData::TYPE_CHUNK);
+
+  const size_t num_bytes_to_read = std::min(BytesRemaining(),
+                                            static_cast<uint64>(buf_len));
+
+  // Check if we have anything to copy first, because we are getting
+  // the address of an element in |bytes_| and that will throw an
+  // exception if |bytes_| is an empty vector.
+  if (num_bytes_to_read > 0) {
+    memcpy(buf, &bytes_[offset_], num_bytes_to_read);
+  }
+
+  offset_ += num_bytes_to_read;
+  return num_bytes_to_read;
+}
+
+int UploadData::Element::ReadFromFileSync(char* buf, int buf_len) {
+  DCHECK_LT(0, buf_len);
+  DCHECK_EQ(UploadData::TYPE_FILE, type_);
+
+  // Open the file of the current element if not yet opened.
+  // In common usage, GetContentLength() opened it already.
+  if (!file_stream_) {
+    // Temporarily allow until fix: http://crbug.com/72001.
+    base::ThreadRestrictions::ScopedAllowIO allow_io;
+    file_stream_ = OpenFileStream();
+  }
+
+  const int num_bytes_to_read =
+      static_cast<int>(std::min(BytesRemaining(),
+                                static_cast<uint64>(buf_len)));
+  if (num_bytes_to_read > 0) {
+    int num_bytes_consumed = 0;
+    // Temporarily allow until fix: http://crbug.com/72001.
+    base::ThreadRestrictions::ScopedAllowIO allow_io;
+    // file_stream_ is NULL if the target file is
+    // missing or not readable.
+    if (file_stream_) {
+      num_bytes_consumed =
+          file_stream_->ReadSync(buf, num_bytes_to_read);
+    }
+    if (num_bytes_consumed <= 0) {
+      // If there's less data to read than we initially observed, then
+      // pad with zero.  Otherwise the server will hang waiting for the
+      // rest of the data.
+      memset(buf, 0, num_bytes_to_read);
+    }
+  }
+
+  offset_ += num_bytes_to_read;
+  return num_bytes_to_read;
 }
 
 UploadData::UploadData()
@@ -205,6 +267,11 @@ bool UploadData::IsInMemory() const {
       return false;
   }
   return true;
+}
+
+void UploadData::ResetOffset() {
+  for (size_t i = 0; i < elements_.size(); ++i)
+    elements_[i].ResetOffset();
 }
 
 void UploadData::SetElements(const std::vector<Element>& elements) {
