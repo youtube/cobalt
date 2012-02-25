@@ -419,10 +419,10 @@ int HttpStreamFactoryImpl::Job::RunLoop(int result) {
         DCHECK(connection_->socket());
         DCHECK(establishing_tunnel_);
 
-        HttpProxyClientSocket* http_proxy_socket =
-            static_cast<HttpProxyClientSocket*>(connection_->socket());
+        ProxyClientSocket* proxy_socket =
+            static_cast<ProxyClientSocket*>(connection_->socket());
         const HttpResponseInfo* tunnel_auth_response =
-            http_proxy_socket->GetConnectResponseInfo();
+            proxy_socket->GetConnectResponseInfo();
 
         next_state_ = STATE_WAITING_USER_ACTION;
         MessageLoop::current()->PostTask(
@@ -431,7 +431,7 @@ int HttpStreamFactoryImpl::Job::RunLoop(int result) {
                 &HttpStreamFactoryImpl::Job::OnNeedsProxyAuthCallback,
                 ptr_factory_.GetWeakPtr(),
                 *tunnel_auth_response,
-                http_proxy_socket->auth_controller()));
+                proxy_socket->GetAuthController()));
       }
       return ERR_IO_PENDING;
 
@@ -788,11 +788,11 @@ int HttpStreamFactoryImpl::Job::DoInitConnectionComplete(int result) {
       SwitchToSpdyMode();
   } else if (proxy_info_.is_https() && connection_->socket() &&
         result == OK) {
-    HttpProxyClientSocket* proxy_socket =
-      static_cast<HttpProxyClientSocket*>(connection_->socket());
-    if (proxy_socket->using_spdy()) {
+    ProxyClientSocket* proxy_socket =
+      static_cast<ProxyClientSocket*>(connection_->socket());
+    if (proxy_socket->IsUsingSpdy()) {
       was_npn_negotiated_ = true;
-      protocol_negotiated_ = proxy_socket->protocol_negotiated();
+      protocol_negotiated_ = proxy_socket->GetProtocolNegotiated();
       SwitchToSpdyMode();
     }
   }
@@ -970,9 +970,9 @@ int HttpStreamFactoryImpl::Job::DoCreateStreamComplete(int result) {
 
 int HttpStreamFactoryImpl::Job::DoRestartTunnelAuth() {
   next_state_ = STATE_RESTART_TUNNEL_AUTH_COMPLETE;
-  HttpProxyClientSocket* http_proxy_socket =
-      static_cast<HttpProxyClientSocket*>(connection_->socket());
-  return http_proxy_socket->RestartWithAuth(io_callback_);
+  ProxyClientSocket* proxy_socket =
+      static_cast<ProxyClientSocket*>(connection_->socket());
+  return proxy_socket->RestartWithAuth(io_callback_);
 }
 
 int HttpStreamFactoryImpl::Job::DoRestartTunnelAuthComplete(int result) {
