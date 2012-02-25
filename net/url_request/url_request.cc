@@ -534,8 +534,13 @@ void URLRequest::DoCancel(int error, const SSLInfo& ssl_info) {
 bool URLRequest::Read(IOBuffer* dest, int dest_size, int* bytes_read) {
   DCHECK(job_);
   DCHECK(bytes_read);
-  DCHECK(!job_->is_done());
   *bytes_read = 0;
+
+  // This handles a cancel that happens while paused.
+  // TODO(ahendrickson): DCHECK() that it is not done after
+  // http://crbug.com/115705 is fixed.
+  if (job_->is_done())
+    return false;
 
   if (dest_size == 0) {
     // Caller is not too bright.  I guess we've done what they asked.
