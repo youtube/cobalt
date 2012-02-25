@@ -748,7 +748,7 @@
         },
       ],
     }],
-    ['OS!="mac"', {
+    ['OS!="mac" and OS!="lb_shell"', {
       'targets': [
         {
           'target_name': 'shader_bench',
@@ -815,7 +815,7 @@
         },
       ],
     }],
-    ['os_posix == 1 and OS != "mac" and OS != "android"', {
+    ['os_posix == 1 and OS != "mac" and OS != "android" and OS != "lb_shell"', {
       'targets': [
         {
           'target_name': 'player_x11',
