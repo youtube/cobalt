@@ -38,7 +38,7 @@
         'conditions': [
           ['OS=="win"', {
             'defines': [
-              ['PERFTOOLS_DLL_DECL', '']
+              'PERFTOOLS_DLL_DECL=',
             ],
           }],
         ],
@@ -282,7 +282,7 @@
       'conditions': [
         ['OS=="win"', {
           'defines': [
-            ['PERFTOOLS_DLL_DECL', '']
+            'PERFTOOLS_DLL_DECL=',
           ],
           'dependencies': [
             'libcmt',
