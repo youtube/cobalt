@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -52,26 +52,14 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   // On destruction Disconnect() is called.
   virtual ~HttpProxyClientSocket();
 
-  // If Connect (or its callback) returns PROXY_AUTH_REQUESTED, then
-  // credentials should be added to the HttpAuthController before calling
-  // RestartWithAuth.
-  int RestartWithAuth(const CompletionCallback& callback);
-
-  const scoped_refptr<HttpAuthController>& auth_controller() {
-    return auth_;
-  }
-
-  bool using_spdy() {
-    return using_spdy_;
-  }
-
-  SSLClientSocket::NextProto protocol_negotiated() {
-    return protocol_negotiated_;
-  }
-
   // ProxyClientSocket implementation.
   virtual const HttpResponseInfo* GetConnectResponseInfo() const OVERRIDE;
   virtual HttpStream* CreateConnectResponseStream() OVERRIDE;
+  virtual int RestartWithAuth(const CompletionCallback& callback) OVERRIDE;
+  virtual const scoped_refptr<HttpAuthController>& GetAuthController() const
+      OVERRIDE;
+  virtual bool IsUsingSpdy() const OVERRIDE;
+  virtual SSLClientSocket::NextProto GetProtocolNegotiated() const OVERRIDE;
 
   // StreamSocket implementation.
   virtual int Connect(const CompletionCallback& callback) OVERRIDE;
@@ -121,8 +109,6 @@ class HttpProxyClientSocket : public ProxyClientSocket {
 
   int PrepareForAuthRestart();
   int DidDrainBodyForAuthRestart(bool keep_alive);
-
-  int HandleAuthChallenge();
 
   void LogBlockedTunnelResponse(int response_code) const;
 
