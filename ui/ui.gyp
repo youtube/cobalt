@@ -242,6 +242,8 @@
         'gfx/brush.h',
         'gfx/canvas.cc',
         'gfx/canvas.h',
+        'gfx/canvas_paint.h',
+        'gfx/canvas_paint_win.cc',
         'gfx/canvas_skia.h',
         'gfx/canvas_skia.cc',
         'gfx/canvas_skia_android.cc',
