@@ -74,6 +74,8 @@
 #elif defined(OS_ANDROID)
 #include <ctype.h>
 #include "base/os_compat_android.h"  // For timegm()
+#elif defined(OS_NACL)
+#include "base/os_compat_nacl.h"  // For timegm()
 #endif
 #include <errno.h>  /* for EINVAL */
 #include <time.h>
