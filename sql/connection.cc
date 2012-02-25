@@ -230,10 +230,11 @@ int Connection::ExecuteAndReturnErrorCode(const char* sql) {
 
 bool Connection::Execute(const char* sql) {
   int error = ExecuteAndReturnErrorCode(sql);
-  // TODO(shess,gbillock): DLOG(FATAL) once Execute() clients are
-  // converted.
+  // This needs to be a FATAL log because the error case of arriving here is
+  // that there's a malformed SQL statement. This can arise in development if
+  // a change alters the schema but not all queries adjust.
   if (error == SQLITE_ERROR)
-    DLOG(ERROR) << "SQL Error in " << sql << ", " << GetErrorMessage();
+    DLOG(FATAL) << "SQL Error in " << sql << ", " << GetErrorMessage();
   return error == SQLITE_OK;
 }
 
@@ -310,6 +311,7 @@ bool Connection::DoesTableOrIndexExist(
       "WHERE type=? AND name=?"));
   statement.BindString(0, type);
   statement.BindString(1, name);
+
   return statement.Step();  // Table exists if any row was returned.
 }
 

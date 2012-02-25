@@ -66,12 +66,6 @@ class SQL_EXPORT Statement {
   // has to be reset.
   bool is_valid() const { return ref_->is_valid(); }
 
-  // These operators allow conveniently checking if the statement is valid
-  // or not. See the pattern above for an example.
-  // TODO(shess,gbillock): Remove these once clients are converted.
-  operator bool() const { return is_valid(); }
-  bool operator!() const { return !is_valid(); }
-
   // Running -------------------------------------------------------------------
 
   // Executes the statement, returning true on success. This is like Step but
