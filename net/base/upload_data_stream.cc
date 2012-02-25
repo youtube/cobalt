@@ -18,8 +18,6 @@ bool UploadDataStream::merge_chunks_ = true;
 UploadDataStream::UploadDataStream(UploadData* upload_data)
     : upload_data_(upload_data),
       element_index_(0),
-      element_offset_(0),
-      element_file_bytes_remaining_(0),
       total_size_(0),
       current_position_(0),
       initialized_successfully_(false) {
@@ -57,6 +55,10 @@ int UploadDataStream::Init() {
     }
   }
 
+  // Reset the offset, as upload_data_ may already be read (i.e. UploadData
+  // can be reused for a new UploadDataStream).
+  upload_data_->ResetOffset();
+
   initialized_successfully_ = true;
   return OK;
 }
@@ -66,79 +68,13 @@ int UploadDataStream::Read(IOBuffer* buf, int buf_len) {
 
   int bytes_copied = 0;
   while (bytes_copied < buf_len && element_index_ < elements.size()) {
-    bool advance_to_next_element = false;
-
-    // This is not const as GetContentLength() is not const.
     UploadData::Element& element = elements[element_index_];
 
-    const size_t free_buffer_space = buf_len - bytes_copied;
-    if (element.type() == UploadData::TYPE_BYTES ||
-        element.type() == UploadData::TYPE_CHUNK) {
-      const std::vector<char>& element_data = element.bytes();
-      const size_t num_bytes_left_in_element =
-          element_data.size() - element_offset_;
+    bytes_copied += element.ReadSync(buf->data() + bytes_copied,
+                                     buf_len - bytes_copied);
 
-      const size_t num_bytes_to_copy = std::min(num_bytes_left_in_element,
-                                                free_buffer_space);
-
-      // Check if we have anything to copy first, because we are getting
-      // the address of an element in |element_data| and that will throw an
-      // exception if |element_data| is an empty vector.
-      if (num_bytes_to_copy > 0) {
-        memcpy(buf->data() + bytes_copied, &element_data[element_offset_],
-               num_bytes_to_copy);
-        bytes_copied += num_bytes_to_copy;
-        element_offset_ += num_bytes_to_copy;
-      }
-
-      // Advance to the next element if we have consumed all data in the
-      // current element.
-      if (element_offset_ == element_data.size())
-        advance_to_next_element = true;
-    } else {
-      DCHECK(element.type() == UploadData::TYPE_FILE);
-
-      // Open the file of the current element if not yet opened.
-      if (!element_file_stream_.get()) {
-        element_file_bytes_remaining_ = element.GetContentLength();
-        // Temporarily allow until fix: http://crbug.com/72001.
-        base::ThreadRestrictions::ScopedAllowIO allow_io;
-        element_file_stream_.reset(element.NewFileStreamForReading());
-      }
-
-      const int num_bytes_to_read =
-          static_cast<int>(std::min(element_file_bytes_remaining_,
-                                    static_cast<uint64>(free_buffer_space)));
-      if (num_bytes_to_read > 0) {
-        int num_bytes_consumed = 0;
-        // Temporarily allow until fix: http://crbug.com/72001.
-        base::ThreadRestrictions::ScopedAllowIO allow_io;
-        // element_file_stream_.get() is NULL if the target file is
-        // missing or not readable.
-        if (element_file_stream_.get()) {
-          num_bytes_consumed =
-              element_file_stream_->ReadSync(buf->data() + bytes_copied,
-                                             num_bytes_to_read);
-        }
-        if (num_bytes_consumed <= 0) {
-          // If there's less data to read than we initially observed, then
-          // pad with zero.  Otherwise the server will hang waiting for the
-          // rest of the data.
-          memset(buf->data() + bytes_copied, 0, num_bytes_to_read);
-          num_bytes_consumed = num_bytes_to_read;
-        }
-        bytes_copied += num_bytes_consumed;
-        element_file_bytes_remaining_ -= num_bytes_consumed;
-      }
-
-      // Advance to the next element if we have consumed all data in the
-      // current element.
-      if (element_file_bytes_remaining_ == 0)
-        advance_to_next_element = true;
-    }
-
-    if (advance_to_next_element)
-      AdvanceToNextElement();
+    if (element.BytesRemaining() == 0)
+        ++element_index_;
 
     if (is_chunked() && !merge_chunks_)
       break;
@@ -149,18 +85,6 @@ int UploadDataStream::Read(IOBuffer* buf, int buf_len) {
     return ERR_IO_PENDING;
 
   return bytes_copied;
-}
-
-void UploadDataStream::AdvanceToNextElement() {
-  ++element_index_;
-  element_offset_ = 0;
-  element_file_bytes_remaining_ = 0;
-  if (element_file_stream_.get()) {
-    // Temporarily allow until fix: http://crbug.com/72001.
-    base::ThreadRestrictions::ScopedAllowIO allow_io;
-    element_file_stream_->CloseSync();
-    element_file_stream_.reset();
-  }
 }
 
 bool UploadDataStream::IsEOF() const {
