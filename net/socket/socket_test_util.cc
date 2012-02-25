@@ -1132,7 +1132,8 @@ base::TimeDelta MockSSLClientSocket::GetConnectTimeMicros() const {
 void MockSSLClientSocket::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->Reset();
   ssl_info->cert = data_->cert;
-  ssl_info->client_cert_sent = data_->client_cert_sent;
+  ssl_info->client_cert_sent = WasOriginBoundCertSent() ||
+      data_->client_cert_sent;
 }
 
 void MockSSLClientSocket::GetSSLCertRequestInfo(
