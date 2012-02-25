@@ -106,7 +106,13 @@ void StatsTableThread::Run() {
 }
 
 // Create a few threads and have them poke on their counters.
-TEST_F(StatsTableTest, MultipleThreads) {
+// See http://crbug.com/10611 for more information.
+#if defined(OS_MACOSX)
+#define MAYBE_MultipleThreads DISABLED_MultipleThreads
+#else
+#define MAYBE_MultipleThreads MultipleThreads
+#endif
+TEST_F(StatsTableTest, MAYBE_MultipleThreads) {
   // Create a stats table.
   const std::string kTableName = "MultipleThreadStatTable";
   const int kMaxThreads = 20;
