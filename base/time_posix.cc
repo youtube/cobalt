@@ -15,6 +15,8 @@
 
 #if defined(OS_ANDROID)
 #include "base/os_compat_android.h"
+#elif defined(OS_NACL)
+#include "base/os_compat_nacl.h"
 #endif
 
 namespace base {
