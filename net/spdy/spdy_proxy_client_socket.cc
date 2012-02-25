@@ -17,7 +17,6 @@
 #include "net/http/http_auth_cache.h"
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_net_log_params.h"
-#include "net/http/http_proxy_utils.h"
 #include "net/http/http_response_headers.h"
 #include "net/spdy/spdy_http_utils.h"
 
@@ -59,6 +58,34 @@ SpdyProxyClientSocket::~SpdyProxyClientSocket() {
 
 const HttpResponseInfo* SpdyProxyClientSocket::GetConnectResponseInfo() const {
   return response_.headers ? &response_ : NULL;
+}
+
+const scoped_refptr<HttpAuthController>&
+SpdyProxyClientSocket::GetAuthController() const {
+  return auth_;
+}
+
+int SpdyProxyClientSocket::RestartWithAuth(const CompletionCallback& callback) {
+  // A SPDY Stream can only handle a single request, so the underlying
+  // stream may not be reused and a new SpdyProxyClientSocket must be
+  // created (possibly on top of the same SPDY Session).
+  next_state_ = STATE_DISCONNECTED;
+  return ERR_NO_KEEP_ALIVE_ON_AUTH_RESTART;
+}
+
+bool SpdyProxyClientSocket::IsUsingSpdy() const {
+  return true;
+}
+
+SSLClientSocket::NextProto
+SpdyProxyClientSocket::GetProtocolNegotiated() const {
+  // Save the negotiated protocol
+  SSLInfo ssl_info;
+  bool was_npn_negotiated;
+  SSLClientSocket::NextProto protocol_negotiated;
+  spdy_stream_->GetSSLInfo(&ssl_info, &was_npn_negotiated,
+                           &protocol_negotiated);
+  return protocol_negotiated;
 }
 
 HttpStream* SpdyProxyClientSocket::CreateConnectResponseStream() {

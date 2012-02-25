@@ -286,7 +286,7 @@ TEST_P(HttpProxyClientSocketPoolTest, NeedAuth) {
     HttpProxyClientSocket* tunnel_socket =
             static_cast<HttpProxyClientSocket*>(handle_.socket());
     EXPECT_FALSE(tunnel_socket->IsConnected());
-    EXPECT_FALSE(tunnel_socket->using_spdy());
+    EXPECT_FALSE(tunnel_socket->IsUsingSpdy());
   } else {
     // Proxy auth is not really implemented for SPDY yet
     EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, rv);

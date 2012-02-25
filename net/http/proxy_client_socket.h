@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,12 +6,20 @@
 #define NET_HTTP_PROXY_CLIENT_SOCKET_H_
 #pragma once
 
+#include <string>
+
+#include "net/socket/ssl_client_socket.h"
 #include "net/socket/stream_socket.h"
 
 namespace net {
 
+class HostPortPair;
+class HttpAuthController;
 class HttpStream;
 class HttpResponseInfo;
+class HttpRequestHeaders;
+struct HttpRequestInfo;
+class HttpAuthController;
 
 class NET_EXPORT_PRIVATE ProxyClientSocket : public StreamSocket {
  public:
@@ -25,6 +33,38 @@ class NET_EXPORT_PRIVATE ProxyClientSocket : public StreamSocket {
   // Transfers ownership of a newly created HttpStream to the caller
   // which can be used to read the response body.
   virtual HttpStream* CreateConnectResponseStream() = 0;
+
+  // Returns the HttpAuthController which can be used
+  // to interact with an HTTP Proxy Authorization Required (407) request.
+  virtual const scoped_refptr<HttpAuthController>& GetAuthController() const
+      = 0;
+
+  // If Connect (or its callback) returns PROXY_AUTH_REQUESTED, then
+  // credentials should be added to the HttpAuthController before calling
+  // RestartWithAuth.
+  virtual int RestartWithAuth(const CompletionCallback& callback) = 0;
+
+  // Returns true of the connection to the proxy is using SPDY.
+  virtual bool IsUsingSpdy() const = 0;
+
+  // Returns the protocol negotiated with the proxy.
+  virtual SSLClientSocket::NextProto GetProtocolNegotiated() const = 0;
+
+ protected:
+  // The HTTP CONNECT method for establishing a tunnel connection is documented
+  // in draft-luotonen-web-proxy-tunneling-01.txt and RFC 2817, Sections 5.2
+  // and 5.3.
+  static void BuildTunnelRequest(const HttpRequestInfo& request_info,
+                                 const HttpRequestHeaders& auth_headers,
+                                 const HostPortPair& endpoint,
+                                 std::string* request_line,
+                                 HttpRequestHeaders* request_headers);
+
+  // When an auth challenge (407 response) is received during tunnel
+  // construction/ this method should be called.
+  static int HandleProxyAuthChallenge(HttpAuthController* auth,
+                                      HttpResponseInfo* response,
+                                      const BoundNetLog& net_log);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ProxyClientSocket);
