@@ -8,17 +8,21 @@
 
 #include "build/build_config.h"
 
+#include <string>
+
 #if defined(OS_POSIX)
 #include <stdio.h>
 #include <sys/types.h>
 #include <semaphore.h>
-#include "base/file_descriptor_posix.h"
 #endif
-#include <string>
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/process.h"
+
+#if defined(OS_POSIX)
+#include "base/file_descriptor_posix.h"
+#endif
 
 class FilePath;
 
@@ -201,14 +205,11 @@ class BASE_EXPORT SharedMemory {
   }
 
   // Locks the shared memory.
-  // This is a cross-process lock which may be recursively
-  // locked by the same thread.
-  // TODO(port):
-  // WARNING: on POSIX the lock only works across processes, not
-  // across threads.  2 threads in the same process can both grab the
-  // lock at the same time.  There are several solutions for this
-  // (futex, lockf+anon_semaphore) but none are both clean and common
-  // across Mac and Linux.
+  //
+  // WARNING: on POSIX the memory locking primitive only works across
+  // processes, not across threads.  The Lock method is not currently
+  // used in inner loops, so we protect against multiple threads in a
+  // critical section using a class global lock.
   void Lock();
 
 #if defined(OS_WIN)
