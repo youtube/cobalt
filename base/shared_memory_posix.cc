@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,9 +11,11 @@
 #include <unistd.h>
 
 #include "base/file_util.h"
+#include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/threading/platform_thread.h"
 #include "base/safe_strerror_posix.h"
+#include "base/synchronization/lock.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/utf_string_conversions.h"
 
@@ -33,6 +35,8 @@ namespace {
 // Paranoia. Semaphores and shared memory segments should live in different
 // namespaces, but who knows what's out there.
 const char kSemaphoreSuffix[] = "-sem";
+
+LazyInstance<Lock>::Leaky g_thread_lock_ = LAZY_INSTANCE_INITIALIZER;
 
 }
 
@@ -268,11 +272,13 @@ void SharedMemory::Close() {
 }
 
 void SharedMemory::Lock() {
+  g_thread_lock_.Get().Acquire();
   LockOrUnlockCommon(F_LOCK);
 }
 
 void SharedMemory::Unlock() {
   LockOrUnlockCommon(F_ULOCK);
+  g_thread_lock_.Get().Release();
 }
 
 #if !defined(OS_ANDROID)
