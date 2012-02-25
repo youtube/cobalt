@@ -69,27 +69,12 @@ class NET_EXPORT UploadDataStream {
   static void set_merge_chunks(bool merge) { merge_chunks_ = merge; }
 
  private:
-  // Advances to the next element. Updates the internal states.
-  void AdvanceToNextElement();
-
   scoped_refptr<UploadData> upload_data_;
 
   // Index of the current upload element (i.e. the element currently being
   // read). The index is used as a cursor to iterate over elements in
   // |upload_data_|.
   size_t element_index_;
-
-  // The byte offset into the current element's data buffer if the current
-  // element is a TYPE_BYTES or TYPE_DATA element.
-  size_t element_offset_;
-
-  // A stream to the currently open file, for the current element if the
-  // current element is a TYPE_FILE element.
-  scoped_ptr<FileStream> element_file_stream_;
-
-  // The number of bytes remaining to be read from the currently open file
-  // if the current element is of TYPE_FILE.
-  uint64 element_file_bytes_remaining_;
 
   // Size and current read position within the upload data stream.
   uint64 total_size_;
