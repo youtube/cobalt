@@ -116,6 +116,11 @@ class BASE_EXPORT SequencedTaskRunner : public TaskRunner {
       const Closure& task,
       int64 delay_ms) = 0;
 
+  virtual bool PostNonNestableDelayedTask(
+      const tracked_objects::Location& from_here,
+      const Closure& task,
+      base::TimeDelta delay) = 0;
+
   // Submits a non-nestable task to delete the given object.  Returns
   // true if the object may be deleted at some point in the future,
   // and false if the object definitely will not be deleted.
