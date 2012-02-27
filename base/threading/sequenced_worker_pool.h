@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,13 +6,18 @@
 #define BASE_THREADING_SEQUENCED_WORKER_POOL_H_
 #pragma once
 
+#include <cstddef>
 #include <string>
 
-#include "base/callback.h"
-#include "base/memory/linked_ptr.h"
-#include "base/memory/ref_counted.h"
-#include "base/tracked_objects.h"
 #include "base/base_export.h"
+#include "base/basictypes.h"
+#include "base/callback_forward.h"
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
+
+namespace tracked_objects {
+class Location;
+}  // namespace tracked_objects
 
 namespace base {
 
@@ -46,7 +51,8 @@ namespace base {
 // not enforce shutdown semantics or allow us to specify how many worker
 // threads to run. For the typical use case of random background work, we don't
 // necessarily want to be super aggressive about creating threads.
-class BASE_EXPORT SequencedWorkerPool {
+class BASE_EXPORT SequencedWorkerPool
+    : public RefCountedThreadSafe<SequencedWorkerPool> {
  public:
   // Defines what should happen to a task posted to the worker pool on shutdown.
   enum WorkerShutdown {
@@ -87,10 +93,10 @@ class BASE_EXPORT SequencedWorkerPool {
   };
 
   // Opaque identifier that defines sequencing of tasks posted to the worker
-  // pool. See NewSequenceToken().
+  // pool.
   class SequenceToken {
    public:
-    explicit SequenceToken() : id_(0) {}
+    SequenceToken() : id_(0) {}
     ~SequenceToken() {}
 
     bool Equals(const SequenceToken& other) const {
@@ -100,7 +106,7 @@ class BASE_EXPORT SequencedWorkerPool {
    private:
     friend class SequencedWorkerPool;
 
-    SequenceToken(int id) : id_(id) {}
+    explicit SequenceToken(int id) : id_(id) {}
 
     int id_;
   };
@@ -116,7 +122,6 @@ class BASE_EXPORT SequencedWorkerPool {
   // and a prefix for the thread name to ad in debugging.
   SequencedWorkerPool(size_t max_threads,
                       const std::string& thread_name_prefix);
-  ~SequencedWorkerPool();
 
   // Returns a unique token that can be used to sequence tasks posted to
   // PostSequencedWorkerTask(). Valid tokens are alwys nonzero.
@@ -149,12 +154,12 @@ class BASE_EXPORT SequencedWorkerPool {
   // Returns true if the task was posted successfully. This may fail during
   // shutdown regardless of the specified ShutdownBehavior.
   bool PostWorkerTask(const tracked_objects::Location& from_here,
-                      const base::Closure& task);
+                      const Closure& task);
 
   // Same as PostWorkerTask but allows specification of the shutdown behavior.
   bool PostWorkerTaskWithShutdownBehavior(
       const tracked_objects::Location& from_here,
-      const base::Closure& task,
+      const Closure& task,
       WorkerShutdown shutdown_behavior);
 
   // Like PostWorkerTask above, but provides sequencing semantics. This means
@@ -170,20 +175,20 @@ class BASE_EXPORT SequencedWorkerPool {
   // shutdown regardless of the specified ShutdownBehavior.
   bool PostSequencedWorkerTask(SequenceToken sequence_token,
                                const tracked_objects::Location& from_here,
-                               const base::Closure& task);
+                               const Closure& task);
 
   // Like PostSequencedWorkerTask above, but allows you to specify a named
   // token, which saves an extra call to GetNamedSequenceToken.
   bool PostNamedSequencedWorkerTask(const std::string& token_name,
                                     const tracked_objects::Location& from_here,
-                                    const base::Closure& task);
+                                    const Closure& task);
 
   // Same as PostSequencedWorkerTask but allows specification of the shutdown
   // behavior.
   bool PostSequencedWorkerTaskWithShutdownBehavior(
       SequenceToken sequence_token,
       const tracked_objects::Location& from_here,
-      const base::Closure& task,
+      const Closure& task,
       WorkerShutdown shutdown_behavior);
 
   // Blocks until all pending tasks are complete. This should only be called in
@@ -206,13 +211,16 @@ class BASE_EXPORT SequencedWorkerPool {
   void SetTestingObserver(TestingObserver* observer);
 
  private:
+  friend class RefCountedThreadSafe<SequencedWorkerPool>;
+
   class Inner;
   class Worker;
 
-  friend class Inner;
-  friend class Worker;
+  ~SequencedWorkerPool();
 
-  scoped_refptr<Inner> inner_;
+  // Avoid pulling in too many headers by putting everything into
+  // |inner_|.
+  const scoped_ptr<Inner> inner_;
 
   DISALLOW_COPY_AND_ASSIGN(SequencedWorkerPool);
 };
