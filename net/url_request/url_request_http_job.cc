@@ -33,6 +33,7 @@
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
+#include "net/http/http_status_code.h"
 #include "net/http/http_transaction.h"
 #include "net/http/http_transaction_factory.h"
 #include "net/http/http_util.h"
@@ -1021,8 +1022,9 @@ void URLRequestHttpJob::GetAuthChallengeInfo(
   // sanity checks:
   DCHECK(proxy_auth_state_ == AUTH_STATE_NEED_AUTH ||
          server_auth_state_ == AUTH_STATE_NEED_AUTH);
-  DCHECK(GetResponseHeaders()->response_code() == 401 ||
-         GetResponseHeaders()->response_code() == 407);
+  DCHECK((GetResponseHeaders()->response_code() == HTTP_UNAUTHORIZED) ||
+         (GetResponseHeaders()->response_code() ==
+          HTTP_PROXY_AUTHENTICATION_REQUIRED));
 
   *result = response_info_->auth_challenge;
 }

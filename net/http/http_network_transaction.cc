@@ -44,6 +44,7 @@
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
 #include "net/http/http_server_properties.h"
+#include "net/http/http_status_code.h"
 #include "net/http/http_stream_factory.h"
 #include "net/http/http_util.h"
 #include "net/http/url_security_manager.h"
@@ -316,7 +317,7 @@ int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
     // communication with the proxy is secure.
     // See http://crbug.com/8473.
     DCHECK(proxy_info_.is_http() || proxy_info_.is_https());
-    DCHECK_EQ(headers->response_code(), 407);
+    DCHECK_EQ(headers->response_code(), HTTP_PROXY_AUTHENTICATION_REQUIRED);
     LOG(WARNING) << "Blocked proxy response with status "
                  << headers->response_code() << " to CONNECT request for "
                  << GetHostAndPort(request_->url) << ".";
@@ -1278,15 +1279,17 @@ int HttpNetworkTransaction::HandleAuthChallenge() {
   DCHECK(headers);
 
   int status = headers->response_code();
-  if (status != 401 && status != 407)
+  if (status != HTTP_UNAUTHORIZED &&
+      status != HTTP_PROXY_AUTHENTICATION_REQUIRED)
     return OK;
-  HttpAuth::Target target = status == 407 ?
+  HttpAuth::Target target = status == HTTP_PROXY_AUTHENTICATION_REQUIRED ?
                             HttpAuth::AUTH_PROXY : HttpAuth::AUTH_SERVER;
   if (target == HttpAuth::AUTH_PROXY && proxy_info_.is_direct())
     return ERR_UNEXPECTED_PROXY_AUTH;
 
-  // This case can trigger when an HTTPS server responds with a 407 status
-  // code through a non-authenticating proxy.
+  // This case can trigger when an HTTPS server responds with a "Proxy
+  // authentication required" status code through a non-authenticating
+  // proxy.
   if (!auth_controllers_[target].get())
     return ERR_UNEXPECTED_PROXY_AUTH;
 
