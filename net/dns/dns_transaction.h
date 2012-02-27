@@ -37,6 +37,7 @@ class NET_EXPORT_PRIVATE DnsTransaction {
 
   // Starts the transaction. Returns the net error on synchronous failure or
   // ERR_IO_PENDING in which case the result will be passed via the callback.
+  // Can be called at most once.
   virtual int Start() = 0;
 };
 
