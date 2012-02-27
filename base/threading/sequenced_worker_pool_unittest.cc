@@ -10,6 +10,7 @@
 #include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/sequenced_worker_pool.h"
+#include "base/tracked_objects.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -143,9 +144,9 @@ class SequencedWorkerPoolTest : public testing::Test,
                                 public SequencedWorkerPool::TestingObserver {
  public:
   SequencedWorkerPoolTest()
-      : pool_(kNumWorkerThreads, "test"),
+      : pool_(new SequencedWorkerPool(kNumWorkerThreads, "test")),
         tracker_(new TestTracker) {
-    pool_.SetTestingObserver(this);
+    pool_->SetTestingObserver(this);
   }
   ~SequencedWorkerPoolTest() {
   }
@@ -153,10 +154,10 @@ class SequencedWorkerPoolTest : public testing::Test,
   virtual void SetUp() {
   }
   virtual void TearDown() {
-    pool_.Shutdown();
+    pool_->Shutdown();
   }
 
-  SequencedWorkerPool& pool() { return pool_; }
+  const scoped_refptr<SequencedWorkerPool>& pool() { return pool_; }
   TestTracker* tracker() { return tracker_.get(); }
 
   // Ensures that the given number of worker threads is created by adding
@@ -178,9 +179,9 @@ class SequencedWorkerPoolTest : public testing::Test,
     // workers to be created.
     ThreadBlocker blocker;
     for (size_t i = 0; i < kNumWorkerThreads; i++) {
-      pool().PostWorkerTask(FROM_HERE,
-                            base::Bind(&TestTracker::BlockTask,
-                                       tracker(), -1, &blocker));
+      pool()->PostWorkerTask(FROM_HERE,
+                             base::Bind(&TestTracker::BlockTask,
+                                        tracker(), -1, &blocker));
     }
     tracker()->WaitUntilTasksBlocked(kNumWorkerThreads);
 
@@ -203,8 +204,8 @@ class SequencedWorkerPoolTest : public testing::Test,
       before_wait_for_shutdown_.Run();
   }
 
-  SequencedWorkerPool pool_;
-  scoped_refptr<TestTracker> tracker_;
+  const scoped_refptr<SequencedWorkerPool> pool_;
+  const scoped_refptr<TestTracker> tracker_;
 };
 
 // Checks that the given number of entries are in the tasks to complete of
@@ -228,13 +229,13 @@ void EnsureTasksToCompleteCountAndUnblock(scoped_refptr<TestTracker> tracker,
 TEST_F(SequencedWorkerPoolTest, NamedTokens) {
   const std::string name1("hello");
   SequencedWorkerPool::SequenceToken token1 =
-      pool().GetNamedSequenceToken(name1);
+      pool()->GetNamedSequenceToken(name1);
 
-  SequencedWorkerPool::SequenceToken token2 = pool().GetSequenceToken();
+  SequencedWorkerPool::SequenceToken token2 = pool()->GetSequenceToken();
 
   const std::string name3("goodbye");
   SequencedWorkerPool::SequenceToken token3 =
-      pool().GetNamedSequenceToken(name3);
+      pool()->GetNamedSequenceToken(name3);
 
   // All 3 tokens should be different.
   EXPECT_FALSE(token1.Equals(token2));
@@ -243,24 +244,24 @@ TEST_F(SequencedWorkerPoolTest, NamedTokens) {
 
   // Requesting the same name again should give the same value.
   SequencedWorkerPool::SequenceToken token1again =
-      pool().GetNamedSequenceToken(name1);
+      pool()->GetNamedSequenceToken(name1);
   EXPECT_TRUE(token1.Equals(token1again));
 
   SequencedWorkerPool::SequenceToken token3again =
-      pool().GetNamedSequenceToken(name3);
+      pool()->GetNamedSequenceToken(name3);
   EXPECT_TRUE(token3.Equals(token3again));
 }
 
 // Tests that posting a bunch of tasks (many more than the number of worker
 // threads) runs them all.
 TEST_F(SequencedWorkerPoolTest, LotsOfTasks) {
-  pool().PostWorkerTask(FROM_HERE,
-                        base::Bind(&TestTracker::SlowTask, tracker(), 0));
+  pool()->PostWorkerTask(FROM_HERE,
+                         base::Bind(&TestTracker::SlowTask, tracker(), 0));
 
   const size_t kNumTasks = 20;
   for (size_t i = 1; i < kNumTasks; i++) {
-    pool().PostWorkerTask(FROM_HERE,
-                          base::Bind(&TestTracker::FastTask, tracker(), i));
+    pool()->PostWorkerTask(FROM_HERE,
+                           base::Bind(&TestTracker::FastTask, tracker(), i));
   }
 
   std::vector<int> result = tracker()->WaitUntilTasksComplete(kNumTasks);
@@ -274,9 +275,9 @@ TEST_F(SequencedWorkerPoolTest, Sequence) {
   const size_t kNumBackgroundTasks = kNumWorkerThreads - 1;
   ThreadBlocker background_blocker;
   for (size_t i = 0; i < kNumBackgroundTasks; i++) {
-    pool().PostWorkerTask(FROM_HERE,
-                          base::Bind(&TestTracker::BlockTask,
-                                     tracker(), i, &background_blocker));
+    pool()->PostWorkerTask(FROM_HERE,
+                           base::Bind(&TestTracker::BlockTask,
+                                      tracker(), i, &background_blocker));
   }
   tracker()->WaitUntilTasksBlocked(kNumBackgroundTasks);
 
@@ -285,22 +286,22 @@ TEST_F(SequencedWorkerPoolTest, Sequence) {
   // is one worker thread free, the first task will start and then block, and
   // the second task should be waiting.
   ThreadBlocker blocker;
-  SequencedWorkerPool::SequenceToken token1 = pool().GetSequenceToken();
-  pool().PostSequencedWorkerTask(
+  SequencedWorkerPool::SequenceToken token1 = pool()->GetSequenceToken();
+  pool()->PostSequencedWorkerTask(
       token1, FROM_HERE,
       base::Bind(&TestTracker::BlockTask, tracker(), 100, &blocker));
-  pool().PostSequencedWorkerTask(
+  pool()->PostSequencedWorkerTask(
       token1, FROM_HERE,
       base::Bind(&TestTracker::FastTask, tracker(), 101));
   EXPECT_EQ(0u, tracker()->WaitUntilTasksComplete(0).size());
 
   // Create another two tasks as above with a different token. These will be
   // blocked since there are no slots to run.
-  SequencedWorkerPool::SequenceToken token2 = pool().GetSequenceToken();
-  pool().PostSequencedWorkerTask(
+  SequencedWorkerPool::SequenceToken token2 = pool()->GetSequenceToken();
+  pool()->PostSequencedWorkerTask(
       token2, FROM_HERE,
       base::Bind(&TestTracker::FastTask, tracker(), 200));
-  pool().PostSequencedWorkerTask(
+  pool()->PostSequencedWorkerTask(
       token2, FROM_HERE,
       base::Bind(&TestTracker::FastTask, tracker(), 201));
   EXPECT_EQ(0u, tracker()->WaitUntilTasksComplete(0).size());
@@ -335,22 +336,22 @@ TEST_F(SequencedWorkerPoolTest, DiscardOnShutdown) {
   EnsureAllWorkersCreated();
   ThreadBlocker blocker;
   for (size_t i = 0; i < kNumWorkerThreads; i++) {
-    pool().PostWorkerTask(FROM_HERE,
-                          base::Bind(&TestTracker::BlockTask,
-                                     tracker(), i, &blocker));
+    pool()->PostWorkerTask(FROM_HERE,
+                           base::Bind(&TestTracker::BlockTask,
+                                      tracker(), i, &blocker));
   }
   tracker()->WaitUntilTasksBlocked(kNumWorkerThreads);
 
   // Create some tasks with different shutdown modes.
-  pool().PostWorkerTaskWithShutdownBehavior(
+  pool()->PostWorkerTaskWithShutdownBehavior(
       FROM_HERE,
       base::Bind(&TestTracker::FastTask, tracker(), 100),
       SequencedWorkerPool::CONTINUE_ON_SHUTDOWN);
-  pool().PostWorkerTaskWithShutdownBehavior(
+  pool()->PostWorkerTaskWithShutdownBehavior(
       FROM_HERE,
       base::Bind(&TestTracker::FastTask, tracker(), 101),
       SequencedWorkerPool::SKIP_ON_SHUTDOWN);
-  pool().PostWorkerTaskWithShutdownBehavior(
+  pool()->PostWorkerTaskWithShutdownBehavior(
       FROM_HERE,
       base::Bind(&TestTracker::FastTask, tracker(), 102),
       SequencedWorkerPool::BLOCK_SHUTDOWN);
@@ -360,7 +361,7 @@ TEST_F(SequencedWorkerPoolTest, DiscardOnShutdown) {
       base::Bind(&EnsureTasksToCompleteCountAndUnblock,
                  scoped_refptr<TestTracker>(tracker()), 0,
                  &blocker, kNumWorkerThreads);
-  pool().Shutdown();
+  pool()->Shutdown();
 
   std::vector<int> result = tracker()->WaitUntilTasksComplete(4);
 
@@ -378,7 +379,7 @@ TEST_F(SequencedWorkerPoolTest, DiscardOnShutdown) {
 TEST_F(SequencedWorkerPoolTest, ContinueOnShutdown) {
   EnsureAllWorkersCreated();
   ThreadBlocker blocker;
-  pool().PostWorkerTaskWithShutdownBehavior(
+  pool()->PostWorkerTaskWithShutdownBehavior(
       FROM_HERE,
       base::Bind(&TestTracker::BlockTask,
                  tracker(), 0, &blocker),
@@ -386,13 +387,13 @@ TEST_F(SequencedWorkerPoolTest, ContinueOnShutdown) {
   tracker()->WaitUntilTasksBlocked(1);
 
   // This should not block. If this test hangs, it means it failed.
-  pool().Shutdown();
+  pool()->Shutdown();
 
   // The task should not have completed yet.
   EXPECT_EQ(0u, tracker()->WaitUntilTasksComplete(0).size());
 
   // Posting more tasks should fail.
-  EXPECT_FALSE(pool().PostWorkerTaskWithShutdownBehavior(
+  EXPECT_FALSE(pool()->PostWorkerTaskWithShutdownBehavior(
       FROM_HERE, base::Bind(&TestTracker::FastTask, tracker(), 0),
       SequencedWorkerPool::CONTINUE_ON_SHUTDOWN));
 
