@@ -450,7 +450,7 @@ TEST_F(SpdyProxyClientSocketTest, ConnectWithAuthRequested) {
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
-  AssertConnectFails(ERR_TUNNEL_CONNECTION_FAILED);
+  AssertConnectFails(ERR_PROXY_AUTH_REQUESTED);
 
   const HttpResponseInfo* response = sock_->GetConnectResponseInfo();
   ASSERT_TRUE(response != NULL);
@@ -831,7 +831,7 @@ TEST_F(SpdyProxyClientSocketTest, ReadAuthResponseBody) {
 
   Initialize(reads, arraysize(reads), writes, arraysize(writes));
 
-  AssertConnectFails(ERR_TUNNEL_CONNECTION_FAILED);
+  AssertConnectFails(ERR_PROXY_AUTH_REQUESTED);
 
   Run(2);  // SpdySession consumes the next two reads and sends then to
            // sock_ to be buffered.
