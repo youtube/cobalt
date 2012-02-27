@@ -411,7 +411,7 @@ int SpdyProxyClientSocket::DoReadReplyComplete(int result) {
   if (response_.headers->response_code() == 200) {
     return OK;
   } else if (response_.headers->response_code() == 407) {
-    return ERR_TUNNEL_CONNECTION_FAILED;
+    return HandleProxyAuthChallenge(auth_, &response_, net_log_);
   } else {
     // Immediately hand off our SpdyStream to a newly created SpdyHttpStream
     // so that any subsequent SpdyFrames are processed in the context of
