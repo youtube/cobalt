@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -71,16 +71,18 @@ class TestClientInitializer : public testing::EmptyTestEventListener {
 
 const char TestSuite::kStrictFailureHandling[] = "strict_failure_handling";
 
-TestSuite::TestSuite(int argc, char** argv) {
+TestSuite::TestSuite(int argc, char** argv) : initialized_command_line_(false) {
   PreInitialize(argc, argv, true);
 }
 
-TestSuite::TestSuite(int argc, char** argv, bool create_at_exit_manager) {
+TestSuite::TestSuite(int argc, char** argv, bool create_at_exit_manager)
+    : initialized_command_line_(false) {
   PreInitialize(argc, argv, create_at_exit_manager);
 }
 
 TestSuite::~TestSuite() {
-  CommandLine::Reset();
+  if (initialized_command_line_)
+    CommandLine::Reset();
 }
 
 void TestSuite::PreInitialize(int argc, char** argv,
@@ -89,7 +91,7 @@ void TestSuite::PreInitialize(int argc, char** argv,
   testing::GTEST_FLAG(catch_exceptions) = false;
 #endif
   base::EnableTerminationOnHeapCorruption();
-  CommandLine::Init(argc, argv);
+  initialized_command_line_ = CommandLine::Init(argc, argv);
   testing::InitGoogleTest(&argc, argv);
 #if defined(OS_LINUX) && defined(USE_AURA)
   // When calling native char conversion functions (e.g wrctomb) we need to

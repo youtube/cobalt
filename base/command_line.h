@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -55,8 +55,10 @@ class BASE_EXPORT CommandLine {
   // Initialize the current process CommandLine singleton. On Windows, ignores
   // its arguments (we instead parse GetCommandLineW() directly) because we
   // don't trust the CRT's parsing of the command line, but it still must be
-  // called to set up the command line.
-  static void Init(int argc, const char* const* argv);
+  // called to set up the command line. Returns false if initialization has
+  // already occurred, and true otherwise. Only the caller receiving a 'true'
+  // return value should take responsibility for calling Reset.
+  static bool Init(int argc, const char* const* argv);
 
   // Destroys the current process CommandLine singleton. This is necessary if
   // you want to reset the base library to its initial state (for example, in an
