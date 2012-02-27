@@ -741,25 +741,6 @@
       'export_dependent_settings': [
         '../base/base.gyp:base',
       ],
-      'actions': [
-        {
-          'action_name': 'ssl_false_start_blacklist',
-          'inputs': [
-            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)ssl_false_start_blacklist_process<(EXECUTABLE_SUFFIX)',
-            'base/ssl_false_start_blacklist.txt',
-          ],
-          'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/net/base/ssl_false_start_blacklist_data.cc',
-          ],
-          'action':
-            ['<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)ssl_false_start_blacklist_process<(EXECUTABLE_SUFFIX)',
-             'base/ssl_false_start_blacklist.txt',
-              '<(SHARED_INTERMEDIATE_DIR)/net/base/ssl_false_start_blacklist_data.cc',
-            ],
-          'message': 'Generating SSL False Start blacklist',
-          'process_outputs_as_sources': 1,
-        },
-      ],
       'conditions': [
         ['OS=="lb_shell"', {
           'dependencies': [
@@ -792,6 +773,25 @@
             '../sdch/sdch.gyp:sdch',
             '../v8/tools/gyp/v8.gyp:v8',
             'ssl_false_start_blacklist_process#host',
+          ],
+          'actions': [
+            {
+              'action_name': 'ssl_false_start_blacklist',
+              'inputs': [
+                '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)ssl_false_start_blacklist_process<(EXECUTABLE_SUFFIX)',
+                'base/ssl_false_start_blacklist.txt',
+              ],
+              'outputs': [
+                '<(SHARED_INTERMEDIATE_DIR)/net/base/ssl_false_start_blacklist_data.cc',
+              ],
+              'action':
+                ['<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)ssl_false_start_blacklist_process<(EXECUTABLE_SUFFIX)',
+                 'base/ssl_false_start_blacklist.txt',
+                  '<(SHARED_INTERMEDIATE_DIR)/net/base/ssl_false_start_blacklist_data.cc',
+                ],
+              'message': 'Generating SSL False Start blacklist',
+              'process_outputs_as_sources': 1,
+            },
           ],
         }],
         ['chromeos==1', {
