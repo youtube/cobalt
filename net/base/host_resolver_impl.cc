@@ -566,12 +566,11 @@ class HostResolverImpl::ProcTask
     // If default is unset, use the system proc.
     if (!params_.resolver_proc)
       params_.resolver_proc = new CallSystemHostResolverProc();
-
-    net_log_.BeginEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_PROC_TASK, NULL);
   }
 
   void Start() {
     DCHECK(origin_loop_->BelongsToCurrentThread());
+    net_log_.BeginEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_PROC_TASK, NULL);
     StartLookupAttempt();
   }
 
@@ -585,7 +584,6 @@ class HostResolverImpl::ProcTask
       return;
 
     callback_.Reset();
-
     net_log_.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_PROC_TASK, NULL);
   }
 
