@@ -266,7 +266,6 @@
           'shared_memory_posix.cc',
           'shared_memory_win.cc',
           'single_thread_task_runner.h',
-          'spin_wait.h',
           'stack_container.h',
           'stl_util.h',
           'string_number_conversions.cc',
