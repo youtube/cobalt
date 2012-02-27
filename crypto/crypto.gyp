@@ -22,12 +22,6 @@
         4018,
       ],
       'conditions': [
-        ['OS=="lb_shell"', {
-          'dependencies' : [
-            '../../openssl/openssl.gyp:openssl',
-            '../../openssl/openssl.gyp:openssl_includes',
-          ],
-        }],
         [ 'os_posix == 1 and OS != "mac" and OS != "android" and OS != "lb_shell"', {
           'dependencies': [
             '../build/linux/system.gyp:ssl',
@@ -95,6 +89,17 @@
             'capi_util.h',
             'capi_util.cc',
           ],
+        }],
+        ['OS=="lb_shell"', {
+          'dependencies' : [
+            '../../openssl/openssl.gyp:openssl',
+            '../../openssl/openssl.gyp:openssl_includes',
+          ],
+          # for some reason, although use_openssl==1 is true, we are including
+          # both nss and openssl sources in our build. Hard-exclude the nss.
+          'sources/': [
+            ['exclude', '.*nss.*']
+          ]
         }],
         [ 'use_openssl==1', {
             # TODO(joth): Use a glob to match exclude patterns once the

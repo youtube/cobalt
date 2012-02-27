@@ -1607,7 +1607,7 @@
                 'includes': ['release.gypi'],
               }],
             ]
-          },          
+          },
         }],
         [ 'OS=="win"', {
           # TODO(bradnelson): add a gyp mechanism to make this more graceful.
