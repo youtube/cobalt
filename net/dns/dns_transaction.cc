@@ -271,20 +271,15 @@ class DnsTransactionImpl : public DnsTransaction, public base::NonThreadSafe {
     DCHECK(session_);
     DCHECK(!hostname_.empty());
     DCHECK(!callback_.is_null());
-
     DCHECK(!IsIPLiteral(hostname_));
-
-    net_log_.BeginEvent(NetLog::TYPE_DNS_TRANSACTION, make_scoped_refptr(
-        new StartParameters(hostname_, qtype_)));
   }
 
   virtual ~DnsTransactionImpl() {
-    STLDeleteElements(&attempts_);
     if (!callback_.is_null()) {
-      net_log_.AddEvent(NetLog::TYPE_CANCELLED, NULL);
       net_log_.EndEventWithNetErrorCode(NetLog::TYPE_DNS_TRANSACTION,
                                         ERR_ABORTED);
-    }
+    }  // otherwise logged in DoCallback or Start
+    STLDeleteElements(&attempts_);
   }
 
   virtual const std::string& GetHostname() const OVERRIDE {
@@ -298,6 +293,10 @@ class DnsTransactionImpl : public DnsTransaction, public base::NonThreadSafe {
   }
 
   virtual int Start() OVERRIDE {
+    DCHECK(!callback_.is_null());
+    DCHECK(attempts_.empty());
+    net_log_.BeginEvent(NetLog::TYPE_DNS_TRANSACTION, make_scoped_refptr(
+        new StartParameters(hostname_, qtype_)));
     int rv = PrepareSearch();
     if (rv == OK)
       rv = StartQuery();
@@ -313,6 +312,11 @@ class DnsTransactionImpl : public DnsTransaction, public base::NonThreadSafe {
                      OK,
                      attempts_.back()));
       return ERR_IO_PENDING;
+    }
+    if (rv != ERR_IO_PENDING) {
+      // Clear |callback_| to catch re-starts.
+      callback_.Reset();
+      net_log_.EndEventWithNetErrorCode(NetLog::TYPE_DNS_TRANSACTION, rv);
     }
     return rv;
   }
