@@ -471,6 +471,7 @@
         'http/http_server_properties.h',
         'http/http_server_properties_impl.cc',
         'http/http_server_properties_impl.h',
+        'http/http_status_code.h',
         'http/http_stream.h',
         'http/http_stream_factory.cc',
         'http/http_stream_factory.h',
