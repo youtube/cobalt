@@ -262,7 +262,7 @@
             '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
           ],
         }],
-        ['OS == "android"', {
+        ['OS == "android" or OS == "lb_shell"', {
           'sources!': [
             'base/media_posix.cc',
             'ffmpeg/ffmpeg_common.cc',
