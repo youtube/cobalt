@@ -8,6 +8,7 @@
 
 #include <string>
 #include "base/basictypes.h"
+#include "base/callback.h"
 #include "crypto/crypto_export.h"
 
 #if defined(USE_NSS)
@@ -25,6 +26,9 @@ class Time;
 namespace crypto {
 
 class SymmetricKey;
+
+// A callback to handle the result of InitializeTPMToken.
+typedef base::Callback<void(bool result)> InitializeTPMTokenCallback;
 
 #if defined(USE_NSS)
 // EarlySetupForNSSInit performs lightweight setup which must occur before the
@@ -93,16 +97,22 @@ CRYPTO_EXPORT void OpenPersistentNSSDB();
 // communication with cryptohomed and the TPM.
 class CRYPTO_EXPORT TPMTokenInfoDelegate {
  public:
+  // A callback to handle the result of RequestIsTokenReady.
+  typedef base::Callback<void(bool result)> RequestIsTokenReadyCallback;
+
   TPMTokenInfoDelegate();
   virtual ~TPMTokenInfoDelegate();
 
   // Returns true if the hardware supports a TPM Token and the TPM is enabled.
   virtual bool IsTokenAvailable() const = 0;
 
-  // Returns true if the TPM and PKCS#11 token slot is ready to be used.
-  // If IsTokenAvailable() is false this should return false.
-  // If IsTokenAvailable() is true, this should eventually return true.
-  virtual bool IsTokenReady() const = 0;
+  // Runs |callback| with true if the TPM and PKCS#11 token slot is ready to be
+  // used.
+  // If IsTokenAvailable() is false this should run |callback| with false.
+  // If IsTokenAvailable() is true, this should eventually run |callback| with
+  // true.
+  virtual void RequestIsTokenReady(RequestIsTokenReadyCallback callback) const
+      = 0;
 
   // Fetches token properties. TODO(stevenjb): make this interface asynchronous
   // so that the implementation does not have to be blocking.
@@ -132,9 +142,8 @@ CRYPTO_EXPORT bool IsTPMTokenAvailable();
 // loaded into NSS.
 CRYPTO_EXPORT bool IsTPMTokenReady();
 
-// Same as IsTPMTokenReady() except this attempts to initialize the token
-// if necessary.
-CRYPTO_EXPORT bool EnsureTPMTokenReady();
+// Initialize the TPM token.  Does nothing if it is already initialized.
+CRYPTO_EXPORT void InitializeTPMToken(InitializeTPMTokenCallback callback);
 
 // Gets supplemental user key. Creates one in NSS database if it does not exist.
 // The supplemental user key is used for AES encryption of user data that is
