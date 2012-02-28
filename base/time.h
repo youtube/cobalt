@@ -23,7 +23,7 @@
 #define BASE_TIME_H_
 #pragma once
 
-#include <time.h>
+#include_next <time.h>
 
 #include "base/atomicops.h"
 #include "base/base_export.h"
