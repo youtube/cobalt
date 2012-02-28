@@ -2020,11 +2020,17 @@
           }],
           ['linux_use_gold_binary==1', {
             'variables': {
-              # We pass the path to gold to the compiler.  gyp leaves
-              # unspecified what the cwd is when running the compiler,
-              # so the normal gyp path-munging fails us.  This hack
-              # gets the right path.
-              'gold_path': '<(PRODUCT_DIR)/../../third_party/gold',
+              'conditions': [
+                ['inside_chromium_build==1', {
+                  # We pass the path to gold to the compiler.  gyp leaves
+                  # unspecified what the cwd is when running the compiler,
+                  # so the normal gyp path-munging fails us.  This hack
+                  # gets the right path.
+                  'gold_path': '<(PRODUCT_DIR)/../../third_party/gold',
+                }, {
+                  'gold_path': '<(PRODUCT_DIR)/../../Source/WebKit/chromium/third_party/gold',
+                }]
+              ]
             },
             'ldflags': [
               # Put our gold binary in the search path for the linker.
