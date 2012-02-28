@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -144,10 +144,10 @@ void NetworkChangeNotifier::NotifyObserversOfIPAddressChange() {
   }
 }
 
-void NetworkChangeNotifier::NotifyObserversOfDNSChange() {
+void NetworkChangeNotifier::NotifyObserversOfDNSChange(unsigned detail) {
   if (g_network_change_notifier) {
     g_network_change_notifier->resolver_state_observer_list_->Notify(
-        &DNSObserver::OnDNSChanged);
+        &DNSObserver::OnDNSChanged, detail);
   }
 }
 

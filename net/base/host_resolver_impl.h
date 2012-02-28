@@ -212,7 +212,7 @@ class NET_EXPORT HostResolverImpl
   virtual void OnIPAddressChanged() OVERRIDE;
 
   // NetworkChangeNotifier::DNSObserver:
-  virtual void OnDNSChanged() OVERRIDE;
+  virtual void OnDNSChanged(unsigned detail) OVERRIDE;
 
   // DnsConfigService::Observer:
   virtual void OnConfigChanged(const DnsConfig& dns_config) OVERRIDE;
