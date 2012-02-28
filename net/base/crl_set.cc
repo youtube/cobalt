@@ -205,6 +205,9 @@ bool CRLSet::CopyBlockedSPKIsFromHeader(base::DictionaryValue* header_dict) {
 bool CRLSet::Parse(base::StringPiece data, scoped_refptr<CRLSet>* out_crl_set) {
   // Other parts of Chrome assume that we're little endian, so we don't lose
   // anything by doing this.
+#if defined(__LB_SHELL__)
+  return false;
+#else
 #if defined(__BYTE_ORDER)
   // Linux check
   COMPILE_ASSERT(__BYTE_ORDER == __LITTLE_ENDIAN, assumes_little_endian);
@@ -251,6 +254,7 @@ bool CRLSet::Parse(base::StringPiece data, scoped_refptr<CRLSet>* out_crl_set) {
 
   *out_crl_set = crl_set;
   return true;
+#endif
 }
 
 // kMaxUncompressedChangesLength is the largest changes array that we'll
