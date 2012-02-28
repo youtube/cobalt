@@ -1751,7 +1751,7 @@ void HostResolverImpl::OnIPAddressChanged() {
   // |this| may be deleted inside AbortAllInProgressJobs().
 }
 
-void HostResolverImpl::OnDNSChanged() {
+void HostResolverImpl::OnDNSChanged(unsigned detail) {
   // If the DNS server has changed, existing cached info could be wrong so we
   // have to drop our internal cache :( Note that OS level DNS caches, such
   // as NSCD's cache should be dropped automatically by the OS when
@@ -1780,7 +1780,7 @@ void HostResolverImpl::OnConfigChanged(const DnsConfig& dns_config) {
   // Don't Abort running Jobs unless they were running on DnsTransaction.
   // TODO(szym): This will change once http://crbug.com/114827 is fixed.
   if (had_factory)
-    OnDNSChanged();
+    OnDNSChanged(NetworkChangeNotifier::CHANGE_DNS_SETTINGS);
 }
 
 }  // namespace net

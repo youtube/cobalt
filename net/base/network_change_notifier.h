@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,6 +21,16 @@ class NetworkChangeNotifierFactory;
 // destroyed on the same thread.
 class NET_EXPORT NetworkChangeNotifier {
  public:
+  // Flags which are ORed together to form |detail| in OnDNSChanged.
+  enum {
+    // The DNS configuration (name servers, suffix search) has changed.
+    CHANGE_DNS_SETTINGS = 1 << 0,
+    // The HOSTS file has changed.
+    CHANGE_DNS_HOSTS = 1 << 1,
+    // Computer name has changed.
+    CHANGE_DNS_LOCALHOST = 1 << 2,
+  };
+
   class NET_EXPORT IPAddressObserver {
    public:
     virtual ~IPAddressObserver() {}
@@ -56,10 +66,9 @@ class NET_EXPORT NetworkChangeNotifier {
    public:
     virtual ~DNSObserver() {}
 
-    // Will be called when the DNS resolver of the system may have changed.
-    // This is only used on Linux currently and watches /etc/resolv.conf
-    // and /etc/hosts
-    virtual void OnDNSChanged() = 0;
+    // Will be called when the DNS settings of the system may have changed.
+    // The flags set in |detail| provide the specific set of changes.
+    virtual void OnDNSChanged(unsigned detail) = 0;
 
    protected:
     DNSObserver() {}
@@ -133,7 +142,7 @@ class NET_EXPORT NetworkChangeNotifier {
   // tests.
   static void NotifyObserversOfIPAddressChange();
   static void NotifyObserversOfOnlineStateChange();
-  static void NotifyObserversOfDNSChange();
+  static void NotifyObserversOfDNSChange(unsigned detail);
 
  private:
   friend class NetworkChangeNotifierLinuxTest;
