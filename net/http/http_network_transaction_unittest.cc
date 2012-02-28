@@ -4725,6 +4725,146 @@ TEST_F(HttpNetworkTransactionTest, ErrorResponseTofHttpsConnectViaSpdyProxy) {
   EXPECT_EQ("The host does not exist", response_data);
 }
 
+// Test the request-challenge-retry sequence for basic auth, through
+// a SPDY proxy over a single SPDY session.
+TEST_F(HttpNetworkTransactionTest, BasicAuthSpdyProxy) {
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("https://www.google.com/");
+  // when the no authentication data flag is set.
+  request.load_flags = net::LOAD_DO_NOT_SEND_AUTH_DATA;
+
+  // Configure against https proxy server "myproxy:70".
+  SessionDependencies session_deps(
+      ProxyService::CreateFixed("https://myproxy:70"));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  session_deps.net_log = log.bound().net_log();
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  // Since we have proxy, should try to establish tunnel.
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyConnect(NULL, 0, 1));
+  scoped_ptr<spdy::SpdyFrame> rst(ConstructSpdyRstStream(1, spdy::CANCEL));
+
+  // After calling trans->RestartWithAuth(), this is the request we should
+  // be issuing -- the final header line contains the credentials.
+  const char* const kAuthCredentials[] = {
+      "proxy-authorization", "Basic Zm9vOmJhcg==",
+  };
+  scoped_ptr<spdy::SpdyFrame> connect2(
+      ConstructSpdyConnect(kAuthCredentials, arraysize(kAuthCredentials)/2, 3));
+  // fetch https://www.google.com/ via HTTP
+  const char get[] = "GET / HTTP/1.1\r\n"
+    "Host: www.google.com\r\n"
+    "Connection: keep-alive\r\n\r\n";
+  scoped_ptr<spdy::SpdyFrame> wrapped_get(
+      ConstructSpdyBodyFrame(3, get, strlen(get), false));
+
+  MockWrite spdy_writes[] = {
+    CreateMockWrite(*req, 0, ASYNC),
+    CreateMockWrite(*rst, 2, ASYNC),
+    CreateMockWrite(*connect2, 3),
+    CreateMockWrite(*wrapped_get, 5)
+  };
+
+  // The proxy responds to the connect with a 407, using a persistent
+  // connection.
+  const char* const kAuthChallenge[] = {
+    "status", "407 Proxy Authentication Required",
+    "version", "HTTP/1.1",
+    "proxy-authenticate", "Basic realm=\"MyRealm1\"",
+  };
+
+  scoped_ptr<spdy::SpdyFrame> conn_auth_resp(
+      ConstructSpdyControlFrame(NULL,
+                                0,
+                                false,
+                                1,
+                                LOWEST,
+                                spdy::SYN_REPLY,
+                                spdy::CONTROL_FLAG_NONE,
+                                kAuthChallenge,
+                                arraysize(kAuthChallenge)));
+
+  scoped_ptr<spdy::SpdyFrame> conn_resp(ConstructSpdyGetSynReply(NULL, 0, 3));
+  const char resp[] = "HTTP/1.1 200 OK\r\n"
+      "Content-Length: 5\r\n\r\n";
+
+  scoped_ptr<spdy::SpdyFrame> wrapped_get_resp(
+      ConstructSpdyBodyFrame(3, resp, strlen(resp), false));
+  scoped_ptr<spdy::SpdyFrame> wrapped_body(
+      ConstructSpdyBodyFrame(3, "hello", 5, false));
+  MockRead spdy_reads[] = {
+    CreateMockRead(*conn_auth_resp, 1, ASYNC),
+    CreateMockRead(*conn_resp, 4, ASYNC),
+    CreateMockRead(*wrapped_get_resp, 5, ASYNC),
+    CreateMockRead(*wrapped_body, 6, ASYNC),
+    MockRead(SYNCHRONOUS, ERR_IO_PENDING),
+  };
+
+  scoped_ptr<OrderedSocketData> spdy_data(
+      new OrderedSocketData(
+          spdy_reads, arraysize(spdy_reads),
+          spdy_writes, arraysize(spdy_writes)));
+  session_deps.socket_factory.AddSocketDataProvider(spdy_data.get());
+  // Negotiate SPDY to the proxy
+  SSLSocketDataProvider proxy(ASYNC, OK);
+  proxy.SetNextProto(SSLClientSocket::kProtoSPDY2);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&proxy);
+  // Vanilla SSL to the server
+  SSLSocketDataProvider server(ASYNC, OK);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&server);
+
+  TestCompletionCallback callback1;
+
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+
+  int rv = trans->Start(&request, callback1.callback(), log.bound());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback1.WaitForResult();
+  EXPECT_EQ(OK, rv);
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
+  size_t pos = ExpectLogContainsSomewhere(
+      entries, 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
+      NetLog::PHASE_NONE);
+  ExpectLogContainsSomewhere(
+      entries, pos,
+      NetLog::TYPE_HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS,
+      NetLog::PHASE_NONE);
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_FALSE(response->headers == NULL);
+  EXPECT_EQ(407, response->headers->response_code());
+  EXPECT_TRUE(HttpVersion(1, 1) == response->headers->GetHttpVersion());
+  EXPECT_TRUE(response->auth_challenge.get() != NULL);
+  EXPECT_TRUE(CheckBasicProxyAuth(response->auth_challenge.get()));
+
+  TestCompletionCallback callback2;
+
+  rv = trans->RestartWithAuth(AuthCredentials(kFoo, kBar),
+                              callback2.callback());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback2.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+
+  EXPECT_TRUE(response->headers->IsKeepAlive());
+  EXPECT_EQ(200, response->headers->response_code());
+  EXPECT_EQ(5, response->headers->GetContentLength());
+  EXPECT_TRUE(HttpVersion(1, 1) == response->headers->GetHttpVersion());
+
+  // The password prompt info should not be set.
+  EXPECT_TRUE(response->auth_challenge.get() == NULL);
+
+  trans.reset();
+  session->CloseAllConnections();
+}
+
 // Test HTTPS connections to a site with a bad certificate, going through an
 // HTTPS proxy
 TEST_F(HttpNetworkTransactionTest, HTTPSBadCertificateViaHttpsProxy) {
