@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 
 #include <windows.h>
 #include <string>
+#include <vector>
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
@@ -79,6 +80,12 @@ class BASE_EXPORT RegKey {
   // Returns a string value. If |name| is NULL or empty, returns the default
   // value, if any.
   LONG ReadValue(const wchar_t* name, std::wstring* out_value) const;
+
+  // Reads a REG_MULTI_SZ registry field into a vector of strings. Clears
+  // |values| initially and adds further strings to the list. Returns
+  // ERROR_CANTREAD if type is not REG_MULTI_SZ.
+  LONG RegKey::ReadValues(const wchar_t* name,
+                          std::vector<std::wstring>* values);
 
   // Returns raw data. If |name| is NULL or empty, returns the default
   // value, if any.
