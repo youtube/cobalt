@@ -27,6 +27,10 @@
         '<(api_gen_dir)/util.cc',
         '<(api_gen_dir)/util.h',
         '<(api_gen_dir)/util_cc_helper.py',
+        # TODO(calamity): uncomment this when gyp on windows behaves like other
+        # platforms. List expansions of filepaths in inputs expand to different
+        # things.
+        # '<@(json_schema_files)',
       ],
       'outputs': [
         '<(SHARED_INTERMEDIATE_DIR)/<(cc_dir)/<(RULE_INPUT_ROOT).cc',
@@ -39,7 +43,6 @@
         '--root=<(DEPTH)',
         '--destdir=<(SHARED_INTERMEDIATE_DIR)',
         '--namespace=<(root_namespace)',
-        '<@(json_schema_files)',
       ],
       'message': 'Generating C++ code from <(RULE_INPUT_PATH) jsons',
       'process_outputs_as_sources': 1,
