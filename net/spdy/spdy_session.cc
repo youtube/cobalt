@@ -21,9 +21,11 @@
 #include "crypto/ec_signature_creator.h"
 #include "crypto/rsa_private_key.h"
 #include "crypto/signature_creator.h"
+#include "net/base/asn1_util.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
+#include "net/base/origin_bound_cert_service.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_server_properties.h"
 #include "net/socket/ssl_client_socket.h"
@@ -657,15 +659,13 @@ int SpdySession::WriteCredentialFrame(const std::string& origin,
       break;
     }
     case CLIENT_CERT_ECDSA_SIGN: {
-      // Convert the cert string into a vector<unit8>
-      std::vector<uint8> cert_data;
-      for (size_t i = 0; i < cert.length(); i++) {
-        cert_data.push_back(cert[i]);
-      }
+      base::StringPiece spki_piece;
+      asn1::ExtractSPKIFromDERCert(cert, &spki_piece);
+      std::vector<uint8> spki(spki_piece.data(),
+                              spki_piece.data() + spki_piece.size());
       scoped_ptr<crypto::ECPrivateKey> private_key(
-          crypto::ECPrivateKey::CreateFromEncryptedPrivateKeyInfo("",
-                                                                  key_data,
-                                                                  cert_data));
+          crypto::ECPrivateKey::CreateFromEncryptedPrivateKeyInfo(
+              OriginBoundCertService::kEPKIPassword, key_data, spki));
       scoped_ptr<crypto::ECSignatureCreator> creator(
           crypto::ECSignatureCreator::Create(private_key.get()));
       creator->Sign(secret, arraysize(secret), &proof);
