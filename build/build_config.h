@@ -74,7 +74,7 @@
 #endif
 
 // Compiler detection.
-#if defined(__GNUC__) || defined(__LB_PS3__)
+#if defined(__GNUC__)
 #define COMPILER_GCC 1
 #elif defined(_MSC_VER)
 #define COMPILER_MSVC 1
