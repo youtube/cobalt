@@ -347,9 +347,10 @@ bool BaseInitLoggingImpl(const PathChar* new_log_file,
                          LogLockingState lock_log,
                          OldFileDeletionState delete_old,
                          DcheckState dcheck_state) {
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
   g_dcheck_state = dcheck_state;
-
+// TODO(bbudge) Hook this up to NaCl logging.
+#if !defined(OS_NACL)
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
   // Don't bother initializing g_vlog_info unless we use one of the
   // vlog switches.
   if (command_line->HasSwitch(switches::kV) ||
@@ -391,6 +392,9 @@ bool BaseInitLoggingImpl(const PathChar* new_log_file,
     DeleteFilePath(*log_file_name);
 
   return InitializeLogFileHandle();
+#else
+  return true;
+#endif  // !defined(OS_NACL)
 }
 
 void SetMinLogLevel(int level) {
@@ -552,7 +556,7 @@ LogMessage::LogMessage(const char* file, int line, LogSeverity severity,
 LogMessage::~LogMessage() {
   // TODO(port): enable stacktrace generation on LOG_FATAL once backtrace are
   // working in Android.
-#if  !defined(NDEBUG) && !defined(OS_ANDROID)
+#if  !defined(NDEBUG) && !defined(OS_ANDROID) && !defined(OS_NACL)
   if (severity_ == LOG_FATAL) {
     // Include a stack trace on a fatal.
     base::debug::StackTrace trace;
