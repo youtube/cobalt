@@ -29,8 +29,8 @@ bool SSLFalseStartBlacklist::IsMember(const std::string& host) {
   return false;
 }
 #else
-bool SSLFalseStartBlacklist::IsMember(const char*host) {
-  // __LB_SHELL__ is not designed as a general-purpose web 
+bool SSLFalseStartBlacklist::IsMember(const std::string& host) {
+  // __LB_SHELL__ is not designed as a general-purpose web
   // browser but rather a focused application container.
   // let's not keep the entire blacklist in memory.
   return false;
