@@ -1,4 +1,4 @@
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -32,8 +32,24 @@
 # like:
 #   #include "dir/for/my_proto_lib/foo.pb.h"
 #
+# The 'proto_relpath' variable specifies another way to provide the path
+# suffix that files are generated under. 'proto_relpath' exists because there
+# are some protos which import using qualified paths, rather than the more
+# common relative import.
+#
+# By using 'proto_relpath', projects can continue to use qualified imports
+# instead of enforcing an import style through this gypi. If provided,
+# 'proto_relpath' must have a trailing slash.
+#
 # Implementation notes:
-# A proto_out_dir of foo/bar produces
+# A 'proto_out_dir' of 'foo/bar', with no 'proto_relpath' provided, produces:
+#   <(SHARED_INTERMEDIATE_DIR)/protoc_out/foo/bar/{file1,file2}.pb.{cc,h}
+#   <(SHARED_INTERMEDIATE_DIR)/pyproto/foo/bar/{file1,file2}_pb2.py
+#
+# By setting 'proto_relpath' to 'foo/bar', with a 'proto_out_dir' of '', the
+# protos can use qualified imports instead of relative imports,
+# e.g. #import "foo/bar/file2.proto"; instead of #import "file2.proto";
+# A 'proto_out_dir' of '', with a 'proto_relpath' of 'foo/bar/' produces:
 #   <(SHARED_INTERMEDIATE_DIR)/protoc_out/foo/bar/{file1,file2}.pb.{cc,h}
 #   <(SHARED_INTERMEDIATE_DIR)/pyproto/foo/bar/{file1,file2}_pb2.py
 
@@ -43,6 +59,7 @@
     'cc_dir': '<(SHARED_INTERMEDIATE_DIR)/protoc_out/<(proto_out_dir)',
     'py_dir': '<(PRODUCT_DIR)/pyproto/<(proto_out_dir)',
     'proto_in_dir%': '.',
+    'proto_relpath%': '',
   },
   'rules': [
     {
@@ -52,16 +69,16 @@
         '<(protoc)',
       ],
       'outputs': [
-        '<(py_dir)/<(RULE_INPUT_ROOT)_pb2.py',
-        '<(cc_dir)/<(RULE_INPUT_ROOT).pb.cc',
-        '<(cc_dir)/<(RULE_INPUT_ROOT).pb.h',
+        '<(py_dir)/<(proto_relpath)<(RULE_INPUT_ROOT)_pb2.py',
+        '<(cc_dir)/<(proto_relpath)<(RULE_INPUT_ROOT).pb.cc',
+        '<(cc_dir)/<(proto_relpath)<(RULE_INPUT_ROOT).pb.h',
       ],
       'action': [
         '<(protoc)',
         '--proto_path=<(proto_in_dir)',
         # Naively you'd use <(RULE_INPUT_PATH) here, but protoc requires
         # --proto_path is a strict prefix of the path given as an argument.
-        '<(proto_in_dir)/<(RULE_INPUT_ROOT)<(RULE_INPUT_EXT)',
+        '<(proto_in_dir)/<(proto_relpath)<(RULE_INPUT_ROOT)<(RULE_INPUT_EXT)',
         '--cpp_out=<(cc_dir)',
         '--python_out=<(py_dir)',
         ],
