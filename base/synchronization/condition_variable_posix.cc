@@ -46,7 +46,7 @@ void ConditionVariable::TimedWait(const TimeDelta& max_time) {
   struct timeval now;
   gettimeofday(&now, NULL);
 
-  struct timespec abstime;
+  struct ::timespec abstime;
   abstime.tv_sec = now.tv_sec + (usecs / Time::kMicrosecondsPerSecond);
   abstime.tv_nsec = (now.tv_usec + (usecs % Time::kMicrosecondsPerSecond)) *
                     Time::kNanosecondsPerMicrosecond;

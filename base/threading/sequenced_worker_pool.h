@@ -97,9 +97,7 @@ class BASE_EXPORT SequencedWorkerPool {
       return id_ == other.id_;
     }
 
-#if !defined(__LB_SHELL__)
    private:
-#endif
     friend class SequencedWorkerPool;
 
     SequenceToken(int id) : id_(id) {}
