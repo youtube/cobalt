@@ -335,7 +335,11 @@ TraceLog::TraceLog()
     ANNOTATE_BENIGN_RACE(&g_category_enabled[i],
                          "trace_event category enabled");
   }
+#if defined(OS_NACL)  // NaCl shouldn't expose the process id.
+  SetProcessID(0);
+#else
   SetProcessID(static_cast<int>(base::GetCurrentProcId()));
+#endif
 }
 
 TraceLog::~TraceLog() {
