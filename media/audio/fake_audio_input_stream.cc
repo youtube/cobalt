@@ -77,3 +77,13 @@ void FakeAudioInputStream::Close() {
   }
   Release();  // Destoys this object.
 }
+
+double FakeAudioInputStream::GetMaxVolume() {
+  return 0.0;
+}
+
+void FakeAudioInputStream::SetVolume(double volume) {}
+
+double FakeAudioInputStream::GetVolume() {
+  return 0.0;
+}

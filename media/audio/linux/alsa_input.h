@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -36,11 +36,14 @@ class AlsaPcmInputStream : public AudioInputStream {
                      AlsaWrapper* wrapper);
   virtual ~AlsaPcmInputStream();
 
-  // Implementation of AudioOutputStream.
+  // Implementation of AudioInputStream.
   virtual bool Open() OVERRIDE;
   virtual void Start(AudioInputCallback* callback) OVERRIDE;
   virtual void Stop() OVERRIDE;
   virtual void Close() OVERRIDE;
+  virtual double GetMaxVolume() OVERRIDE;
+  virtual void SetVolume(double volume) OVERRIDE;
+  virtual double GetVolume() OVERRIDE;
 
  private:
   // Logs the error and invokes any registered callbacks.
@@ -70,6 +73,8 @@ class AlsaPcmInputStream : public AudioInputStream {
   AudioInputCallback* callback_;  // Valid during a recording session.
   base::Time next_read_time_;  // Scheduled time for the next read callback.
   snd_pcm_t* device_handle_;  // Handle to the ALSA PCM recording device.
+  snd_mixer_t* mixer_handle_; // Handle to the ALSA microphone mixer.
+  snd_mixer_elem_t* mixer_element_handle_; // Handle to the capture element.
   base::WeakPtrFactory<AlsaPcmInputStream> weak_factory_;
   scoped_array<uint8> audio_packet_;  // Buffer used for reading audio data.
   bool read_callback_behind_schedule_;

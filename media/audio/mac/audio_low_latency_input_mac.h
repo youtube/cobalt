@@ -61,6 +61,9 @@ class AUAudioInputStream : public AudioInputStream {
   virtual void Start(AudioInputCallback* callback) OVERRIDE;
   virtual void Stop() OVERRIDE;
   virtual void Close() OVERRIDE;
+  virtual double GetMaxVolume() OVERRIDE;
+  virtual void SetVolume(double volume) OVERRIDE;
+  virtual double GetVolume() OVERRIDE;
 
   // Returns the current hardware sample rate for the default input device.
   static double HardwareSampleRate();
@@ -89,8 +92,15 @@ class AUAudioInputStream : public AudioInputStream {
   // Gets the current capture delay value.
   double GetCaptureLatency(const AudioTimeStamp* input_time_stamp);
 
+  // Gets the number of channels for a stream of audio data.
+  int GetNumberOfChannelsFromStream();
+
   // Issues the OnError() callback to the |sink_|.
   void HandleError(OSStatus err);
+
+  // Helper function to check if the volume control is avialable on specific
+  // channel.
+  bool IsVolumeSettableOnChannel(int channel);
 
   // Our creator, the audio manager needs to be notified when we close.
   AudioManagerMac* manager_;
@@ -125,6 +135,10 @@ class AUAudioInputStream : public AudioInputStream {
 
   // Fixed capture hardware latency in frames.
   double hardware_latency_frames_;
+
+  // The number of channels in each frame of audio data, which is used
+  // when querying the volume of each channel.
+  int number_of_channels_in_frame_;
 
   DISALLOW_COPY_AND_ASSIGN(AUAudioInputStream);
 };

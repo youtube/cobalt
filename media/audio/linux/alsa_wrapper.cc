@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -128,7 +128,7 @@ int AlsaWrapper::PcmSetParams(snd_pcm_t* handle, snd_pcm_format_t format,
                               unsigned int rate, int soft_resample,
                               unsigned int latency) {
   int err = 0;
-  snd_pcm_hw_params_t *hw_params;
+  snd_pcm_hw_params_t* hw_params;
   if ((err = snd_pcm_hw_params_malloc(&hw_params)) < 0)
     return err;
 
@@ -162,3 +162,67 @@ int AlsaWrapper::PcmStart(snd_pcm_t* handle) {
   return snd_pcm_start(handle);
 }
 
+int AlsaWrapper::MixerOpen(snd_mixer_t** mixer, int mode) {
+  return snd_mixer_open(mixer, mode);
+}
+
+int AlsaWrapper::MixerAttach(snd_mixer_t* mixer, const char* name) {
+  return snd_mixer_attach(mixer, name);
+}
+
+int AlsaWrapper::MixerElementRegister(snd_mixer_t* mixer,
+                                      struct snd_mixer_selem_regopt* options,
+                                      snd_mixer_class_t** classp) {
+  return snd_mixer_selem_register(mixer, options, classp);
+}
+
+void AlsaWrapper::MixerFree(snd_mixer_t* mixer) {
+  snd_mixer_free(mixer);
+}
+
+int AlsaWrapper::MixerDetach(snd_mixer_t* mixer, const char* name) {
+  return snd_mixer_detach(mixer, name);
+}
+
+int AlsaWrapper::MixerClose(snd_mixer_t* mixer) {
+  return snd_mixer_close(mixer);
+}
+
+int AlsaWrapper::MixerLoad(snd_mixer_t* mixer) {
+  return snd_mixer_load(mixer);
+}
+
+snd_mixer_elem_t* AlsaWrapper::MixerFirstElem(snd_mixer_t* mixer) {
+  return snd_mixer_first_elem(mixer);
+}
+
+snd_mixer_elem_t* AlsaWrapper::MixerNextElem(snd_mixer_elem_t* elem) {
+  return snd_mixer_elem_next(elem);
+}
+
+int AlsaWrapper::MixerSelemIsActive(snd_mixer_elem_t* elem) {
+  return snd_mixer_selem_is_active(elem);
+}
+
+const char* AlsaWrapper::MixerSelemName(snd_mixer_elem_t* elem) {
+  return snd_mixer_selem_get_name(elem);
+}
+
+int AlsaWrapper::MixerSelemSetCaptureVolumeAll(
+    snd_mixer_elem_t* elem, long value) {
+  return snd_mixer_selem_set_capture_volume_all(elem, value);
+}
+
+int AlsaWrapper::MixerSelemGetCaptureVolume(
+    snd_mixer_elem_t* elem, snd_mixer_selem_channel_id_t channel, long* value) {
+  return snd_mixer_selem_get_capture_volume(elem, channel, value);
+}
+
+int AlsaWrapper::MixerSelemHasCaptureVolume(snd_mixer_elem_t* elem) {
+  return snd_mixer_selem_has_capture_volume(elem);
+}
+
+int AlsaWrapper::MixerSelemGetCaptureVolumeRange(snd_mixer_elem_t* elem,
+                                                 long* min, long* max) {
+  return snd_mixer_selem_get_capture_volume_range(elem, min, max);
+}

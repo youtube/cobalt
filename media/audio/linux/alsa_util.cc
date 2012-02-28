@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -33,7 +33,7 @@ static snd_pcm_t* OpenDevice(AlsaWrapper* wrapper,
     LOG(WARNING) << "PcmSetParams: " << device_name << ", "
                  << wrapper->StrError(error) << " - Format: " << pcm_format
                  << " Channels: " << channels << " Latency: " << latency_us;
-    if (!alsa_util::CloseDevice(wrapper, handle)) {
+    if (alsa_util::CloseDevice(wrapper, handle) < 0) {
       // TODO(ajwong): Retry on certain errors?
       LOG(WARNING) << "Unable to close audio device. Leaking handle.";
     }
@@ -41,6 +41,25 @@ static snd_pcm_t* OpenDevice(AlsaWrapper* wrapper,
   }
 
   return handle;
+}
+
+static std::string DeviceNameToControlName(const std::string& device_name) {
+  const char kMixerPrefix[] = "hw";
+  std::string control_name;
+  size_t pos1 = device_name.find(':');
+  if (pos1 == std::string::npos) {
+    control_name = device_name;
+  } else {
+    // Examples:
+    // deviceName: "front:CARD=Intel,DEV=0", controlName: "hw:CARD=Intel".
+    // deviceName: "default:CARD=Intel", controlName: "CARD=Intel".
+    size_t pos2 = device_name.find(',');
+    control_name = (pos2 == std::string::npos) ?
+        device_name.substr(pos1) :
+        kMixerPrefix + device_name.substr(pos1, pos2 - pos1);
+  }
+
+  return control_name;
 }
 
 snd_pcm_format_t BitsToFormat(int bits_per_sample) {
@@ -91,6 +110,91 @@ snd_pcm_t* OpenPlaybackDevice(AlsaWrapper* wrapper,
                               int latency_us) {
   return OpenDevice(wrapper, device_name, SND_PCM_STREAM_PLAYBACK, channels,
                     sample_rate, pcm_format, latency_us);
+}
+
+snd_mixer_t* OpenMixer(AlsaWrapper* wrapper,
+                       const std::string& device_name) {
+  snd_mixer_t* mixer = NULL;
+
+  int error = wrapper->MixerOpen(&mixer, 0);
+  if (error < 0) {
+    LOG(ERROR) << "MixerOpen: " << device_name << ", "
+               << wrapper->StrError(error);
+    return NULL;
+  }
+
+  std::string control_name = DeviceNameToControlName(device_name);
+  error = wrapper->MixerAttach(mixer, control_name.c_str());
+  if (error < 0) {
+    LOG(ERROR) << "MixerAttach, " << control_name << ", "
+               << wrapper->StrError(error);
+    alsa_util::CloseMixer(wrapper, mixer, device_name);
+    return NULL;
+  }
+
+  error = wrapper->MixerElementRegister(mixer, NULL, NULL);
+  if (error < 0) {
+    LOG(ERROR) << "MixerElementRegister: " << control_name << ", "
+               << wrapper->StrError(error);
+    alsa_util::CloseMixer(wrapper, mixer, device_name);
+    return NULL;
+  }
+
+  return mixer;
+}
+
+void CloseMixer(AlsaWrapper* wrapper, snd_mixer_t* mixer,
+                const std::string& device_name) {
+  if (!mixer)
+    return;
+
+  wrapper->MixerFree(mixer);
+
+  int error = 0;
+  if (!device_name.empty()) {
+    std::string control_name = DeviceNameToControlName(device_name);
+    error = wrapper->MixerDetach(mixer, control_name.c_str());
+    if (error < 0) {
+      LOG(WARNING) << "MixerDetach: " << control_name << ", "
+                   << wrapper->StrError(error);
+    }
+  }
+
+  error = wrapper->MixerClose(mixer);
+  if (error < 0) {
+    LOG(WARNING) << "MixerClose: " << wrapper->StrError(error);
+  }
+}
+
+snd_mixer_elem_t* LoadCaptureMixerElement(AlsaWrapper* wrapper,
+                                          snd_mixer_t* mixer) {
+  if (!mixer)
+    return NULL;
+
+  int error = wrapper->MixerLoad(mixer);
+  if (error < 0) {
+    LOG(ERROR) << "MixerLoad: " << wrapper->StrError(error);
+    return NULL;
+  }
+
+  snd_mixer_elem_t* elem = NULL;
+  snd_mixer_elem_t* mic_elem = NULL;
+  const char kCaptureElemName[] = "Capture";
+  const char kMicElemName[] = "Mic";
+  for (elem = wrapper->MixerFirstElem(mixer);
+       elem;
+       elem = wrapper->MixerNextElem(elem)) {
+    if (wrapper->MixerSelemIsActive(elem)) {
+      const char* elem_name = wrapper->MixerSelemName(elem);
+      if (strcmp(elem_name, kCaptureElemName) == 0)
+        return elem;
+      else if (strcmp(elem_name, kMicElemName) == 0)
+        mic_elem = elem;
+    }
+  }
+
+  // Did not find any Capture handle, use the Mic handle.
+  return mic_elem;
 }
 
 }  // namespace alsa_util

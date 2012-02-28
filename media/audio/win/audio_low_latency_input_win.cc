@@ -182,6 +182,20 @@ void WASAPIAudioInputStream::Close() {
   manager_->ReleaseInputStream(this);
 }
 
+double WASAPIAudioInputStream::GetMaxVolume() {
+  // TODO(xians): Add volume support.
+  return 0.0;
+}
+
+void WASAPIAudioInputStream::SetVolume(double volume) {
+  // TODO(xians): Add volume support.
+}
+
+double WASAPIAudioInputStream::GetVolume() {
+  // TODO(xians): Add volume support.
+  return 0.0;
+}
+
 // static
 double WASAPIAudioInputStream::HardwareSampleRate(ERole device_role) {
   base::win::ScopedCoMem<WAVEFORMATEX> audio_engine_mix_format;

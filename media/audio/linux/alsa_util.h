@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 #define MEDIA_AUDIO_LINUX_ALSA_UTIL_H_
 
 #include <alsa/asoundlib.h>
+#include <string>
 
 class AlsaWrapper;
 
@@ -28,6 +29,15 @@ snd_pcm_t* OpenPlaybackDevice(AlsaWrapper* wrapper,
                               int latency_us);
 
 int CloseDevice(AlsaWrapper* wrapper, snd_pcm_t* handle);
+
+snd_mixer_t* OpenMixer(AlsaWrapper* wrapper, const std::string& device_name);
+
+void CloseMixer(AlsaWrapper* wrapper,
+                snd_mixer_t* mixer,
+                const std::string& device_name);
+
+snd_mixer_elem_t* LoadCaptureMixerElement(AlsaWrapper* wrapper,
+                                          snd_mixer_t* mixer);
 
 }
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -185,6 +185,20 @@ void PCMWaveInAudioInputStream::Close() {
   // the manager destroying us in-place so this needs to be the last thing
   // we do on this function.
   manager_->ReleaseInputStream(this);
+}
+
+double PCMWaveInAudioInputStream::GetMaxVolume() {
+  // TODO(xians): Add volume support.
+  return 0.0;
+}
+
+void PCMWaveInAudioInputStream::SetVolume(double volume) {
+  // TODO(xians): Add volume support.
+}
+
+double PCMWaveInAudioInputStream::GetVolume() {
+  // TODO(xians): Add volume support.
+  return 0.0;
 }
 
 void PCMWaveInAudioInputStream::HandleError(MMRESULT error) {

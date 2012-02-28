@@ -113,6 +113,20 @@ void PCMQueueInAudioInputStream::Close() {
   // CARE: This object may now be destroyed.
 }
 
+double PCMQueueInAudioInputStream::GetMaxVolume() {
+  NOTREACHED() << "Only supported for low-latency mode.";
+  return 0.0;
+}
+
+void PCMQueueInAudioInputStream::SetVolume(double volume) {
+  NOTREACHED() << "Only supported for low-latency mode.";
+}
+
+double PCMQueueInAudioInputStream::GetVolume() {
+  NOTREACHED() << "Only supported for low-latency mode.";
+  return 0.0;
+}
+
 void PCMQueueInAudioInputStream::HandleError(OSStatus err) {
   if (callback_)
     callback_->OnError(this, static_cast<int>(err));
