@@ -4,6 +4,8 @@
 
 #include "base/callback_internal.h"
 
+#include "base/logging.h"
+
 namespace base {
 namespace internal {
 
@@ -21,12 +23,10 @@ bool CallbackBase::Equals(const CallbackBase& other) const {
          polymorphic_invoke_ == other.polymorphic_invoke_;
 }
 
-CallbackBase::CallbackBase(InvokeFuncStorage polymorphic_invoke,
-                           scoped_refptr<BindStateBase>* bind_state)
-    : polymorphic_invoke_(polymorphic_invoke) {
-  if (bind_state) {
-    bind_state_.swap(*bind_state);
-  }
+CallbackBase::CallbackBase(BindStateBase* bind_state)
+    : bind_state_(bind_state),
+      polymorphic_invoke_(NULL) {
+  DCHECK(!bind_state_ || bind_state_->HasOneRef());
 }
 
 CallbackBase::~CallbackBase() {
