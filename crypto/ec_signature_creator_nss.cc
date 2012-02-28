@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "crypto/ec_signature_creator.h"
+#include "crypto/ec_signature_creator_impl.h"
 
 #include <cryptohi.h>
 #include <pk11pub.h>
@@ -50,21 +50,16 @@ SECStatus SignData(SECItem* result,
 
 }  // namespace
 
-// static
-ECSignatureCreator* ECSignatureCreator::Create(ECPrivateKey* key) {
-  return new ECSignatureCreator(key);
-}
-
-ECSignatureCreator::ECSignatureCreator(ECPrivateKey* key)
+ECSignatureCreatorImpl::ECSignatureCreatorImpl(ECPrivateKey* key)
     : key_(key) {
   EnsureNSSInit();
 }
 
-ECSignatureCreator::~ECSignatureCreator() { }
+ECSignatureCreatorImpl::~ECSignatureCreatorImpl() {}
 
-bool ECSignatureCreator::Sign(const uint8* data,
-                              int data_len,
-                              std::vector<uint8>* signature) {
+bool ECSignatureCreatorImpl::Sign(const uint8* data,
+                                  int data_len,
+                                  std::vector<uint8>* signature) {
   // Data to be signed
   SECItem secret;
   secret.type = siBuffer;
