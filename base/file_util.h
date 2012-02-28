@@ -639,8 +639,10 @@ BASE_EXPORT bool GetFileSystemType(const FilePath& path, FileSystemType* type);
 
 }  // namespace file_util
 
+#if defined(OS_WIN)
 // Deprecated functions have been moved to this separate header file,
 // which must be included last after all the above definitions.
 #include "base/file_util_deprecated.h"
+#endif
 
 #endif  // BASE_FILE_UTIL_H_
