@@ -112,7 +112,7 @@ static const MimeInfo secondary_mappings[] = {
   { "application/pdf", "pdf" },
   { "application/postscript", "ps,eps,ai" },
   { "application/x-javascript", "js" },
-  { "application/x-woff", "woff" },
+  { "application/x-font-woff", "woff" },
   { "image/bmp", "bmp" },
   { "image/x-icon", "ico" },
   { "image/jpeg", "jfif,pjpeg,pjp" },
