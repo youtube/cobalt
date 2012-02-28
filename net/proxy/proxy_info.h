@@ -96,9 +96,7 @@ class NET_EXPORT ProxyInfo {
   // Deletes any entry which doesn't have one of the specified proxy schemes.
   void RemoveProxiesWithoutScheme(int scheme_bit_field);
 
-#if !defined(__LB_SHELL__)
  private:
-#endif
   friend class ProxyService;
 
   const ProxyRetryInfoMap& proxy_retry_info() const {
