@@ -23,12 +23,14 @@
 
 #include <vector>
 
+#include "base/bind.h"
 #include "base/environment.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/message_loop.h"
 #include "base/native_library.h"
 #include "base/scoped_temp_dir.h"
 #include "base/stringprintf.h"
@@ -250,42 +252,22 @@ class NSSInitSingleton {
     tpm_token_info_delegate_.reset(info_delegate);
   }
 
-  // This is called whenever we want to make sure Chaps is
-  // properly loaded, because it can fail shortly after the initial
-  // login while the PINs are being initialized, and we want to retry
-  // if this happens.
-  bool EnsureTPMTokenReady() {
-    // If EnableTPMTokenForNSS hasn't been called, return false.
-    if (tpm_token_info_delegate_.get() == NULL)
-      return false;
-
-    // If everything is already initialized, then return true.
-    if (chaps_module_ && tpm_slot_)
-      return true;
-
-    if (tpm_token_info_delegate_->IsTokenReady()) {
-      // This tries to load the Chaps module so NSS can talk to the hardware
-      // TPM.
-      if (!chaps_module_) {
-        chaps_module_ = LoadModule(
-            kChapsModuleName,
-            kChapsPath,
-            // trustOrder=100 -- means it'll select this as the most
-            //   trusted slot for the mechanisms it provides.
-            // slotParams=... -- selects RSA as the only mechanism, and only
-            //   asks for the password when necessary (instead of every
-            //   time, or after a timeout).
-            "trustOrder=100 slotParams=(1={slotFlags=[RSA] askpw=only})");
-      }
-      if (chaps_module_) {
-        // If this gets set, then we'll use the TPM for certs with
-        // private keys, otherwise we'll fall back to the software
-        // implementation.
-        tpm_slot_ = GetTPMSlot();
-        return tpm_slot_ != NULL;
-      }
+  void InitializeTPMToken(InitializeTPMTokenCallback callback) {
+    // If EnableTPMTokenForNSS hasn't been called, run |callback| with false.
+    if (tpm_token_info_delegate_.get() == NULL) {
+      MessageLoop::current()->PostTask(FROM_HERE, base::Bind(callback, false));
+      return;
     }
-    return false;
+
+    // If everything is already initialized, then run |callback| with true.
+    if (chaps_module_ && tpm_slot_) {
+      MessageLoop::current()->PostTask(FROM_HERE, base::Bind(callback, true));
+      return;
+    }
+    tpm_token_info_delegate_->RequestIsTokenReady(
+        base::Bind(&NSSInitSingleton::InitializeTPMTokenInternal,
+                   weak_ptr_factory_.GetWeakPtr(),
+                   callback));
   }
 
   bool IsTPMTokenAvailable() {
@@ -420,7 +402,8 @@ class NSSInitSingleton {
         test_slot_(NULL),
         tpm_slot_(NULL),
         root_(NULL),
-        chromeos_user_logged_in_(false) {
+        chromeos_user_logged_in_(false),
+        ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {
     EnsureNSPRInit();
 
     // We *must* have NSS >= 3.12.3.  See bug 26448.
@@ -544,6 +527,37 @@ class NSSInitSingleton {
     }
   }
 
+#if defined(OS_CHROMEOS)
+  // This method is used to implement InitializeTPMToken.
+  void InitializeTPMTokenInternal(InitializeTPMTokenCallback callback,
+                                  bool is_token_ready) {
+    if (is_token_ready) {
+      // This tries to load the Chaps module so NSS can talk to the hardware
+      // TPM.
+      if (!chaps_module_) {
+        chaps_module_ = LoadModule(
+            kChapsModuleName,
+            kChapsPath,
+            // trustOrder=100 -- means it'll select this as the most
+            //   trusted slot for the mechanisms it provides.
+            // slotParams=... -- selects RSA as the only mechanism, and only
+            //   asks for the password when necessary (instead of every
+            //   time, or after a timeout).
+            "trustOrder=100 slotParams=(1={slotFlags=[RSA] askpw=only})");
+      }
+      if (chaps_module_) {
+        // If this gets set, then we'll use the TPM for certs with
+        // private keys, otherwise we'll fall back to the software
+        // implementation.
+        tpm_slot_ = GetTPMSlot();
+        callback.Run(tpm_slot_ != NULL);
+        return;
+      }
+    }
+    callback.Run(false);
+  }
+#endif
+
 #if defined(USE_NSS)
   // Load nss's built-in root certs.
   SECMODModule* InitDefaultRootCerts() {
@@ -610,6 +624,7 @@ class NSSInitSingleton {
   PK11SlotInfo* tpm_slot_;
   SECMODModule* root_;
   bool chromeos_user_logged_in_;
+  base::WeakPtrFactory<NSSInitSingleton> weak_ptr_factory_;
 #if defined(USE_NSS)
   // TODO(davidben): When https://bugzilla.mozilla.org/show_bug.cgi?id=564011
   // is fixed, we will no longer need the lock.
@@ -763,8 +778,8 @@ bool IsTPMTokenReady() {
   return g_nss_singleton.Get().IsTPMTokenReady();
 }
 
-bool EnsureTPMTokenReady() {
-  return g_nss_singleton.Get().EnsureTPMTokenReady();
+void InitializeTPMToken(InitializeTPMTokenCallback callback) {
+  g_nss_singleton.Get().InitializeTPMToken(callback);
 }
 
 SymmetricKey* GetSupplementalUserKey() {
