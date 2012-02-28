@@ -1,10 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/win/registry.h"
 
 #include <shlwapi.h>
+#include <algorithm>
 
 #include "base/logging.h"
 #include "base/threading/thread_restrictions.h"
@@ -214,6 +215,38 @@ LONG RegKey::ReadValue(const wchar_t* name,
   LONG result = RegQueryValueEx(key_, name, 0, dtype,
                                 reinterpret_cast<LPBYTE>(data), dsize);
   return result;
+}
+
+LONG RegKey::ReadValues(const wchar_t* name,
+                        std::vector<std::wstring>* values) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  values->clear();
+
+  DWORD type = REG_MULTI_SZ;
+  DWORD size = 0;
+  LONG result = ReadValue(name, NULL, &size, NULL);
+  if (FAILED(result) || size == 0)
+    return result;
+
+  if (type != REG_MULTI_SZ)
+    return ERROR_CANTREAD;
+
+  std::vector<wchar_t> buffer(size / sizeof(wchar_t));
+  result = ReadValue(name, &buffer[0], &size, NULL);
+  if (FAILED(result) || size == 0)
+    return result;
+
+  // Parse the double-null-terminated list of strings.
+  // Note: This code is paranoid to not read outside of |buf|, in the case where
+  // it may not be properly terminated.
+  const wchar_t* entry = &buffer[0];
+  const wchar_t* buffer_end = entry + (size / sizeof(wchar_t));
+  while (entry < buffer_end && entry[0] != '\0') {
+    const wchar_t* entry_end = std::find(entry, buffer_end, L'\0');
+    values->push_back(std::wstring(entry, entry_end));
+    entry = entry_end + 1;
+  }
+  return 0;
 }
 
 LONG RegKey::WriteValue(const wchar_t* name, DWORD in_value) {
