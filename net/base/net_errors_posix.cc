@@ -65,8 +65,10 @@ Error MapSystemError(int os_error) {
       return ERR_ABORTED;
     case EDEADLK:  // Resource deadlock avoided.
       return ERR_INSUFFICIENT_RESOURCES;
+#if !defined(__LB_SHELL__)
     case EDQUOT:  // Disk quota exceeded.
       return ERR_FILE_NO_SPACE;
+#endif
     case EEXIST:  // File exists.
       return ERR_FILE_EXISTS;
     case EFAULT:  // Bad address.
@@ -79,8 +81,10 @@ Error MapSystemError(int os_error) {
       return ERR_FILE_PATH_TOO_LONG;
     case ENFILE:  // Too many open files in system.
       return ERR_INSUFFICIENT_RESOURCES;
+#if !defined(__LB_SHELL__)
     case ENOBUFS:  // No buffer space available.
       return ERR_OUT_OF_MEMORY;
+#endif
     case ENODEV:  // No such device.
       return ERR_INVALID_ARGUMENT;
     case ENOENT:  // No such file or directory.
@@ -101,10 +105,12 @@ Error MapSystemError(int os_error) {
       return ERR_ACCESS_DENIED;
     case EROFS:  // Read-only file system.
       return ERR_ACCESS_DENIED;
+#if !defined(__LB_SHELL__)
     case ETXTBSY:  // Text file busy.
       return ERR_ACCESS_DENIED;
     case EUSERS:  // Too many users.
       return ERR_INSUFFICIENT_RESOURCES;
+#endif
     case EMFILE:  // Too many open files.
       return ERR_INSUFFICIENT_RESOURCES;
 
