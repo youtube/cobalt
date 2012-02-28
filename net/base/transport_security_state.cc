@@ -552,6 +552,9 @@ typedef std::map<uint32, base::StringPiece> TagMap;
 static bool ParseTags(base::StringPiece* in, TagMap *out) {
   // Many part of Chrome already assume little-endian. This is just to help
   // anyone who should try to port it in the future.
+#if defined(__LB_SHELL__)
+  return false;
+#else
 #if defined(__BYTE_ORDER)
   // Linux check
   COMPILE_ASSERT(__BYTE_ORDER == __LITTLE_ENDIAN, assumes_little_endian);
@@ -592,6 +595,7 @@ static bool ParseTags(base::StringPiece* in, TagMap *out) {
   }
 
   return true;
+#endif
 }
 
 // GetTag extracts the data associated with |tag| in |tags|.
