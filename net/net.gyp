@@ -767,6 +767,8 @@
             ['exclude', 'crl_filter'],
             # no support for a recursive resolver
             ['exclude', 'base/dnsrr_resolver.cc'],
+            # dns_config_service is never referenced. Disable for now until it's needed.
+            ['exclude', 'dns/dns_config_service*'],
           ]
         }, { # os is not lb_shell
           'dependencies': [
