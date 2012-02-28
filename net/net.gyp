@@ -8,7 +8,7 @@
 
     'linux_link_kerberos%': 0,
     'conditions': [
-      ['chromeos==1 or OS=="android"', {
+      ['chromeos==1 or OS=="android" or OS=="lb_shell"', {
         # Disable Kerberos on ChromeOS and Android, at least for now.
         # It needs configuration (krb5.conf and so on).
         'use_kerberos%': 0,
