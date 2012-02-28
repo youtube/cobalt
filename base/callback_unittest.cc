@@ -1,14 +1,14 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/callback.h"
 #include "base/callback_internal.h"
-#include "base/callback_old.h"
 #include "base/memory/scoped_ptr.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
+
 namespace {
 
 class HelperObject {
@@ -26,42 +26,46 @@ struct FakeInvoker {
   static void Run(internal::BindStateBase*) {
   }
 };
+}  // namespace
+
+namespace internal {
+template <typename Runnable, typename RunType, typename BoundArgsType>
+struct BindState;
 
 // White-box testpoints to inject into a Callback<> object for checking
-// comparators and emptiness APIs.
-class FakeBindState1 : public internal::BindStateBase {
+// comparators and emptiness APIs.  Use a BindState that is specialized
+// based on a type we declared in the anonymous namespace above to remove any
+// chance of colliding with another instantiation and breaking the
+// one-definition-rule.
+template <>
+struct BindState<void(void), void(void), void(FakeInvoker)>
+    : public BindStateBase {
  public:
   typedef FakeInvoker InvokerType;
 };
 
-class FakeBindState2 : public internal::BindStateBase {
+template <>
+struct BindState<void(void), void(void),
+                           void(FakeInvoker, FakeInvoker)>
+    : public BindStateBase {
  public:
   typedef FakeInvoker InvokerType;
 };
+}  // namespace internal
 
-TEST(CallbackOld, OneArg) {
-  HelperObject obj;
-  scoped_ptr<Callback1<int*>::Type> callback(
-      NewCallback(&obj, &HelperObject::GetNextNumberArg));
+namespace {
 
-  int number = 0;
-  callback->Run(&number);
-  EXPECT_EQ(number, 1);
-}
-
-TEST(CallbackOld, ReturnValue) {
-  HelperObject obj;
-  scoped_ptr<CallbackWithReturnValue<int>::Type> callback(
-      NewCallbackWithReturnValue(&obj, &HelperObject::GetNextNumber));
-
-  EXPECT_EQ(callback->Run(), 1);
-}
+typedef internal::BindState<void(void), void(void), void(FakeInvoker)>
+    FakeBindState1;
+typedef internal::BindState<void(void), void(void),
+                            void(FakeInvoker, FakeInvoker)>
+   FakeBindState2;
 
 class CallbackTest : public ::testing::Test {
  public:
   CallbackTest()
-      : callback_a_(MakeBindStateHolder(new FakeBindState1())),
-        callback_b_(MakeBindStateHolder(new FakeBindState2())) {
+      : callback_a_(new FakeBindState1()),
+        callback_b_(new FakeBindState2()) {
   }
 
   virtual ~CallbackTest() {
@@ -105,8 +109,7 @@ TEST_F(CallbackTest, Equals) {
   EXPECT_FALSE(callback_b_.Equals(callback_a_));
 
   // We should compare based on instance, not type.
-  Callback<void(void)> callback_c(
-      MakeBindStateHolder(new FakeBindState1()));
+  Callback<void(void)> callback_c(new FakeBindState1());
   Callback<void(void)> callback_a2 = callback_a_;
   EXPECT_TRUE(callback_a_.Equals(callback_a2));
   EXPECT_FALSE(callback_a_.Equals(callback_c));
