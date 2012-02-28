@@ -345,9 +345,6 @@
       ],
       'conditions': [
         ['OS == "lb_shell"', {
-          'sources': [
-            'gfx/native_theme_shell.cc',
-          ],
           'sources/': [
             # data_pack.cc uses memory-mapped files
             ['exclude', 'base/resource/data_pack.cc'],
@@ -361,22 +358,16 @@
             ['exclude', 'base/models'],
             ['exclude', 'base/range'],
             ['exclude', 'base/text'],
+            ['exclude', 'base/touch'],
             ['exclude', 'gfx/*'],
             ['include', 'gfx/color_utils.h'],
-            ['include', 'gfx/native_theme.cc'],
-            ['include', 'gfx/native_theme.h'],
+            ['include', 'gfx/native_theme'],
             ['include', 'gfx/codec/*'],
-            ['include', 'gfx/color_utils.h'],
-            ['include', 'gfx/color_utils.cc'],
-            ['include', 'gfx/image/image.h'],
-            ['include', 'gfx/image/image.cc'],
-            ['include', 'gfx/point.h'],
-            ['include', 'gfx/point.cc'],
-            ['include', 'gfx/rect.h'],
-            ['include', 'gfx/rect.cc'],
-            ['include', 'gfx/size.h'],
-            ['include', 'gfx/size.cc'],
-            ['include', 'gfx/native_theme_shell.cc'],
+            ['include', 'gfx/color_utils'],
+            ['include', 'gfx/image/image'],
+            ['include', 'gfx/point'],
+            ['include', 'gfx/rect'],
+            ['include', 'gfx/size'],
           ],
         }, { # OS != "lb_shell"
           'dependencies': [
