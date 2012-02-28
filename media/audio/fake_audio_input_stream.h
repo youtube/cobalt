@@ -26,6 +26,9 @@ class FakeAudioInputStream
   virtual void Start(AudioInputCallback* callback) OVERRIDE;
   virtual void Stop() OVERRIDE;
   virtual void Close() OVERRIDE;
+  virtual double GetMaxVolume() OVERRIDE;
+  virtual void SetVolume(double volume) OVERRIDE;
+  virtual double GetVolume() OVERRIDE;
 
  private:
   // Give RefCountedThreadSafe access our destructor.

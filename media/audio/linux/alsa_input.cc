@@ -37,6 +37,8 @@ AlsaPcmInputStream::AlsaPcmInputStream(AudioManagerLinux* audio_manager,
           params.sample_rate),
       callback_(NULL),
       device_handle_(NULL),
+      mixer_handle_(NULL),
+      mixer_element_handle_(NULL),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       read_callback_behind_schedule_(false) {
 }
@@ -62,15 +64,16 @@ bool AlsaPcmInputStream::Open() {
   latency_us = std::max(latency_us, AlsaPcmOutputStream::kMinLatencyMicros);
 
   if (device_name_ == kAutoSelectDevice) {
-    device_handle_ = alsa_util::OpenCaptureDevice(wrapper_, kDefaultDevice1,
-                                                  params_.channels,
-                                                  params_.sample_rate,
-                                                  pcm_format, latency_us);
-    if (!device_handle_) {
-      device_handle_ = alsa_util::OpenCaptureDevice(wrapper_, kDefaultDevice2,
+    const char* device_names[] = { kDefaultDevice1, kDefaultDevice2 };
+    for (size_t i = 0; i < arraysize(device_names); ++i) {
+      device_handle_ = alsa_util::OpenCaptureDevice(wrapper_, device_names[i],
                                                     params_.channels,
                                                     params_.sample_rate,
                                                     pcm_format, latency_us);
+      if (device_handle_) {
+        device_name_ = device_names[i];
+        break;
+      }
     }
   } else {
     device_handle_ = alsa_util::OpenCaptureDevice(wrapper_,
@@ -80,8 +83,16 @@ bool AlsaPcmInputStream::Open() {
                                                   pcm_format, latency_us);
   }
 
-  if (device_handle_)
+  if (device_handle_) {
     audio_packet_.reset(new uint8[bytes_per_packet_]);
+
+    // Open the microphone mixer.
+    mixer_handle_ = alsa_util::OpenMixer(wrapper_, device_name_);
+    if (mixer_handle_) {
+      mixer_element_handle_ = alsa_util::LoadCaptureMixerElement(
+          wrapper_, mixer_handle_);
+    }
+  }
 
   return device_handle_ != NULL;
 }
@@ -239,7 +250,7 @@ void AlsaPcmInputStream::Close() {
   scoped_ptr<AlsaPcmInputStream> self_deleter(this);
 
   // Check in case we were already closed or not initialized yet.
-  if (!device_handle_ || !callback_)
+  if (!device_handle_)
     return;
 
   weak_factory_.InvalidateWeakPtrs();  // Cancel the next scheduled read.
@@ -247,9 +258,70 @@ void AlsaPcmInputStream::Close() {
   if (error < 0)
     HandleError("PcmClose", error);
 
+  if (mixer_handle_)
+    alsa_util::CloseMixer(wrapper_, mixer_handle_, device_name_);
+
   audio_packet_.reset();
   device_handle_ = NULL;
-  callback_->OnClose(this);
+
+  if (callback_)
+    callback_->OnClose(this);
+}
+
+double AlsaPcmInputStream::GetMaxVolume() {
+  if (!mixer_handle_ || !mixer_element_handle_) {
+    DLOG(WARNING) << "GetMaxVolume is not supported for " << device_name_;
+    return 0.0;
+  }
+
+  if (!wrapper_->MixerSelemHasCaptureVolume(mixer_element_handle_)) {
+    DLOG(WARNING) << "Unsupported microphone volume for " << device_name_;
+    return 0.0;
+  }
+
+  long min = 0;
+  long max = 0;
+  if (wrapper_->MixerSelemGetCaptureVolumeRange(mixer_element_handle_,
+                                                &min,
+                                                &max)) {
+    DLOG(WARNING) << "Unsupported max microphone volume for " << device_name_;
+    return 0.0;
+  }
+  DCHECK(min == 0);
+  DCHECK(max > 0);
+
+  return static_cast<double>(max);
+}
+
+void AlsaPcmInputStream::SetVolume(double volume) {
+  if (!mixer_handle_ || !mixer_element_handle_) {
+    DLOG(WARNING) << "SetVolume is not supported for " << device_name_;
+    return;
+  }
+
+  int error = wrapper_->MixerSelemSetCaptureVolumeAll(
+      mixer_element_handle_, static_cast<long>(volume));
+  if (error < 0) {
+    DLOG(WARNING) << "Unable to set volume for " << device_name_;
+  }
+}
+
+double AlsaPcmInputStream::GetVolume() {
+  if (!mixer_handle_ || !mixer_element_handle_) {
+    DLOG(WARNING) << "GetVolume is not supported for " << device_name_;
+    return 0.0;
+  }
+
+  long current_volume = 0;
+  int error = wrapper_->MixerSelemGetCaptureVolume(
+      mixer_element_handle_, static_cast<snd_mixer_selem_channel_id_t>(0),
+      &current_volume);
+  if (error < 0) {
+    DLOG(WARNING) << "Unable to get volume for " << device_name_;
+    return 0.0;
+  }
+
+  return static_cast<double>(current_volume);
 }
 
 void AlsaPcmInputStream::HandleError(const char* method, int error) {

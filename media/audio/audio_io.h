@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -154,6 +154,16 @@ class MEDIA_EXPORT AudioInputStream {
   // Close the stream. This also generates AudioInputCallback::OnClose(). This
   // should be the last call made on this object.
   virtual void Close() = 0;
+
+  // Returns the maximum microphone analog volume or 0.0 if device does not
+  // have volume control.
+  virtual double GetMaxVolume() = 0;
+
+  // Sets the microphone analog volume, with range [0, max_volume] inclusive.
+  virtual void SetVolume(double volume) = 0;
+
+  // Returns the microphone analog volume, with range [0, max_volume] inclusive.
+  virtual double GetVolume() = 0;
 };
 
 #endif  // MEDIA_AUDIO_AUDIO_IO_H_

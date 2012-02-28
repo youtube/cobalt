@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -88,6 +88,9 @@ class MEDIA_EXPORT WASAPIAudioInputStream
   virtual void Start(AudioInputCallback* callback) OVERRIDE;
   virtual void Stop() OVERRIDE;
   virtual void Close() OVERRIDE;
+  virtual double GetMaxVolume() OVERRIDE;
+  virtual void SetVolume(double volume) OVERRIDE;
+  virtual double GetVolume() OVERRIDE;
 
   // Retrieves the sample rate used by the audio engine for its internal
   // processing/mixing of shared-mode streams.
