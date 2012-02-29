@@ -264,6 +264,14 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
     return flow_control_;
   }
 
+  // Returns the current |initial_recv_window_size_|.
+  int32 initial_recv_window_size() const { return initial_recv_window_size_; }
+
+  // Sets |initial_recv_window_size_| used by unittests.
+  void set_initial_recv_window_size(int32 window_size) {
+    initial_recv_window_size_ = window_size;
+  }
+
   const BoundNetLog& net_log() const { return net_log_; }
 
   int GetPeerAddress(AddressList* address) const;

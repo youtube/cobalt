@@ -135,6 +135,9 @@ class NET_EXPORT_PRIVATE SpdyStream
     recv_window_size_ = window_size;
   }
 
+  // Set session_'s initial_recv_window_size. Used by unittests.
+  void set_initial_recv_window_size(int32 window_size);
+
   void set_stalled_by_flow_control(bool stalled) {
     stalled_by_flow_control_ = stalled;
   }
@@ -308,6 +311,7 @@ class NET_EXPORT_PRIVATE SpdyStream
   bool stalled_by_flow_control_;
   int32 send_window_size_;
   int32 recv_window_size_;
+  int32 unacked_recv_window_bytes_;
 
   const bool pushed_;
   ScopedBandwidthMetrics metrics_;
