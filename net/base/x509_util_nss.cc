@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,7 +19,6 @@
 #include "crypto/ec_private_key.h"
 #include "crypto/nss_util.h"
 #include "crypto/nss_util_internal.h"
-#include "crypto/rsa_private_key.h"
 #include "crypto/scoped_nss_types.h"
 #include "crypto/third_party/nss/chromium-nss.h"
 
@@ -271,71 +270,6 @@ CERTCertificate* CreateSelfSignedCert(
   }
 
   return cert;
-}
-
-bool CreateOriginBoundCertRSA(
-    crypto::RSAPrivateKey* key,
-    const std::string& origin,
-    uint32 serial_number,
-    base::Time not_valid_before,
-    base::Time not_valid_after,
-    std::string* der_cert) {
-  DCHECK(key);
-
-  SECKEYPublicKey* public_key;
-  SECKEYPrivateKey* private_key;
-#if defined(USE_NSS)
-  public_key = key->public_key();
-  private_key = key->key();
-#else
-  crypto::ScopedSECKEYPublicKey scoped_public_key;
-  crypto::ScopedSECKEYPrivateKey scoped_private_key;
-  {
-    // Based on the NSS RSAPrivateKey::CreateFromPrivateKeyInfoWithParams.
-    // This method currently leaks some memory.
-    // See http://crbug.com/34742.
-    ANNOTATE_SCOPED_MEMORY_LEAK;
-    crypto::EnsureNSSInit();
-
-    std::vector<uint8> key_data;
-    key->ExportPrivateKey(&key_data);
-
-    crypto::ScopedPK11Slot slot(crypto::GetPrivateNSSKeySlot());
-    if (!slot.get())
-      return NULL;
-
-    SECItem der_private_key_info;
-    der_private_key_info.data = const_cast<unsigned char*>(&key_data[0]);
-    der_private_key_info.len = key_data.size();
-    // Allow the private key to be used for key unwrapping, data decryption,
-    // and signature generation.
-    const unsigned int key_usage = KU_KEY_ENCIPHERMENT | KU_DATA_ENCIPHERMENT |
-                                   KU_DIGITAL_SIGNATURE;
-    SECStatus rv =  PK11_ImportDERPrivateKeyInfoAndReturnKey(
-        slot.get(), &der_private_key_info, NULL, NULL, PR_FALSE, PR_FALSE,
-        key_usage, &private_key, NULL);
-    scoped_private_key.reset(private_key);
-    if (rv != SECSuccess) {
-      NOTREACHED();
-      return NULL;
-    }
-
-    public_key = SECKEY_ConvertToPublicKey(private_key);
-    if (!public_key) {
-      NOTREACHED();
-      return NULL;
-    }
-    scoped_public_key.reset(public_key);
-  }
-#endif
-
-  return CreateOriginBoundCertInternal(public_key,
-                                       private_key,
-                                       origin,
-                                       serial_number,
-                                       not_valid_before,
-                                       not_valid_after,
-                                       der_cert);
 }
 
 bool CreateOriginBoundCertEC(

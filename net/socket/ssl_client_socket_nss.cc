@@ -1558,25 +1558,6 @@ int SSLClientSocketNSS::ImportOBCertAndKey(CERTCertificate** cert,
 
   // Set the private key.
   switch (ob_cert_type_) {
-    case CLIENT_CERT_RSA_SIGN: {
-      SECItem der_private_key_info;
-      der_private_key_info.data = (unsigned char*)ob_private_key_.data();
-      der_private_key_info.len = ob_private_key_.size();
-      const unsigned int key_usage = KU_DIGITAL_SIGNATURE;
-      crypto::ScopedPK11Slot slot(PK11_GetInternalSlot());
-      SECStatus rv = PK11_ImportDERPrivateKeyInfoAndReturnKey(
-          slot.get(), &der_private_key_info, NULL, NULL, PR_FALSE, PR_FALSE,
-          key_usage, key, NULL);
-
-      if (rv != SECSuccess) {
-        int error = MapNSSError(PORT_GetError());
-        CERT_DestroyCertificate(*cert);
-        *cert = NULL;
-        return error;
-      }
-      break;
-    }
-
     case CLIENT_CERT_ECDSA_SIGN: {
       SECKEYPublicKey* public_key = NULL;
       if (!crypto::ECPrivateKey::ImportFromEncryptedPrivateKeyInfo(
