@@ -55,17 +55,25 @@ class NetLogForNotifyingFileClosure : public NetLog {
                         const base::TimeTicks& time,
                         const Source& source,
                         EventPhase phase,
-                        EventParameters* extra_parameters) {
+                        EventParameters* extra_parameters) OVERRIDE {
     if (type == TYPE_FILE_STREAM_CLOSE) {
       on_closure_.Signal();
     }
   }
 
-  virtual uint32 NextID() { return id_++; }
-  virtual LogLevel GetLogLevel() const { return LOG_ALL; }
-  virtual void AddThreadSafeObserver(ThreadSafeObserver* observer) {}
-  virtual void RemoveThreadSafeObserver(ThreadSafeObserver* observer) {};
-
+  virtual uint32 NextID() OVERRIDE { return id_++; }
+  virtual LogLevel GetLogLevel() const OVERRIDE { return LOG_ALL; }
+  virtual void AddThreadSafeObserver(ThreadSafeObserver* observer,
+                                     LogLevel log_level) OVERRIDE {
+    NOTIMPLEMENTED();
+  }
+  virtual void SetObserverLogLevel(ThreadSafeObserver* observer,
+                                   LogLevel log_level) OVERRIDE {
+    NOTIMPLEMENTED();
+  }
+  virtual void RemoveThreadSafeObserver(ThreadSafeObserver* observer) OVERRIDE {
+    NOTIMPLEMENTED();
+  }
 
  private:
   uint32 id_;
