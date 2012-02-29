@@ -1,0 +1,24 @@
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "base/basictypes.h"
+#include "base/memory/scoped_ptr.h"
+
+namespace {
+
+class Parent {
+};
+
+class Child : public Parent {
+};
+
+}  // namespace
+
+#if defined(NCTEST_NO_PASSAS_DOWNCAST)  // [r"invalid conversion from"]
+
+scoped_ptr<Child> DowncastUsingPassAs(scoped_ptr<Parent> object) {
+  return object.PassAs<Child>();
+}
+
+#endif
