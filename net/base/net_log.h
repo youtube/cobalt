@@ -111,19 +111,21 @@ class NET_EXPORT NetLog {
     // the specified minimum event granularity.  A ThreadSafeObserver can only
     // observe a single NetLog at a time.
     //
-    // Typical observers should specify LOG_BASIC.
-    //
-    // Observers that need to see the full granularity of events can
-    // specify LOG_ALL. However doing so will have performance consequences.
-    //
     // Observers will be called on the same thread an entry is added on,
     // and are responsible for ensuring their own thread safety.
-    explicit ThreadSafeObserver(LogLevel log_level);
+    //
+    // Observers must stop watching a NetLog before either the Observer or the
+    // NetLog is destroyed.
+    ThreadSafeObserver();
     virtual ~ThreadSafeObserver();
 
     // Returns the minimum log level for events this observer wants to
-    // receive.
+    // receive.  Must not be called when not watching a NetLog.
     LogLevel log_level() const;
+
+    // Returns the NetLog we are currently watching, if any.  Returns NULL
+    // otherwise.
+    NetLog* net_log() const;
 
     // This method will be called on the thread that the event occurs on.  It
     // is the responsibility of the observer to handle it in a thread safe
@@ -137,13 +139,13 @@ class NET_EXPORT NetLog {
                             EventPhase phase,
                             EventParameters* params) = 0;
 
-   protected:
-    // Subclasses should only ever modify this if they somehow
-    // collaborate with concrete implementations of NetLog to enable
-    // modification.
-    LogLevel log_level_;
-
    private:
+    friend class NetLog;
+
+    // Both of these values are only modified by the NetLog.
+    LogLevel log_level_;
+    NetLog* net_log_;
+
     DISALLOW_COPY_AND_ASSIGN(ThreadSafeObserver);
   };
 
@@ -173,12 +175,30 @@ class NET_EXPORT NetLog {
   // and saving expensive log entries.
   virtual LogLevel GetLogLevel() const = 0;
 
-  // Adds an observer. Each observer may be added only once and must
-  // be removed via |RemoveObserver()| before this object goes out of
-  // scope.
-  virtual void AddThreadSafeObserver(ThreadSafeObserver* observer) = 0;
+  // Adds an observer and sets its log level.  The observer must not be
+  // watching any NetLog, including this one, when this is called.
+  //
+  // Typical observers should specify LOG_BASIC.
+  //
+  // Observers that need to see the full granularity of events can specify
+  // LOG_ALL_BUT_BYTES. However, doing so will have performance consequences.
+  //
+  // NetLog implementations must call NetLog::OnAddObserver to update the
+  // observer's internal state.
+  virtual void AddThreadSafeObserver(ThreadSafeObserver* observer,
+                                     LogLevel log_level) = 0;
 
-  // Removes an observer.
+  // Sets the log level of |observer| to |log_level|.  |observer| must be
+  // watching |this|.  NetLog implementations must call
+  // NetLog::OnSetObserverLogLevel to update the observer's internal state.
+  virtual void SetObserverLogLevel(ThreadSafeObserver* observer,
+                                   LogLevel log_level) = 0;
+
+  // Removes an observer.  NetLog implementations must call
+  // NetLog::OnAddObserver to update the observer's internal state.
+  //
+  // For thread safety reasons, it is recommended that this not be called in
+  // an object's destructor.
   virtual void RemoveThreadSafeObserver(ThreadSafeObserver* observer) = 0;
 
   // Converts a time to the string format that the NetLog uses to represent
@@ -210,6 +230,14 @@ class NET_EXPORT NetLog {
                                              NetLog::EventPhase phase,
                                              NetLog::EventParameters* params,
                                              bool use_strings);
+
+ protected:
+  // Subclasses must call these in the corresponding functions to set an
+  // observer's |net_log_| and |log_level_| values.
+  void OnAddObserver(ThreadSafeObserver* observer, LogLevel log_level);
+  void OnSetObserverLogLevel(ThreadSafeObserver* observer,
+                             LogLevel log_level);
+  void OnRemoveObserver(ThreadSafeObserver* observer);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NetLog);
