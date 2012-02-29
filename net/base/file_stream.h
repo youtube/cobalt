@@ -57,7 +57,6 @@ class NET_EXPORT FileStream {
   // CloseSync() does not).
   //
   // It is not OK to call Close() multiple times. The behavior is not defined.
-  //
   // Note that there must never be any pending async operations.
   virtual void Close(const CompletionCallback& callback);
 
