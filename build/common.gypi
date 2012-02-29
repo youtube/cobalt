@@ -688,6 +688,9 @@
     # Disable Dart by default.
     'enable_dart%': 0,
 
+    # The desired version of Windows SDK can be set in ~/.gyp/include.gypi.
+    'msbuild_toolset%': '',
+
     'conditions': [
       # Used to disable Native Client at compile time, for platforms where it
       # isn't supported (ARM)
@@ -1039,6 +1042,9 @@
       ],
     },
     'conditions': [
+      ['OS=="win" and "<(msbuild_toolset)"!=""', {
+        'msbuild_toolset': '<(msbuild_toolset)',
+      }],
       ['branding=="Chrome"', {
         'defines': ['GOOGLE_CHROME_BUILD'],
       }, {  # else: branding!="Chrome"
