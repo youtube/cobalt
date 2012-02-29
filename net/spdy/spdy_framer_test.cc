@@ -1519,11 +1519,8 @@ TEST_F(SpdyFramerTest, CreateCredential) {
     const char kDescription[] = "CREDENTIAL frame";
     const unsigned char kFrameData[] = {
       0x80, 0x02, 0x00, 0x0A,
-      0x00, 0x00, 0x00, 0x3F,
-      0x00, 0x03, 0x00, 0x0A,
-      'g',  'o',  'o',  'g',
-      'l',  'e',  '.',  'c',
-      'o',  'm',  0x00, 0x00,
+      0x00, 0x00, 0x00, 0x33,
+      0x00, 0x03, 0x00, 0x00,
       0x00, 0x05, 'p',  'r',
       'o',  'o',  'f',  0x00,
       0x00, 0x00, 0x06, 'a',
@@ -1539,7 +1536,6 @@ TEST_F(SpdyFramerTest, CreateCredential) {
     };
     SpdyCredential credential;
     credential.slot = 3;
-    credential.origin = "google.com";
     credential.proof = "proof";
     credential.certs.push_back("a cert");
     credential.certs.push_back("another cert");
@@ -1555,11 +1551,8 @@ TEST_F(SpdyFramerTest, ParseCredentialFrame) {
   {
     unsigned char kFrameData[] = {
       0x80, 0x02, 0x00, 0x0A,
-      0x00, 0x00, 0x00, 0x3F,
-      0x00, 0x03, 0x00, 0x0A,
-      'g',  'o',  'o',  'g',
-      'l',  'e',  '.',  'c',
-      'o',  'm',  0x00, 0x00,
+      0x00, 0x00, 0x00, 0x33,
+      0x00, 0x03, 0x00, 0x00,
       0x00, 0x05, 'p',  'r',
       'o',  'o',  'f',  0x00,
       0x00, 0x00, 0x06, 'a',
@@ -1580,7 +1573,6 @@ TEST_F(SpdyFramerTest, ParseCredentialFrame) {
                                                 frame.length(),
                                                 &credential));
     EXPECT_EQ(3u, credential.slot);
-    EXPECT_EQ("google.com", credential.origin);
     EXPECT_EQ("proof", credential.proof);
     EXPECT_EQ("a cert", credential.certs.front());
     credential.certs.erase(credential.certs.begin());
@@ -1646,7 +1638,6 @@ TEST_F(SpdyFramerTest, ExpandBuffer_HeapSmash) {
 TEST_F(SpdyFramerTest, ReadCredentialFrame) {
   SpdyCredential credential;
   credential.slot = 3;
-  credential.origin = "google.com";
   credential.proof = "proof";
   credential.certs.push_back("a cert");
   credential.certs.push_back("another cert");
@@ -1664,7 +1655,6 @@ TEST_F(SpdyFramerTest, ReadCredentialFrame) {
   EXPECT_EQ(1, visitor.credential_count_);
   EXPECT_EQ(control_frame->length(), visitor.credential_buffer_length_);
   EXPECT_EQ(credential.slot, visitor.credential_.slot);
-  EXPECT_EQ(credential.origin, visitor.credential_.origin);
   EXPECT_EQ(credential.proof, visitor.credential_.proof);
   EXPECT_EQ(credential.certs.size(), visitor.credential_.certs.size());
   for (size_t i = 0; i < credential.certs.size(); i++) {
@@ -1672,33 +1662,9 @@ TEST_F(SpdyFramerTest, ReadCredentialFrame) {
   }
 }
 
-TEST_F(SpdyFramerTest, ReadCredentialFrameWithCorruptOrigin) {
-  SpdyCredential credential;
-  credential.slot = 3;
-  credential.origin = "google.com";
-  credential.proof = "proof";
-  credential.certs.push_back("a cert");
-  credential.certs.push_back("another cert");
-  credential.certs.push_back("final cert");
-  SpdyFramer framer;
-  scoped_ptr<SpdyFrame> control_frame(
-      framer.CreateCredentialFrame(credential));
-  EXPECT_TRUE(control_frame.get() != NULL);
-  TestSpdyVisitor visitor;
-  visitor.use_compression_ = false;
-  unsigned char* data =
-      reinterpret_cast<unsigned char*>(control_frame.get()->data());
-  // Origin length is past the end of the frame
-  data[SpdyControlFrame::kHeaderSize + 2] = 0xFF;
-  visitor.SimulateInFramer(
-      data, control_frame.get()->length() + SpdyControlFrame::kHeaderSize);
-  EXPECT_EQ(1, visitor.error_count_);
-}
-
 TEST_F(SpdyFramerTest, ReadCredentialFrameWithCorruptProof) {
   SpdyCredential credential;
   credential.slot = 3;
-  credential.origin = "google.com";
   credential.proof = "proof";
   credential.certs.push_back("a cert");
   credential.certs.push_back("another cert");
@@ -1711,8 +1677,7 @@ TEST_F(SpdyFramerTest, ReadCredentialFrameWithCorruptProof) {
   visitor.use_compression_ = false;
   unsigned char* data =
       reinterpret_cast<unsigned char*>(control_frame.get()->data());
-  size_t offset = SpdyControlFrame::kHeaderSize + 4 +
-      credential.origin.length();
+  size_t offset = SpdyControlFrame::kHeaderSize + 4;
   data[offset] = 0xFF;  // Proof length is past the end of the frame
   visitor.SimulateInFramer(
       data, control_frame.get()->length() + SpdyControlFrame::kHeaderSize);
@@ -1722,7 +1687,6 @@ TEST_F(SpdyFramerTest, ReadCredentialFrameWithCorruptProof) {
 TEST_F(SpdyFramerTest, ReadCredentialFrameWithCorruptCertificate) {
   SpdyCredential credential;
   credential.slot = 3;
-  credential.origin = "google.com";
   credential.proof = "proof";
   credential.certs.push_back("a cert");
   credential.certs.push_back("another cert");
@@ -1735,8 +1699,7 @@ TEST_F(SpdyFramerTest, ReadCredentialFrameWithCorruptCertificate) {
   visitor.use_compression_ = false;
   unsigned char* data =
       reinterpret_cast<unsigned char*>(control_frame.get()->data());
-  size_t offset = SpdyControlFrame::kHeaderSize + 4 +
-      credential.origin.length() + 4 + credential.proof.length();
+  size_t offset = SpdyControlFrame::kHeaderSize + credential.proof.length();
   data[offset] = 0xFF;  // Certificate length is past the end of the frame
   visitor.SimulateInFramer(
       data, control_frame.get()->length() + SpdyControlFrame::kHeaderSize);

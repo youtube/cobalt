@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -130,10 +130,8 @@
 //  +----------------------------------+
 //  | flags (8)  |  Length (24 bits)   | >= 12
 //  +----------------------------------+
-//  |  Slot (16 bits) | Origin Len (16)|
-//  +----------------------------------+
-//  |              Origin              |
-//  +----------------------------------+
+//  |  Slot (16 bits) |                |
+//  +-----------------+                |
 //  |      Proof Length (32 bits)      |
 //  +----------------------------------+
 //  |               Proof              |
@@ -314,10 +312,8 @@ struct SpdyPingControlFrameBlock : SpdyFrameBlock {
 // A CREDENTIAL Control Frame structure.
 struct SpdyCredentialControlFrameBlock : SpdyFrameBlock {
   uint16 slot_;
-  uint16 origin_len_;
   uint32 proof_len_;
   // Variable data here.
-  // origin data
   // proof data
   // for each certificate: unit32 certificate_len + certificate_data[i]
 };
