@@ -223,6 +223,8 @@
         'sys_string_conversions_mac_unittest.mm',
         'sys_string_conversions_unittest.cc',
         'system_monitor/system_monitor_unittest.cc',
+        'task_runner_test_template.cc',
+        'task_runner_test_template.h',
         'template_util_unittest.cc',
         'test/trace_event_analyzer_unittest.cc',
         'threading/non_thread_safe_unittest.cc',
