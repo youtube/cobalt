@@ -56,15 +56,24 @@ Value* NetLog::Source::ToValue() const {
   return dict;
 }
 
-NetLog::ThreadSafeObserver::ThreadSafeObserver(LogLevel log_level)
-    : log_level_(log_level) {
+NetLog::ThreadSafeObserver::ThreadSafeObserver() : log_level_(LOG_BASIC),
+                                                   net_log_(NULL) {
 }
 
 NetLog::ThreadSafeObserver::~ThreadSafeObserver() {
+  // Make sure we aren't watching a NetLog on destruction.  Because the NetLog
+  // may pass events to each observer on multiple threads, we cannot safely
+  // stop watching a NetLog automatically from a parent class.
+  DCHECK(!net_log_);
 }
 
 NetLog::LogLevel NetLog::ThreadSafeObserver::log_level() const {
+  DCHECK(net_log_);
   return log_level_;
+}
+
+NetLog* NetLog::ThreadSafeObserver::net_log() const {
+  return net_log_;
 }
 
 // static
@@ -165,6 +174,23 @@ Value* NetLog::EntryToDictionaryValue(NetLog::EventType type,
     entry_dict->Set("params", params->ToValue());
 
   return entry_dict;
+}
+
+void NetLog::OnAddObserver(ThreadSafeObserver* observer, LogLevel log_level) {
+  DCHECK(!observer->net_log_);
+  observer->net_log_ = this;
+  observer->log_level_ = log_level;
+}
+
+void NetLog::OnSetObserverLogLevel(ThreadSafeObserver* observer,
+                                   LogLevel log_level) {
+  DCHECK_EQ(this, observer->net_log_);
+  observer->log_level_ = log_level;
+}
+
+void NetLog::OnRemoveObserver(ThreadSafeObserver* observer) {
+  DCHECK_EQ(this, observer->net_log_);
+  observer->net_log_ = NULL;
 }
 
 void BoundNetLog::AddEntry(
