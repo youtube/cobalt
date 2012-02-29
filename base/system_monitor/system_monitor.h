@@ -1,10 +1,12 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef BASE_SYSTEM_MONITOR_SYSTEM_MONITOR_H_
 #define BASE_SYSTEM_MONITOR_SYSTEM_MONITOR_H_
 #pragma once
+
+#include <string>
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
@@ -28,6 +30,8 @@
 #include <IOKit/IOMessage.h>
 #endif  // OS_MACOSX
 
+class FilePath;
+
 namespace base {
 
 // Class for monitoring various system-related subsystems
@@ -41,6 +45,8 @@ class BASE_EXPORT SystemMonitor {
     SUSPEND_EVENT,      // The system is being suspended.
     RESUME_EVENT        // The system is being resumed.
   };
+
+  typedef unsigned int DeviceIdType;
 
   // Create SystemMonitor. Only one SystemMonitor instance per application
   // is allowed.
@@ -93,7 +99,18 @@ class BASE_EXPORT SystemMonitor {
   class BASE_EXPORT DevicesChangedObserver {
    public:
     // Notification that the devices connected to the system have changed.
+    // This is only implemented on Windows currently.
     virtual void OnDevicesChanged() {}
+
+    // When a media device is attached or detached, one of these two events
+    // is triggered.
+    // TODO(vandebo) Pass an appropriate device identifier or way to interact
+    // with the devices instead of FilePath.
+    virtual void OnMediaDeviceAttached(const DeviceIdType& id,
+                                       const std::string& name,
+                                       const FilePath& path) {}
+
+    virtual void OnMediaDeviceDetached(const DeviceIdType& id) {}
 
    protected:
     virtual ~DevicesChangedObserver() {}
@@ -123,6 +140,10 @@ class BASE_EXPORT SystemMonitor {
 
   // Cross-platform handling of a device change event.
   void ProcessDevicesChanged();
+  void ProcessMediaDeviceAttached(const DeviceIdType& id,
+                                  const std::string& name,
+                                  const FilePath& path);
+  void ProcessMediaDeviceDetached(const DeviceIdType& id);
 
  private:
 #if defined(OS_MACOSX)
@@ -141,6 +162,10 @@ class BASE_EXPORT SystemMonitor {
 
   // Functions to trigger notifications.
   void NotifyDevicesChanged();
+  void NotifyMediaDeviceAttached(const DeviceIdType& id,
+                                 const std::string& name,
+                                 const FilePath& path);
+  void NotifyMediaDeviceDetached(const DeviceIdType& id);
   void NotifyPowerStateChange();
   void NotifySuspend();
   void NotifyResume();
