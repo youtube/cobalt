@@ -640,6 +640,7 @@
         }],
         ['OS == "android"', {
           'sources!': [
+            'audio/audio_input_volume_unittest.cc',
             'base/test_data_util.cc',
             'base/test_data_util.h',
             'ffmpeg/ffmpeg_common_unittest.cc',
