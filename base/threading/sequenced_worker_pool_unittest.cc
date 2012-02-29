@@ -267,6 +267,33 @@ TEST_F(SequencedWorkerPoolTest, LotsOfTasks) {
   EXPECT_EQ(kNumTasks, result.size());
 }
 
+// Tests that posting a bunch of tasks (many more than the number of
+// worker threads) to two pools simultaneously runs them all twice.
+// This test is meant to shake out any concurrency issues between
+// pools (like histograms).
+TEST_F(SequencedWorkerPoolTest, LotsOfTasksTwoPools) {
+  scoped_refptr<SequencedWorkerPool> pool1(
+      new SequencedWorkerPool(kNumWorkerThreads, "test1"));
+  scoped_refptr<SequencedWorkerPool> pool2(
+      new SequencedWorkerPool(kNumWorkerThreads, "test2"));
+
+  base::Closure slow_task = base::Bind(&TestTracker::SlowTask, tracker(), 0);
+  pool1->PostWorkerTask(FROM_HERE, slow_task);
+  pool2->PostWorkerTask(FROM_HERE, slow_task);
+
+  const size_t kNumTasks = 20;
+  for (size_t i = 1; i < kNumTasks; i++) {
+    base::Closure fast_task =
+        base::Bind(&TestTracker::FastTask, tracker(), i);
+    pool1->PostWorkerTask(FROM_HERE, fast_task);
+    pool2->PostWorkerTask(FROM_HERE, fast_task);
+  }
+
+  std::vector<int> result =
+      tracker()->WaitUntilTasksComplete(2*kNumTasks);
+  EXPECT_EQ(2*kNumTasks, result.size());
+}
+
 // Test that tasks with the same sequence token are executed in order but don't
 // affect other tasks.
 TEST_F(SequencedWorkerPoolTest, Sequence) {
