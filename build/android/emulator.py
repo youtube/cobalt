@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -136,12 +136,14 @@ class Emulator(object):
     port = _GetAvailablePort()
     return ('emulator-%d' % port, port)
 
-  def Launch(self):
-    """Launches the emulator and waits for package manager to startup.
+  def Launch(self, kill_all_emulators):
+    """Launches the emulator asynchronously. Call ConfirmLaunch() to ensure the
+    emulator is ready for use.
 
     If fails, an exception will be raised.
     """
-    _KillAllEmulators()  # just to be sure
+    if kill_all_emulators:
+      _KillAllEmulators()  # just to be sure
     if not self.fast_and_loose:
       self._AggressiveImageCleanup()
     (self.device, port) = self._DeviceName()
@@ -166,7 +168,6 @@ class Emulator(object):
     self.popen = subprocess.Popen(args=emulator_command,
                                   stderr=subprocess.STDOUT)
     self._InstallKillHandler()
-    self._ConfirmLaunch()
 
   def _AggressiveImageCleanup(self):
     """Aggressive cleanup of emulator images.
@@ -186,7 +187,7 @@ class Emulator(object):
         logging.info('Deleting emulator image %s', full_name)
         os.unlink(full_name)
 
-  def _ConfirmLaunch(self, wait_for_boot=False):
+  def ConfirmLaunch(self, wait_for_boot=False):
     """Confirm the emulator launched properly.
 
     Loop on a wait-for-device with a very small timeout.  On each
