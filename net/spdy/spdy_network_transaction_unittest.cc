@@ -2020,6 +2020,10 @@ TEST_P(SpdyNetworkTransactionTest, WindowUpdateSent) {
   EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
   EXPECT_TRUE(response->was_fetched_via_spdy);
 
+  // Force sending of WINDOW_UPDATE by setting initial_recv_window_size to a
+  // small value.
+  stream->stream()->set_initial_recv_window_size(kUploadDataSize / 2);
+
   // Issue a read which will cause a WINDOW_UPDATE to be sent and window
   // size increased to default.
   scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(kUploadDataSize));
