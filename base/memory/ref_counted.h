@@ -249,6 +249,13 @@ class scoped_refptr {
     assert(ptr_ != NULL);
     return ptr_;
   }
+  // The SNC compiler requires an explicit * operator here.
+#if defined(__LB_PS3__)
+  T& operator*() const {
+    assert(ptr_ != NULL);
+    return *ptr_;
+  }
+#endif
 
   // Release a pointer.
   // The return value is the current pointer held by this object.
