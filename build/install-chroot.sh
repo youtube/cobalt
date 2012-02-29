@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-# Copyright (c) 2010 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -203,7 +203,9 @@ EOF
 sed '/^FSTAB=/s,/mount-defaults",/mount-'"${target}"'",'                       \
          /etc/schroot/script-defaults |
   sudo sh -c 'cat >/etc/schroot/script-'"${target}"
-sudo cp /etc/schroot/mount-defaults /etc/schroot/mount-"${target}"
+sed '\,^/home[/[:space:]],s/\([,[:space:]]\)bind[[:space:]]/\1rbind /' \
+  /etc/schroot/mount-defaults |
+  sudo sh -c 'cat > /etc/schroot/mount-'"${target}"
 echo "$HOME/chroot/.${target} $HOME/chroot none rw,bind 0 0" |
   sudo sh -c 'cat >>/etc/schroot/mount-'"${target}"
 mkdir -p "$HOME/chroot/.${target}"
