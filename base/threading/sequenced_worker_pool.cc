@@ -45,9 +45,8 @@ struct SequencedTask {
 
 class SequencedWorkerPool::Worker : public SimpleThread {
  public:
-  // Hold a ref to |worker_pool|, since we want to keep it around even
-  // if it doesn't join our thread.  Note that this (deliberately)
-  // leaks on shutdown.
+  // Hold a (cyclic) ref to |worker_pool|, since we want to keep it
+  // around as long as we are running.
   Worker(const scoped_refptr<SequencedWorkerPool>& worker_pool,
          int thread_number,
          const std::string& thread_name_prefix);
@@ -57,7 +56,7 @@ class SequencedWorkerPool::Worker : public SimpleThread {
   virtual void Run() OVERRIDE;
 
  private:
-  const scoped_refptr<SequencedWorkerPool> worker_pool_;
+  scoped_refptr<SequencedWorkerPool> worker_pool_;
 
   DISALLOW_COPY_AND_ASSIGN(Worker);
 };
@@ -226,6 +225,8 @@ void SequencedWorkerPool::Worker::Run() {
   // having these worker objects at all, but that method lacks the ability to
   // send thread-specific information easily to the thread loop.
   worker_pool_->inner_->ThreadLoop(this);
+  // Release our cyclic reference once we're done.
+  worker_pool_ = NULL;
 }
 
 // Inner definitions ---------------------------------------------------------
