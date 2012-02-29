@@ -76,6 +76,7 @@ SpdyStream::SpdyStream(SpdySession* session,
       stalled_by_flow_control_(false),
       send_window_size_(spdy::kSpdyStreamInitialWindowSize),
       recv_window_size_(spdy::kSpdyStreamInitialWindowSize),
+      unacked_recv_window_bytes_(0),
       pushed_(pushed),
       response_received_(false),
       session_(session),
@@ -159,12 +160,18 @@ void SpdyStream::set_spdy_headers(
   request_ = headers;
 }
 
+void SpdyStream::set_initial_recv_window_size(int32 window_size) {
+  session_->set_initial_recv_window_size(window_size);
+}
+
 void SpdyStream::AdjustSendWindowSize(int32 delta_window_size) {
   send_window_size_ += delta_window_size;
 }
 
 void SpdyStream::IncreaseSendWindowSize(int32 delta_window_size) {
+  DCHECK(session_->is_flow_control_enabled());
   DCHECK_GE(delta_window_size, 1);
+
   int32 new_window_size = send_window_size_ + delta_window_size;
 
   // We should ignore WINDOW_UPDATEs received before or after this state,
@@ -202,6 +209,7 @@ void SpdyStream::IncreaseSendWindowSize(int32 delta_window_size) {
 void SpdyStream::DecreaseSendWindowSize(int32 delta_window_size) {
   // we only call this method when sending a frame, therefore
   // |delta_window_size| should be within the valid frame size range.
+  DCHECK(session_->is_flow_control_enabled());
   DCHECK_GE(delta_window_size, 1);
   DCHECK_LE(delta_window_size, kMaxSpdyFrameChunkSize);
 
@@ -235,7 +243,12 @@ void SpdyStream::IncreaseRecvWindowSize(int32 delta_window_size) {
       NetLog::TYPE_SPDY_STREAM_UPDATE_RECV_WINDOW,
       make_scoped_refptr(new NetLogSpdyStreamWindowUpdateParameter(
           stream_id_, delta_window_size, recv_window_size_)));
-  session_->SendWindowUpdate(stream_id_, delta_window_size);
+
+  unacked_recv_window_bytes_ += delta_window_size;
+  if (unacked_recv_window_bytes_ > session_->initial_recv_window_size() / 2) {
+    session_->SendWindowUpdate(stream_id_, unacked_recv_window_bytes_);
+    unacked_recv_window_bytes_ = 0;
+  }
 }
 
 void SpdyStream::DecreaseRecvWindowSize(int32 delta_window_size) {
