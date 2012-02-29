@@ -1124,6 +1124,60 @@ TEST_F(FileStreamTest, AsyncWriteAndCloseSync) {
   stream.CloseSync();
 }
 
+// TODO(satorux): This should be gone once all once all async clients are
+// migrated to use Close(). crbug.com/114783
+TEST_F(FileStreamTest, AsyncOpenAndCloseSync) {
+  FileStream stream(NULL);
+  int flags = base::PLATFORM_FILE_OPEN |
+      base::PLATFORM_FILE_WRITE |
+      base::PLATFORM_FILE_ASYNC;
+  TestCompletionCallback open_callback;
+  int rv = stream.Open(temp_file_path(), flags, open_callback.callback());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  // Close the stream without waiting for the completion. Should be safe.
+  stream.CloseSync();
+  // open_callback won't be called.
+  EXPECT_FALSE(open_callback.have_result());
+}
+
+TEST_F(FileStreamTest, AsyncOpenAndDelete) {
+  scoped_ptr<FileStream> stream(new FileStream(NULL));
+  int flags = base::PLATFORM_FILE_OPEN |
+      base::PLATFORM_FILE_WRITE |
+      base::PLATFORM_FILE_ASYNC;
+  TestCompletionCallback open_callback;
+  int rv = stream->Open(temp_file_path(), flags, open_callback.callback());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  // Delete the stream without waiting for the open operation to be
+  // complete. Should be safe.
+  stream.reset();
+  // open_callback won't be called.
+  EXPECT_FALSE(open_callback.have_result());
+}
+
+TEST_F(FileStreamTest, AsyncCloseAndDelete) {
+  scoped_ptr<FileStream> stream(new FileStream(NULL));
+  int flags = base::PLATFORM_FILE_OPEN |
+      base::PLATFORM_FILE_WRITE |
+      base::PLATFORM_FILE_ASYNC;
+  TestCompletionCallback open_callback;
+  int rv = stream->Open(temp_file_path(), flags, open_callback.callback());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, open_callback.WaitForResult());
+  EXPECT_TRUE(stream->IsOpen());
+
+  TestCompletionCallback close_callback;
+  stream->Close(close_callback.callback());
+
+  // Delete the stream without waiting for the close operation to be
+  // complete. Should be safe.
+  stream.reset();
+  // close_callback won't be called.
+  EXPECT_FALSE(close_callback.have_result());
+}
+
 }  // namespace
 
 }  // namespace net
