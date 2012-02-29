@@ -186,9 +186,6 @@ void PlatformThread::SetThreadPriority(PlatformThreadHandle handle,
     case kThreadPriority_RealtimeAudio:
       ::SetThreadPriority(handle, THREAD_PRIORITY_TIME_CRITICAL);
       break;
-    default:
-      NOTIMPLEMENTED();
-      break;
   }
 }
 
