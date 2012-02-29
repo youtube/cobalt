@@ -850,12 +850,6 @@ bool SpdyFramer::ParseCredentialData(const char* data, size_t len,
   if (!parser.ReadUInt16(&iter, &credential->slot))
     return false;
 
-  uint16 origin_len;
-  const char* origin_data;
-  if (!parser.ReadData(&iter, &origin_data, &origin_len))
-    return false;
-  credential->origin.assign(origin_data, origin_len);
-
   uint32 proof_len;
   const char* proof_data;
   if (!parser.ReadReadLen32PrefixedData(&iter, &proof_data, &proof_len))
@@ -1068,8 +1062,8 @@ SpdyCredentialControlFrame* SpdyFramer::CreateCredentialFrame(
   // Calculate the size of the frame by adding the size of the
   // variable length data to the size of the fixed length data.
   size_t frame_size =  SpdyCredentialControlFrame::size() +
-      credential.origin.length() + credential.proof.length();
-  DCHECK_EQ(SpdyCredentialControlFrame::size(), 16u);
+      credential.proof.length();
+  DCHECK_EQ(SpdyCredentialControlFrame::size(), 14u);
   for (vector<std::string>::const_iterator cert = credential.certs.begin();
        cert != credential.certs.end();
        cert++) {
@@ -1087,8 +1081,6 @@ SpdyCredentialControlFrame* SpdyFramer::CreateCredentialFrame(
   frame.WriteUInt16(CREDENTIAL);
   frame.WriteBytes(&flags_length, sizeof(flags_length));
   frame.WriteUInt16(credential.slot);
-  frame.WriteUInt16(credential.origin.size());
-  frame.WriteBytes(credential.origin.c_str(), credential.origin.size());
   frame.WriteUInt32(credential.proof.size());
   frame.WriteBytes(credential.proof.c_str(), credential.proof.size());
   for (vector<std::string>::const_iterator cert = credential.certs.begin();
