@@ -36,6 +36,7 @@
         '../jingle/jingle.gyp:jingle_unittests',
         '../tools/android/fake_dns/fake_dns.gyp:fake_dns',
         '../tools/android/forwarder/forwarder.gyp:forwarder',
+        '../content/content.gyp:content_unittests',
       ],
     },
     { 
@@ -47,7 +48,6 @@
       'dependencies': [
         '../webkit/webkit.gyp:pull_in_webkit_unit_tests',
         '../webkit/webkit.gyp:pull_in_DumpRenderTree',
-        '../content/content.gyp:content_unittests',
         '../chrome/chrome.gyp:browser',
         '../media/media.gyp:media_unittests',
       ],
