@@ -474,6 +474,10 @@
     # Use system yasm instead of bundled one.
     'use_system_yasm%': 0,
 
+    # Default to enabled PIE; this is important for ASLR but we may need to be
+    # able to turn it off for various reasons.
+    'linux_disable_pie%': 0,
+
     # The release channel that this build targets. This is used to restrict
     # channel-specific build options, like which installer packages to create.
     # The default is 'all', which does no channel-specific filtering.
