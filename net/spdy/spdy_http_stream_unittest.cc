@@ -292,7 +292,6 @@ void SpdyHttpStreamTest::TestSendCredentials(
 
   spdy::SpdyCredential cred;
   cred.slot = 1;
-  cred.origin = "http://www.gmail.com";
   cred.proof = proof;
   cred.certs.push_back(cert);
 

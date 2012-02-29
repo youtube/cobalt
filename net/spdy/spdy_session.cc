@@ -669,7 +669,6 @@ int SpdySession::WriteCredentialFrame(const std::string& origin,
   GURL origin_url(origin);
   credential.slot =
       credential_state_.SetHasCredential(HostPortPair::FromURL(origin_url));
-  credential.origin = origin;
   credential.certs.push_back(cert);
   credential.proof.assign(proof.begin(), proof.end());
 
@@ -682,7 +681,7 @@ int SpdySession::WriteCredentialFrame(const std::string& origin,
         NetLog::TYPE_SPDY_SESSION_SEND_CREDENTIAL,
         make_scoped_refptr(
             new NetLogSpdyCredentialParameter(credential.slot,
-                                              credential.origin)));
+                                              origin)));
   }
   return ERR_IO_PENDING;
 }
