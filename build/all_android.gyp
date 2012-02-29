@@ -50,6 +50,7 @@
         '../webkit/webkit.gyp:pull_in_DumpRenderTree',
         '../chrome/chrome.gyp:browser',
         '../media/media.gyp:media_unittests',
+        '../base/android/java/java.gyp:base_java',
       ],
     },
     {
