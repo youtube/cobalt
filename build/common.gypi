@@ -413,6 +413,7 @@
           'use_x11': 0,
           'disable_sse2': 1,
           'use_libjpeg_turbo': 0,
+          'enable_web_intents': 0,
         }],
       ],
     },
