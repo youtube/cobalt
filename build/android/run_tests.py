@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -47,7 +47,9 @@ loaded. We don't care about the rare testcases which succeeded on emuatlor, but
 failed on device.
 """
 
+import fnmatch
 import logging
+import multiprocessing
 import os
 import re
 import subprocess
@@ -55,6 +57,7 @@ import sys
 import time
 
 import android_commands
+from base_test_sharder import BaseTestSharder
 import cmd_helper
 import debug_info
 import emulator
@@ -140,7 +143,7 @@ class Xvfb(object):
 
 def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
              timeout, performance_test, cleanup_test_files, tool,
-             log_dump_name, fast_and_loose=False, annotate=False):
+             log_dump_name, annotate=False):
   """Runs the tests.
 
   Args:
@@ -154,8 +157,6 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
     cleanup_test_files: Whether or not to cleanup test files on device.
     tool: Name of the Valgrind tool.
     log_dump_name: Name of log dump file.
-    fast_and_loose: should we go extra-fast but sacrifice stability
-      and/or correctness?  Intended for quick cycle testing; not for bots!
     annotate: should we print buildbot-style annotations?
 
   Returns:
@@ -183,9 +184,8 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
       print '@@@BUILD_STEP Test suite %s@@@' % os.path.basename(t)
     test = SingleTestRunner(device, t, gtest_filter, test_arguments,
                             timeout, rebaseline, performance_test,
-                            cleanup_test_files, tool, not not log_dump_name,
-                            fast_and_loose=fast_and_loose)
-    test.RunTests()
+                            cleanup_test_files, tool, 0, not not log_dump_name)
+    test.Run()
 
     results += [test.test_results]
     # Collect debug info.
@@ -211,6 +211,61 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
   return TestResults.FromTestResults(results)
 
 
+class TestSharder(BaseTestSharder):
+  """Responsible for sharding the tests on the connected devices."""
+
+  def __init__(self, attached_devices, test_suite, gtest_filter,
+               test_arguments, timeout, rebaseline, performance_test,
+               cleanup_test_files, tool):
+    BaseTestSharder.__init__(self, attached_devices)
+    self.test_suite = test_suite
+    self.test_suite_basename = os.path.basename(test_suite)
+    self.gtest_filter = gtest_filter
+    self.test_arguments = test_arguments
+    self.timeout = timeout
+    self.rebaseline = rebaseline
+    self.performance_test = performance_test
+    self.cleanup_test_files = cleanup_test_files
+    self.tool = tool
+    test = SingleTestRunner(self.attached_devices[0], test_suite, gtest_filter,
+                            test_arguments, timeout, rebaseline,
+                            performance_test, cleanup_test_files, tool, 0)
+    all_tests = test.test_package.GetAllTests()
+    if not rebaseline:
+      disabled_list = test.GetDisabledTests()
+      # Only includes tests that do not have any match in the disabled list.
+      all_tests = filter(lambda t:
+                         not any([fnmatch.fnmatch(t, disabled_pattern)
+                                  for disabled_pattern in disabled_list]),
+                         all_tests)
+    self.tests = all_tests
+
+  def CreateShardedTestRunner(self, device, index):
+    """Creates a suite-specific test runner.
+
+    Args:
+      device: Device serial where this shard will run.
+      index: Index of this device in the pool.
+
+    Returns:
+      A SingleTestRunner object.
+    """
+    shard_size = len(self.tests) / len(self.attached_devices)
+    shard_test_list = self.tests[index * shard_size : (index + 1) * shard_size]
+    test_filter = ':'.join(shard_test_list)
+    return SingleTestRunner(device, self.test_suite,
+                            test_filter, self.test_arguments, self.timeout,
+                            self.rebaseline, self.performance_test,
+                            self.cleanup_test_files, self.tool, index)
+
+  def OnTestsCompleted(self, test_runners, test_results):
+    """Notifies that we completed the tests."""
+    test_results.LogFull()
+    if test_results.failed and self.rebaseline:
+      test_runners[0].UpdateFilter(test_results.failed)
+
+
+
 def _RunATestSuite(options):
   """Run a single test suite.
 
@@ -225,14 +280,19 @@ def _RunATestSuite(options):
     0 if successful, number of failing tests otherwise.
   """
   attached_devices = []
-  buildbot_emulator = None
+  buildbot_emulators = []
 
   if options.use_emulator:
-    t = TimeProfile('Emulator launch')
-    buildbot_emulator = emulator.Emulator(options.fast_and_loose)
-    buildbot_emulator.Launch()
-    t.Stop()
-    attached_devices.append(buildbot_emulator.device)
+    for n in range(options.use_emulator):
+      t = TimeProfile('Emulator launch %d' % n)
+      buildbot_emulator = emulator.Emulator(options.fast_and_loose)
+      buildbot_emulator.Launch(kill_all_emulators=n == 0)
+      t.Stop()
+      buildbot_emulators.append(buildbot_emulator)
+      attached_devices.append(buildbot_emulator.device)
+    # Wait for all emulators to become available.
+    map(lambda buildbot_emulator:buildbot_emulator.ConfirmLaunch(),
+        buildbot_emulators)
   else:
     attached_devices = android_commands.GetAttachedDevices()
 
@@ -240,16 +300,24 @@ def _RunATestSuite(options):
     logging.critical('A device must be attached and online.')
     return 1
 
-  test_results = RunTests(attached_devices[0], options.test_suite,
+  if (len(attached_devices) > 1 and options.test_suite and
+      not options.gtest_filter and not options.performance_test):
+    sharder = TestSharder(attached_devices, options.test_suite,
                           options.gtest_filter, options.test_arguments,
-                          options.rebaseline, options.timeout,
+                          options.timeout, options.rebaseline,
                           options.performance_test,
-                          options.cleanup_test_files, options.tool,
-                          options.log_dump,
-                          fast_and_loose=options.fast_and_loose,
-                          annotate=options.annotate)
+                          options.cleanup_test_files, options.tool)
+    test_results = sharder.RunShardedTests()
+  else:
+    test_results = RunTests(attached_devices[0], options.test_suite,
+                            options.gtest_filter, options.test_arguments,
+                            options.rebaseline, options.timeout,
+                            options.performance_test,
+                            options.cleanup_test_files, options.tool,
+                            options.log_dump,
+                            annotate=options.annotate)
 
-  if buildbot_emulator:
+  for buildbot_emulator in buildbot_emulators:
     buildbot_emulator.Shutdown()
 
   # Another chance if we timed out?  At this point It is safe(r) to
@@ -330,8 +398,8 @@ def main(argv):
                            'in where the test_suite exists.')
   option_parser.add_option('-e', '--emulator', dest='use_emulator',
                            help='Run tests in a new instance of emulator',
-                           action='store_true',
-                           default=False)
+                           type='int',
+                           default=0)
   option_parser.add_option('-x', '--xvfb', dest='use_xvfb',
                            action='store_true', default=False,
                            help='Use Xvfb around tests (ignored if not Linux)')
