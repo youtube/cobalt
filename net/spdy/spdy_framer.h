@@ -58,7 +58,6 @@ struct NET_EXPORT_PRIVATE SpdyCredential {
   ~SpdyCredential();
 
   uint16 slot;
-  std::string origin;
   std::vector<std::string> certs;
   std::string proof;
 };
