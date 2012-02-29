@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -28,7 +28,7 @@ void SystemPowerEventCallback(void*,
     case kIOMessageSystemWillSleep:
       sys_monitor->ProcessPowerMessage(SystemMonitor::SUSPEND_EVENT);
       IOAllowPowerChange(g_system_power_io_port,
-          reinterpret_cast<int>(message_argument));
+          reinterpret_cast<intptr_t>(message_argument));
       break;
 
     case kIOMessageSystemWillPowerOn:
