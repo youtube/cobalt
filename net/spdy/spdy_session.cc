@@ -19,7 +19,6 @@
 #include "base/values.h"
 #include "crypto/ec_private_key.h"
 #include "crypto/ec_signature_creator.h"
-#include "crypto/rsa_private_key.h"
 #include "crypto/signature_creator.h"
 #include "net/base/asn1_util.h"
 #include "net/base/connection_type_histograms.h"
@@ -649,15 +648,6 @@ int SpdySession::WriteCredentialFrame(const std::string& origin,
 
   std::vector<uint8> proof;
   switch (type) {
-    case CLIENT_CERT_RSA_SIGN: {
-      scoped_ptr<crypto::RSAPrivateKey> private_key(
-          crypto::RSAPrivateKey::CreateFromPrivateKeyInfo(key_data));
-      scoped_ptr<crypto::SignatureCreator> creator(
-          crypto::SignatureCreator::Create(private_key.get()));
-      creator->Update(secret, arraysize(secret));
-      creator->Final(&proof);
-      break;
-    }
     case CLIENT_CERT_ECDSA_SIGN: {
       base::StringPiece spki_piece;
       asn1::ExtractSPKIFromDERCert(cert, &spki_piece);
