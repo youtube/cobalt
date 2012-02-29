@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "crypto/ec_private_key.h"
-#include "crypto/rsa_private_key.h"
 #include "crypto/scoped_nss_types.h"
 #include "crypto/signature_verifier.h"
 #include "net/base/x509_certificate.h"
@@ -139,30 +138,6 @@ void VerifyOriginBoundCert(const std::string& origin,
 }
 
 }  // namespace
-
-// This test creates an origin-bound cert from a RSA private key and
-// then verifies the content of the certificate.
-TEST(X509UtilNSSTest, CreateOriginBoundCertRSA) {
-  // Create a sample ASCII weborigin.
-  std::string origin = "http://weborigin.com:443";
-  base::Time now = base::Time::Now();
-
-  scoped_ptr<crypto::RSAPrivateKey> private_key(
-      crypto::RSAPrivateKey::Create(1024));
-  std::string der_cert;
-  ASSERT_TRUE(x509_util::CreateOriginBoundCertRSA(
-      private_key.get(),
-      origin, 1,
-      now,
-      now + base::TimeDelta::FromDays(1),
-      &der_cert));
-
-  VerifyOriginBoundCert(origin, der_cert);
-
-  std::vector<uint8> spki;
-  ASSERT_TRUE(private_key->ExportPublicKey(&spki));
-  VerifyCertificateSignature(der_cert, spki);
-}
 
 // This test creates an origin-bound cert from an EC private key and
 // then verifies the content of the certificate.

@@ -6,7 +6,6 @@
 
 #include "crypto/ec_private_key.h"
 #include "crypto/ec_signature_creator.h"
-#include "crypto/rsa_private_key.h"
 #include "crypto/signature_creator.h"
 #include "net/base/asn1_util.h"
 #include "net/base/default_origin_bound_cert_store.h"
@@ -239,43 +238,6 @@ TEST_F(SpdyHttpStreamTest, SpdyURLTest) {
   EXPECT_TRUE(data()->at_write_eof());
 }
 
-void GetRSAOriginBoundCertAndProof(const std::string& origin,
-                                OriginBoundCertService* obc_service,
-                                std::string* cert,
-                                std::string* proof) {
-  TestCompletionCallback callback;
-  std::vector<uint8> requested_cert_types;
-  requested_cert_types.push_back(CLIENT_CERT_RSA_SIGN);
-  SSLClientCertType cert_type;
-  std::string key;
-  OriginBoundCertService::RequestHandle request_handle;
-  int rv = obc_service->GetOriginBoundCert(origin, requested_cert_types,
-                                           &cert_type, &key, cert,
-                                           callback.callback(),
-                                           &request_handle);
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-  EXPECT_EQ(OK, callback.WaitForResult());
-  EXPECT_EQ(CLIENT_CERT_RSA_SIGN, cert_type);
-
-  unsigned char secret[32];
-  memset(secret, 'A', arraysize(secret));
-
-  // Convert the key string into a vector<unit8>
-  std::vector<uint8> key_data;
-  for (size_t i = 0; i < key.length(); i++) {
-    key_data.push_back(key[i]);
-  }
-
-  std::vector<uint8> proof_data;
-  scoped_ptr<crypto::RSAPrivateKey> private_key(
-      crypto::RSAPrivateKey::CreateFromPrivateKeyInfo(key_data));
-  scoped_ptr<crypto::SignatureCreator> creator(
-      crypto::SignatureCreator::Create(private_key.get()));
-  creator->Update(secret, arraysize(secret));
-  creator->Final(&proof_data);
-  proof->assign(proof_data.begin(), proof_data.end());
-}
-
 void GetECOriginBoundCertAndProof(const std::string& origin,
                                 OriginBoundCertService* obc_service,
                                 std::string* cert,
@@ -438,17 +400,6 @@ void SpdyHttpStreamTest::TestSendCredentials(
   EXPECT_EQ(OK, callback.WaitForResult());
   ASSERT_TRUE(response.headers.get() != NULL);
   ASSERT_EQ(200, response.headers->response_code());
-}
-
-TEST_F(SpdyHttpStreamTest, SendCredentialsRSA) {
-  scoped_ptr<OriginBoundCertService> obc_service(
-      new OriginBoundCertService(new DefaultOriginBoundCertStore(NULL)));
-  std::string cert;
-  std::string proof;
-  GetRSAOriginBoundCertAndProof("http://www.gmail.com/", obc_service.get(),
-                              &cert, &proof);
-
-  TestSendCredentials(obc_service.get(), cert, proof, CLIENT_CERT_RSA_SIGN);
 }
 
 class MockECSignatureCreator : public crypto::ECSignatureCreator {
