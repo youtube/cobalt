@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -63,13 +63,19 @@ NetLog::LogLevel CapturingNetLog::GetLogLevel() const {
 }
 
 void CapturingNetLog::AddThreadSafeObserver(
-    NetLog::ThreadSafeObserver* observer) {
-  NOTREACHED() << "Not currently used by net unit tests.";
+    NetLog::ThreadSafeObserver* observer,
+    NetLog::LogLevel log_level) {
+  NOTIMPLEMENTED() << "Not currently used by net unit tests.";
+}
+
+void CapturingNetLog::SetObserverLogLevel(ThreadSafeObserver* observer,
+                                          LogLevel log_level) {
+  NOTIMPLEMENTED() << "Not currently used by net unit tests.";
 }
 
 void CapturingNetLog::RemoveThreadSafeObserver(
     NetLog::ThreadSafeObserver* observer) {
-  NOTREACHED() << "Not currently used by net unit tests.";
+  NOTIMPLEMENTED() << "Not currently used by net unit tests.";
 }
 
 CapturingBoundNetLog::CapturingBoundNetLog(const NetLog::Source& source,
