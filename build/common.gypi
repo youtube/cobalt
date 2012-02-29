@@ -863,7 +863,6 @@
         'disable_nacl': 1,
         'use_openssl': 1,
         'use_cups': 0,
-        'javascript_engine': 'JavaScriptCore',
       }],
 
       # Set the relative path from this file to the GYP file of the JPEG
