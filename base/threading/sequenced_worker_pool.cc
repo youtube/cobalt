@@ -689,6 +689,31 @@ bool SequencedWorkerPool::PostSequencedWorkerTaskWithShutdownBehavior(
                           from_here, task);
 }
 
+bool SequencedWorkerPool::PostDelayedTask(
+    const tracked_objects::Location& from_here,
+    const Closure& task,
+    int64 delay_ms) {
+  // TODO(akalin): Add support for non-zero delays.
+  DCHECK_EQ(delay_ms, 0);
+  return PostWorkerTask(from_here, task);
+}
+
+bool SequencedWorkerPool::PostDelayedTask(
+    const tracked_objects::Location& from_here,
+    const Closure& task,
+    TimeDelta delay) {
+  // TODO(akalin): Add support for non-zero delays.
+  DCHECK_EQ(delay.InMillisecondsRoundedUp(), 0);
+  return PostWorkerTask(from_here, task);
+}
+
+bool SequencedWorkerPool::RunsTasksOnCurrentThread() const {
+  // TODO(akalin): Keep track of the thread IDs of our worker threads
+  // and use those to implement this function.
+  NOTREACHED();
+  return true;
+}
+
 void SequencedWorkerPool::FlushForTesting() {
   inner_->FlushForTesting();
 }
