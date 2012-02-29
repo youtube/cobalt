@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,7 +13,6 @@
 
 namespace crypto {
 class ECPrivateKey;
-class RSAPrivateKey;
 }
 
 namespace net {
@@ -27,12 +26,6 @@ namespace x509_util {
 //
 // See Internet Draft draft-balfanz-tls-obc-00 for more details:
 // http://tools.ietf.org/html/draft-balfanz-tls-obc-00
-bool NET_EXPORT_PRIVATE CreateOriginBoundCertRSA(crypto::RSAPrivateKey* key,
-                                                 const std::string& origin,
-                                                 uint32 serial_number,
-                                                 base::Time not_valid_before,
-                                                 base::Time not_valid_after,
-                                                 std::string* der_cert);
 bool NET_EXPORT_PRIVATE CreateOriginBoundCertEC(crypto::ECPrivateKey* key,
                                                 const std::string& origin,
                                                 uint32 serial_number,
