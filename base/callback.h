@@ -3,7 +3,7 @@
 // DO NOT EDIT BY HAND!!!
 
 
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,10 +18,6 @@
 // NOTE: Header files that do not require the full definition of Callback or
 // Closure should #include "base/callback_forward.h" instead of this file.
 
-// New, super-duper, unified Callback system.  This will eventually replace
-// NewRunnableMethod, NewRunnableFunction, CreateFunctor, and CreateCallback
-// systems currently in the Chromium code base.
-//
 // WHAT IS THIS:
 //
 // The templated Callback class is a generalized function object. Together
@@ -124,34 +120,33 @@
 // There are three main components to the system:
 //   1) The Callback classes.
 //   2) The Bind() functions.
-//   3) The arguments wrappers (eg., Unretained() and ConstRef()).
+//   3) The arguments wrappers (e.g., Unretained() and ConstRef()).
 //
 // The Callback classes represent a generic function pointer. Internally,
 // it stores a refcounted piece of state that represents the target function
 // and all its bound parameters.  Each Callback specialization has a templated
-// constructor that takes an BindStateHolder<> object.  In the context of
-// the constructor, the static type of this BindStateHolder<> object
-// uniquely identifies the function it is representing, all its bound
-// parameters, and a DoInvoke() that is capable of invoking the target.
+// constructor that takes an BindState<>*.  In the context of the constructor,
+// the static type of this BindState<> pointer uniquely identifies the
+// function it is representing, all its bound parameters, and a Run() method
+// that is capable of invoking the target.
 //
-// Callback's constructor is takes the BindStateHolder<> that has the
-// full static type and erases the target function type, and the bound
-// parameters.  It does this by storing a pointer to the specific DoInvoke()
-// function, and upcasting the state of BindStateHolder<> to a
-// BindStateBase. This is safe as long as this BindStateBase pointer
-// is only used with the stored DoInvoke() pointer.
+// Callback's constructor takes the BindState<>* that has the full static type
+// and erases the target function type as well as the types of the bound
+// parameters.  It does this by storing a pointer to the specific Run()
+// function, and upcasting the state of BindState<>* to a
+// BindStateBase*. This is safe as long as this BindStateBase pointer
+// is only used with the stored Run() pointer.
 //
-// To create BindStateHolder<> objects, we use the Bind() functions.
-// These functions, along with a set of internal templates, are reponsible for
+// To BindState<> objects are created inside the Bind() functions.
+// These functions, along with a set of internal templates, are responsible for
 //
 //  - Unwrapping the function signature into return type, and parameters
 //  - Determining the number of parameters that are bound
-//  - Creating the storage for the bound parameters
+//  - Creating the BindState storing the bound parameters
 //  - Performing compile-time asserts to avoid error-prone behavior
-//  - Returning an BindStateHolder<> with an DoInvoke() that has an arity
-//    matching the number of unbound parameters, and knows the correct
-//    refcounting semantics for the target object if we are binding a class
-//    method.
+//  - Returning an Callback<> with an arity matching the number of unbound
+//    parameters and that knows the correct refcounting semantics for the
+//    target object if we are binding a method.
 //
 // The Bind functions do the above using type-inference, and template
 // specializations.
@@ -160,7 +155,7 @@
 // to refcount a target object if the function being bound is a class method.
 //
 // To change this behavior, we introduce a set of argument wrappers
-// (eg. Unretained(), and ConstRef()).  These are simple container templates
+// (e.g., Unretained(), and ConstRef()).  These are simple container templates
 // that are passed by value, and wrap a pointer to argument.  See the
 // file-level comment in base/bind_helpers.h for more info.
 //
@@ -197,7 +192,7 @@
 // Lastly, tr1::function and tr1::bind has a more general and flexible API.
 // This includes things like argument reordering by use of
 // tr1::bind::placeholder, support for non-const reference parameters, and some
-// limited amount of subtyping of the tr1::function object (eg.,
+// limited amount of subtyping of the tr1::function object (e.g.,
 // tr1::function<int(int)> is convertible to tr1::function<void(int)>).
 //
 // These are not features that are required in Chromium. Some of them, such as
@@ -239,27 +234,30 @@ namespace base {
 template <typename Sig>
 class Callback;
 
+namespace internal {
+template <typename Runnable, typename RunType, typename BoundArgsType>
+struct BindState;
+}  // namespace internal
+
 template <typename R>
 class Callback<R(void)> : public internal::CallbackBase {
  public:
   typedef R(RunType)();
 
-  Callback() : CallbackBase(NULL, NULL) { }
+  Callback() : CallbackBase(NULL) { }
 
-  // We pass BindStateHolder by const ref to avoid incurring an
-  // unnecessary AddRef/Unref pair even though we will modify the object.
-  // We cannot use a normal reference because the compiler will warn
-  // since this is often used on a return value, which is a temporary.
-  //
   // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
   // return the exact Callback<> type.  See base/bind.h for details.
-  template <typename T>
-  Callback(const internal::BindStateHolder<T>& bind_state_holder)
-      : CallbackBase(NULL, &bind_state_holder.bind_state_) {
-    // Force the assignment to a location variable of PolymorphicInvoke
+  template <typename Runnable, typename RunType, typename BoundArgsType>
+  Callback(internal::BindState<Runnable, RunType, BoundArgsType>* bind_state)
+      : CallbackBase(bind_state) {
+
+    // Force the assignment to a local variable of PolymorphicInvoke
     // so the compiler will typecheck that the passed in Run() method has
     // the correct type.
-    PolymorphicInvoke invoke_func = &T::InvokerType::Run;
+    PolymorphicInvoke invoke_func =
+        &internal::BindState<Runnable, RunType, BoundArgsType>
+            ::InvokerType::Run;
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
   }
 
@@ -285,22 +283,20 @@ class Callback<R(A1)> : public internal::CallbackBase {
  public:
   typedef R(RunType)(A1);
 
-  Callback() : CallbackBase(NULL, NULL) { }
+  Callback() : CallbackBase(NULL) { }
 
-  // We pass BindStateHolder by const ref to avoid incurring an
-  // unnecessary AddRef/Unref pair even though we will modify the object.
-  // We cannot use a normal reference because the compiler will warn
-  // since this is often used on a return value, which is a temporary.
-  //
   // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
   // return the exact Callback<> type.  See base/bind.h for details.
-  template <typename T>
-  Callback(const internal::BindStateHolder<T>& bind_state_holder)
-      : CallbackBase(NULL, &bind_state_holder.bind_state_) {
-    // Force the assignment to a location variable of PolymorphicInvoke
+  template <typename Runnable, typename RunType, typename BoundArgsType>
+  Callback(internal::BindState<Runnable, RunType, BoundArgsType>* bind_state)
+      : CallbackBase(bind_state) {
+
+    // Force the assignment to a local variable of PolymorphicInvoke
     // so the compiler will typecheck that the passed in Run() method has
     // the correct type.
-    PolymorphicInvoke invoke_func = &T::InvokerType::Run;
+    PolymorphicInvoke invoke_func =
+        &internal::BindState<Runnable, RunType, BoundArgsType>
+            ::InvokerType::Run;
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
   }
 
@@ -312,7 +308,7 @@ class Callback<R(A1)> : public internal::CallbackBase {
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
-    return f(bind_state_.get(), a1);
+    return f(bind_state_.get(), internal::CallbackForward(a1));
   }
 
  private:
@@ -327,22 +323,20 @@ class Callback<R(A1, A2)> : public internal::CallbackBase {
  public:
   typedef R(RunType)(A1, A2);
 
-  Callback() : CallbackBase(NULL, NULL) { }
+  Callback() : CallbackBase(NULL) { }
 
-  // We pass BindStateHolder by const ref to avoid incurring an
-  // unnecessary AddRef/Unref pair even though we will modify the object.
-  // We cannot use a normal reference because the compiler will warn
-  // since this is often used on a return value, which is a temporary.
-  //
   // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
   // return the exact Callback<> type.  See base/bind.h for details.
-  template <typename T>
-  Callback(const internal::BindStateHolder<T>& bind_state_holder)
-      : CallbackBase(NULL, &bind_state_holder.bind_state_) {
-    // Force the assignment to a location variable of PolymorphicInvoke
+  template <typename Runnable, typename RunType, typename BoundArgsType>
+  Callback(internal::BindState<Runnable, RunType, BoundArgsType>* bind_state)
+      : CallbackBase(bind_state) {
+
+    // Force the assignment to a local variable of PolymorphicInvoke
     // so the compiler will typecheck that the passed in Run() method has
     // the correct type.
-    PolymorphicInvoke invoke_func = &T::InvokerType::Run;
+    PolymorphicInvoke invoke_func =
+        &internal::BindState<Runnable, RunType, BoundArgsType>
+            ::InvokerType::Run;
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
   }
 
@@ -355,8 +349,8 @@ class Callback<R(A1, A2)> : public internal::CallbackBase {
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
-    return f(bind_state_.get(), a1,
-             a2);
+    return f(bind_state_.get(), internal::CallbackForward(a1),
+             internal::CallbackForward(a2));
   }
 
  private:
@@ -372,22 +366,20 @@ class Callback<R(A1, A2, A3)> : public internal::CallbackBase {
  public:
   typedef R(RunType)(A1, A2, A3);
 
-  Callback() : CallbackBase(NULL, NULL) { }
+  Callback() : CallbackBase(NULL) { }
 
-  // We pass BindStateHolder by const ref to avoid incurring an
-  // unnecessary AddRef/Unref pair even though we will modify the object.
-  // We cannot use a normal reference because the compiler will warn
-  // since this is often used on a return value, which is a temporary.
-  //
   // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
   // return the exact Callback<> type.  See base/bind.h for details.
-  template <typename T>
-  Callback(const internal::BindStateHolder<T>& bind_state_holder)
-      : CallbackBase(NULL, &bind_state_holder.bind_state_) {
-    // Force the assignment to a location variable of PolymorphicInvoke
+  template <typename Runnable, typename RunType, typename BoundArgsType>
+  Callback(internal::BindState<Runnable, RunType, BoundArgsType>* bind_state)
+      : CallbackBase(bind_state) {
+
+    // Force the assignment to a local variable of PolymorphicInvoke
     // so the compiler will typecheck that the passed in Run() method has
     // the correct type.
-    PolymorphicInvoke invoke_func = &T::InvokerType::Run;
+    PolymorphicInvoke invoke_func =
+        &internal::BindState<Runnable, RunType, BoundArgsType>
+            ::InvokerType::Run;
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
   }
 
@@ -401,9 +393,9 @@ class Callback<R(A1, A2, A3)> : public internal::CallbackBase {
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
-    return f(bind_state_.get(), a1,
-             a2,
-             a3);
+    return f(bind_state_.get(), internal::CallbackForward(a1),
+             internal::CallbackForward(a2),
+             internal::CallbackForward(a3));
   }
 
  private:
@@ -420,22 +412,20 @@ class Callback<R(A1, A2, A3, A4)> : public internal::CallbackBase {
  public:
   typedef R(RunType)(A1, A2, A3, A4);
 
-  Callback() : CallbackBase(NULL, NULL) { }
+  Callback() : CallbackBase(NULL) { }
 
-  // We pass BindStateHolder by const ref to avoid incurring an
-  // unnecessary AddRef/Unref pair even though we will modify the object.
-  // We cannot use a normal reference because the compiler will warn
-  // since this is often used on a return value, which is a temporary.
-  //
   // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
   // return the exact Callback<> type.  See base/bind.h for details.
-  template <typename T>
-  Callback(const internal::BindStateHolder<T>& bind_state_holder)
-      : CallbackBase(NULL, &bind_state_holder.bind_state_) {
-    // Force the assignment to a location variable of PolymorphicInvoke
+  template <typename Runnable, typename RunType, typename BoundArgsType>
+  Callback(internal::BindState<Runnable, RunType, BoundArgsType>* bind_state)
+      : CallbackBase(bind_state) {
+
+    // Force the assignment to a local variable of PolymorphicInvoke
     // so the compiler will typecheck that the passed in Run() method has
     // the correct type.
-    PolymorphicInvoke invoke_func = &T::InvokerType::Run;
+    PolymorphicInvoke invoke_func =
+        &internal::BindState<Runnable, RunType, BoundArgsType>
+            ::InvokerType::Run;
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
   }
 
@@ -450,10 +440,10 @@ class Callback<R(A1, A2, A3, A4)> : public internal::CallbackBase {
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
-    return f(bind_state_.get(), a1,
-             a2,
-             a3,
-             a4);
+    return f(bind_state_.get(), internal::CallbackForward(a1),
+             internal::CallbackForward(a2),
+             internal::CallbackForward(a3),
+             internal::CallbackForward(a4));
   }
 
  private:
@@ -472,22 +462,20 @@ class Callback<R(A1, A2, A3, A4, A5)> : public internal::CallbackBase {
  public:
   typedef R(RunType)(A1, A2, A3, A4, A5);
 
-  Callback() : CallbackBase(NULL, NULL) { }
+  Callback() : CallbackBase(NULL) { }
 
-  // We pass BindStateHolder by const ref to avoid incurring an
-  // unnecessary AddRef/Unref pair even though we will modify the object.
-  // We cannot use a normal reference because the compiler will warn
-  // since this is often used on a return value, which is a temporary.
-  //
   // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
   // return the exact Callback<> type.  See base/bind.h for details.
-  template <typename T>
-  Callback(const internal::BindStateHolder<T>& bind_state_holder)
-      : CallbackBase(NULL, &bind_state_holder.bind_state_) {
-    // Force the assignment to a location variable of PolymorphicInvoke
+  template <typename Runnable, typename RunType, typename BoundArgsType>
+  Callback(internal::BindState<Runnable, RunType, BoundArgsType>* bind_state)
+      : CallbackBase(bind_state) {
+
+    // Force the assignment to a local variable of PolymorphicInvoke
     // so the compiler will typecheck that the passed in Run() method has
     // the correct type.
-    PolymorphicInvoke invoke_func = &T::InvokerType::Run;
+    PolymorphicInvoke invoke_func =
+        &internal::BindState<Runnable, RunType, BoundArgsType>
+            ::InvokerType::Run;
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
   }
 
@@ -503,11 +491,11 @@ class Callback<R(A1, A2, A3, A4, A5)> : public internal::CallbackBase {
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
-    return f(bind_state_.get(), a1,
-             a2,
-             a3,
-             a4,
-             a5);
+    return f(bind_state_.get(), internal::CallbackForward(a1),
+             internal::CallbackForward(a2),
+             internal::CallbackForward(a3),
+             internal::CallbackForward(a4),
+             internal::CallbackForward(a5));
   }
 
  private:
@@ -527,22 +515,20 @@ class Callback<R(A1, A2, A3, A4, A5, A6)> : public internal::CallbackBase {
  public:
   typedef R(RunType)(A1, A2, A3, A4, A5, A6);
 
-  Callback() : CallbackBase(NULL, NULL) { }
+  Callback() : CallbackBase(NULL) { }
 
-  // We pass BindStateHolder by const ref to avoid incurring an
-  // unnecessary AddRef/Unref pair even though we will modify the object.
-  // We cannot use a normal reference because the compiler will warn
-  // since this is often used on a return value, which is a temporary.
-  //
   // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
   // return the exact Callback<> type.  See base/bind.h for details.
-  template <typename T>
-  Callback(const internal::BindStateHolder<T>& bind_state_holder)
-      : CallbackBase(NULL, &bind_state_holder.bind_state_) {
-    // Force the assignment to a location variable of PolymorphicInvoke
+  template <typename Runnable, typename RunType, typename BoundArgsType>
+  Callback(internal::BindState<Runnable, RunType, BoundArgsType>* bind_state)
+      : CallbackBase(bind_state) {
+
+    // Force the assignment to a local variable of PolymorphicInvoke
     // so the compiler will typecheck that the passed in Run() method has
     // the correct type.
-    PolymorphicInvoke invoke_func = &T::InvokerType::Run;
+    PolymorphicInvoke invoke_func =
+        &internal::BindState<Runnable, RunType, BoundArgsType>
+            ::InvokerType::Run;
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
   }
 
@@ -559,12 +545,12 @@ class Callback<R(A1, A2, A3, A4, A5, A6)> : public internal::CallbackBase {
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
-    return f(bind_state_.get(), a1,
-             a2,
-             a3,
-             a4,
-             a5,
-             a6);
+    return f(bind_state_.get(), internal::CallbackForward(a1),
+             internal::CallbackForward(a2),
+             internal::CallbackForward(a3),
+             internal::CallbackForward(a4),
+             internal::CallbackForward(a5),
+             internal::CallbackForward(a6));
   }
 
  private:
@@ -585,22 +571,20 @@ class Callback<R(A1, A2, A3, A4, A5, A6, A7)> : public internal::CallbackBase {
  public:
   typedef R(RunType)(A1, A2, A3, A4, A5, A6, A7);
 
-  Callback() : CallbackBase(NULL, NULL) { }
+  Callback() : CallbackBase(NULL) { }
 
-  // We pass BindStateHolder by const ref to avoid incurring an
-  // unnecessary AddRef/Unref pair even though we will modify the object.
-  // We cannot use a normal reference because the compiler will warn
-  // since this is often used on a return value, which is a temporary.
-  //
   // Note that this constructor CANNOT be explicit, and that Bind() CANNOT
   // return the exact Callback<> type.  See base/bind.h for details.
-  template <typename T>
-  Callback(const internal::BindStateHolder<T>& bind_state_holder)
-      : CallbackBase(NULL, &bind_state_holder.bind_state_) {
-    // Force the assignment to a location variable of PolymorphicInvoke
+  template <typename Runnable, typename RunType, typename BoundArgsType>
+  Callback(internal::BindState<Runnable, RunType, BoundArgsType>* bind_state)
+      : CallbackBase(bind_state) {
+
+    // Force the assignment to a local variable of PolymorphicInvoke
     // so the compiler will typecheck that the passed in Run() method has
     // the correct type.
-    PolymorphicInvoke invoke_func = &T::InvokerType::Run;
+    PolymorphicInvoke invoke_func =
+        &internal::BindState<Runnable, RunType, BoundArgsType>
+            ::InvokerType::Run;
     polymorphic_invoke_ = reinterpret_cast<InvokeFuncStorage>(invoke_func);
   }
 
@@ -618,13 +602,13 @@ class Callback<R(A1, A2, A3, A4, A5, A6, A7)> : public internal::CallbackBase {
     PolymorphicInvoke f =
         reinterpret_cast<PolymorphicInvoke>(polymorphic_invoke_);
 
-    return f(bind_state_.get(), a1,
-             a2,
-             a3,
-             a4,
-             a5,
-             a6,
-             a7);
+    return f(bind_state_.get(), internal::CallbackForward(a1),
+             internal::CallbackForward(a2),
+             internal::CallbackForward(a3),
+             internal::CallbackForward(a4),
+             internal::CallbackForward(a5),
+             internal::CallbackForward(a6),
+             internal::CallbackForward(a7));
   }
 
  private:

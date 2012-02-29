@@ -76,7 +76,6 @@ namespace internal {
 //                 into the Bind() system, doing most of the type resolution.
 //                 There are ARITY BindState types.
 
-
 // RunnableAdapter<>
 //
 // The RunnableAdapter<> templates provide a uniform interface for invoking
@@ -167,7 +166,7 @@ class RunnableAdapter<R(*)(A1)> {
   }
 
   R Run(typename CallbackParamTraits<A1>::ForwardType a1) {
-    return function_(a1);
+    return function_(CallbackForward(a1));
   }
 
  private:
@@ -186,7 +185,7 @@ class RunnableAdapter<R(T::*)(A1)> {
   }
 
   R Run(T* object, typename CallbackParamTraits<A1>::ForwardType a1) {
-    return (object->*method_)(a1);
+    return (object->*method_)(CallbackForward(a1));
   }
 
  private:
@@ -205,7 +204,7 @@ class RunnableAdapter<R(T::*)(A1) const> {
   }
 
   R Run(const T* object, typename CallbackParamTraits<A1>::ForwardType a1) {
-    return (object->*method_)(a1);
+    return (object->*method_)(CallbackForward(a1));
   }
 
  private:
@@ -224,7 +223,7 @@ class RunnableAdapter<R(*)(A1, A2)> {
 
   R Run(typename CallbackParamTraits<A1>::ForwardType a1,
       typename CallbackParamTraits<A2>::ForwardType a2) {
-    return function_(a1, a2);
+    return function_(CallbackForward(a1), CallbackForward(a2));
   }
 
  private:
@@ -244,7 +243,7 @@ class RunnableAdapter<R(T::*)(A1, A2)> {
 
   R Run(T* object, typename CallbackParamTraits<A1>::ForwardType a1,
       typename CallbackParamTraits<A2>::ForwardType a2) {
-    return (object->*method_)(a1, a2);
+    return (object->*method_)(CallbackForward(a1), CallbackForward(a2));
   }
 
  private:
@@ -264,7 +263,7 @@ class RunnableAdapter<R(T::*)(A1, A2) const> {
 
   R Run(const T* object, typename CallbackParamTraits<A1>::ForwardType a1,
       typename CallbackParamTraits<A2>::ForwardType a2) {
-    return (object->*method_)(a1, a2);
+    return (object->*method_)(CallbackForward(a1), CallbackForward(a2));
   }
 
  private:
@@ -284,7 +283,8 @@ class RunnableAdapter<R(*)(A1, A2, A3)> {
   R Run(typename CallbackParamTraits<A1>::ForwardType a1,
       typename CallbackParamTraits<A2>::ForwardType a2,
       typename CallbackParamTraits<A3>::ForwardType a3) {
-    return function_(a1, a2, a3);
+    return function_(CallbackForward(a1), CallbackForward(a2),
+        CallbackForward(a3));
   }
 
  private:
@@ -305,7 +305,8 @@ class RunnableAdapter<R(T::*)(A1, A2, A3)> {
   R Run(T* object, typename CallbackParamTraits<A1>::ForwardType a1,
       typename CallbackParamTraits<A2>::ForwardType a2,
       typename CallbackParamTraits<A3>::ForwardType a3) {
-    return (object->*method_)(a1, a2, a3);
+    return (object->*method_)(CallbackForward(a1), CallbackForward(a2),
+        CallbackForward(a3));
   }
 
  private:
@@ -326,7 +327,8 @@ class RunnableAdapter<R(T::*)(A1, A2, A3) const> {
   R Run(const T* object, typename CallbackParamTraits<A1>::ForwardType a1,
       typename CallbackParamTraits<A2>::ForwardType a2,
       typename CallbackParamTraits<A3>::ForwardType a3) {
-    return (object->*method_)(a1, a2, a3);
+    return (object->*method_)(CallbackForward(a1), CallbackForward(a2),
+        CallbackForward(a3));
   }
 
  private:
@@ -347,7 +349,8 @@ class RunnableAdapter<R(*)(A1, A2, A3, A4)> {
       typename CallbackParamTraits<A2>::ForwardType a2,
       typename CallbackParamTraits<A3>::ForwardType a3,
       typename CallbackParamTraits<A4>::ForwardType a4) {
-    return function_(a1, a2, a3, a4);
+    return function_(CallbackForward(a1), CallbackForward(a2),
+        CallbackForward(a3), CallbackForward(a4));
   }
 
  private:
@@ -370,7 +373,8 @@ class RunnableAdapter<R(T::*)(A1, A2, A3, A4)> {
       typename CallbackParamTraits<A2>::ForwardType a2,
       typename CallbackParamTraits<A3>::ForwardType a3,
       typename CallbackParamTraits<A4>::ForwardType a4) {
-    return (object->*method_)(a1, a2, a3, a4);
+    return (object->*method_)(CallbackForward(a1), CallbackForward(a2),
+        CallbackForward(a3), CallbackForward(a4));
   }
 
  private:
@@ -393,7 +397,8 @@ class RunnableAdapter<R(T::*)(A1, A2, A3, A4) const> {
       typename CallbackParamTraits<A2>::ForwardType a2,
       typename CallbackParamTraits<A3>::ForwardType a3,
       typename CallbackParamTraits<A4>::ForwardType a4) {
-    return (object->*method_)(a1, a2, a3, a4);
+    return (object->*method_)(CallbackForward(a1), CallbackForward(a2),
+        CallbackForward(a3), CallbackForward(a4));
   }
 
  private:
@@ -416,7 +421,8 @@ class RunnableAdapter<R(*)(A1, A2, A3, A4, A5)> {
       typename CallbackParamTraits<A3>::ForwardType a3,
       typename CallbackParamTraits<A4>::ForwardType a4,
       typename CallbackParamTraits<A5>::ForwardType a5) {
-    return function_(a1, a2, a3, a4, a5);
+    return function_(CallbackForward(a1), CallbackForward(a2),
+        CallbackForward(a3), CallbackForward(a4), CallbackForward(a5));
   }
 
  private:
@@ -440,7 +446,8 @@ class RunnableAdapter<R(T::*)(A1, A2, A3, A4, A5)> {
       typename CallbackParamTraits<A3>::ForwardType a3,
       typename CallbackParamTraits<A4>::ForwardType a4,
       typename CallbackParamTraits<A5>::ForwardType a5) {
-    return (object->*method_)(a1, a2, a3, a4, a5);
+    return (object->*method_)(CallbackForward(a1), CallbackForward(a2),
+        CallbackForward(a3), CallbackForward(a4), CallbackForward(a5));
   }
 
  private:
@@ -464,7 +471,8 @@ class RunnableAdapter<R(T::*)(A1, A2, A3, A4, A5) const> {
       typename CallbackParamTraits<A3>::ForwardType a3,
       typename CallbackParamTraits<A4>::ForwardType a4,
       typename CallbackParamTraits<A5>::ForwardType a5) {
-    return (object->*method_)(a1, a2, a3, a4, a5);
+    return (object->*method_)(CallbackForward(a1), CallbackForward(a2),
+        CallbackForward(a3), CallbackForward(a4), CallbackForward(a5));
   }
 
  private:
@@ -488,7 +496,9 @@ class RunnableAdapter<R(*)(A1, A2, A3, A4, A5, A6)> {
       typename CallbackParamTraits<A4>::ForwardType a4,
       typename CallbackParamTraits<A5>::ForwardType a5,
       typename CallbackParamTraits<A6>::ForwardType a6) {
-    return function_(a1, a2, a3, a4, a5, a6);
+    return function_(CallbackForward(a1), CallbackForward(a2),
+        CallbackForward(a3), CallbackForward(a4), CallbackForward(a5),
+        CallbackForward(a6));
   }
 
  private:
@@ -513,7 +523,9 @@ class RunnableAdapter<R(T::*)(A1, A2, A3, A4, A5, A6)> {
       typename CallbackParamTraits<A4>::ForwardType a4,
       typename CallbackParamTraits<A5>::ForwardType a5,
       typename CallbackParamTraits<A6>::ForwardType a6) {
-    return (object->*method_)(a1, a2, a3, a4, a5, a6);
+    return (object->*method_)(CallbackForward(a1), CallbackForward(a2),
+        CallbackForward(a3), CallbackForward(a4), CallbackForward(a5),
+        CallbackForward(a6));
   }
 
  private:
@@ -538,7 +550,9 @@ class RunnableAdapter<R(T::*)(A1, A2, A3, A4, A5, A6) const> {
       typename CallbackParamTraits<A4>::ForwardType a4,
       typename CallbackParamTraits<A5>::ForwardType a5,
       typename CallbackParamTraits<A6>::ForwardType a6) {
-    return (object->*method_)(a1, a2, a3, a4, a5, a6);
+    return (object->*method_)(CallbackForward(a1), CallbackForward(a2),
+        CallbackForward(a3), CallbackForward(a4), CallbackForward(a5),
+        CallbackForward(a6));
   }
 
  private:
@@ -563,7 +577,9 @@ class RunnableAdapter<R(*)(A1, A2, A3, A4, A5, A6, A7)> {
       typename CallbackParamTraits<A5>::ForwardType a5,
       typename CallbackParamTraits<A6>::ForwardType a6,
       typename CallbackParamTraits<A7>::ForwardType a7) {
-    return function_(a1, a2, a3, a4, a5, a6, a7);
+    return function_(CallbackForward(a1), CallbackForward(a2),
+        CallbackForward(a3), CallbackForward(a4), CallbackForward(a5),
+        CallbackForward(a6), CallbackForward(a7));
   }
 
  private:
@@ -589,7 +605,9 @@ class RunnableAdapter<R(T::*)(A1, A2, A3, A4, A5, A6, A7)> {
       typename CallbackParamTraits<A5>::ForwardType a5,
       typename CallbackParamTraits<A6>::ForwardType a6,
       typename CallbackParamTraits<A7>::ForwardType a7) {
-    return (object->*method_)(a1, a2, a3, a4, a5, a6, a7);
+    return (object->*method_)(CallbackForward(a1), CallbackForward(a2),
+        CallbackForward(a3), CallbackForward(a4), CallbackForward(a5),
+        CallbackForward(a6), CallbackForward(a7));
   }
 
  private:
@@ -615,7 +633,9 @@ class RunnableAdapter<R(T::*)(A1, A2, A3, A4, A5, A6, A7) const> {
       typename CallbackParamTraits<A5>::ForwardType a5,
       typename CallbackParamTraits<A6>::ForwardType a6,
       typename CallbackParamTraits<A7>::ForwardType a7) {
-    return (object->*method_)(a1, a2, a3, a4, a5, a6, a7);
+    return (object->*method_)(CallbackForward(a1), CallbackForward(a2),
+        CallbackForward(a3), CallbackForward(a4), CallbackForward(a5),
+        CallbackForward(a6), CallbackForward(a7));
   }
 
  private:
@@ -837,7 +857,7 @@ template <typename ReturnType, typename Runnable,typename A1>
 struct InvokeHelper<false, ReturnType, Runnable,
     void(A1)>  {
   static ReturnType MakeItSo(Runnable runnable, A1 a1) {
-    return runnable.Run(a1);
+    return runnable.Run(CallbackForward(a1));
   }
 };
 
@@ -845,7 +865,7 @@ template <typename Runnable,typename A1>
 struct InvokeHelper<false, void, Runnable,
     void(A1)>  {
   static void MakeItSo(Runnable runnable, A1 a1) {
-    runnable.Run(a1);
+    runnable.Run(CallbackForward(a1));
   }
 };
 
@@ -857,7 +877,7 @@ struct InvokeHelper<true, void, Runnable,
       return;
     }
 
-    runnable.Run(a1);
+    runnable.Run(CallbackForward(a1));
   }
 };
 
@@ -865,7 +885,7 @@ template <typename ReturnType, typename Runnable,typename A1, typename A2>
 struct InvokeHelper<false, ReturnType, Runnable,
     void(A1, A2)>  {
   static ReturnType MakeItSo(Runnable runnable, A1 a1, A2 a2) {
-    return runnable.Run(a1, a2);
+    return runnable.Run(CallbackForward(a1), CallbackForward(a2));
   }
 };
 
@@ -873,7 +893,7 @@ template <typename Runnable,typename A1, typename A2>
 struct InvokeHelper<false, void, Runnable,
     void(A1, A2)>  {
   static void MakeItSo(Runnable runnable, A1 a1, A2 a2) {
-    runnable.Run(a1, a2);
+    runnable.Run(CallbackForward(a1), CallbackForward(a2));
   }
 };
 
@@ -885,7 +905,7 @@ struct InvokeHelper<true, void, Runnable,
       return;
     }
 
-    runnable.Run(a1, a2);
+    runnable.Run(CallbackForward(a1), CallbackForward(a2));
   }
 };
 
@@ -894,7 +914,8 @@ template <typename ReturnType, typename Runnable,typename A1, typename A2,
 struct InvokeHelper<false, ReturnType, Runnable,
     void(A1, A2, A3)>  {
   static ReturnType MakeItSo(Runnable runnable, A1 a1, A2 a2, A3 a3) {
-    return runnable.Run(a1, a2, a3);
+    return runnable.Run(CallbackForward(a1), CallbackForward(a2),
+        CallbackForward(a3));
   }
 };
 
@@ -902,7 +923,7 @@ template <typename Runnable,typename A1, typename A2, typename A3>
 struct InvokeHelper<false, void, Runnable,
     void(A1, A2, A3)>  {
   static void MakeItSo(Runnable runnable, A1 a1, A2 a2, A3 a3) {
-    runnable.Run(a1, a2, a3);
+    runnable.Run(CallbackForward(a1), CallbackForward(a2), CallbackForward(a3));
   }
 };
 
@@ -914,7 +935,7 @@ struct InvokeHelper<true, void, Runnable,
       return;
     }
 
-    runnable.Run(a1, a2, a3);
+    runnable.Run(CallbackForward(a1), CallbackForward(a2), CallbackForward(a3));
   }
 };
 
@@ -923,7 +944,8 @@ template <typename ReturnType, typename Runnable,typename A1, typename A2,
 struct InvokeHelper<false, ReturnType, Runnable,
     void(A1, A2, A3, A4)>  {
   static ReturnType MakeItSo(Runnable runnable, A1 a1, A2 a2, A3 a3, A4 a4) {
-    return runnable.Run(a1, a2, a3, a4);
+    return runnable.Run(CallbackForward(a1), CallbackForward(a2),
+        CallbackForward(a3), CallbackForward(a4));
   }
 };
 
@@ -931,7 +953,8 @@ template <typename Runnable,typename A1, typename A2, typename A3, typename A4>
 struct InvokeHelper<false, void, Runnable,
     void(A1, A2, A3, A4)>  {
   static void MakeItSo(Runnable runnable, A1 a1, A2 a2, A3 a3, A4 a4) {
-    runnable.Run(a1, a2, a3, a4);
+    runnable.Run(CallbackForward(a1), CallbackForward(a2), CallbackForward(a3),
+        CallbackForward(a4));
   }
 };
 
@@ -943,7 +966,8 @@ struct InvokeHelper<true, void, Runnable,
       return;
     }
 
-    runnable.Run(a1, a2, a3, a4);
+    runnable.Run(CallbackForward(a1), CallbackForward(a2), CallbackForward(a3),
+        CallbackForward(a4));
   }
 };
 
@@ -953,7 +977,8 @@ struct InvokeHelper<false, ReturnType, Runnable,
     void(A1, A2, A3, A4, A5)>  {
   static ReturnType MakeItSo(Runnable runnable, A1 a1, A2 a2, A3 a3, A4 a4,
       A5 a5) {
-    return runnable.Run(a1, a2, a3, a4, a5);
+    return runnable.Run(CallbackForward(a1), CallbackForward(a2),
+        CallbackForward(a3), CallbackForward(a4), CallbackForward(a5));
   }
 };
 
@@ -962,7 +987,8 @@ template <typename Runnable,typename A1, typename A2, typename A3, typename A4,
 struct InvokeHelper<false, void, Runnable,
     void(A1, A2, A3, A4, A5)>  {
   static void MakeItSo(Runnable runnable, A1 a1, A2 a2, A3 a3, A4 a4, A5 a5) {
-    runnable.Run(a1, a2, a3, a4, a5);
+    runnable.Run(CallbackForward(a1), CallbackForward(a2), CallbackForward(a3),
+        CallbackForward(a4), CallbackForward(a5));
   }
 };
 
@@ -975,7 +1001,8 @@ struct InvokeHelper<true, void, Runnable,
       return;
     }
 
-    runnable.Run(a1, a2, a3, a4, a5);
+    runnable.Run(CallbackForward(a1), CallbackForward(a2), CallbackForward(a3),
+        CallbackForward(a4), CallbackForward(a5));
   }
 };
 
@@ -985,7 +1012,9 @@ struct InvokeHelper<false, ReturnType, Runnable,
     void(A1, A2, A3, A4, A5, A6)>  {
   static ReturnType MakeItSo(Runnable runnable, A1 a1, A2 a2, A3 a3, A4 a4,
       A5 a5, A6 a6) {
-    return runnable.Run(a1, a2, a3, a4, a5, a6);
+    return runnable.Run(CallbackForward(a1), CallbackForward(a2),
+        CallbackForward(a3), CallbackForward(a4), CallbackForward(a5),
+        CallbackForward(a6));
   }
 };
 
@@ -995,7 +1024,8 @@ struct InvokeHelper<false, void, Runnable,
     void(A1, A2, A3, A4, A5, A6)>  {
   static void MakeItSo(Runnable runnable, A1 a1, A2 a2, A3 a3, A4 a4, A5 a5,
       A6 a6) {
-    runnable.Run(a1, a2, a3, a4, a5, a6);
+    runnable.Run(CallbackForward(a1), CallbackForward(a2), CallbackForward(a3),
+        CallbackForward(a4), CallbackForward(a5), CallbackForward(a6));
   }
 };
 
@@ -1009,7 +1039,8 @@ struct InvokeHelper<true, void, Runnable,
       return;
     }
 
-    runnable.Run(a1, a2, a3, a4, a5, a6);
+    runnable.Run(CallbackForward(a1), CallbackForward(a2), CallbackForward(a3),
+        CallbackForward(a4), CallbackForward(a5), CallbackForward(a6));
   }
 };
 
@@ -1019,7 +1050,9 @@ struct InvokeHelper<false, ReturnType, Runnable,
     void(A1, A2, A3, A4, A5, A6, A7)>  {
   static ReturnType MakeItSo(Runnable runnable, A1 a1, A2 a2, A3 a3, A4 a4,
       A5 a5, A6 a6, A7 a7) {
-    return runnable.Run(a1, a2, a3, a4, a5, a6, a7);
+    return runnable.Run(CallbackForward(a1), CallbackForward(a2),
+        CallbackForward(a3), CallbackForward(a4), CallbackForward(a5),
+        CallbackForward(a6), CallbackForward(a7));
   }
 };
 
@@ -1029,7 +1062,9 @@ struct InvokeHelper<false, void, Runnable,
     void(A1, A2, A3, A4, A5, A6, A7)>  {
   static void MakeItSo(Runnable runnable, A1 a1, A2 a2, A3 a3, A4 a4, A5 a5,
       A6 a6, A7 a7) {
-    runnable.Run(a1, a2, a3, a4, a5, a6, a7);
+    runnable.Run(CallbackForward(a1), CallbackForward(a2), CallbackForward(a3),
+        CallbackForward(a4), CallbackForward(a5), CallbackForward(a6),
+        CallbackForward(a7));
   }
 };
 
@@ -1043,7 +1078,9 @@ struct InvokeHelper<true, void, Runnable,
       return;
     }
 
-    runnable.Run(a1, a2, a3, a4, a5, a6, a7);
+    runnable.Run(CallbackForward(a1), CallbackForward(a2), CallbackForward(a3),
+        CallbackForward(a4), CallbackForward(a5), CallbackForward(a6),
+        CallbackForward(a7));
   }
 };
 
@@ -1106,7 +1143,7 @@ struct Invoker<0, StorageType, R(X1)> {
     return InvokeHelper<StorageType::IsWeakCall::value, R,
            typename StorageType::RunnableType,
            void(typename CallbackParamTraits<X1>::ForwardType x1)>
-               ::MakeItSo(storage->runnable_, x1);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1));
   }
 };
 
@@ -1130,7 +1167,7 @@ struct Invoker<1, StorageType, R(X1)> {
     return InvokeHelper<StorageType::IsWeakCall::value, R,
            typename StorageType::RunnableType,
            void(typename Bound1UnwrapTraits::ForwardType)>
-               ::MakeItSo(storage->runnable_, x1);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1));
   }
 };
 
@@ -1156,7 +1193,8 @@ struct Invoker<0, StorageType, R(X1, X2)> {
            typename StorageType::RunnableType,
            void(typename CallbackParamTraits<X1>::ForwardType x1,
                typename CallbackParamTraits<X2>::ForwardType x2)>
-               ::MakeItSo(storage->runnable_, x1, x2);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2));
   }
 };
 
@@ -1183,7 +1221,8 @@ struct Invoker<1, StorageType, R(X1, X2)> {
            typename StorageType::RunnableType,
            void(typename Bound1UnwrapTraits::ForwardType,
                typename CallbackParamTraits<X2>::ForwardType x2)>
-               ::MakeItSo(storage->runnable_, x1, x2);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2));
   }
 };
 
@@ -1211,7 +1250,8 @@ struct Invoker<2, StorageType, R(X1, X2)> {
            typename StorageType::RunnableType,
            void(typename Bound1UnwrapTraits::ForwardType,
                typename Bound2UnwrapTraits::ForwardType)>
-               ::MakeItSo(storage->runnable_, x1, x2);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2));
   }
 };
 
@@ -1241,7 +1281,8 @@ struct Invoker<0, StorageType, R(X1, X2, X3)> {
            void(typename CallbackParamTraits<X1>::ForwardType x1,
                typename CallbackParamTraits<X2>::ForwardType x2,
                typename CallbackParamTraits<X3>::ForwardType x3)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3));
   }
 };
 
@@ -1272,7 +1313,8 @@ struct Invoker<1, StorageType, R(X1, X2, X3)> {
            void(typename Bound1UnwrapTraits::ForwardType,
                typename CallbackParamTraits<X2>::ForwardType x2,
                typename CallbackParamTraits<X3>::ForwardType x3)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3));
   }
 };
 
@@ -1304,7 +1346,8 @@ struct Invoker<2, StorageType, R(X1, X2, X3)> {
            void(typename Bound1UnwrapTraits::ForwardType,
                typename Bound2UnwrapTraits::ForwardType,
                typename CallbackParamTraits<X3>::ForwardType x3)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3));
   }
 };
 
@@ -1337,7 +1380,8 @@ struct Invoker<3, StorageType, R(X1, X2, X3)> {
            void(typename Bound1UnwrapTraits::ForwardType,
                typename Bound2UnwrapTraits::ForwardType,
                typename Bound3UnwrapTraits::ForwardType)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3));
   }
 };
 
@@ -1370,7 +1414,9 @@ struct Invoker<0, StorageType, R(X1, X2, X3, X4)> {
                typename CallbackParamTraits<X2>::ForwardType x2,
                typename CallbackParamTraits<X3>::ForwardType x3,
                typename CallbackParamTraits<X4>::ForwardType x4)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4));
   }
 };
 
@@ -1404,7 +1450,9 @@ struct Invoker<1, StorageType, R(X1, X2, X3, X4)> {
                typename CallbackParamTraits<X2>::ForwardType x2,
                typename CallbackParamTraits<X3>::ForwardType x3,
                typename CallbackParamTraits<X4>::ForwardType x4)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4));
   }
 };
 
@@ -1439,7 +1487,9 @@ struct Invoker<2, StorageType, R(X1, X2, X3, X4)> {
                typename Bound2UnwrapTraits::ForwardType,
                typename CallbackParamTraits<X3>::ForwardType x3,
                typename CallbackParamTraits<X4>::ForwardType x4)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4));
   }
 };
 
@@ -1475,7 +1525,9 @@ struct Invoker<3, StorageType, R(X1, X2, X3, X4)> {
                typename Bound2UnwrapTraits::ForwardType,
                typename Bound3UnwrapTraits::ForwardType,
                typename CallbackParamTraits<X4>::ForwardType x4)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4));
   }
 };
 
@@ -1512,7 +1564,9 @@ struct Invoker<4, StorageType, R(X1, X2, X3, X4)> {
                typename Bound2UnwrapTraits::ForwardType,
                typename Bound3UnwrapTraits::ForwardType,
                typename Bound4UnwrapTraits::ForwardType)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4));
   }
 };
 
@@ -1548,7 +1602,9 @@ struct Invoker<0, StorageType, R(X1, X2, X3, X4, X5)> {
                typename CallbackParamTraits<X3>::ForwardType x3,
                typename CallbackParamTraits<X4>::ForwardType x4,
                typename CallbackParamTraits<X5>::ForwardType x5)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4, x5);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4), CallbackForward(x5));
   }
 };
 
@@ -1585,7 +1641,9 @@ struct Invoker<1, StorageType, R(X1, X2, X3, X4, X5)> {
                typename CallbackParamTraits<X3>::ForwardType x3,
                typename CallbackParamTraits<X4>::ForwardType x4,
                typename CallbackParamTraits<X5>::ForwardType x5)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4, x5);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4), CallbackForward(x5));
   }
 };
 
@@ -1623,7 +1681,9 @@ struct Invoker<2, StorageType, R(X1, X2, X3, X4, X5)> {
                typename CallbackParamTraits<X3>::ForwardType x3,
                typename CallbackParamTraits<X4>::ForwardType x4,
                typename CallbackParamTraits<X5>::ForwardType x5)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4, x5);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4), CallbackForward(x5));
   }
 };
 
@@ -1662,7 +1722,9 @@ struct Invoker<3, StorageType, R(X1, X2, X3, X4, X5)> {
                typename Bound3UnwrapTraits::ForwardType,
                typename CallbackParamTraits<X4>::ForwardType x4,
                typename CallbackParamTraits<X5>::ForwardType x5)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4, x5);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4), CallbackForward(x5));
   }
 };
 
@@ -1702,7 +1764,9 @@ struct Invoker<4, StorageType, R(X1, X2, X3, X4, X5)> {
                typename Bound3UnwrapTraits::ForwardType,
                typename Bound4UnwrapTraits::ForwardType,
                typename CallbackParamTraits<X5>::ForwardType x5)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4, x5);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4), CallbackForward(x5));
   }
 };
 
@@ -1743,7 +1807,9 @@ struct Invoker<5, StorageType, R(X1, X2, X3, X4, X5)> {
                typename Bound3UnwrapTraits::ForwardType,
                typename Bound4UnwrapTraits::ForwardType,
                typename Bound5UnwrapTraits::ForwardType)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4, x5);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4), CallbackForward(x5));
   }
 };
 
@@ -1782,7 +1848,10 @@ struct Invoker<0, StorageType, R(X1, X2, X3, X4, X5, X6)> {
                typename CallbackParamTraits<X4>::ForwardType x4,
                typename CallbackParamTraits<X5>::ForwardType x5,
                typename CallbackParamTraits<X6>::ForwardType x6)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4, x5, x6);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4), CallbackForward(x5),
+                   CallbackForward(x6));
   }
 };
 
@@ -1822,7 +1891,10 @@ struct Invoker<1, StorageType, R(X1, X2, X3, X4, X5, X6)> {
                typename CallbackParamTraits<X4>::ForwardType x4,
                typename CallbackParamTraits<X5>::ForwardType x5,
                typename CallbackParamTraits<X6>::ForwardType x6)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4, x5, x6);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4), CallbackForward(x5),
+                   CallbackForward(x6));
   }
 };
 
@@ -1863,7 +1935,10 @@ struct Invoker<2, StorageType, R(X1, X2, X3, X4, X5, X6)> {
                typename CallbackParamTraits<X4>::ForwardType x4,
                typename CallbackParamTraits<X5>::ForwardType x5,
                typename CallbackParamTraits<X6>::ForwardType x6)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4, x5, x6);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4), CallbackForward(x5),
+                   CallbackForward(x6));
   }
 };
 
@@ -1905,7 +1980,10 @@ struct Invoker<3, StorageType, R(X1, X2, X3, X4, X5, X6)> {
                typename CallbackParamTraits<X4>::ForwardType x4,
                typename CallbackParamTraits<X5>::ForwardType x5,
                typename CallbackParamTraits<X6>::ForwardType x6)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4, x5, x6);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4), CallbackForward(x5),
+                   CallbackForward(x6));
   }
 };
 
@@ -1948,7 +2026,10 @@ struct Invoker<4, StorageType, R(X1, X2, X3, X4, X5, X6)> {
                typename Bound4UnwrapTraits::ForwardType,
                typename CallbackParamTraits<X5>::ForwardType x5,
                typename CallbackParamTraits<X6>::ForwardType x6)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4, x5, x6);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4), CallbackForward(x5),
+                   CallbackForward(x6));
   }
 };
 
@@ -1992,7 +2073,10 @@ struct Invoker<5, StorageType, R(X1, X2, X3, X4, X5, X6)> {
                typename Bound4UnwrapTraits::ForwardType,
                typename Bound5UnwrapTraits::ForwardType,
                typename CallbackParamTraits<X6>::ForwardType x6)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4, x5, x6);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4), CallbackForward(x5),
+                   CallbackForward(x6));
   }
 };
 
@@ -2037,7 +2121,10 @@ struct Invoker<6, StorageType, R(X1, X2, X3, X4, X5, X6)> {
                typename Bound4UnwrapTraits::ForwardType,
                typename Bound5UnwrapTraits::ForwardType,
                typename Bound6UnwrapTraits::ForwardType)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4, x5, x6);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4), CallbackForward(x5),
+                   CallbackForward(x6));
   }
 };
 
@@ -2079,7 +2166,10 @@ struct Invoker<0, StorageType, R(X1, X2, X3, X4, X5, X6, X7)> {
                typename CallbackParamTraits<X5>::ForwardType x5,
                typename CallbackParamTraits<X6>::ForwardType x6,
                typename CallbackParamTraits<X7>::ForwardType x7)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4, x5, x6, x7);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4), CallbackForward(x5),
+                   CallbackForward(x6), CallbackForward(x7));
   }
 };
 
@@ -2122,7 +2212,10 @@ struct Invoker<1, StorageType, R(X1, X2, X3, X4, X5, X6, X7)> {
                typename CallbackParamTraits<X5>::ForwardType x5,
                typename CallbackParamTraits<X6>::ForwardType x6,
                typename CallbackParamTraits<X7>::ForwardType x7)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4, x5, x6, x7);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4), CallbackForward(x5),
+                   CallbackForward(x6), CallbackForward(x7));
   }
 };
 
@@ -2166,7 +2259,10 @@ struct Invoker<2, StorageType, R(X1, X2, X3, X4, X5, X6, X7)> {
                typename CallbackParamTraits<X5>::ForwardType x5,
                typename CallbackParamTraits<X6>::ForwardType x6,
                typename CallbackParamTraits<X7>::ForwardType x7)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4, x5, x6, x7);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4), CallbackForward(x5),
+                   CallbackForward(x6), CallbackForward(x7));
   }
 };
 
@@ -2211,7 +2307,10 @@ struct Invoker<3, StorageType, R(X1, X2, X3, X4, X5, X6, X7)> {
                typename CallbackParamTraits<X5>::ForwardType x5,
                typename CallbackParamTraits<X6>::ForwardType x6,
                typename CallbackParamTraits<X7>::ForwardType x7)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4, x5, x6, x7);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4), CallbackForward(x5),
+                   CallbackForward(x6), CallbackForward(x7));
   }
 };
 
@@ -2257,7 +2356,10 @@ struct Invoker<4, StorageType, R(X1, X2, X3, X4, X5, X6, X7)> {
                typename CallbackParamTraits<X5>::ForwardType x5,
                typename CallbackParamTraits<X6>::ForwardType x6,
                typename CallbackParamTraits<X7>::ForwardType x7)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4, x5, x6, x7);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4), CallbackForward(x5),
+                   CallbackForward(x6), CallbackForward(x7));
   }
 };
 
@@ -2304,7 +2406,10 @@ struct Invoker<5, StorageType, R(X1, X2, X3, X4, X5, X6, X7)> {
                typename Bound5UnwrapTraits::ForwardType,
                typename CallbackParamTraits<X6>::ForwardType x6,
                typename CallbackParamTraits<X7>::ForwardType x7)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4, x5, x6, x7);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4), CallbackForward(x5),
+                   CallbackForward(x6), CallbackForward(x7));
   }
 };
 
@@ -2352,7 +2457,10 @@ struct Invoker<6, StorageType, R(X1, X2, X3, X4, X5, X6, X7)> {
                typename Bound5UnwrapTraits::ForwardType,
                typename Bound6UnwrapTraits::ForwardType,
                typename CallbackParamTraits<X7>::ForwardType x7)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4, x5, x6, x7);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4), CallbackForward(x5),
+                   CallbackForward(x6), CallbackForward(x7));
   }
 };
 
@@ -2401,7 +2509,10 @@ struct Invoker<7, StorageType, R(X1, X2, X3, X4, X5, X6, X7)> {
                typename Bound5UnwrapTraits::ForwardType,
                typename Bound6UnwrapTraits::ForwardType,
                typename Bound7UnwrapTraits::ForwardType)>
-               ::MakeItSo(storage->runnable_, x1, x2, x3, x4, x5, x6, x7);
+               ::MakeItSo(storage->runnable_, CallbackForward(x1),
+                   CallbackForward(x2), CallbackForward(x3),
+                   CallbackForward(x4), CallbackForward(x5),
+                   CallbackForward(x6), CallbackForward(x7));
   }
 };
 
