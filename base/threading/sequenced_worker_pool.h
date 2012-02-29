@@ -14,6 +14,7 @@
 #include "base/callback_forward.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/task_runner.h"
 
 namespace tracked_objects {
 class Location;
@@ -51,8 +52,10 @@ namespace base {
 // not enforce shutdown semantics or allow us to specify how many worker
 // threads to run. For the typical use case of random background work, we don't
 // necessarily want to be super aggressive about creating threads.
-class BASE_EXPORT SequencedWorkerPool
-    : public RefCountedThreadSafe<SequencedWorkerPool> {
+//
+// Note that SequencedWorkerPool is RefCountedThreadSafe (inherited
+// from TaskRunner).
+class BASE_EXPORT SequencedWorkerPool : public TaskRunner {
  public:
   // Defines what should happen to a task posted to the worker pool on shutdown.
   enum WorkerShutdown {
@@ -191,6 +194,15 @@ class BASE_EXPORT SequencedWorkerPool
       const Closure& task,
       WorkerShutdown shutdown_behavior);
 
+  // TaskRunner implementation.  Forwards to PostWorkerTask().
+  virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
+                               const Closure& task,
+                               int64 delay_ms) OVERRIDE;
+  virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
+                               const Closure& task,
+                               TimeDelta delay) OVERRIDE;
+  virtual bool RunsTasksOnCurrentThread() const OVERRIDE;
+
   // Blocks until all pending tasks are complete. This should only be called in
   // unit tests when you want to validate something that should have happened.
   //
@@ -210,13 +222,14 @@ class BASE_EXPORT SequencedWorkerPool
   // and ownership of the pointer is kept with the caller.
   void SetTestingObserver(TestingObserver* observer);
 
+ protected:
+  virtual ~SequencedWorkerPool();
+
  private:
   friend class RefCountedThreadSafe<SequencedWorkerPool>;
 
   class Inner;
   class Worker;
-
-  ~SequencedWorkerPool();
 
   // Avoid pulling in too many headers by putting everything into
   // |inner_|.

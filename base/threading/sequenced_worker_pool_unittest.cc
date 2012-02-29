@@ -8,6 +8,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
+#include "base/task_runner_test_template.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/sequenced_worker_pool.h"
 #include "base/tracked_objects.h"
@@ -223,8 +224,6 @@ void EnsureTasksToCompleteCountAndUnblock(scoped_refptr<TestTracker> tracker,
   blocker->Unblock(threads_to_awake);
 }
 
-}  // namespace
-
 // Tests that same-named tokens have the same ID.
 TEST_F(SequencedWorkerPoolTest, NamedTokens) {
   const std::string name1("hello");
@@ -402,5 +401,41 @@ TEST_F(SequencedWorkerPoolTest, ContinueOnShutdown) {
   std::vector<int> result = tracker()->WaitUntilTasksComplete(1);
   EXPECT_EQ(1u, result.size());
 }
+
+class SequencedWorkerPoolTaskRunnerTestDelegate {
+ public:
+  SequencedWorkerPoolTaskRunnerTestDelegate() {}
+
+  ~SequencedWorkerPoolTaskRunnerTestDelegate() {}
+
+  void StartTaskRunner() {
+    worker_pool_ =
+        new SequencedWorkerPool(10, "SequencedWorkerPoolTaskRunnerTest");
+  }
+
+  scoped_refptr<SequencedWorkerPool> GetTaskRunner() {
+    return worker_pool_;
+  }
+
+  void StopTaskRunner() {
+    worker_pool_->Shutdown();
+    worker_pool_ = NULL;
+  }
+
+  bool TaskRunnerHandlesNonZeroDelays() const {
+    // TODO(akalin): Set this to true once SequencedWorkerPool handles
+    // non-zero delays.
+    return false;
+  }
+
+ private:
+  scoped_refptr<SequencedWorkerPool> worker_pool_;
+};
+
+INSTANTIATE_TYPED_TEST_CASE_P(
+    SequencedWorkerPool, TaskRunnerTest,
+    SequencedWorkerPoolTaskRunnerTestDelegate);
+
+}  // namespace
 
 }  // namespace base
