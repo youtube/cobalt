@@ -248,12 +248,11 @@ void PlatformThread::Join(PlatformThreadHandle thread_handle) {
 }
 
 #if !defined(OS_MACOSX)
-// Mac OS X uses lower-level mach APIs
+// Mac OS X uses lower-level mach APIs.
 
 // static
 void PlatformThread::SetThreadPriority(PlatformThreadHandle, ThreadPriority) {
-  // TODO(crogers): implement
-  NOTIMPLEMENTED();
+  // TODO(crogers): Implement, see http://crbug.com/116172
 }
 #endif
 
