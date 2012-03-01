@@ -1,10 +1,9 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/system_monitor/system_monitor.h"
 
-#include "base/file_path.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/time.h"
@@ -84,16 +83,6 @@ void SystemMonitor::ProcessDevicesChanged() {
   NotifyDevicesChanged();
 }
 
-void SystemMonitor::ProcessMediaDeviceAttached(const DeviceIdType& id,
-                                               const std::string& name,
-                                               const FilePath& path) {
-  NotifyMediaDeviceAttached(id, name, path);
-}
-
-void SystemMonitor::ProcessMediaDeviceDetached(const DeviceIdType& id) {
-  NotifyMediaDeviceDetached(id);
-}
-
 void SystemMonitor::AddPowerObserver(PowerObserver* obs) {
   power_observer_list_->AddObserver(obs);
 }
@@ -114,20 +103,6 @@ void SystemMonitor::NotifyDevicesChanged() {
   DVLOG(1) << "DevicesChanged";
   devices_changed_observer_list_->Notify(
     &DevicesChangedObserver::OnDevicesChanged);
-}
-
-void SystemMonitor::NotifyMediaDeviceAttached(const DeviceIdType& id,
-                                              const std::string& name,
-                                              const FilePath& path) {
-  DVLOG(1) << "MediaDeviceAttached with name " << name << " and id " << id;
-  devices_changed_observer_list_->Notify(
-    &DevicesChangedObserver::OnMediaDeviceAttached, id, name, path);
-}
-
-void SystemMonitor::NotifyMediaDeviceDetached(const DeviceIdType& id) {
-  DVLOG(1) << "MediaDeviceDetached for id " << id;
-  devices_changed_observer_list_->Notify(
-    &DevicesChangedObserver::OnMediaDeviceDetached, id);
 }
 
 void SystemMonitor::NotifyPowerStateChange() {
