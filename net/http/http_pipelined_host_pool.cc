@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 #include "base/stl_util.h"
 #include "base/values.h"
 #include "net/http/http_pipelined_host_capability.h"
+#include "net/http/http_pipelined_host_forced.h"
 #include "net/http/http_pipelined_host_impl.h"
 #include "net/http/http_server_properties.h"
 
@@ -19,20 +20,28 @@ namespace net {
 class HttpPipelinedHostImplFactory : public HttpPipelinedHost::Factory {
  public:
   virtual HttpPipelinedHost* CreateNewHost(
-      HttpPipelinedHost::Delegate* delegate, const HostPortPair& origin,
+      HttpPipelinedHost::Delegate* delegate,
+      const HttpPipelinedHost::Key& key,
       HttpPipelinedConnection::Factory* factory,
-      HttpPipelinedHostCapability capability) OVERRIDE {
-    return new HttpPipelinedHostImpl(delegate, origin, factory, capability);
+      HttpPipelinedHostCapability capability,
+      bool force_pipelining) OVERRIDE {
+    if (force_pipelining) {
+      return new HttpPipelinedHostForced(delegate, key, factory);
+    } else {
+      return new HttpPipelinedHostImpl(delegate, key, factory, capability);
+    }
   }
 };
 
 HttpPipelinedHostPool::HttpPipelinedHostPool(
     Delegate* delegate,
     HttpPipelinedHost::Factory* factory,
-    HttpServerProperties* http_server_properties)
+    HttpServerProperties* http_server_properties,
+    bool force_pipelining)
     : delegate_(delegate),
       factory_(factory),
-      http_server_properties_(http_server_properties) {
+      http_server_properties_(http_server_properties),
+      force_pipelining_(force_pipelining) {
   if (!factory) {
     factory_.reset(new HttpPipelinedHostImplFactory);
   }
@@ -42,22 +51,22 @@ HttpPipelinedHostPool::~HttpPipelinedHostPool() {
   CHECK(host_map_.empty());
 }
 
-bool HttpPipelinedHostPool::IsHostEligibleForPipelining(
-    const HostPortPair& origin) {
+bool HttpPipelinedHostPool::IsKeyEligibleForPipelining(
+    const HttpPipelinedHost::Key& key) {
   HttpPipelinedHostCapability capability =
-      http_server_properties_->GetPipelineCapability(origin);
+      http_server_properties_->GetPipelineCapability(key.origin());
   return capability != PIPELINE_INCAPABLE;
 }
 
 HttpPipelinedStream* HttpPipelinedHostPool::CreateStreamOnNewPipeline(
-    const HostPortPair& origin,
+    const HttpPipelinedHost::Key& key,
     ClientSocketHandle* connection,
     const SSLConfig& used_ssl_config,
     const ProxyInfo& used_proxy_info,
     const BoundNetLog& net_log,
     bool was_npn_negotiated,
     SSLClientSocket::NextProto protocol_negotiated) {
-  HttpPipelinedHost* host = GetPipelinedHost(origin, true);
+  HttpPipelinedHost* host = GetPipelinedHost(key, true);
   if (!host) {
     return NULL;
   }
@@ -68,17 +77,17 @@ HttpPipelinedStream* HttpPipelinedHostPool::CreateStreamOnNewPipeline(
 }
 
 HttpPipelinedStream* HttpPipelinedHostPool::CreateStreamOnExistingPipeline(
-    const HostPortPair& origin) {
-  HttpPipelinedHost* host = GetPipelinedHost(origin, false);
+    const HttpPipelinedHost::Key& key) {
+  HttpPipelinedHost* host = GetPipelinedHost(key, false);
   if (!host) {
     return NULL;
   }
   return host->CreateStreamOnExistingPipeline();
 }
 
-bool HttpPipelinedHostPool::IsExistingPipelineAvailableForOrigin(
-    const HostPortPair& origin) {
-  HttpPipelinedHost* host = GetPipelinedHost(origin, false);
+bool HttpPipelinedHostPool::IsExistingPipelineAvailableForKey(
+    const HttpPipelinedHost::Key& key) {
+  HttpPipelinedHost* host = GetPipelinedHost(key, false);
   if (!host) {
     return false;
   }
@@ -86,8 +95,8 @@ bool HttpPipelinedHostPool::IsExistingPipelineAvailableForOrigin(
 }
 
 HttpPipelinedHost* HttpPipelinedHostPool::GetPipelinedHost(
-    const HostPortPair& origin, bool create_if_not_found) {
-  HostMap::iterator host_it = host_map_.find(origin);
+    const HttpPipelinedHost::Key& key, bool create_if_not_found) {
+  HostMap::iterator host_it = host_map_.find(key);
   if (host_it != host_map_.end()) {
     CHECK(host_it->second);
     return host_it->second;
@@ -96,33 +105,34 @@ HttpPipelinedHost* HttpPipelinedHostPool::GetPipelinedHost(
   }
 
   HttpPipelinedHostCapability capability =
-      http_server_properties_->GetPipelineCapability(origin);
+      http_server_properties_->GetPipelineCapability(key.origin());
   if (capability == PIPELINE_INCAPABLE) {
     return NULL;
   }
 
   HttpPipelinedHost* host = factory_->CreateNewHost(
-      this, origin, NULL, capability);
-  host_map_[origin] = host;
+      this, key, NULL, capability, force_pipelining_);
+  host_map_[key] = host;
   return host;
 }
 
 void HttpPipelinedHostPool::OnHostIdle(HttpPipelinedHost* host) {
-  const HostPortPair& origin = host->origin();
-  CHECK(ContainsKey(host_map_, origin));
-  host_map_.erase(origin);
+  const HttpPipelinedHost::Key& key = host->GetKey();
+  CHECK(ContainsKey(host_map_, key));
+  host_map_.erase(key);
   delete host;
 }
 
 void HttpPipelinedHostPool::OnHostHasAdditionalCapacity(
     HttpPipelinedHost* host) {
-  delegate_->OnHttpPipelinedHostHasAdditionalCapacity(host->origin());
+  delegate_->OnHttpPipelinedHostHasAdditionalCapacity(host);
 }
 
 void HttpPipelinedHostPool::OnHostDeterminedCapability(
     HttpPipelinedHost* host,
     HttpPipelinedHostCapability capability) {
-  http_server_properties_->SetPipelineCapability(host->origin(), capability);
+  http_server_properties_->SetPipelineCapability(host->GetKey().origin(),
+                                                 capability);
 }
 
 Value* HttpPipelinedHostPool::PipelineInfoToValue() const {
