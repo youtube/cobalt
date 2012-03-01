@@ -47,6 +47,10 @@ class TestGenerator(unittest.TestCase):
       print self.id()
       for line in difflib.context_diff(stripped_golden, stripped_generated):
         print line
+      print '\n\nGenerated'
+      print '=' * 80
+      print generated_text
+      print '=' * 80
       self.fail('Golden text mismatch')
 
   def testNatives(self):
@@ -227,11 +231,9 @@ using base::android::ScopedJavaLocalRef;
 
 // Step 1: forward declarations.
 namespace {
-const char* const kTestJniClassPath = "org/chromium/TestJni";
-// Leaking this JavaRef as we cannot use LazyInstance from some threads.
-base::android::ScopedJavaGlobalRef<jclass>&
-    g_TestJni_clazz =
-        *(new base::android::ScopedJavaGlobalRef<jclass>());
+const char kTestJniClassPath[] = "org/chromium/TestJni";
+// Leaking this jclass as we cannot use LazyInstance from some threads.
+jclass g_TestJni_clazz = NULL;
 }  // namespace
 
 static jint Init(JNIEnv* env, jobject obj);
@@ -331,8 +333,8 @@ static void GotOrientation(JNIEnv* env, jobject obj,
 
 
 static void GetMethodIDsImpl(JNIEnv* env) {
-  g_TestJni_clazz.Reset(
-      base::android::GetClass(env, kTestJniClassPath));
+  g_TestJni_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
+      base::android::GetUnscopedClass(env, kTestJniClassPath)));
 }
 
 static bool RegisterNativesImpl(JNIEnv* env) {
@@ -426,7 +428,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
   };
   const int kMethodsTestJniSize = arraysize(kMethodsTestJni);
 
-  if (env->RegisterNatives(g_TestJni_clazz.obj(),
+  if (env->RegisterNatives(g_TestJni_clazz,
                            kMethodsTestJni,
                            kMethodsTestJniSize) < 0) {
     LOG(ERROR) << "RegisterNatives failed in " << __FILE__;
@@ -482,12 +484,10 @@ using base::android::ScopedJavaLocalRef;
 
 // Step 1: forward declarations.
 namespace {
-const char* const kTestJniClassPath = "org/chromium/TestJni";
-const char* const kMyInnerClassClassPath = "org/chromium/TestJni$MyInnerClass";
-// Leaking this JavaRef as we cannot use LazyInstance from some threads.
-base::android::ScopedJavaGlobalRef<jclass>&
-    g_TestJni_clazz =
-        *(new base::android::ScopedJavaGlobalRef<jclass>());
+const char kTestJniClassPath[] = "org/chromium/TestJni";
+const char kMyInnerClassClassPath[] = "org/chromium/TestJni$MyInnerClass";
+// Leaking this jclass as we cannot use LazyInstance from some threads.
+jclass g_TestJni_clazz = NULL;
 }  // namespace
 
 static jint Init(JNIEnv* env, jobject obj);
@@ -500,8 +500,8 @@ static jint Init(JNIEnv* env, jobject obj);
 
 
 static void GetMethodIDsImpl(JNIEnv* env) {
-  g_TestJni_clazz.Reset(
-      base::android::GetClass(env, kTestJniClassPath));
+  g_TestJni_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
+      base::android::GetUnscopedClass(env, kTestJniClassPath)));
 }
 
 static bool RegisterNativesImpl(JNIEnv* env) {
@@ -515,7 +515,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
   };
   const int kMethodsMyInnerClassSize = arraysize(kMethodsMyInnerClass);
 
-  if (env->RegisterNatives(g_MyInnerClass_clazz.obj(),
+  if (env->RegisterNatives(g_MyInnerClass_clazz,
                            kMethodsMyInnerClass,
                            kMethodsMyInnerClassSize) < 0) {
     LOG(ERROR) << "RegisterNatives failed in " << __FILE__;
@@ -579,14 +579,12 @@ using base::android::ScopedJavaLocalRef;
 
 // Step 1: forward declarations.
 namespace {
-const char* const kMyOtherInnerClassClassPath =
+const char kMyOtherInnerClassClassPath[] =
     "org/chromium/TestJni$MyOtherInnerClass";
-const char* const kTestJniClassPath = "org/chromium/TestJni";
-const char* const kMyInnerClassClassPath = "org/chromium/TestJni$MyInnerClass";
-// Leaking this JavaRef as we cannot use LazyInstance from some threads.
-base::android::ScopedJavaGlobalRef<jclass>&
-    g_TestJni_clazz =
-        *(new base::android::ScopedJavaGlobalRef<jclass>());
+const char kTestJniClassPath[] = "org/chromium/TestJni";
+const char kMyInnerClassClassPath[] = "org/chromium/TestJni$MyInnerClass";
+// Leaking this jclass as we cannot use LazyInstance from some threads.
+jclass g_TestJni_clazz = NULL;
 }  // namespace
 
 static jint Init(JNIEnv* env, jobject obj);
@@ -602,8 +600,8 @@ static jint Init(JNIEnv* env, jobject obj);
 
 
 static void GetMethodIDsImpl(JNIEnv* env) {
-  g_TestJni_clazz.Reset(
-      base::android::GetClass(env, kTestJniClassPath));
+  g_TestJni_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
+      base::android::GetUnscopedClass(env, kTestJniClassPath)));
 }
 
 static bool RegisterNativesImpl(JNIEnv* env) {
@@ -618,7 +616,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
   const int kMethodsMyOtherInnerClassSize =
       arraysize(kMethodsMyOtherInnerClass);
 
-  if (env->RegisterNatives(g_MyOtherInnerClass_clazz.obj(),
+  if (env->RegisterNatives(g_MyOtherInnerClass_clazz,
                            kMethodsMyOtherInnerClass,
                            kMethodsMyOtherInnerClassSize) < 0) {
     LOG(ERROR) << "RegisterNatives failed in " << __FILE__;
@@ -633,7 +631,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
   };
   const int kMethodsMyInnerClassSize = arraysize(kMethodsMyInnerClass);
 
-  if (env->RegisterNatives(g_MyInnerClass_clazz.obj(),
+  if (env->RegisterNatives(g_MyInnerClass_clazz,
                            kMethodsMyInnerClass,
                            kMethodsMyInnerClassSize) < 0) {
     LOG(ERROR) << "RegisterNatives failed in " << __FILE__;
@@ -696,13 +694,11 @@ using base::android::ScopedJavaLocalRef;
 
 // Step 1: forward declarations.
 namespace {
-const char* const kMyOtherInnerClassClassPath =
+const char kMyOtherInnerClassClassPath[] =
     "org/chromium/TestJni$MyOtherInnerClass";
-const char* const kTestJniClassPath = "org/chromium/TestJni";
-// Leaking this JavaRef as we cannot use LazyInstance from some threads.
-base::android::ScopedJavaGlobalRef<jclass>&
-    g_TestJni_clazz =
-        *(new base::android::ScopedJavaGlobalRef<jclass>());
+const char kTestJniClassPath[] = "org/chromium/TestJni";
+// Leaking this jclass as we cannot use LazyInstance from some threads.
+jclass g_TestJni_clazz = NULL;
 }  // namespace
 
 static jint Init(JNIEnv* env, jobject obj);
@@ -718,8 +714,8 @@ static jint Init(JNIEnv* env, jobject obj);
 
 
 static void GetMethodIDsImpl(JNIEnv* env) {
-  g_TestJni_clazz.Reset(
-      base::android::GetClass(env, kTestJniClassPath));
+  g_TestJni_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
+      base::android::GetUnscopedClass(env, kTestJniClassPath)));
 }
 
 static bool RegisterNativesImpl(JNIEnv* env) {
@@ -734,7 +730,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
   const int kMethodsMyOtherInnerClassSize =
       arraysize(kMethodsMyOtherInnerClass);
 
-  if (env->RegisterNatives(g_MyOtherInnerClass_clazz.obj(),
+  if (env->RegisterNatives(g_MyOtherInnerClass_clazz,
                            kMethodsMyOtherInnerClass,
                            kMethodsMyOtherInnerClassSize) < 0) {
     LOG(ERROR) << "RegisterNatives failed in " << __FILE__;
@@ -749,7 +745,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
   };
   const int kMethodsTestJniSize = arraysize(kMethodsTestJni);
 
-  if (env->RegisterNatives(g_TestJni_clazz.obj(),
+  if (env->RegisterNatives(g_TestJni_clazz,
                            kMethodsTestJni,
                            kMethodsTestJniSize) < 0) {
     LOG(ERROR) << "RegisterNatives failed in " << __FILE__;
@@ -934,16 +930,12 @@ using base::android::ScopedJavaLocalRef;
 
 // Step 1: forward declarations.
 namespace {
-const char* const kTestJniClassPath = "org/chromium/TestJni";
-const char* const kInfoBarClassPath = "org/chromium/TestJni$InfoBar";
-// Leaking this JavaRef as we cannot use LazyInstance from some threads.
-base::android::ScopedJavaGlobalRef<jclass>&
-    g_TestJni_clazz =
-        *(new base::android::ScopedJavaGlobalRef<jclass>());
-// Leaking this JavaRef as we cannot use LazyInstance from some threads.
-base::android::ScopedJavaGlobalRef<jclass>&
-    g_InfoBar_clazz =
-        *(new base::android::ScopedJavaGlobalRef<jclass>());
+const char kTestJniClassPath[] = "org/chromium/TestJni";
+const char kInfoBarClassPath[] = "org/chromium/TestJni$InfoBar";
+// Leaking this jclass as we cannot use LazyInstance from some threads.
+jclass g_TestJni_clazz = NULL;
+// Leaking this jclass as we cannot use LazyInstance from some threads.
+jclass g_InfoBar_clazz = NULL;
 }  // namespace
 
 
@@ -957,7 +949,7 @@ static ScopedJavaLocalRef<jobject> Java_TestJni_showConfirmInfoBar(JNIEnv* env,
     jstring title,
     jobject icon) {
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_TestJni_clazz.is_null());
+  DCHECK(g_TestJni_clazz);
   DCHECK(g_TestJni_showConfirmInfoBar);
   jobject ret =
     env->CallObjectMethod(obj,
@@ -974,7 +966,7 @@ static ScopedJavaLocalRef<jobject> Java_TestJni_showAutoLoginInfoBar(JNIEnv*
     jstring account,
     jstring args) {
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_TestJni_clazz.is_null());
+  DCHECK(g_TestJni_clazz);
   DCHECK(g_TestJni_showAutoLoginInfoBar);
   jobject ret =
     env->CallObjectMethod(obj,
@@ -986,7 +978,7 @@ static ScopedJavaLocalRef<jobject> Java_TestJni_showAutoLoginInfoBar(JNIEnv*
 static jmethodID g_InfoBar_dismiss = 0;
 static void Java_InfoBar_dismiss(JNIEnv* env, jobject obj) {
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_InfoBar_clazz.is_null());
+  DCHECK(g_InfoBar_clazz);
   DCHECK(g_InfoBar_dismiss);
 
   env->CallVoidMethod(obj,
@@ -1002,10 +994,10 @@ static jboolean Java_TestJni_shouldShowAutoLogin(JNIEnv* env, jobject
     jstring account,
     jstring args) {
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_TestJni_clazz.is_null());
+  DCHECK(g_TestJni_clazz);
   DCHECK(g_TestJni_shouldShowAutoLogin);
   jboolean ret =
-    env->CallStaticBooleanMethod(g_TestJni_clazz.obj(),
+    env->CallStaticBooleanMethod(g_TestJni_clazz,
       g_TestJni_shouldShowAutoLogin, chromeView, realm, account, args);
   base::android::CheckException(env);
   return ret;
@@ -1015,10 +1007,10 @@ static jmethodID g_TestJni_openUrl = 0;
 static ScopedJavaLocalRef<jobject> Java_TestJni_openUrl(JNIEnv* env, jstring
     url) {
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_TestJni_clazz.is_null());
+  DCHECK(g_TestJni_clazz);
   DCHECK(g_TestJni_openUrl);
   jobject ret =
-    env->CallStaticObjectMethod(g_TestJni_clazz.obj(),
+    env->CallStaticObjectMethod(g_TestJni_clazz,
       g_TestJni_openUrl, url);
   base::android::CheckException(env);
   return ScopedJavaLocalRef<jobject>(env, ret);
@@ -1032,7 +1024,7 @@ static void Java_TestJni_activateHardwareAcceleration(JNIEnv* env, jobject obj,
     jint iPrimaryID,
     jint iSecondaryID) {
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_TestJni_clazz.is_null());
+  DCHECK(g_TestJni_clazz);
   DCHECK(g_TestJni_activateHardwareAcceleration);
 
   env->CallVoidMethod(obj,
@@ -1045,7 +1037,7 @@ static void Java_TestJni_activateHardwareAcceleration(JNIEnv* env, jobject obj,
 static jmethodID g_TestJni_uncheckedCall = 0;
 static void Java_TestJni_uncheckedCall(JNIEnv* env, jobject obj, jint iParam) {
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_TestJni_clazz.is_null());
+  DCHECK(g_TestJni_clazz);
   DCHECK(g_TestJni_uncheckedCall);
 
   env->CallVoidMethod(obj,
@@ -1058,13 +1050,14 @@ static void Java_TestJni_uncheckedCall(JNIEnv* env, jobject obj, jint iParam) {
 
 
 static void GetMethodIDsImpl(JNIEnv* env) {
-  g_TestJni_clazz.Reset(
-      base::android::GetClass(env, kTestJniClassPath));
-  g_InfoBar_clazz.Reset(
-      base::android::GetClass(env, kInfoBarClassPath));
-  g_TestJni_showConfirmInfoBar = base::android::GetMethodID(
-    env, g_TestJni_clazz,
-    "showConfirmInfoBar",
+  g_TestJni_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
+      base::android::GetUnscopedClass(env, kTestJniClassPath)));
+  g_InfoBar_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
+      base::android::GetUnscopedClass(env, kInfoBarClassPath)));
+  g_TestJni_showConfirmInfoBar =
+      base::android::GetMethodID(
+          env, g_TestJni_clazz,
+          "showConfirmInfoBar",
 
 "("
 "I"
@@ -1075,9 +1068,10 @@ static void GetMethodIDsImpl(JNIEnv* env) {
 ")"
 "Lcom/android/chrome/infobar/InfoBarContainer$NativeInfoBar;");
 
-  g_TestJni_showAutoLoginInfoBar = base::android::GetMethodID(
-    env, g_TestJni_clazz,
-    "showAutoLoginInfoBar",
+  g_TestJni_showAutoLoginInfoBar =
+      base::android::GetMethodID(
+          env, g_TestJni_clazz,
+          "showAutoLoginInfoBar",
 
 "("
 "I"
@@ -1087,17 +1081,19 @@ static void GetMethodIDsImpl(JNIEnv* env) {
 ")"
 "Lcom/android/chrome/infobar/InfoBarContainer$NativeInfoBar;");
 
-  g_InfoBar_dismiss = base::android::GetMethodID(
-    env, g_InfoBar_clazz,
-    "dismiss",
+  g_InfoBar_dismiss =
+      base::android::GetMethodID(
+          env, g_InfoBar_clazz,
+          "dismiss",
 
 "("
 ")"
 "V");
 
-  g_TestJni_shouldShowAutoLogin = base::android::GetStaticMethodID(
-    env, g_TestJni_clazz,
-    "shouldShowAutoLogin",
+  g_TestJni_shouldShowAutoLogin =
+      base::android::GetStaticMethodID(
+          env, g_TestJni_clazz,
+          "shouldShowAutoLogin",
 
 "("
 "Lorg/chromium/chromeview/ChromeView;"
@@ -1107,18 +1103,20 @@ static void GetMethodIDsImpl(JNIEnv* env) {
 ")"
 "Z");
 
-  g_TestJni_openUrl = base::android::GetStaticMethodID(
-    env, g_TestJni_clazz,
-    "openUrl",
+  g_TestJni_openUrl =
+      base::android::GetStaticMethodID(
+          env, g_TestJni_clazz,
+          "openUrl",
 
 "("
 "Ljava/lang/String;"
 ")"
 "Ljava/io/InputStream;");
 
-  g_TestJni_activateHardwareAcceleration = base::android::GetMethodID(
-    env, g_TestJni_clazz,
-    "activateHardwareAcceleration",
+  g_TestJni_activateHardwareAcceleration =
+      base::android::GetMethodID(
+          env, g_TestJni_clazz,
+          "activateHardwareAcceleration",
 
 "("
 "Z"
@@ -1129,9 +1127,10 @@ static void GetMethodIDsImpl(JNIEnv* env) {
 ")"
 "V");
 
-  g_TestJni_uncheckedCall = base::android::GetMethodID(
-    env, g_TestJni_clazz,
-    "uncheckedCall",
+  g_TestJni_uncheckedCall =
+      base::android::GetMethodID(
+          env, g_TestJni_clazz,
+          "uncheckedCall",
 
 "("
 "I"
@@ -1236,11 +1235,9 @@ using base::android::ScopedJavaLocalRef;
 
 // Step 1: forward declarations.
 namespace {
-const char* const kInputStreamClassPath = "java/io/InputStream";
-// Leaking this JavaRef as we cannot use LazyInstance from some threads.
-base::android::ScopedJavaGlobalRef<jclass>&
-    g_InputStream_clazz =
-        *(new base::android::ScopedJavaGlobalRef<jclass>());
+const char kInputStreamClassPath[] = "java/io/InputStream";
+// Leaking this jclass as we cannot use LazyInstance from some threads.
+jclass g_InputStream_clazz = NULL;
 }  // namespace
 
 
@@ -1251,7 +1248,7 @@ static jint Java_InputStream_available(JNIEnv* env, jobject obj) __attribute__
     ((unused));
 static jint Java_InputStream_available(JNIEnv* env, jobject obj) {
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_InputStream_clazz.is_null());
+  DCHECK(g_InputStream_clazz);
   DCHECK(g_InputStream_available);
   jint ret =
     env->CallIntMethod(obj,
@@ -1265,7 +1262,7 @@ static void Java_InputStream_close(JNIEnv* env, jobject obj) __attribute__
     ((unused));
 static void Java_InputStream_close(JNIEnv* env, jobject obj) {
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_InputStream_clazz.is_null());
+  DCHECK(g_InputStream_clazz);
   DCHECK(g_InputStream_close);
 
   env->CallVoidMethod(obj,
@@ -1279,7 +1276,7 @@ static void Java_InputStream_mark(JNIEnv* env, jobject obj, jint p0)
     __attribute__ ((unused));
 static void Java_InputStream_mark(JNIEnv* env, jobject obj, jint p0) {
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_InputStream_clazz.is_null());
+  DCHECK(g_InputStream_clazz);
   DCHECK(g_InputStream_mark);
 
   env->CallVoidMethod(obj,
@@ -1293,7 +1290,7 @@ static jboolean Java_InputStream_markSupported(JNIEnv* env, jobject obj)
     __attribute__ ((unused));
 static jboolean Java_InputStream_markSupported(JNIEnv* env, jobject obj) {
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_InputStream_clazz.is_null());
+  DCHECK(g_InputStream_clazz);
   DCHECK(g_InputStream_markSupported);
   jboolean ret =
     env->CallBooleanMethod(obj,
@@ -1307,7 +1304,7 @@ static jint Java_InputStream_read(JNIEnv* env, jobject obj) __attribute__
     ((unused));
 static jint Java_InputStream_read(JNIEnv* env, jobject obj) {
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_InputStream_clazz.is_null());
+  DCHECK(g_InputStream_clazz);
   DCHECK(g_InputStream_read_pqI);
   jint ret =
     env->CallIntMethod(obj,
@@ -1321,7 +1318,7 @@ static jint Java_InputStream_read(JNIEnv* env, jobject obj, jbyteArray p0)
     __attribute__ ((unused));
 static jint Java_InputStream_read(JNIEnv* env, jobject obj, jbyteArray p0) {
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_InputStream_clazz.is_null());
+  DCHECK(g_InputStream_clazz);
   DCHECK(g_InputStream_read_paBqI);
   jint ret =
     env->CallIntMethod(obj,
@@ -1338,7 +1335,7 @@ static jint Java_InputStream_read(JNIEnv* env, jobject obj, jbyteArray p0,
     jint p1,
     jint p2) {
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_InputStream_clazz.is_null());
+  DCHECK(g_InputStream_clazz);
   DCHECK(g_InputStream_read_paBIIqI);
   jint ret =
     env->CallIntMethod(obj,
@@ -1352,7 +1349,7 @@ static void Java_InputStream_reset(JNIEnv* env, jobject obj) __attribute__
     ((unused));
 static void Java_InputStream_reset(JNIEnv* env, jobject obj) {
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_InputStream_clazz.is_null());
+  DCHECK(g_InputStream_clazz);
   DCHECK(g_InputStream_reset);
 
   env->CallVoidMethod(obj,
@@ -1366,7 +1363,7 @@ static jlong Java_InputStream_skip(JNIEnv* env, jobject obj, jlong p0)
     __attribute__ ((unused));
 static jlong Java_InputStream_skip(JNIEnv* env, jobject obj, jlong p0) {
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_InputStream_clazz.is_null());
+  DCHECK(g_InputStream_clazz);
   DCHECK(g_InputStream_skip);
   jlong ret =
     env->CallLongMethod(obj,
@@ -1379,61 +1376,68 @@ static jlong Java_InputStream_skip(JNIEnv* env, jobject obj, jlong p0) {
 namespace JNI_InputStream {
 
 static void GetMethodIDsImpl(JNIEnv* env) {
-  g_InputStream_clazz.Reset(
-      base::android::GetClass(env, kInputStreamClassPath));
-  g_InputStream_available = base::android::GetMethodID(
-    env, g_InputStream_clazz,
-    "available",
+  g_InputStream_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
+      base::android::GetUnscopedClass(env, kInputStreamClassPath)));
+  g_InputStream_available =
+      base::android::GetMethodID(
+          env, g_InputStream_clazz,
+          "available",
 
 "("
 ")"
 "I");
 
-  g_InputStream_close = base::android::GetMethodID(
-    env, g_InputStream_clazz,
-    "close",
+  g_InputStream_close =
+      base::android::GetMethodID(
+          env, g_InputStream_clazz,
+          "close",
 
 "("
 ")"
 "V");
 
-  g_InputStream_mark = base::android::GetMethodID(
-    env, g_InputStream_clazz,
-    "mark",
+  g_InputStream_mark =
+      base::android::GetMethodID(
+          env, g_InputStream_clazz,
+          "mark",
 
 "("
 "I"
 ")"
 "V");
 
-  g_InputStream_markSupported = base::android::GetMethodID(
-    env, g_InputStream_clazz,
-    "markSupported",
+  g_InputStream_markSupported =
+      base::android::GetMethodID(
+          env, g_InputStream_clazz,
+          "markSupported",
 
 "("
 ")"
 "Z");
 
-  g_InputStream_read_pqI = base::android::GetMethodID(
-    env, g_InputStream_clazz,
-    "read",
+  g_InputStream_read_pqI =
+      base::android::GetMethodID(
+          env, g_InputStream_clazz,
+          "read",
 
 "("
 ")"
 "I");
 
-  g_InputStream_read_paBqI = base::android::GetMethodID(
-    env, g_InputStream_clazz,
-    "read",
+  g_InputStream_read_paBqI =
+      base::android::GetMethodID(
+          env, g_InputStream_clazz,
+          "read",
 
 "("
 "[B"
 ")"
 "I");
 
-  g_InputStream_read_paBIIqI = base::android::GetMethodID(
-    env, g_InputStream_clazz,
-    "read",
+  g_InputStream_read_paBIIqI =
+      base::android::GetMethodID(
+          env, g_InputStream_clazz,
+          "read",
 
 "("
 "[B"
@@ -1442,17 +1446,19 @@ static void GetMethodIDsImpl(JNIEnv* env) {
 ")"
 "I");
 
-  g_InputStream_reset = base::android::GetMethodID(
-    env, g_InputStream_clazz,
-    "reset",
+  g_InputStream_reset =
+      base::android::GetMethodID(
+          env, g_InputStream_clazz,
+          "reset",
 
 "("
 ")"
 "V");
 
-  g_InputStream_skip = base::android::GetMethodID(
-    env, g_InputStream_clazz,
-    "skip",
+  g_InputStream_skip =
+      base::android::GetMethodID(
+          env, g_InputStream_clazz,
+          "skip",
 
 "("
 "J"
