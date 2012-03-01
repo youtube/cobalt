@@ -323,19 +323,26 @@ void TraceWithAllMacroVariants(WaitableEvent* task_complete_event) {
                                 "name1", "value1",
                                 "name2", "value2");
 
-    TRACE_EVENT_START0("all", "TRACE_EVENT_START0 call", 5);
-    TRACE_EVENT_START1("all", "TRACE_EVENT_START1 call", 5,
-                       "name1", "value1");
-    TRACE_EVENT_START2("all", "TRACE_EVENT_START2 call", 5,
-                       "name1", "value1",
-                       "name2", "value2");
+    TRACE_EVENT_ASYNC_BEGIN0("all", "TRACE_EVENT_ASYNC_BEGIN0 call", 5);
+    TRACE_EVENT_ASYNC_BEGIN1("all", "TRACE_EVENT_ASYNC_BEGIN1 call", 5,
+                             "name1", "value1");
+    TRACE_EVENT_ASYNC_BEGIN2("all", "TRACE_EVENT_ASYNC_BEGIN2 call", 5,
+                             "name1", "value1",
+                             "name2", "value2");
 
-    TRACE_EVENT_FINISH0("all", "TRACE_EVENT_FINISH0 call", 5);
-    TRACE_EVENT_FINISH1("all", "TRACE_EVENT_FINISH1 call", 5,
-                        "name1", "value1");
-    TRACE_EVENT_FINISH2("all", "TRACE_EVENT_FINISH2 call", 5,
-                        "name1", "value1",
-                        "name2", "value2");
+    TRACE_EVENT_ASYNC_STEP0("all", "TRACE_EVENT_ASYNC_STEP0 call", 5);
+    TRACE_EVENT_ASYNC_STEP1("all", "TRACE_EVENT_ASYNC_STEP1 call", 5,
+                            "name1", "value1");
+    TRACE_EVENT_ASYNC_STEP2("all", "TRACE_EVENT_ASYNC_STEP2 call", 5,
+                            "name1", "value1",
+                            "name2", "value2");
+
+    TRACE_EVENT_ASYNC_END0("all", "TRACE_EVENT_ASYNC_END0 call", 5);
+    TRACE_EVENT_ASYNC_END1("all", "TRACE_EVENT_ASYNC_END1 call", 5,
+                           "name1", "value1");
+    TRACE_EVENT_ASYNC_END2("all", "TRACE_EVENT_ASYNC_END2 call", 5,
+                           "name1", "value1",
+                           "name2", "value2");
 
     TRACE_EVENT_BEGIN_ETW("TRACE_EVENT_BEGIN_ETW0 call", 5, NULL);
     TRACE_EVENT_BEGIN_ETW("TRACE_EVENT_BEGIN_ETW1 call", 5, "value");
@@ -440,15 +447,15 @@ void ValidateAllTraceMacrosCreatedData(const ListValue& trace_parsed) {
   EXPECT_SUB_FIND_("name2");
   EXPECT_SUB_FIND_("value2");
 
-  EXPECT_FIND_("TRACE_EVENT_START0 call");
+  EXPECT_FIND_("TRACE_EVENT_ASYNC_BEGIN0 call");
   EXPECT_SUB_FIND_("id");
   EXPECT_SUB_FIND_("5");
-  EXPECT_FIND_("TRACE_EVENT_START1 call");
+  EXPECT_FIND_("TRACE_EVENT_ASYNC_BEGIN1 call");
   EXPECT_SUB_FIND_("id");
   EXPECT_SUB_FIND_("5");
   EXPECT_SUB_FIND_("name1");
   EXPECT_SUB_FIND_("value1");
-  EXPECT_FIND_("TRACE_EVENT_START2 call");
+  EXPECT_FIND_("TRACE_EVENT_ASYNC_BEGIN2 call");
   EXPECT_SUB_FIND_("id");
   EXPECT_SUB_FIND_("5");
   EXPECT_SUB_FIND_("name1");
@@ -456,15 +463,31 @@ void ValidateAllTraceMacrosCreatedData(const ListValue& trace_parsed) {
   EXPECT_SUB_FIND_("name2");
   EXPECT_SUB_FIND_("value2");
 
-  EXPECT_FIND_("TRACE_EVENT_FINISH0 call");
+  EXPECT_FIND_("TRACE_EVENT_ASYNC_STEP0 call");
   EXPECT_SUB_FIND_("id");
   EXPECT_SUB_FIND_("5");
-  EXPECT_FIND_("TRACE_EVENT_FINISH1 call");
+  EXPECT_FIND_("TRACE_EVENT_ASYNC_STEP1 call");
   EXPECT_SUB_FIND_("id");
   EXPECT_SUB_FIND_("5");
   EXPECT_SUB_FIND_("name1");
   EXPECT_SUB_FIND_("value1");
-  EXPECT_FIND_("TRACE_EVENT_FINISH2 call");
+  EXPECT_FIND_("TRACE_EVENT_ASYNC_STEP2 call");
+  EXPECT_SUB_FIND_("id");
+  EXPECT_SUB_FIND_("5");
+  EXPECT_SUB_FIND_("name1");
+  EXPECT_SUB_FIND_("value1");
+  EXPECT_SUB_FIND_("name2");
+  EXPECT_SUB_FIND_("value2");
+
+  EXPECT_FIND_("TRACE_EVENT_ASYNC_END0 call");
+  EXPECT_SUB_FIND_("id");
+  EXPECT_SUB_FIND_("5");
+  EXPECT_FIND_("TRACE_EVENT_ASYNC_END1 call");
+  EXPECT_SUB_FIND_("id");
+  EXPECT_SUB_FIND_("5");
+  EXPECT_SUB_FIND_("name1");
+  EXPECT_SUB_FIND_("value1");
+  EXPECT_FIND_("TRACE_EVENT_ASYNC_END2 call");
   EXPECT_SUB_FIND_("id");
   EXPECT_SUB_FIND_("5");
   EXPECT_SUB_FIND_("name1");
@@ -917,26 +940,29 @@ TEST_F(TraceEventTestFixture, DataCapturedThreshold) {
   EXPECT_NOT_FIND_BE_("4thresholdlong2");
 }
 
-// Test Start/Finish events
-TEST_F(TraceEventTestFixture, StartFinishEvents) {
+// Test ASYNC_BEGIN/END events
+TEST_F(TraceEventTestFixture, AsyncBeginEndEvents) {
   ManualTestSetUp();
   TraceLog::GetInstance()->SetEnabled(true);
 
   unsigned long long id = 0xfeedbeeffeedbeefull;
-  TRACE_EVENT_START0( "cat", "name1", id);
-  TRACE_EVENT_FINISH0("cat", "name1", id);
+  TRACE_EVENT_ASYNC_BEGIN0( "cat", "name1", id);
+  TRACE_EVENT_ASYNC_STEP0( "cat", "name1", id);
+  TRACE_EVENT_ASYNC_END0("cat", "name1", id);
   TRACE_EVENT_BEGIN0( "cat", "name2");
-  TRACE_EVENT_START0( "cat", "name3", 0);
+  TRACE_EVENT_ASYNC_BEGIN0( "cat", "name3", 0);
 
   TraceLog::GetInstance()->SetEnabled(false);
 
   EXPECT_TRUE(FindNamePhase("name1", "S"));
+  EXPECT_TRUE(FindNamePhase("name1", "T"));
   EXPECT_TRUE(FindNamePhase("name1", "F"));
 
   std::string id_str;
   StringAppendF(&id_str, "%llx", id);
 
   EXPECT_TRUE(FindNamePhaseKeyValue("name1", "S", "id", id_str.c_str()));
+  EXPECT_TRUE(FindNamePhaseKeyValue("name1", "T", "id", id_str.c_str()));
   EXPECT_TRUE(FindNamePhaseKeyValue("name1", "F", "id", id_str.c_str()));
   EXPECT_TRUE(FindNamePhaseKeyValue("name3", "S", "id", "0"));
 
@@ -944,43 +970,43 @@ TEST_F(TraceEventTestFixture, StartFinishEvents) {
   EXPECT_FALSE(FindNamePhaseKeyValue("name2", "B", "id", "0"));
 }
 
-// Test Start/Finish events
-TEST_F(TraceEventTestFixture, StartFinishPointerMangling) {
+// Test ASYNC_BEGIN/END events
+TEST_F(TraceEventTestFixture, AsyncBeginEndPointerMangling) {
   ManualTestSetUp();
 
   void* ptr = this;
 
   TraceLog::GetInstance()->SetProcessID(100);
   TraceLog::GetInstance()->SetEnabled(true);
-  TRACE_EVENT_START0( "cat", "name1", ptr);
-  TRACE_EVENT_START0( "cat", "name2", ptr);
+  TRACE_EVENT_ASYNC_BEGIN0( "cat", "name1", ptr);
+  TRACE_EVENT_ASYNC_BEGIN0( "cat", "name2", ptr);
   TraceLog::GetInstance()->SetEnabled(false);
 
   TraceLog::GetInstance()->SetProcessID(200);
   TraceLog::GetInstance()->SetEnabled(true);
-  TRACE_EVENT_FINISH0( "cat", "name1", ptr);
+  TRACE_EVENT_ASYNC_END0( "cat", "name1", ptr);
   TraceLog::GetInstance()->SetEnabled(false);
 
-  DictionaryValue* start = FindNamePhase("name1", "S");
-  DictionaryValue* start2 = FindNamePhase("name2", "S");
-  DictionaryValue* finish = FindNamePhase("name1", "F");
-  EXPECT_TRUE(start);
-  EXPECT_TRUE(start2);
-  EXPECT_TRUE(finish);
+  DictionaryValue* async_begin = FindNamePhase("name1", "S");
+  DictionaryValue* async_begin2 = FindNamePhase("name2", "S");
+  DictionaryValue* async_end = FindNamePhase("name1", "F");
+  EXPECT_TRUE(async_begin);
+  EXPECT_TRUE(async_begin2);
+  EXPECT_TRUE(async_end);
 
   Value* value = NULL;
-  std::string start_id_str;
-  std::string start2_id_str;
-  std::string finish_id_str;
-  ASSERT_TRUE(start->Get("id", &value));
-  ASSERT_TRUE(value->GetAsString(&start_id_str));
-  ASSERT_TRUE(start2->Get("id", &value));
-  ASSERT_TRUE(value->GetAsString(&start2_id_str));
-  ASSERT_TRUE(finish->Get("id", &value));
-  ASSERT_TRUE(value->GetAsString(&finish_id_str));
+  std::string async_begin_id_str;
+  std::string async_begin2_id_str;
+  std::string async_end_id_str;
+  ASSERT_TRUE(async_begin->Get("id", &value));
+  ASSERT_TRUE(value->GetAsString(&async_begin_id_str));
+  ASSERT_TRUE(async_begin2->Get("id", &value));
+  ASSERT_TRUE(value->GetAsString(&async_begin2_id_str));
+  ASSERT_TRUE(async_end->Get("id", &value));
+  ASSERT_TRUE(value->GetAsString(&async_end_id_str));
 
-  EXPECT_STREQ(start_id_str.c_str(), start2_id_str.c_str());
-  EXPECT_STRNE(start_id_str.c_str(), finish_id_str.c_str());
+  EXPECT_STREQ(async_begin_id_str.c_str(), async_begin2_id_str.c_str());
+  EXPECT_STRNE(async_begin_id_str.c_str(), async_end_id_str.c_str());
 }
 
 // Test that static strings are not copied.
