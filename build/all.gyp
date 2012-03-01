@@ -546,7 +546,6 @@
             '../chrome/chrome.gyp:sync_unit_tests',
             '../chrome/chrome.gyp:ui_tests',
             '../chrome/chrome.gyp:unit_tests',
-            '../content/content.gyp:content_browsertests',
             '../content/content.gyp:content_unittests',
             '../crypto/crypto.gyp:crypto_unittests',
             '../dbus/dbus.gyp:dbus_unittests',
