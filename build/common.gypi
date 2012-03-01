@@ -274,6 +274,10 @@
       #                  http://crbug.com/105550
       'use_canvas_skia_skia%': 0,
 
+      # Set to "tsan", "memcheck", or "drmemory" to configure the build to work
+      # with one of those tools.
+      'build_for_tool%': '',
+
       'conditions': [
         # TODO(epoger): Figure out how to set use_skia=1 for Mac outside of
         # the 'conditions' clause.  Initial attempts resulted in chromium and
@@ -955,7 +959,57 @@
         # third_party/asan may be different from the default one.
         'clang_use_chrome_plugins%': 0,
       }],
+
+      # On valgrind bots, override the optimizer settings so we don't inline too
+      # much and make the stacks harder to figure out.
+      #
+      # TODO(rnk): Kill off variables that no one else uses and just implement
+      # them under a build_for_tool== condition.
+      ['build_for_tool=="memcheck" or build_for_tool=="tsan"', {
+        # gcc flags
+        'mac_debug_optimization': '1',
+        'mac_release_optimization': '1',
+        'release_optimize': '1',
+        'no_gc_sections': 1,
+        'debug_extra_cflags': '-g -fno-inline -fno-omit-frame-pointer '
+                              '-fno-builtin -fno-optimize-sibling-calls',
+        'release_extra_cflags': '-g -fno-inline -fno-omit-frame-pointer '
+                                '-fno-builtin -fno-optimize-sibling-calls',
+
+        # MSVS flags for TSan on Pin and Windows.
+        'win_debug_RuntimeChecks': '0',
+        'win_debug_disable_iterator_debugging': '1',
+        'win_debug_Optimization': '1',
+        'win_debug_InlineFunctionExpansion': '0',
+        'win_release_InlineFunctionExpansion': '0',
+        'win_release_OmitFramePointers': '0',
+
+        'linux_use_tcmalloc': 1,
+        'release_valgrind_build': 1,
+        'werror': '',
+        'component': 'static_library',
+        'use_system_zlib': 0,
+      }],
+
+      # Build tweaks for DrMemory.
+      # TODO(rnk): Combine with tsan config to share the builder.
+      # http://crbug.com/108155
+      ['build_for_tool=="drmemory"', {
+        # DrMemory can't handle the debug CRT dll, so build static.
+        'component': 'static_library',
+        # These runtime checks force initialization of stack vars which blocks
+        # DrMemory's uninit detection.
+        'win_debug_RuntimeChecks': '0',
+        # Iterator debugging is slow.
+        'win_debug_disable_iterator_debugging': '1',
+        # Try to disable optimizations that mess up stacks in a release build.
+        'win_release_InlineFunctionExpansion': '0',
+        'win_release_OmitFramePointers': '0',
+        # Keep the code under #ifndef NVALGRIND.
+        'release_valgrind_build': 1,
+      }],
     ],
+
     # List of default apps to install in new profiles.  The first list contains
     # the source files as found in svn.  The second list, used only for linux,
     # contains the destination location for each of the files.  When a crx
