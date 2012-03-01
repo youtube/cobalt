@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <math.h>
+#include <set>
 
 #include "base/json/json_reader.h"
 #include "base/memory/scoped_ptr.h"
@@ -44,8 +45,9 @@ bool TraceEvent::SetFromJSON(const base::Value* event_value) {
   phase = *phase_str.data();
 
   bool require_origin = (phase != TRACE_EVENT_PHASE_METADATA);
-  bool require_id = (phase == TRACE_EVENT_PHASE_START ||
-                     phase == TRACE_EVENT_PHASE_FINISH);
+  bool require_id = (phase == TRACE_EVENT_PHASE_ASYNC_BEGIN ||
+                     phase == TRACE_EVENT_PHASE_ASYNC_STEP ||
+                     phase == TRACE_EVENT_PHASE_ASYNC_END);
 
   if (require_origin && !dictionary->GetInteger("pid", &thread.process_id)) {
     LOG(ERROR) << "pid is missing from TraceEvent JSON";
@@ -72,7 +74,7 @@ bool TraceEvent::SetFromJSON(const base::Value* event_value) {
     return false;
   }
   if (require_id && !dictionary->GetString("id", &id)) {
-    LOG(ERROR) << "id is missing from START/FINISH TraceEvent JSON";
+    LOG(ERROR) << "id is missing from ASYNC_BEGIN/ASYNC_END TraceEvent JSON";
     return false;
   }
 
@@ -702,11 +704,14 @@ void TraceAnalyzer::AssociateBeginEndEvents() {
   AssociateEvents(begin, end, match);
 }
 
-void TraceAnalyzer::AssociateStartFinishEvents() {
+void TraceAnalyzer::AssociateAsyncBeginEndEvents() {
   using trace_analyzer::Query;
 
-  Query begin(Query::EventPhase() == Query::Phase(TRACE_EVENT_PHASE_START));
-  Query end(Query::EventPhase() == Query::Phase(TRACE_EVENT_PHASE_FINISH));
+  Query begin(
+      Query::EventPhase() == Query::Phase(TRACE_EVENT_PHASE_ASYNC_BEGIN) ||
+      Query::EventPhase() == Query::Phase(TRACE_EVENT_PHASE_ASYNC_STEP));
+  Query end(Query::EventPhase() == Query::Phase(TRACE_EVENT_PHASE_ASYNC_END) ||
+            Query::EventPhase() == Query::Phase(TRACE_EVENT_PHASE_ASYNC_STEP));
   Query match(Query::EventName() == Query::OtherName() &&
               Query::EventCategory() == Query::OtherCategory() &&
               Query::EventId() == Query::OtherId());
@@ -728,9 +733,7 @@ void TraceAnalyzer::AssociateEvents(const Query& first,
 
     TraceEvent& this_event = raw_events_[event_index];
 
-    if (first.Evaluate(this_event)) {
-      begin_stack.push_back(&this_event);
-    } else if (second.Evaluate(this_event)) {
+    if (second.Evaluate(this_event)) {
       // Search stack for matching begin, starting from end.
       for (int stack_index = static_cast<int>(begin_stack.size()) - 1;
            stack_index >= 0; --stack_index) {
@@ -741,8 +744,6 @@ void TraceAnalyzer::AssociateEvents(const Query& first,
         begin_event.other_event = &this_event;
         if (match.Evaluate(begin_event)) {
           // Found a matching begin/end pair.
-          // Set event association:
-          this_event.other_event = &begin_event;
           // Erase the matching begin event index from the stack.
           begin_stack.erase(begin_stack.begin() + stack_index);
           break;
@@ -752,18 +753,31 @@ void TraceAnalyzer::AssociateEvents(const Query& first,
         begin_event.other_event = other_backup;
       }
     }
+    // Even if this_event is a |second| event that has matched an earlier
+    // |first| event, it can still also be a |first| event and be associated
+    // with a later |second| event.
+    if (first.Evaluate(this_event)) {
+      begin_stack.push_back(&this_event);
+    }
   }
 }
 
 void TraceAnalyzer::MergeAssociatedEventArgs() {
   for (size_t i = 0; i < raw_events_.size(); ++i) {
-    if (raw_events_[i].other_event) {
+    // Merge all associated events with the first event.
+    const TraceEvent* other = raw_events_[i].other_event;
+    // Avoid looping by keeping set of encountered TraceEvents.
+    std::set<const TraceEvent*> encounters;
+    encounters.insert(&raw_events_[i]);
+    while (other && encounters.find(other) == encounters.end()) {
+      encounters.insert(other);
       raw_events_[i].arg_numbers.insert(
-          raw_events_[i].other_event->arg_numbers.begin(),
-          raw_events_[i].other_event->arg_numbers.end());
+          other->arg_numbers.begin(),
+          other->arg_numbers.end());
       raw_events_[i].arg_strings.insert(
-          raw_events_[i].other_event->arg_strings.begin(),
-          raw_events_[i].other_event->arg_strings.end());
+          other->arg_strings.begin(),
+          other->arg_strings.end());
+      other = other->other_event;
     }
   }
 }
