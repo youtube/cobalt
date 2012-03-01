@@ -47,7 +47,7 @@ class NET_EXPORT_PRIVATE HttpStreamFactoryImpl :
 
   // HttpPipelinedHostPool::Delegate interface
   virtual void OnHttpPipelinedHostHasAdditionalCapacity(
-      const HostPortPair& origin) OVERRIDE;
+      HttpPipelinedHost* host) OVERRIDE;
 
  private:
   class Request;
@@ -55,7 +55,7 @@ class NET_EXPORT_PRIVATE HttpStreamFactoryImpl :
 
   typedef std::set<Request*> RequestSet;
   typedef std::map<HostPortProxyPair, RequestSet> SpdySessionRequestMap;
-  typedef std::map<HostPortPair, RequestSet> HttpPipeliningRequestMap;
+  typedef std::map<HttpPipelinedHost::Key, RequestSet> HttpPipeliningRequestMap;
 
   bool GetAlternateProtocolRequestFor(const GURL& original_url,
                                       GURL* alternate_url) const;
@@ -88,6 +88,11 @@ class NET_EXPORT_PRIVATE HttpStreamFactoryImpl :
 
   // Called when the Preconnect completes. Used for testing.
   virtual void OnPreconnectsCompleteInternal() {}
+
+  void AbortPipelinedRequestsWithKey(const Job* job,
+                                     const HttpPipelinedHost::Key& key,
+                                     int status,
+                                     const SSLConfig& used_ssl_config);
 
   HttpNetworkSession* const session_;
 

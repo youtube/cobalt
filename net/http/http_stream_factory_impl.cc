@@ -38,7 +38,8 @@ GURL UpgradeUrlToHttps(const GURL& original_url, int port) {
 HttpStreamFactoryImpl::HttpStreamFactoryImpl(HttpNetworkSession* session)
     : session_(session),
       http_pipelined_host_pool_(this, NULL,
-                                session_->http_server_properties()) {}
+                                session_->http_server_properties(),
+                                session_->force_http_pipelining()) {}
 
 HttpStreamFactoryImpl::~HttpStreamFactoryImpl() {
   DCHECK(request_map_.empty());
@@ -232,12 +233,16 @@ void HttpStreamFactoryImpl::OnPreconnectsComplete(const Job* job) {
 }
 
 void HttpStreamFactoryImpl::OnHttpPipelinedHostHasAdditionalCapacity(
-    const HostPortPair& origin) {
-  HttpPipelinedStream* stream;
-  while (ContainsKey(http_pipelining_request_map_, origin) &&
-         (stream = http_pipelined_host_pool_.CreateStreamOnExistingPipeline(
-             origin))) {
-    Request* request = *http_pipelining_request_map_[origin].begin();
+    HttpPipelinedHost* host) {
+  while (ContainsKey(http_pipelining_request_map_, host->GetKey())) {
+    HttpPipelinedStream* stream =
+        http_pipelined_host_pool_.CreateStreamOnExistingPipeline(
+            host->GetKey());
+    if (!stream) {
+      break;
+    }
+
+    Request* request = *http_pipelining_request_map_[host->GetKey()].begin();
     request->Complete(stream->was_npn_negotiated(),
                       stream->protocol_negotiated(),
                       false,  // not using_spdy
@@ -246,6 +251,18 @@ void HttpStreamFactoryImpl::OnHttpPipelinedHostHasAdditionalCapacity(
                            stream->used_ssl_config(),
                            stream->used_proxy_info(),
                            stream);
+  }
+}
+
+void HttpStreamFactoryImpl::AbortPipelinedRequestsWithKey(
+    const Job* job, const HttpPipelinedHost::Key& key, int status,
+    const SSLConfig& used_ssl_config) {
+  RequestSet requests_to_fail = http_pipelining_request_map_[key];
+  requests_to_fail.erase(request_map_[job]);
+  for (RequestSet::const_iterator it = requests_to_fail.begin();
+       it != requests_to_fail.end(); ++it) {
+    Request* request = *it;
+    request->OnStreamFailed(NULL, status, used_ssl_config);
   }
 }
 

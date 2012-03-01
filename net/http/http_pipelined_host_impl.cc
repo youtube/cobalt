@@ -19,36 +19,17 @@ namespace net {
 // costing too much performance. Until then, this is just a bad guess.
 static const int kNumKnownSuccessesThreshold = 3;
 
-class HttpPipelinedConnectionImplFactory :
-    public HttpPipelinedConnection::Factory {
- public:
-  HttpPipelinedConnection* CreateNewPipeline(
-      ClientSocketHandle* connection,
-      HttpPipelinedConnection::Delegate* delegate,
-      const HostPortPair& origin,
-      const SSLConfig& used_ssl_config,
-      const ProxyInfo& used_proxy_info,
-      const BoundNetLog& net_log,
-      bool was_npn_negotiated,
-      SSLClientSocket::NextProto protocol_negotiated) OVERRIDE {
-    return new HttpPipelinedConnectionImpl(connection, delegate, origin,
-                                           used_ssl_config, used_proxy_info,
-                                           net_log, was_npn_negotiated,
-                                           protocol_negotiated);
-  }
-};
-
 HttpPipelinedHostImpl::HttpPipelinedHostImpl(
     HttpPipelinedHost::Delegate* delegate,
-    const HostPortPair& origin,
+    const HttpPipelinedHost::Key& key,
     HttpPipelinedConnection::Factory* factory,
     HttpPipelinedHostCapability capability)
     : delegate_(delegate),
-      origin_(origin),
+      key_(key),
       factory_(factory),
       capability_(capability) {
   if (!factory) {
-    factory_.reset(new HttpPipelinedConnectionImplFactory());
+    factory_.reset(new HttpPipelinedConnectionImpl::Factory());
   }
 }
 
@@ -67,8 +48,8 @@ HttpPipelinedStream* HttpPipelinedHostImpl::CreateStreamOnNewPipeline(
     return NULL;
   }
   HttpPipelinedConnection* pipeline = factory_->CreateNewPipeline(
-      connection, this, origin_, used_ssl_config, used_proxy_info, net_log,
-      was_npn_negotiated, protocol_negotiated);
+      connection, this, key_.origin(), used_ssl_config, used_proxy_info,
+      net_log, was_npn_negotiated, protocol_negotiated);
   PipelineInfo info;
   pipelines_.insert(std::make_pair(pipeline, info));
   return pipeline->CreateNewStream();
@@ -100,8 +81,8 @@ bool HttpPipelinedHostImpl::IsExistingPipelineAvailable() const {
   return false;
 }
 
-const HostPortPair& HttpPipelinedHostImpl::origin() const {
-  return origin_;
+const HttpPipelinedHost::Key& HttpPipelinedHostImpl::GetKey() const {
+  return key_;
 }
 
 void HttpPipelinedHostImpl::OnPipelineEmpty(HttpPipelinedConnection* pipeline) {
@@ -214,7 +195,8 @@ Value* HttpPipelinedHostImpl::PipelineInfoToValue() const {
   for (PipelineInfoMap::const_iterator it = pipelines_.begin();
        it != pipelines_.end(); ++it) {
     DictionaryValue* pipeline_dict = new DictionaryValue;
-    pipeline_dict->SetString("host", origin_.ToString());
+    pipeline_dict->SetString("host", key_.origin().ToString());
+    pipeline_dict->SetBoolean("forced", false);
     pipeline_dict->SetInteger("depth", it->first->depth());
     pipeline_dict->SetInteger("capacity", GetPipelineCapacity());
     pipeline_dict->SetBoolean("usable", it->first->usable());
