@@ -747,6 +747,9 @@
         'configuration_policy%': 0,
         'input_speech%': 0,
         'java_bridge%': 1,
+
+        # Set to 1 once we have a notification system for Android.
+        # http://crbug.com/115320
         'notifications%': 0,
 
         # Builds the gtest targets as a shared_library.
