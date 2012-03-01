@@ -71,9 +71,18 @@
               '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/i86pc/ia32/")',
           }],
 
-          # Ash and ChromeOS require Aura.
-          ['(use_ash==1 or chromeos==1) and chromeos_gtk==0', {
+          # Non-GTK Chromeos implies ash.
+          ['chromeos==1', {
+            'use_ash%': 1,
             'use_aura%': 1,
+          }],
+
+          # For now, Windows *AND* Linux builds that |use_aura| should also
+          # imply using ash. This rule should be removed for the future when
+          # both Linux and Windows are using the aura windows without the ash
+          # interface.
+          ['use_aura==1 and ((OS=="linux" and chromeos==0) or OS=="win")', {
+            'use_ash%': 1,
           }],
 
           # Set default value of toolkit_views based on OS.
@@ -356,15 +365,10 @@
           'enable_flapper_hacks%': 0,
         }],
 
-        # Enable file manager extension on Chrome OS or Aura.
-        ['chromeos==1 or use_aura==1', {
+        # Enable file manager extension on Chrome OS.
+        ['chromeos==1', {
           'file_manager_extension%': 1,
         }, {
-          'file_manager_extension%': 0,
-        }],
-
-        # ... except on Windows even with Aura.
-        ['use_aura==1 and OS=="win"', {
           'file_manager_extension%': 0,
         }],
 
