@@ -11,7 +11,7 @@
 namespace base {
 
 // MSVC doesn't like complex extern templates and DLLs.
-#if !defined(COMPILER_MSVC)
+#if !defined(COMPILER_MSVC) && !defined(__SNC__)
 namespace internal {
 template class StringPieceDetail<std::string>;
 template class StringPieceDetail<string16>;
