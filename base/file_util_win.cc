@@ -375,8 +375,7 @@ bool CreateShortcutLink(const wchar_t *source, const wchar_t *destination,
                         int icon_index, const wchar_t* app_id) {
   base::ThreadRestrictions::AssertIOAllowed();
 
-  // Length of arguments and description must be less than MAX_PATH.
-  DCHECK(lstrlen(arguments) < MAX_PATH);
+  // Length of description must be less than MAX_PATH.
   DCHECK(lstrlen(description) < MAX_PATH);
 
   base::win::ScopedComPtr<IShellLink> i_shell_link;
