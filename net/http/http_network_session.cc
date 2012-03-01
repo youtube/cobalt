@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -29,6 +29,7 @@ HttpNetworkSession::HttpNetworkSession(const Params& params)
       http_server_properties_(params.http_server_properties),
       cert_verifier_(params.cert_verifier),
       http_auth_handler_factory_(params.http_auth_handler_factory),
+      force_http_pipelining_(params.force_http_pipelining),
       proxy_service_(params.proxy_service),
       ssl_config_service_(params.ssl_config_service),
       socket_pool_manager_(
@@ -49,7 +50,8 @@ HttpNetworkSession::HttpNetworkSession(const Params& params)
                          params.ssl_config_service,
                          params.http_server_properties),
       ALLOW_THIS_IN_INITIALIZER_LIST(http_stream_factory_(
-          new HttpStreamFactoryImpl(this))) {
+          new HttpStreamFactoryImpl(this))),
+      params_(params) {
   DCHECK(proxy_service_);
   DCHECK(ssl_config_service_);
   CHECK(http_server_properties_);

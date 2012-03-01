@@ -51,7 +51,10 @@ class HttpPipelinedNetworkTransactionTest : public testing::Test {
     HttpStreamFactory::set_http_pipelining_enabled(default_pipelining_enabled_);
   }
 
-  void Initialize() {
+  void Initialize(bool force_http_pipelining) {
+    // Normally, this code could just go in SetUp(). For a few of these tests,
+    // we change the default number of sockets per group. That needs to be done
+    // before we construct the HttpNetworkSession.
     proxy_service_.reset(ProxyService::CreateDirect());
     ssl_config_ = new SSLConfigServiceDefaults;
     auth_handler_factory_.reset(new HttpAuthHandlerMock::Factory());
@@ -63,6 +66,7 @@ class HttpPipelinedNetworkTransactionTest : public testing::Test {
     session_params.ssl_config_service = ssl_config_.get();
     session_params.http_auth_handler_factory = auth_handler_factory_.get();
     session_params.http_server_properties = &http_server_properties_;
+    session_params.force_http_pipelining = force_http_pipelining;
     session_ = new HttpNetworkSession(session_params);
   }
 
@@ -78,7 +82,7 @@ class HttpPipelinedNetworkTransactionTest : public testing::Test {
     data_vector_.push_back(data);
   }
 
-  const HttpRequestInfo* GetRequestInfo(const char* filename) {
+  HttpRequestInfo* GetRequestInfo(const char* filename) {
     std::string url = StringPrintf("http://localhost/%s", filename);
     HttpRequestInfo* request_info = new HttpRequestInfo;
     request_info->url = GURL(url);
@@ -88,11 +92,19 @@ class HttpPipelinedNetworkTransactionTest : public testing::Test {
   }
 
   void ExpectResponse(const std::string& expected,
-                      HttpNetworkTransaction& transaction) {
+                      HttpNetworkTransaction& transaction,
+                      IoMode io_mode) {
     scoped_refptr<IOBuffer> buffer(new IOBuffer(expected.size()));
-    EXPECT_EQ(static_cast<int>(expected.size()),
-              transaction.Read(buffer.get(), expected.size(),
-                               callback_.callback()));
+    if (io_mode == ASYNC) {
+      EXPECT_EQ(ERR_IO_PENDING, transaction.Read(buffer.get(), expected.size(),
+                                                 callback_.callback()));
+      data_vector_[0]->RunFor(1);
+      EXPECT_EQ(static_cast<int>(expected.length()), callback_.WaitForResult());
+    } else {
+      EXPECT_EQ(static_cast<int>(expected.size()),
+                transaction.Read(buffer.get(), expected.size(),
+                                 callback_.callback()));
+    }
     std::string actual(buffer->data(), expected.size());
     EXPECT_THAT(actual, StrEq(expected));
     EXPECT_EQ(OK, transaction.Read(buffer.get(), expected.size(),
@@ -130,7 +142,7 @@ class HttpPipelinedNetworkTransactionTest : public testing::Test {
                                         one_read_callback.callback()));
 
     EXPECT_EQ(OK, two_callback.WaitForResult());
-    ExpectResponse("two.html", two_transaction);
+    ExpectResponse("two.html", two_transaction, SYNCHRONOUS);
   }
 
   void CompleteFourRequests() {
@@ -161,15 +173,15 @@ class HttpPipelinedNetworkTransactionTest : public testing::Test {
               four_transaction.Start(GetRequestInfo("four.html"),
                                      four_callback.callback(), BoundNetLog()));
 
-    ExpectResponse("one.html", *one_transaction.get());
+    ExpectResponse("one.html", *one_transaction.get(), SYNCHRONOUS);
     EXPECT_EQ(OK, two_callback.WaitForResult());
-    ExpectResponse("two.html", two_transaction);
+    ExpectResponse("two.html", two_transaction, SYNCHRONOUS);
     EXPECT_EQ(OK, three_callback.WaitForResult());
-    ExpectResponse("three.html", three_transaction);
+    ExpectResponse("three.html", three_transaction, SYNCHRONOUS);
 
     one_transaction.reset();
     EXPECT_EQ(OK, four_callback.WaitForResult());
-    ExpectResponse("four.html", four_transaction);
+    ExpectResponse("four.html", four_transaction, SYNCHRONOUS);
   }
 
   DeterministicMockClientSocketFactory factory_;
@@ -189,7 +201,7 @@ class HttpPipelinedNetworkTransactionTest : public testing::Test {
 };
 
 TEST_F(HttpPipelinedNetworkTransactionTest, OneRequest) {
-  Initialize();
+  Initialize(false);
 
   MockWrite writes[] = {
     MockWrite(SYNCHRONOUS, 0, "GET /test.html HTTP/1.1\r\n"
@@ -208,11 +220,11 @@ TEST_F(HttpPipelinedNetworkTransactionTest, OneRequest) {
             transaction.Start(GetRequestInfo("test.html"), callback_.callback(),
                               BoundNetLog()));
   EXPECT_EQ(OK, callback_.WaitForResult());
-  ExpectResponse("test.html", transaction);
+  ExpectResponse("test.html", transaction, SYNCHRONOUS);
 }
 
 TEST_F(HttpPipelinedNetworkTransactionTest, ReusePipeline) {
-  Initialize();
+  Initialize(false);
 
   MockWrite writes[] = {
     MockWrite(SYNCHRONOUS, 0, "GET /one.html HTTP/1.1\r\n"
@@ -238,7 +250,7 @@ TEST_F(HttpPipelinedNetworkTransactionTest, ReusePipeline) {
 TEST_F(HttpPipelinedNetworkTransactionTest, ReusesOnSpaceAvailable) {
   int old_max_sockets = ClientSocketPoolManager::max_sockets_per_group();
   ClientSocketPoolManager::set_max_sockets_per_group(1);
-  Initialize();
+  Initialize(false);
 
   MockWrite writes[] = {
     MockWrite(SYNCHRONOUS, 0, "GET /one.html HTTP/1.1\r\n"
@@ -276,7 +288,7 @@ TEST_F(HttpPipelinedNetworkTransactionTest, ReusesOnSpaceAvailable) {
 }
 
 TEST_F(HttpPipelinedNetworkTransactionTest, UnknownSizeEvictsToNewPipeline) {
-  Initialize();
+  Initialize(false);
 
   MockWrite writes[] = {
     MockWrite(SYNCHRONOUS, 0, "GET /one.html HTTP/1.1\r\n"
@@ -306,7 +318,7 @@ TEST_F(HttpPipelinedNetworkTransactionTest, UnknownSizeEvictsToNewPipeline) {
 }
 
 TEST_F(HttpPipelinedNetworkTransactionTest, ConnectionCloseEvictToNewPipeline) {
-  Initialize();
+  Initialize(false);
 
   MockWrite writes[] = {
     MockWrite(SYNCHRONOUS, 0, "GET /one.html HTTP/1.1\r\n"
@@ -340,7 +352,7 @@ TEST_F(HttpPipelinedNetworkTransactionTest, ConnectionCloseEvictToNewPipeline) {
 }
 
 TEST_F(HttpPipelinedNetworkTransactionTest, ErrorEvictsToNewPipeline) {
-  Initialize();
+  Initialize(false);
 
   MockWrite writes[] = {
     MockWrite(SYNCHRONOUS, 0, "GET /one.html HTTP/1.1\r\n"
@@ -385,11 +397,11 @@ TEST_F(HttpPipelinedNetworkTransactionTest, ErrorEvictsToNewPipeline) {
   EXPECT_EQ(ERR_FAILED,
             one_transaction.Read(buffer.get(), 1, callback_.callback()));
   EXPECT_EQ(OK, two_callback.WaitForResult());
-  ExpectResponse("two.html", two_transaction);
+  ExpectResponse("two.html", two_transaction, SYNCHRONOUS);
 }
 
 TEST_F(HttpPipelinedNetworkTransactionTest, SendErrorEvictsToNewPipeline) {
-  Initialize();
+  Initialize(false);
 
   MockWrite writes[] = {
     MockWrite(ASYNC, ERR_FAILED, 0),
@@ -424,11 +436,11 @@ TEST_F(HttpPipelinedNetworkTransactionTest, SendErrorEvictsToNewPipeline) {
   EXPECT_EQ(ERR_FAILED, one_callback.WaitForResult());
 
   EXPECT_EQ(OK, two_callback.WaitForResult());
-  ExpectResponse("two.html", two_transaction);
+  ExpectResponse("two.html", two_transaction, SYNCHRONOUS);
 }
 
 TEST_F(HttpPipelinedNetworkTransactionTest, RedirectDrained) {
-  Initialize();
+  Initialize(false);
 
   MockWrite writes[] = {
     MockWrite(SYNCHRONOUS, 0, "GET /redirect.html HTTP/1.1\r\n"
@@ -467,11 +479,11 @@ TEST_F(HttpPipelinedNetworkTransactionTest, RedirectDrained) {
   data_vector_[0]->SetStop(10);
 
   EXPECT_EQ(OK, two_callback.WaitForResult());
-  ExpectResponse("two.html", two_transaction);
+  ExpectResponse("two.html", two_transaction, SYNCHRONOUS);
 }
 
 TEST_F(HttpPipelinedNetworkTransactionTest, BasicHttpAuthentication) {
-  Initialize();
+  Initialize(false);
 
   MockWrite writes[] = {
     MockWrite(SYNCHRONOUS, 0, "GET /one.html HTTP/1.1\r\n"
@@ -514,11 +526,11 @@ TEST_F(HttpPipelinedNetworkTransactionTest, BasicHttpAuthentication) {
   AuthCredentials credentials(ASCIIToUTF16("user"), ASCIIToUTF16("pass"));
   EXPECT_EQ(OK, transaction.RestartWithAuth(credentials, callback_.callback()));
 
-  ExpectResponse("one.html", transaction);
+  ExpectResponse("one.html", transaction, SYNCHRONOUS);
 }
 
 TEST_F(HttpPipelinedNetworkTransactionTest, OldVersionDisablesPipelining) {
-  Initialize();
+  Initialize(false);
 
   MockWrite writes[] = {
     MockWrite(SYNCHRONOUS, 0, "GET /pipelined.html HTTP/1.1\r\n"
@@ -564,7 +576,7 @@ TEST_F(HttpPipelinedNetworkTransactionTest, OldVersionDisablesPipelining) {
             one_transaction.Start(GetRequestInfo("pipelined.html"),
                                   one_callback.callback(), BoundNetLog()));
   EXPECT_EQ(OK, one_callback.WaitForResult());
-  ExpectResponse("pipelined.html", one_transaction);
+  ExpectResponse("pipelined.html", one_transaction, SYNCHRONOUS);
 
   CompleteTwoRequests(1, 4);
 }
@@ -576,7 +588,7 @@ TEST_F(HttpPipelinedNetworkTransactionTest, PipelinesImmediatelyIfKnownGood) {
   // new HttpPipelinedConnection.
   int old_max_sockets = ClientSocketPoolManager::max_sockets_per_group();
   ClientSocketPoolManager::set_max_sockets_per_group(1);
-  Initialize();
+  Initialize(false);
 
   MockWrite writes[] = {
     MockWrite(SYNCHRONOUS, 0, "GET /one.html HTTP/1.1\r\n"
@@ -640,9 +652,11 @@ TEST_F(HttpPipelinedNetworkTransactionTest, PipelinesImmediatelyIfKnownGood) {
   data_vector_[0]->RunFor(3);
   EXPECT_EQ(OK, second_one_callback.WaitForResult());
   data_vector_[0]->StopAfter(100);
-  ExpectResponse("second-pipeline-one.html", second_one_transaction);
+  ExpectResponse("second-pipeline-one.html", second_one_transaction,
+                 SYNCHRONOUS);
   EXPECT_EQ(OK, second_two_callback.WaitForResult());
-  ExpectResponse("second-pipeline-two.html", second_two_transaction);
+  ExpectResponse("second-pipeline-two.html", second_two_transaction,
+                 SYNCHRONOUS);
 
   ClientSocketPoolManager::set_max_sockets_per_group(old_max_sockets);
 }
@@ -684,7 +698,7 @@ TEST_F(HttpPipelinedNetworkTransactionTest, OpenPipelinesWhileBinding) {
   // 6. The pipeline from #2 is deleted because it has no streams.
   // 7. On the second iteration, the host tries to notify the pipeline from step
   // #2 that it has capacity. This is a use-after-free.
-  Initialize();
+  Initialize(false);
 
   MockWrite writes[] = {
     MockWrite(SYNCHRONOUS, 0, "GET /one.html HTTP/1.1\r\n"
@@ -735,9 +749,115 @@ TEST_F(HttpPipelinedNetworkTransactionTest, OpenPipelinesWhileBinding) {
   data_vector_[0]->SetStop(10);
 
   EXPECT_EQ(OK, one_callback.WaitForResult());
-  ExpectResponse("one.html", one_transaction);
+  ExpectResponse("one.html", one_transaction, SYNCHRONOUS);
   EXPECT_EQ(OK, two_callback.WaitForResult());
-  ExpectResponse("two.html", two_transaction);
+  ExpectResponse("two.html", two_transaction, SYNCHRONOUS);
+}
+
+TEST_F(HttpPipelinedNetworkTransactionTest, ForcedPipelineSharesConnection) {
+  Initialize(true);
+
+  MockWrite writes[] = {
+    MockWrite(ASYNC, 0, "GET /one.html HTTP/1.1\r\n"
+              "Host: localhost\r\n"
+              "Connection: keep-alive\r\n\r\n"
+              "GET /two.html HTTP/1.1\r\n"
+              "Host: localhost\r\n"
+              "Connection: keep-alive\r\n\r\n"),
+  };
+  MockRead reads[] = {
+    MockRead(ASYNC, 1, "HTTP/1.1 200 OK\r\n"),
+    MockRead(ASYNC, 2, "Content-Length: 8\r\n\r\n"),
+    MockRead(ASYNC, 3, "one.html"),
+    MockRead(ASYNC, 4, "HTTP/1.1 200 OK\r\n"),
+    MockRead(ASYNC, 5, "Content-Length: 8\r\n\r\n"),
+    MockRead(ASYNC, 6, "two.html"),
+  };
+  AddExpectedConnection(reads, arraysize(reads), writes, arraysize(writes));
+
+  scoped_ptr<HttpNetworkTransaction> one_transaction(
+      new HttpNetworkTransaction(session_.get()));
+  TestCompletionCallback one_callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            one_transaction->Start(GetRequestInfo("one.html"),
+                                   one_callback.callback(), BoundNetLog()));
+
+  HttpNetworkTransaction two_transaction(session_.get());
+  TestCompletionCallback two_callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            two_transaction.Start(GetRequestInfo("two.html"),
+                                  two_callback.callback(), BoundNetLog()));
+
+  data_vector_[0]->RunFor(3);  // Send + 2 lines of headers.
+  EXPECT_EQ(OK, one_callback.WaitForResult());
+  ExpectResponse("one.html", *one_transaction.get(), ASYNC);
+  one_transaction.reset();
+
+  data_vector_[0]->RunFor(2);  // 2 lines of headers.
+  EXPECT_EQ(OK, two_callback.WaitForResult());
+  ExpectResponse("two.html", two_transaction, ASYNC);
+}
+
+TEST_F(HttpPipelinedNetworkTransactionTest,
+       ForcedPipelineConnectionErrorFailsBoth) {
+  Initialize(true);
+
+  scoped_refptr<DeterministicSocketData> data(
+      new DeterministicSocketData(NULL, 0, NULL, 0));
+  data->set_connect_data(MockConnect(ASYNC, ERR_FAILED));
+  factory_.AddSocketDataProvider(data);
+
+  scoped_ptr<HttpNetworkTransaction> one_transaction(
+      new HttpNetworkTransaction(session_.get()));
+  TestCompletionCallback one_callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            one_transaction->Start(GetRequestInfo("one.html"),
+                                   one_callback.callback(), BoundNetLog()));
+
+  HttpNetworkTransaction two_transaction(session_.get());
+  TestCompletionCallback two_callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            two_transaction.Start(GetRequestInfo("two.html"),
+                                  two_callback.callback(), BoundNetLog()));
+
+  data->Run();
+  EXPECT_EQ(ERR_FAILED, one_callback.WaitForResult());
+  EXPECT_EQ(ERR_FAILED, two_callback.WaitForResult());
+}
+
+TEST_F(HttpPipelinedNetworkTransactionTest, ForcedPipelineEvictionIsFatal) {
+  Initialize(true);
+
+  MockWrite writes[] = {
+    MockWrite(ASYNC, 0, "GET /one.html HTTP/1.1\r\n"
+              "Host: localhost\r\n"
+              "Connection: keep-alive\r\n\r\n"
+              "GET /two.html HTTP/1.1\r\n"
+              "Host: localhost\r\n"
+              "Connection: keep-alive\r\n\r\n"),
+  };
+  MockRead reads[] = {
+    MockRead(ASYNC, ERR_FAILED, 1),
+  };
+  AddExpectedConnection(reads, arraysize(reads), writes, arraysize(writes));
+
+  scoped_ptr<HttpNetworkTransaction> one_transaction(
+      new HttpNetworkTransaction(session_.get()));
+  TestCompletionCallback one_callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            one_transaction->Start(GetRequestInfo("one.html"),
+                                   one_callback.callback(), BoundNetLog()));
+
+  HttpNetworkTransaction two_transaction(session_.get());
+  TestCompletionCallback two_callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            two_transaction.Start(GetRequestInfo("two.html"),
+                                  two_callback.callback(), BoundNetLog()));
+
+  data_vector_[0]->RunFor(2);
+  EXPECT_EQ(ERR_FAILED, one_callback.WaitForResult());
+  one_transaction.reset();
+  EXPECT_EQ(ERR_PIPELINE_EVICTION, two_callback.WaitForResult());
 }
 
 }  // anonymous namespace

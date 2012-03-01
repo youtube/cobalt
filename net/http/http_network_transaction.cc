@@ -1209,6 +1209,14 @@ int HttpNetworkTransaction::HandleIOError(int error) {
       }
       break;
     case ERR_PIPELINE_EVICTION:
+      if (!session_->force_http_pipelining()) {
+        net_log_.AddEvent(
+            NetLog::TYPE_HTTP_TRANSACTION_RESTART_AFTER_ERROR,
+            make_scoped_refptr(new NetLogIntegerParameter("net_error", error)));
+        ResetConnectionAndRequestForResend();
+        error = OK;
+      }
+      break;
     case ERR_SPDY_PING_FAILED:
     case ERR_SPDY_SERVER_REFUSED_STREAM:
       net_log_.AddEvent(

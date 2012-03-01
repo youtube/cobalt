@@ -13,6 +13,7 @@
 #include "net/base/ssl_config_service.h"
 #include "net/http/http_auth.h"
 #include "net/http/http_auth_controller.h"
+#include "net/http/http_pipelined_host.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_stream_factory_impl.h"
 #include "net/proxy/proxy_service.h"
@@ -279,6 +280,9 @@ class HttpStreamFactoryImpl::Job {
 
   // Only used if |new_spdy_session_| is non-NULL.
   bool spdy_session_direct_;
+
+  // Key used to identify the HttpPipelinedHost for |request_|.
+  scoped_ptr<HttpPipelinedHost::Key> http_pipelining_key_;
 
   // True if an existing pipeline can handle this job's request.
   bool existing_available_pipeline_;
