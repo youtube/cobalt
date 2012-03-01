@@ -1,10 +1,11 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/http/http_pipelined_host_pool.h"
 
 #include "base/memory/scoped_ptr.h"
+#include "base/rand_util.h"
 #include "net/base/ssl_config_service.h"
 #include "net/http/http_pipelined_host.h"
 #include "net/http/http_pipelined_host_capability.h"
@@ -30,21 +31,23 @@ HttpPipelinedStream* kDummyStream =
 class MockPoolDelegate : public HttpPipelinedHostPool::Delegate {
  public:
   MOCK_METHOD1(OnHttpPipelinedHostHasAdditionalCapacity,
-               void(const HostPortPair& origin));
+               void(HttpPipelinedHost* host));
 };
 
 class MockHostFactory : public HttpPipelinedHost::Factory {
  public:
-  MOCK_METHOD4(CreateNewHost, HttpPipelinedHost*(
-      HttpPipelinedHost::Delegate* delegate, const HostPortPair& origin,
+  MOCK_METHOD5(CreateNewHost, HttpPipelinedHost*(
+      HttpPipelinedHost::Delegate* delegate,
+      const HttpPipelinedHost::Key& key,
       HttpPipelinedConnection::Factory* factory,
-      HttpPipelinedHostCapability capability));
+      HttpPipelinedHostCapability capability,
+      bool force_pipelining));
 };
 
 class MockHost : public HttpPipelinedHost {
  public:
-  MockHost(const HostPortPair& origin)
-      : origin_(origin) {
+  MockHost(const Key& key)
+      : key_(key) {
   }
 
   MOCK_METHOD6(CreateStreamOnNewPipeline, HttpPipelinedStream*(
@@ -58,42 +61,59 @@ class MockHost : public HttpPipelinedHost {
   MOCK_CONST_METHOD0(IsExistingPipelineAvailable, bool());
   MOCK_CONST_METHOD0(PipelineInfoToValue, base::Value*());
 
-  virtual const HostPortPair& origin() const OVERRIDE { return origin_; }
+  virtual const Key& GetKey() const OVERRIDE { return key_; }
 
  private:
-  HostPortPair origin_;
+  Key key_;
 };
 
 class HttpPipelinedHostPoolTest : public testing::Test {
  public:
   HttpPipelinedHostPoolTest()
-      : origin_("host", 123),
+      : key_(HostPortPair("host", 123)),
         factory_(new MockHostFactory),  // Owned by pool_.
-        host_(new MockHost(origin_)),  // Owned by pool_.
+        host_(new MockHost(key_)),  // Owned by pool_.
         http_server_properties_(new HttpServerPropertiesImpl),
         pool_(new HttpPipelinedHostPool(&delegate_, factory_,
-                                        http_server_properties_.get())),
+                                        http_server_properties_.get(), false)),
         was_npn_negotiated_(false),
         protocol_negotiated_(SSLClientSocket::kProtoUnknown) {
   }
 
-  void CreateDummyStream() {
-    EXPECT_CALL(*host_, CreateStreamOnNewPipeline(kDummyConnection,
-                                                  Ref(ssl_config_),
-                                                  Ref(proxy_info_),
-                                                  Ref(net_log_),
-                                                  was_npn_negotiated_,
-                                                  protocol_negotiated_))
+  void CreateDummyStream(const HttpPipelinedHost::Key& key,
+                         ClientSocketHandle* connection,
+                         HttpPipelinedStream* stream,
+                         MockHost* host) {
+    EXPECT_CALL(*host, CreateStreamOnNewPipeline(connection,
+                                                 Ref(ssl_config_),
+                                                 Ref(proxy_info_),
+                                                 Ref(net_log_),
+                                                 was_npn_negotiated_,
+                                                 protocol_negotiated_))
         .Times(1)
-        .WillOnce(Return(kDummyStream));
-    EXPECT_EQ(kDummyStream,
-              pool_->CreateStreamOnNewPipeline(origin_, kDummyConnection,
+        .WillOnce(Return(stream));
+    EXPECT_EQ(stream,
+              pool_->CreateStreamOnNewPipeline(key, connection,
                                                ssl_config_, proxy_info_,
                                                net_log_, was_npn_negotiated_,
                                                protocol_negotiated_));
   }
 
-  HostPortPair origin_;
+  MockHost* CreateDummyHost(const HttpPipelinedHost::Key& key) {
+    MockHost* mock_host = new MockHost(key);
+    EXPECT_CALL(*factory_, CreateNewHost(pool_.get(), Ref(key), _,
+                                         PIPELINE_UNKNOWN, false))
+        .Times(1)
+        .WillOnce(Return(mock_host));
+    ClientSocketHandle* dummy_connection =
+        reinterpret_cast<ClientSocketHandle*>(base::RandUint64());
+    HttpPipelinedStream* dummy_stream =
+        reinterpret_cast<HttpPipelinedStream*>(base::RandUint64());
+    CreateDummyStream(key, dummy_connection, dummy_stream, mock_host);
+    return mock_host;
+  }
+
+  HttpPipelinedHost::Key key_;
   MockPoolDelegate delegate_;
   MockHostFactory* factory_;
   MockHost* host_;
@@ -108,96 +128,131 @@ class HttpPipelinedHostPoolTest : public testing::Test {
 };
 
 TEST_F(HttpPipelinedHostPoolTest, DefaultUnknown) {
-  EXPECT_TRUE(pool_->IsHostEligibleForPipelining(origin_));
-  EXPECT_CALL(*factory_, CreateNewHost(pool_.get(), Ref(origin_), _,
-                                       PIPELINE_UNKNOWN))
+  EXPECT_TRUE(pool_->IsKeyEligibleForPipelining(key_));
+  EXPECT_CALL(*factory_, CreateNewHost(pool_.get(), Ref(key_), _,
+                                       PIPELINE_UNKNOWN, false))
       .Times(1)
       .WillOnce(Return(host_));
 
-  CreateDummyStream();
+  CreateDummyStream(key_, kDummyConnection, kDummyStream, host_);
   pool_->OnHostIdle(host_);
 }
 
 TEST_F(HttpPipelinedHostPoolTest, RemembersIncapable) {
-  EXPECT_CALL(*factory_, CreateNewHost(pool_.get(), Ref(origin_), _,
-                                       PIPELINE_UNKNOWN))
+  EXPECT_CALL(*factory_, CreateNewHost(pool_.get(), Ref(key_), _,
+                                       PIPELINE_UNKNOWN, false))
       .Times(1)
       .WillOnce(Return(host_));
 
-  CreateDummyStream();
+  CreateDummyStream(key_, kDummyConnection, kDummyStream, host_);
   pool_->OnHostDeterminedCapability(host_, PIPELINE_INCAPABLE);
   pool_->OnHostIdle(host_);
-  EXPECT_FALSE(pool_->IsHostEligibleForPipelining(origin_));
-  EXPECT_CALL(*factory_, CreateNewHost(pool_.get(), Ref(origin_), _,
-                                       PIPELINE_INCAPABLE))
+  EXPECT_FALSE(pool_->IsKeyEligibleForPipelining(key_));
+  EXPECT_CALL(*factory_, CreateNewHost(pool_.get(), Ref(key_), _,
+                                       PIPELINE_INCAPABLE, false))
       .Times(0);
   EXPECT_EQ(NULL,
-            pool_->CreateStreamOnNewPipeline(origin_, kDummyConnection,
+            pool_->CreateStreamOnNewPipeline(key_, kDummyConnection,
                                              ssl_config_, proxy_info_, net_log_,
                                              was_npn_negotiated_,
                                              protocol_negotiated_));
 }
 
 TEST_F(HttpPipelinedHostPoolTest, RemembersCapable) {
-  EXPECT_CALL(*factory_, CreateNewHost(pool_.get(), Ref(origin_), _,
-                                       PIPELINE_UNKNOWN))
+  EXPECT_CALL(*factory_, CreateNewHost(pool_.get(), Ref(key_), _,
+                                       PIPELINE_UNKNOWN, false))
       .Times(1)
       .WillOnce(Return(host_));
 
-  CreateDummyStream();
+  CreateDummyStream(key_, kDummyConnection, kDummyStream, host_);
   pool_->OnHostDeterminedCapability(host_, PIPELINE_CAPABLE);
   pool_->OnHostIdle(host_);
-  EXPECT_TRUE(pool_->IsHostEligibleForPipelining(origin_));
+  EXPECT_TRUE(pool_->IsKeyEligibleForPipelining(key_));
 
-  host_ = new MockHost(origin_);
-  EXPECT_CALL(*factory_, CreateNewHost(pool_.get(), Ref(origin_), _,
-                                       PIPELINE_CAPABLE))
+  host_ = new MockHost(key_);
+  EXPECT_CALL(*factory_, CreateNewHost(pool_.get(), Ref(key_), _,
+                                       PIPELINE_CAPABLE, false))
       .Times(1)
       .WillOnce(Return(host_));
-  CreateDummyStream();
+  CreateDummyStream(key_, kDummyConnection, kDummyStream, host_);
   pool_->OnHostIdle(host_);
 }
 
 TEST_F(HttpPipelinedHostPoolTest, IncapableIsSticky) {
-  EXPECT_CALL(*factory_, CreateNewHost(pool_.get(), Ref(origin_), _,
-                                       PIPELINE_UNKNOWN))
+  EXPECT_CALL(*factory_, CreateNewHost(pool_.get(), Ref(key_), _,
+                                       PIPELINE_UNKNOWN, false))
       .Times(1)
       .WillOnce(Return(host_));
 
-  CreateDummyStream();
+  CreateDummyStream(key_, kDummyConnection, kDummyStream, host_);
   pool_->OnHostDeterminedCapability(host_, PIPELINE_CAPABLE);
   pool_->OnHostDeterminedCapability(host_, PIPELINE_INCAPABLE);
   pool_->OnHostDeterminedCapability(host_, PIPELINE_CAPABLE);
   pool_->OnHostIdle(host_);
-  EXPECT_FALSE(pool_->IsHostEligibleForPipelining(origin_));
+  EXPECT_FALSE(pool_->IsKeyEligibleForPipelining(key_));
 }
 
 TEST_F(HttpPipelinedHostPoolTest, RemainsUnknownWithoutFeedback) {
-  EXPECT_CALL(*factory_, CreateNewHost(pool_.get(), Ref(origin_), _,
-                                       PIPELINE_UNKNOWN))
+  EXPECT_CALL(*factory_, CreateNewHost(pool_.get(), Ref(key_), _,
+                                       PIPELINE_UNKNOWN, false))
       .Times(1)
       .WillOnce(Return(host_));
 
-  CreateDummyStream();
+  CreateDummyStream(key_, kDummyConnection, kDummyStream, host_);
   pool_->OnHostIdle(host_);
-  EXPECT_TRUE(pool_->IsHostEligibleForPipelining(origin_));
+  EXPECT_TRUE(pool_->IsKeyEligibleForPipelining(key_));
 
-  host_ = new MockHost(origin_);
-  EXPECT_CALL(*factory_, CreateNewHost(pool_.get(), Ref(origin_), _,
-                                       PIPELINE_UNKNOWN))
+  host_ = new MockHost(key_);
+  EXPECT_CALL(*factory_, CreateNewHost(pool_.get(), Ref(key_), _,
+                                       PIPELINE_UNKNOWN, false))
       .Times(1)
       .WillOnce(Return(host_));
 
-  CreateDummyStream();
+  CreateDummyStream(key_, kDummyConnection, kDummyStream, host_);
   pool_->OnHostIdle(host_);
 }
 
 TEST_F(HttpPipelinedHostPoolTest, PopulatesServerProperties) {
   EXPECT_EQ(PIPELINE_UNKNOWN,
-            http_server_properties_->GetPipelineCapability(host_->origin()));
+            http_server_properties_->GetPipelineCapability(
+                host_->GetKey().origin()));
   pool_->OnHostDeterminedCapability(host_, PIPELINE_CAPABLE);
   EXPECT_EQ(PIPELINE_CAPABLE,
-            http_server_properties_->GetPipelineCapability(host_->origin()));
+            http_server_properties_->GetPipelineCapability(
+                host_->GetKey().origin()));
+  delete host_;  // Must manually delete, because it's never added to |pool_|.
+}
+
+TEST_F(HttpPipelinedHostPoolTest, MultipleKeys) {
+  HttpPipelinedHost::Key key1(HostPortPair("host", 123));
+  HttpPipelinedHost::Key key2(HostPortPair("host", 456));
+  HttpPipelinedHost::Key key3(HostPortPair("other", 456));
+  HttpPipelinedHost::Key key4(HostPortPair("other", 789));
+  MockHost* host1 = CreateDummyHost(key1);
+  MockHost* host2 = CreateDummyHost(key2);
+  MockHost* host3 = CreateDummyHost(key3);
+
+  EXPECT_CALL(*host1, IsExistingPipelineAvailable())
+      .Times(1)
+      .WillOnce(Return(true));
+  EXPECT_EQ(true, pool_->IsExistingPipelineAvailableForKey(key1));
+
+  EXPECT_CALL(*host2, IsExistingPipelineAvailable())
+      .Times(1)
+      .WillOnce(Return(false));
+  EXPECT_EQ(false, pool_->IsExistingPipelineAvailableForKey(key2));
+
+  EXPECT_CALL(*host3, IsExistingPipelineAvailable())
+      .Times(1)
+      .WillOnce(Return(true));
+  EXPECT_EQ(true, pool_->IsExistingPipelineAvailableForKey(key3));
+
+  EXPECT_EQ(false, pool_->IsExistingPipelineAvailableForKey(key4));
+
+  pool_->OnHostIdle(host1);
+  pool_->OnHostIdle(host2);
+  pool_->OnHostIdle(host3);
+
   delete host_;  // Must manually delete, because it's never added to |pool_|.
 }
 

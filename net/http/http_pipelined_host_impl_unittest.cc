@@ -7,6 +7,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "net/base/ssl_config_service.h"
 #include "net/http/http_pipelined_connection.h"
+#include "net/http/http_pipelined_host_test_util.h"
 #include "net/proxy/proxy_info.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -26,81 +27,25 @@ ClientSocketHandle* kDummyConnection =
 HttpPipelinedStream* kDummyStream =
     reinterpret_cast<HttpPipelinedStream*>(42);
 
-class MockHostDelegate : public HttpPipelinedHost::Delegate {
- public:
-  MOCK_METHOD1(OnHostIdle, void(HttpPipelinedHost* host));
-  MOCK_METHOD1(OnHostHasAdditionalCapacity, void(HttpPipelinedHost* host));
-  MOCK_METHOD2(OnHostDeterminedCapability,
-               void(HttpPipelinedHost* host,
-                    HttpPipelinedHostCapability capability));
-};
-
-class MockPipelineFactory : public HttpPipelinedConnection::Factory {
- public:
-  MOCK_METHOD8(CreateNewPipeline, HttpPipelinedConnection*(
-      ClientSocketHandle* connection,
-      HttpPipelinedConnection::Delegate* delegate,
-      const HostPortPair& origin,
-      const SSLConfig& used_ssl_config,
-      const ProxyInfo& used_proxy_info,
-      const BoundNetLog& net_log,
-      bool was_npn_negotiated,
-      SSLClientSocket::NextProto protocol_negotiated));
-};
-
-class MockPipeline : public HttpPipelinedConnection {
- public:
-  MockPipeline(int depth, bool usable, bool active)
-      : depth_(depth),
-        usable_(usable),
-        active_(active) {
-  }
-
-  void SetState(int depth, bool usable, bool active) {
-    depth_ = depth;
-    usable_ = usable;
-    active_ = active;
-  }
-
-  virtual int depth() const OVERRIDE { return depth_; }
-  virtual bool usable() const OVERRIDE { return usable_; }
-  virtual bool active() const OVERRIDE { return active_; }
-
-  MOCK_METHOD0(CreateNewStream, HttpPipelinedStream*());
-  MOCK_METHOD1(OnStreamDeleted, void(int pipeline_id));
-  MOCK_CONST_METHOD0(used_ssl_config, const SSLConfig&());
-  MOCK_CONST_METHOD0(used_proxy_info, const ProxyInfo&());
-  MOCK_CONST_METHOD0(net_log, const BoundNetLog&());
-  MOCK_CONST_METHOD0(was_npn_negotiated, bool());
-  MOCK_CONST_METHOD0(protocol_negotiated, SSLClientSocket::NextProto());
-
- private:
-  int depth_;
-  bool usable_;
-  bool active_;
-};
-
-MATCHER_P(MatchesOrigin, expected, "") { return expected.Equals(arg); }
-
 class HttpPipelinedHostImplTest : public testing::Test {
  public:
   HttpPipelinedHostImplTest()
-      : origin_("host", 123),
+      : key_(HostPortPair("host", 123)),
         factory_(new MockPipelineFactory),  // Owned by host_.
-        host_(new HttpPipelinedHostImpl(&delegate_, origin_, factory_,
+        host_(new HttpPipelinedHostImpl(&delegate_, key_, factory_,
                                         PIPELINE_CAPABLE)) {
   }
 
   void SetCapability(HttpPipelinedHostCapability capability) {
     factory_ = new MockPipelineFactory;
     host_.reset(new HttpPipelinedHostImpl(
-        &delegate_, origin_, factory_, capability));
+        &delegate_, key_, factory_, capability));
   }
 
   MockPipeline* AddTestPipeline(int depth, bool usable, bool active) {
     MockPipeline* pipeline = new MockPipeline(depth, usable, active);
     EXPECT_CALL(*factory_, CreateNewPipeline(kDummyConnection, host_.get(),
-                                             MatchesOrigin(origin_),
+                                             MatchesOrigin(key_.origin()),
                                              Ref(ssl_config_), Ref(proxy_info_),
                                              Ref(net_log_), true,
                                              SSLClientSocket::kProtoSPDY21))
@@ -121,7 +66,7 @@ class HttpPipelinedHostImplTest : public testing::Test {
   }
 
   NiceMock<MockHostDelegate> delegate_;
-  HostPortPair origin_;
+  HttpPipelinedHost::Key key_;
   MockPipelineFactory* factory_;
   scoped_ptr<HttpPipelinedHostImpl> host_;
 
@@ -131,7 +76,7 @@ class HttpPipelinedHostImplTest : public testing::Test {
 };
 
 TEST_F(HttpPipelinedHostImplTest, Delegate) {
-  EXPECT_TRUE(origin_.Equals(host_->origin()));
+  EXPECT_TRUE(key_.origin().Equals(host_->GetKey().origin()));
 }
 
 TEST_F(HttpPipelinedHostImplTest, OnUnusablePipelineHasCapacity) {
