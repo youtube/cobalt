@@ -22,18 +22,14 @@ using base::android::ScopedJavaLocalRef;
 
 // Step 1: forward declarations.
 namespace {
-const char* const kInnerClassClassPath =
+const char kInnerClassClassPath[] =
     "org/chromium/example/jni_generator/SampleForTests$InnerClass";
-const char* const kSampleForTestsClassPath =
+const char kSampleForTestsClassPath[] =
     "org/chromium/example/jni_generator/SampleForTests";
-// Leaking this JavaRef as we cannot use LazyInstance from some threads.
-base::android::ScopedJavaGlobalRef<jclass>&
-    g_InnerClass_clazz =
-        *(new base::android::ScopedJavaGlobalRef<jclass>());
-// Leaking this JavaRef as we cannot use LazyInstance from some threads.
-base::android::ScopedJavaGlobalRef<jclass>&
-    g_SampleForTests_clazz =
-        *(new base::android::ScopedJavaGlobalRef<jclass>());
+// Leaking this jclass as we cannot use LazyInstance from some threads.
+jclass g_InnerClass_clazz = NULL;
+// Leaking this jclass as we cannot use LazyInstance from some threads.
+jclass g_SampleForTests_clazz = NULL;
 }  // namespace
 
 static jint Init(JNIEnv* env, jobject obj);
@@ -90,7 +86,7 @@ static jmethodID g_SampleForTests_javaMethod = 0;
 static jint Java_SampleForTests_javaMethod(JNIEnv* env, jobject obj, jint foo,
     jint bar) {
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_SampleForTests_clazz.is_null());
+  DCHECK(g_SampleForTests_clazz);
   DCHECK(g_SampleForTests_javaMethod);
   jint ret =
     env->CallIntMethod(obj,
@@ -102,10 +98,10 @@ static jint Java_SampleForTests_javaMethod(JNIEnv* env, jobject obj, jint foo,
 static jmethodID g_SampleForTests_staticJavaMethod = 0;
 static jboolean Java_SampleForTests_staticJavaMethod(JNIEnv* env) {
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_SampleForTests_clazz.is_null());
+  DCHECK(g_SampleForTests_clazz);
   DCHECK(g_SampleForTests_staticJavaMethod);
   jboolean ret =
-    env->CallStaticBooleanMethod(g_SampleForTests_clazz.obj(),
+    env->CallStaticBooleanMethod(g_SampleForTests_clazz,
       g_SampleForTests_staticJavaMethod);
   base::android::CheckException(env);
   return ret;
@@ -115,7 +111,7 @@ static jmethodID g_SampleForTests_packagePrivateJavaMethod = 0;
 static void Java_SampleForTests_packagePrivateJavaMethod(JNIEnv* env, jobject
     obj) {
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_SampleForTests_clazz.is_null());
+  DCHECK(g_SampleForTests_clazz);
   DCHECK(g_SampleForTests_packagePrivateJavaMethod);
 
   env->CallVoidMethod(obj,
@@ -128,7 +124,7 @@ static jmethodID g_SampleForTests_methodThatThrowsException = 0;
 static void Java_SampleForTests_methodThatThrowsException(JNIEnv* env, jobject
     obj) {
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_SampleForTests_clazz.is_null());
+  DCHECK(g_SampleForTests_clazz);
   DCHECK(g_SampleForTests_methodThatThrowsException);
 
   env->CallVoidMethod(obj,
@@ -140,7 +136,7 @@ static void Java_SampleForTests_methodThatThrowsException(JNIEnv* env, jobject
 static jmethodID g_InnerClass_JavaInnerMethod = 0;
 static jfloat Java_InnerClass_JavaInnerMethod(JNIEnv* env, jobject obj) {
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_InnerClass_clazz.is_null());
+  DCHECK(g_InnerClass_clazz);
   DCHECK(g_InnerClass_JavaInnerMethod);
   jfloat ret =
     env->CallFloatMethod(obj,
@@ -152,10 +148,10 @@ static jfloat Java_InnerClass_JavaInnerMethod(JNIEnv* env, jobject obj) {
 static jmethodID g_InnerClass_javaInnerFunction = 0;
 static void Java_InnerClass_javaInnerFunction(JNIEnv* env) {
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_InnerClass_clazz.is_null());
+  DCHECK(g_InnerClass_clazz);
   DCHECK(g_InnerClass_javaInnerFunction);
 
-  env->CallStaticVoidMethod(g_InnerClass_clazz.obj(),
+  env->CallStaticVoidMethod(g_InnerClass_clazz,
       g_InnerClass_javaInnerFunction);
   base::android::CheckException(env);
 
@@ -165,13 +161,14 @@ static void Java_InnerClass_javaInnerFunction(JNIEnv* env) {
 
 
 static void GetMethodIDsImpl(JNIEnv* env) {
-  g_InnerClass_clazz.Reset(
-      base::android::GetClass(env, kInnerClassClassPath));
-  g_SampleForTests_clazz.Reset(
-      base::android::GetClass(env, kSampleForTestsClassPath));
-  g_SampleForTests_javaMethod = base::android::GetMethodID(
-    env, g_SampleForTests_clazz,
-    "javaMethod",
+  g_InnerClass_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
+      base::android::GetUnscopedClass(env, kInnerClassClassPath)));
+  g_SampleForTests_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
+      base::android::GetUnscopedClass(env, kSampleForTestsClassPath)));
+  g_SampleForTests_javaMethod =
+      base::android::GetMethodID(
+          env, g_SampleForTests_clazz,
+          "javaMethod",
 
 "("
 "I"
@@ -179,41 +176,46 @@ static void GetMethodIDsImpl(JNIEnv* env) {
 ")"
 "I");
 
-  g_SampleForTests_staticJavaMethod = base::android::GetStaticMethodID(
-    env, g_SampleForTests_clazz,
-    "staticJavaMethod",
+  g_SampleForTests_staticJavaMethod =
+      base::android::GetStaticMethodID(
+          env, g_SampleForTests_clazz,
+          "staticJavaMethod",
 
 "("
 ")"
 "Z");
 
-  g_SampleForTests_packagePrivateJavaMethod = base::android::GetMethodID(
-    env, g_SampleForTests_clazz,
-    "packagePrivateJavaMethod",
+  g_SampleForTests_packagePrivateJavaMethod =
+      base::android::GetMethodID(
+          env, g_SampleForTests_clazz,
+          "packagePrivateJavaMethod",
 
 "("
 ")"
 "V");
 
-  g_SampleForTests_methodThatThrowsException = base::android::GetMethodID(
-    env, g_SampleForTests_clazz,
-    "methodThatThrowsException",
+  g_SampleForTests_methodThatThrowsException =
+      base::android::GetMethodID(
+          env, g_SampleForTests_clazz,
+          "methodThatThrowsException",
 
 "("
 ")"
 "V");
 
-  g_InnerClass_JavaInnerMethod = base::android::GetMethodID(
-    env, g_InnerClass_clazz,
-    "JavaInnerMethod",
+  g_InnerClass_JavaInnerMethod =
+      base::android::GetMethodID(
+          env, g_InnerClass_clazz,
+          "JavaInnerMethod",
 
 "("
 ")"
 "F");
 
-  g_InnerClass_javaInnerFunction = base::android::GetStaticMethodID(
-    env, g_InnerClass_clazz,
-    "javaInnerFunction",
+  g_InnerClass_javaInnerFunction =
+      base::android::GetStaticMethodID(
+          env, g_InnerClass_clazz,
+          "javaInnerFunction",
 
 "("
 ")"
@@ -237,7 +239,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
   };
   const int kMethodsInnerClassSize = arraysize(kMethodsInnerClass);
 
-  if (env->RegisterNatives(g_InnerClass_clazz.obj(),
+  if (env->RegisterNatives(g_InnerClass_clazz,
                            kMethodsInnerClass,
                            kMethodsInnerClassSize) < 0) {
     LOG(ERROR) << "RegisterNatives failed in " << __FILE__;
@@ -284,7 +286,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
   };
   const int kMethodsSampleForTestsSize = arraysize(kMethodsSampleForTests);
 
-  if (env->RegisterNatives(g_SampleForTests_clazz.obj(),
+  if (env->RegisterNatives(g_SampleForTests_clazz,
                            kMethodsSampleForTests,
                            kMethodsSampleForTestsSize) < 0) {
     LOG(ERROR) << "RegisterNatives failed in " << __FILE__;
