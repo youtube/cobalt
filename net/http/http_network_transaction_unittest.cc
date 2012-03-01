@@ -8341,10 +8341,7 @@ TEST_F(HttpNetworkTransactionTest, SpdyAlternateProtocolThroughProxy) {
                             data_writes_2, arraysize(data_writes_2)));
 
   SSLSocketDataProvider ssl(ASYNC, OK);
-  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2.1";
-  ssl.was_npn_negotiated = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
+  ssl.SetNextProto(SSLClientSocket::kProtoSPDY21);
 
   MockConnect never_finishing_connect(SYNCHRONOUS, ERR_IO_PENDING);
   StaticSocketDataProvider hanging_non_alternate_protocol_socket(
@@ -8625,10 +8622,7 @@ TEST_F(HttpNetworkTransactionTest, PreconnectWithExistingSpdySession) {
   session_deps.socket_factory.AddSocketDataProvider(spdy_data.get());
 
   SSLSocketDataProvider ssl(ASYNC, OK);
-  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2.1";
-  ssl.was_npn_negotiated = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
+  ssl.SetNextProto(SSLClientSocket::kProtoSPDY21);
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
@@ -9055,10 +9049,7 @@ TEST_F(HttpNetworkTransactionTest, UseIPConnectionPooling) {
   pool_peer.DisableDomainAuthenticationVerification();
 
   SSLSocketDataProvider ssl(ASYNC, OK);
-  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2.1";
-  ssl.was_npn_negotiated = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
+  ssl.SetNextProto(SSLClientSocket::kProtoSPDY21);
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
   scoped_ptr<spdy::SpdyFrame> host1_req(ConstructSpdyGet(
@@ -9209,10 +9200,7 @@ TEST_F(HttpNetworkTransactionTest,
   pool_peer.DisableDomainAuthenticationVerification();
 
   SSLSocketDataProvider ssl(ASYNC, OK);
-  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
-  ssl.next_proto = "spdy/2.1";
-  ssl.was_npn_negotiated = true;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY21;
+  ssl.SetNextProto(SSLClientSocket::kProtoSPDY21);
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
   scoped_ptr<spdy::SpdyFrame> host1_req(ConstructSpdyGet(
