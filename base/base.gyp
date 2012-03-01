@@ -166,6 +166,7 @@
         'lazy_instance_unittest.cc',
         'linked_list_unittest.cc',
         'logging_unittest.cc',
+        'mac/closure_blocks_leopard_compat_unittest.cc',
         'mac/foundation_util_unittest.mm',
         'mac/mac_util_unittest.mm',
         'mac/objc_property_releaser_unittest.mm',
@@ -355,6 +356,11 @@
             'win/win_util_unittest.cc',
           ],
         }],
+        ['OS=="mac"', {
+          'dependencies': [
+            'closure_blocks_leopard_compat',
+          ],
+        }],
       ],
     },
     {
@@ -465,7 +471,7 @@
     },
   ],
   'conditions': [
-    [ 'OS == "win"', {
+    ['OS == "win"', {
       'targets': [
         {
           'target_name': 'debug_message',
@@ -481,5 +487,68 @@
         },
       ],
     }],
+    ['OS=="mac"', {
+     'targets': [
+       {
+         'target_name': 'closure_blocks_leopard_compat',
+         'sources': [
+           'mac/closure_blocks_leopard_compat.h',
+         ],
+         'conditions': [
+           ['mac_sdk == "10.5"', {
+             'type': 'shared_library',
+             'product_name': 'closure_blocks_leopard_compat_stub',
+             'variables': {
+               # This target controls stripping directly. See below.
+               'mac_strip': 0,
+             },
+             'sources': [
+               'mac/closure_blocks_leopard_compat.S',
+             ],
+             'xcode_settings': {
+               # These values are taken from libSystem.dylib in the 10.5
+               # SDK. Setting LD_DYLIB_INSTALL_NAME causes anything linked
+               # against this stub library to look for the symbols it
+               # provides in the real libSystem at runtime. When using ld
+               # from Xcode 4 or later (ld64-123.2 and up), giving two
+               # libraries with the same "install name" to the linker will
+               # cause it to print "ld: warning: dylibs with same install
+               # name". This is harmless, and ld will behave as intended
+               # here.
+               #
+               # The real library's compatibility version is used, and the
+               # value of the current version from the SDK is used to make
+               # it appear as though anything linked against this stub was
+               # linked against the real thing.
+               'LD_DYLIB_INSTALL_NAME': '/usr/lib/libSystem.B.dylib',
+               'DYLIB_COMPATIBILITY_VERSION': '1.0.0',
+               'DYLIB_CURRENT_VERSION': '111.1.4',
+
+               # Turn on stripping (yes, even in debug mode), and add the -c
+               # flag. This is what produces a stub library (MH_DYLIB_STUB)
+               # as opposed to a dylib (MH_DYLIB). MH_DYLIB_STUB files
+               # contain symbol tables and everything else needed for
+               # linking, but are stripped of section contents. This is the
+               # same way that the stub libraries in Mac OS X SDKs are
+               # created. dyld will refuse to load a stub library, so this
+               # provides some insurance in case anyone tries to load the
+               # stub at runtime.
+               'DEPLOYMENT_POSTPROCESSING': 'YES',
+               'STRIP_STYLE': 'non-global',
+               'STRIPFLAGS': '-c',
+             },
+           }, {  # else: mac_sdk != "10.5"
+             # When using the 10.6 SDK or newer, the necessary definitions
+             # are already present in libSystem.dylib. There is no need to
+             # build a stub dylib to provide these symbols at link time.
+             # This target is still useful to cause those symbols to be
+             # treated as weak imports in dependents, who still must
+             # #include closure_blocks_leopard_compat.h to get weak imports.
+             'type': 'none',
+           }],
+         ],
+       },
+     ],
+   }],
   ],
 }
