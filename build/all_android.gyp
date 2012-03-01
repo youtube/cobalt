@@ -37,6 +37,7 @@
         '../tools/android/fake_dns/fake_dns.gyp:fake_dns',
         '../tools/android/forwarder/forwarder.gyp:forwarder',
         '../content/content.gyp:content_unittests',
+        '../media/media.gyp:media_unittests',
       ],
     },
     { 
@@ -49,7 +50,6 @@
         '../webkit/webkit.gyp:pull_in_webkit_unit_tests',
         '../webkit/webkit.gyp:pull_in_DumpRenderTree',
         '../chrome/chrome.gyp:browser',
-        '../media/media.gyp:media_unittests',
         '../base/android/java/java.gyp:base_java',
       ],
     },
