@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -57,14 +57,17 @@ void HttpStreamFactoryImpl::Request::SetSpdySessionKey(
   request_set.insert(this);
 }
 
-void HttpStreamFactoryImpl::Request::SetHttpPipeliningKey(
-    const HostPortPair& http_pipelining_key) {
+bool HttpStreamFactoryImpl::Request::SetHttpPipeliningKey(
+    const HttpPipelinedHost::Key& http_pipelining_key) {
   DCHECK(!http_pipelining_key_.get());
-  http_pipelining_key_.reset(new HostPortPair(http_pipelining_key));
+  http_pipelining_key_.reset(new HttpPipelinedHost::Key(http_pipelining_key));
+  bool was_new_key = !ContainsKey(factory_->http_pipelining_request_map_,
+                                  http_pipelining_key);
   RequestSet& request_set =
       factory_->http_pipelining_request_map_[http_pipelining_key];
   DCHECK(!ContainsKey(request_set, this));
   request_set.insert(this);
+  return was_new_key;
 }
 
 void HttpStreamFactoryImpl::Request::AttachJob(Job* job) {
@@ -130,7 +133,16 @@ void HttpStreamFactoryImpl::Request::OnStreamFailed(
     int status,
     const SSLConfig& used_ssl_config) {
   DCHECK_NE(OK, status);
-  if (!bound_job_.get()) {
+  // |job| should only be NULL if we're being canceled by a late bound
+  // HttpPipelinedConnection (one that was not created by a job in our |jobs_|
+  // set).
+  if (!job) {
+    DCHECK(!bound_job_.get());
+    DCHECK(!jobs_.empty());
+    // NOTE(willchan): We do *NOT* call OrphanJobs() here. The reason is because
+    // we *WANT* to cancel the unnecessary Jobs from other requests if another
+    // Job completes first.
+  } else if (!bound_job_.get()) {
     // Hey, we've got other jobs! Maybe one of them will succeed, let's just
     // ignore this failure.
     if (jobs_.size() > 1) {

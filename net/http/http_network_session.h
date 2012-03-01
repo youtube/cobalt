@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -62,7 +62,8 @@ class NET_EXPORT HttpNetworkSession
           http_auth_handler_factory(NULL),
           network_delegate(NULL),
           http_server_properties(NULL),
-          net_log(NULL) {}
+          net_log(NULL),
+          force_http_pipelining(false) {}
 
     ClientSocketFactory* client_socket_factory;
     HostResolver* host_resolver;
@@ -77,6 +78,7 @@ class NET_EXPORT HttpNetworkSession
     NetworkDelegate* network_delegate;
     HttpServerProperties* http_server_properties;
     NetLog* net_log;
+    bool force_http_pipelining;
   };
 
   explicit HttpNetworkSession(const Params& params);
@@ -138,6 +140,11 @@ class NET_EXPORT HttpNetworkSession
   void CloseAllConnections();
   void CloseIdleConnections();
 
+  bool force_http_pipelining() const { return force_http_pipelining_; }
+
+  // Returns the original Params used to construct this session.
+  const Params& params() const { return params_; }
+
  private:
   friend class base::RefCounted<HttpNetworkSession>;
   friend class HttpNetworkSessionPeer;
@@ -149,6 +156,7 @@ class NET_EXPORT HttpNetworkSession
   HttpServerProperties* const http_server_properties_;
   CertVerifier* const cert_verifier_;
   HttpAuthHandlerFactory* const http_auth_handler_factory_;
+  bool force_http_pipelining_;
 
   // Not const since it's modified by HttpNetworkSessionPeer for testing.
   ProxyService* proxy_service_;
@@ -160,6 +168,8 @@ class NET_EXPORT HttpNetworkSession
   SpdySessionPool spdy_session_pool_;
   scoped_ptr<HttpStreamFactory> http_stream_factory_;
   std::set<HttpResponseBodyDrainer*> response_drainers_;
+
+  Params params_;
 };
 
 }  // namespace net

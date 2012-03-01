@@ -562,6 +562,7 @@ int HttpStreamFactoryImpl::Job::DoStart() {
   origin_ = HostPortPair(request_info_.url.HostNoBrackets(), port);
   origin_url_ = HttpStreamFactory::ApplyHostMappingRules(
       request_info_.url, &origin_);
+  http_pipelining_key_.reset(new HttpPipelinedHost::Key(origin_));
 
   net_log_.BeginEvent(NetLog::TYPE_HTTP_STREAM_JOB,
                       HttpStreamJobParameters::Create(request_info_.url,
@@ -686,12 +687,21 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
     // TODO(simonjam): With pipelining, we might be better off using fewer
     // connections and thus should make fewer preconnections. Explore
     // preconnecting fewer than the requested num_connections.
+    //
+    // Separate note: A forced pipeline is always available if one exists for
+    // this key. This is different than normal pipelines, which may be
+    // unavailable or unusable. So, there is no need to worry about a race
+    // between when a pipeline becomes available and when this job blocks.
     existing_available_pipeline_ = stream_factory_->http_pipelined_host_pool_.
-        IsExistingPipelineAvailableForOrigin(origin_);
+        IsExistingPipelineAvailableForKey(*http_pipelining_key_.get());
     if (existing_available_pipeline_) {
       return OK;
     } else {
-      request_->SetHttpPipeliningKey(origin_);
+      bool was_new_key = request_->SetHttpPipeliningKey(
+          *http_pipelining_key_.get());
+      if (!was_new_key && session_->force_http_pipelining()) {
+        return ERR_IO_PENDING;
+      }
     }
   }
 
@@ -753,6 +763,11 @@ int HttpStreamFactoryImpl::Job::DoInitConnectionComplete(int result) {
   if (result < 0 && waiting_job_) {
     waiting_job_->Resume(this);
     waiting_job_ = NULL;
+  }
+
+  if (result < 0 && session_->force_http_pipelining()) {
+    stream_factory_->AbortPipelinedRequestsWithKey(
+        this, *http_pipelining_key_.get(), result, server_ssl_config_);
   }
 
   // |result| may be the result of any of the stacked pools. The following
@@ -887,14 +902,16 @@ int HttpStreamFactoryImpl::Job::DoCreateStream() {
     bool using_proxy = (proxy_info_.is_http() || proxy_info_.is_https()) &&
         request_info_.url.SchemeIs("http");
     // TODO(simonjam): Support proxies.
-    if (existing_available_pipeline_) {
+    if (stream_factory_->http_pipelined_host_pool_.
+            IsExistingPipelineAvailableForKey(*http_pipelining_key_.get())) {
       stream_.reset(stream_factory_->http_pipelined_host_pool_.
-                    CreateStreamOnExistingPipeline(origin_));
+                    CreateStreamOnExistingPipeline(
+                        *http_pipelining_key_.get()));
       CHECK(stream_.get());
     } else if (!using_proxy && IsRequestEligibleForPipelining()) {
       stream_.reset(
           stream_factory_->http_pipelined_host_pool_.CreateStreamOnNewPipeline(
-              origin_,
+              *http_pipelining_key_.get(),
               connection_.release(),
               server_ssl_config_,
               proxy_info_,
@@ -1209,10 +1226,13 @@ bool HttpStreamFactoryImpl::Job::IsOrphaned() const {
 }
 
 bool HttpStreamFactoryImpl::Job::IsRequestEligibleForPipelining() {
-  if (!HttpStreamFactory::http_pipelining_enabled()) {
+  if (IsPreconnecting() || !request_) {
     return false;
   }
-  if (IsPreconnecting() || !request_) {
+  if (session_->force_http_pipelining()) {
+    return true;
+  }
+  if (!HttpStreamFactory::http_pipelining_enabled()) {
     return false;
   }
   if (using_ssl_) {
@@ -1221,8 +1241,8 @@ bool HttpStreamFactoryImpl::Job::IsRequestEligibleForPipelining() {
   if (request_info_.method != "GET" && request_info_.method != "HEAD") {
     return false;
   }
-  return stream_factory_->http_pipelined_host_pool_.IsHostEligibleForPipelining(
-      origin_);
+  return stream_factory_->http_pipelined_host_pool_.IsKeyEligibleForPipelining(
+      *http_pipelining_key_.get());
 }
 
 }  // namespace net
