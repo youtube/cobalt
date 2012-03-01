@@ -29,10 +29,6 @@
 // TraceAnalyzer analyzer(json_events);
 // TraceEventVector events;
 //
-// During construction, TraceAnalyzer::SetDefaultAssociations is called to
-// associate all matching begin/end pairs similar to how they are shown in
-// about:tracing.
-//
 // EXAMPLE 1: Find events named "my_event".
 //
 // analyzer.FindEvents(Query(EVENT_NAME) == "my_event", &events);
@@ -277,9 +273,10 @@ class Query {
            Query(EVENT_HAS_OTHER);
   }
 
-  // Find START events that have a corresponding FINISH event.
-  static Query MatchStartWithFinish() {
-    return (Query(EVENT_PHASE) == Query::Phase(TRACE_EVENT_PHASE_START)) &&
+  // Find ASYNC_BEGIN events that have a corresponding ASYNC_END event.
+  static Query MatchAsyncBeginWithNext() {
+    return (Query(EVENT_PHASE) ==
+            Query::Phase(TRACE_EVENT_PHASE_ASYNC_BEGIN)) &&
            Query(EVENT_HAS_OTHER);
   }
 
@@ -482,13 +479,15 @@ class TraceAnalyzer {
   // to access the associated event and enables Query(EVENT_DURATION).
   // An end event will match the most recent begin event with the same name,
   // category, process ID and thread ID. This matches what is shown in
-  // about:tracing.
+  // about:tracing. After association, the BEGIN event will point to the
+  // matching END event, but the END event will not point to the BEGIN event.
   void AssociateBeginEndEvents();
 
-  // Associate START and FINISH events with each other.
-  // A FINISH event will match the most recent START event with the same name,
-  // category, and ID.
-  void AssociateStartFinishEvents();
+  // Associate ASYNC_BEGIN, ASYNC_STEP and ASYNC_END events with each other.
+  // An ASYNC_END event will match the most recent ASYNC_BEGIN or ASYNC_STEP
+  // event with the same name, category, and ID. This creates a singly linked
+  // list of ASYNC_BEGIN->ASYNC_STEP...->ASYNC_END.
+  void AssociateAsyncBeginEndEvents();
 
   // AssociateEvents can be used to customize event associations by setting the
   // other_event member of TraceEvent. This should be used to associate two
@@ -504,10 +503,10 @@ class TraceAnalyzer {
   //            queries will point to an eligible |second| event. The query
   //            should evaluate to true if the |first|/|second| pair is a match.
   //
-  // When a match is found, the pair will be associated by having their
-  // other_event member point to each other. AssociateEvents does not clear
-  // previous associations, so it is possible to associate multiple pairs of
-  // events by calling AssociateEvents more than once with different queries.
+  // When a match is found, the pair will be associated by having the first
+  // event's other_event member point to the other. AssociateEvents does not
+  // clear previous associations, so it is possible to associate multiple pairs
+  // of events by calling AssociateEvents more than once with different queries.
   //
   // NOTE: AssociateEvents will overwrite existing other_event associations if
   // the queries pass for events that already had a previous association.
