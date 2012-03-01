@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -46,6 +46,9 @@ int main(int argc, char** argv) {
 
 namespace media {
 
+// Mirror setting in ffmpeg_video_decoder.
+static const int kDecodeThreads = 2;
+
 class AVPacketQueue {
  public:
   AVPacketQueue() {
@@ -87,6 +90,8 @@ class AVPacketQueue {
   DISALLOW_COPY_AND_ASSIGN(AVPacketQueue);
 };
 
+// TODO(dalecurtis): We should really just use PipelineIntegrationTests instead
+// of a one-off step decoder so we're exercising the real pipeline.
 class FFmpegTest : public testing::TestWithParam<const char*> {
  protected:
   FFmpegTest()
@@ -133,18 +138,18 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
     std::string ascii_path = path.value();
 #endif
 
-    EXPECT_EQ(0, av_open_input_file(&av_format_context_,
-                                    ascii_path.c_str(),
-                                    NULL, 0, NULL))
+    EXPECT_EQ(0, avformat_open_input(&av_format_context_,
+                                     ascii_path.c_str(),
+                                     NULL, NULL))
         << "Could not open " << path.value();
-    EXPECT_LE(0, av_find_stream_info(av_format_context_))
+    EXPECT_LE(0, avformat_find_stream_info(av_format_context_, NULL))
         << "Could not find stream information for " << path.value();
 
     // Determine duration by picking max stream duration.
     for (unsigned int i = 0; i < av_format_context_->nb_streams; ++i) {
       AVStream* av_stream = av_format_context_->streams[i];
-      int64 duration = ConvertFromTimeBase(av_stream->time_base,
-                                        av_stream->duration).InMicroseconds();
+      int64 duration = ConvertFromTimeBase(
+          av_stream->time_base, av_stream->duration).InMicroseconds();
       duration_ = std::max(duration_, duration);
     }
 
@@ -152,12 +157,12 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
     AVRational av_time_base = {1, AV_TIME_BASE};
     int64 duration =
         ConvertFromTimeBase(av_time_base,
-                         av_format_context_->duration).InMicroseconds();
+                            av_format_context_->duration).InMicroseconds();
     duration_ = std::max(duration_, duration);
   }
 
   void CloseFile() {
-    av_close_input_file(av_format_context_);
+    avformat_close_input(&av_format_context_);
   }
 
   void OpenCodecs() {
@@ -169,7 +174,13 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
       EXPECT_TRUE(av_codec)
           << "Could not find AVCodec with CodecID "
           << av_codec_context->codec_id;
-      EXPECT_EQ(0, avcodec_open(av_codec_context, av_codec))
+
+      av_codec_context->error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK;
+      av_codec_context->err_recognition = AV_EF_CAREFUL;
+      av_codec_context->thread_count = (
+          av_codec_context->codec_id == CODEC_ID_THEORA ? 1 : kDecodeThreads);
+
+      EXPECT_EQ(0, avcodec_open2(av_codec_context, av_codec, NULL))
           << "Could not open AVCodecContext with CodecID "
           << av_codec_context->codec_id;
 
@@ -271,7 +282,7 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
       if (result > 0) {
         // TODO(scherkus): move this to ffmpeg_common.h and dedup.
         int64 denominator = av_audio_context()->channels *
-            av_get_bits_per_sample_fmt(av_audio_context()->sample_fmt) / 8 *
+            av_get_bytes_per_sample(av_audio_context()->sample_fmt) *
             av_audio_context()->sample_rate;
         double microseconds = size_out /
             (denominator /
@@ -402,7 +413,6 @@ class FFmpegTest : public testing::TestWithParam<const char*> {
     EXPECT_TRUE(InitializeMediaLibrary(path))
         << "Could not initialize media library.";
 
-    avcodec_init();
     av_log_set_level(AV_LOG_FATAL);
     av_register_all();
     av_register_protocol2(&kFFmpegFileProtocol, sizeof(kFFmpegFileProtocol));

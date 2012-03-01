@@ -46,7 +46,7 @@ class FFmpegConfigHelper {
   scoped_ptr<FFmpegURLProtocol> url_protocol_;
 
   // FFmpeg format context for this demuxer. It is created by
-  // av_open_input_file() during demuxer initialization and cleaned up with
+  // avformat_open_input() during demuxer initialization and cleaned up with
   // DestroyAVFormatContext() in the destructor.
   AVFormatContext* format_context_;
 
@@ -139,7 +139,7 @@ AVFormatContext* FFmpegConfigHelper::CreateFormatContext(const uint8* data,
 
   // Open FFmpeg AVFormatContext.
   AVFormatContext* context = NULL;
-  int result = av_open_input_file(&context, key.c_str(), NULL, 0, NULL);
+  int result = avformat_open_input(&context, key.c_str(), NULL, NULL);
 
   if (result < 0)
     return NULL;
@@ -148,7 +148,7 @@ AVFormatContext* FFmpegConfigHelper::CreateFormatContext(const uint8* data,
 }
 
 bool FFmpegConfigHelper::SetupStreamConfigs() {
-  int result = av_find_stream_info(format_context_);
+  int result = avformat_find_stream_info(format_context_, NULL);
 
   if (result < 0)
     return false;
