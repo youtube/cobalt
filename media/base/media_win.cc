@@ -28,9 +28,9 @@ static const char* GetDLLName(FFmpegDLLKeys dll_key) {
   // TODO(ajwong): Do we want to lock to a specific ffmpeg version?
   switch (dll_key) {
     case FILE_LIBAVCODEC:
-      return "avcodec-53.dll";
+      return "avcodec-54.dll";
     case FILE_LIBAVFORMAT:
-      return "avformat-53.dll";
+      return "avformat-54.dll";
     case FILE_LIBAVUTIL:
       return "avutil-51.dll";
     default:
