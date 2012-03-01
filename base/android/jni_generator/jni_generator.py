@@ -605,7 +605,7 @@ ${KMETHODS}
   };
   const int kMethods${JAVA_CLASS}Size = arraysize(kMethods${JAVA_CLASS});
 
-  if (env->RegisterNatives(g_${JAVA_CLASS}_clazz.obj(),
+  if (env->RegisterNatives(g_${JAVA_CLASS}_clazz,
                            kMethods${JAVA_CLASS},
                            kMethods${JAVA_CLASS}Size) < 0) {
     LOG(ERROR) << "RegisterNatives failed in " << __FILE__;
@@ -724,7 +724,7 @@ ${FUNCTION_SIGNATURE} {""")
 static jmethodID g_${JAVA_CLASS}_${METHOD_ID_VAR_NAME} = 0;
 ${FUNCTION_HEADER}
   /* Must call RegisterNativesImpl()  */
-  DCHECK(!g_${JAVA_CLASS}_clazz.is_null());
+  DCHECK(g_${JAVA_CLASS}_clazz);
   DCHECK(g_${JAVA_CLASS}_${METHOD_ID_VAR_NAME});
   ${RETURN_DECLARATION}
   ${PRE_CALL}env->Call${STATIC}${ENV_CALL}Method(${FIRST_PARAM_IN_CALL},
@@ -734,7 +734,7 @@ ${FUNCTION_HEADER}
 }""")
     if called_by_native.static:
       first_param_in_declaration = ''
-      first_param_in_call = ('g_%s_clazz.obj()' %
+      first_param_in_call = ('g_%s_clazz' %
                              (called_by_native.java_class_name or
                               self.class_name))
     else:
@@ -816,7 +816,7 @@ ${FUNCTION_HEADER}
     """Returns the ClassPath constants."""
     ret = []
     template = Template("""\
-const char* const k${JAVA_CLASS}ClassPath = "${JNI_CLASS_PATH}";""")
+const char k${JAVA_CLASS}ClassPath[] = "${JNI_CLASS_PATH}";""")
     native_classes = self.GetUniqueClasses(self.natives)
     called_by_native_classes = self.GetUniqueClasses(self.called_by_natives)
     all_classes = native_classes
@@ -830,10 +830,8 @@ const char* const k${JAVA_CLASS}ClassPath = "${JNI_CLASS_PATH}";""")
     ret += ''
     for clazz in called_by_native_classes:
       template = Template("""\
-// Leaking this JavaRef as we cannot use LazyInstance from some threads.
-base::android::ScopedJavaGlobalRef<jclass>&
-    g_${JAVA_CLASS}_clazz =
-        *(new base::android::ScopedJavaGlobalRef<jclass>());""")
+// Leaking this jclass as we cannot use LazyInstance from some threads.
+jclass g_${JAVA_CLASS}_clazz = NULL;""")
       values = {
           'JAVA_CLASS': clazz,
       }
@@ -843,8 +841,8 @@ base::android::ScopedJavaGlobalRef<jclass>&
   def GetFindClasses(self):
     """Returns the imlementation of FindClass for all known classes."""
     template = Template("""\
-  g_${JAVA_CLASS}_clazz.Reset(
-      base::android::GetClass(env, k${JAVA_CLASS}ClassPath));""")
+  g_${JAVA_CLASS}_clazz = reinterpret_cast<jclass>(env->NewGlobalRef(
+      base::android::GetUnscopedClass(env, k${JAVA_CLASS}ClassPath)));""")
     ret = []
     for clazz in self.GetUniqueClasses(self.called_by_natives):
       values = {'JAVA_CLASS': clazz}
@@ -854,10 +852,11 @@ base::android::ScopedJavaGlobalRef<jclass>&
   def GetMethodIDImpl(self, called_by_native):
     """Returns the implementation of GetMethodID."""
     template = Template("""\
-  g_${JAVA_CLASS}_${METHOD_ID_VAR_NAME} = base::android::Get${STATIC}MethodID(
-    env, g_${JAVA_CLASS}_clazz,
-    "${NAME}",
-    ${JNI_SIGNATURE});
+  g_${JAVA_CLASS}_${METHOD_ID_VAR_NAME} =
+      base::android::Get${STATIC}MethodID(
+          env, g_${JAVA_CLASS}_clazz,
+          "${NAME}",
+          ${JNI_SIGNATURE});
 """)
     values = {
         'JAVA_CLASS': called_by_native.java_class_name or self.class_name,
