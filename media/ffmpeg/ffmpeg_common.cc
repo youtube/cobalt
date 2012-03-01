@@ -178,14 +178,14 @@ void AVCodecContextToAudioDecoderConfig(
   DCHECK_EQ(codec_context->codec_type, AVMEDIA_TYPE_AUDIO);
 
   AudioCodec codec = CodecIDToAudioCodec(codec_context->codec_id);
-  int bits_per_channel = av_get_bits_per_sample_fmt(codec_context->sample_fmt);
+  int bytes_per_channel = av_get_bytes_per_sample(codec_context->sample_fmt);
   ChannelLayout channel_layout =
       ChannelLayoutToChromeChannelLayout(codec_context->channel_layout,
                                          codec_context->channels);
   int samples_per_second = codec_context->sample_rate;
 
   config->Initialize(codec,
-                     bits_per_channel,
+                     bytes_per_channel << 3,
                      channel_layout,
                      samples_per_second,
                      codec_context->extradata,
@@ -289,35 +289,35 @@ void VideoDecoderConfigToAVCodecContext(
 ChannelLayout ChannelLayoutToChromeChannelLayout(int64_t layout,
                                                  int channels) {
   switch (layout) {
-    case CH_LAYOUT_MONO:
+    case AV_CH_LAYOUT_MONO:
       return CHANNEL_LAYOUT_MONO;
-    case CH_LAYOUT_STEREO:
+    case AV_CH_LAYOUT_STEREO:
       return CHANNEL_LAYOUT_STEREO;
-    case CH_LAYOUT_2_1:
+    case AV_CH_LAYOUT_2_1:
       return CHANNEL_LAYOUT_2_1;
-    case CH_LAYOUT_SURROUND:
+    case AV_CH_LAYOUT_SURROUND:
       return CHANNEL_LAYOUT_SURROUND;
-    case CH_LAYOUT_4POINT0:
+    case AV_CH_LAYOUT_4POINT0:
       return CHANNEL_LAYOUT_4POINT0;
-    case CH_LAYOUT_2_2:
+    case AV_CH_LAYOUT_2_2:
       return CHANNEL_LAYOUT_2_2;
-    case CH_LAYOUT_QUAD:
+    case AV_CH_LAYOUT_QUAD:
       return CHANNEL_LAYOUT_QUAD;
-    case CH_LAYOUT_5POINT0:
+    case AV_CH_LAYOUT_5POINT0:
       return CHANNEL_LAYOUT_5POINT0;
-    case CH_LAYOUT_5POINT1:
+    case AV_CH_LAYOUT_5POINT1:
       return CHANNEL_LAYOUT_5POINT1;
-    case CH_LAYOUT_5POINT0_BACK:
+    case AV_CH_LAYOUT_5POINT0_BACK:
       return CHANNEL_LAYOUT_5POINT0_BACK;
-    case CH_LAYOUT_5POINT1_BACK:
+    case AV_CH_LAYOUT_5POINT1_BACK:
       return CHANNEL_LAYOUT_5POINT1_BACK;
-    case CH_LAYOUT_7POINT0:
+    case AV_CH_LAYOUT_7POINT0:
       return CHANNEL_LAYOUT_7POINT0;
-    case CH_LAYOUT_7POINT1:
+    case AV_CH_LAYOUT_7POINT1:
       return CHANNEL_LAYOUT_7POINT1;
-    case CH_LAYOUT_7POINT1_WIDE:
+    case AV_CH_LAYOUT_7POINT1_WIDE:
       return CHANNEL_LAYOUT_7POINT1_WIDE;
-    case CH_LAYOUT_STEREO_DOWNMIX:
+    case AV_CH_LAYOUT_STEREO_DOWNMIX:
       return CHANNEL_LAYOUT_STEREO_DOWNMIX;
     default:
       // FFmpeg channel_layout is 0 for .wav and .mp3.  We know mono and stereo
@@ -376,7 +376,7 @@ void DestroyAVFormatContext(AVFormatContext* format_context) {
       // 1. AVStream is alive.
       // 2. AVCodecContext in AVStream is alive.
       // 3. AVCodec in AVCodecContext is alive.
-      // Notice that closing a codec context without prior avcodec_open() will
+      // Notice that closing a codec context without prior avcodec_open2() will
       // result in a crash in FFmpeg.
       if (stream && stream->codec && stream->codec->codec) {
         stream->discard = AVDISCARD_ALL;
@@ -386,7 +386,7 @@ void DestroyAVFormatContext(AVFormatContext* format_context) {
   }
 
   // Then finally cleanup the format context.
-  av_close_input_file(format_context);
+  avformat_close_input(&format_context);
 }
 
 }  // namespace media
