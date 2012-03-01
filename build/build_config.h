@@ -64,7 +64,7 @@
 #endif
 
 #if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_ANDROID) && \
-    !defined(OS_NACL)
+    !defined(OS_NACL) && !defined(__LB_SHELL__)
 #define USE_X11 1  // Use X for graphics.
 #endif
 
