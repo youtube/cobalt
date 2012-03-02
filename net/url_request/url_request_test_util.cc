@@ -164,6 +164,25 @@ TestURLRequest::TestURLRequest(const GURL& url, Delegate* delegate)
 
 TestURLRequest::~TestURLRequest() {}
 
+TestURLRequestContextGetter::TestURLRequestContextGetter(
+    const scoped_refptr<base::MessageLoopProxy>& io_message_loop_proxy)
+    : io_message_loop_proxy_(io_message_loop_proxy) {
+  DCHECK(io_message_loop_proxy.get());
+}
+
+TestURLRequestContextGetter::~TestURLRequestContextGetter() {}
+
+TestURLRequestContext* TestURLRequestContextGetter::GetURLRequestContext() {
+  if (!context_)
+    context_ = new TestURLRequestContext();
+  return context_.get();
+}
+
+scoped_refptr<base::MessageLoopProxy>
+TestURLRequestContextGetter::GetIOMessageLoopProxy() const {
+  return io_message_loop_proxy_;
+}
+
 TestDelegate::TestDelegate()
     : cancel_in_rr_(false),
       cancel_in_rs_(false),
