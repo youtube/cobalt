@@ -1249,7 +1249,7 @@ HostResolverImpl::HostResolverImpl(
 #endif
   NetworkChangeNotifier::AddIPAddressObserver(this);
 #if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
-#if !defined(OS_ANDROID)
+#if !defined(OS_ANDROID) && !defined(__LB_SHELL__)
   EnsureDnsReloaderInit();
 #endif
   NetworkChangeNotifier::AddDNSObserver(this);
