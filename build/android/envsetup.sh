@@ -66,28 +66,6 @@ if [ ! -d "${CHROME_SRC}" ]; then
   return 1
 fi
 
-make() {
-  # TODO(michaelbai): how to use ccache in NDK.
-  if [ -n "${USE_CCACHE}" ]; then
-    if [ -e "${PREBUILT_CCACHE_PATH}" ]; then
-      use_ccache_var="$PREBUILT_CCACHE_PATH "
-    else
-      use_ccache_var=""
-    fi
-  fi
-  # Only cross-compile if the build is being done either from Chromium's src/
-  # directory, or through WebKit, in which case the WEBKIT_ANDROID_BUILD
-  # environment variable will be defined. WebKit uses a different directory.
-  if [ -f "$PWD/build/android/envsetup.sh" ] ||
-     [ -n "${WEBKIT_ANDROID_BUILD}" ]; then
-    CC="${use_ccache_var}${CROSS_CC}" CXX="${use_ccache_var}${CROSS_CXX}" \
-    LINK="${CROSS_LINK}" AR="${CROSS_AR}" RANLIB="${CROSS_RANLIB}" \
-      command make $*
-  else
-    command make $*
-  fi
-}
-
 # Performs a gyp_chromium run to convert gyp->Makefile for android code.
 android_gyp() {
   "${CHROME_SRC}/build/gyp_chromium" --depth="${CHROME_SRC}"
