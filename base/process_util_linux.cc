@@ -17,7 +17,6 @@
 
 #include "base/file_util.h"
 #include "base/logging.h"
-#include "base/stringprintf.h"
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"
 #include "base/string_tokenizer.h"
@@ -27,14 +26,17 @@
 
 namespace {
 
-// Max score for the old oom_adj range.  Used for conversion of new
-// values to old values.
-const int kMaxOldOomScore = 15;
-
 enum ParsingState {
   KEY_NAME,
   KEY_VALUE
 };
+
+const char kProcDir[] = "/proc";
+
+// Returns a FilePath to "/proc/pid".
+FilePath GetProcPidDir(pid_t pid) {
+  return FilePath(kProcDir).Append(base::Int64ToString(pid));
+}
 
 // Reads /proc/<pid>/stat and populates |proc_stats| with the values split by
 // spaces. Returns true if successful.
@@ -42,9 +44,7 @@ bool GetProcStats(pid_t pid, std::vector<std::string>* proc_stats) {
   // Synchronously reading files in /proc is safe.
   base::ThreadRestrictions::ScopedAllowIO allow_io;
 
-  FilePath stat_file("/proc");
-  stat_file = stat_file.Append(base::IntToString(pid));
-  stat_file = stat_file.Append("stat");
+  FilePath stat_file = GetProcPidDir(pid).Append("stat");
   std::string mem_stats;
   if (!file_util::ReadFileToString(stat_file, &mem_stats))
     return false;
@@ -61,9 +61,7 @@ bool GetProcCmdline(pid_t pid, std::vector<std::string>* proc_cmd_line_args) {
   // Synchronously reading files in /proc is safe.
   base::ThreadRestrictions::ScopedAllowIO allow_io;
 
-  FilePath cmd_line_file("/proc");
-  cmd_line_file = cmd_line_file.Append(base::IntToString(pid));
-  cmd_line_file = cmd_line_file.Append("cmdline");
+  FilePath cmd_line_file = GetProcPidDir(pid).Append("cmdline");
   std::string cmd_line;
   if (!file_util::ReadFileToString(cmd_line_file, &cmd_line))
     return false;
@@ -80,7 +78,7 @@ int GetProcessCPU(pid_t pid) {
   base::ThreadRestrictions::ScopedAllowIO allow_io;
 
   // Use /proc/<pid>/task to find all threads and parse their /stat file.
-  FilePath path = FilePath(base::StringPrintf("/proc/%d/task/", pid));
+  FilePath path = GetProcPidDir(pid).Append("task");
 
   DIR* dir = opendir(path.value().c_str());
   if (!dir) {
@@ -114,9 +112,7 @@ ProcessId GetParentProcessId(ProcessHandle process) {
   // Synchronously reading files in /proc is safe.
   base::ThreadRestrictions::ScopedAllowIO allow_io;
 
-  FilePath stat_file("/proc");
-  stat_file = stat_file.Append(base::IntToString(process));
-  stat_file = stat_file.Append("status");
+  FilePath stat_file = GetProcPidDir(process).Append("status");
   std::string status;
   if (!file_util::ReadFileToString(stat_file, &status))
     return -1;
@@ -146,9 +142,7 @@ ProcessId GetParentProcessId(ProcessHandle process) {
 }
 
 FilePath GetProcessExecutablePath(ProcessHandle process) {
-  FilePath stat_file("/proc");
-  stat_file = stat_file.Append(base::IntToString(process));
-  stat_file = stat_file.Append("exe");
+  FilePath stat_file = GetProcPidDir(process).Append("exe");
   FilePath exe_name;
   if (!file_util::ReadSymbolicLink(stat_file, &exe_name)) {
     // No such process.  Happens frequently in e.g. TerminateAllChromeProcesses
@@ -159,7 +153,7 @@ FilePath GetProcessExecutablePath(ProcessHandle process) {
 
 ProcessIterator::ProcessIterator(const ProcessFilter* filter)
     : filter_(filter) {
-  procfs_dir_ = opendir("/proc");
+  procfs_dir_ = opendir(kProcDir);
 }
 
 ProcessIterator::~ProcessIterator() {
@@ -210,7 +204,7 @@ bool ProcessIterator::CheckForNextProcess() {
     // Read the process's status.
     char buf[NAME_MAX + 12];
     sprintf(buf, "/proc/%s/stat", slot->d_name);
-    FILE *fp = fopen(buf, "r");
+    FILE* fp = fopen(buf, "r");
     if (!fp)
       continue;
     const char* result = fgets(buf, sizeof(buf), fp);
@@ -340,92 +334,43 @@ bool ProcessMetrics::GetMemoryBytes(size_t* private_bytes,
   return true;
 }
 
-// Private and Shared working set sizes are obtained from /proc/<pid>/smaps.
-// When that's not available, use the values from /proc<pid>/statm as a
-// close approximation.
-// See http://www.pixelbeat.org/scripts/ps_mem.py
+// Private and Shared working set sizes are obtained from /proc/<pid>/statm.
 bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
-  // Synchronously reading files in /proc is safe.
-  base::ThreadRestrictions::ScopedAllowIO allow_io;
+  // Use statm instead of smaps because smaps is:
+  // a) Large and slow to parse.
+  // b) Unavailable in the SUID sandbox.
 
-  FilePath proc_dir = FilePath("/proc").Append(base::IntToString(process_));
-  std::string smaps;
-  int private_kb = 0;
-  int pss_kb = 0;
-  bool have_pss = false;
-  bool ret;
+  // First we need to get the page size, since everything is measured in pages.
+  // For details, see: man 5 proc.
+  const int page_size_kb = sysconf(_SC_PAGE_SIZE) / 1024;
+  if (page_size_kb <= 0)
+    return false;
 
+  std::string statm;
   {
-    FilePath smaps_file = proc_dir.Append("smaps");
+    FilePath statm_file = GetProcPidDir(process_).Append("statm");
     // Synchronously reading files in /proc is safe.
     base::ThreadRestrictions::ScopedAllowIO allow_io;
-    ret = file_util::ReadFileToString(smaps_file, &smaps);
-  }
-  if (ret && smaps.length() > 0) {
-    const std::string private_prefix = "Private_";
-    const std::string pss_prefix = "Pss";
-    StringTokenizer tokenizer(smaps, ":\n");
-    StringPiece last_key_name;
-    ParsingState state = KEY_NAME;
-    while (tokenizer.GetNext()) {
-      switch (state) {
-        case KEY_NAME:
-          last_key_name = tokenizer.token_piece();
-          state = KEY_VALUE;
-          break;
-        case KEY_VALUE:
-          if (last_key_name.empty()) {
-            NOTREACHED();
-            return false;
-          }
-          if (last_key_name.starts_with(private_prefix)) {
-            int cur;
-            base::StringToInt(tokenizer.token_piece(), &cur);
-            private_kb += cur;
-          } else if (last_key_name.starts_with(pss_prefix)) {
-            have_pss = true;
-            int cur;
-            base::StringToInt(tokenizer.token_piece(), &cur);
-            pss_kb += cur;
-          }
-          state = KEY_NAME;
-          break;
-      }
-    }
-  } else {
-    // Try statm if smaps is empty because of the SUID sandbox.
-    // First we need to get the page size though.
-    int page_size_kb = sysconf(_SC_PAGE_SIZE) / 1024;
-    if (page_size_kb <= 0)
-      return false;
-
-    std::string statm;
-    {
-      FilePath statm_file = proc_dir.Append("statm");
-      // Synchronously reading files in /proc is safe.
-      base::ThreadRestrictions::ScopedAllowIO allow_io;
-      ret = file_util::ReadFileToString(statm_file, &statm);
-    }
+    bool ret = file_util::ReadFileToString(statm_file, &statm);
     if (!ret || statm.length() == 0)
       return false;
-
-    std::vector<std::string> statm_vec;
-    base::SplitString(statm, ' ', &statm_vec);
-    if (statm_vec.size() != 7)
-      return false;  // Not the format we expect.
-
-    int statm1, statm2;
-    base::StringToInt(statm_vec[1], &statm1);
-    base::StringToInt(statm_vec[2], &statm2);
-    private_kb = (statm1 - statm2) * page_size_kb;
   }
-  ws_usage->priv = private_kb;
+
+  std::vector<std::string> statm_vec;
+  base::SplitString(statm, ' ', &statm_vec);
+  if (statm_vec.size() != 7)
+    return false;  // Not the format we expect.
+
+  int statm_rss, statm_shared;
+  base::StringToInt(statm_vec[1], &statm_rss);
+  base::StringToInt(statm_vec[2], &statm_shared);
+
+  ws_usage->priv = (statm_rss - statm_shared) * page_size_kb;
+  ws_usage->shared = statm_shared * page_size_kb;
+
   // Sharable is not calculated, as it does not provide interesting data.
   ws_usage->shareable = 0;
 
-  ws_usage->shared = 0;
-  if (have_pss)
-    ws_usage->shared = pss_kb;
   return true;
 }
 
@@ -479,9 +424,7 @@ bool ProcessMetrics::GetIOCounters(IoCounters* io_counters) const {
   base::ThreadRestrictions::ScopedAllowIO allow_io;
 
   std::string proc_io_contents;
-  FilePath io_file("/proc");
-  io_file = io_file.Append(base::IntToString(process_));
-  io_file = io_file.Append("io");
+  FilePath io_file = GetProcPidDir(process_).Append("io");
   if (!file_util::ReadFileToString(io_file, &proc_io_contents))
     return false;
 
@@ -745,8 +688,7 @@ bool AdjustOOMScore(ProcessId process, int score) {
   if (score < 0 || score > kMaxOomScore)
     return false;
 
-  FilePath oom_path("/proc");
-  oom_path = oom_path.Append(base::Int64ToString(process));
+  FilePath oom_path(GetProcPidDir(process));
 
   // Attempt to write the newer oom_score_adj file first.
   FilePath oom_file = oom_path.AppendASCII("oom_score_adj");
@@ -764,8 +706,12 @@ bool AdjustOOMScore(ProcessId process, int score) {
   // style file and translate the oom_adj score to the range 0-15.
   oom_file = oom_path.AppendASCII("oom_adj");
   if (file_util::PathExists(oom_file)) {
-    std::string score_str = base::IntToString(
-        score * kMaxOldOomScore / kMaxOomScore);
+    // Max score for the old oom_adj range.  Used for conversion of new
+    // values to old values.
+    const int kMaxOldOomScore = 15;
+
+    int converted_score = score * kMaxOldOomScore / kMaxOomScore;
+    std::string score_str = base::IntToString(converted_score);
     DVLOG(1) << "Adjusting oom_adj of " << process << " to " << score_str;
     int score_len = static_cast<int>(score_str.length());
     return (score_len == file_util::WriteFile(oom_file,
