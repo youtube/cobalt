@@ -75,6 +75,11 @@
     ['use_aura==0 or OS!="win"', {
       'sources/': [ ['exclude', '_aurawin\\.(h|cc)$'] ]
     }],
+    ['use_ash==0', {
+      'sources/': [ ['exclude', '_ash(_unittest)?\\.(h|cc)$'],
+                    ['exclude', '(^|/)ash/'],
+      ]
+    }],
     ['use_wayland!=1', {
       'sources/': [
         ['exclude', '_(wayland)(_unittest)?\\.(h|cc)$'],
