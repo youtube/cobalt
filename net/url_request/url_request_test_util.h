@@ -13,6 +13,8 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/memory/ref_counted.h"
+#include "base/message_loop_proxy.h"
 #include "base/path_service.h"
 #include "base/process_util.h"
 #include "base/string_util.h"
@@ -35,6 +37,7 @@
 #include "net/proxy/proxy_service.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context.h"
+#include "net/url_request/url_request_context_getter.h"
 #include "net/url_request/url_request_context_storage.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -69,6 +72,29 @@ class TestURLRequestContext : public net::URLRequestContext {
  private:
   bool initialized_;
   net::URLRequestContextStorage context_storage_;
+};
+
+//-----------------------------------------------------------------------------
+
+// Used to return a dummy context, which lives on the message loop
+// given in the constructor.
+class TestURLRequestContextGetter : public net::URLRequestContextGetter {
+ public:
+  // |io_message_loop_proxy| must not be NULL.
+  explicit TestURLRequestContextGetter(
+      const scoped_refptr<base::MessageLoopProxy>& io_message_loop_proxy);
+
+  // net::URLRequestContextGetter implementation.
+  virtual TestURLRequestContext* GetURLRequestContext() OVERRIDE;
+  virtual scoped_refptr<base::MessageLoopProxy>
+      GetIOMessageLoopProxy() const OVERRIDE;
+
+ protected:
+  virtual ~TestURLRequestContextGetter();
+
+ private:
+  const scoped_refptr<base::MessageLoopProxy> io_message_loop_proxy_;
+  scoped_refptr<TestURLRequestContext> context_;
 };
 
 //-----------------------------------------------------------------------------
