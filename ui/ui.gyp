@@ -197,6 +197,8 @@
         'base/text/bytes_formatting.h',
         'base/text/text_elider.cc',
         'base/text/text_elider.h',
+        'base/text/utf16_indexing.cc',
+        'base/text/utf16_indexing.h',
         'base/theme_provider.cc',
         'base/theme_provider.h',
         'base/touch/touch_factory.cc',
