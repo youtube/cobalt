@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -30,16 +30,17 @@ namespace win {
 //
 // To explicitly close the handle:
 //   hfile.Close();
-class ScopedHandle {
+template <class Traits>
+class GenericScopedHandle {
  public:
-  ScopedHandle() : handle_(NULL) {
+  GenericScopedHandle() : handle_(NULL) {
   }
 
-  explicit ScopedHandle(HANDLE h) : handle_(NULL) {
+  explicit GenericScopedHandle(HANDLE h) : handle_(NULL) {
     Set(h);
   }
 
-  ~ScopedHandle() {
+  ~GenericScopedHandle() {
     Close();
   }
 
@@ -63,6 +64,11 @@ class ScopedHandle {
 
   operator HANDLE() { return handle_; }
 
+  HANDLE* Receive() {
+    DCHECK(!handle_) << "Handle must be NULL";
+    return &handle_;
+  }
+
   HANDLE Take() {
     // transfers ownership away from this object
     HANDLE h = handle_;
@@ -72,7 +78,7 @@ class ScopedHandle {
 
   void Close() {
     if (handle_) {
-      if (!::CloseHandle(handle_)) {
+      if (!Traits::CloseHandle(handle_)) {
         NOTREACHED();
       }
       handle_ = NULL;
@@ -81,8 +87,17 @@ class ScopedHandle {
 
  private:
   HANDLE handle_;
-  DISALLOW_COPY_AND_ASSIGN(ScopedHandle);
+  DISALLOW_COPY_AND_ASSIGN(GenericScopedHandle);
 };
+
+class HandleTraits {
+ public:
+  static bool CloseHandle(HANDLE handle) {
+    return ::CloseHandle(handle) != FALSE;
+  }
+};
+
+typedef GenericScopedHandle<HandleTraits> ScopedHandle;
 
 }  // namespace win
 }  // namespace base
