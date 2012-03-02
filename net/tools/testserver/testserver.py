@@ -120,9 +120,7 @@ class HTTPSServer(tlslite.api.TLSSocketServerMixIn,
                ssl_client_auth, ssl_client_cas, ssl_bulk_ciphers,
                record_resume_info):
     s = open(cert_path).read()
-    x509 = tlslite.api.X509()
-    x509.parse(s)
-    self.cert_chain = tlslite.api.X509CertChain([x509])
+    self.cert_chain = tlslite.api.X509CertChain().parseChain(s)
     s = open(cert_path).read()
     self.private_key = tlslite.api.parsePEMKey(s, private=True)
     self.ssl_client_auth = ssl_client_auth
