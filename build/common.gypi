@@ -864,6 +864,7 @@
         'disable_nacl': 1,
         'use_openssl': 1,
         'use_cups': 0,
+        'input_speech': 0,
       }],
 
       # Set the relative path from this file to the GYP file of the JPEG
