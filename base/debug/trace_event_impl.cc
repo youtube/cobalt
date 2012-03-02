@@ -687,11 +687,11 @@ void TraceLog::AddTraceEventEtw(char phase,
 }
 
 void TraceLog::AddClockSyncMetadataEvents() {
-#if defined(OS_ANDROID) || defined(OS_CHROMEOS)
-  // Since Android/ChromeOS do not support sched_setaffinity, we cannot
-  // establish clock sync unless the scheduler clock is set to global.
-  // If the trace_clock file can't be read, we will assume the kernel
-  // doesn't support tracing and do nothing.
+#if defined(OS_ANDROID)
+  // Since Android does not support sched_setaffinity, we cannot establish clock
+  // sync unless the scheduler clock is set to global. If the trace_clock file
+  // can't be read, we will assume the kernel doesn't support tracing and do
+  // nothing.
   std::string clock_mode;
   if (!file_util::ReadFileToString(
           FilePath("/sys/kernel/debug/tracing/trace_clock"),
@@ -706,7 +706,7 @@ void TraceLog::AddClockSyncMetadataEvents() {
     return;
   }
 
-  // Linux's kernel trace system has a trace_marker feature: this is a file on
+  // Android's kernel trace system has a trace_marker feature: this is a file on
   // debugfs that takes the written data and pushes it onto the trace
   // buffer. So, to establish clock sync, we write our monotonic clock into that
   // trace buffer.
