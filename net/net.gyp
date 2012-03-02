@@ -1412,6 +1412,11 @@
         '../base/base.gyp:test_support_base',
         '../testing/gtest.gyp:gtest',
       ],
+      'export_dependent_settings': [
+        '../base/base.gyp:base',
+        '../base/base.gyp:test_support_base',
+        '../testing/gtest.gyp:gtest',
+      ],
       'sources': [
         'base/cert_test_util.cc',
         'base/cert_test_util.h',
