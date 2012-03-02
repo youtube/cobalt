@@ -197,10 +197,16 @@
                 'WARNING_CFLAGS': [
                   # libxml passes `const unsigned char*` through `const char*`.
                   '-Wno-pointer-sign',
+                  # pattern.c and uri.c both have an intentional
+                  # `for (...);` / `while(...);` loop. I submitted a patch to
+                  # move the `'` to its own line, but until that's landed
+                  # suppress the warning:
+                  '-Wno-empty-body',
                 ],
               },
               'cflags': [
                 '-Wno-pointer-sign',
+                '-Wno-empty-body',
               ],
             }],
           ],
