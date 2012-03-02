@@ -56,8 +56,7 @@ class MEDIA_EXPORT Clock {
   // set to 0 (before SetDuration() is called).
   void SetTime(base::TimeDelta current_time, base::TimeDelta max_time);
 
-  // Sets the |max_time| to be returned by a call to Elapsed(). |max_time| must
-  // be greater than or equal to the current Elapsed() time.
+  // Sets the |max_time| to be returned by a call to Elapsed().
   void SetMaxTime(base::TimeDelta max_time);
 
   // Returns the current elapsed media time. Returns 0 if SetDuration() has
