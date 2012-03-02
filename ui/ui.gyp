@@ -291,6 +291,8 @@
         'gfx/native_theme_chromeos.h',
         'gfx/native_theme_gtk.cc',
         'gfx/native_theme_gtk.h',
+        'gfx/native_theme_shell.cc',
+        'gfx/native_theme_shell.h',
         'gfx/native_theme_win.cc',
         'gfx/native_theme_win.h',
         'gfx/native_widget_types.h',
