@@ -95,11 +95,11 @@
             '../../openssl/openssl.gyp:openssl',
             '../../openssl/openssl.gyp:openssl_includes',
           ],
-          # for some reason, although use_openssl==1 is true, we are including
-          # both nss and openssl sources in our build. Hard-exclude the nss.
           'sources/': [
-            ['exclude', '.*nss.*']
-          ]
+            ['exclude', 'ec_private_key_nss\.cc$'],
+            ['exclude', 'ec_signature_creator_nss\.cc$'],
+            ['exclude', 'signature_verifier_nss\.cc$'],
+          ],
         }],
         [ 'use_openssl==1', {
             # TODO(joth): Use a glob to match exclude patterns once the
