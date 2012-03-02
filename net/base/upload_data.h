@@ -13,6 +13,7 @@
 #include "base/file_path.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
+#include "base/supports_user_data.h"
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_export.h"
@@ -32,7 +33,16 @@ class NET_EXPORT_PRIVATE ChunkCallback {
   virtual ~ChunkCallback() {}
 };
 
-class NET_EXPORT UploadData : public base::RefCounted<UploadData> {
+//-----------------------------------------------------------------------------
+// A very concrete class representing the data to be uploaded as part of a
+// URLRequest.
+//
+// Until there is a more abstract class for this, this one derives from
+// SupportsUserData to allow users to stash random data by
+// key and ensure it's destruction when UploadData is finally deleted.
+class NET_EXPORT UploadData
+    : public base::RefCounted<UploadData>,
+      public base::SupportsUserData {
  public:
   enum Type {
     TYPE_BYTES,
@@ -231,7 +241,7 @@ class NET_EXPORT UploadData : public base::RefCounted<UploadData> {
 
   friend class base::RefCounted<UploadData>;
 
-  ~UploadData();
+  virtual ~UploadData();
 
   std::vector<Element> elements_;
   int64 identifier_;
