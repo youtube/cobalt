@@ -72,8 +72,9 @@ void Clock::SetMaxTime(base::TimeDelta max_time) {
   UpdateReferencePoints();
   max_time_ = ClampToValidTimeRange(max_time);
 
-  DCHECK(media_time_ <= max_time_);
-  underflow_ = false;
+  underflow_ = media_time_ > max_time_;
+  if (underflow_)
+    media_time_ = max_time_;
 }
 
 void Clock::SetDuration(base::TimeDelta duration) {
