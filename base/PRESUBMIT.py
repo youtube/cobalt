@@ -1,4 +1,4 @@
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -9,4 +9,8 @@ for more details on the presubmit API built into gcl.
 """
 
 def GetPreferredTrySlaves():
-  return ['win_sync', 'linux_sync', 'mac_sync']
+  return [
+    'linux_rel:sync_integration_tests',
+    'mac_rel:sync_integration_tests',
+    'win_rel:sync_integration_tests',
+  ]
