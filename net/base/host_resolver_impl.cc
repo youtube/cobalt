@@ -1076,8 +1076,6 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
         NetLog::TYPE_HOST_RESOLVER_IMPL_JOB,
         make_scoped_refptr(new JobCreationParameters(
             key_.hostname, request_net_log.source())));
-
-    handle_ = resolver_->dispatcher_.Add(this, priority);
   }
 
   virtual ~Job() {
@@ -1091,7 +1089,7 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
       net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB,
                                         ERR_ABORTED);
     } else if (is_queued()) {
-      // This Job was cancelled without running.
+      // |resolver_| was destroyed without running this Job.
       // TODO(szym): is there's any benefit in having this distinction?
       net_log_.AddEvent(NetLog::TYPE_CANCELLED, NULL);
       net_log_.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB, NULL);
@@ -1109,6 +1107,10 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
                        req->info());
     }
     STLDeleteElements(&requests_);
+  }
+
+  void Schedule() {
+    handle_ = resolver_->dispatcher_.Add(this, priority());
   }
 
   RequestPriority priority() const {
@@ -1176,6 +1178,8 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
       } else {
         resolver_->dispatcher_.Cancel(handle_);
         handle_.Reset();
+        net_log_.AddEvent(NetLog::TYPE_CANCELLED, NULL);
+        net_log_.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB, NULL);
       }
     }
   }
@@ -1487,6 +1491,7 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
   if (jobit == jobs_.end()) {
     // Create new Job.
     job = new Job(this, key, request_net_log, info.priority());
+    job->Schedule();
 
     // Check for queue overflow.
     if (dispatcher_.num_queued_jobs() > max_queued_jobs_) {
@@ -1572,8 +1577,10 @@ void HostResolverImpl::CancelRequest(RequestHandle req_handle) {
     // that Request could not have been cancelled, so job->num_active_requests()
     // could not be 0. Therefore, we are not in Job::CompleteRequests().
     RemoveJob(job);
-    if (job->is_running())
+    if (job->is_running()) {
+      dispatcher_.OnJobFinished();
       job->Abort();
+    }
     delete job;
   }
 }
@@ -1709,7 +1716,6 @@ HostResolverImpl::Key HostResolverImpl::GetEffectiveKeyForRequest(
 }
 
 void HostResolverImpl::AbortAllInProgressJobs() {
-  base::WeakPtr<HostResolverImpl> self = AsWeakPtr();
   // In Abort, a Request callback could spawn new Jobs with matching keys, so
   // first collect and remove all running jobs from |jobs_|.
   std::vector<Job*> jobs_to_abort;
@@ -1724,10 +1730,16 @@ void HostResolverImpl::AbortAllInProgressJobs() {
     }
   }
 
+  // Check if no dispatcher slots leaked out.
+  DCHECK_EQ(dispatcher_.num_running_jobs(), jobs_to_abort.size());
+
+  // Life check to bail once |this| is deleted.
+  base::WeakPtr<HostResolverImpl> self = AsWeakPtr();
+
   // Then Abort them and dispatch new Jobs.
-  for (size_t i = 0; i < jobs_to_abort.size(); ++i) {
-    jobs_to_abort[i]->Abort();
+  for (size_t i = 0; self && i < jobs_to_abort.size(); ++i) {
     dispatcher_.OnJobFinished();
+    jobs_to_abort[i]->Abort();
   }
   STLDeleteElements(&jobs_to_abort);
 }
