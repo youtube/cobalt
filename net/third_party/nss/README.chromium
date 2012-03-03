@@ -1,16 +1,14 @@
 Name: Network Security Services (NSS)
 URL: http://www.mozilla.org/projects/security/pki/nss/
+Version: 3.13.3
+Security Critical: Yes
 
 This directory includes a copy of NSS's libssl from the CVS repo at:
   :pserver:anonymous@cvs-mirror.mozilla.org:/cvsroot
 
-The snapshot was updated to the CVS tag: NSS_3_12_9_RTM
+The snapshot was updated to the CVS tag: NSS_3_13_3_RTM
 
 Patches:
-
-  * Next protocol negotiation support.
-    patches/nextproto.patch
-    http://codereview.chromium.org/415005
 
   * Commenting out a couple of functions because they need NSS symbols
     which may not exist in the system NSS library.
@@ -22,13 +20,13 @@ Patches:
     https://bugzilla.mozilla.org/show_bug.cgi?id=549042
 
   * Cache the peer's intermediate CA certificates in session ID, so that
-    they're available when we resume a session.  Add certificates to
-    ss->ssl3.peerCertChain in the right order.
+    they're available when we resume a session.
     patches/cachecerts.patch
-    https://bugzilla.mozilla.org/show_bug.cgi?id=606049
+    https://bugzilla.mozilla.org/show_bug.cgi?id=731478
 
   * Add the SSL_PeerCertificateChain function
     patches/peercertchain.patch
+    https://bugzilla.mozilla.org/show_bug.cgi?id=731485
 
   * Add OCSP stapling support
     patches/ocspstapling.patch
@@ -37,25 +35,10 @@ Patches:
     patches/clientauth.patch
     ssl/sslplatf.c
 
-  * Don't send a client certificate when renegotiating if the peer does not
-    request one. This only happened if the previous key exchange algorithm
-    was non-RSA.
-    patches/clientauth.patch
-    https://bugzilla.mozilla.org/show_bug.cgi?id=616757
-
-  * Add support for TLS cached info extension.
-    patches/cachedinfo.patch
-    https://bugzilla.mozilla.org/show_bug.cgi?id=665739
-
   * Add a function to export whether the last handshake on a socket resumed a
     previous session.
     patches/didhandshakeresume.patch
-
-  * Start each set of CBC encrypted application data records, resulting from
-    a single call to ssl3_SendApplicationData, with a one-byte application
-    data record in order to randomize the IV in a backward compatible manner.
-    https://bugzilla.mozilla.org/show_bug.cgi?id=665814
-    patches/cbcrandomiv.patch
+    https://bugzilla.mozilla.org/show_bug.cgi?id=731798
 
   * Support origin bound certificates.
     http://balfanz.github.com/tls-obc-spec/draft-balfanz-tls-obc-00.txt
@@ -65,10 +48,6 @@ Patches:
     This is a reworked version of the patch from
     https://bugzilla.mozilla.org/show_bug.cgi?id=507359
     patches/secret_exporter.patch
-
-  * Send saved write data in the SSL socket in SSL_ForceHandshake.
-    patches/handshakeshortwrite.patch
-    https://bugzilla.mozilla.org/show_bug.cgi?id=676729
 
   * Add a function to restart a handshake after a client certificate request.
     patches/restartclientauth.patch
