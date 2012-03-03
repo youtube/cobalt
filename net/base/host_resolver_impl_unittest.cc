@@ -11,6 +11,7 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop.h"
+#include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/synchronization/condition_variable.h"
@@ -920,6 +921,8 @@ TEST_F(HostResolverImplTest, CanceledRequestsReleaseJobSlots) {
     MessageLoop::current()->Run();
 
   MessageLoop::current()->AssertIdle();
+
+  STLDeleteElements(&requests);
 }
 
 // Helper class used by HostResolverImplTest.CancelWithinCallback.
