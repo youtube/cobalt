@@ -7,6 +7,7 @@
 
 #include <map>
 #include <set>
+#include <vector>
 
 #include "base/memory/ref_counted.h"
 #include "net/base/host_port_pair.h"
@@ -54,8 +55,10 @@ class NET_EXPORT_PRIVATE HttpStreamFactoryImpl :
   class Job;
 
   typedef std::set<Request*> RequestSet;
+  typedef std::vector<Request*> RequestVector;
   typedef std::map<HostPortProxyPair, RequestSet> SpdySessionRequestMap;
-  typedef std::map<HttpPipelinedHost::Key, RequestSet> HttpPipeliningRequestMap;
+  typedef std::map<HttpPipelinedHost::Key,
+                   RequestVector> HttpPipeliningRequestMap;
 
   bool GetAlternateProtocolRequestFor(const GURL& original_url,
                                       GURL* alternate_url) const;
