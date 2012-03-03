@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,16 +9,19 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
+#include "net/base/x509_certificate.h"
 
 class FilePath;
 
 namespace net {
 
-class X509Certificate;
-
 // Returns a FilePath object representing the src/net/data/ssl/certificates
 // directory in the source tree.
 FilePath GetTestCertsDirectory();
+
+CertificateList CreateCertificateListFromFile(const FilePath& certs_dir,
+                                              const std::string& cert_file,
+                                              int format);
 
 // Imports a certificate file in the src/net/data/ssl/certificates directory.
 // certs_dir represents the test certificates directory.  cert_file is the
