@@ -261,12 +261,13 @@ class PeerCertificateChain {
   explicit PeerCertificateChain(PRFileDesc* nss_fd)
       : num_certs_(0),
         certs_(NULL) {
-    SECStatus rv = SSL_PeerCertificateChain(nss_fd, NULL, &num_certs_);
+    SECStatus rv = SSL_PeerCertificateChain(nss_fd, NULL, &num_certs_, 0);
     DCHECK_EQ(rv, SECSuccess);
 
     certs_ = new CERTCertificate*[num_certs_];
     const unsigned expected_num_certs = num_certs_;
-    rv = SSL_PeerCertificateChain(nss_fd, certs_, &num_certs_);
+    rv = SSL_PeerCertificateChain(nss_fd, certs_, &num_certs_,
+                                  expected_num_certs);
     DCHECK_EQ(rv, SECSuccess);
     DCHECK_EQ(num_certs_, expected_num_certs);
   }
@@ -913,12 +914,12 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
     LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_DEFLATE");
 #endif
 
-#ifdef SSL_ENABLE_FALSE_START
-  rv = SSL_OptionSet(
-      nss_fd_, SSL_ENABLE_FALSE_START,
+  PRBool false_start_enabled =
       ssl_config_.false_start_enabled &&
       !SSLConfigService::IsKnownFalseStartIncompatibleServer(
-          host_and_port_.host()));
+          host_and_port_.host());
+#ifdef SSL_ENABLE_FALSE_START
+  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_FALSE_START, false_start_enabled);
   if (rv != SECSuccess)
     LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_FALSE_START");
 #endif
@@ -937,13 +938,17 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   }
 #endif  // SSL_ENABLE_RENEGOTIATION
 
-#ifdef SSL_NEXT_PROTO_NEGOTIATED
   if (!ssl_config_.next_protos.empty()) {
     rv = SSL_SetNextProtoCallback(
         nss_fd_, SSLClientSocketNSS::NextProtoCallback, this);
     if (rv != SECSuccess)
       LogFailedNSSFunction(net_log_, "SSL_SetNextProtoCallback", "");
   }
+
+#ifdef SSL_CBC_RANDOM_IV
+  rv = SSL_OptionSet(nss_fd_, SSL_CBC_RANDOM_IV, false_start_enabled);
+  if (rv != SECSuccess)
+    LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_CBC_RANDOM_IV");
 #endif
 
 #ifdef SSL_ENABLE_OCSP_STAPLING
@@ -1370,7 +1375,6 @@ bool SSLClientSocketNSS::LoadSSLHostInfo() {
   if (state.certs.empty())
     return true;
 
-  SECStatus rv;
   const std::vector<std::string>& certs_in = state.certs;
   scoped_array<CERTCertificate*> certs(new CERTCertificate*[certs_in.size()]);
 
@@ -1389,11 +1393,16 @@ bool SSLClientSocketNSS::LoadSSLHostInfo() {
     }
   }
 
+  SECStatus rv;
+#ifdef SSL_ENABLE_CACHED_INFO
   rv = SSL_SetPredictedPeerCertificates(nss_fd_, certs.get(), certs_in.size());
-  DestroyCertificates(&certs[0], certs_in.size());
   DCHECK_EQ(SECSuccess, rv);
+#else
+  rv = SECFailure;  // Not implemented.
+#endif
+  DestroyCertificates(&certs[0], certs_in.size());
 
-  return true;
+  return rv == SECSuccess;
 }
 
 int SSLClientSocketNSS::DoLoadSSLHostInfo() {
@@ -2637,7 +2646,8 @@ SSLClientSocketNSS::NextProtoCallback(void* arg,
                                       const unsigned char* protos,
                                       unsigned int protos_len,
                                       unsigned char* proto_out,
-                                      unsigned int* proto_out_len) {
+                                      unsigned int* proto_out_len,
+                                      unsigned int proto_max_len) {
   SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
 
   // For each protocol in server preference, see if we support it.
@@ -2676,6 +2686,10 @@ SSLClientSocketNSS::NextProtoCallback(void* arg,
     that->next_proto_ = that->ssl_config_.next_protos[0];
   }
 
+  if (that->next_proto_.size() > proto_max_len) {
+    PORT_SetError(SEC_ERROR_OUTPUT_LEN);
+    return SECFailure;
+  }
   memcpy(proto_out, that->next_proto_.data(), that->next_proto_.size());
   *proto_out_len = that->next_proto_.size();
   return SECSuccess;

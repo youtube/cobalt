@@ -200,7 +200,8 @@ class SSLClientSocketNSS : public SSLClientSocket {
                                      const unsigned char* protos,
                                      unsigned int protos_len,
                                      unsigned char* proto_out,
-                                     unsigned int* proto_out_len);
+                                     unsigned int* proto_out_len,
+                                     unsigned int proto_max_len);
 
   // The following methods are for debugging bug 65948. Will remove this code
   // after fixing bug 65948.
