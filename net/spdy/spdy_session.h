@@ -6,7 +6,7 @@
 #define NET_SPDY_SPDY_SESSION_H_
 #pragma once
 
-#include <deque>
+#include <algorithm>
 #include <list>
 #include <map>
 #include <queue>
@@ -42,7 +42,6 @@ const int kMss = 1430;
 const int kMaxSpdyFrameChunkSize = (2 * kMss) - spdy::SpdyFrame::kHeaderSize;
 
 class BoundNetLog;
-class SpdySettingsStorage;
 class SpdyStream;
 class SSLInfo;
 
