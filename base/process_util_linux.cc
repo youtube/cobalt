@@ -4,10 +4,15 @@
 
 #include "base/process_util.h"
 
+#include <ctype.h>
 #include <dirent.h>
-#include <malloc.h>
+#include <dlfcn.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "base/file_util.h"
@@ -27,123 +32,24 @@ enum ParsingState {
 };
 
 const char kProcDir[] = "/proc";
-const char kStatFile[] = "stat";
 
 // Returns a FilePath to "/proc/pid".
 FilePath GetProcPidDir(pid_t pid) {
   return FilePath(kProcDir).Append(base::Int64ToString(pid));
 }
 
-// Fields from /proc/<pid>/stat, 0-based. See man 5 proc.
-// If the ordering ever changes, carefully review functions that use these
-// values.
-enum ProcStatsFields {
-  VM_COMM           = 1,   // Filename of executable, without parentheses.
-  VM_STATE          = 2,   // Letter indicating the state of the process.
-  VM_PPID           = 3,   // PID of the parent.
-  VM_PGRP           = 4,   // Process group id.
-  VM_UTIME          = 13,  // Time scheduled in user mode in clock ticks.
-  VM_STIME          = 14,  // Time scheduled in kernel mode in clock ticks.
-  VM_VSIZE          = 22,  // Virtual memory size in bytes.
-  VM_RSS            = 23,  // Resident Set Size in pages.
-};
-
-// Reads /proc/<pid>/stat into |buffer|. Returns true if successful.
-bool ReadProcStats(pid_t pid, std::string* buffer) {
+// Reads /proc/<pid>/stat and populates |proc_stats| with the values split by
+// spaces. Returns true if successful.
+bool GetProcStats(pid_t pid, std::vector<std::string>* proc_stats) {
   // Synchronously reading files in /proc is safe.
   base::ThreadRestrictions::ScopedAllowIO allow_io;
 
-  FilePath stat_file = GetProcPidDir(pid).Append(kStatFile);
-  if (!file_util::ReadFileToString(stat_file, buffer)) {
-    DLOG(WARNING) << "Failed to get process stats.";
+  FilePath stat_file = GetProcPidDir(pid).Append("stat");
+  std::string mem_stats;
+  if (!file_util::ReadFileToString(stat_file, &mem_stats))
     return false;
-  }
+  base::SplitString(mem_stats, ' ', proc_stats);
   return true;
-}
-
-// Takes |stats_data| and populates |proc_stats| with the values split by
-// spaces. Taking into account the 2nd field may, in itself, contain spaces.
-// Returns true if successful.
-bool ParseProcStats(const std::string& stats_data,
-                    std::vector<std::string>* proc_stats) {
-  // The stat file is formatted as:
-  // pid (process name) data1 data2 .... dataN
-  // Look for the closing paren by scanning backwards, to avoid being fooled by
-  // processes with ')' in the name.
-  size_t open_parens_idx = stats_data.find(" (");
-  size_t close_parens_idx = stats_data.rfind(") ");
-  if (open_parens_idx == std::string::npos ||
-      close_parens_idx == std::string::npos ||
-      open_parens_idx > close_parens_idx) {
-    NOTREACHED();
-    return false;
-  }
-  open_parens_idx++;
-
-  proc_stats->clear();
-  // PID.
-  proc_stats->push_back(stats_data.substr(0, open_parens_idx));
-  // Process name without parentheses.
-  proc_stats->push_back(
-      stats_data.substr(open_parens_idx + 1,
-                        close_parens_idx - (open_parens_idx + 1)));
-
-  // Split the rest.
-  std::vector<std::string> other_stats;
-  base::SplitString(stats_data.substr(close_parens_idx + 2), ' ', &other_stats);
-  for (size_t i = 0; i < other_stats.size(); ++i)
-    proc_stats->push_back(other_stats[i]);
-  return true;
-}
-
-// Reads the |field_num|th field from |proc_stats|. Returns 0 on failure.
-// This version does not handle the first 3 values, since the first value is
-// simply |pid|, and the next two values are strings.
-size_t GetProcStatsFieldAsInt(const std::vector<std::string>& proc_stats,
-                              ProcStatsFields field_num) {
-  if (field_num < VM_PPID) {
-    NOTREACHED();
-    return 0;
-  }
-
-  if (proc_stats.size() > static_cast<size_t>(field_num)) {
-    size_t value;
-    if (base::StringToUint64(proc_stats[field_num], &value))
-      return value;
-  }
-  NOTREACHED();
-  return 0;
-}
-
-// Convenience wrapper around GetProcStatsFieldAsInt(), ParseProcStats() and
-// ReadProcStats(). See GetProcStatsFieldAsInt() for details.
-size_t ReadProcStatsAndGetFieldAsInt(pid_t pid, ProcStatsFields field_num) {
-  std::string stats_data;
-  if (!ReadProcStats(pid, &stats_data))
-    return 0;
-  std::vector<std::string> proc_stats;
-  if (!ParseProcStats(stats_data, &proc_stats))
-    return 0;
-  return GetProcStatsFieldAsInt(proc_stats, field_num);
-}
-
-// Reads the |field_num|th field from |proc_stats|.
-// Returns an empty string on failure.
-// This version only handles VM_COMM and VM_STATE, which are the only fields
-// that are strings.
-std::string GetProcStatsFieldAsString(
-    const std::vector<std::string>& proc_stats,
-    ProcStatsFields field_num) {
-  if (field_num < VM_COMM || field_num > VM_STATE) {
-    NOTREACHED();
-    return "";
-  }
-
-  if (proc_stats.size() > static_cast<size_t>(field_num))
-    return proc_stats[field_num];
-
-  NOTREACHED();
-  return 0;
 }
 
 // Reads /proc/<pid>/cmdline and populates |proc_cmd_line_args| with the command
@@ -165,53 +71,28 @@ bool GetProcCmdline(pid_t pid, std::vector<std::string>* proc_cmd_line_args) {
   return true;
 }
 
-// Take a /proc directory entry named |d_name|, and if it is the directory for
-// a process, convert it to a pid_t.
-// Returns 0 on failure.
-// e.g. /proc/self/ will return 0, whereas /proc/1234 will return 1234.
-pid_t ProcDirSlotToPid(const char* d_name) {
-  int i;
-  for (i = 0; i < NAME_MAX && d_name[i]; ++i) {
-    if (!IsAsciiDigit(d_name[i])) {
-      return 0;
-    }
-  }
-  if (i == NAME_MAX)
-    return 0;
-
-  // Read the process's command line.
-  pid_t pid;
-  std::string pid_string(d_name);
-  if (!base::StringToInt(pid_string, &pid)) {
-    NOTREACHED();
-    return 0;
-  }
-  return pid;
-}
-
 // Get the total CPU of a single process.  Return value is number of jiffies
 // on success or -1 on error.
 int GetProcessCPU(pid_t pid) {
-  // Use /proc/<pid>/task to find all threads and parse their /stat file.
-  FilePath task_path = GetProcPidDir(pid).Append("task");
+  // Synchronously reading files in /proc is safe.
+  base::ThreadRestrictions::ScopedAllowIO allow_io;
 
-  DIR* dir = opendir(task_path.value().c_str());
+  // Use /proc/<pid>/task to find all threads and parse their /stat file.
+  FilePath path = GetProcPidDir(pid).Append("task");
+
+  DIR* dir = opendir(path.value().c_str());
   if (!dir) {
-    DPLOG(ERROR) << "opendir(" << task_path.value() << ")";
+    DPLOG(ERROR) << "opendir(" << path.value() << ")";
     return -1;
   }
 
   int total_cpu = 0;
   while (struct dirent* ent = readdir(dir)) {
-    pid_t tid = ProcDirSlotToPid(ent->d_name);
-    if (!tid)
+    if (ent->d_name[0] == '.')
       continue;
 
-    // Synchronously reading files in /proc is safe.
-    base::ThreadRestrictions::ScopedAllowIO allow_io;
-
+    FilePath stat_path = path.AppendASCII(ent->d_name).AppendASCII("stat");
     std::string stat;
-    FilePath stat_path = task_path.Append(ent->d_name).Append(kStatFile);
     if (file_util::ReadFileToString(stat_path, &stat)) {
       int cpu = base::ParseProcStatCPU(stat);
       if (cpu > 0)
@@ -223,21 +104,22 @@ int GetProcessCPU(pid_t pid) {
   return total_cpu;
 }
 
-// Read /proc/<pid>/status and returns the value for |field|, or 0 on failure.
-// Only works for fields in the form of "Field: value kB".
-size_t ReadProcStatusAndGetFieldAsInt(pid_t pid, const std::string& field) {
-  FilePath stat_file = GetProcPidDir(pid).Append("status");
+}  // namespace
+
+namespace base {
+
+ProcessId GetParentProcessId(ProcessHandle process) {
+  // Synchronously reading files in /proc is safe.
+  base::ThreadRestrictions::ScopedAllowIO allow_io;
+
+  FilePath stat_file = GetProcPidDir(process).Append("status");
   std::string status;
-  {
-    // Synchronously reading files in /proc is safe.
-    base::ThreadRestrictions::ScopedAllowIO allow_io;
-    if (!file_util::ReadFileToString(stat_file, &status))
-      return 0;
-  }
+  if (!file_util::ReadFileToString(stat_file, &status))
+    return -1;
 
   StringTokenizer tokenizer(status, ":\n");
   ParsingState state = KEY_NAME;
-  base::StringPiece last_key_name;
+  StringPiece last_key_name;
   while (tokenizer.GetNext()) {
     switch (state) {
       case KEY_NAME:
@@ -246,40 +128,16 @@ size_t ReadProcStatusAndGetFieldAsInt(pid_t pid, const std::string& field) {
         break;
       case KEY_VALUE:
         DCHECK(!last_key_name.empty());
-        if (last_key_name == field) {
-          std::string value_str;
-          tokenizer.token_piece().CopyToString(&value_str);
-          std::string value_str_trimmed;
-          TrimWhitespaceASCII(value_str, TRIM_ALL, &value_str_trimmed);
-          std::vector<std::string> split_value_str;
-          base::SplitString(value_str_trimmed, ' ', &split_value_str);
-          if (split_value_str.size() != 2 || split_value_str[1] != "kB") {
-            NOTREACHED();
-            return 0;
-          }
-          size_t value;
-          if (!base::StringToUint64(split_value_str[0], &value)) {
-            NOTREACHED();
-            return 0;
-          }
-          return value;
+        if (last_key_name == "PPid") {
+          int ppid;
+          base::StringToInt(tokenizer.token_piece(), &ppid);
+          return ppid;
         }
         state = KEY_NAME;
         break;
     }
   }
   NOTREACHED();
-  return 0;
-}
-
-}  // namespace
-
-namespace base {
-
-ProcessId GetParentProcessId(ProcessHandle process) {
-  size_t pid = ReadProcStatsAndGetFieldAsInt(process, VM_PPID);
-  if (pid)
-    return pid;
   return -1;
 }
 
@@ -308,45 +166,66 @@ ProcessIterator::~ProcessIterator() {
 bool ProcessIterator::CheckForNextProcess() {
   // TODO(port): skip processes owned by different UID
 
-  pid_t pid = kNullProcessId;
+  dirent* slot = 0;
+  const char* openparen;
+  const char* closeparen;
   std::vector<std::string> cmd_line_args;
-  std::string stats_data;
-  std::vector<std::string> proc_stats;
 
   // Arbitrarily guess that there will never be more than 200 non-process
-  // files in /proc.  Hardy has 53 and Lucid has 61.
+  // files in /proc.  Hardy has 53.
   int skipped = 0;
   const int kSkipLimit = 200;
   while (skipped < kSkipLimit) {
-    dirent* slot = readdir(procfs_dir_);
+    slot = readdir(procfs_dir_);
     // all done looking through /proc?
     if (!slot)
       return false;
 
     // If not a process, keep looking for one.
-    pid = ProcDirSlotToPid(slot->d_name);
-    if (!pid) {
+    bool notprocess = false;
+    int i;
+    for (i = 0; i < NAME_MAX && slot->d_name[i]; ++i) {
+       if (!isdigit(slot->d_name[i])) {
+         notprocess = true;
+         break;
+       }
+    }
+    if (i == NAME_MAX || notprocess) {
       skipped++;
       continue;
     }
 
-    if (!GetProcCmdline(pid, &cmd_line_args))
+    // Read the process's command line.
+    std::string pid_string(slot->d_name);
+    int pid;
+    if (StringToInt(pid_string, &pid) && !GetProcCmdline(pid, &cmd_line_args))
       continue;
 
-    if (!ReadProcStats(pid, &stats_data))
+    // Read the process's status.
+    char buf[NAME_MAX + 12];
+    sprintf(buf, "/proc/%s/stat", slot->d_name);
+    FILE* fp = fopen(buf, "r");
+    if (!fp)
       continue;
-    if (!ParseProcStats(stats_data, &proc_stats))
+    const char* result = fgets(buf, sizeof(buf), fp);
+    fclose(fp);
+    if (!result)
       continue;
 
-    std::string runstate = GetProcStatsFieldAsString(proc_stats, VM_STATE);
-    if (runstate.size() != 1) {
-      NOTREACHED();
+    // Parse the status.  It is formatted like this:
+    // %d (%s) %c %d %d ...
+    // pid (name) runstate ppid gid
+    // To avoid being fooled by names containing a closing paren, scan
+    // backwards.
+    openparen = strchr(buf, '(');
+    closeparen = strrchr(buf, ')');
+    if (!openparen || !closeparen)
       continue;
-    }
+    char runstate = closeparen[2];
 
     // Is the process in 'Zombie' state, i.e. dead but waiting to be reaped?
     // Allowed values: D R S T Z
-    if (runstate[0] != 'Z')
+    if (runstate != 'Z')
       break;
 
     // Nope, it's a zombie; somebody isn't cleaning up after their children.
@@ -358,14 +237,17 @@ bool ProcessIterator::CheckForNextProcess() {
     return false;
   }
 
-  entry_.pid_ = pid;
-  entry_.ppid_ = GetProcStatsFieldAsInt(proc_stats, VM_PPID);
-  entry_.gid_ = GetProcStatsFieldAsInt(proc_stats, VM_PGRP);
+  // This seems fragile.
+  entry_.pid_ = atoi(slot->d_name);
+  entry_.ppid_ = atoi(closeparen + 3);
+  entry_.gid_ = atoi(strchr(closeparen + 4, ' '));
+
   entry_.cmd_line_args_.assign(cmd_line_args.begin(), cmd_line_args.end());
 
   // TODO(port): read pid's commandline's $0, like killall does.  Using the
   // short name between openparen and closeparen won't work for long names!
-  entry_.exe_file_ = GetProcStatsFieldAsString(proc_stats, VM_COMM);
+  int len = closeparen - openparen - 1;
+  entry_.exe_file_.assign(openparen + 1, len);
   return true;
 }
 
@@ -383,22 +265,58 @@ ProcessMetrics* ProcessMetrics::CreateProcessMetrics(ProcessHandle process) {
 
 // On linux, we return vsize.
 size_t ProcessMetrics::GetPagefileUsage() const {
-  return ReadProcStatsAndGetFieldAsInt(process_, VM_VSIZE);
+  std::vector<std::string> proc_stats;
+  if (!GetProcStats(process_, &proc_stats))
+    DLOG(WARNING) << "Failed to get process stats.";
+  const size_t kVmSize = 22;
+  if (proc_stats.size() > kVmSize) {
+    int vm_size;
+    base::StringToInt(proc_stats[kVmSize], &vm_size);
+    return static_cast<size_t>(vm_size);
+  }
+  return 0;
 }
 
 // On linux, we return the high water mark of vsize.
 size_t ProcessMetrics::GetPeakPagefileUsage() const {
-  return ReadProcStatusAndGetFieldAsInt(process_, "VmPeak") * 1024;
+  std::vector<std::string> proc_stats;
+  if (!GetProcStats(process_, &proc_stats))
+    DLOG(WARNING) << "Failed to get process stats.";
+  const size_t kVmPeak = 21;
+  if (proc_stats.size() > kVmPeak) {
+    int vm_peak;
+    if (base::StringToInt(proc_stats[kVmPeak], &vm_peak))
+      return vm_peak;
+  }
+  return 0;
 }
 
 // On linux, we return RSS.
 size_t ProcessMetrics::GetWorkingSetSize() const {
-  return ReadProcStatsAndGetFieldAsInt(process_, VM_RSS) * getpagesize();
+  std::vector<std::string> proc_stats;
+  if (!GetProcStats(process_, &proc_stats))
+    DLOG(WARNING) << "Failed to get process stats.";
+  const size_t kVmRss = 23;
+  if (proc_stats.size() > kVmRss) {
+    int num_pages;
+    if (base::StringToInt(proc_stats[kVmRss], &num_pages))
+      return static_cast<size_t>(num_pages) * getpagesize();
+  }
+  return 0;
 }
 
 // On linux, we return the high water mark of RSS.
 size_t ProcessMetrics::GetPeakWorkingSetSize() const {
-  return ReadProcStatusAndGetFieldAsInt(process_, "VmHWM") * 1024;
+  std::vector<std::string> proc_stats;
+  if (!GetProcStats(process_, &proc_stats))
+    DLOG(WARNING) << "Failed to get process stats.";
+  const size_t kVmHwm = 23;
+  if (proc_stats.size() > kVmHwm) {
+    int num_pages;
+    base::StringToInt(proc_stats[kVmHwm], &num_pages);
+    return static_cast<size_t>(num_pages) * getpagesize();
+  }
+  return 0;
 }
 
 bool ProcessMetrics::GetMemoryBytes(size_t* private_bytes,
@@ -408,7 +326,7 @@ bool ProcessMetrics::GetMemoryBytes(size_t* private_bytes,
     return false;
 
   if (private_bytes)
-    *private_bytes = ws_usage.priv * 1024;
+    *private_bytes = ws_usage.priv << 10;
 
   if (shared_bytes)
     *shared_bytes = ws_usage.shared * 1024;
@@ -424,7 +342,7 @@ bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
 
   // First we need to get the page size, since everything is measured in pages.
   // For details, see: man 5 proc.
-  const int page_size_kb = getpagesize() / 1024;
+  const int page_size_kb = sysconf(_SC_PAGE_SIZE) / 1024;
   if (page_size_kb <= 0)
     return false;
 
@@ -555,15 +473,24 @@ ProcessMetrics::ProcessMetrics(ProcessHandle process)
 
 // Exposed for testing.
 int ParseProcStatCPU(const std::string& input) {
-  std::vector<std::string> proc_stats;
-  if (!ParseProcStats(input, &proc_stats))
+  // /proc/<pid>/stat contains the process name in parens.  In case the
+  // process name itself contains parens, skip past them.
+  std::string::size_type rparen = input.rfind(')');
+  if (rparen == std::string::npos)
     return -1;
 
-  if (proc_stats.size() <= VM_STIME)
-    return -1;
-  size_t utime = GetProcStatsFieldAsInt(proc_stats, VM_UTIME);
-  size_t stime = GetProcStatsFieldAsInt(proc_stats, VM_STIME);
-  return utime + stime;
+  // From here, we expect a bunch of space-separated fields, where the
+  // 0-indexed 11th and 12th are utime and stime.  On two different machines
+  // I found 42 and 39 fields, so let's just expect the ones we need.
+  std::vector<std::string> fields;
+  base::SplitString(input.substr(rparen + 2), ' ', &fields);
+  if (fields.size() < 13)
+    return -1;  // Output not in the format we expect.
+
+  int fields11, fields12;
+  base::StringToInt(fields[11], &fields11);
+  base::StringToInt(fields[12], &fields12);
+  return fields11 + fields12;
 }
 
 namespace {
@@ -592,15 +519,15 @@ bool GetSystemMemoryInfo(SystemMemoryInfoKB* meminfo) {
   FilePath meminfo_file("/proc/meminfo");
   std::string meminfo_data;
   if (!file_util::ReadFileToString(meminfo_file, &meminfo_data)) {
-    DLOG(WARNING) << "Failed to open " << meminfo_file.value();
+    DLOG(WARNING) << "Failed to open /proc/meminfo.";
     return false;
   }
   std::vector<std::string> meminfo_fields;
   SplitStringAlongWhitespace(meminfo_data, &meminfo_fields);
 
   if (meminfo_fields.size() < kMemCachedIndex) {
-    DLOG(WARNING) << "Failed to parse " << meminfo_file.value()
-                  << ".  Only found " << meminfo_fields.size() << " fields.";
+    DLOG(WARNING) << "Failed to parse /proc/meminfo.  Only found " <<
+      meminfo_fields.size() << " fields.";
     return false;
   }
 
