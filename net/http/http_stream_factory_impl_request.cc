@@ -63,10 +63,9 @@ bool HttpStreamFactoryImpl::Request::SetHttpPipeliningKey(
   http_pipelining_key_.reset(new HttpPipelinedHost::Key(http_pipelining_key));
   bool was_new_key = !ContainsKey(factory_->http_pipelining_request_map_,
                                   http_pipelining_key);
-  RequestSet& request_set =
+  RequestVector& request_vector =
       factory_->http_pipelining_request_map_[http_pipelining_key];
-  DCHECK(!ContainsKey(request_set, this));
-  request_set.insert(this);
+  request_vector.push_back(this);
   return was_new_key;
 }
 
@@ -267,11 +266,16 @@ HttpStreamFactoryImpl::Request::RemoveRequestFromHttpPipeliningRequestMap() {
     HttpPipeliningRequestMap& http_pipelining_request_map =
         factory_->http_pipelining_request_map_;
     DCHECK(ContainsKey(http_pipelining_request_map, *http_pipelining_key_));
-    RequestSet& request_set =
+    RequestVector& request_vector =
         http_pipelining_request_map[*http_pipelining_key_];
-    DCHECK(ContainsKey(request_set, this));
-    request_set.erase(this);
-    if (request_set.empty())
+    for (RequestVector::iterator it = request_vector.begin();
+         it != request_vector.end(); ++it) {
+      if (*it == this) {
+        request_vector.erase(it);
+        break;
+      }
+    }
+    if (request_vector.empty())
       http_pipelining_request_map.erase(*http_pipelining_key_);
     http_pipelining_key_.reset();
   }
