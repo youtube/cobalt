@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,6 +19,19 @@ FilePath GetTestCertsDirectory() {
   certs_dir = certs_dir.AppendASCII("ssl");
   certs_dir = certs_dir.AppendASCII("certificates");
   return certs_dir;
+}
+
+CertificateList CreateCertificateListFromFile(
+    const FilePath& certs_dir,
+    const std::string& cert_file,
+    int format) {
+  FilePath cert_path = certs_dir.AppendASCII(cert_file);
+  std::string cert_data;
+  if (!file_util::ReadFileToString(cert_path, &cert_data))
+    return CertificateList();
+  return X509Certificate::CreateCertificateListFromBytes(cert_data.data(),
+                                                         cert_data.size(),
+                                                         format);
 }
 
 scoped_refptr<X509Certificate> ImportCertFromFile(

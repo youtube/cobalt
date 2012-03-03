@@ -179,19 +179,6 @@ const CertificateFormatTestData FormatTestData[] = {
       NULL, } },
 };
 
-CertificateList CreateCertificateListFromFile(
-    const FilePath& certs_dir,
-    const std::string& cert_file,
-    int format) {
-  FilePath cert_path = certs_dir.AppendASCII(cert_file);
-  std::string cert_data;
-  if (!file_util::ReadFileToString(cert_path, &cert_data))
-    return CertificateList();
-  return X509Certificate::CreateCertificateListFromBytes(cert_data.data(),
-                                                         cert_data.size(),
-                                                         format);
-}
-
 void CheckGoogleCert(const scoped_refptr<X509Certificate>& google_cert,
                      unsigned char* expected_fingerprint,
                      double valid_from, double valid_to) {
@@ -695,6 +682,7 @@ TEST(X509CertificateTest, RejectWeakKeys) {
          signer_type != key_types.end(); ++signer_type) {
       std::string basename = *ee_type + "-ee-by-" + *signer_type +
           "-intermediate.pem";
+      SCOPED_TRACE(basename);
       scoped_refptr<X509Certificate> ee_cert =
           ImportCertFromFile(certs_dir, basename);
       ASSERT_NE(static_cast<X509Certificate*>(NULL), ee_cert);
