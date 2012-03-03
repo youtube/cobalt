@@ -56,6 +56,11 @@ class TestServer {
       CERT_OK,
       CERT_MISMATCHED_NAME,
       CERT_EXPIRED,
+      // Cross-signed certificate to test PKIX path building. Contains an
+      // intermediate cross-signed by an unknown root, while the client (via
+      // TestRootStore) is expected to have a self-signed version of the
+      // intermediate.
+      CERT_CHAIN_WRONG_ROOT,
     };
 
     // Bitmask of bulk encryption algorithms that the test server supports

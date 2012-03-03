@@ -5,6 +5,7 @@
 #include "net/socket/ssl_client_socket.h"
 
 #include "net/base/address_list.h"
+#include "net/base/cert_test_util.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/host_resolver.h"
 #include "net/base/io_buffer.h"
@@ -13,6 +14,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/test_completion_callback.h"
+#include "net/base/test_root_certs.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/socket_test_util.h"
@@ -776,3 +778,105 @@ TEST_F(SSLClientSocketTest, ClientSocketHandleNotFromPool) {
 TEST(SSLClientSocket, ClearSessionCache) {
   net::SSLClientSocket::ClearSessionCache();
 }
+
+// This tests that SSLInfo contains a properly re-constructed certificate
+// chain. That, in turn, verifies that GetSSLInfo is giving us the chain as
+// verified, not the chain as served by the server. (They may be different.)
+//
+// CERT_CHAIN_WRONG_ROOT is redundant-server-chain.pem. It contains A
+// (end-entity) -> B -> C, and C is signed by D. We do not set D to be a
+// trusted root in this test. Instead, we install C2 as a root; C2 contains
+// the same public key as C. redundant-server-chain.pem should therefore
+// validate as A -> B -> C2. If it does, this test passes.
+//
+// Note that although it is a violation of the TLS specification to send a
+// mal-ordered chain, in practice most clients don't hard-fail on it and
+// some servers do send such chains.
+//
+// This test is the upper-layer analogue for
+// X509CertificateTest.VerifyReturnChainProperlyOrdered.
+#if defined(OS_MACOSX)
+// TODO(rsleevi): http://crbug.com/114343 / http://crbug.com/69278 - OS X
+// path building fails to properly handle cross-certified intermediates
+// without AIA information, so this test is disabled.
+#define MAYBE_VerifyReturnChainProperlyOrdered \
+    DISABLED_VerifyReturnChainProperlyOrdered
+#elif defined(OS_ANDROID)
+// TODO(joth)
+#define MAYBE_VerifyReturnChainProperlyOrdered \
+    DISABLED_VerifyReturnChainProperlyOrdered
+#else
+#define MAYBE_VerifyReturnChainProperlyOrdered \
+    VerifyReturnChainProperlyOrdered
+#endif
+TEST_F(SSLClientSocketTest, MAYBE_VerifyReturnChainProperlyOrdered) {
+  // We will expect SSLInfo to ultimately contain this chain.
+  net::CertificateList certs = CreateCertificateListFromFile(
+      net::GetTestCertsDirectory(), "redundant-validated-chain.pem",
+      net::X509Certificate::FORMAT_AUTO);
+  ASSERT_EQ(3U, certs.size());
+
+  // Load and install the root for the validated chain.
+  scoped_refptr<net::X509Certificate> root_cert =
+    net::ImportCertFromFile(net::GetTestCertsDirectory(),
+                           "redundant-validated-chain-root.pem");
+  ASSERT_NE(static_cast<net::X509Certificate*>(NULL), root_cert);
+  net::TestRootCerts::GetInstance()->Add(root_cert.get());
+
+  // Set up a test server with CERT_CHAIN_WRONG_ROOT.
+  net::TestServer::HTTPSOptions https_options(
+      net::TestServer::HTTPSOptions::CERT_CHAIN_WRONG_ROOT);
+  net::TestServer test_server(https_options,
+                              FilePath(FILE_PATH_LITERAL("net/data/ssl")));
+  ASSERT_TRUE(test_server.Start());
+
+  net::AddressList addr;
+  ASSERT_TRUE(test_server.GetAddressList(&addr));
+
+  net::TestCompletionCallback callback;
+  net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
+  net::StreamSocket* transport = new net::TCPClientSocket(
+      addr, &log, net::NetLog::Source());
+  int rv = transport->Connect(callback.callback());
+  if (rv == net::ERR_IO_PENDING)
+    rv = callback.WaitForResult();
+  EXPECT_EQ(net::OK, rv);
+
+  scoped_ptr<net::SSLClientSocket> sock(
+      CreateSSLClientSocket(transport, test_server.host_port_pair(),
+                            kDefaultSSLConfig));
+  EXPECT_FALSE(sock->IsConnected());
+  rv = sock->Connect(callback.callback());
+
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      entries, 5, net::NetLog::TYPE_SSL_CONNECT));
+  if (rv == net::ERR_IO_PENDING)
+    rv = callback.WaitForResult();
+
+  EXPECT_EQ(net::OK, rv);
+  EXPECT_TRUE(sock->IsConnected());
+  log.GetEntries(&entries);
+  EXPECT_TRUE(LogContainsSSLConnectEndEvent(entries, -1));
+
+  net::SSLInfo ssl_info;
+  sock->GetSSLInfo(&ssl_info);
+
+  // Verify that SSLInfo contains the corrected re-constructed chain A -> B
+  // -> C2.
+  const net::X509Certificate::OSCertHandles& intermediates =
+      ssl_info.cert->GetIntermediateCertificates();
+  ASSERT_EQ(2U, intermediates.size());
+  EXPECT_TRUE(net::X509Certificate::IsSameOSCert(
+      ssl_info.cert->os_cert_handle(), certs[0]->os_cert_handle()));
+  EXPECT_TRUE(net::X509Certificate::IsSameOSCert(
+      intermediates[0], certs[1]->os_cert_handle()));
+  EXPECT_TRUE(net::X509Certificate::IsSameOSCert(
+      intermediates[1], certs[2]->os_cert_handle()));
+
+  net::TestRootCerts::GetInstance()->Clear();
+  sock->Disconnect();
+  EXPECT_FALSE(sock->IsConnected());
+}
+
