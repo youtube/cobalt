@@ -604,10 +604,11 @@ void AlsaPcmOutputStream::ScheduleNextWrite(bool source_exhausted) {
     } else {
       // TODO(ajwong): Measure the reliability of the delay interval.  Use
       // base/metrics/histogram.h.
-      manager_->GetMessageLoop()->PostDelayedTask(FROM_HERE,
+      manager_->GetMessageLoop()->PostDelayedTask(
+          FROM_HERE,
           base::Bind(&AlsaPcmOutputStream::WriteTask,
                      weak_factory_.GetWeakPtr()),
-          next_fill_time_ms);
+          base::TimeDelta::FromMilliseconds(next_fill_time_ms));
     }
   }
 }

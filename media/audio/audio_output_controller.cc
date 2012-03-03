@@ -162,7 +162,7 @@ void AudioOutputController::DoPlay() {
       FROM_HERE,
       base::Bind(&AudioOutputController::PollAndStartIfDataReady,
       weak_this_.GetWeakPtr()),
-      kPollPauseInMilliseconds);
+      base::TimeDelta::FromMilliseconds(kPollPauseInMilliseconds));
 }
 
 void AudioOutputController::PollAndStartIfDataReady() {
@@ -187,7 +187,7 @@ void AudioOutputController::PollAndStartIfDataReady() {
         FROM_HERE,
         base::Bind(&AudioOutputController::PollAndStartIfDataReady,
         weak_this_.GetWeakPtr()),
-        kPollPauseInMilliseconds);
+        base::TimeDelta::FromMilliseconds(kPollPauseInMilliseconds));
   }
 }
 
