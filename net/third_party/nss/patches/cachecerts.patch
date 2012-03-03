@@ -82,47 +82,14 @@ index 455a532..9830e65 100644
  /* Called from ssl3_HandleHandshakeMessage() when it has deciphered a complete
   * ssl3 Certificate message.
   * Caller must hold Handshake and RecvBuf locks.
-@@ -7769,6 +7810,7 @@ static SECStatus
- ssl3_HandleCertificate(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
- {
-     ssl3CertNode *   c;
-+    ssl3CertNode *   lastCert 	= NULL;
-     ssl3CertNode *   certs 	= NULL;
-     PRArenaPool *    arena 	= NULL;
-     CERTCertificate *cert;
-@@ -7896,8 +7938,13 @@ ssl3_HandleCertificate(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
- 	if (c->cert->trust)
- 	    trusted = PR_TRUE;
- 
--	c->next = certs;
--	certs = c;
-+	c->next = NULL;
-+	if (lastCert) {
-+	    lastCert->next = c;
-+	} else {
-+	    certs = c;
-+	}
-+	lastCert = c;
-     }
- 
-     if (remaining != 0)
 @@ -7947,6 +7994,7 @@ ssl3_HandleCertificate(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
      }
  
      ss->sec.ci.sid->peerCert = CERT_DupCertificate(ss->sec.peerCert);
-+    ssl3_CopyPeerCertsToSID(certs, ss->sec.ci.sid);
++    ssl3_CopyPeerCertsToSID(ss->ssl3.peerCertChain, ss->sec.ci.sid);
  
      if (!ss->sec.isServer) {
  	/* set the server authentication and key exchange types and sizes
-@@ -8118,6 +8166,8 @@ ssl3_RestartHandshakeAfterServerCert(sslSocket *ss)
-     if (ss->handshake != NULL) {
- 	ss->handshake = ssl_GatherRecord1stHandshake;
- 	ss->sec.ci.sid->peerCert = CERT_DupCertificate(ss->sec.peerCert);
-+	ssl3_CopyPeerCertsToSID((ssl3CertNode *)ss->ssl3.peerCertChain,
-+				ss->sec.ci.sid);
- 
- 	ssl_GetRecvBufLock(ss);
- 	if (ss->ssl3.hs.msgState.buf != NULL) {
 diff --git a/mozilla/security/nss/lib/ssl/sslimpl.h b/mozilla/security/nss/lib/ssl/sslimpl.h
 index d1c1181..48d6d83 100644
 --- a/mozilla/security/nss/lib/ssl/sslimpl.h

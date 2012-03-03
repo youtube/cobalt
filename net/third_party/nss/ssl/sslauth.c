@@ -33,7 +33,7 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-/* $Id: sslauth.c,v 1.16.66.1 2010/08/03 18:52:13 wtc%google.com Exp $ */
+/* $Id: sslauth.c,v 1.17 2010/08/03 18:48:45 wtc%google.com Exp $ */
 #include "cert.h"
 #include "secitem.h"
 #include "ssl.h"
@@ -62,10 +62,9 @@ SSL_PeerCertificate(PRFileDesc *fd)
 /* NEED LOCKS IN HERE.  */
 SECStatus
 SSL_PeerCertificateChain(PRFileDesc *fd, CERTCertificate **certs,
-			 unsigned int *certsSize)
+			 unsigned int *numCerts, unsigned int maxNumCerts)
 {
     sslSocket *ss;
-    unsigned int inSize = *certsSize;
     ssl3CertNode* cur;
 
     ss = ssl_FindSocket(fd);
@@ -78,61 +77,21 @@ SSL_PeerCertificateChain(PRFileDesc *fd, CERTCertificate **certs,
 	return SECFailure;
 
     if (ss->sec.peerCert == NULL) {
-      *certsSize = 0;
+      *numCerts = 0;
       return SECSuccess;
     }
 
-    *certsSize = 1;  /* for the leaf certificate */
-    if (inSize > 0)
+    *numCerts = 1;  /* for the leaf certificate */
+    if (maxNumCerts > 0)
 	certs[0] = CERT_DupCertificate(ss->sec.peerCert);
 
     for (cur = ss->ssl3.peerCertChain; cur; cur = cur->next) {
-	if (*certsSize < inSize)
-	    certs[*certsSize] = CERT_DupCertificate(cur->cert);
-	(*certsSize)++;
+	if (*numCerts < maxNumCerts)
+	    certs[*numCerts] = CERT_DupCertificate(cur->cert);
+	(*numCerts)++;
     }
 
     return SECSuccess;
-}
-
-SECStatus
-SSL_SetPredictedPeerCertificates(PRFileDesc *fd, CERTCertificate **certs,
-				 unsigned int numCerts)
-{
-    sslSocket *ss;
-    unsigned int i;
-
-    ss = ssl_FindSocket(fd);
-    if (!ss) {
-	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_SetPredictedPeerCertificates",
-		 SSL_GETPID(), fd));
-	return SECFailure;
-    }
-
-    ss->ssl3.predictedCertChain =
-	PORT_NewArray(CERTCertificate*, numCerts + 1);
-    if (!ss->ssl3.predictedCertChain)
-	return SECFailure;	/* error code was set */
-    for (i = 0; i < numCerts; i++)
-	ss->ssl3.predictedCertChain[i] = CERT_DupCertificate(certs[i]);
-    ss->ssl3.predictedCertChain[numCerts] = NULL;
-
-    return SECSuccess;
-}
-
-PRBool
-SSL_CertChainDigestReceived(PRFileDesc *fd)
-{
-    sslSocket *ss;
-
-    ss = ssl_FindSocket(fd);
-    if (!ss) {
-	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_CertChainDigestReceived",
-		 SSL_GETPID(), fd));
-	return SECFailure;
-    }
-
-    return ss->ssl3.cachedInfoCertChainDigestReceived;
 }
 
 /* NEED LOCKS IN HERE.  */

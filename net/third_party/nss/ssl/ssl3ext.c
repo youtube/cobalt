@@ -41,7 +41,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 /* TLS extension code moved here from ssl3ecc.c */
-/* $Id: ssl3ext.c,v 1.14 2010/04/03 19:19:07 nelson%bolyard.com Exp $ */
+/* $Id: ssl3ext.c,v 1.21 2012/02/15 21:52:08 kaie%kuix.de Exp $ */
 
 #include "nssrenam.h"
 #include "nss.h"
@@ -56,7 +56,7 @@ static unsigned char  key_name[SESS_TICKET_KEY_NAME_LEN];
 static PK11SymKey    *session_ticket_enc_key_pkcs11 = NULL;
 static PK11SymKey    *session_ticket_mac_key_pkcs11 = NULL;
 
-static unsigned char  session_ticket_enc_key[32];
+static unsigned char  session_ticket_enc_key[AES_256_KEY_LENGTH];
 static unsigned char  session_ticket_mac_key[SHA256_LENGTH];
 
 static PRBool         session_ticket_keys_initialized = PR_FALSE;
@@ -78,6 +78,12 @@ static PRInt32 ssl3_SendRenegotiationInfoXtn(sslSocket * ss,
     PRBool append, PRUint32 maxBytes);
 static SECStatus ssl3_HandleRenegotiationInfoXtn(sslSocket *ss, 
     PRUint16 ex_type, SECItem *data);
+static SECStatus ssl3_ClientHandleNextProtoNegoXtn(sslSocket *ss,
+			PRUint16 ex_type, SECItem *data);
+static SECStatus ssl3_ServerHandleNextProtoNegoXtn(sslSocket *ss,
+			PRUint16 ex_type, SECItem *data);
+static PRInt32 ssl3_ClientSendNextProtoNegoXtn(sslSocket *ss, PRBool append,
+					       PRUint32 maxBytes);
 static SECStatus ssl3_ServerHandleEncryptedClientCertsXtn(sslSocket *ss,
     PRUint16 ex_type, SECItem *data);
 static SECStatus ssl3_ClientHandleEncryptedClientCertsXtn(sslSocket *ss,
@@ -242,8 +248,7 @@ static const ssl3HelloExtensionHandler clientHelloHandlers[] = {
     { ssl_session_ticket_xtn,     &ssl3_ServerHandleSessionTicketXtn },
     { ssl_encrypted_client_certs, &ssl3_ServerHandleEncryptedClientCertsXtn },
     { ssl_renegotiation_info_xtn, &ssl3_HandleRenegotiationInfoXtn },
-    { ssl_next_proto_neg_xtn,     &ssl3_ServerHandleNextProtoNegoXtn },
-    { ssl_cached_info_xtn,        &ssl3_ServerHandleCachedInfoXtn },
+    { ssl_next_proto_nego_xtn,    &ssl3_ServerHandleNextProtoNegoXtn },
     { ssl_ob_cert_xtn,            &ssl3_ServerHandleOBCertXtn },
     { -1, NULL }
 };
@@ -256,8 +261,7 @@ static const ssl3HelloExtensionHandler serverHelloHandlersTLS[] = {
     { ssl_session_ticket_xtn,     &ssl3_ClientHandleSessionTicketXtn },
     { ssl_encrypted_client_certs, &ssl3_ClientHandleEncryptedClientCertsXtn },
     { ssl_renegotiation_info_xtn, &ssl3_HandleRenegotiationInfoXtn },
-    { ssl_next_proto_neg_xtn,     &ssl3_ClientHandleNextProtoNegoXtn },
-    { ssl_cached_info_xtn,        &ssl3_ClientHandleCachedInfoXtn },
+    { ssl_next_proto_nego_xtn,    &ssl3_ClientHandleNextProtoNegoXtn },
     { ssl_cert_status_xtn,        &ssl3_ClientHandleStatusRequestXtn },
     { ssl_ob_cert_xtn,            &ssl3_ClientHandleOBCertXtn },
     { -1, NULL }
@@ -284,8 +288,7 @@ ssl3HelloExtensionSender clientHelloSendersTLS[SSL_MAX_EXTENSIONS] = {
 #endif
     { ssl_session_ticket_xtn,     &ssl3_SendSessionTicketXtn },
     { ssl_encrypted_client_certs, &ssl3_SendEncryptedClientCertsXtn },
-    { ssl_next_proto_neg_xtn,     &ssl3_ClientSendNextProtoNegoXtn },
-    { ssl_cached_info_xtn,        &ssl3_ClientSendCachedInfoXtn },
+    { ssl_next_proto_nego_xtn,    &ssl3_ClientSendNextProtoNegoXtn },
     { ssl_cert_status_xtn,        &ssl3_ClientSendStatusRequestXtn },
     { ssl_ob_cert_xtn,            &ssl3_SendOBCertXtn }
     /* any extra entries will appear as { 0, NULL }    */
@@ -555,11 +558,12 @@ ssl3_SendSessionTicketXtn(
 }
 
 /* handle an incoming Next Protocol Negotiation extension. */
-SECStatus
+static SECStatus
 ssl3_ServerHandleNextProtoNegoXtn(sslSocket * ss, PRUint16 ex_type, SECItem *data)
 {
-    if (data->len != 0) {
+    if (ss->firstHsDone || data->len != 0) {
 	/* Clients MUST send an empty NPN extension, if any. */
+	PORT_SetError(SSL_ERROR_NEXT_PROTOCOL_DATA_INVALID);
 	return SECFailure;
     }
 
@@ -570,16 +574,20 @@ ssl3_ServerHandleNextProtoNegoXtn(sslSocket * ss, PRUint16 ex_type, SECItem *dat
  * of the lengths may be 0 and the sum of the lengths must equal the length of
  * the block. */
 SECStatus
-ssl3_ValidateNextProtoNego(const unsigned char* data, unsigned short length)
+ssl3_ValidateNextProtoNego(const unsigned char* data, unsigned int length)
 {
     unsigned int offset = 0;
 
     while (offset < length) {
-	if (data[offset] == 0) {
+	unsigned int newOffset = offset + 1 + (unsigned int) data[offset];
+	/* Reject embedded nulls to protect against buggy applications that
+	 * store protocol identifiers in null-terminated strings.
+	 */
+	if (newOffset > length || data[offset] == 0) {
 	    PORT_SetError(SSL_ERROR_NEXT_PROTOCOL_DATA_INVALID);
 	    return SECFailure;
 	}
-	offset += (unsigned int)data[offset] + 1;
+	offset = newOffset;
     }
 
     if (offset > length) {
@@ -590,39 +598,51 @@ ssl3_ValidateNextProtoNego(const unsigned char* data, unsigned short length)
     return SECSuccess;
 }
 
-SECStatus
+static SECStatus
 ssl3_ClientHandleNextProtoNegoXtn(sslSocket *ss, PRUint16 ex_type,
-                                  SECItem *data)
+				  SECItem *data)
 {
     SECStatus rv;
-    unsigned char result[255];
-    unsigned int result_len;
+    unsigned char resultBuffer[255];
+    SECItem result = { siBuffer, resultBuffer, 0 };
+
+    if (ss->firstHsDone) {
+	PORT_SetError(SSL_ERROR_NEXT_PROTOCOL_DATA_INVALID);
+	return SECFailure;
+    }
 
     rv = ssl3_ValidateNextProtoNego(data->data, data->len);
     if (rv != SECSuccess)
 	return rv;
 
-    rv = ss->nextProtoCallback(ss->nextProtoArg, ss->fd,
-                               data->data, data->len,
-                               result, &result_len);
+    /* ss->nextProtoCallback cannot normally be NULL if we negotiated the
+     * extension. However, It is possible that an application erroneously
+     * cleared the callback between the time we sent the ClientHello and now.
+     */
+    PORT_Assert(ss->nextProtoCallback != NULL);
+    if (!ss->nextProtoCallback) {
+	PORT_SetError(SEC_ERROR_LIBRARY_FAILURE);
+	return SECFailure;
+    }
+
+    rv = ss->nextProtoCallback(ss->nextProtoArg, ss->fd, data->data, data->len,
+			       result.data, &result.len, sizeof resultBuffer);
     if (rv != SECSuccess)
 	return rv;
     /* If the callback wrote more than allowed to |result| it has corrupted our
      * stack. */
-    PORT_Assert(result_len <= sizeof(result));
+    if (result.len > sizeof result) {
+	PORT_SetError(SEC_ERROR_OUTPUT_LEN);
+	return SECFailure;
+    }
 
-    if (ss->ssl3.nextProto.data)
-	PORT_Free(ss->ssl3.nextProto.data);
-    ss->ssl3.nextProto.data = PORT_Alloc(result_len);
-    PORT_Memcpy(ss->ssl3.nextProto.data, result, result_len);
-    ss->ssl3.nextProto.len = result_len;
-    return SECSuccess;
+    SECITEM_FreeItem(&ss->ssl3.nextProto, PR_FALSE);
+    return SECITEM_CopyItem(NULL, &ss->ssl3.nextProto, &result);
 }
 
-PRInt32
-ssl3_ClientSendNextProtoNegoXtn(sslSocket * ss,
-			       PRBool      append,
-			       PRUint32    maxBytes)
+static PRInt32
+ssl3_ClientSendNextProtoNegoXtn(sslSocket * ss, PRBool append,
+				PRUint32 maxBytes)
 {
     PRInt32 extension_length;
 
@@ -635,21 +655,21 @@ ssl3_ClientSendNextProtoNegoXtn(sslSocket * ss,
 
     if (append && maxBytes >= extension_length) {
 	SECStatus rv;
-	rv = ssl3_AppendHandshakeNumber(ss, ssl_next_proto_neg_xtn, 2);
+	rv = ssl3_AppendHandshakeNumber(ss, ssl_next_proto_nego_xtn, 2);
 	if (rv != SECSuccess)
 	    goto loser;
 	rv = ssl3_AppendHandshakeNumber(ss, 0, 2);
 	if (rv != SECSuccess)
 	    goto loser;
 	ss->xtnData.advertised[ss->xtnData.numAdvertised++] =
-		ssl_next_proto_neg_xtn;
+		ssl_next_proto_nego_xtn;
     } else if (maxBytes < extension_length) {
 	return 0;
     }
 
     return extension_length;
 
- loser:
+loser:
     return -1;
 }
 
@@ -671,261 +691,6 @@ ssl3_ClientHandleStatusRequestXtn(sslSocket *ss, PRUint16 ex_type,
     ss->xtnData.negotiated[ss->xtnData.numNegotiated++] = ex_type;
 
     return SECSuccess;
-}
-
-/* ssl3_ClientSendCachedInfoXtn builds the cached_info extension on the
- * client side. */
-PRInt32
-ssl3_ClientSendCachedInfoXtn(sslSocket * ss, PRBool append,
-				PRUint32 maxBytes)
-{
-    PRInt32 extension_length;
-    PRBool send_empty;
-    CERTCertificate ** predictedCertChain;
-
-    if (!ss->opt.enableCachedInfo)
-	return 0;
-
-    predictedCertChain = ss->ssl3.predictedCertChain;
-    send_empty = (predictedCertChain == NULL);
-
-    /* minimum extension:
-     * extension_type (2-bytes) +
-     * length(extension_data) (2-bytes) +
-     * length(cached_info) (2-bytes) +
-     */
-    extension_length = send_empty ? 6 : 16;
-
-    if (append && maxBytes >= extension_length) {
-	SECStatus rv;
-
-	/* ExtensionType */
-	rv = ssl3_AppendHandshakeNumber(ss, ssl_cached_info_xtn, 2);
-	if (rv != SECSuccess)
-	    return -1;
-	/* Extension Length */
-	rv = ssl3_AppendHandshakeNumber(ss, extension_length - 4, 2);
-	if (rv != SECSuccess)
-	    return -1;
-	if (send_empty) {
-	    /* Cached Information Length */
-	    rv = ssl3_AppendHandshakeNumber(ss, 0, 2);
-	    if (rv != SECSuccess)
-	      return -1;
-	} else {
-	    PRUint64 certChainHash;
-	    int i;
-	    PRUint8* digestPtr = (PRUint8*) &certChainHash;
-
-	    /* Cached Information Length */
-	    rv = ssl3_AppendHandshakeNumber(ss, 10, 2);
-	    if (rv != SECSuccess)
-		return -1;
-	    /* Cached Information Type */
-	    rv = ssl3_AppendHandshakeNumber(ss, 1 /* certificate_chain */, 1);
-	    if (rv != SECSuccess)
-		return -1;
-	    /* hash length */
-	    rv = ssl3_AppendHandshakeNumber(ss, 8, 1);
-	    if (rv != SECSuccess)
-		return -1;
-	    /* hash */
-	    FNV1A64_Init(&certChainHash);
-	    for (i = 0; predictedCertChain[i] != NULL; i++) {
-		unsigned int certLen = predictedCertChain[i]->derCert.len;
-		unsigned char certLenArray[3] = {
-		    certLen >> 16,
-		    certLen >> 8,
-		    certLen
-		};
-		FNV1A64_Update(&certChainHash, certLenArray, 3);
-		FNV1A64_Update(&certChainHash,
-			       predictedCertChain[i]->derCert.data, certLen);
-	    }
-	    FNV1A64_Final(&certChainHash);
-	    rv = ssl3_AppendHandshake(ss, &certChainHash, 8);
-	    if (rv != SECSuccess)
-		return -1;
-	    for (i = 0; i < 8; i++) {
-		ss->ssl3.certChainDigest[i] = digestPtr[i];
-	    }
-	}
-
-    } else if (maxBytes < extension_length) {
-	PORT_Assert(0);
-	return 0;
-    }
-    ss->xtnData.advertised[ss->xtnData.numAdvertised++] =
-	ssl_cached_info_xtn;
-    return extension_length;
-}
-
-SECStatus
-ssl3_ServerHandleCachedInfoXtn(sslSocket *ss, PRUint16 ex_type,
-                               SECItem *data)
-{
-    SECStatus rv;
-    unsigned char *cached_info = data->data;
-    unsigned int remaining_len;
-
-    /* Ignore the extension if it isn't enabled. */
-    if (!ss->opt.enableCachedInfo)
-	return SECSuccess;
-
-    if (data->len < 2)
-        return SECFailure;
-    remaining_len = (cached_info[0] << 8) | cached_info[1];
-    if (remaining_len > 2048 || remaining_len != data->len - 2)
-        return SECFailure;
-    cached_info += 2;
-
-    /* Handle reconnaissance case. */
-    if (remaining_len == 0) {
-        /* The client supports information caching, but provides no information
-	 * about what information types it supports */
-        ss->xtnData.negotiated[ss->xtnData.numNegotiated++] = ex_type;
-	rv = ssl3_RegisterServerHelloExtensionSender(ss, ex_type,
-						ssl3_ServerSendCachedInfoXtn);
-	return rv;
-    }
-
-    /* Iterate over the CachedObjects and pick the first item of type
-     * certificate_chain, while ignoring everything else. */
-    while (remaining_len >= 2) {
-        unsigned char cached_object_type = *cached_info++;
-	unsigned int cached_object_length = *cached_info++;
-	remaining_len -= 2;
-	if (remaining_len < cached_object_length)
-            return SECFailure;
-	if (cached_object_length != 8) /* The digest must be present. */
-	    return SECFailure;
-	if (cached_object_type == cached_info_certificate_chain &&
-	    !ss->ssl3.cachedInfoCertChainDigestReceived) {
-	    ss->ssl3.cachedInfoCertChainDigestReceived = PR_TRUE;
-	    memcpy(ss->ssl3.certChainDigest, cached_info, 8);
-	}
-	remaining_len -= cached_object_length;
-	cached_info += cached_object_length;
-    }
-
-    if (remaining_len != 0)
-        return SECFailure;
-
-    if (ss->ssl3.cachedInfoCertChainDigestReceived) {
-        ss->xtnData.negotiated[ss->xtnData.numNegotiated++] = ex_type;
-	rv = ssl3_RegisterServerHelloExtensionSender(ss, ex_type,
-						ssl3_ServerSendCachedInfoXtn);
-	return SECSuccess;
-    }
-
-    return SECSuccess;
-}
-
-/* ssl3_ServerSendCachedInfoXtn builds the cached_info extension on the
- * server side. */
-PRInt32
-ssl3_ServerSendCachedInfoXtn(sslSocket * ss, PRBool append,
-			     PRUint32 maxBytes)
-{
-    PRInt32 extension_length = 2 /* extension type */ +
-                               2 /* extension length */ +
-                               2 /* cached_info length */ +
-                               1 /* CachedInformationType */ +
-                               1 /* hash value length (0) */;
-    SECStatus rv;
-
-    PORT_Assert(ss->opt.enableCachedInfo);
-
-    if (append && maxBytes >= extension_length) {
-        /* ExtensionType */
-        rv = ssl3_AppendHandshakeNumber(ss, ssl_cached_info_xtn, 2);
-        if (rv != SECSuccess)
-            return -1;
-        /* Extension Length */
-        rv = ssl3_AppendHandshakeNumber(ss, extension_length - 4, 2);
-        if (rv != SECSuccess)
-            return -1;
-        /* Cached Information Length */
-        rv = ssl3_AppendHandshakeNumber(ss, 2, 2);
-        if (rv != SECSuccess)
-            return -1;
-        /* Cached Information Type */
-        rv = ssl3_AppendHandshakeNumber(ss, 1 /* certificate_chain */, 1);
-        if (rv != SECSuccess)
-            return -1;
-        /* hash length */
-        rv = ssl3_AppendHandshakeNumber(ss, 0, 1);
-        if (rv != SECSuccess)
-            return -1;
-    } else if (maxBytes < extension_length) {
-        PORT_Assert(0);
-	return 0;
-    }
-
-    return extension_length;
-}
-
-SECStatus
-ssl3_ClientHandleCachedInfoXtn(sslSocket *ss, PRUint16 ex_type,
-			       SECItem *data)
-{
-    unsigned char * cached_info = data->data;
-    unsigned int remaining_cached_info_length;
-    PRBool has_correct_cert_chain = PR_FALSE;
-
-    /* If we didn't request this extension, then the server may not echo it. */
-    if (!ss->opt.enableCachedInfo)
-	return SECFailure;
-
-    if (data->len == 0) {
-	/* The server supports information caching, but provides no information
-	 * about what information types it supports */
-	ss->xtnData.negotiated[ss->xtnData.numNegotiated++] = ex_type;
-	return SECSuccess;
-    }
-
-    if (data->len < 2)
-	return SECFailure;
-    remaining_cached_info_length = (cached_info[0] << 8) | cached_info[1];
-    if (remaining_cached_info_length != data->len - 2)
-	return SECFailure;
-    cached_info += 2;
-    while (remaining_cached_info_length >= 2) {
-	/* The server supports only those CachedInformationType types that are
-	 * identified by a present CachedObject */
-	unsigned char cached_object_type;
-	unsigned int cached_object_length;
-	unsigned char cached_object_digest[8];
-	cached_object_type = *cached_info++;
-	cached_object_length = *cached_info++;
-	remaining_cached_info_length -= 2;
-	if (remaining_cached_info_length < cached_object_length)
-	    return SECFailure;
-	if (cached_object_length != 0 && cached_object_length != 8)
-	    return SECFailure;
-	remaining_cached_info_length -= cached_object_length;
-	if (cached_object_type == cached_info_certificate_chain) {
-	    if (cached_object_length == 0)
-		has_correct_cert_chain = PR_TRUE;
-	    else { /* Hashes must match */
-		int i;
-		for (i = 0; i < 8; i++)
-		    cached_object_digest[i] = *cached_info++;
-		if (!memcmp(cached_object_digest, ss->ssl3.certChainDigest, 8))
-		    has_correct_cert_chain = PR_TRUE;
-	    }
-	}
-    }
-
-    if (remaining_cached_info_length != 0)
-	return SECFailure;
-
-    if (has_correct_cert_chain) {
-	ss->xtnData.negotiated[ss->xtnData.numNegotiated++] = ex_type;
-	return SECSuccess;
-    }
-
-    return SECFailure;
 }
 
 /* ssl3_ClientSendStatusRequestXtn builds the status_request extension on the
@@ -1726,14 +1491,17 @@ no_ticket:
 			SSL_GETPID(), ss->fd));
 	ssl3stats = SSL_GetStatistics();
 	SSL_AtomicIncrementLong(& ssl3stats->hch_sid_ticket_parse_failures );
-	if (sid) {
-	    ssl_FreeSID(sid);
-	    sid = NULL;
-	}
     }
     rv = SECSuccess;
 
 loser:
+	/* ss->sec.ci.sid == sid if it did NOT come here via goto statement
+	 * in that case do not free sid
+	 */
+	if (sid && (ss->sec.ci.sid != sid)) {
+	    ssl_FreeSID(sid);
+	    sid = NULL;
+	}
     if (decrypted_state != NULL) {
 	SECITEM_FreeItem(decrypted_state, PR_TRUE);
 	decrypted_state = NULL;
