@@ -257,11 +257,13 @@ void HttpStreamFactoryImpl::OnHttpPipelinedHostHasAdditionalCapacity(
 void HttpStreamFactoryImpl::AbortPipelinedRequestsWithKey(
     const Job* job, const HttpPipelinedHost::Key& key, int status,
     const SSLConfig& used_ssl_config) {
-  RequestSet requests_to_fail = http_pipelining_request_map_[key];
-  requests_to_fail.erase(request_map_[job]);
-  for (RequestSet::const_iterator it = requests_to_fail.begin();
+  RequestVector requests_to_fail = http_pipelining_request_map_[key];
+  for (RequestVector::const_iterator it = requests_to_fail.begin();
        it != requests_to_fail.end(); ++it) {
     Request* request = *it;
+    if (request == request_map_[job]) {
+      continue;
+    }
     request->OnStreamFailed(NULL, status, used_ssl_config);
   }
 }
