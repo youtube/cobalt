@@ -422,7 +422,7 @@ void SSLClientSocketWin::GetSSLInfo(SSLInfo* ssl_info) {
   if (!server_cert_)
     return;
 
-  ssl_info->cert = server_cert_;
+  ssl_info->cert = server_cert_verify_result_.verified_cert;
   ssl_info->cert_status = server_cert_verify_result_.cert_status;
   ssl_info->public_key_hashes = server_cert_verify_result_.public_key_hashes;
   ssl_info->is_issued_by_known_root =
