@@ -15,6 +15,7 @@
 #include "base/stringprintf.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
+#include "base/test/test_timeouts.h"
 #include "base/time.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
@@ -90,6 +91,45 @@ HostResolver::RequestInfo CreateResolverRequestForAddressFamily(
   return info;
 }
 
+// Using WaitingHostResolverProc you can simulate very long lookups.
+class WaitingHostResolverProc : public HostResolverProc {
+ public:
+  explicit WaitingHostResolverProc(HostResolverProc* previous)
+      : HostResolverProc(previous),
+        is_waiting_(false, false),
+        is_signaled_(false, false) {}
+
+  // Waits until a call to |Resolve| is blocked. It is recommended to always
+  // |Wait| before |Signal|, and required if issuing a series of two or more
+  // calls to |Signal|, because |WaitableEvent| does not count the number of
+  // signals.
+  void Wait() {
+    is_waiting_.Wait();
+  }
+
+  // Signals a waiting call to |Resolve|.
+  void Signal() {
+    is_signaled_.Signal();
+  }
+
+  // HostResolverProc methods:
+  virtual int Resolve(const std::string& host,
+                      AddressFamily address_family,
+                      HostResolverFlags host_resolver_flags,
+                      AddressList* addrlist,
+                      int* os_error) OVERRIDE {
+    is_waiting_.Signal();
+    is_signaled_.Wait();
+    return ResolveUsingPrevious(host, address_family, host_resolver_flags,
+                                addrlist, os_error);
+  }
+
+ private:
+  virtual ~WaitingHostResolverProc() {}
+  base::WaitableEvent is_waiting_;
+  base::WaitableEvent is_signaled_;
+};
+
 // A variant of WaitingHostResolverProc that pushes each host mapped into a
 // list.
 // (and uses a manual-reset event rather than auto-reset).
@@ -141,6 +181,72 @@ class CapturingHostResolverProc : public HostResolverProc {
   CaptureList capture_list_;
   mutable base::Lock lock_;
   base::WaitableEvent event_;
+};
+
+// A variant of WaitingHostResolverProc which waits for a specific number of
+// requests.
+class CountingHostResolverProc : public HostResolverProc {
+ public:
+  explicit CountingHostResolverProc(HostResolverProc* previous)
+      : HostResolverProc(previous),
+        num_requests_waiting_(0),
+        num_slots_available_(0),
+        requests_waiting_(&lock_),
+        slots_available_(&lock_) {}
+
+  // Waits until |count| calls to |Resolve| are blocked. Returns false when
+  // timed out.
+  bool WaitFor(unsigned count) {
+    base::AutoLock lock(lock_);
+    base::Time start_time = base::Time::Now();
+    while (num_requests_waiting_ < count) {
+      requests_waiting_.TimedWait(TestTimeouts::action_timeout());
+      if (base::Time::Now() > start_time + TestTimeouts::action_timeout())
+        return false;
+    }
+    return true;
+  }
+
+  // Signals |count| waiting calls to |Resolve|. First come first served.
+  void SignalMultiple(unsigned count) {
+    base::AutoLock lock(lock_);
+    num_slots_available_ += count;
+    slots_available_.Broadcast();
+  }
+
+  // Signals all waiting calls to |Resolve|. Beware of races.
+  void SignalAll() {
+    base::AutoLock lock(lock_);
+    num_slots_available_ += num_requests_waiting_;
+    slots_available_.Broadcast();
+  }
+
+  // HostResolverProc methods:
+  virtual int Resolve(const std::string& host,
+                      AddressFamily address_family,
+                      HostResolverFlags host_resolver_flags,
+                      AddressList* addrlist,
+                      int* os_error) OVERRIDE {
+    {
+      base::AutoLock lock(lock_);
+      ++num_requests_waiting_;
+      requests_waiting_.Broadcast();
+      while (!num_slots_available_)
+        slots_available_.Wait();
+      --num_slots_available_;
+      --num_requests_waiting_;
+    }
+    return ResolveUsingPrevious(host, address_family, host_resolver_flags,
+                                addrlist, os_error);
+  }
+
+ private:
+  virtual ~CountingHostResolverProc() {}
+  unsigned num_requests_waiting_;
+  unsigned num_slots_available_;
+  base::Lock lock_;
+  base::ConditionVariable requests_waiting_;
+  base::ConditionVariable slots_available_;
 };
 
 // This resolver function creates an IPv4 address, whose numeral value
@@ -467,52 +573,6 @@ TEST_F(HostResolverImplTest, FailedAsynchronousLookup) {
   EXPECT_EQ(ERR_DNS_CACHE_MISS, err);
 }
 
-// Using WaitingHostResolverProc you can simulate very long lookups.
-class WaitingHostResolverProc : public HostResolverProc {
- public:
-  explicit WaitingHostResolverProc(HostResolverProc* previous)
-      : HostResolverProc(previous),
-        is_waiting_(false, false),
-        is_signaled_(false, false) {}
-
-  // If |manual_reset| is true, once Signalled, it will let all Resolve calls
-  // proceed.
-  WaitingHostResolverProc(HostResolverProc* previous, bool manual_reset)
-      : HostResolverProc(previous),
-        is_waiting_(false, false),
-        is_signaled_(manual_reset, false) {}
-
-  // Waits until a call to |Resolve| is blocked. It is recommended to always
-  // |Wait| before |Signal|, and required if issuing a series of two or more
-  // calls to |Signal|, because |WaitableEvent| does not count the number of
-  // signals.
-  void Wait() {
-    is_waiting_.Wait();
-  }
-
-  // Signals a waiting call to |Resolve|.
-  void Signal() {
-    is_signaled_.Signal();
-  }
-
-  // HostResolverProc methods:
-  virtual int Resolve(const std::string& host,
-                      AddressFamily address_family,
-                      HostResolverFlags host_resolver_flags,
-                      AddressList* addrlist,
-                      int* os_error) OVERRIDE {
-    is_waiting_.Signal();
-    is_signaled_.Wait();
-    return ResolveUsingPrevious(host, address_family, host_resolver_flags,
-                                addrlist, os_error);
-  }
-
- private:
-  virtual ~WaitingHostResolverProc() {}
-  base::WaitableEvent is_waiting_;
-  base::WaitableEvent is_signaled_;
-};
-
 TEST_F(HostResolverImplTest, AbortedAsynchronousLookup) {
   scoped_refptr<WaitingHostResolverProc> resolver_proc(
       new WaitingHostResolverProc(NULL));
@@ -559,8 +619,8 @@ TEST_F(HostResolverImplTest, AbortedAsynchronousLookup) {
       NetLog::TYPE_HOST_RESOLVER_IMPL_JOB,
       NetLog::PHASE_BEGIN);
   pos = ExpectLogContainsSomewhereAfter(net_log_entries, pos + 1,
-        NetLog::TYPE_HOST_RESOLVER_IMPL_PROC_TASK,
-        NetLog::PHASE_BEGIN);
+      NetLog::TYPE_HOST_RESOLVER_IMPL_PROC_TASK,
+      NetLog::PHASE_BEGIN);
 
   // The Request needs to be cancelled. (The Job is "aborted".)
   // Don't care about order in which Request, Job and ProcTask end.
@@ -806,6 +866,60 @@ TEST_F(HostResolverImplTest, CancelMultipleRequests) {
 
   // |verifier| will send quit message once all the requests have finished.
   MessageLoop::current()->Run();
+}
+
+// Helper class used by HostResolverImplTest.CanceledRequestsReleaseJobSlots.
+class CountingDelegate : public ResolveRequest::Delegate {
+ public:
+  CountingDelegate() : num_completions_(0) {}
+
+  virtual void OnCompleted(ResolveRequest* resolve) OVERRIDE {
+    ++num_completions_;
+    MessageLoop::current()->Quit();
+  }
+
+  unsigned num_completions() const { return num_completions_; }
+
+ private:
+  unsigned num_completions_;
+};
+
+TEST_F(HostResolverImplTest, CanceledRequestsReleaseJobSlots) {
+  scoped_refptr<CountingHostResolverProc> resolver_proc(
+      new CountingHostResolverProc(NULL));
+
+  scoped_ptr<HostResolver> host_resolver(
+      CreateHostResolverImpl(resolver_proc));
+
+  CountingDelegate delegate;
+  std::vector<ResolveRequest*> requests;
+
+  // Fill up the dispatcher and queue.
+  for (unsigned i = 0; i < kMaxJobs + 1; ++i) {
+    std::string hostname = "a_";
+    hostname[1] = 'a' + i;
+    requests.push_back(new ResolveRequest(host_resolver.get(), hostname, 80,
+                                          &delegate));
+    requests.push_back(new ResolveRequest(host_resolver.get(), hostname, 81,
+                                          &delegate));
+  }
+
+  EXPECT_TRUE(resolver_proc->WaitFor(kMaxJobs));
+
+  // Cancel all but last two.
+  for (unsigned i = 0; i < requests.size() - 2; ++i) {
+    requests[i]->Cancel();
+  }
+
+  EXPECT_TRUE(resolver_proc->WaitFor(kMaxJobs + 1));
+  EXPECT_EQ(0u, delegate.num_completions());
+
+  resolver_proc->SignalAll();
+
+  while (delegate.num_completions() < 2)
+    MessageLoop::current()->Run();
+
+  MessageLoop::current()->AssertIdle();
 }
 
 // Helper class used by HostResolverImplTest.CancelWithinCallback.
@@ -1185,9 +1299,8 @@ class StartWithinAbortedCallbackVerifier : public ResolveRequest::Delegate {
 // Tests that a new Request made from the callback of a previously aborted one
 // will not be aborted.
 TEST_F(HostResolverImplTest, AbortOnlyExistingRequestsOnIPAddressChange) {
-  // Setting |manual_reset| to true so that Signal unblocks all calls.
-  scoped_refptr<WaitingHostResolverProc> resolver_proc(
-      new WaitingHostResolverProc(CreateCatchAllHostResolverProc(), true));
+  scoped_refptr<CountingHostResolverProc> resolver_proc(
+      new CountingHostResolverProc(CreateCatchAllHostResolverProc()));
   scoped_ptr<HostResolver> host_resolver(CreateHostResolverImpl(resolver_proc));
 
   StartWithinAbortedCallbackVerifier verifier1("zzz");
@@ -1198,8 +1311,8 @@ TEST_F(HostResolverImplTest, AbortOnlyExistingRequestsOnIPAddressChange) {
   ResolveRequest req2(host_resolver.get(), "eee", 80, &verifier2);
   ResolveRequest req3(host_resolver.get(), "ccc", 90, &verifier3);
   // The jobs start immediately.
-  // Wait until at least one is blocked.
-  resolver_proc->Wait();
+  // Wait until all are blocked;
+  resolver_proc->WaitFor(3u);
   // Trigger an IP address change.
   NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
   // This should abort all running jobs.
@@ -1208,7 +1321,7 @@ TEST_F(HostResolverImplTest, AbortOnlyExistingRequestsOnIPAddressChange) {
   EXPECT_EQ(ERR_ABORTED, req2.result());
   EXPECT_EQ(ERR_ABORTED, req3.result());
   // Unblock all calls to proc.
-  resolver_proc->Signal();
+  resolver_proc->SignalMultiple(6u);
   // Run until the re-started requests finish.
   EXPECT_EQ(OK, verifier1.WaitUntilDone());
   EXPECT_EQ(OK, verifier2.WaitUntilDone());
