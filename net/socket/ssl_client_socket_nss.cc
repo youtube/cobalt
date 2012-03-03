@@ -489,7 +489,7 @@ void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
     return;
 
   ssl_info->cert_status = server_cert_verify_result_->cert_status;
-  ssl_info->cert = server_cert_;
+  ssl_info->cert = server_cert_verify_result_->verified_cert;
   ssl_info->connection_status = ssl_connection_status_;
   ssl_info->public_key_hashes = server_cert_verify_result_->public_key_hashes;
   for (std::vector<SHA1Fingerprint>::const_iterator
