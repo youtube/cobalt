@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -67,6 +67,9 @@ class SQL_EXPORT MetaTable {
   bool GetValue(const char* key, std::string* value);
   bool GetValue(const char* key, int* value);
   bool GetValue(const char* key, int64* value);
+
+  // Deletes the key from the table.
+  bool DeleteKey(const char* key);
 
  private:
   // Conveniences to prepare the two types of statements used by
