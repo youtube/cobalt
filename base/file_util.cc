@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -394,21 +394,6 @@ void AppendToPath(std::wstring* path, const std::wstring& new_ending) {
   path->append(new_ending);
 }
 
-bool CopyDirectory(const std::wstring& from_path, const std::wstring& to_path,
-                   bool recursive) {
-  return CopyDirectory(FilePath::FromWStringHack(from_path),
-                       FilePath::FromWStringHack(to_path),
-                       recursive);
-}
-bool Delete(const std::wstring& path, bool recursive) {
-  return Delete(FilePath::FromWStringHack(path), recursive);
-}
-std::wstring GetFileExtensionFromPath(const std::wstring& path) {
-  std::wstring file_name = FilePath(path).BaseName().value();
-  const std::wstring::size_type last_dot = file_name.rfind(kExtensionSeparator);
-  return std::wstring(last_dot == std::wstring::npos ? L""
-                                                     : file_name, last_dot + 1);
-}
 FILE* OpenFile(const std::wstring& filename, const char* mode) {
   return OpenFile(FilePath::FromWStringHack(filename), mode);
 }

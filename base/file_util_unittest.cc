@@ -302,17 +302,6 @@ static const struct extension_case {
 #endif
 };
 
-#if defined(OS_WIN)
-// This function has been deprecated on non-Windows.
-TEST_F(FileUtilTest, GetFileExtensionFromPath) {
-  for (unsigned int i = 0; i < arraysize(extension_cases); ++i) {
-    const extension_case& ext = extension_cases[i];
-    const std::wstring fext = file_util::GetFileExtensionFromPath(ext.path);
-    EXPECT_EQ(ext.extension, fext);
-  }
-}
-#endif
-
 // Test finding the directory component of a path
 static const struct dir_case {
   const wchar_t* full_path;
@@ -1448,8 +1437,8 @@ TEST_F(FileUtilTest, ResolveShortcutTest) {
   FilePath link_file = temp_dir_.path().Append(L"Link.lnk");
 
   HRESULT result;
-  IShellLink *shell = NULL;
-  IPersistFile *persist = NULL;
+  IShellLink* shell = NULL;
+  IPersistFile* persist = NULL;
 
   CoInitialize(NULL);
   // Temporarily create a shortcut for test
@@ -1579,7 +1568,7 @@ TEST_F(FileUtilTest, CreateTemporaryFileTest) {
 
 TEST_F(FileUtilTest, CreateAndOpenTemporaryFileTest) {
   FilePath names[3];
-  FILE *fps[3];
+  FILE* fps[3];
   int i;
 
   // Create; make sure they are open and exist.
@@ -1954,10 +1943,10 @@ class VerifyPathControlledByUserTest : public FileUtilTest {
     // set permissions on the directories we create.
     // Make all files and directories non-world-writable.
     mode_t enabled_permissions =
-        S_IRWXU | // User can read, write, traverse
-        S_IRWXG;  // Group can read, write, traverse
+        S_IRWXU |  // User can read, write, traverse
+        S_IRWXG;   // Group can read, write, traverse
     mode_t disabled_permissions =
-        S_IRWXO;  // Other users can't read, write, traverse.
+        S_IRWXO;   // Other users can't read, write, traverse.
 
     ASSERT_NO_FATAL_FAILURE(
         ChangePosixFilePermissions(
@@ -2176,7 +2165,6 @@ TEST_F(VerifyPathControlledByUserTest, GroupWriteTest) {
   EXPECT_TRUE(
       file_util::VerifyPathControlledByUser(
           sub_dir_, text_file_, uid_, multiple_gids));
-
 }
 
 TEST_F(VerifyPathControlledByUserTest, WriteBitChecks) {
@@ -2199,7 +2187,7 @@ TEST_F(VerifyPathControlledByUserTest, WriteBitChecks) {
       file_util::VerifyPathControlledByUser(
           sub_dir_, text_file_, uid_, ok_gids_));
 
-   // Make base_dir_ world-writable.
+  // Make base_dir_ world-writable.
   ASSERT_NO_FATAL_FAILURE(
       ChangePosixFilePermissions(base_dir_, S_IWOTH, 0u));
   EXPECT_FALSE(
