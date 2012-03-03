@@ -101,8 +101,7 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
       std::vector<std::string> next_protos;
       next_protos.push_back("http/1.1");
       next_protos.push_back("spdy/2");
-      next_protos.push_back("spdy/2.1");
-      HttpStreamFactory::set_next_protos(next_protos);
+      HttpStreamFactory::SetNextProtos(next_protos);
     } else if (option == kEnableNpnHttpOnly) {
       // Avoid alternate protocol in this case. Otherwise, browser will try SSL
       // and then fallback to http. This introduces extra load.
@@ -110,14 +109,14 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
       std::vector<std::string> next_protos;
       next_protos.push_back("http/1.1");
       next_protos.push_back("http1.1");
-      HttpStreamFactory::set_next_protos(next_protos);
+      HttpStreamFactory::SetNextProtos(next_protos);
     } else if (option == kEnableVersionOne) {
       spdy::SpdyFramer::set_protocol_version(1);
       std::vector<std::string> next_protos;
       // This is a temporary hack to pretend we support version 1.
       next_protos.push_back("http/1.1");
       next_protos.push_back("spdy/1");
-      HttpStreamFactory::set_next_protos(next_protos);
+      HttpStreamFactory::SetNextProtos(next_protos);
     } else if (option == kDisableAltProtocols) {
       use_alt_protocols = false;
       HttpStreamFactory::set_use_alternate_protocols(false);
@@ -126,11 +125,11 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
       next_protos.push_back("http/1.1");
       next_protos.push_back("spdy/2");
       next_protos.push_back("spdy/2.1");
-      HttpStreamFactory::set_next_protos(next_protos);
+      HttpStreamFactory::SetNextProtos(next_protos);
     } else if (option == kForceAltProtocols) {
       PortAlternateProtocolPair pair;
       pair.port = 443;
-      pair.protocol = NPN_SPDY_21;
+      pair.protocol = NPN_SPDY_2;
       HttpServerPropertiesImpl::ForceAlternateProtocol(pair);
     } else if (option == kSingleDomain) {
       SpdySessionPool::ForceSingleDomain();

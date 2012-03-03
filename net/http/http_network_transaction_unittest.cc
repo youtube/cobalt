@@ -6494,8 +6494,8 @@ TEST_F(HttpNetworkTransactionTest, ChangeAuthRealms) {
 }
 
 TEST_F(HttpNetworkTransactionTest, HonorAlternateProtocolHeader) {
-  HttpStreamFactory::set_next_protos(MakeNextProtos("foo", "bar", NULL));
   HttpStreamFactory::set_use_alternate_protocols(true);
+  HttpStreamFactory::SetNextProtos(SpdyNextProtos());
 
   SessionDependencies session_deps;
 
@@ -6551,7 +6551,7 @@ TEST_F(HttpNetworkTransactionTest, HonorAlternateProtocolHeader) {
   EXPECT_TRUE(expected_alternate.Equals(alternate));
 
   HttpStreamFactory::set_use_alternate_protocols(false);
-  HttpStreamFactory::set_next_protos(std::vector<std::string>());
+  HttpStreamFactory::SetNextProtos(std::vector<std::string>());
 }
 
 TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocolAndFallback) {
@@ -6865,7 +6865,7 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolUnsafeBlocked) {
 
 TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForNpnSpdy) {
   HttpStreamFactory::set_use_alternate_protocols(true);
-  HttpStreamFactory::set_next_protos(SpdyNextProtos());
+  HttpStreamFactory::SetNextProtos(SpdyNextProtos());
   SessionDependencies session_deps;
 
   HttpRequestInfo request;
@@ -6948,13 +6948,13 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForNpnSpdy) {
   ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
   EXPECT_EQ("hello!", response_data);
 
-  HttpStreamFactory::set_next_protos(std::vector<std::string>());
+  HttpStreamFactory::SetNextProtos(std::vector<std::string>());
   HttpStreamFactory::set_use_alternate_protocols(false);
 }
 
 TEST_F(HttpNetworkTransactionTest, AlternateProtocolWithSpdyLateBinding) {
   HttpStreamFactory::set_use_alternate_protocols(true);
-  HttpStreamFactory::set_next_protos(SpdyNextProtos());
+  HttpStreamFactory::SetNextProtos(SpdyNextProtos());
   SessionDependencies session_deps;
 
   HttpRequestInfo request;
@@ -7064,13 +7064,13 @@ TEST_F(HttpNetworkTransactionTest, AlternateProtocolWithSpdyLateBinding) {
   ASSERT_EQ(OK, ReadTransaction(&trans3, &response_data));
   EXPECT_EQ("hello!", response_data);
 
-  HttpStreamFactory::set_next_protos(std::vector<std::string>());
+  HttpStreamFactory::SetNextProtos(std::vector<std::string>());
   HttpStreamFactory::set_use_alternate_protocols(false);
 }
 
 TEST_F(HttpNetworkTransactionTest, StallAlternateProtocolForNpnSpdy) {
   HttpStreamFactory::set_use_alternate_protocols(true);
-  HttpStreamFactory::set_next_protos(SpdyNextProtos());
+  HttpStreamFactory::SetNextProtos(SpdyNextProtos());
   SessionDependencies session_deps;
 
   HttpRequestInfo request;
@@ -7138,7 +7138,7 @@ TEST_F(HttpNetworkTransactionTest, StallAlternateProtocolForNpnSpdy) {
   ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
   EXPECT_EQ("hello world", response_data);
 
-  HttpStreamFactory::set_next_protos(std::vector<std::string>());
+  HttpStreamFactory::SetNextProtos(std::vector<std::string>());
   HttpStreamFactory::set_use_alternate_protocols(false);
 }
 
@@ -7193,7 +7193,7 @@ class CapturingProxyResolver : public ProxyResolver {
 
 TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
   HttpStreamFactory::set_use_alternate_protocols(true);
-  HttpStreamFactory::set_next_protos(SpdyNextProtos());
+  HttpStreamFactory::SetNextProtos(SpdyNextProtos());
 
   ProxyConfig proxy_config;
   proxy_config.set_auto_detect(true);
@@ -7299,14 +7299,14 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
   EXPECT_EQ("https://www.google.com/",
             capturing_proxy_resolver->resolved()[1].spec());
 
-  HttpStreamFactory::set_next_protos(std::vector<std::string>());
+  HttpStreamFactory::SetNextProtos(std::vector<std::string>());
   HttpStreamFactory::set_use_alternate_protocols(false);
 }
 
 TEST_F(HttpNetworkTransactionTest,
        UseAlternateProtocolForNpnSpdyWithExistingSpdySession) {
   HttpStreamFactory::set_use_alternate_protocols(true);
-  HttpStreamFactory::set_next_protos(SpdyNextProtos());
+  HttpStreamFactory::SetNextProtos(SpdyNextProtos());
   SessionDependencies session_deps;
 
   HttpRequestInfo request;
@@ -7417,7 +7417,7 @@ TEST_F(HttpNetworkTransactionTest,
   ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
   EXPECT_EQ("hello!", response_data);
 
-  HttpStreamFactory::set_next_protos(std::vector<std::string>());
+  HttpStreamFactory::SetNextProtos(std::vector<std::string>());
   HttpStreamFactory::set_use_alternate_protocols(false);
 }
 
@@ -8138,7 +8138,7 @@ TEST_F(HttpNetworkTransactionTest,
 // npn is negotiated.
 TEST_F(HttpNetworkTransactionTest, NpnWithHttpOverSSL) {
   HttpStreamFactory::set_use_alternate_protocols(true);
-  HttpStreamFactory::set_next_protos(
+  HttpStreamFactory::SetNextProtos(
       MakeNextProtos("http/1.1", "http1.1", NULL));
   SessionDependencies session_deps;
   HttpRequestInfo request;
@@ -8192,7 +8192,7 @@ TEST_F(HttpNetworkTransactionTest, NpnWithHttpOverSSL) {
   EXPECT_FALSE(response->was_fetched_via_spdy);
   EXPECT_TRUE(response->was_npn_negotiated);
 
-  HttpStreamFactory::set_next_protos(std::vector<std::string>());
+  HttpStreamFactory::SetNextProtos(std::vector<std::string>());
   HttpStreamFactory::set_use_alternate_protocols(false);
 }
 
@@ -8201,7 +8201,7 @@ TEST_F(HttpNetworkTransactionTest, SpdyPostNPNServerHangup) {
   // followed by an immediate server closing of the socket.
   // Fix crash:  http://crbug.com/46369
   HttpStreamFactory::set_use_alternate_protocols(true);
-  HttpStreamFactory::set_next_protos(SpdyNextProtos());
+  HttpStreamFactory::SetNextProtos(SpdyNextProtos());
   SessionDependencies session_deps;
 
   HttpRequestInfo request;
@@ -8236,7 +8236,7 @@ TEST_F(HttpNetworkTransactionTest, SpdyPostNPNServerHangup) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(ERR_CONNECTION_CLOSED, callback.WaitForResult());
 
-  HttpStreamFactory::set_next_protos(std::vector<std::string>());
+  HttpStreamFactory::SetNextProtos(std::vector<std::string>());
   HttpStreamFactory::set_use_alternate_protocols(false);
 }
 
@@ -8244,7 +8244,7 @@ TEST_F(HttpNetworkTransactionTest, SpdyAlternateProtocolThroughProxy) {
   // This test ensures that the URL passed into the proxy is upgraded
   // to https when doing an Alternate Protocol upgrade.
   HttpStreamFactory::set_use_alternate_protocols(true);
-  HttpStreamFactory::set_next_protos(
+  HttpStreamFactory::SetNextProtos(
       MakeNextProtos(
           "http/1.1", "http1.1", "spdy/2.1", "spdy/2", "spdy", NULL));
 
@@ -8386,7 +8386,7 @@ TEST_F(HttpNetworkTransactionTest, SpdyAlternateProtocolThroughProxy) {
   EXPECT_EQ("https", request_url.scheme());
   EXPECT_EQ("www.google.com", request_url.host());
 
-  HttpStreamFactory::set_next_protos(std::vector<std::string>());
+  HttpStreamFactory::SetNextProtos(std::vector<std::string>());
   HttpStreamFactory::set_use_alternate_protocols(false);
 }
 
@@ -9029,7 +9029,7 @@ void IPPoolingAddAlias(MockCachingHostResolver* host_resolver,
 
 TEST_F(HttpNetworkTransactionTest, UseIPConnectionPooling) {
   HttpStreamFactory::set_use_alternate_protocols(true);
-  HttpStreamFactory::set_next_protos(SpdyNextProtos());
+  HttpStreamFactory::SetNextProtos(SpdyNextProtos());
 
   // Set up a special HttpNetworkSession with a MockCachingHostResolver.
   SessionDependencies session_deps;
@@ -9133,7 +9133,7 @@ TEST_F(HttpNetworkTransactionTest, UseIPConnectionPooling) {
   ASSERT_EQ(OK, ReadTransaction(&trans2, &response_data));
   EXPECT_EQ("hello!", response_data);
 
-  HttpStreamFactory::set_next_protos(std::vector<std::string>());
+  HttpStreamFactory::SetNextProtos(std::vector<std::string>());
   HttpStreamFactory::set_use_alternate_protocols(false);
 }
 
@@ -9180,7 +9180,7 @@ class OneTimeCachingHostResolver : public net::HostResolver {
 TEST_F(HttpNetworkTransactionTest,
        UseIPConnectionPoolingWithHostCacheExpiration) {
   HttpStreamFactory::set_use_alternate_protocols(true);
-  HttpStreamFactory::set_next_protos(SpdyNextProtos());
+  HttpStreamFactory::SetNextProtos(SpdyNextProtos());
 
   // Set up a special HttpNetworkSession with a OneTimeCachingHostResolver.
   SessionDependencies session_deps;
@@ -9283,7 +9283,7 @@ TEST_F(HttpNetworkTransactionTest,
   ASSERT_EQ(OK, ReadTransaction(&trans2, &response_data));
   EXPECT_EQ("hello!", response_data);
 
-  HttpStreamFactory::set_next_protos(std::vector<std::string>());
+  HttpStreamFactory::SetNextProtos(std::vector<std::string>());
   HttpStreamFactory::set_use_alternate_protocols(false);
 }
 

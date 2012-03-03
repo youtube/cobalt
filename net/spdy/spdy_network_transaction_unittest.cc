@@ -129,7 +129,7 @@ class SpdyNetworkTransactionTest
               HostPortPair("www.google.com", 80), 443,
               NPN_SPDY_21);
           HttpStreamFactory::set_use_alternate_protocols(true);
-          HttpStreamFactory::set_next_protos(next_protos);
+          HttpStreamFactory::SetNextProtos(next_protos);
           break;
         case SPDYNOSSL:
           HttpStreamFactory::set_force_spdy_over_ssl(false);
