@@ -860,6 +860,70 @@ TEST_F(HttpPipelinedNetworkTransactionTest, ForcedPipelineEvictionIsFatal) {
   EXPECT_EQ(ERR_PIPELINE_EVICTION, two_callback.WaitForResult());
 }
 
+TEST_F(HttpPipelinedNetworkTransactionTest, ForcedPipelineOrder) {
+  Initialize(true);
+
+  MockWrite writes[] = {
+    MockWrite(ASYNC, 0,
+              "GET /one.html HTTP/1.1\r\n"
+              "Host: localhost\r\n"
+              "Connection: keep-alive\r\n\r\n"
+              "GET /two.html HTTP/1.1\r\n"
+              "Host: localhost\r\n"
+              "Connection: keep-alive\r\n\r\n"
+              "GET /three.html HTTP/1.1\r\n"
+              "Host: localhost\r\n"
+              "Connection: keep-alive\r\n\r\n"
+              "GET /four.html HTTP/1.1\r\n"
+              "Host: localhost\r\n"
+              "Connection: keep-alive\r\n\r\n"
+              ),
+  };
+  MockRead reads[] = {
+    MockRead(ASYNC, ERR_FAILED, 1),
+  };
+  scoped_refptr<DeterministicSocketData> data(new DeterministicSocketData(
+      reads, arraysize(reads), writes, arraysize(writes)));
+  data->set_connect_data(MockConnect(ASYNC, OK));
+  factory_.AddSocketDataProvider(data);
+
+  scoped_ptr<HttpNetworkTransaction> one_transaction(
+      new HttpNetworkTransaction(session_.get()));
+  TestCompletionCallback one_callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            one_transaction->Start(GetRequestInfo("one.html"),
+                                   one_callback.callback(), BoundNetLog()));
+
+  scoped_ptr<HttpNetworkTransaction> two_transaction(
+      new HttpNetworkTransaction(session_.get()));
+  TestCompletionCallback two_callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            two_transaction->Start(GetRequestInfo("two.html"),
+                                   two_callback.callback(), BoundNetLog()));
+
+  scoped_ptr<HttpNetworkTransaction> three_transaction(
+      new HttpNetworkTransaction(session_.get()));
+  TestCompletionCallback three_callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            three_transaction->Start(GetRequestInfo("three.html"),
+                                     three_callback.callback(), BoundNetLog()));
+
+  scoped_ptr<HttpNetworkTransaction> four_transaction(
+      new HttpNetworkTransaction(session_.get()));
+  TestCompletionCallback four_callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            four_transaction->Start(GetRequestInfo("four.html"),
+                                    four_callback.callback(), BoundNetLog()));
+
+  data->RunFor(3);
+  EXPECT_EQ(ERR_FAILED, one_callback.WaitForResult());
+  one_transaction.reset();
+  EXPECT_EQ(ERR_PIPELINE_EVICTION, two_callback.WaitForResult());
+  two_transaction.reset();
+  EXPECT_EQ(ERR_PIPELINE_EVICTION, three_callback.WaitForResult());
+  three_transaction.reset();
+  EXPECT_EQ(ERR_PIPELINE_EVICTION, four_callback.WaitForResult());
+}
 }  // anonymous namespace
 
 }  // namespace net
