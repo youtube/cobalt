@@ -1,46 +1,20 @@
-From 56e625df4d443b939c39fa75f907518bf66f6584 Mon Sep 17 00:00:00 2001
-From: Adam Langley <agl@chromium.org>
-Date: Mon, 3 Oct 2011 12:23:01 -0400
-Subject: [PATCH] didhandshakeresume.patch
-
----
- mozilla/security/nss/lib/ssl/ssl.def   |    1 +
- mozilla/security/nss/lib/ssl/ssl.h     |    4 ++++
- mozilla/security/nss/lib/ssl/sslsock.c |   14 ++++++++++++++
- 3 files changed, 19 insertions(+), 0 deletions(-)
-
-diff --git a/mozilla/security/nss/lib/ssl/ssl.def b/mozilla/security/nss/lib/ssl/ssl.def
-index 35cc1e3..7ef15db 100644
---- a/mozilla/security/nss/lib/ssl/ssl.def
-+++ b/mozilla/security/nss/lib/ssl/ssl.def
-@@ -156,6 +156,7 @@ SSL_SNISocketConfigHook;
- ;+    global:
- SSL_GetNextProto;
- SSL_GetStapledOCSPResponse;
-+SSL_HandshakeResumedSession;
- SSL_PeerCertificateChain;
- SSL_SetNextProtoNego;
- ;+    local:
-diff --git a/mozilla/security/nss/lib/ssl/ssl.h b/mozilla/security/nss/lib/ssl/ssl.h
-index 3a22b45..c32438d 100644
---- a/mozilla/security/nss/lib/ssl/ssl.h
-+++ b/mozilla/security/nss/lib/ssl/ssl.h
-@@ -697,6 +697,10 @@ SSL_IMPORT SECStatus SSL_HandshakeNegotiatedExtension(PRFileDesc * socket,
+diff -up a/src/net/third_party/nss/ssl/ssl.h b/src/net/third_party/nss/ssl/ssl.h
+--- a/src/net/third_party/nss/ssl/ssl.h	2012-02-28 20:34:50.114663722 -0800
++++ b/src/net/third_party/nss/ssl/ssl.h	2012-02-29 14:37:56.872332622 -0800
+@@ -818,6 +818,9 @@ SSL_IMPORT SECStatus SSL_HandshakeNegoti
                                                        SSLExtensionType extId,
                                                        PRBool *yes);
  
 +SSL_IMPORT SECStatus SSL_HandshakeResumedSession(PRFileDesc *fd,
 +                                                 PRBool *last_handshake_resumed);
 +
-+
- SEC_END_PROTOS
- 
- #endif /* __ssl_h_ */
-diff --git a/mozilla/security/nss/lib/ssl/sslsock.c b/mozilla/security/nss/lib/ssl/sslsock.c
-index 3d89d86..11b53da 100644
---- a/mozilla/security/nss/lib/ssl/sslsock.c
-+++ b/mozilla/security/nss/lib/ssl/sslsock.c
-@@ -1507,6 +1507,20 @@ SSL_GetStapledOCSPResponse(PRFileDesc *fd, unsigned char *out_data,
+ /*
+  * Return a boolean that indicates whether the underlying library
+  * will perform as the caller expects.
+diff -up a/src/net/third_party/nss/ssl/sslsock.c b/src/net/third_party/nss/ssl/sslsock.c
+--- a/src/net/third_party/nss/ssl/sslsock.c	2012-02-28 20:34:50.124663860 -0800
++++ b/src/net/third_party/nss/ssl/sslsock.c	2012-02-29 14:39:13.203415737 -0800
+@@ -1590,6 +1590,20 @@ SSL_GetStapledOCSPResponse(PRFileDesc *f
      return SECSuccess;
  }
  

@@ -1,4 +1,4 @@
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -27,7 +27,6 @@
         'ssl/authcert.c',
         'ssl/cmpcert.c',
         'ssl/derive.c',
-        'ssl/fnv1a64.c',
         'ssl/nsskea.c',
         'ssl/os2_err.c',
         'ssl/os2_err.h',
@@ -45,9 +44,12 @@
         'ssl/sslenum.c',
         'ssl/sslerr.c',
         'ssl/sslerr.h',
+        'ssl/SSLerrs.h',
+        'ssl/sslerrstrs.c',
         'ssl/sslgathr.c',
         'ssl/sslimpl.h',
         'ssl/sslinfo.c',
+        'ssl/sslinit.c',
         'ssl/sslmutex.c',
         'ssl/sslmutex.h',
         'ssl/sslnonce.c',
