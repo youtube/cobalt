@@ -82,11 +82,6 @@ class NET_EXPORT TransportSecurityState
     // Used to see if a dynamic DomainState should override a preloaded one.
     bool IsMoreStrict(const DomainState& other);
 
-    // ShouldCertificateErrorsBeFatal returns true iff, given the |mode| of this
-    // DomainState, certificate errors on this domain should be fatal (i.e. no
-    // user bypass).
-    bool ShouldCertificateErrorsBeFatal() const;
-
     // ShouldRedirectHTTPToHTTPS returns true iff, given the |mode| of this
     // DomainState, HTTP requests should be internally redirected to HTTPS.
     bool ShouldRedirectHTTPToHTTPS() const;
