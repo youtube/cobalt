@@ -10,7 +10,6 @@
 #include "googleurl/src/gurl.h"
 #include "net/base/host_mapping_rules.h"
 #include "net/base/host_port_pair.h"
-#include "net/http/http_server_properties.h"
 
 namespace net {
 
@@ -21,6 +20,8 @@ namespace net {
 const HostMappingRules* HttpStreamFactory::host_mapping_rules_ = NULL;
 // static
 std::vector<std::string>* HttpStreamFactory::next_protos_ = NULL;
+// static
+bool HttpStreamFactory::enabled_protocols_[NUM_ALTERNATE_PROTOCOLS];
 // static
 bool HttpStreamFactory::spdy_enabled_ = true;
 // static
@@ -56,6 +57,8 @@ void HttpStreamFactory::ResetStaticSettingsToInit() {
   force_spdy_always_ = false;
   forced_spdy_exclusions_ = NULL;
   ignore_certificate_errors_ = false;
+  for (int i = 0; i < NUM_ALTERNATE_PROTOCOLS; ++i)
+    enabled_protocols_[i] = false;
 }
 
 void HttpStreamFactory::ProcessAlternateProtocol(
@@ -81,10 +84,11 @@ void HttpStreamFactory::ProcessAlternateProtocol(
   }
 
   AlternateProtocol protocol = ALTERNATE_PROTOCOL_BROKEN;
-  // We skip NPN_SPDY_1 here, because we've rolled the protocol version to 2.
-  for (int i = NPN_SPDY_2; i < NUM_ALTERNATE_PROTOCOLS; ++i) {
-    if (port_protocol_vector[1] == kAlternateProtocolStrings[i])
+  for (int i = 0; i < NUM_ALTERNATE_PROTOCOLS; ++i) {
+    if (enabled_protocols_[i] &&
+        port_protocol_vector[1] == kAlternateProtocolStrings[i]) {
       protocol = static_cast<AlternateProtocol>(i);
+    }
   }
 
   if (protocol == ALTERNATE_PROTOCOL_BROKEN) {
@@ -142,6 +146,30 @@ bool HttpStreamFactory::HasSpdyExclusion(const HostPortPair& endpoint) {
     if (it->Equals(endpoint))
       return true;
   return false;
+}
+
+// static
+void HttpStreamFactory::SetNextProtos(const std::vector<std::string>& value) {
+  if (!next_protos_)
+    next_protos_ = new std::vector<std::string>;
+
+  *next_protos_ = value;
+
+  for (uint32 i = 0; i < NUM_ALTERNATE_PROTOCOLS; ++i)
+    enabled_protocols_[i] = false;
+
+  // TODO(rtenneti): bug 116575 - consider using same strings/enums for SPDY
+  // versions in next_protos and kAlternateProtocolStrings.
+  for (uint32 i = 0; i < value.size(); ++i) {
+    if (value[i] == "spdy/1") {
+      enabled_protocols_[NPN_SPDY_1] = true;
+    } else if (value[i] == "spdy/2") {
+      enabled_protocols_[NPN_SPDY_2] = true;
+    } else if (value[i] == "spdy/2.1") {
+      enabled_protocols_[NPN_SPDY_21] = true;
+    }
+  }
+  enabled_protocols_[NPN_SPDY_1] = false;
 }
 
 // static
