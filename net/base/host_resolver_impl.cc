@@ -636,7 +636,7 @@ class HostResolverImpl::ProcTask
       origin_loop_->PostDelayedTask(
           FROM_HERE,
           base::Bind(&ProcTask::RetryIfNotComplete, this),
-          params_.unresponsive_delay);
+          params_.unresponsive_delay.InMilliseconds());
     }
   }
 

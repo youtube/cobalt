@@ -208,7 +208,7 @@ void CrashCallback() {
 }
 
 void RunSoon(MessageLoop* target_loop) {
-  const base::TimeDelta kTaskDelay = base::TimeDelta::FromSeconds(10);
+  const int kTaskDelay = 10000;  // 10 seconds
   target_loop->PostDelayedTask(
       FROM_HERE, base::Bind(&CrashCallback), kTaskDelay);
 }
