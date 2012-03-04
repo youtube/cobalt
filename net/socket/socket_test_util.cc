@@ -171,7 +171,6 @@ MockWriteResult StaticSocketDataProvider::OnWrite(const std::string& data) {
     // Not using mock writes; succeed synchronously.
     return MockWriteResult(SYNCHRONOUS, data.length());
   }
-  LOG(INFO) << "about to write: " << data;
   DCHECK(!at_write_eof());
 
   // Check that what we are writing matches the expectation.
