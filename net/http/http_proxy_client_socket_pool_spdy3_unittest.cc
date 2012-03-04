@@ -21,8 +21,10 @@
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socket_test_util.h"
 #include "net/spdy/spdy_protocol.h"
-#include "net/spdy/spdy_test_util.h"
+#include "net/spdy/spdy_test_util_spdy3.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using namespace net::test_spdy3;
 
 namespace net {
 
@@ -45,9 +47,9 @@ typedef ::testing::TestWithParam<HttpProxyType> TestWithHttpParam;
 
 }  // namespace
 
-class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
+class HttpProxyClientSocketPoolSpdy3Test : public TestWithHttpParam {
  protected:
-  HttpProxyClientSocketPoolTest()
+  HttpProxyClientSocketPoolSpdy3Test()
       : ssl_config_(),
         ignored_transport_socket_params_(new TransportSocketParams(
             HostPortPair("proxy", 80), LOWEST, false, false)),
@@ -91,7 +93,7 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
               NULL) {
   }
 
-  virtual ~HttpProxyClientSocketPoolTest() {
+  virtual ~HttpProxyClientSocketPoolSpdy3Test() {
   }
 
   void AddAuthToCache() {
@@ -219,11 +221,11 @@ class HttpProxyClientSocketPoolTest : public TestWithHttpParam {
 //-----------------------------------------------------------------------------
 // All tests are run with three different proxy types: HTTP, HTTPS (non-SPDY)
 // and SPDY.
-INSTANTIATE_TEST_CASE_P(HttpProxyClientSocketPoolTests,
-                        HttpProxyClientSocketPoolTest,
+INSTANTIATE_TEST_CASE_P(HttpProxyClientSocketPoolSpdy3Tests,
+                        HttpProxyClientSocketPoolSpdy3Test,
                         ::testing::Values(HTTP, HTTPS, SPDY));
 
-TEST_P(HttpProxyClientSocketPoolTest, NoTunnel) {
+TEST_P(HttpProxyClientSocketPoolSpdy3Test, NoTunnel) {
   Initialize(NULL, 0, NULL, 0, NULL, 0, NULL, 0);
 
   int rv = handle_.Init("a", GetNoTunnelParams(), LOW, CompletionCallback(),
@@ -236,7 +238,7 @@ TEST_P(HttpProxyClientSocketPoolTest, NoTunnel) {
   EXPECT_TRUE(tunnel_socket->IsConnected());
 }
 
-TEST_P(HttpProxyClientSocketPoolTest, NeedAuth) {
+TEST_P(HttpProxyClientSocketPoolSpdy3Test, NeedAuth) {
   MockWrite writes[] = {
     MockWrite(ASYNC, 0, "CONNECT www.google.com:443 HTTP/1.1\r\n"
               "Host: www.google.com\r\n"
@@ -304,7 +306,7 @@ TEST_P(HttpProxyClientSocketPoolTest, NeedAuth) {
   }
 }
 
-TEST_P(HttpProxyClientSocketPoolTest, HaveAuth) {
+TEST_P(HttpProxyClientSocketPoolSpdy3Test, HaveAuth) {
   // It's pretty much impossible to make the SPDY case behave synchronously
   // so we skip this test for SPDY
   if (GetParam() == SPDY)
@@ -334,7 +336,7 @@ TEST_P(HttpProxyClientSocketPoolTest, HaveAuth) {
   EXPECT_TRUE(tunnel_socket->IsConnected());
 }
 
-TEST_P(HttpProxyClientSocketPoolTest, AsyncHaveAuth) {
+TEST_P(HttpProxyClientSocketPoolSpdy3Test, AsyncHaveAuth) {
   MockWrite writes[] = {
     MockWrite("CONNECT www.google.com:443 HTTP/1.1\r\n"
               "Host: www.google.com\r\n"
@@ -376,7 +378,7 @@ TEST_P(HttpProxyClientSocketPoolTest, AsyncHaveAuth) {
   EXPECT_TRUE(tunnel_socket->IsConnected());
 }
 
-TEST_P(HttpProxyClientSocketPoolTest, TCPError) {
+TEST_P(HttpProxyClientSocketPoolSpdy3Test, TCPError) {
   if (GetParam() == SPDY) return;
   data_ = new DeterministicSocketData(NULL, 0, NULL, 0);
   data_->set_connect_data(MockConnect(ASYNC, ERR_CONNECTION_CLOSED));
@@ -395,7 +397,7 @@ TEST_P(HttpProxyClientSocketPoolTest, TCPError) {
   EXPECT_FALSE(handle_.socket());
 }
 
-TEST_P(HttpProxyClientSocketPoolTest, SSLError) {
+TEST_P(HttpProxyClientSocketPoolSpdy3Test, SSLError) {
   if (GetParam() == HTTP) return;
   data_ = new DeterministicSocketData(NULL, 0, NULL, 0);
   data_->set_connect_data(MockConnect(ASYNC, OK));
@@ -420,7 +422,7 @@ TEST_P(HttpProxyClientSocketPoolTest, SSLError) {
   EXPECT_FALSE(handle_.socket());
 }
 
-TEST_P(HttpProxyClientSocketPoolTest, SslClientAuth) {
+TEST_P(HttpProxyClientSocketPoolSpdy3Test, SslClientAuth) {
   if (GetParam() == HTTP) return;
   data_ = new DeterministicSocketData(NULL, 0, NULL, 0);
   data_->set_connect_data(MockConnect(ASYNC, OK));
@@ -445,7 +447,7 @@ TEST_P(HttpProxyClientSocketPoolTest, SslClientAuth) {
   EXPECT_FALSE(handle_.socket());
 }
 
-TEST_P(HttpProxyClientSocketPoolTest, TunnelUnexpectedClose) {
+TEST_P(HttpProxyClientSocketPoolSpdy3Test, TunnelUnexpectedClose) {
   MockWrite writes[] = {
     MockWrite(ASYNC, 0,
               "CONNECT www.google.com:443 HTTP/1.1\r\n"
@@ -483,7 +485,7 @@ TEST_P(HttpProxyClientSocketPoolTest, TunnelUnexpectedClose) {
   EXPECT_FALSE(handle_.socket());
 }
 
-TEST_P(HttpProxyClientSocketPoolTest, TunnelSetupError) {
+TEST_P(HttpProxyClientSocketPoolSpdy3Test, TunnelSetupError) {
   MockWrite writes[] = {
     MockWrite(ASYNC, 0,
               "CONNECT www.google.com:443 HTTP/1.1\r\n"

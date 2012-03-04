@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -85,11 +85,36 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
                                           HttpStream* stream) OVERRIDE;
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionTest, ResetStateForRestart);
-  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionTest, WindowUpdateReceived);
-  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionTest, WindowUpdateSent);
-  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionTest, WindowUpdateOverflow);
-  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionTest, FlowControlStallResume);
+  FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionSpdy2Test,
+                           ResetStateForRestart);
+  FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionSpdy21Test,
+                           ResetStateForRestart);
+  FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionSpdy3Test,
+                           ResetStateForRestart);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy2Test,
+                           WindowUpdateReceived);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy2Test,
+                           WindowUpdateSent);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy2Test,
+                           WindowUpdateOverflow);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy2Test,
+                           FlowControlStallResume);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy21Test,
+                           WindowUpdateReceived);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy21Test,
+                           WindowUpdateSent);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy21Test,
+                           WindowUpdateOverflow);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy21Test,
+                           FlowControlStallResume);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy3Test,
+                           WindowUpdateReceived);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy3Test,
+                           WindowUpdateSent);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy3Test,
+                           WindowUpdateOverflow);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy3Test,
+                           FlowControlStallResume);
 
   enum State {
     STATE_CREATE_STREAM,

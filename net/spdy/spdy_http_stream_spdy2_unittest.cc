@@ -12,16 +12,18 @@
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
 #include "net/spdy/spdy_session.h"
-#include "net/spdy/spdy_test_util.h"
+#include "net/spdy/spdy_test_util_spdy2.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using namespace net::test_spdy2;
 
 namespace net {
 
-class SpdyHttpStreamTest : public testing::Test {
+class SpdyHttpStreamSpdy2Test : public testing::Test {
  public:
   OrderedSocketData* data() { return data_.get(); }
  protected:
-  SpdyHttpStreamTest() {}
+  SpdyHttpStreamSpdy2Test() {}
 
   void EnableCompression(bool enabled) {
     spdy::SpdyFramer::set_enable_compression_default(enabled);
@@ -68,7 +70,7 @@ class SpdyHttpStreamTest : public testing::Test {
   scoped_refptr<TransportSocketParams> transport_params_;
 };
 
-TEST_F(SpdyHttpStreamTest, SendRequest) {
+TEST_F(SpdyHttpStreamSpdy2Test, SendRequest) {
   EnableCompression(false);
   SpdySession::SetSSLMode(false);
 
@@ -117,7 +119,7 @@ TEST_F(SpdyHttpStreamTest, SendRequest) {
   EXPECT_TRUE(data()->at_write_eof());
 }
 
-TEST_F(SpdyHttpStreamTest, SendChunkedPost) {
+TEST_F(SpdyHttpStreamSpdy2Test, SendChunkedPost) {
   EnableCompression(false);
   SpdySession::SetSSLMode(false);
   UploadDataStream::set_merge_chunks(false);
@@ -181,7 +183,7 @@ TEST_F(SpdyHttpStreamTest, SendChunkedPost) {
 }
 
 // Test case for bug: http://code.google.com/p/chromium/issues/detail?id=50058
-TEST_F(SpdyHttpStreamTest, SpdyURLTest) {
+TEST_F(SpdyHttpStreamSpdy2Test, SpdyURLTest) {
   EnableCompression(false);
   SpdySession::SetSSLMode(false);
 
@@ -238,6 +240,8 @@ TEST_F(SpdyHttpStreamTest, SpdyURLTest) {
   EXPECT_TRUE(data()->at_write_eof());
 }
 
+namespace {
+
 void GetECOriginBoundCertAndProof(const std::string& origin,
                                 OriginBoundCertService* obc_service,
                                 std::string* cert,
@@ -277,13 +281,15 @@ void GetECOriginBoundCertAndProof(const std::string& origin,
   proof->assign(proof_data.begin(), proof_data.end());
 }
 
+}  // namespace
+
 // TODO(rch): When openssl supports origin bound certifictes, this
 // guard can be removed
 #if !defined(USE_OPENSSL)
 // Test that if we request a resource for a new origin on a session that
 // used origin bound certificates, that we send a CREDENTIAL frame for
 // the new origin before we send the new request.
-void SpdyHttpStreamTest::TestSendCredentials(
+void SpdyHttpStreamSpdy2Test::TestSendCredentials(
     OriginBoundCertService* obc_service,
     const std::string& cert,
     const std::string& proof,
@@ -441,7 +447,7 @@ class MockECSignatureCreatorFactory : public crypto::ECSignatureCreatorFactory {
    DISALLOW_COPY_AND_ASSIGN(MockECSignatureCreatorFactory);
 };
 
-TEST_F(SpdyHttpStreamTest, SendCredentialsEC) {
+TEST_F(SpdyHttpStreamSpdy2Test, SendCredentialsEC) {
   scoped_ptr<crypto::ECSignatureCreatorFactory> ec_signature_creator_factory(
       new MockECSignatureCreatorFactory());
   crypto::ECSignatureCreator::SetFactoryForTesting(
