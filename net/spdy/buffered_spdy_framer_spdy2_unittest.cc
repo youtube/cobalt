@@ -4,12 +4,14 @@
 
 #include "net/spdy/buffered_spdy_framer.h"
 
-#include "net/spdy/spdy_test_util.h"
+#include "net/spdy/spdy_test_util_spdy2.h"
 #include "testing/platform_test.h"
+
+using namespace net::test_spdy2;
 
 namespace spdy {
 
-namespace test {
+namespace {
 
 class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
  public:
@@ -131,15 +133,9 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
   SpdyHeaderBlock headers_;
 };
 
-}  // namespace test
+}  // namespace
 
-}  // namespace spdy
-
-using spdy::test::TestBufferedSpdyVisitor;
-
-namespace spdy {
-
-class BufferedSpdyFramerTest : public PlatformTest {
+class BufferedSpdyFramerSpdy2Test : public PlatformTest {
  protected:
   void EnableCompression(bool enabled) {
     SpdyFramer::set_enable_compression_default(enabled);
@@ -173,7 +169,7 @@ class BufferedSpdyFramerTest : public PlatformTest {
   }
 };
 
-TEST_F(BufferedSpdyFramerTest, ReadSynStreamHeaderBlock) {
+TEST_F(BufferedSpdyFramerSpdy2Test, ReadSynStreamHeaderBlock) {
   EnableCompression(false);
 
   SpdyHeaderBlock headers;
@@ -200,7 +196,7 @@ TEST_F(BufferedSpdyFramerTest, ReadSynStreamHeaderBlock) {
   EXPECT_TRUE(CompareHeaderBlocks(&headers, &visitor.headers_));
 }
 
-TEST_F(BufferedSpdyFramerTest, ReadSynReplyHeaderBlock) {
+TEST_F(BufferedSpdyFramerSpdy2Test, ReadSynReplyHeaderBlock) {
   EnableCompression(false);
 
   SpdyHeaderBlock headers;
@@ -225,7 +221,7 @@ TEST_F(BufferedSpdyFramerTest, ReadSynReplyHeaderBlock) {
   EXPECT_TRUE(CompareHeaderBlocks(&headers, &visitor.headers_));
 }
 
-TEST_F(BufferedSpdyFramerTest, ReadHeadersHeaderBlock) {
+TEST_F(BufferedSpdyFramerSpdy2Test, ReadHeadersHeaderBlock) {
   EnableCompression(false);
 
   SpdyHeaderBlock headers;

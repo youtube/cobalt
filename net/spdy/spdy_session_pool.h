@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -33,6 +33,14 @@ class ClientSocketHandle;
 class HostResolver;
 class HttpServerProperties;
 class SpdySession;
+
+namespace test_spdy2 {
+class SpdySessionPoolPeer;
+}  // namespace test_spdy
+
+namespace test_spdy3 {
+class SpdySessionPoolPeer;
+}  // namespace test_spdy
 
 // This is a very simple pool for open SpdySessions.
 class NET_EXPORT SpdySessionPool
@@ -135,9 +143,17 @@ class NET_EXPORT SpdySessionPool
   virtual void OnCertTrustChanged(const X509Certificate* cert) OVERRIDE;
 
  private:
-  friend class SpdySessionPoolPeer;  // For testing.
-  friend class SpdyNetworkTransactionTest;  // For testing.
-  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionTest, WindowUpdateOverflow);
+  friend class test_spdy2::SpdySessionPoolPeer;  // For testing.
+  friend class test_spdy3::SpdySessionPoolPeer;  // For testing.
+  friend class SpdyNetworkTransactionSpdy2Test;  // For testing.
+  friend class SpdyNetworkTransactionSpdy21Test;  // For testing.
+  friend class SpdyNetworkTransactionSpdy3Test;  // For testing.
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy2Test,
+                           WindowUpdateOverflow);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy21Test,
+                           WindowUpdateOverflow);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy3Test,
+                           WindowUpdateOverflow);
 
   typedef std::list<scoped_refptr<SpdySession> > SpdySessionList;
   typedef std::map<HostPortProxyPair, SpdySessionList*> SpdySessionsMap;
