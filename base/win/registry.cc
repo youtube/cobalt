@@ -224,7 +224,7 @@ LONG RegKey::ReadValues(const wchar_t* name,
 
   DWORD type = REG_MULTI_SZ;
   DWORD size = 0;
-  LONG result = ReadValue(name, NULL, &size, NULL);
+  LONG result = ReadValue(name, NULL, &size, &type);
   if (FAILED(result) || size == 0)
     return result;
 
