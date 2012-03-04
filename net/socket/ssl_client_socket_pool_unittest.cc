@@ -28,8 +28,10 @@
 #include "net/socket/socket_test_util.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
-#include "net/spdy/spdy_test_util.h"
+#include "net/spdy/spdy_test_util_spdy2.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using namespace net::test_spdy2;
 
 namespace net {
 

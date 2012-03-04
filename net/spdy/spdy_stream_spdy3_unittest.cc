@@ -8,8 +8,10 @@
 #include "net/spdy/spdy_stream.h"
 #include "net/spdy/spdy_http_utils.h"
 #include "net/spdy/spdy_session.h"
-#include "net/spdy/spdy_test_util.h"
+#include "net/spdy/spdy_test_util_spdy3.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using namespace net::test_spdy3;
 
 // TODO(ukai): factor out common part with spdy_http_stream_unittest.cc
 //
@@ -96,9 +98,9 @@ spdy::SpdyFrame* ConstructSpdyBodyFrame(const char* data, int length) {
 
 }  // anonymous namespace
 
-class SpdyStreamTest : public testing::Test {
+class SpdyStreamSpdy3Test : public testing::Test {
  protected:
-  SpdyStreamTest() {
+  SpdyStreamSpdy3Test() {
   }
 
   scoped_refptr<SpdySession> CreateSpdySession() {
@@ -117,7 +119,7 @@ class SpdyStreamTest : public testing::Test {
   scoped_refptr<HttpNetworkSession> session_;
 };
 
-TEST_F(SpdyStreamTest, SendDataAfterOpen) {
+TEST_F(SpdyStreamSpdy3Test, SendDataAfterOpen) {
   SpdySessionDependencies session_deps;
 
   session_ = SpdySessionDependencies::SpdyCreateSession(&session_deps);
@@ -232,7 +234,7 @@ TEST_F(SpdyStreamTest, SendDataAfterOpen) {
   EXPECT_TRUE(delegate->closed());
 }
 
-TEST_F(SpdyStreamTest, PushedStream) {
+TEST_F(SpdyStreamSpdy3Test, PushedStream) {
   const char kStreamUrl[] = "http://www.google.com/";
 
   SpdySessionDependencies session_deps;
@@ -266,7 +268,7 @@ TEST_F(SpdyStreamTest, PushedStream) {
   EXPECT_EQ(kStreamUrl, stream->GetUrl().spec());
 }
 
-TEST_F(SpdyStreamTest, StreamError) {
+TEST_F(SpdyStreamSpdy3Test, StreamError) {
   SpdySessionDependencies session_deps;
 
   session_ = SpdySessionDependencies::SpdyCreateSession(&session_deps);
