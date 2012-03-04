@@ -84,7 +84,8 @@ class NET_EXPORT WebSocketJob
 
  private:
   friend class WebSocketThrottle;
-  friend class WebSocketJobTest;
+  friend class WebSocketJobSpdy2Test;
+  friend class WebSocketJobSpdy3Test;
   virtual ~WebSocketJob();
 
   bool SendHandshakeRequest(const char* data, int len);

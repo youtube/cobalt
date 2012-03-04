@@ -9,14 +9,16 @@
 #include "net/spdy/spdy_io_buffer.h"
 #include "net/spdy/spdy_session_pool.h"
 #include "net/spdy/spdy_stream.h"
-#include "net/spdy/spdy_test_util.h"
+#include "net/spdy/spdy_test_util_spdy3.h"
 #include "testing/platform_test.h"
+
+using namespace net::test_spdy3;
 
 namespace net {
 
 // TODO(cbentzel): Expose compression setter/getter in public SpdySession
 //                 interface rather than going through all these contortions.
-class SpdySessionTest : public PlatformTest {
+class SpdySessionSpdy3Test : public PlatformTest {
  public:
   static void TurnOffCompression() {
     spdy::SpdyFramer::set_enable_compression_default(false);
@@ -69,7 +71,7 @@ class TestSpdyStreamDelegate : public net::SpdyStream::Delegate {
 };
 
 // Test the SpdyIOBuffer class.
-TEST_F(SpdySessionTest, SpdyIOBuffer) {
+TEST_F(SpdySessionSpdy3Test, SpdyIOBuffer) {
   std::priority_queue<SpdyIOBuffer> queue_;
   const size_t kQueueSize = 100;
 
@@ -105,7 +107,7 @@ TEST_F(SpdySessionTest, SpdyIOBuffer) {
   }
 }
 
-TEST_F(SpdySessionTest, GoAway) {
+TEST_F(SpdySessionSpdy3Test, GoAway) {
   SpdySessionDependencies session_deps;
   session_deps.host_resolver->set_synchronous_mode(true);
 
@@ -164,7 +166,7 @@ TEST_F(SpdySessionTest, GoAway) {
   session2 = NULL;
 }
 
-TEST_F(SpdySessionTest, Ping) {
+TEST_F(SpdySessionSpdy3Test, Ping) {
   SpdySessionDependencies session_deps;
   session_deps.host_resolver->set_synchronous_mode(true);
 
@@ -255,7 +257,7 @@ TEST_F(SpdySessionTest, Ping) {
   session = NULL;
 }
 
-TEST_F(SpdySessionTest, FailedPing) {
+TEST_F(SpdySessionSpdy3Test, FailedPing) {
   SpdySessionDependencies session_deps;
   session_deps.host_resolver->set_synchronous_mode(true);
 
@@ -385,7 +387,7 @@ class StreamReleaserCallback : public TestCompletionCallbackBase {
 
 // TODO(kristianm): Could also test with more sessions where some are idle,
 // and more than one session to a HostPortPair.
-TEST_F(SpdySessionTest, CloseIdleSessions) {
+TEST_F(SpdySessionSpdy3Test, CloseIdleSessions) {
   SpdySessionDependencies session_deps;
   scoped_refptr<HttpNetworkSession> http_session(
   SpdySessionDependencies::SpdyCreateSession(&session_deps));
@@ -490,7 +492,7 @@ TEST_F(SpdySessionTest, CloseIdleSessions) {
 // release the stream, which releases its reference (the last) to the session.
 // Make sure nothing blows up.
 // http://crbug.com/57331
-TEST_F(SpdySessionTest, OnSettings) {
+TEST_F(SpdySessionSpdy3Test, OnSettings) {
   SpdySessionDependencies session_deps;
   session_deps.host_resolver->set_synchronous_mode(true);
 
@@ -582,7 +584,7 @@ TEST_F(SpdySessionTest, OnSettings) {
 // first completes, have the callback close itself, which should trigger the
 // second stream creation.  Then cancel that one immediately.  Don't crash.
 // http://crbug.com/63532
-TEST_F(SpdySessionTest, CancelPendingCreateStream) {
+TEST_F(SpdySessionSpdy3Test, CancelPendingCreateStream) {
   SpdySessionDependencies session_deps;
   session_deps.host_resolver->set_synchronous_mode(true);
 
@@ -668,7 +670,7 @@ TEST_F(SpdySessionTest, CancelPendingCreateStream) {
   MessageLoop::current()->RunAllPending();
 }
 
-TEST_F(SpdySessionTest, SendSettingsOnNewSession) {
+TEST_F(SpdySessionSpdy3Test, SendSettingsOnNewSession) {
   SpdySessionDependencies session_deps;
   session_deps.host_resolver->set_synchronous_mode(true);
 
@@ -736,6 +738,7 @@ TEST_F(SpdySessionTest, SendSettingsOnNewSession) {
   EXPECT_TRUE(data.at_write_eof());
 }
 
+namespace {
 // This test has two variants, one for each style of closing the connection.
 // If |clean_via_close_current_sessions| is false, the sessions are closed
 // manually, calling SpdySessionPool::Remove() directly.  If it is true,
@@ -854,15 +857,17 @@ void IPPoolingTest(bool clean_via_close_current_sessions) {
   EXPECT_FALSE(spdy_session_pool->HasSession(test_hosts[2].pair));
 }
 
-TEST_F(SpdySessionTest, IPPooling) {
+}  // namespace
+
+TEST_F(SpdySessionSpdy3Test, IPPooling) {
   IPPoolingTest(false);
 }
 
-TEST_F(SpdySessionTest, IPPoolingCloseCurrentSessions) {
+TEST_F(SpdySessionSpdy3Test, IPPoolingCloseCurrentSessions) {
   IPPoolingTest(true);
 }
 
-TEST_F(SpdySessionTest, ClearSettingsStorage) {
+TEST_F(SpdySessionSpdy3Test, ClearSettingsStorage) {
   SpdySettingsStorage settings_storage;
   const std::string kTestHost("www.foo.com");
   const int kTestPort = 80;
@@ -880,7 +885,7 @@ TEST_F(SpdySessionTest, ClearSettingsStorage) {
   EXPECT_EQ(0u, settings_storage.Get(test_host_port_pair).size());
 }
 
-TEST_F(SpdySessionTest, ClearSettingsStorageOnIPAddressChanged) {
+TEST_F(SpdySessionSpdy3Test, ClearSettingsStorageOnIPAddressChanged) {
   const std::string kTestHost("www.foo.com");
   const int kTestPort = 80;
   HostPortPair test_host_port_pair(kTestHost, kTestPort);
@@ -908,7 +913,7 @@ TEST_F(SpdySessionTest, ClearSettingsStorageOnIPAddressChanged) {
       test_host_port_pair).size());
 }
 
-TEST_F(SpdySessionTest, NeedsCredentials) {
+TEST_F(SpdySessionSpdy3Test, NeedsCredentials) {
   SpdySessionDependencies session_deps;
 
   MockConnect connect_data(SYNCHRONOUS, OK);
@@ -976,7 +981,7 @@ TEST_F(SpdySessionTest, NeedsCredentials) {
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
 }
 
-TEST_F(SpdySessionTest, SendCredentials) {
+TEST_F(SpdySessionSpdy3Test, SendCredentials) {
   SpdySessionDependencies session_deps;
 
   MockConnect connect_data(SYNCHRONOUS, OK);
@@ -1051,7 +1056,7 @@ TEST_F(SpdySessionTest, SendCredentials) {
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
 }
 
-TEST_F(SpdySessionTest, CloseSessionOnError) {
+TEST_F(SpdySessionSpdy3Test, CloseSessionOnError) {
   SpdySessionDependencies session_deps;
   session_deps.host_resolver->set_synchronous_mode(true);
 

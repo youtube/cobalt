@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -81,7 +81,8 @@ class NET_EXPORT_PRIVATE SpdyWebSocketStream
   virtual void set_chunk_callback(ChunkCallback* callback) OVERRIDE;
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(SpdyWebSocketStreamTest, Basic);
+  FRIEND_TEST_ALL_PREFIXES(SpdyWebSocketStreamSpdy2Test, Basic);
+  FRIEND_TEST_ALL_PREFIXES(SpdyWebSocketStreamSpdy3Test, Basic);
 
   void OnSpdyStreamCreated(int status);
 
