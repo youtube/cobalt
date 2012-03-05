@@ -497,8 +497,6 @@
             'gfx/icon_util.h',
             'gfx/native_theme_win.cc',
             'gfx/native_theme_win.h',
-            'gfx/win_util.cc',
-            'gfx/win_util.h',
           ],
           'sources!': [
             'base/touch/touch_factory.cc',
