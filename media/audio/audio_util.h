@@ -123,11 +123,6 @@ MEDIA_EXPORT bool IsWASAPISupported();
 MEDIA_EXPORT void Crossfade(int bytes_to_crossfade, int number_of_channels,
                             int bytes_per_channel, const uint8* src,
                             uint8* dest);
-
-// Calculates a safe hardware buffer size (in number of samples) given a set
-// of audio parameters.
-MEDIA_EXPORT uint32 SelectSamplesPerPacket(int sample_rate);
-
 }  // namespace media
 
 #endif  // MEDIA_AUDIO_AUDIO_UTIL_H_

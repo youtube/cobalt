@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,8 @@
 #include "media/base/channel_layout.h"
 #include "media/base/media_export.h"
 
+// TODO(vrk): This should probably be changed to an immutable object instead of
+// a struct. See crbug.com/115902.
 struct MEDIA_EXPORT AudioParameters {
   // Compare is useful when AudioParameters is used as a key in std::map.
   class MEDIA_EXPORT Compare {
