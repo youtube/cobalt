@@ -377,6 +377,7 @@
             ['exclude', 'gfx/native_theme_chromeos.cc'],
             ['exclude', 'gfx/native_theme_chromeos.h'],
             ['exclude', 'gfx/screen_win.cc'],
+            ['exclude', 'base/dragdrop/drag_utils_win.cc'],
             ['exclude', 'base/view_prop.cc'],
             ['exclude', 'base/view_prop.h'],
             ['exclude', 'base/win/mouse_wheel_util.cc'],
