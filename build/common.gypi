@@ -414,6 +414,7 @@
           'disable_sse2': 1,
           'use_libjpeg_turbo': 0,
           'enable_web_intents': 0,
+          'linux_use_gold_flags': 0,
         }],
       ],
     },
