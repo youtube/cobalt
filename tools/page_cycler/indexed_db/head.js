@@ -17,7 +17,7 @@ var TIMEOUT = 15;
  * @return {string} The value of the given property, or empty string
  *     if the property was not found.
  */
-function getPropertyValue(name) {
+function __get_cookie(name) {
   var cookies = document.cookie.split('; ');
   for (var i = 0; i < cookies.length; ++i) {
     var t = cookies[i].split('=');
@@ -68,7 +68,10 @@ function nextCycleOrResults() {
   if (cycle == iterations) {
     document.cookie = '__pc_done=1; path=/';
     doc = '../../common/report.html';
-    if (window.console) console.log("times: [" + __get_timings() + "]");
+    if (window.console) {
+      console.log("Pages: [" + __get_cookie('__pc_pages') + "]");
+      console.log("times: [" + __get_timings() + "]");
+    }
   } else {
     doc = 'index.html';
   }
