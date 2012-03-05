@@ -5,16 +5,14 @@
 #ifndef MEDIA_WEBM_WEBM_CONTENT_ENCODINGS_H_
 #define MEDIA_WEBM_WEBM_CONTENT_ENCODINGS_H_
 
-#include <vector>
-
-#include "base/compiler_specific.h"
-#include "base/memory/ref_counted.h"
+#include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
 #include "media/base/media_export.h"
 
 namespace media {
 
-struct MEDIA_EXPORT ContentEncoding : public base::RefCounted<ContentEncoding> {
+class MEDIA_EXPORT ContentEncoding {
+ public:
   // The following enum definitions are based on the ContentEncoding element
   // specified in the Matroska spec.
 
@@ -45,8 +43,28 @@ struct MEDIA_EXPORT ContentEncoding : public base::RefCounted<ContentEncoding> {
   };
 
   ContentEncoding();
-  virtual ~ContentEncoding();
+  ~ContentEncoding();
 
+  int64 order() const { return order_; }
+  void set_order(int64 order) { order_ = order; }
+
+  Scope scope() const { return scope_; }
+  void set_scope(Scope scope) { scope_ = scope; }
+
+  Type type() const { return type_; }
+  void set_type(Type type) { type_ = type; }
+
+  EncryptionAlgo encryption_algo() const { return encryption_algo_; }
+  void set_encryption_algo(EncryptionAlgo encryption_algo) {
+    encryption_algo_ = encryption_algo;
+  }
+
+  const uint8* encryption_key_id() const { return encryption_key_id_.get(); }
+  int encryption_key_id_size() const { return encryption_key_id_size_; }
+
+  void SetEncryptionKeyId(const uint8* encryption_key_id, int size);
+
+ private:
   int64 order_;
   Scope scope_;
   Type type_;
@@ -54,11 +72,8 @@ struct MEDIA_EXPORT ContentEncoding : public base::RefCounted<ContentEncoding> {
   scoped_array<uint8> encryption_key_id_;
   int encryption_key_id_size_;
 
- private:
   DISALLOW_COPY_AND_ASSIGN(ContentEncoding);
 };
-
-typedef std::vector<scoped_refptr<ContentEncoding> > ContentEncodings;
 
 }  // namespace media
 

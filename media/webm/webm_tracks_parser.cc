@@ -79,7 +79,7 @@ bool WebMTracksParser::OnListEnd(int id) {
 
     if (track_default_duration_ > 0) {
       // Convert nanoseconds to base::TimeDelta.
-      default_duration= base::TimeDelta::FromMicroseconds(
+      default_duration = base::TimeDelta::FromMicroseconds(
           track_default_duration_ / 1000.0);
     }
 
@@ -87,15 +87,15 @@ bool WebMTracksParser::OnListEnd(int id) {
       video_track_num_ = track_num_;
       video_default_duration_ = default_duration;
       if (track_content_encodings_client_.get()) {
-        video_content_encodings_ =
-            track_content_encodings_client_->content_encodings();
+        video_content_encodings_client_ =
+            track_content_encodings_client_.Pass();
       }
     } else if (track_type_ == kWebMTrackTypeAudio) {
       audio_track_num_ = track_num_;
       audio_default_duration_ = default_duration;
       if (track_content_encodings_client_.get()) {
-        audio_content_encodings_ =
-            track_content_encodings_client_->content_encodings();
+        audio_content_encodings_client_ =
+            track_content_encodings_client_.Pass();
       }
     } else {
       DVLOG(1) << "Unexpected TrackType " << track_type_;

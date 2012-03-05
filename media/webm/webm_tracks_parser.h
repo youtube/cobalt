@@ -54,11 +54,11 @@ class WebMTracksParser : public WebMParserClient {
 
   int64 audio_track_num_;
   base::TimeDelta audio_default_duration_;
-  ContentEncodings audio_content_encodings_;
+  scoped_ptr<WebMContentEncodingsClient> audio_content_encodings_client_;
 
   int64 video_track_num_;
   base::TimeDelta video_default_duration_;
-  ContentEncodings video_content_encodings_;
+  scoped_ptr<WebMContentEncodingsClient> video_content_encodings_client_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(WebMTracksParser);
 };

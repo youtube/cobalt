@@ -5,6 +5,8 @@
 #ifndef MEDIA_WEBM_WEBM_CONTENT_ENCODINGS_CLIENT_H_
 #define MEDIA_WEBM_WEBM_CONTENT_ENCODINGS_CLIENT_H_
 
+#include <vector>
+
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
 #include "media/base/media_export.h"
@@ -12,6 +14,8 @@
 #include "media/webm/webm_parser.h"
 
 namespace media {
+
+typedef std::vector<ContentEncoding*> ContentEncodings;
 
 // Parser for WebM ContentEncodings element.
 class MEDIA_EXPORT WebMContentEncodingsClient : public WebMParserClient {
@@ -28,9 +32,12 @@ class MEDIA_EXPORT WebMContentEncodingsClient : public WebMParserClient {
   virtual bool OnBinary(int id, const uint8* data, int size) OVERRIDE;
 
  private:
-  scoped_refptr<ContentEncoding> cur_content_encoding_;
+  scoped_ptr<ContentEncoding> cur_content_encoding_;
   bool content_encryption_encountered_;
   ContentEncodings content_encodings_;
+
+  // |content_encodings_| is ready. For debugging purpose.
+  bool content_encodings_ready_;
 
   DISALLOW_COPY_AND_ASSIGN(WebMContentEncodingsClient);
 };

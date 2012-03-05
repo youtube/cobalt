@@ -17,8 +17,6 @@ class WebMContentEncodingsClientTest : public testing::Test {
   void ParseAndExpectToFail(const uint8* buf, int size) {
     int result = parser_.Parse(buf, size);
     EXPECT_EQ(-1, result);
-    const ContentEncodings content_encodings = client_.content_encodings();
-    EXPECT_TRUE(content_encodings.empty());
   }
 
  protected:
@@ -59,16 +57,18 @@ TEST_F(WebMContentEncodingsClientTest, SingleContentEncoding) {
 
   int result = parser_.Parse(kContentEncodings, size);
   ASSERT_EQ(size, result);
-  const ContentEncodings content_encodings = client_.content_encodings();
+  const ContentEncodings& content_encodings = client_.content_encodings();
+
   ASSERT_EQ(1u, content_encodings.size());
-  EXPECT_EQ(0, content_encodings[0]->order_);
+  ASSERT_TRUE(content_encodings[0]);
+  EXPECT_EQ(0, content_encodings[0]->order());
   EXPECT_EQ(ContentEncoding::kScopeAllFrameContents,
-            content_encodings[0]->scope_);
-  EXPECT_EQ(ContentEncoding::kTypeEncryption, content_encodings[0]->type_);
+            content_encodings[0]->scope());
+  EXPECT_EQ(ContentEncoding::kTypeEncryption, content_encodings[0]->type());
   EXPECT_EQ(ContentEncoding::kEncAlgoAes,
-            content_encodings[0]->encryption_algo_);
-  EXPECT_TRUE(content_encodings[0]->encryption_key_id_.get());
-  EXPECT_EQ(8, content_encodings[0]->encryption_key_id_size_);
+            content_encodings[0]->encryption_algo());
+  EXPECT_TRUE(content_encodings[0]->encryption_key_id());
+  EXPECT_EQ(8, content_encodings[0]->encryption_key_id_size());
 }
 
 TEST_F(WebMContentEncodingsClientTest, MultipleContentEncoding) {
@@ -95,19 +95,20 @@ TEST_F(WebMContentEncodingsClientTest, MultipleContentEncoding) {
 
   int result = parser_.Parse(kContentEncodings, size);
   ASSERT_EQ(size, result);
-  const ContentEncodings content_encodings = client_.content_encodings();
+  const ContentEncodings& content_encodings = client_.content_encodings();
   ASSERT_EQ(2u, content_encodings.size());
 
   for (int i = 0; i < 2; ++i) {
-    EXPECT_EQ(i, content_encodings[i]->order_);
+    ASSERT_TRUE(content_encodings[i]);
+    EXPECT_EQ(i, content_encodings[i]->order());
     EXPECT_EQ(ContentEncoding::kScopeAllFrameContents |
               ContentEncoding::kScopeTrackPrivateData,
-              content_encodings[i]->scope_);
-    EXPECT_EQ(ContentEncoding::kTypeEncryption, content_encodings[i]->type_);
+              content_encodings[i]->scope());
+    EXPECT_EQ(ContentEncoding::kTypeEncryption, content_encodings[i]->type());
     EXPECT_EQ(!i ? ContentEncoding::kEncAlgoAes : ContentEncoding::kEncAlgoDes,
-              content_encodings[i]->encryption_algo_);
-    EXPECT_TRUE(content_encodings[i]->encryption_key_id_.get());
-    EXPECT_EQ(8, content_encodings[i]->encryption_key_id_size_);
+              content_encodings[i]->encryption_algo());
+    EXPECT_TRUE(content_encodings[i]->encryption_key_id());
+    EXPECT_EQ(8, content_encodings[i]->encryption_key_id_size());
   }
 }
 
@@ -125,16 +126,54 @@ TEST_F(WebMContentEncodingsClientTest, DefaultValues) {
 
   int result = parser_.Parse(kContentEncodings, size);
   ASSERT_EQ(size, result);
-  const ContentEncodings content_encodings = client_.content_encodings();
+  const ContentEncodings& content_encodings = client_.content_encodings();
+
   ASSERT_EQ(1u, content_encodings.size());
-  EXPECT_EQ(0, content_encodings[0]->order_);
+  ASSERT_TRUE(content_encodings[0]);
+  EXPECT_EQ(0, content_encodings[0]->order());
   EXPECT_EQ(ContentEncoding::kScopeAllFrameContents,
-            content_encodings[0]->scope_);
-  EXPECT_EQ(ContentEncoding::kTypeEncryption, content_encodings[0]->type_);
+            content_encodings[0]->scope());
+  EXPECT_EQ(ContentEncoding::kTypeEncryption, content_encodings[0]->type());
   EXPECT_EQ(ContentEncoding::kEncAlgoNotEncrypted,
-            content_encodings[0]->encryption_algo_);
-  EXPECT_FALSE(content_encodings[0]->encryption_key_id_.get());
-  EXPECT_EQ(0, content_encodings[0]->encryption_key_id_size_);
+            content_encodings[0]->encryption_algo());
+  EXPECT_FALSE(content_encodings[0]->encryption_key_id());
+  EXPECT_EQ(0, content_encodings[0]->encryption_key_id_size());
+}
+
+TEST_F(WebMContentEncodingsClientTest, ContentEncodingsClientReuse) {
+  const uint8 kContentEncodings[] = {
+    0x6D, 0x80, 0xA1,        // ContentEncodings (size = 33)
+    0x62, 0x40, 0x9e,        //   ContentEncoding (size = 30)
+    0x50, 0x31, 0x81, 0x00,  //     ContentEncodingOrder (size = 1)
+    0x50, 0x32, 0x81, 0x01,  //     ContentEncodingScope (size = 1)
+    0x50, 0x33, 0x81, 0x01,  //     ContentEncodingType (size = 1)
+    0x50, 0x35, 0x8F,        //     ContentEncryption (size = 15)
+    0x47, 0xE1, 0x81, 0x05,  //       ContentEncAlgo (size = 1)
+    0x47, 0xE2, 0x88,        //       ContentEncKeyID (size = 8)
+    0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+  };
+  int size = sizeof(kContentEncodings);
+
+  // Parse for the first time.
+  int result = parser_.Parse(kContentEncodings, size);
+  ASSERT_EQ(size, result);
+
+  // Parse again.
+  parser_.Reset();
+  result = parser_.Parse(kContentEncodings, size);
+  ASSERT_EQ(size, result);
+  const ContentEncodings& content_encodings = client_.content_encodings();
+
+  ASSERT_EQ(1u, content_encodings.size());
+  ASSERT_TRUE(content_encodings[0]);
+  EXPECT_EQ(0, content_encodings[0]->order());
+  EXPECT_EQ(ContentEncoding::kScopeAllFrameContents,
+            content_encodings[0]->scope());
+  EXPECT_EQ(ContentEncoding::kTypeEncryption, content_encodings[0]->type());
+  EXPECT_EQ(ContentEncoding::kEncAlgoAes,
+            content_encodings[0]->encryption_algo());
+  EXPECT_TRUE(content_encodings[0]->encryption_key_id());
+  EXPECT_EQ(8, content_encodings[0]->encryption_key_id_size());
 }
 
 TEST_F(WebMContentEncodingsClientTest, InvalidContentEncodingOrder) {
