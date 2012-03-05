@@ -123,7 +123,7 @@ void PipelineIntegrationTestBase::QuitAfterCurrentTimeTask(
       FROM_HERE,
       base::Bind(&PipelineIntegrationTestBase::QuitAfterCurrentTimeTask,
                  base::Unretained(this), quit_time),
-      10);
+      base::TimeDelta::FromMilliseconds(10));
 }
 
 bool PipelineIntegrationTestBase::WaitUntilCurrentTimeIsAfter(
@@ -137,7 +137,7 @@ bool PipelineIntegrationTestBase::WaitUntilCurrentTimeIsAfter(
       base::Bind(&PipelineIntegrationTestBase::QuitAfterCurrentTimeTask,
                  base::Unretained(this),
                  wait_time),
-      10);
+      base::TimeDelta::FromMilliseconds(10));
   message_loop_.Run();
   return (pipeline_status_ == PIPELINE_OK);
 }
