@@ -225,6 +225,7 @@ int HttpProxyConnectJob::DoSSLConnectComplete(int result) {
     } else {
       // TODO(rch): allow the user to deal with proxy cert errors in the
       // same way as server cert errors.
+      transport_socket_handle_->socket()->Disconnect();
       return ERR_PROXY_CERTIFICATE_INVALID;
     }
   }
