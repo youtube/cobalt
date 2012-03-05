@@ -229,6 +229,9 @@
       # libraries on linux x86-64 and arm, plus ASLR.
       'linux_fpic%': 1,
 
+      # Whether one-click signin is enabled or not.
+      'enable_one_click_signin%': 0,
+
       # Enable navigator.registerProtocolHandler and supporting UI.
       'enable_register_protocol_handler%': 1,
 
@@ -372,6 +375,12 @@
           'file_manager_extension%': 0,
         }],
 
+        # For now one-click signin is enabled only for windows since the UI
+        # is not yet complete for other platforms.
+        ['OS=="win"', {
+          'enable_one_click_signin%': 1,
+        }],
+
         ['OS=="android"', {
           'proprietary_codecs%': 1,
           'enable_webrtc%': 0,
@@ -458,6 +467,7 @@
     'use_titlecase_in_grd_files%': '<(use_titlecase_in_grd_files)',
     'use_third_party_translations%': '<(use_third_party_translations)',
     'remoting%': '<(remoting)',
+    'enable_one_click_signin%': '<(enable_one_click_signin)',
     'enable_webrtc%': '<(enable_webrtc)',
     'chromium_win_pch%': '<(chromium_win_pch)',
     'p2p_apis%': '<(p2p_apis)',
@@ -1136,6 +1146,9 @@
       }],
       ['use_nss==1', {
         'defines': ['USE_NSS=1'],
+      }],
+      ['enable_one_click_signin==1', {
+        'defines': ['ENABLE_ONE_CLICK_SIGNIN'],
       }],
       ['toolkit_uses_gtk==1', {
         'defines': ['TOOLKIT_USES_GTK=1'],
