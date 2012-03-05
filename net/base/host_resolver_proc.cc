@@ -186,7 +186,7 @@ int SystemHostResolverProc(const std::string& host,
   hints.ai_socktype = SOCK_STREAM;
 
 #if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD) && \
-    !defined(OS_ANDROID) && !defined(__LB_PS3__)
+    !defined(OS_ANDROID) && !defined(__LB_SHELL__)
   DnsReloaderMaybeReload();
 #endif
   int err = getaddrinfo(host.c_str(), NULL, &hints, &ai);
