@@ -1331,6 +1331,12 @@ static const struct HSTSPreload kPreloadedSTS[] = {
       DOMAIN_GOOGLE_COM },
   {17, true, "\004apis\006google\003com", true, kGooglePins,
       DOMAIN_GOOGLE_COM },
+  // chart.apis.google.com is *not* HSTS because the certificate doesn't match
+  // and there are lots of links out there that still use the name. The correct
+  // hostname for this is chart.googleapis.com.
+  {23, true, "\005chart\004apis\006google\003com", false, kGooglePins,
+      DOMAIN_GOOGLE_COM},
+
   // Other Google-related domains that must use an acceptable certificate
   // iff using SSL.
   {11, true, "\005ytimg\003com", false, kGooglePins,
