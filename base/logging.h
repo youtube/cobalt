@@ -185,7 +185,7 @@ typedef char PathChar;
 // whether NDEBUG is defined or not so that we'll fail to link if someone tries
 // to compile logging.cc with NDEBUG but includes logging.h without defining it,
 // or vice versa.
-#if NDEBUG
+#if defined(NDEBUG) && !defined(__LB_SHELL__FORCE_LOGGING__)
 #define BaseInitLoggingImpl BaseInitLoggingImpl_built_with_NDEBUG
 #else
 #define BaseInitLoggingImpl BaseInitLoggingImpl_built_without_NDEBUG
@@ -295,7 +295,7 @@ const LogSeverity LOG_FATAL = 4;
 const LogSeverity LOG_NUM_SEVERITIES = 5;
 
 // LOG_DFATAL is LOG_FATAL in debug mode, ERROR in normal mode
-#ifdef NDEBUG
+#if defined(NDEBUG) && !defined(__LB_SHELL__FORCE_LOGGING__)
 const LogSeverity LOG_DFATAL = LOG_ERROR;
 #else
 const LogSeverity LOG_DFATAL = LOG_FATAL;
@@ -573,7 +573,7 @@ DEFINE_CHECK_OP_IMPL(GT, > )
 #define ENABLE_DLOG 0
 #define ENABLE_DCHECK 0
 
-#elif defined(NDEBUG)
+#elif defined(NDEBUG) && !defined(__LB_SHELL__FORCE_LOGGING__)
 // Otherwise, if we're a release build, remove DLOGs but not DCHECKs
 // (since those can still be turned on via a command-line flag).
 #define ENABLE_DLOG 0
@@ -649,7 +649,7 @@ enum { DEBUG_MODE = ENABLE_DLOG };
 
 #if ENABLE_DCHECK
 
-#if defined(NDEBUG)
+#if defined(NDEBUG) && !defined(__LB_SHELL__FORCE_LOGGING__)
 
 BASE_EXPORT extern DcheckState g_dcheck_state;
 
@@ -674,7 +674,7 @@ const LogSeverity LOG_DCHECK = LOG_ERROR_REPORT;
 
 #endif  // defined(DCHECK_ALWAYS_ON)
 
-#else  // defined(NDEBUG)
+#else  // defined(NDEBUG) && !defined(__LB_SHELL__FORCE_LOGGING__)
 
 // On a regular debug build, we want to have DCHECKs enabled.
 #define COMPACT_GOOGLE_LOG_EX_DCHECK(ClassName, ...) \
@@ -683,7 +683,7 @@ const LogSeverity LOG_DCHECK = LOG_ERROR_REPORT;
 const LogSeverity LOG_DCHECK = LOG_FATAL;
 #define DCHECK_IS_ON() true
 
-#endif  // defined(NDEBUG)
+#endif  // defined(NDEBUG) && !defined(__LB_SHELL__FORCE_LOGGING__)
 
 #else  // ENABLE_DCHECK
 
