@@ -144,8 +144,6 @@
         'base/media_win.cc',
         'base/message_loop_factory.cc',
         'base/message_loop_factory.h',
-        'base/message_loop_factory_impl.cc',
-        'base/message_loop_factory_impl.h',
         'base/pipeline.cc',
         'base/pipeline.h',
         'base/pipeline_status.h',

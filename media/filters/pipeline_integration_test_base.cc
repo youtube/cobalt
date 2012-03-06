@@ -19,7 +19,7 @@ using ::testing::AnyNumber;
 namespace media {
 
 PipelineIntegrationTestBase::PipelineIntegrationTestBase()
-    : message_loop_factory_(new MessageLoopFactoryImpl()),
+    : message_loop_factory_(new MessageLoopFactory()),
       pipeline_(new Pipeline(&message_loop_, new MediaLog())),
       ended_(false),
       pipeline_status_(PIPELINE_OK) {

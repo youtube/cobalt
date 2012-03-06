@@ -7,7 +7,7 @@
 
 #include "base/message_loop.h"
 #include "media/base/filter_collection.h"
-#include "media/base/message_loop_factory_impl.h"
+#include "media/base/message_loop_factory.h"
 #include "media/base/pipeline.h"
 #include "media/filters/chunk_demuxer.h"
 #include "testing/gmock/include/gmock/gmock.h"
