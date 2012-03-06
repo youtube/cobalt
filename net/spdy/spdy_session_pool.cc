@@ -244,7 +244,7 @@ scoped_refptr<SpdySession> SpdySessionPool::GetFromAlias(
     return NULL;
 
   AddressList addresses;
-  if (!LookupAddresses(host_port_proxy_pair, &addresses))
+  if (!LookupAddresses(host_port_proxy_pair, net_log, &addresses))
     return NULL;
   const addrinfo* address = addresses.head();
   while (address) {
@@ -345,11 +345,10 @@ void SpdySessionPool::RemoveSessionList(
 }
 
 bool SpdySessionPool::LookupAddresses(const HostPortProxyPair& pair,
+                                      const BoundNetLog& net_log,
                                       AddressList* addresses) const {
   net::HostResolver::RequestInfo resolve_info(pair.first);
-  int rv = resolver_->ResolveFromCache(resolve_info,
-                                       addresses,
-                                       net::BoundNetLog());
+  int rv = resolver_->ResolveFromCache(resolve_info, addresses, net_log);
   DCHECK_NE(ERR_IO_PENDING, rv);
   return rv == OK;
 }
