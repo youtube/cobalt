@@ -327,6 +327,47 @@ TEST_F(FileStreamTest, AsyncRead_EarlyDelete) {
   }
 }
 
+// Similar to AsyncRead_EarlyDelete but using a given file handler rather than
+// calling FileStream::Open, to ensure that deleting a stream with in-flight
+// operation without auto-closing feature is also ok.
+TEST_F(FileStreamTest, AsyncRead_EarlyDelete_NoAutoClose) {
+  int64 file_size;
+  bool ok = file_util::GetFileSize(temp_file_path(), &file_size);
+  EXPECT_TRUE(ok);
+
+  bool created = false;
+  int flags = base::PLATFORM_FILE_OPEN |
+              base::PLATFORM_FILE_READ |
+              base::PLATFORM_FILE_ASYNC;
+  base::PlatformFileError error_code = base::PLATFORM_FILE_ERROR_FAILED;
+  base::PlatformFile file = base::CreatePlatformFile(
+      temp_file_path(), flags, &created, &error_code);
+  EXPECT_EQ(base::PLATFORM_FILE_OK, error_code);
+
+  scoped_ptr<FileStream> stream(new FileStream(file, flags, NULL));
+  int64 total_bytes_avail = stream->Available();
+  EXPECT_EQ(file_size, total_bytes_avail);
+
+  TestCompletionCallback callback;
+  scoped_refptr<IOBufferWithSize> buf = new IOBufferWithSize(4);
+  int rv = stream->Read(buf, buf->size(), callback.callback());
+  stream.reset();  // Delete instead of closing it.
+  if (rv < 0) {
+    EXPECT_EQ(ERR_IO_PENDING, rv);
+    // The callback should not be called if the request is cancelled.
+    MessageLoop::current()->RunAllPending();
+    EXPECT_FALSE(callback.have_result());
+  } else {
+    EXPECT_EQ(std::string(kTestData, rv), std::string(buf->data(), rv));
+  }
+
+  base::PlatformFileInfo info;
+  // The file should still be open.
+  EXPECT_TRUE(base::GetPlatformFileInfo(file, &info));
+  // Clean up.
+  EXPECT_TRUE(base::ClosePlatformFile(file));
+}
+
 TEST_F(FileStreamTest, BasicRead_FromOffset) {
   int64 file_size;
   bool ok = file_util::GetFileSize(temp_file_path(), &file_size);
