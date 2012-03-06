@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -82,8 +82,8 @@ class MEDIA_EXPORT WebMListParser {
 
   struct ListState {
     int id_;
-    int size_;
-    int bytes_parsed_;
+    int64 size_;
+    int64 bytes_parsed_;
     const ListElementInfo* element_info_;
     WebMParserClient* client_;
   };
@@ -123,6 +123,9 @@ class MEDIA_EXPORT WebMListParser {
   // Returns true if no errors occurred while ending this list(s).
   bool OnListEnd();
 
+  // Checks to see if |id_b| is a sibling or ancestor of |id_a|.
+  bool IsSiblingOrAncestor(int id_a, int id_b) const;
+
   State state_;
 
   // Element ID passed to the constructor.
@@ -150,8 +153,8 @@ class MEDIA_EXPORT WebMListParser {
 // |*id| contains the element ID on success and is undefined otherwise.
 // |*element_size| contains the element size on success and is undefined
 //                 otherwise.
-int WebMParseElementHeader(const uint8* buf, int size,
-                           int* id, int64* element_size);
+int MEDIA_EXPORT WebMParseElementHeader(const uint8* buf, int size,
+                                        int* id, int64* element_size);
 
 }  // namespace media
 

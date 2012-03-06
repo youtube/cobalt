@@ -281,9 +281,13 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8* data, int size) {
 
   bytes_parsed += result;
 
-  double mult = info_parser.timecode_scale() / 1000.0;
-  base::TimeDelta duration =
-      base::TimeDelta::FromMicroseconds(info_parser.duration() * mult);
+  base::TimeDelta duration = kInfiniteDuration();
+
+  if (info_parser.duration() > 0) {
+    double mult = info_parser.timecode_scale() / 1000.0;
+    int64 duration_in_us = info_parser.duration() * mult;
+    duration = base::TimeDelta::FromMicroseconds(duration_in_us);
+  }
 
   FFmpegConfigHelper config_helper;
 
