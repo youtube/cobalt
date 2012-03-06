@@ -463,7 +463,7 @@ TEST_F(ProcessUtilTest, MacTerminateOnHeapCorruption) {
   // AddressSanitizer replaces malloc() and prints a different error message on
   // heap corruption.
   ASSERT_DEATH(free(buf), "attempting free on address which "
-      "was not malloc()-ed: .*");
+      "was not malloc\\(\\)-ed");
 #endif
 }
 
