@@ -424,13 +424,16 @@ static int ParseWebMElementHeaderField(const uint8* buf, int size,
   int mask = 0x80;
   uint8 ch = buf[0];
   int extra_bytes = -1;
+  bool all_ones = false;
   for (int i = 0; i < max_bytes; ++i) {
-    if ((ch & mask) == mask) {
-      *num = mask_first_byte ? ch & ~mask : ch;
+    if ((ch & mask) != 0) {
+      mask = ~mask & 0xff;
+      *num = mask_first_byte ? ch & mask : ch;
+      all_ones = (ch & mask) == mask;
       extra_bytes = i;
       break;
     }
-    mask >>= 1;
+    mask = 0x80 | mask >> 1;
   }
 
   if (extra_bytes == -1)
@@ -442,8 +445,14 @@ static int ParseWebMElementHeaderField(const uint8* buf, int size,
 
   int bytes_used = 1;
 
-  for (int i = 0; i < extra_bytes; ++i)
-    *num = (*num << 8) | (0xff & buf[bytes_used++]);
+  for (int i = 0; i < extra_bytes; ++i) {
+    ch = buf[bytes_used++];
+    all_ones &= (ch == 0xff);
+    *num = (*num << 8) | ch;
+  }
+
+  if (all_ones)
+    *num = kint64max;
 
   return bytes_used;
 }
@@ -464,6 +473,9 @@ int WebMParseElementHeader(const uint8* buf, int size,
   if (num_id_bytes <= 0)
     return num_id_bytes;
 
+  if (tmp == kint64max)
+    tmp = kWebMReservedId;
+
   *id = static_cast<int>(tmp);
 
   int num_size_bytes = ParseWebMElementHeaderField(buf + num_id_bytes,
@@ -473,7 +485,12 @@ int WebMParseElementHeader(const uint8* buf, int size,
   if (num_size_bytes <= 0)
     return num_size_bytes;
 
+  if (tmp == kint64max)
+    tmp = kWebMUnknownSize;
+
   *element_size = tmp;
+  DVLOG(3) << "WebMParseElementHeader() : id " << std::hex << *id << std::dec
+           << " size " << *element_size;
   return num_id_bytes + num_size_bytes;
 }
 
@@ -740,8 +757,10 @@ int WebMListParser::Parse(const uint8* buf, int size) {
           return -1;
         }
 
-        // TODO(acolwell): Add support for lists of unknown size.
-        if (element_size == kWebMUnknownSize) {
+        // Only allow Segment & Cluster to have an unknown size.
+        if (element_size == kWebMUnknownSize &&
+            (element_id != kWebMIdSegment) &&
+            (element_id != kWebMIdCluster)) {
           ChangeState(PARSE_ERROR);
           return -1;
         }
@@ -812,8 +831,24 @@ int WebMListParser::ParseListElement(int header_size,
 
   // Unexpected ID.
   if (id_type == UNKNOWN) {
-    DVLOG(1) << "No ElementType info for ID 0x" << std::hex << id;
-    return -1;
+    if (list_state.size_ != kWebMUnknownSize ||
+        !IsSiblingOrAncestor(list_state.id_, id)) {
+      DVLOG(1) << "No ElementType info for ID 0x" << std::hex << id;
+      return -1;
+    }
+
+    // We've reached the end of a list of unknown size. Update the size now that
+    // we know it and dispatch the end of list calls.
+    list_state.size_ = list_state.bytes_parsed_;
+
+    if (!OnListEnd())
+      return -1;
+
+    // Check to see if all open lists have ended.
+    if (list_state_stack_.size() == 0)
+      return 0;
+
+    list_state = list_state_stack_.back();
   }
 
   // Make sure the whole element can fit inside the current list.
@@ -923,6 +958,21 @@ bool WebMListParser::OnListEnd() {
     ChangeState(DONE_PARSING_LIST);
 
   return true;
+}
+
+bool WebMListParser::IsSiblingOrAncestor(int id_a, int id_b) const {
+  DCHECK((id_a == kWebMIdSegment) || (id_a == kWebMIdCluster));
+
+  if (id_a == kWebMIdCluster) {
+    // kWebMIdCluster siblings.
+    for (size_t i = 0; i < arraysize(kSegmentIds); i++) {
+      if (kSegmentIds[i].id_ == id_b)
+        return true;
+    }
+  }
+
+  // kWebMIdSegment siblings.
+  return ((id_b == kWebMIdSegment) || (id_b == kWebMIdEBMLHeader));
 }
 
 }  // namespace media

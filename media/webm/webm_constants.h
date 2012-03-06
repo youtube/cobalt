@@ -21,7 +21,7 @@ const int kWebMIdBitDepth = 0x6264;
 const int kWebMIdBlock = 0xA1;
 const int kWebMIdBlockAddID = 0xEE;
 const int kWebMIdBlockAdditions = 0x75A1;
-const int kWebMIdBlockAdditional = 0xA4;
+const int kWebMIdBlockAdditional = 0xA5;
 const int kWebMIdBlockDuration = 0x9B;
 const int kWebMIdBlockGroup = 0xA0;
 const int kWebMIdBlockMore = 0xA6;
@@ -192,6 +192,7 @@ const int kWebMIdVideo = 0xE0;
 const int kWebMIdVoid = 0xEC;
 const int kWebMIdWritingApp = 0x5741;
 
+const int64 kWebMReservedId = 0x1FFFFFFF;
 const int64 kWebMUnknownSize = GG_LONGLONG(0x00FFFFFFFFFFFFFF);
 
 }  // namespace media

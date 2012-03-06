@@ -424,8 +424,7 @@ bool ChunkDemuxer::IsLocalSource() {
 }
 
 bool ChunkDemuxer::IsSeekable() {
-  // TODO(acolwell): Report whether source is seekable or not.
-  return true;
+  return duration_ != kInfiniteDuration();
 }
 
 // Demuxer implementation.
