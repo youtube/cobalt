@@ -49,6 +49,13 @@
 //   audio buffer is event driven.
 // - The Multimedia Class Scheduler service (MMCSS) is utilized to boost
 //   the priority of the capture thread.
+// - Audio applications that use the MMDevice API and WASAPI typically use
+//   the ISimpleAudioVolume interface to manage stream volume levels on a
+//   per-session basis. It is also possible to use of the IAudioEndpointVolume
+//   interface to control the master volume level of an audio endpoint device.
+//   This implementation is using the ISimpleAudioVolume interface.
+//   MSDN states that "In rare cases, a specialized audio application might
+//   require the use of the IAudioEndpointVolume".
 //
 #ifndef MEDIA_AUDIO_WIN_AUDIO_LOW_LATENCY_INPUT_WIN_H_
 #define MEDIA_AUDIO_WIN_AUDIO_LOW_LATENCY_INPUT_WIN_H_
@@ -56,7 +63,10 @@
 #include <Audioclient.h>
 #include <MMDeviceAPI.h>
 
+#include <string>
+
 #include "base/compiler_specific.h"
+#include "base/threading/non_thread_safe.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/simple_thread.h"
 #include "base/win/scoped_co_mem.h"
@@ -72,7 +82,8 @@ class AudioManagerWin;
 // AudioInputStream implementation using Windows Core Audio APIs.
 class MEDIA_EXPORT WASAPIAudioInputStream
     : public AudioInputStream,
-      public base::DelegateSimpleThread::Delegate {
+      public base::DelegateSimpleThread::Delegate,
+      NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   // The ctor takes all the usual parameters, plus |manager| which is the
   // the audio manager who is creating this object.
@@ -93,12 +104,12 @@ class MEDIA_EXPORT WASAPIAudioInputStream
   virtual double GetVolume() OVERRIDE;
 
   // Retrieves the sample rate used by the audio engine for its internal
-  // processing/mixing of shared-mode streams.
-  static double HardwareSampleRate(ERole device_role);
+  // processing/mixing of shared-mode streams given a specifed device.
+  static double HardwareSampleRate(const std::string& device_id);
 
   // Retrieves the number of audio channels used by the audio engine for its
-  // internal processing/mixing of shared-mode streams.
-  static uint32 HardwareChannelCount(ERole device_role);
+  // internal processing/mixing of shared-mode streams given a specifed device.
+  static uint32 HardwareChannelCount(const std::string& device_id);
 
   bool started() const { return started_; }
 
@@ -118,7 +129,8 @@ class MEDIA_EXPORT WASAPIAudioInputStream
 
   // Retrieves the stream format that the audio engine uses for its internal
   // processing/mixing of shared-mode streams.
-  static HRESULT GetMixFormat(ERole device_role, WAVEFORMATEX** device_format);
+  static HRESULT GetMixFormat(const std::string& device_id,
+                              WAVEFORMATEX** device_format);
 
   // Initializes the COM library for use by the calling thread and set the
   // thread's concurrency model to multi-threaded.
@@ -133,11 +145,6 @@ class MEDIA_EXPORT WASAPIAudioInputStream
 
   // Contains the desired audio format which is set up at construction.
   WAVEFORMATEX format_;
-
-  // Copy of the audio format which we know the audio engine supports.
-  // It is recommended to ensure that the sample rate in |format_| is identical
-  // to the sample rate in |audio_engine_mix_format_|.
-  base::win::ScopedCoMem<WAVEFORMATEX> audio_engine_mix_format_;
 
   bool opened_;
   bool started_;
@@ -172,8 +179,12 @@ class MEDIA_EXPORT WASAPIAudioInputStream
   // Pointer to the object that will receive the recorded audio samples.
   AudioInputCallback* sink_;
 
+  // Windows Multimedia Device (MMDevice) API interfaces.
+
   // An IMMDevice interface which represents an audio endpoint device.
   base::win::ScopedComPtr<IMMDevice> endpoint_device_;
+
+  // Windows Audio Session API (WASAP) interfaces.
 
   // An IAudioClient interface which enables a client to create and initialize
   // an audio stream between an audio application and the audio engine.
@@ -182,6 +193,12 @@ class MEDIA_EXPORT WASAPIAudioInputStream
   // The IAudioCaptureClient interface enables a client to read input data
   // from a capture endpoint buffer.
   base::win::ScopedComPtr<IAudioCaptureClient> audio_capture_client_;
+
+  // The ISimpleAudioVolume interface enables a client to control the
+  // master volume level of an audio session.
+  // The volume-level is a value in the range 0.0 to 1.0.
+  // This interface does only work with shared-mode streams.
+  base::win::ScopedComPtr<ISimpleAudioVolume> simple_audio_volume_;
 
   // The audio engine will signal this event each time a buffer has been
   // recorded.

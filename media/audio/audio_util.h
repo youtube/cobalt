@@ -5,6 +5,7 @@
 #ifndef MEDIA_AUDIO_AUDIO_UTIL_H_
 #define MEDIA_AUDIO_AUDIO_UTIL_H_
 
+#include <string>
 #include <vector>
 
 #include "base/basictypes.h"
@@ -84,16 +85,18 @@ MEDIA_EXPORT void InterleaveFloatToInt16(const std::vector<float*>& source,
 // Returns the default audio output hardware sample-rate.
 MEDIA_EXPORT double GetAudioHardwareSampleRate();
 
-// Returns the default audio input hardware sample-rate.
-MEDIA_EXPORT double GetAudioInputHardwareSampleRate();
+// Returns the audio input hardware sample-rate for the specified device.
+MEDIA_EXPORT double GetAudioInputHardwareSampleRate(
+    const std::string& device_id);
 
 // Returns the optimal low-latency buffer size for the audio hardware.
 // This is the smallest buffer size the system can comfortably render
 // at without glitches.  The buffer size is in sample-frames.
 MEDIA_EXPORT size_t GetAudioHardwareBufferSize();
 
-// Returns the default number of channels for the audio input hardware.
-MEDIA_EXPORT uint32 GetAudioInputHardwareChannelCount();
+// Returns the number of channels for the specified audio input device.
+MEDIA_EXPORT uint32 GetAudioInputHardwareChannelCount(
+    const std::string& device_id);
 
 // Functions that handle data buffer passed between processes in the shared
 // memory. Called on both IPC sides.
