@@ -455,9 +455,16 @@ TEST_F(ProcessUtilTest, MacTerminateOnHeapCorruption) {
   // will fail.
 
   char buf[3];
+#ifndef ADDRESS_SANITIZER
   ASSERT_DEATH(free(buf), "being freed.*"
       "\\*\\*\\* set a breakpoint in malloc_error_break to debug.*"
       "Terminating process due to a potential for future heap corruption");
+#else
+  // AddressSanitizer replaces malloc() and prints a different error message on
+  // heap corruption.
+  ASSERT_DEATH(free(buf), "attempting free on address which "
+      "was not malloc()-ed: .*");
+#endif
 }
 
 #endif  // defined(OS_MACOSX)
