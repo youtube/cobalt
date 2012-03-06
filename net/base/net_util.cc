@@ -48,6 +48,7 @@
 #include "base/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "base/sys_string_conversions.h"
+#include "base/sys_byteorder.h"
 #include "base/time.h"
 #include "base/utf_offset_string_conversions.h"
 #include "base/utf_string_conversions.h"
@@ -74,6 +75,14 @@
 #include "unicode/uset.h"
 
 using base::Time;
+
+#if defined(OS_WIN)
+// Allow htons/ntohs to be called without requiring ws2_32.dll to be loaded,
+// which isn't available in Chrome's sandbox. See crbug.com/116591.
+// TODO(wez): Replace these calls with base::htons() etc when available.
+#define ntohs(x) _byteswap_ushort(x)
+#define htons(x) _byteswap_ushort(x)
+#endif // OS_WIN
 
 namespace net {
 
