@@ -22,6 +22,10 @@ class Location;
 
 namespace base {
 
+class MessageLoopProxy;
+
+template <class T> class DeleteHelper;
+
 // A worker thread pool that enforces ordering between sets of tasks. It also
 // allows you to specify what should happen to your tasks on shutdown.
 //
@@ -119,6 +123,7 @@ class BASE_EXPORT SequencedWorkerPool : public TaskRunner {
    public:
     virtual ~TestingObserver() {}
     virtual void WillWaitForShutdown() = 0;
+    virtual void OnDestruct() = 0;
   };
 
   // Pass the maximum number of threads (they will be lazily created as needed)
@@ -225,14 +230,19 @@ class BASE_EXPORT SequencedWorkerPool : public TaskRunner {
  protected:
   virtual ~SequencedWorkerPool();
 
+  virtual void OnDestruct() const OVERRIDE;
+
  private:
   friend class RefCountedThreadSafe<SequencedWorkerPool>;
+  friend class DeleteHelper<SequencedWorkerPool>;
 
   class Inner;
   class Worker;
 
-  // Avoid pulling in too many headers by putting everything into
-  // |inner_|.
+  const scoped_refptr<MessageLoopProxy> constructor_message_loop_;
+
+  // Avoid pulling in too many headers by putting (almost) everything
+  // into |inner_|.
   const scoped_ptr<Inner> inner_;
 
   DISALLOW_COPY_AND_ASSIGN(SequencedWorkerPool);
