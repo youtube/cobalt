@@ -36,12 +36,12 @@ void SeekableBuffer::Clear() {
 
 size_t SeekableBuffer::Read(uint8* data, size_t size) {
   DCHECK(data);
-  return InternalRead(data, size, true);
+  return InternalRead(data, size, true, 0);
 }
 
-size_t SeekableBuffer::Peek(uint8* data, size_t size) {
+size_t SeekableBuffer::Peek(uint8* data, size_t size, size_t forward_offset) {
   DCHECK(data);
-  return InternalRead(data, size, false);
+  return InternalRead(data, size, false, forward_offset);
 }
 
 bool SeekableBuffer::GetCurrentChunk(const uint8** data, size_t* size) const {
@@ -113,7 +113,7 @@ bool SeekableBuffer::SeekForward(size_t size) {
     return false;
 
   // Do a read of |size| bytes.
-  size_t taken = InternalRead(NULL, size, true);
+  size_t taken = InternalRead(NULL, size, true, 0);
   DCHECK_EQ(taken, size);
   return true;
 }
@@ -183,13 +183,15 @@ void SeekableBuffer::EvictBackwardBuffers() {
 }
 
 size_t SeekableBuffer::InternalRead(uint8* data, size_t size,
-                                    bool advance_position) {
+                                    bool advance_position,
+                                    size_t forward_offset) {
   // Counts how many bytes are actually read from the buffer queue.
   size_t taken = 0;
 
   BufferQueue::iterator current_buffer = current_buffer_;
   size_t current_buffer_offset = current_buffer_offset_;
 
+  size_t bytes_to_skip = forward_offset;
   while (taken < size) {
     // |current_buffer| is valid since the first time this buffer is appended
     // with data.
@@ -198,22 +200,31 @@ size_t SeekableBuffer::InternalRead(uint8* data, size_t size,
 
     scoped_refptr<Buffer> buffer = *current_buffer;
 
-    // Find the right amount to copy from the current buffer referenced by
-    // |buffer|. We shall copy no more than |size| bytes in total and each
-    // single step copied no more than the current buffer size.
-    size_t copied = std::min(size - taken,
-                             buffer->GetDataSize() - current_buffer_offset);
+    size_t remaining_bytes_in_buffer =
+        buffer->GetDataSize() - current_buffer_offset;
 
-    // |data| is NULL if we are seeking forward, so there's no need to copy.
-    if (data)
-      memcpy(data + taken, buffer->GetData() + current_buffer_offset, copied);
+    if (bytes_to_skip == 0) {
+      // Find the right amount to copy from the current buffer referenced by
+      // |buffer|. We shall copy no more than |size| bytes in total and each
+      // single step copied no more than the current buffer size.
+      size_t copied = std::min(size - taken, remaining_bytes_in_buffer);
 
-    // Increase total number of bytes copied, which regulates when to end this
-    // loop.
-    taken += copied;
+      // |data| is NULL if we are seeking forward, so there's no need to copy.
+      if (data)
+        memcpy(data + taken, buffer->GetData() + current_buffer_offset, copied);
 
-    // We have read |copied| bytes from the current buffer. Advances the offset.
-    current_buffer_offset += copied;
+      // Increase total number of bytes copied, which regulates when to end this
+      // loop.
+      taken += copied;
+
+      // We have read |copied| bytes from the current buffer. Advances the
+      // offset.
+      current_buffer_offset += copied;
+    } else {
+      size_t skipped = std::min(remaining_bytes_in_buffer, bytes_to_skip);
+      current_buffer_offset += skipped;
+      bytes_to_skip -= skipped;
+    }
 
     // The buffer has been consumed.
     if (current_buffer_offset == buffer->GetDataSize()) {
