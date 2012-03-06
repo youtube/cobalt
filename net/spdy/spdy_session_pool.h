@@ -184,6 +184,7 @@ class NET_EXPORT SpdySessionPool
   // Does a DNS cache lookup for |pair|, and returns the |addresses| found.
   // Returns true if addresses found, false otherwise.
   bool LookupAddresses(const HostPortProxyPair& pair,
+                       const BoundNetLog& net_log,
                        AddressList* addresses) const;
 
   // Add |address| as an IP-equivalent address for |pair|.
