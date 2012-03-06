@@ -702,7 +702,7 @@
        }, {
         'disable_nacl%': 0,
       }],
-      ['os_posix==1 and OS!="mac" and OS!="android"', {
+      ['os_posix==1 and OS!="mac" and OS!="android" and OS != "lb_shell"', {
         # This will set gcc_version to XY if you are running gcc X.Y.*.
         # This is used to tweak build flags for gcc 4.4.
         'gcc_version%': '<!(python <(DEPTH)/build/compiler_version.py)',
@@ -1294,7 +1294,7 @@
       }],
       ['chromium_code==0', {
         'conditions': [
-          [ 'os_posix==1 and OS!="mac"', {
+          [ 'os_posix==1 and OS!="mac" and OS!="lb_shell"', {
             # We don't want to get warnings from third-party code,
             # so remove any existing warning-enabling flags like -Wall.
             'cflags!': [
@@ -1317,7 +1317,7 @@
               '-Wsign-compare',
             ]
           }],
-          [ 'os_posix==1 and os_bsd!=1 and OS!="mac" and OS!="android"', {
+          [ 'os_posix==1 and os_bsd!=1 and OS!="mac" and OS!="android" and OS!="lb_shell"', {
             'cflags': [
               # Don't warn about ignoring the return value from e.g. close().
               # This is off by default in some gccs but on by default in others.
@@ -1624,7 +1624,7 @@
     },
   },
   'conditions': [
-    ['os_posix==1 and OS!="mac"', {
+    ['os_posix==1 and OS!="mac" and OS !="lb_shell"', {
       'target_defaults': {
         # Enable -Werror by default, but put it in a variable so it can
         # be disabled in ~/.gyp/include.gypi on the valgrind builders.
@@ -2273,13 +2273,6 @@
     ['OS=="solaris"', {
       'cflags!': ['-fvisibility=hidden'],
       'cflags_cc!': ['-fvisibility-inlines-hidden'],
-    }],
-    ['target_arch=="ps3"', {
-      'target_defaults': {
-        'cflags!': ['-pthread'],
-        'ldflags!': ['-pthread', '-Wl,-z,noexecstack'],
-        'ldflags': ['-fno-exceptions', '-fno-rtti'],
-      },
     }],
     ['OS=="mac"', {
       'target_defaults': {
