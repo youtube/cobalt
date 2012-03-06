@@ -5,6 +5,8 @@
 #include "net/socket/ssl_client_socket_win.h"
 
 #include <schnlsp.h>
+
+#include <algorithm>
 #include <map>
 
 #include "base/bind.h"
@@ -337,39 +339,22 @@ static BOOL WINAPI ClientCertFindCallback(PCCERT_CONTEXT cert_context,
   return TRUE;
 }
 
-//-----------------------------------------------------------------------------
-
-// A memory certificate store for client certificates.  This allows us to
-// close the "MY" system certificate store when we finish searching for
-// client certificates.
-class ClientCertStore {
- public:
-  ClientCertStore() {
-    store_ = CertOpenStore(CERT_STORE_PROV_MEMORY, 0, NULL, 0, NULL);
+static bool IsCertificateChainIdentical(const X509Certificate* a,
+                                        const X509Certificate* b) {
+  DCHECK(a);
+  DCHECK(b);
+  const X509Certificate::OSCertHandles& a_intermediates =
+      a->GetIntermediateCertificates();
+  const X509Certificate::OSCertHandles& b_intermediates =
+      b->GetIntermediateCertificates();
+  if (a_intermediates.size() != b_intermediates.size() || !a->Equals(b))
+    return false;
+  for (size_t i = 0; i < a_intermediates.size(); ++i) {
+    if (!X509Certificate::IsSameOSCert(a_intermediates[i], b_intermediates[i]))
+      return false;
   }
-
-  ~ClientCertStore() {
-    if (store_) {
-      BOOL ok = CertCloseStore(store_, CERT_CLOSE_STORE_CHECK_FLAG);
-      DCHECK(ok);
-    }
-  }
-
-  PCCERT_CONTEXT CopyCertContext(PCCERT_CONTEXT client_cert) {
-    PCCERT_CONTEXT copy;
-    BOOL ok = CertAddCertificateContextToStore(store_, client_cert,
-                                               CERT_STORE_ADD_USE_EXISTING,
-                                               &copy);
-    DCHECK(ok);
-    return ok ? copy : NULL;
-  }
-
- private:
-  HCERTSTORE store_;
-};
-
-static base::LazyInstance<ClientCertStore> g_client_cert_store =
-    LAZY_INSTANCE_INITIALIZER;
+  return true;
+}
 
 //-----------------------------------------------------------------------------
 
@@ -517,18 +502,35 @@ void SSLClientSocketWin::GetSSLCertRequestInfo(
     // Get the leaf certificate.
     PCCERT_CONTEXT cert_context =
         chain_context->rgpChain[0]->rgpElement[0]->pCertContext;
-    // Copy it to our own certificate store, so that we can close the "MY"
-    // certificate store before returning from this function.
-    PCCERT_CONTEXT cert_context2 =
-        g_client_cert_store.Get().CopyCertContext(cert_context);
-    if (!cert_context2) {
+    // Copy the certificate into a NULL store, so that the "MY" store can be
+    // closed before returning from this function.
+    PCCERT_CONTEXT cert_context2 = NULL;
+    BOOL ok = CertAddCertificateContextToStore(NULL, cert_context,
+                                               CERT_STORE_ADD_USE_EXISTING,
+                                               &cert_context2);
+    if (!ok) {
       NOTREACHED();
       continue;
     }
+
+    // Grab the intermediates, if any.
+    X509Certificate::OSCertHandles intermediates;
+    for (DWORD i = 1; i < chain_context->rgpChain[0]->cElement; ++i) {
+      PCCERT_CONTEXT chain_intermediate =
+          chain_context->rgpChain[0]->rgpElement[i]->pCertContext;
+      PCCERT_CONTEXT copied_intermediate = NULL;
+      ok = CertAddCertificateContextToStore(NULL, chain_intermediate,
+                                            CERT_STORE_ADD_USE_EXISTING,
+                                            &copied_intermediate);
+      if (ok)
+        intermediates.push_back(copied_intermediate);
+    }
     scoped_refptr<X509Certificate> cert = X509Certificate::CreateFromHandle(
-        cert_context2, X509Certificate::OSCertHandles());
+        cert_context2, intermediates);
     cert_request_info->client_certs.push_back(cert);
     CertFreeCertificateContext(cert_context2);
+    for (size_t i = 0; i < intermediates.size(); ++i)
+      CertFreeCertificateContext(intermediates[i]);
   }
 
   FreeContextBuffer(issuer_list.aIssuers);
@@ -1526,15 +1528,31 @@ int SSLClientSocketWin::DidCompleteHandshake() {
     LOG(ERROR) << "QueryContextAttributes (remote cert) failed: " << status;
     return MapSecurityError(status);
   }
+
+  X509Certificate::OSCertHandles intermediates;
+  PCCERT_CONTEXT intermediate = NULL;
+  // In testing, enumerating the store returned from SChannel appears to
+  // enumerate certificates in reverse of the order they were added, meaning
+  // that issuer certificates appear before the subject certificates. This is
+  // likely because the default Windows memory store is implemented as a
+  // linked-list. Reverse the list, so that intermediates are ordered from
+  // subject to issuer.
+  // Note that the store also includes the end-entity (server) certificate,
+  // so exclude this certificate from the set of |intermediates|.
+  while ((intermediate = CertEnumCertificatesInStore(
+              server_cert_handle->hCertStore, intermediate))) {
+    if (!X509Certificate::IsSameOSCert(server_cert_handle, intermediate))
+      intermediates.push_back(CertDuplicateCertificateContext(intermediate));
+  }
+  std::reverse(intermediates.begin(), intermediates.end());
+
   scoped_refptr<X509Certificate> new_server_cert(
-      X509Certificate::CreateFromHandle(server_cert_handle,
-                                        X509Certificate::OSCertHandles()));
+      X509Certificate::CreateFromHandle(server_cert_handle, intermediates));
   net_log_.AddEvent(
       NetLog::TYPE_SSL_CERTIFICATES_RECEIVED,
       make_scoped_refptr(new X509CertificateNetLogParam(new_server_cert)));
-  if (renegotiating_ &&
-      X509Certificate::IsSameOSCert(server_cert_->os_cert_handle(),
-                                    server_cert_handle)) {
+  if (renegotiating_ && IsCertificateChainIdentical(server_cert_,
+                                                    new_server_cert)) {
     // We already verified the server certificate.  Either it is good or the
     // user has accepted the certificate error.
     DidCompleteRenegotiation();
@@ -1543,6 +1561,8 @@ int SSLClientSocketWin::DidCompleteHandshake() {
     next_state_ = STATE_VERIFY_CERT;
   }
   CertFreeCertificateContext(server_cert_handle);
+  for (size_t i = 0; i < intermediates.size(); ++i)
+    CertFreeCertificateContext(intermediates[i]);
   return OK;
 }
 
