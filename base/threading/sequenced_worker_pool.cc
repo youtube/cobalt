@@ -14,6 +14,7 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/memory/linked_ptr.h"
+#include "base/message_loop_proxy.h"
 #include "base/metrics/histogram.h"
 #include "base/stringprintf.h"
 #include "base/synchronization/condition_variable.h"
@@ -258,6 +259,9 @@ SequencedWorkerPool::Inner::~Inner() {
   for (size_t i = 0; i < threads_.size(); i++)
     threads_[i]->Join();
   threads_.clear();
+
+  if (testing_observer_)
+    testing_observer_->OnDestruct();
 }
 
 SequencedWorkerPool::SequenceToken
@@ -635,10 +639,26 @@ bool SequencedWorkerPool::Inner::CanShutdown() const {
 SequencedWorkerPool::SequencedWorkerPool(
     size_t max_threads,
     const std::string& thread_name_prefix)
-    : inner_(new Inner(ALLOW_THIS_IN_INITIALIZER_LIST(this),
-                       max_threads, thread_name_prefix)) {}
+    : constructor_message_loop_(MessageLoopProxy::current()),
+      inner_(new Inner(ALLOW_THIS_IN_INITIALIZER_LIST(this),
+                       max_threads, thread_name_prefix)) {
+  DCHECK(constructor_message_loop_.get());
+}
 
 SequencedWorkerPool::~SequencedWorkerPool() {}
+
+void SequencedWorkerPool::OnDestruct() const {
+  // TODO(akalin): Once we can easily check if we're on a worker
+  // thread or not, use that instead of restricting destruction to
+  // only the constructor message loop.
+  if (constructor_message_loop_->BelongsToCurrentThread()) {
+    LOG(INFO) << "Deleting on this thread";
+    delete this;
+  } else {
+    LOG(INFO) << "Deleting soon";
+    constructor_message_loop_->DeleteSoon(FROM_HERE, this);
+  }
+}
 
 SequencedWorkerPool::SequenceToken SequencedWorkerPool::GetSequenceToken() {
   return inner_->GetSequenceToken();
