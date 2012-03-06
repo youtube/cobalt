@@ -274,7 +274,8 @@ class AudioInputStreamTraits {
   typedef AudioInputStream StreamType;
 
   static int HardwareSampleRate() {
-    return static_cast<int>(media::GetAudioInputHardwareSampleRate());
+    return static_cast<int>(media::GetAudioInputHardwareSampleRate(
+        AudioManagerBase::kDefaultDeviceId));
   }
 
   static StreamType* CreateStream(AudioManager* audio_manager,

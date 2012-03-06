@@ -116,7 +116,8 @@ class AudioInputStreamWrapper {
         bits_per_sample_(16) {
     // Use native/mixing sample rate and 10ms frame size as default.
     sample_rate_ = static_cast<int>(
-        WASAPIAudioInputStream::HardwareSampleRate(eConsole));
+        WASAPIAudioInputStream::HardwareSampleRate(
+            AudioManagerBase::kDefaultDeviceId));
     samples_per_packet_ = sample_rate_ / 100;
   }
 
@@ -170,10 +171,7 @@ static AudioInputStream* CreateDefaultAudioInputStream(
 }
 
 // Verify that we can retrieve the current hardware/mixing sample rate
-// for all supported device roles. The ERole enumeration defines constants
-// that indicate the role that the system/user has assigned to an audio
-// endpoint device.
-// TODO(henrika): modify this test when we support full device enumeration.
+// for all available input devices.
 TEST(WinAudioInputTest, WASAPIAudioInputStreamHardwareSampleRate) {
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!CanRunAudioTests(audio_manager.get()))
@@ -181,21 +179,19 @@ TEST(WinAudioInputTest, WASAPIAudioInputStreamHardwareSampleRate) {
 
   ScopedCOMInitializer com_init(ScopedCOMInitializer::kMTA);
 
-  // Default device intended for games, system notification sounds,
-  // and voice commands.
-  int fs = static_cast<int>(
-      WASAPIAudioInputStream::HardwareSampleRate(eConsole));
-  EXPECT_GE(fs, 0);
+  // Retrieve a list of all available input devices.
+  media::AudioDeviceNames device_names;
+  audio_manager->GetAudioInputDeviceNames(&device_names);
 
-  // Default communication device intended for e.g. VoIP communication.
-  fs = static_cast<int>(
-      WASAPIAudioInputStream::HardwareSampleRate(eCommunications));
-  EXPECT_GE(fs, 0);
-
-  // Multimedia device for music, movies and live music recording.
-  fs = static_cast<int>(
-      WASAPIAudioInputStream::HardwareSampleRate(eMultimedia));
-  EXPECT_GE(fs, 0);
+  // Scan all available input devices and repeat the same test for all of them.
+  for (media::AudioDeviceNames::const_iterator it = device_names.begin();
+       it != device_names.end(); ++it) {
+    // Retrieve the hardware sample rate given a specified audio input device.
+    // TODO(tommi): ensure that we don't have to cast here.
+    int fs = static_cast<int>(WASAPIAudioInputStream::HardwareSampleRate(
+        it->unique_id));
+    EXPECT_GE(fs, 0);
+  }
 }
 
 // Test Create(), Close() calling sequence.
@@ -374,7 +370,7 @@ TEST(WinAudioInputTest, DISABLED_WASAPIAudioInputStreamRecordToFile) {
 
   LOG(INFO) << ">> Sample rate: " << aisw.sample_rate() << " [Hz]";
   WriteToFileAudioSink file_sink(file_name);
-  LOG(INFO) << ">> Speak into the microphone while recording.";
+  LOG(INFO) << ">> Speak into the default microphone while recording.";
   ais->Start(&file_sink);
   base::PlatformThread::Sleep(TestTimeouts::action_timeout_ms());
   ais->Stop();

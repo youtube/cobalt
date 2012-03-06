@@ -32,6 +32,7 @@ class PCMWaveInAudioInputStream : public AudioInputStream {
   virtual void Start(AudioInputCallback* callback) OVERRIDE;
   virtual void Stop() OVERRIDE;
   virtual void Close() OVERRIDE;
+  // TODO(henrika): Add volume support using the Audio Mixer API.
   virtual double GetMaxVolume() OVERRIDE;
   virtual void SetVolume(double volume) OVERRIDE;
   virtual double GetVolume() OVERRIDE;
