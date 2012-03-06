@@ -880,7 +880,7 @@
         },
       ],
     }],
-    [ 'os_posix==1 and OS!="mac"', {
+    [ 'os_posix==1 and OS!="mac" and OS!="lb_shell"', {
       'targets': [
         {
           'target_name': 'symbolize',
