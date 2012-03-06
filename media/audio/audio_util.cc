@@ -17,6 +17,7 @@
 #include "base/time.h"
 #if defined(OS_WIN)
 #include "base/win/windows_version.h"
+#include "media/audio/audio_manager_base.h"
 #endif
 #include "media/audio/audio_parameters.h"
 #include "media/audio/audio_util.h"
@@ -262,24 +263,17 @@ double GetAudioHardwareSampleRate() {
 #endif
 }
 
-double GetAudioInputHardwareSampleRate() {
+double GetAudioInputHardwareSampleRate(const std::string& device_id) {
+  // TODO(henrika): add support for device selection on all platforms.
+  // Only exists on Windows today.
 #if defined(OS_MACOSX)
-  // Hardware sample-rate on the Mac can be configured, so we must query.
   return AUAudioInputStream::HardwareSampleRate();
 #elif defined(OS_WIN)
   if (!IsWASAPISupported()) {
-    // Fall back to Windows Wave implementation on Windows XP or lower
-    // and use 48kHz as default input sample rate.
     return 48000.0;
   }
-
-  // Hardware sample-rate on Windows can be configured, so we must query.
-  // TODO(henrika): improve possibility to specify audio endpoint.
-  // Use the default device (same as for Wave) for now to be compatible.
-  return WASAPIAudioInputStream::HardwareSampleRate(eConsole);
+  return WASAPIAudioInputStream::HardwareSampleRate(device_id);
 #else
-  // Hardware for Linux is nearly always 48KHz.
-  // TODO(henrika): return correct value in rare non-48KHz cases.
   return 48000.0;
 #endif
 }
@@ -315,7 +309,9 @@ size_t GetAudioHardwareBufferSize() {
 #endif
 }
 
-uint32 GetAudioInputHardwareChannelCount() {
+uint32 GetAudioInputHardwareChannelCount(const std::string& device_id) {
+  // TODO(henrika): add support for device selection on all platforms.
+  // Only exists on Windows today.
   enum channel_layout { MONO = 1, STEREO = 2 };
 #if defined(OS_MACOSX)
   return MONO;
@@ -325,7 +321,7 @@ uint32 GetAudioInputHardwareChannelCount() {
     // use stereo by default.
     return STEREO;
   }
-  return WASAPIAudioInputStream::HardwareChannelCount(eConsole);
+  return WASAPIAudioInputStream::HardwareChannelCount(device_id);
 #else
   return STEREO;
 #endif

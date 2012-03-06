@@ -188,16 +188,16 @@ void PCMWaveInAudioInputStream::Close() {
 }
 
 double PCMWaveInAudioInputStream::GetMaxVolume() {
-  // TODO(xians): Add volume support.
+  // TODO(henrika): Add volume support using the Audio Mixer API.
   return 0.0;
 }
 
 void PCMWaveInAudioInputStream::SetVolume(double volume) {
-  // TODO(xians): Add volume support.
+  // TODO(henrika): Add volume support using the Audio Mixer API.
 }
 
 double PCMWaveInAudioInputStream::GetVolume() {
-  // TODO(xians): Add volume support.
+  // TODO(henrika): Add volume support using the Audio Mixer API.
   return 0.0;
 }
 

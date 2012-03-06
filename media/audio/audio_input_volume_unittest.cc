@@ -22,6 +22,13 @@ class AudioInputVolumeTest : public ::testing::Test {
   }
 
   bool CanRunAudioTests() {
+#if defined(OS_WIN)
+    // TODO(henrika): add support for volume control on Windows XP as well.
+    // For now, we might as well signal false already here to avoid running
+    // these tests on Windows XP.
+    if (!media::IsWASAPISupported())
+      return false;
+#endif
     if (!audio_manager_.get())
       return false;
 
@@ -38,28 +45,22 @@ class AudioInputVolumeTest : public ::testing::Test {
 
   AudioInputStream* CreateAndOpenStream(const std::string& device_id) {
     AudioParameters::Format format = AudioParameters::AUDIO_PCM_LOW_LATENCY;
-    // TODO(xians): Implement a generic HardwareChannelCount API to query
-    // the number of channel for all the devices.
     ChannelLayout channel_layout =
-        (media::GetAudioInputHardwareChannelCount() == 1) ?
+        (media::GetAudioInputHardwareChannelCount(device_id) == 1) ?
             CHANNEL_LAYOUT_MONO : CHANNEL_LAYOUT_STEREO;
     int bits_per_sample = 16;
     int sample_rate =
-        static_cast<int>(media::GetAudioInputHardwareSampleRate());
+        static_cast<int>(media::GetAudioInputHardwareSampleRate(device_id));
     int samples_per_packet = 0;
 #if defined(OS_MACOSX)
     samples_per_packet = (sample_rate / 100);
 #elif defined(OS_LINUX) || defined(OS_OPENBSD)
     samples_per_packet = (sample_rate / 100);
 #elif defined(OS_WIN)
-    if (media::IsWASAPISupported()) {
-      if (sample_rate == 44100)
-        samples_per_packet = 448;
-      else
-        samples_per_packet = (sample_rate / 100);
-    } else {
-      samples_per_packet = 3 * (sample_rate / 100);
-    }
+    if (sample_rate == 44100)
+      samples_per_packet = 448;
+    else
+      samples_per_packet = (sample_rate / 100);
 #else
 #error Unsupported platform
 #endif
@@ -93,10 +94,12 @@ TEST_F(AudioInputVolumeTest, InputVolumeTest) {
   if (!CanRunAudioTests())
     return;
 
+  // Retrieve a list of all available input devices.
   AudioDeviceNames device_names;
   audio_manager_->GetAudioInputDeviceNames(&device_names);
   DCHECK(!device_names.empty());
 
+  // Scan all available input devices and repeat the same test for all of them.
   for (AudioDeviceNames::const_iterator it = device_names.begin();
        it != device_names.end();
        ++it) {
@@ -106,9 +109,9 @@ TEST_F(AudioInputVolumeTest, InputVolumeTest) {
       continue;
     }
 
-    if ( !HasDeviceVolumeControl(ais)) {
+    if (!HasDeviceVolumeControl(ais)) {
       DLOG(WARNING) << "Device: " << it->unique_id
-                    << ", does not have volume control";
+                    << ", does not have volume control.";
       ais->Close();
       continue;
     }
@@ -116,30 +119,33 @@ TEST_F(AudioInputVolumeTest, InputVolumeTest) {
     double max_volume = ais->GetMaxVolume();
     EXPECT_GT(max_volume, 0.0);
 
-    // Notes that |original_volume| can be higher than |max_volume| on Linux.
+    // Store the current input-device volume level.
     double original_volume = ais->GetVolume();
     EXPECT_GE(original_volume, 0.0);
 #if defined(OS_WIN) || defined(OS_MACOSX)
+    // Note that |original_volume| can be higher than |max_volume| on Linux.
     EXPECT_LE(original_volume, max_volume);
 #endif
 
-    // Tries to set the volume to |max_volume|.
+    // Set the volume to the maxiumum level..
     ais->SetVolume(max_volume);
     double current_volume = ais->GetVolume();
     EXPECT_EQ(max_volume, current_volume);
 
-    // Tries to set the volume to zero.
+    // Set the volume to the mininum level (=0).
     double new_volume = 0.0;
     ais->SetVolume(new_volume);
     current_volume = ais->GetVolume();
     EXPECT_EQ(new_volume, current_volume);
 
-    // Tries to set the volume to the middle.
+    // Set the volume to the mid level (50% of max).
+    // Verify that the absolute error is small enough.
     new_volume = max_volume / 2;
     ais->SetVolume(new_volume);
     current_volume = ais->GetVolume();
     EXPECT_LT(current_volume, max_volume);
     EXPECT_GT(current_volume, 0);
+    EXPECT_NEAR(current_volume, new_volume, 0.25 * max_volume);
 
     // Restores the volume to the original value.
     ais->SetVolume(original_volume);
