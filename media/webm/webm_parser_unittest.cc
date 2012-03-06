@@ -352,4 +352,61 @@ TEST_F(WebMParserTest, InvalidClient) {
   EXPECT_FALSE(parser.IsParsingComplete());
 }
 
+TEST_F(WebMParserTest, ReservedIds) {
+  const uint8 k1ByteReservedId[] = { 0xFF, 0x81 };
+  const uint8 k2ByteReservedId[] = { 0x7F, 0xFF, 0x81 };
+  const uint8 k3ByteReservedId[] = { 0x3F, 0xFF, 0xFF, 0x81 };
+  const uint8 k4ByteReservedId[] = { 0x1F, 0xFF, 0xFF, 0xFF, 0x81 };
+  const uint8* kBuffers[] = {
+    k1ByteReservedId,
+    k2ByteReservedId,
+    k3ByteReservedId,
+    k4ByteReservedId
+  };
+
+  for (size_t i = 0; i < arraysize(kBuffers); i++) {
+    int id;
+    int64 element_size;
+    int buffer_size = 2 + i;
+    EXPECT_EQ(buffer_size, WebMParseElementHeader(kBuffers[i], buffer_size,
+                                                  &id, &element_size));
+    EXPECT_EQ(id, kWebMReservedId);
+    EXPECT_EQ(element_size, 1);
+  }
+}
+
+TEST_F(WebMParserTest, ReservedSizes) {
+  const uint8 k1ByteReservedSize[] = { 0xA3, 0xFF };
+  const uint8 k2ByteReservedSize[] = { 0xA3, 0x7F, 0xFF };
+  const uint8 k3ByteReservedSize[] = { 0xA3, 0x3F, 0xFF, 0xFF };
+  const uint8 k4ByteReservedSize[] = { 0xA3, 0x1F, 0xFF, 0xFF, 0xFF };
+  const uint8 k5ByteReservedSize[] = { 0xA3, 0x0F, 0xFF, 0xFF, 0xFF, 0xFF };
+  const uint8 k6ByteReservedSize[] = { 0xA3, 0x07, 0xFF, 0xFF, 0xFF, 0xFF,
+                                       0xFF };
+  const uint8 k7ByteReservedSize[] = { 0xA3, 0x03, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                                       0xFF };
+  const uint8 k8ByteReservedSize[] = { 0xA3, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                                       0xFF, 0xFF };
+  const uint8* kBuffers[] = {
+    k1ByteReservedSize,
+    k2ByteReservedSize,
+    k3ByteReservedSize,
+    k4ByteReservedSize,
+    k5ByteReservedSize,
+    k6ByteReservedSize,
+    k7ByteReservedSize,
+    k8ByteReservedSize
+  };
+
+  for (size_t i = 0; i < arraysize(kBuffers); i++) {
+    int id;
+    int64 element_size;
+    int buffer_size = 2 + i;
+    EXPECT_EQ(buffer_size, WebMParseElementHeader(kBuffers[i], buffer_size,
+                                                  &id, &element_size));
+    EXPECT_EQ(id, 0xA3);
+    EXPECT_EQ(element_size, kWebMUnknownSize);
+  }
+}
+
 }  // namespace media

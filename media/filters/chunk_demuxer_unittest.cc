@@ -38,6 +38,10 @@ static const int kVideoTrackEntryHeaderSize = kVideoTrackSizeOffset +
 static const int kVideoTrackNum = 1;
 static const int kAudioTrackNum = 2;
 
+base::TimeDelta kDefaultDuration() {
+  return base::TimeDelta::FromMilliseconds(201224);
+}
+
 // Write an integer into buffer in the form of vint that spans 8 bytes.
 // The data pointed by |buffer| should be at least 8 bytes long.
 // |number| should be in the range 0 <= number < 0x00FFFFFFFFFFFFFF.
@@ -204,17 +208,12 @@ class ChunkDemuxerTest : public testing::Test {
     }
   }
 
-  PipelineStatusCB CreateInitDoneCB(int duration,
-                                    PipelineStatus expected_status) {
-    return CreateInitDoneCB(duration, expected_status, true);
-  }
-
-  PipelineStatusCB CreateInitDoneCB(int duration,
+  PipelineStatusCB CreateInitDoneCB(const base::TimeDelta& duration,
                                     PipelineStatus expected_status,
                                     bool call_set_host) {
     return base::Bind(&ChunkDemuxerTest::InitDoneCalled,
                       base::Unretained(this),
-                      base::TimeDelta::FromMilliseconds(duration),
+                      duration,
                       expected_status,
                       call_set_host);
   }
@@ -225,7 +224,7 @@ class ChunkDemuxerTest : public testing::Test {
         (has_audio || has_video) ? PIPELINE_OK : DEMUXER_ERROR_COULD_NOT_OPEN;
 
     EXPECT_CALL(*client_, DemuxerOpened(_));
-    demuxer_->Init(CreateInitDoneCB(201224, expected_status));
+    demuxer_->Init(CreateInitDoneCB(kDefaultDuration(), expected_status, true));
 
     return AppendInfoTracks(has_audio, has_video, video_content_encoded);
   }
@@ -272,12 +271,12 @@ class ChunkDemuxerTest : public testing::Test {
   //    a kSkip then the loop will terminate.
   bool ParseWebMFile(const std::string& filename,
                      const BufferTimestamps* timestamps,
-                     int duration) {
+                     const base::TimeDelta& duration) {
     scoped_array<uint8> buffer;
     int buffer_size = 0;
 
     EXPECT_CALL(*client_, DemuxerOpened(_));
-    demuxer_->Init(CreateInitDoneCB(duration, PIPELINE_OK));
+    demuxer_->Init(CreateInitDoneCB(duration, PIPELINE_OK, true));
 
     // Read a WebM file into memory and send the data to the demuxer.
     ReadTestDataFile(filename, &buffer, &buffer_size);
@@ -837,7 +836,7 @@ TEST_F(ChunkDemuxerTest, TestReadsAfterEndOfStream) {
 TEST_F(ChunkDemuxerTest, TestAppendingInPieces) {
 
   EXPECT_CALL(*client_, DemuxerOpened(_));
-  demuxer_->Init(CreateInitDoneCB(201224, PIPELINE_OK));
+  demuxer_->Init(CreateInitDoneCB(kDefaultDuration(), PIPELINE_OK, true));
 
   scoped_array<uint8> info_tracks;
   int info_tracks_size = 0;
@@ -913,7 +912,22 @@ TEST_F(ChunkDemuxerTest, TestWebMFile_AudioAndVideo) {
     {kSkip, kSkip},
   };
 
-  ASSERT_TRUE(ParseWebMFile("bear-320x240.webm", buffer_timestamps, 2744));
+  ASSERT_TRUE(ParseWebMFile("bear-320x240.webm", buffer_timestamps,
+                            base::TimeDelta::FromMilliseconds(2744)));
+}
+
+TEST_F(ChunkDemuxerTest, TestWebMFile_LiveAudioAndVideo) {
+  struct BufferTimestamps buffer_timestamps[] = {
+    {0, 0},
+    {33, 3},
+    {67, 6},
+    {100, 9},
+    {133, 12},
+    {kSkip, kSkip},
+  };
+
+  ASSERT_TRUE(ParseWebMFile("bear-320x240-live.webm", buffer_timestamps,
+                            kInfiniteDuration()));
 }
 
 TEST_F(ChunkDemuxerTest, TestWebMFile_AudioOnly) {
@@ -927,7 +941,7 @@ TEST_F(ChunkDemuxerTest, TestWebMFile_AudioOnly) {
   };
 
   ASSERT_TRUE(ParseWebMFile("bear-320x240-audio-only.webm", buffer_timestamps,
-                            2744));
+                            base::TimeDelta::FromMilliseconds(2744)));
 }
 
 TEST_F(ChunkDemuxerTest, TestWebMFile_VideoOnly) {
@@ -941,7 +955,7 @@ TEST_F(ChunkDemuxerTest, TestWebMFile_VideoOnly) {
   };
 
   ASSERT_TRUE(ParseWebMFile("bear-320x240-video-only.webm", buffer_timestamps,
-                            2703));
+                            base::TimeDelta::FromMilliseconds(2703)));
 }
 
 // Verify that we output buffers before the entire cluster has been parsed.
@@ -1018,7 +1032,7 @@ TEST_F(ChunkDemuxerTest, TestIncrementalClusterParsing) {
 
 TEST_F(ChunkDemuxerTest, TestParseErrorDuringInit) {
   EXPECT_CALL(*client_, DemuxerOpened(_));
-  demuxer_->Init(CreateInitDoneCB(201224, PIPELINE_OK, false));
+  demuxer_->Init(CreateInitDoneCB(kDefaultDuration(), PIPELINE_OK, false));
   ASSERT_TRUE(AppendInfoTracks(true, true, false));
 
   uint8 tmp = 0;
