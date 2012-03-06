@@ -549,8 +549,10 @@ GenerateMessageSerializationMethods(io::Printer* printer) {
     "\n");
 
   printer->Print(
+    "private static final long serialVersionUID = 0L;\n"
     "@java.lang.Override\n"
-    "protected Object writeReplace() throws java.io.ObjectStreamException {\n"
+    "protected java.lang.Object writeReplace()\n"
+    "    throws java.io.ObjectStreamException {\n"
     "  return super.writeReplace();\n"
     "}\n"
     "\n");
@@ -1182,7 +1184,7 @@ void MessageGenerator::GenerateIsInitialized(
 void MessageGenerator::GenerateEqualsAndHashCode(io::Printer* printer) {
   printer->Print(
     "@java.lang.Override\n"
-    "public boolean equals(final Object obj) {\n");
+    "public boolean equals(final java.lang.Object obj) {\n");
   printer->Indent();
   printer->Print(
     "if (obj == this) {\n"
