@@ -15,7 +15,7 @@
 // enabled.  For example a non-official release build may have
 // DCHECK_ALWAYS_ON undefined (and therefore ThreadChecker would be
 // disabled) but have DCHECKs enabled at runtime.
-#define ENABLE_THREAD_CHECKER (!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON))
+#define ENABLE_THREAD_CHECKER ((!defined(NDEBUG) || defined(DCHECK_ALWAYS_ON)) && !defined(__LB_SHELL__))
 
 #if ENABLE_THREAD_CHECKER
 #include "base/threading/thread_checker_impl.h"
