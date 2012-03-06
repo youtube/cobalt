@@ -60,8 +60,10 @@ class MEDIA_EXPORT SeekableBuffer {
   size_t Read(uint8* data, size_t size);
 
   // Copies up to |size| bytes from current position to |data|. Returns
-  // number of bytes copied. Doesn't advance current position.
-  size_t Peek(uint8* data, size_t size);
+  // number of bytes copied. Doesn't advance current position. Optionally
+  // starts at a |forward_offset| from current position.
+  size_t Peek(uint8* data, size_t size) { return Peek(data, size, 0); }
+  size_t Peek(uint8* data, size_t size, size_t forward_offset);
 
   // Returns pointer to the current chunk of data that is being consumed.
   // If there is no data left in the buffer false is returned, otherwise
@@ -137,7 +139,8 @@ class MEDIA_EXPORT SeekableBuffer {
   // of bytes read. The current read position will be moved forward by the
   // number of bytes read. If |data| is NULL, only the current read position
   // will advance but no data will be copied.
-  size_t InternalRead(uint8* data, size_t size, bool advance_position);
+  size_t InternalRead(
+      uint8* data, size_t size, bool advance_position, size_t forward_offset);
 
   // A helper method that moves the current read position forward by |size|
   // bytes.

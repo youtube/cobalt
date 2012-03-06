@@ -118,11 +118,6 @@ MEDIA_EXPORT bool IsWASAPISupported();
 
 #endif  // defined(OS_WIN)
 
-// Crossfades |bytes_to_crossfade| bytes of data in |dest| with the
-// data in |src|. Assumes there is room in |dest| and enough data in |src|.
-MEDIA_EXPORT void Crossfade(int bytes_to_crossfade, int number_of_channels,
-                            int bytes_per_channel, const uint8* src,
-                            uint8* dest);
 }  // namespace media
 
 #endif  // MEDIA_AUDIO_AUDIO_UTIL_H_
