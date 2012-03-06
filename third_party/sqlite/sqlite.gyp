@@ -109,7 +109,7 @@
             4018, 4244,
           ],
           'conditions': [
-            ['os_posix == 1 and OS != "mac"', {
+            ['os_posix == 1 and OS != "mac" and OS != "lb_shell"', {
               'cflags': [
                 # SQLite doesn't believe in compiler warnings,
                 # preferring testing.
