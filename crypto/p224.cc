@@ -13,6 +13,14 @@
 
 #include "base/sys_byteorder.h"
 
+#if defined(OS_WIN)
+// Allow htonl/ntohl to be called without requiring ws2_32.dll to be loaded,
+// which isn't available in Chrome's sandbox.  See crbug.com/116591.
+// TODO(wez): Replace these calls with base::htonl() etc when available.
+#define ntohl(x) _byteswap_ulong(x)
+#define htonl(x) _byteswap_ulong(x)
+#endif // OS_WIN
+
 namespace {
 
 // Field element functions.
