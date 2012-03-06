@@ -803,6 +803,22 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(ShouldRedirect("grepular.com"));
   EXPECT_TRUE(ShouldRedirect("www.grepular.com"));
 
+  EXPECT_TRUE(ShouldRedirect("mydigipass.com"));
+  EXPECT_FALSE(ShouldRedirect("foo.mydigipass.com"));
+  EXPECT_TRUE(ShouldRedirect("www.mydigipass.com"));
+  EXPECT_FALSE(ShouldRedirect("foo.www.mydigipass.com"));
+  EXPECT_TRUE(ShouldRedirect("developer.mydigipass.com"));
+  EXPECT_FALSE(ShouldRedirect("foo.developer.mydigipass.com"));
+  EXPECT_TRUE(ShouldRedirect("www.developer.mydigipass.com"));
+  EXPECT_FALSE(ShouldRedirect("foo.www.developer.mydigipass.com"));
+  EXPECT_TRUE(ShouldRedirect("sandbox.mydigipass.com"));
+  EXPECT_FALSE(ShouldRedirect("foo.sandbox.mydigipass.com"));
+  EXPECT_TRUE(ShouldRedirect("www.sandbox.mydigipass.com"));
+  EXPECT_FALSE(ShouldRedirect("foo.www.sandbox.mydigipass.com"));
+
+  EXPECT_TRUE(ShouldRedirect("crypto.cat"));
+  EXPECT_TRUE(ShouldRedirect("foo.crypto.cat"));
+
 #if defined(OS_CHROMEOS)
   static const bool kTwitterHSTS = true;
 #else
