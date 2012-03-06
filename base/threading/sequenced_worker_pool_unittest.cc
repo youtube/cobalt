@@ -5,7 +5,11 @@
 #include <algorithm>
 
 #include "base/bind.h"
+#include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
+#include "base/message_loop.h"
+#include "base/message_loop_proxy.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "base/task_runner_test_template.h"
@@ -141,25 +145,80 @@ class TestTracker : public base::RefCountedThreadSafe<TestTracker> {
   size_t started_events_;
 };
 
-class SequencedWorkerPoolTest : public testing::Test,
-                                public SequencedWorkerPool::TestingObserver {
+// Wrapper around SequencedWorkerPool that blocks destruction until
+// the pool is actually destroyed.  This is so that a
+// SequencedWorkerPool from one test doesn't outlive its test and
+// cause strange races with other tests that touch global stuff (like
+// histograms and logging).  However, this requires that nothing else
+// on this thread holds a ref to the pool when the
+// SequencedWorkerPoolOwner is destroyed.
+class SequencedWorkerPoolOwner : public SequencedWorkerPool::TestingObserver {
  public:
-  SequencedWorkerPoolTest()
-      : pool_(new SequencedWorkerPool(kNumWorkerThreads, "test")),
-        tracker_(new TestTracker) {
+  SequencedWorkerPoolOwner(size_t max_threads,
+                           const std::string& thread_name_prefix)
+      : constructor_message_loop_(MessageLoop::current()),
+        pool_(new SequencedWorkerPool(max_threads, thread_name_prefix)) {
     pool_->SetTestingObserver(this);
   }
-  ~SequencedWorkerPoolTest() {
+
+  virtual ~SequencedWorkerPoolOwner() {
+    pool_ = NULL;
+    MessageLoop::current()->Run();
   }
 
-  virtual void SetUp() {
+  // Don't change the return pool's testing observer.
+  const scoped_refptr<SequencedWorkerPool>& pool() {
+    return pool_;
   }
+
+  // The given callback will be called on WillWaitForShutdown().
+  void SetWillWaitForShutdownCallback(const Closure& callback) {
+    will_wait_for_shutdown_callback_ = callback;
+  }
+
+ private:
+  // SequencedWorkerPool::TestingObserver implementation.
+  virtual void WillWaitForShutdown() OVERRIDE {
+    if (!will_wait_for_shutdown_callback_.is_null()) {
+      will_wait_for_shutdown_callback_.Run();
+    }
+  }
+
+  virtual void OnDestruct() OVERRIDE {
+    constructor_message_loop_->PostTask(
+        FROM_HERE,
+        constructor_message_loop_->QuitClosure());
+  }
+
+  MessageLoop* const constructor_message_loop_;
+  scoped_refptr<SequencedWorkerPool> pool_;
+  Closure will_wait_for_shutdown_callback_;
+
+  DISALLOW_COPY_AND_ASSIGN(SequencedWorkerPoolOwner);
+};
+
+class SequencedWorkerPoolTest : public testing::Test {
+ public:
+  SequencedWorkerPoolTest()
+      : pool_owner_(kNumWorkerThreads, "test"),
+        tracker_(new TestTracker) {}
+
+  ~SequencedWorkerPoolTest() {}
+
+  virtual void SetUp() {}
+
   virtual void TearDown() {
-    pool_->Shutdown();
+    pool()->Shutdown();
   }
 
-  const scoped_refptr<SequencedWorkerPool>& pool() { return pool_; }
+  const scoped_refptr<SequencedWorkerPool>& pool() {
+    return pool_owner_.pool();
+  }
   TestTracker* tracker() { return tracker_.get(); }
+
+  void SetWillWaitForShutdownCallback(const Closure& callback) {
+    pool_owner_.SetWillWaitForShutdownCallback(callback);
+  }
 
   // Ensures that the given number of worker threads is created by adding
   // tasks and waiting until they complete. Worker thread creation is
@@ -194,18 +253,9 @@ class SequencedWorkerPoolTest : public testing::Test,
     tracker()->ClearCompleteSequence();
   }
 
- protected:
-  // This closure will be executed right before the pool blocks on shutdown.
-  base::Closure before_wait_for_shutdown_;
-
  private:
-  // SequencedWorkerPool::TestingObserver implementation.
-  virtual void WillWaitForShutdown() {
-    if (!before_wait_for_shutdown_.is_null())
-      before_wait_for_shutdown_.Run();
-  }
-
-  const scoped_refptr<SequencedWorkerPool> pool_;
+  MessageLoop message_loop_;
+  SequencedWorkerPoolOwner pool_owner_;
   const scoped_refptr<TestTracker> tracker_;
 };
 
@@ -272,26 +322,27 @@ TEST_F(SequencedWorkerPoolTest, LotsOfTasks) {
 // This test is meant to shake out any concurrency issues between
 // pools (like histograms).
 TEST_F(SequencedWorkerPoolTest, LotsOfTasksTwoPools) {
-  scoped_refptr<SequencedWorkerPool> pool1(
-      new SequencedWorkerPool(kNumWorkerThreads, "test1"));
-  scoped_refptr<SequencedWorkerPool> pool2(
-      new SequencedWorkerPool(kNumWorkerThreads, "test2"));
+  SequencedWorkerPoolOwner pool1(kNumWorkerThreads, "test1");
+  SequencedWorkerPoolOwner pool2(kNumWorkerThreads, "test2");
 
   base::Closure slow_task = base::Bind(&TestTracker::SlowTask, tracker(), 0);
-  pool1->PostWorkerTask(FROM_HERE, slow_task);
-  pool2->PostWorkerTask(FROM_HERE, slow_task);
+  pool1.pool()->PostWorkerTask(FROM_HERE, slow_task);
+  pool2.pool()->PostWorkerTask(FROM_HERE, slow_task);
 
   const size_t kNumTasks = 20;
   for (size_t i = 1; i < kNumTasks; i++) {
     base::Closure fast_task =
         base::Bind(&TestTracker::FastTask, tracker(), i);
-    pool1->PostWorkerTask(FROM_HERE, fast_task);
-    pool2->PostWorkerTask(FROM_HERE, fast_task);
+    pool1.pool()->PostWorkerTask(FROM_HERE, fast_task);
+    pool2.pool()->PostWorkerTask(FROM_HERE, fast_task);
   }
 
   std::vector<int> result =
       tracker()->WaitUntilTasksComplete(2*kNumTasks);
   EXPECT_EQ(2*kNumTasks, result.size());
+
+  pool2.pool()->Shutdown();
+  pool1.pool()->Shutdown();
 }
 
 // Test that tasks with the same sequence token are executed in order but don't
@@ -383,10 +434,10 @@ TEST_F(SequencedWorkerPoolTest, DiscardOnShutdown) {
       SequencedWorkerPool::BLOCK_SHUTDOWN);
 
   // Shutdown the worker pool. This should discard all non-blocking tasks.
-  before_wait_for_shutdown_ =
+  SetWillWaitForShutdownCallback(
       base::Bind(&EnsureTasksToCompleteCountAndUnblock,
                  scoped_refptr<TestTracker>(tracker()), 0,
-                 &blocker, kNumWorkerThreads);
+                 &blocker, kNumWorkerThreads));
   pool()->Shutdown();
 
   std::vector<int> result = tracker()->WaitUntilTasksComplete(4);
@@ -436,17 +487,18 @@ class SequencedWorkerPoolTaskRunnerTestDelegate {
   ~SequencedWorkerPoolTaskRunnerTestDelegate() {}
 
   void StartTaskRunner() {
-    worker_pool_ =
-        new SequencedWorkerPool(10, "SequencedWorkerPoolTaskRunnerTest");
+    pool_owner_.reset(
+        new SequencedWorkerPoolOwner(10, "SequencedWorkerPoolTaskRunnerTest"));
   }
 
   scoped_refptr<SequencedWorkerPool> GetTaskRunner() {
-    return worker_pool_;
+    return pool_owner_->pool();
   }
 
   void StopTaskRunner() {
-    worker_pool_->Shutdown();
-    worker_pool_ = NULL;
+    pool_owner_->pool()->Shutdown();
+    // Don't reset |pool_owner_| here, as the test may still hold a
+    // reference to the pool.
   }
 
   bool TaskRunnerHandlesNonZeroDelays() const {
@@ -456,7 +508,8 @@ class SequencedWorkerPoolTaskRunnerTestDelegate {
   }
 
  private:
-  scoped_refptr<SequencedWorkerPool> worker_pool_;
+  MessageLoop message_loop_;
+  scoped_ptr<SequencedWorkerPoolOwner> pool_owner_;
 };
 
 INSTANTIATE_TYPED_TEST_CASE_P(
