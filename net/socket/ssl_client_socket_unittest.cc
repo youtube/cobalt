@@ -821,7 +821,7 @@ TEST_F(SSLClientSocketTest, MAYBE_VerifyReturnChainProperlyOrdered) {
     net::ImportCertFromFile(net::GetTestCertsDirectory(),
                            "redundant-validated-chain-root.pem");
   ASSERT_NE(static_cast<net::X509Certificate*>(NULL), root_cert);
-  net::TestRootCerts::GetInstance()->Add(root_cert.get());
+  net::ScopedTestRoot scoped_root(root_cert);
 
   // Set up a test server with CERT_CHAIN_WRONG_ROOT.
   net::TestServer::HTTPSOptions https_options(
@@ -875,7 +875,6 @@ TEST_F(SSLClientSocketTest, MAYBE_VerifyReturnChainProperlyOrdered) {
   EXPECT_TRUE(net::X509Certificate::IsSameOSCert(
       intermediates[1], certs[2]->os_cert_handle()));
 
-  net::TestRootCerts::GetInstance()->Clear();
   sock->Disconnect();
   EXPECT_FALSE(sock->IsConnected());
 }
