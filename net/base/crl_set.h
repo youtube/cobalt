@@ -31,7 +31,8 @@ class NET_EXPORT CRLSet : public base::RefCountedThreadSafe<CRLSet> {
   enum Result {
     REVOKED,  // the certificate should be rejected.
     UNKNOWN,  // the CRL for the certificate is not included in the set.
-    GOOD,  // the certificate is not listed.
+    GOOD,     // the certificate is not listed.
+    CRL_SET_EXPIRED, // the CRLSet has expired.
   };
 
   ~CRLSet();
@@ -90,8 +91,16 @@ class NET_EXPORT CRLSet : public base::RefCountedThreadSafe<CRLSet> {
   // from "BlockedSPKIs" in |header_dict|.
   bool CopyBlockedSPKIsFromHeader(base::DictionaryValue* header_dict);
 
+  // CheckSerialIsRevoked is a helper function for |CheckSerial|.
+  Result CheckSerialIsRevoked(
+      const base::StringPiece& serial_number,
+      const base::StringPiece& issuer_spki_hash) const;
+
   uint32 sequence_;
   CRLList crls_;
+  // not_after_ contains the time, in UNIX epoch seconds, after which the
+  // CRLSet should be considered stale, or 0 if no such time was given.
+  uint64 not_after_;
   // crls_index_by_issuer_ maps from issuer SPKI hashes to the index in |crls_|
   // where the information for that issuer can be found. We have both |crls_|
   // and |crls_index_by_issuer_| because, when applying a delta update, we need
