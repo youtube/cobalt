@@ -885,7 +885,8 @@ class CountingDelegate : public ResolveRequest::Delegate {
   unsigned num_completions_;
 };
 
-TEST_F(HostResolverImplTest, CanceledRequestsReleaseJobSlots) {
+// Disabled because times out flakily: http://crbug.com/117187
+TEST_F(HostResolverImplTest, DISABLED_CanceledRequestsReleaseJobSlots) {
   scoped_refptr<CountingHostResolverProc> resolver_proc(
       new CountingHostResolverProc(NULL));
 
