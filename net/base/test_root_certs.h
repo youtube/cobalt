@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 #pragma once
 
 #include "base/lazy_instance.h"
+#include "base/memory/ref_counted.h"
 #include "build/build_config.h"
 #include "net/base/net_export.h"
 
@@ -97,6 +98,27 @@ class NET_EXPORT_PRIVATE TestRootCerts {
 #endif
 
   DISALLOW_COPY_AND_ASSIGN(TestRootCerts);
+};
+
+// Scoped helper for unittests to handle safely managing trusted roots.
+class ScopedTestRoot {
+ public:
+  ScopedTestRoot();
+  // Creates a ScopedTestRoot that will adds|cert| to the TestRootCerts store.
+  explicit ScopedTestRoot(X509Certificate* cert);
+  ~ScopedTestRoot();
+
+  // Assigns |cert| to be the new test root cert. If |cert| is NULL, undoes
+  // any work the ScopedTestRoot may have previously done.
+  // If |cert_| contains a certificate (due to a prior call to Reset or due to
+  // a cert being passed at construction), the existing TestRootCerts store is
+  // cleared.
+  void Reset(X509Certificate* cert);
+
+ private:
+  scoped_refptr<X509Certificate> cert_;
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedTestRoot);
 };
 
 }  // namespace net
