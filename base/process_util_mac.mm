@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -549,6 +549,13 @@ malloc_error_break_t LookUpMallocErrorBreak() {
 
 void CrMallocErrorBreak() {
   g_original_malloc_error_break();
+
+  // Out of memory is certainly not heap corruption, and not necessarily
+  // something for which the process should be terminated. Leave that decision
+  // to the OOM killer.
+  if (errno == ENOMEM)
+    return;
+
   // A unit test checks this error message, so it needs to be in release builds.
   LOG(ERROR) <<
       "Terminating process due to a potential for future heap corruption";
