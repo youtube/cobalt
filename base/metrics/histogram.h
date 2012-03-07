@@ -54,6 +54,7 @@
 #include "base/time.h"
 
 class Pickle;
+class PickleIterator;
 
 namespace base {
 
@@ -404,7 +405,7 @@ class BASE_EXPORT Histogram {
     void Subtract(const SampleSet& other);
 
     bool Serialize(Pickle* pickle) const;
-    bool Deserialize(void** iter, const Pickle& pickle);
+    bool Deserialize(PickleIterator* iter);
 
    protected:
     // Actual histogram data is stored in buckets, showing the count of values
@@ -757,7 +758,7 @@ class BASE_EXPORT CustomHistogram : public Histogram {
 
   // Helper for deserializing CustomHistograms.  |*ranges| should already be
   // correctly sized before this call.  Return true on success.
-  static bool DeserializeRanges(void** iter, const Pickle& pickle,
+  static bool DeserializeRanges(PickleIterator* iter,
                                 std::vector<Histogram::Sample>* ranges);
 
 

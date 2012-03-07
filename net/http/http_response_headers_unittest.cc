@@ -475,7 +475,7 @@ TEST(HttpResponseHeadersTest, Persist) {
     Pickle pickle;
     parsed1->Persist(&pickle, tests[i].options);
 
-    void* iter = NULL;
+    PickleIterator iter(pickle);
     scoped_refptr<net::HttpResponseHeaders> parsed2(
         new net::HttpResponseHeaders(pickle, &iter));
 

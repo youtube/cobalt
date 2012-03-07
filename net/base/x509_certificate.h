@@ -37,6 +37,7 @@ struct CERTCertificateStr;
 #endif
 
 class Pickle;
+class PickleIterator;
 
 namespace crypto {
 class RSAPrivateKey;
@@ -181,7 +182,7 @@ class NET_EXPORT X509Certificate
   //
   // The returned pointer must be stored in a scoped_refptr<X509Certificate>.
   static X509Certificate* CreateFromPickle(const Pickle& pickle,
-                                           void** pickle_iter,
+                                           PickleIterator* pickle_iter,
                                            PickleType type);
 
   // Parses all of the certificates possible from |data|. |format| is a
@@ -554,7 +555,7 @@ class NET_EXPORT X509Certificate
   // libraries, nor acceptable to CreateFromBytes(). Returns an invalid
   // handle, NULL, on failure.
   static OSCertHandle ReadOSCertHandleFromPickle(const Pickle& pickle,
-                                                 void** pickle_iter);
+                                                 PickleIterator* pickle_iter);
 
   // Writes a single certificate to |pickle|. Returns false on failure.
   static bool WriteOSCertHandleToPickle(OSCertHandle handle, Pickle* pickle);
