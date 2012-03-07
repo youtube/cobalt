@@ -101,7 +101,7 @@ class NET_EXPORT_PRIVATE TestRootCerts {
 };
 
 // Scoped helper for unittests to handle safely managing trusted roots.
-class ScopedTestRoot {
+class NET_EXPORT_PRIVATE ScopedTestRoot {
  public:
   ScopedTestRoot();
   // Creates a ScopedTestRoot that will adds|cert| to the TestRootCerts store.
