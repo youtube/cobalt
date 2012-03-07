@@ -652,10 +652,8 @@ void SequencedWorkerPool::OnDestruct() const {
   // thread or not, use that instead of restricting destruction to
   // only the constructor message loop.
   if (constructor_message_loop_->BelongsToCurrentThread()) {
-    LOG(INFO) << "Deleting on this thread";
     delete this;
   } else {
-    LOG(INFO) << "Deleting soon";
     constructor_message_loop_->DeleteSoon(FROM_HERE, this);
   }
 }
