@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,7 +12,7 @@ namespace {
 static const int kFrameRate = 50;  // 1 frame = 20ms of audio.
 }
 
-namespace speech_input {
+namespace speech {
 
 Endpointer::Endpointer(int sample_rate)
     : speech_input_possibly_complete_silence_length_us_(-1),

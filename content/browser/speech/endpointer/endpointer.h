@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,7 @@
 
 class EpStatus;
 
-namespace speech_input {
+namespace speech {
 
 // A simple interface to the underlying energy-endpointer implementation, this
 // class lets callers provide audio as being recorded and let them poll to find
@@ -147,6 +147,6 @@ class CONTENT_EXPORT Endpointer {
   int32 frame_size_;
 };
 
-}  // namespace speech_input
+}  // namespace speech
 
 #endif  // CONTENT_BROWSER_SPEECH_ENDPOINTER_ENDPOINTER_H_
