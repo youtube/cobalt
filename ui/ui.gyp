@@ -139,6 +139,7 @@
         'base/gtk/gtk_windowing.h',
         'base/gtk/owned_widget_gtk.cc',
         'base/gtk/owned_widget_gtk.h',
+        'base/gtk/scoped_gobject.h',
         'base/gtk/scoped_region.cc',
         'base/gtk/scoped_region.h',
         'base/gtk/tooltip_window_gtk.cc',
