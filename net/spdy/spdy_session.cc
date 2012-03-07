@@ -1110,6 +1110,16 @@ Value* SpdySession::GetInfoAsValue() const {
 
   dict->SetBoolean("is_secure", is_secure_);
 
+  SSLClientSocket::NextProto proto = SSLClientSocket::kProtoUnknown;
+  if (is_secure_) {
+    SSLClientSocket* ssl_socket =
+        reinterpret_cast<SSLClientSocket*>(connection_->socket());
+    DCHECK(ssl_socket);
+    proto = ssl_socket->protocol_negotiated();
+  }
+  dict->SetString("protocol_negotiated",
+                  SSLClientSocket::NextProtoToString(proto));
+
   dict->SetInteger("error", error_);
   dict->SetInteger("max_concurrent_streams", max_concurrent_streams_);
 
