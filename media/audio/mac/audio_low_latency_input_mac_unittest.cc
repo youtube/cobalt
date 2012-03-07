@@ -4,6 +4,7 @@
 
 #include "base/basictypes.h"
 #include "base/environment.h"
+#include "base/message_loop.h"
 #include "base/test/test_timeouts.h"
 #include "base/threading/platform_thread.h"
 #include "media/audio/audio_io.h"
@@ -15,9 +16,15 @@
 
 using ::testing::_;
 using ::testing::AnyNumber;
-using ::testing::Between;
+using ::testing::AtLeast;
 using ::testing::Ge;
 using ::testing::NotNull;
+
+ACTION_P3(CheckCountAndPostQuitTask, count, limit, loop) {
+  if (++*count >= limit) {
+    loop->PostTask(FROM_HERE, MessageLoop::QuitClosure());
+  }
+}
 
 class MockAudioInputCallback : public AudioInputStream::AudioInputCallback {
  public:
@@ -207,6 +214,9 @@ TEST_F(MacAudioInputTest, AUAudioInputStreamVerifyMonoRecording) {
   if (!CanRunAudioTests())
     return;
 
+  int count = 0;
+  MessageLoopForUI loop;
+
   // Create an audio input stream which records in mono.
   AudioInputStream* ais = CreateAudioInputStream(CHANNEL_LAYOUT_MONO);
   EXPECT_TRUE(ais->Open());
@@ -218,16 +228,15 @@ TEST_F(MacAudioInputTest, AUAudioInputStreamVerifyMonoRecording) {
 
   MockAudioInputCallback sink;
 
-  // We use 10ms packets and will run the test for ~100ms. Given that the
-  // startup sequence takes some time, it is reasonable to expect 5-10
-  // callbacks in this time period. All should contain valid packets of
-  // the same size.
+  // We use 10ms packets and will run the test until ten packets are received.
+  // All should contain valid packets of the same size and a valid delay
+  // estimate.
   EXPECT_CALL(sink, OnData(ais, NotNull(), bytes_per_packet,
                            Ge(bytes_per_packet)))
-      .Times(Between(5, 10));
-
+      .Times(AtLeast(10))
+      .WillRepeatedly(CheckCountAndPostQuitTask(&count, 10, &loop));
   ais->Start(&sink);
-  base::PlatformThread::Sleep(TestTimeouts::tiny_timeout());
+  loop.Run();
   ais->Stop();
 
   // Verify that the sink receieves OnClose() call when calling Close().
@@ -241,6 +250,9 @@ TEST_F(MacAudioInputTest, AUAudioInputStreamVerifyStereoRecording) {
   if (!CanRunAudioTests())
     return;
 
+  int count = 0;
+  MessageLoopForUI loop;
+
   // Create an audio input stream which records in stereo.
   AudioInputStream* ais = CreateAudioInputStream(CHANNEL_LAYOUT_STEREO);
   EXPECT_TRUE(ais->Open());
@@ -252,16 +264,15 @@ TEST_F(MacAudioInputTest, AUAudioInputStreamVerifyStereoRecording) {
 
   MockAudioInputCallback sink;
 
-  // We use 10ms packets and will run the test for ~100ms. Given that the
-  // startup sequence takes some time, it is reasonable to expect 5-10
-  // callbacks in this time period. All should contain valid packets of
-  // the same size.
+  // We use 10ms packets and will run the test until ten packets are received.
+  // All should contain valid packets of the same size and a valid delay
+  // estimate.
   EXPECT_CALL(sink, OnData(ais, NotNull(), bytes_per_packet,
                            Ge(bytes_per_packet)))
-      .Times(Between(5, 10));
-
+      .Times(AtLeast(10))
+      .WillRepeatedly(CheckCountAndPostQuitTask(&count, 10, &loop));
   ais->Start(&sink);
-  base::PlatformThread::Sleep(TestTimeouts::tiny_timeout());
+  loop.Run();
   ais->Stop();
 
   // Verify that the sink receieves OnClose() call when calling Close().
