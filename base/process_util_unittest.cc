@@ -7,6 +7,7 @@
 #include <limits>
 
 #include "base/command_line.h"
+#include "base/debug/alias.h"
 #include "base/eintr_wrapper.h"
 #include "base/file_path.h"
 #include "base/logging.h"
@@ -22,12 +23,12 @@
 #include "testing/multiprocess_func_list.h"
 
 #if defined(OS_LINUX)
-#include <errno.h>
 #include <malloc.h>
 #include <glib.h>
 #include <sched.h>
 #endif
 #if defined(OS_POSIX)
+#include <errno.h>
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -39,6 +40,7 @@
 #include <windows.h>
 #endif
 #if defined(OS_MACOSX)
+#include <mach/vm_param.h>
 #include <malloc/malloc.h>
 #include "base/process_util_unittest_mac.h"
 #endif
@@ -449,11 +451,27 @@ TEST_F(ProcessUtilTest, LaunchAsUser) {
 
 #if defined(OS_MACOSX)
 
-TEST_F(ProcessUtilTest, MacTerminateOnHeapCorruption) {
-  // Note that base::EnableTerminationOnHeapCorruption() is called as part of
-  // test suite setup and does not need to be done again, else mach_override
-  // will fail.
+// For the following Mac tests:
+// Note that base::EnableTerminationOnHeapCorruption() is called as part of
+// test suite setup and does not need to be done again, else mach_override
+// will fail.
 
+TEST_F(ProcessUtilTest, MacMallocFailureDoesNotTerminate) {
+  // Test that ENOMEM doesn't crash. The number of bytes is one less than
+  // MALLOC_ABSOLUTE_MAX_SIZE, above which the system early-returns NULL and
+  // does not call through malloc_error_break(). See the comment at
+  // EnableTerminationOnOutOfMemory() for more information.
+  void* buf = malloc(std::numeric_limits<size_t>::max() - (2 * PAGE_SIZE) - 1);
+
+  // The optimizer can be too efficient in Release mode, so alias the value.
+  base::debug::Alias(buf);
+
+  EXPECT_FALSE(buf);
+  EXPECT_EQ(ENOMEM, errno);
+}
+
+TEST_F(ProcessUtilTest, MacTerminateOnHeapCorruption) {
+  // Assert that freeing an unallocated pointer will crash the process.
   char buf[3];
 #ifndef ADDRESS_SANITIZER
   ASSERT_DEATH(free(buf), "being freed.*"
