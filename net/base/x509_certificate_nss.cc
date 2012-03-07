@@ -316,6 +316,7 @@ CRLSetResult CheckRevocationWithCRLSet(CERTCertList* cert_list,
         return kCRLSetRevoked;
       case CRLSet::UNKNOWN:
       case CRLSet::GOOD:
+      case CRLSet::CRL_SET_EXPIRED:
         continue;
       default:
         NOTREACHED();

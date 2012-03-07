@@ -49,7 +49,8 @@ static bool DecompressZlib(uint8* out, int out_len, base::StringPiece in) {
 }
 
 CRLSet::CRLSet()
-    : sequence_(0) {
+    : sequence_(0),
+      not_after_(0) {
 }
 
 CRLSet::~CRLSet() {
@@ -233,8 +234,17 @@ bool CRLSet::Parse(base::StringPiece data, scoped_refptr<CRLSet>* out_crl_set) {
   if (!header_dict->GetInteger("Sequence", &sequence))
     return false;
 
+  double not_after;
+  if (!header_dict->GetDouble("NotAfter", &not_after)) {
+    // NotAfter is optional for now.
+    not_after = 0;
+  }
+  if (not_after < 0)
+    return false;
+
   scoped_refptr<CRLSet> crl_set(new CRLSet);
   crl_set->sequence_ = static_cast<uint32>(sequence);
+  crl_set->not_after_ = static_cast<uint64>(not_after);
 
   for (size_t crl_index = 0; !data.empty(); crl_index++) {
     std::string parent_spki_sha256;
@@ -362,8 +372,17 @@ bool CRLSet::ApplyDelta(const base::StringPiece& in_data,
     return false;
   }
 
+  double not_after;
+  if (!header_dict->GetDouble("NotAfter", &not_after)) {
+    // NotAfter is optional for now.
+    not_after = 0;
+  }
+  if (not_after < 0)
+    return false;
+
   scoped_refptr<CRLSet> crl_set(new CRLSet);
   crl_set->sequence_ = static_cast<uint32>(sequence);
+  crl_set->not_after_ = static_cast<uint64>(not_after);
 
   if (!crl_set->CopyBlockedSPKIsFromHeader(header_dict.get()))
     return false;
@@ -464,7 +483,10 @@ std::string CRLSet::Serialize() const {
       header += ",";
     header += "\"" + spki_hash_base64 + "\"";
   }
-  header += "]}";
+  header += "]";
+  if (not_after_ != 0)
+    header += StringPrintf(",\"NotAfter\":%" PRIu64, not_after_);
+  header += "}";
 
   size_t len = 2 /* header len */ + header.size();
 
@@ -516,6 +538,22 @@ CRLSet::Result CRLSet::CheckSPKI(const base::StringPiece& spki_hash) const {
 }
 
 CRLSet::Result CRLSet::CheckSerial(
+    const base::StringPiece& serial_number,
+    const base::StringPiece& issuer_spki_hash) const {
+  Result result = CheckSerialIsRevoked(serial_number, issuer_spki_hash);
+  // If we get a revoked signal then we return that no matter how old the
+  // CRLSet is.
+  if (result == REVOKED)
+    return result;
+  if (not_after_ > 0) {
+    uint64 now = base::Time::Now().ToTimeT();
+    if (now > not_after_)
+      return CRL_SET_EXPIRED;
+  }
+  return result;
+}
+
+CRLSet::Result CRLSet::CheckSerialIsRevoked(
     const base::StringPiece& serial_number,
     const base::StringPiece& issuer_spki_hash) const {
   base::StringPiece serial(serial_number);
