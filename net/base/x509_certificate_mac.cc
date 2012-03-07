@@ -1565,7 +1565,7 @@ CFArrayRef X509Certificate::CreateOSCertChainForCert() const {
 // static
 X509Certificate::OSCertHandle
 X509Certificate::ReadOSCertHandleFromPickle(const Pickle& pickle,
-                                            void** pickle_iter) {
+                                            PickleIterator* pickle_iter) {
   const char* data;
   int length;
   if (!pickle.ReadData(pickle_iter, &data, &length))

@@ -586,12 +586,12 @@ void FilePath::WriteToPickle(Pickle* pickle) {
 #endif
 }
 
-bool FilePath::ReadFromPickle(Pickle* pickle, void** iter) {
+bool FilePath::ReadFromPickle(PickleIterator* iter) {
 #if defined(OS_WIN)
-  if (!pickle->ReadString16(iter, &path_))
+  if (!iter->ReadString16(&path_))
     return false;
 #else
-  if (!pickle->ReadString(iter, &path_))
+  if (!iter->ReadString(&path_))
     return false;
 #endif
 

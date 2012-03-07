@@ -324,7 +324,7 @@ X509Certificate* X509Certificate::CreateFromBytes(const char* data,
 
 // static
 X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
-                                                   void** pickle_iter,
+                                                   PickleIterator* pickle_iter,
                                                    PickleType type) {
   OSCertHandle cert_handle = ReadOSCertHandleFromPickle(pickle, pickle_iter);
   if (!cert_handle)

@@ -169,7 +169,8 @@ HttpResponseHeaders::HttpResponseHeaders(const std::string& raw_input)
                                    GetAllHttpResponseCodes());
 }
 
-HttpResponseHeaders::HttpResponseHeaders(const Pickle& pickle, void** iter)
+HttpResponseHeaders::HttpResponseHeaders(const Pickle& pickle,
+                                         PickleIterator* iter)
     : response_code_(-1) {
   std::string raw_input;
   if (pickle.ReadString(iter, &raw_input))

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,7 @@
 #include "crypto/crypto_export.h"
 
 class Pickle;
+class PickleIterator;
 
 namespace crypto {
 
@@ -36,7 +37,7 @@ class CRYPTO_EXPORT SecureHash {
   // |data_iterator| allows this to be used as part of a larger pickle.
   // |pickle| holds the saved data.
   // Returns success or failure.
-  virtual bool Deserialize(void** data_iterator, Pickle* pickle) = 0;
+  virtual bool Deserialize(PickleIterator* data_iterator) = 0;
 
  protected:
   SecureHash() {}

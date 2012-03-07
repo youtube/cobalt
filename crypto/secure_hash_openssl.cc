@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -40,7 +40,7 @@ class SecureHashSHA256OpenSSL : public SecureHash {
   }
 
   virtual bool Serialize(Pickle* pickle);
-  virtual bool Deserialize(void** data_iterator, Pickle* pickle);
+  virtual bool Deserialize(PickleIterator* data_iterator);
 
  private:
   SHA256_CTX ctx_;
@@ -59,27 +59,26 @@ bool SecureHashSHA256OpenSSL::Serialize(Pickle* pickle) {
   return true;
 }
 
-bool SecureHashSHA256OpenSSL::Deserialize(void** data_iterator,
-                                          Pickle* pickle) {
-  if (!pickle)
+bool SecureHashSHA256OpenSSL::Deserialize(PickleIterator* data_iterator) {
+  if (!data_iterator)
     return false;
 
   int version;
-  if (!pickle->ReadInt(data_iterator, &version))
+  if (!data_iterator->ReadInt(&version))
     return false;
 
   if (version > kSecureHashVersion)
     return false;  // We don't know how to deal with this.
 
   std::string type;
-  if (!pickle->ReadString(data_iterator, &type))
+  if (!data_iterator->ReadString(&type))
     return false;
 
   if (type != kSHA256Descriptor)
     return false;  // It's the wrong kind.
 
   const char* data = NULL;
-  if (!pickle->ReadBytes(data_iterator, &data, sizeof(ctx_)))
+  if (!data_iterator->ReadBytes(&data, sizeof(ctx_)))
     return false;
 
   memcpy(&ctx_, data, sizeof(ctx_));
