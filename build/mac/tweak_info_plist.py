@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -212,27 +212,28 @@ def _RemoveKeystoneKeys(plist):
 
 
 def Main(argv):
-  parser = optparse.OptionParser('%prog [options] branding bundle-id')
+  parser = optparse.OptionParser('%prog [options]')
   parser.add_option('--breakpad', dest='use_breakpad', action='store',
       type='int', default=False, help='Enable Breakpad [1 or 0]')
   parser.add_option('--breakpad_uploads', dest='breakpad_uploads',
       action='store', type='int', default=False,
       help='Enable Breakpad\'s uploading of crash dumps [1 or 0]')
-  parser.add_option('-k', dest='use_keystone', action='store', type='int',
-      default=False, help='Enable Keystone [1 or 0]')
-  parser.add_option('-s', dest='add_svn_info', action='store', type='int',
+  parser.add_option('--keystone', dest='use_keystone', action='store',
+      type='int', default=False, help='Enable Keystone [1 or 0]')
+  parser.add_option('--svn', dest='add_svn_info', action='store', type='int',
       default=True, help='Add SVN metadata [1 or 0]')
-  parser.add_option('-p', dest='add_pdf_support', action='store', type='int',
+  parser.add_option('--pdf', dest='add_pdf_support', action='store', type='int',
       default=False, help='Add PDF file handler support [1 or 0]')
+  parser.add_option('--branding', dest='branding', action='store',
+      type='string', default=None, help='The branding of the binary')
+  parser.add_option('--bundle_id', dest='bundle_identifier',
+      action='store', type='string', default=None,
+      help='The bundle id of the binary')
   (options, args) = parser.parse_args(argv)
 
-  if len(args) < 2:
+  if len(args) > 0:
     print >>sys.stderr, parser.get_usage()
     return 1
-
-  # Extract remaining arguments.
-  branding = args[0]
-  bundle_identifier = args[1]
 
   # Read the plist into its parsed format.
   DEST_INFO_PLIST = os.path.join(env['TARGET_BUILD_DIR'], env['INFOPLIST_PATH'])
@@ -244,7 +245,10 @@ def Main(argv):
 
   # Add Breakpad if configured to do so.
   if options.use_breakpad:
-    _AddBreakpadKeys(plist, branding)
+    if options.branding is None:
+      print >>sys.stderr, 'Use of Breakpad requires branding.'
+      return 1
+    _AddBreakpadKeys(plist, options.branding)
     if options.breakpad_uploads:
       plist['BreakpadURL'] = 'https://clients2.google.com/cr/report'
     else:
@@ -260,7 +264,10 @@ def Main(argv):
 
   # Only add Keystone in Release builds.
   if options.use_keystone and env['CONFIGURATION'] == 'Release':
-    _AddKeystoneKeys(plist, bundle_identifier)
+    if options.bundle_identifier is None:
+      print >>sys.stderr, 'Use of Keystone requires the bundle id.'
+      return 1
+    _AddKeystoneKeys(plist, options.bundle_identifier)
   else:
     _RemoveKeystoneKeys(plist)
 
