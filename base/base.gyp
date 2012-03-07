@@ -442,6 +442,51 @@
       ],
     },
     {
+      'target_name': 'base_unittests_run',
+      'type': 'none',
+      'dependencies': [
+        'base_unittests',
+      ],
+      'actions': [
+        {
+          'action_name': 'isolate',
+          'inputs': [
+            '<(PRODUCT_DIR)/base_unittests<(EXECUTABLE_SUFFIX)',
+          ],
+          'conditions': [
+            ['OS != "mac" and OS != "win"', {
+              'inputs': [
+                '<(PRODUCT_DIR)/xdisplaycheck<(EXECUTABLE_SUFFIX)',
+              ],
+            }],
+            ['OS == "win"', {
+              'inputs': [
+                'data/file_version_info_unittest/FileVersionInfoTest1.dll',
+                'data/file_version_info_unittest/FileVersionInfoTest2.dll',
+              ],
+            }],
+          ],
+          'outputs': [
+            '<(PRODUCT_DIR)/base_unittests.results',
+          ],
+          'action': [
+            'python',
+            '<(DEPTH)/tools/isolate/isolate.py',
+            '--mode=<(tests_run)',
+            '--root', '<(DEPTH)',
+            '--result', '<@(_outputs)',
+            '<@(_inputs)',
+            # Directories can't be tracked by build tools (make, msbuild, xcode,
+            # etc) so we just put it on the command line without specifying it
+            # as an input.
+            # TODO(maruel): Revisit the support for this at all and list each
+            # individual test files instead.
+            'data/file_util_unittest/',
+          ],
+        },
+      ],
+    },
+    {
       'target_name': 'test_support_perf',
       'type': 'static_library',
       'dependencies': [
