@@ -18,6 +18,7 @@ import base64
 import BaseHTTPServer
 import cgi
 import errno
+import httplib
 import optparse
 import os
 import random
@@ -388,6 +389,8 @@ class TestPageHandler(BasePageHandler):
       self.EchoHeaderCache,
       self.EchoAllHandler,
       self.ZipFileHandler,
+      self.GDataAuthHandler,
+      self.GDataDocumentsFeedQueryHandler,
       self.FileHandler,
       self.SetCookieHandler,
       self.SetHeaderHandler,
@@ -422,6 +425,7 @@ class TestPageHandler(BasePageHandler):
       'gif': 'image/gif',
       'jpeg' : 'image/jpeg',
       'jpg' : 'image/jpeg',
+      'json': 'application/json',
       'pdf' : 'application/pdf',
       'xml' : 'text/xml'
     }
@@ -1178,6 +1182,59 @@ class TestPageHandler(BasePageHandler):
     self.protocol_version = old_protocol_version
     return True
 
+  def GDataAuthHandler(self):
+    """This handler verifies the Authentication header for GData requests."""
+    if not self.server.gdata_auth_token:
+      # --auth-token is not specified, not the test case for GData.
+      return False
+
+    if not self._ShouldHandleRequest('/files/chromeos/gdata'):
+      return False
+
+    if 'GData-Version' not in self.headers:
+      self.send_error(httplib.BAD_REQUEST, 'GData-Version header is missing.')
+      return True
+
+    if 'Authorization' not in self.headers:
+      self.send_error(httplib.UNAUTHORIZED)
+      return True
+
+    field_prefix = 'Bearer '
+    authorization = self.headers['Authorization']
+    if not authorization.startswith(field_prefix):
+      self.send_error(httplib.UNAUTHORIZED)
+      return True
+
+    code = authorization[len(field_prefix):]
+    if code != self.server.gdata_auth_token:
+      self.send_error(httplib.UNAUTHORIZED)
+      return True
+
+    return False
+
+  def GDataDocumentsFeedQueryHandler(self):
+    """This handler verifies if required parameters are properly
+    specified for the GData DocumentsFeed request."""
+    if not self.server.gdata_auth_token:
+      # --auth-token is not specified, not the test case for GData.
+      return False
+
+    if not self._ShouldHandleRequest('/files/chromeos/gdata/root_feed.json'):
+      return False
+
+    (path, question, query_params) = self.path.partition('?')
+    self.query_params = urlparse.parse_qs(query_params)
+
+    if 'v' not in self.query_params:
+      self.send_error(httplib.BAD_REQUEST, 'v is not specified.')
+      return True
+    elif 'alt' not in self.query_params or self.query_params['alt'] != ['json']:
+      # currently our GData client only uses JSON format.
+      self.send_error(httplib.BAD_REQUEST, 'alt parameter is wrong.')
+      return True
+
+    return False
+
   def GetNonce(self, force_reset=False):
    """Returns a nonce that's stable per request path for the server's lifetime.
 
@@ -1925,6 +1982,7 @@ def main(options, args):
     server._device_management_handler = None
     server.policy_keys = options.policy_keys
     server.policy_user = options.policy_user
+    server.gdata_auth_token = options.auth_token
   elif options.server_type == SERVER_SYNC:
     server = SyncHTTPServer((host, port), SyncPageHandler)
     print 'Sync HTTP server started on port %d...' % server.server_port
@@ -2074,6 +2132,9 @@ if __name__ == '__main__':
                            help='Hostname or IP upon which the server will '
                            'listen. Client connections will also only be '
                            'allowed from this address.')
+  option_parser.add_option('', '--auth-token', dest='auth_token',
+                           help='Specify the auth token which should be used'
+                           'in the authorization header for GData.')
   options, args = option_parser.parse_args()
 
   sys.exit(main(options, args))

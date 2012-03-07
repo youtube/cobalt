@@ -42,6 +42,7 @@ class TestServer {
 
   enum Type {
     TYPE_FTP,
+    TYPE_GDATA,
     TYPE_HTTP,
     TYPE_HTTPS,
     TYPE_SYNC,
@@ -116,7 +117,10 @@ class TestServer {
   };
 
   // Pass as the 'host' parameter during construction to server on 127.0.0.1
-  static const char* kLocalhost;
+  static const char kLocalhost[];
+
+  // The auth token to be used for TYPE_GDATA server.
+  static const char kGDataAuthToken[];
 
   // Initialize a TestServer listening on the specified host (IP or hostname).
   TestServer(Type type, const std::string& host, const FilePath& document_root);
