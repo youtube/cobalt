@@ -570,9 +570,9 @@ TEST(X509CertificateTest, IntermediateCARequireExplicitPolicy) {
       ImportCertFromFile(certs_dir, "dod_ca_17_cert.der");
   ASSERT_NE(static_cast<X509Certificate*>(NULL), intermediate_cert);
 
-  FilePath root_cert_path = certs_dir.AppendASCII("dod_root_ca_2_cert.der");
-  TestRootCerts* root_certs = TestRootCerts::GetInstance();
-  ASSERT_TRUE(root_certs->AddFromFile(root_cert_path));
+  scoped_refptr<X509Certificate> root_cert =
+      ImportCertFromFile(certs_dir, "dod_root_ca_2_cert.der");
+  ScopedTestRoot scoped_root(root_cert);
 
   X509Certificate::OSCertHandles intermediates;
   intermediates.push_back(intermediate_cert->os_cert_handle());
@@ -590,7 +590,6 @@ TEST(X509CertificateTest, IntermediateCARequireExplicitPolicy) {
     EXPECT_EQ(ERR_CERT_DATE_INVALID, error);
     EXPECT_EQ(CERT_STATUS_DATE_INVALID, verify_result.cert_status);
   }
-  root_certs->Clear();
 }
 
 // Test for bug 58437.
@@ -673,7 +672,7 @@ TEST(X509CertificateTest, RejectWeakKeys) {
   scoped_refptr<X509Certificate> root_cert =
       ImportCertFromFile(certs_dir, "2048-rsa-root.pem");
   ASSERT_NE(static_cast<X509Certificate*>(NULL), root_cert);
-  TestRootCerts::GetInstance()->Add(root_cert.get());
+  ScopedTestRoot scoped_root(root_cert);
 
   // Now test each chain.
   for (Strings::const_iterator ee_type = key_types.begin();
@@ -711,8 +710,6 @@ TEST(X509CertificateTest, RejectWeakKeys) {
       }
     }
   }
-
-  TestRootCerts::GetInstance()->Clear();
 }
 
 // Test for bug 108514.
@@ -907,7 +904,7 @@ TEST(X509CertificateTest, DISABLED_PublicKeyHashes) {
       ImportCertFromFile(certs_dir, "nist_intermediate.der");
   ASSERT_NE(static_cast<X509Certificate*>(NULL), intermediate_cert);
 
-  TestRootCerts::GetInstance()->Add(intermediate_cert.get());
+  ScopedTestRoot scoped_intermediate(intermediate_cert);
 
   X509Certificate::OSCertHandles intermediates;
   intermediates.push_back(intermediate_cert->os_cert_handle());
@@ -926,8 +923,6 @@ TEST(X509CertificateTest, DISABLED_PublicKeyHashes) {
       HexEncode(verify_result.public_key_hashes[0].data, base::kSHA1Length));
   EXPECT_EQ("83244223D6CBF0A26FC7DE27CEBCA4BDA32612AD",
       HexEncode(verify_result.public_key_hashes[1].data, base::kSHA1Length));
-
-  TestRootCerts::GetInstance()->Clear();
 }
 
 // A regression test for http://crbug.com/70293.
@@ -1140,7 +1135,7 @@ TEST(X509CertificateTest, VerifyReturnChainBasic) {
   intermediates.push_back(certs[1]->os_cert_handle());
   intermediates.push_back(certs[2]->os_cert_handle());
 
-  TestRootCerts::GetInstance()->Add(certs[2]);
+  ScopedTestRoot scoped_root(certs[2]);
 
   scoped_refptr<X509Certificate> google_full_chain =
       X509Certificate::CreateFromHandle(certs[0]->os_cert_handle(),
@@ -1165,8 +1160,6 @@ TEST(X509CertificateTest, VerifyReturnChainBasic) {
                                             certs[1]->os_cert_handle()));
   EXPECT_TRUE(X509Certificate::IsSameOSCert(return_intermediates[1],
                                             certs[2]->os_cert_handle()));
-
-  TestRootCerts::GetInstance()->Clear();
 }
 
 // Test that the certificate returned in CertVerifyResult is able to reorder
@@ -1186,7 +1179,7 @@ TEST(X509CertificateTest, VerifyReturnChainProperlyOrdered) {
   intermediates.push_back(certs[2]->os_cert_handle());
   intermediates.push_back(certs[1]->os_cert_handle());
 
-  TestRootCerts::GetInstance()->Add(certs[2]);
+  ScopedTestRoot scoped_root(certs[2]);
 
   scoped_refptr<X509Certificate> google_full_chain =
       X509Certificate::CreateFromHandle(certs[0]->os_cert_handle(),
@@ -1211,8 +1204,6 @@ TEST(X509CertificateTest, VerifyReturnChainProperlyOrdered) {
                                             certs[1]->os_cert_handle()));
   EXPECT_TRUE(X509Certificate::IsSameOSCert(return_intermediates[1],
                                             certs[2]->os_cert_handle()));
-
-  TestRootCerts::GetInstance()->Clear();
 }
 
 // Test that Verify() filters out certificates which are not related to
@@ -1223,7 +1214,7 @@ TEST(X509CertificateTest, VerifyReturnChainFiltersUnrelatedCerts) {
       certs_dir, "x509_verify_results.chain.pem",
       X509Certificate::FORMAT_AUTO);
   ASSERT_EQ(3U, certs.size());
-  TestRootCerts::GetInstance()->Add(certs[2]);
+  ScopedTestRoot scoped_root(certs[2]);
 
   scoped_refptr<X509Certificate> unrelated_dod_certificate =
       ImportCertFromFile(certs_dir, "dod_ca_17_cert.der");
@@ -1262,7 +1253,6 @@ TEST(X509CertificateTest, VerifyReturnChainFiltersUnrelatedCerts) {
                                             certs[1]->os_cert_handle()));
   EXPECT_TRUE(X509Certificate::IsSameOSCert(return_intermediates[1],
                                             certs[2]->os_cert_handle()));
-  TestRootCerts::GetInstance()->Clear();
 }
 
 #if defined(OS_MACOSX)
@@ -1826,21 +1816,19 @@ class X509CertificateWeakDigestTest
     : public testing::TestWithParam<WeakDigestTestData> {
  public:
   X509CertificateWeakDigestTest() {}
-
-  virtual void TearDown() {
-    TestRootCerts::GetInstance()->Clear();
-  }
+  virtual ~X509CertificateWeakDigestTest() {}
 };
 
 TEST_P(X509CertificateWeakDigestTest, Verify) {
   WeakDigestTestData data = GetParam();
   FilePath certs_dir = GetTestCertsDirectory();
 
+  ScopedTestRoot test_root;
   if (data.root_cert_filename) {
      scoped_refptr<X509Certificate> root_cert =
          ImportCertFromFile(certs_dir, data.root_cert_filename);
      ASSERT_NE(static_cast<X509Certificate*>(NULL), root_cert);
-     TestRootCerts::GetInstance()->Add(root_cert.get());
+     test_root.Reset(root_cert);
   }
 
   scoped_refptr<X509Certificate> intermediate_cert =

@@ -281,7 +281,7 @@ TEST_F(TransportSecurityStateTest, ValidPinsHeaders) {
   scoped_refptr<X509Certificate> root_cert =
       ImportCertFromFile(certs_dir, "2048-rsa-root.pem");
   ASSERT_NE(static_cast<X509Certificate*>(NULL), root_cert);
-  TestRootCerts::GetInstance()->Add(root_cert.get());
+  ScopedTestRoot scoped_root(root_cert);
 
   // Verify has the side-effect of populating public_key_hashes, which
   // ParsePinsHeader needs. (It wants to check pins against the validated
@@ -347,8 +347,6 @@ TEST_F(TransportSecurityStateTest, ValidPinsHeaders) {
           backup_pin + ";" + good_pin + ";   ",
       ssl_info, &state));
   EXPECT_EQ(state.max_age, TransportSecurityState::kMaxHSTSAgeSecs);
-
-  TestRootCerts::GetInstance()->Clear();
 }
 
 TEST_F(TransportSecurityStateTest, SimpleMatches) {
