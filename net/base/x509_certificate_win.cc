@@ -915,7 +915,7 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   AppendPublicKeyHashes(chain_context, &verify_result->public_key_hashes);
   verify_result->is_issued_by_known_root = IsIssuedByKnownRoot(chain_context);
 
-  if (ev_policy_oid && CheckEV(chain_context, ev_policy_oid))
+  if (ev_policy_oid && CheckEV(chain_context, flags, ev_policy_oid))
     verify_result->cert_status |= CERT_STATUS_IS_EV;
   return OK;
 }
@@ -937,13 +937,22 @@ bool X509Certificate::GetDEREncoded(X509Certificate::OSCertHandle cert_handle,
 // of the EV Certificate Guidelines Version 1.0 at
 // http://cabforum.org/EV_Certificate_Guidelines.pdf.
 bool X509Certificate::CheckEV(PCCERT_CHAIN_CONTEXT chain_context,
+                              int flags,
                               const char* policy_oid) const {
   DCHECK_NE(static_cast<DWORD>(0), chain_context->cChain);
   // If the cert doesn't match any of the policies, the
   // CERT_TRUST_IS_NOT_VALID_FOR_USAGE bit (0x10) in
   // chain_context->TrustStatus.dwErrorStatus is set.
   DWORD error_status = chain_context->TrustStatus.dwErrorStatus;
-  DWORD info_status = chain_context->TrustStatus.dwInfoStatus;
+
+  if (!(flags & VERIFY_REV_CHECKING_ENABLED)) {
+    // If online revocation checking is disabled then we will have still
+    // requested that the revocation cache be checked. However, that will often
+    // cause the following two error bits to be set. Since they are expected,
+    // we mask them away.
+    error_status &= ~(CERT_TRUST_IS_OFFLINE_REVOCATION |
+                      CERT_TRUST_REVOCATION_STATUS_UNKNOWN);
+  }
   if (!chain_context->cChain || error_status != CERT_TRUST_NO_ERROR)
     return false;
 
