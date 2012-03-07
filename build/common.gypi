@@ -290,6 +290,14 @@
       # with one of those tools.
       'build_for_tool%': '',
 
+      # Whether tests targets should be run, archived or just have the
+      # dependencies verified. All the tests targets have the '_run' suffix,
+      # e.g. base_unittests_run runs the target base_unittests. The test target
+      # always calls tools/isolate/isolate.py. See the script's --help for more
+      # information and the valid --mode values. Meant to be overriden with
+      # GYP_DEFINES.
+      'tests_run%': 'check',
+
       'conditions': [
         # TODO(epoger): Figure out how to set use_skia=1 for Mac outside of
         # the 'conditions' clause.  Initial attempts resulted in chromium and
@@ -486,6 +494,8 @@
     'linux_use_gold_binary%': '<(linux_use_gold_binary)',
     'linux_use_gold_flags%': '<(linux_use_gold_flags)',
     'use_canvas_skia_skia%': '<(use_canvas_skia_skia)',
+    'tests_run%': '<(tests_run)',
+
     # Whether to build for Wayland display server
     'use_wayland%': 0,
 
