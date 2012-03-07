@@ -499,6 +499,7 @@ bool CheckRevocationWithCRLSet(PCCERT_CHAIN_CONTEXT chain,
         return false;
       case CRLSet::UNKNOWN:
       case CRLSet::GOOD:
+      case CRLSet::CRL_SET_EXPIRED:
         continue;
       default:
         NOTREACHED();
