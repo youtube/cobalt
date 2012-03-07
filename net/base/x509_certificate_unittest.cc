@@ -1026,7 +1026,7 @@ TEST(X509CertificateTest, Pickle) {
   Pickle pickle;
   cert->Persist(&pickle);
 
-  void* iter = NULL;
+  PickleIterator iter(pickle);
   scoped_refptr<X509Certificate> cert_from_pickle =
       X509Certificate::CreateFromPickle(
           pickle, &iter, X509Certificate::PICKLETYPE_CERTIFICATE_CHAIN);
