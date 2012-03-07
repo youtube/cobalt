@@ -11,8 +11,6 @@
 #include "base/process_util.h"
 #include "base/stl_util.h"
 #include "media/audio/audio_output_dispatcher.h"
-#include "media/audio/fake_audio_input_stream.h"
-#include "media/audio/fake_audio_output_stream.h"
 #include "media/audio/linux/alsa_input.h"
 #include "media/audio/linux/alsa_output.h"
 #include "media/audio/linux/alsa_wrapper.h"
@@ -23,9 +21,7 @@
 #include "media/base/media_switches.h"
 
 // Maximum number of output streams that can be open simultaneously.
-static const size_t kMaxOutputStreams = 50;
-
-static const int kMaxInputChannels = 2;
+static const int kMaxOutputStreams = 50;
 
 // Since "default", "pulse" and "dmix" devices are virtual devices mapped to
 // real devices, we remove them from the list to avoiding duplicate counting.
@@ -47,67 +43,12 @@ bool AudioManagerLinux::HasAudioInputDevices() {
   return HasAnyAlsaAudioDevice(kStreamCapture);
 }
 
-AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
-    const AudioParameters& params) {
-  // Early return for testing hook.
-  if (params.format == AudioParameters::AUDIO_MOCK)
-    return FakeAudioOutputStream::MakeFakeStream(params);
-
-  // Don't allow opening more than |kMaxOutputStreams| streams.
-  if (active_output_stream_count_ >= kMaxOutputStreams)
-    return NULL;
-
-  AudioOutputStream* stream = NULL;
-#if defined(USE_PULSEAUDIO)
-  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kUsePulseAudio)) {
-    stream = new PulseAudioOutputStream(params, this);
-  } else {
-#endif
-    std::string device_name = AlsaPcmOutputStream::kAutoSelectDevice;
-    if (CommandLine::ForCurrentProcess()->HasSwitch(
-            switches::kAlsaOutputDevice)) {
-      device_name = CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-          switches::kAlsaOutputDevice);
-    }
-    stream = new AlsaPcmOutputStream(device_name, params, wrapper_.get(), this);
-#if defined(USE_PULSEAUDIO)
-  }
-#endif
-  ++active_output_stream_count_;
-  DCHECK(stream);
-  return stream;
+AudioManagerLinux::AudioManagerLinux() {
+  SetMaxOutputStreamsAllowed(kMaxOutputStreams);
 }
-
-AudioInputStream* AudioManagerLinux::MakeAudioInputStream(
-    const AudioParameters& params, const std::string& device_id) {
-  if (!params.IsValid() || params.channels > kMaxInputChannels ||
-      device_id.empty()) {
-    return NULL;
-  }
-
-  if (params.format == AudioParameters::AUDIO_MOCK) {
-    return FakeAudioInputStream::MakeFakeStream(params);
-  }
-
-  std::string device_name = (device_id == AudioManagerBase::kDefaultDeviceId) ?
-      AlsaPcmInputStream::kAutoSelectDevice : device_id;
-  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kAlsaInputDevice)) {
-    device_name = CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-        switches::kAlsaInputDevice);
-  }
-
-  AlsaPcmInputStream* stream = new AlsaPcmInputStream(this,
-      device_name, params, wrapper_.get());
-
-  return stream;
-}
-
-AudioManagerLinux::AudioManagerLinux() : active_output_stream_count_(0U) {}
 
 AudioManagerLinux::~AudioManagerLinux() {
   Shutdown();
-  // All the streams should have been deleted on the audio thread via Shutdown.
-  CHECK_EQ(active_output_stream_count_, 0U);
 }
 
 void AudioManagerLinux::Init() {
@@ -121,14 +62,6 @@ void AudioManagerLinux::MuteAll() {
 
 void AudioManagerLinux::UnMuteAll() {
   NOTIMPLEMENTED();
-}
-
-void AudioManagerLinux::ReleaseOutputStream(AudioOutputStream* stream) {
-  if (stream) {
-    delete stream;
-    --active_output_stream_count_;
-    DCHECK_GE(active_output_stream_count_, 0U);
-  }
 }
 
 bool AudioManagerLinux::CanShowAudioInputSettings() {
@@ -301,6 +234,65 @@ bool AudioManagerLinux::HasAnyAlsaAudioDevice(StreamType stream) {
   }
 
   return has_device;
+}
+
+AudioOutputStream* AudioManagerLinux::MakeLinearOutputStream(
+    const AudioParameters& params) {
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format);
+  return MakeOutputStream(params);
+}
+
+AudioOutputStream* AudioManagerLinux::MakeLowLatencyOutputStream(
+    const AudioParameters& params) {
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format);
+  return MakeOutputStream(params);
+}
+
+AudioInputStream* AudioManagerLinux::MakeLinearInputStream(
+    const AudioParameters& params, const std::string& device_id) {
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format);
+  return MakeInputStream(params, device_id);
+}
+
+AudioInputStream* AudioManagerLinux::MakeLowLatencyInputStream(
+    const AudioParameters& params, const std::string& device_id) {
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format);
+  return MakeInputStream(params, device_id);
+}
+
+AudioOutputStream* AudioManagerLinux::MakeOutputStream(
+    const AudioParameters& params) {
+  AudioOutputStream* stream = NULL;
+#if defined(USE_PULSEAUDIO)
+  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kUsePulseAudio)) {
+    stream = new PulseAudioOutputStream(params, this);
+  } else {
+#endif
+    std::string device_name = AlsaPcmOutputStream::kAutoSelectDevice;
+    if (CommandLine::ForCurrentProcess()->HasSwitch(
+            switches::kAlsaOutputDevice)) {
+      device_name = CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+          switches::kAlsaOutputDevice);
+    }
+    stream = new AlsaPcmOutputStream(device_name, params, wrapper_.get(), this);
+#if defined(USE_PULSEAUDIO)
+  }
+#endif
+  DCHECK(stream);
+  return stream;
+}
+
+AudioInputStream* AudioManagerLinux::MakeInputStream(
+    const AudioParameters& params, const std::string& device_id) {
+
+  std::string device_name = (device_id == AudioManagerBase::kDefaultDeviceId) ?
+      AlsaPcmInputStream::kAutoSelectDevice : device_id;
+  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kAlsaInputDevice)) {
+    device_name = CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+        switches::kAlsaInputDevice);
+  }
+
+  return new AlsaPcmInputStream(this, device_name, params, wrapper_.get());
 }
 
 AudioManager* CreateAudioManager() {

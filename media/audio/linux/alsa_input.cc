@@ -247,25 +247,25 @@ void AlsaPcmInputStream::Stop() {
 }
 
 void AlsaPcmInputStream::Close() {
-  scoped_ptr<AlsaPcmInputStream> self_deleter(this);
+  if (device_handle_) {
+    weak_factory_.InvalidateWeakPtrs();  // Cancel the next scheduled read.
+    int error = alsa_util::CloseDevice(wrapper_, device_handle_);
+    if (error < 0)
+      HandleError("PcmClose", error);
 
-  // Check in case we were already closed or not initialized yet.
-  if (!device_handle_)
-    return;
+    if (mixer_handle_)
+      alsa_util::CloseMixer(wrapper_, mixer_handle_, device_name_);
 
-  weak_factory_.InvalidateWeakPtrs();  // Cancel the next scheduled read.
-  int error = alsa_util::CloseDevice(wrapper_, device_handle_);
-  if (error < 0)
-    HandleError("PcmClose", error);
+    audio_packet_.reset();
+    device_handle_ = NULL;
+    mixer_handle_ = NULL;
+    mixer_element_handle_ = NULL;
 
-  if (mixer_handle_)
-    alsa_util::CloseMixer(wrapper_, mixer_handle_, device_name_);
+    if (callback_)
+      callback_->OnClose(this);
+  }
 
-  audio_packet_.reset();
-  device_handle_ = NULL;
-
-  if (callback_)
-    callback_->OnClose(this);
+  audio_manager_->ReleaseInputStream(this);
 }
 
 double AlsaPcmInputStream::GetMaxVolume() {

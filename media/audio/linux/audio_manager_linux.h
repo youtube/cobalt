@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,19 +23,22 @@ class MEDIA_EXPORT AudioManagerLinux : public AudioManagerBase {
   // Implementation of AudioManager.
   virtual bool HasAudioOutputDevices() OVERRIDE;
   virtual bool HasAudioInputDevices() OVERRIDE;
-  virtual AudioOutputStream* MakeAudioOutputStream(
-      const AudioParameters& params) OVERRIDE;
-  virtual AudioInputStream* MakeAudioInputStream(
-      const AudioParameters& params, const std::string& device_id) OVERRIDE;
   virtual bool CanShowAudioInputSettings() OVERRIDE;
   virtual void ShowAudioInputSettings() OVERRIDE;
   virtual void GetAudioInputDeviceNames(media::AudioDeviceNames* device_names)
       OVERRIDE;
-
   virtual void MuteAll() OVERRIDE;
   virtual void UnMuteAll() OVERRIDE;
 
-  virtual void ReleaseOutputStream(AudioOutputStream* stream);
+  // Implementation of AudioManagerBase.
+  virtual AudioOutputStream* MakeLinearOutputStream(
+      const AudioParameters& params) OVERRIDE;
+  virtual AudioOutputStream* MakeLowLatencyOutputStream(
+      const AudioParameters& params) OVERRIDE;
+  virtual AudioInputStream* MakeLinearInputStream(
+      const AudioParameters& params, const std::string& device_id) OVERRIDE;
+  virtual AudioInputStream* MakeLowLatencyInputStream(
+      const AudioParameters& params, const std::string& device_id) OVERRIDE;
 
  protected:
   virtual ~AudioManagerLinux();
@@ -58,9 +61,14 @@ class MEDIA_EXPORT AudioManagerLinux : public AudioManagerBase {
   // Returns true if a device is present for the given stream type.
   bool HasAnyAlsaAudioDevice(StreamType stream);
 
-  scoped_ptr<AlsaWrapper> wrapper_;
+  // Called by MakeLinearOutputStream and MakeLowLatencyOutputStream.
+  AudioOutputStream* MakeOutputStream(const AudioParameters& params);
 
-  size_t active_output_stream_count_;
+  // Called by MakeLinearInputStream and MakeLowLatencyInputStream.
+  AudioInputStream* MakeInputStream(const AudioParameters& params,
+                                    const std::string& device_id);
+
+  scoped_ptr<AlsaWrapper> wrapper_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioManagerLinux);
 };
