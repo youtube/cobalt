@@ -295,14 +295,12 @@ bool AlsaPcmOutputStream::Open() {
 void AlsaPcmOutputStream::Close() {
   DCHECK(IsOnAudioThread());
 
-  // Sanity check that the transition occurs correctly.  It is safe to
-  // continue anyways because all operations for closing are idempotent.
-  if (TransitionTo(kIsClosed) != kIsClosed) {
-    NOTREACHED() << "Unable to transition Closed.";
-  } else {
-    // Shutdown the audio device.
-    if (playback_handle_ &&
-        alsa_util::CloseDevice(wrapper_, playback_handle_) < 0) {
+  if (state() != kIsClosed)
+    TransitionTo(kIsClosed);
+
+  // Shutdown the audio device.
+  if (playback_handle_) {
+    if (alsa_util::CloseDevice(wrapper_, playback_handle_) < 0) {
       LOG(WARNING) << "Unable to close audio device. Leaking handle.";
     }
     playback_handle_ = NULL;
@@ -313,12 +311,13 @@ void AlsaPcmOutputStream::Close() {
     // Signal anything that might already be scheduled to stop.
     stop_stream_ = true;  // Not necessary in production, but unit tests
                           // uses the flag to verify that stream was closed.
-    weak_factory_.InvalidateWeakPtrs();
-
-    // Signal to the manager that we're closed and can be removed.
-    // Should be last call in the method as it deletes "this".
-    manager_->ReleaseOutputStream(this);
   }
+
+  weak_factory_.InvalidateWeakPtrs();
+
+  // Signal to the manager that we're closed and can be removed.
+  // Should be last call in the method as it deletes "this".
+  manager_->ReleaseOutputStream(this);
 }
 
 void AlsaPcmOutputStream::Start(AudioSourceCallback* callback) {

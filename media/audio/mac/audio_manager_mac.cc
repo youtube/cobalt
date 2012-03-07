@@ -8,8 +8,6 @@
 #include "base/mac/mac_util.h"
 #include "base/mac/scoped_cftyperef.h"
 #include "base/sys_string_conversions.h"
-#include "media/audio/fake_audio_input_stream.h"
-#include "media/audio/fake_audio_output_stream.h"
 #include "media/audio/mac/audio_input_mac.h"
 #include "media/audio/mac/audio_low_latency_input_mac.h"
 #include "media/audio/mac/audio_low_latency_output_mac.h"
@@ -17,38 +15,12 @@
 #include "media/audio/mac/audio_output_mac.h"
 #include "media/base/limits.h"
 
-static const int kMaxInputChannels = 2;
-
 // Maximum number of output streams that can be open simultaneously.
-static const size_t kMaxOutputStreams = 50;
+static const int kMaxOutputStreams = 50;
 
 // By experiment the maximum number of audio streams allowed in Leopard
 // is 18. But we put a slightly smaller number just to be safe.
-static const size_t kMaxOutputStreamsLeopard = 15;
-
-// Initialized to ether |kMaxOutputStreams| or |kMaxOutputStreamsLeopard|.
-static size_t g_max_output_streams = 0;
-
-// Returns the number of audio streams allowed. This is a practical limit to
-// prevent failure caused by too many audio streams opened.
-static size_t GetMaxAudioOutputStreamsAllowed() {
-  if (g_max_output_streams == 0) {
-    // We are hitting a bug in Leopard where too many audio streams will cause
-    // a deadlock in the AudioQueue API when starting the stream. Unfortunately
-    // there's no way to detect it within the AudioQueue API, so we put a
-    // special hard limit only for Leopard.
-    // See bug: http://crbug.com/30242
-    if (base::mac::IsOSLeopardOrEarlier()) {
-      g_max_output_streams = kMaxOutputStreamsLeopard;
-    } else {
-      // In OS other than OSX Leopard, the number of audio streams
-      // allowed is a lot more.
-      g_max_output_streams = kMaxOutputStreams;
-    }
-  }
-
-  return g_max_output_streams;
-}
+static const int kMaxOutputStreamsLeopard = 15;
 
 static bool HasAudioHardware(AudioObjectPropertySelector selector) {
   AudioDeviceID output_device_id = kAudioObjectUnknown;
@@ -235,8 +207,17 @@ static AudioDeviceID GetAudioDeviceIdByUId(bool is_input,
   return audio_device_id;
 }
 
-AudioManagerMac::AudioManagerMac()
-    : num_output_streams_(0) {
+AudioManagerMac::AudioManagerMac() {
+  // We are hitting a bug in Leopard where too many audio streams will cause
+  // a deadlock in the AudioQueue API when starting the stream. Unfortunately
+  // there's no way to detect it within the AudioQueue API, so we put a
+  // special hard limit only for Leopard.
+  // See bug: http://crbug.com/30242
+  // In OS other than OSX Leopard, the number of audio streams
+  // allowed is a lot more.
+  int max_output_stream = base::mac::IsOSLeopardOrEarlier() ?
+      kMaxOutputStreamsLeopard : kMaxOutputStreams;
+  SetMaxOutputStreamsAllowed(max_output_stream);
 }
 
 AudioManagerMac::~AudioManagerMac() {
@@ -269,51 +250,6 @@ void AudioManagerMac::GetAudioInputDeviceNames(
   }
 }
 
-AudioOutputStream* AudioManagerMac::MakeAudioOutputStream(
-    const AudioParameters& params) {
-  if (!params.IsValid())
-    return NULL;
-
-  // Limit the number of audio streams opened. This is to prevent using
-  // excessive resources for a large number of audio streams. More
-  // importantly it prevents instability on certain systems.
-  // See bug: http://crbug.com/30242
-  if (num_output_streams_ >= GetMaxAudioOutputStreamsAllowed()) {
-    return NULL;
-  }
-
-  if (params.format == AudioParameters::AUDIO_MOCK) {
-    return FakeAudioOutputStream::MakeFakeStream(params);
-  } else if (params.format == AudioParameters::AUDIO_PCM_LINEAR) {
-    num_output_streams_++;
-    return new PCMQueueOutAudioOutputStream(this, params);
-  } else if (params.format == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
-    num_output_streams_++;
-    return new AUAudioOutputStream(this, params);
-  }
-  return NULL;
-}
-
-AudioInputStream* AudioManagerMac::MakeAudioInputStream(
-    const AudioParameters& params, const std::string& device_id) {
-  if (!params.IsValid() || (params.channels > kMaxInputChannels) ||
-      device_id.empty())
-    return NULL;
-
-  if (params.format == AudioParameters::AUDIO_MOCK) {
-    return FakeAudioInputStream::MakeFakeStream(params);
-  } else if (params.format == AudioParameters::AUDIO_PCM_LINEAR) {
-    return new PCMQueueInAudioInputStream(this, params);
-  } else if (params.format == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
-    // Gets the AudioDeviceID that refers to the AudioDevice with the device
-    // unique id. This AudioDeviceID is used to set the device for Audio Unit.
-    AudioDeviceID audio_device_id = GetAudioDeviceIdByUId(true, device_id);
-    if (audio_device_id != kAudioObjectUnknown)
-      return new AUAudioInputStream(this, params, audio_device_id);
-  }
-  return NULL;
-}
-
 void AudioManagerMac::MuteAll() {
   // TODO(cpu): implement.
 }
@@ -322,16 +258,35 @@ void AudioManagerMac::UnMuteAll() {
   // TODO(cpu): implement.
 }
 
-// Called by the stream when it has been released by calling Close().
-void AudioManagerMac::ReleaseOutputStream(AudioOutputStream* stream) {
-  DCHECK(stream);
-  num_output_streams_--;
-  delete stream;
+AudioOutputStream* AudioManagerMac::MakeLinearOutputStream(
+    const AudioParameters& params) {
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format);
+  return new PCMQueueOutAudioOutputStream(this, params);
 }
 
-// Called by the stream when it has been released by calling Close().
-void AudioManagerMac::ReleaseInputStream(AudioInputStream* stream) {
-  delete stream;
+AudioOutputStream* AudioManagerMac::MakeLowLatencyOutputStream(
+    const AudioParameters& params) {
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format);
+  return new AUAudioOutputStream(this, params);
+}
+
+AudioInputStream* AudioManagerMac::MakeLinearInputStream(
+    const AudioParameters& params, const std::string& device_id) {
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format);
+  return new PCMQueueInAudioInputStream(this, params);
+}
+
+AudioInputStream* AudioManagerMac::MakeLowLatencyInputStream(
+    const AudioParameters& params, const std::string& device_id) {
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format);
+  // Gets the AudioDeviceID that refers to the AudioDevice with the device
+  // unique id. This AudioDeviceID is used to set the device for Audio Unit.
+  AudioDeviceID audio_device_id = GetAudioDeviceIdByUId(true, device_id);
+  AudioInputStream* stream = NULL;
+  if (audio_device_id != kAudioObjectUnknown)
+    stream = new AUAudioInputStream(this, params, audio_device_id);
+
+  return stream;
 }
 
 AudioManager* CreateAudioManager() {
