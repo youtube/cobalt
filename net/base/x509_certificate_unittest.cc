@@ -31,17 +31,6 @@
 #include "base/mac/mac_util.h"
 #endif
 
-// Unit tests aren't allowed to access external resources. Unfortunately, to
-// properly verify the EV-ness of a cert, we need to check for its revocation
-// through online servers. If you're manually running unit tests, feel free to
-// turn this on to test EV certs. But leave it turned off for the automated
-// testing.
-#define ALLOW_EXTERNAL_ACCESS 0
-
-#if ALLOW_EXTERNAL_ACCESS && defined(OS_WIN)
-#define TEST_EV 1  // Test CERT_STATUS_IS_EV
-#endif
-
 using base::HexEncode;
 using base::Time;
 
@@ -221,16 +210,6 @@ void CheckGoogleCert(const scoped_refptr<X509Certificate>& google_cert,
   google_cert->GetDNSNames(&dns_names);
   ASSERT_EQ(1U, dns_names.size());
   EXPECT_EQ("www.google.com", dns_names[0]);
-
-#if TEST_EV
-  // TODO(avi): turn this on for the Mac once EV checking is implemented.
-  CertVerifyResult verify_result;
-  int flags = X509Certificate::VERIFY_REV_CHECKING_ENABLED |
-                X509Certificate::VERIFY_EV_CERT;
-  EXPECT_EQ(OK, google_cert->Verify("www.google.com", flags, NULL,
-                                    &verify_result);
-  EXPECT_FALSE(verify_result.cert_status & CERT_STATUS_IS_EV);
-#endif
 }
 
 TEST(X509CertificateTest, GoogleCertParsing) {
@@ -289,14 +268,6 @@ TEST(X509CertificateTest, WebkitCertParsing) {
   ASSERT_EQ(2U, dns_names.size());
   EXPECT_EQ("*.webkit.org", dns_names[0]);
   EXPECT_EQ("webkit.org", dns_names[1]);
-
-#if TEST_EV
-  int flags = X509Certificate::VERIFY_REV_CHECKING_ENABLED |
-                X509Certificate::VERIFY_EV_CERT;
-  CertVerifyResult verify_result;
-  EXPECT_EQ(OK, webkit_cert->Verify("webkit.org", flags, NULL, &verify_result));
-  EXPECT_FALSE(verify_result.cert_status & CERT_STATUS_IS_EV);
-#endif
 
   // Test that the wildcard cert matches properly.
   EXPECT_TRUE(webkit_cert->VerifyNameMatch("www.webkit.org"));
@@ -370,22 +341,30 @@ TEST(X509CertificateTest, ThawteCertParsing) {
   thawte_cert->GetDNSNames(&dns_names);
   ASSERT_EQ(1U, dns_names.size());
   EXPECT_EQ("www.thawte.com", dns_names[0]);
+}
 
-#if TEST_EV
-  int flags = X509Certificate::VERIFY_REV_CHECKING_ENABLED |
-                X509Certificate::VERIFY_EV_CERT;
+TEST(X509CertificateTest, EVVerification) {
+  // This certificate will expire Jun 21, 2013.
+  CertificateList certs = CreateCertificateListFromFile(
+      GetTestCertsDirectory(),
+      "comodo.chain.pem",
+      X509Certificate::FORMAT_PEM_CERT_SEQUENCE);
+  ASSERT_EQ(3U, certs.size());
+
+  X509Certificate::OSCertHandles intermediates;
+  intermediates.push_back(certs[1]->os_cert_handle());
+  intermediates.push_back(certs[2]->os_cert_handle());
+
+  scoped_refptr<X509Certificate> comodo_chain =
+      X509Certificate::CreateFromHandle(certs[0]->os_cert_handle(),
+                                        intermediates);
+
   CertVerifyResult verify_result;
-  // EV cert verification requires revocation checking.
-  EXPECT_EQ(OK, thawte_cert->Verify("www.thawte.com", flags, NULL,
-                                    &verify_result);
+  int flags = X509Certificate::VERIFY_EV_CERT;
+  int error = comodo_chain->Verify(
+      "comodo.com", flags, NULL, &verify_result);
+  EXPECT_EQ(OK, error);
   EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_IS_EV);
-  // Consequently, if we don't have revocation checking enabled, we can't claim
-  // any cert is EV.
-  flags = X509Certificate::VERIFY_EV_CERT;
-  EXPECT_EQ(OK, thawte_cert->Verify("www.thawte.com", flags, NULL,
-                                    &verify_result));
-  EXPECT_FALSE(verify_result.cert_status & CERT_STATUS_IS_EV);
-#endif
 }
 
 // Test that all desired AttributeAndValue pairs can be extracted when only
