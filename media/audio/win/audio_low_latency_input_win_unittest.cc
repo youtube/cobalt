@@ -9,6 +9,7 @@
 #include "base/environment.h"
 #include "base/file_util.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/message_loop.h"
 #include "base/path_service.h"
 #include "base/test/test_timeouts.h"
 #include "base/win/scoped_com_initializer.h"
@@ -21,9 +22,15 @@
 
 using base::win::ScopedCOMInitializer;
 using ::testing::AnyNumber;
-using ::testing::Between;
+using ::testing::AtLeast;
 using ::testing::Gt;
 using ::testing::NotNull;
+
+ACTION_P3(CheckCountAndPostQuitTask, count, limit, loop) {
+  if (++*count >= limit) {
+    loop->PostTask(FROM_HERE, MessageLoop::QuitClosure());
+  }
+}
 
 class MockAudioInputCallback : public AudioInputStream::AudioInputCallback {
  public:
@@ -278,6 +285,9 @@ TEST(WinAudioInputTest, WASAPIAudioInputStreamTestPacketSizes) {
   if (!CanRunAudioTests(audio_manager.get()))
     return;
 
+  int count = 0;
+  MessageLoopForUI loop;
+
   // 10 ms packet size.
 
   // Create default WASAPI input stream which records in stereo using
@@ -292,16 +302,15 @@ TEST(WinAudioInputTest, WASAPIAudioInputStreamTestPacketSizes) {
   uint32 bytes_per_packet = aisw.channels() * aisw.samples_per_packet() *
       (aisw.bits_per_sample() / 8);
 
-  // We use 10ms packets and will run the test for ~100ms. Given that the
-  // startup sequence takes some time, it is reasonable to expect 5-12
-  // callbacks in this time period. All should contain valid packets of
-  // the same size and a valid delay estimate.
+  // We use 10ms packets and will run the test until ten packets are received.
+  // All should contain valid packets of the same size and a valid delay
+  // estimate.
   EXPECT_CALL(sink, OnData(
       ais, NotNull(), bytes_per_packet, Gt(bytes_per_packet)))
-      .Times(Between(5, 10));
-
+      .Times(AtLeast(10))
+      .WillRepeatedly(CheckCountAndPostQuitTask(&count, 10, &loop));
   ais->Start(&sink);
-  base::PlatformThread::Sleep(TestTimeouts::tiny_timeout());
+  loop.Run();
   ais->Stop();
 
   // Store current packet size (to be used in the subsequent tests).
@@ -313,6 +322,7 @@ TEST(WinAudioInputTest, WASAPIAudioInputStreamTestPacketSizes) {
 
   // 20 ms packet size.
 
+  count = 0;
   ais = aisw.Create(2 * samples_per_packet_10ms);
   EXPECT_TRUE(ais->Open());
   bytes_per_packet = aisw.channels() * aisw.samples_per_packet() *
@@ -320,9 +330,10 @@ TEST(WinAudioInputTest, WASAPIAudioInputStreamTestPacketSizes) {
 
   EXPECT_CALL(sink, OnData(
       ais, NotNull(), bytes_per_packet, Gt(bytes_per_packet)))
-      .Times(Between(5, 10));
+      .Times(AtLeast(10))
+      .WillRepeatedly(CheckCountAndPostQuitTask(&count, 10, &loop));
   ais->Start(&sink);
-  base::PlatformThread::Sleep(2 * TestTimeouts::tiny_timeout());
+  loop.Run();
   ais->Stop();
 
   EXPECT_CALL(sink, OnClose(ais))
@@ -331,6 +342,7 @@ TEST(WinAudioInputTest, WASAPIAudioInputStreamTestPacketSizes) {
 
   // 5 ms packet size.
 
+  count = 0;
   ais = aisw.Create(samples_per_packet_10ms / 2);
   EXPECT_TRUE(ais->Open());
   bytes_per_packet = aisw.channels() * aisw.samples_per_packet() *
@@ -338,9 +350,10 @@ TEST(WinAudioInputTest, WASAPIAudioInputStreamTestPacketSizes) {
 
   EXPECT_CALL(sink, OnData(
       ais, NotNull(), bytes_per_packet, Gt(bytes_per_packet)))
-      .Times(Between(2 * 5, 2 * 10));
+      .Times(AtLeast(10))
+      .WillRepeatedly(CheckCountAndPostQuitTask(&count, 10, &loop));
   ais->Start(&sink);
-  base::PlatformThread::Sleep(TestTimeouts::tiny_timeout());
+  loop.Run();
   ais->Stop();
 
   EXPECT_CALL(sink, OnClose(ais))
