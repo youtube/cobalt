@@ -19,7 +19,7 @@ if [ ! -d "${ANDROID_NDK_ROOT}" ]; then
   echo "ANDROID_NDK_ROOT must be set to the path of Android NDK, Revision 6b." \
     >& 2
   echo "which could be installed by" >& 2
-  echo "<chromium_tree>/src/build/install-build-deps-android.sh" >& 2
+  echo "<chromium_tree>/src/build/install-build-deps-android-sdk.sh" >& 2
   return 1
 fi
 
@@ -27,7 +27,7 @@ if [ ! -d "${ANDROID_SDK_ROOT}" ]; then
   echo "ANDROID_SDK_ROOT must be set to the path of Android SDK, Android 3.2." \
     >& 2
   echo "which could be installed by" >& 2
-  echo "<chromium_tree>/src/build/install-build-deps-android.sh" >& 2
+  echo "<chromium_tree>/src/build/install-build-deps-android-sdk.sh" >& 2
   return 1
 fi
 
