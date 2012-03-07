@@ -650,7 +650,7 @@ bool X509Certificate::IsSameOSCert(X509Certificate::OSCertHandle a,
 // static
 X509Certificate::OSCertHandle
 X509Certificate::ReadOSCertHandleFromPickle(const Pickle& pickle,
-                                            void** pickle_iter) {
+                                            PickleIterator* pickle_iter) {
   const char* data;
   int length;
   if (!pickle.ReadData(pickle_iter, &data, &length))

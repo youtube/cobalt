@@ -16,6 +16,7 @@
 #include "net/http/http_version.h"
 
 class Pickle;
+class PickleIterator;
 
 namespace base {
 class Time;
@@ -52,7 +53,7 @@ class NET_EXPORT HttpResponseHeaders
   // Initializes from the representation stored in the given pickle.  The data
   // for this object is found relative to the given pickle_iter, which should
   // be passed to the pickle's various Read* methods.
-  HttpResponseHeaders(const Pickle& pickle, void** pickle_iter);
+  HttpResponseHeaders(const Pickle& pickle, PickleIterator* pickle_iter);
 
   // Appends a representation of this object to the given pickle.
   // The options argument can be a combination of PersistOptions.

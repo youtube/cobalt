@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,6 +14,143 @@
 const int Pickle::kPayloadUnit = 64;
 
 static const size_t kCapacityReadOnly = static_cast<size_t>(-1);
+
+PickleIterator::PickleIterator(const Pickle& pickle)
+    : read_ptr_(pickle.payload()),
+      read_end_ptr_(pickle.end_of_payload()) {
+}
+
+template <typename Type>
+inline bool PickleIterator::ReadBuiltinType(Type* result) {
+  const char* read_from = GetReadPointerAndAdvance<Type>();
+  if (!read_from)
+    return false;
+  if (sizeof(Type) > sizeof(uint32))
+    memcpy(result, read_from, sizeof(*result));
+  else
+    *result = *reinterpret_cast<const Type*>(read_from);
+  return true;
+}
+
+template<typename Type>
+inline const char* PickleIterator::GetReadPointerAndAdvance() {
+  const char* current_read_ptr = read_ptr_;
+  if (read_ptr_ + sizeof(Type) > read_end_ptr_)
+    return NULL;
+  if (sizeof(Type) < sizeof(uint32))
+    read_ptr_ += AlignInt(sizeof(Type), sizeof(uint32));
+  else
+    read_ptr_ += sizeof(Type);
+  return current_read_ptr;
+}
+
+const char* PickleIterator::GetReadPointerAndAdvance(int num_bytes) {
+  const char* current_read_ptr = read_ptr_;
+  const char* end_data_ptr = read_ptr_ + num_bytes;
+  if (num_bytes < 0)
+    return NULL;
+  // Check for enough space and for wrapping.
+  if (end_data_ptr > read_end_ptr_ || end_data_ptr < current_read_ptr)
+    return NULL;
+  read_ptr_ += AlignInt(num_bytes, sizeof(uint32));
+  return current_read_ptr;
+}
+
+inline const char* PickleIterator::GetReadPointerAndAdvance(int num_elements,
+                                                          size_t size_element) {
+  // Check for int32 overflow.
+  int64 num_bytes = static_cast<int64>(num_elements) * size_element;
+  int num_bytes32 = static_cast<int>(num_bytes);
+  if (num_bytes != static_cast<int64>(num_bytes32))
+    return NULL;
+  return GetReadPointerAndAdvance(num_bytes32);
+}
+
+bool PickleIterator::ReadBool(bool* result) {
+  return ReadBuiltinType(result);
+}
+
+bool PickleIterator::ReadInt(int* result) {
+  return ReadBuiltinType(result);
+}
+
+bool PickleIterator::ReadLong(long* result) {
+  return ReadBuiltinType(result);
+}
+
+bool PickleIterator::ReadSize(size_t* result) {
+  return ReadBuiltinType(result);
+}
+
+bool PickleIterator::ReadUInt16(uint16* result) {
+  return ReadBuiltinType(result);
+}
+
+bool PickleIterator::ReadUInt32(uint32* result) {
+  return ReadBuiltinType(result);
+}
+
+bool PickleIterator::ReadInt64(int64* result) {
+  return ReadBuiltinType(result);
+}
+
+bool PickleIterator::ReadUInt64(uint64* result) {
+  return ReadBuiltinType(result);
+}
+
+bool PickleIterator::ReadString(std::string* result) {
+  int len;
+  if (!ReadInt(&len))
+    return false;
+  const char* read_from = GetReadPointerAndAdvance(len);
+  if (!read_from)
+    return false;
+
+  result->assign(read_from, len);
+  return true;
+}
+
+bool PickleIterator::ReadWString(std::wstring* result) {
+  int len;
+  if (!ReadInt(&len))
+    return false;
+  const char* read_from = GetReadPointerAndAdvance(len, sizeof(wchar_t));
+  if (!read_from)
+    return false;
+
+  result->assign(reinterpret_cast<const wchar_t*>(read_from), len);
+  return true;
+}
+
+bool PickleIterator::ReadString16(string16* result) {
+  int len;
+  if (!ReadInt(&len))
+    return false;
+  const char* read_from = GetReadPointerAndAdvance(len, sizeof(char16));
+  if (!read_from)
+    return false;
+
+  result->assign(reinterpret_cast<const char16*>(read_from), len);
+  return true;
+}
+
+bool PickleIterator::ReadData(const char** data, int* length) {
+  *length = 0;
+  *data = 0;
+
+  if (!ReadInt(length))
+    return false;
+
+  return ReadBytes(data, *length);
+}
+
+bool PickleIterator::ReadBytes(const char** data, int length) {
+  const char* read_from = GetReadPointerAndAdvance(length);
+  if (!read_from)
+    return false;
+  *data = read_from;
+  return true;
+}
 
 // Payload is uint32 aligned.
 
@@ -92,209 +229,6 @@ Pickle& Pickle::operator=(const Pickle& other) {
          other.header_size_ + other.header_->payload_size);
   variable_buffer_offset_ = other.variable_buffer_offset_;
   return *this;
-}
-
-bool Pickle::ReadBool(void** iter, bool* result) const {
-  DCHECK(iter);
-
-  int tmp;
-  if (!ReadInt(iter, &tmp))
-    return false;
-  DCHECK(0 == tmp || 1 == tmp);
-  *result = tmp ? true : false;
-  return true;
-}
-
-bool Pickle::ReadInt(void** iter, int* result) const {
-  DCHECK(iter);
-  if (!*iter)
-    *iter = const_cast<char*>(payload());
-
-  if (!IteratorHasRoomFor(*iter, sizeof(*result)))
-    return false;
-
-  // TODO(jar): http://crbug.com/13108 Pickle should be cleaned up, and not
-  // dependent on alignment.
-  // Next line is otherwise the same as: memcpy(result, *iter, sizeof(*result));
-  *result = *reinterpret_cast<int*>(*iter);
-
-  UpdateIter(iter, sizeof(*result));
-  return true;
-}
-
-bool Pickle::ReadLong(void** iter, long* result) const {
-  DCHECK(iter);
-  if (!*iter)
-    *iter = const_cast<char*>(payload());
-
-  if (!IteratorHasRoomFor(*iter, sizeof(*result)))
-    return false;
-
-  // TODO(jar): http://crbug.com/13108 Pickle should be cleaned up, and not
-  // dependent on alignment.
-  memcpy(result, *iter, sizeof(*result));
-
-  UpdateIter(iter, sizeof(*result));
-  return true;
-}
-
-bool Pickle::ReadSize(void** iter, size_t* result) const {
-  DCHECK(iter);
-  if (!*iter)
-    *iter = const_cast<char*>(payload());
-
-  if (!IteratorHasRoomFor(*iter, sizeof(*result)))
-    return false;
-
-  // TODO(jar): http://crbug.com/13108 Pickle should be cleaned up, and not
-  // dependent on alignment.
-  // Next line is otherwise the same as: memcpy(result, *iter, sizeof(*result));
-  *result = *reinterpret_cast<size_t*>(*iter);
-
-  UpdateIter(iter, sizeof(*result));
-  return true;
-}
-
-bool Pickle::ReadUInt16(void** iter, uint16* result) const {
-  DCHECK(iter);
-  if (!*iter)
-    *iter = const_cast<char*>(payload());
-
-  if (!IteratorHasRoomFor(*iter, sizeof(*result)))
-    return false;
-
-  memcpy(result, *iter, sizeof(*result));
-
-  UpdateIter(iter, sizeof(*result));
-  return true;
-}
-
-bool Pickle::ReadUInt32(void** iter, uint32* result) const {
-  DCHECK(iter);
-  if (!*iter)
-    *iter = const_cast<char*>(payload());
-
-  if (!IteratorHasRoomFor(*iter, sizeof(*result)))
-    return false;
-
-  memcpy(result, *iter, sizeof(*result));
-
-  UpdateIter(iter, sizeof(*result));
-  return true;
-}
-
-bool Pickle::ReadInt64(void** iter, int64* result) const {
-  DCHECK(iter);
-  if (!*iter)
-    *iter = const_cast<char*>(payload());
-
-  if (!IteratorHasRoomFor(*iter, sizeof(*result)))
-    return false;
-
-  memcpy(result, *iter, sizeof(*result));
-
-  UpdateIter(iter, sizeof(*result));
-  return true;
-}
-
-bool Pickle::ReadUInt64(void** iter, uint64* result) const {
-  DCHECK(iter);
-  if (!*iter)
-    *iter = const_cast<char*>(payload());
-
-  if (!IteratorHasRoomFor(*iter, sizeof(*result)))
-    return false;
-
-  memcpy(result, *iter, sizeof(*result));
-
-  UpdateIter(iter, sizeof(*result));
-  return true;
-}
-
-bool Pickle::ReadString(void** iter, std::string* result) const {
-  DCHECK(iter);
-
-  int len;
-  if (!ReadLength(iter, &len))
-    return false;
-  if (!IteratorHasRoomFor(*iter, len))
-    return false;
-
-  char* chars = reinterpret_cast<char*>(*iter);
-  result->assign(chars, len);
-
-  UpdateIter(iter, len);
-  return true;
-}
-
-bool Pickle::ReadWString(void** iter, std::wstring* result) const {
-  DCHECK(iter);
-
-  int len;
-  if (!ReadLength(iter, &len))
-    return false;
-  // Avoid integer overflow.
-  if (len > INT_MAX / static_cast<int>(sizeof(wchar_t)))
-    return false;
-  if (!IteratorHasRoomFor(*iter, len * sizeof(wchar_t)))
-    return false;
-
-  wchar_t* chars = reinterpret_cast<wchar_t*>(*iter);
-  result->assign(chars, len);
-
-  UpdateIter(iter, len * sizeof(wchar_t));
-  return true;
-}
-
-bool Pickle::ReadString16(void** iter, string16* result) const {
-  DCHECK(iter);
-
-  int len;
-  if (!ReadLength(iter, &len))
-    return false;
-  if (!IteratorHasRoomFor(*iter, len * sizeof(char16)))
-    return false;
-
-  char16* chars = reinterpret_cast<char16*>(*iter);
-  result->assign(chars, len);
-
-  UpdateIter(iter, len * sizeof(char16));
-  return true;
-}
-
-bool Pickle::ReadData(void** iter, const char** data, int* length) const {
-  DCHECK(iter);
-  DCHECK(data);
-  DCHECK(length);
-  *length = 0;
-  *data = 0;
-
-  if (!ReadLength(iter, length))
-    return false;
-
-  return ReadBytes(iter, data, *length);
-}
-
-bool Pickle::ReadBytes(void** iter, const char** data, int length) const {
-  DCHECK(iter);
-  DCHECK(data);
-  *data = 0;
-  if (!*iter)
-    *iter = const_cast<char*>(payload());
-
-  if (!IteratorHasRoomFor(*iter, length))
-    return false;
-
-  *data = reinterpret_cast<const char*>(*iter);
-
-  UpdateIter(iter, length);
-  return true;
-}
-
-bool Pickle::ReadLength(void** iter, int* result) const {
-  if (!ReadInt(iter, result))
-    return false;
-  return ((*result) >= 0);
 }
 
 bool Pickle::WriteString(const std::string& value) {
