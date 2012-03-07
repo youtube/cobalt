@@ -732,6 +732,7 @@ bool CheckRevocationWithCRLSet(CFArrayRef chain, CRLSet* crl_set) {
         return false;
       case CRLSet::UNKNOWN:
       case CRLSet::GOOD:
+      case CRLSet::CRL_SET_EXPIRED:
         continue;
       default:
         NOTREACHED();
