@@ -9,18 +9,30 @@
 #include "base/threading/thread.h"
 #include "media/audio/audio_output_dispatcher.h"
 #include "media/audio/audio_output_proxy.h"
+#include "media/audio/fake_audio_input_stream.h"
+#include "media/audio/fake_audio_output_stream.h"
 
 static const int kStreamCloseDelaySeconds = 5;
+
+// Default maximum number of output streams that can be open simultaneously
+// for all platforms.
+static const int kDefaultMaxOutputStreams = 15;
+
+static const int kMaxInputChannels = 2;
 
 const char AudioManagerBase::kDefaultDeviceName[] = "Default";
 const char AudioManagerBase::kDefaultDeviceId[] = "default";
 
 AudioManagerBase::AudioManagerBase()
-    : num_active_input_streams_(0) {
+    : num_active_input_streams_(0),
+      max_num_output_streams_(kDefaultMaxOutputStreams),
+      num_output_streams_(0) {
 }
 
 AudioManagerBase::~AudioManagerBase() {
   Shutdown();
+  // All the output streams should have been deleted.
+  DCHECK_EQ(0, num_output_streams_);
 }
 
 void AudioManagerBase::Init() {
@@ -37,6 +49,57 @@ string16 AudioManagerBase::GetAudioInputDeviceModel() {
 scoped_refptr<base::MessageLoopProxy> AudioManagerBase::GetMessageLoop() {
   base::AutoLock lock(audio_thread_lock_);
   return audio_thread_.get() ? audio_thread_->message_loop_proxy() : NULL;
+}
+
+AudioOutputStream* AudioManagerBase::MakeAudioOutputStream(
+    const AudioParameters& params) {
+  if (!params.IsValid()) {
+    DLOG(ERROR) << "Audio parameters are invalid";
+    return NULL;
+  }
+
+  // Limit the number of audio streams opened. This is to prevent using
+  // excessive resources for a large number of audio streams. More
+  // importantly it prevents instability on certain systems.
+  // See bug: http://crbug.com/30242.
+  if (num_output_streams_ >= max_num_output_streams_) {
+    DLOG(ERROR) << "Number of opened audio streams " << num_output_streams_
+                << " exceed the max allowed number " << max_num_output_streams_;
+    return NULL;
+  }
+
+  AudioOutputStream* stream = NULL;
+  if (params.format == AudioParameters::AUDIO_MOCK) {
+    stream = FakeAudioOutputStream::MakeFakeStream(params);
+  } else if (params.format == AudioParameters::AUDIO_PCM_LINEAR) {
+    num_output_streams_++;
+    stream = MakeLinearOutputStream(params);
+  } else if (params.format == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
+    num_output_streams_++;
+    stream = MakeLowLatencyOutputStream(params);
+  }
+
+  return stream;
+}
+
+AudioInputStream* AudioManagerBase::MakeAudioInputStream(
+    const AudioParameters& params, const std::string& device_id) {
+  if (!params.IsValid() || (params.channels > kMaxInputChannels) ||
+      device_id.empty()) {
+    DLOG(ERROR) << "Audio parameters are invalid for device " << device_id;
+    return NULL;
+  }
+
+  AudioInputStream* stream = NULL;
+  if (params.format == AudioParameters::AUDIO_MOCK) {
+    stream = FakeAudioInputStream::MakeFakeStream(params);
+  } else if (params.format == AudioParameters::AUDIO_PCM_LINEAR) {
+    stream = MakeLinearInputStream(params, device_id);
+  } else if (params.format == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
+    stream = MakeLowLatencyInputStream(params, device_id);
+  }
+
+  return stream;
 }
 
 AudioOutputStream* AudioManagerBase::MakeAudioOutputStreamProxy(
@@ -60,6 +123,21 @@ void AudioManagerBase::ShowAudioInputSettings() {
 
 void AudioManagerBase::GetAudioInputDeviceNames(
     media::AudioDeviceNames* device_names) {
+}
+
+void AudioManagerBase::ReleaseOutputStream(AudioOutputStream* stream) {
+  DCHECK(stream);
+  // TODO(xians) : Have a clearer destruction path for the AudioOutputStream.
+  // For example, pass the ownership to AudioManager so it can delete the
+  // streams.
+  num_output_streams_--;
+  delete stream;
+}
+
+void AudioManagerBase::ReleaseInputStream(AudioInputStream* stream) {
+  DCHECK(stream);
+  // TODO(xians) : Have a clearer destruction path for the AudioInputStream.
+  delete stream;
 }
 
 void AudioManagerBase::IncreaseActiveInputStreamCount() {

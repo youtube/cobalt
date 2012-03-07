@@ -97,7 +97,10 @@ TEST_F(AudioInputVolumeTest, InputVolumeTest) {
   // Retrieve a list of all available input devices.
   AudioDeviceNames device_names;
   audio_manager_->GetAudioInputDeviceNames(&device_names);
-  DCHECK(!device_names.empty());
+  if (device_names.empty()) {
+    LOG(WARNING) << "Could not find any available input device";
+    return;
+  }
 
   // Scan all available input devices and repeat the same test for all of them.
   for (AudioDeviceNames::const_iterator it = device_names.begin();

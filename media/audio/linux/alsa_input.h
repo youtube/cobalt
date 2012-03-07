@@ -34,6 +34,7 @@ class AlsaPcmInputStream : public AudioInputStream {
                      const std::string& device_name,
                      const AudioParameters& params,
                      AlsaWrapper* wrapper);
+
   virtual ~AlsaPcmInputStream();
 
   // Implementation of AudioInputStream.

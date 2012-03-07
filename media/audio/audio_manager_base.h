@@ -38,13 +38,23 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
   virtual bool CanShowAudioInputSettings() OVERRIDE;
   virtual void ShowAudioInputSettings() OVERRIDE;
 
-  virtual void GetAudioInputDeviceNames(media::AudioDeviceNames* device_names)
-      OVERRIDE;
+  virtual void GetAudioInputDeviceNames(
+      media::AudioDeviceNames* device_names) OVERRIDE;
+
+  virtual AudioOutputStream* MakeAudioOutputStream(
+      const AudioParameters& params) OVERRIDE;
+
+  virtual AudioInputStream* MakeAudioInputStream(
+      const AudioParameters& params, const std::string& device_id) OVERRIDE;
 
   virtual AudioOutputStream* MakeAudioOutputStreamProxy(
       const AudioParameters& params) OVERRIDE;
 
   virtual bool IsRecordingInProcess() OVERRIDE;
+
+  // Called internally by the audio stream when it has been closed.
+  virtual void ReleaseOutputStream(AudioOutputStream* stream);
+  virtual void ReleaseInputStream(AudioInputStream* stream);
 
   void IncreaseActiveInputStreamCount();
   void DecreaseActiveInputStreamCount();
@@ -53,6 +63,24 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
   // on the audio thread.  All AudioOutputProxy instances should be freed before
   // Shutdown is called.
   void Shutdown();
+
+  // Creates the output stream for the |AUDIO_PCM_LINEAR| format. The legacy
+  // name is also from |AUDIO_PCM_LINEAR|.
+  virtual AudioOutputStream* MakeLinearOutputStream(
+      const AudioParameters& params) = 0;
+
+  // Creates the output stream for the |AUDIO_PCM_LOW_LATENCY| format.
+  virtual AudioOutputStream* MakeLowLatencyOutputStream(
+      const AudioParameters& params) = 0;
+
+  // Creates the input stream for the |AUDIO_PCM_LINEAR| format. The legacy
+  // name is also from |AUDIO_PCM_LINEAR|.
+  virtual AudioInputStream* MakeLinearInputStream(
+      const AudioParameters& params, const std::string& device_id) = 0;
+
+  // Creates the input stream for the |AUDIO_PCM_LOW_LATENCY| format.
+  virtual AudioInputStream* MakeLowLatencyInputStream(
+      const AudioParameters& params, const std::string& device_id) = 0;
 
  protected:
   AudioManagerBase();
@@ -63,6 +91,8 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
 
   void ShutdownOnAudioThread();
 
+  void SetMaxOutputStreamsAllowed(int max) { max_num_output_streams_ = max; }
+
   // Thread used to interact with AudioOutputStreams created by this
   // audio manger.
   scoped_ptr<base::Thread> audio_thread_;
@@ -72,9 +102,17 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
   // from the audio thread (no locking).
   AudioOutputDispatchersMap output_dispatchers_;
 
+ private:
   // Counts the number of active input streams to find out if something else
   // is currently recording in Chrome.
   base::AtomicRefCount num_active_input_streams_;
+
+  // Max number of open output streams, modified by
+  // SetMaxOutputStreamsAllowed().
+  int max_num_output_streams_;
+
+  // Number of currently open output streams.
+  int num_output_streams_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioManagerBase);
 };

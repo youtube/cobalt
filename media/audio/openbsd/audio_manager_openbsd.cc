@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,8 +7,6 @@
 #include "base/command_line.h"
 #include "base/stl_util.h"
 #include "media/audio/audio_output_dispatcher.h"
-#include "media/audio/fake_audio_input_stream.h"
-#include "media/audio/fake_audio_output_stream.h"
 #if defined(USE_PULSEAUDIO)
 #include "media/audio/pulse/pulse_output.h"
 #endif
@@ -18,7 +16,7 @@
 #include <fcntl.h>
 
 // Maximum number of output streams that can be open simultaneously.
-static const size_t kMaxOutputStreams = 50;
+static const int kMaxOutputStreams = 50;
 
 // Implementation of AudioManager.
 static bool HasAudioHardware() {
@@ -43,43 +41,8 @@ bool AudioManagerOpenBSD::HasAudioInputDevices() {
   return HasAudioHardware();
 }
 
-AudioOutputStream* AudioManagerOpenBSD::MakeAudioOutputStream(
-    const AudioParameters& params) {
-  // Early return for testing hook.  Do this before checking for
-  // |initialized_|.
-  if (params.format == AudioParameters::AUDIO_MOCK) {
-    return FakeAudioOutputStream::MakeFakeStream(params);
-  }
-
-  if (!initialized()) {
-    return NULL;
-  }
-
-  // Don't allow opening more than |kMaxOutputStreams| streams.
-  if (active_streams_.size() >= kMaxOutputStreams) {
-    return NULL;
-  }
-
-  AudioOutputStream* stream;
-#if defined(USE_PULSEAUDIO)
-  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kUsePulseAudio)) {
-    stream = new PulseAudioOutputStream(params, this);
-    active_streams_.insert(stream);
-    return stream;
-  }
-#endif
-
-  NOTIMPLEMENTED();
-  return NULL;
-}
-
-AudioInputStream* AudioManagerOpenBSD::MakeAudioInputStream(
-    const AudioParameters& params, const std::string& device_id) {
-  NOTIMPLEMENTED();
-  return NULL;
-}
-
 AudioManagerOpenBSD::AudioManagerOpenBSD() {
+  SetMaxOutputStreamsAllowed(kMaxOutputStreams);
 }
 
 AudioManagerOpenBSD::~AudioManagerOpenBSD() {
@@ -92,10 +55,6 @@ AudioManagerOpenBSD::~AudioManagerOpenBSD() {
 
   // Free output dispatchers, closing all remaining open streams.
   output_dispatchers_.clear();
-
-  // Delete all the streams. Have to do it manually, we don't have ScopedSet<>,
-  // and we are not using ScopedVector<> because search there is slow.
-  STLDeleteElements(&active_streams_);
 }
 
 void AudioManagerOpenBSD::Init() {
@@ -110,11 +69,46 @@ void AudioManagerOpenBSD::UnMuteAll() {
   NOTIMPLEMENTED();
 }
 
-void AudioManagerOpenBSD::ReleaseOutputStream(AudioOutputStream* stream) {
-  if (stream) {
-    active_streams_.erase(stream);
-    delete stream;
+AudioOutputStream* AudioManagerOpenBSD::MakeLinearOutputStream(
+    const AudioParameters& params) {
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format);
+  return MakeOutputStream(params);
+}
+
+AudioOutputStream* AudioManagerOpenBSD::MakeLowLatencyOutputStream(
+    const AudioParameters& params) {
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format);
+  return MakeOutputStream(params);
+}
+
+AudioInputStream* AudioManagerOpenBSD::MakeLinearInputStream(
+    const AudioParameters& params, const std::string& device_id) {
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format);
+  NOTIMPLEMENTED();
+  return NULL;
+}
+
+AudioInputStream* AudioManagerOpenBSD::MakeLowLatencyInputStream(
+    const AudioParameters& params, const std::string& device_id) {
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format);
+  NOTIMPLEMENTED();
+  return NULL;
+}
+
+AudioOutputStream* AudioManagerOpenBSD::MakeOutputStream(
+    const AudioParameters& params) {
+  if (!initialized()) {
+    return NULL;
   }
+
+#if defined(USE_PULSEAUDIO)
+  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kUsePulseAudio)) {
+    return new PulseAudioOutputStream(params, this);
+  }
+#endif
+
+  NOTIMPLEMENTED();
+  return NULL;
 }
 
 // static
