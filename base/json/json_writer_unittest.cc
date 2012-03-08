@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -119,6 +119,14 @@ TEST(JSONWriterTest, Writing) {
                                JSONWriter::OPTIONS_OMIT_BINARY_VALUES,
                                &output_js);
   ASSERT_EQ("{\"a\":5,\"c\":2}", output_js);
+
+  // Test allowing a double with no fractional part to be written as an integer.
+  FundamentalValue double_value(1e10);
+  JSONWriter::WriteWithOptions(
+      &double_value, false,
+      JSONWriter::OPTIONS_OMIT_DOUBLE_TYPE_PRESERVATION,
+      &output_js);
+  ASSERT_EQ("10000000000", output_js);
 }
 
 }  // namespace base
