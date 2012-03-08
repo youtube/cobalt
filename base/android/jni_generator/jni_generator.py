@@ -122,83 +122,61 @@ def JavaParamToJni(param):
       'byte': 'B',
       'void': 'V',
   }
-  object_param_map = {
-      'String': 'Ljava/lang/String',
-      'Boolean': 'Ljava/lang/Boolean',
-      'Integer': 'Ljava/lang/Integer',
-      'Long': 'Ljava/lang/Long',
-      'Object': 'Ljava/lang/Object',
-      'List': 'Ljava/util/List',
-      'ArrayList': 'Ljava/util/ArrayList',
-      'HashMap': 'Ljava/util/HashMap',
-      'Bitmap': 'Landroid/graphics/Bitmap',
-      'Context': 'Landroid/content/Context',
-      'Canvas': 'Landroid/graphics/Canvas',
-      'Surface': 'Landroid/view/Surface',
-      'KeyEvent': 'Landroid/view/KeyEvent',
-      'Rect': 'Landroid/graphics/Rect',
-      'RectF': 'Landroid/graphics/RectF',
-      'View': 'Landroid/view/View',
-      'Matrix': 'Landroid/graphics/Matrix',
-      'Point': 'Landroid/graphics/Point',
-      'ByteBuffer': 'Ljava/nio/ByteBuffer',
-      'InputStream': 'Ljava/io/InputStream',
-  }
-  app_param_map = {
-      'ChromeView':
+  object_param_list = [
+      'Ljava/lang/String',
+      'Ljava/lang/Boolean',
+      'Ljava/lang/Integer',
+      'Ljava/lang/Long',
+      'Ljava/lang/Object',
+      'Ljava/util/List',
+      'Ljava/util/ArrayList',
+      'Ljava/util/HashMap',
+      'Landroid/graphics/Bitmap',
+      'Landroid/content/Context',
+      'Landroid/graphics/Canvas',
+      'Landroid/view/Surface',
+      'Landroid/view/KeyEvent',
+      'Landroid/graphics/Rect',
+      'Landroid/graphics/RectF',
+      'Landroid/view/View',
+      'Landroid/graphics/Matrix',
+      'Landroid/graphics/Point',
+      'Ljava/nio/ByteBuffer',
+      'Ljava/io/InputStream',
+      'Ljava/util/Vector',
+  ]
+  app_param_list = [
       'Lorg/chromium/chromeview/ChromeView',
-
-      'Tab':
       'Lcom/android/chrome/Tab',
-
-      'TouchPoint':
       'Lorg/chromium/chromeview/TouchPoint',
-
-      'SurfaceTexture':
       'Landroid/graphics/SurfaceTexture',
-
-      'ChromeViewClient':
       'Lorg/chromium/chromeview/ChromeViewClient',
-
-      'JSModalDialog':
       'Lcom/android/chrome/JSModalDialog',
-
-      'NativeInfoBar':
       'Lcom/android/chrome/infobar/InfoBarContainer$NativeInfoBar',
-
-      'OmniboxSuggestion':
       'Lcom/android/chrome/OmniboxSuggestion',
-
-      'PasswordListObserver':
-      'Lorg/chromium/chromeview/ChromePreferences$PasswordListObserver',
-
-      'SandboxedProcessArgs': 'Lorg/chromium/chromeview/SandboxedProcessArgs',
-
-      'SandboxedProcessConnection':
+      ('Lcom/android/chrome/preferences/ChromeNativePreferences$'
+       'PasswordListObserver'),
+      'Lorg/chromium/chromeview/SandboxedProcessArgs',
       'Lorg/chromium/chromeview/SandboxedProcessConnection',
-
-      'SandboxedProcessService':
       'Lorg/chromium/chromeview/SandboxedProcessService',
-
-      'BookmarkNode': 'Lcom/android/chrome/ChromeBrowserProvider$BookmarkNode',
-
-      'SQLiteCursor': 'Lcom/android/chrome/database/SQLiteCursor',
-
-      'FindResultReceivedListener.FindNotificationDetails':
+      'Lcom/android/chrome/ChromeBrowserProvider$BookmarkNode',
+      'Lcom/android/chrome/database/SQLiteCursor',
       ('Lorg/chromium/chromeview/ChromeView$'
        'FindResultReceivedListener$FindNotificationDetails'),
-
-      'ChromeViewContextMenuInfo':
       'Lorg/chromium/chromeview/ChromeView$ChromeViewContextMenuInfo',
-
-      'AutofillData': 'Lorg/chromium/chromeview/AutofillData',
-
-      'JavaInputStream': 'Lorg/chromium/chromeview/JavaInputStream',
-
-      'ChromeVideoView': 'Lorg/chromium/chromeview/ChromeVideoView',
-
-      'ChromeHttpAuthHandler': 'Lorg/chromium/chromeview/ChromeHttpAuthHandler',
-  }
+      'Lorg/chromium/chromeview/AutofillData',
+      'Lorg/chromium/chromeview/JavaInputStream',
+      'Lorg/chromium/chromeview/ChromeVideoView',
+      'Lorg/chromium/chromeview/ChromeHttpAuthHandler',
+      'Lorg/chromium/base/SystemMessageHandler',
+      'Lorg/chromium/chromeview/SelectFileDialog',
+      'Lorg/chromium/chromeview/SurfaceTextureListener',
+      'Lorg/chromium/chromeview/DeviceOrientation',
+      'Lorg/chromium/chromeview/MediaPlayerListener',
+      'Lorg/chromium/chromeview/DeviceInfo',
+      'Lorg/chromium/chromeview/LocationProvider',
+      'Lcom/android/chrome/PageInfoViewer',
+  ]
   if param == 'byte[][]':
     return '[[B'
   prefix = ''
@@ -211,10 +189,10 @@ def JavaParamToJni(param):
     param = param[:param.index('<')]
   if param in pod_param_map:
     return prefix + pod_param_map[param]
-  elif param in object_param_map:
-    return prefix + object_param_map[param] + ';'
-  elif param in app_param_map:
-    return prefix + app_param_map[param] + ';'
+  for qualified_name in object_param_list + app_param_list:
+    if (qualified_name.endswith('/' + param) or
+        qualified_name.endswith('$' + param.replace('.', '$'))):
+      return prefix + qualified_name + ';'
   else:
     return UNKNOWN_JAVA_TYPE_PREFIX + prefix + param + ';'
 
