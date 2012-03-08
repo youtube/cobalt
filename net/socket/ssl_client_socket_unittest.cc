@@ -773,6 +773,57 @@ TEST_F(SSLClientSocketTest, ClientSocketHandleNotFromPool) {
   EXPECT_EQ(net::OK, rv);
 }
 
+// Verifies that SSLClientSocket::ExportKeyingMaterial return a success
+// code and different keying label results in different keying material.
+TEST_F(SSLClientSocketTest, ExportKeyingMaterial) {
+  net::TestServer test_server(net::TestServer::TYPE_HTTPS,
+                              net::TestServer::kLocalhost,
+                              FilePath());
+  ASSERT_TRUE(test_server.Start());
+
+  net::AddressList addr;
+  ASSERT_TRUE(test_server.GetAddressList(&addr));
+
+  net::TestCompletionCallback callback;
+
+  net::StreamSocket* transport = new net::TCPClientSocket(
+      addr, NULL, net::NetLog::Source());
+  int rv = transport->Connect(callback.callback());
+  if (rv == net::ERR_IO_PENDING)
+    rv = callback.WaitForResult();
+  EXPECT_EQ(net::OK, rv);
+
+  net::SSLClientSocketContext context;
+  context.cert_verifier = cert_verifier_.get();
+  scoped_ptr<net::SSLClientSocket> sock(
+      socket_factory_->CreateSSLClientSocket(
+          transport, test_server.host_port_pair(), kDefaultSSLConfig,
+          NULL, context));
+
+  rv = sock->Connect(callback.callback());
+  if (rv == net::ERR_IO_PENDING)
+    rv = callback.WaitForResult();
+  EXPECT_EQ(net::OK, rv);
+  EXPECT_TRUE(sock->IsConnected());
+
+  const int kKeyingMaterialSize = 32;
+  const char* kKeyingLabel1 = "client-socket-test-1";
+  const char* kKeyingContext = "";
+  unsigned char client_out1[kKeyingMaterialSize];
+  memset(client_out1, 0, sizeof(client_out1));
+  rv = sock->ExportKeyingMaterial(kKeyingLabel1, kKeyingContext,
+                                  client_out1, sizeof(client_out1));
+  EXPECT_EQ(rv, net::OK);
+
+  const char* kKeyingLabel2 = "client-socket-test-2";
+  unsigned char client_out2[kKeyingMaterialSize];
+  memset(client_out2, 0, sizeof(client_out2));
+  rv = sock->ExportKeyingMaterial(kKeyingLabel2, kKeyingContext,
+                                  client_out2, sizeof(client_out2));
+  EXPECT_EQ(rv, net::OK);
+  EXPECT_NE(memcmp(client_out1, client_out2, kKeyingMaterialSize), 0);
+}
+
 // Verifies that SSLClientSocket::ClearSessionCache can be called without
 // explicit NSS initialization.
 TEST(SSLClientSocket, ClearSessionCache) {
