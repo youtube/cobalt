@@ -4,6 +4,10 @@
 
 #include "base/logging.h"
 #include "media/base/data_buffer.h"
+#include "media/base/decrypt_config.h"
+#if !defined(OS_ANDROID)
+#include "media/ffmpeg/ffmpeg_common.h"
+#endif
 
 namespace media {
 
@@ -27,12 +31,33 @@ DataBuffer::DataBuffer(size_t buffer_size)
 DataBuffer::~DataBuffer() {
 }
 
+scoped_refptr<DataBuffer> DataBuffer::CopyFrom(const uint8* data,
+                                               size_t data_size) {
+  size_t padding_size = 0;
+#if !defined(OS_ANDROID)
+  // Why FF_INPUT_BUFFER_PADDING_SIZE? FFmpeg assumes all input buffers are
+  // padded with this value.
+  padding_size = FF_INPUT_BUFFER_PADDING_SIZE;
+#endif
+
+  scoped_refptr<DataBuffer> data_buffer(
+      new DataBuffer(data_size + padding_size));
+  memcpy(data_buffer->data_.get(), data, data_size);
+  memset(data_buffer->data_.get() + data_size, 0, padding_size);
+  data_buffer->SetDataSize(data_size);
+  return data_buffer;
+}
+
 const uint8* DataBuffer::GetData() const {
   return data_.get();
 }
 
 size_t DataBuffer::GetDataSize() const {
   return data_size_;
+}
+
+const DecryptConfig* DataBuffer::GetDecryptConfig() const {
+  return decrypt_config_.get();
 }
 
 uint8* DataBuffer::GetWritableData() {
@@ -47,6 +72,10 @@ void DataBuffer::SetDataSize(size_t data_size) {
 
 size_t DataBuffer::GetBufferSize() const {
   return buffer_size_;
+}
+
+void DataBuffer::SetDecryptConfig(scoped_ptr<DecryptConfig> decrypt_config) {
+  decrypt_config_ = decrypt_config.Pass();
 }
 
 }  // namespace media

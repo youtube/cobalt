@@ -14,4 +14,8 @@ bool Buffer::IsEndOfStream() const {
   return GetData() == NULL;
 }
 
+const DecryptConfig* Buffer::GetDecryptConfig() const {
+  return NULL;
+}
+
 }  // namespace media

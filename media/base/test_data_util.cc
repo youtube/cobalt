@@ -7,6 +7,8 @@
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "base/path_service.h"
+#include "media/base/buffers.h"
+#include "media/base/data_buffer.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 
 namespace media {
@@ -51,11 +53,19 @@ void ReadTestDataFile(const std::string& name, scoped_array<uint8>* buffer,
   *size = file_size;
 }
 
-void ReadTestDataFile(const std::string& name, scoped_refptr<Buffer>* buffer) {
+void ReadTestDataFile(const std::string& name,
+                      scoped_refptr<DataBuffer>* buffer) {
   scoped_array<uint8> buf;
   int buf_size;
   ReadTestDataFile(name, &buf, &buf_size);
   *buffer = new DataBuffer(buf.Pass(), buf_size);
+}
+
+void ReadTestDataFile(const std::string& name,
+                      scoped_refptr<Buffer>* buffer) {
+  scoped_refptr<DataBuffer> data_buffer;
+  ReadTestDataFile(name, &data_buffer);
+  *buffer = data_buffer;
 }
 
 }  // namespace media

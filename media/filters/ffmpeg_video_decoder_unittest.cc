@@ -9,6 +9,7 @@
 #include "base/memory/singleton.h"
 #include "base/string_util.h"
 #include "media/base/data_buffer.h"
+#include "media/base/decrypt_config.h"
 #include "media/base/filters.h"
 #include "media/base/limits.h"
 #include "media/base/mock_callback.h"
@@ -36,6 +37,9 @@ static const gfx::Rect kVisibleRect(320, 240);
 static const gfx::Size kNaturalSize(522, 288);
 static const AVRational kFrameRate = { 100, 1 };
 static const AVRational kAspectRatio = { 1, 1 };
+static const int kKeySize = 16;
+static const unsigned char kRawKey[] = "A wonderful key!";
+static const unsigned char kWrongKey[] = "I'm a wrong key.";
 
 ACTION_P(ReturnBuffer, buffer) {
   arg0.Run(buffer);
@@ -57,6 +61,8 @@ class FFmpegVideoDecoderTest : public testing::Test {
     end_of_stream_buffer_ = new DataBuffer(0);
     ReadTestDataFile("vp8-I-frame-320x240", &i_frame_buffer_);
     ReadTestDataFile("vp8-corrupt-I-frame", &corrupt_i_frame_buffer_);
+    ReadTestDataFile("vp8-encrypted-I-frame-320x240",
+                     &encrypted_i_frame_buffer_);
 
     config_.Initialize(kCodecVP8, VIDEO_CODEC_PROFILE_UNKNOWN,
                        kVideoFormat, kCodedSize, kVisibleRect,
@@ -203,6 +209,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
   scoped_refptr<Buffer> end_of_stream_buffer_;
   scoped_refptr<Buffer> i_frame_buffer_;
   scoped_refptr<Buffer> corrupt_i_frame_buffer_;
+  scoped_refptr<DataBuffer> encrypted_i_frame_buffer_;
 
   // Used for generating timestamped buffers.
   std::deque<int64> timestamps_;
@@ -285,7 +292,7 @@ TEST_F(FFmpegVideoDecoderTest, DecodeFrame_0ByteFrame) {
 
   ASSERT_TRUE(video_frame_a);
   ASSERT_TRUE(video_frame_b);
-  ASSERT_TRUE(video_frame_a);
+  ASSERT_TRUE(video_frame_c);
 
   EXPECT_FALSE(video_frame_a->IsEndOfStream());
   EXPECT_FALSE(video_frame_b->IsEndOfStream());
@@ -352,6 +359,66 @@ TEST_F(FFmpegVideoDecoderTest, DecodeFrame_LargerHeight) {
 // the output size was adjusted.
 TEST_F(FFmpegVideoDecoderTest, DecodeFrame_SmallerHeight) {
   DecodeIFrameThenTestFile("vp8-I-frame-320x120", 320, 120);
+}
+
+TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_Normal) {
+  Initialize();
+
+  // Simulate decoding a single encrypted frame.
+  encrypted_i_frame_buffer_->SetDecryptConfig(
+      scoped_ptr<DecryptConfig>(new DecryptConfig(kRawKey, kKeySize)));
+  scoped_refptr<VideoFrame> video_frame;
+  DecodeSingleFrame(encrypted_i_frame_buffer_, &video_frame);
+
+  ASSERT_TRUE(video_frame);
+  EXPECT_FALSE(video_frame->IsEndOfStream());
+}
+
+// No key was provided with the encrypted frame. The decoder will mistakenly
+// assume the frame is not encrypted.  The behavior should be the same as
+// decoding a corrupted frame.
+TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_NoKey) {
+  Initialize();
+
+  EXPECT_CALL(*demuxer_, Read(_))
+      .WillRepeatedly(ReturnBuffer(encrypted_i_frame_buffer_));
+
+  // The error is only raised on the second decode attempt, so we expect at
+  // least one successful decode but we don't expect FrameReady() to be
+  // executed as an error is raised instead.
+  EXPECT_CALL(statistics_callback_, OnStatistics(_));
+  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
+
+  // Our read should still get satisfied with end of stream frame during an
+  // error.
+  scoped_refptr<VideoFrame> video_frame;
+  Read(&video_frame);
+  ASSERT_TRUE(video_frame);
+  EXPECT_TRUE(video_frame->IsEndOfStream());
+
+  message_loop_.RunAllPending();
+}
+
+// Test decrypting a encrypted frame with a wrong key.
+TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_WrongKey) {
+  Initialize();
+
+  encrypted_i_frame_buffer_->SetDecryptConfig(
+      scoped_ptr<DecryptConfig>(new DecryptConfig(kWrongKey, kKeySize)));
+
+  EXPECT_CALL(*demuxer_, Read(_))
+      .WillRepeatedly(ReturnBuffer(encrypted_i_frame_buffer_));
+
+  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
+
+  // Our read should still get satisfied with end of stream frame during an
+  // error.
+  scoped_refptr<VideoFrame> video_frame;
+  Read(&video_frame);
+  ASSERT_TRUE(video_frame);
+  EXPECT_TRUE(video_frame->IsEndOfStream());
+
+  message_loop_.RunAllPending();
 }
 
 // Test pausing when decoder has initialized but not decoded.

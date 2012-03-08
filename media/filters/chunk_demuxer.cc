@@ -711,7 +711,6 @@ bool ChunkDemuxer::OnNewVideoConfig(const VideoDecoderConfig& config) {
   return true;
 }
 
-
 bool ChunkDemuxer::OnAudioBuffers(const BufferQueue& buffers) {
   if (!audio_.get())
     return false;

@@ -7,6 +7,7 @@
 #include "base/bind.h"
 #include "base/message_loop.h"
 #include "base/stringprintf.h"
+#include "media/base/data_buffer.h"
 #include "media/base/mock_callback.h"
 #include "media/base/mock_filters.h"
 #include "media/base/test_data_util.h"
