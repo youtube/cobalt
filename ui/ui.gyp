@@ -92,6 +92,8 @@
         'base/cocoa/events_mac.mm',
         'base/cocoa/focus_tracker.h',
         'base/cocoa/focus_tracker.mm',
+        'base/cocoa/find_pasteboard.h',
+        'base/cocoa/find_pasteboard.mm',
         'base/dragdrop/cocoa_dnd_util.h',
         'base/dragdrop/cocoa_dnd_util.mm',
         'base/dragdrop/drag_drop_types_gtk.cc',
