@@ -789,10 +789,6 @@ TEST(SSLClientSocket, ClearSessionCache) {
 // the same public key as C. redundant-server-chain.pem should therefore
 // validate as A -> B -> C2. If it does, this test passes.
 //
-// Note that although it is a violation of the TLS specification to send a
-// mal-ordered chain, in practice most clients don't hard-fail on it and
-// some servers do send such chains.
-//
 // This test is the upper-layer analogue for
 // X509CertificateTest.VerifyReturnChainProperlyOrdered.
 #if defined(OS_MACOSX)
@@ -802,7 +798,13 @@ TEST(SSLClientSocket, ClearSessionCache) {
 #define MAYBE_VerifyReturnChainProperlyOrdered \
     DISABLED_VerifyReturnChainProperlyOrdered
 #elif defined(OS_ANDROID)
-// TODO(joth)
+// TODO(jnd): http://crbug.com/116838 - Requires support of Android APIs
+#define MAYBE_VerifyReturnChainProperlyOrdered \
+    DISABLED_VerifyReturnChainProperlyOrdered
+#elif defined(USE_OPENSSL)
+// TODO(jnd): http://crbug.com/117196 - OpenSSL doesn't support arbitrary
+// trust anchors or cross-signed certificate chain path building until
+// OpenSSL 1.1.0.
 #define MAYBE_VerifyReturnChainProperlyOrdered \
     DISABLED_VerifyReturnChainProperlyOrdered
 #else
