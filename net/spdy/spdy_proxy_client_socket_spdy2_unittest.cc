@@ -18,6 +18,7 @@
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/tcp_client_socket.h"
 #include "net/socket/socket_test_util.h"
+#include "net/spdy/buffered_spdy_framer.h"
 #include "net/spdy/spdy_http_utils.h"
 #include "net/spdy/spdy_protocol.h"
 #include "net/spdy/spdy_session_pool.h"
@@ -114,7 +115,7 @@ class SpdyProxyClientSocketSpdy2Test : public PlatformTest {
   MockConnect connect_data_;
   scoped_refptr<SpdySession> spdy_session_;
   scoped_refptr<SpdyStream> spdy_stream_;
-  spdy::SpdyFramer framer_;
+  spdy::BufferedSpdyFramer framer_;
 
   std::string user_agent_;
   GURL url_;
@@ -136,7 +137,7 @@ SpdyProxyClientSocketSpdy2Test::SpdyProxyClientSocketSpdy2Test()
       connect_data_(SYNCHRONOUS, OK),
       spdy_session_(NULL),
       spdy_stream_(NULL),
-      framer_(),
+      framer_(2),
       user_agent_(kUserAgent),
       url_(kUrl),
       proxy_host_port_(kProxyHost, kProxyPort),
