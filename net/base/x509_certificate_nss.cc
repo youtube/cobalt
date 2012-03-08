@@ -248,7 +248,7 @@ void GetCertChainInfo(CERTCertList* cert_list,
 // IsKnownRoot returns true if the given certificate is one that we believe
 // is a standard (as opposed to user-installed) root.
 bool IsKnownRoot(CERTCertificate* root) {
-  if (!root->slot)
+  if (!root || !root->slot)
     return false;
 
   // This magic name is taken from
@@ -700,7 +700,8 @@ void AppendPublicKeyHashes(CERTCertList* cert_list,
        node = CERT_LIST_NEXT(node)) {
     hashes->push_back(CertPublicKeyHash(node->cert));
   }
-  hashes->push_back(CertPublicKeyHash(root_cert));
+  if (root_cert)
+    hashes->push_back(CertPublicKeyHash(root_cert));
 }
 
 }  // namespace
