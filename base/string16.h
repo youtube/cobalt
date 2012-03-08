@@ -164,7 +164,8 @@ struct string16_char_traits {
 //
 // TODO(mark): File this bug with Apple and update this note with a bug number.
 
-extern template class std::basic_string<char16, base::string16_char_traits>;
+extern template
+class BASE_EXPORT std::basic_string<char16, base::string16_char_traits>;
 
 typedef std::basic_string<char16, base::string16_char_traits> string16;
 
