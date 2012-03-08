@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -171,6 +171,9 @@ typedef std::basic_string<char16, base::string16_char_traits> string16;
 namespace base {
 BASE_EXPORT extern std::ostream& operator<<(std::ostream& out,
                                             const string16& str);
+
+// This is required by googletest to print a readable output on test failures.
+BASE_EXPORT extern void PrintTo(const string16& str, std::ostream* out);
 }
 
 #endif  // WCHAR_T_IS_UTF32
