@@ -26,7 +26,8 @@ class SQL_EXPORT MetaTable {
 
   // Initializes the MetaTableHelper, creating the meta table if necessary. For
   // new tables, it will initialize the version number to |version| and the
-  // compatible version number to |compatible_version|.
+  // compatible version number to |compatible_version|.  Versions must be
+  // greater than 0 to distinguish missing versions (see GetVersionNumber()).
   bool Init(Connection* db, int version, int compatible_version);
 
   // Resets this MetaTable object, making another call to Init() possible.
