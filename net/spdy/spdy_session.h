@@ -232,9 +232,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   // Indicates whether the session is being reused after having successfully
   // used to send/receive data in the past.
-  bool IsReused() const {
-    return buffered_spdy_framer_.frames_received() > 0;
-  }
+  bool IsReused() const;
 
   // Returns true if the underlying transport socket ever had any reads or
   // writes.
@@ -551,7 +549,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   int certificate_error_code_;
 
   // Spdy Frame state.
-  spdy::BufferedSpdyFramer buffered_spdy_framer_;
+  scoped_ptr<spdy::BufferedSpdyFramer> buffered_spdy_framer_;
 
   // If an error has occurred on the session, the session is effectively
   // dead.  Record this error here.  When no error has occurred, |error_| will
