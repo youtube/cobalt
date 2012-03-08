@@ -412,24 +412,23 @@ TEST_F(ProcessUtilTest, GetAppOutput) {
                                     // boundary.
     message += "Hello!";
   }
+  // cmd.exe's echo always adds a \r\n to its output.
+  std::string expected(message);
+  expected += "\r\n";
 
-  FilePath python_runtime;
-  ASSERT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &python_runtime));
-  python_runtime = python_runtime.Append(FILE_PATH_LITERAL("third_party"))
-                                 .Append(FILE_PATH_LITERAL("python_26"))
-                                 .Append(FILE_PATH_LITERAL("python.exe"));
-
-  CommandLine cmd_line(python_runtime);
-  cmd_line.AppendArg("-c");
-  cmd_line.AppendArg("import sys; sys.stdout.write('" + message + "');");
+  FilePath cmd(L"cmd.exe");
+  CommandLine cmd_line(cmd);
+  cmd_line.AppendArg("/c");
+  cmd_line.AppendArg("echo " + message + "");
   std::string output;
   ASSERT_TRUE(base::GetAppOutput(cmd_line, &output));
-  EXPECT_EQ(message, output);
+  EXPECT_EQ(expected, output);
 
   // Let's make sure stderr is ignored.
-  CommandLine other_cmd_line(python_runtime);
-  other_cmd_line.AppendArg("-c");
-  other_cmd_line.AppendArg("import sys; sys.stderr.write('Hello!');");
+  CommandLine other_cmd_line(cmd);
+  other_cmd_line.AppendArg("/c");
+  // http://msdn.microsoft.com/library/cc772622.aspx
+  cmd_line.AppendArg("echo " + message + " >&2");
   output.clear();
   ASSERT_TRUE(base::GetAppOutput(other_cmd_line, &output));
   EXPECT_EQ("", output);
