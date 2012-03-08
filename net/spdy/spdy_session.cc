@@ -390,13 +390,11 @@ net::Error SpdySession::InitializeWithSocket(
         reinterpret_cast<SSLClientSocket*>(connection_->socket());
     DCHECK(ssl_socket);
 
-    // For SPDY 2.1 and above versions, flow control is enabled by default and
-    // for older versions, flow control is disabled by default. Unit tests can
-    // either enable or disable flow_control_ by setting the use_flow_control_.
-    if (ssl_socket->protocol_negotiated() >= SSLClientSocket::kProtoSPDY21)
-      flow_control_ = (use_flow_control_ != SpdySession::kDisableFlowControl);
-    else
-      flow_control_ = (use_flow_control_ == SpdySession::kEnableFlowControl);
+    SSLClientSocket::NextProto protocol_negotiated =
+        ssl_socket->protocol_negotiated();
+    if (protocol_negotiated != SSLClientSocket::kProtoUnknown)
+      flow_control_ = (protocol_negotiated >= SSLClientSocket::kProtoSPDY21);
+
     if (ssl_socket->WasOriginBoundCertSent()) {
       // According to the SPDY spec, the credential associated with the TLS
       // connection is stored in slot[0].
