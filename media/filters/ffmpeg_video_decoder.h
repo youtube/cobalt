@@ -9,6 +9,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "media/base/filters.h"
+#include "media/crypto/aes_decryptor.h"
 #include "ui/gfx/size.h"
 
 class MessageLoop;
@@ -89,6 +90,8 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
 
   // Pointer to the demuxer stream that will feed us compressed buffers.
   scoped_refptr<DemuxerStream> demuxer_stream_;
+
+  AesDecryptor decryptor_;
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegVideoDecoder);
 };

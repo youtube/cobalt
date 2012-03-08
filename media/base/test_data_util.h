@@ -8,10 +8,13 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "media/base/data_buffer.h"
 
 namespace media {
+
+class Buffer;
+class DataBuffer;
 
 // Returns a URL path for a file in the media/test/data directory.
 std::string GetTestDataURL(const std::string& name);
@@ -25,6 +28,14 @@ std::string GetTestDataURL(const std::string& name);
 void ReadTestDataFile(const std::string& name,
                       scoped_array<uint8>* buffer,
                       int* size);
+
+// Reads a test file from media/test/data directory and stores it in
+// a DataBuffer.
+//
+//  |name| - The name of the file.
+//  |buffer| - The contents of the file.
+void ReadTestDataFile(const std::string& name,
+                      scoped_refptr<DataBuffer>* buffer);
 
 // Reads a test file from media/test/data directory and stores it in
 // a Buffer.

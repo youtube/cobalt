@@ -11,6 +11,7 @@
 #include "media/filters/in_memory_url_protocol.h"
 #include "media/webm/webm_cluster_parser.h"
 #include "media/webm/webm_constants.h"
+#include "media/webm/webm_content_encodings.h"
 #include "media/webm/webm_info_parser.h"
 #include "media/webm/webm_tracks_parser.h"
 
@@ -33,6 +34,10 @@ class FFmpegConfigHelper {
   const VideoDecoderConfig& video_config() const;
 
  private:
+  static const uint8 kWebMHeader[];
+  static const int kSegmentSizeOffset;
+  static const uint8 kEmptyCluster[];
+
   AVFormatContext* CreateFormatContext(const uint8* data, int size);
   bool SetupStreamConfigs();
 
@@ -49,10 +54,6 @@ class FFmpegConfigHelper {
   // avformat_open_input() during demuxer initialization and cleaned up with
   // DestroyAVFormatContext() in the destructor.
   AVFormatContext* format_context_;
-
-  static const uint8 kWebMHeader[];
-  static const int kSegmentSizeOffset;
-  static const uint8 kEmptyCluster[];
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegConfigHelper);
 };
@@ -305,7 +306,9 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8* data, int size) {
       tracks_parser.audio_track_num(),
       tracks_parser.audio_default_duration(),
       tracks_parser.video_track_num(),
-      tracks_parser.video_default_duration()));
+      tracks_parser.video_default_duration(),
+      tracks_parser.video_encryption_key_id(),
+      tracks_parser.video_encryption_key_id_size()));
 
   ChangeState(PARSING_CLUSTERS);
   init_cb_.Run(true, duration);

@@ -79,6 +79,16 @@ class PipelineIntegrationTest
     : public testing::Test,
       public PipelineIntegrationTestBase {
  public:
+  void StartPipelineWithMediaSource(MockMediaSource& source) {
+    pipeline_->Start(
+        CreateFilterCollection(&source), source.url(),
+        base::Bind(&PipelineIntegrationTest::OnEnded, base::Unretained(this)),
+        base::Bind(&PipelineIntegrationTest::OnError, base::Unretained(this)),
+        NetworkEventCB(), QuitOnStatusCB(PIPELINE_OK));
+
+    message_loop_.Run();
+  }
+
   // Verifies that seeking works properly for ChunkDemuxer when the
   // seek happens while there is a pending read on the ChunkDemuxer
   // and no data is available.
@@ -89,15 +99,7 @@ class PipelineIntegrationTest
                           int seek_file_position,
                           int seek_append_size) {
     MockMediaSource source(filename, initial_append_size);
-
-    pipeline_->Start(CreateFilterCollection(&source), source.url(),
-                     base::Bind(&PipelineIntegrationTest::OnEnded,
-                                base::Unretained(this)),
-                     base::Bind(&PipelineIntegrationTest::OnError,
-                                base::Unretained(this)),
-                     NetworkEventCB(),
-                     QuitOnStatusCB(PIPELINE_OK));
-    message_loop_.Run();
+    StartPipelineWithMediaSource(source);
 
     if (pipeline_status_ != PIPELINE_OK)
       return false;
@@ -125,6 +127,20 @@ TEST_F(PipelineIntegrationTest, BasicPlayback) {
   Play();
 
   ASSERT_TRUE(WaitUntilOnEnded());
+}
+
+TEST_F(PipelineIntegrationTest, EncryptedPlayback) {
+  MockMediaSource source("bear-320x240-encrypted.webm", 219726);
+  StartPipelineWithMediaSource(source);
+
+  source.EndOfStream();
+  ASSERT_EQ(PIPELINE_OK, pipeline_status_);
+
+  Play();
+
+  ASSERT_TRUE(WaitUntilOnEnded());
+  source.Abort();
+  Stop();
 }
 
 // TODO(acolwell): Fix flakiness http://crbug.com/109875

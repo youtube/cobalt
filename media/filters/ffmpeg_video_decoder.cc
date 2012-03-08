@@ -256,8 +256,19 @@ void FFmpegVideoDecoder::DoDecodeBuffer(const scoped_refptr<Buffer>& buffer) {
     state_ = kFlushCodec;
   }
 
+  scoped_refptr<Buffer> unencrypted_buffer = buffer;
+  if (buffer->GetDecryptConfig() && buffer->GetDataSize()) {
+    unencrypted_buffer = decryptor_.Decrypt(buffer);
+    if (!unencrypted_buffer || !unencrypted_buffer->GetDataSize()) {
+      state_ = kDecodeFinished;
+      DeliverFrame(VideoFrame::CreateEmptyFrame());
+      host()->SetError(PIPELINE_ERROR_DECODE);
+      return;
+    }
+  }
+
   scoped_refptr<VideoFrame> video_frame;
-  if (!Decode(buffer, &video_frame)) {
+  if (!Decode(unencrypted_buffer, &video_frame)) {
     state_ = kDecodeFinished;
     DeliverFrame(VideoFrame::CreateEmptyFrame());
     host()->SetError(PIPELINE_ERROR_DECODE);

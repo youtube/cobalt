@@ -24,9 +24,13 @@ class MEDIA_EXPORT DataBuffer : public Buffer {
   // set to a NULL ptr.
   explicit DataBuffer(size_t buffer_size);
 
+  // Create a DataBuffer whose |data_| is copied from |data|.
+  static scoped_refptr<DataBuffer> CopyFrom(const uint8* data, size_t size);
+
   // Buffer implementation.
   virtual const uint8* GetData() const OVERRIDE;
   virtual size_t GetDataSize() const OVERRIDE;
+  virtual const DecryptConfig* GetDecryptConfig() const OVERRIDE;
 
   // Returns a read-write pointer to the buffer data.
   virtual uint8* GetWritableData();
@@ -38,6 +42,8 @@ class MEDIA_EXPORT DataBuffer : public Buffer {
   // Returns the size of the underlying buffer.
   virtual size_t GetBufferSize() const;
 
+  virtual void SetDecryptConfig(scoped_ptr<DecryptConfig> decrypt_config);
+
  protected:
   virtual ~DataBuffer();
 
@@ -45,6 +51,7 @@ class MEDIA_EXPORT DataBuffer : public Buffer {
   scoped_array<uint8> data_;
   size_t buffer_size_;
   size_t data_size_;
+  scoped_ptr<DecryptConfig> decrypt_config_;
 
   DISALLOW_COPY_AND_ASSIGN(DataBuffer);
 };

@@ -36,6 +36,9 @@ class WebMTracksParser : public WebMParserClient {
     return video_default_duration_;
   }
 
+  const uint8* video_encryption_key_id() const;
+  int video_encryption_key_id_size() const;
+
  private:
   // WebMParserClient methods
   virtual WebMParserClient* OnListStart(int id) OVERRIDE;

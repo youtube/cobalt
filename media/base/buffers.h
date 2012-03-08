@@ -34,6 +34,8 @@
 
 namespace media {
 
+class DecryptConfig;
+
 // Indicates an invalid or missing timestamp.
 MEDIA_EXPORT extern inline base::TimeDelta kNoTimestamp() {
   return base::TimeDelta::FromMicroseconds(kint64min);
@@ -84,7 +86,6 @@ class MEDIA_EXPORT StreamSample
   DISALLOW_COPY_AND_ASSIGN(StreamSample);
 };
 
-
 class MEDIA_EXPORT Buffer : public StreamSample {
  public:
   // Returns a read only pointer to the buffer data.
@@ -95,6 +96,9 @@ class MEDIA_EXPORT Buffer : public StreamSample {
 
   // If there's no data in this buffer, it represents end of stream.
   virtual bool IsEndOfStream() const OVERRIDE;
+
+  // Return DecryptConfig if buffer is encrypted, or NULL otherwise.
+  virtual const DecryptConfig* GetDecryptConfig() const;
 
  protected:
   virtual ~Buffer() {}
