@@ -8,6 +8,7 @@
 #include "base/string_util.h"
 #include "sql/connection.h"
 #include "sql/statement.h"
+#include "sql/transaction.h"
 
 namespace sql {
 
@@ -30,6 +31,17 @@ bool MetaTable::DoesTableExist(sql::Connection* db) {
 bool MetaTable::Init(Connection* db, int version, int compatible_version) {
   DCHECK(!db_ && db);
   db_ = db;
+
+  // If values stored are null or missing entirely, 0 will be reported.
+  // Require new clients to start with a greater initial version.
+  DCHECK_GT(version, 0);
+  DCHECK_GT(compatible_version, 0);
+
+  // Make sure the table is created an populated atomically.
+  sql::Transaction transaction(db_);
+  if (!transaction.Begin())
+    return false;
+
   if (!DoesTableExist(db)) {
     if (!db_->Execute("CREATE TABLE meta"
         "(key LONGVARCHAR NOT NULL UNIQUE PRIMARY KEY, value LONGVARCHAR)"))
@@ -41,7 +53,7 @@ bool MetaTable::Init(Connection* db, int version, int compatible_version) {
     SetVersionNumber(version);
     SetCompatibleVersionNumber(compatible_version);
   }
-  return true;
+  return transaction.Commit();
 }
 
 void MetaTable::Reset() {
@@ -49,6 +61,7 @@ void MetaTable::Reset() {
 }
 
 void MetaTable::SetVersionNumber(int version) {
+  DCHECK_GT(version, 0);
   SetValue(kVersionKey, version);
 }
 
@@ -58,6 +71,7 @@ int MetaTable::GetVersionNumber() {
 }
 
 void MetaTable::SetCompatibleVersionNumber(int version) {
+  DCHECK_GT(version, 0);
   SetValue(kCompatibleVersionKey, version);
 }
 
