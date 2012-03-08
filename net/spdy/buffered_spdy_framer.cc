@@ -8,8 +8,9 @@
 
 namespace spdy {
 
-BufferedSpdyFramer::BufferedSpdyFramer()
-    : visitor_(NULL),
+BufferedSpdyFramer::BufferedSpdyFramer(int version)
+    : spdy_framer_(),
+      visitor_(NULL),
       header_buffer_used_(0),
       header_buffer_valid_(false),
       header_stream_id_(SpdyFramer::kInvalidStream),
@@ -39,19 +40,19 @@ void BufferedSpdyFramer::OnControl(const SpdyControlFrame* frame) {
     case HEADERS:
       InitHeaderStreaming(frame);
       break;
-    case spdy::GOAWAY:
+    case GOAWAY:
       visitor_->OnGoAway(
           *reinterpret_cast<const spdy::SpdyGoAwayControlFrame*>(frame));
       break;
-    case spdy::PING:
+    case PING:
       visitor_->OnPing(
           *reinterpret_cast<const spdy::SpdyPingControlFrame*>(frame));
       break;
-    case spdy::SETTINGS:
+    case SETTINGS:
       visitor_->OnSettings(
           *reinterpret_cast<const spdy::SpdySettingsControlFrame*>(frame));
       break;
-    case spdy::RST_STREAM:
+    case RST_STREAM:
       visitor_->OnRstStream(
           *reinterpret_cast<const spdy::SpdyRstStreamControlFrame*>(frame));
       break;
@@ -80,7 +81,7 @@ bool BufferedSpdyFramer::OnControlFrameHeaderData(SpdyStreamId stream_id,
     CHECK(header_buffer_valid_);
 
     const linked_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
-    bool parsed_headers = SpdyFramer::ParseHeaderBlockInBuffer(
+    bool parsed_headers = spdy_framer_.ParseHeaderBlockInBuffer(
         header_buffer_, header_buffer_used_, headers.get());
     if (!parsed_headers) {
       visitor_->OnStreamError(
@@ -135,6 +136,9 @@ void BufferedSpdyFramer::OnStreamFrameData(SpdyStreamId stream_id,
   visitor_->OnStreamFrameData(stream_id, data, len);
 }
 
+int BufferedSpdyFramer::protocol_version() {
+  return spdy_framer_.protocol_version();
+}
 
 size_t BufferedSpdyFramer::ProcessInput(const char* data, size_t len) {
   return spdy_framer_.ProcessInput(data, len);
@@ -184,12 +188,44 @@ SpdySynReplyControlFrame* BufferedSpdyFramer::CreateSynReply(
   return spdy_framer_.CreateSynReply(stream_id, flags, compressed, headers);
 }
 
+SpdyRstStreamControlFrame* BufferedSpdyFramer::CreateRstStream(
+    SpdyStreamId stream_id,
+    SpdyStatusCodes status) const {
+  return spdy_framer_.CreateRstStream(stream_id, status);
+}
+
+SpdySettingsControlFrame* BufferedSpdyFramer::CreateSettings(
+    const SpdySettings& values) const {
+  return spdy_framer_.CreateSettings(values);
+}
+
+SpdyPingControlFrame* BufferedSpdyFramer::CreatePingFrame(
+    uint32 unique_id) const {
+  return spdy_framer_.CreatePingFrame(unique_id);
+}
+
+SpdyGoAwayControlFrame* BufferedSpdyFramer::CreateGoAway(
+    SpdyStreamId last_accepted_stream_id) const {
+  return spdy_framer_.CreateGoAway(last_accepted_stream_id);
+}
+
 SpdyHeadersControlFrame* BufferedSpdyFramer::CreateHeaders(
     SpdyStreamId stream_id,
     SpdyControlFlags flags,
     bool compressed,
     const SpdyHeaderBlock* headers) {
   return spdy_framer_.CreateHeaders(stream_id, flags, compressed, headers);
+}
+
+SpdyWindowUpdateControlFrame* BufferedSpdyFramer::CreateWindowUpdate(
+    SpdyStreamId stream_id,
+    uint32 delta_window_size) const {
+  return spdy_framer_.CreateWindowUpdate(stream_id, delta_window_size);
+}
+
+SpdyCredentialControlFrame* BufferedSpdyFramer::CreateCredentialFrame(
+    const spdy::SpdyCredential& credential) const {
+  return spdy_framer_.CreateCredentialFrame(credential);
 }
 
 SpdyDataFrame* BufferedSpdyFramer::CreateDataFrame(SpdyStreamId stream_id,

@@ -4,7 +4,7 @@
 
 #include "net/spdy/spdy_websocket_test_util_spdy2.h"
 
-#include "net/spdy/spdy_framer.h"
+#include "net/spdy/buffered_spdy_framer.h"
 #include "net/spdy/spdy_http_utils.h"
 #include "net/spdy/spdy_test_util_spdy2.h"
 
@@ -84,7 +84,7 @@ spdy::SpdyFrame* ConstructSpdyWebSocketDataFrame(
     bool fin) {
 
   // Construct SPDY data frame.
-  spdy::SpdyFramer framer;
+  spdy::BufferedSpdyFramer framer(2);
   return framer.CreateDataFrame(
       stream_id,
       data,

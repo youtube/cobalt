@@ -398,7 +398,7 @@ net::Error SpdySession::InitializeWithSocket(
     }
   }
 
-  buffered_spdy_framer_.reset(new spdy::BufferedSpdyFramer());
+  buffered_spdy_framer_.reset(new spdy::BufferedSpdyFramer(2));
   buffered_spdy_framer_->set_visitor(this);
   SendSettings();
 
@@ -673,7 +673,7 @@ int SpdySession::WriteCredentialFrame(const std::string& origin,
 
   DCHECK(buffered_spdy_framer_.get());
   scoped_ptr<spdy::SpdyCredentialControlFrame> credential_frame(
-      spdy::SpdyFramer::CreateCredentialFrame(credential));
+      buffered_spdy_framer_->CreateCredentialFrame(credential));
   QueueFrame(credential_frame.get(), priority, NULL);
 
   if (net_log().IsLoggingAllEvents()) {
@@ -771,7 +771,7 @@ void SpdySession::ResetStream(spdy::SpdyStreamId stream_id,
 
   DCHECK(buffered_spdy_framer_.get());
   scoped_ptr<spdy::SpdyRstStreamControlFrame> rst_frame(
-      spdy::SpdyFramer::CreateRstStream(stream_id, status));
+      buffered_spdy_framer_->CreateRstStream(stream_id, status));
 
   // Default to lowest priority unless we know otherwise.
   int priority = 3;
@@ -1611,7 +1611,7 @@ void SpdySession::SendWindowUpdate(spdy::SpdyStreamId stream_id,
 
   DCHECK(buffered_spdy_framer_.get());
   scoped_ptr<spdy::SpdyWindowUpdateControlFrame> window_update_frame(
-      spdy::SpdyFramer::CreateWindowUpdate(stream_id, delta_window_size));
+      buffered_spdy_framer_->CreateWindowUpdate(stream_id, delta_window_size));
   QueueFrame(window_update_frame.get(), stream->priority(), NULL);
 }
 
@@ -1676,7 +1676,7 @@ void SpdySession::SendSettings() {
   // Create the SETTINGS frame and send it.
   DCHECK(buffered_spdy_framer_.get());
   scoped_ptr<spdy::SpdySettingsControlFrame> settings_frame(
-      spdy::SpdyFramer::CreateSettings(settings));
+      buffered_spdy_framer_->CreateSettings(settings));
   sent_settings_ = true;
   QueueFrame(settings_frame.get(), 0, NULL);
 }

@@ -67,6 +67,7 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramerVisitorInterface {
   virtual void OnStreamFrameData(SpdyStreamId stream_id,
                                  const char* data,
                                  size_t len) = 0;
+
  private:
   DISALLOW_COPY_AND_ASSIGN(BufferedSpdyFramerVisitorInterface);
 };
@@ -74,7 +75,7 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramerVisitorInterface {
 class NET_EXPORT_PRIVATE BufferedSpdyFramer
     : public SpdyFramerVisitorInterface {
  public:
-  BufferedSpdyFramer();
+  explicit BufferedSpdyFramer(int version);
   virtual ~BufferedSpdyFramer();
 
   // Sets callbacks to be called from the buffered spdy framer.  A visitor must
@@ -98,6 +99,7 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramer
 
   // SpdyFramer methods.
   size_t ProcessInput(const char* data, size_t len);
+  int protocol_version();
   void Reset();
   SpdyFramer::SpdyError error_code() const;
   SpdyFramer::SpdyState state() const;
@@ -114,10 +116,21 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramer
                                            SpdyControlFlags flags,
                                            bool compressed,
                                            const SpdyHeaderBlock* headers);
+  SpdyRstStreamControlFrame* CreateRstStream(SpdyStreamId stream_id,
+                                             SpdyStatusCodes status) const;
+  SpdySettingsControlFrame* CreateSettings(const SpdySettings& values) const;
+  SpdyPingControlFrame* CreatePingFrame(uint32 unique_id) const;
+  SpdyGoAwayControlFrame* CreateGoAway(
+      SpdyStreamId last_accepted_stream_id) const;
   SpdyHeadersControlFrame* CreateHeaders(SpdyStreamId stream_id,
                                          SpdyControlFlags flags,
                                          bool compressed,
                                          const SpdyHeaderBlock* headers);
+  SpdyWindowUpdateControlFrame* CreateWindowUpdate(
+      SpdyStreamId stream_id,
+      uint32 delta_window_size) const;
+  SpdyCredentialControlFrame* CreateCredentialFrame(
+      const spdy::SpdyCredential& credential) const;
   SpdyDataFrame* CreateDataFrame(SpdyStreamId stream_id,
                                  const char* data,
                                  uint32 len,
