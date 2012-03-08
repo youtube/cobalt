@@ -49,7 +49,7 @@
       'dependencies': [
         '../webkit/webkit.gyp:pull_in_webkit_unit_tests',
         '../webkit/webkit.gyp:pull_in_DumpRenderTree',
-        '../chrome/chrome.gyp:browser',
+        '../chrome/chrome.gyp:sync_unit_tests',
         '../base/android/java/java.gyp:base_java',
       ],
     },
@@ -60,7 +60,6 @@
       'type': 'none',
       'dependencies': [
         '../content/content.gyp:content_browsertests',
-        '../chrome/chrome.gyp:sync_unit_tests',
         '../chrome/chrome.gyp:unit_tests',
         '../ui/ui.gyp:gfx_unittests',
       ],
