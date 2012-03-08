@@ -339,10 +339,6 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
     flow_control_ = true;
 
   // TODO(mbelshe): consider randomization of the stream_hi_water_mark.
-
-  buffered_spdy_framer_.set_visitor(this);
-
-  SendSettings();
 }
 
 SpdySession::PendingCreateStream::~PendingCreateStream() {}
@@ -401,6 +397,10 @@ net::Error SpdySession::InitializeWithSocket(
       credential_state_.SetHasCredential(host_port_pair());
     }
   }
+
+  buffered_spdy_framer_.reset(new spdy::BufferedSpdyFramer());
+  buffered_spdy_framer_->set_visitor(this);
+  SendSettings();
 
   // Write out any data that we might have to send, such as the settings frame.
   WriteSocketLater();
@@ -597,8 +597,9 @@ int SpdySession::WriteSynStream(
 
   SendPrefacePingIfNoneInFlight();
 
+  DCHECK(buffered_spdy_framer_.get());
   scoped_ptr<spdy::SpdySynStreamControlFrame> syn_frame(
-      buffered_spdy_framer_.CreateSynStream(
+      buffered_spdy_framer_->CreateSynStream(
           stream_id, 0,
           ConvertRequestPriorityToSpdyPriority(priority),
           flags, false, headers.get()));
@@ -670,6 +671,7 @@ int SpdySession::WriteCredentialFrame(const std::string& origin,
   credential.certs.push_back(cert);
   credential.proof.assign(proof.begin(), proof.end());
 
+  DCHECK(buffered_spdy_framer_.get());
   scoped_ptr<spdy::SpdyCredentialControlFrame> credential_frame(
       spdy::SpdyFramer::CreateCredentialFrame(credential));
   QueueFrame(credential_frame.get(), priority, NULL);
@@ -734,8 +736,9 @@ int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
     SendPrefacePingIfNoneInFlight();
 
   // TODO(mbelshe): reduce memory copies here.
+  DCHECK(buffered_spdy_framer_.get());
   scoped_ptr<spdy::SpdyDataFrame> frame(
-      buffered_spdy_framer_.CreateDataFrame(
+      buffered_spdy_framer_->CreateDataFrame(
           stream_id, data->data(), len, flags));
   QueueFrame(frame.get(), stream->priority(), stream);
 
@@ -766,6 +769,7 @@ void SpdySession::ResetStream(spdy::SpdyStreamId stream_id,
       make_scoped_refptr(new NetLogSpdyRstParameter(stream_id, status,
                                                     description)));
 
+  DCHECK(buffered_spdy_framer_.get());
   scoped_ptr<spdy::SpdyRstStreamControlFrame> rst_frame(
       spdy::SpdyFramer::CreateRstStream(stream_id, status));
 
@@ -824,16 +828,17 @@ void SpdySession::OnReadComplete(int bytes_read) {
   // cleanup.
   scoped_refptr<SpdySession> self(this);
 
+  DCHECK(buffered_spdy_framer_.get());
   char *data = read_buffer_->data();
   while (bytes_read &&
-         buffered_spdy_framer_.error_code() ==
+         buffered_spdy_framer_->error_code() ==
              spdy::SpdyFramer::SPDY_NO_ERROR) {
     uint32 bytes_processed =
-        buffered_spdy_framer_.ProcessInput(data, bytes_read);
+        buffered_spdy_framer_->ProcessInput(data, bytes_read);
     bytes_read -= bytes_processed;
     data += bytes_processed;
-    if (buffered_spdy_framer_.state() == spdy::SpdyFramer::SPDY_DONE)
-      buffered_spdy_framer_.Reset();
+    if (buffered_spdy_framer_->state() == spdy::SpdyFramer::SPDY_DONE)
+      buffered_spdy_framer_->Reset();
   }
 
   if (state_ != CLOSED)
@@ -958,6 +963,7 @@ void SpdySession::WriteSocket() {
 
   // Loop sending frames until we've sent everything or until the write
   // returns error (or ERR_IO_PENDING).
+  DCHECK(buffered_spdy_framer_.get());
   while (in_flight_write_.buffer() || !queue_.empty()) {
     if (!in_flight_write_.buffer()) {
       // Grab the next SpdyFrame to send.
@@ -968,9 +974,9 @@ void SpdySession::WriteSocket() {
       // which is now.  At this time, we don't compress our data frames.
       spdy::SpdyFrame uncompressed_frame(next_buffer.buffer()->data(), false);
       size_t size;
-      if (buffered_spdy_framer_.IsCompressible(uncompressed_frame)) {
+      if (buffered_spdy_framer_->IsCompressible(uncompressed_frame)) {
         scoped_ptr<spdy::SpdyFrame> compressed_frame(
-            buffered_spdy_framer_.CompressFrame(uncompressed_frame));
+            buffered_spdy_framer_->CompressFrame(uncompressed_frame));
         if (!compressed_frame.get()) {
           CloseSessionOnError(
               net::ERR_SPDY_PROTOCOL_ERROR, true, "SPDY Compression failure.");
@@ -1126,11 +1132,16 @@ Value* SpdySession::GetInfoAsValue() const {
   dict->SetInteger("streams_pushed_and_claimed_count",
       streams_pushed_and_claimed_count_);
   dict->SetInteger("streams_abandoned_count", streams_abandoned_count_);
-  dict->SetInteger("frames_received", buffered_spdy_framer_.frames_received());
+  DCHECK(buffered_spdy_framer_.get());
+  dict->SetInteger("frames_received", buffered_spdy_framer_->frames_received());
 
   dict->SetBoolean("sent_settings", sent_settings_);
   dict->SetBoolean("received_settings", received_settings_);
   return dict;
+}
+
+bool SpdySession::IsReused() const {
+  return buffered_spdy_framer_->frames_received() > 0;
 }
 
 int SpdySession::GetPeerAddress(AddressList* address) const {
@@ -1598,6 +1609,7 @@ void SpdySession::SendWindowUpdate(spdy::SpdyStreamId stream_id,
       make_scoped_refptr(new NetLogSpdyWindowUpdateParameter(
           stream_id, delta_window_size)));
 
+  DCHECK(buffered_spdy_framer_.get());
   scoped_ptr<spdy::SpdyWindowUpdateControlFrame> window_update_frame(
       spdy::SpdyFramer::CreateWindowUpdate(stream_id, delta_window_size));
   QueueFrame(window_update_frame.get(), stream->priority(), NULL);
@@ -1662,6 +1674,7 @@ void SpdySession::SendSettings() {
       make_scoped_refptr(new NetLogSpdySettingsParameter(settings)));
 
   // Create the SETTINGS frame and send it.
+  DCHECK(buffered_spdy_framer_.get());
   scoped_ptr<spdy::SpdySettingsControlFrame> settings_frame(
       spdy::SpdyFramer::CreateSettings(settings));
   sent_settings_ = true;
@@ -1740,6 +1753,7 @@ void SpdySession::SendTrailingPing() {
 }
 
 void SpdySession::WritePingFrame(uint32 unique_id) {
+  DCHECK(buffered_spdy_framer_.get());
   scoped_ptr<spdy::SpdyPingControlFrame> ping_frame(
       spdy::SpdyFramer::CreatePingFrame(next_ping_id_));
   QueueFrame(ping_frame.get(), SPDY_PRIORITY_HIGHEST, NULL);
