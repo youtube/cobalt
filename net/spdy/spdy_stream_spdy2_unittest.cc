@@ -5,6 +5,7 @@
 #include "base/memory/ref_counted.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_log_unittest.h"
+#include "net/spdy/buffered_spdy_framer.h"
 #include "net/spdy/spdy_stream.h"
 #include "net/spdy/spdy_http_utils.h"
 #include "net/spdy/spdy_session.h"
@@ -92,7 +93,7 @@ class TestSpdyStreamDelegate : public SpdyStream::Delegate {
 };
 
 spdy::SpdyFrame* ConstructSpdyBodyFrame(const char* data, int length) {
-  spdy::SpdyFramer framer;
+  spdy::BufferedSpdyFramer framer(2);
   return framer.CreateDataFrame(1, data, length, spdy::DATA_FLAG_NONE);
 }
 
