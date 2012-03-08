@@ -16,7 +16,8 @@ namespace {
 class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
  public:
   TestBufferedSpdyVisitor()
-    : error_count_(0),
+    : buffered_spdy_framer_(2),
+      error_count_(0),
       syn_frame_count_(0),
       syn_reply_frame_count_(0),
       headers_frame_count_(0),
@@ -175,7 +176,7 @@ TEST_F(BufferedSpdyFramerSpdy2Test, ReadSynStreamHeaderBlock) {
   SpdyHeaderBlock headers;
   headers["aa"] = "vv";
   headers["bb"] = "ww";
-  BufferedSpdyFramer framer;
+  BufferedSpdyFramer framer(2);
   scoped_ptr<SpdySynStreamControlFrame> control_frame(
       framer.CreateSynStream(1,                        // stream_id
                              0,                        // associated_stream_id
@@ -202,7 +203,7 @@ TEST_F(BufferedSpdyFramerSpdy2Test, ReadSynReplyHeaderBlock) {
   SpdyHeaderBlock headers;
   headers["alpha"] = "beta";
   headers["gamma"] = "delta";
-  BufferedSpdyFramer framer;
+  BufferedSpdyFramer framer(2);
   scoped_ptr<SpdySynReplyControlFrame> control_frame(
       framer.CreateSynReply(1,                        // stream_id
                             CONTROL_FLAG_NONE,
@@ -227,7 +228,7 @@ TEST_F(BufferedSpdyFramerSpdy2Test, ReadHeadersHeaderBlock) {
   SpdyHeaderBlock headers;
   headers["alpha"] = "beta";
   headers["gamma"] = "delta";
-  BufferedSpdyFramer framer;
+  BufferedSpdyFramer framer(2);
   scoped_ptr<SpdyHeadersControlFrame> control_frame(
       framer.CreateHeaders(1,                        // stream_id
                            CONTROL_FLAG_NONE,

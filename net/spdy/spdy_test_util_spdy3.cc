@@ -13,7 +13,7 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_network_transaction.h"
 #include "net/http/http_server_properties_impl.h"
-#include "net/spdy/spdy_framer.h"
+#include "net/spdy/buffered_spdy_framer.h"
 #include "net/spdy/spdy_http_utils.h"
 
 namespace net {
@@ -155,7 +155,7 @@ spdy::SpdyFrame* ConstructSpdyPacket(const SpdyHeaderInfo& header_info,
                                      int extra_header_count,
                                      const char* const tail[],
                                      int tail_header_count) {
-  spdy::SpdyFramer framer;
+  spdy::BufferedSpdyFramer framer(3);
   spdy::SpdyHeaderBlock headers;
   // Copy in the extra headers to our map.
   AppendHeadersToSpdyFrame(extra_headers, extra_header_count, &headers);
@@ -195,7 +195,7 @@ spdy::SpdyFrame* ConstructSpdyPacket(const SpdyHeaderInfo& header_info,
 // Returns the constructed frame.  The caller takes ownership of the frame.
 spdy::SpdyFrame* ConstructSpdySettings(
     const spdy::SpdySettings& settings) {
-  spdy::SpdyFramer framer;
+  spdy::BufferedSpdyFramer framer(3);
   return framer.CreateSettings(settings);
 }
 
@@ -204,21 +204,21 @@ spdy::SpdyFrame* ConstructSpdySettings(
 // Returns the constructed frame.  The caller takes ownership of the frame.
 spdy::SpdyFrame* ConstructSpdyCredential(
     const spdy::SpdyCredential& credential) {
-  spdy::SpdyFramer framer;
+  spdy::BufferedSpdyFramer framer(3);
   return framer.CreateCredentialFrame(credential);
 }
 
 // Construct a SPDY PING frame.
 // Returns the constructed frame.  The caller takes ownership of the frame.
 spdy::SpdyFrame* ConstructSpdyPing() {
-  spdy::SpdyFramer framer;
+  spdy::BufferedSpdyFramer framer(3);
   return framer.CreatePingFrame(1);
 }
 
 // Construct a SPDY GOAWAY frame.
 // Returns the constructed frame.  The caller takes ownership of the frame.
 spdy::SpdyFrame* ConstructSpdyGoAway() {
-  spdy::SpdyFramer framer;
+  spdy::BufferedSpdyFramer framer(3);
   return framer.CreateGoAway(0);
 }
 
@@ -226,7 +226,7 @@ spdy::SpdyFrame* ConstructSpdyGoAway() {
 // Returns the constructed frame.  The caller takes ownership of the frame.
 spdy::SpdyFrame* ConstructSpdyWindowUpdate(
     const spdy::SpdyStreamId stream_id, uint32 delta_window_size) {
-  spdy::SpdyFramer framer;
+  spdy::BufferedSpdyFramer framer(3);
   return framer.CreateWindowUpdate(stream_id, delta_window_size);
 }
 
@@ -234,7 +234,7 @@ spdy::SpdyFrame* ConstructSpdyWindowUpdate(
 // Returns the constructed frame.  The caller takes ownership of the frame.
 spdy::SpdyFrame* ConstructSpdyRstStream(spdy::SpdyStreamId stream_id,
                                         spdy::SpdyStatusCodes status) {
-  spdy::SpdyFramer framer;
+  spdy::BufferedSpdyFramer framer(3);
   return framer.CreateRstStream(stream_id, status);
 }
 
@@ -751,7 +751,7 @@ spdy::SpdyFrame* ConstructSpdyPostSynReply(const char* const extra_headers[],
 
 // Constructs a single SPDY data frame with the default contents.
 spdy::SpdyFrame* ConstructSpdyBodyFrame(int stream_id, bool fin) {
-  spdy::SpdyFramer framer;
+  spdy::BufferedSpdyFramer framer(3);
   return framer.CreateDataFrame(
       stream_id, kUploadData, kUploadDataSize,
       fin ? spdy::DATA_FLAG_FIN : spdy::DATA_FLAG_NONE);
@@ -760,7 +760,7 @@ spdy::SpdyFrame* ConstructSpdyBodyFrame(int stream_id, bool fin) {
 // Constructs a single SPDY data frame with the given content.
 spdy::SpdyFrame* ConstructSpdyBodyFrame(int stream_id, const char* data,
                                         uint32 len, bool fin) {
-  spdy::SpdyFramer framer;
+  spdy::BufferedSpdyFramer framer(3);
   return framer.CreateDataFrame(
       stream_id, data, len, fin ? spdy::DATA_FLAG_FIN : spdy::DATA_FLAG_NONE);
 }
