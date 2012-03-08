@@ -338,8 +338,8 @@ void LogCancelRequest(const BoundNetLog& source_net_log,
 // Keeps track of the highest priority.
 class PriorityTracker {
  public:
-  explicit PriorityTracker(RequestPriority priority)
-      : highest_priority_(priority), total_count_(0) {
+  PriorityTracker()
+      : highest_priority_(IDLE), total_count_(0) {
     memset(counts_, 0, sizeof(counts_));
   }
 
@@ -1059,14 +1059,12 @@ class HostResolverImpl::DnsTask {
 class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
  public:
   // Creates new job for |key| where |request_net_log| is bound to the
-  // request that spawned it and |priority| is the initial priority.
+  // request that spawned it.
   Job(HostResolverImpl* resolver,
       const Key& key,
-      const BoundNetLog& request_net_log,
-      RequestPriority priority)
+      const BoundNetLog& request_net_log)
       : resolver_(resolver->AsWeakPtr()),
         key_(key),
-        priority_tracker_(priority),
         had_non_speculative_request_(false),
         net_log_(BoundNetLog::Make(request_net_log.net_log(),
                                    NetLog::SOURCE_HOST_RESOLVER_IMPL_JOB)) {
@@ -1086,11 +1084,13 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
         proc_task_->Cancel();
         proc_task_ = NULL;
       }
+      // Clean up now for nice NetLog.
+      dns_task_.reset(NULL);
       net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB,
                                         ERR_ABORTED);
     } else if (is_queued()) {
       // |resolver_| was destroyed without running this Job.
-      // TODO(szym): is there's any benefit in having this distinction?
+      // TODO(szym): is there any benefit in having this distinction?
       net_log_.AddEvent(NetLog::TYPE_CANCELLED, NULL);
       net_log_.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB, NULL);
     }
@@ -1109,25 +1109,21 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     STLDeleteElements(&requests_);
   }
 
-  void Schedule() {
-    handle_ = resolver_->dispatcher_.Add(this, priority());
-  }
-
-  RequestPriority priority() const {
-    return priority_tracker_.highest_priority();
-  }
-
-  // Number of non-canceled requests in |requests_|.
-  size_t num_active_requests() const {
-    return priority_tracker_.total_count();
-  }
-
-  const Key& key() const {
+  const Key key() const {
     return key_;
   }
 
   bool is_queued() const {
     return !handle_.is_null();
+  }
+
+  bool is_running() const {
+    return is_dns_running() || is_proc_running();
+  }
+
+  // Add this job to the dispatcher.
+  void Schedule(RequestPriority priority) {
+    handle_ = resolver_->dispatcher_.Add(this, priority);
   }
 
   void AddRequest(scoped_ptr<Request> req) {
@@ -1155,46 +1151,68 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
 
     requests_.push_back(req.release());
 
-    if (!handle_.is_null())
+    if (is_queued())
       handle_ = resolver_->dispatcher_.ChangePriority(handle_, priority());
   }
 
+  // Marks |req| as cancelled. If it was the last active Request, also finishes
+  // this Job marking it either as aborted or cancelled, and deletes it.
   void CancelRequest(Request* req) {
     DCHECK_EQ(key_.hostname, req->info().hostname());
     DCHECK(!req->was_canceled());
+
     // Don't remove it from |requests_| just mark it canceled.
     req->MarkAsCanceled();
     LogCancelRequest(req->source_net_log(), req->request_net_log(),
                      req->info());
+
     priority_tracker_.Remove(req->info().priority());
     net_log_.AddEvent(
         NetLog::TYPE_HOST_RESOLVER_IMPL_JOB_REQUEST_DETACH,
         make_scoped_refptr(new JobAttachParameters(
             req->request_net_log().source(), priority())));
 
-    if (!handle_.is_null()) {
-      if (num_active_requests() > 0) {
+    if (num_active_requests() > 0) {
+      if (is_queued())
         handle_ = resolver_->dispatcher_.ChangePriority(handle_, priority());
-      } else {
-        resolver_->dispatcher_.Cancel(handle_);
-        handle_.Reset();
-        net_log_.AddEvent(NetLog::TYPE_CANCELLED, NULL);
-        net_log_.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB, NULL);
-      }
+    } else {
+      // If we were called from a Request's callback within CompleteRequests,
+      // that Request could not have been cancelled, so num_active_requests()
+      // could not be 0. Therefore, we are not in CompleteRequests().
+      CompleteRequests(OK, AddressList(), base::TimeDelta());
     }
   }
 
-  // Aborts and destroys the job, completes all requests as aborted.
-  // The caller should clean up.
+  // Called from AbortAllInProgressJobs. Completes all requests as aborted
+  // and destroys the job.
   void Abort() {
-    // Job should only be aborted if it's running.
     DCHECK(is_running());
-    if (is_proc_running()) {
-      proc_task_->Cancel();
-      proc_task_ = NULL;
-    }
-    dns_task_.reset();
     CompleteRequests(ERR_ABORTED, AddressList(), base::TimeDelta());
+  }
+
+  // Called by HostResolverImpl when this job is evicted due to queue overflow.
+  // Completes all requests and destroys the job.
+  void OnEvicted() {
+    DCHECK(!is_running());
+    DCHECK(is_queued());
+    handle_.Reset();
+
+    net_log_.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB_EVICTED, NULL);
+
+    // This signals to CompleteRequests that this job never ran.
+    CompleteRequests(ERR_HOST_RESOLVER_QUEUE_TOO_LARGE,
+                     AddressList(),
+                     base::TimeDelta());
+  }
+
+ private:
+  RequestPriority priority() const {
+    return priority_tracker_.highest_priority();
+  }
+
+  // Number of non-canceled requests in |requests_|.
+  size_t num_active_requests() const {
+    return priority_tracker_.total_count();
   }
 
   bool is_dns_running() const {
@@ -1205,34 +1223,14 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     return proc_task_.get() != NULL;
   }
 
-  bool is_running() const {
-    return is_dns_running() || is_proc_running();
-  }
-
-  // Called by HostResolverImpl when this job is evicted due to queue overflow.
-  void OnEvicted() {
-    // Must not be running.
-    DCHECK(!is_running());
-    handle_.Reset();
-
-    net_log_.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB_EVICTED, NULL);
-
-    scoped_ptr<Job> self_deleter(this);
-    resolver_->RemoveJob(this);
-
-    // This signals to CompleteRequests that this job never ran.
-    CompleteRequests(ERR_HOST_RESOLVER_QUEUE_TOO_LARGE,
-                     AddressList(),
-                     base::TimeDelta());
-  }
-
-  // PriorityDispatch::Job interface.
+  // PriorityDispatch::Job:
   virtual void Start() OVERRIDE {
     DCHECK(!is_running());
     handle_.Reset();
 
     net_log_.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB_STARTED, NULL);
 
+    // Job::Start must not complete synchronously.
     if (resolver_->dns_transaction_factory_.get()) {
       StartDnsTask();
     } else {
@@ -1240,13 +1238,12 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     }
   }
 
- private:
   // TODO(szym): Since DnsTransaction does not consume threads, we can increase
   // the limits on |dispatcher_|. But in order to keep the number of WorkerPool
   // threads low, we will need to use an "inner" PrioritizedDispatcher with
   // tighter limits.
   void StartProcTask() {
-    DCHECK(!dns_task_.get());
+    DCHECK(!is_dns_running());
     proc_task_ = new ProcTask(
         key_,
         resolver_->proc_params_,
@@ -1263,23 +1260,13 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
   // Called by ProcTask when it completes.
   void OnProcTaskComplete(int net_error, const AddressList& addr_list) {
     DCHECK(is_proc_running());
-    // |addr_list| will be destroyed once we destroy |proc_task_|.
-    AddressList list = addr_list;
-    proc_task_ = NULL;
 
     base::TimeDelta ttl = base::TimeDelta::FromSeconds(
         kNegativeCacheEntryTTLSeconds);
     if (net_error == OK)
       ttl = base::TimeDelta::FromSeconds(kCacheEntryTTLSeconds);
 
-    // This job must be removed from resolver's |jobs_| now to make room for a
-    // new job with the same key in case one of the OnComplete callbacks decides
-    // to spawn one. Consequently, the job deletes itself when CompleteRequests
-    // is done.
-    scoped_ptr<Job> self_deleter(this);
-    resolver_->OnJobFinished(this, net_error, list, ttl);
-
-    CompleteRequests(net_error, list, ttl);
+    CompleteRequests(net_error, addr_list, ttl);
   }
 
   void StartDnsTask() {
@@ -1302,40 +1289,70 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
                          const AddressList& addr_list,
                          base::TimeDelta ttl) {
     DCHECK(is_dns_running());
-    // |addr_list| will be destroyed once we destroy |dns_task_|.
-    AddressList list = addr_list;
-    dns_task_.reset();
 
     if (net_error != OK) {
+      dns_task_.reset();
       // TODO(szym): Some net errors indicate lack of connectivity. Starting
       // ProcTask in that case is a waste of time.
       StartProcTask();
       return;
     }
 
-    // As in OnProcTaskComplete
-    scoped_ptr<Job> self_deleter(this);
-    resolver_->OnJobFinished(this, net_error, list, ttl);
-
-    CompleteRequests(net_error, list, ttl);
+    CompleteRequests(net_error, addr_list, ttl);
   }
 
-  // Completes all Requests. Calls OnJobFinished and deletes self.
+  // Performs Job's last rites. Completes all Requests. Deletes this.
   void CompleteRequests(int net_error,
                         const AddressList& addr_list,
                         base::TimeDelta ttl) {
     CHECK(resolver_);
-    DCHECK(!is_running());
-    DCHECK(!is_queued());
 
-    // We are the only consumer of |addr_list|, so we can safely change the port
-    // without copy-on-write. This pays off, when job has only one request.
+    // This job must be removed from resolver's |jobs_| now to make room for a
+    // new job with the same key in case one of the OnComplete callbacks decides
+    // to spawn one. Consequently, the job deletes itself when CompleteRequests
+    // is done.
+    scoped_ptr<Job> self_deleter(this);
+
+    resolver_->RemoveJob(this);
+
+    // |addr_list| will be destroyed once we destroy |proc_task_| and
+    // |dns_task_|.
     AddressList list = addr_list;
-    if (net_error == OK && !requests_.empty())
-      MutableSetPort(requests_.front()->info().port(), &list);
+
+    if (is_running()) {
+      DCHECK(!is_queued());
+      if (is_proc_running()) {
+        proc_task_->Cancel();
+        proc_task_ = NULL;
+      }
+      dns_task_.reset();
+
+      // Signal dispatcher that a slot has opened.
+      resolver_->dispatcher_.OnJobFinished();
+    } else if (is_queued()) {
+      resolver_->dispatcher_.Cancel(handle_);
+      handle_.Reset();
+    }
+
+    if (num_active_requests() == 0) {
+      net_log_.AddEvent(NetLog::TYPE_CANCELLED, NULL);
+      net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB,
+                                        OK);
+      return;
+    }
 
     net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB,
                                       net_error);
+
+    // We are the only consumer of |list|, so we can safely change the port
+    // without copy-on-write. This pays off, when job has only one request.
+    if (net_error == OK && !requests_.empty())
+      MutableSetPort(requests_.front()->info().port(), &list);
+
+    if ((net_error != ERR_ABORTED) &&
+        (net_error != ERR_HOST_RESOLVER_QUEUE_TOO_LARGE)) {
+      resolver_->CacheResult(key_, net_error, list, ttl);
+    }
 
     // Complete all of the requests that were attached to the job.
     for (RequestsList::const_iterator it = requests_.begin();
@@ -1359,7 +1376,6 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     }
   }
 
-  // Used to call OnJobFinished.
   base::WeakPtr<HostResolverImpl> resolver_;
 
   Key key_;
@@ -1380,7 +1396,7 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
   // All Requests waiting for the result of this Job. Some can be canceled.
   RequestsList requests_;
 
-  // A handle used by |HostResolverImpl::dispatcher_|.
+  // A handle used in |HostResolverImpl::dispatcher_|.
   PrioritizedDispatcher::Handle handle_;
 };
 
@@ -1490,20 +1506,19 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
   Job* job;
   if (jobit == jobs_.end()) {
     // Create new Job.
-    job = new Job(this, key, request_net_log, info.priority());
-    job->Schedule();
+    job = new Job(this, key, request_net_log);
+    job->Schedule(info.priority());
 
     // Check for queue overflow.
     if (dispatcher_.num_queued_jobs() > max_queued_jobs_) {
       Job* evicted = static_cast<Job*>(dispatcher_.EvictOldestLowest());
       DCHECK(evicted);
+      evicted->OnEvicted();  // Deletes |evicted|.
       if (evicted == job) {
-        delete job;
         rv = ERR_HOST_RESOLVER_QUEUE_TOO_LARGE;
         LogFinishRequest(source_net_log, request_net_log, info, rv);
         return rv;
       }
-      evicted->OnEvicted();  // Deletes |evicted|.
     }
     jobs_.insert(jobit, std::make_pair(key, job));
   } else {
@@ -1566,23 +1581,9 @@ void HostResolverImpl::CancelRequest(RequestHandle req_handle) {
   DCHECK(CalledOnValidThread());
   Request* req = reinterpret_cast<Request*>(req_handle);
   DCHECK(req);
-
   Job* job = req->job();
   DCHECK(job);
-
   job->CancelRequest(req);
-
-  if (job->num_active_requests() == 0) {
-    // If we were called from a Requests' callback within Job::CompleteRequests,
-    // that Request could not have been cancelled, so job->num_active_requests()
-    // could not be 0. Therefore, we are not in Job::CompleteRequests().
-    RemoveJob(job);
-    if (job->is_running()) {
-      dispatcher_.OnJobFinished();
-      job->Abort();
-    }
-    delete job;
-  }
 }
 
 void HostResolverImpl::SetDefaultAddressFamily(AddressFamily address_family) {
@@ -1656,28 +1657,19 @@ bool HostResolverImpl::ServeFromCache(const Key& key,
   return true;
 }
 
-void HostResolverImpl::OnJobFinished(Job* job,
-                                     int net_error,
-                                     const AddressList& addr_list,
-                                     base::TimeDelta ttl) {
-  DCHECK(job);
-  DCHECK(!job->is_queued());
-  DCHECK_NE(ERR_HOST_RESOLVER_QUEUE_TOO_LARGE, net_error);
-  DCHECK_NE(ERR_ABORTED, net_error);
-
-  RemoveJob(job);
-  // Signal dispatcher that a slot has opened.
-  dispatcher_.OnJobFinished();
-  // Write result to the cache.
-  if (cache_.get()) {
-    cache_->Set(job->key(), net_error, addr_list,
-                base::TimeTicks::Now(), ttl);
-  }
+void HostResolverImpl::CacheResult(const Key& key,
+                                   int net_error,
+                                   const AddressList& addr_list,
+                                   base::TimeDelta ttl) {
+  if (cache_.get())
+    cache_->Set(key, net_error, addr_list, base::TimeTicks::Now(), ttl);
 }
 
 void HostResolverImpl::RemoveJob(Job* job) {
   DCHECK(job);
-  jobs_.erase(job->key());
+  JobMap::iterator it = jobs_.find(job->key());
+  if (it != jobs_.end() && it->second == job)
+    jobs_.erase(it);
 }
 
 void HostResolverImpl::DiscardIPv6ProbeJob() {
@@ -1736,12 +1728,10 @@ void HostResolverImpl::AbortAllInProgressJobs() {
   // Life check to bail once |this| is deleted.
   base::WeakPtr<HostResolverImpl> self = AsWeakPtr();
 
-  // Then Abort them and dispatch new Jobs.
+  // Then Abort them.
   for (size_t i = 0; self && i < jobs_to_abort.size(); ++i) {
-    dispatcher_.OnJobFinished();
     jobs_to_abort[i]->Abort();
   }
-  STLDeleteElements(&jobs_to_abort);
 }
 
 void HostResolverImpl::OnIPAddressChanged() {
