@@ -1,8 +1,10 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/json/json_writer.h"
+
+#include <cmath>
 
 #include "base/json/string_escape.h"
 #include "base/logging.h"
@@ -40,7 +42,10 @@ void JSONWriter::WriteWithOptions(const Value* const node,
   JSONWriter writer(pretty_print, json);
   bool escape = !(options & OPTIONS_DO_NOT_ESCAPE);
   bool omit_binary_values = !!(options & OPTIONS_OMIT_BINARY_VALUES);
-  writer.BuildJSONString(node, 0, escape, omit_binary_values);
+  bool omit_double_type_preservation =
+      !!(options & OPTIONS_OMIT_DOUBLE_TYPE_PRESERVATION);
+  writer.BuildJSONString(node, 0, escape, omit_binary_values,
+                         omit_double_type_preservation);
   if (pretty_print)
     json->append(kPrettyPrintLineEnding);
 }
@@ -54,7 +59,8 @@ JSONWriter::JSONWriter(bool pretty_print, std::string* json)
 void JSONWriter::BuildJSONString(const Value* const node,
                                  int depth,
                                  bool escape,
-                                 bool omit_binary_values) {
+                                 bool omit_binary_values,
+                                 bool omit_double_type_preservation) {
   switch (node->GetType()) {
     case Value::TYPE_NULL:
       json_string_->append("null");
@@ -83,6 +89,13 @@ void JSONWriter::BuildJSONString(const Value* const node,
         double value;
         bool result = node->GetAsDouble(&value);
         DCHECK(result);
+        if (omit_double_type_preservation &&
+            value <= kint64max &&
+            value >= kint64min &&
+            std::floor(value) == value) {
+          json_string_->append(Int64ToString(static_cast<int64>(value)));
+          break;
+        }
         std::string real = DoubleToString(value);
         // Ensure that the number has a .0 if there's no decimal or 'e'.  This
         // makes sure that when we read the JSON back, it's interpreted as a
@@ -139,7 +152,8 @@ void JSONWriter::BuildJSONString(const Value* const node,
               json_string_->append(" ");
           }
 
-          BuildJSONString(value, depth, escape, omit_binary_values);
+          BuildJSONString(value, depth, escape, omit_binary_values,
+                          omit_double_type_preservation);
         }
 
         if (pretty_print_)
@@ -181,7 +195,8 @@ void JSONWriter::BuildJSONString(const Value* const node,
           } else {
             json_string_->append(":");
           }
-          BuildJSONString(value, depth + 1, escape, omit_binary_values);
+          BuildJSONString(value, depth + 1, escape, omit_binary_values,
+                          omit_double_type_preservation);
         }
 
         if (pretty_print_) {
