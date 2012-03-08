@@ -298,7 +298,7 @@
             'debug/stack_trace_unittest.cc',
           ],
           'dependencies': [
-            'android/jni_generator/jni_generator.gyp:jni_generator_py_tests',
+            'android/jni_generator/jni_generator.gyp:jni_generator_tests',
           ],
         }],
         ['use_glib==1', {
