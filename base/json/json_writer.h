@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,7 +25,13 @@ class BASE_EXPORT JSONWriter {
 
     // For values of binary type, the value (and key if within a dictionary)
     // will be omitted from the output.
-    OPTIONS_OMIT_BINARY_VALUES = 1 << 1
+    OPTIONS_OMIT_BINARY_VALUES = 1 << 1,
+
+    // This option instructs the writer to write doubles that have no fractional
+    // part as a normal integer (i.e., without using exponential notation
+    // or appending a '.0') as long as the value is within the range of a
+    // 64-bit int.
+    OPTIONS_OMIT_DOUBLE_TYPE_PRESERVATION = 1 << 2
   };
 
   // Given a root node, generates a JSON string and puts it into |json|.
@@ -53,7 +59,8 @@ class BASE_EXPORT JSONWriter {
   // Called recursively to build the JSON string.  Whe completed, value is
   // json_string_ will contain the JSON.
   void BuildJSONString(const Value* const node, int depth, bool escape,
-                       bool ignore_binary_values);
+                       bool ignore_binary_values,
+                       bool omit_double_type_preservation);
 
   // Appends a quoted, escaped, version of (UTF-8) str to json_string_.
   void AppendQuotedString(const std::string& str);
