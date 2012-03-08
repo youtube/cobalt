@@ -9,6 +9,7 @@
 #include <sys/types.h>
 
 #include "base/android/scoped_java_ref.h"
+#include "base/compiler_specific.h"
 
 namespace base {
 namespace android {
@@ -40,6 +41,10 @@ const jobject GetApplicationContext();
 // Use HasClass if you need to check whether the class exists.
 ScopedJavaLocalRef<jclass> GetClass(JNIEnv* env, const char* class_name);
 
+// Similar to the above, but the caller is responsible to manage the jclass
+// lifetime.
+jclass GetUnscopedClass(JNIEnv* env, const char* class_name) WARN_UNUSED_RESULT;
+
 // Returns true iff the class |class_name| could be found.
 bool HasClass(JNIEnv* env, const char* class_name);
 
@@ -51,6 +56,12 @@ jmethodID GetMethodID(JNIEnv* env,
                       const char* method_name,
                       const char* jni_signature);
 
+// Similar to GetMethodID, but takes a raw jclass.
+jmethodID GetMethodID(JNIEnv* env,
+                      jclass clazz,
+                      const char* method_name,
+                      const char* jni_signature);
+
 // Returns the method ID for the static method with the specified name and
 // signature.
 // This method triggers a fatal assertion if the method could not be found.
@@ -59,6 +70,13 @@ jmethodID GetStaticMethodID(JNIEnv* env,
                             const JavaRef<jclass>& clazz,
                             const char* method_name,
                             const char* jni_signature);
+
+// Similar to the GetStaticMethodID, but takes a raw jclass.
+jmethodID GetStaticMethodID(JNIEnv* env,
+                            jclass clazz,
+                            const char* method_name,
+                            const char* jni_signature);
+
 
 // Returns true iff |clazz| has a method with the specified name and signature.
 bool HasMethod(JNIEnv* env,

@@ -86,9 +86,13 @@ const jobject GetApplicationContext() {
 }
 
 ScopedJavaLocalRef<jclass> GetClass(JNIEnv* env, const char* class_name) {
+  return ScopedJavaLocalRef<jclass>(env, GetUnscopedClass(env, class_name));
+}
+
+jclass GetUnscopedClass(JNIEnv* env, const char* class_name) {
   jclass clazz = env->FindClass(class_name);
   CHECK(clazz && !ClearException(env)) << "Failed to find class " << class_name;
-  return ScopedJavaLocalRef<jclass>(env, clazz);
+  return clazz;
 }
 
 bool HasClass(JNIEnv* env, const char* class_name) {
@@ -106,8 +110,16 @@ jmethodID GetMethodID(JNIEnv* env,
                       const JavaRef<jclass>& clazz,
                       const char* method_name,
                       const char* jni_signature) {
+  // We can't use clazz.env() as that may be from a different thread.
+  return GetMethodID(env, clazz.obj(), method_name, jni_signature);
+}
+
+jmethodID GetMethodID(JNIEnv* env,
+                      jclass clazz,
+                      const char* method_name,
+                      const char* jni_signature) {
   jmethodID method_id =
-      env->GetMethodID(clazz.obj(), method_name, jni_signature);
+      env->GetMethodID(clazz, method_name, jni_signature);
   CHECK(method_id && !ClearException(env)) << "Failed to find method " <<
       method_name << " " << jni_signature;
   return method_id;
@@ -117,8 +129,16 @@ jmethodID GetStaticMethodID(JNIEnv* env,
                             const JavaRef<jclass>& clazz,
                             const char* method_name,
                             const char* jni_signature) {
+  return GetStaticMethodID(env, clazz.obj(), method_name,
+      jni_signature);
+}
+
+jmethodID GetStaticMethodID(JNIEnv* env,
+                            jclass clazz,
+                            const char* method_name,
+                            const char* jni_signature) {
   jmethodID method_id =
-      env->GetStaticMethodID(clazz.obj(), method_name, jni_signature);
+      env->GetStaticMethodID(clazz, method_name, jni_signature);
   CHECK(method_id && !ClearException(env)) << "Failed to find static method " <<
       method_name << " " << jni_signature;
   return method_id;
