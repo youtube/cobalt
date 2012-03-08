@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,7 +22,9 @@ class WebMClusterParser : public WebMParserClient {
                     int audio_track_num,
                     base::TimeDelta audio_default_duration,
                     int video_track_num,
-                    base::TimeDelta video_default_duration);
+                    base::TimeDelta video_default_duration,
+                    const uint8* video_encryption_key_id,
+                    int video_encryption_key_id_size);
   virtual ~WebMClusterParser();
 
   // Resets the parser state so it can accept a new cluster.
@@ -52,6 +54,8 @@ class WebMClusterParser : public WebMParserClient {
   base::TimeDelta audio_default_duration_;
   int video_track_num_;
   base::TimeDelta  video_default_duration_;
+  scoped_array<uint8> video_encryption_key_id_;
+  int video_encryption_key_id_size_;
 
   WebMListParser parser_;
 

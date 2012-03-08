@@ -6,33 +6,33 @@
 
 #include "base/logging.h"
 #include "media/base/data_buffer.h"
-#include "media/ffmpeg/ffmpeg_common.h"
+#include "media/base/decrypt_config.h"
 #include "media/webm/webm_constants.h"
 
 namespace media {
-
-static Buffer* CreateBuffer(const uint8* data, size_t size) {
-  // Why FF_INPUT_BUFFER_PADDING_SIZE? FFmpeg assumes all input buffers are
-  // padded with this value.
-  scoped_array<uint8> buf(new uint8[size + FF_INPUT_BUFFER_PADDING_SIZE]);
-  memcpy(buf.get(), data, size);
-  memset(buf.get() + size, 0, FF_INPUT_BUFFER_PADDING_SIZE);
-  return new DataBuffer(buf.Pass(), size);
-}
 
 WebMClusterParser::WebMClusterParser(int64 timecode_scale,
                                      int audio_track_num,
                                      base::TimeDelta audio_default_duration,
                                      int video_track_num,
-                                     base::TimeDelta video_default_duration)
+                                     base::TimeDelta video_default_duration,
+                                     const uint8* video_encryption_key_id,
+                                     int video_encryption_key_id_size)
     : timecode_multiplier_(timecode_scale / 1000.0),
       audio_track_num_(audio_track_num),
       audio_default_duration_(audio_default_duration),
       video_track_num_(video_track_num),
       video_default_duration_(video_default_duration),
+      video_encryption_key_id_size_(video_encryption_key_id_size),
       parser_(kWebMIdCluster, this),
       last_block_timecode_(-1),
       cluster_timecode_(-1) {
+  CHECK_GE(video_encryption_key_id_size, 0);
+  if (video_encryption_key_id_size > 0) {
+    video_encryption_key_id_.reset(new uint8[video_encryption_key_id_size]);
+    memcpy(video_encryption_key_id_.get(), video_encryption_key_id,
+           video_encryption_key_id_size);
+  }
 }
 
 WebMClusterParser::~WebMClusterParser() {}
@@ -115,7 +115,13 @@ bool WebMClusterParser::OnSimpleBlock(int track_num, int timecode,
   base::TimeDelta timestamp = base::TimeDelta::FromMicroseconds(
       (cluster_timecode_ + timecode) * timecode_multiplier_);
 
-  scoped_refptr<Buffer> buffer(CreateBuffer(data, size));
+  scoped_refptr<DataBuffer> buffer = DataBuffer::CopyFrom(data, size);
+
+  if (track_num == video_track_num_ && video_encryption_key_id_.get()) {
+    buffer->SetDecryptConfig(scoped_ptr<DecryptConfig>(new DecryptConfig(
+        video_encryption_key_id_.get(), video_encryption_key_id_size_)));
+  }
+
   buffer->SetTimestamp(timestamp);
   BufferQueue* queue = NULL;
 
