@@ -235,19 +235,19 @@ TEST_F(HttpPipelinedHostPoolTest, MultipleKeys) {
   EXPECT_CALL(*host1, IsExistingPipelineAvailable())
       .Times(1)
       .WillOnce(Return(true));
-  EXPECT_EQ(true, pool_->IsExistingPipelineAvailableForKey(key1));
+  EXPECT_TRUE(pool_->IsExistingPipelineAvailableForKey(key1));
 
   EXPECT_CALL(*host2, IsExistingPipelineAvailable())
       .Times(1)
       .WillOnce(Return(false));
-  EXPECT_EQ(false, pool_->IsExistingPipelineAvailableForKey(key2));
+  EXPECT_FALSE(pool_->IsExistingPipelineAvailableForKey(key2));
 
   EXPECT_CALL(*host3, IsExistingPipelineAvailable())
       .Times(1)
       .WillOnce(Return(true));
-  EXPECT_EQ(true, pool_->IsExistingPipelineAvailableForKey(key3));
+  EXPECT_TRUE(pool_->IsExistingPipelineAvailableForKey(key3));
 
-  EXPECT_EQ(false, pool_->IsExistingPipelineAvailableForKey(key4));
+  EXPECT_FALSE(pool_->IsExistingPipelineAvailableForKey(key4));
 
   pool_->OnHostIdle(host1);
   pool_->OnHostIdle(host2);
