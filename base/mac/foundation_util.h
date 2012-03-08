@@ -44,7 +44,7 @@ BASE_EXPORT void SetOverrideAmIBundled(bool value);
 BASE_EXPORT bool IsBackgroundOnlyProcess();
 
 // Returns the path to a resource within the framework bundle.
-FilePath PathForFrameworkBundleResource(CFStringRef resourceName);
+BASE_EXPORT FilePath PathForFrameworkBundleResource(CFStringRef resourceName);
 
 // Returns the creator code associated with the CFBundleRef at bundle.
 OSType CreatorCodeForCFBundleRef(CFBundleRef bundle);
@@ -311,10 +311,10 @@ T GetValueFromDictionary(CFDictionaryRef dict, CFStringRef key) {
 }
 
 // Converts |path| to an autoreleased NSString. Returns nil if |path| is empty.
-NSString* FilePathToNSString(const FilePath& path);
+BASE_EXPORT NSString* FilePathToNSString(const FilePath& path);
 
 // Converts |str| to a FilePath. Returns an empty path if |str| is nil.
-FilePath NSStringToFilePath(NSString* str);
+BASE_EXPORT FilePath NSStringToFilePath(NSString* str);
 
 }  // namespace mac
 }  // namespace base
