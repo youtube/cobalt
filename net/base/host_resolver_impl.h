@@ -148,6 +148,11 @@ class NET_EXPORT HostResolverImpl
   virtual void ProbeIPv6Support() OVERRIDE;
   virtual HostCache* GetHostCache() OVERRIDE;
 
+  // Allows the tests to catch slots leaking out of the dispatcher.
+  size_t num_running_jobs_for_tests() const {
+    return dispatcher_.num_running_jobs();
+  }
+
  private:
   class Job;
   class ProcTask;
@@ -194,14 +199,13 @@ class NET_EXPORT HostResolverImpl
   // family when the request leaves it unspecified.
   Key GetEffectiveKeyForRequest(const RequestInfo& info) const;
 
-  // Called by |job| when it has completed. Records the result in cache
-  // if necessary and dispatches another job if possible.
-  void OnJobFinished(Job* job,
-                     int net_error,
-                     const AddressList& addr_list,
-                     base::TimeDelta ttl);
+  // Records the result in cache if cache is present.
+  void CacheResult(const Key& key,
+                   int net_error,
+                   const AddressList& addr_list,
+                   base::TimeDelta ttl);
 
-  // Removes |job| from |jobs_|.
+  // Removes |job| from |jobs_|, only if it exists.
   void RemoveJob(Job* job);
 
   // Aborts all in progress jobs and notifies their requests.
