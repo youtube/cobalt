@@ -10,6 +10,7 @@
 #include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_vector.h"
 #include "base/message_loop.h"
 #include "base/stl_util.h"
 #include "base/string_util.h"
@@ -885,16 +886,15 @@ class CountingDelegate : public ResolveRequest::Delegate {
   unsigned num_completions_;
 };
 
-// Disabled because times out flakily: http://crbug.com/117187
-TEST_F(HostResolverImplTest, DISABLED_CanceledRequestsReleaseJobSlots) {
+TEST_F(HostResolverImplTest, CanceledRequestsReleaseJobSlots) {
   scoped_refptr<CountingHostResolverProc> resolver_proc(
       new CountingHostResolverProc(NULL));
 
-  scoped_ptr<HostResolver> host_resolver(
+  scoped_ptr<HostResolverImpl> host_resolver(
       CreateHostResolverImpl(resolver_proc));
 
   CountingDelegate delegate;
-  std::vector<ResolveRequest*> requests;
+  ScopedVector<ResolveRequest> requests;
 
   // Fill up the dispatcher and queue.
   for (unsigned i = 0; i < kMaxJobs + 1; ++i) {
@@ -921,9 +921,7 @@ TEST_F(HostResolverImplTest, DISABLED_CanceledRequestsReleaseJobSlots) {
   while (delegate.num_completions() < 2)
     MessageLoop::current()->Run();
 
-  MessageLoop::current()->AssertIdle();
-
-  STLDeleteElements(&requests);
+  EXPECT_EQ(0u, host_resolver->num_running_jobs_for_tests());
 }
 
 // Helper class used by HostResolverImplTest.CancelWithinCallback.
@@ -1266,6 +1264,8 @@ TEST_F(HostResolverImplTest, ObeyPoolConstraintsAfterIPAddressChange) {
   resolver_proc->Wait();
   resolver_proc->Signal();
   EXPECT_EQ(OK, callback.WaitForResult());
+
+  EXPECT_EQ(0u, host_resolver->num_running_jobs_for_tests());
 }
 
 // Helper class used by AbortOnlyExistingRequestsOnIPAddressChange.
@@ -1305,7 +1305,8 @@ class StartWithinAbortedCallbackVerifier : public ResolveRequest::Delegate {
 TEST_F(HostResolverImplTest, AbortOnlyExistingRequestsOnIPAddressChange) {
   scoped_refptr<CountingHostResolverProc> resolver_proc(
       new CountingHostResolverProc(CreateCatchAllHostResolverProc()));
-  scoped_ptr<HostResolver> host_resolver(CreateHostResolverImpl(resolver_proc));
+  scoped_ptr<HostResolverImpl> host_resolver(
+      CreateHostResolverImpl(resolver_proc));
 
   StartWithinAbortedCallbackVerifier verifier1("zzz");
   StartWithinAbortedCallbackVerifier verifier2("aaa");
@@ -1330,7 +1331,8 @@ TEST_F(HostResolverImplTest, AbortOnlyExistingRequestsOnIPAddressChange) {
   EXPECT_EQ(OK, verifier1.WaitUntilDone());
   EXPECT_EQ(OK, verifier2.WaitUntilDone());
   EXPECT_EQ(OK, verifier3.WaitUntilDone());
-  MessageLoop::current()->AssertIdle();
+
+  EXPECT_EQ(0u, host_resolver->num_running_jobs_for_tests());
 }
 
 // Tests that when the maximum threads is set to 1, requests are dequeued
@@ -1525,6 +1527,9 @@ TEST_F(HostResolverImplTest, QueueOverflow) {
   EXPECT_EQ("req1", capture_list[1].hostname);
   EXPECT_EQ("req6", capture_list[2].hostname);
   EXPECT_EQ("req7", capture_list[3].hostname);
+
+  // Verify that the evicted (incomplete) requests were not cached.
+  EXPECT_EQ(4u, host_resolver->GetHostCache()->size());
 }
 
 // Tests that after changing the default AddressFamily to IPV4, requests
