@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -253,6 +253,19 @@ void SocketStream::SetClientSocketFactory(
     ClientSocketFactory* factory) {
   DCHECK(factory);
   factory_ = factory;
+}
+
+void SocketStream::CancelBecauseOfCertError(const SSLInfo& ssl_info) {
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      base::Bind(&SocketStream::DoLoop, this,
+          MapCertStatusToNetError(ssl_info.cert_status)));
+}
+
+void SocketStream::ContinueDespiteCertError() {
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      base::Bind(&SocketStream::DoLoop, this, OK));
 }
 
 SocketStream::~SocketStream() {
@@ -1170,17 +1183,26 @@ void SocketStream::DoRestartWithAuth() {
 }
 
 int SocketStream::HandleCertificateError(int result) {
-  // TODO(ukai): handle cert error properly.
-  switch (result) {
-    case ERR_CERT_COMMON_NAME_INVALID:
-    case ERR_CERT_DATE_INVALID:
-    case ERR_CERT_AUTHORITY_INVALID:
-      result = OK;
-      break;
-    default:
-      break;
-  }
-  return result;
+  DCHECK(IsCertificateError(result));
+
+  if (!delegate_)
+    return result;
+
+  SSLClientSocket* ssl_socket = static_cast<SSLClientSocket*>(socket_.get());
+  DCHECK(ssl_socket);
+  SSLInfo ssl_info;
+  ssl_socket->GetSSLInfo(&ssl_info);
+
+  TransportSecurityState::DomainState domain_state;
+  DCHECK(context_);
+  const bool fatal =
+      context_->transport_security_state() &&
+      context_->transport_security_state()->GetDomainState(
+          &domain_state, url_.host(),
+          SSLConfigService::IsSNIAvailable(context_->ssl_config_service()));
+
+  delegate_->OnSSLCertificateError(this, ssl_info, fatal);
+  return ERR_IO_PENDING;
 }
 
 SSLConfigService* SocketStream::ssl_config_service() const {
