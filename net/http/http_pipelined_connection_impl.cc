@@ -324,8 +324,10 @@ int HttpPipelinedConnectionImpl::DoEvictPendingSendRequests(int result) {
     scoped_ptr<PendingSendRequest> evicted_send(
         pending_send_request_queue_.front());
     pending_send_request_queue_.pop();
-    if (stream_info_map_[evicted_send->pipeline_id].state != STREAM_CLOSED)
+    if (ContainsKey(stream_info_map_, evicted_send->pipeline_id) &&
+        stream_info_map_[evicted_send->pipeline_id].state != STREAM_CLOSED) {
       evicted_send->callback.Run(ERR_PIPELINE_EVICTION);
+    }
   }
   send_next_state_ = SEND_STATE_NONE;
   return result;
