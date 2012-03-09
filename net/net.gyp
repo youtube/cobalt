@@ -1343,6 +1343,73 @@
       ],
     },
     {
+      'target_name': 'net_unittests_run',
+      'type': 'none',
+      'dependencies': [
+        'net_unittests',
+      ],
+      'actions': [
+        {
+          'action_name': 'response_file',
+          'inputs': [
+            '<(PRODUCT_DIR)/net_unittests<(EXECUTABLE_SUFFIX)',
+            '<(DEPTH)/testing/test_env.py',
+            '<(DEPTH)/testing/xvfb.py',
+            '<(DEPTH)/third_party/pyftpdlib/src/pyftpdlib/__init__.py',
+            '<(DEPTH)/third_party/pyftpdlib/src/pyftpdlib/ftpserver.py',
+          ],
+          'conditions': [
+            ['OS=="linux"', {
+              'inputs': [
+                '<(PRODUCT_DIR)/xdisplaycheck<(EXECUTABLE_SUFFIX)',
+              ],
+            }],
+          ],
+          'outputs': [
+            '<(PRODUCT_DIR)/net_unittests.inputs',
+          ],
+          'action': [
+            'python',
+            '-c',
+            'import sys; '
+                'open(sys.argv[1], \'w\').write(\'\\n\'.join(sys.argv[2:]))',
+            '<@(_outputs)',
+            '<@(_inputs)',
+          ],
+        },
+        {
+          'action_name': 'isolate',
+          'inputs': [
+            '<(PRODUCT_DIR)/net_unittests.inputs',
+          ],
+          'outputs': [
+            '<(PRODUCT_DIR)/net_unittests.results',
+          ],
+          'action': [
+            'python',
+            '<(DEPTH)/tools/isolate/isolate.py',
+            '--mode=<(tests_run)',
+            '--root', '<(DEPTH)',
+            '--result', '<@(_outputs)',
+            '--files', '<@(_inputs)',
+            # Directories can't be tracked by build tools (make, msbuild, xcode,
+            # etc) so we just put it on the command line without specifying it
+            # as an input.
+            # TODO(maruel): Revisit the support for this at all and list each
+            # individual test files instead.
+            'data/',
+            'tools/testserver/',
+            '<(DEPTH)/third_party/tlslite/tlslite/',
+            '--',
+            # Wraps net_unittests under xvfb.
+            '<(DEPTH)/testing/xvfb.py',
+            '<(PRODUCT_DIR)',
+            '<(PRODUCT_DIR)/net_unittests<(EXECUTABLE_SUFFIX)',
+          ],
+        },
+      ],
+    },
+    {
       'target_name': 'net_perftests',
       'type': 'executable',
       'dependencies': [
