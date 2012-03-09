@@ -267,6 +267,12 @@ void WebSocketJob::OnAuthRequired(
     delegate_->OnAuthRequired(socket, auth_info);
 }
 
+void WebSocketJob::OnSSLCertificateError(
+    SocketStream* socket, const SSLInfo& ssl_info, bool fatal) {
+  if (delegate_)
+    delegate_->OnSSLCertificateError(socket, ssl_info, fatal);
+}
+
 void WebSocketJob::OnError(const SocketStream* socket, int error) {
   if (delegate_ && error != ERR_PROTOCOL_SWITCHED)
     delegate_->OnError(socket, error);

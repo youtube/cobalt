@@ -21,6 +21,7 @@ class GURL;
 namespace net {
 
 class DrainableIOBuffer;
+class SSLInfo;
 class WebSocketHandshakeRequestHandler;
 class WebSocketHandshakeResponseHandler;
 
@@ -71,6 +72,9 @@ class NET_EXPORT WebSocketJob
   virtual void OnClose(SocketStream* socket) OVERRIDE;
   virtual void OnAuthRequired(
       SocketStream* socket, AuthChallengeInfo* auth_info) OVERRIDE;
+  virtual void OnSSLCertificateError(SocketStream* socket,
+                                     const SSLInfo& ssl_info,
+                                     bool fatal) OVERRIDE;
   virtual void OnError(const SocketStream* socket, int error) OVERRIDE;
 
   // SpdyWebSocketStream::Delegate methods.
