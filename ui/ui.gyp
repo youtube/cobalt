@@ -349,7 +349,6 @@
         ['OS == "lb_shell"', {
           'sources/': [
             # data_pack.cc uses memory-mapped files
-            ['exclude', 'base/resource/data_pack.cc'],
             ['exclude', 'base/accessibility'],
             ['exclude', 'base/animation'],
             ['exclude', 'base/clipboard'],
