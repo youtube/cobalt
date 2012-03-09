@@ -109,12 +109,6 @@ class TestURLRequest : public net::URLRequest {
 
 class TestDelegate : public net::URLRequest::Delegate {
  public:
-  enum Options {
-    NO_GET_COOKIES = 1 << 0,
-    NO_SET_COOKIE  = 1 << 1,
-    FORCE_SESSION  = 1 << 2,
-  };
-
   TestDelegate();
   virtual ~TestDelegate();
 
@@ -129,7 +123,6 @@ class TestDelegate : public net::URLRequest::Delegate {
   void set_allow_certificate_errors(bool val) {
     allow_certificate_errors_ = val;
   }
-  void set_cookie_options(int o) {cookie_options_bit_mask_ = o; }
   void set_credentials(const net::AuthCredentials& credentials) {
     credentials_ = credentials;
   }
@@ -139,9 +132,6 @@ class TestDelegate : public net::URLRequest::Delegate {
   int bytes_received() const { return static_cast<int>(data_received_.size()); }
   int response_started_count() const { return response_started_count_; }
   int received_redirect_count() const { return received_redirect_count_; }
-  int blocked_get_cookies_count() const { return blocked_get_cookies_count_; }
-  int blocked_set_cookie_count() const { return blocked_set_cookie_count_; }
-  int set_cookie_count() const { return set_cookie_count_; }
   bool received_data_before_response() const {
     return received_data_before_response_;
   }
@@ -163,11 +153,6 @@ class TestDelegate : public net::URLRequest::Delegate {
   virtual void OnSSLCertificateError(net::URLRequest* request,
                                      const net::SSLInfo& ssl_info,
                                      bool fatal) OVERRIDE;
-  virtual bool CanGetCookies(const net::URLRequest* request,
-                             const net::CookieList& cookie_list) const OVERRIDE;
-  virtual bool CanSetCookie(const net::URLRequest* request,
-                            const std::string& cookie_line,
-                            net::CookieOptions* options) const OVERRIDE;
   virtual void OnResponseStarted(net::URLRequest* request) OVERRIDE;
   virtual void OnReadCompleted(net::URLRequest* request,
                                int bytes_read) OVERRIDE;
@@ -185,16 +170,12 @@ class TestDelegate : public net::URLRequest::Delegate {
   bool quit_on_complete_;
   bool quit_on_redirect_;
   bool allow_certificate_errors_;
-  int cookie_options_bit_mask_;
   net::AuthCredentials credentials_;
 
   // tracks status of callbacks
   int response_started_count_;
   int received_bytes_count_;
   int received_redirect_count_;
-  mutable int blocked_get_cookies_count_;
-  mutable int blocked_set_cookie_count_;
-  mutable int set_cookie_count_;
   bool received_data_before_response_;
   bool request_failed_;
   bool have_certificate_errors_;
@@ -210,14 +191,25 @@ class TestDelegate : public net::URLRequest::Delegate {
 
 class TestNetworkDelegate : public net::NetworkDelegate {
  public:
+  enum Options {
+    NO_GET_COOKIES = 1 << 0,
+    NO_SET_COOKIE  = 1 << 1,
+    FORCE_SESSION  = 1 << 2,
+  };
+
   TestNetworkDelegate();
   virtual ~TestNetworkDelegate();
+
+  void set_cookie_options(int o) {cookie_options_bit_mask_ = o; }
 
   int last_error() const { return last_error_; }
   int error_count() const { return error_count_; }
   int created_requests() const { return created_requests_; }
   int destroyed_requests() const { return destroyed_requests_; }
   int completed_requests() const { return completed_requests_; }
+  int blocked_get_cookies_count() const { return blocked_get_cookies_count_; }
+  int blocked_set_cookie_count() const { return blocked_set_cookie_count_; }
+  int set_cookie_count() const { return set_cookie_count_; }
 
  protected:
   // net::NetworkDelegate:
@@ -249,6 +241,11 @@ class TestNetworkDelegate : public net::NetworkDelegate {
       const net::AuthChallengeInfo& auth_info,
       const AuthCallback& callback,
       net::AuthCredentials* credentials) OVERRIDE;
+  virtual bool CanGetCookies(const net::URLRequest* request,
+                             const net::CookieList& cookie_list) OVERRIDE;
+  virtual bool CanSetCookie(const net::URLRequest* request,
+                            const std::string& cookie_line,
+                            net::CookieOptions* options) OVERRIDE;
 
   void InitRequestStatesIfNew(int request_id);
 
@@ -257,6 +254,10 @@ class TestNetworkDelegate : public net::NetworkDelegate {
   int created_requests_;
   int destroyed_requests_;
   int completed_requests_;
+  int cookie_options_bit_mask_;
+  int blocked_get_cookies_count_;
+  int blocked_set_cookie_count_;
+  int set_cookie_count_;
 
   // net::NetworkDelegate callbacks happen in a particular order (e.g.
   // OnBeforeURLRequest is always called before OnBeforeSendHeaders).
