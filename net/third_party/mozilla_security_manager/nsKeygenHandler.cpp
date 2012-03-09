@@ -107,7 +107,7 @@ std::string GenKeyAndSignChallenge(int key_size_in_bits,
   SECKEYPrivateKey *privateKey = NULL;
   SECKEYPublicKey *publicKey = NULL;
   CERTSubjectPublicKeyInfo *spkInfo = NULL;
-  PRArenaPool *arena = NULL;
+  PLArenaPool *arena = NULL;
   SECStatus sec_rv =SECFailure;
   SECItem spkiItem;
   SECItem pkacItem;
