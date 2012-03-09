@@ -12,7 +12,7 @@
 #include "base/message_loop_proxy.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
-#include "base/task_runner_test_template.h"
+#include "base/test/task_runner_test_template.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/sequenced_worker_pool.h"
 #include "base/tracked_objects.h"
