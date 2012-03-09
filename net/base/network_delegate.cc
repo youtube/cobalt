@@ -5,6 +5,8 @@
 #include "net/base/network_delegate.h"
 
 #include "base/logging.h"
+#include "net/base/load_flags.h"
+#include "net/url_request/url_request.h"
 
 namespace net {
 
@@ -88,6 +90,23 @@ NetworkDelegate::AuthRequiredResponse NetworkDelegate::NotifyAuthRequired(
     AuthCredentials* credentials) {
   DCHECK(CalledOnValidThread());
   return OnAuthRequired(request, auth_info, callback, credentials);
+}
+
+bool NetworkDelegate::NotifyReadingCookies(
+    const URLRequest* request,
+    const CookieList& cookie_list) {
+  DCHECK(CalledOnValidThread());
+  DCHECK(!(request->load_flags() & net::LOAD_DO_NOT_SEND_COOKIES));
+  return CanGetCookies(request, cookie_list);
+}
+
+bool NetworkDelegate::NotifySettingCookie(
+    const URLRequest* request,
+    const std::string& cookie_line,
+    CookieOptions* options) {
+  DCHECK(CalledOnValidThread());
+  DCHECK(!(request->load_flags() & net::LOAD_DO_NOT_SAVE_COOKIES));
+  return CanSetCookie(request, cookie_line, options);
 }
 
 }  // namespace net
