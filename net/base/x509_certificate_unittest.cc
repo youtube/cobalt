@@ -343,7 +343,13 @@ TEST(X509CertificateTest, ThawteCertParsing) {
   EXPECT_EQ("www.thawte.com", dns_names[0]);
 }
 
-TEST(X509CertificateTest, EVVerification) {
+#if defined(OS_ANDROID) || defined(USE_OPENSSL)
+// TODO(jnd): http://crbug.com/117478 - EV verification is not yet supported.
+#define MAYBE_EVVerification DISABLED_EVVerification
+#else
+#define MAYBE_EVVerification EVVerification
+#endif
+TEST(X509CertificateTest, MAYBE_EVVerification) {
   // This certificate will expire Jun 21, 2013.
   CertificateList certs = CreateCertificateListFromFile(
       GetTestCertsDirectory(),
