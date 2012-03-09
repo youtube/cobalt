@@ -553,9 +553,21 @@ struct RateStats {
   double standard_deviation_us;
 };
 
+struct RateStatsOptions {
+  RateStatsOptions() : trim_min(0u), trim_max(0u) {}
+  // After the times between events are sorted, the number of specified elements
+  // will be trimmed before calculating the RateStats. This is useful in cases
+  // where extreme outliers are tolerable and should not skew the overall
+  // average.
+  size_t trim_min;  // Trim this many minimum times.
+  size_t trim_max;  // Trim this many maximum times.
+};
+
 // Calculate min/max/mean and standard deviation from the times between
 // adjacent events.
-bool GetRateStats(const TraceEventVector& events, RateStats* stats);
+bool GetRateStats(const TraceEventVector& events,
+                  RateStats* stats,
+                  const RateStatsOptions* options);
 
 // Starting from |position|, find the first event that matches |query|.
 // Returns true if found, false otherwise.
