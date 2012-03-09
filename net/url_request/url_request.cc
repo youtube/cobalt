@@ -123,17 +123,6 @@ void URLRequest::Delegate::OnSSLCertificateError(URLRequest* request,
   request->Cancel();
 }
 
-bool URLRequest::Delegate::CanGetCookies(const URLRequest* request,
-                                         const CookieList& cookie_list) const {
-  return true;
-}
-
-bool URLRequest::Delegate::CanSetCookie(const URLRequest* request,
-                                        const std::string& cookie_line,
-                                        CookieOptions* options) const {
-  return true;
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 // URLRequest
 
@@ -837,15 +826,22 @@ void URLRequest::NotifySSLCertificateError(const SSLInfo& ssl_info,
 }
 
 bool URLRequest::CanGetCookies(const CookieList& cookie_list) const {
-  if (delegate_)
-    return delegate_->CanGetCookies(this, cookie_list);
+  DCHECK(!(load_flags_ & LOAD_DO_NOT_SEND_COOKIES));
+  if (context_ && context_->network_delegate()) {
+    return context_->network_delegate()->NotifyReadingCookies(this,
+                                                              cookie_list);
+  }
   return false;
 }
 
 bool URLRequest::CanSetCookie(const std::string& cookie_line,
                               CookieOptions* options) const {
-  if (delegate_)
-    return delegate_->CanSetCookie(this, cookie_line, options);
+  DCHECK(!(load_flags_ & LOAD_DO_NOT_SAVE_COOKIES));
+  if (context_ && context_->network_delegate()) {
+    return context_->network_delegate()->NotifySettingCookie(this,
+                                                             cookie_line,
+                                                             options);
+  }
   return false;
 }
 

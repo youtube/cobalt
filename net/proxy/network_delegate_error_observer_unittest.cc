@@ -63,6 +63,17 @@ class TestNetworkDelegate : public net::NetworkDelegate {
       AuthCredentials* credentials) OVERRIDE {
     return AUTH_REQUIRED_RESPONSE_NO_ACTION;
   }
+  virtual bool CanGetCookies(
+      const URLRequest* request,
+      const CookieList& cookie_list) OVERRIDE {
+    return true;
+  }
+  virtual bool CanSetCookie(
+      const URLRequest* request,
+      const std::string& cookie_line,
+      CookieOptions* options) OVERRIDE {
+    return true;
+  }
 
   bool got_pac_error_;
 };
