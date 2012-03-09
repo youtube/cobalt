@@ -6,7 +6,7 @@
   'conditions': [
     ['sysroot!=""', {
       'variables': {
-        'pkg-config': './pkg-config-wrapper "<(sysroot)"',
+        'pkg-config': './pkg-config-wrapper "<(sysroot)" "<(target_arch)"',
       },
     }, {
       'variables': {
