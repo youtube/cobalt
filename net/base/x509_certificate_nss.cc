@@ -846,7 +846,7 @@ void X509Certificate::GetSubjectAltName(
   if (rv != SECSuccess)
     return;
 
-  PRArenaPool* arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
+  PLArenaPool* arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
   DCHECK(arena != NULL);
 
   CERTGeneralName* alt_name_list;

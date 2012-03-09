@@ -4,7 +4,6 @@
 
 #include "net/base/x509_certificate.h"
 
-#define PRArenaPool PLArenaPool  // Required by <blapi.h>.
 #include <blapi.h>  // Implement CalculateChainFingerprint() with NSS.
 
 #include "base/lazy_instance.h"
