@@ -1443,6 +1443,8 @@ static const struct HSTSPreload kPreloadedSTS[] = {
   {28, false , "\003www\007sandbox\012mydigipass\003com", true, kNoPins,
       DOMAIN_NOT_PINNED },
   {12, true, "\006crypto\003cat", true, kNoPins, DOMAIN_NOT_PINNED },
+  {25, true, "\014bigshinylock\006minazo\003net", true, kNoPins,
+      DOMAIN_NOT_PINNED },
 
   {13, false, "\007twitter\003com", kTwitterHSTS,
       kTwitterComPins, DOMAIN_TWITTER_COM },
