@@ -191,13 +191,9 @@ TestDelegate::TestDelegate()
       quit_on_complete_(true),
       quit_on_redirect_(false),
       allow_certificate_errors_(false),
-      cookie_options_bit_mask_(0),
       response_started_count_(0),
       received_bytes_count_(0),
       received_redirect_count_(0),
-      blocked_get_cookies_count_(0),
-      blocked_set_cookie_count_(0),
-      set_cookie_count_(0),
       received_data_before_response_(false),
       request_failed_(false),
       have_certificate_errors_(false),
@@ -242,39 +238,6 @@ void TestDelegate::OnSSLCertificateError(net::URLRequest* request,
     request->ContinueDespiteLastError();
   else
     request->Cancel();
-}
-
-bool TestDelegate::CanGetCookies(const net::URLRequest* request,
-                                 const net::CookieList& cookie_list) const {
-  bool allow = true;
-  if (cookie_options_bit_mask_ & NO_GET_COOKIES)
-    allow = false;
-
-  if (!allow) {
-    blocked_get_cookies_count_++;
-  }
-
-  return allow;
-}
-
-bool TestDelegate::CanSetCookie(const net::URLRequest* request,
-                                const std::string& cookie_line,
-                                net::CookieOptions* options) const {
-  bool allow = true;
-  if (cookie_options_bit_mask_ & NO_SET_COOKIE)
-    allow = false;
-
-  if (cookie_options_bit_mask_ & FORCE_SESSION)
-    options->set_force_session();
-
-
-  if (!allow) {
-    blocked_set_cookie_count_++;
-  } else {
-    set_cookie_count_++;
-  }
-
-  return allow;
 }
 
 void TestDelegate::OnResponseStarted(net::URLRequest* request) {
@@ -342,11 +305,15 @@ void TestDelegate::OnResponseCompleted(net::URLRequest* request) {
 }
 
 TestNetworkDelegate::TestNetworkDelegate()
-  : last_error_(0),
-    error_count_(0),
-    created_requests_(0),
-    destroyed_requests_(0),
-    completed_requests_(0) {
+    : last_error_(0),
+      error_count_(0),
+      created_requests_(0),
+      destroyed_requests_(0),
+      completed_requests_(0),
+      cookie_options_bit_mask_(0),
+      blocked_get_cookies_count_(0),
+      blocked_set_cookie_count_(0),
+      set_cookie_count_(0) {
 }
 
 TestNetworkDelegate::~TestNetworkDelegate() {
@@ -522,6 +489,38 @@ net::NetworkDelegate::AuthRequiredResponse TestNetworkDelegate::OnAuthRequired(
       kStageResponseStarted |  // data: URLs do not trigger sending headers
       kStageBeforeRedirect;  // a delegate can trigger a redirection
   return net::NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION;
+}
+
+bool TestNetworkDelegate::CanGetCookies(const net::URLRequest* request,
+                                        const net::CookieList& cookie_list) {
+  bool allow = true;
+  if (cookie_options_bit_mask_ & NO_GET_COOKIES)
+    allow = false;
+
+  if (!allow) {
+    blocked_get_cookies_count_++;
+  }
+
+  return allow;
+}
+
+bool TestNetworkDelegate::CanSetCookie(const net::URLRequest* request,
+                                       const std::string& cookie_line,
+                                       net::CookieOptions* options) {
+  bool allow = true;
+  if (cookie_options_bit_mask_ & NO_SET_COOKIE)
+    allow = false;
+
+  if (cookie_options_bit_mask_ & FORCE_SESSION)
+    options->set_force_session();
+
+  if (!allow) {
+    blocked_set_cookie_count_++;
+  } else {
+    set_cookie_count_++;
+  }
+
+  return allow;
 }
 
 // static

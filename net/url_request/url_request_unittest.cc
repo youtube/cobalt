@@ -2569,18 +2569,22 @@ TEST_F(URLRequestTest, DelayedCookieCallback) {
 
   // Set up a cookie.
   {
+    TestNetworkDelegate network_delegate;
+    context->set_network_delegate(&network_delegate);
     TestDelegate d;
     URLRequest req(test_server.GetURL("set-cookie?CookieToNotSend=1"), &d);
     req.set_context(context);
     req.Start();
     MessageLoop::current()->Run();
-    EXPECT_EQ(0, d.blocked_get_cookies_count());
-    EXPECT_EQ(0, d.blocked_set_cookie_count());
-    EXPECT_EQ(1, d.set_cookie_count());
+    EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
+    EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
+    EXPECT_EQ(1, network_delegate.set_cookie_count());
   }
 
   // Verify that the cookie is set.
   {
+    TestNetworkDelegate network_delegate;
+    context->set_network_delegate(&network_delegate);
     TestDelegate d;
     TestURLRequest req(test_server.GetURL("echoheader?Cookie"), &d);
     req.set_context(context);
@@ -2589,8 +2593,8 @@ TEST_F(URLRequestTest, DelayedCookieCallback) {
 
     EXPECT_TRUE(d.data_received().find("CookieToNotSend=1")
                 != std::string::npos);
-    EXPECT_EQ(0, d.blocked_get_cookies_count());
-    EXPECT_EQ(0, d.blocked_set_cookie_count());
+    EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
+    EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
   }
 }
 
@@ -2600,17 +2604,21 @@ TEST_F(URLRequestTest, DoNotSendCookies) {
 
   // Set up a cookie.
   {
+    TestNetworkDelegate network_delegate;
+    default_context_->set_network_delegate(&network_delegate);
     TestDelegate d;
     URLRequest req(test_server.GetURL("set-cookie?CookieToNotSend=1"), &d);
     req.set_context(default_context_);
     req.Start();
     MessageLoop::current()->Run();
-    EXPECT_EQ(0, d.blocked_get_cookies_count());
-    EXPECT_EQ(0, d.blocked_set_cookie_count());
+    EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
+    EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
   }
 
   // Verify that the cookie is set.
   {
+    TestNetworkDelegate network_delegate;
+    default_context_->set_network_delegate(&network_delegate);
     TestDelegate d;
     TestURLRequest req(test_server.GetURL("echoheader?Cookie"), &d);
     req.set_context(default_context_);
@@ -2619,12 +2627,14 @@ TEST_F(URLRequestTest, DoNotSendCookies) {
 
     EXPECT_TRUE(d.data_received().find("CookieToNotSend=1")
                 != std::string::npos);
-    EXPECT_EQ(0, d.blocked_get_cookies_count());
-    EXPECT_EQ(0, d.blocked_set_cookie_count());
+    EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
+    EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
   }
 
   // Verify that the cookie isn't sent when LOAD_DO_NOT_SEND_COOKIES is set.
   {
+    TestNetworkDelegate network_delegate;
+    default_context_->set_network_delegate(&network_delegate);
     TestDelegate d;
     TestURLRequest req(test_server.GetURL("echoheader?Cookie"), &d);
     req.set_load_flags(LOAD_DO_NOT_SEND_COOKIES);
@@ -2636,9 +2646,11 @@ TEST_F(URLRequestTest, DoNotSendCookies) {
                 == std::string::npos);
 
     // LOAD_DO_NOT_SEND_COOKIES does not trigger OnGetCookies.
-    EXPECT_EQ(0, d.blocked_get_cookies_count());
-    EXPECT_EQ(0, d.blocked_set_cookie_count());
+    EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
+    EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
   }
+
+  default_context_->set_network_delegate(&default_network_delegate_);
 }
 
 TEST_F(URLRequestTest, DoNotSaveCookies) {
@@ -2647,19 +2659,23 @@ TEST_F(URLRequestTest, DoNotSaveCookies) {
 
   // Set up a cookie.
   {
+    TestNetworkDelegate network_delegate;
+    default_context_->set_network_delegate(&network_delegate);
     TestDelegate d;
     URLRequest req(test_server.GetURL("set-cookie?CookieToNotUpdate=2"), &d);
     req.set_context(default_context_);
     req.Start();
     MessageLoop::current()->Run();
 
-    EXPECT_EQ(0, d.blocked_get_cookies_count());
-    EXPECT_EQ(0, d.blocked_set_cookie_count());
-    EXPECT_EQ(1, d.set_cookie_count());
+    EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
+    EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
+    EXPECT_EQ(1, network_delegate.set_cookie_count());
   }
 
   // Try to set-up another cookie and update the previous cookie.
   {
+    TestNetworkDelegate network_delegate;
+    default_context_->set_network_delegate(&network_delegate);
     TestDelegate d;
     URLRequest req(test_server.GetURL(
         "set-cookie?CookieToNotSave=1&CookieToNotUpdate=1"), &d);
@@ -2670,13 +2686,15 @@ TEST_F(URLRequestTest, DoNotSaveCookies) {
     MessageLoop::current()->Run();
 
     // LOAD_DO_NOT_SAVE_COOKIES does not trigger OnSetCookie.
-    EXPECT_EQ(0, d.blocked_get_cookies_count());
-    EXPECT_EQ(0, d.blocked_set_cookie_count());
-    EXPECT_EQ(0, d.set_cookie_count());
+    EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
+    EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
+    EXPECT_EQ(0, network_delegate.set_cookie_count());
   }
 
   // Verify the cookies weren't saved or updated.
   {
+    TestNetworkDelegate network_delegate;
+    default_context_->set_network_delegate(&network_delegate);
     TestDelegate d;
     TestURLRequest req(test_server.GetURL("echoheader?Cookie"), &d);
     req.set_context(default_context_);
@@ -2688,10 +2706,12 @@ TEST_F(URLRequestTest, DoNotSaveCookies) {
     EXPECT_TRUE(d.data_received().find("CookieToNotUpdate=2")
                 != std::string::npos);
 
-    EXPECT_EQ(0, d.blocked_get_cookies_count());
-    EXPECT_EQ(0, d.blocked_set_cookie_count());
-    EXPECT_EQ(0, d.set_cookie_count());
+    EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
+    EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
+    EXPECT_EQ(0, network_delegate.set_cookie_count());
   }
+
+  default_context_->set_network_delegate(&default_network_delegate_);
 }
 
 TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy) {
@@ -2700,18 +2720,22 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy) {
 
   // Set up a cookie.
   {
+    TestNetworkDelegate network_delegate;
+    default_context_->set_network_delegate(&network_delegate);
     TestDelegate d;
     URLRequest req(test_server.GetURL("set-cookie?CookieToNotSend=1"), &d);
     req.set_context(default_context_);
     req.Start();
     MessageLoop::current()->Run();
 
-    EXPECT_EQ(0, d.blocked_get_cookies_count());
-    EXPECT_EQ(0, d.blocked_set_cookie_count());
+    EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
+    EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
   }
 
   // Verify that the cookie is set.
   {
+    TestNetworkDelegate network_delegate;
+    default_context_->set_network_delegate(&network_delegate);
     TestDelegate d;
     TestURLRequest req(test_server.GetURL("echoheader?Cookie"), &d);
     req.set_context(default_context_);
@@ -2721,14 +2745,16 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy) {
     EXPECT_TRUE(d.data_received().find("CookieToNotSend=1")
                 != std::string::npos);
 
-    EXPECT_EQ(0, d.blocked_get_cookies_count());
-    EXPECT_EQ(0, d.blocked_set_cookie_count());
+    EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
+    EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
   }
 
   // Verify that the cookie isn't sent.
   {
+    TestNetworkDelegate network_delegate;
+    default_context_->set_network_delegate(&network_delegate);
     TestDelegate d;
-    d.set_cookie_options(TestDelegate::NO_GET_COOKIES);
+    network_delegate.set_cookie_options(TestNetworkDelegate::NO_GET_COOKIES);
     TestURLRequest req(test_server.GetURL("echoheader?Cookie"), &d);
     req.set_context(default_context_);
     req.Start();
@@ -2737,9 +2763,11 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy) {
     EXPECT_TRUE(d.data_received().find("Cookie: CookieToNotSend=1")
                 == std::string::npos);
 
-    EXPECT_EQ(1, d.blocked_get_cookies_count());
-    EXPECT_EQ(0, d.blocked_set_cookie_count());
+    EXPECT_EQ(1, network_delegate.blocked_get_cookies_count());
+    EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
   }
+
+  default_context_->set_network_delegate(&default_network_delegate_);
 }
 
 TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy) {
@@ -2748,20 +2776,24 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy) {
 
   // Set up a cookie.
   {
+    TestNetworkDelegate network_delegate;
+    default_context_->set_network_delegate(&network_delegate);
     TestDelegate d;
     URLRequest req(test_server.GetURL("set-cookie?CookieToNotUpdate=2"),  &d);
     req.set_context(default_context_);
     req.Start();
     MessageLoop::current()->Run();
 
-    EXPECT_EQ(0, d.blocked_get_cookies_count());
-    EXPECT_EQ(0, d.blocked_set_cookie_count());
+    EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
+    EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
   }
 
   // Try to set-up another cookie and update the previous cookie.
   {
+    TestNetworkDelegate network_delegate;
+    default_context_->set_network_delegate(&network_delegate);
     TestDelegate d;
-    d.set_cookie_options(TestDelegate::NO_SET_COOKIE);
+    network_delegate.set_cookie_options(TestNetworkDelegate::NO_SET_COOKIE);
     URLRequest req(test_server.GetURL(
         "set-cookie?CookieToNotSave=1&CookieToNotUpdate=1"), &d);
     req.set_context(default_context_);
@@ -2769,13 +2801,15 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy) {
 
     MessageLoop::current()->Run();
 
-    EXPECT_EQ(0, d.blocked_get_cookies_count());
-    EXPECT_EQ(2, d.blocked_set_cookie_count());
+    EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
+    EXPECT_EQ(2, network_delegate.blocked_set_cookie_count());
   }
 
 
   // Verify the cookies weren't saved or updated.
   {
+    TestNetworkDelegate network_delegate;
+    default_context_->set_network_delegate(&network_delegate);
     TestDelegate d;
     TestURLRequest req(test_server.GetURL("echoheader?Cookie"), &d);
     req.set_context(default_context_);
@@ -2787,9 +2821,11 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy) {
     EXPECT_TRUE(d.data_received().find("CookieToNotUpdate=2")
                 != std::string::npos);
 
-    EXPECT_EQ(0, d.blocked_get_cookies_count());
-    EXPECT_EQ(0, d.blocked_set_cookie_count());
+    EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
+    EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
   }
+
+  default_context_->set_network_delegate(&default_network_delegate_);
 }
 
 TEST_F(URLRequestTest, DoNotSaveEmptyCookies) {
@@ -2798,16 +2834,20 @@ TEST_F(URLRequestTest, DoNotSaveEmptyCookies) {
 
   // Set up an empty cookie.
   {
+    TestNetworkDelegate network_delegate;
+    default_context_->set_network_delegate(&network_delegate);
     TestDelegate d;
     URLRequest req(test_server.GetURL("set-cookie"), &d);
     req.set_context(default_context_);
     req.Start();
     MessageLoop::current()->Run();
 
-    EXPECT_EQ(0, d.blocked_get_cookies_count());
-    EXPECT_EQ(0, d.blocked_set_cookie_count());
-    EXPECT_EQ(0, d.set_cookie_count());
+    EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
+    EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
+    EXPECT_EQ(0, network_delegate.set_cookie_count());
   }
+
+  default_context_->set_network_delegate(&default_network_delegate_);
 }
 
 TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy_Async) {
@@ -2816,18 +2856,22 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy_Async) {
 
   // Set up a cookie.
   {
+    TestNetworkDelegate network_delegate;
+    default_context_->set_network_delegate(&network_delegate);
     TestDelegate d;
     URLRequest req(test_server.GetURL("set-cookie?CookieToNotSend=1"), &d);
     req.set_context(default_context_);
     req.Start();
     MessageLoop::current()->Run();
 
-    EXPECT_EQ(0, d.blocked_get_cookies_count());
-    EXPECT_EQ(0, d.blocked_set_cookie_count());
+    EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
+    EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
   }
 
   // Verify that the cookie is set.
   {
+    TestNetworkDelegate network_delegate;
+    default_context_->set_network_delegate(&network_delegate);
     TestDelegate d;
     TestURLRequest req(test_server.GetURL("echoheader?Cookie"), &d);
     req.set_context(default_context_);
@@ -2837,14 +2881,16 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy_Async) {
     EXPECT_TRUE(d.data_received().find("CookieToNotSend=1")
                 != std::string::npos);
 
-    EXPECT_EQ(0, d.blocked_get_cookies_count());
-    EXPECT_EQ(0, d.blocked_set_cookie_count());
+    EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
+    EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
   }
 
   // Verify that the cookie isn't sent.
   {
+    TestNetworkDelegate network_delegate;
+    default_context_->set_network_delegate(&network_delegate);
     TestDelegate d;
-    d.set_cookie_options(TestDelegate::NO_GET_COOKIES);
+    network_delegate.set_cookie_options(TestNetworkDelegate::NO_GET_COOKIES);
     TestURLRequest req(test_server.GetURL("echoheader?Cookie"), &d);
     req.set_context(default_context_);
     req.Start();
@@ -2853,9 +2899,11 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy_Async) {
     EXPECT_TRUE(d.data_received().find("Cookie: CookieToNotSend=1")
                 == std::string::npos);
 
-    EXPECT_EQ(1, d.blocked_get_cookies_count());
-    EXPECT_EQ(0, d.blocked_set_cookie_count());
+    EXPECT_EQ(1, network_delegate.blocked_get_cookies_count());
+    EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
   }
+
+  default_context_->set_network_delegate(&default_network_delegate_);
 }
 
 TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy_Async) {
@@ -2864,20 +2912,24 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy_Async) {
 
   // Set up a cookie.
   {
+    TestNetworkDelegate network_delegate;
+    default_context_->set_network_delegate(&network_delegate);
     TestDelegate d;
     URLRequest req(test_server.GetURL("set-cookie?CookieToNotUpdate=2"), &d);
     req.set_context(default_context_);
     req.Start();
     MessageLoop::current()->Run();
 
-    EXPECT_EQ(0, d.blocked_get_cookies_count());
-    EXPECT_EQ(0, d.blocked_set_cookie_count());
+    EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
+    EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
   }
 
   // Try to set-up another cookie and update the previous cookie.
   {
+    TestNetworkDelegate network_delegate;
+    default_context_->set_network_delegate(&network_delegate);
     TestDelegate d;
-    d.set_cookie_options(TestDelegate::NO_SET_COOKIE);
+    network_delegate.set_cookie_options(TestNetworkDelegate::NO_SET_COOKIE);
     URLRequest req(test_server.GetURL(
         "set-cookie?CookieToNotSave=1&CookieToNotUpdate=1"), &d);
     req.set_context(default_context_);
@@ -2885,12 +2937,14 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy_Async) {
 
     MessageLoop::current()->Run();
 
-    EXPECT_EQ(0, d.blocked_get_cookies_count());
-    EXPECT_EQ(2, d.blocked_set_cookie_count());
+    EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
+    EXPECT_EQ(2, network_delegate.blocked_set_cookie_count());
   }
 
   // Verify the cookies weren't saved or updated.
   {
+    TestNetworkDelegate network_delegate;
+    default_context_->set_network_delegate(&network_delegate);
     TestDelegate d;
     TestURLRequest req(test_server.GetURL("echoheader?Cookie"), &d);
     req.set_context(default_context_);
@@ -2902,9 +2956,11 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy_Async) {
     EXPECT_TRUE(d.data_received().find("CookieToNotUpdate=2")
                 != std::string::npos);
 
-    EXPECT_EQ(0, d.blocked_get_cookies_count());
-    EXPECT_EQ(0, d.blocked_set_cookie_count());
+    EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
+    EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
   }
+
+  default_context_->set_network_delegate(&default_network_delegate_);
 }
 
 void CheckCookiePolicyCallback(bool* was_run, const CookieList& cookies) {
@@ -2920,8 +2976,10 @@ TEST_F(URLRequestTest, CookiePolicy_ForceSession) {
 
   // Set up a cookie.
   {
+    TestNetworkDelegate network_delegate;
+    default_context_->set_network_delegate(&network_delegate);
     TestDelegate d;
-    d.set_cookie_options(TestDelegate::FORCE_SESSION);
+    network_delegate.set_cookie_options(TestNetworkDelegate::FORCE_SESSION);
     URLRequest req(test_server.GetURL(
         "set-cookie?A=1;expires=\"Fri, 05 Feb 2010 23:42:01 GMT\""), &d);
     req.set_context(default_context_);
@@ -2929,9 +2987,10 @@ TEST_F(URLRequestTest, CookiePolicy_ForceSession) {
 
     MessageLoop::current()->Run();
 
-    EXPECT_EQ(0, d.blocked_get_cookies_count());
-    EXPECT_EQ(0, d.blocked_set_cookie_count());
+    EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
+    EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
   }
+  default_context_->set_network_delegate(&default_network_delegate_);
 
   // Now, check the cookie store.
   bool was_run = false;

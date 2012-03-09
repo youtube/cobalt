@@ -6,6 +6,8 @@
 #define NET_BASE_NETWORK_DELEGATE_H_
 #pragma once
 
+#include <string>
+
 #include "base/callback.h"
 #include "base/string16.h"
 #include "base/threading/non_thread_safe.h"
@@ -26,6 +28,8 @@ namespace net {
 // NOTE: It is not okay to add any compile-time dependencies on symbols outside
 // of net/base here, because we have a net_base library. Forward declarations
 // are ok.
+class CookieList;
+class CookieOptions;
 class HttpRequestHeaders;
 class HttpResponseHeaders;
 class URLRequest;
@@ -73,6 +77,11 @@ class NetworkDelegate : public base::NonThreadSafe {
                                           const AuthChallengeInfo& auth_info,
                                           const AuthCallback& callback,
                                           AuthCredentials* credentials);
+  bool NotifyReadingCookies(const URLRequest* request,
+                            const CookieList& cookie_list);
+  bool NotifySettingCookie(const URLRequest* request,
+                           const std::string& cookie_line,
+                           CookieOptions* options);
 
  private:
   // This is the interface for subclasses of NetworkDelegate to implement. This
@@ -169,6 +178,20 @@ class NetworkDelegate : public base::NonThreadSafe {
       const AuthChallengeInfo& auth_info,
       const AuthCallback& callback,
       AuthCredentials* credentials) = 0;
+
+  // Called when reading cookies to allow the network delegate to block access
+  // to the cookie. This method will never be invoked when
+  // LOAD_DO_NOT_SEND_COOKIES is specified.
+  virtual bool CanGetCookies(const URLRequest* request,
+                             const CookieList& cookie_list) = 0;
+
+  // Called when a cookie is set to allow the network delegate to block access
+  // to the cookie. This method will never be invoked when
+  // LOAD_DO_NOT_SAVE_COOKIES is specified.
+  virtual bool CanSetCookie(const URLRequest* request,
+                            const std::string& cookie_line,
+                            CookieOptions* options) = 0;
+
 };
 
 }  // namespace net
