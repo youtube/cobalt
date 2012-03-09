@@ -1115,6 +1115,34 @@ TEST_F(HttpPipelinedConnectionImplTest, CloseBeforeReadCallbackRuns) {
   MessageLoop::current()->RunAllPending();
 }
 
+TEST_F(HttpPipelinedConnectionImplTest, AbortWhileSendQueued) {
+  MockWrite writes[] = {
+    MockWrite(ASYNC, 0, "GET /ok.html HTTP/1.1\r\n\r\n"),
+    MockWrite(ASYNC, 1, "GET /ko.html HTTP/1.1\r\n\r\n"),
+  };
+  Initialize(NULL, 0, writes, arraysize(writes));
+
+  scoped_ptr<HttpStream> stream1(NewTestStream("ok.html"));
+  scoped_ptr<HttpStream> stream2(NewTestStream("ko.html"));
+
+  HttpRequestHeaders headers1;
+  HttpResponseInfo response1;
+  TestCompletionCallback callback1;
+  EXPECT_EQ(ERR_IO_PENDING, stream1->SendRequest(headers1, NULL, &response1,
+                                                 callback1.callback()));
+
+  HttpRequestHeaders headers2;
+  HttpResponseInfo response2;
+  TestCompletionCallback callback2;
+  EXPECT_EQ(ERR_IO_PENDING, stream2->SendRequest(headers2, NULL, &response2,
+                                                 callback2.callback()));
+
+  stream2.reset();
+  stream1->Close(true);
+
+  EXPECT_FALSE(callback2.have_result());
+}
+
 TEST_F(HttpPipelinedConnectionImplTest, NoGapBetweenCloseAndEviction) {
   MockWrite writes[] = {
     MockWrite(SYNCHRONOUS, 0, "GET /close.html HTTP/1.1\r\n\r\n"),
