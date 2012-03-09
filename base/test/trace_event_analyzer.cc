@@ -817,16 +817,18 @@ void TraceAnalyzer::ParseMetadata() {
 
 // TraceEventVector utility functions.
 
-bool GetRateStats(const TraceEventVector& events, RateStats* stats) {
+bool GetRateStats(const TraceEventVector& events,
+                  RateStats* stats,
+                  const RateStatsOptions* options) {
   CHECK(stats);
   // Need at least 3 events to calculate rate stats.
-  if (events.size() < 3) {
+  const size_t kMinEvents = 3;
+  if (events.size() < kMinEvents) {
     LOG(ERROR) << "Not enough events: " << events.size();
     return false;
   }
 
   std::vector<double> deltas;
-  double delta_sum = 0.0;
   size_t num_deltas = events.size() - 1;
   for (size_t i = 0; i < num_deltas; ++i) {
     double delta = events.at(i + 1)->timestamp - events.at(i)->timestamp;
@@ -835,8 +837,23 @@ bool GetRateStats(const TraceEventVector& events, RateStats* stats) {
       return false;
     }
     deltas.push_back(delta);
-    delta_sum += delta;
   }
+
+  std::sort(deltas.begin(), deltas.end());
+
+  if (options) {
+    if (options->trim_min + options->trim_max > events.size() - kMinEvents) {
+      LOG(ERROR) << "Attempt to trim too many events";
+      return false;
+    }
+    deltas.erase(deltas.begin(), deltas.begin() + options->trim_min);
+    deltas.erase(deltas.end() - options->trim_max, deltas.end());
+  }
+
+  num_deltas = deltas.size();
+  double delta_sum = 0.0;
+  for (size_t i = 0; i < num_deltas; ++i)
+    delta_sum += deltas[i];
 
   stats->min_us = *std::min_element(deltas.begin(), deltas.end());
   stats->max_us = *std::max_element(deltas.begin(), deltas.end());

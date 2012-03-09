@@ -644,36 +644,69 @@ TEST_F(TraceEventAnalyzerTest, RateStats) {
   event.timestamp = 0.0;
   double little_delta = 1.0;
   double big_delta = 10.0;
+  double tiny_delta = 0.1;
   RateStats stats;
+  RateStatsOptions options;
 
+  // Insert 10 events, each apart by little_delta.
   for (int i = 0; i < 10; ++i) {
     event.timestamp += little_delta;
     events.push_back(event);
     event_ptrs.push_back(&events.back());
   }
 
-  ASSERT_TRUE(GetRateStats(event_ptrs, &stats));
+  ASSERT_TRUE(GetRateStats(event_ptrs, &stats, NULL));
   EXPECT_EQ(little_delta, stats.mean_us);
   EXPECT_EQ(little_delta, stats.min_us);
   EXPECT_EQ(little_delta, stats.max_us);
   EXPECT_EQ(0.0, stats.standard_deviation_us);
 
+  // Add an event apart by big_delta.
   event.timestamp += big_delta;
   events.push_back(event);
   event_ptrs.push_back(&events.back());
 
-  ASSERT_TRUE(GetRateStats(event_ptrs, &stats));
+  ASSERT_TRUE(GetRateStats(event_ptrs, &stats, NULL));
   EXPECT_LT(little_delta, stats.mean_us);
   EXPECT_EQ(little_delta, stats.min_us);
   EXPECT_EQ(big_delta, stats.max_us);
   EXPECT_LT(0.0, stats.standard_deviation_us);
 
+  // Trim off the biggest delta and verify stats.
+  options.trim_min = 0;
+  options.trim_max = 1;
+  ASSERT_TRUE(GetRateStats(event_ptrs, &stats, &options));
+  EXPECT_EQ(little_delta, stats.mean_us);
+  EXPECT_EQ(little_delta, stats.min_us);
+  EXPECT_EQ(little_delta, stats.max_us);
+  EXPECT_EQ(0.0, stats.standard_deviation_us);
+
+  // Add an event apart by tiny_delta.
+  event.timestamp += tiny_delta;
+  events.push_back(event);
+  event_ptrs.push_back(&events.back());
+
+  // Trim off both the biggest and tiniest delta and verify stats.
+  options.trim_min = 1;
+  options.trim_max = 1;
+  ASSERT_TRUE(GetRateStats(event_ptrs, &stats, &options));
+  EXPECT_EQ(little_delta, stats.mean_us);
+  EXPECT_EQ(little_delta, stats.min_us);
+  EXPECT_EQ(little_delta, stats.max_us);
+  EXPECT_EQ(0.0, stats.standard_deviation_us);
+
+  // Verify smallest allowed number of events.
   TraceEventVector few_event_ptrs;
   few_event_ptrs.push_back(&event);
   few_event_ptrs.push_back(&event);
-  ASSERT_FALSE(GetRateStats(few_event_ptrs, &stats));
+  ASSERT_FALSE(GetRateStats(few_event_ptrs, &stats, NULL));
   few_event_ptrs.push_back(&event);
-  ASSERT_TRUE(GetRateStats(few_event_ptrs, &stats));
+  ASSERT_TRUE(GetRateStats(few_event_ptrs, &stats, NULL));
+
+  // Trim off more than allowed and verify failure.
+  options.trim_min = 0;
+  options.trim_max = 1;
+  ASSERT_FALSE(GetRateStats(few_event_ptrs, &stats, &options));
 }
 
 // Test FindFirstOf and FindLastOf.
