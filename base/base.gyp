@@ -449,12 +449,14 @@
       ],
       'actions': [
         {
-          'action_name': 'isolate',
+          'action_name': 'response_file',
           'inputs': [
             '<(PRODUCT_DIR)/base_unittests<(EXECUTABLE_SUFFIX)',
+            '<(DEPTH)/testing/test_env.py',
+            '<(DEPTH)/testing/xvfb.py',
           ],
           'conditions': [
-            ['OS != "mac" and OS != "win"', {
+            ['OS=="linux"', {
               'inputs': [
                 '<(PRODUCT_DIR)/xdisplaycheck<(EXECUTABLE_SUFFIX)',
               ],
@@ -467,6 +469,23 @@
             }],
           ],
           'outputs': [
+            '<(PRODUCT_DIR)/base_unittests.inputs',
+          ],
+          'action': [
+            'python',
+            '-c',
+            'import sys; '
+                'open(sys.argv[1], \'w\').write(\'\\n\'.join(sys.argv[2:]))',
+            '<@(_outputs)',
+            '<@(_inputs)',
+          ],
+        },
+        {
+          'action_name': 'isolate',
+          'inputs': [
+            '<(PRODUCT_DIR)/base_unittests.inputs',
+          ],
+          'outputs': [
             '<(PRODUCT_DIR)/base_unittests.results',
           ],
           'action': [
@@ -475,13 +494,18 @@
             '--mode=<(tests_run)',
             '--root', '<(DEPTH)',
             '--result', '<@(_outputs)',
-            '<@(_inputs)',
+            '--files', '<@(_inputs)',
             # Directories can't be tracked by build tools (make, msbuild, xcode,
             # etc) so we just put it on the command line without specifying it
             # as an input.
             # TODO(maruel): Revisit the support for this at all and list each
             # individual test files instead.
             'data/file_util_unittest/',
+            '--',
+            # Wraps base_unittests under xvfb.
+            '<(DEPTH)/testing/xvfb.py',
+            '<(PRODUCT_DIR)',
+            '<(PRODUCT_DIR)/base_unittests<(EXECUTABLE_SUFFIX)',
           ],
         },
       ],
