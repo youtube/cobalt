@@ -260,19 +260,6 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
                                        const SSLInfo& ssl_info,
                                        bool fatal);
 
-    // Called when reading cookies to allow the delegate to block access to the
-    // cookie. This method will never be invoked when LOAD_DO_NOT_SEND_COOKIES
-    // is specified.
-    virtual bool CanGetCookies(const URLRequest* request,
-                               const CookieList& cookie_list) const;
-
-    // Called when a cookie is set to allow the delegate to block access to the
-    // cookie. This method will never be invoked when LOAD_DO_NOT_SAVE_COOKIES
-    // is specified.
-    virtual bool CanSetCookie(const URLRequest* request,
-                              const std::string& cookie_line,
-                              CookieOptions* options) const;
-
     // After calling Start(), the delegate will receive an OnResponseStarted
     // callback when the request has completed.  If an error occurred, the
     // request->status() will be set.  On success, all redirects have been
