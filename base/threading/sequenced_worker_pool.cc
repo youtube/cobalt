@@ -7,6 +7,7 @@
 #include <list>
 #include <map>
 #include <set>
+#include <utility>
 #include <vector>
 
 #include "base/atomicops.h"
@@ -16,9 +17,11 @@
 #include "base/memory/linked_ptr.h"
 #include "base/message_loop_proxy.h"
 #include "base/metrics/histogram.h"
+#include "base/stl_util.h"
 #include "base/stringprintf.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
+#include "base/threading/platform_thread.h"
 #include "base/threading/simple_thread.h"
 #include "base/time.h"
 #include "base/tracked_objects.h"
@@ -86,6 +89,8 @@ class SequencedWorkerPool::Inner {
                 const tracked_objects::Location& from_here,
                 const Closure& task);
 
+  bool RunsTasksOnCurrentThread() const;
+
   void FlushForTesting();
 
   void Shutdown();
@@ -151,7 +156,7 @@ class SequencedWorkerPool::Inner {
   // This lock protects |everything in this class|. Do not read or modify
   // anything without holding this lock. Do not block while holding this
   // lock.
-  Lock lock_;
+  mutable Lock lock_;
 
   // Condition variable used to wake up worker threads when a task is runnable.
   ConditionVariable cond_var_;
@@ -164,10 +169,11 @@ class SequencedWorkerPool::Inner {
   // Associates all known sequence token names with their IDs.
   std::map<std::string, int> named_sequence_tokens_;
 
-  // Owning pointers to all threads we've created so far. Since we lazily
-  // create threads, this may be less than max_threads_ and will be initially
-  // empty.
-  std::vector<linked_ptr<Worker> > threads_;
+  // Owning pointers to all threads we've created so far, indexed by
+  // ID. Since we lazily create threads, this may be less than
+  // max_threads_ and will be initially empty.
+  typedef std::map<PlatformThreadId, linked_ptr<Worker> > ThreadMap;
+  ThreadMap threads_;
 
   // Set to true when we're in the process of creating another thread.
   // See PrepareToStartAdditionalThreadIfHelpful for more.
@@ -256,8 +262,8 @@ SequencedWorkerPool::Inner::~Inner() {
 
   // Need to explicitly join with the threads before they're destroyed or else
   // they will be running when our object is half torn down.
-  for (size_t i = 0; i < threads_.size(); i++)
-    threads_[i]->Join();
+  for (ThreadMap::iterator it = threads_.begin(); it != threads_.end(); ++it)
+    it->second->Join();
   threads_.clear();
 
   if (testing_observer_)
@@ -315,6 +321,11 @@ bool SequencedWorkerPool::Inner::PostTask(
     cond_var_.Signal();
 
   return true;
+}
+
+bool SequencedWorkerPool::Inner::RunsTasksOnCurrentThread() const {
+  AutoLock lock(lock_);
+  return ContainsKey(threads_, PlatformThread::CurrentId());
 }
 
 void SequencedWorkerPool::Inner::FlushForTesting() {
@@ -377,7 +388,10 @@ void SequencedWorkerPool::Inner::ThreadLoop(Worker* this_worker) {
     AutoLock lock(lock_);
     DCHECK(thread_being_created_);
     thread_being_created_ = false;
-    threads_.push_back(linked_ptr<Worker>(this_worker));
+    std::pair<ThreadMap::iterator, bool> result =
+        threads_.insert(
+            std::make_pair(this_worker->tid(), make_linked_ptr(this_worker)));
+    DCHECK(result.second);
 
     while (true) {
       // See GetWork for what delete_these_outside_lock is doing.
@@ -727,10 +741,7 @@ bool SequencedWorkerPool::PostDelayedTask(
 }
 
 bool SequencedWorkerPool::RunsTasksOnCurrentThread() const {
-  // TODO(akalin): Keep track of the thread IDs of our worker threads
-  // and use those to implement this function.
-  NOTREACHED();
-  return true;
+  return inner_->RunsTasksOnCurrentThread();
 }
 
 void SequencedWorkerPool::FlushForTesting() {
