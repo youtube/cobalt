@@ -487,6 +487,10 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   bool check_ping_status_pending() const { return check_ping_status_pending_; }
 
+  // Returns the SSLClientSocket that this SPDY session sits on top of,
+  // or NULL, if the transport is not SSL.
+  SSLClientSocket* GetSSLClientSocket() const;
+
   // Used for posting asynchronous IO tasks.  We use this even though
   // SpdySession is refcounted because we don't need to keep the SpdySession
   // alive if the last reference is within a RunnableMethod.  Just revoke the

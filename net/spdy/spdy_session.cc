@@ -382,9 +382,7 @@ net::Error SpdySession::InitializeWithSocket(
   certificate_error_code_ = certificate_error_code;
 
   if (is_secure_) {
-    SSLClientSocket* ssl_socket =
-        reinterpret_cast<SSLClientSocket*>(connection_->socket());
-    DCHECK(ssl_socket);
+    SSLClientSocket* ssl_socket = GetSSLClientSocket();
 
     SSLClientSocket::NextProto protocol_negotiated =
         ssl_socket->protocol_negotiated();
@@ -575,8 +573,7 @@ int SpdySession::CreateStreamImpl(
 bool SpdySession::NeedsCredentials(const HostPortPair& origin) const {
   if (!is_secure_)
     return false;
-  SSLClientSocket* ssl_socket =
-      reinterpret_cast<SSLClientSocket*>(connection_->socket());
+  SSLClientSocket* ssl_socket = GetSSLClientSocket();
   if (ssl_socket->protocol_negotiated() < SSLClientSocket::kProtoSPDY3)
     return false;
   if (!ssl_socket->WasOriginBoundCertSent())
@@ -632,12 +629,10 @@ int SpdySession::WriteCredentialFrame(const std::string& origin,
                                       const std::string& cert,
                                       RequestPriority priority) {
   DCHECK(is_secure_);
-  SSLClientSocket* ssl_socket =
-      reinterpret_cast<SSLClientSocket*>(connection_->socket());
   unsigned char secret[32];  // 32 bytes from the spec
-  ssl_socket->ExportKeyingMaterial("SPDY certificate proof",
-                                   origin,
-                                   secret, arraysize(secret));
+  GetSSLClientSocket()->ExportKeyingMaterial("SPDY certificate proof",
+                                             origin,
+                                             secret, arraysize(secret));
 
   // Convert the key string into a vector<unit8>
   std::vector<uint8> key_data;
@@ -1116,10 +1111,7 @@ Value* SpdySession::GetInfoAsValue() const {
 
   SSLClientSocket::NextProto proto = SSLClientSocket::kProtoUnknown;
   if (is_secure_) {
-    SSLClientSocket* ssl_socket =
-        reinterpret_cast<SSLClientSocket*>(connection_->socket());
-    DCHECK(ssl_socket);
-    proto = ssl_socket->protocol_negotiated();
+    proto = GetSSLClientSocket()->protocol_negotiated();
   }
   dict->SetString("protocol_negotiated",
                   SSLClientSocket::NextProtoToString(proto));
@@ -1220,46 +1212,35 @@ scoped_refptr<SpdyStream> SpdySession::GetActivePushStream(
 bool SpdySession::GetSSLInfo(SSLInfo* ssl_info,
                              bool* was_npn_negotiated,
                              SSLClientSocket::NextProto* protocol_negotiated) {
-  if (is_secure_) {
-    SSLClientSocket* ssl_socket =
-        reinterpret_cast<SSLClientSocket*>(connection_->socket());
-    ssl_socket->GetSSLInfo(ssl_info);
-    *was_npn_negotiated = ssl_socket->was_npn_negotiated();
-    *protocol_negotiated = ssl_socket->protocol_negotiated();
-    return true;
-  } else {
+  if (!is_secure_) {
     *protocol_negotiated = SSLClientSocket::kProtoUnknown;
+    return false;
   }
-  return false;
+  SSLClientSocket* ssl_socket = GetSSLClientSocket();
+  ssl_socket->GetSSLInfo(ssl_info);
+  *was_npn_negotiated = ssl_socket->was_npn_negotiated();
+  *protocol_negotiated = ssl_socket->protocol_negotiated();
+  return true;
 }
 
 bool SpdySession::GetSSLCertRequestInfo(
     SSLCertRequestInfo* cert_request_info) {
-  if (is_secure_) {
-    SSLClientSocket* ssl_socket =
-        reinterpret_cast<SSLClientSocket*>(connection_->socket());
-    ssl_socket->GetSSLCertRequestInfo(cert_request_info);
-    return true;
-  }
-  return false;
+  if (!is_secure_)
+    return false;
+  GetSSLClientSocket()->GetSSLCertRequestInfo(cert_request_info);
+  return true;
 }
 
 OriginBoundCertService* SpdySession::GetOriginBoundCertService() const {
-  if (!is_secure_) {
+  if (!is_secure_)
     return NULL;
-  }
-  SSLClientSocket* ssl_socket =
-      reinterpret_cast<SSLClientSocket*>(connection_->socket());
-  return ssl_socket->GetOriginBoundCertService();
+  return GetSSLClientSocket()->GetOriginBoundCertService();
 }
 
 SSLClientCertType SpdySession::GetOriginBoundCertType() const {
-  if (!is_secure_) {
+  if (!is_secure_)
     return CLIENT_CERT_INVALID_TYPE;
-  }
-  SSLClientSocket* ssl_socket =
-      reinterpret_cast<SSLClientSocket*>(connection_->socket());
-  return ssl_socket->origin_bound_cert_type();
+  return GetSSLClientSocket()->origin_bound_cert_type();
 }
 
 void SpdySession::OnError(int error_code) {
@@ -1905,6 +1886,15 @@ void SpdySession::InvokeUserStreamCreationCallback(
   int result = it->second.result;
   pending_callback_map_.erase(it);
   callback.Run(result);
+}
+
+SSLClientSocket* SpdySession::GetSSLClientSocket() const {
+  if (!is_secure_)
+    return NULL;
+  SSLClientSocket* ssl_socket =
+      reinterpret_cast<SSLClientSocket*>(connection_->socket());
+  DCHECK(ssl_socket);
+  return ssl_socket;
 }
 
 }  // namespace net
