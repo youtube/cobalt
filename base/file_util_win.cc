@@ -827,8 +827,14 @@ void FileEnumerator::GetFindInfo(FindInfo* info) {
   memcpy(info, &find_data_, sizeof(*info));
 }
 
+// static
 bool FileEnumerator::IsDirectory(const FindInfo& info) {
   return (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+}
+
+// static
+bool FileEnumerator::IsLink(const FindInfo& info) {
+  return false;
 }
 
 // static
