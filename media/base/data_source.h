@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -30,7 +30,7 @@ class MEDIA_EXPORT DataSourceHost {
 class MEDIA_EXPORT DataSource : public base::RefCountedThreadSafe<DataSource> {
  public:
   typedef base::Callback<void(int64, int64)> StatusCallback;
-  typedef base::Callback<void(size_t)> ReadCallback;
+  typedef base::Callback<void(size_t)> ReadCB;
   static const size_t kReadError;
 
   DataSource();
@@ -38,13 +38,13 @@ class MEDIA_EXPORT DataSource : public base::RefCountedThreadSafe<DataSource> {
   virtual void set_host(DataSourceHost* host);
 
   // Reads |size| bytes from |position| into |data|. And when the read is done
-  // or failed, |read_callback| is called with the number of bytes read or
+  // or failed, |read_cb| is called with the number of bytes read or
   // kReadError in case of error.
   // TODO(hclam): should change |size| to int! It makes the code so messy
   // with size_t and int all over the place..
   virtual void Read(int64 position, size_t size,
                     uint8* data,
-                    const DataSource::ReadCallback& read_callback) = 0;
+                    const DataSource::ReadCB& read_cb) = 0;
 
   // Notifies the DataSource of a change in the current playback rate.
   virtual void SetPlaybackRate(float playback_rate);

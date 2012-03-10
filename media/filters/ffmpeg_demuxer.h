@@ -75,11 +75,11 @@ class FFmpegDemuxerStream : public DemuxerStream {
 
   // If |buffer_queue_| is not empty will execute on caller's thread, otherwise
   // will post ReadTask to execute on demuxer's thread. Read will acquire
-  // |lock_| for the life of the function so that means |read_callback| must
+  // |lock_| for the life of the function so that means |read_cb| must
   // not make calls into FFmpegDemuxerStream directly or that may cause a
-  // deadlock. |read_callback| should execute as quickly as possible because
+  // deadlock. |read_cb| should execute as quickly as possible because
   // |lock_| is held throughout the life of the callback.
-  virtual void Read(const ReadCallback& read_callback) OVERRIDE;
+  virtual void Read(const ReadCB& read_cb) OVERRIDE;
   virtual void EnableBitstreamConverter() OVERRIDE;
   virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
@@ -89,7 +89,7 @@ class FFmpegDemuxerStream : public DemuxerStream {
   virtual ~FFmpegDemuxerStream();
 
   // Carries out enqueuing a pending read on the demuxer thread.
-  void ReadTask(const ReadCallback& read_callback);
+  void ReadTask(const ReadCB& read_cb);
 
   // Attempts to fulfill a single pending read by dequeueing a buffer and read
   // callback pair and executing the callback. The calling function must
@@ -112,7 +112,7 @@ class FFmpegDemuxerStream : public DemuxerStream {
   typedef std::deque<scoped_refptr<Buffer> > BufferQueue;
   BufferQueue buffer_queue_;
 
-  typedef std::deque<ReadCallback> ReadQueue;
+  typedef std::deque<ReadCB> ReadQueue;
   ReadQueue read_queue_;
 
   // Used to translate bitstream formats.

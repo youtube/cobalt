@@ -65,24 +65,24 @@ FFmpegVideoDecoder::~FFmpegVideoDecoder() {
 }
 
 void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
-                                    const PipelineStatusCB& callback,
-                                    const StatisticsCallback& stats_callback) {
+                                    const PipelineStatusCB& pipeline_status_cb,
+                                    const StatisticsCB& statistics_cb) {
   if (MessageLoop::current() != message_loop_) {
     message_loop_->PostTask(FROM_HERE, base::Bind(
         &FFmpegVideoDecoder::Initialize, this,
-        make_scoped_refptr(demuxer_stream), callback, stats_callback));
+        make_scoped_refptr(demuxer_stream), pipeline_status_cb, statistics_cb));
     return;
   }
 
   DCHECK(!demuxer_stream_);
 
   if (!demuxer_stream) {
-    callback.Run(PIPELINE_ERROR_DECODE);
+    pipeline_status_cb.Run(PIPELINE_ERROR_DECODE);
     return;
   }
 
   demuxer_stream_ = demuxer_stream;
-  statistics_callback_ = stats_callback;
+  statistics_cb_ = statistics_cb;
 
   const VideoDecoderConfig& config = demuxer_stream->video_decoder_config();
 
@@ -90,7 +90,7 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
   // decoder objects.
   if (!config.IsValidConfig()) {
     DLOG(ERROR) << "Invalid video stream - " << config.AsHumanReadableString();
-    callback.Run(PIPELINE_ERROR_DECODE);
+    pipeline_status_cb.Run(PIPELINE_ERROR_DECODE);
     return;
   }
 
@@ -106,12 +106,12 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
 
   AVCodec* codec = avcodec_find_decoder(codec_context_->codec_id);
   if (!codec) {
-    callback.Run(PIPELINE_ERROR_DECODE);
+    pipeline_status_cb.Run(PIPELINE_ERROR_DECODE);
     return;
   }
 
   if (avcodec_open2(codec_context_, codec, NULL) < 0) {
-    callback.Run(PIPELINE_ERROR_DECODE);
+    pipeline_status_cb.Run(PIPELINE_ERROR_DECODE);
     return;
   }
 
@@ -121,7 +121,7 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
   natural_size_ = config.natural_size();
   frame_rate_numerator_ = config.frame_rate_numerator();
   frame_rate_denominator_ = config.frame_rate_denominator();
-  callback.Run(PIPELINE_OK);
+  pipeline_status_cb.Run(PIPELINE_OK);
 }
 
 void FFmpegVideoDecoder::Stop(const base::Closure& callback) {
@@ -168,20 +168,20 @@ void FFmpegVideoDecoder::Flush(const base::Closure& callback) {
   callback.Run();
 }
 
-void FFmpegVideoDecoder::Read(const ReadCB& callback) {
+void FFmpegVideoDecoder::Read(const ReadCB& read_cb) {
   // Complete operation asynchronously on different stack of execution as per
   // the API contract of VideoDecoder::Read()
   message_loop_->PostTask(FROM_HERE, base::Bind(
-      &FFmpegVideoDecoder::DoRead, this, callback));
+      &FFmpegVideoDecoder::DoRead, this, read_cb));
 }
 
 const gfx::Size& FFmpegVideoDecoder::natural_size() {
   return natural_size_;
 }
 
-void FFmpegVideoDecoder::DoRead(const ReadCB& callback) {
+void FFmpegVideoDecoder::DoRead(const ReadCB& read_cb) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
-  DCHECK(!callback.is_null());
+  DCHECK(!read_cb.is_null());
   CHECK(read_cb_.is_null()) << "Overlapping decodes are not supported.";
 
   // This can happen during shutdown after Stop() has been called.
@@ -191,11 +191,11 @@ void FFmpegVideoDecoder::DoRead(const ReadCB& callback) {
 
   // Return empty frames if decoding has finished.
   if (state_ == kDecodeFinished) {
-    callback.Run(VideoFrame::CreateEmptyFrame());
+    read_cb.Run(VideoFrame::CreateEmptyFrame());
     return;
   }
 
-  read_cb_ = callback;
+  read_cb_ = read_cb;
   ReadFromDemuxerStream();
 }
 
@@ -279,7 +279,7 @@ void FFmpegVideoDecoder::DoDecodeBuffer(const scoped_refptr<Buffer>& buffer) {
   if (buffer->GetDataSize()) {
     PipelineStatistics statistics;
     statistics.video_bytes_decoded = buffer->GetDataSize();
-    statistics_callback_.Run(statistics);
+    statistics_cb_.Run(statistics);
   }
 
   // If we didn't get a frame then we've either completely finished decoding or

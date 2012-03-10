@@ -23,7 +23,7 @@ static Buffer* CreateEOSBuffer() {
 class ChunkDemuxerStream : public DemuxerStream {
  public:
   typedef std::deque<scoped_refptr<Buffer> > BufferQueue;
-  typedef std::deque<ReadCallback> ReadCBQueue;
+  typedef std::deque<ReadCB> ReadCBQueue;
   typedef std::deque<base::Closure> ClosureQueue;
 
   explicit ChunkDemuxerStream(const AudioDecoderConfig& audio_config);
@@ -42,7 +42,7 @@ class ChunkDemuxerStream : public DemuxerStream {
   bool GetLastBufferTimestamp(base::TimeDelta* timestamp) const;
 
   // DemuxerStream methods.
-  virtual void Read(const ReadCallback& read_callback) OVERRIDE;
+  virtual void Read(const ReadCB& read_cb) OVERRIDE;
   virtual Type type() OVERRIDE;
   virtual void EnableBitstreamConverter() OVERRIDE;
   virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
@@ -63,9 +63,9 @@ class ChunkDemuxerStream : public DemuxerStream {
 
   // Adds the callback to |read_cbs_| so it can be called later when we
   // have data.
-  void DeferRead_Locked(const ReadCallback& read_cb);
+  void DeferRead_Locked(const ReadCB& read_cb);
 
-  // Creates closures that bind ReadCallbacks in |read_cbs_| to data in
+  // Creates closures that bind ReadCBs in |read_cbs_| to data in
   // |buffers_| and pops the callbacks & buffers from the respecive queues.
   void CreateReadDoneClosures_Locked(ClosureQueue* closures);
 
@@ -216,21 +216,21 @@ bool ChunkDemuxerStream::GetLastBufferTimestamp(
   return true;
 }
 
-// Helper function that makes sure |read_callback| runs on |message_loop|.
-static void RunOnMessageLoop(const DemuxerStream::ReadCallback& read_callback,
+// Helper function that makes sure |read_cb| runs on |message_loop|.
+static void RunOnMessageLoop(const DemuxerStream::ReadCB& read_cb,
                              MessageLoop* message_loop,
                              const scoped_refptr<Buffer>& buffer) {
   if (MessageLoop::current() != message_loop) {
     message_loop->PostTask(FROM_HERE, base::Bind(
-        &RunOnMessageLoop, read_callback, message_loop, buffer));
+        &RunOnMessageLoop, read_cb, message_loop, buffer));
     return;
   }
 
-  read_callback.Run(buffer);
+  read_cb.Run(buffer);
 }
 
 // DemuxerStream methods.
-void ChunkDemuxerStream::Read(const ReadCallback& read_callback) {
+void ChunkDemuxerStream::Read(const ReadCB& read_cb) {
   scoped_refptr<Buffer> buffer;
 
   {
@@ -241,7 +241,7 @@ void ChunkDemuxerStream::Read(const ReadCallback& read_callback) {
         // If we don't have any buffers ready or already have
         // pending reads, then defer this read.
         if (buffers_.empty() || !read_cbs_.empty()) {
-          DeferRead_Locked(read_callback);
+          DeferRead_Locked(read_cb);
           return;
         }
 
@@ -276,7 +276,7 @@ void ChunkDemuxerStream::Read(const ReadCallback& read_callback) {
     }
   }
 
-  read_callback.Run(buffer);
+  read_cb.Run(buffer);
 }
 
 DemuxerStream::Type ChunkDemuxerStream::type() { return type_; }
@@ -298,9 +298,9 @@ void ChunkDemuxerStream::ChangeState_Locked(State state) {
   state_ = state;
 }
 
-void ChunkDemuxerStream::DeferRead_Locked(const ReadCallback& read_cb) {
+void ChunkDemuxerStream::DeferRead_Locked(const ReadCB& read_cb) {
   lock_.AssertAcquired();
-  // Wrap & store |read_callback| so that it will
+  // Wrap & store |read_cb| so that it will
   // get called on the current MessageLoop.
   read_cbs_.push_back(base::Bind(&RunOnMessageLoop, read_cb,
                                  MessageLoop::current()));

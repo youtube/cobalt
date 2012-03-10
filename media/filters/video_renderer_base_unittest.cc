@@ -59,7 +59,7 @@ class VideoRendererBaseTest : public ::testing::Test {
 
     EXPECT_CALL(*decoder_, natural_size())
         .WillRepeatedly(ReturnRef(kNaturalSize));
-    EXPECT_CALL(stats_callback_object_, OnStatistics(_))
+    EXPECT_CALL(statistics_cb_object_, OnStatistics(_))
         .Times(AnyNumber());
     EXPECT_CALL(*this, SetOpaqueCBWasCalled(_))
         .WillRepeatedly(::testing::Return());
@@ -105,8 +105,8 @@ class VideoRendererBaseTest : public ::testing::Test {
     // Initialize, we shouldn't have any reads.
     renderer_->Initialize(decoder_,
                           NewExpectedStatusCB(PIPELINE_OK),
-                          NewStatisticsCallback(),
-                          NewVideoTimeCallback());
+                          NewStatisticsCB(),
+                          NewVideoTimeCB());
 
     // Now seek to trigger prerolling.
     Seek(0);
@@ -264,12 +264,12 @@ class VideoRendererBaseTest : public ::testing::Test {
   }
 
  protected:
-  StatisticsCallback NewStatisticsCallback() {
-    return base::Bind(&MockStatisticsCallback::OnStatistics,
-                      base::Unretained(&stats_callback_object_));
+  StatisticsCB NewStatisticsCB() {
+    return base::Bind(&MockStatisticsCB::OnStatistics,
+                      base::Unretained(&statistics_cb_object_));
   }
 
-  VideoRenderer::VideoTimeCB NewVideoTimeCallback() {
+  VideoRenderer::VideoTimeCB NewVideoTimeCB() {
     return base::Bind(&VideoRendererBaseTest::VideoTimeCBWasCalled,
                       base::Unretained(this));
   }
@@ -278,7 +278,7 @@ class VideoRendererBaseTest : public ::testing::Test {
   scoped_refptr<VideoRendererBase> renderer_;
   scoped_refptr<MockVideoDecoder> decoder_;
   StrictMock<MockFilterHost> host_;
-  MockStatisticsCallback stats_callback_object_;
+  MockStatisticsCB statistics_cb_object_;
 
   // Receives all the buffers that renderer had provided to |decoder_|.
   std::deque<scoped_refptr<VideoFrame> > read_queue_;

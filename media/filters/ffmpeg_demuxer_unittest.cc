@@ -416,11 +416,11 @@ TEST_F(FFmpegDemuxerTest, Seek) {
 
 // A mocked callback specialization for calling Read().  Since RunWithParams()
 // is mocked we don't need to pass in object or method pointers.
-class MockReadCallback : public base::RefCountedThreadSafe<MockReadCallback> {
+class MockReadCB : public base::RefCountedThreadSafe<MockReadCB> {
  public:
-  MockReadCallback() {}
+  MockReadCB() {}
 
-  virtual ~MockReadCallback() {
+  virtual ~MockReadCB() {
     OnDelete();
   }
 
@@ -428,7 +428,7 @@ class MockReadCallback : public base::RefCountedThreadSafe<MockReadCallback> {
   MOCK_METHOD1(Run, void(const scoped_refptr<Buffer>& buffer));
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(MockReadCallback);
+  DISALLOW_COPY_AND_ASSIGN(MockReadCB);
 };
 
 TEST_F(FFmpegDemuxerTest, Stop) {
@@ -448,7 +448,7 @@ TEST_F(FFmpegDemuxerTest, Stop) {
 
   // Create our mocked callback. The Callback created by base::Bind() will take
   // ownership of this pointer.
-  StrictMock<MockReadCallback>* callback = new StrictMock<MockReadCallback>();
+  StrictMock<MockReadCB>* callback = new StrictMock<MockReadCB>();
 
   // The callback should be immediately deleted.  We'll use a checkpoint to
   // verify that it has indeed been deleted.
@@ -457,7 +457,7 @@ TEST_F(FFmpegDemuxerTest, Stop) {
   EXPECT_CALL(*this, CheckPoint(1));
 
   // Attempt the read...
-  audio->Read(base::Bind(&MockReadCallback::Run, callback));
+  audio->Read(base::Bind(&MockReadCB::Run, callback));
 
   message_loop_.RunAllPending();
 
@@ -487,7 +487,7 @@ TEST_F(FFmpegDemuxerTest, StreamReadAfterStopAndDemuxerDestruction) {
 
   // Create our mocked callback. The Callback created by base::Bind() will take
   // ownership of this pointer.
-  StrictMock<MockReadCallback>* callback = new StrictMock<MockReadCallback>();
+  StrictMock<MockReadCB>* callback = new StrictMock<MockReadCB>();
 
   // The callback should be immediately deleted.  We'll use a checkpoint to
   // verify that it has indeed been deleted.
@@ -500,7 +500,7 @@ TEST_F(FFmpegDemuxerTest, StreamReadAfterStopAndDemuxerDestruction) {
   // |audio| now has a demuxer_ pointer to invalid memory.
 
   // Attempt the read...
-  audio->Read(base::Bind(&MockReadCallback::Run, callback));
+  audio->Read(base::Bind(&MockReadCB::Run, callback));
 
   message_loop_.RunAllPending();
 
@@ -561,7 +561,7 @@ class MockFFmpegDemuxer : public FFmpegDemuxer {
 };
 
 // A gmock helper method to execute the callback and deletes it.
-void RunCallback(size_t size, const DataSource::ReadCallback& callback) {
+void RunCallback(size_t size, const DataSource::ReadCB& callback) {
   DCHECK(!callback.is_null());
   callback.Run(size);
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,14 +19,14 @@ using ::testing::StrictMock;
 
 namespace media {
 
-class ReadCallbackHandler {
+class ReadCBHandler {
  public:
-  ReadCallbackHandler() {}
+  ReadCBHandler() {}
 
-  MOCK_METHOD1(ReadCallback, void(size_t size));
+  MOCK_METHOD1(ReadCB, void(size_t size));
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(ReadCallbackHandler);
+  DISALLOW_COPY_AND_ASSIGN(ReadCBHandler);
 };
 
 // Returns a path to the test file which contains the string "0123456789"
@@ -77,21 +77,21 @@ TEST(FileDataSourceTest, ReadData) {
   EXPECT_TRUE(filter->GetSize(&size));
   EXPECT_EQ(10, size);
 
-  ReadCallbackHandler handler;
-  EXPECT_CALL(handler, ReadCallback(10));
+  ReadCBHandler handler;
+  EXPECT_CALL(handler, ReadCB(10));
   filter->Read(0, 10, ten_bytes, base::Bind(
-      &ReadCallbackHandler::ReadCallback, base::Unretained(&handler)));
+      &ReadCBHandler::ReadCB, base::Unretained(&handler)));
   EXPECT_EQ('0', ten_bytes[0]);
   EXPECT_EQ('5', ten_bytes[5]);
   EXPECT_EQ('9', ten_bytes[9]);
 
-  EXPECT_CALL(handler, ReadCallback(0));
+  EXPECT_CALL(handler, ReadCB(0));
   filter->Read(10, 10, ten_bytes, base::Bind(
-      &ReadCallbackHandler::ReadCallback, base::Unretained(&handler)));
+      &ReadCBHandler::ReadCB, base::Unretained(&handler)));
 
-  EXPECT_CALL(handler, ReadCallback(5));
+  EXPECT_CALL(handler, ReadCB(5));
   filter->Read(5, 10, ten_bytes, base::Bind(
-      &ReadCallbackHandler::ReadCallback, base::Unretained(&handler)));
+      &ReadCBHandler::ReadCB, base::Unretained(&handler)));
   EXPECT_EQ('5', ten_bytes[0]);
 
   filter->Stop(NewExpectedClosure());

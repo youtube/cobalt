@@ -34,9 +34,9 @@ class MEDIA_EXPORT VideoFrameGenerator
   // Decoder implementation.
   virtual void Initialize(
       DemuxerStream* demuxer_stream,
-      const PipelineStatusCB& filter_callback,
-      const StatisticsCallback& stat_callback) OVERRIDE;
-  virtual void Read(const ReadCB& callback) OVERRIDE;
+      const PipelineStatusCB& pipeline_status_cb,
+      const StatisticsCB& statistics_cb) OVERRIDE;
+  virtual void Read(const ReadCB& read_cb) OVERRIDE;
   virtual const gfx::Size& natural_size() OVERRIDE;
 
  private:
@@ -44,9 +44,9 @@ class MEDIA_EXPORT VideoFrameGenerator
 
   void InitializeOnDecoderThread(
       DemuxerStream* demuxer_stream,
-      const PipelineStatusCB& filter_callback,
-      const StatisticsCallback& stat_callback);
-  void ReadOnDecoderThread(const ReadCB& callback);
+      const PipelineStatusCB& pipeline_status_cb,
+      const StatisticsCB& statistics_cb);
+  void ReadOnDecoderThread(const ReadCB& read_cb);
 
   scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
   gfx::Size natural_size_;
