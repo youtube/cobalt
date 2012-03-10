@@ -28,7 +28,7 @@ const VideoDecoderConfig& DummyDemuxerStream::video_decoder_config() {
   return video_config_;
 }
 
-void DummyDemuxerStream::Read(const ReadCallback& read_callback) {}
+void DummyDemuxerStream::Read(const ReadCB& read_cb) {}
 
 void DummyDemuxerStream::EnableBitstreamConverter() {}
 

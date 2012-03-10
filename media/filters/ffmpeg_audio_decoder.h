@@ -23,9 +23,9 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
 
   // AudioDecoder implementation.
   virtual void Initialize(const scoped_refptr<DemuxerStream>& stream,
-                          const PipelineStatusCB& callback,
-                          const StatisticsCallback& stats_callback) OVERRIDE;
-  virtual void Read(const ReadCB& callback) OVERRIDE;
+                          const PipelineStatusCB& pipeline_status_cb,
+                          const StatisticsCB& statistics_cb) OVERRIDE;
+  virtual void Read(const ReadCB& read_cb) OVERRIDE;
   virtual int bits_per_channel() OVERRIDE;
   virtual ChannelLayout channel_layout() OVERRIDE;
   virtual int samples_per_second() OVERRIDE;
@@ -34,10 +34,10 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
  private:
   // Methods running on decoder thread.
   void DoInitialize(const scoped_refptr<DemuxerStream>& stream,
-                    const PipelineStatusCB& callback,
-                    const StatisticsCallback& stats_callback);
+                    const PipelineStatusCB& pipeline_status_cb,
+                    const StatisticsCB& statistics_cb);
   void DoReset(const base::Closure& closure);
-  void DoRead(const ReadCB& callback);
+  void DoRead(const ReadCB& read_cb);
   void DoDecodeBuffer(const scoped_refptr<Buffer>& input);
 
   // Reads from the demuxer stream with corresponding callback method.
@@ -58,7 +58,7 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
   MessageLoop* message_loop_;
 
   scoped_refptr<DemuxerStream> demuxer_stream_;
-  StatisticsCallback stats_callback_;
+  StatisticsCB statistics_cb_;
   AVCodecContext* codec_context_;
 
   // Decoded audio format.

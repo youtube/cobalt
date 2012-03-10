@@ -30,8 +30,8 @@ class MEDIA_EXPORT DemuxerStream
   // Non-NULL buffer pointers will contain media data or signal the end of the
   // stream. A NULL pointer indicates an aborted Read(). This can happen if the
   // DemuxerStream gets flushed and doesn't have any more data to return.
-  typedef base::Callback<void(const scoped_refptr<Buffer>&)> ReadCallback;
-  virtual void Read(const ReadCallback& read_callback) = 0;
+  typedef base::Callback<void(const scoped_refptr<Buffer>&)> ReadCB;
+  virtual void Read(const ReadCB& read_cb) = 0;
 
   // Returns the audio decoder configuration. It is an error to call this method
   // if type() != AUDIO.

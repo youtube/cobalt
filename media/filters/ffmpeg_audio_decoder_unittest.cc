@@ -72,18 +72,18 @@ class FFmpegAudioDecoderTest : public testing::Test {
 
     decoder_->Initialize(demuxer_,
                          NewExpectedStatusCB(PIPELINE_OK),
-                         base::Bind(&MockStatisticsCallback::OnStatistics,
-                                    base::Unretained(&statistics_callback_)));
+                         base::Bind(&MockStatisticsCB::OnStatistics,
+                                    base::Unretained(&statistics_cb_)));
 
     message_loop_.RunAllPending();
   }
 
-  void ReadPacket(const DemuxerStream::ReadCallback& read_callback) {
+  void ReadPacket(const DemuxerStream::ReadCB& read_cb) {
     CHECK(!encoded_audio_.empty()) << "ReadPacket() called too many times";
 
     scoped_refptr<Buffer> buffer(encoded_audio_.front());
     encoded_audio_.pop_front();
-    read_callback.Run(buffer);
+    read_cb.Run(buffer);
   }
 
   void Read() {
@@ -113,7 +113,7 @@ class FFmpegAudioDecoderTest : public testing::Test {
   MessageLoop message_loop_;
   scoped_refptr<FFmpegAudioDecoder> decoder_;
   scoped_refptr<StrictMock<MockDemuxerStream> > demuxer_;
-  MockStatisticsCallback statistics_callback_;
+  MockStatisticsCB statistics_cb_;
 
   scoped_array<uint8> vorbis_extradata_;
   int vorbis_extradata_size_;
@@ -142,7 +142,7 @@ TEST_F(FFmpegAudioDecoderTest, ProduceAudioSamples) {
   EXPECT_CALL(*demuxer_, Read(_))
       .Times(5)
       .WillRepeatedly(InvokeReadPacket(this));
-  EXPECT_CALL(statistics_callback_, OnStatistics(_))
+  EXPECT_CALL(statistics_cb_, OnStatistics(_))
       .Times(5);
 
   Read();

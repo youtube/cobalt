@@ -83,8 +83,8 @@ class FFmpegVideoDecoderTest : public testing::Test {
         .WillOnce(ReturnRef(config));
 
     decoder_->Initialize(demuxer_, NewExpectedStatusCB(status),
-                         base::Bind(&MockStatisticsCallback::OnStatistics,
-                                    base::Unretained(&statistics_callback_)));
+                         base::Bind(&MockStatisticsCB::OnStatistics,
+                                    base::Unretained(&statistics_cb_)));
 
     message_loop_.RunAllPending();
   }
@@ -143,7 +143,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
         .WillOnce(ReturnBuffer(buffer))
         .WillRepeatedly(ReturnBuffer(end_of_stream_buffer_));
 
-    EXPECT_CALL(statistics_callback_, OnStatistics(_));
+    EXPECT_CALL(statistics_cb_, OnStatistics(_));
 
     Read(video_frame);
   }
@@ -167,7 +167,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
         .WillOnce(ReturnBuffer(buffer))
         .WillRepeatedly(ReturnBuffer(end_of_stream_buffer_));
 
-    EXPECT_CALL(statistics_callback_, OnStatistics(_))
+    EXPECT_CALL(statistics_cb_, OnStatistics(_))
         .Times(2);
 
     Read(&video_frame_a);
@@ -198,7 +198,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
   MessageLoop message_loop_;
   scoped_refptr<FFmpegVideoDecoder> decoder_;
   scoped_refptr<StrictMock<MockDemuxerStream> > demuxer_;
-  MockStatisticsCallback statistics_callback_;
+  MockStatisticsCB statistics_cb_;
   StrictMock<MockFilterHost> host_;
   VideoDecoderConfig config_;
 
@@ -283,7 +283,7 @@ TEST_F(FFmpegVideoDecoderTest, DecodeFrame_0ByteFrame) {
       .WillOnce(ReturnBuffer(i_frame_buffer_))
       .WillRepeatedly(ReturnBuffer(end_of_stream_buffer_));
 
-  EXPECT_CALL(statistics_callback_, OnStatistics(_))
+  EXPECT_CALL(statistics_cb_, OnStatistics(_))
       .Times(2);
 
   Read(&video_frame_a);
@@ -309,7 +309,7 @@ TEST_F(FFmpegVideoDecoderTest, DecodeFrame_DecodeError) {
   // The error is only raised on the second decode attempt, so we expect at
   // least one successful decode but we don't expect FrameReady() to be
   // executed as an error is raised instead.
-  EXPECT_CALL(statistics_callback_, OnStatistics(_));
+  EXPECT_CALL(statistics_cb_, OnStatistics(_));
   EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
 
   // Our read should still get satisfied with end of stream frame during an
@@ -386,7 +386,7 @@ TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_NoKey) {
   // The error is only raised on the second decode attempt, so we expect at
   // least one successful decode but we don't expect FrameReady() to be
   // executed as an error is raised instead.
-  EXPECT_CALL(statistics_callback_, OnStatistics(_));
+  EXPECT_CALL(statistics_cb_, OnStatistics(_));
   EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
 
   // Our read should still get satisfied with end of stream frame during an

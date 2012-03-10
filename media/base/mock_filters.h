@@ -82,7 +82,7 @@ class MockDataSource : public DataSource {
 
   // DataSource implementation.
   MOCK_METHOD4(Read, void(int64 position, size_t size, uint8* data,
-                          const DataSource::ReadCallback& callback));
+                          const DataSource::ReadCB& callback));
   MOCK_METHOD1(GetSize, bool(int64* size_out));
   MOCK_METHOD1(SetPreload, void(Preload preload));
   MOCK_METHOD1(SetBitrate, void(int bitrate));
@@ -163,7 +163,7 @@ class MockDemuxerStream : public DemuxerStream {
 
   // DemuxerStream implementation.
   MOCK_METHOD0(type, Type());
-  MOCK_METHOD1(Read, void(const ReadCallback& read_callback));
+  MOCK_METHOD1(Read, void(const ReadCB& read_cb));
   MOCK_METHOD0(audio_decoder_config, const AudioDecoderConfig&());
   MOCK_METHOD0(video_decoder_config, const VideoDecoderConfig&());
   MOCK_METHOD0(EnableBitstreamConverter, void());
@@ -188,8 +188,8 @@ class MockVideoDecoder : public VideoDecoder {
   // VideoDecoder implementation.
   MOCK_METHOD3(Initialize, void(DemuxerStream* stream,
                                 const PipelineStatusCB& callback,
-                                const StatisticsCallback& stats_callback));
-  MOCK_METHOD1(Read, void(const ReadCB& callback));
+                                const StatisticsCB& statistics_cb));
+  MOCK_METHOD1(Read, void(const ReadCB& read_cb));
   MOCK_METHOD0(natural_size, const gfx::Size&());
   MOCK_CONST_METHOD0(HasAlpha, bool());
 
@@ -207,7 +207,7 @@ class MockAudioDecoder : public AudioDecoder {
   // AudioDecoder implementation.
   MOCK_METHOD3(Initialize, void(const scoped_refptr<DemuxerStream>&,
                                 const PipelineStatusCB&,
-                                const StatisticsCallback&));
+                                const StatisticsCB&));
   MOCK_METHOD1(Read, void(const ReadCB&));
   MOCK_METHOD1(ProduceAudioSamples, void(scoped_refptr<Buffer>));
   MOCK_METHOD0(bits_per_channel, int(void));
@@ -235,7 +235,7 @@ class MockVideoRenderer : public VideoRenderer {
   // VideoRenderer implementation.
   MOCK_METHOD4(Initialize, void(VideoDecoder* decoder,
                                 const PipelineStatusCB& callback,
-                                const StatisticsCallback& stats_callback,
+                                const StatisticsCB& statistics_cb,
                                 const VideoTimeCB& time_cb));
 
   MOCK_METHOD0(HasEnded, bool());
@@ -342,10 +342,10 @@ ACTION_P(DisableAudioRenderer, filter) {
 }
 
 // Helper mock statistics callback.
-class MockStatisticsCallback {
+class MockStatisticsCB {
  public:
-  MockStatisticsCallback();
-  ~MockStatisticsCallback();
+  MockStatisticsCB();
+  ~MockStatisticsCB();
 
   MOCK_METHOD1(OnStatistics, void(const media::PipelineStatistics& statistics));
 };
