@@ -32,9 +32,9 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
 
   // VideoDecoder implementation.
   virtual void Initialize(DemuxerStream* demuxer_stream,
-                          const PipelineStatusCB& callback,
-                          const StatisticsCallback& stats_callback) OVERRIDE;
-  virtual void Read(const ReadCB& callback) OVERRIDE;
+                          const PipelineStatusCB& pipeline_status_cb,
+                          const StatisticsCB& statistics_cb) OVERRIDE;
+  virtual void Read(const ReadCB& read_cb) OVERRIDE;
   virtual const gfx::Size& natural_size() OVERRIDE;
 
  private:
@@ -46,7 +46,7 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   };
 
   // Carries out the reading operation scheduled by Read().
-  void DoRead(const ReadCB& callback);
+  void DoRead(const ReadCB& read_cb);
 
   // Reads from the demuxer stream with corresponding callback method.
   void ReadFromDemuxerStream();
@@ -72,7 +72,7 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
 
   DecoderState state_;
 
-  StatisticsCallback statistics_callback_;
+  StatisticsCB statistics_cb_;
 
   ReadCB read_cb_;
 

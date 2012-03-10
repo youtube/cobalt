@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -73,31 +73,31 @@ void FileDataSource::Stop(const base::Closure& callback) {
 }
 
 void FileDataSource::Read(int64 position, size_t size, uint8* data,
-                          const DataSource::ReadCallback& read_callback) {
+                          const DataSource::ReadCB& read_cb) {
   DCHECK(file_);
   base::AutoLock l(lock_);
   if (file_) {
 #if defined(OS_WIN)
     if (_fseeki64(file_, position, SEEK_SET)) {
-      read_callback.Run(DataSource::kReadError);
+      read_cb.Run(DataSource::kReadError);
       return;
     }
 #else
     CHECK(position <= std::numeric_limits<int32>::max());
     // TODO(hclam): Change fseek() to support 64-bit position.
     if (fseek(file_, static_cast<int32>(position), SEEK_SET)) {
-      read_callback.Run(DataSource::kReadError);
+      read_cb.Run(DataSource::kReadError);
       return;
     }
 #endif
     size_t size_read = fread(data, 1, size, file_);
     if (size_read == size || !ferror(file_)) {
-      read_callback.Run(size_read);
+      read_cb.Run(size_read);
       return;
     }
   }
 
-  read_callback.Run(kReadError);
+  read_cb.Run(kReadError);
 }
 
 bool FileDataSource::GetSize(int64* size_out) {

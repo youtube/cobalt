@@ -24,20 +24,19 @@ VideoFrameGenerator::~VideoFrameGenerator() {}
 
 void VideoFrameGenerator::Initialize(
     DemuxerStream* demuxer_stream,
-    const PipelineStatusCB& filter_callback,
-    const StatisticsCallback& stat_callback) {
+    const PipelineStatusCB& pipeline_status_cb,
+    const StatisticsCB& statistics_cb) {
   message_loop_proxy_->PostTask(
       FROM_HERE,
       base::Bind(&VideoFrameGenerator::InitializeOnDecoderThread,
                  this, make_scoped_refptr(demuxer_stream),
-                 filter_callback, stat_callback));
+                 pipeline_status_cb, statistics_cb));
 }
 
-void VideoFrameGenerator::Read(const ReadCB& callback) {
+void VideoFrameGenerator::Read(const ReadCB& read_cb) {
   message_loop_proxy_->PostTask(
       FROM_HERE,
-      base::Bind(&VideoFrameGenerator::ReadOnDecoderThread,
-                 this, callback));
+      base::Bind(&VideoFrameGenerator::ReadOnDecoderThread, this, read_cb));
 }
 
 const gfx::Size& VideoFrameGenerator::natural_size() {
@@ -47,24 +46,23 @@ const gfx::Size& VideoFrameGenerator::natural_size() {
 void VideoFrameGenerator::Stop(const base::Closure& callback) {
   message_loop_proxy_->PostTask(
       FROM_HERE,
-      base::Bind(&VideoFrameGenerator::StopOnDecoderThread,
-                 this, callback));
+      base::Bind(&VideoFrameGenerator::StopOnDecoderThread, this, callback));
 }
 
 void VideoFrameGenerator::InitializeOnDecoderThread(
     DemuxerStream* demuxer_stream,
-    const PipelineStatusCB& filter_callback,
-    const StatisticsCallback& stat_callback) {
+    const PipelineStatusCB& pipeline_status_cb,
+    const StatisticsCB& statistics_cb) {
   DVLOG(1) << "InitializeOnDecoderThread";
   DCHECK(message_loop_proxy_->BelongsToCurrentThread());
 
-  filter_callback.Run(PIPELINE_OK);
+  pipeline_status_cb.Run(PIPELINE_OK);
   stopped_ = false;
 }
 
-void VideoFrameGenerator::ReadOnDecoderThread(const ReadCB& callback) {
+void VideoFrameGenerator::ReadOnDecoderThread(const ReadCB& read_cb) {
   DCHECK(message_loop_proxy_->BelongsToCurrentThread());
-  CHECK(!callback.is_null());
+  CHECK(!read_cb.is_null());
   if (stopped_)
     return;
 
@@ -82,11 +80,10 @@ void VideoFrameGenerator::ReadOnDecoderThread(const ReadCB& callback) {
   // TODO(wjia): set pixel data to pre-defined patterns if it's desired to
   // verify frame content.
 
-  callback.Run(video_frame);
+  read_cb.Run(video_frame);
 }
 
-void VideoFrameGenerator::StopOnDecoderThread(
-    const base::Closure& callback) {
+void VideoFrameGenerator::StopOnDecoderThread(const base::Closure& callback) {
   DVLOG(1) << "StopOnDecoderThread";
   DCHECK(message_loop_proxy_->BelongsToCurrentThread());
   stopped_ = true;

@@ -53,7 +53,7 @@ struct PipelineStatistics {
 };
 
 // Used for updating pipeline statistics.
-typedef base::Callback<void(const PipelineStatistics&)> StatisticsCallback;
+typedef base::Callback<void(const PipelineStatistics&)> StatisticsCB;
 
 }  // namespace media
 

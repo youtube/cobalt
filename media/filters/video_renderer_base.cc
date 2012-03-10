@@ -64,7 +64,7 @@ void VideoRendererBase::Stop(const base::Closure& callback) {
     base::AutoLock auto_lock(lock_);
     state_ = kStopped;
 
-    statistics_callback_.Reset();
+    statistics_cb_.Reset();
     video_time_cb_.Reset();
     if (!pending_paint_ && !pending_paint_with_last_available_)
       DoStopOrError_Locked();
@@ -102,18 +102,18 @@ void VideoRendererBase::Seek(base::TimeDelta time, const FilterStatusCB& cb) {
 }
 
 void VideoRendererBase::Initialize(VideoDecoder* decoder,
-                                   const PipelineStatusCB& callback,
-                                   const StatisticsCallback& stats_callback,
+                                   const PipelineStatusCB& pipeline_status_cb,
+                                   const StatisticsCB& statistics_cb,
                                    const VideoTimeCB& video_time_cb) {
   base::AutoLock auto_lock(lock_);
   DCHECK(decoder);
-  DCHECK(!callback.is_null());
-  DCHECK(!stats_callback.is_null());
+  DCHECK(!pipeline_status_cb.is_null());
+  DCHECK(!statistics_cb.is_null());
   DCHECK(!video_time_cb.is_null());
   DCHECK_EQ(kUninitialized, state_);
   decoder_ = decoder;
 
-  statistics_callback_ = stats_callback;
+  statistics_cb_ = statistics_cb;
   video_time_cb_ = video_time_cb;
 
   // Notify the pipeline of the video dimensions.
@@ -132,7 +132,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   if (!base::PlatformThread::Create(0, this, &thread_)) {
     NOTREACHED() << "Video thread creation failed";
     state_ = kError;
-    callback.Run(PIPELINE_ERROR_INITIALIZATION_FAILED);
+    pipeline_status_cb.Run(PIPELINE_ERROR_INITIALIZATION_FAILED);
     return;
   }
 
@@ -141,7 +141,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   // TODO(scherkus): find out if this is necessary, but it seems to help.
   ::SetThreadPriority(thread_, THREAD_PRIORITY_ABOVE_NORMAL);
 #endif  // defined(OS_WIN)
-  callback.Run(PIPELINE_OK);
+  pipeline_status_cb.Run(PIPELINE_OK);
 }
 
 bool VideoRendererBase::HasEnded() {
@@ -168,7 +168,7 @@ void VideoRendererBase::ThreadMain() {
     if (frames_dropped > 0) {
       PipelineStatistics statistics;
       statistics.video_frames_dropped = frames_dropped;
-      statistics_callback_.Run(statistics);
+      statistics_cb_.Run(statistics);
 
       frames_dropped = 0;
     }
@@ -394,7 +394,7 @@ void VideoRendererBase::FrameReady(scoped_refptr<VideoFrame> frame) {
 
   PipelineStatistics statistics;
   statistics.video_frames_decoded = 1;
-  statistics_callback_.Run(statistics);
+  statistics_cb_.Run(statistics);
 
   // Always request more decoded video if we have capacity. This serves two
   // purposes:

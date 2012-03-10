@@ -158,8 +158,8 @@ DemuxerStream::Type FFmpegDemuxerStream::type() {
   return type_;
 }
 
-void FFmpegDemuxerStream::Read(const ReadCallback& read_callback) {
-  DCHECK(!read_callback.is_null());
+void FFmpegDemuxerStream::Read(const ReadCB& read_cb) {
+  DCHECK(!read_cb.is_null());
 
   base::AutoLock auto_lock(lock_);
   // Don't accept any additional reads if we've been told to stop.
@@ -167,7 +167,7 @@ void FFmpegDemuxerStream::Read(const ReadCallback& read_callback) {
   //
   // TODO(scherkus): it would be cleaner if we replied with an error message.
   if (stopped_) {
-    read_callback.Run(scoped_refptr<Buffer>(new DataBuffer(0)));
+    read_cb.Run(scoped_refptr<Buffer>(new DataBuffer(0)));
     return;
   }
 
@@ -177,18 +177,18 @@ void FFmpegDemuxerStream::Read(const ReadCallback& read_callback) {
     buffer_queue_.pop_front();
 
     // Execute the callback.
-    read_callback.Run(buffer);
+    read_cb.Run(buffer);
 
     if (!read_queue_.empty())
       demuxer_->PostDemuxTask();
 
   } else {
     demuxer_->message_loop()->PostTask(FROM_HERE, base::Bind(
-        &FFmpegDemuxerStream::ReadTask, this, read_callback));
+        &FFmpegDemuxerStream::ReadTask, this, read_cb));
   }
 }
 
-void FFmpegDemuxerStream::ReadTask(const ReadCallback& read_callback) {
+void FFmpegDemuxerStream::ReadTask(const ReadCB& read_cb) {
   DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
 
   base::AutoLock auto_lock(lock_);
@@ -196,12 +196,12 @@ void FFmpegDemuxerStream::ReadTask(const ReadCallback& read_callback) {
   //
   // TODO(scherkus): it would be cleaner if we replied with an error message.
   if (stopped_) {
-    read_callback.Run(scoped_refptr<Buffer>(new DataBuffer(0)));
+    read_cb.Run(scoped_refptr<Buffer>(new DataBuffer(0)));
     return;
   }
 
   // Enqueue the callback and attempt to satisfy it immediately.
-  read_queue_.push_back(read_callback);
+  read_queue_.push_back(read_cb);
   FulfillPendingRead();
 
   // Check if there are still pending reads, demux some more.
@@ -219,12 +219,12 @@ void FFmpegDemuxerStream::FulfillPendingRead() {
 
   // Dequeue a buffer and pending read pair.
   scoped_refptr<Buffer> buffer = buffer_queue_.front();
-  ReadCallback read_callback(read_queue_.front());
+  ReadCB read_cb(read_queue_.front());
   buffer_queue_.pop_front();
   read_queue_.pop_front();
 
   // Execute the callback.
-  read_callback.Run(buffer);
+  read_cb.Run(buffer);
 }
 
 void FFmpegDemuxerStream::EnableBitstreamConverter() {
