@@ -515,6 +515,7 @@ class BASE_EXPORT FileEnumerator {
 
   // Looks inside a FindInfo and determines if it's a directory.
   static bool IsDirectory(const FindInfo& info);
+  static bool IsLink(const FindInfo& info);
 
   static FilePath GetFilename(const FindInfo& find_info);
   static int64 GetFilesize(const FindInfo& find_info);
