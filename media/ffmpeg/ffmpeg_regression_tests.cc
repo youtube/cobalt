@@ -15,6 +15,9 @@
 // Many of the files here do not cause issues outside of tooling, so you'll need
 // to run this test under ASAN, TSAN, and Valgrind to ensure that all issues are
 // caught.
+//
+// Test cases labeled FLAKY may not always pass, but they should never crash or
+// cause any kind of warnings or errors under tooling.
 
 #include "media/filters/pipeline_integration_test_base.h"
 
@@ -49,6 +52,7 @@ class FFmpegRegressionTest
                                                                end_status)));
 
 // Test cases from issues.
+FFMPEG_TEST_CASE(Cr47325, "security/47325.mp4", PIPELINE_OK, PIPELINE_OK);
 FFMPEG_TEST_CASE(Cr93620, "security/93620.ogg", PIPELINE_OK, PIPELINE_OK);
 FFMPEG_TEST_CASE(Cr100492, "security/100492.webm", DECODER_ERROR_NOT_SUPPORTED,
                  DECODER_ERROR_NOT_SUPPORTED);
@@ -62,6 +66,15 @@ FFMPEG_TEST_CASE(Cr112384, "security/112384.webm",
                  DEMUXER_ERROR_COULD_NOT_PARSE, DEMUXER_ERROR_COULD_NOT_PARSE);
 FFMPEG_TEST_CASE(Cr112670, "security/112670.mp4", PIPELINE_ERROR_DECODE,
                  PIPELINE_ERROR_DECODE);
+FFMPEG_TEST_CASE(Cr112976, "security/112976.ogg", PIPELINE_OK, PIPELINE_OK);
+FFMPEG_TEST_CASE(Cr116927, "security/116927.ogv", PIPELINE_ERROR_DECODE,
+                 PIPELINE_ERROR_DECODE);
+
+// General MKV test cases.
+FFMPEG_TEST_CASE(MKV_0, "security/nested_tags_lang.mka.627.628", PIPELINE_OK,
+                 PIPELINE_OK);
+FFMPEG_TEST_CASE(MKV_1, "security/nested_tags_lang.mka.667.628", PIPELINE_OK,
+                 PIPELINE_OK);
 
 // General MP4 test cases.
 FFMPEG_TEST_CASE(MP4_0, "security/aac.10419.mp4", PIPELINE_OK, PIPELINE_OK);
@@ -121,6 +134,8 @@ FFMPEG_TEST_CASE(WEBM_3, "security/out.webm.139771.2965",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED);
 FFMPEG_TEST_CASE(WEBM_4, "security/out.webm.68798.1929",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED);
+FFMPEG_TEST_CASE(WEBM_5, "content/frame_size_change.webm", PIPELINE_OK,
+                 PIPELINE_OK);
 
 // Flaky, maybe larger issues.  All eventually fail in the browser.
 FFMPEG_TEST_CASE(FLAKY_Cr99652, "security/99652.webm", PIPELINE_OK,
@@ -129,6 +144,8 @@ FFMPEG_TEST_CASE(FLAKY_Cr100464, "security/100464.webm", PIPELINE_OK,
                  PIPELINE_ERROR_DECODE);
 FFMPEG_TEST_CASE(FLAKY_Cr111342, "security/111342.ogm", PIPELINE_OK,
                  PIPELINE_ERROR_DECODE);
+FFMPEG_TEST_CASE(FLAKY_MP4_3, "security/clockh264aac_300413969.mp4",
+                 PIPELINE_OK, PIPELINE_ERROR_DECODE);
 FFMPEG_TEST_CASE(FLAKY_OGV_0, "security/big_dims.ogv", PIPELINE_OK,
                  PIPELINE_ERROR_DECODE);
 FFMPEG_TEST_CASE(FLAKY_OGV_3, "security/smclock_1_0.ogv", PIPELINE_ERROR_DECODE,
@@ -140,12 +157,7 @@ FFMPEG_TEST_CASE(FLAKY_OGV_6, "security/smclocktheora_1_10000.ogv",
 FFMPEG_TEST_CASE(FLAKY_OGV_13, "security/smclocktheora_1_790.ogv",
                  PIPELINE_ERROR_DECODE, PIPELINE_ERROR_DECODE);
 
-// Current crashers.
-// FFMPEG_TEST_CASE(Cr112976, "security/112976.ogg", PIPELINE_OK, PIPELINE_OK);
-
-// Clock failures.  http://crbug.com/113037
-// FFMPEG_TEST_CASE(MP4_3, "security/clockh264aac_300413969.mp4", PIPELINE_OK,
-//                  PIPELINE_OK);
+// Hangs. http://crbug.com/117038
 // FFMPEG_TEST_CASE(WEBM_0, "security/memcpy.webm", PIPELINE_OK, PIPELINE_OK);
 
 TEST_P(FFmpegRegressionTest, BasicPlayback) {
