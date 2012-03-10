@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -774,8 +774,14 @@ void FileEnumerator::GetFindInfo(FindInfo* info) {
   info->filename.assign(cur_entry->filename.value());
 }
 
+// static
 bool FileEnumerator::IsDirectory(const FindInfo& info) {
   return S_ISDIR(info.stat.st_mode);
+}
+
+// static
+bool FileEnumerator::IsLink(const FindInfo& info) {
+  return S_ISLNK(info.stat.st_mode);
 }
 
 // static
