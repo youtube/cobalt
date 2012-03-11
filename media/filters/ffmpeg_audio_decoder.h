@@ -7,6 +7,7 @@
 
 #include <list>
 
+#include "base/callback.h"
 #include "base/message_loop.h"
 #include "media/base/audio_decoder.h"
 
@@ -18,7 +19,7 @@ class DataBuffer;
 
 class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
  public:
-  explicit FFmpegAudioDecoder(MessageLoop* message_loop);
+  FFmpegAudioDecoder(const base::Callback<MessageLoop*()>& message_loop_cb);
   virtual ~FFmpegAudioDecoder();
 
   // AudioDecoder implementation.
@@ -55,6 +56,8 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
   // Delivers decoded samples to |read_cb_| and resets the callback.
   void DeliverSamples(const scoped_refptr<Buffer>& samples);
 
+  // This is !is_null() iff Initialize() hasn't been called.
+  base::Callback<MessageLoop*()> message_loop_factory_cb_;
   MessageLoop* message_loop_;
 
   scoped_refptr<DemuxerStream> demuxer_stream_;

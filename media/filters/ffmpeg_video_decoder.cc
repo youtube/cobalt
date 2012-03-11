@@ -51,8 +51,10 @@ static int GetThreadCount(CodecID codec_id) {
   return decode_threads;
 }
 
-FFmpegVideoDecoder::FFmpegVideoDecoder(MessageLoop* message_loop)
-    : message_loop_(message_loop),
+FFmpegVideoDecoder::FFmpegVideoDecoder(
+    const base::Callback<MessageLoop*()>& message_loop_cb)
+    : message_loop_factory_cb_(message_loop_cb),
+      message_loop_(NULL),
       state_(kUninitialized),
       codec_context_(NULL),
       av_frame_(NULL),
@@ -67,6 +69,15 @@ FFmpegVideoDecoder::~FFmpegVideoDecoder() {
 void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
                                     const PipelineStatusCB& pipeline_status_cb,
                                     const StatisticsCB& statistics_cb) {
+  if (!message_loop_) {
+    message_loop_ = message_loop_factory_cb_.Run();
+    message_loop_factory_cb_.Reset();
+  } else {
+    // TODO(scherkus): initialization currently happens more than once in
+    // PipelineIntegrationTest.BasicPlayback.
+    LOG(ERROR) << "Initialize has already been called.";
+  }
+
   if (MessageLoop::current() != message_loop_) {
     message_loop_->PostTask(FROM_HERE, base::Bind(
         &FFmpegVideoDecoder::Initialize, this,

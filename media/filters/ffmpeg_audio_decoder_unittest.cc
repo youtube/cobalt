@@ -13,6 +13,7 @@
 #include "media/base/test_data_util.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/filters/ffmpeg_audio_decoder.h"
+#include "media/filters/ffmpeg_decoder_unittest.h"
 #include "media/filters/ffmpeg_glue.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -29,7 +30,8 @@ ACTION_P(InvokeReadPacket, test) {
 class FFmpegAudioDecoderTest : public testing::Test {
  public:
   FFmpegAudioDecoderTest()
-      : decoder_(new FFmpegAudioDecoder(&message_loop_)),
+      : decoder_(new FFmpegAudioDecoder(base::Bind(&Identity<MessageLoop*>,
+                                                   &message_loop_))),
         demuxer_(new StrictMock<MockDemuxerStream>()) {
     CHECK(FFmpegGlue::GetInstance());
 

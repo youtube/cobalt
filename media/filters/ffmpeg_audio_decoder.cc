@@ -45,8 +45,10 @@ static bool IsEndOfStream(int result, int decoded_size, Buffer* input) {
 }
 
 
-FFmpegAudioDecoder::FFmpegAudioDecoder(MessageLoop* message_loop)
-    : message_loop_(message_loop),
+FFmpegAudioDecoder::FFmpegAudioDecoder(
+    const base::Callback<MessageLoop*()>& message_loop_cb)
+    : message_loop_factory_cb_(message_loop_cb),
+      message_loop_(NULL),
       codec_context_(NULL),
       bits_per_channel_(0),
       channel_layout_(CHANNEL_LAYOUT_NONE),
@@ -71,6 +73,14 @@ void FFmpegAudioDecoder::Initialize(
     const scoped_refptr<DemuxerStream>& stream,
     const PipelineStatusCB& pipeline_status_cb,
     const StatisticsCB& statistics_cb) {
+  if (!message_loop_) {
+    message_loop_ = message_loop_factory_cb_.Run();
+    message_loop_factory_cb_.Reset();
+  } else {
+    // TODO(scherkus): initialization currently happens more than once in
+    // PipelineIntegrationTest.BasicPlayback.
+    LOG(ERROR) << "Initialize has already been called.";
+  }
   message_loop_->PostTask(
       FROM_HERE,
       base::Bind(&FFmpegAudioDecoder::DoInitialize, this,

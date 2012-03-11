@@ -163,9 +163,13 @@ PipelineIntegrationTestBase::CreateFilterCollection(
   scoped_ptr<FilterCollection> collection(new FilterCollection());
   collection->SetDemuxerFactory(demuxer_factory.Pass());
   collection->AddAudioDecoder(new FFmpegAudioDecoder(
-      message_loop_factory_->GetMessageLoop("AudioDecoderThread")));
+      base::Bind(&MessageLoopFactory::GetMessageLoop,
+                 base::Unretained(message_loop_factory_.get()),
+                 "AudioDecoderThread")));
   collection->AddVideoDecoder(new FFmpegVideoDecoder(
-      message_loop_factory_->GetMessageLoop("VideoDecoderThread")));
+      base::Bind(&MessageLoopFactory::GetMessageLoop,
+                 base::Unretained(message_loop_factory_.get()),
+                 "VideoDecoderThread")));
   collection->AddVideoRenderer(new VideoRendererBase(
       base::Bind(&PipelineIntegrationTestBase::OnVideoRendererPaint,
                  base::Unretained(this)),
