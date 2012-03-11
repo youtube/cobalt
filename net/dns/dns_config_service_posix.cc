@@ -33,25 +33,27 @@ class DnsConfigServicePosix::ConfigReader : public SerialWorker {
     success_ = false;
 #if defined(OS_ANDROID)
     NOTIMPLEMENTED();
-#else
-#if defined(OS_OPENBSD)
+#elif defined(OS_OPENBSD)
     // Note: res_ninit in glibc always returns 0 and sets RES_INIT.
     // res_init behaves the same way.
+    memset(&_res, 0, sizeof(_res));
     if ((res_init() == 0) && (_res.options & RES_INIT)) {
       success_ = ConvertResStateToDnsConfig(_res, &dns_config_);
     }
-#else
+#else  // all other OS_POSIX
     struct __res_state res;
+    memset(&res, 0, sizeof(res));
     if ((res_ninit(&res) == 0) && (res.options & RES_INIT)) {
       success_ = ConvertResStateToDnsConfig(res, &dns_config_);
     }
-#endif
+    // Prefer res_ndestroy where available.
 #if defined(OS_MACOSX)
     res_ndestroy(&res);
-#elif !defined(OS_OPENBSD)
+#else
     res_nclose(&res);
 #endif
-#endif  // defined(OS_ANDROID)
+
+#endif
   }
 
   void OnWorkFinished() OVERRIDE {
