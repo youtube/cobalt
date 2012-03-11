@@ -7,6 +7,7 @@
 
 #include <deque>
 
+#include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
 #include "media/base/filters.h"
 #include "media/crypto/aes_decryptor.h"
@@ -21,7 +22,7 @@ namespace media {
 
 class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
  public:
-  explicit FFmpegVideoDecoder(MessageLoop* message_loop);
+  FFmpegVideoDecoder(const base::Callback<MessageLoop*()>& message_loop_cb);
   virtual ~FFmpegVideoDecoder();
 
   // Filter implementation.
@@ -67,6 +68,9 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   // Allocates a video frame based on the current format and dimensions based on
   // the current state of |codec_context_|.
   scoped_refptr<VideoFrame> AllocateVideoFrame();
+
+  // This is !is_null() iff Initialize() hasn't been called.
+  base::Callback<MessageLoop*()> message_loop_factory_cb_;
 
   MessageLoop* message_loop_;
 
