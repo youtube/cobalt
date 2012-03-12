@@ -930,7 +930,7 @@ EntryImpl::~EntryImpl() {
       int current_id = backend_->GetCurrentEntryId();
       node_.Data()->dirty = current_id == 1 ? -1 : current_id - 1;
       node_.Store();
-    } else if (node_.HasData() && !dirty_) {
+    } else if (node_.HasData() && !dirty_ && node_.Data()->dirty) {
       node_.Data()->dirty = 0;
       node_.Store();
     }
