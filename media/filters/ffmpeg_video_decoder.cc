@@ -174,9 +174,22 @@ void FFmpegVideoDecoder::Flush(const base::Closure& callback) {
     return;
   }
 
+  flush_cb_ = callback;
+
+  // Defer the flush if a read is pending.
+  if (!read_cb_.is_null())
+    return;
+
+  DoFlush();
+}
+
+void FFmpegVideoDecoder::DoFlush() {
+  DCHECK(read_cb_.is_null());
+
   avcodec_flush_buffers(codec_context_);
   state_ = kNormal;
-  callback.Run();
+  flush_cb_.Run();
+  flush_cb_.Reset();
 }
 
 void FFmpegVideoDecoder::Read(const ReadCB& read_cb) {
@@ -234,6 +247,12 @@ void FFmpegVideoDecoder::DoDecodeBuffer(const scoped_refptr<Buffer>& buffer) {
 
   if (!buffer) {
     DeliverFrame(NULL);
+    return;
+  }
+
+  if (!flush_cb_.is_null()) {
+    DeliverFrame(NULL);
+    DoFlush();
     return;
   }
 
