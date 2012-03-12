@@ -37,6 +37,7 @@ class DiskCacheBackendTest : public DiskCacheTestWithCache {
   void BackendKeying();
   void BackendSetSize();
   void BackendLoad();
+  void BackendChain();
   void BackendValidEntry();
   void BackendInvalidEntry();
   void BackendInvalidEntryRead();
@@ -511,6 +512,33 @@ TEST_F(DiskCacheBackendTest, AppCacheLoad) {
   SetMask(0xf);
   SetMaxSize(0x100000);
   BackendLoad();
+}
+
+// Tests the chaining of an entry to the current head.
+void DiskCacheBackendTest::BackendChain() {
+  SetMask(0x1);  // 2-entry table.
+  SetMaxSize(0x3000);  // 12 kB.
+  InitCache();
+
+  disk_cache::Entry* entry;
+  ASSERT_EQ(net::OK, CreateEntry("The first key", &entry));
+  entry->Close();
+  ASSERT_EQ(net::OK, CreateEntry("The Second key", &entry));
+  entry->Close();
+}
+
+TEST_F(DiskCacheBackendTest, Chain) {
+  BackendChain();
+}
+
+TEST_F(DiskCacheBackendTest, NewEvictionChain) {
+  SetNewEviction();
+  BackendChain();
+}
+
+TEST_F(DiskCacheBackendTest, AppCacheChain) {
+  SetCacheType(net::APP_CACHE);
+  BackendChain();
 }
 
 TEST_F(DiskCacheBackendTest, NewEvictionTrim) {
