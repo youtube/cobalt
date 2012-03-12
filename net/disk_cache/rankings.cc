@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -575,6 +575,12 @@ bool Rankings::GetRanking(CacheRankingsBlock* rankings) {
 
   backend_->OnEvent(Stats::OPEN_RANKINGS);
 
+  // Note that if the cache is in read_only mode, open entries are not marked
+  // as dirty, so we can have multiple in-memory obects for the same address.
+  // However, by definition entries should not be mutating the state so the
+  // data at this point should be as good as the one from an entry tracked by
+  // the backend, and that other entry won't overwrite anything done by this
+  // one because it should not have the dirty flag set.
   if (!rankings->Data()->dirty)
     return true;
 
