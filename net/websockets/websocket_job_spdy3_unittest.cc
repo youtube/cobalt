@@ -319,6 +319,7 @@ class WebSocketJobSpdy3Test : public PlatformTest {
  public:
   virtual void SetUp() {
     spdy::SpdyFramer::set_enable_compression_default(false);
+    SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY3);
     stream_type_ = STREAM_INVALID;
     cookie_store_ = new MockCookieStore;
     context_ = new MockURLRequestContext(cookie_store_.get());

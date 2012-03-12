@@ -65,6 +65,10 @@ class SpdyProxyClientSocketSpdy3Test : public PlatformTest {
   virtual void TearDown();
 
  protected:
+  virtual void SetUp() {
+    SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY3);
+  }
+
   void Initialize(MockRead* reads, size_t reads_count, MockWrite* writes,
                   size_t writes_count);
   spdy::SpdyFrame* ConstructConnectRequestFrame();

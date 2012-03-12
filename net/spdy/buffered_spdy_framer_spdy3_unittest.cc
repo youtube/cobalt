@@ -18,6 +18,7 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
   TestBufferedSpdyVisitor()
     : buffered_spdy_framer_(3),
       error_count_(0),
+      setting_count_(0),
       syn_frame_count_(0),
       syn_reply_frame_count_(0),
       headers_frame_count_(0),
@@ -66,6 +67,10 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
     LOG(FATAL) << "Unexpected OnStreamFrameData call.";
   }
 
+  void OnSetting(SpdySettingsIds id, uint8 flags, uint32 value) {
+    setting_count_++;
+  }
+
   bool OnCredentialFrameData(const char*, size_t) {
     LOG(FATAL) << "Unexpected OnCredentialFrameData call.";
     return false;
@@ -93,7 +98,6 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
   void OnRstStream(const spdy::SpdyRstStreamControlFrame& frame) {}
   void OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) {}
   void OnPing(const spdy::SpdyPingControlFrame& frame) {}
-  void OnSettings(const spdy::SpdySettingsControlFrame& frame) {}
   void OnWindowUpdate(const spdy::SpdyWindowUpdateControlFrame& frame) {}
   void OnCredential(const spdy::SpdyCredentialControlFrame& frame) {}
 
@@ -123,6 +127,7 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
 
   // Counters from the visitor callbacks.
   int error_count_;
+  int setting_count_;
   int syn_frame_count_;
   int syn_reply_frame_count_;
   int headers_frame_count_;
@@ -169,6 +174,24 @@ class BufferedSpdyFramerSpdy3Test : public PlatformTest {
     return true;
   }
 };
+
+TEST_F(BufferedSpdyFramerSpdy3Test, OnSetting) {
+  EnableCompression(false);
+
+  SpdyFramer framer(3);
+  SpdySettings settings;
+  settings.push_back(SpdySetting(SettingsFlagsAndId(0, 1), 0x00000002));
+  settings.push_back(SpdySetting(SettingsFlagsAndId(0, 1), 0x00000003));
+
+  scoped_ptr<SpdyFrame> control_frame(framer.CreateSettings(settings));
+  TestBufferedSpdyVisitor visitor;
+
+  visitor.SimulateInFramer(
+      reinterpret_cast<unsigned char*>(control_frame->data()),
+      control_frame->length() + SpdyControlFrame::kHeaderSize);
+  EXPECT_EQ(1, visitor.error_count_);
+  EXPECT_EQ(1, visitor.setting_count_);
+}
 
 TEST_F(BufferedSpdyFramerSpdy3Test, ReadSynStreamHeaderBlock) {
   EnableCompression(false);

@@ -113,6 +113,10 @@ class SpdyStreamSpdy2Test : public testing::Test {
     return session;
   }
 
+  virtual void SetUp() {
+    SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY2);
+  }
+
   virtual void TearDown() {
     MessageLoop::current()->RunAllPending();
   }
