@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -84,12 +84,12 @@ ULONG EtwTraceProvider::Register() {
 }
 
 ULONG EtwTraceProvider::Unregister() {
+  // If a session is active, notify subclasses that it's going away.
+  if (session_handle_ != NULL)
+    DisableEvents();
+
   ULONG ret = ::UnregisterTraceGuids(registration_handle_);
 
-  // Make sure we don't log anything from here on.
-  enable_level_ = 0;
-  enable_flags_ = 0;
-  session_handle_ = NULL;
   registration_handle_ = NULL;
 
   return ret;
