@@ -303,7 +303,8 @@ int SSLConnectJob::DoSSLConnectComplete(int result) {
     // TODO(mbelshe): verify it was a protocol we advertised?
     if (protocol_negotiated == SSLClientSocket::kProtoSPDY1 ||
         protocol_negotiated == SSLClientSocket::kProtoSPDY2 ||
-        protocol_negotiated == SSLClientSocket::kProtoSPDY21) {
+        protocol_negotiated == SSLClientSocket::kProtoSPDY21 ||
+        protocol_negotiated == SSLClientSocket::kProtoSPDY3) {
       ssl_socket_->set_was_spdy_negotiated(true);
     }
   }

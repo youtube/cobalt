@@ -29,10 +29,15 @@ class SpdyHttpStreamSpdy3Test : public testing::Test {
     spdy::SpdyFramer::set_enable_compression_default(enabled);
   }
 
+  virtual void SetUp() {
+    SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY3);
+  }
+
   virtual void TearDown() {
     crypto::ECSignatureCreator::SetFactoryForTesting(NULL);
     MessageLoop::current()->RunAllPending();
   }
+
   int InitSession(MockRead* reads, size_t reads_count,
                   MockWrite* writes, size_t writes_count,
                   HostPortPair& host_port_pair) {

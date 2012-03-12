@@ -164,6 +164,7 @@ class HttpNetworkTransactionSpdy2Test : public PlatformTest {
   };
 
   virtual void SetUp() {
+    SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY2);
     NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
     MessageLoop::current()->RunAllPending();
     spdy::SpdyFramer::set_enable_compression_default(false);
