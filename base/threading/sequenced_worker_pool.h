@@ -214,13 +214,21 @@ class BASE_EXPORT SequencedWorkerPool : public TaskRunner {
   // Note that calling this will not prevent other threads from posting work to
   // the queue while the calling thread is waiting on Flush(). In this case,
   // Flush will return only when there's no more work in the queue. Normally,
-  // this doesn't come up sine in a test, all the work is being posted from
+  // this doesn't come up since in a test, all the work is being posted from
   // the main thread.
   void FlushForTesting();
+
+  // Spuriously signal that there is work to be done.
+  void TriggerSpuriousWorkSignalForTesting();
+
+  // Get the number of times the work signal has been triggered.
+  int GetWorkSignalCountForTesting() const;
 
   // Implements the worker pool shutdown. This should be called during app
   // shutdown, and will discard/join with appropriate tasks before returning.
   // After this call, subsequent calls to post tasks will fail.
+  //
+  // Must be called from the same thread this object was constructed on.
   void Shutdown();
 
   // Called by tests to set the testing observer. This is NULL by default
