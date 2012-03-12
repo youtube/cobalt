@@ -606,10 +606,7 @@ ssl3_ClientHandleNextProtoNegoXtn(sslSocket *ss, PRUint16 ex_type,
     unsigned char resultBuffer[255];
     SECItem result = { siBuffer, resultBuffer, 0 };
 
-    if (ss->firstHsDone) {
-	PORT_SetError(SSL_ERROR_NEXT_PROTOCOL_DATA_INVALID);
-	return SECFailure;
-    }
+    PORT_Assert(!ss->firstHsDone);
 
     rv = ssl3_ValidateNextProtoNego(data->data, data->len);
     if (rv != SECSuccess)
@@ -621,6 +618,8 @@ ssl3_ClientHandleNextProtoNegoXtn(sslSocket *ss, PRUint16 ex_type,
      */
     PORT_Assert(ss->nextProtoCallback != NULL);
     if (!ss->nextProtoCallback) {
+	/* XXX Use a better error code. This is an application error, not an
+	 * NSS bug. */
 	PORT_SetError(SEC_ERROR_LIBRARY_FAILURE);
 	return SECFailure;
     }
@@ -631,7 +630,7 @@ ssl3_ClientHandleNextProtoNegoXtn(sslSocket *ss, PRUint16 ex_type,
 	return rv;
     /* If the callback wrote more than allowed to |result| it has corrupted our
      * stack. */
-    if (result.len > sizeof result) {
+    if (result.len > sizeof resultBuffer) {
 	PORT_SetError(SEC_ERROR_OUTPUT_LEN);
 	return SECFailure;
     }
