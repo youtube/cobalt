@@ -887,7 +887,7 @@ void BackendImpl::RecoveredEntry(CacheRankingsBlock* rankings) {
   if (NewEntry(address, &cache_entry)) {
     STRESS_NOTREACHED();
     return;
-}
+  }
 
   uint32 hash = cache_entry->GetHash();
   cache_entry->Release();
