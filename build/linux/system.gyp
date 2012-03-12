@@ -32,33 +32,38 @@
       'target_name': 'gtk',
       'type': 'none',
       'toolsets': ['host', 'target'],
+      'variables': {
+        # gtk requires gmodule, but it does not list it as a dependency in some
+        # misconfigured systems.
+        'gtk_packages': 'gmodule-2.0 gtk+-2.0 gthread-2.0',
+      },
       'conditions': [
         ['_toolset=="target"', {
           'direct_dependent_settings': {
             'cflags': [
-              '<!@(<(pkg-config) --cflags gtk+-2.0 gthread-2.0)',
+              '<!@(<(pkg-config) --cflags <(gtk_packages))',
             ],
           },
           'link_settings': {
             'ldflags': [
-              '<!@(<(pkg-config) --libs-only-L --libs-only-other gtk+-2.0 gthread-2.0)',
+              '<!@(<(pkg-config) --libs-only-L --libs-only-other <(gtk_packages))',
             ],
             'libraries': [
-              '<!@(<(pkg-config) --libs-only-l gtk+-2.0 gthread-2.0)',
+              '<!@(<(pkg-config) --libs-only-l <(gtk_packages))',
             ],
           },
         }, {
           'direct_dependent_settings': {
             'cflags': [
-              '<!@(pkg-config --cflags gtk+-2.0 gthread-2.0)',
+              '<!@(pkg-config --cflags <(gtk_packages))',
             ],
           },
           'link_settings': {
             'ldflags': [
-              '<!@(pkg-config --libs-only-L --libs-only-other gtk+-2.0 gthread-2.0)',
+              '<!@(pkg-config --libs-only-L --libs-only-other <(gtk_packages))',
             ],
             'libraries': [
-              '<!@(pkg-config --libs-only-l gtk+-2.0 gthread-2.0)',
+              '<!@(pkg-config --libs-only-l <(gtk_packages))',
             ],
           },
         }],
@@ -494,33 +499,36 @@
       'target_name': 'glib',
       'type': 'none',
       'toolsets': ['host', 'target'],
+      'variables': {
+        'glib_packages': 'glib-2.0 gmodule-2.0 gobject-2.0 gthread-2.0',
+      },
       'conditions': [
         ['_toolset=="target"', {
           'direct_dependent_settings': {
             'cflags': [
-              '<!@(<(pkg-config) --cflags glib-2.0 gobject-2.0 gthread-2.0)',
+              '<!@(<(pkg-config) --cflags <(glib_packages))',
             ],
           },
           'link_settings': {
             'ldflags': [
-              '<!@(<(pkg-config) --libs-only-L --libs-only-other glib-2.0 gobject-2.0 gthread-2.0)',
+              '<!@(<(pkg-config) --libs-only-L --libs-only-other <(glib_packages))',
             ],
             'libraries': [
-              '<!@(<(pkg-config) --libs-only-l glib-2.0 gobject-2.0 gthread-2.0)',
+              '<!@(<(pkg-config) --libs-only-l <(glib_packages))',
             ],
           },
         }, {
           'direct_dependent_settings': {
             'cflags': [
-              '<!@(pkg-config --cflags glib-2.0 gobject-2.0 gthread-2.0)',
+              '<!@(pkg-config --cflags <(glib_packages))',
             ],
           },
           'link_settings': {
             'ldflags': [
-              '<!@(pkg-config --libs-only-L --libs-only-other glib-2.0 gobject-2.0 gthread-2.0)',
+              '<!@(pkg-config --libs-only-L --libs-only-other <(glib_packages))',
             ],
             'libraries': [
-              '<!@(pkg-config --libs-only-l glib-2.0 gobject-2.0 gthread-2.0)',
+              '<!@(pkg-config --libs-only-l <(glib_packages))',
             ],
           },
         }],
