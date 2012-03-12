@@ -29,10 +29,15 @@ class SpdyHttpStreamSpdy2Test : public testing::Test {
     spdy::SpdyFramer::set_enable_compression_default(enabled);
   }
 
+  virtual void SetUp() {
+    SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY2);
+  }
+
   virtual void TearDown() {
     crypto::ECSignatureCreator::SetFactoryForTesting(NULL);
     MessageLoop::current()->RunAllPending();
   }
+
   int InitSession(MockRead* reads, size_t reads_count,
                   MockWrite* writes, size_t writes_count,
                   HostPortPair& host_port_pair) {
@@ -446,22 +451,6 @@ class MockECSignatureCreatorFactory : public crypto::ECSignatureCreatorFactory {
  private:
    DISALLOW_COPY_AND_ASSIGN(MockECSignatureCreatorFactory);
 };
-
-TEST_F(SpdyHttpStreamSpdy2Test, SendCredentialsEC) {
-  scoped_ptr<crypto::ECSignatureCreatorFactory> ec_signature_creator_factory(
-      new MockECSignatureCreatorFactory());
-  crypto::ECSignatureCreator::SetFactoryForTesting(
-      ec_signature_creator_factory.get());
-
-  scoped_ptr<OriginBoundCertService> obc_service(
-      new OriginBoundCertService(new DefaultOriginBoundCertStore(NULL)));
-  std::string cert;
-  std::string proof;
-  GetECOriginBoundCertAndProof("http://www.gmail.com/", obc_service.get(),
-                               &cert, &proof);
-
-  TestSendCredentials(obc_service.get(), cert, proof, CLIENT_CERT_ECDSA_SIGN);
-}
 
 #endif  // !defined(USE_OPENSSL)
 

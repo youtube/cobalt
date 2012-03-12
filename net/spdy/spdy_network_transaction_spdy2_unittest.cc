@@ -41,6 +41,7 @@ class SpdyNetworkTransactionSpdy2Test
   virtual void SetUp() {
     // By default, all tests turn off compression.
     EnableCompression(false);
+    SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY2);
     google_get_request_initialized_ = false;
     google_post_request_initialized_ = false;
     google_chunked_post_request_initialized_ = false;
@@ -939,8 +940,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, ThreeGetsWithMaxConcurrent) {
   scoped_ptr<spdy::SpdyFrame> fbody3(ConstructSpdyBodyFrame(5, true));
 
   spdy::SpdySettings settings;
-  spdy::SettingsFlagsAndId id(0);
-  id.set_id(spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
+  spdy::SettingsFlagsAndId id(0, spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
   const size_t max_concurrent_streams = 1;
 
   settings.push_back(spdy::SpdySetting(id, max_concurrent_streams));
@@ -1078,8 +1078,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, FourGetsWithMaxConcurrentPriority) {
 
 
   spdy::SpdySettings settings;
-  spdy::SettingsFlagsAndId id(0);
-  id.set_id(spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
+  spdy::SettingsFlagsAndId id(0, spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
   const size_t max_concurrent_streams = 1;
 
   settings.push_back(spdy::SpdySetting(id, max_concurrent_streams));
@@ -1223,8 +1222,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, ThreeGetsWithMaxConcurrentDelete) {
   scoped_ptr<spdy::SpdyFrame> fbody2(ConstructSpdyBodyFrame(3, true));
 
   spdy::SpdySettings settings;
-  spdy::SettingsFlagsAndId id(0);
-  id.set_id(spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
+  spdy::SettingsFlagsAndId id(0, spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
   const size_t max_concurrent_streams = 1;
 
   settings.push_back(spdy::SpdySetting(id, max_concurrent_streams));
@@ -1359,8 +1357,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, ThreeGetsWithMaxConcurrentSocketClose) {
   scoped_ptr<spdy::SpdyFrame> resp2(ConstructSpdyGetSynReply(NULL, 0, 3));
 
   spdy::SpdySettings settings;
-  spdy::SettingsFlagsAndId id(0);
-  id.set_id(spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
+  spdy::SettingsFlagsAndId id(0, spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
   const size_t max_concurrent_streams = 1;
 
   settings.push_back(spdy::SpdySetting(id, max_concurrent_streams));
@@ -2789,8 +2786,6 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, ServerPushMultipleDataFrame) {
 
 TEST_P(SpdyNetworkTransactionSpdy2Test,
        ServerPushMultipleDataFrameInterrupted) {
-  SpdySession::set_use_flow_control(SpdySession::kDisableFlowControl);
-
   static const unsigned char kPushBodyFrame1[] = {
     0x00, 0x00, 0x00, 0x02,                                      // header, ID
     0x01, 0x00, 0x00, 0x1F,                                      // FIN, length
@@ -2852,8 +2847,6 @@ TEST_P(SpdyNetworkTransactionSpdy2Test,
   // Verify the pushed stream.
   EXPECT_TRUE(response2.headers != NULL);
   EXPECT_EQ("HTTP/1.1 200 OK", response2.headers->GetStatusLine());
-
-  SpdySession::set_use_flow_control(SpdySession::kFlowControlBasedOnNPN);
 }
 
 TEST_P(SpdyNetworkTransactionSpdy2Test, ServerPushInvalidAssociatedStreamID0) {
@@ -3568,8 +3561,6 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, NetLog) {
 // on the network, but issued a Read for only 5 of those bytes) that the data
 // flow still works correctly.
 TEST_P(SpdyNetworkTransactionSpdy2Test, BufferFull) {
-  SpdySession::set_use_flow_control(SpdySession::kDisableFlowControl);
-
   spdy::BufferedSpdyFramer framer(2);
 
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
@@ -3659,16 +3650,12 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, BufferFull) {
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
   EXPECT_EQ("goodbye world", out.response_data);
-
-  SpdySession::set_use_flow_control(SpdySession::kFlowControlBasedOnNPN);
 }
 
 // Verify that basic buffering works; when multiple data frames arrive
 // at the same time, ensure that we don't notify a read completion for
 // each data frame individually.
 TEST_P(SpdyNetworkTransactionSpdy2Test, Buffering) {
-  SpdySession::set_use_flow_control(SpdySession::kDisableFlowControl);
-
   spdy::BufferedSpdyFramer framer(2);
 
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
@@ -3760,8 +3747,6 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, Buffering) {
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
   EXPECT_EQ("messagemessagemessagemessage", out.response_data);
-
-  SpdySession::set_use_flow_control(SpdySession::kFlowControlBasedOnNPN);
 }
 
 // Verify the case where we buffer data but read it after it has been buffered.
@@ -4065,25 +4050,23 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, SettingsSaved) {
   unsigned int kSampleValue1 = 0x0a0a0a0a;
   unsigned int kSampleId2 = 0x2;
   unsigned int kSampleValue2 = 0x0b0b0b0b;
-  unsigned int kSampleId3 = 0xababab;
+  unsigned int kSampleId3 = 0x3;
   unsigned int kSampleValue3 = 0x0c0c0c0c;
   scoped_ptr<spdy::SpdyFrame> settings_frame;
   {
     // Construct the SETTINGS frame.
     spdy::SpdySettings settings;
-    spdy::SettingsFlagsAndId setting(0);
     // First add a persisted setting
-    setting.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
-    setting.set_id(kSampleId1);
-    settings.push_back(std::make_pair(setting, kSampleValue1));
+    spdy::SettingsFlagsAndId setting1(spdy::SETTINGS_FLAG_PLEASE_PERSIST,
+                                      kSampleId1);
+    settings.push_back(std::make_pair(setting1, kSampleValue1));
     // Next add a non-persisted setting
-    setting.set_flags(0);
-    setting.set_id(kSampleId2);
-    settings.push_back(std::make_pair(setting, kSampleValue2));
+    spdy::SettingsFlagsAndId setting2(0, kSampleId2);
+    settings.push_back(std::make_pair(setting2, kSampleValue2));
     // Next add another persisted setting
-    setting.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
-    setting.set_id(kSampleId3);
-    settings.push_back(std::make_pair(setting, kSampleValue3));
+    spdy::SettingsFlagsAndId setting3(spdy::SETTINGS_FLAG_PLEASE_PERSIST,
+                                      kSampleId3);
+    settings.push_back(std::make_pair(setting3, kSampleValue3));
     settings_frame.reset(ConstructSpdySettings(settings));
   }
 
@@ -4167,15 +4150,14 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, SettingsPlayback) {
   // Manually insert settings into the SpdySettingsStorage here.
   {
     spdy::SpdySettings settings;
-    spdy::SettingsFlagsAndId setting(0);
     // First add a persisted setting
-    setting.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
-    setting.set_id(kSampleId1);
-    settings.push_back(std::make_pair(setting, kSampleValue1));
+    spdy::SettingsFlagsAndId setting1(spdy::SETTINGS_FLAG_PLEASE_PERSIST,
+                                      kSampleId1);
+    settings.push_back(std::make_pair(setting1, kSampleValue1));
     // Next add another persisted setting
-    setting.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
-    setting.set_id(kSampleId2);
-    settings.push_back(std::make_pair(setting, kSampleValue2));
+    spdy::SettingsFlagsAndId setting2(spdy::SETTINGS_FLAG_PLEASE_PERSIST,
+                                      kSampleId2);
+    settings.push_back(std::make_pair(setting2, kSampleValue2));
 
     spdy_session_pool->http_server_properties()->SetSpdySettings(
         host_port_pair, settings);

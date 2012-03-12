@@ -174,6 +174,9 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // CLIENT_CERT_INVALID_TYPE if none was sent.
   SSLClientCertType GetOriginBoundCertType() const;
 
+  // Reset all static settings to initialized values. Used to init test suite.
+  static void ResetStaticSettingsToInit();
+
   // Enable or disable SSL.
   static void SetSSLMode(bool enable) { use_ssl_ = enable; }
   static bool SSLMode() { return use_ssl_; }
@@ -182,6 +185,13 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // new SpdySessions.
   static void set_use_flow_control(FlowControl flow_control) {
     use_flow_control_ = flow_control;
+  }
+
+  // Specify the SPDY protocol to be used for SPDY session which do not use NPN
+  // to negotiate a particular protocol.
+  static void set_default_protocol(
+      SSLClientSocket::NextProto default_protocol) {
+    default_protocol_ = default_protocol;
   }
 
   // Sets the max concurrent streams per session, as a ceiling on any server
@@ -354,6 +364,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // Handle SETTINGS.  Either when we send settings, or when we receive a
   // SETTINGS control frame, update our SpdySession accordingly.
   void HandleSettings(const spdy::SpdySettings& settings);
+  void HandleSetting(uint32 id, uint32 value);
 
   // Adjust the send window size of all ActiveStreams and PendingCreateStreams.
   void UpdateStreamsSendWindowSize(int32 delta_window_size);
@@ -437,12 +448,13 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
       const spdy::SpdyRstStreamControlFrame& frame) OVERRIDE;
   virtual void OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) OVERRIDE;
   virtual void OnPing(const spdy::SpdyPingControlFrame& frame) OVERRIDE;
-  virtual void OnSettings(const spdy::SpdySettingsControlFrame& frame) OVERRIDE;
   virtual void OnWindowUpdate(
       const spdy::SpdyWindowUpdateControlFrame& frame) OVERRIDE;
   virtual void OnStreamFrameData(spdy::SpdyStreamId stream_id,
                                  const char* data,
                                  size_t len) OVERRIDE;
+  virtual void OnSetting(
+      spdy::SpdySettingsIds id, uint8 flags, uint32 value) OVERRIDE;
   virtual void OnSynStream(
       const spdy::SpdySynStreamControlFrame& frame,
       const linked_ptr<spdy::SpdyHeaderBlock>& headers) OVERRIDE;
@@ -623,6 +635,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   static bool use_ssl_;
   static FlowControl use_flow_control_;
+  static SSLClientSocket::NextProto default_protocol_;
   static size_t init_max_concurrent_streams_;
   static size_t max_concurrent_stream_limit_;
 

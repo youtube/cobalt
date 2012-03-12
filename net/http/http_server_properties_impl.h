@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -112,6 +112,11 @@ class NET_EXPORT HttpServerPropertiesImpl
   // persisted because |spdy_settings_map_| has been updated.
   virtual bool SetSpdySettings(const HostPortPair& host_port_pair,
                                const spdy::SpdySettings& settings) OVERRIDE;
+
+  // Saves an individual setting for a host. Returns true if SpdySetting is to
+  // be persisted because |spdy_settings_map_| has been updated.
+  virtual bool SetSpdySetting(const HostPortPair& host_port_pair,
+                              const spdy::SpdySetting& setting) OVERRIDE;
 
   // Clears all spdy_settings.
   virtual void ClearSpdySettings() OVERRIDE;

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -241,8 +241,8 @@ bool HttpServerPropertiesImpl::SetSpdySettings(
   for (it = settings.begin(); it != settings.end(); ++it) {
     spdy::SettingsFlagsAndId id = it->first;
     if (id.flags() & spdy::SETTINGS_FLAG_PLEASE_PERSIST) {
-      id.set_flags(spdy::SETTINGS_FLAG_PERSISTED);
-      persistent_settings.push_back(std::make_pair(id, it->second));
+      spdy::SettingsFlagsAndId new_id(spdy::SETTINGS_FLAG_PERSISTED, id.id());
+      persistent_settings.push_back(std::make_pair(new_id, it->second));
     }
   }
 
@@ -251,6 +251,27 @@ bool HttpServerPropertiesImpl::SetSpdySettings(
     return false;
 
   spdy_settings_map_[host_port_pair] = persistent_settings;
+  return true;
+}
+
+bool HttpServerPropertiesImpl::SetSpdySetting(
+    const HostPortPair& host_port_pair,
+    const spdy::SpdySetting& setting) {
+
+  spdy::SettingsFlagsAndId id = setting.first;
+  if (!(id.flags() & spdy::SETTINGS_FLAG_PLEASE_PERSIST))
+      return false;
+
+  SpdySettingsMap::const_iterator it = spdy_settings_map_.find(host_port_pair);
+  spdy::SpdySettings persistent_settings;
+  if (it != spdy_settings_map_.end()) {
+    persistent_settings = it->second;
+  }
+
+  spdy::SettingsFlagsAndId new_id(spdy::SETTINGS_FLAG_PERSISTED, id.id());
+  persistent_settings.push_back(std::make_pair(new_id, setting.second));
+  spdy_settings_map_[host_port_pair] = persistent_settings;
+
   return true;
 }
 

@@ -24,6 +24,10 @@ class SpdySessionSpdy3Test : public PlatformTest {
     spdy::SpdyFramer::set_enable_compression_default(false);
   }
  protected:
+  virtual void SetUp() {
+    SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY3);
+  }
+
   virtual void TearDown() {
     // Wanted to be 100% sure PING is disabled.
     SpdySession::set_enable_ping_based_connection_checking(false);
@@ -497,8 +501,7 @@ TEST_F(SpdySessionSpdy3Test, OnSettings) {
   session_deps.host_resolver->set_synchronous_mode(true);
 
   spdy::SpdySettings new_settings;
-  spdy::SettingsFlagsAndId id(0);
-  id.set_id(spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
+  spdy::SettingsFlagsAndId id(0, spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
   const size_t max_concurrent_streams = 2;
   new_settings.push_back(spdy::SpdySetting(id, max_concurrent_streams));
 
@@ -530,8 +533,8 @@ TEST_F(SpdySessionSpdy3Test, OnSettings) {
   // Initialize the SpdySettingsStorage with 1 max concurrent streams.
   SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
   spdy::SpdySettings old_settings;
-  id.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
-  old_settings.push_back(spdy::SpdySetting(id, 1));
+  spdy::SettingsFlagsAndId id1(spdy::SETTINGS_FLAG_PLEASE_PERSIST, id.id());
+  old_settings.push_back(spdy::SpdySetting(id1, 1));
   spdy_session_pool->http_server_properties()->SetSpdySettings(
       test_host_port_pair, old_settings);
 
@@ -612,9 +615,8 @@ TEST_F(SpdySessionSpdy3Test, CancelPendingCreateStream) {
   // Initialize the SpdySettingsStorage with 1 max concurrent streams.
   SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
   spdy::SpdySettings settings;
-  spdy::SettingsFlagsAndId id(0);
-  id.set_id(spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
-  id.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
+  spdy::SettingsFlagsAndId id(spdy::SETTINGS_FLAG_PLEASE_PERSIST,
+                              spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
   settings.push_back(spdy::SpdySetting(id, 1));
   spdy_session_pool->http_server_properties()->SetSpdySettings(
       test_host_port_pair, settings);
@@ -685,9 +687,7 @@ TEST_F(SpdySessionSpdy3Test, SendSettingsOnNewSession) {
   spdy::SpdySettings settings;
   const uint32 kBogusSettingId = 0xABAB;
   const uint32 kBogusSettingValue = 0xCDCD;
-  spdy::SettingsFlagsAndId id(0);
-  id.set_id(kBogusSettingId);
-  id.set_flags(spdy::SETTINGS_FLAG_PERSISTED);
+  spdy::SettingsFlagsAndId id(spdy::SETTINGS_FLAG_PERSISTED, kBogusSettingId);
   settings.push_back(spdy::SpdySetting(id, kBogusSettingValue));
   MockConnect connect_data(SYNCHRONOUS, OK);
   scoped_ptr<spdy::SpdyFrame> settings_frame(
@@ -712,9 +712,9 @@ TEST_F(SpdySessionSpdy3Test, SendSettingsOnNewSession) {
   HostPortPair test_host_port_pair(kTestHost, kTestPort);
   HostPortProxyPair pair(test_host_port_pair, ProxyServer::Direct());
 
-  id.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
+  spdy::SettingsFlagsAndId id1(spdy::SETTINGS_FLAG_PLEASE_PERSIST, id.id());
   settings.clear();
-  settings.push_back(spdy::SpdySetting(id, kBogusSettingValue));
+  settings.push_back(spdy::SpdySetting(id1, kBogusSettingValue));
   SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
   spdy_session_pool->http_server_properties()->SetSpdySettings(
       test_host_port_pair, settings);
@@ -873,9 +873,8 @@ TEST_F(SpdySessionSpdy3Test, ClearSettingsStorage) {
   const int kTestPort = 80;
   HostPortPair test_host_port_pair(kTestHost, kTestPort);
   spdy::SpdySettings test_settings;
-  spdy::SettingsFlagsAndId id(0);
-  id.set_id(spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
-  id.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
+  spdy::SettingsFlagsAndId id(spdy::SETTINGS_FLAG_PLEASE_PERSIST,
+                              spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
   const size_t max_concurrent_streams = 2;
   test_settings.push_back(spdy::SpdySetting(id, max_concurrent_streams));
 
@@ -897,9 +896,8 @@ TEST_F(SpdySessionSpdy3Test, ClearSettingsStorageOnIPAddressChanged) {
 
   HttpServerProperties* test_http_server_properties =
       spdy_session_pool->http_server_properties();
-  spdy::SettingsFlagsAndId id(0);
-  id.set_id(spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
-  id.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
+  spdy::SettingsFlagsAndId id(spdy::SETTINGS_FLAG_PLEASE_PERSIST,
+                              spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
   const size_t max_concurrent_streams = 2;
   spdy::SpdySettings test_settings;
   test_settings.push_back(spdy::SpdySetting(id, max_concurrent_streams));

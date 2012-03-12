@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,6 +14,7 @@ const char* const kAlternateProtocolStrings[] = {
   "npn-spdy/1",
   "npn-spdy/2",
   "npn-spdy/2.1",
+  "npn-spdy/3",
 };
 
 static const char* AlternateProtocolToString(AlternateProtocol protocol) {
@@ -21,6 +22,7 @@ static const char* AlternateProtocolToString(AlternateProtocol protocol) {
     case NPN_SPDY_1:
     case NPN_SPDY_2:
     case NPN_SPDY_21:
+    case NPN_SPDY_3:
       return kAlternateProtocolStrings[protocol];
     case ALTERNATE_PROTOCOL_BROKEN:
       return "Broken";
