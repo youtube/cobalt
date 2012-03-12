@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/string_piece.h"
 #include "base/sys_byteorder.h"
 #include "net/base/net_export.h"
 #include "net/spdy/spdy_protocol.h"
@@ -22,10 +23,6 @@ namespace spdy {
 // to a frame instance.  The SpdyFrameBuilder grows its internal memory buffer
 // dynamically to hold the sequence of primitive values.   The internal memory
 // buffer is exposed as the "data" of the SpdyFrameBuilder.
-//
-// When reading from a SpdyFrameBuilder the consumer must know what value types
-// to read and in what order to read them as the SpdyFrameBuilder does not keep
-// track of the type of data written to it.
 class NET_EXPORT_PRIVATE SpdyFrameBuilder {
  public:
   ~SpdyFrameBuilder();
@@ -35,12 +32,6 @@ class NET_EXPORT_PRIVATE SpdyFrameBuilder {
   // Initiailizes a SpdyFrameBuilder with a buffer of given size.
   // The buffer will still be resized as necessary.
   explicit SpdyFrameBuilder(size_t size);
-
-  // Initializes a SpdyFrameBuilder from a const block of data.  The data is
-  // not copied; instead the data is merely referenced by this
-  // SpdyFrameBuilder.  Only const methods should be used when initialized
-  // this way.
-  SpdyFrameBuilder(const char* data, int data_len);
 
   // Returns the size of the SpdyFrameBuilder's data.
   int length() const { return length_; }
@@ -54,22 +45,8 @@ class NET_EXPORT_PRIVATE SpdyFrameBuilder {
     return rv;
   }
 
-  // Methods for reading the payload of the SpdyFrameBuilder.  To read from the
-  // start of the SpdyFrameBuilder, initialize *iter to NULL.  If successful,
-  // these methods return true.  Otherwise, false is returned to indicate that
-  // the result could not be extracted.
-  bool ReadUInt16(void** iter, uint16* result) const;
-  bool ReadUInt32(void** iter, uint32* result) const;
-  bool ReadString(void** iter, std::string* result) const;
-  bool ReadBytes(void** iter, const char** data, uint32 length) const;
-  bool ReadData(void** iter, const char** data, uint16* length) const;
-  bool ReadReadLen32PrefixedData(void** iter,
-                                 const char** data,
-                                 uint32* length) const;
-
   // Methods for adding to the payload.  These values are appended to the end
-  // of the SpdyFrameBuilder payload.  When reading values, you must read them
-  // in the order they were added.  Note - binary integers are converted from
+  // of the SpdyFrameBuilder payload. Note - binary integers are converted from
   // host to network form.
   bool WriteUInt16(uint16 value) {
     value = htons(value);
@@ -79,7 +56,9 @@ class NET_EXPORT_PRIVATE SpdyFrameBuilder {
     value = htonl(value);
     return WriteBytes(&value, sizeof(value));
   }
+  // TODO(hkhalil) Rename to WriteStringPiece16().
   bool WriteString(const std::string& value);
+  bool WriteStringPiece32(const base::StringPiece& value);
   bool WriteBytes(const void* data, uint32 data_len);
 
   // Write an integer to a particular offset in the data buffer.
@@ -96,16 +75,6 @@ class NET_EXPORT_PRIVATE SpdyFrameBuilder {
     memcpy(ptr, data, data_len);
     return true;
   }
-
-  // Allows the caller to write data directly into the SpdyFrameBuilder.
-  // This saves a copy when the data is not already available in a buffer.
-  // The caller must not write more than the length it declares it will.
-  // Use ReadData to get the data.
-  // Returns NULL on failure.
-  //
-  // The returned pointer will only be valid until the next write operation
-  // on this SpdyFrameBuilder.
-  char* BeginWriteData(uint16 length);
 
   // Returns true if the given iterator could point to data with the given
   // length. If there is no room for the given data before the end of the
@@ -151,9 +120,6 @@ class NET_EXPORT_PRIVATE SpdyFrameBuilder {
   static void UpdateIter(void** iter, int bytes) {
     *iter = static_cast<char*>(*iter) + bytes;
   }
-
-  // Initial size of the payload.
-  static const int kInitialPayload = 1024;
 
  private:
   char* buffer_;

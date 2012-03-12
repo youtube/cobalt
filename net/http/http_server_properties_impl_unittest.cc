@@ -291,9 +291,7 @@ TEST_F(SpdySettingsServerPropertiesTest, Initialize) {
 
   // Check by initializing with www.google.com:443 spdy server settings.
   spdy::SpdySettings spdy_settings;
-  spdy::SettingsFlagsAndId spdy_setting(0);
-  spdy_setting.set_flags(spdy::SETTINGS_FLAG_PERSISTED);
-  spdy_setting.set_id(1234);
+  spdy::SettingsFlagsAndId spdy_setting(spdy::SETTINGS_FLAG_PERSISTED, 1234);
   spdy_settings.push_back(std::make_pair(spdy_setting, 31337));
   spdy_settings_map[spdy_server_google] = spdy_settings;
   impl_.InitializeSpdySettingsServers(&spdy_settings_map);
@@ -306,7 +304,7 @@ TEST_F(SpdySettingsServerPropertiesTest, Initialize) {
   EXPECT_EQ(31337U, spdy_settings2.front().second);
 }
 
-TEST_F(SpdySettingsServerPropertiesTest, SpdySettingsTest) {
+TEST_F(SpdySettingsServerPropertiesTest, SetSpdySettings) {
   HostPortPair spdy_server_empty("", 443);
   spdy::SpdySettings spdy_settings0 = impl_.GetSpdySettings(spdy_server_empty);
   EXPECT_EQ(0U, spdy_settings0.size());    // Returns kEmptySpdySettings
@@ -314,9 +312,7 @@ TEST_F(SpdySettingsServerPropertiesTest, SpdySettingsTest) {
   // Add www.google.com:443 as persisting.
   HostPortPair spdy_server_google("www.google.com", 443);
   spdy::SpdySettings spdy_settings1;
-  spdy::SettingsFlagsAndId id1(0);
-  id1.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
-  id1.set_id(1234);
+  spdy::SettingsFlagsAndId id1(spdy::SETTINGS_FLAG_PLEASE_PERSIST, 1234);
   spdy_settings1.push_back(std::make_pair(id1, 31337));
   EXPECT_TRUE(impl_.SetSpdySettings(spdy_server_google, spdy_settings1));
   spdy::SpdySettings spdy_settings1_ret =
@@ -331,8 +327,7 @@ TEST_F(SpdySettingsServerPropertiesTest, SpdySettingsTest) {
   // Add mail.google.com:443 as not persisting.
   HostPortPair spdy_server_mail("mail.google.com", 443);
   spdy::SpdySettings spdy_settings2;
-  spdy::SettingsFlagsAndId id2(0);
-  id2.set_id(5678);
+  spdy::SettingsFlagsAndId id2(0, 5678);
   spdy_settings2.push_back(std::make_pair(id2, 62667));
   EXPECT_FALSE(impl_.SetSpdySettings(spdy_server_mail, spdy_settings2));
   spdy::SpdySettings spdy_settings2_ret =
@@ -342,9 +337,7 @@ TEST_F(SpdySettingsServerPropertiesTest, SpdySettingsTest) {
   // Add docs.google.com:443 as persisting
   HostPortPair spdy_server_docs("docs.google.com", 443);
   spdy::SpdySettings spdy_settings3;
-  spdy::SettingsFlagsAndId id3(0);
-  id3.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
-  id3.set_id(9012);
+  spdy::SettingsFlagsAndId id3(spdy::SETTINGS_FLAG_PLEASE_PERSIST, 9012);
   spdy_settings3.push_back(std::make_pair(id3, 93997));
   EXPECT_TRUE(impl_.SetSpdySettings(spdy_server_docs, spdy_settings3));
   spdy::SpdySettings spdy_settings3_ret =
@@ -357,13 +350,63 @@ TEST_F(SpdySettingsServerPropertiesTest, SpdySettingsTest) {
   EXPECT_EQ(93997U, spdy_setting3_ret.second);
 }
 
+TEST_F(SpdySettingsServerPropertiesTest, SetSpdySetting) {
+  HostPortPair spdy_server_empty("", 443);
+  spdy::SpdySettings spdy_settings0 = impl_.GetSpdySettings(spdy_server_empty);
+  EXPECT_EQ(0U, spdy_settings0.size());    // Returns kEmptySpdySettings
+
+  // Add www.google.com:443 as persisting.
+  HostPortPair spdy_server_google("www.google.com", 443);
+  spdy::SettingsFlagsAndId id1(spdy::SETTINGS_FLAG_PLEASE_PERSIST, 1234);
+  EXPECT_TRUE(impl_.SetSpdySetting(
+      spdy_server_google, std::make_pair(id1, 31337)));
+  spdy::SpdySettings spdy_settings1_ret =
+      impl_.GetSpdySettings(spdy_server_google);
+  ASSERT_EQ(1U, spdy_settings1_ret.size());
+  spdy::SpdySetting spdy_setting1_ret = spdy_settings1_ret.front();
+  spdy::SettingsFlagsAndId id1_ret(spdy_setting1_ret.first);
+  EXPECT_EQ(1234U, id1_ret.id());
+  EXPECT_EQ(spdy::SETTINGS_FLAG_PERSISTED, id1_ret.flags());
+  EXPECT_EQ(31337U, spdy_setting1_ret.second);
+
+  // Add mail.google.com:443 as not persisting.
+  HostPortPair spdy_server_mail("mail.google.com", 443);
+  spdy::SettingsFlagsAndId id2(0, 5678);
+  EXPECT_FALSE(impl_.SetSpdySetting(
+      spdy_server_mail, std::make_pair(id2, 62667)));
+  spdy::SpdySettings spdy_settings2_ret =
+      impl_.GetSpdySettings(spdy_server_mail);
+  EXPECT_EQ(0U, spdy_settings2_ret.size());  // Returns kEmptySpdySettings
+
+  // Add docs.google.com:443 as persisting
+  HostPortPair spdy_server_docs("docs.google.com", 443);
+  spdy::SettingsFlagsAndId id3(spdy::SETTINGS_FLAG_PLEASE_PERSIST, 9012);
+  EXPECT_TRUE(impl_.SetSpdySetting(
+      spdy_server_docs, std::make_pair(id3, 93997)));
+  spdy::SpdySettings spdy_settings3_ret =
+      impl_.GetSpdySettings(spdy_server_docs);
+  ASSERT_EQ(1U, spdy_settings3_ret.size());
+  spdy::SpdySetting spdy_setting3_ret = spdy_settings3_ret.front();
+  spdy::SettingsFlagsAndId id3_ret(spdy_setting3_ret.first);
+  EXPECT_EQ(9012U, id3_ret.id());
+  EXPECT_EQ(spdy::SETTINGS_FLAG_PERSISTED, id3_ret.flags());
+  EXPECT_EQ(93997U, spdy_setting3_ret.second);
+  // Check data for www.google.com:443.
+  spdy::SpdySettings spdy_settings4_ret =
+      impl_.GetSpdySettings(spdy_server_google);
+  ASSERT_EQ(1U, spdy_settings4_ret.size());
+  spdy::SpdySetting spdy_setting4_ret = spdy_settings4_ret.front();
+  spdy::SettingsFlagsAndId id4_ret(spdy_setting4_ret.first);
+  EXPECT_EQ(1234U, id4_ret.id());
+  EXPECT_EQ(spdy::SETTINGS_FLAG_PERSISTED, id4_ret.flags());
+  EXPECT_EQ(31337U, spdy_setting4_ret.second);
+}
+
 TEST_F(SpdySettingsServerPropertiesTest, Clear) {
   // Add www.google.com:443 as persisting.
   HostPortPair spdy_server_google("www.google.com", 443);
   spdy::SpdySettings spdy_settings1;
-  spdy::SettingsFlagsAndId id1(0);
-  id1.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
-  id1.set_id(1234);
+  spdy::SettingsFlagsAndId id1(spdy::SETTINGS_FLAG_PLEASE_PERSIST, 1234);
   spdy_settings1.push_back(std::make_pair(id1, 31337));
   EXPECT_TRUE(impl_.SetSpdySettings(spdy_server_google, spdy_settings1));
   spdy::SpdySettings spdy_settings1_ret =
@@ -378,9 +421,7 @@ TEST_F(SpdySettingsServerPropertiesTest, Clear) {
   // Add docs.google.com:443 as persisting
   HostPortPair spdy_server_docs("docs.google.com", 443);
   spdy::SpdySettings spdy_settings3;
-  spdy::SettingsFlagsAndId id3(0);
-  id3.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
-  id3.set_id(9012);
+  spdy::SettingsFlagsAndId id3(spdy::SETTINGS_FLAG_PLEASE_PERSIST, 9012);
   spdy_settings3.push_back(std::make_pair(id3, 93997));
   EXPECT_TRUE(impl_.SetSpdySettings(spdy_server_docs, spdy_settings3));
   spdy::SpdySettings spdy_settings3_ret =

@@ -9,7 +9,7 @@
 namespace spdy {
 
 BufferedSpdyFramer::BufferedSpdyFramer(int version)
-    : spdy_framer_(),
+    : spdy_framer_(version),
       visitor_(NULL),
       header_buffer_used_(0),
       header_buffer_valid_(false),
@@ -49,8 +49,6 @@ void BufferedSpdyFramer::OnControl(const SpdyControlFrame* frame) {
           *reinterpret_cast<const spdy::SpdyPingControlFrame*>(frame));
       break;
     case SETTINGS:
-      visitor_->OnSettings(
-          *reinterpret_cast<const spdy::SpdySettingsControlFrame*>(frame));
       break;
     case RST_STREAM:
       visitor_->OnRstStream(
@@ -136,6 +134,12 @@ void BufferedSpdyFramer::OnStreamFrameData(SpdyStreamId stream_id,
   visitor_->OnStreamFrameData(stream_id, data, len);
 }
 
+void BufferedSpdyFramer::OnSetting(SpdySettingsIds id,
+                                   uint8 flags,
+                                   uint32 value) {
+  visitor_->OnSetting(id, flags, value);
+}
+
 int BufferedSpdyFramer::protocol_version() {
   return spdy_framer_.protocol_version();
 }
@@ -162,11 +166,6 @@ bool BufferedSpdyFramer::MessageFullyRead() {
 
 bool BufferedSpdyFramer::HasError() {
   return spdy_framer_.HasError();
-}
-
-bool BufferedSpdyFramer::ParseHeaderBlock(const SpdyFrame* frame,
-                                          SpdyHeaderBlock* block) {
-  return spdy_framer_.ParseHeaderBlock(frame, block);
 }
 
 SpdySynStreamControlFrame* BufferedSpdyFramer::CreateSynStream(
@@ -233,6 +232,10 @@ SpdyDataFrame* BufferedSpdyFramer::CreateDataFrame(SpdyStreamId stream_id,
                                                    uint32 len,
                                                    SpdyDataFlags flags) {
   return spdy_framer_.CreateDataFrame(stream_id, data, len, flags);
+}
+
+SpdyPriority BufferedSpdyFramer::GetHighestPriority() const {
+  return spdy_framer_.GetHighestPriority();
 }
 
 SpdyFrame* BufferedSpdyFramer::CompressFrame(const SpdyFrame& frame) {
