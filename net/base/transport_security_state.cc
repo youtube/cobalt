@@ -1445,6 +1445,7 @@ static const struct HSTSPreload kPreloadedSTS[] = {
   {12, true, "\006crypto\003cat", true, kNoPins, DOMAIN_NOT_PINNED },
   {25, true, "\014bigshinylock\006minazo\003net", true, kNoPins,
       DOMAIN_NOT_PINNED },
+  {10, true, "\005crate\002io", true, kNoPins, DOMAIN_NOT_PINNED },
 
   {13, false, "\007twitter\003com", kTwitterHSTS,
       kTwitterComPins, DOMAIN_TWITTER_COM },
