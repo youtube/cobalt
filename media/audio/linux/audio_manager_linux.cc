@@ -86,18 +86,7 @@ void AudioManagerLinux::ShowAudioInputSettings() {
 void AudioManagerLinux::GetAudioInputDeviceNames(
     media::AudioDeviceNames* device_names) {
   DCHECK(device_names->empty());
-
   GetAlsaAudioInputDevices(device_names);
-
-  if (!device_names->empty()) {
-    // Prepend the default device to the list since we always want it to be
-    // on the top of the list for all platforms. There is no duplicate
-    // counting here since the default device has been abstracted out before.
-    // We use index 0 to make up the unique_id to identify the default device.
-    device_names->push_front(media::AudioDeviceName(
-        AudioManagerBase::kDefaultDeviceName,
-        AudioManagerBase::kDefaultDeviceId));
-  }
 }
 
 void AudioManagerLinux::GetAlsaAudioInputDevices(
@@ -136,6 +125,17 @@ void AudioManagerLinux::GetAlsaDevicesInfo(
                                                            kIoHintName));
     if (io != NULL && strcmp(kOutputDevice, io.get()) == 0)
       continue;
+
+    // Found an input device, prepend the default device since we always want
+    // it to be on the top of the list for all platforms. And there is no
+    // duplicate counting here since it is only done if the list is still empty.
+    // Note, pulse has exclusively opened the default device, so we must open
+    // the device via the "default" moniker.
+    if (device_names->empty()) {
+      device_names->push_front(media::AudioDeviceName(
+          AudioManagerBase::kDefaultDeviceName,
+          AudioManagerBase::kDefaultDeviceId));
+    }
 
     // Get the unique device name for the device.
     scoped_ptr_malloc<char> unique_device_name(
