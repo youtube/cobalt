@@ -133,6 +133,7 @@
         ['use_aura==1', {
           'dependencies': [
             '../ui/aura/aura.gyp:*',
+            '../ui/oak/oak.gyp:*',
             '../ash/ash.gyp:*',
           ],
         }],
