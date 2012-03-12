@@ -34,7 +34,6 @@ class FilePath;
 class AutoUpdateInterceptor;
 class ChildProcessSecurityPolicyTest;
 class ComponentUpdateInterceptor;
-class ResourceDispatcherHostTest;
 class TestAutomationProvider;
 class URLRequestAutomationJob;
 class UserScriptListenerTest;
@@ -45,6 +44,12 @@ namespace appcache {
 class AppCacheInterceptor;
 class AppCacheRequestHandlerTest;
 class AppCacheURLRequestJobTest;
+}
+
+// Temporary layering violation to allow existing users of a deprecated
+// interface.
+namespace content {
+class ResourceDispatcherHostTest;
 }
 
 // Temporary layering violation to allow existing users of a deprecated
@@ -155,7 +160,6 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
     friend class ::AutoUpdateInterceptor;
     friend class ::ChildProcessSecurityPolicyTest;
     friend class ::ComponentUpdateInterceptor;
-    friend class ::ResourceDispatcherHostTest;
     friend class ::TestAutomationProvider;
     friend class ::UserScriptListenerTest;
     friend class ::URLRequestAutomationJob;
@@ -164,6 +168,7 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
     friend class appcache::AppCacheInterceptor;
     friend class appcache::AppCacheRequestHandlerTest;
     friend class appcache::AppCacheURLRequestJobTest;
+    friend class content::ResourceDispatcherHostTest;
     friend class fileapi::FileSystemDirURLRequestJobTest;
     friend class fileapi::FileSystemOperationWriteTest;
     friend class fileapi::FileSystemURLRequestJobTest;
