@@ -83,10 +83,10 @@ if [[ "${OS}" = "Darwin" ]] && xcodebuild -version | grep -q 'Xcode 3.2' ; then
   fi
 
   SUB_VERSION=$(xcodebuild -version | sed -Ene 's/Xcode 3\.2\.([0-9]+)/\1/p')
-  if [[ "${SUB_VERSION}" < 3 ]]; then
+  if [[ "${SUB_VERSION}" < 6 ]]; then
     echo
     echo "          YOUR LD IS BUGGY!"
-    echo "Please upgrade Xcode to at least 3.2.3."
+    echo "Please upgrade Xcode to at least 3.2.6."
     echo
   fi
 fi
