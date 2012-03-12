@@ -36,3 +36,5 @@ patch -p5 < $patches_dir/clang-sslcon.patch
 patch -p6 < $patches_dir/restartclientauth.patch
 
 patch -p6 < $patches_dir/encryptedclientcerts.patch
+
+patch -p5 < $patches_dir/nextprotocleanup.patch
