@@ -290,7 +290,7 @@ T* ObjCCastStrict(id objc_val) {
 
 // Helper function for GetValueFromDictionary to create the error message
 // that appears when a type mismatch is encountered.
-std::string GetValueFromDictionaryErrorMessage(
+BASE_EXPORT std::string GetValueFromDictionaryErrorMessage(
     CFStringRef key, const std::string& expected_type, CFTypeRef value);
 
 // Utility function to pull out a value from a dictionary, check its type, and
