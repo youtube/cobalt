@@ -1344,7 +1344,7 @@ SSL_SetNextProtoCallback(PRFileDesc *fd, SSLNextProtoCallback callback,
     return SECSuccess;
 }
 
-/* NextProtoStandardCallback is set as an NPN callback for the case when
+/* ssl_NextProtoNegoCallback is set as an NPN callback for the case when
  * SSL_SetNextProtoNego is used.
  */
 static SECStatus
@@ -1390,12 +1390,12 @@ pick_first:
     result = ss->opt.nextProtoNego.data;
 
 found:
-    *protoOutLen = result[0];
     if (protoMaxLen < result[0]) {
 	PORT_SetError(SEC_ERROR_OUTPUT_LEN);
 	return SECFailure;
     }
     memcpy(protoOut, result + 1, result[0]);
+    *protoOutLen = result[0];
     return SECSuccess;
 }
 
@@ -1449,13 +1449,12 @@ SSL_GetNextProto(PRFileDesc *fd, SSLNextProtoState *state, unsigned char *buf,
 
     if (ss->ssl3.nextProtoState != SSL_NEXT_PROTO_NO_SUPPORT &&
 	ss->ssl3.nextProto.data) {
-	*bufLen = ss->ssl3.nextProto.len;
-	if (*bufLen > bufLenMax) {
+	if (ss->ssl3.nextProto.len > bufLenMax) {
 	    PORT_SetError(SEC_ERROR_OUTPUT_LEN);
-	    *bufLen = 0;
 	    return SECFailure;
 	}
 	PORT_Memcpy(buf, ss->ssl3.nextProto.data, ss->ssl3.nextProto.len);
+	*bufLen = ss->ssl3.nextProto.len;
     } else {
 	*bufLen = 0;
     }

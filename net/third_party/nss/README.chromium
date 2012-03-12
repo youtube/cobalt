@@ -69,6 +69,11 @@ Patches:
     https://bugzilla.mozilla.org/show_bug.cgi?id=728919
     patches/clang-sslcon.patch
 
+  * Fix a buffer length bug and miscellaneous nits in the next protocol 
+    negotiation (NPN) functions.
+    https://bugzilla.mozilla.org/show_bug.cgi?id=734534
+    patches/nextprotocleanup.patch
+
 Apply the patches to NSS by running the patches/applypatches.sh script.  Read
 the comments at the top of patches/applypatches.sh for instructions.
 
