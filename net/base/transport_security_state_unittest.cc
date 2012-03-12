@@ -820,6 +820,9 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(ShouldRedirect("bigshinylock.minazo.net"));
   EXPECT_TRUE(ShouldRedirect("foo.bigshinylock.minazo.net"));
 
+  EXPECT_TRUE(ShouldRedirect("crate.io"));
+  EXPECT_TRUE(ShouldRedirect("foo.crate.io"));
+
 #if defined(OS_CHROMEOS)
   static const bool kTwitterHSTS = true;
 #else
