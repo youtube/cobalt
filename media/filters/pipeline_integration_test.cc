@@ -143,8 +143,7 @@ TEST_F(PipelineIntegrationTest, EncryptedPlayback) {
   Stop();
 }
 
-// TODO(acolwell): Fix flakiness http://crbug.com/109875
-TEST_F(PipelineIntegrationTest, DISABLED_SeekWhilePaused) {
+TEST_F(PipelineIntegrationTest, SeekWhilePaused) {
   ASSERT_TRUE(Start(GetTestDataURL("bear-320x240.webm"), PIPELINE_OK));
 
   base::TimeDelta duration(pipeline_->GetMediaDuration());
@@ -167,8 +166,7 @@ TEST_F(PipelineIntegrationTest, DISABLED_SeekWhilePaused) {
   ASSERT_TRUE(WaitUntilOnEnded());
 }
 
-// TODO(acolwell): Fix flakiness http://crbug.com/109875
-TEST_F(PipelineIntegrationTest, DISABLED_SeekWhilePlaying) {
+TEST_F(PipelineIntegrationTest, SeekWhilePlaying) {
   ASSERT_TRUE(Start(GetTestDataURL("bear-320x240.webm"), PIPELINE_OK));
 
   base::TimeDelta duration(pipeline_->GetMediaDuration());

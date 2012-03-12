@@ -65,6 +65,9 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   // and resets them to NULL.
   void ReleaseFFmpegResources();
 
+  // Flush decoder and call |flush_cb_|.
+  void DoFlush();
+
   // Allocates a video frame based on the current format and dimensions based on
   // the current state of |codec_context_|.
   scoped_refptr<VideoFrame> AllocateVideoFrame();
@@ -79,6 +82,7 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   StatisticsCB statistics_cb_;
 
   ReadCB read_cb_;
+  base::Closure flush_cb_;
 
   // FFmpeg structures owned by this object.
   AVCodecContext* codec_context_;

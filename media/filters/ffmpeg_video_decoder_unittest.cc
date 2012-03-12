@@ -465,6 +465,32 @@ TEST_F(FFmpegVideoDecoderTest, Flush_EndOfStream) {
   Flush();
 }
 
+// Test flushing when there is a pending read on the demuxer.
+TEST_F(FFmpegVideoDecoderTest, Flush_DuringPendingRead) {
+  Initialize();
+
+  DemuxerStream::ReadCB read_cb;
+  EXPECT_CALL(*demuxer_, Read(_))
+      .WillOnce(SaveArg<0>(&read_cb));
+
+  decoder_->Read(read_cb_);
+  message_loop_.RunAllPending();
+
+  // Make sure the Read() on the decoder triggers a Read() on
+  // the demuxer.
+  EXPECT_FALSE(read_cb.is_null());
+
+  // Flush the decoder.
+  Flush();
+
+  EXPECT_CALL(*this, FrameReady(scoped_refptr<VideoFrame>()));
+
+  read_cb.Run(i_frame_buffer_);
+  message_loop_.RunAllPending();
+}
+
+
+
 // Test seeking when decoder has initialized but not decoded.
 TEST_F(FFmpegVideoDecoderTest, Seek_Initialized) {
   Initialize();
