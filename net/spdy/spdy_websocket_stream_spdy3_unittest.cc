@@ -11,6 +11,7 @@
 #include "base/bind_helpers.h"
 #include "net/base/completion_callback.h"
 #include "net/proxy/proxy_server.h"
+#include "net/socket/ssl_client_socket.h"
 #include "net/spdy/spdy_http_utils.h"
 #include "net/spdy/spdy_protocol.h"
 #include "net/spdy/spdy_session.h"
@@ -189,6 +190,7 @@ class SpdyWebSocketStreamSpdy3Test : public testing::Test {
 
   virtual void SetUp() {
     EnableCompression(false);
+    SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY3);
     SpdySession::SetSSLMode(false);
 
     host_port_pair_.set_host("example.com");
@@ -197,17 +199,17 @@ class SpdyWebSocketStreamSpdy3Test : public testing::Test {
     host_port_proxy_pair_.second = ProxyServer::Direct();
 
     const size_t max_concurrent_streams = 1;
-    spdy::SettingsFlagsAndId id(0);
-    id.set_id(spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
-
-    id.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
+    spdy::SettingsFlagsAndId id(spdy::SETTINGS_FLAG_PLEASE_PERSIST,
+                                spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
     spdy_settings_to_set_.push_back(
         spdy::SpdySetting(id, max_concurrent_streams));
 
-    id.set_flags(spdy::SETTINGS_FLAG_PERSISTED);
+    spdy::SettingsFlagsAndId id1(spdy::SETTINGS_FLAG_PERSISTED,
+                                 spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
     spdy_settings_to_send_.push_back(
-        spdy::SpdySetting(id, max_concurrent_streams));
+        spdy::SpdySetting(id1, max_concurrent_streams));
   }
+
   virtual void TearDown() {
     MessageLoop::current()->RunAllPending();
   }

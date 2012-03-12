@@ -46,7 +46,7 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
   static const char kExclude[] = "exclude";  // Hosts to exclude
   static const char kDisableCompression[] = "no-compress";
   static const char kDisableAltProtocols[] = "no-alt-protocols";
-  static const char kEnableVersionOne[] = "v1";
+  static const char kEnableVersionThree[] = "v3";
   static const char kForceAltProtocols[] = "force-alt-protocols";
   static const char kSingleDomain[] = "single-domain";
 
@@ -84,10 +84,12 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
     if (option == kOff) {
       HttpStreamFactory::set_spdy_enabled(false);
     } else if (option == kDisableSSL) {
+      SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY2);
       SpdySession::SetSSLMode(false);  // Disable SSL
       HttpStreamFactory::set_force_spdy_over_ssl(false);
       HttpStreamFactory::set_force_spdy_always(true);
     } else if (option == kSSL) {
+      SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY2);
       HttpStreamFactory::set_force_spdy_over_ssl(true);
       HttpStreamFactory::set_force_spdy_always(true);
     } else if (option == kDisablePing) {
@@ -102,6 +104,13 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
       next_protos.push_back("http/1.1");
       next_protos.push_back("spdy/2");
       HttpStreamFactory::SetNextProtos(next_protos);
+    } else if (option == kEnableVersionThree) {
+      std::vector<std::string> next_protos;
+      next_protos.push_back("http/1.1");
+      next_protos.push_back("spdy/2");
+      next_protos.push_back("spdy/2.1");
+      next_protos.push_back("spdy/3");
+      HttpStreamFactory::SetNextProtos(next_protos);
     } else if (option == kEnableNpnHttpOnly) {
       // Avoid alternate protocol in this case. Otherwise, browser will try SSL
       // and then fallback to http. This introduces extra load.
@@ -109,13 +118,6 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
       std::vector<std::string> next_protos;
       next_protos.push_back("http/1.1");
       next_protos.push_back("http1.1");
-      HttpStreamFactory::SetNextProtos(next_protos);
-    } else if (option == kEnableVersionOne) {
-      spdy::SpdyFramer::set_protocol_version(1);
-      std::vector<std::string> next_protos;
-      // This is a temporary hack to pretend we support version 1.
-      next_protos.push_back("http/1.1");
-      next_protos.push_back("spdy/1");
       HttpStreamFactory::SetNextProtos(next_protos);
     } else if (option == kDisableAltProtocols) {
       use_alt_protocols = false;

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,6 +19,7 @@ enum AlternateProtocol {
   NPN_SPDY_1 = 0,
   NPN_SPDY_2,
   NPN_SPDY_21,
+  NPN_SPDY_3,
   NUM_ALTERNATE_PROTOCOLS,
   ALTERNATE_PROTOCOL_BROKEN,  // The alternate protocol is known to be broken.
   UNINITIALIZED_ALTERNATE_PROTOCOL,
@@ -89,9 +90,15 @@ class NET_EXPORT HttpServerProperties {
       const HostPortPair& host_port_pair) const = 0;
 
   // Saves settings for a host. Returns true if SpdySettings are to be
-  // persisted.
+  // persisted. Used by unittests only.
+  // TODO(rtenneti): Move this method to test utility file.
   virtual bool SetSpdySettings(const HostPortPair& host_port_pair,
                                const spdy::SpdySettings& settings) = 0;
+
+  // Saves an individual setting for a host. Returns true if SpdySetting is to
+  // be persisted.
+  virtual bool SetSpdySetting(const HostPortPair& host_port_pair,
+                              const spdy::SpdySetting& setting) = 0;
 
   // Clears all spdy_settings.
   virtual void ClearSpdySettings() = 0;

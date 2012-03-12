@@ -167,6 +167,8 @@ void HttpStreamFactory::SetNextProtos(const std::vector<std::string>& value) {
       enabled_protocols_[NPN_SPDY_2] = true;
     } else if (value[i] == "spdy/2.1") {
       enabled_protocols_[NPN_SPDY_21] = true;
+    } else if (value[i] == "spdy/3") {
+      enabled_protocols_[NPN_SPDY_3] = true;
     }
   }
   enabled_protocols_[NPN_SPDY_1] = false;

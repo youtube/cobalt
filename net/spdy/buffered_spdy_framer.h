@@ -51,9 +51,6 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramerVisitorInterface {
   // Called after a PING frame is received.
   virtual void OnPing(const spdy::SpdyPingControlFrame& frame) = 0;
 
-  // Called after a SETTINGS frame is received.
-  virtual void OnSettings(const spdy::SpdySettingsControlFrame& frame) = 0;
-
   // Called after a WINDOW_UPDATE frame is received.
   virtual void OnWindowUpdate(
       const spdy::SpdyWindowUpdateControlFrame& frame) = 0;
@@ -67,6 +64,10 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramerVisitorInterface {
   virtual void OnStreamFrameData(SpdyStreamId stream_id,
                                  const char* data,
                                  size_t len) = 0;
+
+  // Called when an individual setting within a SETTINGS frame has been parsed
+  // and validated.
+  virtual void OnSetting(SpdySettingsIds id, uint8 flags, uint32 value) = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(BufferedSpdyFramerVisitorInterface);
@@ -95,6 +96,8 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramer
   virtual void OnStreamFrameData(SpdyStreamId stream_id,
                                  const char* data,
                                  size_t len) OVERRIDE;
+  virtual void OnSetting(
+      SpdySettingsIds id, uint8 flags, uint32 value) OVERRIDE;
   virtual void OnDataFrameHeader(const SpdyDataFrame* frame) OVERRIDE;
 
   // SpdyFramer methods.
@@ -105,7 +108,6 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramer
   SpdyFramer::SpdyState state() const;
   bool MessageFullyRead();
   bool HasError();
-  bool ParseHeaderBlock(const SpdyFrame* frame, SpdyHeaderBlock* block);
   SpdySynStreamControlFrame* CreateSynStream(SpdyStreamId stream_id,
                                              SpdyStreamId associated_stream_id,
                                              int priority,
@@ -135,6 +137,7 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramer
                                  const char* data,
                                  uint32 len,
                                  SpdyDataFlags flags);
+  SpdyPriority GetHighestPriority() const;
   SpdyFrame* CompressFrame(const SpdyFrame& frame);
   bool IsCompressible(const SpdyFrame& frame) const;
 
