@@ -480,6 +480,18 @@ TEST_F(SequencedWorkerPoolTest, ContinueOnShutdown) {
   EXPECT_EQ(1u, result.size());
 }
 
+// Ensure all worker threads are created, and then trigger a spurious
+// work signal. This shouldn't cause any other work signals to be
+// triggered. This is a regression test for http://crbug.com/117469.
+TEST_F(SequencedWorkerPoolTest, SpuriousWorkSignal) {
+  EnsureAllWorkersCreated();
+  int old_work_signal_count = pool()->GetWorkSignalCountForTesting();
+  pool()->TriggerSpuriousWorkSignalForTesting();
+  // This is inherently racy, but can only produce false positives.
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(100));
+  EXPECT_EQ(old_work_signal_count + 1, pool()->GetWorkSignalCountForTesting());
+}
+
 class SequencedWorkerPoolTaskRunnerTestDelegate {
  public:
   SequencedWorkerPoolTaskRunnerTestDelegate() {}
