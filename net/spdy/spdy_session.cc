@@ -267,10 +267,6 @@ class NetLogSpdyGoAwayParameter : public NetLog::EventParameters {
 // static
 bool SpdySession::use_ssl_ = true;
 
-// static
-SpdySession::FlowControl SpdySession::use_flow_control_ =
-    SpdySession::kFlowControlBasedOnNPN;
-
 SSLClientSocket::NextProto SpdySession::default_protocol_ =
     SSLClientSocket::kProtoUnknown;
 
@@ -295,7 +291,6 @@ int SpdySession::hung_interval_ms_ = 10000;  // 10 seconds
 // static
 void SpdySession::ResetStaticSettingsToInit() {
   // WARNING: These must match the initializers above.
-  use_flow_control_ = SpdySession::kFlowControlBasedOnNPN;
   default_protocol_ = SSLClientSocket::kProtoUnknown;
 }
 
@@ -344,11 +339,6 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       NetLog::TYPE_SPDY_SESSION,
       make_scoped_refptr(
           new NetLogSpdySessionParameter(host_port_proxy_pair_)));
-
-  // In unit tests, check if use_flow_control_ is enabled or disabled.
-  if (use_flow_control_ == SpdySession::kEnableFlowControl)
-    flow_control_ = true;
-
   // TODO(mbelshe): consider randomization of the stream_hi_water_mark.
 }
 
@@ -400,7 +390,6 @@ net::Error SpdySession::InitializeWithSocket(
         ssl_socket->protocol_negotiated();
     if (protocol_negotiated != SSLClientSocket::kProtoUnknown) {
       protocol = protocol_negotiated;
-      flow_control_ = (protocol_negotiated >= SSLClientSocket::kProtoSPDY21);
     }
 
     if (ssl_socket->WasOriginBoundCertSent()) {
@@ -410,19 +399,10 @@ net::Error SpdySession::InitializeWithSocket(
     }
   }
 
-  int version = 2;
-  switch (protocol) {
-    case SSLClientSocket::kProtoSPDY2:
-    case SSLClientSocket::kProtoSPDY21:
-      version = 2;
-      break;
-    case SSLClientSocket::kProtoSPDY3:
-      version = 3;
-      break;
-    default:
-      NOTREACHED();
-      break;
-  }
+  DCHECK(protocol >= SSLClientSocket::kProtoSPDY2);
+  DCHECK(protocol <= SSLClientSocket::kProtoSPDY3);
+  int version = (protocol == SSLClientSocket::kProtoSPDY3) ? 3 : 2;
+  flow_control_ = (protocol >= SSLClientSocket::kProtoSPDY21);
 
   buffered_spdy_framer_.reset(new spdy::BufferedSpdyFramer(version));
   buffered_spdy_framer_->set_visitor(this);
