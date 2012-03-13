@@ -45,13 +45,9 @@ inline const char* PickleIterator::GetReadPointerAndAdvance() {
 }
 
 const char* PickleIterator::GetReadPointerAndAdvance(int num_bytes) {
+  if (num_bytes < 0 || read_end_ptr_ - read_ptr_ < num_bytes)
+    return NULL;
   const char* current_read_ptr = read_ptr_;
-  const char* end_data_ptr = read_ptr_ + num_bytes;
-  if (num_bytes < 0)
-    return NULL;
-  // Check for enough space and for wrapping.
-  if (end_data_ptr > read_end_ptr_ || end_data_ptr < current_read_ptr)
-    return NULL;
   read_ptr_ += AlignInt(num_bytes, sizeof(uint32));
   return current_read_ptr;
 }
