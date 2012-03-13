@@ -92,12 +92,10 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
   // Called for each event coming from the watch. |fired_watch| identifies the
   // watch that fired, |child| indicates what has changed, and is relative to
   // the currently watched path for |fired_watch|. The flag |created| is true if
-  // the object appears, and |is_directory| is set when the event refers to a
-  // directory.
+  // the object appears.
   void OnFilePathChanged(InotifyReader::Watch fired_watch,
                          const FilePath::StringType& child,
-                         bool created,
-                         bool is_directory);
+                         bool created);
 
   // Start watching |path| for changes and notify |delegate| on each change.
   // Returns true if watch for |path| has been added successfully.
@@ -291,8 +289,7 @@ void InotifyReader::OnInotifyEvent(const inotify_event* event) {
        ++watcher) {
     (*watcher)->OnFilePathChanged(event->wd,
                                   child,
-                                  event->mask & (IN_CREATE | IN_MOVED_TO),
-                                  event->mask & IN_ISDIR);
+                                  event->mask & (IN_CREATE | IN_MOVED_TO));
   }
 }
 
@@ -300,12 +297,9 @@ FilePathWatcherImpl::FilePathWatcherImpl()
     : delegate_(NULL) {
 }
 
-void FilePathWatcherImpl::OnFilePathChanged(
-    InotifyReader::Watch fired_watch,
-    const FilePath::StringType& child,
-    bool created,
-    bool is_directory) {
-
+void FilePathWatcherImpl::OnFilePathChanged(InotifyReader::Watch fired_watch,
+                                            const FilePath::StringType& child,
+                                            bool created) {
   if (!message_loop()->BelongsToCurrentThread()) {
     // Switch to message_loop_ to access watches_ safely.
     message_loop()->PostTask(FROM_HERE,
@@ -313,8 +307,7 @@ void FilePathWatcherImpl::OnFilePathChanged(
                    this,
                    fired_watch,
                    child,
-                   created,
-                   is_directory));
+                   created));
     return;
   }
 
@@ -339,9 +332,10 @@ void FilePathWatcherImpl::OnFilePathChanged(
 
       // Update watches if a directory component of the |target_| path
       // (dis)appears. Note that we don't add the additional restriction
-      // of checking is_directory here as changes to symlinks on the
-      // target path will not have is_directory set but as a result we
-      // may sometimes call UpdateWatches unnecessarily.
+      // of checking the event mask to see if it is for a directory here
+      // as changes to symlinks on the target path will not have
+      // IN_ISDIR set in the event masks. As a result we may sometimes
+      // call UpdateWatches() unnecessarily.
       if (change_on_target_path && !UpdateWatches()) {
         delegate_->OnFilePathError(target_);
         return;
@@ -363,7 +357,6 @@ void FilePathWatcherImpl::OnFilePathChanged(
       }
     }
   }
-
 }
 
 bool FilePathWatcherImpl::Watch(const FilePath& path,
