@@ -338,7 +338,7 @@
         'gfx/render_text_win.h',
         'gfx/screen.h',
         'gfx/screen_android.cc',
-        'gfx/screen_aura.cc',
+        'gfx/screen_ash.cc',
         'gfx/screen_gtk.cc',
         'gfx/screen_mac.mm',
         'gfx/screen_wayland.cc',
