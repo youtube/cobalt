@@ -59,7 +59,7 @@ void HttpStreamFactoryImpl::Request::SetSpdySessionKey(
 
 bool HttpStreamFactoryImpl::Request::SetHttpPipeliningKey(
     const HttpPipelinedHost::Key& http_pipelining_key) {
-  DCHECK(!http_pipelining_key_.get());
+  CHECK(!http_pipelining_key_.get());
   http_pipelining_key_.reset(new HttpPipelinedHost::Key(http_pipelining_key));
   bool was_new_key = !ContainsKey(factory_->http_pipelining_request_map_,
                                   http_pipelining_key);

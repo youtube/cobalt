@@ -44,6 +44,7 @@ HttpStreamFactoryImpl::HttpStreamFactoryImpl(HttpNetworkSession* session)
 HttpStreamFactoryImpl::~HttpStreamFactoryImpl() {
   DCHECK(request_map_.empty());
   DCHECK(spdy_session_request_map_.empty());
+  DCHECK(http_pipelining_request_map_.empty());
 
   std::set<const Job*> tmp_job_set;
   tmp_job_set.swap(orphaned_job_set_);
