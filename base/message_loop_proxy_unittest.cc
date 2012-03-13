@@ -95,7 +95,7 @@ class MessageLoopProxyTest : public testing::Test {
     thread_sync_.Wait();
   }
 
-  static AtomicSequenceNumber g_order;
+  static StaticAtomicSequenceNumber g_order;
 
   scoped_ptr<MessageLoop> current_loop_;
   Thread task_thread_;
@@ -104,7 +104,7 @@ class MessageLoopProxyTest : public testing::Test {
   base::WaitableEvent thread_sync_;
 };
 
-AtomicSequenceNumber MessageLoopProxyTest::g_order(LINKER_INITIALIZED);
+StaticAtomicSequenceNumber MessageLoopProxyTest::g_order;
 
 TEST_F(MessageLoopProxyTest, PostTaskAndReply_Basic) {
   MessageLoop* task_run_on = NULL;
