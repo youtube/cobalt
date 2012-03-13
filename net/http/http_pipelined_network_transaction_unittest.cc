@@ -21,6 +21,7 @@
 #include "net/http/http_network_transaction.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_server_properties_impl.h"
+#include "net/proxy/proxy_config_service.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_histograms.h"
@@ -33,6 +34,34 @@ using testing::StrEq;
 namespace net {
 
 namespace {
+
+class SimpleProxyConfigService : public ProxyConfigService {
+ public:
+  virtual void AddObserver(Observer* observer) OVERRIDE {
+    observer_ = observer;
+  }
+
+  virtual void RemoveObserver(Observer* observer) OVERRIDE {
+    if (observer_ == observer) {
+      observer_ = NULL;
+    }
+  }
+
+  virtual ConfigAvailability GetLatestProxyConfig(
+      ProxyConfig* config) OVERRIDE {
+    *config = config_;
+    return CONFIG_VALID;
+  }
+
+  void IncrementConfigId() {
+    config_.set_id(config_.id() + 1);
+    observer_->OnProxyConfigChanged(config_, ProxyConfigService::CONFIG_VALID);
+  }
+
+ private:
+  ProxyConfig config_;
+  Observer* observer_;
+};
 
 class HttpPipelinedNetworkTransactionTest : public testing::Test {
  public:
@@ -55,7 +84,8 @@ class HttpPipelinedNetworkTransactionTest : public testing::Test {
     // Normally, this code could just go in SetUp(). For a few of these tests,
     // we change the default number of sockets per group. That needs to be done
     // before we construct the HttpNetworkSession.
-    proxy_service_.reset(ProxyService::CreateDirect());
+    proxy_config_service_ = new SimpleProxyConfigService();
+    proxy_service_.reset(new ProxyService(proxy_config_service_, NULL, NULL));
     ssl_config_ = new SSLConfigServiceDefaults;
     auth_handler_factory_.reset(new HttpAuthHandlerMock::Factory());
 
@@ -192,6 +222,7 @@ class HttpPipelinedNetworkTransactionTest : public testing::Test {
   ScopedVector<HttpRequestInfo> request_info_vector_;
   bool default_pipelining_enabled_;
 
+  SimpleProxyConfigService* proxy_config_service_;
   scoped_ptr<ProxyService> proxy_service_;
   MockHostResolver mock_resolver_;
   scoped_refptr<SSLConfigService> ssl_config_;
@@ -754,6 +785,29 @@ TEST_F(HttpPipelinedNetworkTransactionTest, OpenPipelinesWhileBinding) {
   ExpectResponse("two.html", two_transaction, SYNCHRONOUS);
 }
 
+TEST_F(HttpPipelinedNetworkTransactionTest, ProxyChangesWhileConnecting) {
+  Initialize(false);
+
+  scoped_refptr<DeterministicSocketData> data(
+      new DeterministicSocketData(NULL, 0, NULL, 0));
+  data->set_connect_data(MockConnect(ASYNC, ERR_CONNECTION_REFUSED));
+  factory_.AddSocketDataProvider(data);
+
+  scoped_refptr<DeterministicSocketData> data2(
+      new DeterministicSocketData(NULL, 0, NULL, 0));
+  data2->set_connect_data(MockConnect(ASYNC, ERR_FAILED));
+  factory_.AddSocketDataProvider(data2);
+
+  HttpNetworkTransaction transaction(session_.get());
+  EXPECT_EQ(ERR_IO_PENDING,
+            transaction.Start(GetRequestInfo("test.html"), callback_.callback(),
+                              BoundNetLog()));
+
+  proxy_config_service_->IncrementConfigId();
+
+  EXPECT_EQ(ERR_FAILED, callback_.WaitForResult());
+}
+
 TEST_F(HttpPipelinedNetworkTransactionTest, ForcedPipelineSharesConnection) {
   Initialize(true);
 
@@ -924,6 +978,7 @@ TEST_F(HttpPipelinedNetworkTransactionTest, ForcedPipelineOrder) {
   three_transaction.reset();
   EXPECT_EQ(ERR_PIPELINE_EVICTION, four_callback.WaitForResult());
 }
+
 }  // anonymous namespace
 
 }  // namespace net
