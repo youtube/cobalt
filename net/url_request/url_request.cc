@@ -483,11 +483,11 @@ void URLRequest::Cancel() {
   DoCancel(ERR_ABORTED, SSLInfo());
 }
 
-void URLRequest::SimulateError(int error) {
+void URLRequest::CancelWithError(int error) {
   DoCancel(error, SSLInfo());
 }
 
-void URLRequest::SimulateSSLError(int error, const SSLInfo& ssl_info) {
+void URLRequest::CancelWithSSLError(int error, const SSLInfo& ssl_info) {
   // This should only be called on a started request.
   if (!is_pending_ || !job_ || job_->has_response_started()) {
     NOTREACHED();
