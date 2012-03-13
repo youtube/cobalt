@@ -225,6 +225,10 @@ bool LocalTestServer::AddCommandLineArguments(CommandLine* command_line) const {
     case TYPE_UDP_ECHO:
       command_line->AppendArg("--udp-echo");
       break;
+    case TYPE_GDATA:
+      command_line->AppendArg(
+          std::string("--auth-token") + "=" + BaseTestServer::kGDataAuthToken);
+      break;
     default:
       NOTREACHED();
       return false;
@@ -234,4 +238,3 @@ bool LocalTestServer::AddCommandLineArguments(CommandLine* command_line) const {
 }
 
 }  // namespace net
-
