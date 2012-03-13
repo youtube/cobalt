@@ -774,6 +774,7 @@
         'safe_browsing%': 0,
         'configuration_policy%': 0,
         'input_speech%': 0,
+        'enable_web_intents%': 0,
         'java_bridge%': 1,
 
         # Set to 1 once we have a notification system for Android.
