@@ -176,11 +176,10 @@ bool CopyRecursiveDirNoCache(const FilePath& source_dir,
 
   std::vector<std::wstring> files_copied;
 
-  std::wstring src(source_dir.value());
-  file_util::AppendToPath(&src, L"*");
+  FilePath src(source_dir.AppendASCII("*"));
 
   WIN32_FIND_DATA fd;
-  HANDLE fh = FindFirstFile(src.c_str(), &fd);
+  HANDLE fh = FindFirstFile(src.value().c_str(), &fd);
   if (fh == INVALID_HANDLE_VALUE)
     return false;
 
