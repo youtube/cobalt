@@ -29,6 +29,7 @@
       'type': 'none',
       'dependencies': [
         '../base/base.gyp:base_unittests',
+        '../chrome/chrome.gyp:sync_unit_tests',
         '../sql/sql.gyp:sql_unittests',
         '../ipc/ipc.gyp:ipc_tests',
         '../net/net.gyp:net_unittests',
@@ -49,7 +50,6 @@
       'dependencies': [
         '../webkit/webkit.gyp:pull_in_webkit_unit_tests',
         '../webkit/webkit.gyp:pull_in_DumpRenderTree',
-        '../chrome/chrome.gyp:sync_unit_tests',
         '../base/android/java/java.gyp:base_java',
       ],
     },
