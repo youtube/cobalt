@@ -177,23 +177,19 @@ bool Move(const FilePath& from_path, const FilePath& to_path) {
 
 bool ReplaceFile(const FilePath& from_path, const FilePath& to_path) {
   base::ThreadRestrictions::AssertIOAllowed();
-
-  // Make sure that the target file exists.
-  HANDLE target_file = ::CreateFile(
-      to_path.value().c_str(),
-      0,
-      FILE_SHARE_READ | FILE_SHARE_WRITE,
-      NULL,
-      CREATE_NEW,
-      FILE_ATTRIBUTE_NORMAL,
-      NULL);
-  if (target_file != INVALID_HANDLE_VALUE)
-    ::CloseHandle(target_file);
-  // When writing to a network share, we may not be able to change the ACLs.
-  // Ignore ACL errors then (REPLACEFILE_IGNORE_MERGE_ERRORS).
-  return ::ReplaceFile(to_path.value().c_str(),
-      from_path.value().c_str(), NULL,
-      REPLACEFILE_IGNORE_MERGE_ERRORS, NULL, NULL) ? true : false;
+  // Try a simple move first.  It will only succeed when |to_path| doesn't
+  // already exist.
+  if (::MoveFile(from_path.value().c_str(), to_path.value().c_str()))
+    return true;
+  // Try the full-blown replace if the move fails, as ReplaceFile will only
+  // succeed when |to_path| does exist. When writing to a network share, we may
+  // not be able to change the ACLs. Ignore ACL errors then
+  // (REPLACEFILE_IGNORE_MERGE_ERRORS).
+  if (::ReplaceFile(to_path.value().c_str(), from_path.value().c_str(), NULL,
+                    REPLACEFILE_IGNORE_MERGE_ERRORS, NULL, NULL)) {
+    return true;
+  }
+  return false;
 }
 
 bool CopyFile(const FilePath& from_path, const FilePath& to_path) {
