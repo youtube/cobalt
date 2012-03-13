@@ -15,7 +15,7 @@
 #endif  // defined(OS_WIN)
 
 #if defined(ENABLE_PROFILING) && !defined(NO_TCMALLOC)
-#include "third_party/tcmalloc/chromium/src/google/profiler.h"
+#include "third_party/tcmalloc/chromium/src/gperftools/profiler.h"
 #endif
 
 namespace base {
