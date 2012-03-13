@@ -308,10 +308,7 @@ bool BaseTestServer::GenerateArguments(base::DictionaryValue* arguments) const {
   if (VLOG_IS_ON(1) || log_to_console_)
     arguments->Set("log-to-console", base::Value::CreateNullValue());
 
-  if (type_ == TYPE_GDATA) {
-    // --auth-token will be used in tests for chrome/browser/chromeos/gdata.
-    arguments->SetString("auth-token", kGDataAuthToken);
-  } else if (type_ == TYPE_HTTPS) {
+  if (type_ == TYPE_HTTPS) {
     // Check the certificate arguments of the HTTPS server.
     FilePath certificate_path(certificates_dir_);
     certificate_path = certificate_path.Append(
@@ -355,4 +352,3 @@ bool BaseTestServer::GenerateArguments(base::DictionaryValue* arguments) const {
 }
 
 }  // namespace net
-
