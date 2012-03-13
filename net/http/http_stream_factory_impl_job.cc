@@ -1017,8 +1017,10 @@ void HttpStreamFactoryImpl::Job::ReturnToStateInitConnection(
     connection_->socket()->Disconnect();
   connection_->Reset();
 
-  if (request_)
+  if (request_) {
     request_->RemoveRequestFromSpdySessionRequestMap();
+    request_->RemoveRequestFromHttpPipeliningRequestMap();
+  }
 
   next_state_ = STATE_INIT_CONNECTION;
 }
@@ -1130,8 +1132,10 @@ int HttpStreamFactoryImpl::Job::ReconsiderProxyAfterError(int error) {
     if (connection_->socket())
       connection_->socket()->Disconnect();
     connection_->Reset();
-    if (request_)
+    if (request_) {
       request_->RemoveRequestFromSpdySessionRequestMap();
+      request_->RemoveRequestFromHttpPipeliningRequestMap();
+    }
     next_state_ = STATE_RESOLVE_PROXY_COMPLETE;
   } else {
     // If ReconsiderProxyAfterError() failed synchronously, it means
