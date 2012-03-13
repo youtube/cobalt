@@ -443,6 +443,9 @@
               # 'sources/' rather than 'sources!'.
               'sources/': [
                 ['exclude', '^base/dragdrop/drag_drop_types_gtk.cc'],
+                ['exclude', '^base/dragdrop/drag_utils_gtk.cc'],
+                ['exclude', '^base/dragdrop/drag_utils.cc'],
+                ['exclude', '^base/dragdrop/drag_utils.h'],
                 ['exclude', '^base/dragdrop/os_exchange_data.cc'],
                 ['exclude', '^base/dragdrop/os_exchange_data.h'],
                 ['exclude', '^base/dragdrop/os_exchange_data_provider_gtk.cc'],
