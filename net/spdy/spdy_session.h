@@ -48,16 +48,6 @@ class SSLInfo;
 class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
                                public spdy::BufferedSpdyFramerVisitorInterface {
  public:
-  // FlowControl provides the ability for unit tests to either enable or disable
-  // flow control (independent of NPN protocol negotiated). If
-  // |use_flow_control_| is set to kFlowControlBasedOnNPN then flow control is
-  // determined by the NPN protocol negotiated with the server.
-  enum FlowControl {
-    kFlowControlBasedOnNPN = 0,
-    kDisableFlowControl = 1,
-    kEnableFlowControl = 2,
-  };
-
   // Create a new SpdySession.
   // |host_port_proxy_pair| is the host/port that this session connects to, and
   // the proxy configuration settings that it's using.
@@ -180,12 +170,6 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // Enable or disable SSL.
   static void SetSSLMode(bool enable) { use_ssl_ = enable; }
   static bool SSLMode() { return use_ssl_; }
-
-  // Enable or disable flow control used by unit tests. This only applies for
-  // new SpdySessions.
-  static void set_use_flow_control(FlowControl flow_control) {
-    use_flow_control_ = flow_control;
-  }
 
   // Specify the SPDY protocol to be used for SPDY session which do not use NPN
   // to negotiate a particular protocol.
@@ -634,7 +618,6 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   SpdyCredentialState credential_state_;
 
   static bool use_ssl_;
-  static FlowControl use_flow_control_;
   static SSLClientSocket::NextProto default_protocol_;
   static size_t init_max_concurrent_streams_;
   static size_t max_concurrent_stream_limit_;
