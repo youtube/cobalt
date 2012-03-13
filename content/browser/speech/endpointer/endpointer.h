@@ -13,6 +13,8 @@ class EpStatus;
 
 namespace speech {
 
+class AudioChunk;
+
 // A simple interface to the underlying energy-endpointer implementation, this
 // class lets callers provide audio as being recorded and let them poll to find
 // when the user has stopped speaking.
@@ -61,8 +63,7 @@ class CONTENT_EXPORT Endpointer {
 
   // Process a segment of audio, which may be more than one frame.
   // The status of the last frame will be returned.
-  EpStatus ProcessAudio(const int16* audio_data, int num_samples,
-                        float* rms_out);
+  EpStatus ProcessAudio(const AudioChunk& raw_audio, float* rms_out);
 
   // Get the status of the endpointer.
   EpStatus Status(int64 *time_us);
