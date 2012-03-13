@@ -504,13 +504,13 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
 
   // Cancels the request and sets the error to |error| (see net_error_list.h
   // for values).
-  void SimulateError(int error);
+  void CancelWithError(int error);
 
   // Cancels the request and sets the error to |error| (see net_error_list.h
   // for values) and attaches |ssl_info| as the SSLInfo for that request.  This
   // is useful to attach a certificate and certificate error to a canceled
   // request.
-  void SimulateSSLError(int error, const SSLInfo& ssl_info);
+  void CancelWithSSLError(int error, const SSLInfo& ssl_info);
 
   // Read initiates an asynchronous read from the response, and must only
   // be called after the OnResponseStarted callback is received with a
