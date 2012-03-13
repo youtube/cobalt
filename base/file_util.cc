@@ -383,17 +383,6 @@ bool MemoryMappedFile::MapFileToMemory(const FilePath& file_name) {
 // Deprecated functions ----------------------------------------------------
 
 #if defined(OS_WIN)
-void AppendToPath(std::wstring* path, const std::wstring& new_ending) {
-  if (!path) {
-    NOTREACHED();
-    return;  // Don't crash in this function in release builds.
-  }
-
-  if (!EndsWithSeparator(FilePath(*path)))
-    path->push_back(FilePath::kSeparators[0]);
-  path->append(new_ending);
-}
-
 FILE* OpenFile(const std::wstring& filename, const char* mode) {
   return OpenFile(FilePath::FromWStringHack(filename), mode);
 }
