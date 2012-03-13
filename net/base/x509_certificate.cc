@@ -808,7 +808,7 @@ bool X509Certificate::IsBlacklisted() const {
 // static
 bool X509Certificate::IsPublicKeyBlacklisted(
     const std::vector<SHA1Fingerprint>& public_key_hashes) {
-  static const unsigned kNumHashes = 7;
+  static const unsigned kNumHashes = 8;
   static const uint8 kHashes[kNumHashes][base::kSHA1Length] = {
     // Subject: CN=DigiNotar Root CA
     // Issuer: CN=Entrust.net x2 and self-signed
@@ -840,6 +840,11 @@ bool X509Certificate::IsPublicKeyBlacklisted(
     // Expires: Jul 16 17:53:37 2015 GMT
     {0xd3, 0x3c, 0x5b, 0x41, 0xe4, 0x5c, 0xc4, 0xb3, 0xbe, 0x9a,
      0xd6, 0x95, 0x2c, 0x4e, 0xcc, 0x25, 0x28, 0x03, 0x29, 0x81},
+    // Issuer: CN=Trustwave Organization Issuing CA, Level 2
+    // Coveres two certificates, the latter of which expires Apr 15 21:09:30
+    // 2021 GMT.
+    {0xe1, 0x2d, 0x89, 0xf5, 0x6d, 0x22, 0x76, 0xf8, 0x30, 0xe6,
+     0xce, 0xaf, 0xa6, 0x6c, 0x72, 0x5c, 0x0b, 0x41, 0xa9, 0x32},
   };
 
   for (unsigned i = 0; i < kNumHashes; i++) {
