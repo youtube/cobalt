@@ -234,22 +234,6 @@ const struct append_case {
 #endif
 };
 
-#if defined(OS_WIN)
-// This function is deprecated, but still used on Windows.
-TEST_F(FileUtilTest, AppendToPath) {
-  for (unsigned int i = 0; i < arraysize(append_cases); ++i) {
-    const append_case& value = append_cases[i];
-    std::wstring result = value.path;
-    file_util::AppendToPath(&result, value.ending);
-    EXPECT_EQ(value.result, result);
-  }
-
-#if defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON)
-  file_util::AppendToPath(NULL, L"path");  // asserts in debug mode
-#endif
-}
-#endif  // defined(OS_WIN)
-
 static const struct filename_case {
   const wchar_t* path;
   const wchar_t* filename;
