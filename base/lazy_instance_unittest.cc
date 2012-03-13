@@ -11,8 +11,8 @@
 
 namespace {
 
-base::AtomicSequenceNumber constructed_seq_(base::LINKER_INITIALIZED);
-base::AtomicSequenceNumber destructed_seq_(base::LINKER_INITIALIZED);
+base::StaticAtomicSequenceNumber constructed_seq_;
+base::StaticAtomicSequenceNumber destructed_seq_;
 
 class ConstructAndDestructLogger {
  public:
