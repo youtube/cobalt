@@ -148,7 +148,8 @@ TYPED_TEST_P(TaskRunnerTest, Delayed) {
   for (int i = 0; i < 20; ++i) {
     const Closure& ith_task = this->task_tracker_->WrapTask(Closure(), i);
     for (int j = 0; j < i + 1; ++j) {
-      task_runner->PostDelayedTask(FROM_HERE, ith_task, j);
+      task_runner->PostDelayedTask(
+          FROM_HERE, ith_task, base::TimeDelta::FromMilliseconds(j));
       ++expected_task_run_counts[i];
     }
   }
