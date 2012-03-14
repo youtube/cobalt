@@ -157,9 +157,10 @@ class SequencedWorkerPoolOwner : public SequencedWorkerPool::TestingObserver {
   SequencedWorkerPoolOwner(size_t max_threads,
                            const std::string& thread_name_prefix)
       : constructor_message_loop_(MessageLoop::current()),
-        pool_(new SequencedWorkerPool(max_threads, thread_name_prefix)) {
-    pool_->SetTestingObserver(this);
-  }
+        pool_(new SequencedWorkerPool(
+            max_threads, thread_name_prefix,
+            ALLOW_THIS_IN_INITIALIZER_LIST(this))),
+        has_work_call_count_(0) {}
 
   virtual ~SequencedWorkerPoolOwner() {
     pool_ = NULL;
@@ -176,8 +177,18 @@ class SequencedWorkerPoolOwner : public SequencedWorkerPool::TestingObserver {
     will_wait_for_shutdown_callback_ = callback;
   }
 
+  int has_work_call_count() const {
+    AutoLock lock(has_work_lock_);
+    return has_work_call_count_;
+  }
+
  private:
   // SequencedWorkerPool::TestingObserver implementation.
+  virtual void OnHasWork() OVERRIDE {
+    AutoLock lock(has_work_lock_);
+    ++has_work_call_count_;
+  }
+
   virtual void WillWaitForShutdown() OVERRIDE {
     if (!will_wait_for_shutdown_callback_.is_null()) {
       will_wait_for_shutdown_callback_.Run();
@@ -193,6 +204,9 @@ class SequencedWorkerPoolOwner : public SequencedWorkerPool::TestingObserver {
   MessageLoop* const constructor_message_loop_;
   scoped_refptr<SequencedWorkerPool> pool_;
   Closure will_wait_for_shutdown_callback_;
+
+  mutable Lock has_work_lock_;
+  int has_work_call_count_;
 
   DISALLOW_COPY_AND_ASSIGN(SequencedWorkerPoolOwner);
 };
@@ -251,6 +265,10 @@ class SequencedWorkerPoolTest : public testing::Test {
 
     // Clean up the task IDs we added.
     tracker()->ClearCompleteSequence();
+  }
+
+  int has_work_call_count() const {
+    return pool_owner_.has_work_call_count();
   }
 
  private:
@@ -485,11 +503,11 @@ TEST_F(SequencedWorkerPoolTest, ContinueOnShutdown) {
 // triggered. This is a regression test for http://crbug.com/117469.
 TEST_F(SequencedWorkerPoolTest, SpuriousWorkSignal) {
   EnsureAllWorkersCreated();
-  int old_work_signal_count = pool()->GetWorkSignalCountForTesting();
-  pool()->TriggerSpuriousWorkSignalForTesting();
+  int old_has_work_call_count = has_work_call_count();
+  pool()->SignalHasWorkForTesting();
   // This is inherently racy, but can only produce false positives.
   base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(100));
-  EXPECT_EQ(old_work_signal_count + 1, pool()->GetWorkSignalCountForTesting());
+  EXPECT_EQ(old_has_work_call_count + 1, has_work_call_count());
 }
 
 class SequencedWorkerPoolTaskRunnerTestDelegate {
