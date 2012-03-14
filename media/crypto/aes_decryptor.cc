@@ -4,9 +4,9 @@
 
 #include "media/crypto/aes_decryptor.h"
 
-#include <string>
-
 #include "base/logging.h"
+#include "base/stl_util.h"
+#include "base/string_piece.h"
 #include "crypto/encryptor.h"
 #include "crypto/symmetric_key.h"
 #include "media/base/buffers.h"
@@ -15,58 +15,94 @@
 
 namespace media {
 
-static const char* kInitialCounter = "0000000000000000";
+// TODO(xhwang): Get real IV from frames.
+static const char kInitialCounter[] = "0000000000000000";
 
-// Decrypts |input| using |raw_key|, which is the binary data for the decryption
-// key.
+// Decrypt |input| using |key|.
 // Return a scoped_refptr to a Buffer object with the decrypted data on success.
 // Return a scoped_refptr to NULL if the data could not be decrypted.
-// TODO(xhwang): Both the input and output are copied! Any performance concern?
 static scoped_refptr<Buffer> DecryptData(const Buffer& input,
-                                         const uint8* raw_key,
-                                         int raw_key_size) {
-  CHECK(raw_key && raw_key_size > 0);
+                                         crypto::SymmetricKey* key) {
   CHECK(input.GetDataSize());
-
-  scoped_ptr<crypto::SymmetricKey> key(crypto::SymmetricKey::Import(
-      crypto::SymmetricKey::AES,
-      std::string(reinterpret_cast<const char*>(raw_key), raw_key_size)));
-  if (!key.get()) {
-    DVLOG(1) << "Could not import key.";
-    return NULL;
-  }
+  CHECK(key);
 
   // Initialize encryption data.
   // The IV must be exactly as long as the cipher block size.
   crypto::Encryptor encryptor;
-  if (!encryptor.Init(key.get(), crypto::Encryptor::CBC, kInitialCounter)) {
+  if (!encryptor.Init(key, crypto::Encryptor::CBC, kInitialCounter)) {
     DVLOG(1) << "Could not initialize encryptor.";
     return NULL;
   }
 
-  std::string decrypt_text;
-  std::string encrypted_text(reinterpret_cast<const char*>(input.GetData()),
-                             input.GetDataSize());
-  if (!encryptor.Decrypt(encrypted_text, &decrypt_text)) {
+  std::string decrypted_text;
+  base::StringPiece encrypted_text(
+      reinterpret_cast<const char*>(input.GetData()),
+      input.GetDataSize());
+  if (!encryptor.Decrypt(encrypted_text, &decrypted_text)) {
     DVLOG(1) << "Could not decrypt data.";
     return NULL;
   }
 
+  // TODO(xhwang): Implement a string based Buffer implementation to avoid
+  // data copying.
   return DataBuffer::CopyFrom(
-      reinterpret_cast<const uint8*>(decrypt_text.data()),
-      decrypt_text.size());
+      reinterpret_cast<const uint8*>(decrypted_text.data()),
+      decrypted_text.size());
 }
 
 AesDecryptor::AesDecryptor() {}
 
+AesDecryptor::~AesDecryptor() {
+  STLDeleteValues(&key_map_);
+}
+
+void AesDecryptor::AddKey(const uint8* key_id, int key_id_size,
+                          const uint8* key, int key_size) {
+  CHECK(key_id && key);
+  CHECK_GT(key_id_size, 0);
+  CHECK_GT(key_size, 0);
+
+  std::string key_id_string(reinterpret_cast<const char*>(key_id), key_id_size);
+  std::string key_string(reinterpret_cast<const char*>(key) , key_size);
+
+  crypto::SymmetricKey* symmetric_key = crypto::SymmetricKey::Import(
+      crypto::SymmetricKey::AES, key_string);
+  if (!symmetric_key) {
+    DVLOG(1) << "Could not import key.";
+    return;
+  }
+
+  base::AutoLock auto_lock(lock_);
+  KeyMap::iterator found = key_map_.find(key_id_string);
+  if (found != key_map_.end()) {
+    delete found->second;
+    key_map_.erase(found);
+  }
+  key_map_[key_id_string] = symmetric_key;
+}
+
 scoped_refptr<Buffer> AesDecryptor::Decrypt(
     const scoped_refptr<Buffer>& encrypted) {
   CHECK(encrypted->GetDecryptConfig());
+  const uint8* key_id = encrypted->GetDecryptConfig()->key_id();
+  const int key_id_size = encrypted->GetDecryptConfig()->key_id_size();
 
-  // For now, the key is the key ID.
-  const uint8* key = encrypted->GetDecryptConfig()->key_id();
-  int key_size = encrypted->GetDecryptConfig()->key_id_size();
-  scoped_refptr<Buffer> decrypted = DecryptData(*encrypted, key, key_size);
+  // TODO(xhwang): Avoid always constructing a string with StringPiece?
+  std::string key_id_string(reinterpret_cast<const char*>(key_id), key_id_size);
+
+  crypto::SymmetricKey* key = NULL;
+  {
+    base::AutoLock auto_lock(lock_);
+    KeyMap::const_iterator found = key_map_.find(key_id_string);
+    if (found == key_map_.end()) {
+      DVLOG(1) << "Could not find a matching key for given key ID.";
+      return NULL;
+    }
+    key = found->second;
+  }
+
+  scoped_refptr<Buffer> decrypted = DecryptData(*encrypted, key);
+
   if (decrypted) {
     decrypted->SetTimestamp(encrypted->GetTimestamp());
     decrypted->SetDuration(encrypted->GetDuration());
