@@ -915,7 +915,7 @@ char* GetAlternateOCSPAIAInfo(CERTCertificate *cert) {
 
 namespace net {
 
-void SetMessageLoopForOCSP() {
+void SetMessageLoopForNSSHttpIO() {
   // Must have a MessageLoopForIO.
   DCHECK(MessageLoopForIO::current());
 
@@ -925,17 +925,17 @@ void SetMessageLoopForOCSP() {
   DCHECK(!used);
 }
 
-void EnsureOCSPInit() {
+void EnsureNSSHttpIOInit() {
   g_ocsp_io_loop.Get().StartUsing();
   g_ocsp_nss_initialization.Get();
 }
 
-void ShutdownOCSP() {
+void ShutdownNSSHttpIO() {
   g_ocsp_io_loop.Get().Shutdown();
 }
 
 // This function would be called before NSS initialization.
-void SetURLRequestContextForOCSP(URLRequestContext* request_context) {
+void SetURLRequestContextForNSSHttpIO(URLRequestContext* request_context) {
   pthread_mutex_lock(&g_request_context_lock);
   if (request_context) {
     DCHECK(!g_request_context);

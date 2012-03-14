@@ -820,12 +820,10 @@ int SSLClientSocketNSS::Init() {
   if (!NSS_IsInitialized())
     return ERR_UNEXPECTED;
 #if !defined(OS_MACOSX) && !defined(OS_WIN)
-  if (ssl_config_.rev_checking_enabled) {
-    // We must call EnsureOCSPInit() here, on the IO thread, to get the IO loop
-    // by MessageLoopForIO::current().
-    // X509Certificate::Verify() runs on a worker thread of CertVerifier.
-    EnsureOCSPInit();
-  }
+  // We must call EnsureNSSHttpIOInit() here, on the IO thread, to get the IO
+  // loop by MessageLoopForIO::current().
+  // X509Certificate::Verify() runs on a worker thread of CertVerifier.
+  EnsureNSSHttpIOInit();
 #endif
 
   LeaveFunction("");
