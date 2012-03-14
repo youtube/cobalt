@@ -193,6 +193,11 @@ class NET_EXPORT SpdySessionPool
   // Remove all aliases for |pair| from the aliases table.
   void RemoveAliases(const HostPortProxyPair& pair);
 
+  // Removes |session| from the session list associated with |pair|.
+  // Returns true if the session was removed, false otherwise.
+  bool RemoveFromSessionList(const scoped_refptr<SpdySession>& session,
+                             const HostPortProxyPair& pair);
+
   SpdySettingsStorage spdy_settings_;
   HttpServerProperties* const http_server_properties_;
 

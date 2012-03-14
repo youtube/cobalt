@@ -272,6 +272,14 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // SPDY CREDENTIAL frame to be sent first, with an origin bound certificate.
   bool NeedsCredentials(const HostPortPair& origin) const;
 
+  // Adds |alias| to set of aliases associated with this session.
+  void AddPooledAlias(const HostPortProxyPair& alias);
+
+  // Returns the set of aliases associated with this session.
+  const std::set<HostPortProxyPair>& pooled_aliases() const {
+    return pooled_aliases_;
+  }
+
  private:
   friend class base::RefCounted<SpdySession>;
 
@@ -500,6 +508,10 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   // The domain this session is connected to.
   const HostPortProxyPair host_port_proxy_pair_;
+
+  // Set set of HostPortProxyPairs for which this session has serviced
+  // requests.
+  std::set<HostPortProxyPair> pooled_aliases_;
 
   // |spdy_session_pool_| owns us, therefore its lifetime must exceed ours.  We
   // set this to NULL after we are removed from the pool.

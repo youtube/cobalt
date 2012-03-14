@@ -4,6 +4,7 @@
 
 #include "net/spdy/spdy_session.h"
 
+#include "net/base/host_cache.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_log_unittest.h"
 #include "net/spdy/spdy_io_buffer.h"
@@ -840,6 +841,22 @@ void IPPoolingTest(bool clean_via_close_current_sessions) {
   EXPECT_TRUE(spdy_session_pool->HasSession(test_hosts[0].pair));
   EXPECT_TRUE(spdy_session_pool->HasSession(test_hosts[1].pair));
   EXPECT_TRUE(spdy_session_pool->HasSession(test_hosts[2].pair));
+
+  // Grab the session to host 1 and verify that it is the same session
+  // we got with host 0, and that is a different than host 2's session.
+  scoped_refptr<SpdySession> session1 =
+      spdy_session_pool->Get(test_hosts[1].pair, BoundNetLog());
+  EXPECT_EQ(session.get(), session1.get());
+  EXPECT_NE(session2.get(), session1.get());
+
+  // Remove the aliases and observe that we still have a session for host1.
+  pool_peer.RemoveAliases(test_hosts[0].pair);
+  pool_peer.RemoveAliases(test_hosts[1].pair);
+  EXPECT_TRUE(spdy_session_pool->HasSession(test_hosts[1].pair));
+
+  // Expire the host cache
+  session_deps.host_resolver->GetHostCache()->clear();
+  EXPECT_TRUE(spdy_session_pool->HasSession(test_hosts[1].pair));
 
   // Cleanup the sessions.
   if (!clean_via_close_current_sessions) {
