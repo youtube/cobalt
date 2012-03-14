@@ -24,7 +24,6 @@
 #include "base/message_loop_proxy.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram.h"
-#include "base/rand_util.h"
 #include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/threading/worker_pool.h"
@@ -40,12 +39,11 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
+#include "net/dns/dns_client.h"
 #include "net/dns/dns_config_service.h"
 #include "net/dns/dns_protocol.h"
 #include "net/dns/dns_response.h"
-#include "net/dns/dns_session.h"
 #include "net/dns/dns_transaction.h"
-#include "net/socket/client_socket_factory.h"
 
 #if defined(OS_WIN)
 #include "net/base/winsock_init.h"
@@ -755,7 +753,7 @@ class HostResolverImpl::ProcTask
         DNS_HISTOGRAM("DNS.ResolveSpeculativeSuccess", duration);
       }
 
-      // Log DNS lookups based on address_family.  This will help us determine
+      // Log DNS lookups based on |address_family|. This will help us determine
       // if IPv4 or IPv4/6 lookups are faster or slower.
       switch(key_.address_family) {
         case ADDRESS_FAMILY_IPV4:
@@ -776,7 +774,7 @@ class HostResolverImpl::ProcTask
         category = RESOLVE_SPECULATIVE_FAIL;
         DNS_HISTOGRAM("DNS.ResolveSpeculativeFail", duration);
       }
-      // Log DNS lookups based on address_family.  This will help us determine
+      // Log DNS lookups based on |address_family|. This will help us determine
       // if IPv4 or IPv4/6 lookups are faster or slower.
       switch(key_.address_family) {
         case ADDRESS_FAMILY_IPV4:
@@ -1205,6 +1203,21 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
                      base::TimeDelta());
   }
 
+  // Attempts to serve the job from HOSTS. Returns true if succeeded and
+  // this Job was destroyed.
+  bool ServeFromHosts() {
+    DCHECK_GT(num_active_requests(), 0u);
+    AddressList addr_list;
+    if (resolver_->ServeFromHosts(key(),
+                                  requests_.front()->info(),
+                                  &addr_list)) {
+      // This will destroy the Job.
+      CompleteRequests(OK, addr_list, base::TimeDelta());
+      return true;
+    }
+    return false;
+  }
+
  private:
   RequestPriority priority() const {
     return priority_tracker_.highest_priority();
@@ -1231,7 +1244,7 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     net_log_.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB_STARTED, NULL);
 
     // Job::Start must not complete synchronously.
-    if (resolver_->dns_transaction_factory_.get()) {
+    if (resolver_->HaveDnsConfig()) {
       StartDnsTask();
     } else {
       StartProcTask();
@@ -1270,8 +1283,9 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
   }
 
   void StartDnsTask() {
+    DCHECK(resolver_->HaveDnsConfig());
     dns_task_.reset(new DnsTask(
-        resolver_->dns_transaction_factory_.get(),
+        resolver_->dns_client_->GetTransactionFactory(),
         key_,
         base::Bind(&Job::OnDnsTaskComplete, base::Unretained(this)),
         net_log_));
@@ -1292,6 +1306,10 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
 
     if (net_error != OK) {
       dns_task_.reset();
+
+      // TODO(szym): Run ServeFromHosts now if nsswitch.conf says so.
+      // http://crbug.com/117655
+
       // TODO(szym): Some net errors indicate lack of connectivity. Starting
       // ProcTask in that case is a waste of time.
       StartProcTask();
@@ -1344,9 +1362,11 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB,
                                       net_error);
 
+    DCHECK(!requests_.empty());
+
     // We are the only consumer of |list|, so we can safely change the port
     // without copy-on-write. This pays off, when job has only one request.
-    if (net_error == OK && !requests_.empty())
+    if (net_error == OK)
       MutableSetPort(requests_.front()->info().port(), &list);
 
     if ((net_error != ERR_ABORTED) &&
@@ -1424,6 +1444,7 @@ HostResolverImpl::HostResolverImpl(
       max_queued_jobs_(job_limits.total_jobs * 100u),
       proc_params_(proc_params),
       default_address_family_(ADDRESS_FAMILY_UNSPECIFIED),
+      dns_client_(NULL),
       dns_config_service_(dns_config_service.Pass()),
       ipv6_probe_monitoring_(false),
       additional_resolver_flags_(0),
@@ -1452,8 +1473,10 @@ HostResolverImpl::HostResolverImpl(
   NetworkChangeNotifier::AddDNSObserver(this);
 #endif
 
-  if (dns_config_service_.get())
+  if (dns_config_service_.get()) {
     dns_config_service_->AddObserver(this);
+    dns_client_ = DnsClient::CreateClient(net_log_);
+  }
 }
 
 HostResolverImpl::~HostResolverImpl() {
@@ -1552,9 +1575,17 @@ int HostResolverImpl::ResolveHelper(const Key& key,
   int net_error = ERR_UNEXPECTED;
   if (ResolveAsIP(key, info, &net_error, addresses))
     return net_error;
-  net_error = ERR_DNS_CACHE_MISS;
-  ServeFromCache(key, info, request_net_log, &net_error, addresses);
-  return net_error;
+  if (ServeFromCache(key, info, &net_error, addresses)) {
+    request_net_log.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_CACHE_HIT, NULL);
+    return net_error;
+  }
+  // TODO(szym): Do not do this if nsswitch.conf instructs not to.
+  // http://crbug.com/117655
+  if (ServeFromHosts(key, info, addresses)) {
+    request_net_log.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_HOSTS_HIT, NULL);
+    return OK;
+  }
+  return ERR_DNS_CACHE_MISS;
 }
 
 int HostResolverImpl::ResolveFromCache(const RequestInfo& info,
@@ -1637,7 +1668,6 @@ bool HostResolverImpl::ResolveAsIP(const Key& key,
 
 bool HostResolverImpl::ServeFromCache(const Key& key,
                                       const RequestInfo& info,
-                                      const BoundNetLog& request_net_log,
                                       int* net_error,
                                       AddressList* addresses) {
   DCHECK(addresses);
@@ -1650,10 +1680,40 @@ bool HostResolverImpl::ServeFromCache(const Key& key,
   if (!cache_entry)
     return false;
 
-  request_net_log.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_CACHE_HIT, NULL);
+
   *net_error = cache_entry->error;
   if (*net_error == OK)
     *addresses = CreateAddressListUsingPort(cache_entry->addrlist, info.port());
+  return true;
+}
+
+bool HostResolverImpl::ServeFromHosts(const Key& key,
+                                      const RequestInfo& info,
+                                      AddressList* addresses) {
+  DCHECK(addresses);
+  if (!HaveDnsConfig())
+    return false;
+
+  // If |address_family| is ADDRESS_FAMILY_UNSPECIFIED other implementations
+  // (glibc and c-ares) return the first matching line. We have more
+  // flexibility, but lose implicit ordering.
+  // TODO(szym) http://crbug.com/117850
+  const DnsHosts& hosts = dns_client_->GetConfig()->hosts;
+  DnsHosts::const_iterator it = hosts.find(
+      DnsHostsKey(key.hostname,
+                  key.address_family == ADDRESS_FAMILY_UNSPECIFIED ?
+                      ADDRESS_FAMILY_IPV4 : key.address_family));
+
+  if (it == hosts.end()) {
+    if (key.address_family != ADDRESS_FAMILY_UNSPECIFIED)
+      return false;
+
+    it = hosts.find(DnsHostsKey(key.hostname, ADDRESS_FAMILY_IPV6));
+    if (it == hosts.end())
+      return false;
+  }
+
+  *addresses = AddressList::CreateFromIPAddress(it->second, info.port());
   return true;
 }
 
@@ -1734,6 +1794,24 @@ void HostResolverImpl::AbortAllInProgressJobs() {
   }
 }
 
+void HostResolverImpl::TryServingAllJobsFromHosts() {
+  if (!HaveDnsConfig())
+    return;
+
+  // TODO(szym): Do not do this if nsswitch.conf instructs not to.
+  // http://crbug.com/117655
+
+  // Life check to bail once |this| is deleted.
+  base::WeakPtr<HostResolverImpl> self = AsWeakPtr();
+
+  for (JobMap::iterator it = jobs_.begin(); self && it != jobs_.end(); ) {
+    Job* job = it->second;
+    ++it;
+    // This could remove |job| from |jobs_|, but iterator will remain valid.
+    job->ServeFromHosts();
+  }
+}
+
 void HostResolverImpl::OnIPAddressChanged() {
   if (cache_.get())
     cache_->clear();
@@ -1769,20 +1847,25 @@ void HostResolverImpl::OnDNSChanged(unsigned detail) {
 void HostResolverImpl::OnConfigChanged(const DnsConfig& dns_config) {
   // We want a new factory in place, before we Abort running Jobs, so that the
   // newly started jobs use the new factory.
-  bool had_factory = (dns_transaction_factory_.get() != NULL);
-  if (dns_config.IsValid()) {
-    dns_transaction_factory_ = DnsTransactionFactory::CreateFactory(
-        new DnsSession(dns_config,
-                       ClientSocketFactory::GetDefaultFactory(),
-                       base::Bind(&base::RandInt),
-                       net_log_));
-  } else {
-    dns_transaction_factory_.reset();
-  }
+  DCHECK(dns_client_.get());
+
+  // Life check to bail once |this| is deleted.
+  base::WeakPtr<HostResolverImpl> self = AsWeakPtr();
+
+  bool had_factory = (dns_client_->GetConfig() != NULL);
+  dns_client_->SetConfig(dns_config);
+
   // Don't Abort running Jobs unless they were running on DnsTransaction.
   // TODO(szym): This will change once http://crbug.com/114827 is fixed.
   if (had_factory)
     OnDNSChanged(NetworkChangeNotifier::CHANGE_DNS_SETTINGS);
+
+  if (self && dns_config.IsValid())
+    TryServingAllJobsFromHosts();
+}
+
+bool HostResolverImpl::HaveDnsConfig() const {
+  return (dns_client_.get() != NULL) && (dns_client_->GetConfig() != NULL);
 }
 
 }  // namespace net
