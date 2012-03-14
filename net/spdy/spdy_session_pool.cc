@@ -91,6 +91,10 @@ scoped_refptr<SpdySession> SpdySessionPool::GetInternal(
           NetLog::TYPE_SPDY_SESSION_POOL_FOUND_EXISTING_SESSION_FROM_IP_POOL,
           make_scoped_refptr(new NetLogSourceParameter(
           "session", spdy_session->net_log().source())));
+      // Add this session to the map so that we can find it next time.
+      list = AddSessionList(host_port_proxy_pair);
+      list->push_back(spdy_session);
+      spdy_session->AddPooledAlias(host_port_proxy_pair);
       return spdy_session;
     } else if (only_use_existing_sessions) {
       return NULL;
@@ -183,17 +187,31 @@ bool SpdySessionPool::HasSession(
 }
 
 void SpdySessionPool::Remove(const scoped_refptr<SpdySession>& session) {
-  SpdySessionList* list = GetSessionList(session->host_port_proxy_pair());
-  DCHECK(list);  // We really shouldn't remove if we've already been removed.
-  if (!list)
-    return;
-  list->remove(session);
+  bool ok = RemoveFromSessionList(session, session->host_port_proxy_pair());
+  DCHECK(ok);
   session->net_log().AddEvent(
       NetLog::TYPE_SPDY_SESSION_POOL_REMOVE_SESSION,
       make_scoped_refptr(new NetLogSourceParameter(
           "session", session->net_log().source())));
+
+  const std::set<HostPortProxyPair>& aliases = session->pooled_aliases();
+  for (std::set<HostPortProxyPair>::const_iterator it = aliases.begin();
+       it != aliases.end(); ++it) {
+    ok = RemoveFromSessionList(session, *it);
+    DCHECK(ok);
+  }
+}
+
+bool SpdySessionPool::RemoveFromSessionList(
+    const scoped_refptr<SpdySession>& session,
+    const HostPortProxyPair& pair) {
+  SpdySessionList* list = GetSessionList(pair);
+  if (!list)
+    return false;
+  list->remove(session);
   if (list->empty())
-    RemoveSessionList(session->host_port_proxy_pair());
+    RemoveSessionList(pair);
+  return true;
 }
 
 Value* SpdySessionPool::SpdySessionPoolInfoToValue() const {
