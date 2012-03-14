@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,16 +7,17 @@
 #include <jni.h>
 
 #include "base/android/jni_android.h"
+#include "base/android/scoped_java_ref.h"
+#include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "jni/system_message_handler_jni.h"
 
-using base::android::ScopedJavaReference;
+using base::android::ScopedJavaLocalRef;
 
 namespace {
 
-const char* kClassPathName = "com/android/chromeview/base/SystemMessageHandler";
-
-jobject g_system_message_handler_obj = NULL;
+base::LazyInstance<base::android::ScopedJavaGlobalRef<jobject> >
+    g_system_message_handler_obj = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 
@@ -53,7 +54,6 @@ static jboolean DoRunLoopOnce(JNIEnv* env, jobject obj, jint native_delegate) {
     jlong millis =
         (delayed_work_time - base::TimeTicks::Now()).InMillisecondsRoundedUp();
     Java_SystemMessageHandler_setDelayedTimer(env, obj, millis);
-    base::android::CheckException(env);
   }
   return more_work_is_plausible;
 }
@@ -75,34 +75,23 @@ void MessagePumpForUI::Run(Delegate* delegate) {
 void MessagePumpForUI::Start(Delegate* delegate) {
   state_ = new MessageLoop::AutoRunState(MessageLoop::current());
 
-  DCHECK(!g_system_message_handler_obj);
+  DCHECK(g_system_message_handler_obj.Get().is_null());
 
   JNIEnv* env = base::android::AttachCurrentThread();
   DCHECK(env);
 
-  jclass clazz = env->FindClass(kClassPathName);
-  DCHECK(clazz);
-
-  jmethodID constructor = base::android::GetMethodID(env, clazz, "<init>",
-                                                     "(I)V");
-  ScopedJavaReference<jobject> client(env, env->NewObject(clazz, constructor,
-                                                          delegate));
-  DCHECK(client.obj());
-
-  g_system_message_handler_obj = env->NewGlobalRef(client.obj());
-
-  base::android::CheckException(env);
+  g_system_message_handler_obj.Get().Reset(
+      Java_SystemMessageHandler_create(env, reinterpret_cast<jint>(delegate)));
 }
 
 void MessagePumpForUI::Quit() {
-  if (g_system_message_handler_obj) {
+  if (!g_system_message_handler_obj.Get().is_null()) {
     JNIEnv* env = base::android::AttachCurrentThread();
     DCHECK(env);
 
-    Java_SystemMessageHandler_removeTimer(env, g_system_message_handler_obj);
-    env->DeleteGlobalRef(g_system_message_handler_obj);
-    base::android::CheckException(env);
-    g_system_message_handler_obj = NULL;
+    Java_SystemMessageHandler_removeTimer(env,
+        g_system_message_handler_obj.Get().obj());
+    g_system_message_handler_obj.Get().Reset();
   }
 
   if (state_) {
@@ -112,19 +101,18 @@ void MessagePumpForUI::Quit() {
 }
 
 void MessagePumpForUI::ScheduleWork() {
-  if (!g_system_message_handler_obj)
+  if (g_system_message_handler_obj.Get().is_null())
     return;
 
   JNIEnv* env = base::android::AttachCurrentThread();
   DCHECK(env);
 
-  Java_SystemMessageHandler_setTimer(env, g_system_message_handler_obj);
-  base::android::CheckException(env);
-
+  Java_SystemMessageHandler_setTimer(env,
+      g_system_message_handler_obj.Get().obj());
 }
 
 void MessagePumpForUI::ScheduleDelayedWork(const TimeTicks& delayed_work_time) {
-  if (!g_system_message_handler_obj)
+  if (g_system_message_handler_obj.Get().is_null())
     return;
 
   JNIEnv* env = base::android::AttachCurrentThread();
@@ -134,9 +122,8 @@ void MessagePumpForUI::ScheduleDelayedWork(const TimeTicks& delayed_work_time) {
       (delayed_work_time - base::TimeTicks::Now()).InMillisecondsRoundedUp();
   // Note that we're truncating to milliseconds as required by the java side,
   // even though delayed_work_time is microseconds resolution.
-  Java_SystemMessageHandler_setDelayedTimer(env, g_system_message_handler_obj,
-                                            millis);
-  base::android::CheckException(env);
+  Java_SystemMessageHandler_setDelayedTimer(env,
+      g_system_message_handler_obj.Get().obj(), millis);
 }
 
 // Register native methods
