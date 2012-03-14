@@ -104,8 +104,6 @@ bool HMAC::Init(const unsigned char* key, int key_length) {
   }
 
   if (hash_alg_ == SHA256) {
-    if (key_length < SHA256_LENGTH / 2)
-      return false;  // Key is too short.
     plat_->raw_key_.assign(key, key + key_length);
     return true;
   }
