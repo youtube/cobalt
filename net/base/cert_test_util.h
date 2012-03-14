@@ -9,14 +9,11 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "net/base/x509_cert_types.h"
 #include "net/base/x509_certificate.h"
 
 class FilePath;
 
 namespace net {
-
-class EVRootCAMetadata;
 
 // Returns a FilePath object representing the src/net/data/ssl/certificates
 // directory in the source tree.
@@ -32,23 +29,6 @@ CertificateList CreateCertificateListFromFile(const FilePath& certs_dir,
 // the first certificate found will be returned.
 scoped_refptr<X509Certificate> ImportCertFromFile(const FilePath& certs_dir,
                                                   const std::string& cert_file);
-
-// ScopedTestEVPolicy causes certificates marked with |policy|, issued from a
-// root with the given fingerprint, to be treated as EV. |policy| is expressed
-// as a string of dotted numbers: i.e. "1.2.3.4".
-// This should only be used in unittests as adding a CA twice causes a CHECK
-// failure.
-class ScopedTestEVPolicy {
- public:
-  ScopedTestEVPolicy(EVRootCAMetadata* ev_root_ca_metadata,
-                     const SHA1Fingerprint& fingerprint,
-                     const char* policy);
-  ~ScopedTestEVPolicy();
-
- private:
-  SHA1Fingerprint fingerprint_;
-  EVRootCAMetadata* const ev_root_ca_metadata_;
-};
 
 }  // namespace net
 
