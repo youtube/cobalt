@@ -1112,6 +1112,15 @@ Value* SpdySession::GetInfoAsValue() const {
   dict->SetInteger("source_id", net_log_.source().id);
 
   dict->SetString("host_port_pair", host_port_proxy_pair_.first.ToString());
+  if (!pooled_aliases_.empty()) {
+    ListValue* alias_list = new ListValue();
+    for (std::set<HostPortProxyPair>::const_iterator it =
+             pooled_aliases_.begin();
+         it != pooled_aliases_.end(); it++) {
+      alias_list->Append(Value::CreateStringValue(it->first.ToString()));
+    }
+    dict->Set("aliases", alias_list);
+  }
   dict->SetString("proxy", host_port_proxy_pair_.second.ToURI());
 
   dict->SetInteger("active_streams", active_streams_.size());
