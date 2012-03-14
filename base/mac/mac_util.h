@@ -150,8 +150,6 @@ BASE_EXPORT bool IsOSMountainLionOrLater();
 // unborn) OS releases.
 BASE_EXPORT
     bool IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement();
-// TODO(rsesek|avi): Remove when allocators gonna allocate.
-BASE_EXPORT bool IsOSLaterThanLion();
 
 // When the deployment target is set, the code produced cannot run on earlier
 // OS releases. That enables some of the IsOS* family to be implemented as
@@ -179,7 +177,6 @@ inline bool IsOSLionOrLater() { return true; }
 #define BASE_MAC_MAC_UTIL_H_INLINED_GT_10_7
 inline bool IsOSLion() { return false; }
 inline bool IsOSLionOrEarlier() { return false; }
-inline bool IsOSLaterThanLion() { return true; }
 #endif
 
 #if defined(MAC_OS_X_VERSION_10_8) && \

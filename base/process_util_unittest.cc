@@ -1118,7 +1118,7 @@ TEST_F(OutOfMemoryDeathTest, PosixMemalignPurgeable) {
 // Since these allocation functions take a signed size, it's possible that
 // calling them just once won't be enough to exhaust memory. In the 32-bit
 // environment, it's likely that these allocation attempts will fail because
-// not enough contiguous address space is availble. In the 64-bit environment,
+// not enough contiguous address space is available. In the 64-bit environment,
 // it's likely that they'll fail because they would require a preposterous
 // amount of (virtual) memory.
 
