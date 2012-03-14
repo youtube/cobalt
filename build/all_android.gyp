@@ -50,7 +50,6 @@
       'dependencies': [
         '../webkit/webkit.gyp:pull_in_webkit_unit_tests',
         '../webkit/webkit.gyp:pull_in_DumpRenderTree',
-        '../base/android/java/java.gyp:base_java',
       ],
     },
     {
