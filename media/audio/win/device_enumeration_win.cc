@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,6 +16,13 @@
 using media::AudioDeviceNames;
 using base::win::ScopedComPtr;
 using base::win::ScopedCoMem;
+
+// Taken from Mmddk.h.
+#define DRV_RESERVED                      0x0800
+#define DRV_QUERYFUNCTIONINSTANCEID       (DRV_RESERVED + 17)
+#define DRV_QUERYFUNCTIONINSTANCEIDSIZE   (DRV_RESERVED + 18)
+
+namespace media {
 
 bool GetInputDeviceNamesWin(AudioDeviceNames* device_names) {
   // It is assumed that this method is called from a COM thread, i.e.,
@@ -123,3 +130,52 @@ bool GetInputDeviceNamesWinXP(AudioDeviceNames* device_names) {
 
   return true;
 }
+
+std::string ConvertToWinXPDeviceId(const std::string& device_id) {
+  UINT number_of_active_devices = waveInGetNumDevs();
+  MMRESULT result = MMSYSERR_NOERROR;
+
+  UINT i = 0;
+  for (; i < number_of_active_devices; ++i) {
+    size_t size = 0;
+    // Get the size (including the terminating NULL) of the endpoint ID of the
+    // waveIn device.
+    result = waveInMessage(reinterpret_cast<HWAVEIN>(i),
+                           DRV_QUERYFUNCTIONINSTANCEIDSIZE,
+                           reinterpret_cast<DWORD_PTR>(&size), NULL);
+    if (result != MMSYSERR_NOERROR)
+      continue;
+
+    ScopedCoMem<WCHAR> id;
+    id.Reset(static_cast<WCHAR*>(CoTaskMemAlloc(size)));
+    if (!id)
+      continue;
+
+    // Get the endpoint ID string for this waveIn device.
+    result = waveInMessage(
+        reinterpret_cast<HWAVEIN>(i), DRV_QUERYFUNCTIONINSTANCEID,
+        reinterpret_cast<DWORD_PTR>(static_cast<WCHAR*>(id)), size);
+    if (result != MMSYSERR_NOERROR)
+      continue;
+
+    std::string utf8_id = WideToUTF8(static_cast<WCHAR*>(id));
+    // Check whether the endpoint ID string of this waveIn device matches that
+    // of the audio endpoint device.
+    if (device_id == utf8_id)
+      break;
+  }
+
+  // If a matching waveIn device was found, convert the unique endpoint ID
+  // string to a standard friendly name with max 32 characters.
+  if (i < number_of_active_devices) {
+    WAVEINCAPS capabilities;
+
+    result = waveInGetDevCaps(i, &capabilities, sizeof(capabilities));
+    if (result == MMSYSERR_NOERROR)
+      return WideToUTF8(capabilities.szPname);
+  }
+
+  return std::string();
+}
+
+}  // namespace media
