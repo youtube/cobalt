@@ -718,8 +718,16 @@ void oom_killer_new() {
 // === Core Foundation CFAllocators ===
 
 bool CanGetContextForCFAllocator() {
-  // TODO(rsesek|avi): See mac_util.h:153 for removing/updating this.
-  return !base::mac::IsOSLaterThanLion();
+  // TODO(avi): remove at final release; http://crbug.com/117476
+  if (base::mac::IsOSMountainLion()) {
+    NSLog(@"Unsure about the internals of CFAllocator but going to patch them "
+           "anyway. If there is a crash inside of CFAllocatorAllocate, please "
+           "report it at http://crbug.com/117476 . If there is a crash and it "
+           "is NOT inside of CFAllocatorAllocate, it is NOT RELATED. DO NOT "
+           "REPORT IT THERE but rather FILE A NEW BUG.");
+  }
+  return !base::mac::
+      IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement();
 }
 
 CFAllocatorContext* ContextForCFAllocator(CFAllocatorRef allocator) {
@@ -728,10 +736,10 @@ CFAllocatorContext* ContextForCFAllocator(CFAllocatorRef allocator) {
         const_cast<ChromeCFAllocatorLeopards*>(
             reinterpret_cast<const ChromeCFAllocatorLeopards*>(allocator));
     return &our_allocator->_context;
-  } else if (base::mac::IsOSLion()) {
-    ChromeCFAllocatorLion* our_allocator =
-        const_cast<ChromeCFAllocatorLion*>(
-            reinterpret_cast<const ChromeCFAllocatorLion*>(allocator));
+  } else if (base::mac::IsOSLion() || base::mac::IsOSMountainLion()) {
+    ChromeCFAllocatorLions* our_allocator =
+        const_cast<ChromeCFAllocatorLions*>(
+            reinterpret_cast<const ChromeCFAllocatorLions*>(allocator));
     return &our_allocator->_context;
   } else {
     return NULL;
