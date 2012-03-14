@@ -129,7 +129,8 @@ TEST_F(PipelineIntegrationTest, BasicPlayback) {
   ASSERT_TRUE(WaitUntilOnEnded());
 }
 
-TEST_F(PipelineIntegrationTest, EncryptedPlayback) {
+// TODO(xhwang): Enable this test when AddKey is integrated into pipeline.
+TEST_F(PipelineIntegrationTest, DISABLED_EncryptedPlayback) {
   MockMediaSource source("bear-320x240-encrypted.webm", 219726);
   StartPipelineWithMediaSource(source);
 

@@ -11,7 +11,7 @@
 
 namespace media {
 
-// |kEncryptedDataHex| is encrypted from |kOriginalData| using |kRawKey|, whose
+// |kEncryptedData| is encrypted from |kOriginalData| using |kRightKey|, whose
 // length is |kKeySize|. Modifying any of these independently would fail the
 // test.
 static const char kOriginalData[] = "Original data.";
@@ -19,8 +19,11 @@ static const int kEncryptedDataSize = 16;
 static const unsigned char kEncryptedData[] =
     "\x82\x3A\x76\x92\xEC\x7F\xF8\x85\xEC\x23\x52\xFB\x19\xB1\xB9\x09";
 static const int kKeySize = 16;
-static const unsigned char kRawKey[] = "A wonderful key!";
+static const unsigned char kRightKey[] = "A wonderful key!";
 static const unsigned char kWrongKey[] = "I'm a wrong key.";
+static const int kKeyIdSize = 9;
+static const unsigned char kKeyId1[] = "Key ID 1.";
+static const unsigned char kKeyId2[] = "Key ID 2.";
 
 class AesDecryptorTest : public testing::Test {
  public:
@@ -29,9 +32,22 @@ class AesDecryptorTest : public testing::Test {
   }
 
  protected:
-  void SetKey(const uint8* key, int key_size) {
+  void SetKeyIdForEncryptedData(const uint8* key_id, int key_id_size) {
     encrypted_data_->SetDecryptConfig(
-        scoped_ptr<DecryptConfig>(new DecryptConfig(key, key_size)));
+        scoped_ptr<DecryptConfig>(new DecryptConfig(key_id, key_id_size)));
+  }
+
+  void DecryptAndExpectToSucceed() {
+    scoped_refptr<Buffer> decrypted = decryptor_.Decrypt(encrypted_data_);
+    ASSERT_TRUE(decrypted);
+    size_t data_length = sizeof(kOriginalData) - 1;
+    ASSERT_EQ(data_length, decrypted->GetDataSize());
+    EXPECT_EQ(0, memcmp(kOriginalData, decrypted->GetData(), data_length));
+  }
+
+  void DecryptAndExpectToFail() {
+    scoped_refptr<Buffer> decrypted = decryptor_.Decrypt(encrypted_data_);
+    EXPECT_FALSE(decrypted);
   }
 
   scoped_refptr<DataBuffer> encrypted_data_;
@@ -39,18 +55,30 @@ class AesDecryptorTest : public testing::Test {
 };
 
 TEST_F(AesDecryptorTest, NormalDecryption) {
-  SetKey(kRawKey, kKeySize);
-  scoped_refptr<Buffer> decrypted_data = decryptor_.Decrypt(encrypted_data_);
-  ASSERT_TRUE(decrypted_data.get());
-  size_t data_length = sizeof(kOriginalData) - 1;
-  ASSERT_EQ(data_length, decrypted_data->GetDataSize());
-  ASSERT_EQ(0, memcmp(kOriginalData, decrypted_data->GetData(), data_length));
+  decryptor_.AddKey(kKeyId1, kKeyIdSize, kRightKey, kKeySize);
+  SetKeyIdForEncryptedData(kKeyId1, kKeyIdSize);
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToSucceed());
 }
 
 TEST_F(AesDecryptorTest, WrongKey) {
-  SetKey(kWrongKey, kKeySize);
-  scoped_refptr<Buffer> decrypted_data = decryptor_.Decrypt(encrypted_data_);
-  EXPECT_FALSE(decrypted_data.get());
+  decryptor_.AddKey(kKeyId1, kKeyIdSize, kWrongKey, kKeySize);
+  SetKeyIdForEncryptedData(kKeyId1, kKeyIdSize);
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToFail());
+}
+
+TEST_F(AesDecryptorTest, MultipleKeys) {
+  decryptor_.AddKey(kKeyId1, kKeyIdSize, kRightKey, kKeySize);
+  decryptor_.AddKey(kKeyId2, kKeyIdSize, kWrongKey, kKeySize);
+  SetKeyIdForEncryptedData(kKeyId1, kKeyIdSize);
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToSucceed());
+}
+
+TEST_F(AesDecryptorTest, KeyReplacement) {
+  SetKeyIdForEncryptedData(kKeyId1, kKeyIdSize);
+  decryptor_.AddKey(kKeyId1, kKeyIdSize, kWrongKey, kKeySize);
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToFail());
+  decryptor_.AddKey(kKeyId1, kKeyIdSize, kRightKey, kKeySize);
+  ASSERT_NO_FATAL_FAILURE(DecryptAndExpectToSucceed());
 }
 
 }  // media
