@@ -233,6 +233,8 @@
         'base/win/message_box_win.h',
         'base/win/mouse_wheel_util.cc',
         'base/win/mouse_wheel_util.h',
+        'base/win/scoped_ole_initializer.cc',
+        'base/win/scoped_ole_initializer.h',
         'base/win/shell.cc',
         'base/win/shell.h',
         'base/win/singleton_hwnd.cc',
