@@ -40,6 +40,14 @@ class CRYPTO_EXPORT HMAC {
   // Initializes this instance using |key| of the length |key_length|. Call Init
   // only once. It returns false on the second or later calls.
   // TODO(abarth): key_length should be a size_t.
+  //
+  // NOTE: the US Federal crypto standard FIPS 198, Section 3 says:
+  //   The size of the key, K, shall be equal to or greater than L/2, where L
+  //   is the size of the hash function output.
+  // In FIPS 198-1 (and SP-800-107, which describes key size recommendations),
+  // this requirement is gone.  But a system crypto library may still enforce
+  // this old requirement.  If the key is shorter than this recommended value,
+  // Init() may fail.
   bool Init(const unsigned char* key, int key_length) WARN_UNUSED_RESULT;
 
   // Initializes this instance using |key|. Call Init
