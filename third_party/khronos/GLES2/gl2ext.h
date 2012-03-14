@@ -1955,6 +1955,15 @@ typedef void (GL_APIENTRYP PFNGLTEXIMAGEIOSURFACE2DCHROMIUM) (GLenum target, GLs
 #endif
 #endif
 
+/* GL_CHROMIUM_command_buffer_query */
+/* Exposes GL_CHROMIUM_command_buffer_query.
+ */
+#ifndef GL_CHROMIUM_command_buffer_query
+#define GL_CHROMIUM_command_buffer_query 1
+// TODO(gman): Get official numbers for these constants.
+#define GL_COMMANDS_ISSUED_CHROMIUM 0x84F2
+#endif
+
 #ifdef __cplusplus
 }
 #endif
