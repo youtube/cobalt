@@ -23,6 +23,11 @@ static const ptrdiff_t kOneMB = 1024 * 1024;
 
 namespace {
 
+struct PermissionInfo {
+  PSECURITY_DESCRIPTOR security_descriptor;
+  ACL dacl;
+};
+
 // Deny |permission| on the file |path|, for the current user.
 bool DenyFilePermission(const FilePath& path, DWORD permission) {
   PACL old_dacl;
@@ -55,6 +60,52 @@ bool DenyFilePermission(const FilePath& path, DWORD permission) {
                                   NULL, NULL, new_dacl, NULL);
   LocalFree(security_descriptor);
   LocalFree(new_dacl);
+
+  return rc == ERROR_SUCCESS;
+}
+
+// Gets a blob indicating the permission information for |path|.
+// |length| is the length of the blob.  Zero on failure.
+// Returns the blob pointer, or NULL on failure.
+void* GetPermissionInfo(const FilePath& path, size_t* length) {
+  DCHECK(length != NULL);
+  *length = 0;
+  PACL dacl = NULL;
+  PSECURITY_DESCRIPTOR security_descriptor;
+  if (GetNamedSecurityInfo(const_cast<wchar_t*>(path.value().c_str()),
+                           SE_FILE_OBJECT,
+                           DACL_SECURITY_INFORMATION, NULL, NULL, &dacl,
+                           NULL, &security_descriptor) != ERROR_SUCCESS) {
+    return NULL;
+  }
+  DCHECK(dacl != NULL);
+
+  *length = sizeof(PSECURITY_DESCRIPTOR) + dacl->AclSize;
+  PermissionInfo* info = reinterpret_cast<PermissionInfo*>(new char[*length]);
+  info->security_descriptor = security_descriptor;
+  memcpy(&info->dacl, dacl, dacl->AclSize);
+
+  return info;
+}
+
+// Restores the permission information for |path|, given the blob retrieved
+// using |GetPermissionInfo()|.
+// |info| is the pointer to the blob.
+// |length| is the length of the blob.
+// Either |info| or |length| may be NULL/0, in which case nothing happens.
+bool RestorePermissionInfo(const FilePath& path, void* info, size_t length) {
+  if (!info || !length)
+    return false;
+
+  PermissionInfo* perm = reinterpret_cast<PermissionInfo*>(info);
+
+  DWORD rc = SetNamedSecurityInfo(const_cast<wchar_t*>(path.value().c_str()),
+                                  SE_FILE_OBJECT, DACL_SECURITY_INFORMATION,
+                                  NULL, NULL, &perm->dacl, NULL);
+  LocalFree(perm->security_descriptor);
+
+  char* char_array = reinterpret_cast<char*>(info);
+  delete [] char_array;
 
   return rc == ERROR_SUCCESS;
 }
@@ -275,6 +326,18 @@ bool MakeFileUnreadable(const FilePath& path) {
 
 bool MakeFileUnwritable(const FilePath& path) {
   return DenyFilePermission(path, GENERIC_WRITE);
+}
+
+PermissionRestorer::PermissionRestorer(const FilePath& path)
+    : path_(path), info_(NULL), length_(0) {
+  info_ = GetPermissionInfo(path_, &length_);
+  DCHECK(info_ != NULL);
+  DCHECK_NE(0u, length_);
+}
+
+PermissionRestorer::~PermissionRestorer() {
+  if (!RestorePermissionInfo(path_, info_, length_))
+    NOTREACHED();
 }
 
 }  // namespace file_util
