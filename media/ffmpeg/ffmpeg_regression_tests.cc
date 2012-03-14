@@ -136,6 +136,8 @@ FFMPEG_TEST_CASE(WEBM_4, "security/out.webm.68798.1929",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED);
 FFMPEG_TEST_CASE(WEBM_5, "content/frame_size_change.webm", PIPELINE_OK,
                  PIPELINE_OK);
+FFMPEG_TEST_CASE(WEBM_6, "security/117912.webm", DEMUXER_ERROR_COULD_NOT_OPEN,
+                 DEMUXER_ERROR_COULD_NOT_OPEN);
 
 // Flaky, maybe larger issues.  All eventually fail in the browser.
 FFMPEG_TEST_CASE(FLAKY_Cr99652, "security/99652.webm", PIPELINE_OK,
