@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,22 +12,24 @@ namespace net {
 
 class URLRequestContext;
 
-// Sets the MessageLoop for OCSP to the current message loop.
-// This should be called before EnsureOCSPInit() if you want to
-// control the message loop for OCSP.
-NET_EXPORT void SetMessageLoopForOCSP();
+// Sets the MessageLoop for NSS's HTTP client functions (i.e. OCSP, CA
+// certificate and CRL fetches) to the current message loop.  This should be
+// called before EnsureNSSHttpIOInit() if you want to control the message loop.
+NET_EXPORT void SetMessageLoopForNSSHttpIO();
 
-// Initializes OCSP handlers for NSS.  This must be called before any
-// certificate verification functions.  This function is thread-safe, and OCSP
-// handlers will only ever be initialized once.  ShutdownOCSP() must be called
-// on shutdown.
-NET_EXPORT void EnsureOCSPInit();
+// Initializes HTTP client functions for NSS.  This must be called before any
+// certificate verification functions.  This function is thread-safe, and HTTP
+// handlers will only ever be initialized once.  ShutdownNSSHttpIO() must be
+// called on shutdown.
+NET_EXPORT void EnsureNSSHttpIOInit();
 
-// This should be called once on shutdown to stop issuing URLRequests for OCSP.
-NET_EXPORT void ShutdownOCSP();
+// This should be called once on shutdown to stop issuing URLRequests for NSS
+// related HTTP fetches.
+NET_EXPORT void ShutdownNSSHttpIO();
 
-// Set URLRequestContext for OCSP handlers.
-NET_EXPORT void SetURLRequestContextForOCSP(URLRequestContext* request_context);
+// Sets the URLRequestContext for HTTP requests issued by NSS.
+NET_EXPORT void SetURLRequestContextForNSSHttpIO(
+    URLRequestContext* request_context);
 
 }  // namespace net
 
