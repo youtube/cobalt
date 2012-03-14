@@ -237,7 +237,7 @@ std::string Histogram::SerializeHistogramInfo(const Histogram& histogram,
   pickle.WriteString(histogram.histogram_name());
   pickle.WriteInt(histogram.declared_min());
   pickle.WriteInt(histogram.declared_max());
-  pickle.WriteSize(histogram.bucket_count());
+  pickle.WriteUInt64(histogram.bucket_count());
   pickle.WriteUInt32(histogram.range_checksum());
   pickle.WriteInt(histogram.histogram_type());
   pickle.WriteInt(histogram.flags());
@@ -260,7 +260,7 @@ bool Histogram::DeserializeHistogramInfo(const std::string& histogram_info) {
   std::string histogram_name;
   int declared_min;
   int declared_max;
-  size_t bucket_count;
+  uint64 bucket_count;
   uint32 range_checksum;
   int histogram_type;
   int pickle_flags;
@@ -270,7 +270,7 @@ bool Histogram::DeserializeHistogramInfo(const std::string& histogram_info) {
   if (!iter.ReadString(&histogram_name) ||
       !iter.ReadInt(&declared_min) ||
       !iter.ReadInt(&declared_max) ||
-      !iter.ReadSize(&bucket_count) ||
+      !iter.ReadUInt64(&bucket_count) ||
       !iter.ReadUInt32(&range_checksum) ||
       !iter.ReadInt(&histogram_type) ||
       !iter.ReadInt(&pickle_flags) ||
@@ -763,7 +763,7 @@ void Histogram::SampleSet::Subtract(const SampleSet& other) {
 bool Histogram::SampleSet::Serialize(Pickle* pickle) const {
   pickle->WriteInt64(sum_);
   pickle->WriteInt64(redundant_count_);
-  pickle->WriteSize(counts_.size());
+  pickle->WriteUInt64(counts_.size());
 
   for (size_t index = 0; index < counts_.size(); ++index) {
     pickle->WriteInt(counts_[index]);
@@ -777,11 +777,11 @@ bool Histogram::SampleSet::Deserialize(PickleIterator* iter) {
   DCHECK_EQ(sum_, 0);
   DCHECK_EQ(redundant_count_, 0);
 
-  size_t counts_size;
+  uint64 counts_size;
 
   if (!iter->ReadInt64(&sum_) ||
       !iter->ReadInt64(&redundant_count_) ||
-      !iter->ReadSize(&counts_size)) {
+      !iter->ReadUInt64(&counts_size)) {
     return false;
   }
 
@@ -789,7 +789,7 @@ bool Histogram::SampleSet::Deserialize(PickleIterator* iter) {
     return false;
 
   int count = 0;
-  for (size_t index = 0; index < counts_size; ++index) {
+  for (uint64 index = 0; index < counts_size; ++index) {
     int i;
     if (!iter->ReadInt(&i))
       return false;
