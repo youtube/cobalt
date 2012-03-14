@@ -222,7 +222,12 @@ Value* SpdySessionPool::SpdySessionPoolInfoToValue() const {
     SpdySessionList* sessions = it->second;
     for (SpdySessionList::const_iterator session = sessions->begin();
          session != sessions->end(); ++session) {
-      list->Append(session->get()->GetInfoAsValue());
+      // Only add the session if the key in the map matches the main
+      // host_port_proxy_pair (not an alias).
+      const HostPortProxyPair& key = it->first;
+      const HostPortProxyPair& pair = session->get()->host_port_proxy_pair();
+      if (key.first.Equals(pair.first) && key.second == pair.second)
+        list->Append(session->get()->GetInfoAsValue());
     }
   }
   return list;
