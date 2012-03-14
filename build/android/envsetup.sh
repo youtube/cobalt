@@ -47,6 +47,8 @@ esac
 
 export ANDROID_TOOLCHAIN="${ANDROID_NDK_ROOT}/toolchains/arm-linux-androideabi-4.4.3/prebuilt/${toolchain_dir}/bin/"
 
+export ANDROID_SDK_VERSION="15"
+
 # Add Android SDK's platform-tools to system path.
 export PATH="${PATH}:${ANDROID_SDK_ROOT}/platform-tools/"
 
