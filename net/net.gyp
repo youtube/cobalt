@@ -1032,6 +1032,7 @@
         'base/dns_util_unittest.cc',
         'base/dnsrr_resolver_unittest.cc',
         'base/escape_unittest.cc',
+        'base/ev_root_ca_metadata_unittest.cc',
         'base/expiring_cache_unittest.cc',
         'base/file_stream_unittest.cc',
         'base/filter_unittest.cc',
