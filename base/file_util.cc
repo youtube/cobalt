@@ -380,20 +380,6 @@ bool MemoryMappedFile::MapFileToMemory(const FilePath& file_name) {
   return MapFileToMemoryInternal();
 }
 
-// Deprecated functions ----------------------------------------------------
-
-#if defined(OS_WIN)
-FILE* OpenFile(const std::wstring& filename, const char* mode) {
-  return OpenFile(FilePath::FromWStringHack(filename), mode);
-}
-int ReadFile(const std::wstring& filename, char* data, int size) {
-  return ReadFile(FilePath::FromWStringHack(filename), data, size);
-}
-int WriteFile(const std::wstring& filename, const char* data, int size) {
-  return WriteFile(FilePath::FromWStringHack(filename), data, size);
-}
-#endif  // OS_WIN
-
 ///////////////////////////////////////////////
 // FileEnumerator
 //
