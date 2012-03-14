@@ -484,9 +484,6 @@
               ['include', '^sys_info_linux\\.cc$'],
               ['include', '^sys_string_conversions_posix\\.cc$'],
               ['include', '^worker_pool_linux\\.cc$'],
-              # TODO(michaelbai): The below files are excluded because of the
-              # missing JNI, add them back when JNI is ready.
-              ['exclude', '^message_pump_android\\.cc$'],
             ],
           }],
           [ 'OS != "mac"', {
