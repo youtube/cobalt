@@ -28,15 +28,18 @@
 #include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
+#include "net/dns/dns_client.h"
+#include "net/dns/dns_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
+namespace {
 
 using base::TimeDelta;
 using base::TimeTicks;
 
-static const size_t kMaxJobs = 10u;
-static const size_t kMaxRetryAttempts = 4u;
+const size_t kMaxJobs = 10u;
+const size_t kMaxRetryAttempts = 4u;
 
 PrioritizedDispatcher::Limits DefaultLimits() {
   PrioritizedDispatcher::Limits limits(NUM_PRIORITIES, kMaxJobs);
@@ -55,6 +58,17 @@ HostResolverImpl* CreateHostResolverImpl(HostResolverProc* resolver_proc) {
       DefaultLimits(),
       DefaultParams(resolver_proc),
       scoped_ptr<DnsConfigService>(NULL),
+      NULL);
+}
+
+HostResolverImpl* CreateHostResolverImplWithDnsConfig(
+    HostResolverProc* resolver_proc,
+    scoped_ptr<DnsConfigService> config_service) {
+  return new HostResolverImpl(
+      HostCache::CreateDefaultCache(),
+      DefaultLimits(),
+      DefaultParams(resolver_proc),
+      config_service.Pass(),
       NULL);
 }
 
@@ -397,6 +411,7 @@ class ResolveRequest {
     virtual void OnCompleted(ResolveRequest* resolve) = 0;
   };
 
+  // For asynchronous resolutions.
   ResolveRequest(HostResolver* resolver,
                  const std::string& hostname,
                  int port,
@@ -412,6 +427,7 @@ class ResolveRequest {
     EXPECT_EQ(ERR_IO_PENDING, err);
   }
 
+  // For asynchronous resolutions.
   ResolveRequest(HostResolver* resolver,
                  const HostResolver::RequestInfo& info,
                  Delegate* delegate)
@@ -421,8 +437,37 @@ class ResolveRequest {
         info, &addrlist_,
         base::Bind(&ResolveRequest::OnLookupFinished,
                    base::Unretained(this)),
-       &req_, BoundNetLog());
+        &req_, BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, err);
+  }
+
+  // For synchronous resolutions.
+  ResolveRequest(HostResolver* resolver,
+                 const std::string& hostname,
+                 int port)
+      : info_(HostPortPair(hostname, port)),
+        resolver_(resolver),
+        delegate_(NULL)  {
+    // Start the request.
+    result_ = resolver->Resolve(
+        info_, &addrlist_,
+        base::Bind(&ResolveRequest::OnLookupFinished, base::Unretained(this)),
+        &req_, BoundNetLog());
+    EXPECT_NE(ERR_IO_PENDING, result_);
+  }
+
+  // For synchronous resolutions.
+  ResolveRequest(HostResolver* resolver,
+                 const HostResolver::RequestInfo& info)
+      : info_(info),
+        resolver_(resolver),
+        delegate_(NULL)  {
+    // Start the request.
+    result_ = resolver->Resolve(
+        info_, &addrlist_,
+        base::Bind(&ResolveRequest::OnLookupFinished, base::Unretained(this)),
+        &req_, BoundNetLog());
+    EXPECT_NE(ERR_IO_PENDING, result_);
   }
 
   void Cancel() {
@@ -451,6 +496,9 @@ class ResolveRequest {
 
  private:
   void OnLookupFinished(int result) {
+    EXPECT_TRUE(delegate_ != NULL);
+    if (delegate_ == NULL)
+      return;
     result_ = result;
     delegate_->OnCompleted(this);
   }
@@ -470,6 +518,7 @@ class ResolveRequest {
   DISALLOW_COPY_AND_ASSIGN(ResolveRequest);
 };
 
+// TODO(szym): Make this fixture more useful. http://crbug.com/117830
 class HostResolverImplTest : public testing::Test {
  public:
   HostResolverImplTest()
@@ -491,9 +540,30 @@ class HostResolverImplTest : public testing::Test {
   CompletionCallback callback_;
 };
 
+// Returns the first address in |addr_list| in host:port form or empty string if
+// the list is empty.
+std::string FirstAddressToString(const AddressList& addr_list) {
+  const struct addrinfo* ai = addr_list.head();
+  if (!ai)
+    return "";
+  return NetAddressToStringWithPort(ai);
+}
+
+// Returns the number of addresses in |addr_list|.
+unsigned NumberOfAddresses(const AddressList& addr_list) {
+  unsigned count = 0;
+  for (const struct addrinfo* ai = addr_list.head();
+       ai != NULL;
+       ai = ai->ai_next) {
+    ++count;
+  }
+  return count;
+}
+
+}  // namespace net
+
 TEST_F(HostResolverImplTest, AsynchronousLookup) {
   AddressList addrlist;
-  const int kPortnum = 80;
 
   scoped_refptr<RuleBasedHostResolverProc> resolver_proc(
       new RuleBasedHostResolverProc(NULL));
@@ -502,7 +572,7 @@ TEST_F(HostResolverImplTest, AsynchronousLookup) {
   scoped_ptr<HostResolver> host_resolver(
       CreateHostResolverImpl(resolver_proc));
 
-  HostResolver::RequestInfo info(HostPortPair("just.testing", kPortnum));
+  HostResolver::RequestInfo info(HostPortPair("just.testing", 80));
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   int err = host_resolver->Resolve(info, &addrlist, callback_, NULL,
                                    log.bound());
@@ -526,27 +596,19 @@ TEST_F(HostResolverImplTest, AsynchronousLookup) {
   EXPECT_TRUE(LogContainsEndEvent(
       entries, 1, NetLog::TYPE_HOST_RESOLVER_IMPL));
 
-  const struct addrinfo* ainfo = addrlist.head();
-  EXPECT_EQ(static_cast<addrinfo*>(NULL), ainfo->ai_next);
-  EXPECT_EQ(sizeof(struct sockaddr_in), static_cast<size_t>(ainfo->ai_addrlen));
-
-  const struct sockaddr* sa = ainfo->ai_addr;
-  const struct sockaddr_in* sa_in = (const struct sockaddr_in*) sa;
-  EXPECT_TRUE(htons(kPortnum) == sa_in->sin_port);
-  EXPECT_TRUE(htonl(0xc0a8012a) == sa_in->sin_addr.s_addr);
+  EXPECT_EQ("192.168.1.42:80", FirstAddressToString(addrlist));
+  EXPECT_EQ(1u, NumberOfAddresses(addrlist));
 }
 
 TEST_F(HostResolverImplTest, FailedAsynchronousLookup) {
   AddressList addrlist;
-  const int kPortnum = 80;
-
   scoped_refptr<RuleBasedHostResolverProc> resolver_proc(
       new RuleBasedHostResolverProc(NULL));
   resolver_proc->AddSimulatedFailure("just.testing");
 
   scoped_ptr<HostResolver> host_resolver(CreateHostResolverImpl(resolver_proc));
 
-  HostResolver::RequestInfo info(HostPortPair("just.testing", kPortnum));
+  HostResolver::RequestInfo info(HostPortPair("just.testing", 80));
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   int err = host_resolver->Resolve(info, &addrlist, callback_, NULL,
                                    log.bound());
@@ -590,9 +652,7 @@ TEST_F(HostResolverImplTest, AbortedAsynchronousLookup) {
                              scoped_ptr<DnsConfigService>(NULL),
                              &net_log));
     AddressList addrlist;
-    const int kPortnum = 80;
-
-    HostResolver::RequestInfo info(HostPortPair("just.testing", kPortnum));
+    HostResolver::RequestInfo info(HostPortPair("just.testing", 80));
     int err = host_resolver->Resolve(info, &addrlist, callback_, NULL,
                                      log.bound());
     EXPECT_EQ(ERR_IO_PENDING, err);
@@ -652,21 +712,14 @@ TEST_F(HostResolverImplTest, NumericIPv4Address) {
   scoped_ptr<HostResolver> host_resolver(
       CreateHostResolverImpl(resolver_proc));
   AddressList addrlist;
-  const int kPortnum = 5555;
   TestCompletionCallback callback;
-  HostResolver::RequestInfo info(HostPortPair("127.1.2.3", kPortnum));
+  HostResolver::RequestInfo info(HostPortPair("127.1.2.3", 5555));
   int err = host_resolver->Resolve(info, &addrlist, callback.callback(), NULL,
                                    BoundNetLog());
   EXPECT_EQ(OK, err);
 
-  const struct addrinfo* ainfo = addrlist.head();
-  EXPECT_EQ(static_cast<addrinfo*>(NULL), ainfo->ai_next);
-  EXPECT_EQ(sizeof(struct sockaddr_in), static_cast<size_t>(ainfo->ai_addrlen));
-
-  const struct sockaddr* sa = ainfo->ai_addr;
-  const struct sockaddr_in* sa_in = (const struct sockaddr_in*) sa;
-  EXPECT_TRUE(htons(kPortnum) == sa_in->sin_port);
-  EXPECT_TRUE(htonl(0x7f010203) == sa_in->sin_addr.s_addr);
+  EXPECT_EQ("127.1.2.3:5555", FirstAddressToString(addrlist));
+  EXPECT_EQ(1u, NumberOfAddresses(addrlist));
 }
 
 TEST_F(HostResolverImplTest, NumericIPv6Address) {
@@ -679,29 +732,14 @@ TEST_F(HostResolverImplTest, NumericIPv6Address) {
   scoped_ptr<HostResolver> host_resolver(
       CreateHostResolverImpl(resolver_proc));
   AddressList addrlist;
-  const int kPortnum = 5555;
   TestCompletionCallback callback;
-  HostResolver::RequestInfo info(HostPortPair("2001:db8::1", kPortnum));
+  HostResolver::RequestInfo info(HostPortPair("2001:db8::1", 5555));
   int err = host_resolver->Resolve(info, &addrlist, callback.callback(), NULL,
                                    BoundNetLog());
   EXPECT_EQ(OK, err);
 
-  const struct addrinfo* ainfo = addrlist.head();
-  EXPECT_EQ(static_cast<addrinfo*>(NULL), ainfo->ai_next);
-  EXPECT_EQ(sizeof(struct sockaddr_in6),
-            static_cast<size_t>(ainfo->ai_addrlen));
-
-  const struct sockaddr* sa = ainfo->ai_addr;
-  const struct sockaddr_in6* sa_in6 = (const struct sockaddr_in6*) sa;
-  EXPECT_TRUE(htons(kPortnum) == sa_in6->sin6_port);
-
-  const uint8 expect_addr[] = {
-    0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
-  };
-  for (int i = 0; i < 16; i++) {
-    EXPECT_EQ(expect_addr[i], sa_in6->sin6_addr.s6_addr[i]);
-  }
+  EXPECT_EQ("[2001:db8::1]:5555", FirstAddressToString(addrlist));
+  EXPECT_EQ(1u, NumberOfAddresses(addrlist));
 }
 
 TEST_F(HostResolverImplTest, EmptyHost) {
@@ -712,9 +750,8 @@ TEST_F(HostResolverImplTest, EmptyHost) {
   scoped_ptr<HostResolver> host_resolver(
       CreateHostResolverImpl(resolver_proc));
   AddressList addrlist;
-  const int kPortnum = 5555;
   TestCompletionCallback callback;
-  HostResolver::RequestInfo info(HostPortPair("", kPortnum));
+  HostResolver::RequestInfo info(HostPortPair("", 5555));
   int err = host_resolver->Resolve(info, &addrlist, callback.callback(), NULL,
                                    BoundNetLog());
   EXPECT_EQ(ERR_NAME_NOT_RESOLVED, err);
@@ -728,10 +765,9 @@ TEST_F(HostResolverImplTest, LongHost) {
   scoped_ptr<HostResolver> host_resolver(
       CreateHostResolverImpl(resolver_proc));
   AddressList addrlist;
-  const int kPortnum = 5555;
   std::string hostname(4097, 'a');
   TestCompletionCallback callback;
-  HostResolver::RequestInfo info(HostPortPair(hostname, kPortnum));
+  HostResolver::RequestInfo info(HostPortPair(hostname, 5555));
   int err = host_resolver->Resolve(info, &addrlist, callback.callback(), NULL,
                                    BoundNetLog());
   EXPECT_EQ(ERR_NAME_NOT_RESOLVED, err);
@@ -870,20 +906,30 @@ TEST_F(HostResolverImplTest, CancelMultipleRequests) {
   MessageLoop::current()->Run();
 }
 
-// Helper class used by HostResolverImplTest.CanceledRequestsReleaseJobSlots.
+// Delegate which allows to wait for specific number of requests to complete.
+// Used by HostResolverImplTest.CanceledRequestsReleaseJobSlots and .DnsTask.
 class CountingDelegate : public ResolveRequest::Delegate {
  public:
-  CountingDelegate() : num_completions_(0) {}
+  CountingDelegate() : num_completions_(0), awaited_num_completions_(0) {}
 
   virtual void OnCompleted(ResolveRequest* resolve) OVERRIDE {
     ++num_completions_;
-    MessageLoop::current()->Quit();
+    if (num_completions_ == awaited_num_completions_)
+      MessageLoop::current()->Quit();
   }
 
   unsigned num_completions() const { return num_completions_; }
 
+  void WaitForCompletions(unsigned completions) {
+    ASSERT_LT(num_completions_, completions);
+    awaited_num_completions_ = completions;
+    MessageLoop::current()->Run();
+    EXPECT_EQ(completions, num_completions_);
+  }
+
  private:
   unsigned num_completions_;
+  unsigned awaited_num_completions_;
 };
 
 TEST_F(HostResolverImplTest, CanceledRequestsReleaseJobSlots) {
@@ -918,8 +964,7 @@ TEST_F(HostResolverImplTest, CanceledRequestsReleaseJobSlots) {
 
   resolver_proc->SignalAll();
 
-  while (delegate.num_completions() < 2)
-    MessageLoop::current()->Run();
+  delegate.WaitForCompletions(2);
 
   EXPECT_EQ(0u, host_resolver->num_running_jobs_for_tests());
 }
@@ -1594,9 +1639,12 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_IPv4) {
   //    x = length of hostname
   //    y = ASCII value of hostname[0]
   //    z = value of address family
-  EXPECT_EQ("192.2.104.1", NetAddressToString(addrlist[0].head()));
-  EXPECT_EQ("192.2.104.1", NetAddressToString(addrlist[1].head()));
-  EXPECT_EQ("192.2.104.2", NetAddressToString(addrlist[2].head()));
+  EXPECT_EQ("192.2.104.1:80", FirstAddressToString(addrlist[0]));
+  EXPECT_EQ("192.2.104.1:80", FirstAddressToString(addrlist[1]));
+  EXPECT_EQ("192.2.104.2:80", FirstAddressToString(addrlist[2]));
+  EXPECT_EQ(1u, NumberOfAddresses(addrlist[0]));
+  EXPECT_EQ(1u, NumberOfAddresses(addrlist[1]));
+  EXPECT_EQ(1u, NumberOfAddresses(addrlist[2]));
 }
 
 // This is the exact same test as SetDefaultAddressFamily_IPv4, except the order
@@ -1661,14 +1709,16 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_IPv6) {
   //    x = length of hostname
   //    y = ASCII value of hostname[0]
   //    z = value of address family
-  EXPECT_EQ("192.2.104.2", NetAddressToString(addrlist[0].head()));
-  EXPECT_EQ("192.2.104.2", NetAddressToString(addrlist[1].head()));
-  EXPECT_EQ("192.2.104.1", NetAddressToString(addrlist[2].head()));
+  EXPECT_EQ("192.2.104.2:80", FirstAddressToString(addrlist[0]));
+  EXPECT_EQ("192.2.104.2:80", FirstAddressToString(addrlist[1]));
+  EXPECT_EQ("192.2.104.1:80", FirstAddressToString(addrlist[2]));
+  EXPECT_EQ(1u, NumberOfAddresses(addrlist[0]));
+  EXPECT_EQ(1u, NumberOfAddresses(addrlist[1]));
+  EXPECT_EQ(1u, NumberOfAddresses(addrlist[2]));
 }
 
 TEST_F(HostResolverImplTest, DisallowNonCachedResponses) {
   AddressList addrlist;
-  const int kPortnum = 80;
 
   scoped_refptr<RuleBasedHostResolverProc> resolver_proc(
       new RuleBasedHostResolverProc(NULL));
@@ -1678,7 +1728,7 @@ TEST_F(HostResolverImplTest, DisallowNonCachedResponses) {
       CreateHostResolverImpl(resolver_proc));
 
   // First hit will miss the cache.
-  HostResolver::RequestInfo info(HostPortPair("just.testing", kPortnum));
+  HostResolver::RequestInfo info(HostPortPair("just.testing", 80));
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   int err = host_resolver->ResolveFromCache(info, &addrlist, log.bound());
   EXPECT_EQ(ERR_DNS_CACHE_MISS, err);
@@ -1695,14 +1745,8 @@ TEST_F(HostResolverImplTest, DisallowNonCachedResponses) {
   err = host_resolver->ResolveFromCache(info, &addrlist, log.bound());
   EXPECT_EQ(OK, err);
 
-  const struct addrinfo* ainfo = addrlist.head();
-  EXPECT_EQ(static_cast<addrinfo*>(NULL), ainfo->ai_next);
-  EXPECT_EQ(sizeof(struct sockaddr_in), static_cast<size_t>(ainfo->ai_addrlen));
-
-  const struct sockaddr* sa = ainfo->ai_addr;
-  const struct sockaddr_in* sa_in = reinterpret_cast<const sockaddr_in*>(sa);
-  EXPECT_TRUE(htons(kPortnum) == sa_in->sin_port);
-  EXPECT_TRUE(htonl(0xc0a8012a) == sa_in->sin_addr.s_addr);
+  EXPECT_EQ("192.168.1.42:80", FirstAddressToString(addrlist));
+  EXPECT_EQ(1u, NumberOfAddresses(addrlist));
 }
 
 // Test the retry attempts simulating host resolver proc that takes too long.
@@ -1750,6 +1794,127 @@ TEST_F(HostResolverImplTest, MultipleAttempts) {
   EXPECT_EQ(resolver_proc->resolved_attempt_number(), kAttemptNumberToResolve);
 }
 
+DnsConfig CreateValidDnsConfig() {
+  IPAddressNumber dns_ip;
+  bool rv = ParseIPLiteralToNumber("192.168.1.0", &dns_ip);
+  EXPECT_TRUE(rv);
+
+  DnsConfig config;
+  config.nameservers.push_back(IPEndPoint(dns_ip,
+                                          dns_protocol::kDefaultPort));
+  EXPECT_TRUE(config.IsValid());
+  return config;
+}
+
+// TODO(szym): Test AbortAllInProgressJobs due to DnsConfig change.
+
 // TODO(cbentzel): Test a mix of requests with different HostResolverFlags.
+
+// Test successful and fallback resolutions in HostResolverImpl::DnsTask.
+TEST_F(HostResolverImplTest, DnsTask) {
+  scoped_refptr<RuleBasedHostResolverProc> resolver_proc(
+      new RuleBasedHostResolverProc(NULL));
+  scoped_ptr<HostResolverImpl> host_resolver(CreateHostResolverImpl(
+      resolver_proc));
+
+  resolver_proc->AddRule("er_succeed", "192.168.1.101");
+  resolver_proc->AddRule("nx_succeed", "192.168.1.102");
+  resolver_proc->AddSimulatedFailure("ok_fail");
+  resolver_proc->AddSimulatedFailure("er_fail");
+  resolver_proc->AddSimulatedFailure("nx_fail");
+
+  CountingDelegate delegate;
+
+  // Initially there is no config, so client should not be invoked.
+  ResolveRequest req1(host_resolver.get(), "ok_fail", 80, &delegate);
+
+  delegate.WaitForCompletions(1);
+  EXPECT_EQ(ERR_NAME_NOT_RESOLVED, req1.result());
+
+  host_resolver->set_dns_client_for_tests(
+      CreateMockDnsClient(CreateValidDnsConfig()));
+
+  ResolveRequest req2(host_resolver.get(), "ok_fail", 80, &delegate);
+  ResolveRequest req3(host_resolver.get(), "er_fail", 80, &delegate);
+  ResolveRequest req4(host_resolver.get(), "nx_fail", 80, &delegate);
+  ResolveRequest req5(host_resolver.get(), "er_succeed", 80, &delegate);
+  ResolveRequest req6(host_resolver.get(), "nx_succeed", 80, &delegate);
+
+  delegate.WaitForCompletions(6);
+  EXPECT_EQ(OK, req2.result());
+  // Resolved by MockDnsClient.
+  EXPECT_EQ("127.0.0.1:80", FirstAddressToString(req2.addrlist()));
+  EXPECT_EQ(ERR_NAME_NOT_RESOLVED, req3.result());
+  EXPECT_EQ(ERR_NAME_NOT_RESOLVED, req4.result());
+  EXPECT_EQ(OK, req5.result());
+  EXPECT_EQ("192.168.1.101:80", FirstAddressToString(req5.addrlist()));
+  EXPECT_EQ(OK, req6.result());
+  EXPECT_EQ("192.168.1.102:80", FirstAddressToString(req6.addrlist()));
+}
+
+TEST_F(HostResolverImplTest, ServeFromHosts) {
+  scoped_refptr<RuleBasedHostResolverProc> resolver_proc(
+      new RuleBasedHostResolverProc(NULL));
+  MockDnsConfigService* config_service = new MockDnsConfigService();
+  scoped_ptr<HostResolverImpl> host_resolver(
+      CreateHostResolverImplWithDnsConfig(
+          resolver_proc,
+          scoped_ptr<DnsConfigService>(config_service)));
+
+  resolver_proc->AddSimulatedFailure("*");
+
+  DnsConfig config = CreateValidDnsConfig();
+  host_resolver->set_dns_client_for_tests(CreateMockDnsClient(config));
+
+  CountingDelegate delegate;
+
+  ResolveRequest req1(host_resolver.get(), "er_ipv4", 80, &delegate);
+  delegate.WaitForCompletions(1);
+  EXPECT_EQ(ERR_NAME_NOT_RESOLVED, req1.result());
+
+  IPAddressNumber local_ipv4, local_ipv6;
+  ASSERT_TRUE(ParseIPLiteralToNumber("127.0.0.1", &local_ipv4));
+  ASSERT_TRUE(ParseIPLiteralToNumber("::1", &local_ipv6));
+
+  DnsHosts hosts;
+  hosts[DnsHostsKey("er_ipv4", ADDRESS_FAMILY_IPV4)] = local_ipv4;
+  hosts[DnsHostsKey("er_ipv6", ADDRESS_FAMILY_IPV6)] = local_ipv6;
+  hosts[DnsHostsKey("er_both", ADDRESS_FAMILY_IPV4)] = local_ipv4;
+  hosts[DnsHostsKey("er_both", ADDRESS_FAMILY_IPV6)] = local_ipv6;
+
+  config_service->ChangeConfig(config);
+  config_service->ChangeHosts(hosts);
+
+  ResolveRequest req2(host_resolver.get(), "er_ipv4", 80);
+  EXPECT_EQ(OK, req2.result());
+  EXPECT_EQ("127.0.0.1:80", FirstAddressToString(req2.addrlist()));
+
+  ResolveRequest req3(host_resolver.get(), "er_ipv6", 80);
+  EXPECT_EQ(OK, req3.result());
+  EXPECT_EQ("[::1]:80", FirstAddressToString(req3.addrlist()));
+
+  ResolveRequest req4(host_resolver.get(), "er_both", 80);
+  EXPECT_EQ(OK, req4.result());
+  // Either result is satisfactory. http://crbug.com/117850
+  const addrinfo* addr = req4.addrlist().head();
+  if (addr->ai_addrlen == sizeof(struct sockaddr_in))
+    EXPECT_EQ("127.0.0.1", NetAddressToString(addr));
+  else
+    EXPECT_EQ("::1", NetAddressToString(addr));
+
+  // Requests with specified AddressFamily.
+  HostResolver::RequestInfo info(HostPortPair("er_both", 80));
+  info.set_address_family(ADDRESS_FAMILY_IPV4);
+  ResolveRequest req5(host_resolver.get(), info);
+  EXPECT_EQ(OK, req5.result());
+  EXPECT_EQ("127.0.0.1:80", FirstAddressToString(req5.addrlist()));
+  EXPECT_EQ(1u, NumberOfAddresses(req5.addrlist()));
+
+  info.set_address_family(ADDRESS_FAMILY_IPV6);
+  ResolveRequest req6(host_resolver.get(), info);
+  EXPECT_EQ(OK, req6.result());
+  EXPECT_EQ("[::1]:80", FirstAddressToString(req6.addrlist()));
+  EXPECT_EQ(1u, NumberOfAddresses(req6.addrlist()));
+}
 
 }  // namespace net
