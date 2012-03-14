@@ -686,6 +686,12 @@ int HttpCache::Transaction::DoGetBackendComplete(int result) {
     }
   }
 
+  // Use PUT and DELETE only to invalidate existing stored entries.
+  if ((request_->method == "PUT" || request_->method == "DELETE") &&
+      mode_ != READ_WRITE && mode_ != WRITE) {
+    mode_ = NONE;
+  }
+
   // If must use cache, then we must fail.  This can happen for back/forward
   // navigations to a page generated via a form post.
   if (!(mode_ & READ) && effective_load_flags_ & LOAD_ONLY_FROM_CACHE)
@@ -778,6 +784,15 @@ int HttpCache::Transaction::DoSuccessfulSendRequest() {
     return OK;
   }
 
+  if (mode_ == WRITE &&
+      (request_->method == "PUT" || request_->method == "DELETE")) {
+    if (new_response->headers->response_code() == 200) {
+      int ret = cache_->DoomEntry(cache_key_, NULL);
+      DCHECK_EQ(OK, ret);
+    }
+    mode_ = NONE;
+  }
+
   // Are we expecting a response to a conditional query?
   if (mode_ == READ_WRITE || mode_ == UPDATE) {
     if (new_response->headers->response_code() == 304 || handling_206_) {
@@ -847,6 +862,13 @@ int HttpCache::Transaction::DoOpenEntryComplete(int result) {
 
   if (result == ERR_CACHE_RACE) {
     next_state_ = STATE_INIT_ENTRY;
+    return OK;
+  }
+
+  if (request_->method == "PUT" || request_->method == "DELETE") {
+    DCHECK(mode_ == READ_WRITE || mode_ == WRITE);
+    mode_ = NONE;
+    next_state_ = STATE_SEND_REQUEST;
     return OK;
   }
 
@@ -1475,7 +1497,7 @@ void HttpCache::Transaction::SetRequest(const BoundNetLog& net_log,
 
   if (range_found && !(effective_load_flags_ & LOAD_DISABLE_CACHE)) {
     partial_.reset(new PartialData);
-    if (partial_->Init(request_->extra_headers)) {
+    if (request_->method == "GET" && partial_->Init(request_->extra_headers)) {
       // We will be modifying the actual range requested to the server, so
       // let's remove the header here.
       custom_request_.reset(new HttpRequestInfo(*request_));
@@ -1510,6 +1532,12 @@ bool HttpCache::Transaction::ShouldPassThrough() {
 
   if (request_->method == "POST" &&
       request_->upload_data && request_->upload_data->identifier())
+    return false;
+
+  if (request_->method == "PUT" && request_->upload_data)
+    return false;
+
+  if (request_->method == "DELETE")
     return false;
 
   // TODO(darin): add support for caching HEAD responses
@@ -1711,6 +1739,9 @@ bool HttpCache::Transaction::RequiresValidation() {
 bool HttpCache::Transaction::ConditionalizeRequest() {
   DCHECK(response_.headers);
 
+  if (request_->method == "PUT" || request_->method == "DELETE")
+    return false;
+
   // This only makes sense for cached 200 or 206 responses.
   if (response_.headers->response_code() != 200 &&
       response_.headers->response_code() != 206)
@@ -1799,7 +1830,7 @@ bool HttpCache::Transaction::ValidatePartialResponse() {
   bool partial_response = (response_code == 206);
   handling_206_ = false;
 
-  if (!entry_)
+  if (!entry_ || request_->method != "GET")
     return true;
 
   if (invalid_range_) {
