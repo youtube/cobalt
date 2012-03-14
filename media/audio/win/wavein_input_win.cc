@@ -222,7 +222,7 @@ bool PCMWaveInAudioInputStream::GetDeviceId(UINT* device_index) {
 
   // Get list of all available and active devices.
   AudioDeviceNames device_names;
-  if (!GetInputDeviceNamesWinXP(&device_names))
+  if (!media::GetInputDeviceNamesWinXP(&device_names))
     return false;
 
   if (device_names.empty())

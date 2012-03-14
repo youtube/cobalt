@@ -59,6 +59,15 @@ class MEDIA_EXPORT AudioManagerWin : public AudioManagerBase {
     enumeration_type_ = type;
   }
 
+  // Returns a PCMWaveInAudioInputStream instance or NULL on failure.
+  // This method converts MMDevice-style device ID to WaveIn-style device ID if
+  // necessary.
+  // (Please see device_enumeration_win.h for more info about the two kinds of
+  // device IDs.)
+  AudioInputStream* CreatePCMWaveInAudioInputStream(
+      const AudioParameters& params,
+      const std::string& device_id);
+
   DISALLOW_COPY_AND_ASSIGN(AudioManagerWin);
 };
 
