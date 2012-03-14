@@ -396,6 +396,10 @@ class SpdySessionPoolPeer {
     pool_->AddAlias(address, pair);
   }
 
+  void RemoveAliases(const HostPortProxyPair& pair) {
+    pool_->RemoveAliases(pair);
+  }
+
   void RemoveSpdySession(const scoped_refptr<SpdySession>& session) {
     pool_->Remove(session);
   }
