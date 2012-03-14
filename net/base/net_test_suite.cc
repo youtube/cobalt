@@ -39,7 +39,7 @@ void NetTestSuite::Initialize() {
 
 void NetTestSuite::Shutdown() {
 #if defined(USE_NSS)
-  net::ShutdownOCSP();
+  net::ShutdownNSSHttpIO();
 #endif
 
   // We want to destroy this here before the TestSuite continues to tear down
