@@ -132,10 +132,10 @@ class NET_EXPORT HostResolver {
                       RequestHandle* out_req,
                       const BoundNetLog& net_log) = 0;
 
-  // Resolves the given hostname (or IP address literal) out of cache or HOSTS
-  // file (if enabled) only. This is guaranteed to complete synchronously.
-  // This acts like |Resolve()| if the hostname is IP literal, or cached value
-  // or HOSTS entry exists. Otherwise, ERR_DNS_CACHE_MISS is returned.
+  // Resolves the given hostname (or IP address literal) out of cache
+  // only.  This is guaranteed to complete synchronously.  This acts like
+  // |Resolve()| if the hostname is IP literal or cached value exists.
+  // Otherwise, ERR_DNS_CACHE_MISS is returned.
   virtual int ResolveFromCache(const RequestInfo& info,
                                AddressList* addresses,
                                const BoundNetLog& net_log) = 0;

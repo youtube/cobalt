@@ -7,8 +7,6 @@
 #pragma once
 
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
-#include "net/dns/dns_config_service.h"
 #include "net/dns/dns_protocol.h"
 
 namespace net {
@@ -157,25 +155,6 @@ static const char* const kT3IpAddresses[] = {
 };
 static const char kT3CanonName[] = "www.l.google.com";
 static const int kT3TTL = 0x00000015;
-
-class DnsClient;
-// Creates mock DnsClient for testing HostResolverImpl.
-scoped_ptr<DnsClient> CreateMockDnsClient(const DnsConfig& config);
-
-class MockDnsConfigService : public DnsConfigService {
- public:
-  virtual ~MockDnsConfigService() {}
-
-  // Expose the protected methods for tests.
-  void ChangeConfig(const DnsConfig& config) {
-    DnsConfigService::OnConfigRead(config);
-  }
-
-  void ChangeHosts(const DnsHosts& hosts) {
-    DnsConfigService::OnHostsRead(hosts);
-  }
-};
-
 
 }  // namespace net
 
