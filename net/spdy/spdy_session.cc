@@ -589,6 +589,10 @@ bool SpdySession::NeedsCredentials(const HostPortPair& origin) const {
   return !credential_state_.HasCredential(origin);
 }
 
+void SpdySession::AddPooledAlias(const HostPortProxyPair& alias) {
+  pooled_aliases_.insert(alias);
+}
+
 int SpdySession::WriteSynStream(
     spdy::SpdyStreamId stream_id,
     RequestPriority priority,
