@@ -72,7 +72,8 @@ class SequencedWorkerPool::Inner {
   // Take a raw pointer to |worker| to avoid cycles (since we're owned
   // by it).
   Inner(SequencedWorkerPool* worker_pool, size_t max_threads,
-        const std::string& thread_name_prefix);
+        const std::string& thread_name_prefix,
+        TestingObserver* observer);
 
   ~Inner();
 
@@ -93,13 +94,11 @@ class SequencedWorkerPool::Inner {
 
   void FlushForTesting();
 
-  void TriggerSpuriousWorkSignalForTesting();
+  void SignalHasWorkForTesting();
 
   int GetWorkSignalCountForTesting() const;
 
   void Shutdown();
-
-  void SetTestingObserver(TestingObserver* observer);
 
   // Runs the worker loop on the background thread.
   void ThreadLoop(Worker* this_worker);
@@ -173,9 +172,6 @@ class SequencedWorkerPool::Inner {
   // tasks are posted or shutdown starts.
   ConditionVariable has_work_cv_;
 
-  // Number of times |has_work_| has been signalled.  Used for testing.
-  int has_work_signal_count_;
-
   // Condition variable that is waited on by non-worker threads (in
   // FlushForTesting()) until IsIdle() goes to true.
   ConditionVariable is_idle_cv_;
@@ -228,7 +224,7 @@ class SequencedWorkerPool::Inner {
   // allowed, though we may still be running existing tasks.
   bool shutdown_called_;
 
-  TestingObserver* testing_observer_;
+  TestingObserver* const testing_observer_;
 
   DISALLOW_COPY_AND_ASSIGN(Inner);
 };
@@ -264,12 +260,12 @@ void SequencedWorkerPool::Worker::Run() {
 SequencedWorkerPool::Inner::Inner(
     SequencedWorkerPool* worker_pool,
     size_t max_threads,
-    const std::string& thread_name_prefix)
+    const std::string& thread_name_prefix,
+    TestingObserver* observer)
     : worker_pool_(worker_pool),
       last_sequence_number_(0),
       lock_(),
       has_work_cv_(&lock_),
-      has_work_signal_count_(0),
       is_idle_cv_(&lock_),
       can_shutdown_cv_(&lock_),
       max_threads_(max_threads),
@@ -280,7 +276,7 @@ SequencedWorkerPool::Inner::Inner(
       pending_task_count_(0),
       blocking_shutdown_pending_task_count_(0),
       shutdown_called_(false),
-      testing_observer_(NULL)  {}
+      testing_observer_(observer) {}
 
 SequencedWorkerPool::Inner::~Inner() {
   // You must call Shutdown() before destroying the pool.
@@ -360,13 +356,8 @@ void SequencedWorkerPool::Inner::FlushForTesting() {
     is_idle_cv_.Wait();
 }
 
-void SequencedWorkerPool::Inner::TriggerSpuriousWorkSignalForTesting() {
+void SequencedWorkerPool::Inner::SignalHasWorkForTesting() {
   SignalHasWork();
-}
-
-int SequencedWorkerPool::Inner::GetWorkSignalCountForTesting() const {
-  AutoLock lock(lock_);
-  return has_work_signal_count_;
 }
 
 void SequencedWorkerPool::Inner::Shutdown() {
@@ -383,7 +374,7 @@ void SequencedWorkerPool::Inner::Shutdown() {
 
     // Tickle the threads. This will wake up a waiting one so it will know that
     // it can exit, which in turn will wake up any other waiting ones.
-    has_work_cv_.Signal();
+    SignalHasWork();
 
     // There are no pending or running tasks blocking shutdown, we're done.
     if (CanShutdown())
@@ -405,12 +396,6 @@ void SequencedWorkerPool::Inner::Shutdown() {
   }
   UMA_HISTOGRAM_TIMES("SequencedWorkerPool.ShutdownDelayTime",
                       TimeTicks::Now() - shutdown_wait_begin);
-}
-
-void SequencedWorkerPool::Inner::SetTestingObserver(
-    TestingObserver* observer) {
-  AutoLock lock(lock_);
-  testing_observer_ = observer;
 }
 
 void SequencedWorkerPool::Inner::ThreadLoop(Worker* this_worker) {
@@ -435,7 +420,7 @@ void SequencedWorkerPool::Inner::ThreadLoop(Worker* this_worker) {
           // worker thread. (Technically not required, since we
           // already get a signal for each new task, but it doesn't
           // hurt.)
-          has_work_cv_.Signal();
+          SignalHasWork();
           delete_these_outside_lock.clear();
 
           // Complete thread creation outside the lock if necessary.
@@ -469,7 +454,7 @@ void SequencedWorkerPool::Inner::ThreadLoop(Worker* this_worker) {
 
   // We noticed we should exit. Wake up the next worker so it knows it should
   // exit as well (because the Shutdown() code only signals once).
-  has_work_cv_.Signal();
+  SignalHasWork();
 
   // Possibly unblock shutdown.
   can_shutdown_cv_.Signal();
@@ -686,9 +671,8 @@ void SequencedWorkerPool::Inner::FinishStartingAdditionalThread(
 
 void SequencedWorkerPool::Inner::SignalHasWork() {
   has_work_cv_.Signal();
-  {
-    AutoLock lock(lock_);
-    ++has_work_signal_count_;
+  if (testing_observer_) {
+    testing_observer_->OnHasWork();
   }
 }
 
@@ -707,7 +691,17 @@ SequencedWorkerPool::SequencedWorkerPool(
     const std::string& thread_name_prefix)
     : constructor_message_loop_(MessageLoopProxy::current()),
       inner_(new Inner(ALLOW_THIS_IN_INITIALIZER_LIST(this),
-                       max_threads, thread_name_prefix)) {
+                       max_threads, thread_name_prefix, NULL)) {
+  DCHECK(constructor_message_loop_.get());
+}
+
+SequencedWorkerPool::SequencedWorkerPool(
+    size_t max_threads,
+    const std::string& thread_name_prefix,
+    TestingObserver* observer)
+    : constructor_message_loop_(MessageLoopProxy::current()),
+      inner_(new Inner(ALLOW_THIS_IN_INITIALIZER_LIST(this),
+                       max_threads, thread_name_prefix, observer)) {
   DCHECK(constructor_message_loop_.get());
 }
 
@@ -799,21 +793,13 @@ void SequencedWorkerPool::FlushForTesting() {
   inner_->FlushForTesting();
 }
 
-void SequencedWorkerPool::TriggerSpuriousWorkSignalForTesting() {
-  inner_->TriggerSpuriousWorkSignalForTesting();
-}
-
-int SequencedWorkerPool::GetWorkSignalCountForTesting() const {
-  return inner_->GetWorkSignalCountForTesting();
+void SequencedWorkerPool::SignalHasWorkForTesting() {
+  inner_->SignalHasWorkForTesting();
 }
 
 void SequencedWorkerPool::Shutdown() {
   DCHECK(constructor_message_loop_->BelongsToCurrentThread());
   inner_->Shutdown();
-}
-
-void SequencedWorkerPool::SetTestingObserver(TestingObserver* observer) {
-  inner_->SetTestingObserver(observer);
 }
 
 }  // namespace base

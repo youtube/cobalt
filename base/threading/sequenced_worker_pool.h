@@ -122,6 +122,7 @@ class BASE_EXPORT SequencedWorkerPool : public TaskRunner {
   class TestingObserver {
    public:
     virtual ~TestingObserver() {}
+    virtual void OnHasWork() = 0;
     virtual void WillWaitForShutdown() = 0;
     virtual void OnDestruct() = 0;
   };
@@ -130,6 +131,12 @@ class BASE_EXPORT SequencedWorkerPool : public TaskRunner {
   // and a prefix for the thread name to ad in debugging.
   SequencedWorkerPool(size_t max_threads,
                       const std::string& thread_name_prefix);
+
+  // Like above, but with |observer| for testing.  Does not take
+  // ownership of |observer|.
+  SequencedWorkerPool(size_t max_threads,
+                      const std::string& thread_name_prefix,
+                      TestingObserver* observer);
 
   // Returns a unique token that can be used to sequence tasks posted to
   // PostSequencedWorkerTask(). Valid tokens are alwys nonzero.
@@ -219,10 +226,7 @@ class BASE_EXPORT SequencedWorkerPool : public TaskRunner {
   void FlushForTesting();
 
   // Spuriously signal that there is work to be done.
-  void TriggerSpuriousWorkSignalForTesting();
-
-  // Get the number of times the work signal has been triggered.
-  int GetWorkSignalCountForTesting() const;
+  void SignalHasWorkForTesting();
 
   // Implements the worker pool shutdown. This should be called during app
   // shutdown, and will discard/join with appropriate tasks before returning.
@@ -230,10 +234,6 @@ class BASE_EXPORT SequencedWorkerPool : public TaskRunner {
   //
   // Must be called from the same thread this object was constructed on.
   void Shutdown();
-
-  // Called by tests to set the testing observer. This is NULL by default
-  // and ownership of the pointer is kept with the caller.
-  void SetTestingObserver(TestingObserver* observer);
 
  protected:
   virtual ~SequencedWorkerPool();
