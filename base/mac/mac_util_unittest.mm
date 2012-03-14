@@ -164,7 +164,6 @@ TEST_F(MacUtilTest, IsOSEllipsis) {
       EXPECT_FALSE(IsOSMountainLionOrLater());
       EXPECT_FALSE(
           IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement());
-      EXPECT_FALSE(IsOSLaterThanLion());
     } else if (minor == 6) {
       EXPECT_FALSE(IsOSLeopard());
       EXPECT_FALSE(IsOSLeopardOrEarlier());
@@ -178,7 +177,6 @@ TEST_F(MacUtilTest, IsOSEllipsis) {
       EXPECT_FALSE(IsOSMountainLionOrLater());
       EXPECT_FALSE(
           IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement());
-      EXPECT_FALSE(IsOSLaterThanLion());
     } else if (minor == 7) {
       EXPECT_FALSE(IsOSLeopard());
       EXPECT_FALSE(IsOSLeopardOrEarlier());
@@ -205,7 +203,6 @@ TEST_F(MacUtilTest, IsOSEllipsis) {
       EXPECT_TRUE(IsOSMountainLionOrLater());
       EXPECT_FALSE(
           IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement());
-      EXPECT_TRUE(IsOSLaterThanLion());
     } else {
       // Not five, six, seven, or eight. Ah, ah, ah.
       EXPECT_TRUE(false);
