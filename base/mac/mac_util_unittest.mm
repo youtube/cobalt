@@ -158,7 +158,12 @@ TEST_F(MacUtilTest, IsOSEllipsis) {
       EXPECT_TRUE(IsOSSnowLeopardOrEarlier());
       EXPECT_FALSE(IsOSSnowLeopardOrLater());
       EXPECT_FALSE(IsOSLion());
+      EXPECT_TRUE(IsOSLionOrEarlier());
       EXPECT_FALSE(IsOSLionOrLater());
+      EXPECT_FALSE(IsOSMountainLion());
+      EXPECT_FALSE(IsOSMountainLionOrLater());
+      EXPECT_FALSE(
+          IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement());
       EXPECT_FALSE(IsOSLaterThanLion());
     } else if (minor == 6) {
       EXPECT_FALSE(IsOSLeopard());
@@ -167,7 +172,12 @@ TEST_F(MacUtilTest, IsOSEllipsis) {
       EXPECT_TRUE(IsOSSnowLeopardOrEarlier());
       EXPECT_TRUE(IsOSSnowLeopardOrLater());
       EXPECT_FALSE(IsOSLion());
+      EXPECT_TRUE(IsOSLionOrEarlier());
       EXPECT_FALSE(IsOSLionOrLater());
+      EXPECT_FALSE(IsOSMountainLion());
+      EXPECT_FALSE(IsOSMountainLionOrLater());
+      EXPECT_FALSE(
+          IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement());
       EXPECT_FALSE(IsOSLaterThanLion());
     } else if (minor == 7) {
       EXPECT_FALSE(IsOSLeopard());
@@ -176,10 +186,28 @@ TEST_F(MacUtilTest, IsOSEllipsis) {
       EXPECT_FALSE(IsOSSnowLeopardOrEarlier());
       EXPECT_TRUE(IsOSSnowLeopardOrLater());
       EXPECT_TRUE(IsOSLion());
+      EXPECT_TRUE(IsOSLionOrEarlier());
       EXPECT_TRUE(IsOSLionOrLater());
-      EXPECT_FALSE(IsOSLaterThanLion());
+      EXPECT_FALSE(IsOSMountainLion());
+      EXPECT_FALSE(IsOSMountainLionOrLater());
+      EXPECT_FALSE(
+          IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement());
+    } else if (minor == 8) {
+      EXPECT_FALSE(IsOSLeopard());
+      EXPECT_FALSE(IsOSLeopardOrEarlier());
+      EXPECT_FALSE(IsOSSnowLeopard());
+      EXPECT_FALSE(IsOSSnowLeopardOrEarlier());
+      EXPECT_TRUE(IsOSSnowLeopardOrLater());
+      EXPECT_FALSE(IsOSLion());
+      EXPECT_FALSE(IsOSLionOrEarlier());
+      EXPECT_TRUE(IsOSLionOrLater());
+      EXPECT_TRUE(IsOSMountainLion());
+      EXPECT_TRUE(IsOSMountainLionOrLater());
+      EXPECT_FALSE(
+          IsOSDangerouslyLaterThanMountainLionForUseByCFAllocatorReplacement());
+      EXPECT_TRUE(IsOSLaterThanLion());
     } else {
-      // Not five, six, or seven. Ah, ah, ah.
+      // Not five, six, seven, or eight. Ah, ah, ah.
       EXPECT_TRUE(false);
     }
   } else {
