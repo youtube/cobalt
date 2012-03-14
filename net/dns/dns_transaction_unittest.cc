@@ -202,7 +202,7 @@ class DnsTransactionTest : public testing::Test {
     config_.nameservers.clear();
     IPAddressNumber dns_ip;
     {
-      bool rv = ParseIPLiteralToNumber("192.168.1.0", &dns_ip);
+      bool rv = ParseIPLiteralToNumber("192.128.1.0", &dns_ip);
       EXPECT_TRUE(rv);
     }
     for (unsigned i = 0; i < num_servers; ++i) {
