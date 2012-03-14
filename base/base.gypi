@@ -664,6 +664,7 @@
           'dependencies': [
             'symbolize',
             '../third_party/ashmem/ashmem.gyp:ashmem',
+            'android/java/java.gyp:base_java',
             'base_jni_headers',
           ],
           'include_dirs': [
