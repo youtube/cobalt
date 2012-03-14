@@ -59,11 +59,6 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
   void IncreaseActiveInputStreamCount();
   void DecreaseActiveInputStreamCount();
 
-  // Shuts down the audio thread and releases all the audio output dispatchers
-  // on the audio thread.  All AudioOutputProxy instances should be freed before
-  // Shutdown is called.
-  void Shutdown();
-
   // Creates the output stream for the |AUDIO_PCM_LINEAR| format. The legacy
   // name is also from |AUDIO_PCM_LINEAR|.
   virtual AudioOutputStream* MakeLinearOutputStream(
@@ -89,6 +84,12 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
                    AudioParameters::Compare>
       AudioOutputDispatchersMap;
 
+  // Shuts down the audio thread and releases all the audio output dispatchers
+  // on the audio thread.  All audio streams should be freed before
+  // Shutdown is called.
+  // This must be called in the destructor of the AudioManager<Platform>.
+  void Shutdown();
+
   void ShutdownOnAudioThread();
 
   void SetMaxOutputStreamsAllowed(int max) { max_num_output_streams_ = max; }
@@ -111,8 +112,14 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
   // SetMaxOutputStreamsAllowed().
   int max_num_output_streams_;
 
+  // Max number of open input streams.
+  int max_num_input_streams_;
+
   // Number of currently open output streams.
   int num_output_streams_;
+
+  // Number of currently open input streams.
+  int num_input_streams_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioManagerBase);
 };

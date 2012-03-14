@@ -16,7 +16,11 @@ static const int kStreamCloseDelaySeconds = 5;
 
 // Default maximum number of output streams that can be open simultaneously
 // for all platforms.
-static const int kDefaultMaxOutputStreams = 15;
+static const int kDefaultMaxOutputStreams = 16;
+
+// Default maximum number of input streams that can be open simultaneously
+// for all platforms.
+static const int kDefaultMaxInputStreams = 16;
 
 static const int kMaxInputChannels = 2;
 
@@ -26,13 +30,22 @@ const char AudioManagerBase::kDefaultDeviceId[] = "default";
 AudioManagerBase::AudioManagerBase()
     : num_active_input_streams_(0),
       max_num_output_streams_(kDefaultMaxOutputStreams),
-      num_output_streams_(0) {
+      max_num_input_streams_(kDefaultMaxInputStreams),
+      num_output_streams_(0),
+      num_input_streams_(0) {
 }
 
 AudioManagerBase::~AudioManagerBase() {
-  Shutdown();
+  // The platform specific AudioManager implementation must have already
+  // stopped the audio thread. Otherwise, we may destroy audio streams before
+  // stopping the thread, resulting an unexpected behavior.
+  // This way we make sure activities of the audio streams are all stopped
+  // before we destroy them.
+  CHECK(!audio_thread_.get());
   // All the output streams should have been deleted.
   DCHECK_EQ(0, num_output_streams_);
+  // All the input streams should have been deleted.
+  DCHECK_EQ(0, num_input_streams_);
 }
 
 void AudioManagerBase::Init() {
@@ -63,21 +76,24 @@ AudioOutputStream* AudioManagerBase::MakeAudioOutputStream(
   // importantly it prevents instability on certain systems.
   // See bug: http://crbug.com/30242.
   if (num_output_streams_ >= max_num_output_streams_) {
-    DLOG(ERROR) << "Number of opened audio streams " << num_output_streams_
-                << " exceed the max allowed number " << max_num_output_streams_;
+    DLOG(ERROR) << "Number of opened output audio streams "
+                << num_output_streams_
+                << " exceed the max allowed number "
+                << max_num_output_streams_;
     return NULL;
   }
 
   AudioOutputStream* stream = NULL;
   if (params.format == AudioParameters::AUDIO_MOCK) {
-    stream = FakeAudioOutputStream::MakeFakeStream(params);
+    stream = FakeAudioOutputStream::MakeFakeStream(this, params);
   } else if (params.format == AudioParameters::AUDIO_PCM_LINEAR) {
-    num_output_streams_++;
     stream = MakeLinearOutputStream(params);
   } else if (params.format == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
-    num_output_streams_++;
     stream = MakeLowLatencyOutputStream(params);
   }
+
+  if (stream)
+    ++num_output_streams_;
 
   return stream;
 }
@@ -90,14 +106,24 @@ AudioInputStream* AudioManagerBase::MakeAudioInputStream(
     return NULL;
   }
 
+  if (num_input_streams_ >= max_num_input_streams_) {
+    DLOG(ERROR) << "Number of opened input audio streams "
+                << num_input_streams_
+                << " exceed the max allowed number " << max_num_input_streams_;
+    return NULL;
+  }
+
   AudioInputStream* stream = NULL;
   if (params.format == AudioParameters::AUDIO_MOCK) {
-    stream = FakeAudioInputStream::MakeFakeStream(params);
+    stream = FakeAudioInputStream::MakeFakeStream(this, params);
   } else if (params.format == AudioParameters::AUDIO_PCM_LINEAR) {
     stream = MakeLinearInputStream(params, device_id);
   } else if (params.format == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
     stream = MakeLowLatencyInputStream(params, device_id);
   }
+
+  if (stream)
+    ++num_input_streams_;
 
   return stream;
 }
@@ -137,6 +163,7 @@ void AudioManagerBase::ReleaseOutputStream(AudioOutputStream* stream) {
 void AudioManagerBase::ReleaseInputStream(AudioInputStream* stream) {
   DCHECK(stream);
   // TODO(xians) : Have a clearer destruction path for the AudioInputStream.
+  num_input_streams_--;
   delete stream;
 }
 

@@ -108,6 +108,7 @@ AudioManagerWin::AudioManagerWin() {
 }
 
 AudioManagerWin::~AudioManagerWin() {
+  Shutdown();
 }
 
 bool AudioManagerWin::HasAudioOutputDevices() {
