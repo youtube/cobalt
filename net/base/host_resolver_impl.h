@@ -23,10 +23,11 @@
 #include "net/base/net_log.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/prioritized_dispatcher.h"
-#include "net/dns/dns_client.h"
 #include "net/dns/dns_config_service.h"
 
 namespace net {
+
+class DnsTransactionFactory;
 
 // For each hostname that is requested, HostResolver creates a
 // HostResolverImpl::Job. When this job gets dispatched it creates a ProcTask
@@ -153,8 +154,6 @@ class NET_EXPORT HostResolverImpl
   }
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(HostResolverImplTest, DnsTask);
-  FRIEND_TEST_ALL_PREFIXES(HostResolverImplTest, ServeFromHosts);
   class Job;
   class ProcTask;
   class IPv6ProbeJob;
@@ -164,14 +163,10 @@ class NET_EXPORT HostResolverImpl
   typedef std::map<Key, Job*> JobMap;
   typedef std::vector<Request*> RequestsList;
 
-  void set_dns_client_for_tests(scoped_ptr<DnsClient> client) {
-    dns_client_ = client.Pass();
-  }
-
   // Helper used by |Resolve()| and |ResolveFromCache()|.  Performs IP
-  // literal, cache and HOSTS lookup (if enabled), returns OK if successful,
+  // literal and cache lookup, returns OK if successful,
   // ERR_NAME_NOT_RESOLVED if either hostname is invalid or IP literal is
-  // incompatible, ERR_DNS_CACHE_MISS if entry was not found in cache and HOSTS.
+  // incompatible, ERR_DNS_CACHE_MISS if entry was not found in cache.
   int ResolveHelper(const Key& key,
                     const RequestInfo& info,
                     AddressList* addresses,
@@ -189,13 +184,8 @@ class NET_EXPORT HostResolverImpl
   // if it is a positive entry.
   bool ServeFromCache(const Key& key,
                       const RequestInfo& info,
+                      const BoundNetLog& request_net_log,
                       int* net_error,
-                      AddressList* addresses);
-
-  // If |key| is not found in the HOSTS file or no HOSTS file known, returns
-  // false, otherwise returns true and fills |addresses|.
-  bool ServeFromHosts(const Key& key,
-                      const RequestInfo& info,
                       AddressList* addresses);
 
   // Notifies IPv6ProbeJob not to call back, and discard reference to the job.
@@ -222,9 +212,6 @@ class NET_EXPORT HostResolverImpl
   // Might start new jobs.
   void AbortAllInProgressJobs();
 
-  // Attempts to serve each Job in |jobs_| from the HOSTS file.
-  void TryServingAllJobsFromHosts();
-
   // NetworkChangeNotifier::IPAddressObserver:
   virtual void OnIPAddressChanged() OVERRIDE;
 
@@ -233,9 +220,6 @@ class NET_EXPORT HostResolverImpl
 
   // DnsConfigService::Observer:
   virtual void OnConfigChanged(const DnsConfig& dns_config) OVERRIDE;
-
-  // True if have fully configured DNS client.
-  bool HaveDnsConfig() const;
 
   // Cache of host resolution results.
   scoped_ptr<HostCache> cache_;
@@ -252,10 +236,11 @@ class NET_EXPORT HostResolverImpl
   // Parameters for ProcTask.
   ProcTaskParams proc_params_;
 
+  scoped_ptr<DnsTransactionFactory> dns_transaction_factory_;
+
   // Address family to use when the request doesn't specify one.
   AddressFamily default_address_family_;
 
-  scoped_ptr<DnsClient> dns_client_;
   scoped_ptr<DnsConfigService> dns_config_service_;
 
   // Indicate if probing is done after each network change event to set address
