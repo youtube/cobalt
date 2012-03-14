@@ -62,6 +62,9 @@ EVENT_TYPE(HOST_RESOLVER_IMPL_REQUEST)
 // This event is logged when a request is handled by a cache entry.
 EVENT_TYPE(HOST_RESOLVER_IMPL_CACHE_HIT)
 
+// This event is logged when a request is handled by a HOSTS entry.
+EVENT_TYPE(HOST_RESOLVER_IMPL_HOSTS_HIT)
+
 // This event is created when a new HostResolverImpl::Job is about to be created
 // for a request.
 EVENT_TYPE(HOST_RESOLVER_IMPL_CREATE_JOB)
