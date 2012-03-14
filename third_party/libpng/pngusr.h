@@ -48,7 +48,9 @@
 #define PNG_NO_READ_PACKSWAP
 #undef PNG_NO_READ_FILLER
 #define PNG_NO_READ_SWAP
+#if !defined(__LB_PS3__)
 #define PNG_NO_READ_SWAP_ALPHA
+#endif
 #define PNG_NO_READ_INVERT_ALPHA
 #define PNG_NO_READ_STRIP_ALPHA
 #define PNG_NO_READ_RGB_TO_GRAY
