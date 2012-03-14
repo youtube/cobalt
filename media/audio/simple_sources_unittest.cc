@@ -78,12 +78,11 @@ TEST(SimpleSources, SineWaveAudio16MonoTest) {
 
   oas->Start(&source);
   oas->Stop();
-  oas->Close();
 
-  ASSERT_TRUE(FakeAudioOutputStream::GetLastFakeStream());
+  ASSERT_TRUE(FakeAudioOutputStream::GetCurrentFakeStream());
   const int16* last_buffer =
       reinterpret_cast<int16*>(
-          FakeAudioOutputStream::GetLastFakeStream()->buffer());
+          FakeAudioOutputStream::GetCurrentFakeStream()->buffer());
   ASSERT_TRUE(NULL != last_buffer);
 
   uint32 half_period = AudioParameters::kTelephoneSampleRate / (freq * 2);
@@ -98,4 +97,5 @@ TEST(SimpleSources, SineWaveAudio16MonoTest) {
   EXPECT_EQ(-5126, last_buffer[half_period + 1]);
   EXPECT_TRUE(last_buffer[half_period + 1] > last_buffer[half_period + 2]);
   EXPECT_TRUE(last_buffer[half_period + 2] > last_buffer[half_period + 3]);
+  oas->Close();
 }

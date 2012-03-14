@@ -46,15 +46,7 @@ AudioManagerOpenBSD::AudioManagerOpenBSD() {
 }
 
 AudioManagerOpenBSD::~AudioManagerOpenBSD() {
-  // Make sure we stop the thread first. If we allow the default destructor to
-  // destroy the members, we may destroy audio streams before stopping the
-  // thread, resulting an unexpected behavior.
-  // This way we make sure activities of the audio streams are all stopped
-  // before we destroy them.
-  audio_thread_.Stop();
-
-  // Free output dispatchers, closing all remaining open streams.
-  output_dispatchers_.clear();
+  Shutdown();
 }
 
 void AudioManagerOpenBSD::Init() {

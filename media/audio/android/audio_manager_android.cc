@@ -21,7 +21,7 @@ AudioManagerAndroid::AudioManagerAndroid() {
 }
 
 AudioManagerAndroid::~AudioManagerAndroid() {
-  audio_thread_->Stop();
+  Shutdown();
 }
 
 bool AudioManagerAndroid::HasAudioOutputDevices() {
@@ -55,11 +55,11 @@ AudioOutputStream* AudioManagerAndroid::MakeLowLatencyOutputStream(
 AudioInputStream* AudioManagerAndroid::MakeLinearInputStream(
     const AudioParameters& params, const std::string& device_id) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format);
-  return FakeAudioInputStream::MakeFakeStream(params);
+  return FakeAudioInputStream::MakeFakeStream(this, params);
 }
 
 AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
     const AudioParameters& params, const std::string& device_id) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format);
-  return FakeAudioInputStream::MakeFakeStream(params);
+  return FakeAudioInputStream::MakeFakeStream(this, params);
 }

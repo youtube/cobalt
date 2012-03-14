@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -15,10 +15,14 @@
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
+class AudioManagerBase;
+
 class MEDIA_EXPORT FakeAudioOutputStream : public AudioOutputStream {
  public:
-  static AudioOutputStream* MakeFakeStream(const AudioParameters& params);
-  static FakeAudioOutputStream* GetLastFakeStream();
+  static AudioOutputStream* MakeFakeStream(AudioManagerBase* manager,
+                                           const AudioParameters& params);
+
+  static FakeAudioOutputStream* GetCurrentFakeStream();
 
   virtual bool Open() OVERRIDE;
   virtual void Start(AudioSourceCallback* callback) OVERRIDE;
@@ -31,13 +35,14 @@ class MEDIA_EXPORT FakeAudioOutputStream : public AudioOutputStream {
   double volume() { return volume_; }
 
  private:
-  explicit FakeAudioOutputStream(const AudioParameters& params);
+  explicit FakeAudioOutputStream(AudioManagerBase* manager,
+                                 const AudioParameters& params);
+
   virtual ~FakeAudioOutputStream();
 
-  static void DestroyLastFakeStream(void* param);
-  static bool has_created_fake_stream_;
-  static FakeAudioOutputStream* last_fake_stream_;
+  static FakeAudioOutputStream* current_fake_stream_;
 
+  AudioManagerBase* audio_manager_;
   double volume_;
   AudioSourceCallback* callback_;
   scoped_array<uint8> buffer_;
