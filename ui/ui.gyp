@@ -360,8 +360,10 @@
         'gfx/skia_util.h',
         'gfx/skia_utils_gtk.cc',
         'gfx/skia_utils_gtk.h',
-        'gfx/transform.h',
         'gfx/transform.cc',
+        'gfx/transform.h',
+        'gfx/transform_util.cc',
+        'gfx/transform_util.h',
       ],
       'conditions': [
         # TODO(asvitkine): Switch all platforms to use_canvas_skia_skia.cc.
