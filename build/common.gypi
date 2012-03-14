@@ -17,9 +17,6 @@
     # we need to have 'chromeos' already set).
     'variables': {
       'variables': {
-        'includes': [
-          'use_skia_on_mac.gypi',
-        ],
         'variables': {
           # Whether we're building a ChromeOS build.
           'chromeos%': 0,
@@ -44,10 +41,6 @@
 
           # Disable viewport meta tag by default.
           'enable_viewport%': 0,
-
-          # Default setting for use_skia on mac platform.
-          # This is typically overridden in use_skia_on_mac.gypi.
-          'use_skia_on_mac%': 0,
         },
         # Copy conditionally-set variables out one scope.
         'chromeos%': '<(chromeos)',
@@ -57,7 +50,6 @@
         'use_openssl%': '<(use_openssl)',
         'use_virtual_keyboard%': '<(use_virtual_keyboard)',
         'enable_viewport%': '<(enable_viewport)',
-        'use_skia_on_mac%': '<(use_skia_on_mac)',
 
         # Compute the architecture that we're building on.
         'conditions': [
@@ -109,7 +101,6 @@
       'use_openssl%': '<(use_openssl)',
       'use_virtual_keyboard%': '<(use_virtual_keyboard)',
       'enable_viewport%': '<(enable_viewport)',
-      'use_skia_on_mac%': '<(use_skia_on_mac)',
 
       # We used to provide a variable for changing how libraries were built.
       # This variable remains until we can clean up all the users.
@@ -303,7 +294,7 @@
         # the 'conditions' clause.  Initial attempts resulted in chromium and
         # webkit disagreeing on its setting.
         ['OS=="mac"', {
-          'use_skia%': '<(use_skia_on_mac)',
+          'use_skia%': 1,
           # Mac uses clang by default, so turn on the plugin as well.
           'clang_use_chrome_plugins%': 1,
         }, {
@@ -463,7 +454,6 @@
     'chromeos_gtk%': '<(chromeos_gtk)',
     'use_virtual_keyboard%': '<(use_virtual_keyboard)',
     'enable_viewport%': '<(enable_viewport)',
-    'use_skia_on_mac%': '<(use_skia_on_mac)',
     'use_xi2_mt%':'<(use_xi2_mt)',
     'file_manager_extension%': '<(file_manager_extension)',
     'webui_task_manager%': '<(webui_task_manager)',
