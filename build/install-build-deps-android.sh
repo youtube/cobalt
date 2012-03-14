@@ -8,11 +8,9 @@
 # requires sudo privileges.
 # See http://code.google.com/p/chromium/wiki/AndroidBuildInstructions
 
-DOWNLOAD_URL="http://ftp.us.debian.org/debian/pool/non-free/s/sun-java6"
-
-BIN_FILE_NAME="sun-java6-bin_6.26-0squeeze1_amd64.deb"
-JRE_FILE_NAME="sun-java6-jre_6.26-0squeeze1_all.deb"
-JDK_FILE_NAME="sun-java6-jdk_6.26-0squeeze1_amd64.deb"
+# This script installs the sun-java6 packages (bin, jre and jdk). Sun requires
+# a license agreement, so upon installation it will prompt the user. To get
+# past the curses-based dialog press TAB <ret> TAB <ret> to agree.
 
 if ! uname -m | egrep -q "i686|x86_64"; then
   echo "Only x86 architectures are currently supported" >&2
@@ -25,9 +23,7 @@ if [ "x$(id -u)" != x0 ]; then
   echo
 fi
 
-sudo apt-get update
-
-# The temporary directory used to store the downloaded file.
+# The temporary directory used to store output of update-java-alternatives
 TEMPDIR=$(mktemp -d)
 cleanup() {
   local status=${?}
@@ -37,39 +33,44 @@ cleanup() {
 }
 trap cleanup EXIT
 
-##########################################################
-# Download (i.e. wget) and install debian package.
-# The current directory is changed in this function.
-# Arguments:
-#   file_name
-# Returns:
-#   None
-##########################################################
-install_deb_pkg() {
-  local file_name="${1}"
-  local download_url="${DOWNLOAD_URL}/${file_name}"
+sudo apt-get update
 
-  cd "${TEMPDIR}"
-  wget "${download_url}"
+# Fix deps
+sudo apt-get -f install
 
-  echo "Install ${file_name}"
-  sudo dpkg -i "${file_name}"
-}
+# Install python-pexpect
+sudo apt-get install python-pexpect
 
-
-# Install ant
-sudo apt-get install python-pexpect ant
-
-# Install sun-java6-bin
-install_deb_pkg "${BIN_FILE_NAME}"
-
-# Install sun-java6-jre
-install_deb_pkg "${JRE_FILE_NAME}"
-
-# Install sun-java6-jdk
-install_deb_pkg "${JDK_FILE_NAME}"
+# Install sun-java6 stuff
+sudo apt-get install sun-java6-bin sun-java6-jre sun-java6-jdk
 
 # Switch version of Java to java-6-sun
-sudo update-java-alternatives -s java-6-sun
+# Sun's java is missing certain Java plugins (e.g. for firefox, mozilla).  These
+# are not required to build, and thus are treated only as warnings. Any errors
+# in updating java alternatives which are not '*-javaplugin.so' will cause
+# errors and stop the script from completing successfully.
+if ! sudo update-java-alternatives -s java-6-sun \
+          >& "${TEMPDIR}"/update-java-alternatives.out
+then
+  # Check that there are the expected javaplugin.so errors for the update
+  if grep 'javaplugin.so' "${TEMPDIR}"/update-java-alternatives.out >& /dev/null
+  then
+    # Print as warnings all the javaplugin.so errors
+    echo 'WARNING: java-6-sun has no alternatives for the following plugins:'
+    grep 'javaplugin.so' "${TEMPDIR}"/update-java-alternatives.out
+  fi
+  # Check if there are any errors that are not javaplugin.so
+  if grep -v 'javaplugin.so' "${TEMPDIR}"/update-java-alternatives.out \
+         >& /dev/null
+  then
+    # If there are non-javaplugin.so errors, treat as errors and exit
+    echo 'ERRORS: Failed to update alternatives for java-6-sun:'
+    grep -v 'javaplugin.so' "${TEMPDIR}"/update-java-alternatives.out
+    exit 1
+  fi
+fi
+
+# Install ant
+sudo apt-get install ant
 
 echo "install-build-deps-android.sh complete."
