@@ -47,6 +47,9 @@ class PCMWaveInAudioInputStream : public AudioInputStream {
     kStateClosed      // Device has been released.
   };
 
+  // Allow unit tests to query the device ID.
+  friend class AudioInputDeviceTest;
+
   // Windows calls us back with the recorded audio data here. See msdn
   // documentation for 'waveInProc' for details about the parameters.
   static void CALLBACK WaveCallback(HWAVEIN hwi, UINT msg, DWORD_PTR instance,

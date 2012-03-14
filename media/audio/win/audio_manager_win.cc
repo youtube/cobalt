@@ -218,10 +218,10 @@ void AudioManagerWin::GetAudioInputDeviceNames(
   // Enumerate all active audio-endpoint capture devices.
   if (enumeration_type() == kWaveEnumeration) {
     // Utilize the Wave API for Windows XP.
-    GetInputDeviceNamesWinXP(device_names);
+    media::GetInputDeviceNamesWinXP(device_names);
   } else {
     // Utilize the MMDevice API (part of Core Audio) for Vista and higher.
-    GetInputDeviceNamesWin(device_names);
+    media::GetInputDeviceNamesWin(device_names);
   }
 
   // Always add default device parameters as first element.
@@ -275,8 +275,7 @@ AudioOutputStream* AudioManagerWin::MakeLowLatencyOutputStream(
 AudioInputStream* AudioManagerWin::MakeLinearInputStream(
     const AudioParameters& params, const std::string& device_id) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format);
-  return new PCMWaveInAudioInputStream(this, params, kNumInputBuffers,
-                                       AudioManagerBase::kDefaultDeviceId);
+  return CreatePCMWaveInAudioInputStream(params, device_id);
 }
 
 // Factory for the implementations of AudioInputStream for
@@ -288,13 +287,30 @@ AudioInputStream* AudioManagerWin::MakeLowLatencyInputStream(
   if (!media::IsWASAPISupported()) {
     // Fall back to Windows Wave implementation on Windows XP or lower.
     DVLOG(1) << "Using WaveIn since WASAPI requires at least Vista.";
-    stream = new PCMWaveInAudioInputStream(this, params, kNumInputBuffers,
-                                           device_id);
+    stream = CreatePCMWaveInAudioInputStream(params, device_id);
   } else {
     stream = new WASAPIAudioInputStream(this, params, device_id);
   }
 
   return stream;
+}
+
+AudioInputStream* AudioManagerWin::CreatePCMWaveInAudioInputStream(
+    const AudioParameters& params,
+    const std::string& device_id) {
+  std::string xp_device_id = device_id;
+  if (device_id != AudioManagerBase::kDefaultDeviceId &&
+      enumeration_type_ == kMMDeviceEnumeration) {
+    xp_device_id = media::ConvertToWinXPDeviceId(device_id);
+    if (xp_device_id.empty()) {
+      DLOG(ERROR) << "Cannot find a waveIn device which matches the device ID "
+                  << device_id;
+      return NULL;
+    }
+  }
+
+  return new PCMWaveInAudioInputStream(this, params, kNumInputBuffers,
+                                       xp_device_id);
 }
 
 /// static

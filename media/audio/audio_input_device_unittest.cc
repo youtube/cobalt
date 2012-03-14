@@ -7,10 +7,12 @@
 #include "base/win/scoped_com_initializer.h"
 #include "media/audio/audio_manager.h"
 #include "media/audio/audio_manager_base.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
 #if defined(OS_WIN)
 #include "media/audio/win/audio_manager_win.h"
+#include "media/audio/win/wavein_input_win.h"
 #endif
-#include "testing/gtest/include/gtest/gtest.h"
 
 using base::win::ScopedCOMInitializer;
 using media::AudioDeviceNames;
@@ -40,6 +42,19 @@ class AudioInputDeviceTest
   void SetWaveEnumeration() {
     AudioManagerWin* amw = static_cast<AudioManagerWin*>(audio_manager_.get());
     amw->SetEnumerationType(AudioManagerWin::kWaveEnumeration);
+  }
+
+  std::string GetDeviceIdFromPCMWaveInAudioInputStream(
+      const std::string& device_id) {
+    AudioManagerWin* amw = static_cast<AudioManagerWin*>(audio_manager_.get());
+    AudioParameters parameters(
+        AudioParameters::AUDIO_PCM_LINEAR, CHANNEL_LAYOUT_STEREO,
+        AudioParameters::kAudioCDSampleRate, 16,
+        1024);
+    scoped_ptr<PCMWaveInAudioInputStream> stream(
+        static_cast<PCMWaveInAudioInputStream*>(
+            amw->CreatePCMWaveInAudioInputStream(parameters, device_id)));
+    return stream.get() ? stream->device_id_ : std::string();
   }
 #endif
 
@@ -112,6 +127,47 @@ TEST_F(AudioInputDeviceTest, EnumerateDevicesWinWave) {
   SetWaveEnumeration();
   audio_manager_->GetAudioInputDeviceNames(&device_names);
   CheckDeviceNames(device_names);
+}
+
+TEST_F(AudioInputDeviceTest, WinXPDeviceIdUnchanged) {
+  AudioDeviceNames xp_device_names;
+  SetWaveEnumeration();
+  audio_manager_->GetAudioInputDeviceNames(&xp_device_names);
+  CheckDeviceNames(xp_device_names);
+
+  // Device ID should remain unchanged, including the default device ID.
+  for (AudioDeviceNames::iterator i = xp_device_names.begin();
+       i != xp_device_names.end(); ++i) {
+    EXPECT_EQ(i->unique_id,
+              GetDeviceIdFromPCMWaveInAudioInputStream(i->unique_id));
+  }
+}
+
+TEST_F(AudioInputDeviceTest, ConvertToWinXPDeviceId) {
+  if (!SetMMDeviceEnumeration()) {
+    // Usage of MMDevice will fail on XP and lower.
+    LOG(WARNING) << "MM device enumeration is not supported.";
+    return;
+  }
+
+  AudioDeviceNames device_names;
+  audio_manager_->GetAudioInputDeviceNames(&device_names);
+  CheckDeviceNames(device_names);
+
+  for (AudioDeviceNames::iterator i = device_names.begin();
+       i != device_names.end(); ++i) {
+    std::string converted_id =
+        GetDeviceIdFromPCMWaveInAudioInputStream(i->unique_id);
+    if (i == device_names.begin()) {
+      // The first in the list is the default device ID, which should not be
+      // changed when passed to PCMWaveInAudioInputStream.
+      EXPECT_EQ(i->unique_id, converted_id);
+    } else {
+      // MMDevice-style device IDs should be converted to WaveIn-style device
+      // IDs.
+      EXPECT_NE(i->unique_id, converted_id);
+    }
+  }
 }
 
 #endif
