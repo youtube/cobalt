@@ -115,6 +115,29 @@
       ],
     },
     {
+      'target_name': 'base_jni_headers',
+      'type': 'none',
+      'actions': [
+        {
+          'action_name': 'generate_jni_headers',
+          'inputs': [
+            'android/jni_generator/jni_generator.py',
+            'android/java/org/chromium/base/PathUtils.java',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/base/jni/path_utils_jni.h',
+          ],
+          'action': [
+            'python',
+            'android/jni_generator/jni_generator.py',
+            '-o',
+            '<@(_inputs)',
+            '<@(_outputs)',
+          ],
+        }
+      ],
+    },
+    {
       'target_name': 'base_unittests',
       'type': 'executable',
       'sources': [
