@@ -221,6 +221,7 @@ AudioManagerMac::AudioManagerMac() {
 }
 
 AudioManagerMac::~AudioManagerMac() {
+  Shutdown();
 }
 
 bool AudioManagerMac::HasAudioOutputDevices() {
