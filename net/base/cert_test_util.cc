@@ -7,7 +7,9 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/path_service.h"
+#include "net/base/ev_root_ca_metadata.h"
 #include "net/base/x509_certificate.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
 
@@ -48,6 +50,18 @@ scoped_refptr<X509Certificate> ImportCertFromFile(
   if (certs_in_file.empty())
     return NULL;
   return certs_in_file[0];
+}
+
+ScopedTestEVPolicy::ScopedTestEVPolicy(EVRootCAMetadata* ev_root_ca_metadata,
+                                       const SHA1Fingerprint& fingerprint,
+                                       const char* policy)
+    : fingerprint_(fingerprint),
+      ev_root_ca_metadata_(ev_root_ca_metadata) {
+  EXPECT_TRUE(ev_root_ca_metadata->AddEVCA(fingerprint, policy));
+}
+
+ScopedTestEVPolicy::~ScopedTestEVPolicy() {
+  EXPECT_TRUE(ev_root_ca_metadata_->RemoveEVCA(fingerprint_));
 }
 
 }  // namespace net
