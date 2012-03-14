@@ -487,8 +487,6 @@
               ['include', '^worker_pool_linux\\.cc$'],
               # TODO(michaelbai): The below files are excluded because of the
               # missing JNI, add them back when JNI is ready.
-              ['exclude', '^android/path_utils\\.cc$'],
-              ['exclude', '^base_paths_android\\.cc$'],
               ['exclude', '^message_pump_android\\.cc$'],
             ],
           }],
@@ -666,6 +664,10 @@
           'dependencies': [
             'symbolize',
             '../third_party/ashmem/ashmem.gyp:ashmem',
+            'base_jni_headers',
+          ],
+          'include_dirs': [
+            '<(SHARED_INTERMEDIATE_DIR)/base',
           ],
           'link_settings': {
             'libraries': [
