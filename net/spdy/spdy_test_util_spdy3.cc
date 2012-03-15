@@ -373,15 +373,15 @@ spdy::SpdyFrame* ConstructSpdyGet(const char* const url,
   host.get()[str_host.size()] = '\0';
 
   const char* const headers[] = {
-    "method",
+    ":method",
     "GET",
-    "url",
+    ":path",
     req.get(),
-    "host",
+    ":host",
     host.get(),
-    "scheme",
+    ":scheme",
     scheme.get(),
-    "version",
+    ":version",
     "HTTP/1.1"
   };
   return ConstructSpdyPacket(
@@ -416,16 +416,16 @@ spdy::SpdyFrame* ConstructSpdyGet(const char* const extra_headers[],
                                   RequestPriority request_priority,
                                   bool direct) {
   const char* const kStandardGetHeaders[] = {
-    "method",
+    ":method",
     "GET",
-    "url",
-    (direct ? "/" : "http://www.google.com/"),
-    "host",
+    ":host",
     "www.google.com",
-    "scheme",
+    ":scheme",
     "http",
-    "version",
-    "HTTP/1.1"
+    ":version",
+    "HTTP/1.1",
+    ":path",
+    (direct ? "/" : "/")
   };
   return ConstructSpdyControlFrame(extra_headers,
                                    extra_header_count,
@@ -443,10 +443,10 @@ spdy::SpdyFrame* ConstructSpdyConnect(const char* const extra_headers[],
                                       int extra_header_count,
                                       int stream_id) {
   const char* const kConnectHeaders[] = {
-    "method", "CONNECT",
-    "url", "www.google.com:443",
-    "host", "www.google.com",
-    "version", "HTTP/1.1",
+    ":method", "CONNECT",
+    ":path", "www.google.com:443",
+    ":host", "www.google.com",
+    ":version", "HTTP/1.1",
   };
   return ConstructSpdyControlFrame(extra_headers,
                                    extra_header_count,
@@ -669,15 +669,15 @@ spdy::SpdyFrame* ConstructSpdyPost(int64 content_length,
                                    int extra_header_count) {
   std::string length_str = base::Int64ToString(content_length);
   const char* post_headers[] = {
-    "method",
+    ":method",
     "POST",
-    "url",
+    ":path",
     "/",
-    "host",
+    ":host",
     "www.google.com",
-    "scheme",
+    ":scheme",
     "http",
-    "version",
+    ":version",
     "HTTP/1.1",
     "content-length",
     length_str.c_str()
@@ -700,15 +700,15 @@ spdy::SpdyFrame* ConstructSpdyPost(int64 content_length,
 spdy::SpdyFrame* ConstructChunkedSpdyPost(const char* const extra_headers[],
                                           int extra_header_count) {
   const char* post_headers[] = {
-    "method",
+    ":method",
     "POST",
-    "url",
+    ":path",
     "/",
-    "host",
+    ":host",
     "www.google.com",
-    "scheme",
+    ":scheme",
     "http",
-    "version",
+    ":version",
     "HTTP/1.1"
   };
   return ConstructSpdyControlFrame(extra_headers,

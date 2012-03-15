@@ -143,15 +143,15 @@ TEST_F(SpdyStreamSpdy3Test, SendDataAfterOpen) {
     spdy::DATA_FLAG_NONE
   };
   static const char* const kGetHeaders[] = {
-    "method",
+    ":method",
     "GET",
-    "scheme",
+    ":scheme",
     "http",
-    "host",
+    ":host",
     "www.google.com",
-    "path",
+    ":path",
     "/",
-    "version",
+    ":version",
     "HTTP/1.1",
   };
   scoped_ptr<spdy::SpdyFrame> req(
@@ -218,11 +218,11 @@ TEST_F(SpdyStreamSpdy3Test, SendDataAfterOpen) {
   EXPECT_FALSE(stream->HasUrl());
 
   linked_ptr<spdy::SpdyHeaderBlock> headers(new spdy::SpdyHeaderBlock);
-  (*headers)["method"] = "GET";
-  (*headers)["scheme"] = url.scheme();
-  (*headers)["host"] = url.host();
-  (*headers)["path"] = url.path();
-  (*headers)["version"] = "HTTP/1.1";
+  (*headers)[":method"] = "GET";
+  (*headers)[":scheme"] = url.scheme();
+  (*headers)[":host"] = url.host();
+  (*headers)[":path"] = url.path();
+  (*headers)[":version"] = "HTTP/1.1";
   stream->set_spdy_headers(headers);
   EXPECT_TRUE(stream->HasUrl());
   EXPECT_EQ(kStreamUrl, stream->GetUrl().spec());
@@ -246,6 +246,28 @@ TEST_F(SpdyStreamSpdy3Test, PushedStream) {
   session_ = SpdySessionDependencies::SpdyCreateSession(&session_deps);
   SpdySessionPoolPeer pool_peer_(session_->spdy_session_pool());
   scoped_refptr<SpdySession> spdy_session(CreateSpdySession());
+
+  MockRead reads[] = {
+    MockRead(ASYNC, 0, 0), // EOF
+  };
+
+  scoped_ptr<OrderedSocketData> data(
+      new OrderedSocketData(reads, arraysize(reads), NULL, 0));
+  MockConnect connect_data(SYNCHRONOUS, OK);
+  data->set_connect_data(connect_data);
+
+  session_deps.socket_factory->AddSocketDataProvider(data.get());
+  SpdySession::SetSSLMode(false);
+
+  HostPortPair host_port_pair("www.google.com", 80);
+  scoped_refptr<TransportSocketParams> transport_params(
+      new TransportSocketParams(host_port_pair, LOWEST, false, false));
+  scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
+  EXPECT_EQ(OK, connection->Init(host_port_pair.ToString(), transport_params,
+                                 LOWEST, CompletionCallback(),
+                                 session_->GetTransportSocketPool(),
+                                 BoundNetLog()));
+  spdy_session->InitializeWithSocket(connection.release(), false, OK);
   BoundNetLog net_log;
 
   // Conjure up a stream.
@@ -258,7 +280,10 @@ TEST_F(SpdyStreamSpdy3Test, PushedStream) {
 
   // Set a couple of headers.
   spdy::SpdyHeaderBlock response;
-  response["url"] = kStreamUrl;
+  GURL url(kStreamUrl);
+  response[":host"] = url.host();
+  response[":scheme"] = url.scheme();
+  response[":path"] = url.path();
   stream->OnResponseReceived(response);
 
   // Send some basic headers.
@@ -292,15 +317,15 @@ TEST_F(SpdyStreamSpdy3Test, StreamError) {
     spdy::DATA_FLAG_NONE
   };
   static const char* const kGetHeaders[] = {
-    "method",
+    ":method",
     "GET",
-    "scheme",
+    ":scheme",
     "http",
-    "host",
+    ":host",
     "www.google.com",
-    "path",
+    ":path",
     "/",
-    "version",
+    ":version",
     "HTTP/1.1",
   };
   scoped_ptr<spdy::SpdyFrame> req(
@@ -369,11 +394,11 @@ TEST_F(SpdyStreamSpdy3Test, StreamError) {
   EXPECT_FALSE(stream->HasUrl());
 
   linked_ptr<spdy::SpdyHeaderBlock> headers(new spdy::SpdyHeaderBlock);
-  (*headers)["method"] = "GET";
-  (*headers)["scheme"] = url.scheme();
-  (*headers)["host"] = url.host();
-  (*headers)["path"] = url.path();
-  (*headers)["version"] = "HTTP/1.1";
+  (*headers)[":method"] = "GET";
+  (*headers)[":scheme"] = url.scheme();
+  (*headers)[":host"] = url.host();
+  (*headers)[":path"] = url.path();
+  (*headers)[":version"] = "HTTP/1.1";
   stream->set_spdy_headers(headers);
   EXPECT_TRUE(stream->HasUrl());
   EXPECT_EQ(kStreamUrl, stream->GetUrl().spec());
