@@ -23,7 +23,7 @@ class MEDIA_EXPORT AudioDecoder
   // callback upon completion.
   // statistics_cb is used to update global pipeline statistics.
   virtual void Initialize(const scoped_refptr<DemuxerStream>& stream,
-                          const PipelineStatusCB& callback,
+                          const PipelineStatusCB& status_cb,
                           const StatisticsCB& statistics_cb) = 0;
 
   // Request samples to be decoded and returned via the provided callback.

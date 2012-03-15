@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -52,7 +52,7 @@ class MEDIA_EXPORT Demuxer
 
   // Carry out any actions required to seek to the given time, executing the
   // callback upon completion.
-  virtual void Seek(base::TimeDelta time, const PipelineStatusCB& callback);
+  virtual void Seek(base::TimeDelta time, const PipelineStatusCB& status_cb);
 
   // The pipeline is being stopped either as a result of an error or because
   // the client called Stop().
