@@ -63,7 +63,7 @@ class VideoRendererBaseTest : public ::testing::Test {
         .Times(AnyNumber());
     EXPECT_CALL(*this, SetOpaqueCBWasCalled(_))
         .WillRepeatedly(::testing::Return());
-    EXPECT_CALL(*this, VideoTimeCBWasCalled(_))
+    EXPECT_CALL(*this, TimeCBWasCalled(_))
         .WillRepeatedly(::testing::Return());
   }
 
@@ -75,7 +75,7 @@ class VideoRendererBaseTest : public ::testing::Test {
     }
   }
 
-  MOCK_METHOD1(VideoTimeCBWasCalled, void(base::TimeDelta));
+  MOCK_METHOD1(TimeCBWasCalled, void(base::TimeDelta));
 
   MOCK_CONST_METHOD1(SetOpaqueCBWasCalled, void(bool));
 
@@ -106,7 +106,7 @@ class VideoRendererBaseTest : public ::testing::Test {
     renderer_->Initialize(decoder_,
                           NewExpectedStatusCB(PIPELINE_OK),
                           NewStatisticsCB(),
-                          NewVideoTimeCB());
+                          NewTimeCB());
 
     // Now seek to trigger prerolling.
     Seek(0);
@@ -269,8 +269,8 @@ class VideoRendererBaseTest : public ::testing::Test {
                       base::Unretained(&statistics_cb_object_));
   }
 
-  VideoRenderer::VideoTimeCB NewVideoTimeCB() {
-    return base::Bind(&VideoRendererBaseTest::VideoTimeCBWasCalled,
+  VideoRenderer::TimeCB NewTimeCB() {
+    return base::Bind(&VideoRendererBaseTest::TimeCBWasCalled,
                       base::Unretained(this));
   }
 

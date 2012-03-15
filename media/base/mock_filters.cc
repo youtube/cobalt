@@ -130,7 +130,7 @@ MockFilterCollection::~MockFilterCollection() {}
 
 scoped_ptr<FilterCollection> MockFilterCollection::filter_collection(
     bool include_demuxer,
-    bool run_build_callback,
+    bool run_build_cb,
     bool run_build,
     PipelineStatus build_status) const {
   scoped_ptr<FilterCollection> collection(new FilterCollection());
@@ -141,7 +141,7 @@ scoped_ptr<FilterCollection> MockFilterCollection::filter_collection(
   if (build_status != PIPELINE_OK)
     demuxer_factory->SetError(build_status);
 
-  if (run_build_callback) {
+  if (run_build_cb) {
     ON_CALL(*demuxer_factory, Build(_, _)).WillByDefault(Invoke(
         demuxer_factory.get(), &MockDemuxerFactory::RunBuildCallback));
   }  // else ignore Build calls.
@@ -170,14 +170,14 @@ void RunPipelineStatusCB(PipelineStatus status, const PipelineStatusCB& cb) {
   cb.Run(status);
 }
 
-void RunPipelineStatusCB3(::testing::Unused, const PipelineStatusCB& callback,
+void RunPipelineStatusCB3(::testing::Unused, const PipelineStatusCB& status_cb,
                           ::testing::Unused) {
-  callback.Run(PIPELINE_OK);
+  status_cb.Run(PIPELINE_OK);
 }
 
-void RunPipelineStatusCB4(::testing::Unused, const PipelineStatusCB& callback,
+void RunPipelineStatusCB4(::testing::Unused, const PipelineStatusCB& status_cb,
                           ::testing::Unused, ::testing::Unused) {
-  callback.Run(PIPELINE_OK);
+  status_cb.Run(PIPELINE_OK);
 }
 
 void RunStopFilterCallback(const base::Closure& callback) {

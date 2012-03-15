@@ -354,12 +354,11 @@ void FFmpegDemuxer::set_host(DemuxerHost* demuxer_host) {
 }
 
 void FFmpegDemuxer::Initialize(DataSource* data_source,
-                               const PipelineStatusCB& callback) {
+                               const PipelineStatusCB& status_cb) {
   message_loop_->PostTask(
       FROM_HERE,
       base::Bind(&FFmpegDemuxer::InitializeTask, this,
-                 make_scoped_refptr(data_source),
-                 callback));
+                 make_scoped_refptr(data_source), status_cb));
 }
 
 scoped_refptr<DemuxerStream> FFmpegDemuxer::GetStream(
@@ -452,7 +451,7 @@ MessageLoop* FFmpegDemuxer::message_loop() {
 }
 
 void FFmpegDemuxer::InitializeTask(DataSource* data_source,
-                                   const PipelineStatusCB& callback) {
+                                   const PipelineStatusCB& status_cb) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
   data_source_ = data_source;
@@ -471,7 +470,7 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   FFmpegGlue::GetInstance()->RemoveProtocol(this);
 
   if (result < 0) {
-    callback.Run(DEMUXER_ERROR_COULD_NOT_OPEN);
+    status_cb.Run(DEMUXER_ERROR_COULD_NOT_OPEN);
     return;
   }
 
@@ -481,7 +480,7 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   // Fully initialize AVFormatContext by parsing the stream a little.
   result = avformat_find_stream_info(format_context_, NULL);
   if (result < 0) {
-    callback.Run(DEMUXER_ERROR_COULD_NOT_PARSE);
+    status_cb.Run(DEMUXER_ERROR_COULD_NOT_PARSE);
     return;
   }
 
@@ -523,7 +522,7 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   }
 
   if (!found_audio_stream && !found_video_stream) {
-    callback.Run(DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
+    status_cb.Run(DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
     return;
   }
 
@@ -554,7 +553,7 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   if (bitrate > 0)
     data_source_->SetBitrate(bitrate);
 
-  callback.Run(PIPELINE_OK);
+  status_cb.Run(PIPELINE_OK);
 }
 
 int FFmpegDemuxer::GetBitrate() {

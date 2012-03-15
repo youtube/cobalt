@@ -187,7 +187,7 @@ class MockVideoDecoder : public VideoDecoder {
 
   // VideoDecoder implementation.
   MOCK_METHOD3(Initialize, void(DemuxerStream* stream,
-                                const PipelineStatusCB& callback,
+                                const PipelineStatusCB& status_cb,
                                 const StatisticsCB& statistics_cb));
   MOCK_METHOD1(Read, void(const ReadCB& read_cb));
   MOCK_METHOD0(natural_size, const gfx::Size&());
@@ -234,9 +234,9 @@ class MockVideoRenderer : public VideoRenderer {
 
   // VideoRenderer implementation.
   MOCK_METHOD4(Initialize, void(VideoDecoder* decoder,
-                                const PipelineStatusCB& callback,
+                                const PipelineStatusCB& status_cb,
                                 const StatisticsCB& statistics_cb,
-                                const VideoTimeCB& time_cb));
+                                const TimeCB& time_cb));
 
   MOCK_METHOD0(HasEnded, bool());
 
@@ -263,9 +263,9 @@ class MockAudioRenderer : public AudioRenderer {
 
   // AudioRenderer implementation.
   MOCK_METHOD4(Initialize, void(const scoped_refptr<AudioDecoder>& decoder,
-                                const PipelineStatusCB& init_callback,
-                                const base::Closure& underflow_callback,
-                                const AudioTimeCB& time_cb));
+                                const PipelineStatusCB& init_cb,
+                                const base::Closure& underflow_cb,
+                                const TimeCB& time_cb));
   MOCK_METHOD0(HasEnded, bool());
   MOCK_METHOD1(SetVolume, void(float volume));
 
@@ -297,7 +297,7 @@ class MockFilterCollection {
   }
 
   scoped_ptr<FilterCollection> filter_collection(
-      bool include_demuxer, bool run_build_callback, bool run_build,
+      bool include_demuxer, bool run_build_cb, bool run_build,
       PipelineStatus build_status) const;
 
  private:
@@ -316,9 +316,9 @@ class MockFilterCollection {
 void RunFilterCallback(::testing::Unused, const base::Closure& callback);
 void RunFilterStatusCB(::testing::Unused, const FilterStatusCB& cb);
 void RunPipelineStatusCB(PipelineStatus status, const PipelineStatusCB& cb);
-void RunPipelineStatusCB3(::testing::Unused, const PipelineStatusCB& callback,
+void RunPipelineStatusCB3(::testing::Unused, const PipelineStatusCB& status_cb,
                           ::testing::Unused);
-void RunPipelineStatusCB4(::testing::Unused, const PipelineStatusCB& callback,
+void RunPipelineStatusCB4(::testing::Unused, const PipelineStatusCB& status_cb,
                           ::testing::Unused, ::testing::Unused);
 // Helper gmock function that immediately executes the Closure on behalf of the
 // provided filter.  Can be used when mocking the Stop() method.
