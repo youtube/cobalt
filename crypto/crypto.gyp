@@ -262,6 +262,11 @@
             '../third_party/nss/nss.gyp:nss',
           ],
         }],
+        [ 'OS == "mac"', {
+          'dependencies': [
+            '../third_party/nss/nss.gyp:nspr',
+          ],
+        }],
         [ 'use_openssl==1', {
           'sources!': [
             'nss_util_unittest.cc',
