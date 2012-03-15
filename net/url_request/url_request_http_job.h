@@ -15,7 +15,7 @@
 #include "base/time.h"
 #include "net/base/auth.h"
 #include "net/base/completion_callback.h"
-#include "net/base/cookie_store.h"
+#include "net/cookies/cookie_store.h"
 #include "net/http/http_request_info.h"
 #include "net/url_request/url_request_job.h"
 #include "net/url_request/url_request_throttler_entry_interface.h"
