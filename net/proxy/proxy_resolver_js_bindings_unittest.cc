@@ -275,7 +275,7 @@ TEST(ProxyResolverJSBindingsTest, NetLog) {
 
   // Attach a capturing NetLog as the current request's log stream.
   CapturingNetLog log(CapturingNetLog::kUnbounded);
-  BoundNetLog bound_log(NetLog::Source(NetLog::SOURCE_NONE, 0), &log);
+  BoundNetLog bound_log(BoundNetLog::Make(&log, NetLog::SOURCE_NONE));
   ProxyResolverRequestContext context(&bound_log, NULL);
   bindings->set_current_request_context(&context);
 

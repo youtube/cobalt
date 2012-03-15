@@ -76,6 +76,14 @@ NetLog* NetLog::ThreadSafeObserver::net_log() const {
   return net_log_;
 }
 
+void NetLog::AddGlobalEntry(EventType type,
+                            const scoped_refptr<EventParameters>& params) {
+  AddEntry(type,
+           Source(net::NetLog::SOURCE_NONE, this->NextID()),
+           net::NetLog::PHASE_NONE,
+           params);
+}
+
 // static
 std::string NetLog::TickCountToString(const base::TimeTicks& time) {
   int64 delta_time = (time - base::TimeTicks()).InMilliseconds();
@@ -197,19 +205,8 @@ void BoundNetLog::AddEntry(
     NetLog::EventType type,
     NetLog::EventPhase phase,
     const scoped_refptr<NetLog::EventParameters>& params) const {
-  if (net_log_) {
-    net_log_->AddEntry(type, base::TimeTicks::Now(), source_, phase, params);
-  }
-}
-
-void BoundNetLog::AddEntryWithTime(
-    NetLog::EventType type,
-    const base::TimeTicks& time,
-    NetLog::EventPhase phase,
-    const scoped_refptr<NetLog::EventParameters>& params) const {
-  if (net_log_) {
-    net_log_->AddEntry(type, time, source_, phase, params);
-  }
+  if (net_log_)
+    net_log_->AddEntry(type, source_, phase, params);
 }
 
 void BoundNetLog::AddEvent(

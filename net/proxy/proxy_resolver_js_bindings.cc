@@ -299,14 +299,8 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
     LogEventToCurrentRequest(NetLog::PHASE_NONE, type, params);
 
     // Emit to the global NetLog event stream.
-    if (net_log_) {
-      net_log_->AddEntry(
-          type,
-          base::TimeTicks::Now(),
-          NetLog::Source(),
-          NetLog::PHASE_NONE,
-          params);
-    }
+    if (net_log_)
+      net_log_->AddGlobalEntry(type, params);
   }
 
   scoped_ptr<SyncHostResolver> host_resolver_;
