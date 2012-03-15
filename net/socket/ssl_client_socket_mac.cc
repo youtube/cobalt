@@ -778,8 +778,9 @@ void SSLClientSocketMac::GetSSLCertRequestInfo(
 }
 
 int SSLClientSocketMac::ExportKeyingMaterial(const base::StringPiece& label,
+                                             bool has_context,
                                              const base::StringPiece& context,
-                                             unsigned char *out,
+                                             unsigned char* out,
                                              unsigned int outlen) {
   return ERR_NOT_IMPLEMENTED;
 }

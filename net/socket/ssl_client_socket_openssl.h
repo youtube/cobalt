@@ -59,8 +59,9 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   virtual void GetSSLInfo(SSLInfo* ssl_info);
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
   virtual int ExportKeyingMaterial(const base::StringPiece& label,
+                                   bool has_context,
                                    const base::StringPiece& context,
-                                   unsigned char *out,
+                                   unsigned char* out,
                                    unsigned int outlen);
   virtual NextProtoStatus GetNextProto(std::string* proto,
                                        std::string* server_protos);

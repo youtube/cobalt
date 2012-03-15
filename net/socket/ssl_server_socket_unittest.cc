@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -455,19 +455,22 @@ TEST_F(SSLServerSocketTest, ExportKeyingMaterial) {
   const char* kKeyingLabel = "EXPERIMENTAL-server-socket-test";
   const char* kKeyingContext = "";
   unsigned char server_out[kKeyingMaterialSize];
-  int rv = server_socket_->ExportKeyingMaterial(kKeyingLabel, kKeyingContext,
+  int rv = server_socket_->ExportKeyingMaterial(kKeyingLabel,
+                                                false, kKeyingContext,
                                                 server_out, sizeof(server_out));
   ASSERT_EQ(rv, net::OK);
 
   unsigned char client_out[kKeyingMaterialSize];
-  rv = client_socket_->ExportKeyingMaterial(kKeyingLabel, kKeyingContext,
+  rv = client_socket_->ExportKeyingMaterial(kKeyingLabel,
+                                            false, kKeyingContext,
                                             client_out, sizeof(client_out));
   ASSERT_EQ(rv, net::OK);
   EXPECT_TRUE(memcmp(server_out, client_out, sizeof(server_out)) == 0);
 
   const char* kKeyingLabelBad = "EXPERIMENTAL-server-socket-test-bad";
   unsigned char client_bad[kKeyingMaterialSize];
-  rv = client_socket_->ExportKeyingMaterial(kKeyingLabelBad, kKeyingContext,
+  rv = client_socket_->ExportKeyingMaterial(kKeyingLabelBad,
+                                            false, kKeyingContext,
                                             client_bad, sizeof(client_bad));
   ASSERT_EQ(rv, net::OK);
   EXPECT_TRUE(memcmp(server_out, client_bad, sizeof(server_out)) != 0);
