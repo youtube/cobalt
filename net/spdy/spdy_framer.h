@@ -38,20 +38,13 @@ namespace spdy {
 
 class SpdyFramer;
 class SpdyFrameBuilder;
-class SpdyFramerSpdy2Test;
-class SpdyFramerSpdy3Test;
+class SpdyFramerTest;
 
-namespace test_spdy2 {
-
-class TestSpdyVisitor;
-
-}  // namespace test_spdy2
-
-namespace test_spdy3 {
+namespace test {
 
 class TestSpdyVisitor;
 
-}  // namespace test_spdy3
+}  // namespace test
 
 // A datastructure for holding a set of headers from either a
 // SYN_STREAM or SYN_REPLY frame.
@@ -426,33 +419,19 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   SpdyPriority GetHighestPriority() const { return 0; }
 
  protected:
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerSpdy2Test, BasicCompression);
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerSpdy2Test, ControlFrameSizesAreValidated);
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerSpdy2Test, HeaderCompression);
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerSpdy2Test, DecompressUncompressedFrame);
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerSpdy2Test, ExpandBuffer_HeapSmash);
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerSpdy2Test, HugeHeaderBlock);
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerSpdy2Test, UnclosedStreamDataCompressors);
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerSpdy2Test,
+  FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest, BasicCompression);
+  FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest, ControlFrameSizesAreValidated);
+  FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest, HeaderCompression);
+  FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest, DecompressUncompressedFrame);
+  FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest, ExpandBuffer_HeapSmash);
+  FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest, HugeHeaderBlock);
+  FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest, UnclosedStreamDataCompressors);
+  FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest,
                            UnclosedStreamDataCompressorsOneByteAtATime);
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerSpdy2Test,
+  FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest,
                            UncompressLargerThanFrameBufferInitialSize);
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerSpdy2Test, ReadLargeSettingsFrame);
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerSpdy2Test,
-                           ReadLargeSettingsFrameInSmallChunks);
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerSpdy3Test, BasicCompression);
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerSpdy3Test, ControlFrameSizesAreValidated);
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerSpdy3Test, HeaderCompression);
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerSpdy3Test, DecompressUncompressedFrame);
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerSpdy3Test, ExpandBuffer_HeapSmash);
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerSpdy3Test, HugeHeaderBlock);
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerSpdy3Test, UnclosedStreamDataCompressors);
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerSpdy3Test,
-                           UnclosedStreamDataCompressorsOneByteAtATime);
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerSpdy3Test,
-                           UncompressLargerThanFrameBufferInitialSize);
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerSpdy3Test, ReadLargeSettingsFrame);
-  FRIEND_TEST_ALL_PREFIXES(SpdyFramerSpdy3Test,
+  FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest, ReadLargeSettingsFrame);
+  FRIEND_TEST_ALL_PREFIXES(SpdyFramerTest,
                            ReadLargeSettingsFrameInSmallChunks);
   friend class net::HttpNetworkLayer;  // This is temporary for the server.
   friend class net::HttpNetworkTransactionTest;
@@ -464,8 +443,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   friend class net::SpdyStreamTest;
   friend class net::SpdyWebSocketStreamTest;
   friend class net::WebSocketJobTest;
-  friend class test_spdy2::TestSpdyVisitor;
-  friend class test_spdy3::TestSpdyVisitor;
+  friend class test::TestSpdyVisitor;
 
  private:
   typedef std::map<SpdyStreamId, z_stream*> CompressorMap;
