@@ -42,11 +42,15 @@ class LocalTestServer : public BaseTestServer {
   // Stop the server started by Start().
   bool Stop();
 
+  // Modify PYTHONPATH to contain libraries we need.
+  static bool SetPythonPath() WARN_UNUSED_RESULT;
+
+  // Returns true if successfully stored the FilePath for the directory of the
+  // testserver python script in |*directory|.
+  static bool GetTestServerDirectory(FilePath* directory) WARN_UNUSED_RESULT;
+
  private:
   bool Init(const FilePath& document_root);
-
-  // Modify PYTHONPATH to contain libraries we need.
-  bool SetPythonPath() const WARN_UNUSED_RESULT;
 
   // Launches the Python test server. Returns true on success.
   bool LaunchPython(const FilePath& testserver_path) WARN_UNUSED_RESULT;
@@ -84,4 +88,3 @@ class LocalTestServer : public BaseTestServer {
 }  // namespace net
 
 #endif  // NET_TEST_LOCAL_TEST_SERVER_H_
-
