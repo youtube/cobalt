@@ -688,8 +688,9 @@ void MockClientSocket::GetSSLCertRequestInfo(
 }
 
 int MockClientSocket::ExportKeyingMaterial(const base::StringPiece& label,
+                                           bool has_context,
                                            const base::StringPiece& context,
-                                           unsigned char *out,
+                                           unsigned char* out,
                                            unsigned int outlen) {
   memset(out, 'A', outlen);
   return OK;

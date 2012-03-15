@@ -38,3 +38,5 @@ patch -p6 < $patches_dir/restartclientauth.patch
 patch -p6 < $patches_dir/encryptedclientcerts.patch
 
 patch -p5 < $patches_dir/nextprotocleanup.patch
+
+patch -p4 < $patches_dir/secret_exporter2.patch
