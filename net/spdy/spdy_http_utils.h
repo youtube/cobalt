@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -29,6 +29,7 @@ bool SpdyHeadersToHttpResponse(const spdy::SpdyHeaderBlock& headers,
 void CreateSpdyHeadersFromHttpRequest(const HttpRequestInfo& info,
                                       const HttpRequestHeaders& request_headers,
                                       spdy::SpdyHeaderBlock* headers,
+                                      int protocol_version,
                                       bool direct);
 
 NET_EXPORT_PRIVATE int ConvertRequestPriorityToSpdyPriority(

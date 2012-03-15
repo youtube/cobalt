@@ -227,8 +227,8 @@ TEST_F(SpdyHttpStreamSpdy3Test, SpdyURLTest) {
   spdy::SpdyHeaderBlock* spdy_header =
     http_stream->stream()->spdy_headers().get();
   EXPECT_TRUE(spdy_header != NULL);
-  if (spdy_header->find("url") != spdy_header->end())
-    EXPECT_EQ("/foo?query=what", spdy_header->find("url")->second);
+  if (spdy_header->find(":path") != spdy_header->end())
+    EXPECT_EQ("/foo?query=what", spdy_header->find(":path")->second);
   else
     FAIL() << "No url is set in spdy_header!";
 

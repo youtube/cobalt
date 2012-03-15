@@ -246,6 +246,28 @@ TEST_F(SpdyStreamSpdy2Test, PushedStream) {
   session_ = SpdySessionDependencies::SpdyCreateSession(&session_deps);
   SpdySessionPoolPeer pool_peer_(session_->spdy_session_pool());
   scoped_refptr<SpdySession> spdy_session(CreateSpdySession());
+
+  MockRead reads[] = {
+    MockRead(ASYNC, 0, 0), // EOF
+  };
+
+  scoped_ptr<OrderedSocketData> data(
+      new OrderedSocketData(reads, arraysize(reads), NULL, 0));
+  MockConnect connect_data(SYNCHRONOUS, OK);
+  data->set_connect_data(connect_data);
+
+  session_deps.socket_factory->AddSocketDataProvider(data.get());
+  SpdySession::SetSSLMode(false);
+
+  HostPortPair host_port_pair("www.google.com", 80);
+  scoped_refptr<TransportSocketParams> transport_params(
+      new TransportSocketParams(host_port_pair, LOWEST, false, false));
+  scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
+  EXPECT_EQ(OK, connection->Init(host_port_pair.ToString(), transport_params,
+                                 LOWEST, CompletionCallback(),
+                                 session_->GetTransportSocketPool(),
+                                 BoundNetLog()));
+  spdy_session->InitializeWithSocket(connection.release(), false, OK);
   BoundNetLog net_log;
 
   // Conjure up a stream.

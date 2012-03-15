@@ -253,6 +253,8 @@ class NET_EXPORT_PRIVATE SpdyStream
   // ChunkCallback methods.
   virtual void OnChunkAvailable() OVERRIDE;
 
+  int GetProtocolVersion() const;
+
  private:
   enum State {
     STATE_NONE,
@@ -297,6 +299,10 @@ class NET_EXPORT_PRIVATE SpdyStream
   // When a server pushed stream is first created, this function is posted on
   // the MessageLoop to replay all the data that the server has already sent.
   void PushedStreamReplayData();
+
+  // Extracts the URL from the various fields in |headers|.
+  GURL GetUrlFromHeaderBlock(
+      const linked_ptr<spdy::SpdyHeaderBlock>& headers) const;
 
   // There is a small period of time between when a server pushed stream is
   // first created, and the pushed data is replayed. Any data received during
