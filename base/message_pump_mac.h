@@ -207,7 +207,7 @@ class MessagePumpCFRunLoop : public MessagePumpCFRunLoopBase {
 
 class MessagePumpNSRunLoop : public MessagePumpCFRunLoopBase {
  public:
-  MessagePumpNSRunLoop();
+  BASE_EXPORT MessagePumpNSRunLoop();
   virtual ~MessagePumpNSRunLoop();
 
   virtual void DoRun(Delegate* delegate) OVERRIDE;
