@@ -26,7 +26,8 @@ SSLConfig::SSLConfig()
       false_start_enabled(true),
       send_client_cert(false),
       verify_ev_cert(false),
-      ssl3_fallback(false) {
+      ssl3_fallback(false),
+      cert_io_enabled(true) {
 }
 
 SSLConfig::~SSLConfig() {

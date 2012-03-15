@@ -93,6 +93,7 @@ class NET_EXPORT X509Certificate
   enum VerifyFlags {
     VERIFY_REV_CHECKING_ENABLED = 1 << 0,
     VERIFY_EV_CERT = 1 << 1,
+    VERIFY_CERT_IO_ENABLED = 1 << 2,
   };
 
   enum Format {

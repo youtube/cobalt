@@ -396,7 +396,8 @@ void ParseDate(SECItem* der_date, base::Time* result) {
 // Forward declarations.
 SECStatus RetryPKIXVerifyCertWithWorkarounds(
     X509Certificate::OSCertHandle cert_handle, int num_policy_oids,
-    std::vector<CERTValInParam>* cvin, CERTValOutParam* cvout);
+    bool cert_io_enabled, std::vector<CERTValInParam>* cvin,
+    CERTValOutParam* cvout);
 SECOidTag GetFirstCertPolicy(X509Certificate::OSCertHandle cert_handle);
 
 // Call CERT_PKIXVerifyCert for the cert_handle.
@@ -406,6 +407,7 @@ SECOidTag GetFirstCertPolicy(X509Certificate::OSCertHandle cert_handle);
 // Caller must initialize cvout before calling this function.
 SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
                          bool check_revocation,
+                         bool cert_io_enabled,
                          const SECOidTag* policy_oids,
                          int num_policy_oids,
                          CERTValOutParam* cvout) {
@@ -517,7 +519,7 @@ SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
                                      &cvin[0], cvout, NULL);
   if (rv != SECSuccess) {
     rv = RetryPKIXVerifyCertWithWorkarounds(cert_handle, num_policy_oids,
-                                            &cvin, cvout);
+                                            cert_io_enabled, &cvin, cvout);
   }
   return rv;
 }
@@ -527,7 +529,8 @@ SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
 // arguments or local variables of PKIXVerifyCert.
 SECStatus RetryPKIXVerifyCertWithWorkarounds(
     X509Certificate::OSCertHandle cert_handle, int num_policy_oids,
-    std::vector<CERTValInParam>* cvin, CERTValOutParam* cvout) {
+    bool cert_io_enabled, std::vector<CERTValInParam>* cvin,
+    CERTValOutParam* cvout) {
   // We call this function when the first CERT_PKIXVerifyCert call in
   // PKIXVerifyCert failed,  so we initialize |rv| to SECFailure.
   SECStatus rv = SECFailure;
@@ -543,8 +546,9 @@ SECStatus RetryPKIXVerifyCertWithWorkarounds(
   // missing intermediate CA certificate, and  fail with the
   // SEC_ERROR_BAD_SIGNATURE error (NSS bug 524013), so we also retry with
   // cert_pi_useAIACertFetch on SEC_ERROR_BAD_SIGNATURE.
-  if (nss_error == SEC_ERROR_UNKNOWN_ISSUER ||
-      nss_error == SEC_ERROR_BAD_SIGNATURE) {
+  if (cert_io_enabled &&
+      (nss_error == SEC_ERROR_UNKNOWN_ISSUER ||
+       nss_error == SEC_ERROR_BAD_SIGNATURE)) {
     DCHECK_EQ(cvin->back().type,  cert_pi_end);
     cvin->pop_back();
     in_param.type = cert_pi_useAIACertFetch;
@@ -902,12 +906,15 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   cvout[cvout_index].type = cert_po_end;
   ScopedCERTValOutParam scoped_cvout(cvout);
 
-  bool check_revocation = (flags & VERIFY_REV_CHECKING_ENABLED);
+  bool cert_io_enabled = flags & VERIFY_CERT_IO_ENABLED;
+  bool check_revocation = (flags & VERIFY_REV_CHECKING_ENABLED) &&
+                          cert_io_enabled;
   if (check_revocation) {
     verify_result->cert_status |= CERT_STATUS_REV_CHECKING_ENABLED;
   }
 
-  status = PKIXVerifyCert(cert_handle_, check_revocation, NULL, 0, cvout);
+  status = PKIXVerifyCert(
+      cert_handle_, check_revocation, cert_io_enabled, NULL, 0, cvout);
 
   if (crl_set) {
     CRLSetResult crl_set_result = CheckRevocationWithCRLSet(
@@ -982,6 +989,7 @@ bool X509Certificate::VerifyEV(int flags) const {
 
   SECStatus status = PKIXVerifyCert(cert_handle_,
                                     flags & VERIFY_REV_CHECKING_ENABLED,
+                                    flags & VERIFY_CERT_IO_ENABLED,
                                     metadata->GetPolicyOIDs(),
                                     metadata->NumPolicyOIDs(),
                                     cvout);

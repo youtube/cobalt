@@ -821,10 +821,12 @@ int SSLClientSocketNSS::Init() {
   if (!NSS_IsInitialized())
     return ERR_UNEXPECTED;
 #if !defined(OS_MACOSX) && !defined(OS_WIN)
-  // We must call EnsureNSSHttpIOInit() here, on the IO thread, to get the IO
-  // loop by MessageLoopForIO::current().
-  // X509Certificate::Verify() runs on a worker thread of CertVerifier.
-  EnsureNSSHttpIOInit();
+  if (ssl_config_.cert_io_enabled) {
+    // We must call EnsureNSSHttpIOInit() here, on the IO thread, to get the IO
+    // loop by MessageLoopForIO::current().
+    // X509Certificate::Verify() runs on a worker thread of CertVerifier.
+    EnsureNSSHttpIOInit();
+  }
 #endif
 
   LeaveFunction("");
@@ -1702,6 +1704,8 @@ int SSLClientSocketNSS::DoVerifyCert(int result) {
     flags |= X509Certificate::VERIFY_REV_CHECKING_ENABLED;
   if (ssl_config_.verify_ev_cert)
     flags |= X509Certificate::VERIFY_EV_CERT;
+  if (ssl_config_.cert_io_enabled)
+    flags |= X509Certificate::VERIFY_CERT_IO_ENABLED;
   verifier_.reset(new SingleRequestCertVerifier(cert_verifier_));
   server_cert_verify_result_ = &local_server_cert_verify_result_;
   return verifier_->Verify(
