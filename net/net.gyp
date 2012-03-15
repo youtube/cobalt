@@ -980,7 +980,6 @@
             'defines': [
               # These are the features Android doesn't support.
               'ENABLE_MEDIA_CODEC_THEORA',
-              'ENABLE_MEDIA_TYPE_OGG',
             ],
           },
         ],
