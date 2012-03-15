@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -65,7 +65,7 @@ scoped_refptr<URLRequestThrottlerEntryInterface>
         IsLocalhost(host)) {
       if (!logged_for_localhost_disabled_ && IsLocalhost(host)) {
         logged_for_localhost_disabled_ = true;
-        net_log_->AddEvent(
+        net_log_.AddEvent(
             NetLog::TYPE_THROTTLING_DISABLED_FOR_HOST,
             make_scoped_refptr(new NetLogStringParameter("host", host)));
       }
@@ -90,7 +90,7 @@ void URLRequestThrottlerManager::AddToOptOutList(const std::string& host) {
   if (opt_out_hosts_.find(host) == opt_out_hosts_.end()) {
     UMA_HISTOGRAM_COUNTS("Throttling.SiteOptedOut", 1);
 
-    net_log_->EndEvent(
+    net_log_.EndEvent(
         NetLog::TYPE_THROTTLING_DISABLED_FOR_HOST,
         make_scoped_refptr(new NetLogStringParameter("host", host)));
     opt_out_hosts_.insert(host);
@@ -133,13 +133,12 @@ bool URLRequestThrottlerManager::enforce_throttling() {
 
 void URLRequestThrottlerManager::set_net_log(NetLog* net_log) {
   DCHECK(net_log);
-  NetLog::Source source(NetLog::SOURCE_EXPONENTIAL_BACKOFF_THROTTLING,
-                        net_log->NextID());
-  net_log_.reset(new BoundNetLog(source, net_log));
+  net_log_ = BoundNetLog::Make(net_log,
+                               NetLog::SOURCE_EXPONENTIAL_BACKOFF_THROTTLING);
 }
 
 NetLog* URLRequestThrottlerManager::net_log() const {
-  return net_log_->net_log();
+  return net_log_.net_log();
 }
 
 void URLRequestThrottlerManager::OnIPAddressChanged() {
@@ -166,10 +165,6 @@ URLRequestThrottlerManager::URLRequestThrottlerManager()
   url_id_replacements_.ClearUsername();
   url_id_replacements_.ClearQuery();
   url_id_replacements_.ClearRef();
-
-  // Make sure there is always a net_log_ instance, even if it logs to
-  // nowhere.
-  net_log_.reset(new BoundNetLog());
 }
 
 URLRequestThrottlerManager::~URLRequestThrottlerManager() {
