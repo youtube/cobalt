@@ -76,18 +76,30 @@ LocalTestServer::~LocalTestServer() {
   Stop();
 }
 
-bool LocalTestServer::Start() {
-  // Get path to Python server script.
-  FilePath testserver_path;
-  if (!PathService::Get(base::DIR_SOURCE_ROOT, &testserver_path)) {
+// static
+bool LocalTestServer::GetTestServerDirectory(FilePath* directory) {
+  // Get path to python server script.
+  FilePath testserver_dir;
+  if (!PathService::Get(base::DIR_SOURCE_ROOT, &testserver_dir)) {
     LOG(ERROR) << "Failed to get DIR_SOURCE_ROOT";
     return false;
   }
-  testserver_path = testserver_path
+
+  testserver_dir = testserver_dir
       .Append(FILE_PATH_LITERAL("net"))
       .Append(FILE_PATH_LITERAL("tools"))
-      .Append(FILE_PATH_LITERAL("testserver"))
-      .Append(FILE_PATH_LITERAL("testserver.py"));
+      .Append(FILE_PATH_LITERAL("testserver"));
+  *directory = testserver_dir;
+  return true;
+}
+
+bool LocalTestServer::Start() {
+  // Get path to Python server script.
+  FilePath testserver_path;
+  if (!GetTestServerDirectory(&testserver_path))
+    return false;
+  testserver_path =
+      testserver_path.Append(FILE_PATH_LITERAL("testserver.py"));
 
   if (!SetPythonPath())
     return false;
@@ -146,7 +158,8 @@ bool LocalTestServer::Init(const FilePath& document_root) {
   return true;
 }
 
-bool LocalTestServer::SetPythonPath() const {
+// static
+bool LocalTestServer::SetPythonPath() {
   FilePath third_party_dir;
   if (!PathService::Get(base::DIR_SOURCE_ROOT, &third_party_dir)) {
     LOG(ERROR) << "Failed to get DIR_SOURCE_ROOT";
