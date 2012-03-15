@@ -259,7 +259,9 @@ struct LaunchOptions {
   // If true, use an empty string for the desktop name.
   bool empty_desktop_name;
 
-  // If non-NULL, launches the application in that job object.
+  // If non-NULL, launches the application in that job object. The process will
+  // be terminated immediately and LaunchProcess() will fail if assignment to
+  // the job object fails.
   HANDLE job_handle;
 #else
   // If non-NULL, set/unset environment variables.
@@ -322,7 +324,9 @@ struct LaunchOptions {
 // Launch a process via the command line |cmdline|.
 // See the documentation of LaunchOptions for details on |options|.
 //
-// If |process_handle| is non-NULL, it will be filled in with the
+// Returns true upon success.
+//
+// Upon success, if |process_handle| is non-NULL, it will be filled in with the
 // handle of the launched process.  NOTE: In this case, the caller is
 // responsible for closing the handle so that it doesn't leak!
 // Otherwise, the process handle will be implicitly closed.
