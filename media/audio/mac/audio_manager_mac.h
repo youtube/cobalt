@@ -12,7 +12,7 @@
 // Mac OS X implementation of the AudioManager singleton. This class is internal
 // to the audio output and only internal users can call methods not exposed by
 // the AudioManager class.
-class AudioManagerMac : public AudioManagerBase {
+class MEDIA_EXPORT AudioManagerMac : public AudioManagerBase {
  public:
   AudioManagerMac();
 
