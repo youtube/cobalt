@@ -29,7 +29,7 @@ class RemoteTestServer : public BaseTestServer {
   RemoteTestServer(const HTTPSOptions& https_options,
                    const FilePath& document_root);
 
-  ~RemoteTestServer();
+  virtual ~RemoteTestServer();
 
   // Starts the Python test server on the host, instead of on the device.
   bool Start() WARN_UNUSED_RESULT;

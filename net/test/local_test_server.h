@@ -35,7 +35,7 @@ class LocalTestServer : public BaseTestServer {
   LocalTestServer(const HTTPSOptions& https_options,
                   const FilePath& document_root);
 
-  ~LocalTestServer();
+  virtual ~LocalTestServer();
 
   bool Start() WARN_UNUSED_RESULT;
 

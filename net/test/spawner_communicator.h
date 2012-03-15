@@ -62,7 +62,7 @@ class ScopedPortException;
 class SpawnerCommunicator : public net::URLRequest::Delegate {
  public:
   explicit SpawnerCommunicator(uint16 port);
-  ~SpawnerCommunicator();
+  virtual ~SpawnerCommunicator();
 
   // Starts an instance of the Python test server on the host/ machine.
   // If successfully started, returns true, setting |*port| to the port
