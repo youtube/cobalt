@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,11 +18,14 @@ public:
   virtual ~SSLSocket() {}
 
   // Exports data derived from the SSL master-secret (see RFC 5705).
-  // The call will fail with an error if the socket is not connected, or the
-  // SSL implementation does not support the operation.
+  // If |has_context| is false, uses the no-context construction from the
+  // RFC and |context| is ignored.  The call will fail with an error if
+  // the socket is not connected or the SSL implementation does not
+  // support the operation.
   virtual int ExportKeyingMaterial(const base::StringPiece& label,
+                                   bool has_context,
                                    const base::StringPiece& context,
-                                   unsigned char *out,
+                                   unsigned char* out,
                                    unsigned int outlen) = 0;
 };
 

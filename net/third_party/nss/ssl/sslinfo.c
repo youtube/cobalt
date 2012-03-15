@@ -317,18 +317,12 @@ SSL_IsExportCipherSuite(PRUint16 cipherSuite)
     return PR_FALSE;
 }
 
-/* Export keying material according to RFC 5705.
-** fd must correspond to a TLS 1.0 or higher socket, out must
-** be already allocated.
-*/
 SECStatus
 SSL_ExportKeyingMaterial(PRFileDesc *fd,
-			 const char *label,
-			 unsigned int labelLen,
-			 const unsigned char *context,
-			 unsigned int contextLen,
-			 unsigned char *out,
-			 unsigned int outLen)
+                         const char *label, unsigned int labelLen,
+                         PRBool hasContext,
+                         const unsigned char *context, unsigned int contextLen,
+                         unsigned char *out, unsigned int outLen)
 {
     sslSocket *ss;
     unsigned char *val = NULL;
@@ -347,18 +341,21 @@ SSL_ExportKeyingMaterial(PRFileDesc *fd,
 	return SECFailure;
     }
 
+    /* construct PRF arguments */
     valLen = SSL3_RANDOM_LENGTH * 2;
-    if (contextLen > 0)
+    if (hasContext) {
 	valLen += 2 /* uint16 length */ + contextLen;
+    }
     val = PORT_Alloc(valLen);
-    if (val == NULL)
+    if (!val) {
 	return SECFailure;
+    }
     i = 0;
     PORT_Memcpy(val + i, &ss->ssl3.hs.client_random.rand, SSL3_RANDOM_LENGTH);
     i += SSL3_RANDOM_LENGTH;
     PORT_Memcpy(val + i, &ss->ssl3.hs.server_random.rand, SSL3_RANDOM_LENGTH);
     i += SSL3_RANDOM_LENGTH;
-    if (contextLen > 0) {
+    if (hasContext) {
 	val[i++] = contextLen >> 8;
 	val[i++] = contextLen;
 	PORT_Memcpy(val + i, context, contextLen);
@@ -366,6 +363,9 @@ SSL_ExportKeyingMaterial(PRFileDesc *fd,
     }
     PORT_Assert(i == valLen);
 
+    /* Allow TLS keying material to be exported sooner, when the master
+     * secret is available and we have sent ChangeCipherSpec.
+     */
     ssl_GetSpecReadLock(ss);
     if (!ss->ssl3.cwSpec->master_secret && !ss->ssl3.cwSpec->msItem.len) {
 	PORT_SetError(SSL_ERROR_HANDSHAKE_NOT_COMPLETED);

@@ -120,13 +120,14 @@ int SSLServerSocketNSS::Handshake(const CompletionCallback& callback) {
 }
 
 int SSLServerSocketNSS::ExportKeyingMaterial(const base::StringPiece& label,
+                                             bool has_context,
                                              const base::StringPiece& context,
-                                             unsigned char *out,
+                                             unsigned char* out,
                                              unsigned int outlen) {
   if (!IsConnected())
     return ERR_SOCKET_NOT_CONNECTED;
   SECStatus result = SSL_ExportKeyingMaterial(
-      nss_fd_, label.data(), label.size(),
+      nss_fd_, label.data(), label.size(), has_context,
       reinterpret_cast<const unsigned char*>(context.data()),
       context.length(), out, outlen);
   if (result != SECSuccess) {
@@ -510,7 +511,7 @@ void SSLServerSocketNSS::BufferSendComplete(int result) {
 int SSLServerSocketNSS::BufferRecv(void) {
   if (transport_recv_busy_) return ERR_IO_PENDING;
 
-  char *buf;
+  char* buf;
   int nb = memio_GetReadParams(nss_bufs_, &buf);
   int rv;
   if (!nb) {
@@ -536,7 +537,7 @@ int SSLServerSocketNSS::BufferRecv(void) {
 
 void SSLServerSocketNSS::BufferRecvComplete(int result) {
   if (result > 0) {
-    char *buf;
+    char* buf;
     memio_GetReadParams(nss_bufs_, &buf);
     memcpy(buf, recv_buffer_->data(), result);
   }
