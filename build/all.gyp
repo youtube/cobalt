@@ -28,6 +28,7 @@
         '../sdch/sdch.gyp:*',
         '../skia/skia.gyp:*',
         '../sql/sql.gyp:*',
+        '../sync/sync.gyp:*',
         '../testing/gmock.gyp:*',
         '../testing/gtest.gyp:*',
         '../third_party/bzip2/bzip2.gyp:*',
