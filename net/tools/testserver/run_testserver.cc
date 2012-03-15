@@ -9,14 +9,46 @@
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
+#include "base/process_util.h"
 #include "base/test/test_timeouts.h"
 #include "base/utf_string_conversions.h"
+#include "net/test/python_utils.h"
 #include "net/test/test_server.h"
 
 static void PrintUsage() {
   printf("run_testserver --doc-root=relpath [--http|--https|--ftp|--sync]\n"
          "               [--https-cert=ok|mismatched-name|expired]\n");
   printf("(NOTE: relpath should be relative to the 'src' directory)\n");
+}
+
+// Launches the chromiumsync_test script, testing the --sync functionality.
+static bool RunSyncTest() {
+ if (!net::TestServer::SetPythonPath()) {
+    LOG(ERROR) << "Error trying to set python path. Exiting.";
+    return false;
+  }
+
+  FilePath sync_test_path;
+  if (!net::TestServer::GetTestServerDirectory(&sync_test_path)) {
+    LOG(ERROR) << "Error trying to get python test server path.";
+    return false;
+  }
+
+  sync_test_path =
+      sync_test_path.Append(FILE_PATH_LITERAL("chromiumsync_test.py"));
+  FilePath python_runtime;
+  if (!GetPythonRunTime(&python_runtime)) {
+    LOG(ERROR) << "Could not get python runtime command.";
+    return false;
+  }
+
+  CommandLine python_command(python_runtime);
+  python_command.AppendArgPath(sync_test_path);
+  if (!base::LaunchProcess(python_command, base::LaunchOptions(), NULL)) {
+    LOG(ERROR) << "Failed to launch test script.";
+    return false;
+  }
+  return true;
 }
 
 int main(int argc, const char* argv[]) {
@@ -51,6 +83,8 @@ int main(int argc, const char* argv[]) {
     server_type = net::TestServer::TYPE_FTP;
   } else if (command_line->HasSwitch("sync")) {
     server_type = net::TestServer::TYPE_SYNC;
+  } else if (command_line->HasSwitch("sync-test")) {
+    return RunSyncTest() ? 0 : -1;
   }
 
   net::TestServer::HTTPSOptions https_options;

@@ -15,6 +15,7 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/test/test_timeouts.h"
+#include "net/test/python_utils.h"
 
 namespace {
 
@@ -94,7 +95,12 @@ bool ReadData(int fd, ssize_t bytes_max, uint8* buffer,
 namespace net {
 
 bool LocalTestServer::LaunchPython(const FilePath& testserver_path) {
+  // Log is useful in the event you want to run a nearby script (e.g. a test) in
+  // the same environment as the TestServer.
+  VLOG(1) << "LaunchPython called with PYTHONPATH = " <<
+          getenv(kPythonPathEnv);
   CommandLine python_command(FilePath(FILE_PATH_LITERAL("python")));
+
   python_command.AppendArgPath(testserver_path);
   if (!AddCommandLineArguments(&python_command))
     return false;
