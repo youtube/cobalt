@@ -211,28 +211,25 @@ fi
 if [ "$(uname -m)" = "x86_64" ]; then
   if test "$do_inst_lib32" = ""
   then
-    echo "Installing 32bit libraries not already provided by the system"
+    echo "We no longer recommend that you use this script to install"
+    echo "32bit libraries on a 64bit system. Instead, consider using"
+    echo "the install-chroot.sh script to help you set up a 32bit"
+    echo "environment for building and testing 32bit versions of Chrome."
     echo
-    echo "This is only needed to build a 32-bit Chrome on your 64-bit system."
-    echo
-    echo "While we only need to install a relatively small number of library"
-    echo "files, we temporarily need to download a lot of large *.deb packages"
-    echo "that contain these files. We will create new *.deb packages that"
-    echo "include just the 32bit libraries. These files will then be found on"
-    echo "your system in places like /lib32, /usr/lib32, /usr/lib/debug/lib32,"
-    echo "/usr/lib/debug/usr/lib32. If you ever need to uninstall these files,"
-    echo "look for packages named *-ia32.deb."
-    echo "Do you want me to download all packages needed to build new 32bit"
-    echo -n "package files (y/N) "
-    if yes_no 1; then
-      do_inst_lib32=1
-    fi
+    echo "If you nonetheless want to try installing 32bit libraries"
+    echo "directly, you can do so by explicitly passing the --lib32"
+    echo "option to install-build-deps.sh.
   fi
   if test "$do_inst_lib32" != "1"
   then
     echo "Exiting without installing any 32bit libraries."
     exit 0
   fi
+
+  echo "N.B. the code for installing 32bit libraries on a 64bit"
+  echo "     system is no longer actively maintained and might"
+  echo "     not work with modern versions of Ubuntu or Debian."
+  echo
 
   # Standard 32bit compatibility libraries
   echo "First, installing the limited existing 32-bit support..."
