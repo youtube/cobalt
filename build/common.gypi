@@ -271,7 +271,7 @@
       'enable_plugin_installation%': 1,
 
       # Specifies whether to use canvas_skia_skia.cc in place of platform
-      # specific implementations of CanvasSkia. Affects text drawing in the
+      # specific implementations of gfx::Canvas. Affects text drawing in the
       # Chrome UI.
       # TODO(asvitkine): Enable this on all platforms and delete this flag.
       #                  http://crbug.com/105550
