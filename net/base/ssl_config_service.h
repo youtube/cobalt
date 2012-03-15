@@ -99,6 +99,13 @@ struct NET_EXPORT SSLConfig {
   bool ssl3_fallback;  // True if we are falling back to SSL 3.0 (one still
                        // needs to clear tls1_enabled).
 
+  // If cert_io_enabled is false, then certificate verification will not
+  // result in additional HTTP requests. (For example: to fetch missing
+  // intermediates or to perform OCSP/CRL fetches.) It also implies that online
+  // revocation checking is disabled.
+  // NOTE: currently only effective on Linux
+  bool cert_io_enabled;
+
   // The list of application level protocols supported. If set, this will
   // enable Next Protocol Negotiation (if supported). The order of the
   // protocols doesn't matter expect for one case: if the server supports Next
