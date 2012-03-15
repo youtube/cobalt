@@ -1300,8 +1300,9 @@ void SpdySession::OnSetting(spdy::SpdySettingsIds id,
                             uint32 value) {
   HandleSetting(id, value);
   spdy::SettingsFlagsAndId flags_and_id(flags, id);
-  http_server_properties_->SetSpdySetting(
-      host_port_pair(), std::make_pair(flags_and_id, value));
+  // TODO(rtenneti): persist SpdySetting.
+  // http_server_properties_->SetSpdySetting(
+  //    host_port_pair(), std::make_pair(flags_and_id, value));
 
   received_settings_ = true;
 
@@ -1673,7 +1674,8 @@ void SpdySession::SendSettings() {
           i->second = cwnd;
           i->first = new_id;
           spdy::SpdySetting setting(new_id, val);
-          http_server_properties_->SetSpdySetting(host_port_pair(), setting);
+          // TODO(rtenneti): Persist SpdySetting.
+          // http_server_properties_->SetSpdySetting(host_port_pair(), setting);
           unique_settings[id] = setting;
           continue;
         }
