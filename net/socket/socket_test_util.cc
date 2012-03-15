@@ -636,7 +636,7 @@ void MockClientSocketFactory::ClearSSLSessionCache() {
 MockClientSocket::MockClientSocket(net::NetLog* net_log)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       connected_(false),
-      net_log_(net::NetLog::Source(), net_log) {
+      net_log_(BoundNetLog::Make(net_log, net::NetLog::SOURCE_NONE)) {
 }
 
 bool MockClientSocket::SetReceiveBufferSize(int32 size) {
@@ -1208,7 +1208,7 @@ MockUDPClientSocket::MockUDPClientSocket(SocketDataProvider* data,
       need_read_data_(true),
       pending_buf_(NULL),
       pending_buf_len_(0),
-      net_log_(net::NetLog::Source(), net_log),
+      net_log_(BoundNetLog::Make(net_log, net::NetLog::SOURCE_NONE)),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
   DCHECK(data_);
   data_->Reset();
