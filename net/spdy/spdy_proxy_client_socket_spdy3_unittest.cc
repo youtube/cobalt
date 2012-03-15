@@ -328,11 +328,11 @@ SpdyProxyClientSocketSpdy3Test::ConstructConnectRequestFrame() {
     spdy::DATA_FLAG_NONE
   };
   const char* const kConnectHeaders[] = {
-    "method", "CONNECT",
-    "url", kOriginHostPort,
-    "host", kOriginHost,
+    ":method", "CONNECT",
+    ":path", kOriginHostPort,
+    ":host", kOriginHost,
     "user-agent", kUserAgent,
-    "version", "HTTP/1.1",
+    ":version", "HTTP/1.1",
   };
   return ConstructSpdyPacket(
       kSynStartHeader, NULL, 0, kConnectHeaders, arraysize(kConnectHeaders)/2);
@@ -355,11 +355,11 @@ SpdyProxyClientSocketSpdy3Test::ConstructConnectAuthRequestFrame() {
     spdy::DATA_FLAG_NONE
   };
   const char* const kConnectHeaders[] = {
-    "method", "CONNECT",
-    "url", kOriginHostPort,
-    "host", kOriginHost,
+    ":method", "CONNECT",
+    ":path", kOriginHostPort,
+    ":host", kOriginHost,
     "user-agent", kUserAgent,
-    "version", "HTTP/1.1",
+    ":version", "HTTP/1.1",
     "proxy-authorization", "Basic Zm9vOmJhcg==",
   };
   return ConstructSpdyPacket(

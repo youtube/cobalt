@@ -280,6 +280,8 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
     return pooled_aliases_;
   }
 
+  int GetProtocolVersion() const;
+
  private:
   friend class base::RefCounted<SpdySession>;
 

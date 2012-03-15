@@ -127,6 +127,7 @@ TEST_F(SpdySessionSpdy2Test, GoAway) {
   session_deps.socket_factory->AddSocketDataProvider(&data);
 
   SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
+  ssl.SetNextProto(SSLClientSocket::kProtoSPDY2);
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
 
   scoped_refptr<HttpNetworkSession> http_session(
@@ -154,6 +155,7 @@ TEST_F(SpdySessionSpdy2Test, GoAway) {
                                  http_session->GetTransportSocketPool(),
                                  BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
+  EXPECT_EQ(2, session->GetProtocolVersion());
 
   // Flush the SpdySession::OnReadComplete() task.
   MessageLoop::current()->RunAllPending();
@@ -941,7 +943,7 @@ TEST_F(SpdySessionSpdy2Test, NeedsCredentials) {
 
   SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
   ssl.origin_bound_cert_type = CLIENT_CERT_ECDSA_SIGN;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY3;
+  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
 
   scoped_refptr<HttpNetworkSession> http_session(
@@ -987,82 +989,7 @@ TEST_F(SpdySessionSpdy2Test, NeedsCredentials) {
   EXPECT_FALSE(session->NeedsCredentials(test_host_port_pair));
   const std::string kTestHost2("www.bar.com");
   HostPortPair test_host_port_pair2(kTestHost2, kTestPort);
-  EXPECT_TRUE(session->NeedsCredentials(test_host_port_pair2));
-
-  // Flush the SpdySession::OnReadComplete() task.
-  MessageLoop::current()->RunAllPending();
-
-  spdy_session_pool->Remove(session);
-  EXPECT_FALSE(spdy_session_pool->HasSession(pair));
-}
-
-TEST_F(SpdySessionSpdy2Test, SendCredentials) {
-  SpdySessionDependencies session_deps;
-
-  MockConnect connect_data(SYNCHRONOUS, OK);
-  MockRead reads[] = {
-    MockRead(SYNCHRONOUS, ERR_IO_PENDING)  // Stall forever.
-  };
-  spdy::SpdySettings settings;
-  scoped_ptr<spdy::SpdyFrame> settings_frame(
-      ConstructSpdySettings(settings));
-  MockWrite writes[] = {
-    CreateMockWrite(*settings_frame),
-  };
-  StaticSocketDataProvider data(reads, arraysize(reads),
-                                writes, arraysize(writes));
-  data.set_connect_data(connect_data);
-  session_deps.socket_factory->AddSocketDataProvider(&data);
-
-  SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
-  ssl.origin_bound_cert_type = CLIENT_CERT_ECDSA_SIGN;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY3;
-  session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
-
-  scoped_refptr<HttpNetworkSession> http_session(
-      SpdySessionDependencies::SpdyCreateSession(&session_deps));
-
-  const std::string kTestHost("www.foo.com");
-  const int kTestPort = 80;
-  HostPortPair test_host_port_pair(kTestHost, kTestPort);
-  HostPortProxyPair pair(test_host_port_pair, ProxyServer::Direct());
-
-  SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
-  EXPECT_FALSE(spdy_session_pool->HasSession(pair));
-  scoped_refptr<SpdySession> session =
-      spdy_session_pool->Get(pair, BoundNetLog());
-  EXPECT_TRUE(spdy_session_pool->HasSession(pair));
-
-  SSLConfig ssl_config;
-  scoped_refptr<TransportSocketParams> transport_params(
-      new TransportSocketParams(test_host_port_pair,
-                                MEDIUM,
-                                false,
-                                false));
-  scoped_refptr<SOCKSSocketParams> socks_params;
-  scoped_refptr<HttpProxySocketParams> http_proxy_params;
-  scoped_refptr<SSLSocketParams> ssl_params(
-      new SSLSocketParams(transport_params,
-                          socks_params,
-                          http_proxy_params,
-                          ProxyServer::SCHEME_DIRECT,
-                          test_host_port_pair,
-                          ssl_config,
-                          0,
-                          false,
-                          false));
-  scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
-  EXPECT_EQ(OK, connection->Init(test_host_port_pair.ToString(),
-                                 ssl_params, MEDIUM, CompletionCallback(),
-                                 http_session->GetSSLSocketPool(),
-                                 BoundNetLog()));
-
-  EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), true, OK));
-
-  EXPECT_FALSE(session->NeedsCredentials(test_host_port_pair));
-  const std::string kTestHost2("www.bar.com");
-  HostPortPair test_host_port_pair2(kTestHost2, kTestPort);
-  EXPECT_TRUE(session->NeedsCredentials(test_host_port_pair2));
+  EXPECT_FALSE(session->NeedsCredentials(test_host_port_pair2));
 
   // Flush the SpdySession::OnReadComplete() task.
   MessageLoop::current()->RunAllPending();
