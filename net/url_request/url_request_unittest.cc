@@ -5,8 +5,8 @@
 #include "build/build_config.h"
 
 #if defined(OS_WIN)
-#include <shlobj.h>
 #include <windows.h>
+#include <shlobj.h>
 #endif
 
 #include <algorithm>
@@ -27,8 +27,6 @@
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/utf_string_conversions.h"
-#include "net/base/cookie_monster.h"
-#include "net/base/cookie_store_test_helpers.h"
 #include "net/base/load_flags.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
@@ -38,6 +36,8 @@
 #include "net/base/net_util.h"
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/upload_data.h"
+#include "net/cookies/cookie_monster.h"
+#include "net/cookies/cookie_store_test_helpers.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/ftp/ftp_network_layer.h"
 #include "net/http/http_cache.h"
