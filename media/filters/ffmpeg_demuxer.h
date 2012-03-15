@@ -137,7 +137,7 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   virtual void PostDemuxTask();
 
   void Initialize(
-      DataSource* data_source, const PipelineStatusCB& callback);
+      DataSource* data_source, const PipelineStatusCB& status_cb);
 
   // Demuxer implementation.
   virtual void Stop(const base::Closure& callback) OVERRIDE;
@@ -173,7 +173,7 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
 
   // Carries out initialization on the demuxer thread.
   void InitializeTask(
-      DataSource* data_source, const PipelineStatusCB& callback);
+      DataSource* data_source, const PipelineStatusCB& status_cb);
 
   // Carries out a seek on the demuxer thread.
   void SeekTask(base::TimeDelta time, const PipelineStatusCB& cb);

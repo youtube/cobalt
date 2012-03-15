@@ -67,7 +67,7 @@ FFmpegVideoDecoder::~FFmpegVideoDecoder() {
 }
 
 void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
-                                    const PipelineStatusCB& pipeline_status_cb,
+                                    const PipelineStatusCB& status_cb,
                                     const StatisticsCB& statistics_cb) {
   if (!message_loop_) {
     message_loop_ = message_loop_factory_cb_.Run();
@@ -75,7 +75,7 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
 
     message_loop_->PostTask(FROM_HERE, base::Bind(
         &FFmpegVideoDecoder::Initialize, this,
-        make_scoped_refptr(demuxer_stream), pipeline_status_cb, statistics_cb));
+        make_scoped_refptr(demuxer_stream), status_cb, statistics_cb));
     return;
   }
 
@@ -83,7 +83,7 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
   DCHECK(!demuxer_stream_);
 
   if (!demuxer_stream) {
-    pipeline_status_cb.Run(PIPELINE_ERROR_DECODE);
+    status_cb.Run(PIPELINE_ERROR_DECODE);
     return;
   }
 
@@ -96,7 +96,7 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
   // decoder objects.
   if (!config.IsValidConfig()) {
     DLOG(ERROR) << "Invalid video stream - " << config.AsHumanReadableString();
-    pipeline_status_cb.Run(PIPELINE_ERROR_DECODE);
+    status_cb.Run(PIPELINE_ERROR_DECODE);
     return;
   }
 
@@ -112,12 +112,12 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
 
   AVCodec* codec = avcodec_find_decoder(codec_context_->codec_id);
   if (!codec) {
-    pipeline_status_cb.Run(PIPELINE_ERROR_DECODE);
+    status_cb.Run(PIPELINE_ERROR_DECODE);
     return;
   }
 
   if (avcodec_open2(codec_context_, codec, NULL) < 0) {
-    pipeline_status_cb.Run(PIPELINE_ERROR_DECODE);
+    status_cb.Run(PIPELINE_ERROR_DECODE);
     return;
   }
 
@@ -127,7 +127,7 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
   natural_size_ = config.natural_size();
   frame_rate_numerator_ = config.frame_rate_numerator();
   frame_rate_denominator_ = config.frame_rate_denominator();
-  pipeline_status_cb.Run(PIPELINE_OK);
+  status_cb.Run(PIPELINE_OK);
 }
 
 void FFmpegVideoDecoder::Stop(const base::Closure& callback) {

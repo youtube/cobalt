@@ -24,13 +24,13 @@ VideoFrameGenerator::~VideoFrameGenerator() {}
 
 void VideoFrameGenerator::Initialize(
     DemuxerStream* demuxer_stream,
-    const PipelineStatusCB& pipeline_status_cb,
+    const PipelineStatusCB& status_cb,
     const StatisticsCB& statistics_cb) {
   message_loop_proxy_->PostTask(
       FROM_HERE,
       base::Bind(&VideoFrameGenerator::InitializeOnDecoderThread,
                  this, make_scoped_refptr(demuxer_stream),
-                 pipeline_status_cb, statistics_cb));
+                 status_cb, statistics_cb));
 }
 
 void VideoFrameGenerator::Read(const ReadCB& read_cb) {
@@ -51,12 +51,12 @@ void VideoFrameGenerator::Stop(const base::Closure& callback) {
 
 void VideoFrameGenerator::InitializeOnDecoderThread(
     DemuxerStream* demuxer_stream,
-    const PipelineStatusCB& pipeline_status_cb,
+    const PipelineStatusCB& status_cb,
     const StatisticsCB& statistics_cb) {
   DVLOG(1) << "InitializeOnDecoderThread";
   DCHECK(message_loop_proxy_->BelongsToCurrentThread());
 
-  pipeline_status_cb.Run(PIPELINE_OK);
+  status_cb.Run(PIPELINE_OK);
   stopped_ = false;
 }
 

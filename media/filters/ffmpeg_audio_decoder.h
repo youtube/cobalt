@@ -24,7 +24,7 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
 
   // AudioDecoder implementation.
   virtual void Initialize(const scoped_refptr<DemuxerStream>& stream,
-                          const PipelineStatusCB& pipeline_status_cb,
+                          const PipelineStatusCB& status_cb,
                           const StatisticsCB& statistics_cb) OVERRIDE;
   virtual void Read(const ReadCB& read_cb) OVERRIDE;
   virtual int bits_per_channel() OVERRIDE;
@@ -35,7 +35,7 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
  private:
   // Methods running on decoder thread.
   void DoInitialize(const scoped_refptr<DemuxerStream>& stream,
-                    const PipelineStatusCB& pipeline_status_cb,
+                    const PipelineStatusCB& status_cb,
                     const StatisticsCB& statistics_cb);
   void DoReset(const base::Closure& closure);
   void DoRead(const ReadCB& read_cb);

@@ -52,7 +52,7 @@ void VideoRendererBase::Pause(const base::Closure& callback) {
 void VideoRendererBase::Flush(const base::Closure& callback) {
   base::AutoLock auto_lock(lock_);
   DCHECK_EQ(state_, kPaused);
-  flush_callback_ = callback;
+  flush_cb_ = callback;
   state_ = kFlushing;
 
   AttemptFlush_Locked();
@@ -65,7 +65,7 @@ void VideoRendererBase::Stop(const base::Closure& callback) {
     state_ = kStopped;
 
     statistics_cb_.Reset();
-    video_time_cb_.Reset();
+    time_cb_.Reset();
     if (!pending_paint_ && !pending_paint_with_last_available_)
       DoStopOrError_Locked();
 
@@ -102,19 +102,19 @@ void VideoRendererBase::Seek(base::TimeDelta time, const FilterStatusCB& cb) {
 }
 
 void VideoRendererBase::Initialize(VideoDecoder* decoder,
-                                   const PipelineStatusCB& pipeline_status_cb,
+                                   const PipelineStatusCB& status_cb,
                                    const StatisticsCB& statistics_cb,
-                                   const VideoTimeCB& video_time_cb) {
+                                   const TimeCB& time_cb) {
   base::AutoLock auto_lock(lock_);
   DCHECK(decoder);
-  DCHECK(!pipeline_status_cb.is_null());
+  DCHECK(!status_cb.is_null());
   DCHECK(!statistics_cb.is_null());
-  DCHECK(!video_time_cb.is_null());
+  DCHECK(!time_cb.is_null());
   DCHECK_EQ(kUninitialized, state_);
   decoder_ = decoder;
 
   statistics_cb_ = statistics_cb;
-  video_time_cb_ = video_time_cb;
+  time_cb_ = time_cb;
 
   // Notify the pipeline of the video dimensions.
   host()->SetNaturalVideoSize(decoder_->natural_size());
@@ -132,7 +132,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   if (!base::PlatformThread::Create(0, this, &thread_)) {
     NOTREACHED() << "Video thread creation failed";
     state_ = kError;
-    pipeline_status_cb.Run(PIPELINE_ERROR_INITIALIZATION_FAILED);
+    status_cb.Run(PIPELINE_ERROR_INITIALIZATION_FAILED);
     return;
   }
 
@@ -141,7 +141,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   // TODO(scherkus): find out if this is necessary, but it seems to help.
   ::SetThreadPriority(thread_, THREAD_PRIORITY_ABOVE_NORMAL);
 #endif  // defined(OS_WIN)
-  pipeline_status_cb.Run(PIPELINE_OK);
+  status_cb.Run(PIPELINE_OK);
 }
 
 bool VideoRendererBase::HasEnded() {
@@ -389,7 +389,7 @@ void VideoRendererBase::FrameReady(scoped_refptr<VideoFrame> frame) {
   ready_frames_.push_back(frame);
   DCHECK_LE(NumFrames_Locked(), limits::kMaxVideoFrames);
   if (!frame->IsEndOfStream())
-    video_time_cb_.Run(frame->GetTimestamp() + frame->GetDuration());
+    time_cb_.Run(frame->GetTimestamp() + frame->GetDuration());
   frame_available_.Signal();
 
   PipelineStatistics statistics;
@@ -452,7 +452,7 @@ void VideoRendererBase::AttemptFlush_Locked() {
   if (!pending_paint_ && !pending_read_) {
     state_ = kFlushed;
     current_frame_ = NULL;
-    ResetAndRunCB(&flush_callback_);
+    ResetAndRunCB(&flush_cb_);
   }
 }
 
