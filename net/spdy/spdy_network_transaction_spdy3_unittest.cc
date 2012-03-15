@@ -4453,6 +4453,8 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SettingsSaved) {
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
   EXPECT_EQ("hello!", out.response_data);
 
+  // TODO(rtenneti): Persist spdy settings.
+#ifdef PERSIST_SPDY_SETTINGS
   {
     // Verify we had two persisted settings.
     spdy::SpdySettings saved_settings =
@@ -4474,6 +4476,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SettingsSaved) {
     EXPECT_EQ(kSampleId3, setting.first.id());
     EXPECT_EQ(kSampleValue3, setting.second);
   }
+#endif
 }
 
 // Test that when there are settings saved that they are sent back to the
