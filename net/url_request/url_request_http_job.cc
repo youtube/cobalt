@@ -29,7 +29,6 @@
 #include "net/base/sdch_manager.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_config_service.h"
-#include "net/http/http_mac_signature.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
@@ -48,37 +47,6 @@
 static const char kAvailDictionaryHeader[] = "Avail-Dictionary";
 
 namespace net {
-
-namespace {
-
-void AddAuthorizationHeader(
-    const std::vector<CookieStore::CookieInfo>& cookie_infos,
-    HttpRequestInfo* request_info) {
-  const GURL& url = request_info->url;
-  const std::string& method = request_info->method;
-  std::string request_uri = HttpUtil::PathForRequest(url);
-  const std::string& host = url.host();
-  int port = url.EffectiveIntPort();
-  for (size_t i = 0; i < cookie_infos.size(); ++i) {
-    HttpMacSignature signature;
-    if (!signature.AddStateInfo(cookie_infos[i].name,
-                                cookie_infos[i].creation_date,
-                                cookie_infos[i].mac_key,
-                                cookie_infos[i].mac_algorithm)) {
-      continue;
-    }
-    if (!signature.AddHttpInfo(method, request_uri, host, port))
-      continue;
-    std::string authorization_header;
-    if (!signature.GenerateAuthorizationHeader(&authorization_header))
-      continue;
-    request_info->extra_headers.SetHeader(HttpRequestHeaders::kAuthorization,
-                                          authorization_header);
-    return;  // Only add the first valid header.
-  }
-}
-
-}  // namespace
 
 class URLRequestHttpJob::HttpFilterContext : public FilterContext {
  public:
@@ -509,8 +477,6 @@ void URLRequestHttpJob::OnCookiesLoaded(
     request_info_.extra_headers.SetHeader(
         HttpRequestHeaders::kCookie, cookie_line);
   }
-  if (URLRequest::AreMacCookiesEnabled())
-    AddAuthorizationHeader(cookie_infos, &request_info_);
   DoStartTransaction();
 }
 
