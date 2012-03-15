@@ -20,7 +20,7 @@ CapturingNetLog::Entry::Entry(EventType type,
 CapturingNetLog::Entry::~Entry() {}
 
 CapturingNetLog::CapturingNetLog(size_t max_num_entries)
-    : last_id_(-1),
+    : last_id_(0),
       max_num_entries_(max_num_entries),
       log_level_(LOG_ALL_BUT_BYTES) {
 }
@@ -42,13 +42,14 @@ void CapturingNetLog::SetLogLevel(NetLog::LogLevel log_level) {
   log_level_ = log_level;
 }
 
-void CapturingNetLog::AddEntry(EventType type,
-                               const base::TimeTicks& time,
-                               const Source& source,
-                               EventPhase phase,
-                               EventParameters* extra_parameters) {
+void CapturingNetLog::AddEntry(
+    EventType type,
+    const Source& source,
+    EventPhase phase,
+    const scoped_refptr<EventParameters>& extra_parameters) {
+  DCHECK(source.is_valid());
   base::AutoLock lock(lock_);
-  Entry entry(type, time, source, phase, extra_parameters);
+  Entry entry(type, base::TimeTicks::Now(), source, phase, extra_parameters);
   if (entries_.size() + 1 < max_num_entries_)
     entries_.push_back(entry);
 }
@@ -78,27 +79,25 @@ void CapturingNetLog::RemoveThreadSafeObserver(
   NOTIMPLEMENTED() << "Not currently used by net unit tests.";
 }
 
-CapturingBoundNetLog::CapturingBoundNetLog(const NetLog::Source& source,
-                                           CapturingNetLog* net_log)
-    : source_(source), capturing_net_log_(net_log) {
-}
-
 CapturingBoundNetLog::CapturingBoundNetLog(size_t max_num_entries)
-    : capturing_net_log_(new CapturingNetLog(max_num_entries)) {}
+    : capturing_net_log_(max_num_entries),
+      net_log_(BoundNetLog::Make(&capturing_net_log_,
+                                 net::NetLog::SOURCE_NONE)) {
+}
 
 CapturingBoundNetLog::~CapturingBoundNetLog() {}
 
 void CapturingBoundNetLog::GetEntries(
     CapturingNetLog::EntryList* entry_list) const {
-  capturing_net_log_->GetEntries(entry_list);
+  capturing_net_log_.GetEntries(entry_list);
 }
 
 void CapturingBoundNetLog::Clear() {
-  capturing_net_log_->Clear();
+  capturing_net_log_.Clear();
 }
 
 void CapturingBoundNetLog::SetLogLevel(NetLog::LogLevel log_level) {
-  capturing_net_log_->SetLogLevel(log_level);
+  capturing_net_log_.SetLogLevel(log_level);
 }
 
 }  // namespace net

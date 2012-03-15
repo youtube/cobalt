@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,7 +17,6 @@
 namespace net {
 
 TEST(HttpAuthHandlerTest, NetLog) {
-  NetLog::Source source;
   GURL origin("http://www.example.com");
   std::string challenge = "Mock asdf";
   AuthCredentials credentials(ASCIIToUTF16("user"), ASCIIToUTF16("pass"));
@@ -38,7 +37,8 @@ TEST(HttpAuthHandlerTest, NetLog) {
             challenge.begin(), challenge.end());
         HttpAuthHandlerMock mock_handler;
         CapturingNetLog capturing_net_log(CapturingNetLog::kUnbounded);
-        BoundNetLog bound_net_log(source, &capturing_net_log);
+        BoundNetLog bound_net_log(BoundNetLog::Make(&capturing_net_log,
+                                                    net::NetLog::SOURCE_NONE));
 
         mock_handler.InitFromChallenge(&tokenizer, target,
                                        origin, bound_net_log);

@@ -25,7 +25,7 @@ namespace net {
 // that generated the message (for example, which URLRequest or which
 // SocketStream).
 //
-// To avoid needing to pass in the "source id" to the logging functions, NetLog
+// To avoid needing to pass in the "source ID" to the logging functions, NetLog
 // is usually accessed through a BoundNetLog, which will always pass in a
 // specific source ID.
 //
@@ -133,6 +133,16 @@ class NET_EXPORT NetLog {
     //
     // It is illegal for an Observer to call any NetLog or
     // NetLog::Observer functions in response to a call to OnAddEntry.
+    //
+    // |type| - The type of the event.
+    // |time| - The time when the event occurred.
+    // |source| - The source that generated the event.
+    // |phase| - An optional parameter indicating whether this is the start/end
+    //           of an action.
+    // |params| - Optional (may be NULL) parameters for this event.
+    //            The specific subclass of EventParameters is defined
+    //            by the contract for events of this |type|.
+    // TODO(eroman): Take a scoped_refptr<EventParameters> instead.
     virtual void OnAddEntry(EventType type,
                             const base::TimeTicks& time,
                             const Source& source,
@@ -152,21 +162,9 @@ class NET_EXPORT NetLog {
   NetLog() {}
   virtual ~NetLog() {}
 
-  // Emits an event to the log stream.
-  //  |type| - The type of the event.
-  //  |time| - The time when the event occurred.
-  //  |source| - The source that generated the event.
-  //  |phase| - An optional parameter indicating whether this is the start/end
-  //            of an action.
-  //  |params| - Optional (may be NULL) parameters for this event.
-  //             The specific subclass of EventParameters is defined
-  //             by the contract for events of this |type|.
-  //             TODO(eroman): Take a scoped_refptr<> instead.
-  virtual void AddEntry(EventType type,
-                        const base::TimeTicks& time,
-                        const Source& source,
-                        EventPhase phase,
-                        EventParameters* params) = 0;
+  // Emits a global event to the log stream, with its own unique source ID.
+  void AddGlobalEntry(EventType type,
+                      const scoped_refptr<EventParameters>& params);
 
   // Returns a unique ID which can be used as a source ID.
   virtual uint32 NextID() = 0;
@@ -232,6 +230,13 @@ class NET_EXPORT NetLog {
                                              bool use_strings);
 
  protected:
+  // This is the internal function used by AddGlobalEntry and BoundNetLogs.
+  virtual void AddEntry(
+      EventType type,
+      const Source& source,
+      EventPhase phase,
+      const scoped_refptr<NetLog::EventParameters>& params) = 0;
+
   // Subclasses must call these in the corresponding functions to set an
   // observer's |net_log_| and |log_level_| values.
   void OnAddObserver(ThreadSafeObserver* observer, LogLevel log_level);
@@ -240,6 +245,8 @@ class NET_EXPORT NetLog {
   void OnRemoveObserver(ThreadSafeObserver* observer);
 
  private:
+  friend class BoundNetLog;
+
   DISALLOW_COPY_AND_ASSIGN(NetLog);
 };
 
@@ -249,21 +256,11 @@ class NET_EXPORT BoundNetLog {
  public:
   BoundNetLog() : net_log_(NULL) {}
 
-  BoundNetLog(const NetLog::Source& source, NetLog* net_log)
-      : source_(source), net_log_(net_log) {
-  }
-
   // Convenience methods that call through to the NetLog, passing in the
   // currently bound source.
   void AddEntry(NetLog::EventType type,
                 NetLog::EventPhase phase,
                 const scoped_refptr<NetLog::EventParameters>& params) const;
-
-  void AddEntryWithTime(
-      NetLog::EventType type,
-      const base::TimeTicks& time,
-      NetLog::EventPhase phase,
-      const scoped_refptr<NetLog::EventParameters>& params) const;
 
   // Convenience methods that call through to the NetLog, passing in the
   // currently bound source, current time, and a fixed "capture phase"
@@ -310,6 +307,10 @@ class NET_EXPORT BoundNetLog {
   NetLog* net_log() const { return net_log_; }
 
  private:
+  BoundNetLog(const NetLog::Source& source, NetLog* net_log)
+      : source_(source), net_log_(net_log) {
+  }
+
   NetLog::Source source_;
   NetLog* net_log_;
 };
