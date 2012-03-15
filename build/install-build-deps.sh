@@ -30,9 +30,9 @@ do
 done
 
 if ! egrep -q \
-    'Ubuntu (10\.04|10\.10|11\.04|11\.10|lucid|maverick|natty|oneiric)' \
+    'Ubuntu (10\.04|10\.10|11\.04|11\.10|12\.04|lucid|maverick|natty|oneiric|precise)' \
     /etc/issue; then
-  echo "Only Ubuntu 10.04 (lucid) through 11.10 (oneiric) are currently" \
+  echo "Only Ubuntu 10.04 (lucid) through 12.04 (precise) are currently" \
       "supported" >&2
   exit 1
 fi
@@ -59,7 +59,7 @@ dev_list="apache2.2-bin bison curl elfutils fakeroot flex g++ gperf
           libglu1-mesa-dev libgnome-keyring-dev libgtk2.0-dev libjpeg62-dev
           libkrb5-dev libnspr4-dev libnss3-dev libpam0g-dev libsctp-dev
           libsqlite3-dev libssl-dev libudev-dev libwww-perl libxslt1-dev
-          libxss-dev libxt-dev libxtst-dev mesa-common-dev msttcorefonts patch
+          libxss-dev libxt-dev libxtst-dev mesa-common-dev patch
           perl php5-cgi pkg-config python python-cherrypy3 python-dev
           python-psutil rpm ruby subversion ttf-dejavu-core ttf-indic-fonts
           ttf-kochi-gothic ttf-kochi-mincho ttf-thai-tlwg wdiff git-core
@@ -90,13 +90,24 @@ dbg_list="libatk1.0-dbg libc6-dbg libcairo2-dbg libdbus-glib-1-2-dbg
 # Plugin lists needed for tests.
 plugin_list="flashplugin-installer"
 
-# Some NSS packages were renamed in Natty.
-if egrep -q 'Ubuntu (10\.04|10\.10)' /etc/issue; then
-  dbg_list="${dbg_list} libnspr4-0d-dbg libnss3-1d-dbg"
-  lib_list="${lib_list} libnspr4-0d libnss3-1d"
+# Some package names have changed over time
+if dpkg --print-avail msttcorefonts >/dev/null 2>&1; then
+  dev_list="${dev_list} msttcorefonts"
 else
+  dev_list="${dev_list} ttf-mscorefonts-installer"
+fi
+if dpkg --print-avail libnspr4 >/dev/null 2>&1; then
   dbg_list="${dbg_list} libnspr4-dbg libnss3-dbg"
   lib_list="${lib_list} libnspr4 libnss3"
+else
+  dbg_list="${dbg_list} libnspr4-0d-dbg libnss3-1d-dbg"
+  lib_list="${lib_list} libnspr4-0d libnss3-1d"
+fi
+
+# Some packages are only needed, if the distribution actually supports
+# installing them.
+if dpkg --print-avail appmenu-gtk >/dev/null 2>&1; then
+  lib_list="$lib_list appmenu-gtk"
 fi
 
 # Waits for the user to press 'Y' or 'N'. Either uppercase of lowercase is
@@ -161,7 +172,7 @@ sudo apt-get update
 # We then re-run "apt-get" with just the list of missing packages.
 echo "Finding missing packages..."
 packages="${dev_list} ${lib_list} ${dbg_list} ${plugin_list}"
-# Intentially leaving $packages unquoted so it's more readable.
+# Intentionally leaving $packages unquoted so it's more readable.
 echo "Packages required: " $packages
 echo
 new_list_cmd="sudo apt-get install --reinstall $(echo $packages)"
@@ -170,7 +181,7 @@ if new_list="$(yes n | LANG=C $new_list_cmd)"; then
   echo "No missing packages, and the packages are up-to-date."
 elif [ $? -eq 1 ]; then
   # We expect apt-get to have exit status of 1.
-  # This indicates that we canceled the install with "yes n|".
+  # This indicates that we cancelled the install with "yes n|".
   new_list=$(echo "$new_list" |
     sed -e '1,/The following NEW packages will be installed:/d;s/^  //;t;d')
   new_list=$(echo "$new_list" | sed 's/ *$//')
