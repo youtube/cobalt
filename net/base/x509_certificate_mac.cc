@@ -1493,10 +1493,7 @@ bool X509Certificate::GetSSLClientCertificates(
         CFEqual(preferred_identity, identity);
 
     // Make sure the issuer matches valid_issuers, if given.
-    // But an explicit cert preference overrides this.
-    if (!is_preferred &&
-        !valid_issuers.empty() &&
-        !cert->IsIssuedBy(valid_issuers))
+    if (!valid_issuers.empty() && !cert->IsIssuedBy(valid_issuers))
       continue;
 
     // The cert passes, so add it to the vector.
