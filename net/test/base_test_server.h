@@ -119,8 +119,6 @@ class BaseTestServer {
   // Initialize a HTTPS TestServer with a specific set of HTTPSOptions.
   explicit BaseTestServer(const HTTPSOptions& https_options);
 
-  ~BaseTestServer();
-
   // Returns the host port pair used by current Python based test server only
   // if the server is started.
   const HostPortPair& host_port_pair() const;
@@ -145,6 +143,7 @@ class BaseTestServer {
       std::string* replacement_path);
 
  protected:
+  virtual ~BaseTestServer();
   Type type() const { return type_; }
 
   // Gets port currently assigned to host_port_pair_ without checking
