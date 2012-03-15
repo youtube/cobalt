@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,11 +6,11 @@
 
 #include "base/logging.h"
 #include "net/base/cert_verifier.h"
-#include "net/base/cookie_store.h"
 #include "net/base/host_resolver.h"
 #include "net/base/net_log.h"
 #include "net/base/network_delegate.h"
 #include "net/base/origin_bound_cert_service.h"
+#include "net/cookies/cookie_store.h"
 #include "net/ftp/ftp_transaction_factory.h"
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_server_properties.h"
