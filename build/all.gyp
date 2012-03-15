@@ -28,13 +28,7 @@
         '../sdch/sdch.gyp:*',
         '../skia/skia.gyp:*',
         '../sql/sql.gyp:*',
-
-        # Build sync.gyp targets individually until http://crbug.com/118371
-        # is resolved.
-        '../sync/sync.gyp:sync',
-        '../sync/sync.gyp:test_support_sync',
-        '../sync/sync.gyp:sync_unit_tests_canary',
-
+        '../sync/sync.gyp:*',
         '../testing/gmock.gyp:*',
         '../testing/gtest.gyp:*',
         '../third_party/bzip2/bzip2.gyp:*',
