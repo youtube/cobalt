@@ -349,6 +349,8 @@ bool LaunchProcess(const string16& cmdline,
                                       process_info.hProcess)) {
       DLOG(ERROR) << "Could not AssignProcessToObject.";
       KillProcess(process_info.hProcess, kProcessKilledExitCode, true);
+      CloseHandle(process_info.hProcess);
+      CloseHandle(process_info.hThread);
       return false;
     }
 
