@@ -574,8 +574,6 @@
           'target_name': 'aura_builder',
           'type': 'none',
           'dependencies': [
-            '../ash/ash.gyp:ash_shell',
-            '../ash/ash.gyp:aura_shell_unittests',
             '../chrome/chrome.gyp:chrome',
             '../chrome/chrome.gyp:unit_tests',
             '../chrome/chrome.gyp:ui_tests',
@@ -597,6 +595,12 @@
               'dependencies': [
                 '../chrome/chrome.gyp:crash_service',
                 '../chrome/chrome.gyp:crash_service_win64',
+              ],
+            }],
+            ['use_ash==1', {
+              'dependencies': [
+                '../ash/ash.gyp:ash_shell',
+                '../ash/ash.gyp:aura_shell_unittests',
               ],
             }],
             ['OS=="linux"', {
