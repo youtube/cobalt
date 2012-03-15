@@ -242,6 +242,10 @@
       # plugins to make call of the main thread.
       'enable_pepper_threading%': 0,
 
+      # Enables theme support, which is enabled by default.  Support for
+      # disabling depends on the platform.
+      'enable_themes%': 1,
+
       # XInput2 multitouch support is disabled by default (use_xi2_mt=0).
       # Setting to non-zero value enables XI2 MT. When XI2 MT is enabled,
       # the input value also defines the required XI2 minor minimum version.
@@ -486,6 +490,7 @@
     'enable_web_intents%': '<(enable_web_intents)',
     'enable_web_intents_tag%': '<(enable_web_intents_tag)',
     'enable_plugin_installation%': '<(enable_plugin_installation)',
+    'enable_themes%': '<(enable_themes)',
     'linux_use_gold_binary%': '<(linux_use_gold_binary)',
     'linux_use_gold_flags%': '<(linux_use_gold_flags)',
     'use_canvas_skia_skia%': '<(use_canvas_skia_skia)',
@@ -771,6 +776,8 @@
         'input_speech%': 0,
         'enable_web_intents%': 0,
         'java_bridge%': 1,
+        # Android does not support themes.
+        'enable_themes%': 0,
 
         # Set to 1 once we have a notification system for Android.
         # http://crbug.com/115320
@@ -1348,6 +1355,9 @@
       }],
       ['enable_plugin_installation==1', {
         'defines': ['ENABLE_PLUGIN_INSTALLATION=1'],
+      }],
+      ['enable_themes==1', {
+        'defines': ['ENABLE_THEMES=1'],
       }],
     ],  # conditions for 'target_defaults'
     'target_conditions': [
