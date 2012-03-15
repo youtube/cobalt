@@ -306,10 +306,6 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   static void AllowFileAccess();
   static bool IsFileAccessAllowed();
 
-  // See switches::kEnableMacCookies.
-  static void EnableMacCookies();
-  static bool AreMacCookiesEnabled();
-
   // The original url is the url used to initialize the request, and it may
   // differ from the url if the request was redirected.
   const GURL& original_url() const { return url_chain_.front(); }
