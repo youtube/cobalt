@@ -593,6 +593,11 @@ void SpdySession::AddPooledAlias(const HostPortProxyPair& alias) {
   pooled_aliases_.insert(alias);
 }
 
+int SpdySession::GetProtocolVersion() const {
+  DCHECK(buffered_spdy_framer_.get());
+  return buffered_spdy_framer_->protocol_version();
+}
+
 int SpdySession::WriteSynStream(
     spdy::SpdyStreamId stream_id,
     RequestPriority priority,

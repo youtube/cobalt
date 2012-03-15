@@ -127,6 +127,7 @@ TEST_F(SpdySessionSpdy3Test, GoAway) {
   session_deps.socket_factory->AddSocketDataProvider(&data);
 
   SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
+  ssl.SetNextProto(SSLClientSocket::kProtoSPDY3);
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
 
   scoped_refptr<HttpNetworkSession> http_session(
@@ -154,6 +155,7 @@ TEST_F(SpdySessionSpdy3Test, GoAway) {
                                  http_session->GetTransportSocketPool(),
                                  BoundNetLog()));
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
+  EXPECT_EQ(3, session->GetProtocolVersion());
 
   // Flush the SpdySession::OnReadComplete() task.
   MessageLoop::current()->RunAllPending();

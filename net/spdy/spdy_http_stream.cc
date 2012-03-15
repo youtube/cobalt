@@ -198,7 +198,8 @@ int SpdyHttpStream::SendRequest(const HttpRequestHeaders& request_headers,
 
   linked_ptr<spdy::SpdyHeaderBlock> headers(new spdy::SpdyHeaderBlock);
   CreateSpdyHeadersFromHttpRequest(*request_info_, request_headers,
-                                   headers.get(), direct_);
+                                   headers.get(), stream_->GetProtocolVersion(),
+                                   direct_);
   stream_->set_spdy_headers(headers);
 
   stream_->SetRequestTime(request_time);
