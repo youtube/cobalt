@@ -1459,11 +1459,11 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, Put) {
     spdy::DATA_FLAG_NONE          // Data Flags
   };
   const char* const kPutHeaders[] = {
-    "method", "PUT",
-    "url", "/",
-    "host", "www.google.com",
-    "scheme", "http",
-    "version", "HTTP/1.1",
+    ":method", "PUT",
+    ":path", "/",
+    ":host", "www.google.com",
+    ":scheme", "http",
+    ":version", "HTTP/1.1",
     "content-length", "0"
   };
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyPacket(kSynStartHeader, NULL, 0,
@@ -1530,11 +1530,11 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, Head) {
     spdy::DATA_FLAG_NONE          // Data Flags
   };
   const char* const kHeadHeaders[] = {
-    "method", "HEAD",
-    "url", "/",
-    "host", "www.google.com",
-    "scheme", "http",
-    "version", "HTTP/1.1",
+    ":method", "HEAD",
+    ":path", "/",
+    ":host", "www.google.com",
+    ":scheme", "http",
+    ":version", "HTTP/1.1",
     "content-length", "0"
   };
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyPacket(kSynStartHeader, NULL, 0,
@@ -2434,31 +2434,31 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, RedirectGetRequest) {
   };
   const SpdyHeaderInfo kSynStartHeader = MakeSpdyHeader(spdy::SYN_STREAM);
   const char* const kStandardGetHeaders[] = {
-    "host",
+    ":host",
     "www.google.com",
-    "method",
+    ":method",
     "GET",
-    "scheme",
+    ":scheme",
     "http",
-    "url",
+    ":path",
     "/",
     "user-agent",
     "",
-    "version",
+    ":version",
     "HTTP/1.1"
   };
   const char* const kStandardGetHeaders2[] = {
-    "host",
+    ":host",
     "www.foo.com",
-    "method",
+    ":method",
     "GET",
-    "scheme",
+    ":scheme",
     "http",
-    "url",
+    ":path",
     "/index.php",
     "user-agent",
     "",
-    "version",
+    ":version",
     "HTTP/1.1"
   };
 
@@ -2670,17 +2670,17 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, RedirectServerPush) {
   };
   const SpdyHeaderInfo kSynStartHeader = MakeSpdyHeader(spdy::SYN_STREAM);
   const char* const kStandardGetHeaders[] = {
-    "host",
+    ":host",
     "www.google.com",
-    "method",
+    ":method",
     "GET",
-    "scheme",
+    ":scheme",
     "http",
-    "url",
+    ":path",
     "/",
     "user-agent",
     "",
-    "version",
+    ":version",
     "HTTP/1.1"
   };
 
@@ -2716,17 +2716,17 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, RedirectServerPush) {
 
   // Setup writes/reads to www.foo.com
   const char* const kStandardGetHeaders2[] = {
-    "host",
+    ":host",
     "www.foo.com",
-    "method",
+    ":method",
     "GET",
-    "scheme",
+    ":scheme",
     "http",
-    "url",
+    ":path",
     "/index.php",
     "user-agent",
     "",
-    "version",
+    ":version",
     "HTTP/1.1"
   };
   scoped_ptr<spdy::SpdyFrame> req2(
@@ -3905,11 +3905,11 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, NetLog) {
       request_params->GetHeaders().get();
 
   spdy::SpdyHeaderBlock expected;
-  expected["host"] = "www.google.com";
-  expected["url"] = "/";
-  expected["scheme"] = "http";
-  expected["version"] = "HTTP/1.1";
-  expected["method"] = "GET";
+  expected[":host"] = "www.google.com";
+  expected[":path"] = "/";
+  expected[":scheme"] = "http";
+  expected[":version"] = "HTTP/1.1";
+  expected[":method"] = "GET";
   expected["user-agent"] = "Chrome";
   EXPECT_EQ(expected.size(), headers->size());
   spdy::SpdyHeaderBlock::const_iterator end = expected.end();

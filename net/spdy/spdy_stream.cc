@@ -440,6 +440,10 @@ void SpdyStream::OnChunkAvailable() {
     OnWriteComplete(0);
 }
 
+int SpdyStream::GetProtocolVersion() const {
+  return session_->GetProtocolVersion();
+}
+
 void SpdyStream::LogStreamError(int status, const std::string& description) {
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_STREAM_ERROR,
@@ -516,28 +520,40 @@ GURL SpdyStream::GetUrl() const {
   DCHECK(HasUrl());
 
   if (pushed_) {
-    // assemble from the response
-    std::string url;
-    spdy::SpdyHeaderBlock::const_iterator it;
-    it = response_->find("url");
-    if (it != (*response_).end())
-      url = it->second;
-    return GURL(url);
+    if (GetProtocolVersion() >= 3) {
+      return GetUrlFromHeaderBlock(response_);
+    } else {
+      // assemble from the response
+      std::string url;
+      spdy::SpdyHeaderBlock::const_iterator it;
+      it = response_->find("url");
+      if (it != (*response_).end())
+        url = it->second;
+      return GURL(url);
+    }
   }
 
-  // assemble from the request
+  return GetUrlFromHeaderBlock(request_);
+}
+
+GURL SpdyStream::GetUrlFromHeaderBlock(
+    const linked_ptr<spdy::SpdyHeaderBlock>& headers) const {
+  const char* scheme_header = GetProtocolVersion() >= 3 ? ":scheme" : "scheme";
+  const char* host_header = GetProtocolVersion() >= 3 ? ":host" : "host";
+  const char* path_header = GetProtocolVersion() >= 3 ? ":path" : "path";
+
   std::string scheme;
   std::string host_port;
   std::string path;
   spdy::SpdyHeaderBlock::const_iterator it;
-  it = request_->find("scheme");
-  if (it != (*request_).end())
+  it = headers->find(scheme_header);
+  if (it != (*headers).end())
     scheme = it->second;
-  it = request_->find("host");
-  if (it != (*request_).end())
+  it = headers->find(host_header);
+  if (it != (*headers).end())
     host_port = it->second;
-  it = request_->find("path");
-  if (it != (*request_).end())
+  it = headers->find(path_header);
+  if (it != (*headers).end())
     path = it->second;
   std::string url = scheme + "://" + host_port + path;
   return GURL(url);
