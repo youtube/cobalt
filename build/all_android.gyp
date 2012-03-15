@@ -30,6 +30,7 @@
       'dependencies': [
         '../base/base.gyp:base_unittests',
         '../chrome/chrome.gyp:sync_unit_tests',
+        '../content/content.gyp:content_unittests',
         '../sql/sql.gyp:sql_unittests',
         '../ipc/ipc.gyp:ipc_tests',
         '../net/net.gyp:net_unittests',
@@ -37,7 +38,6 @@
         '../jingle/jingle.gyp:jingle_unittests',
         '../tools/android/fake_dns/fake_dns.gyp:fake_dns',
         '../tools/android/forwarder/forwarder.gyp:forwarder',
-        '../content/content.gyp:content_unittests',
         '../media/media.gyp:media_unittests',
       ],
     },
