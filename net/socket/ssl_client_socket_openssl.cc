@@ -624,8 +624,9 @@ void SSLClientSocketOpenSSL::GetSSLCertRequestInfo(
 }
 
 int SSLClientSocketOpenSSL::ExportKeyingMaterial(
-    const base::StringPiece& label, const base::StringPiece& context,
-    unsigned char *out, unsigned int outlen) {
+    const base::StringPiece& label,
+    bool has_context, const base::StringPiece& context,
+    unsigned char* out, unsigned int outlen) {
   crypto::OpenSSLErrStackTracer err_tracer(FROM_HERE);
 
   int rv = SSL_export_keying_material(

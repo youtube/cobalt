@@ -8484,9 +8484,9 @@ done:
     return rv;
 }
 
-/* The calling function must acquire and release the appropriate lock (i.e.,
- * ssl_GetSpecReadLock / ssl_ReleaseSpecReadLock for ss->ssl3.crSpec). Any
- * label must already be concatenated onto the beginning of val.
+/* The calling function must acquire and release the appropriate
+ * lock (e.g., ssl_GetSpecReadLock / ssl_ReleaseSpecReadLock for
+ * ss->ssl3.crSpec).
  */
 SECStatus
 ssl3_TLSPRFWithMasterSecret(ssl3CipherSpec *spec, const char *label,
@@ -8508,8 +8508,7 @@ ssl3_TLSPRFWithMasterSecret(ssl3CipherSpec *spec, const char *label,
 	rv  = PK11_DigestBegin(prf_context);
 	rv |= PK11_DigestOp(prf_context, (unsigned char *) label, labelLen);
 	rv |= PK11_DigestOp(prf_context, val, valLen);
-	rv |= PK11_DigestFinal(prf_context, out,
-			       &retLen, outLen);
+	rv |= PK11_DigestFinal(prf_context, out, &retLen, outLen);
 	PORT_Assert(rv != SECSuccess || retLen == outLen);
 
 	PK11_DestroyContext(prf_context, PR_TRUE);
@@ -8532,15 +8531,15 @@ ssl3_TLSPRFWithMasterSecret(ssl3CipherSpec *spec, const char *label,
 static SECStatus
 ssl3_ComputeTLSFinished(ssl3CipherSpec *spec,
 			PRBool          isServer,
-		const   SSL3Finished *  hashes,
-			TLSFinished  *  tlsFinished)
+                const   SSL3Finished *  hashes,
+                        TLSFinished  *  tlsFinished)
 {
     const char * label;
-    SECStatus    rv;
     unsigned int len;
+    SECStatus    rv;
 
     label = isServer ? "server finished" : "client finished";
-    len = 15;
+    len   = 15;
 
     rv = ssl3_TLSPRFWithMasterSecret(spec, label, len, hashes->md5,
 	sizeof *hashes, tlsFinished->verify_data,

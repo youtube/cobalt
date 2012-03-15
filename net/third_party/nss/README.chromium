@@ -48,6 +48,7 @@ Patches:
     This is a reworked version of the patch from
     https://bugzilla.mozilla.org/show_bug.cgi?id=507359
     patches/secret_exporter.patch
+    patches/secret_exporter2.patch
 
   * Add a function to restart a handshake after a client certificate request.
     patches/restartclientauth.patch

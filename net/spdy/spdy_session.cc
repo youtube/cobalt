@@ -643,7 +643,7 @@ int SpdySession::WriteCredentialFrame(const std::string& origin,
   DCHECK(is_secure_);
   unsigned char secret[32];  // 32 bytes from the spec
   GetSSLClientSocket()->ExportKeyingMaterial("SPDY certificate proof",
-                                             origin,
+                                             true, origin,
                                              secret, arraysize(secret));
 
   // Convert the key string into a vector<unit8>
