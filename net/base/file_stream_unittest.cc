@@ -51,11 +51,11 @@ class NetLogForNotifyingFileClosure : public NetLog {
   }
 
   // NetLog overrides:
-  virtual void AddEntry(EventType type,
-                        const base::TimeTicks& time,
-                        const Source& source,
-                        EventPhase phase,
-                        EventParameters* extra_parameters) OVERRIDE {
+  virtual void AddEntry(
+      EventType type,
+      const Source& source,
+      EventPhase phase,
+      const scoped_refptr<EventParameters>& params) OVERRIDE {
     if (type == TYPE_FILE_STREAM_CLOSE) {
       on_closure_.Signal();
     }

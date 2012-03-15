@@ -1265,12 +1265,10 @@ void ProxyService::ReportSuccess(const ProxyInfo& result) {
       existing->second.bad_until = iter->second.bad_until;
   }
   if (net_log_) {
-    net_log_->AddEntry(NetLog::TYPE_BAD_PROXY_LIST_REPORTED,
-                       TimeTicks::Now(),
-                       NetLog::Source(),
-                       NetLog::PHASE_NONE,
-                       make_scoped_refptr(
-                           new BadProxyListNetLogParam(new_retry_info)));
+    net_log_->AddGlobalEntry(
+        NetLog::TYPE_BAD_PROXY_LIST_REPORTED,
+        make_scoped_refptr(
+            new BadProxyListNetLogParam(new_retry_info)));
   }
 }
 
@@ -1473,11 +1471,8 @@ void ProxyService::OnProxyConfigChanged(
   if (net_log_) {
     scoped_refptr<NetLog::EventParameters> params(
         new ProxyConfigChangedNetLogParam(fetched_config_, effective_config));
-    net_log_->AddEntry(net::NetLog::TYPE_PROXY_CONFIG_CHANGED,
-                       TimeTicks::Now(),
-                       NetLog::Source(),
-                       NetLog::PHASE_NONE,
-                       params);
+    net_log_->AddGlobalEntry(net::NetLog::TYPE_PROXY_CONFIG_CHANGED,
+                                params);
   }
 
   // Set the new configuration as the most recently fetched one.
