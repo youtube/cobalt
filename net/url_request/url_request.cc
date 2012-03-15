@@ -37,8 +37,6 @@ namespace net {
 
 namespace {
 
-static bool g_mac_cookies_enabled = false;
-
 // Max number of http redirects to follow.  Same number as gecko.
 const int kMaxRedirects = 20;
 
@@ -345,16 +343,6 @@ void URLRequest::AllowFileAccess() {
 // static
 bool URLRequest::IsFileAccessAllowed() {
   return URLRequestJobManager::GetInstance()->enable_file_access();
-}
-
-// static
-void URLRequest::EnableMacCookies() {
-  g_mac_cookies_enabled = true;
-}
-
-// static
-bool URLRequest::AreMacCookiesEnabled() {
-  return g_mac_cookies_enabled;
 }
 
 void URLRequest::set_first_party_for_cookies(
