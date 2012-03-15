@@ -429,6 +429,13 @@
         }, {
           'linux_use_gold_flags%': 0,
         }],
+
+        # Enable automation on platforms other than Android.
+        ['OS=="android"', {
+          'enable_automation%': 0,
+        }, {
+          'enable_automation%': 1,
+        }],
       ],
     },
 
@@ -495,6 +502,7 @@
     'linux_use_gold_flags%': '<(linux_use_gold_flags)',
     'use_canvas_skia_skia%': '<(use_canvas_skia_skia)',
     'tests_run%': '<(tests_run)',
+    'enable_automation%': '<(enable_automation)',
 
     # Whether to build for Wayland display server
     'use_wayland%': 0,
@@ -1358,6 +1366,9 @@
       }],
       ['enable_themes==1', {
         'defines': ['ENABLE_THEMES=1'],
+      }],
+      ['enable_automation==1', {
+        'defines': ['ENABLE_AUTOMATION=1'],
       }],
     ],  # conditions for 'target_defaults'
     'target_conditions': [
