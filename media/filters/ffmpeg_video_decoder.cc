@@ -72,19 +72,14 @@ void FFmpegVideoDecoder::Initialize(DemuxerStream* demuxer_stream,
   if (!message_loop_) {
     message_loop_ = message_loop_factory_cb_.Run();
     message_loop_factory_cb_.Reset();
-  } else {
-    // TODO(scherkus): initialization currently happens more than once in
-    // PipelineIntegrationTest.BasicPlayback.
-    LOG(ERROR) << "Initialize has already been called.";
-  }
 
-  if (MessageLoop::current() != message_loop_) {
     message_loop_->PostTask(FROM_HERE, base::Bind(
         &FFmpegVideoDecoder::Initialize, this,
         make_scoped_refptr(demuxer_stream), pipeline_status_cb, statistics_cb));
     return;
   }
 
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(!demuxer_stream_);
 
   if (!demuxer_stream) {
