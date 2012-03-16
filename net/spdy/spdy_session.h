@@ -167,10 +167,6 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // Reset all static settings to initialized values. Used to init test suite.
   static void ResetStaticSettingsToInit();
 
-  // Enable or disable SSL.
-  static void SetSSLMode(bool enable) { use_ssl_ = enable; }
-  static bool SSLMode() { return use_ssl_; }
-
   // Specify the SPDY protocol to be used for SPDY session which do not use NPN
   // to negotiate a particular protocol.
   static void set_default_protocol(
@@ -631,7 +627,6 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   SpdyCredentialState credential_state_;
 
-  static bool use_ssl_;
   static SSLClientSocket::NextProto default_protocol_;
   static size_t init_max_concurrent_streams_;
   static size_t max_concurrent_stream_limit_;

@@ -265,8 +265,6 @@ class NetLogSpdyGoAwayParameter : public NetLog::EventParameters {
 }  // namespace
 
 // static
-bool SpdySession::use_ssl_ = true;
-
 SSLClientSocket::NextProto SpdySession::default_protocol_ =
     SSLClientSocket::kProtoUnknown;
 
