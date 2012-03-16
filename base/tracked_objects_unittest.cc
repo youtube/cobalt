@@ -172,7 +172,7 @@ TEST_F(TrackedObjectsTest, ParentChildTest) {
 
   scoped_ptr<base::Value> value(ThreadData::ToValue(false));
   std::string json;
-  base::JSONWriter::Write(value.get(), false, &json);
+  base::JSONWriter::Write(value.get(), &json);
   std::string birth_only_result = "{"
       "\"descendants\":["
         "{"
@@ -260,7 +260,7 @@ TEST_F(TrackedObjectsTest, DeathDataTest) {
 
   scoped_ptr<base::Value> value(data->ToValue());
   std::string json;
-  base::JSONWriter::Write(value.get(), false, &json);
+  base::JSONWriter::Write(value.get(), &json);
   std::string birth_only_result = "{"
       "\"count\":2,"
       "\"queue_ms\":16,"
@@ -289,7 +289,7 @@ TEST_F(TrackedObjectsTest, DeactivatedBirthOnlyToValueWorkerThread) {
 
   scoped_ptr<base::Value> value(ThreadData::ToValue(false));
   std::string json;
-  base::JSONWriter::Write(value.get(), false, &json);
+  base::JSONWriter::Write(value.get(), &json);
   std::string birth_only_result = "{"
       "\"descendants\":["
       "],"
@@ -317,7 +317,7 @@ TEST_F(TrackedObjectsTest, DeactivatedBirthOnlyToValueMainThread) {
 
   scoped_ptr<base::Value> value(ThreadData::ToValue(false));
   std::string json;
-  base::JSONWriter::Write(value.get(), false, &json);
+  base::JSONWriter::Write(value.get(), &json);
   std::string birth_only_result = "{"
       "\"descendants\":["
       "],"
@@ -342,7 +342,7 @@ TEST_F(TrackedObjectsTest, BirthOnlyToValueWorkerThread) {
 
   scoped_ptr<base::Value> value(ThreadData::ToValue(false));
   std::string json;
-  base::JSONWriter::Write(value.get(), false, &json);
+  base::JSONWriter::Write(value.get(), &json);
   std::string birth_only_result = "{"
       "\"descendants\":["
       "],"
@@ -387,7 +387,7 @@ TEST_F(TrackedObjectsTest, BirthOnlyToValueMainThread) {
 
   scoped_ptr<base::Value> value(ThreadData::ToValue(false));
   std::string json;
-  base::JSONWriter::Write(value.get(), false, &json);
+  base::JSONWriter::Write(value.get(), &json);
   std::string birth_only_result = "{"
       "\"descendants\":["
       "],"
@@ -445,7 +445,7 @@ TEST_F(TrackedObjectsTest, LifeCycleToValueMainThread) {
 
   scoped_ptr<base::Value> value(ThreadData::ToValue(false));
   std::string json;
-  base::JSONWriter::Write(value.get(), false, &json);
+  base::JSONWriter::Write(value.get(), &json);
   std::string one_line_result = "{"
       "\"descendants\":["
       "],"
@@ -511,7 +511,7 @@ TEST_F(TrackedObjectsTest, LifeCycleMidDeactivatedToValueMainThread) {
 
   scoped_ptr<base::Value> value(ThreadData::ToValue(false));
   std::string json;
-  base::JSONWriter::Write(value.get(), false, &json);
+  base::JSONWriter::Write(value.get(), &json);
   std::string one_line_result = "{"
       "\"descendants\":["
       "],"
@@ -570,7 +570,7 @@ TEST_F(TrackedObjectsTest, LifeCyclePreDeactivatedToValueMainThread) {
 
   scoped_ptr<base::Value> value(ThreadData::ToValue(false));
   std::string json;
-  base::JSONWriter::Write(value.get(), false, &json);
+  base::JSONWriter::Write(value.get(), &json);
   std::string one_line_result = "{"
       "\"descendants\":["
       "],"
@@ -606,7 +606,7 @@ TEST_F(TrackedObjectsTest, LifeCycleToValueWorkerThread) {
   // Call for the ToValue, but tell it to not the maxes after scanning.
   scoped_ptr<base::Value> value(ThreadData::ToValue(false));
   std::string json;
-  base::JSONWriter::Write(value.get(), false, &json);
+  base::JSONWriter::Write(value.get(), &json);
   std::string one_line_result = "{"
       "\"descendants\":["
       "],"
@@ -637,14 +637,14 @@ TEST_F(TrackedObjectsTest, LifeCycleToValueWorkerThread) {
   // We'll still get the same values, but the data will be reset (which we'll
   // see in a moment).
   value.reset(ThreadData::ToValue(true));
-  base::JSONWriter::Write(value.get(), false, &json);
+  base::JSONWriter::Write(value.get(), &json);
   // Result should be unchanged.
   EXPECT_EQ(one_line_result, json);
 
   // Call for the ToValue, and now we'll see the result of the last translation,
   // as the max will have been pushed back to zero.
   value.reset(ThreadData::ToValue(false));
-  base::JSONWriter::Write(value.get(), false, &json);
+  base::JSONWriter::Write(value.get(), &json);
   std::string one_line_result_with_zeros = "{"
       "\"descendants\":["
       "],"
@@ -710,7 +710,7 @@ TEST_F(TrackedObjectsTest, TwoLives) {
 
   scoped_ptr<base::Value> value(ThreadData::ToValue(false));
   std::string json;
-  base::JSONWriter::Write(value.get(), false, &json);
+  base::JSONWriter::Write(value.get(), &json);
   std::string one_line_result = "{"
       "\"descendants\":["
       "],"
@@ -772,7 +772,7 @@ TEST_F(TrackedObjectsTest, DifferentLives) {
 
   scoped_ptr<base::Value> value(ThreadData::ToValue(false));
   std::string json;
-  base::JSONWriter::Write(value.get(), false, &json);
+  base::JSONWriter::Write(value.get(), &json);
   std::string one_line_result = "{"
       "\"descendants\":["
       "],"
