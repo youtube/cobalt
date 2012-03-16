@@ -32,6 +32,10 @@
 #include "net/spdy/spdy_protocol.h"
 #include "net/spdy/spdy_session_pool.h"
 
+namespace base {
+class Value;
+}
+
 namespace net {
 
 // This is somewhat arbitrary and not really fixed, but it will always work
@@ -676,7 +680,7 @@ class NetLogSpdySessionCloseParameter : public NetLog::EventParameters {
                                   const std::string& description);
 
   int status() const { return status_; }
-  virtual Value* ToValue() const  OVERRIDE;
+  virtual base::Value* ToValue() const  OVERRIDE;
 
  private:
   virtual ~NetLogSpdySessionCloseParameter();
