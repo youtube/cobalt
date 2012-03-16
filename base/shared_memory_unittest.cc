@@ -423,7 +423,7 @@ TEST_F(SharedMemoryProcessTest, MAYBE_Tasks) {
   int exit_code = 0;
   for (int index = 0; index < kNumTasks; ++index) {
     EXPECT_TRUE(WaitForExitCode(handles[index], &exit_code));
-    EXPECT_EQ(0, exit_code);
+    EXPECT_TRUE(exit_code == 0);
   }
 
   SharedMemoryProcessTest::CleanUp();
