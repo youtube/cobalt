@@ -877,7 +877,9 @@ bool TransportSecurityState::Serialise(std::string* output) {
     toplevel.Set(HashedDomainToExternalString(i->first), state);
   }
 
-  base::JSONWriter::Write(&toplevel, true /* pretty print */, output);
+  base::JSONWriter::WriteWithOptions(&toplevel,
+                                     base::JSONWriter::OPTIONS_PRETTY_PRINT,
+                                     output);
   return true;
 }
 
