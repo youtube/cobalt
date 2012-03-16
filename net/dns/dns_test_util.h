@@ -166,6 +166,8 @@ class MockDnsConfigService : public DnsConfigService {
  public:
   virtual ~MockDnsConfigService() {}
 
+  virtual void Watch(const CallbackType& callback) OVERRIDE;
+
   // Expose the protected methods for tests.
   void ChangeConfig(const DnsConfig& config) {
     DnsConfigService::OnConfigRead(config);
