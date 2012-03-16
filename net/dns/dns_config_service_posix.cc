@@ -6,14 +6,15 @@
 
 #include <string>
 
-#include "base/compiler_specific.h"
+#include "base/basictypes.h"
+#include "base/bind.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/memory/scoped_ptr.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_util.h"
+#include "net/dns/file_path_watcher_wrapper.h"
 #include "net/dns/serial_worker.h"
-#include "net/dns/watching_file_reader.h"
 
 #ifndef _PATH_RESCONF  // Normally defined in <resolv.h>
 #define _PATH_RESCONF "/etc/resolv.conf"
@@ -21,13 +22,19 @@
 
 namespace net {
 
-// A SerialWorker that uses ResolverLib to initialize res_state and converts
+namespace {
+
+const FilePath::CharType* kFilePathConfig = FILE_PATH_LITERAL(_PATH_RESCONF);
+const FilePath::CharType* kFilePathHosts = FILE_PATH_LITERAL("/etc/hosts");
+
+// A SerialWorker that uses libresolv to initialize res_state and converts
 // it to DnsConfig.
-class DnsConfigServicePosix::ConfigReader : public SerialWorker {
+class ConfigReader : public SerialWorker {
  public:
-  explicit ConfigReader(DnsConfigServicePosix* service)
-    : service_(service),
-      success_(false) {}
+  typedef base::Callback<void(const DnsConfig& config)> CallbackType;
+  explicit ConfigReader(const CallbackType& callback)
+      : callback_(callback),
+        success_(false) {}
 
   void DoWork() OVERRIDE {
     success_ = false;
@@ -38,13 +45,13 @@ class DnsConfigServicePosix::ConfigReader : public SerialWorker {
     // res_init behaves the same way.
     memset(&_res, 0, sizeof(_res));
     if ((res_init() == 0) && (_res.options & RES_INIT)) {
-      success_ = ConvertResStateToDnsConfig(_res, &dns_config_);
+      success_ = internal::ConvertResStateToDnsConfig(_res, &dns_config_);
     }
 #else  // all other OS_POSIX
     struct __res_state res;
     memset(&res, 0, sizeof(res));
     if ((res_ninit(&res) == 0) && (res.options & RES_INIT)) {
-      success_ = ConvertResStateToDnsConfig(res, &dns_config_);
+      success_ = internal::ConvertResStateToDnsConfig(res, &dns_config_);
     }
     // Prefer res_ndestroy where available.
 #if defined(OS_MACOSX)
@@ -59,35 +66,80 @@ class DnsConfigServicePosix::ConfigReader : public SerialWorker {
   void OnWorkFinished() OVERRIDE {
     DCHECK(!IsCancelled());
     if (success_)
-      service_->OnConfigRead(dns_config_);
+      callback_.Run(dns_config_);
   }
 
  private:
   virtual ~ConfigReader() {}
 
-  DnsConfigServicePosix* service_;
+  CallbackType callback_;
   // Written in DoWork, read in OnWorkFinished, no locking necessary.
   DnsConfig dns_config_;
   bool success_;
 };
 
+}  // namespace
+
+namespace internal {
+
 DnsConfigServicePosix::DnsConfigServicePosix()
-  : config_watcher_(new WatchingFileReader()),
-    hosts_watcher_(new WatchingFileReader()) {}
-
-DnsConfigServicePosix::~DnsConfigServicePosix() {}
-
-void DnsConfigServicePosix::Watch() {
-  DCHECK(CalledOnValidThread());
-  config_watcher_->StartWatch(FilePath(FILE_PATH_LITERAL(_PATH_RESCONF)),
-                              new ConfigReader(this));
-  FilePath hosts_path(FILE_PATH_LITERAL("/etc/hosts"));
-  hosts_watcher_->StartWatch(hosts_path, new DnsHostsReader(hosts_path, this));
+    : config_watcher_(new FilePathWatcherWrapper()),
+      hosts_watcher_(new FilePathWatcherWrapper()) {
+  config_reader_ = new ConfigReader(
+      base::Bind(&DnsConfigServicePosix::OnConfigRead,
+                 base::Unretained(this)));
+  hosts_reader_ = new DnsHostsReader(
+      FilePath(kFilePathHosts),
+      base::Bind(&DnsConfigServicePosix::OnHostsRead,
+                 base::Unretained(this)));
 }
 
-// static
-scoped_ptr<DnsConfigService> DnsConfigService::CreateSystemService() {
-  return scoped_ptr<DnsConfigService>(new DnsConfigServicePosix());
+DnsConfigServicePosix::~DnsConfigServicePosix() {
+  config_reader_->Cancel();
+  hosts_reader_->Cancel();
+}
+
+void DnsConfigServicePosix::Watch(const CallbackType& callback) {
+  DCHECK(CalledOnValidThread());
+  DCHECK(!callback.is_null());
+  set_callback(callback);
+
+  // Even if watchers fail, we keep the other one as it provides useful signals.
+  if (config_watcher_->Watch(
+         FilePath(kFilePathConfig),
+         base::Bind(&DnsConfigServicePosix::OnConfigChanged,
+                    base::Unretained(this)))) {
+    OnConfigChanged(true);
+  } else {
+    OnConfigChanged(false);
+  }
+
+  if (hosts_watcher_->Watch(
+         FilePath(kFilePathHosts),
+         base::Bind(&DnsConfigServicePosix::OnHostsChanged,
+                    base::Unretained(this)))) {
+    OnHostsChanged(true);
+  } else {
+    OnHostsChanged(false);
+  }
+}
+
+void DnsConfigServicePosix::OnConfigChanged(bool watch_succeeded) {
+  InvalidateConfig();
+  // We don't trust a config that we cannot watch in the future.
+  // TODO(szym): re-start watcher if that makes sense. http://crbug.com/116139
+  if (watch_succeeded)
+    config_reader_->WorkNow();
+  else
+    LOG(ERROR) << "Failed to watch DNS config";
+}
+
+void DnsConfigServicePosix::OnHostsChanged(bool watch_succeeded) {
+  InvalidateHosts();
+  if (watch_succeeded)
+    hosts_reader_->WorkNow();
+  else
+    LOG(ERROR) << "Failed to watch DNS hosts";
 }
 
 #if !defined(OS_ANDROID)
@@ -145,5 +197,12 @@ bool ConvertResStateToDnsConfig(const struct __res_state& res,
   return true;
 }
 #endif  // !defined(OS_ANDROID)
+
+}  // namespace internal
+
+// static
+scoped_ptr<DnsConfigService> DnsConfigService::CreateSystemService() {
+  return scoped_ptr<DnsConfigService>(new internal::DnsConfigServicePosix());
+}
 
 }  // namespace net

@@ -56,14 +56,11 @@ namespace net {
 // threads using PrioritizedDispatcher::Limits.
 //
 // Jobs are ordered in the queue based on their priority and order of arrival.
-//
-// TODO(szym): Change DnsConfigService::Observer to Callback.
 class NET_EXPORT HostResolverImpl
     : public HostResolver,
       NON_EXPORTED_BASE(public base::NonThreadSafe),
       public NetworkChangeNotifier::IPAddressObserver,
       public NetworkChangeNotifier::DNSObserver,
-      NON_EXPORTED_BASE(public DnsConfigService::Observer),
       public base::SupportsWeakPtr<HostResolverImpl> {
  public:
   // Parameters for ProcTask which resolves hostnames using HostResolveProc.
@@ -147,12 +144,13 @@ class NET_EXPORT HostResolverImpl
   virtual void ProbeIPv6Support() OVERRIDE;
   virtual HostCache* GetHostCache() OVERRIDE;
 
-  // Allows the tests to catch slots leaking out of the dispatcher.
-  size_t num_running_jobs_for_tests() const {
-    return dispatcher_.num_running_jobs();
-  }
-
  private:
+  FRIEND_TEST_ALL_PREFIXES(HostResolverImplTest,
+                           CanceledRequestsReleaseJobSlots);
+  FRIEND_TEST_ALL_PREFIXES(HostResolverImplTest,
+                           ObeyPoolConstraintsAfterIPAddressChange);
+  FRIEND_TEST_ALL_PREFIXES(HostResolverImplTest,
+                           AbortOnlyExistingRequestsOnIPAddressChange);
   FRIEND_TEST_ALL_PREFIXES(HostResolverImplTest, DnsTask);
   FRIEND_TEST_ALL_PREFIXES(HostResolverImplTest, ServeFromHosts);
   class Job;
@@ -231,11 +229,16 @@ class NET_EXPORT HostResolverImpl
   // NetworkChangeNotifier::DNSObserver:
   virtual void OnDNSChanged(unsigned detail) OVERRIDE;
 
-  // DnsConfigService::Observer:
-  virtual void OnConfigChanged(const DnsConfig& dns_config) OVERRIDE;
+  // DnsConfigService callback:
+  void OnDnsConfigChanged(const DnsConfig& dns_config);
 
   // True if have fully configured DNS client.
   bool HaveDnsConfig() const;
+  // Allows the tests to catch slots leaking out of the dispatcher.
+
+  size_t num_running_jobs_for_tests() const {
+    return dispatcher_.num_running_jobs();
+  }
 
   // Cache of host resolution results.
   scoped_ptr<HostCache> cache_;

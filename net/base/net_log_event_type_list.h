@@ -1237,6 +1237,22 @@ EVENT_TYPE(APPCACHE_DELIVERING_ERROR_RESPONSE)
 // underlying network has changed.
 EVENT_TYPE(NETWORK_IP_ADDRESSES_CHANGED)
 
+
+// This event is emitted whenever HostResolverImpl receives a new DnsConfig
+// from the DnsConfigService.
+//   {
+//     "nameservers":                <List of name server IPs>,
+//     "search":                     <List of domain suffixes>,
+//     "append_to_multi_label_name": <See DnsConfig>,
+//     "ndots":                      <See DnsConfig>,
+//     "timeout":                    <See DnsConfig>,
+//     "attempts":                   <See DnsConfig>,
+//     "rotate":                     <See DnsConfig>,
+//     "edns0":                      <See DnsConfig>,
+//     "num_hosts":                  <Number of entries in the HOSTS file>
+//   }
+EVENT_TYPE(DNS_CONFIG_CHANGED)
+
 // ------------------------------------------------------------------------
 // Exponential back-off throttling events
 // ------------------------------------------------------------------------

@@ -4,6 +4,7 @@
 
 #include "net/dns/dns_config_service_win.h"
 
+#include "base/logging.h"
 #include "base/win/windows_version.h"
 #include "net/dns/dns_protocol.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -38,7 +39,7 @@ TEST(DnsConfigServiceWinTest, ParseSearchList) {
     for (const char* const* output = t.output; *output; ++output) {
       expected_output.push_back(*output);
     }
-    bool result = ParseSearchList(t.input, &actual_output);
+    bool result = internal::ParseSearchList(t.input, &actual_output);
     if (!expected_output.empty()) {
       EXPECT_TRUE(result);
       EXPECT_EQ(expected_output, actual_output);
@@ -143,6 +144,19 @@ TEST(DnsConfigServiceWinTest, ConvertAdapterAddresses) {
       "chromium.org",
       { 1024, 24 },
     },
+    {  // Use the preferred adapter (first in binding order).
+      {
+        { IF_TYPE_SOFTWARE_LOOPBACK, IfOperStatusUp, L"funnyloop",
+          { "2.0.0.2" } },
+        { IF_TYPE_FASTETHER, IfOperStatusUp, L"example.com",
+          { "1.0.0.1" } },
+        { IF_TYPE_USB, IfOperStatusUp, L"chromium.org",
+          { "10.0.0.10", "2001:FFFF::1111" } },
+        { 0 },
+      },
+      { "1.0.0.1" },
+      "example.com",
+    },
     {  // No usable nameservers.
       {
         { IF_TYPE_SOFTWARE_LOOPBACK, IfOperStatusUp, L"localhost",
@@ -157,7 +171,7 @@ TEST(DnsConfigServiceWinTest, ConvertAdapterAddresses) {
 
   for (size_t i = 0; i < arraysize(cases); ++i) {
     const TestCase& t = cases[i];
-    DnsSystemSettings settings = {
+    internal::DnsSystemSettings settings = {
       CreateAdapterAddresses(t.input_adapters),
       // Default settings for the rest.
     };
@@ -172,7 +186,7 @@ TEST(DnsConfigServiceWinTest, ConvertAdapterAddresses) {
     }
 
     DnsConfig config;
-    bool result = ConvertSettingsToDnsConfig(settings, &config);
+    bool result = internal::ConvertSettingsToDnsConfig(settings, &config);
     bool expected_result = !expected_nameservers.empty();
     ASSERT_EQ(expected_result, result);
     EXPECT_EQ(expected_nameservers, config.nameservers);
@@ -190,7 +204,7 @@ TEST(DnsConfigServiceWinTest, ConvertSuffixSearch) {
   };
 
   const struct TestCase {
-    DnsSystemSettings input_settings;
+    internal::DnsSystemSettings input_settings;
     std::string expected_search[5];
   } cases[] = {
     {  // Policy SearchList override.
@@ -320,7 +334,8 @@ TEST(DnsConfigServiceWinTest, ConvertSuffixSearch) {
   for (size_t i = 0; i < arraysize(cases); ++i) {
     const TestCase& t = cases[i];
     DnsConfig config;
-    ASSERT_TRUE(ConvertSettingsToDnsConfig(t.input_settings, &config));
+    ASSERT_TRUE(internal::ConvertSettingsToDnsConfig(t.input_settings,
+                                                     &config));
     std::vector<std::string> expected_search;
     for (size_t j = 0; !t.expected_search[j].empty(); ++j) {
       expected_search.push_back(t.expected_search[j]);
@@ -339,7 +354,7 @@ TEST(DnsConfigServiceWinTest, AppendToMultiLabelName) {
   bool default_value = (base::win::GetVersion() < base::win::VERSION_VISTA);
 
   const struct TestCase {
-    DnsSystemSettings::RegDword input;
+    internal::DnsSystemSettings::RegDword input;
     bool expected_output;
   } cases[] = {
     { { true, 0 }, false },
@@ -349,7 +364,7 @@ TEST(DnsConfigServiceWinTest, AppendToMultiLabelName) {
 
   for (size_t i = 0; i < arraysize(cases); ++i) {
     const TestCase& t = cases[i];
-    DnsSystemSettings settings = {
+    internal::DnsSystemSettings settings = {
       CreateAdapterAddresses(infos),
       { false }, { false }, { false },
       { { false }, { false } },
@@ -358,7 +373,7 @@ TEST(DnsConfigServiceWinTest, AppendToMultiLabelName) {
       t.input,
     };
     DnsConfig config;
-    ASSERT_TRUE(ConvertSettingsToDnsConfig(settings, &config));
+    ASSERT_TRUE(internal::ConvertSettingsToDnsConfig(settings, &config));
     EXPECT_EQ(config.append_to_multi_label_name, t.expected_output);
   }
 }
