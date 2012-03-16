@@ -218,7 +218,7 @@ if [ "$(uname -m)" = "x86_64" ]; then
     echo
     echo "If you nonetheless want to try installing 32bit libraries"
     echo "directly, you can do so by explicitly passing the --lib32"
-    echo "option to install-build-deps.sh.
+    echo "option to install-build-deps.sh."
   fi
   if test "$do_inst_lib32" != "1"
   then
