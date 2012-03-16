@@ -1023,7 +1023,7 @@ class TestPageHandler(BasePageHandler):
         if range[1]:
           end = int(range[1])
         else:
-          end = len(data)
+          end = len(data) - 1
 
         self.send_response(206)
         content_range = 'bytes ' + str(start) + '-' + str(end) + '/' + \
