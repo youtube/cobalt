@@ -179,7 +179,6 @@ void SpdyProxyClientSocketSpdy2Test::Initialize(MockRead* reads,
 
   session_ = SpdySessionDependencies::SpdyCreateSessionDeterministic(
       &session_deps_);
-  SpdySession::SetSSLMode(false);
   spdy::SpdyFramer::set_enable_compression_default(false);
 
   // Creates a new spdy session

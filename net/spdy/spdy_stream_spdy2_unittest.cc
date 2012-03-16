@@ -185,7 +185,6 @@ TEST_F(SpdyStreamSpdy2Test, SendDataAfterOpen) {
   data->set_connect_data(connect_data);
 
   session_deps.socket_factory->AddSocketDataProvider(data.get());
-  SpdySession::SetSSLMode(false);
 
   scoped_refptr<SpdySession> session(CreateSpdySession());
   const char* kStreamUrl = "http://www.google.com/";
@@ -257,7 +256,6 @@ TEST_F(SpdyStreamSpdy2Test, PushedStream) {
   data->set_connect_data(connect_data);
 
   session_deps.socket_factory->AddSocketDataProvider(data.get());
-  SpdySession::SetSSLMode(false);
 
   HostPortPair host_port_pair("www.google.com", 80);
   scoped_refptr<TransportSocketParams> transport_params(
@@ -358,7 +356,6 @@ TEST_F(SpdyStreamSpdy2Test, StreamError) {
   data->set_connect_data(connect_data);
 
   session_deps.socket_factory->AddSocketDataProvider(data.get());
-  SpdySession::SetSSLMode(false);
 
   scoped_refptr<SpdySession> session(CreateSpdySession());
   const char* kStreamUrl = "http://www.google.com/";
