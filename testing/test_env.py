@@ -25,7 +25,11 @@ def run_executable(cmd, env):
   env['CR_SOURCE_ROOT'] = os.path.abspath(ROOT_DIR).encode('utf-8')
   if cmd[0].endswith('.py'):
     cmd.insert(0, sys.executable)
-  return subprocess.call(cmd, env=env)
+  try:
+    return subprocess.call(cmd, env=env)
+  except OSError:
+    print >> sys.stderr, 'Failed to start %s' % cmd
+    raise
 
 
 def main():
