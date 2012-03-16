@@ -132,8 +132,8 @@
         'base/gtk/gtk_im_context_util.cc',
         'base/gtk/gtk_im_context_util.h',
         'base/gtk/gtk_hig_constants.h',
-        'base/gtk/gtk_screen_utils.cc',
-        'base/gtk/gtk_screen_utils.h',
+        'base/gtk/gtk_screen_util.cc',
+        'base/gtk/gtk_screen_util.h',
         'base/gtk/gtk_signal.h',
         'base/gtk/gtk_signal_registrar.cc',
         'base/gtk/gtk_signal_registrar.h',
@@ -364,6 +364,14 @@
         'gfx/transform.h',
         'gfx/transform_util.cc',
         'gfx/transform_util.h',
+        'ui_controls/ui_controls.h',
+        'ui_controls/ui_controls_aura.cc',
+        'ui_controls/ui_controls_export.h',
+        'ui_controls/ui_controls_internal_win.h',
+        'ui_controls/ui_controls_internal_win.cc',
+        'ui_controls/ui_controls_gtk.cc',
+        'ui_controls/ui_controls_mac.mm',
+        'ui_controls/ui_controls_win.cc',
       ],
       'conditions': [
         # TODO(asvitkine): Switch all platforms to use_canvas_skia_skia.cc.
@@ -402,6 +410,7 @@
             ['exclude', 'base/x/work_area_watcher_x.cc'],
             ['exclude', 'base/x/work_area_watcher_x.h'],
             ['exclude', 'base/x/work_area_watcher_x_observer.h'],
+            ['exclude', 'ui_controls_win.cc'],
            ],
         }, {  # use_aura!=1
           'sources!': [
