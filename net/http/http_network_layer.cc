@@ -85,7 +85,6 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
       HttpStreamFactory::set_spdy_enabled(false);
     } else if (option == kDisableSSL) {
       SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY2);
-      SpdySession::SetSSLMode(false);  // Disable SSL
       HttpStreamFactory::set_force_spdy_over_ssl(false);
       HttpStreamFactory::set_force_spdy_always(true);
     } else if (option == kSSL) {

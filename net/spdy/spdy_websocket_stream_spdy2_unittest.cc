@@ -191,7 +191,6 @@ class SpdyWebSocketStreamSpdy2Test : public testing::Test {
   virtual void SetUp() {
     EnableCompression(false);
     SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY2);
-    SpdySession::SetSSLMode(false);
 
     host_port_pair_.set_host("example.com");
     host_port_pair_.set_port(80);
