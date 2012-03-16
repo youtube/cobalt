@@ -62,6 +62,8 @@
           'callback_internal.cc',
           'callback_internal.h',
           'cancelable_callback.h',
+	  'chromeos/chromeos_version.cc',
+	  'chromeos/chromeos_version.h',
           'command_line.cc',
           'command_line.h',
           'compiler_specific.h',
@@ -547,6 +549,11 @@
               ['exclude', '^process_linux\\.cc$'],
               ['exclude', '^process_util_linux\\.cc$'],
               ['exclude', '^sys_info_linux\\.cc$'],
+            ],
+          }],
+          [ 'chromeos != 1', {
+            'sources/': [
+              ['exclude', '^chromeos/'],
             ],
           }],
         ],
