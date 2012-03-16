@@ -104,6 +104,9 @@ Value* NetLogSpdySessionCloseParameter::ToValue() const {
 namespace {
 
 const int kReadBufferSize = 8 * 1024;
+const int kDefaultConnectionAtRiskOfLossSeconds = 10;
+const int kTrailingPingDelayTimeSeconds = 1;
+const int kHungIntervalSeconds = 10;
 
 class NetLogSpdySessionParameter : public NetLog::EventParameters {
  public:
@@ -278,15 +281,6 @@ size_t SpdySession::max_concurrent_stream_limit_ = 256;
 bool SpdySession::enable_ping_based_connection_checking_ = true;
 
 // static
-int SpdySession::connection_at_risk_of_loss_seconds_ = 10;
-
-// static
-int SpdySession::trailing_ping_delay_time_ms_ = 1000;  // 1 second
-
-// static
-int SpdySession::hung_interval_ms_ = 10000;  // 10 seconds
-
-// static
 void SpdySession::ResetStaticSettingsToInit() {
   // WARNING: These must match the initializers above.
   default_protocol_ = SSLClientSocket::kProtoUnknown;
@@ -331,7 +325,13 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       initial_recv_window_size_(spdy::kSpdyStreamInitialWindowSize),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SPDY_SESSION)),
       verify_domain_authentication_(verify_domain_authentication),
-      credential_state_(SpdyCredentialState::kDefaultNumSlots) {
+      credential_state_(SpdyCredentialState::kDefaultNumSlots),
+      connection_at_risk_of_loss_time_(
+          base::TimeDelta::FromSeconds(kDefaultConnectionAtRiskOfLossSeconds)),
+      trailing_ping_delay_time_(
+          base::TimeDelta::FromSeconds(kTrailingPingDelayTimeSeconds)),
+      hung_interval_(
+          base::TimeDelta::FromSeconds(kHungIntervalSeconds)) {
   DCHECK(HttpStreamFactory::spdy_enabled());
   net_log_.BeginEvent(
       NetLog::TYPE_SPDY_SESSION,
@@ -1748,12 +1748,9 @@ void SpdySession::SendPrefacePingIfNoneInFlight() {
       !enable_ping_based_connection_checking_)
     return;
 
-  const base::TimeDelta kConnectionAtRiskOfLoss =
-      base::TimeDelta::FromSeconds(connection_at_risk_of_loss_seconds_);
-
   base::TimeTicks now = base::TimeTicks::Now();
   // If we haven't heard from server, then send a preface-PING.
-  if ((now - received_data_time_) > kConnectionAtRiskOfLoss)
+  if ((now - received_data_time_) > connection_at_risk_of_loss_time_)
     SendPrefacePing();
 
   PlanToSendTrailingPing();
@@ -1771,7 +1768,7 @@ void SpdySession::PlanToSendTrailingPing() {
   MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
       base::Bind(&SpdySession::SendTrailingPing, weak_factory_.GetWeakPtr()),
-      base::TimeDelta::FromMilliseconds(trailing_ping_delay_time_ms_));
+      trailing_ping_delay_time_);
 }
 
 void SpdySession::SendTrailingPing() {
@@ -1809,8 +1806,7 @@ void SpdySession::PlanToCheckPingStatus() {
   MessageLoop::current()->PostDelayedTask(
       FROM_HERE,
       base::Bind(&SpdySession::CheckPingStatus, weak_factory_.GetWeakPtr(),
-                 base::TimeTicks::Now()),
-      base::TimeDelta::FromMilliseconds(hung_interval_ms_));
+                 base::TimeTicks::Now()), hung_interval_);
 }
 
 void SpdySession::CheckPingStatus(base::TimeTicks last_check_time) {
@@ -1823,9 +1819,7 @@ void SpdySession::CheckPingStatus(base::TimeTicks last_check_time) {
   DCHECK(check_ping_status_pending_);
 
   base::TimeTicks now = base::TimeTicks::Now();
-  base::TimeDelta delay =
-      base::TimeDelta::FromMilliseconds(hung_interval_ms_) -
-      (now - received_data_time_);
+  base::TimeDelta delay = hung_interval_ - (now - received_data_time_);
 
   if (delay.InMilliseconds() < 0 || received_data_time_ < last_check_time) {
     CloseSessionOnError(net::ERR_SPDY_PING_FAILED, true, "Failed ping.");

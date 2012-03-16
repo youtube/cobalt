@@ -458,25 +458,16 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // --------------------------
   // Helper methods for testing
   // --------------------------
-  static void set_connection_at_risk_of_loss_seconds(int duration) {
-    connection_at_risk_of_loss_seconds_ = duration;
-  }
-  static int connection_at_risk_of_loss_seconds() {
-    return connection_at_risk_of_loss_seconds_;
+  void set_connection_at_risk_of_loss_time(base::TimeDelta duration) {
+    connection_at_risk_of_loss_time_ = duration;
   }
 
-  static void set_trailing_ping_delay_time_ms(int duration) {
-    trailing_ping_delay_time_ms_ = duration;
-  }
-  static int trailing_ping_delay_time_ms() {
-    return trailing_ping_delay_time_ms_;
+  void set_trailing_ping_delay_time(base::TimeDelta duration) {
+    trailing_ping_delay_time_ = duration;
   }
 
-  static void set_hung_interval_ms(int duration) {
-    hung_interval_ms_ = duration;
-  }
-  static int hung_interval_ms() {
-    return hung_interval_ms_;
+  void set_hung_interval(base::TimeDelta duration) {
+    hung_interval_ = duration;
   }
 
   int64 pings_in_flight() const { return pings_in_flight_; }
@@ -634,7 +625,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // This enables or disables connection health checking system.
   static bool enable_ping_based_connection_checking_;
 
-  // |connection_at_risk_of_loss_seconds_| is an optimization to avoid sending
+  // |connection_at_risk_of_loss_time_| is an optimization to avoid sending
   // wasteful preface pings (when we just got some data).
   //
   // If it is zero (the most conservative figure), then we always send the
@@ -647,19 +638,19 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // We don't think any connection will time out in under about 10 seconds. So
   // this might as well be set to something conservative like 10 seconds. Later,
   // we could adjust it to send fewer pings perhaps.
-  static int connection_at_risk_of_loss_seconds_;
+  base::TimeDelta connection_at_risk_of_loss_time_;
 
-  // This is the amount of time (in milliseconds) we wait before sending a
-  // trailing ping. We use a trailing ping (sent after all data) to get an
-  // effective acknowlegement from the server that it has indeed received all
-  // (prior) data frames. With that assurance, we are willing to enter into a
-  // wait state for responses to our last data frame(s) without further pings.
-  static int trailing_ping_delay_time_ms_;
+  // This is the amount of time we wait before sending a trailing ping. We use
+  // a trailing ping (sent after all data) to get an effective acknowlegement
+  // from the server that it has indeed received all (prior) data frames. With
+  // that assurance, we are willing to enter into a wait state for responses
+  // to our last data frame(s) without further pings.
+  base::TimeDelta trailing_ping_delay_time_;
 
-  // The amount of time (in milliseconds) that we are willing to tolerate with
-  // no data received (of any form), while there is a ping in flight, before w e
-  // declare the connection to be hung.
-  static int hung_interval_ms_;
+  // The amount of time that we are willing to tolerate with no data received
+  // (of any form), while there is a ping in flight, before we declare the
+  // connection to be hung.
+  base::TimeDelta hung_interval_;
 };
 
 class NetLogSpdySynParameter : public NetLog::EventParameters {
