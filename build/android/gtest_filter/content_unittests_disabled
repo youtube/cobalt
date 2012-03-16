@@ -36,3 +36,5 @@ AudioRendererHostTest.CreatePlayAndShutdown
 AudioRendererHostTest.CreatePlayPauseAndShutdown
 AudioRendererHostTest.SimulateError
 AudioRendererHostTest.SimulateErrorAndClose
+# crbug.com/118542
+GPUTestExpectationsParserTest.WebGLTestExpectationsValidation
