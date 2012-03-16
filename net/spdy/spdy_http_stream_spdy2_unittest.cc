@@ -77,7 +77,6 @@ class SpdyHttpStreamSpdy2Test : public testing::Test {
 
 TEST_F(SpdyHttpStreamSpdy2Test, SendRequest) {
   EnableCompression(false);
-  SpdySession::SetSSLMode(false);
 
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
   MockWrite writes[] = {
@@ -126,7 +125,6 @@ TEST_F(SpdyHttpStreamSpdy2Test, SendRequest) {
 
 TEST_F(SpdyHttpStreamSpdy2Test, SendChunkedPost) {
   EnableCompression(false);
-  SpdySession::SetSSLMode(false);
   UploadDataStream::set_merge_chunks(false);
 
   scoped_ptr<spdy::SpdyFrame> req(ConstructChunkedSpdyPost(NULL, 0));
@@ -190,7 +188,6 @@ TEST_F(SpdyHttpStreamSpdy2Test, SendChunkedPost) {
 // Test case for bug: http://code.google.com/p/chromium/issues/detail?id=50058
 TEST_F(SpdyHttpStreamSpdy2Test, SpdyURLTest) {
   EnableCompression(false);
-  SpdySession::SetSSLMode(false);
 
   const char * const full_url = "http://www.google.com/foo?query=what#anchor";
   const char * const base_url = "http://www.google.com/foo?query=what";

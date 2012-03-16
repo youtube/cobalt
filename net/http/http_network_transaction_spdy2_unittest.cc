@@ -7361,8 +7361,6 @@ TEST_F(HttpNetworkTransactionSpdy2Test,
   SSLSocketDataProvider ssl(ASYNC, OK);
   ssl.SetNextProto(SSLClientSocket::kProtoSPDY2);
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
-  // Make sure we use ssl for spdy here.
-  SpdySession::SetSSLMode(true);
 
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
   MockWrite spdy_writes[] = { CreateMockWrite(*req) };
