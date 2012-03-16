@@ -112,37 +112,6 @@ static const char* GuessSpecificDeviceName(uint32 channels) {
   }
 }
 
-// Reorder PCM from AAC layout to Alsa layout.
-// TODO(fbarchard): Switch layout when ffmpeg is updated.
-template<class Format>
-static void Swizzle50Layout(Format* b, uint32 filled) {
-  static const uint32 kNumSurroundChannels = 5;
-  Format aac[kNumSurroundChannels];
-  for (uint32 i = 0; i < filled; i += sizeof(aac), b += kNumSurroundChannels) {
-    memcpy(aac, b, sizeof(aac));
-    b[0] = aac[1];  // L
-    b[1] = aac[2];  // R
-    b[2] = aac[3];  // Ls
-    b[3] = aac[4];  // Rs
-    b[4] = aac[0];  // C
-  }
-}
-
-template<class Format>
-static void Swizzle51Layout(Format* b, uint32 filled) {
-  static const uint32 kNumSurroundChannels = 6;
-  Format aac[kNumSurroundChannels];
-  for (uint32 i = 0; i < filled; i += sizeof(aac), b += kNumSurroundChannels) {
-    memcpy(aac, b, sizeof(aac));
-    b[0] = aac[1];  // L
-    b[1] = aac[2];  // R
-    b[2] = aac[3];  // Ls
-    b[3] = aac[4];  // Rs
-    b[4] = aac[0];  // C
-    b[5] = aac[5];  // LFE
-  }
-}
-
 std::ostream& operator<<(std::ostream& os,
                          AlsaPcmOutputStream::InternalState state) {
   switch (state) {
@@ -430,30 +399,6 @@ void AlsaPcmOutputStream::BufferPacket(bool* source_exhausted) {
         LOG(ERROR) << "Folding failed";
       }
     } else {
-      // TODO(ajwong): Handle other channel orderings.
-
-      // Handle channel order for 5.0 audio.
-      if (channels_ == 5) {
-        if (bytes_per_sample_ == 1) {
-          Swizzle50Layout(packet->GetWritableData(), packet_size);
-        } else if (bytes_per_sample_ == 2) {
-          Swizzle50Layout(packet->GetWritableData(), packet_size);
-        } else if (bytes_per_sample_ == 4) {
-          Swizzle50Layout(packet->GetWritableData(), packet_size);
-        }
-      }
-
-      // Handle channel order for 5.1 audio.
-      if (channels_ == 6) {
-        if (bytes_per_sample_ == 1) {
-          Swizzle51Layout(packet->GetWritableData(), packet_size);
-        } else if (bytes_per_sample_ == 2) {
-          Swizzle51Layout(packet->GetWritableData(), packet_size);
-        } else if (bytes_per_sample_ == 4) {
-          Swizzle51Layout(packet->GetWritableData(), packet_size);
-        }
-      }
-
       media::AdjustVolume(packet->GetWritableData(),
                           packet_size,
                           channels_,
