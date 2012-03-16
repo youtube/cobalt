@@ -214,6 +214,7 @@ v8.log
 /tools/json_schema_compiler/test/json_schema_compiler_tests.xml
 /tools/page_cycler/acid3
 /tools/tryserver
+/ui/resources/aura/google_wallpapers
 /v8
 /webkit/Debug
 /webkit/Release
