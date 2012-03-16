@@ -242,9 +242,9 @@ TEST_F(SpdySessionSpdy3Test, Ping) {
 
   // Enable sending of PING.
   SpdySession::set_enable_ping_based_connection_checking(true);
-  SpdySession::set_connection_at_risk_of_loss_seconds(0);
-  SpdySession::set_trailing_ping_delay_time_ms(0);
-  SpdySession::set_hung_interval_ms(50);
+  session->set_connection_at_risk_of_loss_time(base::TimeDelta::FromSeconds(0));
+  session->set_trailing_ping_delay_time(base::TimeDelta::FromSeconds(0));
+  session->set_hung_interval(base::TimeDelta::FromMilliseconds(50));
 
   session->SendPrefacePingIfNoneInFlight();
 
@@ -328,9 +328,9 @@ TEST_F(SpdySessionSpdy3Test, FailedPing) {
 
   // Enable sending of PING.
   SpdySession::set_enable_ping_based_connection_checking(true);
-  SpdySession::set_connection_at_risk_of_loss_seconds(0);
-  SpdySession::set_trailing_ping_delay_time_ms(0);
-  SpdySession::set_hung_interval_ms(0);
+  session->set_connection_at_risk_of_loss_time(base::TimeDelta::FromSeconds(0));
+  session->set_trailing_ping_delay_time(base::TimeDelta::FromSeconds(0));
+  session->set_hung_interval(base::TimeDelta::FromSeconds(0));
 
   // Send a PING frame.
   session->WritePingFrame(1);
