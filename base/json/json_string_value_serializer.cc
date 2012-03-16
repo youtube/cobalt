@@ -24,11 +24,13 @@ bool JSONStringValueSerializer::SerializeInternal(const Value& root,
   if (!json_string_ || initialized_with_const_string_)
     return false;
 
-  base::JSONWriter::WriteWithOptions(
-      &root,
-      pretty_print_,
-      omit_binary_values ? base::JSONWriter::OPTIONS_OMIT_BINARY_VALUES : 0,
-      json_string_);
+  int options = 0;
+  if (omit_binary_values)
+    options |= base::JSONWriter::OPTIONS_OMIT_BINARY_VALUES;
+  if (pretty_print_)
+    options |= base::JSONWriter::OPTIONS_PRETTY_PRINT;
+
+  base::JSONWriter::WriteWithOptions(&root, options, json_string_);
   return true;
 }
 
@@ -42,4 +44,3 @@ Value* JSONStringValueSerializer::Deserialize(int* error_code,
                                               error_code,
                                               error_str);
 }
-
