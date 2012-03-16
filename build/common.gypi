@@ -1124,8 +1124,8 @@
       'conditions': [
         ['OS=="win" and component=="shared_library"', {
           # See http://msdn.microsoft.com/en-us/library/aa652367.aspx
-          'win_release_RuntimeLibrary%': '2', # 2 = /MT (nondebug DLL)
-          'win_debug_RuntimeLibrary%': '3',   # 3 = /MTd (debug DLL)
+          'win_release_RuntimeLibrary%': '2', # 2 = /MD (nondebug DLL)
+          'win_debug_RuntimeLibrary%': '3',   # 3 = /MDd (debug DLL)
         }, {
           # See http://msdn.microsoft.com/en-us/library/aa652367.aspx
           'win_release_RuntimeLibrary%': '0', # 0 = /MT (nondebug static)
