@@ -12,6 +12,40 @@
     'api_gen_dir': '<(DEPTH)/tools/json_schema_compiler',
     'api_gen': '<(api_gen_dir)/compiler.py',
   },
+  'actions': [
+    {
+      'action_name': 'gen_aggregate_api',
+      'inputs': [
+        '<(api_gen_dir)/any.cc',
+        '<(api_gen_dir)/any.h',
+        '<(api_gen_dir)/any_helper.py',
+        '<(api_gen_dir)/cc_generator.py',
+        '<(api_gen_dir)/code.py',
+        '<(api_gen_dir)/compiler.py',
+        '<(api_gen_dir)/cpp_type_generator.py',
+        '<(api_gen_dir)/cpp_util.py',
+        '<(api_gen_dir)/h_generator.py',
+        '<(api_gen_dir)/json_schema.py',
+        '<(api_gen_dir)/model.py',
+        '<(api_gen_dir)/util.cc',
+        '<(api_gen_dir)/util.h',
+        '<(api_gen_dir)/util_cc_helper.py',
+        '<@(idl_schema_files)',
+      ],
+      'outputs': [
+        '<(SHARED_INTERMEDIATE_DIR)/<(cc_dir)/generated_api.cc',
+      ],
+      'action': [
+        'python',
+        '<(api_gen)',
+        '--root=<(DEPTH)',
+        '--destdir=<(SHARED_INTERMEDIATE_DIR)',
+        '--namespace=<(root_namespace)',
+        '--bundle',
+        '<@(idl_schema_files)',
+      ]
+    }
+  ],
   'rules': [
     {
       'rule_name': 'genapi',
