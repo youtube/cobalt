@@ -35,11 +35,8 @@ static const int kMaxDecodeThreads = 16;
 // Returns the number of threads given the FFmpeg CodecID. Also inspects the
 // command line for a valid --video-threads flag.
 static int GetThreadCount(CodecID codec_id) {
-  // TODO(scherkus): As of 07/21/2011 we still can't enable Theora multithreaded
-  // decoding due to bugs in FFmpeg. Dig in and send fixes upstream!
-  //
   // Refer to http://crbug.com/93932 for tsan suppressions on decoding.
-  int decode_threads = (codec_id == CODEC_ID_THEORA ? 1 : kDecodeThreads);
+  int decode_threads = kDecodeThreads;
 
   const CommandLine* cmd_line = CommandLine::ForCurrentProcess();
   std::string threads(cmd_line->GetSwitchValueASCII(switches::kVideoThreads));
