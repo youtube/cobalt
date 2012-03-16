@@ -18,6 +18,7 @@
 #include "base/string_piece.h"
 #include "base/threading/non_thread_safe.h"
 #include "base/timer.h"
+#include "base/values.h"
 #include "net/base/completion_callback.h"
 #include "net/base/dns_util.h"
 #include "net/base/io_buffer.h"
