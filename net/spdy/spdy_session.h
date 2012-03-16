@@ -169,34 +169,18 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   // Specify the SPDY protocol to be used for SPDY session which do not use NPN
   // to negotiate a particular protocol.
-  static void set_default_protocol(
-      SSLClientSocket::NextProto default_protocol) {
-    default_protocol_ = default_protocol;
-  }
+  static void set_default_protocol(SSLClientSocket::NextProto default_protocol);
 
   // Sets the max concurrent streams per session, as a ceiling on any server
   // specific SETTINGS value.
-  static void set_max_concurrent_streams(size_t value) {
-    max_concurrent_stream_limit_ = value;
-  }
-  static size_t max_concurrent_streams() {
-    return max_concurrent_stream_limit_;
-  }
+  static void set_max_concurrent_streams(size_t value);
 
   // Enable sending of PING frame with each request.
-  static void set_enable_ping_based_connection_checking(bool enable) {
-    enable_ping_based_connection_checking_ = enable;
-  }
-  static bool enable_ping_based_connection_checking() {
-    return enable_ping_based_connection_checking_;
-  }
+  static void set_enable_ping_based_connection_checking(bool enable);
 
   // The initial max concurrent streams per session, can be overridden by the
   // server via SETTINGS.
-  static void set_init_max_concurrent_streams(size_t value) {
-    init_max_concurrent_streams_ =
-        std::min(value, max_concurrent_stream_limit_);
-  }
+  static void set_init_max_concurrent_streams(size_t value);
 
   // Send WINDOW_UPDATE frame, called by a stream whenever receive window
   // size is increased.
@@ -617,13 +601,6 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   bool verify_domain_authentication_;
 
   SpdyCredentialState credential_state_;
-
-  static SSLClientSocket::NextProto default_protocol_;
-  static size_t init_max_concurrent_streams_;
-  static size_t max_concurrent_stream_limit_;
-
-  // This enables or disables connection health checking system.
-  static bool enable_ping_based_connection_checking_;
 
   // |connection_at_risk_of_loss_time_| is an optimization to avoid sending
   // wasteful preface pings (when we just got some data).

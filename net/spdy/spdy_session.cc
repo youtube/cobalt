@@ -265,25 +265,42 @@ class NetLogSpdyGoAwayParameter : public NetLog::EventParameters {
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdyGoAwayParameter);
 };
 
+SSLClientSocket::NextProto g_default_protocol = SSLClientSocket::kProtoUnknown;
+size_t g_init_max_concurrent_streams = 10;
+size_t g_max_concurrent_stream_limit = 256;
+bool g_enable_ping_based_connection_checking = true;
+
 }  // namespace
 
 // static
-SSLClientSocket::NextProto SpdySession::default_protocol_ =
-    SSLClientSocket::kProtoUnknown;
+void SpdySession::set_default_protocol(
+    SSLClientSocket::NextProto default_protocol) {
+  g_default_protocol = default_protocol;
+}
 
 // static
-size_t SpdySession::init_max_concurrent_streams_ = 10;
+void SpdySession::set_max_concurrent_streams(size_t value) {
+  g_max_concurrent_stream_limit = value;
+}
 
 // static
-size_t SpdySession::max_concurrent_stream_limit_ = 256;
+void SpdySession::set_enable_ping_based_connection_checking(bool enable) {
+  g_enable_ping_based_connection_checking = enable;
+}
 
 // static
-bool SpdySession::enable_ping_based_connection_checking_ = true;
+void SpdySession::set_init_max_concurrent_streams(size_t value) {
+  g_init_max_concurrent_streams =
+      std::min(value, g_max_concurrent_stream_limit);
+}
 
 // static
 void SpdySession::ResetStaticSettingsToInit() {
   // WARNING: These must match the initializers above.
-  default_protocol_ = SSLClientSocket::kProtoUnknown;
+  g_default_protocol = SSLClientSocket::kProtoUnknown;
+  g_init_max_concurrent_streams = 10;
+  g_max_concurrent_stream_limit = 256;
+  g_enable_ping_based_connection_checking = true;
 }
 
 SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
@@ -305,7 +322,7 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       certificate_error_code_(OK),
       error_(OK),
       state_(IDLE),
-      max_concurrent_streams_(init_max_concurrent_streams_),
+      max_concurrent_streams_(g_init_max_concurrent_streams),
       streams_initiated_count_(0),
       streams_pushed_count_(0),
       streams_pushed_and_claimed_count_(0),
@@ -380,7 +397,7 @@ net::Error SpdySession::InitializeWithSocket(
   is_secure_ = is_secure;
   certificate_error_code_ = certificate_error_code;
 
-  SSLClientSocket::NextProto protocol = default_protocol_;
+  SSLClientSocket::NextProto protocol = g_default_protocol;
   if (is_secure_) {
     SSLClientSocket* ssl_socket = GetSSLClientSocket();
 
@@ -1718,7 +1735,7 @@ void SpdySession::HandleSetting(uint32 id, uint32 value) {
   switch (id) {
     case spdy::SETTINGS_MAX_CONCURRENT_STREAMS:
       max_concurrent_streams_ = std::min(static_cast<size_t>(value),
-                                         max_concurrent_stream_limit_);
+                                         g_max_concurrent_stream_limit);
       ProcessPendingCreateStreams();
       break;
     case spdy::SETTINGS_INITIAL_WINDOW_SIZE:
@@ -1745,7 +1762,7 @@ void SpdySession::UpdateStreamsSendWindowSize(int32 delta_window_size) {
 
 void SpdySession::SendPrefacePingIfNoneInFlight() {
   if (pings_in_flight_ || trailing_ping_pending_ ||
-      !enable_ping_based_connection_checking_)
+      !g_enable_ping_based_connection_checking)
     return;
 
   base::TimeTicks now = base::TimeTicks::Now();
