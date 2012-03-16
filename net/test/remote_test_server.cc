@@ -88,7 +88,7 @@ bool RemoteTestServer::Start() {
 
   // Generate JSON-formatted argument string.
   std::string arguments_string;
-  base::JSONWriter::Write(&arguments_dict, false, &arguments_string);
+  base::JSONWriter::Write(&arguments_dict, &arguments_string);
   if (arguments_string.empty())
     return false;
 
@@ -108,7 +108,7 @@ bool RemoteTestServer::Start() {
   // the remote server.
   server_data_dict.SetInteger("port", test_server_port);
   std::string server_data;
-  base::JSONWriter::Write(&server_data_dict, false, &server_data);
+  base::JSONWriter::Write(&server_data_dict, &server_data);
   if (server_data.empty() || !ParseServerData(server_data)) {
     LOG(ERROR) << "Could not parse server_data: " << server_data;
     return false;

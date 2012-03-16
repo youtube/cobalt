@@ -12,37 +12,37 @@ TEST(JSONWriterTest, Writing) {
   // Test null
   Value* root = Value::CreateNullValue();
   std::string output_js;
-  JSONWriter::Write(root, false, &output_js);
+  JSONWriter::Write(root, &output_js);
   ASSERT_EQ("null", output_js);
   delete root;
 
   // Test empty dict
   root = new DictionaryValue;
-  JSONWriter::Write(root, false, &output_js);
+  JSONWriter::Write(root, &output_js);
   ASSERT_EQ("{}", output_js);
   delete root;
 
   // Test empty list
   root = new ListValue;
-  JSONWriter::Write(root, false, &output_js);
+  JSONWriter::Write(root, &output_js);
   ASSERT_EQ("[]", output_js);
   delete root;
 
   // Test Real values should always have a decimal or an 'e'.
   root = Value::CreateDoubleValue(1.0);
-  JSONWriter::Write(root, false, &output_js);
+  JSONWriter::Write(root, &output_js);
   ASSERT_EQ("1.0", output_js);
   delete root;
 
   // Test Real values in the the range (-1, 1) must have leading zeros
   root = Value::CreateDoubleValue(0.2);
-  JSONWriter::Write(root, false, &output_js);
+  JSONWriter::Write(root, &output_js);
   ASSERT_EQ("0.2", output_js);
   delete root;
 
   // Test Real values in the the range (-1, 1) must have leading zeros
   root = Value::CreateDoubleValue(-0.8);
-  JSONWriter::Write(root, false, &output_js);
+  JSONWriter::Write(root, &output_js);
   ASSERT_EQ("-0.8", output_js);
   delete root;
 
@@ -59,9 +59,10 @@ TEST(JSONWriterTest, Writing) {
   list->Append(Value::CreateBooleanValue(true));
 
   // Test the pretty-printer.
-  JSONWriter::Write(&root_dict, false, &output_js);
+  JSONWriter::Write(&root_dict, &output_js);
   ASSERT_EQ("{\"list\":[{\"inner int\":10},[],true]}", output_js);
-  JSONWriter::Write(&root_dict, true, &output_js);
+  JSONWriter::WriteWithOptions(&root_dict, JSONWriter::OPTIONS_PRETTY_PRINT,
+                               &output_js);
   // The pretty-printer uses a different newline style on Windows than on
   // other platforms.
 #if defined(OS_WIN)
@@ -85,19 +86,18 @@ TEST(JSONWriterTest, Writing) {
   period_dict2->SetWithoutPathExpansion("g.h.i.j",
                                         Value::CreateIntegerValue(1));
   period_dict.SetWithoutPathExpansion("d.e.f", period_dict2);
-  JSONWriter::Write(&period_dict, false, &output_js);
+  JSONWriter::Write(&period_dict, &output_js);
   ASSERT_EQ("{\"a.b\":3,\"c\":2,\"d.e.f\":{\"g.h.i.j\":1}}", output_js);
 
   DictionaryValue period_dict3;
   period_dict3.Set("a.b", Value::CreateIntegerValue(2));
   period_dict3.SetWithoutPathExpansion("a.b", Value::CreateIntegerValue(1));
-  JSONWriter::Write(&period_dict3, false, &output_js);
+  JSONWriter::Write(&period_dict3, &output_js);
   ASSERT_EQ("{\"a\":{\"b\":2},\"a.b\":1}", output_js);
 
-  // Test ignoring binary values.
+  // Test omitting binary values.
   root = BinaryValue::CreateWithCopiedBuffer("asdf", 4);
-  JSONWriter::WriteWithOptions(root, false,
-                               JSONWriter::OPTIONS_OMIT_BINARY_VALUES,
+  JSONWriter::WriteWithOptions(root, JSONWriter::OPTIONS_OMIT_BINARY_VALUES,
                                &output_js);
   ASSERT_TRUE(output_js.empty());
   delete root;
@@ -106,7 +106,7 @@ TEST(JSONWriterTest, Writing) {
   binary_list.Append(Value::CreateIntegerValue(5));
   binary_list.Append(BinaryValue::CreateWithCopiedBuffer("asdf", 4));
   binary_list.Append(Value::CreateIntegerValue(2));
-  JSONWriter::WriteWithOptions(&binary_list, false,
+  JSONWriter::WriteWithOptions(&binary_list,
                                JSONWriter::OPTIONS_OMIT_BINARY_VALUES,
                                &output_js);
   ASSERT_EQ("[5,2]", output_js);
@@ -115,7 +115,7 @@ TEST(JSONWriterTest, Writing) {
   binary_dict.Set("a", Value::CreateIntegerValue(5));
   binary_dict.Set("b", BinaryValue::CreateWithCopiedBuffer("asdf", 4));
   binary_dict.Set("c", Value::CreateIntegerValue(2));
-  JSONWriter::WriteWithOptions(&binary_dict, false,
+  JSONWriter::WriteWithOptions(&binary_dict,
                                JSONWriter::OPTIONS_OMIT_BINARY_VALUES,
                                &output_js);
   ASSERT_EQ("{\"a\":5,\"c\":2}", output_js);
@@ -123,7 +123,7 @@ TEST(JSONWriterTest, Writing) {
   // Test allowing a double with no fractional part to be written as an integer.
   FundamentalValue double_value(1e10);
   JSONWriter::WriteWithOptions(
-      &double_value, false,
+      &double_value,
       JSONWriter::OPTIONS_OMIT_DOUBLE_TYPE_PRESERVATION,
       &output_js);
   ASSERT_EQ("10000000000", output_js);
