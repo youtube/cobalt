@@ -1969,9 +1969,19 @@
                     ],
                   }],
                   ['OS=="android"', {
-                    # The following flags are derived from what Android uses
-                    # by default when building for arm.
-                    'cflags': [ '-Wno-psabi', ],
+                    # Most of the following flags are derived from what Android
+                    # uses by default when building for arm, reference for which
+                    # can be found in the following file in the Android NDK:
+                    # toolchains/arm-linux-androideabi-4.4.3/setup.mk
+                    'cflags': [
+                      # The tree-sra optimization (scalar replacement for
+                      # aggregates enabling subsequent optimizations) leads to
+                      # invalid code generation when using the Android NDK's
+                      # compiler (r5-r7). This can be verified using
+                      # TestWebKitAPI's WTF.Checked_int8_t test.
+                      '-fno-tree-sra',
+                      '-Wno-psabi',
+                    ],
                     'conditions': [
                       ['arm_thumb == 1', {
                         # Android toolchain doesn't support -mimplicit-it=thumb
