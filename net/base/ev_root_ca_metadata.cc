@@ -171,13 +171,20 @@ static const EVMetadata ev_root_ca_metadata[] = {
         0xd8, 0x09, 0xcf, 0x79, 0x44, 0x31, 0x36, 0x7e, 0xf4, 0x74 } },
     {"1.3.6.1.4.1.6334.1.100.1", ""},
   },
-  // Izenpe.com
+  // Izenpe.com - SHA256 root
   // The first OID is for businesses and the second for government entities.
   // These are the test sites, respectively:
   // https://servicios.izenpe.com
   // https://servicios1.izenpe.com
   { { { 0x2f, 0x78, 0x3d, 0x25, 0x52, 0x18, 0xa7, 0x4a, 0x65, 0x39,
         0x71, 0xb5, 0x2c, 0xa2, 0x9c, 0x45, 0x15, 0x6f, 0xe9, 0x19} },
+    {"1.3.6.1.4.1.14777.6.1.1", "1.3.6.1.4.1.14777.6.1.2"},
+  },
+  // Izenpe.com - SHA1 root
+  // Windows XP finds this, SHA1, root instead. The policy OIDs are the same as
+  // for the SHA256 root, above.
+  { { { 0x30, 0x77, 0x9e, 0x93, 0x15, 0x02, 0x2e, 0x94, 0x85, 0x6a,
+        0x3f, 0xf8, 0xbc, 0xf8, 0x15, 0xb0, 0x82, 0xf9, 0xae, 0xfd} },
     {"1.3.6.1.4.1.14777.6.1.1", "1.3.6.1.4.1.14777.6.1.2"},
   },
   //  Network Solutions Certificate Authority
