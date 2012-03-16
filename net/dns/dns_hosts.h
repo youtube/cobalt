@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,9 +11,12 @@
 #include <utility>
 #include <vector>
 
+#include "base/callback.h"
+#include "base/file_path.h"
 #include "net/base/address_family.h"
 #include "net/base/net_export.h"
 #include "net/base/net_util.h"  // can't forward-declare IPAddressNumber
+#include "net/dns/serial_worker.h"
 
 namespace net {
 
@@ -34,6 +37,32 @@ typedef std::map<DnsHostsKey, IPAddressNumber> DnsHosts;
 // in |dns_hosts|. Invalid lines are ignored (as in most implementations).
 void NET_EXPORT_PRIVATE ParseHosts(const std::string& contents,
                                    DnsHosts* dns_hosts);
+
+// A SerialWorker that reads a HOSTS file and runs Callback.
+// Call WorkNow() to indicate file needs to be re-read.
+// Call Cancel() to disable the callback.
+class NET_EXPORT_PRIVATE DnsHostsReader
+    : NON_EXPORTED_BASE(public SerialWorker) {
+ public:
+  typedef base::Callback<void(const DnsHosts& hosts)> CallbackType;
+
+  DnsHostsReader(const FilePath& path, const CallbackType& callback);
+
+ private:
+  virtual ~DnsHostsReader();
+
+  virtual void DoWork() OVERRIDE;
+  virtual void OnWorkFinished() OVERRIDE;
+
+  FilePath path_;
+  CallbackType callback_;
+  // Written in DoWork, read in OnWorkFinished, no locking necessary.
+  DnsHosts dns_hosts_;
+  bool success_;
+
+  DISALLOW_COPY_AND_ASSIGN(DnsHostsReader);
+};
+
 
 }  // namespace net
 

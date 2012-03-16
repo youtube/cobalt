@@ -11,9 +11,11 @@
 #include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/file_path.h"
+#include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/string_split.h"
 #include "base/string_util.h"
+#include "base/synchronization/lock.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/utf_string_conversions.h"
 #include "base/win/object_watcher.h"
@@ -22,26 +24,27 @@
 #include "googleurl/src/url_canon.h"
 #include "net/base/net_util.h"
 #include "net/dns/dns_protocol.h"
+#include "net/dns/file_path_watcher_wrapper.h"
 #include "net/dns/serial_worker.h"
-#include "net/dns/watching_file_reader.h"
 
 #pragma comment(lib, "iphlpapi.lib")
 
 namespace net {
 
+namespace internal {
+
 namespace {
 
-// Watches a single registry key for changes. This class is thread-safe with
-// the exception of StartWatch which must be called once and only once.
+// Watches a single registry key for changes. Thread-safe.
 class RegistryWatcher : public base::win::ObjectWatcher::Delegate {
  public:
+  typedef base::Callback<void(bool succeeded)> CallbackType;
   RegistryWatcher() {}
 
-  bool StartWatch(const wchar_t* key, const base::Closure& callback) {
+  bool Watch(const wchar_t* key, const CallbackType& callback) {
+    base::AutoLock lock(lock_);
     DCHECK(!callback.is_null());
-    DCHECK(callback_.is_null());
-    // TODO(szym): This will need to change to address http://crbug.com/99509
-    DCHECK(!key_.Valid());
+    CancelLocked();
     if (key_.Open(HKEY_LOCAL_MACHINE, key,
                   KEY_NOTIFY | KEY_QUERY_VALUE) != ERROR_SUCCESS)
       return false;
@@ -54,22 +57,21 @@ class RegistryWatcher : public base::win::ObjectWatcher::Delegate {
   }
 
   void Cancel() {
-    callback_.Reset();
-    key_.StopWatching();
-    watcher_.StopWatching();
+    base::AutoLock lock(lock_);
+    CancelLocked();
   }
 
   virtual void OnObjectSignaled(HANDLE object) OVERRIDE {
+    base::AutoLock lock(lock_);
+    bool succeeded = (key_.StartWatching() == ERROR_SUCCESS) &&
+                     watcher_.StartWatching(key_.watch_event(), this);
     if (!callback_.is_null())
-      callback_.Run();
-    // TODO(szym): handle errors
-    bool success = key_.StartWatching() &&
-                   watcher_.StartWatching(key_.watch_event(), this);
-    DCHECK(success);
+      callback_.Run(succeeded);
   }
 
   bool ReadString(const wchar_t* name,
                   DnsSystemSettings::RegString* out) const {
+    base::AutoLock lock(lock_);
     out->set = false;
     if (!key_.Valid()) {
       // Assume that if the |key_| is invalid then the key is missing.
@@ -85,6 +87,7 @@ class RegistryWatcher : public base::win::ObjectWatcher::Delegate {
 
   bool ReadDword(const wchar_t* name,
                  DnsSystemSettings::RegDword* out) const {
+    base::AutoLock lock(lock_);
     out->set = false;
     if (!key_.Valid()) {
       // Assume that if the |key_| is invalid then the key is missing.
@@ -99,7 +102,17 @@ class RegistryWatcher : public base::win::ObjectWatcher::Delegate {
   }
 
  private:
-  base::Closure callback_;
+  void CancelLocked() {
+    lock_.AssertAcquired();
+    callback_.Reset();
+    if (key_.Valid()) {
+      watcher_.StopWatching();
+      key_.StopWatching();
+    }
+  }
+
+  mutable base::Lock lock_;
+  CallbackType callback_;
   base::win::RegKey key_;
   base::win::ObjectWatcher watcher_;
 
@@ -123,9 +136,8 @@ bool ParseDomainASCII(const string16& widestr, std::string* domain) {
   // Otherwise try to convert it from IDN to punycode.
   const int kInitialBufferSize = 256;
   url_canon::RawCanonOutputT<char16, kInitialBufferSize> punycode;
-  if (!url_canon::IDNToASCII(widestr.data(), widestr.length(), &punycode)) {
+  if (!url_canon::IDNToASCII(widestr.data(), widestr.length(), &punycode))
     return false;
-  }
 
   // |punycode_output| should now be ASCII; convert it to a std::string.
   // (We could use UTF16ToASCII() instead, but that requires an extra string
@@ -169,9 +181,10 @@ bool ConvertSettingsToDnsConfig(const DnsSystemSettings& settings,
 
   // Use GetAdapterAddresses to get effective DNS server order and
   // connection-specific DNS suffix. Ignore disconnected and loopback adapters.
-  // TODO(szym): Also ignore VM adapters. http://crbug.com/112856
+  // The order of adapters is the network binding order, so stick to the
+  // first good adapter.
   for (const IP_ADAPTER_ADDRESSES* adapter = settings.addresses.get();
-       adapter != NULL;
+       adapter != NULL && config->nameservers.empty();
        adapter = adapter->Next) {
     if (adapter->OperStatus != IfOperStatusUp)
       continue;
@@ -200,9 +213,8 @@ bool ConvertSettingsToDnsConfig(const DnsSystemSettings& settings,
     // obtained via DHCP (regkey: Tcpip\Parameters\Interfaces\{XXX}\DhcpDomain)
     // or specified by the user (regkey: Tcpip\Parameters\Domain).
     std::string dns_suffix;
-    if (ParseDomainASCII(adapter->DnsSuffix, &dns_suffix)) {
+    if (ParseDomainASCII(adapter->DnsSuffix, &dns_suffix))
       config->search.push_back(dns_suffix);
-    }
   }
 
   if (config->nameservers.empty())
@@ -304,31 +316,36 @@ class DnsConfigServiceWin::ConfigReader : public SerialWorker {
       : service_(service),
         success_(false) {}
 
-  bool StartWatch() {
+  bool Watch() {
     DCHECK(loop()->BelongsToCurrentThread());
 
-    base::Closure callback = base::Bind(&SerialWorker::WorkNow,
-                                        base::Unretained(this));
+    RegistryWatcher::CallbackType callback =
+        base::Bind(&ConfigReader::OnChange, base::Unretained(this));
+
+    // The Tcpip key must be present.
+    if (!tcpip_watcher_.Watch(
+        L"SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters",
+        callback))
+      return false;
+
+    // Watch for IPv6 nameservers.
+    tcpip6_watcher_.Watch(
+        L"SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters",
+        callback);
 
     // DNS suffix search list and devolution can be configured via group
     // policy which sets this registry key. If the key is missing, the policy
     // does not apply, and the DNS client uses Tcpip and Dnscache settings.
     // If a policy is installed, DnsConfigService will need to be restarted.
     // BUG=99509
-    policy_watcher_.StartWatch(
-        L"SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient",
-        callback);
 
-    // The Dnscache key might also be missing.
-    dnscache_watcher_.StartWatch(
+    dnscache_watcher_.Watch(
         L"SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters",
         callback);
 
-    // The Tcpip key must be present.
-    if (!tcpip_watcher_.StartWatch(
-        L"SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters",
-        callback))
-    return false;
+    policy_watcher_.Watch(
+        L"SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient",
+        callback);
 
     WorkNow();
     return true;
@@ -339,16 +356,25 @@ class DnsConfigServiceWin::ConfigReader : public SerialWorker {
     SerialWorker::Cancel();
     policy_watcher_.Cancel();
     dnscache_watcher_.Cancel();
+    tcpip6_watcher_.Cancel();
     tcpip_watcher_.Cancel();
   }
 
-  // Delay between calls to WorkerPool::PostTask
-  static const int kWorkerPoolRetryDelayMs = 100;
-
  private:
-  friend class RegistryWatcher;
   virtual ~ConfigReader() {
     DCHECK(IsCancelled());
+  }
+
+  void OnChange(bool succeeded) {
+    DCHECK(loop()->BelongsToCurrentThread());
+    if (!IsCancelled())
+      service_->InvalidateConfig();
+    // We don't trust a config that we cannot watch in the future.
+    // TODO(szym): re-start watcher if that makes sense. http://crbug.com/116139
+    if (succeeded)
+      WorkNow();
+    else
+      LOG(ERROR) << "Failed to watch DNS config";
   }
 
   bool ReadIpHelper(DnsSystemSettings* settings) {
@@ -429,43 +455,68 @@ class DnsConfigServiceWin::ConfigReader : public SerialWorker {
   DnsConfig dns_config_;
   bool success_;
 
-  RegistryWatcher policy_watcher_;
-  RegistryWatcher dnscache_watcher_;
   RegistryWatcher tcpip_watcher_;
+  RegistryWatcher tcpip6_watcher_;
+  RegistryWatcher dnscache_watcher_;
+  RegistryWatcher policy_watcher_;
 };
 
 DnsConfigServiceWin::DnsConfigServiceWin()
     : config_reader_(new ConfigReader(this)),
-      hosts_watcher_(new WatchingFileReader()) {}
+      hosts_watcher_(new FilePathWatcherWrapper()) {}
 
 DnsConfigServiceWin::~DnsConfigServiceWin() {
   DCHECK(CalledOnValidThread());
   config_reader_->Cancel();
+  if (hosts_reader_)
+    hosts_reader_->Cancel();
 }
 
-void DnsConfigServiceWin::Watch() {
+void DnsConfigServiceWin::Watch(const CallbackType& callback) {
   DCHECK(CalledOnValidThread());
+  DCHECK(!callback.is_null());
+  set_callback(callback);
 
   // This is done only once per lifetime so open the keys and file watcher
   // handles on this thread.
   // TODO(szym): Should/can this be avoided? http://crbug.com/114223
   base::ThreadRestrictions::ScopedAllowIO allow_io;
 
-  bool started = config_reader_->StartWatch();
-  // TODO(szym): handle possible failure
-  DCHECK(started);
+  if (!config_reader_->Watch()) {
+    LOG(ERROR) << "Failed to start watching DNS config";
+    InvalidateConfig();
+  }
 
   TCHAR buffer[MAX_PATH];
   UINT rc = GetSystemDirectory(buffer, MAX_PATH);
   DCHECK(0 < rc && rc < MAX_PATH);
   FilePath hosts_path = FilePath(buffer).
       Append(FILE_PATH_LITERAL("drivers\\etc\\hosts"));
-  hosts_watcher_->StartWatch(hosts_path, new DnsHostsReader(hosts_path, this));
+  hosts_reader_ = new DnsHostsReader(
+      hosts_path,
+      base::Bind(&DnsConfigServiceWin::OnHostsRead, base::Unretained(this)));
+  if (hosts_watcher_->Watch(hosts_path,
+                            base::Bind(&DnsConfigServiceWin::OnHostsChanged,
+                                       base::Unretained(this)))) {
+    OnHostsChanged(true);
+  } else {
+    OnHostsChanged(false);
+  }
 }
+
+void DnsConfigServiceWin::OnHostsChanged(bool succeeded) {
+  InvalidateHosts();
+  if (succeeded)
+    hosts_reader_->WorkNow();
+  else
+    LOG(ERROR) << "Failed to watch DNS hosts";
+}
+
+}  // namespace internal
 
 // static
 scoped_ptr<DnsConfigService> DnsConfigService::CreateSystemService() {
-  return scoped_ptr<DnsConfigService>(new DnsConfigServiceWin());
+  return scoped_ptr<DnsConfigService>(new internal::DnsConfigServiceWin());
 }
 
 }  // namespace net

@@ -162,5 +162,9 @@ scoped_ptr<DnsClient> CreateMockDnsClient(const DnsConfig& config) {
   return scoped_ptr<DnsClient>(new MockDnsClient(config));
 }
 
+void MockDnsConfigService::Watch(const CallbackType& callback) {
+  set_callback(callback);
+}
+
 }  // namespace net
 
