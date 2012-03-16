@@ -10,16 +10,14 @@
 #include <string>
 #include <vector>
 
-#include "base/file_path.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/observer_list.h"
 #include "base/threading/non_thread_safe.h"
 #include "base/time.h"
+#include "base/timer.h"
 #include "net/base/ip_endpoint.h"  // win requires size of IPEndPoint
 #include "net/base/net_export.h"
 #include "net/dns/dns_hosts.h"
-#include "net/dns/serial_worker.h"
 
 namespace net {
 
@@ -31,6 +29,8 @@ struct NET_EXPORT_PRIVATE DnsConfig {
   bool Equals(const DnsConfig& d) const;
 
   bool EqualsIgnoreHosts(const DnsConfig& d) const;
+
+  void CopyIgnoreHosts(const DnsConfig& src);
 
   bool IsValid() const {
     return !nameservers.empty();
@@ -64,20 +64,13 @@ struct NET_EXPORT_PRIVATE DnsConfig {
 
 
 // Service for watching when the system DNS settings have changed.
-// Depending on the platform, watches files in /etc/ or win registry.
-// This class also serves as the do-nothing mock implementation.
+// Depending on the platform, watches files in /etc/ or Windows registry.
 class NET_EXPORT_PRIVATE DnsConfigService
   : NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   // Callback interface for the client. The observer is called on the same
   // thread as Watch(). Observer must outlive the service.
-  class Observer {
-   public:
-    virtual ~Observer() {}
-
-    // Called only when |dns_config| is different from the last call.
-    virtual void OnConfigChanged(const DnsConfig& dns_config) = 0;
-  };
+  typedef base::Callback<void(const DnsConfig& config)> CallbackType;
 
   // Creates the platform-specific DnsConfigService.
   static scoped_ptr<DnsConfigService> CreateSystemService();
@@ -88,53 +81,49 @@ class NET_EXPORT_PRIVATE DnsConfigService
   // Immediately starts watching system configuration for changes and attempts
   // to read the configuration. For some platform implementations, the current
   // thread must have an IO loop (for base::files::FilePathWatcher).
-  virtual void Watch() {}
-
-  // If a config is available, |observer| will immediately be called with
-  // OnConfigChanged.
-  void AddObserver(Observer* observer);
-  void RemoveObserver(Observer* observer);
+  virtual void Watch(const CallbackType& callback) = 0;
 
  protected:
-  FRIEND_TEST_ALL_PREFIXES(DnsConfigServiceTest, NotifyOnChange);
   friend class DnsHostsReader;
-  // To be called with new config. |config|.hosts is ignored.
-  virtual void OnConfigRead(const DnsConfig& config);
-  // To be called with new hosts. Rest of the config is assumed unchanged.
-  virtual void OnHostsRead(const DnsHosts& hosts);
+
+  // Called when the current config (except hosts) has changed.
+  void InvalidateConfig();
+  // Called when the current hosts have changed.
+  void InvalidateHosts();
+
+  // Called with new config. |config|.hosts is ignored.
+  void OnConfigRead(const DnsConfig& config);
+  // Called with new hosts. Rest of the config is assumed unchanged.
+  void OnHostsRead(const DnsHosts& hosts);
+
+  void set_callback(const CallbackType& callback) {
+    callback_ = callback;
+  }
+
+ private:
+  void StartTimer();
+  // Called when the timer expires.
+  void OnTimeout();
+  // Called when the config becomes complete.
+  void OnCompleteConfig();
+
+  CallbackType callback_;
 
   DnsConfig dns_config_;
-  // True after first OnConfigRead and OnHostsRead; indicate complete config.
+
+  // True after On*Read, before Invalidate*. Tell if the config is complete.
   bool have_config_;
   bool have_hosts_;
+  // True if receiver needs to be updated when the config becomes complete.
+  bool need_update_;
 
-  ObserverList<Observer> observers_;
+  // Started in Invalidate*, cleared in On*Read.
+  base::OneShotTimer<DnsConfigService> timer_;
+
  private:
   DISALLOW_COPY_AND_ASSIGN(DnsConfigService);
 };
 
-// A WatchingFileReader that reads a HOSTS file and notifies
-// DnsConfigService::OnHostsRead().
-// Client should call Cancel() when |service| is going away.
-class NET_EXPORT_PRIVATE DnsHostsReader
-  : NON_EXPORTED_BASE(public SerialWorker) {
- public:
-  DnsHostsReader(const FilePath& path, DnsConfigService* service);
-
-  virtual void DoWork() OVERRIDE;
-  virtual void OnWorkFinished() OVERRIDE;
-
- private:
-  virtual ~DnsHostsReader();
-
-  FilePath path_;
-  DnsConfigService* service_;
-  // Written in DoRead, read in OnReadFinished, no locking necessary.
-  DnsHosts dns_hosts_;
-  bool success_;
-
-  DISALLOW_COPY_AND_ASSIGN(DnsHostsReader);
-};
 
 }  // namespace net
 

@@ -294,6 +294,47 @@ class JobAttachParameters : public NetLog::EventParameters {
   const RequestPriority priority_;
 };
 
+// Parameters of the DNS_CONFIG_CHANGED event.
+class DnsConfigParameters : public NetLog::EventParameters {
+ public:
+  explicit DnsConfigParameters(const DnsConfig& config)
+      : num_hosts_(config.hosts.size()) {
+    config_.CopyIgnoreHosts(config);
+  }
+
+  virtual Value* ToValue() const OVERRIDE {
+    DictionaryValue* dict = new DictionaryValue();
+
+    ListValue* list = new ListValue();
+    for (size_t i = 0; i < config_.search.size(); ++i) {
+      list->Append(Value::CreateStringValue(
+          config_.nameservers[i].ToString()));
+    }
+    dict->Set("nameservers", list);
+
+    list = new ListValue();
+    for (size_t i = 0; i < config_.nameservers.size(); ++i) {
+      list->Append(Value::CreateStringValue(config_.search[i]));
+    }
+    dict->Set("search", list);
+
+    dict->SetBoolean("append_to_multi_label_name",
+                     config_.append_to_multi_label_name);
+    dict->SetInteger("ndots", config_.ndots);
+    dict->SetDouble("timeout", config_.timeout.InSecondsF());
+    dict->SetInteger("attempts", config_.attempts);
+    dict->SetBoolean("rotate", config_.rotate);
+    dict->SetBoolean("edns0", config_.edns0);
+    dict->SetInteger("num_hosts", num_hosts_);
+
+    return dict;
+  }
+
+ private:
+  DnsConfig config_;  // Does not include DnsHosts to save memory and work.
+  const size_t num_hosts_;
+};
+
 // The logging routines are defined here because some requests are resolved
 // without a Request object.
 
@@ -432,7 +473,6 @@ HostResolver* CreateAsyncHostResolver(size_t max_concurrent_resolves,
                                       NetLog* net_log) {
   scoped_ptr<DnsConfigService> config_service =
       DnsConfigService::CreateSystemService();
-  config_service->Watch();
   return CreateHostResolver(max_concurrent_resolves,
                             max_retry_attempts,
                             HostCache::CreateDefaultCache(),
@@ -1107,18 +1147,6 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     STLDeleteElements(&requests_);
   }
 
-  const Key key() const {
-    return key_;
-  }
-
-  bool is_queued() const {
-    return !handle_.is_null();
-  }
-
-  bool is_running() const {
-    return is_dns_running() || is_proc_running();
-  }
-
   // Add this job to the dispatcher.
   void Schedule(RequestPriority priority) {
     handle_ = resolver_->dispatcher_.Add(this, priority);
@@ -1218,24 +1246,19 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     return false;
   }
 
+  const Key key() const {
+    return key_;
+  }
+
+  bool is_queued() const {
+    return !handle_.is_null();
+  }
+
+  bool is_running() const {
+    return is_dns_running() || is_proc_running();
+  }
+
  private:
-  RequestPriority priority() const {
-    return priority_tracker_.highest_priority();
-  }
-
-  // Number of non-canceled requests in |requests_|.
-  size_t num_active_requests() const {
-    return priority_tracker_.total_count();
-  }
-
-  bool is_dns_running() const {
-    return dns_task_.get() != NULL;
-  }
-
-  bool is_proc_running() const {
-    return proc_task_.get() != NULL;
-  }
-
   // PriorityDispatch::Job:
   virtual void Start() OVERRIDE {
     DCHECK(!is_running());
@@ -1396,6 +1419,23 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     }
   }
 
+  RequestPriority priority() const {
+    return priority_tracker_.highest_priority();
+  }
+
+  // Number of non-canceled requests in |requests_|.
+  size_t num_active_requests() const {
+    return priority_tracker_.total_count();
+  }
+
+  bool is_dns_running() const {
+    return dns_task_.get() != NULL;
+  }
+
+  bool is_proc_running() const {
+    return proc_task_.get() != NULL;
+  }
+
   base::WeakPtr<HostResolverImpl> resolver_;
 
   Key key_;
@@ -1474,7 +1514,9 @@ HostResolverImpl::HostResolverImpl(
 #endif
 
   if (dns_config_service_.get()) {
-    dns_config_service_->AddObserver(this);
+    dns_config_service_->Watch(
+        base::Bind(&HostResolverImpl::OnDnsConfigChanged,
+                   base::Unretained(this)));
     dns_client_ = DnsClient::CreateClient(net_log_);
   }
 }
@@ -1844,7 +1886,13 @@ void HostResolverImpl::OnDNSChanged(unsigned detail) {
   // |this| may be deleted inside AbortAllInProgressJobs().
 }
 
-void HostResolverImpl::OnConfigChanged(const DnsConfig& dns_config) {
+void HostResolverImpl::OnDnsConfigChanged(const DnsConfig& dns_config) {
+  if (net_log_) {
+    net_log_->AddGlobalEntry(
+        NetLog::TYPE_DNS_CONFIG_CHANGED,
+        make_scoped_refptr(new DnsConfigParameters(dns_config)));
+  }
+
   // We want a new factory in place, before we Abort running Jobs, so that the
   // newly started jobs use the new factory.
   DCHECK(dns_client_.get());

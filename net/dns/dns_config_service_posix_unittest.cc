@@ -10,7 +10,6 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
-
 namespace {
 
 void CompareConfig(const struct __res_state &res, const DnsConfig& config) {
@@ -108,15 +107,13 @@ void CloseResState(res_state res) {
 #endif
 }
 
-}  // namespace
-
 TEST(DnsConfigServicePosixTest, ConvertResStateToDnsConfig) {
   struct __res_state res[2];
   DnsConfig config[2];
   for (unsigned i = 0; i < 2; ++i) {
     EXPECT_FALSE(config[i].IsValid());
     InitializeResState(&res[i], i);
-    ASSERT_TRUE(ConvertResStateToDnsConfig(res[i], &config[i]));
+    ASSERT_TRUE(internal::ConvertResStateToDnsConfig(res[i], &config[i]));
   }
   for (unsigned i = 0; i < 2; ++i) {
     EXPECT_TRUE(config[i].IsValid());
@@ -128,6 +125,7 @@ TEST(DnsConfigServicePosixTest, ConvertResStateToDnsConfig) {
   EXPECT_FALSE(config[1].Equals(config[0]));
 }
 
+}  // namespace
 }  // namespace net
 
 

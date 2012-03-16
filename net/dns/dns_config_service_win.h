@@ -33,20 +33,27 @@
 
 namespace net {
 
-class WatchingFileReader;
+class FilePathWatcherWrapper;
+
+// Use DnsConfigService::CreateSystemService to use it outside of tests.
+namespace internal {
 
 class NET_EXPORT_PRIVATE DnsConfigServiceWin
-  : NON_EXPORTED_BASE(public DnsConfigService) {
+    : NON_EXPORTED_BASE(public DnsConfigService) {
  public:
   DnsConfigServiceWin();
   virtual ~DnsConfigServiceWin();
 
-  virtual void Watch() OVERRIDE;
+  virtual void Watch(const CallbackType& callback) OVERRIDE;
 
  private:
   class ConfigReader;
+
+  void OnHostsChanged(bool succeeded);
+
   scoped_refptr<ConfigReader> config_reader_;
-  scoped_ptr<WatchingFileReader> hosts_watcher_;
+  scoped_ptr<FilePathWatcherWrapper> hosts_watcher_;
+  scoped_refptr<SerialWorker> hosts_reader_;
 
   DISALLOW_COPY_AND_ASSIGN(DnsConfigServiceWin);
 };
@@ -73,7 +80,8 @@ struct NET_EXPORT_PRIVATE DnsSystemSettings {
     RegDword level;
   };
 
-  // Filled in by GetAdapterAddresses.
+  // Filled in by GetAdapterAddresses. Note that the alternative
+  // GetNetworkParams does not include IPv6 addresses.
   scoped_ptr_malloc<IP_ADAPTER_ADDRESSES> addresses;
 
   // SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\SearchList
@@ -104,6 +112,8 @@ bool NET_EXPORT_PRIVATE ParseSearchList(const string16& value,
 // Fills in |dns_config| from |settings|. Exposed for tests.
 bool NET_EXPORT_PRIVATE ConvertSettingsToDnsConfig(
     const DnsSystemSettings& settings, DnsConfig* dns_config);
+
+}  // namespace internal
 
 }  // namespace net
 

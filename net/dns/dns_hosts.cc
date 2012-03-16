@@ -1,9 +1,10 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/dns/dns_hosts.h"
 
+#include "base/file_util.h"
 #include "base/logging.h"
 #include "base/string_tokenizer.h"
 
@@ -42,6 +43,49 @@ void ParseHosts(const std::string& contents, DnsHosts* dns_hosts) {
     }
   }
 }
+
+DnsHostsReader::DnsHostsReader(const FilePath& path,
+                               const CallbackType& callback)
+    : path_(path),
+      callback_(callback),
+      success_(false) {
+  DCHECK(!callback.is_null());
+}
+
+// Reads the contents of the file at |path| into |str| if the total length is
+// less than |max_size|.
+static bool ReadFile(const FilePath& path, int64 max_size, std::string* str) {
+  int64 size;
+  if (!file_util::GetFileSize(path, &size) || size > max_size)
+    return false;
+  return file_util::ReadFileToString(path, str);
+}
+
+void DnsHostsReader::DoWork() {
+  success_ = false;
+  dns_hosts_.clear();
+
+  // Missing file indicates empty HOSTS.
+  if (!file_util::PathExists(path_)) {
+    success_ = true;
+    return;
+  }
+
+  std::string contents;
+  const int64 kMaxHostsSize = 1 << 16;
+  if (ReadFile(path_, kMaxHostsSize, &contents)) {
+    success_ = true;
+    ParseHosts(contents, &dns_hosts_);
+  }
+}
+
+void DnsHostsReader::OnWorkFinished() {
+  DCHECK(!IsCancelled());
+  if (success_)
+    callback_.Run(dns_hosts_);
+}
+
+DnsHostsReader::~DnsHostsReader() {}
 
 }  // namespace net
 
