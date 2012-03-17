@@ -54,7 +54,8 @@ class VideoRendererBaseTest : public ::testing::Test {
     renderer_ = new VideoRendererBase(
         base::Bind(&VideoRendererBaseTest::Paint, base::Unretained(this)),
         base::Bind(&VideoRendererBaseTest::SetOpaqueCBWasCalled,
-                   base::Unretained(this)));
+                   base::Unretained(this)),
+        true);
     renderer_->set_host(&host_);
 
     EXPECT_CALL(*decoder_, natural_size())
