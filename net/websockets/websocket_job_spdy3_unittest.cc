@@ -286,7 +286,8 @@ class MockHttpTransactionFactory : public net::HttpTransactionFactory {
     EXPECT_EQ(net::OK,
               connection->Init(host_port_pair_.ToString(), transport_params_,
                                net::MEDIUM, net::CompletionCallback(),
-                               http_session_->GetTransportSocketPool(),
+                               http_session_->GetTransportSocketPool(
+                                   net::HttpNetworkSession::NORMAL_SOCKET_POOL),
                                net::BoundNetLog()));
     EXPECT_EQ(net::OK,
               session_->InitializeWithSocket(connection, false, net::OK));
