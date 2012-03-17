@@ -81,6 +81,11 @@ class NET_EXPORT HttpNetworkSession
     bool force_http_pipelining;
   };
 
+  enum SocketPoolType {
+    NORMAL_SOCKET_POOL,
+    WEBSOCKET_SOCKET_POOL
+  };
+
   explicit HttpNetworkSession(const Params& params);
 
   HttpAuthCache* http_auth_cache() { return &http_auth_cache_; }
@@ -92,21 +97,16 @@ class NET_EXPORT HttpNetworkSession
 
   void RemoveResponseDrainer(HttpResponseBodyDrainer* drainer);
 
-  TransportClientSocketPool* GetTransportSocketPool() {
-    return socket_pool_manager_->GetTransportSocketPool();
-  }
-
-  SSLClientSocketPool* GetSSLSocketPool() {
-    return socket_pool_manager_->GetSSLSocketPool();
-  }
-
+  TransportClientSocketPool* GetTransportSocketPool(SocketPoolType pool_type);
+  SSLClientSocketPool* GetSSLSocketPool(SocketPoolType pool_type);
   SOCKSClientSocketPool* GetSocketPoolForSOCKSProxy(
+      SocketPoolType pool_type,
       const HostPortPair& socks_proxy);
-
   HttpProxyClientSocketPool* GetSocketPoolForHTTPProxy(
+      SocketPoolType pool_type,
       const HostPortPair& http_proxy);
-
   SSLClientSocketPool* GetSocketPoolForSSLWithProxy(
+      SocketPoolType pool_type,
       const HostPortPair& proxy_server);
 
   CertVerifier* cert_verifier() { return cert_verifier_; }
@@ -151,6 +151,8 @@ class NET_EXPORT HttpNetworkSession
 
   ~HttpNetworkSession();
 
+  ClientSocketPoolManager* GetSocketPoolManager(SocketPoolType pool_type);
+
   NetLog* const net_log_;
   NetworkDelegate* const network_delegate_;
   HttpServerProperties* const http_server_properties_;
@@ -164,7 +166,8 @@ class NET_EXPORT HttpNetworkSession
 
   HttpAuthCache http_auth_cache_;
   SSLClientAuthCache ssl_client_auth_cache_;
-  scoped_ptr<ClientSocketPoolManager> socket_pool_manager_;
+  scoped_ptr<ClientSocketPoolManager> normal_socket_pool_manager_;
+  scoped_ptr<ClientSocketPoolManager> websocket_socket_pool_manager_;
   SpdySessionPool spdy_session_pool_;
   scoped_ptr<HttpStreamFactory> http_stream_factory_;
   std::set<HttpResponseBodyDrainer*> response_drainers_;

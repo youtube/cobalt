@@ -20,6 +20,29 @@
 #include "net/socket/client_socket_pool_manager_impl.h"
 #include "net/spdy/spdy_session_pool.h"
 
+namespace {
+
+net::ClientSocketPoolManager* CreateSocketPoolManager(
+    const net::HttpNetworkSession::Params& params) {
+  // TODO(yutak): Differentiate WebSocket pool manager and allow more
+  // simultaneous connections for WebSockets.
+  return new net::ClientSocketPoolManagerImpl(
+      params.net_log,
+      params.client_socket_factory ?
+      params.client_socket_factory :
+      net::ClientSocketFactory::GetDefaultFactory(),
+      params.host_resolver,
+      params.cert_verifier,
+      params.origin_bound_cert_service,
+      params.transport_security_state,
+      params.ssl_host_info_factory,
+      params.ssl_session_cache_shard,
+      params.proxy_service,
+      params.ssl_config_service);
+}
+
+}  // unnamed namespace
+
 namespace net {
 
 // TODO(mbelshe): Move the socket factories into HttpStreamFactory.
@@ -32,20 +55,8 @@ HttpNetworkSession::HttpNetworkSession(const Params& params)
       force_http_pipelining_(params.force_http_pipelining),
       proxy_service_(params.proxy_service),
       ssl_config_service_(params.ssl_config_service),
-      socket_pool_manager_(
-          new ClientSocketPoolManagerImpl(
-              params.net_log,
-              params.client_socket_factory ?
-              params.client_socket_factory :
-              ClientSocketFactory::GetDefaultFactory(),
-              params.host_resolver,
-              params.cert_verifier,
-              params.origin_bound_cert_service,
-              params.transport_security_state,
-              params.ssl_host_info_factory,
-              params.ssl_session_cache_shard,
-              params.proxy_service,
-              params.ssl_config_service)),
+      normal_socket_pool_manager_(CreateSocketPoolManager(params)),
+      websocket_socket_pool_manager_(CreateSocketPoolManager(params)),
       spdy_session_pool_(params.host_resolver,
                          params.ssl_config_service,
                          params.http_server_properties),
@@ -73,23 +84,39 @@ void HttpNetworkSession::RemoveResponseDrainer(
   response_drainers_.erase(drainer);
 }
 
+TransportClientSocketPool* HttpNetworkSession::GetTransportSocketPool(
+    SocketPoolType pool_type) {
+  return GetSocketPoolManager(pool_type)->GetTransportSocketPool();
+}
+
+SSLClientSocketPool* HttpNetworkSession::GetSSLSocketPool(
+    SocketPoolType pool_type) {
+  return GetSocketPoolManager(pool_type)->GetSSLSocketPool();
+}
+
 SOCKSClientSocketPool* HttpNetworkSession::GetSocketPoolForSOCKSProxy(
+    SocketPoolType pool_type,
     const HostPortPair& socks_proxy) {
-  return socket_pool_manager_->GetSocketPoolForSOCKSProxy(socks_proxy);
+  return GetSocketPoolManager(pool_type)->GetSocketPoolForSOCKSProxy(
+      socks_proxy);
 }
 
 HttpProxyClientSocketPool* HttpNetworkSession::GetSocketPoolForHTTPProxy(
+    SocketPoolType pool_type,
     const HostPortPair& http_proxy) {
-  return socket_pool_manager_->GetSocketPoolForHTTPProxy(http_proxy);
+  return GetSocketPoolManager(pool_type)->GetSocketPoolForHTTPProxy(http_proxy);
 }
 
 SSLClientSocketPool* HttpNetworkSession::GetSocketPoolForSSLWithProxy(
+    SocketPoolType pool_type,
     const HostPortPair& proxy_server) {
-  return socket_pool_manager_->GetSocketPoolForSSLWithProxy(proxy_server);
+  return GetSocketPoolManager(pool_type)->GetSocketPoolForSSLWithProxy(
+      proxy_server);
 }
 
 Value* HttpNetworkSession::SocketPoolInfoToValue() const {
-  return socket_pool_manager_->SocketPoolInfoToValue();
+  // TODO(yutak): Should merge values from normal pools and WebSocket pools.
+  return normal_socket_pool_manager_->SocketPoolInfoToValue();
 }
 
 Value* HttpNetworkSession::SpdySessionPoolInfoToValue() const {
@@ -97,13 +124,27 @@ Value* HttpNetworkSession::SpdySessionPoolInfoToValue() const {
 }
 
 void HttpNetworkSession::CloseAllConnections() {
-  socket_pool_manager_->FlushSocketPools();
+  normal_socket_pool_manager_->FlushSocketPools();
+  websocket_socket_pool_manager_->FlushSocketPools();
   spdy_session_pool_.CloseCurrentSessions();
 }
 
 void HttpNetworkSession::CloseIdleConnections() {
-  socket_pool_manager_->CloseIdleSockets();
+  normal_socket_pool_manager_->CloseIdleSockets();
+  websocket_socket_pool_manager_->CloseIdleSockets();
   spdy_session_pool_.CloseIdleSessions();
+}
+
+ClientSocketPoolManager* HttpNetworkSession::GetSocketPoolManager(
+    SocketPoolType pool_type) {
+  switch (pool_type) {
+    case NORMAL_SOCKET_POOL:
+      return normal_socket_pool_manager_.get();
+    case WEBSOCKET_SOCKET_POOL:
+      return websocket_socket_pool_manager_.get();
+  }
+  NOTREACHED();
+  return NULL;
 }
 
 }  //  namespace net
