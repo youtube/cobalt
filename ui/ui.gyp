@@ -255,7 +255,6 @@
         'base/x/x11_util_internal.h',
         'gfx/blit.cc',
         'gfx/blit.h',
-        'gfx/brush.h',
         'gfx/canvas.cc',
         'gfx/canvas.h',
         'gfx/canvas_android.cc',
