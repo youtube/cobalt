@@ -127,6 +127,7 @@ TEST_F(PipelineIntegrationTest, BasicPlayback) {
   Play();
 
   ASSERT_TRUE(WaitUntilOnEnded());
+  ASSERT_EQ(GetVideoHash(), "923ce08df753797b642df55a46a1dcfb");
 }
 
 // TODO(xhwang): Enable this test when AddKey is integrated into pipeline.

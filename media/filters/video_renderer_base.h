@@ -37,10 +37,13 @@ class MEDIA_EXPORT VideoRendererBase
   // instead post a task to a common/worker thread to handle rendering.  Slowing
   // down the video thread may result in losing synchronization with audio.
   //
+  // Setting |drop_frames_| to true causes the renderer to drop expired frames.
+  //
   // TODO(scherkus): pass the VideoFrame* to this callback and remove
   // Get/PutCurrentFrame() http://crbug.com/108435
   VideoRendererBase(const base::Closure& paint_cb,
-                    const SetOpaqueCB& set_opaque_cb);
+                    const SetOpaqueCB& set_opaque_cb,
+                    bool drop_frames);
   virtual ~VideoRendererBase();
 
   // Filter implementation.
@@ -178,6 +181,8 @@ class MEDIA_EXPORT VideoRendererBase
   bool pending_read_;
   bool pending_paint_;
   bool pending_paint_with_last_available_;
+
+  bool drop_frames_;
 
   float playback_rate_;
 

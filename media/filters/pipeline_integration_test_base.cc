@@ -5,6 +5,7 @@
 #include "media/filters/pipeline_integration_test_base.h"
 
 #include "base/bind.h"
+#include "base/string_piece.h"
 #include "media/base/media_log.h"
 #include "media/filters/chunk_demuxer_factory.h"
 #include "media/filters/ffmpeg_audio_decoder.h"
@@ -12,7 +13,6 @@
 #include "media/filters/ffmpeg_video_decoder.h"
 #include "media/filters/file_data_source.h"
 #include "media/filters/null_audio_renderer.h"
-#include "media/filters/video_renderer_base.h"
 
 using ::testing::AnyNumber;
 
@@ -23,7 +23,7 @@ PipelineIntegrationTestBase::PipelineIntegrationTestBase()
       pipeline_(new Pipeline(&message_loop_, new MediaLog())),
       ended_(false),
       pipeline_status_(PIPELINE_OK) {
-  EXPECT_CALL(*this, OnVideoRendererPaint()).Times(AnyNumber());
+  base::MD5Init(&md5_context_);
   EXPECT_CALL(*this, OnSetOpaque(true)).Times(AnyNumber());
 }
 
@@ -170,13 +170,34 @@ PipelineIntegrationTestBase::CreateFilterCollection(
       base::Bind(&MessageLoopFactory::GetMessageLoop,
                  base::Unretained(message_loop_factory_.get()),
                  "VideoDecoderThread")));
-  collection->AddVideoRenderer(new VideoRendererBase(
+  renderer_ = new VideoRendererBase(
       base::Bind(&PipelineIntegrationTestBase::OnVideoRendererPaint,
                  base::Unretained(this)),
       base::Bind(&PipelineIntegrationTestBase::OnSetOpaque,
-                 base::Unretained(this))));
+                 base::Unretained(this)),
+      false);
+  collection->AddVideoRenderer(renderer_);
   collection->AddAudioRenderer(new NullAudioRenderer());
   return collection.Pass();
+}
+
+void PipelineIntegrationTestBase::OnVideoRendererPaint() {
+  scoped_refptr<VideoFrame> frame;
+  renderer_->GetCurrentFrame(&frame);
+  if (frame)
+    base::MD5Update(
+        &md5_context_,
+        base::StringPiece(
+            reinterpret_cast<char*>(frame->data(VideoFrame::kRGBPlane)),
+            (frame->rows(VideoFrame::kRGBPlane) *
+             frame->row_bytes(VideoFrame::kRGBPlane))));
+  renderer_->PutCurrentFrame(frame);
+}
+
+std::string PipelineIntegrationTestBase::GetVideoHash() {
+  base::MD5Digest digest;
+  base::MD5Final(&digest, &md5_context_);
+  return base::MD5DigestToBase16(digest);
 }
 
 }  // namespace media
