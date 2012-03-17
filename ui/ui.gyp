@@ -256,16 +256,16 @@
         'gfx/blit.cc',
         'gfx/blit.h',
         'gfx/brush.h',
+        'gfx/canvas.cc',
         'gfx/canvas.h',
+        'gfx/canvas_android.cc',
+        'gfx/canvas_linux.cc',
+        'gfx/canvas_mac.mm',
         'gfx/canvas_paint.h',
         'gfx/canvas_paint_win.cc',
-        'gfx/canvas_skia.cc',
-        'gfx/canvas_skia_android.cc',
-        'gfx/canvas_skia_linux.cc',
-        'gfx/canvas_skia_mac.mm',
         'gfx/canvas_skia_paint.h',
         'gfx/canvas_skia_skia.cc',
-        'gfx/canvas_skia_win.cc',
+        'gfx/canvas_win.cc',
         'gfx/codec/jpeg_codec.cc',
         'gfx/codec/jpeg_codec.h',
         'gfx/codec/png_codec.cc',
@@ -374,14 +374,14 @@
         'ui_controls/ui_controls_win.cc',
       ],
       'conditions': [
-        # TODO(asvitkine): Switch all platforms to use_canvas_skia_skia.cc.
+        # TODO(asvitkine): Switch all platforms to use canvas_skia_skia.cc.
         #                  http://crbug.com/105550
         ['use_canvas_skia_skia==1', {
           'sources!': [
-            'gfx/canvas_skia_android.cc',
-            'gfx/canvas_skia_linux.cc',
-            'gfx/canvas_skia_mac.mm',
-            'gfx/canvas_skia_win.cc',
+            'gfx/canvas_android.cc',
+            'gfx/canvas_linux.cc',
+            'gfx/canvas_mac.mm',
+            'gfx/canvas_win.cc',
           ],
         }, {  # use_canvas_skia_skia!=1
           'sources!': [
