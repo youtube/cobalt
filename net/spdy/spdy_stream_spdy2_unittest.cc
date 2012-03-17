@@ -197,7 +197,8 @@ TEST_F(SpdyStreamSpdy2Test, SendDataAfterOpen) {
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK, connection->Init(host_port_pair.ToString(), transport_params,
                                  LOWEST, CompletionCallback(),
-                                 session_->GetTransportSocketPool(),
+                                 session_->GetTransportSocketPool(
+                                     HttpNetworkSession::NORMAL_SOCKET_POOL),
                                  BoundNetLog()));
   session->InitializeWithSocket(connection.release(), false, OK);
 
@@ -263,7 +264,8 @@ TEST_F(SpdyStreamSpdy2Test, PushedStream) {
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK, connection->Init(host_port_pair.ToString(), transport_params,
                                  LOWEST, CompletionCallback(),
-                                 session_->GetTransportSocketPool(),
+                                 session_->GetTransportSocketPool(
+                                     HttpNetworkSession::NORMAL_SOCKET_POOL),
                                  BoundNetLog()));
   spdy_session->InitializeWithSocket(connection.release(), false, OK);
   BoundNetLog net_log;
@@ -368,7 +370,8 @@ TEST_F(SpdyStreamSpdy2Test, StreamError) {
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(OK, connection->Init(host_port_pair.ToString(), transport_params,
                                  LOWEST, CompletionCallback(),
-                                 session_->GetTransportSocketPool(),
+                                 session_->GetTransportSocketPool(
+                                     HttpNetworkSession::NORMAL_SOCKET_POOL),
                                  log.bound()));
   session->InitializeWithSocket(connection.release(), false, OK);
 

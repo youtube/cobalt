@@ -100,6 +100,16 @@ std::vector<std::string> SpdyNextProtos() {
   return MakeNextProtos("http/1.1", "spdy/2", "spdy/2.1", "spdy/3", NULL);
 }
 
+int GetIdleSocketCountInTransportSocketPool(net::HttpNetworkSession* session) {
+  return session->GetTransportSocketPool(
+      net::HttpNetworkSession::NORMAL_SOCKET_POOL)->IdleSocketCount();
+}
+
+int GetIdleSocketCountInSSLSocketPool(net::HttpNetworkSession* session) {
+  return session->GetSSLSocketPool(
+      net::HttpNetworkSession::NORMAL_SOCKET_POOL)->IdleSocketCount();
+}
+
 }  // namespace
 
 namespace net {
@@ -3362,11 +3372,11 @@ TEST_F(HttpNetworkTransactionSpdy3Test,
 
   // We now check to make sure the TCPClientSocket was not added back to
   // the pool.
-  EXPECT_EQ(0, session->GetTransportSocketPool()->IdleSocketCount());
+  EXPECT_EQ(0, GetIdleSocketCountInTransportSocketPool(session));
   trans.reset();
   MessageLoop::current()->RunAllPending();
   // Make sure that the socket didn't get recycled after calling the destructor.
-  EXPECT_EQ(0, session->GetTransportSocketPool()->IdleSocketCount());
+  EXPECT_EQ(0, GetIdleSocketCountInTransportSocketPool(session));
 }
 
 // Make sure that we recycle a socket after reading all of the response body.
@@ -3409,7 +3419,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, RecycleSocket) {
   std::string status_line = response->headers->GetStatusLine();
   EXPECT_EQ("HTTP/1.1 200 OK", status_line);
 
-  EXPECT_EQ(0, session->GetTransportSocketPool()->IdleSocketCount());
+  EXPECT_EQ(0, GetIdleSocketCountInTransportSocketPool(session));
 
   std::string response_data;
   rv = ReadTransaction(trans.get(), &response_data);
@@ -3421,7 +3431,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, RecycleSocket) {
   MessageLoop::current()->RunAllPending();
 
   // We now check to make sure the socket was added back to the pool.
-  EXPECT_EQ(1, session->GetTransportSocketPool()->IdleSocketCount());
+  EXPECT_EQ(1, GetIdleSocketCountInTransportSocketPool(session));
 }
 
 // Make sure that we recycle a SSL socket after reading all of the response
@@ -3468,7 +3478,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, RecycleSSLSocket) {
   ASSERT_TRUE(response->headers != NULL);
   EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
 
-  EXPECT_EQ(0, session->GetTransportSocketPool()->IdleSocketCount());
+  EXPECT_EQ(0, GetIdleSocketCountInTransportSocketPool(session));
 
   std::string response_data;
   rv = ReadTransaction(trans.get(), &response_data);
@@ -3480,7 +3490,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, RecycleSSLSocket) {
   MessageLoop::current()->RunAllPending();
 
   // We now check to make sure the socket was added back to the pool.
-  EXPECT_EQ(1, session->GetSSLSocketPool()->IdleSocketCount());
+  EXPECT_EQ(1, GetIdleSocketCountInSSLSocketPool(session));
 }
 
 // Grab a SSL socket, use it, and put it back into the pool.  Then, reuse it
@@ -3536,7 +3546,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, RecycleDeadSSLSocket) {
   ASSERT_TRUE(response->headers != NULL);
   EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
 
-  EXPECT_EQ(0, session->GetTransportSocketPool()->IdleSocketCount());
+  EXPECT_EQ(0, GetIdleSocketCountInTransportSocketPool(session));
 
   std::string response_data;
   rv = ReadTransaction(trans.get(), &response_data);
@@ -3548,7 +3558,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, RecycleDeadSSLSocket) {
   MessageLoop::current()->RunAllPending();
 
   // We now check to make sure the socket was added back to the pool.
-  EXPECT_EQ(1, session->GetSSLSocketPool()->IdleSocketCount());
+  EXPECT_EQ(1, GetIdleSocketCountInSSLSocketPool(session));
 
   // Now start the second transaction, which should reuse the previous socket.
 
@@ -3564,7 +3574,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, RecycleDeadSSLSocket) {
   ASSERT_TRUE(response->headers != NULL);
   EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
 
-  EXPECT_EQ(0, session->GetTransportSocketPool()->IdleSocketCount());
+  EXPECT_EQ(0, GetIdleSocketCountInTransportSocketPool(session));
 
   rv = ReadTransaction(trans.get(), &response_data);
   EXPECT_EQ(OK, rv);
@@ -3575,7 +3585,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, RecycleDeadSSLSocket) {
   MessageLoop::current()->RunAllPending();
 
   // We now check to make sure the socket was added back to the pool.
-  EXPECT_EQ(1, session->GetSSLSocketPool()->IdleSocketCount());
+  EXPECT_EQ(1, GetIdleSocketCountInSSLSocketPool(session));
 }
 
 // Make sure that we recycle a socket after a zero-length response.
@@ -3620,7 +3630,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, RecycleSocketAfterZeroContentLength) {
   std::string status_line = response->headers->GetStatusLine();
   EXPECT_EQ("HTTP/1.1 204 No Content", status_line);
 
-  EXPECT_EQ(0, session->GetTransportSocketPool()->IdleSocketCount());
+  EXPECT_EQ(0, GetIdleSocketCountInTransportSocketPool(session));
 
   std::string response_data;
   rv = ReadTransaction(trans.get(), &response_data);
@@ -3632,7 +3642,7 @@ TEST_F(HttpNetworkTransactionSpdy3Test, RecycleSocketAfterZeroContentLength) {
   MessageLoop::current()->RunAllPending();
 
   // We now check to make sure the socket was added back to the pool.
-  EXPECT_EQ(1, session->GetTransportSocketPool()->IdleSocketCount());
+  EXPECT_EQ(1, GetIdleSocketCountInTransportSocketPool(session));
 }
 
 TEST_F(HttpNetworkTransactionSpdy3Test, ResendRequestOnWriteBodyError) {
@@ -7412,7 +7422,8 @@ TEST_F(HttpNetworkTransactionSpdy3Test,
                              transport_params,
                              LOWEST,
                              callback.callback(),
-                             session->GetTransportSocketPool(),
+                             session->GetTransportSocketPool(
+                                 HttpNetworkSession::NORMAL_SOCKET_POOL),
                              BoundNetLog()));
   EXPECT_EQ(OK, callback.WaitForResult());
 
@@ -8668,9 +8679,13 @@ TEST_F(HttpNetworkTransactionSpdy3Test, PreconnectWithExistingSpdySession) {
 
   scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
   EXPECT_EQ(ERR_IO_PENDING,
-            connection->Init(host_port_pair.ToString(), transport_params,
-                             LOWEST, callback.callback(),
-                             session->GetTransportSocketPool(), BoundNetLog()));
+            connection->Init(host_port_pair.ToString(),
+                             transport_params,
+                             LOWEST,
+                             callback.callback(),
+                             session->GetTransportSocketPool(
+                                 HttpNetworkSession::NORMAL_SOCKET_POOL),
+                             BoundNetLog()));
   EXPECT_EQ(OK, callback.WaitForResult());
   spdy_session->InitializeWithSocket(connection.release(), false, OK);
 

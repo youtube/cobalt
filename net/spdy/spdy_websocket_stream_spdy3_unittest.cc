@@ -281,7 +281,8 @@ class SpdyWebSocketStreamSpdy3Test : public testing::Test {
     EXPECT_EQ(ERR_IO_PENDING,
               connection->Init(host_port_pair_.ToString(), transport_params_,
                                MEDIUM, callback.callback(),
-                               http_session_->GetTransportSocketPool(),
+                               http_session_->GetTransportSocketPool(
+                                   HttpNetworkSession::NORMAL_SOCKET_POOL),
                                BoundNetLog()));
     EXPECT_EQ(OK, callback.WaitForResult());
     return session_->InitializeWithSocket(connection.release(), false, OK);
