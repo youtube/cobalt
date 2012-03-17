@@ -692,7 +692,6 @@ SequencedWorkerPool::SequencedWorkerPool(
     : constructor_message_loop_(MessageLoopProxy::current()),
       inner_(new Inner(ALLOW_THIS_IN_INITIALIZER_LIST(this),
                        max_threads, thread_name_prefix, NULL)) {
-  DCHECK(constructor_message_loop_.get());
 }
 
 SequencedWorkerPool::SequencedWorkerPool(
@@ -702,19 +701,19 @@ SequencedWorkerPool::SequencedWorkerPool(
     : constructor_message_loop_(MessageLoopProxy::current()),
       inner_(new Inner(ALLOW_THIS_IN_INITIALIZER_LIST(this),
                        max_threads, thread_name_prefix, observer)) {
-  DCHECK(constructor_message_loop_.get());
 }
 
 SequencedWorkerPool::~SequencedWorkerPool() {}
 
 void SequencedWorkerPool::OnDestruct() const {
-  // TODO(akalin): Once we can easily check if we're on a worker
-  // thread or not, use that instead of restricting destruction to
-  // only the constructor message loop.
-  if (constructor_message_loop_->BelongsToCurrentThread())
-    delete this;
-  else
+  DCHECK(constructor_message_loop_.get());
+  // Avoid deleting ourselves on a worker thread (which would
+  // deadlock).
+  if (RunsTasksOnCurrentThread()) {
     constructor_message_loop_->DeleteSoon(FROM_HERE, this);
+  } else {
+    delete this;
+  }
 }
 
 SequencedWorkerPool::SequenceToken SequencedWorkerPool::GetSequenceToken() {

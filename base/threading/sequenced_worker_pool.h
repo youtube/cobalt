@@ -127,8 +127,12 @@ class BASE_EXPORT SequencedWorkerPool : public TaskRunner {
     virtual void OnDestruct() = 0;
   };
 
+  // When constructing a SequencedWorkerPool, there must be a
+  // MessageLoop on the current thread unless you plan to deliberately
+  // leak it.
+
   // Pass the maximum number of threads (they will be lazily created as needed)
-  // and a prefix for the thread name to ad in debugging.
+  // and a prefix for the thread name to aid in debugging.
   SequencedWorkerPool(size_t max_threads,
                       const std::string& thread_name_prefix);
 
