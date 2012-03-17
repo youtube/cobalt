@@ -6,13 +6,18 @@
 #define MEDIA_FILTERS_PIPELINE_INTEGRATION_TEST_BASE_H_
 
 #include "base/message_loop.h"
+#include "base/md5.h"
 #include "media/base/filter_collection.h"
 #include "media/base/message_loop_factory.h"
 #include "media/base/pipeline.h"
 #include "media/filters/chunk_demuxer.h"
+#include "media/filters/video_renderer_base.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace media {
+
+// Empty MD5 hash string.  Used to verify videos which have decoded no frames.
+static const char kNullVideoHash[] = "d41d8cd98f00b204e9800998ecf8427e";
 
 // Integration tests for Pipeline. Real demuxers, real decoders, and
 // base renderer implementations are used to verify pipeline functionality. The
@@ -40,10 +45,17 @@ class PipelineIntegrationTestBase {
   scoped_ptr<FilterCollection> CreateFilterCollection(
       ChunkDemuxerClient* client);
 
+  // Returns the MD5 hash of all video frames seen.  Should only be called once
+  // after playback completes.  First time hashes should be generated with
+  // --video-threads=1 to ensure correctness.
+  std::string GetVideoHash();
+
  protected:
   MessageLoop message_loop_;
+  base::MD5Context md5_context_;
   scoped_ptr<MessageLoopFactory> message_loop_factory_;
   scoped_refptr<Pipeline> pipeline_;
+  scoped_refptr<VideoRendererBase> renderer_;
   bool ended_;
   PipelineStatus pipeline_status_;
 
@@ -55,8 +67,8 @@ class PipelineIntegrationTestBase {
   void QuitAfterCurrentTimeTask(const base::TimeDelta& quit_time);
   scoped_ptr<FilterCollection> CreateFilterCollection(
       scoped_ptr<DemuxerFactory> demuxer_factory);
+  void OnVideoRendererPaint();
 
-  MOCK_METHOD0(OnVideoRendererPaint, void());
   MOCK_METHOD1(OnSetOpaque, void(bool));
 };
 
