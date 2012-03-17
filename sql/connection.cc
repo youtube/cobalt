@@ -108,6 +108,11 @@ bool Connection::OpenInMemory() {
 }
 
 void Connection::Close() {
+  // TODO(shess): Calling "PRAGMA journal_mode = DELETE" at this point
+  // will delete the -journal file.  For ChromiumOS or other more
+  // embedded systems, this is probably not appropriate, whereas on
+  // desktop it might make some sense.
+
   // sqlite3_close() needs all prepared statements to be finalized.
   // Release all cached statements, then assert that the client has
   // released all statements.
@@ -407,6 +412,17 @@ bool Connection::OpenInternal(const std::string& file_name) {
     if (!Execute("PRAGMA locking_mode=EXCLUSIVE"))
       DLOG(FATAL) << "Could not set locking mode: " << GetErrorMessage();
   }
+
+  // http://www.sqlite.org/pragma.html#pragma_journal_mode
+  // DELETE (default) - delete -journal file to commit.
+  // TRUNCATE - truncate -journal file to commit.
+  // PERSIST - zero out header of -journal file to commit.
+  // journal_size_limit provides size to trim to in PERSIST.
+  // TODO(shess): Figure out if PERSIST and journal_size_limit really
+  // matter.  In theory, it keeps pages pre-allocated, so if
+  // transactions usually fit, it should be faster.
+  ignore_result(Execute("PRAGMA journal_mode = PERSIST"));
+  ignore_result(Execute("PRAGMA journal_size_limit = 16384"));
 
   const base::TimeDelta kBusyTimeout =
     base::TimeDelta::FromSeconds(kBusyTimeoutSeconds);
