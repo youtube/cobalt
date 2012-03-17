@@ -358,6 +358,8 @@
         'gfx/skia_util.h',
         'gfx/skia_utils_gtk.cc',
         'gfx/skia_utils_gtk.h',
+        'gfx/sys_color_change_listener.cc',
+        'gfx/sys_color_change_listener.h',
         'gfx/transform.cc',
         'gfx/transform.h',
         'gfx/transform_util.cc',
