@@ -191,7 +191,8 @@ void SpdyProxyClientSocketSpdy2Test::Initialize(MockRead* reads,
   EXPECT_EQ(OK,
             connection->Init(endpoint_host_port_pair_.ToString(),
                              transport_params_, LOWEST, CompletionCallback(),
-                             session_->GetTransportSocketPool(),
+                             session_->GetTransportSocketPool(
+                                 HttpNetworkSession::NORMAL_SOCKET_POOL),
                              BoundNetLog()));
   spdy_session_->InitializeWithSocket(connection.release(), false, OK);
 

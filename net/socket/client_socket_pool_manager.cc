@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -167,10 +167,14 @@ int InitSocketPoolHelper(const GURL& request_url,
                             force_spdy_over_ssl,
                             want_spdy_over_npn);
     SSLClientSocketPool* ssl_pool = NULL;
-    if (proxy_info.is_direct())
-      ssl_pool = session->GetSSLSocketPool();
-    else
-      ssl_pool = session->GetSocketPoolForSSLWithProxy(*proxy_host_port);
+    if (proxy_info.is_direct()) {
+      ssl_pool = session->GetSSLSocketPool(
+          HttpNetworkSession::NORMAL_SOCKET_POOL);
+    } else {
+      ssl_pool = session->GetSocketPoolForSSLWithProxy(
+          HttpNetworkSession::NORMAL_SOCKET_POOL,
+          *proxy_host_port);
+    }
 
     if (num_preconnect_streams) {
       RequestSocketsForPool(ssl_pool, connection_group, ssl_params,
@@ -186,7 +190,9 @@ int InitSocketPoolHelper(const GURL& request_url,
   // Finally, get the connection started.
   if (proxy_info.is_http() || proxy_info.is_https()) {
     HttpProxyClientSocketPool* pool =
-        session->GetSocketPoolForHTTPProxy(*proxy_host_port);
+        session->GetSocketPoolForHTTPProxy(
+            HttpNetworkSession::NORMAL_SOCKET_POOL,
+            *proxy_host_port);
     if (num_preconnect_streams) {
       RequestSocketsForPool(pool, connection_group, http_proxy_params,
                             num_preconnect_streams, net_log);
@@ -200,7 +206,9 @@ int InitSocketPoolHelper(const GURL& request_url,
 
   if (proxy_info.is_socks()) {
     SOCKSClientSocketPool* pool =
-        session->GetSocketPoolForSOCKSProxy(*proxy_host_port);
+        session->GetSocketPoolForSOCKSProxy(
+            HttpNetworkSession::NORMAL_SOCKET_POOL,
+            *proxy_host_port);
     if (num_preconnect_streams) {
       RequestSocketsForPool(pool, connection_group, socks_params,
                             num_preconnect_streams, net_log);
@@ -214,7 +222,8 @@ int InitSocketPoolHelper(const GURL& request_url,
 
   DCHECK(proxy_info.is_direct());
 
-  TransportClientSocketPool* pool = session->GetTransportSocketPool();
+  TransportClientSocketPool* pool =
+      session->GetTransportSocketPool(HttpNetworkSession::NORMAL_SOCKET_POOL);
   if (num_preconnect_streams) {
     RequestSocketsForPool(pool, connection_group, tcp_params,
                           num_preconnect_streams, net_log);

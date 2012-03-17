@@ -53,11 +53,12 @@ class SpdyHttpStreamSpdy2Test : public testing::Test {
     scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
     EXPECT_EQ(ERR_IO_PENDING,
               connection->Init(host_port_pair.ToString(),
-                                transport_params_,
-                                MEDIUM,
-                                callback.callback(),
-                                http_session_->GetTransportSocketPool(),
-                                BoundNetLog()));
+                               transport_params_,
+                               MEDIUM,
+                               callback.callback(),
+                               http_session_->GetTransportSocketPool(
+                                   HttpNetworkSession::NORMAL_SOCKET_POOL),
+                               BoundNetLog()));
     EXPECT_EQ(OK, callback.WaitForResult());
     return session_->InitializeWithSocket(connection.release(), false, OK);
   }
@@ -360,7 +361,8 @@ void SpdyHttpStreamSpdy2Test::TestSendCredentials(
                              ssl_params,
                              MEDIUM,
                              callback.callback(),
-                             http_session_->GetSSLSocketPool(),
+                             http_session_->GetSSLSocketPool(
+                                 HttpNetworkSession::NORMAL_SOCKET_POOL),
                              BoundNetLog()));
   callback.WaitForResult();
   EXPECT_EQ(OK,
