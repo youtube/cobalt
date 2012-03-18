@@ -274,12 +274,12 @@
       # Enable plug-in installation by default.
       'enable_plugin_installation%': 1,
 
-      # Specifies whether to use canvas_skia_skia.cc in place of platform
+      # Specifies whether to use canvas_skia.cc in place of platform
       # specific implementations of gfx::Canvas. Affects text drawing in the
       # Chrome UI.
       # TODO(asvitkine): Enable this on all platforms and delete this flag.
       #                  http://crbug.com/105550
-      'use_canvas_skia_skia%': 0,
+      'use_canvas_skia%': 0,
 
       # Set to "tsan", "memcheck", or "drmemory" to configure the build to work
       # with one of those tools.
@@ -500,7 +500,7 @@
     'enable_themes%': '<(enable_themes)',
     'linux_use_gold_binary%': '<(linux_use_gold_binary)',
     'linux_use_gold_flags%': '<(linux_use_gold_flags)',
-    'use_canvas_skia_skia%': '<(use_canvas_skia_skia)',
+    'use_canvas_skia%': '<(use_canvas_skia)',
     'tests_run%': '<(tests_run)',
     'enable_automation%': '<(enable_automation)',
 
