@@ -139,7 +139,8 @@ void FFmpegVideoDecoder::Stop(const base::Closure& callback) {
   callback.Run();
 }
 
-void FFmpegVideoDecoder::Seek(base::TimeDelta time, const FilterStatusCB& cb) {
+void FFmpegVideoDecoder::Seek(base::TimeDelta time,
+                              const PipelineStatusCB& cb) {
   if (MessageLoop::current() != message_loop_) {
     message_loop_->PostTask(FROM_HERE, base::Bind(
         &FFmpegVideoDecoder::Seek, this, time, cb));

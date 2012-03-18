@@ -157,17 +157,12 @@ scoped_ptr<FilterCollection> MockFilterCollection::filter_collection(
   return collection.Pass();
 }
 
-void RunFilterCallback(::testing::Unused, const base::Closure& callback) {
-  callback.Run();
-
+void RunFilterCallback(::testing::Unused, const base::Closure& closure) {
+  closure.Run();
 }
 
-void RunFilterStatusCB(::testing::Unused, const FilterStatusCB& cb) {
-  cb.Run(PIPELINE_OK);
-}
-
-void RunPipelineStatusCB(PipelineStatus status, const PipelineStatusCB& cb) {
-  cb.Run(status);
+void RunPipelineStatusCB(::testing::Unused, const PipelineStatusCB& status_cb) {
+  status_cb.Run(PIPELINE_OK);
 }
 
 void RunPipelineStatusCB3(::testing::Unused, const PipelineStatusCB& status_cb,
@@ -180,8 +175,8 @@ void RunPipelineStatusCB4(::testing::Unused, const PipelineStatusCB& status_cb,
   status_cb.Run(PIPELINE_OK);
 }
 
-void RunStopFilterCallback(const base::Closure& callback) {
-  callback.Run();
+void RunStopFilterCallback(const base::Closure& closure) {
+  closure.Run();
 }
 
 MockFilter::MockFilter() {

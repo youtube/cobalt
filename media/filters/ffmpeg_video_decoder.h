@@ -27,7 +27,7 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
 
   // Filter implementation.
   virtual void Stop(const base::Closure& callback) OVERRIDE;
-  virtual void Seek(base::TimeDelta time, const FilterStatusCB& cb) OVERRIDE;
+  virtual void Seek(base::TimeDelta time, const PipelineStatusCB& cb) OVERRIDE;
   virtual void Pause(const base::Closure& callback) OVERRIDE;
   virtual void Flush(const base::Closure& callback) OVERRIDE;
 

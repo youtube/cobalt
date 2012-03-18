@@ -52,7 +52,7 @@ class MEDIA_EXPORT VideoRendererBase
   virtual void Flush(const base::Closure& callback) OVERRIDE;
   virtual void Stop(const base::Closure& callback) OVERRIDE;
   virtual void SetPlaybackRate(float playback_rate) OVERRIDE;
-  virtual void Seek(base::TimeDelta time, const FilterStatusCB& cb) OVERRIDE;
+  virtual void Seek(base::TimeDelta time, const PipelineStatusCB& cb) OVERRIDE;
 
   // VideoRenderer implementation.
   virtual void Initialize(VideoDecoder* decoder,
@@ -188,7 +188,7 @@ class MEDIA_EXPORT VideoRendererBase
 
   // Filter callbacks.
   base::Closure flush_cb_;
-  FilterStatusCB seek_cb_;
+  PipelineStatusCB seek_cb_;
   StatisticsCB statistics_cb_;
   TimeCB time_cb_;
 
