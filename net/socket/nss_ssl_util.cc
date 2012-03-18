@@ -8,7 +8,6 @@
 #include <secerr.h>
 #include <ssl.h>
 #include <sslerr.h>
-#include <sslproto.h>
 
 #include <string>
 
@@ -48,7 +47,6 @@ class NSSSSLInitSingleton {
 #endif
 
     // Explicitly enable exactly those ciphers with keys of at least 80 bits
-    // except TLS_RSA_WITH_RC4_128_MD5.
     for (int i = 0; i < SSL_NumImplementedCiphers; i++) {
       SSLCipherSuiteInfo info;
       if (SSL_GetCipherSuiteInfo(pSSL_ImplementedCiphers[i], &info,
@@ -57,7 +55,6 @@ class NSSSSLInitSingleton {
                                  (info.effectiveKeyBits >= 80));
       }
     }
-    SSL_CipherPrefSetDefault(SSL_RSA_WITH_RC4_128_MD5, PR_FALSE);
 
     // Enable SSL.
     SSL_OptionSetDefault(SSL_SECURITY, PR_TRUE);
