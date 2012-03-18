@@ -59,7 +59,7 @@ class MockFilter : public Filter {
   MOCK_METHOD1(Flush, void(const base::Closure& callback));
   MOCK_METHOD1(Stop, void(const base::Closure& callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
-  MOCK_METHOD2(Seek, void(base::TimeDelta time, const FilterStatusCB& cb));
+  MOCK_METHOD2(Seek, void(base::TimeDelta time, const PipelineStatusCB& cb));
   MOCK_METHOD0(OnAudioRendererDisabled, void());
 
  protected:
@@ -77,7 +77,7 @@ class MockDataSource : public DataSource {
 
   MOCK_METHOD1(Stop, void(const base::Closure& callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
-  MOCK_METHOD2(Seek, void(base::TimeDelta time, const FilterStatusCB& cb));
+  MOCK_METHOD2(Seek, void(base::TimeDelta time, const PipelineStatusCB& cb));
   MOCK_METHOD0(OnAudioRendererDisabled, void());
 
   // DataSource implementation.
@@ -110,7 +110,7 @@ class MockDemuxer : public Demuxer {
   MOCK_METHOD1(Stop, void(const base::Closure& callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD1(SetPreload, void(Preload preload));
-  MOCK_METHOD2(Seek, void(base::TimeDelta time, const FilterStatusCB& cb));
+  MOCK_METHOD2(Seek, void(base::TimeDelta time, const PipelineStatusCB& cb));
   MOCK_METHOD0(OnAudioRendererDisabled, void());
   MOCK_METHOD0(GetBitrate, int());
   MOCK_METHOD0(IsLocalSource, bool());
@@ -182,7 +182,7 @@ class MockVideoDecoder : public VideoDecoder {
   // Filter implementation.
   MOCK_METHOD1(Stop, void(const base::Closure& callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
-  MOCK_METHOD2(Seek, void(base::TimeDelta time, const FilterStatusCB& cb));
+  MOCK_METHOD2(Seek, void(base::TimeDelta time, const PipelineStatusCB& cb));
   MOCK_METHOD0(OnAudioRendererDisabled, void());
 
   // VideoDecoder implementation.
@@ -229,7 +229,7 @@ class MockVideoRenderer : public VideoRenderer {
   // Filter implementation.
   MOCK_METHOD1(Stop, void(const base::Closure& callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
-  MOCK_METHOD2(Seek, void(base::TimeDelta time, const FilterStatusCB& cb));
+  MOCK_METHOD2(Seek, void(base::TimeDelta time, const PipelineStatusCB& cb));
   MOCK_METHOD0(OnAudioRendererDisabled, void());
 
   // VideoRenderer implementation.
@@ -258,7 +258,7 @@ class MockAudioRenderer : public AudioRenderer {
   // Filter implementation.
   MOCK_METHOD1(Stop, void(const base::Closure& callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
-  MOCK_METHOD2(Seek, void(base::TimeDelta time, const FilterStatusCB& cb));
+  MOCK_METHOD2(Seek, void(base::TimeDelta time, const PipelineStatusCB& cb));
   MOCK_METHOD0(OnAudioRendererDisabled, void());
 
   // AudioRenderer implementation.
@@ -313,16 +313,15 @@ class MockFilterCollection {
 // Helper gmock functions that immediately executes and destroys the
 // Closure on behalf of the provided filter.  Can be used when mocking
 // the Initialize() and Seek() methods.
-void RunFilterCallback(::testing::Unused, const base::Closure& callback);
-void RunFilterStatusCB(::testing::Unused, const FilterStatusCB& cb);
-void RunPipelineStatusCB(PipelineStatus status, const PipelineStatusCB& cb);
+void RunFilterCallback(::testing::Unused, const base::Closure& closure);
+void RunPipelineStatusCB(::testing::Unused, const PipelineStatusCB& status_cb);
 void RunPipelineStatusCB3(::testing::Unused, const PipelineStatusCB& status_cb,
                           ::testing::Unused);
 void RunPipelineStatusCB4(::testing::Unused, const PipelineStatusCB& status_cb,
                           ::testing::Unused, ::testing::Unused);
 // Helper gmock function that immediately executes the Closure on behalf of the
 // provided filter.  Can be used when mocking the Stop() method.
-void RunStopFilterCallback(const base::Closure& callback);
+void RunStopFilterCallback(const base::Closure& closure);
 
 // Helper gmock action that calls SetError() on behalf of the provided filter.
 ACTION_P2(SetError, filter, error) {
