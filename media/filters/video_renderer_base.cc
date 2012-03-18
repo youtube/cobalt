@@ -91,7 +91,7 @@ void VideoRendererBase::SetPlaybackRate(float playback_rate) {
   playback_rate_ = playback_rate;
 }
 
-void VideoRendererBase::Seek(base::TimeDelta time, const FilterStatusCB& cb) {
+void VideoRendererBase::Seek(base::TimeDelta time, const PipelineStatusCB& cb) {
   base::AutoLock auto_lock(lock_);
   DCHECK_EQ(state_, kFlushed) << "Must flush prior to seeking.";
   DCHECK(!cb.is_null());
