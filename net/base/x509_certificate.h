@@ -503,7 +503,7 @@ class NET_EXPORT X509Certificate
   static bool IsIssuedByKnownRoot(CFArrayRef chain);
 #endif
 #if defined(USE_NSS)
-  bool VerifyEV(int flags) const;
+  bool VerifyEV(int flags, CRLSet* crl_set) const;
 #endif
 #if defined(USE_OPENSSL)
   // Resets the store returned by cert_store() to default state. Used by

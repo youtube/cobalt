@@ -958,7 +958,7 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   verify_result->is_issued_by_known_root =
       IsKnownRoot(cvout[cvout_trust_anchor_index].value.pointer.cert);
 
-  if ((flags & VERIFY_EV_CERT) && VerifyEV(flags))
+  if ((flags & VERIFY_EV_CERT) && VerifyEV(flags, crl_set))
     verify_result->cert_status |= CERT_STATUS_IS_EV;
 
   return OK;
@@ -975,11 +975,15 @@ bool X509Certificate::VerifyNameMatch(const std::string& hostname) const {
 // anchor.  If the trust anchor has no EV policy, we know the cert isn't EV.
 // Otherwise, we pass just that EV policy (as opposed to all the EV policies)
 // to the second PKIXVerifyCert call.
-bool X509Certificate::VerifyEV(int flags) const {
+bool X509Certificate::VerifyEV(int flags, CRLSet* crl_set) const {
   EVRootCAMetadata* metadata = EVRootCAMetadata::GetInstance();
 
   CERTValOutParam cvout[3];
   int cvout_index = 0;
+  cvout[cvout_index].type = cert_po_certList;
+  cvout[cvout_index].value.pointer.chain = NULL;
+  int cvout_cert_list_index = cvout_index;
+  cvout_index++;
   cvout[cvout_index].type = cert_po_trustAnchor;
   cvout[cvout_index].value.pointer.cert = NULL;
   int cvout_trust_anchor_index = cvout_index;
@@ -1000,6 +1004,19 @@ bool X509Certificate::VerifyEV(int flags) const {
       cvout[cvout_trust_anchor_index].value.pointer.cert;
   if (root_ca == NULL)
     return false;
+
+  // This second PKIXVerifyCert call could have found a different certification
+  // path and one or more of the certificates on this new path, that weren't on
+  // the old path, might have been revoked.
+  if (crl_set) {
+    CRLSetResult crl_set_result = CheckRevocationWithCRLSet(
+        cvout[cvout_cert_list_index].value.pointer.chain,
+        cvout[cvout_trust_anchor_index].value.pointer.cert,
+        crl_set);
+    if (crl_set_result == kCRLSetRevoked)
+      return false;
+  }
+
   SHA1Fingerprint fingerprint =
       X509Certificate::CalculateFingerprint(root_ca);
   std::vector<SECOidTag> ev_policy_tags;
