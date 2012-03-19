@@ -49,6 +49,8 @@ class OCSPIOLoop {
   void StartUsing() {
     base::AutoLock autolock(lock_);
     used_ = true;
+    io_loop_ = MessageLoopForIO::current();
+    DCHECK(io_loop_);
   }
 
   // Called on IO loop.
@@ -456,8 +458,7 @@ class OCSPServerSession {
 OCSPIOLoop::OCSPIOLoop()
     : shutdown_(false),
       used_(false),
-      io_loop_(MessageLoopForIO::current()) {
-  DCHECK(io_loop_);
+      io_loop_(NULL) {
 }
 
 OCSPIOLoop::~OCSPIOLoop() {
@@ -512,13 +513,6 @@ void OCSPIOLoop::AddRequest(OCSPRequestSession* request) {
 }
 
 void OCSPIOLoop::RemoveRequest(OCSPRequestSession* request) {
-  {
-    // Ignore if we've already shutdown.
-    base::AutoLock auto_lock(lock_);
-    if (shutdown_)
-      return;
-  }
-
   DCHECK(ContainsKey(requests_, request));
   requests_.erase(request);
 }
