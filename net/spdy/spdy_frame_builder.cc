@@ -9,9 +9,6 @@
 
 namespace spdy {
 
-// We mark a read only SpdyFrameBuilder with a special capacity_.
-static const size_t kCapacityReadOnly = std::numeric_limits<size_t>::max();
-
 SpdyFrameBuilder::SpdyFrameBuilder(size_t size)
     : buffer_(NULL),
       capacity_(0),

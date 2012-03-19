@@ -8,6 +8,7 @@
 
 #include "net/spdy/spdy_framer.h"
 
+#include "base/lazy_instance.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/metrics/stats_counters.h"
 #include "base/third_party/valgrind/memcheck.h"
@@ -35,11 +36,18 @@ uLong CalculateDictionaryId(const char* dictionary,
                  dictionary_size);
 }
 
-// Adler ID for the SPDY header compressor dictionaries.
-const uLong kV2DictionaryId = CalculateDictionaryId(kV2Dictionary,
-                                                    kV2DictionarySize);
-const uLong kV3DictionaryId = CalculateDictionaryId(kV3Dictionary,
-                                                    kV3DictionarySize);
+struct DictionaryIds {
+  DictionaryIds()
+    : v2_dictionary_id(CalculateDictionaryId(kV2Dictionary, kV2DictionarySize)),
+      v3_dictionary_id(CalculateDictionaryId(kV3Dictionary, kV3DictionarySize))
+  {}
+  const uLong v2_dictionary_id;
+  const uLong v3_dictionary_id;
+};
+
+// Adler ID for the SPDY header compressor dictionaries. Note that they are
+// initialized lazily to avoid static initializers.
+base::LazyInstance<DictionaryIds>::Leaky g_dictionary_ids;
 
 // Creates a FlagsAndLength.
 FlagsAndLength CreateFlagsAndLength(SpdyControlFlags flags, size_t length) {
@@ -1571,11 +1579,12 @@ bool SpdyFramer::IncrementallyDecompressControlFrameHeaderData(
     int rv = inflate(decomp, Z_SYNC_FLUSH);
     if (rv == Z_NEED_DICT) {
       const char* dictionary = (spdy_version_ < 3) ? kV2Dictionary
-                                                  : kV3Dictionary;
+                                                   : kV3Dictionary;
       const int dictionary_size = (spdy_version_ < 3) ? kV2DictionarySize
                                                       : kV3DictionarySize;
-      const uLong dictionary_id = (spdy_version_ < 3) ? kV2DictionaryId
-                                                       : kV3DictionaryId;
+      const DictionaryIds& ids = g_dictionary_ids.Get();
+      const uLong dictionary_id = (spdy_version_ < 3) ? ids.v2_dictionary_id
+                                                      : ids.v3_dictionary_id;
       // Need to try again with the right dictionary.
       if (decomp->adler == dictionary_id) {
         rv = inflateSetDictionary(decomp,
