@@ -5,9 +5,9 @@
 #include "base/tracked_objects.h"
 
 #include <math.h>
+#include <stdlib.h>
 
 #include "base/format_macros.h"
-#include "base/message_loop.h"
 #include "base/profiler/alternate_timer.h"
 #include "base/stringprintf.h"
 #include "base/third_party/valgrind/memcheck.h"
