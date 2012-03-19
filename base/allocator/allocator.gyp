@@ -423,26 +423,7 @@
         }],
       ],
     },
-    {
-      'target_name': 'allocator_unittests',
-      'type': 'executable',
-      'dependencies': [
-        'allocator',
-        '../../testing/gtest.gyp:gtest',
       ],
-      'include_dirs': [
-        '.',
-        '<(tcmalloc_dir)/src/base',
-        '<(tcmalloc_dir)/src',
-        '../..',
-      ],
-      'sources': [
-        'allocator_unittests.cc',
-        '../profiler/alternate_timer.cc',
-        '../profiler/alternate_timer.h',
-      ],
-    },
-  ],
   'conditions': [
     ['OS=="win"', {
       'targets': [
@@ -464,6 +445,25 @@
                 '<(SHARED_INTERMEDIATE_DIR)/allocator',
               ],
             },
+          ],
+        },
+        {
+          'target_name': 'allocator_unittests',
+          'type': 'executable',
+          'dependencies': [
+            'allocator',
+            '../../testing/gtest.gyp:gtest',
+          ],
+          'include_dirs': [
+            '.',
+            '<(tcmalloc_dir)/src/base',
+            '<(tcmalloc_dir)/src',
+            '../..',
+          ],
+          'sources': [
+            'allocator_unittests.cc',
+            '../profiler/alternate_timer.cc',
+            '../profiler/alternate_timer.h',
           ],
         },
       ],
