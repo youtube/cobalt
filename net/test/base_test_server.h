@@ -46,11 +46,6 @@ class BaseTestServer {
   struct HTTPSOptions {
     enum ServerCertificate {
       CERT_OK,
-
-      // CERT_AUTO causes the testserver to generate a test certificate issued
-      // by "Testing CA" (see net/data/ssl/certificates/ocsp-test-root.pem).
-      CERT_AUTO,
-
       CERT_MISMATCHED_NAME,
       CERT_EXPIRED,
       // Cross-signed certificate to test PKIX path building. Contains an
@@ -58,14 +53,6 @@ class BaseTestServer {
       // TestRootStore) is expected to have a self-signed version of the
       // intermediate.
       CERT_CHAIN_WRONG_ROOT,
-    };
-
-    // OCSPStatus enumerates the types of OCSP response that the testserver
-    // can produce.
-    enum OCSPStatus {
-      OCSP_OK,
-      OCSP_REVOKED,
-      OCSP_INVALID,
     };
 
     // Bitmask of bulk encryption algorithms that the test server supports
@@ -96,16 +83,8 @@ class BaseTestServer {
     // |server_certificate|.
     FilePath GetCertificateFile() const;
 
-    // GetOCSPArgument returns the value of any OCSP argument to testserver or
-    // the empty string if there is none.
-    std::string GetOCSPArgument() const;
-
     // The certificate to use when serving requests.
     ServerCertificate server_certificate;
-
-    // If |server_certificate==CERT_AUTO| then this determines the type of OCSP
-    // response returned.
-    OCSPStatus ocsp_status;
 
     // True if a CertificateRequest should be sent to the client during
     // handshaking.

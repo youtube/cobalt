@@ -19,17 +19,15 @@ import BaseHTTPServer
 import cgi
 import errno
 import httplib
-import minica
 import optparse
 import os
 import random
 import re
 import select
-import socket
 import SocketServer
-import struct
+import socket
 import sys
-import threading
+import struct
 import time
 import urllib
 import urlparse
@@ -107,35 +105,25 @@ class StoppableHTTPServer(BaseHTTPServer.HTTPServer):
 
 
 class HTTPServer(ClientRestrictingServerMixIn, StoppableHTTPServer):
-  """This is a specialization of StoppableHTTPServer that adds client
+  """This is a specialization of StoppableHTTPerver that adds client
   verification."""
 
   pass
 
-class OCSPServer(ClientRestrictingServerMixIn, BaseHTTPServer.HTTPServer):
-  """This is a specialization of HTTPServer that serves an
-  OCSP response"""
-
-  def serve_forever_on_thread(self):
-    self.thread = threading.Thread(target = self.serve_forever,
-                                   name = "OCSPServerThread")
-    self.thread.start()
-
-  def stop_serving(self):
-    self.shutdown()
-    self.thread.join()
 
 class HTTPSServer(tlslite.api.TLSSocketServerMixIn,
                   ClientRestrictingServerMixIn,
                   StoppableHTTPServer):
-  """This is a specialization of StoppableHTTPServer that add https support and
+  """This is a specialization of StoppableHTTPerver that add https support and
   client verification."""
 
-  def __init__(self, server_address, request_hander_class, pem_cert_and_key,
+  def __init__(self, server_address, request_hander_class, cert_path,
                ssl_client_auth, ssl_client_cas, ssl_bulk_ciphers,
                record_resume_info):
-    self.cert_chain = tlslite.api.X509CertChain().parseChain(pem_cert_and_key)
-    self.private_key = tlslite.api.parsePEMKey(pem_cert_and_key, private=True)
+    s = open(cert_path).read()
+    self.cert_chain = tlslite.api.X509CertChain().parseChain(s)
+    s = open(cert_path).read()
+    self.private_key = tlslite.api.parsePEMKey(s, private=True)
     self.ssl_client_auth = ssl_client_auth
     self.ssl_client_cas = []
     for ca_file in ssl_client_cas:
@@ -1901,20 +1889,6 @@ def MakeDataDir():
 
   return my_data_dir
 
-class OCSPHandler(BasePageHandler):
-  def __init__(self, request, client_address, socket_server):
-    handlers = [self.OCSPResponse]
-    self.ocsp_response = socket_server.ocsp_response
-    BasePageHandler.__init__(self, request, client_address, socket_server,
-                             [], handlers, [], handlers, [])
-
-  def OCSPResponse(self):
-    self.send_response(200)
-    self.send_header('Content-Type', 'application/ocsp-response')
-    self.send_header('Content-Length', str(len(self.ocsp_response)))
-    self.end_headers()
-
-    self.wfile.write(self.ocsp_response)
 
 class TCPEchoHandler(SocketServer.BaseRequestHandler):
   """The RequestHandler class for TCP echo server.
@@ -1995,55 +1969,19 @@ def main(options, args):
   server_data = {}
   server_data['host'] = host
 
-  ocsp_server = None
-
   if options.server_type == SERVER_HTTP:
-    if options.https:
-      pem_cert_and_key = None
-      if options.cert_and_key_file:
-        if not os.path.isfile(options.cert_and_key_file):
-          print ('specified server cert file not found: ' +
-                 options.cert_and_key_file + ' exiting...')
-          return
-        pem_cert_and_key = file(options.cert_and_key_file, 'r').read()
-      else:
-        # generate a new certificate and run an OCSP server for it.
-        ocsp_server = OCSPServer((host, 0), OCSPHandler)
-        print ('OCSP server started on %s:%d...' %
-            (host, ocsp_server.server_port))
-
-        ocsp_der = None
-        ocsp_revoked = False
-        ocsp_invalid = False
-
-        if options.ocsp == 'ok':
-          pass
-        elif options.ocsp == 'revoked':
-          ocsp_revoked = True
-        elif options.ocsp == 'invalid':
-          ocsp_invalid = True
-        else:
-          print 'unknown OCSP status: ' + options.ocsp_status
-          return
-
-        (pem_cert_and_key, ocsp_der) = \
-            minica.GenerateCertKeyAndOCSP(
-                subject = "127.0.0.1",
-                ocsp_url = ("http://%s:%d/ocsp" %
-                    (host, ocsp_server.server_port)),
-                ocsp_revoked = ocsp_revoked)
-
-        if ocsp_invalid:
-          ocsp_der = '3'
-
-        ocsp_server.ocsp_response = ocsp_der
-
+    if options.cert:
+      # let's make sure the cert file exists.
+      if not os.path.isfile(options.cert):
+        print 'specified server cert file not found: ' + options.cert + \
+              ' exiting...'
+        return
       for ca_cert in options.ssl_client_ca:
         if not os.path.isfile(ca_cert):
           print 'specified trusted client CA file not found: ' + ca_cert + \
                 ' exiting...'
           return
-      server = HTTPSServer((host, port), TestPageHandler, pem_cert_and_key,
+      server = HTTPSServer((host, port), TestPageHandler, options.cert,
                            options.ssl_client_auth, options.ssl_client_ca,
                            options.ssl_bulk_cipher, options.record_resume)
       print 'HTTPS server started on %s:%d...' % (host, server.server_port)
@@ -2123,15 +2061,10 @@ def main(options, args):
     startup_pipe.write(server_data_json)
     startup_pipe.close()
 
-  if ocsp_server is not None:
-    ocsp_server.serve_forever_on_thread()
-
   try:
     server.serve_forever()
   except KeyboardInterrupt:
     print 'shutting down server'
-    if ocsp_server is not None:
-      ocsp_server.stop_serving()
     server.stop = True
 
 if __name__ == '__main__':
@@ -2162,16 +2095,10 @@ if __name__ == '__main__':
                            'server will listen on an ephemeral port.')
   option_parser.add_option('', '--data-dir', dest='data_dir',
                            help='Directory from which to read the files.')
-  option_parser.add_option('', '--https', action='store_true', dest='https',
-                           help='Specify that https should be used.')
-  option_parser.add_option('', '--cert-and-key-file', dest='cert_and_key_file',
-                           help='specify the path to the file containing the '
-                           'certificate and private key for the server in PEM '
-                           'format')
-  option_parser.add_option('', '--ocsp', dest='ocsp', default='ok',
-                           help='The type of OCSP response generated for the '
-                           'automatically generated certificate. One of '
-                           '[ok,revoked,invalid]')
+  option_parser.add_option('', '--https', dest='cert',
+                           help='Specify that https should be used, specify '
+                           'the path to the cert containing the private key '
+                           'the server should use.')
   option_parser.add_option('', '--https-record-resume', dest='record_resume',
                            const=True, default=False, action='store_const',
                            help='Record resumption cache events rather than'
