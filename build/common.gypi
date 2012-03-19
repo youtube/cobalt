@@ -59,7 +59,7 @@
               '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/;s/i86pc/ia32/")',
           }],
 
-          # Non-GTK Chromeos implies ash.
+          # Chromeos implies ash.
           ['chromeos==1', {
             'use_ash%': 1,
             'use_aura%': 1,
