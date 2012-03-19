@@ -303,8 +303,6 @@
         'gfx/native_theme_aura.h',
         'gfx/native_theme_base.cc',
         'gfx/native_theme_base.h',
-        'gfx/native_theme_chromeos.cc',
-        'gfx/native_theme_chromeos.h',
         'gfx/native_theme_gtk.cc',
         'gfx/native_theme_gtk.h',
         'gfx/native_theme_win.cc',
@@ -393,8 +391,6 @@
             ['exclude', 'gfx/gtk_util.cc'],
             ['exclude', 'gfx/gtk_util.h'],
             ['exclude', 'gfx/screen_gtk.cc'],
-            ['exclude', 'gfx/native_theme_chromeos.cc'],
-            ['exclude', 'gfx/native_theme_chromeos.h'],
             ['exclude', 'gfx/screen_win.cc'],
             ['exclude', 'base/dragdrop/drag_utils_win.cc'],
             ['exclude', 'base/view_prop.cc'],
@@ -612,18 +608,6 @@
             'base/keycodes/keyboard_code_conversion_x.h',
             'base/x/',
           ],
-        }],
-        ['chromeos==1', {
-          # On Chrome OS we replace the default GTK look with a special look.
-          'sources!': [
-            'gfx/native_theme_gtk.cc',
-            'gfx/native_theme_gtk.h',
-          ]
-        }, {  # chromeos != 1
-          'sources!': [
-            'gfx/native_theme_chromeos.cc',
-            'gfx/native_theme_chromeos.h',
-          ]
         }],
         ['toolkit_views==0', {
           'sources!': [
