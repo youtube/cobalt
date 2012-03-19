@@ -65,8 +65,7 @@ static VP8StatusCode AllocateBuffer(WebPDecBuffer* const buffer) {
     WEBP_CSP_MODE mode = buffer->colorspace;
     int stride;
     int uv_stride = 0, a_stride = 0;
-    int uv_size = 0;
-    uint64_t size, a_size = 0, total_size;
+    uint64_t size, uv_size = 0, a_size = 0, total_size;
     // We need memory and it hasn't been allocated yet.
     // => initialize output buffer, now that dimensions are known.
     stride = w * kModeBpp[mode];
@@ -96,23 +95,23 @@ static VP8StatusCode AllocateBuffer(WebPDecBuffer* const buffer) {
       WebPYUVABuffer* const buf = &buffer->u.YUVA;
       buf->y = output;
       buf->y_stride = stride;
-      buf->y_size = size;
+      buf->y_size = (int)size;
       buf->u = output + size;
       buf->u_stride = uv_stride;
-      buf->u_size = uv_size;
+      buf->u_size = (int)uv_size;
       buf->v = output + size + uv_size;
       buf->v_stride = uv_stride;
-      buf->v_size = uv_size;
+      buf->v_size = (int)uv_size;
       if (mode == MODE_YUVA) {
         buf->a = output + size + 2 * uv_size;
       }
-      buf->a_size = a_size;
+      buf->a_size = (int)a_size;
       buf->a_stride = a_stride;
     } else {  // RGBA initialization
       WebPRGBABuffer* const buf = &buffer->u.RGBA;
       buf->rgba = output;
       buf->stride = stride;
-      buf->size = size;
+      buf->size = (int)size;
     }
   }
   return CheckDecBuffer(buffer);
