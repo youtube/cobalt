@@ -34,6 +34,7 @@
         '../sql/sql.gyp:sql_unittests',
         '../ipc/ipc.gyp:ipc_tests',
         '../net/net.gyp:net_unittests',
+        '../third_party/WebKit/Source/WebKit/chromium/All.gyp:*',
         # From here down: not added to run_tests.py yet.
         '../jingle/jingle.gyp:jingle_unittests',
         '../tools/android/fake_dns/fake_dns.gyp:fake_dns',
@@ -48,8 +49,6 @@
       'target_name': 'android_experimental',
       'type': 'none',
       'dependencies': [
-        '../webkit/webkit.gyp:pull_in_webkit_unit_tests',
-        '../webkit/webkit.gyp:pull_in_DumpRenderTree',
       ],
     },
     {
