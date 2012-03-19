@@ -21,9 +21,6 @@
           # Whether we're building a ChromeOS build.
           'chromeos%': 0,
 
-          # Whether we're building pre-Aura ChromeOS (using GTK).
-          'chromeos_gtk%': 0,
-
           # Whether we are using Views Toolkit
           'toolkit_views%': 0,
 
@@ -44,7 +41,6 @@
         },
         # Copy conditionally-set variables out one scope.
         'chromeos%': '<(chromeos)',
-        'chromeos_gtk%': '<(chromeos_gtk)',
         'use_aura%': '<(use_aura)',
         'use_ash%': '<(use_ash)',
         'use_openssl%': '<(use_openssl)',
@@ -78,22 +74,16 @@
           }],
 
           # Set default value of toolkit_views based on OS.
-          ['OS=="win" or chromeos==1 or chromeos_gtk==1 or use_aura==1', {
+          ['OS=="win" or chromeos==1 or use_aura==1', {
             'toolkit_views%': 1,
           }, {
             'toolkit_views%': 0,
-          }],
-
-          # ChromeOS GTK implies ChromeOS.
-          ['chromeos_gtk==1', {
-            'chromeos%': 1,
           }],
         ],
       },
 
       # Copy conditionally-set variables out one scope.
       'chromeos%': '<(chromeos)',
-      'chromeos_gtk%': '<(chromeos_gtk)',
       'host_arch%': '<(host_arch)',
       'toolkit_views%': '<(toolkit_views)',
       'use_aura%': '<(use_aura)',
@@ -462,7 +452,6 @@
     'enable_flapper_hacks%': '<(enable_flapper_hacks)',
     'enable_pepper_threading%': '<(enable_pepper_threading)',
     'chromeos%': '<(chromeos)',
-    'chromeos_gtk%': '<(chromeos_gtk)',
     'use_virtual_keyboard%': '<(use_virtual_keyboard)',
     'enable_viewport%': '<(enable_viewport)',
     'use_xi2_mt%':'<(use_xi2_mt)',
