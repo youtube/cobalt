@@ -27,8 +27,6 @@
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/utf_string_conversions.h"
-#include "net/base/cert_test_util.h"
-#include "net/base/ev_root_ca_metadata.h"
 #include "net/base/load_flags.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
@@ -37,7 +35,6 @@
 #include "net/base/net_module.h"
 #include "net/base/net_util.h"
 #include "net/base/ssl_connection_status_flags.h"
-#include "net/base/test_root_certs.h"
 #include "net/base/upload_data.h"
 #include "net/cookies/cookie_monster.h"
 #include "net/cookies/cookie_store_test_helpers.h"
@@ -48,7 +45,6 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
-#include "net/ocsp/nss_ocsp.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/ssl_client_socket.h"
 #include "net/test/test_server.h"
@@ -1370,135 +1366,6 @@ TEST_F(HTTPSRequestTest, HTTPSExpiredTest) {
     }
   }
 }
-
-class RevCheckedEnabledSSLConfigService : public SSLConfigService {
- public:
-  virtual void GetSSLConfig(SSLConfig* config) {
-    *config = SSLConfig();
-    config->rev_checking_enabled = true;
-    config->verify_ev_cert = true;
-  }
-};
-
-// This the fingerprint of the "Testing CA" certificate used by the testserver.
-// See net/data/ssl/certificates/ocsp-test-root.pem.
-static const SHA1Fingerprint kOCSPTestCertFingerprint =
-  { { 0xf1, 0xad, 0xf6, 0xce, 0x42, 0xac, 0xe7, 0xb4, 0xf4, 0x24,
-      0xdb, 0x1a, 0xf7, 0xa0, 0x9f, 0x09, 0xa1, 0xea, 0xf1, 0x5c } };
-
-// This is the policy OID contained in the certificates that testserver
-// generates.
-static const char kOCSPTestCertPolicy[] = "1.3.6.1.4.1.11129.2.4.1";
-
-class HTTPSOCSPTest : public HTTPSRequestTest {
- public:
-  HTTPSOCSPTest()
-      : context_(new TestURLRequestContext(true)),
-        ev_test_policy_(EVRootCAMetadata::GetInstance(),
-                        kOCSPTestCertFingerprint,
-                        kOCSPTestCertPolicy) {
-    context_->set_ssl_config_service(new RevCheckedEnabledSSLConfigService);
-    context_->Init();
-
-    scoped_refptr<net::X509Certificate> root_cert =
-      ImportCertFromFile(GetTestCertsDirectory(), "ocsp-test-root.pem");
-    CHECK_NE(static_cast<X509Certificate*>(NULL), root_cert);
-    test_root_.reset(new ScopedTestRoot(root_cert));
-
-#if defined(USE_NSS)
-    SetURLRequestContextForNSSHttpIO(context_.get());
-    EnsureNSSHttpIOInit();
-#endif
-  }
-
-  void DoConnection(const TestServer::HTTPSOptions& https_options,
-                    CertStatus* out_cert_status) {
-    TestServer test_server(https_options,
-                           FilePath(FILE_PATH_LITERAL("net/data/ssl")));
-    ASSERT_TRUE(test_server.Start());
-
-    TestDelegate d;
-    d.set_allow_certificate_errors(true);
-    URLRequest r(test_server.GetURL(""), &d);
-    r.set_context(context_.get());
-    r.Start();
-
-    MessageLoop::current()->Run();
-
-    EXPECT_EQ(1, d.response_started_count());
-    *out_cert_status = r.ssl_info().cert_status;
-  }
-
-  ~HTTPSOCSPTest() {
-#if defined(USE_NSS)
-    ShutdownNSSHttpIO();
-#endif
-  }
-
- private:
-  scoped_ptr<ScopedTestRoot> test_root_;
-  scoped_refptr<TestURLRequestContext> context_;
-  ScopedTestEVPolicy ev_test_policy_;
-};
-
-#if !defined(OS_ANDROID) && !defined(USE_OPENSSL)
-// TODO(jnd): http://crbug.com/117478 - EV verification is not yet supported.
-TEST_F(HTTPSOCSPTest, Valid) {
-  TestServer::HTTPSOptions https_options(TestServer::HTTPSOptions::CERT_AUTO);
-  https_options.ocsp_status = TestServer::HTTPSOptions::OCSP_OK;
-
-  CertStatus cert_status;
-  DoConnection(https_options, &cert_status);
-  EXPECT_EQ(0u, cert_status & CERT_STATUS_ALL_ERRORS);
-
-#if defined(OS_MACOSX)
-  // On OS X, we use the system to tell us whether a certificate is EV or not
-  // and the system won't recognise our testing root.
-  EXPECT_FALSE(cert_status & CERT_STATUS_IS_EV);
-#else
-  EXPECT_TRUE(cert_status & CERT_STATUS_IS_EV);
-#endif
-
-  EXPECT_TRUE(cert_status & CERT_STATUS_REV_CHECKING_ENABLED);
-}
-
-TEST_F(HTTPSOCSPTest, Revoked) {
-  TestServer::HTTPSOptions https_options(
-      TestServer::HTTPSOptions::CERT_AUTO);
-  https_options.ocsp_status = TestServer::HTTPSOptions::OCSP_REVOKED;
-
-  CertStatus cert_status;
-  DoConnection(https_options, &cert_status);
-#if !defined(OS_MACOSX)
-  // Doesn't pass on OS X yet for reasons that need to be investigated.
-  EXPECT_EQ(CERT_STATUS_REVOKED, cert_status & CERT_STATUS_ALL_ERRORS);
-#endif
-  EXPECT_FALSE(cert_status & CERT_STATUS_IS_EV);
-  EXPECT_TRUE(cert_status & CERT_STATUS_REV_CHECKING_ENABLED);
-}
-
-TEST_F(HTTPSOCSPTest, Invalid) {
-  TestServer::HTTPSOptions https_options(
-      TestServer::HTTPSOptions::CERT_AUTO);
-  https_options.ocsp_status = TestServer::HTTPSOptions::OCSP_INVALID;
-
-  CertStatus cert_status;
-  DoConnection(https_options, &cert_status);
-
-#if defined(OS_WIN)
-  // Windows can return CERT_STATUS_UNABLE_TO_CHECK_REVOCATION but we don't
-  // have that ability on other platforms.
-  EXPECT_EQ(CERT_STATUS_UNABLE_TO_CHECK_REVOCATION,
-            cert_status & CERT_STATUS_ALL_ERRORS);
-#else
-  EXPECT_EQ(0u, cert_status & CERT_STATUS_ALL_ERRORS);
-#endif
-
-  // Without a positive OCSP response, we shouldn't show the EV status.
-  EXPECT_FALSE(cert_status & CERT_STATUS_IS_EV);
-  EXPECT_TRUE(cert_status & CERT_STATUS_REV_CHECKING_ENABLED);
-}
-#endif // !OS_ANDROID && !USE_OPENSSL
 
 // This tests that a load of www.google.com with a certificate error sets
 // the |certificate_errors_are_fatal| flag correctly. This flag will cause
