@@ -16,6 +16,7 @@ developers can use WebP to compress, archive and distribute digital images more
 efficiently.
 
 Local changes:
+ * Fix cast and initialization warnings
  * Removed from types.h the risky: #ifdef ANSI / #define inline /#endif
  * Removed examples/, documentation and build related files, keeping only
    the contents of src/.
