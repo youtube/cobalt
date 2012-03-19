@@ -330,6 +330,8 @@
             '<(tcmalloc_dir)/src/heap-checker-bcad.cc',
             '<(tcmalloc_dir)/src/heap-checker.cc',
             '<(tcmalloc_dir)/src/heap-profiler.cc',
+            '<(tcmalloc_dir)/src/heap-profile-table.cc',
+            '<(tcmalloc_dir)/src/heap-profile-table.h',
             '<(tcmalloc_dir)/src/memory_region_map.cc',
             '<(tcmalloc_dir)/src/memory_region_map.h',
             '<(tcmalloc_dir)/src/profiledata.cc',
