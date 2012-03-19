@@ -1,12 +1,15 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#include <algorithm>
+#include <vector>
 
 #include "base/synchronization/waitable_event.h"
 
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
-#include "base/message_loop.h"
+#include "base/logging.h"
 
 // -----------------------------------------------------------------------------
 // A WaitableEvent on POSIX is implemented as a wait-list. Currently we don't
