@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -148,5 +148,18 @@ TEST(StringPrintfTest, Invalid) {
   EXPECT_STREQ(L"", out.c_str());
 }
 #endif
+
+// Test that the positional parameters work.
+TEST(StringPrintfTest, PositionalParameters) {
+  std::string out;
+  SStringPrintf(&out, "%1$s %1$s", "test");
+  EXPECT_STREQ("test test", out.c_str());
+
+#if defined(OS_WIN)
+  std::wstring wout;
+  SStringPrintf(&wout, L"%1$ls %1$ls", L"test");
+  EXPECT_STREQ(L"test test", wout.c_str());
+#endif
+}
 
 }  // namespace base
