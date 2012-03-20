@@ -365,11 +365,10 @@ TEST(X509CertificateTest, MAYBE_EVVerification) {
       X509Certificate::CreateFromHandle(certs[0]->os_cert_handle(),
                                         intermediates);
 
-  scoped_ptr<CRLSet> crl_set(CRLSet::EmptyCRLSetForTesting());
   CertVerifyResult verify_result;
   int flags = X509Certificate::VERIFY_EV_CERT;
   int error = comodo_chain->Verify(
-      "comodo.com", flags, crl_set.get(), &verify_result);
+      "comodo.com", flags, NULL, &verify_result);
   EXPECT_EQ(OK, error);
   EXPECT_TRUE(verify_result.cert_status & CERT_STATUS_IS_EV);
 }
