@@ -39,7 +39,7 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-/* $Id: sslproto.h,v 1.15 2010/02/16 18:56:48 wtc%google.com Exp $ */
+/* $Id: sslproto.h,v 1.17 2012/03/13 02:39:11 wtc%google.com Exp $ */
 
 #ifndef __sslproto_h_
 #define __sslproto_h_
@@ -47,7 +47,11 @@
 /* All versions less than 3_0 are treated as SSL version 2 */
 #define SSL_LIBRARY_VERSION_2			0x0002
 #define SSL_LIBRARY_VERSION_3_0			0x0300
-#define SSL_LIBRARY_VERSION_3_1_TLS		0x0301
+#define SSL_LIBRARY_VERSION_TLS_1_0		0x0301
+#define SSL_LIBRARY_VERSION_TLS_1_1		0x0302
+
+/* deprecated old name */
+#define SSL_LIBRARY_VERSION_3_1_TLS SSL_LIBRARY_VERSION_TLS_1_0 
 
 /* Header lengths of some of the messages */
 #define SSL_HL_ERROR_HBYTES			3
