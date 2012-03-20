@@ -2277,7 +2277,7 @@
             'libraries': [
               '-l<(android_stlport_library)',
               # Manually link the libgcc.a that the cross compiler uses.
-              '<!($CROSS_CC -print-libgcc-file-name)',
+              '<!(${ANDROID_TOOLCHAIN}/*-gcc -print-libgcc-file-name)',
               '-lc',
               '-ldl',
               '-lstdc++',
@@ -2883,7 +2883,7 @@
         ],
       },
     }],
-    ['clang==1', {
+    ['clang==1 and OS!="android"', {
       'make_global_settings': [
         ['CC', '<(make_clang_dir)/bin/clang'],
         ['CXX', '<(make_clang_dir)/bin/clang++'],
@@ -2891,6 +2891,18 @@
         ['CC.host', '$(CC)'],
         ['CXX.host', '$(CXX)'],
         ['LINK.host', '$(LINK)'],
+      ],
+    }],
+    ['OS=="android" and "<(GENERATOR)"!="ninja"', {
+      # Hardcode the compiler names in the Makefile so that
+      # it won't depend on the environment at make time.
+      'make_global_settings': [
+        ['CC', '<!(/bin/echo -n ${GOMA_WRAPPER} ${ANDROID_TOOLCHAIN}/*-gcc)'],
+        ['CXX', '<!(/bin/echo -n ${GOMA_WRAPPER} ${ANDROID_TOOLCHAIN}/*-g++)'],
+        ['LINK', '<!(/bin/echo -n ${GOMA_WRAPPER} ${ANDROID_TOOLCHAIN}/*-gcc)'],
+        ['CC.host', '<!(which gcc)'],
+        ['CXX.host', '<!(which g++)'],
+        ['LINK.host', '<!(which g++)'],
       ],
     }],
   ],
