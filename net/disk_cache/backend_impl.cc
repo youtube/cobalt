@@ -352,7 +352,15 @@ BackendImpl::BackendImpl(const FilePath& path,
 }
 
 BackendImpl::~BackendImpl() {
-  background_queue_.WaitForPendingIO();
+  if (user_flags_ & kNoRandom) {
+    // This is a unit test, so we want to be strict about not leaking entries
+    // and completing all the work.
+    background_queue_.WaitForPendingIO();
+  } else {
+    // This is most likely not a test, so we want to do as little work as
+    // possible at this time, at the price of leaving dirty entries behind.
+    background_queue_.DropPendingIO();
+  }
 
   if (background_queue_.BackgroundIsCurrentThread()) {
     // Unit tests may use the same thread for everything.
@@ -496,10 +504,12 @@ void BackendImpl::CleanupCache() {
     if (data_)
       data_->header.crash = 0;
 
-    File::WaitForPendingIO(&num_pending_io_);
     if (user_flags_ & kNoRandom) {
       // This is a net_unittest, verify that we are not 'leaking' entries.
+      File::WaitForPendingIO(&num_pending_io_);
       DCHECK(!num_refs_);
+    } else {
+      File::DropPendingIO();
     }
   }
   block_files_.CloseFiles();
@@ -824,6 +834,10 @@ MappedFile* BackendImpl::File(Addr address) {
   if (disabled_)
     return NULL;
   return block_files_.GetFile(address);
+}
+
+base::WeakPtr<InFlightBackendIO> BackendImpl::GetBackgroundQueue() {
+  return background_queue_.GetWeakPtr();
 }
 
 bool BackendImpl::CreateExternalFile(Addr* address) {

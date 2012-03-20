@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 #include <set>
 
 #include "base/message_loop_proxy.h"
+#include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 
 namespace disk_cache {
@@ -48,18 +49,19 @@ class BackgroundIO : public base::RefCountedThreadSafe<BackgroundIO> {
  protected:
   virtual ~BackgroundIO();
 
-  InFlightIO* controller_;  // The controller that tracks all operations.
+  // Notifies the controller about the end of the operation, from the background
+  // thread.
+  void NotifyController();
+
   int result_;  // Final operation result.
 
  private:
   friend class base::RefCountedThreadSafe<BackgroundIO>;
 
-  // Notifies the controller about the end of the operation, from the background
-  // thread.
-  void NotifyController();
-
   // An event to signal when the operation completes.
   base::WaitableEvent io_completed_;
+  InFlightIO* controller_;  // The controller that tracks all operations.
+  base::Lock controller_lock_;  // A lock protecting clearing of controller_.
 
   DISALLOW_COPY_AND_ASSIGN(BackgroundIO);
 };
@@ -94,6 +96,9 @@ class InFlightIO {
   // Blocks the current thread until all IO operations tracked by this object
   // complete.
   void WaitForPendingIO();
+
+  // Drops current pending operations without waiting for them to complete.
+  void DropPendingIO();
 
   // Called on a background thread when |operation| completes.
   void OnIOComplete(BackgroundIO* operation);

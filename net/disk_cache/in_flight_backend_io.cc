@@ -42,7 +42,23 @@ void BackendIO::OnIOComplete(int result) {
   DCHECK(IsEntryOperation());
   DCHECK_NE(result, net::ERR_IO_PENDING);
   result_ = result;
-  controller_->OnIOComplete(this);
+  NotifyController();
+}
+
+// Runs on the primary thread.
+void BackendIO::OnDone(bool cancel) {
+  if (IsEntryOperation()) {
+    CACHE_UMA(TIMES, "TotalIOTime", 0, ElapsedTime());
+  }
+
+  if (!ReturnsEntry())
+    return;
+
+  if (result() == net::OK) {
+    static_cast<EntryImpl*>(*entry_ptr_)->OnEntryCreated(backend_);
+    if (cancel)
+      (*entry_ptr_)->Close();
+  }
 }
 
 bool BackendIO::IsEntryOperation() {
@@ -52,10 +68,6 @@ bool BackendIO::IsEntryOperation() {
 // Runs on the background thread.
 void BackendIO::ReferenceEntry() {
   entry_->AddRef();
-}
-
-base::TimeDelta BackendIO::ElapsedTime() const {
-  return base::TimeTicks::Now() - start_time_;
 }
 
 void BackendIO::Init() {
@@ -196,6 +208,15 @@ void BackendIO::ReadyForSparseIO(EntryImpl* entry) {
 
 BackendIO::~BackendIO() {}
 
+bool BackendIO::ReturnsEntry() {
+  return (operation_ == OP_OPEN || operation_ == OP_CREATE ||
+          operation_ == OP_OPEN_NEXT || operation_ == OP_OPEN_PREV);
+}
+
+base::TimeDelta BackendIO::ElapsedTime() const {
+  return base::TimeTicks::Now() - start_time_;
+}
+
 // Runs on the background thread.
 void BackendIO::ExecuteBackendOperation() {
   switch (operation_) {
@@ -254,7 +275,7 @@ void BackendIO::ExecuteBackendOperation() {
       result_ = net::ERR_UNEXPECTED;
   }
   DCHECK_NE(net::ERR_IO_PENDING, result_);
-  controller_->OnIOComplete(this);
+  NotifyController();
 }
 
 // Runs on the background thread.
@@ -263,23 +284,23 @@ void BackendIO::ExecuteEntryOperation() {
     case OP_READ:
       result_ = entry_->ReadDataImpl(
           index_, offset_, buf_, buf_len_,
-          base::Bind(&BackendIO::OnIOComplete, base::Unretained(this)));
+          base::Bind(&BackendIO::OnIOComplete, this));
       break;
     case OP_WRITE:
       result_ = entry_->WriteDataImpl(
           index_, offset_, buf_, buf_len_,
-          base::Bind(&BackendIO::OnIOComplete, base::Unretained(this)),
+          base::Bind(&BackendIO::OnIOComplete, this),
           truncate_);
       break;
     case OP_READ_SPARSE:
       result_ = entry_->ReadSparseDataImpl(
           offset64_, buf_, buf_len_,
-          base::Bind(&BackendIO::OnIOComplete, base::Unretained(this)));
+          base::Bind(&BackendIO::OnIOComplete, this));
       break;
     case OP_WRITE_SPARSE:
       result_ = entry_->WriteSparseDataImpl(
           offset64_, buf_, buf_len_,
-          base::Bind(&BackendIO::OnIOComplete, base::Unretained(this)));
+          base::Bind(&BackendIO::OnIOComplete, this));
       break;
     case OP_GET_RANGE:
       result_ = entry_->GetAvailableRangeImpl(offset64_, buf_len_, start_);
@@ -290,20 +311,21 @@ void BackendIO::ExecuteEntryOperation() {
       break;
     case OP_IS_READY:
       result_ = entry_->ReadyForSparseIOImpl(
-          base::Bind(&BackendIO::OnIOComplete, base::Unretained(this)));
+          base::Bind(&BackendIO::OnIOComplete, this));
       break;
     default:
       NOTREACHED() << "Invalid Operation";
       result_ = net::ERR_UNEXPECTED;
   }
   if (result_ != net::ERR_IO_PENDING)
-    controller_->OnIOComplete(this);
+    NotifyController();
 }
 
 InFlightBackendIO::InFlightBackendIO(BackendImpl* backend,
                     base::MessageLoopProxy* background_thread)
     : backend_(backend),
-      background_thread_(background_thread) {
+      background_thread_(background_thread),
+      ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)) {
 }
 
 InFlightBackendIO::~InFlightBackendIO() {
@@ -475,10 +497,7 @@ void InFlightBackendIO::WaitForPendingIO() {
 void InFlightBackendIO::OnOperationComplete(BackgroundIO* operation,
                                             bool cancel) {
   BackendIO* op = static_cast<BackendIO*>(operation);
-
-  if (op->IsEntryOperation()) {
-    CACHE_UMA(TIMES, "TotalIOTime", 0, op->ElapsedTime());
-  }
+  op->OnDone(cancel);
 
   if (!op->callback().is_null() && (!cancel || op->IsEntryOperation()))
     op->callback().Run(op->result());
@@ -488,6 +507,10 @@ void InFlightBackendIO::PostOperation(BackendIO* operation) {
   background_thread_->PostTask(FROM_HERE,
       base::Bind(&BackendIO::ExecuteOperation, operation));
   OnOperationPosted(operation);
+}
+
+base::WeakPtr<InFlightBackendIO> InFlightBackendIO::GetWeakPtr() {
+  return ptr_factory_.GetWeakPtr();
 }
 
 }  // namespace
