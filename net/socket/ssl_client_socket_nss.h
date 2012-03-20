@@ -35,7 +35,7 @@ namespace net {
 class BoundNetLog;
 class CertVerifier;
 class ClientSocketHandle;
-class OriginBoundCertService;
+class ServerBoundCertService;
 class SingleRequestCertVerifier;
 class SSLHostInfo;
 class TransportSecurityState;
@@ -93,14 +93,14 @@ class SSLClientSocketNSS : public SSLClientSocket {
                     const CompletionCallback& callback) OVERRIDE;
   virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
   virtual bool SetSendBufferSize(int32 size) OVERRIDE;
-  virtual OriginBoundCertService* GetOriginBoundCertService() const OVERRIDE;
+  virtual ServerBoundCertService* GetServerBoundCertService() const OVERRIDE;
 
  private:
   enum State {
     STATE_NONE,
     STATE_LOAD_SSL_HOST_INFO,
     STATE_HANDSHAKE,
-    STATE_GET_OB_CERT_COMPLETE,
+    STATE_GET_DOMAIN_BOUND_CERT_COMPLETE,
     STATE_VERIFY_DNSSEC,
     STATE_VERIFY_CERT,
     STATE_VERIFY_CERT_COMPLETE,
@@ -132,14 +132,14 @@ class SSLClientSocketNSS : public SSLClientSocket {
 
   int DoHandshake();
 
-  // ImportOBCertAndKey is a helper function for turning a DER-encoded cert and
+  // ImportDBCertAndKey is a helper function for turning a DER-encoded cert and
   // key into a CERTCertificate and SECKEYPrivateKey. Returns OK upon success
   // and an error code otherwise.
-  // Requires |ob_private_key_| and |ob_cert_| to have been set by a call to
-  // OriginBoundCertService->GetOriginBoundCert. The caller takes ownership of
-  // the |*cert| and |*key|.
-  int ImportOBCertAndKey(CERTCertificate** cert, SECKEYPrivateKey** key);
-  int DoGetOBCertComplete(int result);
+  // Requires |domain_bound_private_key_| and |domain_bound_cert_| to have been
+  // set by a call to ServerBoundCertService->GetDomainBoundCert. The caller
+  // takes ownership of the |*cert| and |*key|.
+  int ImportDBCertAndKey(CERTCertificate** cert, SECKEYPrivateKey** key);
+  int DoGetDBCertComplete(int result);
   int DoVerifyDNSSEC(int result);
   int DoVerifyCert(int result);
   int DoVerifyCertComplete(int result);
@@ -163,11 +163,11 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // argument.
   static SECStatus OwnAuthCertHandler(void* arg, PRFileDesc* socket,
                                       PRBool checksig, PRBool is_server);
-  // Returns true if connection negotiated the origin bound cert extension.
-  static bool OriginBoundCertNegotiated(PRFileDesc* socket);
-  // Origin bound cert client auth handler.
+  // Returns true if connection negotiated the domain bound cert extension.
+  static bool DomainBoundCertNegotiated(PRFileDesc* socket);
+  // Domain bound cert client auth handler.
   // Returns the value the ClientAuthHandler function should return.
-  SECStatus OriginBoundClientAuthHandler(
+  SECStatus DomainBoundClientAuthHandler(
       const SECItem* cert_types,
       CERTCertificate** result_certificate,
       SECKEYPrivateKey** result_private_key);
@@ -256,13 +256,13 @@ class SSLClientSocketNSS : public SSLClientSocket {
   CertVerifier* const cert_verifier_;
   scoped_ptr<SingleRequestCertVerifier> verifier_;
 
-  // For origin bound certificates in client auth.
-  bool ob_cert_xtn_negotiated_;
-  OriginBoundCertService* origin_bound_cert_service_;
-  SSLClientCertType ob_cert_type_;
-  std::string ob_private_key_;
-  std::string ob_cert_;
-  OriginBoundCertService::RequestHandle ob_cert_request_handle_;
+  // For domain bound certificates in client auth.
+  bool domain_bound_cert_xtn_negotiated_;
+  ServerBoundCertService* server_bound_cert_service_;
+  SSLClientCertType domain_bound_cert_type_;
+  std::string domain_bound_private_key_;
+  std::string domain_bound_cert_;
+  ServerBoundCertService::RequestHandle domain_bound_cert_request_handle_;
 
   // True if NSS has called HandshakeCallback.
   bool handshake_callback_called_;

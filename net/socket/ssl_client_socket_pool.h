@@ -176,7 +176,7 @@ class NET_EXPORT_PRIVATE SSLClientSocketPool
       ClientSocketPoolHistograms* histograms,
       HostResolver* host_resolver,
       CertVerifier* cert_verifier,
-      OriginBoundCertService* origin_bound_cert_service,
+      ServerBoundCertService* server_bound_cert_service,
       TransportSecurityState* transport_security_state,
       SSLHostInfoFactory* ssl_host_info_factory,
       const std::string& ssl_session_cache_shard,

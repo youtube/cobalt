@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -31,7 +31,7 @@ class HostResolver;
 class HttpAuthHandlerFactory;
 class HttpTransactionFactory;
 class NetworkDelegate;
-class OriginBoundCertService;
+class ServerBoundCertService;
 class ProxyService;
 class URLRequest;
 class URLRequestJobFactory;
@@ -77,13 +77,13 @@ class NET_EXPORT URLRequestContext
     cert_verifier_ = cert_verifier;
   }
 
-  OriginBoundCertService* origin_bound_cert_service() const {
-    return origin_bound_cert_service_;
+  ServerBoundCertService* server_bound_cert_service() const {
+    return server_bound_cert_service_;
   }
 
-  void set_origin_bound_cert_service(
-      OriginBoundCertService* origin_bound_cert_service) {
-    origin_bound_cert_service_ = origin_bound_cert_service;
+  void set_server_bound_cert_service(
+      ServerBoundCertService* server_bound_cert_service) {
+    server_bound_cert_service_ = server_bound_cert_service;
   }
 
   FraudulentCertificateReporter* fraudulent_certificate_reporter() const {
@@ -207,7 +207,7 @@ class NET_EXPORT URLRequestContext
   NetLog* net_log_;
   HostResolver* host_resolver_;
   CertVerifier* cert_verifier_;
-  OriginBoundCertService* origin_bound_cert_service_;
+  ServerBoundCertService* server_bound_cert_service_;
   FraudulentCertificateReporter* fraudulent_certificate_reporter_;
   HttpAuthHandlerFactory* http_auth_handler_factory_;
   ProxyService* proxy_service_;

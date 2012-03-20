@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -37,7 +37,7 @@ ClientSocketPoolManagerImpl::ClientSocketPoolManagerImpl(
     ClientSocketFactory* socket_factory,
     HostResolver* host_resolver,
     CertVerifier* cert_verifier,
-    OriginBoundCertService* origin_bound_cert_service,
+    ServerBoundCertService* server_bound_cert_service,
     TransportSecurityState* transport_security_state,
     SSLHostInfoFactory* ssl_host_info_factory,
     const std::string& ssl_session_cache_shard,
@@ -47,7 +47,7 @@ ClientSocketPoolManagerImpl::ClientSocketPoolManagerImpl(
       socket_factory_(socket_factory),
       host_resolver_(host_resolver),
       cert_verifier_(cert_verifier),
-      origin_bound_cert_service_(origin_bound_cert_service),
+      server_bound_cert_service_(server_bound_cert_service),
       transport_security_state_(transport_security_state),
       ssl_host_info_factory_(ssl_host_info_factory),
       ssl_session_cache_shard_(ssl_session_cache_shard),
@@ -66,7 +66,7 @@ ClientSocketPoolManagerImpl::ClientSocketPoolManagerImpl(
           &ssl_pool_histograms_,
           host_resolver,
           cert_verifier,
-          origin_bound_cert_service,
+          server_bound_cert_service,
           transport_security_state,
           ssl_host_info_factory,
           ssl_session_cache_shard,
@@ -286,7 +286,7 @@ ClientSocketPoolManagerImpl::GetSocketPoolForHTTPProxy(
                   &ssl_for_https_proxy_pool_histograms_,
                   host_resolver_,
                   cert_verifier_,
-                  origin_bound_cert_service_,
+                  server_bound_cert_service_,
                   transport_security_state_,
                   ssl_host_info_factory_,
                   ssl_session_cache_shard_,
@@ -325,7 +325,7 @@ SSLClientSocketPool* ClientSocketPoolManagerImpl::GetSocketPoolForSSLWithProxy(
       &ssl_pool_histograms_,
       host_resolver_,
       cert_verifier_,
-      origin_bound_cert_service_,
+      server_bound_cert_service_,
       transport_security_state_,
       ssl_host_info_factory_,
       ssl_session_cache_shard_,

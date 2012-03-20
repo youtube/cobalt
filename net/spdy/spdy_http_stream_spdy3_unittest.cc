@@ -64,7 +64,7 @@ class SpdyHttpStreamSpdy3Test : public testing::Test {
   }
 
   void TestSendCredentials(
-    OriginBoundCertService* obc_service,
+    ServerBoundCertService* server_bound_cert_service,
     const std::string& cert,
     const std::string& proof,
     SSLClientCertType type);
@@ -245,20 +245,20 @@ TEST_F(SpdyHttpStreamSpdy3Test, SpdyURLTest) {
 
 namespace {
 
-void GetECOriginBoundCertAndProof(const std::string& origin,
-                                OriginBoundCertService* obc_service,
-                                std::string* cert,
-                                std::string* proof) {
+void GetECServerBoundCertAndProof(
+    const std::string& origin,
+    ServerBoundCertService* server_bound_cert_service,
+    std::string* cert,
+    std::string* proof) {
   TestCompletionCallback callback;
   std::vector<uint8> requested_cert_types;
   requested_cert_types.push_back(CLIENT_CERT_ECDSA_SIGN);
   SSLClientCertType cert_type;
   std::string key;
-  OriginBoundCertService::RequestHandle request_handle;
-  int rv = obc_service->GetOriginBoundCert(origin, requested_cert_types,
-                                           &cert_type, &key, cert,
-                                           callback.callback(),
-                                           &request_handle);
+  ServerBoundCertService::RequestHandle request_handle;
+  int rv = server_bound_cert_service->GetDomainBoundCert(
+      origin, requested_cert_types, &cert_type, &key, cert, callback.callback(),
+      &request_handle);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(OK, callback.WaitForResult());
   EXPECT_EQ(CLIENT_CERT_ECDSA_SIGN, cert_type);
@@ -277,7 +277,7 @@ void GetECOriginBoundCertAndProof(const std::string& origin,
   std::vector<uint8> proof_data;
   scoped_ptr<crypto::ECPrivateKey> private_key(
       crypto::ECPrivateKey::CreateFromEncryptedPrivateKeyInfo(
-          OriginBoundCertService::kEPKIPassword, key_data, spki));
+          ServerBoundCertService::kEPKIPassword, key_data, spki));
   scoped_ptr<crypto::ECSignatureCreator> creator(
       crypto::ECSignatureCreator::Create(private_key.get()));
   creator->Sign(secret, arraysize(secret), &proof_data);
@@ -286,14 +286,14 @@ void GetECOriginBoundCertAndProof(const std::string& origin,
 
 }  // namespace
 
-// TODO(rch): When openssl supports origin bound certifictes, this
+// TODO(rch): When openssl supports server bound certifictes, this
 // guard can be removed
 #if !defined(USE_OPENSSL)
 // Test that if we request a resource for a new origin on a session that
-// used origin bound certificates, that we send a CREDENTIAL frame for
-// the new origin before we send the new request.
+// used domain bound certificates, that we send a CREDENTIAL frame for
+// the new domain before we send the new request.
 void SpdyHttpStreamSpdy3Test::TestSendCredentials(
-    OriginBoundCertService* obc_service,
+    ServerBoundCertService* server_bound_cert_service,
     const std::string& cert,
     const std::string& proof,
     SSLClientCertType type) {
@@ -332,8 +332,8 @@ void SpdyHttpStreamSpdy3Test::TestSendCredentials(
                                   writes, arraysize(writes)));
   socket_factory->AddSocketDataProvider(data.get());
   SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
-  ssl.origin_bound_cert_type = type;
-  ssl.origin_bound_cert_service = obc_service;
+  ssl.domain_bound_cert_type = type;
+  ssl.server_bound_cert_service = server_bound_cert_service;
   ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY3;
   socket_factory->AddSSLSocketDataProvider(&ssl);
   http_session_ = SpdySessionDependencies::SpdyCreateSessionDeterministic(
@@ -457,14 +457,16 @@ TEST_F(SpdyHttpStreamSpdy3Test, SendCredentialsEC) {
   crypto::ECSignatureCreator::SetFactoryForTesting(
       ec_signature_creator_factory.get());
 
-  scoped_ptr<OriginBoundCertService> obc_service(
-      new OriginBoundCertService(new DefaultOriginBoundCertStore(NULL)));
+  scoped_ptr<ServerBoundCertService> server_bound_cert_service(
+      new ServerBoundCertService(new DefaultServerBoundCertStore(NULL)));
   std::string cert;
   std::string proof;
-  GetECOriginBoundCertAndProof("http://www.gmail.com/", obc_service.get(),
+  GetECServerBoundCertAndProof("http://www.gmail.com/",
+                               server_bound_cert_service.get(),
                                &cert, &proof);
 
-  TestSendCredentials(obc_service.get(), cert, proof, CLIENT_CERT_ECDSA_SIGN);
+  TestSendCredentials(server_bound_cert_service.get(), cert, proof,
+                      CLIENT_CERT_ECDSA_SIGN);
 }
 
 #endif  // !defined(USE_OPENSSL)
