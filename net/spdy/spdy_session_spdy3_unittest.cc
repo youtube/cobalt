@@ -949,7 +949,7 @@ TEST_F(SpdySessionSpdy3Test, NeedsCredentials) {
   session_deps.socket_factory->AddSocketDataProvider(&data);
 
   SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
-  ssl.origin_bound_cert_type = CLIENT_CERT_ECDSA_SIGN;
+  ssl.domain_bound_cert_type = CLIENT_CERT_ECDSA_SIGN;
   ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY3;
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
 
@@ -1025,7 +1025,7 @@ TEST_F(SpdySessionSpdy3Test, SendCredentials) {
   session_deps.socket_factory->AddSocketDataProvider(&data);
 
   SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
-  ssl.origin_bound_cert_type = CLIENT_CERT_ECDSA_SIGN;
+  ssl.domain_bound_cert_type = CLIENT_CERT_ECDSA_SIGN;
   ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY3;
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
 

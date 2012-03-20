@@ -24,31 +24,32 @@
 
 namespace {
 
-class ObCertOIDWrapper {
+class DomainBoundCertOIDWrapper {
  public:
-  static ObCertOIDWrapper* GetInstance() {
+  static DomainBoundCertOIDWrapper* GetInstance() {
     // Instantiated as a leaky singleton to allow the singleton to be
     // constructed on a worker thead that is not joined when a process
     // shuts down.
-    return Singleton<ObCertOIDWrapper,
-                     LeakySingletonTraits<ObCertOIDWrapper> >::get();
+    return Singleton<DomainBoundCertOIDWrapper,
+                     LeakySingletonTraits<DomainBoundCertOIDWrapper> >::get();
   }
 
-  SECOidTag ob_cert_oid_tag() const {
-    return ob_cert_oid_tag_;
+  SECOidTag domain_bound_cert_oid_tag() const {
+    return domain_bound_cert_oid_tag_;
   }
 
  private:
-  friend struct DefaultSingletonTraits<ObCertOIDWrapper>;
+  friend struct DefaultSingletonTraits<DomainBoundCertOIDWrapper>;
 
-  ObCertOIDWrapper();
+  DomainBoundCertOIDWrapper();
 
-  SECOidTag ob_cert_oid_tag_;
+  SECOidTag domain_bound_cert_oid_tag_;
 
-  DISALLOW_COPY_AND_ASSIGN(ObCertOIDWrapper);
+  DISALLOW_COPY_AND_ASSIGN(DomainBoundCertOIDWrapper);
 };
 
-ObCertOIDWrapper::ObCertOIDWrapper(): ob_cert_oid_tag_(SEC_OID_UNKNOWN) {
+DomainBoundCertOIDWrapper::DomainBoundCertOIDWrapper()
+    : domain_bound_cert_oid_tag_(SEC_OID_UNKNOWN) {
   // 1.3.6.1.4.1.11129.2.1.6
   // (iso.org.dod.internet.private.enterprises.google.googleSecurity.
   //  certificateExtensions.originBoundCertificate)
@@ -63,8 +64,8 @@ ObCertOIDWrapper::ObCertOIDWrapper(): ob_cert_oid_tag_(SEC_OID_UNKNOWN) {
   oid_data.desc = "Origin Bound Certificate";
   oid_data.mechanism = CKM_INVALID_MECHANISM;
   oid_data.supportedExtension = SUPPORTED_CERT_EXTENSION;
-  ob_cert_oid_tag_ = SECOID_AddEntry(&oid_data);
-  if (ob_cert_oid_tag_ == SEC_OID_UNKNOWN)
+  domain_bound_cert_oid_tag_ = SECOID_AddEntry(&oid_data);
+  if (domain_bound_cert_oid_tag_ == SEC_OID_UNKNOWN)
     LOG(ERROR) << "OB_CERT OID tag creation failed";
 }
 
@@ -169,10 +170,10 @@ bool SignCertificate(
   return true;
 }
 
-bool CreateOriginBoundCertInternal(
+bool CreateDomainBoundCertInternal(
     SECKEYPublicKey* public_key,
     SECKEYPrivateKey* private_key,
-    const std::string& origin,
+    const std::string& domain,
     uint32 serial_number,
     base::Time not_valid_before,
     base::Time not_valid_after,
@@ -196,28 +197,29 @@ bool CreateOriginBoundCertInternal(
   }
 
   // Create SECItem for IA5String encoding.
-  SECItem origin_string_item = {
+  SECItem domain_string_item = {
     siAsciiString,
-    (unsigned char*)origin.data(),
-    origin.size()
+    (unsigned char*)domain.data(),
+    domain.size()
   };
 
   // IA5Encode and arena allocate SECItem
-  SECItem* asn1_origin_string = SEC_ASN1EncodeItem(
-      cert->arena, NULL, &origin_string_item,
+  SECItem* asn1_domain_string = SEC_ASN1EncodeItem(
+      cert->arena, NULL, &domain_string_item,
       SEC_ASN1_GET(SEC_IA5StringTemplate));
-  if (asn1_origin_string == NULL) {
-    LOG(ERROR) << "Unable to get ASN1 encoding for origin in ob_cert extension";
+  if (asn1_domain_string == NULL) {
+    LOG(ERROR) << "Unable to get ASN1 encoding for domain in domain_bound_cert"
+                  " extension";
     CERT_DestroyCertificate(cert);
     return false;
   }
 
   // Add the extension to the opaque handle
-  if (CERT_AddExtension(cert_handle,
-                        ObCertOIDWrapper::GetInstance()->ob_cert_oid_tag(),
-                        asn1_origin_string,
-                        PR_TRUE, PR_TRUE) != SECSuccess){
-    LOG(ERROR) << "Unable to add origin bound cert extension to opaque handle";
+  if (CERT_AddExtension(
+      cert_handle,
+      DomainBoundCertOIDWrapper::GetInstance()->domain_bound_cert_oid_tag(),
+      asn1_domain_string, PR_TRUE, PR_TRUE) != SECSuccess){
+    LOG(ERROR) << "Unable to add domain bound cert extension to opaque handle";
     CERT_DestroyCertificate(cert);
     return false;
   }
@@ -272,17 +274,17 @@ CERTCertificate* CreateSelfSignedCert(
   return cert;
 }
 
-bool CreateOriginBoundCertEC(
+bool CreateDomainBoundCertEC(
     crypto::ECPrivateKey* key,
-    const std::string& origin,
+    const std::string& domain,
     uint32 serial_number,
     base::Time not_valid_before,
     base::Time not_valid_after,
     std::string* der_cert) {
   DCHECK(key);
-  return CreateOriginBoundCertInternal(key->public_key(),
+  return CreateDomainBoundCertInternal(key->public_key(),
                                        key->key(),
-                                       origin,
+                                       domain,
                                        serial_number,
                                        not_valid_before,
                                        not_valid_after,

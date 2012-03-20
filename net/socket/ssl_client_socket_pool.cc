@@ -448,7 +448,7 @@ SSLClientSocketPool::SSLClientSocketPool(
     ClientSocketPoolHistograms* histograms,
     HostResolver* host_resolver,
     CertVerifier* cert_verifier,
-    OriginBoundCertService* origin_bound_cert_service,
+    ServerBoundCertService* server_bound_cert_service,
     TransportSecurityState* transport_security_state,
     SSLHostInfoFactory* ssl_host_info_factory,
     const std::string& ssl_session_cache_shard,
@@ -471,7 +471,7 @@ SSLClientSocketPool::SSLClientSocketPool(
                                      host_resolver,
                                      SSLClientSocketContext(
                                          cert_verifier,
-                                         origin_bound_cert_service,
+                                         server_bound_cert_service,
                                          transport_security_state,
                                          ssl_host_info_factory,
                                          ssl_session_cache_shard),

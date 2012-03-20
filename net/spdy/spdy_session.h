@@ -160,13 +160,13 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // true when SSL is in use.
   bool GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
 
-  // Returns the OriginBoundCertService used by this Socket, or NULL
-  // Origin Bound Certs are not supported in this session.
-  OriginBoundCertService* GetOriginBoundCertService() const;
+  // Returns the ServerBoundCertService used by this Socket, or NULL
+  // if server bound certs are not supported in this session.
+  ServerBoundCertService* GetServerBoundCertService() const;
 
-  // Returns the type of the origin bound cert that was sent, or
+  // Returns the type of the domain bound cert that was sent, or
   // CLIENT_CERT_INVALID_TYPE if none was sent.
-  SSLClientCertType GetOriginBoundCertType() const;
+  SSLClientCertType GetDomainBoundCertType() const;
 
   // Reset all static settings to initialized values. Used to init test suite.
   static void ResetStaticSettingsToInit();
@@ -253,7 +253,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   int GetLocalAddress(IPEndPoint* address) const;
 
   // Returns true if a request for a resource in |origin| requires a
-  // SPDY CREDENTIAL frame to be sent first, with an origin bound certificate.
+  // SPDY CREDENTIAL frame to be sent first, with a domain bound certificate.
   bool NeedsCredentials(const HostPortPair& origin) const;
 
   // Adds |alias| to set of aliases associated with this session.

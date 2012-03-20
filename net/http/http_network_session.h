@@ -35,7 +35,7 @@ class HttpResponseBodyDrainer;
 class HttpServerProperties;
 class NetLog;
 class NetworkDelegate;
-class OriginBoundCertService;
+class ServerBoundCertService;
 class ProxyService;
 class SOCKSClientSocketPool;
 class SSLClientSocketPool;
@@ -54,7 +54,7 @@ class NET_EXPORT HttpNetworkSession
         : client_socket_factory(NULL),
           host_resolver(NULL),
           cert_verifier(NULL),
-          origin_bound_cert_service(NULL),
+          server_bound_cert_service(NULL),
           transport_security_state(NULL),
           proxy_service(NULL),
           ssl_host_info_factory(NULL),
@@ -68,7 +68,7 @@ class NET_EXPORT HttpNetworkSession
     ClientSocketFactory* client_socket_factory;
     HostResolver* host_resolver;
     CertVerifier* cert_verifier;
-    OriginBoundCertService* origin_bound_cert_service;
+    ServerBoundCertService* server_bound_cert_service;
     TransportSecurityState* transport_security_state;
     ProxyService* proxy_service;
     SSLHostInfoFactory* ssl_host_info_factory;

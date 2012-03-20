@@ -242,7 +242,7 @@ SSLSocketDataProvider::SSLSocketDataProvider(IoMode mode, int result)
       protocol_negotiated(SSLClientSocket::kProtoUnknown),
       client_cert_sent(false),
       cert_request_info(NULL),
-      origin_bound_cert_type(CLIENT_CERT_INVALID_TYPE) {
+      domain_bound_cert_type(CLIENT_CERT_INVALID_TYPE) {
 }
 
 SSLSocketDataProvider::~SSLSocketDataProvider() {
@@ -696,7 +696,7 @@ int MockClientSocket::ExportKeyingMaterial(const base::StringPiece& label,
   return OK;
 }
 
-OriginBoundCertService* MockClientSocket::GetOriginBoundCertService() const {
+ServerBoundCertService* MockClientSocket::GetServerBoundCertService() const {
   NOTREACHED();
   return NULL;
 }
@@ -1132,7 +1132,7 @@ base::TimeDelta MockSSLClientSocket::GetConnectTimeMicros() const {
 void MockSSLClientSocket::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->Reset();
   ssl_info->cert = data_->cert;
-  ssl_info->client_cert_sent = WasOriginBoundCertSent() ||
+  ssl_info->client_cert_sent = WasDomainBoundCertSent() ||
       data_->client_cert_sent;
 }
 
@@ -1178,21 +1178,21 @@ void MockSSLClientSocket::set_protocol_negotiated(
   protocol_negotiated_ = protocol_negotiated;
 }
 
-bool MockSSLClientSocket::WasOriginBoundCertSent() const {
-  return data_->origin_bound_cert_type != CLIENT_CERT_INVALID_TYPE;
+bool MockSSLClientSocket::WasDomainBoundCertSent() const {
+  return data_->domain_bound_cert_type != CLIENT_CERT_INVALID_TYPE;
 }
 
-SSLClientCertType MockSSLClientSocket::origin_bound_cert_type() const {
-  return data_->origin_bound_cert_type;
+SSLClientCertType MockSSLClientSocket::domain_bound_cert_type() const {
+  return data_->domain_bound_cert_type;
 }
 
-SSLClientCertType MockSSLClientSocket::set_origin_bound_cert_type(
+SSLClientCertType MockSSLClientSocket::set_domain_bound_cert_type(
     SSLClientCertType type) {
-  return data_->origin_bound_cert_type = type;
+  return data_->domain_bound_cert_type = type;
 }
 
-OriginBoundCertService* MockSSLClientSocket::GetOriginBoundCertService() const {
-  return data_->origin_bound_cert_service;
+ServerBoundCertService* MockSSLClientSocket::GetServerBoundCertService() const {
+  return data_->server_bound_cert_service;
 }
 
 void MockSSLClientSocket::OnReadComplete(const MockRead& data) {

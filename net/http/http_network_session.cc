@@ -33,7 +33,7 @@ net::ClientSocketPoolManager* CreateSocketPoolManager(
       net::ClientSocketFactory::GetDefaultFactory(),
       params.host_resolver,
       params.cert_verifier,
-      params.origin_bound_cert_service,
+      params.server_bound_cert_service,
       params.transport_security_state,
       params.ssl_host_info_factory,
       params.ssl_session_cache_shard,
