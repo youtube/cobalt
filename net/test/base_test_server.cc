@@ -55,6 +55,7 @@ void GetCiphersList(int cipher, base::ListValue* values) {
 
 BaseTestServer::HTTPSOptions::HTTPSOptions()
     : server_certificate(CERT_OK),
+      ocsp_status(OCSP_OK),
       request_client_certificate(false),
       bulk_ciphers(HTTPSOptions::BULK_CIPHER_ANY),
       record_resume(false) {}
@@ -79,10 +80,29 @@ FilePath BaseTestServer::HTTPSOptions::GetCertificateFile() const {
       // This chain uses its own dedicated test root certificate to avoid
       // side-effects that may affect testing.
       return FilePath(FILE_PATH_LITERAL("redundant-server-chain.pem"));
+    case CERT_AUTO:
+      return FilePath();
     default:
       NOTREACHED();
   }
   return FilePath();
+}
+
+std::string BaseTestServer::HTTPSOptions::GetOCSPArgument() const {
+  if (server_certificate != CERT_AUTO)
+    return "";
+
+  switch (ocsp_status) {
+    case OCSP_OK:
+      return "ok";
+    case OCSP_REVOKED:
+      return "revoked";
+    case OCSP_INVALID:
+      return "invalid";
+    default:
+      NOTREACHED();
+      return "";
+  }
 }
 
 const char BaseTestServer::kLocalhost[] = "127.0.0.1";
@@ -309,17 +329,25 @@ bool BaseTestServer::GenerateArguments(base::DictionaryValue* arguments) const {
     arguments->Set("log-to-console", base::Value::CreateNullValue());
 
   if (type_ == TYPE_HTTPS) {
+    arguments->Set("https", base::Value::CreateNullValue());
+
     // Check the certificate arguments of the HTTPS server.
     FilePath certificate_path(certificates_dir_);
-    certificate_path = certificate_path.Append(
-        https_options_.GetCertificateFile());
-    if (certificate_path.IsAbsolute() &&
-        !file_util::PathExists(certificate_path)) {
-      LOG(ERROR) << "Certificate path " << certificate_path.value()
-                 << " doesn't exist. Can't launch https server.";
-      return false;
+    FilePath certificate_file(https_options_.GetCertificateFile());
+    if (!certificate_file.value().empty()) {
+      certificate_path = certificate_path.Append(certificate_file);
+      if (certificate_path.IsAbsolute() &&
+          !file_util::PathExists(certificate_path)) {
+        LOG(ERROR) << "Certificate path " << certificate_path.value()
+                   << " doesn't exist. Can't launch https server.";
+        return false;
+      }
+      arguments->SetString("cert-and-key-file", certificate_path.value());
     }
-    arguments->SetString("https", certificate_path.value());
+
+    std::string ocsp_arg = https_options_.GetOCSPArgument();
+    if (!ocsp_arg.empty())
+      arguments->SetString("ocsp", ocsp_arg);
 
     // Check the client certificate related arguments.
     if (https_options_.request_client_certificate)
