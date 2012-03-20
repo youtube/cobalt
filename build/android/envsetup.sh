@@ -70,20 +70,21 @@ fi
 
 # Performs a gyp_chromium run to convert gyp->Makefile for android code.
 android_gyp() {
+  GOMA_WRAPPER=""
+  if [[ -d $GOMA_DIR ]]; then
+    GOMA_WRAPPER="$GOMA_DIR/gomacc"
+  fi
+  # Ninja requires "*_target" for target builds.
+  GOMA_WRAPPER=${GOMA_WRAPPER} \
+  CC_target=$(basename ${ANDROID_TOOLCHAIN}/*-gcc) \
+  CXX_target=$(basename ${ANDROID_TOOLCHAIN}/*-g++) \
+  LINK_target=$(basename ${ANDROID_TOOLCHAIN}/*-gcc) \
+  AR_target=$(basename ${ANDROID_TOOLCHAIN}/*-ar) \
   "${CHROME_SRC}/build/gyp_chromium" --depth="${CHROME_SRC}"
 }
 
-firstword() {
-  echo "${1}"
-}
-
-export CROSS_AR="$(firstword "${ANDROID_TOOLCHAIN}"/*-ar)"
-export CROSS_CC="$(firstword "${ANDROID_TOOLCHAIN}"/*-gcc)"
-export CROSS_CXX="$(firstword "${ANDROID_TOOLCHAIN}"/*-g++)"
-export CROSS_LINK="$(firstword "${ANDROID_TOOLCHAIN}"/*-gcc)"
-export CROSS_RANLIB="$(firstword "${ANDROID_TOOLCHAIN}"/*-ranlib)"
-export OBJCOPY="$(firstword "${ANDROID_TOOLCHAIN}"/*-objcopy)"
-export STRIP="$(firstword "${ANDROID_TOOLCHAIN}"/*-strip)"
+export OBJCOPY=$(echo ${ANDROID_TOOLCHAIN}/*-objcopy)
+export STRIP=$(echo ${ANDROID_TOOLCHAIN}/*-strip)
 
 # The set of GYP_DEFINES to pass to gyp. Use 'readlink -e' on directories
 # to canonicalize them (remove double '/', remove trailing '/', etc).
