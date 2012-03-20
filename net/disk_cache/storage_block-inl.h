@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -87,6 +87,10 @@ template<typename T> void  StorageBlock<T>::StopSharingData() {
 template<typename T> void StorageBlock<T>::set_modified() {
   DCHECK(data_);
   modified_ = true;
+}
+
+template<typename T> void StorageBlock<T>::clear_modified() {
+  modified_ = false;
 }
 
 template<typename T> T* StorageBlock<T>::Data() {

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -442,6 +442,9 @@ bool SparseControl::OpenChild() {
   if (!ChildPresent())
     return ContinueWithoutChild(key);
 
+  if (!entry_->backend_)
+    return false;
+
   child_ = entry_->backend_->OpenEntryImpl(key);
   if (!child_)
     return ContinueWithoutChild(key);
@@ -513,6 +516,9 @@ bool SparseControl::ContinueWithoutChild(const std::string& key) {
     return false;
   if (kGetRangeOperation == operation_)
     return true;
+
+  if (!entry_->backend_)
+    return false;
 
   child_ = entry_->backend_->CreateEntryImpl(key);
   if (!child_) {

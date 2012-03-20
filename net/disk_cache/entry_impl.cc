@@ -292,8 +292,9 @@ bool EntryImpl::UserBuffer::GrowBuffer(int required, int limit) {
 // ------------------------------------------------------------------------
 
 EntryImpl::EntryImpl(BackendImpl* backend, Addr address, bool read_only)
-    : entry_(NULL, Addr(0)), node_(NULL, Addr(0)), backend_(backend),
-      doomed_(false), read_only_(read_only), dirty_(false) {
+    : entry_(NULL, Addr(0)), node_(NULL, Addr(0)),
+      backend_(backend->GetWeakPtr()), doomed_(false), read_only_(read_only),
+      dirty_(false) {
   entry_.LazyInit(backend->File(address), address);
   for (int i = 0; i < kNumStreams; i++) {
     unreported_size_[i] = 0;
@@ -301,7 +302,7 @@ EntryImpl::EntryImpl(BackendImpl* backend, Addr address, bool read_only)
 }
 
 void EntryImpl::DoomImpl() {
-  if (doomed_)
+  if (doomed_ || !backend_)
     return;
 
   SetPointerForInvalidEntry(backend_->GetCurrentEntryId());
@@ -678,7 +679,13 @@ void EntryImpl::IncrementIoCount() {
 }
 
 void EntryImpl::DecrementIoCount() {
-  backend_->DecrementIoCount();
+  if (backend_)
+    backend_->DecrementIoCount();
+}
+
+void EntryImpl::OnEntryCreated(BackendImpl* backend) {
+  // Just grab a reference to the backround queue.
+  background_queue_ = backend->GetBackgroundQueue();
 }
 
 void EntryImpl::SetTimes(base::Time last_used, base::Time last_modified) {
@@ -688,6 +695,9 @@ void EntryImpl::SetTimes(base::Time last_used, base::Time last_modified) {
 }
 
 void EntryImpl::ReportIOTime(Operation op, const base::TimeTicks& start) {
+  if (!backend_)
+    return;
+
   int group = backend_->GetSizeGroup();
   switch (op) {
     case kRead:
@@ -744,11 +754,13 @@ int EntryImpl::NumBlocksForEntry(int key_size) {
 // ------------------------------------------------------------------------
 
 void EntryImpl::Doom() {
-  backend_->background_queue()->DoomEntryImpl(this);
+  if (background_queue_)
+    background_queue_->DoomEntryImpl(this);
 }
 
 void EntryImpl::Close() {
-  backend_->background_queue()->CloseEntryImpl(this);
+  if (background_queue_)
+    background_queue_->CloseEntryImpl(this);
 }
 
 std::string EntryImpl::GetKey() const {
@@ -817,8 +829,10 @@ int EntryImpl::ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
   if (buf_len < 0)
     return net::ERR_INVALID_ARGUMENT;
 
-  backend_->background_queue()->ReadData(this, index, offset, buf, buf_len,
-                                         callback);
+  if (!background_queue_)
+    return net::ERR_UNEXPECTED;
+
+  background_queue_->ReadData(this, index, offset, buf, buf_len, callback);
   return net::ERR_IO_PENDING;
 }
 
@@ -835,8 +849,11 @@ int EntryImpl::WriteData(
   if (offset < 0 || buf_len < 0)
     return net::ERR_INVALID_ARGUMENT;
 
-  backend_->background_queue()->WriteData(this, index, offset, buf, buf_len,
-                                          truncate, callback);
+  if (!background_queue_)
+    return net::ERR_UNEXPECTED;
+
+  background_queue_->WriteData(this, index, offset, buf, buf_len, truncate,
+                               callback);
   return net::ERR_IO_PENDING;
 }
 
@@ -845,8 +862,10 @@ int EntryImpl::ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
   if (callback.is_null())
     return ReadSparseDataImpl(offset, buf, buf_len, callback);
 
-  backend_->background_queue()->ReadSparseData(this, offset, buf, buf_len,
-                                               callback);
+  if (!background_queue_)
+    return net::ERR_UNEXPECTED;
+
+  background_queue_->ReadSparseData(this, offset, buf, buf_len, callback);
   return net::ERR_IO_PENDING;
 }
 
@@ -855,15 +874,19 @@ int EntryImpl::WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
   if (callback.is_null())
     return WriteSparseDataImpl(offset, buf, buf_len, callback);
 
-  backend_->background_queue()->WriteSparseData(this, offset, buf, buf_len,
-                                                callback);
+  if (!background_queue_)
+    return net::ERR_UNEXPECTED;
+
+  background_queue_->WriteSparseData(this, offset, buf, buf_len, callback);
   return net::ERR_IO_PENDING;
 }
 
 int EntryImpl::GetAvailableRange(int64 offset, int len, int64* start,
                                  const net::CompletionCallback& callback) {
-  backend_->background_queue()->GetAvailableRange(this, offset, len, start,
-                                                  callback);
+  if (!background_queue_)
+    return net::ERR_UNEXPECTED;
+
+  background_queue_->GetAvailableRange(this, offset, len, start, callback);
   return net::ERR_IO_PENDING;
 }
 
@@ -877,14 +900,18 @@ bool EntryImpl::CouldBeSparse() const {
 }
 
 void EntryImpl::CancelSparseIO() {
-  backend_->background_queue()->CancelSparseIO(this);
+  if (background_queue_)
+    background_queue_->CancelSparseIO(this);
 }
 
 int EntryImpl::ReadyForSparseIO(const net::CompletionCallback& callback) {
   if (!sparse_.get())
     return net::OK;
 
-  backend_->background_queue()->ReadyForSparseIO(this, callback);
+  if (!background_queue_)
+    return net::ERR_UNEXPECTED;
+
+  background_queue_->ReadyForSparseIO(this, callback);
   return net::ERR_IO_PENDING;
 }
 
@@ -895,6 +922,11 @@ int EntryImpl::ReadyForSparseIO(const net::CompletionCallback& callback) {
 // data related to a previous cache entry because the range was not fully
 // written before).
 EntryImpl::~EntryImpl() {
+  if (!backend_) {
+    entry_.clear_modified();
+    node_.clear_modified();
+    return;
+  }
   Log("~EntryImpl in");
 
   // Save the sparse info to disk. This will generate IO for this entry and
@@ -957,6 +989,9 @@ int EntryImpl::InternalReadData(
 
   if (buf_len < 0)
     return net::ERR_INVALID_ARGUMENT;
+
+  if (!backend_)
+    return net::ERR_UNEXPECTED;
 
   TimeTicks start = TimeTicks::Now();
 
@@ -1034,6 +1069,9 @@ int EntryImpl::InternalWriteData(
 
   if (offset < 0 || buf_len < 0)
     return net::ERR_INVALID_ARGUMENT;
+
+  if (!backend_)
+    return net::ERR_UNEXPECTED;
 
   int max_file_size = backend_->MaxFileSize();
 
@@ -1140,6 +1178,8 @@ bool EntryImpl::CreateDataBlock(int index, int size) {
 
 bool EntryImpl::CreateBlock(int size, Addr* address) {
   DCHECK(!address->is_initialized());
+  if (!backend_)
+    return false;
 
   FileType file_type = Addr::RequiredFileType(size);
   if (EXTERNAL == file_type) {
@@ -1164,6 +1204,7 @@ bool EntryImpl::CreateBlock(int size, Addr* address) {
 // important that the entry doesn't keep a reference to this address, or we'll
 // end up deleting the contents of |address| once again.
 void EntryImpl::DeleteData(Addr address, int index) {
+  DCHECK(backend_);
   if (!address.is_initialized())
     return;
   if (address.is_separate_file()) {
@@ -1181,6 +1222,9 @@ void EntryImpl::DeleteData(Addr address, int index) {
 }
 
 void EntryImpl::UpdateRank(bool modified) {
+  if (!backend_)
+    return;
+
   if (!doomed_) {
     // Everything is handled by the backend.
     backend_->UpdateRank(this, modified);
@@ -1195,6 +1239,9 @@ void EntryImpl::UpdateRank(bool modified) {
 }
 
 File* EntryImpl::GetBackingFile(Addr address, int index) {
+  if (!backend_)
+    return NULL;
+
   File* file;
   if (address.is_separate_file())
     file = GetExternalFile(address, index);
@@ -1466,6 +1513,7 @@ uint32 EntryImpl::GetEntryFlags() {
 }
 
 void EntryImpl::GetData(int index, char** buffer, Addr* address) {
+  DCHECK(backend_);
   if (user_buffers_[index].get() && user_buffers_[index]->Size() &&
       !user_buffers_[index]->Start()) {
     // The data is already in memory, just copy it and we're done.

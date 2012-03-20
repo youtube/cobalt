@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -97,7 +97,7 @@ void FileBackgroundIO::Read() {
   } else {
     result_ = net::ERR_CACHE_READ_FAILURE;
   }
-  controller_->OnIOComplete(this);
+  NotifyController();
 }
 
 // Runs on a worker thread.
@@ -105,7 +105,7 @@ void FileBackgroundIO::Write() {
   bool rv = file_->Write(buf_, buf_len_, offset_);
 
   result_ = rv ? static_cast<int>(buf_len_) : net::ERR_CACHE_WRITE_FAILURE;
-  controller_->OnIOComplete(this);
+  NotifyController();
 }
 
 // ---------------------------------------------------------------------------
@@ -279,6 +279,12 @@ void File::WaitForPendingIO(int* num_pending_io) {
   // We may be running unit tests so we should allow be able to reset the
   // message loop.
   GetFileInFlightIO()->WaitForPendingIO();
+  DeleteFileInFlightIO();
+}
+
+// Static.
+void File::DropPendingIO() {
+  GetFileInFlightIO()->DropPendingIO();
   DeleteFileInFlightIO();
 }
 

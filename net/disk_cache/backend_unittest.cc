@@ -35,6 +35,9 @@ class DiskCacheBackendTest : public DiskCacheTestWithCache {
  protected:
   void BackendBasics();
   void BackendKeying();
+  void BackendShutdownWithPendingFileIO(bool fast);
+  void BackendShutdownWithPendingIO(bool fast);
+  void BackendShutdownWithPendingCreate(bool fast);
   void BackendSetSize();
   void BackendLoad();
   void BackendChain();
@@ -275,7 +278,7 @@ TEST_F(DiskCacheBackendTest, ExternalFiles) {
 }
 
 // Tests that we deal with file-level pending operations at destruction time.
-TEST_F(DiskCacheTest, ShutdownWithPendingIO) {
+void DiskCacheBackendTest::BackendShutdownWithPendingFileIO(bool fast) {
   net::TestCompletionCallback cb;
 
   {
@@ -285,8 +288,11 @@ TEST_F(DiskCacheTest, ShutdownWithPendingIO) {
                     base::Thread::Options(MessageLoop::TYPE_IO, 0)));
 
     disk_cache::Backend* cache;
+    uint32 flags = disk_cache::kNoBuffering;
+    if (!fast)
+      flags |= disk_cache::kNoRandom;
     int rv = disk_cache::BackendImpl::CreateBackend(
-                 cache_path_, false, 0, net::DISK_CACHE, disk_cache::kNoRandom,
+                 cache_path_, false, 0, net::DISK_CACHE, flags,
                  base::MessageLoopProxy::current(), NULL,
                  &cache, cb.callback());
     ASSERT_EQ(net::OK, cb.GetResult(rv));
@@ -319,15 +325,30 @@ TEST_F(DiskCacheTest, ShutdownWithPendingIO) {
     delete cache;
 
     if (rv == net::ERR_IO_PENDING) {
-      EXPECT_TRUE(cb.have_result());
+      if (fast)
+        EXPECT_FALSE(cb.have_result());
+      else
+        EXPECT_TRUE(cb.have_result());
     }
   }
 
   MessageLoop::current()->RunAllPending();
 }
 
+TEST_F(DiskCacheBackendTest, ShutdownWithPendingFileIO) {
+  BackendShutdownWithPendingFileIO(false);
+}
+
+// We'll be leaking from this test.
+TEST_F(DiskCacheBackendTest, ShutdownWithPendingFileIO_Fast) {
+  // The integrity test sets kNoRandom so there's a version mismatch if we don't
+  // force new eviction.
+  SetNewEviction();
+  BackendShutdownWithPendingFileIO(true);
+}
+
 // Tests that we deal with background-thread pending operations.
-TEST_F(DiskCacheTest, ShutdownWithPendingIO2) {
+void DiskCacheBackendTest::BackendShutdownWithPendingIO(bool fast) {
   net::TestCompletionCallback cb;
 
   {
@@ -337,8 +358,11 @@ TEST_F(DiskCacheTest, ShutdownWithPendingIO2) {
                     base::Thread::Options(MessageLoop::TYPE_IO, 0)));
 
     disk_cache::Backend* cache;
+    uint32 flags = disk_cache::kNoBuffering;
+    if (!fast)
+      flags |= disk_cache::kNoRandom;
     int rv = disk_cache::BackendImpl::CreateBackend(
-        cache_path_, false, 0, net::DISK_CACHE, disk_cache::kNoRandom,
+        cache_path_, false, 0, net::DISK_CACHE, flags,
         cache_thread.message_loop_proxy(), NULL, &cache, cb.callback());
     ASSERT_EQ(net::OK, cb.GetResult(rv));
 
@@ -360,6 +384,59 @@ TEST_F(DiskCacheTest, ShutdownWithPendingIO2) {
   }
 
   MessageLoop::current()->RunAllPending();
+}
+
+TEST_F(DiskCacheBackendTest, ShutdownWithPendingIO) {
+  BackendShutdownWithPendingIO(false);
+}
+
+// We'll be leaking from this test.
+TEST_F(DiskCacheBackendTest, ShutdownWithPendingIO_Fast) {
+  // The integrity test sets kNoRandom so there's a version mismatch if we don't
+  // force new eviction.
+  SetNewEviction();
+  BackendShutdownWithPendingIO(true);
+}
+
+// Tests that we deal with create-type pending operations.
+void DiskCacheBackendTest::BackendShutdownWithPendingCreate(bool fast) {
+  net::TestCompletionCallback cb;
+
+  {
+    ASSERT_TRUE(CleanupCacheDir());
+    base::Thread cache_thread("CacheThread");
+    ASSERT_TRUE(cache_thread.StartWithOptions(
+                    base::Thread::Options(MessageLoop::TYPE_IO, 0)));
+
+    disk_cache::Backend* cache;
+    disk_cache::BackendFlags flags =
+      fast ? disk_cache::kNone : disk_cache::kNoRandom;
+    int rv = disk_cache::BackendImpl::CreateBackend(
+        cache_path_, false, 0, net::DISK_CACHE, flags,
+        cache_thread.message_loop_proxy(), NULL, &cache, cb.callback());
+    ASSERT_EQ(net::OK, cb.GetResult(rv));
+
+    disk_cache::Entry* entry;
+    rv = cache->CreateEntry("some key", &entry, cb.callback());
+    ASSERT_EQ(net::ERR_IO_PENDING, rv);
+
+    delete cache;
+    EXPECT_FALSE(cb.have_result());
+  }
+
+  MessageLoop::current()->RunAllPending();
+}
+
+TEST_F(DiskCacheBackendTest, ShutdownWithPendingCreate) {
+  BackendShutdownWithPendingCreate(false);
+}
+
+// We'll be leaking an entry from this test.
+TEST_F(DiskCacheBackendTest, ShutdownWithPendingCreate_Fast) {
+  // The integrity test sets kNoRandom so there's a version mismatch if we don't
+  // force new eviction.
+  SetNewEviction();
+  BackendShutdownWithPendingCreate(true);
 }
 
 TEST_F(DiskCacheTest, TruncatedIndex) {
