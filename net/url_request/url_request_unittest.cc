@@ -1375,13 +1375,22 @@ TEST_F(HTTPSRequestTest, HTTPSExpiredTest) {
   }
 }
 
-class RevCheckedEnabledSSLConfigService : public SSLConfigService {
+class TestSSLConfigService : public SSLConfigService {
  public:
+  TestSSLConfigService(bool ev_enabled, bool online_rev_checking)
+      : ev_enabled_(ev_enabled),
+        online_rev_checking_(online_rev_checking) {
+  }
+
   virtual void GetSSLConfig(SSLConfig* config) {
     *config = SSLConfig();
-    config->rev_checking_enabled = true;
-    config->verify_ev_cert = true;
+    config->rev_checking_enabled = online_rev_checking_;
+    config->verify_ev_cert = ev_enabled_;
   }
+
+ private:
+  const bool ev_enabled_;
+  const bool online_rev_checking_;
 };
 
 // This the fingerprint of the "Testing CA" certificate used by the testserver.
@@ -1401,7 +1410,10 @@ class HTTPSOCSPTest : public HTTPSRequestTest {
         ev_test_policy_(EVRootCAMetadata::GetInstance(),
                         kOCSPTestCertFingerprint,
                         kOCSPTestCertPolicy) {
-    context_->set_ssl_config_service(new RevCheckedEnabledSSLConfigService);
+  }
+
+  virtual void SetUp() OVERRIDE {
+    SetupContext(context_);
     context_->Init();
 
     scoped_refptr<net::X509Certificate> root_cert =
@@ -1439,26 +1451,57 @@ class HTTPSOCSPTest : public HTTPSRequestTest {
 #endif
   }
 
- private:
+ protected:
+  // SetupContext configures the URLRequestContext that will be used for making
+  // connetions to testserver. This can be overridden in test subclasses for
+  // different behaviour.
+  virtual void SetupContext(URLRequestContext* context) {
+    context->set_ssl_config_service(
+        new TestSSLConfigService(true /* check for EV */,
+                                 true /* online revocation checking */));
+  }
+
   scoped_ptr<ScopedTestRoot> test_root_;
   scoped_refptr<TestURLRequestContext> context_;
   ScopedTestEVPolicy ev_test_policy_;
 };
 
-#if !defined(OS_ANDROID) && !defined(USE_OPENSSL)
-
-static bool
-SystemSupportsOCSP() {
+static CertStatus ExpectedCertStatusForFailedOnlineRevocationCheck() {
 #if defined(OS_WIN)
-  return base::win::GetVersion() >= base::win::VERSION_VISTA;
-#elif defined(OS_ANDROID)
+  // Windows can return CERT_STATUS_UNABLE_TO_CHECK_REVOCATION but we don't
+  // have that ability on other platforms.
+  return CERT_STATUS_UNABLE_TO_CHECK_REVOCATION;
+#else
+  return 0;
+#endif
+}
+
+// SystemUsesChromiumEVMetadata returns true iff the current operating system
+// uses Chromium's EV metadata (i.e. EVRootCAMetadata). If it does not, then
+// several tests are effected because our testing EV certificate won't be
+// recognised as EV.
+static bool SystemUsesChromiumEVMetadata() {
+#if defined(OS_MACOSX)
+  // On OS X, we use the system to tell us whether a certificate is EV or not
+  // and the system won't recognise our testing root.
   return false;
 #else
   return true;
 #endif
 }
 
-// TODO(jnd): http://crbug.com/117478 - EV verification is not yet supported.
+static bool
+SystemSupportsOCSP() {
+#if defined(OS_WIN)
+  return base::win::GetVersion() >= base::win::VERSION_VISTA;
+#elif defined(OS_ANDROID)
+  // TODO(jnd): http://crbug.com/117478 - EV verification is not yet supported.
+  return false;
+#else
+  return true;
+#endif
+}
+
 TEST_F(HTTPSOCSPTest, Valid) {
   if (!SystemSupportsOCSP()) {
     LOG(WARNING) << "Skipping test because system doesn't support OCSP";
@@ -1473,13 +1516,8 @@ TEST_F(HTTPSOCSPTest, Valid) {
 
   EXPECT_EQ(0u, cert_status & CERT_STATUS_ALL_ERRORS);
 
-#if defined(OS_MACOSX)
-  // On OS X, we use the system to tell us whether a certificate is EV or not
-  // and the system won't recognise our testing root.
-  EXPECT_FALSE(cert_status & CERT_STATUS_IS_EV);
-#else
-  EXPECT_TRUE(cert_status & CERT_STATUS_IS_EV);
-#endif
+  EXPECT_EQ(SystemUsesChromiumEVMetadata(),
+            static_cast<bool>(cert_status & CERT_STATUS_IS_EV));
 
   EXPECT_TRUE(cert_status & CERT_STATUS_REV_CHECKING_ENABLED);
 }
@@ -1518,20 +1556,133 @@ TEST_F(HTTPSOCSPTest, Invalid) {
   CertStatus cert_status;
   DoConnection(https_options, &cert_status);
 
-#if defined(OS_WIN)
-  // Windows can return CERT_STATUS_UNABLE_TO_CHECK_REVOCATION but we don't
-  // have that ability on other platforms.
-  EXPECT_EQ(CERT_STATUS_UNABLE_TO_CHECK_REVOCATION,
+  EXPECT_EQ(ExpectedCertStatusForFailedOnlineRevocationCheck(),
             cert_status & CERT_STATUS_ALL_ERRORS);
-#else
-  EXPECT_EQ(0u, cert_status & CERT_STATUS_ALL_ERRORS);
-#endif
 
   // Without a positive OCSP response, we shouldn't show the EV status.
   EXPECT_FALSE(cert_status & CERT_STATUS_IS_EV);
   EXPECT_TRUE(cert_status & CERT_STATUS_REV_CHECKING_ENABLED);
 }
-#endif // !OS_ANDROID && !USE_OPENSSL
+
+class HTTPSEVCRLSetTest : public HTTPSOCSPTest {
+ protected:
+  virtual void SetupContext(URLRequestContext* context) OVERRIDE {
+    context->set_ssl_config_service(
+        new TestSSLConfigService(true /* check for EV */,
+                                 false /* online revocation checking */));
+  }
+};
+
+TEST_F(HTTPSEVCRLSetTest, MissingCRLSetAndInvalidOCSP) {
+  if (!SystemSupportsOCSP()) {
+    LOG(WARNING) << "Skipping test because system doesn't support OCSP";
+    return;
+  }
+
+  TestServer::HTTPSOptions https_options(
+      TestServer::HTTPSOptions::CERT_AUTO);
+  https_options.ocsp_status = TestServer::HTTPSOptions::OCSP_INVALID;
+  SSLConfigService::SetCRLSet(scoped_refptr<CRLSet>());
+
+  CertStatus cert_status;
+  DoConnection(https_options, &cert_status);
+
+  EXPECT_EQ(ExpectedCertStatusForFailedOnlineRevocationCheck(),
+            cert_status & CERT_STATUS_ALL_ERRORS);
+
+  EXPECT_FALSE(cert_status & CERT_STATUS_IS_EV);
+  EXPECT_TRUE(cert_status & CERT_STATUS_REV_CHECKING_ENABLED);
+}
+
+TEST_F(HTTPSEVCRLSetTest, MissingCRLSetAndGoodOCSP) {
+  if (!SystemSupportsOCSP()) {
+    LOG(WARNING) << "Skipping test because system doesn't support OCSP";
+    return;
+  }
+
+  TestServer::HTTPSOptions https_options(
+      TestServer::HTTPSOptions::CERT_AUTO);
+  https_options.ocsp_status = TestServer::HTTPSOptions::OCSP_OK;
+  SSLConfigService::SetCRLSet(scoped_refptr<CRLSet>());
+
+  CertStatus cert_status;
+  DoConnection(https_options, &cert_status);
+
+  EXPECT_EQ(0u, cert_status & CERT_STATUS_ALL_ERRORS);
+
+  EXPECT_EQ(SystemUsesChromiumEVMetadata(),
+            static_cast<bool>(cert_status & CERT_STATUS_IS_EV));
+
+  EXPECT_TRUE(cert_status & CERT_STATUS_REV_CHECKING_ENABLED);
+}
+
+TEST_F(HTTPSEVCRLSetTest, ExpiredCRLSet) {
+  if (!SystemSupportsOCSP()) {
+    LOG(WARNING) << "Skipping test because system doesn't support OCSP";
+    return;
+  }
+
+  TestServer::HTTPSOptions https_options(
+      TestServer::HTTPSOptions::CERT_AUTO);
+  https_options.ocsp_status = TestServer::HTTPSOptions::OCSP_INVALID;
+  SSLConfigService::SetCRLSet(
+      scoped_refptr<CRLSet>(CRLSet::ExpiredCRLSetForTesting()));
+
+  CertStatus cert_status;
+  DoConnection(https_options, &cert_status);
+
+  EXPECT_EQ(ExpectedCertStatusForFailedOnlineRevocationCheck(),
+            cert_status & CERT_STATUS_ALL_ERRORS);
+
+  EXPECT_FALSE(cert_status & CERT_STATUS_IS_EV);
+  EXPECT_TRUE(cert_status & CERT_STATUS_REV_CHECKING_ENABLED);
+}
+
+TEST_F(HTTPSEVCRLSetTest, FreshCRLSet) {
+  TestServer::HTTPSOptions https_options(
+      TestServer::HTTPSOptions::CERT_AUTO);
+  https_options.ocsp_status = TestServer::HTTPSOptions::OCSP_INVALID;
+  SSLConfigService::SetCRLSet(
+      scoped_refptr<CRLSet>(CRLSet::EmptyCRLSetForTesting()));
+
+  CertStatus cert_status;
+  DoConnection(https_options, &cert_status);
+
+  // With a valid, fresh CRLSet the bad OCSP response shouldn't matter because
+  // we wont check it.
+  EXPECT_EQ(0u, cert_status & CERT_STATUS_ALL_ERRORS);
+
+  EXPECT_EQ(SystemUsesChromiumEVMetadata(),
+            static_cast<bool>(cert_status & CERT_STATUS_IS_EV));
+
+  EXPECT_FALSE(cert_status & CERT_STATUS_REV_CHECKING_ENABLED);
+}
+
+class HTTPSCRLSetTest : public HTTPSOCSPTest {
+ protected:
+  virtual void SetupContext(URLRequestContext* context) OVERRIDE {
+    context->set_ssl_config_service(
+        new TestSSLConfigService(false /* check for EV */,
+                                 false /* online revocation checking */));
+  }
+};
+
+TEST_F(HTTPSCRLSetTest, ExpiredCRLSet) {
+  TestServer::HTTPSOptions https_options(
+      TestServer::HTTPSOptions::CERT_AUTO);
+  https_options.ocsp_status = TestServer::HTTPSOptions::OCSP_INVALID;
+  SSLConfigService::SetCRLSet(
+      scoped_refptr<CRLSet>(CRLSet::ExpiredCRLSetForTesting()));
+
+  CertStatus cert_status;
+  DoConnection(https_options, &cert_status);
+
+  // If we're not trying EV verification then, even if the CRLSet has expired,
+  // we don't fall back to online revocation checks.
+  EXPECT_EQ(0u, cert_status & CERT_STATUS_ALL_ERRORS);
+  EXPECT_FALSE(cert_status & CERT_STATUS_IS_EV);
+  EXPECT_FALSE(cert_status & CERT_STATUS_REV_CHECKING_ENABLED);
+}
 
 // This tests that a load of www.google.com with a certificate error sets
 // the |certificate_errors_are_fatal| flag correctly. This flag will cause
