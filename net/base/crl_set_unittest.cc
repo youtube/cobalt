@@ -208,6 +208,8 @@ TEST(CRLSetTest, Parse) {
   EXPECT_EQ(net::CRLSet::GOOD, set->CheckSerial(
       std::string("\x47\x54\x3E\x79\x00\x03\x00\x00\x14\xF5", 10),
       gia_spki_hash));
+
+  EXPECT_FALSE(set->IsExpired());
 }
 
 TEST(CRLSetTest, NoOpDeltaUpdate) {
@@ -311,7 +313,7 @@ TEST(CRLSetTest, BlockedSPKIs) {
       reinterpret_cast<const char*>(spki_hash)));
 }
 
-TEST(CRLSetTest, Expires) {
+TEST(CRLSetTest, Expired) {
   // This CRLSet has an expiry value set to one second past midnight, 1st Jan,
   // 1970.
   base::StringPiece s(reinterpret_cast<const char*>(kExpiredCRLSet),
@@ -320,6 +322,5 @@ TEST(CRLSetTest, Expires) {
   EXPECT_TRUE(net::CRLSet::Parse(s, &set));
   ASSERT_TRUE(set.get() != NULL);
 
-  EXPECT_EQ(net::CRLSet::CRL_SET_EXPIRED, set->CheckSerial(
-      std::string("\x01", 1), ""));
+  EXPECT_TRUE(set->IsExpired());
 }
