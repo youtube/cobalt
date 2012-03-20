@@ -308,8 +308,9 @@ class HttpCache::Transaction : public HttpTransaction {
   void DoneWritingToEntry(bool success);
 
   // Returns an error to signal the caller that the current read failed. The
-  // current operation |result| is also logged.
-  int OnCacheReadError(int result);
+  // current operation |result| is also logged. If |restart| is true, the
+  // transaction should be restarted.
+  int OnCacheReadError(int result, bool restart);
 
   // Deletes the current partial cache entry (sparse), and optionally removes
   // the control object (partial_).
