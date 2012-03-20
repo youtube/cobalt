@@ -1213,7 +1213,7 @@ int HttpCache::Transaction::DoCacheReadResponseComplete(int result) {
   if (result != io_buf_len_ ||
       !HttpCache::ParseResponseInfo(read_buf_->data(), io_buf_len_,
                                     &response_, &truncated_)) {
-    return OnCacheReadError(result);
+    return OnCacheReadError(result, true);
   }
 
   // Some resources may have slipped in as truncated when they're not.
@@ -1299,7 +1299,7 @@ int HttpCache::Transaction::DoCacheReadMetadata() {
 int HttpCache::Transaction::DoCacheReadMetadataComplete(int result) {
   net_log_.EndEventWithNetErrorCode(NetLog::TYPE_HTTP_CACHE_READ_INFO, result);
   if (result != response_.metadata->size())
-    return OnCacheReadError(result);;
+    return OnCacheReadError(result, false);
 
   return OK;
 }
@@ -1352,7 +1352,7 @@ int HttpCache::Transaction::DoCacheReadDataComplete(int result) {
     cache_->DoneReadingFromEntry(entry_, this);
     entry_ = NULL;
   } else {
-    return OnCacheReadError(result);
+    return OnCacheReadError(result, false);
   }
   return result;
 }
@@ -2021,12 +2021,23 @@ void HttpCache::Transaction::DoneWritingToEntry(bool success) {
   mode_ = NONE;  // switch to 'pass through' mode
 }
 
-int HttpCache::Transaction::OnCacheReadError(int result) {
+int HttpCache::Transaction::OnCacheReadError(int result, bool restart) {
   DLOG(ERROR) << "ReadData failed: " << result;
 
   // Avoid using this entry in the future.
   if (cache_)
     cache_->DoomActiveEntry(cache_key_);
+
+  if (restart) {
+    DCHECK(!reading_);
+    DCHECK(!network_trans_.get());
+    cache_->DoneWithEntry(entry_, this, false);
+    entry_ = NULL;
+    is_sparse_ = false;
+    partial_.reset();
+    next_state_ = STATE_GET_BACKEND;
+    return OK;
+  }
 
   return ERR_CACHE_READ_FAILURE;
 }
@@ -2060,7 +2071,7 @@ int HttpCache::Transaction::DoPartialCacheReadCompleted(int result) {
     // We need to move on to the next range.
     next_state_ = STATE_START_PARTIAL_CACHE_VALIDATION;
   } else if (result < 0) {
-    return OnCacheReadError(result);
+    return OnCacheReadError(result, false);
   }
   return result;
 }
