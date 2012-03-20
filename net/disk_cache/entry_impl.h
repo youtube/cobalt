@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,6 +15,7 @@
 namespace disk_cache {
 
 class BackendImpl;
+class InFlightBackendIO;
 class SparseControl;
 
 // This class implements the Entry interface. An object of this
@@ -120,6 +121,10 @@ class NET_EXPORT_PRIVATE EntryImpl
   // Handle the pending asynchronous IO count.
   void IncrementIoCount();
   void DecrementIoCount();
+
+  // This entry is being returned to the user. It is always called from the
+  // primary thread (not the dedicated cache thread).
+  void OnEntryCreated(BackendImpl* backend);
 
   // Set the access times for this entry. This method provides support for
   // the upgrade tool.
@@ -254,7 +259,8 @@ class NET_EXPORT_PRIVATE EntryImpl
 
   CacheEntryBlock entry_;     // Key related information for this entry.
   CacheRankingsBlock node_;   // Rankings related information for this entry.
-  BackendImpl* backend_;      // Back pointer to the cache.
+  base::WeakPtr<BackendImpl> backend_;  // Back pointer to the cache.
+  base::WeakPtr<InFlightBackendIO> background_queue_;  // In-progress queue.
   scoped_ptr<UserBuffer> user_buffers_[kNumStreams];  // Stores user data.
   // Files to store external user data and key.
   scoped_refptr<File> files_[kNumStreams + 1];
