@@ -495,7 +495,7 @@ class NET_EXPORT X509Certificate
 
 #if defined(OS_WIN)
   bool CheckEV(PCCERT_CHAIN_CONTEXT chain_context,
-               int flags,
+               bool rev_checking_enabled,
                const char* policy_oid) const;
   static bool IsIssuedByKnownRoot(PCCERT_CHAIN_CONTEXT chain_context);
 #endif
