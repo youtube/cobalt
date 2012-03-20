@@ -498,6 +498,7 @@ bool CheckRevocationWithCRLSet(PCCERT_CHAIN_CONTEXT chain,
         return false;
       case CRLSet::UNKNOWN:
       case CRLSet::GOOD:
+      case CRLSet::CRL_SET_EXPIRED:
         continue;
       default:
         NOTREACHED();
@@ -729,9 +730,7 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   // We can set CERT_CHAIN_RETURN_LOWER_QUALITY_CONTEXTS to get more chains.
   DWORD chain_flags = CERT_CHAIN_CACHE_END_CERT |
                       CERT_CHAIN_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT;
-  const bool rev_checking_enabled = flags & VERIFY_REV_CHECKING_ENABLED;
-
-  if (rev_checking_enabled) {
+  if (flags & VERIFY_REV_CHECKING_ENABLED) {
     verify_result->cert_status |= CERT_STATUS_REV_CHECKING_ENABLED;
   } else {
     chain_flags |= CERT_CHAIN_REVOCATION_CHECK_CACHE_ONLY;
@@ -916,10 +915,8 @@ int X509Certificate::VerifyInternal(const std::string& hostname,
   AppendPublicKeyHashes(chain_context, &verify_result->public_key_hashes);
   verify_result->is_issued_by_known_root = IsIssuedByKnownRoot(chain_context);
 
-  if (ev_policy_oid &&
-      CheckEV(chain_context, rev_checking_enabled, ev_policy_oid)) {
+  if (ev_policy_oid && CheckEV(chain_context, flags, ev_policy_oid))
     verify_result->cert_status |= CERT_STATUS_IS_EV;
-  }
   return OK;
 }
 
@@ -940,7 +937,7 @@ bool X509Certificate::GetDEREncoded(X509Certificate::OSCertHandle cert_handle,
 // of the EV Certificate Guidelines Version 1.0 at
 // http://cabforum.org/EV_Certificate_Guidelines.pdf.
 bool X509Certificate::CheckEV(PCCERT_CHAIN_CONTEXT chain_context,
-                              bool rev_checking_enabled,
+                              int flags,
                               const char* policy_oid) const {
   DCHECK_NE(static_cast<DWORD>(0), chain_context->cChain);
   // If the cert doesn't match any of the policies, the
@@ -948,12 +945,11 @@ bool X509Certificate::CheckEV(PCCERT_CHAIN_CONTEXT chain_context,
   // chain_context->TrustStatus.dwErrorStatus is set.
   DWORD error_status = chain_context->TrustStatus.dwErrorStatus;
 
-  if (!rev_checking_enabled) {
+  if (!(flags & VERIFY_REV_CHECKING_ENABLED)) {
     // If online revocation checking is disabled then we will have still
     // requested that the revocation cache be checked. However, that will often
-    // cause the following two error bits to be set. These error bits mean that
-    // the local OCSP/CRL is stale or missing entries for these certificates.
-    // Since they are expected, we mask them away.
+    // cause the following two error bits to be set. Since they are expected,
+    // we mask them away.
     error_status &= ~(CERT_TRUST_IS_OFFLINE_REVOCATION |
                       CERT_TRUST_REVOCATION_STATUS_UNKNOWN);
   }
