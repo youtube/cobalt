@@ -1,7 +1,7 @@
-diff -up a/src/net/third_party/nss/ssl/ssl.h b/src/net/third_party/nss/ssl/ssl.h
---- a/src/net/third_party/nss/ssl/ssl.h	2012-02-28 18:34:23.263186340 -0800
-+++ b/src/net/third_party/nss/ssl/ssl.h	2012-02-28 18:47:14.683775498 -0800
-@@ -167,6 +167,7 @@ SSL_IMPORT PRFileDesc *SSL_ImportFD(PRFi
+diff -pu -r a/src/net/third_party/nss/ssl/ssl.h b/src/net/third_party/nss/ssl/ssl.h
+--- a/src/net/third_party/nss/ssl/ssl.h	2012-03-19 14:34:10.103984357 -0700
++++ b/src/net/third_party/nss/ssl/ssl.h	2012-03-19 14:34:51.624539293 -0700
+@@ -184,6 +184,7 @@ SSL_IMPORT PRFileDesc *SSL_ImportFD(PRFi
   * accept fragmented alerts).
   */
  #define SSL_CBC_RANDOM_IV 23
@@ -9,7 +9,7 @@ diff -up a/src/net/third_party/nss/ssl/ssl.h b/src/net/third_party/nss/ssl/ssl.h
  
  #ifdef SSL_DEPRECATED_FUNCTION 
  /* Old deprecated function names */
-@@ -347,6 +348,23 @@ SSL_IMPORT SECStatus SSL_PeerCertificate
+@@ -435,6 +436,23 @@ SSL_IMPORT SECStatus SSL_PeerCertificate
  	PRFileDesc *fd, CERTCertificate **certs,
  	unsigned int *numCerts, unsigned int maxNumCerts);
  
@@ -33,10 +33,10 @@ diff -up a/src/net/third_party/nss/ssl/ssl.h b/src/net/third_party/nss/ssl/ssl.h
  /*
  ** Authenticate certificate hook. Called when a certificate comes in
  ** (because of SSL_REQUIRE_CERTIFICATE in SSL_Enable) to authenticate the
-diff -up a/src/net/third_party/nss/ssl/ssl3con.c b/src/net/third_party/nss/ssl/ssl3con.c
---- a/src/net/third_party/nss/ssl/ssl3con.c	2012-02-28 17:48:46.326209244 -0800
-+++ b/src/net/third_party/nss/ssl/ssl3con.c	2012-02-28 19:12:51.845953454 -0800
-@@ -7887,6 +7887,57 @@ ssl3_CopyPeerCertsToSID(ssl3CertNode *ce
+diff -pu -r a/src/net/third_party/nss/ssl/ssl3con.c b/src/net/third_party/nss/ssl/ssl3con.c
+--- a/src/net/third_party/nss/ssl/ssl3con.c	2012-03-19 14:34:10.093984221 -0700
++++ b/src/net/third_party/nss/ssl/ssl3con.c	2012-03-19 14:34:51.624539293 -0700
+@@ -7899,6 +7899,57 @@ ssl3_CopyPeerCertsToSID(ssl3CertNode *ce
  }
  
  /* Called from ssl3_HandleHandshakeMessage() when it has deciphered a complete
@@ -94,7 +94,7 @@ diff -up a/src/net/third_party/nss/ssl/ssl3con.c b/src/net/third_party/nss/ssl/s
   * ssl3 Certificate message.
   * Caller must hold Handshake and RecvBuf locks.
   */
-@@ -8679,6 +8730,26 @@ ssl3_FinishHandshake(sslSocket * ss)
+@@ -8707,6 +8758,26 @@ ssl3_FinishHandshake(sslSocket * ss)
      return SECSuccess;
  }
  
@@ -121,7 +121,7 @@ diff -up a/src/net/third_party/nss/ssl/ssl3con.c b/src/net/third_party/nss/ssl/s
  /* Called from ssl3_HandleHandshake() when it has gathered a complete ssl3
   * hanshake message.
   * Caller must hold Handshake and RecvBuf locks.
-@@ -8773,14 +8844,42 @@ ssl3_HandleHandshakeMessage(sslSocket *s
+@@ -8801,14 +8872,42 @@ ssl3_HandleHandshakeMessage(sslSocket *s
  	rv = ssl3_HandleServerHello(ss, b, length);
  	break;
      case certificate:
@@ -164,7 +164,7 @@ diff -up a/src/net/third_party/nss/ssl/ssl3con.c b/src/net/third_party/nss/ssl/s
  	rv = ssl3_HandleServerKeyExchange(ss, b, length);
  	break;
      case certificate_request:
-@@ -8789,6 +8888,9 @@ ssl3_HandleHandshakeMessage(sslSocket *s
+@@ -8817,6 +8916,9 @@ ssl3_HandleHandshakeMessage(sslSocket *s
  	    PORT_SetError(SSL_ERROR_RX_UNEXPECTED_CERT_REQUEST);
  	    return SECFailure;
  	}
@@ -174,7 +174,7 @@ diff -up a/src/net/third_party/nss/ssl/ssl3con.c b/src/net/third_party/nss/ssl/s
  	rv = ssl3_HandleCertificateRequest(ss, b, length);
  	break;
      case server_hello_done:
-@@ -8802,6 +8904,9 @@ ssl3_HandleHandshakeMessage(sslSocket *s
+@@ -8830,6 +8932,9 @@ ssl3_HandleHandshakeMessage(sslSocket *s
  	    PORT_SetError(SSL_ERROR_RX_UNEXPECTED_HELLO_DONE);
  	    return SECFailure;
  	}
@@ -184,7 +184,7 @@ diff -up a/src/net/third_party/nss/ssl/ssl3con.c b/src/net/third_party/nss/ssl/s
  	rv = ssl3_HandleServerHelloDone(ss);
  	break;
      case certificate_verify:
-@@ -9646,6 +9751,12 @@ ssl3_DestroySSL3Info(sslSocket *ss)
+@@ -9719,6 +9824,12 @@ ssl3_DestroySSL3Info(sslSocket *ss)
  	ss->ssl3.hs.messages.len = 0;
  	ss->ssl3.hs.messages.space = 0;
      }
@@ -197,9 +197,9 @@ diff -up a/src/net/third_party/nss/ssl/ssl3con.c b/src/net/third_party/nss/ssl/s
  
      /* free the SSL3Buffer (msg_body) */
      PORT_Free(ss->ssl3.hs.msg_body.buf);
-diff -up a/src/net/third_party/nss/ssl/ssl3ext.c b/src/net/third_party/nss/ssl/ssl3ext.c
---- a/src/net/third_party/nss/ssl/ssl3ext.c	2012-02-15 13:52:08.000000000 -0800
-+++ b/src/net/third_party/nss/ssl/ssl3ext.c	2012-02-28 19:14:28.617352538 -0800
+diff -pu -r a/src/net/third_party/nss/ssl/ssl3ext.c b/src/net/third_party/nss/ssl/ssl3ext.c
+--- a/src/net/third_party/nss/ssl/ssl3ext.c	2012-03-12 12:14:12.000000000 -0700
++++ b/src/net/third_party/nss/ssl/ssl3ext.c	2012-03-19 14:34:51.624539293 -0700
 @@ -253,6 +253,7 @@ static const ssl3HelloExtensionHandler s
      { ssl_session_ticket_xtn,     &ssl3_ClientHandleSessionTicketXtn },
      { ssl_renegotiation_info_xtn, &ssl3_HandleRenegotiationInfoXtn },
@@ -218,7 +218,7 @@ diff -up a/src/net/third_party/nss/ssl/ssl3ext.c b/src/net/third_party/nss/ssl/s
      /* any extra entries will appear as { 0, NULL }    */
  };
  
-@@ -659,6 +661,80 @@ loser:
+@@ -658,6 +660,80 @@ loser:
      return -1;
  }
  
@@ -299,9 +299,9 @@ diff -up a/src/net/third_party/nss/ssl/ssl3ext.c b/src/net/third_party/nss/ssl/s
  /*
   * NewSessionTicket
   * Called from ssl3_HandleFinished
-diff -up a/src/net/third_party/nss/ssl/ssl3prot.h b/src/net/third_party/nss/ssl/ssl3prot.h
+diff -pu -r a/src/net/third_party/nss/ssl/ssl3prot.h b/src/net/third_party/nss/ssl/ssl3prot.h
 --- a/src/net/third_party/nss/ssl/ssl3prot.h	2011-10-28 17:29:11.000000000 -0700
-+++ b/src/net/third_party/nss/ssl/ssl3prot.h	2012-02-28 19:12:51.845953454 -0800
++++ b/src/net/third_party/nss/ssl/ssl3prot.h	2012-03-19 14:34:51.624539293 -0700
 @@ -158,6 +158,7 @@ typedef enum {
      certificate_verify	= 15, 
      client_key_exchange	= 16, 
@@ -310,21 +310,31 @@ diff -up a/src/net/third_party/nss/ssl/ssl3prot.h b/src/net/third_party/nss/ssl/
      next_proto		= 67
  } SSL3HandshakeType;
  
-diff -up a/src/net/third_party/nss/ssl/sslerr.h b/src/net/third_party/nss/ssl/sslerr.h
---- a/src/net/third_party/nss/ssl/sslerr.h	2012-02-11 04:55:58.000000000 -0800
-+++ b/src/net/third_party/nss/ssl/sslerr.h	2012-02-28 18:58:06.733056235 -0800
-@@ -211,6 +211,8 @@ SSL_ERROR_FEATURE_NOT_SUPPORTED_FOR_SSL2
- SSL_ERROR_FEATURE_NOT_SUPPORTED_FOR_SERVERS = (SSL_ERROR_BASE + 118),
- SSL_ERROR_FEATURE_NOT_SUPPORTED_FOR_CLIENTS = (SSL_ERROR_BASE + 119),
+diff -pu -r a/src/net/third_party/nss/ssl/sslerr.h b/src/net/third_party/nss/ssl/sslerr.h
+--- a/src/net/third_party/nss/ssl/sslerr.h	2012-03-10 20:32:35.000000000 -0800
++++ b/src/net/third_party/nss/ssl/sslerr.h	2012-03-19 14:35:47.275278925 -0700
+@@ -213,6 +213,8 @@ SSL_ERROR_FEATURE_NOT_SUPPORTED_FOR_CLIE
  
-+SSL_ERROR_RX_UNEXPECTED_CERT_STATUS     = (SSL_ERROR_BASE + 120),
+ SSL_ERROR_INVALID_VERSION_RANGE		= (SSL_ERROR_BASE + 120),
+ 
++SSL_ERROR_RX_UNEXPECTED_CERT_STATUS     = (SSL_ERROR_BASE + 121),
 +
  SSL_ERROR_END_OF_LIST	/* let the c compiler determine the value of this. */
  } SSLErrorCodes;
  #endif /* NO_SECURITY_ERROR_ENUM */
-diff -up a/src/net/third_party/nss/ssl/sslimpl.h b/src/net/third_party/nss/ssl/sslimpl.h
---- a/src/net/third_party/nss/ssl/sslimpl.h	2012-02-28 17:48:46.326209244 -0800
-+++ b/src/net/third_party/nss/ssl/sslimpl.h	2012-02-28 19:05:14.299310096 -0800
+diff -pu -r a/src/net/third_party/nss/ssl/SSLerrs.h b/src/net/third_party/nss/ssl/SSLerrs.h
+--- a/src/net/third_party/nss/ssl/SSLerrs.h	2012-03-10 20:32:34.000000000 -0800
++++ b/src/net/third_party/nss/ssl/SSLerrs.h	2012-03-19 14:38:37.757544584 -0700
+@@ -420,3 +420,6 @@ ER3(SSL_ERROR_FEATURE_NOT_SUPPORTED_FOR_
+ 
+ ER3(SSL_ERROR_INVALID_VERSION_RANGE,           (SSL_ERROR_BASE + 120),
+ "SSL version range is not valid.")
++
++ER3(SSL_ERROR_RX_UNEXPECTED_CERT_STATUS,       (SSL_ERROR_BASE + 121),
++"SSL received an unexpected Certificate Status handshake message.")
+diff -pu -r a/src/net/third_party/nss/ssl/sslimpl.h b/src/net/third_party/nss/ssl/sslimpl.h
+--- a/src/net/third_party/nss/ssl/sslimpl.h	2012-03-19 14:34:10.093984221 -0700
++++ b/src/net/third_party/nss/ssl/sslimpl.h	2012-03-19 14:34:51.634539426 -0700
 @@ -339,6 +339,7 @@ typedef struct sslOptionsStr {
      unsigned int requireSafeNegotiation : 1;  /* 22 */
      unsigned int enableFalseStart       : 1;  /* 23 */
@@ -333,7 +343,7 @@ diff -up a/src/net/third_party/nss/ssl/sslimpl.h b/src/net/third_party/nss/ssl/s
  } sslOptions;
  
  typedef enum { sslHandshakingUndetermined = 0,
-@@ -782,6 +783,14 @@ const ssl3CipherSuiteDef *suite_def;
+@@ -783,6 +784,14 @@ const ssl3CipherSuiteDef *suite_def;
      PRBool                isResuming;  /* are we resuming a session */
      PRBool                usedStepDownKey;  /* we did a server key exchange. */
      PRBool                sendingSCSV; /* instead of empty RI */
@@ -348,7 +358,7 @@ diff -up a/src/net/third_party/nss/ssl/sslimpl.h b/src/net/third_party/nss/ssl/s
      sslBuffer             msgState;    /* current state for handshake messages*/
                                         /* protected by recvBufLock */
      sslBuffer             messages;    /* Accumulated handshake messages */
-@@ -1527,6 +1536,8 @@ extern SECStatus ssl3_HandleSupportedPoi
+@@ -1548,6 +1557,8 @@ extern SECStatus ssl3_HandleSupportedPoi
  			PRUint16 ex_type, SECItem *data);
  extern SECStatus ssl3_ClientHandleSessionTicketXtn(sslSocket *ss,
  			PRUint16 ex_type, SECItem *data);
@@ -357,7 +367,7 @@ diff -up a/src/net/third_party/nss/ssl/sslimpl.h b/src/net/third_party/nss/ssl/s
  extern SECStatus ssl3_ServerHandleSessionTicketXtn(sslSocket *ss,
  			PRUint16 ex_type, SECItem *data);
  
-@@ -1536,6 +1547,8 @@ extern SECStatus ssl3_ServerHandleSessio
+@@ -1557,6 +1568,8 @@ extern SECStatus ssl3_ServerHandleSessio
   */
  extern PRInt32 ssl3_SendSessionTicketXtn(sslSocket *ss, PRBool append,
  			PRUint32 maxBytes);
@@ -366,9 +376,9 @@ diff -up a/src/net/third_party/nss/ssl/sslimpl.h b/src/net/third_party/nss/ssl/s
  
  /* ClientHello and ServerHello extension senders.
   * The code is in ssl3ext.c.
-diff -up a/src/net/third_party/nss/ssl/sslsock.c b/src/net/third_party/nss/ssl/sslsock.c
---- a/src/net/third_party/nss/ssl/sslsock.c	2012-02-28 16:15:34.790321976 -0800
-+++ b/src/net/third_party/nss/ssl/sslsock.c	2012-02-28 19:12:51.845953454 -0800
+diff -pu -r a/src/net/third_party/nss/ssl/sslsock.c b/src/net/third_party/nss/ssl/sslsock.c
+--- a/src/net/third_party/nss/ssl/sslsock.c	2012-03-19 14:34:10.083984085 -0700
++++ b/src/net/third_party/nss/ssl/sslsock.c	2012-03-19 14:34:51.634539426 -0700
 @@ -185,7 +185,8 @@ static sslOptions ssl_defaults = {
      2,          /* enableRenegotiation (default: requires extension) */
      PR_FALSE,   /* requireSafeNegotiation */
@@ -378,8 +388,8 @@ diff -up a/src/net/third_party/nss/ssl/sslsock.c b/src/net/third_party/nss/ssl/s
 +    PR_FALSE,   /* enableOCSPStapling */
  };
  
- sslSessionIDLookupFunc  ssl_sid_lookup;
-@@ -741,6 +742,10 @@ SSL_OptionSet(PRFileDesc *fd, PRInt32 wh
+ /*
+@@ -812,6 +813,10 @@ SSL_OptionSet(PRFileDesc *fd, PRInt32 wh
  	ss->opt.cbcRandomIV = on;
  	break;
  
@@ -390,7 +400,7 @@ diff -up a/src/net/third_party/nss/ssl/sslsock.c b/src/net/third_party/nss/ssl/s
        default:
  	PORT_SetError(SEC_ERROR_INVALID_ARGS);
  	rv = SECFailure;
-@@ -806,6 +811,7 @@ SSL_OptionGet(PRFileDesc *fd, PRInt32 wh
+@@ -881,6 +886,7 @@ SSL_OptionGet(PRFileDesc *fd, PRInt32 wh
                                    on = ss->opt.requireSafeNegotiation; break;
      case SSL_ENABLE_FALSE_START:  on = ss->opt.enableFalseStart;   break;
      case SSL_CBC_RANDOM_IV:       on = ss->opt.cbcRandomIV;        break;
@@ -398,7 +408,7 @@ diff -up a/src/net/third_party/nss/ssl/sslsock.c b/src/net/third_party/nss/ssl/s
  
      default:
  	PORT_SetError(SEC_ERROR_INVALID_ARGS);
-@@ -860,6 +866,9 @@ SSL_OptionGetDefault(PRInt32 which, PRBo
+@@ -939,6 +945,9 @@ SSL_OptionGetDefault(PRInt32 which, PRBo
  				  break;
      case SSL_ENABLE_FALSE_START:  on = ssl_defaults.enableFalseStart;   break;
      case SSL_CBC_RANDOM_IV:       on = ssl_defaults.cbcRandomIV;        break;
@@ -408,7 +418,7 @@ diff -up a/src/net/third_party/nss/ssl/sslsock.c b/src/net/third_party/nss/ssl/s
  
      default:
  	PORT_SetError(SEC_ERROR_INVALID_ARGS);
-@@ -1019,6 +1028,10 @@ SSL_OptionSetDefault(PRInt32 which, PRBo
+@@ -1098,6 +1107,10 @@ SSL_OptionSetDefault(PRInt32 which, PRBo
  	ssl_defaults.cbcRandomIV = on;
  	break;
  
@@ -419,8 +429,8 @@ diff -up a/src/net/third_party/nss/ssl/sslsock.c b/src/net/third_party/nss/ssl/s
        default:
  	PORT_SetError(SEC_ERROR_INVALID_ARGS);
  	return SECFailure;
-@@ -1537,6 +1550,36 @@ loser:
- #endif
+@@ -1735,6 +1748,36 @@ SSL_VersionRangeSet(PRFileDesc *fd, cons
+     return SECSuccess;
  }
  
 +SECStatus
@@ -456,10 +466,10 @@ diff -up a/src/net/third_party/nss/ssl/sslsock.c b/src/net/third_party/nss/ssl/s
  /************************************************************************/
  /* The following functions are the TOP LEVEL SSL functions.
  ** They all get called through the NSPRIOMethods table below.
-diff -up a/src/net/third_party/nss/ssl/sslt.h b/src/net/third_party/nss/ssl/sslt.h
---- a/src/net/third_party/nss/ssl/sslt.h	2012-02-15 13:52:08.000000000 -0800
-+++ b/src/net/third_party/nss/ssl/sslt.h	2012-02-28 19:12:51.845953454 -0800
-@@ -198,6 +198,7 @@ typedef enum {
+diff -pu -r a/src/net/third_party/nss/ssl/sslt.h b/src/net/third_party/nss/ssl/sslt.h
+--- a/src/net/third_party/nss/ssl/sslt.h	2012-03-15 18:23:55.000000000 -0700
++++ b/src/net/third_party/nss/ssl/sslt.h	2012-03-19 14:34:51.634539426 -0700
+@@ -207,6 +207,7 @@ typedef enum {
  /* Update SSL_MAX_EXTENSIONS whenever a new extension type is added. */
  typedef enum {
      ssl_server_name_xtn              = 0,
@@ -467,7 +477,7 @@ diff -up a/src/net/third_party/nss/ssl/sslt.h b/src/net/third_party/nss/ssl/sslt
  #ifdef NSS_ENABLE_ECC
      ssl_elliptic_curves_xtn          = 10,
      ssl_ec_point_formats_xtn         = 11,
-@@ -207,6 +208,6 @@ typedef enum {
+@@ -216,6 +217,6 @@ typedef enum {
      ssl_renegotiation_info_xtn       = 0xff01	/* experimental number */
  } SSLExtensionType;
  

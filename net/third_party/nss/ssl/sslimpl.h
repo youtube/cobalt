@@ -39,7 +39,7 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-/* $Id: sslimpl.h,v 1.94 2012/02/15 21:52:08 kaie%kuix.de Exp $ */
+/* $Id: sslimpl.h,v 1.100 2012/03/18 00:31:20 wtc%google.com Exp $ */
 
 #ifndef __sslimpl_h_
 #define __sslimpl_h_
@@ -333,8 +333,8 @@ typedef struct sslOptionsStr {
     unsigned int handshakeAsClient	: 1;  /*  6 */
     unsigned int handshakeAsServer	: 1;  /*  7 */
     unsigned int enableSSL2		: 1;  /*  8 */
-    unsigned int enableSSL3		: 1;  /*  9 */
-    unsigned int enableTLS		: 1;  /* 10 */
+    unsigned int unusedBit9		: 1;  /*  9 */
+    unsigned int unusedBit10		: 1;  /* 10 */
     unsigned int noCache		: 1;  /* 11 */
     unsigned int fdx			: 1;  /* 12 */
     unsigned int v2CompatibleHello	: 1;  /* 13 */
@@ -510,7 +510,8 @@ typedef enum {
 
 typedef enum { type_stream, type_block } CipherType;
 
-#define MAX_IV_LENGTH 64
+/* This value matches the size of IVs in ssl3SidKeys. */
+#define MAX_IV_LENGTH 24
 
 /*
  * Do not depend upon 64 bit arithmetic in the underlying machine. 
@@ -1052,7 +1053,6 @@ struct sslSecurityInfoStr {
 
 };
 
-
 /*
 ** SSL Socket struct
 **
@@ -1066,6 +1066,8 @@ struct sslSocketStr {
 
     /* SSL socket options */
     sslOptions       opt;
+    /* Enabled version range */
+    SSLVersionRange  vrange;
 
     /* State flags */
     unsigned long    clientAuthRequested;
@@ -1382,6 +1384,24 @@ extern PRBool    ssl3_CanFalseStart(sslSocket *ss);
 #define ssl_HaveXmitBufLock(ss)		\
     (PZ_InMonitor((ss)->xmitBufLock))
 
+/* Placeholder value used in version ranges when SSL 3.0 and all
+ * versions of TLS are disabled.
+ */
+#define SSL_LIBRARY_VERSION_NONE 0
+
+/* SSL_LIBRARY_VERSION_MAX_SUPPORTED is the maximum version that this version 
+ * of libssl supports. Applications should use SSL_VersionRangeGetSupported at
+ * runtime to determine which versions are supported by the version of libssl
+ * in use.
+ */
+#define SSL_LIBRARY_VERSION_MAX_SUPPORTED SSL_LIBRARY_VERSION_TLS_1_1
+
+/* Rename this macro SSL_ALL_VERSIONS_DISABLED when SSL 2.0 is removed. */
+#define SSL3_ALL_VERSIONS_DISABLED(vrange) \
+    ((vrange)->min == SSL_LIBRARY_VERSION_NONE)
+
+extern PRBool ssl3_VersionIsSupported(SSLProtocolVariant protocolVariant,
+				      SSL3ProtocolVersion version);
 
 extern SECStatus ssl3_KeyAndMacDeriveBypass(ssl3CipherSpec * pwSpec,
 		    const unsigned char * cr, const unsigned char * sr,
@@ -1515,7 +1535,8 @@ extern SECStatus ssl3_RedoHandshake(sslSocket *ss, PRBool flushCache);
 extern void ssl3_DestroySSL3Info(sslSocket *ss);
 
 extern SECStatus ssl3_NegotiateVersion(sslSocket *ss, 
-                                       SSL3ProtocolVersion peerVersion);
+				       SSL3ProtocolVersion peerVersion,
+				       PRBool allowLargerPeerVersion);
 
 extern SECStatus ssl_GetPeerInfo(sslSocket *ss);
 

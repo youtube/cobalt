@@ -37,7 +37,7 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-/* $Id: sslcon.c,v 1.45 2011/11/19 21:58:21 bsmith%mozilla.com Exp $ */
+/* $Id: sslcon.c,v 1.48 2012/03/18 00:31:20 wtc%google.com Exp $ */
 
 #include "nssrenam.h"
 #include "cert.h"
@@ -277,12 +277,13 @@ ssl2_CheckConfigSanity(sslSocket *ss)
     /* Ask how many ssl3 CipherSuites were enabled. */
     rv = ssl3_ConstructV2CipherSpecsHack(ss, NULL, &ssl3CipherCount);
     if (rv != SECSuccess || ssl3CipherCount <= 0) {
-	ss->opt.enableSSL3 = PR_FALSE; /* not really enabled if no ciphers */
-	ss->opt.enableTLS  = PR_FALSE;
+	/* SSL3/TLS not really enabled if no ciphers */
+	ss->vrange.min = SSL_LIBRARY_VERSION_NONE;
+	ss->vrange.max = SSL_LIBRARY_VERSION_NONE;
     }
 
-    if (!ss->opt.enableSSL2 && !ss->opt.enableSSL3 && !ss->opt.enableTLS) {
-	SSL_DBG(("%d: SSL[%d]: Can't handshake! both v2 and v3 disabled.",
+    if (!ss->opt.enableSSL2 && SSL3_ALL_VERSIONS_DISABLED(&ss->vrange)) {
+	SSL_DBG(("%d: SSL[%d]: Can't handshake! all versions disabled.",
 		 SSL_GETPID(), ss->fd));
 disabled:
 	PORT_SetError(SSL_ERROR_SSL_DISABLED);
@@ -1435,7 +1436,7 @@ ssl2_CreateSessionCypher(sslSocket *ss, sslSessionID *sid, PRBool isClient)
     writeKey.data = 0;
 
     PORT_Assert( ss->opt.noLocks || ssl_Have1stHandshakeLock(ss) );
-    if(ss->sec.ci.sid == 0)
+    if (ss->sec.ci.sid == 0)
     	goto sec_loser;	/* don't crash if asserts are off */
 
     /* Trying to cut down on all these switch statements that should be tables.
@@ -1683,7 +1684,7 @@ ssl2_ServerSetupSessionCypher(sslSocket *ss, int cipher, unsigned int keyBits,
     }
 
     /* Make sure we're not subject to a version rollback attack. */
-    if (ss->opt.enableSSL3 || ss->opt.enableTLS) {
+    if (!SSL3_ALL_VERSIONS_DISABLED(&ss->vrange)) {
 	static const PRUint8 threes[8] = { 0x03, 0x03, 0x03, 0x03,
 			                   0x03, 0x03, 0x03, 0x03 };
 	
@@ -2144,7 +2145,7 @@ ssl2_ClientSetupSessionCypher(sslSocket *ss, PRUint8 *cs, int csLen)
 
     /* Set up the padding for version 2 rollback detection. */
     /* XXX We should really use defines here */
-    if (ss->opt.enableSSL3 || ss->opt.enableTLS) {
+    if (!SSL3_ALL_VERSIONS_DISABLED(&ss->vrange)) {
 	PORT_Assert((modulusLen - rek.len) > 12);
 	PORT_Memset(eblock + modulusLen - rek.len - 8 - 1, 0x03, 8);
     }
@@ -3051,16 +3052,20 @@ ssl2_BeginClientHandshake(sslSocket *ss)
 	                    ss->url);
     }
     while (sid) {  /* this isn't really a loop */
+	PRBool sidVersionEnabled =
+	    (!SSL3_ALL_VERSIONS_DISABLED(&ss->vrange) &&
+	     sid->version >= ss->vrange.min &&
+	     sid->version <= ss->vrange.max) ||
+	    (sid->version < SSL_LIBRARY_VERSION_3_0 && ss->opt.enableSSL2);
+
 	/* if we're not doing this SID's protocol any more, drop it. */
-	if (((sid->version  < SSL_LIBRARY_VERSION_3_0) && !ss->opt.enableSSL2) ||
-	    ((sid->version == SSL_LIBRARY_VERSION_3_0) && !ss->opt.enableSSL3) ||
-	    ((sid->version >  SSL_LIBRARY_VERSION_3_0) && !ss->opt.enableTLS)) {
+	if (!sidVersionEnabled) {
 	    ss->sec.uncache(sid);
 	    ssl_FreeSID(sid);
 	    sid = NULL;
 	    break;
 	}
-	if (ss->opt.enableSSL2 && sid->version < SSL_LIBRARY_VERSION_3_0) {
+	if (sid->version < SSL_LIBRARY_VERSION_3_0) {
 	    /* If the cipher in this sid is not enabled, drop it. */
 	    for (i = 0; i < ss->sizeCipherSpecs; i += 3) {
 		if (ss->cipherSpecs[i] == sid->u.ssl2.cipherType)
@@ -3106,8 +3111,7 @@ ssl2_BeginClientHandshake(sslSocket *ss)
     PORT_Assert(sid != NULL);
 
     if ((sid->version >= SSL_LIBRARY_VERSION_3_0 || !ss->opt.v2CompatibleHello) &&
-        (ss->opt.enableSSL3 || ss->opt.enableTLS)) {
-
+	!SSL3_ALL_VERSIONS_DISABLED(&ss->vrange)) {
 	ss->gs.state      = GS_INIT;
 	ss->handshake     = ssl_GatherRecord1stHandshake;
 
@@ -3157,14 +3161,9 @@ ssl2_BeginClientHandshake(sslSocket *ss)
     /* Construct client-hello message */
     cp = msg = ss->sec.ci.sendBuf.buf;
     msg[0] = SSL_MT_CLIENT_HELLO;
-    if ( ss->opt.enableTLS ) {
-	ss->clientHelloVersion = SSL_LIBRARY_VERSION_3_1_TLS;
-    } else if ( ss->opt.enableSSL3 ) {
-	ss->clientHelloVersion = SSL_LIBRARY_VERSION_3_0;
-    } else {
-	ss->clientHelloVersion = SSL_LIBRARY_VERSION_2;
-    }
-    
+    ss->clientHelloVersion = SSL3_ALL_VERSIONS_DISABLED(&ss->vrange) ?
+	SSL_LIBRARY_VERSION_2 : ss->vrange.max;
+
     msg[1] = MSB(ss->clientHelloVersion);
     msg[2] = LSB(ss->clientHelloVersion);
     /* Add 3 for SCSV */
@@ -3381,7 +3380,7 @@ ssl2_HandleClientHelloMessage(sslSocket *ss)
      */
     if ((data[0] == SSL_MT_CLIENT_HELLO) && 
         (data[1] >= MSB(SSL_LIBRARY_VERSION_3_0)) && 
-	(ss->opt.enableSSL3 || ss->opt.enableTLS)) {
+	!SSL3_ALL_VERSIONS_DISABLED(&ss->vrange)) {
 	rv = ssl3_HandleV2ClientHello(ss, data, ss->gs.recordLen);
 	if (rv != SECFailure) { /* Success */
 	    ss->handshake             = NULL;

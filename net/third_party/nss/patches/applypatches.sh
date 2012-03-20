@@ -25,18 +25,10 @@ patch -p6 < $patches_dir/didhandshakeresume.patch
 
 patch -p6 < $patches_dir/origin_bound_certs.patch
 
-patch -p6 < $patches_dir/secret_exporter.patch
-
 patch -p6 < $patches_dir/negotiatedextension.patch
 
 patch -p6 < $patches_dir/getrequestedclientcerttypes.patch
 
-patch -p5 < $patches_dir/clang-sslcon.patch
-
 patch -p6 < $patches_dir/restartclientauth.patch
 
 patch -p6 < $patches_dir/encryptedclientcerts.patch
-
-patch -p5 < $patches_dir/nextprotocleanup.patch
-
-patch -p4 < $patches_dir/secret_exporter2.patch
