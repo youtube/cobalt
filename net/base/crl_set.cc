@@ -540,6 +540,22 @@ CRLSet::Result CRLSet::CheckSPKI(const base::StringPiece& spki_hash) const {
 CRLSet::Result CRLSet::CheckSerial(
     const base::StringPiece& serial_number,
     const base::StringPiece& issuer_spki_hash) const {
+  Result result = CheckSerialIsRevoked(serial_number, issuer_spki_hash);
+  // If we get a revoked signal then we return that no matter how old the
+  // CRLSet is.
+  if (result == REVOKED)
+    return result;
+  if (not_after_ > 0) {
+    uint64 now = base::Time::Now().ToTimeT();
+    if (now > not_after_)
+      return CRL_SET_EXPIRED;
+  }
+  return result;
+}
+
+CRLSet::Result CRLSet::CheckSerialIsRevoked(
+    const base::StringPiece& serial_number,
+    const base::StringPiece& issuer_spki_hash) const {
   base::StringPiece serial(serial_number);
 
   if (!serial.empty() && (serial[0] & 0x80) != 0) {
@@ -567,31 +583,12 @@ CRLSet::Result CRLSet::CheckSerial(
   return GOOD;
 }
 
-bool CRLSet::IsExpired() const {
-  if (not_after_ == 0)
-    return false;
-
-  uint64 now = base::Time::Now().ToTimeT();
-  return now > not_after_;
-}
-
 uint32 CRLSet::sequence() const {
   return sequence_;
 }
 
 const CRLSet::CRLList& CRLSet::crls() const {
   return crls_;
-}
-
-// static
-CRLSet* CRLSet::EmptyCRLSetForTesting() {
-  return new CRLSet;
-}
-
-CRLSet* CRLSet::ExpiredCRLSetForTesting() {
-  CRLSet* crl_set = new CRLSet;
-  crl_set->not_after_ = 1;
-  return crl_set;
 }
 
 }  // namespace net
