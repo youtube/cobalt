@@ -74,7 +74,7 @@ void VerifyCertificateSignature(const std::string& der_cert,
   EXPECT_TRUE(ok);
 }
 
-void VerifyOriginBoundCert(const std::string& origin,
+void VerifyDomainBoundCert(const std::string& domain,
                            const std::string& der_cert) {
   // Origin Bound Cert OID.
   static const char oid_string[] = "1.3.6.1.4.1.11129.2.1.6";
@@ -82,8 +82,8 @@ void VerifyOriginBoundCert(const std::string& origin,
   // Create object neccessary for extension lookup call.
   SECItem extension_object = {
     siAsciiString,
-    (unsigned char*)origin.data(),
-    origin.size()
+    (unsigned char*)domain.data(),
+    domain.size()
   };
 
   // IA5Encode and arena allocate SECItem.
@@ -139,24 +139,24 @@ void VerifyOriginBoundCert(const std::string& origin,
 
 }  // namespace
 
-// This test creates an origin-bound cert from an EC private key and
+// This test creates a domain-bound cert from an EC private key and
 // then verifies the content of the certificate.
-TEST(X509UtilNSSTest, CreateOriginBoundCertEC) {
+TEST(X509UtilNSSTest, CreateDomainBoundCertEC) {
   // Create a sample ASCII weborigin.
-  std::string origin = "http://weborigin.com:443";
+  std::string domain = "weborigin.com";
   base::Time now = base::Time::Now();
 
   scoped_ptr<crypto::ECPrivateKey> private_key(
       crypto::ECPrivateKey::Create());
   std::string der_cert;
-  ASSERT_TRUE(x509_util::CreateOriginBoundCertEC(
+  ASSERT_TRUE(x509_util::CreateDomainBoundCertEC(
       private_key.get(),
-      origin, 1,
+      domain, 1,
       now,
       now + base::TimeDelta::FromDays(1),
       &der_cert));
 
-  VerifyOriginBoundCert(origin, der_cert);
+  VerifyDomainBoundCert(domain, der_cert);
 
 #if !defined(OS_WIN) && !defined(OS_MACOSX)
   // signature_verifier_win and signature_verifier_mac can't handle EC certs.

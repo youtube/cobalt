@@ -18,7 +18,7 @@
 namespace net {
 
 class CertVerifier;
-class OriginBoundCertService;
+class ServerBoundCertService;
 class SSLCertRequestInfo;
 class SSLHostInfo;
 class SSLHostInfoFactory;
@@ -30,23 +30,23 @@ class TransportSecurityState;
 struct SSLClientSocketContext {
   SSLClientSocketContext()
       : cert_verifier(NULL),
-        origin_bound_cert_service(NULL),
+        server_bound_cert_service(NULL),
         transport_security_state(NULL),
         ssl_host_info_factory(NULL) {}
 
   SSLClientSocketContext(CertVerifier* cert_verifier_arg,
-                         OriginBoundCertService* origin_bound_cert_service_arg,
+                         ServerBoundCertService* server_bound_cert_service_arg,
                          TransportSecurityState* transport_security_state_arg,
                          SSLHostInfoFactory* ssl_host_info_factory_arg,
                          const std::string& ssl_session_cache_shard_arg)
       : cert_verifier(cert_verifier_arg),
-        origin_bound_cert_service(origin_bound_cert_service_arg),
+        server_bound_cert_service(server_bound_cert_service_arg),
         transport_security_state(transport_security_state_arg),
         ssl_host_info_factory(ssl_host_info_factory_arg),
         ssl_session_cache_shard(ssl_session_cache_shard_arg) {}
 
   CertVerifier* cert_verifier;
-  OriginBoundCertService* origin_bound_cert_service;
+  ServerBoundCertService* server_bound_cert_service;
   TransportSecurityState* transport_security_state;
   SSLHostInfoFactory* ssl_host_info_factory;
   // ssl_session_cache_shard is an opaque string that identifies a shard of the
@@ -142,21 +142,21 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
   virtual void set_protocol_negotiated(
       SSLClientSocket::NextProto protocol_negotiated);
 
-  // Returns the OriginBoundCertService used by this socket, or NULL if
-  // origin bound certificates are not supported.
-  virtual OriginBoundCertService* GetOriginBoundCertService() const = 0;
+  // Returns the ServerBoundCertService used by this socket, or NULL if
+  // server bound certificates are not supported.
+  virtual ServerBoundCertService* GetServerBoundCertService() const = 0;
 
-  // Returns true if an origin bound certificate was sent on this connection.
+  // Returns true if a domain bound certificate was sent on this connection.
   // This may be useful for protocols, like SPDY, which allow the same
-  // connection to be shared between multiple origins, each of which need
-  // an origin bound certificate.
-  virtual bool WasOriginBoundCertSent() const;
+  // connection to be shared between multiple domains, each of which need
+  // a domain bound certificate.
+  virtual bool WasDomainBoundCertSent() const;
 
-  // Returns the type of the origin bound cert that was sent, or
+  // Returns the type of the domain bound cert that was sent, or
   // CLIENT_CERT_INVALID_TYPE if none was sent.
-  virtual SSLClientCertType origin_bound_cert_type() const;
+  virtual SSLClientCertType domain_bound_cert_type() const;
 
-  virtual SSLClientCertType set_origin_bound_cert_type(SSLClientCertType type);
+  virtual SSLClientCertType set_domain_bound_cert_type(SSLClientCertType type);
 
  private:
   // True if NPN was responded to, independent of selecting SPDY or HTTP.
@@ -165,9 +165,9 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
   bool was_spdy_negotiated_;
   // Protocol that we negotiated with the server.
   SSLClientSocket::NextProto protocol_negotiated_;
-  // Type of the origin bound cert that was sent, or CLIENT_CERT_INVALID_TYPE
+  // Type of the domain bound cert that was sent, or CLIENT_CERT_INVALID_TYPE
   // if none was sent.
-  SSLClientCertType origin_bound_cert_type_;
+  SSLClientCertType domain_bound_cert_type_;
 };
 
 }  // namespace net

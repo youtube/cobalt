@@ -326,7 +326,7 @@ class NET_EXPORT SocketStream
   State next_state_;
   HostResolver* host_resolver_;
   CertVerifier* cert_verifier_;
-  OriginBoundCertService* origin_bound_cert_service_;
+  ServerBoundCertService* server_bound_cert_service_;
   HttpAuthHandlerFactory* http_auth_handler_factory_;
   ClientSocketFactory* factory_;
 

@@ -22,7 +22,7 @@ SSLConfig::SSLConfig()
       ssl3_enabled(true),
       tls1_enabled(true),
       cached_info_enabled(false),
-      origin_bound_certs_enabled(false),
+      domain_bound_certs_enabled(false),
       false_start_enabled(true),
       send_client_cert(false),
       verify_ev_cert(false),
@@ -131,8 +131,8 @@ void SSLConfigService::ProcessConfigUpdate(const SSLConfig& orig_config,
       (orig_config.tls1_enabled != new_config.tls1_enabled) ||
       (orig_config.disabled_cipher_suites !=
        new_config.disabled_cipher_suites) ||
-      (orig_config.origin_bound_certs_enabled !=
-       new_config.origin_bound_certs_enabled) ||
+      (orig_config.domain_bound_certs_enabled !=
+       new_config.domain_bound_certs_enabled) ||
       (orig_config.false_start_enabled !=
        new_config.false_start_enabled);
 

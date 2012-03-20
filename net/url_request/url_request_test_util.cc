@@ -143,10 +143,10 @@ void TestURLRequestContext::Init() {
   if (!cookie_store())
     context_storage_.set_cookie_store(new net::CookieMonster(NULL, NULL));
   // In-memory origin bound cert service.
-  if (!origin_bound_cert_service()) {
-    context_storage_.set_origin_bound_cert_service(
-        new net::OriginBoundCertService(
-            new net::DefaultOriginBoundCertStore(NULL)));
+  if (!server_bound_cert_service()) {
+    context_storage_.set_server_bound_cert_service(
+        new net::ServerBoundCertService(
+            new net::DefaultServerBoundCertStore(NULL)));
   }
   if (accept_language().empty())
     set_accept_language("en-us,fr");

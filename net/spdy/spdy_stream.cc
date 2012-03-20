@@ -90,7 +90,7 @@ SpdyStream::SpdyStream(SpdySession* session,
       net_log_(net_log),
       send_bytes_(0),
       recv_bytes_(0),
-      ob_cert_type_(CLIENT_CERT_INVALID_TYPE) {
+      domain_bound_cert_type_(CLIENT_CERT_INVALID_TYPE) {
 }
 
 SpdyStream::~SpdyStream() {
@@ -490,7 +490,7 @@ int SpdyStream::SendRequest(bool has_upload_data) {
     return ERR_IO_PENDING;
   }
   CHECK_EQ(STATE_NONE, io_state_);
-  io_state_ = STATE_GET_ORIGIN_BOUND_CERT;
+  io_state_ = STATE_GET_DOMAIN_BOUND_CERT;
   return DoLoop(OK);
 }
 
@@ -559,8 +559,8 @@ GURL SpdyStream::GetUrlFromHeaderBlock(
   return GURL(url);
 }
 
-void SpdyStream::OnGetOriginBoundCertComplete(int result) {
-  DCHECK_EQ(STATE_GET_ORIGIN_BOUND_CERT_COMPLETE, io_state_);
+void SpdyStream::OnGetDomainBoundCertComplete(int result) {
+  DCHECK_EQ(STATE_GET_DOMAIN_BOUND_CERT_COMPLETE, io_state_);
   DoLoop(result);
 }
 
@@ -570,19 +570,19 @@ int SpdyStream::DoLoop(int result) {
     io_state_ = STATE_NONE;
     switch (state) {
       // State machine 1: Send headers and body.
-      case STATE_GET_ORIGIN_BOUND_CERT:
+      case STATE_GET_DOMAIN_BOUND_CERT:
         CHECK_EQ(OK, result);
-        result = DoGetOriginBoundCert();
+        result = DoGetDomainBoundCert();
         break;
-      case STATE_GET_ORIGIN_BOUND_CERT_COMPLETE:
-        result = DoGetOriginBoundCertComplete(result);
+      case STATE_GET_DOMAIN_BOUND_CERT_COMPLETE:
+        result = DoGetDomainBoundCertComplete(result);
         break;
-      case STATE_SEND_ORIGIN_BOUND_CERT:
+      case STATE_SEND_DOMAIN_BOUND_CERT:
         CHECK_EQ(OK, result);
-        result = DoSendOriginBoundCert();
+        result = DoSendDomainBoundCert();
         break;
-      case STATE_SEND_ORIGIN_BOUND_CERT_COMPLETE:
-        result = DoSendOriginBoundCertComplete(result);
+      case STATE_SEND_DOMAIN_BOUND_CERT_COMPLETE:
+        result = DoSendDomainBoundCertComplete(result);
         break;
       case STATE_SEND_HEADERS:
         CHECK_EQ(OK, result);
@@ -635,7 +635,7 @@ int SpdyStream::DoLoop(int result) {
   return result;
 }
 
-int SpdyStream::DoGetOriginBoundCert() {
+int SpdyStream::DoGetDomainBoundCert() {
   CHECK(request_.get());
   HostPortPair origin(HostPortPair::FromURL(GetUrl()));
   if (!session_->NeedsCredentials(origin)) {
@@ -644,42 +644,42 @@ int SpdyStream::DoGetOriginBoundCert() {
     return OK;
   }
 
-  io_state_ = STATE_GET_ORIGIN_BOUND_CERT_COMPLETE;
-  OriginBoundCertService* obc_service = session_->GetOriginBoundCertService();
-  DCHECK(obc_service != NULL);
+  io_state_ = STATE_GET_DOMAIN_BOUND_CERT_COMPLETE;
+  ServerBoundCertService* sbc_service = session_->GetServerBoundCertService();
+  DCHECK(sbc_service != NULL);
   std::vector<uint8> requested_cert_types;
-  requested_cert_types.push_back(session_->GetOriginBoundCertType());
-  int rv = obc_service->GetOriginBoundCert(
-      GetUrl().GetOrigin().spec(), requested_cert_types, &ob_cert_type_,
-      &ob_private_key_, &ob_cert_,
-      base::Bind(&SpdyStream::OnGetOriginBoundCertComplete,
+  requested_cert_types.push_back(session_->GetDomainBoundCertType());
+  int rv = sbc_service->GetDomainBoundCert(
+      GetUrl().GetOrigin().spec(), requested_cert_types,
+      &domain_bound_cert_type_, &domain_bound_private_key_, &domain_bound_cert_,
+      base::Bind(&SpdyStream::OnGetDomainBoundCertComplete,
                  base::Unretained(this)),
-      &ob_cert_request_handle_);
+      &domain_bound_cert_request_handle_);
   return rv;
 }
 
-int SpdyStream::DoGetOriginBoundCertComplete(int result) {
+int SpdyStream::DoGetDomainBoundCertComplete(int result) {
   if (result != OK)
     return result;
 
-  io_state_ = STATE_SEND_ORIGIN_BOUND_CERT;
+  io_state_ = STATE_SEND_DOMAIN_BOUND_CERT;
   return OK;
 }
 
-int SpdyStream::DoSendOriginBoundCert() {
-  io_state_ = STATE_SEND_ORIGIN_BOUND_CERT_COMPLETE;
+int SpdyStream::DoSendDomainBoundCert() {
+  io_state_ = STATE_SEND_DOMAIN_BOUND_CERT_COMPLETE;
   CHECK(request_.get());
   std::string origin = GetUrl().GetOrigin().spec();
   origin.erase(origin.length() - 1);  // trim trailing slash
   int rv =  session_->WriteCredentialFrame(
-      origin, ob_cert_type_, ob_private_key_, ob_cert_,
-      static_cast<RequestPriority>(priority_));
+      origin, domain_bound_cert_type_, domain_bound_private_key_,
+      domain_bound_cert_, static_cast<RequestPriority>(priority_));
   if (rv != ERR_IO_PENDING)
     return rv;
   return OK;
 }
 
-int SpdyStream::DoSendOriginBoundCertComplete(int result) {
+int SpdyStream::DoSendDomainBoundCertComplete(int result) {
   if (result < 0)
     return result;
 

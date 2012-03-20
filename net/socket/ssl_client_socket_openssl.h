@@ -65,7 +65,7 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
                                    unsigned int outlen);
   virtual NextProtoStatus GetNextProto(std::string* proto,
                                        std::string* server_protos);
-  virtual OriginBoundCertService* GetOriginBoundCertService() const;
+  virtual ServerBoundCertService* GetServerBoundCertService() const;
 
   // StreamSocket implementation.
   virtual int Connect(const CompletionCallback& callback);

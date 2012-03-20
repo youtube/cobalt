@@ -457,14 +457,14 @@ EVENT_TYPE(SSL_SERVER_HANDSHAKE)
 // The SSL server requested a client certificate.
 EVENT_TYPE(SSL_CLIENT_CERT_REQUESTED)
 
-// The start/end of getting an origin-bound certificate and private key.
+// The start/end of getting a domain-bound certificate and private key.
 //
 // The END event will contain the following parameters on failure:
 //
 //   {
 //     "net_error": <Net integer error code>,
 //   }
-EVENT_TYPE(SSL_GET_ORIGIN_BOUND_CERT)
+EVENT_TYPE(SSL_GET_DOMAIN_BOUND_CERT)
 
 // A client certificate (or none) was provided to the SSL library to be sent
 // to the SSL server.

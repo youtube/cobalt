@@ -51,7 +51,7 @@ class HttpServerProperties;
 class IOBuffer;
 class NetLog;
 class NetworkDelegate;
-class OriginBoundCertService;
+class ServerBoundCertService;
 class ProxyService;
 class SSLConfigService;
 class TransportSecurityState;
@@ -121,7 +121,7 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
   // The HttpCache takes ownership of the |backend_factory|.
   HttpCache(HostResolver* host_resolver,
             CertVerifier* cert_verifier,
-            OriginBoundCertService* origin_bound_cert_service,
+            ServerBoundCertService* server_bound_cert_service,
             TransportSecurityState* transport_security_state,
             ProxyService* proxy_service,
             const std::string& ssl_session_cache_shard,
