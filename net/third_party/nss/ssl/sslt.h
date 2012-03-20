@@ -37,7 +37,7 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-/* $Id: sslt.h,v 1.18 2012/02/15 21:52:08 kaie%kuix.de Exp $ */
+/* $Id: sslt.h,v 1.20 2012/03/16 01:23:55 wtc%google.com Exp $ */
 
 #ifndef __sslt_h_
 #define __sslt_h_
@@ -188,6 +188,15 @@ typedef struct SSLCipherSuiteInfoStr {
     PRUintn              reservedBits :29;
 
 } SSLCipherSuiteInfo;
+
+typedef enum {
+    ssl_variant_stream = 0
+} SSLProtocolVariant;
+
+typedef struct SSLVersionRangeStr {
+    PRUint16 min;
+    PRUint16 max;
+} SSLVersionRange;
 
 typedef enum {
     SSL_sni_host_name                    = 0,

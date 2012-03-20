@@ -40,7 +40,7 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-/* $Id: sslsock.c,v 1.82 2012/02/15 21:52:08 kaie%kuix.de Exp $ */
+/* $Id: sslsock.c,v 1.86 2012/03/18 00:31:20 wtc%google.com Exp $ */
 #include "seccomon.h"
 #include "cert.h"
 #include "keyhi.h"
@@ -171,8 +171,8 @@ static sslOptions ssl_defaults = {
     PR_FALSE,	/* handshakeAsClient  */
     PR_FALSE,	/* handshakeAsServer  */
     PR_FALSE,	/* enableSSL2         */ /* now defaults to off in NSS 3.13 */
-    PR_TRUE,	/* enableSSL3         */
-    PR_TRUE, 	/* enableTLS          */ /* now defaults to on in NSS 3.0 */
+    PR_FALSE,	/* unusedBit9         */
+    PR_FALSE, 	/* unusedBit10        */
     PR_FALSE,	/* noCache            */
     PR_FALSE,	/* fdx                */
     PR_FALSE,	/* v2CompatibleHello  */ /* now defaults to off in NSS 3.13 */
@@ -189,6 +189,14 @@ static sslOptions ssl_defaults = {
     PR_FALSE,   /* enableOCSPStapling */
     PR_FALSE,   /* enableOBCerts */
     PR_FALSE,   /* encryptClientCerts */
+};
+
+/*
+ * default range of enabled SSL/TLS protocols
+ */
+static SSLVersionRange versions_defaults = {
+    SSL_LIBRARY_VERSION_3_0,
+    SSL_LIBRARY_VERSION_TLS_1_0
 };
 
 sslSessionIDLookupFunc  ssl_sid_lookup;
@@ -277,6 +285,7 @@ ssl_DupSocket(sslSocket *os)
     if (ss) {
 	ss->opt                = os->opt;
 	ss->opt.useSocks       = PR_FALSE;
+	ss->vrange             = os->vrange;
 
 	ss->peerID             = !os->peerID ? NULL : PORT_Strdup(os->peerID);
 	ss->url                = !os->url    ? NULL : PORT_Strdup(os->url);
@@ -569,6 +578,68 @@ static PRStatus SSL_BypassSetup(void)
     return PR_CallOnce(&setupBypassOnce, &SSL_BypassRegisterShutdown);
 }
 
+/* Implements the semantics for SSL_OptionSet(SSL_ENABLE_TLS, on) described in
+ * ssl.h in the section "SSL version range setting API".
+ */
+static void
+ssl_EnableTLS(SSLVersionRange *vrange, PRBool on)
+{
+    if (SSL3_ALL_VERSIONS_DISABLED(vrange)) {
+	if (on) {
+	    vrange->min = SSL_LIBRARY_VERSION_TLS_1_0;
+	    vrange->max = SSL_LIBRARY_VERSION_TLS_1_0;
+	} /* else don't change anything */
+	return;
+    }
+
+    if (on) {
+	/* Expand the range of enabled version to include TLS 1.0 */
+	vrange->min = PR_MIN(vrange->min, SSL_LIBRARY_VERSION_TLS_1_0);
+	vrange->max = PR_MAX(vrange->max, SSL_LIBRARY_VERSION_TLS_1_0);
+    } else {
+	/* Disable all TLS versions, leaving only SSL 3.0 if it was enabled */
+	if (vrange->min == SSL_LIBRARY_VERSION_3_0) {
+	    vrange->max = SSL_LIBRARY_VERSION_3_0;
+	} else {
+	    /* Only TLS was enabled, so now no versions are. */
+	    vrange->min = SSL_LIBRARY_VERSION_NONE;
+	    vrange->max = SSL_LIBRARY_VERSION_NONE;
+	}
+    }
+}
+
+/* Implements the semantics for SSL_OptionSet(SSL_ENABLE_SSL3, on) described in
+ * ssl.h in the section "SSL version range setting API".
+ */
+static void
+ssl_EnableSSL3(SSLVersionRange *vrange, PRBool on)
+{
+   if (SSL3_ALL_VERSIONS_DISABLED(vrange)) {
+	if (on) {
+	    vrange->min = SSL_LIBRARY_VERSION_3_0;
+	    vrange->max = SSL_LIBRARY_VERSION_3_0;
+	} /* else don't change anything */
+	return;
+    }
+
+   if (on) {
+	/* Expand the range of enabled versions to include SSL 3.0. We know
+	 * SSL 3.0 or some version of TLS is already enabled at this point, so
+	 * we don't need to change vrange->max.
+	 */
+	vrange->min = SSL_LIBRARY_VERSION_3_0;
+   } else {
+	/* Disable SSL 3.0, leaving TLS unaffected. */
+	if (vrange->max > SSL_LIBRARY_VERSION_3_0) {
+	    vrange->min = PR_MAX(vrange->min, SSL_LIBRARY_VERSION_TLS_1_0);
+	} else {
+	    /* Only SSL 3.0 was enabled, so now no versions are. */
+	    vrange->min = SSL_LIBRARY_VERSION_NONE;
+	    vrange->max = SSL_LIBRARY_VERSION_NONE;
+	}
+    }
+}
+
 SECStatus
 SSL_OptionSet(PRFileDesc *fd, PRInt32 which, PRBool on)
 {
@@ -627,7 +698,7 @@ SSL_OptionSet(PRFileDesc *fd, PRInt32 which, PRBool on)
 	break;
 
       case SSL_ENABLE_TLS:
-	ss->opt.enableTLS       = on;
+	ssl_EnableTLS(&ss->vrange, on);
 	ss->preferredCipher     = NULL;
 	if (ss->cipherSpecs) {
 	    PORT_Free(ss->cipherSpecs);
@@ -637,7 +708,7 @@ SSL_OptionSet(PRFileDesc *fd, PRInt32 which, PRBool on)
 	break;
 
       case SSL_ENABLE_SSL3:
-	ss->opt.enableSSL3      = on;
+	ssl_EnableSSL3(&ss->vrange, on);
 	ss->preferredCipher     = NULL;
 	if (ss->cipherSpecs) {
 	    PORT_Free(ss->cipherSpecs);
@@ -805,8 +876,12 @@ SSL_OptionGet(PRFileDesc *fd, PRInt32 which, PRBool *pOn)
     case SSL_REQUIRE_CERTIFICATE: on = ss->opt.requireCertificate; break;
     case SSL_HANDSHAKE_AS_CLIENT: on = ss->opt.handshakeAsClient;  break;
     case SSL_HANDSHAKE_AS_SERVER: on = ss->opt.handshakeAsServer;  break;
-    case SSL_ENABLE_TLS:          on = ss->opt.enableTLS;          break;
-    case SSL_ENABLE_SSL3:         on = ss->opt.enableSSL3;         break;
+    case SSL_ENABLE_TLS:
+	on = ss->vrange.max >= SSL_LIBRARY_VERSION_TLS_1_0;
+	break;
+    case SSL_ENABLE_SSL3:
+	on = ss->vrange.min == SSL_LIBRARY_VERSION_3_0;
+	break;
     case SSL_ENABLE_SSL2:         on = ss->opt.enableSSL2;         break;
     case SSL_NO_CACHE:            on = ss->opt.noCache;            break;
     case SSL_ENABLE_FDX:          on = ss->opt.fdx;                break;
@@ -862,8 +937,12 @@ SSL_OptionGetDefault(PRInt32 which, PRBool *pOn)
     case SSL_REQUIRE_CERTIFICATE: on = ssl_defaults.requireCertificate; break;
     case SSL_HANDSHAKE_AS_CLIENT: on = ssl_defaults.handshakeAsClient;  break;
     case SSL_HANDSHAKE_AS_SERVER: on = ssl_defaults.handshakeAsServer;  break;
-    case SSL_ENABLE_TLS:          on = ssl_defaults.enableTLS;          break;
-    case SSL_ENABLE_SSL3:         on = ssl_defaults.enableSSL3;         break;
+    case SSL_ENABLE_TLS:
+	on = versions_defaults.max >= SSL_LIBRARY_VERSION_TLS_1_0;
+	break;
+    case SSL_ENABLE_SSL3:
+	on = versions_defaults.min == SSL_LIBRARY_VERSION_3_0;
+	break;
     case SSL_ENABLE_SSL2:         on = ssl_defaults.enableSSL2;         break;
     case SSL_NO_CACHE:            on = ssl_defaults.noCache;		break;
     case SSL_ENABLE_FDX:          on = ssl_defaults.fdx;                break;
@@ -955,11 +1034,11 @@ SSL_OptionSetDefault(PRInt32 which, PRBool on)
 	break;
 
       case SSL_ENABLE_TLS:
-	ssl_defaults.enableTLS = on;
+	ssl_EnableTLS(&versions_defaults, on);
 	break;
 
       case SSL_ENABLE_SSL3:
-	ssl_defaults.enableSSL3 = on;
+	ssl_EnableSSL3(&versions_defaults, on);
 	break;
 
       case SSL_ENABLE_SSL2:
@@ -1493,6 +1572,7 @@ SSL_ReconfigFD(PRFileDesc *model, PRFileDesc *fd)
     }
     
     ss->opt  = sm->opt;
+    ss->vrange = sm->vrange;
     PORT_Memcpy(ss->cipherSuites, sm->cipherSuites, sizeof sm->cipherSuites);
 
     if (!ss->opt.useSecurity) {
@@ -1581,6 +1661,125 @@ SSL_ReconfigFD(PRFileDesc *model, PRFileDesc *fd)
 loser:
     return NULL;
 #endif
+}
+
+PRBool
+ssl3_VersionIsSupported(SSLProtocolVariant protocolVariant,
+			SSL3ProtocolVersion version)
+{
+    return protocolVariant == ssl_variant_stream &&
+	   version >= SSL_LIBRARY_VERSION_3_0 &&
+	   version <= SSL_LIBRARY_VERSION_MAX_SUPPORTED;
+}
+
+/* Returns PR_TRUE if the given version range is valid and
+** fully supported; otherwise, returns PR_FALSE.
+*/
+static PRBool
+ssl3_VersionRangeIsValid(SSLProtocolVariant protocolVariant,
+			 const SSLVersionRange *vrange)
+{
+    return vrange &&
+	   vrange->min <= vrange->max &&
+	   ssl3_VersionIsSupported(protocolVariant, vrange->min) &&
+	   ssl3_VersionIsSupported(protocolVariant, vrange->max);
+}
+
+SECStatus
+SSL_VersionRangeGetSupported(SSLProtocolVariant protocolVariant,
+			     SSLVersionRange *vrange)
+{
+    if (protocolVariant != ssl_variant_stream || !vrange) {
+	PORT_SetError(SEC_ERROR_INVALID_ARGS);
+	return SECFailure;
+    }
+
+    vrange->min = SSL_LIBRARY_VERSION_3_0;
+    vrange->max = SSL_LIBRARY_VERSION_MAX_SUPPORTED;
+
+    return SECSuccess;
+}
+
+SECStatus
+SSL_VersionRangeGetDefault(SSLProtocolVariant protocolVariant,
+			   SSLVersionRange *vrange)
+{
+    if (protocolVariant != ssl_variant_stream || !vrange) {
+	PORT_SetError(SEC_ERROR_INVALID_ARGS);
+	return SECFailure;
+    }
+
+    *vrange = versions_defaults;
+
+    return SECSuccess;
+}
+
+SECStatus
+SSL_VersionRangeSetDefault(SSLProtocolVariant protocolVariant,
+			   const SSLVersionRange *vrange)
+{
+    if (!ssl3_VersionRangeIsValid(protocolVariant, vrange)) {
+	PORT_SetError(SSL_ERROR_INVALID_VERSION_RANGE);
+	return SECFailure;
+    }
+
+    versions_defaults = *vrange;
+
+    return SECSuccess;
+}
+
+SECStatus
+SSL_VersionRangeGet(PRFileDesc *fd, SSLVersionRange *vrange)
+{
+    sslSocket *ss = ssl_FindSocket(fd);
+
+    if (!ss) {
+	SSL_DBG(("%d: SSL[%d]: bad socket in SSL3_VersionRangeGet",
+		SSL_GETPID(), fd));
+	return SECFailure;
+    }
+
+    if (!vrange) {
+	PORT_SetError(SEC_ERROR_INVALID_ARGS);
+	return SECFailure;
+    }
+
+    ssl_Get1stHandshakeLock(ss);
+    ssl_GetSSL3HandshakeLock(ss);
+
+    *vrange = ss->vrange;
+
+    ssl_ReleaseSSL3HandshakeLock(ss);
+    ssl_Release1stHandshakeLock(ss);
+
+    return SECSuccess;
+}
+
+SECStatus
+SSL_VersionRangeSet(PRFileDesc *fd, const SSLVersionRange *vrange)
+{
+    sslSocket *ss = ssl_FindSocket(fd);
+
+    if (!ss) {
+	SSL_DBG(("%d: SSL[%d]: bad socket in SSL3_VersionRangeSet",
+		SSL_GETPID(), fd));
+	return SECFailure;
+    }
+
+    if (!ssl3_VersionRangeIsValid(ssl_variant_stream, vrange)) {
+	PORT_SetError(SSL_ERROR_INVALID_VERSION_RANGE);
+	return SECFailure;
+    }
+
+    ssl_Get1stHandshakeLock(ss);
+    ssl_GetSSL3HandshakeLock(ss);
+
+    ss->vrange = *vrange;
+
+    ssl_ReleaseSSL3HandshakeLock(ss);
+    ssl_Release1stHandshakeLock(ss);
+
+    return SECSuccess;
 }
 
 SECStatus
@@ -2652,6 +2851,7 @@ ssl_NewSocket(PRBool makeLocks)
 	ss->opt                = ssl_defaults;
 	ss->opt.useSocks       = PR_FALSE;
 	ss->opt.noLocks        = !makeLocks;
+	ss->vrange             = versions_defaults;
 
 	ss->peerID             = NULL;
 	ss->rTimeout	       = PR_INTERVAL_NO_TIMEOUT;
