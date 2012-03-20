@@ -64,8 +64,13 @@ def wait_for_xvfb(xdisplaycheck, env):
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         env=env)
+  except OSError:
+    print >> sys.stderr, 'Failed to load %s with cwd=%s' % (
+        xdisplaycheck, os.getcwd())
+    return False
   except subprocess.CalledProcessError:
-    print >> sys.stderr, 'Xvfb failed to load properly.'
+    print >> sys.stderr, (
+        'Xvfb failed to load properly while trying to run %s' % xdisplaycheck)
     return False
   return True
 
