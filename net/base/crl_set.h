@@ -32,10 +32,7 @@ class NET_EXPORT CRLSet : public base::RefCountedThreadSafe<CRLSet> {
     REVOKED,  // the certificate should be rejected.
     UNKNOWN,  // the CRL for the certificate is not included in the set.
     GOOD,     // the certificate is not listed.
-    CRL_SET_EXPIRED, // the CRLSet has expired.
   };
-
-  ~CRLSet();
 
   // Parse parses the bytes in |data| and, on success, puts a new CRLSet in
   // |out_crl_set| and returns true.
@@ -54,6 +51,10 @@ class NET_EXPORT CRLSet : public base::RefCountedThreadSafe<CRLSet> {
   Result CheckSerial(
       const base::StringPiece& serial_number,
       const base::StringPiece& issuer_spki_hash) const;
+
+  // IsExpired returns true iff the current time is past the NotAfter time
+  // specified in the CRLSet.
+  bool IsExpired() const;
 
   // ApplyDelta returns a new CRLSet in |out_crl_set| that is the result of
   // updating the current CRL set with the delta information in |delta_bytes|.
@@ -84,17 +85,21 @@ class NET_EXPORT CRLSet : public base::RefCountedThreadSafe<CRLSet> {
   // testing.
   const CRLList& crls() const;
 
+  // EmptyCRLSetForTesting returns a valid, but empty, CRLSet for unit tests.
+  static CRLSet* EmptyCRLSetForTesting();
+
+  // ExpiredCRLSetForTesting returns a expired, empty CRLSet for unit tests.
+  static CRLSet* ExpiredCRLSetForTesting();
+
  private:
   CRLSet();
+  ~CRLSet();
+
+  friend class base::RefCountedThreadSafe<CRLSet>;
 
   // CopyBlockedSPKIsFromHeader sets |blocked_spkis_| to the list of values
   // from "BlockedSPKIs" in |header_dict|.
   bool CopyBlockedSPKIsFromHeader(base::DictionaryValue* header_dict);
-
-  // CheckSerialIsRevoked is a helper function for |CheckSerial|.
-  Result CheckSerialIsRevoked(
-      const base::StringPiece& serial_number,
-      const base::StringPiece& issuer_spki_hash) const;
 
   uint32 sequence_;
   CRLList crls_;
