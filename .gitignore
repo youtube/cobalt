@@ -52,6 +52,7 @@ v8.log
 /chrome/app/theme/google_chrome
 /chrome/browser/autofill/internal
 /chrome/browser/extensions/default_extensions/chromeos
+/chrome/browser/intents/internal/
 /chrome/browser/protector/internal
 /chrome/browser/resources/software_rendering_list
 /chrome/browser/spellchecker/internal
@@ -207,6 +208,7 @@ v8.log
 /third_party/yasm/generate_files.xml
 /third_party/yasm/source/patched-yasm
 /third_party/yasm/yasm.xml
+/tools/deps2git/
 /tools/distcc
 /tools/grit
 /tools/gyp
