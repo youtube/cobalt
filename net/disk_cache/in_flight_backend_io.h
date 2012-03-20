@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -34,6 +34,10 @@ class BackendIO : public BackgroundIO {
   // Callback implementation.
   void OnIOComplete(int result);
 
+  // Called when we are finishing this operation. If |cancel| is true, the user
+  // callback will not be invoked.
+  void OnDone(bool cancel);
+
   // Returns true if this operation is directed to an entry (vs. the backend).
   bool IsEntryOperation();
 
@@ -41,9 +45,6 @@ class BackendIO : public BackgroundIO {
 
   // Grabs an extra reference of entry_.
   void ReferenceEntry();
-
-  // Returns the time that has passed since the operation was created.
-  base::TimeDelta ElapsedTime() const;
 
   // The operations we proxy:
   void Init();
@@ -108,6 +109,12 @@ class BackendIO : public BackgroundIO {
   };
 
   virtual ~BackendIO();
+
+  // Returns true if this operation returns an entry.
+  bool ReturnsEntry();
+
+  // Returns the time that has passed since the operation was created.
+  base::TimeDelta ElapsedTime() const;
 
   void ExecuteBackendOperation();
   void ExecuteEntryOperation();
@@ -196,6 +203,8 @@ class InFlightBackendIO : public InFlightIO {
     return background_thread_->BelongsToCurrentThread();
   }
 
+  base::WeakPtr<InFlightBackendIO> GetWeakPtr();
+
  protected:
   virtual void OnOperationComplete(BackgroundIO* operation,
                                    bool cancel) OVERRIDE;
@@ -205,6 +214,7 @@ class InFlightBackendIO : public InFlightIO {
 
   BackendImpl* backend_;
   scoped_refptr<base::MessageLoopProxy> background_thread_;
+  base::WeakPtrFactory<InFlightBackendIO> ptr_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(InFlightBackendIO);
 };

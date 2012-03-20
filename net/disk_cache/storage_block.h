@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -54,6 +54,9 @@ class StorageBlock : public FileBlock {
 
   // Sets the object to lazily save the in-memory data on destruction.
   void set_modified();
+
+  // Forgets that the data was modified, so it's not lazily saved.
+  void clear_modified();
 
   // Gets a pointer to the internal storage (allocates storage if needed).
   T* Data();

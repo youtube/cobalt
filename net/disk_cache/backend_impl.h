@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -100,9 +100,8 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   // Returns the actual file used to store a given (non-external) address.
   MappedFile* File(Addr address);
 
-  InFlightBackendIO* background_queue() {
-    return &background_queue_;
-  }
+  // Returns a weak pointer to the background queue.
+  base::WeakPtr<InFlightBackendIO> GetBackgroundQueue();
 
   // Creates an external storage file.
   bool CreateExternalFile(Addr* address);

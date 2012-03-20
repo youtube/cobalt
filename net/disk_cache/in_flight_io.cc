@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,7 @@
 namespace disk_cache {
 
 BackgroundIO::BackgroundIO(InFlightIO* controller)
-    : controller_(controller), result_(-1), io_completed_(true, false) {
+    : result_(-1), io_completed_(true, false), controller_(controller) {
 }
 
 // Runs on the primary thread.
@@ -21,15 +21,13 @@ void BackgroundIO::OnIOSignalled() {
 }
 
 void BackgroundIO::Cancel() {
+  // controller_ may be in use from the background thread at this time.
+  base::AutoLock lock(controller_lock_);
   DCHECK(controller_);
   controller_ = NULL;
 }
 
-BackgroundIO::~BackgroundIO() {}
-
-// Runs on the background thread.
-void BackgroundIO::NotifyController() {
-  controller_->OnIOComplete(this);
+BackgroundIO::~BackgroundIO() {
 }
 
 // ---------------------------------------------------------------------------
@@ -42,11 +40,28 @@ InFlightIO::InFlightIO()
 InFlightIO::~InFlightIO() {
 }
 
+// Runs on the background thread.
+void BackgroundIO::NotifyController() {
+  base::AutoLock lock(controller_lock_);
+  if (controller_)
+    controller_->OnIOComplete(this);
+}
+
 void InFlightIO::WaitForPendingIO() {
   while (!io_list_.empty()) {
     // Block the current thread until all pending IO completes.
     IOList::iterator it = io_list_.begin();
     InvokeCallback(*it, true);
+  }
+}
+
+void InFlightIO::DropPendingIO() {
+  while (!io_list_.empty()) {
+    IOList::iterator it = io_list_.begin();
+    BackgroundIO* operation = *it;
+    operation->Cancel();
+    DCHECK(io_list_.find(operation) != io_list_.end());
+    io_list_.erase(make_scoped_refptr(operation));
   }
 }
 
