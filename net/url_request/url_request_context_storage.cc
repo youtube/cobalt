@@ -44,10 +44,10 @@ void URLRequestContextStorage::set_cert_verifier(CertVerifier* cert_verifier) {
   cert_verifier_.reset(cert_verifier);
 }
 
-void URLRequestContextStorage::set_origin_bound_cert_service(
-    OriginBoundCertService* origin_bound_cert_service) {
-  context_->set_origin_bound_cert_service(origin_bound_cert_service);
-  origin_bound_cert_service_.reset(origin_bound_cert_service);
+void URLRequestContextStorage::set_server_bound_cert_service(
+    ServerBoundCertService* server_bound_cert_service) {
+  context_->set_server_bound_cert_service(server_bound_cert_service);
+  server_bound_cert_service_.reset(server_bound_cert_service);
 }
 
 void URLRequestContextStorage::set_fraudulent_certificate_reporter(

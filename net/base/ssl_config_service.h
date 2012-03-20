@@ -70,7 +70,7 @@ struct NET_EXPORT SSLConfig {
   std::vector<uint16> disabled_cipher_suites;
 
   bool cached_info_enabled;  // True if TLS cached info extension is enabled.
-  bool origin_bound_certs_enabled;  // True if TLS origin bound cert extension
+  bool domain_bound_certs_enabled;  // True if TLS origin bound cert extension
                                     // is enabled.
   bool false_start_enabled;  // True if we'll use TLS False Start.
 

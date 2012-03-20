@@ -15,9 +15,9 @@ namespace net {
 
 namespace x509_util {
 
-bool CreateOriginBoundCertEC(
+bool CreateDomainBoundCertEC(
     crypto::ECPrivateKey* key,
-    const std::string& origin,
+    const std::string& domain,
     uint32 serial_number,
     base::Time not_valid_before,
     base::Time not_valid_after,

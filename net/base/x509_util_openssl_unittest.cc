@@ -10,18 +10,18 @@
 
 namespace net {
 
-// For OpenSSL, x509_util::CreateOriginBoundCertEC() is not yet implemented
+// For OpenSSL, x509_util::CreateDomainBoundCertEC() is not yet implemented
 // and should return false.  This unit test ensures that a stub implementation
 // is present.
-TEST(X509UtilOpenSSLTest, CreateOriginBoundCertNotImplemented) {
-  std::string origin = "http://weborigin.com:443";
+TEST(X509UtilOpenSSLTest, CreateDomainBoundCertNotImplemented) {
+  std::string domain = "weborigin.com";
   base::Time now = base::Time::Now();
   scoped_ptr<crypto::ECPrivateKey> private_key(
       crypto::ECPrivateKey::Create());
   std::string der_cert;
-  EXPECT_FALSE(x509_util::CreateOriginBoundCertEC(
+  EXPECT_FALSE(x509_util::CreateDomainBoundCertEC(
       private_key.get(),
-      origin, 1,
+      domain, 1,
       now,
       now + base::TimeDelta::FromDays(1),
       &der_cert));
