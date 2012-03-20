@@ -25,6 +25,7 @@
 #include "googleurl/src/url_canon_ip.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
+#include "net/base/crl_set.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/base/pem_tokenizer.h"
@@ -604,6 +605,16 @@ int X509Certificate::Verify(const std::string& hostname,
     verify_result->cert_status |= CERT_STATUS_REVOKED;
     return ERR_CERT_REVOKED;
   }
+
+  // If EV verification was requested and no CRLSet is present, or if the
+  // CRLSet has expired, then enable online revocation checks. If the online
+  // check fails, EV status won't be shown.
+  //
+  // A possible optimisation is to only enable online revocation checking in
+  // the event that the leaf certificate appears to include a EV policy ID.
+  // However, it's expected that having a current CRLSet will be very common.
+  if ((flags & VERIFY_EV_CERT) && (!crl_set || crl_set->IsExpired()))
+    flags |= VERIFY_REV_CHECKING_ENABLED;
 
   int rv = VerifyInternal(hostname, flags, crl_set, verify_result);
 
