@@ -550,20 +550,20 @@ TEST(HttpCache, SimpleGETWithDiskFailures3) {
 
   MockHttpRequest request(kSimpleGET_Transaction);
   rv = c->trans->Start(&request, c->callback.callback(), net::BoundNetLog());
-  EXPECT_EQ(net::ERR_CACHE_READ_FAILURE, c->callback.GetResult(rv));
+  EXPECT_EQ(net::OK, c->callback.GetResult(rv));
 
   // Now verify that the entry was removed from the cache.
   cache.disk_cache()->set_soft_failures(false);
 
-  EXPECT_EQ(1, cache.network_layer()->transaction_count());
-  EXPECT_EQ(1, cache.disk_cache()->open_count());
-  EXPECT_EQ(1, cache.disk_cache()->create_count());
-
-  RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
-
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(2, cache.disk_cache()->create_count());
+
+  RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
+
+  EXPECT_EQ(3, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(3, cache.disk_cache()->create_count());
 }
 
 TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit) {
