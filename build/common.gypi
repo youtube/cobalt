@@ -13,8 +13,7 @@
     # weird.  This is done so that 'host_arch', 'chromeos', etc are defined as
     # variables within the outer variables dict here.  This is necessary
     # to get these variables defined for the conditions within this variables
-    # dict that operate on these variables (e.g., for setting 'toolkit_views',
-    # we need to have 'chromeos' already set).
+    # dict that operate on these variables.
     'variables': {
       'variables': {
         'variables': {
@@ -319,24 +318,24 @@
         # Flags to use X11 on non-Mac POSIX platforms
         ['OS=="win" or OS=="mac" or OS=="android"', {
           'use_glib%': 0,
-          'toolkit_uses_gtk%': 0,
           'use_x11%': 0,
         }, {
-          # TODO(dnicoara) Wayland build should have these disabled, but
-          # currently GTK and X is too spread and it's hard to completely
-          # remove every dependency.
           'use_glib%': 1,
-          'toolkit_uses_gtk%': 1,
           'use_x11%': 1,
         }],
+
+        # Set toolkit_uses_gtk for the Chromium browser on Linux.
+        ['OS=="linux" and chromeos==0', {
+          'toolkit_uses_gtk%': 1,
+        }, {
+          'toolkit_uses_gtk%': 0,
+        }],
+
         # We always use skia text rendering in Aura on Windows, since GDI
         # doesn't agree with our BackingStore.
         # TODO(beng): remove once skia text rendering is on by default.
         ['use_aura==1 and OS=="win"', {
           'enable_skia_text%': 1,
-        }],
-        ['use_aura==1 and OS!="win"', {
-          'toolkit_uses_gtk%': 0,
         }],
 
         # A flag to enable or disable our compile-time dependency
