@@ -12,7 +12,7 @@ SSLClientSocket::SSLClientSocket()
     : was_npn_negotiated_(false),
       was_spdy_negotiated_(false),
       protocol_negotiated_(kProtoUnknown),
-      origin_bound_cert_type_(CLIENT_CERT_INVALID_TYPE) {
+      domain_bound_cert_type_(CLIENT_CERT_INVALID_TYPE) {
 }
 
 SSLClientSocket::NextProto SSLClientSocket::NextProtoFromString(
@@ -124,17 +124,17 @@ void SSLClientSocket::set_protocol_negotiated(
   protocol_negotiated_ = protocol_negotiated;
 }
 
-bool SSLClientSocket::WasOriginBoundCertSent() const {
-  return origin_bound_cert_type_ != CLIENT_CERT_INVALID_TYPE;
+bool SSLClientSocket::WasDomainBoundCertSent() const {
+  return domain_bound_cert_type_ != CLIENT_CERT_INVALID_TYPE;
 }
 
-SSLClientCertType SSLClientSocket::origin_bound_cert_type() const {
-  return origin_bound_cert_type_;
+SSLClientCertType SSLClientSocket::domain_bound_cert_type() const {
+  return domain_bound_cert_type_;
 }
 
-SSLClientCertType SSLClientSocket::set_origin_bound_cert_type(
+SSLClientCertType SSLClientSocket::set_domain_bound_cert_type(
     SSLClientCertType type) {
-  return origin_bound_cert_type_ = type;
+  return domain_bound_cert_type_ = type;
 }
 
 }  // namespace net

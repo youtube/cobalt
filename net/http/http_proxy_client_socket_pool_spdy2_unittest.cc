@@ -69,7 +69,7 @@ class HttpProxyClientSocketPoolSpdy2Test : public TestWithHttpParam {
                          &ssl_histograms_,
                          &host_resolver_,
                          &cert_verifier_,
-                         NULL /* origin_bound_cert_store */,
+                         NULL /* server_bound_cert_store */,
                          NULL /* transport_security_state */,
                          NULL /* ssl_host_info_factory */,
                          ""   /* ssl_session_cache_shard */,

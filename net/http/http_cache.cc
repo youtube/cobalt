@@ -45,7 +45,7 @@ namespace {
 HttpNetworkSession* CreateNetworkSession(
     HostResolver* host_resolver,
     CertVerifier* cert_verifier,
-    OriginBoundCertService* origin_bound_cert_service,
+    ServerBoundCertService* server_bound_cert_service,
     TransportSecurityState* transport_security_state,
     ProxyService* proxy_service,
     SSLHostInfoFactory* ssl_host_info_factory,
@@ -58,7 +58,7 @@ HttpNetworkSession* CreateNetworkSession(
   HttpNetworkSession::Params params;
   params.host_resolver = host_resolver;
   params.cert_verifier = cert_verifier;
-  params.origin_bound_cert_service = origin_bound_cert_service;
+  params.server_bound_cert_service = server_bound_cert_service;
   params.transport_security_state = transport_security_state;
   params.proxy_service = proxy_service;
   params.ssl_host_info_factory = ssl_host_info_factory;
@@ -298,7 +298,7 @@ class HttpCache::SSLHostInfoFactoryAdaptor : public SSLHostInfoFactory {
 //-----------------------------------------------------------------------------
 HttpCache::HttpCache(HostResolver* host_resolver,
                      CertVerifier* cert_verifier,
-                     OriginBoundCertService* origin_bound_cert_service,
+                     ServerBoundCertService* server_bound_cert_service,
                      TransportSecurityState* transport_security_state,
                      ProxyService* proxy_service,
                      const std::string& ssl_session_cache_shard,
@@ -320,7 +320,7 @@ HttpCache::HttpCache(HostResolver* host_resolver,
               CreateNetworkSession(
                   host_resolver,
                   cert_verifier,
-                  origin_bound_cert_service,
+                  server_bound_cert_service,
                   transport_security_state,
                   proxy_service,
                   ssl_host_info_factory_.get(),

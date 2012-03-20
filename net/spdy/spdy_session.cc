@@ -407,7 +407,7 @@ net::Error SpdySession::InitializeWithSocket(
       protocol = protocol_negotiated;
     }
 
-    if (ssl_socket->WasOriginBoundCertSent()) {
+    if (ssl_socket->WasDomainBoundCertSent()) {
       // According to the SPDY spec, the credential associated with the TLS
       // connection is stored in slot[0].
       credential_state_.SetHasCredential(host_port_pair());
@@ -599,7 +599,7 @@ bool SpdySession::NeedsCredentials(const HostPortPair& origin) const {
   SSLClientSocket* ssl_socket = GetSSLClientSocket();
   if (ssl_socket->protocol_negotiated() < SSLClientSocket::kProtoSPDY3)
     return false;
-  if (!ssl_socket->WasOriginBoundCertSent())
+  if (!ssl_socket->WasDomainBoundCertSent())
     return false;
   return !credential_state_.HasCredential(origin);
 }
@@ -681,7 +681,7 @@ int SpdySession::WriteCredentialFrame(const std::string& origin,
                               spki_piece.data() + spki_piece.size());
       scoped_ptr<crypto::ECPrivateKey> private_key(
           crypto::ECPrivateKey::CreateFromEncryptedPrivateKeyInfo(
-              OriginBoundCertService::kEPKIPassword, key_data, spki));
+              ServerBoundCertService::kEPKIPassword, key_data, spki));
       scoped_ptr<crypto::ECSignatureCreator> creator(
           crypto::ECSignatureCreator::Create(private_key.get()));
       creator->Sign(secret, arraysize(secret), &proof);
@@ -1272,16 +1272,16 @@ bool SpdySession::GetSSLCertRequestInfo(
   return true;
 }
 
-OriginBoundCertService* SpdySession::GetOriginBoundCertService() const {
+ServerBoundCertService* SpdySession::GetServerBoundCertService() const {
   if (!is_secure_)
     return NULL;
-  return GetSSLClientSocket()->GetOriginBoundCertService();
+  return GetSSLClientSocket()->GetServerBoundCertService();
 }
 
-SSLClientCertType SpdySession::GetOriginBoundCertType() const {
+SSLClientCertType SpdySession::GetDomainBoundCertType() const {
   if (!is_secure_)
     return CLIENT_CERT_INVALID_TYPE;
-  return GetSSLClientSocket()->origin_bound_cert_type();
+  return GetSSLClientSocket()->domain_bound_cert_type();
 }
 
 void SpdySession::OnError(int error_code) {
