@@ -40,6 +40,15 @@ MEDIA_EXPORT bool AdjustVolume(void* buf,
                                int bytes_per_sample,
                                float volume);
 
+// MixStreams() mixes 2 audio streams with same sample rate and number of
+// samples, adjusting volume on one of them.
+// Dst += Src * volume.
+MEDIA_EXPORT void MixStreams(void* dst,
+                             void* src,
+                             size_t buflen,
+                             int bytes_per_sample,
+                             float volume);
+
 // FoldChannels() does a software multichannel folding down to stereo.
 // Channel order is assumed to be 5.1 Dolby standard which is
 // front left, front right, center, surround left, surround right.
