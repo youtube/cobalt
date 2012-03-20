@@ -1,12 +1,12 @@
 Name: Network Security Services (NSS)
 URL: http://www.mozilla.org/projects/security/pki/nss/
-Version: 3.13.3
+Version: 3.13.4 pre-release snapshot 20120319
 Security Critical: Yes
 
 This directory includes a copy of NSS's libssl from the CVS repo at:
   :pserver:anonymous@cvs-mirror.mozilla.org:/cvsroot
 
-The snapshot was updated to the CVS tag: NSS_3_13_3_RTM
+The snapshot was updated to the CVS tag: NSS_SSL_3_13_4_20120319_TAG
 
 Patches:
 
@@ -42,13 +42,8 @@ Patches:
 
   * Support origin bound certificates.
     http://balfanz.github.com/tls-obc-spec/draft-balfanz-tls-obc-00.txt
+    https://bugzilla.mozilla.org/show_bug.cgi?id=680292
     patches/origin_bound_certs.patch
-
-  * Add a function to implement RFC 5705: Keying Material Exporters for TLS
-    This is a reworked version of the patch from
-    https://bugzilla.mozilla.org/show_bug.cgi?id=507359
-    patches/secret_exporter.patch
-    patches/secret_exporter2.patch
 
   * Add a function to restart a handshake after a client certificate request.
     patches/restartclientauth.patch
@@ -65,15 +60,6 @@ Patches:
   * Add function to retrieve TLS client cert types requested by server.
     https://bugzilla.mozilla.org/show_bug.cgi?id=51413
     patches/getrequestedclientcerttypes.patch
-
-  * Fixed a clang warning in sslcon.c.
-    https://bugzilla.mozilla.org/show_bug.cgi?id=728919
-    patches/clang-sslcon.patch
-
-  * Fix a buffer length bug and miscellaneous nits in the next protocol 
-    negotiation (NPN) functions.
-    https://bugzilla.mozilla.org/show_bug.cgi?id=734534
-    patches/nextprotocleanup.patch
 
 Apply the patches to NSS by running the patches/applypatches.sh script.  Read
 the comments at the top of patches/applypatches.sh for instructions.

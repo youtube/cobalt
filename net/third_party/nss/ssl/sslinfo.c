@@ -35,7 +35,7 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-/* $Id: sslinfo.c,v 1.24 2010/09/02 01:12:57 wtc%google.com Exp $ */
+/* $Id: sslinfo.c,v 1.28 2012/03/14 00:56:43 wtc%google.com Exp $ */
 #include "ssl.h"
 #include "sslimpl.h"
 #include "sslproto.h"
@@ -181,8 +181,8 @@ static const SSLCipherSuiteInfo suiteInfo[] = {
 {0,CS(TLS_DHE_DSS_WITH_AES_128_CBC_SHA),      S_DSA, K_DHE, C_AES, B_128, M_SHA, 1, 0, 0, },
 {0,CS(TLS_RSA_WITH_SEED_CBC_SHA),             S_RSA, K_RSA, C_SEED,B_128, M_SHA, 1, 0, 0, },
 {0,CS(TLS_RSA_WITH_CAMELLIA_128_CBC_SHA),     S_RSA, K_RSA, C_CAMELLIA, B_128, M_SHA, 0, 0, 0, },
-{0,CS(SSL_RSA_WITH_RC4_128_MD5),              S_RSA, K_RSA, C_RC4, B_128, M_MD5, 0, 0, 0, },
 {0,CS(SSL_RSA_WITH_RC4_128_SHA),              S_RSA, K_RSA, C_RC4, B_128, M_SHA, 0, 0, 0, },
+{0,CS(SSL_RSA_WITH_RC4_128_MD5),              S_RSA, K_RSA, C_RC4, B_128, M_MD5, 0, 0, 0, },
 {0,CS(TLS_RSA_WITH_AES_128_CBC_SHA),          S_RSA, K_RSA, C_AES, B_128, M_SHA, 1, 0, 0, },
 
 {0,CS(SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA),     S_RSA, K_DHE, C_3DES,B_3DES,M_SHA, 1, 0, 0, },
@@ -317,6 +317,46 @@ SSL_IsExportCipherSuite(PRUint16 cipherSuite)
     return PR_FALSE;
 }
 
+SECItem*
+SSL_GetNegotiatedHostInfo(PRFileDesc *fd)
+{
+    SECItem *sniName = NULL;
+    sslSocket *ss;
+    char *name = NULL;
+
+    ss = ssl_FindSocket(fd);
+    if (!ss) {
+	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_GetNegotiatedHostInfo",
+		 SSL_GETPID(), fd));
+	return NULL;
+    }
+
+    if (ss->sec.isServer) {
+        if (ss->version > SSL_LIBRARY_VERSION_3_0 &&
+            ss->ssl3.initialized) { /* TLS */
+            SECItem *crsName;
+            ssl_GetSpecReadLock(ss); /*********************************/
+            crsName = &ss->ssl3.crSpec->srvVirtName;
+            if (crsName->data) {
+                sniName = SECITEM_DupItem(crsName);
+            }
+            ssl_ReleaseSpecReadLock(ss); /*----------------------------*/
+        }
+        return sniName;
+    } 
+    name = SSL_RevealURL(fd);
+    if (name) {
+        sniName = PORT_ZNew(SECItem);
+        if (!sniName) {
+            PORT_Free(name);
+            return NULL;
+        }
+        sniName->data = (void*)name;
+        sniName->len  = PORT_Strlen(name);
+    }
+    return sniName;
+}
+
 SECStatus
 SSL_ExportKeyingMaterial(PRFileDesc *fd,
                          const char *label, unsigned int labelLen,
@@ -378,44 +418,4 @@ SSL_ExportKeyingMaterial(PRFileDesc *fd,
 
     PORT_ZFree(val, valLen);
     return rv;
-}
-
-SECItem*
-SSL_GetNegotiatedHostInfo(PRFileDesc *fd)
-{
-    SECItem *sniName = NULL;
-    sslSocket *ss;
-    char *name = NULL;
-
-    ss = ssl_FindSocket(fd);
-    if (!ss) {
-	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_GetNegotiatedHostInfo",
-		 SSL_GETPID(), fd));
-	return NULL;
-    }
-
-    if (ss->sec.isServer) {
-        if (ss->version > SSL_LIBRARY_VERSION_3_0 &&
-            ss->ssl3.initialized) { /* TLS */
-            SECItem *crsName;
-            ssl_GetSpecReadLock(ss); /*********************************/
-            crsName = &ss->ssl3.crSpec->srvVirtName;
-            if (crsName->data) {
-                sniName = SECITEM_DupItem(crsName);
-            }
-            ssl_ReleaseSpecReadLock(ss); /*----------------------------*/
-        }
-        return sniName;
-    } 
-    name = SSL_RevealURL(fd);
-    if (name) {
-        sniName = PORT_ZNew(SECItem);
-        if (!sniName) {
-            PORT_Free(name);
-            return NULL;
-        }
-        sniName->data = (void*)name;
-        sniName->len  = PORT_Strlen(name);
-    }
-    return sniName;
 }
