@@ -306,14 +306,14 @@ class DnsConfigParameters : public NetLog::EventParameters {
     DictionaryValue* dict = new DictionaryValue();
 
     ListValue* list = new ListValue();
-    for (size_t i = 0; i < config_.search.size(); ++i) {
+    for (size_t i = 0; i < config_.nameservers.size(); ++i) {
       list->Append(Value::CreateStringValue(
           config_.nameservers[i].ToString()));
     }
     dict->Set("nameservers", list);
 
     list = new ListValue();
-    for (size_t i = 0; i < config_.nameservers.size(); ++i) {
+    for (size_t i = 0; i < config_.search.size(); ++i) {
       list->Append(Value::CreateStringValue(config_.search[i]));
     }
     dict->Set("search", list);
