@@ -24,6 +24,8 @@ class ScopedVector {
   typedef typename std::vector<T*>::reverse_iterator reverse_iterator;
   typedef typename std::vector<T*>::const_reverse_iterator
       const_reverse_iterator;
+  typedef typename std::vector<T*>::reference reference;
+  typedef typename std::vector<T*>::const_reference const_reference;
 
   ScopedVector() {}
   ~ScopedVector() { reset(); }
