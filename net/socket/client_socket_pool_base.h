@@ -28,6 +28,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
@@ -239,6 +240,11 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
 
   virtual ~ClientSocketPoolBaseHelper();
 
+  // Adds/Removes layered pools. It is expected in the destructor that no
+  // layered pools remain.
+  void AddLayeredPool(LayeredPool* pool);
+  void RemoveLayeredPool(LayeredPool* pool);
+
   // See ClientSocketPool::RequestSocket for documentation on this function.
   // ClientSocketPoolBaseHelper takes ownership of |request|, which must be
   // heap allocated.
@@ -260,6 +266,9 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
 
   // See ClientSocketPool::Flush for documentation on this function.
   void Flush();
+
+  // See ClientSocketPool::IsStalled for documentation on this function.
+  bool IsStalled() const;
 
   // See ClientSocketPool::CloseIdleSockets for documentation on this function.
   void CloseIdleSockets();
@@ -305,6 +314,16 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
   // Closes all idle sockets if |force| is true.  Else, only closes idle
   // sockets that timed out or can't be reused.  Made public for testing.
   void CleanupIdleSockets(bool force);
+
+  // Closes one idle socket.  Picks the first one encountered.
+  // TODO(willchan): Consider a better algorithm for doing this.  Perhaps we
+  // should keep an ordered list of idle sockets, and close them in order.
+  // Requires maintaining more state.  It's not clear if it's worth it since
+  // I'm not sure if we hit this situation often.
+  bool CloseOneIdleSocket();
+
+  // Checks layered pools to see if they can close an idle connection.
+  bool CloseOneIdleConnectionInLayeredPool();
 
   // See ClientSocketPool::GetInfoAsValue for documentation on this function.
   base::DictionaryValue* GetInfoAsValue(const std::string& name,
@@ -371,7 +390,7 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
           static_cast<int>(idle_sockets_.size());
     }
 
-    bool IsStalled(int max_sockets_per_group) const {
+    bool IsStalledOnPoolMaxSockets(int max_sockets_per_group) const {
       return HasAvailableSocketSlot(max_sockets_per_group) &&
           pending_requests_.size() > jobs_.size();
     }
@@ -457,9 +476,9 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
 
   // Scans the group map for groups which have an available socket slot and
   // at least one pending request. Returns true if any groups are stalled, and
-  // if so, fills |group| and |group_name| with data of the stalled group
-  // having highest priority.
-  bool FindTopStalledGroup(Group** group, std::string* group_name);
+  // if so (and if both |group| and |group_name| are not NULL), fills |group|
+  // and |group_name| with data of the stalled group having highest priority.
+  bool FindTopStalledGroup(Group** group, std::string* group_name) const;
 
   // Called when timer_ fires.  This method scans the idle sockets removing
   // sockets that timed out or can't be reused.
@@ -510,13 +529,6 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
 
   static void LogBoundConnectJobToRequest(
       const NetLog::Source& connect_job_source, const Request* request);
-
-  // Closes one idle socket.  Picks the first one encountered.
-  // TODO(willchan): Consider a better algorithm for doing this.  Perhaps we
-  // should keep an ordered list of idle sockets, and close them in order.
-  // Requires maintaining more state.  It's not clear if it's worth it since
-  // I'm not sure if we hit this situation often.
-  void CloseOneIdleSocket();
 
   // Same as CloseOneIdleSocket() except it won't close an idle socket in
   // |group|.  If |group| is NULL, it is ignored.  Returns true if it closed a
@@ -581,6 +593,8 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
   // pool.  This is so that when sockets get released back to the pool, we can
   // make sure that they are discarded rather than reused.
   int pool_generation_number_;
+
+  std::set<LayeredPool*> higher_layer_pools_;
 
   base::WeakPtrFactory<ClientSocketPoolBaseHelper> weak_factory_;
 
@@ -648,6 +662,13 @@ class ClientSocketPoolBase {
   virtual ~ClientSocketPoolBase() {}
 
   // These member functions simply forward to ClientSocketPoolBaseHelper.
+  void AddLayeredPool(LayeredPool* pool) {
+    helper_.AddLayeredPool(pool);
+  }
+
+  void RemoveLayeredPool(LayeredPool* pool) {
+    helper_.RemoveLayeredPool(pool);
+  }
 
   // RequestSocket bundles up the parameters into a Request and then forwards to
   // ClientSocketPoolBaseHelper::RequestSocket().
@@ -691,6 +712,10 @@ class ClientSocketPoolBase {
                      int id) {
     return helper_.ReleaseSocket(group_name, socket, id);
   }
+
+  void Flush() { helper_.Flush(); }
+
+  bool IsStalled() const { return helper_.IsStalled(); }
 
   void CloseIdleSockets() { return helper_.CloseIdleSockets(); }
 
@@ -740,7 +765,11 @@ class ClientSocketPoolBase {
 
   void EnableConnectBackupJobs() { helper_.EnableConnectBackupJobs(); }
 
-  void Flush() { helper_.Flush(); }
+  bool CloseOneIdleSocket() { return helper_.CloseOneIdleSocket(); }
+
+  bool CloseOneIdleConnectionInLayeredPool() {
+    return helper_.CloseOneIdleConnectionInLayeredPool();
+  }
 
  private:
   // This adaptor class exists to bridge the
