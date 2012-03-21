@@ -8,6 +8,7 @@
 #include "base/values.h"
 #include "net/base/ssl_config_service.h"
 #include "net/http/http_proxy_client_socket_pool.h"
+#include "net/http/http_network_session.h"
 #include "net/socket/socks_client_socket_pool.h"
 #include "net/socket/ssl_client_socket_pool.h"
 #include "net/socket/transport_client_socket_pool.h"
@@ -42,7 +43,8 @@ ClientSocketPoolManagerImpl::ClientSocketPoolManagerImpl(
     SSLHostInfoFactory* ssl_host_info_factory,
     const std::string& ssl_session_cache_shard,
     ProxyService* proxy_service,
-    SSLConfigService* ssl_config_service)
+    SSLConfigService* ssl_config_service,
+    HttpNetworkSession::SocketPoolType pool_type)
     : net_log_(net_log),
       socket_factory_(socket_factory),
       host_resolver_(host_resolver),
@@ -53,16 +55,17 @@ ClientSocketPoolManagerImpl::ClientSocketPoolManagerImpl(
       ssl_session_cache_shard_(ssl_session_cache_shard),
       proxy_service_(proxy_service),
       ssl_config_service_(ssl_config_service),
+      pool_type_(pool_type),
       transport_pool_histograms_("TCP"),
       transport_socket_pool_(new TransportClientSocketPool(
-          max_sockets_per_pool(), max_sockets_per_group(),
+          max_sockets_per_pool(pool_type), max_sockets_per_group(pool_type),
           &transport_pool_histograms_,
           host_resolver,
           socket_factory_,
           net_log)),
       ssl_pool_histograms_("SSL2"),
       ssl_socket_pool_(new SSLClientSocketPool(
-          max_sockets_per_pool(), max_sockets_per_group(),
+          max_sockets_per_pool(pool_type), max_sockets_per_group(pool_type),
           &ssl_pool_histograms_,
           host_resolver,
           cert_verifier,
@@ -213,8 +216,8 @@ SOCKSClientSocketPool* ClientSocketPoolManagerImpl::GetSocketPoolForSOCKSProxy(
           std::make_pair(
               socks_proxy,
               new TransportClientSocketPool(
-                  max_sockets_per_proxy_server(),
-                  max_sockets_per_group(),
+                  max_sockets_per_proxy_server(pool_type_),
+                  max_sockets_per_group(pool_type_),
                   &transport_for_socks_pool_histograms_,
                   host_resolver_,
                   socket_factory_,
@@ -224,8 +227,8 @@ SOCKSClientSocketPool* ClientSocketPoolManagerImpl::GetSocketPoolForSOCKSProxy(
   std::pair<SOCKSSocketPoolMap::iterator, bool> ret =
       socks_socket_pools_.insert(
           std::make_pair(socks_proxy, new SOCKSClientSocketPool(
-              max_sockets_per_proxy_server(),
-              max_sockets_per_group(),
+              max_sockets_per_proxy_server(pool_type_),
+              max_sockets_per_group(pool_type_),
               &socks_pool_histograms_,
               host_resolver_,
               tcp_ret.first->second,
@@ -255,8 +258,8 @@ ClientSocketPoolManagerImpl::GetSocketPoolForHTTPProxy(
           std::make_pair(
               http_proxy,
               new TransportClientSocketPool(
-                  max_sockets_per_proxy_server(),
-                  max_sockets_per_group(),
+                  max_sockets_per_proxy_server(pool_type_),
+                  max_sockets_per_group(pool_type_),
                   &transport_for_http_proxy_pool_histograms_,
                   host_resolver_,
                   socket_factory_,
@@ -268,8 +271,8 @@ ClientSocketPoolManagerImpl::GetSocketPoolForHTTPProxy(
           std::make_pair(
               http_proxy,
               new TransportClientSocketPool(
-                  max_sockets_per_proxy_server(),
-                  max_sockets_per_group(),
+                  max_sockets_per_proxy_server(pool_type_),
+                  max_sockets_per_group(pool_type_),
                   &transport_for_https_proxy_pool_histograms_,
                   host_resolver_,
                   socket_factory_,
@@ -281,8 +284,8 @@ ClientSocketPoolManagerImpl::GetSocketPoolForHTTPProxy(
           std::make_pair(
               http_proxy,
               new SSLClientSocketPool(
-                  max_sockets_per_proxy_server(),
-                  max_sockets_per_group(),
+                  max_sockets_per_proxy_server(pool_type_),
+                  max_sockets_per_group(pool_type_),
                   &ssl_for_https_proxy_pool_histograms_,
                   host_resolver_,
                   cert_verifier_,
@@ -302,8 +305,8 @@ ClientSocketPoolManagerImpl::GetSocketPoolForHTTPProxy(
           std::make_pair(
               http_proxy,
               new HttpProxyClientSocketPool(
-                  max_sockets_per_proxy_server(),
-                  max_sockets_per_group(),
+                  max_sockets_per_proxy_server(pool_type_),
+                  max_sockets_per_group(pool_type_),
                   &http_proxy_pool_histograms_,
                   host_resolver_,
                   tcp_http_ret.first->second,
@@ -321,7 +324,8 @@ SSLClientSocketPool* ClientSocketPoolManagerImpl::GetSocketPoolForSSLWithProxy(
     return it->second;
 
   SSLClientSocketPool* new_pool = new SSLClientSocketPool(
-      max_sockets_per_proxy_server(), max_sockets_per_group(),
+      max_sockets_per_proxy_server(pool_type_),
+      max_sockets_per_group(pool_type_),
       &ssl_pool_histograms_,
       host_resolver_,
       cert_verifier_,
