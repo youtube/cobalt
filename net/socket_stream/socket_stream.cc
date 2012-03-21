@@ -255,14 +255,17 @@ void SocketStream::SetClientSocketFactory(
   factory_ = factory;
 }
 
-void SocketStream::CancelBecauseOfCertError(const SSLInfo& ssl_info) {
+void SocketStream::CancelWithError(int error) {
   MessageLoop::current()->PostTask(
       FROM_HERE,
-      base::Bind(&SocketStream::DoLoop, this,
-          MapCertStatusToNetError(ssl_info.cert_status)));
+      base::Bind(&SocketStream::DoLoop, this, error));
 }
 
-void SocketStream::ContinueDespiteCertError() {
+void SocketStream::CancelWithSSLError(const SSLInfo& ssl_info) {
+  CancelWithError(MapCertStatusToNetError(ssl_info.cert_status));
+}
+
+void SocketStream::ContinueDespiteError() {
   MessageLoop::current()->PostTask(
       FROM_HERE,
       base::Bind(&SocketStream::DoLoop, this, OK));
