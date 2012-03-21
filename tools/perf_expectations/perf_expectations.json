@@ -75,7 +75,7 @@
  "mac-release-10.5/dom_perf/Total/score": {"reva": 120570, "revb": 121453, "improve": 377, "regress": 120, "sha1": "aa8f52ed"},
  "mac-release-10.5/intl1/times/t": {"reva": 120693, "revb": 121454, "improve": -1276, "regress": -867, "sha1": "415413de"},
  "mac-release-10.5/intl2/commit_charge/cc": {"reva": 79662, "revb": 81211, "improve": -46238, "regress": 55911, "sha1": "4c75e106"},
- "mac-release-10.5/intl2/processes/proc_": {"improve": 0, "regress": 0, "sha1": "a1a53594"},
+ "mac-release-10.5/intl2/processes/proc_": {"reva": 128000, "revb": 128058, "better": "lower", "improve": 1, "regress": 1, "tolerance": 0, "sha1": "4674ac31"},
  "mac-release-10.5/intl2/times/t": {"reva": 80750, "revb": 81208, "improve": -1772, "regress": 1586, "sha1": "3b491046"},
  "mac-release-10.5/intl2/vm_rss_final_b/vm_rss_f_b": {"reva": 99507, "revb": 100009, "improve": -7881, "regress": 7858, "sha1": "db007fa1"},
  "mac-release-10.5/intl2/vm_rss_final_r/vm_rss_f_r": {"reva": 99507, "revb": 100009, "improve": -7881, "regress": 7858, "sha1": "ddaa9376"},
