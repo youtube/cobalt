@@ -42,22 +42,22 @@ AUAudioInputStream::AUAudioInputStream(
   DCHECK(manager_);
 
   // Set up the desired (output) format specified by the client.
-  format_.mSampleRate = params.sample_rate;
+  format_.mSampleRate = params.sample_rate();
   format_.mFormatID = kAudioFormatLinearPCM;
   format_.mFormatFlags = kLinearPCMFormatFlagIsPacked |
                          kLinearPCMFormatFlagIsSignedInteger;
-  format_.mBitsPerChannel = params.bits_per_sample;
-  format_.mChannelsPerFrame = params.channels;
+  format_.mBitsPerChannel = params.bits_per_sample();
+  format_.mChannelsPerFrame = params.channels();
   format_.mFramesPerPacket = 1;  // uncompressed audio
   format_.mBytesPerPacket = (format_.mBitsPerChannel *
-                             params.channels) / 8;
+                             params.channels()) / 8;
   format_.mBytesPerFrame = format_.mBytesPerPacket;
   format_.mReserved = 0;
 
   DVLOG(1) << "Desired ouput format: " << format_;
 
   // Calculate the number of sample frames per callback.
-  number_of_frames_ = params.GetPacketSize() / format_.mBytesPerPacket;
+  number_of_frames_ = params.GetBytesPerBuffer() / format_.mBytesPerPacket;
   DVLOG(1) << "Number of frames per callback: " << number_of_frames_;
 
   // Derive size (in bytes) of the buffers that we will render to.
@@ -71,7 +71,7 @@ AUAudioInputStream::AUAudioInputStream(
   audio_buffer_list_.mNumberBuffers = 1;
 
   AudioBuffer* audio_buffer = audio_buffer_list_.mBuffers;
-  audio_buffer->mNumberChannels = params.channels;
+  audio_buffer->mNumberChannels = params.channels();
   audio_buffer->mDataByteSize = data_byte_size;
   audio_buffer->mData = audio_data_buffer_.get();
 }
@@ -446,7 +446,7 @@ OSStatus AUAudioInputStream::Provide(UInt32 number_of_frames,
   return noErr;
 }
 
-double AUAudioInputStream::HardwareSampleRate() {
+int AUAudioInputStream::HardwareSampleRate() {
   // Determine the default input device's sample-rate.
   AudioDeviceID device_id = kAudioObjectUnknown;
   UInt32 info_size = sizeof(device_id);
@@ -484,7 +484,7 @@ double AUAudioInputStream::HardwareSampleRate() {
   if (result)
     return 0.0;
 
-  return nominal_sample_rate;
+  return static_cast<int>(nominal_sample_rate);
 }
 
 double AUAudioInputStream::GetHardwareLatency() {

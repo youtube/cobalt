@@ -84,27 +84,27 @@ PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
       waveout_(NULL),
       callback_(NULL),
       num_buffers_(num_buffers),
-      buffer_size_(params.GetPacketSize()),
+      buffer_size_(params.GetBytesPerBuffer()),
       volume_(1),
-      channels_(params.channels),
+      channels_(params.channels()),
       pending_bytes_(0) {
   format_.Format.wFormatTag = WAVE_FORMAT_EXTENSIBLE;
-  format_.Format.nChannels = params.channels;
-  format_.Format.nSamplesPerSec = params.sample_rate;
-  format_.Format.wBitsPerSample = params.bits_per_sample;
+  format_.Format.nChannels = params.channels();
+  format_.Format.nSamplesPerSec = params.sample_rate();
+  format_.Format.wBitsPerSample = params.bits_per_sample();
   format_.Format.cbSize = sizeof(format_) - sizeof(WAVEFORMATEX);
   // The next are computed from above.
   format_.Format.nBlockAlign = (format_.Format.nChannels *
                                 format_.Format.wBitsPerSample) / 8;
   format_.Format.nAvgBytesPerSec = format_.Format.nBlockAlign *
                                    format_.Format.nSamplesPerSec;
-  if (params.channels > kMaxChannelsToMask) {
+  if (params.channels() > kMaxChannelsToMask) {
     format_.dwChannelMask = kChannelsToMask[kMaxChannelsToMask];
   } else {
-    format_.dwChannelMask = kChannelsToMask[params.channels];
+    format_.dwChannelMask = kChannelsToMask[params.channels()];
   }
   format_.SubFormat = KSDATAFORMAT_SUBTYPE_PCM;
-  format_.Samples.wValidBitsPerSample = params.bits_per_sample;
+  format_.Samples.wValidBitsPerSample = params.bits_per_sample();
 }
 
 PCMWaveOutAudioOutputStream::~PCMWaveOutAudioOutputStream() {

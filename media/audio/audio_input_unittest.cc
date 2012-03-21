@@ -90,7 +90,7 @@ TEST(AudioInputTest, SanityOnMakeParams) {
 
   AudioParameters::Format fmt = AudioParameters::AUDIO_PCM_LINEAR;
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
-      AudioParameters(fmt, CHANNEL_LAYOUT_7POINT1, 8000, 16,
+      AudioParameters(fmt, CHANNEL_LAYOUT_7_1, 8000, 16,
                       kSamplesPerPacket), AudioManagerBase::kDefaultDeviceId));
   EXPECT_TRUE(NULL == audio_man->MakeAudioInputStream(
       AudioParameters(fmt, CHANNEL_LAYOUT_MONO, 1024 * 1024, 16,

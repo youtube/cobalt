@@ -9,9 +9,8 @@
 #include "media/base/channel_layout.h"
 #include "media/base/media_export.h"
 
-// TODO(vrk): This should probably be changed to an immutable object instead of
-// a struct. See crbug.com/115902.
-struct MEDIA_EXPORT AudioParameters {
+class MEDIA_EXPORT AudioParameters {
+ public:
   // Compare is useful when AudioParameters is used as a key in std::map.
   class MEDIA_EXPORT Compare {
    public:
@@ -33,27 +32,42 @@ struct MEDIA_EXPORT AudioParameters {
   static const uint32 kAudioDATSampleRate = 48000;
 
   AudioParameters();
-  AudioParameters(Format format, ChannelLayout channel_layout, int sample_rate,
-                  int bits_per_sample, int samples_per_packet);
+  AudioParameters(Format format, ChannelLayout channel_layout,
+                  int sample_rate, int bits_per_sample,
+                  int frames_per_buffer);
+  void Reset(Format format, ChannelLayout channel_layout,
+             int sample_rate, int bits_per_sample,
+             int frames_per_buffer);
 
   // Checks that all values are in the expected range. All limits are specified
   // in media::Limits.
   bool IsValid() const;
 
-  // Returns size of audio packets in bytes.
-  int GetPacketSize() const;
+  // Returns size of audio buffer in bytes.
+  int GetBytesPerBuffer() const;
 
   // Returns the number of bytes representing one second of audio.
   int GetBytesPerSecond() const;
 
-  Format format;                 // Format of the stream.
-  ChannelLayout channel_layout;  // Order of surround sound channels.
-  int sample_rate;               // Sampling frequency/rate.
-  int bits_per_sample;           // Number of bits per sample.
-  int samples_per_packet;        // Size of a packet in frames.
+  // Returns the number of bytes representing a frame of audio.
+  int GetBytesPerFrame() const;
 
-  int channels;                  // Number of channels. Value set based on
-                                 // |channel_layout|.
+  Format format() const { return format_; }
+  ChannelLayout channel_layout() const { return channel_layout_; }
+  int sample_rate() const { return sample_rate_; }
+  int bits_per_sample() const { return bits_per_sample_; }
+  int frames_per_buffer() const { return frames_per_buffer_; }
+  int channels() const { return channels_; }
+
+ private:
+  Format format_;                 // Format of the stream.
+  ChannelLayout channel_layout_;  // Order of surround sound channels.
+  int sample_rate_;               // Sampling frequency/rate.
+  int bits_per_sample_;           // Number of bits per sample.
+  int frames_per_buffer_;         // Number of frames in a buffer.
+
+  int channels_;                  // Number of channels. Value set based on
+                                  // |channel_layout|.
 };
 
 #endif  // MEDIA_AUDIO_AUDIO_PARAMETERS_H_

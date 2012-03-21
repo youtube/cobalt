@@ -238,8 +238,8 @@ void AudioManagerWin::GetAudioInputDeviceNames(
 // - PCMWaveOutAudioOutputStream: Based on the waveOut API.
 AudioOutputStream* AudioManagerWin::MakeLinearOutputStream(
       const AudioParameters& params) {
-  DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format);
-  if (params.channels > kWinMaxChannels)
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
+  if (params.channels() > kWinMaxChannels)
     return NULL;
 
   return new PCMWaveOutAudioOutputStream(this, params, 3, WAVE_MAPPER);
@@ -252,8 +252,8 @@ AudioOutputStream* AudioManagerWin::MakeLinearOutputStream(
 // - WASAPIAudioOutputStream: Based on Core Audio (WASAPI) API.
 AudioOutputStream* AudioManagerWin::MakeLowLatencyOutputStream(
       const AudioParameters& params) {
-  DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format);
-  if (params.channels > kWinMaxChannels)
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
+  if (params.channels() > kWinMaxChannels)
     return NULL;
 
   AudioOutputStream* stream = NULL;
@@ -274,7 +274,7 @@ AudioOutputStream* AudioManagerWin::MakeLowLatencyOutputStream(
 // mode.
 AudioInputStream* AudioManagerWin::MakeLinearInputStream(
     const AudioParameters& params, const std::string& device_id) {
-  DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format);
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
   return CreatePCMWaveInAudioInputStream(params, device_id);
 }
 
@@ -282,7 +282,7 @@ AudioInputStream* AudioManagerWin::MakeLinearInputStream(
 // AUDIO_PCM_LOW_LATENCY mode.
 AudioInputStream* AudioManagerWin::MakeLowLatencyInputStream(
     const AudioParameters& params, const std::string& device_id) {
-  DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format);
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
   AudioInputStream* stream = NULL;
   if (!media::IsWASAPISupported()) {
     // Fall back to Windows Wave implementation on Windows XP or lower.

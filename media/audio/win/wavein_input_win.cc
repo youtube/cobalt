@@ -36,15 +36,15 @@ PCMWaveInAudioInputStream::PCMWaveInAudioInputStream(
       callback_(NULL),
       num_buffers_(num_buffers),
       buffer_(NULL),
-      channels_(params.channels) {
+      channels_(params.channels()) {
   format_.wFormatTag = WAVE_FORMAT_PCM;
-  format_.nChannels = params.channels > 2 ? 2 : params.channels;
-  format_.nSamplesPerSec = params.sample_rate;
-  format_.wBitsPerSample = params.bits_per_sample;
+  format_.nChannels = params.channels() > 2 ? 2 : params.channels();
+  format_.nSamplesPerSec = params.sample_rate();
+  format_.wBitsPerSample = params.bits_per_sample();
   format_.cbSize = 0;
   format_.nBlockAlign = (format_.nChannels * format_.wBitsPerSample) / 8;
   format_.nAvgBytesPerSec = format_.nBlockAlign * format_.nSamplesPerSec;
-  buffer_size_ = params.samples_per_packet * format_.nBlockAlign;
+  buffer_size_ = params.frames_per_buffer() * format_.nBlockAlign;
   // If we don't have a packet size we use 100ms.
   if (!buffer_size_)
     buffer_size_ = format_.nAvgBytesPerSec / 10;

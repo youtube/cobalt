@@ -298,25 +298,25 @@ ChannelLayout ChannelLayoutToChromeChannelLayout(int64_t layout,
     case AV_CH_LAYOUT_SURROUND:
       return CHANNEL_LAYOUT_SURROUND;
     case AV_CH_LAYOUT_4POINT0:
-      return CHANNEL_LAYOUT_4POINT0;
+      return CHANNEL_LAYOUT_4_0;
     case AV_CH_LAYOUT_2_2:
       return CHANNEL_LAYOUT_2_2;
     case AV_CH_LAYOUT_QUAD:
       return CHANNEL_LAYOUT_QUAD;
     case AV_CH_LAYOUT_5POINT0:
-      return CHANNEL_LAYOUT_5POINT0;
+      return CHANNEL_LAYOUT_5_0;
     case AV_CH_LAYOUT_5POINT1:
-      return CHANNEL_LAYOUT_5POINT1;
+      return CHANNEL_LAYOUT_5_1;
     case AV_CH_LAYOUT_5POINT0_BACK:
-      return CHANNEL_LAYOUT_5POINT0_BACK;
+      return CHANNEL_LAYOUT_5_0_BACK;
     case AV_CH_LAYOUT_5POINT1_BACK:
-      return CHANNEL_LAYOUT_5POINT1_BACK;
+      return CHANNEL_LAYOUT_5_1_BACK;
     case AV_CH_LAYOUT_7POINT0:
-      return CHANNEL_LAYOUT_7POINT0;
+      return CHANNEL_LAYOUT_7_0;
     case AV_CH_LAYOUT_7POINT1:
-      return CHANNEL_LAYOUT_7POINT1;
+      return CHANNEL_LAYOUT_7_1;
     case AV_CH_LAYOUT_7POINT1_WIDE:
-      return CHANNEL_LAYOUT_7POINT1_WIDE;
+      return CHANNEL_LAYOUT_7_1_WIDE;
     case AV_CH_LAYOUT_STEREO_DOWNMIX:
       return CHANNEL_LAYOUT_STEREO_DOWNMIX;
     default:

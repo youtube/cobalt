@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -39,10 +39,10 @@ WASAPIAudioOutputStream::WASAPIAudioOutputStream(AudioManagerWin* manager,
   DCHECK(avrt_init) << "Failed to load the avrt.dll";
 
   // Set up the desired render format specified by the client.
-  format_.nSamplesPerSec = params.sample_rate;
+  format_.nSamplesPerSec = params.sample_rate();
   format_.wFormatTag = WAVE_FORMAT_PCM;
-  format_.wBitsPerSample = params.bits_per_sample;
-  format_.nChannels = params.channels;
+  format_.wBitsPerSample = params.bits_per_sample();
+  format_.nChannels = params.channels();
   format_.nBlockAlign = (format_.wBitsPerSample / 8) * format_.nChannels;
   format_.nAvgBytesPerSec = format_.nSamplesPerSec * format_.nBlockAlign;
   format_.cbSize = 0;
@@ -52,9 +52,9 @@ WASAPIAudioOutputStream::WASAPIAudioOutputStream(AudioManagerWin* manager,
 
   // Store size (in different units) of audio packets which we expect to
   // get from the audio endpoint device in each render event.
-  packet_size_frames_ = params.GetPacketSize() / format_.nBlockAlign;
-  packet_size_bytes_ = params.GetPacketSize();
-  packet_size_ms_ = (1000.0 * packet_size_frames_) / params.sample_rate;
+  packet_size_frames_ = params.GetBytesPerBuffer() / format_.nBlockAlign;
+  packet_size_bytes_ = params.GetBytesPerBuffer();
+  packet_size_ms_ = (1000.0 * packet_size_frames_) / params.sample_rate();
   DVLOG(1) << "Number of bytes per audio frame  : " << frame_size_;
   DVLOG(1) << "Number of audio frames per packet: " << packet_size_frames_;
   DVLOG(1) << "Number of milliseconds per packet: " << packet_size_ms_;
@@ -253,7 +253,7 @@ void WASAPIAudioOutputStream::GetVolume(double* volume) {
 }
 
 // static
-double WASAPIAudioOutputStream::HardwareSampleRate(ERole device_role) {
+int WASAPIAudioOutputStream::HardwareSampleRate(ERole device_role) {
   // It is assumed that this static method is called from a COM thread, i.e.,
   // CoInitializeEx() is not called here again to avoid STA/MTA conflicts.
   ScopedComPtr<IMMDeviceEnumerator> enumerator;
@@ -296,7 +296,7 @@ double WASAPIAudioOutputStream::HardwareSampleRate(ERole device_role) {
     return 0.0;
   }
 
-  return static_cast<double>(audio_engine_mix_format->nSamplesPerSec);
+  return static_cast<int>(audio_engine_mix_format->nSamplesPerSec);
 }
 
 void WASAPIAudioOutputStream::Run() {

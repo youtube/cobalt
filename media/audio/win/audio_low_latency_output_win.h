@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -161,7 +161,7 @@ class MEDIA_EXPORT WASAPIAudioOutputStream
 
   // Retrieves the stream format that the audio engine uses for its internal
   // processing/mixing of shared-mode streams.
-  static double HardwareSampleRate(ERole device_role);
+  static int HardwareSampleRate(ERole device_role);
 
   bool started() const { return started_; }
 
