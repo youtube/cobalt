@@ -691,9 +691,9 @@ TEST_F(HttpNetworkTransactionSpdy2Test, SingleContentDispositionHeader) {
   EXPECT_EQ("Hello", out.response_data);
 }
 
-// Checks that two identical Content-Disposition headers result in an error.
+// Checks that two identical Content-Disposition headers result in no error.
 TEST_F(HttpNetworkTransactionSpdy2Test,
-       DuplicateIdenticalContentDispositionHeaders) {
+       TwoIdenticalContentDispositionHeaders) {
   MockRead data_reads[] = {
     MockRead("HTTP/1.1 200 OK\r\n"),
     MockRead("Content-Disposition: attachment;filename=\"greetings.txt\"r\n"),
@@ -703,12 +703,13 @@ TEST_F(HttpNetworkTransactionSpdy2Test,
   };
   SimpleGetHelperResult out = SimpleGetHelper(data_reads,
                                               arraysize(data_reads));
-  EXPECT_EQ(ERR_RESPONSE_HEADERS_MULTIPLE_CONTENT_DISPOSITION, out.rv);
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
+  EXPECT_EQ("Hello", out.response_data);
 }
 
 // Checks that two distinct Content-Disposition headers result in an error.
-TEST_F(HttpNetworkTransactionSpdy2Test,
-       DuplicateDistinctContentDispositionHeaders) {
+TEST_F(HttpNetworkTransactionSpdy2Test, TwoDistinctContentDispositionHeaders) {
   MockRead data_reads[] = {
     MockRead("HTTP/1.1 200 OK\r\n"),
     MockRead("Content-Disposition: attachment;filename=\"greetings.txt\"r\n"),
@@ -721,10 +722,12 @@ TEST_F(HttpNetworkTransactionSpdy2Test,
   EXPECT_EQ(ERR_RESPONSE_HEADERS_MULTIPLE_CONTENT_DISPOSITION, out.rv);
 }
 
-// Checks the behavior of a single Location header.
-TEST_F(HttpNetworkTransactionSpdy2Test, SingleLocationHeader) {
+// Checks that two identical Location headers result in no error.
+// Also tests Location header behavior.
+TEST_F(HttpNetworkTransactionSpdy2Test, TwoIdenticalLocationHeaders) {
   MockRead data_reads[] = {
     MockRead("HTTP/1.1 302 Redirect\r\n"),
+    MockRead("Location: http://good.com/\r\n"),
     MockRead("Location: http://good.com/\r\n"),
     MockRead("Content-Length: 0\r\n\r\n"),
     MockRead(SYNCHRONOUS, OK),
@@ -757,22 +760,8 @@ TEST_F(HttpNetworkTransactionSpdy2Test, SingleLocationHeader) {
   EXPECT_EQ("http://good.com/", url);
 }
 
-// Checks that two identical Location headers result in an error.
-TEST_F(HttpNetworkTransactionSpdy2Test, DuplicateIdenticalLocationHeaders) {
-  MockRead data_reads[] = {
-    MockRead("HTTP/1.1 302 Redirect\r\n"),
-    MockRead("Location: http://good.com/\r\n"),
-    MockRead("Location: http://good.com/\r\n"),
-    MockRead("Content-Length: 0\r\n\r\n"),
-    MockRead(SYNCHRONOUS, OK),
-  };
-  SimpleGetHelperResult out = SimpleGetHelper(data_reads,
-                                              arraysize(data_reads));
-  EXPECT_EQ(ERR_RESPONSE_HEADERS_MULTIPLE_LOCATION, out.rv);
-}
-
 // Checks that two distinct Location headers result in an error.
-TEST_F(HttpNetworkTransactionSpdy2Test, DuplicateDistinctLocationHeaders) {
+TEST_F(HttpNetworkTransactionSpdy2Test, TwoDistinctLocationHeaders) {
   MockRead data_reads[] = {
     MockRead("HTTP/1.1 302 Redirect\r\n"),
     MockRead("Location: http://good.com/\r\n"),

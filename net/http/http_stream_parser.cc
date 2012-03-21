@@ -37,13 +37,10 @@ std::string GetResponseHeaderLines(const net::HttpResponseHeaders& headers) {
   return cr_separated_headers;
 }
 
-// Return true if |headers| contain multiple |field_name| fields.  If
-// |count_same_value| is false, returns false if all copies of the field have
-// the same value.
+// Return true if |headers| contain multiple |field_name| fields.
 bool HeadersContainMultipleCopiesOfField(
     const net::HttpResponseHeaders& headers,
-    const std::string& field_name,
-    bool count_same_value) {
+    const std::string& field_name) {
   void* it = NULL;
   std::string field_value;
   if (!headers.EnumerateHeader(&it, field_name, &field_value))
@@ -53,7 +50,7 @@ bool HeadersContainMultipleCopiesOfField(
   // |count_same_value| is true.
   std::string field_value2;
   while (headers.EnumerateHeader(&it, field_name, &field_value2)) {
-    if (count_same_value || field_value != field_value2)
+    if (field_value != field_value2)
       return true;
   }
   return false;
@@ -777,21 +774,15 @@ int HttpStreamParser::DoParseResponseHeaders(int end_offset) {
   // If they exist, and have distinct values, it's a potential response
   // smuggling attack.
   if (!headers->HasHeader("Transfer-Encoding")) {
-    if (HeadersContainMultipleCopiesOfField(*headers,
-                                            "Content-Length",
-                                            false)) {
+    if (HeadersContainMultipleCopiesOfField(*headers, "Content-Length"))
       return ERR_RESPONSE_HEADERS_MULTIPLE_CONTENT_LENGTH;
-    }
   }
 
   // Check for multiple Content-Disposition or Location headers.  If they exist,
   // it's also a potential response smuggling attack.
-  if (HeadersContainMultipleCopiesOfField(*headers,
-                                          "Content-Disposition",
-                                          true)) {
+  if (HeadersContainMultipleCopiesOfField(*headers, "Content-Disposition"))
     return ERR_RESPONSE_HEADERS_MULTIPLE_CONTENT_DISPOSITION;
-  }
-  if (HeadersContainMultipleCopiesOfField(*headers, "Location", true))
+  if (HeadersContainMultipleCopiesOfField(*headers, "Location"))
     return ERR_RESPONSE_HEADERS_MULTIPLE_LOCATION;
 
   response_->headers = headers;
