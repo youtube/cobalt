@@ -130,6 +130,10 @@ class NET_EXPORT X509Certificate
     // When reading a certificate from a Pickle, the Pickle contains the
     // the certificate plus any certificates that were stored in
     // |intermediate_ca_certificates_| at the time it was serialized.
+    // The count of certificates is stored as either 32 or 64 bits.
+    PICKLETYPE_CERTIFICATE_CHAIN_OLD,
+
+    // Same as PICKLETYPE_CERTIFICATE_CHAIN_OLD but with a 32-bit cert count.
     PICKLETYPE_CERTIFICATE_CHAIN,
   };
 
