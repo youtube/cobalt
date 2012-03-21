@@ -219,12 +219,11 @@ class DnsUDPAttempt {
     }
     if (response_->flags() & dns_protocol::kFlagTC)
       return ERR_DNS_SERVER_REQUIRES_TCP;
-    if (response_->rcode() != dns_protocol::kRcodeNOERROR &&
-        response_->rcode() != dns_protocol::kRcodeNXDOMAIN) {
-      return ERR_DNS_SERVER_FAILED;
-    }
-    if (response_->answer_count() == 0)
+    // TODO(szym): Extract TTL for NXDOMAIN results. http://crbug.com/115051
+    if (response_->rcode() == dns_protocol::kRcodeNXDOMAIN)
       return ERR_NAME_NOT_RESOLVED;
+    if (response_->rcode() != dns_protocol::kRcodeNOERROR)
+      return ERR_DNS_SERVER_FAILED;
 
     return OK;
   }

@@ -279,6 +279,7 @@ DnsResponse::Result DnsResponse::ParseToAddressList(
     }
   }
 
+  // TODO(szym): Extract TTL for NODATA results. http://crbug.com/115051
   if (ip_addresses.empty())
     return DNS_NO_ADDRESSES;
 
