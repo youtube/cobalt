@@ -14,6 +14,7 @@
 #include "net/base/asn1_util.h"
 #include "net/base/cert_test_util.h"
 #include "net/base/cert_verifier.h"
+#include "net/base/cert_verify_result.h"
 #include "net/base/ssl_info.h"
 #include "net/base/test_root_certs.h"
 #include "net/base/x509_certificate.h"

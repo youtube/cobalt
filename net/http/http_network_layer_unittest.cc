@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/http/http_network_layer.h"
+
 #include "net/base/cert_verifier.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_log.h"
 #include "net/base/ssl_config_service_defaults.h"
-#include "net/http/http_network_layer.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_server_properties_impl.h"
 #include "net/http/http_transaction_unittest.h"
@@ -23,12 +24,13 @@ namespace {
 class HttpNetworkLayerTest : public PlatformTest {
  protected:
   HttpNetworkLayerTest()
-      : proxy_service_(ProxyService::CreateDirect()),
+      : cert_verifier_(CertVerifier::CreateDefault()),
+        proxy_service_(ProxyService::CreateDirect()),
         ssl_config_service_(new SSLConfigServiceDefaults) {
     HttpNetworkSession::Params session_params;
     session_params.client_socket_factory = &mock_socket_factory_;
     session_params.host_resolver = &host_resolver_;
-    session_params.cert_verifier = &cert_verifier_;
+    session_params.cert_verifier = cert_verifier_.get();
     session_params.proxy_service = proxy_service_.get();
     session_params.ssl_config_service = ssl_config_service_;
     session_params.http_server_properties = &http_server_properties_;
@@ -38,7 +40,7 @@ class HttpNetworkLayerTest : public PlatformTest {
 
   MockClientSocketFactory mock_socket_factory_;
   MockHostResolver host_resolver_;
-  CertVerifier cert_verifier_;
+  scoped_ptr<CertVerifier> cert_verifier_;
   const scoped_ptr<ProxyService> proxy_service_;
   const scoped_refptr<SSLConfigService> ssl_config_service_;
   scoped_refptr<HttpNetworkSession> network_session_;

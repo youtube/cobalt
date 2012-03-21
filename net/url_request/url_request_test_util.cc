@@ -8,6 +8,7 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/threading/thread.h"
+#include "net/base/cert_verifier.h"
 #include "net/base/default_origin_bound_cert_store.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/origin_bound_cert_service.h"
@@ -111,7 +112,7 @@ void TestURLRequestContext::Init() {
   DCHECK(!initialized_);
   initialized_ = true;
   if (!cert_verifier())
-    context_storage_.set_cert_verifier(new net::CertVerifier);
+    context_storage_.set_cert_verifier(net::CertVerifier::CreateDefault());
   if (!ftp_transaction_factory()) {
     context_storage_.set_ftp_transaction_factory(
         new net::FtpNetworkLayer(host_resolver()));
