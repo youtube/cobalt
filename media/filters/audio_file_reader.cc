@@ -135,18 +135,17 @@ bool AudioFileReader::Read(const std::vector<float*>& audio_data,
 
   // Read until we hit EOF or we've read the requested number of frames.
   AVPacket avpkt;
-  av_init_packet(&avpkt);
-
   int result = 0;
   size_t current_frame = 0;
 
   while (current_frame < number_of_frames &&
-      (result = av_read_frame(format_context_, &avpkt)) >= 0) {
+         (result = av_read_frame(format_context_, &avpkt)) >= 0) {
     int out_size = AVCODEC_MAX_AUDIO_FRAME_SIZE;
     result = avcodec_decode_audio3(codec_context_,
                                    output_buffer.get(),
                                    &out_size,
                                    &avpkt);
+    av_free_packet(&avpkt);
 
     if (result < 0) {
       DLOG(WARNING)
