@@ -904,7 +904,7 @@ int CombineFrames(const spdy::SpdyFrame** frames, int num_frames,
 
 SpdySessionDependencies::SpdySessionDependencies()
     : host_resolver(new MockCachingHostResolver),
-      cert_verifier(new CertVerifier),
+      cert_verifier(CertVerifier::CreateDefault()),
       proxy_service(ProxyService::CreateDirect()),
       ssl_config_service(new SSLConfigServiceDefaults),
       socket_factory(new MockClientSocketFactory),
@@ -922,7 +922,7 @@ SpdySessionDependencies::SpdySessionDependencies()
 
 SpdySessionDependencies::SpdySessionDependencies(ProxyService* proxy_service)
     : host_resolver(new MockHostResolver),
-      cert_verifier(new CertVerifier),
+      cert_verifier(CertVerifier::CreateDefault()),
       proxy_service(proxy_service),
       ssl_config_service(new SSLConfigServiceDefaults),
       socket_factory(new MockClientSocketFactory),
@@ -966,7 +966,7 @@ HttpNetworkSession* SpdySessionDependencies::SpdyCreateSessionDeterministic(
 SpdyURLRequestContext::SpdyURLRequestContext()
     : ALLOW_THIS_IN_INITIALIZER_LIST(storage_(this)) {
   storage_.set_host_resolver(new MockHostResolver());
-  storage_.set_cert_verifier(new CertVerifier);
+  storage_.set_cert_verifier(CertVerifier::CreateDefault());
   storage_.set_proxy_service(ProxyService::CreateDirect());
   storage_.set_ssl_config_service(new SSLConfigServiceDefaults);
   storage_.set_http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault(

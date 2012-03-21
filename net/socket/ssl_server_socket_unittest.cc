@@ -245,7 +245,8 @@ TEST(FakeSocketTest, DataTransfer) {
 class SSLServerSocketTest : public PlatformTest {
  public:
   SSLServerSocketTest()
-      : socket_factory_(net::ClientSocketFactory::GetDefaultFactory()) {
+      : socket_factory_(net::ClientSocketFactory::GetDefaultFactory()),
+        cert_verifier_(net::CertVerifier::CreateDefault()) {
   }
 
  protected:
@@ -293,7 +294,7 @@ class SSLServerSocketTest : public PlatformTest {
 
     net::HostPortPair host_and_pair("unittest", 0);
     net::SSLClientSocketContext context;
-    context.cert_verifier = &cert_verifier_;
+    context.cert_verifier = cert_verifier_.get();
     client_socket_.reset(
         socket_factory_->CreateSSLClientSocket(
             fake_client_socket, host_and_pair, ssl_config, NULL, context));
@@ -307,7 +308,7 @@ class SSLServerSocketTest : public PlatformTest {
   scoped_ptr<net::SSLClientSocket> client_socket_;
   scoped_ptr<net::SSLServerSocket> server_socket_;
   net::ClientSocketFactory* socket_factory_;
-  net::CertVerifier cert_verifier_;
+  scoped_ptr<net::CertVerifier> cert_verifier_;
 };
 
 // SSLServerSocket is only implemented using NSS.

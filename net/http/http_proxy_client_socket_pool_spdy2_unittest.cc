@@ -63,12 +63,13 @@ class HttpProxyClientSocketPoolSpdy2Test : public TestWithHttpParam {
             &tcp_histograms_,
             &socket_factory_),
         ssl_histograms_("MockSSL"),
+        cert_verifier_(CertVerifier::CreateDefault()),
         proxy_service_(ProxyService::CreateDirect()),
         ssl_config_service_(new SSLConfigServiceDefaults),
         ssl_socket_pool_(kMaxSockets, kMaxSocketsPerGroup,
                          &ssl_histograms_,
                          &host_resolver_,
-                         &cert_verifier_,
+                         cert_verifier_.get(),
                          NULL /* server_bound_cert_store */,
                          NULL /* transport_security_state */,
                          NULL /* ssl_host_info_factory */,
@@ -181,7 +182,7 @@ class HttpProxyClientSocketPoolSpdy2Test : public TestWithHttpParam {
   HttpNetworkSession* CreateNetworkSession() {
     HttpNetworkSession::Params params;
     params.host_resolver = &host_resolver_;
-    params.cert_verifier = &cert_verifier_;
+    params.cert_verifier = cert_verifier_.get();
     params.proxy_service = proxy_service_.get();
     params.client_socket_factory = &socket_factory_;
     params.ssl_config_service = ssl_config_service_;
@@ -200,7 +201,7 @@ class HttpProxyClientSocketPoolSpdy2Test : public TestWithHttpParam {
   MockTransportClientSocketPool transport_socket_pool_;
   ClientSocketPoolHistograms ssl_histograms_;
   MockHostResolver host_resolver_;
-  CertVerifier cert_verifier_;
+  scoped_ptr<CertVerifier> cert_verifier_;
   const scoped_ptr<ProxyService> proxy_service_;
   const scoped_refptr<SSLConfigService> ssl_config_service_;
   SSLClientSocketPool ssl_socket_pool_;
