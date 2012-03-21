@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -13,6 +13,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/net_export.h"
 #include "net/base/request_priority.h"
+#include "net/http/http_network_session.h"
 
 class GURL;
 
@@ -47,14 +48,22 @@ class NET_EXPORT_PRIVATE ClientSocketPoolManager {
   // The setter methods below affect only newly created socket pools after the
   // methods are called. Normally they should be called at program startup
   // before any ClientSocketPoolManagerImpl is created.
-  static int max_sockets_per_pool();
-  static void set_max_sockets_per_pool(int socket_count);
+  static int max_sockets_per_pool(HttpNetworkSession::SocketPoolType pool_type);
+  static void set_max_sockets_per_pool(
+      HttpNetworkSession::SocketPoolType pool_type,
+      int socket_count);
 
-  static int max_sockets_per_group();
-  static void set_max_sockets_per_group(int socket_count);
+  static int max_sockets_per_group(
+      HttpNetworkSession::SocketPoolType pool_type);
+  static void set_max_sockets_per_group(
+      HttpNetworkSession::SocketPoolType pool_type,
+      int socket_count);
 
-  static int max_sockets_per_proxy_server();
-  static void set_max_sockets_per_proxy_server(int socket_count);
+  static int max_sockets_per_proxy_server(
+      HttpNetworkSession::SocketPoolType pool_type);
+  static void set_max_sockets_per_proxy_server(
+      HttpNetworkSession::SocketPoolType pool_type,
+      int socket_count);
 
   virtual void FlushSocketPools() = 0;
   virtual void CloseIdleSockets() = 0;

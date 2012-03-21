@@ -15,7 +15,6 @@
 #include "net/base/ssl_client_auth_cache.h"
 #include "net/http/http_auth_cache.h"
 #include "net/http/http_stream_factory.h"
-#include "net/socket/client_socket_pool_manager.h"
 #include "net/spdy/spdy_session_pool.h"
 #include "net/spdy/spdy_settings_storage.h"
 
@@ -27,6 +26,7 @@ namespace net {
 
 class CertVerifier;
 class ClientSocketFactory;
+class ClientSocketPoolManager;
 class HostResolver;
 class HttpAuthHandlerFactory;
 class HttpNetworkSessionPeer;
@@ -83,7 +83,8 @@ class NET_EXPORT HttpNetworkSession
 
   enum SocketPoolType {
     NORMAL_SOCKET_POOL,
-    WEBSOCKET_SOCKET_POOL
+    WEBSOCKET_SOCKET_POOL,
+    NUM_SOCKET_POOL_TYPES
   };
 
   explicit HttpNetworkSession(const Params& params);

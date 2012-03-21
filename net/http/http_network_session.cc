@@ -23,6 +23,7 @@
 namespace {
 
 net::ClientSocketPoolManager* CreateSocketPoolManager(
+    net::HttpNetworkSession::SocketPoolType pool_type,
     const net::HttpNetworkSession::Params& params) {
   // TODO(yutak): Differentiate WebSocket pool manager and allow more
   // simultaneous connections for WebSockets.
@@ -38,7 +39,8 @@ net::ClientSocketPoolManager* CreateSocketPoolManager(
       params.ssl_host_info_factory,
       params.ssl_session_cache_shard,
       params.proxy_service,
-      params.ssl_config_service);
+      params.ssl_config_service,
+      pool_type);
 }
 
 }  // unnamed namespace
@@ -55,8 +57,10 @@ HttpNetworkSession::HttpNetworkSession(const Params& params)
       force_http_pipelining_(params.force_http_pipelining),
       proxy_service_(params.proxy_service),
       ssl_config_service_(params.ssl_config_service),
-      normal_socket_pool_manager_(CreateSocketPoolManager(params)),
-      websocket_socket_pool_manager_(CreateSocketPoolManager(params)),
+      normal_socket_pool_manager_(
+          CreateSocketPoolManager(NORMAL_SOCKET_POOL, params)),
+      websocket_socket_pool_manager_(
+          CreateSocketPoolManager(WEBSOCKET_SOCKET_POOL, params)),
       spdy_session_pool_(params.host_resolver,
                          params.ssl_config_service,
                          params.http_server_properties),
@@ -142,8 +146,10 @@ ClientSocketPoolManager* HttpNetworkSession::GetSocketPoolManager(
       return normal_socket_pool_manager_.get();
     case WEBSOCKET_SOCKET_POOL:
       return websocket_socket_pool_manager_.get();
+    default:
+      NOTREACHED();
+      break;
   }
-  NOTREACHED();
   return NULL;
 }
 

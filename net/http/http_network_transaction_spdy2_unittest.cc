@@ -9378,14 +9378,20 @@ TEST_F(HttpNetworkTransactionSpdy2Test, SendPipelineEvictionFallback) {
 TEST_F(HttpNetworkTransactionSpdy2Test, CloseIdleSpdySessionToOpenNewOne) {
   HttpStreamFactory::SetNextProtos(SpdyNextProtos());
   int old_max_sockets_per_group =
-      ClientSocketPoolManager::max_sockets_per_group();
+      ClientSocketPoolManager::max_sockets_per_group(
+          HttpNetworkSession::NORMAL_SOCKET_POOL);
   int old_max_sockets_per_proxy_server =
-      ClientSocketPoolManager::max_sockets_per_proxy_server();
+      ClientSocketPoolManager::max_sockets_per_proxy_server(
+          HttpNetworkSession::NORMAL_SOCKET_POOL);
   int old_max_sockets_per_pool =
-      ClientSocketPoolManager::max_sockets_per_pool();
-  ClientSocketPoolManager::set_max_sockets_per_group(1);
-  ClientSocketPoolManager::set_max_sockets_per_proxy_server(1);
-  ClientSocketPoolManager::set_max_sockets_per_pool(1);
+      ClientSocketPoolManager::max_sockets_per_pool(
+          HttpNetworkSession::NORMAL_SOCKET_POOL);
+  ClientSocketPoolManager::set_max_sockets_per_group(
+      HttpNetworkSession::NORMAL_SOCKET_POOL, 1);
+  ClientSocketPoolManager::set_max_sockets_per_proxy_server(
+      HttpNetworkSession::NORMAL_SOCKET_POOL, 1);
+  ClientSocketPoolManager::set_max_sockets_per_pool(
+      HttpNetworkSession::NORMAL_SOCKET_POOL, 1);
 
   // Use two different hosts with different IPs so they don't get pooled.
   SessionDependencies session_deps;
@@ -9542,10 +9548,12 @@ TEST_F(HttpNetworkTransactionSpdy2Test, CloseIdleSpdySessionToOpenNewOne) {
       session->spdy_session_pool()->HasSession(host_port_proxy_pair_b));
 
   HttpStreamFactory::SetNextProtos(std::vector<std::string>());
-  ClientSocketPoolManager::set_max_sockets_per_pool(old_max_sockets_per_pool);
+  ClientSocketPoolManager::set_max_sockets_per_pool(
+      HttpNetworkSession::NORMAL_SOCKET_POOL, old_max_sockets_per_pool);
   ClientSocketPoolManager::set_max_sockets_per_proxy_server(
-      old_max_sockets_per_proxy_server);
-  ClientSocketPoolManager::set_max_sockets_per_group(old_max_sockets_per_group);
+      HttpNetworkSession::NORMAL_SOCKET_POOL, old_max_sockets_per_proxy_server);
+  ClientSocketPoolManager::set_max_sockets_per_group(
+      HttpNetworkSession::NORMAL_SOCKET_POOL, old_max_sockets_per_group);
 }
 
 }  // namespace net
