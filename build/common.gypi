@@ -325,7 +325,7 @@
         }],
 
         # Set toolkit_uses_gtk for the Chromium browser on Linux.
-        ['OS=="linux" and use_aura==0', {
+        ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris") and use_aura==0', {
           'toolkit_uses_gtk%': 1,
         }, {
           'toolkit_uses_gtk%': 0,
