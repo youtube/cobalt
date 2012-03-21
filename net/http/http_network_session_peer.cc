@@ -7,6 +7,7 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_proxy_client_socket_pool.h"
 #include "net/proxy/proxy_service.h"
+#include "net/socket/client_socket_pool_manager.h"
 #include "net/socket/socks_client_socket_pool.h"
 #include "net/socket/ssl_client_socket_pool.h"
 #include "net/socket/transport_client_socket_pool.h"
