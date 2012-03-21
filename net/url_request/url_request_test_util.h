@@ -39,7 +39,6 @@
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_getter.h"
 #include "net/url_request/url_request_context_storage.h"
-#include "testing/gtest/include/gtest/gtest.h"
 
 using base::TimeDelta;
 
