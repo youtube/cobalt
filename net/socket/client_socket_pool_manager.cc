@@ -6,10 +6,10 @@
 
 #include <string>
 
+#include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/stringprintf.h"
 #include "net/base/load_flags.h"
-#include "net/http/http_network_session.h"
 #include "net/http/http_proxy_client_socket_pool.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_stream_factory.h"
@@ -24,17 +24,45 @@ namespace net {
 namespace {
 
 // Limit of sockets of each socket pool.
-int g_max_sockets_per_pool = 256;
+int g_max_sockets_per_pool[] = {
+  256,  // NORMAL_SOCKET_POOL
+  256   // WEBSOCKET_SOCKET_POOL
+};
+
+COMPILE_ASSERT(arraysize(g_max_sockets_per_pool) ==
+                   HttpNetworkSession::NUM_SOCKET_POOL_TYPES,
+               max_sockets_per_pool_length_mismatch);
 
 // Default to allow up to 6 connections per host. Experiment and tuning may
 // try other values (greater than 0).  Too large may cause many problems, such
 // as home routers blocking the connections!?!?  See http://crbug.com/12066.
-int g_max_sockets_per_group = 6;
+//
+// WebSocket connections are long-lived, and should be treated differently
+// than normal other connections. 6 connections per group sounded too small
+// for such use, thus we use a larger limit which was determined somewhat
+// arbitrarily.
+// TODO(yutak): Look at the usage and determine the right value after
+// WebSocket protocol stack starts to work.
+int g_max_sockets_per_group[] = {
+  6,  // NORMAL_SOCKET_POOL
+  30  // WEBSOCKET_SOCKET_POOL
+};
+
+COMPILE_ASSERT(arraysize(g_max_sockets_per_group) ==
+                   HttpNetworkSession::NUM_SOCKET_POOL_TYPES,
+               max_sockets_per_group_length_mismatch);
 
 // The max number of sockets to allow per proxy server.  This applies both to
 // http and SOCKS proxies.  See http://crbug.com/12066 and
 // http://crbug.com/44501 for details about proxy server connection limits.
-int g_max_sockets_per_proxy_server = kDefaultMaxSocketsPerProxyServer;
+int g_max_sockets_per_proxy_server[] = {
+  kDefaultMaxSocketsPerProxyServer,  // NORMAL_SOCKET_POOL
+  kDefaultMaxSocketsPerProxyServer   // WEBSOCKET_SOCKET_POOL
+};
+
+COMPILE_ASSERT(arraysize(g_max_sockets_per_proxy_server) ==
+                   HttpNetworkSession::NUM_SOCKET_POOL_TYPES,
+               max_sockets_per_proxy_server_length_mismatch);
 
 // The meat of the implementation for the InitSocketHandleForHttpRequest,
 // InitSocketHandleForRawConnect and PreconnectSocketsForHttpRequest methods.
@@ -188,6 +216,7 @@ int InitSocketPoolHelper(const GURL& request_url,
   }
 
   // Finally, get the connection started.
+
   if (proxy_info.is_http() || proxy_info.is_https()) {
     HttpProxyClientSocketPool* pool =
         session->GetSocketPoolForHTTPProxy(
@@ -241,48 +270,65 @@ ClientSocketPoolManager::ClientSocketPoolManager() {}
 ClientSocketPoolManager::~ClientSocketPoolManager() {}
 
 // static
-int ClientSocketPoolManager::max_sockets_per_pool() {
-  return g_max_sockets_per_pool;
+int ClientSocketPoolManager::max_sockets_per_pool(
+    HttpNetworkSession::SocketPoolType pool_type) {
+  DCHECK_LT(pool_type, HttpNetworkSession::NUM_SOCKET_POOL_TYPES);
+  return g_max_sockets_per_pool[pool_type];
 }
 
 // static
-void ClientSocketPoolManager::set_max_sockets_per_pool(int socket_count) {
+void ClientSocketPoolManager::set_max_sockets_per_pool(
+    HttpNetworkSession::SocketPoolType pool_type,
+    int socket_count) {
   DCHECK_LT(0, socket_count);
   DCHECK_GT(1000, socket_count);  // Sanity check.
-  g_max_sockets_per_pool = socket_count;
-  DCHECK_GE(g_max_sockets_per_pool, g_max_sockets_per_group);
+  DCHECK_LT(pool_type, HttpNetworkSession::NUM_SOCKET_POOL_TYPES);
+  g_max_sockets_per_pool[pool_type] = socket_count;
+  DCHECK_GE(g_max_sockets_per_pool[pool_type],
+            g_max_sockets_per_group[pool_type]);
 }
 
 // static
-int ClientSocketPoolManager::max_sockets_per_group() {
-  return g_max_sockets_per_group;
+int ClientSocketPoolManager::max_sockets_per_group(
+    HttpNetworkSession::SocketPoolType pool_type) {
+  DCHECK_LT(pool_type, HttpNetworkSession::NUM_SOCKET_POOL_TYPES);
+  return g_max_sockets_per_group[pool_type];
 }
 
 // static
-void ClientSocketPoolManager::set_max_sockets_per_group(int socket_count) {
+void ClientSocketPoolManager::set_max_sockets_per_group(
+    HttpNetworkSession::SocketPoolType pool_type,
+    int socket_count) {
   DCHECK_LT(0, socket_count);
   // The following is a sanity check... but we should NEVER be near this value.
   DCHECK_GT(100, socket_count);
-  g_max_sockets_per_group = socket_count;
+  DCHECK_LT(pool_type, HttpNetworkSession::NUM_SOCKET_POOL_TYPES);
+  g_max_sockets_per_group[pool_type] = socket_count;
 
-  DCHECK_GE(g_max_sockets_per_pool, g_max_sockets_per_group);
-  DCHECK_GE(g_max_sockets_per_proxy_server, g_max_sockets_per_group);
+  DCHECK_GE(g_max_sockets_per_pool[pool_type],
+            g_max_sockets_per_group[pool_type]);
+  DCHECK_GE(g_max_sockets_per_proxy_server[pool_type],
+            g_max_sockets_per_group[pool_type]);
 }
 
 // static
-int ClientSocketPoolManager::max_sockets_per_proxy_server() {
-  return g_max_sockets_per_proxy_server;
+int ClientSocketPoolManager::max_sockets_per_proxy_server(
+    HttpNetworkSession::SocketPoolType pool_type) {
+  DCHECK_LT(pool_type, HttpNetworkSession::NUM_SOCKET_POOL_TYPES);
+  return g_max_sockets_per_proxy_server[pool_type];
 }
 
 // static
 void ClientSocketPoolManager::set_max_sockets_per_proxy_server(
+    HttpNetworkSession::SocketPoolType pool_type,
     int socket_count) {
   DCHECK_LT(0, socket_count);
   DCHECK_GT(100, socket_count);  // Sanity check.
+  DCHECK_LT(pool_type, HttpNetworkSession::NUM_SOCKET_POOL_TYPES);
   // Assert this case early on. The max number of sockets per group cannot
   // exceed the max number of sockets per proxy server.
-  DCHECK_LE(g_max_sockets_per_group, socket_count);
-  g_max_sockets_per_proxy_server = socket_count;
+  DCHECK_LE(g_max_sockets_per_group[pool_type], socket_count);
+  g_max_sockets_per_proxy_server[pool_type] = socket_count;
 }
 
 int InitSocketHandleForHttpRequest(
