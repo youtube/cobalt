@@ -14,14 +14,12 @@
 #include "base/string16.h"
 #include "net/base/cert_type.h"
 #include "net/base/net_export.h"
+#include "net/base/x509_certificate.h"
 
 namespace net {
 
 class CryptoModule;
 typedef std::vector<scoped_refptr<CryptoModule> > CryptoModuleList;
-class X509Certificate;
-typedef std::vector<scoped_refptr<X509Certificate> > CertificateList;
-
 
 // This class provides functions to manipulate the local
 // certificate store.

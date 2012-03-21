@@ -122,7 +122,7 @@ struct SessionDependencies {
   // Default set of dependencies -- "null" proxy service.
   SessionDependencies()
       : host_resolver(new MockHostResolver),
-        cert_verifier(new CertVerifier),
+        cert_verifier(CertVerifier::CreateDefault()),
         proxy_service(ProxyService::CreateDirect()),
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(
@@ -132,7 +132,7 @@ struct SessionDependencies {
   // Custom proxy service dependency.
   explicit SessionDependencies(ProxyService* proxy_service)
       : host_resolver(new MockHostResolver),
-        cert_verifier(new CertVerifier),
+        cert_verifier(CertVerifier::CreateDefault()),
         proxy_service(proxy_service),
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(
