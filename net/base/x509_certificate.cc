@@ -332,14 +332,49 @@ X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
     return NULL;
 
   OSCertHandles intermediates;
-  size_t num_intermediates = 0;
-  if (type == PICKLETYPE_CERTIFICATE_CHAIN) {
-    if (!pickle.ReadSize(pickle_iter, &num_intermediates)) {
+  uint32 num_intermediates = 0;
+  if (type != PICKLETYPE_SINGLE_CERTIFICATE) {
+    if (!pickle.ReadUInt32(pickle_iter, &num_intermediates)) {
       FreeOSCertHandle(cert_handle);
       return NULL;
     }
 
-    for (size_t i = 0; i < num_intermediates; ++i) {
+#if defined(OS_POSIX) && !defined(OS_MACOSX) && defined(__x86_64__)
+    // On 64-bit Linux (and any other 64-bit platforms), the intermediate count
+    // might really be a 64-bit field since we used to use Pickle::WriteSize(),
+    // which writes either 32 or 64 bits depending on the architecture. Since
+    // x86-64 is little-endian, if that happens, the next 32 bits will be all
+    // zeroes (the high bits) and the 32 bits we already read above are the
+    // correct value (we assume there are never more than 2^32 - 1 intermediate
+    // certificates in a chain; in practice, more than a dozen or so is
+    // basically unheard of). Since it's invalid for a certificate to start with
+    // 32 bits of zeroes, we check for that here and skip it if we find it. We
+    // save a copy of the pickle iterator to restore in case we don't get 32
+    // bits of zeroes. Now we always write 32 bits, so after a while, these old
+    // cached pickles will all get replaced.
+    // TODO(mdm): remove this compatibility code in April 2013 or so.
+    if (type == PICKLETYPE_CERTIFICATE_CHAIN_OLD) {
+      PickleIterator saved_iter = *pickle_iter;
+      uint32 zero_check = 0;
+      if (!pickle.ReadUInt32(pickle_iter, &zero_check)) {
+        // This may not be an error. If there are no intermediates, and we're
+        // reading an old 32-bit pickle, and there's nothing else after this in
+        // the pickle, we should report success. Note that it is technically
+        // possible for us to skip over zeroes that should have occurred after
+        // an empty certificate list; to avoid this going forward, only do this
+        // backward-compatibility stuff for PICKLETYPE_CERTIFICATE_CHAIN_OLD
+        // which comes from the pickle version number in http_response_info.cc.
+        if (num_intermediates) {
+          FreeOSCertHandle(cert_handle);
+          return NULL;
+        }
+      }
+      if (zero_check)
+        *pickle_iter = saved_iter;
+    }
+#endif  // defined(OS_POSIX) && !defined(OS_MACOSX) && defined(__x86_64__)
+
+    for (uint32 i = 0; i < num_intermediates; ++i) {
       OSCertHandle intermediate = ReadOSCertHandleFromPickle(pickle,
                                                              pickle_iter);
       if (!intermediate)
@@ -442,7 +477,14 @@ void X509Certificate::Persist(Pickle* pickle) {
     return;
   }
 
-  if (!pickle->WriteSize(intermediate_ca_certs_.size())) {
+  // This would be an absolutely insane number of intermediates.
+  if (intermediate_ca_certs_.size() >= 0xFFFFFFFF) {
+    NOTREACHED();
+    return;
+  }
+
+  if (!pickle->WriteUInt32(
+          static_cast<uint32>(intermediate_ca_certs_.size()))) {
     NOTREACHED();
     return;
   }
