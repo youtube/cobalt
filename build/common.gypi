@@ -2773,12 +2773,21 @@
               'winmm.lib',
               'shlwapi.lib',
             ],
+
             'conditions': [
               ['msvs_express', {
                 # Explicitly required when using the ATL with express
                 'AdditionalDependencies': [
                   'atlthunk.lib',
                 ],
+
+                # ATL 8.0 included in WDK 7.1 makes the linker to generate
+                # almost eight hundred LNK4254 and LNK4078 warnings:
+                #   - warning LNK4254: section 'ATL' (50000040) merged into
+                #     '.rdata' (40000040) with different attributes
+                #   - warning LNK4078: multiple 'ATL' sections found with
+                #     different attributes
+                'AdditionalOptions': ['/ignore:4254', '/ignore:4078'],
               }],
               ['MSVS_VERSION=="2005e"', {
                 # Non-express versions link automatically to these
