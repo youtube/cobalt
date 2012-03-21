@@ -31,7 +31,7 @@ class SSLClientSocketTest : public PlatformTest {
  public:
   SSLClientSocketTest()
       : socket_factory_(net::ClientSocketFactory::GetDefaultFactory()),
-        cert_verifier_(new net::CertVerifier) {
+        cert_verifier_(net::CertVerifier::CreateDefault()) {
   }
 
  protected:

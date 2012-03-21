@@ -19,6 +19,7 @@
 #include "base/utf_string_conversions.h"
 #include "net/base/auth.h"
 #include "net/base/capturing_net_log.h"
+#include "net/base/cert_verifier.h"
 #include "net/base/completion_callback.h"
 #include "net/base/host_cache.h"
 #include "net/base/mock_host_resolver.h"
@@ -122,7 +123,7 @@ struct SessionDependencies {
   // Default set of dependencies -- "null" proxy service.
   SessionDependencies()
       : host_resolver(new MockHostResolver),
-        cert_verifier(new CertVerifier),
+        cert_verifier(CertVerifier::CreateDefault()),
         proxy_service(ProxyService::CreateDirect()),
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(
@@ -132,7 +133,7 @@ struct SessionDependencies {
   // Custom proxy service dependency.
   explicit SessionDependencies(ProxyService* proxy_service)
       : host_resolver(new MockHostResolver),
-        cert_verifier(new CertVerifier),
+        cert_verifier(CertVerifier::CreateDefault()),
         proxy_service(proxy_service),
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(

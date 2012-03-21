@@ -10,6 +10,7 @@
 #include "base/compiler_specific.h"
 #include "base/path_service.h"
 #include "base/utf_string_conversions.h"
+#include "net/base/cert_verifier.h"
 #include "net/base/net_util.h"
 #include "net/base/load_flags.h"
 #include "net/base/ssl_config_service_defaults.h"
@@ -72,7 +73,7 @@ class RequestContext : public URLRequestContext {
         CreateSystemHostResolver(HostResolver::kDefaultParallelism,
                                  HostResolver::kDefaultRetryAttempts,
                                  NULL));
-    storage_.set_cert_verifier(new CertVerifier);
+    storage_.set_cert_verifier(CertVerifier::CreateDefault());
     storage_.set_proxy_service(ProxyService::CreateFixed(no_proxy));
     storage_.set_ssl_config_service(new SSLConfigServiceDefaults);
     storage_.set_http_server_properties(new HttpServerPropertiesImpl);
