@@ -46,7 +46,7 @@ class MEDIA_EXPORT FakeAudioOutputStream : public AudioOutputStream {
   double volume_;
   AudioSourceCallback* callback_;
   scoped_array<uint8> buffer_;
-  uint32 packet_size_;
+  uint32 bytes_per_buffer_;
   bool closed_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeAudioOutputStream);

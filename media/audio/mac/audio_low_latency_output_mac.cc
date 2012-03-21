@@ -56,19 +56,19 @@ AUAudioOutputStream::AUAudioOutputStream(
   // A frame is one sample across all channels. In interleaved audio the per
   // frame fields identify the set of n |channels|. In uncompressed audio, a
   // packet is always one frame.
-  format_.mSampleRate = params.sample_rate;
+  format_.mSampleRate = params.sample_rate();
   format_.mFormatID = kAudioFormatLinearPCM;
   format_.mFormatFlags = kLinearPCMFormatFlagIsPacked |
                          kLinearPCMFormatFlagIsSignedInteger;
-  format_.mBitsPerChannel = params.bits_per_sample;
-  format_.mChannelsPerFrame = params.channels;
+  format_.mBitsPerChannel = params.bits_per_sample();
+  format_.mChannelsPerFrame = params.channels();
   format_.mFramesPerPacket = 1;
-  format_.mBytesPerPacket = (format_.mBitsPerChannel * params.channels) / 8;
+  format_.mBytesPerPacket = (format_.mBitsPerChannel * params.channels()) / 8;
   format_.mBytesPerFrame = format_.mBytesPerPacket;
   format_.mReserved = 0;
 
   // Calculate the number of sample frames per callback.
-  number_of_frames_ = params.GetPacketSize() / format_.mBytesPerPacket;
+  number_of_frames_ = params.GetBytesPerBuffer() / format_.mBytesPerPacket;
 }
 
 AUAudioOutputStream::~AUAudioOutputStream() {
@@ -252,7 +252,7 @@ OSStatus AUAudioOutputStream::InputProc(void* user_data,
   return audio_output->Render(number_of_frames, io_data, output_time_stamp);
 }
 
-double AUAudioOutputStream::HardwareSampleRate() {
+int AUAudioOutputStream::HardwareSampleRate() {
   // Determine the default output device's sample-rate.
   AudioDeviceID device_id = kAudioObjectUnknown;
   UInt32 info_size = sizeof(device_id);
@@ -290,7 +290,7 @@ double AUAudioOutputStream::HardwareSampleRate() {
   if (result)
     return 0.0;  // error
 
-  return nominal_sample_rate;
+  return static_cast<int>(nominal_sample_rate);
 }
 
 double AUAudioOutputStream::GetHardwareLatency() {

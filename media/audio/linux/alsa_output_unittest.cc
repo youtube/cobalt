@@ -658,11 +658,11 @@ TEST_F(AlsaPcmOutputStreamTest, AutoSelectDevice_DeviceSelect) {
                                        CHANNEL_LAYOUT_MONO,
                                        CHANNEL_LAYOUT_STEREO,
                                        CHANNEL_LAYOUT_SURROUND,
-                                       CHANNEL_LAYOUT_4POINT0,
-                                       CHANNEL_LAYOUT_5POINT0,
-                                       CHANNEL_LAYOUT_5POINT1,
-                                       CHANNEL_LAYOUT_7POINT0,
-                                       CHANNEL_LAYOUT_7POINT1 };
+                                       CHANNEL_LAYOUT_4_0,
+                                       CHANNEL_LAYOUT_5_0,
+                                       CHANNEL_LAYOUT_5_1,
+                                       CHANNEL_LAYOUT_7_0,
+                                       CHANNEL_LAYOUT_7_1 };
 
 
   for (int i = 1; i < 9; ++i) {
@@ -746,7 +746,7 @@ TEST_F(AlsaPcmOutputStreamTest, AutoSelectDevice_FallbackDevices) {
   EXPECT_CALL(mock_alsa_wrapper_, PcmOpen(_, StrEq(fourth_try.c_str()), _, _))
       .WillOnce(Return(kTestFailedErrno));
 
-  AlsaPcmOutputStream* test_stream = CreateStream(CHANNEL_LAYOUT_5POINT0);
+  AlsaPcmOutputStream* test_stream = CreateStream(CHANNEL_LAYOUT_5_0);
   EXPECT_FALSE(test_stream->AutoSelectDevice(5));
   test_stream->Close();
 }
@@ -765,7 +765,7 @@ TEST_F(AlsaPcmOutputStreamTest, AutoSelectDevice_HintFail) {
   EXPECT_CALL(mock_alsa_wrapper_, StrError(kTestFailedErrno))
       .WillOnce(Return(kDummyMessage));
 
-  AlsaPcmOutputStream* test_stream = CreateStream(CHANNEL_LAYOUT_5POINT0);
+  AlsaPcmOutputStream* test_stream = CreateStream(CHANNEL_LAYOUT_5_0);
   EXPECT_TRUE(test_stream->AutoSelectDevice(5));
   EXPECT_TRUE(test_stream->should_downmix_);
   test_stream->Close();

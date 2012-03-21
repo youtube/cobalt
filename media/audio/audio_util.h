@@ -9,9 +9,8 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "media/base/channel_layout.h"
 #include "media/base/media_export.h"
-
-struct AudioParameters;
 
 namespace base {
 class SharedMemory;
@@ -92,10 +91,10 @@ MEDIA_EXPORT void InterleaveFloatToInt16(const std::vector<float*>& source,
                                          size_t number_of_frames);
 
 // Returns the default audio output hardware sample-rate.
-MEDIA_EXPORT double GetAudioHardwareSampleRate();
+MEDIA_EXPORT int GetAudioHardwareSampleRate();
 
 // Returns the audio input hardware sample-rate for the specified device.
-MEDIA_EXPORT double GetAudioInputHardwareSampleRate(
+MEDIA_EXPORT int GetAudioInputHardwareSampleRate(
     const std::string& device_id);
 
 // Returns the optimal low-latency buffer size for the audio hardware.
@@ -103,8 +102,8 @@ MEDIA_EXPORT double GetAudioInputHardwareSampleRate(
 // at without glitches.  The buffer size is in sample-frames.
 MEDIA_EXPORT size_t GetAudioHardwareBufferSize();
 
-// Returns the number of channels for the specified audio input device.
-MEDIA_EXPORT uint32 GetAudioInputHardwareChannelCount(
+// Returns the channel layout for the specified audio input device.
+MEDIA_EXPORT ChannelLayout GetAudioInputHardwareChannelLayout(
     const std::string& device_id);
 
 // Functions that handle data buffer passed between processes in the shared

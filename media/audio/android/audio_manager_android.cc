@@ -42,24 +42,24 @@ void AudioManagerAndroid::UnMuteAll() {
 
 AudioOutputStream* AudioManagerAndroid::MakeLinearOutputStream(
       const AudioParameters& params) {
-  DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format);
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
   return AudioTrackOutputStream::MakeStream(params);
 }
 
 AudioOutputStream* AudioManagerAndroid::MakeLowLatencyOutputStream(
       const AudioParameters& params) {
-  DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format);
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
   return AudioTrackOutputStream::MakeStream(params);
 }
 
 AudioInputStream* AudioManagerAndroid::MakeLinearInputStream(
     const AudioParameters& params, const std::string& device_id) {
-  DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format);
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
   return FakeAudioInputStream::MakeFakeStream(this, params);
 }
 
 AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
     const AudioParameters& params, const std::string& device_id) {
-  DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format);
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
   return FakeAudioInputStream::MakeFakeStream(this, params);
 }

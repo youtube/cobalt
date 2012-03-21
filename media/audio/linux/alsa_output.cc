@@ -151,15 +151,15 @@ AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
                                          AlsaWrapper* wrapper,
                                          AudioManagerLinux* manager)
     : requested_device_name_(device_name),
-      pcm_format_(alsa_util::BitsToFormat(params.bits_per_sample)),
-      channels_(params.channels),
-      sample_rate_(params.sample_rate),
-      bytes_per_sample_(params.bits_per_sample / 8),
-      bytes_per_frame_(channels_ * params.bits_per_sample / 8),
+      pcm_format_(alsa_util::BitsToFormat(params.bits_per_sample())),
+      channels_(params.channels()),
+      sample_rate_(params.sample_rate()),
+      bytes_per_sample_(params.bits_per_sample() / 8),
+      bytes_per_frame_(channels_ * params.bits_per_sample() / 8),
       should_downmix_(false),
-      packet_size_(params.GetPacketSize()),
+      packet_size_(params.GetBytesPerBuffer()),
       micros_per_packet_(FramesToMicros(
-          params.samples_per_packet, sample_rate_)),
+          params.frames_per_buffer(), sample_rate_)),
       latency_micros_(std::max(AlsaPcmOutputStream::kMinLatencyMicros,
                                micros_per_packet_ * 2)),
       bytes_per_output_frame_(bytes_per_frame_),
@@ -176,19 +176,20 @@ AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
   DCHECK(IsOnAudioThread());
 
   // Sanity check input values.
-  if ((params.sample_rate > kAlsaMaxSampleRate) || (params.sample_rate <= 0)) {
+  if (params.sample_rate() > kAlsaMaxSampleRate ||
+      params.sample_rate() <= 0) {
     LOG(WARNING) << "Unsupported audio frequency.";
     TransitionTo(kInError);
   }
 
-  if (AudioParameters::AUDIO_PCM_LINEAR != params.format &&
-      AudioParameters::AUDIO_PCM_LOW_LATENCY != params.format) {
+  if (AudioParameters::AUDIO_PCM_LINEAR != params.format() &&
+      AudioParameters::AUDIO_PCM_LOW_LATENCY != params.format()) {
     LOG(WARNING) << "Unsupported audio format";
     TransitionTo(kInError);
   }
 
   if (pcm_format_ == SND_PCM_FORMAT_UNKNOWN) {
-    LOG(WARNING) << "Unsupported bits per sample: " << params.bits_per_sample;
+    LOG(WARNING) << "Unsupported bits per sample: " << params.bits_per_sample();
     TransitionTo(kInError);
   }
 }
@@ -225,11 +226,9 @@ bool AlsaPcmOutputStream::Open() {
       DVLOG(1) << "Auto-selected device: " << device_name_;
   } else {
     device_name_ = requested_device_name_;
-    playback_handle_ = alsa_util::OpenPlaybackDevice(wrapper_,
-                                                     device_name_.c_str(),
-                                                     channels_, sample_rate_,
-                                                     pcm_format_,
-                                                     latency_micros_);
+    playback_handle_ = alsa_util::OpenPlaybackDevice(
+        wrapper_, device_name_.c_str(), channels_, sample_rate_,
+        pcm_format_, latency_micros_);
   }
 
   // Finish initializing the stream if the device was opened successfully.
@@ -557,11 +556,13 @@ void AlsaPcmOutputStream::ScheduleNextWrite(bool source_exhausted) {
   }
 }
 
-uint32 AlsaPcmOutputStream::FramesToMicros(uint32 frames, uint32 sample_rate) {
+uint32 AlsaPcmOutputStream::FramesToMicros(uint32 frames,
+                                           uint32 sample_rate) {
   return frames * base::Time::kMicrosecondsPerSecond / sample_rate;
 }
 
-uint32 AlsaPcmOutputStream::FramesToMillis(uint32 frames, uint32 sample_rate) {
+uint32 AlsaPcmOutputStream::FramesToMillis(uint32 frames,
+                                           uint32 sample_rate) {
   return frames * base::Time::kMillisecondsPerSecond / sample_rate;
 }
 
@@ -707,17 +708,17 @@ snd_pcm_t* AlsaPcmOutputStream::AutoSelectDevice(unsigned int latency) {
 
   // Step 3.
   device_name_ = kDefaultDevice;
-  if ((handle = alsa_util::OpenPlaybackDevice(wrapper_, device_name_.c_str(),
-                                              default_channels, sample_rate_,
-                                              pcm_format_, latency)) != NULL) {
+  if ((handle = alsa_util::OpenPlaybackDevice(
+      wrapper_, device_name_.c_str(), default_channels, sample_rate_,
+      pcm_format_, latency)) != NULL) {
     return handle;
   }
 
   // Step 4.
   device_name_ = kPlugPrefix + device_name_;
-  if ((handle = alsa_util::OpenPlaybackDevice(wrapper_, device_name_.c_str(),
-                                              default_channels, sample_rate_,
-                                              pcm_format_, latency)) != NULL) {
+  if ((handle = alsa_util::OpenPlaybackDevice(
+      wrapper_, device_name_.c_str(), default_channels, sample_rate_,
+      pcm_format_, latency)) != NULL) {
     return handle;
   }
 

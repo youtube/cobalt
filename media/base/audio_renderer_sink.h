@@ -43,10 +43,7 @@ class AudioRendererSink
 
   // Sets important information about the audio stream format.
   // It must be called before any of the other methods.
-  virtual void Initialize(size_t buffer_size,
-                          int channels,
-                          double sample_rate,
-                          AudioParameters::Format latency_format,
+  virtual void Initialize(const AudioParameters& params,
                           RenderCallback* callback) = 0;
 
   // Starts audio playback.

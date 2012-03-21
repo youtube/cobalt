@@ -84,11 +84,11 @@ AudioOutputStream* AudioManagerBase::MakeAudioOutputStream(
   }
 
   AudioOutputStream* stream = NULL;
-  if (params.format == AudioParameters::AUDIO_MOCK) {
+  if (params.format() == AudioParameters::AUDIO_MOCK) {
     stream = FakeAudioOutputStream::MakeFakeStream(this, params);
-  } else if (params.format == AudioParameters::AUDIO_PCM_LINEAR) {
+  } else if (params.format() == AudioParameters::AUDIO_PCM_LINEAR) {
     stream = MakeLinearOutputStream(params);
-  } else if (params.format == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
+  } else if (params.format() == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
     stream = MakeLowLatencyOutputStream(params);
   }
 
@@ -100,7 +100,7 @@ AudioOutputStream* AudioManagerBase::MakeAudioOutputStream(
 
 AudioInputStream* AudioManagerBase::MakeAudioInputStream(
     const AudioParameters& params, const std::string& device_id) {
-  if (!params.IsValid() || (params.channels > kMaxInputChannels) ||
+  if (!params.IsValid() || (params.channels() > kMaxInputChannels) ||
       device_id.empty()) {
     DLOG(ERROR) << "Audio parameters are invalid for device " << device_id;
     return NULL;
@@ -114,11 +114,11 @@ AudioInputStream* AudioManagerBase::MakeAudioInputStream(
   }
 
   AudioInputStream* stream = NULL;
-  if (params.format == AudioParameters::AUDIO_MOCK) {
+  if (params.format() == AudioParameters::AUDIO_MOCK) {
     stream = FakeAudioInputStream::MakeFakeStream(this, params);
-  } else if (params.format == AudioParameters::AUDIO_PCM_LINEAR) {
+  } else if (params.format() == AudioParameters::AUDIO_PCM_LINEAR) {
     stream = MakeLinearInputStream(params, device_id);
-  } else if (params.format == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
+  } else if (params.format() == AudioParameters::AUDIO_PCM_LOW_LATENCY) {
     stream = MakeLowLatencyInputStream(params, device_id);
   }
 

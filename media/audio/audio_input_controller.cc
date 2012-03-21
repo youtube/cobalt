@@ -43,7 +43,7 @@ scoped_refptr<AudioInputController> AudioInputController::Create(
     const AudioParameters& params) {
   DCHECK(audio_manager);
 
-  if (!params.IsValid() || (params.channels > kMaxInputChannels))
+  if (!params.IsValid() || (params.channels() > kMaxInputChannels))
     return NULL;
 
   if (factory_)
@@ -76,7 +76,7 @@ scoped_refptr<AudioInputController> AudioInputController::CreateLowLatency(
   DCHECK(audio_manager);
   DCHECK(sync_writer);
 
-  if (!params.IsValid() || (params.channels > kMaxInputChannels))
+  if (!params.IsValid() || (params.channels() > kMaxInputChannels))
     return NULL;
 
   // Create the AudioInputController object and ensure that it runs on

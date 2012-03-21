@@ -66,7 +66,7 @@ class AUAudioInputStream : public AudioInputStream {
   virtual double GetVolume() OVERRIDE;
 
   // Returns the current hardware sample rate for the default input device.
-  MEDIA_EXPORT static double HardwareSampleRate();
+  MEDIA_EXPORT static int HardwareSampleRate();
 
   bool started() const { return started_; }
   AudioUnit audio_unit() { return audio_unit_; }

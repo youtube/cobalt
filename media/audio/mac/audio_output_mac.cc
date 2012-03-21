@@ -48,12 +48,12 @@ PCMQueueOutAudioOutputStream::PCMQueueOutAudioOutputStream(
     : audio_queue_(NULL),
       source_(NULL),
       manager_(manager),
-      packet_size_(params.GetPacketSize()),
+      packet_size_(params.GetBytesPerBuffer()),
       silence_bytes_(0),
       volume_(1),
       pending_bytes_(0),
-      num_source_channels_(params.channels),
-      source_layout_(params.channel_layout),
+      num_source_channels_(params.channels()),
+      source_layout_(params.channel_layout()),
       num_core_channels_(0),
       should_swizzle_(false),
       should_down_mix_(false) {
@@ -62,13 +62,13 @@ PCMQueueOutAudioOutputStream::PCMQueueOutAudioOutputStream(
   // A frame is one sample across all channels. In interleaved audio the per
   // frame fields identify the set of n |channels|. In uncompressed audio, a
   // packet is always one frame.
-  format_.mSampleRate = params.sample_rate;
+  format_.mSampleRate = params.sample_rate();
   format_.mFormatID = kAudioFormatLinearPCM;
   format_.mFormatFlags = kLinearPCMFormatFlagIsPacked;
-  format_.mBitsPerChannel = params.bits_per_sample;
-  format_.mChannelsPerFrame = params.channels;
+  format_.mBitsPerChannel = params.bits_per_sample();
+  format_.mChannelsPerFrame = params.channels();
   format_.mFramesPerPacket = 1;
-  format_.mBytesPerPacket = (format_.mBitsPerChannel * params.channels) / 8;
+  format_.mBytesPerPacket = (format_.mBitsPerChannel * params.channels()) / 8;
   format_.mBytesPerFrame = format_.mBytesPerPacket;
   format_.mReserved = 0;
 
@@ -76,14 +76,14 @@ PCMQueueOutAudioOutputStream::PCMQueueOutAudioOutputStream(
   memset(core_channel_orderings_, 0, sizeof(core_channel_orderings_));
   memset(channel_remap_, 0, sizeof(channel_remap_));
 
-  if (params.bits_per_sample > 8) {
+  if (params.bits_per_sample() > 8) {
     format_.mFormatFlags |= kLinearPCMFormatFlagIsSignedInteger;
   }
 
   // Silence buffer has a duration of 6ms to simulate the behavior of Windows.
   // This value is choosen by experiments and macs cannot keep up with
   // anything less than 6ms.
-  silence_bytes_ = format_.mBytesPerFrame * params.sample_rate * 6 / 1000;
+  silence_bytes_ = format_.mBytesPerFrame * params.sample_rate() * 6 / 1000;
 }
 
 PCMQueueOutAudioOutputStream::~PCMQueueOutAudioOutputStream() {

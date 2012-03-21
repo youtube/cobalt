@@ -303,7 +303,7 @@ void MixStreams(void* dst,
   }
 }
 
-double GetAudioHardwareSampleRate() {
+int GetAudioHardwareSampleRate() {
 #if defined(OS_MACOSX)
     // Hardware sample-rate on the Mac can be configured, so we must query.
     return AUAudioOutputStream::HardwareSampleRate();
@@ -311,7 +311,7 @@ double GetAudioHardwareSampleRate() {
   if (!IsWASAPISupported()) {
     // Fall back to Windows Wave implementation on Windows XP or lower
     // and use 48kHz as default input sample rate.
-    return 48000.0;
+    return 48000;
   }
 
   // Hardware sample-rate on Windows can be configured, so we must query.
@@ -321,22 +321,22 @@ double GetAudioHardwareSampleRate() {
 #else
     // Hardware for Linux is nearly always 48KHz.
     // TODO(crogers) : return correct value in rare non-48KHz cases.
-    return 48000.0;
+    return 48000;
 #endif
 }
 
-double GetAudioInputHardwareSampleRate(const std::string& device_id) {
+int GetAudioInputHardwareSampleRate(const std::string& device_id) {
   // TODO(henrika): add support for device selection on all platforms.
   // Only exists on Windows today.
 #if defined(OS_MACOSX)
   return AUAudioInputStream::HardwareSampleRate();
 #elif defined(OS_WIN)
   if (!IsWASAPISupported()) {
-    return 48000.0;
+    return 48000;
   }
   return WASAPIAudioInputStream::HardwareSampleRate(device_id);
 #else
-  return 48000.0;
+  return 48000;
 #endif
 }
 
@@ -359,7 +359,7 @@ size_t GetAudioHardwareBufferSize() {
   // This call must be done on a COM thread configured as MTA.
   // TODO(tommi): http://code.google.com/p/chromium/issues/detail?id=103835.
   int mixing_sample_rate =
-      static_cast<int>(WASAPIAudioOutputStream::HardwareSampleRate(eConsole));
+      WASAPIAudioOutputStream::HardwareSampleRate(eConsole);
   if (mixing_sample_rate == 48000)
     return 480;
   else if (mixing_sample_rate == 44100)
@@ -371,21 +371,21 @@ size_t GetAudioHardwareBufferSize() {
 #endif
 }
 
-uint32 GetAudioInputHardwareChannelCount(const std::string& device_id) {
+ChannelLayout GetAudioInputHardwareChannelLayout(const std::string& device_id) {
   // TODO(henrika): add support for device selection on all platforms.
   // Only exists on Windows today.
-  enum channel_layout { MONO = 1, STEREO = 2 };
 #if defined(OS_MACOSX)
-  return MONO;
+  return CHANNEL_LAYOUT_MONO;
 #elif defined(OS_WIN)
   if (!IsWASAPISupported()) {
     // Fall back to Windows Wave implementation on Windows XP or lower and
     // use stereo by default.
-    return STEREO;
+    return CHANNEL_LAYOUT_STEREO;
   }
-  return WASAPIAudioInputStream::HardwareChannelCount(device_id);
+  return WASAPIAudioInputStream::HardwareChannelCount(device_id) == 1 ?
+      CHANNEL_LAYOUT_MONO : CHANNEL_LAYOUT_STEREO;
 #else
-  return STEREO;
+  return CHANNEL_LAYOUT_STEREO;
 #endif
 }
 

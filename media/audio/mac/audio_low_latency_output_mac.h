@@ -46,7 +46,7 @@ class AUAudioOutputStream : public AudioOutputStream {
   virtual void SetVolume(double volume) OVERRIDE;
   virtual void GetVolume(double* volume) OVERRIDE;
 
-  static double HardwareSampleRate();
+  static int HardwareSampleRate();
 
  private:
   // DefaultOutputUnit callback.

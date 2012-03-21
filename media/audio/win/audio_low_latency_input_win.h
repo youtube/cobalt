@@ -105,7 +105,7 @@ class MEDIA_EXPORT WASAPIAudioInputStream
 
   // Retrieves the sample rate used by the audio engine for its internal
   // processing/mixing of shared-mode streams given a specifed device.
-  static double HardwareSampleRate(const std::string& device_id);
+  static int HardwareSampleRate(const std::string& device_id);
 
   // Retrieves the number of audio channels used by the audio engine for its
   // internal processing/mixing of shared-mode streams given a specifed device.
