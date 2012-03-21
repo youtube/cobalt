@@ -56,7 +56,7 @@ dev_list="apache2.2-bin bison curl elfutils fakeroot flex g++ gperf
           language-pack-fr libapache2-mod-php5 libasound2-dev libbz2-dev
           libcairo2-dev libcups2-dev libcurl4-gnutls-dev libdbus-glib-1-dev
           libelf-dev libgconf2-dev libgl1-mesa-dev libglib2.0-dev
-          libglu1-mesa-dev libgnome-keyring-dev libgtk2.0-dev libjpeg62-dev
+          libglu1-mesa-dev libgnome-keyring-dev libgtk2.0-dev
           libkrb5-dev libnspr4-dev libnss3-dev libpam0g-dev libsctp-dev
           libsqlite3-dev libssl-dev libudev-dev libwww-perl libxslt1-dev
           libxss-dev libxt-dev libxtst-dev mesa-common-dev patch
@@ -91,22 +91,27 @@ dbg_list="libatk1.0-dbg libc6-dbg libcairo2-dbg libdbus-glib-1-2-dbg
 plugin_list="flashplugin-installer"
 
 # Some package names have changed over time
-if dpkg --print-avail msttcorefonts >/dev/null 2>&1; then
-  dev_list="${dev_list} msttcorefonts"
-else
+if apt-cache show ttf-mscorefonts-installer >/dev/null 2>&1; then
   dev_list="${dev_list} ttf-mscorefonts-installer"
+else
+  dev_list="${dev_list} msttcorefonts"
 fi
-if dpkg --print-avail libnspr4 >/dev/null 2>&1; then
+if apt-cache show libnspr4-dbg >/dev/null 2>&1; then
   dbg_list="${dbg_list} libnspr4-dbg libnss3-dbg"
   lib_list="${lib_list} libnspr4 libnss3"
 else
   dbg_list="${dbg_list} libnspr4-0d-dbg libnss3-1d-dbg"
   lib_list="${lib_list} libnspr4-0d libnss3-1d"
 fi
+if apt-cache show libjpeg-dev >/dev/null 2>&1; then
+ dev_list="${dev_list} libjpeg-dev"
+else
+ dev_list="${dev_list} libjpeg62-dev"
+fi
 
 # Some packages are only needed, if the distribution actually supports
 # installing them.
-if dpkg --print-avail appmenu-gtk >/dev/null 2>&1; then
+if apt-cache show appmenu-gtk >/dev/null 2>&1; then
   lib_list="$lib_list appmenu-gtk"
 fi
 
