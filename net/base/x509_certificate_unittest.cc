@@ -343,22 +343,6 @@ TEST(X509CertificateTest, ThawteCertParsing) {
   EXPECT_EQ("www.thawte.com", dns_names[0]);
 }
 
-scoped_refptr<X509Certificate> LoadComodoChain() {
-  // This certificate will expire Jun 21, 2013.
-  CertificateList certs = CreateCertificateListFromFile(
-      GetTestCertsDirectory(),
-      "comodo.chain.pem",
-      X509Certificate::FORMAT_PEM_CERT_SEQUENCE);
-  CHECK_EQ(3U, certs.size());
-
-  X509Certificate::OSCertHandles intermediates;
-  intermediates.push_back(certs[1]->os_cert_handle());
-  intermediates.push_back(certs[2]->os_cert_handle());
-
-  return X509Certificate::CreateFromHandle(
-      certs[0]->os_cert_handle(), intermediates);
-}
-
 #if defined(OS_ANDROID) || defined(USE_OPENSSL)
 // TODO(jnd): http://crbug.com/117478 - EV verification is not yet supported.
 #define MAYBE_EVVerification DISABLED_EVVerification
@@ -366,7 +350,20 @@ scoped_refptr<X509Certificate> LoadComodoChain() {
 #define MAYBE_EVVerification EVVerification
 #endif
 TEST(X509CertificateTest, MAYBE_EVVerification) {
-  scoped_refptr<X509Certificate> comodo_chain = LoadComodoChain();
+  // This certificate will expire Jun 21, 2013.
+  CertificateList certs = CreateCertificateListFromFile(
+      GetTestCertsDirectory(),
+      "comodo.chain.pem",
+      X509Certificate::FORMAT_PEM_CERT_SEQUENCE);
+  ASSERT_EQ(3U, certs.size());
+
+  X509Certificate::OSCertHandles intermediates;
+  intermediates.push_back(certs[1]->os_cert_handle());
+  intermediates.push_back(certs[2]->os_cert_handle());
+
+  scoped_refptr<X509Certificate> comodo_chain =
+      X509Certificate::CreateFromHandle(certs[0]->os_cert_handle(),
+                                        intermediates);
 
   scoped_refptr<CRLSet> crl_set(CRLSet::EmptyCRLSetForTesting());
   CertVerifyResult verify_result;
@@ -804,21 +801,45 @@ TEST(X509CertificateTest, DigiNotarCerts) {
   }
 }
 
-TEST(X509CertificateTest, TestKnownRoot) {
-  // This certificate will expire Jun 21, 2013.
-  scoped_refptr<X509Certificate> comodo_chain = LoadComodoChain();
+// Bug 111893: This test needs a new certificate.
+TEST(X509CertificateTest, DISABLED_TestKnownRoot) {
+  FilePath certs_dir = GetTestCertsDirectory();
+  scoped_refptr<X509Certificate> cert =
+      ImportCertFromFile(certs_dir, "nist.der");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), cert);
 
-  CertVerifyResult verify_result;
+  // This intermediate is only needed for old Linux machines. Modern NSS
+  // includes it as a root already.
+  scoped_refptr<X509Certificate> intermediate_cert =
+      ImportCertFromFile(certs_dir, "nist_intermediate.der");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), intermediate_cert);
+
+  X509Certificate::OSCertHandles intermediates;
+  intermediates.push_back(intermediate_cert->os_cert_handle());
+  scoped_refptr<X509Certificate> cert_chain =
+      X509Certificate::CreateFromHandle(cert->os_cert_handle(),
+                                        intermediates);
+
   int flags = 0;
-  int error = comodo_chain->Verify(
-      "comodo.com", flags, NULL, &verify_result);
+  CertVerifyResult verify_result;
+  // This is going to blow up in Feb 2012. Sorry! Disable and file a bug
+  // against agl. Also see PublicKeyHashes in this file.
+  int error = cert_chain->Verify("www.nist.gov", flags, NULL, &verify_result);
   EXPECT_EQ(OK, error);
   EXPECT_EQ(0U, verify_result.cert_status);
   EXPECT_TRUE(verify_result.is_issued_by_known_root);
 }
 
+// This is the SHA1 hash of the SubjectPublicKeyInfo of nist.der.
+static const char nistSPKIHash[] =
+    "\x15\x60\xde\x65\x4e\x03\x9f\xd0\x08\x82"
+    "\xa9\x6a\xc4\x65\x8e\x6f\x92\x06\x84\x35";
+
 TEST(X509CertificateTest, ExtractSPKIFromDERCert) {
-  scoped_refptr<X509Certificate> cert = LoadComodoChain();
+  FilePath certs_dir = GetTestCertsDirectory();
+  scoped_refptr<X509Certificate> cert =
+      ImportCertFromFile(certs_dir, "nist.der");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), cert);
 
   std::string derBytes;
   EXPECT_TRUE(X509Certificate::GetDEREncoded(cert->os_cert_handle(),
@@ -831,11 +852,14 @@ TEST(X509CertificateTest, ExtractSPKIFromDERCert) {
   base::SHA1HashBytes(reinterpret_cast<const uint8*>(spkiBytes.data()),
                       spkiBytes.size(), hash);
 
-  EXPECT_EQ(0, memcmp(hash, kComodoSPKIHash, sizeof(hash)));
+  EXPECT_EQ(0, memcmp(hash, nistSPKIHash, sizeof(hash)));
 }
 
 TEST(X509CertificateTest, ExtractCRLURLsFromDERCert) {
-  scoped_refptr<X509Certificate> cert = LoadComodoChain();
+  FilePath certs_dir = GetTestCertsDirectory();
+  scoped_refptr<X509Certificate> cert =
+      ImportCertFromFile(certs_dir, "nist.der");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), cert);
 
   std::string derBytes;
   EXPECT_TRUE(X509Certificate::GetDEREncoded(cert->os_cert_handle(),
@@ -846,26 +870,44 @@ TEST(X509CertificateTest, ExtractCRLURLsFromDERCert) {
 
   EXPECT_EQ(1u, crl_urls.size());
   if (crl_urls.size() > 0) {
-    EXPECT_EQ(
-        "http://crl.comodoca.com/COMODOExtendedValidationSecureServerCA.crl",
-        crl_urls[0].as_string());
+    EXPECT_EQ("http://SVRSecure-G3-crl.verisign.com/SVRSecureG3.crl",
+              crl_urls[0].as_string());
   }
 }
 
 // Bug 111893: This test needs a new certificate.
-TEST(X509CertificateTest, PublicKeyHashes) {
-  // This certificate will expire Jun 21, 2013.
-  scoped_refptr<X509Certificate> cert_chain = LoadComodoChain();
+TEST(X509CertificateTest, DISABLED_PublicKeyHashes) {
+  FilePath certs_dir = GetTestCertsDirectory();
+  // This is going to blow up in Feb 2012. Sorry! Disable and file a bug
+  // against agl. Also see TestKnownRoot in this file.
+  scoped_refptr<X509Certificate> cert =
+      ImportCertFromFile(certs_dir, "nist.der");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), cert);
+
+  // This intermediate is only needed for old Linux machines. Modern NSS
+  // includes it as a root already.
+  scoped_refptr<X509Certificate> intermediate_cert =
+      ImportCertFromFile(certs_dir, "nist_intermediate.der");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), intermediate_cert);
+
+  ScopedTestRoot scoped_intermediate(intermediate_cert);
+
+  X509Certificate::OSCertHandles intermediates;
+  intermediates.push_back(intermediate_cert->os_cert_handle());
+  scoped_refptr<X509Certificate> cert_chain =
+      X509Certificate::CreateFromHandle(cert->os_cert_handle(),
+                                        intermediates);
+
   int flags = 0;
   CertVerifyResult verify_result;
 
-  int error = cert_chain->Verify("www.comodo.com", flags, NULL, &verify_result);
+  int error = cert_chain->Verify("www.nist.gov", flags, NULL, &verify_result);
   EXPECT_EQ(OK, error);
   EXPECT_EQ(0U, verify_result.cert_status);
   ASSERT_LE(2u, verify_result.public_key_hashes.size());
-  EXPECT_EQ(HexEncode(kComodoSPKIHash, base::kSHA1Length),
+  EXPECT_EQ(HexEncode(nistSPKIHash, base::kSHA1Length),
       HexEncode(verify_result.public_key_hashes[0].data, base::kSHA1Length));
-  EXPECT_EQ("43B45EFA6EAF6E116CDCE2F579F21607A5EA5179",
+  EXPECT_EQ("83244223D6CBF0A26FC7DE27CEBCA4BDA32612AD",
       HexEncode(verify_result.public_key_hashes[1].data, base::kSHA1Length));
 }
 
