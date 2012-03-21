@@ -220,7 +220,17 @@ target="${distname}${arch}"
     case "${choice}" in
       a|A) exit 1;;
       o|O) sudo rm -rf "/var/lib/chroot/${target}"; break;;
-      d|D) sudo rm -rf "/var/lib/chroot/${target}"; exit 0;;
+      d|D) sudo rm -rf "/var/lib/chroot/${target}"      \
+                       "/usr/local/bin/${target%bit}"   \
+                       "/etc/schroot/mount-${target}"   \
+                       "/etc/schroot/script-${target}"
+           sudo sed -ni '/^[[]'"${target%bit}"']$/,${
+                         :1;n;/^[[]/b2;b1;:2;p;n;b2};p' \
+                       "/etc/schroot/schroot.conf"
+           trap '' INT TERM QUIT HUP
+           trap '' EXIT
+           echo "Deleted!"
+           exit 0;;
     esac
   done
   echo
@@ -451,7 +461,7 @@ clean() {
       rc=1
       continue
     fi
-    schroot -c "${s}" -e || rc=1
+    sudo schroot -c "${s}" -e || rc=1
   done
   exit ${rc}
 }
@@ -645,11 +655,13 @@ if [ -x "${script}" ]; then
           cp "${script}" "${tmp_script}"
         fi
         # Some distributions automatically start an instance of the system-
-        # wide dbus daemon, when installing the Chrome build depencies. This
-        # prevents the chroot session from being closed. So, we always try
-        # to shut down any running instance of dbus.
+        # wide dbus daemon or of the logging daemon, when installing the Chrome
+        # build depencies. This prevents the chroot session from being closed.
+        # So, we always try to shut down any running instance of dbus and
+        # rsyslog.
         sudo "${target%bit}" sh -c "${script} --no-lib32;
               rc=$?;
+              /etc/init.d/rsyslog stop >/dev/null 2>&1 || :;
               /etc/init.d/dbus stop >/dev/null 2>&1 || :;
               exit $rc"
         rc=$?
