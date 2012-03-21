@@ -139,13 +139,22 @@
         }
       ],
     },
+    # Include this target for a main() function that simply instantiates
+    # and runs a base::TestSuite.
+    {
+      'target_name': 'run_all_unittests',
+      'type': 'static_library',
+      'dependencies': [
+        'test_support_base',
+      ],
+      'sources': [
+        'test/run_all_unittests.cc',
+      ],
+    },
     {
       'target_name': 'base_unittests',
       'type': 'executable',
       'sources': [
-        # Infrastructure files.
-        'test/run_all_unittests.cc',
-
         # Tests.
         'android/jni_android_unittest.cc',
         'android/scoped_java_ref_unittest.cc',
@@ -295,6 +304,7 @@
         'base',
         'base_i18n',
         'base_static',
+        'run_all_unittests',
         'test_support_base',
         'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
         '../testing/gmock.gyp:gmock',
