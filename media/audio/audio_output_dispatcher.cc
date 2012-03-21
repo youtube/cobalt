@@ -17,8 +17,8 @@ AudioOutputDispatcher::AudioOutputDispatcher(
       message_loop_(MessageLoop::current()),
       params_(params),
       pause_delay_(base::TimeDelta::FromMilliseconds(
-          2 * params.samples_per_packet *
-          base::Time::kMillisecondsPerSecond / params.sample_rate)),
+          2 * params.frames_per_buffer() *
+          base::Time::kMillisecondsPerSecond / params.sample_rate())),
       paused_proxies_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_this_(this)),
       close_timer_(FROM_HERE,

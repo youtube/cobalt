@@ -51,7 +51,7 @@ class AlsaPcmInputStream : public AudioInputStream {
   // Logs the error and invokes any registered callbacks.
   void HandleError(const char* method, int error);
 
-  // Reads one or more packets of audio from the device, passes on to the
+  // Reads one or more buffers of audio from the device, passes on to the
   // registered callback and schedules the next read.
   void ReadAudio();
 
@@ -69,16 +69,16 @@ class AlsaPcmInputStream : public AudioInputStream {
   AudioManagerLinux* audio_manager_;
   std::string device_name_;
   AudioParameters params_;
-  int bytes_per_packet_;
+  int bytes_per_buffer_;
   AlsaWrapper* wrapper_;
-  int packet_duration_ms_;  // Length of each recorded packet in milliseconds.
+  int buffer_duration_ms_;  // Length of each recorded buffer in milliseconds.
   AudioInputCallback* callback_;  // Valid during a recording session.
   base::Time next_read_time_;  // Scheduled time for the next read callback.
   snd_pcm_t* device_handle_;  // Handle to the ALSA PCM recording device.
   snd_mixer_t* mixer_handle_; // Handle to the ALSA microphone mixer.
   snd_mixer_elem_t* mixer_element_handle_; // Handle to the capture element.
   base::WeakPtrFactory<AlsaPcmInputStream> weak_factory_;
-  scoped_array<uint8> audio_packet_;  // Buffer used for reading audio data.
+  scoped_array<uint8> audio_buffer_;  // Buffer used for reading audio data.
   bool read_callback_behind_schedule_;
 
   DISALLOW_COPY_AND_ASSIGN(AlsaPcmInputStream);

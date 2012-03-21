@@ -261,25 +261,25 @@ void AudioManagerMac::UnMuteAll() {
 
 AudioOutputStream* AudioManagerMac::MakeLinearOutputStream(
     const AudioParameters& params) {
-  DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format);
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
   return new PCMQueueOutAudioOutputStream(this, params);
 }
 
 AudioOutputStream* AudioManagerMac::MakeLowLatencyOutputStream(
     const AudioParameters& params) {
-  DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format);
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
   return new AUAudioOutputStream(this, params);
 }
 
 AudioInputStream* AudioManagerMac::MakeLinearInputStream(
     const AudioParameters& params, const std::string& device_id) {
-  DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format);
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
   return new PCMQueueInAudioInputStream(this, params);
 }
 
 AudioInputStream* AudioManagerMac::MakeLowLatencyInputStream(
     const AudioParameters& params, const std::string& device_id) {
-  DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format);
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
   // Gets the AudioDeviceID that refers to the AudioDevice with the device
   // unique id. This AudioDeviceID is used to set the device for Audio Unit.
   AudioDeviceID audio_device_id = GetAudioDeviceIdByUId(true, device_id);

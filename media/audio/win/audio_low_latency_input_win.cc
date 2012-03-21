@@ -32,10 +32,10 @@ WASAPIAudioInputStream::WASAPIAudioInputStream(
   DCHECK(avrt_init) << "Failed to load the Avrt.dll";
 
   // Set up the desired capture format specified by the client.
-  format_.nSamplesPerSec = params.sample_rate;
+  format_.nSamplesPerSec = params.sample_rate();
   format_.wFormatTag = WAVE_FORMAT_PCM;
-  format_.wBitsPerSample = params.bits_per_sample;
-  format_.nChannels = params.channels;
+  format_.wBitsPerSample = params.bits_per_sample();
+  format_.nChannels = params.channels();
   format_.nBlockAlign = (format_.wBitsPerSample / 8) * format_.nChannels;
   format_.nAvgBytesPerSec = format_.nSamplesPerSec * format_.nBlockAlign;
   format_.cbSize = 0;
@@ -44,8 +44,8 @@ WASAPIAudioInputStream::WASAPIAudioInputStream(
   frame_size_ = format_.nBlockAlign;
   // Store size of audio packets which we expect to get from the audio
   // endpoint device in each capture event.
-  packet_size_frames_ = params.GetPacketSize() / format_.nBlockAlign;
-  packet_size_bytes_ = params.GetPacketSize();
+  packet_size_frames_ = params.GetBytesPerBuffer() / format_.nBlockAlign;
+  packet_size_bytes_ = params.GetBytesPerBuffer();
   DVLOG(1) << "Number of bytes per audio frame  : " << frame_size_;
   DVLOG(1) << "Number of audio frames per packet: " << packet_size_frames_;
 
@@ -60,7 +60,7 @@ WASAPIAudioInputStream::WASAPIAudioInputStream(
   stop_capture_event_.Set(CreateEvent(NULL, FALSE, FALSE, NULL));
   DCHECK(stop_capture_event_.IsValid());
 
-  ms_to_frame_count_ = static_cast<double>(params.sample_rate) / 1000.0;
+  ms_to_frame_count_ = static_cast<double>(params.sample_rate()) / 1000.0;
 
   LARGE_INTEGER performance_frequency;
   if (QueryPerformanceFrequency(&performance_frequency)) {
@@ -221,14 +221,14 @@ double WASAPIAudioInputStream::GetVolume() {
 }
 
 // static
-double WASAPIAudioInputStream::HardwareSampleRate(
+int WASAPIAudioInputStream::HardwareSampleRate(
     const std::string& device_id) {
   base::win::ScopedCoMem<WAVEFORMATEX> audio_engine_mix_format;
   HRESULT hr = GetMixFormat(device_id, &audio_engine_mix_format);
   if (FAILED(hr))
-    return 0.0;
+    return 0;
 
-  return static_cast<double>(audio_engine_mix_format->nSamplesPerSec);
+  return static_cast<int>(audio_engine_mix_format->nSamplesPerSec);
 }
 
 // static

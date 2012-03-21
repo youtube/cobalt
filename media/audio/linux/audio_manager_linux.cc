@@ -238,25 +238,25 @@ bool AudioManagerLinux::HasAnyAlsaAudioDevice(StreamType stream) {
 
 AudioOutputStream* AudioManagerLinux::MakeLinearOutputStream(
     const AudioParameters& params) {
-  DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format);
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
   return MakeOutputStream(params);
 }
 
 AudioOutputStream* AudioManagerLinux::MakeLowLatencyOutputStream(
     const AudioParameters& params) {
-  DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format);
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
   return MakeOutputStream(params);
 }
 
 AudioInputStream* AudioManagerLinux::MakeLinearInputStream(
     const AudioParameters& params, const std::string& device_id) {
-  DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format);
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
   return MakeInputStream(params, device_id);
 }
 
 AudioInputStream* AudioManagerLinux::MakeLowLatencyInputStream(
     const AudioParameters& params, const std::string& device_id) {
-  DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format);
+  DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
   return MakeInputStream(params, device_id);
 }
 

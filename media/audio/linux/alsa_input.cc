@@ -29,12 +29,12 @@ AlsaPcmInputStream::AlsaPcmInputStream(AudioManagerLinux* audio_manager,
     : audio_manager_(audio_manager),
       device_name_(device_name),
       params_(params),
-      bytes_per_packet_(params.samples_per_packet *
-                        (params.channels * params.bits_per_sample) / 8),
+      bytes_per_buffer_(params.frames_per_buffer() *
+                        (params.channels() * params.bits_per_sample()) / 8),
       wrapper_(wrapper),
-      packet_duration_ms_(
-          (params.samples_per_packet * base::Time::kMillisecondsPerSecond) /
-          params.sample_rate),
+      buffer_duration_ms_(
+          (params.frames_per_buffer() * base::Time::kMillisecondsPerSecond) /
+          params.sample_rate()),
       callback_(NULL),
       device_handle_(NULL),
       mixer_handle_(NULL),
@@ -50,14 +50,14 @@ bool AlsaPcmInputStream::Open() {
     return false;  // Already open.
 
   snd_pcm_format_t pcm_format = alsa_util::BitsToFormat(
-      params_.bits_per_sample);
+      params_.bits_per_sample());
   if (pcm_format == SND_PCM_FORMAT_UNKNOWN) {
     LOG(WARNING) << "Unsupported bits per sample: "
-                 << params_.bits_per_sample;
+                 << params_.bits_per_sample();
     return false;
   }
 
-  uint32 latency_us = packet_duration_ms_ * kNumPacketsInRingBuffer *
+  uint32 latency_us = buffer_duration_ms_ * kNumPacketsInRingBuffer *
       base::Time::kMicrosecondsPerMillisecond;
 
   // Use the same minimum required latency as output.
@@ -66,10 +66,10 @@ bool AlsaPcmInputStream::Open() {
   if (device_name_ == kAutoSelectDevice) {
     const char* device_names[] = { kDefaultDevice1, kDefaultDevice2 };
     for (size_t i = 0; i < arraysize(device_names); ++i) {
-      device_handle_ = alsa_util::OpenCaptureDevice(wrapper_, device_names[i],
-                                                    params_.channels,
-                                                    params_.sample_rate,
-                                                    pcm_format, latency_us);
+      device_handle_ = alsa_util::OpenCaptureDevice(
+          wrapper_, device_names[i], params_.channels(),
+          params_.sample_rate(), pcm_format, latency_us);
+
       if (device_handle_) {
         device_name_ = device_names[i];
         break;
@@ -78,13 +78,13 @@ bool AlsaPcmInputStream::Open() {
   } else {
     device_handle_ = alsa_util::OpenCaptureDevice(wrapper_,
                                                   device_name_.c_str(),
-                                                  params_.channels,
-                                                  params_.sample_rate,
+                                                  params_.channels(),
+                                                  params_.sample_rate(),
                                                   pcm_format, latency_us);
   }
 
   if (device_handle_) {
-    audio_packet_.reset(new uint8[bytes_per_packet_]);
+    audio_buffer_.reset(new uint8[bytes_per_buffer_]);
 
     // Open the microphone mixer.
     mixer_handle_ = alsa_util::OpenMixer(wrapper_, device_name_);
@@ -112,11 +112,11 @@ void AlsaPcmInputStream::Start(AudioInputCallback* callback) {
   if (error < 0) {
     callback_ = NULL;
   } else {
-    // We start reading data half |packet_duration_ms_| later than when the
-    // packet might have got filled, to accommodate some delays in the audio
+    // We start reading data half |buffer_duration_ms_| later than when the
+    // buffer might have got filled, to accommodate some delays in the audio
     // driver. This could also give us a smooth read sequence going forward.
     base::TimeDelta delay = base::TimeDelta::FromMilliseconds(
-        packet_duration_ms_ + packet_duration_ms_ / 2);
+        buffer_duration_ms_ + buffer_duration_ms_ / 2);
     next_read_time_ = base::Time::Now() + delay;
     MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
@@ -176,7 +176,7 @@ void AlsaPcmInputStream::ReadAudio() {
     Recover(frames);
   }
 
-  if (frames < params_.samples_per_packet) {
+  if (frames < params_.frames_per_buffer()) {
     // Not enough data yet or error happened. In both cases wait for a very
     // small duration before checking again.
     // Even Though read callback was behind schedule, there is no data, so
@@ -187,7 +187,7 @@ void AlsaPcmInputStream::ReadAudio() {
     }
 
     base::TimeDelta next_check_time = base::TimeDelta::FromMilliseconds(
-        packet_duration_ms_ / 2);
+        buffer_duration_ms_ / 2);
     MessageLoop::current()->PostDelayedTask(
         FROM_HERE,
         base::Bind(&AlsaPcmInputStream::ReadAudio, weak_factory_.GetWeakPtr()),
@@ -195,30 +195,29 @@ void AlsaPcmInputStream::ReadAudio() {
     return;
   }
 
-  int num_packets = frames / params_.samples_per_packet;
-  int num_packets_read = num_packets;
-  int bytes_per_frame = params_.channels * params_.bits_per_sample / 8;
+  int num_buffers = frames / params_.frames_per_buffer();
+  int num_buffers_read = num_buffers;
   uint32 hardware_delay_bytes =
-      static_cast<uint32>(GetCurrentDelay() * bytes_per_frame);
-  while (num_packets--) {
-    int frames_read = wrapper_->PcmReadi(device_handle_, audio_packet_.get(),
-                                         params_.samples_per_packet);
-    if (frames_read == params_.samples_per_packet) {
-      callback_->OnData(this, audio_packet_.get(), bytes_per_packet_,
+      static_cast<uint32>(GetCurrentDelay() * params_.GetBytesPerFrame());
+  while (num_buffers--) {
+    int frames_read = wrapper_->PcmReadi(device_handle_, audio_buffer_.get(),
+                                         params_.frames_per_buffer());
+    if (frames_read == params_.frames_per_buffer()) {
+      callback_->OnData(this, audio_buffer_.get(), bytes_per_buffer_,
                         hardware_delay_bytes);
     } else {
       LOG(WARNING) << "PcmReadi returning less than expected frames: "
-                   << frames_read << " vs. " << params_.samples_per_packet
-                   << ". Dropping this packet.";
+                   << frames_read << " vs. " << params_.frames_per_buffer()
+                   << ". Dropping this buffer.";
     }
   }
 
   next_read_time_ += base::TimeDelta::FromMilliseconds(
-      packet_duration_ms_ * num_packets_read);
+      buffer_duration_ms_ * num_buffers_read);
   base::TimeDelta delay = next_read_time_ - base::Time::Now();
   if (delay < base::TimeDelta()) {
     LOG(WARNING) << "Audio read callback behind schedule by "
-                 << (packet_duration_ms_ - delay.InMilliseconds())
+                 << (buffer_duration_ms_ - delay.InMilliseconds())
                  << " (ms).";
     // Read callback is behind schedule. Assuming there is data pending in
     // the soundcard, invoke the read callback immediate in order to catch up.
@@ -256,7 +255,7 @@ void AlsaPcmInputStream::Close() {
     if (mixer_handle_)
       alsa_util::CloseMixer(wrapper_, mixer_handle_, device_name_);
 
-    audio_packet_.reset();
+    audio_buffer_.reset();
     device_handle_ = NULL;
     mixer_handle_ = NULL;
     mixer_element_handle_ = NULL;

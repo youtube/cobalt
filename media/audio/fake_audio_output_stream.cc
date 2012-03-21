@@ -22,9 +22,9 @@ AudioOutputStream* FakeAudioOutputStream::MakeFakeStream(
 }
 
 bool FakeAudioOutputStream::Open() {
-  if (packet_size_ < sizeof(int16))
+  if (bytes_per_buffer_ < sizeof(int16))
     return false;
-  buffer_.reset(new uint8[packet_size_]);
+  buffer_.reset(new uint8[bytes_per_buffer_]);
   return true;
 }
 
@@ -35,8 +35,8 @@ FakeAudioOutputStream* FakeAudioOutputStream::GetCurrentFakeStream() {
 
 void FakeAudioOutputStream::Start(AudioSourceCallback* callback)  {
   callback_ = callback;
-  memset(buffer_.get(), 0, packet_size_);
-  callback_->OnMoreData(this, buffer_.get(), packet_size_,
+  memset(buffer_.get(), 0, bytes_per_buffer_);
+  callback_->OnMoreData(this, buffer_.get(), bytes_per_buffer_,
                         AudioBuffersState(0, 0));
 }
 
@@ -62,7 +62,7 @@ FakeAudioOutputStream::FakeAudioOutputStream(AudioManagerBase* manager,
     : audio_manager_(manager),
       volume_(0),
       callback_(NULL),
-      packet_size_(params.GetPacketSize()),
+      bytes_per_buffer_(params.GetBytesPerBuffer()),
       closed_(false) {
 }
 

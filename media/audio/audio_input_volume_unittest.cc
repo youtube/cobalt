@@ -46,8 +46,7 @@ class AudioInputVolumeTest : public ::testing::Test {
   AudioInputStream* CreateAndOpenStream(const std::string& device_id) {
     AudioParameters::Format format = AudioParameters::AUDIO_PCM_LOW_LATENCY;
     ChannelLayout channel_layout =
-        (media::GetAudioInputHardwareChannelCount(device_id) == 1) ?
-            CHANNEL_LAYOUT_MONO : CHANNEL_LAYOUT_STEREO;
+        media::GetAudioInputHardwareChannelLayout(device_id);
     int bits_per_sample = 16;
     int sample_rate =
         static_cast<int>(media::GetAudioInputHardwareSampleRate(device_id));
