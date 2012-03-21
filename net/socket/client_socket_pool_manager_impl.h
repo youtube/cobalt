@@ -15,6 +15,7 @@
 #include "base/template_util.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/cert_database.h"
+#include "net/http/http_network_session.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/client_socket_pool_manager.h"
 
@@ -66,7 +67,8 @@ class ClientSocketPoolManagerImpl : public base::NonThreadSafe,
                               SSLHostInfoFactory* ssl_host_info_factory,
                               const std::string& ssl_session_cache_shard,
                               ProxyService* proxy_service,
-                              SSLConfigService* ssl_config_service);
+                              SSLConfigService* ssl_config_service,
+                              HttpNetworkSession::SocketPoolType pool_type);
   virtual ~ClientSocketPoolManagerImpl();
 
   virtual void FlushSocketPools() OVERRIDE;
@@ -113,6 +115,7 @@ class ClientSocketPoolManagerImpl : public base::NonThreadSafe,
   const std::string ssl_session_cache_shard_;
   ProxyService* const proxy_service_;
   const scoped_refptr<SSLConfigService> ssl_config_service_;
+  const HttpNetworkSession::SocketPoolType pool_type_;
 
   // Note: this ordering is important.
 

@@ -25,6 +25,7 @@
 #include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool_histograms.h"
+#include "net/socket/client_socket_pool_manager.h"
 #include "net/socket/socket_test_util.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -279,8 +280,10 @@ TEST_F(HttpPipelinedNetworkTransactionTest, ReusePipeline) {
 }
 
 TEST_F(HttpPipelinedNetworkTransactionTest, ReusesOnSpaceAvailable) {
-  int old_max_sockets = ClientSocketPoolManager::max_sockets_per_group();
-  ClientSocketPoolManager::set_max_sockets_per_group(1);
+  int old_max_sockets = ClientSocketPoolManager::max_sockets_per_group(
+      HttpNetworkSession::NORMAL_SOCKET_POOL);
+  ClientSocketPoolManager::set_max_sockets_per_group(
+      HttpNetworkSession::NORMAL_SOCKET_POOL, 1);
   Initialize(false);
 
   MockWrite writes[] = {
@@ -315,7 +318,8 @@ TEST_F(HttpPipelinedNetworkTransactionTest, ReusesOnSpaceAvailable) {
 
   CompleteFourRequests();
 
-  ClientSocketPoolManager::set_max_sockets_per_group(old_max_sockets);
+  ClientSocketPoolManager::set_max_sockets_per_group(
+      HttpNetworkSession::NORMAL_SOCKET_POOL, old_max_sockets);
 }
 
 TEST_F(HttpPipelinedNetworkTransactionTest, UnknownSizeEvictsToNewPipeline) {
@@ -617,8 +621,10 @@ TEST_F(HttpPipelinedNetworkTransactionTest, PipelinesImmediatelyIfKnownGood) {
   // 3rd request completes, we know pipelining is safe. After the first 4
   // complete, the 5th and 6th should then be immediately sent pipelined on a
   // new HttpPipelinedConnection.
-  int old_max_sockets = ClientSocketPoolManager::max_sockets_per_group();
-  ClientSocketPoolManager::set_max_sockets_per_group(1);
+  int old_max_sockets = ClientSocketPoolManager::max_sockets_per_group(
+      HttpNetworkSession::NORMAL_SOCKET_POOL);
+  ClientSocketPoolManager::set_max_sockets_per_group(
+      HttpNetworkSession::NORMAL_SOCKET_POOL, 1);
   Initialize(false);
 
   MockWrite writes[] = {
@@ -689,7 +695,8 @@ TEST_F(HttpPipelinedNetworkTransactionTest, PipelinesImmediatelyIfKnownGood) {
   ExpectResponse("second-pipeline-two.html", second_two_transaction,
                  SYNCHRONOUS);
 
-  ClientSocketPoolManager::set_max_sockets_per_group(old_max_sockets);
+  ClientSocketPoolManager::set_max_sockets_per_group(
+      HttpNetworkSession::NORMAL_SOCKET_POOL, old_max_sockets);
 }
 
 class DataRunnerObserver : public MessageLoop::TaskObserver {
