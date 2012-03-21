@@ -17,6 +17,7 @@ class GURL;
 namespace net {
 
 class SSLConfigService;
+class SSLInfo;
 class TransportSecurityState;
 
 // SocketStreamJob represents full-duplex communication over SocketStream.
@@ -63,6 +64,12 @@ class NET_EXPORT SocketStreamJob
   virtual void Close();
 
   virtual void RestartWithAuth(const AuthCredentials& credentials);
+
+  virtual void CancelWithError(int error);
+
+  virtual void CancelWithSSLError(const net::SSLInfo& ssl_info);
+
+  virtual void ContinueDespiteError();
 
   virtual void DetachDelegate();
 
