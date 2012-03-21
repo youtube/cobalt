@@ -14,6 +14,7 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_server_properties_impl.h"
 #include "net/url_request/url_request_job_factory.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
 
