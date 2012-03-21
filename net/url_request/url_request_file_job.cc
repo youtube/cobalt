@@ -123,6 +123,7 @@ URLRequestJob* URLRequestFileJob::Factory(URLRequest* request,
 #if defined(OS_CHROMEOS)
 static const char* const kLocalAccessWhiteList[] = {
   "/home/chronos/user/Downloads",
+  "/home/chronos/user/log",
   "/media",
   "/opt/oem",
   "/usr/share/chromeos-assets",
