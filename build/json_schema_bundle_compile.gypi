@@ -5,7 +5,7 @@
 {
   'variables': {
     # When including this gypi, the following variables must be set:
-    #   json_schema_files: an array of json files that comprise the api model.
+    #   idl_schema_files: an array of idl files that comprise the api model.
     #   cc_dir: path to generated files
     #   root_namespace: the C++ namespace that all generated files go under
     # Functions and namespaces can be excluded by setting "nocompile" to true.
@@ -16,24 +16,23 @@
     {
       'action_name': 'genapi_bundle',
       'inputs': [
-        '<(api_gen_dir)/any.cc',
-        '<(api_gen_dir)/any.h',
-        '<(api_gen_dir)/any_helper.py',
         '<(api_gen_dir)/cc_generator.py',
         '<(api_gen_dir)/code.py',
         '<(api_gen_dir)/compiler.py',
         '<(api_gen_dir)/cpp_type_generator.py',
         '<(api_gen_dir)/cpp_util.py',
         '<(api_gen_dir)/h_generator.py',
+        '<(api_gen_dir)/idl_schema.py',
         '<(api_gen_dir)/json_schema.py',
         '<(api_gen_dir)/model.py',
-        '<(api_gen_dir)/util.cc',
-        '<(api_gen_dir)/util.h',
+        '<(api_gen_dir)/schema_bundle_generator.py',
         '<(api_gen_dir)/util_cc_helper.py',
         '<@(idl_schema_files)',
       ],
       'outputs': [
-        '<(SHARED_INTERMEDIATE_DIR)/chrome/common/extensions/api/generated_api.h',
+        '<(SHARED_INTERMEDIATE_DIR)/<(cc_dir)/generated_api.h',
+        '<(SHARED_INTERMEDIATE_DIR)/<(cc_dir)/generated_schemas.h',
+        '<(SHARED_INTERMEDIATE_DIR)/<(cc_dir)/generated_schemas.cc',
       ],
       'action': [
         'python',
@@ -51,9 +50,6 @@
   'include_dirs': [
     '<(SHARED_INTERMEDIATE_DIR)',
     '<(DEPTH)',
-  ],
-  'dependencies':[
-    '<(DEPTH)/tools/json_schema_compiler/api_gen_util.gyp:api_gen_util',
   ],
   'direct_dependent_settings': {
     'include_dirs': [
