@@ -80,7 +80,7 @@ class NET_EXPORT_PRIVATE DnsRecordParser {
 // position the RR parser.
 class NET_EXPORT_PRIVATE DnsResponse {
  public:
-  // Possible results from ParseToAddressList
+  // Possible results from ParseToAddressList.
   enum Result {
     DNS_SUCCESS = 0,
     DNS_MALFORMED_RESPONSE,    // DnsRecordParser failed before the end of
@@ -92,6 +92,8 @@ class NET_EXPORT_PRIVATE DnsResponse {
     DNS_CNAME_AFTER_ADDRESS,   // Found CNAME after an address record.
     DNS_ADDRESS_TTL_MISMATCH,  // TTL of all address records are not identical.
     DNS_NO_ADDRESSES,          // No address records found.
+    // Only add new values here.
+    DNS_PARSE_RESULT_MAX,      // Bounding value for histograms.
   };
 
   // Constructs an object with an IOBuffer large enough to read
