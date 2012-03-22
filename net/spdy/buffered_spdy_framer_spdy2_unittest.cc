@@ -9,7 +9,7 @@
 
 using namespace net::test_spdy2;
 
-namespace spdy {
+namespace net {
 
 namespace {
 
@@ -30,7 +30,7 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
     error_count_++;
   }
 
-  void OnStreamError(spdy::SpdyStreamId stream_id,
+  void OnStreamError(SpdyStreamId stream_id,
                      const std::string& description) {
     LOG(INFO) << "SpdyFramer Error on stream: " << stream_id  << " "
               << description;
@@ -95,11 +95,11 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
     }
   }
 
-  void OnRstStream(const spdy::SpdyRstStreamControlFrame& frame) {}
-  void OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) {}
-  void OnPing(const spdy::SpdyPingControlFrame& frame) {}
-  void OnWindowUpdate(const spdy::SpdyWindowUpdateControlFrame& frame) {}
-  void OnCredential(const spdy::SpdyCredentialControlFrame& frame) {}
+  void OnRstStream(const SpdyRstStreamControlFrame& frame) {}
+  void OnGoAway(const SpdyGoAwayControlFrame& frame) {}
+  void OnPing(const SpdyPingControlFrame& frame) {}
+  void OnWindowUpdate(const SpdyWindowUpdateControlFrame& frame) {}
+  void OnCredential(const SpdyCredentialControlFrame& frame) {}
 
   // Convenience function which runs a framer simulation with particular input.
   void SimulateInFramer(const unsigned char* input, size_t size) {
@@ -260,4 +260,4 @@ TEST_F(BufferedSpdyFramerSpdy2Test, ReadHeadersHeaderBlock) {
   EXPECT_EQ(1, visitor.headers_frame_count_);
   EXPECT_TRUE(CompareHeaderBlocks(&headers, &visitor.headers_));
 }
-}  // namespace spdy
+}  // namespace net

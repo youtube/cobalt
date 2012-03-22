@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -489,7 +489,7 @@ TEST(WebSocketHandshakeHandlerTest, SpdyRequestResponse) {
 
   GURL url("ws://example.com/demo");
   std::string challenge;
-  spdy::SpdyHeaderBlock headers;
+  SpdyHeaderBlock headers;
   ASSERT_TRUE(request_handler.GetRequestHeaderBlock(url, &headers, &challenge));
 
   EXPECT_EQ(url.spec(), headers["url"]);
@@ -559,7 +559,7 @@ TEST(WebSocketHandshakeHandlerTest, SpdyRequestResponseHybi06Handshake) {
 
   GURL url("ws://example.com/demo");
   std::string challenge;
-  spdy::SpdyHeaderBlock headers;
+  SpdyHeaderBlock headers;
   ASSERT_TRUE(request_handler.GetRequestHeaderBlock(url, &headers, &challenge));
 
   EXPECT_EQ(url.spec(), headers["url"]);
@@ -623,7 +623,7 @@ TEST(WebSocketHandshakeHandlerTest, SpdyRequestResponseWithCookies) {
 
   GURL url("ws://example.com/demo");
   std::string challenge;
-  spdy::SpdyHeaderBlock headers;
+  SpdyHeaderBlock headers;
   ASSERT_TRUE(request_handler.GetRequestHeaderBlock(url, &headers, &challenge));
 
   EXPECT_EQ(url.spec(), headers["url"]);
@@ -699,7 +699,7 @@ TEST(WebSocketHandshakeHandlerTest,
 
   GURL url("ws://example.com/demo");
   std::string challenge;
-  spdy::SpdyHeaderBlock headers;
+  SpdyHeaderBlock headers;
   ASSERT_TRUE(request_handler.GetRequestHeaderBlock(url, &headers, &challenge));
 
   EXPECT_EQ(url.spec(), headers["url"]);

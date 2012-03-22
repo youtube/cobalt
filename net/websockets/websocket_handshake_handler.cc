@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -265,7 +265,7 @@ HttpRequestInfo WebSocketHandshakeRequestHandler::GetRequestInfo(
 }
 
 bool WebSocketHandshakeRequestHandler::GetRequestHeaderBlock(
-    const GURL& url, spdy::SpdyHeaderBlock* headers, std::string* challenge) {
+    const GURL& url, SpdyHeaderBlock* headers, std::string* challenge) {
   // We don't set "method" and "version".  These are fixed value in WebSocket
   // protocol.
   (*headers)["url"] = url.spec();
@@ -301,7 +301,7 @@ bool WebSocketHandshakeRequestHandler::GetRequestHeaderBlock(
     }
     // Others should be sent out to |headers|.
     std::string name = StringToLowerASCII(iter.name());
-    spdy::SpdyHeaderBlock::iterator found = headers->find(name);
+    SpdyHeaderBlock::iterator found = headers->find(name);
     if (found == headers->end()) {
       (*headers)[name] = iter.values();
     } else {
@@ -446,7 +446,7 @@ bool WebSocketHandshakeResponseHandler::ParseResponseInfo(
 }
 
 bool WebSocketHandshakeResponseHandler::ParseResponseHeaderBlock(
-    const spdy::SpdyHeaderBlock& headers,
+    const SpdyHeaderBlock& headers,
     const std::string& challenge) {
   std::string response_message;
   if (protocol_version_ >= kMinVersionOfHybiNewHandshake) {
@@ -466,7 +466,7 @@ bool WebSocketHandshakeResponseHandler::ParseResponseHeaderBlock(
     response_message += "Sec-WebSocket-Accept: " + websocket_accept + "\r\n";
   }
 
-  for (spdy::SpdyHeaderBlock::const_iterator iter = headers.begin();
+  for (SpdyHeaderBlock::const_iterator iter = headers.begin();
        iter != headers.end();
        ++iter) {
     // For each value, if the server sends a NUL-separated list of values,

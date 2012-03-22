@@ -7,7 +7,7 @@
 #include "base/sys_byteorder.h"
 #include "net/spdy/spdy_frame_reader.h"
 
-namespace spdy {
+namespace net {
 
 SpdyFrameReader::SpdyFrameReader(const char* data, const size_t len)
     : data_(data),
@@ -123,4 +123,4 @@ void SpdyFrameReader::OnFailure() {
   ofs_ = len_;
 }
 
-}  // namespace spdy
+}  // namespace net

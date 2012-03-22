@@ -37,16 +37,16 @@ const int kUploadDataSize = arraysize(kUploadData)-1;
 // NOTE: In GCC, on a Mac, this can't be in an anonymous namespace!
 // This struct holds information used to construct spdy control and data frames.
 struct SpdyHeaderInfo {
-  spdy::SpdyControlType kind;
-  spdy::SpdyStreamId id;
-  spdy::SpdyStreamId assoc_id;
-  spdy::SpdyPriority priority;
-  spdy::SpdyControlFlags control_flags;
+  SpdyControlType kind;
+  SpdyStreamId id;
+  SpdyStreamId assoc_id;
+  SpdyPriority priority;
+  SpdyControlFlags control_flags;
   bool compressed;
-  spdy::SpdyStatusCodes status;
+  SpdyStatusCodes status;
   const char* data;
   uint32 data_length;
-  spdy::SpdyDataFlags data_flags;
+  SpdyDataFlags data_flags;
 };
 
 // Chop a frame into an array of MockWrites.
@@ -58,7 +58,7 @@ MockWrite* ChopWriteFrame(const char* data, int length, int num_chunks);
 // Chop a SpdyFrame into an array of MockWrites.
 // |frame| is the frame to chop.
 // |num_chunks| is the number of chunks to create.
-MockWrite* ChopWriteFrame(const spdy::SpdyFrame& frame, int num_chunks);
+MockWrite* ChopWriteFrame(const SpdyFrame& frame, int num_chunks);
 
 // Chop a frame into an array of MockReads.
 // |data| is the frame to chop.
@@ -69,7 +69,7 @@ MockRead* ChopReadFrame(const char* data, int length, int num_chunks);
 // Chop a SpdyFrame into an array of MockReads.
 // |frame| is the frame to chop.
 // |num_chunks| is the number of chunks to create.
-MockRead* ChopReadFrame(const spdy::SpdyFrame& frame, int num_chunks);
+MockRead* ChopReadFrame(const SpdyFrame& frame, int num_chunks);
 
 // Adds headers and values to a map.
 // |extra_headers| is an array of { name, value } pairs, arranged as strings
@@ -78,7 +78,7 @@ MockRead* ChopReadFrame(const spdy::SpdyFrame& frame, int num_chunks);
 // |headers| gets filled in from |extra_headers|.
 void AppendHeadersToSpdyFrame(const char* const extra_headers[],
                               int extra_header_count,
-                              spdy::SpdyHeaderBlock* headers);
+                              SpdyHeaderBlock* headers);
 
 // Writes |str| of the given |len| to the buffer pointed to by |buffer_handle|.
 // Uses a template so buffer_handle can be a char* or an unsigned char*.
@@ -118,29 +118,29 @@ int AppendToBuffer(int val,
 // |tail| is any (relatively constant) header-value pairs to add.
 // |buffer| is the buffer we're filling in.
 // Returns a SpdyFrame.
-spdy::SpdyFrame* ConstructSpdyPacket(const SpdyHeaderInfo& header_info,
+SpdyFrame* ConstructSpdyPacket(const SpdyHeaderInfo& header_info,
                                      const char* const extra_headers[],
                                      int extra_header_count,
                                      const char* const tail[],
                                      int tail_header_count);
 
 // Construct a generic SpdyControlFrame.
-spdy::SpdyFrame* ConstructSpdyControlFrame(const char* const extra_headers[],
+SpdyFrame* ConstructSpdyControlFrame(const char* const extra_headers[],
                                            int extra_header_count,
                                            bool compressed,
                                            int stream_id,
                                            RequestPriority request_priority,
-                                           spdy::SpdyControlType type,
-                                           spdy::SpdyControlFlags flags,
+                                           SpdyControlType type,
+                                           SpdyControlFlags flags,
                                            const char* const* kHeaders,
                                            int kHeadersSize);
-spdy::SpdyFrame* ConstructSpdyControlFrame(const char* const extra_headers[],
+SpdyFrame* ConstructSpdyControlFrame(const char* const extra_headers[],
                                            int extra_header_count,
                                            bool compressed,
                                            int stream_id,
                                            RequestPriority request_priority,
-                                           spdy::SpdyControlType type,
-                                           spdy::SpdyControlFlags flags,
+                                           SpdyControlType type,
+                                           SpdyControlFlags flags,
                                            const char* const* kHeaders,
                                            int kHeadersSize,
                                            int associated_stream_id);
@@ -158,32 +158,32 @@ int ConstructSpdyReplyString(const char* const extra_headers[],
 // Construct an expected SPDY SETTINGS frame.
 // |settings| are the settings to set.
 // Returns the constructed frame.  The caller takes ownership of the frame.
-spdy::SpdyFrame* ConstructSpdySettings(
-    const spdy::SpdySettings& settings);
+SpdyFrame* ConstructSpdySettings(
+    const SpdySettings& settings);
 
 // Construct an expected SPDY CREDENTIAL frame.
 // |credential| is the credential to send.
 // Returns the constructed frame.  The caller takes ownership of the frame.
-spdy::SpdyFrame* ConstructSpdyCredential(
-    const spdy::SpdyCredential& credential);
+SpdyFrame* ConstructSpdyCredential(
+    const SpdyCredential& credential);
 
 // Construct a SPDY PING frame.
 // Returns the constructed frame.  The caller takes ownership of the frame.
-spdy::SpdyFrame* ConstructSpdyPing();
+SpdyFrame* ConstructSpdyPing();
 
 // Construct a SPDY GOAWAY frame.
 // Returns the constructed frame.  The caller takes ownership of the frame.
-spdy::SpdyFrame* ConstructSpdyGoAway();
+SpdyFrame* ConstructSpdyGoAway();
 
 // Construct a SPDY WINDOW_UPDATE frame.
 // Returns the constructed frame.  The caller takes ownership of the frame.
-spdy::SpdyFrame* ConstructSpdyWindowUpdate(spdy::SpdyStreamId,
+SpdyFrame* ConstructSpdyWindowUpdate(SpdyStreamId,
                                            uint32 delta_window_size);
 
 // Construct a SPDY RST_STREAM frame.
 // Returns the constructed frame.  The caller takes ownership of the frame.
-spdy::SpdyFrame* ConstructSpdyRstStream(spdy::SpdyStreamId stream_id,
-                                        spdy::SpdyStatusCodes status);
+SpdyFrame* ConstructSpdyRstStream(SpdyStreamId stream_id,
+                                        SpdyStatusCodes status);
 
 // Construct a single SPDY header entry, for validation.
 // |extra_headers| are the extra header-value pairs.
@@ -201,7 +201,7 @@ int ConstructSpdyHeader(const char* const extra_headers[],
 // |extra_headers| are the extra header-value pairs, which typically
 // will vary the most between calls.
 // Returns a SpdyFrame.
-spdy::SpdyFrame* ConstructSpdyGet(const char* const url,
+SpdyFrame* ConstructSpdyGet(const char* const url,
                                   bool compressed,
                                   int stream_id,
                                   RequestPriority request_priority);
@@ -210,7 +210,7 @@ spdy::SpdyFrame* ConstructSpdyGet(const char* const url,
 // |extra_headers| are the extra header-value pairs, which typically
 // will vary the most between calls.
 // Returns a SpdyFrame.
-spdy::SpdyFrame* ConstructSpdyGet(const char* const extra_headers[],
+SpdyFrame* ConstructSpdyGet(const char* const extra_headers[],
                                   int extra_header_count,
                                   bool compressed,
                                   int stream_id,
@@ -221,7 +221,7 @@ spdy::SpdyFrame* ConstructSpdyGet(const char* const extra_headers[],
 // will vary the most between calls.  If |direct| is false, the
 // the full url will be used instead of simply the path.
 // Returns a SpdyFrame.
-spdy::SpdyFrame* ConstructSpdyGet(const char* const extra_headers[],
+SpdyFrame* ConstructSpdyGet(const char* const extra_headers[],
                                   int extra_header_count,
                                   bool compressed,
                                   int stream_id,
@@ -229,7 +229,7 @@ spdy::SpdyFrame* ConstructSpdyGet(const char* const extra_headers[],
                                   bool direct);
 
 // Constructs a standard SPDY SYN_STREAM frame for a CONNECT request.
-spdy::SpdyFrame* ConstructSpdyConnect(const char* const extra_headers[],
+SpdyFrame* ConstructSpdyConnect(const char* const extra_headers[],
                                       int extra_header_count,
                                       int stream_id);
 
@@ -237,27 +237,27 @@ spdy::SpdyFrame* ConstructSpdyConnect(const char* const extra_headers[],
 // |extra_headers| are the extra header-value pairs, which typically
 // will vary the most between calls.
 // Returns a SpdyFrame.
-spdy::SpdyFrame* ConstructSpdyPush(const char* const extra_headers[],
+SpdyFrame* ConstructSpdyPush(const char* const extra_headers[],
                                   int extra_header_count,
                                   int stream_id,
                                   int associated_stream_id);
-spdy::SpdyFrame* ConstructSpdyPush(const char* const extra_headers[],
+SpdyFrame* ConstructSpdyPush(const char* const extra_headers[],
                                   int extra_header_count,
                                   int stream_id,
                                   int associated_stream_id,
                                   const char* url);
-spdy::SpdyFrame* ConstructSpdyPush(const char* const extra_headers[],
+SpdyFrame* ConstructSpdyPush(const char* const extra_headers[],
                                   int extra_header_count,
                                   int stream_id,
                                   int associated_stream_id,
                                   const char* url,
                                   const char* status,
                                   const char* location);
-spdy::SpdyFrame* ConstructSpdyPush(int stream_id,
+SpdyFrame* ConstructSpdyPush(int stream_id,
                                   int associated_stream_id,
                                   const char* url);
 
-spdy::SpdyFrame* ConstructSpdyPushHeaders(int stream_id,
+SpdyFrame* ConstructSpdyPushHeaders(int stream_id,
                                           const char* const extra_headers[],
                                           int extra_header_count);
 
@@ -265,7 +265,7 @@ spdy::SpdyFrame* ConstructSpdyPushHeaders(int stream_id,
 // |extra_headers| are the extra header-value pairs, which typically
 // will vary the most between calls.
 // Returns a SpdyFrame.
-spdy::SpdyFrame* ConstructSpdyGetSynReply(const char* const extra_headers[],
+SpdyFrame* ConstructSpdyGetSynReply(const char* const extra_headers[],
                                           int extra_header_count,
                                           int stream_id);
 
@@ -273,16 +273,16 @@ spdy::SpdyFrame* ConstructSpdyGetSynReply(const char* const extra_headers[],
 // |extra_headers| are the extra header-value pairs, which typically
 // will vary the most between calls.
 // Returns a SpdyFrame.
-spdy::SpdyFrame* ConstructSpdyGetSynReplyRedirect(int stream_id);
+SpdyFrame* ConstructSpdyGetSynReplyRedirect(int stream_id);
 
 // Constructs a standard SPDY SYN_REPLY packet with an Internal Server
 // Error status code.
 // Returns a SpdyFrame.
-spdy::SpdyFrame* ConstructSpdySynReplyError(int stream_id);
+SpdyFrame* ConstructSpdySynReplyError(int stream_id);
 
 // Constructs a standard SPDY SYN_REPLY packet with the specified status code.
 // Returns a SpdyFrame.
-spdy::SpdyFrame* ConstructSpdySynReplyError(
+SpdyFrame* ConstructSpdySynReplyError(
     const char* const status,
     const char* const* const extra_headers,
     int extra_header_count,
@@ -292,7 +292,7 @@ spdy::SpdyFrame* ConstructSpdySynReplyError(
 // |extra_headers| are the extra header-value pairs, which typically
 // will vary the most between calls.
 // Returns a SpdyFrame.
-spdy::SpdyFrame* ConstructSpdyPost(int64 content_length,
+SpdyFrame* ConstructSpdyPost(int64 content_length,
                                    const char* const extra_headers[],
                                    int extra_header_count);
 
@@ -300,47 +300,47 @@ spdy::SpdyFrame* ConstructSpdyPost(int64 content_length,
 // |extra_headers| are the extra header-value pairs, which typically
 // will vary the most between calls.
 // Returns a SpdyFrame.
-spdy::SpdyFrame* ConstructChunkedSpdyPost(const char* const extra_headers[],
+SpdyFrame* ConstructChunkedSpdyPost(const char* const extra_headers[],
                                           int extra_header_count);
 
 // Constructs a standard SPDY SYN_REPLY packet to match the SPDY POST.
 // |extra_headers| are the extra header-value pairs, which typically
 // will vary the most between calls.
 // Returns a SpdyFrame.
-spdy::SpdyFrame* ConstructSpdyPostSynReply(const char* const extra_headers[],
+SpdyFrame* ConstructSpdyPostSynReply(const char* const extra_headers[],
                                            int extra_header_count);
 
 // Constructs a single SPDY data frame with the contents "hello!"
-spdy::SpdyFrame* ConstructSpdyBodyFrame(int stream_id,
+SpdyFrame* ConstructSpdyBodyFrame(int stream_id,
                                         bool fin);
 
 // Constructs a single SPDY data frame with the given content.
-spdy::SpdyFrame* ConstructSpdyBodyFrame(int stream_id, const char* data,
+SpdyFrame* ConstructSpdyBodyFrame(int stream_id, const char* data,
                                         uint32 len, bool fin);
 
 // Wraps |frame| in the payload of a data frame in stream |stream_id|.
-spdy::SpdyFrame* ConstructWrappedSpdyFrame(
-    const scoped_ptr<spdy::SpdyFrame>& frame, int stream_id);
+SpdyFrame* ConstructWrappedSpdyFrame(
+    const scoped_ptr<SpdyFrame>& frame, int stream_id);
 
 // Create an async MockWrite from the given SpdyFrame.
-MockWrite CreateMockWrite(const spdy::SpdyFrame& req);
+MockWrite CreateMockWrite(const SpdyFrame& req);
 
 // Create an async MockWrite from the given SpdyFrame and sequence number.
-MockWrite CreateMockWrite(const spdy::SpdyFrame& req, int seq);
+MockWrite CreateMockWrite(const SpdyFrame& req, int seq);
 
-MockWrite CreateMockWrite(const spdy::SpdyFrame& req, int seq, IoMode mode);
+MockWrite CreateMockWrite(const SpdyFrame& req, int seq, IoMode mode);
 
 // Create a MockRead from the given SpdyFrame.
-MockRead CreateMockRead(const spdy::SpdyFrame& resp);
+MockRead CreateMockRead(const SpdyFrame& resp);
 
 // Create a MockRead from the given SpdyFrame and sequence number.
-MockRead CreateMockRead(const spdy::SpdyFrame& resp, int seq);
+MockRead CreateMockRead(const SpdyFrame& resp, int seq);
 
-MockRead CreateMockRead(const spdy::SpdyFrame& resp, int seq, IoMode mode);
+MockRead CreateMockRead(const SpdyFrame& resp, int seq, IoMode mode);
 
 // Combines the given SpdyFrames into the given char array and returns
 // the total length.
-int CombineFrames(const spdy::SpdyFrame** frames, int num_frames,
+int CombineFrames(const SpdyFrame** frames, int num_frames,
                   char* buff, int buff_len);
 
 // Helper to manage the lifetimes of the dependencies for a
@@ -385,7 +385,7 @@ class SpdyURLRequestContext : public URLRequestContext {
   net::URLRequestContextStorage storage_;
 };
 
-const SpdyHeaderInfo MakeSpdyHeader(spdy::SpdyControlType type);
+const SpdyHeaderInfo MakeSpdyHeader(SpdyControlType type);
 
 class SpdySessionPoolPeer {
  public:

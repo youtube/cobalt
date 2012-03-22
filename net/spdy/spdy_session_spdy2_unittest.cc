@@ -45,7 +45,7 @@ class TestSpdyStreamDelegate : public net::SpdyStream::Delegate {
     return ERR_UNEXPECTED;
   }
 
-  virtual int OnResponseReceived(const spdy::SpdyHeaderBlock& response,
+  virtual int OnResponseReceived(const SpdyHeaderBlock& response,
                                  base::Time response_time,
                                  int status) {
     return status;
@@ -111,7 +111,7 @@ TEST_F(SpdySessionSpdy2Test, GoAway) {
   session_deps.host_resolver->set_synchronous_mode(true);
 
   MockConnect connect_data(SYNCHRONOUS, OK);
-  scoped_ptr<spdy::SpdyFrame> goaway(ConstructSpdyGoAway());
+  scoped_ptr<SpdyFrame> goaway(ConstructSpdyGoAway());
   MockRead reads[] = {
     CreateMockRead(*goaway),
     MockRead(SYNCHRONOUS, 0, 0)  // EOF
@@ -173,13 +173,13 @@ TEST_F(SpdySessionSpdy2Test, Ping) {
   session_deps.host_resolver->set_synchronous_mode(true);
 
   MockConnect connect_data(SYNCHRONOUS, OK);
-  scoped_ptr<spdy::SpdyFrame> read_ping(ConstructSpdyPing());
+  scoped_ptr<SpdyFrame> read_ping(ConstructSpdyPing());
   MockRead reads[] = {
     CreateMockRead(*read_ping),
     CreateMockRead(*read_ping),
     MockRead(SYNCHRONOUS, 0, 0)  // EOF
   };
-  scoped_ptr<spdy::SpdyFrame> write_ping(ConstructSpdyPing());
+  scoped_ptr<SpdyFrame> write_ping(ConstructSpdyPing());
   MockRead writes[] = {
     CreateMockRead(*write_ping),
     CreateMockRead(*write_ping),
@@ -265,12 +265,12 @@ TEST_F(SpdySessionSpdy2Test, FailedPing) {
   session_deps.host_resolver->set_synchronous_mode(true);
 
   MockConnect connect_data(SYNCHRONOUS, OK);
-  scoped_ptr<spdy::SpdyFrame> read_ping(ConstructSpdyPing());
+  scoped_ptr<SpdyFrame> read_ping(ConstructSpdyPing());
   MockRead reads[] = {
     CreateMockRead(*read_ping),
     MockRead(SYNCHRONOUS, 0, 0)  // EOF
   };
-  scoped_ptr<spdy::SpdyFrame> write_ping(ConstructSpdyPing());
+  scoped_ptr<SpdyFrame> write_ping(ConstructSpdyPing());
   MockRead writes[] = {
     CreateMockRead(*write_ping),
   };
@@ -500,15 +500,15 @@ TEST_F(SpdySessionSpdy2Test, OnSettings) {
   SpdySessionDependencies session_deps;
   session_deps.host_resolver->set_synchronous_mode(true);
 
-  spdy::SpdySettings new_settings;
-  spdy::SettingsFlagsAndId id(0, spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
+  SpdySettings new_settings;
+  SettingsFlagsAndId id(0, SETTINGS_MAX_CONCURRENT_STREAMS);
   const size_t max_concurrent_streams = 2;
-  new_settings.push_back(spdy::SpdySetting(id, max_concurrent_streams));
+  new_settings.push_back(SpdySetting(id, max_concurrent_streams));
 
   // Set up the socket so we read a SETTINGS frame that raises max concurrent
   // streams to 2.
   MockConnect connect_data(SYNCHRONOUS, OK);
-  scoped_ptr<spdy::SpdyFrame> settings_frame(
+  scoped_ptr<SpdyFrame> settings_frame(
       ConstructSpdySettings(new_settings));
   MockRead reads[] = {
     CreateMockRead(*settings_frame),
@@ -532,9 +532,9 @@ TEST_F(SpdySessionSpdy2Test, OnSettings) {
 
   // Initialize the SpdySettingsStorage with 1 max concurrent streams.
   SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
-  spdy::SpdySettings old_settings;
-  spdy::SettingsFlagsAndId id1(spdy::SETTINGS_FLAG_PLEASE_PERSIST, id.id());
-  old_settings.push_back(spdy::SpdySetting(id1, 1));
+  SpdySettings old_settings;
+  SettingsFlagsAndId id1(SETTINGS_FLAG_PLEASE_PERSIST, id.id());
+  old_settings.push_back(SpdySetting(id1, 1));
   spdy_session_pool->http_server_properties()->SetSpdySettings(
       test_host_port_pair, old_settings);
 
@@ -615,10 +615,10 @@ TEST_F(SpdySessionSpdy2Test, CancelPendingCreateStream) {
 
   // Initialize the SpdySettingsStorage with 1 max concurrent streams.
   SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
-  spdy::SpdySettings settings;
-  spdy::SettingsFlagsAndId id(spdy::SETTINGS_FLAG_PLEASE_PERSIST,
-                              spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
-  settings.push_back(spdy::SpdySetting(id, 1));
+  SpdySettings settings;
+  SettingsFlagsAndId id(SETTINGS_FLAG_PLEASE_PERSIST,
+                              SETTINGS_MAX_CONCURRENT_STREAMS);
+  settings.push_back(SpdySetting(id, 1));
   spdy_session_pool->http_server_properties()->SetSpdySettings(
       test_host_port_pair, settings);
 
@@ -686,13 +686,13 @@ TEST_F(SpdySessionSpdy2Test, SendSettingsOnNewSession) {
   // Note that it will be marked as SETTINGS_FLAG_PERSISTED when sent out.  But
   // to set it into the SpdySettingsStorage, we need to mark as
   // SETTINGS_FLAG_PLEASE_PERSIST.
-  spdy::SpdySettings settings;
+  SpdySettings settings;
   const uint32 kBogusSettingId = 0xABAB;
   const uint32 kBogusSettingValue = 0xCDCD;
-  spdy::SettingsFlagsAndId id(spdy::SETTINGS_FLAG_PERSISTED, kBogusSettingId);
-  settings.push_back(spdy::SpdySetting(id, kBogusSettingValue));
+  SettingsFlagsAndId id(SETTINGS_FLAG_PERSISTED, kBogusSettingId);
+  settings.push_back(SpdySetting(id, kBogusSettingValue));
   MockConnect connect_data(SYNCHRONOUS, OK);
-  scoped_ptr<spdy::SpdyFrame> settings_frame(
+  scoped_ptr<SpdyFrame> settings_frame(
       ConstructSpdySettings(settings));
   MockWrite writes[] = {
     CreateMockWrite(*settings_frame),
@@ -714,9 +714,9 @@ TEST_F(SpdySessionSpdy2Test, SendSettingsOnNewSession) {
   HostPortPair test_host_port_pair(kTestHost, kTestPort);
   HostPortProxyPair pair(test_host_port_pair, ProxyServer::Direct());
 
-  spdy::SettingsFlagsAndId id1(spdy::SETTINGS_FLAG_PLEASE_PERSIST, id.id());
+  SettingsFlagsAndId id1(SETTINGS_FLAG_PLEASE_PERSIST, id.id());
   settings.clear();
-  settings.push_back(spdy::SpdySetting(id1, kBogusSettingValue));
+  settings.push_back(SpdySetting(id1, kBogusSettingValue));
   SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
   spdy_session_pool->http_server_properties()->SetSpdySettings(
       test_host_port_pair, settings);
@@ -892,11 +892,11 @@ TEST_F(SpdySessionSpdy2Test, ClearSettingsStorage) {
   const std::string kTestHost("www.foo.com");
   const int kTestPort = 80;
   HostPortPair test_host_port_pair(kTestHost, kTestPort);
-  spdy::SpdySettings test_settings;
-  spdy::SettingsFlagsAndId id(spdy::SETTINGS_FLAG_PLEASE_PERSIST,
-                              spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
+  SpdySettings test_settings;
+  SettingsFlagsAndId id(SETTINGS_FLAG_PLEASE_PERSIST,
+                              SETTINGS_MAX_CONCURRENT_STREAMS);
   const size_t max_concurrent_streams = 2;
-  test_settings.push_back(spdy::SpdySetting(id, max_concurrent_streams));
+  test_settings.push_back(SpdySetting(id, max_concurrent_streams));
 
   settings_storage.Set(test_host_port_pair, test_settings);
   EXPECT_NE(0u, settings_storage.Get(test_host_port_pair).size());
@@ -916,11 +916,11 @@ TEST_F(SpdySessionSpdy2Test, ClearSettingsStorageOnIPAddressChanged) {
 
   HttpServerProperties* test_http_server_properties =
       spdy_session_pool->http_server_properties();
-  spdy::SettingsFlagsAndId id(spdy::SETTINGS_FLAG_PLEASE_PERSIST,
-                              spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
+  SettingsFlagsAndId id(SETTINGS_FLAG_PLEASE_PERSIST,
+                              SETTINGS_MAX_CONCURRENT_STREAMS);
   const size_t max_concurrent_streams = 2;
-  spdy::SpdySettings test_settings;
-  test_settings.push_back(spdy::SpdySetting(id, max_concurrent_streams));
+  SpdySettings test_settings;
+  test_settings.push_back(SpdySetting(id, max_concurrent_streams));
 
   test_http_server_properties->SetSpdySettings(test_host_port_pair,
                                                test_settings);
@@ -1005,7 +1005,7 @@ TEST_F(SpdySessionSpdy2Test, CloseSessionOnError) {
   session_deps.host_resolver->set_synchronous_mode(true);
 
   MockConnect connect_data(SYNCHRONOUS, OK);
-  scoped_ptr<spdy::SpdyFrame> goaway(ConstructSpdyGoAway());
+  scoped_ptr<SpdyFrame> goaway(ConstructSpdyGoAway());
   MockRead reads[] = {
     CreateMockRead(*goaway),
     MockRead(SYNCHRONOUS, 0, 0)  // EOF
