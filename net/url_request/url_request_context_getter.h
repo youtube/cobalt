@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,10 +26,6 @@ class NET_EXPORT URLRequestContextGetter
                                         URLRequestContextGetterTraits> {
  public:
   virtual URLRequestContext* GetURLRequestContext() = 0;
-
-  // See http://crbug.com/77835 for why this shouldn't be used. Instead use
-  // GetURLRequestContext()->cookie_store();
-  virtual CookieStore* DONTUSEME_GetCookieStore();
 
   // Returns a MessageLoopProxy corresponding to the thread on which the
   // request IO happens (the thread on which the returned net::URLRequestContext
