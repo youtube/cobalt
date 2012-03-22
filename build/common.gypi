@@ -425,6 +425,15 @@
         }, {
           'enable_automation%': 1,
         }],
+
+        # Enable Skia UI text drawing incrementally on different platforms.
+        # http://crbug.com/105550
+        #
+        # On Aura, this allows per-tile painting to be used in the browser
+        # compositor.
+        ['use_aura==1', {
+          'use_canvas_skia%': 1,
+        }],
       ],
     },
 
