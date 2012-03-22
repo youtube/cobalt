@@ -11,6 +11,7 @@
 
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/cert_database.h"
@@ -26,10 +27,11 @@ namespace net {
 class CertVerifierJob;
 class CertVerifierRequest;
 class CertVerifierWorker;
+class CertVerifyProc;
 
 // MultiThreadedCertVerifier is a CertVerifier implementation that runs
 // synchronous CertVerifier implementations on worker threads.
-class NET_EXPORT MultiThreadedCertVerifier :
+class NET_EXPORT_PRIVATE MultiThreadedCertVerifier :
     public CertVerifier,
     NON_EXPORTED_BASE(public base::NonThreadSafe),
     public CertDatabase::Observer {
@@ -56,6 +58,7 @@ class NET_EXPORT MultiThreadedCertVerifier :
   friend class CertVerifierWorker;  // Calls HandleResult.
   friend class CertVerifierRequest;
   friend class CertVerifierJob;
+  friend class MultiThreadedCertVerifierTest;
   FRIEND_TEST_ALL_PREFIXES(MultiThreadedCertVerifierTest, CacheHit);
   FRIEND_TEST_ALL_PREFIXES(MultiThreadedCertVerifierTest, DifferentCACerts);
   FRIEND_TEST_ALL_PREFIXES(MultiThreadedCertVerifierTest, InflightJoin);
@@ -121,6 +124,7 @@ class NET_EXPORT MultiThreadedCertVerifier :
   uint64 cache_hits() const { return cache_hits_; }
   uint64 requests() const { return requests_; }
   uint64 inflight_joins() const { return inflight_joins_; }
+  void SetCertVerifyProc(CertVerifyProc* verify_proc);
 
   // cache_ maps from a request to a cached result.
   typedef ExpiringCache<RequestParams, CachedResult> CertVerifierCache;
@@ -133,6 +137,8 @@ class NET_EXPORT MultiThreadedCertVerifier :
   uint64 requests_;
   uint64 cache_hits_;
   uint64 inflight_joins_;
+
+  scoped_refptr<CertVerifyProc> verify_proc_;
 
   DISALLOW_COPY_AND_ASSIGN(MultiThreadedCertVerifier);
 };

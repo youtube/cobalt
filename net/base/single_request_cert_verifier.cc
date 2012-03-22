@@ -35,10 +35,6 @@ int SingleRequestCertVerifier::Verify(X509Certificate* cert,
   // Should not be already in use.
   DCHECK(!cur_request_ && cur_request_callback_.is_null());
 
-  // Do a synchronous verification.
-  if (callback.is_null())
-    return cert->Verify(hostname, flags, crl_set, verify_result);
-
   CertVerifier::RequestHandle request = NULL;
 
   // We need to be notified of completion before |callback| is called, so that

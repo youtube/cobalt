@@ -15,7 +15,10 @@
 #include "net/base/cert_test_util.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/cert_verify_result.h"
+#include "net/base/net_errors.h"
+#include "net/base/net_log.h"
 #include "net/base/ssl_info.h"
+#include "net/base/test_completion_callback.h"
 #include "net/base/test_root_certs.h"
 #include "net/base/x509_certificate.h"
 #include "net/http/http_util.h"
@@ -287,9 +290,15 @@ TEST_F(TransportSecurityStateTest, ValidPinsHeaders) {
   // Verify has the side-effect of populating public_key_hashes, which
   // ParsePinsHeader needs. (It wants to check pins against the validated
   // chain, not just the presented chain.)
+  int rv = ERR_FAILED;
   CertVerifyResult result;
-  int rv = ssl_info.cert->Verify("127.0.0.1", 0, NULL, &result);
-  ASSERT_EQ(0, rv);
+  scoped_ptr<CertVerifier> verifier(CertVerifier::CreateDefault());
+  TestCompletionCallback callback;
+  CertVerifier::RequestHandle handle = NULL;
+  rv = verifier->Verify(ssl_info.cert, "127.0.0.1", 0, NULL, &result,
+                        callback.callback(), &handle, BoundNetLog());
+  rv = callback.GetResult(rv);
+  ASSERT_EQ(OK, rv);
   // Normally, ssl_client_socket_nss would do this, but for a unit test we
   // fake it.
   ssl_info.public_key_hashes = result.public_key_hashes;
