@@ -27,10 +27,10 @@ class MEDIA_EXPORT FilterCollection {
   DemuxerFactory* GetDemuxerFactory();
 
   // Adds a filter to the collection.
-  void AddVideoDecoder(VideoDecoder* filter);
   void AddAudioDecoder(AudioDecoder* audio_decoder);
-  void AddVideoRenderer(VideoRenderer* filter);
+  void AddVideoDecoder(VideoDecoder* video_decoder);
   void AddAudioRenderer(AudioRenderer* filter);
+  void AddVideoRenderer(VideoRenderer* filter);
 
   // Is the collection empty?
   bool IsEmpty() const;
@@ -42,17 +42,16 @@ class MEDIA_EXPORT FilterCollection {
   // If the required filter cannot be found, NULL is returned.
   // If a filter is returned it is removed from the collection.
   // Filters are selected in FIFO order.
-  void SelectVideoDecoder(scoped_refptr<VideoDecoder>* filter_out);
   void SelectAudioDecoder(scoped_refptr<AudioDecoder>* out);
-  void SelectVideoRenderer(scoped_refptr<VideoRenderer>* filter_out);
+  void SelectVideoDecoder(scoped_refptr<VideoDecoder>* out);
   void SelectAudioRenderer(scoped_refptr<AudioRenderer>* filter_out);
+  void SelectVideoRenderer(scoped_refptr<VideoRenderer>* filter_out);
 
  private:
   // Identifies the type of filter implementation. Each filter has to be one of
   // the following types. This is used to mark, identify, and support
   // downcasting of different filter types stored in the filters_ list.
   enum FilterType {
-    VIDEO_DECODER,
     AUDIO_RENDERER,
     VIDEO_RENDERER,
   };
@@ -63,6 +62,7 @@ class MEDIA_EXPORT FilterCollection {
   FilterList filters_;
   scoped_ptr<DemuxerFactory> demuxer_factory_;
   std::list<scoped_refptr<AudioDecoder> > audio_decoders_;
+  std::list<scoped_refptr<VideoDecoder> > video_decoders_;
 
   // Helper function that adds a filter to the filter list.
   void AddFilter(FilterType filter_type, Filter* filter);
