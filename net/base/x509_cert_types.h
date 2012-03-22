@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -29,7 +29,7 @@ namespace net {
 class X509Certificate;
 
 // SHA-1 fingerprint (160 bits) of a certificate.
-struct SHA1Fingerprint {
+struct NET_EXPORT SHA1Fingerprint {
   bool Equals(const SHA1Fingerprint& other) const {
     return memcmp(data, other.data, sizeof(data)) == 0;
   }
@@ -37,13 +37,19 @@ struct SHA1Fingerprint {
   unsigned char data[20];
 };
 
-class SHA1FingerprintLessThan {
+class NET_EXPORT SHA1FingerprintLessThan {
  public:
   bool operator() (const SHA1Fingerprint& lhs,
                    const SHA1Fingerprint& rhs) const {
     return memcmp(lhs.data, rhs.data, sizeof(lhs.data)) < 0;
   }
 };
+
+// IsSHA1HashInSortedArray returns true iff |hash| is in |array|, a sorted
+// array of SHA1 hashes.
+bool NET_EXPORT IsSHA1HashInSortedArray(const SHA1Fingerprint& hash,
+                                        const uint8* array,
+                                        size_t array_byte_len);
 
 // CertPrincipal represents the issuer or subject field of an X.509 certificate.
 struct NET_EXPORT CertPrincipal {
