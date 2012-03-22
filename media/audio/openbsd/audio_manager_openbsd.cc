@@ -89,10 +89,6 @@ AudioInputStream* AudioManagerOpenBSD::MakeLowLatencyInputStream(
 
 AudioOutputStream* AudioManagerOpenBSD::MakeOutputStream(
     const AudioParameters& params) {
-  if (!initialized()) {
-    return NULL;
-  }
-
 #if defined(USE_PULSEAUDIO)
   if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kUsePulseAudio)) {
     return new PulseAudioOutputStream(params, this);
