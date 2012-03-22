@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -68,7 +68,7 @@ class NET_EXPORT_PRIVATE WebSocketHandshakeRequestHandler {
   // Gets request as SpdyHeaderBlock.
   // Also, fills challenge data in |challenge|.
   bool GetRequestHeaderBlock(const GURL& url,
-                             spdy::SpdyHeaderBlock* headers,
+                             SpdyHeaderBlock* headers,
                              std::string* challenge);
   // Gets WebSocket handshake raw request message to open WebSocket
   // connection.
@@ -117,7 +117,7 @@ class NET_EXPORT_PRIVATE WebSocketHandshakeResponseHandler {
   bool ParseResponseInfo(const HttpResponseInfo& response_info,
                          const std::string& challenge);
   // Parses WebSocket handshake response as SpdyHeaderBlock.
-  bool ParseResponseHeaderBlock(const spdy::SpdyHeaderBlock& headers,
+  bool ParseResponseHeaderBlock(const SpdyHeaderBlock& headers,
                                 const std::string& challenge);
 
   // Gets the headers value.

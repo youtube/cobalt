@@ -19,24 +19,24 @@ namespace net {
 
 namespace test_spdy2 {
 
-spdy::SpdyFrame* ConstructSpdyWebSocketHandshakeRequestFrame(
+SpdyFrame* ConstructSpdyWebSocketHandshakeRequestFrame(
     const char* const headers[],
     int header_count,
-    spdy::SpdyStreamId stream_id,
+    SpdyStreamId stream_id,
     RequestPriority request_priority) {
 
   // SPDY SYN_STREAM control frame header.
   const SpdyHeaderInfo kSynStreamHeader = {
-    spdy::SYN_STREAM,
+    SYN_STREAM,
     stream_id,
     kDefaultAssociatedStreamId,
     ConvertRequestPriorityToSpdyPriority(request_priority),
-    spdy::CONTROL_FLAG_NONE,
+    CONTROL_FLAG_NONE,
     kDefaultCompressed,
-    spdy::INVALID,
+    INVALID,
     kDefaultDataPointer,
     kDefaultDataLength,
-    spdy::DATA_FLAG_NONE
+    DATA_FLAG_NONE
   };
 
   // Construct SPDY SYN_STREAM control frame.
@@ -48,24 +48,24 @@ spdy::SpdyFrame* ConstructSpdyWebSocketHandshakeRequestFrame(
       header_count);
 }
 
-spdy::SpdyFrame* ConstructSpdyWebSocketHandshakeResponseFrame(
+SpdyFrame* ConstructSpdyWebSocketHandshakeResponseFrame(
     const char* const headers[],
     int header_count,
-    spdy::SpdyStreamId stream_id,
+    SpdyStreamId stream_id,
     RequestPriority request_priority) {
 
   // SPDY SYN_REPLY control frame header.
   const SpdyHeaderInfo kSynReplyHeader = {
-    spdy::SYN_REPLY,
+    SYN_REPLY,
     stream_id,
     kDefaultAssociatedStreamId,
     ConvertRequestPriorityToSpdyPriority(request_priority),
-    spdy::CONTROL_FLAG_NONE,
+    CONTROL_FLAG_NONE,
     kDefaultCompressed,
-    spdy::INVALID,
+    INVALID,
     kDefaultDataPointer,
     kDefaultDataLength,
-    spdy::DATA_FLAG_NONE
+    DATA_FLAG_NONE
   };
 
   // Construct SPDY SYN_REPLY control frame.
@@ -77,19 +77,19 @@ spdy::SpdyFrame* ConstructSpdyWebSocketHandshakeResponseFrame(
       header_count);
 }
 
-spdy::SpdyFrame* ConstructSpdyWebSocketDataFrame(
+SpdyFrame* ConstructSpdyWebSocketDataFrame(
     const char* data,
     int len,
-    spdy::SpdyStreamId stream_id,
+    SpdyStreamId stream_id,
     bool fin) {
 
   // Construct SPDY data frame.
-  spdy::BufferedSpdyFramer framer(2);
+  BufferedSpdyFramer framer(2);
   return framer.CreateDataFrame(
       stream_id,
       data,
       len,
-      fin ? spdy::DATA_FLAG_FIN : spdy::DATA_FLAG_NONE);
+      fin ? DATA_FLAG_FIN : DATA_FLAG_NONE);
 }
 
 }  // namespace test_spdy2

@@ -10,7 +10,7 @@
 #include "base/string_piece.h"
 #include "net/base/net_export.h"
 
-namespace spdy {
+namespace net {
 
 // Used for reading SPDY frames. Though there isn't really anything terribly
 // SPDY-specific here, it's a helper class that's useful when doing SPDY
@@ -90,7 +90,6 @@ class NET_EXPORT_PRIVATE SpdyFrameReader {
   size_t ofs_;
 };
 
-}  // namespace spdy
+}  // namespace net
 
 #endif  // NET_SPDY_FRAME_READER_H_
-

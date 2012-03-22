@@ -14,24 +14,24 @@ namespace net {
 namespace test_spdy2 {
 
 // Construct a WebSocket over SPDY handshake request packet.
-spdy::SpdyFrame* ConstructSpdyWebSocketHandshakeRequestFrame(
+SpdyFrame* ConstructSpdyWebSocketHandshakeRequestFrame(
     const char* const headers[],
     int header_count,
-    spdy::SpdyStreamId stream_id,
+    SpdyStreamId stream_id,
     RequestPriority request_priority);
 
 // Construct a WebSocket over SPDY handshake response packet.
-spdy::SpdyFrame* ConstructSpdyWebSocketHandshakeResponseFrame(
+SpdyFrame* ConstructSpdyWebSocketHandshakeResponseFrame(
     const char* const headers[],
     int header_count,
-    spdy::SpdyStreamId stream_id,
+    SpdyStreamId stream_id,
     RequestPriority request_priority);
 
 // Construct a WebSocket over SPDY data packet.
-spdy::SpdyFrame* ConstructSpdyWebSocketDataFrame(
+SpdyFrame* ConstructSpdyWebSocketDataFrame(
     const char* data,
     int len,
-    spdy::SpdyStreamId stream_id,
+    SpdyStreamId stream_id,
     bool fin);
 
 }  // namespace test_spdy2

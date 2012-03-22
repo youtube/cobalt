@@ -77,7 +77,7 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
   virtual bool OnSendHeadersComplete(int status) OVERRIDE;
   virtual int OnSendBody() OVERRIDE;
   virtual int OnSendBodyComplete(int status, bool* eof) OVERRIDE;
-  virtual int OnResponseReceived(const spdy::SpdyHeaderBlock& response,
+  virtual int OnResponseReceived(const SpdyHeaderBlock& response,
                                  base::Time response_time,
                                  int status) OVERRIDE;
   virtual void OnDataReceived(const char* buffer, int bytes) OVERRIDE;

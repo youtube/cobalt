@@ -10,7 +10,7 @@
 #include "net/spdy/spdy_frame_reader.h"
 #include "testing/platform_test.h"
 
-namespace spdy {
+namespace net {
 
 TEST(SpdyFrameReaderTest, ReadUInt16) {
   // Frame data in network byte order.
@@ -246,4 +246,4 @@ TEST(SpdyFrameReaderTest, ReadBytesWithBufferTooSmall) {
   EXPECT_STREQ("", dest);
 }
 
-}  // namespace
+}  // namespace net

@@ -96,7 +96,7 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
     } else if (option == kExclude) {
       HttpStreamFactory::add_forced_spdy_exclusion(value);
     } else if (option == kDisableCompression) {
-      spdy::SpdyFramer::set_enable_compression_default(false);
+      SpdyFramer::set_enable_compression_default(false);
     } else if (option == kEnableNPN) {
       HttpStreamFactory::set_use_alternate_protocols(use_alt_protocols);
       std::vector<std::string> next_protos;
