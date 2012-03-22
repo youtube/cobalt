@@ -61,6 +61,11 @@ void VideoRendererBase::Flush(const base::Closure& callback) {
 }
 
 void VideoRendererBase::Stop(const base::Closure& callback) {
+  if (state_ == kStopped) {
+    callback.Run();
+    return;
+  }
+
   base::PlatformThreadHandle thread_to_join = base::kNullThreadHandle;
   {
     base::AutoLock auto_lock(lock_);
@@ -83,7 +88,7 @@ void VideoRendererBase::Stop(const base::Closure& callback) {
   if (thread_to_join != base::kNullThreadHandle)
     base::PlatformThread::Join(thread_to_join);
 
-  callback.Run();
+  decoder_->Stop(callback);
 }
 
 void VideoRendererBase::SetPlaybackRate(float playback_rate) {
@@ -103,7 +108,7 @@ void VideoRendererBase::Seek(base::TimeDelta time, const PipelineStatusCB& cb) {
   AttemptRead_Locked();
 }
 
-void VideoRendererBase::Initialize(VideoDecoder* decoder,
+void VideoRendererBase::Initialize(const scoped_refptr<VideoDecoder>& decoder,
                                    const PipelineStatusCB& status_cb,
                                    const StatisticsCB& statistics_cb,
                                    const TimeCB& time_cb) {
@@ -457,7 +462,10 @@ void VideoRendererBase::AttemptFlush_Locked() {
   if (!pending_paint_ && !pending_read_) {
     state_ = kFlushed;
     current_frame_ = NULL;
-    ResetAndRunCB(&flush_cb_);
+
+    base::Closure flush_cb = flush_cb_;
+    flush_cb_.Reset();
+    decoder_->Flush(flush_cb);
   }
 }
 

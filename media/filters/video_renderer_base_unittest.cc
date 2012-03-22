@@ -64,6 +64,8 @@ class VideoRendererBaseTest : public ::testing::Test {
         .Times(AnyNumber());
     EXPECT_CALL(*this, SetOpaqueCBWasCalled(_))
         .WillRepeatedly(::testing::Return());
+    EXPECT_CALL(*decoder_, Stop(_))
+        .WillRepeatedly(OnStop());
     EXPECT_CALL(*this, TimeCBWasCalled(_))
         .WillRepeatedly(::testing::Return());
   }

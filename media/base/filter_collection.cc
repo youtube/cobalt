@@ -22,34 +22,29 @@ DemuxerFactory* FilterCollection::GetDemuxerFactory() {
   return demuxer_factory_.get();
 }
 
-void FilterCollection::AddVideoDecoder(VideoDecoder* filter) {
-  AddFilter(VIDEO_DECODER, filter);
-}
-
 void FilterCollection::AddAudioDecoder(AudioDecoder* audio_decoder) {
   audio_decoders_.push_back(audio_decoder);
 }
 
-void FilterCollection::AddVideoRenderer(VideoRenderer* filter) {
-  AddFilter(VIDEO_RENDERER, filter);
+void FilterCollection::AddVideoDecoder(VideoDecoder* video_decoder) {
+  video_decoders_.push_back(video_decoder);
 }
 
 void FilterCollection::AddAudioRenderer(AudioRenderer* filter) {
   AddFilter(AUDIO_RENDERER, filter);
 }
 
+void FilterCollection::AddVideoRenderer(VideoRenderer* filter) {
+  AddFilter(VIDEO_RENDERER, filter);
+}
+
 bool FilterCollection::IsEmpty() const {
-  return filters_.empty() && audio_decoders_.empty();
+  return filters_.empty() && audio_decoders_.empty() && video_decoders_.empty();
 }
 
 void FilterCollection::Clear() {
   filters_.clear();
   audio_decoders_.clear();
-}
-
-void FilterCollection::SelectVideoDecoder(
-    scoped_refptr<VideoDecoder>* filter_out) {
-  SelectFilter<VIDEO_DECODER>(filter_out);
 }
 
 void FilterCollection::SelectAudioDecoder(scoped_refptr<AudioDecoder>* out) {
@@ -61,14 +56,23 @@ void FilterCollection::SelectAudioDecoder(scoped_refptr<AudioDecoder>* out) {
   audio_decoders_.pop_front();
 }
 
-void FilterCollection::SelectVideoRenderer(
-    scoped_refptr<VideoRenderer>* filter_out) {
-  SelectFilter<VIDEO_RENDERER>(filter_out);
+void FilterCollection::SelectVideoDecoder(scoped_refptr<VideoDecoder>* out) {
+  if (video_decoders_.empty()) {
+    *out = NULL;
+    return;
+  }
+  *out = video_decoders_.front();
+  video_decoders_.pop_front();
 }
 
 void FilterCollection::SelectAudioRenderer(
     scoped_refptr<AudioRenderer>* filter_out) {
   SelectFilter<AUDIO_RENDERER>(filter_out);
+}
+
+void FilterCollection::SelectVideoRenderer(
+    scoped_refptr<VideoRenderer>* filter_out) {
+  SelectFilter<VIDEO_RENDERER>(filter_out);
 }
 
 void FilterCollection::AddFilter(FilterType filter_type,

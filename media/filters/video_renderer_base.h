@@ -55,7 +55,7 @@ class MEDIA_EXPORT VideoRendererBase
   virtual void Seek(base::TimeDelta time, const PipelineStatusCB& cb) OVERRIDE;
 
   // VideoRenderer implementation.
-  virtual void Initialize(VideoDecoder* decoder,
+  virtual void Initialize(const scoped_refptr<VideoDecoder>& decoder,
                           const PipelineStatusCB& status_cb,
                           const StatisticsCB& statistics_cb,
                           const TimeCB& time_cb) OVERRIDE;
