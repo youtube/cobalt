@@ -497,10 +497,16 @@ void SpdyFramer::ProcessControlFrameHeader() {
         }
         break;
       case GOAWAY:
-        if (current_control_frame.length() !=
-            SpdyGoAwayControlFrame::size() - SpdyFrame::kHeaderSize)
-          set_error(SPDY_INVALID_CONTROL_FRAME);
-        break;
+        {
+          // SPDY 2 GOAWAY frames are 4 bytes smaller than in SPDY 3. We account
+          // for this difference via a separate offset variable, since
+          // SpdyGoAwayControlFrame::size() returns the SPDY 3 size.
+          const size_t goaway_offset = (protocol_version() < 3) ? 4 : 0;
+          if (current_control_frame.length() + goaway_offset !=
+              SpdyGoAwayControlFrame::size() - SpdyFrame::kHeaderSize)
+            set_error(SPDY_INVALID_CONTROL_FRAME);
+          break;
+        }
       case HEADERS:
         if (current_control_frame.length() <
             SpdyHeadersControlFrame::size() - SpdyControlFrame::kHeaderSize)
@@ -1176,15 +1182,24 @@ SpdyPingControlFrame* SpdyFramer::CreatePingFrame(uint32 unique_id) const {
 }
 
 SpdyGoAwayControlFrame* SpdyFramer::CreateGoAway(
-    SpdyStreamId last_accepted_stream_id) const {
+    SpdyStreamId last_accepted_stream_id,
+    SpdyGoAwayStatus status) const {
   DCHECK_EQ(0u, last_accepted_stream_id & ~kStreamIdMask);
 
-  SpdyFrameBuilder frame(SpdyGoAwayControlFrame::size());
+  // SPDY 2 GOAWAY frames are 4 bytes smaller than in SPDY 3. We account for
+  // this difference via a separate offset variable, since
+  // SpdyGoAwayControlFrame::size() returns the SPDY 3 size.
+  const size_t goaway_offset = (protocol_version() < 3) ? 4 : 0;
+  SpdyFrameBuilder frame(SpdyGoAwayControlFrame::size() - goaway_offset);
   frame.WriteUInt16(kControlFlagMask | spdy_version_);
   frame.WriteUInt16(GOAWAY);
-  size_t go_away_size = SpdyGoAwayControlFrame::size() - SpdyFrame::kHeaderSize;
+  size_t go_away_size =
+      SpdyGoAwayControlFrame::size() - SpdyFrame::kHeaderSize - goaway_offset;
   frame.WriteUInt32(go_away_size);
   frame.WriteUInt32(last_accepted_stream_id);
+  if (protocol_version() >= 3) {
+    frame.WriteUInt32(status);
+  }
   return reinterpret_cast<SpdyGoAwayControlFrame*>(frame.take());
 }
 
@@ -1688,7 +1703,8 @@ SpdyFrame* SpdyFramer::DuplicateFrame(const SpdyFrame& frame) {
   return new_frame;
 }
 
-size_t SpdyFramer::GetMinimumControlFrameSize(SpdyControlType type) {
+size_t SpdyFramer::GetMinimumControlFrameSize(int version,
+                                              SpdyControlType type) {
   switch (type) {
     case SYN_STREAM:
       return SpdySynStreamControlFrame::size();
@@ -1706,7 +1722,14 @@ size_t SpdyFramer::GetMinimumControlFrameSize(SpdyControlType type) {
     case PING:
       return SpdyPingControlFrame::size();
     case GOAWAY:
-      return SpdyGoAwayControlFrame::size();
+      if (version < 3) {
+        // SPDY 2 GOAWAY is smaller by 32 bits. Since
+        // SpdyGoAwayControlFrame::size() returns the size for SPDY 3, we adjust
+        // before returning here.
+        return SpdyGoAwayControlFrame::size() - 4;
+      } else {
+        return SpdyGoAwayControlFrame::size();
+      }
     case HEADERS:
       return SpdyHeadersControlFrame::size();
     case WINDOW_UPDATE:
