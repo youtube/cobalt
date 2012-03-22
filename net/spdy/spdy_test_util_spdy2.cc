@@ -220,7 +220,7 @@ spdy::SpdyFrame* ConstructSpdyPing() {
 // Returns the constructed frame.  The caller takes ownership of the frame.
 spdy::SpdyFrame* ConstructSpdyGoAway() {
   spdy::BufferedSpdyFramer framer(2);
-  return framer.CreateGoAway(0);
+  return framer.CreateGoAway(0, spdy::GOAWAY_OK);
 }
 
 // Construct a SPDY WINDOW_UPDATE frame.

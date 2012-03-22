@@ -434,6 +434,14 @@ enum SpdyStatusCodes {
   NUM_STATUS_CODES = 9
 };
 
+enum SpdyGoAwayStatus {
+  GOAWAY_INVALID = -1,
+  GOAWAY_OK = 0,
+  GOAWAY_PROTOCOL_ERROR = 1,
+  GOAWAY_INTERNAL_ERROR = 2,
+  GOAWAY_NUM_STATUS_CODES = 3
+};
+
 // A SPDY stream id is a 31 bit entity.
 typedef uint32 SpdyStreamId;
 
@@ -517,6 +525,7 @@ struct SpdyCredentialControlFrameBlock : SpdyFrameBlock {
 // A GOAWAY Control Frame structure.
 struct SpdyGoAwayControlFrameBlock : SpdyFrameBlock {
   SpdyStreamId last_accepted_stream_id_;
+  SpdyGoAwayStatus status_;
 };
 
 // A HEADERS Control Frame structure.
@@ -921,6 +930,20 @@ class SpdyGoAwayControlFrame : public SpdyControlFrame {
 
   SpdyStreamId last_accepted_stream_id() const {
     return ntohl(block()->last_accepted_stream_id_) & kStreamIdMask;
+  }
+
+  SpdyGoAwayStatus status() const {
+    if (version() < 2) {
+      LOG(DFATAL) << "Attempted to access status of SPDY 2 GOAWAY.";
+      return GOAWAY_INVALID;
+    } else {
+      uint32 status = ntohl(block()->status_);
+      if (status >= GOAWAY_NUM_STATUS_CODES) {
+        return GOAWAY_INVALID;
+      } else {
+        return static_cast<SpdyGoAwayStatus>(status);
+      }
+    }
   }
 
   void set_last_accepted_stream_id(SpdyStreamId id) {
