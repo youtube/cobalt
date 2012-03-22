@@ -1926,26 +1926,47 @@ TEST_P(SpdyFramerTest, CreateGoAway) {
 
   {
     const char kDescription[] = "GOAWAY frame";
-    const unsigned char kFrameData[] = {
+    const unsigned char kV2FrameData[] = {
       0x80, spdy_version_, 0x00, 0x07,
       0x00, 0x00, 0x00, 0x04,
       0x00, 0x00, 0x00, 0x00,
     };
-    scoped_ptr<SpdyGoAwayControlFrame> frame(framer.CreateGoAway(0));
-    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+    const unsigned char kV3FrameData[] = {
+      0x80, spdy_version_, 0x00, 0x07,
+      0x00, 0x00, 0x00, 0x08,
+      0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00,
+    };
+    scoped_ptr<SpdyGoAwayControlFrame> frame(framer.CreateGoAway(0, GOAWAY_OK));
+    CompareFrame(kDescription,
+                 *frame,
+                 IsSpdy2() ? kV2FrameData : kV3FrameData,
+                 IsSpdy2() ? arraysize(kV2FrameData)
+                           : arraysize(kV3FrameData));
     EXPECT_EQ(SpdyFramer::kInvalidStream,
               SpdyFramer::GetControlFrameStreamId(frame.get()));
   }
 
   {
-    const char kDescription[] = "GOAWAY frame with max stream ID";
-    const unsigned char kFrameData[] = {
+    const char kDescription[] = "GOAWAY frame with max stream ID, status";
+    const unsigned char kV2FrameData[] = {
       0x80, spdy_version_, 0x00, 0x07,
       0x00, 0x00, 0x00, 0x04,
       0x7f, 0xff, 0xff, 0xff,
     };
-    scoped_ptr<SpdyFrame> frame(framer.CreateGoAway(0x7FFFFFFF));
-    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+    const unsigned char kV3FrameData[] = {
+      0x80, spdy_version_, 0x00, 0x07,
+      0x00, 0x00, 0x00, 0x08,
+      0x7f, 0xff, 0xff, 0xff,
+      0x00, 0x00, 0x00, 0x02,
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateGoAway(0x7FFFFFFF,
+                                                    GOAWAY_INTERNAL_ERROR));
+    CompareFrame(kDescription,
+                 *frame,
+                 IsSpdy2() ? kV2FrameData : kV3FrameData,
+                 IsSpdy2() ? arraysize(kV2FrameData)
+                           : arraysize(kV3FrameData));
   }
 }
 
@@ -2218,27 +2239,14 @@ TEST_P(SpdyFramerTest, ExpandBuffer_HeapSmash) {
 
 TEST_P(SpdyFramerTest, ControlFrameSizesAreValidated) {
   // Create a GoAway frame that has a few extra bytes at the end.
-  // We create enough overhead to require the framer to expand its frame buffer.
+  // We create enough overhead to overflow the framer's control frame buffer.
   size_t overhead = SpdyFramer::kUncompressedControlFrameBufferInitialSize;
   SpdyFramer framer(spdy_version_);
-  scoped_ptr<SpdyGoAwayControlFrame> goaway(framer.CreateGoAway(1));
+  scoped_ptr<SpdyGoAwayControlFrame> goaway(framer.CreateGoAway(1, GOAWAY_OK));
   goaway->set_length(goaway->length() + overhead);
   std::string pad('A', overhead);
   TestSpdyVisitor visitor(spdy_version_);
 
-  // First attempt without validation on.
-  visitor.framer_.set_validate_control_frame_sizes(false);
-  visitor.SimulateInFramer(
-      reinterpret_cast<unsigned char*>(goaway->data()),
-      goaway->length() - overhead + SpdyControlFrame::kHeaderSize);
-  visitor.SimulateInFramer(
-      reinterpret_cast<const unsigned char*>(pad.c_str()),
-      overhead);
-  EXPECT_EQ(0, visitor.error_count_);  // Not an error.
-  EXPECT_EQ(1, visitor.goaway_count_);  // The goaway was parsed.
-
-  // Attempt with validation on.
-  visitor.framer_.set_validate_control_frame_sizes(true);
   visitor.SimulateInFramer(
       reinterpret_cast<unsigned char*>(goaway->data()),
       goaway->length() - overhead + SpdyControlFrame::kHeaderSize);
@@ -2246,7 +2254,9 @@ TEST_P(SpdyFramerTest, ControlFrameSizesAreValidated) {
       reinterpret_cast<const unsigned char*>(pad.c_str()),
       overhead);
   EXPECT_EQ(1, visitor.error_count_);  // This generated an error.
-  EXPECT_EQ(1, visitor.goaway_count_);  // Unchanged from before.
+  EXPECT_EQ(SpdyFramer::SPDY_INVALID_CONTROL_FRAME,
+            visitor.framer_.error_code());
+  EXPECT_EQ(0, visitor.goaway_count_);  // Frame not parsed.
 }
 
 TEST_P(SpdyFramerTest, ReadZeroLenSettingsFrame) {
@@ -2566,27 +2576,43 @@ TEST_P(SpdyFramerTest, ControlTypeToStringTest) {
 
 TEST_P(SpdyFramerTest, GetMinimumControlFrameSizeTest) {
   EXPECT_EQ(SpdySynStreamControlFrame::size(),
-            SpdyFramer::GetMinimumControlFrameSize(SYN_STREAM));
+            SpdyFramer::GetMinimumControlFrameSize(spdy_version_,
+                                                   SYN_STREAM));
   EXPECT_EQ(SpdySynReplyControlFrame::size(),
-            SpdyFramer::GetMinimumControlFrameSize(SYN_REPLY));
+            SpdyFramer::GetMinimumControlFrameSize(spdy_version_,
+                                                   SYN_REPLY));
   EXPECT_EQ(SpdyRstStreamControlFrame::size(),
-            SpdyFramer::GetMinimumControlFrameSize(RST_STREAM));
+            SpdyFramer::GetMinimumControlFrameSize(spdy_version_,
+                                                   RST_STREAM));
   EXPECT_EQ(SpdySettingsControlFrame::size(),
-            SpdyFramer::GetMinimumControlFrameSize(SETTINGS));
+            SpdyFramer::GetMinimumControlFrameSize(spdy_version_,
+                                                   SETTINGS));
   EXPECT_EQ(SpdyFrame::kHeaderSize,
-            SpdyFramer::GetMinimumControlFrameSize(NOOP));
+            SpdyFramer::GetMinimumControlFrameSize(spdy_version_,
+                                                   NOOP));
   EXPECT_EQ(SpdyPingControlFrame::size(),
-            SpdyFramer::GetMinimumControlFrameSize(PING));
-  EXPECT_EQ(SpdyGoAwayControlFrame::size(),
-            SpdyFramer::GetMinimumControlFrameSize(GOAWAY));
+            SpdyFramer::GetMinimumControlFrameSize(spdy_version_,
+                                                   PING));
+  size_t goaway_size = SpdyGoAwayControlFrame::size();
+  if (IsSpdy2()) {
+    // SPDY 2 GOAWAY is smaller by 32 bits.
+    goaway_size -= 4;
+  }
+  EXPECT_EQ(goaway_size,
+            SpdyFramer::GetMinimumControlFrameSize(spdy_version_,
+                                                   GOAWAY));
   EXPECT_EQ(SpdyHeadersControlFrame::size(),
-            SpdyFramer::GetMinimumControlFrameSize(HEADERS));
+            SpdyFramer::GetMinimumControlFrameSize(spdy_version_,
+                                                   HEADERS));
   EXPECT_EQ(SpdyWindowUpdateControlFrame::size(),
-            SpdyFramer::GetMinimumControlFrameSize(WINDOW_UPDATE));
+            SpdyFramer::GetMinimumControlFrameSize(spdy_version_,
+                                                   WINDOW_UPDATE));
   EXPECT_EQ(SpdyCredentialControlFrame::size(),
-            SpdyFramer::GetMinimumControlFrameSize(CREDENTIAL));
+            SpdyFramer::GetMinimumControlFrameSize(spdy_version_,
+                                                   CREDENTIAL));
   EXPECT_EQ(static_cast<size_t>(0x7FFFFFFF),
-            SpdyFramer::GetMinimumControlFrameSize(NUM_CONTROL_FRAME_TYPES));
+            SpdyFramer::GetMinimumControlFrameSize(spdy_version_,
+                                                   NUM_CONTROL_FRAME_TYPES));
 }
 
 TEST_P(SpdyFramerTest, CatchProbableHttpResponse) {

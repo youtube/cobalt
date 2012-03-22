@@ -310,8 +310,8 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // prior to the shutting down of the TCP connection, and includes the
   // stream_id of the last stream the sender of the frame is willing to process
   // to completion.
-  SpdyGoAwayControlFrame* CreateGoAway(
-      SpdyStreamId last_accepted_stream_id) const;
+  SpdyGoAwayControlFrame* CreateGoAway(SpdyStreamId last_accepted_stream_id,
+                                       SpdyGoAwayStatus status) const;
 
   // Creates an instance of SpdyHeadersControlFrame. The HEADERS frame is used
   // for sending additional headers outside of a SYN_STREAM/SYN_REPLY. The
@@ -382,7 +382,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
 
   // Get the minimum size of the control frame for the given control frame
   // type. This is useful for validating frame blocks.
-  static size_t GetMinimumControlFrameSize(SpdyControlType type);
+  static size_t GetMinimumControlFrameSize(int version, SpdyControlType type);
 
   // Get the stream ID for the given control frame (SYN_STREAM, SYN_REPLY, and
   // HEADERS). If the control frame is NULL or of another type, this

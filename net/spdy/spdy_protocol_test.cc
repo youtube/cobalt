@@ -13,6 +13,7 @@ using spdy::CONTROL_FLAG_FIN;
 using spdy::CONTROL_FLAG_NONE;
 using spdy::FlagsAndLength;
 using spdy::GOAWAY;
+using spdy::GOAWAY_INTERNAL_ERROR;
 using spdy::HEADERS;
 using spdy::NOOP;
 using spdy::NUM_CONTROL_FRAME_TYPES;
@@ -80,7 +81,7 @@ TEST_P(SpdyProtocolTest, ProtocolConstants) {
   EXPECT_EQ(16u, SpdyRstStreamControlFrame::size());
   EXPECT_EQ(12u, SpdySettingsControlFrame::size());
   EXPECT_EQ(12u, SpdyPingControlFrame::size());
-  EXPECT_EQ(12u, SpdyGoAwayControlFrame::size());
+  EXPECT_EQ(16u, SpdyGoAwayControlFrame::size());
   EXPECT_EQ(12u, SpdyHeadersControlFrame::size());
   EXPECT_EQ(16u, SpdyWindowUpdateControlFrame::size());
   EXPECT_EQ(4u, sizeof(FlagsAndLength));
@@ -167,11 +168,14 @@ TEST_P(SpdyProtocolTest, ControlFrameStructs) {
   EXPECT_EQ(kUniqueId2, ping_frame->unique_id());
 
   scoped_ptr<SpdyGoAwayControlFrame> goaway_frame(
-      framer.CreateGoAway(123));
+      framer.CreateGoAway(123, GOAWAY_INTERNAL_ERROR));
   EXPECT_EQ(framer.protocol_version(), goaway_frame->version());
   EXPECT_TRUE(goaway_frame->is_control_frame());
   EXPECT_EQ(GOAWAY, goaway_frame->type());
   EXPECT_EQ(123u, goaway_frame->last_accepted_stream_id());
+  if (!IsSpdy2()) {
+    EXPECT_EQ(GOAWAY_INTERNAL_ERROR, goaway_frame->status());
+  }
 
   scoped_ptr<SpdyHeadersControlFrame> headers_frame(
       framer.CreateHeaders(123, CONTROL_FLAG_NONE, false, &headers));
