@@ -229,7 +229,7 @@ int CertVerifyProcOpenSSL::VerifyInternal(X509Certificate* cert,
 
 #if defined(OS_ANDROID)
   std::vector<std::string> cert_bytes;
-  GetChainDEREncodedBytes(&cert_bytes);
+  GetChainDEREncodedBytes(cert, &cert_bytes);
 
   verify_attempted = VerifyFromAndroidTrustManager(cert_bytes, verify_result);
 #endif
