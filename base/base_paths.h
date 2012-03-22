@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,6 +15,8 @@
 #include "base/base_paths_win.h"
 #elif defined(OS_MACOSX)
 #include "base/base_paths_mac.h"
+#elif defined(OS_ANDROID)
+#include "base/base_paths_android.h"
 #endif
 
 namespace base {
@@ -39,9 +41,6 @@ enum BasePathKey {
                 // browser cache can be a subdirectory.
                 // This is $XDG_CACHE_HOME on Linux and
                 // ~/Library/Caches on Mac.
-#endif
-#if defined(OS_ANDROID)
-  DIR_ANDROID_APP_DATA,  // Directory where to put android app's data.
 #endif
 
   PATH_END
