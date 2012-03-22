@@ -7,9 +7,12 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
+#include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
 #include "net/base/net_export.h"
+#include "net/base/x509_cert_types.h"
 
 namespace net {
 
@@ -55,6 +58,7 @@ class NET_EXPORT CertVerifyProc
 
  protected:
   friend class base::RefCountedThreadSafe<CertVerifyProc>;
+  FRIEND_TEST_ALL_PREFIXES(CertVerifyProcTest, DigiNotarCerts);
 
   CertVerifyProc();
   virtual ~CertVerifyProc();
@@ -67,6 +71,14 @@ class NET_EXPORT CertVerifyProc
                              int flags,
                              CRLSet* crl_set,
                              CertVerifyResult* verify_result) = 0;
+
+  // Returns true if |cert| is explicitly blacklisted.
+  static bool IsBlacklisted(X509Certificate* cert);
+
+  // IsPublicKeyBlacklisted returns true iff one of |public_key_hashes| (which
+  // are SHA1 hashes of SubjectPublicKeyInfo structures) is explicitly blocked.
+  static bool IsPublicKeyBlacklisted(
+      const std::vector<SHA1Fingerprint>& public_key_hashes);
 };
 
 }  // namespace net
