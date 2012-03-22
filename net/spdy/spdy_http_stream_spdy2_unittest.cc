@@ -8,7 +8,7 @@
 #include "crypto/ec_signature_creator.h"
 #include "crypto/signature_creator.h"
 #include "net/base/asn1_util.h"
-#include "net/base/default_origin_bound_cert_store.h"
+#include "net/base/default_server_bound_cert_store.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
 #include "net/spdy/spdy_session.h"
