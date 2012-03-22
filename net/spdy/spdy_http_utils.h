@@ -21,14 +21,14 @@ class HttpRequestHeaders;
 // |info| output parameter for the HttpResponseInfo.
 // Returns true if successfully converted.  False if the SpdyHeaderBlock is
 // incomplete (e.g. missing 'status' or 'version').
-bool SpdyHeadersToHttpResponse(const spdy::SpdyHeaderBlock& headers,
+bool SpdyHeadersToHttpResponse(const SpdyHeaderBlock& headers,
                                HttpResponseInfo* response);
 
 // Create a SpdyHeaderBlock for a Spdy SYN_STREAM Frame from
 // HttpRequestInfo and HttpRequestHeaders.
 void CreateSpdyHeadersFromHttpRequest(const HttpRequestInfo& info,
                                       const HttpRequestHeaders& request_headers,
-                                      spdy::SpdyHeaderBlock* headers,
+                                      SpdyHeaderBlock* headers,
                                       int protocol_version,
                                       bool direct);
 

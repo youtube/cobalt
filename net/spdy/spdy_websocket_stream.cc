@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -55,7 +55,7 @@ int SpdyWebSocketStream::InitializeStream(const GURL& url,
 }
 
 int SpdyWebSocketStream::SendRequest(
-    const linked_ptr<spdy::SpdyHeaderBlock>& headers) {
+    const linked_ptr<SpdyHeaderBlock>& headers) {
   if (!stream_) {
     NOTREACHED();
     return ERR_UNEXPECTED;
@@ -74,7 +74,7 @@ int SpdyWebSocketStream::SendData(const char* data, int length) {
   }
   scoped_refptr<IOBuffer> buf(new IOBuffer(length));
   memcpy(buf->data(), data, length);
-  return stream_->WriteStreamData(buf.get(), length, spdy::DATA_FLAG_NONE);
+  return stream_->WriteStreamData(buf.get(), length, DATA_FLAG_NONE);
 }
 
 void SpdyWebSocketStream::Close() {
@@ -102,7 +102,7 @@ int SpdyWebSocketStream::OnSendBodyComplete(int status, bool* eof) {
 }
 
 int SpdyWebSocketStream::OnResponseReceived(
-    const spdy::SpdyHeaderBlock& response,
+    const SpdyHeaderBlock& response,
     base::Time response_time, int status) {
   DCHECK(delegate_);
   return delegate_->OnReceivedSpdyResponseHeader(response, status);

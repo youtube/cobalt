@@ -253,8 +253,8 @@ TEST_P(HttpProxyClientSocketPoolSpdy3Test, NeedAuth) {
     MockRead(ASYNC, 3, "Content-Length: 10\r\n\r\n"),
     MockRead(ASYNC, 4, "0123456789"),
   };
-  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyConnect(NULL, 0, 1));
-  scoped_ptr<spdy::SpdyFrame> rst(ConstructSpdyRstStream(1, spdy::CANCEL));
+  scoped_ptr<SpdyFrame> req(ConstructSpdyConnect(NULL, 0, 1));
+  scoped_ptr<SpdyFrame> rst(ConstructSpdyRstStream(1, CANCEL));
   MockWrite spdy_writes[] = {
     CreateMockWrite(*req, 0, ASYNC),
     CreateMockWrite(*rst, 2, ASYNC),
@@ -264,15 +264,15 @@ TEST_P(HttpProxyClientSocketPoolSpdy3Test, NeedAuth) {
     "version", "HTTP/1.1",
     "proxy-authenticate", "Basic realm=\"MyRealm1\"",
   };
-  scoped_ptr<spdy::SpdyFrame> resp(
+  scoped_ptr<SpdyFrame> resp(
 
       ConstructSpdyControlFrame(NULL,
                                 0,
                                 false,
                                 1,
                                 LOWEST,
-                                spdy::SYN_REPLY,
-                                spdy::CONTROL_FLAG_NONE,
+                                SYN_REPLY,
+                                CONTROL_FLAG_NONE,
                                 kAuthChallenge,
                                 arraysize(kAuthChallenge)));
   MockRead spdy_reads[] = {
@@ -349,12 +349,12 @@ TEST_P(HttpProxyClientSocketPoolSpdy3Test, AsyncHaveAuth) {
     MockRead(SYNCHRONOUS, "HTTP/1.1 200 Connection Established\r\n\r\n"),
   };
 
-  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyConnect(kAuthHeaders,
+  scoped_ptr<SpdyFrame> req(ConstructSpdyConnect(kAuthHeaders,
                                                        kAuthHeadersSize, 1));
   MockWrite spdy_writes[] = {
     CreateMockWrite(*req, 0, ASYNC)
   };
-  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   MockRead spdy_reads[] = {
     CreateMockRead(*resp, 1, ASYNC),
     MockRead(ASYNC, 0, 2)
@@ -461,7 +461,7 @@ TEST_P(HttpProxyClientSocketPoolSpdy3Test, TunnelUnexpectedClose) {
     MockRead(ASYNC, 1, "HTTP/1.1 200 Conn"),
     MockRead(ASYNC, ERR_CONNECTION_CLOSED, 2),
   };
-  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyConnect(kAuthHeaders,
+  scoped_ptr<SpdyFrame> req(ConstructSpdyConnect(kAuthHeaders,
                                                        kAuthHeadersSize, 1));
   MockWrite spdy_writes[] = {
     CreateMockWrite(*req, 0, ASYNC)
@@ -498,14 +498,14 @@ TEST_P(HttpProxyClientSocketPoolSpdy3Test, TunnelSetupError) {
   MockRead reads[] = {
     MockRead(ASYNC, 1, "HTTP/1.1 304 Not Modified\r\n\r\n"),
   };
-  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyConnect(kAuthHeaders,
+  scoped_ptr<SpdyFrame> req(ConstructSpdyConnect(kAuthHeaders,
                                                        kAuthHeadersSize, 1));
-  scoped_ptr<spdy::SpdyFrame> rst(ConstructSpdyRstStream(1, spdy::CANCEL));
+  scoped_ptr<SpdyFrame> rst(ConstructSpdyRstStream(1, CANCEL));
   MockWrite spdy_writes[] = {
     CreateMockWrite(*req, 0, ASYNC),
     CreateMockWrite(*rst, 2, ASYNC),
   };
-  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdySynReplyError(1));
+  scoped_ptr<SpdyFrame> resp(ConstructSpdySynReplyError(1));
   MockRead spdy_reads[] = {
     CreateMockRead(*resp, 1, ASYNC),
     MockRead(ASYNC, 0, 3),

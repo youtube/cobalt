@@ -14,7 +14,7 @@
 #include "net/base/net_export.h"
 #include "net/spdy/spdy_protocol.h"
 
-namespace spdy {
+namespace net {
 
 // This class provides facilities for basic binary value packing and unpacking
 // into Spdy frames.
@@ -128,6 +128,6 @@ class NET_EXPORT_PRIVATE SpdyFrameBuilder {
   size_t variable_buffer_offset_;  // IF non-zero, then offset to a buffer.
 };
 
-}  // namespace spdy
+}  // namespace net
 
 #endif  // NET_SPDY_SPDY_FRAME_BUILDER_H_

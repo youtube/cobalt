@@ -76,11 +76,11 @@ class SpdyHttpStreamSpdy3Test : public testing::Test {
 };
 
 TEST_F(SpdyHttpStreamSpdy3Test, SendRequest) {
-  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
   MockWrite writes[] = {
     CreateMockWrite(*req.get(), 1),
   };
-  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   MockRead reads[] = {
     CreateMockRead(*resp, 2),
     MockRead(SYNCHRONOUS, 0, 3)  // EOF
@@ -124,15 +124,15 @@ TEST_F(SpdyHttpStreamSpdy3Test, SendRequest) {
 TEST_F(SpdyHttpStreamSpdy3Test, SendChunkedPost) {
   UploadDataStream::set_merge_chunks(false);
 
-  scoped_ptr<spdy::SpdyFrame> req(ConstructChunkedSpdyPost(NULL, 0));
-  scoped_ptr<spdy::SpdyFrame> chunk1(ConstructSpdyBodyFrame(1, false));
-  scoped_ptr<spdy::SpdyFrame> chunk2(ConstructSpdyBodyFrame(1, true));
+  scoped_ptr<SpdyFrame> req(ConstructChunkedSpdyPost(NULL, 0));
+  scoped_ptr<SpdyFrame> chunk1(ConstructSpdyBodyFrame(1, false));
+  scoped_ptr<SpdyFrame> chunk2(ConstructSpdyBodyFrame(1, true));
   MockWrite writes[] = {
     CreateMockWrite(*req.get(), 1),
     CreateMockWrite(*chunk1, 2),  // POST upload frames
     CreateMockWrite(*chunk2, 3),
   };
-  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyPostSynReply(NULL, 0));
+  scoped_ptr<SpdyFrame> resp(ConstructSpdyPostSynReply(NULL, 0));
   MockRead reads[] = {
     CreateMockRead(*resp, 4),
     CreateMockRead(*chunk1, 5),
@@ -186,11 +186,11 @@ TEST_F(SpdyHttpStreamSpdy3Test, SendChunkedPost) {
 TEST_F(SpdyHttpStreamSpdy3Test, SpdyURLTest) {
   const char * const full_url = "http://www.google.com/foo?query=what#anchor";
   const char * const base_url = "http://www.google.com/foo?query=what";
-  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(base_url, false, 1, LOWEST));
+  scoped_ptr<SpdyFrame> req(ConstructSpdyGet(base_url, false, 1, LOWEST));
   MockWrite writes[] = {
     CreateMockWrite(*req.get(), 1),
   };
-  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
   MockRead reads[] = {
     CreateMockRead(*resp, 2),
     MockRead(SYNCHRONOUS, 0, 3)  // EOF
@@ -216,7 +216,7 @@ TEST_F(SpdyHttpStreamSpdy3Test, SpdyURLTest) {
   EXPECT_EQ(ERR_IO_PENDING, http_stream->SendRequest(headers, NULL, &response,
                                                      callback.callback()));
 
-  spdy::SpdyHeaderBlock* spdy_header =
+  SpdyHeaderBlock* spdy_header =
     http_stream->stream()->spdy_headers().get();
   EXPECT_TRUE(spdy_header != NULL);
   if (spdy_header->find(":path") != spdy_header->end())
@@ -291,14 +291,14 @@ void SpdyHttpStreamSpdy3Test::TestSendCredentials(
     const std::string& cert,
     const std::string& proof,
     SSLClientCertType type) {
-  spdy::SpdyCredential cred;
+  SpdyCredential cred;
   cred.slot = 1;
   cred.proof = proof;
   cred.certs.push_back(cert);
 
-  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
-  scoped_ptr<spdy::SpdyFrame> credential(ConstructSpdyCredential(cred));
-  scoped_ptr<spdy::SpdyFrame> req2(ConstructSpdyGet("http://www.gmail.com",
+  scoped_ptr<SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<SpdyFrame> credential(ConstructSpdyCredential(cred));
+  scoped_ptr<SpdyFrame> req2(ConstructSpdyGet("http://www.gmail.com",
                                                     false, 3, LOWEST));
   MockWrite writes[] = {
     CreateMockWrite(*req.get(), 0),
@@ -306,8 +306,8 @@ void SpdyHttpStreamSpdy3Test::TestSendCredentials(
     CreateMockWrite(*req2.get(), 3),
   };
 
-  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
-  scoped_ptr<spdy::SpdyFrame> resp2(ConstructSpdyGetSynReply(NULL, 0, 3));
+  scoped_ptr<SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<SpdyFrame> resp2(ConstructSpdyGetSynReply(NULL, 0, 3));
   MockRead reads[] = {
     CreateMockRead(*resp, 1),
     CreateMockRead(*resp2, 4),

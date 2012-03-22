@@ -19,13 +19,13 @@
 
 namespace net {
 
-bool SpdyHeadersToHttpResponse(const spdy::SpdyHeaderBlock& headers,
+bool SpdyHeadersToHttpResponse(const SpdyHeaderBlock& headers,
                                HttpResponseInfo* response) {
   std::string version;
   std::string status;
 
   // The "status" and "version" headers are required.
-  spdy::SpdyHeaderBlock::const_iterator it;
+  SpdyHeaderBlock::const_iterator it;
   it = headers.find("status");
   if (it == headers.end())
     return false;
@@ -77,7 +77,7 @@ bool SpdyHeadersToHttpResponse(const spdy::SpdyHeaderBlock& headers,
 
 void CreateSpdyHeadersFromHttpRequest(const HttpRequestInfo& info,
                                       const HttpRequestHeaders& request_headers,
-                                      spdy::SpdyHeaderBlock* headers,
+                                      SpdyHeaderBlock* headers,
                                       int protocol_version,
                                       bool direct) {
 

@@ -7,7 +7,7 @@
 #include "net/spdy/spdy_frame_builder.h"
 #include "net/spdy/spdy_protocol.h"
 
-namespace spdy {
+namespace net {
 
 SpdyFrameBuilder::SpdyFrameBuilder(size_t size)
     : buffer_(NULL),
@@ -90,4 +90,4 @@ bool SpdyFrameBuilder::Resize(size_t new_capacity) {
   return true;
 }
 
-}  // namespace spdy
+}  // namespace net

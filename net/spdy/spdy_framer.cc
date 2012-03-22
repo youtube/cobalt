@@ -24,7 +24,7 @@
 
 using std::vector;
 
-namespace spdy {
+namespace net {
 
 // Compute the id of our dictionary so that we know we're using the
 // right one when asked for it.
@@ -1252,7 +1252,7 @@ SpdyWindowUpdateControlFrame* SpdyFramer::CreateWindowUpdate(
   DCHECK_EQ(0u, stream_id & ~kStreamIdMask);
   DCHECK_GT(delta_window_size, 0u);
   DCHECK_LE(delta_window_size,
-            static_cast<uint32>(spdy::kSpdyStreamMaximumWindowSize));
+            static_cast<uint32>(kSpdyStreamMaximumWindowSize));
 
   SpdyFrameBuilder frame(SpdyWindowUpdateControlFrame::size());
   frame.WriteUInt16(kControlFlagMask | spdy_version_);
@@ -1797,4 +1797,4 @@ void SpdyFramer::set_enable_compression_default(bool value) {
   compression_default_ = value;
 }
 
-}  // namespace spdy
+}  // namespace net

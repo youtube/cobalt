@@ -69,7 +69,7 @@ class NET_EXPORT_PRIVATE SpdyStream
     // Because a stream may have a SYN_* frame and multiple HEADERS frames,
     // this callback may be called multiple times.
     // |status| indicates network error. Returns network error code.
-    virtual int OnResponseReceived(const spdy::SpdyHeaderBlock& response,
+    virtual int OnResponseReceived(const SpdyHeaderBlock& response,
                                    base::Time response_time,
                                    int status) = 0;
 
@@ -95,7 +95,7 @@ class NET_EXPORT_PRIVATE SpdyStream
 
   // SpdyStream constructor
   SpdyStream(SpdySession* session,
-             spdy::SpdyStreamId stream_id,
+             SpdyStreamId stream_id,
              bool pushed,
              const BoundNetLog& net_log);
 
@@ -112,8 +112,8 @@ class NET_EXPORT_PRIVATE SpdyStream
   // Is this stream a pushed stream from the server.
   bool pushed() const { return pushed_; }
 
-  spdy::SpdyStreamId stream_id() const { return stream_id_; }
-  void set_stream_id(spdy::SpdyStreamId stream_id) { stream_id_ = stream_id; }
+  SpdyStreamId stream_id() const { return stream_id_; }
+  void set_stream_id(SpdyStreamId stream_id) { stream_id_ = stream_id; }
 
   bool response_received() const { return response_received_; }
   void set_response_received() { response_received_ = true; }
@@ -172,18 +172,18 @@ class NET_EXPORT_PRIVATE SpdyStream
 
   const BoundNetLog& net_log() const { return net_log_; }
 
-  const linked_ptr<spdy::SpdyHeaderBlock>& spdy_headers() const;
-  void set_spdy_headers(const linked_ptr<spdy::SpdyHeaderBlock>& headers);
+  const linked_ptr<SpdyHeaderBlock>& spdy_headers() const;
+  void set_spdy_headers(const linked_ptr<SpdyHeaderBlock>& headers);
   base::Time GetRequestTime() const;
   void SetRequestTime(base::Time t);
 
   // Called by the SpdySession when a response (e.g. a SYN_STREAM or SYN_REPLY)
   // has been received for this stream. Returns a status code.
-  int OnResponseReceived(const spdy::SpdyHeaderBlock& response);
+  int OnResponseReceived(const SpdyHeaderBlock& response);
 
   // Called by the SpdySession when late-bound headers are received for a
   // stream. Returns a status code.
-  int OnHeaders(const spdy::SpdyHeaderBlock& headers);
+  int OnHeaders(const SpdyHeaderBlock& headers);
 
   // Called by the SpdySession when response data has been received for this
   // stream.  This callback may be called multiple times as data arrives
@@ -226,7 +226,7 @@ class NET_EXPORT_PRIVATE SpdyStream
 
   // Sends DATA frame.
   int WriteStreamData(IOBuffer* data, int length,
-                      spdy::SpdyDataFlags flags);
+                      SpdyDataFlags flags);
 
   // Fills SSL info in |ssl_info| and returns true when SSL is in use.
   bool GetSSLInfo(SSLInfo* ssl_info,
@@ -302,14 +302,14 @@ class NET_EXPORT_PRIVATE SpdyStream
 
   // Extracts the URL from the various fields in |headers|.
   GURL GetUrlFromHeaderBlock(
-      const linked_ptr<spdy::SpdyHeaderBlock>& headers) const;
+      const linked_ptr<SpdyHeaderBlock>& headers) const;
 
   // There is a small period of time between when a server pushed stream is
   // first created, and the pushed data is replayed. Any data received during
   // this time should continue to be buffered.
   bool continue_buffering_data_;
 
-  spdy::SpdyStreamId stream_id_;
+  SpdyStreamId stream_id_;
   std::string path_;
   int priority_;
 
@@ -329,13 +329,13 @@ class NET_EXPORT_PRIVATE SpdyStream
   SpdyStream::Delegate* delegate_;
 
   // The request to send.
-  linked_ptr<spdy::SpdyHeaderBlock> request_;
+  linked_ptr<SpdyHeaderBlock> request_;
 
   // The time at which the request was made that resulted in this response.
   // For cached responses, this time could be "far" in the past.
   base::Time request_time_;
 
-  linked_ptr<spdy::SpdyHeaderBlock> response_;
+  linked_ptr<SpdyHeaderBlock> response_;
   base::Time response_time_;
 
   State io_state_;
@@ -367,17 +367,17 @@ class NET_EXPORT_PRIVATE SpdyStream
 
 class NetLogSpdyStreamErrorParameter : public NetLog::EventParameters {
  public:
-  NetLogSpdyStreamErrorParameter(spdy::SpdyStreamId stream_id,
+  NetLogSpdyStreamErrorParameter(SpdyStreamId stream_id,
                                  int status,
                                  const std::string& description);
 
-  spdy::SpdyStreamId stream_id() const { return stream_id_; }
+  SpdyStreamId stream_id() const { return stream_id_; }
   virtual base::Value* ToValue() const OVERRIDE;
 
  private:
   virtual ~NetLogSpdyStreamErrorParameter();
 
-  const spdy::SpdyStreamId stream_id_;
+  const SpdyStreamId stream_id_;
   const int status_;
   const std::string description_;
 
