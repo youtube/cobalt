@@ -128,6 +128,7 @@ class SpdyProxyClientSocketSpdy3Test : public PlatformTest {
   ProxyServer proxy_;
   HostPortProxyPair endpoint_host_port_proxy_pair_;
   scoped_refptr<TransportSocketParams> transport_params_;
+  SpdyTestStateHelper spdy_state_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdyProxyClientSocketSpdy3Test);
 };
@@ -159,7 +160,6 @@ void SpdyProxyClientSocketSpdy3Test::TearDown() {
   if (session_ != NULL)
     session_->spdy_session_pool()->CloseAllSessions();
 
-  spdy::SpdyFramer::set_enable_compression_default(true);
   // Empty the current queue.
   MessageLoop::current()->RunAllPending();
   PlatformTest::TearDown();
@@ -179,7 +179,6 @@ void SpdyProxyClientSocketSpdy3Test::Initialize(MockRead* reads,
 
   session_ = SpdySessionDependencies::SpdyCreateSessionDeterministic(
       &session_deps_);
-  spdy::SpdyFramer::set_enable_compression_default(false);
 
   // Creates a new spdy session
   spdy_session_ =

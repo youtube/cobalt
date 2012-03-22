@@ -105,7 +105,6 @@ class SpdyStreamSpdy2Test : public testing::Test {
   }
 
   scoped_refptr<SpdySession> CreateSpdySession() {
-    spdy::SpdyFramer::set_enable_compression_default(false);
     HostPortPair host_port_pair("www.google.com", 80);
     HostPortProxyPair pair(host_port_pair, ProxyServer::Direct());
     scoped_refptr<SpdySession> session(
@@ -122,6 +121,9 @@ class SpdyStreamSpdy2Test : public testing::Test {
   }
 
   scoped_refptr<HttpNetworkSession> session_;
+
+ private:
+  SpdyTestStateHelper spdy_state_;
 };
 
 TEST_F(SpdyStreamSpdy2Test, SendDataAfterOpen) {

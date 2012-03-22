@@ -414,6 +414,16 @@ class SpdySessionPoolPeer {
   DISALLOW_COPY_AND_ASSIGN(SpdySessionPoolPeer);
 };
 
+// Helper to manage the state of a number of SPDY global variables.
+class SpdyTestStateHelper {
+ public:
+  SpdyTestStateHelper();
+  ~SpdyTestStateHelper();
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(SpdyTestStateHelper);
+};
+
 }  // namespace test_spdy2
 
 }  // namespace net
