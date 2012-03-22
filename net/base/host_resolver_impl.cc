@@ -145,6 +145,19 @@ std::vector<int> GetAllGetAddrinfoOSErrors() {
                                                     arraysize(os_errors));
 }
 
+enum DnsResolveStatus {
+  RESOLVE_STATUS_DNS_SUCCESS = 0,
+  RESOLVE_STATUS_PROC_SUCCESS,
+  RESOLVE_STATUS_FAIL,
+  RESOLVE_STATUS_MAX
+};
+
+void UmaAsyncDnsResolveStatus(DnsResolveStatus result) {
+  UMA_HISTOGRAM_ENUMERATION("AsyncDNS.ResolveStatus",
+                            result,
+                            RESOLVE_STATUS_MAX);
+}
+
 // Wraps call to SystemHostResolverProc as an instance of HostResolverProc.
 // TODO(szym): This should probably be declared in host_resolver_proc.h.
 class CallSystemHostResolverProc : public HostResolverProc {
@@ -1049,7 +1062,8 @@ class HostResolverImpl::DnsTask {
     transaction_ = factory->CreateTransaction(
         key.hostname,
         qtype,
-        base::Bind(&DnsTask::OnTransactionComplete, base::Unretained(this)),
+        base::Bind(&DnsTask::OnTransactionComplete, base::Unretained(this),
+                   base::TimeTicks::Now()),
         net_log_);
     DCHECK(transaction_.get());
   }
@@ -1059,16 +1073,21 @@ class HostResolverImpl::DnsTask {
     return transaction_->Start();
   }
 
-  void OnTransactionComplete(DnsTransaction* transaction,
+  void OnTransactionComplete(const base::TimeTicks& start_time,
+                             DnsTransaction* transaction,
                              int net_error,
                              const DnsResponse* response) {
-    // TODO(szym): Record performance histograms.
     // Run |callback_| last since the owning Job will then delete this DnsTask.
     DnsResponse::Result result = DnsResponse::DNS_SUCCESS;
     if (net_error == OK) {
+      DNS_HISTOGRAM("AsyncDNS.TransactionSuccess",
+                    base::TimeTicks::Now() - start_time);
       AddressList addr_list;
       base::TimeDelta ttl;
       result = response->ParseToAddressList(&addr_list, &ttl);
+      UMA_HISTOGRAM_ENUMERATION("AsyncDNS.ParseToAddressList",
+                                result,
+                                DnsResponse::DNS_PARSE_RESULT_MAX);
       if (result == DnsResponse::DNS_SUCCESS) {
         net_log_.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_DNS_TASK,
                           new AddressListNetLogParam(addr_list));
@@ -1076,6 +1095,9 @@ class HostResolverImpl::DnsTask {
         return;
       }
       net_error = ERR_DNS_MALFORMED_RESPONSE;
+    } else {
+      DNS_HISTOGRAM("AsyncDNS.TransactionFailure",
+                    base::TimeTicks::Now() - start_time);
     }
     net_log_.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_DNS_TASK,
                       new DnsTaskFailedParams(net_error, result));
@@ -1104,6 +1126,7 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
       : resolver_(resolver->AsWeakPtr()),
         key_(key),
         had_non_speculative_request_(false),
+        had_dns_config_(false),
         net_log_(BoundNetLog::Make(request_net_log.net_log(),
                                    NetLog::SOURCE_HOST_RESOLVER_IMPL_JOB)) {
     request_net_log.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_CREATE_JOB, NULL);
@@ -1266,8 +1289,9 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
 
     net_log_.AddEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_JOB_STARTED, NULL);
 
+    had_dns_config_ = resolver_->HaveDnsConfig();
     // Job::Start must not complete synchronously.
-    if (resolver_->HaveDnsConfig()) {
+    if (had_dns_config_) {
       StartDnsTask();
     } else {
       StartProcTask();
@@ -1296,6 +1320,15 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
   // Called by ProcTask when it completes.
   void OnProcTaskComplete(int net_error, const AddressList& addr_list) {
     DCHECK(is_proc_running());
+
+    if (had_dns_config_) {
+      // TODO(szym): guess if the hostname is a NetBIOS name and discount it.
+      if (net_error == OK) {
+        UmaAsyncDnsResolveStatus(RESOLVE_STATUS_PROC_SUCCESS);
+      } else {
+        UmaAsyncDnsResolveStatus(RESOLVE_STATUS_FAIL);
+      }
+    }
 
     base::TimeDelta ttl = base::TimeDelta::FromSeconds(
         kNegativeCacheEntryTTLSeconds);
@@ -1339,6 +1372,7 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
       return;
     }
 
+    UmaAsyncDnsResolveStatus(RESOLVE_STATUS_DNS_SUCCESS);
     CompleteRequests(net_error, addr_list, ttl);
   }
 
@@ -1444,6 +1478,9 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
   PriorityTracker priority_tracker_;
 
   bool had_non_speculative_request_;
+
+  // True if resolver had DnsConfig when the Job was started.
+  bool had_dns_config_;
 
   BoundNetLog net_log_;
 
