@@ -123,7 +123,8 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramer
   SpdySettingsControlFrame* CreateSettings(const SpdySettings& values) const;
   SpdyPingControlFrame* CreatePingFrame(uint32 unique_id) const;
   SpdyGoAwayControlFrame* CreateGoAway(
-      SpdyStreamId last_accepted_stream_id) const;
+      SpdyStreamId last_accepted_stream_id,
+      SpdyGoAwayStatus status) const;
   SpdyHeadersControlFrame* CreateHeaders(SpdyStreamId stream_id,
                                          SpdyControlFlags flags,
                                          bool compressed,
