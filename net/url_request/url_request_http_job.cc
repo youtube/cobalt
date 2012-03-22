@@ -320,7 +320,13 @@ void URLRequestHttpJob::StartTransactionInternal() {
     rv = request_->context()->http_transaction_factory()->CreateTransaction(
         &transaction_);
     if (rv == OK) {
+      // TODO(joi): The hard-coded check for "chrome-extension" is
+      // temporary (as of 2012/3/21), intended only to make sure this
+      // change (to throttle only requests originating from
+      // extensions) gets into M19. Right after the M19 branch point,
+      // I will sort this out in a more architecturally-sound way.
       if (!URLRequestThrottlerManager::GetInstance()->enforce_throttling() ||
+          request_->first_party_for_cookies().scheme() != "chrome-extension" ||
           !throttling_entry_->ShouldRejectRequest(request_info_.load_flags)) {
         rv = transaction_->Start(
             &request_info_, start_callback_, request_->net_log());
