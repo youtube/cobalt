@@ -29,7 +29,7 @@ std::string ConvertJavaStringToUTF8(JNIEnv* env, jstring str) {
 }
 
 std::string ConvertJavaStringToUTF8(const JavaRef<jstring>& str) {
-  return ConvertJavaStringToUTF8(str.env(), str.obj());
+  return ConvertJavaStringToUTF8(AttachCurrentThread(), str.obj());
 }
 
 ScopedJavaLocalRef<jstring> ConvertUTF8ToJavaString(
@@ -57,7 +57,7 @@ string16 ConvertJavaStringToUTF16(JNIEnv* env, jstring str) {
 }
 
 string16 ConvertJavaStringToUTF16(const JavaRef<jstring>& str) {
-  return ConvertJavaStringToUTF16(str.env(), str.obj());
+  return ConvertJavaStringToUTF16(AttachCurrentThread(), str.obj());
 }
 
 // TODO(joth): change this to accept const StringPiece16&.
