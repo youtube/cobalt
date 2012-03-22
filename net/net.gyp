@@ -72,6 +72,14 @@
         'base/cert_verifier.h',
         'base/cert_verify_proc.cc',
         'base/cert_verify_proc.h',
+        'base/cert_verify_proc_mac.cc',
+        'base/cert_verify_proc_mac.h',
+        'base/cert_verify_proc_nss.cc',
+        'base/cert_verify_proc_nss.h',
+        'base/cert_verify_proc_openssl.cc',
+        'base/cert_verify_proc_openssl.h',
+        'base/cert_verify_proc_win.cc',
+        'base/cert_verify_proc_win.h',
         'base/cert_verify_result.cc',
         'base/cert_verify_result.h',
         'base/completion_callback.h',
@@ -269,6 +277,8 @@
         'base/x509_certificate_openssl.cc',
         'base/x509_certificate_win.cc',
         'base/x509_util.h',
+        'base/x509_util_mac.cc',
+        'base/x509_util_mac.h',
         'base/x509_util_nss.cc',
         'base/x509_util_nss.h',
         'base/x509_util_openssl.cc',
@@ -821,6 +831,8 @@
         ['use_openssl==1', {
             'sources!': [
               'base/cert_database_nss.cc',
+              'base/cert_verify_proc_nss.cc',
+              'base/cert_verify_proc_nss.h',
               'base/crypto_module_nss.cc',
               'base/dnssec_keyset.cc',
               'base/dnssec_keyset.h',
@@ -852,6 +864,8 @@
           {  # else !use_openssl: remove the unneeded files
             'sources!': [
               'base/cert_database_openssl.cc',
+              'base/cert_verify_proc_openssl.cc',
+              'base/cert_verify_proc_openssl.h',
               'base/crypto_module_openssl.cc',
               'base/keygen_handler_openssl.cc',
               'base/openssl_memory_private_key_store.cc',
@@ -926,6 +940,12 @@
           'dependencies': [
             '../build/linux/system.gyp:gdk',
           ],
+        }],
+        [ 'use_nss != 1', {
+            'sources!': [
+              'base/cert_verify_proc_nss.cc',
+              'base/cert_verify_proc_nss.h',
+            ],
         }],
         [ 'OS == "win"', {
             'sources!': [
