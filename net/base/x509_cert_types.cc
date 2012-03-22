@@ -1,14 +1,18 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/x509_cert_types.h"
 
-#include "net/base/x509_certificate.h"
+#include <cstdlib>
+#include <cstring>
+
 #include "base/logging.h"
+#include "base/sha1.h"
 #include "base/string_number_conversions.h"
 #include "base/string_piece.h"
 #include "base/time.h"
+#include "net/base/x509_certificate.h"
 
 namespace net {
 
@@ -25,7 +29,23 @@ int ParseIntAndAdvance(const char** field, size_t field_len, bool* ok) {
   return result;
 }
 
+// CompareSHA1Hashes is a helper function for using bsearch() with an array of
+// SHA1 hashes.
+int CompareSHA1Hashes(const void* a, const void* b) {
+  return memcmp(a, b, base::kSHA1Length);
+}
+
 }  // namespace
+
+// static
+bool IsSHA1HashInSortedArray(const SHA1Fingerprint& hash,
+                             const uint8* array,
+                             size_t array_byte_len) {
+  DCHECK_EQ(0u, array_byte_len % base::kSHA1Length);
+  const size_t arraylen = array_byte_len / base::kSHA1Length;
+  return NULL != bsearch(hash.data, array, arraylen, base::kSHA1Length,
+                         CompareSHA1Hashes);
+}
 
 CertPrincipal::CertPrincipal() {
 }

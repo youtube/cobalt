@@ -9,6 +9,7 @@
 #include "base/file_path.h"
 #include "base/string_number_conversions.h"
 #include "base/sha1.h"
+#include "net/base/asn1_util.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_test_util.h"
 #include "net/base/cert_verify_result.h"
@@ -370,6 +371,41 @@ TEST_F(CertVerifyProcTest, GoogleDigiNotarTest) {
   flags = 0;
   error = Verify(cert_chain, "mail.google.com", flags, NULL, &verify_result);
   EXPECT_NE(OK, error);
+}
+
+TEST_F(CertVerifyProcTest, DigiNotarCerts) {
+  static const char* const kDigiNotarFilenames[] = {
+    "diginotar_root_ca.pem",
+    "diginotar_cyber_ca.pem",
+    "diginotar_services_1024_ca.pem",
+    "diginotar_pkioverheid.pem",
+    "diginotar_pkioverheid_g2.pem",
+    NULL,
+  };
+
+  FilePath certs_dir = GetTestCertsDirectory();
+
+  for (size_t i = 0; kDigiNotarFilenames[i]; i++) {
+    scoped_refptr<X509Certificate> diginotar_cert =
+        ImportCertFromFile(certs_dir, kDigiNotarFilenames[i]);
+    std::string der_bytes;
+    ASSERT_TRUE(X509Certificate::GetDEREncoded(
+        diginotar_cert->os_cert_handle(), &der_bytes));
+
+    base::StringPiece spki;
+    ASSERT_TRUE(asn1::ExtractSPKIFromDERCert(der_bytes, &spki));
+
+    std::string spki_sha1 = base::SHA1HashString(spki.as_string());
+
+    std::vector<SHA1Fingerprint> public_keys;
+    SHA1Fingerprint fingerprint;
+    ASSERT_EQ(sizeof(fingerprint.data), spki_sha1.size());
+    memcpy(fingerprint.data, spki_sha1.data(), spki_sha1.size());
+    public_keys.push_back(fingerprint);
+
+    EXPECT_TRUE(CertVerifyProc::IsPublicKeyBlacklisted(public_keys)) <<
+        "Public key not blocked for " << kDigiNotarFilenames[i];
+  }
 }
 
 // Bug 111893: This test needs a new certificate.
