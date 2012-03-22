@@ -18,7 +18,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_export.h"
 #include "net/base/net_log.h"
-#include "net/base/origin_bound_cert_service.h"
+#include "net/base/server_bound_cert_service.h"
 #include "net/base/ssl_client_cert_type.h"
 #include "net/base/upload_data.h"
 #include "net/socket/ssl_client_socket.h"
