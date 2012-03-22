@@ -305,7 +305,7 @@ void WebSocketJob::OnSentSpdyHeaders(int result) {
 }
 
 int WebSocketJob::OnReceivedSpdyResponseHeader(
-    const spdy::SpdyHeaderBlock& headers, int status) {
+    const SpdyHeaderBlock& headers, int status) {
   DCHECK_NE(INITIALIZED, state_);
   if (state_ != CONNECTING)
     return status;
@@ -387,7 +387,7 @@ void WebSocketJob::LoadCookieCallback(const std::string& cookie) {
 
 void WebSocketJob::DoSendData() {
   if (spdy_websocket_stream_.get()) {
-    linked_ptr<spdy::SpdyHeaderBlock> headers(new spdy::SpdyHeaderBlock);
+    linked_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
     handshake_request_->GetRequestHeaderBlock(
         socket_->url(), headers.get(), &challenge_);
     spdy_websocket_stream_->SendRequest(headers);

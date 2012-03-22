@@ -142,7 +142,7 @@
 //  +----------------------------------+ <+
 //
 
-namespace spdy {
+namespace net {
 
 // Initial window size for a Spdy stream
 const int32 kSpdyStreamInitialWindowSize = 64 * 1024;  // 64 KBytes
@@ -1048,6 +1048,6 @@ class SpdyWindowUpdateControlFrame : public SpdyControlFrame {
   DISALLOW_COPY_AND_ASSIGN(SpdyWindowUpdateControlFrame);
 };
 
-}  // namespace spdy
+}  // namespace net
 
 #endif  // NET_SPDY_SPDY_PROTOCOL_H_

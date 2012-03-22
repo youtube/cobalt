@@ -6,7 +6,7 @@
 
 #include "base/logging.h"
 
-namespace spdy {
+namespace net {
 
 BufferedSpdyFramer::BufferedSpdyFramer(int version)
     : spdy_framer_(version),
@@ -27,7 +27,7 @@ void BufferedSpdyFramer::set_visitor(
   spdy_framer_.set_visitor(this);
 }
 
-void BufferedSpdyFramer::OnError(spdy::SpdyFramer* spdy_framer) {
+void BufferedSpdyFramer::OnError(SpdyFramer* spdy_framer) {
   DCHECK(spdy_framer);
   visitor_->OnError(spdy_framer->error_code());
 }
@@ -42,21 +42,21 @@ void BufferedSpdyFramer::OnControl(const SpdyControlFrame* frame) {
       break;
     case GOAWAY:
       visitor_->OnGoAway(
-          *reinterpret_cast<const spdy::SpdyGoAwayControlFrame*>(frame));
+          *reinterpret_cast<const SpdyGoAwayControlFrame*>(frame));
       break;
     case PING:
       visitor_->OnPing(
-          *reinterpret_cast<const spdy::SpdyPingControlFrame*>(frame));
+          *reinterpret_cast<const SpdyPingControlFrame*>(frame));
       break;
     case SETTINGS:
       break;
     case RST_STREAM:
       visitor_->OnRstStream(
-          *reinterpret_cast<const spdy::SpdyRstStreamControlFrame*>(frame));
+          *reinterpret_cast<const SpdyRstStreamControlFrame*>(frame));
       break;
-    case spdy::WINDOW_UPDATE:
+    case WINDOW_UPDATE:
       visitor_->OnWindowUpdate(
-          *reinterpret_cast<const spdy::SpdyWindowUpdateControlFrame*>(frame));
+          *reinterpret_cast<const SpdyWindowUpdateControlFrame*>(frame));
       break;
     default:
       NOTREACHED();  // Error!
@@ -224,7 +224,7 @@ SpdyWindowUpdateControlFrame* BufferedSpdyFramer::CreateWindowUpdate(
 }
 
 SpdyCredentialControlFrame* BufferedSpdyFramer::CreateCredentialFrame(
-    const spdy::SpdyCredential& credential) const {
+    const SpdyCredential& credential) const {
   return spdy_framer_.CreateCredentialFrame(credential);
 }
 
@@ -274,4 +274,4 @@ void BufferedSpdyFramer::InitHeaderStreaming(const SpdyControlFrame* frame) {
          frame_size_without_header_block);
 }
 
-}  // namespace spdy
+}  // namespace net

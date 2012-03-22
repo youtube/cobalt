@@ -40,7 +40,7 @@ class NET_EXPORT_PRIVATE SpdyWebSocketStream
     // SYN_REPLY, or HEADERS frames are received. This callback may be called
     // multiple times as SPDY's delegate does.
     virtual int OnReceivedSpdyResponseHeader(
-        const spdy::SpdyHeaderBlock& headers,
+        const SpdyHeaderBlock& headers,
         int status) = 0;
 
     // Called when data is sent.
@@ -64,7 +64,7 @@ class NET_EXPORT_PRIVATE SpdyWebSocketStream
                        RequestPriority request_priority,
                        const BoundNetLog& stream_net_log);
 
-  int SendRequest(const linked_ptr<spdy::SpdyHeaderBlock>& headers);
+  int SendRequest(const linked_ptr<SpdyHeaderBlock>& headers);
   int SendData(const char* data, int length);
   void Close();
 
@@ -72,7 +72,7 @@ class NET_EXPORT_PRIVATE SpdyWebSocketStream
   virtual bool OnSendHeadersComplete(int status) OVERRIDE;
   virtual int OnSendBody() OVERRIDE;
   virtual int OnSendBodyComplete(int status, bool* eof) OVERRIDE;
-  virtual int OnResponseReceived(const spdy::SpdyHeaderBlock& response,
+  virtual int OnResponseReceived(const SpdyHeaderBlock& response,
                                  base::Time response_time,
                                  int status) OVERRIDE;
   virtual void OnDataReceived(const char* data, int length) OVERRIDE;

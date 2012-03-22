@@ -11,7 +11,7 @@
 #include "net/spdy/spdy_frame_builder.h"
 #include "testing/platform_test.h"
 
-namespace spdy {
+namespace net {
 
 namespace test {
 
@@ -433,27 +433,9 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
 
 }  // namespace test
 
-}  // namespace spdy
-
-using spdy::SpdyControlFlags;
-using spdy::SpdyControlFrame;
-using spdy::SpdyDataFrame;
-using spdy::SpdyFrame;
-using spdy::SpdyFrameBuilder;
-using spdy::SpdyFramer;
-using spdy::SpdyHeaderBlock;
-using spdy::SpdySynStreamControlFrame;
-using spdy::kControlFlagMask;
-using spdy::kLengthMask;
-using spdy::CONTROL_FLAG_NONE;
-using spdy::DATA_FLAG_COMPRESSED;
-using spdy::DATA_FLAG_FIN;
-using spdy::SYN_STREAM;
-using spdy::test::CompareCharArraysWithHexError;
-using spdy::test::SpdyFramerTestUtil;
-using spdy::test::TestSpdyVisitor;
-
-namespace spdy {
+using test::CompareCharArraysWithHexError;
+using test::SpdyFramerTestUtil;
+using test::TestSpdyVisitor;
 
 TEST(SpdyFrameBuilderTest, WriteLimits) {
   SpdyFrameBuilder builder(kLengthMask + 4);
@@ -523,9 +505,9 @@ class SpdyFramerTest
     return true;
   }
 
-  spdy::SpdySetting SpdySettingFromWireFormat(uint32 key, uint32 value) {
-    return spdy::SpdySetting(
-        spdy::SettingsFlagsAndId::FromWireFormat(spdy_version_, key),
+  SpdySetting SpdySettingFromWireFormat(uint32 key, uint32 value) {
+    return SpdySetting(
+        SettingsFlagsAndId::FromWireFormat(spdy_version_, key),
         value);
   }
 
@@ -2645,4 +2627,4 @@ TEST_P(SpdyFramerTest, SettingsFlagsAndId) {
   EXPECT_EQ(kWireFormat, id_and_flags.GetWireFormat(spdy_version_));
 }
 
-}  // namespace
+}  // namespace net

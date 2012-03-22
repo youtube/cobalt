@@ -196,7 +196,7 @@ int SpdyHttpStream::SendRequest(const HttpRequestHeaders& request_headers,
 
   stream_->SetDelegate(this);
 
-  linked_ptr<spdy::SpdyHeaderBlock> headers(new spdy::SpdyHeaderBlock);
+  linked_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
   CreateSpdyHeadersFromHttpRequest(*request_info_, request_headers,
                                    headers.get(), stream_->GetProtocolVersion(),
                                    direct_);
@@ -294,7 +294,7 @@ int SpdyHttpStream::OnSendBody() {
   return stream_->WriteStreamData(
       request_body_buf_,
       request_body_buf_->BytesRemaining(),
-      eof ? spdy::DATA_FLAG_FIN : spdy::DATA_FLAG_NONE);
+      eof ? DATA_FLAG_FIN : DATA_FLAG_NONE);
 }
 
 int SpdyHttpStream::OnSendBodyComplete(int status, bool* eof) {
@@ -329,7 +329,7 @@ int SpdyHttpStream::OnSendBodyComplete(int status, bool* eof) {
   return OK;
 }
 
-int SpdyHttpStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response,
+int SpdyHttpStream::OnResponseReceived(const SpdyHeaderBlock& response,
                                        base::Time response_time,
                                        int status) {
   if (!response_info_) {

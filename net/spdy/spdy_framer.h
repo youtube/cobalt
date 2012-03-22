@@ -22,6 +22,7 @@
 typedef struct z_stream_s z_stream;  // Forward declaration for zlib.
 
 namespace net {
+
 class HttpProxyClientSocketPoolTest;
 class HttpNetworkLayer;
 class HttpNetworkTransactionTest;
@@ -32,9 +33,6 @@ class SpdySessionTest;
 class SpdyStreamTest;
 class SpdyWebSocketStreamTest;
 class WebSocketJobTest;
-}
-
-namespace spdy {
 
 class SpdyFramer;
 class SpdyFrameBuilder;
@@ -596,6 +594,6 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   static bool compression_default_;
 };
 
-}  // namespace spdy
+}  // namespace net
 
 #endif  // NET_SPDY_SPDY_FRAMER_H_
