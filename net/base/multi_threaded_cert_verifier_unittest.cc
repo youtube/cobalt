@@ -9,6 +9,8 @@
 #include "base/format_macros.h"
 #include "base/stringprintf.h"
 #include "net/base/cert_test_util.h"
+#include "net/base/cert_verify_proc.h"
+#include "net/base/cert_verify_result.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/test_completion_callback.h"
@@ -23,7 +25,38 @@ void FailTest(int /* result */) {
   FAIL();
 }
 
-}  // namespace;
+class MockCertVerifyProc : public CertVerifyProc {
+ public:
+  MockCertVerifyProc() {}
+
+ private:
+  virtual ~MockCertVerifyProc() {}
+
+  // CertVerifyProc implementation
+  virtual int VerifyInternal(X509Certificate* cert,
+                             const std::string& hostname,
+                             int flags,
+                             CRLSet* crl_set,
+                             CertVerifyResult* verify_result) OVERRIDE {
+    verify_result->Reset();
+    verify_result->verified_cert = cert;
+    verify_result->cert_status = CERT_STATUS_COMMON_NAME_INVALID;
+    return ERR_CERT_COMMON_NAME_INVALID;
+  }
+};
+
+}  // namespace
+
+class MultiThreadedCertVerifierTest : public ::testing::Test {
+ public:
+  MultiThreadedCertVerifierTest() {
+    verifier_.SetCertVerifyProc(new MockCertVerifyProc());
+  }
+  virtual ~MultiThreadedCertVerifierTest() {}
+
+ protected:
+  MultiThreadedCertVerifier verifier_;
+};
 
 // Tests a cache hit, which should result in synchronous completion.
 #if defined(OS_MACOSX)
@@ -32,9 +65,7 @@ void FailTest(int /* result */) {
 #else
 #define MAYBE_CacheHit CacheHit
 #endif  // defined(OS_MACOSX)
-TEST(MultiThreadedCertVerifierTest, MAYBE_CacheHit) {
-  MultiThreadedCertVerifier verifier;
-
+TEST_F(MultiThreadedCertVerifierTest, MAYBE_CacheHit) {
   FilePath certs_dir = GetTestCertsDirectory();
   scoped_refptr<X509Certificate> test_cert(
       ImportCertFromFile(certs_dir, "ok_cert.pem"));
@@ -45,35 +76,35 @@ TEST(MultiThreadedCertVerifierTest, MAYBE_CacheHit) {
   TestCompletionCallback callback;
   CertVerifier::RequestHandle request_handle;
 
-  error = verifier.Verify(test_cert, "www.example.com", 0, NULL, &verify_result,
-                          callback.callback(), &request_handle, BoundNetLog());
+  error = verifier_.Verify(test_cert, "www.example.com", 0, NULL,
+                           &verify_result, callback.callback(),
+                           &request_handle, BoundNetLog());
   ASSERT_EQ(ERR_IO_PENDING, error);
   ASSERT_TRUE(request_handle != NULL);
   error = callback.WaitForResult();
   ASSERT_TRUE(IsCertificateError(error));
-  ASSERT_EQ(1u, verifier.requests());
-  ASSERT_EQ(0u, verifier.cache_hits());
-  ASSERT_EQ(0u, verifier.inflight_joins());
-  ASSERT_EQ(1u, verifier.GetCacheSize());
+  ASSERT_EQ(1u, verifier_.requests());
+  ASSERT_EQ(0u, verifier_.cache_hits());
+  ASSERT_EQ(0u, verifier_.inflight_joins());
+  ASSERT_EQ(1u, verifier_.GetCacheSize());
 
-  error = verifier.Verify(test_cert, "www.example.com", 0, NULL, &verify_result,
-                          callback.callback(), &request_handle, BoundNetLog());
+  error = verifier_.Verify(test_cert, "www.example.com", 0, NULL,
+                           &verify_result, callback.callback(),
+                           &request_handle, BoundNetLog());
   // Synchronous completion.
   ASSERT_NE(ERR_IO_PENDING, error);
   ASSERT_TRUE(IsCertificateError(error));
   ASSERT_TRUE(request_handle == NULL);
-  ASSERT_EQ(2u, verifier.requests());
-  ASSERT_EQ(1u, verifier.cache_hits());
-  ASSERT_EQ(0u, verifier.inflight_joins());
-  ASSERT_EQ(1u, verifier.GetCacheSize());
+  ASSERT_EQ(2u, verifier_.requests());
+  ASSERT_EQ(1u, verifier_.cache_hits());
+  ASSERT_EQ(0u, verifier_.inflight_joins());
+  ASSERT_EQ(1u, verifier_.GetCacheSize());
 }
 
 // Tests the same server certificate with different intermediate CA
 // certificates.  These should be treated as different certificate chains even
 // though the two X509Certificate objects contain the same server certificate.
-TEST(MultiThreadedCertVerifierTest, DifferentCACerts) {
-  MultiThreadedCertVerifier verifier;
-
+TEST_F(MultiThreadedCertVerifierTest, DifferentCACerts) {
   FilePath certs_dir = GetTestCertsDirectory();
 
   scoped_refptr<X509Certificate> server_cert =
@@ -105,35 +136,33 @@ TEST(MultiThreadedCertVerifierTest, DifferentCACerts) {
   TestCompletionCallback callback;
   CertVerifier::RequestHandle request_handle;
 
-  error = verifier.Verify(cert_chain1, "www.example.com", 0, NULL,
-                          &verify_result, callback.callback(),
-                          &request_handle, BoundNetLog());
+  error = verifier_.Verify(cert_chain1, "www.example.com", 0, NULL,
+                           &verify_result, callback.callback(),
+                           &request_handle, BoundNetLog());
   ASSERT_EQ(ERR_IO_PENDING, error);
   ASSERT_TRUE(request_handle != NULL);
   error = callback.WaitForResult();
   ASSERT_TRUE(IsCertificateError(error));
-  ASSERT_EQ(1u, verifier.requests());
-  ASSERT_EQ(0u, verifier.cache_hits());
-  ASSERT_EQ(0u, verifier.inflight_joins());
-  ASSERT_EQ(1u, verifier.GetCacheSize());
+  ASSERT_EQ(1u, verifier_.requests());
+  ASSERT_EQ(0u, verifier_.cache_hits());
+  ASSERT_EQ(0u, verifier_.inflight_joins());
+  ASSERT_EQ(1u, verifier_.GetCacheSize());
 
-  error = verifier.Verify(cert_chain2, "www.example.com", 0, NULL,
-                          &verify_result, callback.callback(),
-                          &request_handle, BoundNetLog());
+  error = verifier_.Verify(cert_chain2, "www.example.com", 0, NULL,
+                           &verify_result, callback.callback(),
+                           &request_handle, BoundNetLog());
   ASSERT_EQ(ERR_IO_PENDING, error);
   ASSERT_TRUE(request_handle != NULL);
   error = callback.WaitForResult();
   ASSERT_TRUE(IsCertificateError(error));
-  ASSERT_EQ(2u, verifier.requests());
-  ASSERT_EQ(0u, verifier.cache_hits());
-  ASSERT_EQ(0u, verifier.inflight_joins());
-  ASSERT_EQ(2u, verifier.GetCacheSize());
+  ASSERT_EQ(2u, verifier_.requests());
+  ASSERT_EQ(0u, verifier_.cache_hits());
+  ASSERT_EQ(0u, verifier_.inflight_joins());
+  ASSERT_EQ(2u, verifier_.GetCacheSize());
 }
 
 // Tests an inflight join.
-TEST(MultiThreadedCertVerifierTest, InflightJoin) {
-  MultiThreadedCertVerifier verifier;
-
+TEST_F(MultiThreadedCertVerifierTest, InflightJoin) {
   FilePath certs_dir = GetTestCertsDirectory();
   scoped_refptr<X509Certificate> test_cert(
       ImportCertFromFile(certs_dir, "ok_cert.pem"));
@@ -147,11 +176,12 @@ TEST(MultiThreadedCertVerifierTest, InflightJoin) {
   TestCompletionCallback callback2;
   CertVerifier::RequestHandle request_handle2;
 
-  error = verifier.Verify(test_cert, "www.example.com", 0, NULL, &verify_result,
-                          callback.callback(), &request_handle, BoundNetLog());
+  error = verifier_.Verify(test_cert, "www.example.com", 0, NULL,
+                           &verify_result, callback.callback(),
+                           &request_handle, BoundNetLog());
   ASSERT_EQ(ERR_IO_PENDING, error);
   ASSERT_TRUE(request_handle != NULL);
-  error = verifier.Verify(
+  error = verifier_.Verify(
       test_cert, "www.example.com", 0, NULL, &verify_result2,
       callback2.callback(), &request_handle2, BoundNetLog());
   ASSERT_EQ(ERR_IO_PENDING, error);
@@ -160,15 +190,13 @@ TEST(MultiThreadedCertVerifierTest, InflightJoin) {
   ASSERT_TRUE(IsCertificateError(error));
   error = callback2.WaitForResult();
   ASSERT_TRUE(IsCertificateError(error));
-  ASSERT_EQ(2u, verifier.requests());
-  ASSERT_EQ(0u, verifier.cache_hits());
-  ASSERT_EQ(1u, verifier.inflight_joins());
+  ASSERT_EQ(2u, verifier_.requests());
+  ASSERT_EQ(0u, verifier_.cache_hits());
+  ASSERT_EQ(1u, verifier_.inflight_joins());
 }
 
 // Tests that the callback of a canceled request is never made.
-TEST(MultiThreadedCertVerifierTest, CancelRequest) {
-  MultiThreadedCertVerifier verifier;
-
+TEST_F(MultiThreadedCertVerifierTest, CancelRequest) {
   FilePath certs_dir = GetTestCertsDirectory();
   scoped_refptr<X509Certificate> test_cert(
       ImportCertFromFile(certs_dir, "ok_cert.pem"));
@@ -178,32 +206,30 @@ TEST(MultiThreadedCertVerifierTest, CancelRequest) {
   CertVerifyResult verify_result;
   CertVerifier::RequestHandle request_handle;
 
-  error = verifier.Verify(
+  error = verifier_.Verify(
       test_cert, "www.example.com", 0, NULL, &verify_result,
       base::Bind(&FailTest), &request_handle, BoundNetLog());
   ASSERT_EQ(ERR_IO_PENDING, error);
   ASSERT_TRUE(request_handle != NULL);
-  verifier.CancelRequest(request_handle);
+  verifier_.CancelRequest(request_handle);
 
   // Issue a few more requests to the worker pool and wait for their
   // completion, so that the task of the canceled request (which runs on a
   // worker thread) is likely to complete by the end of this test.
   TestCompletionCallback callback;
   for (int i = 0; i < 5; ++i) {
-    error = verifier.Verify(
+    error = verifier_.Verify(
         test_cert, "www2.example.com", 0, NULL, &verify_result,
         callback.callback(), &request_handle, BoundNetLog());
     ASSERT_EQ(ERR_IO_PENDING, error);
     ASSERT_TRUE(request_handle != NULL);
     error = callback.WaitForResult();
-    verifier.ClearCache();
+    verifier_.ClearCache();
   }
 }
 
 // Tests that a canceled request is not leaked.
-TEST(MultiThreadedCertVerifierTest, CancelRequestThenQuit) {
-  MultiThreadedCertVerifier verifier;
-
+TEST_F(MultiThreadedCertVerifierTest, CancelRequestThenQuit) {
   FilePath certs_dir = GetTestCertsDirectory();
   scoped_refptr<X509Certificate> test_cert(
       ImportCertFromFile(certs_dir, "ok_cert.pem"));
@@ -214,15 +240,16 @@ TEST(MultiThreadedCertVerifierTest, CancelRequestThenQuit) {
   TestCompletionCallback callback;
   CertVerifier::RequestHandle request_handle;
 
-  error = verifier.Verify(test_cert, "www.example.com", 0, NULL, &verify_result,
-                          callback.callback(), &request_handle, BoundNetLog());
+  error = verifier_.Verify(test_cert, "www.example.com", 0, NULL,
+                           &verify_result, callback.callback(),
+                           &request_handle, BoundNetLog());
   ASSERT_EQ(ERR_IO_PENDING, error);
   ASSERT_TRUE(request_handle != NULL);
-  verifier.CancelRequest(request_handle);
+  verifier_.CancelRequest(request_handle);
   // Destroy |verifier| by going out of scope.
 }
 
-TEST(MultiThreadedCertVerifierTest, RequestParamsComparators) {
+TEST_F(MultiThreadedCertVerifierTest, RequestParamsComparators) {
   SHA1Fingerprint a_key;
   memset(a_key.data, 'a', sizeof(a_key.data));
 
