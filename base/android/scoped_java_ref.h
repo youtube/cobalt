@@ -22,7 +22,6 @@ template<typename T> class JavaRef;
 template<>
 class JavaRef<jobject> {
  public:
-  JNIEnv* env() const { return env_; }
   jobject obj() const { return obj_; }
 
   bool is_null() const { return obj_ == NULL; }
@@ -39,14 +38,13 @@ class JavaRef<jobject> {
 
   // The following are implementation detail convenience methods, for
   // use by the sub-classes.
-  void SetNewLocalRef(JNIEnv* env, jobject obj);
+  JNIEnv* SetNewLocalRef(JNIEnv* env, jobject obj);
   void SetNewGlobalRef(JNIEnv* env, jobject obj);
-  void ResetLocalRef();
+  void ResetLocalRef(JNIEnv* env);
   void ResetGlobalRef();
   jobject ReleaseInternal();
 
  private:
-  JNIEnv* env_;
   jobject obj_;
 
   DISALLOW_COPY_AND_ASSIGN(JavaRef);
@@ -71,31 +69,36 @@ class JavaRef : public JavaRef<jobject> {
 };
 
 // Holds a local reference to a Java object. The local reference is scoped
-// to the lifetime of this object. Note that since a JNI Env is only suitable
-// for use on a single thread, objects of this class must be created, used and
-// destroyed on the same thread.
-// In general, this class should only be used as a stack-based object. If you
-// wish to have the reference outlive the current callstack (e.g. as a class
-// member) use ScopedJavaGlobalRef instead.
+// to the lifetime of this object.
+// Instances of this class may hold onto any JNIEnv passed into it until
+// destroyed. Therefore, since a JNIEnv is only suitable for use on a single
+// thread, objects of this class must be created, used, and destroyed, on a
+// single thread.
+// Therefore, this class should only be used as a stack-based object and from a
+// single thread. If you wish to have the reference outlive the current
+// callstack (e.g. as a class member) or you wish to pass it across threads,
+// use a ScopedJavaGlobalRef instead.
 template<typename T>
 class ScopedJavaLocalRef : public JavaRef<T> {
  public:
-  ScopedJavaLocalRef() {}
+  ScopedJavaLocalRef() : env_(NULL) {}
 
   // Non-explicit copy constructor, to allow ScopedJavaLocalRef to be returned
   // by value as this is the normal usage pattern.
-  ScopedJavaLocalRef(const ScopedJavaLocalRef<T>& other) {
-    this->Reset(other);
+  ScopedJavaLocalRef(const ScopedJavaLocalRef<T>& other)
+      : env_(other.env_) {
+    this->SetNewLocalRef(env_, other.obj());
   }
 
   template<typename U>
-  explicit ScopedJavaLocalRef(const U& other) {
+  explicit ScopedJavaLocalRef(const U& other)
+      : env_(NULL) {
     this->Reset(other);
   }
 
   // Assumes that |obj| is a local reference to a Java object and takes
   // ownership  of this local reference.
-  ScopedJavaLocalRef(JNIEnv* env, T obj) : JavaRef<T>(env, obj) {}
+  ScopedJavaLocalRef(JNIEnv* env, T obj) : JavaRef<T>(env, obj), env_(env) {}
 
   ~ScopedJavaLocalRef() {
     this->Reset();
@@ -108,18 +111,28 @@ class ScopedJavaLocalRef : public JavaRef<T> {
   }
 
   void Reset() {
-    this->ResetLocalRef();
+    this->ResetLocalRef(env_);
+  }
+
+  template<typename U>
+  void Reset(const ScopedJavaLocalRef<U>& other) {
+    // We can copy over env_ here as |other| instance must be from the same
+    // thread as |this| local ref. (See class comment for multi-threading
+    // limitations, and alternatives).
+    this->Reset(other.env_, other.obj());
   }
 
   template<typename U>
   void Reset(const U& other) {
-    this->Reset(other.env(), other.obj());
+    // If |env_| was not yet set (is still NULL) it will be attached to the
+    // current thread in SetNewLocalRef().
+    this->Reset(env_, other.obj());
   }
 
   template<typename U>
   void Reset(JNIEnv* env, U obj) {
     implicit_cast<T>(obj);  // Ensure U is assignable to T
-    this->SetNewLocalRef(env, obj);
+    env_ = this->SetNewLocalRef(env, obj);
   }
 
   // Releases the local reference to the caller. The caller *must* delete the
@@ -127,12 +140,17 @@ class ScopedJavaLocalRef : public JavaRef<T> {
   T Release() {
     return static_cast<T>(this->ReleaseInternal());
   }
+
+ private:
+  // This class is only good for use on the thread it was created on so
+  // it's safe to cache the non-threadsafe JNIEnv* inside this object.
+  JNIEnv* env_;
 };
 
 // Holds a global reference to a Java object. The global reference is scoped
-// to the lifetime of this object. Note that since a JNI Env is only suitable
-// for use on a single thread, objects of this class must be created, used and
-// destroyed on the same thread.
+// to the lifetime of this object. This class does not hold onto any JNIEnv*
+// passed to it, hence it is safe to use across threads (within the constraints
+// imposed by the underlying Java object that it references).
 template<typename T>
 class ScopedJavaGlobalRef : public JavaRef<T> {
  public:
@@ -157,7 +175,7 @@ class ScopedJavaGlobalRef : public JavaRef<T> {
 
   template<typename U>
   void Reset(const U& other) {
-    this->Reset(other.env(), other.obj());
+    this->Reset(NULL, other.obj());
   }
 
   template<typename U>
