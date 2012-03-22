@@ -25,10 +25,6 @@ class SpdyHttpStreamSpdy3Test : public testing::Test {
  protected:
   SpdyHttpStreamSpdy3Test() {}
 
-  void EnableCompression(bool enabled) {
-    spdy::SpdyFramer::set_enable_compression_default(enabled);
-  }
-
   virtual void SetUp() {
     SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY3);
   }
@@ -74,11 +70,12 @@ class SpdyHttpStreamSpdy3Test : public testing::Test {
   scoped_refptr<HttpNetworkSession> http_session_;
   scoped_refptr<SpdySession> session_;
   scoped_refptr<TransportSocketParams> transport_params_;
+
+ private:
+  SpdyTestStateHelper spdy_state_;
 };
 
 TEST_F(SpdyHttpStreamSpdy3Test, SendRequest) {
-  EnableCompression(false);
-
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
   MockWrite writes[] = {
     CreateMockWrite(*req.get(), 1),
@@ -125,7 +122,6 @@ TEST_F(SpdyHttpStreamSpdy3Test, SendRequest) {
 }
 
 TEST_F(SpdyHttpStreamSpdy3Test, SendChunkedPost) {
-  EnableCompression(false);
   UploadDataStream::set_merge_chunks(false);
 
   scoped_ptr<spdy::SpdyFrame> req(ConstructChunkedSpdyPost(NULL, 0));
@@ -188,8 +184,6 @@ TEST_F(SpdyHttpStreamSpdy3Test, SendChunkedPost) {
 
 // Test case for bug: http://code.google.com/p/chromium/issues/detail?id=50058
 TEST_F(SpdyHttpStreamSpdy3Test, SpdyURLTest) {
-  EnableCompression(false);
-
   const char * const full_url = "http://www.google.com/foo?query=what#anchor";
   const char * const base_url = "http://www.google.com/foo?query=what";
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(base_url, false, 1, LOWEST));
@@ -297,8 +291,6 @@ void SpdyHttpStreamSpdy3Test::TestSendCredentials(
     const std::string& cert,
     const std::string& proof,
     SSLClientCertType type) {
-  EnableCompression(false);
-
   spdy::SpdyCredential cred;
   cred.slot = 1;
   cred.proof = proof;

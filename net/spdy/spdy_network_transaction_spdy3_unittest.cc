@@ -39,8 +39,6 @@ class SpdyNetworkTransactionSpdy3Test
  protected:
 
   virtual void SetUp() {
-    // By default, all tests turn off compression.
-    EnableCompression(false);
     SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY3);
     google_get_request_initialized_ = false;
     google_post_request_initialized_ = false;
@@ -58,10 +56,6 @@ class SpdyNetworkTransactionSpdy3Test
     std::string response_data;
     HttpResponseInfo response_info;
   };
-
-  void EnableCompression(bool enabled) {
-    spdy::SpdyFramer::set_enable_compression_default(enabled);
-  }
 
   // A helper class that handles all the initial npn/ssl setup.
   class NormalSpdyTransactionHelper {
@@ -530,6 +524,7 @@ class SpdyNetworkTransactionSpdy3Test
   HttpRequestInfo google_post_request_;
   HttpRequestInfo google_chunked_post_request_;
   HttpRequestInfo google_get_push_request_;
+  SpdyTestStateHelper spdy_state_;
 };
 
 //-----------------------------------------------------------------------------
@@ -1056,8 +1051,6 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ThreeGetsWithMaxConcurrent) {
 // user specified priority, we expect to see them inverted in
 // the response from the server.
 TEST_P(SpdyNetworkTransactionSpdy3Test, FourGetsWithMaxConcurrentPriority) {
-  SpdySession::set_enable_ping_based_connection_checking(false);
-
   // Construct the request.
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
@@ -3808,7 +3801,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, PartialWrite) {
 // the server.  Verify that teardown is all clean.
 TEST_P(SpdyNetworkTransactionSpdy3Test, DecompressFailureOnSynReply) {
   // For this test, we turn on the normal compression.
-  EnableCompression(true);
+  spdy::SpdyFramer::set_enable_compression_default(true);
 
   scoped_ptr<spdy::SpdyFrame> compressed(
       ConstructSpdyGet(NULL, 0, true, 1, LOWEST));
@@ -3833,8 +3826,6 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, DecompressFailureOnSynReply) {
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, out.rv);
   data->Reset();
-
-  EnableCompression(false);
 }
 
 // Test that the NetLog contains good data for a simple GET request.

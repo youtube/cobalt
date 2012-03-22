@@ -20,19 +20,13 @@ namespace net {
 // TODO(cbentzel): Expose compression setter/getter in public SpdySession
 //                 interface rather than going through all these contortions.
 class SpdySessionSpdy2Test : public PlatformTest {
- public:
-  static void TurnOffCompression() {
-    spdy::SpdyFramer::set_enable_compression_default(false);
-  }
  protected:
   virtual void SetUp() {
     SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY2);
   }
 
-  virtual void TearDown() {
-    // Wanted to be 100% sure PING is disabled.
-    SpdySession::set_enable_ping_based_connection_checking(false);
-  }
+ private:
+  SpdyTestStateHelper spdy_state_;
 };
 
 class TestSpdyStreamDelegate : public net::SpdyStream::Delegate {
