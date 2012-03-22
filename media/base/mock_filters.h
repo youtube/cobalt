@@ -233,7 +233,7 @@ class MockVideoRenderer : public VideoRenderer {
   MOCK_METHOD0(OnAudioRendererDisabled, void());
 
   // VideoRenderer implementation.
-  MOCK_METHOD4(Initialize, void(VideoDecoder* decoder,
+  MOCK_METHOD4(Initialize, void(const scoped_refptr<VideoDecoder>& decoder,
                                 const PipelineStatusCB& status_cb,
                                 const StatisticsCB& statistics_cb,
                                 const TimeCB& time_cb));
