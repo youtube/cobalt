@@ -1,8 +1,13 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 namespace {
+
+// This is the SHA1 hash of the SubjectPublicKeyInfo of nist.der.
+static const char nistSPKIHash[] =
+    "\x15\x60\xde\x65\x4e\x03\x9f\xd0\x08\x82"
+    "\xa9\x6a\xc4\x65\x8e\x6f\x92\x06\x84\x35";
 
 // Certificates for test data. They're obtained with:
 //

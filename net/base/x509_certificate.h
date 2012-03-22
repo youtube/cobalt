@@ -375,32 +375,6 @@ class NET_EXPORT X509Certificate
   static X509_STORE* cert_store();
 #endif
 
-  // Verifies the certificate against the given hostname.  Returns OK if
-  // successful or an error code upon failure.
-  //
-  // The |*verify_result| structure, including the |verify_result->cert_status|
-  // bitmask, is always filled out regardless of the return value.  If the
-  // certificate has multiple errors, the corresponding status flags are set in
-  // |verify_result->cert_status|, and the error code for the most serious
-  // error is returned.
-  //
-  // |flags| is bitwise OR'd of VerifyFlags:
-  //
-  // If VERIFY_REV_CHECKING_ENABLED is set in |flags|, online certificate
-  // revocation checking is performed (i.e. OCSP and downloading CRLs). CRLSet
-  // based revocation checking is always enabled, regardless of this flag, if
-  // |crl_set| is given.
-  //
-  // If VERIFY_EV_CERT is set in |flags| too, EV certificate verification is
-  // performed.
-  //
-  // |crl_set| points to an optional CRLSet structure which can be used to
-  // avoid revocation checks over the network.
-  int Verify(const std::string& hostname,
-             int flags,
-             CRLSet* crl_set,
-             CertVerifyResult* verify_result) const;
-
   // Verifies that |hostname| matches this certificate.
   // Does not verify that the certificate is valid, only that the certificate
   // matches this host.
@@ -481,11 +455,12 @@ class NET_EXPORT X509Certificate
  private:
   friend class base::RefCountedThreadSafe<X509Certificate>;
   friend class TestRootCerts;  // For unit tests
-  FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, Cache);
-  FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, IntermediateCertificates);
-  FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, SerialNumbers);
-  FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, DigiNotarCerts);
+  // TODO(rsleevi): Temporary refactoring - http://crbug.com/114343
+  friend class CertVerifyProcStub;
+
   FRIEND_TEST_ALL_PREFIXES(X509CertificateNameVerifyTest, VerifyHostname);
+  FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, DigiNotarCerts);
+  FRIEND_TEST_ALL_PREFIXES(X509CertificateTest, SerialNumbers);
 
   // Construct an X509Certificate from a handle to the certificate object
   // in the underlying crypto library.
@@ -496,6 +471,32 @@ class NET_EXPORT X509Certificate
 
   // Common object initialization code.  Called by the constructors only.
   void Initialize();
+
+  // Verifies the certificate against the given hostname.  Returns OK if
+  // successful or an error code upon failure.
+  //
+  // The |*verify_result| structure, including the |verify_result->cert_status|
+  // bitmask, is always filled out regardless of the return value.  If the
+  // certificate has multiple errors, the corresponding status flags are set in
+  // |verify_result->cert_status|, and the error code for the most serious
+  // error is returned.
+  //
+  // |flags| is bitwise OR'd of VerifyFlags:
+  //
+  // If VERIFY_REV_CHECKING_ENABLED is set in |flags|, online certificate
+  // revocation checking is performed (i.e. OCSP and downloading CRLs). CRLSet
+  // based revocation checking is always enabled, regardless of this flag, if
+  // |crl_set| is given.
+  //
+  // If VERIFY_EV_CERT is set in |flags| too, EV certificate verification is
+  // performed.
+  //
+  // |crl_set| points to an optional CRLSet structure which can be used to
+  // avoid revocation checks over the network.
+  int Verify(const std::string& hostname,
+             int flags,
+             CRLSet* crl_set,
+             CertVerifyResult* verify_result) const;
 
 #if defined(OS_WIN)
   bool CheckEV(PCCERT_CHAIN_CONTEXT chain_context,
