@@ -6,6 +6,7 @@
 #define MEDIA_BASE_VIDEO_FRAME_H_
 
 #include "base/callback.h"
+#include "base/md5.h"
 #include "media/base/buffers.h"
 
 namespace media {
@@ -105,6 +106,10 @@ class MEDIA_EXPORT VideoFrame : public StreamSample {
 
   // StreamSample interface.
   virtual bool IsEndOfStream() const OVERRIDE;
+
+  // Used to keep a running hash of seen frames.  Expects an initialized MD5
+  // context.  Calls MD5Update with the context and the contents of the frame.
+  void HashFrameForTesting(base::MD5Context* context);
 
  private:
   // Clients must use the static CreateFrame() method to create a new frame.

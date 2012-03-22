@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,6 +13,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace media {
+
+using base::MD5DigestToBase16;
 
 // Helper function that initializes a YV12 frame with white and black scan
 // lines based on the |white_to_black| parameter.  If 0, then the entire
@@ -112,11 +114,21 @@ TEST(VideoFrame, CreateFrame) {
     InitializeYV12Frame(frame, 0.0f);
     ExpectFrameColor(frame, 0xFF000000);
   }
+  base::MD5Digest digest;
+  base::MD5Context context;
+  base::MD5Init(&context);
+  frame->HashFrameForTesting(&context);
+  base::MD5Final(&digest, &context);
+  EXPECT_EQ(MD5DigestToBase16(digest), "9065c841d9fca49186ef8b4ef547e79b");
   {
     SCOPED_TRACE("");
     InitializeYV12Frame(frame, 1.0f);
     ExpectFrameColor(frame, 0xFFFFFFFF);
   }
+  base::MD5Init(&context);
+  frame->HashFrameForTesting(&context);
+  base::MD5Final(&digest, &context);
+  EXPECT_EQ(MD5DigestToBase16(digest), "911991d51438ad2e1a40ed5f6fc7c796");
 
   // Test an empty frame.
   frame = VideoFrame::CreateEmptyFrame();
