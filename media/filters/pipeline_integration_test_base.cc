@@ -5,7 +5,6 @@
 #include "media/filters/pipeline_integration_test_base.h"
 
 #include "base/bind.h"
-#include "base/string_piece.h"
 #include "media/base/media_log.h"
 #include "media/filters/chunk_demuxer_factory.h"
 #include "media/filters/ffmpeg_audio_decoder.h"
@@ -17,6 +16,8 @@
 using ::testing::AnyNumber;
 
 namespace media {
+
+const char kNullVideoHash[] = "d41d8cd98f00b204e9800998ecf8427e";
 
 PipelineIntegrationTestBase::PipelineIntegrationTestBase()
     : message_loop_factory_(new MessageLoopFactory()),
@@ -185,12 +186,7 @@ void PipelineIntegrationTestBase::OnVideoRendererPaint() {
   scoped_refptr<VideoFrame> frame;
   renderer_->GetCurrentFrame(&frame);
   if (frame)
-    base::MD5Update(
-        &md5_context_,
-        base::StringPiece(
-            reinterpret_cast<char*>(frame->data(VideoFrame::kRGBPlane)),
-            (frame->rows(VideoFrame::kRGBPlane) *
-             frame->row_bytes(VideoFrame::kRGBPlane))));
+    frame->HashFrameForTesting(&md5_context_);
   renderer_->PutCurrentFrame(frame);
 }
 

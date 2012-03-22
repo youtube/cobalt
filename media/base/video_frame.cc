@@ -5,6 +5,7 @@
 #include "media/base/video_frame.h"
 
 #include "base/logging.h"
+#include "base/string_piece.h"
 #include "media/base/limits.h"
 #include "media/base/video_util.h"
 
@@ -270,6 +271,18 @@ uint32 VideoFrame::texture_target() const {
 
 bool VideoFrame::IsEndOfStream() const {
   return format_ == VideoFrame::EMPTY;
+}
+
+void VideoFrame::HashFrameForTesting(base::MD5Context* context) {
+  for(int plane = 0; plane < kMaxPlanes; plane++) {
+    if (!IsValidPlane(plane))
+      break;
+    for(int row = 0; row < rows(plane); row++) {
+      base::MD5Update(context, base::StringPiece(
+          reinterpret_cast<char*>(data(plane) + stride(plane) * row),
+          row_bytes(plane)));
+    }
+  }
 }
 
 }  // namespace media

@@ -17,7 +17,7 @@
 namespace media {
 
 // Empty MD5 hash string.  Used to verify videos which have decoded no frames.
-static const char kNullVideoHash[] = "d41d8cd98f00b204e9800998ecf8427e";
+extern const char kNullVideoHash[];
 
 // Integration tests for Pipeline. Real demuxers, real decoders, and
 // base renderer implementations are used to verify pipeline functionality. The

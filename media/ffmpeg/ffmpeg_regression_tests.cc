@@ -18,6 +18,14 @@
 //
 // Test cases labeled FLAKY may not always pass, but they should never crash or
 // cause any kind of warnings or errors under tooling.
+//
+// Frame hashes must be generated with --video-threads=1 for correctness.
+//
+// Known issues:
+//    Cr47325 will generate an UninitValue error under Valgrind inside of the
+//    MD5 hashing code.  The error occurs due to some problematic error
+//    resilence code for H264 inside of FFmpeg.  See http://crbug.com/119020
+//
 
 #include "media/filters/pipeline_integration_test_base.h"
 
@@ -56,17 +64,17 @@ class FFmpegRegressionTest
 
 // Test cases from issues.
 FFMPEG_TEST_CASE(Cr47325, "security/47325.mp4", PIPELINE_OK, PIPELINE_OK,
-                 "bdb3976d86c531b43a4c9d43fa5e7dc2");
+                 "2a7a938c6b5979621cec998f02d9bbb6");
 FFMPEG_TEST_CASE(Cr93620, "security/93620.ogg", PIPELINE_OK, PIPELINE_OK,
                  kNullVideoHash);
 FFMPEG_TEST_CASE(Cr100492, "security/100492.webm", DECODER_ERROR_NOT_SUPPORTED,
                  DECODER_ERROR_NOT_SUPPORTED, kNullVideoHash);
 FFMPEG_TEST_CASE(Cr100543, "security/100543.webm", PIPELINE_OK, PIPELINE_OK,
-                 "17d7079458ef351b813c100ce87afbe6");
+                 "c16691cc9178db3adbf7e562cadcd6e6");
 FFMPEG_TEST_CASE(Cr101458, "security/101458.webm", DECODER_ERROR_NOT_SUPPORTED,
                  DECODER_ERROR_NOT_SUPPORTED, kNullVideoHash);
 FFMPEG_TEST_CASE(Cr108416, "security/108416.webm", PIPELINE_OK, PIPELINE_OK,
-                 "d5559b43d7406aac33bfeafceaf86fe9");
+                 "5cb3a934795cd552753dec7687928291");
 FFMPEG_TEST_CASE(Cr110849, "security/110849.mkv", DEMUXER_ERROR_COULD_NOT_PARSE,
                  DEMUXER_ERROR_COULD_NOT_PARSE, kNullVideoHash);
 FFMPEG_TEST_CASE(Cr112384, "security/112384.webm",
@@ -149,7 +157,7 @@ FFMPEG_TEST_CASE(OGV_18, "security/wav.711.ogv", DECODER_ERROR_NOT_SUPPORTED,
 
 // General WebM test cases.
 FFMPEG_TEST_CASE(WEBM_1, "security/no-bug.webm", PIPELINE_OK, PIPELINE_OK,
-                 "20536f9ce571c5830bb7c782584223fd");
+                 "39e92700cbb77478fd63f49db855e7e5");
 FFMPEG_TEST_CASE(WEBM_2, "security/uninitialize.webm", PIPELINE_ERROR_DECODE,
                  PIPELINE_ERROR_DECODE, kNullVideoHash);
 FFMPEG_TEST_CASE(WEBM_3, "security/out.webm.139771.2965",
@@ -159,34 +167,34 @@ FFMPEG_TEST_CASE(WEBM_4, "security/out.webm.68798.1929",
                  DECODER_ERROR_NOT_SUPPORTED, DECODER_ERROR_NOT_SUPPORTED,
                  kNullVideoHash);
 FFMPEG_TEST_CASE(WEBM_5, "content/frame_size_change.webm", PIPELINE_OK,
-                 PIPELINE_OK, "0e89c98da281067d58f8459eca0f35ba");
+                 PIPELINE_OK, "d8fcf2896b7400a2261bac9e9ea930f8");
 FFMPEG_TEST_CASE(WEBM_6, "security/117912.webm", DEMUXER_ERROR_COULD_NOT_OPEN,
                  DEMUXER_ERROR_COULD_NOT_OPEN, kNullVideoHash);
 
 // Flaky under threading, maybe larger issues.  Values were set with
 // --video-threads=1 under the hope that they may one day pass with threading.
 FFMPEG_TEST_CASE(FLAKY_Cr99652, "security/99652.webm", PIPELINE_OK,
-                 PIPELINE_ERROR_DECODE, "43db203056009b7ff3ac145a3488807a");
+                 PIPELINE_ERROR_DECODE, "97956dca8897484fbd0dd1169578adbf");
 FFMPEG_TEST_CASE(FLAKY_Cr100464, "security/100464.webm", PIPELINE_OK,
-                 PIPELINE_OK, "985cff66e292f3064bf853e8943fd8c8");
+                 PIPELINE_OK, "a32ddb4ac5ca89429e1a3c968e876ce8");
 FFMPEG_TEST_CASE(FLAKY_OGV_3, "security/smclock_1_0.ogv", PIPELINE_OK,
-                 PIPELINE_OK, "6923c1e1c6354d8e00cd57b7b66c9b02");
+                 PIPELINE_OK, "2f7aa71ce789e47a1dde98ecdd774679");
 FFMPEG_TEST_CASE(FLAKY_OGV_4, "security/smclock.ogv.1.0.ogv",
-                 PIPELINE_OK, PIPELINE_OK, "6923c1e1c6354d8e00cd57b7b66c9b02");
+                 PIPELINE_OK, PIPELINE_OK, "2f7aa71ce789e47a1dde98ecdd774679");
 FFMPEG_TEST_CASE(FLAKY_OGV_13, "security/smclocktheora_1_790.ogv",
-                 PIPELINE_OK, PIPELINE_OK, "6923c1e1c6354d8e00cd57b7b66c9b02");
+                 PIPELINE_OK, PIPELINE_OK, "2f7aa71ce789e47a1dde98ecdd774679");
 FFMPEG_TEST_CASE(FLAKY_MP4_4, "security/clockh264aac_301350139.mp4",
-                 PIPELINE_OK, PIPELINE_OK, "87c110e9d0bbaf7a2d9757dc8e2ce9d7");
+                 PIPELINE_OK, PIPELINE_OK, "bf1dbeb4ee6edb1b6c78742f4943c162");
 
-// Flaky due to other non-threading related reasons:
+// Flaky due to other non-threading related reasons.
 FFMPEG_TEST_CASE(FLAKY_Cr111342, "security/111342.ogm", PIPELINE_OK,
-                 PIPELINE_ERROR_DECODE, "a79faa6f4ccb1734e2143d5d37482448");
+                 PIPELINE_ERROR_DECODE, "8a14eb9ce0671194a0b04fee8b0b5368");
 FFMPEG_TEST_CASE(FLAKY_OGV_0, "security/big_dims.ogv", PIPELINE_OK,
-                 PIPELINE_OK, "c5c23c1e0958a4a4756c35d045f94e0e");
+                 PIPELINE_OK, "c76ac9c5e9f3b8edaa341d9ee74739f4");
 FFMPEG_TEST_CASE(FLAKY_OGV_6, "security/smclocktheora_1_10000.ogv",
-                 PIPELINE_OK, PIPELINE_OK, "cdce61e17a8058c6ac5fca92cd3e4a86");
+                 PIPELINE_OK, PIPELINE_OK, "b16734719247275c9d9c828d25ffd4bf");
 FFMPEG_TEST_CASE(FLAKY_MP4_3, "security/clockh264aac_300413969.mp4",
-                 PIPELINE_OK, PIPELINE_OK, "3781a90401195dfb6ad3e4dbc4888f4f");
+                 PIPELINE_OK, PIPELINE_OK, "b7659b127be88829a68d8a9aa625795e");
 
 // Hangs. http://crbug.com/117038
 // FFMPEG_TEST_CASE(WEBM_0, "security/memcpy.webm", PIPELINE_OK, PIPELINE_OK);
