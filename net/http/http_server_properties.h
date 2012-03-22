@@ -37,7 +37,7 @@ struct NET_EXPORT PortAlternateProtocolPair {
 };
 
 typedef std::map<HostPortPair, PortAlternateProtocolPair> AlternateProtocolMap;
-typedef std::map<HostPortPair, spdy::SpdySettings> SpdySettingsMap;
+typedef std::map<HostPortPair, SpdySettings> SpdySettingsMap;
 typedef std::map<HostPortPair,
         HttpPipelinedHostCapability> PipelineCapabilityMap;
 
@@ -86,19 +86,19 @@ class NET_EXPORT HttpServerProperties {
 
   // Gets a reference to the SpdySettings stored for a host.
   // If no settings are stored, returns an empty set of settings.
-  virtual const spdy::SpdySettings& GetSpdySettings(
+  virtual const SpdySettings& GetSpdySettings(
       const HostPortPair& host_port_pair) const = 0;
 
   // Saves settings for a host. Returns true if SpdySettings are to be
   // persisted. Used by unittests only.
   // TODO(rtenneti): Move this method to test utility file.
   virtual bool SetSpdySettings(const HostPortPair& host_port_pair,
-                               const spdy::SpdySettings& settings) = 0;
+                               const SpdySettings& settings) = 0;
 
   // Saves an individual setting for a host. Returns true if SpdySetting is to
   // be persisted.
   virtual bool SetSpdySetting(const HostPortPair& host_port_pair,
-                              const spdy::SpdySetting& setting) = 0;
+                              const SpdySetting& setting) = 0;
 
   // Clears all spdy_settings.
   virtual void ClearSpdySettings() = 0;

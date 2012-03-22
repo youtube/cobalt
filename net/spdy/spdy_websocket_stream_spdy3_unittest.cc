@@ -21,6 +21,8 @@
 
 using namespace net::test_spdy3;
 
+namespace net {
+
 namespace {
 
 struct SpdyWebSocketStreamEvent {
@@ -33,7 +35,7 @@ struct SpdyWebSocketStreamEvent {
     EVENT_CLOSE,
   };
   SpdyWebSocketStreamEvent(EventType type,
-                           const spdy::SpdyHeaderBlock& headers,
+                           const SpdyHeaderBlock& headers,
                            int result,
                            const std::string& data)
       : event_type(type),
@@ -42,16 +44,10 @@ struct SpdyWebSocketStreamEvent {
         data(data) {}
 
   EventType event_type;
-  spdy::SpdyHeaderBlock headers;
+  SpdyHeaderBlock headers;
   int result;
   std::string data;
 };
-
-}  // namespace
-
-namespace net {
-
-namespace {
 
 class SpdyWebSocketStreamEventRecorder : public SpdyWebSocketStream::Delegate {
  public:
@@ -85,7 +81,7 @@ class SpdyWebSocketStreamEventRecorder : public SpdyWebSocketStream::Delegate {
   virtual void OnCreatedSpdyStream(int result) {
     events_.push_back(
         SpdyWebSocketStreamEvent(SpdyWebSocketStreamEvent::EVENT_CREATED,
-                                 spdy::SpdyHeaderBlock(),
+                                 SpdyHeaderBlock(),
                                  result,
                                  std::string()));
     if (!on_created_.is_null())
@@ -94,14 +90,14 @@ class SpdyWebSocketStreamEventRecorder : public SpdyWebSocketStream::Delegate {
   virtual void OnSentSpdyHeaders(int result) {
     events_.push_back(
         SpdyWebSocketStreamEvent(SpdyWebSocketStreamEvent::EVENT_SENT_HEADERS,
-                                 spdy::SpdyHeaderBlock(),
+                                 SpdyHeaderBlock(),
                                  result,
                                  std::string()));
     if (!on_sent_data_.is_null())
       on_sent_data_.Run(&events_.back());
   }
   virtual int OnReceivedSpdyResponseHeader(
-      const spdy::SpdyHeaderBlock& headers, int status) {
+      const SpdyHeaderBlock& headers, int status) {
     events_.push_back(
         SpdyWebSocketStreamEvent(
             SpdyWebSocketStreamEvent::EVENT_RECEIVED_HEADER,
@@ -116,7 +112,7 @@ class SpdyWebSocketStreamEventRecorder : public SpdyWebSocketStream::Delegate {
     events_.push_back(
         SpdyWebSocketStreamEvent(
             SpdyWebSocketStreamEvent::EVENT_SENT_DATA,
-            spdy::SpdyHeaderBlock(),
+            SpdyHeaderBlock(),
             amount_sent,
             std::string()));
     if (!on_sent_data_.is_null())
@@ -126,7 +122,7 @@ class SpdyWebSocketStreamEventRecorder : public SpdyWebSocketStream::Delegate {
     events_.push_back(
         SpdyWebSocketStreamEvent(
             SpdyWebSocketStreamEvent::EVENT_RECEIVED_DATA,
-            spdy::SpdyHeaderBlock(),
+            SpdyHeaderBlock(),
             length,
             std::string(data, length)));
     if (!on_received_data_.is_null())
@@ -136,7 +132,7 @@ class SpdyWebSocketStreamEventRecorder : public SpdyWebSocketStream::Delegate {
     events_.push_back(
         SpdyWebSocketStreamEvent(
             SpdyWebSocketStreamEvent::EVENT_CLOSE,
-            spdy::SpdyHeaderBlock(),
+            SpdyHeaderBlock(),
             OK,
             std::string()));
     if (!on_close_.is_null())
@@ -197,22 +193,22 @@ class SpdyWebSocketStreamSpdy3Test : public testing::Test {
     host_port_proxy_pair_.second = ProxyServer::Direct();
 
     const size_t max_concurrent_streams = 1;
-    spdy::SettingsFlagsAndId id(spdy::SETTINGS_FLAG_PLEASE_PERSIST,
-                                spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
+    SettingsFlagsAndId id(SETTINGS_FLAG_PLEASE_PERSIST,
+                                SETTINGS_MAX_CONCURRENT_STREAMS);
     spdy_settings_to_set_.push_back(
-        spdy::SpdySetting(id, max_concurrent_streams));
+        SpdySetting(id, max_concurrent_streams));
 
-    spdy::SettingsFlagsAndId id1(spdy::SETTINGS_FLAG_PERSISTED,
-                                 spdy::SETTINGS_MAX_CONCURRENT_STREAMS);
+    SettingsFlagsAndId id1(SETTINGS_FLAG_PERSISTED,
+                                 SETTINGS_MAX_CONCURRENT_STREAMS);
     spdy_settings_to_send_.push_back(
-        spdy::SpdySetting(id1, max_concurrent_streams));
+        SpdySetting(id1, max_concurrent_streams));
   }
 
   virtual void TearDown() {
     MessageLoop::current()->RunAllPending();
   }
 
-  void Prepare(spdy::SpdyStreamId stream_id) {
+  void Prepare(SpdyStreamId stream_id) {
     stream_id_ = stream_id;
 
     const char* const request_headers[] = {
@@ -284,26 +280,26 @@ class SpdyWebSocketStreamSpdy3Test : public testing::Test {
     return session_->InitializeWithSocket(connection.release(), false, OK);
   }
   void SendRequest() {
-    linked_ptr<spdy::SpdyHeaderBlock> headers(new spdy::SpdyHeaderBlock);
+    linked_ptr<SpdyHeaderBlock> headers(new SpdyHeaderBlock);
     (*headers)["url"] = "ws://example.com/echo";
     (*headers)["origin"] = "http://example.com/wsdemo";
 
     websocket_stream_->SendRequest(headers);
   }
 
-  spdy::SpdySettings spdy_settings_to_set_;
-  spdy::SpdySettings spdy_settings_to_send_;
+  SpdySettings spdy_settings_to_set_;
+  SpdySettings spdy_settings_to_send_;
   SpdySessionDependencies session_deps_;
   scoped_ptr<OrderedSocketData> data_;
   scoped_refptr<HttpNetworkSession> http_session_;
   scoped_refptr<SpdySession> session_;
   scoped_refptr<TransportSocketParams> transport_params_;
   scoped_ptr<SpdyWebSocketStream> websocket_stream_;
-  spdy::SpdyStreamId stream_id_;
-  scoped_ptr<spdy::SpdyFrame> request_frame_;
-  scoped_ptr<spdy::SpdyFrame> response_frame_;
-  scoped_ptr<spdy::SpdyFrame> message_frame_;
-  scoped_ptr<spdy::SpdyFrame> closing_frame_;
+  SpdyStreamId stream_id_;
+  scoped_ptr<SpdyFrame> request_frame_;
+  scoped_ptr<SpdyFrame> response_frame_;
+  scoped_ptr<SpdyFrame> message_frame_;
+  scoped_ptr<SpdyFrame> closing_frame_;
   HostPortPair host_port_pair_;
   HostPortProxyPair host_port_proxy_pair_;
   TestCompletionCallback completion_callback_;
@@ -525,7 +521,7 @@ TEST_F(SpdyWebSocketStreamSpdy3Test, DestructionAfterExplicitClose) {
 
 TEST_F(SpdyWebSocketStreamSpdy3Test, IOPending) {
   Prepare(3);
-  scoped_ptr<spdy::SpdyFrame> settings_frame(
+  scoped_ptr<SpdyFrame> settings_frame(
       ConstructSpdySettings(spdy_settings_to_send_));
   MockWrite writes[] = {
     // Setting throttling make SpdySession send settings frame automatically.

@@ -43,14 +43,14 @@ namespace net {
 // somewhat arbitrary, but is reasonably small and ensures that we elicit
 // ACKs quickly from TCP (because TCP tries to only ACK every other packet).
 const int kMss = 1430;
-const int kMaxSpdyFrameChunkSize = (2 * kMss) - spdy::SpdyFrame::kHeaderSize;
+const int kMaxSpdyFrameChunkSize = (2 * kMss) - SpdyFrame::kHeaderSize;
 
 class BoundNetLog;
 class SpdyStream;
 class SSLInfo;
 
 class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
-                               public spdy::BufferedSpdyFramerVisitorInterface,
+                               public BufferedSpdyFramerVisitorInterface,
                                public LayeredPool {
  public:
   // Create a new SpdySession.
@@ -117,10 +117,10 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // Send the SYN frame for |stream_id|. This also sends PING message to check
   // the status of the connection.
   int WriteSynStream(
-      spdy::SpdyStreamId stream_id,
+      SpdyStreamId stream_id,
       RequestPriority priority,
-      spdy::SpdyControlFlags flags,
-      const linked_ptr<spdy::SpdyHeaderBlock>& headers);
+      SpdyControlFlags flags,
+      const linked_ptr<SpdyHeaderBlock>& headers);
 
   // Write a CREDENTIAL frame to the session.
   int WriteCredentialFrame(const std::string& origin,
@@ -131,22 +131,22 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   // Write a data frame to the stream.
   // Used to create and queue a data frame for the given stream.
-  int WriteStreamData(spdy::SpdyStreamId stream_id, net::IOBuffer* data,
+  int WriteStreamData(SpdyStreamId stream_id, net::IOBuffer* data,
                       int len,
-                      spdy::SpdyDataFlags flags);
+                      SpdyDataFlags flags);
 
   // Close a stream.
-  void CloseStream(spdy::SpdyStreamId stream_id, int status);
+  void CloseStream(SpdyStreamId stream_id, int status);
 
   // Reset a stream by sending a RST_STREAM frame with given status code.
   // Also closes the stream.  Was not piggybacked to CloseStream since not
   // all of the calls to CloseStream necessitate sending a RST_STREAM.
-  void ResetStream(spdy::SpdyStreamId stream_id,
-                   spdy::SpdyStatusCodes status,
+  void ResetStream(SpdyStreamId stream_id,
+                   SpdyStatusCodes status,
                    const std::string& description);
 
   // Check if a stream is active.
-  bool IsStreamActive(spdy::SpdyStreamId stream_id) const;
+  bool IsStreamActive(SpdyStreamId stream_id) const;
 
   // The LoadState is used for informing the user of the current network
   // status, such as "resolving host", "connecting", etc.
@@ -189,7 +189,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   // Send WINDOW_UPDATE frame, called by a stream whenever receive window
   // size is increased.
-  void SendWindowUpdate(spdy::SpdyStreamId stream_id, int32 delta_window_size);
+  void SendWindowUpdate(SpdyStreamId stream_id, int32 delta_window_size);
 
   // If session is closed, no new streams/transactions should be created.
   bool IsClosed() const { return state_ == CLOSED; }
@@ -347,7 +347,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   // Handle SETTINGS.  Either when we send settings, or when we receive a
   // SETTINGS control frame, update our SpdySession accordingly.
-  void HandleSettings(const spdy::SpdySettings& settings);
+  void HandleSettings(const SpdySettings& settings);
   void HandleSetting(uint32 id, uint32 value);
 
   // Adjust the send window size of all ActiveStreams and PendingCreateStreams.
@@ -393,12 +393,12 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // |frame| is the frame to send.
   // |priority| is the priority for insertion into the queue.
   // |stream| is the stream which this IO is associated with (or NULL).
-  void QueueFrame(spdy::SpdyFrame* frame, spdy::SpdyPriority priority,
+  void QueueFrame(SpdyFrame* frame, SpdyPriority priority,
                   SpdyStream* stream);
 
   // Track active streams in the active stream list.
   void ActivateStream(SpdyStream* stream);
-  void DeleteStream(spdy::SpdyStreamId id, int status);
+  void DeleteStream(SpdyStreamId id, int status);
 
   // Removes this session from the session pool.
   void RemoveFromPool();
@@ -410,7 +410,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   // Calls OnResponseReceived().
   // Returns true if successful.
-  bool Respond(const spdy::SpdyHeaderBlock& headers,
+  bool Respond(const SpdyHeaderBlock& headers,
                const scoped_refptr<SpdyStream> stream);
 
 
@@ -426,28 +426,28 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   // BufferedSpdyFramerVisitorInterface:
   virtual void OnError(int error_code) OVERRIDE;
-  virtual void OnStreamError(spdy::SpdyStreamId stream_id,
+  virtual void OnStreamError(SpdyStreamId stream_id,
                              const std::string& description) OVERRIDE;
   virtual void OnRstStream(
-      const spdy::SpdyRstStreamControlFrame& frame) OVERRIDE;
-  virtual void OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) OVERRIDE;
-  virtual void OnPing(const spdy::SpdyPingControlFrame& frame) OVERRIDE;
+      const SpdyRstStreamControlFrame& frame) OVERRIDE;
+  virtual void OnGoAway(const SpdyGoAwayControlFrame& frame) OVERRIDE;
+  virtual void OnPing(const SpdyPingControlFrame& frame) OVERRIDE;
   virtual void OnWindowUpdate(
-      const spdy::SpdyWindowUpdateControlFrame& frame) OVERRIDE;
-  virtual void OnStreamFrameData(spdy::SpdyStreamId stream_id,
+      const SpdyWindowUpdateControlFrame& frame) OVERRIDE;
+  virtual void OnStreamFrameData(SpdyStreamId stream_id,
                                  const char* data,
                                  size_t len) OVERRIDE;
   virtual void OnSetting(
-      spdy::SpdySettingsIds id, uint8 flags, uint32 value) OVERRIDE;
+      SpdySettingsIds id, uint8 flags, uint32 value) OVERRIDE;
   virtual void OnSynStream(
-      const spdy::SpdySynStreamControlFrame& frame,
-      const linked_ptr<spdy::SpdyHeaderBlock>& headers) OVERRIDE;
+      const SpdySynStreamControlFrame& frame,
+      const linked_ptr<SpdyHeaderBlock>& headers) OVERRIDE;
   virtual void OnSynReply(
-      const spdy::SpdySynReplyControlFrame& frame,
-      const linked_ptr<spdy::SpdyHeaderBlock>& headers) OVERRIDE;
+      const SpdySynReplyControlFrame& frame,
+      const linked_ptr<SpdyHeaderBlock>& headers) OVERRIDE;
   virtual void OnHeaders(
-      const spdy::SpdyHeadersControlFrame& frame,
-      const linked_ptr<spdy::SpdyHeaderBlock>& headers) OVERRIDE;
+      const SpdyHeadersControlFrame& frame,
+      const linked_ptr<SpdyHeaderBlock>& headers) OVERRIDE;
 
   // --------------------------
   // Helper methods for testing
@@ -544,7 +544,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   int certificate_error_code_;
 
   // Spdy Frame state.
-  scoped_ptr<spdy::BufferedSpdyFramer> buffered_spdy_framer_;
+  scoped_ptr<BufferedSpdyFramer> buffered_spdy_framer_;
 
   // If an error has occurred on the session, the session is effectively
   // dead.  Record this error here.  When no error has occurred, |error_| will
@@ -642,12 +642,12 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
 class NetLogSpdySynParameter : public NetLog::EventParameters {
  public:
-  NetLogSpdySynParameter(const linked_ptr<spdy::SpdyHeaderBlock>& headers,
-                         spdy::SpdyControlFlags flags,
-                         spdy::SpdyStreamId id,
-                         spdy::SpdyStreamId associated_stream);
+  NetLogSpdySynParameter(const linked_ptr<SpdyHeaderBlock>& headers,
+                         SpdyControlFlags flags,
+                         SpdyStreamId id,
+                         SpdyStreamId associated_stream);
 
-  const linked_ptr<spdy::SpdyHeaderBlock>& GetHeaders() const {
+  const linked_ptr<SpdyHeaderBlock>& GetHeaders() const {
     return headers_;
   }
 
@@ -656,10 +656,10 @@ class NetLogSpdySynParameter : public NetLog::EventParameters {
  private:
   virtual ~NetLogSpdySynParameter();
 
-  const linked_ptr<spdy::SpdyHeaderBlock> headers_;
-  const spdy::SpdyControlFlags flags_;
-  const spdy::SpdyStreamId id_;
-  const spdy::SpdyStreamId associated_stream_;
+  const linked_ptr<SpdyHeaderBlock> headers_;
+  const SpdyControlFlags flags_;
+  const SpdyStreamId id_;
+  const SpdyStreamId associated_stream_;
 
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdySynParameter);
 };

@@ -6,7 +6,7 @@
 #define NET_SPDY_SPDY_BITMASKS_H_
 #pragma once
 
-namespace spdy {
+namespace net {
 
 // StreamId mask from the SpdyHeader
 const unsigned int kStreamIdMask = 0x7fffffff;
@@ -27,6 +27,6 @@ const int kDataFlagsMask = 0x03;
 // Legal flags on control packets.
 const int kControlFlagsMask = 0x03;
 
-}  // namespace spdy
+}  // namespace net
 
 #endif  // NET_SPDY_SPDY_BITMASKS_H_

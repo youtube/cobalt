@@ -14,7 +14,7 @@
 namespace net {
 
 NetLogSpdyStreamErrorParameter::NetLogSpdyStreamErrorParameter(
-    spdy::SpdyStreamId stream_id,
+    SpdyStreamId stream_id,
     int status,
     const std::string& description)
     : stream_id_(stream_id),
@@ -37,7 +37,7 @@ namespace {
 
 class NetLogSpdyStreamWindowUpdateParameter : public NetLog::EventParameters {
  public:
-  NetLogSpdyStreamWindowUpdateParameter(spdy::SpdyStreamId stream_id,
+  NetLogSpdyStreamWindowUpdateParameter(SpdyStreamId stream_id,
                                         int32 delta,
                                         int32 window_size)
       : stream_id_(stream_id), delta_(delta), window_size_(window_size) {}
@@ -49,7 +49,7 @@ class NetLogSpdyStreamWindowUpdateParameter : public NetLog::EventParameters {
     return dict;
   }
  private:
-  const spdy::SpdyStreamId stream_id_;
+  const SpdyStreamId stream_id_;
   const int32 delta_;
   const int32 window_size_;
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdyStreamWindowUpdateParameter);
@@ -67,22 +67,22 @@ bool ContainsUpperAscii(const std::string& str) {
 }  // namespace
 
 SpdyStream::SpdyStream(SpdySession* session,
-                       spdy::SpdyStreamId stream_id,
+                       SpdyStreamId stream_id,
                        bool pushed,
                        const BoundNetLog& net_log)
     : continue_buffering_data_(true),
       stream_id_(stream_id),
       priority_(0),
       stalled_by_flow_control_(false),
-      send_window_size_(spdy::kSpdyStreamInitialWindowSize),
-      recv_window_size_(spdy::kSpdyStreamInitialWindowSize),
+      send_window_size_(kSpdyStreamInitialWindowSize),
+      recv_window_size_(kSpdyStreamInitialWindowSize),
       unacked_recv_window_bytes_(0),
       pushed_(pushed),
       response_received_(false),
       session_(session),
       delegate_(NULL),
       request_time_(base::Time::Now()),
-      response_(new spdy::SpdyHeaderBlock),
+      response_(new SpdyHeaderBlock),
       io_state_(STATE_NONE),
       response_status_(OK),
       cancelled_(false),
@@ -151,12 +151,12 @@ void SpdyStream::DetachDelegate() {
     Cancel();
 }
 
-const linked_ptr<spdy::SpdyHeaderBlock>& SpdyStream::spdy_headers() const {
+const linked_ptr<SpdyHeaderBlock>& SpdyStream::spdy_headers() const {
   return request_;
 }
 
 void SpdyStream::set_spdy_headers(
-    const linked_ptr<spdy::SpdyHeaderBlock>& headers) {
+    const linked_ptr<SpdyHeaderBlock>& headers) {
   request_ = headers;
 }
 
@@ -189,7 +189,7 @@ void SpdyStream::IncreaseSendWindowSize(int32 delta_window_size) {
         "Received WINDOW_UPDATE [delta: %d] for stream %d overflows "
         "send_window_size_ [current: %d]", delta_window_size, stream_id_,
         send_window_size_);
-    session_->ResetStream(stream_id_, spdy::FLOW_CONTROL_ERROR, desc);
+    session_->ResetStream(stream_id_, FLOW_CONTROL_ERROR, desc);
     return;
   }
 
@@ -267,7 +267,7 @@ void SpdyStream::DecreaseRecvWindowSize(int32 delta_window_size) {
   // a negative |recv_window_size_|, if we do, it's a client side bug, so we use
   // PROTOCOL_ERROR for lack of a better error code.
   if (recv_window_size_ < 0) {
-    session_->ResetStream(stream_id_, spdy::PROTOCOL_ERROR,
+    session_->ResetStream(stream_id_, PROTOCOL_ERROR,
                           "Negative recv window size");
     NOTREACHED();
   }
@@ -293,7 +293,7 @@ void SpdyStream::SetRequestTime(base::Time t) {
   request_time_ = t;
 }
 
-int SpdyStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response) {
+int SpdyStream::OnResponseReceived(const SpdyHeaderBlock& response) {
   int rv = OK;
 
   metrics_.StartStream();
@@ -313,11 +313,11 @@ int SpdyStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response) {
   io_state_ = STATE_OPEN;
 
   // Append all the headers into the response header block.
-  for (spdy::SpdyHeaderBlock::const_iterator it = response.begin();
+  for (SpdyHeaderBlock::const_iterator it = response.begin();
        it != response.end(); ++it) {
     // Disallow uppercase headers.
     if (ContainsUpperAscii(it->first)) {
-      session_->ResetStream(stream_id_, spdy::PROTOCOL_ERROR,
+      session_->ResetStream(stream_id_, PROTOCOL_ERROR,
                             "Upper case characters in header: " + it->first);
       response_status_ = ERR_SPDY_PROTOCOL_ERROR;
       return ERR_SPDY_PROTOCOL_ERROR;
@@ -332,11 +332,11 @@ int SpdyStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response) {
   return rv;
 }
 
-int SpdyStream::OnHeaders(const spdy::SpdyHeaderBlock& headers) {
+int SpdyStream::OnHeaders(const SpdyHeaderBlock& headers) {
   DCHECK(!response_->empty());
 
   // Append all the headers into the response header block.
-  for (spdy::SpdyHeaderBlock::const_iterator it = headers.begin();
+  for (SpdyHeaderBlock::const_iterator it = headers.begin();
       it != headers.end(); ++it) {
     // Disallow duplicate headers.  This is just to be conservative.
     if ((*response_).find(it->first) != (*response_).end()) {
@@ -347,7 +347,7 @@ int SpdyStream::OnHeaders(const spdy::SpdyHeaderBlock& headers) {
 
     // Disallow uppercase headers.
     if (ContainsUpperAscii(it->first)) {
-      session_->ResetStream(stream_id_, spdy::PROTOCOL_ERROR,
+      session_->ResetStream(stream_id_, PROTOCOL_ERROR,
                             "Upper case characters in header: " + it->first);
       response_status_ = ERR_SPDY_PROTOCOL_ERROR;
       return ERR_SPDY_PROTOCOL_ERROR;
@@ -468,7 +468,7 @@ void SpdyStream::Cancel() {
 
   cancelled_ = true;
   if (session_->IsStreamActive(stream_id_))
-    session_->ResetStream(stream_id_, spdy::CANCEL, "");
+    session_->ResetStream(stream_id_, CANCEL, "");
 }
 
 void SpdyStream::Close() {
@@ -495,7 +495,7 @@ int SpdyStream::SendRequest(bool has_upload_data) {
 }
 
 int SpdyStream::WriteStreamData(IOBuffer* data, int length,
-                                spdy::SpdyDataFlags flags) {
+                                SpdyDataFlags flags) {
   return session_->WriteStreamData(stream_id_, data, length, flags);
 }
 
@@ -525,7 +525,7 @@ GURL SpdyStream::GetUrl() const {
     } else {
       // assemble from the response
       std::string url;
-      spdy::SpdyHeaderBlock::const_iterator it;
+      SpdyHeaderBlock::const_iterator it;
       it = response_->find("url");
       if (it != (*response_).end())
         url = it->second;
@@ -537,7 +537,7 @@ GURL SpdyStream::GetUrl() const {
 }
 
 GURL SpdyStream::GetUrlFromHeaderBlock(
-    const linked_ptr<spdy::SpdyHeaderBlock>& headers) const {
+    const linked_ptr<SpdyHeaderBlock>& headers) const {
   const char* scheme_header = GetProtocolVersion() >= 3 ? ":scheme" : "scheme";
   const char* host_header = GetProtocolVersion() >= 3 ? ":host" : "host";
   const char* path_header = GetProtocolVersion() >= 3 ? ":path" : "path";
@@ -545,7 +545,7 @@ GURL SpdyStream::GetUrlFromHeaderBlock(
   std::string scheme;
   std::string host_port;
   std::string path;
-  spdy::SpdyHeaderBlock::const_iterator it;
+  SpdyHeaderBlock::const_iterator it;
   it = headers->find(scheme_header);
   if (it != (*headers).end())
     scheme = it->second;
@@ -690,9 +690,9 @@ int SpdyStream::DoSendDomainBoundCertComplete(int result) {
 int SpdyStream::DoSendHeaders() {
   CHECK(!cancelled_);
 
-  spdy::SpdyControlFlags flags = spdy::CONTROL_FLAG_NONE;
+  SpdyControlFlags flags = CONTROL_FLAG_NONE;
   if (!has_upload_data_)
-    flags = spdy::CONTROL_FLAG_FIN;
+    flags = CONTROL_FLAG_FIN;
 
   CHECK(request_.get());
   int result = session_->WriteSynStream(
