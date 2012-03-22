@@ -4,6 +4,8 @@
 
 #include "net/base/multi_threaded_cert_verifier.h"
 
+#include <vector>
+
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
@@ -13,6 +15,7 @@
 #include "base/synchronization/lock.h"
 #include "base/time.h"
 #include "base/threading/worker_pool.h"
+#include "net/base/cert_verify_proc.h"
 #include "net/base/crl_set.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
@@ -130,12 +133,14 @@ class CertVerifierRequest {
 // eventually if Start() succeeds.
 class CertVerifierWorker {
  public:
-  CertVerifierWorker(X509Certificate* cert,
+  CertVerifierWorker(CertVerifyProc* verify_proc,
+                     X509Certificate* cert,
                      const std::string& hostname,
                      int flags,
                      CRLSet* crl_set,
                      MultiThreadedCertVerifier* cert_verifier)
-      : cert_(cert),
+      : verify_proc_(verify_proc),
+        cert_(cert),
         hostname_(hostname),
         flags_(flags),
         crl_set_(crl_set),
@@ -168,7 +173,8 @@ class CertVerifierWorker {
  private:
   void Run() {
     // Runs on a worker thread.
-    error_ = cert_->Verify(hostname_, flags_, crl_set_, &verify_result_);
+    error_ = verify_proc_->Verify(cert_, hostname_, flags_, crl_set_,
+                                  &verify_result_);
 #if defined(USE_NSS)
     // Detach the thread from NSPR.
     // Calling NSS functions attaches the thread to NSPR, which stores
@@ -226,6 +232,7 @@ class CertVerifierWorker {
       delete this;
   }
 
+  scoped_refptr<CertVerifyProc> verify_proc_;
   scoped_refptr<X509Certificate> cert_;
   const std::string hostname_;
   const int flags_;
@@ -324,7 +331,8 @@ MultiThreadedCertVerifier::MultiThreadedCertVerifier()
     : cache_(kMaxCacheEntries),
       requests_(0),
       cache_hits_(0),
-      inflight_joins_(0) {
+      inflight_joins_(0),
+      verify_proc_(CertVerifyProc::CreateDefault()) {
   CertDatabase::AddObserver(this);
 }
 
@@ -373,7 +381,8 @@ int MultiThreadedCertVerifier::Verify(X509Certificate* cert,
     job = j->second;
   } else {
     // Need to make a new request.
-    CertVerifierWorker* worker = new CertVerifierWorker(cert, hostname, flags,
+    CertVerifierWorker* worker = new CertVerifierWorker(verify_proc_, cert,
+                                                        hostname, flags,
                                                         crl_set, this);
     job = new CertVerifierJob(
         worker,
@@ -439,6 +448,10 @@ void MultiThreadedCertVerifier::OnCertTrustChanged(
   DCHECK(CalledOnValidThread());
 
   ClearCache();
+}
+
+void MultiThreadedCertVerifier::SetCertVerifyProc(CertVerifyProc* verify_proc) {
+  verify_proc_ = verify_proc;
 }
 
 }  // namespace net
