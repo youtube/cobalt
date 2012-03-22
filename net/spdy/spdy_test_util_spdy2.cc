@@ -16,6 +16,7 @@
 #include "net/http/http_server_properties_impl.h"
 #include "net/spdy/buffered_spdy_framer.h"
 #include "net/spdy/spdy_http_utils.h"
+#include "net/spdy/spdy_session.h"
 
 namespace net {
 namespace test_spdy2 {
@@ -1005,6 +1006,20 @@ const SpdyHeaderInfo MakeSpdyHeader(spdy::SpdyControlType type) {
     spdy::DATA_FLAG_NONE          // Data Flags
   };
   return kHeader;
+}
+
+SpdyTestStateHelper::SpdyTestStateHelper() {
+  // Pings can be non-deterministic, because they are sent via timer.
+  SpdySession::set_enable_ping_based_connection_checking(false);
+  // Compression is per-session which makes it impossible to create
+  // SPDY frames with static methods.
+  spdy::SpdyFramer::set_enable_compression_default(false);
+}
+
+SpdyTestStateHelper::~SpdyTestStateHelper() {
+  SpdySession::ResetStaticSettingsToInit();
+  // TODO(rch): save/restore this value
+  spdy::SpdyFramer::set_enable_compression_default(true);
 }
 
 }  // namespace test_spdy2

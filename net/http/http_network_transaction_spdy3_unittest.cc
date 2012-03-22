@@ -178,13 +178,11 @@ class HttpNetworkTransactionSpdy3Test : public PlatformTest {
     SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY3);
     NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
     MessageLoop::current()->RunAllPending();
-    spdy::SpdyFramer::set_enable_compression_default(false);
   }
 
   virtual void TearDown() {
     NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
     MessageLoop::current()->RunAllPending();
-    spdy::SpdyFramer::set_enable_compression_default(true);
     // Empty the current queue.
     MessageLoop::current()->RunAllPending();
     PlatformTest::TearDown();
@@ -274,6 +272,9 @@ class HttpNetworkTransactionSpdy3Test : public PlatformTest {
                                              int expected_status);
 
   void ConnectStatusHelper(const MockRead& status);
+
+ private:
+  SpdyTestStateHelper spdy_state_;
 };
 
 namespace {

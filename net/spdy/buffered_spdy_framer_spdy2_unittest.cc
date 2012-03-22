@@ -143,10 +143,6 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
 
 class BufferedSpdyFramerSpdy2Test : public PlatformTest {
  protected:
-  void EnableCompression(bool enabled) {
-    SpdyFramer::set_enable_compression_default(enabled);
-  }
-
   // Returns true if the two header blocks have equivalent content.
   bool CompareHeaderBlocks(const SpdyHeaderBlock* expected,
                            const SpdyHeaderBlock* actual) {
@@ -173,11 +169,12 @@ class BufferedSpdyFramerSpdy2Test : public PlatformTest {
     }
     return true;
   }
+
+ private:
+  SpdyTestStateHelper spdy_state_;
 };
 
 TEST_F(BufferedSpdyFramerSpdy2Test, OnSetting) {
-  EnableCompression(false);
-
   SpdyFramer framer(2);
   SpdySettings settings;
   settings.push_back(SpdySetting(SettingsFlagsAndId(0, 1), 0x00000002));
@@ -194,8 +191,6 @@ TEST_F(BufferedSpdyFramerSpdy2Test, OnSetting) {
 }
 
 TEST_F(BufferedSpdyFramerSpdy2Test, ReadSynStreamHeaderBlock) {
-  EnableCompression(false);
-
   SpdyHeaderBlock headers;
   headers["aa"] = "vv";
   headers["bb"] = "ww";
@@ -221,8 +216,6 @@ TEST_F(BufferedSpdyFramerSpdy2Test, ReadSynStreamHeaderBlock) {
 }
 
 TEST_F(BufferedSpdyFramerSpdy2Test, ReadSynReplyHeaderBlock) {
-  EnableCompression(false);
-
   SpdyHeaderBlock headers;
   headers["alpha"] = "beta";
   headers["gamma"] = "delta";
@@ -246,8 +239,6 @@ TEST_F(BufferedSpdyFramerSpdy2Test, ReadSynReplyHeaderBlock) {
 }
 
 TEST_F(BufferedSpdyFramerSpdy2Test, ReadHeadersHeaderBlock) {
-  EnableCompression(false);
-
   SpdyHeaderBlock headers;
   headers["alpha"] = "beta";
   headers["gamma"] = "delta";
