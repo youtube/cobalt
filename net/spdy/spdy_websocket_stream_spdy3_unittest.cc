@@ -189,7 +189,6 @@ class SpdyWebSocketStreamSpdy3Test : public testing::Test {
   virtual ~SpdyWebSocketStreamSpdy3Test() {}
 
   virtual void SetUp() {
-    EnableCompression(false);
     SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY3);
 
     host_port_pair_.set_host("example.com");
@@ -213,9 +212,6 @@ class SpdyWebSocketStreamSpdy3Test : public testing::Test {
     MessageLoop::current()->RunAllPending();
   }
 
-  void EnableCompression(bool enabled) {
-    spdy::SpdyFramer::set_enable_compression_default(enabled);
-  }
   void Prepare(spdy::SpdyStreamId stream_id) {
     stream_id_ = stream_id;
 
@@ -317,6 +313,9 @@ class SpdyWebSocketStreamSpdy3Test : public testing::Test {
   static const char kClosingFrame[];
   static const size_t kMessageFrameLength;
   static const size_t kClosingFrameLength;
+
+ private:
+  SpdyTestStateHelper spdy_state_;
 };
 
 const char SpdyWebSocketStreamSpdy3Test::kMessageFrame[] = "\0hello\xff";
