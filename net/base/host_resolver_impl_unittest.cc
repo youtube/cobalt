@@ -1928,6 +1928,11 @@ TEST_F(HostResolverImplTest, ServeFromHosts) {
   if (ipv6string != "UNSUPPORTED")
     EXPECT_EQ("[::1]:80", ipv6string);
   EXPECT_EQ(1u, NumberOfAddresses(req6.addrlist()));
+
+  // Request with upper case.
+  ResolveRequest req7(host_resolver.get(), "er_IPV4", 80);
+  EXPECT_EQ(OK, req7.result());
+  EXPECT_EQ("127.0.0.1:80", FirstAddressToString(req7.addrlist()));
 }
 
 }  // namespace net

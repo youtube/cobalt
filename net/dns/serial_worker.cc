@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,11 @@
 #include "base/threading/worker_pool.h"
 
 namespace net {
+
+namespace {
+  // Delay between calls to WorkerPool::PostTask
+  const int kWorkerPoolRetryDelayMs = 100;
+}
 
 SerialWorker::SerialWorker()
   : message_loop_(base::MessageLoopProxy::current()),

@@ -48,12 +48,10 @@ class NET_EXPORT_PRIVATE DnsConfigServiceWin
 
  private:
   class ConfigReader;
-
-  void OnHostsChanged(bool succeeded);
+  class HostsReader;
 
   scoped_refptr<ConfigReader> config_reader_;
-  scoped_ptr<FilePathWatcherWrapper> hosts_watcher_;
-  scoped_refptr<SerialWorker> hosts_reader_;
+  scoped_refptr<HostsReader> hosts_reader_;
 
   DISALLOW_COPY_AND_ASSIGN(DnsConfigServiceWin);
 };
