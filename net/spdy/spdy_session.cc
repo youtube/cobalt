@@ -631,7 +631,7 @@ int SpdySession::WriteSynStream(
   scoped_ptr<SpdySynStreamControlFrame> syn_frame(
       buffered_spdy_framer_->CreateSynStream(
           stream_id, 0,
-          ConvertRequestPriorityToSpdyPriority(priority),
+          ConvertRequestPriorityToSpdyPriority(priority), 0,
           flags, false, headers.get()));
   QueueFrame(syn_frame.get(), priority, stream);
 

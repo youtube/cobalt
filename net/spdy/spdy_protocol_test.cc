@@ -92,14 +92,17 @@ TEST_P(SpdyProtocolTest, ControlFrameStructs) {
   SpdyFramer framer(spdy_version_);
   SpdyHeaderBlock headers;
 
-  scoped_ptr<SpdySynStreamControlFrame> syn_frame(
-      framer.CreateSynStream(123, 456, 2, CONTROL_FLAG_FIN, false, &headers));
+  const uint8 credential_slot = (IsSpdy2()) ? 0 : 5;
+
+  scoped_ptr<SpdySynStreamControlFrame> syn_frame(framer.CreateSynStream(
+      123, 456, 2, credential_slot, CONTROL_FLAG_FIN, false, &headers));
   EXPECT_EQ(framer.protocol_version(), syn_frame->version());
   EXPECT_TRUE(syn_frame->is_control_frame());
   EXPECT_EQ(SYN_STREAM, syn_frame->type());
   EXPECT_EQ(123u, syn_frame->stream_id());
   EXPECT_EQ(456u, syn_frame->associated_stream_id());
   EXPECT_EQ(2u, syn_frame->priority());
+  EXPECT_EQ(credential_slot, syn_frame->credential_slot());
   EXPECT_EQ(IsSpdy2() ? 2 : 4, syn_frame->header_block_len());
   EXPECT_EQ(1u, syn_frame->flags());
   syn_frame->set_associated_stream_id(999u);

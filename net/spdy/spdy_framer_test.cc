@@ -533,7 +533,13 @@ TEST_P(SpdyFramerTest, HeaderBlockInBuffer) {
 
   // Encode the header block into a SynStream frame.
   scoped_ptr<SpdySynStreamControlFrame> frame(
-      framer.CreateSynStream(1, 0, 1, CONTROL_FLAG_NONE, false, &headers));
+      framer.CreateSynStream(1,  // stream id
+                             0,  // associated stream id
+                             1,  // priority
+                             0,  // credential slot
+                             CONTROL_FLAG_NONE,
+                             false,  // compress
+                             &headers));
   EXPECT_TRUE(frame.get() != NULL);
   std::string serialized_headers(frame->header_block(),
                                  frame->header_block_len());
@@ -556,7 +562,13 @@ TEST_P(SpdyFramerTest, UndersizedHeaderBlockInBuffer) {
 
   // Encode the header block into a SynStream frame.
   scoped_ptr<SpdySynStreamControlFrame> frame(
-      framer.CreateSynStream(1, 0, 1, CONTROL_FLAG_NONE, false, &headers));
+      framer.CreateSynStream(1,  // stream id
+                             0,  // associated stream id
+                             1,  // priority
+                             0,  // credential slot
+                             CONTROL_FLAG_NONE,
+                             false,  // compress
+                             &headers));
   EXPECT_TRUE(frame.get() != NULL);
 
   std::string serialized_headers(frame->header_block(),
@@ -766,12 +778,22 @@ TEST_P(SpdyFramerTest, BasicCompression) {
 
   SpdyFramer framer(spdy_version_);
   framer.set_enable_compression(true);
-  scoped_ptr<SpdySynStreamControlFrame>
-      frame1(framer.CreateSynStream(1, 0, 1, CONTROL_FLAG_NONE, true,
-                                    &headers));
-  scoped_ptr<SpdySynStreamControlFrame>
-      frame2(framer.CreateSynStream(1, 0, 1, CONTROL_FLAG_NONE, true,
-                                    &headers));
+  scoped_ptr<SpdySynStreamControlFrame> frame1(
+      framer.CreateSynStream(1,  // stream id
+                             0,  // associated stream id
+                             1,  // priority
+                             0,  // credential slot
+                             CONTROL_FLAG_NONE,
+                             true,  // compress
+                             &headers));
+  scoped_ptr<SpdySynStreamControlFrame> frame2(
+      framer.CreateSynStream(1,  // stream id
+                             0,  // associated stream id
+                             1,  // priority
+                             0,  // credential slot
+                             CONTROL_FLAG_NONE,
+                             true,  // compress
+                             &headers));
 
   // Expect the second frame to be more compact than the first.
   EXPECT_LE(frame2->length(), frame1->length());
@@ -792,9 +814,14 @@ TEST_P(SpdyFramerTest, BasicCompression) {
 
   // Expect frames 3 to be the same as a uncompressed frame created
   // from scratch.
-  scoped_ptr<SpdySynStreamControlFrame>
-      uncompressed_frame(framer.CreateSynStream(1, 0, 1, CONTROL_FLAG_NONE,
-                                                false, &headers));
+  scoped_ptr<SpdySynStreamControlFrame> uncompressed_frame(
+      framer.CreateSynStream(1,  // stream id
+                             0,  // associated stream id
+                             1,  // priority
+                             0,  // credential slot
+                             CONTROL_FLAG_NONE,
+                             false,  // compress
+                             &headers));
   EXPECT_EQ(frame3->length(), uncompressed_frame->length());
   EXPECT_EQ(0,
       memcmp(frame3->data(), uncompressed_frame->data(),
@@ -1088,13 +1115,25 @@ TEST_P(SpdyFramerTest, HeaderCompression) {
   block[kHeader2] = kValue2;
   SpdyControlFlags flags(CONTROL_FLAG_NONE);
   scoped_ptr<SpdySynStreamControlFrame> syn_frame_1(
-      send_framer.CreateSynStream(1, 0, 0, flags, true, &block));
+      send_framer.CreateSynStream(1,  // stream id
+                                  0,  // associated stream id
+                                  0,  // priority
+                                  0,  // credential slot
+                                  flags,
+                                  true,  // compress
+                                  &block));
   EXPECT_TRUE(syn_frame_1.get() != NULL);
 
   // SYN_STREAM #2
   block[kHeader3] = kValue3;
   scoped_ptr<SpdySynStreamControlFrame> syn_frame_2(
-      send_framer.CreateSynStream(3, 0, 0, flags, true, &block));
+      send_framer.CreateSynStream(3,  // stream id
+                                  0,  // associated stream id
+                                  0,  // priority
+                                  0,  // credential slot
+                                  flags,
+                                  true,  // compress
+                                  &block));
   EXPECT_TRUE(syn_frame_2.get() != NULL);
 
   // Now start decompressing
@@ -1162,7 +1201,13 @@ TEST_P(SpdyFramerTest, UnclosedStreamDataCompressors) {
   block[kHeader2] = kValue2;
   SpdyControlFlags flags(CONTROL_FLAG_NONE);
   scoped_ptr<SpdyFrame> syn_frame(
-      send_framer.CreateSynStream(1, 0, 0, flags, true, &block));
+      send_framer.CreateSynStream(1,  // stream id
+                                  0,  // associated stream id
+                                  0,  // priority
+                                  0,  // credential slot
+                                  flags,
+                                  true,  // compress
+                                  &block));
   EXPECT_TRUE(syn_frame.get() != NULL);
 
   const char bytes[] = "this is a test test test test test!";
@@ -1215,7 +1260,13 @@ TEST_P(SpdyFramerTest, UnclosedStreamDataCompressorsOneByteAtATime) {
   block[kHeader2] = kValue2;
   SpdyControlFlags flags(CONTROL_FLAG_NONE);
   scoped_ptr<SpdyFrame> syn_frame(
-      send_framer.CreateSynStream(1, 0, 0, flags, true, &block));
+      send_framer.CreateSynStream(1,  // stream id
+                                  0,  // associated stream id
+                                  0,  // priority
+                                  0,  // credential slot
+                                  flags,
+                                  true,  // compress
+                                  &block));
   EXPECT_TRUE(syn_frame.get() != NULL);
 
   const char bytes[] = "this is a test test test test test!";
@@ -1369,13 +1420,14 @@ TEST_P(SpdyFramerTest, CreateSynStreamUncompressed) {
   framer.set_enable_compression(false);
 
   {
-    const char kDescription[] = "SYN_STREAM frame, lowest pri, no FIN";
+    const char kDescription[] = "SYN_STREAM frame, lowest pri, slot 2, no FIN";
 
     SpdyHeaderBlock headers;
     headers["bar"] = "foo";
     headers["foo"] = "bar";
 
-    const unsigned char kPri = (spdy_version_ != 2) ? 0xE0 : 0xC0;
+    const unsigned char kPri = (IsSpdy2()) ? 0xC0 : 0xE0;
+    const unsigned char kCre = (IsSpdy2()) ? 0 : 2;
     const unsigned char kV2FrameData[] = {
       0x80, spdy_version_, 0x00, 0x01,
       0x00, 0x00, 0x00, 0x20,
@@ -1393,7 +1445,7 @@ TEST_P(SpdyFramerTest, CreateSynStreamUncompressed) {
       0x00, 0x00, 0x00, 0x2a,
       0x00, 0x00, 0x00, 0x01,
       0x00, 0x00, 0x00, 0x00,
-      kPri, 0x00, 0x00, 0x00,
+      kPri, kCre, 0x00, 0x00,
       0x00, 0x02, 0x00, 0x00,
       0x00, 0x03, 'b',  'a',
       'r',  0x00, 0x00, 0x00,
@@ -1403,8 +1455,14 @@ TEST_P(SpdyFramerTest, CreateSynStreamUncompressed) {
       0x00, 0x00, 0x03, 'b',
       'a',  'r'
     };
-    scoped_ptr<SpdySynStreamControlFrame> frame(framer.CreateSynStream(
-        1, 0, framer.GetLowestPriority(), CONTROL_FLAG_NONE, false, &headers));
+    scoped_ptr<SpdySynStreamControlFrame> frame(
+        framer.CreateSynStream(1,  // stream id
+                               0,  // associated stream id
+                               framer.GetLowestPriority(),
+                               kCre,  // credential slot
+                               CONTROL_FLAG_NONE,
+                               false,  // compress
+                               &headers));
     CompareFrame(kDescription,
                  *frame,
                  IsSpdy2() ? kV2FrameData : kV3FrameData,
@@ -1447,9 +1505,14 @@ TEST_P(SpdyFramerTest, CreateSynStreamUncompressed) {
       0x00, 0x00, 0x00, 0x03,
       'b',  'a',  'r'
     };
-    scoped_ptr<SpdyFrame> frame(framer.CreateSynStream(
-        0x7fffffff, 0x7fffffff, framer.GetHighestPriority(), CONTROL_FLAG_FIN,
-        false, &headers));
+    scoped_ptr<SpdyFrame> frame(
+        framer.CreateSynStream(0x7fffffff,  // stream id
+                               0x7fffffff,  // associated stream id
+                               framer.GetHighestPriority(),
+                               0,  // credential slot
+                               CONTROL_FLAG_FIN,
+                               false,  // compress
+                               &headers));
     CompareFrame(kDescription,
                  *frame,
                  IsSpdy2() ? kV2FrameData : kV3FrameData,
@@ -1492,8 +1555,14 @@ TEST_P(SpdyFramerTest, CreateSynStreamUncompressed) {
       'f',  'o',  'o',  0x00,
       0x00, 0x00, 0x00
     };
-    scoped_ptr<SpdyFrame> frame(framer.CreateSynStream(
-        0x7fffffff, 0x7fffffff, 1, CONTROL_FLAG_FIN, false, &headers));
+    scoped_ptr<SpdyFrame> frame(
+        framer.CreateSynStream(0x7fffffff,  // stream id
+                               0x7fffffff,  // associated stream id
+                               1,  // priority
+                               0,  // credential slot
+                               CONTROL_FLAG_FIN,
+                               false,  // compress
+                               &headers));
     CompareFrame(kDescription,
                  *frame,
                  IsSpdy2() ? kV2FrameData : kV3FrameData,
@@ -1542,8 +1611,14 @@ TEST_P(SpdyFramerTest, CreateSynStreamCompressed) {
       0x28, 0x08, 0x00, 0x00,
       0x00, 0xFF, 0xFF
     };
-    scoped_ptr<SpdyFrame> frame(framer.CreateSynStream(
-        1, 0, priority, CONTROL_FLAG_NONE, true, &headers));
+    scoped_ptr<SpdyFrame> frame(
+        framer.CreateSynStream(1,  // stream id
+                               0,  // associated stream id
+                               priority,
+                               0,  // credential slot
+                               CONTROL_FLAG_NONE,
+                               true,  // compress
+                               &headers));
     CompareFrame(kDescription,
                  *frame,
                  IsSpdy2() ? kV2FrameData : kV3FrameData,
@@ -2207,6 +2282,7 @@ TEST_P(SpdyFramerTest, ExpandBuffer_HeapSmash) {
         framer.CreateSynStream(1,                      // stream_id
                                0,                      // associated_stream_id
                                1,                      // priority
+                               0,                      // credential slot
                                CONTROL_FLAG_NONE,
                                false,                  // compress
                                &headers));
