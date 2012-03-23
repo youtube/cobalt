@@ -97,6 +97,7 @@ v8.log
 /chrome/tools/test/reference_build
 /chrome_frame/chrome_frame_ie.xml
 /chrome_frame/tools/test/reference_build
+/content/test/data/layout_tests/LayoutTests/
 /data
 /googleurl
 /gpu/gles2_conform_test
