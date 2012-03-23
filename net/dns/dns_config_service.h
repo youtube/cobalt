@@ -68,8 +68,7 @@ struct NET_EXPORT_PRIVATE DnsConfig {
 class NET_EXPORT_PRIVATE DnsConfigService
   : NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
-  // Callback interface for the client. The observer is called on the same
-  // thread as Watch(). Observer must outlive the service.
+  // Callback interface for the client, called on the same thread as Watch().
   typedef base::Callback<void(const DnsConfig& config)> CallbackType;
 
   // Creates the platform-specific DnsConfigService.

@@ -51,9 +51,6 @@ class NET_EXPORT_PRIVATE SerialWorker
 
   bool IsCancelled() const { return state_ == CANCELLED; }
 
-  // Delay between calls to WorkerPool::PostTask
-  static const int kWorkerPoolRetryDelayMs = 100;
-
  protected:
   friend class base::RefCountedThreadSafe<SerialWorker>;
   // protected to allow sub-classing, but prevent deleting
