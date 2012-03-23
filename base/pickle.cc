@@ -74,10 +74,6 @@ bool PickleIterator::ReadLong(long* result) {
   return ReadBuiltinType(result);
 }
 
-bool PickleIterator::ReadSize(size_t* result) {
-  return ReadBuiltinType(result);
-}
-
 bool PickleIterator::ReadUInt16(uint16* result) {
   return ReadBuiltinType(result);
 }
