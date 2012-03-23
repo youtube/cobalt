@@ -2,8 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
+
+#include "base/bind.h"
+#include "base/callback.h"
+#include "base/memory/scoped_ptr.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
@@ -160,6 +163,43 @@ TEST(ScopedVectorTest, MoveAssign) {
   }
   EXPECT_EQ(LC_DESTROYED, watcher.life_cycle_state());
 }
+
+class DeleteCounter {
+ public:
+  explicit DeleteCounter(int* deletes)
+      : deletes_(deletes) {
+  }
+
+  ~DeleteCounter() {
+    (*deletes_)++;
+  }
+
+  void VoidMethod0() {}
+
+ private:
+  int* const deletes_;
+
+  DISALLOW_COPY_AND_ASSIGN(DeleteCounter);
+};
+
+template <typename T>
+ScopedVector<T> PassThru(ScopedVector<T> scoper) {
+  return scoper.Pass();
+}
+
+TEST(ScopedVectorTest, Passed) {
+  int deletes = 0;
+  ScopedVector<DeleteCounter> deleter_vector;
+  deleter_vector.push_back(new DeleteCounter(&deletes));
+  EXPECT_EQ(0, deletes);
+  base::Callback<ScopedVector<DeleteCounter>(void)> callback =
+      base::Bind(&PassThru<DeleteCounter>, base::Passed(&deleter_vector));
+  EXPECT_EQ(0, deletes);
+  ScopedVector<DeleteCounter> result = callback.Run();
+  EXPECT_EQ(0, deletes);
+  result.reset();
+  EXPECT_EQ(1, deletes);
+};
 
 TEST(ScopedVectorTest, InsertRange) {
   LifeCycleWatcher watchers[5];
