@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,7 +18,7 @@ TEST(DnsHostsTest, ParseHosts) {
       "fe00::x example company # ignored, malformed IPv6\n"
       "1.0.0.300 company # ignored, malformed IPv4\n"
       "1.0.0.1 # ignored, missing hostname\n"
-      "1.0.0.1\t company   \n"
+      "1.0.0.1\t CoMpANy # normalized to 'company' \n"
       "::1\tlocalhost ip6-localhost ip6-loopback # comment # within a comment\n"
       "\t fe00::0 ip6-localnet\r\n"
       "2048::2 example\n"
