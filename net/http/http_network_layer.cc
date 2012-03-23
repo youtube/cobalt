@@ -46,15 +46,8 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
   static const char kExclude[] = "exclude";  // Hosts to exclude
   static const char kDisableCompression[] = "no-compress";
   static const char kDisableAltProtocols[] = "no-alt-protocols";
-  static const char kEnableVersionThree[] = "v3";
   static const char kForceAltProtocols[] = "force-alt-protocols";
   static const char kSingleDomain[] = "single-domain";
-
-  // If flow-control is enabled, received WINDOW_UPDATE and SETTINGS
-  // messages are processed and outstanding window size is actually obeyed
-  // when sending data frames, and WINDOW_UPDATE messages are generated
-  // when data is consumed.
-  static const char kEnableFlowControl[] = "flow-control";
 
   // We want an A/B experiment between SPDY enabled and SPDY disabled,
   // but only for pages where SPDY *could have been* negotiated.  To do
@@ -103,13 +96,6 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
       next_protos.push_back("http/1.1");
       next_protos.push_back("spdy/2");
       HttpStreamFactory::SetNextProtos(next_protos);
-    } else if (option == kEnableVersionThree) {
-      std::vector<std::string> next_protos;
-      next_protos.push_back("http/1.1");
-      next_protos.push_back("spdy/2");
-      next_protos.push_back("spdy/2.1");
-      next_protos.push_back("spdy/3");
-      HttpStreamFactory::SetNextProtos(next_protos);
     } else if (option == kEnableNpnHttpOnly) {
       // Avoid alternate protocol in this case. Otherwise, browser will try SSL
       // and then fallback to http. This introduces extra load.
@@ -121,12 +107,6 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
     } else if (option == kDisableAltProtocols) {
       use_alt_protocols = false;
       HttpStreamFactory::set_use_alternate_protocols(false);
-    } else if (option == kEnableFlowControl) {
-      std::vector<std::string> next_protos;
-      next_protos.push_back("http/1.1");
-      next_protos.push_back("spdy/2");
-      next_protos.push_back("spdy/2.1");
-      HttpStreamFactory::SetNextProtos(next_protos);
     } else if (option == kForceAltProtocols) {
       PortAlternateProtocolPair pair;
       pair.port = 443;
