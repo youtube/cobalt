@@ -456,6 +456,7 @@ bool Connection::OpenInternal(const std::string& file_name) {
 void Connection::DoRollback() {
   Statement rollback(GetCachedStatement(SQL_FROM_HERE, "ROLLBACK"));
   rollback.Run();
+  needs_rollback_ = false;
 }
 
 void Connection::StatementRefCreated(StatementRef* ref) {
