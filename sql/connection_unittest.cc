@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -119,4 +119,13 @@ TEST_F(SQLConnectionTest, GetLastInsertRowId) {
   s.BindInt64(0, row);
   ASSERT_TRUE(s.Step());
   EXPECT_EQ(12, s.ColumnInt(0));
+}
+
+TEST_F(SQLConnectionTest, Rollback) {
+  ASSERT_TRUE(db().BeginTransaction());
+  ASSERT_TRUE(db().BeginTransaction());
+  EXPECT_EQ(2, db().transaction_nesting());
+  db().RollbackTransaction();
+  EXPECT_FALSE(db().CommitTransaction());
+  EXPECT_TRUE(db().BeginTransaction());
 }
