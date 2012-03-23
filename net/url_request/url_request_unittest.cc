@@ -1375,6 +1375,10 @@ TEST_F(HTTPSRequestTest, HTTPSExpiredTest) {
   }
 }
 
+// http://crbug.com/119642 - The Android test server does not support
+// generating OCSP responses on the fly.
+#if !defined(OS_ANDROID)
+
 class TestSSLConfigService : public SSLConfigService {
  public:
   TestSSLConfigService(bool ev_enabled, bool online_rev_checking)
@@ -1683,6 +1687,8 @@ TEST_F(HTTPSCRLSetTest, ExpiredCRLSet) {
   EXPECT_FALSE(cert_status & CERT_STATUS_IS_EV);
   EXPECT_FALSE(cert_status & CERT_STATUS_REV_CHECKING_ENABLED);
 }
+
+#endif  // !defined(OS_ANDROID)
 
 // This tests that a load of www.google.com with a certificate error sets
 // the |certificate_errors_are_fatal| flag correctly. This flag will cause
