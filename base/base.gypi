@@ -168,6 +168,7 @@
           'mac/scoped_aedesc.h',
           'mac/scoped_authorizationref.h',
           'mac/scoped_cftyperef.h',
+          'mac/scoped_ioobject.h',
           'mac/scoped_nsautorelease_pool.h',
           'mac/scoped_nsautorelease_pool.mm',
           'mac/scoped_nsexception_enabler.h',
