@@ -167,7 +167,7 @@ SpdyFrame* ConstructSpdyPacket(const SpdyHeaderInfo& header_info,
   switch (header_info.kind) {
     case SYN_STREAM:
       frame = framer.CreateSynStream(header_info.id, header_info.assoc_id,
-                                     header_info.priority,
+                                     header_info.priority, 0,
                                      header_info.control_flags,
                                      header_info.compressed, &headers);
       break;

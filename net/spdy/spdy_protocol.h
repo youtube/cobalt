@@ -487,7 +487,7 @@ struct SpdySynStreamControlFrameBlock : SpdyFrameBlock {
   SpdyStreamId stream_id_;
   SpdyStreamId associated_stream_id_;
   SpdyPriority priority_;
-  uint8 unused_;
+  uint8 credential_slot_;
 };
 
 // A SYN_REPLY Control Frame structure.
@@ -729,6 +729,19 @@ class SpdySynStreamControlFrame : public SpdyControlFrame {
     } else {
       return (block()->priority_ & kSpdy3PriorityMask) >> 5;
     }
+  }
+
+  uint8 credential_slot() const {
+    if (version() < 3) {
+      return 0;
+    } else {
+      return block()->credential_slot_;
+    }
+  }
+
+  void set_credential_slot(uint8 credential_slot) {
+    DCHECK(version() >= 3);
+    mutable_block()->credential_slot_ = credential_slot;
   }
 
   // The number of bytes in the header block beyond the frame header length.
