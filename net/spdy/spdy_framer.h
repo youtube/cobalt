@@ -271,6 +271,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // |associated_stream_id| is the associated stream id for this stream.
   // |priority| is the priority (GetHighestPriority()-GetLowestPriority) for
   //    this stream.
+  // |credential_slot| is the CREDENTIAL slot to be used for this request.
   // |flags| is the flags to use with the data.
   //    To mark this frame as the last frame, enable CONTROL_FLAG_FIN.
   // |compressed| specifies whether the frame should be compressed.
@@ -278,6 +279,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   SpdySynStreamControlFrame* CreateSynStream(SpdyStreamId stream_id,
                                              SpdyStreamId associated_stream_id,
                                              SpdyPriority priority,
+                                             uint8 credential_slot,
                                              SpdyControlFlags flags,
                                              bool compressed,
                                              const SpdyHeaderBlock* headers);
