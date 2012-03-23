@@ -1759,7 +1759,6 @@ bool HostResolverImpl::ServeFromCache(const Key& key,
   if (!cache_entry)
     return false;
 
-
   *net_error = cache_entry->error;
   if (*net_error == OK)
     *addresses = CreateAddressListUsingPort(cache_entry->addrlist, info.port());
@@ -1773,13 +1772,16 @@ bool HostResolverImpl::ServeFromHosts(const Key& key,
   if (!HaveDnsConfig())
     return false;
 
+  // HOSTS lookups are case-insensitive.
+  std::string hostname = StringToLowerASCII(key.hostname);
+
   // If |address_family| is ADDRESS_FAMILY_UNSPECIFIED other implementations
   // (glibc and c-ares) return the first matching line. We have more
   // flexibility, but lose implicit ordering.
   // TODO(szym) http://crbug.com/117850
   const DnsHosts& hosts = dns_client_->GetConfig()->hosts;
   DnsHosts::const_iterator it = hosts.find(
-      DnsHostsKey(key.hostname,
+      DnsHostsKey(hostname,
                   key.address_family == ADDRESS_FAMILY_UNSPECIFIED ?
                       ADDRESS_FAMILY_IPV4 : key.address_family));
 
@@ -1787,7 +1789,7 @@ bool HostResolverImpl::ServeFromHosts(const Key& key,
     if (key.address_family != ADDRESS_FAMILY_UNSPECIFIED)
       return false;
 
-    it = hosts.find(DnsHostsKey(key.hostname, ADDRESS_FAMILY_IPV6));
+    it = hosts.find(DnsHostsKey(hostname, ADDRESS_FAMILY_IPV6));
     if (it == hosts.end())
       return false;
   }

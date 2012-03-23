@@ -100,7 +100,18 @@ void DnsConfigService::OnHostsRead(const DnsHosts& hosts) {
 void DnsConfigService::StartTimer() {
   DCHECK(CalledOnValidThread());
   timer_.Stop();
+
+  // Give it a short timeout to come up with a valid config. Otherwise withdraw
+  // the config from the receiver. The goal is to avoid perceivable network
+  // outage (when using the wrong config) but at the same time avoid
+  // unnecessary Job aborts in HostResolverImpl. The signals come from multiple
+  // sources so it might receive multiple events during a config change.
+
+  // DHCP and user-induced changes are on the order of seconds, so 100ms should
+  // not add perceivable delay. On the other hand, config readers should finish
+  // within 100ms with the rare exception of I/O block or extra large HOSTS.
   const base::TimeDelta kTimeout = base::TimeDelta::FromMilliseconds(100);
+
   timer_.Start(FROM_HERE,
                kTimeout,
                this,
@@ -112,6 +123,7 @@ void DnsConfigService::OnTimeout() {
   // Indicate that even if there is no change in On*Read, we will need to
   // update the receiver when the config becomes complete.
   need_update_ = true;
+  // Empty config is considered invalid.
   callback_.Run(DnsConfig());
 }
 

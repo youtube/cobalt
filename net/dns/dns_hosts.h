@@ -48,7 +48,10 @@ class NET_EXPORT_PRIVATE DnsHostsReader
 
   DnsHostsReader(const FilePath& path, const CallbackType& callback);
 
- private:
+  const FilePath& path() const { return path_; }
+
+ protected:
+  explicit DnsHostsReader(const FilePath& path);
   virtual ~DnsHostsReader();
 
   virtual void DoWork() OVERRIDE;
