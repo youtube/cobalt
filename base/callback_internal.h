@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,6 +14,9 @@
 #include "base/base_export.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+
+template <typename T>
+class ScopedVector;
 
 namespace base {
 namespace internal {
@@ -146,6 +149,12 @@ struct CallbackParamTraits<scoped_ptr_malloc<T> > {
   typedef scoped_ptr_malloc<T> StorageType;
 };
 
+template <typename T>
+struct CallbackParamTraits<ScopedVector<T> > {
+  typedef ScopedVector<T> ForwardType;
+  typedef ScopedVector<T> StorageType;
+};
+
 // CallbackForward() is a very limited simulation of C++11's std::forward()
 // used by the Callback/Bind system for a set of movable-but-not-copyable
 // types.  It is needed because forwarding a movable-but-not-copyable
@@ -164,10 +173,15 @@ template <typename T>
 scoped_ptr<T> CallbackForward(scoped_ptr<T>& p) { return p.Pass(); }
 
 template <typename T>
-scoped_ptr<T> CallbackForward(scoped_array<T>& p) { return p.Pass(); }
+scoped_array<T> CallbackForward(scoped_array<T>& p) { return p.Pass(); }
 
 template <typename T>
-scoped_ptr<T> CallbackForward(scoped_ptr_malloc<T>& p) { return p.Pass(); }
+scoped_ptr_malloc<T> CallbackForward(scoped_ptr_malloc<T>& p) {
+  return p.Pass();
+}
+
+template <typename T>
+ScopedVector<T> CallbackForward(ScopedVector<T>& p) { return p.Pass(); }
 
 }  // namespace internal
 }  // namespace base
