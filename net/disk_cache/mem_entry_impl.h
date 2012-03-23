@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -98,25 +98,20 @@ class MemEntryImpl : public Entry {
   virtual base::Time GetLastUsed() const OVERRIDE;
   virtual base::Time GetLastModified() const OVERRIDE;
   virtual int32 GetDataSize(int index) const OVERRIDE;
-  virtual int ReadData(
-      int index, int offset, net::IOBuffer* buf, int buf_len,
-      const net::CompletionCallback& callback) OVERRIDE;
-  virtual int WriteData(
-      int index, int offset, net::IOBuffer* buf, int buf_len,
-      const net::CompletionCallback& callback, bool truncate) OVERRIDE;
-  virtual int ReadSparseData(
-      int64 offset, net::IOBuffer* buf, int buf_len,
-      const net::CompletionCallback& callback) OVERRIDE;
-  virtual int WriteSparseData(
-      int64 offset, net::IOBuffer* buf, int buf_len,
-      const net::CompletionCallback& callback) OVERRIDE;
-  virtual int GetAvailableRange(
-      int64 offset, int len, int64* start,
-      const net::CompletionCallback& callback) OVERRIDE;
+  virtual int ReadData(int index, int offset, IOBuffer* buf, int buf_len,
+                       const CompletionCallback& callback) OVERRIDE;
+  virtual int WriteData(int index, int offset, IOBuffer* buf, int buf_len,
+                        const CompletionCallback& callback,
+                        bool truncate) OVERRIDE;
+  virtual int ReadSparseData(int64 offset, IOBuffer* buf, int buf_len,
+                             const CompletionCallback& callback) OVERRIDE;
+  virtual int WriteSparseData(int64 offset, IOBuffer* buf, int buf_len,
+                              const CompletionCallback& callback) OVERRIDE;
+  virtual int GetAvailableRange(int64 offset, int len, int64* start,
+                                const CompletionCallback& callback) OVERRIDE;
   virtual bool CouldBeSparse() const OVERRIDE;
   virtual void CancelSparseIO() OVERRIDE {}
-  virtual int ReadyForSparseIO(
-      const net::CompletionCallback& callback) OVERRIDE;
+  virtual int ReadyForSparseIO(const CompletionCallback& callback) OVERRIDE;
 
  private:
   typedef base::hash_map<int, MemEntryImpl*> EntryMap;
@@ -129,11 +124,11 @@ class MemEntryImpl : public Entry {
 
   // Do all the work for corresponding public functions.  Implemented as
   // separate functions to make logging of results simpler.
-  int InternalReadData(int index, int offset, net::IOBuffer* buf, int buf_len);
-  int InternalWriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
+  int InternalReadData(int index, int offset, IOBuffer* buf, int buf_len);
+  int InternalWriteData(int index, int offset, IOBuffer* buf, int buf_len,
                         bool truncate);
-  int InternalReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len);
-  int InternalWriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len);
+  int InternalReadSparseData(int64 offset, IOBuffer* buf, int buf_len);
+  int InternalWriteSparseData(int64 offset, IOBuffer* buf, int buf_len);
 
   // Old Entry interface.
   int GetAvailableRange(int64 offset, int len, int64* start);

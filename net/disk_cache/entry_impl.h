@@ -40,17 +40,17 @@ class NET_EXPORT_PRIVATE EntryImpl
 
   // Background implementation of the Entry interface.
   void DoomImpl();
-  int ReadDataImpl(int index, int offset, net::IOBuffer* buf, int buf_len,
-                   const net::CompletionCallback& callback);
-  int WriteDataImpl(int index, int offset, net::IOBuffer* buf, int buf_len,
-                    const net::CompletionCallback& callback, bool truncate);
-  int ReadSparseDataImpl(int64 offset, net::IOBuffer* buf, int buf_len,
-                         const net::CompletionCallback& callback);
-  int WriteSparseDataImpl(int64 offset, net::IOBuffer* buf, int buf_len,
-                          const net::CompletionCallback& callback);
+  int ReadDataImpl(int index, int offset, IOBuffer* buf, int buf_len,
+                   const CompletionCallback& callback);
+  int WriteDataImpl(int index, int offset, IOBuffer* buf, int buf_len,
+                    const CompletionCallback& callback, bool truncate);
+  int ReadSparseDataImpl(int64 offset, IOBuffer* buf, int buf_len,
+                         const CompletionCallback& callback);
+  int WriteSparseDataImpl(int64 offset, IOBuffer* buf, int buf_len,
+                          const CompletionCallback& callback);
   int GetAvailableRangeImpl(int64 offset, int len, int64* start);
   void CancelSparseIOImpl();
-  int ReadyForSparseIOImpl(const net::CompletionCallback& callback);
+  int ReadyForSparseIOImpl(const CompletionCallback& callback);
 
   inline CacheEntryBlock* entry() {
     return &entry_;
@@ -151,25 +151,20 @@ class NET_EXPORT_PRIVATE EntryImpl
   virtual base::Time GetLastUsed() const OVERRIDE;
   virtual base::Time GetLastModified() const OVERRIDE;
   virtual int32 GetDataSize(int index) const OVERRIDE;
-  virtual int ReadData(
-      int index, int offset, net::IOBuffer* buf, int buf_len,
-      const net::CompletionCallback& callback) OVERRIDE;
-  virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                        const net::CompletionCallback& callback,
+  virtual int ReadData(int index, int offset, IOBuffer* buf, int buf_len,
+                       const CompletionCallback& callback) OVERRIDE;
+  virtual int WriteData(int index, int offset, IOBuffer* buf, int buf_len,
+                        const CompletionCallback& callback,
                         bool truncate) OVERRIDE;
-  virtual int ReadSparseData(
-      int64 offset, net::IOBuffer* buf, int buf_len,
-      const net::CompletionCallback& callback) OVERRIDE;
-  virtual int WriteSparseData(
-      int64 offset, net::IOBuffer* buf, int buf_len,
-      const net::CompletionCallback& callback) OVERRIDE;
-  virtual int GetAvailableRange(
-      int64 offset, int len, int64* start,
-      const net::CompletionCallback& callback) OVERRIDE;
+  virtual int ReadSparseData(int64 offset, IOBuffer* buf, int buf_len,
+                             const CompletionCallback& callback) OVERRIDE;
+  virtual int WriteSparseData(int64 offset, IOBuffer* buf, int buf_len,
+                              const CompletionCallback& callback) OVERRIDE;
+  virtual int GetAvailableRange(int64 offset, int len, int64* start,
+                                const CompletionCallback& callback) OVERRIDE;
   virtual bool CouldBeSparse() const OVERRIDE;
   virtual void CancelSparseIO() OVERRIDE;
-  virtual int ReadyForSparseIO(
-      const net::CompletionCallback& callback) OVERRIDE;
+  virtual int ReadyForSparseIO(const CompletionCallback& callback) OVERRIDE;
 
  private:
   enum {
@@ -181,10 +176,10 @@ class NET_EXPORT_PRIVATE EntryImpl
 
   // Do all the work for ReadDataImpl and WriteDataImpl.  Implemented as
   // separate functions to make logging of results simpler.
-  int InternalReadData(int index, int offset, net::IOBuffer* buf,
-                       int buf_len, const net::CompletionCallback& callback);
-  int InternalWriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                        const net::CompletionCallback& callback, bool truncate);
+  int InternalReadData(int index, int offset, IOBuffer* buf,
+                       int buf_len, const CompletionCallback& callback);
+  int InternalWriteData(int index, int offset, IOBuffer* buf, int buf_len,
+                        const CompletionCallback& callback, bool truncate);
 
   // Initializes the storage for an internal or external data block.
   bool CreateDataBlock(int index, int size);
