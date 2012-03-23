@@ -31,7 +31,6 @@ class BASE_EXPORT PickleIterator {
   bool ReadBool(bool* result) WARN_UNUSED_RESULT;
   bool ReadInt(int* result) WARN_UNUSED_RESULT;
   bool ReadLong(long* result) WARN_UNUSED_RESULT;
-  bool ReadSize(size_t* result) WARN_UNUSED_RESULT;
   bool ReadUInt16(uint16* result) WARN_UNUSED_RESULT;
   bool ReadUInt32(uint32* result) WARN_UNUSED_RESULT;
   bool ReadInt64(int64* result) WARN_UNUSED_RESULT;
@@ -148,9 +147,6 @@ class BASE_EXPORT Pickle {
   bool ReadLong(PickleIterator* iter, long* result) const {
     return iter->ReadLong(result);
   }
-  bool ReadSize(PickleIterator* iter, size_t* result) const {
-    return iter->ReadSize(result);
-  }
   bool ReadUInt16(PickleIterator* iter, uint16* result) const {
     return iter->ReadUInt16(result);
   }
@@ -195,10 +191,12 @@ class BASE_EXPORT Pickle {
   bool WriteInt(int value) {
     return WriteBytes(&value, sizeof(value));
   }
-  bool WriteLong(long value) {
-    return WriteBytes(&value, sizeof(value));
-  }
-  bool WriteSize(size_t value) {
+  // WARNING: DO NOT USE THIS METHOD IF PICKLES ARE PERSISTED IN ANY WAY.
+  // It will write whatever a "long" is on this architecture. On 32-bit
+  // platforms, it is 32 bits. On 64-bit platforms, it is 64 bits. If persisted
+  // pickles are still around after upgrading to 64-bit, or if they are copied
+  // between dissimilar systems, YOUR PICKLES WILL HAVE GONE BAD.
+  bool WriteLongUsingDangerousNonPortableLessPersistableForm(long value) {
     return WriteBytes(&value, sizeof(value));
   }
   bool WriteUInt16(uint16 value) {
