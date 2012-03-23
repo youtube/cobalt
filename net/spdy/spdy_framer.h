@@ -590,8 +590,6 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // corrupt data that just looks like HTTP, but deterministic checking requires
   // a lot more state.
   bool probable_http_response_;
-
-  static bool compression_default_;
 };
 
 }  // namespace net
