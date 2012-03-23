@@ -134,6 +134,10 @@ enum TerminationStatus {
   TERMINATION_STATUS_MAX_ENUM
 };
 
+#if defined(USE_LINUX_BREAKPAD)
+extern size_t g_oom_size;
+#endif
+
 // Returns the id of the current process.
 BASE_EXPORT ProcessId GetCurrentProcId();
 
