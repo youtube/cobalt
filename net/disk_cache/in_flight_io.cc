@@ -91,6 +91,7 @@ void InFlightIO::InvokeCallback(BackgroundIO* operation, bool cancel_task) {
   // Make sure that we remove the operation from the list before invoking the
   // callback (so that a subsequent cancel does not invoke the callback again).
   DCHECK(io_list_.find(operation) != io_list_.end());
+  DCHECK(!operation->HasOneRef());
   io_list_.erase(make_scoped_refptr(operation));
   OnOperationComplete(operation, cancel_task);
 }
