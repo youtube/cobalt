@@ -135,7 +135,7 @@ enum TerminationStatus {
 };
 
 #if defined(USE_LINUX_BREAKPAD)
-extern size_t g_oom_size;
+BASE_EXPORT extern size_t g_oom_size;
 #endif
 
 // Returns the id of the current process.
