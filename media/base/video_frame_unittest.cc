@@ -79,6 +79,45 @@ void ExpectFrameColor(media::VideoFrame* yv12_frame, uint32 expect_rgb_color) {
   }
 }
 
+// Fill each plane to its reported extents and verify accessors report non
+// zero values.  Additionally, for the first plane verify the rows and
+// row_bytes values are correct.
+void ExpectFrameExtents(VideoFrame::Format format, int planes,
+                        int bytes_per_pixel, const char* expected_hash) {
+  const unsigned char kFillByte = 0x80;
+  const size_t kWidth = 61;
+  const size_t kHeight = 31;
+  const base::TimeDelta kTimestamp = base::TimeDelta::FromMicroseconds(1337);
+  const base::TimeDelta kDuration = base::TimeDelta::FromMicroseconds(1667);
+
+  scoped_refptr<VideoFrame> frame = VideoFrame::CreateFrame(
+      format, kWidth, kHeight, kTimestamp, kDuration);
+  ASSERT_TRUE(frame);
+
+  for(int plane = 0; plane < planes; plane++) {
+    SCOPED_TRACE(base::StringPrintf("Checking plane %d", plane));
+    EXPECT_TRUE(frame->data(plane));
+    EXPECT_TRUE(frame->stride(plane));
+    EXPECT_TRUE(frame->rows(plane));
+    EXPECT_TRUE(frame->row_bytes(plane));
+
+    if (plane == 0) {
+      EXPECT_EQ((size_t)frame->rows(plane), kHeight);
+      EXPECT_EQ((size_t)frame->row_bytes(plane), kWidth * bytes_per_pixel);
+    }
+
+    memset(frame->data(plane), kFillByte,
+           frame->stride(plane) * frame->rows(plane));
+  }
+
+  base::MD5Context context;
+  base::MD5Init(&context);
+  frame->HashFrameForTesting(&context);
+  base::MD5Digest digest;
+  base::MD5Final(&digest, &context);
+  EXPECT_EQ(MD5DigestToBase16(digest), expected_hash);
+}
+
 TEST(VideoFrame, CreateFrame) {
   const size_t kWidth = 64;
   const size_t kHeight = 48;
@@ -170,6 +209,28 @@ TEST(VideoFrame, CreateBlackFrame) {
     u_plane += frame->stride(VideoFrame::kUPlane);
     v_plane += frame->stride(VideoFrame::kVPlane);
   }
+}
+
+// Ensure each frame is properly sized and allocated.  Will trigger OOB reads
+// and writes as well as incorrect frame hashes otherwise.
+TEST(VideoFrame, CheckFrameExtents) {
+  // Each call consists of a VideoFrame::Format, # of planes, bytes per pixel,
+  // and the expected hash of all planes if filled with kFillByte (defined in
+  // ExpectFrameExtents).
+  ExpectFrameExtents(
+      VideoFrame::RGB555, 1, 2, "31f7739efc76b5d9cb51361ba82533fa");
+  ExpectFrameExtents(
+      VideoFrame::RGB565, 1, 2, "31f7739efc76b5d9cb51361ba82533fa");
+  ExpectFrameExtents(
+      VideoFrame::RGB24,  1, 3, "84361ae9d4b6d4641a11474b3a7a2260");
+  ExpectFrameExtents(
+      VideoFrame::RGB32,  1, 4, "de6d3d567e282f6a38d478f04fc81fb0");
+  ExpectFrameExtents(
+      VideoFrame::RGBA,   1, 4, "de6d3d567e282f6a38d478f04fc81fb0");
+  ExpectFrameExtents(
+      VideoFrame::YV12,   3, 1, "71113bdfd4c0de6cf62f48fb74f7a0b1");
+  ExpectFrameExtents(
+      VideoFrame::YV16,   3, 1, "9bb99ac3ff350644ebff4d28dc01b461");
 }
 
 }  // namespace media
