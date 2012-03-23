@@ -276,6 +276,10 @@ int ReadProcStatusAndGetFieldAsInt(pid_t pid, const std::string& field) {
 
 namespace base {
 
+#if defined(USE_LINUX_BREAKPAD)
+size_t g_oom_size = 0U;
+#endif
+
 ProcessId GetParentProcessId(ProcessHandle process) {
   ProcessId pid = ReadProcStatsAndGetFieldAsInt(process, VM_PPID);
   if (pid)
@@ -643,6 +647,10 @@ size_t GetSystemCommitCharge() {
 namespace {
 
 void OnNoMemorySize(size_t size) {
+#if defined(USE_LINUX_BREAKPAD)
+  g_oom_size = size;
+#endif
+
   if (size != 0)
     LOG(FATAL) << "Out of memory, size = " << size;
   LOG(FATAL) << "Out of memory.";
