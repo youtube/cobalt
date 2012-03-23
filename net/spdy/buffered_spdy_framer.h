@@ -111,6 +111,7 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramer
   SpdySynStreamControlFrame* CreateSynStream(SpdyStreamId stream_id,
                                              SpdyStreamId associated_stream_id,
                                              int priority,
+                                             uint8 credential_slot,
                                              SpdyControlFlags flags,
                                              bool compressed,
                                              const SpdyHeaderBlock* headers);

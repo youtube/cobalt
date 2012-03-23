@@ -48,6 +48,9 @@ class NET_EXPORT_PRIVATE SpdyFrameBuilder {
   // Methods for adding to the payload.  These values are appended to the end
   // of the SpdyFrameBuilder payload. Note - binary integers are converted from
   // host to network form.
+  bool WriteUInt8(uint8 value) {
+    return WriteBytes(&value, sizeof(value));
+  }
   bool WriteUInt16(uint16 value) {
     value = htons(value);
     return WriteBytes(&value, sizeof(value));

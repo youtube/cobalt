@@ -172,11 +172,13 @@ SpdySynStreamControlFrame* BufferedSpdyFramer::CreateSynStream(
     SpdyStreamId stream_id,
     SpdyStreamId associated_stream_id,
     int priority,
+    uint8 credential_slot,
     SpdyControlFlags flags,
     bool compressed,
     const SpdyHeaderBlock* headers) {
-  return spdy_framer_.CreateSynStream(
-      stream_id, associated_stream_id, priority, flags, compressed, headers);
+  return spdy_framer_.CreateSynStream(stream_id, associated_stream_id, priority,
+                                      credential_slot, flags, compressed,
+                                      headers);
 }
 
 SpdySynReplyControlFrame* BufferedSpdyFramer::CreateSynReply(
