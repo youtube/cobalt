@@ -37,10 +37,8 @@ ACTION_P3(CheckCountAndPostQuitTask, count, limit, loop_or_proxy) {
 
 // Closes AudioOutputController synchronously.
 static void CloseAudioController(AudioInputController* controller) {
-  base::WaitableEvent closed_event(true, false);
-  controller->Close(base::Bind(&base::WaitableEvent::Signal,
-                               base::Unretained(&closed_event)));
-  closed_event.Wait();
+  controller->Close(MessageLoop::QuitClosure());
+  MessageLoop::current()->Run();
 }
 
 class MockAudioInputControllerEventHandler
@@ -216,16 +214,11 @@ TEST_F(AudioInputControllerTest, CloseTwice) {
 
   controller->Record();
 
-  base::WaitableEvent closed_event_1(true, false);
-  controller->Close(base::Bind(&base::WaitableEvent::Signal,
-                               base::Unretained(&closed_event_1)));
+  controller->Close(MessageLoop::QuitClosure());
+  MessageLoop::current()->Run();
 
-  base::WaitableEvent closed_event_2(true, false);
-  controller->Close(base::Bind(&base::WaitableEvent::Signal,
-                               base::Unretained(&closed_event_2)));
-
-  closed_event_1.Wait();
-  closed_event_2.Wait();
+  controller->Close(MessageLoop::QuitClosure());
+  MessageLoop::current()->Run();
 }
 
 }  // namespace media

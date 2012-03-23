@@ -103,8 +103,8 @@ void AudioInputController::Record() {
 
 void AudioInputController::Close(const base::Closure& closed_task) {
   DCHECK(!closed_task.is_null());
-  message_loop_->PostTask(FROM_HERE, base::Bind(
-      &AudioInputController::DoClose, this, closed_task));
+  message_loop_->PostTaskAndReply(
+      FROM_HERE, base::Bind(&AudioInputController::DoClose, this), closed_task);
 }
 
 void AudioInputController::DoCreate(AudioManager* audio_manager,
@@ -150,7 +150,7 @@ void AudioInputController::DoRecord() {
   handler_->OnRecording(this);
 }
 
-void AudioInputController::DoClose(const base::Closure& closed_task) {
+void AudioInputController::DoClose() {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   if (state_ != kClosed) {
@@ -162,8 +162,6 @@ void AudioInputController::DoClose(const base::Closure& closed_task) {
 
     state_ = kClosed;
   }
-
-  closed_task.Run();
 }
 
 void AudioInputController::DoReportError(int code) {
