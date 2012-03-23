@@ -199,6 +199,7 @@ TEST_F(BufferedSpdyFramerSpdy2Test, ReadSynStreamHeaderBlock) {
       framer.CreateSynStream(1,                        // stream_id
                              0,                        // associated_stream_id
                              1,                        // priority
+                             0,                        // credential_slot
                              CONTROL_FLAG_NONE,
                              true,                     // compress
                              &headers));

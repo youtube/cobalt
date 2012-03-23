@@ -352,6 +352,7 @@ size_t SpdyFramer::ProcessInput(const char* data, size_t len) {
         size_t bytes_read = ProcessCredentialFramePayload(data, len);
         len -= bytes_read;
         data += bytes_read;
+        continue;
       }
 
       case SPDY_CONTROL_FRAME_PAYLOAD: {
@@ -856,6 +857,8 @@ size_t SpdyFramer::ProcessControlFramePayload(const char* data, size_t len) {
 }
 
 size_t SpdyFramer::ProcessCredentialFramePayload(const char* data, size_t len) {
+  // Process only up to the end of this CREDENTIAL frame.
+  len = std::min(len, remaining_control_payload_);
   bool processed_succesfully = visitor_->OnCredentialFrameData(data, len);
   remaining_control_payload_ -= len;
   remaining_data_ -= len;
@@ -863,6 +866,7 @@ size_t SpdyFramer::ProcessCredentialFramePayload(const char* data, size_t len) {
     set_error(SPDY_CREDENTIAL_FRAME_CORRUPT);
   } else if (remaining_control_payload_ == 0) {
     visitor_->OnCredentialFrameData(NULL, 0);
+    CHANGE_STATE(SPDY_AUTO_RESET);
   }
   return len;
 }
@@ -1054,6 +1058,7 @@ SpdySynStreamControlFrame* SpdyFramer::CreateSynStream(
     SpdyStreamId stream_id,
     SpdyStreamId associated_stream_id,
     SpdyPriority priority,
+    uint8 credential_slot,
     SpdyControlFlags flags,
     bool compressed,
     const SpdyHeaderBlock* headers) {
@@ -1081,7 +1086,8 @@ SpdySynStreamControlFrame* SpdyFramer::CreateSynStream(
     priority = GetLowestPriority();
   }
   // Priority is 2 bits for <spdy3, 3 bits otherwise.
-  frame.WriteUInt16(ntohs(priority) << (spdy_version_ < 3 ? 6 : 5));
+  frame.WriteUInt8(priority << ((spdy_version_ < 3) ? 6 : 5));
+  frame.WriteUInt8((spdy_version_ < 3) ? 0 : credential_slot);
   WriteHeaderBlock(&frame, headers);
 
   scoped_ptr<SpdySynStreamControlFrame> syn_frame(
