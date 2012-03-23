@@ -7,6 +7,7 @@
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "base/string_tokenizer.h"
+#include "base/string_util.h"
 
 namespace net {
 
@@ -34,7 +35,9 @@ void ParseHosts(const std::string& contents, DnsHosts* dns_hosts) {
         AddressFamily fam = (ip.size() == 4) ? ADDRESS_FAMILY_IPV4 :
                                                ADDRESS_FAMILY_IPV6;
         while (tokens.GetNext()) {
-          IPAddressNumber& mapped_ip = hosts[DnsHostsKey(tokens.token(), fam)];
+          DnsHostsKey key(tokens.token(), fam);
+          StringToLowerASCII(&(key.first));
+          IPAddressNumber& mapped_ip = hosts[key];
           if (mapped_ip.empty())
             mapped_ip = ip;
           // else ignore this entry (first hit counts)
@@ -50,6 +53,11 @@ DnsHostsReader::DnsHostsReader(const FilePath& path,
       callback_(callback),
       success_(false) {
   DCHECK(!callback.is_null());
+}
+
+DnsHostsReader::DnsHostsReader(const FilePath& path)
+    : path_(path),
+      success_(false) {
 }
 
 // Reads the contents of the file at |path| into |str| if the total length is
