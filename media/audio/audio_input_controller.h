@@ -148,12 +148,13 @@ class MEDIA_EXPORT AudioInputController
   virtual void Record();
 
   // Closes the audio input stream. The state is changed and the resources
-  // are freed on the audio thread. |closed_task| is executed after that.
+  // are freed on the audio thread. |closed_task| is then executed on the thread
+  // that called Close().
   // Callbacks (EventHandler and SyncWriter) must exist until |closed_task|
   // is called.
   // It is safe to call this method more than once. Calls after the first one
   // will have no effect.
-  // This method is called on the audio thread.
+  // This method trampolines to the audio thread.
   virtual void Close(const base::Closure& closed_task);
 
   // AudioInputCallback implementation. Threading details depends on the
@@ -184,7 +185,7 @@ class MEDIA_EXPORT AudioInputController
   void DoCreate(AudioManager* audio_manager, const AudioParameters& params,
                 const std::string& device_id);
   void DoRecord();
-  void DoClose(const base::Closure& closed_task);
+  void DoClose();
   void DoReportError(int code);
 
   // Methods which ensures that OnError() is triggered when data recording
