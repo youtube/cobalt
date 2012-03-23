@@ -207,13 +207,21 @@ int VideoFrame::stride(size_t plane) const {
 int VideoFrame::row_bytes(size_t plane) const {
   DCHECK(IsValidPlane(plane));
   switch (format_) {
+    // 16bpp.
     case RGB555:
     case RGB565:
+      return width_ * 2;
+
+    // 24bpp.
     case RGB24:
+      return width_ * 3;
+
+    // 32bpp.
     case RGB32:
     case RGBA:
-      return width_;
+      return width_ * 4;
 
+    // Planar, 8bpp.
     case YV12:
     case YV16:
       if (plane == kYPlane)
