@@ -60,7 +60,7 @@ FlagsAndLength CreateFlagsAndLength(SpdyControlFlags flags, size_t length) {
 }
 
 // By default is compression on or off.
-bool SpdyFramer::compression_default_ = true;
+bool g_enable_compression_default = true;
 
 // The initial size of the control frame buffer; this is used internally
 // as we parse through control frames. (It is exposed here for unit test
@@ -82,7 +82,6 @@ size_t SpdyFramer::kUncompressedControlFrameBufferInitialSize = 18;
 
 const SpdyStreamId SpdyFramer::kInvalidStream = -1;
 const size_t SpdyFramer::kHeaderDataChunkMaxSize = 1024;
-
 
 #ifdef DEBUG_SPDY_STATE_CHANGES
 #define CHANGE_STATE(newstate) \
@@ -143,7 +142,7 @@ SpdyFramer::SpdyFramer(int version)
       current_frame_len_(0),
       current_frame_capacity_(0),
       validate_control_frame_sizes_(true),
-      enable_compression_(compression_default_),
+      enable_compression_(g_enable_compression_default),
       visitor_(NULL),
       display_protocol_("SPDY"),
       spdy_version_(version),
@@ -1794,7 +1793,7 @@ void SpdyFramer::set_validate_control_frame_sizes(bool value) {
 }
 
 void SpdyFramer::set_enable_compression_default(bool value) {
-  compression_default_ = value;
+  g_enable_compression_default = value;
 }
 
 }  // namespace net
