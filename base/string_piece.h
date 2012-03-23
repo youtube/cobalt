@@ -26,6 +26,7 @@
 
 #include <iosfwd>
 #include <string>
+#include <stddef.h>
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
