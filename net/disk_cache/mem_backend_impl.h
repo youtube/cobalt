@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -65,21 +65,19 @@ class NET_EXPORT_PRIVATE MemBackendImpl : public Backend {
   // Backend interface.
   virtual int32 GetEntryCount() const OVERRIDE;
   virtual int OpenEntry(const std::string& key, Entry** entry,
-                        const net::CompletionCallback& callback) OVERRIDE;
+                        const CompletionCallback& callback) OVERRIDE;
   virtual int CreateEntry(const std::string& key, Entry** entry,
-                          const net::CompletionCallback& callback) OVERRIDE;
+                          const CompletionCallback& callback) OVERRIDE;
   virtual int DoomEntry(const std::string& key,
-                        const net::CompletionCallback& callback) OVERRIDE;
-  virtual int DoomAllEntries(const net::CompletionCallback& callback) OVERRIDE;
-  virtual int DoomEntriesBetween(
-      const base::Time initial_time,
-      const base::Time end_time,
-      const net::CompletionCallback& callback) OVERRIDE;
-  virtual int DoomEntriesSince(
-      const base::Time initial_time,
-      const net::CompletionCallback& callback) OVERRIDE;
+                        const CompletionCallback& callback) OVERRIDE;
+  virtual int DoomAllEntries(const CompletionCallback& callback) OVERRIDE;
+  virtual int DoomEntriesBetween(const base::Time initial_time,
+                                 const base::Time end_time,
+                                 const CompletionCallback& callback) OVERRIDE;
+  virtual int DoomEntriesSince(const base::Time initial_time,
+                               const CompletionCallback& callback) OVERRIDE;
   virtual int OpenNextEntry(void** iter, Entry** next_entry,
-                            const net::CompletionCallback& callback) OVERRIDE;
+                            const CompletionCallback& callback) OVERRIDE;
   virtual void EndEnumeration(void** iter) OVERRIDE;
   virtual void GetStats(
       std::vector<std::pair<std::string, std::string> >* stats) OVERRIDE {}
