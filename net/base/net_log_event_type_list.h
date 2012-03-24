@@ -975,12 +975,14 @@ EVENT_TYPE(SPDY_SESSION_SYN_REPLY)
 //   }
 EVENT_TYPE(SPDY_SESSION_SEND_SETTINGS)
 
-// Receipt of a SPDY SETTINGS frame.
+// Receipt of a SPDY SETTING frame.
 // The following parameters are attached:
 //   {
-//     "settings": <The list of setting id:value pairs>,
+//     "id":    <The setting id>,
+//     "flags": <The setting flags>,
+//     "value": <The setting value>,
 //   }
-EVENT_TYPE(SPDY_SESSION_RECV_SETTINGS)
+EVENT_TYPE(SPDY_SESSION_RECV_SETTING)
 
 // The receipt of a RST_STREAM
 // The following parameters are attached:

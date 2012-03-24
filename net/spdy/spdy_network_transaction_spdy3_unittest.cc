@@ -936,7 +936,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ThreeGetsWithMaxConcurrent) {
   scoped_ptr<SpdyFrame> fbody3(ConstructSpdyBodyFrame(5, true));
 
   SpdySettings settings;
-  SettingsFlagsAndId id(0, SETTINGS_MAX_CONCURRENT_STREAMS);
+  SettingsFlagsAndId id(SETTINGS_FLAG_NONE, SETTINGS_MAX_CONCURRENT_STREAMS);
   const size_t max_concurrent_streams = 1;
 
   settings.push_back(SpdySetting(id, max_concurrent_streams));
@@ -1072,9 +1072,8 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, FourGetsWithMaxConcurrentPriority) {
   scoped_ptr<SpdyFrame> body3(ConstructSpdyBodyFrame(7, false));
   scoped_ptr<SpdyFrame> fbody3(ConstructSpdyBodyFrame(7, true));
 
-
   SpdySettings settings;
-  SettingsFlagsAndId id(0, SETTINGS_MAX_CONCURRENT_STREAMS);
+  SettingsFlagsAndId id(SETTINGS_FLAG_NONE, SETTINGS_MAX_CONCURRENT_STREAMS);
   const size_t max_concurrent_streams = 1;
 
   settings.push_back(SpdySetting(id, max_concurrent_streams));
@@ -1141,8 +1140,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, FourGetsWithMaxConcurrentPriority) {
 
   out.rv = trans1->Start(&httpreq1, callback1.callback(), log);
   ASSERT_EQ(ERR_IO_PENDING, out.rv);
-  // run transaction 1 through quickly to force a read of our SETTINGS
-  // frame
+  // Run transaction 1 through quickly to force a read of our SETTINGS frame.
   out.rv = callback1.WaitForResult();
   ASSERT_EQ(OK, out.rv);
 
@@ -1218,7 +1216,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ThreeGetsWithMaxConcurrentDelete) {
   scoped_ptr<SpdyFrame> fbody2(ConstructSpdyBodyFrame(3, true));
 
   SpdySettings settings;
-  SettingsFlagsAndId id(0, SETTINGS_MAX_CONCURRENT_STREAMS);
+  SettingsFlagsAndId id(SETTINGS_FLAG_NONE, SETTINGS_MAX_CONCURRENT_STREAMS);
   const size_t max_concurrent_streams = 1;
 
   settings.push_back(SpdySetting(id, max_concurrent_streams));
@@ -1271,8 +1269,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ThreeGetsWithMaxConcurrentDelete) {
 
   out.rv = trans1->Start(&httpreq1, callback1.callback(), log);
   ASSERT_EQ(out.rv, ERR_IO_PENDING);
-  // run transaction 1 through quickly to force a read of our SETTINGS
-  // frame
+  // Run transaction 1 through quickly to force a read of our SETTINGS frame.
   out.rv = callback1.WaitForResult();
   ASSERT_EQ(OK, out.rv);
 
@@ -1353,7 +1350,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ThreeGetsWithMaxConcurrentSocketClose) {
   scoped_ptr<SpdyFrame> resp2(ConstructSpdyGetSynReply(NULL, 0, 3));
 
   SpdySettings settings;
-  SettingsFlagsAndId id(0, SETTINGS_MAX_CONCURRENT_STREAMS);
+  SettingsFlagsAndId id(SETTINGS_FLAG_NONE, SETTINGS_MAX_CONCURRENT_STREAMS);
   const size_t max_concurrent_streams = 1;
 
   settings.push_back(SpdySetting(id, max_concurrent_streams));
@@ -1401,8 +1398,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ThreeGetsWithMaxConcurrentSocketClose) {
 
   out.rv = trans1.Start(&httpreq1, callback1.callback(), log);
   ASSERT_EQ(out.rv, ERR_IO_PENDING);
-  // run transaction 1 through quickly to force a read of our SETTINGS
-  // frame
+  // Run transaction 1 through quickly to force a read of our SETTINGS frame.
   out.rv = callback1.WaitForResult();
   ASSERT_EQ(OK, out.rv);
 
@@ -1443,15 +1439,15 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, Put) {
 
   const SpdyHeaderInfo kSynStartHeader = {
     SYN_STREAM,             // Kind = Syn
-    1,                            // Stream ID
-    0,                            // Associated stream ID
+    1,                      // Stream ID
+    0,                      // Associated stream ID
     net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
-    0,                            // Credential Slot
+    0,                      // Credential Slot
     CONTROL_FLAG_FIN,       // Control Flags
-    false,                        // Compressed
+    false,                  // Compressed
     INVALID,                // Status
-    NULL,                         // Data
-    0,                            // Length
+    NULL,                   // Data
+    0,                      // Length
     DATA_FLAG_NONE          // Data Flags
   };
   const char* const kPutHeaders[] = {
@@ -1471,15 +1467,15 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, Put) {
   scoped_ptr<SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
   const SpdyHeaderInfo kSynReplyHeader = {
     SYN_REPLY,              // Kind = SynReply
-    1,                            // Stream ID
-    0,                            // Associated stream ID
+    1,                      // Stream ID
+    0,                      // Associated stream ID
     net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
-    0,                            // Credential Slot
+    0,                      // Credential Slot
     CONTROL_FLAG_NONE,      // Control Flags
-    false,                        // Compressed
+    false,                  // Compressed
     INVALID,                // Status
-    NULL,                         // Data
-    0,                            // Length
+    NULL,                   // Data
+    0,                      // Length
     DATA_FLAG_NONE          // Data Flags
   };
   static const char* const kStandardGetHeaders[] = {
@@ -1516,15 +1512,15 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, Head) {
 
   const SpdyHeaderInfo kSynStartHeader = {
     SYN_STREAM,             // Kind = Syn
-    1,                            // Stream ID
-    0,                            // Associated stream ID
+    1,                      // Stream ID
+    0,                      // Associated stream ID
     net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
-    0,                            // Credential Slot
+    0,                      // Credential Slot
     CONTROL_FLAG_FIN,       // Control Flags
-    false,                        // Compressed
+    false,                  // Compressed
     INVALID,                // Status
-    NULL,                         // Data
-    0,                            // Length
+    NULL,                   // Data
+    0,                      // Length
     DATA_FLAG_NONE          // Data Flags
   };
   const char* const kHeadHeaders[] = {
@@ -1544,15 +1540,15 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, Head) {
   scoped_ptr<SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
   const SpdyHeaderInfo kSynReplyHeader = {
     SYN_REPLY,              // Kind = SynReply
-    1,                            // Stream ID
-    0,                            // Associated stream ID
+    1,                      // Stream ID
+    0,                      // Associated stream ID
     net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
-    0,                            // Credential Slot
+    0,                      // Credential Slot
     CONTROL_FLAG_NONE,      // Control Flags
-    false,                        // Compressed
+    false,                  // Compressed
     INVALID,                // Status
-    NULL,                         // Data
-    0,                            // Length
+    NULL,                   // Data
+    0,                      // Length
     DATA_FLAG_NONE          // Data Flags
   };
   static const char* const kStandardGetHeaders[] = {
@@ -3479,16 +3475,15 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SynReplyHeaders) {
 TEST_P(SpdyNetworkTransactionSpdy3Test, SynReplyHeadersVary) {
   static const SpdyHeaderInfo syn_reply_info = {
     SYN_REPLY,                              // Syn Reply
-    1,                                            // Stream ID
-    0,                                            // Associated Stream ID
-    net::ConvertRequestPriorityToSpdyPriority(LOWEST),
-                                                  // Priority
-    0,                                            // Credential Slot
+    1,                                      // Stream ID
+    0,                                      // Associated Stream ID
+    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    0,                                      // Credential Slot
     CONTROL_FLAG_NONE,                      // Control Flags
-    false,                                        // Compressed
+    false,                                  // Compressed
     INVALID,                                // Status
-    NULL,                                         // Data
-    0,                                            // Data Length
+    NULL,                                   // Data
+    0,                                      // Data Length
     DATA_FLAG_NONE                          // Data Flags
   };
   // Modify the following data to change/add test cases:
@@ -3649,16 +3644,15 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SynReplyHeadersVary) {
 TEST_P(SpdyNetworkTransactionSpdy3Test, InvalidSynReply) {
   const SpdyHeaderInfo kSynStartHeader = {
     SYN_REPLY,              // Kind = SynReply
-    1,                            // Stream ID
-    0,                            // Associated stream ID
-    net::ConvertRequestPriorityToSpdyPriority(LOWEST),
-                                  // Priority
-    0,                            // Credential Slot
+    1,                      // Stream ID
+    0,                      // Associated stream ID
+    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    0,                      // Credential Slot
     CONTROL_FLAG_NONE,      // Control Flags
-    false,                        // Compressed
+    false,                  // Compressed
     INVALID,                // Status
-    NULL,                         // Data
-    0,                            // Length
+    NULL,                   // Data
+    0,                      // Length
     DATA_FLAG_NONE          // Data Flags
   };
 
@@ -4371,16 +4365,15 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, BufferedCancelled) {
 TEST_P(SpdyNetworkTransactionSpdy3Test, SettingsSaved) {
   static const SpdyHeaderInfo kSynReplyInfo = {
     SYN_REPLY,                              // Syn Reply
-    1,                                            // Stream ID
-    0,                                            // Associated Stream ID
-    net::ConvertRequestPriorityToSpdyPriority(LOWEST),
-                                                  // Priority
-    0,                                            // Credential Slot
+    1,                                      // Stream ID
+    0,                                      // Associated Stream ID
+    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    0,                                      // Credential Slot
     CONTROL_FLAG_NONE,                      // Control Flags
-    false,                                        // Compressed
+    false,                                  // Compressed
     INVALID,                                // Status
-    NULL,                                         // Data
-    0,                                            // Data Length
+    NULL,                                   // Data
+    0,                                      // Data Length
     DATA_FLAG_NONE                          // Data Flags
   };
   static const char* const kExtraHeaders[] = {
@@ -4410,26 +4403,24 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SettingsSaved) {
                         NULL,
                         0));
 
-  unsigned int kSampleId1 = 0x1;
+  const SpdySettingsIds kSampleId1 = SETTINGS_UPLOAD_BANDWIDTH;
   unsigned int kSampleValue1 = 0x0a0a0a0a;
-  unsigned int kSampleId2 = 0x2;
+  const SpdySettingsIds kSampleId2 = SETTINGS_DOWNLOAD_BANDWIDTH;
   unsigned int kSampleValue2 = 0x0b0b0b0b;
-  unsigned int kSampleId3 = 0x3;
+  const SpdySettingsIds kSampleId3 = SETTINGS_ROUND_TRIP_TIME;
   unsigned int kSampleValue3 = 0x0c0c0c0c;
   scoped_ptr<SpdyFrame> settings_frame;
   {
     // Construct the SETTINGS frame.
     SpdySettings settings;
-    // First add a persisted setting
-    SettingsFlagsAndId setting1(SETTINGS_FLAG_PLEASE_PERSIST,
-                                      kSampleId1);
+    // First add a persisted setting.
+    SettingsFlagsAndId setting1(SETTINGS_FLAG_PLEASE_PERSIST, kSampleId1);
     settings.push_back(std::make_pair(setting1, kSampleValue1));
-    // Next add a non-persisted setting
-    SettingsFlagsAndId setting2(0, kSampleId2);
+    // Next add a non-persisted setting.
+    SettingsFlagsAndId setting2(SETTINGS_FLAG_NONE, kSampleId2);
     settings.push_back(std::make_pair(setting2, kSampleValue2));
-    // Next add another persisted setting
-    SettingsFlagsAndId setting3(SETTINGS_FLAG_PLEASE_PERSIST,
-                                      kSampleId3);
+    // Next add another persisted setting.
+    SettingsFlagsAndId setting3(SETTINGS_FLAG_PLEASE_PERSIST, kSampleId3);
     settings.push_back(std::make_pair(setting3, kSampleValue3));
     settings_frame.reset(ConstructSpdySettings(settings));
   }
@@ -4453,30 +4444,27 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SettingsSaved) {
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
   EXPECT_EQ("hello!", out.response_data);
 
-  // TODO(rtenneti): Persist spdy settings.
-#ifdef PERSIST_SPDY_SETTINGS
   {
     // Verify we had two persisted settings.
-    SpdySettings saved_settings =
+    const SettingsMap& settings_map =
         spdy_session_pool->http_server_properties()->GetSpdySettings(
             host_port_pair);
-    ASSERT_EQ(2u, saved_settings.size());
+    ASSERT_EQ(2u, settings_map.size());
 
     // Verify the first persisted setting.
-    SpdySetting setting = saved_settings.front();
-    saved_settings.pop_front();
-    EXPECT_EQ(SETTINGS_FLAG_PERSISTED, setting.first.flags());
-    EXPECT_EQ(kSampleId1, setting.first.id());
-    EXPECT_EQ(kSampleValue1, setting.second);
+    SettingsMap::const_iterator it1 = settings_map.find(kSampleId1);
+    EXPECT_TRUE(it1 != settings_map.end());
+    SettingsFlagsAndValue flags_and_value1 = it1->second;
+    EXPECT_EQ(SETTINGS_FLAG_PERSISTED, flags_and_value1.first);
+    EXPECT_EQ(kSampleValue1, flags_and_value1.second);
 
     // Verify the second persisted setting.
-    setting = saved_settings.front();
-    saved_settings.pop_front();
-    EXPECT_EQ(SETTINGS_FLAG_PERSISTED, setting.first.flags());
-    EXPECT_EQ(kSampleId3, setting.first.id());
-    EXPECT_EQ(kSampleValue3, setting.second);
+    SettingsMap::const_iterator it3 = settings_map.find(kSampleId3);
+    EXPECT_TRUE(it3 != settings_map.end());
+    SettingsFlagsAndValue flags_and_value3 = it3->second;
+    EXPECT_EQ(SETTINGS_FLAG_PERSISTED, flags_and_value3.first);
+    EXPECT_EQ(kSampleValue3, flags_and_value3.second);
   }
-#endif
 }
 
 // Test that when there are settings saved that they are sent back to the
@@ -4484,16 +4472,15 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SettingsSaved) {
 TEST_P(SpdyNetworkTransactionSpdy3Test, SettingsPlayback) {
   static const SpdyHeaderInfo kSynReplyInfo = {
     SYN_REPLY,                              // Syn Reply
-    1,                                            // Stream ID
-    0,                                            // Associated Stream ID
-    net::ConvertRequestPriorityToSpdyPriority(LOWEST),
-                                                  // Priority
-    0,                                            // Credential Slot
+    1,                                      // Stream ID
+    0,                                      // Associated Stream ID
+    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    0,                                      // Credential Slot
     CONTROL_FLAG_NONE,                      // Control Flags
-    false,                                        // Compressed
+    false,                                  // Compressed
     INVALID,                                // Status
-    NULL,                                         // Data
-    0,                                            // Data Length
+    NULL,                                   // Data
+    0,                                      // Data Length
     DATA_FLAG_NONE                          // Data Flags
   };
   static const char* kExtraHeaders[] = {
@@ -4511,33 +4498,43 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SettingsPlayback) {
   EXPECT_TRUE(spdy_session_pool->http_server_properties()->GetSpdySettings(
       host_port_pair).empty());
 
-  unsigned int kSampleId1 = 0x1;
+  const SpdySettingsIds kSampleId1 = SETTINGS_UPLOAD_BANDWIDTH;
   unsigned int kSampleValue1 = 0x0a0a0a0a;
-  unsigned int kSampleId2 = 0xababab;
+  const SpdySettingsIds kSampleId2 = SETTINGS_ROUND_TRIP_TIME;
   unsigned int kSampleValue2 = 0x0c0c0c0c;
-  // Manually insert settings into the SpdySettingsStorage here.
-  {
-    SpdySettings settings;
-    // First add a persisted setting
-    SettingsFlagsAndId setting1(SETTINGS_FLAG_PLEASE_PERSIST,
-                                      kSampleId1);
-    settings.push_back(std::make_pair(setting1, kSampleValue1));
-    // Next add another persisted setting
-    SettingsFlagsAndId setting2(SETTINGS_FLAG_PLEASE_PERSIST,
-                                      kSampleId2);
-    settings.push_back(std::make_pair(setting2, kSampleValue2));
 
-    spdy_session_pool->http_server_properties()->SetSpdySettings(
-        host_port_pair, settings);
-  }
+  // First add a persisted setting.
+  spdy_session_pool->http_server_properties()->SetSpdySetting(
+      host_port_pair,
+      kSampleId1,
+      SETTINGS_FLAG_PLEASE_PERSIST,
+      kSampleValue1);
+
+  // Next add another persisted setting.
+  spdy_session_pool->http_server_properties()->SetSpdySetting(
+      host_port_pair,
+      kSampleId2,
+      SETTINGS_FLAG_PLEASE_PERSIST,
+      kSampleValue2);
 
   EXPECT_EQ(2u, spdy_session_pool->http_server_properties()->GetSpdySettings(
       host_port_pair).size());
 
   // Construct the SETTINGS frame.
-  const SpdySettings& settings =
+  const SettingsMap& settings_map =
       spdy_session_pool->http_server_properties()->GetSpdySettings(
           host_port_pair);
+
+  SpdySettings settings;
+  for (SettingsMap::const_iterator i = settings_map.begin(),
+           end = settings_map.end(); i != end; ++i) {
+    const SpdySettingsIds id = i->first;
+    const SpdySettingsFlags flags = i->second.first;
+    const uint32 val = i->second.second;
+    SettingsFlagsAndId flags_and_id(flags, id);
+    settings.push_back(SpdySetting(flags_and_id, val));
+  }
+
   scoped_ptr<SpdyFrame> settings_frame(ConstructSpdySettings(settings));
 
   // Construct the request.
@@ -4576,24 +4573,24 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SettingsPlayback) {
 
   {
     // Verify we had two persisted settings.
-    SpdySettings saved_settings =
+    const SettingsMap& settings_map =
         spdy_session_pool->http_server_properties()->GetSpdySettings(
             host_port_pair);
-    ASSERT_EQ(2u, saved_settings.size());
+    ASSERT_EQ(2u, settings_map.size());
 
     // Verify the first persisted setting.
-    SpdySetting setting = saved_settings.front();
-    saved_settings.pop_front();
-    EXPECT_EQ(SETTINGS_FLAG_PERSISTED, setting.first.flags());
-    EXPECT_EQ(kSampleId1, setting.first.id());
-    EXPECT_EQ(kSampleValue1, setting.second);
+    SettingsMap::const_iterator it1 = settings_map.find(kSampleId1);
+    EXPECT_TRUE(it1 != settings_map.end());
+    SettingsFlagsAndValue flags_and_value1 = it1->second;
+    EXPECT_EQ(SETTINGS_FLAG_PERSISTED, flags_and_value1.first);
+    EXPECT_EQ(kSampleValue1, flags_and_value1.second);
 
     // Verify the second persisted setting.
-    setting = saved_settings.front();
-    saved_settings.pop_front();
-    EXPECT_EQ(SETTINGS_FLAG_PERSISTED, setting.first.flags());
-    EXPECT_EQ(kSampleId2, setting.first.id());
-    EXPECT_EQ(kSampleValue2, setting.second);
+    SettingsMap::const_iterator it2 = settings_map.find(kSampleId2);
+    EXPECT_TRUE(it2 != settings_map.end());
+    SettingsFlagsAndValue flags_and_value2 = it2->second;
+    EXPECT_EQ(SETTINGS_FLAG_PERSISTED, flags_and_value2.first);
+    EXPECT_EQ(kSampleValue2, flags_and_value2.second);
   }
 }
 

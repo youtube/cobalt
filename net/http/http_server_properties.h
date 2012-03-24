@@ -37,7 +37,7 @@ struct NET_EXPORT PortAlternateProtocolPair {
 };
 
 typedef std::map<HostPortPair, PortAlternateProtocolPair> AlternateProtocolMap;
-typedef std::map<HostPortPair, SpdySettings> SpdySettingsMap;
+typedef std::map<HostPortPair, SettingsMap> SpdySettingsMap;
 typedef std::map<HostPortPair,
         HttpPipelinedHostCapability> PipelineCapabilityMap;
 
@@ -84,26 +84,22 @@ class NET_EXPORT HttpServerProperties {
   // Returns all Alternate-Protocol mappings.
   virtual const AlternateProtocolMap& alternate_protocol_map() const = 0;
 
-  // Gets a reference to the SpdySettings stored for a host.
-  // If no settings are stored, returns an empty set of settings.
-  virtual const SpdySettings& GetSpdySettings(
+  // Gets a reference to the SettingsMap stored for a host.
+  // If no settings are stored, returns an empty SettingsMap.
+  virtual const SettingsMap& GetSpdySettings(
       const HostPortPair& host_port_pair) const = 0;
 
-  // Saves settings for a host. Returns true if SpdySettings are to be
-  // persisted. Used by unittests only.
-  // TODO(rtenneti): Move this method to test utility file.
-  virtual bool SetSpdySettings(const HostPortPair& host_port_pair,
-                               const SpdySettings& settings) = 0;
-
-  // Saves an individual setting for a host. Returns true if SpdySetting is to
-  // be persisted.
+  // Saves an individual SPDY setting for a host. Returns true if SPDY setting
+  // is to be persisted.
   virtual bool SetSpdySetting(const HostPortPair& host_port_pair,
-                              const SpdySetting& setting) = 0;
+                              SpdySettingsIds id,
+                              SpdySettingsFlags flags,
+                              uint32 value) = 0;
 
-  // Clears all spdy_settings.
+  // Clears all SPDY settings.
   virtual void ClearSpdySettings() = 0;
 
-  // Returns all persistent SpdySettings.
+  // Returns all persistent SPDY settings.
   virtual const SpdySettingsMap& spdy_settings_map() const = 0;
 
   virtual HttpPipelinedHostCapability GetPipelineCapability(
