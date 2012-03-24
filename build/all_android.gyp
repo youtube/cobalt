@@ -35,12 +35,19 @@
         '../ipc/ipc.gyp:ipc_tests',
         '../net/net.gyp:net_unittests',
         '../third_party/WebKit/Source/WebKit/chromium/All.gyp:*',
-        # From here down: not added to run_tests.py yet.
-        '../jingle/jingle.gyp:jingle_unittests',
         '../tools/android/fake_dns/fake_dns.gyp:fake_dns',
         '../tools/android/forwarder/forwarder.gyp:forwarder',
+        # From here down: not added to run_tests.py yet.
+        '../jingle/jingle.gyp:jingle_unittests',
         '../media/media.gyp:media_unittests',
       ],
+      # The Native Test Runner is not on by default.
+      'conditions': [
+        ['gtest_target_type=="shared_library"', {
+          'dependencies': [
+            '../base/base.gyp:native_test_apk',
+          ]
+        }]],
     },
     { 
       # Experimental / in-progress targets that are expected to fail
