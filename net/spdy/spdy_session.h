@@ -347,9 +347,8 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // Send relevant SETTINGS.  This is generally called on connection setup.
   void SendSettings();
 
-  // Handle SETTINGS.  Either when we send settings, or when we receive a
+  // Handle SETTING.  Either when we send settings, or when we receive a
   // SETTINGS control frame, update our SpdySession accordingly.
-  void HandleSettings(const SpdySettings& settings);
   void HandleSetting(uint32 id, uint32 value);
 
   // Adjust the send window size of all ActiveStreams and PendingCreateStreams.

@@ -501,15 +501,15 @@ TEST_F(SpdySessionSpdy2Test, OnSettings) {
   session_deps.host_resolver->set_synchronous_mode(true);
 
   SpdySettings new_settings;
-  SettingsFlagsAndId id(0, SETTINGS_MAX_CONCURRENT_STREAMS);
+  const SpdySettingsIds kSpdySettingsIds1 = SETTINGS_MAX_CONCURRENT_STREAMS;
+  SettingsFlagsAndId id(SETTINGS_FLAG_NONE, kSpdySettingsIds1);
   const size_t max_concurrent_streams = 2;
   new_settings.push_back(SpdySetting(id, max_concurrent_streams));
 
   // Set up the socket so we read a SETTINGS frame that raises max concurrent
   // streams to 2.
   MockConnect connect_data(SYNCHRONOUS, OK);
-  scoped_ptr<SpdyFrame> settings_frame(
-      ConstructSpdySettings(new_settings));
+  scoped_ptr<SpdyFrame> settings_frame(ConstructSpdySettings(new_settings));
   MockRead reads[] = {
     CreateMockRead(*settings_frame),
     MockRead(SYNCHRONOUS, 0, 0)  // EOF
@@ -532,11 +532,11 @@ TEST_F(SpdySessionSpdy2Test, OnSettings) {
 
   // Initialize the SpdySettingsStorage with 1 max concurrent streams.
   SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
-  SpdySettings old_settings;
-  SettingsFlagsAndId id1(SETTINGS_FLAG_PLEASE_PERSIST, id.id());
-  old_settings.push_back(SpdySetting(id1, 1));
-  spdy_session_pool->http_server_properties()->SetSpdySettings(
-      test_host_port_pair, old_settings);
+  spdy_session_pool->http_server_properties()->SetSpdySetting(
+      test_host_port_pair,
+      kSpdySettingsIds1,
+      SETTINGS_FLAG_PLEASE_PERSIST,
+      1);
 
   // Create a session.
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
@@ -615,12 +615,11 @@ TEST_F(SpdySessionSpdy2Test, CancelPendingCreateStream) {
 
   // Initialize the SpdySettingsStorage with 1 max concurrent streams.
   SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
-  SpdySettings settings;
-  SettingsFlagsAndId id(SETTINGS_FLAG_PLEASE_PERSIST,
-                              SETTINGS_MAX_CONCURRENT_STREAMS);
-  settings.push_back(SpdySetting(id, 1));
-  spdy_session_pool->http_server_properties()->SetSpdySettings(
-      test_host_port_pair, settings);
+  spdy_session_pool->http_server_properties()->SetSpdySetting(
+      test_host_port_pair,
+      SETTINGS_MAX_CONCURRENT_STREAMS,
+      SETTINGS_FLAG_PLEASE_PERSIST,
+      1);
 
   // Create a session.
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
@@ -683,17 +682,16 @@ TEST_F(SpdySessionSpdy2Test, SendSettingsOnNewSession) {
   };
 
   // Create the bogus setting that we want to verify is sent out.
-  // Note that it will be marked as SETTINGS_FLAG_PERSISTED when sent out.  But
+  // Note that it will be marked as SETTINGS_FLAG_PERSISTED when sent out. But
   // to set it into the SpdySettingsStorage, we need to mark as
   // SETTINGS_FLAG_PLEASE_PERSIST.
   SpdySettings settings;
-  const uint32 kBogusSettingId = 0xABAB;
+  const SpdySettingsIds kSpdySettingsIds1 = SETTINGS_UPLOAD_BANDWIDTH;
   const uint32 kBogusSettingValue = 0xCDCD;
-  SettingsFlagsAndId id(SETTINGS_FLAG_PERSISTED, kBogusSettingId);
+  SettingsFlagsAndId id(SETTINGS_FLAG_PERSISTED, kSpdySettingsIds1);
   settings.push_back(SpdySetting(id, kBogusSettingValue));
   MockConnect connect_data(SYNCHRONOUS, OK);
-  scoped_ptr<SpdyFrame> settings_frame(
-      ConstructSpdySettings(settings));
+  scoped_ptr<SpdyFrame> settings_frame(ConstructSpdySettings(settings));
   MockWrite writes[] = {
     CreateMockWrite(*settings_frame),
   };
@@ -714,12 +712,13 @@ TEST_F(SpdySessionSpdy2Test, SendSettingsOnNewSession) {
   HostPortPair test_host_port_pair(kTestHost, kTestPort);
   HostPortProxyPair pair(test_host_port_pair, ProxyServer::Direct());
 
-  SettingsFlagsAndId id1(SETTINGS_FLAG_PLEASE_PERSIST, id.id());
-  settings.clear();
-  settings.push_back(SpdySetting(id1, kBogusSettingValue));
   SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
-  spdy_session_pool->http_server_properties()->SetSpdySettings(
-      test_host_port_pair, settings);
+  spdy_session_pool->http_server_properties()->SetSpdySetting(
+      test_host_port_pair,
+      kSpdySettingsIds1,
+      SETTINGS_FLAG_PLEASE_PERSIST,
+      kBogusSettingValue);
+
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
   scoped_refptr<SpdySession> session =
       spdy_session_pool->Get(pair, BoundNetLog());
@@ -894,7 +893,7 @@ TEST_F(SpdySessionSpdy2Test, ClearSettingsStorage) {
   HostPortPair test_host_port_pair(kTestHost, kTestPort);
   SpdySettings test_settings;
   SettingsFlagsAndId id(SETTINGS_FLAG_PLEASE_PERSIST,
-                              SETTINGS_MAX_CONCURRENT_STREAMS);
+                        SETTINGS_MAX_CONCURRENT_STREAMS);
   const size_t max_concurrent_streams = 2;
   test_settings.push_back(SpdySetting(id, max_concurrent_streams));
 
@@ -916,14 +915,12 @@ TEST_F(SpdySessionSpdy2Test, ClearSettingsStorageOnIPAddressChanged) {
 
   HttpServerProperties* test_http_server_properties =
       spdy_session_pool->http_server_properties();
-  SettingsFlagsAndId id(SETTINGS_FLAG_PLEASE_PERSIST,
-                              SETTINGS_MAX_CONCURRENT_STREAMS);
-  const size_t max_concurrent_streams = 2;
-  SpdySettings test_settings;
-  test_settings.push_back(SpdySetting(id, max_concurrent_streams));
-
-  test_http_server_properties->SetSpdySettings(test_host_port_pair,
-                                               test_settings);
+  SettingsFlagsAndValue flags_and_value1(SETTINGS_FLAG_PLEASE_PERSIST, 2);
+  test_http_server_properties->SetSpdySetting(
+      test_host_port_pair,
+      SETTINGS_MAX_CONCURRENT_STREAMS,
+      SETTINGS_FLAG_PLEASE_PERSIST,
+      2);
   EXPECT_NE(0u, test_http_server_properties->GetSpdySettings(
       test_host_port_pair).size());
   spdy_session_pool->OnIPAddressChanged();
