@@ -23,6 +23,7 @@
         '../../googleurl/src/url_canon.h',
         '../../googleurl/src/url_canon_etc.cc',
         '../../googleurl/src/url_canon_fileurl.cc',
+        '../../googleurl/src/url_canon_filesystemurl.cc',
         '../../googleurl/src/url_canon_host.cc',
         '../../googleurl/src/url_canon_icu.cc',
         '../../googleurl/src/url_canon_icu.h',
@@ -51,6 +52,9 @@
           '../..',
         ],
       },
+      'defines': [
+        'FULL_FILESYSTEM_URL_SUPPORT=1',
+      ],
       'conditions': [
         ['component=="shared_library"', {
           'defines': [
@@ -81,6 +85,9 @@
         '../../googleurl/src/url_parse_unittest.cc',
         '../../googleurl/src/url_test_utils.h',
         '../../googleurl/src/url_util_unittest.cc',
+      ],
+      'defines': [
+        'FULL_FILESYSTEM_URL_SUPPORT=1',
       ],
       'conditions': [
         ['os_posix==1 and OS!="mac"', {
