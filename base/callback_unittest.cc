@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/bind.h"
 #include "base/callback.h"
+#include "base/callback_helpers.h"
 #include "base/callback_internal.h"
 #include "base/memory/scoped_ptr.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -11,21 +13,12 @@ namespace base {
 
 namespace {
 
-class HelperObject {
- public:
-  HelperObject() : next_number_(0) { }
-  int GetNextNumber() { return ++next_number_; }
-  void GetNextNumberArg(int* number) { *number = GetNextNumber(); }
-
- private:
-  int next_number_;
-};
-
 struct FakeInvoker {
   typedef void(RunType)(internal::BindStateBase*);
   static void Run(internal::BindStateBase*) {
   }
 };
+
 }  // namespace
 
 namespace internal {
@@ -128,6 +121,28 @@ TEST_F(CallbackTest, Reset) {
 
   EXPECT_TRUE(callback_a_.is_null());
   EXPECT_TRUE(callback_a_.Equals(null_callback_));
+}
+
+struct TestForReentrancy {
+  TestForReentrancy()
+      : cb_already_run(false),
+        cb(Bind(&TestForReentrancy::AssertCBIsNull, Unretained(this))) {
+  }
+  void AssertCBIsNull() {
+    ASSERT_TRUE(cb.is_null());
+    cb_already_run = true;
+  }
+  bool cb_already_run;
+  Closure cb;
+};
+
+TEST_F(CallbackTest, ResetAndReturn) {
+  TestForReentrancy tfr;
+  ASSERT_FALSE(tfr.cb.is_null());
+  ASSERT_FALSE(tfr.cb_already_run);
+  ResetAndReturn(&tfr.cb).Run();
+  ASSERT_TRUE(tfr.cb.is_null());
+  ASSERT_TRUE(tfr.cb_already_run);
 }
 
 }  // namespace
