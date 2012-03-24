@@ -9,6 +9,7 @@
   'includes': [
     '../build/win_precompile.gypi',
     'base.gypi',
+    'test/android/native_test.gyp'
   ],
   'targets': [
     {
@@ -153,7 +154,7 @@
     },
     {
       'target_name': 'base_unittests',
-      'type': 'executable',
+      'type': '<(gtest_target_type)',
       'sources': [
         # Tests.
         'android/jni_android_unittest.cc',
