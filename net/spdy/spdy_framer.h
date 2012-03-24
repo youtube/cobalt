@@ -74,6 +74,9 @@ class NET_EXPORT_PRIVATE SettingsFlagsAndId {
 // A datastructure for holding a set of ID/value pairs for a SETTINGS frame.
 typedef std::pair<SettingsFlagsAndId, uint32> SpdySetting;
 typedef std::list<SpdySetting> SpdySettings;
+// SpdySettingsMap has unique (flags, value) pair for give SpdySetting ID.
+typedef std::pair<SpdySettingsFlags, uint32> SettingsFlagsAndValue;
+typedef std::map<SpdySettingsIds, SettingsFlagsAndValue> SettingsMap;
 
 // A datastrcture for holding the contents of a CREDENTIAL frame.
 struct NET_EXPORT_PRIVATE SpdyCredential {
