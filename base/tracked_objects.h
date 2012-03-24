@@ -261,18 +261,18 @@ class BASE_EXPORT DeathData {
 
   // Update stats for a task destruction (death) that had a Run() time of
   // |duration|, and has had a queueing delay of |queue_duration|.
-  void RecordDeath(const DurationInt queue_duration,
-                   const DurationInt run_duration,
+  void RecordDeath(const int32 queue_duration,
+                   const int32 run_duration,
                    int random_number);
 
   // Metrics accessors, used only in tests.
   int count() const;
-  DurationInt run_duration_sum() const;
-  DurationInt run_duration_max() const;
-  DurationInt run_duration_sample() const;
-  DurationInt queue_duration_sum() const;
-  DurationInt queue_duration_max() const;
-  DurationInt queue_duration_sample() const;
+  int32 run_duration_sum() const;
+  int32 run_duration_max() const;
+  int32 run_duration_sample() const;
+  int32 queue_duration_sum() const;
+  int32 queue_duration_max() const;
+  int32 queue_duration_sample() const;
 
   // Construct a DictionaryValue instance containing all our stats. The caller
   // assumes ownership of the returned instance.
@@ -290,16 +290,16 @@ class BASE_EXPORT DeathData {
   // Number of runs seen (divisor for calculating averages).
   int count_;
   // Basic tallies, used to compute averages.
-  DurationInt run_duration_sum_;
-  DurationInt queue_duration_sum_;
+  int32 run_duration_sum_;
+  int32 queue_duration_sum_;
   // Max values, used by local visualization routines.  These are often read,
   // but rarely updated.
-  DurationInt run_duration_max_;
-  DurationInt queue_duration_max_;
+  int32 run_duration_max_;
+  int32 queue_duration_max_;
   // Samples, used by by crowd sourcing gatherers.  These are almost never read,
   // and rarely updated.
-  DurationInt run_duration_sample_;
-  DurationInt queue_duration_sample_;
+  int32 run_duration_sample_;
+  int32 queue_duration_sample_;
 };
 
 //------------------------------------------------------------------------------
@@ -514,9 +514,7 @@ class BASE_EXPORT ThreadData {
   Births* TallyABirth(const Location& location);
 
   // Find a place to record a death on this thread.
-  void TallyADeath(const Births& birth,
-                   DurationInt queue_duration,
-                   DurationInt duration);
+  void TallyADeath(const Births& birth, int32 queue_duration, int32 duration);
 
   // Using our lock, make a copy of the specified maps.  This call may be made
   // on  non-local threads, which necessitate the use of the lock to prevent
