@@ -457,6 +457,38 @@ TEST(JSONReaderTest, Reading) {
                                       false, false));
   EXPECT_FALSE(root.get());
 
+  // Test utf16 encoded strings.
+  root.reset(JSONReader().JsonToValue("\"\\u20ac3,14\"", false, false));
+  ASSERT_TRUE(root.get());
+  EXPECT_TRUE(root->IsType(Value::TYPE_STRING));
+  str_val.clear();
+  EXPECT_TRUE(root->GetAsString(&str_val));
+  EXPECT_EQ("\xe2\x82\xac""3,14", str_val);
+
+  root.reset(JSONReader().JsonToValue("\"\\ud83d\\udca9\\ud83d\\udc6c\"",
+                                      false, false));
+  ASSERT_TRUE(root.get());
+  EXPECT_TRUE(root->IsType(Value::TYPE_STRING));
+  str_val.clear();
+  EXPECT_TRUE(root->GetAsString(&str_val));
+  EXPECT_EQ("\xf0\x9f\x92\xa9\xf0\x9f\x91\xac", str_val);
+
+  // Test invalid utf16 strings.
+  const char* cases[] = {
+    "\"\\u123\"",  // Invalid scalar.
+    "\"\\ud83d\"",  // Invalid scalar.
+    "\"\\u$%@!\"",  // Invalid scalar.
+    "\"\\uzz89\"",  // Invalid scalar.
+    "\"\\ud83d\\udca\"",  // Invalid lower surrogate.
+    "\"\\ud83d\\ud83d\"",  // Invalid lower surrogate.
+    "\"\\ud83foo\"",  // No lower surrogate.
+    "\"\\ud83\\foo\""  // No lower surrogate.
+  };
+  for (size_t i = 0; i < arraysize(cases); ++i) {
+    root.reset(JSONReader().JsonToValue(cases[i], false, false));
+    EXPECT_FALSE(root.get()) << cases[i];
+  }
+
   // Test invalid root objects.
   root.reset(JSONReader::Read("null", false));
   EXPECT_FALSE(root.get());
