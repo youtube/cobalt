@@ -52,7 +52,7 @@ void HttpServerPropertiesImpl::InitializeAlternateProtocolServers(
 }
 
 void HttpServerPropertiesImpl::InitializeSpdySettingsServers(
-    std::map<HostPortPair, SpdySettings>* spdy_settings_map) {
+    SpdySettingsMap* spdy_settings_map) {
   spdy_settings_map_.swap(*spdy_settings_map);
 }
 
@@ -220,58 +220,27 @@ HttpServerPropertiesImpl::alternate_protocol_map() const {
   return alternate_protocol_map_;
 }
 
-const SpdySettings& HttpServerPropertiesImpl::GetSpdySettings(
+const SettingsMap& HttpServerPropertiesImpl::GetSpdySettings(
     const HostPortPair& host_port_pair) const {
   SpdySettingsMap::const_iterator it = spdy_settings_map_.find(host_port_pair);
   if (it == spdy_settings_map_.end()) {
-    CR_DEFINE_STATIC_LOCAL(SpdySettings, kEmptySpdySettings, ());
-    return kEmptySpdySettings;
+    CR_DEFINE_STATIC_LOCAL(SettingsMap, kEmptySettingsMap, ());
+    return kEmptySettingsMap;
   }
   return it->second;
 }
 
-bool HttpServerPropertiesImpl::SetSpdySettings(
-    const HostPortPair& host_port_pair,
-    const SpdySettings& settings) {
-  SpdySettings persistent_settings;
-
-  // Iterate through the list, and only copy those settings which are marked
-  // for persistence.
-  SpdySettings::const_iterator it;
-  for (it = settings.begin(); it != settings.end(); ++it) {
-    SettingsFlagsAndId id = it->first;
-    if (id.flags() & SETTINGS_FLAG_PLEASE_PERSIST) {
-      SettingsFlagsAndId new_id(SETTINGS_FLAG_PERSISTED, id.id());
-      persistent_settings.push_back(std::make_pair(new_id, it->second));
-    }
-  }
-
-  // If we didn't persist anything, then we are done.
-  if (persistent_settings.empty())
-    return false;
-
-  spdy_settings_map_[host_port_pair] = persistent_settings;
-  return true;
-}
-
 bool HttpServerPropertiesImpl::SetSpdySetting(
     const HostPortPair& host_port_pair,
-    const SpdySetting& setting) {
-
-  SettingsFlagsAndId id = setting.first;
-  if (!(id.flags() & SETTINGS_FLAG_PLEASE_PERSIST))
+    SpdySettingsIds id,
+    SpdySettingsFlags flags,
+    uint32 value) {
+  if (!(flags & SETTINGS_FLAG_PLEASE_PERSIST))
       return false;
 
-  SpdySettingsMap::const_iterator it = spdy_settings_map_.find(host_port_pair);
-  SpdySettings persistent_settings;
-  if (it != spdy_settings_map_.end()) {
-    persistent_settings = it->second;
-  }
-
-  SettingsFlagsAndId new_id(SETTINGS_FLAG_PERSISTED, id.id());
-  persistent_settings.push_back(std::make_pair(new_id, setting.second));
-  spdy_settings_map_[host_port_pair] = persistent_settings;
-
+  SettingsMap& settings_map = spdy_settings_map_[host_port_pair];
+  SettingsFlagsAndValue flags_and_value(SETTINGS_FLAG_PERSISTED, value);
+  settings_map[id] = flags_and_value;
   return true;
 }
 
