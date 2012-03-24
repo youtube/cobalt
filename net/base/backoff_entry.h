@@ -36,12 +36,13 @@ class NET_EXPORT_PRIVATE BackoffEntry
     // between 90%-100% of the calculated time.
     double jitter_factor;
 
-    // Maximum amount of time we are willing to delay our request.
-    int maximum_backoff_ms;
+    // Maximum amount of time we are willing to delay our request, -1
+    // for no maximum.
+    int64 maximum_backoff_ms;
 
     // Time to keep an entry from being discarded even when it
     // has no significant state, -1 to never discard.
-    int entry_lifetime_ms;
+    int64 entry_lifetime_ms;
   };
 
   // Lifetime of policy must enclose lifetime of BackoffEntry. The
