@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,6 +22,8 @@
 
 namespace base {
 namespace win {
+
+static bool g_crash_on_process_detach = false;
 
 #define NONCLIENTMETRICS_SIZE_PRE_VISTA \
     SIZEOF_STRUCT_WITH_SPECIFIED_LAST_MEMBER(NONCLIENTMETRICS, lfMessageFont)
@@ -146,6 +148,14 @@ bool ReadCommandFromAutoRun(HKEY root_key,
                             string16* command) {
   base::win::RegKey autorun_key(root_key, kAutoRunKeyPath, KEY_QUERY_VALUE);
   return (autorun_key.ReadValue(name.c_str(), command) == ERROR_SUCCESS);
+}
+
+void SetShouldCrashOnProcessDetach(bool crash) {
+  g_crash_on_process_detach = crash;
+}
+
+bool ShouldCrashOnProcessDetach() {
+  return g_crash_on_process_detach;
 }
 
 }  // namespace win
