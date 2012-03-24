@@ -167,7 +167,8 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
 
   if test_suite:
     global _TEST_SUITES
-    if not os.path.exists(test_suite):
+    if (not os.path.exists(test_suite) and
+        not os.path.splitext(test_suite)[1] == '.apk'):
       logging.critical('Unrecognized test suite %s, supported: %s' %
                        (test_suite, _TEST_SUITES))
       if test_suite in _TEST_SUITES:
