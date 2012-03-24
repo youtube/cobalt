@@ -312,6 +312,7 @@ class NET_EXPORT_PRIVATE SpdyStream
   SpdyStreamId stream_id_;
   std::string path_;
   int priority_;
+  size_t slot_;
 
   // Flow control variables.
   bool stalled_by_flow_control_;

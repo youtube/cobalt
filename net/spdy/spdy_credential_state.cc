@@ -5,11 +5,26 @@
 #include "net/spdy/spdy_credential_state.h"
 
 #include "base/logging.h"
+#include "base/string_util.h"
+#include "net/base/server_bound_cert_service.h"
 
 namespace net {
 
+namespace {
+
+GURL GetCanonicalOrigin(const GURL& url) {
+  std::string domain =
+      ServerBoundCertService::GetDomainForHost(url.host());
+  DCHECK(!domain.empty());
+  if (domain == url.host())
+    return url.GetOrigin();
+  return GURL(url.scheme() + "://" + domain + ":" + url.port());
+}
+
+}  // namespace
+
 const size_t SpdyCredentialState::kDefaultNumSlots = 8;
-const size_t SpdyCredentialState::kNoEntry = -1;
+const size_t SpdyCredentialState::kNoEntry = 0;
 
 SpdyCredentialState::SpdyCredentialState(size_t num_slots)
   : slots_(num_slots),
@@ -17,12 +32,12 @@ SpdyCredentialState::SpdyCredentialState(size_t num_slots)
 
 SpdyCredentialState::~SpdyCredentialState() {}
 
-bool SpdyCredentialState::HasCredential(const HostPortPair& origin) const {
-  return FindPosition(origin) != kNoEntry;
+bool SpdyCredentialState::HasCredential(const GURL& origin) const {
+  return FindCredentialSlot(origin) != kNoEntry;
 }
 
-size_t SpdyCredentialState::SetHasCredential(const HostPortPair& origin) {
-  size_t i = FindPosition(origin);
+size_t SpdyCredentialState::SetHasCredential(const GURL& origin) {
+  size_t i = FindCredentialSlot(origin);
   if (i != kNoEntry)
     return i;
   // Add the new entry at the next index following the index of the last
@@ -32,14 +47,15 @@ size_t SpdyCredentialState::SetHasCredential(const HostPortPair& origin) {
   } else {
     last_added_++;
   }
-  slots_[last_added_] = origin;
-  return last_added_;
+  slots_[last_added_] = GetCanonicalOrigin(origin);
+  return last_added_ + 1;
 }
 
-size_t SpdyCredentialState::FindPosition(const HostPortPair& origin) const {
+size_t SpdyCredentialState::FindCredentialSlot(const GURL& origin) const {
+  GURL url = GetCanonicalOrigin(origin);
   for (size_t i = 0; i < slots_.size(); i++) {
-    if (slots_[i].Equals(origin))
-      return i;
+    if (url == slots_[i])
+      return i + 1;
   }
   return kNoEntry;
 }
