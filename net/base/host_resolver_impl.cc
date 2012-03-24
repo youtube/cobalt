@@ -1932,20 +1932,25 @@ void HostResolverImpl::OnDnsConfigChanged(const DnsConfig& dns_config) {
         make_scoped_refptr(new DnsConfigParameters(dns_config)));
   }
 
-  // We want a new factory in place, before we Abort running Jobs, so that the
-  // newly started jobs use the new factory.
   DCHECK(dns_client_.get());
 
   // Life check to bail once |this| is deleted.
   base::WeakPtr<HostResolverImpl> self = AsWeakPtr();
 
-  bool had_factory = (dns_client_->GetConfig() != NULL);
+  bool config_changed = (dns_client_->GetConfig() != NULL) &&
+      !dns_config.EqualsIgnoreHosts(*dns_client_->GetConfig());
+
+  // We want a new factory in place, before we Abort running Jobs, so that the
+  // newly started jobs use the new factory.
   dns_client_->SetConfig(dns_config);
 
-  // Don't Abort running Jobs unless they were running on DnsTransaction.
-  // TODO(szym): This will change once http://crbug.com/114827 is fixed.
-  if (had_factory)
+  // Don't Abort running Jobs unless they were running on DnsTransaction and
+  // DnsConfig changed beyond DnsHosts. HOSTS-only change will be resolved by
+  // TryServingAllJobsFromHosts below.
+  if (config_changed) {
+    // TODO(szym): This will change once http://crbug.com/114827 is fixed.
     OnDNSChanged(NetworkChangeNotifier::CHANGE_DNS_SETTINGS);
+  }
 
   if (self && dns_config.IsValid())
     TryServingAllJobsFromHosts();
