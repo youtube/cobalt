@@ -227,8 +227,8 @@ TEST_F(TrackedObjectsTest, DeathDataTest) {
   EXPECT_EQ(data->queue_duration_sample(), 0);
   EXPECT_EQ(data->count(), 0);
 
-  DurationInt run_ms = 42;
-  DurationInt queue_ms = 8;
+  int32 run_ms = 42;
+  int32 queue_ms = 8;
 
   const int kUnrandomInt = 0;  // Fake random int that ensure we sample data.
   data->RecordDeath(queue_ms, run_ms, kUnrandomInt);

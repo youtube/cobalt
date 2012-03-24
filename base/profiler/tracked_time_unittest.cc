@@ -28,14 +28,8 @@ TEST(TrackedTimeTest, TrackedTimerMilliseconds) {
   EXPECT_EQ(kReallyBigMilliseconds, (big - base::TimeTicks()).InMilliseconds());
 
   TrackedTime wrapped_big(big);
-#if defined(USE_FAST_TIME_CLASS_FOR_DURATION_CALCULATIONS)
   // Expect wrapping at 32 bits.
   EXPECT_EQ(kSomeMilliseconds, (wrapped_big - TrackedTime()).InMilliseconds());
-#else  // !USE_FAST_TIME_CLASS_FOR_DURATION_CALCULATIONS)
-  // Expect no wrapping at 32 bits.
-  EXPECT_EQ(kReallyBigMilliseconds,
-            (wrapped_big - TrackedTime()).InMilliseconds());
-#endif  // USE_FAST_TIME_CLASS_FOR_DURATION_CALCULATIONS)
 }
 
 TEST(TrackedTimeTest, TrackedTimerDuration) {

@@ -66,10 +66,10 @@ DeathData::DeathData(int count) {
 // We use a macro rather than a template to force this to inline.
 // Related code for calculating max is discussed on the web.
 #define CONDITIONAL_ASSIGN(assign_it, target, source) \
-    ((target) ^= ((target) ^ (source)) & -static_cast<DurationInt>(assign_it))
+    ((target) ^= ((target) ^ (source)) & -static_cast<int32>(assign_it))
 
-void DeathData::RecordDeath(const DurationInt queue_duration,
-                            const DurationInt run_duration,
+void DeathData::RecordDeath(const int32 queue_duration,
+                            const int32 run_duration,
                             int32 random_number) {
   ++count_;
   queue_duration_sum_ += queue_duration;
@@ -93,23 +93,23 @@ void DeathData::RecordDeath(const DurationInt queue_duration,
 
 int DeathData::count() const { return count_; }
 
-DurationInt DeathData::run_duration_sum() const { return run_duration_sum_; }
+int32 DeathData::run_duration_sum() const { return run_duration_sum_; }
 
-DurationInt DeathData::run_duration_max() const { return run_duration_max_; }
+int32 DeathData::run_duration_max() const { return run_duration_max_; }
 
-DurationInt DeathData::run_duration_sample() const {
+int32 DeathData::run_duration_sample() const {
   return run_duration_sample_;
 }
 
-DurationInt DeathData::queue_duration_sum() const {
+int32 DeathData::queue_duration_sum() const {
   return queue_duration_sum_;
 }
 
-DurationInt DeathData::queue_duration_max() const {
+int32 DeathData::queue_duration_max() const {
   return queue_duration_max_;
 }
 
-DurationInt DeathData::queue_duration_sample() const {
+int32 DeathData::queue_duration_sample() const {
   return queue_duration_sample_;
 }
 
@@ -374,10 +374,10 @@ Births* ThreadData::TallyABirth(const Location& location) {
 }
 
 void ThreadData::TallyADeath(const Births& birth,
-                             DurationInt queue_duration,
-                             DurationInt run_duration) {
+                             int32 queue_duration,
+                             int32 run_duration) {
   // Stir in some randomness, plus add constant in case durations are zero.
-  const DurationInt kSomePrimeNumber = 2147483647;
+  const int32 kSomePrimeNumber = 2147483647;
   random_number_ += queue_duration + run_duration + kSomePrimeNumber;
   // An address is going to have some randomness to it as well ;-).
   random_number_ ^= static_cast<int32>(&birth - reinterpret_cast<Births*>(0));
@@ -452,8 +452,8 @@ void ThreadData::TallyRunOnNamedThreadIfTracking(
   // get a time value since we "weren't tracking" and we were trying to be
   // efficient by not calling for a genuine time value. For simplicity, we'll
   // use a default zero duration when we can't calculate a true value.
-  DurationInt queue_duration = 0;
-  DurationInt run_duration = 0;
+  int32 queue_duration = 0;
+  int32 run_duration = 0;
   if (!start_of_run.is_null()) {
     queue_duration = (start_of_run - effective_post_time).InMilliseconds();
     if (!end_of_run.is_null())
@@ -490,8 +490,8 @@ void ThreadData::TallyRunOnWorkerThreadIfTracking(
   if (!current_thread_data)
     return;
 
-  DurationInt queue_duration = 0;
-  DurationInt run_duration = 0;
+  int32 queue_duration = 0;
+  int32 run_duration = 0;
   if (!start_of_run.is_null()) {
     queue_duration = (start_of_run - time_posted).InMilliseconds();
     if (!end_of_run.is_null())
@@ -518,8 +518,8 @@ void ThreadData::TallyRunInAScopedRegionIfTracking(
   if (!current_thread_data)
     return;
 
-  DurationInt queue_duration = 0;
-  DurationInt run_duration = 0;
+  int32 queue_duration = 0;
+  int32 run_duration = 0;
   if (!start_of_run.is_null() && !end_of_run.is_null())
     run_duration = (end_of_run - start_of_run).InMilliseconds();
   current_thread_data->TallyADeath(*birth, queue_duration, run_duration);
