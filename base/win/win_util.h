@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -92,6 +92,14 @@ BASE_EXPORT bool RemoveCommandFromAutoRun(HKEY root_key, const string16& name);
 BASE_EXPORT bool ReadCommandFromAutoRun(HKEY root_key,
                                         const string16& name,
                                         string16* command);
+
+// Sets whether to crash the process during exit. This is inspected by DLLMain
+// and used to intercept unexpected terminations of the process (via calls to
+// exit(), abort(), _exit(), ExitProcess()) and convert them into crashes.
+// Note that not all mechanisms for terminating the process are covered by
+// this. In particular, TerminateProcess() is not caught.
+BASE_EXPORT void SetShouldCrashOnProcessDetach(bool crash);
+BASE_EXPORT bool ShouldCrashOnProcessDetach();
 
 // Get the size of a struct up to and including the specified member.
 // This is necessary to set compatible struct sizes for different versions
