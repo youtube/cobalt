@@ -14,6 +14,7 @@ static const char* const kDefaultDataPointer = NULL;
 static const uint32 kDefaultDataLength = 0;
 static const char** const kDefaultExtraHeaders = NULL;
 static const int kDefaultExtraHeaderCount = 0;
+static const int kDefaultCredentialSlot = 0;
 
 namespace net {
 
@@ -31,6 +32,7 @@ SpdyFrame* ConstructSpdyWebSocketHandshakeRequestFrame(
     stream_id,
     kDefaultAssociatedStreamId,
     ConvertRequestPriorityToSpdyPriority(request_priority),
+    kDefaultCredentialSlot,
     CONTROL_FLAG_NONE,
     kDefaultCompressed,
     INVALID,
@@ -60,6 +62,7 @@ SpdyFrame* ConstructSpdyWebSocketHandshakeResponseFrame(
     stream_id,
     kDefaultAssociatedStreamId,
     ConvertRequestPriorityToSpdyPriority(request_priority),
+    kDefaultCredentialSlot,
     CONTROL_FLAG_NONE,
     kDefaultCompressed,
     INVALID,

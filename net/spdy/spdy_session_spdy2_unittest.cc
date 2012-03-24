@@ -988,10 +988,7 @@ TEST_F(SpdySessionSpdy2Test, NeedsCredentials) {
 
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), true, OK));
 
-  EXPECT_FALSE(session->NeedsCredentials(test_host_port_pair));
-  const std::string kTestHost2("www.bar.com");
-  HostPortPair test_host_port_pair2(kTestHost2, kTestPort);
-  EXPECT_FALSE(session->NeedsCredentials(test_host_port_pair2));
+  EXPECT_FALSE(session->NeedsCredentials());
 
   // Flush the SpdySession::OnReadComplete() task.
   MessageLoop::current()->RunAllPending();

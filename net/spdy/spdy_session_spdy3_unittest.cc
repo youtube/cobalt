@@ -950,9 +950,8 @@ TEST_F(SpdySessionSpdy3Test, NeedsCredentials) {
   scoped_refptr<HttpNetworkSession> http_session(
       SpdySessionDependencies::SpdyCreateSession(&session_deps));
 
-  const std::string kTestHost("www.foo.com");
-  const int kTestPort = 80;
-  HostPortPair test_host_port_pair(kTestHost, kTestPort);
+  const GURL url("https:/www.foo.com");
+  HostPortPair test_host_port_pair(url.host(), 443);
   HostPortProxyPair pair(test_host_port_pair, ProxyServer::Direct());
 
   SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
@@ -988,16 +987,12 @@ TEST_F(SpdySessionSpdy3Test, NeedsCredentials) {
 
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), true, OK));
 
-  EXPECT_FALSE(session->NeedsCredentials(test_host_port_pair));
-  const std::string kTestHost2("www.bar.com");
-  HostPortPair test_host_port_pair2(kTestHost2, kTestPort);
-  EXPECT_TRUE(session->NeedsCredentials(test_host_port_pair2));
+  EXPECT_TRUE(session->NeedsCredentials());
 
   // Flush the SpdySession::OnReadComplete() task.
   MessageLoop::current()->RunAllPending();
 
   spdy_session_pool->Remove(session);
-  EXPECT_FALSE(spdy_session_pool->HasSession(pair));
 }
 
 TEST_F(SpdySessionSpdy3Test, SendCredentials) {
@@ -1026,9 +1021,8 @@ TEST_F(SpdySessionSpdy3Test, SendCredentials) {
   scoped_refptr<HttpNetworkSession> http_session(
       SpdySessionDependencies::SpdyCreateSession(&session_deps));
 
-  const std::string kTestHost("www.foo.com");
-  const int kTestPort = 80;
-  HostPortPair test_host_port_pair(kTestHost, kTestPort);
+  const GURL kTestUrl("https://www.foo.com");
+  HostPortPair test_host_port_pair(kTestUrl.host(), 443);
   HostPortProxyPair pair(test_host_port_pair, ProxyServer::Direct());
 
   SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
@@ -1063,11 +1057,7 @@ TEST_F(SpdySessionSpdy3Test, SendCredentials) {
                                  BoundNetLog()));
 
   EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), true, OK));
-
-  EXPECT_FALSE(session->NeedsCredentials(test_host_port_pair));
-  const std::string kTestHost2("www.bar.com");
-  HostPortPair test_host_port_pair2(kTestHost2, kTestPort);
-  EXPECT_TRUE(session->NeedsCredentials(test_host_port_pair2));
+  EXPECT_TRUE(session->NeedsCredentials());
 
   // Flush the SpdySession::OnReadComplete() task.
   MessageLoop::current()->RunAllPending();
