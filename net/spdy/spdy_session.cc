@@ -123,6 +123,33 @@ class NetLogSpdySessionParameter : public NetLog::EventParameters {
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdySessionParameter);
 };
 
+class NetLogSpdySettingParameter : public NetLog::EventParameters {
+ public:
+  explicit NetLogSpdySettingParameter(SpdySettingsIds id,
+                                      SpdySettingsFlags flags,
+                                      uint32 value)
+      : id_(id),
+        flags_(flags),
+        value_(value) {
+  }
+
+  virtual Value* ToValue() const {
+    DictionaryValue* dict = new DictionaryValue();
+    dict->SetInteger("id", id_);
+    dict->SetInteger("flags", flags_);
+    dict->SetInteger("value", value_);
+    return dict;
+  }
+
+ private:
+  ~NetLogSpdySettingParameter() {}
+  const SpdySettingsIds id_;
+  const SpdySettingsFlags flags_;
+  const uint32 value_;
+
+  DISALLOW_COPY_AND_ASSIGN(NetLogSpdySettingParameter);
+};
+
 class NetLogSpdySettingsParameter : public NetLog::EventParameters {
  public:
   explicit NetLogSpdySettingsParameter(const SpdySettings& settings)
@@ -1332,19 +1359,18 @@ void SpdySession::OnSetting(SpdySettingsIds id,
                             uint8 flags,
                             uint32 value) {
   HandleSetting(id, value);
-  SettingsFlagsAndId flags_and_id(flags, id);
-  // TODO(rtenneti): persist SpdySetting.
-  // http_server_properties_->SetSpdySetting(
-  //    host_port_pair(), std::make_pair(flags_and_id, value));
-
+  http_server_properties_->SetSpdySetting(
+      host_port_pair(),
+      id,
+      static_cast<SpdySettingsFlags>(flags),
+      value);
   received_settings_ = true;
 
-  // Log the settings.
-  SpdySettings settings;
-  settings.insert(settings.end(), std::make_pair(flags_and_id, value));
+  // Log the setting.
   net_log_.AddEvent(
-      NetLog::TYPE_SPDY_SESSION_RECV_SETTINGS,
-      make_scoped_refptr(new NetLogSpdySettingsParameter(settings)));
+      NetLog::TYPE_SPDY_SESSION_RECV_SETTING,
+      make_scoped_refptr(new NetLogSpdySettingParameter(
+          id, static_cast<SpdySettingsFlags>(flags), value)));
 }
 
 bool SpdySession::Respond(const SpdyHeaderBlock& headers,
@@ -1678,70 +1704,48 @@ uint32 ApplyCwndFieldTrialPolicy(int cwnd) {
 }
 
 void SpdySession::SendSettings() {
-  // Note:  we're copying the settings here, so that we can potentially modify
-  // the settings for the field trial.  When removing the field trial, make
-  // this a reference to the const SpdySettings again.
-  SpdySettings settings =
+  const SettingsMap& settings_map =
       http_server_properties_->GetSpdySettings(host_port_pair());
-  if (settings.empty())
+  if (settings_map.empty())
     return;
 
-  typedef std::map<uint32, SpdySetting> SpdySettingsMap;
-  SpdySettingsMap unique_settings;
-
   // Record Histogram Data and Apply the SpdyCwnd FieldTrial if applicable.
-  for (SpdySettings::iterator i = settings.begin(),
-           end = settings.end(); i != end; ++i) {
-    const uint32 id = i->first.id();
-    const uint32 val = i->second;
-    switch (id) {
-      case SETTINGS_CURRENT_CWND:
-        uint32 cwnd = 0;
-        cwnd = ApplyCwndFieldTrialPolicy(val);
-        UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdySettingsCwndSent",
-                                    cwnd,
-                                    1, 200, 100);
-        if (cwnd != val) {
-          SettingsFlagsAndId new_id(SETTINGS_FLAG_PLEASE_PERSIST,
-                                          id);
-          i->second = cwnd;
-          i->first = new_id;
-          SpdySetting setting(new_id, val);
-          // TODO(rtenneti): Persist SpdySetting.
-          // http_server_properties_->SetSpdySetting(host_port_pair(), setting);
-          unique_settings[id] = setting;
-          continue;
-        }
-    }
-    unique_settings[id] = *i;
+  const SpdySettingsIds id = SETTINGS_CURRENT_CWND;
+  SettingsMap::const_iterator it = settings_map.find(id);
+  uint32 value = 0;
+  if (it != settings_map.end())
+    value = it->second.second;
+  uint32 cwnd = ApplyCwndFieldTrialPolicy(value);
+  UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdySettingsCwndSent", cwnd, 1, 200, 100);
+  if (cwnd != value) {
+    http_server_properties_->SetSpdySetting(
+        host_port_pair(), id, SETTINGS_FLAG_PLEASE_PERSIST, cwnd);
   }
 
-  HandleSettings(settings);
+  const SettingsMap& settings_map_new =
+      http_server_properties_->GetSpdySettings(host_port_pair());
+
+  SpdySettings settings;
+  for (SettingsMap::const_iterator i = settings_map_new.begin(),
+           end = settings_map_new.end(); i != end; ++i) {
+    const SpdySettingsIds new_id = i->first;
+    const SpdySettingsFlags new_flags = i->second.first;
+    const uint32 new_val = i->second.second;
+    HandleSetting(new_id, new_val);
+    SettingsFlagsAndId flags_and_id(new_flags, new_id);
+    settings.push_back(SpdySetting(flags_and_id, new_val));
+  }
 
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_SESSION_SEND_SETTINGS,
       make_scoped_refptr(new NetLogSpdySettingsParameter(settings)));
 
-  SpdySettings sorted_settings;
-  for (SpdySettingsMap::iterator it = unique_settings.begin();
-       unique_settings.end() != it;
-       ++it) {
-    sorted_settings.push_back(it->second);
-  }
-
   // Create the SETTINGS frame and send it.
   DCHECK(buffered_spdy_framer_.get());
   scoped_ptr<SpdySettingsControlFrame> settings_frame(
-      buffered_spdy_framer_->CreateSettings(sorted_settings));
+      buffered_spdy_framer_->CreateSettings(settings));
   sent_settings_ = true;
   QueueFrame(settings_frame.get(), 0, NULL);
-}
-
-void SpdySession::HandleSettings(const SpdySettings& settings) {
-  for (SpdySettings::const_iterator i = settings.begin(),
-           end = settings.end(); i != end; ++i) {
-    HandleSetting(i->first.id(), i->second);
-  }
 }
 
 void SpdySession::HandleSetting(uint32 id, uint32 value) {
@@ -1897,35 +1901,31 @@ void SpdySession::RecordHistograms() {
 
   if (received_settings_) {
     // Enumerate the saved settings, and set histograms for it.
-    const SpdySettings& settings =
+    const SettingsMap& settings_map =
         http_server_properties_->GetSpdySettings(host_port_pair());
 
-    SpdySettings::const_iterator it;
-    for (it = settings.begin(); it != settings.end(); ++it) {
-      const SpdySetting setting = *it;
-      switch (setting.first.id()) {
+    SettingsMap::const_iterator it;
+    for (it = settings_map.begin(); it != settings_map.end(); ++it) {
+      const SpdySettingsIds id = it->first;
+      const uint32 val = it->second.second;
+      switch (id) {
         case SETTINGS_CURRENT_CWND:
           // Record several different histograms to see if cwnd converges
           // for larger volumes of data being sent.
           UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdySettingsCwnd",
-                                      setting.second,
-                                      1, 200, 100);
+                                      val, 1, 200, 100);
           if (bytes_received_ > 10 * 1024) {
             UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdySettingsCwnd10K",
-                                        setting.second,
-                                        1, 200, 100);
+                                        val, 1, 200, 100);
             if (bytes_received_ > 25 * 1024) {
               UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdySettingsCwnd25K",
-                                          setting.second,
-                                          1, 200, 100);
+                                          val, 1, 200, 100);
               if (bytes_received_ > 50 * 1024) {
                 UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdySettingsCwnd50K",
-                                            setting.second,
-                                            1, 200, 100);
+                                            val, 1, 200, 100);
                 if (bytes_received_ > 100 * 1024) {
                   UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdySettingsCwnd100K",
-                                              setting.second,
-                                              1, 200, 100);
+                                              val, 1, 200, 100);
                 }
               }
             }
@@ -1933,13 +1933,13 @@ void SpdySession::RecordHistograms() {
           break;
         case SETTINGS_ROUND_TRIP_TIME:
           UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdySettingsRTT",
-                                      setting.second,
-                                      1, 1200, 100);
+                                      val, 1, 1200, 100);
           break;
         case SETTINGS_DOWNLOAD_RETRANS_RATE:
           UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdySettingsRetransRate",
-                                      setting.second,
-                                      1, 100, 50);
+                                      val, 1, 100, 50);
+          break;
+        default:
           break;
       }
     }

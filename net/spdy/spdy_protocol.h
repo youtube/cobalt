@@ -401,6 +401,7 @@ enum SpdySettingsControlFlags {
 
 // Flags for settings within a SETTINGS frame.
 enum SpdySettingsFlags {
+  SETTINGS_FLAG_NONE = 0x0,
   SETTINGS_FLAG_PLEASE_PERSIST = 0x1,
   SETTINGS_FLAG_PERSISTED = 0x2
 };

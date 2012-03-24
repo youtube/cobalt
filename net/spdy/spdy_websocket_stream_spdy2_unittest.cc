@@ -192,16 +192,13 @@ class SpdyWebSocketStreamSpdy2Test : public testing::Test {
     host_port_proxy_pair_.first = host_port_pair_;
     host_port_proxy_pair_.second = ProxyServer::Direct();
 
-    const size_t max_concurrent_streams = 1;
-    SettingsFlagsAndId id(SETTINGS_FLAG_PLEASE_PERSIST,
-                                SETTINGS_MAX_CONCURRENT_STREAMS);
-    spdy_settings_to_set_.push_back(
-        SpdySetting(id, max_concurrent_streams));
+    spdy_settings_id_to_set_ = SETTINGS_MAX_CONCURRENT_STREAMS;
+    spdy_settings_flags_to_set_ = SETTINGS_FLAG_PLEASE_PERSIST;
+    spdy_settings_value_to_set_ = 1;
 
-    SettingsFlagsAndId id1(SETTINGS_FLAG_PERSISTED,
-                                 SETTINGS_MAX_CONCURRENT_STREAMS);
+    SettingsFlagsAndId id1(SETTINGS_FLAG_PERSISTED, spdy_settings_id_to_set_);
     spdy_settings_to_send_.push_back(
-        SpdySetting(id1, max_concurrent_streams));
+        SpdySetting(id1, spdy_settings_value_to_set_));
   }
 
   virtual void TearDown() {
@@ -259,8 +256,11 @@ class SpdyWebSocketStreamSpdy2Test : public testing::Test {
 
     if (throttling) {
       // Set max concurrent streams to 1.
-      spdy_session_pool->http_server_properties()->SetSpdySettings(
-          host_port_pair_, spdy_settings_to_set_);
+      spdy_session_pool->http_server_properties()->SetSpdySetting(
+          host_port_pair_,
+          spdy_settings_id_to_set_,
+          spdy_settings_flags_to_set_,
+          spdy_settings_value_to_set_);
     }
 
     EXPECT_FALSE(spdy_session_pool->HasSession(host_port_proxy_pair_));
@@ -287,7 +287,9 @@ class SpdyWebSocketStreamSpdy2Test : public testing::Test {
     websocket_stream_->SendRequest(headers);
   }
 
-  SpdySettings spdy_settings_to_set_;
+  SpdySettingsIds spdy_settings_id_to_set_;
+  SpdySettingsFlags spdy_settings_flags_to_set_;
+  uint32 spdy_settings_value_to_set_;
   SpdySettings spdy_settings_to_send_;
   SpdySessionDependencies session_deps_;
   scoped_ptr<OrderedSocketData> data_;
