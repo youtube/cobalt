@@ -2052,10 +2052,6 @@
               # Invalid() in gmocks's gmock-internal-utils.h
               # http://crbug.com/111806
               '-Wno-null-dereference',
-
-              # TODO(thakis): Investigate if it's worth cleaning up the code
-              # and turning this on.
-              '-Wno-null-conversion',
             ],
             'cflags!': [
               # Clang doesn't seem to know know this flag.
@@ -2475,10 +2471,6 @@
                 # Invalid() in gmock's gmock-internal-utils.h
                 # http://crbug.com/111806
                 '-Wno-null-dereference',
-
-                # TODO(thakis): Investigate if it's worth cleaning up the code
-                # and turning this on.
-                '-Wno-null-conversion',
               ],
             }],
             ['clang==1 and clang_use_chrome_plugins==1', {
