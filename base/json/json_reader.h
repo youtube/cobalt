@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -71,11 +71,11 @@ class BASE_EXPORT JSONReader {
      INVALID_TOKEN,
     };
 
-    Token(Type t, const wchar_t* b, int len)
+    Token(Type t, const char* b, int len)
         : type(t), begin(b), length(len) {}
 
     // Get the character that's one past the end of this token.
-    wchar_t NextChar() {
+    char NextChar() {
       return *(begin + length);
     }
 
@@ -86,7 +86,7 @@ class BASE_EXPORT JSONReader {
     Type type;
 
     // A pointer into JSONReader::json_pos_ that's the beginning of this token.
-    const wchar_t* begin;
+    const char* begin;
 
     // End should be one char past the end of the token.
     int length;
@@ -186,6 +186,17 @@ class BASE_EXPORT JSONReader {
   // (otherwise ParseStringToken would have failed).
   Value* DecodeString(const Token& token);
 
+  // Helper function for DecodeString that consumes UTF16 [0,2] code units and
+  // convers them to UTF8 code untis.  |token| is the string token in which the
+  // units should be read, |i| is the position in the token at which the first
+  // code unit starts, immediately after the |\u|. This will be mutated if code
+  // units are consumed. |dest_string| is a string to which the UTF8 code unit
+  // should be appended. Returns true on success and false if there's an
+  // encoding error.
+  bool ConvertUTF16Units(const Token& token,
+                         int* i,
+                         std::string* dest_string);
+
   // Grabs the next token in the JSON stream.  This does not increment the
   // stream so it can be used to look ahead at the next token.
   Token ParseToken();
@@ -198,17 +209,20 @@ class BASE_EXPORT JSONReader {
   bool EatComment();
 
   // Checks if |json_pos_| matches str.
-  bool NextStringMatch(const wchar_t* str, size_t length);
+  bool NextStringMatch(const char* str, size_t length);
 
   // Sets the error code that will be returned to the caller. The current
   // line and column are determined and added into the final message.
-  void SetErrorCode(const JsonParseError error, const wchar_t* error_pos);
+  void SetErrorCode(const JsonParseError error, const char* error_pos);
 
   // Pointer to the starting position in the input string.
-  const wchar_t* start_pos_;
+  const char* start_pos_;
 
   // Pointer to the current position in the input string.
-  const wchar_t* json_pos_;
+  const char* json_pos_;
+
+  // Pointer to the last position in the input string.
+  const char* end_pos_;
 
   // Used to keep track of how many nested lists/dicts there are.
   int stack_depth_;
