@@ -8,7 +8,7 @@
 
 #include <vector>
 
-#include "net/base/host_port_pair.h"
+#include "googleurl/src/gurl.h"
 #include "net/base/net_export.h"
 
 namespace net {
@@ -25,28 +25,29 @@ class NET_EXPORT_PRIVATE SpdyCredentialState {
   // from the end.
   void Resize(size_t size);
 
-  // Returns true if there is a credential associated with |origin|.
-  bool HasCredential(const HostPortPair& origin) const;
+  // Returns the one-based index in |slots_| for |url| or kNoEntry, if no entry
+  // for |url| exists.
+  size_t FindCredentialSlot(const GURL& url) const;
 
-  // Adds the new credentials.  If there is space, then it will add
-  // in the first available position.  Otherwise, an existing credential
-  // will be evicted.  Returns the slot in which this origin was added.
-  size_t SetHasCredential(const HostPortPair& origin);
+  // Returns true if there is a credential associated with |url|.
+  bool HasCredential(const GURL& url) const;
+
+  // Adds the new credentials to be associated with all origins matching
+  // |url|.  If there is space, then it will add in the first available
+  // position.  Otherwise, an existing credential will be evicted.  Returns
+  // the slot in which this domain was added.
+  size_t SetHasCredential(const GURL& url);
 
   // This value is defined as the default initial value in the SPDY spec unless
   // otherwise negotiated via SETTINGS.
   static const size_t kDefaultNumSlots;
 
- private:
-  // Returns the index in |slots_| for |origin| or kNoEntry, if no entry
-  // for |origin| exists.
-  size_t FindPosition(const HostPortPair& origin) const;
-
-  // Sentinel value to be returned by FindPosition when no entry exists.
+  // Sentinel value to be returned by FindCredentialSlot when no entry exists.
   static const size_t kNoEntry;
 
+ private:
   // Vector of origins that have credentials.
-  std::vector<HostPortPair> slots_;
+  std::vector<GURL> slots_;
   // Index of the last origin added to |slots_|.
   size_t last_added_;
 };

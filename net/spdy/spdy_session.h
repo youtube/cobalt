@@ -119,6 +119,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   int WriteSynStream(
       SpdyStreamId stream_id,
       RequestPriority priority,
+      uint8 credential_slot,
       SpdyControlFlags flags,
       const linked_ptr<SpdyHeaderBlock>& headers);
 
@@ -253,9 +254,10 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   int GetPeerAddress(AddressList* address) const;
   int GetLocalAddress(IPEndPoint* address) const;
 
-  // Returns true if a request for a resource in |origin| requires a
-  // SPDY CREDENTIAL frame to be sent first, with a domain bound certificate.
-  bool NeedsCredentials(const HostPortPair& origin) const;
+  // Returns true if requests on this session require credentials.
+  bool NeedsCredentials() const;
+
+  SpdyCredentialState* credential_state() { return &credential_state_; }
 
   // Adds |alias| to set of aliases associated with this session.
   void AddPooledAlias(const HostPortProxyPair& alias);
