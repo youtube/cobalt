@@ -167,7 +167,8 @@ SpdyFrame* ConstructSpdyPacket(const SpdyHeaderInfo& header_info,
   switch (header_info.kind) {
     case SYN_STREAM:
       frame = framer.CreateSynStream(header_info.id, header_info.assoc_id,
-                                     header_info.priority, 0,
+                                     header_info.priority,
+                                     header_info.credential_slot,
                                      header_info.control_flags,
                                      header_info.compressed, &headers);
       break;
@@ -316,6 +317,7 @@ SpdyFrame* ConstructSpdyControlFrame(const char* const extra_headers[],
     associated_stream_id,         // Associated stream ID
     ConvertRequestPriorityToSpdyPriority(request_priority),
                                   // Priority
+    0,                            // Credential Slot
     flags,                        // Control Flags
     compressed,                   // Compressed
     INVALID,                // Status
@@ -345,6 +347,7 @@ SpdyFrame* ConstructSpdyGet(const char* const url,
     0,                            // Associated stream ID
     net::ConvertRequestPriorityToSpdyPriority(request_priority),
                                   // Priority
+    0,                            // Credential Slot
     CONTROL_FLAG_FIN,       // Control Flags
     compressed,                   // Compressed
     INVALID,                // Status
@@ -998,6 +1001,7 @@ const SpdyHeaderInfo MakeSpdyHeader(SpdyControlType type) {
     1,                            // Stream ID
     0,                            // Associated stream ID
     2,                            // Priority
+    0,                            // Credential Slot
     CONTROL_FLAG_FIN,       // Control Flags
     false,                        // Compressed
     INVALID,                // Status
