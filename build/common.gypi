@@ -367,9 +367,9 @@
           'file_manager_extension%': 0,
         }],
 
-        # Enable WebUI TaskManager on Chrome OS or Aura.  
-        ['chromeos==1 or use_aura==1', {   
-          'webui_task_manager%': 1,   
+        # Enable WebUI TaskManager on Chrome OS or Aura.
+        ['chromeos==1 or use_aura==1', {
+          'webui_task_manager%': 1,
         }],
 
         # For now one-click signin is enabled only for windows and mac
@@ -754,14 +754,14 @@
         'variables': {
           'variables': {
             'android_ndk_root%': '<!(/bin/echo -n $ANDROID_NDK_ROOT)',
-            'android_target_arch%': 'arm',  # target_arch in android terms.
+            'target_arch%': 'arm',  # target_arch in android terms.
 
             # Switch between different build types, currently only '0' is
             # supported.
             'android_build_type%': 0,
           },
           'android_ndk_root%': '<(android_ndk_root)',
-          'android_ndk_sysroot': '<(android_ndk_root)/platforms/android-9/arch-<(android_target_arch)',
+          'android_ndk_sysroot': '<(android_ndk_root)/platforms/android-9/arch-<(target_arch)',
           'android_build_type%': '<(android_build_type)',
         },
         'android_ndk_root%': '<(android_ndk_root)',
@@ -2172,11 +2172,11 @@
     # Android-specific options; note that most are set above with Linux.
     ['OS=="android"', {
       'variables': {
-        'android_target_arch%': 'arm',  # target_arch in android terms.
+        'target_arch%': 'arm',  # target_arch in android terms.
         'conditions': [
           # Android uses x86 instead of ia32 for their target_arch designation.
           ['target_arch=="ia32"', {
-            'android_target_arch%': 'x86',
+            'target_arch%': 'x86',
           }],
           # Use shared stlport library when system one used.
           # Figure this out early since it needs symbols from libgcc.a, so it
