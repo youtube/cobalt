@@ -41,6 +41,7 @@ struct SpdyHeaderInfo {
   SpdyStreamId id;
   SpdyStreamId assoc_id;
   SpdyPriority priority;
+  size_t credential_slot;
   SpdyControlFlags control_flags;
   bool compressed;
   SpdyStatusCodes status;

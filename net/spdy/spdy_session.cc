@@ -410,8 +410,9 @@ net::Error SpdySession::InitializeWithSocket(
 
     if (ssl_socket->WasDomainBoundCertSent()) {
       // According to the SPDY spec, the credential associated with the TLS
-      // connection is stored in slot[0].
-      credential_state_.SetHasCredential(host_port_pair());
+      // connection is stored in slot[1].
+      credential_state_.SetHasCredential(GURL("https://" +
+                                              host_port_pair().ToString()));
     }
   }
 
@@ -594,15 +595,13 @@ int SpdySession::CreateStreamImpl(
   return OK;
 }
 
-bool SpdySession::NeedsCredentials(const HostPortPair& origin) const {
+bool SpdySession::NeedsCredentials() const {
   if (!is_secure_)
     return false;
   SSLClientSocket* ssl_socket = GetSSLClientSocket();
   if (ssl_socket->protocol_negotiated() < SSLClientSocket::kProtoSPDY3)
     return false;
-  if (!ssl_socket->WasDomainBoundCertSent())
-    return false;
-  return !credential_state_.HasCredential(origin);
+  return ssl_socket->WasDomainBoundCertSent();
 }
 
 void SpdySession::AddPooledAlias(const HostPortProxyPair& alias) {
@@ -617,6 +616,7 @@ int SpdySession::GetProtocolVersion() const {
 int SpdySession::WriteSynStream(
     SpdyStreamId stream_id,
     RequestPriority priority,
+    uint8 credential_slot,
     SpdyControlFlags flags,
     const linked_ptr<SpdyHeaderBlock>& headers) {
   // Find our stream
@@ -631,8 +631,8 @@ int SpdySession::WriteSynStream(
   scoped_ptr<SpdySynStreamControlFrame> syn_frame(
       buffered_spdy_framer_->CreateSynStream(
           stream_id, 0,
-          ConvertRequestPriorityToSpdyPriority(priority), 0,
-          flags, false, headers.get()));
+          ConvertRequestPriorityToSpdyPriority(priority),
+          credential_slot, flags, false, headers.get()));
   QueueFrame(syn_frame.get(), priority, stream);
 
   base::StatsCounter spdy_requests("spdy.requests");
@@ -695,7 +695,7 @@ int SpdySession::WriteCredentialFrame(const std::string& origin,
   SpdyCredential credential;
   GURL origin_url(origin);
   credential.slot =
-      credential_state_.SetHasCredential(HostPortPair::FromURL(origin_url));
+      credential_state_.SetHasCredential(origin_url);
   credential.certs.push_back(cert);
   credential.proof.assign(proof.begin(), proof.end());
 

@@ -73,6 +73,7 @@ SpdyStream::SpdyStream(SpdySession* session,
     : continue_buffering_data_(true),
       stream_id_(stream_id),
       priority_(0),
+      slot_(0),
       stalled_by_flow_control_(false),
       send_window_size_(kSpdyStreamInitialWindowSize),
       recv_window_size_(kSpdyStreamInitialWindowSize),
@@ -637,8 +638,14 @@ int SpdyStream::DoLoop(int result) {
 
 int SpdyStream::DoGetDomainBoundCert() {
   CHECK(request_.get());
-  HostPortPair origin(HostPortPair::FromURL(GetUrl()));
-  if (!session_->NeedsCredentials(origin)) {
+  if (!session_->NeedsCredentials()) {
+    // Proceed directly to sending headers
+    io_state_ = STATE_SEND_HEADERS;
+    return OK;
+  }
+
+  slot_ = session_->credential_state()->FindCredentialSlot(GetUrl());
+  if (slot_ != SpdyCredentialState::kNoEntry) {
     // Proceed directly to sending headers
     io_state_ = STATE_SEND_HEADERS;
     return OK;
@@ -663,6 +670,7 @@ int SpdyStream::DoGetDomainBoundCertComplete(int result) {
     return result;
 
   io_state_ = STATE_SEND_DOMAIN_BOUND_CERT;
+  slot_ =  session_->credential_state()->SetHasCredential(GetUrl());
   return OK;
 }
 
@@ -696,7 +704,7 @@ int SpdyStream::DoSendHeaders() {
 
   CHECK(request_.get());
   int result = session_->WriteSynStream(
-      stream_id_, static_cast<RequestPriority>(priority_), flags,
+      stream_id_, static_cast<RequestPriority>(priority_), slot_, flags,
       request_);
   if (result != ERR_IO_PENDING)
     return result;
