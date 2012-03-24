@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,13 +12,7 @@
 
 namespace tracked_objects {
 
-typedef int DurationInt;
-
 //------------------------------------------------------------------------------
-
-#define USE_FAST_TIME_CLASS_FOR_DURATION_CALCULATIONS
-
-#if defined(USE_FAST_TIME_CLASS_FOR_DURATION_CALCULATIONS)
 
 // TimeTicks maintains a wasteful 64 bits of data (we need less than 32), and on
 // windows, a 64 bit timer is expensive to even obtain. We use a simple
@@ -71,17 +65,6 @@ class BASE_EXPORT TrackedTime {  // Similar to base::TimeTicks.
   // Internal duration is stored directly in milliseconds.
   uint32 ms_;
 };
-
-#else
-
-// Just use full 64 bit time calculations, and the slower TimeTicks::Now().
-// This allows us (as an alternative) to test with larger ranges of times, and
-// with a more thoroughly tested class.
-
-typedef base::TimeTicks TrackedTime;
-typedef base::TimeDelta Duration;
-
-#endif  // USE_FAST_TIME_CLASS_FOR_DURATION_CALCULATIONS
 
 }  // namespace tracked_objects
 
