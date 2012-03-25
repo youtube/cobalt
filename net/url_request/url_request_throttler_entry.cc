@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -380,12 +380,6 @@ void URLRequestThrottlerEntry::HandleThrottlingHeader(
 }
 
 void URLRequestThrottlerEntry::HandleMetricsTracking(int response_code) {
-  // This is essentially the same as the "Net.HttpResponseCode" UMA stat
-  // but we are tracking it separately here for the throttling experiment
-  // to make sure we count only the responses seen by throttling.
-  // TODO(joi): Remove after experiment.
-  UMA_HISTOGRAM_ENUMERATION("Throttling.HttpResponseCode", response_code, 600);
-
   // Note that we are not interested in whether the code is considered
   // an error for the backoff logic, but whether it is a 5xx error in
   // general.  This is because here, we are tracking the apparent total
