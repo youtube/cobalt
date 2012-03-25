@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -182,7 +182,6 @@ class URLRequestThrottlerEntryTest : public testing::Test {
 const char* kHistogramNames[] = {
   "Throttling.CustomRetryAfterMs",
   "Throttling.FailureCountAtSuccess",
-  "Throttling.HttpResponseCode",
   "Throttling.PerceivedDowntime",
   "Throttling.RequestThrottled",
   "Throttling.SiteOptedOut",
@@ -300,8 +299,6 @@ TEST_F(URLRequestThrottlerEntryTest, InterfaceUpdateSuccessThenFailure) {
   entry_->UpdateWithResponse("", &success_response);
 
   CalculateHistogramDeltas();
-  ASSERT_EQ(1, samples_["Throttling.HttpResponseCode"].counts(503));
-  ASSERT_EQ(2, samples_["Throttling.HttpResponseCode"].counts(200));
   ASSERT_EQ(1, samples_["Throttling.FailureCountAtSuccess"].counts(1));
   ASSERT_EQ(1, samples_["Throttling.PerceivedDowntime"].TotalCount());
 }
