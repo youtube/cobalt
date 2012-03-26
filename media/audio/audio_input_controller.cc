@@ -23,13 +23,13 @@ AudioInputController::AudioInputController(EventHandler* handler,
     : creator_loop_(base::MessageLoopProxy::current()),
       handler_(handler),
       stream_(NULL),
+      ALLOW_THIS_IN_INITIALIZER_LIST(no_data_timer_(FROM_HERE,
+          base::TimeDelta::FromSeconds(kTimerResetInterval),
+          this,
+          &AudioInputController::DoReportNoDataError)),
       state_(kEmpty),
       sync_writer_(sync_writer) {
   DCHECK(creator_loop_);
-  no_data_timer_.reset(new base::DelayTimer<AudioInputController>(FROM_HERE,
-      base::TimeDelta::FromSeconds(kTimerResetInterval),
-      this,
-      &AudioInputController::DoReportNoDataError));
 }
 
 AudioInputController::~AudioInputController() {
@@ -103,11 +103,6 @@ void AudioInputController::Record() {
 
 void AudioInputController::Close(const base::Closure& closed_task) {
   DCHECK(!closed_task.is_null());
-  DCHECK(creator_loop_->BelongsToCurrentThread());
-  // See crbug.com/119783: Deleting the timer now to avoid disaster if
-  // AudioInputController is destructed on a thread other than the creator
-  // thread.
-  no_data_timer_.reset();
   message_loop_->PostTaskAndReply(
       FROM_HERE, base::Bind(&AudioInputController::DoClose, this), closed_task);
 }
@@ -185,8 +180,7 @@ void AudioInputController::DoReportNoDataError() {
 
 void AudioInputController::DoResetNoDataTimer() {
   DCHECK(creator_loop_->BelongsToCurrentThread());
-  if (no_data_timer_.get())
-    no_data_timer_->Reset();
+  no_data_timer_.Reset();
 }
 
 void AudioInputController::OnData(AudioInputStream* stream, const uint8* data,
