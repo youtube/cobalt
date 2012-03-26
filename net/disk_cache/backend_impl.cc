@@ -423,9 +423,8 @@ int BackendImpl::SyncInit() {
     trace_object_ = TraceObject::GetTraceObject();
     // Create a recurrent timer of 30 secs.
     int timer_delay = unit_test_ ? 1000 : 30000;
-    timer_.reset(new base::RepeatingTimer<BackendImpl>());
-    timer_->Start(FROM_HERE, TimeDelta::FromMilliseconds(timer_delay), this,
-                  &BackendImpl::OnStatsTimer);
+    timer_.Start(FROM_HERE, TimeDelta::FromMilliseconds(timer_delay), this,
+                 &BackendImpl::OnStatsTimer);
   }
 
   init_ = true;
@@ -498,7 +497,7 @@ int BackendImpl::SyncInit() {
 void BackendImpl::CleanupCache() {
   Trace("Backend Cleanup");
   eviction_.Stop();
-  timer_.reset();
+  timer_.Stop();
 
   if (init_) {
     stats_.Store();
