@@ -154,9 +154,9 @@ VideoFrame::VideoFrame(VideoFrame::Format format,
       width_(width),
       height_(height),
       texture_id_(0),
-      texture_target_(0) {
-  SetTimestamp(timestamp);
-  SetDuration(duration);
+      texture_target_(0),
+      timestamp_(timestamp),
+      duration_(duration) {
   memset(&strides_, 0, sizeof(strides_));
   memset(&data_, 0, sizeof(data_));
 }

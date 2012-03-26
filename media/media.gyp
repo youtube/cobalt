@@ -589,6 +589,7 @@
         'audio/win/audio_low_latency_input_win_unittest.cc',
         'audio/win/audio_low_latency_output_win_unittest.cc',
         'audio/win/audio_output_win_unittest.cc',
+        'base/buffers_unittest.cc',
         'base/clock_unittest.cc',
         'base/composite_filter_unittest.cc',
         'base/data_buffer_unittest.cc',
