@@ -99,6 +99,12 @@ void DeleteMapBlock(int index, int size, disk_cache::BlockFileHeader* header) {
   }
   TimeTicks start = TimeTicks::Now();
   int byte_index = index / 8;
+
+#ifdef ARCH_CPU_BIG_ENDIAN
+  // Every four bytes are a group (index type is uint32) and at this point
+  // the index are based on little endian, so we need to xor the last 2 bits
+  byte_index = byte_index ^ 0x03;
+#endif
   uint8* byte_map = reinterpret_cast<uint8*>(header->allocation_map);
   uint8 map_block = byte_map[byte_index];
 
@@ -139,6 +145,11 @@ bool UsedMapBlock(int index, int size, disk_cache::BlockFileHeader* header) {
     return false;
   }
   int byte_index = index / 8;
+#ifdef ARCH_CPU_BIG_ENDIAN
+  // Every four bytes are a group (index type is uint32) and at this point
+  // the index are based on little endian, so we need to xor the last 2 bits
+  byte_index = byte_index ^ 0x03;
+#endif
   uint8* byte_map = reinterpret_cast<uint8*>(header->allocation_map);
   uint8 map_block = byte_map[byte_index];
 
