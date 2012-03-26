@@ -70,7 +70,7 @@
  "linux-release/av_perf/ttp/Wifi_1Mbps_60ms": {"reva": 126806, "revb": 127708, "type": "absolute", "better": "lower", "improve": 1263, "regress": 1418, "sha1": "172bdabe"},
  "linux-release/dhtml/times/t": {"reva": 109368, "revb": 109709, "improve": 1, "regress": 190, "sha1": "e5a6f44c"},
  "linux-release/dom_perf/Total/score": {"reva": 122431, "revb": 123492, "improve": 238, "regress": 67, "sha1": "c58fbd81"},
- "linux-release/dromaeo_jslib/jslib/score": {"reva": 127362, "revb": 127763, "improve": -37, "regress": -84, "sha1": "7088f912"},
+ "linux-release/dromaeo_jslib/jslib/score": {"reva": 128533, "revb": 128915, "improve": -19, "regress": -62, "sha1": "af340875"},
  "linux-release/intl1/times/t": {"reva": 120693, "revb": 120933, "improve": 317, "regress": 565, "sha1": "3a719735"},
  "linux-release/intl2/times/t": {"reva": 120693, "revb": 120785, "improve": 240, "regress": 368, "sha1": "07af2f54"},
  "linux-release/morejs/times/t": {"reva": 109815, "revb": 110120, "improve": 398, "regress": 545, "sha1": "425696a1"},
