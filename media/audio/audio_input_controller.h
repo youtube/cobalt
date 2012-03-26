@@ -55,12 +55,12 @@
 //                              kRecording
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Close() ==>                  DoClose()
+//                              state_ = kClosed
 //                    AudioInputStream::Stop()
 //                    AudioInputStream::Close()
 //                    SyncWriter::Close()
-//                    Closure::Run()
-// (closure-task) <----------------.
-//                              kClosed
+// Closure::Run() <--------------.
+// (closure-task)
 //
 // The audio thread itself is owned by the AudioManager that the
 // AudioInputController holds a reference to.  When performing tasks on the

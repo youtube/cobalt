@@ -6,6 +6,7 @@
 #include "base/environment.h"
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/message_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "media/audio/audio_output_controller.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -65,13 +66,23 @@ ACTION_P(SignalEvent, event) {
 
 // Closes AudioOutputController synchronously.
 static void CloseAudioController(AudioOutputController* controller) {
-  base::WaitableEvent closed_event(true, false);
-  controller->Close(base::Bind(&base::WaitableEvent::Signal,
-                               base::Unretained(&closed_event)));
-  closed_event.Wait();
+  controller->Close(MessageLoop::QuitClosure());
+  MessageLoop::current()->Run();
 }
 
-TEST(AudioOutputControllerTest, CreateAndClose) {
+class AudioOutputControllerTest : public testing::Test {
+ public:
+  AudioOutputControllerTest() {}
+  virtual ~AudioOutputControllerTest() {}
+
+ protected:
+  MessageLoopForIO message_loop_;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(AudioOutputControllerTest);
+};
+
+TEST_F(AudioOutputControllerTest, CreateAndClose) {
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!audio_manager->HasAudioOutputDevices())
     return;
@@ -95,7 +106,7 @@ TEST(AudioOutputControllerTest, CreateAndClose) {
   CloseAudioController(controller);
 }
 
-TEST(AudioOutputControllerTest, PlayPauseClose) {
+TEST_F(AudioOutputControllerTest, PlayPauseClose) {
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!audio_manager->HasAudioOutputDevices())
     return;
@@ -117,6 +128,8 @@ TEST(AudioOutputControllerTest, PlayPauseClose) {
   EXPECT_CALL(sync_reader, Read(_, kHardwareBufferSize))
       .WillRepeatedly(DoAll(SignalEvent(&event),
                             Return(4)));
+  EXPECT_CALL(sync_reader, DataReady())
+      .WillRepeatedly(Return(true));
   EXPECT_CALL(event_handler, OnPaused(NotNull()))
       .WillOnce(InvokeWithoutArgs(&pause_event, &base::WaitableEvent::Signal));
   EXPECT_CALL(sync_reader, Close());
@@ -141,7 +154,7 @@ TEST(AudioOutputControllerTest, PlayPauseClose) {
 }
 
 
-TEST(AudioOutputControllerTest, HardwareBufferTooLarge) {
+TEST_F(AudioOutputControllerTest, HardwareBufferTooLarge) {
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!audio_manager->HasAudioOutputDevices())
     return;
