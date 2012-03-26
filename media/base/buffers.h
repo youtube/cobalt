@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Defines various types of timestamped media buffers used for transporting
-// data between filters.  Every buffer contains a timestamp in microseconds
-// describing the relative position of the buffer within the media stream, and
-// the duration in microseconds for the length of time the buffer will be
-// rendered.
+// Defines a base class for representing timestamped media data. Every buffer
+// contains a timestamp in microseconds describing the relative position of
+// the buffer within the media stream, and the duration in microseconds for
+// the length of time the buffer will be rendered.
 //
 // Timestamps are derived directly from the encoded media file and are commonly
 // known as the presentation timestamp (PTS).  Durations are a best-guess and
@@ -46,47 +45,7 @@ MEDIA_EXPORT extern inline base::TimeDelta kInfiniteDuration() {
   return base::TimeDelta::FromMicroseconds(kint64max);
 }
 
-class MEDIA_EXPORT StreamSample
-    : public base::RefCountedThreadSafe<StreamSample> {
- public:
-  // Returns the timestamp of this buffer in microseconds.
-  base::TimeDelta GetTimestamp() const {
-    return timestamp_;
-  }
-
-  // Returns the duration of this buffer in microseconds.
-  base::TimeDelta GetDuration() const {
-    return duration_;
-  }
-
-  // Indicates that the sample is the last one in the stream. This method is
-  // pure virtual so implementors can decide when to declare end of stream
-  // depending on specific data.
-  virtual bool IsEndOfStream() const = 0;
-
-  // Sets the timestamp of this buffer in microseconds.
-  void SetTimestamp(const base::TimeDelta& timestamp) {
-    timestamp_ = timestamp;
-  }
-
-  // Sets the duration of this buffer in microseconds.
-  void SetDuration(const base::TimeDelta& duration) {
-    duration_ = duration;
-  }
-
- protected:
-  friend class base::RefCountedThreadSafe<StreamSample>;
-  StreamSample();
-  virtual ~StreamSample();
-
-  base::TimeDelta timestamp_;
-  base::TimeDelta duration_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(StreamSample);
-};
-
-class MEDIA_EXPORT Buffer : public StreamSample {
+class MEDIA_EXPORT Buffer : public base::RefCountedThreadSafe<Buffer> {
  public:
   // Returns a read only pointer to the buffer data.
   virtual const uint8* GetData() const = 0;
@@ -95,13 +54,35 @@ class MEDIA_EXPORT Buffer : public StreamSample {
   virtual size_t GetDataSize() const = 0;
 
   // If there's no data in this buffer, it represents end of stream.
-  virtual bool IsEndOfStream() const OVERRIDE;
+  bool IsEndOfStream() const;
 
   // Return DecryptConfig if buffer is encrypted, or NULL otherwise.
   virtual const DecryptConfig* GetDecryptConfig() const;
 
+  base::TimeDelta GetTimestamp() const {
+    return timestamp_;
+  }
+  void SetTimestamp(const base::TimeDelta& timestamp) {
+    timestamp_ = timestamp;
+  }
+
+  base::TimeDelta GetDuration() const {
+    return duration_;
+  }
+  void SetDuration(const base::TimeDelta& duration) {
+    duration_ = duration;
+  }
+
  protected:
-  virtual ~Buffer() {}
+  friend class base::RefCountedThreadSafe<Buffer>;
+  Buffer(base::TimeDelta timestamp, base::TimeDelta duration);
+  virtual ~Buffer();
+
+ private:
+  base::TimeDelta timestamp_;
+  base::TimeDelta duration_;
+
+  DISALLOW_COPY_AND_ASSIGN(Buffer);
 };
 
 }  // namespace media

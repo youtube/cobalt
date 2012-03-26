@@ -29,13 +29,11 @@ class AVPacketBuffer : public Buffer {
   AVPacketBuffer(scoped_ptr_malloc<AVPacket, ScopedPtrAVFreePacket> packet,
                  const base::TimeDelta& timestamp,
                  const base::TimeDelta& duration)
-      : packet_(packet.Pass()) {
-    SetTimestamp(timestamp);
-    SetDuration(duration);
+      : Buffer(timestamp, duration),
+        packet_(packet.Pass()) {
   }
 
-  virtual ~AVPacketBuffer() {
-  }
+  virtual ~AVPacketBuffer() {}
 
   // Buffer implementation.
   virtual const uint8* GetData() const {

@@ -121,30 +121,14 @@ void ExpectFrameExtents(VideoFrame::Format format, int planes,
 TEST(VideoFrame, CreateFrame) {
   const size_t kWidth = 64;
   const size_t kHeight = 48;
-  const base::TimeDelta kTimestampA = base::TimeDelta::FromMicroseconds(1337);
-  const base::TimeDelta kDurationA = base::TimeDelta::FromMicroseconds(1667);
-  const base::TimeDelta kTimestampB = base::TimeDelta::FromMicroseconds(1234);
-  const base::TimeDelta kDurationB = base::TimeDelta::FromMicroseconds(5678);
+  const base::TimeDelta kTimestamp = base::TimeDelta::FromMicroseconds(1337);
+  const base::TimeDelta kDuration = base::TimeDelta::FromMicroseconds(1667);
 
   // Create a YV12 Video Frame.
   scoped_refptr<media::VideoFrame> frame =
       VideoFrame::CreateFrame(media::VideoFrame::YV12, kWidth, kHeight,
-                              kTimestampA, kDurationA);
+                              kTimestamp, kDuration);
   ASSERT_TRUE(frame);
-
-  // Test StreamSample implementation.
-  EXPECT_EQ(kTimestampA.InMicroseconds(),
-            frame->GetTimestamp().InMicroseconds());
-  EXPECT_EQ(kDurationA.InMicroseconds(),
-            frame->GetDuration().InMicroseconds());
-  EXPECT_FALSE(frame->IsEndOfStream());
-  frame->SetTimestamp(kTimestampB);
-  frame->SetDuration(kDurationB);
-  EXPECT_EQ(kTimestampB.InMicroseconds(),
-            frame->GetTimestamp().InMicroseconds());
-  EXPECT_EQ(kDurationB.InMicroseconds(),
-            frame->GetDuration().InMicroseconds());
-  EXPECT_FALSE(frame->IsEndOfStream());
 
   // Test VideoFrame implementation.
   EXPECT_EQ(media::VideoFrame::YV12, frame->format());
