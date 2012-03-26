@@ -282,6 +282,9 @@
       # GYP_DEFINES.
       'tests_run%': 'check',
 
+       # Force rlz to use chrome's networking stack.
+      'force_rlz_use_chrome_net%': 1,
+
       'conditions': [
         # TODO(epoger): Figure out how to set use_skia=1 for Mac outside of
         # the 'conditions' clause.  Initial attempts resulted in chromium and
@@ -500,6 +503,7 @@
     'use_canvas_skia%': '<(use_canvas_skia)',
     'tests_run%': '<(tests_run)',
     'enable_automation%': '<(enable_automation)',
+    'force_rlz_use_chrome_net%': '<(force_rlz_use_chrome_net)',
 
     # Whether to build for Wayland display server
     'use_wayland%': 0,
@@ -1142,6 +1146,9 @@
         'defines': ['GOOGLE_CHROME_BUILD'],
       }, {  # else: branding!="Chrome"
         'defines': ['CHROMIUM_BUILD'],
+      }],
+      ['branding=="Chrome" and (OS=="win" or OS=="mac")', {
+        'defines': ['ENABLE_RLZ'],
       }],
       ['component=="shared_library"', {
         'defines': ['COMPONENT_BUILD'],
