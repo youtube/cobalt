@@ -157,7 +157,6 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool : public ClientSocketPool {
                              StreamSocket* socket,
                              int id) OVERRIDE;
   virtual void Flush() OVERRIDE;
-  virtual bool IsStalled() const OVERRIDE;
   virtual void CloseIdleSockets() OVERRIDE;
   virtual int IdleSocketCount() const OVERRIDE;
   virtual int IdleSocketCountInGroup(
@@ -165,8 +164,6 @@ class NET_EXPORT_PRIVATE TransportClientSocketPool : public ClientSocketPool {
   virtual LoadState GetLoadState(
       const std::string& group_name,
       const ClientSocketHandle* handle) const OVERRIDE;
-  virtual void AddLayeredPool(LayeredPool* layered_pool) OVERRIDE;
-  virtual void RemoveLayeredPool(LayeredPool* layered_pool) OVERRIDE;
   virtual base::DictionaryValue* GetInfoAsValue(
       const std::string& name,
       const std::string& type,
