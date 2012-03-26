@@ -19,13 +19,19 @@ class ScopedVector {
   MOVE_ONLY_TYPE_FOR_CPP_03(ScopedVector, RValue)
 
  public:
+  typedef typename std::vector<T*>::allocator_type allocator_type;
+  typedef typename std::vector<T*>::size_type size_type;
+  typedef typename std::vector<T*>::difference_type difference_type;
+  typedef typename std::vector<T*>::pointer pointer;
+  typedef typename std::vector<T*>::const_pointer const_pointer;
+  typedef typename std::vector<T*>::reference reference;
+  typedef typename std::vector<T*>::const_reference const_reference;
+  typedef typename std::vector<T*>::value_type value_type;
   typedef typename std::vector<T*>::iterator iterator;
   typedef typename std::vector<T*>::const_iterator const_iterator;
   typedef typename std::vector<T*>::reverse_iterator reverse_iterator;
   typedef typename std::vector<T*>::const_reverse_iterator
       const_reverse_iterator;
-  typedef typename std::vector<T*>::reference reference;
-  typedef typename std::vector<T*>::const_reference const_reference;
 
   ScopedVector() {}
   ~ScopedVector() { reset(); }
