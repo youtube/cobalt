@@ -96,8 +96,8 @@ void AudioOutputController::Flush() {
 void AudioOutputController::Close(const base::Closure& closed_task) {
   DCHECK(!closed_task.is_null());
   DCHECK(message_loop_);
-  message_loop_->PostTask(FROM_HERE, base::Bind(
-      &AudioOutputController::DoClose, base::Unretained(this), closed_task));
+  message_loop_->PostTaskAndReply(FROM_HERE, base::Bind(
+      &AudioOutputController::DoClose, base::Unretained(this)), closed_task);
 }
 
 void AudioOutputController::SetVolume(double volume) {
@@ -240,7 +240,7 @@ void AudioOutputController::DoFlush() {
   // TODO(hclam): Actually flush the audio device.
 }
 
-void AudioOutputController::DoClose(const base::Closure& closed_task) {
+void AudioOutputController::DoClose() {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   if (state_ != kClosed) {
@@ -248,8 +248,6 @@ void AudioOutputController::DoClose(const base::Closure& closed_task) {
     sync_reader_->Close();
     state_ = kClosed;
   }
-
-  closed_task.Run();
 }
 
 void AudioOutputController::DoSetVolume(double volume) {
