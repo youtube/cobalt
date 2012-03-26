@@ -11,7 +11,7 @@
 
 namespace media {
 
-class MEDIA_EXPORT VideoFrame : public StreamSample {
+class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
  public:
   enum {
     kMaxPlanes = 3,
@@ -104,21 +104,35 @@ class MEDIA_EXPORT VideoFrame : public StreamSample {
   // Returns the texture target. Only valid for NATIVE_TEXTURE frames.
   uint32 texture_target() const;
 
-  // StreamSample interface.
-  virtual bool IsEndOfStream() const OVERRIDE;
+  // Returns true if this VideoFrame represents the end of the stream.
+  bool IsEndOfStream() const;
+
+  base::TimeDelta GetTimestamp() const {
+    return timestamp_;
+  }
+  void SetTimestamp(const base::TimeDelta& timestamp) {
+    timestamp_ = timestamp;
+  }
+
+  base::TimeDelta GetDuration() const {
+    return duration_;
+  }
+  void SetDuration(const base::TimeDelta& duration) {
+    duration_ = duration;
+  }
 
   // Used to keep a running hash of seen frames.  Expects an initialized MD5
   // context.  Calls MD5Update with the context and the contents of the frame.
   void HashFrameForTesting(base::MD5Context* context);
 
  private:
+  friend class base::RefCountedThreadSafe<VideoFrame>;
   // Clients must use the static CreateFrame() method to create a new frame.
   VideoFrame(Format format,
              size_t video_width,
              size_t video_height,
              base::TimeDelta timestamp,
              base::TimeDelta duration);
-
   virtual ~VideoFrame();
 
   // Used internally by CreateFrame().
@@ -147,6 +161,9 @@ class MEDIA_EXPORT VideoFrame : public StreamSample {
   uint32 texture_id_;
   uint32 texture_target_;
   base::Closure texture_no_longer_needed_;
+
+  base::TimeDelta timestamp_;
+  base::TimeDelta duration_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(VideoFrame);
 };
