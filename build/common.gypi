@@ -543,6 +543,10 @@
     'mac_sdk%': '10.5',
     'mac_deployment_target%': '10.5',
 
+    # The default value for mac_strip in target_defaults. This cannot be
+    # set there, per the comment about variable% in a target_defaults.
+    'mac_strip_release%': 1,
+
     # Set to 1 to enable code coverage.  In addition to build changes
     # (e.g. extra CFLAGS), also creates a new target in the src/chrome
     # project file called "coverage".
@@ -2394,7 +2398,8 @@
           # different targets, like these.
           'mac_pie': 1,        # Most executables can be position-independent.
           'mac_real_dsym': 0,  # Fake .dSYMs are fine in most cases.
-          'mac_strip': 1,      # Strip debugging symbols from the target.
+          # Strip debugging symbols from the target.
+          'mac_strip': '<(mac_strip_release)',
         },
         'mac_bundle': 0,
         'xcode_settings': {
