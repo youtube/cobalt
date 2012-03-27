@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -82,3 +82,25 @@ TEST_F(FileUtilICUTest, ReplaceIllegalCharactersInPathTest) {
 
 #endif
 
+#if defined(OS_CHROMEOS)
+static const struct normalize_name_encoding_test_cases {
+  const char* original_path;
+  const char* normalized_path;
+} kNormalizeFileNameEncodingTestCases[] = {
+  { "foo_na\xcc\x88me.foo", "foo_n\xc3\xa4me.foo"},
+  { "foo_dir_na\xcc\x88me/foo_na\xcc\x88me.foo",
+    "foo_dir_na\xcc\x88me/foo_n\xc3\xa4me.foo"},
+  { "", ""},
+  { "foo_dir_na\xcc\x88me/", "foo_dir_n\xc3\xa4me"}
+};
+
+TEST_F(FileUtilICUTest, NormalizeFileNameEncoding) {
+  for (size_t i = 0; i < arraysize(kNormalizeFileNameEncodingTestCases); i++) {
+    FilePath path(kNormalizeFileNameEncodingTestCases[i].original_path);
+    file_util::NormalizeFileNameEncoding(&path);
+    EXPECT_EQ(FilePath(kNormalizeFileNameEncodingTestCases[i].normalized_path),
+              path);
+  }
+}
+
+#endif
