@@ -108,7 +108,7 @@ bool PipelineIntegrationTestBase::Seek(base::TimeDelta seek_time) {
 
 void PipelineIntegrationTestBase::Stop() {
   DCHECK(pipeline_->IsRunning());
-  pipeline_->Stop(QuitOnStatusCB(PIPELINE_OK));
+  pipeline_->Stop(MessageLoop::QuitClosure());
   message_loop_.Run();
 }
 
