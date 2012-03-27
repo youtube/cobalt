@@ -413,10 +413,6 @@ class MEDIA_EXPORT Pipeline
   // Internal methods used in the implementation of the pipeline thread.  All
   // of these methods are only called on the pipeline thread.
 
-  // PrepareFilter() creates the filter's thread and injects a FilterHost and
-  // MessageLoop.
-  bool PrepareFilter(scoped_refptr<Filter> filter);
-
   // The following initialize methods are used to select a specific type of
   // Filter object from FilterCollection and initialize it asynchronously.
   void InitializeDemuxer();
