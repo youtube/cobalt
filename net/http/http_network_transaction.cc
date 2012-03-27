@@ -831,6 +831,7 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
     if (rv != OK)
       return rv;
   }
+  DCHECK(response_.headers);
 
   // Like Net.HttpResponseCode, but only for MAIN_FRAME loads.
   if (request_->load_flags & LOAD_MAIN_FRAME) {
