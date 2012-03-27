@@ -144,7 +144,7 @@ class MEDIA_EXPORT AudioInputController
       SyncWriter* sync_writer);
 
   // Starts recording using the created audio input stream.
-  // This method is called on the audio thread.
+  // This method is called on the creator thread.
   virtual void Record();
 
   // Closes the audio input stream. The state is changed and the resources
@@ -215,7 +215,7 @@ class MEDIA_EXPORT AudioInputController
   // when an audio input device is unplugged whilst recording on Windows.
   // See http://crbug.com/79936 for details.
   // This member is only touched by the creating thread.
-  base::DelayTimer<AudioInputController> no_data_timer_;
+  scoped_ptr<base::DelayTimer<AudioInputController> > no_data_timer_;
 
   // |state_| is written on the audio thread and is read on the hardware audio
   // thread. These operations need to be locked. But lock is not required for
