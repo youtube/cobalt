@@ -1859,6 +1859,76 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, ResponseWithTwoSynReplies) {
   helper.VerifyDataConsumed();
 }
 
+TEST_P(SpdyNetworkTransactionSpdy2Test, ResetReplyWithTransferEncoding) {
+  // Construct the request.
+  scoped_ptr<SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<SpdyFrame> rst(ConstructSpdyRstStream(1, PROTOCOL_ERROR));
+  MockWrite writes[] = {
+    CreateMockWrite(*req),
+    CreateMockWrite(*rst),
+  };
+
+  const char* const headers[] = {
+    "transfer-encoding", "chuncked"
+  };
+  scoped_ptr<SpdyFrame> resp(ConstructSpdyGetSynReply(headers, 1, 1));
+  scoped_ptr<SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
+  MockRead reads[] = {
+    CreateMockRead(*resp),
+    CreateMockRead(*body),
+    MockRead(ASYNC, 0, 0)  // EOF
+  };
+
+  scoped_ptr<DelayedSocketData> data(
+      new DelayedSocketData(1, reads, arraysize(reads),
+                            writes, arraysize(writes)));
+  NormalSpdyTransactionHelper helper(CreateGetRequest(),
+                                     BoundNetLog(), GetParam());
+  helper.RunToCompletion(data.get());
+  TransactionHelperResult out = helper.output();
+  EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, out.rv);
+
+  helper.session()->spdy_session_pool()->CloseAllSessions();
+  helper.VerifyDataConsumed();
+}
+
+TEST_P(SpdyNetworkTransactionSpdy2Test, ResetPushWithTransferEncoding) {
+  // Construct the request.
+  scoped_ptr<SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<SpdyFrame> rst(ConstructSpdyRstStream(2, PROTOCOL_ERROR));
+  MockWrite writes[] = {
+    CreateMockWrite(*req),
+    CreateMockWrite(*rst),
+  };
+
+  scoped_ptr<SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
+  const char* const headers[] = {"url", "http://www.google.com/1",
+                                 "transfer-encoding", "chunked"};
+  scoped_ptr<SpdyFrame> push(ConstructSpdyPush(headers, arraysize(headers) / 2,
+                                               2, 1));
+  scoped_ptr<SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
+  MockRead reads[] = {
+    CreateMockRead(*resp),
+    CreateMockRead(*push),
+    CreateMockRead(*body),
+    MockRead(ASYNC, 0, 0)  // EOF
+  };
+
+  scoped_ptr<DelayedSocketData> data(
+      new DelayedSocketData(1, reads, arraysize(reads),
+                            writes, arraysize(writes)));
+  NormalSpdyTransactionHelper helper(CreateGetRequest(),
+                                     BoundNetLog(), GetParam());
+  helper.RunToCompletion(data.get());
+  TransactionHelperResult out = helper.output();
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
+  EXPECT_EQ("hello!", out.response_data);
+
+  helper.session()->spdy_session_pool()->CloseAllSessions();
+  helper.VerifyDataConsumed();
+}
+
 TEST_P(SpdyNetworkTransactionSpdy2Test, CancelledTransaction) {
   // Construct the request.
   scoped_ptr<SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
