@@ -1505,6 +1505,15 @@ FilePath GenerateFileName(const GURL& url,
 #else
   FilePath generated_name(base::SysWideToNativeMB(UTF16ToWide(file_name)));
 #endif
+
+#if defined(OS_CHROMEOS)
+  // When doing file manager operations on ChromeOS, the file paths get
+  // normalized in WebKit layer, so let's ensure downloaded files have
+  // normalized names. Otherwise, we won't be able to handle files with NFD
+  // utf8 encoded characters in name.
+  file_util::NormalizeFileNameEncoding(&generated_name);
+#endif
+
   DCHECK(!generated_name.empty());
 
   return generated_name;
