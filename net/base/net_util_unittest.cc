@@ -2080,7 +2080,18 @@ TEST(NetUtilTest, GenerateFileName) {
       "image/jpeg",
       L"download",
       L"image" JPEG_EXT
-    }
+    },
+#if defined(OS_CHROMEOS)
+    { // http://crosbug.com/26028
+      "http://www.example.com/fooa%cc%88.txt",
+      "",
+      "",
+      "",
+      "image/jpeg",
+      L"foo\xe4",
+      L"foo\xe4.txt"
+    },
+#endif
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(selection_tests); ++i)
