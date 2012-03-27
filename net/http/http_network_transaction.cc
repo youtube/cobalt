@@ -832,6 +832,13 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
       return rv;
   }
 
+  // Like Net.HttpResponseCode, but only for MAIN_FRAME loads.
+  if (request_->load_flags & LOAD_MAIN_FRAME) {
+    const int response_code = response_.headers->response_code();
+    UMA_HISTOGRAM_ENUMERATION(
+        "Net.HttpResponseCode_Nxx_MainFrame", response_code/100, 10);
+  }
+
   if (net_log_.IsLoggingAllEvents()) {
     net_log_.AddEvent(
         NetLog::TYPE_HTTP_TRANSACTION_READ_RESPONSE_HEADERS,
