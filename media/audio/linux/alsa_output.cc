@@ -373,11 +373,11 @@ void AlsaPcmOutputStream::BufferPacket(bool* source_exhausted) {
 
     scoped_refptr<media::DataBuffer> packet =
         new media::DataBuffer(packet_size_);
-    size_t packet_size = RunDataCallback(packet->GetWritableData(),
-                                         packet->GetBufferSize(),
-                                         AudioBuffersState(buffer_delay,
-                                                           hardware_delay));
-    CHECK(packet_size <= packet->GetBufferSize());
+    int packet_size = RunDataCallback(packet->GetWritableData(),
+                                      packet->GetBufferSize(),
+                                      AudioBuffersState(buffer_delay,
+                                                        hardware_delay));
+    CHECK_LE(packet_size, packet->GetBufferSize());
 
     // This should not happen, but in case it does, drop any trailing bytes
     // that aren't large enough to make a frame.  Without this, packet writing
@@ -430,7 +430,7 @@ void AlsaPcmOutputStream::WritePacket() {
   CHECK_EQ(buffer_->forward_bytes() % bytes_per_output_frame_, 0u);
 
   const uint8* buffer_data;
-  size_t buffer_size;
+  int buffer_size;
   if (buffer_->GetCurrentChunk(&buffer_data, &buffer_size)) {
     buffer_size = buffer_size - (buffer_size % bytes_per_output_frame_);
     snd_pcm_sframes_t frames = buffer_size / bytes_per_output_frame_;

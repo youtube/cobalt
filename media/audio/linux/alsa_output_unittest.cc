@@ -160,7 +160,7 @@ class AlsaPcmOutputStreamTest : public testing::Test {
   static const char kTestDeviceName[];
   static const char kDummyMessage[];
   static const uint32 kTestFramesPerPacket;
-  static const uint32 kTestPacketSize;
+  static const int kTestPacketSize;
   static const int kTestFailedErrno;
   static snd_pcm_t* const kFakeHandle;
 
@@ -195,7 +195,7 @@ const AudioParameters::Format AlsaPcmOutputStreamTest::kTestFormat =
 const char AlsaPcmOutputStreamTest::kTestDeviceName[] = "TestDevice";
 const char AlsaPcmOutputStreamTest::kDummyMessage[] = "dummy";
 const uint32 AlsaPcmOutputStreamTest::kTestFramesPerPacket = 1000;
-const uint32 AlsaPcmOutputStreamTest::kTestPacketSize =
+const int AlsaPcmOutputStreamTest::kTestPacketSize =
     AlsaPcmOutputStreamTest::kTestFramesPerPacket *
     AlsaPcmOutputStreamTest::kTestBytesPerFrame;
 const int AlsaPcmOutputStreamTest::kTestFailedErrno = -EACCES;
@@ -498,7 +498,7 @@ TEST_F(AlsaPcmOutputStreamTest, WritePacket_NormalPacket) {
                         _))
       .WillOnce(Return(packet_->GetDataSize() / kTestBytesPerFrame - written));
   test_stream->WritePacket();
-  EXPECT_EQ(0u, test_stream->buffer_->forward_bytes());
+  EXPECT_EQ(0, test_stream->buffer_->forward_bytes());
   test_stream->Close();
 }
 
@@ -539,7 +539,7 @@ TEST_F(AlsaPcmOutputStreamTest, WritePacket_StopStream) {
   // No expectations set on the strict mock because nothing should be called.
   test_stream->stop_stream_ = true;
   test_stream->WritePacket();
-  EXPECT_EQ(0u, test_stream->buffer_->forward_bytes());
+  EXPECT_EQ(0, test_stream->buffer_->forward_bytes());
   test_stream->Close();
 }
 
@@ -566,7 +566,7 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket) {
   test_stream->packet_size_ = kTestPacketSize;
   test_stream->BufferPacket(&source_exhausted);
 
-  EXPECT_EQ(10u, test_stream->buffer_->forward_bytes());
+  EXPECT_EQ(10, test_stream->buffer_->forward_bytes());
   EXPECT_FALSE(source_exhausted);
   test_stream->Close();
 }
@@ -592,7 +592,7 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket_Negative) {
   test_stream->packet_size_ = kTestPacketSize;
   test_stream->BufferPacket(&source_exhausted);
 
-  EXPECT_EQ(10u, test_stream->buffer_->forward_bytes());
+  EXPECT_EQ(10, test_stream->buffer_->forward_bytes());
   EXPECT_FALSE(source_exhausted);
   test_stream->Close();
 }
@@ -619,7 +619,7 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket_Underrun) {
   test_stream->packet_size_ = kTestPacketSize;
   test_stream->BufferPacket(&source_exhausted);
 
-  EXPECT_EQ(10u, test_stream->buffer_->forward_bytes());
+  EXPECT_EQ(10, test_stream->buffer_->forward_bytes());
   EXPECT_FALSE(source_exhausted);
   test_stream->Close();
 }
@@ -777,7 +777,7 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket_StopStream) {
   test_stream->stop_stream_ = true;
   bool source_exhausted;
   test_stream->BufferPacket(&source_exhausted);
-  EXPECT_EQ(0u, test_stream->buffer_->forward_bytes());
+  EXPECT_EQ(0, test_stream->buffer_->forward_bytes());
   EXPECT_TRUE(source_exhausted);
   test_stream->Close();
 }

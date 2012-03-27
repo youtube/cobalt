@@ -103,7 +103,7 @@ class FFmpegDemuxerTest : public testing::Test {
   // This makes it easier to track down where test failures occur.
   void ValidateBuffer(const tracked_objects::Location& location,
                       const scoped_refptr<Buffer>& buffer,
-                      size_t size, int64 timestampInMicroseconds) {
+                      int size, int64 timestampInMicroseconds) {
     std::string location_str;
     location.Write(true, false, &location_str);
     location_str += "\n";
@@ -341,12 +341,12 @@ TEST_F(FFmpegDemuxerTest, Read_EndOfStream) {
     if (reader->buffer()->IsEndOfStream()) {
       got_eos_buffer = true;
       EXPECT_TRUE(reader->buffer()->GetData() == NULL);
-      EXPECT_EQ(0u, reader->buffer()->GetDataSize());
+      EXPECT_EQ(0, reader->buffer()->GetDataSize());
       break;
     }
 
     EXPECT_TRUE(reader->buffer()->GetData() != NULL);
-    EXPECT_GT(reader->buffer()->GetDataSize(), 0u);
+    EXPECT_GT(reader->buffer()->GetDataSize(), 0);
     reader->Reset();
   }
 
@@ -553,15 +553,15 @@ class MockFFmpegDemuxer : public FFmpegDemuxer {
   }
   virtual ~MockFFmpegDemuxer() {}
 
-  MOCK_METHOD0(WaitForRead, size_t());
-  MOCK_METHOD1(SignalReadCompleted, void(size_t size));
+  MOCK_METHOD0(WaitForRead, int());
+  MOCK_METHOD1(SignalReadCompleted, void(int size));
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockFFmpegDemuxer);
 };
 
 // A gmock helper method to execute the callback and deletes it.
-void RunCallback(size_t size, const DataSource::ReadCB& callback) {
+void RunCallback(int size, const DataSource::ReadCB& callback) {
   DCHECK(!callback.is_null());
   callback.Run(size);
 }

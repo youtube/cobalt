@@ -199,16 +199,12 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   // Must be called on the demuxer thread.
   void StreamHasEnded();
 
-  // Read callback method to be passed to DataSource. When the asynchronous
-  // read has completed, this method will be called from DataSource with
-  // number of bytes read or kDataSource in case of error.
-  void OnReadCompleted(size_t size);
-
   // Wait for asynchronous read to complete and return number of bytes read.
-  virtual size_t WaitForRead();
+  virtual int WaitForRead();
 
-  // Signal that read has completed, and |size| bytes have been read.
-  virtual void SignalReadCompleted(size_t size);
+  // Signal the blocked thread that the read has completed, with |size| bytes
+  // read or kReadError in case of error.
+  virtual void SignalReadCompleted(int size);
 
   MessageLoop* message_loop_;
 
@@ -244,7 +240,7 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   // never be reset. This flag is set true and accessed in Read().
   bool read_has_failed_;
 
-  size_t last_read_bytes_;
+  int last_read_bytes_;
   int64 read_position_;
 
   // Initialization can happen before set_host() is called, in which case we

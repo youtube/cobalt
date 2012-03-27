@@ -65,7 +65,7 @@ class WriteToFileAudioSink : public AudioInputStream::AudioInputCallback {
     size_t bytes_written = 0;
     while (bytes_written < bytes_to_write_) {
       const uint8* chunk;
-      size_t chunk_size;
+      int chunk_size;
 
       // Stop writing if no more data is available.
       if (!buffer_.GetCurrentChunk(&chunk, &chunk_size))

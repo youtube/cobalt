@@ -72,7 +72,7 @@ void FileDataSource::Stop(const base::Closure& callback) {
     callback.Run();
 }
 
-void FileDataSource::Read(int64 position, size_t size, uint8* data,
+void FileDataSource::Read(int64 position, int size, uint8* data,
                           const DataSource::ReadCB& read_cb) {
   DCHECK(file_);
   base::AutoLock l(lock_);
@@ -90,7 +90,7 @@ void FileDataSource::Read(int64 position, size_t size, uint8* data,
       return;
     }
 #endif
-    size_t size_read = fread(data, 1, size, file_);
+    int size_read = fread(data, 1, size, file_);
     if (size_read == size || !ferror(file_)) {
       read_cb.Run(size_read);
       return;
