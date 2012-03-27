@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -30,13 +30,11 @@ void BackoffEntry::InformOfRequest(bool succeeded) {
     ++failure_count_;
     exponential_backoff_release_time_ = CalculateReleaseTime();
   } else {
-    // We slowly decay the number of times delayed instead of resetting it to 0
-    // in order to stay stable if we receive successes interleaved between lots
-    // of failures.
-    //
-    // TODO(joi): Revisit this; it might be most correct to go to zero
-    // but have a way to go back to "old error count +1" if there is
-    // another error soon after.
+    // We slowly decay the number of times delayed instead of
+    // resetting it to 0 in order to stay stable if we receive
+    // successes interleaved between lots of failures.  Note that in
+    // the normal case, the calculated release time (in the next
+    // statement) will be in the past once the method returns.
     if (failure_count_ > 0)
       --failure_count_;
 
