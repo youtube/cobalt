@@ -23,7 +23,7 @@ class ReadCBHandler {
  public:
   ReadCBHandler() {}
 
-  MOCK_METHOD1(ReadCB, void(size_t size));
+  MOCK_METHOD1(ReadCB, void(int size));
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ReadCBHandler);

@@ -51,7 +51,7 @@ class MEDIA_EXPORT Buffer : public base::RefCountedThreadSafe<Buffer> {
   virtual const uint8* GetData() const = 0;
 
   // Returns the size of valid data in bytes.
-  virtual size_t GetDataSize() const = 0;
+  virtual int GetDataSize() const = 0;
 
   // If there's no data in this buffer, it represents end of stream.
   bool IsEndOfStream() const;

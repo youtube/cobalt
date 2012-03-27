@@ -9,21 +9,21 @@
 namespace media {
 
 TEST(DataBufferTest, Constructors) {
-  const size_t kTestSize = 10;
+  const int kTestSize = 10;
 
   scoped_refptr<DataBuffer> buffer(new DataBuffer(0));
   EXPECT_FALSE(buffer->GetData());
 
   scoped_refptr<DataBuffer> buffer2(new DataBuffer(kTestSize));
-  EXPECT_EQ(0u, buffer2->GetDataSize());
+  EXPECT_EQ(0, buffer2->GetDataSize());
   EXPECT_EQ(kTestSize, buffer2->GetBufferSize());
 }
 
 TEST(DataBufferTest, ReadingWriting) {
   const char kData[] = "hello";
-  const size_t kDataSize = arraysize(kData);
+  const int kDataSize = arraysize(kData);
   const char kNewData[] = "chromium";
-  const size_t kNewDataSize = arraysize(kNewData);
+  const int kNewDataSize = arraysize(kNewData);
 
   // Create a DataBuffer.
   scoped_refptr<DataBuffer> buffer(new DataBuffer(kDataSize));

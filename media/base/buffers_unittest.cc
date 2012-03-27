@@ -19,7 +19,7 @@ class TestBuffer : public Buffer {
 
   // Sets |data_| and |size_| members for testing purposes. Does not take
   // ownership of |data|.
-  TestBuffer(const uint8* data, size_t size)
+  TestBuffer(const uint8* data, int size)
       : Buffer(base::TimeDelta(), base::TimeDelta()),
         data_(data),
         size_(size) {
@@ -29,11 +29,11 @@ class TestBuffer : public Buffer {
 
   // Buffer implementation.
   virtual const uint8* GetData() const OVERRIDE { return data_; }
-  virtual size_t GetDataSize() const OVERRIDE { return size_; }
+  virtual int GetDataSize() const OVERRIDE { return size_; }
 
  private:
   const uint8* data_;
-  size_t size_;
+  int size_;
 
   DISALLOW_COPY_AND_ASSIGN(TestBuffer);
 };
@@ -72,7 +72,7 @@ TEST(BufferTest, Duration) {
 
 TEST(BufferTest, IsEndOfStream) {
   const uint8 kData[] = { 0x00, 0xFF };
-  const size_t kDataSize = arraysize(kData);
+  const int kDataSize = arraysize(kData);
 
   scoped_refptr<TestBuffer> buffer = new TestBuffer(NULL, 0);
   EXPECT_TRUE(buffer->IsEndOfStream());
