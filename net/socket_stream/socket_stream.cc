@@ -942,6 +942,8 @@ int SocketStream::DoSecureProxyConnect() {
 int SocketStream::DoSecureProxyConnectComplete(int result) {
   DCHECK_EQ(STATE_NONE, next_state_);
   result = DidEstablishSSL(result, &proxy_ssl_config_);
+  if (result == ERR_IO_PENDING)
+    next_state_ = STATE_SECURE_PROXY_CONNECT_COMPLETE;
   if (next_state_ != STATE_NONE)
     return result;
   if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED)
@@ -972,6 +974,8 @@ int SocketStream::DoSSLConnect() {
 int SocketStream::DoSSLConnectComplete(int result) {
   DCHECK_EQ(STATE_NONE, next_state_);
   result = DidEstablishSSL(result, &server_ssl_config_);
+  if (result == ERR_IO_PENDING)
+    next_state_ = STATE_SSL_CONNECT_COMPLETE;
   if (next_state_ != STATE_NONE)
     return result;
   // TODO(toyoshim): Upgrade to SPDY through TLS NPN extension if possible.
