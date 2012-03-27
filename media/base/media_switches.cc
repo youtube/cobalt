@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,6 +11,11 @@ namespace switches {
 const char kAlsaOutputDevice[] = "alsa-output-device";
 // The Alsa device to use when opening an audio input stream.
 const char kAlsaInputDevice[] = "alsa-input-device";
+#endif
+
+#if defined(OS_LINUX)
+// Use CRAS, the ChromeOS audio server.
+const char kUseCras[] = "use-cras";
 #endif
 
 #if defined(OS_POSIX) && !defined(OS_MACOSX)
