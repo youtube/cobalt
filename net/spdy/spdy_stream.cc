@@ -325,6 +325,12 @@ int SpdyStream::OnResponseReceived(const SpdyHeaderBlock& response) {
     }
   }
 
+  if ((*response_).find("transfer-encoding") != (*response_).end()) {
+    session_->ResetStream(stream_id_, PROTOCOL_ERROR,
+                         "Received transfer-encoding header");
+    return ERR_SPDY_PROTOCOL_ERROR;
+  }
+
   if (delegate_)
     rv = delegate_->OnResponseReceived(*response_, response_time_, rv);
   // If delegate_ is not yet attached, we'll call OnResponseReceived after the
@@ -355,6 +361,12 @@ int SpdyStream::OnHeaders(const SpdyHeaderBlock& headers) {
     }
 
     (*response_)[it->first] = it->second;
+  }
+
+  if ((*response_).find("transfer-encoding") != (*response_).end()) {
+    session_->ResetStream(stream_id_, PROTOCOL_ERROR,
+                         "Received transfer-encoding header");
+    return ERR_SPDY_PROTOCOL_ERROR;
   }
 
   int rv = OK;
