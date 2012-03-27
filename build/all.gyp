@@ -39,6 +39,7 @@
         '../third_party/iccjpeg/iccjpeg.gyp:*',
         '../third_party/icu/icu.gyp:*',
         '../third_party/libpng/libpng.gyp:*',
+        '../third_party/libusb/libusb.gyp:*',
         '../third_party/libwebp/libwebp.gyp:*',
         '../third_party/libxml/libxml.gyp:*',
         '../third_party/libxslt/libxslt.gyp:*',
