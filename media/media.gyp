@@ -7,6 +7,8 @@
     'chromium_code': 1,
     # Override to dynamically link the PulseAudio library.
     'use_pulseaudio%': 0,
+    # Override to dynamically link the cras (ChromeOS audio) library.
+    'use_cras%': 0,
   },
   'targets': [
     {
@@ -67,6 +69,8 @@
         'audio/linux/alsa_util.h',
         'audio/linux/alsa_wrapper.cc',
         'audio/linux/alsa_wrapper.h',
+        'audio/linux/cras_output.cc',
+        'audio/linux/cras_output.h',
         'audio/openbsd/audio_manager_openbsd.cc',
         'audio/openbsd/audio_manager_openbsd.h',
         'audio/mac/audio_input_mac.cc',
@@ -335,6 +339,37 @@
           'sources!': [
             'audio/openbsd/audio_manager_openbsd.cc',
             'audio/openbsd/audio_manager_openbsd.h',
+          ],
+        }],
+        ['OS=="linux"', {
+          'variables': {
+            'conditions': [
+              ['sysroot!=""', {
+                'pkg-config': '../build/linux/pkg-config-wrapper "<(sysroot)" "<(target_arch)"',
+              }, {
+                'pkg-config': 'pkg-config'
+              }],
+            ],
+          },
+          'conditions': [
+            ['use_cras == 1', {
+              'cflags': [
+                '<!@(<(pkg-config) --cflags libcras)',
+              ],
+              'link_settings': {
+                'libraries': [
+                  '<!@(<(pkg-config) --libs libcras)',
+                ],
+              },
+              'defines': [
+                'USE_CRAS',
+              ],
+            }, {  # else: use_cras == 0
+              'sources!': [
+                'audio/linux/cras_output.cc',
+                'audio/linux/cras_output.h',
+              ],
+            }],
           ],
         }],
         ['os_posix == 1', {
@@ -659,6 +694,18 @@
             'filters/ffmpeg_video_decoder_unittest.cc',
             'filters/pipeline_integration_test.cc',
             'filters/pipeline_integration_test_base.cc',
+          ],
+        }],
+        ['OS == "linux"', {
+          'conditions': [
+            ['use_cras == 1', {
+              'sources': [
+                'audio/linux/cras_output_unittest.cc',
+              ],
+              'defines': [
+                'USE_CRAS',
+              ],
+            }],
           ],
         }],
         [ 'target_arch=="ia32" or target_arch=="x64"', {
