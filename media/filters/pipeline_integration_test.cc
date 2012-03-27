@@ -128,9 +128,7 @@ TEST_F(PipelineIntegrationTest, BasicPlayback) {
 
   ASSERT_TRUE(WaitUntilOnEnded());
 
-  // TODO(dalecurtis): Due to threading issues in FFmpeg, frames are not always
-  // decoded exactly, see http://crbug.com/93932 and http://crbug.com/109875.
-  // ASSERT_EQ(GetVideoHash(), "f0be120a90a811506777c99a2cdf7cc1");
+  ASSERT_EQ(GetVideoHash(), "f0be120a90a811506777c99a2cdf7cc1");
 }
 
 // TODO(xhwang): Enable this test when AddKey is integrated into pipeline.
