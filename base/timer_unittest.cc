@@ -352,3 +352,126 @@ TEST(TimerTest, MessageLoopShutdown) {
 
   EXPECT_FALSE(did_run);
 }
+
+void TimerTestCallback() {
+}
+
+TEST(TimerTest, NonRepeatIsRunning) {
+  {
+    MessageLoop loop(MessageLoop::TYPE_DEFAULT);
+    base::Timer timer(false, false);
+    EXPECT_FALSE(timer.IsRunning());
+    timer.Start(FROM_HERE, TimeDelta::FromDays(1),
+                base::Bind(&TimerTestCallback));
+    EXPECT_TRUE(timer.IsRunning());
+    timer.Stop();
+    EXPECT_FALSE(timer.IsRunning());
+    EXPECT_TRUE(timer.user_task().is_null());
+  }
+
+  {
+    base::Timer timer(true, false);
+    MessageLoop loop(MessageLoop::TYPE_DEFAULT);
+    EXPECT_FALSE(timer.IsRunning());
+    timer.Start(FROM_HERE, TimeDelta::FromDays(1),
+                base::Bind(&TimerTestCallback));
+    EXPECT_TRUE(timer.IsRunning());
+    timer.Stop();
+    EXPECT_FALSE(timer.IsRunning());
+    ASSERT_FALSE(timer.user_task().is_null());
+    timer.Reset();
+    EXPECT_TRUE(timer.IsRunning());
+  }
+}
+
+TEST(TimerTest, NonRepeatMessageLoopDeath) {
+  base::Timer timer(false, false);
+  {
+    MessageLoop loop(MessageLoop::TYPE_DEFAULT);
+    EXPECT_FALSE(timer.IsRunning());
+    timer.Start(FROM_HERE, TimeDelta::FromDays(1),
+                base::Bind(&TimerTestCallback));
+    EXPECT_TRUE(timer.IsRunning());
+  }
+  EXPECT_FALSE(timer.IsRunning());
+  EXPECT_TRUE(timer.user_task().is_null());
+}
+
+TEST(TimerTest, RetainRepeatIsRunning) {
+  MessageLoop loop(MessageLoop::TYPE_DEFAULT);
+  base::Timer timer(FROM_HERE, TimeDelta::FromDays(1),
+                    base::Bind(&TimerTestCallback), true);
+  EXPECT_FALSE(timer.IsRunning());
+  timer.Reset();
+  EXPECT_TRUE(timer.IsRunning());
+  timer.Stop();
+  EXPECT_FALSE(timer.IsRunning());
+  timer.Reset();
+  EXPECT_TRUE(timer.IsRunning());
+}
+
+TEST(TimerTest, RetainNonRepeatIsRunning) {
+  MessageLoop loop(MessageLoop::TYPE_DEFAULT);
+  base::Timer timer(FROM_HERE, TimeDelta::FromDays(1),
+                    base::Bind(&TimerTestCallback), false);
+  EXPECT_FALSE(timer.IsRunning());
+  timer.Reset();
+  EXPECT_TRUE(timer.IsRunning());
+  timer.Stop();
+  EXPECT_FALSE(timer.IsRunning());
+  timer.Reset();
+  EXPECT_TRUE(timer.IsRunning());
+}
+
+namespace {
+
+bool g_callback_happened1 = false;
+bool g_callback_happened2 = false;
+
+void ClearAllCallbackHappened() {
+  g_callback_happened1 = false;
+  g_callback_happened2 = false;
+}
+
+void SetCallbackHappened1() {
+  g_callback_happened1 = true;
+  MessageLoop::current()->Quit();
+}
+
+void SetCallbackHappened2() {
+  g_callback_happened2 = true;
+  MessageLoop::current()->Quit();
+}
+
+TEST(TimerTest, ContinuationStopStart) {
+  {
+    ClearAllCallbackHappened();
+    MessageLoop loop(MessageLoop::TYPE_DEFAULT);
+    base::Timer timer(false, false);
+    timer.Start(FROM_HERE, TimeDelta::FromMilliseconds(10),
+                base::Bind(&SetCallbackHappened1));
+    timer.Stop();
+    timer.Start(FROM_HERE, TimeDelta::FromMilliseconds(40),
+                base::Bind(&SetCallbackHappened2));
+    MessageLoop::current()->Run();
+    EXPECT_FALSE(g_callback_happened1);
+    EXPECT_TRUE(g_callback_happened2);
+  }
+}
+
+TEST(TimerTest, ContinuationReset) {
+  {
+    ClearAllCallbackHappened();
+    MessageLoop loop(MessageLoop::TYPE_DEFAULT);
+    base::Timer timer(false, false);
+    timer.Start(FROM_HERE, TimeDelta::FromMilliseconds(10),
+                base::Bind(&SetCallbackHappened1));
+    timer.Reset();
+    // Since Reset happened before task ran, the user_task must not be cleared:
+    ASSERT_FALSE(timer.user_task().is_null());
+    MessageLoop::current()->Run();
+    EXPECT_TRUE(g_callback_happened1);
+  }
+}
+
+}  // namespace
