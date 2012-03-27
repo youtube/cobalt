@@ -1375,8 +1375,8 @@ TEST_F(HTTPSRequestTest, HTTPSExpiredTest) {
   }
 }
 
-// http://crbug.com/119642 - The Android test server does not support
-// generating OCSP responses on the fly.
+// Disabled on Android - http://crbug.com/119642 - The Android test server
+// does not support generating OCSP responses on the fly.
 #if !defined(OS_ANDROID)
 
 class TestSSLConfigService : public SSLConfigService {
@@ -1485,7 +1485,10 @@ static CertStatus ExpectedCertStatusForFailedOnlineRevocationCheck() {
 // several tests are effected because our testing EV certificate won't be
 // recognised as EV.
 static bool SystemUsesChromiumEVMetadata() {
-#if defined(OS_MACOSX)
+#if defined(USE_OPENSSL)
+  // http://crbug.com/117478 - OpenSSL does not support EV validation.
+  return false;
+#elif defined(OS_MACOSX)
   // On OS X, we use the system to tell us whether a certificate is EV or not
   // and the system won't recognise our testing root.
   return false;
@@ -1496,7 +1499,10 @@ static bool SystemUsesChromiumEVMetadata() {
 
 static bool
 SystemSupportsOCSP() {
-#if defined(OS_WIN)
+#if defined(USE_OPENSSL)
+  // http://crbug.com/117478 - OpenSSL does not support OCSP.
+  return false;
+#elif defined(OS_WIN)
   return base::win::GetVersion() >= base::win::VERSION_VISTA;
 #elif defined(OS_ANDROID)
   // TODO(jnd): http://crbug.com/117478 - EV verification is not yet supported.
