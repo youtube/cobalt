@@ -17,6 +17,9 @@
 #if defined(USE_PULSEAUDIO)
 #include "media/audio/pulse/pulse_output.h"
 #endif
+#if defined(USE_CRAS)
+#include "media/audio/linux/cras_output.h"
+#endif
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
 
@@ -263,6 +266,11 @@ AudioInputStream* AudioManagerLinux::MakeLowLatencyInputStream(
 AudioOutputStream* AudioManagerLinux::MakeOutputStream(
     const AudioParameters& params) {
   AudioOutputStream* stream = NULL;
+#if defined(USE_CRAS)
+  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kUseCras)) {
+    stream = new CrasOutputStream(params, this);
+  } else {
+#endif
 #if defined(USE_PULSEAUDIO)
   if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kUsePulseAudio)) {
     stream = new PulseAudioOutputStream(params, this);
@@ -276,6 +284,9 @@ AudioOutputStream* AudioManagerLinux::MakeOutputStream(
     }
     stream = new AlsaPcmOutputStream(device_name, params, wrapper_.get(), this);
 #if defined(USE_PULSEAUDIO)
+  }
+#endif
+#if defined(USE_CRAS)
   }
 #endif
   DCHECK(stream);
