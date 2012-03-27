@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -50,12 +50,11 @@ ALG_ID GetAESAlgIDForKeySize(size_t key_size_in_bits) {
 // TODO(wtc): use this function in hmac_win.cc.
 bool ImportRawKey(HCRYPTPROV provider,
                   ALG_ID alg,
-                  const void* key_data, size_t key_size,
+                  const void* key_data, DWORD key_size,
                   ScopedHCRYPTKEY* key) {
   DCHECK_GT(key_size, 0);
 
-  DWORD actual_size =
-      static_cast<DWORD>(sizeof(PlaintextBlobHeader) + key_size);
+  DWORD actual_size = sizeof(PlaintextBlobHeader) + key_size;
   std::vector<BYTE> tmp_data(actual_size);
   BYTE* actual_key = &tmp_data[0];
   memcpy(actual_key + sizeof(PlaintextBlobHeader), key_data, key_size);
@@ -67,7 +66,7 @@ bool ImportRawKey(HCRYPTPROV provider,
   key_header->hdr.bVersion = CUR_BLOB_VERSION;
   key_header->hdr.aiKeyAlg = alg;
 
-  key_header->cbKeySize = static_cast<DWORD>(key_size);
+  key_header->cbKeySize = key_size;
 
   HCRYPTKEY unsafe_key = NULL;
   DWORD flags = CRYPT_EXPORTABLE;
@@ -185,7 +184,7 @@ bool GenerateHMACKey(size_t key_size_in_bits,
   if (!ok)
     return false;
 
-  DWORD key_size_in_bytes = static_cast<DWORD>(key_size_in_bits / 8);
+  DWORD key_size_in_bytes = key_size_in_bits / 8;
   scoped_array<BYTE> random(new BYTE[key_size_in_bytes]);
   ok = CryptGenRandom(safe_provider, key_size_in_bytes, random.get());
   if (!ok)
@@ -259,7 +258,7 @@ bool ComputePBKDF2Block(HCRYPTHASH hash,
 
   // Iteration U_1: Compute PRF for S.
   ok = CryptHashData(safe_hash, reinterpret_cast<const BYTE*>(salt.data()),
-                     static_cast<DWORD>(salt.size()), 0);
+                     salt.size(), 0);
   if (!ok)
     return false;
 
