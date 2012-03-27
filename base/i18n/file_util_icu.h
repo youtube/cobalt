@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -34,6 +34,10 @@ BASE_I18N_EXPORT void ReplaceIllegalCharactersInPath(
 // std::sort.
 BASE_I18N_EXPORT bool LocaleAwareCompareFilenames(const FilePath& a,
                                                   const FilePath& b);
+
+// Calculates the canonical file-system representation of |file_name| base name.
+// Modifies |file_name| in place. No-op if not on ChromeOS.
+BASE_I18N_EXPORT void NormalizeFileNameEncoding(FilePath* file_name);
 
 }  // namespace file_util
 
