@@ -40,7 +40,7 @@ class AesDecryptorTest : public testing::Test {
   void DecryptAndExpectToSucceed() {
     scoped_refptr<Buffer> decrypted = decryptor_.Decrypt(encrypted_data_);
     ASSERT_TRUE(decrypted);
-    size_t data_length = sizeof(kOriginalData) - 1;
+    int data_length = sizeof(kOriginalData) - 1;
     ASSERT_EQ(data_length, decrypted->GetDataSize());
     EXPECT_EQ(0, memcmp(kOriginalData, decrypted->GetData(), data_length));
   }

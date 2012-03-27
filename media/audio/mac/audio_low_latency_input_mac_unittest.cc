@@ -44,7 +44,7 @@ class WriteToFileAudioSink : public AudioInputStream::AudioInputCallback {
  public:
   // Allocate space for ~10 seconds of data @ 48kHz in stereo:
   // 2 bytes per sample, 2 channels, 10ms @ 48kHz, 10 seconds <=> 1920000 bytes.
-  static const size_t kMaxBufferSize = 2 * 2 * 480 * 100 * 10;
+  static const int kMaxBufferSize = 2 * 2 * 480 * 100 * 10;
 
   explicit WriteToFileAudioSink(const char* file_name)
       : buffer_(0, kMaxBufferSize),
@@ -53,10 +53,10 @@ class WriteToFileAudioSink : public AudioInputStream::AudioInputCallback {
   }
 
   virtual ~WriteToFileAudioSink() {
-    size_t bytes_written = 0;
+    int bytes_written = 0;
     while (bytes_written < bytes_to_write_) {
       const uint8* chunk;
-      size_t chunk_size;
+      int chunk_size;
 
       // Stop writing if no more data is available.
       if (!buffer_.GetCurrentChunk(&chunk, &chunk_size))
@@ -88,7 +88,7 @@ class WriteToFileAudioSink : public AudioInputStream::AudioInputCallback {
  private:
   media::SeekableBuffer buffer_;
   FILE* file_;
-  size_t bytes_to_write_;
+  int bytes_to_write_;
 };
 
 class MacAudioInputTest : public testing::Test {

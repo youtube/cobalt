@@ -11,14 +11,14 @@
 
 namespace media {
 
-DataBuffer::DataBuffer(scoped_array<uint8> buffer, size_t buffer_size)
+DataBuffer::DataBuffer(scoped_array<uint8> buffer, int buffer_size)
     : Buffer(base::TimeDelta(), base::TimeDelta()),
       data_(buffer.Pass()),
       buffer_size_(buffer_size),
       data_size_(buffer_size) {
 }
 
-DataBuffer::DataBuffer(size_t buffer_size)
+DataBuffer::DataBuffer(int buffer_size)
     : Buffer(base::TimeDelta(), base::TimeDelta()),
       data_(new uint8[buffer_size]),
       buffer_size_(buffer_size),
@@ -33,8 +33,8 @@ DataBuffer::DataBuffer(size_t buffer_size)
 DataBuffer::~DataBuffer() {}
 
 scoped_refptr<DataBuffer> DataBuffer::CopyFrom(const uint8* data,
-                                               size_t data_size) {
-  size_t padding_size = 0;
+                                               int data_size) {
+  int padding_size = 0;
 #if !defined(OS_ANDROID)
   // Why FF_INPUT_BUFFER_PADDING_SIZE? FFmpeg assumes all input buffers are
   // padded with this value.
@@ -53,7 +53,7 @@ const uint8* DataBuffer::GetData() const {
   return data_.get();
 }
 
-size_t DataBuffer::GetDataSize() const {
+int DataBuffer::GetDataSize() const {
   return data_size_;
 }
 
@@ -66,12 +66,12 @@ uint8* DataBuffer::GetWritableData() {
 }
 
 
-void DataBuffer::SetDataSize(size_t data_size) {
+void DataBuffer::SetDataSize(int data_size) {
   DCHECK_LE(data_size, buffer_size_);
   data_size_ = data_size;
 }
 
-size_t DataBuffer::GetBufferSize() const {
+int DataBuffer::GetBufferSize() const {
   return buffer_size_;
 }
 

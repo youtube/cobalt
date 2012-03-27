@@ -40,8 +40,8 @@ class AVPacketBuffer : public Buffer {
     return reinterpret_cast<const uint8*>(packet_->data);
   }
 
-  virtual size_t GetDataSize() const {
-    return static_cast<size_t>(packet_->size);
+  virtual int GetDataSize() const {
+    return packet_->size;
   }
 
  private:
@@ -389,13 +389,13 @@ size_t FFmpegDemuxer::Read(size_t size, uint8* data) {
     return 0;
 
   // Asynchronous read from data source.
-  data_source_->Read(read_position_, size, data,
-                     base::Bind(&FFmpegDemuxer::OnReadCompleted, this));
+  data_source_->Read(read_position_, size, data, base::Bind(
+      &FFmpegDemuxer::SignalReadCompleted, this));
 
   // TODO(hclam): The method is called on the demuxer thread and this method
   // call will block the thread. We need to implemented an additional thread to
   // let FFmpeg demuxer methods to run on.
-  size_t last_read_bytes = WaitForRead();
+  int last_read_bytes = WaitForRead();
   if (last_read_bytes == DataSource::kReadError) {
     if (host())
       host()->OnDemuxerError(PIPELINE_ERROR_READ);
@@ -733,16 +733,12 @@ void FFmpegDemuxer::StreamHasEnded() {
   }
 }
 
-void FFmpegDemuxer::OnReadCompleted(size_t size) {
-  SignalReadCompleted(size);
-}
-
-size_t FFmpegDemuxer::WaitForRead() {
+int FFmpegDemuxer::WaitForRead() {
   read_event_.Wait();
   return last_read_bytes_;
 }
 
-void FFmpegDemuxer::SignalReadCompleted(size_t size) {
+void FFmpegDemuxer::SignalReadCompleted(int size) {
   last_read_bytes_ = size;
   read_event_.Signal();
 }
