@@ -1427,7 +1427,8 @@ bool BackendImpl::CreateBackingStore(disk_cache::File* file) {
 }
 
 bool BackendImpl::InitBackingStore(bool* file_created) {
-  file_util::CreateDirectory(path_);
+  if (!file_util::CreateDirectory(path_))
+    return false;
 
   FilePath index_name = path_.AppendASCII(kIndexName);
 
