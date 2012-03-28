@@ -13,15 +13,10 @@
 
 #include "base/sys_byteorder.h"
 
-#if defined(OS_WIN)
-// Allow htonl/ntohl to be called without requiring ws2_32.dll to be loaded,
-// which isn't available in Chrome's sandbox.  See crbug.com/116591.
-// TODO(wez): Replace these calls with base::htonl() etc when available.
-#define ntohl(x) _byteswap_ulong(x)
-#define htonl(x) _byteswap_ulong(x)
-#endif // OS_WIN
-
 namespace {
+
+using base::HostToNet32;
+using base::NetToHost32;
 
 // Field element functions.
 //
@@ -564,27 +559,33 @@ void ScalarMult(Point* out, const Point& a,
 // Get224Bits reads 7 words from in and scatters their contents in
 // little-endian form into 8 words at out, 28 bits per output word.
 void Get224Bits(uint32* out, const uint32* in) {
-  out[0] = ntohl(in[6]) & kBottom28Bits;
-  out[1] = ((ntohl(in[5]) << 4) | (ntohl(in[6]) >> 28)) & kBottom28Bits;
-  out[2] = ((ntohl(in[4]) << 8) | (ntohl(in[5]) >> 24)) & kBottom28Bits;
-  out[3] = ((ntohl(in[3]) << 12) | (ntohl(in[4]) >> 20)) & kBottom28Bits;
-  out[4] = ((ntohl(in[2]) << 16) | (ntohl(in[3]) >> 16)) & kBottom28Bits;
-  out[5] = ((ntohl(in[1]) << 20) | (ntohl(in[2]) >> 12)) & kBottom28Bits;
-  out[6] = ((ntohl(in[0]) << 24) | (ntohl(in[1]) >> 8)) & kBottom28Bits;
-  out[7] = (ntohl(in[0]) >> 4) & kBottom28Bits;
+  out[0] = NetToHost32(in[6]) & kBottom28Bits;
+  out[1] = ((NetToHost32(in[5]) << 4) |
+            (NetToHost32(in[6]) >> 28)) & kBottom28Bits;
+  out[2] = ((NetToHost32(in[4]) << 8) |
+            (NetToHost32(in[5]) >> 24)) & kBottom28Bits;
+  out[3] = ((NetToHost32(in[3]) << 12) |
+            (NetToHost32(in[4]) >> 20)) & kBottom28Bits;
+  out[4] = ((NetToHost32(in[2]) << 16) |
+            (NetToHost32(in[3]) >> 16)) & kBottom28Bits;
+  out[5] = ((NetToHost32(in[1]) << 20) |
+            (NetToHost32(in[2]) >> 12)) & kBottom28Bits;
+  out[6] = ((NetToHost32(in[0]) << 24) |
+            (NetToHost32(in[1]) >> 8)) & kBottom28Bits;
+  out[7] = (NetToHost32(in[0]) >> 4) & kBottom28Bits;
 }
 
 // Put224Bits performs the inverse operation to Get224Bits: taking 28 bits from
 // each of 8 input words and writing them in big-endian order to 7 words at
 // out.
 void Put224Bits(uint32* out, const uint32* in) {
-  out[6] = htonl((in[0] >> 0) | (in[1] << 28));
-  out[5] = htonl((in[1] >> 4) | (in[2] << 24));
-  out[4] = htonl((in[2] >> 8) | (in[3] << 20));
-  out[3] = htonl((in[3] >> 12) | (in[4] << 16));
-  out[2] = htonl((in[4] >> 16) | (in[5] << 12));
-  out[1] = htonl((in[5] >> 20) | (in[6] << 8));
-  out[0] = htonl((in[6] >> 24) | (in[7] << 4));
+  out[6] = HostToNet32((in[0] >> 0) | (in[1] << 28));
+  out[5] = HostToNet32((in[1] >> 4) | (in[2] << 24));
+  out[4] = HostToNet32((in[2] >> 8) | (in[3] << 20));
+  out[3] = HostToNet32((in[3] >> 12) | (in[4] << 16));
+  out[2] = HostToNet32((in[4] >> 16) | (in[5] << 12));
+  out[1] = HostToNet32((in[5] >> 20) | (in[6] << 8));
+  out[0] = HostToNet32((in[6] >> 24) | (in[7] << 4));
 }
 
 } // anonymous namespace
