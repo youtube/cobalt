@@ -356,13 +356,6 @@
           'use_titlecase_in_grd_files%': 1,
         }],
 
-        # Enable some hacks to support Flapper only on Chrome OS.
-        ['chromeos==1', {
-          'enable_flapper_hacks%': 1,
-        }, {
-          'enable_flapper_hacks%': 0,
-        }],
-
         # Enable file manager extension on Chrome OS.
         ['chromeos==1', {
           'file_manager_extension%': 1,
@@ -460,7 +453,6 @@
     'use_x11%': '<(use_x11)',
     'use_gnome_keyring%': '<(use_gnome_keyring)',
     'linux_fpic%': '<(linux_fpic)',
-    'enable_flapper_hacks%': '<(enable_flapper_hacks)',
     'enable_pepper_threading%': '<(enable_pepper_threading)',
     'chromeos%': '<(chromeos)',
     'use_virtual_keyboard%': '<(use_virtual_keyboard)',
@@ -1224,9 +1216,6 @@
       }],
       ['proprietary_codecs==1', {
         'defines': ['USE_PROPRIETARY_CODECS'],
-      }],
-      ['enable_flapper_hacks==1', {
-        'defines': ['ENABLE_FLAPPER_HACKS=1'],
       }],
       ['enable_pepper_threading==1', {
         'defines': ['ENABLE_PEPPER_THREADING'],
