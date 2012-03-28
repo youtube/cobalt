@@ -38,3 +38,6 @@ AudioRendererHostTest.SimulateError
 AudioRendererHostTest.SimulateErrorAndClose
 # crbug.com/118542
 GPUTestExpectationsParserTest.WebGLTestExpectationsValidation
+# crbug.com/104950
+DeviceOrientationProviderTest.ObserverNotRemoved
+DeviceOrientationProviderTest.StartFailing
