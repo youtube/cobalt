@@ -41,7 +41,8 @@ FakeVideoCaptureDevice::FakeVideoCaptureDevice(const Name& device_name)
     : device_name_(device_name),
       observer_(NULL),
       state_(kIdle),
-      capture_thread_("CaptureThread") {
+      capture_thread_("CaptureThread"),
+      frame_size_(0) {
 }
 
 FakeVideoCaptureDevice::~FakeVideoCaptureDevice() {
@@ -75,6 +76,7 @@ void FakeVideoCaptureDevice::Allocate(int width,
       current_settings.width * current_settings.height * 3 / 2;
   fake_frame_.reset(new uint8[fake_frame_size]);
   memset(fake_frame_.get(), 0, fake_frame_size);
+  frame_size_ = fake_frame_size;
 
   state_ = kAllocated;
   observer_->OnFrameInfo(current_settings);
@@ -118,7 +120,7 @@ void FakeVideoCaptureDevice::OnCaptureTask() {
   }
   // Give the captured frame to the observer.
   observer_->OnIncomingCapturedFrame(fake_frame_.get(),
-                                     sizeof(fake_frame_.get()),
+                                     frame_size_,
                                      base::Time::Now());
   // Reschedule next CaptureTask.
   capture_thread_.message_loop()->PostDelayedTask(
