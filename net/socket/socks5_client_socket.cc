@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 #include "base/debug/trace_event.h"
 #include "base/format_macros.h"
 #include "base/string_util.h"
+#include "base/sys_byteorder.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
@@ -364,7 +365,7 @@ int SOCKS5ClientSocket::BuildHandshakeWriteBuffer(std::string* handshake)
       host_request_info_.hostname().size()));
   handshake->append(host_request_info_.hostname());
 
-  uint16 nw_port = htons(host_request_info_.port());
+  uint16 nw_port = base::HostToNet16(host_request_info_.port());
   handshake->append(reinterpret_cast<char*>(&nw_port), sizeof(nw_port));
   return OK;
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,6 +18,7 @@
 #endif
 
 #include "base/eintr_wrapper.h"
+#include "base/sys_byteorder.h"
 #include "base/threading/platform_thread.h"
 #include "net/base/net_util.h"
 #include "net/base/listen_socket.h"
@@ -116,7 +117,7 @@ SOCKET ListenSocket::Listen(std::string ip, int port) {
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = inet_addr(ip.c_str());
-    addr.sin_port = htons(port);
+    addr.sin_port = base::HostToNet16(port);
     if (bind(s, reinterpret_cast<sockaddr*>(&addr), sizeof(addr))) {
 #if defined(OS_WIN)
       closesocket(s);
