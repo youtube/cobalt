@@ -149,11 +149,11 @@ bool DnsResponse::InitParse(int nbytes, const DnsQuery& query) {
     return false;
 
   // Match the query id.
-  if (ntohs(header()->id) != query.id())
+  if (base::NetToHost16(header()->id) != query.id())
     return false;
 
   // Match question count.
-  if (ntohs(header()->qdcount) != 1)
+  if (base::NetToHost16(header()->qdcount) != 1)
     return false;
 
   // Match the question section.
@@ -177,17 +177,17 @@ bool DnsResponse::IsValid() const {
 
 uint16 DnsResponse::flags() const {
   DCHECK(parser_.IsValid());
-  return ntohs(header()->flags) & ~(dns_protocol::kRcodeMask);
+  return base::NetToHost16(header()->flags) & ~(dns_protocol::kRcodeMask);
 }
 
 uint8 DnsResponse::rcode() const {
   DCHECK(parser_.IsValid());
-  return ntohs(header()->flags) & dns_protocol::kRcodeMask;
+  return base::NetToHost16(header()->flags) & dns_protocol::kRcodeMask;
 }
 
 unsigned DnsResponse::answer_count() const {
   DCHECK(parser_.IsValid());
-  return ntohs(header()->ancount);
+  return base::NetToHost16(header()->ancount);
 }
 
 base::StringPiece DnsResponse::qname() const {

@@ -73,7 +73,7 @@ void InitializeResState(res_state res, unsigned generation) {
   for (int i = 0; i < 3; ++i) {
     struct sockaddr_in sa;
     sa.sin_family = AF_INET;
-    sa.sin_port = htons(NS_DEFAULTPORT + i - generation);
+    sa.sin_port = base::HostToNet16(NS_DEFAULTPORT + i - generation);
     inet_pton(AF_INET, ip4addr[i], &sa.sin_addr);
     res->nsaddr_list[i] = sa;
   }
@@ -90,7 +90,7 @@ void InitializeResState(res_state res, unsigned generation) {
     struct sockaddr_in6 *sa6;
     sa6 = (struct sockaddr_in6 *)malloc(sizeof(*sa6));
     sa6->sin6_family = AF_INET6;
-    sa6->sin6_port = htons(NS_DEFAULTPORT - i);
+    sa6->sin6_port = base::HostToNet16(NS_DEFAULTPORT - i);
     inet_pton(AF_INET6, ip6addr[i], &sa6->sin6_addr);
     res->_u._ext.nsaddrs[i] = sa6;
   }
@@ -127,5 +127,3 @@ TEST(DnsConfigServicePosixTest, ConvertResStateToDnsConfig) {
 
 }  // namespace
 }  // namespace net
-
-
