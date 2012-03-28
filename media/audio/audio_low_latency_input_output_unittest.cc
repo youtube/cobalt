@@ -187,7 +187,8 @@ class FullDuplexAudioSinkSource
   // AudioInputStream::AudioInputCallback.
   virtual void OnData(AudioInputStream* stream,
                       const uint8* src, uint32 size,
-                      uint32 hardware_delay_bytes) OVERRIDE {
+                      uint32 hardware_delay_bytes,
+                      double volume) OVERRIDE {
     base::AutoLock lock(lock_);
 
     // Update three components in the AudioDelayState for this recorded

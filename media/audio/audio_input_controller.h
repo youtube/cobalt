@@ -97,7 +97,7 @@ class MEDIA_EXPORT AudioInputController
 
     // Write certain amount of data from |data|. This method returns
     // number of written bytes.
-    virtual uint32 Write(const void* data, uint32 size) = 0;
+    virtual uint32 Write(const void* data, uint32 size, double volume) = 0;
 
     // Close this synchronous writer.
     virtual void Close() = 0;
@@ -157,10 +157,18 @@ class MEDIA_EXPORT AudioInputController
   // This method trampolines to the audio thread.
   virtual void Close(const base::Closure& closed_task);
 
+  // Sets the capture volume of the input stream. The value 0.0 corresponds
+  // to muted and 1.0 to maximum volume.
+  virtual void SetVolume(double volume);
+
+  // Sets the Automatic Gain Control (AGC) state of the input stream.
+  // Changing the AGC state is not supported while recording is active.
+  virtual void SetAutomaticGainControl(bool enabled);
+
   // AudioInputCallback implementation. Threading details depends on the
   // device-specific implementation.
   virtual void OnData(AudioInputStream* stream, const uint8* src, uint32 size,
-                      uint32 hardware_delay_bytes) OVERRIDE;
+                      uint32 hardware_delay_bytes, double volume) OVERRIDE;
   virtual void OnClose(AudioInputStream* stream) OVERRIDE;
   virtual void OnError(AudioInputStream* stream, int code) OVERRIDE;
 
@@ -187,6 +195,8 @@ class MEDIA_EXPORT AudioInputController
   void DoRecord();
   void DoClose();
   void DoReportError(int code);
+  void DoSetVolume(double volume);
+  void DoSetAutomaticGainControl(bool enabled);
 
   // Methods which ensures that OnError() is triggered when data recording
   // times out. Both are called on the creating thread.
@@ -228,6 +238,8 @@ class MEDIA_EXPORT AudioInputController
   SyncWriter* sync_writer_;
 
   static Factory* factory_;
+
+  double max_volume_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioInputController);
 };

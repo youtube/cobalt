@@ -5,6 +5,8 @@
 #ifndef MEDIA_AUDIO_WIN_WAVEIN_INPUT_WIN_H_
 #define MEDIA_AUDIO_WIN_WAVEIN_INPUT_WIN_H_
 
+#include <string>
+
 #include <windows.h>
 #include <mmsystem.h>
 
@@ -36,6 +38,8 @@ class PCMWaveInAudioInputStream : public AudioInputStream {
   virtual double GetMaxVolume() OVERRIDE;
   virtual void SetVolume(double volume) OVERRIDE;
   virtual double GetVolume() OVERRIDE;
+  virtual void SetAutomaticGainControl(bool enabled) OVERRIDE;
+  virtual bool GetAutomaticGainControl() OVERRIDE;
 
  private:
   enum State {

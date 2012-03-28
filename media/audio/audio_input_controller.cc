@@ -24,7 +24,8 @@ AudioInputController::AudioInputController(EventHandler* handler,
       handler_(handler),
       stream_(NULL),
       state_(kEmpty),
-      sync_writer_(sync_writer) {
+      sync_writer_(sync_writer),
+      max_volume_(0.0) {
   DCHECK(creator_loop_);
   no_data_timer_.reset(new base::DelayTimer<AudioInputController>(FROM_HERE,
       base::TimeDelta::FromSeconds(kTimerResetInterval),
@@ -112,6 +113,16 @@ void AudioInputController::Close(const base::Closure& closed_task) {
       FROM_HERE, base::Bind(&AudioInputController::DoClose, this), closed_task);
 }
 
+void AudioInputController::SetVolume(double volume) {
+  message_loop_->PostTask(FROM_HERE, base::Bind(
+      &AudioInputController::DoSetVolume, this, volume));
+}
+
+void AudioInputController::SetAutomaticGainControl(bool enabled) {
+  message_loop_->PostTask(FROM_HERE, base::Bind(
+      &AudioInputController::DoSetAutomaticGainControl, this, enabled));
+}
+
 void AudioInputController::DoCreate(AudioManager* audio_manager,
                                     const AudioParameters& params,
                                     const std::string& device_id) {
@@ -174,6 +185,40 @@ void AudioInputController::DoReportError(int code) {
   handler_->OnError(this, code);
 }
 
+void AudioInputController::DoSetVolume(double volume) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK_GE(volume, 0);
+  DCHECK_LE(volume, 1.0);
+
+  if (state_ != kCreated && state_ != kRecording)
+    return;
+
+  // Only ask for the maximum volume at first call and use cached value
+  // for remaining function calls.
+  if (!max_volume_) {
+    max_volume_ = stream_->GetMaxVolume();
+  }
+
+  if (max_volume_ == 0.0) {
+    DLOG(WARNING) << "Failed to access input volume control";
+    return;
+  }
+
+  // Set the stream volume and scale to a range matched to the platform.
+  stream_->SetVolume(max_volume_ * volume);
+}
+
+void AudioInputController::DoSetAutomaticGainControl(bool enabled) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK_NE(state_, kRecording);
+
+  // Ensure that the AGC state only can be modified before streaming starts.
+  if (state_ != kCreated || state_ == kRecording)
+    return;
+
+  stream_->SetAutomaticGainControl(enabled);
+}
+
 void AudioInputController::DoReportNoDataError() {
   DCHECK(creator_loop_->BelongsToCurrentThread());
 
@@ -190,7 +235,8 @@ void AudioInputController::DoResetNoDataTimer() {
 }
 
 void AudioInputController::OnData(AudioInputStream* stream, const uint8* data,
-                                  uint32 size, uint32 hardware_delay_bytes) {
+                                  uint32 size, uint32 hardware_delay_bytes,
+                                  double volume) {
   {
     base::AutoLock auto_lock(lock_);
     if (state_ != kRecording)
@@ -202,7 +248,7 @@ void AudioInputController::OnData(AudioInputStream* stream, const uint8* data,
 
   // Use SyncSocket if we are in a low-latency mode.
   if (LowLatencyMode()) {
-    sync_writer_->Write(data, size);
+    sync_writer_->Write(data, size, volume);
     sync_writer_->UpdateRecordedBytes(hardware_delay_bytes);
     return;
   }

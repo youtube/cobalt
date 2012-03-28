@@ -35,6 +35,8 @@
         'audio/audio_io.h',
         'audio/audio_input_controller.cc',
         'audio/audio_input_controller.h',
+        'audio/audio_input_stream_impl.cc',
+        'audio/audio_input_stream_impl.h',
         'audio/audio_device_name.cc',
         'audio/audio_device_name.h',
         'audio/audio_manager.cc',
