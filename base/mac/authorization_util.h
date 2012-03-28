@@ -29,6 +29,8 @@
 #include <stdio.h>
 #include <sys/types.h>
 
+#include "base/base_export.h"
+
 namespace base {
 namespace mac {
 
@@ -37,6 +39,7 @@ namespace mac {
 // |prompt| will be used as the prompt string and an icon appropriate for the
 // application will be displayed in a prompt dialog.  Note that the system
 // appends its own text to the prompt string.  Returns NULL on failure.
+BASE_EXPORT
 AuthorizationRef AuthorizationCreateToRunAsRoot(CFStringRef prompt);
 
 // Calls straight through to AuthorizationExecuteWithPrivileges.  If that
@@ -56,6 +59,7 @@ OSStatus ExecuteWithPrivilegesAndGetPID(AuthorizationRef authorization,
 // exit status is placed in |exit_status|, otherwise, -1 is stored.
 // |exit_status| may be NULL and this function will still wait for the process
 // to exit.
+BASE_EXPORT
 OSStatus ExecuteWithPrivilegesAndWait(AuthorizationRef authorization,
                                       const char* tool_path,
                                       AuthorizationFlags options,
