@@ -49,16 +49,6 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
   static const char kForceAltProtocols[] = "force-alt-protocols";
   static const char kSingleDomain[] = "single-domain";
 
-  // We want an A/B experiment between SPDY enabled and SPDY disabled,
-  // but only for pages where SPDY *could have been* negotiated.  To do
-  // this, we use NPN, but prevent it from negotiating SPDY.  If the
-  // server negotiates HTTP, rather than SPDY, today that will only happen
-  // on servers that installed NPN (and could have done SPDY).  But this is
-  // a bit of a hack, as this correlation between NPN and SPDY is not
-  // really guaranteed.
-  static const char kEnableNPN[] = "npn";
-  static const char kEnableNpnHttpOnly[] = "npn-http";
-
   static const char kInitialMaxConcurrentStreams[] = "init-max-streams";
 
   std::vector<std::string> spdy_options;
@@ -90,20 +80,6 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
       HttpStreamFactory::add_forced_spdy_exclusion(value);
     } else if (option == kDisableCompression) {
       SpdyFramer::set_enable_compression_default(false);
-    } else if (option == kEnableNPN) {
-      HttpStreamFactory::set_use_alternate_protocols(use_alt_protocols);
-      std::vector<std::string> next_protos;
-      next_protos.push_back("http/1.1");
-      next_protos.push_back("spdy/2");
-      HttpStreamFactory::SetNextProtos(next_protos);
-    } else if (option == kEnableNpnHttpOnly) {
-      // Avoid alternate protocol in this case. Otherwise, browser will try SSL
-      // and then fallback to http. This introduces extra load.
-      HttpStreamFactory::set_use_alternate_protocols(false);
-      std::vector<std::string> next_protos;
-      next_protos.push_back("http/1.1");
-      next_protos.push_back("http1.1");
-      HttpStreamFactory::SetNextProtos(next_protos);
     } else if (option == kDisableAltProtocols) {
       use_alt_protocols = false;
       HttpStreamFactory::set_use_alternate_protocols(false);

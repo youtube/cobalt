@@ -230,8 +230,12 @@ class NET_EXPORT HttpStreamFactory {
   // Check if a HostPortPair is excluded from using spdy.
   static bool HasSpdyExclusion(const HostPortPair& endpoint);
 
-  // Sets http/1.1, spdy/2, spdy/2.1 and spdy/3 as the protocols supported.
-  static void EnableSPDY3();
+  // Sets http/1.1 and spdy/2 (the default spdy protocol) as the protocols
+  // supported.
+  static void EnableNpnSpdy();
+
+  // Sets http/1.1 as the protocols supported.
+  static void EnableNpnHttpOnly();
 
   // Sets http/1.1, spdy/2 and spdy/2.1 as the protocols supported.
   // If flow-control is enabled, received WINDOW_UPDATE and SETTINGS messages
@@ -239,6 +243,9 @@ class NET_EXPORT HttpStreamFactory {
   // data frames, and WINDOW_UPDATE messages are generated when data is
   // consumed.
   static void EnableFlowControl();
+
+  // Sets http/1.1, spdy/2, spdy/2.1 and spdy/3 as the protocols supported.
+  static void EnableNpnSpdy3();
 
   // Sets the protocols supported by NPN (next protocol negotiation) during the
   // SSL handshake as well as by HTTP Alternate-Protocol.
