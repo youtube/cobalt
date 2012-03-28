@@ -536,6 +536,7 @@
             # TODO(maruel): Revisit the support for this at all and list each
             # individual test files instead.
             'data/file_util_unittest/',
+            'data/json/bom_feff.json',
             '--',
             # Wraps base_unittests under xvfb.
             '<(DEPTH)/testing/xvfb.py',
