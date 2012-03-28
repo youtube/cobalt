@@ -218,7 +218,9 @@ TEST(CrossProcessNotification, Basic) {
 
 // Spins two worker threads, each with their own CrossProcessNotification
 // that they use to read and write from a shared memory buffer.
-TEST(CrossProcessNotification, TwoThreads) {
+// Disabled as it trips of the TSAN bot (false positive since TSAN doesn't
+// recognize sockets as being a synchronization primitive).
+TEST(CrossProcessNotification, DISABLED_TwoThreads) {
   CrossProcessNotification a, b;
   ASSERT_TRUE(CrossProcessNotification::InitializePair(&a, &b));
 
