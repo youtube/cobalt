@@ -178,7 +178,7 @@ void SpdyFramer::Reset() {
   }
   if (current_frame_capacity_ != initial_size) {
     delete [] current_frame_buffer_;
-    current_frame_buffer_ = 0;
+    current_frame_buffer_ = NULL;
     current_frame_capacity_ = 0;
     ExpandControlFrameBuffer(initial_size);
   }
@@ -939,8 +939,10 @@ void SpdyFramer::ExpandControlFrameBuffer(size_t size) {
   if (alloc_size <= current_frame_capacity_)
     return;
   char* new_buffer = new char[alloc_size];
-  memcpy(new_buffer, current_frame_buffer_, current_frame_len_);
-  delete [] current_frame_buffer_;
+  if (current_frame_buffer_ != NULL) {
+    memcpy(new_buffer, current_frame_buffer_, current_frame_len_);
+    delete [] current_frame_buffer_;
+  }
   current_frame_capacity_ = alloc_size;
   current_frame_buffer_ = new_buffer;
 }
