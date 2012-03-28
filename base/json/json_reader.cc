@@ -163,8 +163,9 @@ Value* JSONReader::JsonToValue(const std::string& json, bool check_root,
   // or <0xEF 0xBB 0xBF>, advance the start position to avoid the
   // JSONReader::BuildValue() function from mis-treating a Unicode BOM as an
   // invalid character and returning NULL.
-  if (json.size() >= 3 && start_pos_[0] == 0xEF &&
-      start_pos_[1] == 0xBB && start_pos_[2] == 0xBF) {
+  if (json.size() >= 3 && static_cast<uint8>(start_pos_[0]) == 0xEF &&
+      static_cast<uint8>(start_pos_[1]) == 0xBB &&
+      static_cast<uint8>(start_pos_[2]) == 0xBF) {
     start_pos_ += 3;
   }
 

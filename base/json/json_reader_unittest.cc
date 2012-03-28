@@ -4,12 +4,15 @@
 
 #include "base/json/json_reader.h"
 
-#include "testing/gtest/include/gtest/gtest.h"
+#include "base/base_paths.h"
+#include "base/file_util.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/path_service.h"
 #include "base/string_piece.h"
 #include "base/utf_string_conversions.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
 
@@ -498,6 +501,23 @@ TEST(JSONReaderTest, Reading) {
   EXPECT_FALSE(root.get());
   root.reset(JSONReader::Read("\"root\"", false));
   EXPECT_FALSE(root.get());
+}
+
+TEST(JSONReaderTest, ReadFromFile) {
+  FilePath path;
+  ASSERT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &path));
+  path = path.Append(FILE_PATH_LITERAL("base"))
+             .Append(FILE_PATH_LITERAL("data"))
+             .Append(FILE_PATH_LITERAL("json"));
+
+  std::string input;
+  ASSERT_TRUE(file_util::ReadFileToString(
+      path.Append(FILE_PATH_LITERAL("bom_feff.json")), &input));
+
+  JSONReader reader;
+  scoped_ptr<Value> root(reader.JsonToValue(input, false, false));
+  ASSERT_TRUE(root.get()) << reader.GetErrorMessage();
+  EXPECT_TRUE(root->IsType(Value::TYPE_DICTIONARY));
 }
 
 TEST(JSONReaderTest, ErrorMessages) {
