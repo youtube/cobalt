@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
+#include "base/sys_byteorder.h"
 #if defined(OS_WIN)
 #include <winsock2.h>
 #elif defined(OS_POSIX)
@@ -54,7 +55,7 @@ bool IPEndPoint::ToSockAddr(struct sockaddr* address,
       struct sockaddr_in* addr = reinterpret_cast<struct sockaddr_in*>(address);
       memset(addr, 0, sizeof(struct sockaddr_in));
       addr->sin_family = AF_INET;
-      addr->sin_port = htons(port_);
+      addr->sin_port = base::HostToNet16(port_);
       memcpy(&addr->sin_addr, &address_[0], kIPv4AddressSize);
       break;
     }
@@ -66,7 +67,7 @@ bool IPEndPoint::ToSockAddr(struct sockaddr* address,
           reinterpret_cast<struct sockaddr_in6*>(address);
       memset(addr6, 0, sizeof(struct sockaddr_in6));
       addr6->sin6_family = AF_INET6;
-      addr6->sin6_port = htons(port_);
+      addr6->sin6_port = base::HostToNet16(port_);
       memcpy(&addr6->sin6_addr, &address_[0], kIPv6AddressSize);
       break;
     }
@@ -87,7 +88,7 @@ bool IPEndPoint::FromSockAddr(const struct sockaddr* address,
         return false;
       const struct sockaddr_in* addr =
           reinterpret_cast<const struct sockaddr_in*>(address);
-      port_ = ntohs(addr->sin_port);
+      port_ = base::NetToHost16(addr->sin_port);
       const char* bytes = reinterpret_cast<const char*>(&addr->sin_addr);
       address_.assign(&bytes[0], &bytes[kIPv4AddressSize]);
       break;
@@ -97,7 +98,7 @@ bool IPEndPoint::FromSockAddr(const struct sockaddr* address,
         return false;
       const struct sockaddr_in6* addr =
           reinterpret_cast<const struct sockaddr_in6*>(address);
-      port_ = ntohs(addr->sin6_port);
+      port_ = base::NetToHost16(addr->sin6_port);
       const char* bytes = reinterpret_cast<const char*>(&addr->sin6_addr);
       address_.assign(&bytes[0], &bytes[kIPv6AddressSize]);
       break;

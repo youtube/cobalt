@@ -13,6 +13,7 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "base/sys_byteorder.h"
 #include "base/sys_string_conversions.h"
 #include "base/test/test_file_util.h"
 #include "base/time.h"
@@ -420,7 +421,7 @@ const struct addrinfo* GetIPv4Address(const uint8* bytes, int port) {
 
   struct sockaddr_in* addr4 = &static_addr4;
   memset(addr4, 0, sizeof(static_addr4));
-  addr4->sin_port = htons(port);
+  addr4->sin_port = base::HostToNet16(port);
   addr4->sin_family = ai->ai_family;
   memcpy(&addr4->sin_addr, bytes, 4);
 
@@ -444,7 +445,7 @@ const struct addrinfo* GetIPv6Address(const uint8* bytes, int port) {
 
   struct sockaddr_in6* addr6 = &static_addr6;
   memset(addr6, 0, sizeof(static_addr6));
-  addr6->sin6_port = htons(port);
+  addr6->sin6_port = base::HostToNet16(port);
   addr6->sin6_family = ai->ai_family;
   memcpy(&addr6->sin6_addr, bytes, 16);
 

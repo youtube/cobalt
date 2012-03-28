@@ -4,12 +4,11 @@
 
 #include "crypto/symmetric_key.h"
 
-#include <winsock2.h>  // For htonl.
-
 #include <vector>
 
 // TODO(wtc): replace scoped_array by std::vector.
 #include "base/memory/scoped_ptr.h"
+#include "base/sys_byteorder.h"
 
 namespace crypto {
 
@@ -264,7 +263,7 @@ bool ComputePBKDF2Block(HCRYPTHASH hash,
     return false;
 
   // Iteration U_1: and append (big-endian) INT (i).
-  uint32 big_endian_block_index = htonl(block_index);
+  uint32 big_endian_block_index = base::HostToNet32(block_index);
   ok = CryptHashData(safe_hash,
                      reinterpret_cast<BYTE*>(&big_endian_block_index),
                      sizeof(big_endian_block_index), 0);
