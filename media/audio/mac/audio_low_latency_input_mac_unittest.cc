@@ -28,9 +28,9 @@ ACTION_P3(CheckCountAndPostQuitTask, count, limit, loop) {
 
 class MockAudioInputCallback : public AudioInputStream::AudioInputCallback {
  public:
-  MOCK_METHOD4(OnData, void(AudioInputStream* stream,
+  MOCK_METHOD5(OnData, void(AudioInputStream* stream,
                             const uint8* src, uint32 size,
-                            uint32 hardware_delay_bytes));
+                            uint32 hardware_delay_bytes, double volume));
   MOCK_METHOD1(OnClose, void(AudioInputStream* stream));
   MOCK_METHOD2(OnError, void(AudioInputStream* stream, int code));
 };
@@ -73,7 +73,7 @@ class WriteToFileAudioSink : public AudioInputStream::AudioInputCallback {
   // AudioInputStream::AudioInputCallback implementation.
   virtual void OnData(AudioInputStream* stream,
                       const uint8* src, uint32 size,
-                      uint32 hardware_delay_bytes) {
+                      uint32 hardware_delay_bytes, double volume) {
     // Store data data in a temporary buffer to avoid making blocking
     // fwrite() calls in the audio callback. The complete buffer will be
     // written to file in the destructor.
@@ -232,7 +232,7 @@ TEST_F(MacAudioInputTest, AUAudioInputStreamVerifyMonoRecording) {
   // All should contain valid packets of the same size and a valid delay
   // estimate.
   EXPECT_CALL(sink, OnData(ais, NotNull(), bytes_per_packet,
-                           Ge(bytes_per_packet)))
+                           Ge(bytes_per_packet), _))
       .Times(AtLeast(10))
       .WillRepeatedly(CheckCountAndPostQuitTask(&count, 10, &loop));
   ais->Start(&sink);
@@ -268,7 +268,7 @@ TEST_F(MacAudioInputTest, AUAudioInputStreamVerifyStereoRecording) {
   // All should contain valid packets of the same size and a valid delay
   // estimate.
   EXPECT_CALL(sink, OnData(ais, NotNull(), bytes_per_packet,
-                           Ge(bytes_per_packet)))
+                           Ge(bytes_per_packet), _))
       .Times(AtLeast(10))
       .WillRepeatedly(CheckCountAndPostQuitTask(&count, 10, &loop));
   ais->Start(&sink);

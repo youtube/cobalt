@@ -38,14 +38,17 @@
 
 #include <AudioUnit/AudioUnit.h>
 
+#include "base/atomicops.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/synchronization/lock.h"
+#include "base/time.h"
 #include "media/audio/audio_io.h"
+#include "media/audio/audio_input_stream_impl.h"
 #include "media/audio/audio_parameters.h"
 
 class AudioManagerMac;
 
-class AUAudioInputStream : public AudioInputStream {
+class AUAudioInputStream : public AudioInputStreamImpl {
  public:
   // The ctor takes all the usual parameters, plus |manager| which is the
   // the audio manager who is creating this object.
