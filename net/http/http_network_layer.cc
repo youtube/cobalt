@@ -54,8 +54,6 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
   std::vector<std::string> spdy_options;
   base::SplitString(mode, ',', &spdy_options);
 
-  bool use_alt_protocols = true;
-
   for (std::vector<std::string>::iterator it = spdy_options.begin();
        it != spdy_options.end(); ++it) {
     const std::string& element = *it;
@@ -81,7 +79,6 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
     } else if (option == kDisableCompression) {
       SpdyFramer::set_enable_compression_default(false);
     } else if (option == kDisableAltProtocols) {
-      use_alt_protocols = false;
       HttpStreamFactory::set_use_alternate_protocols(false);
     } else if (option == kForceAltProtocols) {
       PortAlternateProtocolPair pair;
