@@ -133,7 +133,7 @@ OSStatus CreateRevocationPolicies(bool enable_revocation_checking,
 }
 
 CSSMFieldValue::CSSMFieldValue()
-    : cl_handle_(NULL),
+    : cl_handle_(CSSM_INVALID_HANDLE),
       oid_(NULL),
       field_(NULL) {
 }
@@ -146,7 +146,7 @@ CSSMFieldValue::CSSMFieldValue(CSSM_CL_HANDLE cl_handle,
 }
 
 CSSMFieldValue::~CSSMFieldValue() {
-  Reset(NULL, NULL, NULL);
+  Reset(CSSM_INVALID_HANDLE, NULL, NULL);
 }
 
 void CSSMFieldValue::Reset(CSSM_CL_HANDLE cl_handle,
@@ -160,8 +160,8 @@ void CSSMFieldValue::Reset(CSSM_CL_HANDLE cl_handle,
 }
 
 CSSMCachedCertificate::CSSMCachedCertificate()
-    : cl_handle_(NULL),
-      cached_cert_handle_(NULL) {
+    : cl_handle_(CSSM_INVALID_HANDLE),
+      cached_cert_handle_(CSSM_INVALID_HANDLE) {
 }
 CSSMCachedCertificate::~CSSMCachedCertificate() {
   if (cl_handle_ && cached_cert_handle_)
@@ -194,7 +194,7 @@ OSStatus CSSMCachedCertificate::GetField(const CSSM_OID* field_oid,
 
   CSSM_OID_PTR oid = const_cast<CSSM_OID_PTR>(field_oid);
   CSSM_DATA_PTR field_ptr = NULL;
-  CSSM_HANDLE results_handle = NULL;
+  CSSM_HANDLE results_handle = CSSM_INVALID_HANDLE;
   uint32 field_value_count = 0;
   CSSM_RETURN status = CSSM_CL_CertGetFirstCachedFieldValue(
       cl_handle_, cached_cert_handle_, oid, &results_handle,
