@@ -834,8 +834,8 @@ void EnableTerminationOnOutOfMemory() {
   ChromeMallocZone* purgeable_zone =
       reinterpret_cast<ChromeMallocZone*>(GetPurgeableZone());
 
-  vm_address_t page_start_default = NULL;
-  vm_address_t page_start_purgeable = NULL;
+  vm_address_t page_start_default = 0;
+  vm_address_t page_start_purgeable = 0;
   vm_size_t len_default = 0;
   vm_size_t len_purgeable = 0;
   if (zone_allocators_protected) {
