@@ -9,6 +9,19 @@
 #include "media/base/channel_layout.h"
 #include "media/base/media_export.h"
 
+struct MEDIA_EXPORT AudioInputBufferParameters {
+  double volume;
+  uint32 size;
+};
+
+// Use a struct-in-struct approach to ensure that we can calculate the required
+// size as sizeof(AudioInputBufferParameters) + #(bytes in audio buffer) without
+// using packing.
+struct MEDIA_EXPORT AudioInputBuffer {
+  AudioInputBufferParameters params;
+  int8 audio[1];
+};
+
 class MEDIA_EXPORT AudioParameters {
  public:
   // Compare is useful when AudioParameters is used as a key in std::map.

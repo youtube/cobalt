@@ -199,12 +199,19 @@ void AlsaPcmInputStream::ReadAudio() {
   int num_buffers_read = num_buffers;
   uint32 hardware_delay_bytes =
       static_cast<uint32>(GetCurrentDelay() * params_.GetBytesPerFrame());
+  double normalized_volume = 0.0;
+
+  // Update the AGC volume level once every second. Note that, |volume| is
+  // also updated each time SetVolume() is called through IPC by the
+  // render-side AGC.
+  QueryAgcVolume(&normalized_volume);
+
   while (num_buffers--) {
     int frames_read = wrapper_->PcmReadi(device_handle_, audio_buffer_.get(),
                                          params_.frames_per_buffer());
     if (frames_read == params_.frames_per_buffer()) {
       callback_->OnData(this, audio_buffer_.get(), bytes_per_buffer_,
-                        hardware_delay_bytes);
+                        hardware_delay_bytes, normalized_volume);
     } else {
       LOG(WARNING) << "PcmReadi returning less than expected frames: "
                    << frames_read << " vs. " << params_.frames_per_buffer()
@@ -303,6 +310,13 @@ void AlsaPcmInputStream::SetVolume(double volume) {
   if (error < 0) {
     DLOG(WARNING) << "Unable to set volume for " << device_name_;
   }
+
+  // Update the AGC volume level based on the last setting above. Note that,
+  // the volume-level resolution is not infinite and it is therefore not
+  // possible to assume that the volume provided as input parameter can be
+  // used directly. Instead, a new query to the audio hardware is required.
+  // This method does nothing if AGC is disabled.
+  UpdateAgcVolume();
 }
 
 double AlsaPcmInputStream::GetVolume() {

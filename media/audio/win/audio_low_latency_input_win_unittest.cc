@@ -21,6 +21,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using base::win::ScopedCOMInitializer;
+using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::AtLeast;
 using ::testing::Gt;
@@ -34,9 +35,9 @@ ACTION_P3(CheckCountAndPostQuitTask, count, limit, loop) {
 
 class MockAudioInputCallback : public AudioInputStream::AudioInputCallback {
  public:
-  MOCK_METHOD4(OnData, void(AudioInputStream* stream,
+  MOCK_METHOD5(OnData, void(AudioInputStream* stream,
       const uint8* src, uint32 size,
-      uint32 hardware_delay_bytes));
+      uint32 hardware_delay_bytes, double volume));
   MOCK_METHOD1(OnClose, void(AudioInputStream* stream));
   MOCK_METHOD2(OnError, void(AudioInputStream* stream, int code));
 };
@@ -83,7 +84,8 @@ class WriteToFileAudioSink : public AudioInputStream::AudioInputCallback {
   virtual void OnData(AudioInputStream* stream,
                       const uint8* src,
                       uint32 size,
-                      uint32 hardware_delay_bytes) {
+                      uint32 hardware_delay_bytes,
+                      double volume) {
     // Store data data in a temporary buffer to avoid making blocking
     // fwrite() calls in the audio callback. The complete buffer will be
     // written to file in the destructor.
@@ -306,7 +308,7 @@ TEST(WinAudioInputTest, WASAPIAudioInputStreamTestPacketSizes) {
   // All should contain valid packets of the same size and a valid delay
   // estimate.
   EXPECT_CALL(sink, OnData(
-      ais, NotNull(), bytes_per_packet, Gt(bytes_per_packet)))
+      ais, NotNull(), bytes_per_packet, Gt(bytes_per_packet), _))
       .Times(AtLeast(10))
       .WillRepeatedly(CheckCountAndPostQuitTask(&count, 10, &loop));
   ais->Start(&sink);
@@ -329,7 +331,7 @@ TEST(WinAudioInputTest, WASAPIAudioInputStreamTestPacketSizes) {
       (aisw.bits_per_sample() / 8);
 
   EXPECT_CALL(sink, OnData(
-      ais, NotNull(), bytes_per_packet, Gt(bytes_per_packet)))
+      ais, NotNull(), bytes_per_packet, Gt(bytes_per_packet), _))
       .Times(AtLeast(10))
       .WillRepeatedly(CheckCountAndPostQuitTask(&count, 10, &loop));
   ais->Start(&sink);
@@ -349,7 +351,7 @@ TEST(WinAudioInputTest, WASAPIAudioInputStreamTestPacketSizes) {
     (aisw.bits_per_sample() / 8);
 
   EXPECT_CALL(sink, OnData(
-      ais, NotNull(), bytes_per_packet, Gt(bytes_per_packet)))
+      ais, NotNull(), bytes_per_packet, Gt(bytes_per_packet), _))
       .Times(AtLeast(10))
       .WillRepeatedly(CheckCountAndPostQuitTask(&count, 10, &loop));
   ais->Start(&sink);

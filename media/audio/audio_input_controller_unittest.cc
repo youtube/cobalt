@@ -25,10 +25,13 @@ static const int kChannels = 2;
 static const ChannelLayout kChannelLayout = CHANNEL_LAYOUT_STEREO;
 static const int kSamplesPerPacket = kSampleRate / 10;
 
+// Posts MessageLoop::QuitClosure() on specified message loop.
 ACTION_P(QuitMessageLoop, loop_or_proxy) {
   loop_or_proxy->PostTask(FROM_HERE, MessageLoop::QuitClosure());
 }
 
+// Posts MessageLoop::QuitClosure() on specified message loop after a certain
+// number of calls given by |limit|.
 ACTION_P3(CheckCountAndPostQuitTask, count, limit, loop_or_proxy) {
   if (++*count >= limit) {
     loop_or_proxy->PostTask(FROM_HERE, MessageLoop::QuitClosure());

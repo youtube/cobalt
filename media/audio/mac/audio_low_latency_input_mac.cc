@@ -12,6 +12,8 @@
 #include "media/audio/audio_util.h"
 #include "media/audio/mac/audio_manager_mac.h"
 
+static const int kMinIntervalBetweenVolumeUpdatesMs = 1000;
+
 static std::ostream& operator<<(std::ostream& os,
                                 const AudioStreamBasicDescription& format) {
   os << "sample rate       : " << format.mSampleRate << std::endl
@@ -289,7 +291,9 @@ double AUAudioInputStream::GetMaxVolume() {
 }
 
 void AUAudioInputStream::SetVolume(double volume) {
-  DCHECK(volume <= 1.0 && volume >= 0.0);
+  DVLOG(1) << "SetVolume(volume=" << volume << ")";
+  DCHECK_GE(volume, 0.0);
+  DCHECK_LE(volume, 1.0);
 
   // Verify that we have a valid device.
   if (input_device_id_ == kAudioObjectUnknown) {
@@ -336,6 +340,13 @@ void AUAudioInputStream::SetVolume(double volume) {
 
   DLOG_IF(WARNING, successful_channels == 0)
       << "Failed to set volume to " << volume_float32;
+
+  // Update the AGC volume level based on the last setting above. Note that,
+  // the volume-level resolution is not infinite and it is therefore not
+  // possible to assume that the volume provided as input parameter can be
+  // used directly. Instead, a new query to the audio hardware is required.
+  // This method does nothing if AGC is disabled.
+  UpdateAgcVolume();
 }
 
 double AUAudioInputStream::GetVolume() {
@@ -433,6 +444,12 @@ OSStatus AUAudioInputStream::Provide(UInt32 number_of_frames,
   // Update the capture latency.
   double capture_latency_frames = GetCaptureLatency(time_stamp);
 
+  // Update the AGC volume level once every second. Note that, |volume| is
+  // also updated each time SetVolume() is called through IPC by the
+  // render-side AGC.
+  double normalized_volume = 0.0;
+  QueryAgcVolume(&normalized_volume);
+
   AudioBuffer& buffer = io_data->mBuffers[0];
   uint8* audio_data = reinterpret_cast<uint8*>(buffer.mData);
   uint32 capture_delay_bytes = static_cast<uint32>
@@ -441,7 +458,12 @@ OSStatus AUAudioInputStream::Provide(UInt32 number_of_frames,
   if (!audio_data)
     return kAudioUnitErr_InvalidElement;
 
-  sink_->OnData(this, audio_data, buffer.mDataByteSize, capture_delay_bytes);
+  // Deliver data packet, delay estimation and volume level to the user.
+  sink_->OnData(this,
+                audio_data,
+                buffer.mDataByteSize,
+                capture_delay_bytes,
+                normalized_volume);
 
   return noErr;
 }

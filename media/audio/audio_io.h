@@ -122,7 +122,8 @@ class MEDIA_EXPORT AudioInputStream {
     // available. This is called from a special audio thread and the
     // implementation should return as soon as possible.
     virtual void OnData(AudioInputStream* stream, const uint8* src,
-                        uint32 size, uint32 hardware_delay_bytes) = 0;
+                        uint32 size, uint32 hardware_delay_bytes,
+                        double volume) = 0;
 
     // The stream is done with this callback, the last call received by this
     // audio sink.
@@ -164,6 +165,12 @@ class MEDIA_EXPORT AudioInputStream {
 
   // Returns the microphone analog volume, with range [0, max_volume] inclusive.
   virtual double GetVolume() = 0;
+
+  // Sets the Automatic Gain Control (AGC) state.
+  virtual void SetAutomaticGainControl(bool enabled) = 0;
+
+  // Returns the Automatic Gain Control (AGC) state.
+  virtual bool GetAutomaticGainControl() = 0;
 };
 
 #endif  // MEDIA_AUDIO_AUDIO_IO_H_

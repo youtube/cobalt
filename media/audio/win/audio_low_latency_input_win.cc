@@ -192,8 +192,10 @@ double WASAPIAudioInputStream::GetMaxVolume() {
 }
 
 void WASAPIAudioInputStream::SetVolume(double volume) {
+  DVLOG(1) << "SetVolume(volume=" << volume << ")";
   DCHECK(CalledOnValidThread());
-  DCHECK(volume <= 1.0 && volume >= 0.0);
+  DCHECK_GE(volume, 0.0);
+  DCHECK_LE(volume, 1.0);
 
   DLOG_IF(ERROR, !opened_) << "Open() has not been called successfully";
   if (!opened_)
@@ -202,12 +204,18 @@ void WASAPIAudioInputStream::SetVolume(double volume) {
   // Set a new master volume level. Valid volume levels are in the range
   // 0.0 to 1.0. Ignore volume-change events.
   HRESULT hr = simple_audio_volume_->SetMasterVolume(static_cast<float>(volume),
-                                                     NULL);
+      NULL);
   DLOG_IF(WARNING, FAILED(hr)) << "Failed to set new input master volume.";
+
+  // Update the AGC volume level based on the last setting above. Note that,
+  // the volume-level resolution is not infinite and it is therefore not
+  // possible to assume that the volume provided as input parameter can be
+  // used directly. Instead, a new query to the audio hardware is required.
+  // This method does nothing if AGC is disabled.
+  UpdateAgcVolume();
 }
 
 double WASAPIAudioInputStream::GetVolume() {
-  DCHECK(CalledOnValidThread());
   DLOG_IF(ERROR, !opened_) << "Open() has not been called successfully";
   if (!opened_)
     return 0.0;
@@ -323,6 +331,7 @@ void WASAPIAudioInputStream::Run() {
   LARGE_INTEGER now_count;
   bool recording = true;
   bool error = false;
+  double volume = GetVolume();
   HANDLE wait_array[2] = {stop_capture_event_, audio_samples_ready_event_};
 
   while (recording && !error) {
@@ -389,6 +398,11 @@ void WASAPIAudioInputStream::Run() {
                 first_audio_frame_timestamp) / 10000.0) * ms_to_frame_count_ +
                 buffer_frame_index - num_frames_to_read;
 
+          // Update the AGC volume level once every second. Note that,
+          // |volume| is also updated each time SetVolume() is called
+          // through IPC by the render-side AGC.
+          QueryAgcVolume(&volume);
+
           // Deliver captured data to the registered consumer using a packet
           // size which was specified at construction.
           uint32 delay_frames = static_cast<uint32>(audio_delay_frames + 0.5);
@@ -396,11 +410,13 @@ void WASAPIAudioInputStream::Run() {
             uint8* audio_data =
                 reinterpret_cast<uint8*>(capture_buffer.get());
 
-            // Deliver data packet and delay estimation to the user.
+            // Deliver data packet, delay estimation and volume level to
+            // the user.
             sink_->OnData(this,
                           audio_data,
                           packet_size_bytes_,
-                          delay_frames * frame_size_);
+                          delay_frames * frame_size_,
+                          volume);
 
             // Store parts of the recorded data which can't be delivered
             // using the current packet size. The stored section will be used

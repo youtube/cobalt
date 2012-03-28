@@ -241,6 +241,7 @@ void WASAPIAudioOutputStream::Close() {
 }
 
 void WASAPIAudioOutputStream::SetVolume(double volume) {
+  DVLOG(1) << "SetVolume(volume=" << volume << ")";
   float volume_float = static_cast<float>(volume);
   if (volume_float < 0.0f || volume_float > 1.0f) {
     return;
@@ -249,6 +250,7 @@ void WASAPIAudioOutputStream::SetVolume(double volume) {
 }
 
 void WASAPIAudioOutputStream::GetVolume(double* volume) {
+  DVLOG(1) << "GetVolume()";
   *volume = static_cast<double>(volume_);
 }
 
