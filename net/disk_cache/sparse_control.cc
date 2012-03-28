@@ -339,6 +339,7 @@ void SparseControl::DeleteChildren(EntryImpl* entry) {
 
   entry->net_log().AddEvent(net::NetLog::TYPE_SPARSE_DELETE_CHILDREN, NULL);
 
+  DCHECK(entry && entry->backend_);
   ChildrenDeleter* deleter = new ChildrenDeleter(entry->backend_,
                                                  entry->GetKey());
   // The object will self destruct when finished.
