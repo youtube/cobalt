@@ -8,6 +8,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
 #include "base/rand_util.h"
+#include "base/sys_byteorder.h"
 #include "base/test/test_timeouts.h"
 #include "net/base/big_endian.h"
 #include "net/base/dns_util.h"
@@ -279,7 +280,7 @@ class DnsTransactionTest : public testing::Test {
                                             0);
     dns_protocol::Header* header =
         reinterpret_cast<dns_protocol::Header*>(response->io_buffer()->data());
-    header->flags |= htons(dns_protocol::kFlagResponse | rcode);
+    header->flags |= base::HostToNet16(dns_protocol::kFlagResponse | rcode);
     responses_.push_back(response);
 
     writes_.push_back(MockWrite(ASYNC,
@@ -715,4 +716,3 @@ TEST_F(DnsTransactionTest, SuffixSearchStop) {
 }  // namespace
 
 }  // namespace net
-

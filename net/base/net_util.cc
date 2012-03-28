@@ -76,14 +76,6 @@
 
 using base::Time;
 
-#if defined(OS_WIN)
-// Allow htons/ntohs to be called without requiring ws2_32.dll to be loaded,
-// which isn't available in Chrome's sandbox. See crbug.com/116591.
-// TODO(wez): Replace these calls with base::htons() etc when available.
-#define ntohs(x) _byteswap_ushort(x)
-#define htons(x) _byteswap_ushort(x)
-#endif // OS_WIN
-
 namespace net {
 
 namespace {
@@ -2344,7 +2336,7 @@ uint16 GetPortFromAddrinfo(const struct addrinfo* info) {
   const uint16* port_field = GetPortFieldFromAddrinfo(info);
   if (!port_field)
     return -1;
-  return ntohs(*port_field);
+  return base::NetToHost16(*port_field);
 }
 
 const uint16* GetPortFieldFromSockaddr(const struct sockaddr* address,
@@ -2369,7 +2361,7 @@ int GetPortFromSockaddr(const struct sockaddr* address, socklen_t address_len) {
   const uint16* port_field = GetPortFieldFromSockaddr(address, address_len);
   if (!port_field)
     return -1;
-  return ntohs(*port_field);
+  return base::NetToHost16(*port_field);
 }
 
 // Assign |port| to each address in the linked list starting from |head|.
@@ -2378,7 +2370,7 @@ void SetPortForAllAddrinfos(struct addrinfo* head, uint16 port) {
   for (struct addrinfo* ai = head; ai; ai = ai->ai_next) {
     uint16* port_field = GetPortFieldFromAddrinfo(ai);
     if (port_field)
-      *port_field = htons(port);
+      *port_field = base::HostToNet16(port);
   }
 }
 
