@@ -117,8 +117,9 @@ class EndpointerFrameProcessor : public FrameProcessor {
       : endpointer_(endpointer) {}
 
   EpStatus ProcessFrame(int64 time, int16* samples, int frame_size) {
-    AudioChunk frame(reinterpret_cast<uint8*>(samples), kFrameSize * 2, 2);
-    endpointer_->ProcessAudio(frame, NULL);
+    scoped_refptr<AudioChunk> frame(
+        new AudioChunk(reinterpret_cast<uint8*>(samples), kFrameSize * 2, 2));
+    endpointer_->ProcessAudio(*frame, NULL);
     int64 ep_time;
     return endpointer_->Status(&ep_time);
   }

@@ -52,19 +52,18 @@ AudioBuffer::~AudioBuffer() {
 }
 
 void AudioBuffer::Enqueue(const uint8* data, size_t length) {
-  AudioChunk* chunk = new AudioChunk(data, length, bytes_per_sample_);
-  chunks_.push_back(chunk);
+  chunks_.push_back(new AudioChunk(data, length, bytes_per_sample_));
 }
 
-scoped_ptr<AudioChunk> AudioBuffer::DequeueSingleChunk() {
+scoped_refptr<AudioChunk> AudioBuffer::DequeueSingleChunk() {
   DCHECK(!chunks_.empty());
-  AudioChunk* chunk = *chunks_.begin();
-  chunks_.weak_erase(chunks_.begin());
-  return scoped_ptr<AudioChunk>(chunk);
+  scoped_refptr<AudioChunk> chunk(chunks_.front());
+  chunks_.pop_front();
+  return chunk;
 }
 
-scoped_ptr<AudioChunk> AudioBuffer::DequeueAll() {
-  AudioChunk* chunk = new AudioChunk(bytes_per_sample_);
+scoped_refptr<AudioChunk> AudioBuffer::DequeueAll() {
+  scoped_refptr<AudioChunk> chunk(new AudioChunk(bytes_per_sample_));
   size_t resulting_length = 0;
   ChunksContainer::const_iterator it;
   // In order to improve performance, calulate in advance the total length
@@ -77,11 +76,11 @@ scoped_ptr<AudioChunk> AudioBuffer::DequeueAll() {
     chunk->data_string_.append((*it)->data_string_);
   }
   Clear();
-  return scoped_ptr<AudioChunk>(chunk);
+  return chunk;
 }
 
 void AudioBuffer::Clear() {
-  chunks_.erase(chunks_.begin(), chunks_.end());
+  chunks_.clear();
 }
 
 bool AudioBuffer::IsEmpty() const {
