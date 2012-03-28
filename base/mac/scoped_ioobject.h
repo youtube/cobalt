@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,7 +20,7 @@ class ScopedIOObject {
  public:
   typedef IOT element_type;
 
-  explicit ScopedIOObject(IOT object = NULL)
+  explicit ScopedIOObject(IOT object = IO_OBJECT_NULL)
       : object_(object) {
   }
 
@@ -29,7 +29,7 @@ class ScopedIOObject {
       IOObjectRelease(object_);
   }
 
-  void reset(IOT object = NULL) {
+  void reset(IOT object = IO_OBJECT_NULL) {
     if (object_)
       IOObjectRelease(object_);
     object_ = object;
@@ -59,7 +59,7 @@ class ScopedIOObject {
 
   IOT release() WARN_UNUSED_RESULT {
     IOT temp = object_;
-    object_ = NULL;
+    object_ = IO_OBJECT_NULL;
     return temp;
   }
 
