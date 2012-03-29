@@ -130,7 +130,6 @@ MessageLoop::MessageLoop(Type type)
       exception_restoration_(false),
       message_histogram_(NULL),
       state_(NULL),
-      should_leak_tasks_(true),
 #ifdef OS_WIN
       os_modal_loop_(false),
 #endif  // OS_WIN
@@ -509,17 +508,6 @@ void MessageLoop::ReloadWorkQueue() {
 
 bool MessageLoop::DeletePendingTasks() {
   bool did_work = !work_queue_.empty();
-  // TODO(darin): Delete all tasks once it is safe to do so.
-  // Until it is totally safe, just do it when running Valgrind.
-  //
-  // See http://crbug.com/61131
-  //
-#if defined(USE_HEAPCHECKER)
-  should_leak_tasks_ = false;
-#else
-      if (RunningOnValgrind())
-        should_leak_tasks_ = false;
-#endif  // defined(OS_POSIX)
   while (!work_queue_.empty()) {
     PendingTask pending_task = work_queue_.front();
     work_queue_.pop();
@@ -541,11 +529,9 @@ bool MessageLoop::DeletePendingTasks() {
   // code is replicating legacy behavior, and should not be considered
   // absolutely "correct" behavior.  See TODO above about deleting all tasks
   // when it's safe.
-  should_leak_tasks_ = false;
   while (!delayed_work_queue_.empty()) {
     delayed_work_queue_.pop();
   }
-  should_leak_tasks_ = true;
   return did_work;
 }
 
