@@ -118,9 +118,9 @@ class NET_EXPORT X509Certificate
   };
 
   // PickleType is intended for deserializing certificates that were pickled
-  // by previous releases as part of a net::HttpResponseInfo, which in version
-  // 1 only contained a single certificate. When serializing certificates to a
-  // new Pickle, PICKLETYPE_CERTIFICATE_CHAIN is always used.
+  // by previous releases as part of a net::HttpResponseInfo.
+  // When serializing certificates to a new Pickle,
+  // PICKLETYPE_CERTIFICATE_CHAIN_V3 is always used.
   enum PickleType {
     // When reading a certificate from a Pickle, the Pickle only contains a
     // single certificate.
@@ -129,11 +129,16 @@ class NET_EXPORT X509Certificate
     // When reading a certificate from a Pickle, the Pickle contains the
     // the certificate plus any certificates that were stored in
     // |intermediate_ca_certificates_| at the time it was serialized.
-    // The count of certificates is stored as either 32 or 64 bits.
-    PICKLETYPE_CERTIFICATE_CHAIN_OLD,
+    // The count of certificates is stored as a size_t, which is either 32
+    // or 64 bits.
+    PICKLETYPE_CERTIFICATE_CHAIN_V2,
 
-    // Same as PICKLETYPE_CERTIFICATE_CHAIN_OLD but with a 32-bit cert count.
-    PICKLETYPE_CERTIFICATE_CHAIN,
+    // The Pickle contains the certificate and any certificates that were
+    // stored in |intermediate_ca_certs_| at the time it was serialized.
+    // The format is [int count], [data - this certificate],
+    // [data - intermediate1], ... [data - intermediateN].
+    // All certificates are stored in DER form.
+    PICKLETYPE_CERTIFICATE_CHAIN_V3,
   };
 
   // Creates a X509Certificate from the ground up.  Used by tests that simulate
@@ -465,15 +470,17 @@ class NET_EXPORT X509Certificate
                              const std::vector<std::string>& cert_san_dns_names,
                              const std::vector<std::string>& cert_san_ip_addrs);
 
-  // Reads a single certificate from |pickle| and returns a platform-specific
-  // certificate handle. The format of the certificate stored in |pickle| is
-  // not guaranteed to be the same across different underlying cryptographic
-  // libraries, nor acceptable to CreateFromBytes(). Returns an invalid
-  // handle, NULL, on failure.
-  static OSCertHandle ReadOSCertHandleFromPickle(const Pickle& pickle,
-                                                 PickleIterator* pickle_iter);
+  // Reads a single certificate from |pickle_iter| and returns a
+  // platform-specific certificate handle. The format of the certificate
+  // stored in |pickle_iter| is not guaranteed to be the same across different
+  // underlying cryptographic libraries, nor acceptable to CreateFromBytes().
+  // Returns an invalid handle, NULL, on failure.
+  // NOTE: This should not be used for any new code. It is provided for
+  // migration purposes and should eventually be removed.
+  static OSCertHandle ReadOSCertHandleFromPickle(PickleIterator* pickle_iter);
 
-  // Writes a single certificate to |pickle|. Returns false on failure.
+  // Writes a single certificate to |pickle| in DER form. Returns false on
+  // failure.
   static bool WriteOSCertHandleToPickle(OSCertHandle handle, Pickle* pickle);
 
   // The subject of the certificate.
