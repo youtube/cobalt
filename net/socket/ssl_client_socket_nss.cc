@@ -1075,8 +1075,6 @@ void SSLClientSocketNSS::UpdateServerCert() {
     server_cert_nss_ = SSL_PeerCertificate(nss_fd_);
     if (server_cert_nss_) {
       PeerCertificateChain certs(nss_fd_);
-      LOG(INFO) << "Number of certs from NSS for " << host_and_port_.host()
-                << ": " << certs.size() << " (debugging for crbug.com/114709)";
       // This call may fail when SSL is used inside sandbox. In that
       // case CreateFromDERCertChain() returns NULL.
       server_cert_ = X509Certificate::CreateFromDERCertChain(
