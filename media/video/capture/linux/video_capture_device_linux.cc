@@ -81,7 +81,7 @@ void VideoCaptureDevice::GetDeviceNames(Names* device_names) {
 
     Name name;
     name.unique_id = path.value() + info.filename;
-    if ((fd = open(name.unique_id.c_str() , O_RDONLY)) <= 0) {
+    if ((fd = open(name.unique_id.c_str() , O_RDONLY)) < 0) {
       // Failed to open this device.
       continue;
     }
