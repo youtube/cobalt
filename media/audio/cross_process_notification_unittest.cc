@@ -440,7 +440,8 @@ TEST_F(CrossProcessNotificationMultiProcessTest, Basic) {
 
 #if defined(OS_POSIX)
   const int kPosixChildSocket = 20;
-  EXPECT_TRUE(b.ShareToProcess(NULL, &ipc->handle_1, &ipc->handle_2));
+  EXPECT_TRUE(b.ShareToProcess(
+        base::kNullProcessHandle, &ipc->handle_1, &ipc->handle_2));
   base::FileHandleMappingVector fd_mapping_vec;
   fd_mapping_vec.push_back(std::pair<int, int>(ipc->handle_1.fd,
                                                kPosixChildSocket));
