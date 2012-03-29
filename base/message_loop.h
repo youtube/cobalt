@@ -509,10 +509,6 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
 
   RunState* state_;
 
-  // The need for this variable is subtle. Please see implementation comments
-  // around where it is used.
-  bool should_leak_tasks_;
-
 #if defined(OS_WIN)
   base::TimeTicks high_resolution_timer_expiration_;
   // Should be set to true before calling Windows APIs like TrackPopupMenu, etc
