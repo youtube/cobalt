@@ -26,6 +26,10 @@
 #include "base/time.h"
 #include "base/tracked_objects.h"
 
+#if defined(OS_MACOSX)
+#include "base/mac/scoped_nsautorelease_pool.h"
+#endif
+
 namespace base {
 
 namespace {
@@ -409,6 +413,10 @@ void SequencedWorkerPool::Inner::ThreadLoop(Worker* this_worker) {
     DCHECK(result.second);
 
     while (true) {
+#if defined(OS_MACOSX)
+      base::mac::ScopedNSAutoreleasePool autorelease_pool;
+#endif
+
       // See GetWork for what delete_these_outside_lock is doing.
       SequencedTask task;
       std::vector<Closure> delete_these_outside_lock;
