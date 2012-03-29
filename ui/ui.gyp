@@ -363,7 +363,6 @@
         'gfx/transform_util.h',
         'ui_controls/ui_controls.h',
         'ui_controls/ui_controls_aura.cc',
-        'ui_controls/ui_controls_export.h',
         'ui_controls/ui_controls_internal_win.h',
         'ui_controls/ui_controls_internal_win.cc',
         'ui_controls/ui_controls_gtk.cc',
