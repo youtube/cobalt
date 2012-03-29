@@ -16,6 +16,10 @@
 #include "net/base/net_util.h"
 #include "net/base/request_priority.h"
 
+namespace base {
+class Value;
+}
+
 namespace net {
 
 class AddressList;
@@ -160,6 +164,11 @@ class NET_EXPORT HostResolver {
   // Returns the HostResolverCache |this| uses, or NULL if there isn't one.
   // Used primarily to clear the cache and for getting debug information.
   virtual HostCache* GetHostCache();
+
+  // Returns the current DNS configuration |this| is using, as a Value, or NULL
+  // if it's configured to always use the system host resolver.  Caller takes
+  // ownership of the returned Value.
+  virtual base::Value* GetDnsConfigAsValue() const;
 
  protected:
   HostResolver();

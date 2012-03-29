@@ -5,6 +5,7 @@
 #include "net/dns/dns_config_service.h"
 
 #include "base/logging.h"
+#include "base/values.h"
 #include "net/base/ip_endpoint.h"
 
 namespace net {
@@ -44,6 +45,30 @@ void DnsConfig::CopyIgnoreHosts(const DnsConfig& d) {
   attempts = d.attempts;
   rotate = d.rotate;
   edns0 = d.edns0;
+}
+
+base::Value* DnsConfig::ToValue() const {
+  DictionaryValue* dict = new DictionaryValue();
+
+  ListValue* list = new ListValue();
+  for (size_t i = 0; i < nameservers.size(); ++i)
+    list->Append(Value::CreateStringValue(nameservers[i].ToString()));
+  dict->Set("nameservers", list);
+
+  list = new ListValue();
+  for (size_t i = 0; i < search.size(); ++i)
+    list->Append(Value::CreateStringValue(search[i]));
+  dict->Set("search", list);
+
+  dict->SetBoolean("append_to_multi_label_name", append_to_multi_label_name);
+  dict->SetInteger("ndots", ndots);
+  dict->SetDouble("timeout", timeout.InSecondsF());
+  dict->SetInteger("attempts", attempts);
+  dict->SetBoolean("rotate", rotate);
+  dict->SetBoolean("edns0", edns0);
+  dict->SetInteger("num_hosts", hosts.size());
+
+  return dict;
 }
 
 
