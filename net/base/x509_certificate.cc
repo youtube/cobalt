@@ -303,14 +303,33 @@ X509Certificate* X509Certificate::CreateFromBytes(const char* data,
 X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
                                                    PickleIterator* pickle_iter,
                                                    PickleType type) {
-  OSCertHandle cert_handle = ReadOSCertHandleFromPickle(pickle, pickle_iter);
+  if (type == PICKLETYPE_CERTIFICATE_CHAIN_V3) {
+    int chain_length = 0;
+    if (!pickle_iter->ReadLength(&chain_length))
+      return NULL;
+
+    std::vector<base::StringPiece> cert_chain;
+    const char* data = NULL;
+    int data_length = 0;
+    for (int i = 0; i < chain_length; ++i) {
+      if (!pickle_iter->ReadData(&data, &data_length))
+        return NULL;
+      cert_chain.push_back(base::StringPiece(data, data_length));
+    }
+    return CreateFromDERCertChain(cert_chain);
+  }
+
+  // Legacy / Migration code. This should eventually be removed once
+  // sufficient time has passed that all pickles serialized prior to
+  // PICKLETYPE_CERTIFICATE_CHAIN_V3 have been removed.
+  OSCertHandle cert_handle = ReadOSCertHandleFromPickle(pickle_iter);
   if (!cert_handle)
     return NULL;
 
   OSCertHandles intermediates;
   uint32 num_intermediates = 0;
   if (type != PICKLETYPE_SINGLE_CERTIFICATE) {
-    if (!pickle.ReadUInt32(pickle_iter, &num_intermediates)) {
+    if (!pickle_iter->ReadUInt32(&num_intermediates)) {
       FreeOSCertHandle(cert_handle);
       return NULL;
     }
@@ -329,30 +348,27 @@ X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
     // bits of zeroes. Now we always write 32 bits, so after a while, these old
     // cached pickles will all get replaced.
     // TODO(mdm): remove this compatibility code in April 2013 or so.
-    if (type == PICKLETYPE_CERTIFICATE_CHAIN_OLD) {
-      PickleIterator saved_iter = *pickle_iter;
-      uint32 zero_check = 0;
-      if (!pickle.ReadUInt32(pickle_iter, &zero_check)) {
-        // This may not be an error. If there are no intermediates, and we're
-        // reading an old 32-bit pickle, and there's nothing else after this in
-        // the pickle, we should report success. Note that it is technically
-        // possible for us to skip over zeroes that should have occurred after
-        // an empty certificate list; to avoid this going forward, only do this
-        // backward-compatibility stuff for PICKLETYPE_CERTIFICATE_CHAIN_OLD
-        // which comes from the pickle version number in http_response_info.cc.
-        if (num_intermediates) {
-          FreeOSCertHandle(cert_handle);
-          return NULL;
-        }
+    PickleIterator saved_iter = *pickle_iter;
+    uint32 zero_check = 0;
+    if (!pickle_iter->ReadUInt32(&zero_check)) {
+      // This may not be an error. If there are no intermediates, and we're
+      // reading an old 32-bit pickle, and there's nothing else after this in
+      // the pickle, we should report success. Note that it is technically
+      // possible for us to skip over zeroes that should have occurred after
+      // an empty certificate list; to avoid this going forward, only do this
+      // backward-compatibility stuff for PICKLETYPE_CERTIFICATE_CHAIN_V1
+      // which comes from the pickle version number in http_response_info.cc.
+      if (num_intermediates) {
+        FreeOSCertHandle(cert_handle);
+        return NULL;
       }
-      if (zero_check)
-        *pickle_iter = saved_iter;
     }
+    if (zero_check)
+      *pickle_iter = saved_iter;
 #endif  // defined(OS_POSIX) && !defined(OS_MACOSX) && defined(__x86_64__)
 
     for (uint32 i = 0; i < num_intermediates; ++i) {
-      OSCertHandle intermediate = ReadOSCertHandleFromPickle(pickle,
-                                                             pickle_iter);
+      OSCertHandle intermediate = ReadOSCertHandleFromPickle(pickle_iter);
       if (!intermediate)
         break;
       intermediates.push_back(intermediate);
@@ -448,23 +464,17 @@ CertificateList X509Certificate::CreateCertificateListFromBytes(
 
 void X509Certificate::Persist(Pickle* pickle) {
   DCHECK(cert_handle_);
-  if (!WriteOSCertHandleToPickle(cert_handle_, pickle)) {
-    NOTREACHED();
-    return;
-  }
-
   // This would be an absolutely insane number of intermediates.
-  if (intermediate_ca_certs_.size() >= 0xFFFFFFFF) {
+  if (intermediate_ca_certs_.size() > static_cast<size_t>(INT_MAX) - 1) {
     NOTREACHED();
     return;
   }
-
-  if (!pickle->WriteUInt32(
-          static_cast<uint32>(intermediate_ca_certs_.size()))) {
+  if (!pickle->WriteInt(
+          static_cast<int>(intermediate_ca_certs_.size() + 1)) ||
+      !WriteOSCertHandleToPickle(cert_handle_, pickle)) {
     NOTREACHED();
     return;
   }
-
   for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i) {
     if (!WriteOSCertHandleToPickle(intermediate_ca_certs_[i], pickle)) {
       NOTREACHED();

@@ -18,6 +18,22 @@ using base::Time;
 
 namespace net {
 
+namespace {
+
+X509Certificate::PickleType GetPickleTypeForVersion(int version) {
+  switch (version) {
+    case 1:
+      return X509Certificate::PICKLETYPE_SINGLE_CERTIFICATE;
+    case 2:
+      return X509Certificate::PICKLETYPE_CERTIFICATE_CHAIN_V2;
+    case 3:
+    default:
+      return X509Certificate::PICKLETYPE_CERTIFICATE_CHAIN_V3;
+  }
+}
+
+}  // namespace
+
 // These values can be bit-wise combined to form the flags field of the
 // serialized HttpResponseInfo.
 enum {
@@ -148,10 +164,7 @@ bool HttpResponseInfo::InitFromPickle(const Pickle& pickle,
 
   // read ssl-info
   if (flags & RESPONSE_INFO_HAS_CERT) {
-    X509Certificate::PickleType type = (version == 1) ?
-        X509Certificate::PICKLETYPE_SINGLE_CERTIFICATE :
-        (version == 2) ? X509Certificate::PICKLETYPE_CERTIFICATE_CHAIN_OLD :
-                         X509Certificate::PICKLETYPE_CERTIFICATE_CHAIN;
+    X509Certificate::PickleType type = GetPickleTypeForVersion(version);
     ssl_info.cert = X509Certificate::CreateFromPickle(pickle, &iter, type);
     if (!ssl_info.cert)
       return false;

@@ -413,11 +413,10 @@ bool X509Certificate::IsSameOSCert(X509Certificate::OSCertHandle a,
 
 // static
 X509Certificate::OSCertHandle
-X509Certificate::ReadOSCertHandleFromPickle(const Pickle& pickle,
-                                            PickleIterator* pickle_iter) {
+X509Certificate::ReadOSCertHandleFromPickle(PickleIterator* pickle_iter) {
   const char* data;
   int length;
-  if (!pickle.ReadData(pickle_iter, &data, &length))
+  if (!pickle_iter->ReadData(&data, &length))
     return NULL;
 
   return CreateOSCertHandleFromBytes(data, length);
