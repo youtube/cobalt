@@ -50,7 +50,8 @@ AUAudioOutputStream::AUAudioOutputStream(
       output_unit_(0),
       output_device_id_(kAudioObjectUnknown),
       volume_(1),
-      hardware_latency_frames_(0) {
+      hardware_latency_frames_(0),
+      stopped_(false) {
   // We must have a manager.
   DCHECK(manager_);
   // A frame is one sample across all channels. In interleaved audio the per
@@ -178,6 +179,7 @@ void AUAudioOutputStream::Start(AudioSourceCallback* callback) {
   if (!output_unit_)
     return;
 
+  stopped_ = false;
   source_ = callback;
 
   AudioOutputUnitStart(output_unit_);
@@ -186,9 +188,13 @@ void AUAudioOutputStream::Start(AudioSourceCallback* callback) {
 void AUAudioOutputStream::Stop() {
   // We request a synchronous stop, so the next call can take some time. In
   // the windows implementation we block here as well.
-  source_ = NULL;
+  if (stopped_)
+    return;
 
   AudioOutputUnitStop(output_unit_);
+
+  source_ = NULL;
+  stopped_ = true;
 }
 
 void AUAudioOutputStream::SetVolume(double volume) {
