@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -151,19 +151,20 @@ struct ResolutionDiff {
   media::VideoCaptureDevice::Format color;
 };
 
-bool CompareHeight(ResolutionDiff item1, ResolutionDiff item2) {
+bool CompareHeight(const ResolutionDiff& item1, const ResolutionDiff& item2) {
   return abs(item1.diff_height) < abs(item2.diff_height);
 }
 
-bool CompareWidth(ResolutionDiff item1, ResolutionDiff item2) {
+bool CompareWidth(const ResolutionDiff& item1, const ResolutionDiff& item2) {
   return abs(item1.diff_width) < abs(item2.diff_width);
 }
 
-bool CompareFrameRate(ResolutionDiff item1, ResolutionDiff item2) {
+bool CompareFrameRate(const ResolutionDiff& item1,
+                      const ResolutionDiff& item2) {
   return abs(item1.diff_frame_rate) < abs(item2.diff_frame_rate);
 }
 
-bool CompareColor(ResolutionDiff item1, ResolutionDiff item2) {
+bool CompareColor(const ResolutionDiff& item1, const ResolutionDiff& item2) {
   return (item1.color < item2.color);
 }
 
