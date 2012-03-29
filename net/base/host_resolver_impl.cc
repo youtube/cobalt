@@ -316,31 +316,13 @@ class DnsConfigParameters : public NetLog::EventParameters {
   }
 
   virtual Value* ToValue() const OVERRIDE {
-    DictionaryValue* dict = new DictionaryValue();
-
-    ListValue* list = new ListValue();
-    for (size_t i = 0; i < config_.nameservers.size(); ++i) {
-      list->Append(Value::CreateStringValue(
-          config_.nameservers[i].ToString()));
-    }
-    dict->Set("nameservers", list);
-
-    list = new ListValue();
-    for (size_t i = 0; i < config_.search.size(); ++i) {
-      list->Append(Value::CreateStringValue(config_.search[i]));
-    }
-    dict->Set("search", list);
-
-    dict->SetBoolean("append_to_multi_label_name",
-                     config_.append_to_multi_label_name);
-    dict->SetInteger("ndots", config_.ndots);
-    dict->SetDouble("timeout", config_.timeout.InSecondsF());
-    dict->SetInteger("attempts", config_.attempts);
-    dict->SetBoolean("rotate", config_.rotate);
-    dict->SetBoolean("edns0", config_.edns0);
-    dict->SetInteger("num_hosts", num_hosts_);
-
-    return dict;
+    Value* value = config_.ToValue();
+    if (!value)
+      return NULL;
+    DictionaryValue* dict;
+    if (value->GetAsDictionary(&dict))
+      dict->SetInteger("num_hosts", num_hosts_);
+    return value;
   }
 
  private:
@@ -1716,6 +1698,20 @@ void HostResolverImpl::ProbeIPv6Support() {
 
 HostCache* HostResolverImpl::GetHostCache() {
   return cache_.get();
+}
+
+base::Value* HostResolverImpl::GetDnsConfigAsValue() const {
+  // Check if async DNS is disabled.
+  if (!dns_client_.get())
+    return NULL;
+
+  // Check if async DNS is enabled, but we currently have no configuration
+  // for it.
+  const DnsConfig* dns_config = dns_client_->GetConfig();
+  if (dns_config == NULL)
+    return new DictionaryValue();
+
+  return dns_config->ToValue();
 }
 
 bool HostResolverImpl::ResolveAsIP(const Key& key,
