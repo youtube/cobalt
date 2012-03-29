@@ -143,6 +143,7 @@ class NET_EXPORT HostResolverImpl
   virtual AddressFamily GetDefaultAddressFamily() const OVERRIDE;
   virtual void ProbeIPv6Support() OVERRIDE;
   virtual HostCache* GetHostCache() OVERRIDE;
+  virtual base::Value* GetDnsConfigAsValue() const OVERRIDE;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(HostResolverImplTest,
