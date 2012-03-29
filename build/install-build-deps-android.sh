@@ -70,7 +70,7 @@ then
   fi
 fi
 
-# Install ant
-sudo apt-get install ant
+# Install ant 1.8 (default is 1.7).
+sudo apt-get install ant1.8
 
 echo "install-build-deps-android.sh complete."
