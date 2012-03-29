@@ -380,42 +380,48 @@ SHA1Fingerprint X509Certificate::CalculateCAFingerprint(
 
 // static
 X509Certificate::OSCertHandle
-X509Certificate::ReadOSCertHandleFromPickle(const Pickle& pickle,
-                                            PickleIterator* pickle_iter) {
+X509Certificate::ReadOSCertHandleFromPickle(PickleIterator* pickle_iter) {
   const char* data;
   int length;
-  if (!pickle.ReadData(pickle_iter, &data, &length))
+  if (!pickle_iter->ReadData(&data, &length))
+    return NULL;
+
+  // Legacy serialized certificates were serialized with extended attributes,
+  // rather than as DER only. As a result, these serialized certificates are
+  // not portable across platforms and may have side-effects on Windows due
+  // to extended attributes being serialized/deserialized -
+  // http://crbug.com/118706. To avoid deserializing these attributes, write
+  // the deserialized cert into a temporary cert store and then create a new
+  // cert from the DER - that is, without attributes.
+  ScopedHCERTSTORE store(
+      CertOpenStore(CERT_STORE_PROV_MEMORY, 0, NULL, 0, NULL));
+  if (!store.get())
     return NULL;
 
   OSCertHandle cert_handle = NULL;
   if (!CertAddSerializedElementToStore(
-          NULL, reinterpret_cast<const BYTE*>(data), length,
-          CERT_STORE_ADD_USE_EXISTING, 0, CERT_STORE_CERTIFICATE_CONTEXT_FLAG,
+          store.get(), reinterpret_cast<const BYTE*>(data), length,
+          CERT_STORE_ADD_NEW, 0, CERT_STORE_CERTIFICATE_CONTEXT_FLAG,
           NULL, reinterpret_cast<const void **>(&cert_handle))) {
     return NULL;
   }
 
+  std::string encoded;
+  bool ok = GetDEREncoded(cert_handle, &encoded);
+  FreeOSCertHandle(cert_handle);
+  cert_handle = NULL;
+
+  if (ok)
+    cert_handle = CreateOSCertHandleFromBytes(encoded.data(), encoded.size());
   return cert_handle;
 }
 
 // static
 bool X509Certificate::WriteOSCertHandleToPickle(OSCertHandle cert_handle,
                                                 Pickle* pickle) {
-  DWORD length = 0;
-  if (!CertSerializeCertificateStoreElement(cert_handle, 0, NULL, &length))
-    return false;
-
-  std::vector<BYTE> buffer(length);
-  // Serialize |cert_handle| in a way that will preserve any extended
-  // attributes set on the handle, such as the location to the certificate's
-  // private key.
-  if (!CertSerializeCertificateStoreElement(cert_handle, 0, &buffer[0],
-                                            &length)) {
-    return false;
-  }
-
-  return pickle->WriteData(reinterpret_cast<const char*>(&buffer[0]),
-                           length);
+  return pickle->WriteData(
+      reinterpret_cast<char*>(cert_handle->pbCertEncoded),
+      cert_handle->cbCertEncoded);
 }
 
 // static
