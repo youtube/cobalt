@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/bind.h"
+#include "base/bind_helpers.h"
 #include "media/audio/test_audio_input_controller_factory.h"
 #include "media/audio/audio_io.h"
 
@@ -24,7 +26,9 @@ TestAudioInputController::~TestAudioInputController() {
 }
 
 void TestAudioInputController::Close(const base::Closure& closed_task) {
-  message_loop_->PostTask(FROM_HERE, closed_task);
+  message_loop_->PostTaskAndReply(FROM_HERE,
+                                  base::Bind(&base::DoNothing),
+                                  closed_task);
 }
 
 TestAudioInputControllerFactory::TestAudioInputControllerFactory()
