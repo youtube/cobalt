@@ -93,6 +93,9 @@ class AUAudioOutputStream : public AudioOutputStream {
   // Fixed playout hardware latency in frames.
   double hardware_latency_frames_;
 
+  // The flag used to stop the streaming.
+  bool stopped_;
+
   DISALLOW_COPY_AND_ASSIGN(AUAudioOutputStream);
 };
 
