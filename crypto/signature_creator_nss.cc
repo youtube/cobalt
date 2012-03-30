@@ -70,7 +70,9 @@ bool SignatureCreator::Final(std::vector<uint8>* signature) {
   return true;
 }
 
-SignatureCreator::SignatureCreator() : sign_context_(NULL) {
+SignatureCreator::SignatureCreator()
+    : key_(NULL),
+      sign_context_(NULL) {
   EnsureNSSInit();
 }
 
