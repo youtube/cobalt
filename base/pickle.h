@@ -257,14 +257,15 @@ class BASE_EXPORT Pickle {
     return static_cast<const T*>(header_);
   }
 
- protected:
+  // The payload is the pickle data immediately following the header.
   size_t payload_size() const { return header_->payload_size; }
-
-  char* payload() {
-    return reinterpret_cast<char*>(header_) + header_size_;
-  }
   const char* payload() const {
     return reinterpret_cast<const char*>(header_) + header_size_;
+  }
+
+ protected:
+  char* payload() {
+    return reinterpret_cast<char*>(header_) + header_size_;
   }
 
   // Returns the address of the byte immediately following the currently valid
