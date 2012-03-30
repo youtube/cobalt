@@ -167,10 +167,11 @@ PipelineIntegrationTestBase::CreateFilterCollection(
       base::Bind(&MessageLoopFactory::GetMessageLoop,
                  base::Unretained(message_loop_factory_.get()),
                  "AudioDecoderThread")));
-  collection->AddVideoDecoder(new FFmpegVideoDecoder(
+  decoder_ = new FFmpegVideoDecoder(
       base::Bind(&MessageLoopFactory::GetMessageLoop,
                  base::Unretained(message_loop_factory_.get()),
-                 "VideoDecoderThread")));
+                 "VideoDecoderThread"));
+  collection->AddVideoDecoder(decoder_);
   renderer_ = new VideoRendererBase(
       base::Bind(&PipelineIntegrationTestBase::OnVideoRendererPaint,
                  base::Unretained(this)),

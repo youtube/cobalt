@@ -38,9 +38,9 @@ static const gfx::Rect kVisibleRect(320, 240);
 static const gfx::Size kNaturalSize(522, 288);
 static const AVRational kFrameRate = { 100, 1 };
 static const AVRational kAspectRatio = { 1, 1 };
-static const int kKeySize = 16;
 static const unsigned char kRawKey[] = "A wonderful key!";
 static const unsigned char kWrongKey[] = "I'm a wrong key.";
+static const unsigned char kKeyId[] = "A normal key ID.";
 
 ACTION_P(ReturnBuffer, buffer) {
   arg0.Run(buffer);
@@ -363,13 +363,14 @@ TEST_F(FFmpegVideoDecoderTest, DecodeFrame_SmallerHeight) {
   DecodeIFrameThenTestFile("vp8-I-frame-320x120", 320, 120);
 }
 
-// TODO(xhwang): Enable this test when AddKey is integrated into pipeline.
-TEST_F(FFmpegVideoDecoderTest, DISABLED_DecodeEncryptedFrame_Normal) {
+TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_Normal) {
   Initialize();
+  decoder_->decryptor()->AddKey(kKeyId, arraysize(kKeyId) - 1,
+                                kRawKey, arraysize(kRawKey) - 1);
 
   // Simulate decoding a single encrypted frame.
-  encrypted_i_frame_buffer_->SetDecryptConfig(
-      scoped_ptr<DecryptConfig>(new DecryptConfig(kRawKey, kKeySize)));
+  encrypted_i_frame_buffer_->SetDecryptConfig(scoped_ptr<DecryptConfig>(
+      new DecryptConfig(kKeyId, arraysize(kKeyId) - 1)));
   scoped_refptr<VideoFrame> video_frame;
   DecodeSingleFrame(encrypted_i_frame_buffer_, &video_frame);
 
@@ -402,13 +403,23 @@ TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_NoKey) {
   message_loop_.RunAllPending();
 }
 
-// Test decrypting a encrypted frame with a wrong key.
+// Test decrypting an encrypted frame with a wrong key.
 TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_WrongKey) {
   Initialize();
+  decoder_->decryptor()->AddKey(kKeyId, arraysize(kKeyId) - 1,
+                                kWrongKey, arraysize(kWrongKey) - 1);
 
-  encrypted_i_frame_buffer_->SetDecryptConfig(
-      scoped_ptr<DecryptConfig>(new DecryptConfig(kWrongKey, kKeySize)));
+#if defined(OS_LINUX)
+  // Using the wrong key on linux doesn't cause an decryption error but actually
+  // attempts to decode the content, however we're unable to distinguish between
+  // the two.
+  //
+  // TODO(xhwang): Add a decryption error code, see http://crbug.com/121177
+  EXPECT_CALL(statistics_cb_, OnStatistics(_));
+#endif
 
+  encrypted_i_frame_buffer_->SetDecryptConfig(scoped_ptr<DecryptConfig>(
+      new DecryptConfig(kKeyId, arraysize(kKeyId) - 1)));
   EXPECT_CALL(*demuxer_, Read(_))
       .WillRepeatedly(ReturnBuffer(encrypted_i_frame_buffer_));
 
