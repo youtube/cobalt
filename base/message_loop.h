@@ -554,6 +554,7 @@ class BASE_EXPORT MessageLoopForUI : public MessageLoop {
   // Returns the MessageLoopForUI of the current thread.
   static MessageLoopForUI* current() {
     MessageLoop* loop = MessageLoop::current();
+    DCHECK(loop);
     DCHECK_EQ(MessageLoop::TYPE_UI, loop->type());
     return static_cast<MessageLoopForUI*>(loop);
   }
