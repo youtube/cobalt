@@ -583,6 +583,8 @@ ssl_canExtractMS(PK11SymKey *pms, PRBool isTLS, PRBool isDH, PRBool *pcbp)
  * arguments were all valid but the slot cannot be bypassed.
  */
 
+/* XXX Add SSL_CBP_TLS1_1 and test it in protocolmask when setting isTLS. */
+
 SECStatus 
 SSL_CanBypass(CERTCertificate *cert, SECKEYPrivateKey *srvPrivkey,
 	      PRUint32 protocolmask, PRUint16 *ciphersuites, int nsuites,

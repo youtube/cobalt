@@ -50,7 +50,7 @@
  *
  * returns  1 if received a complete SSL3 record.
  * returns  0 if recv returns EOF
- * returns -1 if recv returns <0  
+ * returns -1 if recv returns < 0  
  *	(The error value may have already been set to PR_WOULD_BLOCK_ERROR)
  *
  * Caller must hold the recv buf lock.
@@ -59,7 +59,8 @@
  * GS_HEADER: waiting for the 5-byte SSL3 record header to come in.
  * GS_DATA:   waiting for the body of the SSL3 record   to come in.
  *
- * This loop returns when either (a) an error or EOF occurs, 
+ * This loop returns when either
+ *      (a) an error or EOF occurs,
  *	(b) PR_WOULD_BLOCK_ERROR,
  * 	(c) data (entire SSL3 record) has been received.
  */
@@ -167,6 +168,125 @@ ssl3_GatherData(sslSocket *ss, sslGather *gs, int flags)
     return rv;
 }
 
+/*
+ * Read in an entire DTLS record.
+ *
+ * Blocks here for blocking sockets, otherwise returns -1 with
+ * 	PR_WOULD_BLOCK_ERROR when socket would block.
+ *
+ * This is simpler than SSL because we are reading on a datagram socket
+ * and datagrams must contain >=1 complete records.
+ *
+ * returns  1 if received a complete DTLS record.
+ * returns  0 if recv returns EOF
+ * returns -1 if recv returns < 0
+ *	(The error value may have already been set to PR_WOULD_BLOCK_ERROR)
+ *
+ * Caller must hold the recv buf lock.
+ *
+ * This loop returns when either
+ *      (a) an error or EOF occurs,
+ *	(b) PR_WOULD_BLOCK_ERROR,
+ * 	(c) data (entire DTLS record) has been received.
+ */
+static int
+dtls_GatherData(sslSocket *ss, sslGather *gs, int flags)
+{
+    int            nb;
+    int            err;
+    int            rv		= 1;
+
+    SSL_TRC(30, ("dtls_GatherData"));
+
+    PORT_Assert( ss->opt.noLocks || ssl_HaveRecvBufLock(ss) );
+
+    gs->state = GS_HEADER;
+    gs->offset = 0;
+
+    if (gs->dtlsPacketOffset == gs->dtlsPacket.len) {  /* No data left */
+        gs->dtlsPacketOffset = 0;
+        gs->dtlsPacket.len = 0;
+
+        /* Resize to the maximum possible size so we can fit a full datagram */
+	/* This is the max fragment length for an encrypted fragment
+	** plus the size of the record header.
+	** This magic constant is copied from ssl3_GatherData, with 5 changed
+	** to 13 (the size of the record header).
+	*/
+        if (gs->dtlsPacket.space < MAX_FRAGMENT_LENGTH + 2048 + 13) {
+            err = sslBuffer_Grow(&gs->dtlsPacket,
+				 MAX_FRAGMENT_LENGTH + 2048 + 13);
+            if (err) {	/* realloc has set error code to no mem. */
+                return err;
+            }
+        }
+
+        /* recv() needs to read a full datagram at a time */
+        nb = ssl_DefRecv(ss, gs->dtlsPacket.buf, gs->dtlsPacket.space, flags);
+
+        if (nb > 0) {
+            PRINT_BUF(60, (ss, "raw gather data:", gs->dtlsPacket.buf, nb));
+        } else if (nb == 0) {
+            /* EOF */
+            SSL_TRC(30, ("%d: SSL3[%d]: EOF", SSL_GETPID(), ss->fd));
+            rv = 0;
+            return rv;
+        } else /* if (nb < 0) */ {
+            SSL_DBG(("%d: SSL3[%d]: recv error %d", SSL_GETPID(), ss->fd,
+                     PR_GetError()));
+            rv = SECFailure;
+            return rv;
+        }
+
+        gs->dtlsPacket.len = nb;
+    }
+
+    /* At this point we should have >=1 complete records lined up in
+     * dtlsPacket. Read off the header.
+     */
+    if ((gs->dtlsPacket.len - gs->dtlsPacketOffset) < 13) {
+        SSL_DBG(("%d: SSL3[%d]: rest of DTLS packet "
+		 "too short to contain header", SSL_GETPID(), ss->fd));
+        PR_SetError(PR_WOULD_BLOCK_ERROR, 0);
+        gs->dtlsPacketOffset = 0;
+        gs->dtlsPacket.len = 0;
+        rv = SECFailure;
+        return rv;
+    }
+    memcpy(gs->hdr, gs->dtlsPacket.buf + gs->dtlsPacketOffset, 13);
+    gs->dtlsPacketOffset += 13;
+
+    /* Have received SSL3 record header in gs->hdr. */
+    gs->remainder = (gs->hdr[11] << 8) | gs->hdr[12];
+
+    if ((gs->dtlsPacket.len - gs->dtlsPacketOffset) < gs->remainder) {
+        SSL_DBG(("%d: SSL3[%d]: rest of DTLS packet too short "
+		 "to contain rest of body", SSL_GETPID(), ss->fd));
+        PR_SetError(PR_WOULD_BLOCK_ERROR, 0);
+        gs->dtlsPacketOffset = 0;
+        gs->dtlsPacket.len = 0;
+        rv = SECFailure;
+        return rv;
+    }
+
+    /* OK, we have at least one complete packet, copy into inbuf */
+    if (gs->remainder > gs->inbuf.space) {
+	err = sslBuffer_Grow(&gs->inbuf, gs->remainder);
+	if (err) {	/* realloc has set error code to no mem. */
+	    return err;
+	}
+    }
+
+    memcpy(gs->inbuf.buf, gs->dtlsPacket.buf + gs->dtlsPacketOffset,
+	   gs->remainder);
+    gs->inbuf.len = gs->remainder;
+    gs->offset = gs->remainder;
+    gs->dtlsPacketOffset += gs->remainder;
+    gs->state = GS_INIT;
+
+    return 1;
+}
+
 /* Gather in a record and when complete, Handle that record.
  * Repeat this until the handshake is complete, 
  * or until application data is available.
@@ -189,6 +309,8 @@ ssl3_GatherCompleteHandshake(sslSocket *ss, int flags)
     SSL3Ciphertext cText;
     int            rv;
     PRBool         canFalseStart = PR_FALSE;
+
+    SSL_TRC(30, ("ssl3_GatherCompleteHandshake"));
 
     PORT_Assert( ss->opt.noLocks || ssl_HaveRecvBufLock(ss) );
     do {
@@ -224,7 +346,24 @@ ssl3_GatherCompleteHandshake(sslSocket *ss, int flags)
 	    rv = ssl3_HandleRecord(ss, NULL, &ss->gs.buf);
 	} else {
 	    /* bring in the next sslv3 record. */
-	    rv = ssl3_GatherData(ss, &ss->gs, flags);
+	    if (!IS_DTLS(ss)) {
+		rv = ssl3_GatherData(ss, &ss->gs, flags);
+	    } else {
+		rv = dtls_GatherData(ss, &ss->gs, flags);
+		
+		/* If we got a would block error, that means that no data was
+		 * available, so we check the timer to see if it's time to
+		 * retransmit */
+		if (rv == SECFailure &&
+		    (PORT_GetError() == PR_WOULD_BLOCK_ERROR)) {
+		    ssl_GetSSL3HandshakeLock(ss);
+		    dtls_CheckTimer(ss);
+		    ssl_ReleaseSSL3HandshakeLock(ss);
+		    /* Restore the error in case something succeeded */
+		    PORT_SetError(PR_WOULD_BLOCK_ERROR);
+		}
+	    }
+
 	    if (rv <= 0) {
 		return rv;
 	    }
@@ -236,6 +375,20 @@ ssl3_GatherCompleteHandshake(sslSocket *ss, int flags)
 	     */
 	    cText.type    = (SSL3ContentType)ss->gs.hdr[0];
 	    cText.version = (ss->gs.hdr[1] << 8) | ss->gs.hdr[2];
+
+	    if (IS_DTLS(ss)) {
+		int i;
+
+		cText.version = dtls_DTLSVersionToTLSVersion(cText.version);
+		/* DTLS sequence number */
+		cText.seq_num.high = 0; cText.seq_num.low = 0;
+		for (i = 0; i < 4; i++) {
+		    cText.seq_num.high <<= 8; cText.seq_num.low <<= 8;
+		    cText.seq_num.high |= ss->gs.hdr[3 + i];
+		    cText.seq_num.low |= ss->gs.hdr[7 + i];
+		}
+	    }
+
 	    cText.buf     = &ss->gs.inbuf;
 	    rv = ssl3_HandleRecord(ss, &cText, &ss->gs.buf);
 	}
