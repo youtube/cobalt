@@ -80,6 +80,12 @@ SSL_IMPORT PRUint16 SSL_GetNumImplementedCiphers(void);
 SSL_IMPORT PRFileDesc *SSL_ImportFD(PRFileDesc *model, PRFileDesc *fd);
 
 /*
+** Imports fd into DTLS, returning a new socket.  Copies DTLS configuration
+** from model.
+*/
+SSL_IMPORT PRFileDesc *DTLS_ImportFD(PRFileDesc *model, PRFileDesc *fd);
+
+/*
 ** Enable/disable an ssl mode
 **
 ** 	SSL_SECURITY:
@@ -940,6 +946,14 @@ SSL_IMPORT SECStatus SSL_HandshakeNegotiatedExtension(PRFileDesc * socket,
 
 SSL_IMPORT SECStatus SSL_HandshakeResumedSession(PRFileDesc *fd,
                                                  PRBool *last_handshake_resumed);
+
+/*
+** How long should we wait before retransmitting the next flight of
+** the DTLS handshake? Returns SECFailure if not DTLS or not in a
+** handshake.
+*/
+SSL_IMPORT SECStatus DTLS_GetTimeout(PRFileDesc *socket,
+                                     PRIntervalTime *timeout);
 
 /*
  * Return a boolean that indicates whether the underlying library
