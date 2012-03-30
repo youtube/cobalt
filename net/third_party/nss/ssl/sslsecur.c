@@ -615,6 +615,7 @@ DoRecv(sslSocket *ss, unsigned char *out, int len, int flags)
     if (!(flags & PR_MSG_PEEK)) {
 	ss->gs.readOffset += amount;
     }
+    PORT_Assert(ss->gs.readOffset <= ss->gs.writeOffset);
     rv = amount;
 
     SSL_TRC(30, ("%d: SSL[%d]: amount=%d available=%d",

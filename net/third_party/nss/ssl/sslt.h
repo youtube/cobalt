@@ -190,7 +190,8 @@ typedef struct SSLCipherSuiteInfoStr {
 } SSLCipherSuiteInfo;
 
 typedef enum {
-    ssl_variant_stream = 0
+    ssl_variant_stream = 0,
+    ssl_variant_datagram = 1
 } SSLProtocolVariant;
 
 typedef struct SSLVersionRangeStr {
