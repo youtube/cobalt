@@ -38,6 +38,8 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   virtual void Read(const ReadCB& read_cb) OVERRIDE;
   virtual const gfx::Size& natural_size() OVERRIDE;
 
+  AesDecryptor* decryptor();
+
  private:
   enum DecoderState {
     kUninitialized,

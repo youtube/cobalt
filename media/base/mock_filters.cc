@@ -179,8 +179,7 @@ void RunStopFilterCallback(const base::Closure& closure) {
   closure.Run();
 }
 
-MockFilter::MockFilter() {
-}
+MockFilter::MockFilter() {}
 
 MockFilter::~MockFilter() {}
 

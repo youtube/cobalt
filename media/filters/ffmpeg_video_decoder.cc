@@ -196,6 +196,10 @@ const gfx::Size& FFmpegVideoDecoder::natural_size() {
   return natural_size_;
 }
 
+AesDecryptor* FFmpegVideoDecoder::decryptor() {
+  return &decryptor_;
+}
+
 void FFmpegVideoDecoder::DoRead(const ReadCB& read_cb) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(!read_cb.is_null());
@@ -282,6 +286,7 @@ void FFmpegVideoDecoder::DoDecodeBuffer(const scoped_refptr<Buffer>& buffer) {
   scoped_refptr<Buffer> unencrypted_buffer = buffer;
   if (buffer->GetDecryptConfig() && buffer->GetDataSize()) {
     unencrypted_buffer = decryptor_.Decrypt(buffer);
+    // TODO(xhwang): Add a decryption error code, see http://crbug.com/121177
     if (!unencrypted_buffer || !unencrypted_buffer->GetDataSize()) {
       state_ = kDecodeFinished;
       DeliverFrame(VideoFrame::CreateEmptyFrame());
