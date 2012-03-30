@@ -2842,12 +2842,12 @@
           },
           'VCMIDLTool': {
             'GenerateStublessProxies': 'true',
-            'TypeLibraryName': '$(InputName).tlb',
-            'OutputDirectory': '$(IntDir)',
-            'HeaderFileName': '$(InputName).h',
-            'DLLDataFileName': 'dlldata.c',
-            'InterfaceIdentifierFileName': '$(InputName)_i.c',
-            'ProxyFileName': '$(InputName)_p.c',
+            'TypeLibraryName': '<(RULE_INPUT_NAME).tlb',
+            'OutputDirectory': '<(INTERMEDIATE_DIR)',
+            'HeaderFileName': '<(RULE_INPUT_NAME).h',
+            'DLLDataFileName': '<(RULE_INPUT_NAME).dlldata.c',
+            'InterfaceIdentifierFileName': '<(RULE_INPUT_NAME)_i.c',
+            'ProxyFileName': '<(RULE_INPUT_NAME)_p.c',
           },
           'VCResourceCompilerTool': {
             'Culture' : '1033',
