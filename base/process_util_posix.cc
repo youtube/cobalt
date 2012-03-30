@@ -802,8 +802,8 @@ bool EnableInProcessStackDumping() {
   // to be ignored.  Therefore, when testing that same code, it should run
   // with SIGPIPE ignored as well.
   struct sigaction action;
+  memset(&action, 0, sizeof(action));
   action.sa_handler = SIG_IGN;
-  action.sa_flags = 0;
   sigemptyset(&action.sa_mask);
   bool success = (sigaction(SIGPIPE, &action, NULL) == 0);
 
