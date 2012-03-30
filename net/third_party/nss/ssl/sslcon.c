@@ -1249,7 +1249,12 @@ ssl_GatherRecord1stHandshake(sslSocket *ss)
 
     ssl_GetRecvBufLock(ss);
 
-    if (ss->version >= SSL_LIBRARY_VERSION_3_0) {
+    /* The special case DTLS logic is needed here because the SSL/TLS
+     * version wants to auto-detect SSL2 vs. SSL3 on the initial handshake
+     * (ss->version == 0) but with DTLS it gets confused, so we force the
+     * SSL3 version.
+     */
+    if ((ss->version >= SSL_LIBRARY_VERSION_3_0) || IS_DTLS(ss)) {
 	/* Wait for handshake to complete, or application data to arrive.  */
 	rv = ssl3_GatherCompleteHandshake(ss, 0);
     } else {
@@ -3120,7 +3125,7 @@ ssl2_BeginClientHandshake(sslSocket *ss)
 
 	ssl_GetSSL3HandshakeLock(ss);
 	ssl_GetXmitBufLock(ss);
-	rv =  ssl3_SendClientHello(ss);
+	rv =  ssl3_SendClientHello(ss, PR_FALSE);
 	ssl_ReleaseXmitBufLock(ss);
 	ssl_ReleaseSSL3HandshakeLock(ss);
 
