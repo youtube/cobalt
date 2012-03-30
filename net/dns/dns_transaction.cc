@@ -11,6 +11,7 @@
 #include "base/bind.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/memory/scoped_vector.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
 #include "base/rand_util.h"
@@ -138,7 +139,7 @@ class DnsUDPAttempt {
   };
 
   int DoLoop(int result) {
-    DCHECK_NE(STATE_NONE, next_state_);
+    CHECK_NE(STATE_NONE, next_state_);
     int rv = result;
     do {
       State state = next_state_;
@@ -225,6 +226,7 @@ class DnsUDPAttempt {
     if (response_->rcode() != dns_protocol::kRcodeNOERROR)
       return ERR_DNS_SERVER_FAILED;
 
+    CHECK(response());
     return OK;
   }
 
@@ -255,7 +257,9 @@ class DnsUDPAttempt {
 // The first server to attempt on each query is given by
 // DnsSession::NextFirstServerIndex, and the order is round-robin afterwards.
 // Each server is attempted DnsConfig::attempts times.
-class DnsTransactionImpl : public DnsTransaction, public base::NonThreadSafe {
+class DnsTransactionImpl : public DnsTransaction,
+                           public base::NonThreadSafe,
+                           public base::SupportsWeakPtr<DnsTransactionImpl> {
  public:
   DnsTransactionImpl(DnsSession* session,
                      const std::string& hostname,
@@ -279,7 +283,6 @@ class DnsTransactionImpl : public DnsTransaction, public base::NonThreadSafe {
       net_log_.EndEventWithNetErrorCode(NetLog::TYPE_DNS_TRANSACTION,
                                         ERR_ABORTED);
     }  // otherwise logged in DoCallback or Start
-    STLDeleteElements(&attempts_);
   }
 
   virtual const std::string& GetHostname() const OVERRIDE {
@@ -301,16 +304,18 @@ class DnsTransactionImpl : public DnsTransaction, public base::NonThreadSafe {
     if (rv == OK)
       rv = StartQuery();
     if (rv == OK) {
+      DnsUDPAttempt* attempt = attempts_->back();
+      CHECK(attempt->response());
+
       // In the very unlikely case that we immediately received the response, we
       // cannot simply return OK nor run the callback, but instead complete
       // asynchronously.
-      // TODO(szym): replace Unretained with WeakPtr factory.
       MessageLoop::current()->PostTask(
           FROM_HERE,
           base::Bind(&DnsTransactionImpl::DoCallback,
-                     base::Unretained(this),
+                     AsWeakPtr(),
                      OK,
-                     attempts_.back()));
+                     attempt->response()));
       return ERR_IO_PENDING;
     }
     if (rv != ERR_IO_PENDING) {
@@ -370,18 +375,18 @@ class DnsTransactionImpl : public DnsTransaction, public base::NonThreadSafe {
     return qnames_.empty() ? ERR_NAME_NOT_RESOLVED : OK;
   }
 
-  void DoCallback(int rv, const DnsUDPAttempt* successful_attempt) {
+  void DoCallback(int rv, const DnsResponse* response) {
     if (callback_.is_null())
       return;
     DCHECK_NE(ERR_IO_PENDING, rv);
-    DCHECK(rv != OK || successful_attempt != NULL);
+    CHECK(rv != OK || response != NULL);
 
     DnsTransactionFactory::CallbackType callback = callback_;
     callback_.Reset();
     net_log_.EndEventWithNetErrorCode(NetLog::TYPE_DNS_TRANSACTION, rv);
     callback.Run(this,
                  rv,
-                 successful_attempt ? successful_attempt->response() : NULL);
+                 response);
   }
 
   // Makes another attempt at the current name, |qnames_.front()|, using the
@@ -444,7 +449,7 @@ class DnsTransactionImpl : public DnsTransaction, public base::NonThreadSafe {
 
     first_server_index_ = session_->NextFirstServerIndex();
 
-    STLDeleteElements(&attempts_);
+    attempts_.reset();
     return MakeAttempt();
   }
 
@@ -475,7 +480,7 @@ class DnsTransactionImpl : public DnsTransaction, public base::NonThreadSafe {
           rv = StartQuery();
         break;
       case OK:
-        DoCallback(rv, attempt);
+        DoCallback(rv, attempt->response());
         return;
       default:
         // Some nameservers could fail so try the next one.
@@ -515,7 +520,7 @@ class DnsTransactionImpl : public DnsTransaction, public base::NonThreadSafe {
   std::deque<std::string> qnames_;
 
   // List of attempts for the current name.
-  std::vector<DnsUDPAttempt*> attempts_;
+  ScopedVector<DnsUDPAttempt> attempts_;
 
   // Index of the first server to try on each search query.
   int first_server_index_;
