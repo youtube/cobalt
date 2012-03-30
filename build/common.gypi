@@ -262,6 +262,9 @@
       # Enable plug-in installation by default.
       'enable_plugin_installation%': 1,
 
+      # Enable protector service by default.
+      'enable_protector_service%': 1,
+
       # Specifies whether to use canvas_skia.cc in place of platform
       # specific implementations of gfx::Canvas. Affects text drawing in the
       # Chrome UI.
@@ -397,6 +400,12 @@
           'enable_plugin_installation%': 1,
         }],
 
+        ['OS=="android"', {
+          'enable_protector_service%': 0,
+        }, {
+          'enable_protector_service%': 1,
+        }],
+
         # linux_use_gold_binary: whether to use the binary checked into
         # third_party/gold.
         ['OS=="linux"', {
@@ -487,6 +496,7 @@
     'enable_web_intents%': '<(enable_web_intents)',
     'enable_web_intents_tag%': '<(enable_web_intents_tag)',
     'enable_plugin_installation%': '<(enable_plugin_installation)',
+    'enable_protector_service%': '<(enable_protector_service)',
     'enable_themes%': '<(enable_themes)',
     'linux_use_gold_binary%': '<(linux_use_gold_binary)',
     'linux_use_gold_flags%': '<(linux_use_gold_flags)',
@@ -1358,6 +1368,9 @@
       }],
       ['enable_plugin_installation==1', {
         'defines': ['ENABLE_PLUGIN_INSTALLATION=1'],
+      }],
+      ['enable_protector_service==1', {
+        'defines': ['ENABLE_PROTECTOR_SERVICE=1'],
       }],
       ['enable_themes==1', {
         'defines': ['ENABLE_THEMES=1'],
