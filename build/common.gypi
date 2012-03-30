@@ -368,9 +368,9 @@
           'webui_task_manager%': 1,
         }],
 
-        # For now one-click signin is enabled only for windows and mac
-        # since the UI is not yet complete for other platforms.
-        ['OS=="win" or OS=="mac"', {
+        # TODO(akalin): Enable this for all GTK/views platforms (except for
+        # ChromeOS).
+        ['OS=="win" or OS=="mac" or OS=="linux"', {
           'enable_one_click_signin%': 1,
         }],
 
