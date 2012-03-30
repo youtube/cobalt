@@ -3,16 +3,16 @@
 # found in the LICENSE file.
 
 {
-  'conditions': [
-    ['sysroot!=""', {
-      'variables': {
+  'variables': {
+    'conditions': [
+      ['sysroot!=""', {
         'pkg-config': './pkg-config-wrapper "<(sysroot)" "<(target_arch)"',
-      },
-    }, {
-      'variables': {
+      }, {
         'pkg-config': 'pkg-config'
-      },
-    }],
+      }]
+    ],
+  },
+  'conditions': [
     [ 'os_posix==1 and OS!="mac"', {
       'variables': {
         # We use our own copy of libssl3, although we still need to link against
@@ -24,77 +24,76 @@
         'use_system_ssl%': 1,
       },
     }],
-  ],
-
-
+    [ 'chromeos==0', {
+      # Hide GTK and related dependencies for Chrome OS, so they won't get
+      # added back to Chrome OS. Don't try to use GTK on Chrome OS.
+      'targets': [
+        {
+          'target_name': 'gtk',
+          'type': 'none',
+          'toolsets': ['host', 'target'],
+          'variables': {
+            # gtk requires gmodule, but it does not list it as a dependency
+            # in some misconfigured systems.
+            'gtk_packages': 'gmodule-2.0 gtk+-2.0 gthread-2.0',
+          },
+          'conditions': [
+            ['_toolset=="target"', {
+              'direct_dependent_settings': {
+                'cflags': [
+                  '<!@(<(pkg-config) --cflags <(gtk_packages))',
+                ],
+              },
+              'link_settings': {
+                'ldflags': [
+                  '<!@(<(pkg-config) --libs-only-L --libs-only-other <(gtk_packages))',
+                ],
+                'libraries': [
+                  '<!@(<(pkg-config) --libs-only-l <(gtk_packages))',
+                ],
+              },
+            }, {
+              'direct_dependent_settings': {
+                'cflags': [
+                  '<!@(pkg-config --cflags <(gtk_packages))',
+                ],
+              },
+              'link_settings': {
+                'ldflags': [
+                  '<!@(pkg-config --libs-only-L --libs-only-other <(gtk_packages))',
+                ],
+                'libraries': [
+                  '<!@(pkg-config --libs-only-l <(gtk_packages))',
+                ],
+              },
+            }],
+          ],
+        },
+        {
+          'target_name': 'gtkprint',
+          'type': 'none',
+          'conditions': [
+            ['_toolset=="target"', {
+              'direct_dependent_settings': {
+                'cflags': [
+                  '<!@(<(pkg-config) --cflags gtk+-unix-print-2.0)',
+                ],
+              },
+              'link_settings': {
+                'ldflags': [
+                  '<!@(<(pkg-config) --libs-only-L --libs-only-other gtk+-unix-print-2.0)',
+                ],
+                'libraries': [
+                  '<!@(<(pkg-config) --libs-only-l gtk+-unix-print-2.0)',
+                ],
+              },
+            }],
+          ],
+        },
+      ],  # targets
+    }]  # chromeos==0
+  ],  # conditions
   'targets': [
-    {
-      'target_name': 'gtk',
-      'type': 'none',
-      'toolsets': ['host', 'target'],
-      'variables': {
-        # gtk requires gmodule, but it does not list it as a dependency in some
-        # misconfigured systems.
-        'gtk_packages': 'gmodule-2.0 gtk+-2.0 gthread-2.0',
-      },
-      'conditions': [
-        ['_toolset=="target"', {
-          'direct_dependent_settings': {
-            'cflags': [
-              '<!@(<(pkg-config) --cflags <(gtk_packages))',
-            ],
-          },
-          'link_settings': {
-            'ldflags': [
-              '<!@(<(pkg-config) --libs-only-L --libs-only-other <(gtk_packages))',
-            ],
-            'libraries': [
-              '<!@(<(pkg-config) --libs-only-l <(gtk_packages))',
-            ],
-          },
-        }, {
-          'direct_dependent_settings': {
-            'cflags': [
-              '<!@(pkg-config --cflags <(gtk_packages))',
-            ],
-          },
-          'link_settings': {
-            'ldflags': [
-              '<!@(pkg-config --libs-only-L --libs-only-other <(gtk_packages))',
-            ],
-            'libraries': [
-              '<!@(pkg-config --libs-only-l <(gtk_packages))',
-            ],
-          },
-        }],
-        ['chromeos==1', {
-          'link_settings': {
-            'libraries': [ '-lXtst' ]
-          }
-        }],
-      ],
-    },
-    {
-      'target_name': 'gtkprint',
-      'type': 'none',
-      'conditions': [
-        ['_toolset=="target"', {
-          'direct_dependent_settings': {
-            'cflags': [
-              '<!@(<(pkg-config) --cflags gtk+-unix-print-2.0)',
-            ],
-          },
-          'link_settings': {
-            'ldflags': [
-              '<!@(<(pkg-config) --libs-only-L --libs-only-other gtk+-unix-print-2.0)',
-            ],
-            'libraries': [
-              '<!@(<(pkg-config) --libs-only-l gtk+-unix-print-2.0)',
-            ],
-          },
-        }],
-      ],
-    },
     {
       'target_name': 'ssl',
       'type': 'none',
