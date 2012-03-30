@@ -197,7 +197,6 @@
       # -faddress-sanitizer only works with clang, but asan=1 implies clang=1
       # See https://sites.google.com/a/chromium.org/dev/developers/testing/addresssanitizer
       'asan%': 0,
-      'asan_blacklist%': '<(PRODUCT_DIR)/../../third_party/asan/ignore.txt',
 
       # Use the provided profiled order file to link Chrome image with it.
       # This makes Chrome faster by better using CPU cache when executing code.
@@ -483,7 +482,6 @@
     'notifications%': '<(notifications)',
     'clang_use_chrome_plugins%': '<(clang_use_chrome_plugins)',
     'asan%': '<(asan)',
-    'asan_blacklist%': '<(asan_blacklist)',
     'order_text_section%': '<(order_text_section)',
     'enable_register_protocol_handler%': '<(enable_register_protocol_handler)',
     'enable_web_intents%': '<(enable_web_intents)',
@@ -2084,7 +2082,6 @@
               '-faddress-sanitizer',
               '-fno-omit-frame-pointer',
               '-w',
-              '-mllvm', '-asan-blacklist=<(asan_blacklist)',
             ],
             'ldflags': [
               '-faddress-sanitizer',
@@ -2508,7 +2505,6 @@
               'OTHER_CFLAGS': [
                 '-faddress-sanitizer',
                 '-w',
-                '-mllvm', '-asan-blacklist=<(asan_blacklist)',
               ],
               'OTHER_LDFLAGS': [
                 '-faddress-sanitizer',
