@@ -510,6 +510,58 @@ TEST_F(SequencedWorkerPoolTest, SpuriousWorkSignal) {
   EXPECT_EQ(old_has_work_call_count + 1, has_work_call_count());
 }
 
+void IsRunningOnCurrentThreadTask(
+    SequencedWorkerPool::SequenceToken test_positive_token,
+    SequencedWorkerPool::SequenceToken test_negative_token,
+    SequencedWorkerPool* pool,
+    SequencedWorkerPool* unused_pool) {
+  EXPECT_TRUE(pool->RunsTasksOnCurrentThread());
+  EXPECT_TRUE(pool->IsRunningSequenceOnCurrentThread(test_positive_token));
+  EXPECT_FALSE(pool->IsRunningSequenceOnCurrentThread(test_negative_token));
+  EXPECT_FALSE(unused_pool->RunsTasksOnCurrentThread());
+  EXPECT_FALSE(
+      unused_pool->IsRunningSequenceOnCurrentThread(test_positive_token));
+  EXPECT_FALSE(
+      unused_pool->IsRunningSequenceOnCurrentThread(test_negative_token));
+}
+
+// Verify correctness of the IsRunningSequenceOnCurrentThread method.
+TEST_F(SequencedWorkerPoolTest, IsRunningOnCurrentThread) {
+  SequencedWorkerPool::SequenceToken token1 = pool()->GetSequenceToken();
+  SequencedWorkerPool::SequenceToken token2 = pool()->GetSequenceToken();
+  SequencedWorkerPool::SequenceToken unsequenced_token;
+
+  scoped_refptr<SequencedWorkerPool> unused_pool =
+      new SequencedWorkerPool(2, "unused_pool");
+  EXPECT_TRUE(token1.Equals(unused_pool->GetSequenceToken()));
+  EXPECT_TRUE(token2.Equals(unused_pool->GetSequenceToken()));
+
+  EXPECT_FALSE(pool()->RunsTasksOnCurrentThread());
+  EXPECT_FALSE(pool()->IsRunningSequenceOnCurrentThread(token1));
+  EXPECT_FALSE(pool()->IsRunningSequenceOnCurrentThread(token2));
+  EXPECT_FALSE(pool()->IsRunningSequenceOnCurrentThread(unsequenced_token));
+  EXPECT_FALSE(unused_pool->RunsTasksOnCurrentThread());
+  EXPECT_FALSE(unused_pool->IsRunningSequenceOnCurrentThread(token1));
+  EXPECT_FALSE(unused_pool->IsRunningSequenceOnCurrentThread(token2));
+  EXPECT_FALSE(
+      unused_pool->IsRunningSequenceOnCurrentThread(unsequenced_token));
+
+  pool()->PostSequencedWorkerTask(
+      token1, FROM_HERE,
+      base::Bind(&IsRunningOnCurrentThreadTask,
+                 token1, token2, pool(), unused_pool));
+  pool()->PostSequencedWorkerTask(
+      token2, FROM_HERE,
+      base::Bind(&IsRunningOnCurrentThreadTask,
+                 token2, unsequenced_token, pool(), unused_pool));
+  pool()->PostWorkerTask(
+      FROM_HERE,
+      base::Bind(&IsRunningOnCurrentThreadTask,
+                 unsequenced_token, token1, pool(), unused_pool));
+  pool()->Shutdown();
+  unused_pool->Shutdown();
+}
+
 class SequencedWorkerPoolTaskRunnerTestDelegate {
  public:
   SequencedWorkerPoolTaskRunnerTestDelegate() {}
