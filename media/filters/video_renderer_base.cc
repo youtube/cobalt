@@ -120,6 +120,7 @@ void VideoRendererBase::Initialize(const scoped_refptr<VideoDecoder>& decoder,
   DCHECK(!time_cb.is_null());
   DCHECK_EQ(kUninitialized, state_);
   decoder_ = decoder;
+  decoder_->set_host(host());
 
   statistics_cb_ = statistics_cb;
   time_cb_ = time_cb;
