@@ -532,12 +532,14 @@
 // Implementation detail: internal macro to create static category and add
 // event if the category is enabled.
 #define INTERNAL_TRACE_EVENT_ADD(phase, category, name, flags, ...) \
-    INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category); \
-    if (*INTERNAL_TRACE_EVENT_UID(catstatic)) { \
-      trace_event_internal::AddTraceEvent( \
-          phase, INTERNAL_TRACE_EVENT_UID(catstatic), name, \
-          trace_event_internal::kNoEventId, flags, ##__VA_ARGS__); \
-    }
+    do { \
+      INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category); \
+      if (*INTERNAL_TRACE_EVENT_UID(catstatic)) { \
+        trace_event_internal::AddTraceEvent( \
+            phase, INTERNAL_TRACE_EVENT_UID(catstatic), name, \
+            trace_event_internal::kNoEventId, flags, ##__VA_ARGS__); \
+      } \
+    } while (0)
 
 // Implementation detail: internal macro to create static category and add begin
 // event if the category is enabled. Also adds the end event when the scope
@@ -580,16 +582,18 @@
 // event if the category is enabled.
 #define INTERNAL_TRACE_EVENT_ADD_WITH_ID(phase, category, name, id, flags, \
                                          ...) \
-    INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category); \
-    if (*INTERNAL_TRACE_EVENT_UID(catstatic)) { \
-      unsigned char trace_event_flags = flags | TRACE_EVENT_FLAG_HAS_ID; \
-      trace_event_internal::TraceID trace_event_trace_id( \
-          id, &trace_event_flags); \
-      trace_event_internal::AddTraceEvent( \
-          phase, INTERNAL_TRACE_EVENT_UID(catstatic), \
-          name, trace_event_trace_id.data(), trace_event_flags, \
-          ##__VA_ARGS__); \
-    }
+    do { \
+      INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category); \
+      if (*INTERNAL_TRACE_EVENT_UID(catstatic)) { \
+        unsigned char trace_event_flags = flags | TRACE_EVENT_FLAG_HAS_ID; \
+        trace_event_internal::TraceID trace_event_trace_id( \
+            id, &trace_event_flags); \
+        trace_event_internal::AddTraceEvent( \
+            phase, INTERNAL_TRACE_EVENT_UID(catstatic), \
+            name, trace_event_trace_id.data(), trace_event_flags, \
+            ##__VA_ARGS__); \
+      } \
+    } while (0)
 
 // Notes regarding the following definitions:
 // New values can be added and propagated to third party libraries, but existing
