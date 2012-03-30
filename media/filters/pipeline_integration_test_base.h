@@ -11,6 +11,7 @@
 #include "media/base/message_loop_factory.h"
 #include "media/base/pipeline.h"
 #include "media/filters/chunk_demuxer.h"
+#include "media/filters/ffmpeg_video_decoder.h"
 #include "media/filters/video_renderer_base.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -55,6 +56,7 @@ class PipelineIntegrationTestBase {
   base::MD5Context md5_context_;
   scoped_ptr<MessageLoopFactory> message_loop_factory_;
   scoped_refptr<Pipeline> pipeline_;
+  scoped_refptr<FFmpegVideoDecoder> decoder_;
   scoped_refptr<VideoRendererBase> renderer_;
   bool ended_;
   PipelineStatus pipeline_status_;

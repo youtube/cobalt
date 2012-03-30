@@ -10,6 +10,10 @@
 
 namespace media {
 
+// Key ID of the video track in test file "bear-320x240-encrypted.webm".
+static const unsigned char kKeyId[] =
+    "\x11\xa5\x18\x37\xc4\x73\x84\x03\xe5\xe6\x57\xed\x8e\x06\xd9\x7c";
+
 // Helper class that emulates calls made on the ChunkDemuxer by the
 // Media Source API.
 class MockMediaSource : public ChunkDemuxerClient {
@@ -86,6 +90,9 @@ class PipelineIntegrationTest
         base::Bind(&PipelineIntegrationTest::OnError, base::Unretained(this)),
         NetworkEventCB(), QuitOnStatusCB(PIPELINE_OK));
 
+    decoder_->decryptor()->AddKey(kKeyId, arraysize(kKeyId) - 1,
+                                  kKeyId, arraysize(kKeyId) - 1);
+
     message_loop_.Run();
   }
 
@@ -131,8 +138,7 @@ TEST_F(PipelineIntegrationTest, BasicPlayback) {
   ASSERT_EQ(GetVideoHash(), "f0be120a90a811506777c99a2cdf7cc1");
 }
 
-// TODO(xhwang): Enable this test when AddKey is integrated into pipeline.
-TEST_F(PipelineIntegrationTest, DISABLED_EncryptedPlayback) {
+TEST_F(PipelineIntegrationTest, EncryptedPlayback) {
   MockMediaSource source("bear-320x240-encrypted.webm", 219726);
   StartPipelineWithMediaSource(source);
 
