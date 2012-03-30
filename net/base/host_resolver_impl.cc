@@ -1059,9 +1059,11 @@ class HostResolverImpl::DnsTask {
                              DnsTransaction* transaction,
                              int net_error,
                              const DnsResponse* response) {
+    DCHECK(transaction);
     // Run |callback_| last since the owning Job will then delete this DnsTask.
     DnsResponse::Result result = DnsResponse::DNS_SUCCESS;
     if (net_error == OK) {
+      CHECK(response);
       DNS_HISTOGRAM("AsyncDNS.TransactionSuccess",
                     base::TimeTicks::Now() - start_time);
       AddressList addr_list;
