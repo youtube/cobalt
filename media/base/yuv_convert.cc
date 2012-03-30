@@ -56,32 +56,30 @@ static ConvertYUVToRGB32RowProc ChooseConvertYUVToRGB32RowProc() {
 }
 
 static ScaleYUVToRGB32RowProc ChooseScaleYUVToRGB32RowProc() {
-#if defined(ARCH_CPU_X86_FAMILY)
 #if defined(ARCH_CPU_X86_64)
   // Use 64-bits version if possible.
   return &ScaleYUVToRGB32Row_SSE2_X64;
-#endif
+#elif defined(ARCH_CPU_X86_FAMILY)
   // Choose the best one on 32-bits system.
   if (hasSSE())
     return &ScaleYUVToRGB32Row_SSE;
   if (hasMMX())
     return &ScaleYUVToRGB32Row_MMX;
-#endif
+#endif  // defined(ARCH_CPU_X86_64)
   return &ScaleYUVToRGB32Row_C;
 }
 
 static ScaleYUVToRGB32RowProc ChooseLinearScaleYUVToRGB32RowProc() {
-#if defined(ARCH_CPU_X86_FAMILY)
 #if defined(ARCH_CPU_X86_64)
   // Use 64-bits version if possible.
   return &LinearScaleYUVToRGB32Row_MMX_X64;
-#endif
+#elif defined(ARCH_CPU_X86_FAMILY)
   // 32-bits system.
   if (hasSSE())
     return &LinearScaleYUVToRGB32Row_SSE;
   if (hasMMX())
     return &LinearScaleYUVToRGB32Row_MMX;
-#endif
+#endif  // defined(ARCH_CPU_X86_64)
   return &LinearScaleYUVToRGB32Row_C;
 }
 
