@@ -55,18 +55,24 @@ class MimeUtil : public PlatformMimeUtil {
 
  private:
   friend struct base::DefaultLazyInstanceTraits<MimeUtil>;
-  MimeUtil() {
-    InitializeMimeTypeMaps();
-  }
+
+  typedef base::hash_set<std::string> MimeMappings;
+  typedef std::map<std::string, MimeMappings> StrictMappings;
+
+  MimeUtil();
+
+  // Returns true if |codecs| is nonempty and all the items in it are present in
+  // |supported_codecs|.
+  static bool AreSupportedCodecs(const MimeMappings& supported_codecs,
+                                 const std::vector<std::string>& codecs);
 
   // For faster lookup, keep hash sets.
   void InitializeMimeTypeMaps();
 
-  bool GetMimeTypeFromExtensionHelper(
-      const FilePath::StringType& ext, bool include_platform_types,
-      std::string* mime_type) const;
+  bool GetMimeTypeFromExtensionHelper(const FilePath::StringType& ext,
+                                      bool include_platform_types,
+                                      std::string* mime_type) const;
 
-  typedef base::hash_set<std::string> MimeMappings;
   MimeMappings image_map_;
   MimeMappings media_map_;
   MimeMappings non_image_map_;
@@ -74,7 +80,6 @@ class MimeUtil : public PlatformMimeUtil {
   MimeMappings view_source_map_;
   MimeMappings codecs_map_;
 
-  typedef std::map<std::string, base::hash_set<std::string> > StrictMappings;
   StrictMappings strict_format_map_;
 };  // class MimeUtil
 
@@ -158,7 +163,8 @@ bool MimeUtil::GetMimeTypeFromExtension(const FilePath::StringType& ext,
 }
 
 bool MimeUtil::GetWellKnownMimeTypeFromExtension(
-    const FilePath::StringType& ext, string* result) const {
+    const FilePath::StringType& ext,
+    string* result) const {
   return GetMimeTypeFromExtensionHelper(ext, false, result);
 }
 
@@ -170,9 +176,9 @@ bool MimeUtil::GetMimeTypeFromFile(const FilePath& file_path,
   return GetMimeTypeFromExtension(file_name_str.substr(1), result);
 }
 
-bool MimeUtil::GetMimeTypeFromExtensionHelper(
-    const FilePath::StringType& ext, bool include_platform_types,
-    string* result) const {
+bool MimeUtil::GetMimeTypeFromExtensionHelper(const FilePath::StringType& ext,
+                                              bool include_platform_types,
+                                              string* result) const {
   // Avoids crash when unable to handle a long file path. See crbug.com/48733.
   const unsigned kMaxFilePathSize = 65536;
   if (ext.length() > kMaxFilePathSize)
@@ -346,6 +352,20 @@ static const MediaFormatStrict format_codec_mappings[] = {
   { "audio/wav", "1" }
 };
 
+MimeUtil::MimeUtil() {
+  InitializeMimeTypeMaps();
+}
+
+// static
+bool MimeUtil::AreSupportedCodecs(const MimeMappings& supported_codecs,
+                                  const std::vector<std::string>& codecs) {
+  for (size_t i = 0; i < codecs.size(); ++i) {
+    if (supported_codecs.find(codecs[i]) == supported_codecs.end())
+      return false;
+  }
+  return !codecs.empty();
+}
+
 void MimeUtil::InitializeMimeTypeMaps() {
   for (size_t i = 0; i < arraysize(supported_image_types); ++i)
     image_map_.insert(supported_image_types[i]);
@@ -412,8 +432,8 @@ bool MimeUtil::IsSupportedMimeType(const std::string& mime_type) const {
          IsSupportedNonImageMimeType(mime_type.c_str());
 }
 
-bool MimeUtil::MatchesMimeType(const std::string &mime_type_pattern,
-                               const std::string &mime_type) const {
+bool MimeUtil::MatchesMimeType(const std::string& mime_type_pattern,
+                               const std::string& mime_type) const {
   // verify caller is passing lowercase
   DCHECK_EQ(StringToLowerASCII(mime_type_pattern), mime_type_pattern);
   DCHECK_EQ(StringToLowerASCII(mime_type), mime_type);
@@ -451,12 +471,7 @@ bool MimeUtil::MatchesMimeType(const std::string &mime_type_pattern,
 
 bool MimeUtil::AreSupportedMediaCodecs(
     const std::vector<std::string>& codecs) const {
-  for (size_t i = 0; i < codecs.size(); ++i) {
-    if (codecs_map_.find(codecs[i]) == codecs_map_.end()) {
-      return false;
-    }
-  }
-  return true;
+  return AreSupportedCodecs(codecs_map_, codecs);
 }
 
 void MimeUtil::ParseCodecString(const std::string& codecs,
@@ -485,20 +500,12 @@ bool MimeUtil::IsStrictMediaMimeType(const std::string& mime_type) const {
   return true;
 }
 
-bool MimeUtil::IsSupportedStrictMediaMimeType(const std::string& mime_type,
+bool MimeUtil::IsSupportedStrictMediaMimeType(
+    const std::string& mime_type,
     const std::vector<std::string>& codecs) const {
   StrictMappings::const_iterator it = strict_format_map_.find(mime_type);
-
-  if (it == strict_format_map_.end())
-    return false;
-
-  const MimeMappings strict_codecs_map = it->second;
-  for (size_t i = 0; i < codecs.size(); ++i) {
-    if (strict_codecs_map.find(codecs[i]) == strict_codecs_map.end()) {
-      return false;
-    }
-  }
-  return true;
+  return (it != strict_format_map_.end()) &&
+      AreSupportedCodecs(it->second, codecs);
 }
 
 //----------------------------------------------------------------------------
