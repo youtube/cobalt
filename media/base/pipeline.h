@@ -15,7 +15,6 @@
 #include "media/base/filter_host.h"
 #include "media/base/media_export.h"
 #include "media/base/pipeline_status.h"
-#include "media/base/preload.h"
 #include "ui/gfx/size.h"
 
 class MessageLoop;
@@ -207,9 +206,6 @@ class MEDIA_EXPORT Pipeline
   // channels proportionately for multi-channel audio streams.
   void SetVolume(float volume);
 
-  // Set the preload value for the pipeline.
-  void SetPreload(Preload preload);
-
   // Gets the current pipeline time. For a pipeline "time" progresses from 0 to
   // the end of the media.
   base::TimeDelta GetCurrentTime() const;
@@ -380,12 +376,6 @@ class MEDIA_EXPORT Pipeline
   // Carries out notifying filters that the volume has changed.
   void VolumeChangedTask(float volume);
 
-  // Returns media preload value.
-  virtual Preload GetPreload() const;
-
-  // Carries out notifying filters that the preload value has changed.
-  void PreloadChangedTask(Preload preload);
-
   // Carries out notifying filters that we are seeking to a new timestamp.
   void SeekTask(base::TimeDelta time, const PipelineStatusCB& seek_cb);
 
@@ -526,11 +516,6 @@ class MEDIA_EXPORT Pipeline
   // via SetVolume() and a task is dispatched on the message loop to notify the
   // filters.
   float volume_;
-
-  // Current value of preload attribute. This value is set immediately via
-  // SetPreload() and a task is dispatched on the message loop to notify the
-  // filters.
-  Preload preload_;
 
   // Current playback rate (>= 0.0f).  This value is set immediately via
   // SetPlaybackRate() and a task is dispatched on the message loop to notify

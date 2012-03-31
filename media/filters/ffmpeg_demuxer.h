@@ -147,7 +147,6 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   virtual void SetPlaybackRate(float playback_rate) OVERRIDE;
   virtual scoped_refptr<DemuxerStream> GetStream(
       DemuxerStream::Type type) OVERRIDE;
-  virtual void SetPreload(Preload preload) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
   virtual int GetBitrate() OVERRIDE;
   virtual bool IsLocalSource() OVERRIDE;

@@ -30,7 +30,6 @@ class MEDIA_EXPORT FileDataSource : public DataSource {
                     const DataSource::ReadCB& read_cb) OVERRIDE;
   virtual bool GetSize(int64* size_out) OVERRIDE;
   virtual bool IsStreaming() OVERRIDE;
-  virtual void SetPreload(Preload preload) OVERRIDE;
   virtual void SetBitrate(int bitrate) OVERRIDE;
 
  private:
