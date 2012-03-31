@@ -182,8 +182,9 @@ void TCPServerSocketWin::OnObjectSignaled(HANDLE object) {
     int result = AcceptInternal(accept_socket_);
     if (result != ERR_IO_PENDING) {
       accept_socket_ = NULL;
-      accept_callback_.Run(result);
+      CompletionCallback callback = accept_callback_;
       accept_callback_.Reset();
+      callback.Run(result);
     }
   }
 }
