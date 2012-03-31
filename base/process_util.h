@@ -10,6 +10,7 @@
 #pragma once
 
 #include "base/basictypes.h"
+#include "base/time.h"
 
 #if defined(OS_WIN)
 #include <windows.h>
@@ -517,6 +518,8 @@ BASE_EXPORT bool WaitForProcessesToExit(
 // on Mac and Windows it can be any process.
 BASE_EXPORT bool WaitForSingleProcess(ProcessHandle handle,
                                       int64 wait_milliseconds);
+BASE_EXPORT bool WaitForSingleProcess(ProcessHandle handle,
+                                      base::TimeDelta wait);
 
 // Waits a certain amount of time (can be 0) for all the processes with a given
 // executable name to exit, then kills off any of them that are still around.
