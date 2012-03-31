@@ -514,7 +514,7 @@ int SpdyStream::WriteStreamData(IOBuffer* data, int length,
 
 bool SpdyStream::GetSSLInfo(SSLInfo* ssl_info,
                             bool* was_npn_negotiated,
-                            SSLClientSocket::NextProto* protocol_negotiated) {
+                            NextProto* protocol_negotiated) {
   return session_->GetSSLInfo(
       ssl_info, was_npn_negotiated, protocol_negotiated);
 }

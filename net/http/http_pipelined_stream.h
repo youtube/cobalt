@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -98,7 +98,7 @@ class HttpPipelinedStream : public HttpStream {
   bool was_npn_negotiated() const;
 
   // Protocol negotiated with the server.
-  SSLClientSocket::NextProto protocol_negotiated() const;
+  NextProto protocol_negotiated() const;
 
  private:
   HttpPipelinedConnectionImpl* pipeline_;

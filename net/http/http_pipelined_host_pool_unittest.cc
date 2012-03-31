@@ -56,7 +56,7 @@ class MockHost : public HttpPipelinedHost {
       const ProxyInfo& used_proxy_info,
       const BoundNetLog& net_log,
       bool was_npn_negotiated,
-      SSLClientSocket::NextProto protocol_negotiated));
+      NextProto protocol_negotiated));
   MOCK_METHOD0(CreateStreamOnExistingPipeline, HttpPipelinedStream*());
   MOCK_CONST_METHOD0(IsExistingPipelineAvailable, bool());
   MOCK_CONST_METHOD0(PipelineInfoToValue, base::Value*());
@@ -77,7 +77,7 @@ class HttpPipelinedHostPoolTest : public testing::Test {
         pool_(new HttpPipelinedHostPool(&delegate_, factory_,
                                         http_server_properties_.get(), false)),
         was_npn_negotiated_(false),
-        protocol_negotiated_(SSLClientSocket::kProtoUnknown) {
+        protocol_negotiated_(kProtoUnknown) {
   }
 
   void CreateDummyStream(const HttpPipelinedHost::Key& key,
@@ -124,7 +124,7 @@ class HttpPipelinedHostPoolTest : public testing::Test {
   const ProxyInfo proxy_info_;
   const BoundNetLog net_log_;
   bool was_npn_negotiated_;
-  SSLClientSocket::NextProto protocol_negotiated_;
+  NextProto protocol_negotiated_;
 };
 
 TEST_F(HttpPipelinedHostPoolTest, DefaultUnknown) {

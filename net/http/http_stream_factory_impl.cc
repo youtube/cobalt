@@ -195,7 +195,7 @@ void HttpStreamFactoryImpl::OnSpdySessionReady(
     const SSLConfig& used_ssl_config,
     const ProxyInfo& used_proxy_info,
     bool was_npn_negotiated,
-    SSLClientSocket::NextProto protocol_negotiated,
+    NextProto protocol_negotiated,
     bool using_spdy,
     const BoundNetLog& net_log) {
   const HostPortProxyPair& spdy_session_key =

@@ -231,7 +231,7 @@ class NET_EXPORT_PRIVATE SpdyStream
   // Fills SSL info in |ssl_info| and returns true when SSL is in use.
   bool GetSSLInfo(SSLInfo* ssl_info,
                   bool* was_npn_negotiated,
-                  SSLClientSocket::NextProto* protocol_negotiated);
+                  NextProto* protocol_negotiated);
 
   // Fills SSL Certificate Request info |cert_request_info| and returns
   // true when SSL is in use.

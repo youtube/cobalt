@@ -33,7 +33,7 @@ class MockPipelineFactory : public HttpPipelinedConnection::Factory {
       const ProxyInfo& used_proxy_info,
       const BoundNetLog& net_log,
       bool was_npn_negotiated,
-      SSLClientSocket::NextProto protocol_negotiated));
+      NextProto protocol_negotiated));
 };
 
 class MockPipeline : public HttpPipelinedConnection {
@@ -57,7 +57,7 @@ class MockPipeline : public HttpPipelinedConnection {
   MOCK_CONST_METHOD0(used_proxy_info, const ProxyInfo&());
   MOCK_CONST_METHOD0(net_log, const BoundNetLog&());
   MOCK_CONST_METHOD0(was_npn_negotiated, bool());
-  MOCK_CONST_METHOD0(protocol_negotiated, SSLClientSocket::NextProto());
+  MOCK_CONST_METHOD0(protocol_negotiated, NextProto());
 
  private:
   int depth_;

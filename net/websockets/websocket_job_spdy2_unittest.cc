@@ -319,7 +319,7 @@ namespace net {
 class WebSocketJobSpdy2Test : public PlatformTest {
  public:
   virtual void SetUp() {
-    SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY2);
+    SpdySession::set_default_protocol(kProtoSPDY2);
     stream_type_ = STREAM_INVALID;
     cookie_store_ = new MockCookieStore;
     context_ = new MockURLRequestContext(cookie_store_.get());

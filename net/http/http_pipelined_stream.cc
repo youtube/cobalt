@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -138,7 +138,7 @@ bool HttpPipelinedStream::was_npn_negotiated() const {
   return pipeline_->was_npn_negotiated();
 }
 
-SSLClientSocket::NextProto HttpPipelinedStream::protocol_negotiated() const {
+NextProto HttpPipelinedStream::protocol_negotiated() const {
   return pipeline_->protocol_negotiated();
 }
 
