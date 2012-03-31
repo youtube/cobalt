@@ -909,9 +909,9 @@ bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
 // We can't use kqueues on child processes because we need to reap
 // our own children using wait.
 static bool WaitForSingleNonChildProcess(ProcessHandle handle,
-                                         int64 wait_milliseconds) {
+                                         base::TimeDelta wait) {
   DCHECK_GT(handle, 0);
-  DCHECK(wait_milliseconds == base::kNoTimeout || wait_milliseconds > 0);
+  DCHECK(wait.InMilliseconds() == base::kNoTimeout || wait > base::TimeDelta());
 
   int kq = kqueue();
   if (kq == -1) {
@@ -935,18 +935,18 @@ static bool WaitForSingleNonChildProcess(ProcessHandle handle,
 
   // Keep track of the elapsed time to be able to restart kevent if it's
   // interrupted.
-  bool wait_forever = wait_milliseconds == base::kNoTimeout;
+  bool wait_forever = wait.InMilliseconds() == base::kNoTimeout;
   base::TimeDelta remaining_delta;
   base::Time deadline;
   if (!wait_forever) {
-    remaining_delta = base::TimeDelta::FromMilliseconds(wait_milliseconds);
+    remaining_delta = wait;
     deadline = base::Time::Now() + remaining_delta;
   }
 
   result = -1;
   struct kevent event = {0};
 
-  while (wait_forever || remaining_delta.InMilliseconds() > 0) {
+  while (wait_forever || remaining_delta > base::TimeDelta()) {
     struct timespec remaining_timespec;
     struct timespec* remaining_timespec_ptr;
     if (wait_forever) {
@@ -997,12 +997,17 @@ static bool WaitForSingleNonChildProcess(ProcessHandle handle,
 #endif  // OS_MACOSX
 
 bool WaitForSingleProcess(ProcessHandle handle, int64 wait_milliseconds) {
+  return WaitForSingleProcess(
+      handle, base::TimeDelta::FromMilliseconds(wait_milliseconds));
+}
+
+bool WaitForSingleProcess(ProcessHandle handle, base::TimeDelta wait) {
   ProcessHandle parent_pid = GetParentProcessId(handle);
   ProcessHandle our_pid = Process::Current().handle();
   if (parent_pid != our_pid) {
 #if defined(OS_MACOSX)
     // On Mac we can wait on non child processes.
-    return WaitForSingleNonChildProcess(handle, wait_milliseconds);
+    return WaitForSingleNonChildProcess(handle, wait);
 #else
     // Currently on Linux we can't handle non child processes.
     NOTIMPLEMENTED();
@@ -1011,10 +1016,12 @@ bool WaitForSingleProcess(ProcessHandle handle, int64 wait_milliseconds) {
 
   bool waitpid_success;
   int status = -1;
-  if (wait_milliseconds == base::kNoTimeout)
+  if (wait.InMilliseconds() == base::kNoTimeout) {
     waitpid_success = (HANDLE_EINTR(waitpid(handle, &status, 0)) != -1);
-  else
-    status = WaitpidWithTimeout(handle, wait_milliseconds, &waitpid_success);
+  } else {
+    status = WaitpidWithTimeout(
+        handle, wait.InMilliseconds(), &waitpid_success);
+  }
 
   if (status != -1) {
     DCHECK(waitpid_success);
