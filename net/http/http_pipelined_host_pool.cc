@@ -65,7 +65,7 @@ HttpPipelinedStream* HttpPipelinedHostPool::CreateStreamOnNewPipeline(
     const ProxyInfo& used_proxy_info,
     const BoundNetLog& net_log,
     bool was_npn_negotiated,
-    SSLClientSocket::NextProto protocol_negotiated) {
+    NextProto protocol_negotiated) {
   HttpPipelinedHost* host = GetPipelinedHost(key, true);
   if (!host) {
     return NULL;

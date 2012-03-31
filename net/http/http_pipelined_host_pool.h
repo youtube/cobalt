@@ -57,7 +57,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedHostPool
       const ProxyInfo& used_proxy_info,
       const BoundNetLog& net_log,
       bool was_npn_negotiated,
-      SSLClientSocket::NextProto protocol_negotiated);
+      NextProto protocol_negotiated);
 
   // Tries to find an existing pipeline with capacity for a new request. If
   // successful, returns a new stream on that pipeline. Otherwise, returns NULL.

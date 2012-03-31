@@ -34,7 +34,7 @@ HttpProxyClientSocket::HttpProxyClientSocket(
     HttpAuthHandlerFactory* http_auth_handler_factory,
     bool tunnel,
     bool using_spdy,
-    SSLClientSocket::NextProto protocol_negotiated,
+    NextProto protocol_negotiated,
     bool is_https_proxy)
     : ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(
         base::Bind(&HttpProxyClientSocket::OnIOComplete,
@@ -92,8 +92,7 @@ bool HttpProxyClientSocket::IsUsingSpdy() const {
   return using_spdy_;
 }
 
-SSLClientSocket::NextProto
-HttpProxyClientSocket::GetProtocolNegotiated() const {
+NextProto HttpProxyClientSocket::GetProtocolNegotiated() const {
   return protocol_negotiated_;
 }
 

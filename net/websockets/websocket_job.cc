@@ -561,8 +561,7 @@ int WebSocketJob::TrySpdyStream() {
       spdy_pool->Get(pair, *socket_->net_log());
   SSLInfo ssl_info;
   bool was_npn_negotiated;
-  SSLClientSocket::NextProto protocol_negotiated =
-      SSLClientSocket::kProtoUnknown;
+  NextProto protocol_negotiated = kProtoUnknown;
   bool use_ssl = spdy_session->GetSSLInfo(
       &ssl_info, &was_npn_negotiated, &protocol_negotiated);
   if (socket_->is_secure() && !use_ssl)

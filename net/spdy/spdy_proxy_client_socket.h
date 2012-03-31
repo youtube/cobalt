@@ -61,7 +61,7 @@ class NET_EXPORT_PRIVATE SpdyProxyClientSocket : public ProxyClientSocket,
       OVERRIDE;
   virtual int RestartWithAuth(const CompletionCallback& callback) OVERRIDE;
   virtual bool IsUsingSpdy() const OVERRIDE;
-  virtual SSLClientSocket::NextProto GetProtocolNegotiated() const OVERRIDE;
+  virtual NextProto GetProtocolNegotiated() const OVERRIDE;
 
   // StreamSocket implementation.
   virtual int Connect(const CompletionCallback& callback) OVERRIDE;

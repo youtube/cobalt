@@ -77,19 +77,6 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
                                 // the first protocol in our list.
   };
 
-  // Next Protocol Negotiation (NPN), if successful, results in agreement on an
-  // application-level string that specifies the application level protocol to
-  // use over the TLS connection. NextProto enumerates the application level
-  // protocols that we recognise.
-  enum NextProto {
-    kProtoUnknown = 0,
-    kProtoHTTP11 = 1,
-    kProtoSPDY1 = 2,
-    kProtoSPDY2 = 3,
-    kProtoSPDY21 = 4,
-    kProtoSPDY3 = 5,
-  };
-
   // Gets the SSL connection information of the socket.
   //
   // TODO(sergeyu): Move this method to the SSLSocket interface and
@@ -114,10 +101,9 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
 
   static NextProto NextProtoFromString(const std::string& proto_string);
 
-  static const char* NextProtoToString(SSLClientSocket::NextProto next_proto);
+  static const char* NextProtoToString(NextProto next_proto);
 
-  static const char* NextProtoStatusToString(
-      const SSLClientSocket::NextProtoStatus status);
+  static const char* NextProtoStatusToString(const NextProtoStatus status);
 
   // Can be used with the second argument(|server_protos|) of |GetNextProto| to
   // construct a comma separated string of server advertised protocols.
@@ -137,10 +123,9 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
 
   virtual bool set_was_spdy_negotiated(bool negotiated);
 
-  virtual SSLClientSocket::NextProto protocol_negotiated() const;
+  virtual NextProto protocol_negotiated() const;
 
-  virtual void set_protocol_negotiated(
-      SSLClientSocket::NextProto protocol_negotiated);
+  virtual void set_protocol_negotiated(NextProto protocol_negotiated);
 
   // Returns the ServerBoundCertService used by this socket, or NULL if
   // server bound certificates are not supported.
@@ -164,7 +149,7 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
   // True if NPN successfully negotiated SPDY.
   bool was_spdy_negotiated_;
   // Protocol that we negotiated with the server.
-  SSLClientSocket::NextProto protocol_negotiated_;
+  NextProto protocol_negotiated_;
   // Type of the domain bound cert that was sent, or CLIENT_CERT_INVALID_TYPE
   // if none was sent.
   SSLClientCertType domain_bound_cert_type_;

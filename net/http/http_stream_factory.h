@@ -147,7 +147,7 @@ class NET_EXPORT_PRIVATE HttpStreamRequest {
   virtual bool was_npn_negotiated() const = 0;
 
   // Protocol negotiated with the server.
-  virtual SSLClientSocket::NextProto protocol_negotiated() const = 0;
+  virtual NextProto protocol_negotiated() const = 0;
 
   // Returns true if this stream is being fetched over SPDY.
   virtual bool using_spdy() const = 0;
