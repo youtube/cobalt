@@ -187,8 +187,9 @@ void TCPServerSocketLibevent::OnFileCanReadWithoutBlocking(int fd) {
     accept_socket_ = NULL;
     bool ok = accept_socket_watcher_.StopWatchingFileDescriptor();
     DCHECK(ok);
-    accept_callback_.Run(result);
+    CompletionCallback callback = accept_callback_;
     accept_callback_.Reset();
+    callback.Run(result);
   }
 }
 
