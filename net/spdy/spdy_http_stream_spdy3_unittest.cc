@@ -27,7 +27,7 @@ class SpdyHttpStreamSpdy3Test : public testing::Test {
   SpdyHttpStreamSpdy3Test() {}
 
   virtual void SetUp() {
-    SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY3);
+    SpdySession::set_default_protocol(kProtoSPDY3);
   }
 
   virtual void TearDown() {
@@ -383,7 +383,7 @@ void SpdyHttpStreamSpdy3Test::TestSendCredentials(
   SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
   ssl.domain_bound_cert_type = type;
   ssl.server_bound_cert_service = server_bound_cert_service;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY3;
+  ssl.protocol_negotiated = kProtoSPDY3;
   socket_factory->AddSSLSocketDataProvider(&ssl);
   http_session_ = SpdySessionDependencies::SpdyCreateSessionDeterministic(
       &session_deps_);

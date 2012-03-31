@@ -89,7 +89,7 @@ HttpProxyConnectJob::HttpProxyConnectJob(
           callback_(base::Bind(&HttpProxyConnectJob::OnIOComplete,
                                base::Unretained(this)))),
       using_spdy_(false),
-      protocol_negotiated_(SSLClientSocket::kProtoUnknown) {
+      protocol_negotiated_(kProtoUnknown) {
 }
 
 HttpProxyConnectJob::~HttpProxyConnectJob() {}

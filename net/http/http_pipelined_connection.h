@@ -54,7 +54,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnection {
         const ProxyInfo& used_proxy_info,
         const BoundNetLog& net_log,
         bool was_npn_negotiated,
-        SSLClientSocket::NextProto protocol_negotiated) = 0;
+        NextProto protocol_negotiated) = 0;
   };
 
   virtual ~HttpPipelinedConnection() {}
@@ -86,7 +86,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnection {
   virtual bool was_npn_negotiated() const = 0;
 
   // Protocol negotiated with the server.
-  virtual SSLClientSocket::NextProto protocol_negotiated() const = 0;
+  virtual NextProto protocol_negotiated() const = 0;
 };
 
 }  // namespace net

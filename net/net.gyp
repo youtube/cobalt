@@ -599,6 +599,7 @@
         'socket/client_socket_pool_manager.h',
         'socket/client_socket_pool_manager_impl.cc',
         'socket/client_socket_pool_manager_impl.h',
+        'socket/next_proto.h',
         'socket/nss_ssl_util.cc',
         'socket/nss_ssl_util.h',
         'socket/server_socket.h',

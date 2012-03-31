@@ -22,7 +22,7 @@ namespace net {
 class SpdySessionSpdy3Test : public PlatformTest {
  protected:
   virtual void SetUp() {
-    SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY3);
+    SpdySession::set_default_protocol(kProtoSPDY3);
   }
 
  private:
@@ -121,7 +121,7 @@ TEST_F(SpdySessionSpdy3Test, GoAway) {
   session_deps.socket_factory->AddSocketDataProvider(&data);
 
   SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
-  ssl.SetNextProto(SSLClientSocket::kProtoSPDY3);
+  ssl.SetNextProto(kProtoSPDY3);
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
 
   scoped_refptr<HttpNetworkSession> http_session(
@@ -941,7 +941,7 @@ TEST_F(SpdySessionSpdy3Test, NeedsCredentials) {
 
   SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
   ssl.domain_bound_cert_type = CLIENT_CERT_ECDSA_SIGN;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY3;
+  ssl.protocol_negotiated = kProtoSPDY3;
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
 
   scoped_refptr<HttpNetworkSession> http_session(
@@ -1011,7 +1011,7 @@ TEST_F(SpdySessionSpdy3Test, SendCredentials) {
 
   SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
   ssl.domain_bound_cert_type = CLIENT_CERT_ECDSA_SIGN;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY3;
+  ssl.protocol_negotiated = kProtoSPDY3;
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
 
   scoped_refptr<HttpNetworkSession> http_session(

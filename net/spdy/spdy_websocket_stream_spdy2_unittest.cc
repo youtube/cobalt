@@ -185,7 +185,7 @@ class SpdyWebSocketStreamSpdy2Test : public testing::Test {
   virtual ~SpdyWebSocketStreamSpdy2Test() {}
 
   virtual void SetUp() {
-    SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY2);
+    SpdySession::set_default_protocol(kProtoSPDY2);
 
     host_port_pair_.set_host("example.com");
     host_port_pair_.set_port(80);

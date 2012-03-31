@@ -22,7 +22,7 @@ namespace net {
 class SpdySessionSpdy2Test : public PlatformTest {
  protected:
   virtual void SetUp() {
-    SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY2);
+    SpdySession::set_default_protocol(kProtoSPDY2);
   }
 
  private:
@@ -121,7 +121,7 @@ TEST_F(SpdySessionSpdy2Test, GoAway) {
   session_deps.socket_factory->AddSocketDataProvider(&data);
 
   SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
-  ssl.SetNextProto(SSLClientSocket::kProtoSPDY2);
+  ssl.SetNextProto(kProtoSPDY2);
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
 
   scoped_refptr<HttpNetworkSession> http_session(
@@ -941,7 +941,7 @@ TEST_F(SpdySessionSpdy2Test, NeedsCredentials) {
 
   SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
   ssl.domain_bound_cert_type = CLIENT_CERT_ECDSA_SIGN;
-  ssl.protocol_negotiated = SSLClientSocket::kProtoSPDY2;
+  ssl.protocol_negotiated = kProtoSPDY2;
   session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
 
   scoped_refptr<HttpNetworkSession> http_session(

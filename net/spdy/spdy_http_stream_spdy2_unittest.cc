@@ -26,7 +26,7 @@ class SpdyHttpStreamSpdy2Test : public testing::Test {
   SpdyHttpStreamSpdy2Test() {}
 
   virtual void SetUp() {
-    SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY2);
+    SpdySession::set_default_protocol(kProtoSPDY2);
   }
 
   virtual void TearDown() {

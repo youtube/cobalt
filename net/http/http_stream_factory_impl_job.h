@@ -67,7 +67,7 @@ class HttpStreamFactoryImpl::Job {
   void Orphan(const Request* request);
 
   bool was_npn_negotiated() const;
-  SSLClientSocket::NextProto protocol_negotiated() const;
+  NextProto protocol_negotiated() const;
   bool using_spdy() const;
   const BoundNetLog& net_log() const { return net_log_; }
 
@@ -266,7 +266,7 @@ class HttpStreamFactoryImpl::Job {
   bool was_npn_negotiated_;
 
   // Protocol negotiated with the server.
-  SSLClientSocket::NextProto protocol_negotiated_;
+  NextProto protocol_negotiated_;
 
   // 0 if we're not preconnecting. Otherwise, the number of streams to
   // preconnect.

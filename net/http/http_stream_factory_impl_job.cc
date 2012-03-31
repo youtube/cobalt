@@ -131,7 +131,7 @@ HttpStreamFactoryImpl::Job::Job(HttpStreamFactoryImpl* stream_factory,
       spdy_certificate_error_(OK),
       establishing_tunnel_(false),
       was_npn_negotiated_(false),
-      protocol_negotiated_(SSLClientSocket::kProtoUnknown),
+      protocol_negotiated_(kProtoUnknown),
       num_streams_(0),
       spdy_session_direct_(false),
       existing_available_pipeline_(false),
@@ -247,7 +247,7 @@ bool HttpStreamFactoryImpl::Job::was_npn_negotiated() const {
   return was_npn_negotiated_;
 }
 
-SSLClientSocket::NextProto HttpStreamFactoryImpl::Job::protocol_negotiated()
+NextProto HttpStreamFactoryImpl::Job::protocol_negotiated()
     const {
   return protocol_negotiated_;
 }
@@ -791,7 +791,7 @@ int HttpStreamFactoryImpl::Job::DoInitConnectionComplete(int result) {
       std::string server_protos;
       SSLClientSocket::NextProtoStatus status =
           ssl_socket->GetNextProto(&proto, &server_protos);
-      SSLClientSocket::NextProto protocol_negotiated =
+      NextProto protocol_negotiated =
           SSLClientSocket::NextProtoFromString(proto);
       protocol_negotiated_ = protocol_negotiated;
       net_log_.AddEvent(
