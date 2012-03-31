@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -208,6 +208,10 @@ TEST(TimeTicks, TimerPerformance) {
 }
 
 TEST(TimeTicks, Drift) {
+  // If QPC is disabled, this isn't measuring anything.
+  if (!TimeTicks::IsHighResClockWorking())
+    return;
+
   const int kIterations = 100;
   int64 total_drift = 0;
 
@@ -227,8 +231,7 @@ TEST(TimeTicks, Drift) {
   }
 
   // Sanity check. We expect some time drift to occur, especially across
-  // the number of iterations we do. However, if the QPC is disabled, this
-  // is not measuring anything (drift is zero in that case).
+  // the number of iterations we do.
   EXPECT_LT(0, total_drift);
 
   printf("average time drift in microseconds: %lld\n",
