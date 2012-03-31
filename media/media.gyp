@@ -816,7 +816,7 @@
         },
       ],
     }],
-    ['OS!="mac"', {
+    ['OS == "win" or toolkit_uses_gtk == 1', {
       'targets': [
         {
           'target_name': 'shader_bench',
