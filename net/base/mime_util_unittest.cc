@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -104,26 +104,26 @@ TEST(MimeUtilTest, ParseCodecString) {
     { "\"mp4v.20.240, mp4a.40.2\"", 2, { "mp4v",   "mp4a" }   },
     { "mp4v.20.8, samr",            2, { "mp4v",   "samr" }   },
     { "\"theora, vorbis\"",         2, { "theora", "vorbis" } },
-    { "",                           0, { }                    },
-    { "\"\"",                       0, { }                    },
-    { "\"   \"",                    0, { }                    },
+    { "",                           1, { "" }                 },
+    { "\"\"",                       1, { "" }                 },
     { ",",                          2, { "", "" }             },
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     std::vector<std::string> codecs_out;
     ParseCodecString(tests[i].original, &codecs_out, true);
-    ASSERT_EQ(tests[i].expected_size, codecs_out.size());
-    for (size_t j = 0; j < tests[i].expected_size; ++j)
+    EXPECT_EQ(tests[i].expected_size, codecs_out.size());
+    for (size_t j = 0; j < tests[i].expected_size; ++j) {
       EXPECT_EQ(tests[i].results[j], codecs_out[j]);
+    }
   }
 
   // Test without stripping the codec type.
   std::vector<std::string> codecs_out;
   ParseCodecString("avc1.42E01E, mp4a.40.2", &codecs_out, false);
-  ASSERT_EQ(2u, codecs_out.size());
-  EXPECT_EQ("avc1.42E01E", codecs_out[0]);
-  EXPECT_EQ("mp4a.40.2", codecs_out[1]);
+  EXPECT_EQ(2u, codecs_out.size());
+  EXPECT_STREQ("avc1.42E01E", codecs_out[0].c_str());
+  EXPECT_STREQ("mp4a.40.2", codecs_out[1].c_str());
 }
 
 }  // namespace net
