@@ -160,7 +160,6 @@
         'base/pipeline.cc',
         'base/pipeline.h',
         'base/pipeline_status.h',
-        'base/preload.h',
         'base/seekable_buffer.cc',
         'base/seekable_buffer.h',
         'base/state_matrix.cc',

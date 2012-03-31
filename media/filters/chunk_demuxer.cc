@@ -411,8 +411,6 @@ void ChunkDemuxer::OnAudioRendererDisabled() {
   audio_ = NULL;
 }
 
-void ChunkDemuxer::SetPreload(Preload preload) {}
-
 int ChunkDemuxer::GetBitrate() {
   // TODO(acolwell): Implement bitrate reporting.
   return 0;

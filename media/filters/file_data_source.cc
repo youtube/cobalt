@@ -112,10 +112,6 @@ bool FileDataSource::IsStreaming() {
   return false;
 }
 
-void FileDataSource::SetPreload(Preload preload) {
-}
-
-void FileDataSource::SetBitrate(int bitrate) {
-}
+void FileDataSource::SetBitrate(int bitrate) {}
 
 }  // namespace media

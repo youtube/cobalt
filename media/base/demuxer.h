@@ -11,7 +11,6 @@
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_export.h"
 #include "media/base/pipeline_status.h"
-#include "media/base/preload.h"
 
 namespace media {
 
@@ -67,9 +66,6 @@ class MEDIA_EXPORT Demuxer
 
   // Returns the given stream type, or NULL if that type is not present.
   virtual scoped_refptr<DemuxerStream> GetStream(DemuxerStream::Type type) = 0;
-
-  // Alert the Demuxer that the video preload value has been changed.
-  virtual void SetPreload(Preload preload) = 0;
 
   // Returns the starting time for the media file.
   virtual base::TimeDelta GetStartTime() const = 0;

@@ -34,7 +34,6 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer, public StreamParserHost {
   virtual void OnAudioRendererDisabled() OVERRIDE;
   virtual scoped_refptr<DemuxerStream> GetStream(
       DemuxerStream::Type type) OVERRIDE;
-  virtual void SetPreload(Preload preload) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
   virtual int GetBitrate() OVERRIDE;
   virtual bool IsLocalSource() OVERRIDE;
