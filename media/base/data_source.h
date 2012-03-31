@@ -8,7 +8,6 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "media/base/media_export.h"
-#include "media/base/preload.h"
 
 namespace media {
 
@@ -57,9 +56,6 @@ class MEDIA_EXPORT DataSource : public base::RefCountedThreadSafe<DataSource> {
   // Returns true if we are performing streaming. In this case seeking is
   // not possible.
   virtual bool IsStreaming() = 0;
-
-  // Alert the DataSource that the video preload value has been changed.
-  virtual void SetPreload(Preload preload) = 0;
 
   // Notify the DataSource of the bitrate of the media.
   // Values of |bitrate| <= 0 are invalid and should be ignored.

@@ -329,11 +329,6 @@ void FFmpegDemuxer::SetPlaybackRate(float playback_rate) {
   data_source_->SetPlaybackRate(playback_rate);
 }
 
-void FFmpegDemuxer::SetPreload(Preload preload) {
-  DCHECK(data_source_.get());
-  data_source_->SetPreload(preload);
-}
-
 void FFmpegDemuxer::OnAudioRendererDisabled() {
   message_loop_->PostTask(FROM_HERE, base::Bind(
       &FFmpegDemuxer::DisableAudioStreamTask, this));

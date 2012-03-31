@@ -47,8 +47,6 @@ DummyDemuxer::DummyDemuxer(bool has_video, bool has_audio, bool local_source)
 
 DummyDemuxer::~DummyDemuxer() {}
 
-void DummyDemuxer::SetPreload(Preload preload) {}
-
 int DummyDemuxer::GetBitrate() {
   return 0;
 }
