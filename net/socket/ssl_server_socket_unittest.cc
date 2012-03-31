@@ -28,6 +28,7 @@
 #include "crypto/rsa_private_key.h"
 #include "net/base/address_list.h"
 #include "net/base/cert_status_flags.h"
+#include "net/base/cert_test_util.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/completion_callback.h"
 #include "net/base/host_port_pair.h"
@@ -254,12 +255,7 @@ class SSLServerSocketTest : public PlatformTest {
     FakeSocket* fake_client_socket = new FakeSocket(&channel_1_, &channel_2_);
     FakeSocket* fake_server_socket = new FakeSocket(&channel_2_, &channel_1_);
 
-    FilePath certs_dir;
-    PathService::Get(base::DIR_SOURCE_ROOT, &certs_dir);
-    certs_dir = certs_dir.AppendASCII("net");
-    certs_dir = certs_dir.AppendASCII("data");
-    certs_dir = certs_dir.AppendASCII("ssl");
-    certs_dir = certs_dir.AppendASCII("certificates");
+    FilePath certs_dir(GetTestCertsDirectory());
 
     FilePath cert_path = certs_dir.AppendASCII("unittest.selfsigned.der");
     std::string cert_der;
