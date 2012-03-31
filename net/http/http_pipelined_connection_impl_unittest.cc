@@ -92,7 +92,7 @@ class HttpPipelinedConnectionImplTest : public testing::Test {
                      BoundNetLog());
     pipeline_.reset(new HttpPipelinedConnectionImpl(
         connection, &delegate_, origin_, ssl_config_, proxy_info_,
-        BoundNetLog(), false, SSLClientSocket::kProtoUnknown));
+        BoundNetLog(), false, kProtoUnknown));
   }
 
   HttpRequestInfo* GetRequestInfo(const std::string& filename) {

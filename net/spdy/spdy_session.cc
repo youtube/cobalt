@@ -292,7 +292,7 @@ class NetLogSpdyGoAwayParameter : public NetLog::EventParameters {
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdyGoAwayParameter);
 };
 
-SSLClientSocket::NextProto g_default_protocol = SSLClientSocket::kProtoUnknown;
+NextProto g_default_protocol = kProtoUnknown;
 size_t g_init_max_concurrent_streams = 10;
 size_t g_max_concurrent_stream_limit = 256;
 bool g_enable_ping_based_connection_checking = true;
@@ -300,8 +300,7 @@ bool g_enable_ping_based_connection_checking = true;
 }  // namespace
 
 // static
-void SpdySession::set_default_protocol(
-    SSLClientSocket::NextProto default_protocol) {
+void SpdySession::set_default_protocol(NextProto default_protocol) {
   g_default_protocol = default_protocol;
 }
 
@@ -324,7 +323,7 @@ void SpdySession::set_init_max_concurrent_streams(size_t value) {
 // static
 void SpdySession::ResetStaticSettingsToInit() {
   // WARNING: These must match the initializers above.
-  g_default_protocol = SSLClientSocket::kProtoUnknown;
+  g_default_protocol = kProtoUnknown;
   g_init_max_concurrent_streams = 10;
   g_max_concurrent_stream_limit = 256;
   g_enable_ping_based_connection_checking = true;
@@ -424,13 +423,11 @@ net::Error SpdySession::InitializeWithSocket(
   is_secure_ = is_secure;
   certificate_error_code_ = certificate_error_code;
 
-  SSLClientSocket::NextProto protocol = g_default_protocol;
+  NextProto protocol = g_default_protocol;
   if (is_secure_) {
     SSLClientSocket* ssl_socket = GetSSLClientSocket();
-
-    SSLClientSocket::NextProto protocol_negotiated =
-        ssl_socket->protocol_negotiated();
-    if (protocol_negotiated != SSLClientSocket::kProtoUnknown) {
+    NextProto protocol_negotiated = ssl_socket->protocol_negotiated();
+    if (protocol_negotiated != kProtoUnknown) {
       protocol = protocol_negotiated;
     }
 
@@ -442,10 +439,10 @@ net::Error SpdySession::InitializeWithSocket(
     }
   }
 
-  DCHECK(protocol >= SSLClientSocket::kProtoSPDY2);
-  DCHECK(protocol <= SSLClientSocket::kProtoSPDY3);
-  int version = (protocol == SSLClientSocket::kProtoSPDY3) ? 3 : 2;
-  flow_control_ = (protocol >= SSLClientSocket::kProtoSPDY21);
+  DCHECK(protocol >= kProtoSPDY2);
+  DCHECK(protocol <= kProtoSPDY3);
+  int version = (protocol == kProtoSPDY3) ? 3 : 2;
+  flow_control_ = (protocol >= kProtoSPDY21);
 
   buffered_spdy_framer_.reset(new BufferedSpdyFramer(version));
   buffered_spdy_framer_->set_visitor(this);
@@ -468,8 +465,7 @@ bool SpdySession::VerifyDomainAuthentication(const std::string& domain) {
 
   SSLInfo ssl_info;
   bool was_npn_negotiated;
-  SSLClientSocket::NextProto protocol_negotiated =
-      SSLClientSocket::kProtoUnknown;
+  NextProto protocol_negotiated = kProtoUnknown;
   if (!GetSSLInfo(&ssl_info, &was_npn_negotiated, &protocol_negotiated))
     return true;   // This is not a secure session, so all domains are okay.
 
@@ -625,7 +621,7 @@ bool SpdySession::NeedsCredentials() const {
   if (!is_secure_)
     return false;
   SSLClientSocket* ssl_socket = GetSSLClientSocket();
-  if (ssl_socket->protocol_negotiated() < SSLClientSocket::kProtoSPDY3)
+  if (ssl_socket->protocol_negotiated() < kProtoSPDY3)
     return false;
   return ssl_socket->WasDomainBoundCertSent();
 }
@@ -1177,7 +1173,7 @@ Value* SpdySession::GetInfoAsValue() const {
 
   dict->SetBoolean("is_secure", is_secure_);
 
-  SSLClientSocket::NextProto proto = SSLClientSocket::kProtoUnknown;
+  NextProto proto = kProtoUnknown;
   if (is_secure_) {
     proto = GetSSLClientSocket()->protocol_negotiated();
   }
@@ -1279,9 +1275,9 @@ scoped_refptr<SpdyStream> SpdySession::GetActivePushStream(
 
 bool SpdySession::GetSSLInfo(SSLInfo* ssl_info,
                              bool* was_npn_negotiated,
-                             SSLClientSocket::NextProto* protocol_negotiated) {
+                             NextProto* protocol_negotiated) {
   if (!is_secure_) {
-    *protocol_negotiated = SSLClientSocket::kProtoUnknown;
+    *protocol_negotiated = kProtoUnknown;
     return false;
   }
   SSLClientSocket* ssl_socket = GetSSLClientSocket();

@@ -161,7 +161,7 @@ class HttpProxyConnectJob : public ConnectJob {
   scoped_ptr<ProxyClientSocket> transport_socket_;
   bool using_spdy_;
   // Protocol negotiated with the server.
-  SSLClientSocket::NextProto protocol_negotiated_;
+  NextProto protocol_negotiated_;
 
   HttpResponseInfo error_response_info_;
 

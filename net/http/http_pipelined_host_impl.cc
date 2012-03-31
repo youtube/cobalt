@@ -43,7 +43,7 @@ HttpPipelinedStream* HttpPipelinedHostImpl::CreateStreamOnNewPipeline(
     const ProxyInfo& used_proxy_info,
     const BoundNetLog& net_log,
     bool was_npn_negotiated,
-    SSLClientSocket::NextProto protocol_negotiated) {
+    NextProto protocol_negotiated) {
   if (capability_ == PIPELINE_INCAPABLE) {
     return NULL;
   }

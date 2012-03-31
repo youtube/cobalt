@@ -66,7 +66,7 @@ class SpdyProxyClientSocketSpdy2Test : public PlatformTest {
 
  protected:
   virtual void SetUp() {
-    SpdySession::set_default_protocol(SSLClientSocket::kProtoSPDY2);
+    SpdySession::set_default_protocol(kProtoSPDY2);
   }
 
   void Initialize(MockRead* reads, size_t reads_count, MockWrite* writes,

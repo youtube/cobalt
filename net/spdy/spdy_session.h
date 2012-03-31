@@ -155,7 +155,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // Fills SSL info in |ssl_info| and returns true when SSL is in use.
   bool GetSSLInfo(SSLInfo* ssl_info,
                   bool* was_npn_negotiated,
-                  SSLClientSocket::NextProto* protocol_negotiated);
+                  NextProto* protocol_negotiated);
 
   // Fills SSL Certificate Request info |cert_request_info| and returns
   // true when SSL is in use.
@@ -174,7 +174,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   // Specify the SPDY protocol to be used for SPDY session which do not use NPN
   // to negotiate a particular protocol.
-  static void set_default_protocol(SSLClientSocket::NextProto default_protocol);
+  static void set_default_protocol(NextProto default_protocol);
 
   // Sets the max concurrent streams per session, as a ceiling on any server
   // specific SETTINGS value.
