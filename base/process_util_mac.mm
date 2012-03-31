@@ -834,6 +834,9 @@ void EnableTerminationOnOutOfMemory() {
   ChromeMallocZone* purgeable_zone =
       reinterpret_cast<ChromeMallocZone*>(GetPurgeableZone());
 
+#ifndef ADDRESS_SANITIZER
+  // Don't do anything special on OOM for the malloc zones replaced by
+  // AddressSanitizer, as modifying or protecting them may not work correctly.
   vm_address_t page_start_default = 0;
   vm_address_t page_start_purgeable = 0;
   vm_size_t len_default = 0;
@@ -907,6 +910,7 @@ void EnableTerminationOnOutOfMemory() {
                PROT_READ);
     }
   }
+#endif
 
   // === C malloc_zone_batch_malloc ===
 
@@ -933,6 +937,7 @@ void EnableTerminationOnOutOfMemory() {
 
   std::set_new_handler(oom_killer_new);
 
+#ifndef ADDRESS_SANITIZER
   // === Core Foundation CFAllocators ===
 
   // This will not catch allocation done by custom allocators, but will catch
@@ -970,6 +975,7 @@ void EnableTerminationOnOutOfMemory() {
     NSLog(@"Internals of CFAllocator not known; out-of-memory failures via "
         "CFAllocator will not result in termination. http://crbug.com/45650");
   }
+#endif
 
   // === Cocoa NSObject allocation ===
 
