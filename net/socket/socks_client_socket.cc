@@ -181,7 +181,6 @@ base::TimeDelta SOCKSClientSocket::GetConnectTimeMicros() const {
   return base::TimeDelta::FromMicroseconds(-1);
 }
 
-
 // Read is called by the transport layer above to read. This can only be done
 // if the SOCKS handshake is complete.
 int SOCKSClientSocket::Read(IOBuffer* buf, int buf_len,

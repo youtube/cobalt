@@ -70,7 +70,7 @@ HttpPipelinedConnectionImpl::HttpPipelinedConnectionImpl(
     const ProxyInfo& used_proxy_info,
     const BoundNetLog& net_log,
     bool was_npn_negotiated,
-    SSLClientSocket::NextProto protocol_negotiated)
+    NextProto protocol_negotiated)
     : delegate_(delegate),
       connection_(connection),
       used_ssl_config_(used_ssl_config),
@@ -811,7 +811,7 @@ bool HttpPipelinedConnectionImpl::was_npn_negotiated() const {
   return was_npn_negotiated_;
 }
 
-SSLClientSocket::NextProto HttpPipelinedConnectionImpl::protocol_negotiated()
+NextProto HttpPipelinedConnectionImpl::protocol_negotiated()
     const {
   return protocol_negotiated_;
 }

@@ -38,7 +38,7 @@ HttpPipelinedStream* HttpPipelinedHostForced::CreateStreamOnNewPipeline(
     const ProxyInfo& used_proxy_info,
     const BoundNetLog& net_log,
     bool was_npn_negotiated,
-    SSLClientSocket::NextProto protocol_negotiated) {
+    NextProto protocol_negotiated) {
   CHECK(!pipeline_.get());
   StreamSocket* wrapped_socket = connection->release_socket();
   BufferedWriteStreamSocket* buffered_socket = new BufferedWriteStreamSocket(
