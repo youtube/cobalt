@@ -335,8 +335,7 @@ ChunkDemuxer::ChunkDemuxer(ChunkDemuxerClient* client)
     : state_(WAITING_FOR_INIT),
       client_(client),
       buffered_bytes_(0),
-      seek_waits_for_data_(true),
-      deferred_error_(PIPELINE_OK) {
+      seek_waits_for_data_(true) {
   DCHECK(client);
 }
 
@@ -344,7 +343,7 @@ ChunkDemuxer::~ChunkDemuxer() {
   DCHECK_NE(state_, INITIALIZED);
 }
 
-void ChunkDemuxer::Init(const PipelineStatusCB& cb) {
+void ChunkDemuxer::Initialize(const PipelineStatusCB& cb) {
   DVLOG(1) << "Init()";
   {
     base::AutoLock auto_lock(lock_);
@@ -360,17 +359,6 @@ void ChunkDemuxer::Init(const PipelineStatusCB& cb) {
   }
 
   client_->DemuxerOpened(this);
-}
-
-void ChunkDemuxer::set_host(DemuxerHost* host) {
-  DCHECK(state_ == INITIALIZED || state_ == PARSE_ERROR);
-  Demuxer::set_host(host);
-  host->SetDuration(duration_);
-  host->SetCurrentReadPosition(0);
-  if (deferred_error_ != PIPELINE_OK) {
-    host->OnDemuxerError(deferred_error_);
-    deferred_error_ = PIPELINE_OK;
-  }
 }
 
 void ChunkDemuxer::Stop(const base::Closure& callback) {
@@ -549,15 +537,13 @@ bool ChunkDemuxer::AppendData(const uint8* data, size_t length) {
   }
 
   // Notify the host of 'network activity' because we got data.
-  if (host()) {
-    host()->SetBufferedBytes(buffered_bytes);
+  host()->SetBufferedBytes(buffered_bytes);
 
-    if (buffered_ts.InSeconds() >= 0) {
-      host()->SetBufferedTime(buffered_ts);
-    }
-
-    host()->SetNetworkActivity(true);
+  if (buffered_ts.InSeconds() >= 0) {
+    host()->SetBufferedTime(buffered_ts);
   }
+
+  host()->SetNetworkActivity(true);
 
   if (!cb.is_null())
     cb.Run(PIPELINE_OK);
@@ -662,14 +648,8 @@ void ChunkDemuxer::ReportError_Locked(PipelineStatus error) {
     return;
   }
 
-  DemuxerHost* demuxer_host = host();
-  if (demuxer_host) {
-    base::AutoUnlock auto_unlock(lock_);
-    demuxer_host->OnDemuxerError(error);
-    return;
-  }
-
-  deferred_error_ = error;
+  base::AutoUnlock auto_unlock(lock_);
+  host()->OnDemuxerError(error);
 }
 
 void ChunkDemuxer::OnStreamParserInitDone(bool success,
@@ -682,6 +662,8 @@ void ChunkDemuxer::OnStreamParserInitDone(bool success,
   }
 
   duration_ = duration;
+  host()->SetDuration(duration_);
+  host()->SetCurrentReadPosition(0);
 
   ChangeState_Locked(INITIALIZED);
   PipelineStatusCB cb;

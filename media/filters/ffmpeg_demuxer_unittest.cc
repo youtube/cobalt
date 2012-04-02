@@ -41,19 +41,7 @@ MATCHER(IsEndOfStreamBuffer,
 class FFmpegDemuxerTest : public testing::Test {
  protected:
 
-  FFmpegDemuxerTest() {
-    // Create an FFmpegDemuxer with local data source.
-    demuxer_ = new FFmpegDemuxer(&message_loop_, true);
-    demuxer_->disable_first_seek_hack_for_testing();
-
-    // Inject a filter host and message loop and prepare a data source.
-    demuxer_->set_host(&host_);
-
-    EXPECT_CALL(host_, SetTotalBytes(_)).Times(AnyNumber());
-    EXPECT_CALL(host_, SetBufferedBytes(_)).Times(AnyNumber());
-    EXPECT_CALL(host_, SetCurrentReadPosition(_))
-        .WillRepeatedly(SaveArg<0>(&current_read_position_));
-  }
+  FFmpegDemuxerTest() {}
 
   virtual ~FFmpegDemuxerTest() {
     if (demuxer_) {
@@ -67,34 +55,33 @@ class FFmpegDemuxerTest : public testing::Test {
     demuxer_ = NULL;
   }
 
-  scoped_refptr<FileDataSource> CreateDataSource(const std::string& name) {
-    return CreateDataSource(name, false);
+  void CreateDemuxer(const std::string& name) {
+    CreateDemuxer(name, false);
   }
 
-  scoped_refptr<FileDataSource> CreateDataSource(const std::string& name,
-                                                 bool disable_file_size) {
-    FilePath file_path;
-    EXPECT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &file_path));
+  void CreateDemuxer(const std::string& name, bool disable_file_size) {
+    CHECK(!demuxer_);
 
-    file_path = file_path.Append(FILE_PATH_LITERAL("media"))
-        .Append(FILE_PATH_LITERAL("test"))
-        .Append(FILE_PATH_LITERAL("data"))
-        .AppendASCII(name);
+    EXPECT_CALL(host_, SetTotalBytes(_)).Times(AnyNumber());
+    EXPECT_CALL(host_, SetBufferedBytes(_)).Times(AnyNumber());
+    EXPECT_CALL(host_, SetCurrentReadPosition(_))
+        .WillRepeatedly(SaveArg<0>(&current_read_position_));
 
-    scoped_refptr<FileDataSource> data_source = new FileDataSource(
-        disable_file_size);
+    CreateDataSource(name, disable_file_size);
 
-    EXPECT_EQ(PIPELINE_OK, data_source->Initialize(file_path.MaybeAsASCII()));
+    // Create an FFmpegDemuxer with local data source.
+    demuxer_ = new FFmpegDemuxer(&message_loop_, data_source_, true);
+    demuxer_->disable_first_seek_hack_for_testing();
 
-    return data_source.get();
+    // Inject a filter host and message loop and prepare a data source.
+    demuxer_->set_host(&host_);
   }
 
   MOCK_METHOD1(CheckPoint, void(int v));
 
-  // Initializes FFmpegDemuxer.
-  void InitializeDemuxer(const scoped_refptr<DataSource>& data_source) {
+  void InitializeDemuxer() {
     EXPECT_CALL(host_, SetDuration(_));
-    demuxer_->Initialize(data_source, NewExpectedStatusCB(PIPELINE_OK));
+    demuxer_->Initialize(NewExpectedStatusCB(PIPELINE_OK));
     message_loop_.RunAllPending();
   }
 
@@ -120,9 +107,8 @@ class FFmpegDemuxerTest : public testing::Test {
   // returns true if the bitrate is valid, false otherwise.
   bool VideoHasValidBitrate(
       const std::string& file_name, bool disable_file_size) {
-    scoped_refptr<FileDataSource> data_source =
-        CreateDataSource(file_name, disable_file_size);
-    InitializeDemuxer(data_source);
+    CreateDemuxer(file_name, disable_file_size);
+    InitializeDemuxer();
     return demuxer_->GetBitrate() > 0;
   }
 
@@ -133,6 +119,7 @@ class FFmpegDemuxerTest : public testing::Test {
   }
 
   // Fixture members.
+  scoped_refptr<FileDataSource> data_source_;
   scoped_refptr<FFmpegDemuxer> demuxer_;
   StrictMock<MockDemuxerHost> host_;
   MessageLoop message_loop_;
@@ -140,14 +127,29 @@ class FFmpegDemuxerTest : public testing::Test {
   int64 current_read_position_;
 
  private:
+  void CreateDataSource(const std::string& name, bool disable_file_size) {
+    CHECK(!data_source_);
+
+    FilePath file_path;
+    EXPECT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &file_path));
+
+    file_path = file_path.Append(FILE_PATH_LITERAL("media"))
+        .Append(FILE_PATH_LITERAL("test"))
+        .Append(FILE_PATH_LITERAL("data"))
+        .AppendASCII(name);
+
+    data_source_ = new FileDataSource(disable_file_size);
+    EXPECT_EQ(PIPELINE_OK, data_source_->Initialize(file_path.MaybeAsASCII()));
+  }
+
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxerTest);
 };
 
 TEST_F(FFmpegDemuxerTest, Initialize_OpenFails) {
   // Simulate avformat_open_input() failing.
+  CreateDemuxer("ten_byte_file"),
   EXPECT_CALL(host_, SetCurrentReadPosition(_));
-  demuxer_->Initialize(CreateDataSource("ten_byte_file"),
-                       NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
+  demuxer_->Initialize(NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
 
   message_loop_.RunAllPending();
 }
@@ -156,31 +158,32 @@ TEST_F(FFmpegDemuxerTest, Initialize_OpenFails) {
 // avformat_open_input(), but has avformat_find_stream_info() fail.
 //
 //TEST_F(FFmpegDemuxerTest, Initialize_ParseFails) {
+//  CreateDemuxer("find_stream_info_fail.webm");
 //  demuxer_->Initialize(
-//      CreateDataSource("find_stream_info_fail.webm"),
 //      NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_PARSE));
 //  message_loop_.RunAllPending();
 //}
 
 TEST_F(FFmpegDemuxerTest, Initialize_NoStreams) {
   // Open a file with no streams whatsoever.
+  CreateDemuxer("no_streams.webm");
   EXPECT_CALL(host_, SetCurrentReadPosition(_));
   demuxer_->Initialize(
-      CreateDataSource("no_streams.webm"),
       NewExpectedStatusCB(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
   message_loop_.RunAllPending();
 }
 
 TEST_F(FFmpegDemuxerTest, Initialize_NoAudioVideo) {
   // Open a file containing streams but none of which are audio/video streams.
+  CreateDemuxer("no_audio_video.webm");
   demuxer_->Initialize(
-      CreateDataSource("no_audio_video.webm"),
       NewExpectedStatusCB(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
   message_loop_.RunAllPending();
 }
 
 TEST_F(FFmpegDemuxerTest, Initialize_Successful) {
-  InitializeDemuxer(CreateDataSource("bear-320x240.webm"));
+  CreateDemuxer("bear-320x240.webm");
+  InitializeDemuxer();
 
   // Video stream should be present.
   scoped_refptr<DemuxerStream> stream =
@@ -230,7 +233,8 @@ TEST_F(FFmpegDemuxerTest, Initialize_Multitrack) {
   //   Stream #4: Audio (16-bit signed little endian PCM)
   //
   // We should only pick the first audio/video streams we come across.
-  InitializeDemuxer(CreateDataSource("bear-320x240-multitrack.webm"));
+  CreateDemuxer("bear-320x240-multitrack.webm");
+  InitializeDemuxer();
 
   // Video stream should be VP8.
   scoped_refptr<DemuxerStream> stream =
@@ -251,7 +255,8 @@ TEST_F(FFmpegDemuxerTest, Initialize_Multitrack) {
 
 TEST_F(FFmpegDemuxerTest, Read_Audio) {
   // We test that on a successful audio packet read.
-  InitializeDemuxer(CreateDataSource("bear-320x240.webm"));
+  CreateDemuxer("bear-320x240.webm");
+  InitializeDemuxer();
 
   // Attempt a read from the audio stream and run the message loop until done.
   scoped_refptr<DemuxerStream> audio =
@@ -271,7 +276,8 @@ TEST_F(FFmpegDemuxerTest, Read_Audio) {
 
 TEST_F(FFmpegDemuxerTest, Read_Video) {
   // We test that on a successful video packet read.
-  InitializeDemuxer(CreateDataSource("bear-320x240.webm"));
+  CreateDemuxer("bear-320x240.webm");
+  InitializeDemuxer();
 
   // Attempt a read from the video stream and run the message loop until done.
   scoped_refptr<DemuxerStream> video =
@@ -292,7 +298,8 @@ TEST_F(FFmpegDemuxerTest, Read_Video) {
 
 TEST_F(FFmpegDemuxerTest, Read_VideoNonZeroStart) {
   // Test the start time is the first timestamp of the video and audio stream.
-  InitializeDemuxer(CreateDataSource("nonzero-start-time.webm"));
+  CreateDemuxer("nonzero-start-time.webm");
+  InitializeDemuxer();
 
   // Attempt a read from the video stream and run the message loop until done.
   scoped_refptr<DemuxerStream> video =
@@ -323,7 +330,8 @@ TEST_F(FFmpegDemuxerTest, Read_VideoNonZeroStart) {
 
 TEST_F(FFmpegDemuxerTest, Read_EndOfStream) {
   // Verify that end of stream buffers are created.
-  InitializeDemuxer(CreateDataSource("bear-320x240.webm"));
+  CreateDemuxer("bear-320x240.webm");
+  InitializeDemuxer();
 
   // We should now expect an end of stream buffer.
   scoped_refptr<DemuxerStream> audio =
@@ -356,7 +364,8 @@ TEST_F(FFmpegDemuxerTest, Read_EndOfStream) {
 TEST_F(FFmpegDemuxerTest, Seek) {
   // We're testing that the demuxer frees all queued packets when it receives
   // a Seek().
-  InitializeDemuxer(CreateDataSource("bear-320x240.webm"));
+  CreateDemuxer("bear-320x240.webm");
+  InitializeDemuxer();
 
   // Get our streams.
   scoped_refptr<DemuxerStream> video =
@@ -434,7 +443,8 @@ class MockReadCB : public base::RefCountedThreadSafe<MockReadCB> {
 TEST_F(FFmpegDemuxerTest, Stop) {
   // Tests that calling Read() on a stopped demuxer stream immediately deletes
   // the callback.
-  InitializeDemuxer(CreateDataSource("bear-320x240.webm"));
+  CreateDemuxer("bear-320x240.webm");
+  InitializeDemuxer();
 
   // Get our stream.
   scoped_refptr<DemuxerStream> audio =
@@ -470,7 +480,8 @@ TEST_F(FFmpegDemuxerTest, Stop) {
 // This test verifies that DemuxerStream::Read() does not use an invalid demuxer
 // pointer (no crash occurs) and calls the callback with an EndOfStream buffer.
 TEST_F(FFmpegDemuxerTest, StreamReadAfterStopAndDemuxerDestruction) {
-  InitializeDemuxer(CreateDataSource("bear-320x240.webm"));
+  CreateDemuxer("bear-320x240.webm");
+  InitializeDemuxer();
 
   // Get our stream.
   scoped_refptr<DemuxerStream> audio =
@@ -513,7 +524,8 @@ TEST_F(FFmpegDemuxerTest, DisableAudioStream) {
   // 1. Initialize the demuxer with audio and video stream.
   // 2. Send a "disable audio stream" message to the demuxer.
   // 3. Demuxer will free audio packets even if audio stream was initialized.
-  InitializeDemuxer(CreateDataSource("bear-320x240.webm"));
+  CreateDemuxer("bear-320x240.webm");
+  InitializeDemuxer();
 
   // Submit a "disable audio stream" message to the demuxer.
   demuxer_->OnAudioRendererDisabled();
@@ -548,8 +560,9 @@ TEST_F(FFmpegDemuxerTest, DisableAudioStream) {
 
 class MockFFmpegDemuxer : public FFmpegDemuxer {
  public:
-  explicit MockFFmpegDemuxer(MessageLoop* message_loop)
-      : FFmpegDemuxer(message_loop, true) {
+  MockFFmpegDemuxer(MessageLoop* message_loop,
+                    const scoped_refptr<DataSource>& data_source)
+      : FFmpegDemuxer(message_loop, data_source, true) {
   }
   virtual ~MockFFmpegDemuxer() {}
 
@@ -575,10 +588,8 @@ TEST_F(FFmpegDemuxerTest, ProtocolRead) {
 
   // Creates a demuxer.
   scoped_refptr<MockFFmpegDemuxer> demuxer(
-      new MockFFmpegDemuxer(&message_loop_));
-  ASSERT_TRUE(demuxer);
+      new MockFFmpegDemuxer(&message_loop_, data_source));
   demuxer->set_host(&host_);
-  demuxer->data_source_ = data_source;
 
   uint8 kBuffer[1];
   InSequence s;
@@ -643,8 +654,8 @@ TEST_F(FFmpegDemuxerTest, GetBitrate_UnsetInContainer_NoFileSize) {
 }
 
 TEST_F(FFmpegDemuxerTest, ProtocolGetSetPosition) {
-  scoped_refptr<DataSource> data_source = CreateDataSource("bear-320x240.webm");
-  InitializeDemuxer(data_source);
+  CreateDemuxer("bear-320x240.webm");
+  InitializeDemuxer();
 
   InSequence s;
 
@@ -663,29 +674,30 @@ TEST_F(FFmpegDemuxerTest, ProtocolGetSetPosition) {
 }
 
 TEST_F(FFmpegDemuxerTest, ProtocolGetSize) {
-  scoped_refptr<DataSource> data_source = CreateDataSource("bear-320x240.webm");
-  InitializeDemuxer(data_source);
+  CreateDemuxer("bear-320x240.webm");
+  InitializeDemuxer();
 
   int64 data_source_size = 0;
   int64 demuxer_size = 0;
-  EXPECT_TRUE(data_source->GetSize(&data_source_size));
+  EXPECT_TRUE(data_source_->GetSize(&data_source_size));
   EXPECT_TRUE(demuxer_->GetSize(&demuxer_size));
   EXPECT_NE(0, data_source_size);
   EXPECT_EQ(data_source_size, demuxer_size);
 }
 
 TEST_F(FFmpegDemuxerTest, ProtocolIsStreaming) {
-  scoped_refptr<DataSource> data_source = CreateDataSource("bear-320x240.webm");
-  InitializeDemuxer(data_source);
+  CreateDemuxer("bear-320x240.webm");
+  InitializeDemuxer();
 
-  EXPECT_FALSE(data_source->IsStreaming());
+  EXPECT_FALSE(data_source_->IsStreaming());
   EXPECT_FALSE(demuxer_->IsStreaming());
 }
 
 // Verify that seek works properly when the WebM cues data is at the start of
 // the file instead of at the end.
 TEST_F(FFmpegDemuxerTest, SeekWithCuesBeforeFirstCluster) {
-  InitializeDemuxer(CreateDataSource("bear-320x240-cues-in-front.webm"));
+  CreateDemuxer("bear-320x240-cues-in-front.webm");
+  InitializeDemuxer();
 
   // Get our streams.
   scoped_refptr<DemuxerStream> video =
