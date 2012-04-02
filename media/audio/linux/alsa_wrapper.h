@@ -11,8 +11,6 @@
 #include "base/basictypes.h"
 #include "media/base/media_export.h"
 
-namespace media {
-
 class MEDIA_EXPORT AlsaWrapper {
  public:
   AlsaWrapper();
@@ -77,5 +75,3 @@ class MEDIA_EXPORT AlsaWrapper {
                         int soft_resample, unsigned int latency);
   DISALLOW_COPY_AND_ASSIGN(AlsaWrapper);
 };
-
-}  // namespace media

@@ -12,8 +12,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using base::win::ScopedCOMInitializer;
-
-namespace media {
+using media::AudioDeviceNames;
 
 class AudioInputVolumeTest : public ::testing::Test {
  protected:
@@ -158,5 +157,3 @@ TEST_F(AudioInputVolumeTest, InputVolumeTest) {
     ais->Close();
   }
 }
-
-}  // namespace media

@@ -17,8 +17,6 @@
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
-namespace media {
-
 class AlsaWrapper;
 class AudioManagerLinux;
 
@@ -86,7 +84,5 @@ class AlsaPcmInputStream : public AudioInputStreamImpl {
 
   DISALLOW_COPY_AND_ASSIGN(AlsaPcmInputStream);
 };
-
-}  // namespace media
 
 #endif  // MEDIA_AUDIO_LINUX_ALSA_INPUT_H_

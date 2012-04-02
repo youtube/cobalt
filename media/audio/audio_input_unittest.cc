@@ -11,8 +11,6 @@
 #include "media/audio/audio_manager_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace media {
-
 static const int kSamplingRate = 8000;
 static const int kSamplesPerPacket = kSamplingRate / 20;
 
@@ -172,5 +170,3 @@ TEST(AudioInputTest, Record) {
   ais->Stop();
   ais->Close();
 }
-
-}  // namespace media

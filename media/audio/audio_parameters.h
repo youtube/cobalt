@@ -9,8 +9,6 @@
 #include "media/base/channel_layout.h"
 #include "media/base/media_export.h"
 
-namespace media {
-
 struct MEDIA_EXPORT AudioInputBufferParameters {
   double volume;
   uint32 size;
@@ -84,7 +82,5 @@ class MEDIA_EXPORT AudioParameters {
   int channels_;                  // Number of channels. Value set based on
                                   // |channel_layout|.
 };
-
-}  // namespace media
 
 #endif  // MEDIA_AUDIO_AUDIO_PARAMETERS_H_
