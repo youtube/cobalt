@@ -14,6 +14,15 @@
 using ::testing::_;
 using ::testing::Mock;
 using ::testing::Return;
+using media::AudioBuffersState;
+using media::AudioInputStream;
+using media::AudioManager;
+using media::AudioOutputDispatcher;
+using media::AudioOutputProxy;
+using media::AudioOutputStream;
+using media::AudioParameters;
+
+namespace {
 
 static const int kTestCloseDelayMs = 100;
 
@@ -64,6 +73,10 @@ class MockAudioSourceCallback : public AudioOutputStream::AudioSourceCallback {
                                   AudioBuffersState buffers_state));
   MOCK_METHOD2(OnError, void(AudioOutputStream* stream, int code));
 };
+
+}  // namespace
+
+namespace media {
 
 class AudioOutputProxyTest : public testing::Test {
  protected:
@@ -371,3 +384,5 @@ TEST_F(AudioOutputProxyTest, StartFailed) {
 
   proxy->Close();
 }
+
+}  // namespace media

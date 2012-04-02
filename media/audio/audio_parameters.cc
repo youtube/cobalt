@@ -6,6 +6,8 @@
 
 #include "media/base/limits.h"
 
+namespace media {
+
 AudioParameters::AudioParameters()
     : format_(AUDIO_PCM_LINEAR),
       channel_layout_(CHANNEL_LAYOUT_NONE),
@@ -81,3 +83,5 @@ bool AudioParameters::Compare::operator()(
     return false;
   return a.frames_per_buffer_ < b.frames_per_buffer_;
 }
+
+}  // namespace media

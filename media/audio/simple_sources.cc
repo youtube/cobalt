@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,6 +12,8 @@
 #include "base/memory/ref_counted.h"
 #include "media/audio/audio_io.h"
 #include "media/base/data_buffer.h"
+
+namespace media {
 
 //////////////////////////////////////////////////////////////////////////////
 // SineWaveAudioSource implementation.
@@ -96,3 +98,5 @@ void PushSource::ClearAll() {
 void PushSource::CleanUp() {
   buffer_.Clear();
 }
+
+}  // namespace media

@@ -11,6 +11,8 @@
 #include "base/threading/thread.h"
 #include "media/audio/audio_manager_base.h"
 
+namespace media {
+
 class AlsaWrapper;
 
 class MEDIA_EXPORT AudioManagerLinux : public AudioManagerBase {
@@ -72,5 +74,7 @@ class MEDIA_EXPORT AudioManagerLinux : public AudioManagerBase {
 
   DISALLOW_COPY_AND_ASSIGN(AudioManagerLinux);
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_LINUX_AUDIO_MANAGER_LINUX_H_

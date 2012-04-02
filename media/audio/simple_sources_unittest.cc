@@ -11,6 +11,8 @@
 #include "media/audio/simple_sources.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace media {
+
 static void GenerateRandomData(char* buffer, uint32 len) {
   static bool called = false;
   if (!called) {
@@ -99,3 +101,5 @@ TEST(SimpleSources, SineWaveAudio16MonoTest) {
   EXPECT_TRUE(last_buffer[half_period + 2] > last_buffer[half_period + 3]);
   oas->Close();
 }
+
+}  // namespace media
