@@ -311,7 +311,11 @@ class StreamWrapper {
       : com_init_(ScopedCOMInitializer::kMTA),
         audio_manager_(audio_manager),
         format_(AudioParameters::AUDIO_PCM_LOW_LATENCY),
+#if defined(OS_ANDROID)
+        channel_layout_(CHANNEL_LAYOUT_MONO),
+#else
         channel_layout_(CHANNEL_LAYOUT_STEREO),
+#endif
         bits_per_sample_(16) {
     // Use native/mixing sample rate and N*10ms frame size as default,
     // where N is platform dependent.
@@ -339,6 +343,8 @@ class StreamWrapper {
       // ensure glitch-free output audio.
       samples_per_packet_ = 3 * (sample_rate_ / 100);
     }
+#elif defined(OS_ANDROID)
+      samples_per_packet_ = (sample_rate_ / 100);
 #endif
   }
 
