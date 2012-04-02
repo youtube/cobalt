@@ -9,6 +9,8 @@
 #include "media/audio/audio_manager.h"
 #include "media/audio/audio_output_dispatcher.h"
 
+namespace media {
+
 AudioOutputProxy::AudioOutputProxy(AudioOutputDispatcher* dispatcher)
     : dispatcher_(dispatcher),
       state_(kCreated),
@@ -93,3 +95,5 @@ void AudioOutputProxy::Close() {
   // dispatcher+audio manager.
   delete this;
 }
+
+}  // namespace media

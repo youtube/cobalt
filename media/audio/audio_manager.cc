@@ -8,6 +8,8 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 
+namespace media {
+
 // Forward declaration of the platform specific AudioManager factory function.
 AudioManager* CreateAudioManager();
 
@@ -23,3 +25,5 @@ AudioManager* AudioManager::Create() {
   ret->Init();
   return ret;
 }
+
+}  // namespace media

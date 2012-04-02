@@ -10,6 +10,8 @@
 #include "base/time.h"
 #include "media/audio/audio_io.h"
 
+namespace media {
+
 AudioOutputDispatcher::AudioOutputDispatcher(
     AudioManager* audio_manager, const AudioParameters& params,
     base::TimeDelta close_delay)
@@ -168,3 +170,5 @@ void AudioOutputDispatcher::ClosePendingStreams() {
     idle_streams_.pop_back();
   }
 }
+
+}  // namespace media

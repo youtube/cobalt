@@ -6,6 +6,8 @@
 
 #include <alsa/asoundlib.h>
 
+namespace media {
+
 AlsaWrapper::AlsaWrapper() {
 }
 
@@ -226,3 +228,5 @@ int AlsaWrapper::MixerSelemGetCaptureVolumeRange(snd_mixer_elem_t* elem,
                                                  long* min, long* max) {
   return snd_mixer_selem_get_capture_volume_range(elem, min, max);
 }
+
+}  // namespace media

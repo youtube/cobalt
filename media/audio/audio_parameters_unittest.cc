@@ -7,6 +7,8 @@
 #include "media/audio/audio_parameters.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace media {
+
 TEST(AudioParameters, Constructor_Default) {
   AudioParameters::Format expected_format = AudioParameters::AUDIO_PCM_LINEAR;
   int expected_bits = 0;
@@ -163,3 +165,5 @@ TEST(AudioParameters, Compare) {
     EXPECT_FALSE(target(values[i], values[i]));
   }
 }
+
+}  // namespace media

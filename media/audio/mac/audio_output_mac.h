@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,6 +13,8 @@
 #include "base/synchronization/lock.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
+
+namespace media {
 
 class AudioManagerMac;
 
@@ -96,5 +98,7 @@ class PCMQueueOutAudioOutputStream : public AudioOutputStream {
 
   DISALLOW_COPY_AND_ASSIGN(PCMQueueOutAudioOutputStream);
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_MAC_AUDIO_OUTPUT_MAC_H_

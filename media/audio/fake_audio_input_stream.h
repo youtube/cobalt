@@ -13,9 +13,11 @@
 #include "base/threading/thread.h"
 #include "base/time.h"
 #include "media/audio/audio_io.h"
-#include "media/audio/audio_parameters.h"
+
+namespace media {
 
 class AudioManagerBase;
+class AudioParameters;
 
 class MEDIA_EXPORT FakeAudioInputStream
     : public AudioInputStream {
@@ -51,5 +53,7 @@ class MEDIA_EXPORT FakeAudioInputStream
 
   DISALLOW_COPY_AND_ASSIGN(FakeAudioInputStream);
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_FAKE_AUDIO_INPUT_STREAM_H_

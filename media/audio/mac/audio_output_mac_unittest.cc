@@ -20,6 +20,8 @@ using ::testing::NiceMock;
 using ::testing::NotNull;
 using ::testing::Return;
 
+namespace media {
+
 class MockAudioSource : public AudioOutputStream::AudioSourceCallback {
  public:
   MOCK_METHOD4(OnMoreData, uint32(AudioOutputStream* stream, uint8* dest,
@@ -175,3 +177,5 @@ TEST(MacAudioTest, PCMWaveStreamPendingBytes) {
   oas->Stop();
   oas->Close();
 }
+
+}  // namespace media
