@@ -764,7 +764,7 @@ void EnableTerminationOnOutOfMemory() {
 
 // NOTE: This is not the only version of this function in the source:
 // the setuid sandbox (in process_util_linux.c, in the sandbox source)
-// also has it's own C version.
+// also has its own C version.
 bool AdjustOOMScore(ProcessId process, int score) {
   if (score < 0 || score > kMaxOomScore)
     return false;
