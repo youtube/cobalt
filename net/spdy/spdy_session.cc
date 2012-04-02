@@ -420,6 +420,7 @@ net::Error SpdySession::InitializeWithSocket(
 
   state_ = CONNECTED;
   connection_.reset(connection);
+  connection_->AddLayeredPool(this);
   is_secure_ = is_secure;
   certificate_error_code_ = certificate_error_code;
 
@@ -1212,6 +1213,18 @@ int SpdySession::GetLocalAddress(IPEndPoint* address) const {
     return ERR_SOCKET_NOT_CONNECTED;
 
   return connection_->socket()->GetLocalAddress(address);
+}
+
+bool SpdySession::CloseOneIdleConnection() {
+  if (spdy_session_pool_ && num_active_streams() == 0) {
+    bool ret = HasOneRef();
+    // Will remove a reference to this.
+    RemoveFromPool();
+    // Since the underlying socket is only returned when |this| is destroyed
+    // we should only return true if RemoveFromPool() removed the last ref.
+    return ret;
+  }
+  return false;
 }
 
 void SpdySession::ActivateStream(SpdyStream* stream) {
