@@ -10,8 +10,6 @@
 using base::Time;
 using base::TimeDelta;
 
-namespace media {
-
 AudioInputStream* FakeAudioInputStream::MakeFakeStream(
     AudioManagerBase* manager,
     const AudioParameters& params) {
@@ -95,5 +93,3 @@ void FakeAudioInputStream::SetAutomaticGainControl(bool enabled) {}
 bool FakeAudioInputStream::GetAutomaticGainControl() {
   return false;
 }
-
-}  // namespace media

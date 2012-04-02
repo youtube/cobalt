@@ -27,8 +27,6 @@ using ::testing::AtLeast;
 using ::testing::Gt;
 using ::testing::NotNull;
 
-namespace media {
-
 ACTION_P3(CheckCountAndPostQuitTask, count, limit, loop) {
   if (++*count >= limit) {
     loop->PostTask(FROM_HERE, MessageLoop::QuitClosure());
@@ -394,5 +392,3 @@ TEST(WinAudioInputTest, DISABLED_WASAPIAudioInputStreamRecordToFile) {
   LOG(INFO) << ">> Recording has stopped.";
   ais->Close();
 }
-
-}  // namespace media

@@ -12,8 +12,6 @@
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
-namespace media {
-
 class AudioManagerMac;
 
 // Implementation of AudioInputStream for Mac OS X using the audio queue service
@@ -79,7 +77,5 @@ class PCMQueueInAudioInputStream : public AudioInputStream {
 
   DISALLOW_COPY_AND_ASSIGN(PCMQueueInAudioInputStream);
 };
-
-}  // namespace media
 
 #endif  // MEDIA_AUDIO_MAC_AUDIO_INPUT_MAC_H_

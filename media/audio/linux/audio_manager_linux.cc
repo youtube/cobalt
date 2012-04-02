@@ -23,8 +23,6 @@
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
 
-namespace media {
-
 // Maximum number of output streams that can be open simultaneously.
 static const int kMaxOutputStreams = 50;
 
@@ -311,5 +309,3 @@ AudioInputStream* AudioManagerLinux::MakeInputStream(
 AudioManager* CreateAudioManager() {
   return new AudioManagerLinux();
 }
-
-}  // namespace media

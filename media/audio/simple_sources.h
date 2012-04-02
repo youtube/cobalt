@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,8 +9,6 @@
 
 #include "media/audio/audio_io.h"
 #include "media/base/seekable_buffer.h"
-
-namespace media {
 
 // An audio source that produces a pure sinusoidal tone.
 class MEDIA_EXPORT SineWaveAudioSource
@@ -89,7 +87,5 @@ class MEDIA_EXPORT PushSource
 
   media::SeekableBuffer buffer_;
 };
-
-}  // namespace media
 
 #endif  // MEDIA_AUDIO_SIMPLE_SOURCES_H_

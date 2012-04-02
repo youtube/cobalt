@@ -12,8 +12,6 @@
 #include "media/audio/audio_util.h"
 #include "media/audio/mac/audio_manager_mac.h"
 
-namespace media {
-
 // Reorder PCM from AAC layout to Core Audio 5.1 layout.
 // TODO(fbarchard): Switch layout when ffmpeg is updated.
 template<class Format>
@@ -352,5 +350,3 @@ double AUAudioOutputStream::GetPlayoutLatency(
 
   return (delay_frames + hardware_latency_frames_);
 }
-
-}  // namespace media

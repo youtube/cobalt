@@ -16,8 +16,6 @@
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
-namespace media {
-
 class AudioManagerWin;
 
 class PCMWaveInAudioInputStream : public AudioInputStream {
@@ -118,7 +116,5 @@ class PCMWaveInAudioInputStream : public AudioInputStream {
 
   DISALLOW_COPY_AND_ASSIGN(PCMWaveInAudioInputStream);
 };
-
-}  // namespace media
 
 #endif  // MEDIA_AUDIO_WIN_WAVEIN_INPUT_WIN_H_

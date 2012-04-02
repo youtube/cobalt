@@ -13,8 +13,6 @@
 #include "base/gtest_prod_util.h"
 #include "media/audio/audio_manager_base.h"
 
-namespace media {
-
 // Windows implementation of the AudioManager singleton. This class is internal
 // to the audio output and only internal users can call methods not exposed by
 // the AudioManager class.
@@ -72,7 +70,5 @@ class MEDIA_EXPORT AudioManagerWin : public AudioManagerBase {
 
   DISALLOW_COPY_AND_ASSIGN(AudioManagerWin);
 };
-
-}  // namespace media
 
 #endif  // MEDIA_AUDIO_WIN_AUDIO_MANAGER_WIN_H_

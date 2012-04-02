@@ -16,8 +16,6 @@
 using base::win::ScopedComPtr;
 using base::win::ScopedCOMInitializer;
 
-namespace media {
-
 WASAPIAudioOutputStream::WASAPIAudioOutputStream(AudioManagerWin* manager,
                                                  const AudioParameters& params,
                                                  ERole device_role)
@@ -810,5 +808,3 @@ bool WASAPIAudioOutputStream::RestartRenderingUsingNewDefaultDevice() {
   restart_rendering_mode_ = false;
   return SUCCEEDED(hr);
 }
-
-}  // namespace media

@@ -8,8 +8,6 @@
 #include "base/logging.h"
 #include "media/audio/audio_manager_base.h"
 
-namespace media {
-
 FakeAudioOutputStream* FakeAudioOutputStream::current_fake_stream_ = NULL;
 
 // static
@@ -72,5 +70,3 @@ FakeAudioOutputStream::~FakeAudioOutputStream() {
   if (current_fake_stream_ == this)
     current_fake_stream_ = NULL;
 }
-
-}  // namespace media

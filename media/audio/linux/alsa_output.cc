@@ -49,8 +49,6 @@
 #include "media/base/data_buffer.h"
 #include "media/base/seekable_buffer.h"
 
-namespace media {
-
 // Amount of time to wait if we've exhausted the data source.  This is to avoid
 // busy looping.
 static const uint32 kNoDataSleepMilliseconds = 10;
@@ -799,5 +797,3 @@ void AlsaPcmOutputStream::set_source_callback(AudioSourceCallback* callback) {
   DCHECK(IsOnAudioThread());
   source_callback_ = callback;
 }
-
-}  // namespace media
