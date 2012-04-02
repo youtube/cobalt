@@ -47,6 +47,7 @@
         'base/accelerators/accelerator.h',
         'base/accelerators/accelerator_cocoa.h',
         'base/accelerators/accelerator_cocoa.mm',
+        'base/accelerators/accelerator_gtk.cc',
         'base/accelerators/accelerator_gtk.h',
         'base/accelerators/accelerator_manager.cc',
         'base/accelerators/accelerator_manager.h',
