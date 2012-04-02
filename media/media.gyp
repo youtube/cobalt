@@ -57,6 +57,10 @@
         'audio/android/audio_manager_android.h',
         'audio/android/audio_track_output_android.cc',
         'audio/android/audio_track_output_android.h',
+        'audio/android/opensles_input.cc',
+        'audio/android/opensles_input.h',
+        'audio/android/opensles_output.cc',
+        'audio/android/opensles_output.h',
         'audio/cross_process_notification.cc',
         'audio/cross_process_notification.h',
         'audio/cross_process_notification_win.cc',
@@ -312,6 +316,11 @@
           'sources':[
             'audio/android/audio_track_output_stub_android.cc',
           ],
+          'link_settings': {
+            'libraries': [
+              '-lOpenSLES',
+            ],
+          },
         }],
         ['OS=="linux" or OS=="freebsd" or OS=="solaris"', {
           'link_settings': {

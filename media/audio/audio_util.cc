@@ -305,8 +305,8 @@ void MixStreams(void* dst,
 
 int GetAudioHardwareSampleRate() {
 #if defined(OS_MACOSX)
-    // Hardware sample-rate on the Mac can be configured, so we must query.
-    return AUAudioOutputStream::HardwareSampleRate();
+  // Hardware sample-rate on the Mac can be configured, so we must query.
+  return AUAudioOutputStream::HardwareSampleRate();
 #elif defined(OS_WIN)
   if (!IsWASAPISupported()) {
     // Fall back to Windows Wave implementation on Windows XP or lower
@@ -318,6 +318,8 @@ int GetAudioHardwareSampleRate() {
   // TODO(henrika): improve possibility to specify audio endpoint.
   // Use the default device (same as for Wave) for now to be compatible.
   return WASAPIAudioOutputStream::HardwareSampleRate(eConsole);
+#elif defined(OS_ANDROID)
+  return 16000;
 #else
     // Hardware for Linux is nearly always 48KHz.
     // TODO(crogers) : return correct value in rare non-48KHz cases.
@@ -335,6 +337,8 @@ int GetAudioInputHardwareSampleRate(const std::string& device_id) {
     return 48000;
   }
   return WASAPIAudioInputStream::HardwareSampleRate(device_id);
+#elif defined(OS_ANDROID)
+  return 16000;
 #else
   return 48000;
 #endif
