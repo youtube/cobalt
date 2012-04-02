@@ -67,7 +67,7 @@ from test_package_executable import TestPackageExecutable
 from test_result import BaseTestResult, TestResults
 
 _TEST_SUITES = ['base_unittests', 'sql_unittests', 'ipc_tests', 'net_unittests',
-                'sync_unit_tests', 'content_unittests']
+                'sync_unit_tests', 'content_unittests', 'ui_unittests']
 
 
 def FullyQualifiedTestSuites():
