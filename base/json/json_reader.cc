@@ -501,7 +501,7 @@ Value* JSONReader::DecodeString(const Token& token) {
 
         default:
           // We should only have valid strings at this point.  If not,
-          // ParseStringToken didn't do it's job.
+          // ParseStringToken didn't do its job.
           NOTREACHED();
           return NULL;
       }
