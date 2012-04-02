@@ -1,9 +1,10 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/socket/client_socket_pool.h"
 
+#include "base/debug/alias.h"
 #include "base/logging.h"
 
 namespace {
@@ -20,6 +21,26 @@ int g_used_idle_socket_timeout_s = 300;  // 5 minutes
 }  // namespace
 
 namespace net {
+
+LayeredPool::LayeredPool() : magic_value_(ALIVE) {}
+
+LayeredPool::~LayeredPool() {
+  CrashIfFreed();
+  magic_value_ = DEAD;
+  stack_trace_ = base::debug::StackTrace();
+}
+
+void LayeredPool::CrashIfFreed() {
+  if (magic_value_ != ALIVE) {
+    MagicValue magic_value = magic_value_;
+    base::debug::StackTrace deletion_callstack = stack_trace_;
+
+    base::debug::Alias(&magic_value);
+    base::debug::Alias(&deletion_callstack);
+
+    CHECK(false);
+  }
+}
 
 // static
 base::TimeDelta ClientSocketPool::unused_idle_socket_timeout() {
