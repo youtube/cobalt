@@ -8,7 +8,12 @@
 // Implemented as templates to allow 8, 16 and 32 bit implementations.
 // 8 bit is unsigned and biased by 128.
 
+// TODO(vrk): This file has been running pretty wild and free, and it's likely
+// that a lot of the functions can be simplified and made more elegant. Revisit
+// after other audio cleanup is done. (crbug.com/120319)
+
 #include <algorithm>
+#include <limits>
 
 #include "base/atomicops.h"
 #include "base/basictypes.h"
@@ -185,7 +190,7 @@ bool DeinterleaveAudioChannel(void* source,
   switch (bytes_per_sample) {
     case 1:
     {
-      uint8* source8 = static_cast<uint8*>(source) + channel_index;
+      uint8* source8 = reinterpret_cast<uint8*>(source) + channel_index;
       const float kScale = 1.0f / 128.0f;
       for (unsigned i = 0; i < number_of_frames; ++i) {
         destination[i] = kScale * (static_cast<int>(*source8) - 128);
@@ -196,7 +201,7 @@ bool DeinterleaveAudioChannel(void* source,
 
     case 2:
     {
-      int16* source16 = static_cast<int16*>(source) + channel_index;
+      int16* source16 = reinterpret_cast<int16*>(source) + channel_index;
       const float kScale = 1.0f / 32768.0f;
       for (unsigned i = 0; i < number_of_frames; ++i) {
         destination[i] = kScale * *source16;
@@ -207,7 +212,7 @@ bool DeinterleaveAudioChannel(void* source,
 
     case 4:
     {
-      int32* source32 = static_cast<int32*>(source) + channel_index;
+      int32* source32 = reinterpret_cast<int32*>(source) + channel_index;
       const float kScale = 1.0f / (1L << 31);
       for (unsigned i = 0; i < number_of_frames; ++i) {
         destination[i] = kScale * *source32;
@@ -222,22 +227,51 @@ bool DeinterleaveAudioChannel(void* source,
   return false;
 }
 
-void InterleaveFloatToInt16(const std::vector<float*>& source,
-                            int16* destination,
-                            size_t number_of_frames) {
-  const float kScale = 32768.0f;
+// |Format| is the destination type, |Fixed| is a type larger than |Format|
+// such that operations can be made without overflowing.
+template<class Format, class Fixed>
+static void InterleaveFloatToInt(const std::vector<float*>& source,
+                                 void* dst_bytes, size_t number_of_frames) {
+  Format* destination = reinterpret_cast<Format*>(dst_bytes);
+  Fixed max_value = std::numeric_limits<Format>::max();
+  Fixed min_value = std::numeric_limits<Format>::min();
+
+  Format bias = 0;
+  if (!std::numeric_limits<Format>::is_signed) {
+    bias = max_value / 2;
+    max_value = bias;
+    min_value = -(bias - 1);
+  }
+
   int channels = source.size();
   for (int i = 0; i < channels; ++i) {
     float* channel_data = source[i];
     for (size_t j = 0; j < number_of_frames; ++j) {
-      float sample = kScale * channel_data[j];
-      if (sample < -32768.0)
-        sample = -32768.0;
-      else if (sample > 32767.0)
-        sample = 32767.0;
+      Fixed sample = max_value * channel_data[j];
+      if (sample > max_value)
+        sample = max_value;
+      else if (sample < min_value)
+        sample = min_value;
 
-      destination[j * channels + i] = static_cast<int16>(sample);
+      destination[j * channels + i] = static_cast<Format>(sample) + bias;
     }
+  }
+}
+
+void InterleaveFloatToInt(const std::vector<float*>& source, void* dst,
+                          size_t number_of_frames, int bytes_per_sample) {
+  switch(bytes_per_sample) {
+    case 1:
+      InterleaveFloatToInt<uint8, int32>(source, dst, number_of_frames);
+      break;
+    case 2:
+      InterleaveFloatToInt<int16, int32>(source, dst, number_of_frames);
+      break;
+    case 4:
+      InterleaveFloatToInt<int32, int64>(source, dst, number_of_frames);
+      break;
+    default:
+      break;
   }
 }
 
