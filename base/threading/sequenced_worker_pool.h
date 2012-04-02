@@ -26,6 +26,8 @@ class MessageLoopProxy;
 
 template <class T> class DeleteHelper;
 
+class SequencedTaskRunner;
+
 // A worker thread pool that enforces ordering between sets of tasks. It also
 // allows you to specify what should happen to your tasks on shutdown.
 //
@@ -151,6 +153,11 @@ class BASE_EXPORT SequencedWorkerPool : public TaskRunner {
   // same sequence token. If the name has not been used before, a new token
   // will be created.
   SequenceToken GetNamedSequenceToken(const std::string& name);
+
+  // Returns a SequencedTaskRunner wrapper which posts to this
+  // SequencedWorkerPool using the given sequence token.
+  scoped_refptr<SequencedTaskRunner> GetSequencedTaskRunner(
+      SequenceToken token);
 
   // Posts the given task for execution in the worker pool. Tasks posted with
   // this function will execute in an unspecified order on a background thread.
