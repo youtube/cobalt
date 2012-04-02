@@ -85,7 +85,7 @@ class PipelineIntegrationTest
  public:
   void StartPipelineWithMediaSource(MockMediaSource& source) {
     pipeline_->Start(
-        CreateFilterCollection(&source), source.url(),
+        CreateFilterCollection(&source),
         base::Bind(&PipelineIntegrationTest::OnEnded, base::Unretained(this)),
         base::Bind(&PipelineIntegrationTest::OnError, base::Unretained(this)),
         NetworkEventCB(), QuitOnStatusCB(PIPELINE_OK));

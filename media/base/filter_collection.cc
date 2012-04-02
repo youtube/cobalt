@@ -13,13 +13,12 @@ FilterCollection::FilterCollection() {}
 
 FilterCollection::~FilterCollection() {}
 
-void FilterCollection::SetDemuxerFactory(scoped_ptr<DemuxerFactory> factory) {
-  DCHECK(factory.get());
-  demuxer_factory_ = factory.Pass();
+void FilterCollection::SetDemuxer(const scoped_refptr<Demuxer>& demuxer) {
+  demuxer_ = demuxer;
 }
 
-DemuxerFactory* FilterCollection::GetDemuxerFactory() {
-  return demuxer_factory_.get();
+const scoped_refptr<Demuxer>& FilterCollection::GetDemuxer() {
+  return demuxer_;
 }
 
 void FilterCollection::AddAudioDecoder(AudioDecoder* audio_decoder) {

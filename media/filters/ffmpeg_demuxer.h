@@ -130,20 +130,20 @@ class FFmpegDemuxerStream : public DemuxerStream {
 
 class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
  public:
-  FFmpegDemuxer(MessageLoop* message_loop, bool local_source);
+  FFmpegDemuxer(MessageLoop* message_loop,
+                const scoped_refptr<DataSource>& data_source,
+                bool local_source);
   virtual ~FFmpegDemuxer();
 
   // Posts a task to perform additional demuxing.
   virtual void PostDemuxTask();
 
-  void Initialize(
-      DataSource* data_source, const PipelineStatusCB& status_cb);
-
   // Demuxer implementation.
+  virtual void set_host(DemuxerHost* demuxer_host) OVERRIDE;
+  virtual void Initialize(const PipelineStatusCB& status_cb) OVERRIDE;
   virtual void Stop(const base::Closure& callback) OVERRIDE;
   virtual void Seek(base::TimeDelta time, const PipelineStatusCB& cb) OVERRIDE;
   virtual void OnAudioRendererDisabled() OVERRIDE;
-  virtual void set_host(DemuxerHost* demuxer_host) OVERRIDE;
   virtual void SetPlaybackRate(float playback_rate) OVERRIDE;
   virtual scoped_refptr<DemuxerStream> GetStream(
       DemuxerStream::Type type) OVERRIDE;
@@ -171,8 +171,7 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   FRIEND_TEST_ALL_PREFIXES(FFmpegDemuxerTest, ProtocolRead);
 
   // Carries out initialization on the demuxer thread.
-  void InitializeTask(
-      DataSource* data_source, const PipelineStatusCB& status_cb);
+  void InitializeTask(const PipelineStatusCB& status_cb);
 
   // Carries out a seek on the demuxer thread.
   void SeekTask(base::TimeDelta time, const PipelineStatusCB& cb);
@@ -242,10 +241,8 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   int last_read_bytes_;
   int64 read_position_;
 
-  // Initialization can happen before set_host() is called, in which case we
-  // store these bits for deferred reporting to the DemuxerHost when we get one.
-  base::TimeDelta max_duration_;
-  PipelineStatus deferred_status_;
+  // Derived bitrate after initialization has completed.
+  int bitrate_;
 
   // Used to skip the implicit "first seek" to avoid resetting FFmpeg's internal
   // state.

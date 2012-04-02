@@ -68,7 +68,7 @@ class PipelineIntegrationTestBase {
   void OnError(PipelineStatus status);
   void QuitAfterCurrentTimeTask(const base::TimeDelta& quit_time);
   scoped_ptr<FilterCollection> CreateFilterCollection(
-      scoped_ptr<DemuxerFactory> demuxer_factory);
+      const scoped_refptr<Demuxer>& demuxer);
   void OnVideoRendererPaint();
 
   MOCK_METHOD1(OnSetOpaque, void(bool));

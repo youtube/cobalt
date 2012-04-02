@@ -38,35 +38,6 @@ void MockDataSource::SetTotalAndBufferedBytes(int64 total_bytes,
   buffered_bytes_ = buffered_bytes;
 }
 
-MockDemuxerFactory::MockDemuxerFactory(MockDemuxer* demuxer)
-    : demuxer_(demuxer), status_(PIPELINE_OK) {
-}
-
-MockDemuxerFactory::~MockDemuxerFactory() {}
-
-void MockDemuxerFactory::SetError(PipelineStatus error) {
-  DCHECK_NE(error, PIPELINE_OK);
-  status_ = error;
-}
-
-void MockDemuxerFactory::RunBuildCallback(const std::string& url,
-                                          const BuildCallback& callback) {
-  if (!demuxer_.get()) {
-    callback.Run(PIPELINE_ERROR_REQUIRED_FILTER_MISSING, NULL);
-    return;
-  }
-
-  scoped_refptr<MockDemuxer> demuxer = demuxer_;
-  demuxer_ = NULL;
-
-  if (status_ == PIPELINE_OK) {
-    callback.Run(PIPELINE_OK, demuxer.get());
-    return;
-  }
-
-  callback.Run(status_, NULL);
-}
-
 MockDemuxer::MockDemuxer()
     : total_bytes_(-1), buffered_bytes_(-1), duration_() {
   EXPECT_CALL(*this, GetBitrate()).WillRepeatedly(Return(0));
@@ -128,28 +99,9 @@ MockFilterCollection::MockFilterCollection()
 
 MockFilterCollection::~MockFilterCollection() {}
 
-scoped_ptr<FilterCollection> MockFilterCollection::filter_collection(
-    bool include_demuxer,
-    bool run_build_cb,
-    bool run_build,
-    PipelineStatus build_status) const {
+scoped_ptr<FilterCollection> MockFilterCollection::Create() {
   scoped_ptr<FilterCollection> collection(new FilterCollection());
-
-  scoped_ptr<MockDemuxerFactory> demuxer_factory(
-      new MockDemuxerFactory(include_demuxer ? demuxer_ : NULL));
-
-  if (build_status != PIPELINE_OK)
-    demuxer_factory->SetError(build_status);
-
-  if (run_build_cb) {
-    ON_CALL(*demuxer_factory, Build(_, _)).WillByDefault(Invoke(
-        demuxer_factory.get(), &MockDemuxerFactory::RunBuildCallback));
-  }  // else ignore Build calls.
-
-  if (run_build)
-    EXPECT_CALL(*demuxer_factory, Build(_, _));
-
-  collection->SetDemuxerFactory(demuxer_factory.PassAs<DemuxerFactory>());
+  collection->SetDemuxer(demuxer_);
   collection->AddVideoDecoder(video_decoder_);
   collection->AddAudioDecoder(audio_decoder_);
   collection->AddVideoRenderer(video_renderer_);
@@ -161,7 +113,12 @@ void RunFilterCallback(::testing::Unused, const base::Closure& closure) {
   closure.Run();
 }
 
-void RunPipelineStatusCB(::testing::Unused, const PipelineStatusCB& status_cb) {
+void RunPipelineStatusCB(const PipelineStatusCB& status_cb) {
+  status_cb.Run(PIPELINE_OK);
+}
+
+void RunPipelineStatusCB2(::testing::Unused,
+                          const PipelineStatusCB& status_cb) {
   status_cb.Run(PIPELINE_OK);
 }
 

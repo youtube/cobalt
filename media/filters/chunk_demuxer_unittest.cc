@@ -90,6 +90,7 @@ class ChunkDemuxerTest : public testing::Test {
   ChunkDemuxerTest()
       : client_(new MockChunkDemuxerClient()),
         demuxer_(new ChunkDemuxer(client_.get())) {
+    demuxer_->set_host(&mock_demuxer_host_);
   }
 
   virtual ~ChunkDemuxerTest() {
@@ -193,29 +194,21 @@ class ChunkDemuxerTest : public testing::Test {
     return AppendData(info_tracks.get(), info_tracks_size);
   }
 
-  void InitDoneCalled(const base::TimeDelta& expected_duration,
-                      PipelineStatus expected_status,
-                      bool call_set_host,
+  void InitDoneCalled(PipelineStatus expected_status,
                       PipelineStatus status) {
     EXPECT_EQ(status, expected_status);
-
-    if (status == PIPELINE_OK) {
-      EXPECT_CALL(mock_demuxer_host_, SetDuration(expected_duration));
-      EXPECT_CALL(mock_demuxer_host_, SetCurrentReadPosition(_));
-
-      if (call_set_host)
-        demuxer_->set_host(&mock_demuxer_host_);
-    }
   }
 
-  PipelineStatusCB CreateInitDoneCB(const base::TimeDelta& duration,
-                                    PipelineStatus expected_status,
-                                    bool call_set_host) {
+  PipelineStatusCB CreateInitDoneCB(const base::TimeDelta& expected_duration,
+                                    PipelineStatus expected_status) {
+    if (expected_status == PIPELINE_OK) {
+      EXPECT_CALL(mock_demuxer_host_, SetDuration(expected_duration));
+      EXPECT_CALL(mock_demuxer_host_, SetCurrentReadPosition(_));
+    }
+
     return base::Bind(&ChunkDemuxerTest::InitDoneCalled,
                       base::Unretained(this),
-                      duration,
-                      expected_status,
-                      call_set_host);
+                      expected_status);
   }
 
   bool InitDemuxer(bool has_audio, bool has_video,
@@ -224,7 +217,8 @@ class ChunkDemuxerTest : public testing::Test {
         (has_audio || has_video) ? PIPELINE_OK : DEMUXER_ERROR_COULD_NOT_OPEN;
 
     EXPECT_CALL(*client_, DemuxerOpened(_));
-    demuxer_->Init(CreateInitDoneCB(kDefaultDuration(), expected_status, true));
+    demuxer_->Initialize(CreateInitDoneCB(
+        kDefaultDuration(), expected_status));
 
     return AppendInfoTracks(has_audio, has_video, video_content_encoded);
   }
@@ -276,7 +270,7 @@ class ChunkDemuxerTest : public testing::Test {
     int buffer_size = 0;
 
     EXPECT_CALL(*client_, DemuxerOpened(_));
-    demuxer_->Init(CreateInitDoneCB(duration, PIPELINE_OK, true));
+    demuxer_->Initialize(CreateInitDoneCB(duration, PIPELINE_OK));
 
     // Read a WebM file into memory and send the data to the demuxer.
     ReadTestDataFile(filename, &buffer, &buffer_size);
@@ -343,6 +337,7 @@ TEST_F(ChunkDemuxerTest, TestInit) {
 
     client_.reset(new MockChunkDemuxerClient());
     demuxer_ = new ChunkDemuxer(client_.get());
+    demuxer_->set_host(&mock_demuxer_host_);
     ASSERT_TRUE(InitDemuxer(has_audio, has_video, video_content_encoded));
 
     scoped_refptr<DemuxerStream> audio_stream =
@@ -639,7 +634,7 @@ TEST_F(ChunkDemuxerTest, TestMonotonicallyIncreasingTimestampsAcrossClusters) {
 // INFO & TRACKS data.
 TEST_F(ChunkDemuxerTest, TestClusterBeforeInfoTracks) {
   EXPECT_CALL(*client_, DemuxerOpened(_));
-  demuxer_->Init(NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
+  demuxer_->Initialize(NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
 
   ClusterBuilder cb;
   cb.SetClusterTimecode(0);
@@ -652,7 +647,7 @@ TEST_F(ChunkDemuxerTest, TestClusterBeforeInfoTracks) {
 // Test cases where we get an EndOfStream() call during initialization.
 TEST_F(ChunkDemuxerTest, TestEOSDuringInit) {
   EXPECT_CALL(*client_, DemuxerOpened(_));
-  demuxer_->Init(NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
+  demuxer_->Initialize(NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
   demuxer_->EndOfStream(PIPELINE_OK);
 }
 
@@ -836,7 +831,7 @@ TEST_F(ChunkDemuxerTest, TestReadsAfterEndOfStream) {
 TEST_F(ChunkDemuxerTest, TestAppendingInPieces) {
 
   EXPECT_CALL(*client_, DemuxerOpened(_));
-  demuxer_->Init(CreateInitDoneCB(kDefaultDuration(), PIPELINE_OK, true));
+  demuxer_->Initialize(CreateInitDoneCB(kDefaultDuration(), PIPELINE_OK));
 
   scoped_array<uint8> info_tracks;
   int info_tracks_size = 0;
@@ -1031,15 +1026,15 @@ TEST_F(ChunkDemuxerTest, TestIncrementalClusterParsing) {
 
 
 TEST_F(ChunkDemuxerTest, TestParseErrorDuringInit) {
+  EXPECT_CALL(mock_demuxer_host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
+
   EXPECT_CALL(*client_, DemuxerOpened(_));
-  demuxer_->Init(CreateInitDoneCB(kDefaultDuration(), PIPELINE_OK, false));
+  demuxer_->Initialize(CreateInitDoneCB(
+      kDefaultDuration(), PIPELINE_OK));
   ASSERT_TRUE(AppendInfoTracks(true, true, false));
 
   uint8 tmp = 0;
   ASSERT_TRUE(demuxer_->AppendData(&tmp, 1));
-
-  EXPECT_CALL(mock_demuxer_host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
-  demuxer_->set_host(&mock_demuxer_host_);
 }
 
 }  // namespace media
