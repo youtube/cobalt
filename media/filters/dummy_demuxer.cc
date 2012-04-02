@@ -47,8 +47,8 @@ DummyDemuxer::DummyDemuxer(bool has_video, bool has_audio, bool local_source)
 
 DummyDemuxer::~DummyDemuxer() {}
 
-int DummyDemuxer::GetBitrate() {
-  return 0;
+void DummyDemuxer::Initialize(const PipelineStatusCB& status_cb) {
+  status_cb.Run(PIPELINE_OK);
 }
 
 scoped_refptr<DemuxerStream> DummyDemuxer::GetStream(DemuxerStream::Type type) {
@@ -62,6 +62,10 @@ void DummyDemuxer::set_host(DemuxerHost* demuxer_host) {
 
 base::TimeDelta DummyDemuxer::GetStartTime() const {
   return base::TimeDelta();
+}
+
+int DummyDemuxer::GetBitrate() {
+  return 0;
 }
 
 bool DummyDemuxer::IsLocalSource() {

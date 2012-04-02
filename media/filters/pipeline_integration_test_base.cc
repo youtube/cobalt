@@ -6,9 +6,9 @@
 
 #include "base/bind.h"
 #include "media/base/media_log.h"
-#include "media/filters/chunk_demuxer_factory.h"
+#include "media/filters/chunk_demuxer.h"
 #include "media/filters/ffmpeg_audio_decoder.h"
-#include "media/filters/ffmpeg_demuxer_factory.h"
+#include "media/filters/ffmpeg_demuxer.h"
 #include "media/filters/ffmpeg_video_decoder.h"
 #include "media/filters/file_data_source.h"
 #include "media/filters/null_audio_renderer.h"
@@ -81,7 +81,6 @@ bool PipelineIntegrationTestBase::Start(const std::string& url,
                                         PipelineStatus expected_status) {
   pipeline_->Start(
       CreateFilterCollection(url),
-      url,
       base::Bind(&PipelineIntegrationTestBase::OnEnded, base::Unretained(this)),
       base::Bind(&PipelineIntegrationTestBase::OnError, base::Unretained(this)),
       NetworkEventCB(),
@@ -147,22 +146,21 @@ scoped_ptr<FilterCollection>
 PipelineIntegrationTestBase::CreateFilterCollection(const std::string& url) {
   scoped_refptr<FileDataSource> data_source = new FileDataSource();
   CHECK_EQ(PIPELINE_OK, data_source->Initialize(url));
-  return CreateFilterCollection(scoped_ptr<DemuxerFactory>(
-      new FFmpegDemuxerFactory(data_source, &message_loop_)));
+  return CreateFilterCollection(new FFmpegDemuxer(
+      &message_loop_, data_source, false));
 }
 
 scoped_ptr<FilterCollection>
 PipelineIntegrationTestBase::CreateFilterCollection(
     ChunkDemuxerClient* client) {
-  return CreateFilterCollection(scoped_ptr<DemuxerFactory>(
-      new ChunkDemuxerFactory(client)));
+  return CreateFilterCollection(new ChunkDemuxer(client));
 }
 
 scoped_ptr<FilterCollection>
 PipelineIntegrationTestBase::CreateFilterCollection(
-    scoped_ptr<DemuxerFactory> demuxer_factory) {
+    const scoped_refptr<Demuxer>& demuxer) {
   scoped_ptr<FilterCollection> collection(new FilterCollection());
-  collection->SetDemuxerFactory(demuxer_factory.Pass());
+  collection->SetDemuxer(demuxer);
   collection->AddAudioDecoder(new FFmpegAudioDecoder(
       base::Bind(&MessageLoopFactory::GetMessageLoop,
                  base::Unretained(message_loop_factory_.get()),

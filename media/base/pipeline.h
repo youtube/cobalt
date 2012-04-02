@@ -116,8 +116,8 @@ class MEDIA_EXPORT Pipeline
   // Constructs a media pipeline that will execute on |message_loop|.
   Pipeline(MessageLoop* message_loop, MediaLog* media_log);
 
-  // Build a pipeline to render the given URL using the given filter collection
-  // to construct a filter chain.
+  // Build a pipeline to using the given filter collection to construct a filter
+  // chain.
   //
   // Pipeline initialization is an inherently asynchronous process.  Clients can
   // either poll the IsInitialized() method (discouraged) or optionally pass in
@@ -137,7 +137,6 @@ class MEDIA_EXPORT Pipeline
   //
   // TODO(scherkus): remove IsInitialized() and force clients to use callbacks.
   void Start(scoped_ptr<FilterCollection> filter_collection,
-             const std::string& url,
              const PipelineStatusCB& ended_cb,
              const PipelineStatusCB& error_cb,
              const NetworkEventCB& network_cb,
@@ -350,7 +349,6 @@ class MEDIA_EXPORT Pipeline
   // methods are run as the result of posting a task to the PipelineInternal's
   // message loop.
   void StartTask(scoped_ptr<FilterCollection> filter_collection,
-                 const std::string& url,
                  const PipelineStatusCB& ended_cb,
                  const PipelineStatusCB& error_cb,
                  const NetworkEventCB& network_cb,
@@ -404,9 +402,9 @@ class MEDIA_EXPORT Pipeline
   // of these methods are only called on the pipeline thread.
 
   // The following initialize methods are used to select a specific type of
-  // Filter object from FilterCollection and initialize it asynchronously.
+  // object from FilterCollection and initialize it asynchronously.
   void InitializeDemuxer();
-  void OnDemuxerBuilt(PipelineStatus status, Demuxer* demuxer);
+  void OnDemuxerInitialized(PipelineStatus status);
 
   // Returns true if the asynchronous action of creating decoder has started.
   // Returns false if this method did nothing because the corresponding
@@ -572,9 +570,6 @@ class MEDIA_EXPORT Pipeline
 
   // Filter collection as passed in by Start().
   scoped_ptr<FilterCollection> filter_collection_;
-
-  // URL for the data source as passed in by Start().
-  std::string url_;
 
   // Callbacks for various pipeline operations.
   PipelineStatusCB seek_cb_;
