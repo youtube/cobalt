@@ -5,6 +5,8 @@
 #include "base/logging.h"
 #include "media/audio/audio_input_stream_impl.h"
 
+namespace media {
+
 static const int kMinIntervalBetweenVolumeUpdatesMs = 1000;
 
 AudioInputStreamImpl::AudioInputStreamImpl()
@@ -66,3 +68,4 @@ void AudioInputStreamImpl::GetNormalizedVolume() {
   }
 }
 
+}  // namespace media

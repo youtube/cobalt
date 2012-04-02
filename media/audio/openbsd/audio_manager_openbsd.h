@@ -10,6 +10,8 @@
 #include "base/compiler_specific.h"
 #include "media/audio/audio_manager_base.h"
 
+namespace media {
+
 class MEDIA_EXPORT AudioManagerOpenBSD : public AudioManagerBase {
  public:
   AudioManagerOpenBSD();
@@ -42,5 +44,7 @@ class MEDIA_EXPORT AudioManagerOpenBSD : public AudioManagerBase {
 
   DISALLOW_COPY_AND_ASSIGN(AudioManagerOpenBSD);
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_OPENBSD_AUDIO_MANAGER_OPENBSD_H_

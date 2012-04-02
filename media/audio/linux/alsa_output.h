@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -32,13 +32,13 @@
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
+class MessageLoop;
+
 namespace media {
-class SeekableBuffer;
-};  // namespace media
 
 class AlsaWrapper;
 class AudioManagerLinux;
-class MessageLoop;
+class SeekableBuffer;
 
 class MEDIA_EXPORT AlsaPcmOutputStream : public AudioOutputStream {
  public:
@@ -209,5 +209,7 @@ class MEDIA_EXPORT AlsaPcmOutputStream : public AudioOutputStream {
 
 MEDIA_EXPORT std::ostream& operator<<(std::ostream& os,
                                       AlsaPcmOutputStream::InternalState);
+
+};  // namespace media
 
 #endif  // MEDIA_AUDIO_LINUX_ALSA_OUTPUT_H_

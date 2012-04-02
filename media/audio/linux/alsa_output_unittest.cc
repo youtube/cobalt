@@ -29,6 +29,8 @@ using testing::StrictMock;
 using testing::StrEq;
 using testing::Unused;
 
+namespace media {
+
 class MockAlsaWrapper : public AlsaWrapper {
  public:
   MOCK_METHOD3(DeviceNameHint, int(int card,
@@ -824,3 +826,5 @@ TEST_F(AlsaPcmOutputStreamTest, ScheduleNextWrite_StopStream) {
   test_stream->TransitionTo(AlsaPcmOutputStream::kIsClosed);
   test_stream->Close();
 }
+
+}  // namespace media

@@ -11,7 +11,7 @@
 
 namespace alsa_util {
 
-static snd_pcm_t* OpenDevice(AlsaWrapper* wrapper,
+static snd_pcm_t* OpenDevice(media::AlsaWrapper* wrapper,
                              const char* device_name,
                              snd_pcm_stream_t type,
                              int channels,
@@ -81,7 +81,7 @@ snd_pcm_format_t BitsToFormat(int bits_per_sample) {
   }
 }
 
-int CloseDevice(AlsaWrapper* wrapper, snd_pcm_t* handle) {
+int CloseDevice(media::AlsaWrapper* wrapper, snd_pcm_t* handle) {
   std::string device_name = wrapper->PcmName(handle);
   int error = wrapper->PcmClose(handle);
   if (error < 0) {
@@ -92,7 +92,7 @@ int CloseDevice(AlsaWrapper* wrapper, snd_pcm_t* handle) {
   return error;
 }
 
-snd_pcm_t* OpenCaptureDevice(AlsaWrapper* wrapper,
+snd_pcm_t* OpenCaptureDevice(media::AlsaWrapper* wrapper,
                              const char* device_name,
                              int channels,
                              int sample_rate,
@@ -102,7 +102,7 @@ snd_pcm_t* OpenCaptureDevice(AlsaWrapper* wrapper,
                     sample_rate, pcm_format, latency_us);
 }
 
-snd_pcm_t* OpenPlaybackDevice(AlsaWrapper* wrapper,
+snd_pcm_t* OpenPlaybackDevice(media::AlsaWrapper* wrapper,
                               const char* device_name,
                               int channels,
                               int sample_rate,
@@ -112,7 +112,7 @@ snd_pcm_t* OpenPlaybackDevice(AlsaWrapper* wrapper,
                     sample_rate, pcm_format, latency_us);
 }
 
-snd_mixer_t* OpenMixer(AlsaWrapper* wrapper,
+snd_mixer_t* OpenMixer(media::AlsaWrapper* wrapper,
                        const std::string& device_name) {
   snd_mixer_t* mixer = NULL;
 
@@ -143,7 +143,7 @@ snd_mixer_t* OpenMixer(AlsaWrapper* wrapper,
   return mixer;
 }
 
-void CloseMixer(AlsaWrapper* wrapper, snd_mixer_t* mixer,
+void CloseMixer(media::AlsaWrapper* wrapper, snd_mixer_t* mixer,
                 const std::string& device_name) {
   if (!mixer)
     return;
@@ -166,7 +166,7 @@ void CloseMixer(AlsaWrapper* wrapper, snd_mixer_t* mixer,
   }
 }
 
-snd_mixer_elem_t* LoadCaptureMixerElement(AlsaWrapper* wrapper,
+snd_mixer_elem_t* LoadCaptureMixerElement(media::AlsaWrapper* wrapper,
                                           snd_mixer_t* mixer) {
   if (!mixer)
     return NULL;
