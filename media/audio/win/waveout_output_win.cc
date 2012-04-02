@@ -15,8 +15,6 @@
 #include "media/audio/audio_util.h"
 #include "media/audio/win/audio_manager_win.h"
 
-namespace media {
-
 // Some general thoughts about the waveOut API which is badly documented :
 // - We use CALLBACK_EVENT mode in which XP signals events such as buffer
 //   releases.
@@ -413,5 +411,3 @@ void NTAPI PCMWaveOutAudioOutputStream::BufferCallback(PVOID lpParameter,
     }
   }
 }
-
-}  // namespace media

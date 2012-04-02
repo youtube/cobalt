@@ -11,8 +11,6 @@
 #include "media/audio/audio_manager.h"
 #include "media/audio/fake_audio_input_stream.h"
 
-namespace media {
-
 // Maximum number of output streams that can be open simultaneously.
 static const int kMaxOutputStreams = 10;
 
@@ -67,5 +65,3 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
   return new OpenSLESInputStream(this, params);
 }
-
-}  // namespace media

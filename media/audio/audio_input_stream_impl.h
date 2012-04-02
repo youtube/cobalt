@@ -10,8 +10,6 @@
 #include "base/time.h"
 #include "media/audio/audio_io.h"
 
-namespace media {
-
 // AudioInputStreamImpl implements platform-independent parts of the
 // AudioInputStream interface. Each platform dependent implementation
 // should derive from this class.
@@ -65,7 +63,5 @@ class MEDIA_EXPORT AudioInputStreamImpl : public AudioInputStream {
 
   DISALLOW_COPY_AND_ASSIGN(AudioInputStreamImpl);
 };
-
-}  // namespace media
 
 #endif  // MEDIA_AUDIO_AUDIO_INPUT_STREAM_IMPL_H_

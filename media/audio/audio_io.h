@@ -45,9 +45,6 @@
 // as the data is written to the audio device. Size of each packet is determined
 // by |samples_per_packet| specified in AudioParameters  when the stream is
 // created.
-
-namespace media {
-
 class MEDIA_EXPORT AudioOutputStream {
  public:
   // Audio sources must implement AudioSourceCallback. This interface will be
@@ -175,7 +172,5 @@ class MEDIA_EXPORT AudioInputStream {
   // Returns the Automatic Gain Control (AGC) state.
   virtual bool GetAutomaticGainControl() = 0;
 };
-
-}  // namespace media
 
 #endif  // MEDIA_AUDIO_AUDIO_IO_H_

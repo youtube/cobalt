@@ -15,8 +15,7 @@
 #endif
 
 using base::win::ScopedCOMInitializer;
-
-namespace media {
+using media::AudioDeviceNames;
 
 // Test fixture which allows us to override the default enumeration API on
 // Windows.
@@ -172,5 +171,3 @@ TEST_F(AudioInputDeviceTest, ConvertToWinXPDeviceId) {
 }
 
 #endif
-
-}  // namespace media

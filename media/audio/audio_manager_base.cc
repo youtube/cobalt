@@ -12,8 +12,6 @@
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
 
-namespace media {
-
 static const int kStreamCloseDelaySeconds = 5;
 
 // Default maximum number of output streams that can be open simultaneously
@@ -228,5 +226,3 @@ void AudioManagerBase::ShutdownOnAudioThread() {
 
   output_dispatchers_.clear();
 }
-
-}  // namespace media

@@ -15,8 +15,6 @@
 #include "media/audio/mac/audio_output_mac.h"
 #include "media/base/limits.h"
 
-namespace media {
-
 // Maximum number of output streams that can be open simultaneously.
 static const int kMaxOutputStreams = 50;
 
@@ -295,5 +293,3 @@ AudioInputStream* AudioManagerMac::MakeLowLatencyInputStream(
 AudioManager* CreateAudioManager() {
   return new AudioManagerMac();
 }
-
-}  // namespace media

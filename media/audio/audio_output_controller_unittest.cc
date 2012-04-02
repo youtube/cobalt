@@ -22,14 +22,14 @@ using ::testing::InvokeWithoutArgs;
 using ::testing::NotNull;
 using ::testing::Return;
 
-namespace media {
-
 static const int kSampleRate = AudioParameters::kAudioCDSampleRate;
 static const int kBitsPerSample = 16;
 static const ChannelLayout kChannelLayout = CHANNEL_LAYOUT_STEREO;
 static const int kSamplesPerPacket = kSampleRate / 10;
 static const int kHardwareBufferSize = kSamplesPerPacket *
     ChannelLayoutToChannelCount(kChannelLayout) * kBitsPerSample / 8;
+
+namespace media {
 
 class MockAudioOutputControllerEventHandler
     : public AudioOutputController::EventHandler {

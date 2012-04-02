@@ -7,8 +7,6 @@
 
 #include "media/audio/audio_manager_base.h"
 
-namespace media {
-
 // Android implemention of AudioManager.
 class AudioManagerAndroid : public AudioManagerBase {
  public:
@@ -36,7 +34,5 @@ class AudioManagerAndroid : public AudioManagerBase {
  private:
   DISALLOW_COPY_AND_ASSIGN(AudioManagerAndroid);
 };
-
-}  // namespace media
 
 #endif  // MEDIA_AUDIO_ANDROID_AUDIO_MANAGER_ANDROID_H_
