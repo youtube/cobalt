@@ -22,6 +22,7 @@
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
+#include "base/threading/sequenced_worker_pool_task_runner.h"
 #include "base/threading/simple_thread.h"
 #include "base/time.h"
 #include "base/tracked_objects.h"
@@ -756,6 +757,11 @@ SequencedWorkerPool::SequenceToken SequencedWorkerPool::GetSequenceToken() {
 SequencedWorkerPool::SequenceToken SequencedWorkerPool::GetNamedSequenceToken(
     const std::string& name) {
   return inner_->GetNamedSequenceToken(name);
+}
+
+scoped_refptr<SequencedTaskRunner> SequencedWorkerPool::GetSequencedTaskRunner(
+    SequenceToken token) {
+  return new SequencedWorkerPoolTaskRunner(this, token);
 }
 
 bool SequencedWorkerPool::PostWorkerTask(
