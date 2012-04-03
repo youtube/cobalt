@@ -13,6 +13,8 @@
 #include "media/audio/audio_parameters.h"
 #include <SLES/OpenSLES_Android.h>
 
+namespace media {
+
 class AudioManagerAndroid;
 
 // Implements PCM audio output support for Android using the OpenSLES API.
@@ -80,5 +82,7 @@ class OpenSLESOutputStream : public AudioOutputStream {
 
   DISALLOW_COPY_AND_ASSIGN(OpenSLESOutputStream);
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_ANDROID_OPENSLES_INPUT_H_

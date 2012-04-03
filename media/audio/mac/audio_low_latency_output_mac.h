@@ -23,6 +23,8 @@
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
+namespace media {
+
 class AudioManagerMac;
 
 // Implementation of AudioOuputStream for Mac OS X using the
@@ -98,5 +100,7 @@ class AUAudioOutputStream : public AudioOutputStream {
 
   DISALLOW_COPY_AND_ASSIGN(AUAudioOutputStream);
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_MAC_AUDIO_LOW_LATENCY_OUTPUT_MAC_H_

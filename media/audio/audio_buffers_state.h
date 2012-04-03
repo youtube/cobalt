@@ -7,6 +7,8 @@
 
 #include "media/base/media_export.h"
 
+namespace media {
+
 // AudioBuffersState struct stores current state of audio buffers.
 // It is used for audio synchronization.
 struct MEDIA_EXPORT AudioBuffersState {
@@ -24,5 +26,7 @@ struct MEDIA_EXPORT AudioBuffersState {
   // been played yet.
   int hardware_delay_bytes;
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_AUDIO_BUFFERS_STATE_H_

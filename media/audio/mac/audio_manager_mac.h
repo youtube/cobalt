@@ -9,6 +9,8 @@
 #include "base/compiler_specific.h"
 #include "media/audio/audio_manager_base.h"
 
+namespace media {
+
 // Mac OS X implementation of the AudioManager singleton. This class is internal
 // to the audio output and only internal users can call methods not exposed by
 // the AudioManager class.
@@ -40,5 +42,7 @@ class MEDIA_EXPORT AudioManagerMac : public AudioManagerBase {
  private:
   DISALLOW_COPY_AND_ASSIGN(AudioManagerMac);
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_MAC_AUDIO_MANAGER_MAC_H_

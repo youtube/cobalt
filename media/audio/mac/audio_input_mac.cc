@@ -18,6 +18,8 @@ enum {
 };
 #endif
 
+namespace media {
+
 PCMQueueInAudioInputStream::PCMQueueInAudioInputStream(
     AudioManagerMac* manager, const AudioParameters& params)
     : manager_(manager),
@@ -217,3 +219,5 @@ void PCMQueueInAudioInputStream::HandleInputBuffer(
     HandleError(err);
   }
 }
+
+}  // namespace media

@@ -46,6 +46,8 @@
 #include "media/audio/audio_input_stream_impl.h"
 #include "media/audio/audio_parameters.h"
 
+namespace media {
+
 class AudioManagerMac;
 
 class AUAudioInputStream : public AudioInputStreamImpl {
@@ -145,5 +147,7 @@ class AUAudioInputStream : public AudioInputStreamImpl {
 
   DISALLOW_COPY_AND_ASSIGN(AUAudioInputStream);
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_MAC_AUDIO_LOW_LATENCY_INPUT_MAC_H_

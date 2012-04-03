@@ -15,6 +15,8 @@
 #include "media/audio/linux/alsa_wrapper.h"
 #include "media/audio/linux/audio_manager_linux.h"
 
+namespace media {
+
 static const int kNumPacketsInRingBuffer = 3;
 
 static const char kDefaultDevice1[] = "default";
@@ -341,3 +343,5 @@ void AlsaPcmInputStream::HandleError(const char* method, int error) {
   LOG(WARNING) << method << ": " << wrapper_->StrError(error);
   callback_->OnError(this, error);
 }
+
+}  // namespace media

@@ -15,6 +15,8 @@
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
+namespace media {
+
 class AudioManagerBase;
 
 class MEDIA_EXPORT FakeAudioOutputStream : public AudioOutputStream {
@@ -51,5 +53,7 @@ class MEDIA_EXPORT FakeAudioOutputStream : public AudioOutputStream {
 
   DISALLOW_COPY_AND_ASSIGN(FakeAudioOutputStream);
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_FAKE_AUDIO_OUTPUT_STREAM_H_
