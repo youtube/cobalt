@@ -65,7 +65,7 @@ class ScopedOpenSSLSafeSizeBuffer {
   }
 
  private:
-  // Pointer to the caller's data area and it's associated size, where data
+  // Pointer to the caller's data area and its associated size, where data
   // written via safe_buffer() will [eventually] end up.
   unsigned char* output_;
   size_t output_len_;
