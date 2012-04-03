@@ -804,7 +804,7 @@ class CookieMonster::Delegate
   // Will be called when a cookie is added or removed. The function is passed
   // the respective |cookie| which was added to or removed from the cookies.
   // If |removed| is true, the cookie was deleted, and |cause| will be set
-  // to the reason for it's removal. If |removed| is false, the cookie was
+  // to the reason for its removal. If |removed| is false, the cookie was
   // added, and |cause| will be set to CHANGE_COOKIE_EXPLICIT.
   //
   // As a special case, note that updating a cookie's properties is implemented
