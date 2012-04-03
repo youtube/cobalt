@@ -15,6 +15,7 @@
 #include "base/win/scoped_com_initializer.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_manager_base.h"
+#include "media/audio/audio_util.h"
 #include "media/audio/win/audio_low_latency_input_win.h"
 #include "media/base/seekable_buffer.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -106,8 +107,14 @@ class WriteToFileAudioSink : public AudioInputStream::AudioInputCallback {
 };
 
 // Convenience method which ensures that we are not running on the build
-// bots and that at least one valid input device can be found.
+// bots and that at least one valid input device can be found. We also
+// verify that we are not running on XP since the low-latency (WASAPI-
+// based) version requires Windows Vista or higher.
 static bool CanRunAudioTests(AudioManager* audio_man) {
+  if (!media::IsWASAPISupported()) {
+    LOG(WARNING) << "This tests requires Windows Vista or higher.";
+    return false;
+  }
   // TODO(henrika): note that we use Wave today to query the number of
   // existing input devices.
   bool input = audio_man->HasAudioInputDevices();
@@ -254,7 +261,7 @@ TEST(WinAudioInputTest, WASAPIAudioInputStreamOpenStartStopAndClose) {
 }
 
 // Test some additional calling sequences.
-TEST(MacAudioInputTest, WASAPIAudioInputStreamMiscCallingSequences) {
+TEST(WinAudioInputTest, WASAPIAudioInputStreamMiscCallingSequences) {
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!CanRunAudioTests(audio_manager.get()))
     return;
