@@ -467,7 +467,7 @@ TEST_F(CertVerifyProcTest, DISABLED_PublicKeyHashes) {
   EXPECT_EQ(OK, error);
   EXPECT_EQ(0U, verify_result.cert_status);
   ASSERT_LE(2u, verify_result.public_key_hashes.size());
-  EXPECT_EQ(HexEncode(nistSPKIHash, base::kSHA1Length),
+  EXPECT_EQ(HexEncode(kNistSPKIHash, base::kSHA1Length),
       HexEncode(verify_result.public_key_hashes[0].data, base::kSHA1Length));
   EXPECT_EQ("83244223D6CBF0A26FC7DE27CEBCA4BDA32612AD",
       HexEncode(verify_result.public_key_hashes[1].data, base::kSHA1Length));
