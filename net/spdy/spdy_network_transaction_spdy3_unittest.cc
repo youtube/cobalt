@@ -1478,13 +1478,13 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, Put) {
     0,                      // Length
     DATA_FLAG_NONE          // Data Flags
   };
-  static const char* const kStandardGetHeaders[] = {
-    "status", "200",
-    "version", "HTTP/1.1"
+  static const char* const kStandardRespHeaders[] = {
+    ":status", "200",
+    ":version", "HTTP/1.1"
     "content-length", "1234"
   };
   scoped_ptr<SpdyFrame> resp(ConstructSpdyPacket(kSynReplyHeader,
-      NULL, 0, kStandardGetHeaders, arraysize(kStandardGetHeaders) / 2));
+      NULL, 0, kStandardRespHeaders, arraysize(kStandardRespHeaders) / 2));
   MockRead reads[] = {
     CreateMockRead(*resp),
     CreateMockRead(*body),
@@ -1551,13 +1551,13 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, Head) {
     0,                      // Length
     DATA_FLAG_NONE          // Data Flags
   };
-  static const char* const kStandardGetHeaders[] = {
-    "status", "200",
-    "version", "HTTP/1.1"
+  static const char* const kStandardRespHeaders[] = {
+    ":status", "200",
+    ":version", "HTTP/1.1"
     "content-length", "1234"
   };
   scoped_ptr<SpdyFrame> resp(ConstructSpdyPacket(kSynReplyHeader,
-      NULL, 0, kStandardGetHeaders, arraysize(kStandardGetHeaders) / 2));
+      NULL, 0, kStandardRespHeaders, arraysize(kStandardRespHeaders) / 2));
   MockRead reads[] = {
     CreateMockRead(*resp),
     CreateMockRead(*body),
@@ -2270,7 +2270,9 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ResetPushWithTransferEncoding) {
   };
 
   scoped_ptr<SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0, 1));
-  const char* const headers[] = {"url", "http://www.google.com/1",
+  const char* const headers[] = {":scheme", "http",
+                                 ":host", "www.google.com",
+                                 ":path", "/1",
                                  "transfer-encoding", "chunked"};
   scoped_ptr<SpdyFrame> push(ConstructSpdyPush(headers, arraysize(headers) / 2,
                                                2, 1));
@@ -2578,7 +2580,6 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, RedirectGetRequest) {
     d.set_quit_on_redirect(true);
     r.Start();
     MessageLoop::current()->Run();
-
     EXPECT_EQ(1, d.received_redirect_count());
 
     r.FollowDeferredRedirect();
@@ -2641,8 +2642,8 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, UpperCaseHeadersInHeadersFrame) {
   };
 
   static const char* const kInitialHeaders[] = {
-    "status", "200 OK",
-    "version", "HTTP/1.1"
+    ":status", "200 OK",
+    ":version", "HTTP/1.1"
   };
   static const char* const kLateHeaders[] = {
     "X-UpperCase", "yes",
@@ -2700,9 +2701,12 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, UpperCaseHeadersOnPush) {
 
   scoped_ptr<SpdyFrame>
       reply(ConstructSpdyGetSynReply(NULL, 0, 1));
-  const char* const extra_headers[] = {"X-UpperCase", "yes"};
+  const char* const extra_headers[] = {
+    "X-UpperCase", "yes"
+  };
   scoped_ptr<SpdyFrame>
-      push(ConstructSpdyPush(extra_headers, 1, 2, 1));
+      push(ConstructSpdyPush(extra_headers, arraysize(extra_headers) / 2,
+                             2, 1));
   scoped_ptr<SpdyFrame> body(ConstructSpdyBodyFrame(1, true));
   MockRead reads[] = {
     CreateMockRead(*reply, 1),
@@ -3473,28 +3477,28 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SynReplyHeaders) {
         "cookie", "val2",  // will get appended separated by NULL
         NULL
       },
+      "status: 200\n"
+      "version: HTTP/1.1\n"
       "cookie: val1\n"
       "cookie: val2\n"
       "hello: bye\n"
-      "status: 200\n"
-      "version: HTTP/1.1\n"
     },
     // This is the minimalist set of headers.
     { 0,
       { NULL },
-      "hello: bye\n"
       "status: 200\n"
       "version: HTTP/1.1\n"
+      "hello: bye\n"
     },
     // Headers with a comma separated list.
     { 1,
       { "cookie", "val1,val2",
         NULL
       },
-      "cookie: val1,val2\n"
-      "hello: bye\n"
       "status: 200\n"
       "version: HTTP/1.1\n"
+      "cookie: val1,val2\n"
+      "hello: bye\n"
     }
   };
 
@@ -3572,10 +3576,10 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SynReplyHeadersVary) {
       { { "cookie",   "val1,val2",
           NULL
         },
-        { "vary",     "cookie",
-          "status",   "200",
+        { ":status",   "200",
+          ":version",  "HTTP/1.1",
+          "vary",     "cookie",
           "url",      "/index.php",
-          "version",  "HTTP/1.1",
           NULL
         }
       }
@@ -3587,11 +3591,11 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SynReplyHeadersVary) {
           "enemy",    "snaggletooth",
           NULL
         },
-        { "vary",     "friend",
+        { ":status",   "200",
+          ":version",  "HTTP/1.1",
+          "vary",     "friend",
           "vary",     "enemy",
-          "status",   "200",
           "url",      "/index.php",
-          "version",  "HTTP/1.1",
           NULL
         }
       }
@@ -3602,10 +3606,10 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SynReplyHeadersVary) {
       { { "cookie",   "val1,val2",
           NULL
         },
-        { "vary",     "*",
-          "status",   "200",
+        { ":status",   "200",
+          ":version",  "HTTP/1.1",
+          "vary",     "*",
           "url",      "/index.php",
-          "version",  "HTTP/1.1",
           NULL
         }
       }
@@ -3617,10 +3621,10 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SynReplyHeadersVary) {
           "enemy",    "snaggletooth",
           NULL
         },
-        { "vary",     "friend,enemy",
-          "status",   "200",
+        { ":status",   "200",
+          ":version",  "HTTP/1.1",
+          "vary",     "friend,enemy",
           "url",      "/index.php",
-          "version",  "HTTP/1.1",
           NULL
         }
       }
@@ -3741,7 +3745,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, InvalidSynReply) {
     },
     // SYN_REPLY missing version header
     { 2,
-      { "status", "200",
+      { ":status", "200",
         "url", "/index.php",
         NULL
       },
@@ -4447,8 +4451,8 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SettingsSaved) {
     DATA_FLAG_NONE                          // Data Flags
   };
   static const char* const kExtraHeaders[] = {
-    "status",   "200",
-    "version",  "HTTP/1.1"
+    ":status",   "200",
+    ":version",  "HTTP/1.1"
   };
 
   BoundNetLog net_log;
@@ -4554,8 +4558,8 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SettingsPlayback) {
     DATA_FLAG_NONE                          // Data Flags
   };
   static const char* kExtraHeaders[] = {
-    "status",   "200",
-    "version",  "HTTP/1.1"
+    ":status",   "200",
+    ":version",  "HTTP/1.1"
   };
 
   BoundNetLog net_log;
@@ -5238,15 +5242,16 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ServerPushWithHeaders) {
   };
 
   static const char* const kInitialHeaders[] = {
-    "url",
-    "http://www.google.com/foo.dat",
+    ":scheme", "http",
+    ":host", "www.google.com",
+    ":path", "/foo.dat",
   };
   static const char* const kLateHeaders[] = {
     "hello",
     "bye",
-    "status",
+    ":status",
     "200",
-    "version",
+    ":version",
     "HTTP/1.1"
   };
   scoped_ptr<SpdyFrame>
@@ -5322,15 +5327,16 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ServerPushClaimBeforeHeaders) {
   };
 
   static const char* const kInitialHeaders[] = {
-    "url",
-    "http://www.google.com/foo.dat",
+    ":scheme", "http",
+    ":host", "www.google.com",
+    ":path", "/foo.dat"
   };
   static const char* const kLateHeaders[] = {
     "hello",
     "bye",
-    "status",
+    ":status",
     "200",
-    "version",
+    ":version",
     "HTTP/1.1"
   };
   scoped_ptr<SpdyFrame>
@@ -5459,17 +5465,18 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ServerPushWithTwoHeaderFrames) {
   };
 
   static const char* const kInitialHeaders[] = {
-    "url",
-    "http://www.google.com/foo.dat",
+    ":scheme", "http",
+    ":host", "www.google.com",
+    ":path", "/foo.dat"
   };
   static const char* const kMiddleHeaders[] = {
     "hello",
     "bye",
   };
   static const char* const kLateHeaders[] = {
-    "status",
+    ":status",
     "200",
-    "version",
+    ":version",
     "HTTP/1.1"
   };
   scoped_ptr<SpdyFrame>
@@ -5595,8 +5602,11 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ServerPushWithTwoHeaderFrames) {
 
   // Verify we got all the headers
   EXPECT_TRUE(response2.headers->HasHeaderValue(
-      "url",
-      "http://www.google.com/foo.dat"));
+      "scheme", "http"));
+  EXPECT_TRUE(response2.headers->HasHeaderValue(
+      "host", "www.google.com"));
+  EXPECT_TRUE(response2.headers->HasHeaderValue(
+      "path", "/foo.dat"));
   EXPECT_TRUE(response2.headers->HasHeaderValue("hello", "bye"));
   EXPECT_TRUE(response2.headers->HasHeaderValue("status", "200"));
   EXPECT_TRUE(response2.headers->HasHeaderValue("version", "HTTP/1.1"));
@@ -5607,9 +5617,9 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SynReplyWithHeaders) {
   MockWrite writes[] = { CreateMockWrite(*req) };
 
   static const char* const kInitialHeaders[] = {
-    "status",
+    ":status",
     "200 OK",
-    "version",
+    ":version",
     "HTTP/1.1"
   };
   static const char* const kLateHeaders[] = {
@@ -5663,9 +5673,9 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SynReplyWithLateHeaders) {
   MockWrite writes[] = { CreateMockWrite(*req) };
 
   static const char* const kInitialHeaders[] = {
-    "status",
+    ":status",
     "200 OK",
-    "version",
+    ":version",
     "HTTP/1.1"
   };
   static const char* const kLateHeaders[] = {
@@ -5721,13 +5731,13 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SynReplyWithDuplicateLateHeaders) {
   MockWrite writes[] = { CreateMockWrite(*req) };
 
   static const char* const kInitialHeaders[] = {
-    "status",
+    ":status",
     "200 OK",
-    "version",
+    ":version",
     "HTTP/1.1"
   };
   static const char* const kLateHeaders[] = {
-    "status",
+    ":status",
     "500 Server Error",
   };
   scoped_ptr<SpdyFrame>
