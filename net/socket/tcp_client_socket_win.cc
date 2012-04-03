@@ -674,6 +674,10 @@ base::TimeDelta TCPClientSocketWin::GetConnectTimeMicros() const {
   return connect_time_micros_;
 }
 
+NextProto TCPClientSocketWin::GetNegotiatedProtocol() const {
+  return kProtoUnknown;
+}
+
 int TCPClientSocketWin::Read(IOBuffer* buf,
                              int buf_len,
                              const CompletionCallback& callback) {

@@ -1166,7 +1166,7 @@ bool MockSSLClientSocket::set_was_npn_negotiated(bool negotiated) {
   return new_npn_value_ = negotiated;
 }
 
-NextProto MockSSLClientSocket::protocol_negotiated() const {
+NextProto MockSSLClientSocket::GetNegotiatedProtocol() const {
   if (is_protocol_negotiated_set_)
     return protocol_negotiated_;
   return data_->protocol_negotiated;

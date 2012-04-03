@@ -750,9 +750,9 @@ class MockSSLClientSocket : public MockClientSocket, public AsyncSocket {
                                        std::string* server_protos) OVERRIDE;
   virtual bool was_npn_negotiated() const OVERRIDE;
   virtual bool set_was_npn_negotiated(bool negotiated) OVERRIDE;
-  virtual NextProto protocol_negotiated() const OVERRIDE;
   virtual void set_protocol_negotiated(
       NextProto protocol_negotiated) OVERRIDE;
+  virtual NextProto GetNegotiatedProtocol() const OVERRIDE;
 
   // This MockSocket does not implement the manual async IO feature.
   virtual void OnReadComplete(const MockRead& data) OVERRIDE;
