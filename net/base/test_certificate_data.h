@@ -5,7 +5,7 @@
 namespace {
 
 // This is the SHA1 hash of the SubjectPublicKeyInfo of nist.der.
-static const char nistSPKIHash[] =
+static const char kNistSPKIHash[] =
     "\x15\x60\xde\x65\x4e\x03\x9f\xd0\x08\x82"
     "\xa9\x6a\xc4\x65\x8e\x6f\x92\x06\x84\x35";
 
