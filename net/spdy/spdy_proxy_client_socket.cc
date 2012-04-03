@@ -169,6 +169,10 @@ base::TimeDelta SpdyProxyClientSocket::GetConnectTimeMicros() const {
   return base::TimeDelta::FromMicroseconds(-1);
 }
 
+NextProto SpdyProxyClientSocket::GetNegotiatedProtocol() const {
+  return kProtoUnknown;
+}
+
 int SpdyProxyClientSocket::Read(IOBuffer* buf, int buf_len,
                                 const CompletionCallback& callback) {
   DCHECK(read_callback_.is_null());

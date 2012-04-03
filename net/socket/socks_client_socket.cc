@@ -181,6 +181,14 @@ base::TimeDelta SOCKSClientSocket::GetConnectTimeMicros() const {
   return base::TimeDelta::FromMicroseconds(-1);
 }
 
+NextProto SOCKSClientSocket::GetNegotiatedProtocol() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->GetNegotiatedProtocol();
+  }
+  NOTREACHED();
+  return kProtoUnknown;
+}
+
 // Read is called by the transport layer above to read. This can only be done
 // if the SOCKS handshake is complete.
 int SOCKSClientSocket::Read(IOBuffer* buf, int buf_len,

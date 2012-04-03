@@ -87,6 +87,10 @@ class NET_EXPORT_PRIVATE StreamSocket : public Socket {
   // Returns the connection setup time of this socket.
   virtual base::TimeDelta GetConnectTimeMicros() const = 0;
 
+  // Returns the protocol negotiated via NPN for this socket, or
+  // kProtoUnknown will be returned if NPN is not applicable.
+  virtual NextProto GetNegotiatedProtocol() const = 0;
+
  protected:
   // The following class is only used to gather statistics about the history of
   // a socket.  It is only instantiated and used in basic sockets, such as
