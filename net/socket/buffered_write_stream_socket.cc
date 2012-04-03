@@ -119,6 +119,10 @@ base::TimeDelta BufferedWriteStreamSocket::GetConnectTimeMicros() const {
   return wrapped_socket_->GetConnectTimeMicros();
 }
 
+NextProto BufferedWriteStreamSocket::GetNegotiatedProtocol() const {
+  return wrapped_socket_->GetNegotiatedProtocol();
+}
+
 void BufferedWriteStreamSocket::DoDelayedWrite() {
   int result = wrapped_socket_->Write(
       io_buffer_, io_buffer_->RemainingCapacity(),

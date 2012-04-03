@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -731,6 +731,10 @@ int64 TCPClientSocketLibevent::NumBytesRead() const {
 
 base::TimeDelta TCPClientSocketLibevent::GetConnectTimeMicros() const {
   return connect_time_micros_;
+}
+
+NextProto TCPClientSocketLibevent::GetNegotiatedProtocol() const {
+  return kProtoUnknown;
 }
 
 }  // namespace net

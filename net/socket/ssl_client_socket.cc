@@ -15,6 +15,7 @@ SSLClientSocket::SSLClientSocket()
       domain_bound_cert_type_(CLIENT_CERT_INVALID_TYPE) {
 }
 
+// static
 NextProto SSLClientSocket::NextProtoFromString(
     const std::string& proto_string) {
   if (proto_string == "http1.1" || proto_string == "http/1.1") {
@@ -32,6 +33,7 @@ NextProto SSLClientSocket::NextProtoFromString(
   }
 }
 
+// static
 const char* SSLClientSocket::NextProtoToString(NextProto next_proto) {
   switch (next_proto) {
     case kProtoHTTP11:
@@ -79,6 +81,10 @@ std::string SSLClientSocket::ServerProtosToString(
   return JoinString(server_protos_with_commas, ',');
 }
 
+NextProto SSLClientSocket::GetNegotiatedProtocol() const {
+  return protocol_negotiated_;
+}
+
 bool SSLClientSocket::IgnoreCertError(int error, int load_flags) {
   if (error == OK || load_flags & LOAD_IGNORE_ALL_CERT_ERRORS)
     return true;
@@ -112,10 +118,6 @@ bool SSLClientSocket::was_spdy_negotiated() const {
 
 bool SSLClientSocket::set_was_spdy_negotiated(bool negotiated) {
   return was_spdy_negotiated_ = negotiated;
-}
-
-NextProto SSLClientSocket::protocol_negotiated() const {
-  return protocol_negotiated_;
 }
 
 void SSLClientSocket::set_protocol_negotiated(NextProto protocol_negotiated) {

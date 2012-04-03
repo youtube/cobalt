@@ -61,6 +61,7 @@ class SSLServerSocketNSS : public SSLServerSocket {
   virtual bool UsingTCPFastOpen() const OVERRIDE;
   virtual int64 NumBytesRead() const OVERRIDE;
   virtual base::TimeDelta GetConnectTimeMicros() const OVERRIDE;
+  virtual NextProto GetNegotiatedProtocol() const OVERRIDE;
 
  private:
   enum State {
