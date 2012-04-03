@@ -196,6 +196,32 @@ PK11SlotInfo* FindSlotWithTokenName(const std::string& token_name) {
 
 #endif  // defined(USE_NSS)
 
+#if defined(OS_CHROMEOS)
+void LogSlotInfo() {
+  AutoSECMODListReadLock auto_lock;
+  SECMODModuleList* head = SECMOD_GetDefaultModuleList();
+  VLOG(1) << "Current PK11 Slot Status:";
+  for (SECMODModuleList* item = head; item != NULL; item = item->next) {
+    int slot_count = item->module->loaded ? item->module->slotCount : 0;
+    for (int i = 0; i < slot_count; i++) {
+      PK11SlotInfo* slot = item->module->slots[i];
+      if (slot) {
+        VLOG(1) << "  ###############################";
+        VLOG(1) << "  Token Name   : " << PK11_GetTokenName(slot);
+        VLOG(1) << "  Slot Name    : " << PK11_GetSlotName(slot);
+        VLOG(1) << "  Slot ID      : " << PK11_GetSlotID(slot);
+        VLOG(1) << "  Is Friendly  : "
+            << (PK11_IsFriendly(slot) ? "True" : "False");
+        VLOG(1) << "  Default Flags: " << PK11_GetDefaultFlags(slot);
+        VLOG(1) << "  Need Login   : "
+            << (PK11_NeedLogin(slot) ? "Yes" : "No");
+        VLOG(1) << "  Is Hardware  :" << (PK11_IsHW(slot) ? "Yes" : "No");
+      }
+    }
+  }
+}
+#endif
+
 // A singleton to initialize/deinitialize NSPR.
 // Separate from the NSS singleton because we initialize NSPR on the UI thread.
 // Now that we're leaking the singleton, we could merge back with the NSS
@@ -545,18 +571,38 @@ class NSSInitSingleton {
             //   time, or after a timeout).
             "trustOrder=100 slotParams=(1={slotFlags=[RSA] askpw=only})");
       }
-      if (chaps_module_) {
+      if (chaps_module_ && chaps_module_->loaded) {
+        int size = 0;
+        PK11DefaultArrayEntry* entries = PK11_GetDefaultArray(&size);
+        PK11DefaultArrayEntry* friendly_entry = NULL;
+        for (int i = 0; i < size; ++i) {
+          if (entries[i].flag == SECMOD_FRIENDLY_FLAG) {
+            friendly_entry = &entries[i];
+            break;
+          }
+        }
+
         // If this gets set, then we'll use the TPM for certs with
         // private keys, otherwise we'll fall back to the software
         // implementation.
         tpm_slot_ = GetTPMSlot();
+
+        // Force the TPM slot to be "Friendly", since it seems to ignore setting
+        // "PublicCerts" above, and otherwise NSS does some unnecessary locking,
+        // and slows things down.
+        if (tpm_slot_ && friendly_entry)
+          PK11_UpdateSlotAttribute(tpm_slot_, friendly_entry, PR_TRUE);
+
+        if (VLOG_IS_ON(1))
+          LogSlotInfo();
+
         callback.Run(tpm_slot_ != NULL);
         return;
       }
     }
     callback.Run(false);
   }
-#endif
+#endif  // defined(OS_CHROMEOS)
 
 #if defined(USE_NSS)
   // Load nss's built-in root certs.
@@ -637,7 +683,6 @@ bool NSSInitSingleton::force_nodb_init_ = false;
 
 base::LazyInstance<NSSInitSingleton>::Leaky
     g_nss_singleton = LAZY_INSTANCE_INITIALIZER;
-
 }  // namespace
 
 #if defined(USE_NSS)
