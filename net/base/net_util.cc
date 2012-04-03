@@ -1533,7 +1533,7 @@ int SetNonBlocking(int fd) {
 #if defined(OS_WIN)
   unsigned long no_block = 1;
   return ioctlsocket(fd, FIONBIO, &no_block);
-#elif defined(__LB_PS3__)
+#elif defined(__LB_PS3__) || defined(__LB_WII__)
   int val = 1;
   return setsockopt(fd, SOL_SOCKET, SO_NBIO, &val, sizeof(int));
 #elif defined(OS_POSIX)
@@ -1992,7 +1992,7 @@ bool IPv6Supported() {
   // so we don't get a 'defined but not used' warning/err
   IPv6SupportResults(IPV6_GETIFADDRS_FAILED);
   return true;
-#elif defined(__LB_PS3__)
+#elif defined(__LB_PS3__) || defined(__LB_WII__)
   return false;
 #elif defined(OS_POSIX)
   int test_socket = socket(AF_INET6, SOCK_STREAM, 0);
@@ -2343,7 +2343,7 @@ const uint16* GetPortFieldFromSockaddr(const struct sockaddr* address,
     const struct sockaddr_in* sockaddr =
         reinterpret_cast<const struct sockaddr_in*>(address);
     return &sockaddr->sin_port;
-#if !defined(__LB_PS3__)
+#if defined(IN6ADDR_ANY_INIT)
   } else if (address->sa_family == AF_INET6) {
     DCHECK_LE(sizeof(sockaddr_in6), static_cast<size_t>(address_len));
     const struct sockaddr_in6* sockaddr =
@@ -2393,7 +2393,7 @@ bool IsLocalhost(const std::string& host) {
         return IPNumberMatchesPrefix(ip_number, localhost_prefix, 8);
       }
 
-#if !defined(__LB_PS3__)
+#if defined(IN6ADDR_ANY_INIT)
       case kIPv6AddressSize: {
         struct in6_addr sin6_addr;
         memcpy(&sin6_addr, &ip_number[0], kIPv6AddressSize);

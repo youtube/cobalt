@@ -58,7 +58,7 @@ bool IPEndPoint::ToSockAddr(struct sockaddr* address,
       memcpy(&addr->sin_addr, &address_[0], kIPv4AddressSize);
       break;
     }
-#if !defined(__LB_PS3__)
+#if defined(IN6ADDR_ANY_INIT)
     case kIPv6AddressSize: {
       if (*address_length < sizeof(struct sockaddr_in6))
         return false;
@@ -94,7 +94,7 @@ bool IPEndPoint::FromSockAddr(const struct sockaddr* address,
       address_.assign(&bytes[0], &bytes[kIPv4AddressSize]);
       break;
     }
-#if !defined(__LB_PS3__)
+#if defined(IN6ADDR_ANY_INIT)
     case AF_INET6: {
       if (address_length < sizeof(struct sockaddr_in6))
         return false;
