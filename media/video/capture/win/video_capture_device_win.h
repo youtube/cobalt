@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Windows specific implementation of VideoCaptureDevice.
-// DirectShow is used for capturing. DirectShow provide it's own threads
+// DirectShow is used for capturing. DirectShow provide its own threads
 // for capturing.
 
 #ifndef MEDIA_VIDEO_CAPTURE_WIN_VIDEO_CAPTURE_DEVICE_WIN_H_

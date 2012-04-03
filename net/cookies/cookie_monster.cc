@@ -2667,8 +2667,9 @@ bool CookieMonster::CanonicalCookie::IsOnPath(
   if (path_.empty())
     return false;
 
-  // The Mozilla code broke it into 3 cases, if it's strings lengths
-  // are less than, equal, or greater.  I think this is simpler:
+  // The Mozilla code broke this into three cases, based on if the cookie path
+  // was longer, the same length, or shorter than the length of the url path.
+  // I think the approach below is simpler.
 
   // Make sure the cookie path is a prefix of the url path.  If the
   // url path is shorter than the cookie path, then the cookie path
