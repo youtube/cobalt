@@ -446,8 +446,8 @@ void ConvertRGB32ToYUV(const uint8* rgbframe,
     // For ARM processors, always use C version.
     // TODO(hclam): Implement a NEON version.
     convert_proc = &ConvertRGB32ToYUV_C;
-#elif defined(__LB_PS3__)
-    // For the PS3, always use C version.
+#elif defined(__LB_PS3__) || defined(__LB_WII__)
+    // For the PS3 and Wii, always use C version.
     convert_proc = &ConvertRGB32ToYUV_C;
 #else
     // TODO(hclam): Switch to SSSE3 version when the cyan problem is solved.
