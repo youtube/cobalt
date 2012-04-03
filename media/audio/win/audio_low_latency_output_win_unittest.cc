@@ -16,6 +16,7 @@
 #include "base/win/scoped_com_initializer.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_manager.h"
+#include "media/audio/audio_util.h"
 #include "media/audio/win/audio_low_latency_output_win.h"
 #include "media/base/seekable_buffer.h"
 #include "media/base/test_data_util.h"
@@ -141,8 +142,14 @@ class ReadFromFileAudioSource : public AudioOutputStream::AudioSourceCallback {
 };
 
 // Convenience method which ensures that we are not running on the build
-// bots and that at least one valid output device can be found.
+// bots and that at least one valid output device can be found. We also
+// verify that we are not running on XP since the low-latency (WASAPI-
+// based) version requires Windows Vista or higher.
 static bool CanRunAudioTests(AudioManager* audio_man) {
+  if (!media::IsWASAPISupported()) {
+    LOG(WARNING) << "This tests requires Windows Vista or higher.";
+    return false;
+  }
   // TODO(henrika): note that we use Wave today to query the number of
   // existing output devices.
   bool output = audio_man->HasAudioOutputDevices();
