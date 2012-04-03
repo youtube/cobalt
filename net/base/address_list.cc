@@ -45,7 +45,7 @@ struct addrinfo* CreateAddrInfo(const IPAddressNumber& address,
       ai->ai_addr = reinterpret_cast<struct sockaddr*>(addr);
       break;
     }
-#if !defined(__LB_PS3__)
+#if defined(IN6ADDR_ANY_INIT)
     case kIPv6AddressSize: {
       ai->ai_family = AF_INET6;
       const size_t sockaddr_in6_size = sizeof(struct sockaddr_in6);
@@ -191,7 +191,7 @@ AddressList AddressList::CreateFromSockaddr(
         DCHECK_EQ(AF_INET, ai->ai_family);
       }
       break;
-#if !defined(__LB_PS3__)
+#if defined(IN6ADDR_ANY_INIT)
     case sizeof(struct sockaddr_in6):
       {
         const struct sockaddr_in6* sin6 =

@@ -91,7 +91,7 @@
 #define ARCH_CPU_X86_64 1
 #define ARCH_CPU_64_BITS 1
 #define ARCH_CPU_LITTLE_ENDIAN 1
-#elif defined(__LB_PS3__)
+#elif defined(__LB_PS3__) || defined(__LB_WII__)
 #define ARCH_CPU_32_BITS 1
 #define ARCH_CPU_BIG_ENDIAN 1
 #define ARCH_CPU_PPC_FAMILY 1
@@ -113,7 +113,7 @@
 #endif
 
 // Type detection for wchar_t.
-#if defined(OS_WIN) || defined(__LB_PS3__)
+#if defined(OS_WIN) || defined(__LB_PS3__) || defined(__LB_WII__)
 #define WCHAR_T_IS_UTF16
 #elif defined(OS_POSIX) && defined(COMPILER_GCC) && \
     defined(__WCHAR_MAX__) && \

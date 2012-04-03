@@ -35,6 +35,8 @@
 #elif defined(COMPILER_GCC)
 #if defined(OS_ANDROID) || defined(__LB_PS3__)
 #define BASE_HASH_NAMESPACE std
+#elif defined(__LB_WII__)
+#define BASE_HASH_NAMESPACE Metrowerks
 #else
 #define BASE_HASH_NAMESPACE __gnu_cxx
 #endif
@@ -47,7 +49,7 @@
 #undef __DEPRECATED
 #endif
 
-#if defined(OS_ANDROID) || defined(__LB_PS3__)
+#if defined(OS_ANDROID) || defined(__LB_PS3__) || defined(__LB_WII__)
 #include <hash_map>
 #include <hash_set>
 #else
