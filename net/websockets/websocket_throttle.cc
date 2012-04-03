@@ -29,7 +29,7 @@ static std::string AddrinfoToHashkey(const struct addrinfo* addrinfo) {
                                 addrinfo->ai_family,
                                 base::HexEncode(&addr->sin_addr, 4).c_str());
       }
-#if !defined(__LB_PS3__)
+#if defined(IN6ADDR_ANY_INIT)
     case AF_INET6: {
       const struct sockaddr_in6* const addr6 =
           reinterpret_cast<const sockaddr_in6*>(addrinfo->ai_addr);
