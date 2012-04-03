@@ -5855,6 +5855,11 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ServerPushCrossOriginCorrectness) {
     helper.RunPreTestSetup();
     helper.AddData(data.get());
 
+    // Enable cross-origin push. Since we are not using a proxy, this should
+    // not actually enable cross-origin SPDY push.
+    net::SpdySession::set_allow_spdy_proxy_push_across_origins(
+        "123.45.67.89:8080");
+
     HttpNetworkTransaction* trans = helper.trans();
 
     // Start the transaction with basic parameters.
