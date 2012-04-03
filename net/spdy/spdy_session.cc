@@ -436,19 +436,17 @@ net::Error SpdySession::InitializeWithSocket(
   certificate_error_code_ = certificate_error_code;
 
   NextProto protocol = g_default_protocol;
-  if (is_secure_) {
-    SSLClientSocket* ssl_socket = GetSSLClientSocket();
-    NextProto protocol_negotiated = ssl_socket->GetNegotiatedProtocol();
-    if (protocol_negotiated != kProtoUnknown) {
-      protocol = protocol_negotiated;
-    }
+  NextProto protocol_negotiated = connection->socket()->GetNegotiatedProtocol();
+  if (protocol_negotiated != kProtoUnknown) {
+    protocol = protocol_negotiated;
+  }
 
-    if (ssl_socket->WasDomainBoundCertSent()) {
-      // According to the SPDY spec, the credential associated with the TLS
-      // connection is stored in slot[1].
-      credential_state_.SetHasCredential(GURL("https://" +
-                                              host_port_pair().ToString()));
-    }
+  SSLClientSocket* ssl_socket = GetSSLClientSocket();
+  if (ssl_socket && ssl_socket->WasDomainBoundCertSent()) {
+    // According to the SPDY spec, the credential associated with the TLS
+    // connection is stored in slot[1].
+    credential_state_.SetHasCredential(GURL("https://" +
+                                            host_port_pair().ToString()));
   }
 
   DCHECK(protocol >= kProtoSPDY2);
@@ -825,7 +823,6 @@ void SpdySession::CloseStream(SpdyStreamId stream_id, int status) {
 void SpdySession::ResetStream(SpdyStreamId stream_id,
                               SpdyStatusCodes status,
                               const std::string& description) {
-
   net_log().AddEvent(
       NetLog::TYPE_SPDY_SESSION_SEND_RST_STREAM,
       make_scoped_refptr(new NetLogSpdyRstParameter(stream_id, status,
@@ -1431,20 +1428,13 @@ void SpdySession::OnSynStream(
   // TODO(mbelshe): DCHECK that this is a GET method?
 
   // Verify that the response had a URL for us.
-  const std::string& url = ContainsKey(*headers, "url") ?
-      headers->find("url")->second : "";
-  if (url.empty()) {
-    ResetStream(stream_id, PROTOCOL_ERROR,
-                "Pushed stream did not contain a url.");
-    return;
-  }
-
-  GURL gurl(url);
+  GURL gurl = GetUrlFromHeaderBlock(*headers, GetProtocolVersion(), true);
   if (!gurl.is_valid()) {
     ResetStream(stream_id, PROTOCOL_ERROR,
-                "Pushed stream url was invalid: " + url);
+                "Pushed stream url was invalid: " + gurl.spec());
     return;
   }
+  const std::string& url = gurl.spec();
 
   // Verify we have a valid stream association.
   if (!IsStreamActive(associated_stream_id)) {
