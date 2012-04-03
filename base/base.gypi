@@ -484,7 +484,7 @@
               ['include', 'sys_string_conversions_linux.cc'],
             ],
           }],
-          [ 'target_arch=="ps3"', {
+          [ 'target_arch=="ps3" or target_arch=="wii"', {
             'sources!': [
               'string16.cc',  # wchar_t is 2-bytes wide, string16 == wstring here.
             ],

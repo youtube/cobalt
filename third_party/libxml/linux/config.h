@@ -38,7 +38,7 @@
 /* Define to 1 if you have the <dirent.h> header file. */
 #define HAVE_DIRENT_H 1
 
-#if !defined(__LB_PS3__)
+#if !defined(__LB_PS3__) && !defined(__LB_WII__)
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
@@ -125,7 +125,7 @@
 #define HAVE_MATH_H 1
 
 /* Define to 1 if you have the <memory.h> header file. */
-#if !defined(__LB_PS3__)
+#if !defined(__LB_PS3__) && !defined(__LB_WII__)
 #define HAVE_MEMORY_H 1
 #endif
 
@@ -159,7 +159,7 @@
 /* Define to 1 if you have the `signal' function. */
 #define HAVE_SIGNAL 1
 
-#if !defined(__LB_PS3__)
+#if !defined(__LB_PS3__) && !defined(__LB_WII__)
 /* Define to 1 if you have the <signal.h> header file. */
 #define HAVE_SIGNAL_H 1
 #endif

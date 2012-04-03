@@ -34,7 +34,7 @@ bool IsAllLocalhostOfOneFamily(const struct addrinfo* ai) {
           return false;
         break;
       }
-#if !defined(__LB_PS3__)
+#if defined(IN6ADDR_ANY_INIT)
       case AF_INET6: {
         const struct sockaddr_in6* addr_in6 =
             reinterpret_cast<struct sockaddr_in6*>(ai->ai_addr);
