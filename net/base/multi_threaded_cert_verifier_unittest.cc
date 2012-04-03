@@ -58,14 +58,7 @@ class MultiThreadedCertVerifierTest : public ::testing::Test {
   MultiThreadedCertVerifier verifier_;
 };
 
-// Tests a cache hit, which should result in synchronous completion.
-#if defined(OS_MACOSX)
-// http://crbug.com/117372
-#define MAYBE_CacheHit FAILS_CacheHit
-#else
-#define MAYBE_CacheHit CacheHit
-#endif  // defined(OS_MACOSX)
-TEST_F(MultiThreadedCertVerifierTest, MAYBE_CacheHit) {
+TEST_F(MultiThreadedCertVerifierTest, CacheHit) {
   FilePath certs_dir = GetTestCertsDirectory();
   scoped_refptr<X509Certificate> test_cert(
       ImportCertFromFile(certs_dir, "ok_cert.pem"));
