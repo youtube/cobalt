@@ -117,6 +117,9 @@ class MockClientSocket : public StreamSocket {
         base::TimeDelta::FromMicroseconds(10);
     return kDummyConnectTimeMicros;  // Dummy value.
   }
+  virtual NextProto GetNegotiatedProtocol() const {
+    return kProtoUnknown;
+  }
 
  private:
   bool connected_;

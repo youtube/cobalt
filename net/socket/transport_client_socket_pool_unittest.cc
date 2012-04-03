@@ -91,6 +91,9 @@ class MockClientSocket : public StreamSocket {
   virtual base::TimeDelta GetConnectTimeMicros() const {
     return base::TimeDelta::FromMicroseconds(-1);
   }
+  virtual NextProto GetNegotiatedProtocol() const {
+    return kProtoUnknown;
+  }
 
   // Socket implementation.
   virtual int Read(IOBuffer* buf, int buf_len,
@@ -144,6 +147,9 @@ class MockFailingClientSocket : public StreamSocket {
   virtual int64 NumBytesRead() const { return -1; }
   virtual base::TimeDelta GetConnectTimeMicros() const {
     return base::TimeDelta::FromMicroseconds(-1);
+  }
+  virtual NextProto GetNegotiatedProtocol() const {
+    return kProtoUnknown;
   }
 
   // Socket implementation.
@@ -223,6 +229,9 @@ class MockPendingClientSocket : public StreamSocket {
   virtual int64 NumBytesRead() const { return -1; }
   virtual base::TimeDelta GetConnectTimeMicros() const {
     return base::TimeDelta::FromMicroseconds(-1);
+  }
+  virtual NextProto GetNegotiatedProtocol() const {
+    return kProtoUnknown;
   }
 
   // Socket implementation.
