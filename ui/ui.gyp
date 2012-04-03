@@ -99,6 +99,10 @@
         'base/cocoa/fullscreen_window_manager.mm',
         'base/cocoa/underlay_opengl_hosting_window.h',
         'base/cocoa/underlay_opengl_hosting_window.mm',
+        'base/cursor/cursor.cc',
+        'base/cursor/cursor.h',
+        'base/cursor/cursor_win.cc',
+        'base/cursor/cursor_x11.cc',
         'base/dragdrop/cocoa_dnd_util.h',
         'base/dragdrop/cocoa_dnd_util.mm',
         'base/dragdrop/drag_drop_types_gtk.cc',
@@ -417,6 +421,10 @@
           'sources!': [
             'gfx/native_theme_aura.cc',
             'gfx/native_theme_aura.h',
+            'base/cursor/cursor.cc',
+            'base/cursor/cursor.h',
+            'base/cursor/cursor_win.cc',
+            'base/cursor/cursor_x11.cc',
           ]
         }],
         ['use_aura==1 and OS=="win"', {
@@ -604,7 +612,7 @@
             ],
             'link_settings': {
               'libraries': [
-                '-lX11',
+                '-lX11 -lXcursor',
               ],
             },
           },
