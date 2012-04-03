@@ -188,6 +188,10 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // server via SETTINGS.
   static void set_init_max_concurrent_streams(size_t value);
 
+  // Allow a SPDY proxy to push resources from origins that are different from
+  // those of their associated streams.
+  static void set_allow_spdy_proxy_push_across_origins(const char* proxy);
+
   // Send WINDOW_UPDATE frame, called by a stream whenever receive window
   // size is increased.
   void SendWindowUpdate(SpdyStreamId stream_id, int32 delta_window_size);
@@ -639,6 +643,10 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // (of any form), while there is a ping in flight, before we declare the
   // connection to be hung.
   base::TimeDelta hung_interval_;
+
+  // Allows a proxy to push a resource that has an origin that is different
+  // from its associated url.
+  HostPortPair allow_spdy_proxy_push_across_origins_;
 };
 
 class NetLogSpdySynParameter : public NetLog::EventParameters {
