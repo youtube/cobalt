@@ -88,6 +88,9 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
   virtual void GetSSLCertRequestInfo(
       SSLCertRequestInfo* cert_request_info) = 0;
 
+  // StreamSocket:
+  virtual NextProto GetNegotiatedProtocol() const OVERRIDE;
+
   // Get the application level protocol that we negotiated with the server.
   // *proto is set to the resulting protocol (n.b. that the string may have
   // embedded NULs).
@@ -122,8 +125,6 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
   virtual bool was_spdy_negotiated() const;
 
   virtual bool set_was_spdy_negotiated(bool negotiated);
-
-  virtual NextProto protocol_negotiated() const;
 
   virtual void set_protocol_negotiated(NextProto protocol_negotiated);
 

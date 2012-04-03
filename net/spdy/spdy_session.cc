@@ -438,7 +438,7 @@ net::Error SpdySession::InitializeWithSocket(
   NextProto protocol = g_default_protocol;
   if (is_secure_) {
     SSLClientSocket* ssl_socket = GetSSLClientSocket();
-    NextProto protocol_negotiated = ssl_socket->protocol_negotiated();
+    NextProto protocol_negotiated = ssl_socket->GetNegotiatedProtocol();
     if (protocol_negotiated != kProtoUnknown) {
       protocol = protocol_negotiated;
     }
@@ -633,7 +633,7 @@ bool SpdySession::NeedsCredentials() const {
   if (!is_secure_)
     return false;
   SSLClientSocket* ssl_socket = GetSSLClientSocket();
-  if (ssl_socket->protocol_negotiated() < kProtoSPDY3)
+  if (ssl_socket->GetNegotiatedProtocol() < kProtoSPDY3)
     return false;
   return ssl_socket->WasDomainBoundCertSent();
 }
@@ -1187,7 +1187,7 @@ Value* SpdySession::GetInfoAsValue() const {
 
   NextProto proto = kProtoUnknown;
   if (is_secure_) {
-    proto = GetSSLClientSocket()->protocol_negotiated();
+    proto = GetSSLClientSocket()->GetNegotiatedProtocol();
   }
   dict->SetString("protocol_negotiated",
                   SSLClientSocket::NextProtoToString(proto));
@@ -1307,7 +1307,7 @@ bool SpdySession::GetSSLInfo(SSLInfo* ssl_info,
   SSLClientSocket* ssl_socket = GetSSLClientSocket();
   ssl_socket->GetSSLInfo(ssl_info);
   *was_npn_negotiated = ssl_socket->was_npn_negotiated();
-  *protocol_negotiated = ssl_socket->protocol_negotiated();
+  *protocol_negotiated = ssl_socket->GetNegotiatedProtocol();
   return true;
 }
 

@@ -201,6 +201,14 @@ base::TimeDelta HttpProxyClientSocket::GetConnectTimeMicros() const {
   return base::TimeDelta::FromMicroseconds(-1);
 }
 
+NextProto HttpProxyClientSocket::GetNegotiatedProtocol() const {
+  if (transport_.get() && transport_->socket()) {
+    return transport_->socket()->GetNegotiatedProtocol();
+  }
+  NOTREACHED();
+  return kProtoUnknown;
+}
+
 int HttpProxyClientSocket::Read(IOBuffer* buf, int buf_len,
                                 const CompletionCallback& callback) {
   DCHECK(user_callback_.is_null());

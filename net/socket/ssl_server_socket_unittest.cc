@@ -194,6 +194,10 @@ class FakeSocket : public StreamSocket {
     return base::TimeDelta::FromMicroseconds(-1);
   }
 
+  virtual NextProto GetNegotiatedProtocol() const {
+    return kProtoUnknown;
+  }
+
  private:
   net::BoundNetLog net_log_;
   FakeDataChannel* incoming_;
