@@ -20,6 +20,8 @@ using ::testing::AtLeast;
 using ::testing::Ge;
 using ::testing::NotNull;
 
+namespace media {
+
 ACTION_P3(CheckCountAndPostQuitTask, count, limit, loop) {
   if (++*count >= limit) {
     loop->PostTask(FROM_HERE, MessageLoop::QuitClosure());
@@ -307,3 +309,4 @@ TEST_F(MacAudioInputTest, DISABLED_AUAudioInputStreamRecordToFile) {
   ais->Close();
 }
 
+}  // namespace media

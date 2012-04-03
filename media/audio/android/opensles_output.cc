@@ -8,6 +8,8 @@
 #include "media/audio/audio_util.h"
 #include "media/audio/android/audio_manager_android.h"
 
+namespace media {
+
 OpenSLESOutputStream::OpenSLESOutputStream(AudioManagerAndroid* manager,
                                            const AudioParameters& params)
     : audio_manager_(manager),
@@ -295,3 +297,5 @@ void OpenSLESOutputStream::HandleError(SLresult error) {
   if (callback_)
     callback_->OnError(this, error);
 }
+
+}  // namespace media

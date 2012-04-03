@@ -27,8 +27,8 @@
 #include "media/base/channel_layout.h"
 
 namespace media {
+
 class SeekableBuffer;
-}
 
 #if defined(OS_LINUX)
 class AudioManagerLinux;
@@ -129,5 +129,7 @@ class PulseAudioOutputStream : public AudioOutputStream {
 
   DISALLOW_COPY_AND_ASSIGN(PulseAudioOutputStream);
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_PULSE_PULSE_OUTPUT_H_

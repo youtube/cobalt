@@ -14,6 +14,8 @@
 using base::win::ScopedComPtr;
 using base::win::ScopedCOMInitializer;
 
+namespace media {
+
 WASAPIAudioInputStream::WASAPIAudioInputStream(
     AudioManagerWin* manager, const AudioParameters& params,
     const std::string& device_id)
@@ -641,3 +643,5 @@ HRESULT WASAPIAudioInputStream::InitializeAudioEngine() {
                                  simple_audio_volume_.ReceiveVoid());
   return hr;
 }
+
+}  // namespace media

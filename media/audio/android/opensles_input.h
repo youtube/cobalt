@@ -11,6 +11,8 @@
 #include "media/audio/android/opensles_util.h"
 #include <SLES/OpenSLES_Android.h>
 
+namespace media {
+
 class AudioManagerAndroid;
 
 // Implements PCM audio input support for Android using the OpenSLES API.
@@ -78,5 +80,7 @@ class OpenSLESInputStream : public AudioInputStream {
 
   DISALLOW_COPY_AND_ASSIGN(OpenSLESInputStream);
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_ANDROID_OPENSLES_INPUT_H_

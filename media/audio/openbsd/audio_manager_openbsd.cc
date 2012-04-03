@@ -15,6 +15,8 @@
 
 #include <fcntl.h>
 
+namespace media {
+
 // Maximum number of output streams that can be open simultaneously.
 static const int kMaxOutputStreams = 50;
 
@@ -103,3 +105,5 @@ AudioOutputStream* AudioManagerOpenBSD::MakeOutputStream(
 AudioManager* CreateAudioManager() {
   return new AudioManagerOpenBSD();
 }
+
+}  // namespace media

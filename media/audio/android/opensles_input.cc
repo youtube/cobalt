@@ -7,6 +7,8 @@
 #include "base/logging.h"
 #include "media/audio/android/audio_manager_android.h"
 
+namespace media {
+
 OpenSLESInputStream::OpenSLESInputStream(AudioManagerAndroid* audio_manager,
                                          const AudioParameters& params)
     : audio_manager_(audio_manager),
@@ -288,3 +290,5 @@ void OpenSLESInputStream::HandleError(SLresult error) {
   if (callback_)
     callback_->OnError(this, error);
 }
+
+}  // namespace media

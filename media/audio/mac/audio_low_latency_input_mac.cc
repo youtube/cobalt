@@ -12,6 +12,8 @@
 #include "media/audio/audio_util.h"
 #include "media/audio/mac/audio_manager_mac.h"
 
+namespace media {
+
 static const int kMinIntervalBetweenVolumeUpdatesMs = 1000;
 
 static std::ostream& operator<<(std::ostream& os,
@@ -604,3 +606,5 @@ bool AUAudioInputStream::IsVolumeSettableOnChannel(int channel) {
                                                   &is_settable);
   return (result == noErr) ? is_settable : false;
 }
+
+}  // namespace media

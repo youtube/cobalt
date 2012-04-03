@@ -32,8 +32,11 @@
 #include "media/audio/audio_manager.h"
 #include "media/audio/audio_parameters.h"
 
-class AudioOutputStream;
 class MessageLoop;
+
+namespace media {
+
+class AudioOutputStream;
 
 class MEDIA_EXPORT AudioOutputDispatcher
     : public base::RefCountedThreadSafe<AudioOutputDispatcher> {
@@ -106,5 +109,7 @@ class MEDIA_EXPORT AudioOutputDispatcher
 
   DISALLOW_COPY_AND_ASSIGN(AudioOutputDispatcher);
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_AUDIO_OUTPUT_DISPATCHER_H_
