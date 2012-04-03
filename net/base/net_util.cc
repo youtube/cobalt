@@ -1908,9 +1908,8 @@ string16 FormatUrl(const GURL& url,
 bool CanStripTrailingSlash(const GURL& url) {
   // Omit the path only for standard, non-file URLs with nothing but "/" after
   // the hostname.
-  return url.IsStandard() && !url.SchemeIsFile() &&
-      !url.SchemeIsFileSystem() && !url.has_query() && !url.has_ref()
-      && url.path() == "/";
+  return url.IsStandard() && !url.SchemeIsFile() && !url.has_query() &&
+      !url.has_ref() && url.path() == "/";
 }
 
 GURL SimplifyUrlForRequest(const GURL& url) {
