@@ -260,8 +260,8 @@ TEST_P(HttpProxyClientSocketPoolSpdy3Test, NeedAuth) {
     CreateMockWrite(*rst, 2, ASYNC),
   };
   static const char* const kAuthChallenge[] = {
-    "status", "407 Proxy Authentication Required",
-    "version", "HTTP/1.1",
+    ":status", "407 Proxy Authentication Required",
+    ":version", "HTTP/1.1",
     "proxy-authenticate", "Basic realm=\"MyRealm1\"",
   };
   scoped_ptr<SpdyFrame> resp(
