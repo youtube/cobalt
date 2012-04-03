@@ -31,6 +31,8 @@ using ::testing::Return;
 
 using base::win::ScopedCOMInitializer;
 
+namespace media {
+
 static const wchar_t kAudioFile1_16b_m_16K[]
     = L"media\\test\\data\\sweep02_16b_mono_16KHz.raw";
 
@@ -744,3 +746,5 @@ TEST(WinAudioTest, SyncSocketBasic) {
   oas->Stop();
   oas->Close();
 }
+
+}  // namespace media

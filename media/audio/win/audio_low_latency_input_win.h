@@ -77,6 +77,8 @@
 #include "media/audio/audio_parameters.h"
 #include "media/base/media_export.h"
 
+namespace media {
+
 class AudioManagerWin;
 
 // AudioInputStream implementation using Windows Core Audio APIs.
@@ -209,5 +211,7 @@ class MEDIA_EXPORT WASAPIAudioInputStream
 
   DISALLOW_COPY_AND_ASSIGN(WASAPIAudioInputStream);
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_WIN_AUDIO_LOW_LATENCY_INPUT_WIN_H_

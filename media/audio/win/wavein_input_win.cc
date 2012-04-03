@@ -16,7 +16,7 @@ namespace {
 const int kStopInputStreamCallbackTimeout = 3000;  // Three seconds.
 }
 
-using media::AudioDeviceNames;
+namespace media {
 
 // Our sound buffers are allocated once and kept in a linked list using the
 // the WAVEHDR::dwUser variable. The last buffer points to the first buffer.
@@ -297,3 +297,5 @@ void PCMWaveInAudioInputStream::WaveCallback(HWAVEIN hwi, UINT msg,
       obj->callback_->OnClose(obj);
   }
 }
+
+}  // namespace media

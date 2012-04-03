@@ -13,6 +13,8 @@
 #include "media/audio/audio_util.h"
 #include "media/audio/mac/audio_manager_mac.h"
 
+namespace media {
+
 // A custom data structure to store information an AudioQueue buffer.
 struct AudioQueueUserData {
   AudioQueueUserData() : empty_buffer(false) {}
@@ -527,3 +529,5 @@ PCMQueueOutAudioOutputStream::GetSource() {
   base::AutoLock lock(source_lock_);
   return source_;
 }
+
+}  // namespace media

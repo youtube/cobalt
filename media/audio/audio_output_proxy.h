@@ -12,6 +12,8 @@
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
+namespace media {
+
 class AudioOutputDispatcher;
 
 // AudioOutputProxy is an audio otput stream that uses resources more
@@ -61,5 +63,7 @@ class MEDIA_EXPORT AudioOutputProxy
 
   DISALLOW_COPY_AND_ASSIGN(AudioOutputProxy);
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_AUDIO_OUTPUT_PROXY_H_
