@@ -11,6 +11,8 @@
 
 #include <string>
 
+#include "base/base_export.h"
+
 namespace base {
 namespace mac {
 
@@ -18,11 +20,13 @@ namespace mac {
 // mapping |operation| to |job_label|, and returns the result of calling
 // launch_msg to send that message. On failure, returns NULL. The caller
 // assumes ownership of the returned launch_data_t object.
+BASE_EXPORT
 launch_data_t MessageForJob(const std::string& job_label,
                             const char* operation);
 
 // Returns the process ID for |job_label| if the job is running, 0 if the job
 // is loaded but not running, or -1 on error.
+BASE_EXPORT
 pid_t PIDForJob(const std::string& job_label);
 
 }  // namespace mac
