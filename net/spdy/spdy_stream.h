@@ -300,10 +300,6 @@ class NET_EXPORT_PRIVATE SpdyStream
   // the MessageLoop to replay all the data that the server has already sent.
   void PushedStreamReplayData();
 
-  // Extracts the URL from the various fields in |headers|.
-  GURL GetUrlFromHeaderBlock(
-      const linked_ptr<SpdyHeaderBlock>& headers) const;
-
   // There is a small period of time between when a server pushed stream is
   // first created, and the pushed data is replayed. Any data received during
   // this time should continue to be buffered.
