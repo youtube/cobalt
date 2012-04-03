@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -40,14 +40,14 @@ NET_EXPORT bool GetPreferredExtensionForMimeType(
     FilePath::StringType* extension);
 
 // Check to see if a particular MIME type is in our list.
-NET_EXPORT bool IsSupportedImageMimeType(const char* mime_type);
-NET_EXPORT bool IsSupportedMediaMimeType(const char* mime_type);
-NET_EXPORT bool IsSupportedNonImageMimeType(const char* mime_type);
-NET_EXPORT bool IsSupportedJavascriptMimeType(const char* mime_type);
+NET_EXPORT bool IsSupportedImageMimeType(const std::string& mime_type);
+NET_EXPORT bool IsSupportedMediaMimeType(const std::string& mime_type);
+NET_EXPORT bool IsSupportedNonImageMimeType(const std::string& mime_type);
+NET_EXPORT bool IsSupportedJavascriptMimeType(const std::string& mime_type);
 
 // Get whether this mime type should be displayed in view-source mode.
 // (For example, XML.)
-NET_EXPORT bool IsViewSourceMimeType(const char* mime_type);
+NET_EXPORT bool IsViewSourceMimeType(const std::string& mime_type);
 
 // Convenience function.
 NET_EXPORT bool IsSupportedMimeType(const std::string& mime_type);
@@ -55,8 +55,8 @@ NET_EXPORT bool IsSupportedMimeType(const std::string& mime_type);
 // Returns true if this the mime_type_pattern matches a given mime-type.
 // Checks for absolute matching and wildcards.  mime-types should be in
 // lower case.
-NET_EXPORT bool MatchesMimeType(const std::string &mime_type_pattern,
-                             const std::string &mime_type);
+NET_EXPORT bool MatchesMimeType(const std::string& mime_type_pattern,
+                                const std::string& mime_type);
 
 // Returns true if and only if all codecs are supported, false otherwise.
 NET_EXPORT bool AreSupportedMediaCodecs(const std::vector<std::string>& codecs);
