@@ -36,7 +36,7 @@
 #include "base/third_party/nspr/prcpucfg_mac.h"
 #elif defined(__native_client__)
 #include "base/third_party/nspr/prcpucfg_nacl.h"
-#elif defined(__linux__) || defined(ANDROID)
+#elif defined(__linux__) || defined(ANDROID) || defined(__LB_SHELL__)
 #include "base/third_party/nspr/prcpucfg_linux.h"
 #elif defined(__FreeBSD__)
 #include "base/third_party/nspr/prcpucfg_freebsd.h"
