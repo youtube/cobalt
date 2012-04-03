@@ -732,14 +732,10 @@
     # The desired version of Windows SDK can be set in ~/.gyp/include.gypi.
     'msbuild_toolset%': '',
 
+    # Native Client is enabled by default.
+    'disable_nacl%': 0,
+
     'conditions': [
-      # Used to disable Native Client at compile time, for platforms where it
-      # isn't supported (ARM)
-      ['target_arch=="arm" and chromeos == 1', {
-        'disable_nacl%': 1,
-       }, {
-        'disable_nacl%': 0,
-      }],
       ['os_posix==1 and OS!="mac" and OS!="android"', {
         # This will set gcc_version to XY if you are running gcc X.Y.*.
         # This is used to tweak build flags for gcc 4.4.
