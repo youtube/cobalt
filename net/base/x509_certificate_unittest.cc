@@ -455,7 +455,7 @@ TEST(X509CertificateTest, ExtractSPKIFromDERCert) {
   base::SHA1HashBytes(reinterpret_cast<const uint8*>(spkiBytes.data()),
                       spkiBytes.size(), hash);
 
-  EXPECT_EQ(0, memcmp(hash, nistSPKIHash, sizeof(hash)));
+  EXPECT_EQ(0, memcmp(hash, kNistSPKIHash, sizeof(hash)));
 }
 
 TEST(X509CertificateTest, ExtractCRLURLsFromDERCert) {
