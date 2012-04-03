@@ -468,7 +468,6 @@
               'files/file_path_watcher.cc',
               'files/file_path_watcher_stub.cc',
               'files/file_path_watcher_kqueue.cc',
-              'third_party/nspr/prtime.cc',
               'metrics/stats_table.cc',
               'rand_util_posix.cc',
               'threading/platform_thread_posix.cc',
