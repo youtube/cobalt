@@ -472,9 +472,9 @@ int SpdyProxyClientSocket::OnResponseReceived(
     return OK;
 
   // Save the response
-  int rv = SpdyHeadersToHttpResponse(response, &response_);
-  if (rv == ERR_INCOMPLETE_SPDY_HEADERS)
-    return rv;  // More headers are coming.
+  if (!SpdyHeadersToHttpResponse(
+          response, spdy_stream_->GetProtocolVersion(), &response_))
+      return ERR_INCOMPLETE_SPDY_HEADERS;
 
   OnIOComplete(status);
   return OK;

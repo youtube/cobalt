@@ -235,8 +235,8 @@ TEST_F(SpdyStreamSpdy3Test, SendDataAfterOpen) {
   EXPECT_EQ(OK, callback.WaitForResult());
 
   EXPECT_TRUE(delegate->send_headers_completed());
-  EXPECT_EQ("200", (*delegate->response())["status"]);
-  EXPECT_EQ("HTTP/1.1", (*delegate->response())["version"]);
+  EXPECT_EQ("200", (*delegate->response())[":status"]);
+  EXPECT_EQ("HTTP/1.1", (*delegate->response())[":version"]);
   EXPECT_EQ(std::string("\0hello!\xff", 8), delegate->received_data());
   EXPECT_EQ(8, delegate->data_sent());
   EXPECT_TRUE(delegate->closed());
@@ -291,8 +291,8 @@ TEST_F(SpdyStreamSpdy3Test, PushedStream) {
 
   // Send some basic headers.
   SpdyHeaderBlock headers;
-  response["status"] = "200";
-  response["version"] = "OK";
+  response[":status"] = "200";
+  response[":version"] = "OK";
   stream->OnHeaders(headers);
 
   stream->set_response_received();
@@ -414,8 +414,8 @@ TEST_F(SpdyStreamSpdy3Test, StreamError) {
   EXPECT_EQ(OK, callback.WaitForResult());
 
   EXPECT_TRUE(delegate->send_headers_completed());
-  EXPECT_EQ("200", (*delegate->response())["status"]);
-  EXPECT_EQ("HTTP/1.1", (*delegate->response())["version"]);
+  EXPECT_EQ("200", (*delegate->response())[":status"]);
+  EXPECT_EQ("HTTP/1.1", (*delegate->response())[":version"]);
   EXPECT_EQ(std::string("\0hello!\xff", 8), delegate->received_data());
   EXPECT_EQ(8, delegate->data_sent());
   EXPECT_TRUE(delegate->closed());

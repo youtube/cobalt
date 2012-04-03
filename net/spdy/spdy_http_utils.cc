@@ -9,6 +9,7 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/time.h"
+#include "net/base/escape.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_util.h"
 #include "net/http/http_request_headers.h"
@@ -20,19 +21,21 @@
 namespace net {
 
 bool SpdyHeadersToHttpResponse(const SpdyHeaderBlock& headers,
+                               int protocol_version,
                                HttpResponseInfo* response) {
+  std::string status_key = (protocol_version >= 3) ? ":status" : "status";
+  std::string version_key = (protocol_version >= 3) ? ":version" : "version";
   std::string version;
   std::string status;
 
   // The "status" and "version" headers are required.
   SpdyHeaderBlock::const_iterator it;
-  it = headers.find("status");
+  it = headers.find(status_key);
   if (it == headers.end())
     return false;
   status = it->second;
 
-  // Grab the version.  If not provided by the server,
-  it = headers.find("version");
+  it = headers.find(version_key);
   if (it == headers.end())
     return false;
   version = it->second;
@@ -62,7 +65,10 @@ bool SpdyHeadersToHttpResponse(const SpdyHeaderBlock& headers,
         tval = value.substr(start, (end - start));
       else
         tval = value.substr(start);
-      raw_headers.append(it->first);
+      if (protocol_version >= 3 && it->first[0] == ':')
+        raw_headers.append(it->first.substr(1));
+      else
+        raw_headers.append(it->first);
       raw_headers.push_back(':');
       raw_headers.append(tval);
       raw_headers.push_back('\0');
@@ -131,6 +137,42 @@ int ConvertRequestPriorityToSpdyPriority(const RequestPriority priority) {
     default:
       return priority;
   }
+}
+
+GURL GetUrlFromHeaderBlock(const SpdyHeaderBlock& headers,
+                           int protocol_version,
+                           bool pushed) {
+  // SPDY 2 server push urls are specified in a single "url" header.
+  if (pushed && protocol_version == 2) {
+      std::string url;
+      SpdyHeaderBlock::const_iterator it;
+      it = headers.find("url");
+      if (it != headers.end())
+        url = it->second;
+      return GURL(url);
+  }
+
+  const char* scheme_header = protocol_version >= 3 ? ":scheme" : "scheme";
+  const char* host_header = protocol_version >= 3 ? ":host" : "host";
+  const char* path_header = protocol_version >= 3 ? ":path" : "url";
+
+  std::string scheme;
+  std::string host_port;
+  std::string path;
+  SpdyHeaderBlock::const_iterator it;
+  it = headers.find(scheme_header);
+  if (it != headers.end())
+    scheme = it->second;
+  it = headers.find(host_header);
+  if (it != headers.end())
+    host_port = it->second;
+  it = headers.find(path_header);
+  if (it != headers.end())
+    path = it->second;
+
+  std::string url =  (scheme.empty() || host_port.empty() || path.empty())
+      ? "" : scheme + "://" + host_port + path;
+  return GURL(url);
 }
 
 }  // namespace net

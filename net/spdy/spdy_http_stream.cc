@@ -348,7 +348,8 @@ int SpdyHttpStream::OnResponseReceived(const SpdyHeaderBlock& response,
   // to first byte.
   response_info_->response_time = base::Time::Now();
 
-  if (!SpdyHeadersToHttpResponse(response, response_info_)) {
+  if (!SpdyHeadersToHttpResponse(response, stream_->GetProtocolVersion(),
+                                 response_info_)) {
     // We might not have complete headers yet.
     return ERR_INCOMPLETE_SPDY_HEADERS;
   }

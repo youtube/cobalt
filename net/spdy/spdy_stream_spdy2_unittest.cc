@@ -151,7 +151,7 @@ TEST_F(SpdyStreamSpdy2Test, SendDataAfterOpen) {
     "http",
     "host",
     "www.google.com",
-    "path",
+    "url",
     "/",
     "version",
     "HTTP/1.1",
@@ -223,7 +223,7 @@ TEST_F(SpdyStreamSpdy2Test, SendDataAfterOpen) {
   (*headers)["method"] = "GET";
   (*headers)["scheme"] = url.scheme();
   (*headers)["host"] = url.host();
-  (*headers)["path"] = url.path();
+  (*headers)["url"] = url.path();
   (*headers)["version"] = "HTTP/1.1";
   stream->set_spdy_headers(headers);
   EXPECT_TRUE(stream->HasUrl());
@@ -322,7 +322,7 @@ TEST_F(SpdyStreamSpdy2Test, StreamError) {
     "http",
     "host",
     "www.google.com",
-    "path",
+    "url",
     "/",
     "version",
     "HTTP/1.1",
@@ -396,7 +396,7 @@ TEST_F(SpdyStreamSpdy2Test, StreamError) {
   (*headers)["method"] = "GET";
   (*headers)["scheme"] = url.scheme();
   (*headers)["host"] = url.host();
-  (*headers)["path"] = url.path();
+  (*headers)["url"] = url.path();
   (*headers)["version"] = "HTTP/1.1";
   stream->set_spdy_headers(headers);
   EXPECT_TRUE(stream->HasUrl());
