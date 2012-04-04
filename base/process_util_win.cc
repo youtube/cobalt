@@ -23,6 +23,7 @@
 #include "base/sys_info.h"
 #include "base/win/object_watcher.h"
 #include "base/win/scoped_handle.h"
+#include "base/win/scoped_process_information.h"
 #include "base/win/windows_version.h"
 
 // userenv.dll is required for CreateEnvironmentBlock().
@@ -306,7 +307,6 @@ bool LaunchProcess(const string16& cmdline,
     startup_info.lpDesktop = L"";
   startup_info.dwFlags = STARTF_USESHOWWINDOW;
   startup_info.wShowWindow = options.start_hidden ? SW_HIDE : SW_SHOW;
-  PROCESS_INFORMATION process_info;
 
   DWORD flags = 0;
 
@@ -318,6 +318,8 @@ bool LaunchProcess(const string16& cmdline,
     // The CREATE_BREAKAWAY_FROM_JOB flag is used to prevent this.
     flags |= CREATE_BREAKAWAY_FROM_JOB;
   }
+
+  base::win::ScopedProcessInformation process_info;
 
   if (options.as_user) {
     flags |= CREATE_UNICODE_ENVIRONMENT;
@@ -331,7 +333,7 @@ bool LaunchProcess(const string16& cmdline,
                             const_cast<wchar_t*>(cmdline.c_str()),
                             NULL, NULL, options.inherit_handles, flags,
                             enviroment_block, NULL, &startup_info,
-                            &process_info);
+                            process_info.Receive());
     DestroyEnvironmentBlock(enviroment_block);
     if (!launched)
       return false;
@@ -339,36 +341,29 @@ bool LaunchProcess(const string16& cmdline,
     if (!CreateProcess(NULL,
                        const_cast<wchar_t*>(cmdline.c_str()), NULL, NULL,
                        options.inherit_handles, flags, NULL, NULL,
-                       &startup_info, &process_info)) {
+                       &startup_info, process_info.Receive())) {
       return false;
     }
   }
 
   if (options.job_handle) {
     if (0 == AssignProcessToJobObject(options.job_handle,
-                                      process_info.hProcess)) {
+                                      process_info.process_handle())) {
       DLOG(ERROR) << "Could not AssignProcessToObject.";
-      KillProcess(process_info.hProcess, kProcessKilledExitCode, true);
-      CloseHandle(process_info.hProcess);
-      CloseHandle(process_info.hThread);
+      KillProcess(process_info.process_handle(), kProcessKilledExitCode, true);
       return false;
     }
 
-    ResumeThread(process_info.hThread);
+    ResumeThread(process_info.thread_handle());
   }
-
-  // Handles must be closed or they will leak.
-  CloseHandle(process_info.hThread);
 
   if (options.wait)
-    WaitForSingleObject(process_info.hProcess, INFINITE);
+    WaitForSingleObject(process_info.process_handle(), INFINITE);
 
   // If the caller wants the process handle, we won't close it.
-  if (process_handle) {
-    *process_handle = process_info.hProcess;
-  } else {
-    CloseHandle(process_info.hProcess);
-  }
+  if (process_handle)
+    *process_handle = process_info.TakeProcessHandle();
+
   return true;
 }
 
@@ -434,7 +429,7 @@ bool GetAppOutput(const CommandLine& cl, std::string* output) {
 
   std::wstring writable_command_line_string(cl.GetCommandLineString());
 
-  PROCESS_INFORMATION proc_info = { 0 };
+  base::win::ScopedProcessInformation proc_info;
   STARTUPINFO start_info = { 0 };
 
   start_info.cb = sizeof(STARTUPINFO);
@@ -449,13 +444,10 @@ bool GetAppOutput(const CommandLine& cl, std::string* output) {
                      &writable_command_line_string[0],
                      NULL, NULL,
                      TRUE,  // Handles are inherited.
-                     0, NULL, NULL, &start_info, &proc_info)) {
+                     0, NULL, NULL, &start_info, proc_info.Receive())) {
     NOTREACHED() << "Failed to start process";
     return false;
   }
-
-  // We don't need the thread handle, close it now.
-  CloseHandle(proc_info.hThread);
 
   // Close our writing end of pipe now. Otherwise later read would not be able
   // to detect end of child's output.
@@ -474,8 +466,7 @@ bool GetAppOutput(const CommandLine& cl, std::string* output) {
   }
 
   // Let's wait for the process to finish.
-  WaitForSingleObject(proc_info.hProcess, INFINITE);
-  CloseHandle(proc_info.hProcess);
+  WaitForSingleObject(proc_info.process_handle(), INFINITE);
 
   return true;
 }
