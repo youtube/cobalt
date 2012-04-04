@@ -370,8 +370,9 @@
           'webui_task_manager%': 1,
         }],
 
-        # In M19, this feature is enabled only for windows.
-        ['OS=="win"', {
+        # TODO(akalin): Enable this for all GTK/views platforms (except for
+        # ChromeOS).
+        ['OS=="win" or OS=="mac" or (OS=="linux" and use_aura==0)', {
           'enable_one_click_signin%': 1,
         }],
 
