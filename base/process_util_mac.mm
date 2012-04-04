@@ -547,8 +547,34 @@ malloc_error_break_t LookUpMallocErrorBreak() {
   return NULL;
 }
 
+// Simple scoper that saves the current value of errno, resets it to 0, and on
+// destruction puts the old value back. This is so that CrMallocErrorBreak can
+// safely test errno free from the effects of other routines.
+class ScopedClearErrno {
+ public:
+  ScopedClearErrno() : old_errno_(errno) {
+    errno = 0;
+  }
+  ~ScopedClearErrno() {
+    if (errno == 0)
+      errno = old_errno_;
+  }
+
+ private:
+  int old_errno_;
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedClearErrno);
+};
+
 void CrMallocErrorBreak() {
   g_original_malloc_error_break();
+
+  // Out of memory is certainly not heap corruption, and not necessarily
+  // something for which the process should be terminated. Leave that decision
+  // to the OOM killer.
+  if (errno == ENOMEM)
+    return;
+
   // A unit test checks this error message, so it needs to be in release builds.
   LOG(ERROR) <<
       "Terminating process due to a potential for future heap corruption";
@@ -594,6 +620,8 @@ typedef void* (*calloc_type)(struct _malloc_zone_t* zone,
                              size_t size);
 typedef void* (*valloc_type)(struct _malloc_zone_t* zone,
                              size_t size);
+typedef void (*free_type)(struct _malloc_zone_t* zone,
+                          void* ptr);
 typedef void* (*realloc_type)(struct _malloc_zone_t* zone,
                               void* ptr,
                               size_t size);
@@ -604,17 +632,20 @@ typedef void* (*memalign_type)(struct _malloc_zone_t* zone,
 malloc_type g_old_malloc;
 calloc_type g_old_calloc;
 valloc_type g_old_valloc;
+free_type g_old_free;
 realloc_type g_old_realloc;
 memalign_type g_old_memalign;
 
 malloc_type g_old_malloc_purgeable;
 calloc_type g_old_calloc_purgeable;
 valloc_type g_old_valloc_purgeable;
+free_type g_old_free_purgeable;
 realloc_type g_old_realloc_purgeable;
 memalign_type g_old_memalign_purgeable;
 
 void* oom_killer_malloc(struct _malloc_zone_t* zone,
                         size_t size) {
+  ScopedClearErrno clear_errno;
   void* result = g_old_malloc(zone, size);
   if (!result && size)
     debug::BreakDebugger();
@@ -624,6 +655,7 @@ void* oom_killer_malloc(struct _malloc_zone_t* zone,
 void* oom_killer_calloc(struct _malloc_zone_t* zone,
                         size_t num_items,
                         size_t size) {
+  ScopedClearErrno clear_errno;
   void* result = g_old_calloc(zone, num_items, size);
   if (!result && num_items && size)
     debug::BreakDebugger();
@@ -632,15 +664,23 @@ void* oom_killer_calloc(struct _malloc_zone_t* zone,
 
 void* oom_killer_valloc(struct _malloc_zone_t* zone,
                         size_t size) {
+  ScopedClearErrno clear_errno;
   void* result = g_old_valloc(zone, size);
   if (!result && size)
     debug::BreakDebugger();
   return result;
 }
 
+void oom_killer_free(struct _malloc_zone_t* zone,
+                     void* ptr) {
+  ScopedClearErrno clear_errno;
+  g_old_free(zone, ptr);
+}
+
 void* oom_killer_realloc(struct _malloc_zone_t* zone,
                          void* ptr,
                          size_t size) {
+  ScopedClearErrno clear_errno;
   void* result = g_old_realloc(zone, ptr, size);
   if (!result && size)
     debug::BreakDebugger();
@@ -650,6 +690,7 @@ void* oom_killer_realloc(struct _malloc_zone_t* zone,
 void* oom_killer_memalign(struct _malloc_zone_t* zone,
                           size_t alignment,
                           size_t size) {
+  ScopedClearErrno clear_errno;
   void* result = g_old_memalign(zone, alignment, size);
   // Only die if posix_memalign would have returned ENOMEM, since there are
   // other reasons why NULL might be returned (see
@@ -663,6 +704,7 @@ void* oom_killer_memalign(struct _malloc_zone_t* zone,
 
 void* oom_killer_malloc_purgeable(struct _malloc_zone_t* zone,
                                   size_t size) {
+  ScopedClearErrno clear_errno;
   void* result = g_old_malloc_purgeable(zone, size);
   if (!result && size)
     debug::BreakDebugger();
@@ -672,6 +714,7 @@ void* oom_killer_malloc_purgeable(struct _malloc_zone_t* zone,
 void* oom_killer_calloc_purgeable(struct _malloc_zone_t* zone,
                                   size_t num_items,
                                   size_t size) {
+  ScopedClearErrno clear_errno;
   void* result = g_old_calloc_purgeable(zone, num_items, size);
   if (!result && num_items && size)
     debug::BreakDebugger();
@@ -680,15 +723,23 @@ void* oom_killer_calloc_purgeable(struct _malloc_zone_t* zone,
 
 void* oom_killer_valloc_purgeable(struct _malloc_zone_t* zone,
                                   size_t size) {
+  ScopedClearErrno clear_errno;
   void* result = g_old_valloc_purgeable(zone, size);
   if (!result && size)
     debug::BreakDebugger();
   return result;
 }
 
+void oom_killer_free_purgeable(struct _malloc_zone_t* zone,
+                               void* ptr) {
+  ScopedClearErrno clear_errno;
+  g_old_free_purgeable(zone, ptr);
+}
+
 void* oom_killer_realloc_purgeable(struct _malloc_zone_t* zone,
                                    void* ptr,
                                    size_t size) {
+  ScopedClearErrno clear_errno;
   void* result = g_old_realloc_purgeable(zone, ptr, size);
   if (!result && size)
     debug::BreakDebugger();
@@ -698,6 +749,7 @@ void* oom_killer_realloc_purgeable(struct _malloc_zone_t* zone,
 void* oom_killer_memalign_purgeable(struct _malloc_zone_t* zone,
                                     size_t alignment,
                                     size_t size) {
+  ScopedClearErrno clear_errno;
   void* result = g_old_memalign_purgeable(zone, alignment, size);
   // Only die if posix_memalign would have returned ENOMEM, since there are
   // other reasons why NULL might be returned (see
@@ -864,13 +916,16 @@ void EnableTerminationOnOutOfMemory() {
   g_old_malloc = default_zone->malloc;
   g_old_calloc = default_zone->calloc;
   g_old_valloc = default_zone->valloc;
+  g_old_free = default_zone->free;
   g_old_realloc = default_zone->realloc;
-  CHECK(g_old_malloc && g_old_calloc && g_old_valloc && g_old_realloc)
+  CHECK(g_old_malloc && g_old_calloc && g_old_valloc && g_old_free &&
+        g_old_realloc)
       << "Failed to get system allocation functions.";
 
   default_zone->malloc = oom_killer_malloc;
   default_zone->calloc = oom_killer_calloc;
   default_zone->valloc = oom_killer_valloc;
+  default_zone->free = oom_killer_free;
   default_zone->realloc = oom_killer_realloc;
 
   if (default_zone->version >= 5) {
@@ -885,14 +940,17 @@ void EnableTerminationOnOutOfMemory() {
     g_old_malloc_purgeable = purgeable_zone->malloc;
     g_old_calloc_purgeable = purgeable_zone->calloc;
     g_old_valloc_purgeable = purgeable_zone->valloc;
+    g_old_free_purgeable = purgeable_zone->free;
     g_old_realloc_purgeable = purgeable_zone->realloc;
     CHECK(g_old_malloc_purgeable && g_old_calloc_purgeable &&
-          g_old_valloc_purgeable && g_old_realloc_purgeable)
+          g_old_valloc_purgeable && g_old_free_purgeable &&
+          g_old_realloc_purgeable)
         << "Failed to get system allocation functions.";
 
     purgeable_zone->malloc = oom_killer_malloc_purgeable;
     purgeable_zone->calloc = oom_killer_calloc_purgeable;
     purgeable_zone->valloc = oom_killer_valloc_purgeable;
+    purgeable_zone->free = oom_killer_free_purgeable;
     purgeable_zone->realloc = oom_killer_realloc_purgeable;
 
     if (purgeable_zone->version >= 5) {
