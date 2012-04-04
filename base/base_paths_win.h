@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -27,9 +27,13 @@ enum {
                           // Start Menu\Programs"
   DIR_APP_DATA,           // Application Data directory under the user profile.
   DIR_PROFILE,            // Usually "C:\Documents and settings\<user>.
-  DIR_LOCAL_APP_DATA_LOW,  // Local AppData directory for low integrity level.
-  DIR_LOCAL_APP_DATA,  // "Local Settings\Application Data" directory under the
-                       // user profile.
+  DIR_LOCAL_APP_DATA_LOW, // Local AppData directory for low integrity level.
+  DIR_LOCAL_APP_DATA,     // "Local Settings\Application Data" directory under
+                          // the user profile.
+  DIR_COMMON_APP_DATA,    // W2K, XP, W2K3: "C:\Documents and Settings\
+                          // All Users\Application Data".
+                          // Vista, W2K8 and above: "C:\ProgramData".
+
   PATH_WIN_END
 };
 
