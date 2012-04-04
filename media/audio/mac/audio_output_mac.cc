@@ -98,8 +98,8 @@ void PCMQueueOutAudioOutputStream::HandleError(OSStatus err) {
   AudioSourceCallback* source = GetSource();
   if (source)
     source->OnError(this, static_cast<int>(err));
-  NOTREACHED() << "error " << GetMacOSStatusErrorString(err)
-               << " (" << err << ")";
+  LOG(ERROR) << "error " << GetMacOSStatusErrorString(err)
+             << " (" << err << ")";
 }
 
 bool PCMQueueOutAudioOutputStream::Open() {
