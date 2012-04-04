@@ -291,6 +291,14 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   // will not have any more of its methods called.
   virtual ~URLRequest();
 
+  // Changes the default cookie policy from allowing all cookies to blocking all
+  // cookies. Embedders that want to implement a more flexible policy should
+  // change the default to blocking all cookies, and provide a NetworkDelegate
+  // with the URLRequestContext that maintains the CookieStore.
+  // The cookie policy default has to be set before the first URLRequest is
+  // started. Once it was set to block all cookies, it cannot be changed back.
+  static void SetDefaultCookiePolicyToBlock();
+
   // Returns true if the scheme can be handled by URLRequest. False otherwise.
   static bool IsHandledProtocol(const std::string& scheme);
 
