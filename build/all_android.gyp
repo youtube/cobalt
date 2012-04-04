@@ -42,6 +42,11 @@
         '../tools/android/fake_dns/fake_dns.gyp:fake_dns',
         '../tools/android/forwarder/forwarder.gyp:forwarder',
         '../media/media.gyp:media_unittests',
+        # Required by ui_unittests.
+        # TODO(wangxianzhu): It'd better let ui_unittests depend on it, but
+        # this would cause circular gyp dependency which needs refactoring the
+        # gyps to resolve.
+        '../chrome/chrome_resources.gyp:packed_resources',
       ],
     },
     { 
