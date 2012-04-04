@@ -66,8 +66,14 @@ from single_test_runner import SingleTestRunner
 from test_package_executable import TestPackageExecutable
 from test_result import BaseTestResult, TestResults
 
-_TEST_SUITES = ['base_unittests', 'sql_unittests', 'ipc_tests', 'net_unittests',
-                'sync_unit_tests', 'content_unittests']
+_TEST_SUITES = ['base_unittests',
+                'content_unittests',
+                'ipc_tests',
+                'net_unittests',
+                'sql_unittests',
+                'sync_unit_tests',
+                'ui_unittests',
+               ]
 
 
 def FullyQualifiedTestSuites():
