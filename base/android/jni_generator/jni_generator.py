@@ -884,7 +884,6 @@ def GenerateJNIHeaders(input_files, output_files, use_javap, namespace):
         os.makedirs(os.path.dirname(os.path.abspath(header_name)))
       if (not os.path.exists(header_name) or
           file(header_name).read() != output):
-        print 'Generating ', header_name
         output_file = file(header_name, 'w')
         output_file.write(output)
         output_file.close()
