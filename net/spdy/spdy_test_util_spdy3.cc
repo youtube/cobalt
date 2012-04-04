@@ -21,6 +21,24 @@ namespace net {
 
 namespace test_spdy3 {
 
+namespace {
+
+// Parses a URL into the scheme, host, and path components required for a
+// SPDY request.
+void ParseUrl(const char* const url, std::string* scheme, std::string* host,
+              std::string* path) {
+  GURL gurl(url);
+  path->assign(gurl.PathForRequest());
+  scheme->assign(gurl.scheme());
+  host->assign(gurl.host());
+  if (gurl.has_port()) {
+    host->append(":");
+    host->append(gurl.port());
+  }
+}
+
+}  // namespace
+
 // Chop a frame into an array of MockWrites.
 // |data| is the frame to chop.
 // |length| is the length of the frame to chop.
@@ -356,37 +374,14 @@ SpdyFrame* ConstructSpdyGet(const char* const url,
     DATA_FLAG_NONE          // Data Flags
   };
 
-  GURL gurl(url);
-
-  // This is so ugly.  Why are we using char* in here again?
-  std::string str_path = gurl.PathForRequest();
-  std::string str_scheme = gurl.scheme();
-  std::string str_host = gurl.host();
-  if (gurl.has_port()) {
-    str_host += ":";
-    str_host += gurl.port();
-  }
-  scoped_array<char> req(new char[str_path.size() + 1]);
-  scoped_array<char> scheme(new char[str_scheme.size() + 1]);
-  scoped_array<char> host(new char[str_host.size() + 1]);
-  memcpy(req.get(), str_path.c_str(), str_path.size());
-  memcpy(scheme.get(), str_scheme.c_str(), str_scheme.size());
-  memcpy(host.get(), str_host.c_str(), str_host.size());
-  req.get()[str_path.size()] = '\0';
-  scheme.get()[str_scheme.size()] = '\0';
-  host.get()[str_host.size()] = '\0';
-
+  std::string scheme, host, path;
+  ParseUrl(url, &scheme, &host, &path);
   const char* const headers[] = {
-    ":method",
-    "GET",
-    ":path",
-    req.get(),
-    ":host",
-    host.get(),
-    ":scheme",
-    scheme.get(),
-    ":version",
-    "HTTP/1.1"
+    ":method", "GET",
+    ":path", path.c_str(),
+    ":host", host.c_str(),
+    ":scheme", scheme.c_str(),
+    ":version", "HTTP/1.1"
   };
   return ConstructSpdyPacket(
       kSynStartHeader,
@@ -493,38 +488,15 @@ SpdyFrame* ConstructSpdyPush(const char* const extra_headers[],
                                    int stream_id,
                                    int associated_stream_id,
                                    const char* url) {
-  GURL gurl(url);
-
-  std::string str_path = gurl.PathForRequest();
-  std::string str_scheme = gurl.scheme();
-  std::string str_host = gurl.host();
-  if (gurl.has_port()) {
-    str_host += ":";
-    str_host += gurl.port();
-  }
-  scoped_array<char> req(new char[str_path.size() + 1]);
-  scoped_array<char> scheme(new char[str_scheme.size() + 1]);
-  scoped_array<char> host(new char[str_host.size() + 1]);
-  memcpy(req.get(), str_path.c_str(), str_path.size());
-  memcpy(scheme.get(), str_scheme.c_str(), str_scheme.size());
-  memcpy(host.get(), str_host.c_str(), str_host.size());
-  req.get()[str_path.size()] = '\0';
-  scheme.get()[str_scheme.size()] = '\0';
-  host.get()[str_host.size()] = '\0';
-
+  std::string scheme, host, path;
+  ParseUrl(url, &scheme, &host, &path);
   const char* const headers[] = {
-    "hello",
-    "bye",
-    ":status",
-    "200 OK",
-    ":version",
-    "HTTP/1.1",
-    ":path",
-    req.get(),
-    ":host",
-    host.get(),
-    ":scheme",
-    scheme.get(),
+    "hello",    "bye",
+    ":status",  "200 OK",
+    ":version", "HTTP/1.1",
+    ":path",    path.c_str(),
+    ":host",    host.c_str(),
+    ":scheme",  scheme.c_str(),
   };
   return ConstructSpdyControlFrame(extra_headers,
                                    extra_header_count,
@@ -545,84 +517,19 @@ SpdyFrame* ConstructSpdyPush(const char* const extra_headers[],
                                    const char* url,
                                    const char* status,
                                    const char* location) {
-  GURL gurl(url);
-
-  std::string str_path = gurl.PathForRequest();
-  std::string str_scheme = gurl.scheme();
-  std::string str_host = gurl.host();
-  if (gurl.has_port()) {
-    str_host += ":";
-    str_host += gurl.port();
-  }
-  scoped_array<char> req(new char[str_path.size() + 1]);
-  scoped_array<char> scheme(new char[str_scheme.size() + 1]);
-  scoped_array<char> host(new char[str_host.size() + 1]);
-  memcpy(req.get(), str_path.c_str(), str_path.size());
-  memcpy(scheme.get(), str_scheme.c_str(), str_scheme.size());
-  memcpy(host.get(), str_host.c_str(), str_host.size());
-  req.get()[str_path.size()] = '\0';
-  scheme.get()[str_scheme.size()] = '\0';
-  host.get()[str_host.size()] = '\0';
-
-  const char* const kStandardGetHeaders[] = {
-    "hello",
-    "bye",
-    ":status",
-    status,
-    "location",
-    location,
-    ":path",
-    req.get(),
-    ":host",
-    host.get(),
-    ":scheme",
-    scheme.get(),
-    ":version",
-    "HTTP/1.1"
+  std::string scheme, host, path;
+  ParseUrl(url, &scheme, &host, &path);
+  const char* const headers[] = {
+    "hello",    "bye",
+    ":status",  status,
+    "location", location,
+    ":path",    path.c_str(),
+    ":host",    host.c_str(),
+    ":scheme",  scheme.c_str(),
+    ":version", "HTTP/1.1"
   };
   return ConstructSpdyControlFrame(extra_headers,
                                    extra_header_count,
-                                   false,
-                                   stream_id,
-                                   LOWEST,
-                                   SYN_STREAM,
-                                   CONTROL_FLAG_NONE,
-                                   kStandardGetHeaders,
-                                   arraysize(kStandardGetHeaders),
-                                   associated_stream_id);
-}
-
-SpdyFrame* ConstructSpdyPush(int stream_id,
-                             int associated_stream_id,
-                             const char* url) {
-  GURL gurl(url);
-
-  std::string str_path = gurl.PathForRequest();
-  std::string str_scheme = gurl.scheme();
-  std::string str_host = gurl.host();
-  if (gurl.has_port()) {
-    str_host += ":";
-    str_host += gurl.port();
-  }
-  scoped_array<char> req(new char[str_path.size() + 1]);
-  scoped_array<char> scheme(new char[str_scheme.size() + 1]);
-  scoped_array<char> host(new char[str_host.size() + 1]);
-  memcpy(req.get(), str_path.c_str(), str_path.size());
-  memcpy(scheme.get(), str_scheme.c_str(), str_scheme.size());
-  memcpy(host.get(), str_host.c_str(), str_host.size());
-  req.get()[str_path.size()] = '\0';
-  scheme.get()[str_scheme.size()] = '\0';
-  host.get()[str_host.size()] = '\0';
-
-  const char* const headers[] = {
-    req.get(),
-    ":host",
-    host.get(),
-    ":scheme",
-    scheme.get(),
-  };
-  return ConstructSpdyControlFrame(0,
-                                   0,
                                    false,
                                    stream_id,
                                    LOWEST,

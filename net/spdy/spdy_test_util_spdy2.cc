@@ -21,6 +21,24 @@
 namespace net {
 namespace test_spdy2 {
 
+namespace {
+
+// Parses a URL into the scheme, host, and path components required for a
+// SPDY request.
+void ParseUrl(const char* const url, std::string* scheme, std::string* host,
+              std::string* path) {
+  GURL gurl(url);
+  path->assign(gurl.PathForRequest());
+  scheme->assign(gurl.scheme());
+  host->assign(gurl.host());
+  if (gurl.has_port()) {
+    host->append(":");
+    host->append(gurl.port());
+  }
+}
+
+}  // namespace
+
 // Chop a frame into an array of MockWrites.
 // |data| is the frame to chop.
 // |length| is the length of the frame to chop.
@@ -353,37 +371,14 @@ SpdyFrame* ConstructSpdyGet(const char* const url,
     DATA_FLAG_NONE          // Data Flags
   };
 
-  GURL gurl(url);
-
-  // This is so ugly.  Why are we using char* in here again?
-  std::string str_path = gurl.PathForRequest();
-  std::string str_scheme = gurl.scheme();
-  std::string str_host = gurl.host();
-  if (gurl.has_port()) {
-    str_host += ":";
-    str_host += gurl.port();
-  }
-  scoped_array<char> req(new char[str_path.size() + 1]);
-  scoped_array<char> scheme(new char[str_scheme.size() + 1]);
-  scoped_array<char> host(new char[str_host.size() + 1]);
-  memcpy(req.get(), str_path.c_str(), str_path.size());
-  memcpy(scheme.get(), str_scheme.c_str(), str_scheme.size());
-  memcpy(host.get(), str_host.c_str(), str_host.size());
-  req.get()[str_path.size()] = '\0';
-  scheme.get()[str_scheme.size()] = '\0';
-  host.get()[str_host.size()] = '\0';
-
+  std::string scheme, host, path;
+  ParseUrl(url, &scheme, &host, &path);
   const char* const headers[] = {
-    "method",
-    "GET",
-    "url",
-    req.get(),
-    "host",
-    host.get(),
-    "scheme",
-    scheme.get(),
-    "version",
-    "HTTP/1.1"
+    "method",  "GET",
+    "url",     path.c_str(),
+    "host",    host.c_str(),
+    "scheme",  scheme.c_str(),
+    "version", "HTTP/1.1"
   };
   return ConstructSpdyPacket(
       kSynStartHeader,
