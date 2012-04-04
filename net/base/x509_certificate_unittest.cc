@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/base/x509_certificate.h"
+
+#include "base/basictypes.h"
 #include "base/file_path.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/pickle.h"
@@ -13,7 +16,6 @@
 #include "net/base/cert_test_util.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_certificate_data.h"
-#include "net/base/x509_certificate.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(USE_NSS)
@@ -39,39 +41,39 @@ namespace net {
 // $ date +%s -d '<date str>'
 
 // Google's cert.
-unsigned char google_fingerprint[] = {
+uint8 google_fingerprint[] = {
   0xab, 0xbe, 0x5e, 0xb4, 0x93, 0x88, 0x4e, 0xe4, 0x60, 0xc6, 0xef, 0xf8,
   0xea, 0xd4, 0xb1, 0x55, 0x4b, 0xc9, 0x59, 0x3c
 };
 
 // webkit.org's cert.
-unsigned char webkit_fingerprint[] = {
+uint8 webkit_fingerprint[] = {
   0xa1, 0x4a, 0x94, 0x46, 0x22, 0x8e, 0x70, 0x66, 0x2b, 0x94, 0xf9, 0xf8,
   0x57, 0x83, 0x2d, 0xa2, 0xff, 0xbc, 0x84, 0xc2
 };
 
 // thawte.com's cert (it's EV-licious!).
-unsigned char thawte_fingerprint[] = {
+uint8 thawte_fingerprint[] = {
   0x85, 0x04, 0x2d, 0xfd, 0x2b, 0x0e, 0xc6, 0xc8, 0xaf, 0x2d, 0x77, 0xd6,
   0xa1, 0x3a, 0x64, 0x04, 0x27, 0x90, 0x97, 0x37
 };
 
 // A certificate for https://www.unosoft.hu/, whose AIA extension contains
 // an LDAP URL without a host name.
-unsigned char unosoft_hu_fingerprint[] = {
+uint8 unosoft_hu_fingerprint[] = {
   0x32, 0xff, 0xe3, 0xbe, 0x2c, 0x3b, 0xc7, 0xca, 0xbf, 0x2d, 0x64, 0xbd,
   0x25, 0x66, 0xf2, 0xec, 0x8b, 0x0f, 0xbf, 0xd8
 };
 
 // The fingerprint of the Google certificate used in the parsing tests,
 // which is newer than the one included in the x509_certificate_data.h
-unsigned char google_parse_fingerprint[] = {
+uint8 google_parse_fingerprint[] = {
   0x40, 0x50, 0x62, 0xe5, 0xbe, 0xfd, 0xe4, 0xaf, 0x97, 0xe9, 0x38, 0x2a,
   0xf1, 0x6c, 0xc8, 0x7c, 0x8f, 0xb7, 0xc4, 0xe2
 };
 
 // The fingerprint for the Thawte SGC certificate
-unsigned char thawte_parse_fingerprint[] = {
+uint8 thawte_parse_fingerprint[] = {
   0xec, 0x07, 0x10, 0x03, 0xd8, 0xf5, 0xa3, 0x7f, 0x42, 0xc4, 0x55, 0x7f,
   0x65, 0x6a, 0xae, 0x86, 0x65, 0xfa, 0x4b, 0x02
 };
@@ -84,7 +86,7 @@ const double kGoogleParseValidTo = 1324252799;
 struct CertificateFormatTestData {
   const char* file_name;
   X509Certificate::Format format;
-  unsigned char* chain_fingerprints[3];
+  uint8* chain_fingerprints[3];
 };
 
 const CertificateFormatTestData FormatTestData[] = {
@@ -151,7 +153,7 @@ const CertificateFormatTestData FormatTestData[] = {
 };
 
 void CheckGoogleCert(const scoped_refptr<X509Certificate>& google_cert,
-                     unsigned char* expected_fingerprint,
+                     uint8* expected_fingerprint,
                      double valid_from, double valid_to) {
   ASSERT_NE(static_cast<X509Certificate*>(NULL), google_cert);
 
@@ -436,6 +438,44 @@ TEST(X509CertificateTest, CAFingerprints) {
                      cert_chain2_ca_fingerprint, 20) == 0);
   EXPECT_TRUE(memcmp(cert_chain3->ca_fingerprint().data,
                      cert_chain3_ca_fingerprint, 20) == 0);
+}
+
+TEST(X509CertificateTest, ParseSubjectAltNames) {
+  FilePath certs_dir = GetTestCertsDirectory();
+
+  scoped_refptr<X509Certificate> san_cert =
+      ImportCertFromFile(certs_dir, "subjectAltName_sanity_check.pem");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), san_cert);
+
+  std::vector<std::string> dns_names;
+  std::vector<std::string> ip_addresses;
+  san_cert->GetSubjectAltName(&dns_names, &ip_addresses);
+
+  // Ensure that DNS names are correctly parsed.
+  ASSERT_EQ(1U, dns_names.size());
+  EXPECT_EQ("test.example", dns_names[0]);
+
+  // Ensure that both IPv4 and IPv6 addresses are correctly parsed.
+  ASSERT_EQ(2U, ip_addresses.size());
+
+  static const uint8 kIPv4Address[] = {
+      0x7F, 0x00, 0x00, 0x02
+  };
+  ASSERT_EQ(arraysize(kIPv4Address), ip_addresses[0].size());
+  EXPECT_EQ(0, memcmp(ip_addresses[0].data(), kIPv4Address,
+                      arraysize(kIPv4Address)));
+
+  static const uint8 kIPv6Address[] = {
+      0xFE, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
+  };
+  ASSERT_EQ(arraysize(kIPv6Address), ip_addresses[1].size());
+  EXPECT_EQ(0, memcmp(ip_addresses[1].data(), kIPv6Address,
+                      arraysize(kIPv6Address)));
+
+  // Ensure the subjectAltName dirName has not influenced the handling of
+  // the subject commonName.
+  EXPECT_EQ("127.0.0.1", san_cert->subject().common_name);
 }
 
 TEST(X509CertificateTest, ExtractSPKIFromDERCert) {
@@ -849,7 +889,7 @@ TEST_P(X509CertificateParseTest, CanParseFormat) {
     // comparing fingerprints.
     const X509Certificate* cert = certs[i];
     const SHA1Fingerprint& actual_fingerprint = cert->fingerprint();
-    unsigned char* expected_fingerprint = test_data_.chain_fingerprints[i];
+    uint8* expected_fingerprint = test_data_.chain_fingerprints[i];
 
     for (size_t j = 0; j < 20; ++j)
       EXPECT_EQ(expected_fingerprint[j], actual_fingerprint.data[j]);
