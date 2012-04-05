@@ -23,7 +23,7 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/time.h"
 
-#if defined(TOOLKIT_USES_GTK)
+#if defined(TOOLKIT_GTK)
 #include <gtk/gtk.h>  // NOLINT
 
 #include "base/message_loop.h"
@@ -67,7 +67,7 @@ class MimeUtilConstants {
 
   base::TimeTicks last_check_time_;
 
-#if defined(TOOLKIT_USES_GTK)
+#if defined(TOOLKIT_GTK)
   // This is set by DetectGtkTheme(). We cache it so that we can access the
   // theme name from threads that aren't allowed to call
   // gtk_settings_get_default().
@@ -536,7 +536,7 @@ void InitDefaultThemes() {
     default_themes[1] = IconTheme::LoadTheme(kde_default_theme);
     default_themes[2] = IconTheme::LoadTheme(kde_fallback_theme);
   } else {
-#if defined(TOOLKIT_USES_GTK)
+#if defined(TOOLKIT_GTK)
     // Assume it's Gnome and use GTK to figure out the theme.
     default_themes[1] = IconTheme::LoadTheme(
         MimeUtilConstants::GetInstance()->gtk_theme_name_);
@@ -599,7 +599,7 @@ std::string GetDataMimeType(const std::string& data) {
   return xdg_mime_get_mime_type_for_data(data.data(), data.length(), NULL);
 }
 
-#if defined(TOOLKIT_USES_GTK)
+#if defined(TOOLKIT_GTK)
 void DetectGtkTheme() {
   // If the theme name is already loaded, do nothing. Chrome doesn't respond
   // to changes in the system theme, so we never need to set this more than

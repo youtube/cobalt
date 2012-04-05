@@ -30,10 +30,11 @@
 #if defined(OS_ANDROID)
 #include "base/message_pump_android.h"
 #endif
-#if defined(TOOLKIT_USES_GTK)
+
+#if defined(TOOLKIT_GTK)
 #include <gdk/gdk.h>
 #include <gdk/gdkx.h>
-#endif  // defined(OS_POSIX) && !defined(OS_MACOSX)
+#endif
 
 using base::PendingTask;
 using base::TimeDelta;
