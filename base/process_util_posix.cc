@@ -13,6 +13,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <iterator>
 #include <limits>
 #include <set>
 
