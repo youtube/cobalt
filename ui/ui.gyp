@@ -130,6 +130,17 @@
         'base/dragdrop/os_exchange_data_provider_win.cc',
         'base/dragdrop/os_exchange_data_provider_win.h',
         'base/events.h',
+        'base/gestures/gesture_configuration.cc',
+        'base/gestures/gesture_configuration.h',
+        'base/gestures/gesture_point.cc',
+        'base/gestures/gesture_point.h',
+        'base/gestures/gesture_recognizer.h',
+        'base/gestures/gesture_recognizer_impl.cc',
+        'base/gestures/gesture_recognizer_impl.h',
+        'base/gestures/gesture_sequence.cc',
+        'base/gestures/gesture_sequence.h',
+        'base/gestures/velocity_calculator.cc',
+        'base/gestures/velocity_calculator.h',
         'base/gtk/event_synthesis_gtk.cc',
         'base/gtk/event_synthesis_gtk.h',
         'base/gtk/focus_store_gtk.cc',
@@ -437,6 +448,11 @@
             ['exclude', 'gfx/native_theme_win.h'],
             ['exclude', 'gfx/path_win.cc'],
           ],
+        }],
+        ['use_aura==0 and toolkit_views==0', {
+          'sources/': [
+            ['exclude', '^base/gestures/*'],
+          ]
         }],
         ['use_ibus==1', {
           'dependencies': [
