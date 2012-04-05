@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -235,6 +235,9 @@ TEST(ObserverListThreadSafeTest, RemoveObserver) {
   scoped_refptr<ObserverListThreadSafe<Foo> > observer_list(
       new ObserverListThreadSafe<Foo>);
   Adder a(1), b(1);
+
+  // A workaround for the compiler bug. See http://crbug.com/121960.
+  EXPECT_NE(&a, &b);
 
   // Should do nothing.
   observer_list->RemoveObserver(&a);
