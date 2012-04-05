@@ -230,6 +230,10 @@
       # plugins to make call of the main thread.
       'enable_pepper_threading%': 0,
 
+      # Enables use of the session service, which is enabled by default.
+      # Support for disabling depends on the platform.
+      'enable_session_service%': 1,
+
       # Enables theme support, which is enabled by default.  Support for
       # disabling depends on the platform.
       'enable_themes%': 1,
@@ -497,6 +501,7 @@
     'enable_web_intents_tag%': '<(enable_web_intents_tag)',
     'enable_plugin_installation%': '<(enable_plugin_installation)',
     'enable_protector_service%': '<(enable_protector_service)',
+    'enable_session_service%': '<(enable_session_service)',
     'enable_themes%': '<(enable_themes)',
     'linux_use_gold_binary%': '<(linux_use_gold_binary)',
     'linux_use_gold_flags%': '<(linux_use_gold_flags)',
@@ -787,6 +792,9 @@
         'java_bridge%': 1,
         # Android does not support themes.
         'enable_themes%': 0,
+
+        # Sessions are store separately in the Java side.
+        'enable_session_service%': 0,
 
         # Set to 1 once we have a notification system for Android.
         # http://crbug.com/115320
@@ -1364,6 +1372,9 @@
       }],
       ['enable_protector_service==1', {
         'defines': ['ENABLE_PROTECTOR_SERVICE=1'],
+      }],
+      ['enable_session_service==1', {
+        'defines': ['ENABLE_SESSION_SERVICE=1'],
       }],
       ['enable_themes==1', {
         'defines': ['ENABLE_THEMES=1'],
