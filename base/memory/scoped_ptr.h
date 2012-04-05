@@ -96,8 +96,30 @@
 #include <stddef.h>
 #include <stdlib.h>
 
+#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/move.h"
+#include "base/template_util.h"
+
+namespace base {
+
+namespace subtle {
+class RefCountedBase;
+class RefCountedThreadSafeBase;
+}  // namespace subtle
+
+namespace internal {
+
+template <typename T> struct IsNotRefCounted {
+  enum {
+    value = !base::is_convertible<T*, base::subtle::RefCountedBase*>::value &&
+        !base::is_convertible<T*, base::subtle::RefCountedThreadSafeBase*>::
+            value
+  };
+};
+
+}  // namespace internal
+}  // namespace base
 
 // A scoped_ptr<T> is like a T*, except that the destructor of scoped_ptr<T>
 // automatically deletes the pointer it holds (if any).
@@ -111,6 +133,9 @@
 template <class C>
 class scoped_ptr {
   MOVE_ONLY_TYPE_FOR_CPP_03(scoped_ptr, RValue)
+
+  COMPILE_ASSERT(base::internal::IsNotRefCounted<C>::value,
+                 C_is_refcounted_type_and_needs_scoped_refptr);
 
  public:
 
