@@ -370,6 +370,8 @@ def Dispatch(options):
 
   if options.use_xvfb:
     xvfb.Stop()
+  if options.annotate:
+    print '@@@BUILD_STEP Test Finished@@@'
   return failures
 
 
