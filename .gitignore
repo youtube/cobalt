@@ -203,6 +203,7 @@ v8.log
 /third_party/webdriver/python/selenium
 /third_party/webgl_conformance
 /third_party/webrtc
+/third_party/wix
 /third_party/xdg-utils
 /third_party/xulrunner-sdk
 /third_party/yasm/binaries
