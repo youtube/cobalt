@@ -238,6 +238,9 @@
       # disabling depends on the platform.
       'enable_themes%': 1,
 
+      # Enables support for background apps.
+      'enable_background%': 1,
+
       # XInput2 multitouch support is disabled by default (use_xi2_mt=0).
       # Setting to non-zero value enables XI2 MT. When XI2 MT is enabled,
       # the input value also defines the required XI2 minor minimum version.
@@ -503,6 +506,7 @@
     'enable_protector_service%': '<(enable_protector_service)',
     'enable_session_service%': '<(enable_session_service)',
     'enable_themes%': '<(enable_themes)',
+    'enable_background%': '<(enable_background)',
     'linux_use_gold_binary%': '<(linux_use_gold_binary)',
     'linux_use_gold_flags%': '<(linux_use_gold_flags)',
     'use_canvas_skia%': '<(use_canvas_skia)',
@@ -792,6 +796,7 @@
         'java_bridge%': 1,
         # Android does not support themes.
         'enable_themes%': 0,
+        'enable_background%': 0,
 
         # Sessions are store separately in the Java side.
         'enable_session_service%': 0,
@@ -1378,6 +1383,9 @@
       }],
       ['enable_themes==1', {
         'defines': ['ENABLE_THEMES=1'],
+      }],
+      ['enable_background==1', {
+        'defines': ['ENABLE_BACKGROUND=1'],
       }],
       ['enable_automation==1', {
         'defines': ['ENABLE_AUTOMATION=1'],
