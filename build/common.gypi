@@ -1175,9 +1175,6 @@
       ['enable_one_click_signin==1', {
         'defines': ['ENABLE_ONE_CLICK_SIGNIN'],
       }],
-      ['toolkit_uses_gtk==1', {
-        'defines': ['TOOLKIT_USES_GTK=1'],
-      }],
       ['toolkit_uses_gtk==1 and toolkit_views==0', {
         # TODO(erg): We are progressively sealing up use of deprecated features
         # in gtk in preparation for an eventual porting to gtk3.

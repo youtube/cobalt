@@ -31,7 +31,7 @@
 #include "base/test/test_stub_android.h"
 #endif
 
-#if defined(TOOLKIT_USES_GTK)
+#if defined(TOOLKIT_GTK)
 #include <gtk/gtk.h>
 #endif
 
@@ -98,9 +98,9 @@ void TestSuite::PreInitialize(int argc, char** argv,
   // have the locale set. In the absence of such a call the "C" locale is the
   // default. In the gtk code (below) gtk_init() implicitly sets a locale.
   setlocale(LC_ALL, "");
-#elif defined(TOOLKIT_USES_GTK)
+#elif defined(TOOLKIT_GTK)
   gtk_init_check(&argc, &argv);
-#endif  // defined(TOOLKIT_USES_GTK)
+#endif  // defined(TOOLKIT_GTK)
   if (create_at_exit_manager)
     at_exit_manager_.reset(new base::AtExitManager);
 

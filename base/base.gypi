@@ -656,15 +656,17 @@
           # hence the *_android.cc files are included but the actual code
           # doesn't have OS_ANDROID / ANDROID defined.
           'conditions': [
+            # Host build on linux depends on system.gyp::gtk as
+            # default linux build has TOOLKIT_GTK defined.
             ['host_os == "linux"', {
               'sources/': [
                 ['include', '^atomicops_internals_x86_gcc\\.cc$'],
               ],
               'dependencies': [
-                '../build/linux/system.gyp:glib',
+                '../build/linux/system.gyp:gtk',
               ],
               'export_dependent_settings': [
-                '../build/linux/system.gyp:glib',
+                '../build/linux/system.gyp:gtk',
               ],
             }],
             ['host_os == "mac"', {
