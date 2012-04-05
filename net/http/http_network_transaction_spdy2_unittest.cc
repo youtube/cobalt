@@ -4990,6 +4990,88 @@ TEST_F(HttpNetworkTransactionSpdy2Test, CrossOriginProxyPush) {
   session->CloseAllConnections();
 }
 
+// Test that an explicitly trusted SPDY proxy cannot push HTTPS content.
+TEST_F(HttpNetworkTransactionSpdy2Test, CrossOriginProxyPushCorrectness) {
+  HttpRequestInfo request;
+
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+
+  // Enable cross-origin push.
+  net::SpdySession::set_allow_spdy_proxy_push_across_origins("myproxy:70");
+
+  // Configure against https proxy server "myproxy:70".
+  SessionDependencies session_deps(
+      ProxyService::CreateFixed("https://myproxy:70"));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  session_deps.net_log = log.bound().net_log();
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  scoped_ptr<SpdyFrame>
+      stream1_syn(ConstructSpdyGet(NULL, 0, false, 1, LOWEST, false));
+
+  scoped_ptr<SpdyFrame> push_rst(
+      ConstructSpdyRstStream(2, REFUSED_STREAM));
+
+  MockWrite spdy_writes[] = {
+    CreateMockWrite(*stream1_syn, 1, ASYNC),
+    CreateMockWrite(*push_rst, 4),
+  };
+
+  scoped_ptr<SpdyFrame>
+      stream1_reply(ConstructSpdyGetSynReply(NULL, 0, 1));
+
+  scoped_ptr<SpdyFrame>
+      stream1_body(ConstructSpdyBodyFrame(1, true));
+
+  scoped_ptr<SpdyFrame>
+      stream2_syn(ConstructSpdyPush(NULL,
+                                    0,
+                                    2,
+                                    1,
+                                    "https://www.another-origin.com/foo.dat"));
+
+  MockRead spdy_reads[] = {
+    CreateMockRead(*stream1_reply, 2, ASYNC),
+    CreateMockRead(*stream2_syn, 3, ASYNC),
+    CreateMockRead(*stream1_body, 5, ASYNC),
+    MockRead(ASYNC, ERR_IO_PENDING, 6),  // Force a pause
+  };
+
+  scoped_ptr<OrderedSocketData> spdy_data(
+      new OrderedSocketData(
+          spdy_reads, arraysize(spdy_reads),
+          spdy_writes, arraysize(spdy_writes)));
+  session_deps.socket_factory.AddSocketDataProvider(spdy_data.get());
+  // Negotiate SPDY to the proxy
+  SSLSocketDataProvider proxy(ASYNC, OK);
+  proxy.SetNextProto(kProtoSPDY2);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&proxy);
+
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+  TestCompletionCallback callback;
+  int rv = trans->Start(&request, callback.callback(), log.bound());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback.WaitForResult();
+  EXPECT_EQ(OK, rv);
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+
+  ASSERT_TRUE(response != NULL);
+  EXPECT_TRUE(response->headers->IsKeepAlive());
+
+  EXPECT_EQ(200, response->headers->response_code());
+  EXPECT_TRUE(HttpVersion(1, 1) == response->headers->GetHttpVersion());
+
+  std::string response_data;
+  rv = ReadTransaction(trans.get(), &response_data);
+  EXPECT_EQ(OK, rv);
+  EXPECT_EQ("hello!", response_data);
+
+  trans.reset();
+  session->CloseAllConnections();
+}
+
 // Test HTTPS connections to a site with a bad certificate, going through an
 // HTTPS proxy
 TEST_F(HttpNetworkTransactionSpdy2Test, HTTPSBadCertificateViaHttpsProxy) {
