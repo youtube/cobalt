@@ -105,35 +105,22 @@ class MockDemuxer : public Demuxer {
  public:
   MockDemuxer();
 
-  MOCK_METHOD1(Initialize, void(const PipelineStatusCB& cb));
-  virtual void set_host(DemuxerHost* demuxer_host);
-  MOCK_METHOD1(Stop, void(const base::Closure& callback));
+  // Demuxer implementation.
+  MOCK_METHOD2(Initialize, void(DemuxerHost* host, const PipelineStatusCB& cb));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, const PipelineStatusCB& cb));
+  MOCK_METHOD1(Stop, void(const base::Closure& callback));
   MOCK_METHOD0(OnAudioRendererDisabled, void());
+  MOCK_METHOD1(GetStream, scoped_refptr<DemuxerStream>(DemuxerStream::Type));
+  MOCK_CONST_METHOD0(GetStartTime, base::TimeDelta());
   MOCK_METHOD0(GetBitrate, int());
   MOCK_METHOD0(IsLocalSource, bool());
   MOCK_METHOD0(IsSeekable, bool());
-
-  // Demuxer implementation.
-  MOCK_METHOD2(Initialize, void(DataSource* data_source,
-                                const base::Closure& callback));
-  MOCK_METHOD1(GetStream, scoped_refptr<DemuxerStream>(DemuxerStream::Type));
-  MOCK_CONST_METHOD0(GetStartTime, base::TimeDelta());
-
-  // Sets the TotalBytes, BufferedBytes, & Duration values to be sent to host()
-  // when set_host() is called.
-  void SetTotalAndBufferedBytesAndDuration(
-      int64 total_bytes, int64 buffered_bytes, const base::TimeDelta& duration);
 
  protected:
   virtual ~MockDemuxer();
 
  private:
-  int64 total_bytes_;
-  int64 buffered_bytes_;
-  base::TimeDelta duration_;
-
   DISALLOW_COPY_AND_ASSIGN(MockDemuxer);
 };
 
@@ -298,10 +285,6 @@ void RunPipelineStatusCB4(::testing::Unused, const PipelineStatusCB& status_cb,
 // Helper gmock function that immediately executes the Closure on behalf of the
 // provided filter.  Can be used when mocking the Stop() method.
 void RunStopFilterCallback(const base::Closure& closure);
-
-ACTION_P(RunPipelineStatusCBWithError, error) {
-  arg0.Run(error);
-}
 
 // Helper gmock action that calls SetError() on behalf of the provided filter.
 ACTION_P2(SetError, filter, error) {

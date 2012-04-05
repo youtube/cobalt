@@ -10,15 +10,9 @@ namespace media {
 
 DemuxerHost::~DemuxerHost() {}
 
-Demuxer::Demuxer() : host_(NULL) {}
+Demuxer::Demuxer() {}
 
 Demuxer::~Demuxer() {}
-
-void Demuxer::set_host(DemuxerHost* host) {
-  DCHECK(host);
-  DCHECK(!host_);
-  host_ = host;
-}
 
 void Demuxer::SetPlaybackRate(float playback_rate) {}
 
