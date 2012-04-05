@@ -17,7 +17,7 @@
 #include "base/threading/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if defined(TOOLKIT_USES_GTK)
+#if defined(TOOLKIT_GTK)
 #include <gtk/gtk.h>
 #endif
 
@@ -407,7 +407,7 @@ TEST_F(MessagePumpGLibTest, TestDrainingGLib) {
 
 namespace {
 
-#if defined(TOOLKIT_USES_GTK)
+#if defined(TOOLKIT_GTK)
 void AddEventsAndDrainGtk(EventInjector* injector) {
   // Add a couple of dummy events
   injector->AddDummyEvent(0);
@@ -428,7 +428,7 @@ void AddEventsAndDrainGtk(EventInjector* injector) {
 
 }  // namespace
 
-#if defined(TOOLKIT_USES_GTK)
+#if defined(TOOLKIT_GTK)
 TEST_F(MessagePumpGLibTest, TestDrainingGtk) {
   // Tests that draining events using Gtk works.
   loop()->PostTask(
@@ -454,7 +454,7 @@ class GLibLoopRunner : public base::RefCounted<GLibLoopRunner> {
   }
 
   void RunLoop() {
-#if defined(TOOLKIT_USES_GTK)
+#if defined(TOOLKIT_GTK)
     while (!quit_) {
       gtk_main_iteration();
     }
