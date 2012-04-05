@@ -5,6 +5,7 @@
 #include "net/socket/socks5_client_socket.h"
 
 #include <algorithm>
+#include <iterator>
 #include <map>
 
 #include "base/sys_byteorder.h"
