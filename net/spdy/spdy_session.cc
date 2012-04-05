@@ -1448,7 +1448,15 @@ void SpdySession::OnSynStream(
   // Check that the SYN advertises the same origin as its associated stream.
   // Bypass this check if and only if this session is with a SPDY proxy that
   // is trusted explicitly via the allow_spdy_proxy_push_across_origins switch.
-  if (!allow_spdy_proxy_push_across_origins_.Equals(host_port_pair())) {
+  if (allow_spdy_proxy_push_across_origins_.Equals(host_port_pair())) {
+    // Disallow pushing of HTTPS content.
+    if (gurl.SchemeIs("https")) {
+      ResetStream(stream_id, REFUSED_STREAM,
+                  base::StringPrintf(
+                      "Rejected push of Cross Origin HTTPS content %d",
+                      associated_stream_id));
+    }
+  } else {
     scoped_refptr<SpdyStream> associated_stream =
         active_streams_[associated_stream_id];
     GURL associated_url(associated_stream->GetUrl());
