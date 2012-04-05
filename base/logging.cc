@@ -790,6 +790,10 @@ Win32ErrorLogMessage::~Win32ErrorLogMessage() {
     stream() << ": Error " << GetLastError() << " while retrieving error "
         << err_;
   }
+  // We're about to crash (CHECK). Put |err_| on the stack (by placing it in a
+  // field) and use Alias in hopes that it makes it into crash dumps.
+  DWORD last_error = err_;
+  base::debug::Alias(&last_error);
 }
 #elif defined(OS_POSIX)
 ErrnoLogMessage::ErrnoLogMessage(const char* file,
