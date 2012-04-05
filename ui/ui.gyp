@@ -97,6 +97,8 @@
         'base/cocoa/focus_tracker.mm',
         'base/cocoa/fullscreen_window_manager.h',
         'base/cocoa/fullscreen_window_manager.mm',
+        'base/cocoa/nib_loading.h',
+        'base/cocoa/nib_loading.mm',
         'base/cocoa/underlay_opengl_hosting_window.h',
         'base/cocoa/underlay_opengl_hosting_window.mm',
         'base/cursor/cursor.cc',
