@@ -385,16 +385,13 @@ void URLRequest::Start() {
   if (context_ && context_->network_delegate()) {
     int error = context_->network_delegate()->NotifyBeforeURLRequest(
         this, before_request_callback_, &delegate_redirect_url_);
-    if (error != net::OK) {
-      if (error == net::ERR_IO_PENDING) {
-        // Paused on the delegate, will invoke |before_request_callback_| later.
-        SetBlockedOnDelegate();
-      } else {
-        // The delegate immediately returned some error code.
-        BeforeRequestComplete(error);
-      }
-      return;
+    if (error == net::ERR_IO_PENDING) {
+      // Paused on the delegate, will invoke |before_request_callback_| later.
+      SetBlockedOnDelegate();
+    } else {
+      BeforeRequestComplete(error);
     }
+    return;
   }
 
   StartJob(URLRequestJobManager::GetInstance()->CreateJob(this));
@@ -409,7 +406,8 @@ void URLRequest::BeforeRequestComplete(int error) {
   // Check that there are no callbacks to already canceled requests.
   DCHECK_NE(URLRequestStatus::CANCELED, status_.status());
 
-  SetUnblockedOnDelegate();
+  if (blocked_on_delegate_)
+    SetUnblockedOnDelegate();
 
   if (error != OK) {
     net_log_.AddEvent(NetLog::TYPE_CANCELLED,
