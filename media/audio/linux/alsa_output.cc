@@ -651,7 +651,7 @@ snd_pcm_sframes_t AlsaPcmOutputStream::GetAvailableFrames() {
   // Find the number of frames queued in the sound device.
   snd_pcm_sframes_t available_frames =
       wrapper_->PcmAvailUpdate(playback_handle_);
-  if (available_frames  < 0) {
+  if (available_frames < 0) {
     available_frames = wrapper_->PcmRecover(playback_handle_,
                                             available_frames,
                                             kPcmRecoverIsSilent);
@@ -660,6 +660,11 @@ snd_pcm_sframes_t AlsaPcmOutputStream::GetAvailableFrames() {
     LOG(ERROR) << "Failed querying available frames. Assuming 0: "
                << wrapper_->StrError(available_frames);
     return 0;
+  }
+  if (static_cast<uint32>(available_frames) > alsa_buffer_frames_) {
+    LOG(ERROR) << "ALSA returned " << available_frames << " of "
+               << alsa_buffer_frames_ << " frames available.";
+    return alsa_buffer_frames_;
   }
 
   return available_frames;
