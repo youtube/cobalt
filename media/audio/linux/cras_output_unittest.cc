@@ -13,6 +13,8 @@ using testing::Return;
 using testing::SetArgumentPointee;
 using testing::StrictMock;
 
+namespace media {
+
 class MockAudioSourceCallback : public AudioOutputStream::AudioSourceCallback {
  public:
   MOCK_METHOD4(OnMoreData, uint32(AudioOutputStream* stream,
@@ -214,3 +216,5 @@ TEST_F(CrasOutputStreamTest, RenderFrames) {
   // Close the stream.
   test_stream->Close();
 }
+
+}  // namespace media
