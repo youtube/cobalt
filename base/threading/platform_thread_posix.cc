@@ -22,7 +22,9 @@
 
 #if defined(OS_LINUX)
 #include <sys/prctl.h>
+#include <sys/resource.h>
 #include <sys/syscall.h>
+#include <sys/time.h>
 #include <unistd.h>
 #endif
 
@@ -69,7 +71,8 @@ void* ThreadFunc(void* params) {
 
 bool CreateThread(size_t stack_size, bool joinable,
                   PlatformThread::Delegate* delegate,
-                  PlatformThreadHandle* thread_handle) {
+                  PlatformThreadHandle* thread_handle,
+                  ThreadPriority priority) {
 #if defined(OS_MACOSX)
   base::InitThreading();
 #endif  // OS_MACOSX
@@ -122,6 +125,24 @@ bool CreateThread(size_t stack_size, bool joinable,
   params->delegate = delegate;
   params->joinable = joinable;
   success = !pthread_create(thread_handle, &attributes, ThreadFunc, params);
+
+  if (priority != kThreadPriority_Normal) {
+#if defined(OS_LINUX)
+    if (priority == kThreadPriority_RealtimeAudio) {
+      // Linux isn't posix compliant with setpriority(2), it will set a thread
+      // priority if it is passed a tid, not affecting the rest of the threads
+      // in the process.  Setting this priority will only succeed if the user
+      // has been granted permission to adjust nice values on the system.
+      const int kNiceSetting = -10;
+      if (setpriority(PRIO_PROCESS, PlatformThread::CurrentId(), kNiceSetting))
+        DVLOG(1) << "Failed to set nice value of thread to " << kNiceSetting;
+    } else {
+      NOTREACHED() << "Unknown thread priority.";
+    }
+#else
+    PlatformThread::SetThreadPriority(*thread_handle, priority);
+#endif
+  }
 
   pthread_attr_destroy(&attributes);
   if (!success)
@@ -226,7 +247,15 @@ const char* PlatformThread::GetName() {
 bool PlatformThread::Create(size_t stack_size, Delegate* delegate,
                             PlatformThreadHandle* thread_handle) {
   return CreateThread(stack_size, true /* joinable thread */,
-                      delegate, thread_handle);
+                      delegate, thread_handle, kThreadPriority_Normal);
+}
+
+// static
+bool PlatformThread::CreateWithPriority(size_t stack_size, Delegate* delegate,
+                                        PlatformThreadHandle* thread_handle,
+                                        ThreadPriority priority) {
+  return CreateThread(stack_size, true,  // joinable thread
+                      delegate, thread_handle, priority);
 }
 
 // static
@@ -234,7 +263,7 @@ bool PlatformThread::CreateNonJoinable(size_t stack_size, Delegate* delegate) {
   PlatformThreadHandle unused;
 
   bool result = CreateThread(stack_size, false /* non-joinable thread */,
-                             delegate, &unused);
+                             delegate, &unused, kThreadPriority_Normal);
   return result;
 }
 

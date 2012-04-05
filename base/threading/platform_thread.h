@@ -89,6 +89,15 @@ class BASE_EXPORT PlatformThread {
   static bool Create(size_t stack_size, Delegate* delegate,
                      PlatformThreadHandle* thread_handle);
 
+  // CreateWithPriority() does the same thing as Create() except the priority of
+  // the thread is set based on |priority|.  Can be used in place of Create()
+  // followed by SetThreadPriority().  SetThreadPriority() has not been
+  // implemented on the Linux platform yet, this is the only way to get a high
+  // priority thread on Linux.
+  static bool CreateWithPriority(size_t stack_size, Delegate* delegate,
+                                 PlatformThreadHandle* thread_handle,
+                                 ThreadPriority priority);
+
   // CreateNonJoinable() does the same thing as Create() except the thread
   // cannot be Join()'d.  Therefore, it also does not output a
   // PlatformThreadHandle.
@@ -99,6 +108,8 @@ class BASE_EXPORT PlatformThread {
   // |thread_handle|.
   static void Join(PlatformThreadHandle thread_handle);
 
+  // Sets the priority of the thread specified in |handle| to |priority|.
+  // This does not work on Linux, use CreateWithPriority() instead.
   static void SetThreadPriority(PlatformThreadHandle handle,
                                 ThreadPriority priority);
 

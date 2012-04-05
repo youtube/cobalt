@@ -152,6 +152,16 @@ bool PlatformThread::Create(size_t stack_size, Delegate* delegate,
 }
 
 // static
+bool PlatformThread::CreateWithPriority(size_t stack_size, Delegate* delegate,
+                                        PlatformThreadHandle* thread_handle,
+                                        ThreadPriority priority) {
+  bool result = Create(stack_size, delegate, thread_handle);
+  if (result)
+    SetThreadPriority(*thread_handle, priority);
+  return result;
+}
+
+// static
 bool PlatformThread::CreateNonJoinable(size_t stack_size, Delegate* delegate) {
   return CreateThreadInternal(stack_size, delegate, NULL);
 }
