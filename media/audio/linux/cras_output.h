@@ -18,6 +18,8 @@
 #include "base/gtest_prod_util.h"
 #include "media/audio/audio_io.h"
 
+namespace media {
+
 class AudioManagerLinux;
 class AudioParameters;
 
@@ -113,5 +115,7 @@ class MEDIA_EXPORT CrasOutputStream : public AudioOutputStream {
 
   DISALLOW_COPY_AND_ASSIGN(CrasOutputStream);
 };
+
+}  // namespace media
 
 #endif  // MEDIA_AUDIO_LINUX_CRAS_OUTPUT_H_

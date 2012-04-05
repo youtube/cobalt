@@ -17,6 +17,8 @@
 #include "media/audio/linux/alsa_util.h"
 #include "media/audio/linux/audio_manager_linux.h"
 
+namespace media {
+
 // Helps make log messages readable.
 std::ostream& operator<<(std::ostream& os,
                          CrasOutputStream::InternalState state) {
@@ -319,3 +321,5 @@ CrasOutputStream::TransitionTo(InternalState to) {
 CrasOutputStream::InternalState CrasOutputStream::state() {
   return state_;
 }
+
+}  // namespace media
