@@ -698,6 +698,41 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateRedirectRequest) {
   EXPECT_EQ(1, network_delegate.destroyed_requests());
 }
 
+// Tests that the network delegate can block and redirect a request to a new
+// URL by setting a redirect_url and returning in OnBeforeURLRequest directly.
+TEST_F(URLRequestTestHTTP, NetworkDelegateRedirectRequestSynchronously) {
+  ASSERT_TRUE(test_server_.Start());
+
+  TestDelegate d;
+  BlockingNetworkDelegate network_delegate;
+  GURL redirect_url(test_server_.GetURL("simple.html"));
+  network_delegate.set_redirect_url(redirect_url);
+  network_delegate.set_retval(OK);
+
+  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext(true));
+  context->SetProxyFromString(test_server_.host_port_pair().ToString());
+  context->set_network_delegate(&network_delegate);
+  context->Init();
+
+  {
+    GURL original_url(test_server_.GetURL("empty.html"));
+    TestURLRequest r(original_url, &d);
+    r.set_context(context);
+
+    r.Start();
+    MessageLoop::current()->Run();
+
+    EXPECT_EQ(URLRequestStatus::SUCCESS, r.status().status());
+    EXPECT_EQ(0, r.status().error());
+    EXPECT_EQ(redirect_url, r.url());
+    EXPECT_EQ(original_url, r.original_url());
+    EXPECT_EQ(2U, r.url_chain().size());
+    EXPECT_EQ(1, network_delegate.created_requests());
+    EXPECT_EQ(0, network_delegate.destroyed_requests());
+  }
+  EXPECT_EQ(1, network_delegate.destroyed_requests());
+}
+
 // Tests that redirects caused by the network delegate preserve POST data.
 TEST_F(URLRequestTestHTTP, NetworkDelegateRedirectRequestPost) {
   ASSERT_TRUE(test_server_.Start());
