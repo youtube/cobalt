@@ -47,17 +47,14 @@ DummyDemuxer::DummyDemuxer(bool has_video, bool has_audio, bool local_source)
 
 DummyDemuxer::~DummyDemuxer() {}
 
-void DummyDemuxer::Initialize(const PipelineStatusCB& status_cb) {
+void DummyDemuxer::Initialize(DemuxerHost* host,
+                              const PipelineStatusCB& status_cb) {
+  host->SetDuration(media::kInfiniteDuration());
   status_cb.Run(PIPELINE_OK);
 }
 
 scoped_refptr<DemuxerStream> DummyDemuxer::GetStream(DemuxerStream::Type type) {
   return streams_[type];
-}
-
-void DummyDemuxer::set_host(DemuxerHost* demuxer_host) {
-  Demuxer::set_host(demuxer_host);
-  host()->SetDuration(media::kInfiniteDuration());
 }
 
 base::TimeDelta DummyDemuxer::GetStartTime() const {

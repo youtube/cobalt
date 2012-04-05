@@ -26,7 +26,8 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer, public StreamParserHost {
   virtual ~ChunkDemuxer();
 
   // Demuxer implementation.
-  virtual void Initialize(const PipelineStatusCB& cb) OVERRIDE;
+  virtual void Initialize(DemuxerHost* host,
+                          const PipelineStatusCB& cb) OVERRIDE;
   virtual void Stop(const base::Closure& callback) OVERRIDE;
   virtual void Seek(base::TimeDelta time, const PipelineStatusCB&  cb) OVERRIDE;
   virtual void OnAudioRendererDisabled() OVERRIDE;
@@ -74,6 +75,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer, public StreamParserHost {
   base::Lock lock_;
   State state_;
 
+  DemuxerHost* host_;
   ChunkDemuxerClient* client_;
   PipelineStatusCB init_cb_;
   PipelineStatusCB seek_cb_;

@@ -45,10 +45,10 @@ class MEDIA_EXPORT DummyDemuxer : public Demuxer {
   virtual ~DummyDemuxer();
 
   // Demuxer implementation.
-  virtual void Initialize(const PipelineStatusCB& status_cb) OVERRIDE;
+  virtual void Initialize(DemuxerHost* host,
+                          const PipelineStatusCB& status_cb) OVERRIDE;
   virtual scoped_refptr<DemuxerStream> GetStream(
       DemuxerStream::Type type) OVERRIDE;
-  virtual void set_host(DemuxerHost* demuxer_host) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
   virtual int GetBitrate() OVERRIDE;
   virtual bool IsLocalSource() OVERRIDE;

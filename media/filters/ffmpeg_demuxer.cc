@@ -280,7 +280,8 @@ FFmpegDemuxer::FFmpegDemuxer(
     MessageLoop* message_loop,
     const scoped_refptr<DataSource>& data_source,
     bool local_source)
-    : message_loop_(message_loop),
+    : host_(NULL),
+      message_loop_(message_loop),
       local_source_(local_source),
       format_context_(NULL),
       data_source_(data_source),
@@ -338,14 +339,10 @@ void FFmpegDemuxer::OnAudioRendererDisabled() {
       &FFmpegDemuxer::DisableAudioStreamTask, this));
 }
 
-void FFmpegDemuxer::set_host(DemuxerHost* demuxer_host) {
-  Demuxer::set_host(demuxer_host);
-  data_source_->set_host(demuxer_host);
-}
-
-void FFmpegDemuxer::Initialize(const PipelineStatusCB& status_cb) {
+void FFmpegDemuxer::Initialize(DemuxerHost* host,
+                               const PipelineStatusCB& status_cb) {
   message_loop_->PostTask(FROM_HERE, base::Bind(
-      &FFmpegDemuxer::InitializeTask, this, status_cb));
+      &FFmpegDemuxer::InitializeTask, this, host, status_cb));
 }
 
 scoped_refptr<DemuxerStream> FFmpegDemuxer::GetStream(
@@ -364,6 +361,7 @@ base::TimeDelta FFmpegDemuxer::GetStartTime() const {
 }
 
 size_t FFmpegDemuxer::Read(size_t size, uint8* data) {
+  DCHECK(host_);
   DCHECK(data_source_);
 
   // If read has ever failed, return with an error.
@@ -386,24 +384,26 @@ size_t FFmpegDemuxer::Read(size_t size, uint8* data) {
   // let FFmpeg demuxer methods to run on.
   int last_read_bytes = WaitForRead();
   if (last_read_bytes == DataSource::kReadError) {
-    host()->OnDemuxerError(PIPELINE_ERROR_READ);
+    host_->OnDemuxerError(PIPELINE_ERROR_READ);
 
     // Returns with a negative number to signal an error to FFmpeg.
     read_has_failed_ = true;
     return AVERROR(EIO);
   }
   read_position_ += last_read_bytes;
-  host()->SetCurrentReadPosition(read_position_);
+  host_->SetCurrentReadPosition(read_position_);
 
   return last_read_bytes;
 }
 
 bool FFmpegDemuxer::GetPosition(int64* position_out) {
+  DCHECK(host_);
   *position_out = read_position_;
   return true;
 }
 
 bool FFmpegDemuxer::SetPosition(int64 position) {
+  DCHECK(host_);
   DCHECK(data_source_);
 
   int64 file_size;
@@ -417,14 +417,14 @@ bool FFmpegDemuxer::SetPosition(int64 position) {
 }
 
 bool FFmpegDemuxer::GetSize(int64* size_out) {
+  DCHECK(host_);
   DCHECK(data_source_);
-
   return data_source_->GetSize(size_out);
 }
 
 bool FFmpegDemuxer::IsStreaming() {
+  DCHECK(host_);
   DCHECK(data_source_);
-
   return data_source_->IsStreaming();
 }
 
@@ -468,8 +468,14 @@ static int CalculateBitrate(
   return bytes * 8000000.0 / duration_us;
 }
 
-void FFmpegDemuxer::InitializeTask(const PipelineStatusCB& status_cb) {
+void FFmpegDemuxer::InitializeTask(DemuxerHost* host,
+                                   const PipelineStatusCB& status_cb) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
+  host_ = host;
+
+  // TODO(scherkus): DataSource should have a host by this point,
+  // see http://crbug.com/122071
+  data_source_->set_host(host);
 
   // Add ourself to Protocol list and get our unique key.
   std::string key = FFmpegGlue::GetInstance()->AddProtocol(this);
@@ -558,7 +564,7 @@ void FFmpegDemuxer::InitializeTask(const PipelineStatusCB& status_cb) {
 
   // Good to go: set the duration and bitrate and notify we're done
   // initializing.
-  host()->SetDuration(max_duration);
+  host_->SetDuration(max_duration);
 
   int64 filesize_in_bytes = 0;
   GetSize(&filesize_in_bytes);
