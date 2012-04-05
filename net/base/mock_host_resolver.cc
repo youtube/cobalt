@@ -4,8 +4,10 @@
 
 #include "net/base/mock_host_resolver.h"
 
+#include <string>
+#include <vector>
+
 #include "base/bind.h"
-#include "base/location.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop.h"
 #include "base/stl_util.h"
@@ -27,14 +29,6 @@ const unsigned kMaxCacheEntries = 100;
 // TTL for the successful resolutions. Failures are not cached.
 const unsigned kCacheEntryTTLSeconds = 60;
 
-char* do_strdup(const char* src) {
-#if defined(OS_WIN)
-  return _strdup(src);
-#else
-  return strdup(src);
-#endif
-}
-
 }  // namespace
 
 int ParseAddressList(const std::string& host_list,
@@ -53,7 +47,7 @@ int ParseAddressList(const std::string& host_list,
     AddressList result = AddressList::CreateFromIPAddress(ip_number, -1);
     struct addrinfo* ai = const_cast<struct addrinfo*>(result.head());
     if (index == 0)
-      ai->ai_canonname = do_strdup(canonical_name.c_str());
+      ai->ai_canonname = base::strdup(canonical_name.c_str());
     if (!addrlist->head())
       *addrlist = AddressList::CreateByCopyingFirstAddress(result.head());
     else

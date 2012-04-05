@@ -7,20 +7,13 @@
 #include <stdlib.h>
 
 #include "base/logging.h"
+#include "base/string_util.h"
 #include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
 
 namespace net {
 
 namespace {
-
-char* do_strdup(const char* src) {
-#if defined(OS_WIN)
-  return _strdup(src);
-#else
-  return strdup(src);
-#endif
-}
 
 struct addrinfo* CreateAddrInfo(const IPAddressNumber& address,
                                 bool canonicalize_name) {
@@ -69,7 +62,7 @@ struct addrinfo* CreateAddrInfo(const IPAddressNumber& address,
 
   if (canonicalize_name) {
     std::string name = NetAddressToString(ai);
-    ai->ai_canonname = do_strdup(name.c_str());
+    ai->ai_canonname = base::strdup(name.c_str());
   }
   return ai;
 }
@@ -122,7 +115,7 @@ AddressList AddressList::CreateFromIPAddressList(
     if (head == NULL) {
       head = next = CreateAddrInfo(*it, false);
       if (!canonical_name.empty()) {
-        head->ai_canonname = do_strdup(canonical_name.c_str());
+        head->ai_canonname = base::strdup(canonical_name.c_str());
       }
     } else {
       next->ai_next = CreateAddrInfo(*it, false);
