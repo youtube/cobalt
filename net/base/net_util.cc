@@ -892,14 +892,6 @@ void AppendFormattedComponent(const std::string& spec,
   }
 }
 
-char* do_strdup(const char* src) {
-#if defined(OS_WIN)
-  return _strdup(src);
-#else
-  return strdup(src);
-#endif
-}
-
 void SanitizeGeneratedFileName(std::string& filename) {
   if (!filename.empty()) {
     // Remove "." from the beginning and end of the file name to avoid tricks
@@ -2283,7 +2275,7 @@ struct addrinfo* CreateCopyOfAddrinfo(const struct addrinfo* info,
 
   // ai_canonname is a NULL-terminated string.
   if (info->ai_canonname) {
-    copy->ai_canonname = do_strdup(info->ai_canonname);
+    copy->ai_canonname = base::strdup(info->ai_canonname);
   }
 
   // ai_addr is a buffer of length ai_addrlen.
