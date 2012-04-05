@@ -139,8 +139,8 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   virtual void PostDemuxTask();
 
   // Demuxer implementation.
-  virtual void set_host(DemuxerHost* demuxer_host) OVERRIDE;
-  virtual void Initialize(const PipelineStatusCB& status_cb) OVERRIDE;
+  virtual void Initialize(DemuxerHost* host,
+                          const PipelineStatusCB& status_cb) OVERRIDE;
   virtual void Stop(const base::Closure& callback) OVERRIDE;
   virtual void Seek(base::TimeDelta time, const PipelineStatusCB& cb) OVERRIDE;
   virtual void OnAudioRendererDisabled() OVERRIDE;
@@ -171,7 +171,7 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   FRIEND_TEST_ALL_PREFIXES(FFmpegDemuxerTest, ProtocolRead);
 
   // Carries out initialization on the demuxer thread.
-  void InitializeTask(const PipelineStatusCB& status_cb);
+  void InitializeTask(DemuxerHost* host, const PipelineStatusCB& status_cb);
 
   // Carries out a seek on the demuxer thread.
   void SeekTask(base::TimeDelta time, const PipelineStatusCB& cb);
@@ -203,6 +203,8 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   // Signal the blocked thread that the read has completed, with |size| bytes
   // read or kReadError in case of error.
   virtual void SignalReadCompleted(int size);
+
+  DemuxerHost* host_;
 
   MessageLoop* message_loop_;
 

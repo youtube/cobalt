@@ -90,7 +90,6 @@ class ChunkDemuxerTest : public testing::Test {
   ChunkDemuxerTest()
       : client_(new MockChunkDemuxerClient()),
         demuxer_(new ChunkDemuxer(client_.get())) {
-    demuxer_->set_host(&mock_demuxer_host_);
   }
 
   virtual ~ChunkDemuxerTest() {
@@ -161,9 +160,9 @@ class ChunkDemuxerTest : public testing::Test {
   }
 
   bool AppendData(const uint8* data, size_t length) {
-    EXPECT_CALL(mock_demuxer_host_, SetBufferedBytes(_)).Times(AnyNumber());
-    EXPECT_CALL(mock_demuxer_host_, SetBufferedTime(_)).Times(AnyNumber());
-    EXPECT_CALL(mock_demuxer_host_, SetNetworkActivity(true))
+    EXPECT_CALL(host_, SetBufferedBytes(_)).Times(AnyNumber());
+    EXPECT_CALL(host_, SetBufferedTime(_)).Times(AnyNumber());
+    EXPECT_CALL(host_, SetNetworkActivity(true))
         .Times(AnyNumber());
     return demuxer_->AppendData(data, length);
   }
@@ -202,8 +201,8 @@ class ChunkDemuxerTest : public testing::Test {
   PipelineStatusCB CreateInitDoneCB(const base::TimeDelta& expected_duration,
                                     PipelineStatus expected_status) {
     if (expected_status == PIPELINE_OK) {
-      EXPECT_CALL(mock_demuxer_host_, SetDuration(expected_duration));
-      EXPECT_CALL(mock_demuxer_host_, SetCurrentReadPosition(_));
+      EXPECT_CALL(host_, SetDuration(expected_duration));
+      EXPECT_CALL(host_, SetCurrentReadPosition(_));
     }
 
     return base::Bind(&ChunkDemuxerTest::InitDoneCalled,
@@ -217,8 +216,8 @@ class ChunkDemuxerTest : public testing::Test {
         (has_audio || has_video) ? PIPELINE_OK : DEMUXER_ERROR_COULD_NOT_OPEN;
 
     EXPECT_CALL(*client_, DemuxerOpened(_));
-    demuxer_->Initialize(CreateInitDoneCB(
-        kDefaultDuration(), expected_status));
+    demuxer_->Initialize(
+        &host_, CreateInitDoneCB(kDefaultDuration(), expected_status));
 
     return AppendInfoTracks(has_audio, has_video, video_content_encoded);
   }
@@ -270,7 +269,8 @@ class ChunkDemuxerTest : public testing::Test {
     int buffer_size = 0;
 
     EXPECT_CALL(*client_, DemuxerOpened(_));
-    demuxer_->Initialize(CreateInitDoneCB(duration, PIPELINE_OK));
+    demuxer_->Initialize(
+        &host_, CreateInitDoneCB(duration, PIPELINE_OK));
 
     // Read a WebM file into memory and send the data to the demuxer.
     ReadTestDataFile(filename, &buffer, &buffer_size);
@@ -314,7 +314,7 @@ class ChunkDemuxerTest : public testing::Test {
     return true;
   }
 
-  MockDemuxerHost mock_demuxer_host_;
+  MockDemuxerHost host_;
 
   scoped_ptr<MockChunkDemuxerClient> client_;
   scoped_refptr<ChunkDemuxer> demuxer_;
@@ -337,7 +337,6 @@ TEST_F(ChunkDemuxerTest, TestInit) {
 
     client_.reset(new MockChunkDemuxerClient());
     demuxer_ = new ChunkDemuxer(client_.get());
-    demuxer_->set_host(&mock_demuxer_host_);
     ASSERT_TRUE(InitDemuxer(has_audio, has_video, video_content_encoded));
 
     scoped_refptr<DemuxerStream> audio_stream =
@@ -520,7 +519,7 @@ TEST_F(ChunkDemuxerTest, TestOutOfOrderClusters) {
 
   // Make sure that AppendData() fails because this cluster data
   // is before previous data.
-  EXPECT_CALL(mock_demuxer_host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
+  EXPECT_CALL(host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
   ASSERT_TRUE(AppendData(cluster_b->data(), cluster_b->size()));
 
   // Verify that AppendData() doesn't accept more data now.
@@ -545,7 +544,7 @@ TEST_F(ChunkDemuxerTest, TestNonMonotonicButAboveClusterTimecode) {
   AddSimpleBlock(&cb, kVideoTrackNum, 15);
   scoped_ptr<Cluster> cluster_a(cb.Finish());
 
-  EXPECT_CALL(mock_demuxer_host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
+  EXPECT_CALL(host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
   ASSERT_TRUE(AppendData(cluster_a->data(), cluster_a->size()));
 
   // Verify that AppendData() doesn't accept more data now.
@@ -570,7 +569,7 @@ TEST_F(ChunkDemuxerTest, TestBackwardsAndBeforeClusterTimecode) {
   AddSimpleBlock(&cb, kVideoTrackNum, 3);
   scoped_ptr<Cluster> cluster_a(cb.Finish());
 
-  EXPECT_CALL(mock_demuxer_host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
+  EXPECT_CALL(host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
   ASSERT_TRUE(AppendData(cluster_a->data(), cluster_a->size()));
 
   // Verify that AppendData() doesn't accept more data now.
@@ -596,7 +595,7 @@ TEST_F(ChunkDemuxerTest, TestPerStreamMonotonicallyIncreasingTimestamps) {
   AddSimpleBlock(&cb, kVideoTrackNum, 7);
   scoped_ptr<Cluster> cluster(cb.Finish());
 
-  EXPECT_CALL(mock_demuxer_host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
+  EXPECT_CALL(host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
   ASSERT_TRUE(AppendData(cluster->data(), cluster->size()));
 }
 
@@ -619,7 +618,7 @@ TEST_F(ChunkDemuxerTest, TestMonotonicallyIncreasingTimestampsAcrossClusters) {
   AddSimpleBlock(&cb, kVideoTrackNum, 7);
   scoped_ptr<Cluster> cluster_b(cb.Finish());
 
-  EXPECT_CALL(mock_demuxer_host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
+  EXPECT_CALL(host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
   ASSERT_TRUE(AppendData(cluster_b->data(), cluster_b->size()));
 
   // Verify that AppendData() doesn't accept more data now.
@@ -634,7 +633,8 @@ TEST_F(ChunkDemuxerTest, TestMonotonicallyIncreasingTimestampsAcrossClusters) {
 // INFO & TRACKS data.
 TEST_F(ChunkDemuxerTest, TestClusterBeforeInfoTracks) {
   EXPECT_CALL(*client_, DemuxerOpened(_));
-  demuxer_->Initialize(NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
+  demuxer_->Initialize(
+      &host_, NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
 
   ClusterBuilder cb;
   cb.SetClusterTimecode(0);
@@ -647,7 +647,8 @@ TEST_F(ChunkDemuxerTest, TestClusterBeforeInfoTracks) {
 // Test cases where we get an EndOfStream() call during initialization.
 TEST_F(ChunkDemuxerTest, TestEOSDuringInit) {
   EXPECT_CALL(*client_, DemuxerOpened(_));
-  demuxer_->Initialize(NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
+  demuxer_->Initialize(
+      &host_, NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
   demuxer_->EndOfStream(PIPELINE_OK);
 }
 
@@ -663,7 +664,7 @@ TEST_F(ChunkDemuxerTest, TestDecodeErrorEndOfStream) {
   scoped_ptr<Cluster> cluster(cb.Finish());
   ASSERT_TRUE(AppendData(cluster->data(), cluster->size()));
 
-  EXPECT_CALL(mock_demuxer_host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
+  EXPECT_CALL(host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
   demuxer_->EndOfStream(PIPELINE_ERROR_DECODE);
 }
 
@@ -679,7 +680,7 @@ TEST_F(ChunkDemuxerTest, TestNetworkErrorEndOfStream) {
   scoped_ptr<Cluster> cluster(cb.Finish());
   ASSERT_TRUE(AppendData(cluster->data(), cluster->size()));
 
-  EXPECT_CALL(mock_demuxer_host_, OnDemuxerError(PIPELINE_ERROR_NETWORK));
+  EXPECT_CALL(host_, OnDemuxerError(PIPELINE_ERROR_NETWORK));
   demuxer_->EndOfStream(PIPELINE_ERROR_NETWORK);
 }
 
@@ -831,7 +832,8 @@ TEST_F(ChunkDemuxerTest, TestReadsAfterEndOfStream) {
 TEST_F(ChunkDemuxerTest, TestAppendingInPieces) {
 
   EXPECT_CALL(*client_, DemuxerOpened(_));
-  demuxer_->Initialize(CreateInitDoneCB(kDefaultDuration(), PIPELINE_OK));
+  demuxer_->Initialize(
+      &host_, CreateInitDoneCB(kDefaultDuration(), PIPELINE_OK));
 
   scoped_array<uint8> info_tracks;
   int info_tracks_size = 0;
@@ -1026,11 +1028,11 @@ TEST_F(ChunkDemuxerTest, TestIncrementalClusterParsing) {
 
 
 TEST_F(ChunkDemuxerTest, TestParseErrorDuringInit) {
-  EXPECT_CALL(mock_demuxer_host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
+  EXPECT_CALL(host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
 
   EXPECT_CALL(*client_, DemuxerOpened(_));
-  demuxer_->Initialize(CreateInitDoneCB(
-      kDefaultDuration(), PIPELINE_OK));
+  demuxer_->Initialize(
+      &host_, CreateInitDoneCB(kDefaultDuration(), PIPELINE_OK));
   ASSERT_TRUE(AppendInfoTracks(true, true, false));
 
   uint8 tmp = 0;

@@ -5,6 +5,7 @@
 #include <deque>
 
 #include "base/file_path.h"
+#include "base/file_util.h"
 #include "base/path_service.h"
 #include "base/threading/thread.h"
 #include "media/base/filters.h"
@@ -72,16 +73,13 @@ class FFmpegDemuxerTest : public testing::Test {
     // Create an FFmpegDemuxer with local data source.
     demuxer_ = new FFmpegDemuxer(&message_loop_, data_source_, true);
     demuxer_->disable_first_seek_hack_for_testing();
-
-    // Inject a filter host and message loop and prepare a data source.
-    demuxer_->set_host(&host_);
   }
 
   MOCK_METHOD1(CheckPoint, void(int v));
 
   void InitializeDemuxer() {
     EXPECT_CALL(host_, SetDuration(_));
-    demuxer_->Initialize(NewExpectedStatusCB(PIPELINE_OK));
+    demuxer_->Initialize(&host_, NewExpectedStatusCB(PIPELINE_OK));
     message_loop_.RunAllPending();
   }
 
@@ -149,7 +147,8 @@ TEST_F(FFmpegDemuxerTest, Initialize_OpenFails) {
   // Simulate avformat_open_input() failing.
   CreateDemuxer("ten_byte_file"),
   EXPECT_CALL(host_, SetCurrentReadPosition(_));
-  demuxer_->Initialize(NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
+  demuxer_->Initialize(
+      &host_, NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
 
   message_loop_.RunAllPending();
 }
@@ -160,7 +159,7 @@ TEST_F(FFmpegDemuxerTest, Initialize_OpenFails) {
 //TEST_F(FFmpegDemuxerTest, Initialize_ParseFails) {
 //  CreateDemuxer("find_stream_info_fail.webm");
 //  demuxer_->Initialize(
-//      NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_PARSE));
+//      &host_, NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_PARSE));
 //  message_loop_.RunAllPending();
 //}
 
@@ -169,7 +168,7 @@ TEST_F(FFmpegDemuxerTest, Initialize_NoStreams) {
   CreateDemuxer("no_streams.webm");
   EXPECT_CALL(host_, SetCurrentReadPosition(_));
   demuxer_->Initialize(
-      NewExpectedStatusCB(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
+      &host_, NewExpectedStatusCB(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
   message_loop_.RunAllPending();
 }
 
@@ -177,7 +176,7 @@ TEST_F(FFmpegDemuxerTest, Initialize_NoAudioVideo) {
   // Open a file containing streams but none of which are audio/video streams.
   CreateDemuxer("no_audio_video.webm");
   demuxer_->Initialize(
-      NewExpectedStatusCB(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
+      &host_, NewExpectedStatusCB(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
   message_loop_.RunAllPending();
 }
 
@@ -558,82 +557,49 @@ TEST_F(FFmpegDemuxerTest, DisableAudioStream) {
   EXPECT_TRUE(reader->buffer()->IsEndOfStream());
 }
 
-class MockFFmpegDemuxer : public FFmpegDemuxer {
- public:
-  MockFFmpegDemuxer(MessageLoop* message_loop,
-                    const scoped_refptr<DataSource>& data_source)
-      : FFmpegDemuxer(message_loop, data_source, true) {
-  }
-  virtual ~MockFFmpegDemuxer() {}
-
-  MOCK_METHOD0(WaitForRead, int());
-  MOCK_METHOD1(SignalReadCompleted, void(int size));
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(MockFFmpegDemuxer);
-};
-
-// A gmock helper method to execute the callback and deletes it.
-void RunCallback(int size, const DataSource::ReadCB& callback) {
-  DCHECK(!callback.is_null());
-  callback.Run(size);
-}
-
 TEST_F(FFmpegDemuxerTest, ProtocolRead) {
-  scoped_refptr<StrictMock<MockDataSource> > data_source =
-      new StrictMock<MockDataSource>();
+  CreateDemuxer("bear-320x240.webm");
+  InitializeDemuxer();
 
-  EXPECT_CALL(*data_source, Stop(_))
-      .WillRepeatedly(Invoke(&RunStopFilterCallback));
+  // Set read head to zero as Initialize() will have parsed a bit of the file.
+  int64 position = 0;
+  EXPECT_TRUE(demuxer_->SetPosition(0));
+  EXPECT_TRUE(demuxer_->GetPosition(&position));
+  EXPECT_EQ(0, position);
 
-  // Creates a demuxer.
-  scoped_refptr<MockFFmpegDemuxer> demuxer(
-      new MockFFmpegDemuxer(&message_loop_, data_source));
-  demuxer->set_host(&host_);
+  // Read 32 bytes from offset zero and verify position.
+  uint8 buffer[32];
+  EXPECT_EQ(32u, demuxer_->Read(32, buffer));
+  EXPECT_EQ(32, current_read_position_);
+  EXPECT_TRUE(demuxer_->GetPosition(&position));
+  EXPECT_EQ(32, position);
 
-  uint8 kBuffer[1];
-  InSequence s;
-  // Actions taken in the first read.
-  EXPECT_CALL(*data_source, GetSize(_))
-      .WillOnce(DoAll(SetArgPointee<0>(1024), Return(true)));
-  EXPECT_CALL(*data_source, Read(0, 512, kBuffer, _))
-      .WillOnce(WithArgs<1, 3>(Invoke(&RunCallback)));
-  EXPECT_CALL(*demuxer, SignalReadCompleted(512));
-  EXPECT_CALL(*demuxer, WaitForRead())
-      .WillOnce(Return(512));
-  EXPECT_CALL(host_, SetCurrentReadPosition(512));
+  // Read an additional 32 bytes and verify position.
+  EXPECT_EQ(32u, demuxer_->Read(32, buffer));
+  EXPECT_EQ(64, current_read_position_);
+  EXPECT_TRUE(demuxer_->GetPosition(&position));
+  EXPECT_EQ(64, position);
 
-  // Second read.
-  EXPECT_CALL(*data_source, GetSize(_))
-      .WillOnce(DoAll(SetArgPointee<0>(1024), Return(true)));
-  EXPECT_CALL(*data_source, Read(512, 512, kBuffer, _))
-      .WillOnce(WithArgs<1, 3>(Invoke(&RunCallback)));
-  EXPECT_CALL(*demuxer, SignalReadCompleted(512));
-  EXPECT_CALL(*demuxer, WaitForRead())
-      .WillOnce(Return(512));
-  EXPECT_CALL(host_, SetCurrentReadPosition(1024));
+  // Seek to end and read until EOF.
+  int64 size = 0;
+  EXPECT_TRUE(demuxer_->GetSize(&size));
+  EXPECT_TRUE(demuxer_->SetPosition(size - 48));
+  EXPECT_EQ(32u, demuxer_->Read(32, buffer));
+  EXPECT_EQ(size - 16, current_read_position_);
+  EXPECT_TRUE(demuxer_->GetPosition(&position));
+  EXPECT_EQ(size - 16, position);
 
-  // Third read will fail because it exceeds the file size.
-  EXPECT_CALL(*data_source, GetSize(_))
-      .WillOnce(DoAll(SetArgPointee<0>(1024), Return(true)));
+  EXPECT_EQ(16u, demuxer_->Read(32, buffer));
+  EXPECT_EQ(size, current_read_position_);
+  EXPECT_TRUE(demuxer_->GetPosition(&position));
+  EXPECT_EQ(size, position);
 
-  // First read.
-  EXPECT_EQ(512u, demuxer->Read(512, kBuffer));
-  int64 position;
-  EXPECT_TRUE(demuxer->GetPosition(&position));
-  EXPECT_EQ(512, position);
+  EXPECT_EQ(0u, demuxer_->Read(32, buffer));
+  EXPECT_EQ(size, current_read_position_);
+  EXPECT_TRUE(demuxer_->GetPosition(&position));
+  EXPECT_EQ(size, position);
 
-  // Second read.
-  EXPECT_EQ(512u, demuxer->Read(512, kBuffer));
-  EXPECT_TRUE(demuxer->GetPosition(&position));
-  EXPECT_EQ(1024, position);
-
-  // Third read will get an end-of-file error, which is represented as zero.
-  EXPECT_EQ(0u, demuxer->Read(512, kBuffer));
-
-  // This read complete signal is generated when demuxer is stopped.
-  EXPECT_CALL(*demuxer, SignalReadCompleted(DataSource::kReadError));
-  demuxer->Stop(NewExpectedClosure());
+  demuxer_->Stop(NewExpectedClosure());
   message_loop_.RunAllPending();
 }
 

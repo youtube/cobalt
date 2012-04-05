@@ -38,34 +38,9 @@ void MockDataSource::SetTotalAndBufferedBytes(int64 total_bytes,
   buffered_bytes_ = buffered_bytes;
 }
 
-MockDemuxer::MockDemuxer()
-    : total_bytes_(-1), buffered_bytes_(-1), duration_() {
-  EXPECT_CALL(*this, GetBitrate()).WillRepeatedly(Return(0));
-  EXPECT_CALL(*this, IsLocalSource()).WillRepeatedly(Return(false));
-  EXPECT_CALL(*this, IsSeekable()).WillRepeatedly(Return(false));
-}
+MockDemuxer::MockDemuxer() {}
 
 MockDemuxer::~MockDemuxer() {}
-
-void MockDemuxer::set_host(DemuxerHost* demuxer_host) {
-  Demuxer::set_host(demuxer_host);
-
-  if (total_bytes_ > 0)
-    host()->SetTotalBytes(total_bytes_);
-
-  if (buffered_bytes_ > 0)
-    host()->SetBufferedBytes(buffered_bytes_);
-
-  if (duration_.InMilliseconds() > 0)
-    host()->SetDuration(duration_);
-}
-
-void MockDemuxer::SetTotalAndBufferedBytesAndDuration(
-    int64 total_bytes, int64 buffered_bytes, const base::TimeDelta& duration) {
-  total_bytes_ = total_bytes;
-  buffered_bytes_ = buffered_bytes;
-  duration_ = duration;
-}
 
 MockDemuxerStream::MockDemuxerStream() {}
 
