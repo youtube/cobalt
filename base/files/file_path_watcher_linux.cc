@@ -436,23 +436,24 @@ bool FilePathWatcherImpl::UpdateWatches() {
       if ((watch_entry->watch_ == InotifyReader::kInvalidWatch) &&
           file_util::IsLink(path)) {
         FilePath link;
-        file_util::ReadSymbolicLink(path, &link);
-        if (!link.IsAbsolute())
-          link = path.DirName().Append(link);
-        // Try watching symlink target directory. If the link target is "/",
-        // then we shouldn't get here in normal situations and if we do, we'd
-        // watch "/" for changes to a component "/" which is harmless so no
-        // special treatment of this case is required.
-        watch_entry->watch_ =
-            g_inotify_reader.Get().AddWatch(link.DirName(), this);
-        if (watch_entry->watch_ != InotifyReader::kInvalidWatch) {
-          watch_entry->linkname_ = link.BaseName().value();
-        } else {
-          DPLOG(WARNING) << "Watch failed for "  << link.DirName().value();
-          // TODO(craig) Symlinks only work if the parent directory
-          // for the target exist. Ideally we should make sure we've
-          // watched all the components of the symlink path for
-          // changes. See crbug.com/91561 for details.
+        if (file_util::ReadSymbolicLink(path, &link)) {
+          if (!link.IsAbsolute())
+            link = path.DirName().Append(link);
+          // Try watching symlink target directory. If the link target is "/",
+          // then we shouldn't get here in normal situations and if we do, we'd
+          // watch "/" for changes to a component "/" which is harmless so no
+          // special treatment of this case is required.
+          watch_entry->watch_ =
+              g_inotify_reader.Get().AddWatch(link.DirName(), this);
+          if (watch_entry->watch_ != InotifyReader::kInvalidWatch) {
+            watch_entry->linkname_ = link.BaseName().value();
+          } else {
+            DPLOG(WARNING) << "Watch failed for "  << link.DirName().value();
+            // TODO(craig) Symlinks only work if the parent directory
+            // for the target exist. Ideally we should make sure we've
+            // watched all the components of the symlink path for
+            // changes. See crbug.com/91561 for details.
+          }
         }
       }
       if (watch_entry->watch_ == InotifyReader::kInvalidWatch) {
