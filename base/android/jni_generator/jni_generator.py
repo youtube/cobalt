@@ -4,10 +4,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# TODO (qinmin): Need to refactor this file as base should not know about
-# higher level concepts. Currently this file has knowledge about higher level
-# java classes.
-
 """Extracts native methods from a Java file and generates the JNI bindings.
 If you change this, please run and update the tests."""
 
@@ -150,36 +146,36 @@ def JavaParamToJni(param):
       'Ljava/util/Vector',
   ]
   app_param_list = [
-      'Landroid/graphics/SurfaceTexture',
-      'Lcom/android/chrome/ChromeBrowserProvider$BookmarkNode',
-      'Lcom/android/chrome/JSModalDialog',
-      'Lcom/android/chrome/OmniboxSuggestion',
-      'Lcom/android/chrome/PageInfoViewer',
+      'Lorg/chromium/chromeview/ChromeView',
       'Lcom/android/chrome/Tab',
-      'Lcom/android/chrome/database/SQLiteCursor',
+      'Lorg/chromium/chromeview/TouchPoint',
+      'Landroid/graphics/SurfaceTexture',
+      'Lorg/chromium/chromeview/ChromeViewClient',
+      'Lcom/android/chrome/JSModalDialog',
       'Lcom/android/chrome/infobar/InfoBarContainer$NativeInfoBar',
+      'Lcom/android/chrome/OmniboxSuggestion',
       ('Lcom/android/chrome/preferences/ChromeNativePreferences$'
        'PasswordListObserver'),
-      'Lorg/chromium/base/SystemMessageHandler',
-      'Lorg/chromium/chromeview/AutofillData',
-      'Lorg/chromium/chromeview/ChromeHttpAuthHandler',
-      'Lorg/chromium/chromeview/ChromeVideoView',
-      'Lorg/chromium/chromeview/ChromeView',
-      'Lorg/chromium/chromeview/ChromeView$ChromeViewContextMenuInfo',
-      ('Lorg/chromium/chromeview/ChromeView$'
-       'FindResultReceivedListener$FindNotificationDetails'),
-      'Lorg/chromium/chromeview/ChromeViewClient',
-      'Lorg/chromium/chromeview/DeviceInfo',
-      'Lorg/chromium/chromeview/DeviceOrientation',
-      'Lorg/chromium/chromeview/JavaInputStream',
-      'Lorg/chromium/chromeview/LocationProvider',
       'Lorg/chromium/chromeview/SandboxedProcessArgs',
       'Lorg/chromium/chromeview/SandboxedProcessConnection',
       'Lorg/chromium/chromeview/SandboxedProcessService',
+      'Lcom/android/chrome/ChromeBrowserProvider$BookmarkNode',
+      'Lcom/android/chrome/database/SQLiteCursor',
+      ('Lorg/chromium/chromeview/ChromeView$'
+       'FindResultReceivedListener$FindNotificationDetails'),
+      'Lorg/chromium/chromeview/ChromeView$ChromeViewContextMenuInfo',
+      'Lorg/chromium/chromeview/AutofillData',
+      'Lorg/chromium/chromeview/JavaInputStream',
+      'Lorg/chromium/chromeview/ChromeVideoView',
+      'Lorg/chromium/chromeview/ChromeHttpAuthHandler',
+      'Lorg/chromium/base/SystemMessageHandler',
       'Lorg/chromium/chromeview/SelectFileDialog',
       'Lorg/chromium/chromeview/SurfaceTextureListener',
-      'Lorg/chromium/chromeview/TouchPoint',
-      'Lorg/chromium/media/MediaPlayerListener',
+      'Lorg/chromium/chromeview/DeviceOrientation',
+      'Lorg/chromium/chromeview/MediaPlayerListener',
+      'Lorg/chromium/chromeview/DeviceInfo',
+      'Lorg/chromium/chromeview/LocationProvider',
+      'Lcom/android/chrome/PageInfoViewer',
   ]
   if param == 'byte[][]':
     return '[[B'
