@@ -12,6 +12,7 @@
 #include "base/memory/singleton.h"
 #include "base/message_loop.h"
 #include "base/metrics/stats_counters.h"
+#include "base/stl_util.h"
 #include "base/synchronization/lock.h"
 #include "net/base/auth.h"
 #include "net/base/host_port_pair.h"
@@ -712,6 +713,19 @@ const URLRequestContext* URLRequest::context() const {
 }
 
 void URLRequest::set_context(const URLRequestContext* context) {
+  // Update the URLRequest lists in the URLRequestContext.
+  if (context_) {
+    std::set<const URLRequest*>* url_requests = context_->url_requests();
+    CHECK(ContainsKey(*url_requests, this));
+    url_requests->erase(this);
+  }
+
+  if (context) {
+    std::set<const URLRequest*>* url_requests = context->url_requests();
+    CHECK(!ContainsKey(*url_requests, this));
+    url_requests->insert(this);
+  }
+
   scoped_refptr<const URLRequestContext> prev_context = context_;
 
   context_ = context;
