@@ -1076,32 +1076,32 @@ EVENT_TYPE(SPDY_SESSION_STALLED_MAX_STREAMS)
 
 // This event indicates the pool is reusing an existing session
 //   {
-//     "id": <The session id>,
+//     "source_dependency": <The session id>,
 //   }
 EVENT_TYPE(SPDY_SESSION_POOL_FOUND_EXISTING_SESSION)
 
 // This event indicates the pool is reusing an existing session from an
 // IP pooling match.
 //   {
-//     "id": <The session id>,
+//     "source_dependency": <The session id>,
 //   }
 EVENT_TYPE(SPDY_SESSION_POOL_FOUND_EXISTING_SESSION_FROM_IP_POOL)
 
 // This event indicates the pool created a new session
 //   {
-//     "id": <The session id>,
+//     "source_dependency": <The session id>,
 //   }
 EVENT_TYPE(SPDY_SESSION_POOL_CREATED_NEW_SESSION)
 
 // This event indicates that a SSL socket has been upgraded to a SPDY session.
 //   {
-//     "id": <The session id>,
+//     "source_dependency": <The session id>,
 //   }
 EVENT_TYPE(SPDY_SESSION_POOL_IMPORTED_SESSION_FROM_SOCKET)
 
 // This event indicates that the session has been removed.
 //   {
-//     "id": <The session id>,
+//     "source_dependency": <The session id>,
 //   }
 EVENT_TYPE(SPDY_SESSION_POOL_REMOVE_SESSION)
 
