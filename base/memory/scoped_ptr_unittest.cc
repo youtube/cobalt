@@ -23,9 +23,9 @@ class ConDecLogger : public ConDecLoggerParent {
   explicit ConDecLogger(int* ptr) { set_ptr(ptr); }
   virtual ~ConDecLogger() { --*ptr_; }
 
-  virtual void set_ptr(int* ptr) { ptr_ = ptr; ++*ptr_; }
+  virtual void set_ptr(int* ptr) OVERRIDE { ptr_ = ptr; ++*ptr_; }
 
-  virtual int SomeMeth(int x) const { return x; }
+  virtual int SomeMeth(int x) const OVERRIDE { return x; }
 
  private:
   int* ptr_;

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,7 +14,7 @@ namespace {
 
 class QuitDelegate : public WaitableEventWatcher::Delegate {
  public:
-  virtual void OnWaitableEventSignaled(WaitableEvent* event) {
+  virtual void OnWaitableEventSignaled(WaitableEvent* event) OVERRIDE {
     MessageLoop::current()->Quit();
   }
 };
@@ -23,7 +23,7 @@ class DecrementCountDelegate : public WaitableEventWatcher::Delegate {
  public:
   explicit DecrementCountDelegate(int* counter) : counter_(counter) {
   }
-  virtual void OnWaitableEventSignaled(WaitableEvent* object) {
+  virtual void OnWaitableEventSignaled(WaitableEvent* object) OVERRIDE {
     --(*counter_);
   }
  private:

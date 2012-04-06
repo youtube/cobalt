@@ -39,7 +39,7 @@ namespace {
 
 class MaybeTestDisabler : public testing::EmptyTestEventListener {
  public:
-  virtual void OnTestStart(const testing::TestInfo& test_info) {
+  virtual void OnTestStart(const testing::TestInfo& test_info) OVERRIDE {
     ASSERT_FALSE(TestSuite::IsMarkedMaybe(test_info))
         << "Probably the OS #ifdefs don't include all of the necessary "
            "platforms.\nPlease ensure that no tests have the MAYBE_ prefix "

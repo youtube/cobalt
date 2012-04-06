@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,7 +21,8 @@ namespace {
 
 class EnvironmentImpl : public base::Environment {
  public:
-  virtual bool GetVar(const char* variable_name, std::string* result) {
+  virtual bool GetVar(const char* variable_name,
+                      std::string* result) OVERRIDE {
     if (GetVarImpl(variable_name, result))
       return true;
 
@@ -40,11 +41,12 @@ class EnvironmentImpl : public base::Environment {
     return GetVarImpl(alternate_case_var.c_str(), result);
   }
 
-  virtual bool SetVar(const char* variable_name, const std::string& new_value) {
+  virtual bool SetVar(const char* variable_name,
+                      const std::string& new_value) OVERRIDE {
     return SetVarImpl(variable_name, new_value);
   }
 
-  virtual bool UnSetVar(const char* variable_name) {
+  virtual bool UnSetVar(const char* variable_name) OVERRIDE {
     return UnSetVarImpl(variable_name);
   }
 
