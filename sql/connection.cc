@@ -168,6 +168,85 @@ void Connection::Preload() {
 #endif
 }
 
+// Create an in-memory database with the existing database's page
+// size, then backup that database over the existing database.
+bool Connection::Raze() {
+  if (!db_) {
+    DLOG(FATAL) << "Cannot raze null db";
+    return false;
+  }
+
+  if (transaction_nesting_ > 0) {
+    DLOG(FATAL) << "Cannot raze within a transaction";
+    return false;
+  }
+
+  sql::Connection null_db;
+  if (!null_db.OpenInMemory()) {
+    DLOG(FATAL) << "Unable to open in-memory database.";
+    return false;
+  }
+
+  // Get the page size from the current connection, then propagate it
+  // to the null database.
+  Statement s(GetUniqueStatement("PRAGMA page_size"));
+  if (!s.Step())
+    return false;
+  const std::string sql = StringPrintf("PRAGMA page_size=%d", s.ColumnInt(0));
+  if (!null_db.Execute(sql.c_str()))
+    return false;
+
+  // The page size doesn't take effect until a database has pages, and
+  // at this point the null database has none.  Changing the schema
+  // version will create the first page.  This will not affect the
+  // schema version in the resulting database, as SQLite's backup
+  // implementation propagates the schema version from the original
+  // connection to the new version of the database, incremented by one
+  // so that other readers see the schema change and act accordingly.
+  if (!null_db.Execute("PRAGMA schema_version = 1"))
+    return false;
+
+  sqlite3_backup* backup = sqlite3_backup_init(db_, "main",
+                                               null_db.db_, "main");
+  if (!backup) {
+    DLOG(FATAL) << "Unable to start sqlite3_backup().";
+    return false;
+  }
+
+  // -1 backs up the entire database.
+  int rc = sqlite3_backup_step(backup, -1);
+  int pages = sqlite3_backup_pagecount(backup);
+  sqlite3_backup_finish(backup);
+
+  // The destination database was locked.
+  if (rc == SQLITE_BUSY) {
+    return false;
+  }
+
+  // The entire database should have been backed up.
+  if (rc != SQLITE_DONE) {
+    DLOG(FATAL) << "Unable to copy entire null database.";
+    return false;
+  }
+
+  // Exactly one page should have been backed up.  If this breaks,
+  // check this function to make sure assumptions aren't being broken.
+  DCHECK_EQ(pages, 1);
+
+  return true;
+}
+
+bool Connection::RazeWithTimout(base::TimeDelta timeout) {
+  if (!db_) {
+    DLOG(FATAL) << "Cannot raze null db";
+    return false;
+  }
+
+  ScopedBusyTimeout busy_timeout(db_);
+  busy_timeout.SetTimeout(timeout);
+  return Raze();
+}
+
 bool Connection::BeginTransaction() {
   if (needs_rollback_) {
     DCHECK_GT(transaction_nesting_, 0);
