@@ -107,6 +107,10 @@ MEDIA_EXPORT size_t GetAudioHardwareBufferSize();
 MEDIA_EXPORT ChannelLayout GetAudioInputHardwareChannelLayout(
     const std::string& device_id);
 
+// Computes a buffer size based on the given |sample_rate|. Must be used in
+// conjunction with AUDIO_PCM_LINEAR.
+MEDIA_EXPORT size_t GetHighLatencyOutputBufferSize(int sample_rate);
+
 // Functions that handle data buffer passed between processes in the shared
 // memory. Called on both IPC sides.
 

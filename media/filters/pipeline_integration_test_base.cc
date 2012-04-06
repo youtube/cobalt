@@ -6,12 +6,13 @@
 
 #include "base/bind.h"
 #include "media/base/media_log.h"
+#include "media/audio/null_audio_sink.h"
+#include "media/filters/audio_renderer_base.h"
 #include "media/filters/chunk_demuxer.h"
 #include "media/filters/ffmpeg_audio_decoder.h"
 #include "media/filters/ffmpeg_demuxer.h"
 #include "media/filters/ffmpeg_video_decoder.h"
 #include "media/filters/file_data_source.h"
-#include "media/filters/null_audio_renderer.h"
 
 using ::testing::AnyNumber;
 
@@ -177,7 +178,7 @@ PipelineIntegrationTestBase::CreateFilterCollection(
                  base::Unretained(this)),
       false);
   collection->AddVideoRenderer(renderer_);
-  collection->AddAudioRenderer(new NullAudioRenderer());
+  collection->AddAudioRenderer(new AudioRendererBase(new NullAudioSink()));
   return collection.Pass();
 }
 

@@ -28,9 +28,9 @@ class AudioRendererSink
     // continuous stream). That actual number of frames is passed to host
     // together with PCM audio data and host is free to use or ignore it.
     // TODO(crogers): use base:Callback instead.
-    virtual size_t Render(const std::vector<float*>& audio_data,
-                          size_t number_of_frames,
-                          size_t audio_delay_milliseconds) = 0;
+    virtual int Render(const std::vector<float*>& audio_data,
+                       int number_of_frames,
+                       int audio_delay_milliseconds) = 0;
 
     // Signals an error has occurred.
     virtual void OnRenderError() = 0;
@@ -57,6 +57,10 @@ class AudioRendererSink
 
   // Resumes playback after calling Pause().
   virtual void Play() = 0;
+
+  // Called to inform the sink of a change in playback rate. Override if
+  // subclass needs the playback rate.
+  virtual void SetPlaybackRate(float rate) {};
 
   // Sets the playback volume, with range [0.0, 1.0] inclusive.
   // Returns |true| on success.
