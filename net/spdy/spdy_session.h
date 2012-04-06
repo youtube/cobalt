@@ -50,8 +50,7 @@ class SpdyStream;
 class SSLInfo;
 
 class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
-                               public BufferedSpdyFramerVisitorInterface,
-                               public LayeredPool {
+                               public BufferedSpdyFramerVisitorInterface {
  public:
   // Create a new SpdySession.
   // |host_port_proxy_pair| is the host/port that this session connects to, and
@@ -273,9 +272,6 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   int GetProtocolVersion() const;
 
-  // LayeredPool implementation.
-  virtual bool CloseOneIdleConnection() OVERRIDE;
-
  private:
   friend class base::RefCounted<SpdySession>;
 
@@ -283,11 +279,9 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy2Test, Ping);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy2Test, FailedPing);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy2Test, GetActivePushStream);
-  FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy2Test, CloseOneIdleConnection);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy3Test, Ping);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy3Test, FailedPing);
   FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy3Test, GetActivePushStream);
-  FRIEND_TEST_ALL_PREFIXES(SpdySessionSpdy3Test, CloseOneIdleConnection);
 
   struct PendingCreateStream {
     PendingCreateStream(const GURL& url, RequestPriority priority,
