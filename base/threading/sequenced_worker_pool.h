@@ -86,6 +86,10 @@ class BASE_EXPORT SequencedWorkerPool {
     BLOCK_SHUTDOWN,
   };
 
+ private:
+  class Inner;
+
+ public:
   // Opaque identifier that defines sequencing of tasks posted to the worker
   // pool. See NewSequenceToken().
   class SequenceToken {
@@ -99,6 +103,10 @@ class BASE_EXPORT SequencedWorkerPool {
 
    private:
     friend class SequencedWorkerPool;
+#if defined(__LB_WII__)
+    // inner classes don't have the access rights of their containers
+    friend class Inner;
+#endif
 
     SequenceToken(int id) : id_(id) {}
 
@@ -206,7 +214,6 @@ class BASE_EXPORT SequencedWorkerPool {
   void SetTestingObserver(TestingObserver* observer);
 
  private:
-  class Inner;
   class Worker;
 
   friend class Inner;

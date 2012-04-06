@@ -90,6 +90,10 @@ class BASE_EXPORT BaseTimer_Helper {
  protected:
   BaseTimer_Helper() : delayed_task_(NULL) {}
 
+#if defined(__LB_WII__)
+ // inner classes don't have the access rights of their containers
+ public:
+#endif
   // We have access to the timer_ member so we can orphan this task.
   class TimerTask {
    public:
@@ -105,6 +109,9 @@ class BASE_EXPORT BaseTimer_Helper {
     BaseTimer_Helper* timer_;
     TimeDelta delay_;
   };
+#if defined(__LB_WII__)
+ protected:
+#endif
 
   // Used to orphan delayed_task_ so that when it runs it does nothing.
   void OrphanDelayedTask();
