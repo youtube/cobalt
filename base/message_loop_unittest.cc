@@ -1546,10 +1546,10 @@ namespace {
 
 class QuitDelegate : public MessageLoopForIO::Watcher {
  public:
-  virtual void OnFileCanWriteWithoutBlocking(int fd) {
+  virtual void OnFileCanWriteWithoutBlocking(int fd) OVERRIDE {
     MessageLoop::current()->Quit();
   }
-  virtual void OnFileCanReadWithoutBlocking(int fd) {
+  virtual void OnFileCanReadWithoutBlocking(int fd) OVERRIDE {
     MessageLoop::current()->Quit();
   }
 };
@@ -1644,7 +1644,7 @@ class MLDestructionObserver : public MessageLoop::DestructionObserver {
         destruction_observer_called_(destruction_observer_called),
         task_destroyed_before_message_loop_(false) {
   }
-  virtual void WillDestroyCurrentMessageLoop() {
+  virtual void WillDestroyCurrentMessageLoop() OVERRIDE {
     task_destroyed_before_message_loop_ = *task_destroyed_;
     *destruction_observer_called_ = true;
   }

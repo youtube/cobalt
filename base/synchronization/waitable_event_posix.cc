@@ -91,7 +91,7 @@ class SyncWaiter : public WaitableEvent::Waiter {
         cv_(&lock_) {
   }
 
-  bool Fire(WaitableEvent* signaling_event) {
+  virtual bool Fire(WaitableEvent* signaling_event) OVERRIDE {
     base::AutoLock locked(lock_);
 
     if (fired_)
@@ -117,7 +117,7 @@ class SyncWaiter : public WaitableEvent::Waiter {
   // These waiters are always stack allocated and don't delete themselves. Thus
   // there's no problem and the ABA tag is the same as the object pointer.
   // ---------------------------------------------------------------------------
-  bool Compare(void* tag) {
+  virtual bool Compare(void* tag) OVERRIDE {
     return this == tag;
   }
 

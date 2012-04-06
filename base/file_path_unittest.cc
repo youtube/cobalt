@@ -46,10 +46,10 @@ struct UTF8TestData {
 // to be a PlatformTest
 class FilePathTest : public PlatformTest {
  protected:
-  virtual void SetUp() {
+  virtual void SetUp() OVERRIDE {
     PlatformTest::SetUp();
   }
-  virtual void TearDown() {
+  virtual void TearDown() OVERRIDE {
     PlatformTest::TearDown();
   }
 };
