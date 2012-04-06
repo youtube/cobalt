@@ -65,7 +65,7 @@ inline int snprintf(char* buffer, size_t size, const char* format, ...)
 inline int snprintf(char* buffer, size_t size, const char* format, ...) {
   va_list arguments;
   va_start(arguments, format);
-  int result = vsnprintf(buffer, size, format, arguments);
+  int result = base::vsnprintf(buffer, size, format, arguments);
   va_end(arguments);
   return result;
 }
@@ -77,7 +77,7 @@ inline int swprintf(wchar_t* buffer, size_t size, const wchar_t* format, ...)
 inline int swprintf(wchar_t* buffer, size_t size, const wchar_t* format, ...) {
   va_list arguments;
   va_start(arguments, format);
-  int result = vswprintf(buffer, size, format, arguments);
+  int result = base::vswprintf(buffer, size, format, arguments);
   va_end(arguments);
   return result;
 }
