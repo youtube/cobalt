@@ -365,81 +365,40 @@ bool ResolveShortcut(FilePath* path) {
   return is_resolved;
 }
 
-bool CreateShortcutLink(const wchar_t *source, const wchar_t *destination,
-                        const wchar_t *working_dir, const wchar_t *arguments,
-                        const wchar_t *description, const wchar_t *icon,
-                        int icon_index, const wchar_t* app_id) {
+bool CreateOrUpdateShortcutLink(const wchar_t *source,
+                                const wchar_t *destination,
+                                const wchar_t *working_dir,
+                                const wchar_t *arguments,
+                                const wchar_t *description,
+                                const wchar_t *icon,
+                                int icon_index,
+                                const wchar_t* app_id,
+                                uint32 options) {
   base::ThreadRestrictions::AssertIOAllowed();
 
-  // Length of description must be less than MAX_PATH.
+  bool create = (options & SHORTCUT_CREATE_ALWAYS) != 0;
+
+  // |source| is required when SHORTCUT_CREATE_ALWAYS is specified.
+  DCHECK(source || !create);
+
+  // Length of arguments and description must be less than MAX_PATH.
+  DCHECK(lstrlen(arguments) < MAX_PATH);
   DCHECK(lstrlen(description) < MAX_PATH);
 
   base::win::ScopedComPtr<IShellLink> i_shell_link;
   base::win::ScopedComPtr<IPersistFile> i_persist_file;
 
   // Get pointer to the IShellLink interface
-  HRESULT result = i_shell_link.CreateInstance(CLSID_ShellLink, NULL,
-                                               CLSCTX_INPROC_SERVER);
-  if (FAILED(result))
+  if (FAILED(i_shell_link.CreateInstance(CLSID_ShellLink, NULL,
+                                         CLSCTX_INPROC_SERVER)) ||
+      FAILED(i_persist_file.QueryFrom(i_shell_link))) {
     return false;
-
-  // Query IShellLink for the IPersistFile interface
-  result = i_persist_file.QueryFrom(i_shell_link);
-  if (FAILED(result))
-    return false;
-
-  if (FAILED(i_shell_link->SetPath(source)))
-    return false;
-
-  if (working_dir && FAILED(i_shell_link->SetWorkingDirectory(working_dir)))
-    return false;
-
-  if (arguments && FAILED(i_shell_link->SetArguments(arguments)))
-    return false;
-
-  if (description && FAILED(i_shell_link->SetDescription(description)))
-    return false;
-
-  if (icon && FAILED(i_shell_link->SetIconLocation(icon, icon_index)))
-    return false;
-
-  if (app_id && (base::win::GetVersion() >= base::win::VERSION_WIN7)) {
-    base::win::ScopedComPtr<IPropertyStore> property_store;
-    if (FAILED(property_store.QueryFrom(i_shell_link)))
-      return false;
-
-    if (!base::win::SetAppIdForPropertyStore(property_store, app_id))
-      return false;
   }
 
-  result = i_persist_file->Save(destination, TRUE);
-  return SUCCEEDED(result);
-}
-
-bool UpdateShortcutLink(const wchar_t *source, const wchar_t *destination,
-                        const wchar_t *working_dir, const wchar_t *arguments,
-                        const wchar_t *description, const wchar_t *icon,
-                        int icon_index, const wchar_t* app_id) {
-  base::ThreadRestrictions::AssertIOAllowed();
-
-  // Length of arguments and description must be less than MAX_PATH.
-  DCHECK(lstrlen(arguments) < MAX_PATH);
-  DCHECK(lstrlen(description) < MAX_PATH);
-
-  // Get pointer to the IPersistFile interface and load existing link
-  base::win::ScopedComPtr<IShellLink> i_shell_link;
-  if (FAILED(i_shell_link.CreateInstance(CLSID_ShellLink, NULL,
-                                         CLSCTX_INPROC_SERVER)))
+  if (!create && FAILED(i_persist_file->Load(destination, STGM_READWRITE)))
     return false;
 
-  base::win::ScopedComPtr<IPersistFile> i_persist_file;
-  if (FAILED(i_persist_file.QueryFrom(i_shell_link)))
-    return false;
-
-  if (FAILED(i_persist_file->Load(destination, STGM_READWRITE)))
-    return false;
-
-  if (source && FAILED(i_shell_link->SetPath(source)))
+  if ((source || create) && FAILED(i_shell_link->SetPath(source)))
     return false;
 
   if (working_dir && FAILED(i_shell_link->SetWorkingDirectory(working_dir)))
@@ -454,22 +413,31 @@ bool UpdateShortcutLink(const wchar_t *source, const wchar_t *destination,
   if (icon && FAILED(i_shell_link->SetIconLocation(icon, icon_index)))
     return false;
 
-  if (app_id && base::win::GetVersion() >= base::win::VERSION_WIN7) {
+  bool is_dual_mode = (options & SHORTCUT_DUAL_MODE) != 0;
+  if ((app_id || is_dual_mode) &&
+      base::win::GetVersion() >= base::win::VERSION_WIN7) {
     base::win::ScopedComPtr<IPropertyStore> property_store;
-    if (FAILED(property_store.QueryFrom(i_shell_link)))
+    if (FAILED(property_store.QueryFrom(i_shell_link)) || !property_store.get())
       return false;
 
-    if (!base::win::SetAppIdForPropertyStore(property_store, app_id))
+    if (app_id && !base::win::SetAppIdForPropertyStore(property_store, app_id))
       return false;
+    if (is_dual_mode &&
+        base::win::GetVersion() >= base::win::VERSION_WIN8 &&
+        !base::win::SetDualModeForPropertyStore(property_store)) {
+      return false;
+    }
   }
 
   HRESULT result = i_persist_file->Save(destination, TRUE);
 
-  i_persist_file.Release();
-  i_shell_link.Release();
-
   // If we successfully updated the icon, notify the shell that we have done so.
-  if (SUCCEEDED(result)) {
+  if (!create && SUCCEEDED(result)) {
+    // Release the interfaces in case the SHChangeNotify call below depends on
+    // the operations above being fully completed.
+    i_persist_file.Release();
+    i_shell_link.Release();
+
     SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST | SHCNF_FLUSHNOWAIT,
                    NULL, NULL);
   }

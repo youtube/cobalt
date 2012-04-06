@@ -79,6 +79,10 @@ BASE_EXPORT bool SetStringValueForPropertyStore(
 BASE_EXPORT bool SetAppIdForPropertyStore(IPropertyStore* property_store,
                                           const wchar_t* app_id);
 
+// Sets the DualModeApp property to true in |property_store|. The function is
+// intended for tagging dual mode applications in Win8.
+BASE_EXPORT bool SetDualModeForPropertyStore(IPropertyStore* property_store);
+
 // Adds the specified |command| using the specified |name| to the AutoRun key.
 // |root_key| could be HKCU or HKLM or the root of any user hive.
 BASE_EXPORT bool AddCommandToAutoRun(HKEY root_key, const string16& name,
