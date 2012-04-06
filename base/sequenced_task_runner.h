@@ -143,7 +143,10 @@ class BASE_EXPORT SequencedTaskRunner : public TaskRunner {
             this, from_here, object);
   }
 
-private:
+ protected:
+  virtual ~SequencedTaskRunner() {}
+
+ private:
   template <class T, class R> friend class subtle::DeleteHelperInternal;
   template <class T, class R> friend class subtle::ReleaseHelperInternal;
 
