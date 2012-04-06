@@ -11,6 +11,8 @@
 #define NET_URL_REQUEST_URL_REQUEST_CONTEXT_H_
 #pragma once
 
+#include <set>
+
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -189,6 +191,12 @@ class NET_EXPORT URLRequestContext
     job_factory_ = job_factory;
   }
 
+  // Gets the URLRequest objects that hold a reference to this
+  // URLRequestContext.
+  std::set<const URLRequest*>* url_requests() const {
+    return url_requests_.get();
+  }
+
  protected:
   friend class base::RefCountedThreadSafe<URLRequestContext>;
 
@@ -231,6 +239,8 @@ class NET_EXPORT URLRequestContext
   // Important: When adding any new members below, consider whether they need to
   // be added to CopyFrom.
   // ---------------------------------------------------------------------------
+
+  scoped_ptr<std::set<const URLRequest*> > url_requests_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestContext);
 };
