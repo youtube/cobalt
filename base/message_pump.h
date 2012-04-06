@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -43,7 +43,6 @@ class BASE_EXPORT MessagePump : public RefCountedThreadSafe<MessagePump> {
   };
 
   MessagePump();
-  virtual ~MessagePump();
 
   // The Run method is called to enter the message pump's run loop.
   //
@@ -120,6 +119,10 @@ class BASE_EXPORT MessagePump : public RefCountedThreadSafe<MessagePump> {
   // cancelling any pending DoDelayedWork callback.  This method may only be
   // used on the thread that called Run.
   virtual void ScheduleDelayedWork(const TimeTicks& delayed_work_time) = 0;
+
+ protected:
+  virtual ~MessagePump();
+  friend class RefCountedThreadSafe<MessagePump>;
 };
 
 }  // namespace base

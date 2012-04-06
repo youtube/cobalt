@@ -59,7 +59,6 @@ class MessagePumpCFRunLoopBase : public MessagePump {
   friend class MessagePumpScopedAutoreleasePool;
  public:
   MessagePumpCFRunLoopBase();
-  virtual ~MessagePumpCFRunLoopBase();
 
   // Subclasses should implement the work they need to do in MessagePump::Run
   // in the DoRun method.  MessagePumpCFRunLoopBase::Run calls DoRun directly.
@@ -72,6 +71,8 @@ class MessagePumpCFRunLoopBase : public MessagePump {
   virtual void ScheduleDelayedWork(const TimeTicks& delayed_work_time) OVERRIDE;
 
  protected:
+  virtual ~MessagePumpCFRunLoopBase();
+
   // Accessors for private data members to be used by subclasses.
   CFRunLoopRef run_loop() const { return run_loop_; }
   int nesting_level() const { return nesting_level_; }
@@ -194,6 +195,9 @@ class MessagePumpCFRunLoop : public MessagePumpCFRunLoopBase {
   virtual void DoRun(Delegate* delegate) OVERRIDE;
   virtual void Quit() OVERRIDE;
 
+ protected:
+  virtual ~MessagePumpCFRunLoop();
+
  private:
   virtual void EnterExitRunLoop(CFRunLoopActivity activity) OVERRIDE;
 
@@ -208,10 +212,12 @@ class MessagePumpCFRunLoop : public MessagePumpCFRunLoopBase {
 class MessagePumpNSRunLoop : public MessagePumpCFRunLoopBase {
  public:
   BASE_EXPORT MessagePumpNSRunLoop();
-  virtual ~MessagePumpNSRunLoop();
 
   virtual void DoRun(Delegate* delegate) OVERRIDE;
   virtual void Quit() OVERRIDE;
+
+ protected:
+  virtual ~MessagePumpNSRunLoop();
 
  private:
   // A source that doesn't do anything but provide something signalable
@@ -232,6 +238,9 @@ class MessagePumpNSApplication : public MessagePumpCFRunLoopBase {
   virtual void DoRun(Delegate* delegate) OVERRIDE;
   virtual void Quit() OVERRIDE;
 
+ protected:
+  virtual ~MessagePumpNSApplication();
+
  private:
   // False after Quit is called.
   bool keep_running_;
@@ -250,6 +259,8 @@ class MessagePumpCrApplication : public MessagePumpNSApplication {
   MessagePumpCrApplication();
 
  protected:
+  virtual ~MessagePumpCrApplication() {}
+
   // Returns nil if NSApp is currently in the middle of calling
   // -sendEvent.  Requires NSApp implementing CrAppProtocol.
   virtual NSAutoreleasePool* CreateAutoreleasePool() OVERRIDE;

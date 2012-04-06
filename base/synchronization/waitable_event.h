@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -145,7 +145,6 @@ class BASE_EXPORT WaitableEvent {
       public RefCountedThreadSafe<WaitableEventKernel> {
    public:
     WaitableEventKernel(bool manual_reset, bool initially_signaled);
-    virtual ~WaitableEventKernel();
 
     bool Dequeue(Waiter* waiter, void* tag);
 
@@ -153,6 +152,10 @@ class BASE_EXPORT WaitableEvent {
     const bool manual_reset_;
     bool signaled_;
     std::list<Waiter*> waiters_;
+
+   private:
+    friend class RefCountedThreadSafe<WaitableEventKernel>;
+    ~WaitableEventKernel();
   };
 
   typedef std::pair<WaitableEvent*, size_t> WaiterAndIndex;
