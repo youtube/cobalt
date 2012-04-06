@@ -23,7 +23,13 @@
 #define BASE_TIME_H_
 #pragma once
 
+#if defined(__SNC__)
+// SNC needs this trick to find the right header.
 #include_next <time.h>
+#else
+// MW doesn't understand #include_next.
+#include <time.h>
+#endif
 
 #include "base/atomicops.h"
 #include "base/base_export.h"

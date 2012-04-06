@@ -74,6 +74,8 @@
 #elif defined(OS_ANDROID)
 #include <ctype.h>
 #include "base/os_compat_android.h"  // For timegm()
+#elif defined(__LB_WII__)
+#include <ctype.h>
 #endif
 #include <errno.h>  /* for EINVAL */
 #include <time.h>
