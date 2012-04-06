@@ -196,45 +196,40 @@ BASE_EXPORT bool ReadSymbolicLink(const FilePath& symlink, FilePath* target);
 #endif  // defined(OS_POSIX)
 
 #if defined(OS_WIN)
+enum ShortcutOptions {
+  SHORTCUT_NO_OPTIONS = 0,
+  // Set DualMode property for Windows 8 Metro-enabled shortcuts.
+  SHORTCUT_DUAL_MODE = 1 << 0,
+  // Create a new shortcut (overwriting if necessary). If not specified, only
+  // non-null properties on an existing shortcut will be modified.
+  SHORTCUT_CREATE_ALWAYS = 1 << 1,
+};
+
 // Resolve Windows shortcut (.LNK file)
 // This methods tries to resolve a shortcut .LNK file. If the |path| is valid
 // returns true and puts the target into the |path|, otherwise returns
 // false leaving the path as it is.
 BASE_EXPORT bool ResolveShortcut(FilePath* path);
 
-// Create a Windows shortcut (.LNK file)
-// This method creates a shortcut link using the information given. Ensure
-// you have initialized COM before calling into this function. 'source'
-// and 'destination' parameters are required, everything else can be NULL.
-// 'source' is the existing file, 'destination' is the new link file to be
+// Creates (or updates) a Windows shortcut (.LNK file)
+// This method creates (or updates) a shortcut link using the information given.
+// Ensure you have initialized COM before calling into this function.
+// |destination| is required. |source| is required when SHORTCUT_CREATE_ALWAYS
+// is specified in |options|. All other parameters are optional and may be NULL.
+// |source| is the existing file, |destination| is the new link file to be
 // created; for best results pass the filename with the .lnk extension.
-// The 'icon' can specify a dll or exe in which case the icon index is the
-// resource id. 'app_id' is the app model id for the shortcut on Win7.
-// Note that if the shortcut exists it will overwrite it.
-BASE_EXPORT bool CreateShortcutLink(const wchar_t *source,
+// The |icon| can specify a dll or exe in which case the icon index is the
+// resource id. |app_id| is the app model id for the shortcut on Win7.
+// |options|: bitfield for which the options come from ShortcutOptions.
+BASE_EXPORT bool CreateOrUpdateShortcutLink(const wchar_t *source,
                                     const wchar_t *destination,
                                     const wchar_t *working_dir,
                                     const wchar_t *arguments,
                                     const wchar_t *description,
                                     const wchar_t *icon,
                                     int icon_index,
-                                    const wchar_t* app_id);
-
-// Update a Windows shortcut (.LNK file). This method assumes the shortcut
-// link already exists (otherwise false is returned). Ensure you have
-// initialized COM before calling into this function. Only 'destination'
-// parameter is required, everything else can be NULL (but if everything else
-// is NULL no changes are made to the shortcut). 'destination' is the link
-// file to be updated. 'app_id' is the app model id for the shortcut on Win7.
-// For best results pass the filename with the .lnk extension.
-BASE_EXPORT bool UpdateShortcutLink(const wchar_t *source,
-                                    const wchar_t *destination,
-                                    const wchar_t *working_dir,
-                                    const wchar_t *arguments,
-                                    const wchar_t *description,
-                                    const wchar_t *icon,
-                                    int icon_index,
-                                    const wchar_t* app_id);
+                                    const wchar_t* app_id,
+                                    uint32 options);
 
 // Pins a shortcut to the Windows 7 taskbar. The shortcut file must already
 // exist and be a shortcut that points to an executable.

@@ -1458,16 +1458,17 @@ TEST_F(FileUtilTest, ResolveShortcutTest) {
 }
 
 TEST_F(FileUtilTest, CreateShortcutTest) {
-  const wchar_t file_contents[] = L"This is another target.";
+  const wchar_t* file_contents = L"This is another target.";
   FilePath target_file = temp_dir_.path().Append(L"Target1.txt");
   CreateTextFile(target_file, file_contents);
 
   FilePath link_file = temp_dir_.path().Append(L"Link1.lnk");
 
   CoInitialize(NULL);
-  EXPECT_TRUE(file_util::CreateShortcutLink(target_file.value().c_str(),
-                                            link_file.value().c_str(),
-                                            NULL, NULL, NULL, NULL, 0, NULL));
+  EXPECT_TRUE(file_util::CreateOrUpdateShortcutLink(
+                  target_file.value().c_str(), link_file.value().c_str(), NULL,
+                  NULL, NULL, NULL, 0, NULL,
+                  file_util::SHORTCUT_CREATE_ALWAYS));
   FilePath resolved_name = link_file;
   EXPECT_TRUE(file_util::ResolveShortcut(&resolved_name));
   std::wstring read_contents = ReadTextFile(resolved_name);
