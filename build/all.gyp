@@ -598,6 +598,11 @@
                 '../ui/views/views.gyp:views_unittests',
               ],
             }],
+            ['chromeos==1', {
+              'dependencies': [
+                '../chromeos/chromeos.gyp:chromeos_unittests',
+              ],
+            }],
           ],
         },
       ],  # targets
