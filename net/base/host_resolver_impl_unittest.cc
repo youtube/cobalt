@@ -417,6 +417,7 @@ class ResolveRequest {
                  int port,
                  Delegate* delegate)
       : info_(HostPortPair(hostname, port)),
+        result_(ERR_IO_PENDING),
         resolver_(resolver),
         delegate_(delegate)  {
     // Start the request.
@@ -431,7 +432,10 @@ class ResolveRequest {
   ResolveRequest(HostResolver* resolver,
                  const HostResolver::RequestInfo& info,
                  Delegate* delegate)
-      : info_(info), resolver_(resolver), delegate_(delegate) {
+      : info_(info),
+        result_(ERR_IO_PENDING),
+        resolver_(resolver),
+        delegate_(delegate) {
     // Start the request.
     int err = resolver->Resolve(
         info, &addrlist_,
@@ -1107,6 +1111,37 @@ TEST_F(HostResolverImplTest, DeleteWithinCallback) {
 
   // |verifier| will send quit message once all the requests have finished.
   MessageLoop::current()->Run();
+}
+
+TEST_F(HostResolverImplTest, DeleteWithinAbortedCallback) {
+  scoped_refptr<WaitingHostResolverProc> resolver_proc(
+      new WaitingHostResolverProc(NULL));
+
+  HostResolver* host_resolver = CreateHostResolverImpl(resolver_proc);
+  DeleteWithinCallbackVerifier verifier(host_resolver);
+
+  // This test assumes that the Jobs will be Aborted in order ["a", "b"]
+  ResolveRequest req1(host_resolver, "a", 80, &verifier);
+  // HostResolverImpl will be deleted before later Requess can complete.
+  ResolveRequest req2(host_resolver, "a", 81, &verifier);
+  // Job for 'b' will be aborted before it can complete.
+  ResolveRequest req3(host_resolver, "b", 82, &verifier);
+  ResolveRequest req4(host_resolver, "b", 83, &verifier);
+
+  // Must wait before signal to ensure that the two signals don't get merged
+  // together. (Worker threads might not start until the last WaitForResult.)
+  resolver_proc->Wait();
+  // Triggering an IP address change.
+  NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
+
+  // |verifier| will send quit message once all the requests have finished.
+  MessageLoop::current()->Run();
+  EXPECT_EQ(ERR_ABORTED, req1.result());
+  EXPECT_EQ(ERR_IO_PENDING, req2.result());
+  EXPECT_EQ(ERR_IO_PENDING, req3.result());
+  EXPECT_EQ(ERR_IO_PENDING, req4.result());
+  // Clean up.
+  resolver_proc->Signal();
 }
 
 // Helper class used by HostResolverImplTest.StartWithinCallback.
