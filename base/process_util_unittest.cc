@@ -455,6 +455,9 @@ TEST_F(ProcessUtilTest, LaunchAsUser) {
 // test suite setup and does not need to be done again, else mach_override
 // will fail.
 
+#if !defined(ADDRESS_SANITIZER)
+// The following code tests the system implementation of malloc() thus no need
+// to test it under AddressSanitizer.
 TEST_F(ProcessUtilTest, MacMallocFailureDoesNotTerminate) {
   // Install the OOM killer.
   base::EnableTerminationOnOutOfMemory();
@@ -474,11 +477,12 @@ TEST_F(ProcessUtilTest, MacMallocFailureDoesNotTerminate) {
 
   base::debug::Alias(buf);
 }
+#endif  // !defined(ADDRESS_SANITIZER)
 
 TEST_F(ProcessUtilTest, MacTerminateOnHeapCorruption) {
   // Assert that freeing an unallocated pointer will crash the process.
   char buf[3];
-#ifndef ADDRESS_SANITIZER
+#if !defined(ADDRESS_SANITIZER)
   ASSERT_DEATH(free(buf), "being freed.*"
       "\\*\\*\\* set a breakpoint in malloc_error_break to debug.*"
       "Terminating process due to a potential for future heap corruption");
@@ -487,7 +491,7 @@ TEST_F(ProcessUtilTest, MacTerminateOnHeapCorruption) {
   // heap corruption.
   ASSERT_DEATH(free(buf), "attempting free on address which "
       "was not malloc\\(\\)-ed");
-#endif
+#endif  // !defined(ADDRESS_SANITIZER)
 }
 
 #endif  // defined(OS_MACOSX)
