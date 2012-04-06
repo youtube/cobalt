@@ -241,6 +241,9 @@
       # Enables support for background apps.
       'enable_background%': 1,
 
+      # Enable the task manager by default.
+      'enable_task_manager%': 1,
+
       # XInput2 multitouch support is disabled by default (use_xi2_mt=0).
       # Setting to non-zero value enables XI2 MT. When XI2 MT is enabled,
       # the input value also defines the required XI2 minor minimum version.
@@ -513,6 +516,7 @@
     'tests_run%': '<(tests_run)',
     'enable_automation%': '<(enable_automation)',
     'force_rlz_use_chrome_net%': '<(force_rlz_use_chrome_net)',
+    'enable_task_manager%': '<(enable_task_manager)',
 
     # Whether to build for Wayland display server
     'use_wayland%': 0,
@@ -789,6 +793,7 @@
         'use_openssl%': 1,
 
         'proprietary_codecs%': '<(proprietary_codecs)',
+        'enable_task_manager%': 0,
         'safe_browsing%': 0,
         'configuration_policy%': 0,
         'input_speech%': 0,
@@ -1359,6 +1364,11 @@
       ['enable_register_protocol_handler==1', {
         'defines': [
           'ENABLE_REGISTER_PROTOCOL_HANDLER=1',
+        ],
+      }],
+      ['enable_task_manager==1', {
+        'defines': [
+          'ENABLE_TASK_MANAGER=1',
         ],
       }],
       ['enable_web_intents==1', {
