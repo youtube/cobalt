@@ -11,17 +11,13 @@ namespace media {
 MessageLoopFactory::MessageLoopFactory() {}
 
 MessageLoopFactory::~MessageLoopFactory() {
-  for (ThreadMap::iterator iter = thread_map_.begin();
-       iter != thread_map_.end();
-       ++iter) {
-    base::Thread* thread = (*iter).second;
-
-    if (thread) {
-      thread->Stop();
-      delete thread;
-    }
+  for (ThreadList::reverse_iterator it = threads_.rbegin();
+       it != threads_.rend(); ++it) {
+    base::Thread* thread = it->second;
+    thread->Stop();
+    delete thread;
   }
-  thread_map_.clear();
+  threads_.clear();
 }
 
 MessageLoop* MessageLoopFactory::GetMessageLoop(const std::string& name) {
@@ -37,13 +33,14 @@ base::Thread* MessageLoopFactory::GetThread(const std::string& name) {
   DCHECK(!name.empty());
 
   base::AutoLock auto_lock(lock_);
-  ThreadMap::iterator it = thread_map_.find(name);
-  if (it != thread_map_.end())
-    return (*it).second;
+  for (ThreadList::iterator it = threads_.begin(); it != threads_.end(); ++it) {
+    if (it->first == name)
+      return it->second;
+  }
 
   base::Thread* thread = new base::Thread(name.c_str());
   CHECK(thread->Start()) << "Failed to start thread: " << name;
-  thread_map_[name] = thread;
+  threads_.push_back(std::make_pair(name, thread));
   return thread;
 }
 
