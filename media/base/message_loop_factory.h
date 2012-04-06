@@ -5,7 +5,7 @@
 #ifndef MEDIA_BASE_MESSAGE_LOOP_FACTORY_H_
 #define MEDIA_BASE_MESSAGE_LOOP_FACTORY_H_
 
-#include <map>
+#include <list>
 #include <string>
 
 #include "base/memory/ref_counted.h"
@@ -53,8 +53,10 @@ class MEDIA_EXPORT MessageLoopFactory {
   // Lock used to serialize access for the following data members.
   base::Lock lock_;
 
-  typedef std::map<std::string, base::Thread*> ThreadMap;
-  ThreadMap thread_map_;
+  // List of pairs of created threads and their names.  We use a list to ensure
+  // threads are stopped & deleted in reverse order of creation.
+  typedef std::list<std::pair<std::string, base::Thread*> > ThreadList;
+  ThreadList threads_;
 
   DISALLOW_COPY_AND_ASSIGN(MessageLoopFactory);
 };
