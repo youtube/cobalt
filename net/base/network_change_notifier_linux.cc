@@ -384,19 +384,7 @@ void NetworkChangeNotifierLinux::Thread::ListenForNotifications() {
   while (rv > 0) {
     if (HandleNetlinkMessage(buf, rv)) {
       VLOG(1) << "Detected IP address changes.";
-#if defined(OS_CHROMEOS)
-      // TODO(oshima): chromium-os:8285 - introduced artificial delay to
-      // work around the issue of network load issue after connection
-      // restored. See the bug for more details.
-      //  This should be removed once this bug is properly fixed.
-      const int kObserverNotificationDelayMS = 200;
-      message_loop()->PostDelayedTask(
-          FROM_HERE,
-          base::Bind(&NetworkChangeNotifier::NotifyObserversOfIPAddressChange),
-          kObserverNotificationDelayMS);
-#else
       NotifyObserversOfIPAddressChange();
-#endif
     }
     rv = ReadNotificationMessage(buf, arraysize(buf));
   }
