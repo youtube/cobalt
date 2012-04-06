@@ -20,6 +20,49 @@
 #include "base/win/scoped_handle.h"
 #include "base/win/windows_version.h"
 
+namespace {
+
+#if !defined(_WIN32_WINNT_WIN8)
+// TODO(gab): These definitions are temporary and should be removed once the
+// win8 SDK has been imported into third_party/
+
+// Using the same definition as in
+// third_party\platformsdk_win7\files\Include\propkeydef.h
+// without DECLSPEC_SELECTANY...
+#define DEFINE_WIN8_PROPERTYKEY(name, l, w1, w2, \
+                                b1, b2, b3, b4, b5, b6, b7, b8, \
+                                pid) \
+    const PROPERTYKEY name = { { l, w1, w2, \
+                                 { b1, b2,  b3,  b4,  b5,  b6,  b7,  b8 } }, \
+                               pid }
+
+DEFINE_WIN8_PROPERTYKEY(PKEY_AppUserModel_DualMode, 0x9F4C2855, 0x9F79, 0x4B39,
+                        0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3, 11);
+DEFINE_WIN8_PROPERTYKEY(PKEY_AppUserModel_DualMode_UK, 0x9F4C2855, 0x9F79,
+                        0x4B39, 0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3,
+                        18);
+
+#undef DEFINE_WIN8_PROPERTYKEY
+#endif
+
+// Sets the value of |property_key| to |property_value| in |property_store|.
+// Clears the PropVariant contained in |property_value|.
+bool SetPropVariantValueForPropertyStore(
+    IPropertyStore* property_store,
+    const PROPERTYKEY& property_key,
+    PROPVARIANT* property_value) {
+  DCHECK(property_store);
+
+  HRESULT result = property_store->SetValue(property_key, *property_value);
+  if (result == S_OK)
+    result = property_store->Commit();
+
+  PropVariantClear(property_value);
+  return SUCCEEDED(result);
+}
+
+}  // namespace
+
 namespace base {
 namespace win {
 
@@ -99,21 +142,40 @@ bool UserAccountControlIsEnabled() {
   return (uac_enabled != 0);
 }
 
+bool SetBooleanValueForPropertyStore(IPropertyStore* property_store,
+                                     const PROPERTYKEY& property_key,
+                                     bool property_bool_value) {
+  PROPVARIANT property_value;
+  if (FAILED(InitPropVariantFromBoolean(property_bool_value, &property_value)))
+    return false;
+
+  return SetPropVariantValueForPropertyStore(property_store,
+                                             property_key,
+                                             &property_value);
+}
+
+bool SetUInt32ValueForPropertyStore(IPropertyStore* property_store,
+                                    const PROPERTYKEY& property_key,
+                                    uint32 property_uint32_value) {
+  PROPVARIANT property_value;
+  if (FAILED(InitPropVariantFromUInt32(property_uint32_value, &property_value)))
+    return false;
+
+  return SetPropVariantValueForPropertyStore(property_store,
+                                             property_key,
+                                             &property_value);
+}
+
 bool SetStringValueForPropertyStore(IPropertyStore* property_store,
                                     const PROPERTYKEY& property_key,
                                     const wchar_t* property_string_value) {
-  DCHECK(property_store);
-
   PROPVARIANT property_value;
   if (FAILED(InitPropVariantFromString(property_string_value, &property_value)))
     return false;
 
-  HRESULT result = property_store->SetValue(property_key, property_value);
-  if (S_OK == result)
-    result = property_store->Commit();
-
-  PropVariantClear(&property_value);
-  return SUCCEEDED(result);
+  return SetPropVariantValueForPropertyStore(property_store,
+                                             property_key,
+                                             &property_value);
 }
 
 bool SetAppIdForPropertyStore(IPropertyStore* property_store,
@@ -126,6 +188,17 @@ bool SetAppIdForPropertyStore(IPropertyStore* property_store,
   return SetStringValueForPropertyStore(property_store,
                                         PKEY_AppUserModel_ID,
                                         app_id);
+}
+
+bool SetDualModeForPropertyStore(IPropertyStore* property_store) {
+  DCHECK_GE(base::win::GetVersion(), base::win::VERSION_WIN8);
+
+  return SetBooleanValueForPropertyStore(property_store,
+                                         PKEY_AppUserModel_DualMode,
+                                         true) &&
+         SetUInt32ValueForPropertyStore(property_store,
+                                        PKEY_AppUserModel_DualMode_UK,
+                                        1U);
 }
 
 static const char16 kAutoRunKeyPath[] =
