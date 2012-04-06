@@ -25,7 +25,7 @@ class MessagePumpLibeventTest : public testing::Test {
         io_thread_("MessagePumpLibeventTestIOThread") {}
   virtual ~MessagePumpLibeventTest() {}
 
-  virtual void SetUp() {
+  virtual void SetUp() OVERRIDE {
     Thread::Options options(MessageLoop::TYPE_IO, 0);
     ASSERT_TRUE(io_thread_.StartWithOptions(options));
     ASSERT_EQ(MessageLoop::TYPE_IO, io_thread_.message_loop()->type());
@@ -55,8 +55,8 @@ class StupidWatcher : public MessagePumpLibevent::Watcher {
   virtual ~StupidWatcher() {}
 
   // base:MessagePumpLibevent::Watcher interface
-  virtual void OnFileCanReadWithoutBlocking(int fd) {}
-  virtual void OnFileCanWriteWithoutBlocking(int fd) {}
+  virtual void OnFileCanReadWithoutBlocking(int fd) OVERRIDE {}
+  virtual void OnFileCanWriteWithoutBlocking(int fd) OVERRIDE {}
 };
 
 #if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
@@ -85,10 +85,10 @@ class DeleteWatcher : public MessagePumpLibevent::Watcher {
   virtual ~DeleteWatcher() {}
 
   // base:MessagePumpLibevent::Watcher interface
-  virtual void OnFileCanReadWithoutBlocking(int /* fd */) {
+  virtual void OnFileCanReadWithoutBlocking(int /* fd */) OVERRIDE {
     NOTREACHED();
   }
-  virtual void OnFileCanWriteWithoutBlocking(int /* fd */) {
+  virtual void OnFileCanWriteWithoutBlocking(int /* fd */) OVERRIDE {
     delete controller_;
   }
 
@@ -118,10 +118,10 @@ class StopWatcher : public MessagePumpLibevent::Watcher {
   virtual ~StopWatcher() {}
 
   // base:MessagePumpLibevent::Watcher interface
-  virtual void OnFileCanReadWithoutBlocking(int /* fd */) {
+  virtual void OnFileCanReadWithoutBlocking(int /* fd */) OVERRIDE {
     NOTREACHED();
   }
-  virtual void OnFileCanWriteWithoutBlocking(int /* fd */) {
+  virtual void OnFileCanWriteWithoutBlocking(int /* fd */) OVERRIDE {
     controller_->StopWatchingFileDescriptor();
   }
 

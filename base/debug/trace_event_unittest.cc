@@ -58,10 +58,10 @@ class TraceEventTestFixture : public testing::Test {
     json_output_.json_output.clear();
   }
 
-  virtual void SetUp() {
+  virtual void SetUp() OVERRIDE {
     old_thread_name_ = PlatformThread::GetName();
   }
-  virtual void TearDown() {
+  virtual void TearDown() OVERRIDE {
     if (TraceLog::GetInstance())
       EXPECT_FALSE(TraceLog::GetInstance()->IsEnabled());
     PlatformThread::SetName(old_thread_name_ ? old_thread_name_  : "");

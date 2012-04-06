@@ -62,12 +62,11 @@ class LifeCycleWatcher : public LifeCycleObject::Observer {
   LifeCycleWatcher()
       : life_cycle_state_(LC_INITIAL),
         constructed_life_cycle_object_(NULL) {}
-  ~LifeCycleWatcher() {
-  }
+  virtual ~LifeCycleWatcher() {}
 
   // Assert INITIAL -> CONSTRUCTED and no LifeCycleObject associated with this
   // LifeCycleWatcher.
-  virtual void OnLifeCycleConstruct(LifeCycleObject* object) {
+  virtual void OnLifeCycleConstruct(LifeCycleObject* object) OVERRIDE {
     ASSERT_EQ(LC_INITIAL, life_cycle_state_);
     ASSERT_EQ(NULL, constructed_life_cycle_object_.get());
     life_cycle_state_ = LC_CONSTRUCTED;
@@ -76,7 +75,7 @@ class LifeCycleWatcher : public LifeCycleObject::Observer {
 
   // Assert CONSTRUCTED -> DESTROYED and the |object| being destroyed is the
   // same one we saw constructed.
-  virtual void OnLifeCycleDestroy(LifeCycleObject* object) {
+  virtual void OnLifeCycleDestroy(LifeCycleObject* object) OVERRIDE {
     ASSERT_EQ(LC_CONSTRUCTED, life_cycle_state_);
     LifeCycleObject* constructed_life_cycle_object =
         constructed_life_cycle_object_.release();
