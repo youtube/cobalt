@@ -911,44 +911,8 @@
         },
       ],
     }],
-    ['OS == "android"', {
-      'targets': [
-        {
-          'target_name': 'player_android',
-          'type': 'static_library',
-          'sources': [
-            'base/android/media_player_bridge.cc',
-            'base/android/media_player_bridge.h',
-          ],
-          'dependencies': [
-            '../base/base.gyp:base',
-          ],
-          'include_dirs': [
-            '<(SHARED_INTERMEDIATE_DIR)/media',
-          ],
-          'actions': [
-            {
-              'action_name': 'generate-jni-headers',
-              'inputs': [
-                '../base/android/jni_generator/jni_generator.py',
-                'base/android/java/org/chromium/media/MediaPlayerListener.java',
-              ],
-              'outputs': [
-                '<(SHARED_INTERMEDIATE_DIR)/media/jni/media_player_listener_jni.h',
-              ],
-              'action': [
-                'python',
-                '<(DEPTH)/base/android/jni_generator/jni_generator.py',
-                '-o',
-                '<@(_inputs)',
-                '<@(_outputs)',
-              ],
-            },
-          ],
-        },
-      ],
-    }, { # OS != "android"'
-      # Android does not use ffmpeg, so disable the targets which require it.
+    # Android does not use ffmpeg, so disable the targets which require it.
+    ['OS!="android"', {
       'targets': [
         {
           'target_name': 'ffmpeg_unittests',
