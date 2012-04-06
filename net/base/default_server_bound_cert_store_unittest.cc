@@ -286,7 +286,7 @@ TEST(DefaultServerBoundCertStoreTest, TestGetAll) {
       "g", "h");
 
   EXPECT_EQ(4, store.GetCertCount());
-  std::vector<ServerBoundCertStore::ServerBoundCert> certs;
+  ServerBoundCertStore::ServerBoundCertList certs;
   store.GetAllServerBoundCerts(&certs);
   EXPECT_EQ(4u, certs.size());
 }

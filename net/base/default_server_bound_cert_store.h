@@ -74,7 +74,7 @@ class NET_EXPORT DefaultServerBoundCertStore : public ServerBoundCertStore {
                                        base::Time delete_end) OVERRIDE;
   virtual void DeleteAll() OVERRIDE;
   virtual void GetAllServerBoundCerts(
-      std::vector<ServerBoundCert>* server_bound_certs) OVERRIDE;
+      ServerBoundCertList* server_bound_certs) OVERRIDE;
   virtual int GetCertCount() OVERRIDE;
 
  private:
