@@ -427,6 +427,38 @@ ChannelLayout GetAudioInputHardwareChannelLayout(const std::string& device_id) {
 #endif
 }
 
+// Computes a buffer size based on the given |sample_rate|. Must be used in
+// conjunction with AUDIO_PCM_LINEAR.
+size_t GetHighLatencyOutputBufferSize(int sample_rate) {
+  // TODO(vrk/crogers): The buffer sizes that this function computes is probably
+  // overly conservative. However, reducing the buffer size to 2048-8192 bytes
+  // caused crbug.com/108396. This computation should be revisited while making
+  // sure crbug.com/108396 doesn't happen again.
+
+  // The minimum number of samples in a hardware packet.
+  // This value is selected so that we can handle down to 5khz sample rate.
+  static const size_t kMinSamplesPerHardwarePacket = 1024;
+
+  // The maximum number of samples in a hardware packet.
+  // This value is selected so that we can handle up to 192khz sample rate.
+  static const size_t kMaxSamplesPerHardwarePacket = 64 * 1024;
+
+  // This constant governs the hardware audio buffer size, this value should be
+  // chosen carefully.
+  // This value is selected so that we have 8192 samples for 48khz streams.
+  static const size_t kMillisecondsPerHardwarePacket = 170;
+
+  // Select the number of samples that can provide at least
+  // |kMillisecondsPerHardwarePacket| worth of audio data.
+  size_t samples = kMinSamplesPerHardwarePacket;
+  while (samples <= kMaxSamplesPerHardwarePacket &&
+         samples * base::Time::kMillisecondsPerSecond <
+         sample_rate * kMillisecondsPerHardwarePacket) {
+    samples *= 2;
+  }
+  return samples;
+}
+
 // When transferring data in the shared memory, first word is size of data
 // in bytes. Actual data starts immediately after it.
 
