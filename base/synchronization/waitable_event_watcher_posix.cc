@@ -65,7 +65,7 @@ class AsyncWaiter : public WaitableEvent::Waiter {
         callback_(callback),
         flag_(flag) { }
 
-  bool Fire(WaitableEvent* event) {
+  virtual bool Fire(WaitableEvent* event) OVERRIDE {
     // Post the callback if we haven't been cancelled.
     if (!flag_->value()) {
       message_loop_->PostTask(FROM_HERE, callback_);
@@ -81,7 +81,7 @@ class AsyncWaiter : public WaitableEvent::Waiter {
   }
 
   // See StopWatching for discussion
-  bool Compare(void* tag) {
+  virtual bool Compare(void* tag) OVERRIDE {
     return tag == flag_.get();
   }
 

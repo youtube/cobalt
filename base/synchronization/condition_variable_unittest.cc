@@ -62,10 +62,10 @@ class ConditionVariableTest : public PlatformTest {
 class WorkQueue : public PlatformThread::Delegate {
  public:
   explicit WorkQueue(int thread_count);
-  ~WorkQueue();
+  virtual ~WorkQueue();
 
   // PlatformThread::Delegate interface.
-  void ThreadMain();
+  virtual void ThreadMain() OVERRIDE;
 
   //----------------------------------------------------------------------------
   // Worker threads only call the following methods.

@@ -142,7 +142,7 @@ const file_util::FileEnumerator::FileType FILES_AND_DIRECTORIES =
 // to be a PlatformTest
 class FileUtilTest : public PlatformTest {
  protected:
-  virtual void SetUp() {
+  virtual void SetUp() OVERRIDE {
     PlatformTest::SetUp();
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
   }
@@ -1896,7 +1896,7 @@ TEST_F(FileUtilTest, IsDirectoryEmpty) {
 // with a common SetUp() method.
 class VerifyPathControlledByUserTest : public FileUtilTest {
  protected:
-  virtual void SetUp() {
+  virtual void SetUp() OVERRIDE {
     FileUtilTest::SetUp();
 
     // Create a basic structure used by each test.

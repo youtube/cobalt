@@ -152,11 +152,11 @@ class SequencedWorkerPoolTest : public testing::Test {
       : pool_owner_(kNumWorkerThreads, "test"),
         tracker_(new TestTracker) {}
 
-  ~SequencedWorkerPoolTest() {}
+  virtual ~SequencedWorkerPoolTest() {}
 
-  virtual void SetUp() {}
+  virtual void SetUp() OVERRIDE {}
 
-  virtual void TearDown() {
+  virtual void TearDown() OVERRIDE {
     pool()->Shutdown();
   }
 

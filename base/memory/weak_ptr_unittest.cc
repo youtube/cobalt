@@ -44,11 +44,9 @@ struct Consumer { WeakPtr<Producer> producer; };
 // and delete objects on a background thread.
 class BackgroundThread : public Thread {
  public:
-  BackgroundThread()
-      : Thread("owner_thread") {
-  }
+  BackgroundThread() : Thread("owner_thread") {}
 
-  ~BackgroundThread() {
+  virtual ~BackgroundThread() {
     Stop();
   }
 
