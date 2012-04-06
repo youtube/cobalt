@@ -259,6 +259,7 @@
         'base/win/mouse_wheel_util.h',
         'base/win/scoped_ole_initializer.cc',
         'base/win/scoped_ole_initializer.h',
+        'base/win/scoped_set_map_mode.h',
         'base/win/shell.cc',
         'base/win/shell.h',
         'base/win/singleton_hwnd.cc',
