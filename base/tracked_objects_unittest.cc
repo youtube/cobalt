@@ -21,7 +21,7 @@ class TrackedObjectsTest : public testing::Test {
     ThreadData::ShutdownSingleThreadedCleanup(true);
   }
 
-  ~TrackedObjectsTest() {
+  virtual ~TrackedObjectsTest() {
     // We should not need to leak any structures we create, since we are
     // single threaded, and carefully accounting for items.
     ThreadData::ShutdownSingleThreadedCleanup(false);

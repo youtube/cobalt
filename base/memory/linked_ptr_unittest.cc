@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,8 +25,10 @@ struct A {
 // Subclass
 struct B: public A {
   B() { history += base::StringPrintf("B%d ctor\n", mynum); }
-  ~B() { history += base::StringPrintf("B%d dtor\n", mynum); }
-  virtual void Use() { history += base::StringPrintf("B%d use\n", mynum); }
+  virtual ~B() { history += base::StringPrintf("B%d dtor\n", mynum); }
+  virtual void Use() OVERRIDE {
+    history += base::StringPrintf("B%d use\n", mynum);
+  }
 };
 
 }  // namespace

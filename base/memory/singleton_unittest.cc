@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -153,9 +153,9 @@ CallbackFunc* GetStaticSingleton() {
 
 class SingletonTest : public testing::Test {
  public:
-  SingletonTest() { }
+  SingletonTest() {}
 
-  virtual void SetUp() {
+  virtual void SetUp() OVERRIDE {
     non_leak_called_ = false;
     leaky_called_ = false;
     static_called_ = false;

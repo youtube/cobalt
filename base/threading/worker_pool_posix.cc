@@ -62,7 +62,7 @@ class WorkerThread : public PlatformThread::Delegate {
       : name_prefix_(name_prefix),
         pool_(pool) {}
 
-  virtual void ThreadMain();
+  virtual void ThreadMain() OVERRIDE;
 
  private:
   const std::string name_prefix_;

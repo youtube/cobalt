@@ -76,8 +76,10 @@ class StatsTableThread : public SimpleThread {
  public:
   StatsTableThread(std::string name, int id)
       : SimpleThread(name),
-      id_(id) {}
-  virtual void Run();
+        id_(id) {}
+
+  virtual void Run() OVERRIDE;
+
  private:
   int id_;
 };

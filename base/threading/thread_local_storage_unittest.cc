@@ -35,7 +35,7 @@ class ThreadLocalStorageRunner : public DelegateSimpleThread::Delegate {
 
   virtual ~ThreadLocalStorageRunner() {}
 
-  virtual void Run() {
+  virtual void Run() OVERRIDE {
     *tls_value_ptr_ = kInitialTlsValue;
     tls_slot.Set(tls_value_ptr_);
 

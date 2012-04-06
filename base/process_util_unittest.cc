@@ -963,15 +963,15 @@ class OutOfMemoryDeathTest : public testing::Test {
         signed_test_size_(std::numeric_limits<ssize_t>::max()) {
   }
 
-  virtual void SetUp() {
 #if defined(USE_TCMALLOC)
+  virtual void SetUp() OVERRIDE {
     tc_set_new_mode(1);
   }
 
-  virtual void TearDown() {
+  virtual void TearDown() OVERRIDE {
     tc_set_new_mode(0);
-#endif  // defined(USE_TCMALLOC)
   }
+#endif  // defined(USE_TCMALLOC)
 
   void SetUpInDeathAssert() {
     // Must call EnableTerminationOnOutOfMemory() because that is called from
