@@ -20,10 +20,12 @@
 typedef signed char         schar;
 typedef signed char         int8;
 typedef short               int16;
-// TODO: Remove these type guards.  These are to avoid conflicts with
-// obsolete/protypes.h in the Gecko SDK.
-#ifndef _INT32
-#define _INT32
+#if defined(__LB_SHELL__)
+// strict compilers will freak out of you try to mix int* and long*, even when
+// they are the same size.  since we treat int32 and int32_t as interchangeable
+// in chromium, use the compiler's type here instead of assuming int.
+typedef int32_t             int32;
+#else
 typedef int                 int32;
 #endif
 
@@ -46,12 +48,7 @@ typedef long long           int64;
 
 typedef unsigned char      uint8;
 typedef unsigned short     uint16;
-// TODO: Remove these type guards.  These are to avoid conflicts with
-// obsolete/protypes.h in the Gecko SDK.
-#ifndef _UINT32
-#define _UINT32
 typedef unsigned int       uint32;
-#endif
 
 // See the comment above about NSPR and 64-bit.
 #if defined(__LP64__) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)

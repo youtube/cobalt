@@ -66,7 +66,7 @@
 
 namespace BASE_HASH_NAMESPACE {
 
-#if !defined(OS_ANDROID) && !defined(__LB_PS3__)
+#if !defined(OS_ANDROID) && !defined(__LB_PS3__) && !defined(__LB_WII__)
 // The GNU C++ library provides identity hash functions for many integral types,
 // but not for |long long|.  This hash function will truncate if |size_t| is
 // narrower than |long long|.  This is probably good enough for what we will
