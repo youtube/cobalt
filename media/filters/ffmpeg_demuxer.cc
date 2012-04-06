@@ -169,21 +169,19 @@ void FFmpegDemuxerStream::Read(const ReadCB& read_cb) {
     return;
   }
 
-  if (!buffer_queue_.empty()) {
-    // Dequeue a buffer send back.
-    scoped_refptr<Buffer> buffer = buffer_queue_.front();
-    buffer_queue_.pop_front();
+  // Buffers are only queued when there are no pending reads.
+  DCHECK(buffer_queue_.empty() || read_queue_.empty());
 
-    // Execute the callback.
-    read_cb.Run(buffer);
-
-    if (!read_queue_.empty())
-      demuxer_->PostDemuxTask();
-
-  } else {
+  if (buffer_queue_.empty()) {
     demuxer_->message_loop()->PostTask(FROM_HERE, base::Bind(
         &FFmpegDemuxerStream::ReadTask, this, read_cb));
+    return;
   }
+
+  // Send the oldest buffer back.
+  scoped_refptr<Buffer> buffer = buffer_queue_.front();
+  buffer_queue_.pop_front();
+  read_cb.Run(buffer);
 }
 
 void FFmpegDemuxerStream::ReadTask(const ReadCB& read_cb) {
