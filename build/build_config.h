@@ -78,6 +78,9 @@
 #define COMPILER_GCC 1
 #elif defined(_MSC_VER)
 #define COMPILER_MSVC 1
+#elif defined(__LB_WII__)
+#define COMPILER_GCC 1  // close enough.
+// better than defining everything needed to support another compiler.
 #else
 #error Please add support for your compiler in build/build_config.h
 #endif
