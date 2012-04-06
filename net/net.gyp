@@ -795,6 +795,10 @@
       'conditions': [
         ['chromeos==1', {
           'sources!': [
+             'base/network_change_notifier_linux.cc',
+             'base/network_change_notifier_linux.h',
+             'base/network_change_notifier_netlink_linux.cc',
+             'base/network_change_notifier_netlink_linux.h',
              'proxy/proxy_config_service_linux.cc',
              'proxy/proxy_config_service_linux.h',
           ],
@@ -1270,6 +1274,7 @@
       'conditions': [
         ['chromeos==1', {
           'sources!': [
+             'base/network_change_notifier_linux_unittest.cc',
              'proxy/proxy_config_service_linux_unittest.cc',
           ],
         }],
