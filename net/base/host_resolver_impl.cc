@@ -1151,7 +1151,6 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
       LogCancelRequest(req->source_net_log(), req->request_net_log(),
                        req->info());
     }
-    STLDeleteElements(&requests_);
   }
 
   // Add this job to the dispatcher.
@@ -1244,7 +1243,7 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     DCHECK_GT(num_active_requests(), 0u);
     AddressList addr_list;
     if (resolver_->ServeFromHosts(key(),
-                                  requests_.front()->info(),
+                                  requests_->front()->info(),
                                   &addr_list)) {
       // This will destroy the Job.
       CompleteRequests(OK, addr_list, base::TimeDelta());
@@ -1408,7 +1407,7 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
     // We are the only consumer of |list|, so we can safely change the port
     // without copy-on-write. This pays off, when job has only one request.
     if (net_error == OK)
-      MutableSetPort(requests_.front()->info().port(), &list);
+      MutableSetPort(requests_->front()->info().port(), &list);
 
     if ((net_error != ERR_ABORTED) &&
         (net_error != ERR_HOST_RESOLVER_QUEUE_TOO_LARGE)) {
@@ -1849,7 +1848,7 @@ HostResolverImpl::Key HostResolverImpl::GetEffectiveKeyForRequest(
 void HostResolverImpl::AbortAllInProgressJobs() {
   // In Abort, a Request callback could spawn new Jobs with matching keys, so
   // first collect and remove all running jobs from |jobs_|.
-  std::vector<Job*> jobs_to_abort;
+  ScopedVector<Job> jobs_to_abort;
   for (JobMap::iterator it = jobs_.begin(); it != jobs_.end(); ) {
     Job* job = it->second;
     if (job->is_running()) {
@@ -1870,6 +1869,7 @@ void HostResolverImpl::AbortAllInProgressJobs() {
   // Then Abort them.
   for (size_t i = 0; self && i < jobs_to_abort.size(); ++i) {
     jobs_to_abort[i]->Abort();
+    jobs_to_abort[i] = NULL;
   }
 }
 
