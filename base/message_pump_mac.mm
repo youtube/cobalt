@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -460,6 +460,8 @@ MessagePumpCFRunLoop::MessagePumpCFRunLoop()
     : quit_pending_(false) {
 }
 
+MessagePumpCFRunLoop::~MessagePumpCFRunLoop() {}
+
 // Called by MessagePumpCFRunLoopBase::DoRun.  If other CFRunLoopRun loops were
 // running lower on the run loop thread's stack when this object was created,
 // the same number of CFRunLoopRun loops must be running for the outermost call
@@ -541,6 +543,8 @@ MessagePumpNSApplication::MessagePumpNSApplication()
     : keep_running_(true),
       running_own_loop_(false) {
 }
+
+MessagePumpNSApplication::~MessagePumpNSApplication() {}
 
 void MessagePumpNSApplication::DoRun(Delegate* delegate) {
   bool last_running_own_loop_ = running_own_loop_;
