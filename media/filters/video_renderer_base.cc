@@ -26,8 +26,6 @@ VideoRendererBase::VideoRendererBase(const base::Closure& paint_cb,
       pending_paint_with_last_available_(false),
       drop_frames_(drop_frames),
       playback_rate_(0),
-      read_cb_(base::Bind(&VideoRendererBase::FrameReady,
-                          base::Unretained(this))),
       paint_cb_(paint_cb),
       set_opaque_cb_(set_opaque_cb) {
   DCHECK(!paint_cb_.is_null());
@@ -451,7 +449,7 @@ void VideoRendererBase::AttemptRead_Locked() {
   }
 
   pending_read_ = true;
-  decoder_->Read(read_cb_);
+  decoder_->Read(base::Bind(&VideoRendererBase::FrameReady, this));
 }
 
 void VideoRendererBase::AttemptFlush_Locked() {
