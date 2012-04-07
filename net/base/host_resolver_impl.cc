@@ -63,11 +63,12 @@ const unsigned kCacheEntryTTLSeconds = 60;
 // Default TTL for unsuccessful resolutions with ProcTask.
 const unsigned kNegativeCacheEntryTTLSeconds = 0;
 
-// Maximum of 8 concurrent resolver threads (excluding retries).
+// Maximum of 6 concurrent resolver threads (excluding retries).
 // Some routers (or resolvers) appear to start to provide host-not-found if
 // too many simultaneous resolutions are pending.  This number needs to be
-// further optimized, but 8 is what FF currently does.
-static const size_t kDefaultMaxProcTasks = 8u;
+// further optimized, but 8 is what FF currently does. We found some routers
+// that limit this to 6, so we're temporarily holding it at that level.
+static const size_t kDefaultMaxProcTasks = 6u;
 
 // Helper to mutate the linked list contained by AddressList to the given
 // port. Note that in general this is dangerous since the AddressList's
