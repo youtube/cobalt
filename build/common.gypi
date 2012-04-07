@@ -518,9 +518,6 @@
     'force_rlz_use_chrome_net%': '<(force_rlz_use_chrome_net)',
     'enable_task_manager%': '<(enable_task_manager)',
 
-    # Whether to build for Wayland display server
-    'use_wayland%': 0,
-
     # Use system yasm instead of bundled one.
     'use_system_yasm%': 0,
 
@@ -1206,9 +1203,6 @@
       }],
       ['use_xi2_mt!=0', {
         'defines': ['USE_XI2_MT=<(use_xi2_mt)'],
-      }],
-      ['use_wayland==1', {
-        'defines': ['USE_WAYLAND=1', 'WL_EGL_PLATFORM=1'],
       }],
       ['file_manager_extension==1', {
         'defines': ['FILE_MANAGER_EXTENSION=1'],
