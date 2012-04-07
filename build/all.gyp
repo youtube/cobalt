@@ -90,11 +90,6 @@
             }],
           ],
         }],
-        ['use_wayland==1', {
-          'dependencies': [
-            '../ui/wayland/wayland.gyp:*',
-          ],
-        }],
         ['toolkit_uses_gtk==1', {
           'dependencies': [
             '../tools/gtk_clipboard_dump/gtk_clipboard_dump.gyp:*',

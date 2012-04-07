@@ -400,7 +400,6 @@
           'nix/mime_util_xdg.h',
           'nix/xdg_util.cc',
           'nix/xdg_util.h',
-          'wayland/wayland_event.h',
           'win/accessibility_misc_utils.h',
           'win/accessibility_misc_utils.cc',
           'win/enum_variant.h',
@@ -477,12 +476,6 @@
           }, {
             'sources!' : [ 'message_pump_gtk.cc', ],
             'sources/' : [ [ 'include', '^message_pump_x\\.cc$', ] ],
-          }],
-          [ 'use_wayland==1', {
-            'sources/': [
-              [ 'exclude', '^message_pump_gtk\\.cc$',],
-              [ 'exclude', '^message_pump_x\\.cc$',],
-            ],
           }],
           [ 'OS != "linux" and os_bsd != 1', {
               'sources!': [
@@ -783,7 +776,6 @@
         'message_pump_libevent.h',
         'message_pump_mac.h',
         'message_pump_mac.mm',
-        'message_pump_wayland.h',
         'metrics/field_trial.cc',
         'metrics/field_trial.h',
         'string16.cc',
