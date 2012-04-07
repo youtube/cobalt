@@ -301,32 +301,35 @@ class DnsTransactionImpl : public DnsTransaction,
     net_log_.BeginEvent(NetLog::TYPE_DNS_TRANSACTION, make_scoped_refptr(
         new StartParameters(hostname_, qtype_)));
     int rv = PrepareSearch();
-    if (rv == OK)
-      rv = StartQuery();
     if (rv == OK) {
-      DnsUDPAttempt* attempt = attempts_->back();
-      CHECK(attempt->response());
-
-      // In the very unlikely case that we immediately received the response, we
-      // cannot simply return OK nor run the callback, but instead complete
-      // asynchronously.
-      MessageLoop::current()->PostTask(
-          FROM_HERE,
-          base::Bind(&DnsTransactionImpl::DoCallback,
-                     AsWeakPtr(),
-                     OK,
-                     attempt->response()));
-      return ERR_IO_PENDING;
+      AttemptResult result = FinishAttempt(StartQuery());
+      if (result.rv == OK) {
+        // DnsTransaction must never succeed synchronously.
+        MessageLoop::current()->PostTask(
+            FROM_HERE,
+            base::Bind(&DnsTransactionImpl::DoCallback, AsWeakPtr(), result));
+        return ERR_IO_PENDING;
+      }
+      rv = result.rv;
     }
     if (rv != ERR_IO_PENDING) {
-      // Clear |callback_| to catch re-starts.
       callback_.Reset();
       net_log_.EndEventWithNetErrorCode(NetLog::TYPE_DNS_TRANSACTION, rv);
     }
+    DCHECK_NE(OK, rv);
     return rv;
   }
 
  private:
+  // Wrapper for the result of a DnsUDPAttempt.
+  struct AttemptResult {
+    AttemptResult(int rv, const DnsUDPAttempt* attempt)
+        : rv(rv), attempt(attempt) {}
+
+    int rv;
+    const DnsUDPAttempt* attempt;
+  };
+
   // Prepares |qnames_| according to the DnsConfig.
   int PrepareSearch() {
     const DnsConfig& config = session_->config();
@@ -375,23 +378,25 @@ class DnsTransactionImpl : public DnsTransaction,
     return qnames_.empty() ? ERR_NAME_NOT_RESOLVED : OK;
   }
 
-  void DoCallback(int rv, const DnsResponse* response) {
-    if (callback_.is_null())
-      return;
-    DCHECK_NE(ERR_IO_PENDING, rv);
-    CHECK(rv != OK || response != NULL);
+  void DoCallback(AttemptResult result) {
+    DCHECK(!callback_.is_null());
+    DCHECK_NE(ERR_IO_PENDING, result.rv);
+    const DnsResponse* response = result.attempt ?
+        result.attempt->response() : NULL;
+    CHECK(result.rv != OK || response != NULL);
+
+    timer_.Stop();
 
     DnsTransactionFactory::CallbackType callback = callback_;
     callback_.Reset();
-    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_DNS_TRANSACTION, rv);
-    callback.Run(this,
-                 rv,
-                 response);
+
+    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_DNS_TRANSACTION, result.rv);
+    callback.Run(this, result.rv, response);
   }
 
   // Makes another attempt at the current name, |qnames_.front()|, using the
   // next nameserver.
-  int MakeAttempt() {
+  AttemptResult MakeAttempt() {
     unsigned attempt_number = attempts_.size();
 
 #if defined(OS_WIN)
@@ -434,14 +439,19 @@ class DnsTransactionImpl : public DnsTransaction,
                    base::Unretained(this),
                    attempt_number));
 
-    base::TimeDelta timeout = session_->NextTimeout(attempt_number);
-    timer_.Start(FROM_HERE, timeout, this, &DnsTransactionImpl::OnTimeout);
     attempts_.push_back(attempt);
-    return attempt->Start();
+
+    int rv = attempt->Start();
+    if (rv == ERR_IO_PENDING) {
+      timer_.Stop();
+      base::TimeDelta timeout = session_->NextTimeout(attempt_number);
+      timer_.Start(FROM_HERE, timeout, this, &DnsTransactionImpl::OnTimeout);
+    }
+    return AttemptResult(rv, attempt);
   }
 
   // Begins query for the current name. Makes the first attempt.
-  int StartQuery() {
+  AttemptResult StartQuery() {
     std::string dotted_qname = DNSDomainToString(qnames_.front());
     net_log_.BeginEvent(
         NetLog::TYPE_DNS_TRANSACTION_QUERY,
@@ -454,12 +464,17 @@ class DnsTransactionImpl : public DnsTransaction,
   }
 
   void OnAttemptComplete(unsigned attempt_number, int rv) {
+    if (callback_.is_null())
+      return;
     DCHECK_LT(attempt_number, attempts_.size());
-    timer_.Stop();
-
     const DnsUDPAttempt* attempt = attempts_[attempt_number];
+    AttemptResult result = FinishAttempt(AttemptResult(rv, attempt));
+    if (result.rv != ERR_IO_PENDING)
+      DoCallback(result);
+  }
 
-    if (attempt->response()) {
+  void LogResponse(const DnsUDPAttempt* attempt) {
+    if (attempt && attempt->response()) {
       net_log_.AddEvent(
           NetLog::TYPE_DNS_TRANSACTION_RESPONSE,
           make_scoped_refptr(
@@ -467,55 +482,75 @@ class DnsTransactionImpl : public DnsTransaction,
                                      attempt->response()->answer_count(),
                                      attempt->socket()->NetLog().source())));
     }
+  }
 
-    net_log_.EndEventWithNetErrorCode(NetLog::TYPE_DNS_TRANSACTION_QUERY, rv);
+  bool MoreAttemptsAllowed() const {
+    const DnsConfig& config = session_->config();
+    return attempts_.size() < config.attempts * config.nameservers.size();
+  }
 
-    switch (rv) {
-      case ERR_NAME_NOT_RESOLVED:
-        // Try next suffix.
-        qnames_.pop_front();
-        if (qnames_.empty())
-          rv = ERR_NAME_NOT_RESOLVED;
-        else
-          rv = StartQuery();
-        break;
-      case OK:
-        DoCallback(rv, attempt->response());
-        return;
-      default:
-        // Some nameservers could fail so try the next one.
-        const DnsConfig& config = session_->config();
-        if (attempts_.size() < config.attempts * config.nameservers.size()) {
-          rv = MakeAttempt();
-        } else {
-          // TODO(szym): Should this be different than the timeout case?
-          rv = ERR_DNS_SERVER_FAILED;
-        }
-        break;
+  // Resolves the result of a DnsUDPAttempt until a terminal result is reached
+  // or it will complete asynchronously (ERR_IO_PENDING).
+  AttemptResult FinishAttempt(AttemptResult result) {
+    while (result.rv != ERR_IO_PENDING) {
+      LogResponse(result.attempt);
+
+      switch (result.rv) {
+        case OK:
+          net_log_.EndEventWithNetErrorCode(
+              NetLog::TYPE_DNS_TRANSACTION_QUERY, result.rv);
+          DCHECK(result.attempt);
+          DCHECK(result.attempt->response());
+          return result;
+        case ERR_NAME_NOT_RESOLVED:
+          net_log_.EndEventWithNetErrorCode(
+              NetLog::TYPE_DNS_TRANSACTION_QUERY, result.rv);
+          // Try next suffix.
+          qnames_.pop_front();
+          if (qnames_.empty()) {
+            return AttemptResult(ERR_NAME_NOT_RESOLVED, NULL);
+          } else {
+            result = StartQuery();
+          }
+          break;
+        case ERR_DNS_TIMED_OUT:
+          if (MoreAttemptsAllowed()) {
+            result = MakeAttempt();
+          } else {
+            return result;
+          }
+          break;
+        default:
+          // Server failure.
+          DCHECK(result.attempt);
+          if (result.attempt != attempts_->back()) {
+            // This attempt already timed out. Ignore it.
+            return AttemptResult(ERR_IO_PENDING, NULL);
+          }
+          if (MoreAttemptsAllowed()) {
+            result = MakeAttempt();
+          } else {
+            return AttemptResult(ERR_DNS_SERVER_FAILED, NULL);
+          }
+          break;
+      }
     }
-    // TODO(szym): The next step might be to make another attempt.
-    // http://crbug.com/121717
-    if (rv != ERR_IO_PENDING)
-      DoCallback(rv, attempts_->back()->response());
+    return result;
   }
 
   void OnTimeout() {
-    const DnsConfig& config = session_->config();
-    if (attempts_.size() == config.attempts * config.nameservers.size()) {
-      DoCallback(ERR_DNS_TIMED_OUT, NULL);
+    if (callback_.is_null())
       return;
-    }
-    int rv = MakeAttempt();
-    // TODO(szym): The next step might be to make another attempt.
-    // http://crbug.com/121717
-    if (rv != ERR_IO_PENDING)
-      DoCallback(rv, attempts_->back()->response());
+    AttemptResult result = FinishAttempt(
+        AttemptResult(ERR_DNS_TIMED_OUT, NULL));
+    if (result.rv != ERR_IO_PENDING)
+      DoCallback(result);
   }
 
   scoped_refptr<DnsSession> session_;
   std::string hostname_;
   uint16 qtype_;
-  // Set to null once the transaction completes.
+  // Cleared in DoCallback.
   DnsTransactionFactory::CallbackType callback_;
 
   BoundNetLog net_log_;
