@@ -4,6 +4,7 @@
 
 #include "net/http/http_server_properties.h"
 
+#include "base/debug/alias.h"
 #include "base/logging.h"
 #include "base/stringprintf.h"
 
@@ -37,6 +38,43 @@ static const char* AlternateProtocolToString(AlternateProtocol protocol) {
 std::string PortAlternateProtocolPair::ToString() const {
   return base::StringPrintf("%d:%s", port,
                             AlternateProtocolToString(protocol));
+}
+
+HttpServerProperties::HttpServerProperties()
+    : has_deletion_stack_trace_(false),
+      liveness_token_(TOKEN_ALIVE) {
+}
+
+HttpServerProperties::~HttpServerProperties() {
+  // Crash if this is a double free!
+  CheckIsAlive();
+
+  // Mark the object as dead.
+  liveness_token_ = TOKEN_DEAD;
+
+  if (!has_deletion_stack_trace_) {
+    // Save the current thread's stack trace.
+    has_deletion_stack_trace_ = true;
+    deletion_stack_trace_ = base::debug::StackTrace();
+  }
+
+  // I doubt this is necessary to prevent optimization, but it can't hurt.
+  base::debug::Alias(&liveness_token_);
+  base::debug::Alias(&has_deletion_stack_trace_);
+  base::debug::Alias(&deletion_stack_trace_);
+}
+
+void HttpServerProperties::CheckIsAlive() {
+  // Copy the deletion stacktrace onto stack in case we crash.
+  base::debug::StackTrace deletion_stack_trace = deletion_stack_trace_;
+  base::debug::Alias(&deletion_stack_trace);
+
+  // Copy the token onto stack in case it mismatches so we can explore its
+  // value.
+  LivenessToken liveness_token = liveness_token_;
+  base::debug::Alias(&liveness_token);
+
+  CHECK_EQ(liveness_token, TOKEN_ALIVE);
 }
 
 }  // namespace net

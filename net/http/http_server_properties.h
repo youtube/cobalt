@@ -8,6 +8,7 @@
 #include <map>
 #include <string>
 #include "base/basictypes.h"
+#include "base/debug/stack_trace.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/net_export.h"
 #include "net/http/http_pipelined_host_capability.h"
@@ -51,8 +52,8 @@ extern const char* const kAlternateProtocolStrings[NUM_ALTERNATE_PROTOCOLS];
 // * Spdy Settings (like CWND ID field)
 class NET_EXPORT HttpServerProperties {
  public:
-  HttpServerProperties() {}
-  virtual ~HttpServerProperties() {}
+  HttpServerProperties();
+  virtual ~HttpServerProperties();
 
   // Deletes all data.
   virtual void Clear() = 0;
@@ -113,7 +114,29 @@ class NET_EXPORT HttpServerProperties {
 
   virtual PipelineCapabilityMap GetPipelineCapabilityMap() const = 0;
 
+  //----------------------------------------------------------------------------
+  // Temporary code for debugging 121971
+  // TODO(rtenneti): Delete this when done investigating.
+  //----------------------------------------------------------------------------
+  void CheckIsAlive();
+  //----------------------------------------------------------------------------
+
  private:
+  //----------------------------------------------------------------------------
+  // Temporary code for debugging 121971
+  // TODO(rtenneti): Delete this when done investigating.
+  //----------------------------------------------------------------------------
+  // Value to indicate whether this instance is alive or dead.
+  enum LivenessToken {
+    TOKEN_ALIVE = 0xcd9e38,
+    TOKEN_DEAD = 0xDEADBEEF,
+  };
+
+  bool has_deletion_stack_trace_;
+  base::debug::StackTrace deletion_stack_trace_;
+  LivenessToken liveness_token_;
+  //----------------------------------------------------------------------------
+
   DISALLOW_COPY_AND_ASSIGN(HttpServerProperties);
 };
 
