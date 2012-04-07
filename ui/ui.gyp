@@ -244,7 +244,6 @@
         'base/ui_export.h',
         'base/view_prop.cc',
         'base/view_prop.h',
-        'base/wayland/events_wayland.cc',
         'base/win/atl_module.h',
         'base/win/events_win.cc',
         'base/win/foreground_helper.cc',
@@ -363,7 +362,6 @@
         'gfx/screen_ash.cc',
         'gfx/screen_gtk.cc',
         'gfx/screen_mac.mm',
-        'gfx/screen_wayland.cc',
         'gfx/screen_win.cc',
         'gfx/scoped_cg_context_save_gstate_mac.h',
         'gfx/scoped_ns_graphics_context_save_gstate_mac.h',
@@ -521,25 +519,6 @@
             'gfx/native_theme_gtk.cc',
             'gfx/native_theme_gtk.h',
           ]
-        }],
-        ['use_wayland == 1', {
-          'sources/': [
-            ['exclude', '_(gtk|x)\\.cc$'],
-            ['exclude', '/(gtk|x11)_[^/]*\\.cc$'],
-            ['include', 'base/dragdrop/gtk_dnd_util.cc'],
-            ['include', 'base/dragdrop/gtk_dnd_util.h'],
-            ['include', 'base/dragdrop/os_exchange_data_provider_gtk.cc'],
-            ['include', 'base/dragdrop/os_exchange_data_provider_gtk.h'],
-            ['include', 'base/keycodes/keyboard_code_conversion_x.cc'],
-            ['include', 'base/keycodes/keyboard_code_conversion_x.h'],
-            ['include', 'gfx/gtk_util.cc'],
-            ['include', 'gfx/gtk_util.h'],
-            ['include', 'gfx/path_gtk.cc'],
-            ['include', 'gfx/platform_font_pango.cc'],
-            ['include', 'gfx/platform_font_pango.h'],
-            ['include', 'gfx/linux_util.cc'],
-            ['include', 'gfx/linux_util.h'],
-          ],
         }],
         ['OS=="win"', {
           'sources': [

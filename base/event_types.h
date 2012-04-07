@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,12 +10,6 @@
 
 #if defined(OS_WIN)
 #include <windows.h>
-#elif defined(USE_WAYLAND)
-namespace base {
-namespace wayland {
-union WaylandEvent;
-}
-}
 #elif defined(USE_X11)
 typedef union _XEvent XEvent;
 #elif defined(OS_MACOSX)
@@ -31,8 +25,6 @@ namespace base {
 // Cross platform typedefs for native event types.
 #if defined(OS_WIN)
 typedef MSG NativeEvent;
-#elif defined(USE_WAYLAND)
-typedef wayland::WaylandEvent* NativeEvent;
 #elif defined(USE_X11)
 typedef XEvent* NativeEvent;
 #elif defined(OS_MACOSX)
