@@ -194,8 +194,6 @@ class MEDIA_EXPORT VideoRendererBase
 
   base::TimeDelta seek_timestamp_;
 
-  VideoDecoder::ReadCB read_cb_;
-
   // Embedder callback for notifying a new frame is available for painting.
   base::Closure paint_cb_;
 
