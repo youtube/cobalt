@@ -2861,7 +2861,7 @@
             'TypeLibraryName': '$(InputName).tlb',
             'OutputDirectory': '$(IntDir)',
             'HeaderFileName': '$(InputName).h',
-            'DLLDataFileName': 'dlldata.c',
+            'DLLDataFileName': '$(InputName).dlldata.c',
             'InterfaceIdentifierFileName': '$(InputName)_i.c',
             'ProxyFileName': '$(InputName)_p.c',
           },
