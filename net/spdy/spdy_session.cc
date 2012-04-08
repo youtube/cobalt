@@ -1897,7 +1897,6 @@ void SpdySession::RecordHistograms() {
                             stalled_streams_ > 0 ? 1 : 0, 2);
 
   if (received_settings_) {
-    http_server_properties_->CheckIsAlive();
     // Enumerate the saved settings, and set histograms for it.
     const SettingsMap& settings_map =
         http_server_properties_->GetSpdySettings(host_port_pair());
