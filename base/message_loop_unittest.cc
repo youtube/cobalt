@@ -1080,7 +1080,7 @@ class DispatcherImpl : public MessageLoopForUI::Dispatcher {
  public:
   DispatcherImpl() : dispatch_count_(0) {}
 
-  virtual bool Dispatch(const MSG& msg) {
+  virtual bool Dispatch(const base::NativeEvent& msg) OVERRIDE {
     ::TranslateMessage(&msg);
     ::DispatchMessage(&msg);
     // Do not count WM_TIMER since it is not what we post and it will cause
