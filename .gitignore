@@ -96,11 +96,13 @@ v8.log
 /chrome_frame/tools/test/reference_build
 /content/test/data/layout_tests/LayoutTests/
 /data
+/delegate_execute
 /googleurl
 /gpu/gles2_conform_test
 /gyp-mac-tool
 /llvm
 /media/yuv_convert_simd_x86.xml
+/metro_driver
 /native_client
 /net/Debug
 /net/Release
