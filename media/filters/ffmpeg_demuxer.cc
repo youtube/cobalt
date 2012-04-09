@@ -288,7 +288,6 @@ FFmpegDemuxer::FFmpegDemuxer(
       last_read_bytes_(0),
       read_position_(0),
       bitrate_(0),
-      first_seek_hack_(true),
       start_time_(kNoTimestamp()),
       audio_disabled_(false) {
   DCHECK(message_loop_);
@@ -589,17 +588,6 @@ bool FFmpegDemuxer::IsSeekable() {
 
 void FFmpegDemuxer::SeekTask(base::TimeDelta time, const PipelineStatusCB& cb) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
-
-  // TODO(scherkus): remove this by separating Seek() from Flush() from
-  // Preroll() states (i.e., the implicit Seek(0) should really be a Preroll()).
-  if (first_seek_hack_) {
-    first_seek_hack_ = false;
-
-    if (time == start_time_) {
-      cb.Run(PIPELINE_OK);
-      return;
-    }
-  }
 
   // Tell streams to flush buffers due to seeking.
   StreamVector::iterator iter;
