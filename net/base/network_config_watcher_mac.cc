@@ -71,12 +71,12 @@ void NetworkConfigWatcherMacThread::Init() {
 
   // TODO(willchan): Look to see if there's a better signal for when it's ok to
   // initialize this, rather than just delaying it by a fixed time.
-  const int kInitializationDelayMS = 1000;
+  const base::TimeDelta kInitializationDelay = base::TimeDelta::FromSeconds(1);
   message_loop()->PostDelayedTask(
       FROM_HERE,
       base::Bind(&NetworkConfigWatcherMacThread::InitNotifications,
                  weak_factory_.GetWeakPtr()),
-      kInitializationDelayMS);
+      kInitializationDelay);
 }
 
 void NetworkConfigWatcherMacThread::CleanUp() {

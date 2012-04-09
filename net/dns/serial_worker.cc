@@ -36,7 +36,7 @@ void SerialWorker::WorkNow() {
         message_loop_->PostDelayedTask(
             FROM_HERE,
             base::Bind(&SerialWorker::RetryWork, this),
-            kWorkerPoolRetryDelayMs);
+            base::TimeDelta::FromMilliseconds(kWorkerPoolRetryDelayMs));
         state_ = WAITING;
         return;
 #endif
