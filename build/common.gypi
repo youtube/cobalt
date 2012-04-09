@@ -29,6 +29,9 @@
           # Whether or not we are building the Ash shell.
           'use_ash%': 0,
 
+          # Enable DIP (Density Independent Pixels) support.
+          'enable_dip%': 0,
+
           # Use OpenSSL instead of NSS. Under development: see http://crbug.com/62803
           'use_openssl%': 0,
 
@@ -42,6 +45,7 @@
         'chromeos%': '<(chromeos)',
         'use_aura%': '<(use_aura)',
         'use_ash%': '<(use_ash)',
+        'enable_dip%': '<(enable_dip)',
         'use_openssl%': '<(use_openssl)',
         'use_virtual_keyboard%': '<(use_virtual_keyboard)',
         'enable_viewport%': '<(enable_viewport)',
@@ -87,6 +91,7 @@
       'toolkit_views%': '<(toolkit_views)',
       'use_aura%': '<(use_aura)',
       'use_ash%': '<(use_ash)',
+      'enable_dip%': '<(enable_dip)',
       'use_openssl%': '<(use_openssl)',
       'use_virtual_keyboard%': '<(use_virtual_keyboard)',
       'enable_viewport%': '<(enable_viewport)',
@@ -461,6 +466,7 @@
     'ui_compositor_image_transport%': '<(ui_compositor_image_transport)',
     'use_aura%': '<(use_aura)',
     'use_ash%': '<(use_ash)',
+    'enable_dip%': '<(enable_dip)',
     'use_openssl%': '<(use_openssl)',
     'use_nss%': '<(use_nss)',
     'os_bsd%': '<(os_bsd)',
@@ -1183,6 +1189,9 @@
       }],
       ['use_ash==1', {
         'defines': ['USE_ASH=1'],
+      }],
+      ['enable_dip==1', {
+        'defines': ['ENABLE_DIP'],
       }],
       ['use_nss==1', {
         'defines': ['USE_NSS=1'],
