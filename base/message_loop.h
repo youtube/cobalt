@@ -77,10 +77,8 @@ class Histogram;
 //
 class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
  public:
-#if defined(OS_WIN)
-  typedef base::MessagePumpWin::Dispatcher Dispatcher;
-  typedef base::MessagePumpObserver Observer;
-#elif !defined(OS_MACOSX) && !defined(OS_ANDROID)
+
+#if !defined(OS_MACOSX) && !defined(OS_ANDROID)
   typedef base::MessagePumpDispatcher Dispatcher;
   typedef base::MessagePumpObserver Observer;
 #endif
