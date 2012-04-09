@@ -21,8 +21,6 @@
           'third_party/nspr/prtime.h',
           'third_party/nspr/prcpucfg_linux.h',
           'third_party/xdg_mime/xdgmime.h',
-          'android/build_info.cc',
-          'android/build_info.h',
           'android/scoped_java_ref.cc',
           'android/scoped_java_ref.h',
           'android/jni_android.cc',
