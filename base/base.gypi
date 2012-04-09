@@ -415,6 +415,8 @@
           'win/iat_patch_function.h',
           'win/iunknown_impl.h',
           'win/iunknown_impl.cc',
+          'win/metro.cc',
+          'win/metro.h',
           'win/object_watcher.cc',
           'win/object_watcher.h',
           'win/registry.cc',
