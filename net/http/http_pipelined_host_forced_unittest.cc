@@ -37,7 +37,7 @@ class HttpPipelinedHostForcedTest : public testing::Test {
                                              MatchesOrigin(key_.origin()),
                                              Ref(ssl_config_), Ref(proxy_info_),
                                              Ref(net_log_), true,
-                                             kProtoSPDY21))
+                                             kProtoSPDY2))
         .Times(1)
         .WillOnce(Return(pipeline));
     EXPECT_CALL(*pipeline, CreateNewStream())
@@ -45,7 +45,7 @@ class HttpPipelinedHostForcedTest : public testing::Test {
         .WillOnce(Return(kDummyStream));
     EXPECT_EQ(kDummyStream, host_->CreateStreamOnNewPipeline(
         &connection_, ssl_config_, proxy_info_, net_log_, true,
-        kProtoSPDY21));
+        kProtoSPDY2));
     return pipeline;
   }
 

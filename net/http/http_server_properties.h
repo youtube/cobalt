@@ -18,7 +18,6 @@ namespace net {
 enum AlternateProtocol {
   NPN_SPDY_1 = 0,
   NPN_SPDY_2,
-  NPN_SPDY_21,
   NPN_SPDY_3,
   NUM_ALTERNATE_PROTOCOLS,
   ALTERNATE_PROTOCOL_BROKEN,  // The alternate protocol is known to be broken.

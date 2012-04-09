@@ -88,8 +88,6 @@ class NET_EXPORT_PRIVATE SpdyHttpStream : public SpdyStream::Delegate,
  private:
   FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy2Test,
                            FlowControlStallResume);
-  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy21Test,
-                           FlowControlStallResume);
   FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy3Test,
                            FlowControlStallResume);
 
