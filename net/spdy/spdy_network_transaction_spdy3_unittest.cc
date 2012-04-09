@@ -119,7 +119,6 @@ class SpdyNetworkTransactionSpdy3Test
       std::vector<std::string> next_protos;
       next_protos.push_back("http/1.1");
       next_protos.push_back("spdy/2");
-      next_protos.push_back("spdy/2.1");
       next_protos.push_back("spdy/3");
 
       switch (test_type_) {
