@@ -360,7 +360,7 @@ TEST_F(SSLClientSocketPoolTest, DirectGotSPDY) {
   StaticSocketDataProvider data;
   socket_factory_.AddSocketDataProvider(&data);
   SSLSocketDataProvider ssl(ASYNC, OK);
-  ssl.SetNextProto(kProtoSPDY21);
+  ssl.SetNextProto(kProtoSPDY2);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -385,14 +385,14 @@ TEST_F(SSLClientSocketPoolTest, DirectGotSPDY) {
   std::string server_protos;
   ssl_socket->GetNextProto(&proto, &server_protos);
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
-            kProtoSPDY21);
+            kProtoSPDY2);
 }
 
 TEST_F(SSLClientSocketPoolTest, DirectGotBonusSPDY) {
   StaticSocketDataProvider data;
   socket_factory_.AddSocketDataProvider(&data);
   SSLSocketDataProvider ssl(ASYNC, OK);
-  ssl.SetNextProto(kProtoSPDY21);
+  ssl.SetNextProto(kProtoSPDY2);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -417,7 +417,7 @@ TEST_F(SSLClientSocketPoolTest, DirectGotBonusSPDY) {
   std::string server_protos;
   ssl_socket->GetNextProto(&proto, &server_protos);
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
-            kProtoSPDY21);
+            kProtoSPDY2);
 }
 
 TEST_F(SSLClientSocketPoolTest, SOCKSFail) {
@@ -692,7 +692,7 @@ TEST_F(SSLClientSocketPoolTest, IPPooling) {
   SSLSocketDataProvider ssl(ASYNC, OK);
   ssl.cert = X509Certificate::CreateFromBytes(
       reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der));
-  ssl.SetNextProto(kProtoSPDY21);
+  ssl.SetNextProto(kProtoSPDY2);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -717,7 +717,7 @@ TEST_F(SSLClientSocketPoolTest, IPPooling) {
   std::string server_protos;
   ssl_socket->GetNextProto(&proto, &server_protos);
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
-            kProtoSPDY21);
+            kProtoSPDY2);
 
   // TODO(rtenneti): MockClientSocket::GetPeerAddress returns 0 as the port
   // number. Fix it to return port 80 and then use GetPeerAddress to AddAlias.
@@ -779,7 +779,7 @@ TEST_F(SSLClientSocketPoolTest, IPPoolingClientCert) {
   ssl.cert = X509Certificate::CreateFromBytes(
       reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der));
   ssl.client_cert_sent = true;
-  ssl.SetNextProto(kProtoSPDY21);
+  ssl.SetNextProto(kProtoSPDY2);
   socket_factory_.AddSSLSocketDataProvider(&ssl);
 
   CreatePool(true /* tcp pool */, false, false);
@@ -803,7 +803,7 @@ TEST_F(SSLClientSocketPoolTest, IPPoolingClientCert) {
   std::string server_protos;
   ssl_socket->GetNextProto(&proto, &server_protos);
   EXPECT_EQ(SSLClientSocket::NextProtoFromString(proto),
-            kProtoSPDY21);
+            kProtoSPDY2);
 
   // TODO(rtenneti): MockClientSocket::GetPeerAddress returns 0 as the port
   // number. Fix it to return port 80 and then use GetPeerAddress to AddAlias.
