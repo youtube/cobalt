@@ -166,8 +166,6 @@
         'base/gtk/scoped_gobject.h',
         'base/gtk/scoped_region.cc',
         'base/gtk/scoped_region.h',
-        'base/gtk/tooltip_window_gtk.cc',
-        'base/gtk/tooltip_window_gtk.h',
         'base/hit_test.h',
         'base/javascript_message_type.h',
         'base/keycodes/keyboard_code_conversion.cc',
