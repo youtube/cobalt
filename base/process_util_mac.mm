@@ -578,7 +578,7 @@ void CrMallocErrorBreak() {
   // A unit test checks this error message, so it needs to be in release builds.
   LOG(ERROR) <<
       "Terminating process due to a potential for future heap corruption";
-  int* death_ptr = NULL;
+  int* volatile death_ptr = NULL;
   *death_ptr = 0xf00bad;
 }
 
