@@ -175,8 +175,6 @@ class NET_EXPORT UploadData
                              UploadFileSmallerThanLength);
     FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionSpdy2Test,
                              UploadFileSmallerThanLength);
-    FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionSpdy21Test,
-                             UploadFileSmallerThanLength);
     FRIEND_TEST_ALL_PREFIXES(HttpNetworkTransactionSpdy3Test,
                              UploadFileSmallerThanLength);
   };
