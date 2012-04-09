@@ -162,14 +162,7 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   // Provide access to FFmpegDemuxerStream.
   MessageLoop* message_loop();
 
-  // For testing purposes.
-  void disable_first_seek_hack_for_testing() { first_seek_hack_ = false; }
-
  private:
-  // Only allow a factory to create this class.
-  friend class MockFFmpegDemuxer;
-  FRIEND_TEST_ALL_PREFIXES(FFmpegDemuxerTest, ProtocolRead);
-
   // Carries out initialization on the demuxer thread.
   void InitializeTask(DemuxerHost* host, const PipelineStatusCB& status_cb);
 
@@ -245,10 +238,6 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
 
   // Derived bitrate after initialization has completed.
   int bitrate_;
-
-  // Used to skip the implicit "first seek" to avoid resetting FFmpeg's internal
-  // state.
-  bool first_seek_hack_;
 
   // The first timestamp of the opened media file. This is used to set the
   // starting clock value to match the timestamps in the media file. Default

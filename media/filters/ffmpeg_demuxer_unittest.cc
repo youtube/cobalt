@@ -69,10 +69,7 @@ class FFmpegDemuxerTest : public testing::Test {
         .WillRepeatedly(SaveArg<0>(&current_read_position_));
 
     CreateDataSource(name, disable_file_size);
-
-    // Create an FFmpegDemuxer with local data source.
     demuxer_ = new FFmpegDemuxer(&message_loop_, data_source_, true);
-    demuxer_->disable_first_seek_hack_for_testing();
   }
 
   MOCK_METHOD1(CheckPoint, void(int v));
