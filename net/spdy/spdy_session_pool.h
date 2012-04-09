@@ -146,11 +146,8 @@ class NET_EXPORT SpdySessionPool
   friend class test_spdy2::SpdySessionPoolPeer;  // For testing.
   friend class test_spdy3::SpdySessionPoolPeer;  // For testing.
   friend class SpdyNetworkTransactionSpdy2Test;  // For testing.
-  friend class SpdyNetworkTransactionSpdy21Test;  // For testing.
   friend class SpdyNetworkTransactionSpdy3Test;  // For testing.
   FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy2Test,
-                           WindowUpdateOverflow);
-  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy21Test,
                            WindowUpdateOverflow);
   FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy3Test,
                            WindowUpdateOverflow);
