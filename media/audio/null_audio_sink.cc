@@ -23,7 +23,6 @@ NullAudioSink::~NullAudioSink() {
     delete [] audio_data_[i];
 }
 
-
 void NullAudioSink::Start() {
   if (!thread_.Start())
     return;
