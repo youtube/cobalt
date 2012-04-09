@@ -156,7 +156,7 @@
  "xp-release-dual-core/v8_benchmark/score/score": {"reva": 68696, "revb": 69071, "improve": 892, "regress": -668, "sha1": "75a383d3"},
  "xp-release-single-core/dhtml/times/t": {"reva": 98602, "revb": 99994, "improve": -2888, "regress": 3391, "sha1": "30683762"},
  "xp-release-single-core/intl1/times/t": {"reva": 110284, "revb": 110995, "improve": 339, "regress": 2882, "sha1": "ec68e459"},
- "xp-release-single-core/intl2/times/t": {"reva": 126482, "revb": 126909, "improve": 1159, "regress": 1510, "sha1": "ab18ac13"},
+ "xp-release-single-core/intl2/times/t": {"reva": 129247, "revb": 131453, "improve": 264, "regress": 461, "sha1": "8061010d"},
  "xp-release-single-core/morejs/times/t": {"reva": 104308, "revb": 104575, "improve": -32, "regress": 485, "sha1": "e63333ad"},
  "xp-release-single-core/moz/times/t": {"reva": 75758, "revb": 76221, "improve": -1705, "regress": 3304, "sha1": "b615a416"},
  "xp-release-single-core/startup/times/t": {"improve": -9, "regress": 9, "sha1": "b1bf03da"},
