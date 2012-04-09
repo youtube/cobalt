@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -38,7 +38,7 @@ void MessagePumpWin::DidProcessMessage(const MSG& msg) {
 }
 
 void MessagePumpWin::RunWithDispatcher(
-    Delegate* delegate, Dispatcher* dispatcher) {
+    Delegate* delegate, MessagePumpDispatcher* dispatcher) {
   RunState s;
   s.delegate = delegate;
   s.dispatcher = dispatcher;
