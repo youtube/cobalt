@@ -35,6 +35,12 @@
         ['exclude', '(^|/)android/'],
       ],
     }],
+    ['OS!="android" and OS!="linux" and OS!="openbsd" and OS!="freebsd"', {
+      'sources/': [
+        ['exclude', '_linuxish(_unittest)?\\.(h|cc)$'],
+        ['exclude', '(^|/)linuxish/'],
+      ],
+    }],
     ['OS=="win"', {
        'sources/': [ ['exclude', '_posix(_unittest)?\\.(h|cc)$'] ],
     }],
