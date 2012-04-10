@@ -228,15 +228,15 @@ void FFmpegDemuxerStream::EnableBitstreamConverter() {
   // Currently we assume that converter is determined by codec_id;
   DCHECK(stream_);
 
-  const char* filter_name = NULL;
   if (stream_->codec->codec_id == CODEC_ID_H264) {
-    filter_name = "h264_mp4toannexb";
     // Use Chromium bitstream converter in case of H.264
     bitstream_converter_.reset(
         new FFmpegH264BitstreamConverter(stream_->codec));
     CHECK(bitstream_converter_->Initialize());
     return;
   }
+
+  const char* filter_name = NULL;
   if (stream_->codec->codec_id == CODEC_ID_MPEG4) {
     filter_name = "mpeg4video_es";
   } else if (stream_->codec->codec_id == CODEC_ID_WMV3) {
