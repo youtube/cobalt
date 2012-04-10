@@ -197,6 +197,8 @@ class NET_EXPORT URLRequestContext
     return url_requests_.get();
   }
 
+  void AssertNoURLRequests() const;
+
  protected:
   friend class base::RefCountedThreadSafe<URLRequestContext>;
 
