@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -51,7 +51,7 @@ NET_EXPORT bool IsCertStatusMinorError(CertStatus cert_status);
 
 // Maps a network error code to the equivalent certificate status flag.  If
 // the error code is not a certificate error, it is mapped to 0.
-CertStatus MapNetErrorToCertStatus(int error);
+NET_EXPORT CertStatus MapNetErrorToCertStatus(int error);
 
 // Maps the most serious certificate error in the certificate status flags
 // to the equivalent network error code.
