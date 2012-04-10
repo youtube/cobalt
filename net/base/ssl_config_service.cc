@@ -9,7 +9,6 @@
 #include "base/synchronization/lock.h"
 #include "net/base/crl_set.h"
 #include "net/base/ssl_config_service_defaults.h"
-#include "net/base/ssl_false_start_blacklist.h"
 
 namespace net {
 
@@ -55,12 +54,6 @@ bool SSLConfig::IsAllowedBadCert(const base::StringPiece& der_cert,
 
 SSLConfigService::SSLConfigService()
     : observer_list_(ObserverList<Observer>::NOTIFY_EXISTING_ONLY) {
-}
-
-// static
-bool SSLConfigService::IsKnownFalseStartIncompatibleServer(
-    const std::string& hostname) {
-  return SSLFalseStartBlacklist::IsMember(hostname);
 }
 
 static bool g_cached_info_enabled = false;

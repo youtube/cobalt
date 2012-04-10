@@ -6086,6 +6086,7 @@ ssl3_CanFalseStart(sslSocket *ss) {
     rv = ss->opt.enableFalseStart &&
 	 !ss->sec.isServer &&
 	 !ss->ssl3.hs.isResuming &&
+	 ssl3_ExtensionNegotiated(ss, ssl_next_proto_nego_xtn) &&
 	 ss->ssl3.cwSpec &&
 	 ss->ssl3.cwSpec->cipher_def->secret_key_size >= 10 &&
 	(ss->ssl3.hs.kea_def->exchKeyType == ssl_kea_rsa ||

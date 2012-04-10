@@ -37,7 +37,6 @@
         '../third_party/zlib/zlib.gyp:zlib',
         '../v8/tools/gyp/v8.gyp:v8',
         'net_resources',
-        'ssl_false_start_blacklist_process#host',
       ],
       'sources': [
         'android/network_library.cc',
@@ -239,8 +238,6 @@
         'base/ssl_config_service.h',
         'base/ssl_config_service_defaults.cc',
         'base/ssl_config_service_defaults.h',
-        'base/ssl_false_start_blacklist.cc',
-        'base/ssl_false_start_blacklist.h',
         'base/ssl_info.cc',
         'base/ssl_info.h',
         'base/static_cookie_policy.cc',
@@ -773,25 +770,6 @@
       'export_dependent_settings': [
         '../base/base.gyp:base',
       ],
-      'actions': [
-        {
-          'action_name': 'ssl_false_start_blacklist',
-          'inputs': [
-            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)ssl_false_start_blacklist_process<(EXECUTABLE_SUFFIX)',
-            'base/ssl_false_start_blacklist.txt',
-          ],
-          'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/net/base/ssl_false_start_blacklist_data.cc',
-          ],
-          'action':
-            ['<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)ssl_false_start_blacklist_process<(EXECUTABLE_SUFFIX)',
-             'base/ssl_false_start_blacklist.txt',
-              '<(SHARED_INTERMEDIATE_DIR)/net/base/ssl_false_start_blacklist_data.cc',
-            ],
-          'message': 'Generating SSL False Start blacklist',
-          'process_outputs_as_sources': 1,
-        },
-      ],
       'conditions': [
         ['chromeos==1', {
           'sources!': [
@@ -1093,7 +1071,6 @@
         'base/ssl_cipher_suite_names_unittest.cc',
         'base/ssl_client_auth_cache_unittest.cc',
         'base/ssl_config_service_unittest.cc',
-        'base/ssl_false_start_blacklist_unittest.cc',
         'base/static_cookie_policy_unittest.cc',
         'base/test_certificate_data.h',
         'base/test_completion_callback_unittest.cc',
@@ -1716,29 +1693,6 @@
       ],
       'sources': [
         'tools/crl_set_dump/crl_set_dump.cc',
-      ],
-    },
-    {
-      'target_name': 'ssl_false_start_blacklist_process',
-      'type': 'executable',
-      'toolsets': ['host'],
-      'dependencies': [
-        '../base/base.gyp:base',
-        '../base/third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
-      ],
-      'include_dirs': [
-        '..',
-      ],
-      'sources': [
-        'base/ssl_false_start_blacklist_process.cc',
-        'base/ssl_false_start_blacklist.h',
-      ],
-      'conditions': [
-        ['OS == "android" and host_os == "linux"', {
-          'ldflags': [
-            '-ldl',
-          ],
-        }],
       ],
     },
   ],

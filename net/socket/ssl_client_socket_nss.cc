@@ -116,12 +116,6 @@
 
 static const int kRecvBufferSize = 4096;
 
-// kCorkTimeoutMs is the number of milliseconds for which we'll wait for a
-// Write to an SSL socket which we're False Starting. Since corking stops the
-// Finished message from being sent, the server sees an incomplete handshake
-// and some will time out such sockets quite aggressively.
-static const int kCorkTimeoutMs = 200;
-
 #if defined(OS_WIN)
 // CERT_OCSP_RESPONSE_PROP_ID is only implemented on Vista+, but it can be
 // set on Windows XP without error. There is some overhead from the server
@@ -437,7 +431,6 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
                                        const SSLClientSocketContext& context)
     : transport_send_busy_(false),
       transport_recv_busy_(false),
-      corked_(false),
       transport_(transport_socket),
       host_and_port_(host_and_port),
       ssl_config_(ssl_config),
@@ -791,10 +784,6 @@ int SSLClientSocketNSS::Write(IOBuffer* buf, int buf_len,
   user_write_buf_ = buf;
   user_write_buf_len_ = buf_len;
 
-  if (corked_) {
-    corked_ = false;
-    uncork_timer_.Reset();
-  }
   int rv = DoWriteLoop(OK);
 
   if (rv == ERR_IO_PENDING) {
@@ -917,12 +906,9 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
     LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_DEFLATE");
 #endif
 
-  PRBool false_start_enabled =
-      ssl_config_.false_start_enabled &&
-      !SSLConfigService::IsKnownFalseStartIncompatibleServer(
-          host_and_port_.host());
 #ifdef SSL_ENABLE_FALSE_START
-  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_FALSE_START, false_start_enabled);
+  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_FALSE_START,
+                     ssl_config_.false_start_enabled);
   if (rv != SECSuccess)
     LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_FALSE_START");
 #endif
@@ -949,7 +935,8 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   }
 
 #ifdef SSL_CBC_RANDOM_IV
-  rv = SSL_OptionSet(nss_fd_, SSL_CBC_RANDOM_IV, false_start_enabled);
+  rv = SSL_OptionSet(nss_fd_, SSL_CBC_RANDOM_IV,
+                     ssl_config_.false_start_enabled);
   if (rv != SECSuccess)
     LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_CBC_RANDOM_IV");
 #endif
@@ -1965,14 +1952,6 @@ void SSLClientSocketNSS::SaveSSLHostInfo() {
   ssl_host_info_->Persist();
 }
 
-void SSLClientSocketNSS::UncorkAfterTimeout() {
-  corked_ = false;
-  int nsent;
-  do {
-    nsent = BufferSend();
-  } while (nsent > 0);
-}
-
 // Do as much network I/O as possible between the buffer and the
 // transport socket. Return true if some I/O performed, false
 // otherwise (error or ERR_IO_PENDING).
@@ -2008,9 +1987,6 @@ int SSLClientSocketNSS::BufferSend(void) {
   unsigned int len1, len2;
   memio_GetWriteParams(nss_bufs_, &buf1, &len1, &buf2, &len2);
   const unsigned int len = len1 + len2;
-
-  if (corked_ && len < kRecvBufferSize / 2)
-    return 0;
 
   int rv = 0;
   if (len) {
@@ -2125,50 +2101,6 @@ SECStatus SSLClientSocketNSS::OwnAuthCertHandler(void* arg,
                                                  PRFileDesc* socket,
                                                  PRBool checksig,
                                                  PRBool is_server) {
-#ifdef SSL_ENABLE_FALSE_START
-  // In the event that we are False Starting this connection, we wish to send
-  // out the Finished message and first application data record in the same
-  // packet. This prevents non-determinism when talking to False Start
-  // intolerant servers which, otherwise, might see the two messages in
-  // different reads or not, depending on network conditions.
-  PRBool false_start = 0;
-  SECStatus rv = SSL_OptionGet(socket, SSL_ENABLE_FALSE_START, &false_start);
-  DCHECK_EQ(SECSuccess, rv);
-
-  SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
-  CERTCertificate* cert = SSL_PeerCertificate(that->nss_fd_);
-  if (cert) {
-    char* common_name = CERT_GetCommonName(&cert->issuer);
-    if (common_name) {
-      if (false_start && strcmp(common_name, "ESET_RootSslCert") == 0) {
-        // ESET anti-virus is capable of intercepting HTTPS connections on
-        // Windows.  However, it is False Start intolerant and causes the
-        // connections to hang forever. We detect ESET by the issuer of the
-        // leaf certificate and set a flag to return a specific error, giving
-        // the user instructions for reconfiguring ESET.
-        that->eset_mitm_detected_ = true;
-      }
-      if (false_start &&
-          strcmp(common_name, "ContentWatch Root Certificate Authority") == 0) {
-        // This is NetNanny. NetNanny are updating their product so we
-        // silently disable False Start for now.
-        rv = SSL_OptionSet(socket, SSL_ENABLE_FALSE_START, PR_FALSE);
-        DCHECK_EQ(SECSuccess, rv);
-        false_start = 0;
-      }
-      PORT_Free(common_name);
-    }
-    CERT_DestroyCertificate(cert);
-  }
-
-  if (false_start && !that->handshake_callback_called_) {
-    that->corked_ = true;
-    that->uncork_timer_.Start(FROM_HERE,
-        base::TimeDelta::FromMilliseconds(kCorkTimeoutMs),
-        that, &SSLClientSocketNSS::UncorkAfterTimeout);
-  }
-#endif
-
   // Tell NSS to not verify the certificate.
   return SECSuccess;
 }
