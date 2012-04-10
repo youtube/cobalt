@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -154,7 +154,7 @@ class NET_EXPORT_PRIVATE DhcpProxyScriptFetcherWin
 
   base::OneShotTimer<DhcpProxyScriptFetcherWin> wait_timer_;
 
-  scoped_refptr<URLRequestContext> url_request_context_;
+  URLRequestContext* const url_request_context_;
 
   // NULL or the AdapterQuery currently in flight.
   scoped_refptr<AdapterQuery> last_query_;

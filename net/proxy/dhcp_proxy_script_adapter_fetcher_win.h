@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -167,7 +167,7 @@ class NET_EXPORT_PRIVATE DhcpProxyScriptAdapterFetcher
   // Implements a timeout on the call to the Win32 DHCP API.
   base::OneShotTimer<DhcpProxyScriptAdapterFetcher> wait_timer_;
 
-  scoped_refptr<URLRequestContext> url_request_context_;
+  URLRequestContext* const url_request_context_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(DhcpProxyScriptAdapterFetcher);
 };
