@@ -4,7 +4,7 @@
 
 #include "net/http/http_network_layer.h"
 
-#include "net/base/cert_verifier.h"
+#include "net/base/mock_cert_verifier.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_log.h"
 #include "net/base/ssl_config_service_defaults.h"
@@ -24,7 +24,7 @@ namespace {
 class HttpNetworkLayerTest : public PlatformTest {
  protected:
   HttpNetworkLayerTest()
-      : cert_verifier_(CertVerifier::CreateDefault()),
+      : cert_verifier_(new MockCertVerifier),
         proxy_service_(ProxyService::CreateDirect()),
         ssl_config_service_(new SSLConfigServiceDefaults) {
     HttpNetworkSession::Params session_params;
