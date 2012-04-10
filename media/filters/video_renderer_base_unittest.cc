@@ -50,7 +50,8 @@ class VideoRendererBaseTest : public ::testing::Test {
             TestTimeouts::action_timeout_ms())),
         seeking_(false),
         paint_cv_(&lock_),
-        paint_was_called_(false) {
+        paint_was_called_(false),
+        should_queue_read_cb_(false) {
     renderer_ = new VideoRendererBase(
         base::Bind(&VideoRendererBaseTest::Paint, base::Unretained(this)),
         base::Bind(&VideoRendererBaseTest::SetOpaqueCBWasCalled,
@@ -113,6 +114,21 @@ class VideoRendererBaseTest : public ::testing::Test {
 
     // Now seek to trigger prerolling.
     Seek(0);
+  }
+
+  // Instead of immediately satisfying a decoder Read request, queue it up.
+  void QueueReadCB() {
+    should_queue_read_cb_ = true;
+  }
+
+  void SatisfyQueuedReadCB() {
+    base::AutoLock l(lock_);
+    CHECK(should_queue_read_cb_ && !queued_read_cb_.is_null());
+    should_queue_read_cb_ = false;
+    VideoDecoder::ReadCB read_cb(queued_read_cb_);
+    queued_read_cb_.Reset();
+    base::AutoUnlock u(lock_);
+    read_cb.Run(VideoFrame::CreateEmptyFrame());
   }
 
   void StartSeeking(int64 timestamp) {
@@ -296,6 +312,11 @@ class VideoRendererBaseTest : public ::testing::Test {
   // Called by VideoRendererBase when it wants a frame.
   void FrameRequested(const VideoDecoder::ReadCB& callback) {
     base::AutoLock l(lock_);
+    if (should_queue_read_cb_) {
+      CHECK(queued_read_cb_.is_null());
+      queued_read_cb_ = callback;
+      return;
+    }
     CHECK(read_cb_.is_null());
     read_cb_ = callback;
     cv_.Signal();
@@ -369,6 +390,10 @@ class VideoRendererBaseTest : public ::testing::Test {
   // Used in conjunction with |lock_| to wait for Paint() calls.
   base::ConditionVariable paint_cv_;
   bool paint_was_called_;
+
+  // Holding queue for Read callbacks for exercising delayed demux/decode.
+  bool should_queue_read_cb_;
+  VideoDecoder::ReadCB queued_read_cb_;
 
   DISALLOW_COPY_AND_ASSIGN(VideoRendererBaseTest);
 };
@@ -516,6 +541,18 @@ TEST_F(VideoRendererBaseTest, Shutdown_DuringPaint) {
   WaitForClosure();
 
   Stop();
+}
+
+// Verify that a late decoder response doesn't break invariants in the renderer.
+TEST_F(VideoRendererBaseTest, StopDuringOutstandingRead) {
+  Initialize();
+  Pause();
+  Flush();
+  QueueReadCB();
+  StartSeeking(kFrameDuration * 6);  // Force-decode some more.
+  renderer_->Stop(NewWaitableClosure());
+  SatisfyQueuedReadCB();
+  WaitForClosure();  // Finish the Stop().
 }
 
 TEST_F(VideoRendererBaseTest, AbortPendingRead_Playing) {
