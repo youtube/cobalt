@@ -352,12 +352,14 @@ void VideoRendererBase::PutCurrentFrame(scoped_refptr<VideoFrame> frame) {
 void VideoRendererBase::FrameReady(scoped_refptr<VideoFrame> frame) {
   base::AutoLock auto_lock(lock_);
   DCHECK_NE(state_, kUninitialized);
-  DCHECK_NE(state_, kStopped);
-  DCHECK_NE(state_, kError);
-  DCHECK_NE(state_, kFlushed);
-  CHECK(pending_read_);
 
+  CHECK(pending_read_);
   pending_read_ = false;
+
+  // Already-queued Decoder ReadCB's can fire after various state transitions
+  // have happened; in that case just drop those frames immediately.
+  if (state_ == kStopped || state_ == kError || state_ == kFlushed)
+    return;
 
   if (state_ == kFlushing) {
     AttemptFlush_Locked();
