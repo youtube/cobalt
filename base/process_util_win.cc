@@ -641,7 +641,7 @@ void EnsureProcessTerminated(ProcessHandle process) {
       FROM_HERE,
       base::Bind(&TimerExpiredTask::TimedOut,
                  base::Owned(new TimerExpiredTask(process))),
-      kWaitInterval);
+      base::TimeDelta::FromMilliseconds(kWaitInterval));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
