@@ -1535,6 +1535,8 @@
       'sources': [
         'base/cert_test_util.cc',
         'base/cert_test_util.h',
+        'base/mock_cert_verifier.cc',
+        'base/mock_cert_verifier.h',
         'base/mock_file_stream.cc',
         'base/mock_file_stream.h',
         'base/mock_host_resolver.cc',
