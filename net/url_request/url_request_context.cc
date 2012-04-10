@@ -65,7 +65,7 @@ const std::string& URLRequestContext::GetUserAgent(const GURL& url) const {
   return EmptyString();
 }
 
-URLRequestContext::~URLRequestContext() {
+void URLRequestContext::AssertNoURLRequests() const {
   int num_requests = url_requests_->size();
   if (num_requests != 0) {
     // We're leaking URLRequests :( Dump the URL of the first one and record how
@@ -77,6 +77,10 @@ URLRequestContext::~URLRequestContext() {
     base::debug::Alias(&num_requests);
     CHECK(false);
   }
+}
+
+URLRequestContext::~URLRequestContext() {
+  AssertNoURLRequests();
 }
 
 }  // namespace net
