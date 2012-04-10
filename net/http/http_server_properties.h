@@ -24,6 +24,10 @@ enum AlternateProtocol {
   UNINITIALIZED_ALTERNATE_PROTOCOL,
 };
 
+NET_EXPORT const char* AlternateProtocolToString(AlternateProtocol protocol);
+NET_EXPORT AlternateProtocol AlternateProtocolFromString(
+    const std::string& protocol);
+
 struct NET_EXPORT PortAlternateProtocolPair {
   bool Equals(const PortAlternateProtocolPair& other) const {
     return port == other.port && protocol == other.protocol;
