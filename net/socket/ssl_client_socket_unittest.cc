@@ -6,9 +6,9 @@
 
 #include "net/base/address_list.h"
 #include "net/base/cert_test_util.h"
-#include "net/base/cert_verifier.h"
 #include "net/base/host_resolver.h"
 #include "net/base/io_buffer.h"
+#include "net/base/mock_cert_verifier.h"
 #include "net/base/net_log.h"
 #include "net/base/net_log_unittest.h"
 #include "net/base/net_errors.h"
@@ -31,7 +31,8 @@ class SSLClientSocketTest : public PlatformTest {
  public:
   SSLClientSocketTest()
       : socket_factory_(net::ClientSocketFactory::GetDefaultFactory()),
-        cert_verifier_(net::CertVerifier::CreateDefault()) {
+        cert_verifier_(new net::MockCertVerifier) {
+    cert_verifier_->set_default_result(net::OK);
   }
 
  protected:
@@ -49,7 +50,7 @@ class SSLClientSocketTest : public PlatformTest {
   }
 
   net::ClientSocketFactory* socket_factory_;
-  scoped_ptr<net::CertVerifier> cert_verifier_;
+  scoped_ptr<net::MockCertVerifier> cert_verifier_;
 };
 
 //-----------------------------------------------------------------------------
@@ -86,12 +87,9 @@ TEST_F(SSLClientSocketTest, Connect) {
     rv = callback.WaitForResult();
   EXPECT_EQ(net::OK, rv);
 
-  net::SSLClientSocketContext context;
-  context.cert_verifier = cert_verifier_.get();
   scoped_ptr<net::SSLClientSocket> sock(
-      socket_factory_->CreateSSLClientSocket(
-          transport, test_server.host_port_pair(), kDefaultSSLConfig,
-          NULL, context));
+      CreateSSLClientSocket(transport, test_server.host_port_pair(),
+                            kDefaultSSLConfig));
 
   EXPECT_FALSE(sock->IsConnected());
 
@@ -117,6 +115,8 @@ TEST_F(SSLClientSocketTest, ConnectExpired) {
       net::TestServer::HTTPSOptions::CERT_EXPIRED);
   net::TestServer test_server(https_options, FilePath());
   ASSERT_TRUE(test_server.Start());
+
+  cert_verifier_->set_default_result(net::ERR_CERT_DATE_INVALID);
 
   net::AddressList addr;
   ASSERT_TRUE(test_server.GetAddressList(&addr));
@@ -160,6 +160,8 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
       net::TestServer::HTTPSOptions::CERT_MISMATCHED_NAME);
   net::TestServer test_server(https_options, FilePath());
   ASSERT_TRUE(test_server.Start());
+
+  cert_verifier_->set_default_result(net::ERR_CERT_COMMON_NAME_INVALID);
 
   net::AddressList addr;
   ASSERT_TRUE(test_server.GetAddressList(&addr));
@@ -394,12 +396,9 @@ TEST_F(SSLClientSocketTest, Read_FullDuplex) {
     rv = callback.WaitForResult();
   EXPECT_EQ(net::OK, rv);
 
-  net::SSLClientSocketContext context;
-  context.cert_verifier = cert_verifier_.get();
   scoped_ptr<net::SSLClientSocket> sock(
-      socket_factory_->CreateSSLClientSocket(
-          transport, test_server.host_port_pair(), kDefaultSSLConfig,
-          NULL, context));
+      CreateSSLClientSocket(transport, test_server.host_port_pair(),
+                            kDefaultSSLConfig));
 
   rv = sock->Connect(callback.callback());
   if (rv == net::ERR_IO_PENDING)
@@ -759,15 +758,12 @@ TEST_F(SSLClientSocketTest, ClientSocketHandleNotFromPool) {
   net::ClientSocketHandle* socket_handle = new net::ClientSocketHandle();
   socket_handle->set_socket(transport);
 
-  net::SSLClientSocketContext context;
-  context.cert_verifier = cert_verifier_.get();
-  scoped_ptr<net::SSLClientSocket> ssl_socket(
-      socket_factory_->CreateSSLClientSocket(
-          socket_handle, test_server.host_port_pair(), kDefaultSSLConfig,
-          NULL, context));
+  scoped_ptr<net::SSLClientSocket> sock(
+      CreateSSLClientSocket(transport, test_server.host_port_pair(),
+                            kDefaultSSLConfig));
 
-  EXPECT_FALSE(ssl_socket->IsConnected());
-  rv = ssl_socket->Connect(callback.callback());
+  EXPECT_FALSE(sock->IsConnected());
+  rv = sock->Connect(callback.callback());
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   EXPECT_EQ(net::OK, rv);
@@ -793,12 +789,9 @@ TEST_F(SSLClientSocketTest, ExportKeyingMaterial) {
     rv = callback.WaitForResult();
   EXPECT_EQ(net::OK, rv);
 
-  net::SSLClientSocketContext context;
-  context.cert_verifier = cert_verifier_.get();
   scoped_ptr<net::SSLClientSocket> sock(
-      socket_factory_->CreateSSLClientSocket(
-          transport, test_server.host_port_pair(), kDefaultSSLConfig,
-          NULL, context));
+      CreateSSLClientSocket(transport, test_server.host_port_pair(),
+                            kDefaultSSLConfig));
 
   rv = sock->Connect(callback.callback());
   if (rv == net::ERR_IO_PENDING)
@@ -835,39 +828,36 @@ TEST(SSLClientSocket, ClearSessionCache) {
 // verified, not the chain as served by the server. (They may be different.)
 //
 // CERT_CHAIN_WRONG_ROOT is redundant-server-chain.pem. It contains A
-// (end-entity) -> B -> C, and C is signed by D. We do not set D to be a
-// trusted root in this test. Instead, we install C2 as a root; C2 contains
-// the same public key as C. redundant-server-chain.pem should therefore
-// validate as A -> B -> C2. If it does, this test passes.
-//
-// This test is the upper-layer analogue for
-// X509CertificateTest.VerifyReturnChainProperlyOrdered.
-#if defined(OS_MACOSX)
-// TODO(rsleevi): http://crbug.com/114343 / http://crbug.com/69278 - OS X
-// path building fails to properly handle cross-certified intermediates
-// without AIA information, so this test is disabled.
-#define MAYBE_VerifyReturnChainProperlyOrdered \
-    DISABLED_VerifyReturnChainProperlyOrdered
-#elif defined(OS_ANDROID)
-// TODO(jnd): http://crbug.com/116838 - Requires support of Android APIs
-#define MAYBE_VerifyReturnChainProperlyOrdered \
-    DISABLED_VerifyReturnChainProperlyOrdered
-#elif defined(USE_OPENSSL)
-// TODO(jnd): http://crbug.com/117196 - OpenSSL doesn't support arbitrary
-// trust anchors or cross-signed certificate chain path building until
-// OpenSSL 1.1.0.
-#define MAYBE_VerifyReturnChainProperlyOrdered \
-    DISABLED_VerifyReturnChainProperlyOrdered
-#else
-#define MAYBE_VerifyReturnChainProperlyOrdered \
-    VerifyReturnChainProperlyOrdered
-#endif
-TEST_F(SSLClientSocketTest, MAYBE_VerifyReturnChainProperlyOrdered) {
+// (end-entity) -> B -> C, and C is signed by D. redundant-validated-chain.pem
+// contains a chain of A -> B -> C2, where C2 is the same public key as C, but
+// a self-signed root. Such a situation can occur when a new root (C2) is
+// cross-certified by an old root (D) and has two different versions of its
+// floating around. Servers may supply C2 as an intermediate, but the
+// SSLClientSocket should return the chain that was verified, from
+// verify_result, instead.
+TEST_F(SSLClientSocketTest, VerifyReturnChainProperlyOrdered) {
+  // By default, cause the CertVerifier to treat all certificates as
+  // expired.
+  cert_verifier_->set_default_result(net::ERR_CERT_DATE_INVALID);
+
   // We will expect SSLInfo to ultimately contain this chain.
   net::CertificateList certs = CreateCertificateListFromFile(
       net::GetTestCertsDirectory(), "redundant-validated-chain.pem",
       net::X509Certificate::FORMAT_AUTO);
   ASSERT_EQ(3U, certs.size());
+
+  net::X509Certificate::OSCertHandles temp_intermediates;
+  temp_intermediates.push_back(certs[1]->os_cert_handle());
+  temp_intermediates.push_back(certs[2]->os_cert_handle());
+
+  net::CertVerifyResult verify_result;
+  verify_result.verified_cert =
+      net::X509Certificate::CreateFromHandle(certs[0]->os_cert_handle(),
+                                             temp_intermediates);
+
+  // Add a rule that maps the server cert (A) to the chain of A->B->C2
+  // rather than A->B->C.
+  cert_verifier_->AddResultForCert(certs[0], verify_result, net::OK);
 
   // Load and install the root for the validated chain.
   scoped_refptr<net::X509Certificate> root_cert =
