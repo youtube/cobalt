@@ -15,15 +15,16 @@ const char* const kAlternateProtocolStrings[] = {
   "npn-spdy/2",
   "npn-spdy/3",
 };
+const char kBrokenAlternateProtocol[] = "Broken";
 
-static const char* AlternateProtocolToString(AlternateProtocol protocol) {
+const char* AlternateProtocolToString(AlternateProtocol protocol) {
   switch (protocol) {
     case NPN_SPDY_1:
     case NPN_SPDY_2:
     case NPN_SPDY_3:
       return kAlternateProtocolStrings[protocol];
     case ALTERNATE_PROTOCOL_BROKEN:
-      return "Broken";
+      return kBrokenAlternateProtocol;
     case UNINITIALIZED_ALTERNATE_PROTOCOL:
       return "Uninitialized";
     default:
@@ -31,6 +32,16 @@ static const char* AlternateProtocolToString(AlternateProtocol protocol) {
       return "";
   }
 }
+
+AlternateProtocol AlternateProtocolFromString(const std::string& protocol) {
+  for (int i = NPN_SPDY_1; i < NUM_ALTERNATE_PROTOCOLS; ++i)
+    if (protocol == kAlternateProtocolStrings[i])
+      return static_cast<AlternateProtocol>(i);
+  if (protocol == kBrokenAlternateProtocol)
+    return ALTERNATE_PROTOCOL_BROKEN;
+  return UNINITIALIZED_ALTERNATE_PROTOCOL;
+}
+
 
 std::string PortAlternateProtocolPair::ToString() const {
   return base::StringPrintf("%d:%s", port,
