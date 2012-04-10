@@ -33,6 +33,7 @@ class SSLClientSocketTest : public PlatformTest {
       : socket_factory_(net::ClientSocketFactory::GetDefaultFactory()),
         cert_verifier_(new net::MockCertVerifier) {
     cert_verifier_->set_default_result(net::OK);
+    context_.cert_verifier = cert_verifier_.get();
   }
 
  protected:
@@ -40,17 +41,16 @@ class SSLClientSocketTest : public PlatformTest {
       net::StreamSocket* transport_socket,
       const net::HostPortPair& host_and_port,
       const net::SSLConfig& ssl_config) {
-    net::SSLClientSocketContext context;
-    context.cert_verifier = cert_verifier_.get();
     return socket_factory_->CreateSSLClientSocket(transport_socket,
                                                   host_and_port,
                                                   ssl_config,
                                                   NULL,
-                                                  context);
+                                                  context_);
   }
 
   net::ClientSocketFactory* socket_factory_;
   scoped_ptr<net::MockCertVerifier> cert_verifier_;
+  net::SSLClientSocketContext context_;
 };
 
 //-----------------------------------------------------------------------------
@@ -759,8 +759,9 @@ TEST_F(SSLClientSocketTest, ClientSocketHandleNotFromPool) {
   socket_handle->set_socket(transport);
 
   scoped_ptr<net::SSLClientSocket> sock(
-      CreateSSLClientSocket(transport, test_server.host_port_pair(),
-                            kDefaultSSLConfig));
+      socket_factory_->CreateSSLClientSocket(
+          socket_handle, test_server.host_port_pair(), kDefaultSSLConfig,
+          NULL, context_));
 
   EXPECT_FALSE(sock->IsConnected());
   rv = sock->Connect(callback.callback());
