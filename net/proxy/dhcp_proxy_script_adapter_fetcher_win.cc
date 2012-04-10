@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/logging.h"
 #include "base/message_loop_proxy.h"
 #include "base/metrics/histogram.h"
 #include "base/sys_string_conversions.h"
@@ -35,6 +36,7 @@ DhcpProxyScriptAdapterFetcher::DhcpProxyScriptAdapterFetcher(
     : state_(STATE_START),
       result_(ERR_IO_PENDING),
       url_request_context_(url_request_context) {
+  DCHECK(url_request_context_);
 }
 
 DhcpProxyScriptAdapterFetcher::~DhcpProxyScriptAdapterFetcher() {
