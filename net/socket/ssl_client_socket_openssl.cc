@@ -484,13 +484,6 @@ bool SSLClientSocketOpenSSL::Init() {
   // Same as above, this time for the SSL mode.
   SslSetClearMask mode;
 
-#if defined(SSL_MODE_HANDSHAKE_CUTTHROUGH)
-  mode.ConfigureFlag(SSL_MODE_HANDSHAKE_CUTTHROUGH,
-                     ssl_config_.false_start_enabled &&
-                     !SSLConfigService::IsKnownFalseStartIncompatibleServer(
-                         host_and_port_.host()));
-#endif
-
 #if defined(SSL_MODE_RELEASE_BUFFERS)
   mode.ConfigureFlag(SSL_MODE_RELEASE_BUFFERS, true);
 #endif

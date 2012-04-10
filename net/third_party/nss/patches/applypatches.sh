@@ -34,3 +34,5 @@ patch -p6 < $patches_dir/restartclientauth.patch
 patch -p6 < $patches_dir/encryptedclientcerts.patch
 
 patch -p4 < $patches_dir/dtls.patch
+
+patch -p6 < $patches_dir/falsestartnpn.patch

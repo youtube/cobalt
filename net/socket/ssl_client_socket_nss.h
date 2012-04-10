@@ -147,7 +147,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   int DoPayloadWrite();
   void LogConnectionTypeMetrics() const;
   void SaveSSLHostInfo();
-  void UncorkAfterTimeout();
 
   bool DoTransportIO();
   int BufferSend(void);
@@ -211,12 +210,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
 
   bool transport_send_busy_;
   bool transport_recv_busy_;
-  // corked_ is true if we are currently suspending writes to the network. This
-  // is named after the similar kernel flag, TCP_CORK.
-  bool corked_;
-  // uncork_timer_ is used to limit the amount of time that we'll delay the
-  // Finished message while waiting for a Write.
-  base::OneShotTimer<SSLClientSocketNSS> uncork_timer_;
   scoped_refptr<IOBuffer> recv_buffer_;
 
   scoped_ptr<ClientSocketHandle> transport_;

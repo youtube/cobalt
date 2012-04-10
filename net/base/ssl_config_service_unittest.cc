@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,11 +13,6 @@
 namespace net {
 
 namespace {
-
-bool IsFalseStartIncompatible(const std::string& hostname) {
-  return SSLConfigService::IsKnownFalseStartIncompatibleServer(
-      hostname);
-}
 
 class MockSSLConfigService : public SSLConfigService {
  public:
@@ -51,21 +46,6 @@ class MockSSLConfigServiceObserver : public SSLConfigService::Observer {
 };
 
 }  // namespace
-
-TEST(SSLConfigServiceTest, FalseStartDisabledHosts) {
-  EXPECT_TRUE(IsFalseStartIncompatible("www.picnik.com"));
-  EXPECT_FALSE(IsFalseStartIncompatible("picnikfoo.com"));
-  EXPECT_FALSE(IsFalseStartIncompatible("foopicnik.com"));
-}
-
-TEST(SSLConfigServiceTest, FalseStartDisabledDomains) {
-  EXPECT_TRUE(IsFalseStartIncompatible("yodlee.com"));
-  EXPECT_TRUE(IsFalseStartIncompatible("a.yodlee.com"));
-  EXPECT_TRUE(IsFalseStartIncompatible("b.a.yodlee.com"));
-  EXPECT_FALSE(IsFalseStartIncompatible("ayodlee.com"));
-  EXPECT_FALSE(IsFalseStartIncompatible("yodleea.com"));
-  EXPECT_FALSE(IsFalseStartIncompatible("yodlee.org"));
-}
 
 TEST(SSLConfigServiceTest, NoChangesWontNotifyObservers) {
   SSLConfig initial_config;
