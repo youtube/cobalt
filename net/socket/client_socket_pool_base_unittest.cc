@@ -4,6 +4,8 @@
 
 #include "net/socket/client_socket_pool_base.h"
 
+#include <vector>
+
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/callback.h"
@@ -28,7 +30,11 @@
 #include "net/socket/socket_test_util.h"
 #include "net/socket/ssl_host_info.h"
 #include "net/socket/stream_socket.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using ::testing::Invoke;
+using ::testing::Return;
 
 namespace net {
 
@@ -40,10 +46,18 @@ const net::RequestPriority kDefaultPriority = MEDIUM;
 
 class TestSocketParams : public base::RefCounted<TestSocketParams> {
  public:
-  bool ignore_limits() { return false; }
+  TestSocketParams() : ignore_limits_(false) {}
+
+  void set_ignore_limits(bool ignore_limits) {
+    ignore_limits_ = ignore_limits;
+  }
+  bool ignore_limits() { return ignore_limits_; }
+
  private:
   friend class base::RefCounted<TestSocketParams>;
   ~TestSocketParams() {}
+
+  bool ignore_limits_;
 };
 typedef ClientSocketPoolBase<TestSocketParams> TestClientSocketPoolBase;
 
@@ -358,11 +372,17 @@ class TestConnectJobFactory
  public:
   explicit TestConnectJobFactory(MockClientSocketFactory* client_socket_factory)
       : job_type_(TestConnectJob::kMockJob),
+        job_types_(NULL),
         client_socket_factory_(client_socket_factory) {}
 
   virtual ~TestConnectJobFactory() {}
 
   void set_job_type(TestConnectJob::JobType job_type) { job_type_ = job_type; }
+
+  void set_job_types(std::list<TestConnectJob::JobType>* job_types) {
+    job_types_ = job_types;
+    CHECK(!job_types_->empty());
+  }
 
   void set_timeout_duration(base::TimeDelta timeout_duration) {
     timeout_duration_ = timeout_duration;
@@ -374,7 +394,13 @@ class TestConnectJobFactory
       const std::string& group_name,
       const TestClientSocketPoolBase::Request& request,
       ConnectJob::Delegate* delegate) const {
-    return new TestConnectJob(job_type_,
+    EXPECT_TRUE(!job_types_ || !job_types_->empty());
+    TestConnectJob::JobType job_type = job_type_;
+    if (job_types_ && !job_types_->empty()) {
+      job_type = job_types_->front();
+      job_types_->pop_front();
+    }
+    return new TestConnectJob(job_type,
                               group_name,
                               request,
                               timeout_duration_,
@@ -389,6 +415,7 @@ class TestConnectJobFactory
 
  private:
   TestConnectJob::JobType job_type_;
+  std::list<TestConnectJob::JobType>* job_types_;
   base::TimeDelta timeout_duration_;
   MockClientSocketFactory* const client_socket_factory_;
 
@@ -450,6 +477,10 @@ class TestClientSocketPool : public ClientSocketPool {
     base_.Flush();
   }
 
+  virtual bool IsStalled() const OVERRIDE {
+    return base_.IsStalled();
+  }
+
   virtual void CloseIdleSockets() OVERRIDE {
     base_.CloseIdleSockets();
   }
@@ -467,6 +498,14 @@ class TestClientSocketPool : public ClientSocketPool {
       const std::string& group_name,
       const ClientSocketHandle* handle) const OVERRIDE {
     return base_.GetLoadState(group_name, handle);
+  }
+
+  virtual void AddLayeredPool(LayeredPool* pool) OVERRIDE {
+    base_.AddLayeredPool(pool);
+  }
+
+  virtual void RemoveLayeredPool(LayeredPool* pool) OVERRIDE {
+    base_.RemoveLayeredPool(pool);
   }
 
   virtual DictionaryValue* GetInfoAsValue(
@@ -501,6 +540,10 @@ class TestClientSocketPool : public ClientSocketPool {
   void CleanupTimedOutIdleSockets() { base_.CleanupIdleSockets(false); }
 
   void EnableConnectBackupJobs() { base_.EnableConnectBackupJobs(); }
+
+  bool CloseOneIdleConnectionInLayeredPool() {
+    return base_.CloseOneIdleConnectionInLayeredPool();
+  }
 
  private:
   TestClientSocketPoolBase base_;
@@ -1167,6 +1210,7 @@ TEST_F(ClientSocketPoolBaseTest, WaitForStalledSocketAtSocketLimit) {
   ClientSocketHandle stalled_handle;
   TestCompletionCallback callback;
   {
+    EXPECT_FALSE(pool_->IsStalled());
     ClientSocketHandle handles[kDefaultMaxSockets];
     for (int i = 0; i < kDefaultMaxSockets; ++i) {
       TestCompletionCallback callback;
@@ -1181,6 +1225,7 @@ TEST_F(ClientSocketPoolBaseTest, WaitForStalledSocketAtSocketLimit) {
 
     EXPECT_EQ(kDefaultMaxSockets, client_socket_factory_.allocation_count());
     EXPECT_EQ(0, pool_->IdleSocketCount());
+    EXPECT_FALSE(pool_->IsStalled());
 
     // Now we will hit the socket limit.
     EXPECT_EQ(ERR_IO_PENDING, stalled_handle.Init("foo",
@@ -1189,6 +1234,7 @@ TEST_F(ClientSocketPoolBaseTest, WaitForStalledSocketAtSocketLimit) {
                                                   callback.callback(),
                                                   pool_.get(),
                                                   BoundNetLog()));
+    EXPECT_TRUE(pool_->IsStalled());
 
     // Dropping out of scope will close all handles and return them to idle.
   }
@@ -2008,9 +2054,9 @@ TEST_F(ClientSocketPoolBaseTest, DisableCleanupTimer) {
   EXPECT_EQ(1, handle2.socket()->Write(NULL, 1, CompletionCallback()));
   handle2.Reset();
 
-  // The idle socket timeout value was set to 10 milliseconds. Wait 20
+  // The idle socket timeout value was set to 10 milliseconds. Wait 100
   // milliseconds so the sockets timeout.
-  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(20));
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(100));
   MessageLoop::current()->RunAllPending();
 
   ASSERT_EQ(2, pool_->IdleSocketCount());
@@ -3042,6 +3088,7 @@ TEST_F(ClientSocketPoolBaseTest, RequestSocketsHitMaxSocketLimit) {
 
   ASSERT_TRUE(pool_->HasGroup("a"));
   EXPECT_EQ(kDefaultMaxSockets - 1, pool_->NumConnectJobsInGroup("a"));
+  EXPECT_FALSE(pool_->IsStalled());
 
   ASSERT_FALSE(pool_->HasGroup("b"));
 
@@ -3050,6 +3097,7 @@ TEST_F(ClientSocketPoolBaseTest, RequestSocketsHitMaxSocketLimit) {
 
   ASSERT_TRUE(pool_->HasGroup("b"));
   EXPECT_EQ(1, pool_->NumConnectJobsInGroup("b"));
+  EXPECT_FALSE(pool_->IsStalled());
 }
 
 TEST_F(ClientSocketPoolBaseTest, RequestSocketsCountIdleSockets) {
