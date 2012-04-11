@@ -166,8 +166,17 @@ void SpdyStream::set_initial_recv_window_size(int32 window_size) {
   session_->set_initial_recv_window_size(window_size);
 }
 
+void SpdyStream::PossiblyResumeIfStalled() {
+  if (send_window_size_ > 0 && stalled_by_flow_control_) {
+    stalled_by_flow_control_ = false;
+    io_state_ = STATE_SEND_BODY;
+    DoLoop(OK);
+  }
+}
+
 void SpdyStream::AdjustSendWindowSize(int32 delta_window_size) {
   send_window_size_ += delta_window_size;
+  PossiblyResumeIfStalled();
 }
 
 void SpdyStream::IncreaseSendWindowSize(int32 delta_window_size) {
@@ -201,11 +210,7 @@ void SpdyStream::IncreaseSendWindowSize(int32 delta_window_size) {
       NetLog::TYPE_SPDY_STREAM_UPDATE_SEND_WINDOW,
       make_scoped_refptr(new NetLogSpdyStreamWindowUpdateParameter(
           stream_id_, delta_window_size, send_window_size_)));
-  if (send_window_size_ > 0 && stalled_by_flow_control_) {
-    stalled_by_flow_control_ = false;
-    io_state_ = STATE_SEND_BODY;
-    DoLoop(OK);
-  }
+  PossiblyResumeIfStalled();
 }
 
 void SpdyStream::DecreaseSendWindowSize(int32 delta_window_size) {

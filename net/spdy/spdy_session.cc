@@ -1753,14 +1753,21 @@ void SpdySession::HandleSetting(uint32 id, uint32 value) {
       ProcessPendingCreateStreams();
       break;
     case SETTINGS_INITIAL_WINDOW_SIZE:
-      // INITIAL_WINDOW_SIZE updates initial_send_window_size_ only.
-      // TODO(rtenneti): discuss with the server team about
-      // initial_recv_window_size_.
-      int32 prev_initial_send_window_size = initial_send_window_size_;
-      initial_send_window_size_ = value;
-      int32 delta_window_size =
-          initial_send_window_size_ - prev_initial_send_window_size;
-      UpdateStreamsSendWindowSize(delta_window_size);
+      if (static_cast<int32>(value) < 0) {
+        net_log().AddEvent(
+            NetLog::TYPE_SPDY_SESSION_NEGATIVE_INITIAL_WINDOW_SIZE,
+            make_scoped_refptr(new NetLogIntegerParameter(
+                "initial_window_size", value)));
+      } else {
+        // SETTINGS_INITIAL_WINDOW_SIZE updates initial_send_window_size_ only.
+        int32 delta_window_size = value - initial_send_window_size_;
+        initial_send_window_size_ = value;
+        UpdateStreamsSendWindowSize(delta_window_size);
+        net_log().AddEvent(
+            NetLog::TYPE_SPDY_SESSION_UPDATE_STREAMS_SEND_WINDOW_SIZE,
+            make_scoped_refptr(new NetLogIntegerParameter(
+                "delta_window_size", delta_window_size)));
+      }
       break;
   }
 }
