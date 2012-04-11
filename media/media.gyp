@@ -830,8 +830,6 @@
             'tools/shader_bench/cpu_color_painter.h',
             'tools/shader_bench/gpu_color_painter.cc',
             'tools/shader_bench/gpu_color_painter.h',
-            'tools/shader_bench/gpu_color_painter_exp.cc',
-            'tools/shader_bench/gpu_color_painter_exp.h',
             'tools/shader_bench/gpu_painter.cc',
             'tools/shader_bench/gpu_painter.h',
             'tools/shader_bench/painter.cc',
