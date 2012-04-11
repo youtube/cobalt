@@ -410,7 +410,7 @@ MULTIPROCESS_TEST_MAIN(CrossProcessNotificationChildMain) {
   CrudeIpc* ipc = reinterpret_cast<CrudeIpc*>(mem.memory());
 
   while (!ipc->ready)
-    base::PlatformThread::Sleep(10);
+    base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(10));
 
   CrossProcessNotification notifier(ipc->handle_1, ipc->handle_2);
   notifier.Wait();
