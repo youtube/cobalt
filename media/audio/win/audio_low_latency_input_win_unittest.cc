@@ -396,7 +396,7 @@ TEST(WinAudioInputTest, DISABLED_WASAPIAudioInputStreamRecordToFile) {
   WriteToFileAudioSink file_sink(file_name);
   LOG(INFO) << ">> Speak into the default microphone while recording.";
   ais->Start(&file_sink);
-  base::PlatformThread::Sleep(TestTimeouts::action_timeout_ms());
+  base::PlatformThread::Sleep(TestTimeouts::action_timeout());
   ais->Stop();
   LOG(INFO) << ">> Recording has stopped.";
   ais->Close();
