@@ -340,7 +340,7 @@ void URLRequestFileJob::DidResolve(
     if (remaining_bytes_ > 0 &&
         byte_range_.first_byte_position() != 0 &&
         byte_range_.first_byte_position() !=
-        stream_.Seek(FROM_BEGIN, byte_range_.first_byte_position())) {
+        stream_.SeekSync(FROM_BEGIN, byte_range_.first_byte_position())) {
       NotifyDone(URLRequestStatus(URLRequestStatus::FAILED,
                                   ERR_REQUEST_RANGE_NOT_SATISFIABLE));
       return;
