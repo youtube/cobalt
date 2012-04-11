@@ -33,7 +33,7 @@ using base::Time;
 
 namespace {
 
-class DeleteCacheCompletionCallback : public TestCompletionCallbackBase {
+class DeleteCacheCompletionCallback : public net::TestCompletionCallbackBase {
  public:
   explicit DeleteCacheCompletionCallback(MockHttpCache* cache)
       : cache_(cache),

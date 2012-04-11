@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,42 +8,33 @@
 #include "base/bind_helpers.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
-#include "net/base/net_errors.h"
 
-void TestCompletionCallbackBase::SetResult(int result) {
-  result_ = result;
+namespace net {
+
+namespace internal {
+
+void TestCompletionCallbackBaseInternal::DidSetResult() {
   have_result_ = true;
   if (waiting_for_result_)
     MessageLoop::current()->Quit();
 }
 
-int TestCompletionCallbackBase::WaitForResult() {
+void TestCompletionCallbackBaseInternal::WaitForResult() {
   DCHECK(!waiting_for_result_);
-
   while (!have_result_) {
     waiting_for_result_ = true;
     MessageLoop::current()->Run();
     waiting_for_result_ = false;
   }
-
   have_result_ = false;  // Auto-reset for next callback.
-  return result_;
 }
 
-int TestCompletionCallbackBase::GetResult(int result) {
-  if (net::ERR_IO_PENDING != result)
-    return result;
-
-  return WaitForResult();
-}
-
-TestCompletionCallbackBase::TestCompletionCallbackBase()
-    : result_(0),
-      have_result_(false),
+TestCompletionCallbackBaseInternal::TestCompletionCallbackBaseInternal()
+    : have_result_(false),
       waiting_for_result_(false) {
 }
 
-namespace net {
+}  // namespace internal
 
 TestCompletionCallback::TestCompletionCallback()
     : ALLOW_THIS_IN_INITIALIZER_LIST(callback_(
@@ -53,5 +44,12 @@ TestCompletionCallback::TestCompletionCallback()
 
 TestCompletionCallback::~TestCompletionCallback() {}
 
+TestInt64CompletionCallback::TestInt64CompletionCallback()
+    : ALLOW_THIS_IN_INITIALIZER_LIST(callback_(
+        base::Bind(&TestInt64CompletionCallback::SetResult,
+                   base::Unretained(this)))) {
+}
+
+TestInt64CompletionCallback::~TestInt64CompletionCallback() {}
 
 }  // namespace net

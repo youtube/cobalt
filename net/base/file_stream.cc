@@ -39,8 +39,13 @@ bool FileStream::IsOpen() const {
   return impl_.IsOpen();
 }
 
-int64 FileStream::Seek(Whence whence, int64 offset) {
-  return impl_.Seek(whence, offset);
+int FileStream::Seek(Whence whence, int64 offset,
+                     const Int64CompletionCallback& callback) {
+  return impl_.Seek(whence, offset, callback);
+}
+
+int64 FileStream::SeekSync(Whence whence, int64 offset) {
+  return impl_.SeekSync(whence, offset);
 }
 
 int64 FileStream::Available() {
