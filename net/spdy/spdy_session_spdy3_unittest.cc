@@ -1132,4 +1132,92 @@ TEST_F(SpdySessionSpdy3Test, CloseSessionOnError) {
   EXPECT_EQ(ERR_CONNECTION_CLOSED, request_params->status());
 }
 
+TEST_F(SpdySessionSpdy3Test, UpdateStreamsSendWindowSize) {
+  // Set SETTINGS_INITIAL_WINDOW_SIZE to a small number so that WINDOW_UPDATE
+  // gets sent.
+  SpdySettings new_settings;
+  SettingsFlagsAndId id(0, SETTINGS_INITIAL_WINDOW_SIZE);
+  int32 window_size = 1;
+  new_settings.push_back(SpdySetting(id, window_size));
+
+  // Set up the socket so we read a SETTINGS frame that sets
+  // INITIAL_WINDOW_SIZE.
+  MockConnect connect_data(SYNCHRONOUS, OK);
+  scoped_ptr<SpdyFrame> settings_frame(ConstructSpdySettings(new_settings));
+  MockRead reads[] = {
+    CreateMockRead(*settings_frame),
+    MockRead(SYNCHRONOUS, 0, 0)  // EOF
+  };
+
+  SpdySessionDependencies session_deps;
+  session_deps.host_resolver->set_synchronous_mode(true);
+
+  StaticSocketDataProvider data(reads, arraysize(reads), NULL, 0);
+  data.set_connect_data(connect_data);
+  session_deps.socket_factory->AddSocketDataProvider(&data);
+
+  SSLSocketDataProvider ssl(SYNCHRONOUS, OK);
+  session_deps.socket_factory->AddSSLSocketDataProvider(&ssl);
+
+  scoped_refptr<HttpNetworkSession> http_session(
+      SpdySessionDependencies::SpdyCreateSession(&session_deps));
+
+  const std::string kTestHost("www.foo.com");
+  const int kTestPort = 80;
+  HostPortPair test_host_port_pair(kTestHost, kTestPort);
+  HostPortProxyPair pair(test_host_port_pair, ProxyServer::Direct());
+
+  SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
+
+  // Create a session.
+  EXPECT_FALSE(spdy_session_pool->HasSession(pair));
+  scoped_refptr<SpdySession> session =
+      spdy_session_pool->Get(pair, BoundNetLog());
+  ASSERT_TRUE(spdy_session_pool->HasSession(pair));
+
+  scoped_refptr<TransportSocketParams> transport_params(
+      new TransportSocketParams(test_host_port_pair,
+                                MEDIUM,
+                                false,
+                                false));
+  scoped_ptr<ClientSocketHandle> connection(new ClientSocketHandle);
+  EXPECT_EQ(OK, connection->Init(test_host_port_pair.ToString(),
+                                 transport_params, MEDIUM, CompletionCallback(),
+                                 http_session->GetTransportSocketPool(
+                                     HttpNetworkSession::NORMAL_SOCKET_POOL),
+                                 BoundNetLog()));
+  EXPECT_EQ(OK, session->InitializeWithSocket(connection.release(), false, OK));
+
+  scoped_refptr<SpdyStream> spdy_stream1;
+  TestCompletionCallback callback1;
+  GURL url("http://www.google.com");
+  EXPECT_EQ(OK,
+            session->CreateStream(url,
+                                  MEDIUM,  /* priority, not important */
+                                  &spdy_stream1,
+                                  BoundNetLog(),
+                                  callback1.callback()));
+  EXPECT_NE(spdy_stream1->send_window_size(), window_size);
+
+  MessageLoop::current()->RunAllPending();
+  EXPECT_EQ(session->initial_send_window_size(), window_size);
+  EXPECT_EQ(spdy_stream1->send_window_size(), window_size);
+
+  // Release the first one, this will allow the second to be created.
+  spdy_stream1->Cancel();
+  spdy_stream1 = NULL;
+
+  scoped_refptr<SpdyStream> spdy_stream2;
+  EXPECT_EQ(OK,
+            session->CreateStream(url,
+                                  MEDIUM,  /* priority, not important */
+                                  &spdy_stream2,
+                                  BoundNetLog(),
+                                  callback1.callback()));
+
+  EXPECT_EQ(spdy_stream2->send_window_size(), window_size);
+  spdy_stream2->Cancel();
+  spdy_stream2 = NULL;
+}
+
 }  // namespace net

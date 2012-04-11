@@ -244,6 +244,11 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
     return flow_control_;
   }
 
+  // Returns the current |initial_send_window_size_|.
+  int32 initial_send_window_size() const {
+    return initial_send_window_size_;
+  }
+
   // Returns the current |initial_recv_window_size_|.
   int32 initial_recv_window_size() const { return initial_recv_window_size_; }
 
