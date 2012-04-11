@@ -105,6 +105,10 @@ class NET_EXPORT_PRIVATE HttpNetworkTransaction
                            WindowUpdateOverflow);
   FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy3Test,
                            FlowControlStallResume);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy3Test,
+                           FlowControlStallResumeAfterSettings);
+  FRIEND_TEST_ALL_PREFIXES(SpdyNetworkTransactionSpdy3Test,
+                           FlowControlNegativeSendWindowSize);
 
   enum State {
     STATE_CREATE_STREAM,
