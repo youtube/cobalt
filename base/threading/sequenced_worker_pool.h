@@ -159,6 +159,17 @@ class BASE_EXPORT SequencedWorkerPool : public TaskRunner {
   scoped_refptr<SequencedTaskRunner> GetSequencedTaskRunner(
       SequenceToken token);
 
+  // Returns a SequencedTaskRunner wrapper which posts to this
+  // SequencedWorkerPool using the given sequence token and shutdown behavior.
+  scoped_refptr<SequencedTaskRunner> GetSequencedTaskRunnerWithShutdownBehavior(
+      SequenceToken token,
+      WorkerShutdown shutdown_behavior);
+
+  // Returns a TaskRunner wrapper which posts to this SequencedWorkerPool using
+  // the given shutdown behavior.
+  scoped_refptr<TaskRunner> GetTaskRunnerWithShutdownBehavior(
+      WorkerShutdown shutdown_behavior);
+
   // Posts the given task for execution in the worker pool. Tasks posted with
   // this function will execute in an unspecified order on a background thread.
   // Returns true if the task was posted. If your tasks have ordering
