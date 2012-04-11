@@ -22,27 +22,15 @@ scoped_refptr<VideoFrame> VideoFrame::CreateFrame(
   scoped_refptr<VideoFrame> frame(new VideoFrame(
       format, width, height, timestamp, duration));
   switch (format) {
-    case VideoFrame::RGB555:
-    case VideoFrame::RGB565:
-      frame->AllocateRGB(2u);
-      break;
-    case VideoFrame::RGB24:
-      frame->AllocateRGB(3u);
-      break;
     case VideoFrame::RGB32:
-    case VideoFrame::RGBA:
       frame->AllocateRGB(4u);
       break;
     case VideoFrame::YV12:
     case VideoFrame::YV16:
       frame->AllocateYUV();
       break;
-    case VideoFrame::ASCII:
-      frame->AllocateRGB(1u);
-      break;
     default:
-      NOTREACHED();
-      return NULL;
+      LOG(FATAL) << "Unsupported frame format: " << format;
   }
   return frame;
 }
@@ -175,11 +163,7 @@ VideoFrame::~VideoFrame() {
 
 bool VideoFrame::IsValidPlane(size_t plane) const {
   switch (format_) {
-    case RGB555:
-    case RGB565:
-    case RGB24:
     case RGB32:
-    case RGBA:
       return plane == kRGBPlane;
 
     case YV12:
@@ -207,18 +191,8 @@ int VideoFrame::stride(size_t plane) const {
 int VideoFrame::row_bytes(size_t plane) const {
   DCHECK(IsValidPlane(plane));
   switch (format_) {
-    // 16bpp.
-    case RGB555:
-    case RGB565:
-      return width_ * 2;
-
-    // 24bpp.
-    case RGB24:
-      return width_ * 3;
-
     // 32bpp.
     case RGB32:
-    case RGBA:
       return width_ * 4;
 
     // Planar, 8bpp.
@@ -240,11 +214,7 @@ int VideoFrame::row_bytes(size_t plane) const {
 int VideoFrame::rows(size_t plane) const {
   DCHECK(IsValidPlane(plane));
   switch (format_) {
-    case RGB555:
-    case RGB565:
-    case RGB24:
     case RGB32:
-    case RGBA:
     case YV16:
       return height_;
 

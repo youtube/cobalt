@@ -28,19 +28,13 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   // http://www.fourcc.org/yuv.php
   // Keep in sync with WebKit::WebVideoFrame!
   enum Format {
-    INVALID,     // Invalid format value.  Used for error reporting.
-    RGB555,      // 16bpp RGB packed 5:5:5
-    RGB565,      // 16bpp RGB packed 5:6:5
-    RGB24,       // 24bpp RGB packed 8:8:8
-    RGB32,       // 32bpp RGB packed with extra byte 8:8:8
-    RGBA,        // 32bpp RGBA packed 8:8:8:8
-    YV12,        // 12bpp YVU planar 1x1 Y, 2x2 VU samples
-    YV16,        // 16bpp YVU planar 1x1 Y, 2x1 VU samples
-    NV12,        // 12bpp YVU planar 1x1 Y, 2x2 UV interleaving samples
-    EMPTY,       // An empty frame.
-    ASCII,       // A frame with ASCII content. For testing only.
-    I420,        // 12bpp YVU planar 1x1 Y, 2x2 UV samples.
-    NATIVE_TEXTURE,  // Native texture.  Pixel-format agnostic.
+    INVALID = 0,  // Invalid format value.  Used for error reporting.
+    RGB32 = 4,  // 32bpp RGB packed with extra byte 8:8:8
+    YV12 = 6,  // 12bpp YVU planar 1x1 Y, 2x2 VU samples
+    YV16 = 7,  // 16bpp YVU planar 1x1 Y, 2x1 VU samples
+    EMPTY = 9,  // An empty frame.
+    I420 = 11,  // 12bpp YVU planar 1x1 Y, 2x2 UV samples.
+    NATIVE_TEXTURE = 12,  // Native texture.  Pixel-format agnostic.
   };
 
   // Creates a new frame in system memory with given parameters. Buffers for
