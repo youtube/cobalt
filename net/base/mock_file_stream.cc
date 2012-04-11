@@ -13,8 +13,13 @@ int MockFileStream::OpenSync(const FilePath& path, int open_flags) {
   return ReturnError(FileStream::OpenSync(path, open_flags));
 }
 
-int64 MockFileStream::Seek(Whence whence, int64 offset) {
-  return ReturnError64(FileStream::Seek(whence, offset));
+int MockFileStream::Seek(Whence whence, int64 offset,
+                         const Int64CompletionCallback& callback) {
+  return ReturnError(FileStream::Seek(whence, offset, callback));
+}
+
+int64 MockFileStream::SeekSync(Whence whence, int64 offset) {
+  return ReturnError64(FileStream::SeekSync(whence, offset));
 }
 
 int64 MockFileStream::Available() {

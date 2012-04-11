@@ -126,7 +126,7 @@ FileStream* UploadData::Element::OpenFileStream() {
     return NULL;
   }
   if (file_range_offset_) {
-    rv = file->Seek(FROM_BEGIN, file_range_offset_);
+    rv = file->SeekSync(FROM_BEGIN, file_range_offset_);
     if (rv < 0) {
       DLOG(WARNING) << "Failed to seek \"" << file_path_.value()
                     << "\" to offset: " << file_range_offset_ << " (" << rv
