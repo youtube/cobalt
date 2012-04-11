@@ -99,7 +99,7 @@ void TraceEventTestFixture::OnTraceDataCollected(
   trace_buffer_.Finish();
 
   scoped_ptr<Value> root;
-  root.reset(base::JSONReader::Read(json_output_.json_output, false));
+  root.reset(base::JSONReader::Read(json_output_.json_output));
 
   if (!root.get()) {
     LOG(ERROR) << json_output_.json_output;
