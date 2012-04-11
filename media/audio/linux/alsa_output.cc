@@ -617,10 +617,14 @@ std::string AlsaPcmOutputStream::FindDeviceForChannels(uint32 channels) {
 
 snd_pcm_sframes_t AlsaPcmOutputStream::GetCurrentDelay() {
   snd_pcm_sframes_t delay = -1;
-
-  // Don't query ALSA's delay if we have underrun since it'll be jammed at
-  // some non-zero value and potentially even negative!
-  if (wrapper_->PcmState(playback_handle_) != SND_PCM_STATE_XRUN) {
+  // Don't query ALSA's delay if we have underrun since it'll be jammed at some
+  // non-zero value and potentially even negative!
+  //
+  // Also, if we're in the prepared state, don't query because that seems to
+  // cause an I/O error when we do query the delay.
+  snd_pcm_state_t pcm_state = wrapper_->PcmState(playback_handle_);
+  if (pcm_state != SND_PCM_STATE_XRUN &&
+      pcm_state != SND_PCM_STATE_PREPARED) {
     int error = wrapper_->PcmDelay(playback_handle_, &delay);
     if (error < 0) {
       // Assume a delay of zero and attempt to recover the device.
