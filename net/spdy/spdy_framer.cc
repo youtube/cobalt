@@ -26,6 +26,8 @@ using std::vector;
 
 namespace net {
 
+namespace {
+
 // Compute the id of our dictionary so that we know we're using the
 // right one when asked for it.
 uLong CalculateDictionaryId(const char* dictionary,
@@ -61,6 +63,8 @@ FlagsAndLength CreateFlagsAndLength(SpdyControlFlags flags, size_t length) {
 
 // By default is compression on or off.
 bool g_enable_compression_default = true;
+
+}  // namespace
 
 // The initial size of the control frame buffer; this is used internally
 // as we parse through control frames. (It is exposed here for unit test
@@ -129,8 +133,8 @@ void SettingsFlagsAndId::ConvertFlagsAndIdForSpdy2(uint32* val) {
     std::swap(wire_array[1], wire_array[2]);
 }
 
-SpdyCredential::SpdyCredential() : slot(0) { }
-SpdyCredential::~SpdyCredential() { }
+SpdyCredential::SpdyCredential() : slot(0) {}
+SpdyCredential::~SpdyCredential() {}
 
 SpdyFramer::SpdyFramer(int version)
     : state_(SPDY_RESET),
