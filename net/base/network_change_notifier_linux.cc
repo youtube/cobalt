@@ -166,7 +166,7 @@ void NetworkManagerApi::CleanUp() {
 void NetworkManagerApi::HandleResponse(dbus::Response* response) {
   DCHECK_EQ(helper_thread_id_, base::PlatformThread::CurrentId());
   if (!response) {
-    DLOG(WARNING) << "No response received for initial state request";
+    DVLOG(1) << "No response received for initial state request";
     return;
   }
   dbus::MessageReader reader(response);
