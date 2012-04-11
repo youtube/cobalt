@@ -138,11 +138,15 @@ class NET_EXPORT_PRIVATE SpdyStream
   // Set session_'s initial_recv_window_size. Used by unittests.
   void set_initial_recv_window_size(int32 window_size);
 
+  bool stalled_by_flow_control() { return stalled_by_flow_control_; }
+
   void set_stalled_by_flow_control(bool stalled) {
     stalled_by_flow_control_ = stalled;
   }
 
-  // Adjust the |send_window_size_| by |delta_window_size|.
+  // Adjusts the |send_window_size_| by |delta_window_size|. |delta_window_size|
+  // is the difference between the SETTINGS_INITIAL_WINDOW_SIZE in SETTINGS
+  // frame and the previous initial_send_window_size.
   void AdjustSendWindowSize(int32 delta_window_size);
 
   // Increases |send_window_size_| with delta extracted from a WINDOW_UPDATE
@@ -273,6 +277,10 @@ class NET_EXPORT_PRIVATE SpdyStream
 
   friend class base::RefCounted<SpdyStream>;
   virtual ~SpdyStream();
+
+  // If the stream is stalled and if |send_window_size_| is positive, then set
+  // |stalled_by_flow_control_| to false and unstall the stream.
+  void PossiblyResumeIfStalled();
 
   void OnGetDomainBoundCertComplete(int result);
 

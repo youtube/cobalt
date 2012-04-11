@@ -1070,6 +1070,18 @@ EVENT_TYPE(SPDY_SESSION_CLOSE)
 // the maximum number of concurrent streams.
 EVENT_TYPE(SPDY_SESSION_STALLED_MAX_STREAMS)
 
+// Received a negative value for initial window size in SETTINGS frame.
+//   {
+//     "initial_window_size"  : <The initial window size>,
+//   }
+EVENT_TYPE(SPDY_SESSION_NEGATIVE_INITIAL_WINDOW_SIZE)
+
+// Updating streams send window size by the delta window size.
+//   {
+//     "delta_window_size"    : <The delta window size>,
+//   }
+EVENT_TYPE(SPDY_SESSION_UPDATE_STREAMS_SEND_WINDOW_SIZE)
+
 // ------------------------------------------------------------------------
 // SpdySessionPool
 // ------------------------------------------------------------------------
