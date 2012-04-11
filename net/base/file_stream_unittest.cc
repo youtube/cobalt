@@ -155,7 +155,7 @@ TEST_F(FileStreamTest, UseFileHandle) {
 
   // Seek to the beginning of the file and read.
   FileStream read_stream(file, flags, NULL);
-  ASSERT_EQ(0, read_stream.Seek(FROM_BEGIN, 0));
+  ASSERT_EQ(0, read_stream.SeekSync(FROM_BEGIN, 0));
   ASSERT_EQ(kTestDataSize, read_stream.Available());
   // Read into buffer and compare.
   char buffer[kTestDataSize];
@@ -170,7 +170,7 @@ TEST_F(FileStreamTest, UseFileHandle) {
   file = base::CreatePlatformFile(temp_file_path(), flags, &created, NULL);
 
   FileStream write_stream(file, flags, NULL);
-  ASSERT_EQ(0, write_stream.Seek(FROM_BEGIN, 0));
+  ASSERT_EQ(0, write_stream.SeekSync(FROM_BEGIN, 0));
   ASSERT_EQ(kTestDataSize,
             write_stream.WriteSync(kTestData, kTestDataSize));
   write_stream.CloseSync();
@@ -187,7 +187,7 @@ TEST_F(FileStreamTest, UseClosedStream) {
   EXPECT_FALSE(stream.IsOpen());
 
   // Try seeking...
-  int64 new_offset = stream.Seek(FROM_BEGIN, 5);
+  int64 new_offset = stream.SeekSync(FROM_BEGIN, 5);
   EXPECT_EQ(ERR_UNEXPECTED, new_offset);
 
   // Try available...
@@ -380,7 +380,7 @@ TEST_F(FileStreamTest, BasicRead_FromOffset) {
   EXPECT_EQ(OK, rv);
 
   const int64 kOffset = 3;
-  int64 new_offset = stream.Seek(FROM_BEGIN, kOffset);
+  int64 new_offset = stream.SeekSync(FROM_BEGIN, kOffset);
   EXPECT_EQ(kOffset, new_offset);
 
   int64 total_bytes_avail = stream.Available();
@@ -415,8 +415,11 @@ TEST_F(FileStreamTest, AsyncRead_FromOffset) {
   int rv = stream.OpenSync(temp_file_path(), flags);
   EXPECT_EQ(OK, rv);
 
+  TestInt64CompletionCallback callback64;
   const int64 kOffset = 3;
-  int64 new_offset = stream.Seek(FROM_BEGIN, kOffset);
+  rv = stream.Seek(FROM_BEGIN, kOffset, callback64.callback());
+  ASSERT_EQ(ERR_IO_PENDING, rv);
+  int64 new_offset = callback64.WaitForResult();
   EXPECT_EQ(kOffset, new_offset);
 
   int64 total_bytes_avail = stream.Available();
@@ -450,18 +453,52 @@ TEST_F(FileStreamTest, SeekAround) {
   EXPECT_EQ(OK, rv);
 
   const int64 kOffset = 3;
-  int64 new_offset = stream.Seek(FROM_BEGIN, kOffset);
+  int64 new_offset = stream.SeekSync(FROM_BEGIN, kOffset);
   EXPECT_EQ(kOffset, new_offset);
 
-  new_offset = stream.Seek(FROM_CURRENT, kOffset);
+  new_offset = stream.SeekSync(FROM_CURRENT, kOffset);
   EXPECT_EQ(2 * kOffset, new_offset);
 
-  new_offset = stream.Seek(FROM_CURRENT, -kOffset);
+  new_offset = stream.SeekSync(FROM_CURRENT, -kOffset);
   EXPECT_EQ(kOffset, new_offset);
 
   const int kTestDataLen = arraysize(kTestData) - 1;
 
-  new_offset = stream.Seek(FROM_END, -kTestDataLen);
+  new_offset = stream.SeekSync(FROM_END, -kTestDataLen);
+  EXPECT_EQ(0, new_offset);
+}
+
+TEST_F(FileStreamTest, AsyncSeekAround) {
+  FileStream stream(NULL);
+  int flags = base::PLATFORM_FILE_OPEN |
+              base::PLATFORM_FILE_ASYNC |
+              base::PLATFORM_FILE_READ;
+  int rv = stream.OpenSync(temp_file_path(), flags);
+  EXPECT_EQ(OK, rv);
+
+  TestInt64CompletionCallback callback;
+
+  const int64 kOffset = 3;
+  rv = stream.Seek(FROM_BEGIN, kOffset, callback.callback());
+  ASSERT_EQ(ERR_IO_PENDING, rv);
+  int64 new_offset = callback.WaitForResult();
+  EXPECT_EQ(kOffset, new_offset);
+
+  rv = stream.Seek(FROM_CURRENT, kOffset, callback.callback());
+  ASSERT_EQ(ERR_IO_PENDING, rv);
+  new_offset = callback.WaitForResult();
+  EXPECT_EQ(2 * kOffset, new_offset);
+
+  rv = stream.Seek(FROM_CURRENT, -kOffset, callback.callback());
+  ASSERT_EQ(ERR_IO_PENDING, rv);
+  new_offset = callback.WaitForResult();
+  EXPECT_EQ(kOffset, new_offset);
+
+  const int kTestDataLen = arraysize(kTestData) - 1;
+
+  rv = stream.Seek(FROM_END, -kTestDataLen, callback.callback());
+  ASSERT_EQ(ERR_IO_PENDING, rv);
+  new_offset = callback.WaitForResult();
   EXPECT_EQ(0, new_offset);
 }
 
@@ -564,7 +601,7 @@ TEST_F(FileStreamTest, BasicWrite_FromOffset) {
   EXPECT_EQ(kTestDataSize, file_size);
 
   const int64 kOffset = 0;
-  int64 new_offset = stream.Seek(FROM_END, kOffset);
+  int64 new_offset = stream.SeekSync(FROM_END, kOffset);
   EXPECT_EQ(kTestDataSize, new_offset);
 
   rv = stream.WriteSync(kTestData, kTestDataSize);
@@ -588,8 +625,11 @@ TEST_F(FileStreamTest, AsyncWrite_FromOffset) {
   int rv = stream.OpenSync(temp_file_path(), flags);
   EXPECT_EQ(OK, rv);
 
+  TestInt64CompletionCallback callback64;
   const int64 kOffset = 0;
-  int64 new_offset = stream.Seek(FROM_END, kOffset);
+  rv = stream.Seek(FROM_END, kOffset, callback64.callback());
+  ASSERT_EQ(ERR_IO_PENDING, rv);
+  int64 new_offset = callback64.WaitForResult();
   EXPECT_EQ(kTestDataSize, new_offset);
 
   TestCompletionCallback callback;
@@ -668,13 +708,13 @@ TEST_F(FileStreamTest, BasicWriteRead) {
   int64 total_bytes_avail = stream.Available();
   EXPECT_EQ(file_size, total_bytes_avail);
 
-  int64 offset = stream.Seek(FROM_END, 0);
+  int64 offset = stream.SeekSync(FROM_END, 0);
   EXPECT_EQ(offset, file_size);
 
   rv = stream.WriteSync(kTestData, kTestDataSize);
   EXPECT_EQ(kTestDataSize, rv);
 
-  offset = stream.Seek(FROM_BEGIN, 0);
+  offset = stream.SeekSync(FROM_BEGIN, 0);
   EXPECT_EQ(0, offset);
 
   int64 total_bytes_read = 0;
@@ -775,7 +815,10 @@ TEST_F(FileStreamTest, BasicAsyncWriteRead) {
   int64 total_bytes_avail = stream.Available();
   EXPECT_EQ(file_size, total_bytes_avail);
 
-  int64 offset = stream.Seek(FROM_END, 0);
+  TestInt64CompletionCallback callback64;
+  rv = stream.Seek(FROM_END, 0, callback64.callback());
+  ASSERT_EQ(ERR_IO_PENDING, rv);
+  int64 offset = callback64.WaitForResult();
   EXPECT_EQ(offset, file_size);
 
   TestCompletionCallback callback;
@@ -798,7 +841,9 @@ TEST_F(FileStreamTest, BasicAsyncWriteRead) {
 
   EXPECT_EQ(kTestDataSize, total_bytes_written);
 
-  offset = stream.Seek(FROM_BEGIN, 0);
+  rv = stream.Seek(FROM_BEGIN, 0, callback64.callback());
+  ASSERT_EQ(ERR_IO_PENDING, rv);
+  offset = callback64.WaitForResult();
   EXPECT_EQ(0, offset);
 
   int total_bytes_read = 0;
@@ -882,7 +927,7 @@ class TestWriteReadCompletionCallback {
       *total_bytes_read_ += total_bytes_read;
       *data_read_ += data_read;
     } else {  // We're done writing all data.  Start reading the data.
-      stream_->Seek(FROM_BEGIN, 0);
+      stream_->SeekSync(FROM_BEGIN, 0);
 
       TestCompletionCallback callback;
       for (;;) {
@@ -936,7 +981,7 @@ TEST_F(FileStreamTest, AsyncWriteRead) {
   int64 total_bytes_avail = stream.Available();
   EXPECT_EQ(file_size, total_bytes_avail);
 
-  int64 offset = stream.Seek(FROM_END, 0);
+  int64 offset = stream.SeekSync(FROM_END, 0);
   EXPECT_EQ(offset, file_size);
 
   int total_bytes_written = 0;
@@ -1046,7 +1091,7 @@ TEST_F(FileStreamTest, AsyncWriteClose) {
   int64 total_bytes_avail = stream.Available();
   EXPECT_EQ(file_size, total_bytes_avail);
 
-  int64 offset = stream.Seek(FROM_END, 0);
+  int64 offset = stream.SeekSync(FROM_END, 0);
   EXPECT_EQ(offset, file_size);
 
   int total_bytes_written = 0;

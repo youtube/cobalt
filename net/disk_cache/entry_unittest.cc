@@ -1786,7 +1786,7 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyDoomSparseEntry) {
 // The way an CompletionCallback works means that all tasks (even new ones)
 // are executed by the message loop before returning to the caller so the only
 // way to simulate a race is to execute what we want on the callback.
-class SparseTestCompletionCallback: public TestCompletionCallbackBase {
+class SparseTestCompletionCallback: public net::TestCompletionCallbackBase {
  public:
   explicit SparseTestCompletionCallback(disk_cache::Backend* cache)
       : cache_(cache),

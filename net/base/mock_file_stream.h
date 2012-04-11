@@ -30,7 +30,9 @@ class MockFileStream : public net::FileStream {
 
   // FileStream methods.
   virtual int OpenSync(const FilePath& path, int open_flags) OVERRIDE;
-  virtual int64 Seek(net::Whence whence, int64 offset) OVERRIDE;
+  virtual int Seek(net::Whence whence, int64 offset,
+                   const Int64CompletionCallback& callback) OVERRIDE;
+  virtual int64 SeekSync(net::Whence whence, int64 offset) OVERRIDE;
   virtual int64 Available() OVERRIDE;
   virtual int Read(IOBuffer* buf,
                    int buf_len,
