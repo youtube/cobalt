@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/threading/sequenced_worker_pool.h"
+
 #include <algorithm>
 
 #include "base/bind.h"
@@ -13,9 +15,9 @@
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "base/test/sequenced_worker_pool_owner.h"
+#include "base/test/sequenced_task_runner_test_template.h"
 #include "base/test/task_runner_test_template.h"
 #include "base/threading/platform_thread.h"
-#include "base/threading/sequenced_worker_pool.h"
 #include "base/tracked_objects.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -532,6 +534,51 @@ class SequencedWorkerPoolTaskRunnerTestDelegate {
 INSTANTIATE_TYPED_TEST_CASE_P(
     SequencedWorkerPool, TaskRunnerTest,
     SequencedWorkerPoolTaskRunnerTestDelegate);
+
+class SequencedWorkerPoolSequencedTaskRunnerTestDelegate {
+ public:
+  SequencedWorkerPoolSequencedTaskRunnerTestDelegate() {}
+
+  ~SequencedWorkerPoolSequencedTaskRunnerTestDelegate() {
+  }
+
+  void StartTaskRunner() {
+    pool_owner_.reset(new SequencedWorkerPoolOwner(
+        10, "SequencedWorkerPoolSequencedTaskRunnerTest"));
+    task_runner_ = pool_owner_->pool()->GetSequencedTaskRunner(
+        pool_owner_->pool()->GetSequenceToken());
+  }
+
+  scoped_refptr<SequencedTaskRunner> GetTaskRunner() {
+    return task_runner_;
+  }
+
+  void StopTaskRunner() {
+    pool_owner_->pool()->FlushForTesting();
+    pool_owner_->pool()->Shutdown();
+    // Don't reset |pool_owner_| here, as the test may still hold a
+    // reference to the pool.
+  }
+
+  bool TaskRunnerHandlesNonZeroDelays() const {
+    // TODO(akalin): Set this to true once SequencedWorkerPool handles
+    // non-zero delays.
+    return false;
+  }
+
+ private:
+  MessageLoop message_loop_;
+  scoped_ptr<SequencedWorkerPoolOwner> pool_owner_;
+  scoped_refptr<SequencedTaskRunner> task_runner_;
+};
+
+INSTANTIATE_TYPED_TEST_CASE_P(
+    SequencedWorkerPoolSequencedTaskRunner, TaskRunnerTest,
+    SequencedWorkerPoolSequencedTaskRunnerTestDelegate);
+
+INSTANTIATE_TYPED_TEST_CASE_P(
+    SequencedWorkerPoolSequencedTaskRunner, SequencedTaskRunnerTest,
+    SequencedWorkerPoolSequencedTaskRunnerTestDelegate);
 
 }  // namespace
 
