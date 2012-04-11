@@ -97,6 +97,8 @@
         'audio/null_audio_sink.h',
         'audio/pulse/pulse_output.cc',
         'audio/pulse/pulse_output.h',
+        'audio/sample_rates.cc',
+        'audio/sample_rates.h',
         'audio/simple_sources.cc',
         'audio/simple_sources.h',
         'audio/win/audio_low_latency_input_win.cc',
