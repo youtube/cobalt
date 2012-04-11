@@ -368,6 +368,8 @@
         'gfx/scrollbar_size.h',
         'gfx/selection_model.cc',
         'gfx/selection_model.h',
+        'gfx/shadow_value.cc',
+        'gfx/shadow_value.h',
         'gfx/size.cc',
         'gfx/size.h',
         'gfx/skbitmap_operations.cc',
