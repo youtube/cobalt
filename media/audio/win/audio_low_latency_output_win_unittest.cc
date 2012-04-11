@@ -410,7 +410,7 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInMilliseconds) {
 
   aos->Start(&source);
   loop.PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(),
-                       TestTimeouts::action_timeout_ms());
+                       TestTimeouts::action_timeout());
   loop.Run();
   aos->Stop();
   aos->Close();
@@ -452,7 +452,7 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInSamples) {
 
   aos->Start(&source);
   loop.PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(),
-                       TestTimeouts::action_timeout_ms());
+                       TestTimeouts::action_timeout());
   loop.Run();
   aos->Stop();
   aos->Close();
@@ -498,7 +498,7 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestMono) {
 
   aos->Start(&source);
   loop.PostDelayedTask(FROM_HERE, MessageLoop::QuitClosure(),
-                       TestTimeouts::action_timeout_ms());
+                       TestTimeouts::action_timeout());
   loop.Run();
   aos->Stop();
   aos->Close();
