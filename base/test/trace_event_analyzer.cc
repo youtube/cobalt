@@ -644,7 +644,7 @@ size_t FindMatchingEvents(const std::vector<TraceEvent>& events,
 bool ParseEventsFromJson(const std::string& json,
                          std::vector<TraceEvent>* output) {
   scoped_ptr<base::Value> root;
-  root.reset(base::JSONReader::Read(json, false));
+  root.reset(base::JSONReader::Read(json));
 
   ListValue* root_list = NULL;
   if (!root.get() || !root->GetAsList(&root_list))

@@ -50,6 +50,15 @@ namespace base {
 
 class Value;
 
+enum JSONParserOptions {
+  // Parses the input strictly according to RFC 4627, except for where noted
+  // above.
+  JSON_PARSE_RFC = 0,
+
+  // Allows commas to exist after the last element in structures.
+  JSON_ALLOW_TRAILING_COMMAS = 1 << 0,
+};
+
 class BASE_EXPORT JSONReader {
  public:
   // A struct to hold a JS token.
@@ -119,16 +128,19 @@ class BASE_EXPORT JSONReader {
 
   // Reads and parses |json|, returning a Value. The caller owns the returned
   // instance. If |json| is not a properly formed JSON string, returns NULL.
-  // If |allow_trailing_comma| is true, we will ignore trailing commas in
-  // objects and arrays even though this goes against the RFC.
-  static Value* Read(const std::string& json, bool allow_trailing_comma);
+  static Value* Read(const std::string& json);
+
+  // Reads and parses |json|, returning a Value owned by the caller. The
+  // parser respects the given |options|. If the input is not properly formed,
+  // returns NULL.
+  static Value* Read(const std::string& json, int options);
 
   // Reads and parses |json| like Read(). |error_code_out| and |error_msg_out|
   // are optional. If specified and NULL is returned, they will be populated
   // an error code and a formatted error message (including error location if
   // appropriate). Otherwise, they will be unmodified.
   static Value* ReadAndReturnError(const std::string& json,
-                                   bool allow_trailing_comma,
+                                   int options,  // JSONParserOptions
                                    int* error_code_out,
                                    std::string* error_msg_out);
 

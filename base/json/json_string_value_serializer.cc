@@ -40,7 +40,7 @@ Value* JSONStringValueSerializer::Deserialize(int* error_code,
     return NULL;
 
   return base::JSONReader::ReadAndReturnError(*json_string_,
-                                              allow_trailing_comma_,
-                                              error_code,
-                                              error_str);
+      allow_trailing_comma_ ? base::JSON_ALLOW_TRAILING_COMMAS :
+          base::JSON_PARSE_RFC,
+      error_code, error_str);
 }
