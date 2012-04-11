@@ -409,6 +409,12 @@ TEST_F(SequencedWorkerPoolTest, DiscardOnShutdown) {
 
 // Tests that CONTINUE_ON_SHUTDOWN tasks don't block shutdown.
 TEST_F(SequencedWorkerPoolTest, ContinueOnShutdown) {
+  scoped_refptr<TaskRunner> runner(pool()->GetTaskRunnerWithShutdownBehavior(
+      SequencedWorkerPool::CONTINUE_ON_SHUTDOWN));
+  scoped_refptr<SequencedTaskRunner> sequenced_runner(
+      pool()->GetSequencedTaskRunnerWithShutdownBehavior(
+          pool()->GetSequenceToken(),
+          SequencedWorkerPool::CONTINUE_ON_SHUTDOWN));
   EnsureAllWorkersCreated();
   ThreadBlocker blocker;
   pool()->PostWorkerTaskWithShutdownBehavior(
@@ -416,7 +422,16 @@ TEST_F(SequencedWorkerPoolTest, ContinueOnShutdown) {
       base::Bind(&TestTracker::BlockTask,
                  tracker(), 0, &blocker),
       SequencedWorkerPool::CONTINUE_ON_SHUTDOWN);
-  tracker()->WaitUntilTasksBlocked(1);
+  runner->PostTask(
+      FROM_HERE,
+      base::Bind(&TestTracker::BlockTask,
+                 tracker(), 1, &blocker));
+  sequenced_runner->PostTask(
+      FROM_HERE,
+      base::Bind(&TestTracker::BlockTask,
+                 tracker(), 2, &blocker));
+
+  tracker()->WaitUntilTasksBlocked(3);
 
   // This should not block. If this test hangs, it means it failed.
   pool()->Shutdown();
@@ -428,11 +443,15 @@ TEST_F(SequencedWorkerPoolTest, ContinueOnShutdown) {
   EXPECT_FALSE(pool()->PostWorkerTaskWithShutdownBehavior(
       FROM_HERE, base::Bind(&TestTracker::FastTask, tracker(), 0),
       SequencedWorkerPool::CONTINUE_ON_SHUTDOWN));
+  EXPECT_FALSE(runner->PostTask(
+      FROM_HERE, base::Bind(&TestTracker::FastTask, tracker(), 0)));
+  EXPECT_FALSE(sequenced_runner->PostTask(
+      FROM_HERE, base::Bind(&TestTracker::FastTask, tracker(), 0)));
 
-  // Continue the background thread and make sure the task can complete.
-  blocker.Unblock(1);
-  std::vector<int> result = tracker()->WaitUntilTasksComplete(1);
-  EXPECT_EQ(1u, result.size());
+  // Continue the background thread and make sure the tasks can complete.
+  blocker.Unblock(3);
+  std::vector<int> result = tracker()->WaitUntilTasksComplete(3);
+  EXPECT_EQ(3u, result.size());
 }
 
 // Ensure all worker threads are created, and then trigger a spurious
@@ -534,6 +553,47 @@ class SequencedWorkerPoolTaskRunnerTestDelegate {
 INSTANTIATE_TYPED_TEST_CASE_P(
     SequencedWorkerPool, TaskRunnerTest,
     SequencedWorkerPoolTaskRunnerTestDelegate);
+
+class SequencedWorkerPoolTaskRunnerWithShutdownBehaviorTestDelegate {
+ public:
+  SequencedWorkerPoolTaskRunnerWithShutdownBehaviorTestDelegate() {}
+
+  ~SequencedWorkerPoolTaskRunnerWithShutdownBehaviorTestDelegate() {
+  }
+
+  void StartTaskRunner() {
+    pool_owner_.reset(
+        new SequencedWorkerPoolOwner(10, "SequencedWorkerPoolTaskRunnerTest"));
+    task_runner_ = pool_owner_->pool()->GetTaskRunnerWithShutdownBehavior(
+        SequencedWorkerPool::BLOCK_SHUTDOWN);
+  }
+
+  scoped_refptr<TaskRunner> GetTaskRunner() {
+    return task_runner_;
+  }
+
+  void StopTaskRunner() {
+    pool_owner_->pool()->FlushForTesting();
+    pool_owner_->pool()->Shutdown();
+    // Don't reset |pool_owner_| here, as the test may still hold a
+    // reference to the pool.
+  }
+
+  bool TaskRunnerHandlesNonZeroDelays() const {
+    // TODO(akalin): Set this to true once SequencedWorkerPool handles
+    // non-zero delays.
+    return false;
+  }
+
+ private:
+  MessageLoop message_loop_;
+  scoped_ptr<SequencedWorkerPoolOwner> pool_owner_;
+  scoped_refptr<TaskRunner> task_runner_;
+};
+
+INSTANTIATE_TYPED_TEST_CASE_P(
+    SequencedWorkerPoolTaskRunner, TaskRunnerTest,
+    SequencedWorkerPoolTaskRunnerWithShutdownBehaviorTestDelegate);
 
 class SequencedWorkerPoolSequencedTaskRunnerTestDelegate {
  public:
