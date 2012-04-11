@@ -93,18 +93,24 @@ JSONReader::JSONReader()
       error_col_(0) {}
 
 // static
+Value* JSONReader::Read(const std::string& json) {
+  return Read(json, JSON_PARSE_RFC);
+}
+
+// static
 Value* JSONReader::Read(const std::string& json,
-                        bool allow_trailing_comma) {
-  return ReadAndReturnError(json, allow_trailing_comma, NULL, NULL);
+                        int options) {
+  return ReadAndReturnError(json, options, NULL, NULL);
 }
 
 // static
 Value* JSONReader::ReadAndReturnError(const std::string& json,
-                                      bool allow_trailing_comma,
+                                      int options,
                                       int* error_code_out,
                                       std::string* error_msg_out) {
   JSONReader reader = JSONReader();
-  Value* root = reader.JsonToValue(json, true, allow_trailing_comma);
+  Value* root = reader.JsonToValue(json, false,
+      (options & JSON_ALLOW_TRAILING_COMMAS) != 0);
   if (root)
     return root;
 
