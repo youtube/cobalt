@@ -22,7 +22,6 @@
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
-#include "base/threading/sequenced_worker_pool_task_runner.h"
 #include "base/threading/simple_thread.h"
 #include "base/time.h"
 #include "base/tracked_objects.h"
@@ -47,6 +46,121 @@ struct SequencedTask {
   tracked_objects::Location location;
   Closure task;
 };
+
+// SequencedWorkerPoolSequencedTaskRunner ------------------------------------
+// A SequencedTaskRunner which posts tasks to a SequencedWorkerPool with a
+// fixed sequence token.
+//
+// Note that this class is RefCountedThreadSafe (inherited from TaskRunner).
+class SequencedWorkerPoolSequencedTaskRunner : public SequencedTaskRunner {
+ public:
+  SequencedWorkerPoolSequencedTaskRunner(
+      const scoped_refptr<SequencedWorkerPool>& pool,
+      SequencedWorkerPool::SequenceToken token);
+
+  // TaskRunner implementation
+  virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
+                               const Closure& task,
+                               int64 delay_ms) OVERRIDE;
+  virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
+                               const Closure& task,
+                               TimeDelta delay) OVERRIDE;
+  virtual bool RunsTasksOnCurrentThread() const OVERRIDE;
+
+  // SequencedTaskRunner implementation
+  virtual bool PostNonNestableDelayedTask(
+      const tracked_objects::Location& from_here,
+      const Closure& task,
+      int64 delay_ms) OVERRIDE;
+  virtual bool PostNonNestableDelayedTask(
+      const tracked_objects::Location& from_here,
+      const Closure& task,
+      TimeDelta delay) OVERRIDE;
+
+ private:
+  virtual ~SequencedWorkerPoolSequencedTaskRunner();
+
+  // Helper function for posting a delayed task. Asserts that the delay is
+  // zero because non-zero delays are not yet supported.
+  bool PostDelayedTaskAssertZeroDelay(
+      const tracked_objects::Location& from_here,
+      const Closure& task,
+      int64 delay_ms);
+  bool PostDelayedTaskAssertZeroDelay(
+      const tracked_objects::Location& from_here,
+      const Closure& task,
+      TimeDelta delay);
+
+  const scoped_refptr<SequencedWorkerPool> pool_;
+
+  const SequencedWorkerPool::SequenceToken token_;
+
+  DISALLOW_COPY_AND_ASSIGN(SequencedWorkerPoolSequencedTaskRunner);
+};
+
+SequencedWorkerPoolSequencedTaskRunner::SequencedWorkerPoolSequencedTaskRunner(
+    const scoped_refptr<SequencedWorkerPool>& pool,
+    SequencedWorkerPool::SequenceToken token)
+    : pool_(pool),
+      token_(token) {
+}
+
+SequencedWorkerPoolSequencedTaskRunner::
+~SequencedWorkerPoolSequencedTaskRunner() {
+}
+
+bool SequencedWorkerPoolSequencedTaskRunner::PostDelayedTask(
+    const tracked_objects::Location& from_here,
+    const Closure& task,
+    int64 delay_ms) {
+  return PostDelayedTaskAssertZeroDelay(from_here, task, delay_ms);
+}
+
+bool SequencedWorkerPoolSequencedTaskRunner::PostDelayedTask(
+    const tracked_objects::Location& from_here,
+    const Closure& task,
+    TimeDelta delay) {
+  return PostDelayedTaskAssertZeroDelay(from_here, task, delay);
+}
+
+bool SequencedWorkerPoolSequencedTaskRunner::RunsTasksOnCurrentThread() const {
+  return pool_->IsRunningSequenceOnCurrentThread(token_);
+}
+
+bool SequencedWorkerPoolSequencedTaskRunner::PostNonNestableDelayedTask(
+    const tracked_objects::Location& from_here,
+    const Closure& task,
+    int64 delay_ms) {
+  return PostDelayedTaskAssertZeroDelay(from_here, task, delay_ms);
+}
+
+bool SequencedWorkerPoolSequencedTaskRunner::PostNonNestableDelayedTask(
+    const tracked_objects::Location& from_here,
+    const Closure& task,
+    TimeDelta delay) {
+  return PostDelayedTaskAssertZeroDelay(from_here, task, delay);
+}
+
+bool SequencedWorkerPoolSequencedTaskRunner::PostDelayedTaskAssertZeroDelay(
+    const tracked_objects::Location& from_here,
+    const Closure& task,
+    int64 delay_ms) {
+  // TODO(francoisk777@gmail.com): Change the following two statements once
+  // SequencedWorkerPool supports non-zero delays.
+  DCHECK_EQ(delay_ms, 0)
+      << "SequencedWorkerPoolSequencedTaskRunner does not yet support non-zero"
+         " delays";
+  return pool_->PostSequencedWorkerTask(token_, from_here, task);
+}
+
+bool SequencedWorkerPoolSequencedTaskRunner::PostDelayedTaskAssertZeroDelay(
+    const tracked_objects::Location& from_here,
+    const Closure& task,
+    TimeDelta delay) {
+  return PostDelayedTaskAssertZeroDelay(from_here,
+                                        task,
+                                        delay.InMillisecondsRoundedUp());
+}
 
 }  // namespace
 
@@ -761,7 +875,7 @@ SequencedWorkerPool::SequenceToken SequencedWorkerPool::GetNamedSequenceToken(
 
 scoped_refptr<SequencedTaskRunner> SequencedWorkerPool::GetSequencedTaskRunner(
     SequenceToken token) {
-  return new SequencedWorkerPoolTaskRunner(this, token);
+  return new SequencedWorkerPoolSequencedTaskRunner(this, token);
 }
 
 bool SequencedWorkerPool::PostWorkerTask(
