@@ -737,7 +737,7 @@ static inline int AddTraceEvent(char phase,
   const int num_args = 1;
   unsigned char arg_types[1];
   unsigned long long arg_values[1];
-  SetTraceValue(arg1_val, &arg_types[0], &arg_values[0]);
+  trace_event_internal::SetTraceValue(arg1_val, &arg_types[0], &arg_values[0]);
   return TRACE_EVENT_API_ADD_TRACE_EVENT(
       phase, category_enabled, name, id,
       num_args, &arg1_name, arg_types, arg_values,
@@ -758,8 +758,8 @@ static inline int AddTraceEvent(char phase,
   const char* arg_names[2] = { arg1_name, arg2_name };
   unsigned char arg_types[2];
   unsigned long long arg_values[2];
-  SetTraceValue(arg1_val, &arg_types[0], &arg_values[0]);
-  SetTraceValue(arg2_val, &arg_types[1], &arg_values[1]);
+  trace_event_internal::SetTraceValue(arg1_val, &arg_types[0], &arg_values[0]);
+  trace_event_internal::SetTraceValue(arg2_val, &arg_types[1], &arg_values[1]);
   return TRACE_EVENT_API_ADD_TRACE_EVENT(
       phase, category_enabled, name, id,
       num_args, arg_names, arg_types, arg_values,
