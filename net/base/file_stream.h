@@ -94,11 +94,20 @@ class NET_EXPORT FileStream {
   // Returns true if Open succeeded and Close has not been called.
   virtual bool IsOpen() const;
 
-  // Adjust the position from where data is read.  Upon success, the stream
-  // position relative to the start of the file is returned.  Otherwise, an
-  // error code is returned.  It is not valid to call Seek while a Read call
-  // has a pending completion.
-  virtual int64 Seek(Whence whence, int64 offset);
+  // Adjust the position from where data is read asynchronously.
+  // Upon success, ERR_IO_PENDING is returned and |callback| will be run
+  // on the thread where Seek() was called with the the stream position
+  // relative to the start of the file.  Otherwise, an error code is returned.
+  // It is invalid to request any asynchronous operations while there is an
+  // in-flight asynchronous operation.
+  virtual int Seek(Whence whence, int64 offset,
+                   const Int64CompletionCallback& callback);
+
+  // Adjust the position from where data is read synchronously.
+  // Upon success, the stream position relative to the start of the file is
+  // returned.  Otherwise, an error code is returned.  It is not valid to
+  // call SeekSync while a Read call has a pending completion.
+  virtual int64 SeekSync(Whence whence, int64 offset);
 
   // Returns the number of bytes available to read from the current stream
   // position until the end of the file.  Otherwise, an error code is returned.
