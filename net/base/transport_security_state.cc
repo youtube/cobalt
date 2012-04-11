@@ -917,8 +917,7 @@ bool TransportSecurityState::Deserialise(
     const std::string& input,
     bool* dirty,
     std::map<std::string, DomainState>* out) {
-  scoped_ptr<Value> value(
-      base::JSONReader::Read(input, false /* do not allow trailing commas */));
+  scoped_ptr<Value> value(base::JSONReader::Read(input));
   if (!value.get() || !value->IsType(Value::TYPE_DICTIONARY))
     return false;
 
