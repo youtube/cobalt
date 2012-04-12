@@ -533,6 +533,12 @@
                     '../pdf/pdf.gyp:pdf',
                   ],
                 }], # internal_pdf
+                ['component != "shared_library" and wix_exists == "True" and \
+                    platformsdk_exists == "True"', {
+                  'dependencies': [
+                    '../remoting/remoting.gyp:remoting_host_installation',
+                  ],
+                }], # component != "shared_library"
               ]
             },
           ], # targets
