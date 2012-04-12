@@ -35,6 +35,7 @@
 #include "googleurl/src/gurl.h"
 #include "net/base/asn1_util.h"
 #include "net/base/dns_util.h"
+#include "net/base/public_key_hashes.h"
 #include "net/base/ssl_info.h"
 #include "net/base/x509_certificate.h"
 #include "net/http/http_util.h"
@@ -1146,7 +1147,349 @@ static bool HasPreload(const struct HSTSPreload* entries, size_t num_entries,
   return false;
 }
 
-#include "net/base/transport_security_state_static.h"
+// kNoRejectedPublicKeys is a placeholder for when no public keys are rejected.
+static const char* const kNoRejectedPublicKeys[] = {
+  NULL,
+};
+
+static const char* const kGoogleAcceptableCerts[] = {
+  kSPKIHash_VeriSignClass3,
+  kSPKIHash_VeriSignClass3_G3,
+  kSPKIHash_Google1024,
+  kSPKIHash_Google2048,
+  kSPKIHash_EquifaxSecureCA,
+  NULL,
+};
+static const char* const kGoogleRejectedCerts[] = {
+  kSPKIHash_Aetna,
+  kSPKIHash_Intel,
+  kSPKIHash_TCTrustCenter,
+  kSPKIHash_Vodafone,
+  NULL,
+};
+#define kGooglePins { \
+  kGoogleAcceptableCerts, \
+  kGoogleRejectedCerts, \
+}
+
+static const char* const kTorAcceptableCerts[] = {
+  kSPKIHash_RapidSSL,
+  kSPKIHash_DigiCertEVRoot,
+  kSPKIHash_Tor1,
+  kSPKIHash_Tor2,
+  kSPKIHash_Tor3,
+  NULL,
+};
+#define kTorPins { \
+  kTorAcceptableCerts, \
+  kNoRejectedPublicKeys, \
+}
+
+static const char* const kTwitterComAcceptableCerts[] = {
+  kSPKIHash_VeriSignClass1,
+  kSPKIHash_VeriSignClass3,
+  kSPKIHash_VeriSignClass3_G4,
+  kSPKIHash_VeriSignClass4_G3,
+  kSPKIHash_VeriSignClass3_G3,
+  kSPKIHash_VeriSignClass1_G3,
+  kSPKIHash_VeriSignClass2_G3,
+  kSPKIHash_VeriSignClass3_G2,
+  kSPKIHash_VeriSignClass2_G2,
+  kSPKIHash_VeriSignClass3_G5,
+  kSPKIHash_VeriSignUniversal,
+  kSPKIHash_GeoTrustGlobal,
+  kSPKIHash_GeoTrustGlobal2,
+  kSPKIHash_GeoTrustUniversal,
+  kSPKIHash_GeoTrustUniversal2,
+  kSPKIHash_GeoTrustPrimary,
+  kSPKIHash_GeoTrustPrimary_G2,
+  kSPKIHash_GeoTrustPrimary_G3,
+  kSPKIHash_Twitter1,
+  NULL,
+};
+#define kTwitterComPins { \
+  kTwitterComAcceptableCerts, \
+  kNoRejectedPublicKeys, \
+}
+
+// kTwitterCDNAcceptableCerts are the set of public keys valid for Twitter's
+// CDNs, which includes all the keys from kTwitterComAcceptableCerts.
+static const char* const kTwitterCDNAcceptableCerts[] = {
+  kSPKIHash_VeriSignClass1,
+  kSPKIHash_VeriSignClass3,
+  kSPKIHash_VeriSignClass3_G4,
+  kSPKIHash_VeriSignClass4_G3,
+  kSPKIHash_VeriSignClass3_G3,
+  kSPKIHash_VeriSignClass1_G3,
+  kSPKIHash_VeriSignClass2_G3,
+  kSPKIHash_VeriSignClass3_G2,
+  kSPKIHash_VeriSignClass2_G2,
+  kSPKIHash_VeriSignClass3_G5,
+  kSPKIHash_VeriSignUniversal,
+  kSPKIHash_GeoTrustGlobal,
+  kSPKIHash_GeoTrustGlobal2,
+  kSPKIHash_GeoTrustUniversal,
+  kSPKIHash_GeoTrustUniversal2,
+  kSPKIHash_GeoTrustPrimary,
+  kSPKIHash_GeoTrustPrimary_G2,
+  kSPKIHash_GeoTrustPrimary_G3,
+  kSPKIHash_Twitter1,
+
+  kSPKIHash_Entrust_2048,
+  kSPKIHash_Entrust_EV,
+  kSPKIHash_Entrust_G2,
+  kSPKIHash_Entrust_SSL,
+  kSPKIHash_AAACertificateServices,
+  kSPKIHash_AddTrustClass1CARoot,
+  kSPKIHash_AddTrustExternalCARoot,
+  kSPKIHash_AddTrustPublicCARoot,
+  kSPKIHash_AddTrustQualifiedCARoot,
+  kSPKIHash_COMODOCertificationAuthority,
+  kSPKIHash_SecureCertificateServices,
+  kSPKIHash_TrustedCertificateServices,
+  kSPKIHash_UTNDATACorpSGC,
+  kSPKIHash_UTNUSERFirstClientAuthenticationandEmail,
+  kSPKIHash_UTNUSERFirstHardware,
+  kSPKIHash_UTNUSERFirstObject,
+  kSPKIHash_GTECyberTrustGlobalRoot,
+  NULL,
+};
+#define kTwitterCDNPins { \
+  kTwitterCDNAcceptableCerts, \
+  kNoRejectedPublicKeys, \
+}
+
+// kTestAcceptableCerts doesn't actually match any public keys and is used
+// with "pinningtest.appspot.com", below, to test if pinning is active.
+static const char* const kTestAcceptableCerts[] = {
+  "sha1/AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+  NULL,
+};
+#define kTestPins { \
+  kTestAcceptableCerts, \
+  kNoRejectedPublicKeys, \
+}
+
+#define kNoPins { \
+  NULL, NULL, \
+}
+
+#if defined(OS_CHROMEOS)
+  static const bool kTwitterHSTS = true;
+#else
+  static const bool kTwitterHSTS = false;
+#endif
+
+// In the medium term this list is likely to just be hardcoded here. This
+// slightly odd form removes the need for additional relocations records.
+static const struct HSTSPreload kPreloadedSTS[] = {
+  // (*.)google.com, iff using SSL must use an acceptable certificate.
+  {12, true, "\006google\003com", false, kGooglePins,
+      DOMAIN_GOOGLE_COM },
+  {25, true, "\013pinningtest\007appspot\003com", false,
+      kTestPins, DOMAIN_APPSPOT_COM },
+  // Now we force HTTPS for subtrees of google.com.
+  {19, true, "\006health\006google\003com", true, kGooglePins,
+      DOMAIN_GOOGLE_COM  },
+  {21, true, "\010checkout\006google\003com", true, kGooglePins,
+      DOMAIN_GOOGLE_COM },
+  {19, true, "\006chrome\006google\003com", true, kGooglePins,
+      DOMAIN_GOOGLE_COM },
+  {17, true, "\004docs\006google\003com", true, kGooglePins,
+      DOMAIN_GOOGLE_COM },
+  {18, true, "\005sites\006google\003com", true, kGooglePins,
+      DOMAIN_GOOGLE_COM },
+  {25, true, "\014spreadsheets\006google\003com", true,
+      kGooglePins, DOMAIN_GOOGLE_COM },
+  {22, false, "\011appengine\006google\003com", true,
+      kGooglePins, DOMAIN_GOOGLE_COM },
+  {22, true, "\011encrypted\006google\003com", true, kGooglePins,
+      DOMAIN_GOOGLE_COM },
+  {21, true, "\010accounts\006google\003com", true, kGooglePins,
+      DOMAIN_GOOGLE_COM },
+  {21, true, "\010profiles\006google\003com", true, kGooglePins,
+      DOMAIN_GOOGLE_COM },
+  {17, true, "\004mail\006google\003com", true, kGooglePins,
+      DOMAIN_GOOGLE_COM },
+  {23, true, "\012talkgadget\006google\003com", true,
+      kGooglePins, DOMAIN_GOOGLE_COM },
+  {17, true, "\004talk\006google\003com", true, kGooglePins,
+      DOMAIN_GOOGLE_COM },
+  {29, true, "\020hostedtalkgadget\006google\003com", true,
+      kGooglePins, DOMAIN_GOOGLE_COM },
+  {17, true, "\004plus\006google\003com", true, kGooglePins,
+      DOMAIN_GOOGLE_COM },
+  // Other Google-related domains that must use HTTPS.
+  {20, true, "\006market\007android\003com", true, kGooglePins,
+      DOMAIN_ANDROID_COM },
+  {26, true, "\003ssl\020google-analytics\003com", true,
+      kGooglePins, DOMAIN_GOOGLE_ANALYTICS_COM },
+  {18, true, "\005drive\006google\003com", true, kGooglePins,
+      DOMAIN_GOOGLE_COM },
+  {16, true, "\012googleplex\003com", true, kGooglePins,
+      DOMAIN_GOOGLEPLEX_COM },
+  {19, true, "\006groups\006google\003com", true, kGooglePins,
+      DOMAIN_GOOGLE_COM },
+  {17, true, "\004apis\006google\003com", true, kGooglePins,
+      DOMAIN_GOOGLE_COM },
+  // chart.apis.google.com is *not* HSTS because the certificate doesn't match
+  // and there are lots of links out there that still use the name. The correct
+  // hostname for this is chart.googleapis.com.
+  {23, true, "\005chart\004apis\006google\003com", false, kGooglePins,
+      DOMAIN_GOOGLE_COM},
+
+  // Other Google-related domains that must use an acceptable certificate
+  // iff using SSL.
+  {11, true, "\005ytimg\003com", false, kGooglePins,
+      DOMAIN_YTIMG_COM },
+  {23, true, "\021googleusercontent\003com", false, kGooglePins,
+      DOMAIN_GOOGLEUSERCONTENT_COM },
+  {13, true, "\007youtube\003com", false, kGooglePins,
+      DOMAIN_YOUTUBE_COM },
+  {16, true, "\012googleapis\003com", false, kGooglePins,
+      DOMAIN_GOOGLEAPIS_COM },
+  {22, true, "\020googleadservices\003com", false, kGooglePins,
+      DOMAIN_GOOGLEADSERVICES_COM },
+  {16, true, "\012googlecode\003com", false, kGooglePins,
+      DOMAIN_GOOGLECODE_COM },
+  {13, true, "\007appspot\003com", false, kGooglePins,
+      DOMAIN_APPSPOT_COM },
+  {23, true, "\021googlesyndication\003com", false, kGooglePins,
+      DOMAIN_GOOGLESYNDICATION_COM },
+  {17, true, "\013doubleclick\003net", false, kGooglePins,
+      DOMAIN_DOUBLECLICK_NET },
+  {17, true, "\003ssl\007gstatic\003com", false, kGooglePins,
+      DOMAIN_GSTATIC_COM },
+  // Exclude the learn.doubleclick.net subdomain because it uses a different
+  // CA.
+  {23, true, "\005learn\013doubleclick\003net", false, kNoPins, DOMAIN_NOT_PINNED },
+  // Now we force HTTPS for other sites that have requested it.
+  {16, false, "\003www\006paypal\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {16, false, "\003www\006elanex\003biz", true, kNoPins, DOMAIN_NOT_PINNED },
+  {12, true,  "\006jottit\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {19, true,  "\015sunshinepress\003org", true, kNoPins, DOMAIN_NOT_PINNED },
+  {21, false, "\003www\013noisebridge\003net", true, kNoPins,
+      DOMAIN_NOT_PINNED },
+  {10, false, "\004neg9\003org", true, kNoPins, DOMAIN_NOT_PINNED },
+  {12, true, "\006riseup\003net", true, kNoPins, DOMAIN_NOT_PINNED },
+  {11, false, "\006factor\002cc", true, kNoPins, DOMAIN_NOT_PINNED },
+  {22, false, "\007members\010mayfirst\003org", true, kNoPins, DOMAIN_NOT_PINNED },
+  {22, false, "\007support\010mayfirst\003org", true, kNoPins, DOMAIN_NOT_PINNED },
+  {17, false, "\002id\010mayfirst\003org", true, kNoPins, DOMAIN_NOT_PINNED },
+  {20, false, "\005lists\010mayfirst\003org", true, kNoPins, DOMAIN_NOT_PINNED },
+  {19, true, "\015splendidbacon\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {28, false, "\016aladdinschools\007appspot\003com", true, kNoPins,
+      DOMAIN_NOT_PINNED },
+  {14, true, "\011ottospora\002nl", true, kNoPins, DOMAIN_NOT_PINNED },
+  {25, false, "\003www\017paycheckrecords\003com", true, kNoPins,
+      DOMAIN_NOT_PINNED },
+  {14, false, "\010lastpass\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {18, false, "\003www\010lastpass\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {14, true, "\010keyerror\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {13, false, "\010entropia\002de", true, kNoPins, DOMAIN_NOT_PINNED },
+  {17, false, "\003www\010entropia\002de", true, kNoPins, DOMAIN_NOT_PINNED },
+  {11, true, "\005romab\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {16, false, "\012logentries\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {20, false, "\003www\012logentries\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {12, true, "\006stripe\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {27, true, "\025cloudsecurityalliance\003org", true, kNoPins,
+      DOMAIN_NOT_PINNED },
+  {15, true, "\005login\004sapo\002pt", true, kNoPins, DOMAIN_NOT_PINNED },
+  {19, true, "\015mattmccutchen\003net", true, kNoPins, DOMAIN_NOT_PINNED },
+  {11, true, "\006betnet\002fr", true, kNoPins, DOMAIN_NOT_PINNED },
+  {13, true, "\010uprotect\002it", true, kNoPins, DOMAIN_NOT_PINNED },
+  {14, false, "\010squareup\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {9, true, "\004cert\002se", true, kNoPins, DOMAIN_NOT_PINNED },
+  {11, true, "\006crypto\002is", true, kNoPins, DOMAIN_NOT_PINNED },
+  {20, true, "\005simon\007butcher\004name", true, kNoPins, DOMAIN_NOT_PINNED },
+  {10, true, "\004linx\003net", true, kNoPins, DOMAIN_NOT_PINNED },
+  {13, false, "\007dropcam\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {17, false, "\003www\007dropcam\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {30, true, "\010ebanking\014indovinabank\003com\002vn", true, kNoPins,
+      DOMAIN_NOT_PINNED },
+  {13, false, "\007epoxate\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {16, false, "\012torproject\003org", true, kTorPins,
+      DOMAIN_TORPROJECT_ORG },
+  {21, true, "\004blog\012torproject\003org", true, kTorPins,
+      DOMAIN_TORPROJECT_ORG },
+  {22, true, "\005check\012torproject\003org", true, kTorPins,
+      DOMAIN_TORPROJECT_ORG },
+  {20, true, "\003www\012torproject\003org", true, kTorPins,
+      DOMAIN_TORPROJECT_ORG },
+  {22, true, "\003www\014moneybookers\003com", true, kNoPins,
+      DOMAIN_NOT_PINNED },
+  {17, false, "\013ledgerscope\003net", true, kNoPins, DOMAIN_NOT_PINNED },
+  {21, false, "\003www\013ledgerscope\003net", true, kNoPins,
+      DOMAIN_NOT_PINNED },
+  {10, false, "\004kyps\003net", true, kNoPins, DOMAIN_NOT_PINNED },
+  {14, false, "\003www\004kyps\003net", true, kNoPins, DOMAIN_NOT_PINNED },
+  {17, true, "\003app\007recurly\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {17, true, "\003api\007recurly\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {13, false, "\007greplin\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {17, false, "\003www\007greplin\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {27, true, "\006luneta\016nearbuysystems\003com", true, kNoPins,
+      DOMAIN_NOT_PINNED },
+  {12, true, "\006ubertt\003org", true, kNoPins, DOMAIN_NOT_PINNED },
+  {9, true, "\004pixi\002me", true, kNoPins, DOMAIN_NOT_PINNED },
+  {14, true, "\010grepular\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {16, false , "\012mydigipass\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {20, false , "\003www\012mydigipass\003com", true, kNoPins,
+      DOMAIN_NOT_PINNED },
+  {26, false , "\011developer\012mydigipass\003com", true, kNoPins,
+      DOMAIN_NOT_PINNED },
+  {30, false , "\003www\011developer\012mydigipass\003com", true, kNoPins,
+      DOMAIN_NOT_PINNED },
+  {24, false , "\007sandbox\012mydigipass\003com", true, kNoPins,
+      DOMAIN_NOT_PINNED },
+  {28, false , "\003www\007sandbox\012mydigipass\003com", true, kNoPins,
+      DOMAIN_NOT_PINNED },
+  {12, true, "\006crypto\003cat", true, kNoPins, DOMAIN_NOT_PINNED },
+  {25, true, "\014bigshinylock\006minazo\003net", true, kNoPins,
+      DOMAIN_NOT_PINNED },
+  {10, true, "\005crate\002io", true, kNoPins, DOMAIN_NOT_PINNED },
+
+  {13, false, "\007twitter\003com", kTwitterHSTS,
+      kTwitterComPins, DOMAIN_TWITTER_COM },
+  {17, true, "\003www\007twitter\003com", kTwitterHSTS,
+      kTwitterComPins, DOMAIN_TWITTER_COM },
+  {17, true, "\003api\007twitter\003com", kTwitterHSTS,
+      kTwitterCDNPins, DOMAIN_TWITTER_COM },
+  {19, true, "\005oauth\007twitter\003com", kTwitterHSTS,
+      kTwitterComPins, DOMAIN_TWITTER_COM },
+  {20, true, "\006mobile\007twitter\003com", kTwitterHSTS,
+      kTwitterComPins, DOMAIN_TWITTER_COM },
+  {17, true, "\003dev\007twitter\003com", kTwitterHSTS,
+      kTwitterComPins, DOMAIN_TWITTER_COM },
+  {22, true, "\010business\007twitter\003com", kTwitterHSTS,
+      kTwitterComPins, DOMAIN_TWITTER_COM },
+  {22, true, "\010platform\007twitter\003com", false,
+      kTwitterCDNPins, DOMAIN_TWITTER_COM },
+  {15, true, "\003si0\005twimg\003com", false, kTwitterCDNPins,
+      DOMAIN_TWIMG_COM },
+  {23, true, "\010twimg0-a\010akamaihd\003net", false,
+      kTwitterCDNPins, DOMAIN_AKAMAIHD_NET },
+};
+static const size_t kNumPreloadedSTS = ARRAYSIZE_UNSAFE(kPreloadedSTS);
+
+static const struct HSTSPreload kPreloadedSNISTS[] = {
+  // These SNI-only domains must always use HTTPS.
+  {11, false, "\005gmail\003com", true, kGooglePins,
+      DOMAIN_GMAIL_COM },
+  {16, false, "\012googlemail\003com", true, kGooglePins,
+      DOMAIN_GOOGLEMAIL_COM },
+  {15, false, "\003www\005gmail\003com", true, kGooglePins,
+      DOMAIN_GMAIL_COM },
+  {20, false, "\003www\012googlemail\003com", true, kGooglePins,
+      DOMAIN_GOOGLEMAIL_COM },
+  // These SNI-only domains must use an acceptable certificate iff using
+  // HTTPS.
+  {22, true, "\020google-analytics\003com", false, kGooglePins,
+     DOMAIN_GOOGLE_ANALYTICS_COM },
+  // www. requires SNI.
+  {18, true, "\014googlegroups\003com", false, kGooglePins,
+      DOMAIN_GOOGLEGROUPS_COM },
+};
+static const size_t kNumPreloadedSNISTS = ARRAYSIZE_UNSAFE(kPreloadedSNISTS);
 
 // Returns the HSTSPreload entry for the |canonicalized_host| in |entries|,
 // or NULL if there is none. Prefers exact hostname matches to those that
