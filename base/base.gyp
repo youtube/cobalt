@@ -489,66 +489,28 @@
       'dependencies': [
         'base_unittests',
       ],
+      'includes': [
+        'base_unittests.isolate',
+      ],
       'actions': [
-        {
-          'action_name': 'response_file',
-          'inputs': [
-            '<(PRODUCT_DIR)/base_unittests<(EXECUTABLE_SUFFIX)',
-            '<(DEPTH)/testing/test_env.py',
-            '<(DEPTH)/testing/xvfb.py',
-          ],
-          'conditions': [
-            ['OS=="linux"', {
-              'inputs': [
-                '<(PRODUCT_DIR)/xdisplaycheck<(EXECUTABLE_SUFFIX)',
-              ],
-            }],
-            ['OS == "win"', {
-              'inputs': [
-                'data/file_version_info_unittest/FileVersionInfoTest1.dll',
-                'data/file_version_info_unittest/FileVersionInfoTest2.dll',
-              ],
-            }],
-          ],
-          'outputs': [
-            '<(PRODUCT_DIR)/base_unittests.inputs',
-          ],
-          'action': [
-            'python',
-            '-c',
-            'import sys; '
-                'open(sys.argv[1], \'w\').write(\'\\n\'.join(sys.argv[2:]))',
-            '<@(_outputs)',
-            '<@(_inputs)',
-          ],
-        },
         {
           'action_name': 'isolate',
           'inputs': [
-            '<(PRODUCT_DIR)/base_unittests.inputs',
+            'base_unittests.isolate',
+            '<@(isolate_dependency_tracked)',
           ],
           'outputs': [
             '<(PRODUCT_DIR)/base_unittests.results',
           ],
           'action': [
             'python',
-            '<(DEPTH)/tools/isolate/isolate.py',
-            '--mode=<(tests_run)',
-            '--root', '<(DEPTH)',
+            '../tools/isolate/isolate.py',
+            '--mode', '<(tests_run)',
+            '--variable', 'DEPTH=<(DEPTH)',
+            '--variable', 'PRODUCT_DIR=<(PRODUCT_DIR)',
+            '--variable', 'OS=<(OS)',
             '--result', '<@(_outputs)',
-            '--files', '<@(_inputs)',
-            # Directories can't be tracked by build tools (make, msbuild, xcode,
-            # etc) so we just put it on the command line without specifying it
-            # as an input.
-            # TODO(maruel): Revisit the support for this at all and list each
-            # individual test files instead.
-            'data/file_util_unittest/',
-            'data/json/bom_feff.json',
-            '--',
-            # Wraps base_unittests under xvfb.
-            '<(DEPTH)/testing/xvfb.py',
-            '<(PRODUCT_DIR)',
-            '<(PRODUCT_DIR)/base_unittests<(EXECUTABLE_SUFFIX)',
+            'base_unittests.isolate',
           ],
         },
       ],
