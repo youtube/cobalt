@@ -302,6 +302,9 @@
        # Force rlz to use chrome's networking stack.
       'force_rlz_use_chrome_net%': 1,
 
+      'platformsdk_path%': '<(DEPTH)/third_party/platformsdk_win7/files',
+      'wix_path%': '<(DEPTH)/third_party/wix',
+
       'conditions': [
         # TODO(epoger): Figure out how to set use_skia=1 for Mac outside of
         # the 'conditions' clause.  Initial attempts resulted in chromium and
@@ -523,6 +526,8 @@
     'enable_automation%': '<(enable_automation)',
     'force_rlz_use_chrome_net%': '<(force_rlz_use_chrome_net)',
     'enable_task_manager%': '<(enable_task_manager)',
+    'platformsdk_path%': '<(platformsdk_path)',
+    'wix_path%': '<(wix_path)',
 
     # Use system yasm instead of bundled one.
     'use_system_yasm%': 0,
@@ -750,6 +755,9 @@
 
     # Native Client is enabled by default.
     'disable_nacl%': 0,
+
+    'platformsdk_exists': '<!(python <(DEPTH)/build/dir_exists.py <(platformsdk_path))',
+    'wix_exists': '<!(python <(DEPTH)/build/dir_exists.py <(wix_path))',
 
     'conditions': [
       ['os_posix==1 and OS!="mac" and OS!="android"', {
