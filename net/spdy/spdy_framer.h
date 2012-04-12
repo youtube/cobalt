@@ -412,8 +412,6 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   static const char* StatusCodeToString(int status_code);
   static const char* ControlTypeToString(SpdyControlType type);
 
-  // TODO(hkhalil): Remove SpdyFramer::set_protocol_version()
-  void set_protocol_version(int version) { spdy_version_= version; }
   int protocol_version() const { return spdy_version_; }
 
   bool probable_http_response() { return probable_http_response_; }
@@ -579,7 +577,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
 
   std::string display_protocol_;
 
-  int spdy_version_;
+  const int spdy_version_;
 
   // Tracks if we've ever gotten far enough in framing to see a control frame of
   // type SYN_STREAM or SYN_REPLY.
