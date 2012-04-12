@@ -253,6 +253,7 @@
         'base/test_root_certs_win.cc',
         'base/transport_security_state.cc',
         'base/transport_security_state.h',
+        'base/transport_security_state_static.h',
         'base/upload_data.cc',
         'base/upload_data.h',
         'base/upload_data_stream.cc',
