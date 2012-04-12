@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -116,18 +116,24 @@ int GetExpectedValue(Value value, DWORD os) {
   const int win7_imports = 568;
   const int win7_delay_imports = 71;
   const int win7_relocs = 7812;
+  const int win8_delay_dlls = 9;
+  const int win8_exports = 806;
+  const int win8_imports = 568;
+  const int win8_delay_imports = 113;
+  const int win8_relocs = 9478;
 
   // Contains the expected value, for each enumerated property (Value), and the
   // OS version: [Value][os_version]
-  const int expected[][4] = {
-    {4, 4, 4, 4},
-    {3, 3, 3, 13},
-    {w2k_delay_dlls, xp_delay_dlls, vista_delay_dlls, win7_delay_dlls},
-    {w2k_exports, xp_exports, vista_exports, win7_exports},
-    {w2k_imports, xp_imports, vista_imports, win7_imports},
+  const int expected[][5] = {
+    {4, 4, 4, 4, 5},
+    {3, 3, 3, 13, 19},
+    {w2k_delay_dlls, xp_delay_dlls, vista_delay_dlls, win7_delay_dlls,
+     win8_delay_dlls},
+    {w2k_exports, xp_exports, vista_exports, win7_exports, win8_exports},
+    {w2k_imports, xp_imports, vista_imports, win7_imports, win8_imports},
     {w2k_delay_imports, xp_delay_imports,
-     vista_delay_imports, win7_delay_imports},
-    {w2k_relocs, xp_relocs, vista_relocs, win7_relocs}
+     vista_delay_imports, win7_delay_imports, win8_delay_imports},
+    {w2k_relocs, xp_relocs, vista_relocs, win7_relocs, win8_relocs}
   };
 
   if (value > relocs)
@@ -138,8 +144,10 @@ int GetExpectedValue(Value value, DWORD os) {
     os = 1;
   else if (os == 60)
     os = 2;  // 6.x
-  else if (os >= 61)
+  else if (os == 61)
     os = 3;
+  else if (os >= 62)
+    os = 4;
   else
     return 0;
 
