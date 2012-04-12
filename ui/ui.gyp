@@ -243,6 +243,8 @@
         'base/view_prop.cc',
         'base/view_prop.h',
         'base/win/atl_module.h',
+        'base/win/dpi.cc',
+        'base/win/dpi.h',
         'base/win/events_win.cc',
         'base/win/foreground_helper.cc',
         'base/win/foreground_helper.h',
