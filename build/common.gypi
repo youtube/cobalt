@@ -1776,6 +1776,7 @@
         # be disabled in ~/.gyp/include.gypi on the valgrind builders.
         'variables': {
           'werror%': '-Werror',
+	  'libraries_for_target%': '',
         },
         'defines': [
           '_FILE_OFFSET_BITS=64',
@@ -1812,6 +1813,9 @@
         'ldflags': [
           '-pthread', '-Wl,-z,noexecstack',
         ],
+	'libraries' : [
+	  '<(libraries_for_target)',
+	],
         'configurations': {
           'Debug_Base': {
             'variables': {
