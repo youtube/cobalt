@@ -1,0 +1,46 @@
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+{
+  'variables': {
+    'isolate_dependency_tracked': [
+      '<(PRODUCT_DIR)/net_unittests<(EXECUTABLE_SUFFIX)',
+      '../testing/test_env.py',
+      '../third_party/pyftpdlib/src/pyftpdlib/__init__.py',
+      '../third_party/pyftpdlib/src/pyftpdlib/ftpserver.py',
+    ],
+    'isolate_dependency_untracked': [
+      'data/',
+      'tools/testserver/',
+      '../third_party/tlslite/tlslite/',
+    ],
+  },
+  'conditions': [
+    ['OS=="linux"', {
+      'variables': {
+        'isolate_dependency_tracked': [
+          '../testing/xvfb.py',
+          '<(PRODUCT_DIR)/xdisplaycheck<(EXECUTABLE_SUFFIX)',
+        ],
+        'command': [
+          '../testing/xvfb.py',
+          '<(PRODUCT_DIR)',
+          '<(PRODUCT_DIR)/net_unittests<(EXECUTABLE_SUFFIX)',
+        ],
+      },
+    }, {  # else
+      'variables': {
+        'command': [
+          '../testing/test_env.py',
+          '<(PRODUCT_DIR)/net_unittests<(EXECUTABLE_SUFFIX)',
+        ],
+      },
+    }],
+    ['OS=="win"', {
+      'variables': {
+        'isolate_dependency_tracked': [
+        ],
+      },
+    }],
+  ],
+}
