@@ -57,7 +57,12 @@ NetworkChangeNotifier* NetworkChangeNotifier::Create() {
   return network_change_notifier;
 #elif defined(OS_CHROMEOS) || defined(OS_ANDROID)
   // ChromeOS and Android builds MUST use their own class factory.
+#if !defined(OS_CHROMEOS)
+  // TODO(oshima): ash_shell do not have access to chromeos'es
+  // notifier yet. Re-enable this when chromeos'es notifier moved to
+  // chromeos root directory. crbug.com/119298.
   CHECK(false);
+#endif
   return NULL;
 #elif defined(OS_LINUX)
   return NetworkChangeNotifierLinux::Create();
