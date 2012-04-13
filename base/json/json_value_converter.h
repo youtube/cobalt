@@ -205,6 +205,25 @@ class BasicValueConverter<bool> : public ValueConverter<bool> {
 };
 
 template <typename FieldType>
+class ValueFieldConverter : public ValueConverter<FieldType> {
+ public:
+  typedef bool(*ConvertFunc)(const base::Value* value, FieldType* field);
+
+  ValueFieldConverter(ConvertFunc convert_func)
+      : convert_func_(convert_func) {}
+
+  virtual bool Convert(const base::Value& value,
+                       FieldType* field) const OVERRIDE {
+    return convert_func_(&value, field);
+  }
+
+ private:
+  ConvertFunc convert_func_;
+
+  DISALLOW_COPY_AND_ASSIGN(ValueFieldConverter);
+};
+
+template <typename FieldType>
 class CustomFieldConverter : public ValueConverter<FieldType> {
  public:
   typedef bool(*ConvertFunc)(const StringPiece& value, FieldType* field);
@@ -366,6 +385,17 @@ class JSONValueConverter {
         field_name,
         field,
         new internal::CustomFieldConverter<FieldType>(convert_func)));
+  }
+
+  template <typename FieldType>
+  void RegisterCustomValueField(
+      const std::string& field_name,
+      FieldType StructType::* field,
+      bool (*convert_func)(const base::Value*, FieldType*)) {
+    fields_.push_back(new internal::FieldConverter<StructType, FieldType>(
+        field_name,
+        field,
+        new internal::ValueFieldConverter<FieldType>(convert_func)));
   }
 
   void RegisterRepeatedInt(const std::string& field_name,
