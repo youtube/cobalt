@@ -121,12 +121,20 @@ int GetExpectedValue(Value value, DWORD os) {
   const int win8_imports = 568;
   const int win8_delay_imports = 113;
   const int win8_relocs = 9478;
+  int win8_sections = 4;
+  int win8_import_dlls = 17;
+
+  base::win::OSInfo* os_info = base::win::OSInfo::GetInstance();
+  if (os_info->architecture() == base::win::OSInfo::X86_ARCHITECTURE) {
+    win8_sections = 5;
+    win8_import_dlls = 19;
+  }
 
   // Contains the expected value, for each enumerated property (Value), and the
   // OS version: [Value][os_version]
   const int expected[][5] = {
-    {4, 4, 4, 4, 5},
-    {3, 3, 3, 13, 19},
+    {4, 4, 4, 4, win8_sections},
+    {3, 3, 3, 13, win8_import_dlls},
     {w2k_delay_dlls, xp_delay_dlls, vista_delay_dlls, win7_delay_dlls,
      win8_delay_dlls},
     {w2k_exports, xp_exports, vista_exports, win7_exports, win8_exports},
