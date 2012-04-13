@@ -1028,6 +1028,7 @@
         'base/backoff_entry_unittest.cc',
         'base/big_endian_unittest.cc',
         'base/cert_database_nss_unittest.cc',
+        'base/cert_verify_proc_unittest.cc',
         'base/crl_set_unittest.cc',
         'base/data_url_unittest.cc',
         'base/default_server_bound_cert_store_unittest.cc',
