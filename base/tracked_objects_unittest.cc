@@ -6,10 +6,16 @@
 
 #include "base/tracked_objects.h"
 
-#include "base/json/json_writer.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/process_util.h"
 #include "base/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+const int kLineNumber = 1776;
+const char kFile[] = "FixedUnitTestFileName";
+const char kWorkerThreadName[] = "WorkerThread-1";
+const char kMainThreadName[] = "SomeMainThreadName";
+const char kStillAlive[] = "Still_Alive";
 
 namespace tracked_objects {
 
@@ -27,23 +33,74 @@ class TrackedObjectsTest : public testing::Test {
     ThreadData::ShutdownSingleThreadedCleanup(false);
   }
 
-  // Provide access, since this class is a friend of ThreadData.
-  void ShutdownSingleThreadedCleanup(bool leak) {
-    ThreadData::ShutdownSingleThreadedCleanup(leak);
+  // Reset the profiler state.
+  void Reset() {
+    ThreadData::ShutdownSingleThreadedCleanup(false);
+  }
+
+  // Simulate a birth on the thread named |thread_name|, at the given
+  // |location|.
+  void TallyABirth(const Location& location, const std::string& thread_name) {
+    // If the |thread_name| is empty, we don't initialize system with a thread
+    // name, so we're viewed as a worker thread.
+    if (!thread_name.empty())
+      ThreadData::InitializeThreadContext(kMainThreadName);
+
+    // Do not delete |birth|.  We don't own it.
+    Births* birth = ThreadData::TallyABirthIfActive(location);
+
+    if (ThreadData::status() == ThreadData::DEACTIVATED)
+      EXPECT_EQ(reinterpret_cast<Births*>(NULL), birth);
+    else
+      EXPECT_NE(reinterpret_cast<Births*>(NULL), birth);
+  }
+
+  // Helper function to verify the most common test expectations.
+  void ExpectSimpleProcessData(const ProcessDataSnapshot& process_data,
+                               const std::string& function_name,
+                               const std::string& birth_thread,
+                               const std::string& death_thread,
+                               int count,
+                               int run_ms,
+                               int queue_ms) {
+    ASSERT_EQ(1u, process_data.tasks.size());
+
+    EXPECT_EQ(kFile, process_data.tasks[0].birth.location.file_name);
+    EXPECT_EQ(function_name,
+              process_data.tasks[0].birth.location.function_name);
+    EXPECT_EQ(kLineNumber, process_data.tasks[0].birth.location.line_number);
+
+    EXPECT_EQ(birth_thread, process_data.tasks[0].birth.thread_name);
+
+    EXPECT_EQ(count, process_data.tasks[0].death_data.count);
+    EXPECT_EQ(count * run_ms,
+              process_data.tasks[0].death_data.run_duration_sum);
+    EXPECT_EQ(run_ms, process_data.tasks[0].death_data.run_duration_max);
+    EXPECT_EQ(run_ms, process_data.tasks[0].death_data.run_duration_sample);
+    EXPECT_EQ(count * queue_ms,
+              process_data.tasks[0].death_data.queue_duration_sum);
+    EXPECT_EQ(queue_ms, process_data.tasks[0].death_data.queue_duration_max);
+    EXPECT_EQ(queue_ms, process_data.tasks[0].death_data.queue_duration_sample);
+
+    EXPECT_EQ(death_thread, process_data.tasks[0].death_thread_name);
+
+    EXPECT_EQ(0u, process_data.descendants.size());
+
+    EXPECT_EQ(base::GetCurrentProcId(), process_data.process_id);
   }
 };
 
 TEST_F(TrackedObjectsTest, MinimalStartupShutdown) {
   // Minimal test doesn't even create any tasks.
   if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
+          ThreadData::PROFILING_CHILDREN_ACTIVE))
     return;
 
   EXPECT_FALSE(ThreadData::first());  // No activity even on this thread.
   ThreadData* data = ThreadData::Get();
   EXPECT_TRUE(ThreadData::first());  // Now class was constructed.
-  EXPECT_TRUE(data);
-  EXPECT_TRUE(!data->next());
+  ASSERT_TRUE(data);
+  EXPECT_FALSE(data->next());
   EXPECT_EQ(data, ThreadData::Get());
   ThreadData::BirthMap birth_map;
   ThreadData::DeathMap death_map;
@@ -52,20 +109,22 @@ TEST_F(TrackedObjectsTest, MinimalStartupShutdown) {
   EXPECT_EQ(0u, birth_map.size());
   EXPECT_EQ(0u, death_map.size());
   EXPECT_EQ(0u, parent_child_set.size());
-  // Cleanup with no leaking.
-  ShutdownSingleThreadedCleanup(false);
+
+  // Clean up with no leaking.
+  Reset();
 
   // Do it again, just to be sure we reset state completely.
-  ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE);
+  EXPECT_TRUE(ThreadData::InitializeAndSetTrackingStatus(
+      ThreadData::PROFILING_CHILDREN_ACTIVE));
   EXPECT_FALSE(ThreadData::first());  // No activity even on this thread.
   data = ThreadData::Get();
   EXPECT_TRUE(ThreadData::first());  // Now class was constructed.
-  EXPECT_TRUE(data);
-  EXPECT_TRUE(!data->next());
+  ASSERT_TRUE(data);
+  EXPECT_FALSE(data->next());
   EXPECT_EQ(data, ThreadData::Get());
   birth_map.clear();
   death_map.clear();
+  parent_child_set.clear();
   data->SnapshotMaps(false, &birth_map, &death_map, &parent_child_set);
   EXPECT_EQ(0u, birth_map.size());
   EXPECT_EQ(0u, death_map.size());
@@ -74,16 +133,17 @@ TEST_F(TrackedObjectsTest, MinimalStartupShutdown) {
 
 TEST_F(TrackedObjectsTest, TinyStartupShutdown) {
   if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
+          ThreadData::PROFILING_CHILDREN_ACTIVE))
     return;
 
   // Instigate tracking on a single tracked object, on our thread.
-  const Location& location = FROM_HERE;
+  const char kFunction[] = "TinyStartupShutdown";
+  Location location(kFunction, kFile, kLineNumber, NULL);
   Births* first_birth = ThreadData::TallyABirthIfActive(location);
 
   ThreadData* data = ThreadData::first();
   ASSERT_TRUE(data);
-  EXPECT_TRUE(!data->next());
+  EXPECT_FALSE(data->next());
   EXPECT_EQ(data, ThreadData::Get());
   ThreadData::BirthMap birth_map;
   ThreadData::DeathMap death_map;
@@ -97,8 +157,7 @@ TEST_F(TrackedObjectsTest, TinyStartupShutdown) {
 
   // Now instigate another birth, while we are timing the run of the first
   // execution.
-  TrackedTime start_time =
-      ThreadData::NowForStartOfRun(first_birth);
+  TrackedTime start_time = ThreadData::NowForStartOfRun(first_birth);
   // Create a child (using the same birth location).
   // TrackingInfo will call TallyABirth() during construction.
   base::TimeTicks kBogusBirthTime;
@@ -126,97 +185,48 @@ TEST_F(TrackedObjectsTest, TinyStartupShutdown) {
 
   // The births were at the same location as the one known death.
   EXPECT_EQ(birth_map.begin()->second, death_map.begin()->first);
-}
 
-TEST_F(TrackedObjectsTest, ParentChildTest) {
-  if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
-    return;
-  if (!ThreadData::TrackingParentChildStatus())
-    return;   // Feature not compiled in.
+  ProcessDataSnapshot process_data;
+  ThreadData::Snapshot(false, &process_data);
 
-  // Instigate tracking on a single tracked object, on our thread.
-  const int kFakeLineNumber = 1776;
-  const char* kFile = "FixedUnitTestFileName";
-  const char* kFunction = "ParentChildTest";
-  Location location(kFunction, kFile, kFakeLineNumber, NULL);
+  const int32 time_elapsed = (end_time - start_time).InMilliseconds();
+  ASSERT_EQ(1u, process_data.tasks.size());
+  EXPECT_EQ(kFile, process_data.tasks[0].birth.location.file_name);
+  EXPECT_EQ(kFunction, process_data.tasks[0].birth.location.function_name);
+  EXPECT_EQ(kLineNumber, process_data.tasks[0].birth.location.line_number);
+  EXPECT_EQ(kWorkerThreadName, process_data.tasks[0].birth.thread_name);
+  EXPECT_EQ(1, process_data.tasks[0].death_data.count);
+  EXPECT_EQ(time_elapsed, process_data.tasks[0].death_data.run_duration_sum);
+  EXPECT_EQ(time_elapsed, process_data.tasks[0].death_data.run_duration_max);
+  EXPECT_EQ(time_elapsed, process_data.tasks[0].death_data.run_duration_sample);
+  EXPECT_EQ(0, process_data.tasks[0].death_data.queue_duration_sum);
+  EXPECT_EQ(0, process_data.tasks[0].death_data.queue_duration_max);
+  EXPECT_EQ(0, process_data.tasks[0].death_data.queue_duration_sample);
+  EXPECT_EQ(kWorkerThreadName, process_data.tasks[0].death_thread_name);
 
-  // Now instigate another birth, while we are timing the run of the first
-  // execution.
-
-  // Create a child (using the same birth location).
-  // TrackingInfo will call TallyABirth() during construction.
-  base::TimeTicks kBogusBirthTime;
-  base::TrackingInfo pending_task(location, kBogusBirthTime);
-
-  // Don't conclude the run, so that we don't use the actual timer that we
-  // started for the outer profile.  This way the JSON will not include some
-  // random time.
-  ThreadData* data = ThreadData::first();
-  ASSERT_TRUE(data);
-  EXPECT_TRUE(!data->next());
-  EXPECT_EQ(data, ThreadData::Get());
-
-  ThreadData::BirthMap birth_map;
-  ThreadData::DeathMap death_map;
-  ThreadData::ParentChildSet parent_child_set;
-
-  data->SnapshotMaps(false, &birth_map, &death_map, &parent_child_set);
-  EXPECT_EQ(1u, birth_map.size());                         // 1 birth location.
-  EXPECT_EQ(2, birth_map.begin()->second->birth_count());  // 2 births.
-  EXPECT_EQ(0u, death_map.size());                         // No status yet.
-  // Just like TinyStartupShutdown test.
-  EXPECT_EQ(1u, parent_child_set.size());                  // 1 child.
-  EXPECT_EQ(parent_child_set.begin()->first,
-            parent_child_set.begin()->second);
-
-  scoped_ptr<base::Value> value(ThreadData::ToValue(false));
-  std::string json;
-  base::JSONWriter::Write(value.get(), &json);
-  std::string birth_only_result = "{"
-      "\"descendants\":["
-        "{"
-          "\"child_location\":{"
-            "\"file_name\":\"FixedUnitTestFileName\","
-            "\"function_name\":\"ParentChildTest\","
-            "\"line_number\":1776"
-          "},"
-          "\"child_thread\":\"WorkerThread-1\","
-          "\"parent_location\":{"
-            "\"file_name\":\"FixedUnitTestFileName\","
-            "\"function_name\":\"ParentChildTest\","
-            "\"line_number\":1776"
-          "},"
-          "\"parent_thread\":\"WorkerThread-1\""
-        "}"
-      "],"
-      "\"list\":["
-        "{"
-          "\"birth_thread\":\"WorkerThread-1\","
-          "\"death_data\":{"
-            "\"count\":2,"
-            "\"queue_ms\":0,"
-            "\"queue_ms_max\":0,"
-            "\"queue_ms_sample\":0,"
-            "\"run_ms\":0,"
-            "\"run_ms_max\":0,"
-            "\"run_ms_sample\":0"
-          "},"
-          "\"death_thread\":\"Still_Alive\","
-          "\"location\":{"
-            "\"file_name\":\"FixedUnitTestFileName\","
-            "\"function_name\":\"ParentChildTest\","
-            "\"line_number\":1776"
-          "}"
-        "}"
-      "]"
-    "}";
-  EXPECT_EQ(json, birth_only_result);
+  if (ThreadData::TrackingParentChildStatus()) {
+    ASSERT_EQ(1u, process_data.descendants.size());
+    EXPECT_EQ(kFile, process_data.descendants[0].parent.location.file_name);
+    EXPECT_EQ(kFunction,
+              process_data.descendants[0].parent.location.function_name);
+    EXPECT_EQ(kLineNumber,
+              process_data.descendants[0].parent.location.line_number);
+    EXPECT_EQ(kWorkerThreadName,
+              process_data.descendants[0].parent.thread_name);
+    EXPECT_EQ(kFile, process_data.descendants[0].child.location.file_name);
+    EXPECT_EQ(kFunction,
+              process_data.descendants[0].child.location.function_name);
+    EXPECT_EQ(kLineNumber,
+              process_data.descendants[0].child.location.line_number);
+    EXPECT_EQ(kWorkerThreadName, process_data.descendants[0].child.thread_name);
+  } else {
+    EXPECT_EQ(0u, process_data.descendants.size());
+  }
 }
 
 TEST_F(TrackedObjectsTest, DeathDataTest) {
   if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
+          ThreadData::PROFILING_CHILDREN_ACTIVE))
     return;
 
   scoped_ptr<DeathData> data(new DeathData());
@@ -245,193 +255,89 @@ TEST_F(TrackedObjectsTest, DeathDataTest) {
   EXPECT_EQ(data->queue_duration_sample(), queue_ms);
   EXPECT_EQ(data->count(), 2);
 
-  scoped_ptr<base::DictionaryValue> dictionary(data->ToValue());
-  int integer;
-  EXPECT_TRUE(dictionary->GetInteger("run_ms", &integer));
-  EXPECT_EQ(integer, 2 * run_ms);
-  EXPECT_TRUE(dictionary->GetInteger("run_ms_sample", &integer));
-  EXPECT_EQ(integer, run_ms);
-  EXPECT_TRUE(dictionary->GetInteger("queue_ms", &integer));
-  EXPECT_EQ(integer, 2 * queue_ms);
-  EXPECT_TRUE(dictionary->GetInteger("queue_ms_sample", &integer));
-  EXPECT_EQ(integer, queue_ms);
-  EXPECT_TRUE(dictionary->GetInteger("count", &integer));
-  EXPECT_EQ(integer, 2);
-
-  scoped_ptr<base::Value> value(data->ToValue());
-  std::string json;
-  base::JSONWriter::Write(value.get(), &json);
-  std::string birth_only_result = "{"
-      "\"count\":2,"
-      "\"queue_ms\":16,"
-      "\"queue_ms_max\":8,"
-      "\"queue_ms_sample\":8,"
-      "\"run_ms\":84,"
-      "\"run_ms_max\":42,"
-      "\"run_ms_sample\":42"
-      "}";
-  EXPECT_EQ(birth_only_result, json);
+  DeathDataSnapshot snapshot(*data);
+  EXPECT_EQ(2, snapshot.count);
+  EXPECT_EQ(2 * run_ms, snapshot.run_duration_sum);
+  EXPECT_EQ(run_ms, snapshot.run_duration_max);
+  EXPECT_EQ(run_ms, snapshot.run_duration_sample);
+  EXPECT_EQ(2 * queue_ms, snapshot.queue_duration_sum);
+  EXPECT_EQ(queue_ms, snapshot.queue_duration_max);
+  EXPECT_EQ(queue_ms, snapshot.queue_duration_sample);
 }
 
-TEST_F(TrackedObjectsTest, DeactivatedBirthOnlyToValueWorkerThread) {
-  // Transition to Deactivated state before doing anything.
-  if (!ThreadData::InitializeAndSetTrackingStatus(ThreadData::DEACTIVATED))
-    return;
-  // We don't initialize system with a thread name, so we're viewed as a worker
-  // thread.
-  const int kFakeLineNumber = 173;
-  const char* kFile = "FixedFileName";
-  const char* kFunction = "BirthOnlyToValueWorkerThread";
-  Location location(kFunction, kFile, kFakeLineNumber, NULL);
-  Births* birth = ThreadData::TallyABirthIfActive(location);
-  // We should now see a NULL birth record.
-  EXPECT_EQ(birth, reinterpret_cast<Births*>(NULL));
-
-  scoped_ptr<base::Value> value(ThreadData::ToValue(false));
-  std::string json;
-  base::JSONWriter::Write(value.get(), &json);
-  std::string birth_only_result = "{"
-      "\"descendants\":["
-      "],"
-      "\"list\":["
-      "]"
-    "}";
-  EXPECT_EQ(json, birth_only_result);
-}
-
-TEST_F(TrackedObjectsTest, DeactivatedBirthOnlyToValueMainThread) {
+TEST_F(TrackedObjectsTest, DeactivatedBirthOnlyToSnapshotWorkerThread) {
   // Start in the deactivated state.
   if (!ThreadData::InitializeAndSetTrackingStatus(ThreadData::DEACTIVATED))
     return;
 
-  // Use a well named thread.
-  ThreadData::InitializeThreadContext("SomeMainThreadName");
-  const int kFakeLineNumber = 173;
-  const char* kFile = "FixedFileName";
-  const char* kFunction = "BirthOnlyToValueMainThread";
-  Location location(kFunction, kFile, kFakeLineNumber, NULL);
-  // Do not delete birth.  We don't own it.
-  Births* birth = ThreadData::TallyABirthIfActive(location);
-  // We expect to not get a birth record.
-  EXPECT_EQ(birth, reinterpret_cast<Births*>(NULL));
+  const char kFunction[] = "DeactivatedBirthOnlyToSnapshotWorkerThread";
+  Location location(kFunction, kFile, kLineNumber, NULL);
+  TallyABirth(location, std::string());
 
-  scoped_ptr<base::Value> value(ThreadData::ToValue(false));
-  std::string json;
-  base::JSONWriter::Write(value.get(), &json);
-  std::string birth_only_result = "{"
-      "\"descendants\":["
-      "],"
-      "\"list\":["
-      "]"
-    "}";
-  EXPECT_EQ(json, birth_only_result);
+  ProcessDataSnapshot process_data;
+  ThreadData::Snapshot(false, &process_data);
+  EXPECT_EQ(0u, process_data.tasks.size());
+  EXPECT_EQ(0u, process_data.descendants.size());
+  EXPECT_EQ(base::GetCurrentProcId(), process_data.process_id);
 }
 
-TEST_F(TrackedObjectsTest, BirthOnlyToValueWorkerThread) {
-  if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
+TEST_F(TrackedObjectsTest, DeactivatedBirthOnlyToSnapshotMainThread) {
+  // Start in the deactivated state.
+  if (!ThreadData::InitializeAndSetTrackingStatus(ThreadData::DEACTIVATED))
     return;
-  // We don't initialize system with a thread name, so we're viewed as a worker
-  // thread.
-  const int kFakeLineNumber = 173;
-  const char* kFile = "FixedFileName";
-  const char* kFunction = "BirthOnlyToValueWorkerThread";
-  Location location(kFunction, kFile, kFakeLineNumber, NULL);
-  Births* birth = ThreadData::TallyABirthIfActive(location);
-  EXPECT_NE(birth, reinterpret_cast<Births*>(NULL));
 
-  scoped_ptr<base::Value> value(ThreadData::ToValue(false));
-  std::string json;
-  base::JSONWriter::Write(value.get(), &json);
-  std::string birth_only_result = "{"
-      "\"descendants\":["
-      "],"
-      "\"list\":["
-        "{"
-          "\"birth_thread\":\"WorkerThread-1\","
-          "\"death_data\":{"
-            "\"count\":1,"
-            "\"queue_ms\":0,"
-            "\"queue_ms_max\":0,"
-            "\"queue_ms_sample\":0,"
-            "\"run_ms\":0,"
-            "\"run_ms_max\":0,"
-            "\"run_ms_sample\":0"
-          "},"
-          "\"death_thread\":\"Still_Alive\","
-          "\"location\":{"
-            "\"file_name\":\"FixedFileName\","
-            "\"function_name\":\"BirthOnlyToValueWorkerThread\","
-            "\"line_number\":173"
-          "}"
-        "}"
-      "]"
-    "}";
-  EXPECT_EQ(json, birth_only_result);
+  const char kFunction[] = "DeactivatedBirthOnlyToSnapshotMainThread";
+  Location location(kFunction, kFile, kLineNumber, NULL);
+  TallyABirth(location, kMainThreadName);
+
+  ProcessDataSnapshot process_data;
+  ThreadData::Snapshot(false, &process_data);
+  EXPECT_EQ(0u, process_data.tasks.size());
+  EXPECT_EQ(0u, process_data.descendants.size());
+  EXPECT_EQ(base::GetCurrentProcId(), process_data.process_id);
 }
 
-TEST_F(TrackedObjectsTest, BirthOnlyToValueMainThread) {
+TEST_F(TrackedObjectsTest, BirthOnlyToSnapshotWorkerThread) {
   if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
+          ThreadData::PROFILING_CHILDREN_ACTIVE))
     return;
 
-  // Use a well named thread.
-  ThreadData::InitializeThreadContext("SomeMainThreadName");
-  const int kFakeLineNumber = 173;
-  const char* kFile = "FixedFileName";
-  const char* kFunction = "BirthOnlyToValueMainThread";
-  Location location(kFunction, kFile, kFakeLineNumber, NULL);
-  // Do not delete birth.  We don't own it.
-  Births* birth = ThreadData::TallyABirthIfActive(location);
-  EXPECT_NE(birth, reinterpret_cast<Births*>(NULL));
+  const char kFunction[] = "BirthOnlyToSnapshotWorkerThread";
+  Location location(kFunction, kFile, kLineNumber, NULL);
+  TallyABirth(location, std::string());
 
-  scoped_ptr<base::Value> value(ThreadData::ToValue(false));
-  std::string json;
-  base::JSONWriter::Write(value.get(), &json);
-  std::string birth_only_result = "{"
-      "\"descendants\":["
-      "],"
-      "\"list\":["
-        "{"
-          "\"birth_thread\":\"SomeMainThreadName\","
-          "\"death_data\":{"
-            "\"count\":1,"
-            "\"queue_ms\":0,"
-            "\"queue_ms_max\":0,"
-            "\"queue_ms_sample\":0,"
-            "\"run_ms\":0,"
-            "\"run_ms_max\":0,"
-            "\"run_ms_sample\":0"
-          "},"
-          "\"death_thread\":\"Still_Alive\","
-          "\"location\":{"
-            "\"file_name\":\"FixedFileName\","
-            "\"function_name\":\"BirthOnlyToValueMainThread\","
-            "\"line_number\":173"
-          "}"
-        "}"
-      "]"
-    "}";
-  EXPECT_EQ(json, birth_only_result);
+  ProcessDataSnapshot process_data;
+  ThreadData::Snapshot(false, &process_data);
+  ExpectSimpleProcessData(process_data, kFunction, kWorkerThreadName,
+                          kStillAlive, 1, 0, 0);
 }
 
-TEST_F(TrackedObjectsTest, LifeCycleToValueMainThread) {
+TEST_F(TrackedObjectsTest, BirthOnlyToSnapshotMainThread) {
   if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
+          ThreadData::PROFILING_CHILDREN_ACTIVE))
     return;
 
-  // Use a well named thread.
-  ThreadData::InitializeThreadContext("SomeMainThreadName");
-  const int kFakeLineNumber = 236;
-  const char* kFile = "FixedFileName";
-  const char* kFunction = "LifeCycleToValueMainThread";
-  Location location(kFunction, kFile, kFakeLineNumber, NULL);
-  // Do not delete birth.  We don't own it.
-  Births* birth = ThreadData::TallyABirthIfActive(location);
-  EXPECT_NE(birth, reinterpret_cast<Births*>(NULL));
+  const char kFunction[] = "BirthOnlyToSnapshotMainThread";
+  Location location(kFunction, kFile, kLineNumber, NULL);
+  TallyABirth(location, kMainThreadName);
 
-  const base::TimeTicks kTimePosted = base::TimeTicks()
-      + base::TimeDelta::FromMilliseconds(1);
+  ProcessDataSnapshot process_data;
+  ThreadData::Snapshot(false, &process_data);
+  ExpectSimpleProcessData(process_data, kFunction, kMainThreadName, kStillAlive,
+                          1, 0, 0);
+}
+
+TEST_F(TrackedObjectsTest, LifeCycleToSnapshotMainThread) {
+  if (!ThreadData::InitializeAndSetTrackingStatus(
+          ThreadData::PROFILING_CHILDREN_ACTIVE))
+    return;
+
+  const char kFunction[] = "LifeCycleToSnapshotMainThread";
+  Location location(kFunction, kFile, kLineNumber, NULL);
+  TallyABirth(location, kMainThreadName);
+
+  const base::TimeTicks kTimePosted = base::TimeTicks() +
+      base::TimeDelta::FromMilliseconds(1);
   const base::TimeTicks kDelayedStartTime = base::TimeTicks();
   // TrackingInfo will call TallyABirth() during construction.
   base::TrackingInfo pending_task(location, kDelayedStartTime);
@@ -443,57 +349,27 @@ TEST_F(TrackedObjectsTest, LifeCycleToValueMainThread) {
   ThreadData::TallyRunOnNamedThreadIfTracking(pending_task,
       kStartOfRun, kEndOfRun);
 
-  scoped_ptr<base::Value> value(ThreadData::ToValue(false));
-  std::string json;
-  base::JSONWriter::Write(value.get(), &json);
-  std::string one_line_result = "{"
-      "\"descendants\":["
-      "],"
-      "\"list\":["
-        "{"
-          "\"birth_thread\":\"SomeMainThreadName\","
-          "\"death_data\":{"
-            "\"count\":1,"
-            "\"queue_ms\":4,"
-            "\"queue_ms_max\":4,"
-            "\"queue_ms_sample\":4,"
-            "\"run_ms\":2,"
-            "\"run_ms_max\":2,"
-            "\"run_ms_sample\":2"
-          "},"
-          "\"death_thread\":\"SomeMainThreadName\","
-          "\"location\":{"
-            "\"file_name\":\"FixedFileName\","
-            "\"function_name\":\"LifeCycleToValueMainThread\","
-            "\"line_number\":236"
-          "}"
-        "}"
-      "]"
-    "}";
-  EXPECT_EQ(one_line_result, json);
+  ProcessDataSnapshot process_data;
+  ThreadData::Snapshot(false, &process_data);
+  ExpectSimpleProcessData(process_data, kFunction, kMainThreadName,
+                          kMainThreadName, 1, 2, 4);
 }
 
 // We will deactivate tracking after the birth, and before the death, and
 // demonstrate that the lifecycle is completely tallied. This ensures that
 // our tallied births are matched by tallied deaths (except for when the
 // task is still running, or is queued).
-TEST_F(TrackedObjectsTest, LifeCycleMidDeactivatedToValueMainThread) {
+TEST_F(TrackedObjectsTest, LifeCycleMidDeactivatedToSnapshotMainThread) {
   if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
+          ThreadData::PROFILING_CHILDREN_ACTIVE))
     return;
 
-  // Use a well named thread.
-  ThreadData::InitializeThreadContext("SomeMainThreadName");
-  const int kFakeLineNumber = 236;
-  const char* kFile = "FixedFileName";
-  const char* kFunction = "LifeCycleToValueMainThread";
-  Location location(kFunction, kFile, kFakeLineNumber, NULL);
-  // Do not delete birth.  We don't own it.
-  Births* birth = ThreadData::TallyABirthIfActive(location);
-  EXPECT_NE(birth, reinterpret_cast<Births*>(NULL));
+  const char kFunction[] = "LifeCycleMidDeactivatedToSnapshotMainThread";
+  Location location(kFunction, kFile, kLineNumber, NULL);
+  TallyABirth(location, kMainThreadName);
 
-  const base::TimeTicks kTimePosted = base::TimeTicks()
-      + base::TimeDelta::FromMilliseconds(1);
+  const base::TimeTicks kTimePosted = base::TimeTicks() +
+      base::TimeDelta::FromMilliseconds(1);
   const base::TimeTicks kDelayedStartTime = base::TimeTicks();
   // TrackingInfo will call TallyABirth() during construction.
   base::TrackingInfo pending_task(location, kDelayedStartTime);
@@ -509,54 +385,25 @@ TEST_F(TrackedObjectsTest, LifeCycleMidDeactivatedToValueMainThread) {
   ThreadData::TallyRunOnNamedThreadIfTracking(pending_task,
       kStartOfRun, kEndOfRun);
 
-  scoped_ptr<base::Value> value(ThreadData::ToValue(false));
-  std::string json;
-  base::JSONWriter::Write(value.get(), &json);
-  std::string one_line_result = "{"
-      "\"descendants\":["
-      "],"
-      "\"list\":["
-        "{"
-          "\"birth_thread\":\"SomeMainThreadName\","
-          "\"death_data\":{"
-            "\"count\":1,"
-            "\"queue_ms\":4,"
-            "\"queue_ms_max\":4,"
-            "\"queue_ms_sample\":4,"
-            "\"run_ms\":2,"
-            "\"run_ms_max\":2,"
-            "\"run_ms_sample\":2"
-          "},"
-          "\"death_thread\":\"SomeMainThreadName\","
-          "\"location\":{"
-            "\"file_name\":\"FixedFileName\","
-            "\"function_name\":\"LifeCycleToValueMainThread\","
-            "\"line_number\":236"
-          "}"
-        "}"
-      "]"
-    "}";
-  EXPECT_EQ(one_line_result, json);
+  ProcessDataSnapshot process_data;
+  ThreadData::Snapshot(false, &process_data);
+  ExpectSimpleProcessData(process_data, kFunction, kMainThreadName,
+                          kMainThreadName, 1, 2, 4);
 }
 
 // We will deactivate tracking before starting a life cycle, and neither
 // the birth nor the death will be recorded.
-TEST_F(TrackedObjectsTest, LifeCyclePreDeactivatedToValueMainThread) {
+TEST_F(TrackedObjectsTest, LifeCyclePreDeactivatedToSnapshotMainThread) {
+  // Start in the deactivated state.
   if (!ThreadData::InitializeAndSetTrackingStatus(ThreadData::DEACTIVATED))
     return;
 
-  // Use a well named thread.
-  ThreadData::InitializeThreadContext("SomeMainThreadName");
-  const int kFakeLineNumber = 236;
-  const char* kFile = "FixedFileName";
-  const char* kFunction = "LifeCycleToValueMainThread";
-  Location location(kFunction, kFile, kFakeLineNumber, NULL);
-  // Do not delete birth.  We don't own it.
-  Births* birth = ThreadData::TallyABirthIfActive(location);
-  EXPECT_EQ(birth, reinterpret_cast<Births*>(NULL));
+  const char kFunction[] = "LifeCyclePreDeactivatedToSnapshotMainThread";
+  Location location(kFunction, kFile, kLineNumber, NULL);
+  TallyABirth(location, kMainThreadName);
 
-  const base::TimeTicks kTimePosted = base::TimeTicks()
-      + base::TimeDelta::FromMilliseconds(1);
+  const base::TimeTicks kTimePosted = base::TimeTicks() +
+      base::TimeDelta::FromMilliseconds(1);
   const base::TimeTicks kDelayedStartTime = base::TimeTicks();
   // TrackingInfo will call TallyABirth() during construction.
   base::TrackingInfo pending_task(location, kDelayedStartTime);
@@ -568,33 +415,23 @@ TEST_F(TrackedObjectsTest, LifeCyclePreDeactivatedToValueMainThread) {
   ThreadData::TallyRunOnNamedThreadIfTracking(pending_task,
       kStartOfRun, kEndOfRun);
 
-  scoped_ptr<base::Value> value(ThreadData::ToValue(false));
-  std::string json;
-  base::JSONWriter::Write(value.get(), &json);
-  std::string one_line_result = "{"
-      "\"descendants\":["
-      "],"
-      "\"list\":["
-      "]"
-    "}";
-  EXPECT_EQ(one_line_result, json);
+  ProcessDataSnapshot process_data;
+  ThreadData::Snapshot(false, &process_data);
+  EXPECT_EQ(0u, process_data.tasks.size());
+  EXPECT_EQ(0u, process_data.descendants.size());
+  EXPECT_EQ(base::GetCurrentProcId(), process_data.process_id);
 }
 
-TEST_F(TrackedObjectsTest, LifeCycleToValueWorkerThread) {
+TEST_F(TrackedObjectsTest, LifeCycleToSnapshotWorkerThread) {
   if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
+          ThreadData::PROFILING_CHILDREN_ACTIVE))
     return;
 
-  // Don't initialize thread, so that we appear as a worker thread.
-  // ThreadData::InitializeThreadContext("SomeMainThreadName");
-
-  const int kFakeLineNumber = 236;
-  const char* kFile = "FixedFileName";
-  const char* kFunction = "LifeCycleToValueWorkerThread";
-  Location location(kFunction, kFile, kFakeLineNumber, NULL);
-  // Do not delete birth.  We don't own it.
+  const char kFunction[] = "LifeCycleToSnapshotWorkerThread";
+  Location location(kFunction, kFile, kLineNumber, NULL);
+  // Do not delete |birth|.  We don't own it.
   Births* birth = ThreadData::TallyABirthIfActive(location);
-  EXPECT_NE(birth, reinterpret_cast<Births*>(NULL));
+  EXPECT_NE(reinterpret_cast<Births*>(NULL), birth);
 
   const TrackedTime kTimePosted = TrackedTime() + Duration::FromMilliseconds(1);
   const TrackedTime kStartOfRun = TrackedTime() +
@@ -603,93 +440,57 @@ TEST_F(TrackedObjectsTest, LifeCycleToValueWorkerThread) {
   ThreadData::TallyRunOnWorkerThreadIfTracking(birth, kTimePosted,
       kStartOfRun, kEndOfRun);
 
-  // Call for the ToValue, but tell it to not the maxes after scanning.
-  scoped_ptr<base::Value> value(ThreadData::ToValue(false));
-  std::string json;
-  base::JSONWriter::Write(value.get(), &json);
-  std::string one_line_result = "{"
-      "\"descendants\":["
-      "],"
-      "\"list\":["
-        "{"
-          "\"birth_thread\":\"WorkerThread-1\","
-          "\"death_data\":{"
-            "\"count\":1,"
-            "\"queue_ms\":4,"
-            "\"queue_ms_max\":4,"
-            "\"queue_ms_sample\":4,"
-            "\"run_ms\":2,"
-            "\"run_ms_max\":2,"
-            "\"run_ms_sample\":2"
-          "},"
-          "\"death_thread\":\"WorkerThread-1\","
-          "\"location\":{"
-            "\"file_name\":\"FixedFileName\","
-            "\"function_name\":\"LifeCycleToValueWorkerThread\","
-            "\"line_number\":236"
-          "}"
-        "}"
-      "]"
-    "}";
-  EXPECT_EQ(one_line_result, json);
+  // Call for the ToSnapshot, but tell it to not reset the maxes after scanning.
+  ProcessDataSnapshot process_data;
+  ThreadData::Snapshot(false, &process_data);
+  ExpectSimpleProcessData(process_data, kFunction, kWorkerThreadName,
+                          kWorkerThreadName, 1, 2, 4);
 
-  // Call for the ToValue, but tell it to reset the maxes after scanning.
+  // Call for the ToSnapshot, but tell it to reset the maxes after scanning.
   // We'll still get the same values, but the data will be reset (which we'll
   // see in a moment).
-  value.reset(ThreadData::ToValue(true));
-  base::JSONWriter::Write(value.get(), &json);
-  // Result should be unchanged.
-  EXPECT_EQ(one_line_result, json);
+  ProcessDataSnapshot process_data_pre_reset;
+  ThreadData::Snapshot(true, &process_data_pre_reset);
+  ExpectSimpleProcessData(process_data, kFunction, kWorkerThreadName,
+                          kWorkerThreadName, 1, 2, 4);
 
-  // Call for the ToValue, and now we'll see the result of the last translation,
-  // as the max will have been pushed back to zero.
-  value.reset(ThreadData::ToValue(false));
-  base::JSONWriter::Write(value.get(), &json);
-  std::string one_line_result_with_zeros = "{"
-      "\"descendants\":["
-      "],"
-      "\"list\":["
-        "{"
-          "\"birth_thread\":\"WorkerThread-1\","
-          "\"death_data\":{"
-            "\"count\":1,"
-            "\"queue_ms\":4,"
-            "\"queue_ms_max\":0,"  // Note zero here.
-            "\"queue_ms_sample\":4,"
-            "\"run_ms\":2,"
-            "\"run_ms_max\":0,"   // Note zero here.
-            "\"run_ms_sample\":2"
-          "},"
-          "\"death_thread\":\"WorkerThread-1\","
-          "\"location\":{"
-            "\"file_name\":\"FixedFileName\","
-            "\"function_name\":\"LifeCycleToValueWorkerThread\","
-            "\"line_number\":236"
-          "}"
-        "}"
-      "]"
-    "}";
-  EXPECT_EQ(one_line_result_with_zeros, json);
+  // Call for the ToSnapshot, and now we'll see the result of the last
+  // translation, as the max will have been pushed back to zero.
+  ProcessDataSnapshot process_data_post_reset;
+  ThreadData::Snapshot(true, &process_data_post_reset);
+  ASSERT_EQ(1u, process_data_post_reset.tasks.size());
+  EXPECT_EQ(kFile, process_data_post_reset.tasks[0].birth.location.file_name);
+  EXPECT_EQ(kFunction,
+            process_data_post_reset.tasks[0].birth.location.function_name);
+  EXPECT_EQ(kLineNumber,
+            process_data_post_reset.tasks[0].birth.location.line_number);
+  EXPECT_EQ(kWorkerThreadName,
+            process_data_post_reset.tasks[0].birth.thread_name);
+  EXPECT_EQ(1, process_data_post_reset.tasks[0].death_data.count);
+  EXPECT_EQ(2, process_data_post_reset.tasks[0].death_data.run_duration_sum);
+  EXPECT_EQ(0, process_data_post_reset.tasks[0].death_data.run_duration_max);
+  EXPECT_EQ(2, process_data_post_reset.tasks[0].death_data.run_duration_sample);
+  EXPECT_EQ(4, process_data_post_reset.tasks[0].death_data.queue_duration_sum);
+  EXPECT_EQ(0, process_data_post_reset.tasks[0].death_data.queue_duration_max);
+  EXPECT_EQ(4,
+            process_data_post_reset.tasks[0].death_data.queue_duration_sample);
+  EXPECT_EQ(kWorkerThreadName,
+            process_data_post_reset.tasks[0].death_thread_name);
+  EXPECT_EQ(0u, process_data_post_reset.descendants.size());
+  EXPECT_EQ(base::GetCurrentProcId(), process_data_post_reset.process_id);
 }
 
 TEST_F(TrackedObjectsTest, TwoLives) {
   if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
+          ThreadData::PROFILING_CHILDREN_ACTIVE))
     return;
 
-  // Use a well named thread.
-  ThreadData::InitializeThreadContext("SomeFileThreadName");
-  const int kFakeLineNumber = 222;
-  const char* kFile = "AnotherFileName";
-  const char* kFunction = "TwoLives";
-  Location location(kFunction, kFile, kFakeLineNumber, NULL);
-  // Do not delete birth.  We don't own it.
-  Births* birth = ThreadData::TallyABirthIfActive(location);
-  EXPECT_NE(birth, reinterpret_cast<Births*>(NULL));
+  const char kFunction[] = "TwoLives";
+  Location location(kFunction, kFile, kLineNumber, NULL);
+  TallyABirth(location, kMainThreadName);
 
-
-  const base::TimeTicks kTimePosted = base::TimeTicks()
-      + base::TimeDelta::FromMilliseconds(1);
+  const base::TimeTicks kTimePosted = base::TimeTicks() +
+      base::TimeDelta::FromMilliseconds(1);
   const base::TimeTicks kDelayedStartTime = base::TimeTicks();
   // TrackingInfo will call TallyABirth() during construction.
   base::TrackingInfo pending_task(location, kDelayedStartTime);
@@ -708,50 +509,24 @@ TEST_F(TrackedObjectsTest, TwoLives) {
   ThreadData::TallyRunOnNamedThreadIfTracking(pending_task2,
       kStartOfRun, kEndOfRun);
 
-  scoped_ptr<base::Value> value(ThreadData::ToValue(false));
-  std::string json;
-  base::JSONWriter::Write(value.get(), &json);
-  std::string one_line_result = "{"
-      "\"descendants\":["
-      "],"
-      "\"list\":["
-        "{"
-          "\"birth_thread\":\"SomeFileThreadName\","
-          "\"death_data\":{"
-            "\"count\":2,"
-            "\"queue_ms\":8,"
-            "\"queue_ms_max\":4,"
-            "\"queue_ms_sample\":4,"
-            "\"run_ms\":4,"
-            "\"run_ms_max\":2,"
-            "\"run_ms_sample\":2"
-          "},"
-          "\"death_thread\":\"SomeFileThreadName\","
-          "\"location\":{"
-            "\"file_name\":\"AnotherFileName\","
-            "\"function_name\":\"TwoLives\","
-            "\"line_number\":222"
-          "}"
-        "}"
-      "]"
-    "}";
-  EXPECT_EQ(one_line_result, json);
+  ProcessDataSnapshot process_data;
+  ThreadData::Snapshot(false, &process_data);
+  ExpectSimpleProcessData(process_data, kFunction, kMainThreadName,
+                          kMainThreadName, 2, 2, 4);
 }
 
 TEST_F(TrackedObjectsTest, DifferentLives) {
   if (!ThreadData::InitializeAndSetTrackingStatus(
-      ThreadData::PROFILING_CHILDREN_ACTIVE))
+          ThreadData::PROFILING_CHILDREN_ACTIVE))
     return;
 
   // Use a well named thread.
-  ThreadData::InitializeThreadContext("SomeFileThreadName");
-  const int kFakeLineNumber = 567;
-  const char* kFile = "AnotherFileName";
-  const char* kFunction = "DifferentLives";
-  Location location(kFunction, kFile, kFakeLineNumber, NULL);
+  ThreadData::InitializeThreadContext(kMainThreadName);
+  const char kFunction[] = "DifferentLives";
+  Location location(kFunction, kFile, kLineNumber, NULL);
 
-  const base::TimeTicks kTimePosted = base::TimeTicks()
-      + base::TimeDelta::FromMilliseconds(1);
+  const base::TimeTicks kTimePosted = base::TimeTicks() +
+      base::TimeDelta::FromMilliseconds(1);
   const base::TimeTicks kDelayedStartTime = base::TimeTicks();
   // TrackingInfo will call TallyABirth() during construction.
   base::TrackingInfo pending_task(location, kDelayedStartTime);
@@ -770,53 +545,36 @@ TEST_F(TrackedObjectsTest, DifferentLives) {
   base::TrackingInfo pending_task2(second_location, kDelayedStartTime);
   pending_task2.time_posted = kTimePosted;  // Overwrite implied Now().
 
-  scoped_ptr<base::Value> value(ThreadData::ToValue(false));
-  std::string json;
-  base::JSONWriter::Write(value.get(), &json);
-  std::string one_line_result = "{"
-      "\"descendants\":["
-      "],"
-      "\"list\":["
-        "{"
-          "\"birth_thread\":\"SomeFileThreadName\","
-          "\"death_data\":{"
-            "\"count\":1,"
-            "\"queue_ms\":4,"
-            "\"queue_ms_max\":4,"
-            "\"queue_ms_sample\":4,"
-            "\"run_ms\":2,"
-            "\"run_ms_max\":2,"
-            "\"run_ms_sample\":2"
-          "},"
-          "\"death_thread\":\"SomeFileThreadName\","
-          "\"location\":{"
-            "\"file_name\":\"AnotherFileName\","
-            "\"function_name\":\"DifferentLives\","
-            "\"line_number\":567"
-          "}"
-        "},"
-        "{"
-          "\"birth_thread\":\"SomeFileThreadName\","
-          "\"death_data\":{"
-            "\"count\":1,"
-            "\"queue_ms\":0,"
-            "\"queue_ms_max\":0,"
-            "\"queue_ms_sample\":0,"
-            "\"run_ms\":0,"
-            "\"run_ms_max\":0,"
-            "\"run_ms_sample\":0"
-          "},"
-          "\"death_thread\":\"Still_Alive\","
-          "\"location\":{"
-            "\"file_name\":\"AnotherFileName\","
-            "\"function_name\":\"DifferentLives\","
-            "\"line_number\":999"
-          "}"
-        "}"
-      "]"
-    "}";
-  EXPECT_EQ(one_line_result, json);
+  ProcessDataSnapshot process_data;
+  ThreadData::Snapshot(false, &process_data);
+  ASSERT_EQ(2u, process_data.tasks.size());
+  EXPECT_EQ(kFile, process_data.tasks[0].birth.location.file_name);
+  EXPECT_EQ(kFunction, process_data.tasks[0].birth.location.function_name);
+  EXPECT_EQ(kLineNumber, process_data.tasks[0].birth.location.line_number);
+  EXPECT_EQ(kMainThreadName, process_data.tasks[0].birth.thread_name);
+  EXPECT_EQ(1, process_data.tasks[0].death_data.count);
+  EXPECT_EQ(2, process_data.tasks[0].death_data.run_duration_sum);
+  EXPECT_EQ(2, process_data.tasks[0].death_data.run_duration_max);
+  EXPECT_EQ(2, process_data.tasks[0].death_data.run_duration_sample);
+  EXPECT_EQ(4, process_data.tasks[0].death_data.queue_duration_sum);
+  EXPECT_EQ(4, process_data.tasks[0].death_data.queue_duration_max);
+  EXPECT_EQ(4, process_data.tasks[0].death_data.queue_duration_sample);
+  EXPECT_EQ(kMainThreadName, process_data.tasks[0].death_thread_name);
+  EXPECT_EQ(kFile, process_data.tasks[1].birth.location.file_name);
+  EXPECT_EQ(kFunction, process_data.tasks[1].birth.location.function_name);
+  EXPECT_EQ(kSecondFakeLineNumber,
+            process_data.tasks[1].birth.location.line_number);
+  EXPECT_EQ(kMainThreadName, process_data.tasks[1].birth.thread_name);
+  EXPECT_EQ(1, process_data.tasks[1].death_data.count);
+  EXPECT_EQ(0, process_data.tasks[1].death_data.run_duration_sum);
+  EXPECT_EQ(0, process_data.tasks[1].death_data.run_duration_max);
+  EXPECT_EQ(0, process_data.tasks[1].death_data.run_duration_sample);
+  EXPECT_EQ(0, process_data.tasks[1].death_data.queue_duration_sum);
+  EXPECT_EQ(0, process_data.tasks[1].death_data.queue_duration_max);
+  EXPECT_EQ(0, process_data.tasks[1].death_data.queue_duration_sample);
+  EXPECT_EQ(kStillAlive, process_data.tasks[1].death_thread_name);
+  EXPECT_EQ(0u, process_data.descendants.size());
+  EXPECT_EQ(base::GetCurrentProcId(), process_data.process_id);
 }
-
 
 }  // namespace tracked_objects

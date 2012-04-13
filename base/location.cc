@@ -14,7 +14,6 @@ extern "C" {
 #include "base/location.h"
 #include "base/string_number_conversions.h"
 #include "base/stringprintf.h"
-#include "base/values.h"
 
 namespace tracked_objects {
 
@@ -72,18 +71,21 @@ void Location::WriteFunctionName(std::string* output) const {
   }
 }
 
-base::DictionaryValue* Location::ToValue() const {
-  base::DictionaryValue* dictionary = new base::DictionaryValue;
-  dictionary->Set("file_name", base::Value::CreateStringValue(file_name_));
-  // Note: This function name is not escaped, and templates have less than
-  // characters, which means this is not suitable for display as HTML unless
-  // properly escaped.
-  dictionary->Set("function_name",
-                  base::Value::CreateStringValue(function_name_));
-  dictionary->Set("line_number", base::Value::CreateIntegerValue(line_number_));
-  return dictionary;
+//------------------------------------------------------------------------------
+LocationSnapshot::LocationSnapshot() : line_number(-1) {
 }
 
+LocationSnapshot::LocationSnapshot(
+    const tracked_objects::Location& location)
+    : file_name(location.file_name()),
+      function_name(location.function_name()),
+      line_number(location.line_number()) {
+}
+
+LocationSnapshot::~LocationSnapshot() {
+}
+
+//------------------------------------------------------------------------------
 #if defined(COMPILER_MSVC)
 __declspec(noinline)
 #endif
