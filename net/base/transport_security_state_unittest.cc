@@ -833,14 +833,6 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_TRUE(ShouldRedirect("crate.io"));
   EXPECT_TRUE(ShouldRedirect("foo.crate.io"));
 
-#if defined(OS_CHROMEOS)
-  static const bool kTwitterHSTS = true;
-#else
-  static const bool kTwitterHSTS = false;
-#endif
-
-  EXPECT_EQ(kTwitterHSTS, ShouldRedirect("twitter.com"));
-  EXPECT_EQ(kTwitterHSTS, ShouldRedirect("www.twitter.com"));
   EXPECT_TRUE(HasPins("www.twitter.com"));
 }
 
