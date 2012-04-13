@@ -101,6 +101,8 @@
         'base/cocoa/nib_loading.mm',
         'base/cocoa/underlay_opengl_hosting_window.h',
         'base/cocoa/underlay_opengl_hosting_window.mm',
+        'base/cocoa/window_size_constants.h',
+        'base/cocoa/window_size_constants.mm',
         'base/cursor/cursor.cc',
         'base/cursor/cursor.h',
         'base/cursor/cursor_win.cc',
