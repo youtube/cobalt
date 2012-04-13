@@ -846,6 +846,12 @@
         # Use the system icu.
         'use_system_icu%': 0,
 
+        # TODO(yfriedman): Remove once unit_tests can link for Android.
+        # To override it specify:
+        # GYP_DEFINES="$GYP_DEFINES android_unit_test_target_type=executable"
+        #     android_gyp
+        'android_unit_test_target_type%': 'static_library',
+
         # Choose static link by build type.
         'conditions': [
           ['android_build_type==0', {
