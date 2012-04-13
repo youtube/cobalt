@@ -157,11 +157,12 @@ TEST_F(TrackedObjectsTest, TinyStartupShutdown) {
 
   // Now instigate another birth, while we are timing the run of the first
   // execution.
-  TrackedTime start_time = ThreadData::NowForStartOfRun(first_birth);
+  ThreadData::NowForStartOfRun(first_birth);
   // Create a child (using the same birth location).
   // TrackingInfo will call TallyABirth() during construction.
   base::TimeTicks kBogusBirthTime;
   base::TrackingInfo pending_task(location, kBogusBirthTime);
+  TrackedTime start_time(pending_task.time_posted);
   // Finally conclude the outer run.
   TrackedTime end_time = ThreadData::NowForEndOfRun();
   ThreadData::TallyRunOnNamedThreadIfTracking(pending_task, start_time,
