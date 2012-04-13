@@ -1686,19 +1686,6 @@ TEST(HttpCache, ETagGET_ConditionalRequest_304_NoStore) {
   EXPECT_EQ(2, cache.disk_cache()->create_count());
 }
 
-TEST(HttpCache, SimplePOST_SkipsCache) {
-  MockHttpCache cache;
-
-  // Test that we skip the cache for POST requests that do not have an upload
-  // identifier.
-
-  RunTransactionTest(cache.http_cache(), kSimplePOST_Transaction);
-
-  EXPECT_EQ(1, cache.network_layer()->transaction_count());
-  EXPECT_EQ(0, cache.disk_cache()->open_count());
-  EXPECT_EQ(0, cache.disk_cache()->create_count());
-}
-
 // Helper that does 4 requests using HttpCache:
 //
 // (1) loads |kUrl| -- expects |net_response_1| to be returned.
@@ -2183,12 +2170,20 @@ TEST(HttpCache, UrlContainingHash) {
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 }
 
-TEST(HttpCache, SimplePOST_LoadOnlyFromCache_Miss) {
+// Tests that we skip the cache for POST requests that do not have an upload
+// identifier.
+TEST(HttpCache, SimplePOST_SkipsCache) {
   MockHttpCache cache;
 
-  // Test that we skip the cache for POST requests.  Eventually, we will want
-  // to cache these, but we'll still have cases where skipping the cache makes
-  // sense, so we want to make sure that it works properly.
+  RunTransactionTest(cache.http_cache(), kSimplePOST_Transaction);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(0, cache.disk_cache()->create_count());
+}
+
+TEST(HttpCache, SimplePOST_LoadOnlyFromCache_Miss) {
+  MockHttpCache cache;
 
   MockTransaction transaction(kSimplePOST_Transaction);
   transaction.load_flags |= net::LOAD_ONLY_FROM_CACHE;
@@ -2202,9 +2197,7 @@ TEST(HttpCache, SimplePOST_LoadOnlyFromCache_Miss) {
   ASSERT_TRUE(trans.get());
 
   rv = trans->Start(&request, callback.callback(), net::BoundNetLog());
-  if (rv == net::ERR_IO_PENDING)
-    rv = callback.WaitForResult();
-  ASSERT_EQ(net::ERR_CACHE_MISS, rv);
+  ASSERT_EQ(net::ERR_CACHE_MISS, callback.GetResult(rv));
 
   trans.reset();
 
@@ -2263,6 +2256,35 @@ TEST(HttpCache, SimplePOST_WithRanges) {
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(0, cache.disk_cache()->create_count());
+}
+
+// Tests that a POST is cached separately from a previously cached GET.
+TEST(HttpCache, SimplePOST_Invalidate) {
+  MockHttpCache cache;
+
+  MockTransaction transaction(kSimplePOST_Transaction);
+  transaction.method = "GET";
+
+  MockHttpRequest req1(transaction);
+
+  // Attempt to populate the cache.
+  RunTransactionTestWithRequest(cache.http_cache(), transaction, req1, NULL);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  transaction.method = "POST";
+  MockHttpRequest req2(transaction);
+  req2.upload_data = new net::UploadData();
+  req2.upload_data->AppendBytes("hello", 5);
+  req2.upload_data->set_identifier(1);
+
+  RunTransactionTestWithRequest(cache.http_cache(), transaction, req2, NULL);
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(2, cache.disk_cache()->create_count());
 }
 
 // Tests that we do not cache the response of a PUT.
