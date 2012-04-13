@@ -25,9 +25,10 @@ struct SimpleMessage {
   int foo;
   std::string bar;
   bool baz;
+  bool bstruct;
   SimpleEnum simple_enum;
   ScopedVector<int> ints;
-  SimpleMessage() : foo(0), baz(false) {}
+  SimpleMessage() : foo(0), baz(false), bstruct(false) {}
 
   static bool ParseSimpleEnum(const StringPiece& value, SimpleEnum* field) {
     if (value == "foo") {
@@ -40,6 +41,11 @@ struct SimpleMessage {
     return false;
   }
 
+  static bool HasFieldPresent(const base::Value* value, bool* result) {
+    *result = value != NULL;
+    return true;
+  }
+
   static void RegisterJSONConverter(
       base::JSONValueConverter<SimpleMessage>* converter) {
     converter->RegisterIntField("foo", &SimpleMessage::foo);
@@ -48,6 +54,9 @@ struct SimpleMessage {
     converter->RegisterCustomField<SimpleEnum>(
         "simple_enum", &SimpleMessage::simple_enum, &ParseSimpleEnum);
     converter->RegisterRepeatedInt("ints", &SimpleMessage::ints);
+    converter->RegisterCustomValueField<bool>("bstruct",
+                                              &SimpleMessage::bstruct,
+                                              &HasFieldPresent);
   }
 };
 
@@ -75,6 +84,7 @@ TEST(JSONValueConverterTest, ParseSimpleMessage) {
       "  \"foo\": 1,\n"
       "  \"bar\": \"bar\",\n"
       "  \"baz\": true,\n"
+      "  \"bstruct\": {},\n"
       "  \"simple_enum\": \"foo\","
       "  \"ints\": [1, 2]"
       "}\n";
@@ -100,11 +110,13 @@ TEST(JSONValueConverterTest, ParseNestedMessage) {
       "  \"child\": {\n"
       "    \"foo\": 1,\n"
       "    \"bar\": \"bar\",\n"
+      "    \"bstruct\": {},\n"
       "    \"baz\": true\n"
       "  },\n"
       "  \"children\": [{\n"
       "    \"foo\": 2,\n"
       "    \"bar\": \"foobar\",\n"
+      "    \"bstruct\": \"\",\n"
       "    \"baz\": true\n"
       "  },\n"
       "  {\n"
@@ -123,6 +135,7 @@ TEST(JSONValueConverterTest, ParseNestedMessage) {
   EXPECT_EQ(1, message.child.foo);
   EXPECT_EQ("bar", message.child.bar);
   EXPECT_TRUE(message.child.baz);
+  EXPECT_TRUE(message.child.bstruct);
 
   EXPECT_EQ(2, static_cast<int>(message.children.size()));
   const SimpleMessage* first_child = message.children[0];
@@ -130,12 +143,14 @@ TEST(JSONValueConverterTest, ParseNestedMessage) {
   EXPECT_EQ(2, first_child->foo);
   EXPECT_EQ("foobar", first_child->bar);
   EXPECT_TRUE(first_child->baz);
+  EXPECT_TRUE(first_child->bstruct);
 
   const SimpleMessage* second_child = message.children[1];
   ASSERT_TRUE(second_child);
   EXPECT_EQ(3, second_child->foo);
   EXPECT_EQ("barbaz", second_child->bar);
   EXPECT_FALSE(second_child->baz);
+  EXPECT_FALSE(second_child->bstruct);
 }
 
 TEST(JSONValueConverterTest, ParseFailures) {
