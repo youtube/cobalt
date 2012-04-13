@@ -8,11 +8,12 @@
 #include <stdlib.h>
 
 #include "base/format_macros.h"
+#include "base/memory/scoped_ptr.h"
+#include "base/process_util.h"
 #include "base/profiler/alternate_timer.h"
 #include "base/stringprintf.h"
 #include "base/third_party/valgrind/memcheck.h"
 #include "base/threading/thread_restrictions.h"
-#include "build/build_config.h"
 #include "base/port.h"
 
 using base::TimeDelta;
@@ -24,6 +25,8 @@ namespace {
 // Flag to compile out almost all of the task tracking code.
 const bool kTrackAllTaskObjects = true;
 
+// TODO(jar): Evaluate the perf impact of enabling this.  If the perf impact is
+// negligible, enable by default.
 // Flag to compile out parent-child link recording.
 const bool kTrackParentChildLinks = false;
 
@@ -44,6 +47,7 @@ const ThreadData::Status kInitialStartupState =
 // can be flipped to efficiently disable this path (if there is a performance
 // problem with its presence).
 static const bool kAllowAlternateTimeSourceHandling = true;
+
 }  // namespace
 
 //------------------------------------------------------------------------------
@@ -113,25 +117,6 @@ int32 DeathData::queue_duration_sample() const {
   return queue_duration_sample_;
 }
 
-
-base::DictionaryValue* DeathData::ToValue() const {
-  base::DictionaryValue* dictionary = new base::DictionaryValue;
-  dictionary->Set("count", base::Value::CreateIntegerValue(count_));
-  dictionary->Set("run_ms",
-      base::Value::CreateIntegerValue(run_duration_sum()));
-  dictionary->Set("run_ms_max",
-      base::Value::CreateIntegerValue(run_duration_max()));
-  dictionary->Set("run_ms_sample",
-      base::Value::CreateIntegerValue(run_duration_sample()));
-  dictionary->Set("queue_ms",
-      base::Value::CreateIntegerValue(queue_duration_sum()));
-  dictionary->Set("queue_ms_max",
-      base::Value::CreateIntegerValue(queue_duration_max()));
-  dictionary->Set("queue_ms_sample",
-      base::Value::CreateIntegerValue(queue_duration_sample()));
-  return dictionary;
-}
-
 void DeathData::ResetMax() {
   run_duration_max_ = 0;
   queue_duration_max_ = 0;
@@ -148,20 +133,48 @@ void DeathData::Clear() {
 }
 
 //------------------------------------------------------------------------------
+DeathDataSnapshot::DeathDataSnapshot()
+    : count(-1),
+      run_duration_sum(-1),
+      run_duration_max(-1),
+      run_duration_sample(-1),
+      queue_duration_sum(-1),
+      queue_duration_max(-1),
+      queue_duration_sample(-1) {
+}
+
+DeathDataSnapshot::DeathDataSnapshot(
+    const tracked_objects::DeathData& death_data)
+    : count(death_data.count()),
+      run_duration_sum(death_data.run_duration_sum()),
+      run_duration_max(death_data.run_duration_max()),
+      run_duration_sample(death_data.run_duration_sample()),
+      queue_duration_sum(death_data.queue_duration_sum()),
+      queue_duration_max(death_data.queue_duration_max()),
+      queue_duration_sample(death_data.queue_duration_sample()) {
+}
+
+DeathDataSnapshot::~DeathDataSnapshot() {
+}
+
+//------------------------------------------------------------------------------
 BirthOnThread::BirthOnThread(const Location& location,
                              const ThreadData& current)
     : location_(location),
       birth_thread_(&current) {
 }
 
-const Location BirthOnThread::location() const { return location_; }
-const ThreadData* BirthOnThread::birth_thread() const { return birth_thread_; }
+//------------------------------------------------------------------------------
+BirthOnThreadSnapshot::BirthOnThreadSnapshot() {
+}
 
-void BirthOnThread::ToValue(const std::string& prefix,
-                            base::DictionaryValue* dictionary) const {
-  dictionary->Set(prefix + "_location", location_.ToValue());
-  dictionary->Set(prefix + "_thread",
-                  base::Value::CreateStringValue(birth_thread_->thread_name()));
+BirthOnThreadSnapshot::BirthOnThreadSnapshot(
+    const tracked_objects::BirthOnThread& birth)
+    : location(birth.location()),
+      thread_name(birth.birth_thread()->thread_name()) {
+}
+
+BirthOnThreadSnapshot::~BirthOnThreadSnapshot() {
 }
 
 //------------------------------------------------------------------------------
@@ -334,14 +347,23 @@ void ThreadData::OnThreadTerminationCleanup() {
 }
 
 // static
-base::DictionaryValue* ThreadData::ToValue(bool reset_max) {
-  DataCollector collected_data;  // Gather data.
-  // Request multiple calls to collected_data.Append() for all threads.
-  SendAllMaps(reset_max, &collected_data);
-  collected_data.AddListOfLivingObjects();  // Add births that are still alive.
-  base::DictionaryValue* dictionary = new base::DictionaryValue();
-  collected_data.ToValue(dictionary);
-  return dictionary;
+void ThreadData::Snapshot(bool reset_max, ProcessDataSnapshot* process_data) {
+  // Add births that have run to completion to |collected_data|.
+  // |birth_counts| tracks the total number of births recorded at each location
+  // for which we have not seen a death count.
+  BirthCountMap birth_counts;
+  ThreadData::SnapshotAllExecutedTasks(reset_max, process_data, &birth_counts);
+
+  // Add births that are still active -- i.e. objects that have tallied a birth,
+  // but have not yet tallied a matching death, and hence must be either
+  // running, queued up, or being held in limbo for future posting.
+  for (BirthCountMap::const_iterator it = birth_counts.begin();
+       it != birth_counts.end(); ++it) {
+    if (it->second > 0) {
+      process_data->tasks.push_back(
+          TaskSnapshot(*it->first, DeathData(it->second), "Still_Alive"));
+    }
+  }
 }
 
 Births* ThreadData::TallyABirth(const Location& location) {
@@ -527,6 +549,60 @@ void ThreadData::TallyRunInAScopedRegionIfTracking(
 
 const std::string ThreadData::thread_name() const { return thread_name_; }
 
+// static
+void ThreadData::SnapshotAllExecutedTasks(bool reset_max,
+                                          ProcessDataSnapshot* process_data,
+                                          BirthCountMap* birth_counts) {
+  if (!kTrackAllTaskObjects)
+    return;  // Not compiled in.
+
+  // Get an unchanging copy of a ThreadData list.
+  ThreadData* my_list = ThreadData::first();
+
+  // Gather data serially.
+  // This hackish approach *can* get some slighly corrupt tallies, as we are
+  // grabbing values without the protection of a lock, but it has the advantage
+  // of working even with threads that don't have message loops.  If a user
+  // sees any strangeness, they can always just run their stats gathering a
+  // second time.
+  for (ThreadData* thread_data = my_list;
+       thread_data;
+       thread_data = thread_data->next()) {
+    thread_data->SnapshotExecutedTasks(reset_max, process_data, birth_counts);
+  }
+}
+
+void ThreadData::SnapshotExecutedTasks(bool reset_max,
+                                       ProcessDataSnapshot* process_data,
+                                       BirthCountMap* birth_counts) {
+  // Get copy of data, so that the data will not change during the iterations
+  // and processing.
+  ThreadData::BirthMap birth_map;
+  ThreadData::DeathMap death_map;
+  ThreadData::ParentChildSet parent_child_set;
+  SnapshotMaps(reset_max, &birth_map, &death_map, &parent_child_set);
+
+  for (ThreadData::DeathMap::const_iterator it = death_map.begin();
+       it != death_map.end(); ++it) {
+    process_data->tasks.push_back(
+        TaskSnapshot(*it->first, it->second, thread_name()));
+    (*birth_counts)[it->first] -= it->first->birth_count();
+  }
+
+  for (ThreadData::BirthMap::const_iterator it = birth_map.begin();
+       it != birth_map.end(); ++it) {
+    (*birth_counts)[it->second] += it->second->birth_count();
+  }
+
+  if (!kTrackParentChildLinks)
+    return;
+
+  for (ThreadData::ParentChildSet::const_iterator it = parent_child_set.begin();
+       it != parent_child_set.end(); ++it) {
+    process_data->descendants.push_back(ParentChildPairSnapshot(*it));
+  }
+}
+
 // This may be called from another thread.
 void ThreadData::SnapshotMaps(bool reset_max,
                               BirthMap* birth_map,
@@ -549,32 +625,6 @@ void ThreadData::SnapshotMaps(bool reset_max,
   for (ParentChildSet::iterator it = parent_child_set_.begin();
        it != parent_child_set_.end(); ++it)
     parent_child_set->insert(*it);
-}
-
-// static
-void ThreadData::SendAllMaps(bool reset_max, class DataCollector* target) {
-  if (!kTrackAllTaskObjects)
-    return;  // Not compiled in.
-  // Get an unchanging copy of a ThreadData list.
-  ThreadData* my_list = ThreadData::first();
-
-  // Gather data serially.
-  // This hackish approach *can* get some slighly corrupt tallies, as we are
-  // grabbing values without the protection of a lock, but it has the advantage
-  // of working even with threads that don't have message loops.  If a user
-  // sees any strangeness, they can always just run their stats gathering a
-  // second time.
-  for (ThreadData* thread_data = my_list;
-       thread_data;
-       thread_data = thread_data->next()) {
-    // Get copy of data.
-    ThreadData::BirthMap birth_map;
-    ThreadData::DeathMap death_map;
-    ThreadData::ParentChildSet parent_child_set;
-    thread_data->SnapshotMaps(reset_max, &birth_map, &death_map,
-                              &parent_child_set);
-    target->Append(*thread_data, birth_map, death_map, parent_child_set);
-  }
 }
 
 // static
@@ -785,107 +835,43 @@ void ThreadData::ShutdownSingleThreadedCleanup(bool leak) {
 }
 
 //------------------------------------------------------------------------------
-// Individual 3-tuple of birth (place and thread) along with death thread, and
-// the accumulated stats for instances (DeathData).
-
-Snapshot::Snapshot(const BirthOnThread& birth_on_thread,
-                   const ThreadData& death_thread,
-                   const DeathData& death_data)
-    : birth_(&birth_on_thread),
-      death_thread_(&death_thread),
-      death_data_(death_data) {
+TaskSnapshot::TaskSnapshot() {
 }
 
-Snapshot::Snapshot(const BirthOnThread& birth_on_thread, int count)
-    : birth_(&birth_on_thread),
-      death_thread_(NULL),
-      death_data_(DeathData(count)) {
+TaskSnapshot::TaskSnapshot(const BirthOnThread& birth,
+                           const DeathData& death_data,
+                           const std::string& death_thread_name)
+    : birth(birth),
+      death_data(death_data),
+      death_thread_name(death_thread_name) {
 }
 
-const std::string Snapshot::DeathThreadName() const {
-  if (death_thread_)
-    return death_thread_->thread_name();
-  return "Still_Alive";
-}
-
-base::DictionaryValue* Snapshot::ToValue() const {
-  base::DictionaryValue* dictionary = new base::DictionaryValue;
-  // TODO(jar): Switch the next two lines to:
-  // birth_->ToValue("birth", dictionary);
-  // ...but that will require fixing unit tests, and JS to take
-  // "birth_location" rather than "location"
-  dictionary->Set("birth_thread",
-      base::Value::CreateStringValue(birth_->birth_thread()->thread_name()));
-  dictionary->Set("location", birth_->location().ToValue());
-
-  dictionary->Set("death_data", death_data_.ToValue());
-  dictionary->Set("death_thread",
-      base::Value::CreateStringValue(DeathThreadName()));
-  return dictionary;
+TaskSnapshot::~TaskSnapshot() {
 }
 
 //------------------------------------------------------------------------------
-// DataCollector
+// ParentChildPairSnapshot
 
-DataCollector::DataCollector() {}
-
-DataCollector::~DataCollector() {
+ParentChildPairSnapshot::ParentChildPairSnapshot(){
 }
 
-void DataCollector::Append(const ThreadData& thread_data,
-                           const ThreadData::BirthMap& birth_map,
-                           const ThreadData::DeathMap& death_map,
-                           const ThreadData::ParentChildSet& parent_child_set) {
-  for (ThreadData::DeathMap::const_iterator it = death_map.begin();
-       it != death_map.end(); ++it) {
-    collection_.push_back(Snapshot(*it->first, thread_data, it->second));
-    global_birth_count_[it->first] -= it->first->birth_count();
-  }
-
-  for (ThreadData::BirthMap::const_iterator it = birth_map.begin();
-       it != birth_map.end(); ++it) {
-    global_birth_count_[it->second] += it->second->birth_count();
-  }
-
-  if (!kTrackParentChildLinks)
-    return;
-
-  for (ThreadData::ParentChildSet::const_iterator it = parent_child_set.begin();
-       it != parent_child_set.end(); ++it) {
-    parent_child_set_.insert(*it);
-  }
+ParentChildPairSnapshot::ParentChildPairSnapshot(
+    const ThreadData::ParentChildPair& parent_child)
+    : parent(*parent_child.first),
+      child(*parent_child.second) {
 }
 
-DataCollector::Collection* DataCollector::collection() {
-  return &collection_;
+ParentChildPairSnapshot::~ParentChildPairSnapshot() {
 }
 
-void DataCollector::AddListOfLivingObjects() {
-  for (BirthCount::iterator it = global_birth_count_.begin();
-       it != global_birth_count_.end(); ++it) {
-    if (it->second > 0)
-      collection_.push_back(Snapshot(*it->first, it->second));
-  }
+//------------------------------------------------------------------------------
+// ProcessDataSnapshot
+
+ProcessDataSnapshot::ProcessDataSnapshot()
+    : process_id(base::GetCurrentProcId()) {
 }
 
-void DataCollector::ToValue(base::DictionaryValue* dictionary) const {
-  base::ListValue* list = new base::ListValue;
-  for (size_t i = 0; i < collection_.size(); ++i) {
-    list->Append(collection_[i].ToValue());
-  }
-  dictionary->Set("list", list);
-
-  base::ListValue* descendants = new base::ListValue;
-  for (ThreadData::ParentChildSet::const_iterator it =
-           parent_child_set_.begin();
-       it != parent_child_set_.end();
-       ++it) {
-    base::DictionaryValue* parent_child = new base::DictionaryValue;
-    it->first->ToValue("parent", parent_child);
-    it->second->ToValue("child", parent_child);
-    descendants->Append(parent_child);
-  }
-  dictionary->Set("descendants", descendants);
+ProcessDataSnapshot::~ProcessDataSnapshot() {
 }
 
 }  // namespace tracked_objects
