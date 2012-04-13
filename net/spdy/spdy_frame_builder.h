@@ -30,7 +30,6 @@ class NET_EXPORT_PRIVATE SpdyFrameBuilder {
   SpdyFrameBuilder();
 
   // Initiailizes a SpdyFrameBuilder with a buffer of given size.
-  // The buffer will still be resized as necessary.
   explicit SpdyFrameBuilder(size_t size);
 
   // Returns the size of the SpdyFrameBuilder's data.
@@ -102,22 +101,10 @@ class NET_EXPORT_PRIVATE SpdyFrameBuilder {
 
   const char* end_of_payload() const { return buffer_ + length_; }
 
-  // Resizes the buffer for use when writing the specified amount of data. The
-  // location that the data should be written at is returned, or NULL if there
-  // was an error. Call EndWrite with the returned offset and the given length
-  // to pad out for the next write.
-  char* BeginWrite(size_t length);
-
   // Completes the write operation by padding the data with NULL bytes until it
   // is padded. Should be paired with BeginWrite, but it does not necessarily
   // have to be called after the data is written.
   void EndWrite(char* dest, int length);
-
-  // Resize the capacity, note that the input value should include the size of
-  // the header: new_capacity = sizeof(Header) + desired_payload_capacity.
-  // A new failure will cause a Resize failure... and caller should check
-  // the return result for true (i.e., successful resizing).
-  bool Resize(size_t new_capacity);
 
   // Moves the iterator by the given number of bytes.
   static void UpdateIter(void** iter, int bytes) {
@@ -125,10 +112,14 @@ class NET_EXPORT_PRIVATE SpdyFrameBuilder {
   }
 
  private:
+  // Returns the location that the data should be written at, or NULL if there
+  // is not enough room. Call EndWrite with the returned offset and the given
+  // length to pad out for the next write.
+  char* BeginWrite(size_t length);
+
   char* buffer_;
   size_t capacity_;  // Allocation size of payload (or -1 if buffer is const).
   size_t length_;    // current length of the buffer
-  size_t variable_buffer_offset_;  // IF non-zero, then offset to a buffer.
 };
 
 }  // namespace net

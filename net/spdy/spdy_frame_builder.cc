@@ -10,11 +10,9 @@
 namespace net {
 
 SpdyFrameBuilder::SpdyFrameBuilder(size_t size)
-    : buffer_(NULL),
-      capacity_(0),
-      length_(0),
-      variable_buffer_offset_(0) {
-  Resize(size);
+    : buffer_(new char[size]),
+      capacity_(size),
+      length_(0) {
 }
 
 SpdyFrameBuilder::~SpdyFrameBuilder() {
@@ -25,7 +23,7 @@ SpdyFrameBuilder::~SpdyFrameBuilder() {
 char* SpdyFrameBuilder::BeginWrite(size_t length) {
   size_t offset = length_;
   size_t needed_size = length_ + length;
-  if (needed_size > capacity_ && !Resize(std::max(capacity_ * 2, needed_size)))
+  if (needed_size > capacity_)
     return NULL;
 
 #ifdef ARCH_CPU_64_BITS
@@ -70,24 +68,6 @@ bool SpdyFrameBuilder::WriteStringPiece32(const base::StringPiece& value) {
   }
 
   return WriteBytes(value.data(), value.size());
-}
-
-// TODO(hkhalil) Remove Resize() entirely.
-bool SpdyFrameBuilder::Resize(size_t new_capacity) {
-  DCHECK(new_capacity > 0);
-  if (new_capacity < capacity_)
-    return true;
-
-  char* p = new char[new_capacity];
-  if (buffer_) {
-    memcpy(p, buffer_, capacity_);
-    delete[] buffer_;
-  }
-  if (!p && new_capacity > 0)
-    return false;
-  buffer_ = p;
-  capacity_ = new_capacity;
-  return true;
 }
 
 }  // namespace net
