@@ -56,6 +56,7 @@
       'target_name': 'android_experimental',
       'type': 'none',
       'dependencies': [
+        '../chrome/chrome.gyp:unit_tests',
       ],
     },
     {
@@ -65,7 +66,6 @@
       'type': 'none',
       'dependencies': [
         '../content/content.gyp:content_browsertests',
-        '../chrome/chrome.gyp:unit_tests',
         '../ui/ui.gyp:gfx_unittests',
       ],
     },
