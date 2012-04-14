@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -136,6 +136,7 @@ const char* kTestFiles[] = {
   "dir-listing-ls-27",  // windows-1251
 
   "dir-listing-ls-28",  // Hylafax FTP server
+  "dir-listing-ls-29",
 
   "dir-listing-netware-1",
   "dir-listing-netware-2",
