@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -49,21 +49,6 @@ bool LooksLikeUnixPermissionsListing(const string16& text) {
   // listing, as some FTP servers like Hylafax only send two.
   return (LooksLikeUnixPermission(text.substr(1, 3)) &&
           LooksLikeUnixPermission(text.substr(4, 3)));
-}
-
-bool LooksLikePermissionDeniedError(const string16& text) {
-  // Try to recognize a three-part colon-separated error message:
-  //
-  //   1. ftpd server name
-  //   2. directory name (often just ".")
-  //   3. message text (usually "Permission denied")
-  std::vector<string16> parts;
-  base::SplitString(CollapseWhitespace(text, false), ':', &parts);
-
-  if (parts.size() != 3)
-    return false;
-
-  return parts[2].find(ASCIIToUTF16("Permission denied")) != string16::npos;
 }
 
 // Returns the column index of the end of the date listing and detected
@@ -159,10 +144,11 @@ bool ParseFtpDirectoryListingLs(
                                                current_time,
                                                &column_offset,
                                                &entry.last_modified)) {
-      // If we can't recognize a normal listing line, maybe it's an error?
-      // In that case, just ignore the error, but still recognize the data
-      // as valid listing.
-      if (LooksLikePermissionDeniedError(lines[i]))
+      // Some servers send a message in one of the first few lines.
+      // All those messages have in common is the string ".:",
+      // where "." means the current directory, and ":" separates it
+      // from the rest of the message, which may be empty.
+      if (lines[i].find(ASCIIToUTF16(".:")) != string16::npos)
         continue;
 
       return false;
