@@ -2113,6 +2113,9 @@
               # Warns on switches on enums that cover all enum values but
               # also contain a default: branch. Chrome is full of that.
               '-Wno-covered-switch-default',
+
+              # TODO(thakis): Reenable once http://webk.it/83920 is fixed.
+              '-Wno-literal-conversion',
             ],
             'cflags!': [
               # Clang doesn't seem to know know this flag.
@@ -2527,6 +2530,9 @@
                 # Warns on switches on enums that cover all enum values but
                 # also contain a default: branch. Chrome is full of that.
                 '-Wno-covered-switch-default',
+
+                # TODO(thakis): Reenable once http://webk.it/83920 is fixed.
+                '-Wno-literal-conversion',
               ],
             }],
             ['clang==1 and clang_use_chrome_plugins==1', {
