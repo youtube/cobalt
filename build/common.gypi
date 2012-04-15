@@ -2103,9 +2103,6 @@
               # removed when we change to that.  (This is also why we don't
               # bother fixing all these cases today.)
               '-Wno-unnamed-type-template-args',
-              # WebKit uses nullptr in a legit way, other that that this warning
-              # doesn't fire.
-              '-Wno-c++11-compat',
               # This (rightyfully) complains about 'override', which we use
               # heavily.
               '-Wno-c++11-extensions',
@@ -2520,9 +2517,6 @@
                 '-Wno-unused-function',
                 # See comments on this flag higher up in this file.
                 '-Wno-unnamed-type-template-args',
-                # WebKit uses nullptr in a legit way, other that that this
-                # warning doesn't fire.
-                '-Wno-c++0x-compat',
                 # This (rightyfully) complains about 'override', which we use
                 # heavily.
                 '-Wno-c++11-extensions',
