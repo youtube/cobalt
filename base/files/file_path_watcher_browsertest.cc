@@ -757,7 +757,7 @@ TEST_F(FilePathWatcherTest, DirAttributesChanged) {
   ASSERT_TRUE(ChangeFilePermissions(test_dir1, Read, false));
   loop_.PostDelayedTask(FROM_HERE,
                         MessageLoop::QuitClosure(),
-                        TestTimeouts::tiny_timeout_ms());
+                        TestTimeouts::tiny_timeout());
   ASSERT_FALSE(WaitForEvents());
   ASSERT_TRUE(ChangeFilePermissions(test_dir1, Read, true));
 
