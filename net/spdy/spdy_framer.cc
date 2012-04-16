@@ -51,16 +51,6 @@ struct DictionaryIds {
 // initialized lazily to avoid static initializers.
 base::LazyInstance<DictionaryIds>::Leaky g_dictionary_ids;
 
-// Creates a FlagsAndLength.
-FlagsAndLength CreateFlagsAndLength(SpdyControlFlags flags, size_t length) {
-  DCHECK_EQ(0u, length & ~static_cast<size_t>(kLengthMask));
-  FlagsAndLength flags_length;
-  flags_length.length_ = htonl(static_cast<uint32>(length));
-  DCHECK_EQ(0, flags & ~kControlFlagsMask);
-  flags_length.flags_[0] = flags;
-  return flags_length;
-}
-
 // By default is compression on or off.
 bool g_enable_compression_default = true;
 
@@ -1072,18 +1062,10 @@ SpdySynStreamControlFrame* SpdyFramer::CreateSynStream(
   DCHECK_EQ(0u, associated_stream_id & ~kStreamIdMask);
 
   // Find our length.
-  size_t expected_frame_size = SpdySynStreamControlFrame::size() +
-                               GetSerializedLength(headers);
+  size_t frame_size = SpdySynStreamControlFrame::size() +
+                      GetSerializedLength(headers);
 
-  // Create our FlagsAndLength.
-  FlagsAndLength flags_length = CreateFlagsAndLength(
-      flags,
-      expected_frame_size - SpdyFrame::kHeaderSize);
-
-  SpdyFrameBuilder frame(expected_frame_size);
-  frame.WriteUInt16(kControlFlagMask | spdy_version_);
-  frame.WriteUInt16(SYN_STREAM);
-  frame.WriteBytes(&flags_length, sizeof(flags_length));
+  SpdyFrameBuilder frame(SYN_STREAM, flags, spdy_version_, frame_size);
   frame.WriteUInt32(stream_id);
   frame.WriteUInt32(associated_stream_id);
   // Cap as appropriate.
@@ -1095,6 +1077,7 @@ SpdySynStreamControlFrame* SpdyFramer::CreateSynStream(
   frame.WriteUInt8(priority << ((spdy_version_ < 3) ? 6 : 5));
   frame.WriteUInt8((spdy_version_ < 3) ? 0 : credential_slot);
   WriteHeaderBlock(&frame, headers);
+  DCHECK_EQ(static_cast<size_t>(frame.length()), frame_size);
 
   scoped_ptr<SpdySynStreamControlFrame> syn_frame(
       reinterpret_cast<SpdySynStreamControlFrame*>(frame.take()));
@@ -1114,27 +1097,20 @@ SpdySynReplyControlFrame* SpdyFramer::CreateSynReply(
   DCHECK_EQ(0u, stream_id & ~kStreamIdMask);
 
   // Find our length.
-  size_t expected_frame_size = SpdySynReplyControlFrame::size() +
-                               GetSerializedLength(headers);
+  size_t frame_size = SpdySynReplyControlFrame::size() +
+                      GetSerializedLength(headers);
   // In SPDY 2, there were 2 unused bytes before payload.
   if (spdy_version_ < 3) {
-    expected_frame_size += 2;
+    frame_size += 2;
   }
 
-  // Create our FlagsAndLength.
-  FlagsAndLength flags_length = CreateFlagsAndLength(
-      flags,
-      expected_frame_size - SpdyFrame::kHeaderSize);
-
-  SpdyFrameBuilder frame(expected_frame_size);
-  frame.WriteUInt16(kControlFlagMask | spdy_version_);
-  frame.WriteUInt16(SYN_REPLY);
-  frame.WriteBytes(&flags_length, sizeof(flags_length));
+  SpdyFrameBuilder frame(SYN_REPLY, flags, spdy_version_, frame_size);
   frame.WriteUInt32(stream_id);
   if (spdy_version_ < 3) {
     frame.WriteUInt16(0);  // Unused
   }
   WriteHeaderBlock(&frame, headers);
+  DCHECK_EQ(static_cast<size_t>(frame.length()), frame_size);
 
   scoped_ptr<SpdySynReplyControlFrame> reply_frame(
       reinterpret_cast<SpdySynReplyControlFrame*>(frame.take()));
@@ -1153,24 +1129,20 @@ SpdyRstStreamControlFrame* SpdyFramer::CreateRstStream(
   DCHECK_NE(status, INVALID);
   DCHECK_LT(status, NUM_STATUS_CODES);
 
-  SpdyFrameBuilder frame(SpdyRstStreamControlFrame::size());
-  frame.WriteUInt16(kControlFlagMask | spdy_version_);
-  frame.WriteUInt16(RST_STREAM);
-  frame.WriteUInt32(8);
+  size_t frame_size = SpdyRstStreamControlFrame::size();
+  SpdyFrameBuilder frame(RST_STREAM, CONTROL_FLAG_NONE, spdy_version_,
+                         frame_size);
   frame.WriteUInt32(stream_id);
   frame.WriteUInt32(status);
+  DCHECK_EQ(static_cast<size_t>(frame.length()), frame_size);
   return reinterpret_cast<SpdyRstStreamControlFrame*>(frame.take());
 }
 
 SpdySettingsControlFrame* SpdyFramer::CreateSettings(
     const SpdySettings& values) const {
-  SpdyFrameBuilder frame(SpdySettingsControlFrame::size() + 8 * values.size());
-  frame.WriteUInt16(kControlFlagMask | spdy_version_);
-  frame.WriteUInt16(SETTINGS);
-  size_t settings_size =
-      SpdySettingsControlFrame::size() - SpdyFrame::kHeaderSize +
-      8 * values.size();
-  frame.WriteUInt32(settings_size);
+  size_t frame_size = SpdySettingsControlFrame::size() + 8 * values.size();
+  SpdyFrameBuilder frame(SETTINGS, CONTROL_FLAG_NONE, spdy_version_,
+                         frame_size);
   frame.WriteUInt32(values.size());
   SpdySettings::const_iterator it = values.begin();
   while (it != values.end()) {
@@ -1179,16 +1151,15 @@ SpdySettingsControlFrame* SpdyFramer::CreateSettings(
     frame.WriteUInt32(it->second);
     ++it;
   }
+  DCHECK_EQ(static_cast<size_t>(frame.length()), frame_size);
   return reinterpret_cast<SpdySettingsControlFrame*>(frame.take());
 }
 
 SpdyPingControlFrame* SpdyFramer::CreatePingFrame(uint32 unique_id) const {
-  SpdyFrameBuilder frame(SpdyPingControlFrame::size());
-  frame.WriteUInt16(kControlFlagMask | spdy_version_);
-  frame.WriteUInt16(PING);
-  size_t ping_size = SpdyPingControlFrame::size() - SpdyFrame::kHeaderSize;
-  frame.WriteUInt32(ping_size);
+  size_t frame_size = SpdyPingControlFrame::size();
+  SpdyFrameBuilder frame(PING, CONTROL_FLAG_NONE, spdy_version_, frame_size);
   frame.WriteUInt32(unique_id);
+  DCHECK_EQ(static_cast<size_t>(frame.length()), frame_size);
   return reinterpret_cast<SpdyPingControlFrame*>(frame.take());
 }
 
@@ -1201,16 +1172,13 @@ SpdyGoAwayControlFrame* SpdyFramer::CreateGoAway(
   // this difference via a separate offset variable, since
   // SpdyGoAwayControlFrame::size() returns the SPDY 3 size.
   const size_t goaway_offset = (protocol_version() < 3) ? 4 : 0;
-  SpdyFrameBuilder frame(SpdyGoAwayControlFrame::size() - goaway_offset);
-  frame.WriteUInt16(kControlFlagMask | spdy_version_);
-  frame.WriteUInt16(GOAWAY);
-  size_t go_away_size =
-      SpdyGoAwayControlFrame::size() - SpdyFrame::kHeaderSize - goaway_offset;
-  frame.WriteUInt32(go_away_size);
+  size_t frame_size = SpdyGoAwayControlFrame::size() - goaway_offset;
+  SpdyFrameBuilder frame(GOAWAY, CONTROL_FLAG_NONE, spdy_version_, frame_size);
   frame.WriteUInt32(last_accepted_stream_id);
   if (protocol_version() >= 3) {
     frame.WriteUInt32(status);
   }
+  DCHECK_EQ(static_cast<size_t>(frame.length()), frame_size);
   return reinterpret_cast<SpdyGoAwayControlFrame*>(frame.take());
 }
 
@@ -1224,28 +1192,20 @@ SpdyHeadersControlFrame* SpdyFramer::CreateHeaders(
   DCHECK_EQ(0u, stream_id & ~kStreamIdMask);
 
   // Find our length.
-  size_t expected_frame_size = SpdyHeadersControlFrame::size() +
-                               GetSerializedLength(headers);
+  size_t frame_size = SpdyHeadersControlFrame::size() +
+                       GetSerializedLength(headers);
   // In SPDY 2, there were 2 unused bytes before payload.
   if (spdy_version_ < 3) {
-    expected_frame_size += 2;
+    frame_size += 2;
   }
 
-  // Create our FlagsAndLength.
-  FlagsAndLength flags_length = CreateFlagsAndLength(
-      flags,
-      expected_frame_size - SpdyFrame::kHeaderSize);
-
-  SpdyFrameBuilder frame(expected_frame_size);
-  frame.WriteUInt16(kControlFlagMask | spdy_version_);
-  frame.WriteUInt16(HEADERS);
-  frame.WriteBytes(&flags_length, sizeof(flags_length));
+  SpdyFrameBuilder frame(HEADERS, flags, spdy_version_, frame_size);
   frame.WriteUInt32(stream_id);
   if (spdy_version_ < 3) {
     frame.WriteUInt16(0);  // Unused
   }
   WriteHeaderBlock(&frame, headers);
-  DCHECK_EQ(static_cast<size_t>(frame.length()), expected_frame_size);
+  DCHECK_EQ(static_cast<size_t>(frame.length()), frame_size);
 
   scoped_ptr<SpdyHeadersControlFrame> headers_frame(
       reinterpret_cast<SpdyHeadersControlFrame*>(frame.take()));
@@ -1265,14 +1225,12 @@ SpdyWindowUpdateControlFrame* SpdyFramer::CreateWindowUpdate(
   DCHECK_LE(delta_window_size,
             static_cast<uint32>(kSpdyStreamMaximumWindowSize));
 
-  SpdyFrameBuilder frame(SpdyWindowUpdateControlFrame::size());
-  frame.WriteUInt16(kControlFlagMask | spdy_version_);
-  frame.WriteUInt16(WINDOW_UPDATE);
-  size_t window_update_size = SpdyWindowUpdateControlFrame::size() -
-      SpdyFrame::kHeaderSize;
-  frame.WriteUInt32(window_update_size);
+  size_t frame_size = SpdyWindowUpdateControlFrame::size();
+  SpdyFrameBuilder frame(WINDOW_UPDATE, CONTROL_FLAG_NONE, spdy_version_,
+                         frame_size);
   frame.WriteUInt32(stream_id);
   frame.WriteUInt32(delta_window_size);
+  DCHECK_EQ(static_cast<size_t>(frame.length()), frame_size);
   return reinterpret_cast<SpdyWindowUpdateControlFrame*>(frame.take());
 }
 
@@ -1289,16 +1247,9 @@ SpdyCredentialControlFrame* SpdyFramer::CreateCredentialFrame(
     frame_size += sizeof(uint32);  // size of the cert_length field
     frame_size += cert->length();     // size of the cert_data field
   }
-  size_t payload_size = frame_size - SpdyFrame::kHeaderSize;
 
-  SpdyFrameBuilder frame(frame_size);
-  // Create our FlagsAndLength.
-  SpdyControlFlags flags = CONTROL_FLAG_NONE;
-  FlagsAndLength flags_length = CreateFlagsAndLength(flags, payload_size);
-
-  frame.WriteUInt16(kControlFlagMask | spdy_version_);
-  frame.WriteUInt16(CREDENTIAL);
-  frame.WriteBytes(&flags_length, sizeof(flags_length));
+  SpdyFrameBuilder frame(CREDENTIAL, CONTROL_FLAG_NONE, spdy_version_,
+                         frame_size);
   frame.WriteUInt16(credential.slot);
   frame.WriteUInt32(credential.proof.size());
   frame.WriteBytes(credential.proof.c_str(), credential.proof.size());
@@ -1308,6 +1259,7 @@ SpdyCredentialControlFrame* SpdyFramer::CreateCredentialFrame(
     frame.WriteUInt32(cert->length());
     frame.WriteBytes(cert->c_str(), cert->length());
   }
+  DCHECK_EQ(static_cast<size_t>(frame.length()), frame_size);
   return reinterpret_cast<SpdyCredentialControlFrame*>(frame.take());
 }
 
@@ -1316,17 +1268,10 @@ SpdyDataFrame* SpdyFramer::CreateDataFrame(SpdyStreamId stream_id,
                                            uint32 len, SpdyDataFlags flags) {
   DCHECK_EQ(0u, stream_id & ~kStreamIdMask);
 
-  SpdyFrameBuilder frame(SpdyDataFrame::size() + len);
-  frame.WriteUInt32(stream_id);
-
-  DCHECK_EQ(0u, len & ~static_cast<size_t>(kLengthMask));
-  FlagsAndLength flags_length;
-  flags_length.length_ = htonl(len);
-  DCHECK_EQ(0, flags & ~kDataFlagsMask);
-  flags_length.flags_[0] = flags;
-  frame.WriteBytes(&flags_length, sizeof(flags_length));
-
+  size_t frame_size = SpdyDataFrame::size() + len;
+  SpdyFrameBuilder frame(stream_id, flags, frame_size);
   frame.WriteBytes(data, len);
+  DCHECK_EQ(static_cast<size_t>(frame.length()), frame_size);
   scoped_ptr<SpdyFrame> data_frame(frame.take());
   SpdyDataFrame* rv;
   if (flags & DATA_FLAG_COMPRESSED) {
