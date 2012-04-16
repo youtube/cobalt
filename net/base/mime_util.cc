@@ -234,7 +234,8 @@ static const char* const supported_image_types[] = {
 
 // A list of media types: http://en.wikipedia.org/wiki/Internet_media_type
 // A comprehensive mime type list: http://plugindoc.mozdev.org/winmime.php
-static const char* const supported_media_types[] = {
+// This set of codecs is supported by all variations of Chromium.
+static const char* const common_media_types[] = {
   // Ogg.
   "audio/ogg",
   "application/ogg",
@@ -247,8 +248,10 @@ static const char* const supported_media_types[] = {
   "audio/webm",
   "audio/wav",
   "audio/x-wav",
+};
 
-#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS)
+// List of proprietary types only supported by Google Chrome.
+static const char* const proprietary_media_types[] = {
   // MPEG-4.
   "video/mp4",
   "video/x-m4v",
@@ -259,27 +262,29 @@ static const char* const supported_media_types[] = {
   "audio/mp3",
   "audio/x-mp3",
   "audio/mpeg",
-#endif
 };
 
 // List of supported codecs when passed in with <source type="...">.
+// This set of codecs is supported by all variations of Chromium.
 //
 // Refer to http://wiki.whatwg.org/wiki/Video_type_parameters#Browser_Support
 // for more information.
 //
 // The codecs for WAV are integers as defined in Appendix A of RFC2361:
 // http://tools.ietf.org/html/rfc2361
-static const char* const supported_media_codecs[] = {
-#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS)
-  "avc1",
-  "mp4a",
-#endif
+static const char* const common_media_codecs[] = {
 #if defined(ENABLE_MEDIA_CODEC_THEORA)
   "theora",
 #endif
   "vorbis",
   "vp8",
   "1"  // WAVE_FORMAT_PCM.
+};
+
+// List of proprietary codecs only supported by Google Chrome.
+static const char* const proprietary_media_codecs[] = {
+  "avc1",
+  "mp4a"
 };
 
 // Note: does not include javascript types list (see supported_javascript_types)
@@ -376,12 +381,20 @@ void MimeUtil::InitializeMimeTypeMaps() {
     non_image_map_.insert(supported_non_image_types[i]);
   for (size_t i = 0; i < arraysize(supported_javascript_types); ++i)
     non_image_map_.insert(supported_javascript_types[i]);
-  for (size_t i = 0; i < arraysize(supported_media_types); ++i)
-    non_image_map_.insert(supported_media_types[i]);
+  for (size_t i = 0; i < arraysize(common_media_types); ++i)
+    non_image_map_.insert(common_media_types[i]);
+#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS)
+  for (size_t i = 0; i < arraysize(proprietary_media_types); ++i)
+    non_image_map_.insert(proprietary_media_types[i]);
+#endif
 
   // Initialize the supported media types.
-  for (size_t i = 0; i < arraysize(supported_media_types); ++i)
-    media_map_.insert(supported_media_types[i]);
+  for (size_t i = 0; i < arraysize(common_media_types); ++i)
+    media_map_.insert(common_media_types[i]);
+#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS)
+  for (size_t i = 0; i < arraysize(proprietary_media_types); ++i)
+    media_map_.insert(proprietary_media_types[i]);
+#endif
 
   for (size_t i = 0; i < arraysize(supported_javascript_types); ++i)
     javascript_map_.insert(supported_javascript_types[i]);
@@ -389,8 +402,12 @@ void MimeUtil::InitializeMimeTypeMaps() {
   for (size_t i = 0; i < arraysize(view_source_types); ++i)
     view_source_map_.insert(view_source_types[i]);
 
-  for (size_t i = 0; i < arraysize(supported_media_codecs); ++i)
-    codecs_map_.insert(supported_media_codecs[i]);
+  for (size_t i = 0; i < arraysize(common_media_codecs); ++i)
+    codecs_map_.insert(common_media_codecs[i]);
+#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS)
+  for (size_t i = 0; i < arraysize(proprietary_media_codecs); ++i)
+    codecs_map_.insert(proprietary_media_codecs[i]);
+#endif
 
   // Initialize the strict supported media types.
   for (size_t i = 0; i < arraysize(format_codec_mappings); ++i) {
@@ -746,6 +763,30 @@ void GetExtensionsForMimeType(const std::string& mime_type,
                                      &unique_extensions);
 
   HashSetToVector(&unique_extensions, extensions);
+}
+
+void GetMediaTypesBlacklistedForTests(std::vector<std::string>* types) {
+  types->clear();
+
+// Unless/until WebM files are added to the media layout tests, we need to avoid
+// blacklisting mp4 and H.264 when Theora is not supported (and proprietary
+// codecs are) so that the media tests can still run.
+#if defined(ENABLE_MEDIA_CODEC_THEORA) || !defined(USE_PROPRIETARY_CODECS)
+  for (size_t i = 0; i < arraysize(proprietary_media_types); ++i)
+    types->push_back(proprietary_media_types[i]);
+#endif
+}
+
+void GetMediaCodecsBlacklistedForTests(std::vector<std::string>* codecs) {
+  codecs->clear();
+
+// Unless/until WebM files are added to the media layout tests, we need to avoid
+// blacklisting mp4 and H.264 when Theora is not supported (and proprietary
+// codecs are) so that the media tests can still run.
+#if defined(ENABLE_MEDIA_CODEC_THEORA) || !defined(USE_PROPRIETARY_CODECS)
+  for (size_t i = 0; i < arraysize(proprietary_media_codecs); ++i)
+    codecs->push_back(proprietary_media_codecs[i]);
+#endif
 }
 
 }  // namespace net
