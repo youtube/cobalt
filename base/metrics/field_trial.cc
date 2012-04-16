@@ -10,6 +10,7 @@
 #include "base/sha1.h"
 #include "base/stringprintf.h"
 #include "base/string_util.h"
+#include "base/sys_byteorder.h"
 #include "base/utf_string_conversions.h"
 
 namespace base {
@@ -212,13 +213,14 @@ uint32 FieldTrial::HashName(const std::string& name) {
                 sha1_hash);
 
   COMPILE_ASSERT(sizeof(uint32) < sizeof(sha1_hash), need_more_data);
-  uint32* bits = reinterpret_cast<uint32*>(&sha1_hash[0]);
+  uint32 bits;
+  memcpy(&bits, sha1_hash, sizeof(bits));
 
   // We only DCHECK, since this should not happen because the registration
   // of the experiment on the server should have already warn the developer.
   // If this ever happen, we'll ignore this experiment/group when reporting.
-  DCHECK(*bits != kReservedHashValue);
-  return *bits;
+  DCHECK(bits != kReservedHashValue);
+  return base::ByteSwapToLE32(bits);
 }
 
 //------------------------------------------------------------------------------
