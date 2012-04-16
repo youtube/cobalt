@@ -110,6 +110,15 @@ NET_EXPORT void GetExtensionsForMimeType(
     const std::string& mime_type,
     std::vector<FilePath::StringType>* extensions);
 
+// Test only methods that return lists of proprietary media types and codecs
+// that are not supported by all variations of Chromium.
+// These types and codecs must be blacklisted to ensure consistent layout test
+// results across all Chromium variations.
+NET_EXPORT void GetMediaTypesBlacklistedForTests(
+    std::vector<std::string>* types);
+NET_EXPORT void GetMediaCodecsBlacklistedForTests(
+    std::vector<std::string>* codecs);
+
 }  // namespace net
 
 #endif  // NET_BASE_MIME_UTIL_H__
