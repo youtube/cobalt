@@ -223,6 +223,9 @@
       # and extensions Web Intents support.
       'enable_web_intents%': 1,
 
+      # Enable Chrome browser extensions
+      'enable_extensions%': 1,
+
       # Enable Web Intents web content registration via HTML element
       # and WebUI managing such registrations.
       'enable_web_intents_tag%': 0,
@@ -515,6 +518,7 @@
     'asan%': '<(asan)',
     'order_text_section%': '<(order_text_section)',
     'enable_register_protocol_handler%': '<(enable_register_protocol_handler)',
+    'enable_extensions%': '<(enable_extensions)',
     'enable_web_intents%': '<(enable_web_intents)',
     'enable_web_intents_tag%': '<(enable_web_intents_tag)',
     'enable_plugin_installation%': '<(enable_plugin_installation)',
@@ -813,6 +817,7 @@
         'configuration_policy%': 0,
         'input_speech%': 0,
         'enable_web_intents%': 0,
+        'enable_extensions%': 0,
         'java_bridge%': 1,
         # Android does not support themes.
         'enable_themes%': 0,
@@ -1012,6 +1017,9 @@
       }],
       ['OS=="android"', {
         'grit_defines': ['-D', 'android'],
+      }],
+      ['enable_extensions==1', {
+        'grit_defines': ['-D', 'enable_extensions'],
       }],
       ['clang_use_chrome_plugins==1', {
         'clang_chrome_plugins_flags':
@@ -1400,6 +1408,11 @@
       ['enable_web_intents==1', {
         'defines': [
           'ENABLE_WEB_INTENTS=1',
+        ],
+      }],
+      ['enable_extensions==1', {
+        'defines': [
+          'ENABLE_EXTENSIONS=1',
         ],
       }],
       ['OS=="win" and branding=="Chrome"', {
