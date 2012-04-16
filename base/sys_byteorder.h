@@ -69,6 +69,30 @@ inline uint64 ByteSwap(uint64 x) {
 #endif
 }
 
+// Converts the bytes in |x| from host order (endianness) to little endian, and
+// returns the result.
+inline uint16 ByteSwapToLE16(uint16 x) {
+#if defined(ARCH_CPU_LITTLE_ENDIAN)
+  return x;
+#else
+  return ByteSwap(x);
+#endif
+}
+inline uint32 ByteSwapToLE32(uint32 x) {
+#if defined(ARCH_CPU_LITTLE_ENDIAN)
+  return x;
+#else
+  return ByteSwap(x);
+#endif
+}
+inline uint64 ByteSwapToLE64(uint64 x) {
+#if defined(ARCH_CPU_LITTLE_ENDIAN)
+  return x;
+#else
+  return ByteSwap(x);
+#endif
+}
+
 // Converts the bytes in |x| from network to host order (endianness), and
 // returns the result.
 inline uint16 NetToHost16(uint16 x) {
