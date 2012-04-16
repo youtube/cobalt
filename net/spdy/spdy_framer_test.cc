@@ -438,18 +438,14 @@ using test::SpdyFramerTestUtil;
 using test::TestSpdyVisitor;
 
 TEST(SpdyFrameBuilderTest, WriteLimits) {
-  SpdyFrameBuilder builder(kLengthMask + 4);
-  // length field should fail.
-  EXPECT_FALSE(builder.WriteBytes(reinterpret_cast<const void*>(0x1),
-                                  kLengthMask + 1));
-  EXPECT_EQ(0, builder.length());
-
-  // Writing a block of the maximum allowed size should succeed.
+  SpdyFrameBuilder builder(1, DATA_FLAG_NONE, kLengthMask + 8);
+  // Data frame header is 8 bytes
+  EXPECT_EQ(8, builder.length());
   const std::string kLargeData(kLengthMask, 'A');
   builder.WriteUInt32(kLengthMask);
-  EXPECT_EQ(4, builder.length());
-  EXPECT_TRUE(builder.WriteBytes(kLargeData.data(), kLengthMask));
-  EXPECT_EQ(4 + kLengthMask, static_cast<unsigned>(builder.length()));
+  EXPECT_EQ(12, builder.length());
+  EXPECT_TRUE(builder.WriteBytes(kLargeData.data(), kLengthMask - 4));
+  EXPECT_EQ(kLengthMask + 8, static_cast<unsigned>(builder.length()));
 }
 
 enum SpdyFramerTestTypes {
@@ -581,11 +577,8 @@ TEST_P(SpdyFramerTest, UndersizedHeaderBlockInBuffer) {
 
 TEST_P(SpdyFramerTest, OutOfOrderHeaders) {
   // Frame builder with plentiful buffer size.
-  SpdyFrameBuilder frame(1024);
+  SpdyFrameBuilder frame(SYN_STREAM, CONTROL_FLAG_NONE, 1, 1024);
 
-  frame.WriteUInt16(kControlFlagMask | 1);
-  frame.WriteUInt16(SYN_STREAM);
-  frame.WriteUInt32(0);  // Placeholder for the length.
   frame.WriteUInt32(3);  // stream_id
   frame.WriteUInt32(0);  // Associated stream id
   frame.WriteUInt16(0);  // Priority.
@@ -691,11 +684,8 @@ TEST_P(SpdyFramerTest, ParseCredentialFrameData) {
 
 TEST_P(SpdyFramerTest, DuplicateHeader) {
   // Frame builder with plentiful buffer size.
-  SpdyFrameBuilder frame(1024);
+  SpdyFrameBuilder frame(SYN_STREAM, CONTROL_FLAG_NONE, 1, 1024);
 
-  frame.WriteUInt16(kControlFlagMask | 1);
-  frame.WriteUInt16(SYN_STREAM);
-  frame.WriteUInt32(0);  // Placeholder for the length.
   frame.WriteUInt32(3);  // stream_id
   frame.WriteUInt32(0);  // associated stream id
   frame.WriteUInt16(0);  // Priority.
@@ -731,11 +721,8 @@ TEST_P(SpdyFramerTest, DuplicateHeader) {
 
 TEST_P(SpdyFramerTest, MultiValueHeader) {
   // Frame builder with plentiful buffer size.
-  SpdyFrameBuilder frame(1024);
+  SpdyFrameBuilder frame(SYN_STREAM, CONTROL_FLAG_NONE, 1, 1024);
 
-  frame.WriteUInt16(kControlFlagMask | 1);
-  frame.WriteUInt16(SYN_STREAM);
-  frame.WriteUInt32(0);  // Placeholder for the length.
   frame.WriteUInt32(3);  // stream_id
   frame.WriteUInt32(0);  // associated stream id
   frame.WriteUInt16(0);  // Priority.
