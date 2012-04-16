@@ -369,11 +369,21 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
       if (preconnecting && !closed)
         return ERR_PRECONNECT_MAX_SOCKET_LIMIT;
     } else {
-      // We could check if we really have a stalled group here, but it requires
-      // a scan of all groups, so just flip a flag here, and do the check later.
-      request->net_log().AddEvent(
-          NetLog::TYPE_SOCKET_POOL_STALLED_MAX_SOCKETS, NULL);
-      return ERR_IO_PENDING;
+      do {
+        if (!CloseOneIdleConnectionInLayeredPool()) {
+          // We could check if we really have a stalled group here, but it
+          // requires a scan of all groups, so return ERR_IO_PENDING, and do
+          // the check later.
+          request->net_log().AddEvent(
+              NetLog::TYPE_SOCKET_POOL_STALLED_MAX_SOCKETS, NULL);
+          return ERR_IO_PENDING;
+        }
+      } while (ReachedMaxSocketsLimit());
+
+      // It is possible that CloseOneIdleConnectionInLayeredPool() has deleted
+      // our Group (see http://crbug.com/109876), so look it up again
+      // to be safe.
+      group = GetOrCreateGroup(group_name);
     }
   }
 
