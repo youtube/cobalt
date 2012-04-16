@@ -27,10 +27,16 @@ class NET_EXPORT_PRIVATE SpdyFrameBuilder {
  public:
   ~SpdyFrameBuilder();
 
-  SpdyFrameBuilder();
+  // Initializes a SpdyFrameBuilder with a buffer of given size,
+  // populate with a SPDY control frame header based
+  // on |type|, |flags|, and |spdy_version|.
+  SpdyFrameBuilder(SpdyControlType type, SpdyControlFlags flags,
+                   int spdy_version, size_t size);
 
-  // Initiailizes a SpdyFrameBuilder with a buffer of given size.
-  explicit SpdyFrameBuilder(size_t size);
+  // Initiailizes a SpdyFrameBuilder with a buffer of given size,
+  // populated with a SPDY data frame header based on
+  // |stream_id| and |flags|.
+  SpdyFrameBuilder(SpdyStreamId stream_id, SpdyDataFlags flags,  size_t size);
 
   // Returns the size of the SpdyFrameBuilder's data.
   int length() const { return length_; }
