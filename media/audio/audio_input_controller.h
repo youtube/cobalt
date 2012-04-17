@@ -6,6 +6,7 @@
 #define MEDIA_AUDIO_AUDIO_INPUT_CONTROLLER_H_
 
 #include <string>
+#include "base/atomicops.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
@@ -42,24 +43,26 @@
 //      User               AudioInputController               EventHandler
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // CrateLowLatency() ==>        DoCreate()
-//                    AudioManager::MakeAudioInputStream()
-//                    AudioInputStream::Open()
-//                                  .- - - - - - - - - - - - ->  OnError()
-//                    DoResetNoDataTimer (posted on creating tread)
+//                   AudioManager::MakeAudioInputStream()
+//                        AudioInputStream::Open()
+//                                  .- - - - - - - - - - - - ->   OnError()
+//                          create the data timer
 //                                  .------------------------->  OnCreated()
 //                               kCreated
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Record() ==>                 DoRecord()
-//                    AudioInputStream::Start()
+//                      AudioInputStream::Start()
 //                                  .------------------------->  OnRecording()
+//                          start the data timer
 //                              kRecording
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Close() ==>                  DoClose()
-//                              state_ = kClosed
-//                    AudioInputStream::Stop()
-//                    AudioInputStream::Close()
-//                    SyncWriter::Close()
-// Closure::Run() <--------------.
+//                        delete the data timer
+//                           state_ = kClosed
+//                        AudioInputStream::Stop()
+//                        AudioInputStream::Close()
+//                          SyncWriter::Close()
+// Closure::Run() <-----------------.
 // (closure-task)
 //
 // The audio thread itself is owned by the AudioManager that the
@@ -198,14 +201,16 @@ class MEDIA_EXPORT AudioInputController
   void DoSetVolume(double volume);
   void DoSetAutomaticGainControl(bool enabled);
 
-  // Methods which ensures that OnError() is triggered when data recording
-  // times out. Both are called on the creating thread.
-  void DoReportNoDataError();
-  void DoResetNoDataTimer();
+  // Method which ensures that OnError() is triggered when data recording
+  // times out. Called on the audio thread.
+  void DoCheckForNoData();
 
   // Helper method that stops, closes, and NULL:s |*stream_|.
   // Signals event when done if the event is not NULL.
   void DoStopCloseAndClearStream(base::WaitableEvent* done);
+
+  void SetDataIsActive(bool enabled);
+  bool GetDataIsActive();
 
   // Gives access to the message loop of the creating thread.
   scoped_refptr<base::MessageLoopProxy> creator_loop_;
@@ -220,12 +225,18 @@ class MEDIA_EXPORT AudioInputController
   // Pointer to the audio input stream object.
   AudioInputStream* stream_;
 
-  // |no_data_timer_| is used to call DoReportNoDataError() when we stop
-  // receiving OnData() calls without an OnClose() call. This can occur
+  // |no_data_timer_| is used to call OnError() when we stop receiving
+  // OnData() calls without an OnClose() call. This can occur
   // when an audio input device is unplugged whilst recording on Windows.
   // See http://crbug.com/79936 for details.
-  // This member is only touched by the creating thread.
+  // This member is only touched by the audio thread.
   scoped_ptr<base::DelayTimer<AudioInputController> > no_data_timer_;
+
+  // This flag is used to signal that we are receiving OnData() calls, i.e,
+  // that data is active. It can be touched by the audio thread and by the
+  // low-level audio thread which calls OnData(). E.g. on Windows, the
+  // low-level audio thread is called wasapi_capture_thread.
+  base::subtle::Atomic32 data_is_active_;
 
   // |state_| is written on the audio thread and is read on the hardware audio
   // thread. These operations need to be locked. But lock is not required for
