@@ -334,7 +334,7 @@ SpdyFrame* ConstructSpdyControlFrame(const char* const extra_headers[],
     type,                         // Kind = Syn
     stream_id,                    // Stream ID
     associated_stream_id,         // Associated stream ID
-    ConvertRequestPriorityToSpdyPriority(request_priority),
+    ConvertRequestPriorityToSpdyPriority(request_priority, 3),
                                   // Priority
     0,                            // Credential Slot
     flags,                        // Control Flags
@@ -364,7 +364,7 @@ SpdyFrame* ConstructSpdyGet(const char* const url,
     SYN_STREAM,             // Kind = Syn
     stream_id,                    // Stream ID
     0,                            // Associated stream ID
-    net::ConvertRequestPriorityToSpdyPriority(request_priority),
+    ConvertRequestPriorityToSpdyPriority(request_priority, 3),
                                   // Priority
     0,                            // Credential Slot
     CONTROL_FLAG_FIN,       // Control Flags
@@ -975,7 +975,7 @@ const SpdyHeaderInfo MakeSpdyHeader(SpdyControlType type) {
     type,                         // Kind = Syn
     1,                            // Stream ID
     0,                            // Associated stream ID
-    2,                            // Priority
+    ConvertRequestPriorityToSpdyPriority(LOWEST, 3),  // Priority
     0,                            // Credential Slot
     CONTROL_FLAG_FIN,       // Control Flags
     false,                        // Compressed
