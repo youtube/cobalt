@@ -32,6 +32,7 @@
         '../base/base.gyp:base_unittests',
         '../chrome/chrome.gyp:sync_unit_tests',
         '../content/content.gyp:content_unittests',
+        '../gpu/gpu.gyp:gpu_unittests',
         '../sql/sql.gyp:sql_unittests',
         '../ipc/ipc.gyp:ipc_tests',
         '../net/net.gyp:net_unittests',
