@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,94 +8,16 @@
 #include "base/bind_helpers.h"
 #include "base/file_util.h"
 #include "base/message_loop_proxy.h"
+#include "base/task_runner_util.h"
 
 namespace base {
 
 namespace {
 
-// Helper templates to call file_util or base::PlatformFile methods
-// and reply with the returned value.
-//
-// Typically when you have these methods:
-//   R DoWorkAndReturn();
-//   void Callback(R& result);
-//
-// You can pass the result of DoWorkAndReturn to the Callback by:
-//
-//  R* result = new R;
-//  message_loop_proxy->PostTaskAndReply(
-//      from_here,
-//      ReturnAsParam<R>(Bind(&DoWorkAndReturn), result),
-//      RelayHelper(Bind(&Callback), Owned(result)));
-//
-// Or just use PostTaskAndReplyWithStatus helper template (see the code below).
-template <typename R1, typename R2>
-struct ReturnValueTranslator {
-  static R2 Value(const R1& value);
-};
-
-template <typename R>
-struct ReturnValueTranslator<R, R> {
-  static R Value(const R& value) { return value; }
-};
-
-template <>
-struct ReturnValueTranslator<bool, PlatformFileError> {
-  static PlatformFileError Value(const bool& value) {
-    if (value)
-      return PLATFORM_FILE_OK;
-    return PLATFORM_FILE_ERROR_FAILED;
-  }
-};
-
-template <typename R1, typename R2>
-void ReturnAsParamAdapter(const Callback<R1(void)>& func, R2* result) {
-  if (!func.is_null())
-    *result = ReturnValueTranslator<R1, R2>::Value(func.Run());
-}
-
-template <typename R1, typename R2>
-Closure ReturnAsParam(const Callback<R1(void)>& func, R2* result) {
-  DCHECK(result);
-  return Bind(&ReturnAsParamAdapter<R1, R2>, func, result);
-}
-
-template <typename R, typename A1>
-void ReturnAsParamAdapter1(const Callback<R(A1)>& func, A1 a1, R* result) {
-  if (!func.is_null())
-    *result = func.Run(a1);
-}
-
-template <typename R, typename A1>
-Closure ReturnAsParam(const Callback<R(A1)>& func, A1 a1, R* result) {
-  DCHECK(result);
-  return Bind(&ReturnAsParamAdapter1<R, A1>, func, a1, result);
-}
-
-template <typename R>
-void ReplyAdapter(const Callback<void(R)>& callback, R* result) {
-  DCHECK(result);
-  if (!callback.is_null())
-    callback.Run(*result);
-}
-
-template <typename R, typename OWNED>
-Closure ReplyHelper(const Callback<void(R)>& callback, OWNED result) {
-  return Bind(&ReplyAdapter<R>, callback, result);
-}
-
-// Putting everything together.
-template <typename R1, typename R2>
-bool PostTaskAndReplyWithStatus(
-    const scoped_refptr<MessageLoopProxy>& message_loop_proxy,
-    const tracked_objects::Location& from_here,
-    const Callback<R1(void)>& file_util_work,
-    const Callback<void(R2)>& callback,
-    R2* result) {
-  return message_loop_proxy->PostTaskAndReply(
-      from_here,
-      ReturnAsParam<R1>(file_util_work, result),
-      ReplyHelper(callback, Owned(result)));
+void CallWithTranslatedParameter(const FileUtilProxy::StatusCallback& callback,
+                                 bool value) {
+  DCHECK(!callback.is_null());
+  callback.Run(value ? PLATFORM_FILE_OK : PLATFORM_FILE_ERROR_FAILED);
 }
 
 // Helper classes or routines for individual methods.
@@ -319,10 +241,10 @@ bool FileUtilProxy::CreateTemporary(
     const CreateTemporaryCallback& callback) {
   CreateTemporaryHelper* helper = new CreateTemporaryHelper(message_loop_proxy);
   return message_loop_proxy->PostTaskAndReply(
-        FROM_HERE,
-        Bind(&CreateTemporaryHelper::RunWork, Unretained(helper),
-             additional_file_flags),
-        Bind(&CreateTemporaryHelper::Reply, Owned(helper), callback));
+      FROM_HERE,
+      Bind(&CreateTemporaryHelper::RunWork, Unretained(helper),
+           additional_file_flags),
+      Bind(&CreateTemporaryHelper::Reply, Owned(helper), callback));
 }
 
 // static
@@ -344,10 +266,10 @@ bool FileUtilProxy::GetFileInfo(
     const GetFileInfoCallback& callback) {
   GetFileInfoHelper* helper = new GetFileInfoHelper;
   return message_loop_proxy->PostTaskAndReply(
-        FROM_HERE,
-        Bind(&GetFileInfoHelper::RunWorkForFilePath,
-             Unretained(helper), file_path),
-        Bind(&GetFileInfoHelper::Reply, Owned(helper), callback));
+      FROM_HERE,
+      Bind(&GetFileInfoHelper::RunWorkForFilePath,
+           Unretained(helper), file_path),
+      Bind(&GetFileInfoHelper::Reply, Owned(helper), callback));
 }
 
 // static
@@ -357,10 +279,10 @@ bool FileUtilProxy::GetFileInfoFromPlatformFile(
     const GetFileInfoCallback& callback) {
   GetFileInfoHelper* helper = new GetFileInfoHelper;
   return message_loop_proxy->PostTaskAndReply(
-        FROM_HERE,
-        Bind(&GetFileInfoHelper::RunWorkForPlatformFile,
-             Unretained(helper), file),
-        Bind(&GetFileInfoHelper::Reply, Owned(helper), callback));
+      FROM_HERE,
+      Bind(&GetFileInfoHelper::RunWorkForPlatformFile,
+           Unretained(helper), file),
+      Bind(&GetFileInfoHelper::Reply, Owned(helper), callback));
 }
 
 // static
@@ -397,9 +319,9 @@ bool FileUtilProxy::Read(
   }
   ReadHelper* helper = new ReadHelper(bytes_to_read);
   return message_loop_proxy->PostTaskAndReply(
-        FROM_HERE,
-        Bind(&ReadHelper::RunWork, Unretained(helper), file, offset),
-        Bind(&ReadHelper::Reply, Owned(helper), callback));
+      FROM_HERE,
+      Bind(&ReadHelper::RunWork, Unretained(helper), file, offset),
+      Bind(&ReadHelper::Reply, Owned(helper), callback));
 }
 
 // static
@@ -415,9 +337,9 @@ bool FileUtilProxy::Write(
   }
   WriteHelper* helper = new WriteHelper(buffer, bytes_to_write);
   return message_loop_proxy->PostTaskAndReply(
-        FROM_HERE,
-        Bind(&WriteHelper::RunWork, Unretained(helper), file, offset),
-        Bind(&WriteHelper::Reply, Owned(helper), callback));
+      FROM_HERE,
+      Bind(&WriteHelper::RunWork, Unretained(helper), file, offset),
+      Bind(&WriteHelper::Reply, Owned(helper), callback));
 }
 
 // static
@@ -427,11 +349,12 @@ bool FileUtilProxy::Touch(
     const Time& last_access_time,
     const Time& last_modified_time,
     const StatusCallback& callback) {
-  return PostTaskAndReplyWithStatus<bool>(
-      message_loop_proxy, FROM_HERE,
+  return base::PostTaskAndReplyWithResult(
+      message_loop_proxy,
+      FROM_HERE,
       Bind(&TouchPlatformFile, file,
-           last_access_time, last_modified_time), callback,
-      new PlatformFileError);
+           last_access_time, last_modified_time),
+      Bind(&CallWithTranslatedParameter, callback));
 }
 
 // static
@@ -441,12 +364,12 @@ bool FileUtilProxy::Touch(
     const Time& last_access_time,
     const Time& last_modified_time,
     const StatusCallback& callback) {
-  return PostTaskAndReplyWithStatus<bool>(
-      message_loop_proxy, FROM_HERE,
+  return base::PostTaskAndReplyWithResult(
+      message_loop_proxy,
+      FROM_HERE,
       Bind(&file_util::TouchFile, file_path,
            last_access_time, last_modified_time),
-      callback,
-      new PlatformFileError);
+      Bind(&CallWithTranslatedParameter, callback));
 }
 
 // static
@@ -455,10 +378,11 @@ bool FileUtilProxy::Truncate(
     PlatformFile file,
     int64 length,
     const StatusCallback& callback) {
-  return PostTaskAndReplyWithStatus<bool>(
-      message_loop_proxy, FROM_HERE,
-      Bind(&TruncatePlatformFile, file, length), callback,
-      new PlatformFileError);
+  return base::PostTaskAndReplyWithResult(
+      message_loop_proxy,
+      FROM_HERE,
+      Bind(&TruncatePlatformFile, file, length),
+      Bind(&CallWithTranslatedParameter, callback));
 }
 
 // static
@@ -466,10 +390,11 @@ bool FileUtilProxy::Flush(
     scoped_refptr<MessageLoopProxy> message_loop_proxy,
     PlatformFile file,
     const StatusCallback& callback) {
-  return PostTaskAndReplyWithStatus<bool>(
-      message_loop_proxy, FROM_HERE,
-      Bind(&FlushPlatformFile, file), callback,
-      new PlatformFileError);
+  return base::PostTaskAndReplyWithResult(
+      message_loop_proxy,
+      FROM_HERE,
+      Bind(&FlushPlatformFile, file),
+      Bind(&CallWithTranslatedParameter, callback));
 }
 
 // static
@@ -478,11 +403,8 @@ bool FileUtilProxy::RelayFileTask(
     const tracked_objects::Location& from_here,
     const FileTask& file_task,
     const StatusCallback& callback) {
-  PlatformFileError* result = new PlatformFileError;
-  return message_loop_proxy->PostTaskAndReply(
-      from_here,
-      ReturnAsParam(file_task, result),
-      ReplyHelper(callback, Owned(result)));
+  return base::PostTaskAndReplyWithResult(
+      message_loop_proxy, from_here, file_task, callback);
 }
 
 // static
@@ -494,9 +416,9 @@ bool FileUtilProxy::RelayCreateOrOpen(
   CreateOrOpenHelper* helper = new CreateOrOpenHelper(
       message_loop_proxy, close_task);
   return message_loop_proxy->PostTaskAndReply(
-        FROM_HERE,
-        Bind(&CreateOrOpenHelper::RunWork, Unretained(helper), open_task),
-        Bind(&CreateOrOpenHelper::Reply, Owned(helper), callback));
+      FROM_HERE,
+      Bind(&CreateOrOpenHelper::RunWork, Unretained(helper), open_task),
+      Bind(&CreateOrOpenHelper::Reply, Owned(helper), callback));
 }
 
 // static
@@ -505,11 +427,8 @@ bool FileUtilProxy::RelayClose(
     const CloseTask& close_task,
     PlatformFile file_handle,
     const StatusCallback& callback) {
-  PlatformFileError* result = new PlatformFileError;
-  return message_loop_proxy->PostTaskAndReply(
-      FROM_HERE,
-      ReturnAsParam(close_task, file_handle, result),
-      ReplyHelper(callback, Owned(result)));
+  return base::PostTaskAndReplyWithResult(
+      message_loop_proxy, FROM_HERE, Bind(close_task, file_handle), callback);
 }
 
 }  // namespace base
