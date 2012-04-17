@@ -369,6 +369,8 @@
         'dns/dns_transaction.h',
         'dns/file_path_watcher_wrapper.cc',
         'dns/file_path_watcher_wrapper.h',
+        'dns/notify_watcher_mac.cc',
+        'dns/notify_watcher_mac.h',
         'dns/serial_worker.cc',
         'dns/serial_worker.h',
         'ftp/ftp_auth_cache.cc',
