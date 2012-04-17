@@ -40,8 +40,9 @@ GURL GetUrlFromHeaderBlock(const SpdyHeaderBlock& headers,
                            int protocol_version,
                            bool pushed);
 
-NET_EXPORT_PRIVATE int ConvertRequestPriorityToSpdyPriority(
-    RequestPriority priority);
+NET_EXPORT_PRIVATE SpdyPriority ConvertRequestPriorityToSpdyPriority(
+    RequestPriority priority,
+    int protocol_version);
 
 }  // namespace net
 
