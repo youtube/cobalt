@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,12 +19,12 @@
 // define these protocols at all, this file will provide empty protocol
 // definitions when used with earlier SDK versions.
 
-#if !defined(MAC_OS_X_VERSION_10_6) || \
-    MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6
-
 #define DEFINE_EMPTY_PROTOCOL(p) \
 @protocol p \
 @end
+
+#if !defined(MAC_OS_X_VERSION_10_6) || \
+    MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6
 
 DEFINE_EMPTY_PROTOCOL(NSAlertDelegate)
 DEFINE_EMPTY_PROTOCOL(NSApplicationDelegate)
@@ -42,8 +42,15 @@ DEFINE_EMPTY_PROTOCOL(NSTextFieldDelegate)
 DEFINE_EMPTY_PROTOCOL(NSTextViewDelegate)
 DEFINE_EMPTY_PROTOCOL(NSWindowDelegate)
 
-#undef DEFINE_EMPTY_PROTOCOL
+#endif  // MAC_OS_X_VERSION_10_6
 
-#endif
+#if !defined(MAC_OS_X_VERSION_10_8) || \
+    MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_8
+
+DEFINE_EMPTY_PROTOCOL(NSUserNotificationCenterDelegate)
+
+#endif  // MAC_OS_X_VERSION_10_6
+
+#undef DEFINE_EMPTY_PROTOCOL
 
 #endif  // BASE_COCOA_PROTOCOLS_MAC_H_
