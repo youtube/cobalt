@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,14 +10,13 @@
 // - Missing "virtual" keywords on methods that should be virtual.
 // - Non-annotated overriding virtual methods.
 // - Virtual methods with nonempty implementations in their headers.
-//
-// Things that are still TODO:
-// - Deriving from base::RefCounted and friends should mandate non-public
-//   destructors.
+// - Classes that derive from base::RefCounted / base::RefCountedThreadSafe
+//   should have protected or private destructors.
 
 #include "clang/Frontend/FrontendPluginRegistry.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/AST.h"
+#include "clang/AST/CXXInheritance.h"
 #include "clang/AST/TypeLoc.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -36,20 +35,109 @@ bool TypeHasNonTrivialDtor(const Type* type) {
   return false;
 }
 
+// Returns the underlying Type for |type| by expanding typedefs and removing
+// any namespace qualifiers.
+const Type* UnwrapType(const Type* type) {
+  if (const ElaboratedType* elaborated = dyn_cast<ElaboratedType>(type))
+    return UnwrapType(elaborated->getNamedType().getTypePtr());
+  if (const TypedefType* typedefed = dyn_cast<TypedefType>(type))
+    return UnwrapType(typedefed->desugar().getTypePtr());
+  return type;
+}
+
 // Searches for constructs that we know we don't want in the Chromium code base.
 class FindBadConstructsConsumer : public ChromeClassTester {
  public:
-  FindBadConstructsConsumer(CompilerInstance& instance)
-      : ChromeClassTester(instance) {}
+  FindBadConstructsConsumer(CompilerInstance& instance,
+                            bool check_refcounted_dtors)
+      : ChromeClassTester(instance),
+        check_refcounted_dtors_(check_refcounted_dtors) {
+  }
 
-  virtual void CheckChromeClass(const SourceLocation& record_location,
+  virtual void CheckChromeClass(SourceLocation record_location,
                                 CXXRecordDecl* record) {
-    CheckCtorDtorWeight(record_location, record);
-    CheckVirtualMethods(record_location, record);
+    bool implementation_file = InImplementationFile(record_location);
+
+    if (!implementation_file) {
+      // Only check for "heavy" constructors/destructors in header files;
+      // within implementation files, there is no performance cost.
+      CheckCtorDtorWeight(record_location, record);
+
+      // Check that all virtual methods are marked accordingly with both
+      // virtual and OVERRIDE.
+      CheckVirtualMethods(record_location, record);
+    }
+
+    if (check_refcounted_dtors_)
+      CheckRefCountedDtors(record_location, record);
+  }
+
+ private:
+  bool check_refcounted_dtors_;
+
+  // Returns true if |base| specifies one of the Chromium reference counted
+  // classes (base::RefCounted / base::RefCountedThreadSafe). |user_data| is
+  // ignored.
+  static bool IsRefCountedCallback(const CXXBaseSpecifier* base,
+                                   CXXBasePath& path,
+                                   void* user_data) {
+    FindBadConstructsConsumer* self =
+        static_cast<FindBadConstructsConsumer*>(user_data);
+
+    const TemplateSpecializationType* base_type =
+        dyn_cast<TemplateSpecializationType>(
+            UnwrapType(base->getType().getTypePtr()));
+    if (!base_type) {
+      // Base-most definition is not a template, so this cannot derive from
+      // base::RefCounted. However, it may still be possible to use with a
+      // scoped_refptr<> and support ref-counting, so this is not a perfect
+      // guarantee of safety.
+      return false;
+    }
+
+    TemplateName name = base_type->getTemplateName();
+    if (TemplateDecl* decl = name.getAsTemplateDecl()) {
+      std::string base_name = decl->getNameAsString();
+
+      // Check for both base::RefCounted and base::RefCountedThreadSafe.
+      if (base_name.compare(0, 10, "RefCounted") == 0 &&
+          self->GetNamespace(decl) == "base") {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Prints errors if the destructor of a RefCounted class is public.
+  void CheckRefCountedDtors(SourceLocation record_location,
+                            CXXRecordDecl* record) {
+    // Skip anonymous structs.
+    if (record->getIdentifier() == NULL)
+      return;
+
+    CXXBasePaths paths;
+    if (!record->lookupInBases(
+            &FindBadConstructsConsumer::IsRefCountedCallback, this, paths)) {
+      return;  // Class does not derive from a ref-counted base class.
+    }
+
+    if (!record->hasUserDeclaredDestructor()) {
+      emitWarning(
+          record_location,
+          "Classes that are ref-counted should have explicit "
+          "destructors that are protected or private.");
+    } else if (CXXDestructorDecl* dtor = record->getDestructor()) {
+      if (dtor->getAccess() == AS_public) {
+        emitWarning(
+            dtor->getInnerLocStart(),
+            "Classes that are ref-counted should not have "
+            "public destructors.");
+      }
+    }
   }
 
   // Prints errors if the constructor/destructor weight is too heavy.
-  void CheckCtorDtorWeight(const SourceLocation& record_location,
+  void CheckCtorDtorWeight(SourceLocation record_location,
                            CXXRecordDecl* record) {
     // We don't handle anonymous structs. If this record doesn't have a
     // name, it's of the form:
@@ -161,6 +249,10 @@ class FindBadConstructsConsumer : public ChromeClassTester {
     }
   }
 
+  bool InTestingNamespace(const Decl* record) {
+    return GetNamespace(record).find("testing") != std::string::npos;
+  }
+
   bool IsMethodInBannedNamespace(const CXXMethodDecl* method) {
     if (InBannedNamespace(method))
       return true;
@@ -196,7 +288,7 @@ class FindBadConstructsConsumer : public ChromeClassTester {
   // trick to get around that. If a class has member variables whose types are
   // in the "testing" namespace (which is how gmock works behind the scenes),
   // there's a really high chance we won't care about these errors
-  void CheckVirtualMethods(const SourceLocation& record_location,
+  void CheckVirtualMethods(SourceLocation record_location,
                            CXXRecordDecl* record) {
     for (CXXRecordDecl::field_iterator it = record->field_begin();
          it != record->field_end(); ++it) {
@@ -283,16 +375,32 @@ class FindBadConstructsConsumer : public ChromeClassTester {
 };
 
 class FindBadConstructsAction : public PluginASTAction {
+ public:
+  FindBadConstructsAction() : check_refcounted_dtors_(true) {}
+
  protected:
   ASTConsumer* CreateASTConsumer(CompilerInstance &CI, llvm::StringRef ref) {
-    return new FindBadConstructsConsumer(CI);
+    return new FindBadConstructsConsumer(CI, check_refcounted_dtors_);
   }
 
   bool ParseArgs(const CompilerInstance &CI,
                  const std::vector<std::string>& args) {
-    // We don't take any additional arguments here.
-    return true;
+    bool parsed = true;
+
+    for (size_t i = 0; i < args.size() && parsed; ++i) {
+      if (args[i] == "skip-refcounted-dtors") {
+        check_refcounted_dtors_ = false;
+      } else {
+        parsed = false;
+        llvm::errs() << "Unknown argument: " << args[i] << "\n";
+      }
+    }
+
+    return parsed;
   }
+
+ private:
+  bool check_refcounted_dtors_;
 };
 
 }  // namespace
