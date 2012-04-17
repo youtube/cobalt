@@ -1206,6 +1206,7 @@
         'spdy/spdy_framer_test.cc',
         'spdy/spdy_http_stream_spdy3_unittest.cc',
         'spdy/spdy_http_stream_spdy2_unittest.cc',
+        'spdy/spdy_http_utils_unittest.cc',
         'spdy/spdy_network_transaction_spdy3_unittest.cc',
         'spdy/spdy_network_transaction_spdy2_unittest.cc',
         'spdy/spdy_protocol_test.cc',

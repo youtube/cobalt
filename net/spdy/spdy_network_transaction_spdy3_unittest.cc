@@ -588,11 +588,13 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, GetAtEachPriority) {
         EXPECT_EQ(1, spdy_prio);
         break;
       case LOW:
-      case LOWEST:
         EXPECT_EQ(2, spdy_prio);
         break;
-      case IDLE:
+      case LOWEST:
         EXPECT_EQ(3, spdy_prio);
+        break;
+      case IDLE:
+        EXPECT_EQ(4, spdy_prio);
         break;
       default:
         FAIL();
@@ -1441,7 +1443,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, Put) {
     SYN_STREAM,             // Kind = Syn
     1,                      // Stream ID
     0,                      // Associated stream ID
-    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    ConvertRequestPriorityToSpdyPriority(LOWEST, 3),  // Priority
     0,                      // Credential Slot
     CONTROL_FLAG_FIN,       // Control Flags
     false,                  // Compressed
@@ -1469,7 +1471,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, Put) {
     SYN_REPLY,              // Kind = SynReply
     1,                      // Stream ID
     0,                      // Associated stream ID
-    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    ConvertRequestPriorityToSpdyPriority(LOWEST, 3),  // Priority
     0,                      // Credential Slot
     CONTROL_FLAG_NONE,      // Control Flags
     false,                  // Compressed
@@ -1514,7 +1516,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, Head) {
     SYN_STREAM,             // Kind = Syn
     1,                      // Stream ID
     0,                      // Associated stream ID
-    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    ConvertRequestPriorityToSpdyPriority(LOWEST, 3),  // Priority
     0,                      // Credential Slot
     CONTROL_FLAG_FIN,       // Control Flags
     false,                  // Compressed
@@ -1542,7 +1544,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, Head) {
     SYN_REPLY,              // Kind = SynReply
     1,                      // Stream ID
     0,                      // Associated stream ID
-    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    ConvertRequestPriorityToSpdyPriority(LOWEST, 3),  // Priority
     0,                      // Credential Slot
     CONTROL_FLAG_NONE,      // Control Flags
     false,                  // Compressed
@@ -3746,7 +3748,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SynReplyHeadersVary) {
     SYN_REPLY,                              // Syn Reply
     1,                                      // Stream ID
     0,                                      // Associated Stream ID
-    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    ConvertRequestPriorityToSpdyPriority(LOWEST, 3),  // Priority
     0,                                      // Credential Slot
     CONTROL_FLAG_NONE,                      // Control Flags
     false,                                  // Compressed
@@ -3915,7 +3917,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, InvalidSynReply) {
     SYN_REPLY,              // Kind = SynReply
     1,                      // Stream ID
     0,                      // Associated stream ID
-    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    ConvertRequestPriorityToSpdyPriority(LOWEST, 3),  // Priority
     0,                      // Credential Slot
     CONTROL_FLAG_NONE,      // Control Flags
     false,                  // Compressed
@@ -4636,7 +4638,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SettingsSaved) {
     SYN_REPLY,                              // Syn Reply
     1,                                      // Stream ID
     0,                                      // Associated Stream ID
-    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    ConvertRequestPriorityToSpdyPriority(LOWEST, 3),  // Priority
     0,                                      // Credential Slot
     CONTROL_FLAG_NONE,                      // Control Flags
     false,                                  // Compressed
@@ -4743,7 +4745,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SettingsPlayback) {
     SYN_REPLY,                              // Syn Reply
     1,                                      // Stream ID
     0,                                      // Associated Stream ID
-    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    ConvertRequestPriorityToSpdyPriority(LOWEST, 3),  // Priority
     0,                                      // Credential Slot
     CONTROL_FLAG_NONE,                      // Control Flags
     false,                                  // Compressed
