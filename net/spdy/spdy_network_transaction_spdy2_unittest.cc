@@ -1439,7 +1439,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, Put) {
     SYN_STREAM,             // Kind = Syn
     1,                      // Stream ID
     0,                      // Associated stream ID
-    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    ConvertRequestPriorityToSpdyPriority(LOWEST, 2),  // Priority
     CONTROL_FLAG_FIN,       // Control Flags
     false,                  // Compressed
     INVALID,                // Status
@@ -1466,7 +1466,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, Put) {
     SYN_REPLY,              // Kind = SynReply
     1,                      // Stream ID
     0,                      // Associated stream ID
-    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    ConvertRequestPriorityToSpdyPriority(LOWEST, 2),  // Priority
     CONTROL_FLAG_NONE,      // Control Flags
     false,                  // Compressed
     INVALID,                // Status
@@ -1510,7 +1510,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, Head) {
     SYN_STREAM,             // Kind = Syn
     1,                      // Stream ID
     0,                      // Associated stream ID
-    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    ConvertRequestPriorityToSpdyPriority(LOWEST, 2),  // Priority
     CONTROL_FLAG_FIN,       // Control Flags
     false,                  // Compressed
     INVALID,                // Status
@@ -1537,7 +1537,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, Head) {
     SYN_REPLY,              // Kind = SynReply
     1,                      // Stream ID
     0,                      // Associated stream ID
-    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    ConvertRequestPriorityToSpdyPriority(LOWEST, 2),  // Priority
     CONTROL_FLAG_NONE,      // Control Flags
     false,                  // Compressed
     INVALID,                // Status
@@ -3178,7 +3178,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, SynReplyHeadersVary) {
     SYN_REPLY,                              // Syn Reply
     1,                                      // Stream ID
     0,                                      // Associated Stream ID
-    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    ConvertRequestPriorityToSpdyPriority(LOWEST, 2),  // Priority
     CONTROL_FLAG_NONE,                      // Control Flags
     false,                                  // Compressed
     INVALID,                                // Status
@@ -3346,7 +3346,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, InvalidSynReply) {
     SYN_REPLY,              // Kind = SynReply
     1,                      // Stream ID
     0,                      // Associated stream ID
-    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    ConvertRequestPriorityToSpdyPriority(LOWEST, 2),  // Priority
     CONTROL_FLAG_NONE,      // Control Flags
     false,                  // Compressed
     INVALID,                // Status
@@ -4066,7 +4066,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, SettingsSaved) {
     SYN_REPLY,                              // Syn Reply
     1,                                      // Stream ID
     0,                                      // Associated Stream ID
-    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    ConvertRequestPriorityToSpdyPriority(LOWEST, 2),  // Priority
     CONTROL_FLAG_NONE,                      // Control Flags
     false,                                  // Compressed
     INVALID,                                // Status
@@ -4172,7 +4172,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, SettingsPlayback) {
     SYN_REPLY,                              // Syn Reply
     1,                                      // Stream ID
     0,                                      // Associated Stream ID
-    net::ConvertRequestPriorityToSpdyPriority(LOWEST),  // Priority
+    ConvertRequestPriorityToSpdyPriority(LOWEST, 2),  // Priority
     CONTROL_FLAG_NONE,                      // Control Flags
     false,                                  // Compressed
     INVALID,                                // Status
