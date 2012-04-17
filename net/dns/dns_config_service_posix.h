@@ -31,10 +31,12 @@ class NET_EXPORT_PRIVATE DnsConfigServicePosix
   virtual void Watch(const CallbackType& callback) OVERRIDE;
 
  private:
+  class ConfigWatcher;
+
   void OnConfigChanged(bool watch_succeeded);
   void OnHostsChanged(bool watch_succeeded);
 
-  scoped_ptr<FilePathWatcherWrapper> config_watcher_;
+  scoped_ptr<ConfigWatcher> config_watcher_;
   scoped_ptr<FilePathWatcherWrapper> hosts_watcher_;
 
   scoped_refptr<SerialWorker> config_reader_;

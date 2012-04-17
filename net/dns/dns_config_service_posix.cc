@@ -16,6 +16,10 @@
 #include "net/dns/file_path_watcher_wrapper.h"
 #include "net/dns/serial_worker.h"
 
+#if defined(OS_MACOSX)
+#include "net/dns/notify_watcher_mac.h"
+#endif
+
 #ifndef _PATH_RESCONF  // Normally defined in <resolv.h>
 #define _PATH_RESCONF "/etc/resolv.conf"
 #endif
@@ -24,7 +28,6 @@ namespace net {
 
 namespace {
 
-const FilePath::CharType* kFilePathConfig = FILE_PATH_LITERAL(_PATH_RESCONF);
 const FilePath::CharType* kFilePathHosts = FILE_PATH_LITERAL("/etc/hosts");
 
 // A SerialWorker that uses libresolv to initialize res_state and converts
@@ -82,8 +85,31 @@ class ConfigReader : public SerialWorker {
 
 namespace internal {
 
+#if defined(OS_MACOSX)
+// From 10.7.3 configd-395.10/dnsinfo/dnsinfo.h
+static const char* kDnsNotifyKey =
+    "com.apple.system.SystemConfiguration.dns_configuration";
+
+class DnsConfigServicePosix::ConfigWatcher : public NotifyWatcherMac {
+ public:
+  bool Watch(const base::Callback<void(bool succeeded)>& callback) {
+    return NotifyWatcherMac::Watch(kDnsNotifyKey, callback);
+  }
+};
+#else
+static const FilePath::CharType* kFilePathConfig =
+    FILE_PATH_LITERAL(_PATH_RESCONF);
+
+class DnsConfigServicePosix::ConfigWatcher : public FilePathWatcherWrapper {
+ public:
+  bool Watch(const base::Callback<void(bool succeeded)>& callback) {
+    return FilePathWatcherWrapper::Watch(FilePath(kFilePathConfig), callback);
+  }
+};
+#endif
+
 DnsConfigServicePosix::DnsConfigServicePosix()
-    : config_watcher_(new FilePathWatcherWrapper()),
+    : config_watcher_(new ConfigWatcher()),
       hosts_watcher_(new FilePathWatcherWrapper()) {
   config_reader_ = new ConfigReader(
       base::Bind(&DnsConfigServicePosix::OnConfigRead,
@@ -106,18 +132,17 @@ void DnsConfigServicePosix::Watch(const CallbackType& callback) {
 
   // Even if watchers fail, we keep the other one as it provides useful signals.
   if (config_watcher_->Watch(
-         FilePath(kFilePathConfig),
-         base::Bind(&DnsConfigServicePosix::OnConfigChanged,
-                    base::Unretained(this)))) {
+          base::Bind(&DnsConfigServicePosix::OnConfigChanged,
+                     base::Unretained(this)))) {
     OnConfigChanged(true);
   } else {
     OnConfigChanged(false);
   }
 
   if (hosts_watcher_->Watch(
-         FilePath(kFilePathHosts),
-         base::Bind(&DnsConfigServicePosix::OnHostsChanged,
-                    base::Unretained(this)))) {
+          FilePath(kFilePathHosts),
+          base::Bind(&DnsConfigServicePosix::OnHostsChanged,
+                     base::Unretained(this)))) {
     OnHostsChanged(true);
   } else {
     OnHostsChanged(false);
