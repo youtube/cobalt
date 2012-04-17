@@ -260,6 +260,7 @@
         'sys_string_conversions_mac_unittest.mm',
         'sys_string_conversions_unittest.cc',
         'system_monitor/system_monitor_unittest.cc',
+        'task_runner_util_unittest.cc',
         'template_util_unittest.cc',
         'test/sequenced_worker_pool_owner.cc',
         'test/sequenced_worker_pool_owner.h',
