@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,14 +11,6 @@
 #include "media/video/capture/video_capture_device.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-#if defined(OS_MACOSX)
-// The camera is 'locked' by the application once started on Mac OS X, not when
-// allocated as for Windows and Linux, and this test case will fail.
-#define MAYBE_AllocateSameCameraTwice DISABLED_AllocateSameCameraTwice
-#else
-#define MAYBE_AllocateSameCameraTwice AllocateSameCameraTwice
-#endif
 
 #if defined(OS_MACOSX)
 // Mac/QTKit will always give you the size you ask for and this case will fail.
@@ -148,33 +140,6 @@ TEST_F(VideoCaptureDeviceTest, Capture720p) {
       TestTimeouts::action_max_timeout_ms())));
   device->Stop();
   device->DeAllocate();
-}
-
-TEST_F(VideoCaptureDeviceTest, MAYBE_AllocateSameCameraTwice) {
-  VideoCaptureDevice::GetDeviceNames(&names_);
-  if (!names_.size()) {
-    LOG(WARNING) << "No camera available. Exiting test.";
-    return;
-  }
-  scoped_ptr<VideoCaptureDevice> device1(
-      VideoCaptureDevice::Create(names_.front()));
-  ASSERT_TRUE(device1.get() != NULL);
-
-  scoped_ptr<VideoCaptureDevice> device2(
-      VideoCaptureDevice::Create(names_.front()));
-  ASSERT_TRUE(device2.get() != NULL);
-
-  // 1. Get info about the new resolution on the first allocated camera
-  EXPECT_CALL(*frame_observer_, OnFrameInfo(640, 480, 30));
-
-  device1->Allocate(640, 480, 30, frame_observer_.get());
-
-  // 2. Error when trying to allocate the same camera again.
-  EXPECT_CALL(*frame_observer_, OnErr());
-  device2->Allocate(640, 480, 30, frame_observer_.get());
-
-  device1->DeAllocate();
-  device2->DeAllocate();
 }
 
 TEST_F(VideoCaptureDeviceTest, MAYBE_AllocateBadSize) {
