@@ -480,7 +480,6 @@
             'python',
             '../tools/isolate/isolate.py',
             '--mode', '<(tests_run)',
-            '--variable', 'DEPTH=<(DEPTH)',
             '--variable', 'PRODUCT_DIR=<(PRODUCT_DIR)',
             '--variable', 'OS=<(OS)',
             '--result', '<@(_outputs)',
