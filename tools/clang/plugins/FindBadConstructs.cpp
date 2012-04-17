@@ -49,9 +49,11 @@ const Type* UnwrapType(const Type* type) {
 class FindBadConstructsConsumer : public ChromeClassTester {
  public:
   FindBadConstructsConsumer(CompilerInstance& instance,
-                            bool check_refcounted_dtors)
+                            bool check_refcounted_dtors,
+                            bool check_virtuals_in_implementations)
       : ChromeClassTester(instance),
-        check_refcounted_dtors_(check_refcounted_dtors) {
+        check_refcounted_dtors_(check_refcounted_dtors),
+        check_virtuals_in_implementations_(check_virtuals_in_implementations) {
   }
 
   virtual void CheckChromeClass(SourceLocation record_location,
@@ -62,10 +64,14 @@ class FindBadConstructsConsumer : public ChromeClassTester {
       // Only check for "heavy" constructors/destructors in header files;
       // within implementation files, there is no performance cost.
       CheckCtorDtorWeight(record_location, record);
+    }
+
+    if (!implementation_file || check_virtuals_in_implementations_) {
+      bool warn_on_inline_bodies = !implementation_file;
 
       // Check that all virtual methods are marked accordingly with both
       // virtual and OVERRIDE.
-      CheckVirtualMethods(record_location, record);
+      CheckVirtualMethods(record_location, record, warn_on_inline_bodies);
     }
 
     if (check_refcounted_dtors_)
@@ -74,6 +80,7 @@ class FindBadConstructsConsumer : public ChromeClassTester {
 
  private:
   bool check_refcounted_dtors_;
+  bool check_virtuals_in_implementations_;
 
   // Returns true if |base| specifies one of the Chromium reference counted
   // classes (base::RefCounted / base::RefCountedThreadSafe). |user_data| is
@@ -225,7 +232,8 @@ class FindBadConstructsConsumer : public ChromeClassTester {
     }
   }
 
-  void CheckVirtualMethod(const CXXMethodDecl* method) {
+  void CheckVirtualMethod(const CXXMethodDecl* method,
+                          bool warn_on_inline_bodies) {
     if (!method->isVirtual())
       return;
 
@@ -236,8 +244,10 @@ class FindBadConstructsConsumer : public ChromeClassTester {
       emitWarning(loc, "Overriding method must have \"virtual\" keyword.");
     }
 
-    // Virtual methods should not have inline definitions beyond "{}".
-    if (method->hasBody() && method->hasInlineBody()) {
+    // Virtual methods should not have inline definitions beyond "{}". This
+    // only matters for header files.
+    if (warn_on_inline_bodies && method->hasBody() &&
+        method->hasInlineBody()) {
       if (CompoundStmt* cs = dyn_cast<CompoundStmt>(method->getBody())) {
         if (cs->size()) {
           emitWarning(
@@ -281,15 +291,15 @@ class FindBadConstructsConsumer : public ChromeClassTester {
     emitWarning(loc, "Overriding method must be marked with OVERRIDE.");
   }
 
-  // Makes sure there is a "virtual" keyword on virtual methods and that there
-  // are no inline function bodies on them (but "{}" is allowed).
+  // Makes sure there is a "virtual" keyword on virtual methods.
   //
   // Gmock objects trigger these for each MOCK_BLAH() macro used. So we have a
   // trick to get around that. If a class has member variables whose types are
   // in the "testing" namespace (which is how gmock works behind the scenes),
   // there's a really high chance we won't care about these errors
   void CheckVirtualMethods(SourceLocation record_location,
-                           CXXRecordDecl* record) {
+                           CXXRecordDecl* record,
+                           bool warn_on_inline_bodies) {
     for (CXXRecordDecl::field_iterator it = record->field_begin();
          it != record->field_end(); ++it) {
       CXXRecordDecl* record_type =
@@ -310,7 +320,7 @@ class FindBadConstructsConsumer : public ChromeClassTester {
           !record->hasUserDeclaredDestructor()) {
         // Ignore non-user-declared destructors.
       } else {
-        CheckVirtualMethod(*it);
+        CheckVirtualMethod(*it, warn_on_inline_bodies);
         CheckOverriddenMethod(*it);
       }
     }
@@ -376,11 +386,15 @@ class FindBadConstructsConsumer : public ChromeClassTester {
 
 class FindBadConstructsAction : public PluginASTAction {
  public:
-  FindBadConstructsAction() : check_refcounted_dtors_(true) {}
+  FindBadConstructsAction()
+      : check_refcounted_dtors_(true),
+        check_virtuals_in_implementations_(true) {
+  }
 
  protected:
   ASTConsumer* CreateASTConsumer(CompilerInstance &CI, llvm::StringRef ref) {
-    return new FindBadConstructsConsumer(CI, check_refcounted_dtors_);
+    return new FindBadConstructsConsumer(
+        CI, check_refcounted_dtors_, check_virtuals_in_implementations_);
   }
 
   bool ParseArgs(const CompilerInstance &CI,
@@ -390,6 +404,8 @@ class FindBadConstructsAction : public PluginASTAction {
     for (size_t i = 0; i < args.size() && parsed; ++i) {
       if (args[i] == "skip-refcounted-dtors") {
         check_refcounted_dtors_ = false;
+      } else if (args[i] == "skip-virtuals-in-implementations") {
+        check_virtuals_in_implementations_ = false;
       } else {
         parsed = false;
         llvm::errs() << "Unknown argument: " << args[i] << "\n";
@@ -401,6 +417,7 @@ class FindBadConstructsAction : public PluginASTAction {
 
  private:
   bool check_refcounted_dtors_;
+  bool check_virtuals_in_implementations_;
 };
 
 }  // namespace
