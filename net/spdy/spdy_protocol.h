@@ -150,15 +150,6 @@ const int32 kSpdyStreamInitialWindowSize = 64 * 1024;  // 64 KBytes
 // Maximum window size for a Spdy stream
 const int32 kSpdyStreamMaximumWindowSize = 0x7FFFFFFF;  // Max signed 32bit int
 
-// HTTP-over-SPDY header constants
-const char kMethod[] = "method";
-const char kStatus[] = "status";
-const char kUrl[] = "url";
-const char kVersion[] = "version";
-// When we server push, we will add [path: fully/qualified/url] to the server
-// push headers so that the client will know what url the data corresponds to.
-const char kPath[] = "path";
-
 // SPDY 2 dictionary.
 // This is just a hacked dictionary to use for shrinking HTTP-like headers.
 const char kV2Dictionary[] =
