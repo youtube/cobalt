@@ -114,33 +114,6 @@
         4244,
       ],
     },
-    {
-      'target_name': 'base_jni_headers',
-      'type': 'none',
-      'actions': [
-        {
-          'action_name': 'generate_jni_headers',
-          'inputs': [
-            'android/jni_generator/jni_generator.py',
-            'android/java/org/chromium/base/BuildInfo.java',
-            'android/java/org/chromium/base/PathUtils.java',
-            'android/java/org/chromium/base/SystemMessageHandler.java',
-          ],
-          'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/base/jni/build_info_jni.h',
-            '<(SHARED_INTERMEDIATE_DIR)/base/jni/path_utils_jni.h',
-            '<(SHARED_INTERMEDIATE_DIR)/base/jni/system_message_handler_jni.h',
-          ],
-          'action': [
-            'python',
-            'android/jni_generator/jni_generator.py',
-            '-o',
-            '<@(_inputs)',
-            '<@(_outputs)',
-          ],
-        }
-      ],
-    },
     # Include this target for a main() function that simply instantiates
     # and runs a base::TestSuite.
     {
@@ -546,6 +519,36 @@
     },
   ],
   'conditions': [
+    ['OS == "android"', {
+      'targets': [
+        {
+          'target_name': 'base_jni_headers',
+          'type': 'none',
+          'variables': {
+            'java_sources': [
+              'android/java/org/chromium/base/BuildInfo.java',
+              'android/java/org/chromium/base/PathUtils.java',
+              'android/java/org/chromium/base/SystemMessageHandler.java',
+            ],
+            'jni_headers': [
+              '<(SHARED_INTERMEDIATE_DIR)/base/jni/build_info_jni.h',
+              '<(SHARED_INTERMEDIATE_DIR)/base/jni/path_utils_jni.h',
+              '<(SHARED_INTERMEDIATE_DIR)/base/jni/system_message_handler_jni.h',
+            ],
+          },
+          'includes': [ '../build/jni_generator.gypi' ],
+        },
+        {
+          'target_name': 'base_java',
+          'type': 'none',
+          'variables': {
+            'package_name': 'base',
+            'java_in_dir': 'android/java',
+          },
+          'includes': [ '../build/java.gypi' ],
+        },
+      ],
+    }],
     ['OS == "win"', {
       'targets': [
         {
