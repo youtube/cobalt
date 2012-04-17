@@ -68,6 +68,7 @@ from test_result import BaseTestResult, TestResults
 
 _TEST_SUITES = ['base_unittests',
                 'content_unittests',
+                'gpu_unittests',
                 'ipc_tests',
                 'net_unittests',
                 'sql_unittests',
