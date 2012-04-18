@@ -71,10 +71,7 @@ class NET_EXPORT_PRIVATE SettingsFlagsAndId {
   uint32 id_;
 };
 
-// A datastructure for holding a set of ID/value pairs for a SETTINGS frame.
-typedef std::pair<SettingsFlagsAndId, uint32> SpdySetting;
-typedef std::list<SpdySetting> SpdySettings;
-// SpdySettingsMap has unique (flags, value) pair for give SpdySetting ID.
+// SpdySettingsMap has unique (flags, value) pair for given SpdySettingsIds ID.
 typedef std::pair<SpdySettingsFlags, uint32> SettingsFlagsAndValue;
 typedef std::map<SpdySettingsIds, SettingsFlagsAndValue> SettingsMap;
 
@@ -303,7 +300,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
 
   // Creates an instance of SpdySettingsControlFrame. The SETTINGS frame is
   // used to communicate name/value pairs relevant to the communication channel.
-  SpdySettingsControlFrame* CreateSettings(const SpdySettings& values) const;
+  SpdySettingsControlFrame* CreateSettings(const SettingsMap& values) const;
 
   // Creates an instance of SpdyPingControlFrame. The unique_id is used to
   // identify the ping request/response.
@@ -339,7 +336,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // Given a SpdySettingsControlFrame, extract the settings.
   // Returns true on successful parse, false otherwise.
   static bool ParseSettings(const SpdySettingsControlFrame* frame,
-                            SpdySettings* settings);
+                            SettingsMap* settings);
 
   // Given a SpdyCredentialControlFrame's payload, extract the credential.
   // Returns true on successful parse, false otherwise.

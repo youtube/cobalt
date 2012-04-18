@@ -16,7 +16,6 @@
 #include "net/http/http_auth_cache.h"
 #include "net/http/http_stream_factory.h"
 #include "net/spdy/spdy_session_pool.h"
-#include "net/spdy/spdy_settings_storage.h"
 
 namespace base {
 class Value;
