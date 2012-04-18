@@ -6,11 +6,10 @@
 
 #include <errno.h>
 #include <limits.h>
-#include <fcntl.h>
 #include <stdio.h>
+#include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
-#include <sys/types.h>
 
 #if defined(OS_SOLARIS)
 #include <sys/filio.h>
@@ -96,8 +95,7 @@ size_t SyncSocket::Send(const void* buffer, size_t length) {
   DCHECK_LE(length, kMaxMessageLength);
   const char* charbuffer = static_cast<const char*>(buffer);
   int len = file_util::WriteFileDescriptor(handle_, charbuffer, length);
-
-  return (len == -1) ? 0 : static_cast<size_t>(len);
+  return static_cast<size_t>(len);
 }
 
 size_t SyncSocket::Receive(void* buffer, size_t length) {
@@ -124,25 +122,6 @@ CancelableSyncSocket::CancelableSyncSocket(Handle handle)
 
 bool CancelableSyncSocket::Shutdown() {
   return HANDLE_EINTR(shutdown(handle(), SHUT_RDWR)) >= 0;
-}
-
-size_t CancelableSyncSocket::Send(const void* buffer, size_t length) {
-  long flags = 0;
-  flags = fcntl(handle_, F_GETFL, NULL);
-  if (flags != -1 && (flags & O_NONBLOCK) == 0) {
-    // Set the socket to non-blocking mode for sending if its original mode
-    // is blocking.
-    fcntl(handle_, F_SETFL, flags | O_NONBLOCK);
-  }
-
-  size_t len = SyncSocket::Send(buffer, length);
-
-  if (flags != -1 && (flags & O_NONBLOCK) == 0) {
-    // Restore the original flags.
-    fcntl(handle_, F_SETFL, flags);
-  }
-
-  return len;
 }
 
 // static

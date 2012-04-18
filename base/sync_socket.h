@@ -7,7 +7,7 @@
 #pragma once
 
 // A socket abstraction used for sending and receiving plain
-// data.  Because the receiving is blocking, they can be used to perform
+// data.  Because they are blocking, they can be used to perform
 // rudimentary cross-process synchronization with low latency.
 
 #include "base/basictypes.h"
@@ -77,8 +77,8 @@ class BASE_EXPORT SyncSocket {
 };
 
 // Derives from SyncSocket and adds support for shutting down the socket from
-// another thread while a blocking Receive or Send is being done from the
-// thread that owns the socket.
+// another thread while a blocking Receive or Send is being done from the thread
+// that owns the socket.
 class BASE_EXPORT CancelableSyncSocket : public SyncSocket {
  public:
   CancelableSyncSocket();
@@ -102,15 +102,9 @@ class BASE_EXPORT CancelableSyncSocket : public SyncSocket {
   // supported on <Vista. So, for Windows only, we override these
   // SyncSocket methods in order to support shutting down the 'socket'.
   virtual bool Close() OVERRIDE;
+  virtual size_t Send(const void* buffer, size_t length) OVERRIDE;
   virtual size_t Receive(void* buffer, size_t length) OVERRIDE;
 #endif
-
-  // Send() is overridden to catch cases where the remote end is not responding
-  // and we fill the local socket buffer. When the buffer is full, this
-  // implementation of Send() will not block indefinitely as
-  // SyncSocket::Send will, but instead return 0, as no bytes could be sent.
-  // Note that the socket will not be closed in this case.
-  virtual size_t Send(const void* buffer, size_t length) OVERRIDE;
 
  private:
 #if defined(OS_WIN)
