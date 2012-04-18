@@ -26,13 +26,11 @@ function __pages() {  // fetch lazily
   return this.data;
 }
 function __get_timings() {
-  if (sessionStorage == null)
+  if (sessionStorage != null &&
+      sessionStorage.getItem("__pc_timings") != null) {
+    return sessionStorage["__pc_timings"];
+  } else {
     return __get_cookie("__pc_timings");
-  else {
-    if (sessionStorage.getItem("__pc_timings") == null)
-      return "";
-    else
-      return sessionStorage["__pc_timings"];
   }
 }
 function __set_timings(timings) {
