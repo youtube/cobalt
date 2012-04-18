@@ -387,7 +387,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
   }
 
   static size_t control_frame_buffer_max_size() {
-    return SpdyFramer::kControlFrameBufferMaxSize;
+    return SpdyFramer::kControlFrameBufferSize;
   }
 
   static size_t header_data_chunk_max_size() {
@@ -2240,44 +2240,11 @@ TEST_P(SpdyFramerTest, DuplicateFrame) {
   }
 }
 
-// This test case reproduces conditions that caused ExpandControlFrameBuffer to
-// fail to expand the buffer control frame buffer when it should have, allowing
-// the framer to overrun the buffer, and smash other heap contents. This test
-// relies on the debug version of the heap manager, which checks for buffer
-// overrun errors during delete processing. Regression test for b/2974814.
-TEST_P(SpdyFramerTest, ExpandBuffer_HeapSmash) {
-  // Sweep through the area of problematic values, to make sure we always cover
-  // the danger zone, even if it moves around at bit due to SPDY changes.
-  for (uint16 val2_len = SpdyFramer::kControlFrameBufferInitialSize - 50;
-       val2_len < SpdyFramer::kControlFrameBufferInitialSize;
-       val2_len++) {
-    std::string val2 = std::string(val2_len, 'a');
-    SpdyHeaderBlock headers;
-    headers["bar"] = "foo";
-    headers["foo"] = "baz";
-    headers["grue"] = val2.c_str();
-    SpdyFramer framer(spdy_version_);
-    scoped_ptr<SpdySynStreamControlFrame> template_frame(
-        framer.CreateSynStream(1,                      // stream_id
-                               0,                      // associated_stream_id
-                               1,                      // priority
-                               0,                      // credential slot
-                               CONTROL_FLAG_NONE,
-                               false,                  // compress
-                               &headers));
-    EXPECT_TRUE(template_frame.get() != NULL);
-    TestSpdyVisitor visitor(spdy_version_);
-    visitor.SimulateInFramer(
-        reinterpret_cast<unsigned char*>(template_frame.get()->data()),
-         template_frame.get()->length() + SpdyControlFrame::kHeaderSize);
-    EXPECT_EQ(1, visitor.syn_frame_count_);
-  }
-}
-
 TEST_P(SpdyFramerTest, ControlFrameSizesAreValidated) {
   // Create a GoAway frame that has a few extra bytes at the end.
   // We create enough overhead to overflow the framer's control frame buffer.
-  size_t overhead = SpdyFramer::kUncompressedControlFrameBufferInitialSize;
+  size_t overhead = SpdyFramer::kControlFrameBufferSize;
+
   SpdyFramer framer(spdy_version_);
   scoped_ptr<SpdyGoAwayControlFrame> goaway(framer.CreateGoAway(1, GOAWAY_OK));
   goaway->set_length(goaway->length() + overhead);
@@ -2340,7 +2307,7 @@ TEST_P(SpdyFramerTest, ReadLargeSettingsFrame) {
       SettingsFlagsAndValue(flags, 0x00000003);
   settings[SETTINGS_ROUND_TRIP_TIME] = SettingsFlagsAndValue(flags, 0x00000004);
   scoped_ptr<SpdyFrame> control_frame(framer.CreateSettings(settings));
-  EXPECT_LT(SpdyFramer::kUncompressedControlFrameBufferInitialSize,
+  EXPECT_LT(SpdyFramer::kControlFrameBufferSize,
             control_frame->length() + SpdyControlFrame::kHeaderSize);
   TestSpdyVisitor visitor(spdy_version_);
   visitor.use_compression_ = false;
