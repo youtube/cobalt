@@ -696,13 +696,12 @@ void EntryImpl::ReportIOTime(Operation op, const base::TimeTicks& start) {
   if (!backend_)
     return;
 
-  int group = backend_->GetSizeGroup();
   switch (op) {
     case kRead:
-      CACHE_UMA(AGE_MS, "ReadTime", group, start);
+      CACHE_UMA(AGE_MS, "ReadTime", 0, start);
       break;
     case kWrite:
-      CACHE_UMA(AGE_MS, "WriteTime", group, start);
+      CACHE_UMA(AGE_MS, "WriteTime", 0, start);
       break;
     case kSparseRead:
       CACHE_UMA(AGE_MS, "SparseReadTime", 0, start);
@@ -711,13 +710,13 @@ void EntryImpl::ReportIOTime(Operation op, const base::TimeTicks& start) {
       CACHE_UMA(AGE_MS, "SparseWriteTime", 0, start);
       break;
     case kAsyncIO:
-      CACHE_UMA(AGE_MS, "AsyncIOTime", group, start);
+      CACHE_UMA(AGE_MS, "AsyncIOTime", 0, start);
       break;
     case kReadAsync1:
-      CACHE_UMA(AGE_MS, "AsyncReadDispatchTime", group, start);
+      CACHE_UMA(AGE_MS, "AsyncReadDispatchTime", 0, start);
       break;
     case kWriteAsync1:
-      CACHE_UMA(AGE_MS, "AsyncWriteDispatchTime", group, start);
+      CACHE_UMA(AGE_MS, "AsyncWriteDispatchTime", 0, start);
       break;
     default:
       NOTREACHED();
