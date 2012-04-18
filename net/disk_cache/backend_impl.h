@@ -190,9 +190,6 @@ class NET_EXPORT_PRIVATE BackendImpl : public Backend {
   // Returns a weak pointer to this object.
   base::WeakPtr<BackendImpl> GetWeakPtr();
 
-  // Returns the group for this client, based on the current cache size.
-  int GetSizeGroup() const;
-
   // Returns true if we should send histograms for this user again. The caller
   // must call this function only once per run (because it returns always the
   // same thing on a given run).
