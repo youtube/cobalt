@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -68,17 +68,6 @@ class MEDIA_EXPORT VideoCapture {
     virtual void OnDeviceInfoReceived(
         VideoCapture* capture,
         const VideoCaptureParams& device_info) = 0;
-  };
-
-  // TODO(wjia): merge with similar struct in browser process and move it to
-  // video_capture_types.h.
-  struct VideoCaptureCapability {
-    int width;  // desired width.
-    int height;  // desired height.
-    int max_fps;  // desired maximum frame rate.
-    int expected_capture_delay;  // expected delay in millisecond.
-    media::VideoFrame::Format raw_type;  // desired video type.
-    bool interlaced;  // need interlace format.
   };
 
   VideoCapture() {}
