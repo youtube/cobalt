@@ -55,8 +55,7 @@ SpdyFrameBuilder::SpdyFrameBuilder(SpdyStreamId stream_id,
 }
 
 SpdyFrameBuilder::~SpdyFrameBuilder() {
-  if (buffer_)
-    delete[] buffer_;
+  delete[] buffer_;
 }
 
 char* SpdyFrameBuilder::BeginWrite(size_t length) {
