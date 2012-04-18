@@ -121,7 +121,7 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramer
                                            const SpdyHeaderBlock* headers);
   SpdyRstStreamControlFrame* CreateRstStream(SpdyStreamId stream_id,
                                              SpdyStatusCodes status) const;
-  SpdySettingsControlFrame* CreateSettings(const SpdySettings& values) const;
+  SpdySettingsControlFrame* CreateSettings(const SettingsMap& values) const;
   SpdyPingControlFrame* CreatePingFrame(uint32 unique_id) const;
   SpdyGoAwayControlFrame* CreateGoAway(
       SpdyStreamId last_accepted_stream_id,
