@@ -121,6 +121,10 @@ class FFmpegDemuxerTest : public testing::Test {
 
   int64 current_read_position_;
 
+  AVFormatContext* format_context() {
+    return demuxer_->format_context_;
+  }
+
  private:
   void CreateDataSource(const std::string& name, bool disable_file_size) {
     CHECK(!data_source_);
@@ -716,6 +720,17 @@ TEST_F(FFmpegDemuxerTest, SeekWithCuesBeforeFirstCluster) {
   // Manually release the last reference to the buffer and verify it was freed.
   reader->Reset();
   message_loop_.RunAllPending();
+}
+
+// Ensure ID3v1 tag reading is disabled.  id3_test.mp3 has an ID3v1 tag with the
+// field "title" set to "sample for id3 test".
+TEST_F(FFmpegDemuxerTest, NoID3TagData) {
+#if !defined(USE_PROPRIETARY_CODECS)
+  return;
+#endif
+  CreateDemuxer("id3_test.mp3");
+  InitializeDemuxer();
+  EXPECT_FALSE(av_dict_get(format_context()->metadata, "title", NULL, 0));
 }
 
 }  // namespace media

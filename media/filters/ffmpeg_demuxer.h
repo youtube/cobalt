@@ -163,6 +163,9 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   MessageLoop* message_loop();
 
  private:
+  // To allow tests access to privates.
+  friend class FFmpegDemuxerTest;
+
   // Carries out initialization on the demuxer thread.
   void InitializeTask(DemuxerHost* host, const PipelineStatusCB& status_cb);
 
