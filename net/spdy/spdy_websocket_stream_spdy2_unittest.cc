@@ -196,9 +196,9 @@ class SpdyWebSocketStreamSpdy2Test : public testing::Test {
     spdy_settings_flags_to_set_ = SETTINGS_FLAG_PLEASE_PERSIST;
     spdy_settings_value_to_set_ = 1;
 
-    SettingsFlagsAndId id1(SETTINGS_FLAG_PERSISTED, spdy_settings_id_to_set_);
-    spdy_settings_to_send_.push_back(
-        SpdySetting(id1, spdy_settings_value_to_set_));
+    spdy_settings_to_send_[spdy_settings_id_to_set_] =
+        SettingsFlagsAndValue(
+            SETTINGS_FLAG_PERSISTED, spdy_settings_value_to_set_);
   }
 
   virtual void TearDown() {
@@ -290,7 +290,7 @@ class SpdyWebSocketStreamSpdy2Test : public testing::Test {
   SpdySettingsIds spdy_settings_id_to_set_;
   SpdySettingsFlags spdy_settings_flags_to_set_;
   uint32 spdy_settings_value_to_set_;
-  SpdySettings spdy_settings_to_send_;
+  SettingsMap spdy_settings_to_send_;
   SpdySessionDependencies session_deps_;
   scoped_ptr<OrderedSocketData> data_;
   scoped_refptr<HttpNetworkSession> http_session_;

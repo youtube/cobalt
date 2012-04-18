@@ -501,10 +501,15 @@ class SpdyFramerTest
     return true;
   }
 
-  SpdySetting SpdySettingFromWireFormat(uint32 key, uint32 value) {
-    return SpdySetting(
-        SettingsFlagsAndId::FromWireFormat(spdy_version_, key),
-        value);
+  void AddSpdySettingFromWireFormat(SettingsMap* settings,
+                                    uint32 key,
+                                    uint32 value) {
+    SettingsFlagsAndId flags_and_id =
+        SettingsFlagsAndId::FromWireFormat(spdy_version_, key);
+    SpdySettingsIds id = static_cast<SpdySettingsIds>(flags_and_id.id());
+    SpdySettingsFlags flags =
+        static_cast<SpdySettingsFlags>(flags_and_id.flags());
+    settings->insert(std::make_pair(id, SettingsFlagsAndValue(flags, value)));
   }
 
   bool IsSpdy2() { return spdy_version_ < 3; }
@@ -1836,16 +1841,14 @@ TEST_P(SpdyFramerTest, CreateSettings) {
     const char kDescription[] = "Network byte order SETTINGS frame";
 
     uint32 kValue = 0x0a0b0c0d;
-    uint8 kFlags = 0x04;
-    uint32 kId = 0x030201;
-    SettingsFlagsAndId idAndFlags(kFlags, kId);
+    SpdySettingsFlags kFlags = static_cast<SpdySettingsFlags>(0x04);
+    SpdySettingsIds kId = static_cast<SpdySettingsIds>(0x030201);
 
-    SpdySettings settings;
-    settings.push_back(SpdySetting(idAndFlags, kValue));
+    SettingsMap settings;
+    settings[kId] = SettingsFlagsAndValue(kFlags, kValue);
 
-    EXPECT_EQ(kValue, settings.back().second);
-    EXPECT_EQ(kFlags, settings.back().first.flags());
-    EXPECT_EQ(kId, settings.back().first.id());
+    EXPECT_EQ(kFlags, settings[kId].first);
+    EXPECT_EQ(kValue, settings[kId].second);
 
     const unsigned char kFrameDatav2[] = {
       0x80, spdy_version_, 0x00, 0x04,
@@ -1872,57 +1875,46 @@ TEST_P(SpdyFramerTest, CreateSettings) {
               SpdyFramer::GetControlFrameStreamId(frame.get()));
 
     // Make sure that ParseSettings also works as advertised.
-    SpdySettings parsed_settings;
+    SettingsMap parsed_settings;
     EXPECT_TRUE(framer.ParseSettings(frame.get(), &parsed_settings));
     EXPECT_EQ(settings.size(), parsed_settings.size());
-    EXPECT_EQ(kFlags, parsed_settings.back().first.flags());
-    EXPECT_EQ(kId, parsed_settings.back().first.id());
+    EXPECT_EQ(kFlags, parsed_settings[kId].first);
+    EXPECT_EQ(kValue, parsed_settings[kId].second);
   }
 
   {
     const char kDescription[] = "Basic SETTINGS frame";
 
-    SpdySettings settings;
-    settings.push_back(
-        SpdySettingFromWireFormat(0x00000000, 0x00000000));  // 1st Setting
-    settings.push_back(
-        SpdySettingFromWireFormat(0xffffffff, 0x00000001));  // 2nd Setting
-    settings.push_back(
-        SpdySettingFromWireFormat(0xff000001, 0x00000002));  // 3rd Setting
-
-    // Duplicates allowed
-    settings.push_back(
-        SpdySettingFromWireFormat(0x01000002, 0x00000003));  // 4th Setting
-    settings.push_back(
-        SpdySettingFromWireFormat(0x01000002, 0x00000003));  // 5th Setting
-
-    settings.push_back(
-        SpdySettingFromWireFormat(0x01000003, 0x000000ff));  // 6th Setting
-    settings.push_back(
-        SpdySettingFromWireFormat(0x01000004, 0xff000001));  // 7th Setting
-    settings.push_back(
-        SpdySettingFromWireFormat(0x01000004, 0xffffffff));  // 8th Setting
+    SettingsMap settings;
+    AddSpdySettingFromWireFormat(
+        &settings, 0x00000000, 0x00000001);  // 1st Setting
+    AddSpdySettingFromWireFormat(
+        &settings, 0x01000002, 0x00000002);  // 2nd Setting
+    AddSpdySettingFromWireFormat(
+        &settings, 0x02000003, 0x00000003);  // 3rd Setting
+    AddSpdySettingFromWireFormat(
+        &settings, 0x03000004, 0xff000004);  // 4th Setting
+    AddSpdySettingFromWireFormat(
+        &settings, 0xff000005, 0x00000005);  // 5th Setting
+    AddSpdySettingFromWireFormat(
+        &settings, 0xffffffff, 0x00000006);  // 6th Setting
 
     const unsigned char kFrameData[] = {
       0x80, spdy_version_, 0x00, 0x04,
-      0x00, 0x00, 0x00, 0x44,
-      0x00, 0x00, 0x00, 0x08,
+      0x00, 0x00, 0x00, 0x34,
+      0x00, 0x00, 0x00, 0x06,
       0x00, 0x00, 0x00, 0x00,  // 1st Setting
-      0x00, 0x00, 0x00, 0x00,
-      0xff, 0xff, 0xff, 0xff,  // 2nd Setting
       0x00, 0x00, 0x00, 0x01,
-      0x01, 0x00, 0x00, 0xff,  // 3rd Setting
+      0x02, 0x00, 0x00, 0x01,  // 2nd Setting
       0x00, 0x00, 0x00, 0x02,
-      0x02, 0x00, 0x00, 0x01,  // 4th Setting
+      0x03, 0x00, 0x00, 0x02,  // 3rd Setting
       0x00, 0x00, 0x00, 0x03,
-      0x02, 0x00, 0x00, 0x01,  // 5th Setting
-      0x00, 0x00, 0x00, 0x03,
-      0x03, 0x00, 0x00, 0x01,  // 6th Setting
-      0x00, 0x00, 0x00, 0xff,
-      0x04, 0x00, 0x00, 0x01,  // 7th Setting
-      0xff, 0x00, 0x00, 0x01,
-      0x04, 0x00, 0x00, 0x01,  // 8th Setting
-      0xff, 0xff, 0xff, 0xff,
+      0x04, 0x00, 0x00, 0x03,  // 4th Setting
+      0xff, 0x00, 0x00, 0x04,
+      0x05, 0x00, 0x00, 0xff,  // 5th Setting
+      0x00, 0x00, 0x00, 0x05,
+      0xff, 0xff, 0xff, 0xff,  // 6th Setting
+      0x00, 0x00, 0x00, 0x06,
     };
     scoped_ptr<SpdySettingsControlFrame> frame(framer.CreateSettings(settings));
     CompareFrame(kDescription,
@@ -1936,7 +1928,7 @@ TEST_P(SpdyFramerTest, CreateSettings) {
   {
     const char kDescription[] = "Empty SETTINGS frame";
 
-    SpdySettings settings;
+    SettingsMap settings;
 
     const unsigned char kFrameData[] = {
       0x80, spdy_version_, 0x00, 0x04,
@@ -2306,7 +2298,7 @@ TEST_P(SpdyFramerTest, ControlFrameSizesAreValidated) {
 
 TEST_P(SpdyFramerTest, ReadZeroLenSettingsFrame) {
   SpdyFramer framer(spdy_version_);
-  SpdySettings settings;
+  SettingsMap settings;
   scoped_ptr<SpdyFrame> control_frame(framer.CreateSettings(settings));
   control_frame->set_length(0);
   TestSpdyVisitor visitor(spdy_version_);
@@ -2321,10 +2313,11 @@ TEST_P(SpdyFramerTest, ReadZeroLenSettingsFrame) {
 // Tests handling of SETTINGS frames with invalid length.
 TEST_P(SpdyFramerTest, ReadBogusLenSettingsFrame) {
   SpdyFramer framer(spdy_version_);
-  SpdySettings settings;
+  SettingsMap settings;
   // Add a setting to pad the frame so that we don't get a buffer overflow when
   // calling SimulateInFramer() below.
-  settings.push_back(SpdySetting(SettingsFlagsAndId(0, 1), 0x00000002));
+  settings[SETTINGS_UPLOAD_BANDWIDTH] =
+      SettingsFlagsAndValue(SETTINGS_FLAG_NONE, 0x00000002);
   scoped_ptr<SpdyFrame> control_frame(framer.CreateSettings(settings));
   control_frame->set_length(5);
   TestSpdyVisitor visitor(spdy_version_);
@@ -2339,10 +2332,13 @@ TEST_P(SpdyFramerTest, ReadBogusLenSettingsFrame) {
 // Tests handling of SETTINGS frames larger than the frame buffer size.
 TEST_P(SpdyFramerTest, ReadLargeSettingsFrame) {
   SpdyFramer framer(spdy_version_);
-  SpdySettings settings;
-  settings.push_back(SpdySetting(SettingsFlagsAndId(0, 1), 0x00000002));
-  settings.push_back(SpdySetting(SettingsFlagsAndId(0, 2), 0x00000003));
-  settings.push_back(SpdySetting(SettingsFlagsAndId(0, 3), 0x00000004));
+  SettingsMap settings;
+  SpdySettingsFlags flags = SETTINGS_FLAG_NONE;
+  settings[SETTINGS_UPLOAD_BANDWIDTH] =
+      SettingsFlagsAndValue(flags, 0x00000002);
+  settings[SETTINGS_DOWNLOAD_BANDWIDTH] =
+      SettingsFlagsAndValue(flags, 0x00000003);
+  settings[SETTINGS_ROUND_TRIP_TIME] = SettingsFlagsAndValue(flags, 0x00000004);
   scoped_ptr<SpdyFrame> control_frame(framer.CreateSettings(settings));
   EXPECT_LT(SpdyFramer::kUncompressedControlFrameBufferInitialSize,
             control_frame->length() + SpdyControlFrame::kHeaderSize);
@@ -2373,46 +2369,6 @@ TEST_P(SpdyFramerTest, ReadLargeSettingsFrame) {
   EXPECT_EQ(0, visitor.error_count_);
   EXPECT_EQ(settings.size() * 2, static_cast<unsigned>(visitor.setting_count_));
   EXPECT_EQ(2, visitor.settings_frame_count_);
-}
-
-// Tests handling of SETTINGS frame with duplicate entries.
-TEST_P(SpdyFramerTest, ReadDuplicateSettings) {
-  SpdyFramer framer(spdy_version_);
-  SpdySettings settings;
-  settings.push_back(SpdySetting(SettingsFlagsAndId(0, 1), 0x00000002));
-  settings.push_back(SpdySetting(SettingsFlagsAndId(0, 1), 0x00000003));
-  // This last setting should not be processed due to error above.
-  settings.push_back(SpdySetting(SettingsFlagsAndId(0, 3), 0x00000003));
-  scoped_ptr<SpdyFrame> control_frame(framer.CreateSettings(settings));
-  TestSpdyVisitor visitor(spdy_version_);
-  visitor.use_compression_ = false;
-
-  visitor.SimulateInFramer(
-      reinterpret_cast<unsigned char*>(control_frame->data()),
-      control_frame->length() + SpdyControlFrame::kHeaderSize);
-  EXPECT_EQ(1, visitor.error_count_);
-  EXPECT_EQ(1, visitor.setting_count_);
-  EXPECT_EQ(1, visitor.settings_frame_count_);
-}
-
-// Tests handling of SETTINGS frame with entries out of order.
-TEST_P(SpdyFramerTest, ReadOutOfOrderSettings) {
-  SpdyFramer framer(spdy_version_);
-  SpdySettings settings;
-  settings.push_back(SpdySetting(SettingsFlagsAndId(0, 2), 0x00000002));
-  settings.push_back(SpdySetting(SettingsFlagsAndId(0, 1), 0x00000003));
-  // This last setting should not be processed due to error above.
-  settings.push_back(SpdySetting(SettingsFlagsAndId(0, 3), 0x00000003));
-  scoped_ptr<SpdyFrame> control_frame(framer.CreateSettings(settings));
-  TestSpdyVisitor visitor(spdy_version_);
-  visitor.use_compression_ = false;
-
-  visitor.SimulateInFramer(
-      reinterpret_cast<unsigned char*>(control_frame->data()),
-      control_frame->length() + SpdyControlFrame::kHeaderSize);
-  EXPECT_EQ(1, visitor.error_count_);
-  EXPECT_EQ(1, visitor.setting_count_);
-  EXPECT_EQ(1, visitor.settings_frame_count_);
 }
 
 TEST_P(SpdyFramerTest, ReadCredentialFrame) {

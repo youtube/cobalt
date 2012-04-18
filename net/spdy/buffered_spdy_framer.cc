@@ -196,7 +196,7 @@ SpdyRstStreamControlFrame* BufferedSpdyFramer::CreateRstStream(
 }
 
 SpdySettingsControlFrame* BufferedSpdyFramer::CreateSettings(
-    const SpdySettings& values) const {
+    const SettingsMap& values) const {
   return spdy_framer_.CreateSettings(values);
 }
 

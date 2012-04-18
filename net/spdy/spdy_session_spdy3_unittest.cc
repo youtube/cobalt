@@ -500,11 +500,11 @@ TEST_F(SpdySessionSpdy3Test, OnSettings) {
   SpdySessionDependencies session_deps;
   session_deps.host_resolver->set_synchronous_mode(true);
 
-  SpdySettings new_settings;
+  SettingsMap new_settings;
   const SpdySettingsIds kSpdySettingsIds1 = SETTINGS_MAX_CONCURRENT_STREAMS;
-  SettingsFlagsAndId id(SETTINGS_FLAG_NONE, kSpdySettingsIds1);
   const size_t max_concurrent_streams = 2;
-  new_settings.push_back(SpdySetting(id, max_concurrent_streams));
+  new_settings[kSpdySettingsIds1] =
+      SettingsFlagsAndValue(SETTINGS_FLAG_NONE, max_concurrent_streams);
 
   // Set up the socket so we read a SETTINGS frame that raises max concurrent
   // streams to 2.
@@ -530,7 +530,7 @@ TEST_F(SpdySessionSpdy3Test, OnSettings) {
   HostPortPair test_host_port_pair(kTestHost, kTestPort);
   HostPortProxyPair pair(test_host_port_pair, ProxyServer::Direct());
 
-  // Initialize the SpdySettingsStorage with 1 max concurrent streams.
+  // Initialize the SpdySetting with 1 max concurrent streams.
   SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
   spdy_session_pool->http_server_properties()->SetSpdySetting(
       test_host_port_pair,
@@ -613,7 +613,7 @@ TEST_F(SpdySessionSpdy3Test, CancelPendingCreateStream) {
   HostPortPair test_host_port_pair(kTestHost, kTestPort);
   HostPortProxyPair pair(test_host_port_pair, ProxyServer::Direct());
 
-  // Initialize the SpdySettingsStorage with 1 max concurrent streams.
+  // Initialize the SpdySetting with 1 max concurrent streams.
   SpdySessionPool* spdy_session_pool(http_session->spdy_session_pool());
   spdy_session_pool->http_server_properties()->SetSpdySetting(
       test_host_port_pair,
@@ -683,13 +683,13 @@ TEST_F(SpdySessionSpdy3Test, SendSettingsOnNewSession) {
 
   // Create the bogus setting that we want to verify is sent out.
   // Note that it will be marked as SETTINGS_FLAG_PERSISTED when sent out. But
-  // to set it into the SpdySettingsStorage, we need to mark as
+  // to persist it into the HttpServerProperties, we need to mark as
   // SETTINGS_FLAG_PLEASE_PERSIST.
-  SpdySettings settings;
+  SettingsMap settings;
   const SpdySettingsIds kSpdySettingsIds1 = SETTINGS_UPLOAD_BANDWIDTH;
   const uint32 kBogusSettingValue = 0xCDCD;
-  SettingsFlagsAndId id(SETTINGS_FLAG_PERSISTED, kSpdySettingsIds1);
-  settings.push_back(SpdySetting(id, kBogusSettingValue));
+  settings[kSpdySettingsIds1] =
+      SettingsFlagsAndValue(SETTINGS_FLAG_PERSISTED, kBogusSettingValue);
   MockConnect connect_data(SYNCHRONOUS, OK);
   scoped_ptr<SpdyFrame> settings_frame(ConstructSpdySettings(settings));
   MockWrite writes[] = {
@@ -886,23 +886,6 @@ TEST_F(SpdySessionSpdy3Test, IPPoolingCloseCurrentSessions) {
   IPPoolingTest(true);
 }
 
-TEST_F(SpdySessionSpdy3Test, ClearSettingsStorage) {
-  SpdySettingsStorage settings_storage;
-  const std::string kTestHost("www.foo.com");
-  const int kTestPort = 80;
-  HostPortPair test_host_port_pair(kTestHost, kTestPort);
-  SpdySettings test_settings;
-  SettingsFlagsAndId id(SETTINGS_FLAG_PLEASE_PERSIST,
-                        SETTINGS_MAX_CONCURRENT_STREAMS);
-  const size_t max_concurrent_streams = 2;
-  test_settings.push_back(SpdySetting(id, max_concurrent_streams));
-
-  settings_storage.Set(test_host_port_pair, test_settings);
-  EXPECT_NE(0u, settings_storage.Get(test_host_port_pair).size());
-  settings_storage.Clear();
-  EXPECT_EQ(0u, settings_storage.Get(test_host_port_pair).size());
-}
-
 TEST_F(SpdySessionSpdy3Test, ClearSettingsStorageOnIPAddressChanged) {
   const std::string kTestHost("www.foo.com");
   const int kTestPort = 80;
@@ -999,7 +982,7 @@ TEST_F(SpdySessionSpdy3Test, SendCredentials) {
   MockRead reads[] = {
     MockRead(SYNCHRONOUS, ERR_IO_PENDING)  // Stall forever.
   };
-  SpdySettings settings;
+  SettingsMap settings;
   scoped_ptr<SpdyFrame> settings_frame(ConstructSpdySettings(settings));
   MockWrite writes[] = {
     CreateMockWrite(*settings_frame),
@@ -1135,10 +1118,10 @@ TEST_F(SpdySessionSpdy3Test, CloseSessionOnError) {
 TEST_F(SpdySessionSpdy3Test, UpdateStreamsSendWindowSize) {
   // Set SETTINGS_INITIAL_WINDOW_SIZE to a small number so that WINDOW_UPDATE
   // gets sent.
-  SpdySettings new_settings;
-  SettingsFlagsAndId id(0, SETTINGS_INITIAL_WINDOW_SIZE);
+  SettingsMap new_settings;
   int32 window_size = 1;
-  new_settings.push_back(SpdySetting(id, window_size));
+  new_settings[SETTINGS_INITIAL_WINDOW_SIZE] =
+      SettingsFlagsAndValue(SETTINGS_FLAG_NONE, window_size);
 
   // Set up the socket so we read a SETTINGS frame that sets
   // INITIAL_WINDOW_SIZE.

@@ -33,7 +33,6 @@
 #include "net/spdy/spdy_http_utils.h"
 #include "net/spdy/spdy_protocol.h"
 #include "net/spdy/spdy_session_pool.h"
-#include "net/spdy/spdy_settings_storage.h"
 #include "net/spdy/spdy_stream.h"
 
 namespace net {
@@ -152,16 +151,19 @@ class NetLogSpdySettingParameter : public NetLog::EventParameters {
 
 class NetLogSpdySettingsParameter : public NetLog::EventParameters {
  public:
-  explicit NetLogSpdySettingsParameter(const SpdySettings& settings)
+  explicit NetLogSpdySettingsParameter(const SettingsMap& settings)
       : settings_(settings) {}
 
   virtual Value* ToValue() const {
     DictionaryValue* dict = new DictionaryValue();
     ListValue* settings = new ListValue();
-    for (SpdySettings::const_iterator it = settings_.begin();
+    for (SettingsMap::const_iterator it = settings_.begin();
          it != settings_.end(); ++it) {
+      const SpdySettingsIds id = it->first;
+      const SpdySettingsFlags flags = it->second.first;
+      const uint32 value = it->second.second;
       settings->Append(new StringValue(
-          base::StringPrintf("[%u:%u]", it->first.id(), it->second)));
+          base::StringPrintf("[id:%u flags:%u value:%u]", id, flags, value)));
     }
     dict->Set("settings", settings);
     return dict;
@@ -169,7 +171,7 @@ class NetLogSpdySettingsParameter : public NetLog::EventParameters {
 
  private:
   ~NetLogSpdySettingsParameter() {}
-  const SpdySettings settings_;
+  const SettingsMap settings_;
 
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdySettingsParameter);
 };
@@ -1721,26 +1723,21 @@ void SpdySession::SendSettings() {
 
   const SettingsMap& settings_map_new =
       http_server_properties_->GetSpdySettings(host_port_pair());
-
-  SpdySettings settings;
   for (SettingsMap::const_iterator i = settings_map_new.begin(),
            end = settings_map_new.end(); i != end; ++i) {
     const SpdySettingsIds new_id = i->first;
-    const SpdySettingsFlags new_flags = i->second.first;
     const uint32 new_val = i->second.second;
     HandleSetting(new_id, new_val);
-    SettingsFlagsAndId flags_and_id(new_flags, new_id);
-    settings.push_back(SpdySetting(flags_and_id, new_val));
   }
 
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_SESSION_SEND_SETTINGS,
-      make_scoped_refptr(new NetLogSpdySettingsParameter(settings)));
+      make_scoped_refptr(new NetLogSpdySettingsParameter(settings_map_new)));
 
   // Create the SETTINGS frame and send it.
   DCHECK(buffered_spdy_framer_.get());
   scoped_ptr<SpdySettingsControlFrame> settings_frame(
-      buffered_spdy_framer_->CreateSettings(settings));
+      buffered_spdy_framer_->CreateSettings(settings_map_new));
   sent_settings_ = true;
   QueueFrame(settings_frame.get(), 0, NULL);
 }
