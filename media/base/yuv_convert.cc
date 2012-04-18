@@ -508,6 +508,23 @@ void ConvertYUY2ToYUV(const uint8* src,
   }
 }
 
+void ConvertNV21ToYUV(const uint8* src,
+                      uint8* yplane,
+                      uint8* uplane,
+                      uint8* vplane,
+                      int width,
+                      int height) {
+  int y_plane_size = width * height;
+  memcpy(yplane, src, y_plane_size);
+
+  src += y_plane_size;
+  int u_plane_size = y_plane_size >> 2;
+  for (int i = 0; i < u_plane_size; ++i) {
+    *vplane++ = *src++;
+    *uplane++ = *src++;
+  }
+}
+
 void ConvertYUVToRGB32(const uint8* yplane,
                        const uint8* uplane,
                        const uint8* vplane,
