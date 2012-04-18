@@ -40,9 +40,6 @@
 
           # Disable viewport meta tag by default.
           'enable_viewport%': 0,
-
-          # Enable HiDPI support.
-          'enable_hidpi%': 0,
         },
         # Copy conditionally-set variables out one scope.
         'chromeos%': '<(chromeos)',
@@ -52,7 +49,6 @@
         'use_openssl%': '<(use_openssl)',
         'use_virtual_keyboard%': '<(use_virtual_keyboard)',
         'enable_viewport%': '<(enable_viewport)',
-        'enable_hidpi%': '<(enable_hidpi)',
 
         # Compute the architecture that we're building on.
         'conditions': [
@@ -86,11 +82,6 @@
           }, {
             'toolkit_views%': 0,
           }],
-
-          # Enable HiDPI on Mac OS.
-          ['OS=="mac"', {
-            'enable_hidpi%': 1,
-          }],
         ],
       },
 
@@ -104,7 +95,6 @@
       'use_openssl%': '<(use_openssl)',
       'use_virtual_keyboard%': '<(use_virtual_keyboard)',
       'enable_viewport%': '<(enable_viewport)',
-      'enable_hidpi%': '<(enable_hidpi)',
 
       # We used to provide a variable for changing how libraries were built.
       # This variable remains until we can clean up all the users.
@@ -500,7 +490,6 @@
     'chromeos%': '<(chromeos)',
     'use_virtual_keyboard%': '<(use_virtual_keyboard)',
     'enable_viewport%': '<(enable_viewport)',
-    'enable_hidpi%': '<(enable_hidpi)',
     'use_xi2_mt%':'<(use_xi2_mt)',
     'file_manager_extension%': '<(file_manager_extension)',
     'webui_task_manager%': '<(webui_task_manager)',
@@ -1295,9 +1284,6 @@
       }],
       ['notifications==1', {
         'defines': ['ENABLE_NOTIFICATIONS'],
-      }],
-      ['enable_hidpi==1', {
-        'defines': ['ENABLE_HIDPI=1'],
       }],
       ['fastbuild!=0', {
 
