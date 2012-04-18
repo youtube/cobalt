@@ -687,7 +687,7 @@ EntryImpl* BackendImpl::OpenEntryImpl(const std::string& key) {
   eviction_.OnOpenEntry(cache_entry);
   entry_count_++;
 
-  CACHE_UMA(AGE_MS, "OpenTime", GetSizeGroup(), start);
+  CACHE_UMA(AGE_MS, "OpenTime", 0, start);
   stats_.OnEvent(Stats::OPEN_HIT);
   SIMPLE_STATS_COUNTER("disk_cache.hit");
   return cache_entry;
@@ -783,7 +783,7 @@ EntryImpl* BackendImpl::CreateEntryImpl(const std::string& key) {
   // Link this entry through the lists.
   eviction_.OnCreateEntry(cache_entry);
 
-  CACHE_UMA(AGE_MS, "CreateTime", GetSizeGroup(), start);
+  CACHE_UMA(AGE_MS, "CreateTime", 0, start);
   stats_.OnEvent(Stats::CREATE_HIT);
   SIMPLE_STATS_COUNTER("disk_cache.miss");
   Trace("create entry hit ");
@@ -1059,7 +1059,7 @@ void BackendImpl::BufferDeleted(int size) {
 }
 
 bool BackendImpl::IsLoaded() const {
-  CACHE_UMA(COUNTS, "PendingIO", GetSizeGroup(), num_pending_io_);
+  CACHE_UMA(COUNTS, "PendingIO", 0, num_pending_io_);
   if (user_flags_ & kNoLoadProtection)
     return false;
 
@@ -1075,17 +1075,6 @@ std::string BackendImpl::HistogramName(const char* name, int experiment) const {
 
 base::WeakPtr<BackendImpl> BackendImpl::GetWeakPtr() {
   return ptr_factory_.GetWeakPtr();
-}
-
-int BackendImpl::GetSizeGroup() const {
-  if (disabled_)
-    return 0;
-
-  // We want to report times grouped by the current cache size (50 MB groups).
-  int group = data_->header.num_bytes / (50 * 1024 * 1024);
-  if (group > 6)
-    group = 6;  // Limit the number of groups, just in case.
-  return group;
 }
 
 // We want to remove biases from some histograms so we only send data once per
@@ -1576,7 +1565,7 @@ int BackendImpl::NewEntry(Addr address, EntryImpl** entry) {
     return ERR_READ_FAILURE;
 
   if (IsLoaded()) {
-    CACHE_UMA(AGE_MS, "LoadTime", GetSizeGroup(), start);
+    CACHE_UMA(AGE_MS, "LoadTime", 0, start);
   }
 
   if (!cache_entry->SanityCheck()) {
@@ -2004,8 +1993,7 @@ void BackendImpl::ReportStats() {
     return;
 
   CACHE_UMA(HOURS, "UseTime", 0, static_cast<int>(use_hours));
-  CACHE_UMA(PERCENTAGE, "HitRatio", data_->header.experiment,
-            stats_.GetHitRatio());
+  CACHE_UMA(PERCENTAGE, "HitRatio", 0, stats_.GetHitRatio());
 
   int64 trim_rate = stats_.GetCounter(Stats::TRIM_ENTRY) / use_hours;
   CACHE_UMA(COUNTS, "TrimRate", 0, static_cast<int>(trim_rate));
@@ -2022,15 +2010,14 @@ void BackendImpl::ReportStats() {
   CACHE_UMA(PERCENTAGE, "LargeEntriesRatio", 0, large_ratio);
 
   if (new_eviction_) {
-    CACHE_UMA(PERCENTAGE, "ResurrectRatio", data_->header.experiment,
-              stats_.GetResurrectRatio());
+    CACHE_UMA(PERCENTAGE, "ResurrectRatio", 0, stats_.GetResurrectRatio());
     CACHE_UMA(PERCENTAGE, "NoUseRatio", 0,
               data_->header.lru.sizes[0] * 100 / data_->header.num_entries);
     CACHE_UMA(PERCENTAGE, "LowUseRatio", 0,
               data_->header.lru.sizes[1] * 100 / data_->header.num_entries);
     CACHE_UMA(PERCENTAGE, "HighUseRatio", 0,
               data_->header.lru.sizes[2] * 100 / data_->header.num_entries);
-    CACHE_UMA(PERCENTAGE, "DeletedRatio", data_->header.experiment,
+    CACHE_UMA(PERCENTAGE, "DeletedRatio", 0,
               data_->header.lru.sizes[4] * 100 / data_->header.num_entries);
   }
 
