@@ -86,6 +86,8 @@ FFMPEG_TEST_CASE(Cr112976, "security/112976.ogg", PIPELINE_OK, PIPELINE_OK,
                  kNullVideoHash);
 FFMPEG_TEST_CASE(Cr116927, "security/116927.ogv", PIPELINE_ERROR_DECODE,
                  PIPELINE_ERROR_DECODE, kNullVideoHash);
+FFMPEG_TEST_CASE(Cr123481, "security/123481.ogv", PIPELINE_OK,
+                 PIPELINE_OK, "e6dd853fcbd746c8bb2ab2b8fc376fc7");
 
 // General MKV test cases.
 FFMPEG_TEST_CASE(MKV_0, "security/nested_tags_lang.mka.627.628", PIPELINE_OK,
@@ -205,15 +207,20 @@ TEST_P(FFmpegRegressionTest, BasicPlayback) {
                       GetParam().init_status));
     Play();
     ASSERT_EQ(WaitUntilEndedOrError(), GetParam().end_status);
+    ASSERT_EQ(GetVideoHash(), GetParam().md5);
 
     // Check for ended if the pipeline is expected to finish okay.
-    if (GetParam().end_status == PIPELINE_OK)
+    if (GetParam().end_status == PIPELINE_OK) {
       ASSERT_TRUE(ended_);
+
+      // Tack a seek on the end to catch any seeking issues.
+      Seek(base::TimeDelta::FromMilliseconds(0));
+    }
   } else {
     ASSERT_FALSE(Start(GetTestDataURL(GetParam().filename),
                        GetParam().init_status));
+    ASSERT_EQ(GetVideoHash(), GetParam().md5);
   }
-  ASSERT_EQ(GetVideoHash(), GetParam().md5);
 }
 
 }  // namespace media
