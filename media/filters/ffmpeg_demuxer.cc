@@ -479,7 +479,13 @@ void FFmpegDemuxer::InitializeTask(DemuxerHost* host,
 
   // Open FFmpeg AVFormatContext.
   DCHECK(!format_context_);
-  AVFormatContext* context = NULL;
+  AVFormatContext* context = avformat_alloc_context();
+
+  // Disable ID3v1 tag reading to avoid costly seeks to end of file for data we
+  // don't use.  FFmpeg will only read ID3v1 tags if no other metadata is
+  // available, so add a metadata entry to ensure some is always present.
+  av_dict_set(&context->metadata, "skip_id3v1_tags", "", 0);
+
   int result = avformat_open_input(&context, key.c_str(), NULL, NULL);
 
   // Remove ourself from protocol list.
