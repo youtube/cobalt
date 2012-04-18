@@ -505,9 +505,6 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // Set the error code and moves the framer into the error state.
   void set_error(SpdyError error);
 
-  // Expands the control frame buffer to accomodate a particular payload size.
-  void ExpandControlFrameBuffer(size_t size);
-
   // Given a frame, breakdown the variable payload length, the static header
   // header length, and variable payload pointer.
   bool GetFrameBoundaries(const SpdyFrame& frame, int* payload_length,
@@ -516,27 +513,17 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   int num_stream_compressors() const { return stream_compressors_.size(); }
   int num_stream_decompressors() const { return stream_decompressors_.size(); }
 
-  // The initial size of the control frame buffer; this is used internally
-  // as we parse through control frames. (It is exposed here for unit test
-  // purposes.)
-  // This is only used when compression is enabled; otherwise,
-  // kUncompressedControlFrameBufferInitialSize is used.
-  static size_t kControlFrameBufferInitialSize;
-
-  // The initial size of the control frame buffer when compression is disabled.
-  // This exists because we don't do stream (de)compressed control frame data to
-  // our visitor; we instead buffer the entirety of the control frame and then
-  // decompress in one fell swoop.
+  // The size of the control frame buffer.
   // Since this is only used for control frame headers, the maximum control
-  // frame header size (18B) is sufficient; all remaining control frame data is
-  // streamed to the visitor.
-  // TODO(hkhalil): Remove post code-yellow once streamed inflate is properly
-  // implemented.
-  static size_t kUncompressedControlFrameBufferInitialSize;
+  // frame header size (SYN_STREAM) is sufficient; all remaining control
+  // frame data is streamed to the visitor.
+  static const size_t kControlFrameBufferSize;
 
-  // The maximum size of the control frame buffer that we support.
-  // TODO(mbelshe): We should make this stream-based so there are no limits.
-  static size_t kControlFrameBufferMaxSize;
+  // The maximum size of the control frames that we support.
+  // This limit is arbitrary. We can enforce it here or at the application
+  // layer. We chose the framing layer, but this can be changed (or removed)
+  // if necessary later down the line.
+  static const size_t kMaxControlFrameSize;
 
   SpdyState state_;
   SpdyError error_code_;
@@ -551,9 +538,8 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // are part of the frame's payload, and not the frame's headers.
   size_t remaining_control_header_;
 
-  char* current_frame_buffer_;
+  scoped_array<char> current_frame_buffer_;
   size_t current_frame_len_;  // Number of bytes read into the current_frame_.
-  size_t current_frame_capacity_;
 
   // Scratch space for handling SETTINGS frames.
   // TODO(hkhalil): Unify memory for this scratch space with
@@ -574,6 +560,10 @@ class NET_EXPORT_PRIVATE SpdyFramer {
 
   std::string display_protocol_;
 
+  // The SPDY version to be spoken/understood by this framer. We support only
+  // integer versions here, as major version numbers indicate framer-layer
+  // incompatibility and minor version numbers indicate application-layer
+  // incompatibility.
   const int spdy_version_;
 
   // Tracks if we've ever gotten far enough in framing to see a control frame of
