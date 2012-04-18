@@ -549,7 +549,8 @@ class URLRequestTestHTTP : public URLRequestTest {
 // issuing a CONNECT request with the magic host name "www.redirect.com".
 // The HTTPTestServer will return a 302 response, which we should not
 // follow.
-TEST_F(URLRequestTestHTTP, ProxyTunnelRedirectTest) {
+// flaky: crbug.com/96594
+TEST_F(URLRequestTestHTTP, FLAKY_ProxyTunnelRedirectTest) {
   ASSERT_TRUE(test_server_.Start());
 
   TestNetworkDelegate network_delegate;  // must outlive URLRequest
