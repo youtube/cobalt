@@ -781,15 +781,17 @@ class BASE_EXPORT ProcessMetrics {
 #if defined(OS_LINUX) || defined(OS_ANDROID)
 // Data from /proc/meminfo about system-wide memory consumption.
 // Values are in KB.
-struct SystemMemoryInfoKB {
-  SystemMemoryInfoKB() : total(0), free(0), buffers(0), cached(0),
-      active_anon(0), inactive_anon(0), shmem(0) {}
+struct BASE_EXPORT SystemMemoryInfoKB {
+  SystemMemoryInfoKB();
+
   int total;
   int free;
   int buffers;
   int cached;
   int active_anon;
   int inactive_anon;
+  int active_file;
+  int inactive_file;
   int shmem;
 };
 // Retrieves data from /proc/meminfo about system-wide memory consumption.
