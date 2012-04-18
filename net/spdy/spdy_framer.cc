@@ -1001,7 +1001,7 @@ bool SpdyFramer::ParseHeaderBlockInBuffer(const char* header_data,
 
 /* static */
 bool SpdyFramer::ParseSettings(const SpdySettingsControlFrame* frame,
-                               SpdySettings* settings) {
+                               SettingsMap* settings) {
   DCHECK_EQ(frame->type(), SETTINGS);
   DCHECK(settings);
 
@@ -1016,9 +1016,12 @@ bool SpdyFramer::ParseSettings(const SpdySettingsControlFrame* frame,
     }
     if (!parser.ReadUInt32(&value))
       return false;
-    SettingsFlagsAndId id_and_flags =
+    SettingsFlagsAndId flags_and_id =
         SettingsFlagsAndId::FromWireFormat(frame->version(), id_and_flags_wire);
-    settings->insert(settings->end(), std::make_pair(id_and_flags, value));
+    SpdySettingsIds id = static_cast<SpdySettingsIds>(flags_and_id.id());
+    SpdySettingsFlags flags =
+        static_cast<SpdySettingsFlags>(flags_and_id.flags());
+    settings->insert(std::make_pair(id, SettingsFlagsAndValue(flags, value)));
   }
   return true;
 }
@@ -1139,16 +1142,17 @@ SpdyRstStreamControlFrame* SpdyFramer::CreateRstStream(
 }
 
 SpdySettingsControlFrame* SpdyFramer::CreateSettings(
-    const SpdySettings& values) const {
+    const SettingsMap& values) const {
   size_t frame_size = SpdySettingsControlFrame::size() + 8 * values.size();
   SpdyFrameBuilder frame(SETTINGS, CONTROL_FLAG_NONE, spdy_version_,
                          frame_size);
   frame.WriteUInt32(values.size());
-  SpdySettings::const_iterator it = values.begin();
+  SettingsMap::const_iterator it = values.begin();
   while (it != values.end()) {
-    uint32 id_and_flags_wire = it->first.GetWireFormat(spdy_version_);
+    SettingsFlagsAndId flags_and_id(it->second.first, it->first);
+    uint32 id_and_flags_wire = flags_and_id.GetWireFormat(spdy_version_);
     frame.WriteBytes(&id_and_flags_wire, 4);
-    frame.WriteUInt32(it->second);
+    frame.WriteUInt32(it->second.second);
     ++it;
   }
   DCHECK_EQ(static_cast<size_t>(frame.length()), frame_size);

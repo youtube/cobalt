@@ -971,7 +971,7 @@ EVENT_TYPE(SPDY_SESSION_SYN_REPLY)
 // On sending a SPDY SETTINGS frame.
 // The following parameters are attached:
 //   {
-//     "settings": <The list of setting id:value pairs>,
+//     "settings": <The list of setting id, flags and value>,
 //   }
 EVENT_TYPE(SPDY_SESSION_SEND_SETTINGS)
 

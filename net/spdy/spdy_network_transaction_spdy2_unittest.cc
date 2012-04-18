@@ -933,11 +933,10 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, ThreeGetsWithMaxConcurrent) {
   scoped_ptr<SpdyFrame> body3(ConstructSpdyBodyFrame(5, false));
   scoped_ptr<SpdyFrame> fbody3(ConstructSpdyBodyFrame(5, true));
 
-  SpdySettings settings;
-  SettingsFlagsAndId id(SETTINGS_FLAG_NONE, SETTINGS_MAX_CONCURRENT_STREAMS);
+  SettingsMap settings;
   const size_t max_concurrent_streams = 1;
-
-  settings.push_back(SpdySetting(id, max_concurrent_streams));
+  settings[SETTINGS_MAX_CONCURRENT_STREAMS] =
+      SettingsFlagsAndValue(SETTINGS_FLAG_NONE, max_concurrent_streams);
   scoped_ptr<SpdyFrame> settings_frame(ConstructSpdySettings(settings));
 
   MockWrite writes[] = {
@@ -995,8 +994,8 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, ThreeGetsWithMaxConcurrent) {
 
     out.rv = trans1->Start(&httpreq1, callback1.callback(), log);
     ASSERT_EQ(out.rv, ERR_IO_PENDING);
-    // run transaction 1 through quickly to force a read of our SETTINGS
-    // frame
+    // Run transaction 1 through quickly to force a read of our SETTINGS
+    // frame.
     out.rv = callback1.WaitForResult();
     ASSERT_EQ(OK, out.rv);
 
@@ -1070,11 +1069,10 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, FourGetsWithMaxConcurrentPriority) {
   scoped_ptr<SpdyFrame> body3(ConstructSpdyBodyFrame(7, false));
   scoped_ptr<SpdyFrame> fbody3(ConstructSpdyBodyFrame(7, true));
 
-  SpdySettings settings;
-  SettingsFlagsAndId id(SETTINGS_FLAG_NONE, SETTINGS_MAX_CONCURRENT_STREAMS);
+  SettingsMap settings;
   const size_t max_concurrent_streams = 1;
-
-  settings.push_back(SpdySetting(id, max_concurrent_streams));
+  settings[SETTINGS_MAX_CONCURRENT_STREAMS] =
+      SettingsFlagsAndValue(SETTINGS_FLAG_NONE, max_concurrent_streams);
   scoped_ptr<SpdyFrame> settings_frame(ConstructSpdySettings(settings));
 
   MockWrite writes[] = { CreateMockWrite(*req),
@@ -1213,11 +1211,10 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, ThreeGetsWithMaxConcurrentDelete) {
   scoped_ptr<SpdyFrame> body2(ConstructSpdyBodyFrame(3, false));
   scoped_ptr<SpdyFrame> fbody2(ConstructSpdyBodyFrame(3, true));
 
-  SpdySettings settings;
-  SettingsFlagsAndId id(SETTINGS_FLAG_NONE, SETTINGS_MAX_CONCURRENT_STREAMS);
+  SettingsMap settings;
   const size_t max_concurrent_streams = 1;
-
-  settings.push_back(SpdySetting(id, max_concurrent_streams));
+  settings[SETTINGS_MAX_CONCURRENT_STREAMS] =
+      SettingsFlagsAndValue(SETTINGS_FLAG_NONE, max_concurrent_streams);
   scoped_ptr<SpdyFrame> settings_frame(ConstructSpdySettings(settings));
 
   MockWrite writes[] = { CreateMockWrite(*req),
@@ -1347,11 +1344,10 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, ThreeGetsWithMaxConcurrentSocketClose) {
   scoped_ptr<SpdyFrame> req2(ConstructSpdyGet(NULL, 0, false, 3, LOWEST));
   scoped_ptr<SpdyFrame> resp2(ConstructSpdyGetSynReply(NULL, 0, 3));
 
-  SpdySettings settings;
-  SettingsFlagsAndId id(SETTINGS_FLAG_NONE, SETTINGS_MAX_CONCURRENT_STREAMS);
+  SettingsMap settings;
   const size_t max_concurrent_streams = 1;
-
-  settings.push_back(SpdySetting(id, max_concurrent_streams));
+  settings[SETTINGS_MAX_CONCURRENT_STREAMS] =
+      SettingsFlagsAndValue(SETTINGS_FLAG_NONE, max_concurrent_streams);
   scoped_ptr<SpdyFrame> settings_frame(ConstructSpdySettings(settings));
 
   MockWrite writes[] = { CreateMockWrite(*req),
@@ -4060,7 +4056,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, BufferedCancelled) {
 }
 
 // Test that if the server requests persistence of settings, that we save
-// the settings in the SpdySettingsStorage.
+// the settings in the HttpServerProperties.
 TEST_P(SpdyNetworkTransactionSpdy2Test, SettingsSaved) {
   static const SpdyHeaderInfo kSynReplyInfo = {
     SYN_REPLY,                              // Syn Reply
@@ -4110,16 +4106,16 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, SettingsSaved) {
   scoped_ptr<SpdyFrame> settings_frame;
   {
     // Construct the SETTINGS frame.
-    SpdySettings settings;
+    SettingsMap settings;
     // First add a persisted setting.
-    SettingsFlagsAndId setting1(SETTINGS_FLAG_PLEASE_PERSIST, kSampleId1);
-    settings.push_back(std::make_pair(setting1, kSampleValue1));
+    settings[kSampleId1] =
+        SettingsFlagsAndValue(SETTINGS_FLAG_PLEASE_PERSIST, kSampleValue1);
     // Next add a non-persisted setting.
-    SettingsFlagsAndId setting2(SETTINGS_FLAG_NONE, kSampleId2);
-    settings.push_back(std::make_pair(setting2, kSampleValue2));
+    settings[kSampleId2] =
+        SettingsFlagsAndValue(SETTINGS_FLAG_NONE, kSampleValue2);
     // Next add another persisted setting.
-    SettingsFlagsAndId setting3(SETTINGS_FLAG_PLEASE_PERSIST, kSampleId3);
-    settings.push_back(std::make_pair(setting3, kSampleValue3));
+    settings[kSampleId3] =
+        SettingsFlagsAndValue(SETTINGS_FLAG_PLEASE_PERSIST, kSampleValue3);
     settings_frame.reset(ConstructSpdySettings(settings));
   }
 
@@ -4218,20 +4214,9 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, SettingsPlayback) {
       host_port_pair).size());
 
   // Construct the SETTINGS frame.
-  const SettingsMap& settings_map =
+  const SettingsMap& settings =
       spdy_session_pool->http_server_properties()->GetSpdySettings(
           host_port_pair);
-
-  SpdySettings settings;
-  for (SettingsMap::const_iterator i = settings_map.begin(),
-           end = settings_map.end(); i != end; ++i) {
-    const SpdySettingsIds id = i->first;
-    const SpdySettingsFlags flags = i->second.first;
-    const uint32 val = i->second.second;
-    SettingsFlagsAndId flags_and_id(flags, id);
-    settings.push_back(SpdySetting(flags_and_id, val));
-  }
-
   scoped_ptr<SpdyFrame> settings_frame(ConstructSpdySettings(settings));
 
   // Construct the request.

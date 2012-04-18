@@ -680,8 +680,6 @@
         'spdy/spdy_session.h',
         'spdy/spdy_session_pool.cc',
         'spdy/spdy_session_pool.h',
-        'spdy/spdy_settings_storage.cc',
-        'spdy/spdy_settings_storage.h',
         'spdy/spdy_stream.cc',
         'spdy/spdy_stream.h',
         'spdy/spdy_websocket_stream.cc',
