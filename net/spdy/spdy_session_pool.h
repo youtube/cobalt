@@ -23,7 +23,6 @@
 #include "net/base/ssl_config_service.h"
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_server.h"
-#include "net/spdy/spdy_settings_storage.h"
 
 namespace net {
 
@@ -112,9 +111,6 @@ class NET_EXPORT SpdySessionPool
   // responsible for deleting the returned value.
   base::Value* SpdySessionPoolInfoToValue() const;
 
-  SpdySettingsStorage* mutable_spdy_settings() { return &spdy_settings_; }
-  const SpdySettingsStorage& spdy_settings() const { return spdy_settings_; }
-
   HttpServerProperties* http_server_properties() {
     return http_server_properties_;
   }
@@ -195,7 +191,6 @@ class NET_EXPORT SpdySessionPool
   bool RemoveFromSessionList(const scoped_refptr<SpdySession>& session,
                              const HostPortProxyPair& pair);
 
-  SpdySettingsStorage spdy_settings_;
   HttpServerProperties* const http_server_properties_;
 
   // This is our weak session pool - one session per domain.

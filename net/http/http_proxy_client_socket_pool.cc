@@ -23,7 +23,6 @@
 #include "net/spdy/spdy_proxy_client_socket.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
-#include "net/spdy/spdy_settings_storage.h"
 #include "net/spdy/spdy_stream.h"
 
 namespace net {

@@ -212,8 +212,7 @@ SpdyFrame* ConstructSpdyPacket(const SpdyHeaderInfo& header_info,
 // Construct an expected SPDY SETTINGS frame.
 // |settings| are the settings to set.
 // Returns the constructed frame.  The caller takes ownership of the frame.
-SpdyFrame* ConstructSpdySettings(
-    const SpdySettings& settings) {
+SpdyFrame* ConstructSpdySettings(const SettingsMap& settings) {
   BufferedSpdyFramer framer(2);
   return framer.CreateSettings(settings);
 }
