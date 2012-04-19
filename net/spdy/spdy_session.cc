@@ -1427,7 +1427,7 @@ void SpdySession::OnSynStream(
 
   // Verify we have a valid stream association.
   if (!IsStreamActive(associated_stream_id)) {
-    ResetStream(stream_id, INVALID_ASSOCIATED_STREAM,
+    ResetStream(stream_id, INVALID_STREAM,
                 base::StringPrintf(
                     "Received OnSyn with inactive associated stream %d",
                     associated_stream_id));
