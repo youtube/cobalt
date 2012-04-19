@@ -114,7 +114,8 @@ size_t CancelableFileOperation(Function operation, HANDLE file,
                                BufferType* buffer, size_t length,
                                base::WaitableEvent* io_event,
                                base::WaitableEvent* cancel_event,
-                               CancelableSyncSocket* socket) {
+                               CancelableSyncSocket* socket,
+                               DWORD timeout_in_ms) {
   // The buffer must be byte size or the length check won't make much sense.
   COMPILE_ASSERT(sizeof(buffer[0]) == sizeof(char), incorrect_buffer_type);
   DCHECK_LE(length, kMaxMessageLength);
@@ -131,24 +132,38 @@ size_t CancelableFileOperation(Function operation, HANDLE file,
                         &len, &ol);
     if (!ok) {
       if (::GetLastError() == ERROR_IO_PENDING) {
-        base::WaitableEvent* events[] = { io_event, cancel_event };
-        size_t signaled = WaitableEvent::WaitMany(events, arraysize(events));
-        if (signaled == 1) {
+        HANDLE events[] = { io_event->handle(), cancel_event->handle() };
+        int wait_result = WaitForMultipleObjects(
+            arraysize(events), events, FALSE, timeout_in_ms);
+        if (wait_result == (WAIT_OBJECT_0 + 0)) {
+          GetOverlappedResult(file, &ol, &len, TRUE);
+        } else if (wait_result == (WAIT_OBJECT_0 + 1)) {
           VLOG(1) << "Shutdown was signaled. Closing socket.";
           CancelIo(file);
           socket->Close();
           count = 0;
           break;
         } else {
-          GetOverlappedResult(file, &ol, &len, TRUE);
+          // Timeout happened.
+          DCHECK_EQ(WAIT_TIMEOUT, wait_result);
+          if (!CancelIo(file)){
+            DLOG(WARNING) << "CancelIo() failed";
+          }
+          break;
         }
       } else {
-        return (0 < count) ? count : 0;
+        break;
       }
     }
+
     count += len;
+
+    // Quit the operation if we can't write/read anymore.
+    if (len != chunk)
+      break;
   }
-  return count;
+
+  return (count > 0) ? count : 0;
 }
 
 }  // namespace
@@ -234,15 +249,16 @@ bool CancelableSyncSocket::Close() {
 }
 
 size_t CancelableSyncSocket::Send(const void* buffer, size_t length) {
-  return CancelableFileOperation(&WriteFile, handle_,
-      reinterpret_cast<const char*>(buffer), length, &file_operation_,
-      &shutdown_event_, this);
+  static const DWORD kWaitTimeOutInMs = 500;
+  return CancelableFileOperation(
+      &WriteFile, handle_, reinterpret_cast<const char*>(buffer),
+      length, &file_operation_, &shutdown_event_, this, kWaitTimeOutInMs);
 }
 
 size_t CancelableSyncSocket::Receive(void* buffer, size_t length) {
   return CancelableFileOperation(&ReadFile, handle_,
       reinterpret_cast<char*>(buffer), length, &file_operation_,
-      &shutdown_event_, this);
+      &shutdown_event_, this, INFINITE);
 }
 
 // static
