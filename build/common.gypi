@@ -196,7 +196,7 @@
       # Run tools/clang/scripts/update.sh to make sure they are compiled.
       # This causes 'clang_chrome_plugins_flags' to be set.
       # Has no effect if 'clang' is not set as well.
-      'clang_use_chrome_plugins%': 0,
+      'clang_use_chrome_plugins%': 1,
 
       # Enable building with ASAN (Clang's -faddress-sanitizer option).
       # -faddress-sanitizer only works with clang, but asan=1 implies clang=1
@@ -280,6 +280,10 @@
       # for details.
       'chromium_win_pch%': 0,
 
+      # Set this to true when building with Clang.
+      # See http://code.google.com/p/chromium/wiki/Clang for details.
+      'clang%': 0,
+
       # Enable plug-in installation by default.
       'enable_plugin_installation%': 1,
 
@@ -317,8 +321,6 @@
         # webkit disagreeing on its setting.
         ['OS=="mac"', {
           'use_skia%': 1,
-          # Mac uses clang by default, so turn on the plugin as well.
-          'clang_use_chrome_plugins%': 1,
         }, {
           'use_skia%': 1,
         }],
@@ -634,9 +636,8 @@
     # Set this to true to enable SELinux support.
     'selinux%': 0,
 
-    # Set this to true when building with Clang.
-    # See http://code.google.com/p/chromium/wiki/Clang for details.
-    'clang%': 0,
+    # Clang stuff.
+    'clang%': '<(clang)',
     'make_clang_dir%': 'third_party/llvm-build/Release+Asserts',
 
     # These two variables can be set in GYP_DEFINES while running
@@ -1021,7 +1022,7 @@
       ['enable_extensions==1', {
         'grit_defines': ['-D', 'enable_extensions'],
       }],
-      ['clang_use_chrome_plugins==1', {
+      ['clang_use_chrome_plugins==1 and OS!="win"', {
         'clang_chrome_plugins_flags':
             '<!(<(DEPTH)/tools/clang/scripts/plugin_flags.sh)',
       }],
