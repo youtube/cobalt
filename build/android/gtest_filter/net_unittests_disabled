@@ -83,3 +83,5 @@ UDPSocketTest.ClientGetLocalPeerAddresses
 CertVerifyProcTest.*
 # Runs fine locally but not on the bot.
 VerifyRoot/CertVerifyProcWeakDigestTest.*
+# Relies on TestServer which isn't yet configured upstream.
+URLRequestContextBuilderTest.*
