@@ -27,6 +27,8 @@ MEDIA_EXPORT extern const char kUsePulseAudio[];
 
 MEDIA_EXPORT extern const char kVideoThreads[];
 
+MEDIA_EXPORT extern const char kEnableAudioMixer[];
+
 }  // namespace switches
 
 #endif  // MEDIA_BASE_MEDIA_SWITCHES_H_
