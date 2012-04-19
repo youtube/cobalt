@@ -198,9 +198,11 @@ double FieldTrial::HashClientId(const std::string& client_id,
                 sha1_hash);
 
   COMPILE_ASSERT(sizeof(uint64) < sizeof(sha1_hash), need_more_data);
-  uint64* bits = reinterpret_cast<uint64*>(&sha1_hash[0]);
+  uint64 bits;
+  memcpy(&bits, sha1_hash, sizeof(bits));
+  bits = base::ByteSwapToLE64(bits);
 
-  return BitsToOpenEndedUnitInterval(*bits);
+  return BitsToOpenEndedUnitInterval(bits);
 }
 
 // static
