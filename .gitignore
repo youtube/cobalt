@@ -31,7 +31,7 @@
 # Only /build/(Debug|Release|x64|ipch) should need to be ignored, but bug #119528 makes this global ignore required for now.
 Debug/
 ipch/
-Relase/
+Release/
 x64/
 tags
 Thumbs.db
@@ -149,6 +149,7 @@ v8.log
 /third_party/flac
 /third_party/freetype
 /third_party/gles2_conform
+/third_party/gnu_binutils/
 /third_party/gold
 /third_party/googlemac
 /third_party/hunspell
@@ -197,6 +198,7 @@ v8.log
 /third_party/speex
 /third_party/swiftshader/include/
 /third_party/swig
+/third_party/syzygy
 /third_party/syzygy/binaries
 /third_party/undoview
 /third_party/v8-i18n
