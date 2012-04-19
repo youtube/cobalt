@@ -557,4 +557,34 @@ TEST_F(FFmpegVideoDecoderTest, AbortPendingRead) {
   EXPECT_FALSE(video_frame);
 }
 
+// Test aborted read on the demuxer stream.
+TEST_F(FFmpegVideoDecoderTest, AbortPendingReadDuringFlush) {
+  Initialize();
+
+  DemuxerStream::ReadCB read_cb;
+
+  // Request a read on the decoder and run the MessageLoop to
+  // ensure that the demuxer has been called.
+  decoder_->Read(read_cb_);
+  EXPECT_CALL(*demuxer_, Read(_))
+      .WillOnce(SaveArg<0>(&read_cb));
+  message_loop_.RunAllPending();
+  ASSERT_FALSE(read_cb.is_null());
+
+  // Flush while there is still an outstanding read on the demuxer.
+  decoder_->Flush(NewExpectedClosure());
+  message_loop_.RunAllPending();
+
+  // Signal an aborted demuxer read.
+  read_cb.Run(NULL);
+
+  // Make sure we get a NULL video frame returned.
+  scoped_refptr<VideoFrame> video_frame;
+  EXPECT_CALL(*this, FrameReady(_))
+      .WillOnce(SaveArg<0>(&video_frame));
+  message_loop_.RunAllPending();
+
+  EXPECT_FALSE(video_frame);
+}
+
 }  // namespace media
