@@ -836,10 +836,11 @@
         # http://crbug.com/115320
         'notifications%': 0,
 
-        # Builds the gtest targets as a shared_library.
-        # TODO(michaelbai): Use the fixed value 'shared_library' once it
-        # is fully supported.
         'gtest_target_type%': '<(gtest_target_type)',
+        # TODO(jrg): when 'gtest_target_type'=='shared_libary' and
+        # OS==android, make all gtest_targets depend on
+        # testing/android/native_test.gyp:native_test_apk.
+        ### 'gtest_target_type': 'shared_libary',
 
         # Uses system APIs for decoding audio and video.
         'use_libffmpeg%': '0',
@@ -2427,6 +2428,11 @@
                 'ldflags': [
                   '-Wl,-shared,-Bsymbolic',
                 ],
+                # Use of -nostdlib prevents the compiler from bringing
+                # in crtbegin_dynamic.o et al, so we get an undefined
+                # reference to ___dso_handle when building
+                # gtest_target_type==shared_library.
+                'ldflags!': [ '-nostdlib' ],
               }],
             ],
           }],

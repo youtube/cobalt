@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2012 The Chromium Authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<project name="ChromeNativeTests" default="debug" basedir=".">
+
+  <description>
+    Building native test runner ChromeNativeTests_replaceme.apk
+  </description>
+
+  <property environment="env"/>
+  <property name="sdk.dir" location="${env.ANDROID_SDK_ROOT}"/>
+  <property name="sdk.version" value="${env.ANDROID_SDK_VERSION}"/>
+  <property name="src" location="."/>
+
+  <!-- TODO(jrg): although the source.dir setting points the android
+  antfiles to the correct location for finding our java, and our jars
+  are rebuilt when the java changes, a re-javac does not trigger a
+  re-package of our apk.  Fix.  -->
+  <property name="source.dir" location="java"/>
+
+  <property name="target" value="android-${env.ANDROID_SDK_VERSION}"/>
+
+  <condition property="location.base" 
+             value="${sdk.dir}" 
+             else="${sdk.dir}/platforms/android-${sdk.version}">
+    <isset property="env.ANDROID_BUILD_TOP"/>
+  </condition>
+
+  <!-- We expect PRODUCT_DIR to be set like the gyp var
+       (e.g. $ROOT/out/Debug) -->
+  <!-- TODO(jrg): ideally we need this to run before -build-setup, where
+       directories are made based on this variable. -->
+  <target name="-pre-build">
+    <if>
+      <condition>
+        <isset property="PRODUCT_DIR" />
+      </condition>
+      <else>
+        <fail message="PRODUCT_DIR env var not set?" />
+      </else>
+    </if>
+  </target>
+
+  <property name="out.dir" location="${PRODUCT_DIR}/replaceme_apk"/>
+
+  <!-- TODO(jrg): should I make this directory specific to the apk? -->
+  <property name="gen.absolute.dir" value="${out.dir}/gen"/>
+
+  <import file="${sdk.dir}/tools/ant/build.xml" />
+
+</project>
