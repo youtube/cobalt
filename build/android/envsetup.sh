@@ -49,8 +49,13 @@ export ANDROID_TOOLCHAIN="${ANDROID_NDK_ROOT}/toolchains/arm-linux-androideabi-4
 
 export ANDROID_SDK_VERSION="15"
 
-# Add Android SDK's platform-tools to system path.
-export PATH="${PATH}:${ANDROID_SDK_ROOT}/platform-tools/"
+# Needed by android antfiles when creating apks.
+export ANDROID_SDK_HOME=${ANDROID_SDK_ROOT}
+
+# Add Android SDK/NDK tools to system path.
+export PATH=$PATH:${ANDROID_NDK_ROOT}
+export PATH=$PATH:${ANDROID_SDK_ROOT}/tools
+export PATH=$PATH:${ANDROID_SDK_ROOT}/platform-tools
 
 if [ ! -d "${ANDROID_TOOLCHAIN}" ]; then
   echo "Can not find Android toolchain in ${ANDROID_TOOLCHAIN}." >& 2

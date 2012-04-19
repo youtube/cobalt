@@ -49,6 +49,20 @@
         # gyps to resolve.
         '../chrome/chrome_resources.gyp:packed_resources',
       ],
+      'conditions': [
+        ['"<(gtest_target_type)"=="shared_library"', {
+          'dependencies': [
+            # The first item is simply the template.  We add as a dep
+            # to make sure it builds in ungenerated form.  TODO(jrg):
+            # once stable, transition to a test-only (optional)
+            # target.
+            '../testing/android/native_test.gyp:native_test_apk',
+            # Unit test bundles packaged as an apk.
+            '../base/base.gyp:base_unittests_apk',
+            '../ipc/ipc.gyp:ipc_tests_apk',
+          ],
+        }]
+      ],
     },
     { 
       # Experimental / in-progress targets that are expected to fail

@@ -77,12 +77,23 @@ _TEST_SUITES = ['base_unittests',
                ]
 
 
-def FullyQualifiedTestSuites():
-  """Return a fully qualified list that represents all known suites."""
+def FullyQualifiedTestSuites(apk):
+  """Return a fully qualified list that represents all known suites.
+
+  Args:
+    apk: if True, use the apk-based test runner"""
   # If not specified, assume the test suites are in out/Release
   test_suite_dir = os.path.abspath(os.path.join(run_tests_helper.CHROME_DIR,
                                                 'out', 'Release'))
-  return [os.path.join(test_suite_dir, t) for t in _TEST_SUITES]
+  if apk:
+    # out/Release/$SUITE_apk/ChromeNativeTests-debug.apk
+    suites = [os.path.join(test_suite_dir,
+                           t + '_apk',
+                           'ChromeNativeTests-debug.apk')
+              for t in _TEST_SUITES]
+  else:
+    suites = [os.path.join(test_suite_dir, t) for t in _TEST_SUITES]
+  return suites
 
 
 class TimeProfile(object):
@@ -151,7 +162,7 @@ class Xvfb(object):
 
 def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
              timeout, performance_test, cleanup_test_files, tool,
-             log_dump_name, annotate=False):
+             log_dump_name, apk, annotate=False):
   """Runs the tests.
 
   Args:
@@ -165,6 +176,7 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
     cleanup_test_files: Whether or not to cleanup test files on device.
     tool: Name of the Valgrind tool.
     log_dump_name: Name of log dump file.
+    apk: boolean to state if we are using the apk based test runner
     annotate: should we print buildbot-style annotations?
 
   Returns:
@@ -174,16 +186,18 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
 
   if test_suite:
     global _TEST_SUITES
-    if not os.path.exists(test_suite):
+    if (not os.path.exists(test_suite) and
+        not os.path.splitext(test_suite)[1] == '.apk'):
       logging.critical('Unrecognized test suite %s, supported: %s' %
                        (test_suite, _TEST_SUITES))
       if test_suite in _TEST_SUITES:
         logging.critical('(Remember to include the path: out/Release/%s)',
                          test_suite)
-      return TestResults.FromOkAndFailed([], [BaseTestResult(test_suite, '')])
+      return TestResults.FromOkAndFailed([], [BaseTestResult(test_suite, '')],
+                                         False, False)
     fully_qualified_test_suites = [test_suite]
   else:
-    fully_qualified_test_suites = FullyQualifiedTestSuites()
+    fully_qualified_test_suites = FullyQualifiedTestSuites(apk)
   debug_info_list = []
   print 'Known suites: ' + str(_TEST_SUITES)
   print 'Running these: ' + str(fully_qualified_test_suites)
@@ -212,6 +226,8 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
     if test.test_results.timed_out:
       print '@@@STEP_WARNINGS@@@'
     elif test.test_results.failed:
+      print '@@@STEP_FAILURE@@@'
+    elif test.test_results.overall_fail:
       print '@@@STEP_FAILURE@@@'
     else:
       print 'Step success!'  # No annotation needed
@@ -323,6 +339,7 @@ def _RunATestSuite(options):
                             options.performance_test,
                             options.cleanup_test_files, options.tool,
                             options.log_dump,
+                            options.apk,
                             annotate=options.annotate)
 
   for buildbot_emulator in buildbot_emulators:
@@ -363,7 +380,7 @@ def Dispatch(options):
   if options.test_suite:
     all_test_suites = [options.test_suite]
   else:
-    all_test_suites = FullyQualifiedTestSuites()
+    all_test_suites = FullyQualifiedTestSuites(options.apk)
   failures = 0
   for suite in all_test_suites:
     options.test_suite = suite
@@ -427,6 +444,9 @@ def main(argv):
   option_parser.add_option('--annotate', default=True,
                            help='Print buildbot-style annotate messages '
                            'for each test suite.  Default=True')
+  option_parser.add_option('--apk', default=False,
+                           help='Use the apk test runner '
+                           '(off by default for now)')
   options, args = option_parser.parse_args(argv)
   if len(args) > 1:
     print 'Unknown argument:', args[1:]
