@@ -242,14 +242,14 @@ void FFmpegVideoDecoder::DoDecodeBuffer(const scoped_refptr<Buffer>& buffer) {
   DCHECK_NE(state_, kDecodeFinished);
   DCHECK(!read_cb_.is_null());
 
-  if (!buffer) {
-    DeliverFrame(NULL);
-    return;
-  }
-
   if (!flush_cb_.is_null()) {
     DeliverFrame(NULL);
     DoFlush();
+    return;
+  }
+
+  if (!buffer) {
+    DeliverFrame(NULL);
     return;
   }
 
