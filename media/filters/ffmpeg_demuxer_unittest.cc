@@ -724,8 +724,7 @@ TEST_F(FFmpegDemuxerTest, SeekWithCuesBeforeFirstCluster) {
 
 // Ensure ID3v1 tag reading is disabled.  id3_test.mp3 has an ID3v1 tag with the
 // field "title" set to "sample for id3 test".
-// TODO(dalecurtis): Test fails on Chromium.ChromiumOS, http://crbug.com/124100.
-TEST_F(FFmpegDemuxerTest, DISABLED_NoID3TagData) {
+TEST_F(FFmpegDemuxerTest, NoID3TagData) {
 #if !defined(USE_PROPRIETARY_CODECS)
   return;
 #endif
