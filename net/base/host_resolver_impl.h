@@ -146,14 +146,7 @@ class NET_EXPORT HostResolverImpl
   virtual base::Value* GetDnsConfigAsValue() const OVERRIDE;
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(HostResolverImplTest,
-                           CanceledRequestsReleaseJobSlots);
-  FRIEND_TEST_ALL_PREFIXES(HostResolverImplTest,
-                           ObeyPoolConstraintsAfterIPAddressChange);
-  FRIEND_TEST_ALL_PREFIXES(HostResolverImplTest,
-                           AbortOnlyExistingRequestsOnIPAddressChange);
-  FRIEND_TEST_ALL_PREFIXES(HostResolverImplTest, DnsTask);
-  FRIEND_TEST_ALL_PREFIXES(HostResolverImplTest, ServeFromHosts);
+  friend class HostResolverImplTest;
   class Job;
   class ProcTask;
   class IPv6ProbeJob;
