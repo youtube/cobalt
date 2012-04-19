@@ -6,6 +6,7 @@
 #define MEDIA_AUDIO_AUDIO_MANAGER_BASE_H_
 
 #include <map>
+#include <string>
 
 #include "base/atomic_ref_count.h"
 #include "base/compiler_specific.h"
