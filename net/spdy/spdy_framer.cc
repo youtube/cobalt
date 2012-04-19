@@ -226,6 +226,14 @@ const char* SpdyFramer::StatusCodeToString(int status_code) {
       return "INTERNAL_ERROR";
     case FLOW_CONTROL_ERROR:
       return "FLOW_CONTROL_ERROR";
+    case STREAM_IN_USE:
+      return "STREAM_IN_USE";
+    case STREAM_ALREADY_CLOSED:
+      return "STREAM_ALREADY_CLOSED";
+    case INVALID_CREDENTIALS:
+      return "INVALID_CREDENTIALS";
+    case FRAME_TOO_LARGE:
+      return "FRAME_TOO_LARGE";
   }
   return "UNKNOWN_STATUS";
 }
