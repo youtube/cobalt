@@ -14,19 +14,21 @@ namespace media {
 AudioOutputProxy::AudioOutputProxy(AudioOutputDispatcher* dispatcher)
     : dispatcher_(dispatcher),
       state_(kCreated),
+      physical_stream_(NULL),
       volume_(1.0) {
 }
 
 AudioOutputProxy::~AudioOutputProxy() {
   DCHECK(CalledOnValidThread());
   DCHECK(state_ == kCreated || state_ == kClosed);
+  DCHECK(!physical_stream_);
 }
 
 bool AudioOutputProxy::Open() {
   DCHECK(CalledOnValidThread());
   DCHECK_EQ(state_, kCreated);
 
-  if (!dispatcher_->OpenStream()) {
+  if (!dispatcher_->StreamOpened()) {
     state_ = kError;
     return false;
   }
@@ -37,13 +39,18 @@ bool AudioOutputProxy::Open() {
 
 void AudioOutputProxy::Start(AudioSourceCallback* callback) {
   DCHECK(CalledOnValidThread());
+  DCHECK(physical_stream_ == NULL);
   DCHECK_EQ(state_, kOpened);
 
-  if (!dispatcher_->StartStream(callback, this)) {
+  physical_stream_= dispatcher_->StreamStarted();
+  if (!physical_stream_) {
     state_ = kError;
     callback->OnError(this, 0);
     return;
   }
+
+  physical_stream_->SetVolume(volume_);
+  physical_stream_->Start(callback);
   state_ = kPlaying;
 }
 
@@ -52,14 +59,19 @@ void AudioOutputProxy::Stop() {
   if (state_ != kPlaying)
     return;
 
-  dispatcher_->StopStream(this);
+  DCHECK(physical_stream_);
+  physical_stream_->Stop();
+  dispatcher_->StreamStopped(physical_stream_);
+  physical_stream_ = NULL;
   state_ = kOpened;
 }
 
 void AudioOutputProxy::SetVolume(double volume) {
   DCHECK(CalledOnValidThread());
   volume_ = volume;
-  dispatcher_->StreamVolumeSet(this, volume);
+  if (physical_stream_) {
+    physical_stream_->SetVolume(volume);
+  }
 }
 
 void AudioOutputProxy::GetVolume(double* volume) {
@@ -70,9 +82,10 @@ void AudioOutputProxy::GetVolume(double* volume) {
 void AudioOutputProxy::Close() {
   DCHECK(CalledOnValidThread());
   DCHECK(state_ == kCreated || state_ == kError || state_ == kOpened);
+  DCHECK(!physical_stream_);
 
   if (state_ != kCreated)
-    dispatcher_->CloseStream(this);
+    dispatcher_->StreamClosed();
 
   state_ = kClosed;
 

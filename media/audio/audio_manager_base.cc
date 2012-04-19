@@ -5,15 +5,12 @@
 #include "media/audio/audio_manager_base.h"
 
 #include "base/bind.h"
-#include "base/command_line.h"
 #include "base/message_loop_proxy.h"
 #include "base/threading/thread.h"
-#include "media/audio/audio_output_dispatcher_impl.h"
-#include "media/audio/audio_output_mixer.h"
+#include "media/audio/audio_output_dispatcher.h"
 #include "media/audio/audio_output_proxy.h"
 #include "media/audio/fake_audio_input_stream.h"
 #include "media/audio/fake_audio_output_stream.h"
-#include "media/base/media_switches.h"
 
 namespace media {
 
@@ -139,16 +136,9 @@ AudioOutputStream* AudioManagerBase::MakeAudioOutputStreamProxy(
 
   scoped_refptr<AudioOutputDispatcher>& dispatcher =
       output_dispatchers_[params];
-  if (!dispatcher) {
-    base::TimeDelta close_delay =
-        base::TimeDelta::FromSeconds(kStreamCloseDelaySeconds);
-    const CommandLine* cmd_line = CommandLine::ForCurrentProcess();
-    if (cmd_line->HasSwitch(switches::kEnableAudioMixer)) {
-      dispatcher = new AudioOutputMixer(this, params, close_delay);
-    } else {
-      dispatcher = new AudioOutputDispatcherImpl(this, params, close_delay);
-    }
-  }
+  if (!dispatcher)
+    dispatcher = new AudioOutputDispatcher(
+        this, params, base::TimeDelta::FromSeconds(kStreamCloseDelaySeconds));
   return new AudioOutputProxy(dispatcher);
 }
 
