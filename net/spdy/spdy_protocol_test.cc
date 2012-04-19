@@ -92,7 +92,7 @@ TEST_P(SpdyProtocolTest, ControlFrameStructs) {
   SpdyFramer framer(spdy_version_);
   SpdyHeaderBlock headers;
 
-  const uint8 credential_slot = (IsSpdy2()) ? 0 : 5;
+  const uint8 credential_slot = IsSpdy2() ? 0 : 5;
 
   scoped_ptr<SpdySynStreamControlFrame> syn_frame(framer.CreateSynStream(
       123, 456, 2, credential_slot, CONTROL_FLAG_FIN, false, &headers));
