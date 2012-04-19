@@ -221,7 +221,6 @@
         'base/resource/resource_bundle_gtk.cc',
         'base/resource/resource_bundle_linux.cc',
         'base/resource/resource_bundle_mac.mm',
-        'base/resource/resource_bundle_posix.cc',
         'base/resource/resource_bundle_win.cc',
         'base/resource/resource_bundle_win.h',
         'base/resource/resource_data_dll_win.cc',
