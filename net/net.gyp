@@ -39,6 +39,10 @@
         'net_resources',
       ],
       'sources': [
+        'android/network_change_notifier.cc',
+        'android/network_change_notifier.h',
+        'android/network_change_notifier_factory.cc',
+        'android/network_change_notifier_factory.h',
         'android/network_library.cc',
         'android/network_library.h',
         'base/address_family.h',
@@ -982,11 +986,13 @@
             ],
             'dependencies': [
               '../build/android/system.gyp:ssl',
+              'net_java',
+              'net_jni_headers',
             ],
-            'sources/': [
+            'sources!': [
               # TODO(jingzhao): The below files are excluded because of the
               # missing JNI, add them back when JNI is ready.
-              ['exclude', '^android/'],
+              'android/network_library.cc',
             ],
           }, {  # else OS! = "android"
             'defines': [
@@ -1790,6 +1796,35 @@
          },
        ]
      }],
+    ['OS=="android"', {
+      'targets': [
+        {
+          'target_name': 'net_jni_headers',
+          'type': 'none',
+          'variables': {
+            'java_sources': [
+              'android/java/org/chromium/net/NetworkChangeNotifier.java',
+            ],
+            'jni_headers': [
+              '<(SHARED_INTERMEDIATE_DIR)/net/jni/network_change_notifier_jni.h',
+            ],
+          },
+          'includes': [ '../build/jni_generator.gypi' ],
+        },
+        {
+          'target_name': 'net_java',
+          'type': 'none',
+          'variables': {
+            'package_name': 'net',
+            'java_in_dir': '../net/android/java',
+          },
+          'dependencies': [
+            '../base/base.gyp:base_java',
+          ],
+          'includes': [ '../build/java.gypi' ],
+        },
+      ],
+    }],
     ['OS=="win"', {
       'targets': [
         {
