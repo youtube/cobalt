@@ -57,7 +57,7 @@ class ConfigReader : public SerialWorker {
       success_ = internal::ConvertResStateToDnsConfig(res, &dns_config_);
     }
     // Prefer res_ndestroy where available.
-#if defined(OS_MACOSX)
+#if defined(OS_MACOSX) || defined(OS_FREEBSD)
     res_ndestroy(&res);
 #else
     res_nclose(&res);
@@ -175,6 +175,22 @@ bool ConvertResStateToDnsConfig(const struct __res_state& res,
 
   dns_config->nameservers.clear();
 
+#if defined(OS_MACOSX) || defined(OS_FREEBSD)
+  union res_sockaddr_union addresses[MAXNS];
+  int nscount = res_getservers(const_cast<res_state>(&res), addresses, MAXNS);
+  DCHECK_GE(nscount, 0);
+  DCHECK_LE(nscount, MAXNS);
+  for (int i = 0; i < nscount; ++i) {
+    IPEndPoint ipe;
+    if (ipe.FromSockAddr(
+            reinterpret_cast<const struct sockaddr*>(&addresses[i]),
+            sizeof addresses[i])) {
+      dns_config->nameservers.push_back(ipe);
+    } else {
+      return false;
+    }
+  }
+#else  // !(defined(OS_MACOSX) || defined(OS_FREEBSD))
 #if defined(OS_LINUX)
   // Initially, glibc stores IPv6 in _ext.nsaddrs and IPv4 in nsaddr_list.
   // Next (res_send.c::__libc_res_nsend), it copies nsaddr_list after nsaddrs.
@@ -193,7 +209,7 @@ bool ConvertResStateToDnsConfig(const struct __res_state& res,
       return false;
     }
   }
-#endif
+#endif  // defined(OS_LINUX)
 
   for (int i = 0; i < res.nscount; ++i) {
     IPEndPoint ipe;
@@ -205,6 +221,7 @@ bool ConvertResStateToDnsConfig(const struct __res_state& res,
       return false;
     }
   }
+#endif
 
   dns_config->search.clear();
   for (int i = 0; (i < MAXDNSRCH) && res.dnsrch[i]; ++i) {
