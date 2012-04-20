@@ -220,6 +220,12 @@ class NET_EXPORT_PRIVATE SpdyFramer {
     LAST_ERROR,  // Must be the last entry in the enum.
   };
 
+  // The minimum supported SPDY version that SpdyFramer can speak.
+  static const int kMinSpdyVersion;
+
+  // The maximum supported SPDY version that SpdyFramer can speak.
+  static const int kMaxSpdyVersion;
+
   // Constant for invalid (or unknown) stream IDs.
   static const SpdyStreamId kInvalidStream;
 
@@ -393,9 +399,6 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // For ease of testing and experimentation we can tweak compression on/off.
   void set_enable_compression(bool value);
 
-  // SPDY will by default validate the length of incoming control
-  // frames. Set validation to false if you do not want this behavior.
-  void set_validate_control_frame_sizes(bool value);
   static void set_enable_compression_default(bool value);
 
   // Used only in log messages.
@@ -546,7 +549,6 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // current_frame_buffer_.
   SpdySettingsScratch settings_scratch_;
 
-  bool validate_control_frame_sizes_;
   bool enable_compression_;  // Controls all compression
   // SPDY header compressors.
   scoped_ptr<z_stream> header_compressor_;
