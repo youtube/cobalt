@@ -216,6 +216,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
     SPDY_DECOMPRESS_FAILURE,         // There was an error decompressing.
     SPDY_COMPRESS_FAILURE,           // There was an error compressing.
     SPDY_CREDENTIAL_FRAME_CORRUPT,   // CREDENTIAL frame could not be parsed.
+    SPDY_INVALID_DATA_FRAME_FLAGS,   // Data frame has invalid flags.
 
     LAST_ERROR,  // Must be the last entry in the enum.
   };
@@ -356,7 +357,6 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // |data| is the data to be included in the frame.
   // |len| is the length of the data
   // |flags| is the flags to use with the data.
-  //    To create a compressed frame, enable DATA_FLAG_COMPRESSED.
   //    To mark this frame as the last data frame, enable DATA_FLAG_FIN.
   SpdyDataFrame* CreateDataFrame(SpdyStreamId stream_id, const char* data,
                                  uint32 len, SpdyDataFlags flags);
@@ -447,8 +447,6 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   friend class test::TestSpdyVisitor;
 
  private:
-  typedef std::map<SpdyStreamId, z_stream*> CompressorMap;
-
   // Internal breakouts from ProcessInput. Each returns the number of bytes
   // consumed from the data.
   size_t ProcessCommonHeader(const char* data, size_t len);
@@ -466,13 +464,9 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // Get (and lazily initialize) the ZLib state.
   z_stream* GetHeaderCompressor();
   z_stream* GetHeaderDecompressor();
-  z_stream* GetStreamDecompressor(SpdyStreamId id);
 
   // Compression helpers
   SpdyControlFrame* CompressControlFrame(const SpdyControlFrame& frame);
-  void CleanupCompressorForStream(SpdyStreamId id);
-  void CleanupDecompressorForStream(SpdyStreamId id);
-  void CleanupStreamCompressorsAndDecompressors();
 
   // Deliver the given control frame's compressed headers block to the visitor
   // in decompressed form, in chunks. Returns true if the visitor has
@@ -513,9 +507,6 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   bool GetFrameBoundaries(const SpdyFrame& frame, int* payload_length,
                           int* header_length, const char** payload) const;
 
-  int num_stream_compressors() const { return stream_compressors_.size(); }
-  int num_stream_decompressors() const { return stream_decompressors_.size(); }
-
   // The size of the control frame buffer.
   // Since this is only used for control frame headers, the maximum control
   // frame header size (SYN_STREAM) is sufficient; all remaining control
@@ -553,10 +544,6 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // SPDY header compressors.
   scoped_ptr<z_stream> header_compressor_;
   scoped_ptr<z_stream> header_decompressor_;
-
-  // Per-stream data compressors.
-  CompressorMap stream_compressors_;
-  CompressorMap stream_decompressors_;
 
   SpdyFramerVisitorInterface* visitor_;
 

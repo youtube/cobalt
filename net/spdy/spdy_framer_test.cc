@@ -9,13 +9,32 @@
 #include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_protocol.h"
 #include "net/spdy/spdy_frame_builder.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/platform_test.h"
+
+using testing::_;
 
 namespace net {
 
 namespace test {
 
 static const size_t kMaxDecompressedSize = 1024;
+
+class MockVisitor : public SpdyFramerVisitorInterface {
+ public:
+  MOCK_METHOD1(OnError, void(SpdyFramer* framer));
+  MOCK_METHOD1(OnControl, void(const SpdyControlFrame* frame));
+  MOCK_METHOD3(OnControlFrameHeaderData, bool(SpdyStreamId stream_id,
+                                              const char* header_data,
+                                              size_t len));
+  MOCK_METHOD2(OnCredentialFrameData, bool(const char* header_data,
+                                           size_t len));
+  MOCK_METHOD1(OnDataFrameHeader, void(const SpdyDataFrame* frame));
+  MOCK_METHOD3(OnStreamFrameData, void(SpdyStreamId stream_id,
+                                       const char* data,
+                                       size_t len));
+  MOCK_METHOD3(OnSetting, void(SpdySettingsIds id, uint8 flags, uint32 value));
+};
 
 class SpdyFramerTestUtil {
  public:
@@ -43,7 +62,7 @@ class SpdyFramerTestUtil {
   class DecompressionVisitor : public SpdyFramerVisitorInterface {
    public:
     DecompressionVisitor()
-        : buffer_(NULL), size_(0), finished_(false), allow_data_frames_(false) {
+        : buffer_(NULL), size_(0), finished_(false) {
     }
 
     virtual void OnControl(const SpdyControlFrame* frame) {
@@ -98,11 +117,7 @@ class SpdyFramerTestUtil {
 
     virtual void OnError(SpdyFramer* framer) { LOG(FATAL); }
     virtual void OnDataFrameHeader(const SpdyDataFrame* frame) {
-      // For most tests, this class does not expect to see OnDataFrameHeader
-      // calls.  Individual tests can override this if they need to.
-      if (!allow_data_frames_) {
-        LOG(FATAL) << "Unexpected data frame header";
-      }
+      LOG(FATAL) << "Unexpected data frame header";
     }
     virtual void OnStreamFrameData(SpdyStreamId stream_id,
                                    const char* data,
@@ -122,13 +137,11 @@ class SpdyFramerTestUtil {
       CHECK(finished_);
       return size_;
     }
-    void set_allow_data_frames(bool allow) { allow_data_frames_ = allow; }
 
    private:
     scoped_array<char> buffer_;
     size_t size_;
     bool finished_;
-    bool allow_data_frames_;
 
     DISALLOW_COPY_AND_ASSIGN(DecompressionVisitor);
   };
@@ -1169,12 +1182,6 @@ TEST_P(SpdyFramerTest, HeaderCompression) {
   EXPECT_EQ(kValue1, decompressed_headers[kHeader1]);
   EXPECT_EQ(kValue2, decompressed_headers[kHeader2]);
   EXPECT_EQ(kValue3, decompressed_headers[kHeader3]);
-
-  // We didn't have data streams, so we shouldn't have (de)compressors.
-  EXPECT_EQ(0, send_framer.num_stream_compressors());
-  EXPECT_EQ(0, send_framer.num_stream_decompressors());
-  EXPECT_EQ(0, recv_framer.num_stream_compressors());
-  EXPECT_EQ(0, recv_framer.num_stream_decompressors());
 }
 
 // Verify we don't leak when we leave streams unclosed
@@ -1227,12 +1234,6 @@ TEST_P(SpdyFramerTest, UnclosedStreamDataCompressors) {
   EXPECT_EQ(0, visitor.fin_flag_count_);
   EXPECT_EQ(1, visitor.zero_length_data_frame_count_);
   EXPECT_EQ(1, visitor.data_frame_count_);
-
-  // We closed the streams, so all compressors should be down.
-  EXPECT_EQ(0, visitor.framer_.num_stream_compressors());
-  EXPECT_EQ(0, visitor.framer_.num_stream_decompressors());
-  EXPECT_EQ(0, send_framer.num_stream_compressors());
-  EXPECT_EQ(0, send_framer.num_stream_decompressors());
 }
 
 // Verify we can decompress the stream even if handed over to the
@@ -1296,12 +1297,6 @@ TEST_P(SpdyFramerTest, UnclosedStreamDataCompressorsOneByteAtATime) {
   EXPECT_EQ(0, visitor.fin_flag_count_);
   EXPECT_EQ(1, visitor.zero_length_data_frame_count_);
   EXPECT_EQ(1, visitor.data_frame_count_);
-
-  // We closed the streams, so all compressors should be down.
-  EXPECT_EQ(0, visitor.framer_.num_stream_compressors());
-  EXPECT_EQ(0, visitor.framer_.num_stream_decompressors());
-  EXPECT_EQ(0, send_framer.num_stream_compressors());
-  EXPECT_EQ(0, send_framer.num_stream_decompressors());
 }
 
 TEST_P(SpdyFramerTest, WindowUpdateFrame) {
@@ -1332,8 +1327,9 @@ TEST_P(SpdyFramerTest, CreateDataFrame) {
       'h', 'e', 'l', 'l',
       'o'
     };
+    const char bytes[] = "hello";
     scoped_ptr<SpdyFrame> frame(framer.CreateDataFrame(
-        1, "hello", 5, DATA_FLAG_NONE));
+        1, bytes, arraysize(bytes) - 1, DATA_FLAG_NONE));
     CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
   }
 
@@ -2492,6 +2488,9 @@ TEST_P(SpdyFramerTest, ErrorCodeToStringTest) {
   EXPECT_STREQ("COMPRESS_FAILURE",
                SpdyFramer::ErrorCodeToString(
                    SpdyFramer::SPDY_COMPRESS_FAILURE));
+  EXPECT_STREQ("SPDY_INVALID_DATA_FRAME_FLAGS",
+               SpdyFramer::ErrorCodeToString(
+                   SpdyFramer::SPDY_INVALID_DATA_FRAME_FLAGS));
   EXPECT_STREQ("UNKNOWN_ERROR",
                SpdyFramer::ErrorCodeToString(SpdyFramer::LAST_ERROR));
 }
@@ -2584,19 +2583,56 @@ TEST_P(SpdyFramerTest, GetMinimumControlFrameSizeTest) {
 }
 
 TEST_P(SpdyFramerTest, CatchProbableHttpResponse) {
-  SpdyFramerTestUtil::DecompressionVisitor visitor;
-  visitor.set_allow_data_frames(true);
   {
+    testing::StrictMock<test::MockVisitor> visitor;
     SpdyFramer framer(spdy_version_);
     framer.set_visitor(&visitor);
+
+    // This won't cause an error at the framer level.  It will cause
+    // flag validation errors at the Visitor::OnDataFrameHeader level.
+    EXPECT_CALL(visitor, OnDataFrameHeader(_));
     framer.ProcessInput("HTTP/1.1", 8);
     EXPECT_TRUE(framer.probable_http_response());
+    EXPECT_EQ(SpdyFramer::SPDY_FORWARD_STREAM_FRAME, framer.state());
   }
   {
+    testing::StrictMock<test::MockVisitor> visitor;
     SpdyFramer framer(spdy_version_);
     framer.set_visitor(&visitor);
+
+    // This won't cause an error at the framer level.  It will cause
+    // flag validation errors at the Visitor::OnDataFrameHeader level.
+    EXPECT_CALL(visitor, OnDataFrameHeader(_));
     framer.ProcessInput("HTTP/1.0", 8);
     EXPECT_TRUE(framer.probable_http_response());
+    EXPECT_EQ(SpdyFramer::SPDY_FORWARD_STREAM_FRAME, framer.state());
+  }
+}
+
+TEST_P(SpdyFramerTest, DataFrameFlags) {
+  for (int flags = 0; flags < 256; ++flags) {
+    SCOPED_TRACE(testing::Message() << "Flags " << flags);
+
+    testing::StrictMock<test::MockVisitor> visitor;
+    SpdyFramer framer(spdy_version_);
+    framer.set_visitor(&visitor);
+
+    scoped_ptr<SpdyFrame> frame(
+        framer.CreateDataFrame(1, "hello", 5, DATA_FLAG_NONE));
+    frame->set_flags(flags);
+
+    // Flags are just passed along since they need to be validated at
+    // a higher protocol layer.
+    EXPECT_CALL(visitor, OnDataFrameHeader(_));
+    EXPECT_CALL(visitor, OnStreamFrameData(_, _, 5));
+    if (flags & DATA_FLAG_FIN) {
+      EXPECT_CALL(visitor, OnStreamFrameData(_, _, 0));
+    }
+
+    size_t frame_size = frame->length() + SpdyFrame::kHeaderSize;
+    framer.ProcessInput(frame->data(), frame_size);
+    EXPECT_EQ(SpdyFramer::SPDY_FORWARD_STREAM_FRAME, framer.state());
+    EXPECT_EQ(SpdyFramer::SPDY_NO_ERROR, framer.error_code());
   }
 }
 

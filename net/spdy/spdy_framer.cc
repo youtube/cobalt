@@ -139,7 +139,6 @@ SpdyFramer::~SpdyFramer() {
   if (header_decompressor_.get()) {
     inflateEnd(header_decompressor_.get());
   }
-  CleanupStreamCompressorsAndDecompressors();
 }
 
 void SpdyFramer::Reset() {
@@ -205,6 +204,8 @@ const char* SpdyFramer::ErrorCodeToString(int error_code) {
       return "DECOMPRESS_FAILURE";
     case SPDY_COMPRESS_FAILURE:
       return "COMPRESS_FAILURE";
+    case SPDY_INVALID_DATA_FRAME_FLAGS:
+      return "SPDY_INVALID_DATA_FRAME_FLAGS";
   }
   return "UNKNOWN_ERROR";
 }
@@ -374,17 +375,8 @@ size_t SpdyFramer::ProcessCommonHeader(const char* data, size_t len) {
   }
 
   if (current_frame_len_ < SpdyFrame::kHeaderSize) {
+    // TODO(rch): remove this empty block
     // Do nothing.
-  } else if (current_frame_len_ == SpdyFrame::kHeaderSize &&
-             !current_frame.is_control_frame() &&
-             current_frame.length() == 0) {
-    // Empty data frame.
-    SpdyDataFrame data_frame(current_frame_buffer_.get(), false);
-    visitor_->OnDataFrameHeader(&data_frame);
-    if (current_frame.flags() & DATA_FLAG_FIN) {
-      visitor_->OnStreamFrameData(data_frame.stream_id(), NULL, 0);
-    }
-    CHANGE_STATE(SPDY_AUTO_RESET);
   } else {
     remaining_data_ = current_frame.length();
 
@@ -406,7 +398,16 @@ size_t SpdyFramer::ProcessCommonHeader(const char* data, size_t len) {
     if (!current_frame.is_control_frame()) {
       SpdyDataFrame data_frame(current_frame_buffer_.get(), false);
       visitor_->OnDataFrameHeader(&data_frame);
-      CHANGE_STATE(SPDY_FORWARD_STREAM_FRAME);
+
+      if (current_frame.length() > 0) {
+        CHANGE_STATE(SPDY_FORWARD_STREAM_FRAME);
+      } else {
+        // Empty data frame.
+        if (current_frame.flags() & DATA_FLAG_FIN) {
+          visitor_->OnStreamFrameData(data_frame.stream_id(), NULL, 0);
+        }
+        CHANGE_STATE(SPDY_AUTO_RESET);
+      }
     } else {
       ProcessControlFrameHeader();
     }
@@ -859,42 +860,10 @@ size_t SpdyFramer::ProcessDataFramePayload(const char* data, size_t len) {
   if (remaining_data_) {
     size_t amount_to_forward = std::min(remaining_data_, len);
     if (amount_to_forward && state_ != SPDY_IGNORE_REMAINING_PAYLOAD) {
-      if (current_data_frame.flags() & DATA_FLAG_COMPRESSED) {
-        z_stream* decompressor =
-            GetStreamDecompressor(current_data_frame.stream_id());
-        if (!decompressor)
-          return 0;
-
-        size_t decompressed_max_size = amount_to_forward * 100;
-        scoped_array<char> decompressed(new char[decompressed_max_size]);
-        decompressor->next_in = reinterpret_cast<Bytef*>(
-            const_cast<char*>(data));
-        decompressor->avail_in = amount_to_forward;
-        decompressor->next_out =
-            reinterpret_cast<Bytef*>(decompressed.get());
-        decompressor->avail_out = decompressed_max_size;
-
-        int rv = inflate(decompressor, Z_SYNC_FLUSH);
-        if (rv != Z_OK) {
-          LOG(WARNING) << "inflate failure: " << rv;
-          set_error(SPDY_DECOMPRESS_FAILURE);
-          return 0;
-        }
-        size_t decompressed_size = decompressed_max_size -
-                                   decompressor->avail_out;
-
         // Only inform the visitor if there is data.
-        if (decompressed_size)
-          visitor_->OnStreamFrameData(current_data_frame.stream_id(),
-                                      decompressed.get(),
-                                      decompressed_size);
-        amount_to_forward -= decompressor->avail_in;
-      } else {
-        // The data frame was not compressed.
-        // Only inform the visitor if there is data.
-        if (amount_to_forward)
-          visitor_->OnStreamFrameData(current_data_frame.stream_id(),
-                                      data, amount_to_forward);
+      if (amount_to_forward) {
+        visitor_->OnStreamFrameData(current_data_frame.stream_id(),
+                                    data, amount_to_forward);
       }
     }
     data += amount_to_forward;
@@ -906,7 +875,6 @@ size_t SpdyFramer::ProcessDataFramePayload(const char* data, size_t len) {
     if (!remaining_data_ &&
         current_data_frame.flags() & DATA_FLAG_FIN) {
       visitor_->OnStreamFrameData(current_data_frame.stream_id(), NULL, 0);
-      CleanupDecompressorForStream(current_data_frame.stream_id());
     }
   } else {
     CHANGE_STATE(SPDY_AUTO_RESET);
@@ -1249,19 +1217,7 @@ SpdyDataFrame* SpdyFramer::CreateDataFrame(SpdyStreamId stream_id,
   SpdyFrameBuilder frame(stream_id, flags, frame_size);
   frame.WriteBytes(data, len);
   DCHECK_EQ(static_cast<size_t>(frame.length()), frame_size);
-  scoped_ptr<SpdyFrame> data_frame(frame.take());
-  SpdyDataFrame* rv;
-  if (flags & DATA_FLAG_COMPRESSED) {
-    LOG(DFATAL) << "DATA_FLAG_COMPRESSED invalid for " << display_protocol_
-                << ".";
-  }
-  rv = reinterpret_cast<SpdyDataFrame*>(data_frame.release());
-
-  if (flags & DATA_FLAG_FIN) {
-    CleanupCompressorForStream(stream_id);
-  }
-
-  return rv;
+  return reinterpret_cast<SpdyDataFrame*>(frame.take());
 }
 
 // The following compression setting are based on Brian Olson's analysis. See
@@ -1338,22 +1294,6 @@ z_stream* SpdyFramer::GetHeaderDecompressor() {
     return NULL;
   }
   return header_decompressor_.get();
-}
-
-z_stream* SpdyFramer::GetStreamDecompressor(SpdyStreamId stream_id) {
-  CompressorMap::iterator it = stream_decompressors_.find(stream_id);
-  if (it != stream_decompressors_.end())
-    return it->second;  // Already initialized.
-
-  scoped_ptr<z_stream> decompressor(new z_stream);
-  memset(decompressor.get(), 0, sizeof(z_stream));
-
-  int success = inflateInit(decompressor.get());
-  if (success != Z_OK) {
-    LOG(WARNING) << "inflateInit failure: " << success;
-    return NULL;
-  }
-  return stream_decompressors_[stream_id] = decompressor.release();
 }
 
 bool SpdyFramer::GetFrameBoundaries(const SpdyFrame& frame,
@@ -1456,16 +1396,6 @@ SpdyControlFrame* SpdyFramer::CompressControlFrame(
   compressor->next_out = reinterpret_cast<Bytef*>(new_frame->data()) +
                           header_length;
   compressor->avail_out = compressed_max_size;
-
-  // Data packets have a 'compressed' flag.
-  // TODO(hkhalil): Remove post code-yellow. It's impossible to execute this
-  // branch given that SpdyControlFrame::is_control_frame always returns true.
-  DCHECK(new_frame->is_control_frame());
-  if (!new_frame->is_control_frame()) {
-    SpdyDataFrame* data_frame =
-        reinterpret_cast<SpdyDataFrame*>(new_frame.get());
-    data_frame->set_flags(data_frame->flags() | DATA_FLAG_COMPRESSED);
-  }
 
   // Make sure that all the data we pass to zlib is defined.
   // This way, all Valgrind reports on the compressed data are zlib's fault.
@@ -1585,48 +1515,6 @@ bool SpdyFramer::IncrementallyDeliverControlFrameHeaderData(
     }
   }
   return read_successfully;
-}
-
-void SpdyFramer::CleanupCompressorForStream(SpdyStreamId id) {
-  CompressorMap::iterator it = stream_compressors_.find(id);
-  if (it != stream_compressors_.end()) {
-    z_stream* compressor = it->second;
-    deflateEnd(compressor);
-    delete compressor;
-    stream_compressors_.erase(it);
-  }
-}
-
-void SpdyFramer::CleanupDecompressorForStream(SpdyStreamId id) {
-  CompressorMap::iterator it = stream_decompressors_.find(id);
-  if (it != stream_decompressors_.end()) {
-    z_stream* decompressor = it->second;
-    inflateEnd(decompressor);
-    delete decompressor;
-    stream_decompressors_.erase(it);
-  }
-}
-
-void SpdyFramer::CleanupStreamCompressorsAndDecompressors() {
-  CompressorMap::iterator it;
-
-  it = stream_compressors_.begin();
-  while (it != stream_compressors_.end()) {
-    z_stream* compressor = it->second;
-    deflateEnd(compressor);
-    delete compressor;
-    ++it;
-  }
-  stream_compressors_.clear();
-
-  it = stream_decompressors_.begin();
-  while (it != stream_decompressors_.end()) {
-    z_stream* decompressor = it->second;
-    inflateEnd(decompressor);
-    delete decompressor;
-    ++it;
-  }
-  stream_decompressors_.clear();
 }
 
 SpdyFrame* SpdyFramer::DuplicateFrame(const SpdyFrame& frame) {
