@@ -555,20 +555,6 @@ TEST_F(VideoRendererBaseTest, StopDuringOutstandingRead) {
   WaitForClosure();  // Finish the Stop().
 }
 
-// Flush when there's pending read but the decoder can't fulfill.
-TEST_F(VideoRendererBaseTest, PendingRead_Flush) {
-  Initialize();
-  Play();
-
-  // Render a frame to trigger a Read().
-  RenderFrame(kFrameDuration);
-
-  Pause();
-  renderer_->Flush(NewWaitableClosure());
-  WaitForClosure();
-  Shutdown();
-}
-
 TEST_F(VideoRendererBaseTest, AbortPendingRead_Playing) {
   Initialize();
   Play();

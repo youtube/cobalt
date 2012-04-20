@@ -358,9 +358,13 @@ void VideoRendererBase::FrameReady(scoped_refptr<VideoFrame> frame) {
 
   // Already-queued Decoder ReadCB's can fire after various state transitions
   // have happened; in that case just drop those frames immediately.
-  if (state_ == kStopped || state_ == kError ||
-      state_ == kFlushing || state_ == kFlushed)
+  if (state_ == kStopped || state_ == kError || state_ == kFlushed)
     return;
+
+  if (state_ == kFlushing) {
+    AttemptFlush_Locked();
+    return;
+  }
 
   if (!frame) {
     if (state_ != kSeeking)
@@ -457,7 +461,7 @@ void VideoRendererBase::AttemptFlush_Locked() {
   // Get rid of any ready frames.
   ready_frames_.clear();
 
-  if (!pending_paint_) {
+  if (!pending_paint_ && !pending_read_) {
     state_ = kFlushed;
     current_frame_ = NULL;
 
