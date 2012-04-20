@@ -131,7 +131,8 @@ bool DelayedCacheCleanup(const FilePath& full_path) {
   }
 
   if (!disk_cache::MoveCache(full_path, to_delete)) {
-    LOG(ERROR) << "Unable to move cache folder";
+    LOG(ERROR) << "Unable to move cache folder " << full_path.value() << " to "
+               << to_delete.value();
     return false;
   }
 
