@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,6 +19,8 @@ const unsigned char* RefCountedStaticMemory::front() const {
 size_t RefCountedStaticMemory::size() const {
   return length_;
 }
+
+namespace base {
 
 RefCountedBytes::RefCountedBytes() {
 }
@@ -46,8 +48,6 @@ size_t RefCountedBytes::size() const {
 
 RefCountedBytes::~RefCountedBytes() {
 }
-
-namespace base {
 
 RefCountedString::RefCountedString() {}
 
