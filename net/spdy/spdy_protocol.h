@@ -374,8 +374,6 @@ enum SpdyControlType {
 enum SpdyDataFlags {
   DATA_FLAG_NONE = 0,
   DATA_FLAG_FIN = 1,
-  // TODO(hkhalil): Remove.
-  DATA_FLAG_COMPRESSED = 2
 };
 
 // Flags on control packets
