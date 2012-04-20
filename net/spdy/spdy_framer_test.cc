@@ -2631,32 +2631,9 @@ TEST_P(SpdyFramerTest, DataFrameFlags) {
 
     size_t frame_size = frame->length() + SpdyFrame::kHeaderSize;
     framer.ProcessInput(frame->data(), frame_size);
-    EXPECT_EQ(SpdyFramer::SPDY_RESET, framer.state());
+    EXPECT_EQ(SpdyFramer::SPDY_FORWARD_STREAM_FRAME, framer.state());
     EXPECT_EQ(SpdyFramer::SPDY_NO_ERROR, framer.error_code());
   }
-}
-
-TEST_P(SpdyFramerTest, EmptySynStream) {
-  SpdyHeaderBlock headers;
-
-  testing::StrictMock<test::MockVisitor> visitor;
-  SpdyFramer framer(spdy_version_);
-  framer.set_visitor(&visitor);
-
-  scoped_ptr<SpdySynStreamControlFrame>
-      frame(framer.CreateSynStream(1, 0, 1, 0, CONTROL_FLAG_NONE, true,
-                                   &headers));
-  // Adjust size to remove the name/value block.
-  frame->set_length(
-      SpdySynStreamControlFrame::size() - SpdyFrame::kHeaderSize);
-
-  EXPECT_CALL(visitor, OnControl(_));
-  EXPECT_CALL(visitor, OnControlFrameHeaderData(1, NULL, 0));
-
-  size_t frame_size = frame->length() + SpdyFrame::kHeaderSize;
-  framer.ProcessInput(frame->data(), frame_size);
-  EXPECT_EQ(SpdyFramer::SPDY_RESET, framer.state());
-  EXPECT_EQ(SpdyFramer::SPDY_NO_ERROR, framer.error_code());
 }
 
 TEST_P(SpdyFramerTest, SettingsFlagsAndId) {
