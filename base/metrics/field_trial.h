@@ -146,6 +146,10 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   static std::string MakeName(const std::string& name_prefix,
                               const std::string& trial_name);
 
+  // Helper function to create a NameGroupId from |trial_name| and |group_name|.
+  static NameGroupId MakeNameGroupId(const std::string& trial_name,
+                                     const std::string& group_name);
+
   // Enable benchmarking sets field trials to a common setting.
   static void EnableBenchmarking();
 
