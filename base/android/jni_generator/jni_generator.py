@@ -180,6 +180,7 @@ def JavaParamToJni(param):
       'Lorg/chromium/chromeview/SurfaceTextureListener',
       'Lorg/chromium/chromeview/TouchPoint',
       'Lorg/chromium/media/MediaPlayerListener',
+      'Lorg/chromium/net/NetworkChangeNotifier',
   ]
   if param == 'byte[][]':
     return '[[B'
