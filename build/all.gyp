@@ -11,7 +11,6 @@
       'dependencies': [
         'some.gyp:*',
         '../base/base.gyp:*',
-        '../chrome/browser/sync/tools/sync_tools.gyp:*',
         '../chrome/chrome.gyp:*',
         '../content/content.gyp:*',
         '../crypto/crypto.gyp:*',
