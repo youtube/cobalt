@@ -1243,7 +1243,7 @@ TEST_F(URLRequestTestHTTP, GetZippedTest) {
             << " Parameter = \"" << test_file << "\"";
       } else {
         EXPECT_EQ(URLRequestStatus::FAILED, r.status().status());
-        EXPECT_EQ(-100, r.status().error())
+        EXPECT_EQ(ERR_CONTENT_LENGTH_MISMATCH, r.status().error())
             << " Parameter = \"" << test_file << "\"";
       }
     }
