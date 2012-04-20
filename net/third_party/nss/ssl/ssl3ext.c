@@ -569,6 +569,10 @@ ssl3_ServerHandleNextProtoNegoXtn(sslSocket * ss, PRUint16 ex_type, SECItem *dat
 
     ss->xtnData.negotiated[ss->xtnData.numNegotiated++] = ex_type;
 
+    /* TODO: server side NPN support would require calling
+     * ssl3_RegisterServerHelloExtensionSender here in order to echo the
+     * extension back to the client. */
+
     return SECSuccess;
 }
 
