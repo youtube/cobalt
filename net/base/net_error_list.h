@@ -519,6 +519,14 @@ NET_ERROR(SPDY_PING_FAILED, -352)
 // The request couldn't be completed on an HTTP pipeline. Client should retry.
 NET_ERROR(PIPELINE_EVICTION, -353)
 
+// The HTTP response body transferred fewer bytes than were advertised by the
+// Content-Length header when the connection is closed.
+NET_ERROR(CONTENT_LENGTH_MISMATCH, -354)
+
+// The HTTP response body is transferred with Chunked-Encoding, but the
+// terminating zero-length chunk was never sent when the connection is closed.
+NET_ERROR(INCOMPLETE_CHUNKED_ENCODING, -355)
+
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
 

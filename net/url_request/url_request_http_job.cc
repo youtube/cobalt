@@ -755,9 +755,9 @@ void URLRequestHttpJob::OnReadCompleted(int result) {
   read_in_progress_ = false;
 
   if (ShouldFixMismatchedContentLength(result))
-    result = 0;
+    result = OK;
 
-  if (result == 0) {
+  if (result == OK) {
     NotifyDone(URLRequestStatus());
   } else if (result < 0) {
     NotifyDone(URLRequestStatus(URLRequestStatus::FAILED, result));
@@ -1098,7 +1098,8 @@ bool URLRequestHttpJob::ShouldFixMismatchedContentLength(int rv) const {
   // the uncompressed size.  Although this violates the HTTP spec we want to
   // support it (as IE and FireFox do), but *only* for an exact match.
   // See http://crbug.com/79694.
-  if (rv == net::ERR_CONNECTION_CLOSED) {
+  if (rv == net::ERR_CONTENT_LENGTH_MISMATCH ||
+      rv == net::ERR_INCOMPLETE_CHUNKED_ENCODING) {
     if (request_ && request_->response_headers()) {
       int64 expected_length = request_->response_headers()->GetContentLength();
       VLOG(1) << __FUNCTION__ << "() "
