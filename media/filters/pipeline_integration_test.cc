@@ -14,6 +14,9 @@ namespace media {
 static const unsigned char kKeyId[] =
     "\x11\xa5\x18\x37\xc4\x73\x84\x03\xe5\xe6\x57\xed\x8e\x06\xd9\x7c";
 
+static const char* kSourceId = "SourceId";
+static const char* kDefaultSourceType = "video/webm; codecs=\"vp8, vorbis\"";
+
 // Helper class that emulates calls made on the ChunkDemuxer by the
 // Media Source API.
 class MockMediaSource : public ChunkDemuxerClient {
@@ -46,7 +49,9 @@ class MockMediaSource : public ChunkDemuxerClient {
     DCHECK(chunk_demuxer_.get());
     DCHECK_LT(current_position_, file_data_size_);
     DCHECK_LE(current_position_ + size, file_data_size_);
-    chunk_demuxer_->AppendData(file_data_.get() + current_position_, size);
+    DCHECK(chunk_demuxer_->AppendData(kSourceId,
+                                      file_data_.get() + current_position_,
+                                      size));
     current_position_ += size;
   }
 
@@ -63,6 +68,8 @@ class MockMediaSource : public ChunkDemuxerClient {
   // ChunkDemuxerClient methods.
   virtual void DemuxerOpened(ChunkDemuxer* demuxer) {
     chunk_demuxer_ = demuxer;
+    DCHECK_EQ(chunk_demuxer_->AddId(kSourceId, kDefaultSourceType),
+              ChunkDemuxer::kOk);
     AppendData(initial_append_size_);
   }
 
