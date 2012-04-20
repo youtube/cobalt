@@ -6086,12 +6086,18 @@ ssl3_CanFalseStart(sslSocket *ss) {
     rv = ss->opt.enableFalseStart &&
 	 !ss->sec.isServer &&
 	 !ss->ssl3.hs.isResuming &&
-	 ssl3_ExtensionNegotiated(ss, ssl_next_proto_nego_xtn) &&
 	 ss->ssl3.cwSpec &&
+
+	 /* An attacker can control the selected ciphersuite so we only wish to
+	  * do False Start in the case that the selected ciphersuite is
+	  * sufficiently strong that the attack can gain no advantage.
+	  * Therefore we require an 80-bit cipher and a forward-secret key
+	  * exchange. */
 	 ss->ssl3.cwSpec->cipher_def->secret_key_size >= 10 &&
-	(ss->ssl3.hs.kea_def->exchKeyType == ssl_kea_rsa ||
-	 ss->ssl3.hs.kea_def->exchKeyType == ssl_kea_dh  ||
-	 ss->ssl3.hs.kea_def->exchKeyType == ssl_kea_ecdh);
+	(ss->ssl3.hs.kea_def->kea == kea_dhe_dss ||
+	 ss->ssl3.hs.kea_def->kea == kea_dhe_rsa ||
+	 ss->ssl3.hs.kea_def->kea == kea_ecdhe_ecdsa ||
+	 ss->ssl3.hs.kea_def->kea == kea_ecdhe_rsa);
     ssl_ReleaseSpecReadLock(ss);
     return rv;
 }
