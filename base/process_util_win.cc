@@ -176,13 +176,14 @@ ProcessHandle GetCurrentProcessHandle() {
 }
 
 HMODULE GetModuleFromAddress(void* address) {
-  HMODULE hinst = NULL;
-  if (!::GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS,
+  HMODULE instance = NULL;
+  if (!::GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                            GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
                             static_cast<char*>(address),
-                            &hinst)) {
+                            &instance)) {
     NOTREACHED();
   }
-  return hinst;
+  return instance;
 }
 
 bool OpenProcessHandle(ProcessId pid, ProcessHandle* handle) {
