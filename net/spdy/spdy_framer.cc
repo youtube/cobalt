@@ -56,6 +56,8 @@ bool g_enable_compression_default = true;
 
 }  // namespace
 
+const int SpdyFramer::kMinSpdyVersion = 2;
+const int SpdyFramer::kMaxSpdyVersion = 3;
 const SpdyStreamId SpdyFramer::kInvalidStream = -1;
 const size_t SpdyFramer::kHeaderDataChunkMaxSize = 1024;
 const size_t SpdyFramer::kControlFrameBufferSize =
@@ -120,15 +122,14 @@ SpdyFramer::SpdyFramer(int version)
       remaining_control_header_(0),
       current_frame_buffer_(new char[kControlFrameBufferSize]),
       current_frame_len_(0),
-      validate_control_frame_sizes_(true),
       enable_compression_(g_enable_compression_default),
       visitor_(NULL),
       display_protocol_("SPDY"),
       spdy_version_(version),
       syn_frame_processed_(false),
       probable_http_response_(false) {
-  DCHECK_GE(3, version);
-  DCHECK_LE(2, version);
+  DCHECK_GE(kMaxSpdyVersion, version);
+  DCHECK_LE(kMinSpdyVersion, version);
 }
 
 SpdyFramer::~SpdyFramer() {
@@ -442,75 +443,73 @@ void SpdyFramer::ProcessControlFrameHeader() {
     return;
   }
 
-  if (validate_control_frame_sizes_) {
-    // Do some sanity checking on the control frame sizes.
-    switch (current_control_frame.type()) {
-      case SYN_STREAM:
-        if (current_control_frame.length() <
-            SpdySynStreamControlFrame::size() - SpdyControlFrame::kHeaderSize)
-          set_error(SPDY_INVALID_CONTROL_FRAME);
-        break;
-      case SYN_REPLY:
-        if (current_control_frame.length() <
-            SpdySynReplyControlFrame::size() - SpdyControlFrame::kHeaderSize)
-          set_error(SPDY_INVALID_CONTROL_FRAME);
-        break;
-      case RST_STREAM:
-        if (current_control_frame.length() !=
-            SpdyRstStreamControlFrame::size() - SpdyFrame::kHeaderSize)
-          set_error(SPDY_INVALID_CONTROL_FRAME);
-        break;
-      case SETTINGS:
-        // Make sure that we have an integral number of 8-byte key/value pairs,
-        // plus a 4-byte length field.
-        if (current_control_frame.length() <
-            SpdySettingsControlFrame::size() - SpdyControlFrame::kHeaderSize ||
-            (current_control_frame.length() % 8 != 4)) {
-          DLOG(WARNING) << "Invalid length for SETTINGS frame: "
-                        << current_control_frame.length();
-          set_error(SPDY_INVALID_CONTROL_FRAME);
-        }
-        break;
-      case GOAWAY:
-        {
-          // SPDY 2 GOAWAY frames are 4 bytes smaller than in SPDY 3. We account
-          // for this difference via a separate offset variable, since
-          // SpdyGoAwayControlFrame::size() returns the SPDY 3 size.
-          const size_t goaway_offset = (protocol_version() < 3) ? 4 : 0;
-          if (current_control_frame.length() + goaway_offset !=
-              SpdyGoAwayControlFrame::size() - SpdyFrame::kHeaderSize)
-            set_error(SPDY_INVALID_CONTROL_FRAME);
-          break;
-        }
-      case HEADERS:
-        if (current_control_frame.length() <
-            SpdyHeadersControlFrame::size() - SpdyControlFrame::kHeaderSize)
-          set_error(SPDY_INVALID_CONTROL_FRAME);
-        break;
-      case WINDOW_UPDATE:
-        if (current_control_frame.length() !=
-            SpdyWindowUpdateControlFrame::size() -
-            SpdyControlFrame::kHeaderSize)
-          set_error(SPDY_INVALID_CONTROL_FRAME);
-        break;
-      case PING:
-        if (current_control_frame.length() !=
-            SpdyPingControlFrame::size() - SpdyControlFrame::kHeaderSize)
-          set_error(SPDY_INVALID_CONTROL_FRAME);
-        break;
-      case CREDENTIAL:
-        if (current_control_frame.length() <
-            SpdyCredentialControlFrame::size() - SpdyControlFrame::kHeaderSize)
-          set_error(SPDY_INVALID_CONTROL_FRAME);
-        break;
-      default:
-        LOG(WARNING) << "Valid " << display_protocol_
-                     << " control frame with unhandled type: "
-                     << current_control_frame.type();
-        DCHECK(false);
+  // Do some sanity checking on the control frame sizes.
+  switch (current_control_frame.type()) {
+    case SYN_STREAM:
+      if (current_control_frame.length() <
+          SpdySynStreamControlFrame::size() - SpdyControlFrame::kHeaderSize)
         set_error(SPDY_INVALID_CONTROL_FRAME);
+      break;
+    case SYN_REPLY:
+      if (current_control_frame.length() <
+          SpdySynReplyControlFrame::size() - SpdyControlFrame::kHeaderSize)
+        set_error(SPDY_INVALID_CONTROL_FRAME);
+      break;
+    case RST_STREAM:
+      if (current_control_frame.length() !=
+          SpdyRstStreamControlFrame::size() - SpdyFrame::kHeaderSize)
+        set_error(SPDY_INVALID_CONTROL_FRAME);
+      break;
+    case SETTINGS:
+      // Make sure that we have an integral number of 8-byte key/value pairs,
+      // plus a 4-byte length field.
+      if (current_control_frame.length() <
+          SpdySettingsControlFrame::size() - SpdyControlFrame::kHeaderSize ||
+          (current_control_frame.length() % 8 != 4)) {
+        DLOG(WARNING) << "Invalid length for SETTINGS frame: "
+                      << current_control_frame.length();
+        set_error(SPDY_INVALID_CONTROL_FRAME);
+      }
+      break;
+    case GOAWAY:
+      {
+        // SPDY 2 GOAWAY frames are 4 bytes smaller than in SPDY 3. We account
+        // for this difference via a separate offset variable, since
+        // SpdyGoAwayControlFrame::size() returns the SPDY 3 size.
+        const size_t goaway_offset = (protocol_version() < 3) ? 4 : 0;
+        if (current_control_frame.length() + goaway_offset !=
+            SpdyGoAwayControlFrame::size() - SpdyFrame::kHeaderSize)
+          set_error(SPDY_INVALID_CONTROL_FRAME);
         break;
-    }
+      }
+    case HEADERS:
+      if (current_control_frame.length() <
+          SpdyHeadersControlFrame::size() - SpdyControlFrame::kHeaderSize)
+        set_error(SPDY_INVALID_CONTROL_FRAME);
+      break;
+    case WINDOW_UPDATE:
+      if (current_control_frame.length() !=
+          SpdyWindowUpdateControlFrame::size() -
+          SpdyControlFrame::kHeaderSize)
+        set_error(SPDY_INVALID_CONTROL_FRAME);
+      break;
+    case PING:
+      if (current_control_frame.length() !=
+          SpdyPingControlFrame::size() - SpdyControlFrame::kHeaderSize)
+        set_error(SPDY_INVALID_CONTROL_FRAME);
+      break;
+    case CREDENTIAL:
+      if (current_control_frame.length() <
+          SpdyCredentialControlFrame::size() - SpdyControlFrame::kHeaderSize)
+        set_error(SPDY_INVALID_CONTROL_FRAME);
+      break;
+    default:
+      LOG(WARNING) << "Valid " << display_protocol_
+                   << " control frame with unhandled type: "
+                   << current_control_frame.type();
+      DCHECK(false);
+      set_error(SPDY_INVALID_CONTROL_FRAME);
+      break;
   }
 
   remaining_control_payload_ = current_control_frame.length();
@@ -1721,10 +1720,6 @@ SpdyStreamId SpdyFramer::GetControlFrameStreamId(
 
 void SpdyFramer::set_enable_compression(bool value) {
   enable_compression_ = value;
-}
-
-void SpdyFramer::set_validate_control_frame_sizes(bool value) {
-  validate_control_frame_sizes_ = value;
 }
 
 void SpdyFramer::set_enable_compression_default(bool value) {
