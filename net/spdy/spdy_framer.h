@@ -520,7 +520,6 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   static const size_t kMaxControlFrameSize;
 
   SpdyState state_;
-  SpdyState previous_state_;
   SpdyError error_code_;
   size_t remaining_data_;
 
