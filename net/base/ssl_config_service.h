@@ -154,6 +154,9 @@ class NET_EXPORT SSLConfigService
   static void EnableCachedInfo();
   static bool cached_info_enabled();
 
+  // Force domain bound cert support to be enabled.
+  static void EnableDomainBoundCertsTrial();
+
   // Is SNI available in this configuration?
   static bool IsSNIAvailable(SSLConfigService* service);
 
