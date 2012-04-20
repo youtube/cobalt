@@ -251,6 +251,7 @@
         '../chrome/chrome.gyp:gpu_tests',
         '../chrome/chrome.gyp:performance_browser_tests',
         '../chrome/chrome.gyp:performance_ui_tests',
+        '../gpu/gpu.gyp:gl_tests',
       ],
     }, # target_name: chromium_gpu_builder
     {
@@ -258,6 +259,7 @@
       'type': 'none',
       'dependencies': [
         '../chrome/chrome.gyp:gpu_tests',
+        '../gpu/gpu.gyp:gl_tests',
       ],
     }, # target_name: chromium_gpu_debug_builder
     {
