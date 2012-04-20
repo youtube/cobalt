@@ -1955,6 +1955,24 @@ typedef void (GL_APIENTRYP PFNGLTEXIMAGEIOSURFACE2DCHROMIUM) (GLenum target, GLs
 #endif
 #endif
 
+/* GL_CHROMIUM_copy_texture */
+#ifndef GL_CHROMIUM_copy_texture
+#ifndef GL_UNPACK_PREMULTIPLY_ALPHA_CHROMIUM
+#define GL_UNPACK_PREMULTIPLY_ALPHA_CHROMIUM 0x9241
+#endif
+#ifndef GL_UNPACK_COLORSPACE_CONVERSION_CHROMIUM
+#define GL_UNPACK_COLORSPACE_CONVERSION_CHROMIUM 0x9243
+#endif
+#ifdef GL_GLEXT_PROTOTYPES
+#define glCopyTextureCHROMIUM GLES2_GET_FUN(CopyTextureCHROMIUM)
+#if !defined(GLES2_USE_CPP_BINDINGS)
+GL_APICALL void GL_APIENTRY glCopyTextureCHROMIUM (GLenum target, GLenum source_id, GLenum dest_id, GLint level);
+#endif
+#else
+typedef void (GL_APIENTRYP PFNGLCOPYTEXTURECHROMIUM) (GLenum target, GLenum source_id, GLenum dest_id, GLint level);
+#endif
+#endif
+
 /* GL_CHROMIUM_command_buffer_query */
 /* Exposes GL_CHROMIUM_command_buffer_query.
  */
