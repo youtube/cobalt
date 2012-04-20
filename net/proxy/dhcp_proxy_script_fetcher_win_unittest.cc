@@ -212,8 +212,8 @@ TEST(DhcpProxyScriptFetcherWin, RealFetchWithDeferredCancel) {
 class DummyDhcpProxyScriptAdapterFetcher
     : public DhcpProxyScriptAdapterFetcher {
  public:
-  DummyDhcpProxyScriptAdapterFetcher()
-      : DhcpProxyScriptAdapterFetcher(new TestURLRequestContext()),
+  explicit DummyDhcpProxyScriptAdapterFetcher(URLRequestContext* context)
+      : DhcpProxyScriptAdapterFetcher(context),
         did_finish_(false),
         result_(OK),
         pac_script_(L"bingo"),
@@ -284,8 +284,8 @@ class MockDhcpProxyScriptFetcherWin : public DhcpProxyScriptFetcherWin {
     std::vector<std::string> mock_adapter_names_;
   };
 
-  MockDhcpProxyScriptFetcherWin()
-      : DhcpProxyScriptFetcherWin(new TestURLRequestContext()),
+  MockDhcpProxyScriptFetcherWin(URLRequestContext* context)
+      : DhcpProxyScriptFetcherWin(context),
         num_fetchers_created_(0),
         worker_finished_event_(true, false) {
     ResetTestState();
@@ -310,7 +310,7 @@ class MockDhcpProxyScriptFetcherWin : public DhcpProxyScriptFetcherWin {
                                    string16 pac_script,
                                    int fetch_delay_ms) {
     scoped_ptr<DummyDhcpProxyScriptAdapterFetcher> adapter_fetcher(
-        new DummyDhcpProxyScriptAdapterFetcher());
+        new DummyDhcpProxyScriptAdapterFetcher(url_request_context()));
     adapter_fetcher->Configure(did_finish, result, pac_script, fetch_delay_ms);
     PushBackAdapter(adapter_name, adapter_fetcher.release());
   }
@@ -371,7 +371,9 @@ class MockDhcpProxyScriptFetcherWin : public DhcpProxyScriptFetcherWin {
 class FetcherClient {
 public:
   FetcherClient()
-      : finished_(false),
+      : context_(new TestURLRequestContext),
+        fetcher_(context_),
+        finished_(false),
         result_(ERR_UNEXPECTED) {
   }
 
@@ -409,6 +411,7 @@ public:
     fetcher_.ResetTestState();
   }
 
+  scoped_refptr<URLRequestContext> context_;
   MockDhcpProxyScriptFetcherWin fetcher_;
   bool finished_;
   int result_;
@@ -418,8 +421,9 @@ public:
 // We separate out each test's logic so that we can easily implement
 // the ReuseFetcher test at the bottom.
 void TestNormalCaseURLConfiguredOneAdapter(FetcherClient* client) {
+  scoped_refptr<URLRequestContext> context(new TestURLRequestContext);
   scoped_ptr<DummyDhcpProxyScriptAdapterFetcher> adapter_fetcher(
-      new DummyDhcpProxyScriptAdapterFetcher());
+      new DummyDhcpProxyScriptAdapterFetcher(context));
   adapter_fetcher->Configure(true, OK, L"bingo", 1);
   client->fetcher_.PushBackAdapter("a", adapter_fetcher.release());
   client->RunTest();
@@ -569,8 +573,9 @@ TEST(DhcpProxyScriptFetcherWin, ShortCircuitLessPreferredAdapters) {
 }
 
 void TestImmediateCancel(FetcherClient* client) {
+  scoped_refptr<URLRequestContext> context(new TestURLRequestContext);
   scoped_ptr<DummyDhcpProxyScriptAdapterFetcher> adapter_fetcher(
-      new DummyDhcpProxyScriptAdapterFetcher());
+      new DummyDhcpProxyScriptAdapterFetcher(context));
   adapter_fetcher->Configure(true, OK, L"bingo", 1);
   client->fetcher_.PushBackAdapter("a", adapter_fetcher.release());
   client->RunTest();
