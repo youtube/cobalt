@@ -168,16 +168,6 @@ std::string FieldTrial::MakeName(const std::string& name_prefix,
 }
 
 // static
-FieldTrial::NameGroupId FieldTrial::MakeNameGroupId(
-    const std::string& trial_name,
-    const std::string& group_name) {
-  NameGroupId id;
-  id.name = HashName(trial_name);
-  id.group = HashName(group_name);
-  return id;
-}
-
-// static
 void FieldTrial::EnableBenchmarking() {
   DCHECK_EQ(0u, FieldTrialList::GetFieldTrialCount());
   enable_benchmarking_ = true;
