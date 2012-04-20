@@ -88,7 +88,13 @@ void MessagePumpGtk::DispatchEvents(GdkEvent* event) {
 // static
 Display* MessagePumpGtk::GetDefaultXDisplay() {
   static GdkDisplay* display = gdk_display_get_default();
-  return display ? GDK_DISPLAY_XDISPLAY(display) : NULL;
+  if (!display) {
+    // GTK / GDK has not been initialized, which is a decision we wish to
+    // support, for example for the GPU process.
+    static Display* xdisplay = XOpenDisplay(NULL);
+    return xdisplay;
+  }
+  return GDK_DISPLAY_XDISPLAY(display);
 }
 
 void MessagePumpGtk::WillProcessEvent(GdkEvent* event) {
