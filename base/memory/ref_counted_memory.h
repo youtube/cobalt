@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -55,6 +55,8 @@ class BASE_EXPORT RefCountedStaticMemory : public RefCountedMemory {
   DISALLOW_COPY_AND_ASSIGN(RefCountedStaticMemory);
 };
 
+namespace base {
+
 // An implementation of RefCountedMemory, where we own our the data in a
 // vector.
 class BASE_EXPORT RefCountedBytes : public RefCountedMemory {
@@ -84,8 +86,6 @@ class BASE_EXPORT RefCountedBytes : public RefCountedMemory {
 
   DISALLOW_COPY_AND_ASSIGN(RefCountedBytes);
 };
-
-namespace base {
 
 // An implementation of RefCountedMemory, where the bytes are stored in an STL
 // string. Use this if your data naturally arrives in that format.
