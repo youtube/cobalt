@@ -167,6 +167,13 @@ URLRequestContextBuilder::URLRequestContextBuilder()
       http_cache_enabled_(true) {}
 URLRequestContextBuilder::~URLRequestContextBuilder() {}
 
+#if defined(OS_LINUX)
+void URLRequestContextBuilder::set_proxy_config_service(
+    ProxyConfigService* proxy_config_service) {
+  proxy_config_service_.reset(proxy_config_service);
+}
+#endif  // defined(OS_LINUX)
+
 scoped_refptr<URLRequestContext> URLRequestContextBuilder::Build() {
   BasicURLRequestContext* context = new BasicURLRequestContext;
   URLRequestContextStorage* storage = context->storage();
@@ -188,19 +195,21 @@ scoped_refptr<URLRequestContext> URLRequestContextBuilder::Build() {
 
   context->StartFileThread();
 
-  storage->set_proxy_service(
-      ProxyService::CreateDirectWithNetLog(context->net_log()));
-
   // TODO(willchan): Switch to using this code when
   // ProxyService::CreateSystemProxyConfigService()'s signature doesn't suck.
-#if 0
+#if defined(OS_LINUX)
+  ProxyConfigService* proxy_config_service = proxy_config_service_.release();
+#else
+  ProxyConfigService* proxy_config_service =
+      ProxyService::CreateSystemProxyConfigService(
+          MessageLoop::current(),
+          context->file_message_loop());
+#endif  // defined(OS_LINUX)
+  storage->set_proxy_service(
       ProxyService::CreateUsingSystemProxyResolver(
-          ProxyService::CreateSystemProxyConfigService(
-              MessageLoop::current(),
-              context->file_message_loop()),
+          proxy_config_service,
           4,  // TODO(willchan): Find a better constant somewhere.
           context->net_log()));
-#endif
   storage->set_ssl_config_service(new net::SSLConfigServiceDefaults);
   storage->set_http_auth_handler_factory(
       net::HttpAuthHandlerRegistryFactory::CreateDefault(host_resolver));
