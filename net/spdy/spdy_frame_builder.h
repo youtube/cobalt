@@ -39,7 +39,7 @@ class NET_EXPORT_PRIVATE SpdyFrameBuilder {
   SpdyFrameBuilder(SpdyStreamId stream_id, SpdyDataFlags flags,  size_t size);
 
   // Returns the size of the SpdyFrameBuilder's data.
-  int length() const { return length_; }
+  size_t length() const { return length_; }
 
   // Takes the buffer from the SpdyFrameBuilder.
   SpdyFrame* take() {
