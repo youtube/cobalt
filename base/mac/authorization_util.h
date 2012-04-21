@@ -47,6 +47,7 @@ AuthorizationRef AuthorizationCreateToRunAsRoot(CFStringRef prompt);
 // pid can't be determined, |pid| will be set to -1.  |pid| must not be NULL.
 // |pipe| may be NULL, but the tool will always be executed with a pipe in
 // order to read the pid from its stdout.
+BASE_EXPORT
 OSStatus ExecuteWithPrivilegesAndGetPID(AuthorizationRef authorization,
                                         const char* tool_path,
                                         AuthorizationFlags options,
