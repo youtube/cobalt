@@ -1051,7 +1051,7 @@ SpdySynStreamControlFrame* SpdyFramer::CreateSynStream(
   frame.WriteUInt8(priority << ((spdy_version_ < 3) ? 6 : 5));
   frame.WriteUInt8((spdy_version_ < 3) ? 0 : credential_slot);
   WriteHeaderBlock(&frame, headers);
-  DCHECK_EQ(static_cast<size_t>(frame.length()), frame_size);
+  DCHECK_EQ(frame.length(), frame_size);
 
   scoped_ptr<SpdySynStreamControlFrame> syn_frame(
       reinterpret_cast<SpdySynStreamControlFrame*>(frame.take()));
@@ -1084,7 +1084,7 @@ SpdySynReplyControlFrame* SpdyFramer::CreateSynReply(
     frame.WriteUInt16(0);  // Unused
   }
   WriteHeaderBlock(&frame, headers);
-  DCHECK_EQ(static_cast<size_t>(frame.length()), frame_size);
+  DCHECK_EQ(frame.length(), frame_size);
 
   scoped_ptr<SpdySynReplyControlFrame> reply_frame(
       reinterpret_cast<SpdySynReplyControlFrame*>(frame.take()));
@@ -1108,7 +1108,7 @@ SpdyRstStreamControlFrame* SpdyFramer::CreateRstStream(
                          frame_size);
   frame.WriteUInt32(stream_id);
   frame.WriteUInt32(status);
-  DCHECK_EQ(static_cast<size_t>(frame.length()), frame_size);
+  DCHECK_EQ(frame.length(), frame_size);
   return reinterpret_cast<SpdyRstStreamControlFrame*>(frame.take());
 }
 
@@ -1126,7 +1126,7 @@ SpdySettingsControlFrame* SpdyFramer::CreateSettings(
     frame.WriteUInt32(it->second.second);
     ++it;
   }
-  DCHECK_EQ(static_cast<size_t>(frame.length()), frame_size);
+  DCHECK_EQ(frame.length(), frame_size);
   return reinterpret_cast<SpdySettingsControlFrame*>(frame.take());
 }
 
@@ -1134,7 +1134,7 @@ SpdyPingControlFrame* SpdyFramer::CreatePingFrame(uint32 unique_id) const {
   size_t frame_size = SpdyPingControlFrame::size();
   SpdyFrameBuilder frame(PING, CONTROL_FLAG_NONE, spdy_version_, frame_size);
   frame.WriteUInt32(unique_id);
-  DCHECK_EQ(static_cast<size_t>(frame.length()), frame_size);
+  DCHECK_EQ(frame.length(), frame_size);
   return reinterpret_cast<SpdyPingControlFrame*>(frame.take());
 }
 
@@ -1153,7 +1153,7 @@ SpdyGoAwayControlFrame* SpdyFramer::CreateGoAway(
   if (protocol_version() >= 3) {
     frame.WriteUInt32(status);
   }
-  DCHECK_EQ(static_cast<size_t>(frame.length()), frame_size);
+  DCHECK_EQ(frame.length(), frame_size);
   return reinterpret_cast<SpdyGoAwayControlFrame*>(frame.take());
 }
 
@@ -1180,7 +1180,7 @@ SpdyHeadersControlFrame* SpdyFramer::CreateHeaders(
     frame.WriteUInt16(0);  // Unused
   }
   WriteHeaderBlock(&frame, headers);
-  DCHECK_EQ(static_cast<size_t>(frame.length()), frame_size);
+  DCHECK_EQ(frame.length(), frame_size);
 
   scoped_ptr<SpdyHeadersControlFrame> headers_frame(
       reinterpret_cast<SpdyHeadersControlFrame*>(frame.take()));
@@ -1205,7 +1205,7 @@ SpdyWindowUpdateControlFrame* SpdyFramer::CreateWindowUpdate(
                          frame_size);
   frame.WriteUInt32(stream_id);
   frame.WriteUInt32(delta_window_size);
-  DCHECK_EQ(static_cast<size_t>(frame.length()), frame_size);
+  DCHECK_EQ(frame.length(), frame_size);
   return reinterpret_cast<SpdyWindowUpdateControlFrame*>(frame.take());
 }
 
@@ -1234,7 +1234,7 @@ SpdyCredentialControlFrame* SpdyFramer::CreateCredentialFrame(
     frame.WriteUInt32(cert->length());
     frame.WriteBytes(cert->c_str(), cert->length());
   }
-  DCHECK_EQ(static_cast<size_t>(frame.length()), frame_size);
+  DCHECK_EQ(frame.length(), frame_size);
   return reinterpret_cast<SpdyCredentialControlFrame*>(frame.take());
 }
 
@@ -1246,7 +1246,7 @@ SpdyDataFrame* SpdyFramer::CreateDataFrame(SpdyStreamId stream_id,
   size_t frame_size = SpdyDataFrame::size() + len;
   SpdyFrameBuilder frame(stream_id, flags, frame_size);
   frame.WriteBytes(data, len);
-  DCHECK_EQ(static_cast<size_t>(frame.length()), frame_size);
+  DCHECK_EQ(frame.length(), frame_size);
   return reinterpret_cast<SpdyDataFrame*>(frame.take());
 }
 
