@@ -4,11 +4,17 @@
 
 #include "net/url_request/url_request_context_builder.h"
 
+#include "build/build_config.h"
 #include "net/test/test_server.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
+
+#if defined(OS_LINUX)
+#include "net/proxy/proxy_config.h"
+#include "net/proxy/proxy_config_service_fixed.h"
+#endif  // defined(OS_LINUX)
 
 namespace net {
 
@@ -33,7 +39,12 @@ class URLRequestContextBuilderTest : public PlatformTest {
  protected:
   URLRequestContextBuilderTest()
       : test_server_(
-          FilePath(FILE_PATH_LITERAL("net/data/url_request_unittest"))) {}
+          FilePath(FILE_PATH_LITERAL("net/data/url_request_unittest"))) {
+#if defined(OS_LINUX)
+    builder_.set_proxy_config_service(
+        new ProxyConfigServiceFixed(ProxyConfig::CreateDirect()));
+#endif  // defined(OS_LINUX)
+  }
 
   LocalHttpTestServer test_server_;
   URLRequestContextBuilder builder_;
