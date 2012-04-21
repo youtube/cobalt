@@ -453,12 +453,12 @@ using test::TestSpdyVisitor;
 TEST(SpdyFrameBuilderTest, WriteLimits) {
   SpdyFrameBuilder builder(1, DATA_FLAG_NONE, kLengthMask + 8);
   // Data frame header is 8 bytes
-  EXPECT_EQ(8, builder.length());
+  EXPECT_EQ(8u, builder.length());
   const std::string kLargeData(kLengthMask, 'A');
   builder.WriteUInt32(kLengthMask);
-  EXPECT_EQ(12, builder.length());
+  EXPECT_EQ(12u, builder.length());
   EXPECT_TRUE(builder.WriteBytes(kLargeData.data(), kLengthMask - 4));
-  EXPECT_EQ(kLengthMask + 8, static_cast<unsigned>(builder.length()));
+  EXPECT_EQ(kLengthMask + 8, builder.length());
 }
 
 enum SpdyFramerTestTypes {
