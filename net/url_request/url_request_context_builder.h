@@ -20,10 +20,13 @@
 #include "base/basictypes.h"
 #include "base/file_path.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
+#include "build/build_config.h"
 #include "net/base/net_export.h"
 
 namespace net {
 
+class ProxyConfigService;
 class URLRequestContext;
 
 class NET_EXPORT URLRequestContextBuilder {
@@ -63,6 +66,10 @@ class NET_EXPORT URLRequestContextBuilder {
   URLRequestContextBuilder();
   ~URLRequestContextBuilder();
 
+#if defined(OS_LINUX)
+  void set_proxy_config_service(ProxyConfigService* proxy_config_service);
+#endif  // defined(OS_LINUX)
+
   // Call this function to specify a hard-coded User-Agent for all requests that
   // don't have a User-Agent already set.
   void set_user_agent(const std::string& user_agent) {
@@ -92,6 +99,9 @@ class NET_EXPORT URLRequestContextBuilder {
   HostResolverParams host_resolver_params_;
   bool http_cache_enabled_;
   HttpCacheParams http_cache_params_;
+#if defined(OS_LINUX)
+  scoped_ptr<ProxyConfigService> proxy_config_service_;
+#endif  // defined(OS_LINUX)
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestContextBuilder);
 };
