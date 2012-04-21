@@ -15,9 +15,6 @@
 
 namespace media {
 
-// TODO(acolwell): Remove this when fixing http://crbug.com/122909 .
-const char* kDefaultSourceType = "video/webm; codecs=\"vp8, vorbis\"";
-
 // Create an "end of stream" buffer.
 static Buffer* CreateEOSBuffer() {
   return new DataBuffer(0);
@@ -458,40 +455,10 @@ void ChunkDemuxer::FlushData() {
   ChangeState_Locked(INITIALIZED);
 }
 
-ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
-                                         const std::string& type) {
-  // TODO(acolwell): Proper mimetype decoding and support for more than one ID
-  // will be added as part of http://crbug.com/122909
-  if (type != kDefaultSourceType)
-    return kNotSupported;
+bool ChunkDemuxer::AppendData(const uint8* data, size_t length) {
+  DVLOG(1) << "AppendData(" << length << ")";
 
-  if (!source_id_.empty())
-    return kReachedIdLimit;
-
-  source_id_ = id;
-  return kOk;
-}
-
-bool ChunkDemuxer::RemoveId(const std::string& id) {
-  DCHECK(!source_id_.empty());
-  DCHECK_EQ(source_id_, id);
-  source_id_ = "";
-  return true;
-}
-
-bool ChunkDemuxer::AppendData(const std::string& id,
-                              const uint8* data,
-                              size_t length) {
-  DVLOG(1) << "AppendData(" << id << ", " << length << ")";
-
-  // TODO(acolwell): Remove when http://webk.it/83788 fix lands.
-  if (source_id_.empty())
-    AddId(id, kDefaultSourceType);
-
-  DCHECK(!source_id_.empty());
-  DCHECK_EQ(source_id_, id);
-
-  if (id.empty() || !data || length == 0u)
+  if (!data || length == 0u)
     return false;
 
   int64 buffered_bytes = 0;
