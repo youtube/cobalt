@@ -7,7 +7,7 @@ any modification below this line.
 
 =============================================================================
 
-Let's make a story. Add one sentence for each commit:
+Let's make a story. Add one sentence for each commit: 
 
 CHAPTER 1:
 It was a dark and stormy night; the rain fell in torrents--except at
