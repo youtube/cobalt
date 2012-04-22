@@ -717,7 +717,7 @@ int HttpStreamFactoryImpl::Job::DoInitConnection() {
   if (proxy_info_.is_http() || proxy_info_.is_https())
     establishing_tunnel_ = using_ssl_;
 
-  bool want_spdy_over_npn = original_url_.get() ? true : false;
+  bool want_spdy_over_npn = original_url_ != NULL;
 
   if (proxy_info_.is_https()) {
     InitSSLConfig(proxy_info_.proxy_server().host_port_pair(),
