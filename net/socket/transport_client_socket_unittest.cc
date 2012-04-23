@@ -1,17 +1,19 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/socket/tcp_client_socket.h"
 
 #include "base/basictypes.h"
+#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_ptr.h"
 #include "net/base/address_list.h"
 #include "net/base/host_resolver.h"
 #include "net/base/io_buffer.h"
-#include "net/base/listen_socket.h"
 #include "net/base/net_log.h"
 #include "net/base/net_log_unittest.h"
 #include "net/base/net_errors.h"
+#include "net/base/tcp_listen_socket.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/winsock_init.h"
 #include "net/socket/client_socket_factory.h"
@@ -45,7 +47,7 @@ class TransportClientSocketTest
 
   // Implement ListenSocketDelegate methods
   virtual void DidAccept(ListenSocket* server, ListenSocket* connection) {
-    connected_sock_ = connection;
+    connected_sock_ = reinterpret_cast<TCPListenSocket*>(connection);
   }
   virtual void DidRead(ListenSocket*, const char* str, int len) {
     // TODO(dkegel): this might not be long enough to tickle some bugs.
@@ -90,8 +92,8 @@ class TransportClientSocketTest
   scoped_ptr<StreamSocket> sock_;
 
  private:
-  scoped_refptr<ListenSocket> listen_sock_;
-  scoped_refptr<ListenSocket> connected_sock_;
+  scoped_refptr<TCPListenSocket> listen_sock_;
+  scoped_refptr<TCPListenSocket> connected_sock_;
   bool close_server_socket_on_next_send_;
 };
 
@@ -99,7 +101,7 @@ void TransportClientSocketTest::SetUp() {
   ::testing::TestWithParam<ClientSocketTestTypes>::SetUp();
 
   // Find a free port to listen on
-  ListenSocket *sock = NULL;
+  TCPListenSocket *sock = NULL;
   int port;
   // Range of ports to listen on.  Shouldn't need to try many.
   const int kMinPort = 10100;
@@ -108,7 +110,7 @@ void TransportClientSocketTest::SetUp() {
   EnsureWinsockInit();
 #endif
   for (port = kMinPort; port < kMaxPort; port++) {
-    sock = ListenSocket::Listen("127.0.0.1", port, this);
+    sock = TCPListenSocket::CreateAndListen("127.0.0.1", port, this);
     if (sock)
       break;
   }

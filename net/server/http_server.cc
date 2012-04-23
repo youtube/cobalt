@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,7 @@
 #include "base/stringprintf.h"
 #include "base/sys_byteorder.h"
 #include "build/build_config.h"
+#include "net/base/tcp_listen_socket.h"
 #include "net/server/http_connection.h"
 #include "net/server/http_server_request_info.h"
 #include "net/server/web_socket.h"
@@ -20,7 +21,7 @@ HttpServer::HttpServer(const std::string& host,
                        int port,
                        HttpServer::Delegate* del)
     : delegate_(del) {
-  server_ = ListenSocket::Listen(host, port, this);
+  server_ = TCPListenSocket::CreateAndListen(host, port, this);
 }
 
 HttpServer::~HttpServer() {
