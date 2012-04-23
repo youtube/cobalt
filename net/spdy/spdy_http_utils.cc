@@ -130,15 +130,15 @@ SpdyPriority ConvertRequestPriorityToSpdyPriority(
     int protocol_version) {
   DCHECK(HIGHEST <= priority && priority < NUM_PRIORITIES);
   if (protocol_version == 2) {
-    switch (priority) {
-      case LOWEST:
-        return SPDY_PRIORITY_LOWEST - 1;
-      case IDLE:
-        return SPDY_PRIORITY_LOWEST;
-      default:
-        return priority;
+    // SPDY 2 only has 2 bits of priority, but we have 5 RequestPriorities.
+    if (priority < LOWEST) {
+      return priority;
+    } else {
+      DCHECK_GE(4, priority);
+      return priority - 1;
     }
   } else {
+    DCHECK_GE(7, priority);
     return priority;
   }
 }

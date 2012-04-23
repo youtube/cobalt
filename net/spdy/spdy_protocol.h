@@ -411,6 +411,7 @@ enum SpdySettingsIds {
 };
 
 // Status codes, as used in control frames (primarily RST_STREAM).
+// TODO(hkhalil): Rename to SpdyRstStreamStatus
 enum SpdyStatusCodes {
   INVALID = 0,
   PROTOCOL_ERROR = 1,
@@ -442,10 +443,6 @@ typedef uint32 SpdyStreamId;
 // SPDY priority range is version-dependant. For SPDY 2 and below, priority is a
 // number between 0 and 3.
 typedef uint8 SpdyPriority;
-
-// SPDY Priorities. (there are only 2 bits)
-#define SPDY_PRIORITY_LOWEST 3
-#define SPDY_PRIORITY_HIGHEST 0
 
 // -------------------------------------------------------------------------
 // These structures mirror the protocol structure definitions.
