@@ -110,6 +110,8 @@ const char* MediaLog::PipelineStatusToString(PipelineStatus status) {
       return "pipeline: network error";
     case PIPELINE_ERROR_DECODE:
       return "pipeline: decode error";
+    case PIPELINE_ERROR_DECRYPT:
+      return "pipeline: decrypt error";
     case PIPELINE_ERROR_ABORT:
       return "pipeline: abort";
     case PIPELINE_ERROR_INITIALIZATION_FAILED:
