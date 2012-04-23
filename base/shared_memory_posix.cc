@@ -239,11 +239,12 @@ bool SharedMemory::Map(uint32 bytes) {
   memory_ = mmap(NULL, bytes, PROT_READ | (read_only_ ? 0 : PROT_WRITE),
                  MAP_SHARED, mapped_file_, 0);
 
-  if (memory_)
+  bool mmap_succeeded = memory_ != (void*)-1 && memory_ != NULL;
+  if (mmap_succeeded)
     mapped_size_ = bytes;
+  else
+    memory_ = NULL;
 
-  bool mmap_succeeded = (memory_ != (void*)-1);
-  DCHECK(mmap_succeeded) << "Call to mmap failed, errno=" << errno;
   return mmap_succeeded;
 }
 
