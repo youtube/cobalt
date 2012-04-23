@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -78,21 +78,14 @@ class RequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     params = urlparse.parse_qs(urlparse.urlparse(self.path).query)
 
-    def SendCustomRetryIfRequested():
-      if params and 'custom-retry-after' in params:
-        custom_retry = params['custom-retry-after'][0]
-        self.send_header('X-Retry-After', custom_retry)
-
     if not params or not 'code' in params or params['code'][0] == '200':
       self.send_response(200)
       self.send_header('Content-Type', 'text/plain')
-      SendCustomRetryIfRequested()
       self.end_headers()
       self.wfile.write('OK')
     else:
       status_code = int(params['code'][0])
       self.send_response(status_code)
-      SendCustomRetryIfRequested()
       self.end_headers()
       self.wfile.write('Error %d' % int(status_code))
 
