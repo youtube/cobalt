@@ -868,7 +868,11 @@ ParentChildPairSnapshot::~ParentChildPairSnapshot() {
 // ProcessDataSnapshot
 
 ProcessDataSnapshot::ProcessDataSnapshot()
+#if !defined(OS_NACL)
     : process_id(base::GetCurrentProcId()) {
+#else
+    : process_id(0) {
+#endif
 }
 
 ProcessDataSnapshot::~ProcessDataSnapshot() {
