@@ -386,6 +386,9 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // Returns true if a frame could be compressed.
   bool IsCompressible(const SpdyFrame& frame) const;
 
+  // Returns a new SpdyControlFrame with the compressed payload of |frame|.
+  SpdyControlFrame* CompressControlFrame(const SpdyControlFrame& frame);
+
   // Get the minimum size of the control frame for the given control frame
   // type. This is useful for validating frame blocks.
   static size_t GetMinimumControlFrameSize(int version, SpdyControlType type);
@@ -464,9 +467,6 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // Get (and lazily initialize) the ZLib state.
   z_stream* GetHeaderCompressor();
   z_stream* GetHeaderDecompressor();
-
-  // Compression helpers
-  SpdyControlFrame* CompressControlFrame(const SpdyControlFrame& frame);
 
   // Deliver the given control frame's compressed headers block to the visitor
   // in decompressed form, in chunks. Returns true if the visitor has
