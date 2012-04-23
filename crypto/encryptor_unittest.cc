@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -33,6 +33,50 @@ TEST(EncryptorTest, EncryptDecrypt) {
   EXPECT_TRUE(encryptor.Decrypt(ciphertext, &decypted));
 
   EXPECT_EQ(plaintext, decypted);
+}
+
+TEST(EncryptorTest, DecryptWrongKey) {
+  scoped_ptr<crypto::SymmetricKey> key(
+      crypto::SymmetricKey::DeriveKeyFromPassword(
+          crypto::SymmetricKey::AES, "password", "saltiest", 1000, 256));
+  EXPECT_TRUE(NULL != key.get());
+
+  scoped_ptr<crypto::SymmetricKey> wrong_key(
+        crypto::SymmetricKey::DeriveKeyFromPassword(
+            crypto::SymmetricKey::AES, "wrongword", "sweetest", 1000, 256));
+  EXPECT_TRUE(NULL != wrong_key.get());
+
+  crypto::Encryptor encryptor;
+  // The IV must be exactly as long as the cipher block size.
+  std::string iv("the iv: 16 bytes");
+  EXPECT_EQ(16U, iv.size());
+  EXPECT_TRUE(encryptor.Init(key.get(), crypto::Encryptor::CBC, iv));
+
+  std::string plaintext("this is the plaintext");
+  std::string ciphertext;
+  EXPECT_TRUE(encryptor.Encrypt(plaintext, &ciphertext));
+
+  static const unsigned char expected_ciphertext[] = {
+    0x7D, 0x67, 0x5B, 0x53, 0xE6, 0xD8, 0x0F, 0x27,
+    0x74, 0xB1, 0x90, 0xFE, 0x6E, 0x58, 0x4A, 0xA0,
+    0x0E, 0x35, 0xE3, 0x01, 0xC0, 0xFE, 0x9A, 0xD8,
+    0x48, 0x1D, 0x42, 0xB0, 0xBA, 0x21, 0xB2, 0x0C
+  };
+
+  ASSERT_EQ(arraysize(expected_ciphertext), ciphertext.size());
+  for (size_t i = 0; i < ciphertext.size(); ++i) {
+    ASSERT_EQ(expected_ciphertext[i],
+              static_cast<unsigned char>(ciphertext[i]));
+  }
+
+  crypto::Encryptor decryptor;
+  EXPECT_TRUE(decryptor.Init(wrong_key.get(), crypto::Encryptor::CBC, iv));
+  std::string decypted;
+  // TODO(wtc): On Linux, Encryptor::Decrypt() doesn't always return false when
+  // wrong key is provided. See crbug.com/124434. Remove #if when bug is fixed.
+#if !defined(USE_NSS)
+  EXPECT_FALSE(decryptor.Decrypt(ciphertext, &decypted));
+#endif
 }
 
 // CTR mode encryption is only implemented using NSS.
