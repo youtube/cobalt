@@ -1257,29 +1257,6 @@ static const int kCompressorLevel = 9;
 static const int kCompressorWindowSizeInBits = 11;
 static const int kCompressorMemLevel = 1;
 
-SpdyFrame* SpdyFramer::CompressFrame(const SpdyFrame& frame) {
-  if (frame.is_control_frame()) {
-    return CompressControlFrame(
-        reinterpret_cast<const SpdyControlFrame&>(frame));
-  }
-  return NULL;
-}
-
-bool SpdyFramer::IsCompressible(const SpdyFrame& frame) const {
-  // The important frames to compress are those which contain large
-  // amounts of compressible data - namely the headers in the SYN_STREAM
-  // and SYN_REPLY.
-  if (frame.is_control_frame()) {
-    const SpdyControlFrame& control_frame =
-        reinterpret_cast<const SpdyControlFrame&>(frame);
-    return control_frame.type() == SYN_STREAM ||
-           control_frame.type() == SYN_REPLY;
-  }
-
-  // We don't compress Data frames.
-  return false;
-}
-
 z_stream* SpdyFramer::GetHeaderCompressor() {
   if (header_compressor_.get())
     return header_compressor_.get();  // Already initialized.
@@ -1552,6 +1529,22 @@ SpdyFrame* SpdyFramer::DuplicateFrame(const SpdyFrame& frame) {
   SpdyFrame* new_frame = new SpdyFrame(size);
   memcpy(new_frame->data(), frame.data(), size);
   return new_frame;
+}
+
+bool SpdyFramer::IsCompressible(const SpdyFrame& frame) const {
+  // The important frames to compress are those which contain large
+  // amounts of compressible data - namely the headers in the SYN_STREAM
+  // and SYN_REPLY.
+  if (frame.is_control_frame()) {
+    const SpdyControlFrame& control_frame =
+        reinterpret_cast<const SpdyControlFrame&>(frame);
+    return control_frame.type() == SYN_STREAM ||
+        control_frame.type() == SYN_REPLY ||
+        control_frame.type() == HEADERS;
+  }
+
+  // We don't compress Data frames.
+  return false;
 }
 
 size_t SpdyFramer::GetMinimumControlFrameSize(int version,
