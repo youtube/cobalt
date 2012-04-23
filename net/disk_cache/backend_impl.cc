@@ -860,8 +860,10 @@ bool BackendImpl::CreateExternalFile(Addr* address) {
     scoped_refptr<disk_cache::File> file(new disk_cache::File(
         base::CreatePlatformFile(name, flags, NULL, &error)));
     if (!file->IsValid()) {
-      if (error != base::PLATFORM_FILE_ERROR_EXISTS)
+      if (error != base::PLATFORM_FILE_ERROR_EXISTS) {
+        LOG(ERROR) << "Unable to create file: " << error;
         return false;
+      }
       continue;
     }
 
