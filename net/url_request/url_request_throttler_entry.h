@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -58,10 +58,6 @@ class NET_EXPORT URLRequestThrottlerEntry
   // Time after which the entry is considered outdated.
   static const int kDefaultEntryLifetimeMs;
 
-  // Name of the header that servers can use to ask clients to delay their
-  // next request.
-  static const char kRetryHeaderName[];
-
   // Name of the header that sites can use to opt out of exponential back-off
   // throttling.
   static const char kExponentialThrottlingHeader[];
@@ -117,9 +113,6 @@ class NET_EXPORT URLRequestThrottlerEntry
 
   // Equivalent to TimeTicks::Now(), virtual to be mockable for testing purpose.
   virtual base::TimeTicks ImplGetTimeNow() const;
-
-  // Used internally to increase release time following a retry-after header.
-  void HandleCustomRetryAfter(const std::string& header_value);
 
   // Used internally to handle the opt-out header.
   void HandleThrottlingHeader(const std::string& header_value,
