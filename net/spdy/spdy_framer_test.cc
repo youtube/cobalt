@@ -538,6 +538,20 @@ INSTANTIATE_TEST_CASE_P(SpdyFramerTests,
                         SpdyFramerTest,
                         ::testing::Values(SPDY2, SPDY3));
 
+TEST_P(SpdyFramerTest, IsCompressible) {
+  SpdyFramer framer(spdy_version_);
+  for (SpdyControlType type = SYN_STREAM;
+       type < NUM_CONTROL_FRAME_TYPES;
+       type = static_cast<SpdyControlType>(type + 1)) {
+    SpdyFrameBuilder frame(type, CONTROL_FLAG_NONE, spdy_version_, 1024);
+    scoped_ptr<SpdyControlFrame> control_frame(
+        reinterpret_cast<SpdyControlFrame*>(frame.take()));
+    EXPECT_EQ(control_frame->has_header_block(),
+              framer.IsCompressible(*control_frame))
+        << "Frame type: " << type;
+  }
+}
+
 // Test that we can encode and decode a SpdyHeaderBlock in serialized form.
 TEST_P(SpdyFramerTest, HeaderBlockInBuffer) {
   SpdyHeaderBlock headers;
