@@ -38,6 +38,9 @@ static const int kVideoTrackEntryHeaderSize = kVideoTrackSizeOffset +
 static const int kVideoTrackNum = 1;
 static const int kAudioTrackNum = 2;
 
+static const char* kSourceId = "SourceId";
+static const char* kDefaultSourceType = "video/webm; codecs=\"vp8, vorbis\"";
+
 base::TimeDelta kDefaultDuration() {
   return base::TimeDelta::FromMilliseconds(201224);
 }
@@ -164,7 +167,7 @@ class ChunkDemuxerTest : public testing::Test {
     EXPECT_CALL(host_, SetBufferedTime(_)).Times(AnyNumber());
     EXPECT_CALL(host_, SetNetworkActivity(true))
         .Times(AnyNumber());
-    return demuxer_->AppendData(data, length);
+    return demuxer_->AppendData(kSourceId, data, length);
   }
 
   bool AppendDataInPieces(const uint8* data, size_t length) {
@@ -219,6 +222,9 @@ class ChunkDemuxerTest : public testing::Test {
     demuxer_->Initialize(
         &host_, CreateInitDoneCB(kDefaultDuration(), expected_status));
 
+    if (demuxer_->AddId(kSourceId, kDefaultSourceType) != ChunkDemuxer::kOk)
+      return false;
+
     return AppendInfoTracks(has_audio, has_video, video_content_encoded);
   }
 
@@ -271,6 +277,9 @@ class ChunkDemuxerTest : public testing::Test {
     EXPECT_CALL(*client_, DemuxerOpened(_));
     demuxer_->Initialize(
         &host_, CreateInitDoneCB(duration, PIPELINE_OK));
+
+    if (demuxer_->AddId(kSourceId, kDefaultSourceType) != ChunkDemuxer::kOk)
+      return false;
 
     // Read a WebM file into memory and send the data to the demuxer.
     ReadTestDataFile(filename, &buffer, &buffer_size);
@@ -460,7 +469,8 @@ TEST_F(ChunkDemuxerTest, TestAppendDataBeforeInit) {
   int info_tracks_size = 0;
   CreateInfoTracks(true, true, false, &info_tracks, &info_tracks_size);
 
-  EXPECT_FALSE(demuxer_->AppendData(info_tracks.get(), info_tracks_size));
+  EXPECT_FALSE(demuxer_->AppendData(kSourceId, info_tracks.get(),
+                                    info_tracks_size));
 }
 
 // Make sure Read() callbacks are dispatched with the proper data.
@@ -527,7 +537,8 @@ TEST_F(ChunkDemuxerTest, TestOutOfOrderClusters) {
   AddSimpleBlock(&cb, kAudioTrackNum, 45);
   AddSimpleBlock(&cb, kVideoTrackNum, 45);
   scoped_ptr<Cluster> cluster_c(cb.Finish());
-  EXPECT_FALSE(demuxer_->AppendData(cluster_c->data(), cluster_c->size()));
+  EXPECT_FALSE(demuxer_->AppendData(kSourceId, cluster_c->data(),
+                                    cluster_c->size()));
 }
 
 TEST_F(ChunkDemuxerTest, TestNonMonotonicButAboveClusterTimecode) {
@@ -552,7 +563,8 @@ TEST_F(ChunkDemuxerTest, TestNonMonotonicButAboveClusterTimecode) {
   AddSimpleBlock(&cb, kAudioTrackNum, 20);
   AddSimpleBlock(&cb, kVideoTrackNum, 20);
   scoped_ptr<Cluster> cluster_b(cb.Finish());
-  EXPECT_FALSE(demuxer_->AppendData(cluster_b->data(), cluster_b->size()));
+  EXPECT_FALSE(demuxer_->AppendData(kSourceId, cluster_b->data(),
+                                    cluster_b->size()));
 }
 
 TEST_F(ChunkDemuxerTest, TestBackwardsAndBeforeClusterTimecode) {
@@ -577,7 +589,8 @@ TEST_F(ChunkDemuxerTest, TestBackwardsAndBeforeClusterTimecode) {
   AddSimpleBlock(&cb, kAudioTrackNum, 6);
   AddSimpleBlock(&cb, kVideoTrackNum, 6);
   scoped_ptr<Cluster> cluster_b(cb.Finish());
-  EXPECT_FALSE(demuxer_->AppendData(cluster_b->data(), cluster_b->size()));
+  EXPECT_FALSE(demuxer_->AppendData(kSourceId, cluster_b->data(),
+                                    cluster_b->size()));
 }
 
 
@@ -626,7 +639,8 @@ TEST_F(ChunkDemuxerTest, TestMonotonicallyIncreasingTimestampsAcrossClusters) {
   AddSimpleBlock(&cb, kAudioTrackNum, 10);
   AddSimpleBlock(&cb, kVideoTrackNum, 10);
   scoped_ptr<Cluster> cluster_c(cb.Finish());
-  EXPECT_FALSE(demuxer_->AppendData(cluster_c->data(), cluster_c->size()));
+  EXPECT_FALSE(demuxer_->AppendData(kSourceId, cluster_c->data(),
+                                    cluster_c->size()));
 }
 
 // Test the case where a cluster is passed to AppendData() before
@@ -635,6 +649,8 @@ TEST_F(ChunkDemuxerTest, TestClusterBeforeInfoTracks) {
   EXPECT_CALL(*client_, DemuxerOpened(_));
   demuxer_->Initialize(
       &host_, NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
+
+  ASSERT_EQ(demuxer_->AddId(kSourceId, kDefaultSourceType), ChunkDemuxer::kOk);
 
   ClusterBuilder cb;
   cb.SetClusterTimecode(0);
@@ -835,6 +851,8 @@ TEST_F(ChunkDemuxerTest, TestAppendingInPieces) {
   demuxer_->Initialize(
       &host_, CreateInitDoneCB(kDefaultDuration(), PIPELINE_OK));
 
+  ASSERT_EQ(demuxer_->AddId(kSourceId, kDefaultSourceType), ChunkDemuxer::kOk);
+
   scoped_array<uint8> info_tracks;
   int info_tracks_size = 0;
   CreateInfoTracks(true, true, false, &info_tracks, &info_tracks_size);
@@ -1033,10 +1051,13 @@ TEST_F(ChunkDemuxerTest, TestParseErrorDuringInit) {
   EXPECT_CALL(*client_, DemuxerOpened(_));
   demuxer_->Initialize(
       &host_, CreateInitDoneCB(kDefaultDuration(), PIPELINE_OK));
+
+  ASSERT_EQ(demuxer_->AddId(kSourceId, kDefaultSourceType), ChunkDemuxer::kOk);
+
   ASSERT_TRUE(AppendInfoTracks(true, true, false));
 
   uint8 tmp = 0;
-  ASSERT_TRUE(demuxer_->AppendData(&tmp, 1));
+  ASSERT_TRUE(demuxer_->AppendData(kSourceId, &tmp, 1));
 }
 
 }  // namespace media
