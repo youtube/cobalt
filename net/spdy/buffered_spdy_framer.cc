@@ -241,12 +241,13 @@ SpdyPriority BufferedSpdyFramer::GetHighestPriority() const {
   return spdy_framer_.GetHighestPriority();
 }
 
-SpdyFrame* BufferedSpdyFramer::CompressFrame(const SpdyFrame& frame) {
-  return spdy_framer_.CompressFrame(frame);
-}
-
 bool BufferedSpdyFramer::IsCompressible(const SpdyFrame& frame) const {
   return spdy_framer_.IsCompressible(frame);
+}
+
+SpdyControlFrame* BufferedSpdyFramer::CompressControlFrame(
+    const SpdyControlFrame& frame) {
+  return spdy_framer_.CompressControlFrame(frame);
 }
 
 void BufferedSpdyFramer::InitHeaderStreaming(const SpdyControlFrame* frame) {
