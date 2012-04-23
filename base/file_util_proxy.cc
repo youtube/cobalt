@@ -7,6 +7,8 @@
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "base/file_util.h"
+#include "base/location.h"
+#include "base/message_loop_proxy.h"
 #include "base/task_runner.h"
 #include "base/task_runner_util.h"
 
@@ -59,7 +61,7 @@ class CreateOrOpenHelper {
 
 class CreateTemporaryHelper {
  public:
-  CreateTemporaryHelper(TaskRunner* task_runner)
+  explicit CreateTemporaryHelper(TaskRunner* task_runner)
       : task_runner_(task_runner),
         file_handle_(kInvalidPlatformFileValue),
         error_(PLATFORM_FILE_OK) {}
@@ -132,7 +134,7 @@ class GetFileInfoHelper {
 
 class ReadHelper {
  public:
-  ReadHelper(int bytes_to_read)
+  explicit ReadHelper(int bytes_to_read)
       : buffer_(new char[bytes_to_read]),
         bytes_to_read_(bytes_to_read),
         bytes_read_(0) {}

@@ -5,15 +5,16 @@
 #ifndef BASE_FILE_UTIL_PROXY_H_
 #define BASE_FILE_UTIL_PROXY_H_
 
-#include <vector>
-
 #include "base/base_export.h"
-#include "base/callback.h"
+#include "base/callback_forward.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/memory/ref_counted.h"
 #include "base/platform_file.h"
-#include "base/tracked_objects.h"
+
+namespace tracked_objects {
+class Location;
+};
 
 namespace base {
 
@@ -43,8 +44,7 @@ class BASE_EXPORT FileUtilProxy {
                         PassPlatformFile,
                         const FilePath&)> CreateTemporaryCallback;
   typedef Callback<void(PlatformFileError,
-                        const PlatformFileInfo&
-                       )> GetFileInfoCallback;
+                        const PlatformFileInfo&)> GetFileInfoCallback;
   typedef Callback<void(PlatformFileError,
                         const char* /* data */,
                         int /* bytes read */)> ReadCallback;
