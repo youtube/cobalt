@@ -1286,13 +1286,6 @@ EVENT_TYPE(THROTTLING_DISABLED_FOR_HOST)
 //   }
 EVENT_TYPE(THROTTLING_REJECTED_REQUEST)
 
-// Emitted when throttling entry receives an X-Retry-After header.
-//   {
-//     "url":               <URL that was being requested>,
-//     "retry_after_ms":    <Milliseconds until retry-after expires>
-//   }
-EVENT_TYPE(THROTTLING_GOT_CUSTOM_RETRY_AFTER)
-
 // ------------------------------------------------------------------------
 // DnsTransaction
 // ------------------------------------------------------------------------
