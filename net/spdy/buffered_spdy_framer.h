@@ -140,8 +140,8 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramer
                                  uint32 len,
                                  SpdyDataFlags flags);
   SpdyPriority GetHighestPriority() const;
-  SpdyFrame* CompressFrame(const SpdyFrame& frame);
   bool IsCompressible(const SpdyFrame& frame) const;
+  SpdyControlFrame* CompressControlFrame(const SpdyControlFrame& frame);
 
   int frames_received() const { return frames_received_; }
 
