@@ -378,20 +378,17 @@ TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_Normal) {
   EXPECT_FALSE(video_frame->IsEndOfStream());
 }
 
-// No key was provided with the encrypted frame. The decoder will mistakenly
-// assume the frame is not encrypted.  The behavior should be the same as
-// decoding a corrupted frame.
+// No key is provided to the decryptor and we expect to see a decrypt error.
 TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_NoKey) {
   Initialize();
 
+  // Simulate decoding a single encrypted frame.
+  encrypted_i_frame_buffer_->SetDecryptConfig(scoped_ptr<DecryptConfig>(
+      new DecryptConfig(kKeyId, arraysize(kKeyId) - 1)));
+
   EXPECT_CALL(*demuxer_, Read(_))
       .WillRepeatedly(ReturnBuffer(encrypted_i_frame_buffer_));
-
-  // The error is only raised on the second decode attempt, so we expect at
-  // least one successful decode but we don't expect FrameReady() to be
-  // executed as an error is raised instead.
-  EXPECT_CALL(statistics_cb_, OnStatistics(_));
-  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
+  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECRYPT));
 
   // Our read should still get satisfied with end of stream frame during an
   // error.
@@ -409,21 +406,20 @@ TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_WrongKey) {
   decoder_->decryptor()->AddKey(kKeyId, arraysize(kKeyId) - 1,
                                 kWrongKey, arraysize(kWrongKey) - 1);
 
-#if defined(OS_LINUX)
-  // Using the wrong key on linux doesn't cause an decryption error but actually
-  // attempts to decode the content, however we're unable to distinguish between
-  // the two.
-  //
-  // TODO(xhwang): Add a decryption error code, see http://crbug.com/121177
-  EXPECT_CALL(statistics_cb_, OnStatistics(_));
-#endif
-
   encrypted_i_frame_buffer_->SetDecryptConfig(scoped_ptr<DecryptConfig>(
       new DecryptConfig(kKeyId, arraysize(kKeyId) - 1)));
   EXPECT_CALL(*demuxer_, Read(_))
       .WillRepeatedly(ReturnBuffer(encrypted_i_frame_buffer_));
 
+#if defined(OS_LINUX)
+  // Using the wrong key on linux doesn't cause an decryption error but actually
+  // attempts to decode the content, however we're unable to distinguish between
+  // the two (see http://crbug.com/124434).
+  EXPECT_CALL(statistics_cb_, OnStatistics(_));
   EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
+#else
+  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECRYPT));
+#endif
 
   // Our read should still get satisfied with end of stream frame during an
   // error.
