@@ -1155,6 +1155,25 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
     },
 
     {
+      TEST_DESC("Only HTTP proxy specified, different port, space-delimited"),
+
+      // Input.
+      "[Proxy Settings]\nProxyType=1\n"
+          "httpProxy=www.google.com 88\n",
+      {},                                      // env_values
+
+      // Expected result.
+      ProxyConfigService::CONFIG_VALID,
+      false,                                   // auto_detect
+      GURL(),                                  // pac_url
+      ProxyRulesExpectation::PerScheme(
+          "www.google.com:88",  // http
+          "",                   // https
+          "",                   // ftp
+          ""),                  // bypass rules
+    },
+
+    {
       TEST_DESC("Bypass *.google.com"),
 
       // Input.
