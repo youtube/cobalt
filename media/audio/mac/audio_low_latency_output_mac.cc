@@ -227,7 +227,7 @@ OSStatus AUAudioOutputStream::Render(UInt32 number_of_frames,
   uint32 hardware_pending_bytes = static_cast<uint32>
       ((playout_latency_frames + 0.5) * format_.mBytesPerFrame);
   uint32 filled = source_->OnMoreData(
-      this, audio_data, buffer.mDataByteSize,
+      audio_data, buffer.mDataByteSize,
       AudioBuffersState(0, hardware_pending_bytes));
 
   // Handle channel order for 5.1 audio.

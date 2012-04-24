@@ -218,8 +218,8 @@ class FullDuplexAudioSinkSource
   virtual void OnError(AudioInputStream* stream, int code) OVERRIDE {}
 
   // AudioOutputStream::AudioSourceCallback.
-  virtual uint32 OnMoreData(AudioOutputStream* stream,
-                            uint8* dest, uint32 max_size,
+  virtual uint32 OnMoreData(uint8* dest,
+                            uint32 max_size,
                             AudioBuffersState buffers_state) OVERRIDE {
     base::AutoLock lock(lock_);
 

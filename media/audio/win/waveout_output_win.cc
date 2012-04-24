@@ -346,7 +346,7 @@ void PCMWaveOutAudioOutputStream::QueueNextPacket(WAVEHDR *buffer) {
                                 format_.Format.nChannels;
   // TODO(sergeyu): Specify correct hardware delay for AudioBuffersState.
   uint32 used = callback_->OnMoreData(
-      this, reinterpret_cast<uint8*>(buffer->lpData), buffer_size_,
+      reinterpret_cast<uint8*>(buffer->lpData), buffer_size_,
       AudioBuffersState(scaled_pending_bytes, 0));
   if (used <= buffer_size_) {
     buffer->dwBufferLength = used * format_.Format.nChannels / channels_;

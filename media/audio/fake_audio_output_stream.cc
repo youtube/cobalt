@@ -38,7 +38,7 @@ FakeAudioOutputStream* FakeAudioOutputStream::GetCurrentFakeStream() {
 void FakeAudioOutputStream::Start(AudioSourceCallback* callback)  {
   callback_ = callback;
   memset(buffer_.get(), 0, bytes_per_buffer_);
-  callback_->OnMoreData(this, buffer_.get(), bytes_per_buffer_,
+  callback_->OnMoreData(buffer_.get(), bytes_per_buffer_,
                         AudioBuffersState(0, 0));
 }
 

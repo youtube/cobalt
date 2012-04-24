@@ -385,7 +385,7 @@ void AlsaPcmOutputStream::BufferPacket(bool* source_exhausted) {
     // that aren't large enough to make a frame.  Without this, packet writing
     // may stall because the last few bytes in the packet may never get used by
     // WritePacket.
-    DCHECK(packet_size % bytes_per_frame_ == 0);
+    DCHECK_EQ(0u, packet_size % bytes_per_frame_);
     packet_size = (packet_size / bytes_per_frame_) * bytes_per_frame_;
 
     if (should_downmix_) {
@@ -792,7 +792,7 @@ uint32 AlsaPcmOutputStream::RunDataCallback(uint8* dest,
   TRACE_EVENT0("audio", "AlsaPcmOutputStream::RunDataCallback");
 
   if (source_callback_)
-    return source_callback_->OnMoreData(this, dest, max_size, buffers_state);
+    return source_callback_->OnMoreData(dest, max_size, buffers_state);
 
   return 0;
 }

@@ -71,8 +71,7 @@ class MockAudioManager : public AudioManager {
 
 class MockAudioSourceCallback : public AudioOutputStream::AudioSourceCallback {
  public:
-  MOCK_METHOD4(OnMoreData, uint32(AudioOutputStream* stream,
-                                  uint8* dest, uint32 max_size,
+  MOCK_METHOD3(OnMoreData, uint32(uint8* dest, uint32 max_size,
                                   AudioBuffersState buffers_state));
   MOCK_METHOD2(OnError, void(AudioOutputStream* stream, int code));
 };

@@ -440,7 +440,7 @@ void WASAPIAudioOutputStream::Run() {
             // the delay between the usage of the delay value and the time
             // of generation.
             uint32 num_filled_bytes = source_->OnMoreData(
-                this, audio_data, packet_size_bytes_,
+                audio_data, packet_size_bytes_,
                 AudioBuffersState(0, audio_delay_bytes));
 
             // Perform in-place, software-volume adjustments.
