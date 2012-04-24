@@ -991,11 +991,6 @@
               'net_java',
               'net_jni_headers',
             ],
-            'sources!': [
-              # TODO(jingzhao): The below files are excluded because of the
-              # missing JNI, add them back when JNI is ready.
-              'android/network_library.cc',
-            ],
           }, {  # else OS! = "android"
             'defines': [
               # These are the features Android doesn't support.
@@ -1805,9 +1800,11 @@
           'type': 'none',
           'variables': {
             'java_sources': [
+              'android/java/org/chromium/net/AndroidNetworkLibrary.java',
               'android/java/org/chromium/net/NetworkChangeNotifier.java',
             ],
             'jni_headers': [
+              '<(SHARED_INTERMEDIATE_DIR)/net/jni/android_network_library_jni.h',
               '<(SHARED_INTERMEDIATE_DIR)/net/jni/network_change_notifier_jni.h',
             ],
           },

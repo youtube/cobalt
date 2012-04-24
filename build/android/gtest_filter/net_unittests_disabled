@@ -85,3 +85,6 @@ CertVerifyProcTest.*
 VerifyRoot/CertVerifyProcWeakDigestTest.*
 # Relies on TestServer which isn't yet configured upstream.
 URLRequestContextBuilderTest.*
+
+# Depends on JNI for certificate code.
+DiskCacheEntryTest.*
