@@ -142,6 +142,8 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramer
   SpdyPriority GetHighestPriority() const;
   bool IsCompressible(const SpdyFrame& frame) const;
   SpdyControlFrame* CompressControlFrame(const SpdyControlFrame& frame);
+  // Specify if newly created SpdySessions should have compression enabled.
+  static void set_enable_compression_default(bool value);
 
   int frames_received() const { return frames_received_; }
 

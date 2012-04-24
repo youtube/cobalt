@@ -77,7 +77,7 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
     } else if (option == kExclude) {
       HttpStreamFactory::add_forced_spdy_exclusion(value);
     } else if (option == kDisableCompression) {
-      SpdyFramer::set_enable_compression_default(false);
+      BufferedSpdyFramer::set_enable_compression_default(false);
     } else if (option == kDisableAltProtocols) {
       HttpStreamFactory::set_use_alternate_protocols(false);
     } else if (option == kForceAltProtocols) {
