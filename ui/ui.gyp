@@ -315,6 +315,8 @@
         'gfx/image/image.cc',
         'gfx/image/image.h',
         'gfx/image/image_mac.mm',
+        'gfx/image/image_skia.cc',
+        'gfx/image/image_skia.h',
         'gfx/image/image_util.cc',
         'gfx/image/image_util.h',
         'gfx/insets.cc',
