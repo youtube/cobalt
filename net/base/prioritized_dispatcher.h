@@ -13,7 +13,7 @@
 
 namespace net {
 
-// A priority-based dispatcher of jobs. Dispatch order is by priority (lowest
+// A priority-based dispatcher of jobs. Dispatch order is by priority (highest
 // first) and then FIFO. The dispatcher enforces limits on the number of running
 // jobs. It never revokes a job once started. The job must call OnJobFinished
 // once it finishes in order to dispatch further jobs.
@@ -32,7 +32,7 @@ class NET_EXPORT_PRIVATE PrioritizedDispatcher {
   // For example, |total_jobs| = 30 and |reserved_slots| = { 5, 10, 5 }
   // allow for at most 30 running jobs in total. If there are already 24 jobs
   // running, then there can be 6 more jobs started of which at most 1 can be
-  // at priority 1 or 0, but the rest has to be at 0.
+  // at priority 1 or 2, but the rest have to be at 2.
   struct NET_EXPORT_PRIVATE Limits {
     Limits(Priority num_priorities, size_t total_jobs);
     ~Limits();
