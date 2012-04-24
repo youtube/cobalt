@@ -181,43 +181,76 @@ bool FFmpegConfigHelper::SetupStreamConfigs() {
 }
 
 WebMStreamParser::WebMStreamParser()
-    : state_(WAITING_FOR_INIT),
+    : state_(kWaitingForInit),
       host_(NULL) {
 }
 
 WebMStreamParser::~WebMStreamParser() {}
 
 void WebMStreamParser::Init(const InitCB& init_cb, StreamParserHost* host) {
-  DCHECK_EQ(state_, WAITING_FOR_INIT);
+  DCHECK_EQ(state_, kWaitingForInit);
   DCHECK(init_cb_.is_null());
   DCHECK(!host_);
   DCHECK(!init_cb.is_null());
   DCHECK(host);
 
-  ChangeState(PARSING_HEADERS);
+  ChangeState(kParsingHeaders);
   init_cb_ = init_cb;
   host_ = host;
 }
 
 void WebMStreamParser::Flush() {
-  DCHECK_NE(state_, WAITING_FOR_INIT);
+  DCHECK_NE(state_, kWaitingForInit);
 
-  if (state_ != PARSING_CLUSTERS)
+  byte_queue_.Reset();
+
+  if (state_ != kParsingClusters)
     return;
 
   cluster_parser_->Reset();
 }
 
-int WebMStreamParser::Parse(const uint8* buf, int size) {
-  DCHECK_NE(state_, WAITING_FOR_INIT);
+bool WebMStreamParser::Parse(const uint8* buf, int size) {
+  DCHECK_NE(state_, kWaitingForInit);
 
-  if (state_ == PARSING_HEADERS)
-    return ParseInfoAndTracks(buf, size);
+  if (state_ == kError)
+    return false;
 
-  if (state_ == PARSING_CLUSTERS)
-    return ParseCluster(buf, size);
+  byte_queue_.Push(buf, size);
 
-  return -1;
+  int result = 0;
+  int bytes_parsed = 0;
+  const uint8* cur = NULL;
+  int cur_size = 0;
+
+  byte_queue_.Peek(&cur, &cur_size);
+  do {
+    switch (state_) {
+      case kParsingHeaders:
+        result = ParseInfoAndTracks(cur, cur_size);
+        break;
+
+      case kParsingClusters:
+        result = ParseCluster(cur, cur_size);
+        break;
+
+      case kWaitingForInit:
+      case kError:
+        return false;
+    }
+
+    if (result < 0) {
+      ChangeState(kError);
+      return false;
+    }
+
+    cur += result;
+    cur_size -= result;
+    bytes_parsed += result;
+  } while (result > 0 && cur_size > 0);
+
+  byte_queue_.Pop(bytes_parsed);
+  return true;
 }
 
 void WebMStreamParser::ChangeState(State new_state) {
@@ -295,11 +328,8 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8* data, int size) {
   if (!config_helper.Parse(data, bytes_parsed))
     return -1;
 
-  if (config_helper.audio_config().IsValidConfig())
-    host_->OnNewAudioConfig(config_helper.audio_config());
-
-  if (config_helper.video_config().IsValidConfig())
-    host_->OnNewVideoConfig(config_helper.video_config());
+  host_->OnNewConfigs(config_helper.audio_config(),
+                      config_helper.video_config());
 
   cluster_parser_.reset(new WebMClusterParser(
       info_parser.timecode_scale(),
@@ -310,7 +340,7 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8* data, int size) {
       tracks_parser.video_encryption_key_id(),
       tracks_parser.video_encryption_key_id_size()));
 
-  ChangeState(PARSING_CLUSTERS);
+  ChangeState(kParsingClusters);
   init_cb_.Run(true, duration);
   init_cb_.Reset();
 

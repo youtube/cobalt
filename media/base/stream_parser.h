@@ -27,13 +27,14 @@ class MEDIA_EXPORT StreamParserHost {
   StreamParserHost();
   virtual ~StreamParserHost();
 
-  // A new audio decoder configuration was encountered. All audio buffers
-  // after this call will be associated with this configuration.
-  virtual bool OnNewAudioConfig(const AudioDecoderConfig& config) = 0;
-
-  // A new video decoder configuration was encountered. All video buffers
-  // after this call will be associated with this configuration.
-  virtual bool OnNewVideoConfig(const VideoDecoderConfig& config) = 0;
+  // New audio and/or video decoder configurations were encountered. All audio
+  // and video buffers after this call will be associated with these
+  // configurations.
+  // Returns true if the new configurations are accepted.
+  // Returns false if the new configurations are not supported and indicates
+  // that a parsing error should be signalled.
+  virtual bool OnNewConfigs(const AudioDecoderConfig& audio_config,
+                            const VideoDecoderConfig& video_config) = 0;
 
   // New audio buffers have been received.
   virtual bool OnAudioBuffers(const BufferQueue& buffers) = 0;
@@ -72,10 +73,8 @@ class MEDIA_EXPORT StreamParser {
 
   // Called when there is new data to parse.
   //
-  // Returns < 0 if the parse fails.
-  // Returns 0 if more data is needed.
-  // Returning > 0 indicates success & the number of bytes parsed.
-  virtual int Parse(const uint8* buf, int size) = 0;
+  // Returns true if the parse succeeds.
+  virtual bool Parse(const uint8* buf, int size) = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(StreamParser);

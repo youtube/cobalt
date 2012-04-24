@@ -239,7 +239,7 @@ void ChunkDemuxerStream::Read(const ReadCB& read_cb) {
   {
     base::AutoLock auto_lock(lock_);
 
-    switch(state_) {
+    switch (state_) {
       case RETURNING_DATA_FOR_READS:
         // If we don't have any buffers ready or already have
         // pending reads, then defer this read.
@@ -451,7 +451,6 @@ void ChunkDemuxer::FlushData() {
   if (video_.get())
     video_->Flush();
 
-  byte_queue_.Reset();
   stream_parser_->Flush();
 
   seek_waits_for_data_ = true;
@@ -500,55 +499,34 @@ bool ChunkDemuxer::AppendData(const std::string& id,
   {
     base::AutoLock auto_lock(lock_);
 
-    byte_queue_.Push(data, length);
-
-    const uint8* cur = NULL;
-    int cur_size = 0;
-    int bytes_parsed = 0;
-    int result = -1;
-
     // Capture |seek_waits_for_data_| state before we start parsing.
     // Its state can be changed by OnAudioBuffers() or OnVideoBuffers()
     // calls during the parse.
     bool old_seek_waits_for_data = seek_waits_for_data_;
 
-    byte_queue_.Peek(&cur, &cur_size);
+    switch (state_) {
+      case INITIALIZING:
+        if (!stream_parser_->Parse(data, length)) {
+          DCHECK_EQ(state_, INITIALIZING);
+          ReportError_Locked(DEMUXER_ERROR_COULD_NOT_OPEN);
+          return true;
+        }
+        break;
 
-    do {
-      switch(state_) {
-        case INITIALIZING:
-          result = stream_parser_->Parse(cur, cur_size);
-          if (result < 0) {
-            DCHECK_EQ(state_, INITIALIZING);
-            ReportError_Locked(DEMUXER_ERROR_COULD_NOT_OPEN);
-            return true;
-          }
-          break;
+      case INITIALIZED: {
+        if (!stream_parser_->Parse(data, length)) {
+          ReportError_Locked(PIPELINE_ERROR_DECODE);
+          return true;
+        }
+      } break;
 
-        case INITIALIZED: {
-          result = stream_parser_->Parse(cur, cur_size);
-          if (result < 0) {
-            ReportError_Locked(PIPELINE_ERROR_DECODE);
-            return true;
-          }
-        } break;
-
-        case WAITING_FOR_INIT:
-        case ENDED:
-        case PARSE_ERROR:
-        case SHUTDOWN:
-          DVLOG(1) << "AppendData(): called in unexpected state " << state_;
-          return false;
-      }
-
-      if (result > 0) {
-        cur += result;
-        cur_size -= result;
-        bytes_parsed += result;
-      }
-    } while (result > 0 && cur_size > 0);
-
-    byte_queue_.Pop(bytes_parsed);
+      case WAITING_FOR_INIT:
+      case ENDED:
+      case PARSE_ERROR:
+      case SHUTDOWN:
+        DVLOG(1) << "AppendData(): called in unexpected state " << state_;
+        return false;
+    }
 
     // Check to see if parsing triggered seek_waits_for_data_ to go from true to
     // false. This indicates we have parsed enough data to complete the seek.
@@ -706,23 +684,27 @@ void ChunkDemuxer::OnStreamParserInitDone(bool success,
   cb.Run(PIPELINE_OK);
 }
 
-bool ChunkDemuxer::OnNewAudioConfig(const AudioDecoderConfig& config) {
+bool ChunkDemuxer::OnNewConfigs(const AudioDecoderConfig& audio_config,
+                                const VideoDecoderConfig& video_config) {
+  CHECK(audio_config.IsValidConfig() || video_config.IsValidConfig());
   lock_.AssertAcquired();
+
   // Only allow a single audio config for now.
-  if (audio_.get())
-    return false;
+  if (audio_config.IsValidConfig()) {
+    if (audio_.get())
+      return false;
 
-  audio_ = new ChunkDemuxerStream(config);
-  return true;
-}
+    audio_ = new ChunkDemuxerStream(audio_config);
+  }
 
-bool ChunkDemuxer::OnNewVideoConfig(const VideoDecoderConfig& config) {
-  lock_.AssertAcquired();
   // Only allow a single video config for now.
-  if (video_.get())
-    return false;
+  if (video_config.IsValidConfig()) {
+    if (video_.get())
+      return false;
 
-  video_ = new ChunkDemuxerStream(config);
+    video_ = new ChunkDemuxerStream(video_config);
+  }
+
   return true;
 }
 

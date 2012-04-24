@@ -87,8 +87,8 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer, public StreamParserHost {
   void OnStreamParserInitDone(bool success, base::TimeDelta duration);
 
   // StreamParserHost implementation.
-  virtual bool OnNewAudioConfig(const AudioDecoderConfig& config) OVERRIDE;
-  virtual bool OnNewVideoConfig(const VideoDecoderConfig& config) OVERRIDE;
+  virtual bool OnNewConfigs(const AudioDecoderConfig& audio_config,
+                            const VideoDecoderConfig& video_config) OVERRIDE;
   virtual bool OnAudioBuffers(const BufferQueue& buffer) OVERRIDE;
   virtual bool OnVideoBuffers(const BufferQueue& buffer) OVERRIDE;
 
@@ -112,8 +112,6 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer, public StreamParserHost {
   // Should a Seek() call wait for more data before calling the
   // callback.
   bool seek_waits_for_data_;
-
-  ByteQueue byte_queue_;
 
   // TODO(acolwell): Remove this when fixing http://crbug.com/122909
   std::string source_id_;

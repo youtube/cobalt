@@ -9,6 +9,7 @@
 #include "base/memory/ref_counted.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/buffers.h"
+#include "media/base/byte_queue.h"
 #include "media/base/stream_parser.h"
 #include "media/base/video_decoder_config.h"
 #include "media/webm/webm_cluster_parser.h"
@@ -23,13 +24,14 @@ class WebMStreamParser : public StreamParser {
   // StreamParser implementation.
   virtual void Init(const InitCB& init_cb, StreamParserHost* host) OVERRIDE;
   virtual void Flush() OVERRIDE;
-  virtual int Parse(const uint8* buf, int size) OVERRIDE;
+  virtual bool Parse(const uint8* buf, int size) OVERRIDE;
 
  private:
   enum State {
-    WAITING_FOR_INIT,
-    PARSING_HEADERS,
-    PARSING_CLUSTERS
+    kWaitingForInit,
+    kParsingHeaders,
+    kParsingClusters,
+    kError
   };
 
   void ChangeState(State new_state);
@@ -58,6 +60,7 @@ class WebMStreamParser : public StreamParser {
   StreamParserHost* host_;
 
   scoped_ptr<WebMClusterParser> cluster_parser_;
+  ByteQueue byte_queue_;
 
   DISALLOW_COPY_AND_ASSIGN(WebMStreamParser);
 };
