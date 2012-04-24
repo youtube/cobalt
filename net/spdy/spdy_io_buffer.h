@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,10 +22,10 @@ class NET_EXPORT_PRIVATE SpdyIOBuffer {
   // Constructor
   // |buffer| is the actual data buffer.
   // |size| is the size of the data buffer.
-  // |priority| is the priority of this buffer.  Lower numbers are higher
-  //            priority.
+  // |priority| is the priority of this buffer.
   // |stream| is a pointer to the stream which is managing this buffer.
-  SpdyIOBuffer(IOBuffer* buffer, int size, int priority, SpdyStream* stream);
+  SpdyIOBuffer(IOBuffer* buffer, int size, RequestPriority priority,
+               SpdyStream* stream);
   SpdyIOBuffer();
   ~SpdyIOBuffer();
 
@@ -33,19 +33,19 @@ class NET_EXPORT_PRIVATE SpdyIOBuffer {
   DrainableIOBuffer* buffer() const { return buffer_; }
   size_t size() const { return buffer_->size(); }
   void release();
-  int priority() const { return priority_; }
+  RequestPriority priority() const { return priority_; }
   const scoped_refptr<SpdyStream>& stream() const { return stream_; }
 
   // Comparison operator to support sorting.
   bool operator<(const SpdyIOBuffer& other) const {
     if (priority_ != other.priority_)
-      return priority_ > other.priority_;
+      return priority_ < other.priority_;
     return position_ > other.position_;
   }
 
  private:
   scoped_refptr<DrainableIOBuffer> buffer_;
-  int priority_;
+  RequestPriority priority_;
   uint64 position_;
   scoped_refptr<SpdyStream> stream_;
   static uint64 order_;  // Maintains a FIFO order for equal priorities.

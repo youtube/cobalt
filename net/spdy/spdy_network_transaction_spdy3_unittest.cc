@@ -569,8 +569,8 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, Get) {
 }
 
 TEST_P(SpdyNetworkTransactionSpdy3Test, GetAtEachPriority) {
-  for (RequestPriority p = HIGHEST; p < NUM_PRIORITIES;
-       p = RequestPriority(p+1)) {
+  for (RequestPriority p = MINIMUM_PRIORITY; p < NUM_PRIORITIES;
+       p = RequestPriority(p + 1)) {
     // Construct the request.
     scoped_ptr<SpdyFrame> req(ConstructSpdyGet(NULL, 0, false, 1, p));
     MockWrite writes[] = { CreateMockWrite(*req) };
