@@ -318,7 +318,8 @@ def GenerateCertKeyAndOCSP(subject = "127.0.0.1",
          None'''
 
   serial = RandomNumber(16)
-  cert_der = MakeCertificate(ISSUER_CN, subject, serial, KEY, KEY, ocsp_url)
+  cert_der = MakeCertificate(ISSUER_CN, bytes(subject), serial, KEY, KEY,
+                             bytes(ocsp_url))
   cert_pem = DERToPEM(cert_der)
 
   ocsp_der = None
