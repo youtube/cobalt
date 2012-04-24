@@ -12,6 +12,8 @@ RefCountedMemory::RefCountedMemory() {
 RefCountedMemory::~RefCountedMemory() {
 }
 
+namespace base {
+
 const unsigned char* RefCountedStaticMemory::front() const {
   return data_;
 }
@@ -19,8 +21,6 @@ const unsigned char* RefCountedStaticMemory::front() const {
 size_t RefCountedStaticMemory::size() const {
   return length_;
 }
-
-namespace base {
 
 RefCountedBytes::RefCountedBytes() {
 }
