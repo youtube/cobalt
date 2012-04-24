@@ -25,7 +25,7 @@ TEST(SpdyFrameReaderTest, ReadUInt16) {
   uint16 uint16_val;
   EXPECT_TRUE(frame_reader.ReadUInt16(&uint16_val));
   EXPECT_FALSE(frame_reader.IsDoneReading());
-  EXPECT_EQ(1u, uint16_val);
+  EXPECT_EQ(1, uint16_val);
 
   EXPECT_TRUE(frame_reader.ReadUInt16(&uint16_val));
   EXPECT_TRUE(frame_reader.IsDoneReading());
@@ -49,7 +49,7 @@ TEST(SpdyFrameReaderTest, ReadUInt32) {
 
   EXPECT_TRUE(frame_reader.ReadUInt32(&uint32_val));
   EXPECT_TRUE(frame_reader.IsDoneReading());
-  EXPECT_EQ(static_cast<uint32>(1<<31), uint32_val);
+  EXPECT_EQ(1u<<31, uint32_val);
 }
 
 TEST(SpdyFrameReaderTest, ReadStringPiece16) {
