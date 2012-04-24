@@ -6,25 +6,20 @@
 
 #include "base/logging.h"
 
-namespace {
-
-tracked_objects::NowFunction* g_time_function = NULL;
-
-}  // anonymous namespace
-
 namespace tracked_objects {
+
+static NowFunction* g_time_function = NULL;
 
 const char kAlternateProfilerTime[] = "CHROME_PROFILER_TIME";
 
 // Set an alternate timer function to replace the OS time function when
 // profiling.
 void SetAlternateTimeSource(NowFunction* now_function) {
-  DCHECK_EQ(reinterpret_cast<NowFunction*>(NULL), g_time_function);
+  DCHECK_EQ(g_time_function, reinterpret_cast<NowFunction*>(NULL));
   g_time_function = now_function;
 }
 
-NowFunction* GetAlternateTimeSource() {
+extern NowFunction* GetAlternateTimeSource() {
   return g_time_function;
 }
-
-}  // namespace tracked_objects
+}  // tracked_objects
