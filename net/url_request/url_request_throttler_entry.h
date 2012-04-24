@@ -43,7 +43,7 @@ class NET_EXPORT URLRequestThrottlerEntry
   static const int kDefaultNumErrorsToIgnore;
 
   // Initial delay for exponential back-off.
-  static const int kDefaultInitialBackoffMs;
+  static const int kDefaultInitialDelayMs;
 
   // Factor by which the waiting time will be multiplied.
   static const double kDefaultMultiplyFactor;
