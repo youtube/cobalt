@@ -17,11 +17,12 @@ namespace net {
 namespace {
 
 // We rely on the priority enum values being sequential having starting at 0,
-// and increasing for lower priorities.
-COMPILE_ASSERT(HIGHEST == 0u &&
-               LOWEST > HIGHEST &&
-               IDLE > LOWEST &&
-               NUM_PRIORITIES > IDLE,
+// and increasing for higher priorities.
+COMPILE_ASSERT(MINIMUM_PRIORITY == 0u &&
+               MINIMUM_PRIORITY == IDLE &&
+               IDLE < LOWEST &&
+               LOWEST < HIGHEST &&
+               HIGHEST < NUM_PRIORITIES,
                priority_indexes_incompatible);
 
 class PrioritizedDispatcherTest : public testing::Test {

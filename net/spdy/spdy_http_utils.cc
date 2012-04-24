@@ -125,21 +125,25 @@ void CreateSpdyHeadersFromHttpRequest(const HttpRequestInfo& info,
 
 }
 
+COMPILE_ASSERT(HIGHEST - LOWEST < 4 &&
+               HIGHEST - MINIMUM_PRIORITY < 5,
+               request_priority_incompatible_with_spdy);
+
 SpdyPriority ConvertRequestPriorityToSpdyPriority(
     const RequestPriority priority,
     int protocol_version) {
-  DCHECK(HIGHEST <= priority && priority < NUM_PRIORITIES);
+  DCHECK_GE(priority, MINIMUM_PRIORITY);
+  DCHECK_LT(priority, NUM_PRIORITIES);
   if (protocol_version == 2) {
     // SPDY 2 only has 2 bits of priority, but we have 5 RequestPriorities.
-    if (priority < LOWEST) {
-      return priority;
+    // Map IDLE => 3, LOWEST => 2, LOW => 2, MEDIUM => 1, HIGHEST => 0.
+    if (priority > LOWEST) {
+      return static_cast<SpdyPriority>(HIGHEST - priority);
     } else {
-      DCHECK_GE(4, priority);
-      return priority - 1;
+      return static_cast<SpdyPriority>(HIGHEST - priority - 1);
     }
   } else {
-    DCHECK_GE(7, priority);
-    return priority;
+    return static_cast<SpdyPriority>(HIGHEST - priority);
   }
 }
 

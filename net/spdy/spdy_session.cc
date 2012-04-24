@@ -535,7 +535,7 @@ void SpdySession::ProcessPendingCreateStreams() {
   while (!max_concurrent_streams_ ||
          active_streams_.size() < max_concurrent_streams_) {
     bool no_pending_create_streams = true;
-    for (int i = 0;i < NUM_PRIORITIES;++i) {
+    for (int i = NUM_PRIORITIES - 1; i >= MINIMUM_PRIORITY; --i) {
       if (!create_stream_queues_[i].empty()) {
         PendingCreateStream pending_create = create_stream_queues_[i].front();
         create_stream_queues_[i].pop();
@@ -568,7 +568,7 @@ void SpdySession::CancelPendingCreateStreams(
     return;
   }
 
-  for (int i = 0;i < NUM_PRIORITIES;++i) {
+  for (int i = 0; i < NUM_PRIORITIES; ++i) {
     PendingCreateStreamQueue tmp;
     // Make a copy removing this trans
     while (!create_stream_queues_[i].empty()) {
@@ -590,6 +590,9 @@ int SpdySession::CreateStreamImpl(
     RequestPriority priority,
     scoped_refptr<SpdyStream>* spdy_stream,
     const BoundNetLog& stream_net_log) {
+  DCHECK_GE(priority, MINIMUM_PRIORITY);
+  DCHECK_LT(priority, NUM_PRIORITIES);
+
   // Make sure that we don't try to send https/wss over an unauthenticated, but
   // encrypted SSL socket.
   if (is_secure_ && certificate_error_code_ != OK &&
@@ -622,7 +625,6 @@ int SpdySession::CreateStreamImpl(
       static_cast<int>(priority), 0, 10, 11);
 
   // TODO(mbelshe): Optimize memory allocations
-  DCHECK(priority >= net::HIGHEST && priority < net::NUM_PRIORITIES);
 
   DCHECK_EQ(active_streams_[stream_id].get(), stream.get());
   return OK;
@@ -834,7 +836,7 @@ void SpdySession::ResetStream(SpdyStreamId stream_id,
       buffered_spdy_framer_->CreateRstStream(stream_id, status));
 
   // Default to lowest priority unless we know otherwise.
-  int priority = 3;
+  RequestPriority priority = net::IDLE;
   if(IsStreamActive(stream_id)) {
     scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
     priority = stream->priority();
@@ -1054,7 +1056,8 @@ void SpdySession::WriteSocket() {
         memcpy(buffer->data(), compressed_frame->data(), size);
 
         // Attempt to send the frame.
-        in_flight_write_ = SpdyIOBuffer(buffer, size, 0, next_buffer.stream());
+        in_flight_write_ = SpdyIOBuffer(buffer, size, HIGHEST,
+                                        next_buffer.stream());
       } else {
         size = uncompressed_frame.length() + SpdyFrame::kHeaderSize;
         in_flight_write_ = next_buffer;
@@ -1094,7 +1097,7 @@ void SpdySession::CloseAllStreams(net::Error status) {
     unclaimed_pushed_streams_.clear();
   }
 
-  for (int i = 0;i < NUM_PRIORITIES;++i) {
+  for (int i = 0; i < NUM_PRIORITIES; ++i) {
     while (!create_stream_queues_[i].empty()) {
       PendingCreateStream pending_create = create_stream_queues_[i].front();
       create_stream_queues_[i].pop();
@@ -1126,7 +1129,7 @@ int SpdySession::GetNewStreamId() {
 }
 
 void SpdySession::QueueFrame(SpdyFrame* frame,
-                             SpdyPriority priority,
+                             RequestPriority priority,
                              SpdyStream* stream) {
   int length = SpdyFrame::kHeaderSize + frame->length();
   IOBuffer* buffer = new IOBuffer(length);
@@ -1741,7 +1744,7 @@ void SpdySession::SendSettings() {
   scoped_ptr<SpdySettingsControlFrame> settings_frame(
       buffered_spdy_framer_->CreateSettings(settings_map_new));
   sent_settings_ = true;
-  QueueFrame(settings_frame.get(), 0, NULL);
+  QueueFrame(settings_frame.get(), HIGHEST, NULL);
 }
 
 void SpdySession::HandleSetting(uint32 id, uint32 value) {
@@ -1818,8 +1821,7 @@ void SpdySession::WritePingFrame(uint32 unique_id) {
   DCHECK(buffered_spdy_framer_.get());
   scoped_ptr<SpdyPingControlFrame> ping_frame(
       buffered_spdy_framer_->CreatePingFrame(next_ping_id_));
-  QueueFrame(
-      ping_frame.get(), buffered_spdy_framer_->GetHighestPriority(), NULL);
+  QueueFrame(ping_frame.get(), HIGHEST, NULL);
 
   if (net_log().IsLoggingAllEvents()) {
     net_log().AddEvent(

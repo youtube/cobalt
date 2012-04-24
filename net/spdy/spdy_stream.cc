@@ -73,7 +73,7 @@ SpdyStream::SpdyStream(SpdySession* session,
                        const BoundNetLog& net_log)
     : continue_buffering_data_(true),
       stream_id_(stream_id),
-      priority_(0),
+      priority_(HIGHEST),
       slot_(0),
       stalled_by_flow_control_(false),
       send_window_size_(kSpdyStreamInitialWindowSize),
@@ -663,7 +663,7 @@ int SpdyStream::DoSendDomainBoundCert() {
   origin.erase(origin.length() - 1);  // trim trailing slash
   int rv =  session_->WriteCredentialFrame(
       origin, domain_bound_cert_type_, domain_bound_private_key_,
-      domain_bound_cert_, static_cast<RequestPriority>(priority_));
+      domain_bound_cert_, priority_);
   if (rv != ERR_IO_PENDING)
     return rv;
   return OK;
@@ -686,7 +686,7 @@ int SpdyStream::DoSendHeaders() {
 
   CHECK(request_.get());
   int result = session_->WriteSynStream(
-      stream_id_, static_cast<RequestPriority>(priority_), slot_, flags,
+      stream_id_, priority_, slot_, flags,
       request_);
   if (result != ERR_IO_PENDING)
     return result;

@@ -18,6 +18,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_export.h"
 #include "net/base/net_log.h"
+#include "net/base/request_priority.h"
 #include "net/base/server_bound_cert_service.h"
 #include "net/base/ssl_client_cert_type.h"
 #include "net/base/upload_data.h"
@@ -122,8 +123,8 @@ class NET_EXPORT_PRIVATE SpdyStream
   const std::string& path() const { return path_; }
   void set_path(const std::string& path) { path_ = path; }
 
-  int priority() const { return priority_; }
-  void set_priority(int priority) { priority_ = priority; }
+  RequestPriority priority() const { return priority_; }
+  void set_priority(RequestPriority priority) { priority_ = priority; }
 
   int32 send_window_size() const { return send_window_size_; }
   void set_send_window_size(int32 window_size) {
@@ -315,7 +316,7 @@ class NET_EXPORT_PRIVATE SpdyStream
 
   SpdyStreamId stream_id_;
   std::string path_;
-  int priority_;
+  RequestPriority priority_;
   size_t slot_;
 
   // Flow control variables.
