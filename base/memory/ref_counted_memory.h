@@ -35,6 +35,8 @@ class BASE_EXPORT RefCountedMemory
   virtual ~RefCountedMemory();
 };
 
+namespace base {
+
 // An implementation of RefCountedMemory, where the ref counting does not
 // matter.
 class BASE_EXPORT RefCountedStaticMemory : public RefCountedMemory {
@@ -54,8 +56,6 @@ class BASE_EXPORT RefCountedStaticMemory : public RefCountedMemory {
 
   DISALLOW_COPY_AND_ASSIGN(RefCountedStaticMemory);
 };
-
-namespace base {
 
 // An implementation of RefCountedMemory, where we own our the data in a
 // vector.
