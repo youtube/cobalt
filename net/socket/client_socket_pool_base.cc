@@ -222,7 +222,7 @@ ClientSocketPoolBaseHelper::CallbackResultPair::~CallbackResultPair() {}
 void ClientSocketPoolBaseHelper::InsertRequestIntoQueue(
     const Request* r, RequestQueue* pending_requests) {
   RequestQueue::iterator it = pending_requests->begin();
-  while (it != pending_requests->end() && r->priority() >= (*it)->priority())
+  while (it != pending_requests->end() && r->priority() <= (*it)->priority())
     ++it;
   pending_requests->insert(it, r);
 }
@@ -332,7 +332,6 @@ void ClientSocketPoolBaseHelper::RequestSockets(
 int ClientSocketPoolBaseHelper::RequestSocketInternal(
     const std::string& group_name,
     const Request* request) {
-  DCHECK_GE(request->priority(), 0);
   ClientSocketHandle* const handle = request->handle();
   const bool preconnecting = !handle;
   Group* group = GetOrCreateGroup(group_name);
@@ -834,7 +833,7 @@ bool ClientSocketPoolBaseHelper::FindTopStalledGroup(
         return true;
       has_stalled_group = true;
       bool has_higher_priority = !top_group ||
-          curr_group->TopPendingPriority() < top_group->TopPendingPriority();
+          curr_group->TopPendingPriority() > top_group->TopPendingPriority();
       if (has_higher_priority) {
         top_group = curr_group;
         top_group_name = &i->first;

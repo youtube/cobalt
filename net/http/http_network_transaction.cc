@@ -1020,10 +1020,10 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() {
     }
   }
 
-  // Currently, non-zero priority requests are frame or sub-frame resource
+  // Currently, non-HIGHEST priority requests are frame or sub-frame resource
   // types.  This will change when we also prioritize certain subresources like
   // css, js, etc.
-  if (request_->priority) {
+  if (request_->priority != HIGHEST) {
     UMA_HISTOGRAM_CUSTOM_TIMES(
         "Net.Priority_High_Latency_b",
         total_duration,

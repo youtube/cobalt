@@ -171,7 +171,7 @@ bool BufferedSpdyFramer::HasError() {
 SpdySynStreamControlFrame* BufferedSpdyFramer::CreateSynStream(
     SpdyStreamId stream_id,
     SpdyStreamId associated_stream_id,
-    int priority,
+    SpdyPriority priority,
     uint8 credential_slot,
     SpdyControlFlags flags,
     bool compressed,

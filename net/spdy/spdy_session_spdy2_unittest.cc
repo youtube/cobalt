@@ -74,36 +74,32 @@ TEST_F(SpdySessionSpdy2Test, SpdyIOBuffer) {
   std::priority_queue<SpdyIOBuffer> queue_;
   const size_t kQueueSize = 100;
 
-  // Insert 100 items; pri 100 to 1.
+  // Insert items with random priority and increasing buffer size.
   for (size_t index = 0; index < kQueueSize; ++index) {
-    SpdyIOBuffer buffer(new IOBuffer(), 0, kQueueSize - index, NULL);
-    queue_.push(buffer);
+    queue_.push(SpdyIOBuffer(
+        new IOBufferWithSize(index + 1),
+        index + 1,
+        static_cast<RequestPriority>(rand() % NUM_PRIORITIES),
+        NULL));
   }
 
-  // Insert several priority 0 items last.
-  const size_t kNumDuplicates = 12;
-  IOBufferWithSize* buffers[kNumDuplicates];
-  for (size_t index = 0; index < kNumDuplicates; ++index) {
-    buffers[index] = new IOBufferWithSize(index+1);
-    queue_.push(SpdyIOBuffer(buffers[index], buffers[index]->size(), 0, NULL));
-  }
+  EXPECT_EQ(kQueueSize, queue_.size());
 
-  EXPECT_EQ(kQueueSize + kNumDuplicates, queue_.size());
-
-  // Verify the P0 items come out in FIFO order.
-  for (size_t index = 0; index < kNumDuplicates; ++index) {
+  // Verify items come out with decreasing priority or FIFO order.
+  RequestPriority last_priority = NUM_PRIORITIES;
+  size_t last_size = 0;
+  for (size_t index = 0; index < kQueueSize; ++index) {
     SpdyIOBuffer buffer = queue_.top();
-    EXPECT_EQ(0, buffer.priority());
-    EXPECT_EQ(index + 1, buffer.size());
+    EXPECT_LE(buffer.priority(), last_priority);
+    if (buffer.priority() < last_priority)
+      last_size = 0;
+    EXPECT_LT(last_size, buffer.size());
+    last_priority = buffer.priority();
+    last_size = buffer.size();
     queue_.pop();
   }
 
-  int priority = 1;
-  while (queue_.size()) {
-    SpdyIOBuffer buffer = queue_.top();
-    EXPECT_EQ(priority++, buffer.priority());
-    queue_.pop();
-  }
+  EXPECT_EQ(0u, queue_.size());
 }
 
 TEST_F(SpdySessionSpdy2Test, GoAway) {

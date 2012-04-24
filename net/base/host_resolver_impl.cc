@@ -389,7 +389,7 @@ class PriorityTracker {
   void Add(RequestPriority req_priority) {
     ++total_count_;
     ++counts_[req_priority];
-    if (highest_priority_ > req_priority)
+    if (highest_priority_ < req_priority)
       highest_priority_ = req_priority;
   }
 
@@ -399,14 +399,12 @@ class PriorityTracker {
     --total_count_;
     --counts_[req_priority];
     size_t i;
-    for (i = highest_priority_; i < NUM_PRIORITIES && !counts_[i]; ++i);
+    for (i = highest_priority_; i > MINIMUM_PRIORITY && !counts_[i]; --i);
     highest_priority_ = static_cast<RequestPriority>(i);
 
-    // In absence of requests set default.
-    if (highest_priority_ == NUM_PRIORITIES) {
-      DCHECK_EQ(0u, total_count_);
-      highest_priority_ = IDLE;
-    }
+    // In absence of requests, default to MINIMUM_PRIORITY.
+    if (total_count_ == 0)
+      DCHECK_EQ(MINIMUM_PRIORITY, highest_priority_);
   }
 
  private:

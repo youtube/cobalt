@@ -572,7 +572,7 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   // Returns the priority level for this request.
   RequestPriority priority() const { return priority_; }
   void set_priority(RequestPriority priority) {
-    DCHECK_GE(priority, HIGHEST);
+    DCHECK_GE(priority, MINIMUM_PRIORITY);
     DCHECK_LT(priority, NUM_PRIORITIES);
     priority_ = priority;
   }
