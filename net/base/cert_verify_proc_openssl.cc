@@ -159,21 +159,11 @@ void AppendPublicKeyHashes(X509_STORE_CTX* store_ctx,
 bool VerifyFromAndroidTrustManager(const std::vector<std::string>& cert_bytes,
                                    CertVerifyResult* verify_result) {
   // TODO(joth): Fetch the authentication type from SSL rather than hardcode.
-  // TODO(jnd): Remove unused |hostname| from net::android::VerifyX509CertChain.
   bool verified = true;
-#if 0
   android::VerifyResult result =
-      android::VerifyX509CertChain(cert_bytes, hostname, "RSA");
-#else
-  // TODO(jingzhao): Recover the original implementation once we support JNI.
-  android::VerifyResult result = android::VERIFY_INVOCATION_ERROR;
-  NOTIMPLEMENTED();
-#endif
+      android::VerifyX509CertChain(cert_bytes, "RSA");
   switch (result) {
     case android::VERIFY_OK:
-      break;
-    case android::VERIFY_BAD_HOSTNAME:
-      verify_result->cert_status |= CERT_STATUS_COMMON_NAME_INVALID;
       break;
     case android::VERIFY_NO_TRUSTED_ROOT:
       verify_result->cert_status |= CERT_STATUS_AUTHORITY_INVALID;
