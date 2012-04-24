@@ -9245,7 +9245,7 @@ void IPPoolingAddAlias(MockCachingHostResolver* host_resolver,
 
 }  // namespace
 
-TEST_F(HttpNetworkTransactionSpdy2Test, UseIPConnectionPooling) {
+TEST_F(HttpNetworkTransactionSpdy2Test, FLAKY_UseIPConnectionPooling) {
   HttpStreamFactory::set_use_alternate_protocols(true);
   HttpStreamFactory::SetNextProtos(SpdyNextProtos());
 
