@@ -1424,7 +1424,9 @@ ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
   // running on glib_default_loop). Additionally register for
   // notifications (delivered in either |glib_default_loop| or
   // |file_loop|) to keep us updated when the proxy config changes.
-  linux_config_service->SetupAndFetchInitialConfig(glib_default_loop, io_loop,
+  linux_config_service->SetupAndFetchInitialConfig(
+      glib_default_loop->message_loop_proxy(),
+      io_loop->message_loop_proxy(),
       static_cast<MessageLoopForIO*>(file_loop));
 
   return linux_config_service;
