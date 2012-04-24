@@ -4,8 +4,8 @@
 
 #include "media/audio/simple_sources.h"
 
-#include <algorithm>
 #include <math.h>
+#include <algorithm>
 
 #include "base/basictypes.h"
 #include "base/logging.h"
@@ -32,8 +32,7 @@ SineWaveAudioSource::SineWaveAudioSource(Format format, int channels,
 // The implementation could be more efficient if a lookup table is constructed
 // but it is efficient enough for our simple needs.
 uint32 SineWaveAudioSource::OnMoreData(
-    AudioOutputStream* stream, uint8* dest, uint32 max_size,
-    AudioBuffersState audio_buffers) {
+    uint8* dest, uint32 max_size, AudioBuffersState audio_buffers) {
   const double kTwoPi = 2.0 * 3.141592653589;
   double f = freq_ / sample_freq_;
   int16* sin_tbl = reinterpret_cast<int16*>(dest);
@@ -67,8 +66,7 @@ PushSource::PushSource()
 PushSource::~PushSource() { }
 
 uint32 PushSource::OnMoreData(
-    AudioOutputStream* stream, uint8* dest, uint32 max_size,
-    AudioBuffersState buffers_state) {
+    uint8* dest, uint32 max_size, AudioBuffersState buffers_state) {
   return buffer_.Read(dest, max_size);
 }
 

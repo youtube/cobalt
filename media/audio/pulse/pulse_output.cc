@@ -424,7 +424,7 @@ void PulseAudioOutputStream::GetVolume(double* volume) {
 uint32 PulseAudioOutputStream::RunDataCallback(
     uint8* dest, uint32 max_size, AudioBuffersState buffers_state) {
   if (source_callback_)
-    return source_callback_->OnMoreData(this, dest, max_size, buffers_state);
+    return source_callback_->OnMoreData(dest, max_size, buffers_state);
 
   return 0;
 }

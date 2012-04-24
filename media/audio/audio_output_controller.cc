@@ -276,9 +276,9 @@ void AudioOutputController::DoReportError(int code) {
     handler_->OnError(this, code);
 }
 
-uint32 AudioOutputController::OnMoreData(
-    AudioOutputStream* stream, uint8* dest,
-    uint32 max_size, AudioBuffersState buffers_state) {
+uint32 AudioOutputController::OnMoreData(uint8* dest,
+                                         uint32 max_size,
+                                         AudioBuffersState buffers_state) {
   TRACE_EVENT0("audio", "AudioOutputController::OnMoreData");
 
   {

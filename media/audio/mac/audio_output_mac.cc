@@ -407,7 +407,7 @@ void PCMQueueOutAudioOutputStream::RenderCallback(void* p_this,
   uint32 capacity = buffer->mAudioDataBytesCapacity;
   // TODO(sergeyu): Specify correct hardware delay for AudioBuffersState.
   uint32 filled = source->OnMoreData(
-      audio_stream, reinterpret_cast<uint8*>(buffer->mAudioData), capacity,
+      reinterpret_cast<uint8*>(buffer->mAudioData), capacity,
       AudioBuffersState(audio_stream->pending_bytes_, 0));
 
   // In order to keep the callback running, we need to provide a positive amount

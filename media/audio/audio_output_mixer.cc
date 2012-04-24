@@ -145,8 +145,7 @@ void AudioOutputMixer::ClosePhysicalStream() {
 }
 
 // AudioSourceCallback implementation.
-uint32 AudioOutputMixer::OnMoreData(AudioOutputStream* stream,
-                                    uint8* dest,
+uint32 AudioOutputMixer::OnMoreData(uint8* dest,
                                     uint32 max_size,
                                     AudioBuffersState buffers_state) {
   max_size = std::min(max_size,
@@ -169,7 +168,6 @@ uint32 AudioOutputMixer::OnMoreData(AudioOutputStream* stream,
   bool first_stream = true;
   uint8* actual_dest = dest;
   for (ProxyMap::iterator it = proxies_.begin(); it != proxies_.end(); ++it) {
-    AudioOutputProxy* stream_proxy = it->first;
     ProxyData* proxy_data = &it->second;
     // TODO(enal): We don't know |pending _bytes| for individual stream, and we
     // should give that value to individual stream's OnMoreData(). I believe it
@@ -184,7 +182,6 @@ uint32 AudioOutputMixer::OnMoreData(AudioOutputStream* stream,
     // Note: there is no way we can deduce hardware_delay_bytes for the
     // particular proxy stream. Use zero instead.
     uint32 actual_size = proxy_data->audio_source_callback->OnMoreData(
-        stream_proxy,
         actual_dest,
         max_size,
         AudioBuffersState(pending_bytes, 0));

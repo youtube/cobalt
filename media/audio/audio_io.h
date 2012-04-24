@@ -65,9 +65,9 @@ class MEDIA_EXPORT AudioOutputStream {
     // platform and format specific.
     // |buffers_state| contains current state of the buffers, and can be used
     // by the source to calculate delay.
-    virtual uint32 OnMoreData(
-        AudioOutputStream* stream, uint8* dest, uint32 max_size,
-        AudioBuffersState buffers_state) = 0;
+    virtual uint32 OnMoreData(uint8* dest,
+                              uint32 max_size,
+                              AudioBuffersState buffers_state) = 0;
 
     // There was an error while playing a buffer. Audio source cannot be
     // destroyed yet. No direct action needed by the AudioStream, but it is

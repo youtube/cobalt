@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <string>
+
 #include "media/audio/linux/audio_manager_linux.h"
 #include "media/audio/linux/cras_output.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -17,8 +19,7 @@ namespace media {
 
 class MockAudioSourceCallback : public AudioOutputStream::AudioSourceCallback {
  public:
-  MOCK_METHOD4(OnMoreData, uint32(AudioOutputStream* stream,
-                                  uint8* dest, uint32 max_size,
+  MOCK_METHOD3(OnMoreData, uint32(uint8* dest, uint32 max_size,
                                   AudioBuffersState buffers_state));
   MOCK_METHOD2(OnError, void(AudioOutputStream* stream, int code));
 };
@@ -120,7 +121,7 @@ struct cras_client* const CrasOutputStreamTest::kFakeClient =
 
 TEST_F(CrasOutputStreamTest, ConstructedState) {
   // Should support mono.
-  CrasOutputStream *test_stream = CreateStream(CHANNEL_LAYOUT_MONO);
+  CrasOutputStream* test_stream = CreateStream(CHANNEL_LAYOUT_MONO);
   EXPECT_EQ(CrasOutputStream::kCreated, test_stream->state());
   test_stream->Close();
 
@@ -154,7 +155,7 @@ TEST_F(CrasOutputStreamTest, ConstructedState) {
 }
 
 TEST_F(CrasOutputStreamTest, OpenClose) {
-  CrasOutputStream *test_stream = CreateStream(CHANNEL_LAYOUT_MONO);
+  CrasOutputStream* test_stream = CreateStream(CHANNEL_LAYOUT_MONO);
   // Open the stream.
   ASSERT_TRUE(test_stream->Open());
   EXPECT_EQ(CrasOutputStream::kIsOpened, test_stream->state());
@@ -164,7 +165,7 @@ TEST_F(CrasOutputStreamTest, OpenClose) {
 }
 
 TEST_F(CrasOutputStreamTest, StartFailBeforeOpen) {
-  CrasOutputStream *test_stream = CreateStream(CHANNEL_LAYOUT_MONO);
+  CrasOutputStream* test_stream = CreateStream(CHANNEL_LAYOUT_MONO);
   MockAudioSourceCallback mock_callback;
 
   test_stream->Start(&mock_callback);
@@ -172,7 +173,7 @@ TEST_F(CrasOutputStreamTest, StartFailBeforeOpen) {
 }
 
 TEST_F(CrasOutputStreamTest, StartStop) {
-  CrasOutputStream *test_stream = CreateStream(CHANNEL_LAYOUT_MONO);
+  CrasOutputStream* test_stream = CreateStream(CHANNEL_LAYOUT_MONO);
   MockAudioSourceCallback mock_callback;
 
   // Open the stream.
@@ -192,7 +193,7 @@ TEST_F(CrasOutputStreamTest, StartStop) {
 }
 
 TEST_F(CrasOutputStreamTest, RenderFrames) {
-  CrasOutputStream *test_stream = CreateStream(CHANNEL_LAYOUT_MONO);
+  CrasOutputStream* test_stream = CreateStream(CHANNEL_LAYOUT_MONO);
   MockAudioSourceCallback mock_callback;
   const uint32 amount_rendered_return = 2048;
 
@@ -201,7 +202,7 @@ TEST_F(CrasOutputStreamTest, RenderFrames) {
   EXPECT_EQ(CrasOutputStream::kIsOpened, test_stream->state());
 
   // Render Callback.
-  EXPECT_CALL(mock_callback, OnMoreData(test_stream, _,
+  EXPECT_CALL(mock_callback, OnMoreData(_,
           kTestFramesPerPacket * kTestBytesPerFrame, _))
       .WillRepeatedly(Return(amount_rendered_return));
 

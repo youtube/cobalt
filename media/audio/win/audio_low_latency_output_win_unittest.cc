@@ -53,8 +53,7 @@ MATCHER_P(HasValidDelay, value, "") {
 
 class MockAudioSourceCallback : public AudioOutputStream::AudioSourceCallback {
  public:
-  MOCK_METHOD4(OnMoreData, uint32(AudioOutputStream* stream,
-                                  uint8* dest,
+  MOCK_METHOD3(OnMoreData, uint32(uint8* dest,
                                   uint32 max_size,
                                   AudioBuffersState buffers_state));
   MOCK_METHOD2(OnError, void(AudioOutputStream* stream, int code));
@@ -103,8 +102,7 @@ class ReadFromFileAudioSource : public AudioOutputStream::AudioSourceCallback {
   }
 
   // AudioOutputStream::AudioSourceCallback implementation.
-  virtual uint32 OnMoreData(AudioOutputStream* stream,
-                            uint8* dest,
+  virtual uint32 OnMoreData(uint8* dest,
                             uint32 max_size,
                             AudioBuffersState buffers_state) {
     // Store time difference between two successive callbacks in an array.
@@ -400,7 +398,7 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInMilliseconds) {
   AudioBuffersState state(0, bytes_per_packet);
 
   // Wait for the first callback and verify its parameters.
-  EXPECT_CALL(source, OnMoreData(aos, NotNull(), bytes_per_packet,
+  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_per_packet,
                                  HasValidDelay(state)))
       .WillOnce(
           DoAll(
@@ -442,7 +440,7 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestPacketSizeInSamples) {
   AudioBuffersState state(0, bytes_per_packet);
 
   // Wait for the first callback and verify its parameters.
-  EXPECT_CALL(source, OnMoreData(aos, NotNull(), bytes_per_packet,
+  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_per_packet,
                                  HasValidDelay(state)))
       .WillOnce(
           DoAll(
@@ -488,7 +486,7 @@ TEST(WinAudioOutputTest, WASAPIAudioOutputStreamTestMono) {
   // Set up expected minimum delay estimation.
   AudioBuffersState state(0, bytes_per_packet);
 
-  EXPECT_CALL(source, OnMoreData(aos, NotNull(), bytes_per_packet,
+  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_per_packet,
                                  HasValidDelay(state)))
       .WillOnce(
           DoAll(
