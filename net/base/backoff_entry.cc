@@ -47,13 +47,23 @@ void BackoffEntry::InformOfRequest(bool succeeded) {
     // those failures will not reset the release time, further
     // requests will then need to wait the delay caused by the 2
     // failures.
+    base::TimeDelta delay;
+    if (policy_->always_use_initial_delay)
+      delay = base::TimeDelta::FromMilliseconds(policy_->initial_delay_ms);
     exponential_backoff_release_time_ = std::max(
-        ImplGetTimeNow(), exponential_backoff_release_time_);
+        ImplGetTimeNow() + delay, exponential_backoff_release_time_);
   }
 }
 
 bool BackoffEntry::ShouldRejectRequest() const {
   return exponential_backoff_release_time_ > ImplGetTimeNow();
+}
+
+base::TimeDelta BackoffEntry::GetTimeUntilRelease() const {
+  base::TimeTicks now = ImplGetTimeNow();
+  if (exponential_backoff_release_time_ <= now)
+    return base::TimeDelta();
+  return exponential_backoff_release_time_ - now;
 }
 
 base::TimeTicks BackoffEntry::GetReleaseTime() const {
@@ -107,6 +117,12 @@ base::TimeTicks BackoffEntry::ImplGetTimeNow() const {
 base::TimeTicks BackoffEntry::CalculateReleaseTime() const {
   int effective_failure_count =
       std::max(0, failure_count_ - policy_->num_errors_to_ignore);
+
+  // If always_use_initial_delay is true, it's equivalent to
+  // the effective_failure_count always being one greater than when it's false.
+  if (policy_->always_use_initial_delay)
+    ++effective_failure_count;
+
   if (effective_failure_count == 0) {
     // Never reduce previously set release horizon, e.g. due to Retry-After
     // header.
@@ -116,7 +132,7 @@ base::TimeTicks BackoffEntry::CalculateReleaseTime() const {
   // The delay is calculated with this formula:
   // delay = initial_backoff * multiply_factor^(
   //     effective_failure_count - 1) * Uniform(1 - jitter_factor, 1]
-  double delay = policy_->initial_backoff_ms;
+  double delay = policy_->initial_delay_ms;
   delay *= pow(policy_->multiply_factor, effective_failure_count - 1);
   delay -= base::RandDouble() * policy_->jitter_factor * delay;
 
