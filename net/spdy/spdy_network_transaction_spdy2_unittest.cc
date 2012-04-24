@@ -3496,7 +3496,7 @@ TEST_P(SpdyNetworkTransactionSpdy2Test, PartialWrite) {
 // the server.  Verify that teardown is all clean.
 TEST_P(SpdyNetworkTransactionSpdy2Test, DecompressFailureOnSynReply) {
   // For this test, we turn on the normal compression.
-  SpdyFramer::set_enable_compression_default(true);
+  BufferedSpdyFramer::set_enable_compression_default(true);
 
   scoped_ptr<SpdyFrame> compressed(
       ConstructSpdyGet(NULL, 0, true, 1, LOWEST));
