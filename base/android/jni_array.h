@@ -11,6 +11,7 @@
 
 #include "base/android/scoped_java_ref.h"
 #include "base/basictypes.h"
+#include "base/string16.h"
 
 namespace base {
 namespace android {
@@ -25,6 +26,14 @@ ScopedJavaLocalRef<jobjectArray> ToJavaArrayOfByteArray(
 
 ScopedJavaLocalRef<jobjectArray> ToJavaArrayOfStrings(
     JNIEnv* env,  const std::vector<std::string>& v);
+
+ScopedJavaLocalRef<jobjectArray> ToJavaArrayOfStrings(
+    JNIEnv* env,  const std::vector<string16>& v);
+
+// Converts a Java string array to a native array.
+void AppendJavaStringArrayToStringVector(JNIEnv* env,
+                                         const JavaRef<jobjectArray>& array,
+                                         std::vector<string16>* out);
 
 // Appends the Java bytes in |bytes_array| onto the end of |out|.
 void AppendJavaByteArrayToByteVector(JNIEnv* env,
