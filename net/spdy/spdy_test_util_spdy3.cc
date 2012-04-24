@@ -991,13 +991,13 @@ SpdyTestStateHelper::SpdyTestStateHelper() {
   SpdySession::set_enable_ping_based_connection_checking(false);
   // Compression is per-session which makes it impossible to create
   // SPDY frames with static methods.
-  SpdyFramer::set_enable_compression_default(false);
+  BufferedSpdyFramer::set_enable_compression_default(false);
 }
 
 SpdyTestStateHelper::~SpdyTestStateHelper() {
   SpdySession::ResetStaticSettingsToInit();
   // TODO(rch): save/restore this value
-  SpdyFramer::set_enable_compression_default(true);
+  BufferedSpdyFramer::set_enable_compression_default(true);
 }
 
 }  // namespace test_spdy3

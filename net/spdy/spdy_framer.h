@@ -402,8 +402,6 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // For ease of testing and experimentation we can tweak compression on/off.
   void set_enable_compression(bool value);
 
-  static void set_enable_compression_default(bool value);
-
   // Used only in log messages.
   void set_display_protocol(const std::string& protocol) {
     display_protocol_ = protocol;
