@@ -39,7 +39,7 @@ const int URLRequestThrottlerEntry::kDefaultMaxSendThreshold = 20;
 // avoid false positives.  It should help avoid back-off from kicking in e.g.
 // on flaky connections.
 const int URLRequestThrottlerEntry::kDefaultNumErrorsToIgnore = 2;
-const int URLRequestThrottlerEntry::kDefaultInitialBackoffMs = 700;
+const int URLRequestThrottlerEntry::kDefaultInitialDelayMs = 700;
 const double URLRequestThrottlerEntry::kDefaultMultiplyFactor = 1.4;
 const double URLRequestThrottlerEntry::kDefaultJitterFactor = 0.4;
 const int URLRequestThrottlerEntry::kDefaultMaximumBackoffMs = 15 * 60 * 1000;
@@ -116,12 +116,13 @@ URLRequestThrottlerEntry::URLRequestThrottlerEntry(
   DCHECK(manager_);
 
   Initialize();
-  backoff_policy_.initial_backoff_ms = initial_backoff_ms;
+  backoff_policy_.initial_delay_ms = initial_backoff_ms;
   backoff_policy_.multiply_factor = multiply_factor;
   backoff_policy_.jitter_factor = jitter_factor;
   backoff_policy_.maximum_backoff_ms = maximum_backoff_ms;
   backoff_policy_.entry_lifetime_ms = -1;
   backoff_policy_.num_errors_to_ignore = 0;
+  backoff_policy_.always_use_initial_delay = false;
 }
 
 bool URLRequestThrottlerEntry::IsEntryOutdated() const {
@@ -163,8 +164,7 @@ bool URLRequestThrottlerEntry::ShouldRejectRequest(int load_flags) const {
       GetBackoffEntry()->ShouldRejectRequest()) {
     int num_failures = GetBackoffEntry()->failure_count();
     int release_after_ms =
-        (GetBackoffEntry()->GetReleaseTime() - base::TimeTicks::Now())
-            .InMilliseconds();
+        GetBackoffEntry()->GetTimeUntilRelease().InMilliseconds();
 
     net_log_.AddEvent(
         NetLog::TYPE_THROTTLING_REJECTED_REQUEST,
@@ -271,11 +271,12 @@ URLRequestThrottlerEntry::~URLRequestThrottlerEntry() {
 void URLRequestThrottlerEntry::Initialize() {
   sliding_window_release_time_ = base::TimeTicks::Now();
   backoff_policy_.num_errors_to_ignore = kDefaultNumErrorsToIgnore;
-  backoff_policy_.initial_backoff_ms = kDefaultInitialBackoffMs;
+  backoff_policy_.initial_delay_ms = kDefaultInitialDelayMs;
   backoff_policy_.multiply_factor = kDefaultMultiplyFactor;
   backoff_policy_.jitter_factor = kDefaultJitterFactor;
   backoff_policy_.maximum_backoff_ms = kDefaultMaximumBackoffMs;
   backoff_policy_.entry_lifetime_ms = kDefaultEntryLifetimeMs;
+  backoff_policy_.always_use_initial_delay = false;
 
   // We pretend we just had a successful response so that we have a
   // starting point to our tracking. This is called from the
