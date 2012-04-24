@@ -51,9 +51,6 @@ struct DictionaryIds {
 // initialized lazily to avoid static initializers.
 base::LazyInstance<DictionaryIds>::Leaky g_dictionary_ids;
 
-// By default is compression on or off.
-bool g_enable_compression_default = true;
-
 }  // namespace
 
 const int SpdyFramer::kMinSpdyVersion = 2;
@@ -128,7 +125,7 @@ SpdyFramer::SpdyFramer(int version)
       remaining_control_header_(0),
       current_frame_buffer_(new char[kControlFrameBufferSize]),
       current_frame_len_(0),
-      enable_compression_(g_enable_compression_default),
+      enable_compression_(true),
       visitor_(NULL),
       display_protocol_("SPDY"),
       spdy_version_(version),
@@ -1627,10 +1624,6 @@ SpdyStreamId SpdyFramer::GetControlFrameStreamId(
 
 void SpdyFramer::set_enable_compression(bool value) {
   enable_compression_ = value;
-}
-
-void SpdyFramer::set_enable_compression_default(bool value) {
-  g_enable_compression_default = value;
 }
 
 }  // namespace net
