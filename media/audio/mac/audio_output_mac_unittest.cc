@@ -24,7 +24,7 @@ namespace media {
 
 class MockAudioSource : public AudioOutputStream::AudioSourceCallback {
  public:
-  MOCK_METHOD4(OnMoreData, uint32(AudioOutputStream* stream, uint8* dest,
+  MOCK_METHOD3(OnMoreData, uint32(uint8* dest,
                                   uint32 max_size,
                                   AudioBuffersState buffers_state));
   MOCK_METHOD2(OnError, void(AudioOutputStream* stream, int code));
@@ -41,7 +41,7 @@ TEST(MacAudioTest, SineWaveAudio16MonoTest) {
 
   // TODO(cpu): Put the real test when the mock renderer is ported.
   uint16 buffer[samples] = { 0xffff };
-  source.OnMoreData(NULL, reinterpret_cast<uint8*>(buffer), sizeof(buffer),
+  source.OnMoreData(reinterpret_cast<uint8*>(buffer), sizeof(buffer),
                     AudioBuffersState(0, 0));
   EXPECT_EQ(0, buffer[0]);
   EXPECT_EQ(5126, buffer[1]);
@@ -131,8 +131,9 @@ TEST(MacAudioTest, PCMWaveStreamPlay200HzTone22KssMono) {
 }
 
 // Custom action to clear a memory buffer.
-static void ClearBuffer(AudioOutputStream* stream, uint8* dest,
-                        uint32 max_size, AudioBuffersState buffers_state) {
+static void ClearBuffer(uint8* dest,
+                        uint32 max_size,
+                        AudioBuffersState buffers_state) {
   memset(dest, 0, max_size);
 }
 
@@ -157,18 +158,18 @@ TEST(MacAudioTest, PCMWaveStreamPendingBytes) {
   // And then we will try to provide zero data so the amount of pending bytes
   // will go down and eventually read zero.
   InSequence s;
-  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms,
+  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_100_ms,
                                  Field(&AudioBuffersState::pending_bytes, 0)))
       .WillOnce(DoAll(Invoke(&ClearBuffer), Return(bytes_100_ms)));
-  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms,
+  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_100_ms,
                                  Field(&AudioBuffersState::pending_bytes,
                                        bytes_100_ms)))
       .WillOnce(DoAll(Invoke(&ClearBuffer), Return(bytes_100_ms)));
-  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms,
+  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_100_ms,
                                  Field(&AudioBuffersState::pending_bytes,
                                        bytes_100_ms)))
       .WillOnce(Return(0));
-  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms, _))
+  EXPECT_CALL(source, OnMoreData(NotNull(), bytes_100_ms, _))
       .Times(AnyNumber())
       .WillRepeatedly(Return(0));
 

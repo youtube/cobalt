@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>  // std::min
+
 #include "base/logging.h"
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
@@ -51,7 +53,7 @@ TEST(SimpleSourcesTest, PushSourceSmallerWrite) {
   // Read everything from the push source.
   for (uint32 i = 0; i < kDataSize; i += kReadSize) {
     uint32 size = std::min(kDataSize - i , kReadSize);
-    EXPECT_EQ(size, push_source.OnMoreData(NULL, read_data.get(), size,
+    EXPECT_EQ(size, push_source.OnMoreData(read_data.get(), size,
                                            AudioBuffersState()));
     EXPECT_EQ(0, memcmp(data.get() + i, read_data.get(), size));
   }

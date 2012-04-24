@@ -267,7 +267,7 @@ uint32 CrasOutputStream::Render(size_t frames,
 
   uint32 frames_latency = latency_usec * frame_rate_ / 1000000;
   uint32 bytes_latency = frames_latency * bytes_per_frame;
-  uint32 rendered = source_callback_->OnMoreData(this, buffer,
+  uint32 rendered = source_callback_->OnMoreData(buffer,
       frames * bytes_per_frame,
       AudioBuffersState(0, bytes_latency));
   return rendered / bytes_per_frame;
@@ -276,7 +276,7 @@ uint32 CrasOutputStream::Render(size_t frames,
 void CrasOutputStream::NotifyStreamError(int err) {
   // This will remove the stream from the client.
   if (state_ == kIsClosed || state_ == kInError)
-    return; // Don't care about error if we aren't using it.
+    return;  // Don't care about error if we aren't using it.
   TransitionTo(kInError);
   if (source_callback_)
     source_callback_->OnError(this, err);
