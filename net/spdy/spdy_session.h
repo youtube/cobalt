@@ -397,7 +397,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // |frame| is the frame to send.
   // |priority| is the priority for insertion into the queue.
   // |stream| is the stream which this IO is associated with (or NULL).
-  void QueueFrame(SpdyFrame* frame, SpdyPriority priority,
+  void QueueFrame(SpdyFrame* frame, RequestPriority priority,
                   SpdyStream* stream);
 
   // Track active streams in the active stream list.
