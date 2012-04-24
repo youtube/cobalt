@@ -12,8 +12,8 @@
 namespace {
 
 enum SpdyProtocolTestTypes {
-  SPDY2,
-  SPDY3,
+  SPDY2 = 2,
+  SPDY3 = 3,
 };
 
 } // namespace
@@ -24,18 +24,15 @@ class SpdyProtocolTest
     : public ::testing::TestWithParam<SpdyProtocolTestTypes> {
  protected:
   virtual void SetUp() {
-    spdy_version_ = (GetParam() == SPDY2) ? 2 : 3;
+    spdy_version_ = GetParam();
   }
 
-  virtual void TearDown() {}
-
-  bool IsSpdy2() { return spdy_version_ < 3; }
+  bool IsSpdy2() { return spdy_version_ == SPDY2; }
 
   // Version of SPDY protocol to be used.
   int spdy_version_;
 };
 
-//-----------------------------------------------------------------------------
 // All tests are run with two different SPDY versions: SPDY/2 and SPDY/3.
 INSTANTIATE_TEST_CASE_P(SpdyProtocolTests,
                         SpdyProtocolTest,
@@ -274,10 +271,9 @@ TEST_P(SpdyProtocolTest, HasHeaderBlock) {
   }
 }
 
-//-----------------------------------------------------------------------------
-// All tests are run with two different SPDY versions: SPDY/2 and SPDY/3.
 class SpdyProtocolDeathTest : public SpdyProtocolTest {};
 
+// All tests are run with two different SPDY versions: SPDY/2 and SPDY/3.
 INSTANTIATE_TEST_CASE_P(SpdyProtocolDeathTests,
                         SpdyProtocolDeathTest,
                         ::testing::Values(SPDY2, SPDY3));
