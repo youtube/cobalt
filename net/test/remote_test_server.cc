@@ -82,12 +82,6 @@ bool RemoteTestServer::Start() {
   if (!GenerateArguments(&arguments_dict))
     return false;
 
-  if (arguments_dict.HasKey("ocsp")) {
-    NOTIMPLEMENTED() << "OCSP on-demand generation is not supported. "
-                     << "See http://crbug.com/119642.";
-    return false;
-  }
-
   // Append the 'server-type' argument which is used by spawner server to
   // pass right server type to Python test server.
   arguments_dict.SetString("server-type", GetServerTypeString(type()));
