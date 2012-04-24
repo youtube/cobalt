@@ -44,7 +44,7 @@ class UI_EXPORT Rect : public RectBase<Rect, Point, Size, Insets, int> {
   explicit Rect(const gfx::Size& size);
   Rect(const gfx::Point& origin, const gfx::Size& size);
 
-  virtual ~Rect();
+  ~Rect();
 
 #if defined(OS_WIN)
   Rect& operator=(const RECT& r);
