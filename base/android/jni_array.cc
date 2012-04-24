@@ -53,6 +53,33 @@ ScopedJavaLocalRef<jobjectArray> ToJavaArrayOfStrings(
   return ScopedJavaLocalRef<jobjectArray>(env, joa);
 }
 
+ScopedJavaLocalRef<jobjectArray> ToJavaArrayOfStrings(
+    JNIEnv* env, const std::vector<string16>& v) {
+  ScopedJavaLocalRef<jclass> string_clazz = GetClass(env, "java/lang/String");
+  jobjectArray joa = env->NewObjectArray(v.size(), string_clazz.obj(), NULL);
+  CheckException(env);
+
+  for (size_t i = 0; i < v.size(); ++i) {
+    ScopedJavaLocalRef<jstring> item = ConvertUTF16ToJavaString(env, v[i]);
+    env->SetObjectArrayElement(joa, i, item.obj());
+  }
+  return ScopedJavaLocalRef<jobjectArray>(env, joa);
+}
+
+void AppendJavaStringArrayToStringVector(JNIEnv* env,
+                                         const JavaRef<jobjectArray>& array,
+                                         std::vector<string16>* out) {
+  DCHECK(out);
+  if (array.is_null())
+    return;
+  jsize len = env->GetArrayLength(array.obj());
+  for (jsize i = 0; i < len; ++i) {
+    ScopedJavaLocalRef<jstring> str(env,
+        static_cast<jstring>(env->GetObjectArrayElement(array.obj(), i)));
+    out->push_back(ConvertJavaStringToUTF16(str));
+  }
+}
+
 void AppendJavaByteArrayToByteVector(JNIEnv* env,
                                      jbyteArray byte_array,
                                      std::vector<uint8>* out) {
