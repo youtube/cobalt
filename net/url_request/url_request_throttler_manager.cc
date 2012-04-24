@@ -149,10 +149,9 @@ void URLRequestThrottlerManager::OnOnlineStateChanged(bool online) {
   OnNetworkChange();
 }
 
-// TODO(joi): Turn throttling on by default when appropriate.
 URLRequestThrottlerManager::URLRequestThrottlerManager()
     : requests_since_last_gc_(0),
-      enforce_throttling_(false),
+      enforce_throttling_(true),
       enable_thread_checks_(false),
       logged_for_localhost_disabled_(false),
       registered_from_thread_(base::kInvalidThreadId) {
