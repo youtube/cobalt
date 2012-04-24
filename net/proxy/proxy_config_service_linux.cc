@@ -1099,10 +1099,19 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter,
     if (value.empty() || value.substr(0, 3) == "//:")
       // No proxy.
       return;
-    // We don't need to parse the port number out; GetProxyFromSettings()
-    // would only append it right back again. So we just leave the port
-    // number right in the host string.
-    string_table_[host_key] = value;
+    size_t space = value.find(' ');
+    if (space != std::string::npos) {
+      // Newer versions of KDE use a space rather than a colon to separate the
+      // port number from the hostname. If we find this, we need to convert it.
+      std::string fixed = value;
+      fixed[space] = ':';
+      string_table_[host_key] = fixed;
+    } else {
+      // We don't need to parse the port number out; GetProxyFromSettings()
+      // would only append it right back again. So we just leave the port
+      // number right in the host string.
+      string_table_[host_key] = value;
+    }
   }
 
   void AddHostList(StringListSetting key, const std::string& value) {
