@@ -30,7 +30,7 @@ class UI_EXPORT RectF : public RectBase<RectF, PointF, SizeF, InsetsF, float> {
   explicit RectF(const gfx::SizeF& size);
   RectF(const gfx::PointF& origin, const gfx::SizeF& size);
 
-  virtual ~RectF();
+  ~RectF();
 
   Rect ToRect() const;
 

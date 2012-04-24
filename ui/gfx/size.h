@@ -29,7 +29,7 @@ class UI_EXPORT Size : public SizeBase<Size, int> {
   explicit Size(const CGSize& s);
 #endif
 
-  virtual ~Size();
+  ~Size();
 
 #if defined(OS_MACOSX)
   Size& operator=(const CGSize& s);
