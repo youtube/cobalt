@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -111,6 +111,11 @@ void SysInfo::ParseLsbRelease(const std::string& lsb_release,
                   bugfix_version);
     }
   }
+}
+
+// static
+FilePath SysInfo::GetLsbReleaseFilePath() {
+  return FilePath(kLinuxStandardBaseReleaseFile);
 }
 
 }  // namespace base
