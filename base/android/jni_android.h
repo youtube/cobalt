@@ -17,6 +17,12 @@ namespace android {
 // Used to mark symbols to be exported in a shared library's symbol table.
 #define JNI_EXPORT __attribute__ ((visibility("default")))
 
+// Contains the registration method information for initializing JNI bindings.
+struct RegistrationMethod {
+  const char* name;
+  bool (*func)(JNIEnv* env);
+};
+
 // Attach the current thread to the VM (if necessary) and return the JNIEnv*.
 JNIEnv* AttachCurrentThread();
 
