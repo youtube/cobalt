@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -46,7 +46,6 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
                             public MessageLoop::DestructionObserver {
  public:
   FilePathWatcherImpl() : kqueue_(-1) {}
-  virtual ~FilePathWatcherImpl() {}
 
   // MessageLoopForIO::Watcher overrides.
   virtual void OnFileCanReadWithoutBlocking(int fd) OVERRIDE;
@@ -59,6 +58,9 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
   virtual bool Watch(const FilePath& path,
                      FilePathWatcher::Delegate* delegate) OVERRIDE;
   virtual void Cancel() OVERRIDE;
+
+ protected:
+  virtual ~FilePathWatcherImpl() {}
 
  private:
   class EventData {

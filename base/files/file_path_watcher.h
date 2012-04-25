@@ -33,11 +33,14 @@ class BASE_EXPORT FilePathWatcher {
   // corresponding FileWatcher object to prevent a reference cycle.
   class Delegate : public base::RefCountedThreadSafe<Delegate> {
    public:
-    virtual ~Delegate() {}
     virtual void OnFilePathChanged(const FilePath& path) = 0;
     // Called when platform specific code detected an error. The watcher will
     // not call OnFilePathChanged for future changes.
     virtual void OnFilePathError(const FilePath& path) {}
+
+   protected:
+    friend class base::RefCountedThreadSafe<Delegate>;
+    virtual ~Delegate() {}
   };
 
   // Used internally to encapsulate different members on different platforms.
@@ -57,6 +60,7 @@ class BASE_EXPORT FilePathWatcher {
     virtual void Cancel() = 0;
 
    protected:
+    friend class base::RefCountedThreadSafe<PlatformDelegate>;
     friend class FilePathWatcher;
 
     virtual ~PlatformDelegate();
@@ -84,8 +88,6 @@ class BASE_EXPORT FilePathWatcher {
     }
 
    private:
-    friend class base::RefCountedThreadSafe<PlatformDelegate>;
-
     scoped_refptr<base::MessageLoopProxy> message_loop_;
     bool cancelled_;
   };

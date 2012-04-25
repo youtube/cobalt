@@ -37,8 +37,7 @@ const size_t kNumWorkerThreads = 3;
 // provides a way to unblock a certain number of them.
 class ThreadBlocker {
  public:
-  ThreadBlocker() : lock_(), cond_var_(&lock_), unblock_counter_(0) {
-  }
+  ThreadBlocker() : lock_(), cond_var_(&lock_), unblock_counter_(0) {}
 
   void Block() {
     {
@@ -79,6 +78,7 @@ class TestTracker : public base::RefCountedThreadSafe<TestTracker> {
   void FastTask(int id) {
     SignalWorkerDone(id);
   }
+
   void SlowTask(int id) {
     base::PlatformThread::Sleep(base::TimeDelta::FromSeconds(1));
     SignalWorkerDone(id);
@@ -128,6 +128,9 @@ class TestTracker : public base::RefCountedThreadSafe<TestTracker> {
   }
 
  private:
+  friend class base::RefCountedThreadSafe<TestTracker>;
+  ~TestTracker() {}
+
   void SignalWorkerDone(int id) {
     {
       base::AutoLock lock(lock_);
@@ -152,7 +155,8 @@ class SequencedWorkerPoolTest : public testing::Test {
  public:
   SequencedWorkerPoolTest()
       : pool_owner_(kNumWorkerThreads, "test"),
-        tracker_(new TestTracker) {}
+        tracker_(new TestTracker) {
+  }
 
   virtual ~SequencedWorkerPoolTest() {}
 

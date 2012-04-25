@@ -110,9 +110,10 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
   // cleanup thread, in case it quits before Cancel() is called.
   virtual void WillDestroyCurrentMessageLoop() OVERRIDE;
 
- private:
+ protected:
   virtual ~FilePathWatcherImpl() {}
 
+ private:
   // Cleans up and stops observing the |message_loop_| thread.
   void CancelOnMessageLoopThread() OVERRIDE;
 
