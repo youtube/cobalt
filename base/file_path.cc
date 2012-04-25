@@ -159,6 +159,17 @@ StringType::size_type ExtensionSeparatorPosition(const StringType& path) {
   return last_dot;
 }
 
+// Returns true if path is "", ".", or "..".
+bool IsEmptyOrSpecialCase(const StringType& path) {
+  // Special cases "", ".", and ".."
+  if (path.empty() || path == FilePath::kCurrentDirectory ||
+      path == FilePath::kParentDirectory) {
+    return true;
+  }
+
+  return false;
+}
+
 }  // namespace
 
 FilePath::FilePath() {
@@ -375,18 +386,8 @@ FilePath FilePath::InsertBeforeExtension(const StringType& suffix) const {
   if (suffix.empty())
     return FilePath(path_);
 
-  if (path_.empty())
+  if (IsEmptyOrSpecialCase(BaseName().value()))
     return FilePath();
-
-  StringType base = BaseName().value();
-  if (base.empty())
-    return FilePath();
-  if (*(base.end() - 1) == kExtensionSeparator) {
-    // Special case "." and ".."
-    if (base == kCurrentDirectory || base == kParentDirectory) {
-      return FilePath();
-    }
-  }
 
   StringType ext = Extension();
   StringType ret = RemoveExtension().value();
@@ -405,19 +406,26 @@ FilePath FilePath::InsertBeforeExtensionASCII(const base::StringPiece& suffix)
 #endif
 }
 
-FilePath FilePath::ReplaceExtension(const StringType& extension) const {
-  if (path_.empty())
+FilePath FilePath::AddExtension(const StringType& extension) const {
+  if (IsEmptyOrSpecialCase(BaseName().value()))
     return FilePath();
 
-  StringType base = BaseName().value();
-  if (base.empty())
-    return FilePath();
-  if (*(base.end() - 1) == kExtensionSeparator) {
-    // Special case "." and ".."
-    if (base == kCurrentDirectory || base == kParentDirectory) {
-      return FilePath();
-    }
+  // If the new extension is "" or ".", then just return the current FilePath.
+  if (extension.empty() || extension == StringType(1, kExtensionSeparator))
+    return *this;
+
+  StringType str = path_;
+  if (extension[0] != kExtensionSeparator &&
+      *(str.end() - 1) != kExtensionSeparator) {
+    str.append(1, kExtensionSeparator);
   }
+  str.append(extension);
+  return FilePath(str);
+}
+
+FilePath FilePath::ReplaceExtension(const StringType& extension) const {
+  if (IsEmptyOrSpecialCase(BaseName().value()))
+    return FilePath();
 
   FilePath no_ext = RemoveExtension();
   // If the new extension is "" or ".", then just remove the current extension.
