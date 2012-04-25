@@ -43,6 +43,9 @@
 
           # Enable HiDPI support.
           'enable_hidpi%': 0,
+
+          # Enable Metro support.
+          'enable_metro%': 0,
         },
         # Copy conditionally-set variables out one scope.
         'chromeos%': '<(chromeos)',
@@ -53,6 +56,7 @@
         'use_virtual_keyboard%': '<(use_virtual_keyboard)',
         'enable_viewport%': '<(enable_viewport)',
         'enable_hidpi%': '<(enable_hidpi)',
+        'enable_metro%': '<(enable_metro)',
 
         # Compute the architecture that we're building on.
         'conditions': [
@@ -105,6 +109,7 @@
       'use_virtual_keyboard%': '<(use_virtual_keyboard)',
       'enable_viewport%': '<(enable_viewport)',
       'enable_hidpi%': '<(enable_hidpi)',
+      'enable_metro%': '<(enable_metro)',
 
       # We used to provide a variable for changing how libraries were built.
       # This variable remains until we can clean up all the users.
@@ -503,6 +508,7 @@
     'use_virtual_keyboard%': '<(use_virtual_keyboard)',
     'enable_viewport%': '<(enable_viewport)',
     'enable_hidpi%': '<(enable_hidpi)',
+    'enable_metro%': '<(enable_metro)',
     'use_xi2_mt%':'<(use_xi2_mt)',
     'file_manager_extension%': '<(file_manager_extension)',
     'webui_task_manager%': '<(webui_task_manager)',
@@ -1300,6 +1306,9 @@
       }],
       ['enable_hidpi==1', {
         'defines': ['ENABLE_HIDPI=1'],
+      }],
+      ['enable_metro==1', {
+        'defines': ['ENABLE_METRO=1'],
       }],
       ['fastbuild!=0', {
 
