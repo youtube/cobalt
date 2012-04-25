@@ -221,6 +221,9 @@ class MockCookieStore : public net::CookieStore {
                                             const DeleteCallback& callback) {
     ADD_FAILURE();
   }
+  virtual void DeleteSessionCookiesAsync(const DeleteCallback&) {
+    ADD_FAILURE();
+  }
 
   virtual net::CookieMonster* GetCookieMonster() { return NULL; }
 

@@ -246,6 +246,8 @@ class NET_EXPORT CookieMonster : public CookieStore {
       const base::Time& delete_end,
       const DeleteCallback& callback) OVERRIDE;
 
+  virtual void DeleteSessionCookiesAsync(const DeleteCallback&) OVERRIDE;
+
   virtual CookieMonster* GetCookieMonster() OVERRIDE;
 
   // Enables writing session cookies into the cookie database. If this this
@@ -281,6 +283,7 @@ class NET_EXPORT CookieMonster : public CookieStore {
   class GetCookiesWithInfoTask;
   class SetCookieWithDetailsTask;
   class SetCookieWithOptionsTask;
+  class DeleteSessionCookiesTask;
 
   // Testing support.
   // For SetCookieWithCreationTime.
@@ -411,6 +414,8 @@ class NET_EXPORT CookieMonster : public CookieStore {
   bool SetCookieWithCreationTime(const GURL& url,
                                  const std::string& cookie_line,
                                  const base::Time& creation_time);
+
+  int DeleteSessionCookies();
 
   // Called by all non-static functions to ensure that the cookies store has
   // been initialized. This is not done during creating so it doesn't block
