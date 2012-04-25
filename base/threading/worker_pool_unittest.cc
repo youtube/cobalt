@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -24,8 +24,7 @@ namespace {
 class PostTaskAndReplyTester
     : public base::RefCountedThreadSafe<PostTaskAndReplyTester> {
  public:
-  PostTaskAndReplyTester() : finished_(false), test_event_(false, false) {
-  }
+  PostTaskAndReplyTester() : finished_(false), test_event_(false, false) {}
 
   void RunTest() {
     ASSERT_TRUE(thread_checker_.CalledOnValidThread());
@@ -55,6 +54,9 @@ class PostTaskAndReplyTester
   }
 
  private:
+  friend class base::RefCountedThreadSafe<PostTaskAndReplyTester>;
+  ~PostTaskAndReplyTester() {}
+
   bool finished_;
   WaitableEvent test_event_;
 

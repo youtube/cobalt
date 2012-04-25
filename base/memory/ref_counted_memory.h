@@ -51,6 +51,8 @@ class BASE_EXPORT RefCountedStaticMemory : public RefCountedMemory {
   virtual size_t size() const OVERRIDE;
 
  private:
+  virtual ~RefCountedStaticMemory();
+
   const unsigned char* data_;
   size_t length_;
 
@@ -79,7 +81,6 @@ class BASE_EXPORT RefCountedBytes : public RefCountedMemory {
   std::vector<unsigned char>& data() { return data_; }
 
  private:
-  friend class base::RefCountedThreadSafe<RefCountedBytes>;
   virtual ~RefCountedBytes();
 
   std::vector<unsigned char> data_;
@@ -106,7 +107,6 @@ class BASE_EXPORT RefCountedString : public RefCountedMemory {
   std::string& data() { return data_; }
 
  private:
-  friend class base::RefCountedThreadSafe<RefCountedString>;
   virtual ~RefCountedString();
 
   std::string data_;

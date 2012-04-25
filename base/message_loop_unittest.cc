@@ -397,6 +397,11 @@ class RecordDeletionProbe : public base::RefCounted<RecordDeletionProbe> {
   RecordDeletionProbe(RecordDeletionProbe* post_on_delete, bool* was_deleted)
       : post_on_delete_(post_on_delete), was_deleted_(was_deleted) {
   }
+  void Run() {}
+
+ private:
+  friend class base::RefCounted<RecordDeletionProbe>;
+
   ~RecordDeletionProbe() {
     *was_deleted_ = true;
     if (post_on_delete_)
@@ -404,8 +409,7 @@ class RecordDeletionProbe : public base::RefCounted<RecordDeletionProbe> {
           FROM_HERE,
           base::Bind(&RecordDeletionProbe::Run, post_on_delete_.get()));
   }
-  void Run() {}
- private:
+
   scoped_refptr<RecordDeletionProbe> post_on_delete_;
   bool* was_deleted_;
 };
@@ -1624,15 +1628,18 @@ class DestructionObserverProbe :
       : task_destroyed_(task_destroyed),
         destruction_observer_called_(destruction_observer_called) {
   }
-  virtual ~DestructionObserverProbe() {
-    EXPECT_FALSE(*destruction_observer_called_);
-    *task_destroyed_ = true;
-  }
   virtual void Run() {
     // This task should never run.
     ADD_FAILURE();
   }
  private:
+  friend class base::RefCounted<DestructionObserverProbe>;
+
+  virtual ~DestructionObserverProbe() {
+    EXPECT_FALSE(*destruction_observer_called_);
+    *task_destroyed_ = true;
+  }
+
   bool* task_destroyed_;
   bool* destruction_observer_called_;
 };

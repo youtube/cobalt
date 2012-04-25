@@ -65,6 +65,9 @@ class NotificationCollector
   }
 
  private:
+  friend class base::RefCountedThreadSafe<NotificationCollector>;
+  ~NotificationCollector() {}
+
   void RecordChange(TestDelegate* delegate) {
     ASSERT_TRUE(loop_->BelongsToCurrentThread());
     ASSERT_TRUE(delegates_.count(delegate));
@@ -106,6 +109,9 @@ class TestDelegate : public FilePathWatcher::Delegate {
   virtual void OnFilePathError(const FilePath& path) {
     ADD_FAILURE() << "Error " << path.value();
   }
+
+ protected:
+  virtual ~TestDelegate() {}
 
  private:
   scoped_refptr<NotificationCollector> collector_;
@@ -249,6 +255,9 @@ class Deleter : public FilePathWatcher::Delegate {
 
   scoped_ptr<FilePathWatcher> watcher_;
   MessageLoop* loop_;
+
+ private:
+  virtual ~Deleter() {}
 };
 
 // Verify that deleting a watcher during the callback doesn't crash.
