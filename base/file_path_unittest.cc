@@ -896,6 +896,44 @@ TEST_F(FilePathTest, ReplaceExtension) {
   }
 }
 
+TEST_F(FilePathTest, AddExtension) {
+  const struct BinaryTestData cases[] = {
+    { { FPL(""),              FPL("") },      FPL("") },
+    { { FPL(""),              FPL("txt") },   FPL("") },
+    { { FPL("."),             FPL("txt") },   FPL("") },
+    { { FPL(".."),            FPL("txt") },   FPL("") },
+    { { FPL("."),             FPL("") },      FPL("") },
+    { { FPL("foo.dll"),       FPL("txt") },   FPL("foo.dll.txt") },
+    { { FPL("./foo.dll"),     FPL("txt") },   FPL("./foo.dll.txt") },
+    { { FPL("foo..dll"),      FPL("txt") },   FPL("foo..dll.txt") },
+    { { FPL("foo.dll"),       FPL(".txt") },  FPL("foo.dll.txt") },
+    { { FPL("foo"),           FPL("txt") },   FPL("foo.txt") },
+    { { FPL("foo."),          FPL("txt") },   FPL("foo.txt") },
+    { { FPL("foo.."),         FPL("txt") },   FPL("foo..txt") },
+    { { FPL("foo"),           FPL(".txt") },  FPL("foo.txt") },
+    { { FPL("foo.baz.dll"),   FPL("txt") },   FPL("foo.baz.dll.txt") },
+    { { FPL("foo.baz.dll"),   FPL(".txt") },  FPL("foo.baz.dll.txt") },
+    { { FPL("foo.dll"),       FPL("") },      FPL("foo.dll") },
+    { { FPL("foo.dll"),       FPL(".") },     FPL("foo.dll") },
+    { { FPL("foo"),           FPL("") },      FPL("foo") },
+    { { FPL("foo"),           FPL(".") },     FPL("foo") },
+    { { FPL("foo.baz.dll"),   FPL("") },      FPL("foo.baz.dll") },
+    { { FPL("foo.baz.dll"),   FPL(".") },     FPL("foo.baz.dll") },
+#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+    { { FPL("C:\\foo.bar\\foo"),    FPL("baz") }, FPL("C:\\foo.bar\\foo.baz") },
+    { { FPL("C:\\foo.bar\\..\\\\"), FPL("baz") }, FPL("") },
+#endif
+    { { FPL("/foo.bar/foo"),        FPL("baz") }, FPL("/foo.bar/foo.baz") },
+    { { FPL("/foo.bar/..////"),     FPL("baz") }, FPL("") },
+  };
+  for (unsigned int i = 0; i < arraysize(cases); ++i) {
+    FilePath path(cases[i].inputs[0]);
+    FilePath added = path.AddExtension(cases[i].inputs[1]);
+    EXPECT_EQ(cases[i].expected, added.value()) << "i: " << i <<
+        ", path: " << path.value() << ", add: " << cases[i].inputs[1];
+  }
+}
+
 TEST_F(FilePathTest, MatchesExtension) {
   const struct BinaryBooleanTestData cases[] = {
     { { FPL("foo"),                     FPL("") },                    true},
