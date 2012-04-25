@@ -242,8 +242,13 @@ class BASE_EXPORT FilePath {
   FilePath InsertBeforeExtensionASCII(
       const base::StringPiece& suffix) const WARN_UNUSED_RESULT;
 
+  // Adds |extension| to |file_name|. Returns the current FilePath if
+  // |extension| is empty. Returns "" if BaseName() == "." or "..".
+  FilePath AddExtension(
+      const StringType& extension) const WARN_UNUSED_RESULT;
+
   // Replaces the extension of |file_name| with |extension|.  If |file_name|
-  // does not have an extension, them |extension| is added.  If |extension| is
+  // does not have an extension, then |extension| is added.  If |extension| is
   // empty, then the extension is removed from |file_name|.
   // Returns "" if BaseName() == "." or "..".
   FilePath ReplaceExtension(
