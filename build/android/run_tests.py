@@ -214,8 +214,7 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
     debug_info_list += [test.dump_debug_info]
     if rebaseline:
       test.UpdateFilter(test.test_results.failed)
-    elif test.test_results.failed:
-      test.test_results.LogFull()
+    test.test_results.LogFull()
   # Zip all debug info outputs into a file named by log_dump_name.
   debug_info.GTestDebugInfo.ZipAndCleanResults(
       os.path.join(run_tests_helper.CHROME_DIR, 'out', 'Release',
