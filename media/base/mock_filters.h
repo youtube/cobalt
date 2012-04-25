@@ -147,6 +147,7 @@ class MockVideoDecoder : public VideoDecoder {
   MockVideoDecoder();
 
   // Filter implementation.
+  MOCK_METHOD1(Flush, void(const base::Closure& callback));
   MOCK_METHOD1(Stop, void(const base::Closure& callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, const PipelineStatusCB& cb));
