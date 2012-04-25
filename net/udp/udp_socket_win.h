@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,6 +13,7 @@
 #include "base/threading/non_thread_safe.h"
 #include "base/win/object_watcher.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_export.h"
 #include "net/base/rand_callback.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/io_buffer.h"
@@ -21,7 +22,7 @@
 
 namespace net {
 
-class UDPSocketWin : public base::NonThreadSafe {
+class NET_EXPORT UDPSocketWin : NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   UDPSocketWin(DatagramSocket::BindType bind_type,
                const RandIntCallback& rand_int_cb,
