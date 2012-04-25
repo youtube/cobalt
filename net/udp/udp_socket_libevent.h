@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,6 +12,7 @@
 #include "base/threading/non_thread_safe.h"
 #include "net/base/address_list_net_log_param.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_export.h"
 #include "net/base/rand_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_endpoint.h"
@@ -20,7 +21,7 @@
 
 namespace net {
 
-class UDPSocketLibevent : public base::NonThreadSafe {
+class NET_EXPORT UDPSocketLibevent : public base::NonThreadSafe {
  public:
   UDPSocketLibevent(DatagramSocket::BindType bind_type,
                     const RandIntCallback& rand_int_cb,
