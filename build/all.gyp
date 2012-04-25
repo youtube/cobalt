@@ -159,6 +159,14 @@
       ],
     }, # target_name: All_syzygy
     {
+      'target_name': 'chromium_swarm_tests',
+      'type': 'none',
+      'dependencies': [
+          '../base/base.gyp:base_unittests_run',
+          '../net/net.gyp:net_unittests_run',
+      ],
+    }, # target_name: chromium_swarm_tests
+    {
       'target_name': 'chromium_builder_tests',
       'type': 'none',
       'dependencies': [
