@@ -648,21 +648,9 @@ void ThreadData::Reset() {
 }
 
 static void OptionallyInitializeAlternateTimer() {
-  char* alternate_selector = getenv(kAlternateProfilerTime);
-  if (!alternate_selector)
-    return;
-  switch (*alternate_selector) {
-    case '0':  // This is the default value, and uses the wall clock time.
-      break;
-    case '1':  {
-      // Use the TCMalloc allocations-on-thread as a pseudo-time.
-      ThreadData::SetAlternateTimeSource(GetAlternateTimeSource());
-      break;
-      }
-    default:
-      NOTREACHED();
-      break;
-  }
+  NowFunction* alternate_time_source = GetAlternateTimeSource();
+  if (alternate_time_source)
+    ThreadData::SetAlternateTimeSource(alternate_time_source);
 }
 
 bool ThreadData::Initialize() {
