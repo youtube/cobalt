@@ -68,6 +68,9 @@ Patches:
   * Enable False Start only when the server supports NPN.
     patches/falsestartnpn.patch
 
+  * Reject DH generators and public values equal to zero or one.
+    patches/dhvalues.patch
+
 Apply the patches to NSS by running the patches/applypatches.sh script.  Read
 the comments at the top of patches/applypatches.sh for instructions.
 
