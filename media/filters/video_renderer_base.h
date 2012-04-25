@@ -81,6 +81,9 @@ class MEDIA_EXPORT VideoRendererBase
   // as there isn't a pending read and we have capacity.
   void AttemptRead_Locked();
 
+  // Called when the VideoDecoder Flush() completes.
+  void OnDecoderFlushDone();
+
   // Attempts to complete flushing and transition into the flushed state.
   void AttemptFlush_Locked();
 
@@ -133,11 +136,11 @@ class MEDIA_EXPORT VideoRendererBase
   //              |
   //              | Initialize()
   //              V        All frames returned
-  //   +------[kFlushed]<----------------------[kFlushing]
+  //   +------[kFlushed]<-----[kFlushing]<--- OnDecoderFlushDone()
   //   |          | Seek() or upon                  ^
-  //   |          V got first frame                 |
-  //   |      [kSeeking]                            | Flush()
-  //   |          |                                 |
+  //   |          V got first frame           [kFlushingDecoder]
+  //   |      [kSeeking]                            ^
+  //   |          |                                 | Flush()
   //   |          V Got enough frames               |
   //   |      [kPrerolled]---------------------->[kPaused]
   //   |          |                Pause()          ^
@@ -156,6 +159,7 @@ class MEDIA_EXPORT VideoRendererBase
     kUninitialized,
     kPrerolled,
     kPaused,
+    kFlushingDecoder,
     kFlushing,
     kFlushed,
     kSeeking,
