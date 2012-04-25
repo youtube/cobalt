@@ -195,7 +195,7 @@ TEST_F(SQLConnectionTest, RazePageSize) {
 
   // After raze, page_size should still match the indicated value.
   ASSERT_TRUE(db().Raze());
-  s.Reset();
+  s.Reset(true);
   ASSERT_TRUE(s.Step());
   ASSERT_EQ(kPageSize, s.ColumnInt(0));
 }
@@ -218,7 +218,7 @@ TEST_F(SQLConnectionTest, RazeMultiple) {
   ASSERT_TRUE(db().Raze());
 
   // The second connection sees the updated database.
-  s.Reset();
+  s.Reset(true);
   ASSERT_TRUE(s.Step());
   ASSERT_EQ(0, s.ColumnInt(0));
 }
