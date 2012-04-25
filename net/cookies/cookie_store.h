@@ -99,6 +99,8 @@ class NET_EXPORT CookieStore : public base::RefCountedThreadSafe<CookieStore> {
                                             const base::Time& delete_end,
                                             const DeleteCallback& callback) = 0;
 
+  virtual void DeleteSessionCookiesAsync(const DeleteCallback&) = 0;
+
   // Returns the underlying CookieMonster.
   virtual CookieMonster* GetCookieMonster() = 0;
 

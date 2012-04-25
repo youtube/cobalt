@@ -63,6 +63,8 @@ class DelayedCookieMonster : public CookieStore {
       const base::Time& delete_end,
       const DeleteCallback& callback) OVERRIDE;
 
+  virtual void DeleteSessionCookiesAsync(const DeleteCallback&) OVERRIDE;
+
   virtual CookieMonster* GetCookieMonster() OVERRIDE;
 
  private:
