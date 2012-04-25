@@ -148,6 +148,10 @@ void DelayedCookieMonster::DeleteAllCreatedBetweenAsync(
   ADD_FAILURE();
 }
 
+void DelayedCookieMonster::DeleteSessionCookiesAsync(const DeleteCallback&) {
+  ADD_FAILURE();
+}
+
 CookieMonster* DelayedCookieMonster::GetCookieMonster() {
   return cookie_monster_;
 }

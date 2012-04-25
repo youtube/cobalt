@@ -918,6 +918,32 @@ void CookieMonster::DeleteCookieTask::Run() {
   }
 }
 
+// Task class for DeleteSessionCookies call.
+class CookieMonster::DeleteSessionCookiesTask
+    : public CookieMonster::CookieMonsterTask {
+ public:
+  DeleteSessionCookiesTask(
+      CookieMonster* cookie_monster,
+      const CookieMonster::DeleteCallback& callback)
+      : CookieMonsterTask(cookie_monster),
+        callback_(callback) { }
+
+  virtual void Run() OVERRIDE;
+
+ private:
+  CookieMonster::DeleteCallback callback_;
+
+  DISALLOW_COPY_AND_ASSIGN(DeleteSessionCookiesTask);
+};
+
+void CookieMonster::DeleteSessionCookiesTask::Run() {
+  int num_deleted = this->cookie_monster()->DeleteSessionCookies();
+  if (!callback_.is_null()) {
+    this->InvokeCallback(base::Bind(&CookieMonster::DeleteCallback::Run,
+                                    base::Unretained(&callback_), num_deleted));
+  }
+}
+
 // Asynchronous CookieMonster API
 
 void CookieMonster::SetCookieWithDetailsAsync(
@@ -1033,6 +1059,14 @@ void CookieMonster::DeleteCookieAsync(const GURL& url,
       new DeleteCookieTask(this, url, cookie_name, callback);
 
   DoCookieTaskForURL(task, url);
+}
+
+void CookieMonster::DeleteSessionCookiesAsync(
+    const CookieStore::DeleteCallback& callback) {
+  scoped_refptr<DeleteSessionCookiesTask> task =
+      new DeleteSessionCookiesTask(this, callback);
+
+  DoCookieTask(task);
 }
 
 void CookieMonster::DoCookieTask(
@@ -1388,6 +1422,26 @@ void CookieMonster::DeleteCookie(const GURL& url,
       InternalDeleteCookie(curit, true, DELETE_COOKIE_EXPLICIT);
     }
   }
+}
+
+int CookieMonster::DeleteSessionCookies() {
+  base::AutoLock autolock(lock_);
+
+  int num_deleted = 0;
+  for (CookieMap::iterator it = cookies_.begin(); it != cookies_.end();) {
+    CookieMap::iterator curit = it;
+    CanonicalCookie* cc = curit->second;
+    ++it;
+
+    if (!cc->IsPersistent()) {
+      InternalDeleteCookie(curit,
+                           true,  /*sync_to_store*/
+                           DELETE_COOKIE_EXPIRED);
+      ++num_deleted;
+    }
+  }
+
+  return num_deleted;
 }
 
 CookieMonster* CookieMonster::GetCookieMonster() {
