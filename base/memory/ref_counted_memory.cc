@@ -6,11 +6,9 @@
 
 #include "base/logging.h"
 
-RefCountedMemory::RefCountedMemory() {
-}
+RefCountedMemory::RefCountedMemory() {}
 
-RefCountedMemory::~RefCountedMemory() {
-}
+RefCountedMemory::~RefCountedMemory() {}
 
 namespace base {
 
@@ -22,8 +20,9 @@ size_t RefCountedStaticMemory::size() const {
   return length_;
 }
 
-RefCountedBytes::RefCountedBytes() {
-}
+RefCountedStaticMemory::~RefCountedStaticMemory() {}
+
+RefCountedBytes::RefCountedBytes() {}
 
 RefCountedBytes::RefCountedBytes(const std::vector<unsigned char>& initializer)
     : data_(initializer) {
@@ -46,8 +45,7 @@ size_t RefCountedBytes::size() const {
   return data_.size();
 }
 
-RefCountedBytes::~RefCountedBytes() {
-}
+RefCountedBytes::~RefCountedBytes() {}
 
 RefCountedString::RefCountedString() {}
 
