@@ -70,7 +70,6 @@ class TestClientInitializer : public testing::EmptyTestEventListener {
 }  // namespace
 
 const char TestSuite::kStrictFailureHandling[] = "strict_failure_handling";
-const char TestSuite::kSilent[] = "silent";
 
 TestSuite::TestSuite(int argc, char** argv) : initialized_command_line_(false) {
   PreInitialize(argc, argv, true);
@@ -178,13 +177,6 @@ int TestSuite::Run() {
       CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
           switches::kTestChildProcess);
 
-  bool silent = CommandLine::ForCurrentProcess()->HasSwitch(kSilent);
-  if (silent) {
-    testing::TestEventListeners& listeners =
-        testing::UnitTest::GetInstance()->listeners();
-    delete listeners.Release(listeners.default_result_printer());
-  }
-
   // Check to see if we are being run as a client process.
   if (!client_func.empty())
     return multi_process_function_list::InvokeChildProcessTest(client_func);
@@ -194,20 +186,18 @@ int TestSuite::Run() {
   if (result != 0 && GetTestCount(&TestSuite::NonIgnoredFailures) == 0)
     result = 0;
 
-  if (!silent) {
-    // Display the number of flaky tests.
-    int flaky_count = GetTestCount(&TestSuite::IsMarkedFlaky);
-    if (flaky_count) {
-      printf("  YOU HAVE %d FLAKY %s\n\n", flaky_count,
-             flaky_count == 1 ? "TEST" : "TESTS");
-    }
+  // Display the number of flaky tests.
+  int flaky_count = GetTestCount(&TestSuite::IsMarkedFlaky);
+  if (flaky_count) {
+    printf("  YOU HAVE %d FLAKY %s\n\n", flaky_count,
+           flaky_count == 1 ? "TEST" : "TESTS");
+  }
 
-    // Display the number of tests with ignored failures (FAILS).
-    int failing_count = GetTestCount(&TestSuite::IsMarkedFailing);
-    if (failing_count) {
-      printf("  YOU HAVE %d %s with ignored failures (FAILS prefix)\n\n",
-             failing_count, failing_count == 1 ? "test" : "tests");
-    }
+  // Display the number of tests with ignored failures (FAILS).
+  int failing_count = GetTestCount(&TestSuite::IsMarkedFailing);
+  if (failing_count) {
+    printf("  YOU HAVE %d %s with ignored failures (FAILS prefix)\n\n",
+           failing_count, failing_count == 1 ? "test" : "tests");
   }
 
 #if defined(OS_MACOSX)

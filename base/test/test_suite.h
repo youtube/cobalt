@@ -59,9 +59,6 @@ class TestSuite {
   // process exit code.
   static const char kStrictFailureHandling[];
 
-  // A command-line flag that silences all gtest output.
-  static const char kSilent[];
-
  protected:
   // This constructor is only accessible to specialized test suite
   // implementations which need to control the creation of an AtExitManager
