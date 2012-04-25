@@ -2450,12 +2450,14 @@
               ['_type=="shared_library"', {
                 'ldflags': [
                   '-Wl,-shared,-Bsymbolic',
+                  # crtbegin_so.o should be the last item in ldflags.
+                  '<(android_ndk_lib)/crtbegin_so.o',
                 ],
-                # Use of -nostdlib prevents the compiler from bringing
-                # in crtbegin_dynamic.o et al, so we get an undefined
-                # reference to ___dso_handle when building
-                # gtest_target_type==shared_library.
-                'ldflags!': [ '-nostdlib' ],
+                'libraries': [
+                  # crtend_so.o needs to be the last item in libraries.
+                  # Do not add any libraries after this!
+                  '<(android_ndk_lib)/crtend_so.o',
+                ],
               }],
             ],
           }],
