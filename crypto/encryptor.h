@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -70,6 +70,14 @@ class CRYPTO_EXPORT Encryptor {
   bool Encrypt(const base::StringPiece& plaintext, std::string* ciphertext);
 
   // Decrypts |ciphertext| into |plaintext|.  |ciphertext| must not be empty.
+  //
+  // WARNING: In CBC mode, Decrypt() returns false if it detects the padding
+  // in the decrypted plaintext is wrong. Padding errors can result from
+  // tampered ciphertext or a wrong decryption key. But successful decryption
+  // does not imply the authenticity of the data. The caller of Decrypt()
+  // must either authenticate the ciphertext before decrypting it, or take
+  // care to not report decryption failure. Otherwise it could inadvertently
+  // be used as a padding oracle to attack the cryptosystem.
   bool Decrypt(const base::StringPiece& ciphertext, std::string* plaintext);
 
   // Sets the counter value when in CTR mode. Currently only 128-bits
