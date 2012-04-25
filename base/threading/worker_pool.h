@@ -8,6 +8,7 @@
 
 #include "base/base_export.h"
 #include "base/callback_forward.h"
+#include "base/memory/ref_counted.h"
 
 class Task;
 
@@ -16,6 +17,8 @@ class Location;
 }  // namespace tracked_objects
 
 namespace base {
+
+class TaskRunner;
 
 // This is a facility that runs tasks that don't require a specific thread or
 // a message loop.
@@ -41,6 +44,16 @@ class BASE_EXPORT WorkerPool {
                                const Closure& task,
                                const Closure& reply,
                                bool task_is_slow);
+
+  // Return true if the current thread is one that this WorkerPool runs tasks
+  // on.  (Note that if the Windows worker pool is used without going through
+  // this WorkerPool interface, RunsTasksOnCurrentThread would return false on
+  // those threads.)
+  static bool RunsTasksOnCurrentThread();
+
+  // Get a TaskRunner wrapper which posts to the WorkerPool using the given
+  // |task_is_slow| behavior.
+  static const scoped_refptr<TaskRunner>& GetTaskRunner(bool task_is_slow);
 };
 
 }  // namespace base

@@ -12,6 +12,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/stringprintf.h"
 #include "base/threading/platform_thread.h"
+#include "base/threading/thread_local.h"
 #include "base/threading/worker_pool.h"
 #include "base/tracked_objects.h"
 
@@ -20,6 +21,9 @@ using tracked_objects::TrackedTime;
 namespace base {
 
 namespace {
+
+base::LazyInstance<ThreadLocalBoolean>::Leaky
+    g_worker_pool_running_on_this_thread = LAZY_INSTANCE_INITIALIZER;
 
 const int kIdleSecondsBeforeExit = 10 * 60;
 // A stack size of 64 KB is too small for the CERT_PKIXVerifyCert
@@ -72,6 +76,7 @@ class WorkerThread : public PlatformThread::Delegate {
 };
 
 void WorkerThread::ThreadMain() {
+  g_worker_pool_running_on_this_thread.Get().Set(true);
   const std::string name = base::StringPrintf(
       "%s/%d", name_prefix_.c_str(), PlatformThread::CurrentId());
   // Note |name.c_str()| must remain valid for for the whole life of the thread.
@@ -101,10 +106,16 @@ void WorkerThread::ThreadMain() {
 
 }  // namespace
 
+// static
 bool WorkerPool::PostTask(const tracked_objects::Location& from_here,
                           const base::Closure& task, bool task_is_slow) {
   g_lazy_worker_pool.Pointer()->PostTask(from_here, task, task_is_slow);
   return true;
+}
+
+// static
+bool WorkerPool::RunsTasksOnCurrentThread() {
+  return g_worker_pool_running_on_this_thread.Get().Get();
 }
 
 PosixDynamicThreadPool::PosixDynamicThreadPool(
