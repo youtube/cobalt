@@ -128,7 +128,7 @@ void LibraryLoadedOnMainThread(JNIEnv* env) {
     // internal gtest data structures based on the command line.
     // It needs to be scoped as it also resets the CommandLine.
     std::vector<std::string> args;
-    FilePath path("/data/user/0/org.chromium.native_tests/files/");
+    FilePath path("/data/user/0/org.chromium.native_test/files/");
     ParseArgsFromCommandLineFile(path, &args);
     std::vector<char*> argv;
     ArgsToArgv(args, &argv);

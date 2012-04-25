@@ -5,7 +5,7 @@ Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 -->
 
-<project name="ChromeNativeTests" default="debug" basedir=".">
+<project name="replaceme" default="debug" basedir=".">
 
   <description>
     Building native test runner ChromeNativeTests_replaceme.apk
