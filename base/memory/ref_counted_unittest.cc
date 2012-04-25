@@ -27,7 +27,6 @@ class ScopedRefPtrToSelf : public base::RefCounted<ScopedRefPtrToSelf> {
   ScopedRefPtrToSelf()
       : ALLOW_THIS_IN_INITIALIZER_LIST(self_ptr_(this)) {
   }
-  ~ScopedRefPtrToSelf() { was_destroyed_ = true; }
 
   static bool was_destroyed() { return was_destroyed_; }
 
@@ -35,6 +34,7 @@ class ScopedRefPtrToSelf : public base::RefCounted<ScopedRefPtrToSelf> {
 
  private:
   friend class base::RefCounted<ScopedRefPtrToSelf>;
+  ~ScopedRefPtrToSelf() { was_destroyed_ = true; }
 
   static bool was_destroyed_;
 
