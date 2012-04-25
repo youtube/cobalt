@@ -98,6 +98,9 @@ class VideoRendererBaseTest : public ::testing::Test {
     EXPECT_CALL(*decoder_, Read(_))
         .WillRepeatedly(Invoke(this, &VideoRendererBaseTest::FrameRequested));
 
+    EXPECT_CALL(*decoder_, Flush(_))
+        .WillRepeatedly(Invoke(this, &VideoRendererBaseTest::FlushRequested));
+
     InSequence s;
 
     // We expect the video size to be set.
@@ -320,6 +323,21 @@ class VideoRendererBaseTest : public ::testing::Test {
     CHECK(read_cb_.is_null());
     read_cb_ = callback;
     cv_.Signal();
+  }
+
+  void FlushRequested(const base::Closure& callback) {
+    // Lock+swap to avoid re-entrancy issues.
+    VideoDecoder::ReadCB read_cb;
+    {
+      base::AutoLock l(lock_);
+      std::swap(read_cb, read_cb_);
+    }
+
+    // Abort pending read.
+    if (!read_cb.is_null())
+      read_cb.Run(NULL);
+
+    callback.Run();
   }
 
   void OnSeekComplete(PipelineStatus expected_status, PipelineStatus status) {
@@ -579,9 +597,7 @@ TEST_F(VideoRendererBaseTest, AbortPendingRead_Flush) {
   RenderFrame(kFrameDuration);
 
   Pause();
-  renderer_->Flush(NewWaitableClosure());
-  AbortRead();
-  WaitForClosure();
+  Flush();
   Shutdown();
 }
 
