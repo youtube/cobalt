@@ -14,6 +14,7 @@
 
 using ::testing::AnyNumber;
 using ::testing::InSequence;
+using ::testing::NotNull;
 using ::testing::Return;
 using ::testing::SetArgumentPointee;
 using ::testing::_;
@@ -77,6 +78,13 @@ class MockChunkDemuxerClient : public ChunkDemuxerClient {
 
   MOCK_METHOD1(DemuxerOpened, void(ChunkDemuxer* demuxer));
   MOCK_METHOD0(DemuxerClosed, void());
+  // TODO(xhwang): This is a workaround of the issue that move-only parameters
+  // are not supported in mocked methods. Remove this when the issue is fixed.
+  // See http://code.google.com/p/googletest/issues/detail?id=395
+  MOCK_METHOD2(KeyNeededMock, void(const uint8* init_data, int init_data_size));
+  void KeyNeeded(scoped_array<uint8> init_data, int init_data_size) {
+    KeyNeededMock(init_data.get(), init_data_size);
+  }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockChunkDemuxerClient);
@@ -346,6 +354,9 @@ TEST_F(ChunkDemuxerTest, TestInit) {
 
     client_.reset(new MockChunkDemuxerClient());
     demuxer_ = new ChunkDemuxer(client_.get());
+    if (has_video && video_content_encoded)
+      EXPECT_CALL(*client_, KeyNeededMock(NotNull(), 16));
+
     ASSERT_TRUE(InitDemuxer(has_audio, has_video, video_content_encoded));
 
     scoped_refptr<DemuxerStream> audio_stream =

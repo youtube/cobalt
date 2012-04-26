@@ -33,7 +33,14 @@ class MockMediaSource : public ChunkDemuxerClient {
 
   virtual ~MockMediaSource() {}
 
-  const std::string& url() { return url_; }
+  void set_decryptor(AesDecryptor* decryptor) {
+    decryptor_ = decryptor;
+  }
+  AesDecryptor* decryptor() const {
+    return decryptor_;
+  }
+
+  const std::string& url() const { return url_; }
 
   void Seek(int new_position, int seek_append_size) {
     chunk_demuxer_->FlushData();
@@ -76,6 +83,16 @@ class MockMediaSource : public ChunkDemuxerClient {
     chunk_demuxer_ = NULL;
   }
 
+  virtual void KeyNeeded(scoped_array<uint8> init_data, int init_data_size) {
+    DCHECK(init_data.get());
+    DCHECK_EQ(init_data_size, 16);
+    DCHECK(decryptor());
+    // In test file bear-320x240-encrypted.webm, the decryption key is equal to
+    // |init_data|.
+    decryptor()->AddKey(init_data.get(), init_data_size,
+                        init_data.get(), init_data_size);
+  }
+
  private:
   std::string url_;
   scoped_array<uint8> file_data_;
@@ -83,6 +100,7 @@ class MockMediaSource : public ChunkDemuxerClient {
   int current_position_;
   int initial_append_size_;
   scoped_refptr<ChunkDemuxer> chunk_demuxer_;
+  AesDecryptor* decryptor_;
 };
 
 class PipelineIntegrationTest
@@ -96,8 +114,8 @@ class PipelineIntegrationTest
         base::Bind(&PipelineIntegrationTest::OnError, base::Unretained(this)),
         NetworkEventCB(), QuitOnStatusCB(PIPELINE_OK));
 
-    decoder_->decryptor()->AddKey(kKeyId, arraysize(kKeyId) - 1,
-                                  kKeyId, arraysize(kKeyId) - 1);
+    ASSERT_TRUE(decoder_.get());
+    source.set_decryptor(decoder_->decryptor());
 
     message_loop_.Run();
   }
