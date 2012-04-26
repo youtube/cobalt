@@ -24,6 +24,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread.h"
+#include "base/threading/thread_restrictions.h"
 #include "dbus/bus.h"
 #include "dbus/message.h"
 #include "dbus/object_proxy.h"
@@ -62,6 +63,30 @@ enum {
   NM_STATE_CONNECTED_SITE = 60,
   NM_STATE_CONNECTED_GLOBAL = 70
 };
+
+class DNSWatchDelegate : public FilePathWatcher::Delegate {
+ public:
+  explicit DNSWatchDelegate(const base::Closure& callback)
+      : callback_(callback) {}
+  virtual ~DNSWatchDelegate() {}
+  // FilePathWatcher::Delegate interface
+  virtual void OnFilePathChanged(const FilePath& path) OVERRIDE;
+  virtual void OnFilePathError(const FilePath& path) OVERRIDE;
+ private:
+  base::Closure callback_;
+  DISALLOW_COPY_AND_ASSIGN(DNSWatchDelegate);
+};
+
+void DNSWatchDelegate::OnFilePathChanged(const FilePath& path) {
+  // Calls NetworkChangeNotifier::NotifyObserversOfDNSChange().
+  callback_.Run();
+}
+
+void DNSWatchDelegate::OnFilePathError(const FilePath& path) {
+  LOG(ERROR) << "DNSWatchDelegate::OnFilePathError for " << path.value();
+}
+
+}  // namespace
 
 // A wrapper around NetworkManager's D-Bus API.
 class NetworkManagerApi {
@@ -232,34 +257,12 @@ bool NetworkManagerApi::StateIsOffline(uint32 state) {
 }
 
 bool NetworkManagerApi::IsCurrentlyOffline() {
+  // http://crbug.com/125097
+  base::ThreadRestrictions::ScopedAllowWait allow_wait;
   offline_state_initialized_.Wait();
   base::AutoLock lock(is_offline_lock_);
   return is_offline_;
 }
-
-class DNSWatchDelegate : public FilePathWatcher::Delegate {
- public:
-  explicit DNSWatchDelegate(const base::Closure& callback)
-      : callback_(callback) {}
-  virtual ~DNSWatchDelegate() {}
-  // FilePathWatcher::Delegate interface
-  virtual void OnFilePathChanged(const FilePath& path) OVERRIDE;
-  virtual void OnFilePathError(const FilePath& path) OVERRIDE;
- private:
-  base::Closure callback_;
-  DISALLOW_COPY_AND_ASSIGN(DNSWatchDelegate);
-};
-
-void DNSWatchDelegate::OnFilePathChanged(const FilePath& path) {
-  // Calls NetworkChangeNotifier::NotifyObserversOfDNSChange().
-  callback_.Run();
-}
-
-void DNSWatchDelegate::OnFilePathError(const FilePath& path) {
-  LOG(ERROR) << "DNSWatchDelegate::OnFilePathError for " << path.value();
-}
-
-}  // namespace
 
 class NetworkChangeNotifierLinux::Thread
     : public base::Thread, public MessageLoopForIO::Watcher {

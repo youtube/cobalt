@@ -8,6 +8,7 @@
 #include <windows.h>
 
 #include "base/logging.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/time.h"
 
 namespace base {
@@ -47,6 +48,7 @@ bool WaitableEvent::IsSignaled() {
 }
 
 void WaitableEvent::Wait() {
+  base::ThreadRestrictions::AssertWaitAllowed();
   DWORD result = WaitForSingleObject(handle_, INFINITE);
   // It is most unexpected that this should ever fail.  Help consumers learn
   // about it if it should ever fail.
@@ -54,6 +56,7 @@ void WaitableEvent::Wait() {
 }
 
 bool WaitableEvent::TimedWait(const TimeDelta& max_time) {
+  base::ThreadRestrictions::AssertWaitAllowed();
   DCHECK(max_time >= TimeDelta::FromMicroseconds(0));
   // Be careful here.  TimeDelta has a precision of microseconds, but this API
   // is in milliseconds.  If there are 5.5ms left, should the delay be 5 or 6?
@@ -74,6 +77,7 @@ bool WaitableEvent::TimedWait(const TimeDelta& max_time) {
 
 // static
 size_t WaitableEvent::WaitMany(WaitableEvent** events, size_t count) {
+  base::ThreadRestrictions::AssertWaitAllowed();
   HANDLE handles[MAXIMUM_WAIT_OBJECTS];
   CHECK_LE(count, MAXIMUM_WAIT_OBJECTS)
       << "Can only wait on " << MAXIMUM_WAIT_OBJECTS << " with WaitMany";
