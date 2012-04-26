@@ -8,7 +8,32 @@
 #include "base/base_export.h"
 #include "base/basictypes.h"
 
+class MetricsService;
+class RenderWidgetHelper;
+class TestingAutomationProvider;
+class TextInputClientMac;
+namespace chrome_browser_net {
+class Predictor;
+}
+namespace disk_cache {
+class BackendImpl;
+class InFlightIO;
+}
+namespace media {
+class AudioOutputController;
+}
+namespace net {
+class FileStreamPosix;
+class FileStreamWin;
+class NetworkManagerApi;
+}
+
 namespace base {
+
+class SequencedWorkerPool;
+class SimpleThread;
+class Thread;
+class ThreadTestHelper;
 
 // Certain behavior is disallowed on certain threads.  ThreadRestrictions helps
 // enforce these rules.  Examples of such rules:
@@ -83,6 +108,13 @@ class BASE_EXPORT ThreadRestrictions {
   // Check whether the current thread is allowed to use singletons (Singleton /
   // LazyInstance).  DCHECKs if not.
   static void AssertSingletonAllowed();
+
+  // Disable waiting on the current thread. Threads start out in the *allowed*
+  // state. Returns the previous value.
+  static void DisallowWaiting();
+
+  // Check whether the current thread is allowed to wait, and DCHECK if not.
+  static void AssertWaitAllowed();
 #else
   // In Release builds, inline the empty definitions of these functions so
   // that they can be compiled out.
@@ -90,9 +122,54 @@ class BASE_EXPORT ThreadRestrictions {
   static void AssertIOAllowed() {}
   static bool SetSingletonAllowed(bool allowed) { return true; }
   static void AssertSingletonAllowed() {}
+  static void DisallowWaiting() {}
+  static void AssertWaitAllowed() {}
 #endif
 
  private:
+  // DO NOT ADD ANY OTHER FRIEND STATEMENTS, talk to jam or brettw first.
+  // BEGIN ALLOWED USAGE.
+  friend class ::RenderWidgetHelper;     
+  friend class ::TestingAutomationProvider;
+  friend class SequencedWorkerPool;
+  friend class SimpleThread;
+  friend class Thread;
+  friend class ThreadTestHelper;
+  // END ALLOWED USAGE.
+  // BEGIN USAGE THAT NEEDS TO BE FIXED.
+  friend class chrome_browser_net::Predictor;  // http://crbug.com/78451
+  friend class disk_cache::BackendImpl;        // http://crbug.com/74623
+  friend class disk_cache::InFlightIO;         // http://crbug.com/74623
+  friend class media::AudioOutputController;   // http://crbug.com/120973
+  friend class net::FileStreamPosix;           // http://crbug.com/74623
+  friend class net::FileStreamWin;             // http://crbug.com/74623
+  friend class net::NetworkManagerApi;         // http://crbug.com/125097
+  friend class ::TextInputClientMac;           // http://crbug.com/121917
+  friend class ::MetricsService;               // http://crbug.com/124954
+  // END USAGE THAT NEEDS TO BE FIXED.
+
+#ifndef NDEBUG
+  static bool SetWaitAllowed(bool allowed);
+#else
+  static bool SetWaitAllowed(bool allowed) { return true; }
+#endif
+
+  // Constructing a ScopedAllowWait temporarily allows waiting on the current
+  // thread.  Doing this is almost always incorrect, which is why we limit who
+  // can use this through friend. If you find yourself needing to use this, find
+  // another way. Talk to jam or brettw.
+  class BASE_EXPORT ScopedAllowWait {
+   public:
+    ScopedAllowWait() { previous_value_ = SetWaitAllowed(true); }
+    ~ScopedAllowWait() { SetWaitAllowed(previous_value_); }
+   private:
+    // Whether singleton use is allowed when the ScopedAllowWait was
+    // constructed.
+    bool previous_value_;
+
+    DISALLOW_COPY_AND_ASSIGN(ScopedAllowWait);
+  };
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(ThreadRestrictions);
 };
 

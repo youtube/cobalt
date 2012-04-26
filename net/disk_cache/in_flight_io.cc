@@ -7,6 +7,7 @@
 #include "base/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/threading/thread_restrictions.h"
 
 namespace disk_cache {
 
@@ -82,7 +83,11 @@ void InFlightIO::OnIOComplete(BackgroundIO* operation) {
 
 // Runs on the primary thread.
 void InFlightIO::InvokeCallback(BackgroundIO* operation, bool cancel_task) {
-  operation->io_completed()->Wait();
+  {
+    // http://crbug.com/74623
+    base::ThreadRestrictions::ScopedAllowWait allow_wait;
+    operation->io_completed()->Wait();
+  }
   running_ = true;
 
   if (cancel_task)
