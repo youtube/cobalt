@@ -422,6 +422,12 @@ BASE_EXPORT bool SetJobObjectAsKillOnJobClose(HANDLE job_object);
 BASE_EXPORT bool GetAppOutput(const CommandLine& cl, std::string* output);
 
 #if defined(OS_POSIX)
+// A POSIX-specific version of GetAppOutput that takes an argv array
+// instead of a CommandLine.  Useful for situations where you need to
+// control the command line arguments directly.
+BASE_EXPORT bool GetAppOutput(const std::vector<std::string>& argv,
+                              std::string* output);
+
 // A restricted version of |GetAppOutput()| which (a) clears the environment,
 // and (b) stores at most |max_output| bytes; also, it doesn't search the path
 // for the command.
