@@ -361,7 +361,9 @@ void ChunkDemuxer::Initialize(DemuxerHost* host,
 
     stream_parser_->Init(
         base::Bind(&ChunkDemuxer::OnStreamParserInitDone, this),
-        this);
+        base::Bind(&ChunkDemuxer::OnNewConfigs, base::Unretained(this)),
+        base::Bind(&ChunkDemuxer::OnAudioBuffers, base::Unretained(this)),
+        base::Bind(&ChunkDemuxer::OnVideoBuffers, base::Unretained(this)));
   }
 
   client_->DemuxerOpened(this);
@@ -708,7 +710,7 @@ bool ChunkDemuxer::OnNewConfigs(const AudioDecoderConfig& audio_config,
   return true;
 }
 
-bool ChunkDemuxer::OnAudioBuffers(const BufferQueue& buffers) {
+bool ChunkDemuxer::OnAudioBuffers(const StreamParser::BufferQueue& buffers) {
   if (!audio_.get())
     return false;
 
@@ -721,7 +723,7 @@ bool ChunkDemuxer::OnAudioBuffers(const BufferQueue& buffers) {
   return true;
 }
 
-bool ChunkDemuxer::OnVideoBuffers(const BufferQueue& buffers) {
+bool ChunkDemuxer::OnVideoBuffers(const StreamParser::BufferQueue& buffers) {
   if (!video_.get())
     return false;
 

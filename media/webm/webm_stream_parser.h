@@ -22,7 +22,9 @@ class WebMStreamParser : public StreamParser {
   virtual ~WebMStreamParser();
 
   // StreamParser implementation.
-  virtual void Init(const InitCB& init_cb, StreamParserHost* host) OVERRIDE;
+  virtual void Init(const InitCB& init_cb, const NewConfigCB& config_cb,
+                    const NewBuffersCB& audio_cb,
+                    const NewBuffersCB& video_cb) OVERRIDE;
   virtual void Flush() OVERRIDE;
   virtual bool Parse(const uint8* buf, int size) OVERRIDE;
 
@@ -57,7 +59,9 @@ class WebMStreamParser : public StreamParser {
 
   State state_;
   InitCB init_cb_;
-  StreamParserHost* host_;
+  NewConfigCB config_cb_;
+  NewBuffersCB audio_cb_;
+  NewBuffersCB video_cb_;
 
   scoped_ptr<WebMClusterParser> cluster_parser_;
   ByteQueue byte_queue_;
