@@ -133,11 +133,13 @@ class HTTPSServer(tlslite.api.TLSSocketServerMixIn,
 
   def __init__(self, server_address, request_hander_class, pem_cert_and_key,
                ssl_client_auth, ssl_client_cas, ssl_bulk_ciphers,
-               record_resume_info):
+               record_resume_info, tls_intolerant):
     self.cert_chain = tlslite.api.X509CertChain().parseChain(pem_cert_and_key)
     self.private_key = tlslite.api.parsePEMKey(pem_cert_and_key, private=True)
     self.ssl_client_auth = ssl_client_auth
     self.ssl_client_cas = []
+    self.tls_intolerant = tls_intolerant
+
     for ca_file in ssl_client_cas:
         s = open(ca_file).read()
         x509 = tlslite.api.X509()
@@ -163,7 +165,8 @@ class HTTPSServer(tlslite.api.TLSSocketServerMixIn,
                                     sessionCache=self.session_cache,
                                     reqCert=self.ssl_client_auth,
                                     settings=self.ssl_handshake_settings,
-                                    reqCAs=self.ssl_client_cas)
+                                    reqCAs=self.ssl_client_cas,
+                                    tlsIntolerant=self.tls_intolerant)
       tlsConnection.ignoreAbruptClose = True
       return True
     except tlslite.api.TLSAbruptCloseError:
@@ -2045,7 +2048,8 @@ def main(options, args):
           return
       server = HTTPSServer((host, port), TestPageHandler, pem_cert_and_key,
                            options.ssl_client_auth, options.ssl_client_ca,
-                           options.ssl_bulk_cipher, options.record_resume)
+                           options.ssl_bulk_cipher, options.record_resume,
+                           options.tls_intolerant)
       print 'HTTPS server started on %s:%d...' % (host, server.server_port)
     else:
       server = HTTPServer((host, port), TestPageHandler)
@@ -2172,6 +2176,10 @@ if __name__ == '__main__':
                            help='The type of OCSP response generated for the '
                            'automatically generated certificate. One of '
                            '[ok,revoked,invalid]')
+  option_parser.add_option('', '--tls-intolerant', dest='tls_intolerant',
+                           const=True, default=False, action='store_const',
+                           help='If true, TLS connections will be aborted '
+                           ' in order to test SSLv3 fallback.')
   option_parser.add_option('', '--https-record-resume', dest='record_resume',
                            const=True, default=False, action='store_const',
                            help='Record resumption cache events rather than'

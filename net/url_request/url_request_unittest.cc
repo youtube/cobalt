@@ -1726,6 +1726,29 @@ TEST_F(HTTPSCRLSetTest, ExpiredCRLSet) {
   EXPECT_FALSE(cert_status & CERT_STATUS_REV_CHECKING_ENABLED);
 }
 
+TEST_F(HTTPSRequestTest, SSLv3Fallback) {
+  TestServer::HTTPSOptions https_options(
+      TestServer::HTTPSOptions::CERT_OK);
+  https_options.tls_intolerant = true;
+  TestServer test_server(https_options,
+                         FilePath(FILE_PATH_LITERAL("net/data/ssl")));
+  ASSERT_TRUE(test_server.Start());
+
+  TestDelegate d;
+  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext(true));
+  context->Init();
+  d.set_allow_certificate_errors(true);
+  URLRequest r(test_server.GetURL(""), &d);
+  r.set_context(context.get());
+  r.Start();
+
+  MessageLoop::current()->Run();
+
+  EXPECT_EQ(1, d.response_started_count());
+  EXPECT_NE(0, d.bytes_received());
+  EXPECT_TRUE(r.ssl_info().connection_status & SSL_CONNECTION_SSL3_FALLBACK);
+}
+
 // This tests that a load of www.google.com with a certificate error sets
 // the |certificate_errors_are_fatal| flag correctly. This flag will cause
 // the interstitial to be fatal.
