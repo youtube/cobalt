@@ -191,6 +191,8 @@
         'base/l10n/l10n_util_posix.cc',
         'base/l10n/l10n_util_win.cc',
         'base/l10n/l10n_util_win.h',
+        'base/layout.cc',
+        'base/layout.h',
         'base/models/button_menu_item_model.cc',
         'base/models/button_menu_item_model.h',
         'base/models/combobox_model.h',
