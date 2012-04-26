@@ -379,6 +379,20 @@ class BadProxyListNetLogParam : public NetLog::EventParameters {
   DISALLOW_COPY_AND_ASSIGN(BadProxyListNetLogParam);
 };
 
+#if defined(OS_CHROMEOS)
+class UnsetProxyConfigService : public ProxyConfigService {
+ public:
+  UnsetProxyConfigService() {}
+  virtual ~UnsetProxyConfigService() {}
+
+  virtual void AddObserver(Observer* observer) {}
+  virtual void RemoveObserver(Observer* observer) {}
+  virtual ConfigAvailability GetLatestProxyConfig(ProxyConfig* config) {
+    return CONFIG_UNSET;
+  }
+};
+#endif
+
 }  // namespace
 
 // ProxyService::InitProxyResolver --------------------------------------------
@@ -1405,9 +1419,10 @@ ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
 #elif defined(OS_MACOSX)
   return new ProxyConfigServiceMac(io_loop);
 #elif defined(OS_CHROMEOS)
-  NOTREACHED() << "ProxyConfigService for ChromeOS should be created in "
-               << "profile_io_data.cc::CreateProxyConfigService.";
-  return NULL;
+  LOG(ERROR) << "ProxyConfigService for ChromeOS should be created in "
+             << "profile_io_data.cc::CreateProxyConfigService and this should "
+             << "be used only for examples.";
+  return new UnsetProxyConfigService;
 #elif defined(OS_LINUX)
   ProxyConfigServiceLinux* linux_config_service =
       new ProxyConfigServiceLinux();
