@@ -9,6 +9,7 @@
 #include "base/message_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/platform_thread.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/time.h"
 
 using base::Time;
@@ -42,6 +43,8 @@ AudioOutputController::~AudioOutputController() {
   if (!message_loop_.get() || message_loop_->BelongsToCurrentThread()) {
     DoStopCloseAndClearStream(NULL);
   } else {
+    // http://crbug.com/120973
+    base::ThreadRestrictions::ScopedAllowWait allow_wait;
     WaitableEvent completion(true /* manual reset */,
                              false /* initial state */);
     message_loop_->PostTask(FROM_HERE,

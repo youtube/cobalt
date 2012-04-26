@@ -97,7 +97,7 @@ class BASE_EXPORT SimpleThread : public PlatformThread::Delegate {
   PlatformThreadId tid() { return tid_; }
 
   // Return True if Start() has ever been called.
-  bool HasBeenStarted() { return event_.IsSignaled(); }
+  bool HasBeenStarted();
 
   // Return True if Join() has evern been called.
   bool HasBeenJoined() { return joined_; }

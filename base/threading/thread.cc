@@ -8,6 +8,7 @@
 #include "base/lazy_instance.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/threading/thread_local.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/synchronization/waitable_event.h"
 
 namespace base {
@@ -76,6 +77,7 @@ bool Thread::StartWithOptions(const Options& options) {
   }
 
   // Wait for the thread to start and initialize message_loop_
+  base::ThreadRestrictions::ScopedAllowWait allow_wait;
   startup_data.event.Wait();
 
   // set it to NULL so we don't keep a pointer to some object on the stack.
