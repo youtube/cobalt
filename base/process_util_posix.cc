@@ -1048,10 +1048,10 @@ enum GetAppOutputInternalResult {
   GOT_MAX_OUTPUT,
 };
 
-// Executes the application specified by |cl| and wait for it to exit. Stores
+// Executes the application specified by |argv| and wait for it to exit. Stores
 // the output (stdout) in |output|. If |do_search_path| is set, it searches the
 // path for the application; in that case, |envp| must be null, and it will use
-// the current environment. If |do_search_path| is false, |cl| should fully
+// the current environment. If |do_search_path| is false, |argv[0]| should fully
 // specify the path of the application, and |envp| will be used as the
 // environment. Redirects stderr to /dev/null.
 // If we successfully start the application and get all requested output, we
@@ -1063,12 +1063,13 @@ enum GetAppOutputInternalResult {
 // In the case of EXECUTE_SUCCESS, the application exit code will be returned
 // in |*exit_code|, which should be checked to determine if the application
 // ran successfully.
-static GetAppOutputInternalResult GetAppOutputInternal(const CommandLine& cl,
-                                                       char* const envp[],
-                                                       std::string* output,
-                                                       size_t max_output,
-                                                       bool do_search_path,
-                                                       int* exit_code) {
+static GetAppOutputInternalResult GetAppOutputInternal(
+    const std::vector<std::string>& argv,
+    char* const envp[],
+    std::string* output,
+    size_t max_output,
+    bool do_search_path,
+    int* exit_code) {
   // Doing a blocking wait for another command to finish counts as IO.
   base::ThreadRestrictions::AssertIOAllowed();
   // exit_code must be supplied so calling function can determine success.
@@ -1078,7 +1079,6 @@ static GetAppOutputInternalResult GetAppOutputInternal(const CommandLine& cl,
   int pipe_fd[2];
   pid_t pid;
   InjectiveMultimap fd_shuffle1, fd_shuffle2;
-  const std::vector<std::string>& argv = cl.argv();
   scoped_array<char*> argv_cstr(new char*[argv.size() + 1]);
 
   fd_shuffle1.reserve(3);
@@ -1175,10 +1175,14 @@ static GetAppOutputInternalResult GetAppOutputInternal(const CommandLine& cl,
 }
 
 bool GetAppOutput(const CommandLine& cl, std::string* output) {
+  return GetAppOutput(cl.argv(), output);
+}
+
+bool GetAppOutput(const std::vector<std::string>& argv, std::string* output) {
   // Run |execve()| with the current environment and store "unlimited" data.
   int exit_code;
   GetAppOutputInternalResult result = GetAppOutputInternal(
-      cl, NULL, output, std::numeric_limits<std::size_t>::max(), true,
+      argv, NULL, output, std::numeric_limits<std::size_t>::max(), true,
       &exit_code);
   return result == EXECUTE_SUCCESS && exit_code == EXIT_SUCCESS;
 }
@@ -1190,9 +1194,8 @@ bool GetAppOutputRestricted(const CommandLine& cl,
   // Run |execve()| with the empty environment.
   char* const empty_environ = NULL;
   int exit_code;
-  GetAppOutputInternalResult result = GetAppOutputInternal(cl, &empty_environ,
-                                                           output, max_output,
-                                                           false, &exit_code);
+  GetAppOutputInternalResult result = GetAppOutputInternal(
+      cl.argv(), &empty_environ, output, max_output, false, &exit_code);
   return result == GOT_MAX_OUTPUT || (result == EXECUTE_SUCCESS &&
                                       exit_code == EXIT_SUCCESS);
 }
@@ -1202,7 +1205,7 @@ bool GetAppOutputWithExitCode(const CommandLine& cl,
                               int* exit_code) {
   // Run |execve()| with the current environment and store "unlimited" data.
   GetAppOutputInternalResult result = GetAppOutputInternal(
-      cl, NULL, output, std::numeric_limits<std::size_t>::max(), true,
+      cl.argv(), NULL, output, std::numeric_limits<std::size_t>::max(), true,
       exit_code);
   return result == EXECUTE_SUCCESS;
 }
