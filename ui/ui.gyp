@@ -435,8 +435,6 @@
             ['exclude', 'gfx/screen_gtk.cc'],
             ['exclude', 'gfx/screen_win.cc'],
             ['exclude', 'base/dragdrop/drag_utils_win.cc'],
-            ['exclude', 'base/view_prop.cc'],
-            ['exclude', 'base/view_prop.h'],
             ['exclude', 'base/win/mouse_wheel_util.cc'],
             ['exclude', 'base/win/mouse_wheel_util.h'],
             ['exclude', 'base/work_area_watcher_observer.h'],
@@ -593,6 +591,14 @@
             ],
           },
         },{  # OS!="win"
+          'conditions': [
+            ['use_aura==0', {
+              'sources!': [
+                'base/view_prop.cc',
+                'base/view_prop.h',
+              ],
+            }],
+          ],
           'sources!': [
             'base/dragdrop/drag_source.cc',
             'base/dragdrop/drag_source.h',
@@ -600,8 +606,6 @@
             'base/dragdrop/drop_target.cc',
             'base/dragdrop/drop_target.h',
             'base/dragdrop/os_exchange_data.cc',
-            'base/view_prop.cc',
-            'base/view_prop.h',
             'gfx/native_theme_win.cc',
             'gfx/native_theme_win.h',
           ],
