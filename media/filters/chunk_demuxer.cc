@@ -363,7 +363,8 @@ void ChunkDemuxer::Initialize(DemuxerHost* host,
         base::Bind(&ChunkDemuxer::OnStreamParserInitDone, this),
         base::Bind(&ChunkDemuxer::OnNewConfigs, base::Unretained(this)),
         base::Bind(&ChunkDemuxer::OnAudioBuffers, base::Unretained(this)),
-        base::Bind(&ChunkDemuxer::OnVideoBuffers, base::Unretained(this)));
+        base::Bind(&ChunkDemuxer::OnVideoBuffers, base::Unretained(this)),
+        base::Bind(&ChunkDemuxer::OnKeyNeeded, base::Unretained(this)));
   }
 
   client_->DemuxerOpened(this);
@@ -733,6 +734,12 @@ bool ChunkDemuxer::OnVideoBuffers(const StreamParser::BufferQueue& buffers) {
   video_->AddBuffers(buffers);
   seek_waits_for_data_ = false;
 
+  return true;
+}
+
+bool ChunkDemuxer::OnKeyNeeded(scoped_array<uint8> init_data,
+                               int init_data_size) {
+  client_->KeyNeeded(init_data.Pass(), init_data_size);
   return true;
 }
 
