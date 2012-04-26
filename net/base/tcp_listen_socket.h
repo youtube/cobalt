@@ -45,7 +45,7 @@ class NET_EXPORT TCPListenSocket : public ListenSocket,
  public:
   // Listen on port for the specified IP address.  Use 127.0.0.1 to only
   // accept local connections.
-  static TCPListenSocket* CreateAndListen(std::string ip, int port,
+  static TCPListenSocket* CreateAndListen(const std::string& ip, int port,
                                           ListenSocketDelegate* del);
 
   // NOTE: This is for unit test use only!
@@ -66,7 +66,7 @@ class NET_EXPORT TCPListenSocket : public ListenSocket,
 
   TCPListenSocket(SOCKET s, ListenSocketDelegate* del);
   virtual ~TCPListenSocket();
-  static SOCKET CreateAndBind(std::string ip, int port);
+  static SOCKET CreateAndBind(const std::string& ip, int port);
   // if valid, returned SOCKET is non-blocking
   static SOCKET Accept(SOCKET s);
 

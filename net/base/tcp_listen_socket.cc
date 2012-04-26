@@ -44,7 +44,7 @@ const int TCPListenSocket::kSocketError = -1;
 #endif
 
 TCPListenSocket* TCPListenSocket::CreateAndListen(
-    std::string ip, int port, ListenSocket::ListenSocketDelegate *del) {
+    const std::string& ip, int port, ListenSocket::ListenSocketDelegate *del) {
   SOCKET s = CreateAndBind(ip, port);
   if (s == kInvalidSocket) {
     // TODO(erikkay): error handling
@@ -95,7 +95,7 @@ TCPListenSocket::~TCPListenSocket() {
   CloseSocket(socket_);
 }
 
-SOCKET TCPListenSocket::CreateAndBind(std::string ip, int port) {
+SOCKET TCPListenSocket::CreateAndBind(const std::string& ip, int port) {
   SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (s != kInvalidSocket) {
 #if defined(OS_POSIX)
