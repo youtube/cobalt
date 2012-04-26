@@ -7,6 +7,7 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "base/android/path_utils.h"
+#include "base/android/scoped_java_ref.h"
 #include "base/at_exit.h"
 #include "base/command_line.h"
 #include "base/file_path.h"
@@ -156,7 +157,10 @@ void LibraryLoadedOnMainThread(JNIEnv* env) {
 
 // This method is called on a separate java thread so that we won't trigger
 // an ANR.
-static void RunTests(JNIEnv* env, jobject obj, jstring jfiles_dir) {
+static void RunTests(JNIEnv* env,
+                     jobject obj,
+                     jstring jfiles_dir,
+                     jobject app_context) {
   FilePath files_dir(base::android::ConvertJavaStringToUTF8(env, jfiles_dir));
   // A few options, such "--gtest_list_tests", will just use printf directly
   // and won't use the "AndroidLogPrinter". Redirect stdout to a known file.
@@ -174,6 +178,11 @@ static void RunTests(JNIEnv* env, jobject obj, jstring jfiles_dir) {
   // This object is owned by gtest.
   AndroidLogPrinter* log = new AndroidLogPrinter();
   log->Init(&argc, &argv[0]);
+
+  // Set the application context in base.
+  base::android::ScopedJavaLocalRef<jobject> scoped_context(
+      env, env->NewLocalRef(app_context));
+  base::android::InitApplicationContext(scoped_context);
 
   main(argc, &argv[0]);
 }
