@@ -141,7 +141,7 @@ class BASE_EXPORT ThreadRestrictions {
   friend class ThreadTestHelper;
   // END ALLOWED USAGE.
   // BEGIN USAGE THAT NEEDS TO BE FIXED.
-  friend class chromeos::AudioMixerAlsa;       // http://crbug.com/125206
+  friend class ::chromeos::AudioMixerAlsa;     // http://crbug.com/125206
   friend class chrome_browser_net::Predictor;  // http://crbug.com/78451
   friend class disk_cache::BackendImpl;        // http://crbug.com/74623
   friend class disk_cache::InFlightIO;         // http://crbug.com/74623
