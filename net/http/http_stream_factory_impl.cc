@@ -119,15 +119,6 @@ void HttpStreamFactoryImpl::PreconnectStreams(
   job->Preconnect(num_streams);
 }
 
-void HttpStreamFactoryImpl::AddTLSIntolerantServer(const HostPortPair& server) {
-  tls_intolerant_servers_.insert(server);
-}
-
-bool HttpStreamFactoryImpl::IsTLSIntolerantServer(
-    const HostPortPair& server) const {
-  return ContainsKey(tls_intolerant_servers_, server);
-}
-
 base::Value* HttpStreamFactoryImpl::PipelineInfoToValue() const {
   return http_pipelined_host_pool_.PipelineInfoToValue();
 }

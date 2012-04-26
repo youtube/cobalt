@@ -126,6 +126,10 @@ class BaseTestServer {
     // causes it to log session cache actions and echo the log on
     // /ssl-session-cache.
     bool record_resume;
+
+    // If true, the server will abort any TLS handshake in order to test
+    // SSLv3 fallback.
+    bool tls_intolerant;
   };
 
   // Pass as the 'host' parameter during construction to server on 127.0.0.1

@@ -180,9 +180,6 @@ class NET_EXPORT HttpStreamFactory {
                                  const SSLConfig& server_ssl_config,
                                  const SSLConfig& proxy_ssl_config) = 0;
 
-  virtual void AddTLSIntolerantServer(const HostPortPair& server) = 0;
-  virtual bool IsTLSIntolerantServer(const HostPortPair& server) const = 0;
-
   // If pipelining is supported, creates a Value summary of the currently active
   // pipelines. Caller assumes ownership of the returned value. Otherwise,
   // returns an empty Value.

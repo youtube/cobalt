@@ -1168,8 +1168,10 @@ int HttpNetworkTransaction::HandleSSLHandshakeError(int error) {
         // This could be a TLS-intolerant server, an SSL 3.0 server that
         // chose a TLS-only cipher suite or a server with buggy DEFLATE
         // support. Turn off TLS 1.0, DEFLATE support and retry.
-        session_->http_stream_factory()->AddTLSIntolerantServer(
-            HostPortPair::FromURL(request_->url));
+        LOG(WARNING) << "Falling back to SSLv3 because host is TLS intolerant: "
+                     << GetHostAndPort(request_->url);
+        server_ssl_config_.tls1_enabled = false;
+        server_ssl_config_.ssl3_fallback = true;
         ResetConnectionAndRequestForResend();
         error = OK;
       }
