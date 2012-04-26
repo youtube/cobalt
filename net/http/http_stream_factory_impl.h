@@ -42,8 +42,6 @@ class NET_EXPORT_PRIVATE HttpStreamFactoryImpl :
                                  const HttpRequestInfo& info,
                                  const SSLConfig& server_ssl_config,
                                  const SSLConfig& proxy_ssl_config) OVERRIDE;
-  virtual void AddTLSIntolerantServer(const HostPortPair& server) OVERRIDE;
-  virtual bool IsTLSIntolerantServer(const HostPortPair& server) const OVERRIDE;
   virtual base::Value* PipelineInfoToValue() const OVERRIDE;
 
   // HttpPipelinedHostPool::Delegate interface
@@ -98,8 +96,6 @@ class NET_EXPORT_PRIVATE HttpStreamFactoryImpl :
                                      const SSLConfig& used_ssl_config);
 
   HttpNetworkSession* const session_;
-
-  std::set<HostPortPair> tls_intolerant_servers_;
 
   // All Requests are handed out to clients. By the time HttpStreamFactoryImpl
   // is destroyed, all Requests should be deleted (which should remove them from
