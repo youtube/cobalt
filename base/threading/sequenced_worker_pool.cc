@@ -23,6 +23,7 @@
 #include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/simple_thread.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/time.h"
 #include "base/tracked_objects.h"
 
@@ -625,6 +626,7 @@ void SequencedWorkerPool::Inner::Shutdown() {
   TimeTicks shutdown_wait_begin = TimeTicks::Now();
 
   {
+    base::ThreadRestrictions::ScopedAllowWait allow_wait;
     AutoLock lock(lock_);
     while (!CanShutdown())
       can_shutdown_cv_.Wait();
