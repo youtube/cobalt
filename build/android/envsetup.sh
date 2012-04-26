@@ -73,6 +73,10 @@ if [ ! -d "${CHROME_SRC}" ]; then
   return 1
 fi
 
+# Add Chromium Android development scripts to system path.
+# Must be after CHROME_SRC is set.
+export PATH=$PATH:${CHROME_SRC}/build/android
+
 # Performs a gyp_chromium run to convert gyp->Makefile for android code.
 android_gyp() {
   GOMA_WRAPPER=""
