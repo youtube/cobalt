@@ -19,9 +19,15 @@ class AudioMixerAlsa;
 namespace chrome_browser_net {
 class Predictor;
 }
+namespace dbus {
+class Bus;
+}
 namespace disk_cache {
 class BackendImpl;
 class InFlightIO;
+}
+namespace gdata {
+class GDataFileSystem;
 }
 namespace media {
 class AudioOutputController;
@@ -143,8 +149,10 @@ class BASE_EXPORT ThreadRestrictions {
   // BEGIN USAGE THAT NEEDS TO BE FIXED.
   friend class ::chromeos::AudioMixerAlsa;     // http://crbug.com/125206
   friend class chrome_browser_net::Predictor;  // http://crbug.com/78451
+  friend class dbus::Bus;                      // http://crbug.com/125222
   friend class disk_cache::BackendImpl;        // http://crbug.com/74623
   friend class disk_cache::InFlightIO;         // http://crbug.com/74623
+  friend class gdata::GDataFileSystem;         // http://crbug.com/125220
   friend class media::AudioOutputController;   // http://crbug.com/120973
   friend class net::FileStreamPosix;           // http://crbug.com/74623
   friend class net::FileStreamWin;             // http://crbug.com/74623
