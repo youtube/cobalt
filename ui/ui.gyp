@@ -259,8 +259,6 @@
         'base/win/ime_input.h',
         'base/win/message_box_win.cc',
         'base/win/message_box_win.h',
-        'base/win/metro.cc',
-        'base/win/metro.h',
         'base/win/mouse_wheel_util.cc',
         'base/win/mouse_wheel_util.h',
         'base/win/scoped_ole_initializer.cc',
