@@ -5,6 +5,7 @@
 package org.chromium.native_test;
 
 import android.app.Activity;
+import android.content.Context;
 import android.os.Bundle;
 import android.util.Log;
 
@@ -36,7 +37,7 @@ public class ChromeNativeTestActivity extends Activity {
                 @Override
                 public void run() {
                     Log.d(TAG, ">>nativeRunTests");
-                    nativeRunTests(getFilesDir().getAbsolutePath());
+                    nativeRunTests(getFilesDir().getAbsolutePath(), getApplicationContext());
                     // TODO(jrg): make sure a crash in native code
                     // triggers nativeTestFailed().
                     Log.d(TAG, "<<nativeRunTests");
@@ -62,5 +63,5 @@ public class ChromeNativeTestActivity extends Activity {
         Log.i(TAG, "loaded: " + mLibrary);
     }
 
-    private native void nativeRunTests(String filesDir);
+    private native void nativeRunTests(String filesDir, Context appContext);
 }
