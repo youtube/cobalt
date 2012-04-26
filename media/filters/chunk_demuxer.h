@@ -91,6 +91,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
                     const VideoDecoderConfig& video_config);
   bool OnAudioBuffers(const StreamParser::BufferQueue& buffer);
   bool OnVideoBuffers(const StreamParser::BufferQueue& buffer);
+  bool OnKeyNeeded(scoped_array<uint8> init_data, int init_data_size);
 
   base::Lock lock_;
   State state_;
