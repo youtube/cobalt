@@ -71,7 +71,6 @@ class ReadFromFileAudioSource : public AudioOutputStream::AudioSourceCallback {
     // Reads a test file from media/test/data directory and stores it in
     // a scoped_array.
     ReadTestDataFile(name, &file_, &file_size_);
-    file_size_ = file_size_;
 
     // Creates an array that will store delta times between callbacks.
     // The content of this array will be written to a text file at
