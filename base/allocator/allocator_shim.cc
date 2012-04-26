@@ -270,8 +270,7 @@ extern "C" int _heap_init() {
       GetenvBeforeMain(tracked_objects::kAlternateProfilerTime);
   if (profiling && *profiling == '1') {
     tracked_objects::SetAlternateTimeSource(
-        tcmalloc::ThreadCache::GetBytesAllocatedOnCurrentThread,
-        tracked_objects::TIME_SOURCE_TYPE_TCMALLOC);
+        tcmalloc::ThreadCache::GetBytesAllocatedOnCurrentThread);
   }
 
   return 1;
