@@ -18,37 +18,11 @@ class AudioDecoderConfig;
 class Buffer;
 class VideoDecoderConfig;
 
-// Provides callback methods for StreamParser to report information
-// about the media stream.
-class MEDIA_EXPORT StreamParserHost {
- public:
-  typedef std::deque<scoped_refptr<Buffer> > BufferQueue;
-
-  StreamParserHost();
-  virtual ~StreamParserHost();
-
-  // New audio and/or video decoder configurations were encountered. All audio
-  // and video buffers after this call will be associated with these
-  // configurations.
-  // Returns true if the new configurations are accepted.
-  // Returns false if the new configurations are not supported and indicates
-  // that a parsing error should be signalled.
-  virtual bool OnNewConfigs(const AudioDecoderConfig& audio_config,
-                            const VideoDecoderConfig& video_config) = 0;
-
-  // New audio buffers have been received.
-  virtual bool OnAudioBuffers(const BufferQueue& buffers) = 0;
-
-  // New video buffers have been received.
-  virtual bool OnVideoBuffers(const BufferQueue& buffers) = 0;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(StreamParserHost);
-};
-
 // Abstract interface for parsing media byte streams.
 class MEDIA_EXPORT StreamParser {
  public:
+  typedef std::deque<scoped_refptr<Buffer> > BufferQueue;
+
   StreamParser();
   virtual ~StreamParser();
 
@@ -60,11 +34,33 @@ class MEDIA_EXPORT StreamParser {
   //                     value if the first parameter is true.
   typedef base::Callback<void(bool, base::TimeDelta)> InitCB;
 
+  // Indicates when new stream configurations have been parsed.
+  // First parameter - The new audio configuration. If the config is not valid
+  //                   then it means that there isn't an audio stream.
+  // Second parameter - The new video configuration. If the config is not valid
+  //                    then it means that there isn't an audio stream.
+  // Return value - True if the new configurations are accepted.
+  //                False if the new configurations are not supported
+  //                and indicates that a parsing error should be signalled.
+  typedef base::Callback<bool(const AudioDecoderConfig&,
+                              const VideoDecoderConfig&)> NewConfigCB;
+
+  // New stream buffers have been parsed.
+  // First parameter - A queue of newly parsed buffers.
+  // Return value - True indicates that the buffers are accepted.
+  //                False if something was wrong with the buffers and a parsing
+  //                error should be signalled.
+  typedef base::Callback<bool(const BufferQueue&)> NewBuffersCB;
+
+
   // Initialize the parser with necessary callbacks. Must be called before any
   // data is passed to Parse(). |init_cb| will be called once enough data has
   // been parsed to determine the initial stream configurations, presentation
   // start time, and duration.
-  virtual void Init(const InitCB& init_cb, StreamParserHost* host) = 0;
+  virtual void Init(const InitCB& init_cb,
+                    const NewConfigCB& config_cb,
+                    const NewBuffersCB& audio_cb,
+                    const NewBuffersCB& video_cb) = 0;
 
   // Called when a seek occurs. This flushes the current parser state
   // and puts the parser in a state where it can receive data for the new seek

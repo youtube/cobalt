@@ -181,22 +181,26 @@ bool FFmpegConfigHelper::SetupStreamConfigs() {
 }
 
 WebMStreamParser::WebMStreamParser()
-    : state_(kWaitingForInit),
-      host_(NULL) {
+    : state_(kWaitingForInit) {
 }
 
 WebMStreamParser::~WebMStreamParser() {}
 
-void WebMStreamParser::Init(const InitCB& init_cb, StreamParserHost* host) {
+void WebMStreamParser::Init(const InitCB& init_cb,
+                            const NewConfigCB& config_cb,
+                            const NewBuffersCB& audio_cb,
+                            const NewBuffersCB& video_cb) {
   DCHECK_EQ(state_, kWaitingForInit);
   DCHECK(init_cb_.is_null());
-  DCHECK(!host_);
   DCHECK(!init_cb.is_null());
-  DCHECK(host);
+  DCHECK(!config_cb.is_null());
+  DCHECK(!audio_cb.is_null() || !video_cb.is_null());
 
   ChangeState(kParsingHeaders);
   init_cb_ = init_cb;
-  host_ = host;
+  config_cb_ = config_cb;
+  audio_cb_ = audio_cb;
+  video_cb_ = video_cb;
 }
 
 void WebMStreamParser::Flush() {
@@ -328,8 +332,7 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8* data, int size) {
   if (!config_helper.Parse(data, bytes_parsed))
     return -1;
 
-  host_->OnNewConfigs(config_helper.audio_config(),
-                      config_helper.video_config());
+  config_cb_.Run(config_helper.audio_config(),config_helper.video_config());
 
   cluster_parser_.reset(new WebMClusterParser(
       info_parser.timecode_scale(),
@@ -372,15 +375,13 @@ int WebMStreamParser::ParseCluster(const uint8* data, int size) {
   if (bytes_parsed <= 0)
     return bytes_parsed;
 
-  const StreamParserHost::BufferQueue& audio_buffers =
-      cluster_parser_->audio_buffers();
-  const StreamParserHost::BufferQueue& video_buffers =
-      cluster_parser_->video_buffers();
+  const BufferQueue& audio_buffers = cluster_parser_->audio_buffers();
+  const BufferQueue& video_buffers = cluster_parser_->video_buffers();
 
-  if (!audio_buffers.empty() && !host_->OnAudioBuffers(audio_buffers))
+  if (!audio_buffers.empty() && !audio_cb_.Run(audio_buffers))
     return -1;
 
-  if (!video_buffers.empty() && !host_->OnVideoBuffers(video_buffers))
+  if (!video_buffers.empty() && !video_cb_.Run(video_buffers))
     return -1;
 
   return bytes_parsed;

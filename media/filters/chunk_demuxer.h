@@ -21,7 +21,7 @@ class FFmpegURLProtocol;
 
 // Demuxer implementation that allows chunks of media data to be passed
 // from JavaScript to the media stack.
-class MEDIA_EXPORT ChunkDemuxer : public Demuxer, public StreamParserHost {
+class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
  public:
   enum Status {
     kOk,              // ID added w/o error.
@@ -86,11 +86,11 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer, public StreamParserHost {
 
   void OnStreamParserInitDone(bool success, base::TimeDelta duration);
 
-  // StreamParserHost implementation.
-  virtual bool OnNewConfigs(const AudioDecoderConfig& audio_config,
-                            const VideoDecoderConfig& video_config) OVERRIDE;
-  virtual bool OnAudioBuffers(const BufferQueue& buffer) OVERRIDE;
-  virtual bool OnVideoBuffers(const BufferQueue& buffer) OVERRIDE;
+  // StreamParser callbacks.
+  bool OnNewConfigs(const AudioDecoderConfig& audio_config,
+                    const VideoDecoderConfig& video_config);
+  bool OnAudioBuffers(const StreamParser::BufferQueue& buffer);
+  bool OnVideoBuffers(const StreamParser::BufferQueue& buffer);
 
   base::Lock lock_;
   State state_;
