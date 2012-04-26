@@ -1051,13 +1051,6 @@ bool HttpStreamFactoryImpl::Job::IsHttpsProxyAndHttpUrl() {
 void HttpStreamFactoryImpl::Job::InitSSLConfig(
     const HostPortPair& origin_server,
     SSLConfig* ssl_config) const {
-  if (stream_factory_->IsTLSIntolerantServer(origin_server)) {
-    LOG(WARNING) << "Falling back to SSLv3 because host is TLS intolerant: "
-        << origin_server.ToString();
-    ssl_config->ssl3_fallback = true;
-    ssl_config->tls1_enabled = false;
-  }
-
   if (proxy_info_.is_https() && ssl_config->send_client_cert) {
     // When connecting through an HTTPS proxy, disable TLS False Start so
     // that client authentication errors can be distinguished between those
