@@ -8,10 +8,14 @@
 #include "base/base_export.h"
 #include "base/basictypes.h"
 
+class BrowserProcessImpl;
 class MetricsService;
 class RenderWidgetHelper;
 class TestingAutomationProvider;
 class TextInputClientMac;
+namespace chromeos {
+class AudioMixerAlsa;
+}
 namespace chrome_browser_net {
 class Predictor;
 }
@@ -137,6 +141,7 @@ class BASE_EXPORT ThreadRestrictions {
   friend class ThreadTestHelper;
   // END ALLOWED USAGE.
   // BEGIN USAGE THAT NEEDS TO BE FIXED.
+  friend class chromeos::AudioMixerAlsa;       // http://crbug.com/125206
   friend class chrome_browser_net::Predictor;  // http://crbug.com/78451
   friend class disk_cache::BackendImpl;        // http://crbug.com/74623
   friend class disk_cache::InFlightIO;         // http://crbug.com/74623
@@ -144,8 +149,9 @@ class BASE_EXPORT ThreadRestrictions {
   friend class net::FileStreamPosix;           // http://crbug.com/74623
   friend class net::FileStreamWin;             // http://crbug.com/74623
   friend class net::NetworkManagerApi;         // http://crbug.com/125097
-  friend class ::TextInputClientMac;           // http://crbug.com/121917
+  friend class ::BrowserProcessImpl;           // http://crbug.com/125207
   friend class ::MetricsService;               // http://crbug.com/124954
+  friend class ::TextInputClientMac;           // http://crbug.com/121917
   // END USAGE THAT NEEDS TO BE FIXED.
 
 #ifndef NDEBUG
