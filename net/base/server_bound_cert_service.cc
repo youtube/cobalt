@@ -570,9 +570,11 @@ void ServerBoundCertService::HandleResult(const std::string& server_identifier,
                                           const std::string& cert) {
   DCHECK(CalledOnValidThread());
 
-  server_bound_cert_store_->SetServerBoundCert(
-      server_identifier, type, creation_time, expiration_time, private_key,
-      cert);
+  if (error == OK) {
+    server_bound_cert_store_->SetServerBoundCert(
+        server_identifier, type, creation_time, expiration_time, private_key,
+        cert);
+  }
 
   std::map<std::string, ServerBoundCertServiceJob*>::iterator j;
   j = inflight_.find(server_identifier);
