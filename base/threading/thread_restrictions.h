@@ -10,6 +10,7 @@
 
 class BrowserProcessImpl;
 class HistogramSynchronizer;
+class GpuChannelHost;
 class MetricsService;
 class NativeBackendKWallet;
 class RenderWidgetHelper;
@@ -29,6 +30,9 @@ class StatisticsProviderImpl;
 }
 namespace chrome_browser_net {
 class Predictor;
+}
+namespace content {
+class BrowserGpuChannelHostFactory;
 }
 namespace dbus {
 class Bus;
@@ -153,7 +157,7 @@ class BASE_EXPORT ThreadRestrictions {
   // DO NOT ADD ANY OTHER FRIEND STATEMENTS, talk to jam or brettw first.
   // BEGIN ALLOWED USAGE.
   friend class ::HistogramSynchronizer;
-  friend class ::RenderWidgetHelper;     
+  friend class ::RenderWidgetHelper;
   friend class ::TestingAutomationProvider;
   friend class SequencedWorkerPool;
   friend class SimpleThread;
@@ -167,6 +171,8 @@ class BASE_EXPORT ThreadRestrictions {
   friend class browser_sync::NonFrontendDataTypeController;  // http://crbug.com/19757
   friend class browser_sync::UIModelWorker;       // http://crbug.com/19757
   friend class chrome_browser_net::Predictor;     // http://crbug.com/78451
+  friend class
+      content::BrowserGpuChannelHostFactory;      // http://crbug.com/125248
   friend class dbus::Bus;                         // http://crbug.com/125222
   friend class disk_cache::BackendImpl;           // http://crbug.com/74623
   friend class disk_cache::InFlightIO;            // http://crbug.com/74623
@@ -176,6 +182,7 @@ class BASE_EXPORT ThreadRestrictions {
   friend class net::FileStreamWin;                // http://crbug.com/115067
   friend class net::NetworkManagerApi;            // http://crbug.com/125097
   friend class ::BrowserProcessImpl;              // http://crbug.com/125207
+  friend class ::GpuChannelHost;                  // http://crbug.com/125264
   friend class ::MetricsService;                  // http://crbug.com/124954
   friend class ::TextInputClientMac;              // http://crbug.com/121917
   friend class ::NativeBackendKWallet;            // http://crbug.com/125331
