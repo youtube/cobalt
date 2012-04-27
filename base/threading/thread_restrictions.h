@@ -8,6 +8,7 @@
 #include "base/base_export.h"
 #include "base/basictypes.h"
 
+class AcceleratedPresenter;
 class BrowserProcessImpl;
 class HistogramSynchronizer;
 class GpuChannelHost;
@@ -157,7 +158,7 @@ class BASE_EXPORT ThreadRestrictions {
   // DO NOT ADD ANY OTHER FRIEND STATEMENTS, talk to jam or brettw first.
   // BEGIN ALLOWED USAGE.
   friend class ::HistogramSynchronizer;
-  friend class ::RenderWidgetHelper;
+  friend class ::RenderWidgetHelper;     
   friend class ::TestingAutomationProvider;
   friend class SequencedWorkerPool;
   friend class SimpleThread;
@@ -181,6 +182,7 @@ class BASE_EXPORT ThreadRestrictions {
   friend class net::FileStreamPosix;              // http://crbug.com/115067
   friend class net::FileStreamWin;                // http://crbug.com/115067
   friend class net::NetworkManagerApi;            // http://crbug.com/125097
+  friend class ::AcceleratedPresenter;            // http://crbug.com/125391
   friend class ::BrowserProcessImpl;              // http://crbug.com/125207
   friend class ::GpuChannelHost;                  // http://crbug.com/125264
   friend class ::MetricsService;                  // http://crbug.com/124954
