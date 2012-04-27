@@ -227,51 +227,26 @@ TEST_F(FieldTrialTest, DisableProbability) {
   EXPECT_EQ(default_group_name, trial->group_name());
 }
 
-TEST_F(FieldTrialTest, HashName) {
-  // Make sure hashing is stable on all platforms.
-  struct {
-    const char* name;
-    uint32 hash_value;
-  } known_hashes[] = {
-    {"a", 937752454u},
-    {"1", 723085877u},
-    {"Trial Name", 2713117220u},
-    {"Group Name", 3201815843u},
-    {"My Favorite Experiment", 3722155194u},
-    {"My Awesome Group Name", 4109503236u},
-    {"abcdefghijklmonpqrstuvwxyz", 787728696u},
-    {"0123456789ABCDEF", 348858318U}
-  };
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(known_hashes); ++i) {
-    EXPECT_EQ(known_hashes[i].hash_value,
-              FieldTrial::HashName(known_hashes[i].name));
-  }
-}
-
-TEST_F(FieldTrialTest, NameGroupIds) {
+TEST_F(FieldTrialTest, SelectedGroups) {
   std::string no_group("No Group");
-  uint32 no_group_id = FieldTrial::HashName(no_group);
   scoped_refptr<FieldTrial> trial(FieldTrialList::FactoryGetFieldTrial(
       no_group, 10, "Default", next_year_, 12, 31, NULL));
 
   // There is no winner yet, so no NameGroupId should be returned.
-  FieldTrial::NameGroupId name_group_id;
-  EXPECT_FALSE(trial->GetNameGroupId(&name_group_id));
+  FieldTrial::SelectedGroup selected_group;
+  EXPECT_FALSE(trial->GetSelectedGroup(&selected_group));
 
   // Create a single winning group.
   std::string one_winner("One Winner");
-  uint32 one_winner_id = FieldTrial::HashName(one_winner);
   trial = FieldTrialList::FactoryGetFieldTrial(
       one_winner, 10, "Default", next_year_, 12, 31, NULL);
   std::string winner("Winner");
-  uint32 winner_group_id = FieldTrial::HashName(winner);
   trial->AppendGroup(winner, 10);
-  EXPECT_TRUE(trial->GetNameGroupId(&name_group_id));
-  EXPECT_EQ(one_winner_id, name_group_id.name);
-  EXPECT_EQ(winner_group_id, name_group_id.group);
+  EXPECT_TRUE(trial->GetSelectedGroup(&selected_group));
+  EXPECT_EQ(one_winner, selected_group.trial);
+  EXPECT_EQ(winner, selected_group.group);
 
   std::string multi_group("MultiGroup");
-  uint32 multi_group_id = FieldTrial::HashName(multi_group);
   scoped_refptr<FieldTrial> multi_group_trial =
       FieldTrialList::FactoryGetFieldTrial(multi_group, 9, "Default",
                                             next_year_, 12, 31, NULL);
@@ -279,23 +254,21 @@ TEST_F(FieldTrialTest, NameGroupIds) {
   multi_group_trial->AppendGroup("Me", 3);
   multi_group_trial->AppendGroup("You", 3);
   multi_group_trial->AppendGroup("Them", 3);
-  EXPECT_TRUE(multi_group_trial->GetNameGroupId(&name_group_id));
-  EXPECT_EQ(multi_group_id, name_group_id.name);
-  uint32 multi_group_winner_id =
-      FieldTrial::HashName(multi_group_trial->group_name());
-  EXPECT_EQ(multi_group_winner_id, name_group_id.group);
+  EXPECT_TRUE(multi_group_trial->GetSelectedGroup(&selected_group));
+  EXPECT_EQ(multi_group, selected_group.trial);
+  EXPECT_EQ(multi_group_trial->group_name(), selected_group.group);
 
   // Now check if the list is built properly...
-  std::vector<FieldTrial::NameGroupId> name_group_ids;
-  FieldTrialList::GetFieldTrialNameGroupIds(&name_group_ids);
-  EXPECT_EQ(2U, name_group_ids.size());
-  for (size_t i = 0; i < name_group_ids.size(); ++i) {
+  std::vector<FieldTrial::SelectedGroup> selected_groups;
+  FieldTrialList::GetFieldTrialSelectedGroups(&selected_groups);
+  EXPECT_EQ(2U, selected_groups.size());
+  for (size_t i = 0; i < selected_groups.size(); ++i) {
     // Order is not guaranteed, so check all values.
-    EXPECT_NE(no_group_id, name_group_ids[i].name);
-    EXPECT_TRUE(one_winner_id != name_group_ids[i].name ||
-                winner_group_id == name_group_ids[i].group);
-    EXPECT_TRUE(multi_group_id != name_group_ids[i].name ||
-                multi_group_winner_id == name_group_ids[i].group);
+    EXPECT_NE(no_group, selected_groups[i].trial);
+    EXPECT_TRUE(one_winner != selected_groups[i].trial ||
+                winner == selected_groups[i].group);
+    EXPECT_TRUE(multi_group != selected_groups[i].trial ||
+                multi_group_trial->group_name() == selected_groups[i].group);
   }
 }
 

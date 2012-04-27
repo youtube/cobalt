@@ -77,6 +77,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include "base/base_export.h"
 #include "base/gtest_prod_util.h"
@@ -92,12 +93,14 @@ class FieldTrialList;
 class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
  public:
   typedef int Probability;  // Probability type for being selected in a trial.
-  // The Unique ID of a trial, where the name and group identifiers are
-  // hashes of the trial and group name strings.
-  struct NameGroupId {
-    uint32 name;
-    uint32 group;
+
+  // A pair representing a Field Trial and its selected group.
+  struct SelectedGroup {
+    std::string trial;
+    std::string group;
   };
+
+  typedef std::vector<SelectedGroup> SelectedGroups;
 
   // A return value to indicate that a given instance has not yet had a group
   // assignment (and hence is not yet participating in the trial).
@@ -135,20 +138,16 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // is used as the group name. This causes a winner to be chosen if none was.
   std::string group_name();
 
-  // Gets the unique identifier of the Field Trial, but only if a group was
+  // Gets the SelectedGroup of the Field Trial, but only if a group was
   // officially chosen, otherwise name_group_id is left untouched and false
-  // is returned. When true is returned, the name and group ids were
-  // successfully set in name_group_id.
-  bool GetNameGroupId(NameGroupId* name_group_id);
+  // is returned. When true is returned, the trial and group names were
+  // successfully set in selected_group.
+  bool GetSelectedGroup(SelectedGroup* selected_group);
 
   // Helper function for the most common use: as an argument to specify the
   // name of a HISTOGRAM.  Use the original histogram name as the name_prefix.
   static std::string MakeName(const std::string& name_prefix,
                               const std::string& trial_name);
-
-  // Helper function to create a NameGroupId from |trial_name| and |group_name|.
-  static NameGroupId MakeNameGroupId(const std::string& trial_name,
-                                     const std::string& group_name);
 
   // Enable benchmarking sets field trials to a common setting.
   static void EnableBenchmarking();
@@ -167,7 +166,6 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, MakeName);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, HashClientId);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, HashClientIdIsUniform);
-  FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, HashName);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, NameGroupIds);
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, UseOneTimeRandomization);
 
@@ -200,15 +198,8 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   static double HashClientId(const std::string& client_id,
                              const std::string& trial_name);
 
-  // Creates unique identifier for the trial by hashing a name string, whether
-  // it's for the field trial or the group name.
-  static uint32 HashName(const std::string& name);
-
   // The name of the field trial, as can be found via the FieldTrialList.
   const std::string name_;
-
-  // The hashed name of the field trial to be sent as a unique identifier.
-  const uint32 name_hash_;
 
   // The maximum sum of all probabilities supplied, which corresponds to 100%.
   // This is the scaling factor used to adjust supplied probabilities.
@@ -235,10 +226,6 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // has been called.
   std::string group_name_;
 
-  // The hashed name of the group to be sent as a unique identifier.
-  // Is not valid while group_ is equal to kNotFinalized.
-  uint32 group_name_hash_;
-
   // When enable_field_trial_ is false, field trial reverts to the 'default'
   // group.
   bool enable_field_trial_;
@@ -250,9 +237,6 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // When benchmarking is enabled, field trials all revert to the 'default'
   // group.
   static bool enable_benchmarking_;
-
-  // This value is reserved for an uninitialized hash value.
-  static const uint32 kReservedHashValue;
 
   DISALLOW_COPY_AND_ASSIGN(FieldTrial);
 };
@@ -343,11 +327,12 @@ class BASE_EXPORT FieldTrialList {
   // string is parsed by CreateTrialsFromString().
   static void StatesToString(std::string* output);
 
-  // Returns an array of Unique IDs for each Field Trial that has a chosen
-  // group. Field Trials for which a group has not been chosen yet are NOT
-  // returned in this list.
-  static void GetFieldTrialNameGroupIds(
-      std::vector<FieldTrial::NameGroupId>* name_group_ids);
+  // Fills in the supplied vector |selected_groups| (which must be empty when
+  // called) with a snapshot of all existing FieldTrials for which a group has
+  // been chosen (if the group is not yet known, then it excluded from the
+  // vector).
+  static void GetFieldTrialSelectedGroups(
+      FieldTrial::SelectedGroups* selected_groups);
 
   // Use a state string (re: StatesToString()) to augment the current list of
   // field tests to include the supplied tests, and using a 100% probability for

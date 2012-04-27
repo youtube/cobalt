@@ -20,7 +20,6 @@ static const char kHistogramFieldTrialSeparator('_');
 // statics
 const int FieldTrial::kNotFinalized = -1;
 const int FieldTrial::kDefaultGroupNumber = 0;
-const uint32 FieldTrial::kReservedHashValue = 0;
 bool FieldTrial::enable_benchmarking_ = false;
 
 const char FieldTrialList::kPersistentStringSeparator('/');
@@ -36,14 +35,12 @@ FieldTrial::FieldTrial(const std::string& name,
                        const int month,
                        const int day_of_month)
   : name_(name),
-    name_hash_(HashName(name)),
     divisor_(total_probability),
     default_group_name_(default_group_name),
     random_(static_cast<Probability>(divisor_ * RandDouble())),
     accumulated_group_probability_(0),
     next_group_number_(kDefaultGroupNumber + 1),
     group_(kNotFinalized),
-    group_name_hash_(kReservedHashValue),
     enable_field_trial_(true),
     forced_(false) {
   DCHECK_GT(total_probability, 0);
@@ -151,11 +148,11 @@ std::string FieldTrial::group_name() {
   return group_name_;
 }
 
-bool FieldTrial::GetNameGroupId(NameGroupId* name_group_id) {
-  if (group_name_hash_ == kReservedHashValue)
+bool FieldTrial::GetSelectedGroup(SelectedGroup* selected_group) {
+  if (group_ == kNotFinalized)
     return false;
-  name_group_id->name = name_hash_;
-  name_group_id->group = group_name_hash_;
+  selected_group->trial = name_;
+  selected_group->group = group_name_;
   return true;
 }
 
@@ -165,16 +162,6 @@ std::string FieldTrial::MakeName(const std::string& name_prefix,
   std::string big_string(name_prefix);
   big_string.append(1, kHistogramFieldTrialSeparator);
   return big_string.append(FieldTrialList::FindFullName(trial_name));
-}
-
-// static
-FieldTrial::NameGroupId FieldTrial::MakeNameGroupId(
-    const std::string& trial_name,
-    const std::string& group_name) {
-  NameGroupId id;
-  id.name = HashName(trial_name);
-  id.group = HashName(group_name);
-  return id;
 }
 
 // static
@@ -191,7 +178,6 @@ void FieldTrial::SetGroupChoice(const std::string& name, int number) {
     StringAppendF(&group_name_, "%d", group_);
   else
     group_name_ = name;
-  group_name_hash_ = HashName(group_name_);
 }
 
 // static
@@ -213,26 +199,6 @@ double FieldTrial::HashClientId(const std::string& client_id,
   bits = base::ByteSwapToLE64(bits);
 
   return BitsToOpenEndedUnitInterval(bits);
-}
-
-// static
-uint32 FieldTrial::HashName(const std::string& name) {
-  // SHA-1 is designed to produce a uniformly random spread in its output space,
-  // even for nearly-identical inputs.
-  unsigned char sha1_hash[kSHA1Length];
-  SHA1HashBytes(reinterpret_cast<const unsigned char*>(name.c_str()),
-                name.size(),
-                sha1_hash);
-
-  COMPILE_ASSERT(sizeof(uint32) < sizeof(sha1_hash), need_more_data);
-  uint32 bits;
-  memcpy(&bits, sha1_hash, sizeof(bits));
-
-  // We only DCHECK, since this should not happen because the registration
-  // of the experiment on the server should have already warn the developer.
-  // If this ever happen, we'll ignore this experiment/group when reporting.
-  DCHECK(bits != kReservedHashValue);
-  return base::ByteSwapToLE32(bits);
 }
 
 //------------------------------------------------------------------------------
@@ -352,18 +318,18 @@ void FieldTrialList::StatesToString(std::string* output) {
 }
 
 // static
-void FieldTrialList::GetFieldTrialNameGroupIds(
-    std::vector<FieldTrial::NameGroupId>* name_group_ids) {
-  DCHECK(name_group_ids->empty());
+void FieldTrialList::GetFieldTrialSelectedGroups(
+    FieldTrial::SelectedGroups* selected_groups) {
+  DCHECK(selected_groups->empty());
   if (!global_)
     return;
   AutoLock auto_lock(global_->lock_);
 
   for (RegistrationList::iterator it = global_->registered_.begin();
        it != global_->registered_.end(); ++it) {
-    FieldTrial::NameGroupId name_group_id;
-    if (it->second->GetNameGroupId(&name_group_id))
-      name_group_ids->push_back(name_group_id);
+    FieldTrial::SelectedGroup selected_group;
+    if (it->second->GetSelectedGroup(&selected_group))
+      selected_groups->push_back(selected_group);
   }
 }
 
