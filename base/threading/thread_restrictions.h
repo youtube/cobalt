@@ -13,12 +13,6 @@ class MetricsService;
 class RenderWidgetHelper;
 class TestingAutomationProvider;
 class TextInputClientMac;
-class NativeBackendKWallet;
-
-namespace browser_sync {
-class NonFrontendDataTypeController;
-class UIModelWorker;
-}
 namespace chromeos {
 class AudioMixerAlsa;
 }
@@ -68,9 +62,7 @@ class ThreadTestHelper;
 //    current thread is allowed:
 //      base::ThreadRestrictions::AssertIOAllowed();
 //
-// ThreadRestrictions does nothing in official builds; we enable it in release
-// builds as well as debug because the trybots are release by default and we
-// we want to catch this at code review time before commit.
+// ThreadRestrictions does nothing in release builds; it is debug-only.
 //
 // Style tip: where should you put AssertIOAllowed checks?  It's best
 // if you put them as close to the disk access as possible, at the
@@ -108,7 +100,7 @@ class BASE_EXPORT ThreadRestrictions {
     DISALLOW_COPY_AND_ASSIGN(ScopedAllowSingleton);
   };
 
-#if !defined(OFFICIAL_BUILD)
+#ifndef NDEBUG
   // Set whether the current thread to make IO calls.
   // Threads start out in the *allowed* state.
   // Returns the previous value.
@@ -134,7 +126,7 @@ class BASE_EXPORT ThreadRestrictions {
   // Check whether the current thread is allowed to wait, and DCHECK if not.
   static void AssertWaitAllowed();
 #else
-  // In official builds, inline the empty definitions of these functions so
+  // In Release builds, inline the empty definitions of these functions so
   // that they can be compiled out.
   static bool SetIOAllowed(bool allowed) { return true; }
   static void AssertIOAllowed() {}
@@ -156,16 +148,14 @@ class BASE_EXPORT ThreadRestrictions {
   // END ALLOWED USAGE.
   // BEGIN USAGE THAT NEEDS TO BE FIXED.
   friend class ::chromeos::AudioMixerAlsa;     // http://crbug.com/125206
-  friend class browser_sync::NonFrontendDataTypeController;  // http://crbug.com/19757
-  friend class browser_sync::UIModelWorker;    // http://crbug.com/19757
   friend class chrome_browser_net::Predictor;  // http://crbug.com/78451
   friend class dbus::Bus;                      // http://crbug.com/125222
   friend class disk_cache::BackendImpl;        // http://crbug.com/74623
   friend class disk_cache::InFlightIO;         // http://crbug.com/74623
   friend class gdata::GDataFileSystem;         // http://crbug.com/125220
   friend class media::AudioOutputController;   // http://crbug.com/120973
-  friend class net::FileStreamPosix;           // http://crbug.com/115067
-  friend class net::FileStreamWin;             // http://crbug.com/115067
+  friend class net::FileStreamPosix;           // http://crbug.com/74623
+  friend class net::FileStreamWin;             // http://crbug.com/74623
   friend class net::NetworkManagerApi;         // http://crbug.com/125097
   friend class ::BrowserProcessImpl;           // http://crbug.com/125207
   friend class ::MetricsService;               // http://crbug.com/124954
@@ -173,7 +163,7 @@ class BASE_EXPORT ThreadRestrictions {
   friend class ::NativeBackendKWallet;         // http://crbug.com/125331
   // END USAGE THAT NEEDS TO BE FIXED.
 
-#if !defined(OFFICIAL_BUILD)
+#ifndef NDEBUG
   static bool SetWaitAllowed(bool allowed);
 #else
   static bool SetWaitAllowed(bool allowed) { return true; }
