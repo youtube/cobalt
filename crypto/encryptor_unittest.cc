@@ -46,6 +46,13 @@ TEST(EncryptorTest, DecryptWrongKey) {
             crypto::SymmetricKey::AES, "wrongword", "sweetest", 1000, 256));
   EXPECT_TRUE(NULL != wrong_key.get());
 
+  // A wrong key that can't be detected by padding error.  The password
+  // "wrongword;" would also work.
+  scoped_ptr<crypto::SymmetricKey> wrong_key2(
+        crypto::SymmetricKey::DeriveKeyFromPassword(
+            crypto::SymmetricKey::AES, "wrongword+", "sweetest", 1000, 256));
+  EXPECT_TRUE(NULL != wrong_key2.get());
+
   crypto::Encryptor encryptor;
   // The IV must be exactly as long as the cipher block size.
   std::string iv("the iv: 16 bytes");
@@ -77,6 +84,13 @@ TEST(EncryptorTest, DecryptWrongKey) {
 #if !defined(USE_NSS)
   EXPECT_FALSE(decryptor.Decrypt(ciphertext, &decypted));
 #endif
+
+  // This demonstrates that not all wrong keys can be detected by padding
+  // error. This wrong key causes the last padding byte to be 1, which is
+  // a valid padding block of length 1.
+  crypto::Encryptor decryptor2;
+  EXPECT_TRUE(decryptor2.Init(wrong_key2.get(), crypto::Encryptor::CBC, iv));
+  EXPECT_TRUE(decryptor2.Decrypt(ciphertext, &decypted));
 }
 
 // CTR mode encryption is only implemented using NSS.
