@@ -12,6 +12,11 @@
 
 namespace tracked_objects {
 
+enum BASE_EXPORT TimeSourceType {
+  TIME_SOURCE_TYPE_WALL_TIME,
+  TIME_SOURCE_TYPE_TCMALLOC
+};
+
 // Provide type for an alternate timer function.
 typedef unsigned int NowFunction();
 
@@ -24,11 +29,14 @@ extern const char kAlternateProfilerTime[];
 // profiling.  Typically this is called by an allocator that is providing a
 // function that indicates how much memory has been allocated on any given
 // thread.
-void SetAlternateTimeSource(NowFunction* now_function);
+void SetAlternateTimeSource(NowFunction* now_function, TimeSourceType type);
 
 // Gets the pointer to a function that was set via SetAlternateTimeSource().
 // Returns NULL if no set was done prior to calling GetAlternateTimeSource.
-BASE_EXPORT NowFunction* GetAlternateTimeSource();
+NowFunction* GetAlternateTimeSource();
+
+// Returns the type of the currently set time source.
+BASE_EXPORT TimeSourceType GetTimeSourceType();
 
 }  // namespace tracked_objects
 
