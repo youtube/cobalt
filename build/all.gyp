@@ -107,6 +107,7 @@
           'dependencies': [
             '../breakpad/breakpad.gyp:*',
             '../chrome_frame/chrome_frame.gyp:*',
+            '../cloud_print/service/win/service.gyp:*',
             '../cloud_print/virtual_driver/virtual_driver.gyp:*',
             '../courgette/courgette.gyp:*',
             '../rlz/rlz.gyp:*',
