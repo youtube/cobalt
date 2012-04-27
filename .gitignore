@@ -63,6 +63,7 @@ v8.log
 /chrome/chrome_version_resources.xml
 /chrome/common/extensions/api/api.xml
 /chrome/feedback_proto.xml
+/chrome/gdata_proto.xml
 /chrome/in_memory_url_index_cache_proto.xml
 /chrome/installer/linux
 /chrome/installer/mac/internal
