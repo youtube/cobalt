@@ -10,10 +10,10 @@
 
 class BrowserProcessImpl;
 class MetricsService;
+class NativeBackendKWallet;
 class RenderWidgetHelper;
 class TestingAutomationProvider;
 class TextInputClientMac;
-class NativeBackendKWallet;
 
 namespace browser_sync {
 class NonFrontendDataTypeController;
@@ -21,6 +21,7 @@ class UIModelWorker;
 }
 namespace chromeos {
 class AudioMixerAlsa;
+class BlockingMethodCaller;
 }
 namespace chrome_browser_net {
 class Predictor;
@@ -155,22 +156,23 @@ class BASE_EXPORT ThreadRestrictions {
   friend class ThreadTestHelper;
   // END ALLOWED USAGE.
   // BEGIN USAGE THAT NEEDS TO BE FIXED.
-  friend class ::chromeos::AudioMixerAlsa;     // http://crbug.com/125206
+  friend class ::chromeos::AudioMixerAlsa;        // http://crbug.com/125206
+  friend class ::chromeos::BlockingMethodCaller;  // http://crbug.com/125360
   friend class browser_sync::NonFrontendDataTypeController;  // http://crbug.com/19757
-  friend class browser_sync::UIModelWorker;    // http://crbug.com/19757
-  friend class chrome_browser_net::Predictor;  // http://crbug.com/78451
-  friend class dbus::Bus;                      // http://crbug.com/125222
-  friend class disk_cache::BackendImpl;        // http://crbug.com/74623
-  friend class disk_cache::InFlightIO;         // http://crbug.com/74623
-  friend class gdata::GDataFileSystem;         // http://crbug.com/125220
-  friend class media::AudioOutputController;   // http://crbug.com/120973
-  friend class net::FileStreamPosix;           // http://crbug.com/115067
-  friend class net::FileStreamWin;             // http://crbug.com/115067
-  friend class net::NetworkManagerApi;         // http://crbug.com/125097
-  friend class ::BrowserProcessImpl;           // http://crbug.com/125207
-  friend class ::MetricsService;               // http://crbug.com/124954
-  friend class ::TextInputClientMac;           // http://crbug.com/121917
-  friend class ::NativeBackendKWallet;         // http://crbug.com/125331
+  friend class browser_sync::UIModelWorker;       // http://crbug.com/19757
+  friend class chrome_browser_net::Predictor;     // http://crbug.com/78451
+  friend class dbus::Bus;                         // http://crbug.com/125222
+  friend class disk_cache::BackendImpl;           // http://crbug.com/74623
+  friend class disk_cache::InFlightIO;            // http://crbug.com/74623
+  friend class gdata::GDataFileSystem;            // http://crbug.com/125220
+  friend class media::AudioOutputController;      // http://crbug.com/120973
+  friend class net::FileStreamPosix;              // http://crbug.com/115067
+  friend class net::FileStreamWin;                // http://crbug.com/115067
+  friend class net::NetworkManagerApi;            // http://crbug.com/125097
+  friend class ::BrowserProcessImpl;              // http://crbug.com/125207
+  friend class ::MetricsService;                  // http://crbug.com/124954
+  friend class ::TextInputClientMac;              // http://crbug.com/121917
+  friend class ::NativeBackendKWallet;            // http://crbug.com/125331
   // END USAGE THAT NEEDS TO BE FIXED.
 
 #if !defined(OFFICIAL_BUILD)
