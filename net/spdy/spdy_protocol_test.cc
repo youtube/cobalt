@@ -245,9 +245,10 @@ TEST_P(SpdyProtocolTest, TestSpdySettingsFrame) {
     SettingsMap parsed_settings;
     EXPECT_TRUE(framer.ParseSettings(settings_frame.get(), &parsed_settings));
     EXPECT_EQ(settings.size(), parsed_settings.size());
-    SettingsMap::const_iterator it, it2;
-    for (it = parsed_settings.begin(); it != parsed_settings.end(); it++) {
-      it2 = settings.find(it->first);
+    for (SettingsMap::const_iterator it = parsed_settings.begin();
+         it != parsed_settings.end();
+         it++) {
+      SettingsMap::const_iterator it2 = settings.find(it->first);
       EXPECT_EQ(it->first, it2->first);
       SettingsFlagsAndValue parsed = it->second;
       SettingsFlagsAndValue created = it2->second;

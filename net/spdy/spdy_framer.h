@@ -71,7 +71,7 @@ class NET_EXPORT_PRIVATE SettingsFlagsAndId {
   uint32 id_;
 };
 
-// SpdySettingsMap has unique (flags, value) pair for given SpdySettingsIds ID.
+// SettingsMap has unique (flags, value) pair for given SpdySettingsIds ID.
 typedef std::pair<SpdySettingsFlags, uint32> SettingsFlagsAndValue;
 typedef std::map<SpdySettingsIds, SettingsFlagsAndValue> SettingsMap;
 
