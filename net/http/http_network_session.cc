@@ -63,7 +63,8 @@ HttpNetworkSession::HttpNetworkSession(const Params& params)
           CreateSocketPoolManager(WEBSOCKET_SOCKET_POOL, params)),
       spdy_session_pool_(params.host_resolver,
                          params.ssl_config_service,
-                         params.http_server_properties),
+                         params.http_server_properties,
+                         params.trusted_spdy_proxy),
       ALLOW_THIS_IN_INITIALIZER_LIST(http_stream_factory_(
           new HttpStreamFactoryImpl(this))),
       params_(params) {

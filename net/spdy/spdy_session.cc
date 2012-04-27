@@ -298,7 +298,6 @@ NextProto g_default_protocol = kProtoUnknown;
 size_t g_init_max_concurrent_streams = 10;
 size_t g_max_concurrent_stream_limit = 256;
 bool g_enable_ping_based_connection_checking = true;
-const char* g_allow_spdy_proxy_push_across_origins = NULL;
 
 }  // namespace
 
@@ -324,24 +323,19 @@ void SpdySession::set_init_max_concurrent_streams(size_t value) {
 }
 
 // static
-void SpdySession::set_allow_spdy_proxy_push_across_origins(const char* value) {
-  g_allow_spdy_proxy_push_across_origins = value;
-}
-
-// static
 void SpdySession::ResetStaticSettingsToInit() {
   // WARNING: These must match the initializers above.
   g_default_protocol = kProtoUnknown;
   g_init_max_concurrent_streams = 10;
   g_max_concurrent_stream_limit = 256;
   g_enable_ping_based_connection_checking = true;
-  g_allow_spdy_proxy_push_across_origins = NULL;
 }
 
 SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
                          SpdySessionPool* spdy_session_pool,
                          HttpServerProperties* http_server_properties,
                          bool verify_domain_authentication,
+                         const HostPortPair& trusted_spdy_proxy,
                          NetLog* net_log)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
       host_port_proxy_pair_(host_port_proxy_pair),
@@ -384,10 +378,7 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
           base::TimeDelta::FromSeconds(kTrailingPingDelayTimeSeconds)),
       hung_interval_(
           base::TimeDelta::FromSeconds(kHungIntervalSeconds)),
-      allow_spdy_proxy_push_across_origins_(
-          HostPortPair::FromString(
-              std::string(g_allow_spdy_proxy_push_across_origins == NULL ?
-                          "" : g_allow_spdy_proxy_push_across_origins))) {
+      trusted_spdy_proxy_(trusted_spdy_proxy) {
   DCHECK(HttpStreamFactory::spdy_enabled());
   net_log_.BeginEvent(
       NetLog::TYPE_SPDY_SESSION,
@@ -1441,8 +1432,8 @@ void SpdySession::OnSynStream(
 
   // Check that the SYN advertises the same origin as its associated stream.
   // Bypass this check if and only if this session is with a SPDY proxy that
-  // is trusted explicitly via the allow_spdy_proxy_push_across_origins switch.
-  if (allow_spdy_proxy_push_across_origins_.Equals(host_port_pair())) {
+  // is trusted explicitly via the --trusted-spdy-proxy switch.
+  if (trusted_spdy_proxy_.Equals(host_port_pair())) {
     // Disallow pushing of HTTPS content.
     if (gurl.SchemeIs("https")) {
       ResetStream(stream_id, REFUSED_STREAM,
