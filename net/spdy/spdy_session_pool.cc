@@ -40,13 +40,17 @@ size_t SpdySessionPool::g_max_sessions_per_domain = kMaxSessionsPerDomain;
 bool SpdySessionPool::g_force_single_domain = false;
 bool SpdySessionPool::g_enable_ip_pooling = true;
 
-SpdySessionPool::SpdySessionPool(HostResolver* resolver,
-                                 SSLConfigService* ssl_config_service,
-                                 HttpServerProperties* http_server_properties)
+SpdySessionPool::SpdySessionPool(
+    HostResolver* resolver,
+    SSLConfigService* ssl_config_service,
+    HttpServerProperties* http_server_properties,
+    const std::string& trusted_spdy_proxy)
     : http_server_properties_(http_server_properties),
       ssl_config_service_(ssl_config_service),
       resolver_(resolver),
-      verify_domain_authentication_(true) {
+      verify_domain_authentication_(true),
+      trusted_spdy_proxy_(
+          HostPortPair::FromString(trusted_spdy_proxy)) {
   NetworkChangeNotifier::AddIPAddressObserver(this);
   if (ssl_config_service_)
     ssl_config_service_->AddObserver(this);
@@ -120,6 +124,7 @@ scoped_refptr<SpdySession> SpdySessionPool::GetInternal(
   spdy_session = new SpdySession(host_port_proxy_pair, this,
                                  http_server_properties_,
                                  verify_domain_authentication_,
+                                 trusted_spdy_proxy_,
                                  net_log.net_log());
   UMA_HISTOGRAM_ENUMERATION("Net.SpdySessionGet",
                             CREATED_NEW,
@@ -147,6 +152,7 @@ net::Error SpdySessionPool::GetSpdySessionFromSocket(
   *spdy_session = new SpdySession(host_port_proxy_pair, this,
                                   http_server_properties_,
                                   verify_domain_authentication_,
+                                  trusted_spdy_proxy_,
                                   net_log.net_log());
   SpdySessionList* list = GetSessionList(host_port_proxy_pair);
   if (!list)

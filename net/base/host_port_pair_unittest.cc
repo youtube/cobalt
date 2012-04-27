@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,6 +26,13 @@ TEST(HostPortPairTest, BadString) {
   HostPortPair bar = HostPortPair::FromString("bar.com:two");
   EXPECT_TRUE(bar.host().empty());
   EXPECT_EQ(0, bar.port());
+}
+
+TEST(HostPortPairTest, Emptiness) {
+  HostPortPair foo;
+  EXPECT_TRUE(foo.IsEmpty());
+  foo = HostPortPair::FromString("foo.com:8080");
+  EXPECT_FALSE(foo.IsEmpty());
 }
 
 }  // namespace

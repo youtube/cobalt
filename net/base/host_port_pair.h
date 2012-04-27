@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -42,6 +42,10 @@ class NET_EXPORT HostPortPair {
   // Equality test of contents. (Probably another violation of style guide).
   bool Equals(const HostPortPair& other) const {
     return host_ == other.host_ && port_ == other.port_;
+  }
+
+  bool IsEmpty() const {
+    return host_.empty() && port_ == 0;
   }
 
   const std::string& host() const {

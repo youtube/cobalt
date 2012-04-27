@@ -130,7 +130,8 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
             NetworkDelegate* network_delegate,
             HttpServerProperties* http_server_properties,
             NetLog* net_log,
-            BackendFactory* backend_factory);
+            BackendFactory* backend_factory,
+            const std::string& trusted_spdy_proxy);
 
   // The disk cache is initialized lazily (by CreateTransaction) in  this case.
   // Provide an existing HttpNetworkSession, the cache can construct a

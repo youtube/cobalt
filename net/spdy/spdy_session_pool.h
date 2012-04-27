@@ -49,7 +49,8 @@ class NET_EXPORT SpdySessionPool
  public:
   SpdySessionPool(HostResolver* host_resolver,
                   SSLConfigService* ssl_config_service,
-                  HttpServerProperties* http_server_properties);
+                  HttpServerProperties* http_server_properties,
+                  const std::string& trusted_spdy_proxy);
   virtual ~SpdySessionPool();
 
   // Either returns an existing SpdySession or creates a new SpdySession for
@@ -207,6 +208,10 @@ class NET_EXPORT SpdySessionPool
 
   // Defaults to true. May be controlled via SpdySessionPoolPeer for tests.
   bool verify_domain_authentication_;
+
+  // This SPDY proxy is allowed to push resources from origins that are
+  // different from those of their associated streams.
+  HostPortPair trusted_spdy_proxy_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdySessionPool);
 };
