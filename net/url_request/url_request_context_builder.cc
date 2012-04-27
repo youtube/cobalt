@@ -244,7 +244,8 @@ scoped_refptr<URLRequestContext> URLRequestContextBuilder::Build() {
         context->network_delegate(),
         context->http_server_properties(),
         context->net_log(),
-        http_cache_backend);
+        http_cache_backend,
+        "" /* trusted_spdy_proxy */ );
   } else {
     HttpNetworkSession::Params session_params;
     session_params.host_resolver = context->host_resolver();
