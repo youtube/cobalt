@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,6 +13,8 @@ class MetricsService;
 class RenderWidgetHelper;
 class TestingAutomationProvider;
 class TextInputClientMac;
+class NativeBackendKWallet;
+
 namespace browser_sync {
 class NonFrontendDataTypeController;
 class UIModelWorker;
@@ -168,6 +170,7 @@ class BASE_EXPORT ThreadRestrictions {
   friend class ::BrowserProcessImpl;           // http://crbug.com/125207
   friend class ::MetricsService;               // http://crbug.com/124954
   friend class ::TextInputClientMac;           // http://crbug.com/121917
+  friend class ::NativeBackendKWallet;         // http://crbug.com/125331
   // END USAGE THAT NEEDS TO BE FIXED.
 
 #if !defined(OFFICIAL_BUILD)
