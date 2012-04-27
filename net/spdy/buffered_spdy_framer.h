@@ -24,7 +24,7 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramerVisitorInterface {
   virtual ~BufferedSpdyFramerVisitorInterface() {}
 
   // Called if an error is detected in the SpdyFrame protocol.
-  virtual void OnError(int error_code) = 0;
+  virtual void OnError(SpdyFramer::SpdyError error_code) = 0;
 
   // Called if an error is detected in a SPDY stream.
   virtual void OnStreamError(SpdyStreamId stream_id,

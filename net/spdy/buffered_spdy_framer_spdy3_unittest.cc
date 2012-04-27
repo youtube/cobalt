@@ -25,7 +25,7 @@ class TestBufferedSpdyVisitor : public BufferedSpdyFramerVisitorInterface {
       header_stream_id_(-1) {
   }
 
-  void OnError(int error_code) {
+  void OnError(SpdyFramer::SpdyError error_code) {
     LOG(INFO) << "SpdyFramer Error: " << error_code;
     error_count_++;
   }

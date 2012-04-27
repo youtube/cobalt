@@ -1313,7 +1313,7 @@ SSLClientCertType SpdySession::GetDomainBoundCertType() const {
   return GetSSLClientSocket()->domain_bound_cert_type();
 }
 
-void SpdySession::OnError(int error_code) {
+void SpdySession::OnError(SpdyFramer::SpdyError error_code) {
   std::string description = base::StringPrintf(
       "SPDY_ERROR error_code: %d.", error_code);
   CloseSessionOnError(net::ERR_SPDY_PROTOCOL_ERROR, true, description);
