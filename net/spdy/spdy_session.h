@@ -426,7 +426,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   void InvokeUserStreamCreationCallback(scoped_refptr<SpdyStream>* stream);
 
   // BufferedSpdyFramerVisitorInterface:
-  virtual void OnError(int error_code) OVERRIDE;
+  virtual void OnError(SpdyFramer::SpdyError error_code) OVERRIDE;
   virtual void OnStreamError(SpdyStreamId stream_id,
                              const std::string& description) OVERRIDE;
   virtual void OnRstStream(
