@@ -63,9 +63,11 @@ class SpdyNetworkTransactionSpdy3Test
    public:
     NormalSpdyTransactionHelper(const HttpRequestInfo& request,
                                 const BoundNetLog& log,
-                                SpdyNetworkTransactionSpdy3TestTypes test_type)
+                                SpdyNetworkTransactionSpdy3TestTypes test_type,
+                                SpdySessionDependencies* session_deps)
         : request_(request),
-          session_deps_(new SpdySessionDependencies()),
+          session_deps_(session_deps == NULL ?
+              new SpdySessionDependencies() : session_deps),
           session_(SpdySessionDependencies::SpdyCreateSession(
               session_deps_.get())),
           log_(log),
@@ -84,6 +86,7 @@ class SpdyNetworkTransactionSpdy3Test
                 NOTREACHED();
             }
           }
+
 
     ~NormalSpdyTransactionHelper() {
       // Any test which doesn't close the socket by sending it an EOF will
@@ -447,7 +450,7 @@ class SpdyNetworkTransactionSpdy3Test
                          HttpResponseInfo* push_response,
                          std::string& expected) {
     NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                       BoundNetLog(), GetParam());
+                                       BoundNetLog(), GetParam(), NULL);
     helper.RunPreTestSetup();
     helper.AddData(data);
 
@@ -560,7 +563,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, Get) {
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(OK, out.rv);
@@ -614,7 +617,8 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, GetAtEachPriority) {
     HttpRequestInfo http_req = CreateGetRequest();
     http_req.priority = p;
 
-    NormalSpdyTransactionHelper helper(http_req, BoundNetLog(), GetParam());
+    NormalSpdyTransactionHelper helper(http_req, BoundNetLog(),
+                                       GetParam(), NULL);
     helper.RunToCompletion(data.get());
     TransactionHelperResult out = helper.output();
     EXPECT_EQ(OK, out.rv);
@@ -677,7 +681,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ThreeGets) {
   BoundNetLog log;
   TransactionHelperResult out;
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunPreTestSetup();
   helper.AddData(data.get());
   // We require placeholder data because three get requests are sent out, so
@@ -765,7 +769,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, TwoGetsLateBinding) {
   BoundNetLog log;
   TransactionHelperResult out;
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunPreTestSetup();
   helper.AddData(data.get());
   // We require placeholder data because two get requests are sent out, so
@@ -852,7 +856,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, TwoGetsLateBindingFromPreconnect) {
   BoundNetLog log;
   TransactionHelperResult out;
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunPreTestSetup();
   helper.AddData(preconnect_data.get());
   // We require placeholder data because 3 connections are attempted (first is
@@ -974,7 +978,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ThreeGetsWithMaxConcurrent) {
   TransactionHelperResult out;
   {
     NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                       BoundNetLog(), GetParam());
+                                       BoundNetLog(), GetParam(), NULL);
     helper.RunPreTestSetup();
     helper.AddData(data.get());
     // We require placeholder data because three get requests are sent out, so
@@ -1110,7 +1114,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, FourGetsWithMaxConcurrentPriority) {
   BoundNetLog log;
   TransactionHelperResult out;
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-      BoundNetLog(), GetParam());
+      BoundNetLog(), GetParam(), NULL);
   helper.RunPreTestSetup();
   helper.AddData(data.get());
   // We require placeholder data because four get requests are sent out, so
@@ -1244,7 +1248,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ThreeGetsWithMaxConcurrentDelete) {
   BoundNetLog log;
   TransactionHelperResult out;
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-      BoundNetLog(), GetParam());
+      BoundNetLog(), GetParam(), NULL);
   helper.RunPreTestSetup();
   helper.AddData(data.get());
   // We require placeholder data because three get requests are sent out, so
@@ -1375,7 +1379,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ThreeGetsWithMaxConcurrentSocketClose) {
   BoundNetLog log;
   TransactionHelperResult out;
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-      BoundNetLog(), GetParam());
+      BoundNetLog(), GetParam(), NULL);
   helper.RunPreTestSetup();
   helper.AddData(data.get());
   // We require placeholder data because three get requests are sent out, so
@@ -1493,7 +1497,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, Put) {
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(request,
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
 
@@ -1566,7 +1570,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, Head) {
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(request,
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
 
@@ -1594,7 +1598,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, Post) {
       new DelayedSocketData(2, reads, arraysize(reads),
                             writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreatePostRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(OK, out.rv);
@@ -1626,7 +1630,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ChunkedPost) {
       new DelayedSocketData(2, reads, arraysize(reads),
                             writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateChunkedPostRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(OK, out.rv);
@@ -1665,7 +1669,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, NullPost) {
                             writes, arraysize(writes)));
 
   NormalSpdyTransactionHelper helper(request,
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(OK, out.rv);
@@ -1712,7 +1716,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, EmptyPost) {
                             writes, arraysize(writes)));
 
   NormalSpdyTransactionHelper helper(request,
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(OK, out.rv);
@@ -1749,7 +1753,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, PostWithEarlySynReply) {
   scoped_ptr<DelayedSocketData> data(
       new DelayedSocketData(0, reads, arraysize(reads), NULL, 0));
   NormalSpdyTransactionHelper helper(request,
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunPreTestSetup();
   helper.AddData(data.get());
   helper.RunDefaultTest();
@@ -1782,7 +1786,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SocketWriteReturnsZero) {
       new DeterministicSocketData(reads, arraysize(reads),
                                   writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.SetDeterministic();
   helper.RunPreTestSetup();
   helper.AddDeterministicData(data.get());
@@ -1813,7 +1817,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ResponseWithoutSynReply) {
   scoped_ptr<DelayedSocketData> data(
       new DelayedSocketData(1, reads, arraysize(reads), NULL, 0));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(ERR_SYN_REPLY_NOT_RECEIVED, out.rv);
@@ -1839,7 +1843,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ResponseWithTwoSynReplies) {
                             writes, arraysize(writes)));
 
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunPreTestSetup();
   helper.AddData(data.get());
 
@@ -1932,7 +1936,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, WindowUpdateReceived) {
   for (int i = 0; i < kFrameCount; ++i)
     request.upload_data->AppendBytes(content->c_str(), content->size());
 
-  NormalSpdyTransactionHelper helper(request, BoundNetLog(), GetParam());
+  NormalSpdyTransactionHelper helper(request, BoundNetLog(), GetParam(), NULL);
   helper.AddData(data.get());
   helper.RunPreTestSetup();
 
@@ -1987,7 +1991,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, WindowUpdateSent) {
                             writes, arraysize(writes)));
 
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.AddData(data.get());
   helper.RunPreTestSetup();
   HttpNetworkTransaction* trans = helper.trans();
@@ -2093,7 +2097,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, WindowUpdateOverflow) {
     request.upload_data->AppendBytes(content->c_str(), content->size());
 
   NormalSpdyTransactionHelper helper(request,
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.AddData(data.get());
   helper.RunPreTestSetup();
 
@@ -2194,7 +2198,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, FlowControlStallResume) {
       new std::string(kSpdyStreamInitialWindowSize, 'a'));
   upload_data->append(kUploadData, kUploadDataSize);
   request.upload_data->AppendBytes(upload_data->c_str(), upload_data->size());
-  NormalSpdyTransactionHelper helper(request, BoundNetLog(), GetParam());
+  NormalSpdyTransactionHelper helper(request, BoundNetLog(), GetParam(), NULL);
   helper.AddData(data.get());
   helper.RunPreTestSetup();
 
@@ -2289,7 +2293,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, FlowControlStallResumeAfterSettings) {
   std::string upload_data(kSpdyStreamInitialWindowSize, 'a');
   upload_data.append(kUploadData, kUploadDataSize);
   request.upload_data->AppendBytes(upload_data.c_str(), upload_data.size());
-  NormalSpdyTransactionHelper helper(request, BoundNetLog(), GetParam());
+  NormalSpdyTransactionHelper helper(request, BoundNetLog(), GetParam(), NULL);
   helper.AddData(data.get());
   helper.RunPreTestSetup();
 
@@ -2393,7 +2397,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, FlowControlNegativeSendWindowSize) {
   std::string upload_data(kSpdyStreamInitialWindowSize, 'a');
   upload_data.append(kUploadData, kUploadDataSize);
   request.upload_data->AppendBytes(upload_data.c_str(), upload_data.size());
-  NormalSpdyTransactionHelper helper(request, BoundNetLog(), GetParam());
+  NormalSpdyTransactionHelper helper(request, BoundNetLog(), GetParam(), NULL);
   helper.AddData(data.get());
   helper.RunPreTestSetup();
 
@@ -2446,7 +2450,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ResetReplyWithTransferEncoding) {
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, out.rv);
@@ -2483,7 +2487,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ResetPushWithTransferEncoding) {
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(OK, out.rv);
@@ -2515,7 +2519,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, CancelledTransaction) {
                                 writes, arraysize(writes));
 
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunPreTestSetup();
   helper.AddData(&data);
   HttpNetworkTransaction* trans = helper.trans();
@@ -2554,7 +2558,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, CancelledTransactionSendRst) {
 
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
                                      BoundNetLog(),
-                                     GetParam());
+                                     GetParam(), NULL);
   helper.SetDeterministic();
   helper.RunPreTestSetup();
   helper.AddDeterministicData(data.get());
@@ -2614,7 +2618,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, StartTransactionOnReadCallback) {
                             writes2, arraysize(writes2)));
 
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunPreTestSetup();
   helper.AddData(data.get());
   helper.AddData(data2.get());
@@ -2660,7 +2664,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, DeleteSessionOnReadCallback) {
                             writes, arraysize(writes)));
 
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunPreTestSetup();
   helper.AddData(data.get());
   HttpNetworkTransaction* trans = helper.trans();
@@ -2818,7 +2822,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, UpperCaseHeaders) {
       writes,
       arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, out.rv);
@@ -2877,7 +2881,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, UpperCaseHeadersInHeadersFrame) {
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, out.rv);
@@ -2918,7 +2922,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, UpperCaseHeadersOnPush) {
       writes,
       arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(OK, out.rv);
@@ -3252,7 +3256,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ServerPushServerAborted) {
       new OrderedSocketData(reads, arraysize(reads),
                             writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
 
   helper.RunPreTestSetup();
   helper.AddData(data.get());
@@ -3508,7 +3512,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ServerPushInvalidAssociatedStreamID0) {
       new OrderedSocketData(reads, arraysize(reads),
                             writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
 
   helper.RunPreTestSetup();
   helper.AddData(data.get());
@@ -3570,7 +3574,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ServerPushInvalidAssociatedStreamID9) {
       new OrderedSocketData(reads, arraysize(reads),
                             writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
 
   helper.RunPreTestSetup();
   helper.AddData(data.get());
@@ -3628,7 +3632,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ServerPushNoURL) {
       new OrderedSocketData(reads, arraysize(reads),
                             writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
 
   helper.RunPreTestSetup();
   helper.AddData(data.get());
@@ -3717,7 +3721,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SynReplyHeaders) {
         new DelayedSocketData(1, reads, arraysize(reads),
                               writes, arraysize(writes)));
     NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                       BoundNetLog(), GetParam());
+                                       BoundNetLog(), GetParam(), NULL);
     helper.RunToCompletion(data.get());
     TransactionHelperResult out = helper.output();
 
@@ -3866,7 +3870,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SynReplyHeadersVary) {
         new DelayedSocketData(1, reads, arraysize(reads),
                               writes, arraysize(writes)));
     NormalSpdyTransactionHelper helper(request,
-                                       BoundNetLog(), GetParam());
+                                       BoundNetLog(), GetParam(), NULL);
     helper.RunToCompletion(data.get());
     TransactionHelperResult out = helper.output();
 
@@ -3972,7 +3976,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, InvalidSynReply) {
         new DelayedSocketData(1, reads, arraysize(reads),
                               writes, arraysize(writes)));
     NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                       BoundNetLog(), GetParam());
+                                       BoundNetLog(), GetParam(), NULL);
     helper.RunToCompletion(data.get());
     TransactionHelperResult out = helper.output();
     EXPECT_EQ(ERR_INCOMPLETE_SPDY_HEADERS, out.rv);
@@ -4011,7 +4015,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, CorruptFrameSessionError) {
         new DelayedSocketData(1, reads, arraysize(reads),
                               writes, arraysize(writes)));
     NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                       BoundNetLog(), GetParam());
+                                       BoundNetLog(), GetParam(), NULL);
     helper.RunToCompletion(data.get());
     TransactionHelperResult out = helper.output();
     EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, out.rv);
@@ -4032,7 +4036,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, WriteError) {
       new DelayedSocketData(2, NULL, 0,
                             writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(ERR_FAILED, out.rv);
@@ -4058,7 +4062,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, PartialWrite) {
       new DelayedSocketData(kChunks, reads, arraysize(reads),
                             writes.get(), kChunks));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(OK, out.rv);
@@ -4090,7 +4094,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, DecompressFailureOnSynReply) {
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, out.rv);
@@ -4120,7 +4124,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, NetLog) {
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequestWithUserAgent(),
-                                     log.bound(), GetParam());
+                                     log.bound(), GetParam(), NULL);
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(OK, out.rv);
@@ -4226,7 +4230,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, BufferFull) {
   TestCompletionCallback callback;
 
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunPreTestSetup();
   helper.AddData(data.get());
   HttpNetworkTransaction* trans = helper.trans();
@@ -4316,7 +4320,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, Buffering) {
                             writes, arraysize(writes)));
 
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunPreTestSetup();
   helper.AddData(data.get());
   HttpNetworkTransaction* trans = helper.trans();
@@ -4412,7 +4416,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, BufferedAll) {
                             writes, arraysize(writes)));
 
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunPreTestSetup();
   helper.AddData(data.get());
   HttpNetworkTransaction* trans = helper.trans();
@@ -4501,7 +4505,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, BufferedClosed) {
                             writes, arraysize(writes)));
 
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunPreTestSetup();
   helper.AddData(data.get());
   HttpNetworkTransaction* trans = helper.trans();
@@ -4582,7 +4586,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, BufferedCancelled) {
                             writes, arraysize(writes)));
 
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunPreTestSetup();
   helper.AddData(data.get());
   HttpNetworkTransaction* trans = helper.trans();
@@ -4651,7 +4655,8 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SettingsSaved) {
   };
 
   BoundNetLog net_log;
-  NormalSpdyTransactionHelper helper(CreateGetRequest(), net_log, GetParam());
+  NormalSpdyTransactionHelper helper(CreateGetRequest(), net_log,
+                                     GetParam(), NULL);
   helper.RunPreTestSetup();
 
   // Verify that no settings exist initially.
@@ -4758,7 +4763,8 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SettingsPlayback) {
   };
 
   BoundNetLog net_log;
-  NormalSpdyTransactionHelper helper(CreateGetRequest(), net_log, GetParam());
+  NormalSpdyTransactionHelper helper(CreateGetRequest(), net_log,
+                                     GetParam(), NULL);
   helper.RunPreTestSetup();
 
   // Verify that no settings exist initially.
@@ -4866,7 +4872,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, GoAwayWithActiveStream) {
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.AddData(data.get());
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
@@ -4888,7 +4894,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, CloseWithActiveStream) {
                             writes, arraysize(writes)));
   BoundNetLog log;
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     log, GetParam());
+                                     log, GetParam(), NULL);
   helper.RunPreTestSetup();
   helper.AddData(data.get());
   HttpNetworkTransaction* trans = helper.trans();
@@ -4914,7 +4920,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, CloseWithActiveStream) {
 // Test to make sure we can correctly connect through a proxy.
 TEST_P(SpdyNetworkTransactionSpdy3Test, ProxyConnect) {
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.session_deps().reset(new SpdySessionDependencies(
       ProxyService::CreateFixedFromPacResult("PROXY myproxy:70")));
   helper.SetSession(make_scoped_refptr(
@@ -5017,7 +5023,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, DirectConnectProxyReconnect) {
   // When setting up the first transaction, we store the SpdySessionPool so that
   // we can use the same pool in the second transaction.
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
 
   // Use a proxy service which returns a proxy fallback list from DIRECT to
   // myproxy:70. For this test there will be no fallback, so it is equivalent
@@ -5157,7 +5163,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, DirectConnectProxyReconnect) {
   scoped_refptr<HttpNetworkSession> session_proxy(
       SpdySessionDependencies::SpdyCreateSession(ssd_proxy.get()));
   NormalSpdyTransactionHelper helper_proxy(request_proxy,
-                                           BoundNetLog(), GetParam());
+                                           BoundNetLog(), GetParam(), NULL);
   HttpNetworkSessionPeer session_peer(session_proxy);
   scoped_ptr<net::ProxyService> proxy_service(
           ProxyService::CreateFixedFromPacResult("PROXY myproxy:70"));
@@ -5228,7 +5234,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, VerifyRetryOnConnectionReset) {
                                NULL, 0));
 
     NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                       BoundNetLog(), GetParam());
+                                       BoundNetLog(), GetParam(), NULL);
     helper.AddData(data1.get());
     helper.AddData(data2.get());
     helper.RunPreTestSetup();
@@ -5291,7 +5297,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SpdyOnOffToggle) {
                             spdy_reads, arraysize(spdy_reads),
                             spdy_writes, arraysize(spdy_writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(OK, out.rv);
@@ -5308,7 +5314,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SpdyOnOffToggle) {
       new DelayedSocketData(1, http_reads, arraysize(http_reads),
                             NULL, 0));
   NormalSpdyTransactionHelper helper2(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper2.SetSpdyDisabled();
   helper2.RunToCompletion(data2.get());
   TransactionHelperResult out2 = helper2.output();
@@ -5371,7 +5377,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SpdyBasicAuth) {
                             spdy_writes, arraysize(spdy_writes)));
   HttpRequestInfo request(CreateGetRequest());
   BoundNetLog net_log;
-  NormalSpdyTransactionHelper helper(request, net_log, GetParam());
+  NormalSpdyTransactionHelper helper(request, net_log, GetParam(), NULL);
 
   helper.RunPreTestSetup();
   helper.AddData(data.get());
@@ -5568,7 +5574,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ServerPushClaimBeforeHeaders) {
       arraysize(writes)));
 
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.SetDeterministic();
   helper.AddDeterministicData(static_cast<DeterministicSocketData*>(data));
   helper.RunPreTestSetup();
@@ -5720,7 +5726,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ServerPushWithTwoHeaderFrames) {
       arraysize(writes)));
 
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.SetDeterministic();
   helper.AddDeterministicData(static_cast<DeterministicSocketData*>(data));
   helper.RunPreTestSetup();
@@ -5844,7 +5850,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SynReplyWithHeaders) {
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(OK, out.rv);
@@ -5902,7 +5908,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SynReplyWithLateHeaders) {
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(OK, out.rv);
@@ -5960,7 +5966,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, SynReplyWithDuplicateLateHeaders) {
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
   helper.RunToCompletion(data.get());
   TransactionHelperResult out = helper.output();
   EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, out.rv);
@@ -6044,15 +6050,17 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, ServerPushCrossOriginCorrectness) {
     request.method = "GET";
     request.url = GURL(url_to_fetch);
     request.load_flags = 0;
-    NormalSpdyTransactionHelper helper(request,
-                                       BoundNetLog(), GetParam());
-    helper.RunPreTestSetup();
-    helper.AddData(data.get());
 
     // Enable cross-origin push. Since we are not using a proxy, this should
     // not actually enable cross-origin SPDY push.
-    net::SpdySession::set_allow_spdy_proxy_push_across_origins(
-        "123.45.67.89:8080");
+    scoped_ptr<SpdySessionDependencies> session_deps(
+        new SpdySessionDependencies());
+    session_deps->trusted_spdy_proxy = "123.45.67.89:8080";
+    NormalSpdyTransactionHelper helper(request,
+                                       BoundNetLog(), GetParam(),
+                                       session_deps.release());
+    helper.RunPreTestSetup();
+    helper.AddData(data.get());
 
     HttpNetworkTransaction* trans = helper.trans();
 
@@ -6107,7 +6115,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, RetryAfterRefused) {
       new OrderedSocketData(reads, arraysize(reads),
                             writes, arraysize(writes)));
   NormalSpdyTransactionHelper helper(CreateGetRequest(),
-                                     BoundNetLog(), GetParam());
+                                     BoundNetLog(), GetParam(), NULL);
 
   helper.RunPreTestSetup();
   helper.AddData(data.get());

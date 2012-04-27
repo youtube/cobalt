@@ -54,7 +54,8 @@ HttpNetworkSession* CreateNetworkSession(
     HttpAuthHandlerFactory* http_auth_handler_factory,
     NetworkDelegate* network_delegate,
     HttpServerProperties* http_server_properties,
-    NetLog* net_log) {
+    NetLog* net_log,
+    const std::string& trusted_spdy_proxy) {
   HttpNetworkSession::Params params;
   params.host_resolver = host_resolver;
   params.cert_verifier = cert_verifier;
@@ -68,6 +69,7 @@ HttpNetworkSession* CreateNetworkSession(
   params.network_delegate = network_delegate;
   params.http_server_properties = http_server_properties;
   params.net_log = net_log;
+  params.trusted_spdy_proxy = trusted_spdy_proxy;
   return new HttpNetworkSession(params);
 }
 
@@ -307,7 +309,8 @@ HttpCache::HttpCache(HostResolver* host_resolver,
                      NetworkDelegate* network_delegate,
                      HttpServerProperties* http_server_properties,
                      NetLog* net_log,
-                     BackendFactory* backend_factory)
+                     BackendFactory* backend_factory,
+                     const std::string& trusted_spdy_proxy)
     : net_log_(net_log),
       backend_factory_(backend_factory),
       building_backend_(false),
@@ -329,7 +332,8 @@ HttpCache::HttpCache(HostResolver* host_resolver,
                   http_auth_handler_factory,
                   network_delegate,
                   http_server_properties,
-                  net_log))) {
+                  net_log,
+                  trusted_spdy_proxy))) {
 }
 
 

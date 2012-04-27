@@ -63,6 +63,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
               SpdySessionPool* spdy_session_pool,
               HttpServerProperties* http_server_properties,
               bool verify_domain_authentication,
+              const HostPortPair& trusted_spdy_proxy,
               NetLog* net_log);
 
   const HostPortPair& host_port_pair() const {
@@ -186,10 +187,6 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // The initial max concurrent streams per session, can be overridden by the
   // server via SETTINGS.
   static void set_init_max_concurrent_streams(size_t value);
-
-  // Allow a SPDY proxy to push resources from origins that are different from
-  // those of their associated streams.
-  static void set_allow_spdy_proxy_push_across_origins(const char* proxy);
 
   // Send WINDOW_UPDATE frame, called by a stream whenever receive window
   // size is increased.
@@ -643,9 +640,9 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // connection to be hung.
   base::TimeDelta hung_interval_;
 
-  // Allows a proxy to push a resource that has an origin that is different
-  // from its associated url.
-  HostPortPair allow_spdy_proxy_push_across_origins_;
+  // This SPDY proxy is allowed to push resources from origins that are
+  // different from those of their associated streams.
+  HostPortPair trusted_spdy_proxy_;
 };
 
 class NetLogSpdySynParameter : public NetLog::EventParameters {

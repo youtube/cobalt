@@ -78,6 +78,7 @@ class NET_EXPORT HttpNetworkSession
     HttpServerProperties* http_server_properties;
     NetLog* net_log;
     bool force_http_pipelining;
+    std::string trusted_spdy_proxy;
   };
 
   enum SocketPoolType {

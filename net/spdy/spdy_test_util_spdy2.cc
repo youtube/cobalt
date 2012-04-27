@@ -939,6 +939,8 @@ HttpNetworkSession* SpdySessionDependencies::SpdyCreateSession(
   params.http_auth_handler_factory =
       session_deps->http_auth_handler_factory.get();
   params.http_server_properties = &session_deps->http_server_properties;
+  params.trusted_spdy_proxy =
+      session_deps->trusted_spdy_proxy;
   return new HttpNetworkSession(params);
 }
 
