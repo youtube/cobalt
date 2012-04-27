@@ -148,6 +148,7 @@ struct SessionDependencies {
   scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory;
   HttpServerPropertiesImpl http_server_properties;
   NetLog* net_log;
+  std::string trusted_spdy_proxy;
 };
 
 HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
@@ -161,6 +162,7 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
       session_deps->http_auth_handler_factory.get();
   params.http_server_properties = &session_deps->http_server_properties;
   params.net_log = session_deps->net_log;
+  params.trusted_spdy_proxy = session_deps->trusted_spdy_proxy;
   return new HttpNetworkSession(params);
 }
 
@@ -4901,14 +4903,15 @@ TEST_F(HttpNetworkTransactionSpdy3Test, CrossOriginProxyPush) {
   push_request.method = "GET";
   push_request.url = GURL("http://www.another-origin.com/foo.dat");
 
-  // Enable cross-origin push.
-  net::SpdySession::set_allow_spdy_proxy_push_across_origins("myproxy:70");
-
   // Configure against https proxy server "myproxy:70".
   SessionDependencies session_deps(
       ProxyService::CreateFixed("https://myproxy:70"));
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   session_deps.net_log = log.bound().net_log();
+
+  // Enable cross-origin push.
+  session_deps.trusted_spdy_proxy = "myproxy:70";
+
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
   scoped_ptr<SpdyFrame>
@@ -4998,14 +5001,15 @@ TEST_F(HttpNetworkTransactionSpdy3Test, CrossOriginProxyPushCorrectness) {
   request.method = "GET";
   request.url = GURL("http://www.google.com/");
 
-  // Enable cross-origin push.
-  net::SpdySession::set_allow_spdy_proxy_push_across_origins("myproxy:70");
-
   // Configure against https proxy server "myproxy:70".
   SessionDependencies session_deps(
       ProxyService::CreateFixed("https://myproxy:70"));
   CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   session_deps.net_log = log.bound().net_log();
+
+  // Enable cross-origin push.
+  session_deps.trusted_spdy_proxy = "myproxy:70";
+
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
   scoped_ptr<SpdyFrame>

@@ -369,6 +369,7 @@ class SpdySessionDependencies {
   scoped_ptr<DeterministicMockClientSocketFactory> deterministic_socket_factory;
   scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory;
   HttpServerPropertiesImpl http_server_properties;
+  std::string trusted_spdy_proxy;
 };
 
 class SpdyURLRequestContext : public URLRequestContext {
