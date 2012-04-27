@@ -524,6 +524,7 @@ class SpdyFramerTest
     SpdySettingsIds id = static_cast<SpdySettingsIds>(flags_and_id.id());
     SpdySettingsFlags flags =
         static_cast<SpdySettingsFlags>(flags_and_id.flags());
+    CHECK(settings->find(id) == settings->end());
     settings->insert(std::make_pair(id, SettingsFlagsAndValue(flags, value)));
   }
 
@@ -2575,6 +2576,86 @@ TEST_P(SpdyFramerTest, ReadLargeSettingsFrame) {
   EXPECT_EQ(0, visitor.error_count_);
   EXPECT_EQ(settings.size() * 2, static_cast<unsigned>(visitor.setting_count_));
   EXPECT_EQ(2, visitor.settings_frame_count_);
+}
+
+// Tests handling of SETTINGS frame with duplicate entries.
+TEST_P(SpdyFramerTest, ReadDuplicateSettings) {
+  SpdyFramer framer(spdy_version_);
+
+  const unsigned char kV2FrameData[] = {
+    0x80, spdy_version_, 0x00, 0x04,
+    0x00, 0x00, 0x00, 0x1C,
+    0x00, 0x00, 0x00, 0x03,
+    0x01, 0x00, 0x00, 0x00,  // 1st Setting
+    0x00, 0x00, 0x00, 0x02,
+    0x01, 0x00, 0x00, 0x00,  // 2nd (duplicate) Setting
+    0x00, 0x00, 0x00, 0x03,
+    0x03, 0x00, 0x00, 0x00,  // 3rd (unprocessed) Setting
+    0x00, 0x00, 0x00, 0x03,
+  };
+
+  const unsigned char kV3FrameData[] = {
+    0x80, spdy_version_, 0x00, 0x04,
+    0x00, 0x00, 0x00, 0x1C,
+    0x00, 0x00, 0x00, 0x03,
+    0x00, 0x00, 0x00, 0x01,  // 1st Setting
+    0x00, 0x00, 0x00, 0x02,
+    0x00, 0x00, 0x00, 0x01,  // 2nd (duplicate) Setting
+    0x00, 0x00, 0x00, 0x03,
+    0x00, 0x00, 0x00, 0x03,  // 3rd (unprocessed) Setting
+    0x00, 0x00, 0x00, 0x03,
+  };
+
+  TestSpdyVisitor visitor(spdy_version_);
+  visitor.use_compression_ = false;
+  if (IsSpdy2()) {
+    visitor.SimulateInFramer(kV2FrameData, sizeof(kV2FrameData));
+  } else {
+    visitor.SimulateInFramer(kV3FrameData, sizeof(kV3FrameData));
+  }
+  EXPECT_EQ(1, visitor.error_count_);
+  EXPECT_EQ(1, visitor.setting_count_);
+  EXPECT_EQ(1, visitor.settings_frame_count_);
+}
+
+// Tests handling of SETTINGS frame with entries out of order.
+TEST_P(SpdyFramerTest, ReadOutOfOrderSettings) {
+  SpdyFramer framer(spdy_version_);
+
+  const unsigned char kV2FrameData[] = {
+    0x80, spdy_version_, 0x00, 0x04,
+    0x00, 0x00, 0x00, 0x1C,
+    0x00, 0x00, 0x00, 0x03,
+    0x02, 0x00, 0x00, 0x00,  // 1st Setting
+    0x00, 0x00, 0x00, 0x02,
+    0x01, 0x00, 0x00, 0x00,  // 2nd (out of order) Setting
+    0x00, 0x00, 0x00, 0x03,
+    0x03, 0x00, 0x00, 0x00,  // 3rd (unprocessed) Setting
+    0x00, 0x00, 0x00, 0x03,
+  };
+
+  const unsigned char kV3FrameData[] = {
+    0x80, spdy_version_, 0x00, 0x04,
+    0x00, 0x00, 0x00, 0x1C,
+    0x00, 0x00, 0x00, 0x03,
+    0x00, 0x00, 0x00, 0x02,  // 1st Setting
+    0x00, 0x00, 0x00, 0x02,
+    0x00, 0x00, 0x00, 0x01,  // 2nd (out of order) Setting
+    0x00, 0x00, 0x00, 0x03,
+    0x00, 0x00, 0x01, 0x03,  // 3rd (unprocessed) Setting
+    0x00, 0x00, 0x00, 0x03,
+  };
+
+  TestSpdyVisitor visitor(spdy_version_);
+  visitor.use_compression_ = false;
+  if (IsSpdy2()) {
+    visitor.SimulateInFramer(kV2FrameData, sizeof(kV2FrameData));
+  } else {
+    visitor.SimulateInFramer(kV3FrameData, sizeof(kV3FrameData));
+  }
+  EXPECT_EQ(1, visitor.error_count_);
+  EXPECT_EQ(1, visitor.setting_count_);
+  EXPECT_EQ(1, visitor.settings_frame_count_);
 }
 
 TEST_P(SpdyFramerTest, ReadCredentialFrame) {

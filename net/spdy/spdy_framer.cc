@@ -989,7 +989,7 @@ bool SpdyFramer::ParseSettings(const SpdySettingsControlFrame* frame,
     SpdySettingsIds id = static_cast<SpdySettingsIds>(flags_and_id.id());
     SpdySettingsFlags flags =
         static_cast<SpdySettingsFlags>(flags_and_id.flags());
-    settings->insert(std::make_pair(id, SettingsFlagsAndValue(flags, value)));
+    (*settings)[id] = SettingsFlagsAndValue(flags, value);
   }
   return true;
 }
@@ -1113,13 +1113,13 @@ SpdySettingsControlFrame* SpdyFramer::CreateSettings(
   SpdyFrameBuilder frame(SETTINGS, CONTROL_FLAG_NONE, spdy_version_,
                          frame_size);
   frame.WriteUInt32(values.size());
-  SettingsMap::const_iterator it = values.begin();
-  while (it != values.end()) {
+  for (SettingsMap::const_iterator it = values.begin();
+       it != values.end();
+       it++) {
     SettingsFlagsAndId flags_and_id(it->second.first, it->first);
     uint32 id_and_flags_wire = flags_and_id.GetWireFormat(spdy_version_);
     frame.WriteBytes(&id_and_flags_wire, 4);
     frame.WriteUInt32(it->second.second);
-    ++it;
   }
   DCHECK_EQ(frame.length(), frame_size);
   return reinterpret_cast<SpdySettingsControlFrame*>(frame.take());
