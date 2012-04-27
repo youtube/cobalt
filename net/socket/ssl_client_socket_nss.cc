@@ -959,10 +959,14 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
 #endif
 
 #ifdef SSL_ENABLE_OB_CERTS
+  UMA_HISTOGRAM_BOOLEAN("DBC.Advertised",
+                        ssl_config_.domain_bound_certs_enabled);
   rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_OB_CERTS,
                      ssl_config_.domain_bound_certs_enabled);
   if (rv != SECSuccess)
     LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_OB_CERTS");
+#else
+  UMA_HISTOGRAM_BOOLEAN("DBC.Advertised", false);
 #endif
 
 #ifdef SSL_ENCRYPT_CLIENT_CERTS
