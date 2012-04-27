@@ -566,6 +566,7 @@
             '../chrome/chrome.gyp:ui_tests',
             '../ui/aura/aura.gyp:*',
             '../ui/gfx/compositor/compositor.gyp:*',
+            '../ui/ui.gyp:gfx_unittests',
             '../ui/views/views.gyp:views',
             '../ui/views/views.gyp:views_unittests',
             '../webkit/webkit.gyp:pull_in_webkit_unit_tests',
@@ -598,7 +599,6 @@
                 '../ipc/ipc.gyp:ipc_tests',
                 '../sql/sql.gyp:sql_unittests',
                 '../sync/sync.gyp:sync_unit_tests',
-                '../ui/ui.gyp:gfx_unittests',
               ],
             }],
             ['OS=="mac"', {
