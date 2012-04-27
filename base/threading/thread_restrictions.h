@@ -23,6 +23,9 @@ class UIModelWorker;
 namespace chromeos {
 class AudioMixerAlsa;
 class BlockingMethodCaller;
+namespace system {
+class StatisticsProviderImpl;
+}
 }
 namespace chrome_browser_net {
 class Predictor;
@@ -160,6 +163,7 @@ class BASE_EXPORT ThreadRestrictions {
   // BEGIN USAGE THAT NEEDS TO BE FIXED.
   friend class ::chromeos::AudioMixerAlsa;        // http://crbug.com/125206
   friend class ::chromeos::BlockingMethodCaller;  // http://crbug.com/125360
+  friend class ::chromeos::system::StatisticsProviderImpl;  // http://crbug.com/125385
   friend class browser_sync::NonFrontendDataTypeController;  // http://crbug.com/19757
   friend class browser_sync::UIModelWorker;       // http://crbug.com/19757
   friend class chrome_browser_net::Predictor;     // http://crbug.com/78451
