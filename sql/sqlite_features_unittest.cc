@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,7 +22,7 @@ class StatementErrorHandler : public sql::ErrorDelegate {
   StatementErrorHandler() : error_(SQLITE_OK) {}
 
   virtual int OnError(int error, sql::Connection* connection,
-                      sql::Statement* stmt) {
+                      sql::Statement* stmt) OVERRIDE {
     error_ = error;
     const char* sql_txt = stmt ? stmt->GetSQLStatement() : NULL;
     sql_text_ = sql_txt ? sql_txt : "no statement available";
@@ -37,6 +37,9 @@ class StatementErrorHandler : public sql::ErrorDelegate {
   }
 
   const char* sql_statement() const { return sql_text_.c_str(); }
+
+ protected:
+  virtual ~StatementErrorHandler() {}
 
  private:
   int error_;
