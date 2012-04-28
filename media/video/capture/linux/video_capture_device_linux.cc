@@ -50,18 +50,18 @@ static const int32 kV4l2Fmts[] = {
   V4L2_PIX_FMT_YUYV
 };
 
-static VideoCaptureDevice::Format V4l2ColorToVideoCaptureColorFormat(
+static VideoCaptureCapability::Format V4l2ColorToVideoCaptureColorFormat(
     int32 v4l2_fourcc) {
-  VideoCaptureDevice::Format result = VideoCaptureDevice::kColorUnknown;
+  VideoCaptureCapability::Format result = VideoCaptureCapability::kColorUnknown;
   switch (v4l2_fourcc) {
     case V4L2_PIX_FMT_YUV420:
-      result = VideoCaptureDevice::kI420;
+      result = VideoCaptureCapability::kI420;
       break;
     case V4L2_PIX_FMT_YUYV:
-      result = VideoCaptureDevice::kYUY2;
+      result = VideoCaptureCapability::kYUY2;
       break;
   }
-  DCHECK_NE(result, VideoCaptureDevice::kColorUnknown);
+  DCHECK_NE(result, VideoCaptureCapability::kColorUnknown);
   return result;
 }
 
@@ -248,12 +248,14 @@ void VideoCaptureDeviceLinux::OnAllocate(int width,
   }
 
   // Store our current width and height.
-  Capability current_settings;
+  VideoCaptureCapability current_settings;
   current_settings.color = V4l2ColorToVideoCaptureColorFormat(
       video_fmt.fmt.pix.pixelformat);
   current_settings.width  = video_fmt.fmt.pix.width;
   current_settings.height = video_fmt.fmt.pix.height;
   current_settings.frame_rate = frame_rate;
+  current_settings.expected_capture_delay = 0;
+  current_settings.interlaced = false;
 
   state_ = kAllocated;
   // Report the resulting frame size to the observer.
