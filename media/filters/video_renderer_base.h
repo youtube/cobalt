@@ -74,8 +74,10 @@ class MEDIA_EXPORT VideoRendererBase
   void PutCurrentFrame(scoped_refptr<VideoFrame> frame);
 
  private:
-  // Callback from the video decoder delivering decoded video frames.
-  void FrameReady(scoped_refptr<VideoFrame> frame);
+  // Callback from the video decoder delivering decoded video frames and
+  // reporting video decoder status.
+  void FrameReady(VideoDecoder::DecoderStatus status,
+                  scoped_refptr<VideoFrame> frame);
 
   // Helper method that schedules an asynchronous read from the decoder as long
   // as there isn't a pending read and we have capacity.
