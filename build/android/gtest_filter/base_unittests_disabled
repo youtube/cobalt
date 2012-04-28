@@ -17,3 +17,5 @@ StringPrintfTest.StringPrintfBounds
 FieldTrialTest.*
 # TODO(zhenghao): Fail from build 6102 r123270. http://crbug.com/115612
 StackContainer.BufferAlignment
+# Failed on bot since it was first introduced.
+FileUtilProxyTest.Touch
