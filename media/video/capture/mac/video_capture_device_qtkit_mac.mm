@@ -14,8 +14,18 @@
 
 #pragma mark Class methods
 
-+ (NSArray *)deviceNames {
-  return [QTCaptureDevice inputDevicesWithMediaType:QTMediaTypeVideo];
++ (NSDictionary *)deviceNames {
+  NSArray *captureDevices =
+      [QTCaptureDevice inputDevicesWithMediaType:QTMediaTypeVideo];
+  NSMutableDictionary *deviceNames =
+      [[[NSMutableDictionary alloc] init] autorelease];
+
+  for (QTCaptureDevice* device in captureDevices) {
+    NSString* qtDeviceName = [device localizedDisplayName];
+    NSString* qtUniqueId = [device uniqueID];
+    [deviceNames setObject:qtDeviceName forKey:qtUniqueId];
+  }
+  return deviceNames;
 }
 
 #pragma mark Public methods

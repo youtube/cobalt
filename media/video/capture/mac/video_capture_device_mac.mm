@@ -16,13 +16,11 @@ void VideoCaptureDevice::GetDeviceNames(Names* device_names) {
   // Loop through all available devices and add to |device_names|.
   device_names->clear();
 
-  // TODO(mflodman) Return name and id as NSArray* instead of QTCaptureDevice*.
-  for (QTCaptureDevice* device in [VideoCaptureDeviceQTKit deviceNames]) {
+  NSDictionary* capture_devices = [VideoCaptureDeviceQTKit deviceNames];
+  for (NSString* key in capture_devices) {
     Name name;
-    NSString* qt_device_name = [device localizedDisplayName];
-    name.device_name = [qt_device_name UTF8String];
-    NSString* qt_unique_id = [device uniqueID];
-    name.unique_id = [qt_unique_id UTF8String];
+    name.device_name = [[capture_devices valueForKey:key] UTF8String];
+    name.unique_id = [key UTF8String];
     device_names->push_back(name);
   }
 }
