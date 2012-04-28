@@ -177,4 +177,6 @@ void DefaultServerBoundCertStore::InternalInsertServerBoundCert(
 
 DefaultServerBoundCertStore::PersistentStore::PersistentStore() {}
 
+DefaultServerBoundCertStore::PersistentStore::~PersistentStore() {}
+
 }  // namespace net

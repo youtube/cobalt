@@ -23,6 +23,9 @@ class NetLogBytesTransferredParameter : public NetLog::EventParameters {
 
   virtual Value* ToValue() const;
 
+ protected:
+  virtual ~NetLogBytesTransferredParameter() {}
+
  private:
   const int byte_count_;
   std::string hex_encoded_bytes_;

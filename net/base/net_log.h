@@ -78,14 +78,18 @@ class NET_EXPORT NetLog {
       : public base::RefCountedThreadSafe<EventParameters> {
    public:
     EventParameters() {}
-    virtual ~EventParameters() {}
 
     // Serializes the parameters to a Value tree. This is intended to be a
     // lossless conversion, which is used to serialize the parameters to JSON.
     // The caller takes ownership of the returned Value*.
     virtual base::Value* ToValue() const = 0;
 
+   protected:
+    virtual ~EventParameters() {}
+
    private:
+    friend class base::RefCountedThreadSafe<EventParameters>;
+
     DISALLOW_COPY_AND_ASSIGN(EventParameters);
   };
 
@@ -321,13 +325,15 @@ class NET_EXPORT NetLogStringParameter : public NetLog::EventParameters {
  public:
   // |name| must be a string literal.
   NetLogStringParameter(const char* name, const std::string& value);
-  virtual ~NetLogStringParameter();
 
   const std::string& value() const {
     return value_;
   }
 
   virtual base::Value* ToValue() const OVERRIDE;
+
+ protected:
+  virtual ~NetLogStringParameter();
 
  private:
   const char* const name_;
@@ -348,6 +354,9 @@ class NET_EXPORT NetLogIntegerParameter : public NetLog::EventParameters {
 
   virtual base::Value* ToValue() const OVERRIDE;
 
+ protected:
+  virtual ~NetLogIntegerParameter() {}
+
  private:
   const char* name_;
   const int value_;
@@ -366,6 +375,9 @@ class NET_EXPORT NetLogSourceParameter : public NetLog::EventParameters {
   }
 
   virtual base::Value* ToValue() const OVERRIDE;
+
+ protected:
+  virtual ~NetLogSourceParameter() {}
 
  private:
   const char* name_;

@@ -51,10 +51,14 @@ class HttpStreamJobParameters : public NetLog::EventParameters {
 
   virtual Value* ToValue() const;
 
+ protected:
+  virtual ~HttpStreamJobParameters() {}
+
  private:
   HttpStreamJobParameters(const GURL& original_url, const GURL& url)
       : original_url_(original_url.GetOrigin().spec()),
-        url_(url.GetOrigin().spec()) {}
+        url_(url.GetOrigin().spec()) {
+  }
 
   const std::string original_url_;
   const std::string url_;
@@ -80,13 +84,17 @@ class HttpStreamProtoParameters : public NetLog::EventParameters {
 
   virtual Value* ToValue() const;
 
+ protected:
+  virtual ~HttpStreamProtoParameters() {}
+
  private:
   HttpStreamProtoParameters(const SSLClientSocket::NextProtoStatus status,
                             const std::string& proto,
                             const std::string& server_protos)
       : status_(status),
         proto_(proto),
-        server_protos_(server_protos) {}
+        server_protos_(server_protos) {
+  }
 
   const SSLClientSocket::NextProtoStatus status_;
   const std::string proto_;

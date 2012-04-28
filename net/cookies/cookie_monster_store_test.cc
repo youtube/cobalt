@@ -25,8 +25,6 @@ MockPersistentCookieStore::MockPersistentCookieStore()
       loaded_(false) {
 }
 
-MockPersistentCookieStore::~MockPersistentCookieStore() {}
-
 void MockPersistentCookieStore::SetLoadExpectation(
     bool return_value,
     const std::vector<CookieMonster::CanonicalCookie*>& result) {
@@ -85,6 +83,8 @@ void
 MockPersistentCookieStore::SetClearLocalStateOnExit(bool clear_local_state) {
 }
 
+MockPersistentCookieStore::~MockPersistentCookieStore() {}
+
 MockCookieMonsterDelegate::MockCookieMonsterDelegate() {}
 
 void MockCookieMonsterDelegate::OnCookieChanged(
@@ -96,18 +96,6 @@ void MockCookieMonsterDelegate::OnCookieChanged(
 }
 
 MockCookieMonsterDelegate::~MockCookieMonsterDelegate() {}
-
-void AddCookieToList(
-    const std::string& key,
-    const std::string& cookie_line,
-    const base::Time& creation_time,
-    std::vector<CookieMonster::CanonicalCookie*>* out_list) {
-  scoped_ptr<CookieMonster::CanonicalCookie> cookie(
-      new CookieMonster::CanonicalCookie(
-          BuildCanonicalCookie(key, cookie_line, creation_time)));
-
-  out_list->push_back(cookie.release());
-}
 
 CookieMonster::CanonicalCookie BuildCanonicalCookie(
     const std::string& key,
@@ -135,10 +123,21 @@ CookieMonster::CanonicalCookie BuildCanonicalCookie(
       !cookie_expires.is_null(), !cookie_expires.is_null());
 }
 
-MockSimplePersistentCookieStore::MockSimplePersistentCookieStore()
-    : loaded_(false) {}
+void AddCookieToList(
+    const std::string& key,
+    const std::string& cookie_line,
+    const base::Time& creation_time,
+    std::vector<CookieMonster::CanonicalCookie*>* out_list) {
+  scoped_ptr<CookieMonster::CanonicalCookie> cookie(
+      new CookieMonster::CanonicalCookie(
+          BuildCanonicalCookie(key, cookie_line, creation_time)));
 
-MockSimplePersistentCookieStore::~MockSimplePersistentCookieStore() {}
+  out_list->push_back(cookie.release());
+}
+
+MockSimplePersistentCookieStore::MockSimplePersistentCookieStore()
+    : loaded_(false) {
+}
 
 void MockSimplePersistentCookieStore::Load(
     const LoadedCallback& loaded_callback) {
@@ -227,5 +226,7 @@ CookieMonster* CreateMonsterFromStoreForGC(
 
   return new CookieMonster(store, NULL);
 }
+
+MockSimplePersistentCookieStore::~MockSimplePersistentCookieStore() {}
 
 }  // namespace net

@@ -433,14 +433,14 @@ class DeterministicMockTCPClientSocket;
 //
 // For examples of how to use this class, see:
 //   deterministic_socket_data_unittests.cc
-class DeterministicSocketData : public StaticSocketDataProvider,
-    public base::RefCounted<DeterministicSocketData> {
+class DeterministicSocketData
+    : public StaticSocketDataProvider,
+      public base::RefCounted<DeterministicSocketData> {
  public:
   // |reads| the list of MockRead completions.
   // |writes| the list of MockWrite completions.
   DeterministicSocketData(MockRead* reads, size_t reads_count,
                           MockWrite* writes, size_t writes_count);
-  virtual ~DeterministicSocketData();
 
   // Consume all the data up to the give stop point (via SetStop()).
   void Run();
@@ -475,7 +475,12 @@ class DeterministicSocketData : public StaticSocketDataProvider,
   virtual void Reset() OVERRIDE;
   virtual void CompleteRead() OVERRIDE {}
 
+ protected:
+  virtual ~DeterministicSocketData();
+
  private:
+  friend class base::RefCounted<DeterministicSocketData>;
+
   // Invoke the read and write callbacks, if the timing is appropriate.
   void InvokeCallbacks();
 
@@ -496,8 +501,7 @@ class DeterministicSocketData : public StaticSocketDataProvider,
 template<typename T>
 class SocketDataProviderArray {
  public:
-  SocketDataProviderArray() : next_index_(0) {
-  }
+  SocketDataProviderArray() : next_index_(0) {}
 
   T* GetNext() {
     DCHECK_LT(next_index_, data_providers_.size());

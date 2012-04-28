@@ -424,9 +424,8 @@ DeterministicSocketData::DeterministicSocketData(MockRead* reads,
       current_write_(),
       stopping_sequence_number_(0),
       stopped_(false),
-      print_debug_(false) {}
-
-DeterministicSocketData::~DeterministicSocketData() {}
+      print_debug_(false) {
+}
 
 void DeterministicSocketData::Run() {
   SetStopped(false);
@@ -553,6 +552,8 @@ void DeterministicSocketData::Reset() {
   StaticSocketDataProvider::Reset();
   NOTREACHED();
 }
+
+DeterministicSocketData::~DeterministicSocketData() {}
 
 void DeterministicSocketData::InvokeCallbacks() {
   if (socket_ && socket_->write_pending() &&
