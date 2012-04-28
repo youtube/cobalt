@@ -43,6 +43,9 @@ class ErrorNetlogParams : public NetLog::EventParameters {
     return dict;
   }
 
+ protected:
+  virtual ~ErrorNetlogParams() {}
+
  private:
   const int line_number_;
   const string16 message_;
@@ -53,14 +56,16 @@ class ErrorNetlogParams : public NetLog::EventParameters {
 // Event parameters for a PAC alert().
 class AlertNetlogParams : public NetLog::EventParameters {
  public:
-  explicit AlertNetlogParams(const string16& message) : message_(message) {
-  }
+  explicit AlertNetlogParams(const string16& message) : message_(message) {}
 
   virtual Value* ToValue() const OVERRIDE {
     DictionaryValue* dict = new DictionaryValue();
     dict->SetString("message", message_);
     return dict;
   }
+
+ protected:
+  virtual ~AlertNetlogParams() {}
 
  private:
   const string16 message_;

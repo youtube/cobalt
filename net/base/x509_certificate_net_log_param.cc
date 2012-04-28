@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,8 +14,6 @@ X509CertificateNetLogParam::X509CertificateNetLogParam(
   certificate->GetPEMEncodedChain(&encoded_chain_);
 }
 
-X509CertificateNetLogParam::~X509CertificateNetLogParam() {}
-
 base::Value* X509CertificateNetLogParam::ToValue() const {
   DictionaryValue* dict = new DictionaryValue();
   ListValue* certs = new ListValue();
@@ -24,5 +22,7 @@ base::Value* X509CertificateNetLogParam::ToValue() const {
   dict->Set("certificates", certs);
   return dict;
 }
+
+X509CertificateNetLogParam::~X509CertificateNetLogParam() {}
 
 }  // namespace net

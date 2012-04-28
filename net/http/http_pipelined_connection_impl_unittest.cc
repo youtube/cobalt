@@ -27,6 +27,7 @@ namespace net {
 class DummySocketParams : public base::RefCounted<DummySocketParams> {
  private:
   friend class base::RefCounted<DummySocketParams>;
+  ~DummySocketParams() {}
 };
 
 REGISTER_SOCKET_PARAMS_FOR_POOL(MockTransportClientSocketPool,

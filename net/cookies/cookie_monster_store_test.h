@@ -33,13 +33,15 @@ class LoadedCallbackTask
 
   LoadedCallbackTask(LoadedCallback loaded_callback,
                      std::vector<CookieMonster::CanonicalCookie*> cookies);
-  ~LoadedCallbackTask();
 
   void Run() {
     loaded_callback_.Run(cookies_);
   }
 
  private:
+  friend class base::RefCountedThreadSafe<LoadedCallbackTask>;
+  ~LoadedCallbackTask();
+
   LoadedCallback loaded_callback_;
   std::vector<CookieMonster::CanonicalCookie*> cookies_;
 
@@ -72,7 +74,6 @@ class MockPersistentCookieStore
   typedef std::vector<CookieStoreCommand> CommandList;
 
   MockPersistentCookieStore();
-  virtual ~MockPersistentCookieStore();
 
   void SetLoadExpectation(
       bool return_value,
@@ -99,6 +100,9 @@ class MockPersistentCookieStore
 
   // No files are created so nothing to clear either
   virtual void SetClearLocalStateOnExit(bool clear_local_state) OVERRIDE;
+
+ protected:
+  virtual ~MockPersistentCookieStore();
 
  private:
   CommandList commands_;
@@ -157,7 +161,6 @@ class MockSimplePersistentCookieStore
     : public CookieMonster::PersistentCookieStore {
  public:
   MockSimplePersistentCookieStore();
-  virtual ~MockSimplePersistentCookieStore();
 
   virtual void Load(const LoadedCallback& loaded_callback) OVERRIDE;
 
@@ -176,6 +179,9 @@ class MockSimplePersistentCookieStore
   virtual void Flush(const base::Closure& callback) OVERRIDE;
 
   virtual void SetClearLocalStateOnExit(bool clear_local_state) OVERRIDE;
+
+ protected:
+  virtual ~MockSimplePersistentCookieStore();
 
  private:
   typedef std::map<int64, CookieMonster::CanonicalCookie>

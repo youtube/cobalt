@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,9 +14,11 @@ namespace net {
 class SSLErrorParams : public NetLog::EventParameters {
  public:
   SSLErrorParams(int net_error, int ssl_lib_error);
-  virtual ~SSLErrorParams();
 
   virtual base::Value* ToValue() const OVERRIDE;
+
+ protected:
+  virtual ~SSLErrorParams();
 
  private:
   const int net_error_;

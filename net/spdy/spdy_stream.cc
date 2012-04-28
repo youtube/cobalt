@@ -42,6 +42,7 @@ class NetLogSpdyStreamWindowUpdateParameter : public NetLog::EventParameters {
                                         int32 delta,
                                         int32 window_size)
       : stream_id_(stream_id), delta_(delta), window_size_(window_size) {}
+
   virtual Value* ToValue() const {
     DictionaryValue* dict = new DictionaryValue();
     dict->SetInteger("id", static_cast<int>(stream_id_));
@@ -49,7 +50,10 @@ class NetLogSpdyStreamWindowUpdateParameter : public NetLog::EventParameters {
     dict->SetInteger("window_size", window_size_);
     return dict;
   }
+
  private:
+  virtual ~NetLogSpdyStreamWindowUpdateParameter() {}
+
   const SpdyStreamId stream_id_;
   const int32 delta_;
   const int32 window_size_;

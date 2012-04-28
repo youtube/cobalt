@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -200,6 +200,9 @@ class MultiThreadedProxyResolver::SetPacScriptJob
         base::Bind(&SetPacScriptJob::RequestComplete, this, rv));
   }
 
+ protected:
+  virtual ~SetPacScriptJob() {}
+
  private:
   // Runs the completion callback on the origin thread.
   void RequestComplete(int result_code) {
@@ -265,6 +268,9 @@ class MultiThreadedProxyResolver::GetProxyForURLJob
         FROM_HERE,
         base::Bind(&GetProxyForURLJob::QueryComplete, this, rv));
   }
+
+ protected:
+  virtual ~GetProxyForURLJob() {}
 
  private:
   // Runs the completion callback on the origin thread.
