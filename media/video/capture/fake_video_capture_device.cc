@@ -60,8 +60,10 @@ void FakeVideoCaptureDevice::Allocate(int width,
   }
 
   observer_ = observer;
-  Capability current_settings;
-  current_settings.color = kI420;
+  VideoCaptureCapability current_settings;
+  current_settings.color = VideoCaptureCapability::kI420;
+  current_settings.expected_capture_delay = 0;
+  current_settings.interlaced = false;
   if (width > 320) {  // VGA
     current_settings.width = 640;
     current_settings.height = 480;
