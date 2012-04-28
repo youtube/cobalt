@@ -21,6 +21,8 @@
           'third_party/nspr/prtime.h',
           'third_party/nspr/prcpucfg_linux.h',
           'third_party/xdg_mime/xdgmime.h',
+          'allocator/allocator_extension.cc',
+          'allocator/allocator_extension.h',
           'android/base_jni_registrar.cc',
           'android/base_jni_registrar.h',
           'android/build_info.cc',
@@ -589,6 +591,7 @@
       },
       'dependencies': [
         'base_static',
+        'allocator/allocator.gyp:allocator_extension_thunks',
         '../testing/gtest.gyp:gtest_prod',
         '../third_party/modp_b64/modp_b64.gyp:modp_b64',
         'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
@@ -808,6 +811,7 @@
           },
           'dependencies': [
             'base_static_win64',
+            'allocator/allocator.gyp:allocator_extension_thunks_win64',
             'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations_win64',
           ],
           # TODO(gregoryd): direct_dependent_settings should be shared with the
