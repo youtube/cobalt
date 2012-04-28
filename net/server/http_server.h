@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -34,12 +34,12 @@ class HttpServer : public ListenSocket::ListenSocketDelegate,
                                     const std::string& data) = 0;
 
     virtual void OnClose(int connection_id) = 0;
+
    protected:
     virtual ~Delegate() {}
   };
 
   HttpServer(const std::string& host, int port, HttpServer::Delegate* del);
-  virtual ~HttpServer();
 
   void AcceptWebSocket(int connection_id,
                        const HttpServerRequestInfo& request);
@@ -53,16 +53,19 @@ class HttpServer : public ListenSocket::ListenSocketDelegate,
   void Send500(int connection_id, const std::string& message);
   void Close(int connection_id);
 
-private:
-  friend class base::RefCountedThreadSafe<HttpServer>;
-  friend class HttpConnection;
-
   // ListenSocketDelegate
   virtual void DidAccept(ListenSocket* server, ListenSocket* socket) OVERRIDE;
   virtual void DidRead(ListenSocket* socket,
                        const char* data,
                        int len) OVERRIDE;
   virtual void DidClose(ListenSocket* socket) OVERRIDE;
+
+ protected:
+  virtual ~HttpServer();
+
+ private:
+  friend class base::RefCountedThreadSafe<HttpServer>;
+  friend class HttpConnection;
 
   // Expects the raw data to be stored in recv_data_. If parsing is successful,
   // will remove the data parsed from recv_data_, leaving only the unused

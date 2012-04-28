@@ -68,6 +68,9 @@ class RejectedRequestParameters : public NetLog::EventParameters {
     return dict;
   }
 
+ protected:
+  virtual ~RejectedRequestParameters() {}
+
  private:
   std::string url_id_;
   int num_failures_;

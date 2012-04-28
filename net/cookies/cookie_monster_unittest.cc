@@ -45,6 +45,9 @@ class NewMockPersistentCookieStore
   MOCK_METHOD1(DeleteCookie, void(const CookieMonster::CanonicalCookie& cc));
   MOCK_METHOD1(SetClearLocalStateOnExit, void(bool clear_local_state));
   MOCK_METHOD1(Flush, void(const base::Closure& callback));
+
+ private:
+  virtual ~NewMockPersistentCookieStore() {}
 };
 
 const char* kTopLevelDomainPlus1 = "http://www.harvard.edu";
@@ -2232,6 +2235,8 @@ class FlushablePersistentStore : public CookieMonster::PersistentCookieStore {
   }
 
  private:
+  virtual ~FlushablePersistentStore() {}
+
   volatile int flush_count_;
 };
 
@@ -2250,6 +2255,8 @@ class CallbackCounter : public base::RefCountedThreadSafe<CallbackCounter> {
 
  private:
   friend class base::RefCountedThreadSafe<CallbackCounter>;
+  ~CallbackCounter() {}
+
   volatile int callback_count_;
 };
 

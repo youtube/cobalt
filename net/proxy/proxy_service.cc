@@ -348,6 +348,9 @@ class ProxyConfigChangedNetLogParam : public NetLog::EventParameters {
     return dict;
   }
 
+ protected:
+  virtual ~ProxyConfigChangedNetLogParam() {}
+
  private:
   const ProxyConfig old_config_;
   const ProxyConfig new_config_;
@@ -373,6 +376,9 @@ class BadProxyListNetLogParam : public NetLog::EventParameters {
     dict->Set("bad_proxy_list", list);
     return dict;
   }
+
+ protected:
+  virtual ~BadProxyListNetLogParam() {}
 
  private:
   std::vector<std::string> proxy_list_;

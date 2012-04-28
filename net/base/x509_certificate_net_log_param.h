@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,9 +22,11 @@ class X509Certificate;
 class X509CertificateNetLogParam : public NetLog::EventParameters {
  public:
   explicit X509CertificateNetLogParam(X509Certificate* certificate);
-  virtual ~X509CertificateNetLogParam();
 
   virtual base::Value* ToValue() const OVERRIDE;
+
+ protected:
+  virtual ~X509CertificateNetLogParam();
 
  private:
   std::vector<std::string> encoded_chain_;

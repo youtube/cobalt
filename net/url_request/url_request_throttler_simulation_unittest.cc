@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -299,7 +299,6 @@ class MockURLRequestThrottlerEntry : public URLRequestThrottlerEntry {
       : URLRequestThrottlerEntry(manager, ""),
         mock_backoff_entry_(&backoff_policy_) {
   }
-  virtual ~MockURLRequestThrottlerEntry() {}
 
   virtual const BackoffEntry* GetBackoffEntry() const OVERRIDE {
     return &mock_backoff_entry_;
@@ -321,6 +320,9 @@ class MockURLRequestThrottlerEntry : public URLRequestThrottlerEntry {
   TimeTicks fake_now() const {
     return fake_now_;
   }
+
+ protected:
+  virtual ~MockURLRequestThrottlerEntry() {}
 
  private:
   TimeTicks fake_now_;
