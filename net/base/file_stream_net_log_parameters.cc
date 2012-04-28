@@ -13,6 +13,8 @@ FileStreamErrorParameters::FileStreamErrorParameters(
         : operation_(operation), os_error_(os_error), net_error_(net_error) {
 }
 
+FileStreamErrorParameters::~FileStreamErrorParameters() {}
+
 Value* FileStreamErrorParameters::ToValue() const {
   DictionaryValue* dict = new DictionaryValue();
 

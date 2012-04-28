@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,8 +12,10 @@
 namespace disk_cache {
 
 EntryCreationParameters::EntryCreationParameters(
-    const std::string& key, bool created)
-    : key_(key), created_(created) {
+    const std::string& key,
+    bool created)
+    : key_(key),
+      created_(created) {
 }
 
 Value* EntryCreationParameters::ToValue() const {
@@ -23,9 +25,17 @@ Value* EntryCreationParameters::ToValue() const {
   return dict;
 }
 
+EntryCreationParameters::~EntryCreationParameters() {}
+
 ReadWriteDataParameters::ReadWriteDataParameters(
-    int index, int offset, int buf_len, bool truncate)
-    : index_(index), offset_(offset), buf_len_(buf_len), truncate_(truncate) {
+    int index,
+    int offset,
+    int buf_len,
+    bool truncate)
+    : index_(index),
+      offset_(offset),
+      buf_len_(buf_len),
+      truncate_(truncate) {
 }
 
 Value* ReadWriteDataParameters::ToValue() const {
@@ -38,6 +48,7 @@ Value* ReadWriteDataParameters::ToValue() const {
   return dict;
 }
 
+ReadWriteDataParameters::~ReadWriteDataParameters() {}
 
 // NetLog parameters logged when non-sparse reads and writes complete.
 ReadWriteCompleteParameters::ReadWriteCompleteParameters(int bytes_copied)
@@ -55,9 +66,13 @@ Value* ReadWriteCompleteParameters::ToValue() const {
   return dict;
 }
 
+ReadWriteCompleteParameters::~ReadWriteCompleteParameters() {}
+
 SparseOperationParameters::SparseOperationParameters(
-    int64 offset, int buff_len)
-    : offset_(offset), buff_len_(buff_len) {
+    int64 offset,
+    int buff_len)
+    : offset_(offset),
+      buff_len_(buff_len) {
 }
 
 Value* SparseOperationParameters::ToValue() const {
@@ -69,9 +84,13 @@ Value* SparseOperationParameters::ToValue() const {
   return dict;
 }
 
+SparseOperationParameters::~SparseOperationParameters() {}
+
 SparseReadWriteParameters::SparseReadWriteParameters(
-    const net::NetLog::Source& source, int child_len)
-    : source_(source), child_len_(child_len) {
+    const net::NetLog::Source& source,
+    int child_len)
+    : source_(source),
+      child_len_(child_len) {
 }
 
 Value* SparseReadWriteParameters::ToValue() const {
@@ -81,9 +100,13 @@ Value* SparseReadWriteParameters::ToValue() const {
   return dict;
 }
 
+SparseReadWriteParameters::~SparseReadWriteParameters() {}
+
 GetAvailableRangeResultParameters::GetAvailableRangeResultParameters(
-    int64 start, int result)
-    : start_(start), result_(result) {
+    int64 start,
+    int result)
+    : start_(start),
+      result_(result) {
 }
 
 Value* GetAvailableRangeResultParameters::ToValue() const {
@@ -96,5 +119,7 @@ Value* GetAvailableRangeResultParameters::ToValue() const {
   }
   return dict;
 }
+
+GetAvailableRangeResultParameters::~GetAvailableRangeResultParameters() {}
 
 }  // namespace disk_cache

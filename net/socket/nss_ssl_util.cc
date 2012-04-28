@@ -249,6 +249,9 @@ class SSLFailedNSSFunctionParams : public NetLog::EventParameters {
     return dict;
   }
 
+ protected:
+  virtual ~SSLFailedNSSFunctionParams() {}
+
  private:
   const std::string function_;
   const std::string param_;

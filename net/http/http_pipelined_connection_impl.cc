@@ -38,6 +38,9 @@ class ReceivedHeadersParameters : public NetLog::EventParameters {
     return dict;
   }
 
+ protected:
+  virtual ~ReceivedHeadersParameters() {}
+
  private:
   const NetLog::Source source_;
   const std::string feedback_;
@@ -54,6 +57,9 @@ class StreamClosedParameters : public NetLog::EventParameters {
     dict->SetBoolean("not_reusable", not_reusable_);
     return dict;
   }
+
+ protected:
+  virtual ~StreamClosedParameters() {}
 
  private:
   const NetLog::Source source_;

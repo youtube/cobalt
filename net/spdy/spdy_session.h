@@ -703,9 +703,10 @@ class NetLogSpdySynParameter : public NetLog::EventParameters {
 
   virtual base::Value* ToValue() const OVERRIDE;
 
- private:
+ protected:
   virtual ~NetLogSpdySynParameter();
 
+ private:
   const linked_ptr<SpdyHeaderBlock> headers_;
   const SpdyControlFlags flags_;
   const SpdyStreamId id_;
@@ -721,9 +722,10 @@ class NetLogSpdyCredentialParameter : public NetLog::EventParameters {
 
   virtual base::Value* ToValue() const OVERRIDE;
 
- private:
+ protected:
   virtual ~NetLogSpdyCredentialParameter();
 
+ private:
   const size_t slot_;
   const std::string origin_;
 
@@ -738,9 +740,10 @@ class NetLogSpdySessionCloseParameter : public NetLog::EventParameters {
   int status() const { return status_; }
   virtual base::Value* ToValue() const  OVERRIDE;
 
- private:
+ protected:
   virtual ~NetLogSpdySessionCloseParameter();
 
+ private:
   const int status_;
   const std::string description_;
 

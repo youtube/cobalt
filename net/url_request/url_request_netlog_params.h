@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -34,6 +34,9 @@ class NET_EXPORT URLRequestStartEventParameters
   }
 
   virtual base::Value* ToValue() const OVERRIDE;
+
+ protected:
+  virtual ~URLRequestStartEventParameters();
 
  private:
   const GURL url_;

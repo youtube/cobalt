@@ -932,8 +932,6 @@ typedef base::RefCountedThreadSafe<CookieMonster::PersistentCookieStore>
 class CookieMonster::PersistentCookieStore
     : public RefcountedPersistentCookieStore {
  public:
-  virtual ~PersistentCookieStore() {}
-
   typedef base::Callback<void(const std::vector<
       CookieMonster::CanonicalCookie*>&)> LoadedCallback;
 
@@ -963,8 +961,10 @@ class CookieMonster::PersistentCookieStore
 
  protected:
   PersistentCookieStore() {}
+  virtual ~PersistentCookieStore() {}
 
  private:
+  friend class base::RefCountedThreadSafe<PersistentCookieStore>;
   DISALLOW_COPY_AND_ASSIGN(PersistentCookieStore);
 };
 

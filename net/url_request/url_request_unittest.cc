@@ -1418,11 +1418,15 @@ class TestSSLConfigService : public SSLConfigService {
         online_rev_checking_(online_rev_checking) {
   }
 
-  virtual void GetSSLConfig(SSLConfig* config) {
+  // SSLConfigService:
+  virtual void GetSSLConfig(SSLConfig* config) OVERRIDE {
     *config = SSLConfig();
     config->rev_checking_enabled = online_rev_checking_;
     config->verify_ev_cert = ev_enabled_;
   }
+
+ protected:
+  virtual ~TestSSLConfigService() {}
 
  private:
   const bool ev_enabled_;

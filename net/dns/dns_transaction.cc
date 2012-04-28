@@ -63,6 +63,9 @@ class StartParameters : public NetLog::EventParameters {
     return dict;
   }
 
+ protected:
+  virtual ~StartParameters() {}
+
  private:
   const std::string hostname_;
   const uint16 qtype_;
@@ -80,6 +83,9 @@ class ResponseParameters : public NetLog::EventParameters {
     dict->Set("source_dependency", source_.ToValue());
     return dict;
   }
+
+ protected:
+  virtual ~ResponseParameters() {}
 
  private:
   const int rcode_;
