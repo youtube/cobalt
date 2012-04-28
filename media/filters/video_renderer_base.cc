@@ -359,12 +359,27 @@ void VideoRendererBase::PutCurrentFrame(scoped_refptr<VideoFrame> frame) {
   }
 }
 
-void VideoRendererBase::FrameReady(scoped_refptr<VideoFrame> frame) {
+void VideoRendererBase::FrameReady(VideoDecoder::DecoderStatus status,
+                                   scoped_refptr<VideoFrame> frame) {
   base::AutoLock auto_lock(lock_);
   DCHECK_NE(state_, kUninitialized);
 
   CHECK(pending_read_);
   pending_read_ = false;
+
+  if (status == VideoDecoder::kDecodeError) {
+    DCHECK(!frame);
+    host()->SetError(PIPELINE_ERROR_DECODE);
+    return;
+  }
+
+  if (status == VideoDecoder::kDecryptError) {
+    DCHECK(!frame);
+    host()->SetError(PIPELINE_ERROR_DECRYPT);
+    return;
+  }
+
+  DCHECK_EQ(status, VideoDecoder::kOk);
 
   // Already-queued Decoder ReadCB's can fire after various state transitions
   // have happened; in that case just drop those frames immediately.
@@ -460,8 +475,8 @@ void VideoRendererBase::AttemptRead_Locked() {
       (!ready_frames_.empty() && ready_frames_.back()->IsEndOfStream()) ||
       state_ == kFlushingDecoder ||
       state_ == kFlushing) {
-     return;
-   }
+    return;
+  }
 
   pending_read_ = true;
   decoder_->Read(base::Bind(&VideoRendererBase::FrameReady, this));
