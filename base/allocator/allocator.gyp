@@ -427,7 +427,22 @@
         }],
       ],
     },
+    {
+      # This library is linked in to libbase and allocator_unittests.
+      # It can't depend on either and nothing else should depend on it -
+      # all other code should use the interfaced provided by libbase.
+      'target_name': 'allocator_extension_thunks',
+      'type': 'static_library',
+      'sources': [
+        'allocator_extension_thunks.cc',
+        'allocator_extension_thunks.h',
       ],
+      'toolsets': ['host', 'target'],
+      'include_dirs': [
+        '../../'
+      ],
+    },
+   ],
   'conditions': [
     ['OS=="win"', {
       'targets': [
@@ -456,6 +471,7 @@
           'type': 'executable',
           'dependencies': [
             'allocator',
+            'allocator_extension_thunks',
             '../../testing/gtest.gyp:gtest',
           ],
           'include_dirs': [
@@ -469,6 +485,23 @@
             '../profiler/alternate_timer.cc',
             '../profiler/alternate_timer.h',
           ],
+        },
+        {
+          'target_name': 'allocator_extension_thunks_win64',
+          'type': 'static_library',
+          'sources': [
+            'allocator_extension_thunks.cc',
+            'allocator_extension_thunks.h',
+          ],
+          'toolsets': ['host', 'target'],
+          'include_dirs': [
+            '../../'
+          ],
+          'configurations': {
+            'Common_Base': {
+              'msvs_target_platform': 'x64',
+            },
+          },
         },
       ],
     }],
