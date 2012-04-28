@@ -7,6 +7,7 @@
 #include <map>
 
 #include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/memory/linked_ptr.h"
 #include "base/message_loop.h"
@@ -486,6 +487,8 @@ int SpdySession::GetPushStream(
   // encrypted SSL socket.
   if (is_secure_ && certificate_error_code_ != OK &&
       (url.SchemeIs("https") || url.SchemeIs("wss"))) {
+    RecordProtocolErrorHistogram(
+        PROTOCOL_ERROR_REQUST_FOR_SECURE_CONTENT_OVER_INSECURE_SESSION);
     CloseSessionOnError(
         static_cast<net::Error>(certificate_error_code_),
         true,
@@ -588,6 +591,8 @@ int SpdySession::CreateStreamImpl(
   // encrypted SSL socket.
   if (is_secure_ && certificate_error_code_ != OK &&
       (url.SchemeIs("https") || url.SchemeIs("wss"))) {
+    RecordProtocolErrorHistogram(
+        PROTOCOL_ERROR_REQUST_FOR_SECURE_CONTENT_OVER_INSECURE_SESSION);
     CloseSessionOnError(
         static_cast<net::Error>(certificate_error_code_),
         true,
@@ -833,6 +838,8 @@ void SpdySession::ResetStream(SpdyStreamId stream_id,
     priority = stream->priority();
   }
   QueueFrame(rst_frame.get(), priority, NULL);
+  RecordProtocolErrorHistogram(
+      static_cast<SpdyProtocolErrorDetails>(status + STATUS_CODE_INVALID));
   DeleteStream(stream_id, ERR_SPDY_PROTOCOL_ERROR);
 }
 
@@ -1033,6 +1040,8 @@ void SpdySession::WriteSocket() {
             buffered_spdy_framer_->CompressControlFrame(
                 reinterpret_cast<const SpdyControlFrame&>(uncompressed_frame)));
         if (!compressed_frame.get()) {
+          RecordProtocolErrorHistogram(
+              PROTOCOL_ERROR_SPDY_COMPRESSION_FAILURE);
           CloseSessionOnError(
               net::ERR_SPDY_PROTOCOL_ERROR, true, "SPDY Compression failure.");
           return;
@@ -1314,6 +1323,8 @@ SSLClientCertType SpdySession::GetDomainBoundCertType() const {
 }
 
 void SpdySession::OnError(SpdyFramer::SpdyError error_code) {
+  RecordProtocolErrorHistogram(
+      static_cast<SpdyProtocolErrorDetails>(error_code));
   std::string description = base::StringPrintf(
       "SPDY_ERROR error_code: %d.", error_code);
   CloseSessionOnError(net::ERR_SPDY_PROTOCOL_ERROR, true, description);
@@ -1508,6 +1519,7 @@ void SpdySession::OnSynReply(const SpdySynReplyControlFrame& frame,
   if (stream->response_received()) {
     stream->LogStreamError(ERR_SYN_REPLY_NOT_RECEIVED,
                            "Received duplicate SYN_REPLY for stream.");
+    RecordProtocolErrorHistogram(PROTOCOL_ERROR_SYN_REPLY_NOT_RECEIVED);
     CloseStream(stream->stream_id(), ERR_SPDY_PROTOCOL_ERROR);
     return;
   }
@@ -1570,6 +1582,8 @@ void SpdySession::OnRstStream(const SpdyRstStreamControlFrame& frame) {
   } else if (frame.status() == REFUSED_STREAM) {
     DeleteStream(stream_id, ERR_SPDY_SERVER_REFUSED_STREAM);
   } else {
+    RecordProtocolErrorHistogram(
+        PROTOCOL_ERROR_RST_STREAM_FOR_NON_ACTIVE_STREAM);
     stream->LogStreamError(ERR_SPDY_PROTOCOL_ERROR,
                            base::StringPrintf("SPDY stream closed: %d",
                                               frame.status()));
@@ -1611,6 +1625,7 @@ void SpdySession::OnPing(const SpdyPingControlFrame& frame) {
 
   --pings_in_flight_;
   if (pings_in_flight_ < 0) {
+    RecordProtocolErrorHistogram(PROTOCOL_ERROR_UNEXPECTED_PING);
     CloseSessionOnError(
         net::ERR_SPDY_PROTOCOL_ERROR, true, "pings_in_flight_ is < 0.");
     return;
@@ -1870,6 +1885,16 @@ void SpdySession::CheckPingStatus(base::TimeTicks last_check_time) {
 
 void SpdySession::RecordPingRTTHistogram(base::TimeDelta duration) {
   UMA_HISTOGRAM_TIMES("Net.SpdyPing.RTT", duration);
+}
+
+void SpdySession::RecordProtocolErrorHistogram(
+    SpdyProtocolErrorDetails details) {
+  UMA_HISTOGRAM_ENUMERATION("Net.SpdySessionErrorDetails", details,
+                            NUM_SPDY_PROTOCOL_ERROR_DETAILS);
+  if (EndsWith(host_port_pair().host(), "google.com", false)) {
+    UMA_HISTOGRAM_ENUMERATION("Net.SpdySessionErrorDetails_Google", details,
+                              NUM_SPDY_PROTOCOL_ERROR_DETAILS);
+  }
 }
 
 void SpdySession::RecordHistograms() {
