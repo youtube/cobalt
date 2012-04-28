@@ -49,6 +49,50 @@ class BoundNetLog;
 class SpdyStream;
 class SSLInfo;
 
+enum SpdyProtocolErrorDetails {
+  // SpdyFramer::SpdyErrors
+  SPDY_ERROR_NO_ERROR,
+  SPDY_ERROR_INVALID_CONTROL_FRAME,
+  SPDY_ERROR_CONTROL_PAYLOAD_TOO_LARGE,
+  SPDY_ERROR_ZLIB_INIT_FAILURE,
+  SPDY_ERROR_UNSUPPORTED_VERSION,
+  SPDY_ERROR_DECOMPRESS_FAILURE,
+  SPDY_ERROR_COMPRESS_FAILURE,
+  SPDY_ERROR_CREDENTIAL_FRAME_CORRUPT,
+  SPDY_ERROR_INVALID_DATA_FRAME_FLAGS,
+
+  // SpdyStatusCodes
+  STATUS_CODE_INVALID,
+  STATUS_CODE_PROTOCOL_ERROR,
+  STATUS_CODE_INVALID_STREAM,
+  STATUS_CODE_REFUSED_STREAM,
+  STATUS_CODE_UNSUPPORTED_VERSION,
+  STATUS_CODE_CANCEL,
+  STATUS_CODE_INTERNAL_ERROR,
+  STATUS_CODE_FLOW_CONTROL_ERROR,
+  STATUS_CODE_STREAM_IN_USE,
+  STATUS_CODE_STREAM_ALREADY_CLOSED,
+  STATUS_CODE_INVALID_CREDENTIALS,
+  STATUS_CODE_FRAME_TOO_LARGE,
+
+  // SpdySession errors
+  PROTOCOL_ERROR_UNEXPECTED_PING,
+  PROTOCOL_ERROR_RST_STREAM_FOR_NON_ACTIVE_STREAM,
+  PROTOCOL_ERROR_SPDY_COMPRESSION_FAILURE,
+  PROTOCOL_ERROR_REQUST_FOR_SECURE_CONTENT_OVER_INSECURE_SESSION,
+  PROTOCOL_ERROR_SYN_REPLY_NOT_RECEIVED,
+  NUM_SPDY_PROTOCOL_ERROR_DETAILS
+};
+
+COMPILE_ASSERT(STATUS_CODE_INVALID ==
+               static_cast<SpdyProtocolErrorDetails>(SpdyFramer::LAST_ERROR),
+               SpdyProtocolErrorDetails_SpdyErrors_mismatch);
+
+COMPILE_ASSERT(PROTOCOL_ERROR_UNEXPECTED_PING ==
+               static_cast<SpdyProtocolErrorDetails>(NUM_STATUS_CODES +
+                                                     STATUS_CODE_INVALID),
+               SpdyProtocolErrorDetails_SpdyErrors_mismatch);
+
 class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
                                public BufferedSpdyFramerVisitorInterface {
  public:
@@ -417,6 +461,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   void RecordPingRTTHistogram(base::TimeDelta duration);
   void RecordHistograms();
+  void RecordProtocolErrorHistogram(SpdyProtocolErrorDetails details);
 
   // Closes all streams.  Used as part of shutdown.
   void CloseAllStreams(net::Error status);
