@@ -14,6 +14,7 @@
 
 #include "base/threading/thread.h"
 #include "media/video/capture/video_capture_device.h"
+#include "media/video/capture/video_capture_types.h"
 
 namespace media {
 

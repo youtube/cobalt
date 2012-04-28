@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,6 +21,7 @@
 #include "base/win/scoped_com_initializer.h"
 #include "base/win/scoped_comptr.h"
 #include "media/video/capture/video_capture_device.h"
+#include "media/video/capture/video_capture_types.h"
 #include "media/video/capture/win/sink_filter_win.h"
 #include "media/video/capture/win/sink_input_pin_win.h"
 
@@ -54,7 +55,7 @@ class VideoCaptureDeviceWin
     kError  // Error accessing HW functions.
             // User needs to recover by destroying the object.
   };
-  typedef std::map<int, Capability> CapabilityMap;
+  typedef std::map<int, VideoCaptureCapability> CapabilityMap;
 
   // Implements SinkFilterObserver.
   virtual void FrameReceived(const uint8* buffer, int length);

@@ -148,7 +148,7 @@ struct ResolutionDiff {
   int diff_height;
   int diff_width;
   int diff_frame_rate;
-  media::VideoCaptureDevice::Format color;
+  media::VideoCaptureCapability::Format color;
 };
 
 bool CompareHeight(const ResolutionDiff& item1, const ResolutionDiff& item2) {
@@ -338,7 +338,7 @@ void VideoCaptureDeviceWin::Allocate(
   // Get the camera capability that best match the requested resolution.
   const int capability_index = GetBestMatchedCapability(width, height,
                                                         frame_rate);
-  Capability capability = capabilities_[capability_index];
+  VideoCaptureCapability capability = capabilities_[capability_index];
 
   // Reduce the frame rate if the requested frame rate is lower
   // than the capability.
@@ -373,7 +373,8 @@ void VideoCaptureDeviceWin::Allocate(
   if (FAILED(hr))
     SetErrorState("Failed to set capture device output format");
 
-  if (capability.color == VideoCaptureDevice::kMJPEG && !mjpg_filter_.get()) {
+  if (capability.color == VideoCaptureCapability::kMJPEG &&
+      !mjpg_filter_.get()) {
     // Create MJPG filter if we need it.
     hr = mjpg_filter_.CreateInstance(CLSID_MjpegDec, NULL, CLSCTX_INPROC);
 
@@ -391,7 +392,8 @@ void VideoCaptureDeviceWin::Allocate(
     }
   }
 
-  if (capability.color == VideoCaptureDevice::kMJPEG && mjpg_filter_.get()) {
+  if (capability.color == VideoCaptureCapability::kMJPEG &&
+      mjpg_filter_.get()) {
     // Connect the camera to the MJPEG decoder.
     hr = graph_builder_->ConnectDirect(output_capture_pin_, input_mjpg_pin_,
                                        NULL);
@@ -417,7 +419,8 @@ void VideoCaptureDeviceWin::Allocate(
 
   // Get the capability back from the sink filter after the filter have been
   // connected.
-  const Capability& used_capability = sink_filter_->ResultingCapability();
+  const VideoCaptureCapability& used_capability
+      = sink_filter_->ResultingCapability();
   observer_->OnFrameInfo(used_capability);
 
   state_ = kAllocated;
@@ -515,7 +518,7 @@ bool VideoCaptureDeviceWin::CreateCapabilityMap() {
 
     if (media_type->majortype == MEDIATYPE_Video &&
         media_type->formattype == FORMAT_VideoInfo) {
-      Capability capability;
+      VideoCaptureCapability capability;
       REFERENCE_TIME time_per_frame = 0;
 
       VIDEOINFOHEADER* h =
@@ -559,16 +562,16 @@ bool VideoCaptureDeviceWin::CreateCapabilityMap() {
 
       // We can't switch MEDIATYPE :~(.
       if (media_type->subtype == kMediaSubTypeI420) {
-        capability.color = VideoCaptureDevice::kI420;
+        capability.color = VideoCaptureCapability::kI420;
       } else if (media_type->subtype == MEDIASUBTYPE_IYUV) {
         // This is identical to kI420.
-        capability.color = VideoCaptureDevice::kI420;
+        capability.color = VideoCaptureCapability::kI420;
       } else if (media_type->subtype == MEDIASUBTYPE_RGB24) {
-        capability.color = VideoCaptureDevice::kRGB24;
+        capability.color = VideoCaptureCapability::kRGB24;
       } else if (media_type->subtype == MEDIASUBTYPE_YUY2) {
-        capability.color = VideoCaptureDevice::kYUY2;
+        capability.color = VideoCaptureCapability::kYUY2;
       } else if (media_type->subtype == MEDIASUBTYPE_MJPG) {
-        capability.color = VideoCaptureDevice::kMJPEG;
+        capability.color = VideoCaptureCapability::kMJPEG;
       } else {
         WCHAR guid_str[128];
         StringFromGUID2(media_type->subtype, guid_str, arraysize(guid_str));
@@ -598,7 +601,7 @@ int VideoCaptureDeviceWin::GetBestMatchedCapability(int requested_width,
   for (CapabilityMap::iterator iterator = capabilities_.begin();
        iterator != capabilities_.end();
        ++iterator) {
-    Capability capability = iterator->second;
+    VideoCaptureCapability capability = iterator->second;
 
     ResolutionDiff diff;
     diff.capability_index = iterator->first;

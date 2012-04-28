@@ -39,7 +39,7 @@ class MockFrameObserver : public media::VideoCaptureDevice::EventHandler {
   }
 
   virtual void OnFrameInfo(
-      const VideoCaptureDevice::Capability& info) OVERRIDE {
+      const VideoCaptureCapability& info) OVERRIDE {
     OnFrameInfo(info.width, info.height, info.frame_rate);
   }
 

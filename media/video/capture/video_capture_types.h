@@ -23,10 +23,23 @@ struct VideoCaptureParams {
 
 // Capabilities describe the format a camera capture video in.
 struct VideoCaptureCapability {
+  // Color formats from camera.
+  enum Format {
+    kColorUnknown,  // Color format not set.
+    kI420,
+    kYUY2,
+    kUYVY,
+    kRGB24,
+    kARGB,
+    kMJPEG,  // Currently only supported on Windows.
+    kNV21,
+    kYV12,
+  };
+
   int width;  // Desired width.
   int height;  // Desired height.
   int frame_rate;  // Desired frame rate.
-  media::VideoFrame::Format color;  // Desired video type.
+  Format color;  // Desired video type.
   int expected_capture_delay;  // Expected delay in millisecond.
   bool interlaced;  // Need interlace format.
 };
