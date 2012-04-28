@@ -175,6 +175,9 @@ class CallSystemHostResolverProc : public HostResolverProc {
                                   addr_list,
                                   os_error);
   }
+
+ protected:
+  virtual ~CallSystemHostResolverProc() {}
 };
 
 // Extra parameters to attach to the NetLog when the resolve failed.
@@ -216,6 +219,9 @@ class ProcTaskFailedParams : public NetLog::EventParameters {
     return dict;
   }
 
+ protected:
+  virtual ~ProcTaskFailedParams() {}
+
  private:
   const uint32 attempt_number_;
   const int net_error_;
@@ -236,6 +242,9 @@ class DnsTaskFailedParams : public NetLog::EventParameters {
       dict->SetInteger("dns_error", dns_error_);
     return dict;
   }
+
+ protected:
+  virtual ~DnsTaskFailedParams() {}
 
  private:
   const int net_error_;
@@ -265,6 +274,9 @@ class RequestInfoParameters : public NetLog::EventParameters {
     return dict;
   }
 
+ protected:
+  virtual ~RequestInfoParameters() {}
+
  private:
   const HostResolver::RequestInfo info_;
   const NetLog::Source source_;
@@ -284,6 +296,9 @@ class JobCreationParameters : public NetLog::EventParameters {
     return dict;
   }
 
+ protected:
+  virtual ~JobCreationParameters() {}
+
  private:
   const std::string host_;
   const NetLog::Source source_;
@@ -302,6 +317,9 @@ class JobAttachParameters : public NetLog::EventParameters {
     dict->SetInteger("priority", priority_);
     return dict;
   }
+
+ protected:
+  virtual ~JobAttachParameters() {}
 
  private:
   const NetLog::Source source_;
@@ -325,6 +343,9 @@ class DnsConfigParameters : public NetLog::EventParameters {
       dict->SetInteger("num_hosts", num_hosts_);
     return value;
   }
+
+ protected:
+  virtual ~DnsConfigParameters() {}
 
  private:
   DnsConfig config_;  // Does not include DnsHosts to save memory and work.
@@ -635,6 +656,9 @@ class HostResolverImpl::ProcTask
   }
 
  private:
+  friend class base::RefCountedThreadSafe<ProcTask>;
+  ~ProcTask() {}
+
   void StartLookupAttempt() {
     DCHECK(origin_loop_->BelongsToCurrentThread());
     base::TimeTicks start_time = base::TimeTicks::Now();

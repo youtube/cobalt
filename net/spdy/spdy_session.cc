@@ -49,9 +49,6 @@ NetLogSpdySynParameter::NetLogSpdySynParameter(
       associated_stream_(associated_stream) {
 }
 
-NetLogSpdySynParameter::~NetLogSpdySynParameter() {
-}
-
 Value* NetLogSpdySynParameter::ToValue() const {
   DictionaryValue* dict = new DictionaryValue();
   ListValue* headers_list = new ListValue();
@@ -68,14 +65,13 @@ Value* NetLogSpdySynParameter::ToValue() const {
   return dict;
 }
 
+NetLogSpdySynParameter::~NetLogSpdySynParameter() {}
+
 NetLogSpdyCredentialParameter::NetLogSpdyCredentialParameter(
     size_t slot,
     const std::string& origin)
     : slot_(slot),
       origin_(origin) {
-}
-
-NetLogSpdyCredentialParameter::~NetLogSpdyCredentialParameter() {
 }
 
 Value* NetLogSpdyCredentialParameter::ToValue() const {
@@ -85,13 +81,13 @@ Value* NetLogSpdyCredentialParameter::ToValue() const {
   return dict;
 }
 
+NetLogSpdyCredentialParameter::~NetLogSpdyCredentialParameter() {}
+
 NetLogSpdySessionCloseParameter::NetLogSpdySessionCloseParameter(
     int status,
     const std::string& description)
     : status_(status),
-      description_(description) {}
-
-NetLogSpdySessionCloseParameter::~NetLogSpdySessionCloseParameter() {
+      description_(description) {
 }
 
 Value* NetLogSpdySessionCloseParameter::ToValue() const {
@@ -100,6 +96,8 @@ Value* NetLogSpdySessionCloseParameter::ToValue() const {
   dict->SetString("description", description_);
   return dict;
 }
+
+NetLogSpdySessionCloseParameter::~NetLogSpdySessionCloseParameter() {}
 
 namespace {
 
@@ -112,13 +110,17 @@ class NetLogSpdySessionParameter : public NetLog::EventParameters {
  public:
   NetLogSpdySessionParameter(const HostPortProxyPair& host_pair)
       : host_pair_(host_pair) {}
+
   virtual Value* ToValue() const {
     DictionaryValue* dict = new DictionaryValue();
     dict->Set("host", new StringValue(host_pair_.first.ToString()));
     dict->Set("proxy", new StringValue(host_pair_.second.ToPacString()));
     return dict;
   }
+
  private:
+  virtual ~NetLogSpdySessionParameter() {}
+
   const HostPortProxyPair host_pair_;
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdySessionParameter);
 };
@@ -142,7 +144,8 @@ class NetLogSpdySettingParameter : public NetLog::EventParameters {
   }
 
  private:
-  ~NetLogSpdySettingParameter() {}
+  virtual ~NetLogSpdySettingParameter() {}
+
   const SpdySettingsIds id_;
   const SpdySettingsFlags flags_;
   const uint32 value_;

@@ -23,6 +23,9 @@ class FileStreamErrorParameters : public net::NetLog::EventParameters {
                             net::Error net_error);
   virtual base::Value* ToValue() const OVERRIDE;
 
+ protected:
+  virtual ~FileStreamErrorParameters();
+
  private:
   std::string operation_;
   int os_error_;

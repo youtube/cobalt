@@ -37,6 +37,7 @@ class SyncHostResolverBridge::Core
 
  private:
   friend class base::RefCountedThreadSafe<SyncHostResolverBridge::Core>;
+  ~Core() {}
 
   bool HasShutdownLocked() const {
     return has_shutdown_;

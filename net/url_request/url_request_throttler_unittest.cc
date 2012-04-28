@@ -49,7 +49,6 @@ class MockURLRequestThrottlerEntry : public URLRequestThrottlerEntry {
     set_exponential_backoff_release_time(exponential_backoff_release_time);
     set_sliding_window_release_time(sliding_window_release_time);
   }
-  virtual ~MockURLRequestThrottlerEntry() {}
 
   void InitPolicy() {
     // Some tests become flaky if we have jitter.
@@ -101,6 +100,9 @@ class MockURLRequestThrottlerEntry : public URLRequestThrottlerEntry {
 
   TimeTicks fake_time_now_;
   MockBackoffEntry mock_backoff_entry_;
+
+ protected:
+  virtual ~MockURLRequestThrottlerEntry() {}
 };
 
 class MockURLRequestThrottlerManager : public URLRequestThrottlerManager {

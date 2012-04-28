@@ -197,9 +197,10 @@ class MockHostResolverProc : public HostResolverProc {
     return num_requests_waiting_ > num_slots_available_;
   }
 
- private:
+ protected:
   ~MockHostResolverProc() {}
 
+ private:
   mutable base::Lock lock_;
   std::map<ResolveKey, AddressList> rules_;
   CaptureList capture_list_;
@@ -434,9 +435,10 @@ class LookupAttemptHostResolverProc : public HostResolverProc {
       return result;
   }
 
- private:
+ protected:
   virtual ~LookupAttemptHostResolverProc() {}
 
+ private:
   int attempt_number_to_resolve_;
   int current_attempt_number_;  // Incremented whenever Resolve is called.
   int total_attempts_;

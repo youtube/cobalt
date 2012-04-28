@@ -44,7 +44,6 @@ class MockSocketStream : public net::SocketStream {
  public:
   MockSocketStream(const GURL& url, net::SocketStream::Delegate* delegate)
       : SocketStream(url, delegate) {}
-  virtual ~MockSocketStream() {}
 
   virtual void Connect() OVERRIDE {}
   virtual bool SendData(const char* data, int len) OVERRIDE {
@@ -64,6 +63,9 @@ class MockSocketStream : public net::SocketStream {
   const std::string& sent_data() const {
     return sent_data_;
   }
+
+ protected:
+  virtual ~MockSocketStream() {}
 
  private:
   std::string sent_data_;
@@ -94,24 +96,26 @@ class MockSocketStreamDelegate : public net::SocketStream::Delegate {
     on_close_ = callback;
   }
 
-  virtual int OnStartOpenConnection(net::SocketStream* socket,
-                                    const net::CompletionCallback& callback) {
+  virtual int OnStartOpenConnection(
+      net::SocketStream* socket,
+      const net::CompletionCallback& callback) OVERRIDE {
     if (!on_start_open_connection_.is_null())
       on_start_open_connection_.Run();
     return net::OK;
   }
   virtual void OnConnected(net::SocketStream* socket,
-                           int max_pending_send_allowed) {
+                           int max_pending_send_allowed) OVERRIDE {
     if (!on_connected_.is_null())
       on_connected_.Run();
   }
-  virtual void OnSentData(net::SocketStream* socket, int amount_sent) {
+  virtual void OnSentData(net::SocketStream* socket,
+                          int amount_sent) OVERRIDE {
     amount_sent_ += amount_sent;
     if (!on_sent_data_.is_null())
       on_sent_data_.Run();
   }
   virtual void OnReceivedData(net::SocketStream* socket,
-                              const char* data, int len) {
+                              const char* data, int len) OVERRIDE {
     received_data_ += std::string(data, len);
     if (!on_received_data_.is_null())
       on_received_data_.Run();
@@ -120,13 +124,14 @@ class MockSocketStreamDelegate : public net::SocketStream::Delegate {
     if (!on_close_.is_null())
       on_close_.Run();
   }
-  virtual bool CanGetCookies(net::SocketStream* socket, const GURL& url) {
+  virtual bool CanGetCookies(net::SocketStream* socket,
+                             const GURL& url) OVERRIDE {
     return allow_all_cookies_;
   }
   virtual bool CanSetCookie(net::SocketStream* request,
                             const GURL& url,
                             const std::string& cookie_line,
-                            net::CookieOptions* options) {
+                            net::CookieOptions* options) OVERRIDE {
     return allow_all_cookies_;
   }
 
@@ -151,11 +156,12 @@ class MockCookieStore : public net::CookieStore {
     std::string cookie_line;
     net::CookieOptions options;
   };
+
   MockCookieStore() {}
 
-  virtual bool SetCookieWithOptions(const GURL& url,
-                                    const std::string& cookie_line,
-                                    const net::CookieOptions& options) {
+  bool SetCookieWithOptions(const GURL& url,
+                            const std::string& cookie_line,
+                            const net::CookieOptions& options) {
     Entry entry;
     entry.url = url;
     entry.cookie_line = cookie_line;
@@ -164,18 +170,8 @@ class MockCookieStore : public net::CookieStore {
     return true;
   }
 
-  virtual void SetCookieWithOptionsAsync(
-      const GURL& url,
-      const std::string& cookie_line,
-      const net::CookieOptions& options,
-      const SetCookiesCallback& callback) {
-    bool result = SetCookieWithOptions(url, cookie_line, options);
-    if (!callback.is_null())
-      callback.Run(result);
-  }
-  virtual std::string GetCookiesWithOptions(
-      const GURL& url,
-      const net::CookieOptions& options) {
+  std::string GetCookiesWithOptions(const GURL& url,
+                                    const net::CookieOptions& options) {
     std::string result;
     for (size_t i = 0; i < entries_.size(); i++) {
       Entry &entry = entries_[i];
@@ -188,44 +184,51 @@ class MockCookieStore : public net::CookieStore {
     }
     return result;
   }
+
+  // CookieStore:
+  virtual void SetCookieWithOptionsAsync(
+      const GURL& url,
+      const std::string& cookie_line,
+      const net::CookieOptions& options,
+      const SetCookiesCallback& callback) OVERRIDE {
+    bool result = SetCookieWithOptions(url, cookie_line, options);
+    if (!callback.is_null())
+      callback.Run(result);
+  }
+
   virtual void GetCookiesWithOptionsAsync(
       const GURL& url,
       const net::CookieOptions& options,
-      const GetCookiesCallback& callback) {
-  if (!callback.is_null())
-    callback.Run(GetCookiesWithOptions(url, options));
+      const GetCookiesCallback& callback) OVERRIDE {
+    if (!callback.is_null())
+      callback.Run(GetCookiesWithOptions(url, options));
   }
-  virtual void GetCookiesWithInfo(const GURL& url,
-                                  const net::CookieOptions& options,
-                                  std::string* cookie_line,
-                                  std::vector<CookieInfo>* cookie_infos) {
-    ADD_FAILURE();
-  }
+
   virtual void GetCookiesWithInfoAsync(
       const GURL& url,
       const net::CookieOptions& options,
-      const GetCookieInfoCallback& callback) {
-    ADD_FAILURE();
-  }
-  virtual void DeleteCookie(const GURL& url,
-                            const std::string& cookie_name) {
-    ADD_FAILURE();
-  }
-  virtual void DeleteCookieAsync(const GURL& url,
-                                 const std::string& cookie_name,
-                                 const base::Closure& callback) {
-    ADD_FAILURE();
-  }
-  virtual void DeleteAllCreatedBetweenAsync(const base::Time& delete_begin,
-                                            const base::Time& delete_end,
-                                            const DeleteCallback& callback) {
-    ADD_FAILURE();
-  }
-  virtual void DeleteSessionCookiesAsync(const DeleteCallback&) {
+      const GetCookieInfoCallback& callback) OVERRIDE {
     ADD_FAILURE();
   }
 
-  virtual net::CookieMonster* GetCookieMonster() { return NULL; }
+  virtual void DeleteCookieAsync(const GURL& url,
+                                 const std::string& cookie_name,
+                                 const base::Closure& callback) OVERRIDE {
+    ADD_FAILURE();
+  }
+
+  virtual void DeleteAllCreatedBetweenAsync(
+      const base::Time& delete_begin,
+      const base::Time& delete_end,
+      const DeleteCallback& callback) OVERRIDE {
+    ADD_FAILURE();
+  }
+
+  virtual void DeleteSessionCookiesAsync(const DeleteCallback&) OVERRIDE {
+    ADD_FAILURE();
+  }
+
+  virtual net::CookieMonster* GetCookieMonster() OVERRIDE { return NULL; }
 
   const std::vector<Entry>& entries() const { return entries_; }
 
@@ -238,7 +241,10 @@ class MockCookieStore : public net::CookieStore {
 
 class MockSSLConfigService : public net::SSLConfigService {
  public:
-  virtual void GetSSLConfig(net::SSLConfig* config) {};
+  virtual void GetSSLConfig(net::SSLConfig* config) OVERRIDE {}
+
+ protected:
+  virtual ~MockSSLConfigService() {}
 };
 
 class MockURLRequestContext : public net::URLRequestContext {
@@ -252,10 +258,11 @@ class MockURLRequestContext : public net::URLRequestContext {
     transport_security_state_.EnableHost("upgrademe.com", state);
   }
 
- private:
+ protected:
   friend class base::RefCountedThreadSafe<MockURLRequestContext>;
   virtual ~MockURLRequestContext() {}
 
+ private:
   net::TransportSecurityState transport_security_state_;
 };
 
@@ -295,17 +302,22 @@ class MockHttpTransactionFactory : public net::HttpTransactionFactory {
     EXPECT_EQ(net::OK,
               session_->InitializeWithSocket(connection, false, net::OK));
   }
-  virtual int CreateTransaction(scoped_ptr<net::HttpTransaction>* trans) {
+
+  virtual int CreateTransaction(
+      scoped_ptr<net::HttpTransaction>* trans) OVERRIDE {
     NOTREACHED();
     return net::ERR_UNEXPECTED;
   }
-  virtual net::HttpCache* GetCache() {
+
+  virtual net::HttpCache* GetCache() OVERRIDE {
     NOTREACHED();
     return NULL;
   }
-  virtual net::HttpNetworkSession* GetSession() {
+
+  virtual net::HttpNetworkSession* GetSession() OVERRIDE {
     return http_session_.get();
   }
+
  private:
   net::OrderedSocketData* data_;
   scoped_ptr<SpdySessionDependencies> session_deps_;
@@ -321,13 +333,13 @@ namespace net {
 
 class WebSocketJobSpdy2Test : public PlatformTest {
  public:
-  virtual void SetUp() {
+  virtual void SetUp() OVERRIDE {
     SpdySession::set_default_protocol(kProtoSPDY2);
     stream_type_ = STREAM_INVALID;
     cookie_store_ = new MockCookieStore;
     context_ = new MockURLRequestContext(cookie_store_.get());
   }
-  virtual void TearDown() {
+  virtual void TearDown() OVERRIDE {
     cookie_store_ = NULL;
     context_ = NULL;
     websocket_ = NULL;
