@@ -131,7 +131,7 @@ class VideoRendererBaseTest : public ::testing::Test {
     VideoDecoder::ReadCB read_cb(queued_read_cb_);
     queued_read_cb_.Reset();
     base::AutoUnlock u(lock_);
-    read_cb.Run(VideoFrame::CreateEmptyFrame());
+    read_cb.Run(VideoDecoder::kOk, VideoFrame::CreateEmptyFrame());
   }
 
   void StartSeeking(int64 timestamp) {
@@ -192,15 +192,25 @@ class VideoRendererBaseTest : public ::testing::Test {
     VideoDecoder::ReadCB read_cb;
     {
       base::AutoLock l(lock_);
-      CHECK(!read_cb_.is_null()) << "Can't deliver a frame without a callback";
       std::swap(read_cb, read_cb_);
     }
 
     if (timestamp == kEndOfStream) {
-      read_cb.Run(VideoFrame::CreateEmptyFrame());
+      read_cb.Run(VideoDecoder::kOk, VideoFrame::CreateEmptyFrame());
     } else {
-      read_cb.Run(CreateFrame(timestamp, kFrameDuration));
+      read_cb.Run(VideoDecoder::kOk, CreateFrame(timestamp, kFrameDuration));
     }
+  }
+
+  void DecoderError() {
+    // Lock+swap to avoid re-entrancy issues.
+    VideoDecoder::ReadCB read_cb;
+    {
+      base::AutoLock l(lock_);
+      std::swap(read_cb, read_cb_);
+    }
+
+    read_cb.Run(VideoDecoder::kDecodeError, NULL);
   }
 
   void AbortRead() {
@@ -208,11 +218,10 @@ class VideoRendererBaseTest : public ::testing::Test {
     VideoDecoder::ReadCB read_cb;
     {
       base::AutoLock l(lock_);
-      CHECK(!read_cb_.is_null()) << "Can't deliver a frame without a callback";
       std::swap(read_cb, read_cb_);
     }
 
-    read_cb.Run(NULL);
+    read_cb.Run(VideoDecoder::kOk, NULL);
   }
 
   void ExpectCurrentFrame(bool present) {
@@ -335,7 +344,7 @@ class VideoRendererBaseTest : public ::testing::Test {
 
     // Abort pending read.
     if (!read_cb.is_null())
-      read_cb.Run(NULL);
+      read_cb.Run(VideoDecoder::kOk, NULL);
 
     callback.Run();
   }
@@ -364,9 +373,10 @@ class VideoRendererBaseTest : public ::testing::Test {
         // Unlock to deliver the frame to avoid re-entrancy issues.
         base::AutoUnlock ul(lock_);
         if (timestamp == kEndOfStream) {
-          read_cb.Run(VideoFrame::CreateEmptyFrame());
+          read_cb.Run(VideoDecoder::kOk, VideoFrame::CreateEmptyFrame());
         } else {
-          read_cb.Run(CreateFrame(i * kFrameDuration, kFrameDuration));
+          read_cb.Run(VideoDecoder::kOk,
+                      CreateFrame(i * kFrameDuration, kFrameDuration));
           i++;
         }
       } else {
@@ -441,6 +451,15 @@ TEST_F(VideoRendererBaseTest, EndOfStream) {
   DeliverFrame(kEndOfStream);
   RenderLastFrame(kFrameDuration * limits::kMaxVideoFrames);
 
+  Shutdown();
+}
+
+TEST_F(VideoRendererBaseTest, DecoderError) {
+  Initialize();
+  Play();
+  RenderFrame(kFrameDuration);
+  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_DECODE));
+  DecoderError();
   Shutdown();
 }
 

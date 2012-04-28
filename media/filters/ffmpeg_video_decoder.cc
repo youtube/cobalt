@@ -5,11 +5,11 @@
 #include "media/filters/ffmpeg_video_decoder.h"
 
 #include "base/bind.h"
+#include "base/callback_helpers.h"
 #include "base/command_line.h"
 #include "base/message_loop.h"
 #include "base/string_number_conversions.h"
 #include "media/base/demuxer_stream.h"
-#include "media/base/filter_host.h"
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
 #include "media/base/pipeline.h"
@@ -212,7 +212,7 @@ void FFmpegVideoDecoder::DoRead(const ReadCB& read_cb) {
 
   // Return empty frames if decoding has finished.
   if (state_ == kDecodeFinished) {
-    read_cb.Run(VideoFrame::CreateEmptyFrame());
+    read_cb.Run(kOk, VideoFrame::CreateEmptyFrame());
     return;
   }
 
@@ -288,8 +288,7 @@ void FFmpegVideoDecoder::DoDecodeBuffer(const scoped_refptr<Buffer>& buffer) {
     unencrypted_buffer = decryptor_.Decrypt(buffer);
     if (!unencrypted_buffer || !unencrypted_buffer->GetDataSize()) {
       state_ = kDecodeFinished;
-      DeliverFrame(VideoFrame::CreateEmptyFrame());
-      host()->SetError(PIPELINE_ERROR_DECRYPT);
+      base::ResetAndReturn(&read_cb_).Run(kDecryptError, NULL);
       return;
     }
   }
@@ -297,8 +296,7 @@ void FFmpegVideoDecoder::DoDecodeBuffer(const scoped_refptr<Buffer>& buffer) {
   scoped_refptr<VideoFrame> video_frame;
   if (!Decode(unencrypted_buffer, &video_frame)) {
     state_ = kDecodeFinished;
-    DeliverFrame(VideoFrame::CreateEmptyFrame());
-    host()->SetError(PIPELINE_ERROR_DECODE);
+    base::ResetAndReturn(&read_cb_).Run(kDecodeError, NULL);
     return;
   }
 
@@ -423,9 +421,7 @@ bool FFmpegVideoDecoder::Decode(
 void FFmpegVideoDecoder::DeliverFrame(
     const scoped_refptr<VideoFrame>& video_frame) {
   // Reset the callback before running to protect against reentrancy.
-  ReadCB read_cb = read_cb_;
-  read_cb_.Reset();
-  read_cb.Run(video_frame);
+  base::ResetAndReturn(&read_cb_).Run(kOk, video_frame);
 }
 
 void FFmpegVideoDecoder::ReleaseFFmpegResources() {

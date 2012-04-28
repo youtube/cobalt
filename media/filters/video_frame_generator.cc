@@ -80,7 +80,7 @@ void VideoFrameGenerator::ReadOnDecoderThread(const ReadCB& read_cb) {
   // TODO(wjia): set pixel data to pre-defined patterns if it's desired to
   // verify frame content.
 
-  read_cb.Run(video_frame);
+  read_cb.Run(kOk, video_frame);
 }
 
 void VideoFrameGenerator::StopOnDecoderThread(const base::Closure& callback) {
