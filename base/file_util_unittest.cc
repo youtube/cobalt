@@ -1790,6 +1790,34 @@ TEST_F(FileUtilTest, FileEnumeratorTest) {
                                             // (we don't care what).
 }
 
+TEST_F(FileUtilTest, AppendToFile) {
+  FilePath data_dir =
+      temp_dir_.path().Append(FILE_PATH_LITERAL("FilePathTest"));
+
+  // Create a fresh, empty copy of this directory.
+  if (file_util::PathExists(data_dir)) {
+    ASSERT_TRUE(file_util::Delete(data_dir, true));
+  }
+  ASSERT_TRUE(file_util::CreateDirectory(data_dir));
+
+  // Create a fresh, empty copy of this directory.
+  if (file_util::PathExists(data_dir)) {
+    ASSERT_TRUE(file_util::Delete(data_dir, true));
+  }
+  ASSERT_TRUE(file_util::CreateDirectory(data_dir));
+  FilePath foobar(data_dir.Append(FILE_PATH_LITERAL("foobar.txt")));
+
+  std::string data("hello");
+  EXPECT_EQ(-1, file_util::AppendToFile(foobar, data.c_str(), data.length()));
+  EXPECT_EQ(static_cast<int>(data.length()),
+            file_util::WriteFile(foobar, data.c_str(), data.length()));
+  EXPECT_EQ(static_cast<int>(data.length()),
+            file_util::AppendToFile(foobar, data.c_str(), data.length()));
+
+  const std::wstring read_content = ReadTextFile(foobar);
+  EXPECT_EQ(L"hellohello", read_content);
+}
+
 TEST_F(FileUtilTest, Contains) {
   FilePath data_dir =
       temp_dir_.path().Append(FILE_PATH_LITERAL("FilePathTest"));
