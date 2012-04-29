@@ -722,6 +722,38 @@ int WriteFile(const FilePath& filename, const char* data, int size) {
   return -1;
 }
 
+int AppendToFile(const FilePath& filename, const char* data, int size) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  base::win::ScopedHandle file(CreateFile(filename.value().c_str(),
+                                          FILE_APPEND_DATA,
+                                          0,
+                                          NULL,
+                                          OPEN_EXISTING,
+                                          0,
+                                          NULL));
+  if (!file) {
+    DLOG(WARNING) << "CreateFile failed for path " << filename.value()
+                  << " error code=" << GetLastError();
+    return -1;
+  }
+
+  DWORD written;
+  BOOL result = ::WriteFile(file, data, size, &written, NULL);
+  if (result && static_cast<int>(written) == size)
+    return written;
+
+  if (!result) {
+    // WriteFile failed.
+    DLOG(WARNING) << "writing file " << filename.value()
+                  << " failed, error code=" << GetLastError();
+  } else {
+    // Didn't write all the bytes.
+    DLOG(WARNING) << "wrote" << written << " bytes to "
+                  << filename.value() << " expected " << size;
+  }
+  return -1;
+}
+
 // Gets the current working directory for the process.
 bool GetCurrentDirectory(FilePath* dir) {
   base::ThreadRestrictions::AssertIOAllowed();
