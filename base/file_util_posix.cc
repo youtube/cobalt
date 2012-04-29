@@ -664,6 +664,18 @@ int WriteFileDescriptor(const int fd, const char* data, int size) {
   return bytes_written_total;
 }
 
+int AppendToFile(const FilePath& filename, const char* data, int size) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  int fd = HANDLE_EINTR(open(filename.value().c_str(), O_WRONLY | O_APPEND));
+  if (fd < 0)
+    return -1;
+
+  int bytes_written = WriteFileDescriptor(fd, data, size);
+  if (int ret = HANDLE_EINTR(close(fd)) < 0)
+    return ret;
+  return bytes_written;
+}
+
 // Gets the current working directory for the process.
 bool GetCurrentDirectory(FilePath* dir) {
   // getcwd can return ENOENT, which implies it checks against the disk.
