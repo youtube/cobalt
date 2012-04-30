@@ -65,6 +65,12 @@ uint64 GenerateURLRequestIdentifier() {
   return g_next_url_request_identifier++;
 }
 
+// True once the first URLRequest was started.
+bool g_url_requests_started = false;
+
+// True if cookies are accepted by default.
+bool g_default_can_use_cookies = true;
+
 }  // namespace
 
 URLRequest::ProtocolFactory*
@@ -322,6 +328,12 @@ int URLRequest::GetResponseCode() {
 }
 
 // static
+void URLRequest::SetDefaultCookiePolicyToBlock() {
+  CHECK(!g_url_requests_started);
+  g_default_can_use_cookies = false;
+}
+
+// static
 bool URLRequest::IsHandledProtocol(const std::string& scheme) {
   return URLRequestJobManager::GetInstance()->SupportsScheme(scheme);
 }
@@ -380,6 +392,7 @@ void URLRequest::set_delegate(Delegate* delegate) {
 }
 
 void URLRequest::Start() {
+  g_url_requests_started = true;
   response_info_.request_time = Time::Now();
 
   // Only notify the delegate for the initial request.
@@ -831,7 +844,7 @@ bool URLRequest::CanGetCookies(const CookieList& cookie_list) const {
     return context_->network_delegate()->NotifyReadingCookies(this,
                                                               cookie_list);
   }
-  return false;
+  return g_default_can_use_cookies;
 }
 
 bool URLRequest::CanSetCookie(const std::string& cookie_line,
@@ -842,7 +855,7 @@ bool URLRequest::CanSetCookie(const std::string& cookie_line,
                                                              cookie_line,
                                                              options);
   }
-  return false;
+  return g_default_can_use_cookies;
 }
 
 
