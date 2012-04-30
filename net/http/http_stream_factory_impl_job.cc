@@ -910,7 +910,6 @@ int HttpStreamFactoryImpl::Job::DoCreateStream() {
   if (!using_spdy_) {
     bool using_proxy = (proxy_info_.is_http() || proxy_info_.is_https()) &&
         request_info_.url.SchemeIs("http");
-    // TODO(simonjam): Support proxies.
     if (stream_factory_->http_pipelined_host_pool_.
             IsExistingPipelineAvailableForKey(*http_pipelining_key_.get())) {
       stream_.reset(stream_factory_->http_pipelined_host_pool_.
@@ -918,6 +917,7 @@ int HttpStreamFactoryImpl::Job::DoCreateStream() {
                         *http_pipelining_key_.get()));
       CHECK(stream_.get());
     } else if (!using_proxy && IsRequestEligibleForPipelining()) {
+      // TODO(simonjam): Support proxies.
       stream_.reset(
           stream_factory_->http_pipelined_host_pool_.CreateStreamOnNewPipeline(
               *http_pipelining_key_.get(),
@@ -1245,6 +1245,12 @@ bool HttpStreamFactoryImpl::Job::IsRequestEligibleForPipelining() {
     return false;
   }
   if (request_info_.method != "GET" && request_info_.method != "HEAD") {
+    return false;
+  }
+  if (request_info_.load_flags &
+      (net::LOAD_MAIN_FRAME | net::LOAD_SUB_FRAME | net::LOAD_PREFETCH |
+       net::LOAD_IS_DOWNLOAD)) {
+    // Avoid pipelining resources that may be streamed for a long time.
     return false;
   }
   return stream_factory_->http_pipelined_host_pool_.IsKeyEligibleForPipelining(
