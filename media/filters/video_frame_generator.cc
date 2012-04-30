@@ -39,6 +39,10 @@ void VideoFrameGenerator::Read(const ReadCB& read_cb) {
       base::Bind(&VideoFrameGenerator::ReadOnDecoderThread, this, read_cb));
 }
 
+void VideoFrameGenerator::Flush(const base::Closure& flush_cb) {
+  message_loop_proxy_->PostTask(FROM_HERE, flush_cb);
+}
+
 const gfx::Size& VideoFrameGenerator::natural_size() {
   return natural_size_;
 }

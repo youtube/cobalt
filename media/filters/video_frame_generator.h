@@ -37,6 +37,7 @@ class MEDIA_EXPORT VideoFrameGenerator
       const PipelineStatusCB& status_cb,
       const StatisticsCB& statistics_cb) OVERRIDE;
   virtual void Read(const ReadCB& read_cb) OVERRIDE;
+  virtual void Flush(const base::Closure& flush_cb) OVERRIDE;
   virtual const gfx::Size& natural_size() OVERRIDE;
 
  private:
