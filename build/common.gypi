@@ -322,7 +322,10 @@
       # always calls tools/isolate/isolate.py. See the script's --help for more
       # information and the valid --mode values. Meant to be overriden with
       # GYP_DEFINES.
-      'tests_run%': 'check',
+      # TODO(maruel): Converted the default from 'check' to 'noop' so work can
+      # be done while the builders are being reconfigured to check out test data
+      # files.
+      'tests_run%': 'noop',
 
        # Force rlz to use chrome's networking stack.
       'force_rlz_use_chrome_net%': 1,
