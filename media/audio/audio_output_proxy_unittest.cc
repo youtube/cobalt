@@ -16,9 +16,12 @@
 
 using ::testing::_;
 using ::testing::AllOf;
+using ::testing::DoAll;
 using ::testing::Field;
 using ::testing::Mock;
+using ::testing::NotNull;
 using ::testing::Return;
+using ::testing::SetArrayArgument;
 using media::AudioBuffersState;
 using media::AudioInputStream;
 using media::AudioManager;
@@ -462,25 +465,29 @@ TEST_F(AudioOutputProxyTest, TwoStreams_BothPlaying_Mixer) {
   EXPECT_TRUE(proxy2->Open());
 
   proxy1->Start(&callback_);
+  uint8 zeroes[4] = {0, 0, 0, 0};
   uint8 buf1[4] = {0};
   EXPECT_CALL(callback_,
-      OnMoreData(_, 4,
+      OnMoreData(NotNull(), 4,
                  AllOf(Field(&AudioBuffersState::pending_bytes, 0),
                        Field(&AudioBuffersState::hardware_delay_bytes, 0))))
-      .WillOnce(Return(4));
+      .WillOnce(DoAll(SetArrayArgument<0>(zeroes, zeroes + sizeof(zeroes)),
+                      Return(4)));
   mixer_->OnMoreData(buf1, sizeof(buf1), AudioBuffersState(0, 0));
   proxy2->Start(&callback_);
   uint8 buf2[4] = {0};
   EXPECT_CALL(callback_,
-      OnMoreData(_, 4,
+      OnMoreData(NotNull(), 4,
                  AllOf(Field(&AudioBuffersState::pending_bytes, 4),
                        Field(&AudioBuffersState::hardware_delay_bytes, 0))))
-      .WillOnce(Return(4));
+      .WillOnce(DoAll(SetArrayArgument<0>(zeroes, zeroes + sizeof(zeroes)),
+                      Return(4)));
   EXPECT_CALL(callback_,
-      OnMoreData(_, 4,
+      OnMoreData(NotNull(), 4,
                  AllOf(Field(&AudioBuffersState::pending_bytes, 0),
                        Field(&AudioBuffersState::hardware_delay_bytes, 0))))
-      .WillOnce(Return(4));
+      .WillOnce(DoAll(SetArrayArgument<0>(zeroes, zeroes + sizeof(zeroes)),
+                      Return(4)));
   mixer_->OnMoreData(buf2, sizeof(buf2), AudioBuffersState(4, 0));
   proxy1->Stop();
   proxy2->Stop();
