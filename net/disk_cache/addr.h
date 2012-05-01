@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -94,6 +94,14 @@ class NET_EXPORT_PRIVATE Addr {
     return BlockSizeForFileType(file_type());
   }
 
+  bool operator==(Addr other) const {
+    return value_ == other.value_;
+  }
+
+  bool operator!=(Addr other) const {
+    return value_ != other.value_;
+  }
+
   static int BlockSizeForFileType(FileType file_type) {
     switch (file_type) {
       case RANKINGS:
@@ -122,6 +130,8 @@ class NET_EXPORT_PRIVATE Addr {
 
   // Returns true if this address looks like a valid one.
   bool SanityCheck() const;
+  bool SanityCheckForEntry() const;
+  bool SanityCheckForRankings() const;
 
  private:
   static const uint32 kInitializedMask    = 0x80000000;

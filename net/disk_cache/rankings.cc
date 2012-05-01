@@ -724,14 +724,6 @@ void Rankings::RevertRemove(CacheRankingsBlock* node) {
   control_data_->operation = 0;
 }
 
-bool Rankings::CheckEntry(CacheRankingsBlock* rankings) {
-  if (rankings->VerifyHash())
-    return true;
-
-  // If this entry is not dirty, it is a serious problem.
-  return backend_->GetCurrentEntryId() != rankings->Data()->dirty;
-}
-
 bool Rankings::CheckLinks(CacheRankingsBlock* node, CacheRankingsBlock* prev,
                           CacheRankingsBlock* next, List* list) {
   CacheAddr node_addr = node->address().value();
@@ -787,44 +779,119 @@ bool Rankings::CheckSingleLink(CacheRankingsBlock* prev,
 }
 
 int Rankings::CheckList(List list) {
-  Addr& my_head = heads_[list];
-  Addr& my_tail = tails_[list];
-  if (!my_head.is_initialized()) {
-    if (!my_tail.is_initialized())
-      return 0;
-    // If there is no head, having a tail is an error.
-    return ERR_INVALID_TAIL;
+  Addr last1, last2;
+  int head_items;
+  int rv = CheckListSection(list, last1, last2, true,  // Head to tail.
+                            &last1, &last2, &head_items);
+  if (rv == 0)
+    return head_items;
+
+  Addr last3, last4;
+  int tail_items;
+  int rv2 = CheckListSection(list, last1, last2, false,  // Tail to head.
+                             &last3, &last4, &tail_items);
+
+  if (!head_items && rv != ERR_INVALID_NEXT)
+    rv = ERR_INVALID_HEAD;
+
+  if (!tail_items && rv2 != ERR_INVALID_NEXT)
+    rv2 = ERR_INVALID_HEAD;
+
+  int expected = control_data_->sizes[list];
+  int total_items = head_items + tail_items;
+
+  if (!count_lists_) {
+    // There's no expected value, so we'll use something else. If it looks like
+    // we can rebuild the list, we lost at least one entry.
+    if (last3 == last1 || last3 == last2 || last4 == last1 || last4 == last2)
+      expected = total_items + 1;
   }
-  // If there is no tail, having a head is an error.
-  if (!my_tail.is_initialized())
+
+  if (expected) {
+    // This histogram has an offset so that we can see small negative values. In
+    // practice, it is linear from -9 to +8.
+    UMA_HISTOGRAM_CUSTOM_COUNTS("DiskCache.LostItems(Plus10)",
+                                expected - total_items + 10, 0, 2000, 75);
+  }
+
+  const int kInvalidHead = 1;
+  const int kInvalidTail = 2;
+  const int kInvalidHeadAndTail = 3;
+  const int kOneInvalidEntry = 4;
+  const int kTwoInvalidEntries = 5;
+  const int kOneInvalidLink = 6;
+  const int kTwoInvalidLinks = 7;
+  const int kOneInvalidEntryOneInvalidLink = 8;
+
+  int error = list * 10;
+  if (rv == ERR_INVALID_HEAD && rv2 != ERR_INVALID_HEAD) {
+    error += kInvalidHead;
+  } else if (rv == ERR_INVALID_HEAD && rv2 == ERR_INVALID_HEAD) {
+    error += kInvalidHeadAndTail;
+  } else if (rv != ERR_INVALID_HEAD && rv2 == ERR_INVALID_HEAD) {
+    error += kInvalidTail;
+  } else if (rv == ERR_INVALID_ENTRY && rv2 == ERR_INVALID_ENTRY) {
+    error += kTwoInvalidEntries;
+  } else if (rv == ERR_INVALID_ENTRY && rv2 == 0) {
+    error += kOneInvalidEntry;
+  } else if (rv == ERR_INVALID_ENTRY || rv2 == ERR_INVALID_ENTRY) {
+    error += kOneInvalidEntryOneInvalidLink;
+  } else if (rv2 != 0) {
+    error += kTwoInvalidLinks;
+  } else {
+    error += kOneInvalidLink;
+  }
+  CACHE_UMA(CACHE_ERROR, "ListErrorWithListId", 0, error);
+
+  return rv;
+}
+
+// Note that the returned error codes assume a forward walk (from head to tail)
+// so they have to be adjusted accordingly by the caller. We use two stop values
+// to be able to detect a corrupt node at the end that is not linked going back.
+int Rankings::CheckListSection(List list, Addr end1, Addr end2, bool forward,
+                               Addr* last, Addr* second_last, int* num_items) {
+  Addr current = forward ? heads_[list] : tails_[list];
+  *last = *second_last = current;
+  *num_items = 0;
+  if (!current.is_initialized())
+    return ERR_NO_ERROR;
+
+  if (!current.SanityCheckForRankings())
     return ERR_INVALID_HEAD;
 
-  if (my_tail.is_separate_file())
-    return ERR_INVALID_TAIL;
-
-  if (my_head.is_separate_file())
-    return ERR_INVALID_HEAD;
-
-  int num_items = 0;
-  Addr address(my_head.value());
-  Addr prev(my_head.value());
   scoped_ptr<CacheRankingsBlock> node;
+  Addr prev_addr(current);
   do {
-    node.reset(new CacheRankingsBlock(backend_->File(address), address));
+    node.reset(new CacheRankingsBlock(backend_->File(current), current));
     node->Load();
-    if (node->Data()->prev != prev.value())
-      return ERR_INVALID_PREV;
-    if (!CheckEntry(node.get()))
+    if (!SanityCheck(node.get(), true))
       return ERR_INVALID_ENTRY;
 
-    prev.set_value(address.value());
-    address.set_value(node->Data()->next);
-    if (!address.is_initialized() || address.is_separate_file())
+    CacheAddr next = forward ? node->Data()->next : node->Data()->prev;
+    CacheAddr prev = forward ? node->Data()->prev : node->Data()->next;
+
+    if (prev != prev_addr.value())
+      return ERR_INVALID_PREV;
+
+    Addr next_addr(next);
+    if (!next_addr.SanityCheckForRankings())
       return ERR_INVALID_NEXT;
 
-    num_items++;
-  } while (node->address().value() != address.value());
-  return num_items;
+    prev_addr = current;
+    current = next_addr;
+    *second_last = *last;
+    *last = current;
+    (*num_items)++;
+
+    if (next_addr == prev_addr) {
+      Addr last = forward ? tails_[list] : heads_[list];
+      if (next_addr == last)
+        return ERR_NO_ERROR;
+      return ERR_INVALID_TAIL;
+    }
+  } while (current != end1 && current != end2);
+  return ERR_NO_ERROR;
 }
 
 bool Rankings::IsHead(CacheAddr addr, List* list) const {
