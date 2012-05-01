@@ -1982,6 +1982,26 @@ typedef void (GL_APIENTRYP PFNGLCOPYTEXTURECHROMIUM) (GLenum target, GLenum sour
 #define GL_COMMANDS_ISSUED_CHROMIUM 0x84F2
 #endif
 
+/* GL_CHROMIUM_texture_mailbox */
+#ifndef GL_CHROMIUM_texture_mailbox
+#define GL_CHROMIUM_texture_mailbox 1
+#define GL_MAILBOX_SIZE_CHROMIUM 64
+#ifdef GL_GLEXT_PROTOTYPES
+#define glGenMailboxCHROMIUM GLES2_GET_FUN(GenMailboxCHROMIUM)
+#define glProduceTextureCHROMIUM GLES2_GET_FUN(ProduceTextureCHROMIUM)
+#define glConsumeTextureCHROMIUM GLES2_GET_FUN(ConsumeTextureCHROMIUM)
+#if !defined(GLES2_USE_CPP_BINDINGS)
+GL_APICALL void GL_APIENTRY glGenMailboxCHROMIUM (GLbyte* mailbox);
+GL_APICALL void GL_APIENTRY glProduceTextureCHROMIUM (GLenum target, const GLbyte* mailbox);
+GL_APICALL void GL_APIENTRY glConsumeTextureCHROMIUM (GLenum target, const  GLbyte* mailbox);
+#endif
+#else
+typedef void (GL_APIENTRYP PFNGLGENMAILBOXCHROMIUM) (GLbyte* mailbox);
+typedef void (GL_APIENTRYP PFNGLPRODUCETEXTURECHROMIUM) (GLenum target, const GLbyte* mailbox);
+typedef void (GL_APIENTRYP PFNGLCONSUMETEXTURECHROMIUM) (GLenum target, const  GLbyte* mailbox);
+#endif
+#endif
+
 #ifdef __cplusplus
 }
 #endif
