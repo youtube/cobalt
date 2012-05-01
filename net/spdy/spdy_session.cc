@@ -752,10 +752,8 @@ int SpdySession::WriteStreamData(SpdyStreamId stream_id,
                                  net::IOBuffer* data, int len,
                                  SpdyDataFlags flags) {
   // Find our stream
-  DCHECK(IsStreamActive(stream_id));
+  CHECK(IsStreamActive(stream_id));
   scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
-  if (!stream)
-    return ERR_INVALID_SPDY_STREAM;
   CHECK_EQ(stream->stream_id(), stream_id);
 
   if (len > kMaxSpdyFrameChunkSize) {
@@ -1508,8 +1506,7 @@ void SpdySession::OnSynReply(const SpdySynReplyControlFrame& frame,
             stream_id, 0)));
   }
 
-  bool valid_stream = IsStreamActive(stream_id);
-  if (!valid_stream) {
+  if (!IsStreamActive(stream_id)) {
     // NOTE:  it may just be that the stream was cancelled.
     LOG(WARNING) << "Received SYN_REPLY for invalid stream " << stream_id;
     return;
@@ -1543,8 +1540,7 @@ void SpdySession::OnHeaders(const SpdyHeadersControlFrame& frame,
             stream_id, 0)));
   }
 
-  bool valid_stream = IsStreamActive(stream_id);
-  if (!valid_stream) {
+  if (!IsStreamActive(stream_id)) {
     // NOTE:  it may just be that the stream was cancelled.
     LOG(WARNING) << "Received HEADERS for invalid stream " << stream_id;
     return;
@@ -1570,8 +1566,7 @@ void SpdySession::OnRstStream(const SpdyRstStreamControlFrame& frame) {
       make_scoped_refptr(
           new NetLogSpdyRstParameter(stream_id, frame.status(), "")));
 
-  bool valid_stream = IsStreamActive(stream_id);
-  if (!valid_stream) {
+  if (!IsStreamActive(stream_id)) {
     // NOTE:  it may just be that the stream was cancelled.
     LOG(WARNING) << "Received RST for invalid stream" << stream_id;
     return;
@@ -1679,7 +1674,7 @@ void SpdySession::OnWindowUpdate(
 
 void SpdySession::SendWindowUpdate(SpdyStreamId stream_id,
                                    int32 delta_window_size) {
-  DCHECK(IsStreamActive(stream_id));
+  CHECK(IsStreamActive(stream_id));
   scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
   CHECK_EQ(stream->stream_id(), stream_id);
 
