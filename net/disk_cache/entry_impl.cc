@@ -577,20 +577,15 @@ bool EntryImpl::SanityCheck() {
     return false;
 
   Addr rankings_addr(stored->rankings_node);
-  if (!rankings_addr.is_initialized() || rankings_addr.is_separate_file() ||
-      rankings_addr.file_type() != RANKINGS || rankings_addr.num_blocks() != 1)
+  if (!rankings_addr.SanityCheckForRankings())
     return false;
 
   Addr next_addr(stored->next);
-  if (next_addr.is_initialized() &&
-      (next_addr.is_separate_file() || next_addr.file_type() != BLOCK_256)) {
+  if (next_addr.is_initialized() && !next_addr.SanityCheckForEntry()) {
     STRESS_NOTREACHED();
     return false;
   }
   STRESS_DCHECK(next_addr.value() != entry_.address().value());
-
-  if (!rankings_addr.SanityCheck() || !next_addr.SanityCheck())
-    return false;
 
   if (stored->state > ENTRY_DOOMED || stored->state < ENTRY_NORMAL)
     return false;
