@@ -561,9 +561,11 @@
           'target_name': 'aura_builder',
           'type': 'none',
           'dependencies': [
+            '../chrome/chrome.gyp:browser_tests',
             '../chrome/chrome.gyp:chrome',
-            '../chrome/chrome.gyp:unit_tests',
+            '../chrome/chrome.gyp:interactive_ui_tests',            
             '../chrome/chrome.gyp:ui_tests',
+            '../chrome/chrome.gyp:unit_tests',
             '../ui/aura/aura.gyp:*',
             '../ui/gfx/compositor/compositor.gyp:*',
             '../ui/ui.gyp:gfx_unittests',
