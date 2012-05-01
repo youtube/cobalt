@@ -34,6 +34,7 @@ class Predictor;
 }
 namespace content {
 class BrowserGpuChannelHostFactory;
+class GLHelper;
 }
 namespace dbus {
 class Bus;
@@ -174,6 +175,7 @@ class BASE_EXPORT ThreadRestrictions {
   friend class chrome_browser_net::Predictor;     // http://crbug.com/78451
   friend class
       content::BrowserGpuChannelHostFactory;      // http://crbug.com/125248
+  friend class content::GLHelper;                 // http://crbug.com/125415
   friend class dbus::Bus;                         // http://crbug.com/125222
   friend class disk_cache::BackendImpl;           // http://crbug.com/74623
   friend class disk_cache::InFlightIO;            // http://crbug.com/74623
