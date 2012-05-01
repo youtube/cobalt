@@ -148,4 +148,9 @@ TimeTicks TimeTicks::HighResNow() {
   return Now();
 }
 
+// static
+TimeTicks TimeTicks::NowFromSystemTraceTime() {
+  return HighResNow();
+}
+
 }  // namespace base
