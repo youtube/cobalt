@@ -585,7 +585,7 @@ int TraceLog::AddTraceEvent(char phase,
                             long long threshold,
                             unsigned char flags) {
   DCHECK(name);
-  TimeTicks now = TimeTicks::HighResNow();
+  TimeTicks now = TimeTicks::NowFromSystemTraceTime();
   BufferFullCallback buffer_full_callback_copy;
   int ret_begin_id = -1;
   {
@@ -710,7 +710,7 @@ void TraceLog::AddClockSyncMetadataEvents() {
   // debugfs that takes the written data and pushes it onto the trace
   // buffer. So, to establish clock sync, we write our monotonic clock into that
   // trace buffer.
-  TimeTicks now = TimeTicks::HighResNow();
+  TimeTicks now = TimeTicks::NowFromSystemTraceTime();
 
   double now_in_seconds = now.ToInternalValue() / 1000000.0;
   std::string marker =
