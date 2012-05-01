@@ -15,6 +15,8 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
+using ::testing::AllOf;
+using ::testing::Field;
 using ::testing::Mock;
 using ::testing::Return;
 using media::AudioBuffersState;
@@ -434,6 +436,7 @@ TEST_F(AudioOutputProxyTest, TwoStreams_BothPlaying) {
 }
 
 // Two streams, both are playing. Still have to use single device.
+// Also verifies that every proxy stream gets its own pending_bytes.
 TEST_F(AudioOutputProxyTest, TwoStreams_BothPlaying_Mixer) {
   MockAudioOutputStream stream;
 
@@ -459,7 +462,26 @@ TEST_F(AudioOutputProxyTest, TwoStreams_BothPlaying_Mixer) {
   EXPECT_TRUE(proxy2->Open());
 
   proxy1->Start(&callback_);
+  uint8 buf1[4] = {0};
+  EXPECT_CALL(callback_,
+      OnMoreData(_, 4,
+                 AllOf(Field(&AudioBuffersState::pending_bytes, 0),
+                       Field(&AudioBuffersState::hardware_delay_bytes, 0))))
+      .WillOnce(Return(4));
+  mixer_->OnMoreData(buf1, sizeof(buf1), AudioBuffersState(0, 0));
   proxy2->Start(&callback_);
+  uint8 buf2[4] = {0};
+  EXPECT_CALL(callback_,
+      OnMoreData(_, 4,
+                 AllOf(Field(&AudioBuffersState::pending_bytes, 4),
+                       Field(&AudioBuffersState::hardware_delay_bytes, 0))))
+      .WillOnce(Return(4));
+  EXPECT_CALL(callback_,
+      OnMoreData(_, 4,
+                 AllOf(Field(&AudioBuffersState::pending_bytes, 0),
+                       Field(&AudioBuffersState::hardware_delay_bytes, 0))))
+      .WillOnce(Return(4));
+  mixer_->OnMoreData(buf2, sizeof(buf2), AudioBuffersState(4, 0));
   proxy1->Stop();
   proxy2->Stop();
 
