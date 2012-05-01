@@ -178,7 +178,7 @@ class MockCookieStore : public net::CookieStore {
                                     const net::CookieOptions& options) {
     std::string result;
     for (size_t i = 0; i < entries_.size(); i++) {
-      Entry &entry = entries_[i];
+      Entry& entry = entries_[i];
       if (url == entry.url) {
         if (!result.empty()) {
           result += "; ";
@@ -254,11 +254,12 @@ class MockSSLConfigService : public net::SSLConfigService {
 class MockURLRequestContext : public net::URLRequestContext {
  public:
   explicit MockURLRequestContext(net::CookieStore* cookie_store)
-      : transport_security_state_(std::string()) {
+      : transport_security_state_() {
     set_cookie_store(cookie_store);
     set_transport_security_state(&transport_security_state_);
     net::TransportSecurityState::DomainState state;
-    state.expiry = base::Time::Now() + base::TimeDelta::FromSeconds(1000);
+    state.upgrade_expiry = base::Time::Now() +
+        base::TimeDelta::FromSeconds(1000);
     transport_security_state_.EnableHost("upgrademe.com", state);
   }
 
@@ -272,7 +273,7 @@ class MockURLRequestContext : public net::URLRequestContext {
 
 class MockHttpTransactionFactory : public net::HttpTransactionFactory {
  public:
-  MockHttpTransactionFactory(net::OrderedSocketData* data) {
+  explicit MockHttpTransactionFactory(net::OrderedSocketData* data) {
     data_ = data;
     net::MockConnect connect_data(net::SYNCHRONOUS, net::OK);
     data_->set_connect_data(connect_data);

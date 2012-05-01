@@ -9,6 +9,7 @@
 
 #include <set>
 #include <string>
+#include <vector>
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
@@ -1205,8 +1206,9 @@ int SocketStream::HandleCertificateError(int result) {
   const bool fatal =
       context_->transport_security_state() &&
       context_->transport_security_state()->GetDomainState(
-          &domain_state, url_.host(),
-          SSLConfigService::IsSNIAvailable(context_->ssl_config_service()));
+          url_.host(),
+          SSLConfigService::IsSNIAvailable(context_->ssl_config_service()),
+          &domain_state);
 
   delegate_->OnSSLCertificateError(this, ssl_info, fatal);
   return ERR_IO_PENDING;
