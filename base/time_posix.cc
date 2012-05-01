@@ -228,6 +228,34 @@ TimeTicks TimeTicks::HighResNow() {
   return Now();
 }
 
+#if defined(OS_POSIX) && defined(CLOCK_SYSTEM_TRACE)
+
+// static
+TimeTicks TimeTicks::NowFromSystemTraceTime() {
+  uint64_t absolute_micro;
+
+  struct timespec ts;
+  if (clock_gettime(CLOCK_SYSTEM_TRACE, &ts) != 0) {
+    NOTREACHED() << "clock_gettime(CLOCK_SYSTEM_TRACE) failed.";
+    return HighResNow();
+  }
+
+  absolute_micro =
+      (static_cast<int64>(ts.tv_sec) * Time::kMicrosecondsPerSecond) +
+      (static_cast<int64>(ts.tv_nsec) / Time::kNanosecondsPerMicrosecond);
+
+  return TimeTicks(absolute_micro);
+}
+
+#else // !(defined(OS_POSIX) && defined(CLOCK_SYSTEM_TRACE))
+
+// static
+TimeTicks TimeTicks::NowFromSystemTraceTime() {
+  return HighResNow();
+}
+
+#endif // defined(OS_POSIX) && defined(CLOCK_SYSTEM_TRACE)
+
 #endif  // !OS_MACOSX
 
 struct timeval Time::ToTimeVal() const {
