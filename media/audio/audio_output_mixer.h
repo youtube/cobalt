@@ -83,6 +83,9 @@ class MEDIA_EXPORT AudioOutputMixer
   base::WeakPtrFactory<AudioOutputMixer> weak_this_;
   base::DelayTimer<AudioOutputMixer> close_timer_;
 
+  // Size of data in all in-flight buffers.
+  int pending_bytes_;
+
   DISALLOW_COPY_AND_ASSIGN(AudioOutputMixer);
 };
 
