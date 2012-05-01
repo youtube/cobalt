@@ -1766,8 +1766,9 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
     const std::string& host = host_and_port_.host();
 
     TransportSecurityState::DomainState domain_state;
-    if (transport_security_state_->HasPinsForHost(
-            &domain_state, host, sni_available)) {
+    if (transport_security_state_->GetDomainState(host, sni_available,
+                                                  &domain_state) &&
+        domain_state.HasPins()) {
       if (!domain_state.IsChainOfPublicKeysPermitted(
                server_cert_verify_result_->public_key_hashes)) {
         const base::Time build_time = base::GetBuildTime();
