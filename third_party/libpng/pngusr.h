@@ -52,7 +52,7 @@
 #define PNG_NO_READ_INVERT_ALPHA
 #define PNG_NO_READ_RGB_TO_GRAY
 #define PNG_NO_READ_bKGD
-#define PNG_NO_READ_cHRM
+#undef PNG_NO_READ_cHRM
 #undef PNG_NO_READ_gAMA
 #define PNG_NO_READ_hIST
 #undef PNG_NO_READ_iCCP
