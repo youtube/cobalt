@@ -479,8 +479,8 @@ class URLRequestTestHTTP : public URLRequestTest {
   void HTTPUploadDataOperationTest(const std::string& method) {
     const int kMsgSize = 20000;  // multiple of 10
     const int kIterations = 50;
-    char *uploadBytes = new char[kMsgSize+1];
-    char *ptr = uploadBytes;
+    char* uploadBytes = new char[kMsgSize+1];
+    char* ptr = uploadBytes;
     char marker = 'a';
     for (int idx = 0; idx < kMsgSize/10; idx++) {
       memcpy(ptr, "----------", 10);
@@ -1774,7 +1774,7 @@ TEST_F(HTTPSRequestTest, HTTPSPreloadedHSTSTest) {
   scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext(true));
   context->set_network_delegate(&network_delegate);
   context->set_host_resolver(&host_resolver);
-  TransportSecurityState transport_security_state("");
+  TransportSecurityState transport_security_state;
   context->set_transport_security_state(&transport_security_state);
   context->Init();
 
@@ -1817,10 +1817,10 @@ TEST_F(HTTPSRequestTest, HTTPSErrorsNoClobberTSSTest) {
   scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext(true));
   context->set_network_delegate(&network_delegate);
   context->set_host_resolver(&host_resolver);
-  TransportSecurityState transport_security_state("");
+  TransportSecurityState transport_security_state;
   TransportSecurityState::DomainState domain_state;
-  EXPECT_TRUE(transport_security_state.HasMetadata(&domain_state,
-                                                   "www.google.com", true));
+  EXPECT_TRUE(transport_security_state.GetDomainState("www.google.com", true,
+                                                      &domain_state));
   context->set_transport_security_state(&transport_security_state);
   context->Init();
 
@@ -1842,17 +1842,17 @@ TEST_F(HTTPSRequestTest, HTTPSErrorsNoClobberTSSTest) {
 
   // Get a fresh copy of the state, and check that it hasn't been updated.
   TransportSecurityState::DomainState new_domain_state;
-  EXPECT_TRUE(transport_security_state.HasMetadata(&new_domain_state,
-                                                   "www.google.com", true));
-  EXPECT_EQ(new_domain_state.mode, domain_state.mode);
+  EXPECT_TRUE(transport_security_state.GetDomainState("www.google.com", true,
+                                                      &new_domain_state));
+  EXPECT_EQ(new_domain_state.upgrade_mode, domain_state.upgrade_mode);
   EXPECT_EQ(new_domain_state.include_subdomains,
             domain_state.include_subdomains);
-  EXPECT_TRUE(FingerprintsEqual(new_domain_state.preloaded_spki_hashes,
-                                domain_state.preloaded_spki_hashes));
+  EXPECT_TRUE(FingerprintsEqual(new_domain_state.static_spki_hashes,
+                                domain_state.static_spki_hashes));
   EXPECT_TRUE(FingerprintsEqual(new_domain_state.dynamic_spki_hashes,
                                 domain_state.dynamic_spki_hashes));
-  EXPECT_TRUE(FingerprintsEqual(new_domain_state.bad_preloaded_spki_hashes,
-                                domain_state.bad_preloaded_spki_hashes));
+  EXPECT_TRUE(FingerprintsEqual(new_domain_state.bad_static_spki_hashes,
+                                domain_state.bad_static_spki_hashes));
 }
 
 namespace {
@@ -2571,8 +2571,8 @@ TEST_F(URLRequestTest, ResolveShortcutTest) {
   std::wstring lnk_path = app_path.value() + L".lnk";
 
   HRESULT result;
-  IShellLink *shell = NULL;
-  IPersistFile *persist = NULL;
+  IShellLink* shell = NULL;
+  IPersistFile* persist = NULL;
 
   CoInitialize(NULL);
   // Temporarily create a shortcut for test
