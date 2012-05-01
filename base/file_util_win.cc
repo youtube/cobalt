@@ -17,6 +17,7 @@
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
+#include "base/process_util.h"
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/threading/thread_restrictions.h"
@@ -559,6 +560,8 @@ bool CreateTemporaryDirInDir(const FilePath& base_dir,
     // the one exists, keep trying another path name until we reach some limit.
     string16 new_dir_name;
     new_dir_name.assign(prefix);
+    new_dir_name.append(base::IntToString16(::base::GetCurrentProcId()));
+    new_dir_name.push_back('_');
     new_dir_name.append(base::IntToString16(rand() % kint16max));
 
     path_to_create = base_dir.Append(new_dir_name);
