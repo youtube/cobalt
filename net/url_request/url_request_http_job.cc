@@ -144,10 +144,10 @@ URLRequestJob* URLRequestHttpJob::Factory(URLRequest* request,
   if (scheme == "http" &&
       request->context()->transport_security_state() &&
       request->context()->transport_security_state()->GetDomainState(
-          &domain_state,
           request->url().host(),
           SSLConfigService::IsSNIAvailable(
-              request->context()->ssl_config_service())) &&
+              request->context()->ssl_config_service()),
+          &domain_state) &&
       domain_state.ShouldRedirectHTTPToHTTPS()) {
     DCHECK_EQ(request->url().scheme(), "http");
     url_canon::Replacements<char> replacements;
@@ -599,30 +599,21 @@ void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
 
   bool sni_available =
       SSLConfigService::IsSNIAvailable(ctx->ssl_config_service());
-  if (!security_state->HasMetadata(&domain_state, host, sni_available)) {
-    // |HasMetadata| may have altered |domain_state| while searching. If not
-    // found, start with a fresh state.
-    domain_state = TransportSecurityState::DomainState();
-    domain_state.mode = TransportSecurityState::DomainState::MODE_STRICT;
-  }
+  if (!security_state->GetDomainState(host, sni_available, &domain_state))
+    // |GetDomainState| may have altered |domain_state| while searching. If
+    // not found, start with a fresh state.
+    domain_state.upgrade_mode =
+        TransportSecurityState::DomainState::MODE_FORCE_HTTPS;
 
   HttpResponseHeaders* headers = GetResponseHeaders();
   std::string value;
   void* iter = NULL;
+  base::Time now = base::Time::Now();
 
   while (headers->EnumerateHeader(&iter, "Strict-Transport-Security", &value)) {
-    int max_age;
-    bool include_subdomains;
-    if (TransportSecurityState::ParseHeader(value, &max_age,
-                                            &include_subdomains)) {
-      base::Time current_time(base::Time::Now());
-      base::TimeDelta max_age_delta = base::TimeDelta::FromSeconds(max_age);
-
-      domain_state.expiry = current_time + max_age_delta;
-      domain_state.include_subdomains = include_subdomains;
-
+    TransportSecurityState::DomainState domain_state;
+    if (domain_state.ParseSTSHeader(now, value))
       security_state->EnableHost(host, domain_state);
-    }
   }
 }
 
@@ -645,25 +636,23 @@ void URLRequestHttpJob::ProcessPublicKeyPinsHeader() {
 
   bool sni_available =
       SSLConfigService::IsSNIAvailable(ctx->ssl_config_service());
-  if (!security_state->HasMetadata(&domain_state, host, sni_available)) {
-    // |HasMetadata| may have altered |domain_state| while searching. If not
-    // found, start with a fresh state.
-    domain_state = TransportSecurityState::DomainState();
-    domain_state.mode = TransportSecurityState::DomainState::MODE_PINNING_ONLY;
-  }
+  if (!security_state->GetDomainState(host, sni_available, &domain_state))
+    // |GetDomainState| may have altered |domain_state| while searching. If
+    // not found, start with a fresh state.
+    domain_state.upgrade_mode =
+        TransportSecurityState::DomainState::MODE_DEFAULT;
 
   HttpResponseHeaders* headers = GetResponseHeaders();
   void* iter = NULL;
   std::string value;
+  base::Time now = base::Time::Now();
 
   while (headers->EnumerateHeader(&iter, "Public-Key-Pins", &value)) {
     // Note that ParsePinsHeader updates |domain_state| (iff the header parses
     // correctly), but does not completely overwrite it. It just updates the
     // dynamic pinning metadata.
-    if (TransportSecurityState::ParsePinsHeader(value, ssl_info,
-                                                &domain_state)) {
+    if (domain_state.ParsePinsHeader(now, value, ssl_info))
       security_state->EnableHost(host, domain_state);
-    }
   }
 }
 
@@ -729,8 +718,9 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
     const bool fatal =
         context_->transport_security_state() &&
         context_->transport_security_state()->GetDomainState(
-            &domain_state, request_info_.url.host(),
-            SSLConfigService::IsSNIAvailable(context_->ssl_config_service()));
+            request_info_.url.host(),
+            SSLConfigService::IsSNIAvailable(context_->ssl_config_service()),
+            &domain_state);
     NotifySSLCertificateError(transaction_->GetResponseInfo()->ssl_info, fatal);
   } else if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
     NotifyCertificateRequested(
