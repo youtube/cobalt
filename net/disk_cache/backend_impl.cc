@@ -450,6 +450,9 @@ int BackendImpl::SyncInit() {
     return net::ERR_FAILED;
   }
 
+  if (create_files || !data_->header.num_entries)
+    ReportError(ERR_CACHE_CREATED);
+
   if (!(user_flags_ & kNoRandom) &&
       cache_type_ == net::DISK_CACHE && !InitExperiment(&data_->header))
     return net::ERR_FAILED;
@@ -465,7 +468,7 @@ int BackendImpl::SyncInit() {
   if (data_->header.crash) {
     ReportError(ERR_PREVIOUS_CRASH);
   } else {
-    ReportError(0);
+    ReportError(ERR_NO_ERROR);
     data_->header.crash = 1;
   }
 
@@ -486,6 +489,9 @@ int BackendImpl::SyncInit() {
     return net::ERR_FAILED;
 
   disabled_ = !rankings_.Init(this, new_eviction_);
+
+  if (!disabled_ && !(user_flags_ & kNoRandom) && base::RandInt(0, 99) < 2)
+    rankings_.SelfCheck();  // Ignore return value for now.
 
 #if defined(STRESS_CACHE_EXTENDED_VALIDATION)
   trace_object_->EnableTracing(false);
@@ -1553,8 +1559,7 @@ int BackendImpl::NewEntry(Addr address, EntryImpl** entry) {
 
   STRESS_DCHECK(block_files_.IsValid(address));
 
-  if (!address.is_initialized() || address.is_separate_file() ||
-      address.file_type() != BLOCK_256) {
+  if (!address.SanityCheckForEntry()) {
     LOG(WARNING) << "Wrong entry address.";
     STRESS_NOTREACHED();
     return ERR_INVALID_ADDRESS;
