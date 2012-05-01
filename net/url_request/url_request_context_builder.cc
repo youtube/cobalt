@@ -214,7 +214,7 @@ scoped_refptr<URLRequestContext> URLRequestContextBuilder::Build() {
   storage->set_http_auth_handler_factory(
       net::HttpAuthHandlerRegistryFactory::CreateDefault(host_resolver));
   storage->set_cookie_store(new CookieMonster(NULL, NULL));
-  storage->set_transport_security_state(new net::TransportSecurityState(""));
+  storage->set_transport_security_state(new net::TransportSecurityState());
   storage->set_http_server_properties(new net::HttpServerPropertiesImpl);
   storage->set_cert_verifier(CertVerifier::CreateDefault());
 

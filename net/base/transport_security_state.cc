@@ -19,8 +19,6 @@
 #include <utility>
 
 #include "base/base64.h"
-#include "base/json/json_reader.h"
-#include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/metrics/histogram.h"
@@ -33,7 +31,6 @@
 #include "base/values.h"
 #include "crypto/sha2.h"
 #include "googleurl/src/gurl.h"
-#include "net/base/asn1_util.h"
 #include "net/base/dns_util.h"
 #include "net/base/ssl_info.h"
 #include "net/base/x509_certificate.h"
@@ -47,18 +44,14 @@ namespace net {
 
 const long int TransportSecurityState::kMaxHSTSAgeSecs = 86400 * 365;  // 1 year
 
-TransportSecurityState::TransportSecurityState(const std::string& hsts_hosts)
-    : delegate_(NULL) {
-  if (!hsts_hosts.empty()) {
-    bool dirty;
-    Deserialise(hsts_hosts, &dirty, &forced_hosts_);
-  }
-}
-
 static std::string HashHost(const std::string& canonicalized_host) {
   char hashed[crypto::kSHA256Length];
   crypto::SHA256HashString(canonicalized_host, hashed, sizeof(hashed));
   return std::string(hashed, sizeof(hashed));
+}
+
+TransportSecurityState::TransportSecurityState()
+  : delegate_(NULL) {
 }
 
 void TransportSecurityState::SetDelegate(
@@ -74,24 +67,19 @@ void TransportSecurityState::EnableHost(const std::string& host,
   if (canonicalized_host.empty())
     return;
 
-  // Only override a preloaded state if the new state describes a more strict
-  // policy. TODO(palmer): Reconsider this?
   DomainState existing_state;
-  if (IsPreloadedSTS(canonicalized_host, true, &existing_state) &&
-      canonicalized_host == CanonicalizeHost(existing_state.domain) &&
-      existing_state.IsMoreStrict(state)) {
-    return;
-  }
 
-  // Use the original creation date if we already have this host.
+  // Use the original creation date if we already have this host. (But note
+  // that statically-defined states have no |created| date. Therefore, we do
+  // not bother to search the SNI-only static states.)
   DomainState state_copy(state);
-  if (GetDomainState(&existing_state, host, true) &&
+  if (GetDomainState(host, false /* sni_enabled */, &existing_state) &&
       !existing_state.created.is_null()) {
     state_copy.created = existing_state.created;
   }
 
-  // We don't store these values.
-  state_copy.preloaded = false;
+  // No need to store this value since it is redundant. (|canonicalized_host|
+  // is the map key.)
   state_copy.domain.clear();
 
   enabled_hosts_[HashHost(canonicalized_host)] = state_copy;
@@ -115,27 +103,9 @@ bool TransportSecurityState::DeleteHost(const std::string& host) {
   return false;
 }
 
-bool TransportSecurityState::HasPinsForHost(DomainState* result,
-                                            const std::string& host,
-                                            bool sni_available) {
-  DCHECK(CalledOnValidThread());
-
-  return HasMetadata(result, host, sni_available) &&
-      (!result->dynamic_spki_hashes.empty() ||
-       !result->preloaded_spki_hashes.empty());
-}
-
-bool TransportSecurityState::GetDomainState(DomainState* result,
-                                            const std::string& host,
-                                            bool sni_available) {
-  DCHECK(CalledOnValidThread());
-
-  return HasMetadata(result, host, sni_available);
-}
-
-bool TransportSecurityState::HasMetadata(DomainState* result,
-                                         const std::string& host,
-                                         bool sni_available) {
+bool TransportSecurityState::GetDomainState(const std::string& host,
+                                            bool sni_enabled,
+                                            DomainState* result) {
   DCHECK(CalledOnValidThread());
 
   DomainState state;
@@ -143,7 +113,8 @@ bool TransportSecurityState::HasMetadata(DomainState* result,
   if (canonicalized_host.empty())
     return false;
 
-  bool has_preload = IsPreloadedSTS(canonicalized_host, sni_available, &state);
+  bool has_preload = GetStaticDomainState(canonicalized_host, sni_enabled,
+                                          &state);
   std::string canonicalized_preload = CanonicalizeHost(state.domain);
 
   base::Time current_time(base::Time::Now());
@@ -162,7 +133,7 @@ bool TransportSecurityState::HasMetadata(DomainState* result,
     if (j == enabled_hosts_.end())
       continue;
 
-    if (current_time > j->second.expiry &&
+    if (current_time > j->second.upgrade_expiry &&
         current_time > j->second.dynamic_spki_hashes_expiry) {
       enabled_hosts_.erase(j);
       DirtyNotify();
@@ -290,23 +261,6 @@ static bool ParseAndAppendPin(const std::string& value,
   return true;
 }
 
-// static
-bool TransportSecurityState::GetPublicKeyHash(
-    const X509Certificate& cert, SHA1Fingerprint* spki_hash) {
-  std::string der_bytes;
-  if (!X509Certificate::GetDEREncoded(cert.os_cert_handle(), &der_bytes))
-    return false;
-
-  base::StringPiece spki;
-  if (!asn1::ExtractSPKIFromDERCert(der_bytes, &spki))
-    return false;
-
-  base::SHA1HashBytes(reinterpret_cast<const unsigned char*>(spki.data()),
-                      spki.size(), spki_hash->data);
-
-  return true;
-}
-
 struct FingerprintsEqualPredicate {
   explicit FingerprintsEqualPredicate(const SHA1Fingerprint& fingerprint) :
       fingerprint_(fingerprint) {}
@@ -368,13 +322,12 @@ static bool IsPinListValid(const FingerprintVector& pins,
 // "Public-Key-Pins" ":"
 //     "max-age" "=" delta-seconds ";"
 //     "pin-" algo "=" base64 [ ";" ... ]
-//
-// static
-bool TransportSecurityState::ParsePinsHeader(const std::string& value,
-                                             const SSLInfo& ssl_info,
-                                             DomainState* state) {
+bool TransportSecurityState::DomainState::ParsePinsHeader(
+    const base::Time& now,
+    const std::string& value,
+    const SSLInfo& ssl_info) {
   bool parsed_max_age = false;
-  int max_age = 0;
+  int max_age_candidate = 0;
   FingerprintVector pins;
 
   std::string source = value;
@@ -389,11 +342,12 @@ bool TransportSecurityState::ParsePinsHeader(const std::string& value,
 
     if (LowerCaseEqualsASCII(equals.first, "max-age")) {
       if (equals.second.empty() ||
-          !MaxAgeToInt(equals.second.begin(), equals.second.end(), &max_age)) {
+          !MaxAgeToInt(equals.second.begin(), equals.second.end(),
+                       &max_age_candidate)) {
         return false;
       }
-      if (max_age > kMaxHSTSAgeSecs)
-        max_age = kMaxHSTSAgeSecs;
+      if (max_age_candidate > kMaxHSTSAgeSecs)
+        max_age_candidate = kMaxHSTSAgeSecs;
       parsed_max_age = true;
     } else if (LowerCaseEqualsASCII(equals.first, "pin-sha1")) {
       if (!ParseAndAppendPin(equals.second, &pins))
@@ -410,15 +364,14 @@ bool TransportSecurityState::ParsePinsHeader(const std::string& value,
   if (!parsed_max_age || !IsPinListValid(pins, ssl_info))
     return false;
 
-  state->max_age = max_age;
-  state->dynamic_spki_hashes_expiry =
-      base::Time::Now() + base::TimeDelta::FromSeconds(max_age);
+  dynamic_spki_hashes_expiry =
+      now + base::TimeDelta::FromSeconds(max_age_candidate);
 
-  state->dynamic_spki_hashes.clear();
-  if (max_age > 0) {
+  dynamic_spki_hashes.clear();
+  if (max_age_candidate > 0) {
     for (FingerprintVector::const_iterator i = pins.begin();
-         i != pins.end(); i++) {
-      state->dynamic_spki_hashes.push_back(*i);
+         i != pins.end(); ++i) {
+      dynamic_spki_hashes.push_back(*i);
     }
   }
 
@@ -427,14 +380,9 @@ bool TransportSecurityState::ParsePinsHeader(const std::string& value,
 
 // "Strict-Transport-Security" ":"
 //     "max-age" "=" delta-seconds [ ";" "includeSubDomains" ]
-//
-// static
-bool TransportSecurityState::ParseHeader(const std::string& value,
-                                         int* max_age,
-                                         bool* include_subdomains) {
-  DCHECK(max_age);
-  DCHECK(include_subdomains);
-
+bool TransportSecurityState::DomainState::ParseSTSHeader(
+    const base::Time& now,
+    const std::string& value) {
   int max_age_candidate = 0;
 
   enum ParserState {
@@ -511,383 +459,23 @@ bool TransportSecurityState::ParseHeader(const std::string& value,
     case AFTER_MAX_AGE_EQUALS:
       return false;
     case AFTER_MAX_AGE:
-      *max_age = max_age_candidate;
-      *include_subdomains = false;
+      upgrade_expiry =
+          now + base::TimeDelta::FromSeconds(max_age_candidate);
+      include_subdomains = false;
+      upgrade_mode = MODE_FORCE_HTTPS;
       return true;
     case AFTER_MAX_AGE_INCLUDE_SUB_DOMAINS_DELIMITER:
       return false;
     case AFTER_INCLUDE_SUBDOMAINS:
-      *max_age = max_age_candidate;
-      *include_subdomains = true;
+      upgrade_expiry =
+          now + base::TimeDelta::FromSeconds(max_age_candidate);
+      include_subdomains = true;
+      upgrade_mode = MODE_FORCE_HTTPS;
       return true;
     default:
       NOTREACHED();
       return false;
   }
-}
-
-// Side pinning and superfluous certificates:
-//
-// In SSLClientSocketNSS::DoVerifyCertComplete we look for certificates with a
-// Subject of CN=meta. When we find one we'll currently try and parse side
-// pinned key from it.
-//
-// A side pin is a key which can be pinned to, but also can be kept offline and
-// still held by the site owner. The CN=meta certificate is just a backwards
-// compatiable method of carrying a lump of bytes to the client. (We could use
-// a TLS extension just as well, but it's a lot easier for admins to add extra
-// certificates to the chain.)
-
-// A TagMap represents the simple key-value structure that we use. Keys are
-// 32-bit ints. Values are byte strings.
-typedef std::map<uint32, base::StringPiece> TagMap;
-
-// ParseTags parses a list of key-value pairs from |in| to |out| and advances
-// |in| past the data. The key-value pair data is:
-//   u16le num_tags
-//   u32le tag[num_tags]
-//   u16le lengths[num_tags]
-//   ...data...
-static bool ParseTags(base::StringPiece* in, TagMap *out) {
-  // Many part of Chrome already assume little-endian. This is just to help
-  // anyone who should try to port it in the future.
-#if defined(__BYTE_ORDER)
-  // Linux check
-  COMPILE_ASSERT(__BYTE_ORDER == __LITTLE_ENDIAN, assumes_little_endian);
-#elif defined(__BIG_ENDIAN__)
-  // Mac check
-  #error assumes little endian
-#endif
-
-  uint16 num_tags_16;
-  if (in->size() < sizeof(num_tags_16))
-    return false;
-
-  memcpy(&num_tags_16, in->data(), sizeof(num_tags_16));
-  in->remove_prefix(sizeof(num_tags_16));
-  unsigned num_tags = num_tags_16;
-
-  if (in->size() < 6 * num_tags)
-    return false;
-
-  const uint32* tags = reinterpret_cast<const uint32*>(in->data());
-  const uint16* lens = reinterpret_cast<const uint16*>(
-      in->data() + 4*num_tags);
-  in->remove_prefix(6*num_tags);
-
-  uint32 prev_tag = 0;
-  for (unsigned i = 0; i < num_tags; i++) {
-    size_t len = lens[i];
-    uint32 tag = tags[i];
-
-    if (in->size() < len)
-      return false;
-    // tags must be in ascending order.
-    if (i > 0 && prev_tag >= tag)
-      return false;
-    (*out)[tag] = base::StringPiece(in->data(), len);
-    in->remove_prefix(len);
-    prev_tag = tag;
-  }
-
-  return true;
-}
-
-// GetTag extracts the data associated with |tag| in |tags|.
-static bool GetTag(uint32 tag, const TagMap& tags, base::StringPiece* out) {
-  TagMap::const_iterator i = tags.find(tag);
-  if (i == tags.end())
-    return false;
-
-  *out = i->second;
-  return true;
-}
-
-// kP256SubjectPublicKeyInfoPrefix can be prepended onto a P256 elliptic curve
-// point in X9.62 format in order to make a valid SubjectPublicKeyInfo. The
-// ASN.1 interpretation of these bytes is:
-//
-//     0:d=0  hl=2 l=  89 cons: SEQUENCE
-//     2:d=1  hl=2 l=  19 cons: SEQUENCE
-//     4:d=2  hl=2 l=   7 prim: OBJECT            :id-ecPublicKey
-//    13:d=2  hl=2 l=   8 prim: OBJECT            :prime256v1
-//    23:d=1  hl=2 l=  66 prim: BIT STRING
-static const uint8 kP256SubjectPublicKeyInfoPrefix[] = {
-  0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86,
-  0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x08, 0x2a,
-  0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03,
-  0x42, 0x00,
-};
-
-// VerifySignature returns true iff |sig| is a valid signature of
-// |hash| by |pubkey|. The actual implementation is crypto library
-// specific.
-static bool VerifySignature(const base::StringPiece& pubkey,
-                            const base::StringPiece& sig,
-                            const base::StringPiece& hash);
-
-#if defined(USE_OPENSSL)
-
-static EVP_PKEY* DecodeX962P256PublicKey(
-    const base::StringPiece& pubkey_bytes) {
-  // The public key is an X9.62 encoded P256 point.
-  if (pubkey_bytes.size() != 1 + 2*32)
-    return NULL;
-
-  std::string pubkey_spki(
-      reinterpret_cast<const char*>(kP256SubjectPublicKeyInfoPrefix),
-      sizeof(kP256SubjectPublicKeyInfoPrefix));
-  pubkey_spki += pubkey_bytes.as_string();
-
-  EVP_PKEY* ret = NULL;
-  const unsigned char* der_pubkey =
-      reinterpret_cast<const unsigned char*>(pubkey_spki.data());
-  d2i_PUBKEY(&ret, &der_pubkey, pubkey_spki.size());
-  return ret;
-}
-
-static bool VerifySignature(const base::StringPiece& pubkey,
-                            const base::StringPiece& sig,
-                            const base::StringPiece& hash) {
-  crypto::ScopedOpenSSL<EVP_PKEY, EVP_PKEY_free> secpubkey(
-      DecodeX962P256PublicKey(pubkey));
-  if (!secpubkey.get())
-    return false;
-
-
-  crypto::ScopedOpenSSL<EC_KEY, EC_KEY_free> ec_key(
-      EVP_PKEY_get1_EC_KEY(secpubkey.get()));
-  if (!ec_key.get())
-    return false;
-
-  return ECDSA_verify(0, reinterpret_cast<const unsigned char*>(hash.data()),
-                      hash.size(),
-                      reinterpret_cast<const unsigned char*>(sig.data()),
-                      sig.size(), ec_key.get()) == 1;
-}
-
-#else
-
-// DecodeX962P256PublicKey parses an uncompressed, X9.62 format, P256 elliptic
-// curve point from |pubkey_bytes| and returns it as a SECKEYPublicKey.
-static SECKEYPublicKey* DecodeX962P256PublicKey(
-    const base::StringPiece& pubkey_bytes) {
-  // The public key is an X9.62 encoded P256 point.
-  if (pubkey_bytes.size() != 1 + 2*32)
-    return NULL;
-
-  std::string pubkey_spki(
-      reinterpret_cast<const char*>(kP256SubjectPublicKeyInfoPrefix),
-      sizeof(kP256SubjectPublicKeyInfoPrefix));
-  pubkey_spki += pubkey_bytes.as_string();
-
-  SECItem der;
-  memset(&der, 0, sizeof(der));
-  der.data = reinterpret_cast<uint8*>(const_cast<char*>(pubkey_spki.data()));
-  der.len = pubkey_spki.size();
-
-  CERTSubjectPublicKeyInfo* spki = SECKEY_DecodeDERSubjectPublicKeyInfo(&der);
-  if (!spki)
-    return NULL;
-  SECKEYPublicKey* public_key = SECKEY_ExtractPublicKey(spki);
-  SECKEY_DestroySubjectPublicKeyInfo(spki);
-
-  return public_key;
-}
-
-static bool VerifySignature(const base::StringPiece& pubkey,
-                            const base::StringPiece& sig,
-                            const base::StringPiece& hash) {
-  SECKEYPublicKey* secpubkey = DecodeX962P256PublicKey(pubkey);
-  if (!secpubkey)
-    return false;
-
-  SECItem sigitem;
-  memset(&sigitem, 0, sizeof(sigitem));
-  sigitem.data = reinterpret_cast<uint8*>(const_cast<char*>(sig.data()));
-  sigitem.len = sig.size();
-
-  // |decoded_sigitem| is newly allocated, as is the data that it points to.
-  SECItem* decoded_sigitem = DSAU_DecodeDerSigToLen(
-      &sigitem, SECKEY_SignatureLen(secpubkey));
-
-  if (!decoded_sigitem) {
-    SECKEY_DestroyPublicKey(secpubkey);
-    return false;
-  }
-
-  SECItem hashitem;
-  memset(&hashitem, 0, sizeof(hashitem));
-  hashitem.data = reinterpret_cast<unsigned char*>(
-      const_cast<char*>(hash.data()));
-  hashitem.len = hash.size();
-
-  SECStatus rv = PK11_Verify(secpubkey, decoded_sigitem, &hashitem, NULL);
-  SECKEY_DestroyPublicKey(secpubkey);
-  SECITEM_FreeItem(decoded_sigitem, PR_TRUE);
-  return rv == SECSuccess;
-}
-
-#endif  // !defined(USE_OPENSSL)
-
-// These are the tag values that we use. Tags are little-endian on the wire and
-// these values correspond to the ASCII of the name.
-static const uint32 kTagALGO = 0x4f474c41;
-static const uint32 kTagP256 = 0x36353250;
-static const uint32 kTagPUBK = 0x4b425550;
-static const uint32 kTagSIG = 0x474953;
-static const uint32 kTagSPIN = 0x4e495053;
-
-// static
-bool TransportSecurityState::ParseSidePin(
-    const base::StringPiece& leaf_spki,
-    const base::StringPiece& in_side_info,
-    FingerprintVector* out_pub_key_hash) {
-  base::StringPiece side_info(in_side_info);
-
-  TagMap outer;
-  if (!ParseTags(&side_info, &outer))
-    return false;
-  // trailing data is not allowed
-  if (side_info.size())
-    return false;
-
-  base::StringPiece side_pin_bytes;
-  if (!GetTag(kTagSPIN, outer, &side_pin_bytes))
-    return false;
-
-  bool have_parsed_a_key = false;
-  uint8 leaf_spki_hash[crypto::kSHA256Length];
-  bool have_leaf_spki_hash = false;
-
-  while (side_pin_bytes.size() > 0) {
-    TagMap side_pin;
-    if (!ParseTags(&side_pin_bytes, &side_pin))
-      return false;
-
-    base::StringPiece algo, pubkey, sig;
-    if (!GetTag(kTagALGO, side_pin, &algo) ||
-        !GetTag(kTagPUBK, side_pin, &pubkey) ||
-        !GetTag(kTagSIG, side_pin, &sig)) {
-      return false;
-    }
-
-    if (algo.size() != sizeof(kTagP256) ||
-        0 != memcmp(algo.data(), &kTagP256, sizeof(kTagP256))) {
-      // We don't support anything but P256 at the moment.
-      continue;
-    }
-
-    if (!have_leaf_spki_hash) {
-      crypto::SHA256HashString(
-          leaf_spki.as_string(), leaf_spki_hash, sizeof(leaf_spki_hash));
-      have_leaf_spki_hash = true;
-    }
-
-    if (VerifySignature(pubkey, sig, base::StringPiece(
-        reinterpret_cast<const char*>(leaf_spki_hash),
-        sizeof(leaf_spki_hash)))) {
-      SHA1Fingerprint fpr;
-      base::SHA1HashBytes(
-          reinterpret_cast<const uint8*>(pubkey.data()),
-          pubkey.size(),
-          fpr.data);
-      out_pub_key_hash->push_back(fpr);
-      have_parsed_a_key = true;
-    }
-  }
-
-  return have_parsed_a_key;
-}
-
-// This function converts the binary hashes, which we store in
-// |enabled_hosts_|, to a base64 string which we can include in a JSON file.
-static std::string HashedDomainToExternalString(const std::string& hashed) {
-  std::string out;
-  CHECK(base::Base64Encode(hashed, &out));
-  return out;
-}
-
-// This inverts |HashedDomainToExternalString|, above. It turns an external
-// string (from a JSON file) into an internal (binary) string.
-static std::string ExternalStringToHashedDomain(const std::string& external) {
-  std::string out;
-  if (!base::Base64Decode(external, &out) ||
-      out.size() != crypto::kSHA256Length) {
-    return std::string();
-  }
-
-  return out;
-}
-
-static ListValue* SPKIHashesToListValue(const FingerprintVector& hashes) {
-  ListValue* pins = new ListValue;
-
-  for (FingerprintVector::const_iterator i = hashes.begin();
-       i != hashes.end(); ++i) {
-    std::string hash_str(reinterpret_cast<const char*>(i->data),
-                         sizeof(i->data));
-    std::string b64;
-    base::Base64Encode(hash_str, &b64);
-    pins->Append(new StringValue("sha1/" + b64));
-  }
-
-  return pins;
-}
-
-bool TransportSecurityState::Serialise(std::string* output) {
-  DCHECK(CalledOnValidThread());
-
-  DictionaryValue toplevel;
-  base::Time now = base::Time::Now();
-  for (std::map<std::string, DomainState>::const_iterator
-       i = enabled_hosts_.begin(); i != enabled_hosts_.end(); ++i) {
-    DictionaryValue* state = new DictionaryValue;
-    state->SetBoolean("include_subdomains", i->second.include_subdomains);
-    state->SetDouble("created", i->second.created.ToDoubleT());
-    state->SetDouble("expiry", i->second.expiry.ToDoubleT());
-    state->SetDouble("dynamic_spki_hashes_expiry",
-                     i->second.dynamic_spki_hashes_expiry.ToDoubleT());
-
-    switch (i->second.mode) {
-      case DomainState::MODE_STRICT:
-        state->SetString("mode", "strict");
-        break;
-      case DomainState::MODE_SPDY_ONLY:
-        state->SetString("mode", "spdy-only");
-        break;
-      case DomainState::MODE_PINNING_ONLY:
-        state->SetString("mode", "pinning-only");
-        break;
-      default:
-        NOTREACHED() << "DomainState with unknown mode";
-        delete state;
-        continue;
-    }
-
-    state->Set("preloaded_spki_hashes",
-               SPKIHashesToListValue(i->second.preloaded_spki_hashes));
-
-    if (now < i->second.dynamic_spki_hashes_expiry) {
-      state->Set("dynamic_spki_hashes",
-                 SPKIHashesToListValue(i->second.dynamic_spki_hashes));
-    }
-
-    toplevel.Set(HashedDomainToExternalString(i->first), state);
-  }
-
-  base::JSONWriter::WriteWithOptions(&toplevel,
-                                     base::JSONWriter::OPTIONS_PRETTY_PRINT,
-                                     output);
-  return true;
-}
-
-bool TransportSecurityState::LoadEntries(const std::string& input,
-                                         bool* dirty) {
-  DCHECK(CalledOnValidThread());
-
-  enabled_hosts_.clear();
-  return Deserialise(input, dirty, &enabled_hosts_);
 }
 
 static bool AddHash(const std::string& type_and_base64,
@@ -901,116 +489,7 @@ static bool AddHash(const std::string& type_and_base64,
   return true;
 }
 
-static void SPKIHashesFromListValue(FingerprintVector* hashes,
-                                    const ListValue& pins) {
-  size_t num_pins = pins.GetSize();
-  for (size_t i = 0; i < num_pins; ++i) {
-    std::string type_and_base64;
-    if (pins.GetString(i, &type_and_base64))
-      AddHash(type_and_base64, hashes);
-  }
-}
-
-// static
-bool TransportSecurityState::Deserialise(
-    const std::string& input,
-    bool* dirty,
-    std::map<std::string, DomainState>* out) {
-  scoped_ptr<Value> value(base::JSONReader::Read(input));
-  if (!value.get() || !value->IsType(Value::TYPE_DICTIONARY))
-    return false;
-
-  DictionaryValue* dict_value = reinterpret_cast<DictionaryValue*>(value.get());
-  const base::Time current_time(base::Time::Now());
-  bool dirtied = false;
-
-  for (DictionaryValue::key_iterator i = dict_value->begin_keys();
-       i != dict_value->end_keys(); ++i) {
-    DictionaryValue* state;
-    if (!dict_value->GetDictionaryWithoutPathExpansion(*i, &state))
-      continue;
-
-    bool include_subdomains;
-    std::string mode_string;
-    double created;
-    double expiry;
-    double dynamic_spki_hashes_expiry = 0.0;
-
-    if (!state->GetBoolean("include_subdomains", &include_subdomains) ||
-        !state->GetString("mode", &mode_string) ||
-        !state->GetDouble("expiry", &expiry)) {
-      continue;
-    }
-
-    // Don't fail if this key is not present.
-    (void) state->GetDouble("dynamic_spki_hashes_expiry",
-                            &dynamic_spki_hashes_expiry);
-
-    ListValue* pins_list = NULL;
-    FingerprintVector preloaded_spki_hashes;
-    if (state->GetList("preloaded_spki_hashes", &pins_list))
-      SPKIHashesFromListValue(&preloaded_spki_hashes, *pins_list);
-
-    FingerprintVector dynamic_spki_hashes;
-    if (state->GetList("dynamic_spki_hashes", &pins_list))
-      SPKIHashesFromListValue(&dynamic_spki_hashes, *pins_list);
-
-    DomainState::Mode mode;
-    if (mode_string == "strict") {
-      mode = DomainState::MODE_STRICT;
-    } else if (mode_string == "spdy-only") {
-      mode = DomainState::MODE_SPDY_ONLY;
-    } else if (mode_string == "pinning-only") {
-      mode = DomainState::MODE_PINNING_ONLY;
-    } else {
-      LOG(WARNING) << "Unknown TransportSecurityState mode string found: "
-                   << mode_string;
-      continue;
-    }
-
-    base::Time expiry_time = base::Time::FromDoubleT(expiry);
-    base::Time dynamic_spki_hashes_expiry_time =
-        base::Time::FromDoubleT(dynamic_spki_hashes_expiry);
-    base::Time created_time;
-    if (state->GetDouble("created", &created)) {
-      created_time = base::Time::FromDoubleT(created);
-    } else {
-      // We're migrating an old entry with no creation date. Make sure we
-      // write the new date back in a reasonable time frame.
-      dirtied = true;
-      created_time = base::Time::Now();
-    }
-
-    if (expiry_time <= current_time &&
-        dynamic_spki_hashes_expiry_time <= current_time) {
-      // Make sure we dirty the state if we drop an entry.
-      dirtied = true;
-      continue;
-    }
-
-    std::string hashed = ExternalStringToHashedDomain(*i);
-    if (hashed.empty()) {
-      dirtied = true;
-      continue;
-    }
-
-    DomainState new_state;
-    new_state.mode = mode;
-    new_state.created = created_time;
-    new_state.expiry = expiry_time;
-    new_state.include_subdomains = include_subdomains;
-    new_state.preloaded_spki_hashes = preloaded_spki_hashes;
-    new_state.dynamic_spki_hashes = dynamic_spki_hashes;
-    new_state.dynamic_spki_hashes_expiry = dynamic_spki_hashes_expiry_time;
-    (*out)[hashed] = new_state;
-  }
-
-  *dirty = dirtied;
-  return true;
-}
-
-TransportSecurityState::~TransportSecurityState() {
-}
+TransportSecurityState::~TransportSecurityState() {}
 
 void TransportSecurityState::DirtyNotify() {
   DCHECK(CalledOnValidThread());
@@ -1122,11 +601,11 @@ static bool HasPreload(const struct HSTSPreload* entries, size_t num_entries,
         out->include_subdomains = entries[j].include_subdomains;
         *ret = true;
         if (!entries[j].https_required)
-          out->mode = TransportSecurityState::DomainState::MODE_PINNING_ONLY;
+          out->upgrade_mode = TransportSecurityState::DomainState::MODE_DEFAULT;
         if (entries[j].pins.required_hashes) {
           const char* const* hash = entries[j].pins.required_hashes;
           while (*hash) {
-            bool ok = AddHash(*hash, &out->preloaded_spki_hashes);
+            bool ok = AddHash(*hash, &out->static_spki_hashes);
             DCHECK(ok) << " failed to parse " << *hash;
             hash++;
           }
@@ -1134,7 +613,7 @@ static bool HasPreload(const struct HSTSPreload* entries, size_t num_entries,
         if (entries[j].pins.excluded_hashes) {
           const char* const* hash = entries[j].pins.excluded_hashes;
           while (*hash) {
-            bool ok = AddHash(*hash, &out->bad_preloaded_spki_hashes);
+            bool ok = AddHash(*hash, &out->bad_static_spki_hashes);
             DCHECK(ok) << " failed to parse " << *hash;
             hash++;
           }
@@ -1177,7 +656,7 @@ static const struct HSTSPreload* GetHSTSPreload(
 
 // static
 bool TransportSecurityState::IsGooglePinnedProperty(const std::string& host,
-                                                    bool sni_available) {
+                                                    bool sni_enabled) {
   std::string canonicalized_host = CanonicalizeHost(host);
   const struct HSTSPreload* entry =
       GetHSTSPreload(canonicalized_host, kPreloadedSTS, kNumPreloadedSTS);
@@ -1185,7 +664,7 @@ bool TransportSecurityState::IsGooglePinnedProperty(const std::string& host,
   if (entry && entry->pins.required_hashes == kGoogleAcceptableCerts)
     return true;
 
-  if (sni_available) {
+  if (sni_enabled) {
     entry = GetHSTSPreload(canonicalized_host, kPreloadedSNISTS,
                            kNumPreloadedSNISTS);
     if (entry && entry->pins.required_hashes == kGoogleAcceptableCerts)
@@ -1215,16 +694,13 @@ void TransportSecurityState::ReportUMAOnPinFailure(const std::string& host) {
                             entry->second_level_domain_name, DOMAIN_NUM_EVENTS);
 }
 
-// IsPreloadedSTS returns true if the canonicalized hostname should always be
-// considered to have STS enabled.
-bool TransportSecurityState::IsPreloadedSTS(
+bool TransportSecurityState::GetStaticDomainState(
     const std::string& canonicalized_host,
-    bool sni_available,
+    bool sni_enabled,
     DomainState* out) {
   DCHECK(CalledOnValidThread());
 
-  out->preloaded = true;
-  out->mode = DomainState::MODE_STRICT;
+  out->upgrade_mode = DomainState::MODE_FORCE_HTTPS;
   out->include_subdomains = false;
 
   for (size_t i = 0; canonicalized_host[i]; i += canonicalized_host[i] + 1) {
@@ -1235,7 +711,6 @@ bool TransportSecurityState::IsPreloadedSTS(
     if (forced_hosts_.find(hashed_host) != forced_hosts_.end()) {
       *out = forced_hosts_[hashed_host];
       out->domain = DNSDomainToString(host_sub_chunk);
-      out->preloaded = true;
       return true;
     }
     bool ret;
@@ -1243,7 +718,7 @@ bool TransportSecurityState::IsPreloadedSTS(
                    &ret)) {
       return ret;
     }
-    if (sni_available &&
+    if (sni_enabled &&
         HasPreload(kPreloadedSNISTS, kNumPreloadedSNISTS, canonicalized_host, i,
                    out, &ret)) {
       return ret;
@@ -1251,6 +726,16 @@ bool TransportSecurityState::IsPreloadedSTS(
   }
 
   return false;
+}
+
+void TransportSecurityState::AddOrUpdateEnabledHosts(std::string hashed_host,
+                                                     const DomainState& state) {
+  enabled_hosts_[hashed_host] = state;
+}
+
+void TransportSecurityState::AddOrUpdateForcedHosts(std::string hashed_host,
+                                                    const DomainState& state) {
+  forced_hosts_[hashed_host] = state;
 }
 
 static std::string HashesToBase64String(
@@ -1269,33 +754,31 @@ static std::string HashesToBase64String(
 }
 
 TransportSecurityState::DomainState::DomainState()
-    : mode(MODE_STRICT),
+    : upgrade_mode(MODE_FORCE_HTTPS),
       created(base::Time::Now()),
-      include_subdomains(false),
-      preloaded(false) {
+      include_subdomains(false) {
 }
 
 TransportSecurityState::DomainState::~DomainState() {
 }
 
 bool TransportSecurityState::DomainState::IsChainOfPublicKeysPermitted(
-    const FingerprintVector& hashes) {
-
-  if (HashesIntersect(bad_preloaded_spki_hashes, hashes)) {
+    const FingerprintVector& hashes) const {
+  if (HashesIntersect(bad_static_spki_hashes, hashes)) {
     LOG(ERROR) << "Rejecting public key chain for domain " << domain
                << ". Validated chain: " << HashesToBase64String(hashes)
                << ", matches one or more bad hashes: "
-               << HashesToBase64String(bad_preloaded_spki_hashes);
+               << HashesToBase64String(bad_static_spki_hashes);
     return false;
   }
 
-  if (!(dynamic_spki_hashes.empty() && preloaded_spki_hashes.empty()) &&
+  if (!(dynamic_spki_hashes.empty() && static_spki_hashes.empty()) &&
       !HashesIntersect(dynamic_spki_hashes, hashes) &&
-      !HashesIntersect(preloaded_spki_hashes, hashes)) {
+      !HashesIntersect(static_spki_hashes, hashes)) {
     LOG(ERROR) << "Rejecting public key chain for domain " << domain
                << ". Validated chain: " << HashesToBase64String(hashes)
                << ", expected: " << HashesToBase64String(dynamic_spki_hashes)
-               << " or: " << HashesToBase64String(preloaded_spki_hashes);
+               << " or: " << HashesToBase64String(static_spki_hashes);
 
     return false;
   }
@@ -1303,20 +786,21 @@ bool TransportSecurityState::DomainState::IsChainOfPublicKeysPermitted(
   return true;
 }
 
-bool TransportSecurityState::DomainState::IsMoreStrict(
-    const TransportSecurityState::DomainState& other) {
-  if (this->dynamic_spki_hashes.empty() && !other.dynamic_spki_hashes.empty())
-    return false;
+bool TransportSecurityState::DomainState::ShouldRedirectHTTPToHTTPS() const {
+  return upgrade_mode == MODE_FORCE_HTTPS;
+}
 
-  if (!this->include_subdomains && other.include_subdomains)
-    return false;
-
+bool TransportSecurityState::DomainState::Equals(
+    const DomainState& other) const {
+  // TODO(palmer): Implement this
+  (void) other;
   return true;
 }
 
-bool TransportSecurityState::DomainState::ShouldRedirectHTTPToHTTPS()
-    const {
-  return mode == MODE_STRICT;
+bool TransportSecurityState::DomainState::HasPins() const {
+  return static_spki_hashes.size() > 0 ||
+         bad_static_spki_hashes.size() > 0 ||
+         dynamic_spki_hashes.size() > 0;
 }
 
 }  // namespace
