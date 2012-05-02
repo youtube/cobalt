@@ -88,6 +88,8 @@ struct NET_EXPORT_PRIVATE DnsSystemSettings {
   RegString tcpip_search_list;
   // SYSTEM\CurrentControlSet\Tcpip\Parameters\Domain
   RegString tcpip_domain;
+  // SOFTWARE\Policies\Microsoft\System\DNSClient\PrimaryDnsSuffix
+  RegString primary_dns_suffix;
 
   // SOFTWARE\Policies\Microsoft\Windows NT\DNSClient
   DevolutionSetting policy_devolution;
