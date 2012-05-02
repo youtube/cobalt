@@ -68,10 +68,6 @@ Patches:
   * Enable False Start only when the server supports forward secrecy.
     patches/falsestartnpn.patch
 
-  * Enable False Start only when the server supports NPN. (Not for
-    upstreaming.)
-    patches/falsestartnpn2.patch
-
   * Reject DH generators and public values equal to zero or one.
     patches/dhvalues.patch
 
