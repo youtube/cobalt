@@ -115,7 +115,11 @@ bool WebMClusterParser::OnSimpleBlock(int track_num, int timecode,
   base::TimeDelta timestamp = base::TimeDelta::FromMicroseconds(
       (cluster_timecode_ + timecode) * timecode_multiplier_);
 
-  scoped_refptr<DataBuffer> buffer = DataBuffer::CopyFrom(data, size);
+  // The first bit of the flags is set when the block contains only keyframes.
+  // http://www.matroska.org/technical/specs/index.html
+  bool is_keyframe = (flags & 0x80) != 0;
+  scoped_refptr<StreamParserBuffer> buffer =
+      StreamParserBuffer::CopyFrom(data, size, is_keyframe);
 
   if (track_num == video_track_num_ && video_encryption_key_id_.get()) {
     buffer->SetDecryptConfig(scoped_ptr<DecryptConfig>(new DecryptConfig(

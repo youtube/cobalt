@@ -8,7 +8,7 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "media/base/audio_decoder_config.h"
-#include "media/base/data_buffer.h"
+#include "media/base/stream_parser_buffer.h"
 #include "media/base/video_decoder_config.h"
 #include "media/filters/chunk_demuxer_client.h"
 #include "media/webm/webm_stream_parser.h"
@@ -18,14 +18,9 @@ namespace media {
 // TODO(acolwell): Remove this when fixing http://crbug.com/122909 .
 const char* kDefaultSourceType = "video/webm; codecs=\"vp8, vorbis\"";
 
-// Create an "end of stream" buffer.
-static Buffer* CreateEOSBuffer() {
-  return new DataBuffer(0);
-}
-
 class ChunkDemuxerStream : public DemuxerStream {
  public:
-  typedef std::deque<scoped_refptr<Buffer> > BufferQueue;
+  typedef std::deque<scoped_refptr<StreamParserBuffer> > BufferQueue;
   typedef std::deque<ReadCB> ReadCBQueue;
   typedef std::deque<base::Closure> ClosureQueue;
 
@@ -205,7 +200,7 @@ void ChunkDemuxerStream::Shutdown() {
   // Pass end of stream buffers to all callbacks to signal that no more data
   // will be sent.
   for (ReadCBQueue::iterator it = read_cbs.begin(); it != read_cbs.end(); ++it)
-    it->Run(CreateEOSBuffer());
+    it->Run(StreamParserBuffer::CreateEOSBuffer());
 }
 
 bool ChunkDemuxerStream::GetLastBufferTimestamp(
@@ -264,7 +259,7 @@ void ChunkDemuxerStream::Read(const ReadCB& read_cb) {
 
         if (buffers_.empty()) {
           ChangeState_Locked(RETURNING_EOS_FOR_READS);
-          buffer = CreateEOSBuffer();
+          buffer = StreamParserBuffer::CreateEOSBuffer();
         } else {
           buffer = buffers_.front();
           buffers_.pop_front();
@@ -275,7 +270,7 @@ void ChunkDemuxerStream::Read(const ReadCB& read_cb) {
       case SHUTDOWN:
         DCHECK(buffers_.empty());
         DCHECK(read_cbs_.empty());
-        buffer = CreateEOSBuffer();
+        buffer = StreamParserBuffer::CreateEOSBuffer();
     }
   }
 
@@ -325,7 +320,8 @@ void ChunkDemuxerStream::CreateReadDoneClosures_Locked(ClosureQueue* closures) {
     return;
 
   // Push enough EOS buffers to satisfy outstanding Read() requests.
-  scoped_refptr<Buffer> end_of_stream_buffer = CreateEOSBuffer();
+  scoped_refptr<Buffer> end_of_stream_buffer =
+      StreamParserBuffer::CreateEOSBuffer();
   while (!read_cbs_.empty()) {
     closures->push_back(base::Bind(read_cbs_.front(), end_of_stream_buffer));
     read_cbs_.pop_front();
@@ -591,7 +587,7 @@ void ChunkDemuxer::EndOfStream(PipelineStatus status) {
 
   // Create an end of stream buffer.
   ChunkDemuxerStream::BufferQueue buffers;
-  buffers.push_back(CreateEOSBuffer());
+  buffers.push_back(StreamParserBuffer::CreateEOSBuffer());
 
   if (audio_.get())
     audio_->AddBuffers(buffers);
