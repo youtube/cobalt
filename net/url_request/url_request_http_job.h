@@ -118,7 +118,8 @@ class URLRequestHttpJob : public URLRequestJob {
 
   scoped_ptr<HttpTransaction> transaction_;
 
-  // This is used to supervise traffic and enforce exponential back-off.
+  // This is used to supervise traffic and enforce exponential
+  // back-off.  May be NULL.
   scoped_refptr<URLRequestThrottlerEntryInterface> throttling_entry_;
 
   // Indicated if an SDCH dictionary was advertised, and hence an SDCH
