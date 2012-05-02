@@ -134,15 +134,14 @@ class VideoRendererBaseTest : public ::testing::Test {
     read_cb.Run(VideoDecoder::kOk, VideoFrame::CreateEmptyFrame());
   }
 
-  void StartSeeking(int64 timestamp) {
+  void StartSeeking(int64 timestamp, PipelineStatus expected_status) {
     EXPECT_FALSE(seeking_);
 
     // Seek to trigger prerolling.
     seeking_ = true;
     renderer_->Seek(base::TimeDelta::FromMicroseconds(timestamp),
                     base::Bind(&VideoRendererBaseTest::OnSeekComplete,
-                               base::Unretained(this),
-                               PIPELINE_OK));
+                               base::Unretained(this), expected_status));
   }
 
   void Play() {
@@ -156,7 +155,7 @@ class VideoRendererBaseTest : public ::testing::Test {
   // Use |kEndOfStream| to preroll end of stream frames.
   void Seek(int64 timestamp) {
     SCOPED_TRACE(base::StringPrintf("Seek(%" PRId64 ")", timestamp));
-    StartSeeking(timestamp);
+    StartSeeking(timestamp, PIPELINE_OK);
     FinishSeeking(timestamp);
   }
 
@@ -463,6 +462,15 @@ TEST_F(VideoRendererBaseTest, DecoderError) {
   Shutdown();
 }
 
+TEST_F(VideoRendererBaseTest, DecoderErrorDuringSeek) {
+  Initialize();
+  Pause();
+  Flush();
+  StartSeeking(kFrameDuration * 6, PIPELINE_ERROR_DECODE);
+  DecoderError();
+  Shutdown();
+}
+
 TEST_F(VideoRendererBaseTest, Seek_Exact) {
   Initialize();
   Pause();
@@ -586,7 +594,7 @@ TEST_F(VideoRendererBaseTest, StopDuringOutstandingRead) {
   Pause();
   Flush();
   QueueReadCB();
-  StartSeeking(kFrameDuration * 6);  // Force-decode some more.
+  StartSeeking(kFrameDuration * 6, PIPELINE_OK);  // Force-decode some more.
   renderer_->Stop(NewWaitableClosure());
   SatisfyQueuedReadCB();
   WaitForClosure();  // Finish the Stop().
@@ -624,7 +632,7 @@ TEST_F(VideoRendererBaseTest, AbortPendingRead_Seek) {
   Initialize();
   Pause();
   Flush();
-  StartSeeking(kFrameDuration * 6);
+  StartSeeking(kFrameDuration * 6, PIPELINE_OK);
   AbortRead();
   VerifyNotSeeking();
   Shutdown();
