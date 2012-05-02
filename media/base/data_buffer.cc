@@ -30,23 +30,31 @@ DataBuffer::DataBuffer(int buffer_size)
     data_.reset(NULL);
 }
 
+DataBuffer::DataBuffer(const uint8* data, int data_size)
+    : Buffer(base::TimeDelta(), base::TimeDelta()),
+      buffer_size_(0),
+      data_size_(0) {
+  if (data_size == 0)
+    return;
+
+  int padding_size = 0;
+#if !defined(OS_ANDROID)
+  // FFmpeg assumes all input buffers are padded with this value.
+  padding_size = FF_INPUT_BUFFER_PADDING_SIZE;
+#endif
+
+  buffer_size_ = data_size + padding_size;
+  data_.reset(new uint8[buffer_size_]);
+  memcpy(data_.get(), data, data_size);
+  memset(data_.get() + data_size, 0, padding_size);
+  SetDataSize(data_size);
+}
+
 DataBuffer::~DataBuffer() {}
 
 scoped_refptr<DataBuffer> DataBuffer::CopyFrom(const uint8* data,
                                                int data_size) {
-  int padding_size = 0;
-#if !defined(OS_ANDROID)
-  // Why FF_INPUT_BUFFER_PADDING_SIZE? FFmpeg assumes all input buffers are
-  // padded with this value.
-  padding_size = FF_INPUT_BUFFER_PADDING_SIZE;
-#endif
-
-  scoped_refptr<DataBuffer> data_buffer(
-      new DataBuffer(data_size + padding_size));
-  memcpy(data_buffer->data_.get(), data, data_size);
-  memset(data_buffer->data_.get() + data_size, 0, padding_size);
-  data_buffer->SetDataSize(data_size);
-  return data_buffer;
+  return make_scoped_refptr(new DataBuffer(data, data_size));
 }
 
 const uint8* DataBuffer::GetData() const {
@@ -64,7 +72,6 @@ const DecryptConfig* DataBuffer::GetDecryptConfig() const {
 uint8* DataBuffer::GetWritableData() {
   return data_.get();
 }
-
 
 void DataBuffer::SetDataSize(int data_size) {
   DCHECK_LE(data_size, buffer_size_);

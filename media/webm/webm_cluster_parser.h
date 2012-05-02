@@ -9,14 +9,14 @@
 #include <string>
 
 #include "base/memory/scoped_ptr.h"
-#include "media/base/buffers.h"
+#include "media/base/stream_parser_buffer.h"
 #include "media/webm/webm_parser.h"
 
 namespace media {
 
 class WebMClusterParser : public WebMParserClient {
  public:
-  typedef std::deque<scoped_refptr<Buffer> > BufferQueue;
+  typedef std::deque<scoped_refptr<StreamParserBuffer> > BufferQueue;
 
   WebMClusterParser(int64 timecode_scale,
                     int audio_track_num,
