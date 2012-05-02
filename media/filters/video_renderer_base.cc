@@ -367,19 +367,20 @@ void VideoRendererBase::FrameReady(VideoDecoder::DecoderStatus status,
   CHECK(pending_read_);
   pending_read_ = false;
 
-  if (status == VideoDecoder::kDecodeError) {
+  if (status != VideoDecoder::kOk) {
     DCHECK(!frame);
-    host()->SetError(PIPELINE_ERROR_DECODE);
+    PipelineStatus error = PIPELINE_ERROR_DECODE;
+    if (status == VideoDecoder::kDecryptError)
+      error = PIPELINE_ERROR_DECRYPT;
+
+    if (!seek_cb_.is_null()) {
+      base::ResetAndReturn(&seek_cb_).Run(error);
+      return;
+    }
+
+    host()->SetError(error);
     return;
   }
-
-  if (status == VideoDecoder::kDecryptError) {
-    DCHECK(!frame);
-    host()->SetError(PIPELINE_ERROR_DECRYPT);
-    return;
-  }
-
-  DCHECK_EQ(status, VideoDecoder::kOk);
 
   // Already-queued Decoder ReadCB's can fire after various state transitions
   // have happened; in that case just drop those frames immediately.
