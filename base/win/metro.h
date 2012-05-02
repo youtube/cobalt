@@ -9,6 +9,7 @@
 #include <windows.h>
 
 #include "base/base_export.h"
+#include "base/string16.h"
 
 namespace base {
 namespace win {
@@ -43,6 +44,10 @@ struct CurrentTabInfo {
 // Returns the handle to the metro dll loaded in the process. A NULL return
 // indicates that the metro dll was not loaded in the process.
 BASE_EXPORT HMODULE GetMetroModule();
+
+// Allocates and returns the destination string via the LocalAlloc API after
+// copying the src to it.
+BASE_EXPORT wchar_t* LocalAllocAndCopyString(const string16& src);
 
 }  // namespace win
 }  // namespace base
