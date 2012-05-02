@@ -46,6 +46,8 @@ const wchar_t* const kDnscachePath =
     L"SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters";
 const wchar_t* const kPolicyPath =
     L"SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient";
+const wchar_t* const kPrimaryDnsSuffixPath =
+    L"SOFTWARE\\Policies\\Microsoft\\System\\DNSClient";
 
 // Convenience for reading values using RegKey.
 class RegistryReader : public base::NonThreadSafe {
@@ -299,15 +301,27 @@ bool ConvertSettingsToDnsConfig(const DnsSystemSettings& settings,
     }
   }
 
-  if (!settings.tcpip_domain.set)
-    return true;
-
+  // In absence of explicit search list, suffix search is:
+  // [primary suffix, connection-specific suffix, devolution of primary suffix].
+  // Primary suffix can be set by policy (primary_dns_suffix) or
+  // user setting (tcpip_domain).
+  //
+  // The policy (primary_dns_suffix) can be edited via Group Policy Editor
+  // (gpedit.msc) at Local Computer Policy => Computer Configuration
+  // => Administrative Template => Network => DNS Client => Primary DNS Suffix.
+  //
+  // The user setting (tcpip_domain) can be configurred at Computer Name in
+  // System Settings
   std::string primary_suffix;
-  if (!ParseDomainASCII(settings.tcpip_domain.value, &primary_suffix))
-    return true;  // No primary suffix, hence no devolution.
-
-  // Primary suffix goes in front.
-  config->search.insert(config->search.begin(), primary_suffix);
+  if ((settings.primary_dns_suffix.set &&
+       ParseDomainASCII(settings.primary_dns_suffix.value, &primary_suffix)) ||
+      (settings.tcpip_domain.set &&
+       ParseDomainASCII(settings.tcpip_domain.value, &primary_suffix))) {
+    // Primary suffix goes in front.
+    config->search.insert(config->search.begin(), primary_suffix);
+  } else {
+    return true; // No primary suffix, hence no devolution.
+  }
 
   // Devolution is determined by precedence: policy > dnscache > tcpip.
   // |enabled|: UseDomainNameDevolution and |level|: DomainNameDevolutionLevel
@@ -439,6 +453,7 @@ class DnsConfigServiceWin::ConfigReader : public SerialWorker {
     RegistryReader tcpip6_reader(kTcpip6Path);
     RegistryReader dnscache_reader(kDnscachePath);
     RegistryReader policy_reader(kPolicyPath);
+    RegistryReader primary_dns_suffix_reader(kPrimaryDnsSuffixPath);
 
     if (!policy_reader.ReadString(L"SearchList",
                                   &settings.policy_search_list))
@@ -462,6 +477,10 @@ class DnsConfigServiceWin::ConfigReader : public SerialWorker {
 
     if (!policy_reader.ReadDword(L"AppendToMultiLabelName",
                                  &settings.append_to_multi_label_name))
+      return;
+
+    if (!primary_dns_suffix_reader.ReadString(L"PrimaryDnsSuffix",
+                                              &settings.primary_dns_suffix))
       return;
 
     success_ = ConvertSettingsToDnsConfig(settings, &dns_config_);
