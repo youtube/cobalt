@@ -6,11 +6,11 @@
 
 #include "base/logging.h"
 
+namespace base {
+
 RefCountedMemory::RefCountedMemory() {}
 
 RefCountedMemory::~RefCountedMemory() {}
-
-namespace base {
 
 const unsigned char* RefCountedStaticMemory::front() const {
   return data_;
