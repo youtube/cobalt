@@ -108,7 +108,11 @@
 #define PNG_NO_WRITE_SUPPORTED
 #endif
 
+#if defined(__LB_SHELL__FOR_RELEASE__)
+// LB_SHELL needs to be able to specify custom allocators to libpng for
+// debugging.
 #define PNG_NO_USER_MEM
+#endif
 #define PNG_NO_FIXED_POINT_SUPPORTED
 #define PNG_NO_MNG_FEATURES
 #define PNG_NO_USER_TRANSFORM_PTR
