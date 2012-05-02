@@ -6108,10 +6108,6 @@ ssl3_CanFalseStart(sslSocket *ss) {
     rv = ss->opt.enableFalseStart &&
 	 !ss->sec.isServer &&
 	 !ss->ssl3.hs.isResuming &&
-	 /* This check for NPN is performed here because we can't call
-	  * SSL_HandshakeNegotiatedExtension in the auth callback because of
-	  * lock ordering issues. See crbug.com/125299 */
-	 ssl3_ExtensionNegotiated(ss, ssl_next_proto_nego_xtn) &&
 	 ss->ssl3.cwSpec &&
 
 	 /* An attacker can control the selected ciphersuite so we only wish to

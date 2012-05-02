@@ -38,6 +38,4 @@ patch -p4 < $patches_dir/dtls.patch
 
 patch -p5 < $patches_dir/falsestartnpn.patch
 
-patch -p5 < $patches_dir/falsestartnpn2.patch
-
 patch -p5 < $patches_dir/dhvalues.patch
