@@ -45,6 +45,8 @@ class MEDIA_EXPORT DataBuffer : public Buffer {
   virtual void SetDecryptConfig(scoped_ptr<DecryptConfig> decrypt_config);
 
  protected:
+  // Copies from [data,data+size) to owned array.
+  DataBuffer(const uint8* data, int size);
   virtual ~DataBuffer();
 
  private:

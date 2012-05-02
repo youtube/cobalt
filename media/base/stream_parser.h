@@ -16,13 +16,13 @@
 namespace media {
 
 class AudioDecoderConfig;
-class Buffer;
+class StreamParserBuffer;
 class VideoDecoderConfig;
 
 // Abstract interface for parsing media byte streams.
 class MEDIA_EXPORT StreamParser {
  public:
-  typedef std::deque<scoped_refptr<Buffer> > BufferQueue;
+  typedef std::deque<scoped_refptr<StreamParserBuffer> > BufferQueue;
 
   StreamParser();
   virtual ~StreamParser();
