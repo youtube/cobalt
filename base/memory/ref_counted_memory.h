@@ -13,8 +13,7 @@
 #include "base/compiler_specific.h"
 #include "base/memory/ref_counted.h"
 
-// TODO(erg): The contents of this file should be in a namespace. This would
-// require touching >100 files in chrome/ though.
+namespace base {
 
 // A generic interface to memory. This object is reference counted because one
 // of its two subclasses own the data they carry, and we need to have
@@ -34,8 +33,6 @@ class BASE_EXPORT RefCountedMemory
   RefCountedMemory();
   virtual ~RefCountedMemory();
 };
-
-namespace base {
 
 // An implementation of RefCountedMemory, where the ref counting does not
 // matter.
