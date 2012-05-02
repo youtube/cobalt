@@ -44,7 +44,8 @@
           # Enable HiDPI support.
           'enable_hidpi%': 0,
 
-          # Enable Metro support.
+          # Enable inclusion of touch-optimized resources.
+          # TODO(joi): Rename to enable_touch_assets.
           'enable_metro%': 0,
         },
         # Copy conditionally-set variables out one scope.
@@ -266,7 +267,7 @@
 
       # Enable the task manager by default.
       'enable_task_manager%': 1,
-      
+
       # Enables support for promo resource service.
       'enable_promo_resource_service%': 1,
 
