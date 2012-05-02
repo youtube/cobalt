@@ -357,10 +357,11 @@ void ChunkDemuxer::Initialize(DemuxerHost* host,
 
     ChangeState_Locked(INITIALIZING);
     init_cb_ = cb;
-    stream_parser_.reset(new WebMStreamParser());
 
-    stream_parser_->Init(
-        base::Bind(&ChunkDemuxer::OnStreamParserInitDone, this),
+    source_buffer_.reset(new SourceBuffer());
+
+    source_buffer_->Init(
+        base::Bind(&ChunkDemuxer::OnSourceBufferInitDone, this),
         base::Bind(&ChunkDemuxer::OnNewConfigs, base::Unretained(this)),
         base::Bind(&ChunkDemuxer::OnAudioBuffers, base::Unretained(this)),
         base::Bind(&ChunkDemuxer::OnVideoBuffers, base::Unretained(this)),
@@ -454,7 +455,7 @@ void ChunkDemuxer::FlushData() {
   if (video_.get())
     video_->Flush();
 
-  stream_parser_->Flush();
+  source_buffer_->Flush();
 
   seek_waits_for_data_ = true;
   ChangeState_Locked(INITIALIZED);
@@ -509,7 +510,7 @@ bool ChunkDemuxer::AppendData(const std::string& id,
 
     switch (state_) {
       case INITIALIZING:
-        if (!stream_parser_->Parse(data, length)) {
+        if (!source_buffer_->AppendData(data, length)) {
           DCHECK_EQ(state_, INITIALIZING);
           ReportError_Locked(DEMUXER_ERROR_COULD_NOT_OPEN);
           return true;
@@ -517,7 +518,7 @@ bool ChunkDemuxer::AppendData(const std::string& id,
         break;
 
       case INITIALIZED: {
-        if (!stream_parser_->Parse(data, length)) {
+        if (!source_buffer_->AppendData(data, length)) {
           ReportError_Locked(PIPELINE_ERROR_DECODE);
           return true;
         }
@@ -621,7 +622,7 @@ void ChunkDemuxer::Shutdown() {
     if (video_.get())
       video_->Shutdown();
 
-    stream_parser_.reset();
+    source_buffer_.reset();
 
     ChangeState_Locked(SHUTDOWN);
   }
@@ -668,7 +669,7 @@ void ChunkDemuxer::ReportError_Locked(PipelineStatus error) {
   host_->OnDemuxerError(error);
 }
 
-void ChunkDemuxer::OnStreamParserInitDone(bool success,
+void ChunkDemuxer::OnSourceBufferInitDone(bool success,
                                           base::TimeDelta duration) {
   lock_.AssertAcquired();
   DCHECK_EQ(state_, INITIALIZING);

@@ -11,7 +11,7 @@
 #include "base/synchronization/lock.h"
 #include "media/base/byte_queue.h"
 #include "media/base/demuxer.h"
-#include "media/base/stream_parser.h"
+#include "media/filters/source_buffer.h"
 
 namespace media {
 
@@ -84,9 +84,9 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // data.
   void ReportError_Locked(PipelineStatus error);
 
-  void OnStreamParserInitDone(bool success, base::TimeDelta duration);
+  void OnSourceBufferInitDone(bool success, base::TimeDelta duration);
 
-  // StreamParser callbacks.
+  // SourceBuffer callbacks.
   bool OnNewConfigs(const AudioDecoderConfig& audio_config,
                     const VideoDecoderConfig& video_config);
   bool OnAudioBuffers(const StreamParser::BufferQueue& buffer);
@@ -108,7 +108,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 
   base::TimeDelta duration_;
 
-  scoped_ptr<StreamParser> stream_parser_;
+  scoped_ptr<SourceBuffer> source_buffer_;
 
   // Should a Seek() call wait for more data before calling the
   // callback.
