@@ -29,6 +29,7 @@ class SSLConfigService;
 class TransportSecurityState;
 class URLRequestContext;
 class URLRequestJobFactory;
+class URLRequestThrottlerManager;
 
 // URLRequestContextStorage is a helper class that provides storage for unowned
 // member variables of URLRequestContext.
@@ -64,6 +65,7 @@ class NET_EXPORT URLRequestContextStorage {
   void set_ftp_transaction_factory(
       FtpTransactionFactory* ftp_transaction_factory);
   void set_job_factory(URLRequestJobFactory* job_factory);
+  void set_throttler_manager(URLRequestThrottlerManager* throttler_manager);
 
  private:
   // We use a raw pointer to prevent reference cycles, since
@@ -89,6 +91,7 @@ class NET_EXPORT URLRequestContextStorage {
   scoped_ptr<HttpTransactionFactory> http_transaction_factory_;
   scoped_ptr<FtpTransactionFactory> ftp_transaction_factory_;
   scoped_ptr<URLRequestJobFactory> job_factory_;
+  scoped_ptr<URLRequestThrottlerManager> throttler_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestContextStorage);
 };

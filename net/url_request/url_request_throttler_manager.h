@@ -12,7 +12,6 @@
 
 #include "base/basictypes.h"
 #include "base/memory/scoped_ptr.h"
-#include "base/memory/singleton.h"
 #include "base/threading/non_thread_safe.h"
 #include "base/threading/platform_thread.h"
 #include "googleurl/src/gurl.h"
@@ -34,16 +33,13 @@ class NetLog;
 // are registered, and does garbage collection from time to time in order to
 // clean out outdated entries. URL ID consists of lowercased scheme, host, port
 // and path. All URLs converted to the same ID will share the same entry.
-//
-// NOTE: All usage of this singleton object must be on the same thread,
-// although to allow it to be used as a singleton, construction and destruction
-// can occur on a separate thread.
 class NET_EXPORT URLRequestThrottlerManager
     : NON_EXPORTED_BASE(public base::NonThreadSafe),
       public NetworkChangeNotifier::IPAddressObserver,
       public NetworkChangeNotifier::OnlineStateObserver {
  public:
-  static URLRequestThrottlerManager* GetInstance();
+  URLRequestThrottlerManager();
+  virtual ~URLRequestThrottlerManager();
 
   // Must be called for every request, returns the URL request throttler entry
   // associated with the URL. The caller must inform this entry of some events.
@@ -88,10 +84,6 @@ class NET_EXPORT URLRequestThrottlerManager
   // OnlineStateObserver interface.
   virtual void OnOnlineStateChanged(bool online) OVERRIDE;
 
- protected:
-  URLRequestThrottlerManager();
-  virtual ~URLRequestThrottlerManager();
-
   // Method that allows us to transform a URL into an ID that can be used in our
   // map. Resulting IDs will be lowercase and consist of the scheme, host, port
   // and path (without query string, fragment, etc.).
@@ -120,8 +112,6 @@ class NET_EXPORT URLRequestThrottlerManager
   int GetNumberOfEntriesForTests() const { return url_entries_.size(); }
 
  private:
-  friend struct DefaultSingletonTraits<URLRequestThrottlerManager>;
-
   // From each URL we generate an ID composed of the scheme, host, port and path
   // that allows us to uniquely map an entry to it.
   typedef std::map<std::string, scoped_refptr<URLRequestThrottlerEntry> >
