@@ -19,6 +19,7 @@
 #include "net/url_request/fraudulent_certificate_reporter.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_job_factory.h"
+#include "net/url_request/url_request_throttler_manager.h"
 
 namespace net {
 
@@ -113,6 +114,12 @@ void URLRequestContextStorage::set_job_factory(
     URLRequestJobFactory* job_factory) {
   context_->set_job_factory(job_factory);
   job_factory_.reset(job_factory);
+}
+
+void URLRequestContextStorage::set_throttler_manager(
+    URLRequestThrottlerManager* throttler_manager) {
+  context_->set_throttler_manager(throttler_manager);
+  throttler_manager_.reset(throttler_manager);
 }
 
 }  // namespace net

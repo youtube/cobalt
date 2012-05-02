@@ -37,6 +37,7 @@ class ServerBoundCertService;
 class ProxyService;
 class URLRequest;
 class URLRequestJobFactory;
+class URLRequestThrottlerManager;
 
 // Subclass to provide application-specific context for URLRequest
 // instances. Note that URLRequestContext typically does not provide storage for
@@ -191,6 +192,14 @@ class NET_EXPORT URLRequestContext
     job_factory_ = job_factory;
   }
 
+  // May be NULL.
+  URLRequestThrottlerManager* throttler_manager() const {
+    return throttler_manager_;
+  }
+  void set_throttler_manager(URLRequestThrottlerManager* throttler_manager) {
+    throttler_manager_ = throttler_manager;
+  }
+
   // Gets the URLRequest objects that hold a reference to this
   // URLRequestContext.
   std::set<const URLRequest*>* url_requests() const {
@@ -236,6 +245,7 @@ class NET_EXPORT URLRequestContext
   HttpTransactionFactory* http_transaction_factory_;
   FtpTransactionFactory* ftp_transaction_factory_;
   const URLRequestJobFactory* job_factory_;
+  URLRequestThrottlerManager* throttler_manager_;
 
   // ---------------------------------------------------------------------------
   // Important: When adding any new members below, consider whether they need to
