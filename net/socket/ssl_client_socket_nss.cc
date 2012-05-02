@@ -2056,6 +2056,25 @@ SECStatus SSLClientSocketNSS::OwnAuthCertHandler(void* arg,
                                                  PRFileDesc* socket,
                                                  PRBool checksig,
                                                  PRBool is_server) {
+#ifdef SSL_ENABLE_FALSE_START
+  SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
+  if (!that->server_cert_nss_) {
+    // Only need to turn off False Start in the initial handshake. Also, it is
+    // unsafe to call SSL_OptionSet in a renegotiation because the "first
+    // handshake" lock isn't already held, which will result in an assertion
+    // failure in the ssl_Get1stHandshakeLock call in SSL_OptionSet.
+    PRBool npn;
+    SECStatus rv = SSL_HandshakeNegotiatedExtension(socket,
+                                                    ssl_next_proto_nego_xtn,
+                                                    &npn);
+    if (rv != SECSuccess || !npn) {
+      // If the server doesn't support NPN, then we don't do False Start with
+      // it.
+      SSL_OptionSet(socket, SSL_ENABLE_FALSE_START, PR_FALSE);
+    }
+  }
+#endif
+
   // Tell NSS to not verify the certificate.
   return SECSuccess;
 }
