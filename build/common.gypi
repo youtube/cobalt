@@ -43,6 +43,9 @@
 
           # Enable HiDPI support.
           'enable_hidpi%': 0,
+          
+          # Enable touch optimized art assets and metrics.
+          'enable_touch_ui%': 0,
 
           # Enable inclusion of touch-optimized resources.
           # TODO(joi): Rename to enable_touch_assets.
@@ -57,6 +60,7 @@
         'use_virtual_keyboard%': '<(use_virtual_keyboard)',
         'enable_viewport%': '<(enable_viewport)',
         'enable_hidpi%': '<(enable_hidpi)',
+        'enable_touch_ui%': '<(enable_touch_ui)',
         'enable_metro%': '<(enable_metro)',
 
         # Compute the architecture that we're building on.
@@ -96,6 +100,11 @@
           ['OS=="mac"', {
             'enable_hidpi%': 1,
           }],
+          
+          # Enable touch UI on Metro and Chrome OS.
+          ['enable_metro==1 or chromeos==1', {
+            'enable_touch_ui%': 1,
+          }],
         ],
       },
 
@@ -110,6 +119,7 @@
       'use_virtual_keyboard%': '<(use_virtual_keyboard)',
       'enable_viewport%': '<(enable_viewport)',
       'enable_hidpi%': '<(enable_hidpi)',
+      'enable_touch_ui%': '<(enable_touch_ui)',
       'enable_metro%': '<(enable_metro)',
 
       # We used to provide a variable for changing how libraries were built.
@@ -512,6 +522,7 @@
     'use_virtual_keyboard%': '<(use_virtual_keyboard)',
     'enable_viewport%': '<(enable_viewport)',
     'enable_hidpi%': '<(enable_hidpi)',
+    'enable_touch_ui%': '<(enable_touch_ui)',
     'enable_metro%': '<(enable_metro)',
     'use_xi2_mt%':'<(use_xi2_mt)',
     'file_manager_extension%': '<(file_manager_extension)',
