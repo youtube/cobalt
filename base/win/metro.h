@@ -34,6 +34,12 @@ enum MetroPreviousExecutionState {
   LASTEXECUTIONSTATE,
 };
 
+// Contains information about the currently displayed tab in metro mode.
+struct CurrentTabInfo {
+  wchar_t* title;
+  wchar_t* url;
+};
+
 // Returns the handle to the metro dll loaded in the process. A NULL return
 // indicates that the metro dll was not loaded in the process.
 BASE_EXPORT HMODULE GetMetroModule();
