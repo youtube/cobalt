@@ -176,8 +176,7 @@ URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
                      base::Unretained(this)))),
       read_in_progress_(false),
       transaction_(NULL),
-      throttling_entry_(URLRequestThrottlerManager::GetInstance()->
-          RegisterRequestUrl(request->url())),
+      throttling_entry_(NULL),
       sdch_dictionary_advertised_(false),
       sdch_test_activated_(false),
       sdch_test_control_(false),
@@ -195,6 +194,10 @@ URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
           base::Bind(&URLRequestHttpJob::OnHeadersReceivedCallback,
                      base::Unretained(this)))),
       awaiting_callback_(false) {
+  URLRequestThrottlerManager* manager = request->context()->throttler_manager();
+  if (manager)
+    throttling_entry_ = manager->RegisterRequestUrl(request->url());
+
   ResetTimer();
 }
 
@@ -207,7 +210,7 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
   // also need this info.
   is_cached_content_ = response_info_->was_cached;
 
-  if (!is_cached_content_) {
+  if (!is_cached_content_ && throttling_entry_) {
     URLRequestThrottlerHeaderAdapter response_adapter(GetResponseHeaders());
     throttling_entry_->UpdateWithResponse(request_info_.url.host(),
                                           &response_adapter);
@@ -325,7 +328,11 @@ void URLRequestHttpJob::StartTransactionInternal() {
       // change (to throttle only requests originating from
       // extensions) gets into M19. Right after the M19 branch point,
       // I will sort this out in a more architecturally-sound way.
-      if (!URLRequestThrottlerManager::GetInstance()->enforce_throttling() ||
+      URLRequestThrottlerManager* manager =
+          request_->context()->throttler_manager();
+      DCHECK(!manager || throttling_entry_);
+      if (!manager ||
+          !manager->enforce_throttling() ||
           request_->first_party_for_cookies().scheme() != "chrome-extension" ||
           !throttling_entry_->ShouldRejectRequest(request_info_.load_flags)) {
         rv = transaction_->Start(

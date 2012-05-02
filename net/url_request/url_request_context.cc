@@ -31,6 +31,7 @@ URLRequestContext::URLRequestContext()
       http_transaction_factory_(NULL),
       ftp_transaction_factory_(NULL),
       job_factory_(NULL),
+      throttler_manager_(NULL),
       url_requests_(new std::set<const URLRequest*>) {
 }
 
@@ -55,6 +56,7 @@ void URLRequestContext::CopyFrom(URLRequestContext* other) {
   set_http_transaction_factory(other->http_transaction_factory());
   set_ftp_transaction_factory(other->ftp_transaction_factory());
   set_job_factory(other->job_factory());
+  set_throttler_manager(other->throttler_manager());
 }
 
 void URLRequestContext::set_cookie_store(CookieStore* cookie_store) {
