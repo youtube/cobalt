@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,15 +11,6 @@
 #include "base/string_util.h"
 
 #pragma comment(lib, "crypt32.lib")
-
-namespace {
-  // Helper for error handling during key import.
-#define READ_ASSERT(truth) \
-  if (!(truth)) { \
-  NOTREACHED(); \
-  return false; \
-  }
-}  // namespace
 
 namespace crypto {
 
@@ -102,7 +93,10 @@ RSAPrivateKey* RSAPrivateKey::CreateFromPrivateKeyInfo(
          pki.private_exponent()->size());
   dest += pki.private_exponent()->size();
 
-  READ_ASSERT(dest == blob.get() + blob_size);
+  if (dest != blob.get() + blob_size) {
+    NOTREACHED();
+    return NULL;
+  }
   if (!CryptImportKey(result->provider_,
                       reinterpret_cast<uint8*>(public_key_struc), blob_size, 0,
                       CRYPT_EXPORTABLE, result->key_.receive()))
