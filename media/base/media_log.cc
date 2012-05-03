@@ -118,14 +118,10 @@ const char* MediaLog::PipelineStatusToString(PipelineStatus status) {
       return "pipeline: initialization failed";
     case PIPELINE_ERROR_REQUIRED_FILTER_MISSING:
       return "pipeline: required filter missing";
-    case PIPELINE_ERROR_OUT_OF_MEMORY:
-      return "pipeline: out of memory";
     case PIPELINE_ERROR_COULD_NOT_RENDER:
       return "pipeline: could not render";
     case PIPELINE_ERROR_READ:
       return "pipeline: read error";
-    case PIPELINE_ERROR_AUDIO_HARDWARE:
-      return "pipeline: audio hardware error";
     case PIPELINE_ERROR_OPERATION_PENDING:
       return "pipeline: operation pending";
     case PIPELINE_ERROR_INVALID_STATE:
@@ -136,12 +132,8 @@ const char* MediaLog::PipelineStatusToString(PipelineStatus status) {
       return "dumuxer: could not parse";
     case DEMUXER_ERROR_NO_SUPPORTED_STREAMS:
       return "demuxer: no supported streams";
-    case DEMUXER_ERROR_COULD_NOT_CREATE_THREAD:
-      return "demuxer: could not create thread";
     case DECODER_ERROR_NOT_SUPPORTED:
       return "decoder: not supported";
-    case DATASOURCE_ERROR_URL_NOT_SUPPORTED:
-      return "data source: url not supported";
   }
   NOTREACHED();
   return NULL;
