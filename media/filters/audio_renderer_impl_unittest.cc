@@ -63,6 +63,10 @@ class AudioRendererImplTest : public ::testing::Test {
         .Times(AnyNumber());
     EXPECT_CALL(*decoder_, samples_per_second())
         .Times(AnyNumber());
+
+    // We'll pretend time never advances.
+    EXPECT_CALL(host_, GetTime())
+        .WillRepeatedly(Return(base::TimeDelta()));
   }
 
   virtual ~AudioRendererImplTest() {
@@ -370,7 +374,6 @@ TEST_F(AudioRendererImplTest, Underflow_EndOfStream) {
   DeliverEndOfStream();
   EXPECT_CALL(host_, NotifyEnded());
 
-  EXPECT_CALL(host_, GetTime()).WillOnce(Return(base::TimeDelta()));
   EXPECT_FALSE(ConsumeBufferedData(kDataSize, &muted));
   EXPECT_FALSE(muted);
 }
