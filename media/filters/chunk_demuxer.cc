@@ -37,6 +37,13 @@ class ChunkDemuxerStream : public DemuxerStream {
   void AddBuffers(const BufferQueue& buffers);
   void Shutdown();
 
+  // Gets the time range buffered by this object.
+  // Returns true if there is buffered data. |start_out| & |end_out| are set to
+  //    the start and end time of the buffered data respectively.
+  // Returns false if no data is buffered.
+  bool GetBufferedRange(base::TimeDelta* start_out,
+                        base::TimeDelta* end_out) const;
+
   bool GetLastBufferTimestamp(base::TimeDelta* timestamp) const;
 
   // DemuxerStream methods.
@@ -201,6 +208,23 @@ void ChunkDemuxerStream::Shutdown() {
   // will be sent.
   for (ReadCBQueue::iterator it = read_cbs.begin(); it != read_cbs.end(); ++it)
     it->Run(StreamParserBuffer::CreateEOSBuffer());
+}
+
+bool ChunkDemuxerStream::GetBufferedRange(
+    base::TimeDelta* start_out, base::TimeDelta* end_out) const {
+  base::AutoLock auto_lock(lock_);
+
+  if (buffers_.empty())
+    return false;
+
+  *start_out = buffers_.front()->GetTimestamp();
+  *end_out = buffers_.back()->GetTimestamp();
+
+  base::TimeDelta end_duration = buffers_.back()->GetDuration();
+  if (end_duration != kNoTimestamp())
+    *end_out += end_duration;
+
+  return true;
 }
 
 bool ChunkDemuxerStream::GetLastBufferTimestamp(
@@ -477,6 +501,42 @@ void ChunkDemuxer::RemoveId(const std::string& id) {
   source_id_ = "";
 }
 
+bool ChunkDemuxer::GetBufferedRanges(const std::string& id,
+                                     Ranges* ranges_out) const {
+  DCHECK(!id.empty());
+  DCHECK_EQ(source_id_, id);
+  DCHECK(ranges_out);
+
+  base::AutoLock auto_lock(lock_);
+  base::TimeDelta start = kNoTimestamp();
+  base::TimeDelta end;
+  base::TimeDelta tmp_start;
+  base::TimeDelta tmp_end;
+
+  if (audio_ && audio_->GetBufferedRange(&tmp_start, &tmp_end)) {
+    start = tmp_start;
+    end = tmp_end;
+  }
+
+  if (video_ && video_->GetBufferedRange(&tmp_start, &tmp_end)) {
+    if (start == kNoTimestamp()) {
+      start = tmp_start;
+      end = tmp_end;
+    } else {
+      start = std::min(start, tmp_start);
+      end = std::max(end, tmp_end);
+    }
+  }
+
+  if (start == kNoTimestamp())
+    return false;
+
+  ranges_out->resize(1);
+  (*ranges_out)[0].first = start;
+  (*ranges_out)[0].second = end;
+  return true;
+}
+
 bool ChunkDemuxer::AppendData(const std::string& id,
                               const uint8* data,
                               size_t length) {
@@ -562,6 +622,13 @@ bool ChunkDemuxer::AppendData(const std::string& id,
     cb.Run(PIPELINE_OK);
 
   return true;
+}
+
+void ChunkDemuxer::Abort(const std::string& id) {
+  DCHECK(!id.empty());
+  DCHECK_EQ(source_id_, id);
+
+  source_buffer_->Flush();
 }
 
 void ChunkDemuxer::EndOfStream(PipelineStatus status) {
