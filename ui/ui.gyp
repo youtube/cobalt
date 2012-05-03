@@ -376,7 +376,6 @@
         'gfx/screen.h',
         'gfx/screen_android.cc',
         'gfx/screen_aura.cc',
-        'gfx/screen_aurax11.cc',
         'gfx/screen_gtk.cc',
         'gfx/screen_impl.h',
         'gfx/screen_mac.mm',
