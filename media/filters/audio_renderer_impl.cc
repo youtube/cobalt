@@ -20,6 +20,7 @@ AudioRendererImpl::AudioRendererImpl(media::AudioRendererSink* sink)
       pending_read_(false),
       received_end_of_stream_(false),
       rendered_end_of_stream_(false),
+      audio_time_buffered_(kNoTimestamp()),
       bytes_per_frame_(0),
       bytes_per_second_(0),
       stopped_(false),
@@ -119,7 +120,7 @@ void AudioRendererImpl::Seek(base::TimeDelta time, const PipelineStatusCB& cb) {
   seek_timestamp_ = time;
 
   // Throw away everything and schedule our reads.
-  audio_time_buffered_ = base::TimeDelta();
+  audio_time_buffered_ = kNoTimestamp();
   received_end_of_stream_ = false;
   rendered_end_of_stream_ = false;
 
@@ -377,11 +378,8 @@ int AudioRendererImpl::Render(const std::vector<float*>& audio_data,
 uint32 AudioRendererImpl::FillBuffer(uint8* dest,
                                      uint32 requested_frames,
                                      const base::TimeDelta& playback_delay) {
-  // The |audio_time_buffered_| is the ending timestamp of the last frame
-  // buffered at the audio device. |playback_delay| is the amount of time
-  // buffered at the audio device. The current time can be computed by their
-  // difference.
-  base::TimeDelta current_time = audio_time_buffered_ - playback_delay;
+  base::TimeDelta current_time = kNoTimestamp();
+  base::TimeDelta max_time = kNoTimestamp();
 
   size_t frames_written = 0;
   base::Closure underflow_cb;
@@ -432,17 +430,24 @@ uint32 AudioRendererImpl::FillBuffer(uint8* dest,
       // Otherwise fill the buffer.
       frames_written = algorithm_->FillBuffer(dest, requested_frames);
     }
+
+    // The |audio_time_buffered_| is the ending timestamp of the last frame
+    // buffered at the audio device. |playback_delay| is the amount of time
+    // buffered at the audio device. The current time can be computed by their
+    // difference.
+    if (audio_time_buffered_ != kNoTimestamp()) {
+      current_time = audio_time_buffered_ - playback_delay;
+    }
+
+    // The call to FillBuffer() on |algorithm_| has increased the amount of
+    // buffered audio data. Update the new amount of time buffered.
+    max_time = audio_time_buffered_ = algorithm_->GetTime();
   }
 
-  base::TimeDelta previous_time_buffered = audio_time_buffered_;
-  // The call to FillBuffer() on |algorithm_| has increased the amount of
-  // buffered audio data. Update the new amount of time buffered.
-  audio_time_buffered_ = algorithm_->GetTime();
-
-  if (previous_time_buffered.InMicroseconds() > 0 &&
-      (previous_time_buffered != audio_time_buffered_ ||
-       current_time > host()->GetTime())) {
-    time_cb_.Run(current_time, audio_time_buffered_);
+  if (current_time != kNoTimestamp() &&
+      current_time > host()->GetTime() &&
+      max_time != kNoTimestamp()) {
+    time_cb_.Run(current_time, max_time);
   }
 
   if (!underflow_cb.is_null())
