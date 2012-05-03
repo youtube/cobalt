@@ -119,6 +119,7 @@ SpdyCredential::~SpdyCredential() {}
 
 SpdyFramer::SpdyFramer(int version)
     : state_(SPDY_RESET),
+      previous_state_(SPDY_RESET),
       error_code_(SPDY_NO_ERROR),
       remaining_data_(0),
       remaining_control_payload_(0),
