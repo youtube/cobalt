@@ -22,6 +22,7 @@
 #include "media/base/filters.h"
 #include "media/base/filter_collection.h"
 #include "media/base/pipeline.h"
+#include "media/base/video_decoder.h"
 #include "media/base/video_decoder_config.h"
 #include "media/base/video_frame.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -146,18 +147,13 @@ class MockVideoDecoder : public VideoDecoder {
  public:
   MockVideoDecoder();
 
-  // Filter implementation.
-  MOCK_METHOD1(Flush, void(const base::Closure& callback));
-  MOCK_METHOD1(Stop, void(const base::Closure& callback));
-  MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
-  MOCK_METHOD2(Seek, void(base::TimeDelta time, const PipelineStatusCB& cb));
-  MOCK_METHOD0(OnAudioRendererDisabled, void());
-
   // VideoDecoder implementation.
-  MOCK_METHOD3(Initialize, void(DemuxerStream* stream,
-                                const PipelineStatusCB& status_cb,
-                                const StatisticsCB& statistics_cb));
-  MOCK_METHOD1(Read, void(const ReadCB& read_cb));
+  MOCK_METHOD3(Initialize, void(const scoped_refptr<DemuxerStream>&,
+                                const PipelineStatusCB&,
+                                const StatisticsCB&));
+  MOCK_METHOD1(Read, void(const ReadCB&));
+  MOCK_METHOD1(Reset, void(const base::Closure&));
+  MOCK_METHOD1(Stop, void(const base::Closure&));
   MOCK_METHOD0(natural_size, const gfx::Size&());
   MOCK_CONST_METHOD0(HasAlpha, bool());
 
@@ -274,9 +270,8 @@ class MockFilterCollection {
 };
 
 // Helper gmock functions that immediately executes and destroys the
-// Closure on behalf of the provided filter.  Can be used when mocking
+// Closure on behalf of the provided filter. Can be used when mocking
 // the Initialize() and Seek() methods.
-void RunFilterCallback(::testing::Unused, const base::Closure& closure);
 void RunPipelineStatusCB(const PipelineStatusCB& status_cb);
 void RunPipelineStatusCB2(::testing::Unused, const PipelineStatusCB& status_cb);
 void RunPipelineStatusCB3(::testing::Unused, const PipelineStatusCB& status_cb,
@@ -284,8 +279,8 @@ void RunPipelineStatusCB3(::testing::Unused, const PipelineStatusCB& status_cb,
 void RunPipelineStatusCB4(::testing::Unused, const PipelineStatusCB& status_cb,
                           ::testing::Unused, ::testing::Unused);
 // Helper gmock function that immediately executes the Closure on behalf of the
-// provided filter.  Can be used when mocking the Stop() method.
-void RunStopFilterCallback(const base::Closure& closure);
+// provided filter. Can be used when mocking the Stop() method.
+void RunClosure(const base::Closure& closure);
 
 // Helper gmock action that calls SetError() on behalf of the provided filter.
 ACTION_P2(SetError, filter, error) {

@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 #include "media/base/audio_decoder.h"
+#include "media/base/video_decoder.h"
 
 namespace media {
 

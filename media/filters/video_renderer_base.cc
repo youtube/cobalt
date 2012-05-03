@@ -60,7 +60,7 @@ void VideoRendererBase::Flush(const base::Closure& callback) {
   // call.
   // TODO: Remove this line when fixing http://crbug.com/125020
   base::AutoUnlock auto_unlock(lock_);
-  decoder_->Flush(base::Bind(&VideoRendererBase::OnDecoderFlushDone, this));
+  decoder_->Reset(base::Bind(&VideoRendererBase::OnDecoderFlushDone, this));
 }
 
 void VideoRendererBase::Stop(const base::Closure& callback) {
@@ -122,7 +122,6 @@ void VideoRendererBase::Initialize(const scoped_refptr<VideoDecoder>& decoder,
   DCHECK(!time_cb.is_null());
   DCHECK_EQ(kUninitialized, state_);
   decoder_ = decoder;
-  decoder_->set_host(host());
 
   statistics_cb_ = statistics_cb;
   time_cb_ = time_cb;
