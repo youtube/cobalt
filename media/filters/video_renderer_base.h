@@ -13,6 +13,7 @@
 #include "base/threading/platform_thread.h"
 #include "media/base/filters.h"
 #include "media/base/pipeline_status.h"
+#include "media/base/video_decoder.h"
 #include "media/base/video_frame.h"
 
 namespace media {

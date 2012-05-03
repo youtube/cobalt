@@ -5,7 +5,8 @@
 #ifndef MEDIA_FILTERS_VIDEO_FRAME_GENERATOR_H_
 #define MEDIA_FILTERS_VIDEO_FRAME_GENERATOR_H_
 
-#include "media/base/filters.h"
+#include "base/time.h"
+#include "media/base/video_decoder.h"
 #include "media/base/pipeline_status.h"
 
 namespace base {
@@ -19,8 +20,7 @@ class VideoFrame;
 
 // A filter generates raw frames and passes them to media engine as a video
 // decoder filter.
-class MEDIA_EXPORT VideoFrameGenerator
-    : public VideoDecoder {
+class MEDIA_EXPORT VideoFrameGenerator : public VideoDecoder {
  public:
   VideoFrameGenerator(
       base::MessageLoopProxy* message_loop_proxy,
@@ -28,26 +28,24 @@ class MEDIA_EXPORT VideoFrameGenerator
       const base::TimeDelta& frame_duration);
   virtual ~VideoFrameGenerator();
 
-  // Filter implementation.
-  virtual void Stop(const base::Closure& callback) OVERRIDE;
-
-  // Decoder implementation.
+  // VideoDecoder implementation.
   virtual void Initialize(
-      DemuxerStream* demuxer_stream,
+      const scoped_refptr<DemuxerStream>& stream,
       const PipelineStatusCB& status_cb,
       const StatisticsCB& statistics_cb) OVERRIDE;
   virtual void Read(const ReadCB& read_cb) OVERRIDE;
-  virtual void Flush(const base::Closure& flush_cb) OVERRIDE;
+  virtual void Reset(const base::Closure& closure) OVERRIDE;
+  virtual void Stop(const base::Closure& closure) OVERRIDE;
   virtual const gfx::Size& natural_size() OVERRIDE;
 
  private:
-  void StopOnDecoderThread(const base::Closure& callback);
-
   void InitializeOnDecoderThread(
-      DemuxerStream* demuxer_stream,
+      const scoped_refptr<DemuxerStream>& stream,
       const PipelineStatusCB& status_cb,
       const StatisticsCB& statistics_cb);
   void ReadOnDecoderThread(const ReadCB& read_cb);
+  void ResetOnDecoderThread(const base::Closure& closure);
+  void StopOnDecoderThread(const base::Closure& closure);
 
   scoped_refptr<base::MessageLoopProxy> message_loop_proxy_;
   gfx::Size natural_size_;

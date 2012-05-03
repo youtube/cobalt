@@ -10,11 +10,11 @@
 #include "base/string_util.h"
 #include "media/base/data_buffer.h"
 #include "media/base/decrypt_config.h"
-#include "media/base/filters.h"
 #include "media/base/limits.h"
 #include "media/base/mock_callback.h"
 #include "media/base/mock_filters.h"
 #include "media/base/test_data_util.h"
+#include "media/base/video_decoder.h"
 #include "media/base/video_frame.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/filters/ffmpeg_decoder_unittest.h"
@@ -92,19 +92,8 @@ class FFmpegVideoDecoderTest : public testing::Test {
     InitializeWithConfigAndStatus(config, PIPELINE_OK);
   }
 
-  void Pause() {
-    decoder_->Pause(NewExpectedClosure());
-    message_loop_.RunAllPending();
-  }
-
-  void Flush() {
-    decoder_->Flush(NewExpectedClosure());
-    message_loop_.RunAllPending();
-  }
-
-  void Seek(int64 timestamp) {
-    decoder_->Seek(base::TimeDelta::FromMicroseconds(timestamp),
-                   NewExpectedStatusCB(PIPELINE_OK));
+  void Reset() {
+    decoder_->Reset(NewExpectedClosure());
     message_loop_.RunAllPending();
   }
 
@@ -453,50 +442,29 @@ TEST_F(FFmpegVideoDecoderTest, DecodeEncryptedFrame_WrongKey) {
   message_loop_.RunAllPending();
 }
 
-// Test pausing when decoder has initialized but not decoded.
-TEST_F(FFmpegVideoDecoderTest, Pause_Initialized) {
+// Test resetting when decoder has initialized but not decoded.
+TEST_F(FFmpegVideoDecoderTest, Reset_Initialized) {
   Initialize();
-  Pause();
+  Reset();
 }
 
-// Test pausing when decoder has decoded single frame.
-TEST_F(FFmpegVideoDecoderTest, Pause_Decoding) {
-  Initialize();
-  EnterDecodingState();
-  Pause();
-}
-
-// Test pausing when decoder has hit end of stream.
-TEST_F(FFmpegVideoDecoderTest, Pause_EndOfStream) {
+// Test resetting when decoder has decoded single frame.
+TEST_F(FFmpegVideoDecoderTest, Reset_Decoding) {
   Initialize();
   EnterDecodingState();
-  EnterEndOfStreamState();
-  Pause();
+  Reset();
 }
 
-// Test flushing when decoder has initialized but not decoded.
-TEST_F(FFmpegVideoDecoderTest, Flush_Initialized) {
-  Initialize();
-  Flush();
-}
-
-// Test flushing when decoder has decoded single frame.
-TEST_F(FFmpegVideoDecoderTest, Flush_Decoding) {
-  Initialize();
-  EnterDecodingState();
-  Flush();
-}
-
-// Test flushing when decoder has hit end of stream.
-TEST_F(FFmpegVideoDecoderTest, Flush_EndOfStream) {
+// Test resetting when decoder has hit end of stream.
+TEST_F(FFmpegVideoDecoderTest, Reset_EndOfStream) {
   Initialize();
   EnterDecodingState();
   EnterEndOfStreamState();
-  Flush();
+  Reset();
 }
 
-// Test flushing when there is a pending read on the demuxer.
-TEST_F(FFmpegVideoDecoderTest, Flush_DuringPendingRead) {
+// Test resetting when there is a pending read on the demuxer.
+TEST_F(FFmpegVideoDecoderTest, Reset_DuringPendingRead) {
   Initialize();
 
   DemuxerStream::ReadCB read_cb;
@@ -510,37 +478,14 @@ TEST_F(FFmpegVideoDecoderTest, Flush_DuringPendingRead) {
   // the demuxer.
   EXPECT_FALSE(read_cb.is_null());
 
-  // Flush the decoder.
-  Flush();
+  // Reset the decoder.
+  Reset();
 
   EXPECT_CALL(*this, FrameReady(VideoDecoder::kOk,
                                 scoped_refptr<VideoFrame>()));
 
   read_cb.Run(i_frame_buffer_);
   message_loop_.RunAllPending();
-}
-
-
-
-// Test seeking when decoder has initialized but not decoded.
-TEST_F(FFmpegVideoDecoderTest, Seek_Initialized) {
-  Initialize();
-  Seek(1000);
-}
-
-// Test seeking when decoder has decoded single frame.
-TEST_F(FFmpegVideoDecoderTest, Seek_Decoding) {
-  Initialize();
-  EnterDecodingState();
-  Seek(1000);
-}
-
-// Test seeking when decoder has hit end of stream.
-TEST_F(FFmpegVideoDecoderTest, Seek_EndOfStream) {
-  Initialize();
-  EnterDecodingState();
-  EnterEndOfStreamState();
-  Seek(1000);
 }
 
 // Test stopping when decoder has initialized but not decoded.
@@ -595,7 +540,7 @@ TEST_F(FFmpegVideoDecoderTest, AbortPendingReadDuringFlush) {
   ASSERT_FALSE(read_cb.is_null());
 
   // Flush while there is still an outstanding read on the demuxer.
-  decoder_->Flush(NewExpectedClosure());
+  decoder_->Reset(NewExpectedClosure());
   message_loop_.RunAllPending();
 
   // Signal an aborted demuxer read.

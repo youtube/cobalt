@@ -14,6 +14,7 @@
 namespace media {
 
 class AudioDecoder;
+class VideoDecoder;
 
 // This is a collection of Filter objects used to form a media playback
 // pipeline. See src/media/base/pipeline.h for more information.
