@@ -823,7 +823,16 @@
         'variables': {
           'variables': {
             'android_ndk_root%': '<!(/bin/echo -n $ANDROID_NDK_ROOT)',
-            'target_arch%': 'arm',  # target_arch in android terms.
+            # Android uses x86 instead of ia32 for their target_arch 
+            # designation.
+            # TODO(wistoch): Adjust the target_arch naming scheme to avoid 
+            # confusion.
+            # http://crbug.com/125329
+            'conditions': [
+              ['target_arch == "ia32"', {
+                'target_arch': 'x86',
+              }],
+            ],
 
             # Switch between different build types, currently only '0' is
             # supported.
@@ -978,7 +987,7 @@
         ],
       }],
 
-      ['os_posix==1 and chromeos==0 and target_arch!="arm"', {
+      ['os_posix==1 and chromeos==0 and OS!="android"', {
         'use_cups%': 1,
       }, {
         'use_cups%': 0,
@@ -2381,9 +2390,16 @@
             'ldflags': [
               '-nostdlib',
               '-Wl,--no-undefined',
-              '-Wl,--icf=safe',  # Enable identical code folding to reduce size
               # Don't export symbols from statically linked libraries.
               '-Wl,--exclude-libs=ALL',
+            ],
+            'conditions': [
+              ['target_arch == "arm"', {
+                'ldflags': [
+                  # Enable identical code folding to reduce size.
+                  '-Wl,--icf=safe', 
+                ],
+              }],
             ],
             'libraries': [
               '-l<(android_stlport_library)',
