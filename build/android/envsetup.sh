@@ -45,25 +45,7 @@ case "${host_os}" in
     return 1
 esac
 
-# The following defines will affect ARM code generation of both C/C++ compiler
-# and V8 mksnapshot.
-case "${TARGET_PRODUCT-full}" in
-  "full")
-    DEFINES=" target_arch=arm"
-    DEFINES+=" arm_neon=0 armv7=1 arm_thumb=1 arm_fpu=vfpv3-d16"
-    toolchain_arch="arm-linux-androideabi-4.4.3"
-    ;;
-  *x86*)
-    DEFINES=" target_arch=ia32 use_libffmpeg=0"
-    toolchain_arch="x86-4.4.3"
-    ;;
-  *)
-    echo "TARGET_PRODUCT: ${TARGET_PRODUCT} is not supported." >& 2
-    return 1
-esac
-
-toolchain_path="${ANDROID_NDK_ROOT}/toolchains/${toolchain_arch}/prebuilt/"
-export ANDROID_TOOLCHAIN="${toolchain_path}/${toolchain_dir}/bin/"
+export ANDROID_TOOLCHAIN="${ANDROID_NDK_ROOT}/toolchains/arm-linux-androideabi-4.4.3/prebuilt/${toolchain_dir}/bin/"
 
 export ANDROID_SDK_VERSION="15"
 
@@ -115,7 +97,7 @@ export STRIP=$(echo ${ANDROID_TOOLCHAIN}/*-strip)
 
 # The set of GYP_DEFINES to pass to gyp. Use 'readlink -e' on directories
 # to canonicalize them (remove double '/', remove trailing '/', etc).
-DEFINES+=" OS=android"
+DEFINES="OS=android"
 DEFINES+=" android_build_type=0"  # Currently, Only '0' is supportted.
 DEFINES+=" host_os=${host_os}"
 DEFINES+=" linux_fpic=1"
@@ -130,6 +112,26 @@ DEFINES+=" build_ffmpegsumo=0"
 # is over.
 DEFINES+=" gtest_target_type=executable"
 DEFINES+=" branding=Chromium"
+
+# If the TARGET_PRODUCT wasn't set, use 'full' by default.
+if [ -z "${TARGET_PRODUCT}" ]; then
+  TARGET_PRODUCT="full"
+fi
+
+# The following defines will affect ARM code generation of both C/C++ compiler
+# and V8 mksnapshot.
+case "${TARGET_PRODUCT}" in
+  "full")
+    DEFINES+=" target_arch=arm"
+    DEFINES+=" arm_neon=0 armv7=1 arm_thumb=1 arm_fpu=vfpv3-d16"
+    ;;
+  *x86*)
+    DEFINES+=" target_arch=ia32 use_libffmpeg=0"
+    ;;
+  *)
+    echo "TARGET_PRODUCT: ${TARGET_PRODUCT} is not supported." >& 2
+    return 1
+esac
 
 export GYP_DEFINES="${DEFINES}"
 
