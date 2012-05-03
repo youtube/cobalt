@@ -156,7 +156,6 @@ class MEDIA_EXPORT AudioRendererImpl
   bool rendered_end_of_stream_;
 
   // The timestamp of the last frame (i.e. furthest in the future) buffered.
-  // TODO(ralphl): Update this value after seeking.
   base::TimeDelta audio_time_buffered_;
 
   // Filter callbacks.
