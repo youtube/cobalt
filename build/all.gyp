@@ -548,6 +548,7 @@
                     platformsdk_exists == "True"', {
                   'dependencies': [
                     '../remoting/remoting.gyp:remoting_host_installation',
+                    '../remoting/remoting.gyp:remoting_host_installation_unittest',
                   ],
                 }], # component != "shared_library"
               ]

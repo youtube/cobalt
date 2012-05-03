@@ -119,6 +119,7 @@ v8.log
 /remoting/proto/chromotocol_proto_lib.xml
 /remoting/proto/trace_proto_lib.xml
 /remoting/remoting_host_installation.xml
+/remoting/remoting_host_installation_unittest.xml
 /remoting/remoting_me2me_host.xml
 /remoting/remoting_version_resources.xml
 /remoting/tools/internal/
