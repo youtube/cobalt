@@ -142,30 +142,27 @@ bool SignCertificate(
   *(cert->version.data) = 2;
   cert->version.len = 1;
 
-  SECItem der;
-  der.len = 0;
-  der.data = NULL;
+  SECItem der = { siBuffer, NULL, 0 };
 
   // Use ASN1 DER to encode the cert.
   void* encode_result = SEC_ASN1EncodeItem(
-      arena, &der, cert, SEC_ASN1_GET(CERT_CertificateTemplate));
+      NULL, &der, cert, SEC_ASN1_GET(CERT_CertificateTemplate));
   if (!encode_result)
     return false;
 
   // Allocate space to contain the signed cert.
-  SECItem* result = SECITEM_AllocItem(arena, NULL, 0);
-  if (!result)
-    return false;
+  SECItem result = { siBuffer, NULL, 0 };
 
   // Sign the ASN1 encoded cert and save it to |result|.
-  rv = DerSignData(arena, result, &der, key, algo_id);
+  rv = DerSignData(arena, &result, &der, key, algo_id);
+  PORT_Free(der.data);
   if (rv != SECSuccess) {
     DLOG(ERROR) << "DerSignData: " << PORT_GetError();
     return false;
   }
 
   // Save the signed result to the cert.
-  cert->derCert = *result;
+  cert->derCert = result;
 
   return true;
 }
@@ -178,7 +175,6 @@ bool CreateDomainBoundCertInternal(
     base::Time not_valid_before,
     base::Time not_valid_after,
     std::string* der_cert) {
-
   CERTCertificate* cert = CreateCertificate(public_key,
                                             "CN=anonymous.invalid",
                                             serial_number,
