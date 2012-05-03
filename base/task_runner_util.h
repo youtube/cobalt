@@ -8,6 +8,7 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/callback_internal.h"
 #include "base/logging.h"
 #include "base/task_runner.h"
 
@@ -37,7 +38,7 @@ void ReplyAdapter(const Callback<void(ReturnType)>& callback,
                   ReturnType* result) {
   DCHECK(result);
   if(!callback.is_null())
-    callback.Run(*result);
+    callback.Run(CallbackForward(*result));
 }
 
 // Helper class for TaskRunner::PostTaskAndReplyWithResult.

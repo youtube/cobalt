@@ -166,6 +166,11 @@ struct CallbackParamTraits<ScopedVector<T> > {
 // In C++11, std::forward would replace all uses of this function.  However, it
 // is impossible to implement a general std::forward with C++11 due to a lack
 // of rvalue references.
+//
+// In addition to Callback/Bind, this is used by PostTaskAndReplyWithResult to
+// simulate std::forward() and forward the result of one Callback as a
+// parameter to another callback. This is to support Callbacks that return
+// the movable-but-not-copyable types whitelisted above.
 template <typename T>
 T& CallbackForward(T& t) { return t; }
 
