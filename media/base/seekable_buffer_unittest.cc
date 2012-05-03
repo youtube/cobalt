@@ -291,22 +291,31 @@ TEST_F(SeekableBufferTest, AllMethods) {
 
 
 TEST_F(SeekableBufferTest, GetTime) {
+  const int64 kNoTS = kNoTimestamp().ToInternalValue();
   const struct {
     int64 first_time_useconds;
     int64 duration_useconds;
     int consume_bytes;
     int64 expected_time;
   } tests[] = {
-    // Timestamps of 0 are treated as garbage.
-    { 0, 1000000, 0, kNoTimestamp().ToInternalValue() },
-    { 0, 4000000, 0, kNoTimestamp().ToInternalValue() },
-    { 0, 8000000, 0, kNoTimestamp().ToInternalValue() },
-    { 0, 1000000, 4, kNoTimestamp().ToInternalValue() },
-    { 0, 4000000, 4, kNoTimestamp().ToInternalValue() },
-    { 0, 8000000, 4, kNoTimestamp().ToInternalValue() },
-    { 0, 1000000, kWriteSize, kNoTimestamp().ToInternalValue() },
-    { 0, 4000000, kWriteSize, kNoTimestamp().ToInternalValue() },
-    { 0, 8000000, kWriteSize, kNoTimestamp().ToInternalValue() },
+    { kNoTS, 1000000, 0, kNoTS },
+    { kNoTS, 4000000, 0, kNoTS },
+    { kNoTS, 8000000, 0, kNoTS },
+    { kNoTS, 1000000, kWriteSize / 2, kNoTS },
+    { kNoTS, 4000000, kWriteSize / 2, kNoTS },
+    { kNoTS, 8000000, kWriteSize / 2, kNoTS },
+    { kNoTS, 1000000, kWriteSize, kNoTS },
+    { kNoTS, 4000000, kWriteSize, kNoTS },
+    { kNoTS, 8000000, kWriteSize, kNoTS },
+    { 0, 1000000, 0, 0 },
+    { 0, 4000000, 0, 0 },
+    { 0, 8000000, 0, 0 },
+    { 0, 1000000, kWriteSize / 2, 500000 },
+    { 0, 4000000, kWriteSize / 2, 2000000 },
+    { 0, 8000000, kWriteSize / 2, 4000000 },
+    { 0, 1000000, kWriteSize, 1000000 },
+    { 0, 4000000, kWriteSize, 4000000 },
+    { 0, 8000000, kWriteSize, 8000000 },
     { 5, 1000000, 0, 5 },
     { 5, 4000000, 0, 5 },
     { 5, 8000000, 0, 5 },
@@ -339,7 +348,7 @@ TEST_F(SeekableBufferTest, GetTime) {
     EXPECT_EQ(tests[i].expected_time, actual) << "With test = { start:"
         << tests[i].first_time_useconds << ", duration:"
         << tests[i].duration_useconds << ", consumed:"
-        << tests[i].consume_bytes << "}\n";
+        << tests[i].consume_bytes << " }\n";
 
     buffer_.Clear();
   }

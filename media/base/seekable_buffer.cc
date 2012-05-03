@@ -61,7 +61,7 @@ bool SeekableBuffer::GetCurrentChunk(const uint8** data, int* size) const {
 }
 
 bool SeekableBuffer::Append(Buffer* buffer_in) {
-  if (buffers_.empty() && buffer_in->GetTimestamp().InMicroseconds() > 0) {
+  if (buffers_.empty() && buffer_in->GetTimestamp() != kNoTimestamp()) {
     current_time_ = buffer_in->GetTimestamp();
   }
 
@@ -267,8 +267,7 @@ int SeekableBuffer::InternalRead(uint8* data, int size,
 void SeekableBuffer::UpdateCurrentTime(BufferQueue::iterator buffer,
                                        int offset) {
   // Garbage values are unavoidable, so this check will remain.
-  if (buffer != buffers_.end() &&
-      (*buffer)->GetTimestamp().InMicroseconds() > 0) {
+  if (buffer != buffers_.end() && (*buffer)->GetTimestamp() != kNoTimestamp()) {
     int64 time_offset = ((*buffer)->GetDuration().InMicroseconds() *
                          offset) / (*buffer)->GetDataSize();
 
