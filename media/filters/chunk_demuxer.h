@@ -7,6 +7,8 @@
 
 #include <list>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "base/synchronization/lock.h"
 #include "media/base/byte_queue.h"
@@ -28,6 +30,8 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
     kNotSupported,    // Type specified is not supported.
     kReachedIdLimit,  // Reached ID limit. We can't handle any more IDs.
   };
+
+  typedef std::vector<std::pair<base::TimeDelta, base::TimeDelta> > Ranges;
 
   explicit ChunkDemuxer(ChunkDemuxerClient* client);
   virtual ~ChunkDemuxer();
@@ -61,9 +65,20 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // AddId().
   void RemoveId(const std::string& id);
 
+  // Gets the currently buffered ranges for the specified ID.
+  // Returns true if data is buffered & |ranges_out| is set to the
+  // time ranges currently buffered.
+  // Returns false if no data is buffered.
+  bool GetBufferedRanges(const std::string& id, Ranges* ranges_out) const;
+
   // Appends media data to the source buffer associated with |id|. Returns
   // false if this method is called in an invalid state.
   bool AppendData(const std::string& id, const uint8* data, size_t length);
+
+  // Aborts parsing the current segment and reset the parser to a state where
+  // it can accept a new segment.
+  void Abort(const std::string& id);
+
   void EndOfStream(PipelineStatus status);
   bool HasEnded();
   void Shutdown();
@@ -93,7 +108,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   bool OnVideoBuffers(const StreamParser::BufferQueue& buffer);
   bool OnKeyNeeded(scoped_array<uint8> init_data, int init_data_size);
 
-  base::Lock lock_;
+  mutable base::Lock lock_;
   State state_;
 
   DemuxerHost* host_;
