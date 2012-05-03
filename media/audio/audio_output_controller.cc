@@ -81,32 +81,32 @@ scoped_refptr<AudioOutputController> AudioOutputController::Create(
 void AudioOutputController::Play() {
   DCHECK(message_loop_);
   message_loop_->PostTask(FROM_HERE, base::Bind(
-      &AudioOutputController::DoPlay, base::Unretained(this)));
+      &AudioOutputController::DoPlay, this));
 }
 
 void AudioOutputController::Pause() {
   DCHECK(message_loop_);
   message_loop_->PostTask(FROM_HERE, base::Bind(
-      &AudioOutputController::DoPause, base::Unretained(this)));
+      &AudioOutputController::DoPause, this));
 }
 
 void AudioOutputController::Flush() {
   DCHECK(message_loop_);
   message_loop_->PostTask(FROM_HERE, base::Bind(
-      &AudioOutputController::DoFlush, base::Unretained(this)));
+      &AudioOutputController::DoFlush, this));
 }
 
 void AudioOutputController::Close(const base::Closure& closed_task) {
   DCHECK(!closed_task.is_null());
   DCHECK(message_loop_);
   message_loop_->PostTaskAndReply(FROM_HERE, base::Bind(
-      &AudioOutputController::DoClose, base::Unretained(this)), closed_task);
+      &AudioOutputController::DoClose, this), closed_task);
 }
 
 void AudioOutputController::SetVolume(double volume) {
   DCHECK(message_loop_);
   message_loop_->PostTask(FROM_HERE, base::Bind(
-      &AudioOutputController::DoSetVolume, base::Unretained(this), volume));
+      &AudioOutputController::DoSetVolume, this, volume));
 }
 
 void AudioOutputController::DoCreate(AudioManager* audio_manager,
@@ -314,7 +314,7 @@ void AudioOutputController::WaitTillDataReady() {
 void AudioOutputController::OnError(AudioOutputStream* stream, int code) {
   // Handle error on the audio controller thread.
   message_loop_->PostTask(FROM_HERE, base::Bind(
-      &AudioOutputController::DoReportError, base::Unretained(this), code));
+      &AudioOutputController::DoReportError, this, code));
 }
 
 void AudioOutputController::DoStopCloseAndClearStream(WaitableEvent *done) {
