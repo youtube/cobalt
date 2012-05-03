@@ -686,13 +686,6 @@
           ],
         }],
         [ 'OS == "android" and _toolset == "target"', {
-          'conditions': [
-            ['target_arch == "ia32"', {
-              'sources/': [
-                ['include', '^atomicops_internals_x86_gcc\\.cc$'],
-              ],
-            }],
-          ],
           'dependencies': [
             'symbolize',
             '../third_party/ashmem/ashmem.gyp:ashmem',
