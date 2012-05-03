@@ -9,9 +9,8 @@
 
 #include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
-#include "media/base/filters.h"
+#include "media/base/video_decoder.h"
 #include "media/crypto/aes_decryptor.h"
-#include "ui/gfx/size.h"
 
 class MessageLoop;
 
@@ -25,17 +24,13 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   FFmpegVideoDecoder(const base::Callback<MessageLoop*()>& message_loop_cb);
   virtual ~FFmpegVideoDecoder();
 
-  // Filter implementation.
-  virtual void Stop(const base::Closure& callback) OVERRIDE;
-  virtual void Seek(base::TimeDelta time, const PipelineStatusCB& cb) OVERRIDE;
-  virtual void Pause(const base::Closure& callback) OVERRIDE;
-  virtual void Flush(const base::Closure& callback) OVERRIDE;
-
   // VideoDecoder implementation.
-  virtual void Initialize(DemuxerStream* demuxer_stream,
+  virtual void Initialize(const scoped_refptr<DemuxerStream>& stream,
                           const PipelineStatusCB& status_cb,
                           const StatisticsCB& statistics_cb) OVERRIDE;
   virtual void Read(const ReadCB& read_cb) OVERRIDE;
+  virtual void Reset(const base::Closure& closure) OVERRIDE;
+  virtual void Stop(const base::Closure& closure) OVERRIDE;
   virtual const gfx::Size& natural_size() OVERRIDE;
 
   AesDecryptor* decryptor();
@@ -67,8 +62,8 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   // and resets them to NULL.
   void ReleaseFFmpegResources();
 
-  // Flush decoder and call |flush_cb_|.
-  void DoFlush();
+  // Reset decoder and call |reset_cb_|.
+  void DoReset();
 
   // Allocates a video frame based on the current format and dimensions based on
   // the current state of |codec_context_|.
@@ -84,7 +79,7 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   StatisticsCB statistics_cb_;
 
   ReadCB read_cb_;
-  base::Closure flush_cb_;
+  base::Closure reset_cb_;
 
   // FFmpeg structures owned by this object.
   AVCodecContext* codec_context_;

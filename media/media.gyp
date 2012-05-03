@@ -180,6 +180,8 @@
         'base/stream_parser.h',
         'base/stream_parser_buffer.cc',
         'base/stream_parser_buffer.h',
+        'base/video_decoder.cc',
+        'base/video_decoder.h',
         'base/video_decoder_config.cc',
         'base/video_decoder_config.h',
         'base/video_frame.cc',

@@ -36,10 +36,6 @@ static const int64 kVideoDuration = kFrameDuration * 100;
 static const int64 kEndOfStream = kint64min;
 static const gfx::Size kNaturalSize(16u, 16u);
 
-ACTION(OnStop) {
-  arg0.Run();
-}
-
 class VideoRendererBaseTest : public ::testing::Test {
  public:
   VideoRendererBaseTest()
@@ -66,7 +62,7 @@ class VideoRendererBaseTest : public ::testing::Test {
     EXPECT_CALL(*this, SetOpaqueCBWasCalled(_))
         .WillRepeatedly(::testing::Return());
     EXPECT_CALL(*decoder_, Stop(_))
-        .WillRepeatedly(OnStop());
+        .WillRepeatedly(Invoke(RunClosure));
     EXPECT_CALL(*this, TimeCBWasCalled(_))
         .WillRepeatedly(::testing::Return());
   }
@@ -98,7 +94,7 @@ class VideoRendererBaseTest : public ::testing::Test {
     EXPECT_CALL(*decoder_, Read(_))
         .WillRepeatedly(Invoke(this, &VideoRendererBaseTest::FrameRequested));
 
-    EXPECT_CALL(*decoder_, Flush(_))
+    EXPECT_CALL(*decoder_, Reset(_))
         .WillRepeatedly(Invoke(this, &VideoRendererBaseTest::FlushRequested));
 
     InSequence s;
