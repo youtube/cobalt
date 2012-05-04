@@ -39,8 +39,6 @@
           'android/jni_registrar.h',
           'android/jni_string.cc',
           'android/jni_string.h',
-          'android/locale_utils.cc',
-          'android/locale_utils.h',
           'android/path_utils.cc',
           'android/path_utils.h',
           'at_exit.cc',
@@ -698,7 +696,6 @@
           'dependencies': [
             'symbolize',
             '../third_party/ashmem/ashmem.gyp:ashmem',
-            '../third_party/icu/icu.gyp:icuuc',
             'base_java',
             'base_jni_headers',
           ],
