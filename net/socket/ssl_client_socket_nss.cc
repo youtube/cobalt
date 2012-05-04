@@ -1530,9 +1530,6 @@ int SSLClientSocketNSS::DoHandshake() {
     if (net_error == ERR_IO_PENDING) {
       GotoState(STATE_HANDSHAKE);
     } else {
-      LOG(ERROR) << "handshake with server " << host_and_port_.ToString()
-                 << " failed; NSS error code " << prerr
-                 << ", net_error " << net_error;
       net_log_.AddEvent(
           NetLog::TYPE_SSL_HANDSHAKE_ERROR,
           make_scoped_refptr(new SSLErrorParams(net_error, prerr)));
