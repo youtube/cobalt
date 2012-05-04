@@ -180,8 +180,8 @@ v8.log
 /third_party/ots
 /third_party/pdfsqueeze
 /third_party/pefile
-/third_party/platformsdk_win2008_6_1
 /third_party/platformsdk_win7
+/third_party/platformsdk_win8
 /third_party/ppapi
 /third_party/psyco_win32
 /third_party/pthreads-win32
