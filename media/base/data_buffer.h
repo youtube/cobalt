@@ -50,6 +50,9 @@ class MEDIA_EXPORT DataBuffer : public Buffer {
   virtual ~DataBuffer();
 
  private:
+  // Helper method to allocate |data_| with at least |buffer_size| bytes.
+  void AllocateBuffer(int buffer_size);
+
   scoped_array<uint8> data_;
   int buffer_size_;
   int data_size_;
