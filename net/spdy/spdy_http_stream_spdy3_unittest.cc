@@ -4,6 +4,7 @@
 
 #include "net/spdy/spdy_http_stream.h"
 
+#include "base/threading/sequenced_worker_pool.h"
 #include "crypto/ec_private_key.h"
 #include "crypto/ec_signature_creator.h"
 #include "crypto/signature_creator.h"
@@ -506,8 +507,11 @@ TEST_F(SpdyHttpStreamSpdy3Test, SendCredentialsEC) {
   crypto::ECSignatureCreator::SetFactoryForTesting(
       ec_signature_creator_factory.get());
 
+  scoped_refptr<base::SequencedWorkerPool> sequenced_worker_pool =
+      new base::SequencedWorkerPool(1, "SpdyHttpStreamSpdy3Test");
   scoped_ptr<ServerBoundCertService> server_bound_cert_service(
-      new ServerBoundCertService(new DefaultServerBoundCertStore(NULL)));
+      new ServerBoundCertService(new DefaultServerBoundCertStore(NULL),
+                                 sequenced_worker_pool));
   std::string cert;
   std::string proof;
   GetECServerBoundCertAndProof("http://www.gmail.com/",
@@ -516,6 +520,8 @@ TEST_F(SpdyHttpStreamSpdy3Test, SendCredentialsEC) {
 
   TestSendCredentials(server_bound_cert_service.get(), cert, proof,
                       CLIENT_CERT_ECDSA_SIGN);
+
+  sequenced_worker_pool->Shutdown();
 }
 
 #endif  // !defined(USE_OPENSSL)

@@ -7,6 +7,7 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
+#include "base/message_loop_proxy.h"
 #include "base/threading/thread.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/default_server_bound_cert_store.h"
@@ -148,7 +149,8 @@ void TestURLRequestContext::Init() {
   if (!server_bound_cert_service()) {
     context_storage_.set_server_bound_cert_service(
         new net::ServerBoundCertService(
-            new net::DefaultServerBoundCertStore(NULL)));
+            new net::DefaultServerBoundCertStore(NULL),
+            base::MessageLoopProxy::current()));
   }
   if (accept_language().empty())
     set_accept_language("en-us,fr");
