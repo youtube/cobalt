@@ -585,6 +585,10 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
     priority_ = priority;
   }
 
+  // Returns true iff this request would be internally redirected to HTTPS
+  // due to HSTS. If so, |redirect_url| is rewritten to the new HTTPS URL.
+  bool GetHSTSRedirect(GURL* redirect_url) const;
+
   // This method is intended only for unit tests, but it is being used by
   // unit tests outside of net :(.
   URLRequestJob* job() { return job_; }
