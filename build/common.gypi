@@ -725,6 +725,9 @@
     # arm_neon==0).
     'arm_fpu%': 'vfpv3',
 
+    # Set ARM float abi compilation flag.
+    'arm_float_abi%': 'softfp',
+
     # Enable new NPDevice API.
     'enable_new_npdevice_api%': 0,
 
@@ -2075,7 +2078,7 @@
                     'cflags': [
                       '-march=armv7-a',
                       '-mtune=cortex-a8',
-                      '-mfloat-abi=softfp',
+                      '-mfloat-abi=<(arm_float_abi)',
                     ],
                     'conditions': [
                       ['arm_neon==1', {
