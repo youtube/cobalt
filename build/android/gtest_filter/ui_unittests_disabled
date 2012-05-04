@@ -41,6 +41,8 @@ ImageTest.SkiaToSkia
 ImageTest.SkiaToSkiaRef
 ImageTest.SwapRepresentations
 L10nUtilTest.GetAppLocale
+L10nUtilTest.GetDisplayNameForCountry
+L10nUtilTest.GetDisplayNameForLocale
 TextEliderTest.ElideEmail
 TextEliderTest.ElideEmailMoreSpace
 TextEliderTest.ElideRectangleText
