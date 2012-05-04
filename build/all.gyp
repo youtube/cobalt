@@ -275,6 +275,8 @@
       'type': 'none',
       'dependencies': [
         '../chrome/chrome.gyp:chromedriver',
+        # Dependencies of pyauto_functional tests.
+        '../remoting/remoting.gyp:remoting_webapp',
       ],
       'conditions': [
         # If you change this condition, make sure you also change it
