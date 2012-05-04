@@ -1966,10 +1966,10 @@ typedef void (GL_APIENTRYP PFNGLTEXIMAGEIOSURFACE2DCHROMIUM) (GLenum target, GLs
 #ifdef GL_GLEXT_PROTOTYPES
 #define glCopyTextureCHROMIUM GLES2_GET_FUN(CopyTextureCHROMIUM)
 #if !defined(GLES2_USE_CPP_BINDINGS)
-GL_APICALL void GL_APIENTRY glCopyTextureCHROMIUM (GLenum target, GLenum source_id, GLenum dest_id, GLint level);
+GL_APICALL void GL_APIENTRY glCopyTextureCHROMIUM (GLenum target, GLenum source_id, GLenum dest_id, GLint level, GLint internal_format);
 #endif
 #else
-typedef void (GL_APIENTRYP PFNGLCOPYTEXTURECHROMIUM) (GLenum target, GLenum source_id, GLenum dest_id, GLint level);
+typedef void (GL_APIENTRYP PFNGLCOPYTEXTURECHROMIUM) (GLenum target, GLenum source_id, GLenum dest_id, GLint level, GLint internal_format);
 #endif
 #endif
 
