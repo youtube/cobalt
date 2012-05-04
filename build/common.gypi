@@ -88,6 +88,9 @@
           ['use_aura==1 and ((OS=="linux" and chromeos==0) or OS=="win")', {
             'use_ash%': 1,
           }],
+          ['use_ash==1', {
+            'use_aura%': 1,
+          }],
 
           # Set default value of toolkit_views based on OS.
           ['OS=="win" or chromeos==1 or use_aura==1', {
