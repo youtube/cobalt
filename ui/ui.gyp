@@ -163,6 +163,8 @@
         'base/gtk/gtk_signal_registrar.h',
         'base/gtk/gtk_windowing.cc',
         'base/gtk/gtk_windowing.h',
+        'base/gtk/menu_label_accelerator_util.cc',
+        'base/gtk/menu_label_accelerator_util.h',
         'base/gtk/owned_widget_gtk.cc',
         'base/gtk/owned_widget_gtk.h',
         'base/gtk/scoped_gobject.h',
@@ -486,10 +488,6 @@
             '../build/linux/system.gyp:x11',
             '../build/linux/system.gyp:xext',
             '../build/linux/system.gyp:xfixes',
-          ],
-          'sources': [
-            'gfx/linux_util.cc',
-            'gfx/linux_util.h',
           ],
           'link_settings': {
             'libraries': [
