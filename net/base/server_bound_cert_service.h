@@ -18,6 +18,10 @@
 #include "net/base/net_export.h"
 #include "net/base/ssl_client_cert_type.h"
 
+namespace base {
+class TaskRunner;
+}
+
 namespace net {
 
 class ServerBoundCertServiceJob;
@@ -38,9 +42,12 @@ class NET_EXPORT ServerBoundCertService
   // being unable to import unencrypted PrivateKeyInfo for EC keys.)
   static const char kEPKIPassword[];
 
-  // This object owns server_bound_cert_store.
-  explicit ServerBoundCertService(
-      ServerBoundCertStore* server_bound_cert_store);
+  // This object owns |server_bound_cert_store|.  |task_runner| will
+  // be used to post certificate generation worker tasks.  The tasks are
+  // safe for use with WorkerPool and SequencedWorkerPool::CONTINUE_ON_SHUTDOWN.
+  ServerBoundCertService(
+      ServerBoundCertStore* server_bound_cert_store,
+      const scoped_refptr<base::TaskRunner>& task_runner);
 
   ~ServerBoundCertService();
 
@@ -118,6 +125,7 @@ class NET_EXPORT ServerBoundCertService
                     const std::string& cert);
 
   scoped_ptr<ServerBoundCertStore> server_bound_cert_store_;
+  scoped_refptr<base::TaskRunner> task_runner_;
 
   // inflight_ maps from a server to an active generation which is taking
   // place.
