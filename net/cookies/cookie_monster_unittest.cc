@@ -476,16 +476,6 @@ class CookieMonsterTest : public CookieStoreTest<CookieMonsterTestTraits> {
     return callback.result();
   }
 
-  int DeleteSessionCookies(CookieMonster*cm) {
-    DCHECK(cm);
-    DeleteCallback callback;
-    cm->DeleteSessionCookiesAsync(
-        base::Bind(&DeleteCallback::Run, base::Unretained(&callback)));
-    RunFor(kTimeout);
-    EXPECT_TRUE(callback.did_run());
-    return callback.num_deleted();
-  }
-
   // Helper for DeleteAllForHost test; repopulates CM with same layout
   // each time.
   void PopulateCmForDeleteAllForHost(scoped_refptr<CookieMonster> cm) {
@@ -2455,11 +2445,6 @@ class MultiThreadedCookieMonsterTest : public CookieMonsterTest {
         base::Bind(&SetCookieCallback::Run, base::Unretained(callback)));
   }
 
-  void DeleteSessionCookiesTask(CookieMonster* cm, DeleteCallback* callback) {
-    cm->DeleteSessionCookiesAsync(
-        base::Bind(&DeleteCallback::Run, base::Unretained(callback)));
-  }
-
  protected:
   void RunOnOtherThread(const base::Closure& task) {
     other_thread_.Start();
@@ -2615,27 +2600,6 @@ TEST_F(MultiThreadedCookieMonsterTest, ThreadCheckDeleteCanonicalCookie) {
   RunOnOtherThread(task);
   EXPECT_TRUE(callback.did_run());
   EXPECT_TRUE(callback.result());
-}
-
-TEST_F(MultiThreadedCookieMonsterTest, ThreadCheckDeleteSessionCookies) {
-  scoped_refptr<CookieMonster> cm(new CookieMonster(NULL, NULL));
-  CookieOptions options;
-  EXPECT_TRUE(SetCookieWithOptions(cm, url_google_, "A=B", options));
-  EXPECT_TRUE(SetCookieWithOptions(cm, url_google_,
-                                   "B=C; expires=Mon, 18-Apr-22 22:50:13 GMT",
-                                   options));
-  EXPECT_EQ(1, DeleteSessionCookies(cm));
-  EXPECT_EQ(0, DeleteSessionCookies(cm));
-
-  EXPECT_TRUE(SetCookieWithOptions(cm, url_google_, "A=B", options));
-  DeleteCallback callback(&other_thread_);
-  base::Closure task = base::Bind(
-      &net::MultiThreadedCookieMonsterTest::DeleteSessionCookiesTask,
-      base::Unretained(this),
-      cm, &callback);
-  RunOnOtherThread(task);
-  EXPECT_TRUE(callback.did_run());
-  EXPECT_EQ(1, callback.num_deleted());
 }
 
 TEST_F(CookieMonsterTest, ShortLivedSessionCookies) {
