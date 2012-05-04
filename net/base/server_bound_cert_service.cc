@@ -18,7 +18,7 @@
 #include "base/metrics/histogram.h"
 #include "base/rand_util.h"
 #include "base/stl_util.h"
-#include "base/threading/worker_pool.h"
+#include "base/task_runner.h"
 #include "crypto/ec_private_key.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_errors.h"
@@ -164,6 +164,7 @@ class ServerBoundCertServiceRequest {
 // ServerBoundCertServiceWorker runs on a worker thread and takes care of the
 // blocking process of performing key generation. Deletes itself eventually
 // if Start() succeeds.
+// TODO(mattm): don't use locking and explicit cancellation.
 class ServerBoundCertServiceWorker {
  public:
   ServerBoundCertServiceWorker(
@@ -179,13 +180,12 @@ class ServerBoundCertServiceWorker {
         error_(ERR_FAILED) {
   }
 
-  bool Start() {
+  bool Start(const scoped_refptr<base::TaskRunner>& task_runner) {
     DCHECK_EQ(MessageLoop::current(), origin_loop_);
 
-    return base::WorkerPool::PostTask(
+    return task_runner->PostTask(
         FROM_HERE,
-        base::Bind(&ServerBoundCertServiceWorker::Run, base::Unretained(this)),
-        true /* task is slow */);
+        base::Bind(&ServerBoundCertServiceWorker::Run, base::Unretained(this)));
   }
 
   // Cancel is called from the origin loop when the ServerBoundCertService is
@@ -353,8 +353,10 @@ class ServerBoundCertServiceJob {
 const char ServerBoundCertService::kEPKIPassword[] = "";
 
 ServerBoundCertService::ServerBoundCertService(
-    ServerBoundCertStore* server_bound_cert_store)
+    ServerBoundCertStore* server_bound_cert_store,
+    const scoped_refptr<base::TaskRunner>& task_runner)
     : server_bound_cert_store_(server_bound_cert_store),
+      task_runner_(task_runner),
       requests_(0),
       cert_store_hits_(0),
       inflight_joins_(0) {}
@@ -470,7 +472,7 @@ int ServerBoundCertService::GetDomainBoundCert(
             preferred_type,
             this);
     job = new ServerBoundCertServiceJob(worker, preferred_type);
-    if (!worker->Start()) {
+    if (!worker->Start(task_runner_)) {
       delete job;
       delete worker;
       // TODO(rkn): Log to the NetLog.
