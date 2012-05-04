@@ -75,8 +75,12 @@ void URLRequestContext::AssertNoURLRequests() const {
     char url_buf[128];
     const URLRequest* request = *url_requests_->begin();
     base::strlcpy(url_buf, request->url().spec().c_str(), arraysize(url_buf));
+    bool has_delegate = request->has_delegate();
+    int load_flags = request->load_flags();
     base::debug::Alias(url_buf);
     base::debug::Alias(&num_requests);
+    base::debug::Alias(&has_delegate);
+    base::debug::Alias(&load_flags);
     CHECK(false);
   }
 }
