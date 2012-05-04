@@ -320,8 +320,8 @@ class FindBadConstructsConsumer : public ChromeClassTester {
           !record->hasUserDeclaredDestructor()) {
         // Ignore non-user-declared destructors.
       } else {
-        CheckVirtualMethod(*it, warn_on_inline_bodies);
-        CheckOverriddenMethod(*it);
+        CheckVirtualMethod(&*it, warn_on_inline_bodies);
+        CheckOverriddenMethod(&*it);
       }
     }
   }
