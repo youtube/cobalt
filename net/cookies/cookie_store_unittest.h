@@ -182,6 +182,16 @@ class CookieStoreTest : public testing::Test {
     return callback.num_deleted();
   }
 
+  int DeleteSessionCookies(CookieStore* cs) {
+    DCHECK(cs);
+    DeleteCallback callback;
+    cs->DeleteSessionCookiesAsync(
+        base::Bind(&DeleteCallback::Run, base::Unretained(&callback)));
+    RunFor(kTimeout);
+    EXPECT_TRUE(callback.did_run());
+    return callback.num_deleted();
+  }
+
   void RunFor(int ms) {
     // Runs the test thread message loop for up to |ms| milliseconds.
     MessageLoop::current()->PostDelayedTask(
@@ -933,6 +943,11 @@ class MultiThreadedCookieStoreTest :
         base::Bind(&DeleteCookieCallback::Run, base::Unretained(callback)));
   }
 
+    void DeleteSessionCookiesTask(CookieStore* cs, DeleteCallback* callback) {
+    cs->DeleteSessionCookiesAsync(
+        base::Bind(&DeleteCallback::Run, base::Unretained(callback)));
+  }
+
  protected:
   void RunOnOtherThread(const base::Closure& task) {
     other_thread_.Start();
@@ -1045,10 +1060,34 @@ TYPED_TEST_P(MultiThreadedCookieStoreTest, ThreadCheckDeleteCookie) {
   EXPECT_TRUE(callback.did_run());
 }
 
+TYPED_TEST_P(MultiThreadedCookieStoreTest, ThreadCheckDeleteSessionCookies) {
+  scoped_refptr<CookieStore> cs(this->GetCookieStore());
+  CookieOptions options;
+  if (!TypeParam::supports_http_only)
+    options.set_include_httponly();
+  EXPECT_TRUE(this->SetCookieWithOptions(cs, this->url_google_,
+                                         "A=B", options));
+  EXPECT_TRUE(this->SetCookieWithOptions(cs, this->url_google_,
+      "B=C; expires=Mon, 18-Apr-22 22:50:13 GMT", options));
+  EXPECT_EQ(1, this->DeleteSessionCookies(cs));
+  EXPECT_EQ(0, this->DeleteSessionCookies(cs));
+
+  EXPECT_TRUE(this->SetCookieWithOptions(cs, this->url_google_,
+                                         "A=B", options));
+  DeleteCallback callback(&this->other_thread_);
+  base::Closure task = base::Bind(
+      &net::MultiThreadedCookieStoreTest<TypeParam>::DeleteSessionCookiesTask,
+      base::Unretained(this),
+      cs, &callback);
+  this->RunOnOtherThread(task);
+  EXPECT_TRUE(callback.did_run());
+  EXPECT_EQ(1, callback.num_deleted());
+}
+
 REGISTER_TYPED_TEST_CASE_P(MultiThreadedCookieStoreTest,
     ThreadCheckGetCookies, ThreadCheckGetCookiesWithOptions,
     ThreadCheckGetCookiesWithInfo, ThreadCheckSetCookieWithOptions,
-    ThreadCheckDeleteCookie);
+    ThreadCheckDeleteCookie, ThreadCheckDeleteSessionCookies);
 
 }  // namespace net
 
