@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -68,7 +68,7 @@ std::string SysInfo::OperatingSystemVersion() {
 
 // TODO: Implement OperatingSystemVersionComplete, which would include
 // patchlevel/service pack number.
-// See chrome/browser/ui/views/bug_report_view.cc, BugReportView::SetOSVersion.
+// See chrome/browser/feedback/feedback_util.h, FeedbackUtil::SetOSVersion.
 
 // static
 std::string SysInfo::CPUArchitecture() {
