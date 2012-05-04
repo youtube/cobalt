@@ -728,13 +728,13 @@ bool TransportSecurityState::GetStaticDomainState(
   return false;
 }
 
-void TransportSecurityState::AddOrUpdateEnabledHosts(std::string hashed_host,
-                                                     const DomainState& state) {
+void TransportSecurityState::AddOrUpdateEnabledHosts(
+    const std::string& hashed_host, const DomainState& state) {
   enabled_hosts_[hashed_host] = state;
 }
 
-void TransportSecurityState::AddOrUpdateForcedHosts(std::string hashed_host,
-                                                    const DomainState& state) {
+void TransportSecurityState::AddOrUpdateForcedHosts(
+    const std::string& hashed_host, const DomainState& state) {
   forced_hosts_[hashed_host] = state;
 }
 
