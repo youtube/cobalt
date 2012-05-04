@@ -231,14 +231,14 @@ class NET_EXPORT TransportSecurityState
   // |hashed_host| is already in the internal representation
   // HashHost(CanonicalizeHost(host)); thus, most callers will use
   // |EnableHost|.
-  void AddOrUpdateEnabledHosts(std::string hashed_host,
+  void AddOrUpdateEnabledHosts(const std::string& hashed_host,
                                const DomainState& state);
 
   // Inserts |state| into |forced_hosts_| under the key |hashed_host|.
   // |hashed_host| is already in the internal representation
   // HashHost(CanonicalizeHost(host)); thus, most callers will use
   // |EnableHost|.
-  void AddOrUpdateForcedHosts(std::string hashed_host,
+  void AddOrUpdateForcedHosts(const std::string& hashed_host,
                               const DomainState& state);
 
   // Returns true iff we have any static public key pins for the |host| and
