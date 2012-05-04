@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -117,9 +117,8 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // non-NULL after a successful call to Start. After Stop has been called,
   // this will return NULL. Callers can hold on to this even after the thread
   // is gone.
-  // TODO(sanjeevr): Look into merging MessageLoop and MessageLoopProxy.
   scoped_refptr<MessageLoopProxy> message_loop_proxy() const {
-    return message_loop_->message_loop_proxy();
+    return message_loop_ ? message_loop_->message_loop_proxy() : NULL;
   }
 
   // Returns the name of this thread (for display in debugger too).
