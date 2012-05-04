@@ -589,6 +589,9 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   // unit tests outside of net :(.
   URLRequestJob* job() { return job_; }
 
+  // TODO(willchan): Undo this. Only temporarily public.
+  bool has_delegate() const { return delegate_ != NULL; }
+
  protected:
   // Allow the URLRequestJob class to control the is_pending() flag.
   void set_is_pending(bool value) { is_pending_ = value; }
@@ -662,8 +665,6 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   // Called by URLRequestJob to allow interception when the final response
   // occurs.
   void NotifyResponseStarted();
-
-  bool has_delegate() const { return delegate_ != NULL; }
 
   // These functions delegate to |delegate_| and may only be used if
   // |delegate_| is not NULL. See URLRequest::Delegate for the meaning
