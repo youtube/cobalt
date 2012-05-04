@@ -82,7 +82,7 @@
 #include "base/base_export.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
-#include "base/observer_list.h"
+#include "base/observer_list_threadsafe.h"
 #include "base/synchronization/lock.h"
 #include "base/time.h"
 
@@ -256,7 +256,7 @@ class BASE_EXPORT FieldTrialList {
   static int kExpirationYearInFuture;
 
   // Observer is notified when a FieldTrial's group is selected.
-  class Observer {
+  class BASE_EXPORT Observer {
    public:
     // Notify observers when FieldTrials's group is selected.
     virtual void OnFieldTrialGroupFinalized(const std::string& trial_name,
@@ -423,7 +423,7 @@ class BASE_EXPORT FieldTrialList {
   std::string client_id_;
 
   // List of observers to be notified when a group is selected for a FieldTrial.
-  ObserverList<Observer> observer_list_;
+  scoped_refptr<ObserverListThreadSafe<Observer> > observer_list_;
 
   DISALLOW_COPY_AND_ASSIGN(FieldTrialList);
 };
