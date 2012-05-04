@@ -213,7 +213,8 @@ bool FieldTrialList::used_without_global_ = false;
 FieldTrialList::FieldTrialList(const std::string& client_id)
     : application_start_time_(TimeTicks::Now()),
       client_id_(client_id),
-      observer_list_(ObserverList<Observer>::NOTIFY_EXISTING_ONLY) {
+      observer_list_(new ObserverListThreadSafe<FieldTrialList::Observer>(
+          ObserverListBase<FieldTrialList::Observer>::NOTIFY_EXISTING_ONLY)) {
   DCHECK(!global_);
   DCHECK(!used_without_global_);
   global_ = this;
@@ -393,7 +394,7 @@ void FieldTrialList::AddObserver(Observer* observer) {
   if (!global_)
     return;
   DCHECK(global_);
-  global_->observer_list_.AddObserver(observer);
+  global_->observer_list_->AddObserver(observer);
 }
 
 // static
@@ -401,7 +402,7 @@ void FieldTrialList::RemoveObserver(Observer* observer) {
   if (!global_)
     return;
   DCHECK(global_);
-  global_->observer_list_.RemoveObserver(observer);
+  global_->observer_list_->RemoveObserver(observer);
 }
 
 // static
@@ -411,9 +412,10 @@ void FieldTrialList::NotifyFieldTrialGroupSelection(
   if (!global_)
     return;
   DCHECK(global_);
-  FOR_EACH_OBSERVER(Observer,
-                    global_->observer_list_,
-                    OnFieldTrialGroupFinalized(name, group_name));
+  global_->observer_list_->Notify(
+      &FieldTrialList::Observer::OnFieldTrialGroupFinalized,
+      name,
+      group_name);
 }
 
 // static
