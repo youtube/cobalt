@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -39,13 +39,6 @@ class BASE_EXPORT PathService {
   // WARNING: Consumers of PathService::Get may expect paths to be constant
   // over the lifetime of the app, so this method should be used with caution.
   static bool Override(int key, const FilePath& path);
-
-  // This function does the same as PathService::Override but it takes an extra
-  // parameter |create| which guides whether the directory to be overriden must
-  // be created in case it doesn't exist already.
-  static bool OverrideAndCreateIfNeeded(int key,
-                                        const FilePath& path,
-                                        bool create);
 
   // To extend the set of supported keys, you can register a path provider,
   // which is just a function mirroring PathService::Get.  The ProviderFunc

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright (c) 2011 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -222,29 +222,18 @@ bool PathService::Get(int key, FilePath* result) {
 }
 
 bool PathService::Override(int key, const FilePath& path) {
-  // Just call the full function with true for the value of |create|.
-  return OverrideAndCreateIfNeeded(key, path, true);
-}
-
-bool PathService::OverrideAndCreateIfNeeded(int key,
-                                            const FilePath& path,
-                                            bool create) {
   PathData* path_data = GetPathData();
   DCHECK(path_data);
   DCHECK_GT(key, base::DIR_CURRENT) << "invalid path key";
 
   FilePath file_path = path;
 
-  // For some locations this will fail if called from inside the sandbox there-
-  // fore we protect this call with a flag.
-  if (create) {
-    // Make sure the directory exists. We need to do this before we translate
-    // this to the absolute path because on POSIX, AbsolutePath fails if called
-    // on a non-existent path.
-    if (!file_util::PathExists(file_path) &&
-        !file_util::CreateDirectory(file_path))
-      return false;
-  }
+  // Make sure the directory exists. We need to do this before we translate
+  // this to the absolute path because on POSIX, AbsolutePath fails if called
+  // on a non-existent path.
+  if (!file_util::PathExists(file_path) &&
+      !file_util::CreateDirectory(file_path))
+    return false;
 
   // We need to have an absolute path, as extensions and plugins don't like
   // relative paths, and will gladly crash the browser in CHECK()s if they get a
