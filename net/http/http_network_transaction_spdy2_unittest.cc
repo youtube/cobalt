@@ -9249,7 +9249,13 @@ void IPPoolingAddAlias(MockCachingHostResolver* host_resolver,
 
 }  // namespace
 
-TEST_F(HttpNetworkTransactionSpdy2Test, FLAKY_UseIPConnectionPooling) {
+// Times out on Win7 dbg(2) bot. http://crbug.com/124776
+#if defined(OS_WIN)
+#define MAYBE_UseIPConnectionPooling DISABLED_UseIPConnectionPooling
+#else
+#define MAYBE_UseIPConnectionPooling UseIPConnectionPooling
+#endif
+TEST_F(HttpNetworkTransactionSpdy2Test, MAYBE_UseIPConnectionPooling) {
   HttpStreamFactory::set_use_alternate_protocols(true);
   HttpStreamFactory::SetNextProtos(SpdyNextProtos());
 
@@ -9358,6 +9364,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test, FLAKY_UseIPConnectionPooling) {
   HttpStreamFactory::SetNextProtos(std::vector<std::string>());
   HttpStreamFactory::set_use_alternate_protocols(false);
 }
+#undef MAYBE_UseIPConnectionPooling
 
 class OneTimeCachingHostResolver : public net::HostResolver {
  public:
@@ -9399,8 +9406,14 @@ class OneTimeCachingHostResolver : public net::HostResolver {
   const HostPortPair host_port_;
 };
 
+// Times out on Win7 dbg(2) bot. http://crbug.com/124776
+#if defined(OS_WIN)
+#define MAYBE_UseIPConnectionPoolingWithHostCacheExpiration DISABLED_UseIPConnectionPoolingWithHostCacheExpiration
+#else
+#define MAYBE_UseIPConnectionPoolingWithHostCacheExpiration UseIPConnectionPoolingWithHostCacheExpiration
+#endif
 TEST_F(HttpNetworkTransactionSpdy2Test,
-       UseIPConnectionPoolingWithHostCacheExpiration) {
+       MAYBE_UseIPConnectionPoolingWithHostCacheExpiration) {
   HttpStreamFactory::set_use_alternate_protocols(true);
   HttpStreamFactory::SetNextProtos(SpdyNextProtos());
 
@@ -9508,6 +9521,7 @@ TEST_F(HttpNetworkTransactionSpdy2Test,
   HttpStreamFactory::SetNextProtos(std::vector<std::string>());
   HttpStreamFactory::set_use_alternate_protocols(false);
 }
+#undef MAYBE_UseIPConnectionPoolingWithHostCacheExpiration
 
 TEST_F(HttpNetworkTransactionSpdy2Test, ReadPipelineEvictionFallback) {
   MockRead data_reads1[] = {
