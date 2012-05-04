@@ -140,24 +140,9 @@ URLRequestJob* URLRequestHttpJob::Factory(URLRequest* request,
     return new URLRequestErrorJob(request, ERR_INVALID_ARGUMENT);
   }
 
-  TransportSecurityState::DomainState domain_state;
-  if (scheme == "http" &&
-      request->context()->transport_security_state() &&
-      request->context()->transport_security_state()->GetDomainState(
-          request->url().host(),
-          SSLConfigService::IsSNIAvailable(
-              request->context()->ssl_config_service()),
-          &domain_state) &&
-      domain_state.ShouldRedirectHTTPToHTTPS()) {
-    DCHECK_EQ(request->url().scheme(), "http");
-    url_canon::Replacements<char> replacements;
-    static const char kNewScheme[] = "https";
-    replacements.SetScheme(kNewScheme,
-                           url_parse::Component(0, strlen(kNewScheme)));
-    GURL new_location = request->url().ReplaceComponents(replacements);
-    return new URLRequestRedirectJob(request, new_location);
-  }
-
+  GURL redirect_url;
+  if (request->GetHSTSRedirect(&redirect_url))
+    return new URLRequestRedirectJob(request, redirect_url);
   return new URLRequestHttpJob(request);
 }
 

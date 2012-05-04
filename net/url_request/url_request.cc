@@ -769,6 +769,27 @@ int64 URLRequest::GetExpectedContentSize() const {
   return expected_content_size;
 }
 
+bool URLRequest::GetHSTSRedirect(GURL* redirect_url) const {
+  const GURL& url = this->url();
+  if (!url.SchemeIs("http"))
+    return false;
+  TransportSecurityState::DomainState domain_state;
+  if (context()->transport_security_state() &&
+      context()->transport_security_state()->GetDomainState(
+          url.host(),
+          SSLConfigService::IsSNIAvailable(context()->ssl_config_service()),
+          &domain_state) &&
+      domain_state.ShouldRedirectHTTPToHTTPS()) {
+    url_canon::Replacements<char> replacements;
+    const char kNewScheme[] = "https";
+    replacements.SetScheme(kNewScheme,
+                           url_parse::Component(0, strlen(kNewScheme)));
+    *redirect_url = url.ReplaceComponents(replacements);
+    return true;
+  }
+  return false;
+}
+
 void URLRequest::NotifyAuthRequired(AuthChallengeInfo* auth_info) {
   NetworkDelegate::AuthRequiredResponse rv =
       NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION;
