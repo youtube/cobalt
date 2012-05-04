@@ -60,6 +60,7 @@
             # Unit test bundles packaged as an apk.
             '../base/base.gyp:base_unittests_apk',
             '../ipc/ipc.gyp:ipc_tests_apk',
+            '../ui/ui.gyp:ui_unittests_apk',
           ],
         }]
       ],
@@ -81,7 +82,6 @@
       'type': 'none',
       'dependencies': [
         '../content/content.gyp:content_browsertests',
-        '../ui/ui.gyp:gfx_unittests',
       ],
     },
   ],  # targets
