@@ -6,6 +6,7 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
+#include "base/android/locale_utils.h"
 #include "base/android/path_utils.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/at_exit.h"
@@ -150,6 +151,7 @@ void LibraryLoadedOnMainThread(JNIEnv* env) {
                        false);   // Tick count
   VLOG(0) << "Chromium logging enabled: level = " << logging::GetMinLogLevel()
           << ", default verbosity = " << logging::GetVlogVerbosity();
+  base::android::RegisterLocaleUtils(env);
   base::android::RegisterPathUtils(env);
 }
 
