@@ -450,7 +450,7 @@ int BackendImpl::SyncInit() {
     return net::ERR_FAILED;
   }
 
-  if (create_files || !data_->header.num_entries)
+  if (!restarted_ && (create_files || !data_->header.num_entries))
     ReportError(ERR_CACHE_CREATED);
 
   if (!(user_flags_ & kNoRandom) &&
@@ -465,12 +465,8 @@ int BackendImpl::SyncInit() {
   if (!data_->header.this_id)
     data_->header.this_id++;
 
-  if (data_->header.crash) {
-    ReportError(ERR_PREVIOUS_CRASH);
-  } else {
-    ReportError(ERR_NO_ERROR);
-    data_->header.crash = 1;
-  }
+  bool previous_crash = (data_->header.crash != 0);
+  data_->header.crash = 1;
 
   if (!block_files_.Init(create_files))
     return net::ERR_FAILED;
@@ -500,6 +496,12 @@ int BackendImpl::SyncInit() {
     NOTREACHED();
   trace_object_->EnableTracing(true);
 #endif
+
+  if (previous_crash) {
+    ReportError(ERR_PREVIOUS_CRASH);
+  } else if (!restarted_) {
+      ReportError(ERR_NO_ERROR);
+  }
 
   return disabled_ ? net::ERR_FAILED : net::OK;
 }
