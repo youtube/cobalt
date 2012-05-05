@@ -36,6 +36,7 @@
 #include "net/base/net_util.h"
 #include "net/http/http_util.h"
 #include "net/url_request/url_request.h"
+#include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_error_job.h"
 #include "net/url_request/url_request_file_dir_job.h"
 
@@ -94,15 +95,12 @@ URLRequestFileJob::URLRequestFileJob(URLRequest* request,
 // static
 URLRequestJob* URLRequestFileJob::Factory(URLRequest* request,
                                           const std::string& scheme) {
-
   FilePath file_path;
   const bool is_file = FileURLToFilePath(request->url(), &file_path);
 
-#if defined(OS_CHROMEOS)
-  // Check file access.
-  if (AccessDisabled(file_path))
+  // Check file access permissions.
+  if (!IsFileAccessAllowed(*request, file_path))
     return new URLRequestErrorJob(request, ERR_ACCESS_DENIED);
-#endif
 
   // We need to decide whether to create URLRequestFileJob for file access or
   // URLRequestFileDirJob for directory access. To avoid accessing the
@@ -119,35 +117,6 @@ URLRequestJob* URLRequestFileJob::Factory(URLRequest* request,
   // file names).
   return new URLRequestFileJob(request, file_path);
 }
-
-#if defined(OS_CHROMEOS)
-static const char* const kLocalAccessWhiteList[] = {
-  "/home/chronos/user/Downloads",
-  "/home/chronos/user/log",
-  "/media",
-  "/opt/oem",
-  "/usr/share/chromeos-assets",
-  "/tmp",
-  "/var/log",
-};
-
-// static
-bool URLRequestFileJob::AccessDisabled(const FilePath& file_path) {
-  if (URLRequest::IsFileAccessAllowed()) {  // for tests.
-    return false;
-  }
-
-  for (size_t i = 0; i < arraysize(kLocalAccessWhiteList); ++i) {
-    const FilePath white_listed_path(kLocalAccessWhiteList[i]);
-    // FilePath::operator== should probably handle trailing seperators.
-    if (white_listed_path == file_path.StripTrailingSeparators() ||
-        white_listed_path.IsParent(file_path)) {
-      return false;
-    }
-  }
-  return true;
-}
-#endif  // OS_CHROMEOS
 
 void URLRequestFileJob::Start() {
   DCHECK(!async_resolver_);
@@ -279,6 +248,18 @@ void URLRequestFileJob::SetExtraRequestHeaders(
       }
     }
   }
+}
+
+// static
+bool URLRequestFileJob::IsFileAccessAllowed(const URLRequest& request,
+                                            const FilePath& path) {
+  const URLRequestContext* context = request.context();
+  if (!context)
+    return false;
+  const NetworkDelegate* delegate = context->network_delegate();
+  if (delegate)
+    return delegate->CanAccessFile(request, path);
+  return false;
 }
 
 URLRequestFileJob::~URLRequestFileJob() {

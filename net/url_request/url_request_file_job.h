@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -53,6 +53,12 @@ class NET_EXPORT URLRequestFileJob : public URLRequestJob {
   FilePath file_path_;
 
  private:
+  // Tests to see if access to |path| is allowed. If g_allow_file_access_ is
+  // true, then this will return true. If the NetworkDelegate associated with
+  // the |request| says it's OK, then this will also return true.
+  static bool IsFileAccessAllowed(const URLRequest& request,
+                                  const FilePath& path);
+
   // Callback after fetching file info on a background thread.
   void DidResolve(bool exists, const base::PlatformFileInfo& file_info);
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -65,9 +65,6 @@ class URLRequestJobManager {
   void RegisterRequestInterceptor(URLRequest::Interceptor* interceptor);
   void UnregisterRequestInterceptor(URLRequest::Interceptor* interceptor);
 
-  void set_enable_file_access(bool enable) { enable_file_access_ = enable; }
-  bool enable_file_access() const { return enable_file_access_; }
-
  private:
   typedef std::map<std::string, URLRequest::ProtocolFactory*> FactoryMap;
   typedef std::vector<URLRequest::Interceptor*> InterceptorList;
@@ -90,7 +87,7 @@ class URLRequestJobManager {
 #else
     // The previous version of this check used GetCurrentThread on Windows to
     // get thread handles to compare. Unfortunately, GetCurrentThread returns
-    // a constant psuedo-handle (0xFFFFFFFE), and therefore IsAllowedThread
+    // a constant pseudo-handle (0xFFFFFFFE), and therefore IsAllowedThread
     // always returned true. The above code that's turned off is the correct
     // code, but causes the tree to turn red because some caller isn't
     // respecting our thread requirements. We're turning off the check for now;
@@ -108,7 +105,6 @@ class URLRequestJobManager {
   mutable base::Lock lock_;
   FactoryMap factories_;
   InterceptorList interceptors_;
-  bool enable_file_access_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestJobManager);
 };

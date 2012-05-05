@@ -310,10 +310,6 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   // Profile.
   static bool IsHandledURL(const GURL& url);
 
-  // Allow access to file:// on ChromeOS for tests.
-  static void AllowFileAccess();
-  static bool IsFileAccessAllowed();
-
   // The original url is the url used to initialize the request, and it may
   // differ from the url if the request was redirected.
   const GURL& original_url() const { return url_chain_.front(); }

@@ -240,11 +240,13 @@ class TestNetworkDelegate : public net::NetworkDelegate {
       const net::AuthChallengeInfo& auth_info,
       const AuthCallback& callback,
       net::AuthCredentials* credentials) OVERRIDE;
-  virtual bool CanGetCookies(const net::URLRequest* request,
-                             const net::CookieList& cookie_list) OVERRIDE;
-  virtual bool CanSetCookie(const net::URLRequest* request,
-                            const std::string& cookie_line,
-                            net::CookieOptions* options) OVERRIDE;
+  virtual bool OnCanGetCookies(const net::URLRequest& request,
+                               const net::CookieList& cookie_list) OVERRIDE;
+  virtual bool OnCanSetCookie(const net::URLRequest& request,
+                              const std::string& cookie_line,
+                              net::CookieOptions* options) OVERRIDE;
+  virtual bool OnCanAccessFile(const net::URLRequest& request,
+                               const FilePath& path) const OVERRIDE;
 
   void InitRequestStatesIfNew(int request_id);
 

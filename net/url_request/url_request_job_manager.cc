@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -122,7 +122,7 @@ URLRequestJob* URLRequestJobManager::CreateJob(
 
   // If we reached here, then it means that a registered protocol factory
   // wasn't interested in handling the URL.  That is fairly unexpected, and we
-  // don't know have a specific error to report here :-(
+  // don't have a specific error to report here :-(
   LOG(WARNING) << "Failed to map: " << request->url().spec();
   return new URLRequestErrorJob(request, ERR_FAILED);
 }
@@ -264,8 +264,7 @@ void URLRequestJobManager::UnregisterRequestInterceptor(
 
 URLRequestJobManager::URLRequestJobManager()
     : allowed_thread_(0),
-      allowed_thread_initialized_(false),
-      enable_file_access_(false) {
+      allowed_thread_initialized_(false) {
 }
 
 URLRequestJobManager::~URLRequestJobManager() {}
