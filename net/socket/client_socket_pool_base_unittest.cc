@@ -2008,14 +2008,68 @@ TEST_F(ClientSocketPoolBaseTest, AdditionalErrorStateAsynchronous) {
   EXPECT_FALSE(handle.ssl_error_response_info().headers.get() == NULL);
 }
 
-TEST_F(ClientSocketPoolBaseTest, DisableCleanupTimer) {
+// Make sure we can reuse sockets when the cleanup timer is disabled.
+TEST_F(ClientSocketPoolBaseTest, DisableCleanupTimerReuse) {
   // Disable cleanup timer.
   internal::ClientSocketPoolBaseHelper::set_cleanup_timer_enabled(false);
 
   CreatePoolWithIdleTimeouts(
       kDefaultMaxSockets, kDefaultMaxSocketsPerGroup,
-      base::TimeDelta::FromMilliseconds(10),  // Time out unused sockets
-      base::TimeDelta::FromMilliseconds(10));  // Time out used sockets
+      base::TimeDelta(),  // Time out unused sockets immediately.
+      base::TimeDelta::FromDays(1));  // Don't time out used sockets.
+
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
+
+  ClientSocketHandle handle;
+  TestCompletionCallback callback;
+  int rv = handle.Init("a",
+                       params_,
+                       LOWEST,
+                       callback.callback(),
+                       pool_.get(),
+                       BoundNetLog());
+  ASSERT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", &handle));
+  ASSERT_EQ(OK, callback.WaitForResult());
+
+  // Use and release the socket.
+  EXPECT_EQ(1, handle.socket()->Write(NULL, 1, CompletionCallback()));
+  handle.Reset();
+
+  // Should now have one idle socket.
+  ASSERT_EQ(1, pool_->IdleSocketCount());
+
+  // Request a new socket. This should reuse the old socket and complete
+  // synchronously.
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  rv = handle.Init("a",
+                   params_,
+                   LOWEST,
+                   CompletionCallback(),
+                   pool_.get(),
+                   log.bound());
+  ASSERT_EQ(OK, rv);
+  EXPECT_TRUE(handle.is_reused());
+
+  ASSERT_TRUE(pool_->HasGroup("a"));
+  EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
+  EXPECT_EQ(1, pool_->NumActiveSocketsInGroup("a"));
+
+  net::CapturingNetLog::EntryList entries;
+  log.GetEntries(&entries);
+  EXPECT_TRUE(LogContainsEntryWithType(
+      entries, 1, NetLog::TYPE_SOCKET_POOL_REUSED_AN_EXISTING_SOCKET));
+}
+
+// Make sure we cleanup old unused sockets when the cleanup timer is disabled.
+TEST_F(ClientSocketPoolBaseTest, DisableCleanupTimerNoReuse) {
+  // Disable cleanup timer.
+  internal::ClientSocketPoolBaseHelper::set_cleanup_timer_enabled(false);
+
+  CreatePoolWithIdleTimeouts(
+      kDefaultMaxSockets, kDefaultMaxSocketsPerGroup,
+      base::TimeDelta(),  // Time out unused sockets immediately
+      base::TimeDelta());  // Time out used sockets immediately
 
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
 
@@ -2029,7 +2083,7 @@ TEST_F(ClientSocketPoolBaseTest, DisableCleanupTimer) {
                        callback.callback(),
                        pool_.get(),
                        BoundNetLog());
-  EXPECT_EQ(ERR_IO_PENDING, rv);
+  ASSERT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", &handle));
 
   ClientSocketHandle handle2;
@@ -2040,7 +2094,7 @@ TEST_F(ClientSocketPoolBaseTest, DisableCleanupTimer) {
                     callback2.callback(),
                     pool_.get(),
                     BoundNetLog());
-  EXPECT_EQ(ERR_IO_PENDING, rv);
+  ASSERT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", &handle2));
 
   // Cancel one of the requests.  Wait for the other, which will get the first
@@ -2049,16 +2103,19 @@ TEST_F(ClientSocketPoolBaseTest, DisableCleanupTimer) {
   // just posts a DoReleaseSocket() task).
 
   handle.Reset();
-  EXPECT_EQ(OK, callback2.WaitForResult());
+  ASSERT_EQ(OK, callback2.WaitForResult());
   // Use the socket.
   EXPECT_EQ(1, handle2.socket()->Write(NULL, 1, CompletionCallback()));
   handle2.Reset();
 
-  // The idle socket timeout value was set to 10 milliseconds. Wait 100
-  // milliseconds so the sockets timeout.
-  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(100));
+  // We post all of our delayed tasks with a 2ms delay. I.e. they don't
+  // actually become pending until 2ms after they have been created. In order
+  // to flush all tasks, we need to wait so that we know there are no
+  // soon-to-be-pending tasks waiting.
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(10));
   MessageLoop::current()->RunAllPending();
 
+  // Both sockets should now be idle.
   ASSERT_EQ(2, pool_->IdleSocketCount());
 
   // Request a new socket. This should cleanup the unused and timed out ones.
@@ -2071,11 +2128,11 @@ TEST_F(ClientSocketPoolBaseTest, DisableCleanupTimer) {
                    callback3.callback(),
                    pool_.get(),
                    log.bound());
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-  EXPECT_EQ(OK, callback3.WaitForResult());
+  ASSERT_EQ(ERR_IO_PENDING, rv);
+  ASSERT_EQ(OK, callback3.WaitForResult());
   EXPECT_FALSE(handle.is_reused());
 
-  // Make sure the idle socket is closed
+  // Make sure the idle socket is closed.
   ASSERT_TRUE(pool_->HasGroup("a"));
   EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
   EXPECT_EQ(1, pool_->NumActiveSocketsInGroup("a"));
