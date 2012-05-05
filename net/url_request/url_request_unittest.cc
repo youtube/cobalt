@@ -411,10 +411,6 @@ class URLRequestTest : public PlatformTest {
     default_context_->Init();
   }
 
-  static void SetUpTestCase() {
-    URLRequest::AllowFileAccess();
-  }
-
   // Adds the TestJobInterceptor to the default context.
   TestJobInterceptor* AddTestInterceptor() {
     TestJobInterceptor* interceptor = new TestJobInterceptor();

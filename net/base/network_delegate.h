@@ -14,6 +14,7 @@
 #include "net/base/auth.h"
 #include "net/base/completion_callback.h"
 
+class FilePath;
 class GURL;
 
 namespace net {
@@ -77,14 +78,16 @@ class NetworkDelegate : public base::NonThreadSafe {
                                           const AuthChallengeInfo& auth_info,
                                           const AuthCallback& callback,
                                           AuthCredentials* credentials);
-  bool NotifyReadingCookies(const URLRequest* request,
-                            const CookieList& cookie_list);
-  bool NotifySettingCookie(const URLRequest* request,
-                           const std::string& cookie_line,
-                           CookieOptions* options);
+  bool CanGetCookies(const URLRequest& request,
+                     const CookieList& cookie_list);
+  bool CanSetCookie(const URLRequest& request,
+                    const std::string& cookie_line,
+                    CookieOptions* options);
+  bool CanAccessFile(const URLRequest& request,
+                     const FilePath& path) const;
 
  private:
-  // This is the interface for subclasses of NetworkDelegate to implement. This
+  // This is the interface for subclasses of NetworkDelegate to implement. These
   // member functions will be called by the respective public notification
   // member function, which will perform basic sanity checking.
 
@@ -182,15 +185,22 @@ class NetworkDelegate : public base::NonThreadSafe {
   // Called when reading cookies to allow the network delegate to block access
   // to the cookie. This method will never be invoked when
   // LOAD_DO_NOT_SEND_COOKIES is specified.
-  virtual bool CanGetCookies(const URLRequest* request,
-                             const CookieList& cookie_list) = 0;
+  virtual bool OnCanGetCookies(const URLRequest& request,
+                               const CookieList& cookie_list) = 0;
 
   // Called when a cookie is set to allow the network delegate to block access
   // to the cookie. This method will never be invoked when
   // LOAD_DO_NOT_SAVE_COOKIES is specified.
-  virtual bool CanSetCookie(const URLRequest* request,
-                            const std::string& cookie_line,
-                            CookieOptions* options) = 0;
+  virtual bool OnCanSetCookie(const URLRequest& request,
+                              const std::string& cookie_line,
+                              CookieOptions* options) = 0;
+
+
+  // Called when a file access is attempted to allow the network delegate to
+  // allow or block access to the given file path.  Returns true if access is
+  // allowed.
+  virtual bool OnCanAccessFile(const URLRequest& request,
+                               const FilePath& path) const = 0;
 
 };
 

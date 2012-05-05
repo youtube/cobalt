@@ -21,6 +21,7 @@
 #include "net/http/http_server_properties_impl.h"
 #include "net/test/test_server.h"
 #include "net/url_request/url_request_context_storage.h"
+#include "net/url_request/url_request_file_job.h"
 #include "net/url_request/url_request_job_factory.h"
 #include "net/url_request/url_request_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -114,6 +115,80 @@ GURL GetTestFileUrl(const std::string& relpath) {
   return GURL(base_url.spec() + "/" + relpath);
 }
 
+// Really simple NetworkDelegate so we can allow local file access on ChromeOS
+// without introducing layering violations.
+class BasicNetworkDelegate : public NetworkDelegate {
+ public:
+  BasicNetworkDelegate() {}
+  virtual ~BasicNetworkDelegate() {}
+
+ private:
+  virtual int OnBeforeURLRequest(URLRequest* request,
+                                 const CompletionCallback& callback,
+                                 GURL* new_url) OVERRIDE {
+    return OK;
+  }
+
+  virtual int OnBeforeSendHeaders(URLRequest* request,
+                                  const CompletionCallback& callback,
+                                  HttpRequestHeaders* headers) OVERRIDE {
+    return OK;
+  }
+
+  virtual void OnSendHeaders(URLRequest* request,
+                             const HttpRequestHeaders& headers) OVERRIDE {}
+
+  virtual int OnHeadersReceived(
+      URLRequest* request,
+      const CompletionCallback& callback,
+      HttpResponseHeaders* original_response_headers,
+      scoped_refptr<HttpResponseHeaders>* override_response_headers)
+      OVERRIDE {
+    return OK;
+  }
+
+  virtual void OnBeforeRedirect(URLRequest* request,
+                                const GURL& new_location) OVERRIDE {}
+
+  virtual void OnResponseStarted(URLRequest* request) OVERRIDE {}
+
+  virtual void OnRawBytesRead(const URLRequest& request,
+                              int bytes_read) OVERRIDE {}
+
+  virtual void OnCompleted(URLRequest* request, bool started) OVERRIDE {}
+
+  virtual void OnURLRequestDestroyed(URLRequest* request) OVERRIDE {}
+
+  virtual void OnPACScriptError(int line_number,
+                                const string16& error) OVERRIDE {}
+
+  virtual NetworkDelegate::AuthRequiredResponse OnAuthRequired(
+      URLRequest* request,
+      const AuthChallengeInfo& auth_info,
+      const AuthCallback& callback,
+      AuthCredentials* credentials) OVERRIDE {
+    return NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION;
+  }
+
+  virtual bool OnCanGetCookies(const URLRequest& request,
+                               const CookieList& cookie_list) OVERRIDE {
+    return true;
+  }
+
+  virtual bool OnCanSetCookie(const URLRequest& request,
+                              const std::string& cookie_line,
+                              CookieOptions* options) OVERRIDE {
+    return true;
+  }
+
+  virtual bool OnCanAccessFile(const net::URLRequest& request,
+                               const FilePath& path) const OVERRIDE {
+    return true;
+  }
+
+  DISALLOW_COPY_AND_ASSIGN(BasicNetworkDelegate);
+};
+
 }  // namespace
 
 class ProxyScriptFetcherImplTest : public PlatformTest {
@@ -124,17 +199,20 @@ class ProxyScriptFetcherImplTest : public PlatformTest {
                      FilePath(kDocRoot)) {
   }
 
-  static void SetUpTestCase() {
-    URLRequest::AllowFileAccess();
+  // testing::Test overrides
+  virtual void SetUp() OVERRIDE {
+    context_ = new RequestContext;
+    context_->set_network_delegate(&network_delegate_);
   }
 
  protected:
   TestServer test_server_;
+  BasicNetworkDelegate network_delegate_;
+  scoped_refptr<URLRequestContext> context_;
 };
 
 TEST_F(ProxyScriptFetcherImplTest, FileUrl) {
-  scoped_refptr<URLRequestContext> context(new RequestContext);
-  ProxyScriptFetcherImpl pac_fetcher(context);
+  ProxyScriptFetcherImpl pac_fetcher(context_.get());
 
   { // Fetch a non-existent file.
     string16 text;
@@ -161,8 +239,7 @@ TEST_F(ProxyScriptFetcherImplTest, FileUrl) {
 TEST_F(ProxyScriptFetcherImplTest, HttpMimeType) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<URLRequestContext> context(new RequestContext);
-  ProxyScriptFetcherImpl pac_fetcher(context);
+  ProxyScriptFetcherImpl pac_fetcher(context_.get());
 
   { // Fetch a PAC with mime type "text/plain"
     GURL url(test_server_.GetURL("files/pac.txt"));
@@ -196,8 +273,7 @@ TEST_F(ProxyScriptFetcherImplTest, HttpMimeType) {
 TEST_F(ProxyScriptFetcherImplTest, HttpStatusCode) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<URLRequestContext> context(new RequestContext);
-  ProxyScriptFetcherImpl pac_fetcher(context);
+  ProxyScriptFetcherImpl pac_fetcher(context_.get());
 
   { // Fetch a PAC which gives a 500 -- FAIL
     GURL url(test_server_.GetURL("files/500.pac"));
@@ -222,8 +298,7 @@ TEST_F(ProxyScriptFetcherImplTest, HttpStatusCode) {
 TEST_F(ProxyScriptFetcherImplTest, ContentDisposition) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<URLRequestContext> context(new RequestContext);
-  ProxyScriptFetcherImpl pac_fetcher(context);
+  ProxyScriptFetcherImpl pac_fetcher(context_.get());
 
   // Fetch PAC scripts via HTTP with a Content-Disposition header -- should
   // have no effect.
@@ -239,8 +314,7 @@ TEST_F(ProxyScriptFetcherImplTest, ContentDisposition) {
 TEST_F(ProxyScriptFetcherImplTest, NoCache) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<URLRequestContext> context(new RequestContext);
-  ProxyScriptFetcherImpl pac_fetcher(context);
+  ProxyScriptFetcherImpl pac_fetcher(context_.get());
 
   // Fetch a PAC script whose HTTP headers make it cacheable for 1 hour.
   GURL url(test_server_.GetURL("files/cacheable_1hr.pac"));
@@ -271,8 +345,7 @@ TEST_F(ProxyScriptFetcherImplTest, NoCache) {
 TEST_F(ProxyScriptFetcherImplTest, TooLarge) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<URLRequestContext> context(new RequestContext);
-  ProxyScriptFetcherImpl pac_fetcher(context);
+  ProxyScriptFetcherImpl pac_fetcher(context_.get());
 
   // Set the maximum response size to 50 bytes.
   int prev_size = pac_fetcher.SetSizeConstraint(50);
@@ -312,8 +385,7 @@ TEST_F(ProxyScriptFetcherImplTest, TooLarge) {
 TEST_F(ProxyScriptFetcherImplTest, Hang) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<URLRequestContext> context(new RequestContext);
-  ProxyScriptFetcherImpl pac_fetcher(context);
+  ProxyScriptFetcherImpl pac_fetcher(context_.get());
 
   // Set the timeout period to 0.5 seconds.
   base::TimeDelta prev_timeout = pac_fetcher.SetTimeoutConstraint(
@@ -350,8 +422,7 @@ TEST_F(ProxyScriptFetcherImplTest, Hang) {
 TEST_F(ProxyScriptFetcherImplTest, Encodings) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<URLRequestContext> context(new RequestContext);
-  ProxyScriptFetcherImpl pac_fetcher(context);
+  ProxyScriptFetcherImpl pac_fetcher(context_.get());
 
   // Test a response that is gzip-encoded -- should get inflated.
   {
@@ -378,8 +449,7 @@ TEST_F(ProxyScriptFetcherImplTest, Encodings) {
 }
 
 TEST_F(ProxyScriptFetcherImplTest, DataURLs) {
-  scoped_refptr<URLRequestContext> context(new RequestContext);
-  ProxyScriptFetcherImpl pac_fetcher(context);
+  ProxyScriptFetcherImpl pac_fetcher(context_.get());
 
   const char kEncodedUrl[] =
       "data:application/x-ns-proxy-autoconfig;base64,ZnVuY3Rpb24gRmluZFByb3h5R"
