@@ -77,7 +77,7 @@
  "linux-release/moz/times/t": {"reva": 120693, "revb": 120785, "improve": 123, "regress": 312, "sha1": "6fe22c1e"},
  "linux-release/sizes/chrome-bss/bss": {"reva": 117429, "revb": 117430, "type": "absolute", "improve": 358030, "regress": 437878, "sha1": "5dddd674"},
  "linux-release/sizes/chrome-data/data": {"reva": 128993, "revb": 129089, "type": "absolute", "improve": 1332770, "regress": 1478547, "sha1": "3cc228e2"},
- "linux-release/sizes/chrome-si/initializers": {"reva": 130488, "revb": 130495, "type": "absolute", "better": "lower", "improve": 93, "regress": 93, "tolerance": 0, "sha1": "eeb9be86"},
+ "linux-release/sizes/chrome-si/initializers": {"reva": 135399, "revb": 135408, "type": "absolute", "better": "lower", "improve": 94, "regress": 94, "tolerance": 0, "sha1": "f5b1db1f"},
  "linux-release/sizes/chrome-text/text": {"reva": 128231, "revb": 128236, "type": "absolute", "better": "lower", "improve": 62079753, "regress": 68614465, "sha1": "540584a2"},
  "linux-release/sizes/chrome-textrel/textrel": {"reva": 125180, "revb": 125180, "type": "absolute", "better": "lower", "improve": 0, "regress": 0, "sha1": "9acd528f"},
  "linux-release/sizes/chrome.pak/chrome.pak": {"reva": 131496, "revb": 131575, "type": "absolute", "better": "lower", "improve": 3423149, "regress": 3783830, "sha1": "be694f8d"},
