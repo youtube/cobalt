@@ -554,7 +554,7 @@
             '../chrome/chrome.gyp:interactive_ui_tests',            
             '../chrome/chrome.gyp:unit_tests',
             '../ui/aura/aura.gyp:*',
-            '../ui/gfx/compositor/compositor.gyp:*',
+            '../ui/compositor/compositor.gyp:*',
             '../ui/ui.gyp:gfx_unittests',
             '../ui/views/views.gyp:views',
             '../ui/views/views.gyp:views_unittests',
