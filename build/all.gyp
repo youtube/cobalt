@@ -176,7 +176,6 @@
         '../chrome/chrome.gyp:interactive_ui_tests',
         '../chrome/chrome.gyp:safe_browsing_tests',
         '../chrome/chrome.gyp:sync_integration_tests',
-        '../chrome/chrome.gyp:ui_tests',
         '../chrome/chrome.gyp:unit_tests',
         '../content/content.gyp:content_browsertests',
         '../content/content.gyp:content_unittests',
@@ -216,10 +215,6 @@
             '../sandbox/sandbox.gyp:sbox_validation_tests',
             '../webkit/webkit.gyp:pull_in_copy_TestNetscapePlugIn',
             '../ui/views/views.gyp:views_unittests',
-            # TODO(nsylvain) ui_tests.exe depends on test_shell_common.
-            # This should:
-            # 1) not be the case. OR.
-            # 2) be expressed in the ui tests dependencies.
             '../webkit/webkit.gyp:test_shell_common',
            ],
         }],
@@ -249,7 +244,6 @@
         '../chrome/chrome.gyp:performance_ui_tests',
         '../chrome/chrome.gyp:plugin_tests',
         '../chrome/chrome.gyp:sync_performance_tests',
-        '../chrome/chrome.gyp:ui_tests',
       ],
     }, # target_name: chromium_builder_perf
     {
@@ -312,7 +306,6 @@
             '../chrome/chrome.gyp:interactive_ui_tests',
             '../chrome/chrome.gyp:safe_browsing_tests',
             '../chrome/chrome.gyp:sync_integration_tests',
-            '../chrome/chrome.gyp:ui_tests',
             '../chrome/chrome.gyp:unit_tests',
             '../content/content.gyp:content_browsertests',
             '../content/content.gyp:content_unittests',
@@ -341,7 +334,6 @@
             '../chrome/chrome.gyp:plugin_tests',
             '../chrome/chrome.gyp:safe_browsing_tests',
             '../chrome/chrome.gyp:sync_integration_tests',
-            '../chrome/chrome.gyp:ui_tests',
             '../chrome/chrome.gyp:unit_tests',
             '../content/content.gyp:content_browsertests',
             '../content/content.gyp:content_unittests',
@@ -389,7 +381,6 @@
             '../remoting/remoting.gyp:remoting_unittests',
             '../chrome/chrome.gyp:safe_browsing_tests',
             '../chrome/chrome.gyp:unit_tests',
-            '../chrome/chrome.gyp:ui_tests',
             '../content/content.gyp:content_unittests',
             '../ui/ui.gyp:gfx_unittests',
             '../jingle/jingle.gyp:jingle_unittests',
@@ -419,7 +410,6 @@
             '../chrome/chrome.gyp:plugin_tests',
             '../chrome/chrome.gyp:safe_browsing_tests',
             '../chrome/chrome.gyp:sync_integration_tests',
-            '../chrome/chrome.gyp:ui_tests',
             '../chrome/chrome.gyp:unit_tests',
             '../content/content.gyp:content_browsertests',
             '../content/content.gyp:content_unittests',
@@ -446,11 +436,6 @@
             '../third_party/libphonenumber/libphonenumber.gyp:libphonenumber_unittests',
             '../webkit/webkit.gyp:pull_in_copy_TestNetscapePlugIn',
             '../ui/views/views.gyp:views_unittests',
-            # TODO(nsylvain) ui_tests.exe depends on test_shell_common.
-            # This should:
-            # 1) not be the case. OR.
-            # 2) be expressed in the ui tests dependencies.
-            '../webkit/webkit.gyp:test_shell_common',
             'temp_gyp/googleurl.gyp:googleurl_unittests',
           ],
         },
@@ -567,7 +552,6 @@
             '../chrome/chrome.gyp:browser_tests',
             '../chrome/chrome.gyp:chrome',
             '../chrome/chrome.gyp:interactive_ui_tests',            
-            '../chrome/chrome.gyp:ui_tests',
             '../chrome/chrome.gyp:unit_tests',
             '../ui/aura/aura.gyp:*',
             '../ui/gfx/compositor/compositor.gyp:*',
@@ -611,7 +595,6 @@
               'dependencies!': [
                 '../chrome/chrome.gyp:chrome',
                 '../chrome/chrome.gyp:unit_tests',
-                '../chrome/chrome.gyp:ui_tests',
                 '../ui/views/views.gyp:views_unittests',
               ],
             }],
