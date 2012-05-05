@@ -495,8 +495,8 @@ net::NetworkDelegate::AuthRequiredResponse TestNetworkDelegate::OnAuthRequired(
   return net::NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION;
 }
 
-bool TestNetworkDelegate::CanGetCookies(const net::URLRequest* request,
-                                        const net::CookieList& cookie_list) {
+bool TestNetworkDelegate::OnCanGetCookies(const net::URLRequest& request,
+                                          const net::CookieList& cookie_list) {
   bool allow = true;
   if (cookie_options_bit_mask_ & NO_GET_COOKIES)
     allow = false;
@@ -508,9 +508,9 @@ bool TestNetworkDelegate::CanGetCookies(const net::URLRequest* request,
   return allow;
 }
 
-bool TestNetworkDelegate::CanSetCookie(const net::URLRequest* request,
-                                       const std::string& cookie_line,
-                                       net::CookieOptions* options) {
+bool TestNetworkDelegate::OnCanSetCookie(const net::URLRequest& request,
+                                         const std::string& cookie_line,
+                                         net::CookieOptions* options) {
   bool allow = true;
   if (cookie_options_bit_mask_ & NO_SET_COOKIE)
     allow = false;
@@ -525,6 +525,11 @@ bool TestNetworkDelegate::CanSetCookie(const net::URLRequest* request,
   }
 
   return allow;
+}
+
+bool TestNetworkDelegate::OnCanAccessFile(const net::URLRequest& request,
+                                          const FilePath& path) const {
+  return true;
 }
 
 // static
