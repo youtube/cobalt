@@ -84,14 +84,19 @@ class BasicNetworkDelegate : public NetworkDelegate {
     return NetworkDelegate::AUTH_REQUIRED_RESPONSE_NO_ACTION;
   }
 
-  virtual bool CanGetCookies(const URLRequest* request,
-                             const CookieList& cookie_list) OVERRIDE {
+  virtual bool OnCanGetCookies(const URLRequest& request,
+                               const CookieList& cookie_list) OVERRIDE {
     return true;
   }
 
-  virtual bool CanSetCookie(const URLRequest* request,
-                            const std::string& cookie_line,
-                            CookieOptions* options) OVERRIDE {
+  virtual bool OnCanSetCookie(const URLRequest& request,
+                              const std::string& cookie_line,
+                              CookieOptions* options) OVERRIDE {
+    return true;
+  }
+
+  virtual bool OnCanAccessFile(const net::URLRequest& request,
+                               const FilePath& path) const OVERRIDE {
     return true;
   }
 
