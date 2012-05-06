@@ -7,23 +7,6 @@
 // mostly includes stuff like reporting proper timestamps, seeking to
 // keyframes, and supporting certain features like reordered_opaque.
 //
-// Known failures as of r54591:
-//   http://crbug.com/47761
-//     crbug47761_ogg/FFmpegTest.Loop_Audio/0
-//     crbug47761_ogg/FFmpegTest.Seek_Audio/0
-//     crbug47761_ogg/FFmpegTest.Decode_Audio/0
-//
-//   http://crbug.com/49709
-//     sync1_ogg/FFmpegTest.Seek_Audio/0
-//     sync1_ogv/FFmpegTest.Seek_Audio/0
-//     sync2_ogg/FFmpegTest.Seek_Audio/0
-//     sync2_ogv/FFmpegTest.Seek_Audio/0
-//
-//   http://crbug.com/50457
-//     sync0_webm/FFmpegTest.Decode_Video/0
-//     sync0_webm/FFmpegTest.Duration/0
-//     sync1_webm/FFmpegTest.Decode_Video/0
-//     sync2_webm/FFmpegTest.Decode_Video/0
 
 #include <limits>
 #include <queue>
@@ -459,11 +442,6 @@ FFMPEG_TEST_CASE(sync2, webm);
 
 // Covers our LayoutTest file.
 FFMPEG_TEST_CASE(counting, ogv);
-
-// The following are bugs reported by users.
-FFMPEG_TEST_CASE(crbug47761, ogg);
-FFMPEG_TEST_CASE(crbug50045, mp4);
-FFMPEG_TEST_CASE(crbug62127, webm);
 
 TEST_P(FFmpegTest, Perf) {
   {
