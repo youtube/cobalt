@@ -78,6 +78,7 @@ v8.log
 /chrome/safe_browsing_proto.xml
 /chrome/safe_browsing_report_proto.xml
 /chrome/setup.xml
+/chrome/setup_unittests.xml
 /chrome/test/chromeos/autotest/files/client/deps/chrome_test/test_src/
 /chrome/test/chromeos/autotest/files/client/deps/pyauto_dep/test_src/
 /chrome/test/data/extensions/api_test/permissions/nacl_enabled/bin
