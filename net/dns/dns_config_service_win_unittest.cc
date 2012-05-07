@@ -104,7 +104,7 @@ scoped_ptr_malloc<IP_ADAPTER_ADDRESSES> CreateAdapterAddresses(
       IPEndPoint ipe(ip, info.ports[j]);
       address->Address.lpSockaddr =
           reinterpret_cast<LPSOCKADDR>(storage + num_addresses);
-      size_t length = sizeof(struct sockaddr_storage);
+      socklen_t length = sizeof(struct sockaddr_storage);
       CHECK(ipe.ToSockAddr(address->Address.lpSockaddr, &length));
       address->Address.iSockaddrLength = static_cast<int>(length);
     }

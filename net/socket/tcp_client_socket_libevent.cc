@@ -127,7 +127,7 @@ TCPClientSocketLibevent::TCPClientSocketLibevent(
     : socket_(kInvalidSocket),
       bound_socket_(kInvalidSocket),
       addresses_(addresses),
-      current_ai_(NULL),
+      current_address_index_(-1),
       read_watcher_(this),
       write_watcher_(this),
       next_connect_state_(CONNECT_STATE_NONE),
@@ -163,23 +163,21 @@ int TCPClientSocketLibevent::AdoptSocket(int socket) {
   // This is to make GetPeerAddress() work. It's up to the caller ensure
   // that |address_| contains a reasonable address for this
   // socket. (i.e. at least match IPv4 vs IPv6!).
-  current_ai_ = addresses_.head();
+  current_address_index_ = 0;
   use_history_.set_was_ever_connected();
 
   return OK;
 }
 
 int TCPClientSocketLibevent::Bind(const IPEndPoint& address) {
-  if (current_ai_ != NULL || bind_address_.get()) {
+  if (current_address_index_ >= 0 || bind_address_.get()) {
     // Cannot bind the socket if we are already bound connected or
     // connecting.
     return ERR_UNEXPECTED;
   }
 
-  sockaddr_storage addr_storage;
-  sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-  size_t addr_len = sizeof(addr_storage);
-  if (!address.ToSockAddr(addr, &addr_len))
+  SockaddrStorage storage;
+  if (!address.ToSockAddr(storage.addr, &storage.addr_len))
     return ERR_INVALID_ARGUMENT;
 
   // Create |bound_socket_| and try to bound it to |address|.
@@ -187,7 +185,7 @@ int TCPClientSocketLibevent::Bind(const IPEndPoint& address) {
   if (error)
     return MapSystemError(error);
 
-  if (HANDLE_EINTR(bind(bound_socket_, addr, addr_len))) {
+  if (HANDLE_EINTR(bind(bound_socket_, storage.addr, storage.addr_len))) {
     error = errno;
     if (HANDLE_EINTR(close(bound_socket_)) < 0)
       PLOG(ERROR) << "close";
@@ -219,7 +217,7 @@ int TCPClientSocketLibevent::Connect(const CompletionCallback& callback) {
   // We will try to connect to each address in addresses_. Start with the
   // first one in the list.
   next_connect_state_ = CONNECT_STATE_CONNECT;
-  current_ai_ = addresses_.head();
+  current_address_index_ = 0;
 
   int rv = DoConnectLoop(OK);
   if (rv == ERR_IO_PENDING) {
@@ -259,9 +257,11 @@ int TCPClientSocketLibevent::DoConnectLoop(int result) {
 }
 
 int TCPClientSocketLibevent::DoConnect() {
-  DCHECK(current_ai_);
-
+  DCHECK_GE(current_address_index_, 0);
+  DCHECK_LT(current_address_index_, static_cast<int>(addresses_.size()));
   DCHECK_EQ(0, connect_os_error_);
+
+  const IPEndPoint& endpoint = addresses_[current_address_index_];
 
   if (previously_disconnected_) {
     use_history_.Reset();
@@ -270,7 +270,8 @@ int TCPClientSocketLibevent::DoConnect() {
 
   net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT,
                       make_scoped_refptr(new NetLogStringParameter(
-                          "address", NetAddressToStringWithPort(current_ai_))));
+                          "address",
+                          endpoint.ToString())));
 
   next_connect_state_ = CONNECT_STATE_CONNECT_COMPLETE;
 
@@ -280,26 +281,27 @@ int TCPClientSocketLibevent::DoConnect() {
     bound_socket_ = kInvalidSocket;
   } else {
     // Create a non-blocking socket.
-    connect_os_error_ = CreateSocket(current_ai_->ai_family, &socket_);
+    connect_os_error_ = CreateSocket(endpoint.GetFamily(), &socket_);
     if (connect_os_error_)
       return MapSystemError(connect_os_error_);
 
     if (bind_address_.get()) {
-      sockaddr_storage addr_storage;
-      sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-      size_t addr_len = sizeof(addr_storage);
-      if (!bind_address_->ToSockAddr(addr, &addr_len))
+      SockaddrStorage storage;
+      if (!bind_address_->ToSockAddr(storage.addr, &storage.addr_len))
         return ERR_INVALID_ARGUMENT;
-      if (HANDLE_EINTR(bind(socket_, addr, addr_len)))
+      if (HANDLE_EINTR(bind(socket_, storage.addr, storage.addr_len)))
         return MapSystemError(errno);
     }
   }
 
   // Connect the socket.
   if (!use_tcp_fastopen_) {
+    SockaddrStorage storage;
+    if (!endpoint.ToSockAddr(storage.addr, &storage.addr_len))
+      return ERR_INVALID_ARGUMENT;
+
     connect_start_time_ = base::TimeTicks::Now();
-    if (!HANDLE_EINTR(connect(socket_, current_ai_->ai_addr,
-                              static_cast<int>(current_ai_->ai_addrlen)))) {
+    if (!HANDLE_EINTR(connect(socket_, storage.addr, storage.addr_len))) {
       // Connected without waiting!
       return OK;
     }
@@ -347,9 +349,9 @@ int TCPClientSocketLibevent::DoConnectComplete(int result) {
   DoDisconnect();
 
   // Try to fall back to the next address in the list.
-  if (current_ai_->ai_next) {
+  if (current_address_index_ + 1 < static_cast<int>(addresses_.size())) {
     next_connect_state_ = CONNECT_STATE_CONNECT;
-    current_ai_ = current_ai_->ai_next;
+    ++current_address_index_;
     return OK;
   }
 
@@ -361,7 +363,7 @@ void TCPClientSocketLibevent::Disconnect() {
   DCHECK(CalledOnValidThread());
 
   DoDisconnect();
-  current_ai_ = NULL;
+  current_address_index_ = -1;
 }
 
 void TCPClientSocketLibevent::DoDisconnect() {
@@ -389,7 +391,7 @@ bool TCPClientSocketLibevent::IsConnected() const {
     // This allows GetPeerAddress() to return current_ai_ as the peer
     // address.  Since we don't fail over to the next address if
     // sendto() fails, current_ai_ is the only possible peer address.
-    CHECK(current_ai_);
+    CHECK_LT(current_address_index_, static_cast<int>(addresses_.size()));
     return true;
   }
 
@@ -505,6 +507,12 @@ int TCPClientSocketLibevent::Write(IOBuffer* buf,
 int TCPClientSocketLibevent::InternalWrite(IOBuffer* buf, int buf_len) {
   int nwrite;
   if (use_tcp_fastopen_ && !tcp_fastopen_connected_) {
+    SockaddrStorage storage;
+    if (!addresses_[current_address_index_].ToSockAddr(storage.addr,
+                                                       &storage.addr_len)) {
+      return ERR_INVALID_ARGUMENT;
+    }
+
     // We have a limited amount of data to send in the SYN packet.
     int kMaxFastOpenSendLength = 1420;
 
@@ -515,8 +523,8 @@ int TCPClientSocketLibevent::InternalWrite(IOBuffer* buf, int buf_len) {
                                  buf->data(),
                                  buf_len,
                                  flags,
-                                 current_ai_->ai_addr,
-                                 static_cast<int>(current_ai_->ai_addrlen)));
+                                 storage.addr,
+                                 storage.addr_len));
     tcp_fastopen_connected_ = true;
 
     if (nwrite < 0) {
@@ -561,10 +569,8 @@ void TCPClientSocketLibevent::LogConnectCompletion(int net_error) {
     return;
   }
 
-  struct sockaddr_storage source_address;
-  socklen_t addrlen = sizeof(source_address);
-  int rv = getsockname(
-      socket_, reinterpret_cast<struct sockaddr*>(&source_address), &addrlen);
+  SockaddrStorage storage;
+  int rv = getsockname(socket_, storage.addr, &storage.addr_len);
   if (rv != 0) {
     PLOG(ERROR) << "getsockname() [rv: " << rv << "] error: ";
     NOTREACHED();
@@ -573,9 +579,7 @@ void TCPClientSocketLibevent::LogConnectCompletion(int net_error) {
   }
 
   const std::string source_address_str =
-      NetAddressToStringWithPort(
-          reinterpret_cast<const struct sockaddr*>(&source_address),
-          sizeof(source_address));
+      NetAddressToStringWithPort(storage.addr, storage.addr_len);
   net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT,
                     make_scoped_refptr(new NetLogStringParameter(
                         "source address",
@@ -684,7 +688,7 @@ int TCPClientSocketLibevent::GetPeerAddress(AddressList* address) const {
   DCHECK(address);
   if (!IsConnected())
     return ERR_SOCKET_NOT_CONNECTED;
-  *address = AddressList::CreateByCopyingFirstAddress(current_ai_);
+  *address = AddressList(addresses_[current_address_index_]);
   return OK;
 }
 
@@ -694,12 +698,10 @@ int TCPClientSocketLibevent::GetLocalAddress(IPEndPoint* address) const {
   if (!IsConnected())
     return ERR_SOCKET_NOT_CONNECTED;
 
-  struct sockaddr_storage addr_storage;
-  socklen_t addr_len = sizeof(addr_storage);
-  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-  if (getsockname(socket_, addr, &addr_len))
+  SockaddrStorage storage;
+  if (getsockname(socket_, storage.addr, &storage.addr_len))
     return MapSystemError(errno);
-  if (!address->FromSockAddr(addr, addr_len))
+  if (!address->FromSockAddr(storage.addr, storage.addr_len))
     return ERR_FAILED;
 
   return OK;

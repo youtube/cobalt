@@ -94,7 +94,6 @@
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_connection_status_flags.h"
 #include "net/base/ssl_info.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/base/x509_certificate_net_log_param.h"
 #include "net/ocsp/nss_ocsp.h"
 #include "net/socket/client_socket_handle.h"
@@ -1023,20 +1022,22 @@ int SSLClientSocketNSS::InitializeSSLPeerName() {
   if (err != OK)
     return err;
 
-  const struct addrinfo* ai = peer_address.head();
+  SockaddrStorage storage;
+  if (!peer_address.front().ToSockAddr(storage.addr, &storage.addr_len))
+    return ERR_UNEXPECTED;
 
   PRNetAddr peername;
   memset(&peername, 0, sizeof(peername));
-  DCHECK_LE(ai->ai_addrlen, sizeof(peername));
-  size_t len = std::min(static_cast<size_t>(ai->ai_addrlen),
+  DCHECK_LE(static_cast<size_t>(storage.addr_len), sizeof(peername));
+  size_t len = std::min(static_cast<size_t>(storage.addr_len),
                         sizeof(peername));
-  memcpy(&peername, ai->ai_addr, len);
+  memcpy(&peername, storage.addr, len);
 
   // Adjust the address family field for BSD, whose sockaddr
   // structure has a one-byte length and one-byte address family
   // field at the beginning.  PRNetAddr has a two-byte address
   // family field at the beginning.
-  peername.raw.family = ai->ai_addr->sa_family;
+  peername.raw.family = storage.addr->sa_family;
 
   memio_SetPeerName(nss_fd_, &peername);
 

@@ -8,7 +8,6 @@
 #include "net/base/address_list.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_util.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/dns/dns_protocol.h"
 #include "net/dns/dns_query.h"
 #include "net/dns/dns_test_util.h"
@@ -248,21 +247,11 @@ TEST(DnsResponseTest, InitParse) {
 
 void VerifyAddressList(const std::vector<const char*>& ip_addresses,
                        const AddressList& addrlist) {
-  ASSERT_GT(ip_addresses.size(), 0u);
-  ASSERT_NE(static_cast<addrinfo*>(NULL), addrlist.head());
+  ASSERT_EQ(ip_addresses.size(), addrlist.size());
 
-  IPAddressNumber ip_number;
-  const struct addrinfo* ainfo = addrlist.head();
-  for (std::vector<const char*>::const_iterator i = ip_addresses.begin();
-       i != ip_addresses.end(); ++i, ainfo = ainfo->ai_next) {
-    ASSERT_NE(static_cast<addrinfo*>(NULL), ainfo);
-    EXPECT_EQ(sizeof(struct sockaddr_in),
-              static_cast<size_t>(ainfo->ai_addrlen));
-
-    const struct sockaddr* sa = ainfo->ai_addr;
-    EXPECT_STREQ(*i, NetAddressToString(sa, ainfo->ai_addrlen).c_str());
+  for (size_t i = 0; i < addrlist.size(); ++i) {
+    EXPECT_EQ(ip_addresses[i], addrlist[i].ToStringWithoutPort());
   }
-  ASSERT_EQ(static_cast<addrinfo*>(NULL), ainfo);
 }
 
 TEST(DnsResponseTest, ParseToAddressList) {
@@ -316,9 +305,7 @@ TEST(DnsResponseTest, ParseToAddressList) {
         t.expected_addresses,
         t.expected_addresses + t.num_expected_addresses);
     VerifyAddressList(expected_addresses, addr_list);
-    std::string cname;
-    ASSERT_TRUE(addr_list.GetCanonicalName(&cname));
-    EXPECT_EQ(t.expected_cname, cname);
+    EXPECT_EQ(t.expected_cname, addr_list.canonical_name());
     EXPECT_EQ(base::TimeDelta::FromSeconds(t.expected_ttl_sec), ttl);
   }
 }

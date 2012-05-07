@@ -11,7 +11,6 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/socket/client_socket_handle.h"
 
 namespace net {
@@ -307,20 +306,19 @@ const std::string SOCKSClientSocket::BuildHandshakeWriteBuffer() const {
   request.command = kSOCKSStreamRequest;
   request.nw_port = base::HostToNet16(host_request_info_.port());
 
-  const struct addrinfo* ai = addresses_.head();
-  DCHECK(ai);
+  DCHECK(!addresses_.empty());
+  const IPEndPoint& endpoint = addresses_.front();
 
   // We disabled IPv6 results when resolving the hostname, so none of the
   // results in the list will be IPv6.
   // TODO(eroman): we only ever use the first address in the list. It would be
   //               more robust to try all the IP addresses we have before
   //               failing the connect attempt.
-  CHECK_EQ(AF_INET, ai->ai_addr->sa_family);
-  struct sockaddr_in* ipv4_host =
-      reinterpret_cast<struct sockaddr_in*>(ai->ai_addr);
-  memcpy(&request.ip, &ipv4_host->sin_addr, sizeof(ipv4_host->sin_addr));
+  CHECK_EQ(AF_INET, endpoint.GetFamily());
+  CHECK_LE(endpoint.address().size(), sizeof(request.ip));
+  memcpy(&request.ip, &endpoint.address()[0], endpoint.address().size());
 
-  DVLOG(1) << "Resolved Host is : " << NetAddressToString(ai);
+  DVLOG(1) << "Resolved Host is : " << endpoint.ToStringWithoutPort();
 
   std::string handshake_data(reinterpret_cast<char*>(&request),
                              sizeof(request));

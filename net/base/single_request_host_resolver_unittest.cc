@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -82,7 +82,8 @@ TEST(SingleRequestHostResolverTest, NormalResolve) {
   EXPECT_EQ(OK, callback.WaitForResult());
 
   // Verify that the result is what we specified in the MockHostResolver.
-  EXPECT_EQ("199.188.1.166", NetAddressToString(addrlist.head()));
+  ASSERT_FALSE(addrlist.empty());
+  EXPECT_EQ("199.188.1.166", addrlist.front().ToStringWithoutPort());
 }
 
 // Test that the Cancel() method cancels any outstanding request.

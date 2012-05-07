@@ -14,7 +14,6 @@
 #include "net/base/io_buffer.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_errors.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
 #include "net/socket/tcp_client_socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -62,15 +61,11 @@ class TCPServerSocketTest : public PlatformTest {
   static IPEndPoint GetPeerAddress(StreamSocket* socket) {
     AddressList address;
     EXPECT_EQ(OK, socket->GetPeerAddress(&address));
-    IPEndPoint endpoint;
-    EXPECT_TRUE(endpoint.FromSockAddr(
-        address.head()->ai_addr, address.head()->ai_addrlen));
-    return endpoint;
+    return address.front();
   }
 
   AddressList local_address_list() const {
-    return AddressList::CreateFromIPAddress(
-        local_address_.address(), local_address_.port());
+    return AddressList(local_address_);
   }
 
   TCPServerSocket socket_;

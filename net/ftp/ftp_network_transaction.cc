@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -654,7 +654,7 @@ int FtpNetworkTransaction::DoCtrlConnectComplete(int result) {
     AddressList address;
     result = ctrl_socket_->GetPeerAddress(&address);
     if (result == OK) {
-      response_.socket_address = HostPortPair::FromAddrInfo(address.head());
+      response_.socket_address = HostPortPair::FromIPEndPoint(address.front());
       next_state_ = STATE_CTRL_READ;
     }
   }
@@ -1194,7 +1194,8 @@ int FtpNetworkTransaction::DoDataConnect() {
   int rv = ctrl_socket_->GetPeerAddress(&data_address);
   if (rv != OK)
     return Stop(rv);
-  data_address.SetPort(data_connection_port_);
+  data_address = AddressList::CreateFromIPAddress(
+      data_address.front().address(), data_connection_port_);
   data_socket_.reset(socket_factory_->CreateTransportClientSocket(
         data_address, net_log_.net_log(), net_log_.source()));
   return data_socket_->Connect(io_callback_);

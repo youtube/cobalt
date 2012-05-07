@@ -236,7 +236,8 @@ int SystemHostResolverProc(const std::string& host,
     return ERR_NAME_NOT_RESOLVED;
   }
 
-  *addrlist = AddressList::CreateByAdoptingFromSystem(ai);
+  *addrlist = AddressList::CreateFromAddrinfo(ai);
+  freeaddrinfo(ai);
   return OK;
 }
 

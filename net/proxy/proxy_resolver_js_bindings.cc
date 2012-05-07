@@ -14,7 +14,6 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/proxy/proxy_resolver_error_observer.h"
 #include "net/proxy/proxy_resolver_request_context.h"
 #include "net/proxy/sync_host_resolver.h"
@@ -207,7 +206,7 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
 
     // There may be multiple results; we will just use the first one.
     // This returns empty string on failure.
-    *first_ip_address = net::NetAddressToString(address_list.head());
+    *first_ip_address = address_list.front().ToStringWithoutPort();
     if (first_ip_address->empty())
       return false;
 
@@ -227,15 +226,14 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
     // Stringify all of the addresses in the address list, separated
     // by semicolons.
     std::string address_list_str;
-    const struct addrinfo* current_address = address_list.head();
-    while (current_address) {
+    for (AddressList::const_iterator iter = address_list.begin();
+         iter != address_list.end(); ++iter) {
       if (!address_list_str.empty())
         address_list_str += ";";
-      const std::string address_string = NetAddressToString(current_address);
+      const std::string address_string = iter->ToStringWithoutPort();
       if (address_string.empty())
         return false;
       address_list_str += address_string;
-      current_address = current_address->ai_next;
     }
 
     *ip_address_list = address_list_str;
