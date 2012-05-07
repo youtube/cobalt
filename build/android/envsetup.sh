@@ -107,7 +107,7 @@ android_gyp() {
   CXX_target=$(basename ${ANDROID_TOOLCHAIN}/*-g++) \
   LINK_target=$(basename ${ANDROID_TOOLCHAIN}/*-gcc) \
   AR_target=$(basename ${ANDROID_TOOLCHAIN}/*-ar) \
-  "${CHROME_SRC}/build/gyp_chromium" --depth="${CHROME_SRC}"
+  "${CHROME_SRC}/build/gyp_chromium" --depth="${CHROME_SRC}" "$@"
 }
 
 export OBJCOPY=$(echo ${ANDROID_TOOLCHAIN}/*-objcopy)
