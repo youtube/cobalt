@@ -1,0 +1,89 @@
+#!/bin/bash
+#
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+#
+# Attach gdb to a running content shell.  Similar to ndk-gdb.
+# Run with --annotate=3 if running under emacs (M-x gdb).
+#
+# TODO(jrg): allow package_name and shared_lib_dir to be set on the
+# command line.  Share the guts of this script with other Chromium
+# pieces (like base_unittests_apk) and friends (like WebKit bundles).
+
+adb=$(which adb)
+if [[ "$adb" = "" ]] ; then
+  echo "Need adb in your path"
+  exit 1
+fi
+
+# TODO(jrg): non-rooted path speculative and untested.
+rooted_phone=1
+
+root=$(dirname $0)/../..
+package_name=org.chromium.content_shell
+gdb_server_on_device=/data/data/$package_name/lib/gdbserver
+shared_lib_dir=$root/out/Release/lib.target
+
+# Kill any running gdbserver
+pid=$(adb shell ps | awk '/gdbserver/ {print $2}')
+if [[ "$pid" != "" ]] ; then
+  if [[ $rooted_phone -eq 1 ]] ; then
+    adb shell kill $pid
+  else
+    adb shell run-as $package_name kill $pid
+  fi
+fi
+
+pid=$(adb shell ps | awk "/$package_name/ {print \$2}")
+if [[ "$pid" = "" ]] ; then
+  echo "No $package_name running?"
+  echo "Try this: adb shell am start -a android.intent.action.VIEW " \
+    "-n $package_name/.SomethingActivity (Something might be ContentShell)"
+  exit 2
+fi
+
+no_gdb_server=$(adb shell ls $gdb_server_on_device | grep 'No such file')
+if [[ "$no_gdb_server" != "" ]] ; then
+  echo "No gdb server on device at $gdb_server_on_device"
+  echo "Please install a debug build."
+  exit 3
+fi
+
+adb forward tcp:4321 tcp:4321
+
+# TODO(jrg): Consider a closer match to ndk-gdb which uses subtly
+# different semantics for both port forwarding and launching
+# gdbserver.
+if [[ $rooted_phone -eq 1 ]] ; then
+  adb shell $gdb_server_on_device :4321 --attach $pid &
+else
+  adb shell run-as $package_name $gdb_server_on_device :4321 --attach $pid &
+fi
+sleep 2
+
+# Pull app_process and C libraries from device if needed
+app_process=${shared_lib_dir}/app_process
+if [[ ! -f ${app_process} ]] ; then
+  adb pull /system/bin/app_process ${app_process}
+  adb pull /system/lib/libc.so ${shared_lib_dir}
+fi
+
+# gdb commands
+cmdfile=$(mktemp /tmp/gdb_android_XXXXXXXX)
+cat >$cmdfile<<EOF
+set solib-absolute-prefix null
+set solib-search-path ${shared_lib_dir}
+target remote :4321
+EOF
+
+gdb=$(echo $ANDROID_TOOLCHAIN/*gdb)
+if [[ ! -f ${gdb} ]] ; then
+  echo "Wow no gdb in env var ANDROID_TOOLCHAIN which is $ANDROID_TOOLCHAIN"
+  exit 4
+else
+  echo Using $gdb
+fi
+
+${gdb} -x $cmdfile $* $app_process
+rm $cmdfile
