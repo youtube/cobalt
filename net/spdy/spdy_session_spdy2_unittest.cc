@@ -810,9 +810,8 @@ void IPPoolingTest(bool clean_via_close_current_sessions) {
 
   // TODO(rtenneti): MockClientSocket::GetPeerAddress return's 0 as the port
   // number. Fix it to return port 80 and then use GetPeerAddress to AddAlias.
-  const addrinfo* address = test_hosts[0].addresses.head();
   SpdySessionPoolPeer pool_peer(spdy_session_pool);
-  pool_peer.AddAlias(address, test_hosts[0].pair);
+  pool_peer.AddAlias(test_hosts[0].addresses.front(), test_hosts[0].pair);
 
   // Flush the SpdySession::OnReadComplete() task.
   MessageLoop::current()->RunAllPending();

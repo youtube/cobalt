@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,10 @@
 #define NET_BASE_IP_ENDPOINT_H_
 #pragma once
 
+#include <string>
+
 #include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "net/base/net_export.h"
 #include "net/base/net_util.h"
 
@@ -37,18 +40,23 @@ class NET_EXPORT IPEndPoint {
   //    size of data in |address| available.  On output, it is the size of
   //    the address that was copied into |address|.
   // Returns true on success, false on failure.
-  bool ToSockAddr(struct sockaddr* address, size_t* address_length) const;
+  bool ToSockAddr(struct sockaddr* address, socklen_t* address_length) const
+      WARN_UNUSED_RESULT;
 
   // Convert from a sockaddr struct.
   // |address| is the address.
   // |address_length| is the length of |address|.
   // Returns true on success, false on failure.
-  bool FromSockAddr(const struct sockaddr* address, size_t address_length);
+  bool FromSockAddr(const struct sockaddr* address, socklen_t address_length)
+      WARN_UNUSED_RESULT;
 
   // Returns value as a string (e.g. "127.0.0.1:80"). Returns empty
   // string if the address is invalid, and cannot not be converted to a
   // string.
   std::string ToString() const;
+
+  // As above, but without port.
+  std::string ToStringWithoutPort() const;
 
   bool operator<(const IPEndPoint& that) const;
   bool operator==(const IPEndPoint& that) const;

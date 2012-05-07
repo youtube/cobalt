@@ -20,7 +20,6 @@
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
 #include "net/base/network_change_notifier.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/base/winsock_init.h"
 #include "net/base/winsock_util.h"
 
@@ -317,7 +316,7 @@ TCPClientSocketWin::TCPClientSocketWin(const AddressList& addresses,
     : socket_(INVALID_SOCKET),
       bound_socket_(INVALID_SOCKET),
       addresses_(addresses),
-      current_ai_(NULL),
+      current_address_index_(-1),
       waiting_read_(false),
       waiting_write_(false),
       next_connect_state_(CONNECT_STATE_NONE),
@@ -349,22 +348,20 @@ int TCPClientSocketWin::AdoptSocket(SOCKET socket) {
 
   core_ = new Core(this);
 
-  current_ai_ = addresses_.head();
+  current_address_index_ = 0;
   use_history_.set_was_ever_connected();
 
   return OK;
 }
 
 int TCPClientSocketWin::Bind(const IPEndPoint& address) {
-  if (current_ai_ != NULL || bind_address_.get()) {
+  if (current_address_index_ >= 0 || bind_address_.get()) {
     // Cannot bind the socket if we are already connected or connecting.
     return ERR_UNEXPECTED;
   }
 
-  sockaddr_storage addr_storage;
-  sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-  size_t addr_len = sizeof(addr_storage);
-  if (!address.ToSockAddr(addr, &addr_len))
+  SockaddrStorage storage;
+  if (!address.ToSockAddr(storage.addr, &storage.addr_len))
     return ERR_INVALID_ARGUMENT;
 
   // Create |bound_socket_| and try to bound it to |address|.
@@ -372,7 +369,7 @@ int TCPClientSocketWin::Bind(const IPEndPoint& address) {
   if (error)
     return MapSystemError(error);
 
-  if (bind(bound_socket_, addr, addr_len)) {
+  if (bind(bound_socket_, storage.addr, storage.addr_len)) {
     error = errno;
     if (closesocket(bound_socket_) < 0)
       PLOG(ERROR) << "closesocket";
@@ -402,7 +399,7 @@ int TCPClientSocketWin::Connect(const CompletionCallback& callback) {
   // We will try to connect to each address in addresses_. Start with the
   // first one in the list.
   next_connect_state_ = CONNECT_STATE_CONNECT;
-  current_ai_ = addresses_.head();
+  current_address_index_ = 0;
 
   int rv = DoConnectLoop(OK);
   if (rv == ERR_IO_PENDING) {
@@ -443,9 +440,11 @@ int TCPClientSocketWin::DoConnectLoop(int result) {
 }
 
 int TCPClientSocketWin::DoConnect() {
-  const struct addrinfo* ai = current_ai_;
-  DCHECK(ai);
+  DCHECK_GE(current_address_index_, 0);
+  DCHECK_LT(current_address_index_, static_cast<int>(addresses_.size()));
   DCHECK_EQ(0, connect_os_error_);
+
+  const IPEndPoint& endpoint = addresses_[current_address_index_];
 
   if (previously_disconnected_) {
     use_history_.Reset();
@@ -453,8 +452,8 @@ int TCPClientSocketWin::DoConnect() {
   }
 
   net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT,
-                      new NetLogStringParameter(
-                          "address", NetAddressToStringWithPort(current_ai_)));
+                      new NetLogStringParameter("address",
+                                                endpoint.ToString()));
 
   next_connect_state_ = CONNECT_STATE_CONNECT_COMPLETE;
 
@@ -463,17 +462,15 @@ int TCPClientSocketWin::DoConnect() {
     socket_ = bound_socket_;
     bound_socket_ = INVALID_SOCKET;
   } else {
-    connect_os_error_ = CreateSocket(ai->ai_family, &socket_);
+    connect_os_error_ = CreateSocket(endpoint.GetFamily(), &socket_);
     if (connect_os_error_ != 0)
       return MapSystemError(connect_os_error_);
 
     if (bind_address_.get()) {
-      sockaddr_storage addr_storage;
-      sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-      size_t addr_len = sizeof(addr_storage);
-      if (!bind_address_->ToSockAddr(addr, &addr_len))
+      SockaddrStorage storage;
+      if (!bind_address_->ToSockAddr(storage.addr, &storage.addr_len))
         return ERR_INVALID_ARGUMENT;
-      if (bind(socket_, addr, addr_len))
+      if (bind(socket_, storage.addr, storage.addr_len))
         return MapSystemError(errno);
     }
   }
@@ -484,8 +481,11 @@ int TCPClientSocketWin::DoConnect() {
   // Our connect() and recv() calls require that the socket be non-blocking.
   WSAEventSelect(socket_, core_->read_overlapped_.hEvent, FD_CONNECT);
 
+  SockaddrStorage storage;
+  if (!endpoint.ToSockAddr(storage.addr, &storage.addr_len))
+    return ERR_INVALID_ARGUMENT;
   connect_start_time_ = base::TimeTicks::Now();
-  if (!connect(socket_, ai->ai_addr, static_cast<int>(ai->ai_addrlen))) {
+  if (!connect(socket_, storage.addr, storage.addr_len)) {
     // Connected without waiting!
     //
     // The MSDN page for connect says:
@@ -532,9 +532,9 @@ int TCPClientSocketWin::DoConnectComplete(int result) {
   DoDisconnect();
 
   // Try to fall back to the next address in the list.
-  if (current_ai_->ai_next) {
+  if (current_address_index_ + 1 < static_cast<int>(addresses_.size())) {
     next_connect_state_ = CONNECT_STATE_CONNECT;
-    current_ai_ = current_ai_->ai_next;
+    ++current_address_index_;
     return OK;
   }
 
@@ -544,7 +544,7 @@ int TCPClientSocketWin::DoConnectComplete(int result) {
 
 void TCPClientSocketWin::Disconnect() {
   DoDisconnect();
-  current_ai_ = NULL;
+  current_address_index_ = -1;
 }
 
 void TCPClientSocketWin::DoDisconnect() {
@@ -629,7 +629,7 @@ int TCPClientSocketWin::GetPeerAddress(AddressList* address) const {
   DCHECK(address);
   if (!IsConnected())
     return ERR_SOCKET_NOT_CONNECTED;
-  *address = AddressList::CreateByCopyingFirstAddress(current_ai_);
+  *address = AddressList(addresses_[current_address_index_]);
   return OK;
 }
 

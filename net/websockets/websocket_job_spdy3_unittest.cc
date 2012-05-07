@@ -18,7 +18,6 @@
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_config_service.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/transport_security_state.h"
 #include "net/cookies/cookie_store.h"
@@ -406,16 +405,9 @@ class WebSocketJobSpdy3Test : public PlatformTest {
 
     websocket_->InitSocketStream(socket_.get());
     websocket_->set_context(context_.get());
-    struct addrinfo addr;
-    memset(&addr, 0, sizeof(struct addrinfo));
-    addr.ai_family = AF_INET;
-    addr.ai_addrlen = sizeof(struct sockaddr_in);
-    struct sockaddr_in sa_in;
-    memset(&sa_in, 0, sizeof(struct sockaddr_in));
-    memcpy(&sa_in.sin_addr, "\x7f\0\0\1", 4);
-    addr.ai_addr = reinterpret_cast<sockaddr*>(&sa_in);
-    addr.ai_next = NULL;
-    websocket_->addresses_ = AddressList::CreateByCopying(&addr);
+    IPAddressNumber ip;
+    ParseIPLiteralToNumber("127.0.0.1", &ip);
+    websocket_->addresses_ = AddressList::CreateFromIPAddress(ip, 0);
   }
   void SkipToConnecting() {
     websocket_->state_ = WebSocketJob::CONNECTING;

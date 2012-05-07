@@ -9241,8 +9241,7 @@ void IPPoolingAddAlias(MockCachingHostResolver* host_resolver,
   // MockHostResolver returns 127.0.0.1 (MockHostResolverBase::Reset). So we use
   // the first address (127.0.0.1) returned by MockHostResolver as an alias for
   // the |pair|.
-  const addrinfo* address = addresses.head();
-  pool_peer->AddAlias(address, pair);
+  pool_peer->AddAlias(addresses.front(), pair);
 }
 
 }  // namespace

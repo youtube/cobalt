@@ -254,7 +254,8 @@ int SpdyHttpStream::SendRequest(const HttpRequestHeaders& request_headers,
   int result = stream_->GetPeerAddress(&address);
   if (result != OK)
     return result;
-  response_info_->socket_address = HostPortPair::FromAddrInfo(address.head());
+  response_info_->socket_address =
+      HostPortPair::FromIPEndPoint(address.front());
 
   bool has_upload_data = request_body_stream_.get() != NULL;
   result = stream_->SendRequest(has_upload_data);

@@ -182,7 +182,7 @@ class NET_EXPORT SpdySessionPool
                        AddressList* addresses) const;
 
   // Add |address| as an IP-equivalent address for |pair|.
-  void AddAlias(const addrinfo* address, const HostPortProxyPair& pair);
+  void AddAlias(const IPEndPoint& address, const HostPortProxyPair& pair);
 
   // Remove all aliases for |pair| from the aliases table.
   void RemoveAliases(const HostPortProxyPair& pair);
