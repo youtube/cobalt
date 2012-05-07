@@ -152,6 +152,16 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // Enable benchmarking sets field trials to a common setting.
   static void EnableBenchmarking();
 
+  // Set the field trial as forced, meaning that it was setup earlier than
+  // the hard coded registration of the field trial to override it.
+  // This allows the code that was hard coded to register the field trial to
+  // still succeed even though the field trial has already been registered.
+  // This must be called after appending all the groups, since we will make
+  // the group choice here. Note that this is a NOOP for already forced trials.
+  // And, as the rest of the FieldTrial code, this is not thread safe and must
+  // be done from the UI thread.
+  void SetForced();
+
  private:
   // Allow tests to access our innards for testing purposes.
   FRIEND_TEST_ALL_PREFIXES(FieldTrialTest, Registration);
