@@ -627,7 +627,7 @@ class MockTCPClientSocket : public MockClientSocket, public AsyncSocket {
                       SocketDataProvider* socket);
   virtual ~MockTCPClientSocket();
 
-  AddressList addresses() const { return addresses_; }
+  const AddressList& addresses() const { return addresses_; }
 
   // Socket implementation.
   virtual int Read(IOBuffer* buf, int buf_len,

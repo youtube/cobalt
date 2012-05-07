@@ -213,7 +213,7 @@ int HttpStreamParser::SendRequest(const std::string& request_line,
   int result = connection_->socket()->GetPeerAddress(&address);
   if (result != OK)
     return result;
-  response_->socket_address = HostPortPair::FromAddrInfo(address.head());
+  response_->socket_address = HostPortPair::FromIPEndPoint(address.front());
 
   std::string request = request_line + headers.ToString();
   request_body_.reset(request_body);

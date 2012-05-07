@@ -15,6 +15,9 @@
 #include "base/threading/non_thread_safe.h"
 #include "base/time.h"
 #include "base/timer.h"
+// Needed on shared build with MSVS2010 to avoid multiple definitions of
+// std::vector<IPEndPoint>.
+#include "net/base/address_list.h"
 #include "net/base/ip_endpoint.h"  // win requires size of IPEndPoint
 #include "net/base/net_export.h"
 #include "net/dns/dns_hosts.h"

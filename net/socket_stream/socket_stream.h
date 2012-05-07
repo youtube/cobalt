@@ -265,9 +265,8 @@ class NET_EXPORT SocketStream
   // Use the same number as HttpNetworkTransaction::kMaxHeaderBufSize.
   enum { kMaxTunnelResponseHeadersSize = 32768 };  // 32 kilobytes.
 
-  // Copies the given addrinfo list in |addresses_|.
   // Used for WebSocketThrottleTest.
-  void CopyAddrInfo(struct addrinfo* head);
+  void set_addresses(const AddressList& addresses);
 
   void DoClose();
 

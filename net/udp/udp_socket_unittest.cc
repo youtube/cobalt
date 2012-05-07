@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,7 +15,6 @@
 #include "net/base/net_log_unittest.h"
 #include "net/base/net_test_suite.h"
 #include "net/base/net_util.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"

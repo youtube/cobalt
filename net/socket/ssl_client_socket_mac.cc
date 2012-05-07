@@ -880,10 +880,10 @@ int SSLClientSocketMac::InitializeSSLContext() {
   int rv = transport_->socket()->GetPeerAddress(&address);
   if (rv != OK)
     return rv;
-  const struct addrinfo* ai = address.head();
+  const IPEndPoint& endpoint = address.front();
   std::string peer_id(host_and_port_.ToString());
-  peer_id += std::string(reinterpret_cast<char*>(ai->ai_addr),
-                         ai->ai_addrlen);
+  peer_id += std::string(reinterpret_cast<const char*>(&endpoint.address()[0]),
+                         endpoint.address().size());
   // SSLSetPeerID() treats peer_id as a binary blob, and makes its
   // own copy.
   status = SSLSetPeerID(ssl_context_, peer_id.data(), peer_id.length());

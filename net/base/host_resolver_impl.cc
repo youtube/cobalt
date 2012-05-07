@@ -70,18 +70,6 @@ const unsigned kNegativeCacheEntryTTLSeconds = 0;
 // that limit this to 6, so we're temporarily holding it at that level.
 static const size_t kDefaultMaxProcTasks = 6u;
 
-// Helper to mutate the linked list contained by AddressList to the given
-// port. Note that in general this is dangerous since the AddressList's
-// data might be shared (and you should use AddressList::SetPort).
-//
-// However since we allocated the AddressList ourselves we can safely
-// do this optimization and avoid reallocating the list.
-void MutableSetPort(int port, AddressList* addr_list) {
-  struct addrinfo* mutable_head =
-      const_cast<struct addrinfo*>(addr_list->head());
-  SetPortForAllAddrinfos(mutable_head, port);
-}
-
 // We use a separate histogram name for each platform to facilitate the
 // display of error codes by their symbolic name (since each platform has
 // different mappings).
@@ -179,6 +167,13 @@ class CallSystemHostResolverProc : public HostResolverProc {
  protected:
   virtual ~CallSystemHostResolverProc() {}
 };
+
+void EnsurePortOnAddressList(uint16 port, AddressList* list) {
+  DCHECK(list);
+  if (list->empty() || list->front().port() == port)
+    return;
+  SetPortOnAddressList(port, list);
+}
 
 // Extra parameters to attach to the NetLog when the resolve failed.
 class ProcTaskFailedParams : public NetLog::EventParameters {
@@ -534,8 +529,10 @@ class HostResolverImpl::Request {
 
   // Prepare final AddressList and call completion callback.
   void OnComplete(int error, const AddressList& addr_list) {
-    if (error == OK)
-      *addresses_ = CreateAddressListUsingPort(addr_list, info_.port());
+    if (error == OK) {
+      *addresses_ = addr_list;
+      EnsurePortOnAddressList(info_.port(), addresses_);
+    }
     CompletionCallback callback = callback_;
     MarkAsCanceled();
     callback.Run(error);
@@ -736,7 +733,7 @@ class HostResolverImpl::ProcTask
                         int error,
                         const int os_error) {
     DCHECK(origin_loop_->BelongsToCurrentThread());
-    DCHECK(error || results.head());
+    DCHECK(error || !results.empty());
 
     bool was_retry_attempt = attempt_number > 1;
 
@@ -1427,10 +1424,8 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
 
     DCHECK(!requests_.empty());
 
-    // We are the only consumer of |list|, so we can safely change the port
-    // without copy-on-write. This pays off, when job has only one request.
     if (net_error == OK)
-      MutableSetPort(requests_->front()->info().port(), &list);
+      SetPortOnAddressList(requests_->front()->info().port(), &list);
 
     if ((net_error != ERR_ABORTED) &&
         (net_error != ERR_HOST_RESOLVER_QUEUE_TOO_LARGE)) {
@@ -1758,9 +1753,9 @@ bool HostResolverImpl::ResolveAsIP(const Key& key,
   if ((ip_number.size() == kIPv6AddressSize) && ipv6_disabled) {
     *net_error = ERR_NAME_NOT_RESOLVED;
   } else {
-    *addresses = AddressList::CreateFromIPAddressWithCname(
-        ip_number, info.port(),
-        (key.host_resolver_flags & HOST_RESOLVER_CANONNAME));
+    *addresses = AddressList::CreateFromIPAddress(ip_number, info.port());
+    if (key.host_resolver_flags & HOST_RESOLVER_CANONNAME)
+      addresses->SetDefaultCanonicalName();
   }
   return true;
 }
@@ -1780,8 +1775,10 @@ bool HostResolverImpl::ServeFromCache(const Key& key,
     return false;
 
   *net_error = cache_entry->error;
-  if (*net_error == OK)
-    *addresses = CreateAddressListUsingPort(cache_entry->addrlist, info.port());
+  if (*net_error == OK) {
+    *addresses = cache_entry->addrlist;
+    EnsurePortOnAddressList(info.port(), addresses);
+  }
   return true;
 }
 
