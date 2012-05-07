@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -18,11 +18,17 @@ def GetVersion(compiler):
   try:
     # Note that compiler could be something tricky like "distcc g++".
     compiler = compiler + " -dumpversion"
-    pipe = subprocess.Popen(compiler, stdout=subprocess.PIPE, shell=True)
-    gcc_output = pipe.communicate()[0]
+    pipe = subprocess.Popen(compiler, shell=True,
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    gcc_output, gcc_error = pipe.communicate()
+    if pipe.returncode:
+      raise subprocess.CalledProcessError(pipe.returncode, compiler)
+
     result = re.match(r"(\d+)\.(\d+)", gcc_output)
     return result.group(1) + result.group(2)
   except Exception, e:
+    if gcc_error:
+      sys.stderr.write(gcc_error)
     print >> sys.stderr, "compiler_version.py failed to execute:", compiler
     print >> sys.stderr, e
     return ""
