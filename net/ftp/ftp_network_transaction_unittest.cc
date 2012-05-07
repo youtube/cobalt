@@ -14,7 +14,6 @@
 #include "net/base/io_buffer.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_util.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
 #include "net/ftp/ftp_network_session.h"
 #include "net/ftp/ftp_request_info.h"
@@ -1069,10 +1068,9 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionEvilPasvUnsafeHost) {
   // Even if the PASV response specified some other address, we connect
   // to the address we used for control connection (which could be 127.0.0.1
   // or ::1 depending on whether we use IPv6).
-  const struct addrinfo* addrinfo = data_socket->addresses().head();
-  while (addrinfo) {
-    EXPECT_NE("10.1.2.3", NetAddressToString(addrinfo));
-    addrinfo = addrinfo->ai_next;
+  for (AddressList::const_iterator it = data_socket->addresses().begin();
+      it != data_socket->addresses().end(); ++it) {
+    EXPECT_NE("10.1.2.3", it->ToStringWithoutPort());
   }
 }
 

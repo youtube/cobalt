@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -57,13 +57,11 @@ int TCPServerSocketWin::Listen(const IPEndPoint& address, int backlog) {
     return result;
   }
 
-  struct sockaddr_storage addr_storage;
-  size_t addr_len = sizeof(addr_storage);
-  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-  if (!address.ToSockAddr(addr, &addr_len))
+  SockaddrStorage storage;
+  if (!address.ToSockAddr(storage.addr, &storage.addr_len))
     return ERR_INVALID_ARGUMENT;
 
-  int result = bind(socket_, addr, addr_len);
+  int result = bind(socket_, storage.addr, storage.addr_len);
   if (result < 0) {
     PLOG(ERROR) << "bind() returned an error";
     result = MapSystemError(WSAGetLastError());
@@ -86,12 +84,10 @@ int TCPServerSocketWin::GetLocalAddress(IPEndPoint* address) const {
   DCHECK(CalledOnValidThread());
   DCHECK(address);
 
-  struct sockaddr_storage addr_storage;
-  socklen_t addr_len = sizeof(addr_storage);
-  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-  if (getsockname(socket_, addr, &addr_len))
+  SockaddrStorage storage;
+  if (getsockname(socket_, storage.addr, &storage.addr_len))
     return MapSystemError(WSAGetLastError());
-  if (!address->FromSockAddr(addr, addr_len))
+  if (!address->FromSockAddr(storage.addr, storage.addr_len))
     return ERR_FAILED;
 
   return OK;
@@ -121,11 +117,8 @@ int TCPServerSocketWin::Accept(
 }
 
 int TCPServerSocketWin::AcceptInternal(scoped_ptr<StreamSocket>* socket) {
-  struct sockaddr_storage addr_storage;
-  socklen_t addr_len = sizeof(addr_storage);
-  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-
-  int new_socket = accept(socket_, addr, &addr_len);
+  SockaddrStorage storage;
+  int new_socket = accept(socket_, storage.addr, &storage.addr_len);
   if (new_socket < 0) {
     int net_error = MapSystemError(WSAGetLastError());
     if (net_error != ERR_IO_PENDING)
@@ -134,7 +127,7 @@ int TCPServerSocketWin::AcceptInternal(scoped_ptr<StreamSocket>* socket) {
   }
 
   IPEndPoint address;
-  if (!address.FromSockAddr(addr, addr_len)) {
+  if (!address.FromSockAddr(storage.addr, storage.addr_len)) {
     NOTREACHED();
     if (closesocket(new_socket) < 0)
       PLOG(ERROR) << "closesocket";
@@ -142,7 +135,7 @@ int TCPServerSocketWin::AcceptInternal(scoped_ptr<StreamSocket>* socket) {
     return ERR_FAILED;
   }
   scoped_ptr<TCPClientSocket> tcp_socket(new TCPClientSocket(
-      AddressList::CreateFromIPAddress(address.address(), address.port()),
+      AddressList(address),
       net_log_.net_log(), net_log_.source()));
   int adopt_result = tcp_socket->AdoptSocket(new_socket);
   if (adopt_result != OK) {

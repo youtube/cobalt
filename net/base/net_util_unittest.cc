@@ -19,7 +19,6 @@
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
 #include "googleurl/src/gurl.h"
-#include "net/base/sys_addrinfo.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -405,52 +404,26 @@ struct UrlTestData {
   size_t prefix_len;
 };
 
-// Returns an addrinfo for the given 32-bit address (IPv4.)
-// The result lives in static storage, so don't delete it.
+// Fills in sockaddr for the given 32-bit address (IPv4.)
 // |bytes| should be an array of length 4.
-const struct addrinfo* GetIPv4Address(const uint8* bytes, int port) {
-  static struct addrinfo static_ai;
-  static struct sockaddr_in static_addr4;
-
-  struct addrinfo* ai = &static_ai;
-  ai->ai_socktype = SOCK_STREAM;
-  memset(ai, 0, sizeof(static_ai));
-
-  ai->ai_family = AF_INET;
-  ai->ai_addrlen = sizeof(static_addr4);
-
-  struct sockaddr_in* addr4 = &static_addr4;
-  memset(addr4, 0, sizeof(static_addr4));
+void MakeIPv4Address(const uint8* bytes, int port, SockaddrStorage* storage) {
+  memset(&storage->addr_storage, 0, sizeof(storage->addr_storage));
+  storage->addr_len = sizeof(struct sockaddr_in);
+  struct sockaddr_in* addr4 = reinterpret_cast<sockaddr_in*>(storage->addr);
   addr4->sin_port = base::HostToNet16(port);
-  addr4->sin_family = ai->ai_family;
+  addr4->sin_family = AF_INET;
   memcpy(&addr4->sin_addr, bytes, 4);
-
-  ai->ai_addr = (sockaddr*)addr4;
-  return ai;
 }
 
-// Returns a addrinfo for the given 128-bit address (IPv6.)
-// The result lives in static storage, so don't delete it.
+// Fills in sockaddr for the given 128-bit address (IPv6.)
 // |bytes| should be an array of length 16.
-const struct addrinfo* GetIPv6Address(const uint8* bytes, int port) {
-  static struct addrinfo static_ai;
-  static struct sockaddr_in6 static_addr6;
-
-  struct addrinfo* ai = &static_ai;
-  ai->ai_socktype = SOCK_STREAM;
-  memset(ai, 0, sizeof(static_ai));
-
-  ai->ai_family = AF_INET6;
-  ai->ai_addrlen = sizeof(static_addr6);
-
-  struct sockaddr_in6* addr6 = &static_addr6;
-  memset(addr6, 0, sizeof(static_addr6));
+void MakeIPv6Address(const uint8* bytes, int port, SockaddrStorage* storage) {
+  memset(&storage->addr_storage, 0, sizeof(storage->addr_storage));
+  storage->addr_len = sizeof(struct sockaddr_in6);
+  struct sockaddr_in6* addr6 = reinterpret_cast<sockaddr_in6*>(storage->addr);
   addr6->sin6_port = base::HostToNet16(port);
-  addr6->sin6_family = ai->ai_family;
+  addr6->sin6_family = AF_INET6;
   memcpy(&addr6->sin6_addr, bytes, 16);
-
-  ai->ai_addr = (sockaddr*)addr6;
-  return ai;
 }
 
 // A helper for IDN*{Fast,Slow}.
@@ -2270,8 +2243,9 @@ TEST(NetUtilTest, NetAddressToString_IPv4) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    const addrinfo* ai = GetIPv4Address(tests[i].addr, 80);
-    std::string result = NetAddressToString(ai);
+    SockaddrStorage storage;
+    MakeIPv4Address(tests[i].addr, 80, &storage);
+    std::string result = NetAddressToString(storage.addr, storage.addr_len);
     EXPECT_EQ(std::string(tests[i].result), result);
   }
 }
@@ -2287,8 +2261,9 @@ TEST(NetUtilTest, NetAddressToString_IPv6) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    const addrinfo* ai = GetIPv6Address(tests[i].addr, 80);
-    std::string result = NetAddressToString(ai);
+    SockaddrStorage storage;
+    MakeIPv6Address(tests[i].addr, 80, &storage);
+    std::string result = NetAddressToString(storage.addr, storage.addr_len);
     // Allow NetAddressToString() to fail, in case the system doesn't
     // support IPv6.
     if (!result.empty())
@@ -2298,8 +2273,10 @@ TEST(NetUtilTest, NetAddressToString_IPv6) {
 
 TEST(NetUtilTest, NetAddressToStringWithPort_IPv4) {
   uint8 addr[] = {127, 0, 0, 1};
-  const addrinfo* ai = GetIPv4Address(addr, 166);
-  std::string result = NetAddressToStringWithPort(ai);
+  SockaddrStorage storage;
+  MakeIPv4Address(addr, 166, &storage);
+  std::string result = NetAddressToStringWithPort(storage.addr,
+                                                  storage.addr_len);
   EXPECT_EQ("127.0.0.1:166", result);
 }
 
@@ -2308,8 +2285,10 @@ TEST(NetUtilTest, NetAddressToStringWithPort_IPv6) {
       0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0xFE, 0xDC, 0xBA,
       0x98, 0x76, 0x54, 0x32, 0x10
   };
-  const addrinfo* ai = GetIPv6Address(addr, 361);
-  std::string result = NetAddressToStringWithPort(ai);
+  SockaddrStorage storage;
+  MakeIPv6Address(addr, 361, &storage);
+  std::string result = NetAddressToStringWithPort(storage.addr,
+                                                  storage.addr_len);
 
   // May fail on systems that don't support IPv6.
   if (!result.empty())

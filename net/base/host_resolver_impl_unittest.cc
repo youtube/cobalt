@@ -4,6 +4,7 @@
 
 #include "net/base/host_resolver_impl.h"
 
+#include <algorithm>
 #include <string>
 
 #include "base/bind.h"
@@ -21,7 +22,6 @@
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/dns/dns_client.h"
 #include "net/dns/dns_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -240,7 +240,7 @@ class Request {
     result_ = resolver_->Resolve(
         info_, &list_, base::Bind(&Request::OnComplete, base::Unretained(this)),
         &handle_, BoundNetLog());
-    if (list_.head())
+    if (!list_.empty())
       EXPECT_EQ(OK, result_);
     return result_;
   }
@@ -269,28 +269,14 @@ class Request {
     IPAddressNumber ip;
     bool rv = ParseIPLiteralToNumber(address, &ip);
     DCHECK(rv);
-    IPEndPoint target(ip, port);
-    for (const struct addrinfo* ai = list_.head();
-         ai != NULL;
-         ai = ai->ai_next) {
-      IPEndPoint ipe;
-      rv = ipe.FromSockAddr(ai->ai_addr, ai->ai_addrlen);
-      DCHECK(rv);
-      if (target == ipe)
-        return true;
-    }
-    return false;
+    return std::find(list_.begin(),
+                     list_.end(),
+                     IPEndPoint(ip, port)) != list_.end();
   }
 
   // Returns the number of addresses in |list_|.
   unsigned NumberOfAddresses() const {
-    unsigned count = 0;
-    for (const struct addrinfo* ai = list_.head();
-         ai != NULL;
-         ai = ai->ai_next) {
-      ++count;
-    }
-    return count;
+    return list_.size();
   }
 
   bool HasOneAddress(const std::string& address, int port) const {
@@ -323,10 +309,10 @@ class Request {
     EXPECT_NE(ERR_IO_PENDING, rv);
     result_ = rv;
     handle_ = NULL;
-    if (list_.head())
+    if (!list_.empty()) {
       EXPECT_EQ(OK, result_);
-    if (OK == rv)
-      EXPECT_EQ(info_.port(), list_.GetPort());
+      EXPECT_EQ(info_.port(), list_.front().port());
+    }
     if (handler_)
       handler_->Handle(this);
     if (quit_on_complete_) {

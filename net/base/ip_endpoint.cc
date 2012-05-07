@@ -15,6 +15,12 @@
 
 namespace net {
 
+namespace {
+// By definition, socklen_t is large enough to hold both sizes.
+const socklen_t kSockaddrInSize = sizeof(struct sockaddr_in);
+const socklen_t kSockaddrIn6Size = sizeof(struct sockaddr_in6);
+}
+
 IPEndPoint::IPEndPoint() : port_(0) {}
 
 IPEndPoint::~IPEndPoint() {}
@@ -30,28 +36,25 @@ IPEndPoint::IPEndPoint(const IPEndPoint& endpoint) {
 
 int IPEndPoint::GetFamily() const {
   switch (address_.size()) {
-    case kIPv4AddressSize: {
+    case kIPv4AddressSize:
       return AF_INET;
-    }
-    case kIPv6AddressSize: {
+    case kIPv6AddressSize:
       return AF_INET6;
-    }
-    default: {
+    default:
       NOTREACHED() << "Bad IP address";
       return AF_UNSPEC;
-    }
   }
 }
 
 bool IPEndPoint::ToSockAddr(struct sockaddr* address,
-                            size_t* address_length) const {
+                            socklen_t* address_length) const {
   DCHECK(address);
   DCHECK(address_length);
   switch (address_.size()) {
     case kIPv4AddressSize: {
-      if (*address_length < sizeof(struct sockaddr_in))
+      if (*address_length < kSockaddrInSize)
         return false;
-      *address_length = sizeof(struct sockaddr_in);
+      *address_length = kSockaddrInSize;
       struct sockaddr_in* addr = reinterpret_cast<struct sockaddr_in*>(address);
       memset(addr, 0, sizeof(struct sockaddr_in));
       addr->sin_family = AF_INET;
@@ -60,9 +63,9 @@ bool IPEndPoint::ToSockAddr(struct sockaddr* address,
       break;
     }
     case kIPv6AddressSize: {
-      if (*address_length < sizeof(struct sockaddr_in6))
+      if (*address_length < kSockaddrIn6Size)
         return false;
-      *address_length = sizeof(struct sockaddr_in6);
+      *address_length = kSockaddrIn6Size;
       struct sockaddr_in6* addr6 =
           reinterpret_cast<struct sockaddr_in6*>(address);
       memset(addr6, 0, sizeof(struct sockaddr_in6));
@@ -71,20 +74,18 @@ bool IPEndPoint::ToSockAddr(struct sockaddr* address,
       memcpy(&addr6->sin6_addr, &address_[0], kIPv6AddressSize);
       break;
     }
-    default: {
-      NOTREACHED() << "Bad IP address";
-      break;
-    }
+    default:
+      return false;
   }
   return true;
 }
 
 bool IPEndPoint::FromSockAddr(const struct sockaddr* address,
-                              size_t address_length) {
+                              socklen_t address_length) {
   DCHECK(address);
   switch (address->sa_family) {
     case AF_INET: {
-      if (address_length < sizeof(struct sockaddr_in))
+      if (address_length < kSockaddrInSize)
         return false;
       const struct sockaddr_in* addr =
           reinterpret_cast<const struct sockaddr_in*>(address);
@@ -94,7 +95,7 @@ bool IPEndPoint::FromSockAddr(const struct sockaddr* address,
       break;
     }
     case AF_INET6: {
-      if (address_length < sizeof(struct sockaddr_in6))
+      if (address_length < kSockaddrIn6Size)
         return false;
       const struct sockaddr_in6* addr =
           reinterpret_cast<const struct sockaddr_in6*>(address);
@@ -103,22 +104,28 @@ bool IPEndPoint::FromSockAddr(const struct sockaddr* address,
       address_.assign(&bytes[0], &bytes[kIPv6AddressSize]);
       break;
     }
-    default: {
-      NOTREACHED() << "Bad IP address";
-      break;
-    }
+    default:
+      return false;
   }
   return true;
 }
 
 std::string IPEndPoint::ToString() const {
-  struct sockaddr_storage addr_storage;
-  size_t addr_len = sizeof(addr_storage);
-  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-  if (!ToSockAddr(addr, &addr_len)) {
-    return "";
+  SockaddrStorage storage;
+  if (!ToSockAddr(storage.addr, &storage.addr_len)) {
+    return std::string();
   }
-  return NetAddressToStringWithPort(addr, addr_len);
+  // TODO(szym): Don't use getnameinfo. http://crbug.com/126212
+  return NetAddressToStringWithPort(storage.addr, storage.addr_len);
+}
+
+std::string IPEndPoint::ToStringWithoutPort() const {
+  SockaddrStorage storage;
+  if (!ToSockAddr(storage.addr, &storage.addr_len)) {
+    return std::string();
+  }
+  // TODO(szym): Don't use getnameinfo. http://crbug.com/126212
+  return NetAddressToString(storage.addr, storage.addr_len);
 }
 
 bool IPEndPoint::operator<(const IPEndPoint& that) const {

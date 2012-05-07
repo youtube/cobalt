@@ -123,7 +123,7 @@ class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
   int DoConnectComplete(int result);
 
   // Helper used by Disconnect(), which disconnects minus the logging and
-  // resetting of current_ai_.
+  // resetting of current_address_index_.
   void DoDisconnect();
 
   void DoReadCallback(int rv);
@@ -155,8 +155,8 @@ class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
   // The list of addresses we should try in order to establish a connection.
   AddressList addresses_;
 
-  // Where we are in above list, or NULL if all addrinfos have been tried.
-  const struct addrinfo* current_ai_;
+  // Where we are in above list. Set to -1 if uninitialized.
+  int current_address_index_;
 
   // The socket's libevent wrappers
   MessageLoopForIO::FileDescriptorWatcher read_socket_watcher_;

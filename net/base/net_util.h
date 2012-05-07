@@ -26,7 +26,6 @@
 #include "net/base/escape.h"
 #include "net/base/net_export.h"
 
-struct addrinfo;
 class FilePath;
 class GURL;
 
@@ -100,16 +99,22 @@ NET_EXPORT std::string GetHostAndPort(const GURL& url);
 // if it is the default for the URL's scheme.
 NET_EXPORT_PRIVATE std::string GetHostAndOptionalPort(const GURL& url);
 
+// Convenience struct for when you need a |struct sockaddr|.
+struct SockaddrStorage {
+  SockaddrStorage() : addr_len(sizeof(addr_storage)),
+                      addr(reinterpret_cast<struct sockaddr*>(&addr_storage)) {}
+  struct sockaddr_storage addr_storage;
+  socklen_t addr_len;
+  struct sockaddr* const addr;
+};
+
 // Returns the string representation of an address, like "192.168.0.1".
 // Returns empty string on failure.
-NET_EXPORT std::string NetAddressToString(const struct addrinfo* net_address);
 NET_EXPORT std::string NetAddressToString(const struct sockaddr* net_address,
                                           socklen_t address_len);
 
 // Same as NetAddressToString, but additionally includes the port number. For
 // example: "192.168.0.1:99" or "[::1]:80".
-NET_EXPORT std::string NetAddressToStringWithPort(
-    const struct addrinfo* net_address);
 NET_EXPORT std::string NetAddressToStringWithPort(
     const struct sockaddr* net_address,
     socklen_t address_len);
@@ -416,33 +421,12 @@ NET_EXPORT_PRIVATE bool IPNumberMatchesPrefix(const IPAddressNumber& ip_number,
                                               const IPAddressNumber& ip_prefix,
                                               size_t prefix_length_in_bits);
 
-// Makes a copy of |info|. The dynamically-allocated parts are copied as well.
-// If |recursive| is true, chained entries via ai_next are copied too.
-// The copy returned by this function should be freed using
-// FreeCopyOfAddrinfo(), and NOT freeaddrinfo().
-struct addrinfo* CreateCopyOfAddrinfo(const struct addrinfo* info,
-                                      bool recursive);
-
-// Frees an addrinfo that was created by CreateCopyOfAddrinfo().
-void FreeCopyOfAddrinfo(struct addrinfo* info);
-
-// Returns the port field of the sockaddr in |info|.
-const uint16* GetPortFieldFromAddrinfo(const struct addrinfo* info);
-uint16* GetPortFieldFromAddrinfo(struct addrinfo* info);
-
-// Returns the value of |info's| port (in host byte ordering).
-uint16 GetPortFromAddrinfo(const struct addrinfo* info);
-
-// Same except for struct sockaddr.
+// Retuns the port field of the |sockaddr|.
 const uint16* GetPortFieldFromSockaddr(const struct sockaddr* address,
                                        socklen_t address_len);
+// Returns the value of port in |sockaddr| (in host byte ordering).
 NET_EXPORT_PRIVATE int GetPortFromSockaddr(const struct sockaddr* address,
                                            socklen_t address_len);
-
-// Sets every addrinfo in the linked list |head| as having a port field of
-// |port|.
-NET_EXPORT_PRIVATE void SetPortForAllAddrinfos(struct addrinfo* head,
-                                               uint16 port);
 
 // Returns true if |host| is one of the names (e.g. "localhost") or IP
 // addresses (IPv4 127.0.0.0/8 or IPv6 ::1) that indicate a loopback.

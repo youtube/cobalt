@@ -278,8 +278,8 @@ SocketStream::~SocketStream() {
   DCHECK(!pac_request_);
 }
 
-void SocketStream::CopyAddrInfo(struct addrinfo* head) {
-  addresses_ = AddressList::CreateByCopying(head);
+void SocketStream::set_addresses(const AddressList& addresses) {
+  addresses_ = addresses;
 }
 
 void SocketStream::DoClose() {

@@ -10,10 +10,11 @@
 #include "base/basictypes.h"
 #include "net/base/net_export.h"
 
-struct addrinfo;
 class GURL;
 
 namespace net {
+
+class IPEndPoint;
 
 class NET_EXPORT HostPortPair {
  public:
@@ -24,8 +25,8 @@ class NET_EXPORT HostPortPair {
   // Creates a HostPortPair for the origin of |url|.
   static HostPortPair FromURL(const GURL& url);
 
-  // Creates a HostPortPair from an addrinfo struct.
-  static HostPortPair FromAddrInfo(const struct addrinfo* ai);
+  // Creates a HostPortPair from an IPEndPoint.
+  static HostPortPair FromIPEndPoint(const IPEndPoint& ipe);
 
   // Creates a HostPortPair from a string formatted in same manner as
   // ToString().

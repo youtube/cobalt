@@ -2265,73 +2265,6 @@ bool IPNumberMatchesPrefix(const IPAddressNumber& ip_number,
   return true;
 }
 
-struct addrinfo* CreateCopyOfAddrinfo(const struct addrinfo* info,
-                                      bool recursive) {
-  DCHECK(info);
-  struct addrinfo* copy = new addrinfo;
-
-  // Copy all the fields (some of these are pointers, we will fix that next).
-  memcpy(copy, info, sizeof(addrinfo));
-
-  // ai_canonname is a NULL-terminated string.
-  if (info->ai_canonname) {
-    copy->ai_canonname = base::strdup(info->ai_canonname);
-  }
-
-  // ai_addr is a buffer of length ai_addrlen.
-  if (info->ai_addr) {
-    copy->ai_addr = reinterpret_cast<sockaddr *>(new char[info->ai_addrlen]);
-    memcpy(copy->ai_addr, info->ai_addr, info->ai_addrlen);
-  }
-
-  // Recursive copy.
-  if (recursive && info->ai_next)
-    copy->ai_next = CreateCopyOfAddrinfo(info->ai_next, recursive);
-  else
-    copy->ai_next = NULL;
-
-  return copy;
-}
-
-void FreeCopyOfAddrinfo(struct addrinfo* info) {
-  DCHECK(info);
-  if (info->ai_canonname)
-    free(info->ai_canonname);  // Allocated by strdup.
-
-  if (info->ai_addr)
-    delete [] reinterpret_cast<char*>(info->ai_addr);
-
-  struct addrinfo* next = info->ai_next;
-
-  delete info;
-
-  // Recursive free.
-  if (next)
-    FreeCopyOfAddrinfo(next);
-}
-
-// Returns the port field of the sockaddr in |info|.
-uint16* GetPortFieldFromAddrinfo(struct addrinfo* info) {
-  const struct addrinfo* const_info = info;
-  const uint16* port_field = GetPortFieldFromAddrinfo(const_info);
-  return const_cast<uint16*>(port_field);
-}
-
-const uint16* GetPortFieldFromAddrinfo(const struct addrinfo* info) {
-  DCHECK(info);
-  const struct sockaddr* address = info->ai_addr;
-  DCHECK(address);
-  DCHECK_EQ(info->ai_family, address->sa_family);
-  return GetPortFieldFromSockaddr(address, info->ai_addrlen);
-}
-
-uint16 GetPortFromAddrinfo(const struct addrinfo* info) {
-  const uint16* port_field = GetPortFieldFromAddrinfo(info);
-  if (!port_field)
-    return -1;
-  return base::NetToHost16(*port_field);
-}
-
 const uint16* GetPortFieldFromSockaddr(const struct sockaddr* address,
                                        socklen_t address_len) {
   if (address->sa_family == AF_INET) {
@@ -2355,16 +2288,6 @@ int GetPortFromSockaddr(const struct sockaddr* address, socklen_t address_len) {
   if (!port_field)
     return -1;
   return base::NetToHost16(*port_field);
-}
-
-// Assign |port| to each address in the linked list starting from |head|.
-void SetPortForAllAddrinfos(struct addrinfo* head, uint16 port) {
-  DCHECK(head);
-  for (struct addrinfo* ai = head; ai; ai = ai->ai_next) {
-    uint16* port_field = GetPortFieldFromAddrinfo(ai);
-    if (port_field)
-      *port_field = base::HostToNet16(port);
-  }
 }
 
 bool IsLocalhost(const std::string& host) {
