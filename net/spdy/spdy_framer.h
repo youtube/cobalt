@@ -260,10 +260,10 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   SpdyError error_code() const { return error_code_; }
   SpdyState state() const { return state_; }
 
-  bool MessageFullyRead() {
+  bool MessageFullyRead() const {
     return state_ == SPDY_DONE || state_ == SPDY_AUTO_RESET;
   }
-  bool HasError() { return state_ == SPDY_ERROR; }
+  bool HasError() const { return state_ == SPDY_ERROR; }
 
   // Given a buffer containing a decompressed header block in SPDY
   // serialized format, parse out a SpdyHeaderBlock, putting the results
@@ -271,7 +271,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // Returns true if successfully parsed, false otherwise.
   bool ParseHeaderBlockInBuffer(const char* header_data,
                                 size_t header_length,
-                                SpdyHeaderBlock* block);
+                                SpdyHeaderBlock* block) const;
 
   // Create a SpdySynStreamControlFrame.
   // |stream_id| is the id for this stream.
@@ -359,7 +359,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
   // |flags| is the flags to use with the data.
   //    To mark this frame as the last data frame, enable DATA_FLAG_FIN.
   SpdyDataFrame* CreateDataFrame(SpdyStreamId stream_id, const char* data,
-                                 uint32 len, SpdyDataFlags flags);
+                                 uint32 len, SpdyDataFlags flags) const;
 
   // NOTES about frame compression.
   // We want spdy to compress headers across the entire session.  As long as
@@ -415,7 +415,7 @@ class NET_EXPORT_PRIVATE SpdyFramer {
 
   int protocol_version() const { return spdy_version_; }
 
-  bool probable_http_response() { return probable_http_response_; }
+  bool probable_http_response() const { return probable_http_response_; }
 
   SpdyPriority GetLowestPriority() const { return spdy_version_ < 3 ? 3 : 7; }
   SpdyPriority GetHighestPriority() const { return 0; }
