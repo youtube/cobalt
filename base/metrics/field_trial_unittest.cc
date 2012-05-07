@@ -522,4 +522,36 @@ TEST_F(FieldTrialTest, ForcedFieldTrials) {
   EXPECT_NE(new_other_group, factory_trial->group());
 }
 
+TEST_F(FieldTrialTest, SetForced) {
+  // Start by setting a trial for which we ensure a winner...
+  int default_group_number = -1;
+  FieldTrial* forced_trial = FieldTrialList::FactoryGetFieldTrial(
+      "Use the", 1, "default", next_year_, 12, 31, &default_group_number);
+  EXPECT_EQ(forced_trial, forced_trial);
+
+  int forced_group = forced_trial->AppendGroup("Force", 1);
+  EXPECT_EQ(forced_group, forced_trial->group());
+
+  // Now force it.
+  forced_trial->SetForced();
+
+  // Now try to set it up differently as a hard coded registration would.
+  FieldTrial* hard_coded_trial = FieldTrialList::FactoryGetFieldTrial(
+      "Use the", 1, "default", next_year_, 12, 31, &default_group_number);
+  EXPECT_EQ(hard_coded_trial, forced_trial);
+
+  int would_lose_group = hard_coded_trial->AppendGroup("Force", 0);
+  EXPECT_EQ(forced_group, hard_coded_trial->group());
+  EXPECT_EQ(forced_group, would_lose_group);
+
+  // Same thing if we would have done it to win again.
+  FieldTrial* other_hard_coded_trial = FieldTrialList::FactoryGetFieldTrial(
+      "Use the", 1, "default", next_year_, 12, 31, &default_group_number);
+  EXPECT_EQ(other_hard_coded_trial, forced_trial);
+
+  int would_win_group = other_hard_coded_trial->AppendGroup("Force", 1);
+  EXPECT_EQ(forced_group, other_hard_coded_trial->group());
+  EXPECT_EQ(forced_group, would_win_group);
+}
+
 }  // namespace base
