@@ -913,7 +913,7 @@ size_t SpdyFramer::ProcessDataFramePayload(const char* data, size_t len) {
 
 bool SpdyFramer::ParseHeaderBlockInBuffer(const char* header_data,
                                           size_t header_length,
-                                          SpdyHeaderBlock* block) {
+                                          SpdyHeaderBlock* block) const {
   SpdyFrameReader reader(header_data, header_length);
 
   // Read number of headers.
@@ -1234,9 +1234,10 @@ SpdyCredentialControlFrame* SpdyFramer::CreateCredentialFrame(
   return reinterpret_cast<SpdyCredentialControlFrame*>(frame.take());
 }
 
-SpdyDataFrame* SpdyFramer::CreateDataFrame(SpdyStreamId stream_id,
+SpdyDataFrame* SpdyFramer::CreateDataFrame(
+    SpdyStreamId stream_id,
                                            const char* data,
-                                           uint32 len, SpdyDataFlags flags) {
+    uint32 len, SpdyDataFlags flags) const {
   DCHECK_EQ(0u, stream_id & ~kStreamIdMask);
   size_t frame_size = SpdyDataFrame::size() + len;
   SpdyFrameBuilder frame(stream_id, flags, frame_size);

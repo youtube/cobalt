@@ -936,7 +936,7 @@ class SpdyGoAwayControlFrame : public SpdyControlFrame {
   }
 
   SpdyGoAwayStatus status() const {
-    if (version() < 2) {
+    if (version() < 3) {
       LOG(DFATAL) << "Attempted to access status of SPDY 2 GOAWAY.";
       return GOAWAY_INVALID;
     } else {
