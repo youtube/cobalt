@@ -8,7 +8,6 @@
 #include "base/metrics/histogram.h"
 #include "base/values.h"
 #include "net/base/address_list.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_server_properties.h"
 #include "net/spdy/spdy_session.h"
@@ -173,7 +172,7 @@ net::Error SpdySessionPool::GetSpdySessionFromSocket(
   if (g_enable_ip_pooling  && host_port_proxy_pair.second.is_direct()) {
     AddressList addresses;
     if (connection->socket()->GetPeerAddress(&addresses) == OK)
-      AddAlias(addresses.head(), host_port_proxy_pair);
+      AddAlias(addresses.front(), host_port_proxy_pair);
   }
 
   // Now we can initialize the session with the SSL socket.
@@ -275,18 +274,15 @@ scoped_refptr<SpdySession> SpdySessionPool::GetFromAlias(
   AddressList addresses;
   if (!LookupAddresses(host_port_proxy_pair, net_log, &addresses))
     return NULL;
-  const addrinfo* address = addresses.head();
-  while (address) {
-    IPEndPoint endpoint;
-    endpoint.FromSockAddr(address->ai_addr, address->ai_addrlen);
-    address = address->ai_next;
-
-    SpdyAliasMap::const_iterator it = aliases_.find(endpoint);
-    if (it == aliases_.end())
+  for (AddressList::const_iterator iter = addresses.begin();
+       iter != addresses.end();
+       ++iter) {
+    SpdyAliasMap::const_iterator alias_iter = aliases_.find(*iter);
+    if (alias_iter == aliases_.end())
       continue;
 
     // We found an alias.
-    const HostPortProxyPair& alias_pair = it->second;
+    const HostPortProxyPair& alias_pair = alias_iter->second;
 
     // If the proxy settings match, we can reuse this session.
     if (!(alias_pair.second == host_port_proxy_pair.second))
@@ -382,12 +378,9 @@ bool SpdySessionPool::LookupAddresses(const HostPortProxyPair& pair,
   return rv == OK;
 }
 
-void SpdySessionPool::AddAlias(const addrinfo* address,
+void SpdySessionPool::AddAlias(const IPEndPoint& endpoint,
                                const HostPortProxyPair& pair) {
   DCHECK(g_enable_ip_pooling);
-  DCHECK(address);
-  IPEndPoint endpoint;
-  endpoint.FromSockAddr(address->ai_addr, address->ai_addrlen);
   aliases_[endpoint] = pair;
 }
 

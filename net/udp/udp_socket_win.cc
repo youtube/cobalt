@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -94,14 +94,13 @@ int UDPSocketWin::GetPeerAddress(IPEndPoint* address) const {
   if (!is_connected())
     return ERR_SOCKET_NOT_CONNECTED;
 
+  // TODO(szym): Simplify. http://crbug.com/126152
   if (!remote_address_.get()) {
-    struct sockaddr_storage addr_storage;
-    int addr_len = sizeof(addr_storage);
-    struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-    if (getpeername(socket_, addr, &addr_len))
+    SockaddrStorage storage;
+    if (getpeername(socket_, storage.addr, &storage.addr_len))
       return MapSystemError(WSAGetLastError());
     scoped_ptr<IPEndPoint> address(new IPEndPoint());
-    if (!address->FromSockAddr(addr, addr_len))
+    if (!address->FromSockAddr(storage.addr, storage.addr_len))
       return ERR_FAILED;
     remote_address_.reset(address.release());
   }
@@ -116,14 +115,13 @@ int UDPSocketWin::GetLocalAddress(IPEndPoint* address) const {
   if (!is_connected())
     return ERR_SOCKET_NOT_CONNECTED;
 
+  // TODO(szym): Simplify. http://crbug.com/126152
   if (!local_address_.get()) {
-    struct sockaddr_storage addr_storage;
-    socklen_t addr_len = sizeof(addr_storage);
-    struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-    if (getsockname(socket_, addr, &addr_len))
+    SockaddrStorage storage;
+    if (getsockname(socket_, storage.addr, &storage.addr_len))
       return MapSystemError(WSAGetLastError());
     scoped_ptr<IPEndPoint> address(new IPEndPoint());
-    if (!address->FromSockAddr(addr, addr_len))
+    if (!address->FromSockAddr(storage.addr, storage.addr_len))
       return ERR_FAILED;
     local_address_.reset(address.release());
   }
@@ -218,13 +216,11 @@ int UDPSocketWin::InternalConnect(const IPEndPoint& address) {
   if (rv < 0)
     return rv;
 
-  struct sockaddr_storage addr_storage;
-  size_t addr_len = sizeof(addr_storage);
-  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-  if (!address.ToSockAddr(addr, &addr_len))
+  SockaddrStorage storage;
+  if (!address.ToSockAddr(storage.addr, &storage.addr_len))
     return ERR_FAILED;
 
-  rv = connect(socket_, addr, addr_len);
+  rv = connect(socket_, storage.addr, storage.addr_len);
   if (rv < 0)
     return MapSystemError(WSAGetLastError());
 
@@ -401,16 +397,14 @@ int UDPSocketWin::InternalRecvFrom(IOBuffer* buf, int buf_len,
 
 int UDPSocketWin::InternalSendTo(IOBuffer* buf, int buf_len,
                                  const IPEndPoint* address) {
-  struct sockaddr_storage addr_storage;
-  size_t addr_len = sizeof(addr_storage);
-  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-
+  SockaddrStorage storage;
+  struct sockaddr* addr = storage.addr;
   // Convert address.
   if (!address) {
     addr = NULL;
-    addr_len = 0;
+    storage.addr_len = 0;
   } else {
-    if (!address->ToSockAddr(addr, &addr_len)) {
+    if (!address->ToSockAddr(addr, &storage.addr_len)) {
       int result = ERR_FAILED;
       LogWrite(result, NULL, NULL);
       return result;
@@ -425,7 +419,7 @@ int UDPSocketWin::InternalSendTo(IOBuffer* buf, int buf_len,
   DWORD num;
   AssertEventNotSignaled(write_overlapped_.hEvent);
   int rv = WSASendTo(socket_, &write_buffer, 1, &num, flags,
-                     addr, addr_len, &write_overlapped_, NULL);
+                     addr, storage.addr_len, &write_overlapped_, NULL);
   if (rv == 0) {
     if (ResetEventIfSignaled(write_overlapped_.hEvent)) {
       int result = num;
@@ -446,12 +440,10 @@ int UDPSocketWin::InternalSendTo(IOBuffer* buf, int buf_len,
 }
 
 int UDPSocketWin::DoBind(const IPEndPoint& address) {
-  struct sockaddr_storage addr_storage;
-  size_t addr_len = sizeof(addr_storage);
-  struct sockaddr* addr = reinterpret_cast<struct sockaddr*>(&addr_storage);
-  if (!address.ToSockAddr(addr, &addr_len))
+  SockaddrStorage storage;
+  if (!address.ToSockAddr(storage.addr, &storage.addr_len))
     return ERR_UNEXPECTED;
-  int rv = bind(socket_, addr, addr_len);
+  int rv = bind(socket_, storage.addr, storage.addr_len);
   return rv < 0 ? MapSystemError(WSAGetLastError()) : rv;
 }
 

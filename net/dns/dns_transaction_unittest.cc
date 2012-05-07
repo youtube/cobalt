@@ -13,7 +13,6 @@
 #include "net/base/big_endian.h"
 #include "net/base/dns_util.h"
 #include "net/base/net_log.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/dns/dns_protocol.h"
 #include "net/dns/dns_query.h"
 #include "net/dns/dns_response.h"

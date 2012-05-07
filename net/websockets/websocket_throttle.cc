@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,36 +14,16 @@
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "net/base/io_buffer.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/socket_stream/socket_stream.h"
 #include "net/websockets/websocket_job.h"
 
 namespace net {
 
-static std::string AddrinfoToHashkey(const struct addrinfo* addrinfo) {
-  switch (addrinfo->ai_family) {
-    case AF_INET: {
-      const struct sockaddr_in* const addr =
-          reinterpret_cast<const sockaddr_in*>(addrinfo->ai_addr);
-      return base::StringPrintf("%d:%s",
-                                addrinfo->ai_family,
-                                base::HexEncode(&addr->sin_addr, 4).c_str());
-      }
-    case AF_INET6: {
-      const struct sockaddr_in6* const addr6 =
-          reinterpret_cast<const sockaddr_in6*>(addrinfo->ai_addr);
-      return base::StringPrintf(
-          "%d:%s",
-          addrinfo->ai_family,
-          base::HexEncode(&addr6->sin6_addr,
-                          sizeof(addr6->sin6_addr)).c_str());
-      }
-    default:
-      return base::StringPrintf("%d:%s",
-                                addrinfo->ai_family,
-                                base::HexEncode(addrinfo->ai_addr,
-                                                addrinfo->ai_addrlen).c_str());
-  }
+static std::string IPEndPointToHashkey(const IPEndPoint& endpoint) {
+  return base::StringPrintf("%d:%s",
+                            endpoint.GetFamily(),
+                            base::HexEncode(&endpoint.address()[0],
+                                            endpoint.address().size()).c_str());
 }
 
 WebSocketThrottle::WebSocketThrottle() {
@@ -63,10 +43,10 @@ void WebSocketThrottle::PutInQueue(WebSocketJob* job) {
   queue_.push_back(job);
   const AddressList& address_list = job->address_list();
   base::hash_set<std::string> address_set;
-  for (const struct addrinfo* addrinfo = address_list.head();
-       addrinfo != NULL;
-       addrinfo = addrinfo->ai_next) {
-    std::string addrkey = AddrinfoToHashkey(addrinfo);
+  for (AddressList::const_iterator addr_iter = address_list.begin();
+       addr_iter != address_list.end();
+       ++addr_iter) {
+    std::string addrkey = IPEndPointToHashkey(*addr_iter);
 
     // If |addrkey| is already processed, don't do it again.
     if (address_set.find(addrkey) != address_set.end())
@@ -101,10 +81,10 @@ void WebSocketThrottle::RemoveFromQueue(WebSocketJob* job) {
     return;
   const AddressList& address_list = job->address_list();
   base::hash_set<std::string> address_set;
-  for (const struct addrinfo* addrinfo = address_list.head();
-       addrinfo != NULL;
-       addrinfo = addrinfo->ai_next) {
-    std::string addrkey = AddrinfoToHashkey(addrinfo);
+  for (AddressList::const_iterator addr_iter = address_list.begin();
+       addr_iter != address_list.end();
+       ++addr_iter) {
+    std::string addrkey = IPEndPointToHashkey(*addr_iter);
     // If |addrkey| is already processed, don't do it again.
     if (address_set.find(addrkey) != address_set.end())
       continue;
@@ -140,10 +120,10 @@ void WebSocketThrottle::WakeupSocketIfNecessary() {
 
     bool should_wakeup = true;
     const AddressList& address_list = job->address_list();
-    for (const struct addrinfo* addrinfo = address_list.head();
-         addrinfo != NULL;
-         addrinfo = addrinfo->ai_next) {
-      std::string addrkey = AddrinfoToHashkey(addrinfo);
+    for (AddressList::const_iterator addr_iter = address_list.begin();
+         addr_iter != address_list.end();
+         ++addr_iter) {
+      std::string addrkey = IPEndPointToHashkey(*addr_iter);
       ConnectingAddressMap::iterator iter = addr_map_.find(addrkey);
       DCHECK(iter != addr_map_.end());
       ConnectingQueue* queue = iter->second;

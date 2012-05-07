@@ -14,7 +14,6 @@
 #include "net/base/net_log.h"
 #include "net/base/net_log_unittest.h"
 #include "net/base/net_util.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
 #include "net/proxy/proxy_resolver_request_context.h"
 #include "net/proxy/sync_host_resolver.h"
@@ -168,11 +167,13 @@ TEST(ProxyResolverJSBindingsTest, RestrictAddressFamily) {
   HostResolver::RequestInfo info(HostPortPair("foo", 80));
   AddressList address_list;
   EXPECT_EQ(OK, host_resolver->Resolve(info, &address_list, BoundNetLog()));
-  EXPECT_EQ("192.168.2.1", NetAddressToString(address_list.head()));
+  ASSERT_FALSE(address_list.empty());
+  EXPECT_EQ("192.168.2.1", address_list.front().ToStringWithoutPort());
 
   info.set_address_family(ADDRESS_FAMILY_IPV4);
   EXPECT_EQ(OK, host_resolver->Resolve(info, &address_list, BoundNetLog()));
-  EXPECT_EQ("192.168.1.1", NetAddressToString(address_list.head()));
+  ASSERT_FALSE(address_list.empty());
+  EXPECT_EQ("192.168.1.1", address_list.front().ToStringWithoutPort());
 
   std::string ip_address;
   // Now the actual test.

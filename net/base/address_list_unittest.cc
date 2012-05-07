@@ -4,155 +4,25 @@
 
 #include "net/base/address_list.h"
 
-#include "base/memory/scoped_ptr.h"
 #include "base/string_util.h"
-#include "net/base/host_resolver_proc.h"
+#include "base/sys_byteorder.h"
 #include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
-#if defined(OS_WIN)
-#include "net/base/winsock_init.h"
-#endif
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
 namespace {
 
-void MutableSetPort(uint16 port, AddressList* addrlist) {
-  struct addrinfo* mutable_head =
-      const_cast<struct addrinfo*>(addrlist->head());
-  SetPortForAllAddrinfos(mutable_head, port);
-}
-
-// Use getaddrinfo() to allocate an addrinfo structure.
-int CreateAddressList(const std::string& hostname, int port,
-                      AddressList* addrlist) {
-#if defined(OS_WIN)
-  EnsureWinsockInit();
-#endif
-  int rv = SystemHostResolverProc(hostname,
-                                  ADDRESS_FAMILY_UNSPECIFIED,
-                                  0,
-                                  addrlist, NULL);
-  if (rv == 0)
-    MutableSetPort(port, addrlist);
-  return rv;
-}
-
-void CreateLongAddressList(AddressList* addrlist, int port) {
-  EXPECT_EQ(0, CreateAddressList("192.168.1.1", port, addrlist));
-  AddressList second_list;
-  EXPECT_EQ(0, CreateAddressList("192.168.1.2", port, &second_list));
-  addrlist->Append(second_list.head());
-}
-
-TEST(AddressListTest, GetPort) {
-  AddressList addrlist;
-  EXPECT_EQ(0, CreateAddressList("192.168.1.1", 81, &addrlist));
-  EXPECT_EQ(81, addrlist.GetPort());
-
-  MutableSetPort(83, &addrlist);
-  EXPECT_EQ(83, addrlist.GetPort());
-}
-
-TEST(AddressListTest, SetPortMakesCopy) {
-  AddressList addrlist1;
-  EXPECT_EQ(0, CreateAddressList("192.168.1.1", 85, &addrlist1));
-  EXPECT_EQ(85, addrlist1.GetPort());
-
-  AddressList addrlist2 = addrlist1;
-  EXPECT_EQ(85, addrlist2.GetPort());
-
-  // addrlist1 should not be affected by the assignment to
-  // addrlist2.
-  addrlist1.SetPort(80);
-  EXPECT_EQ(80, addrlist1.GetPort());
-  EXPECT_EQ(85, addrlist2.GetPort());
-}
-
-TEST(AddressListTest, Assignment) {
-  AddressList addrlist1;
-  EXPECT_EQ(0, CreateAddressList("192.168.1.1", 85, &addrlist1));
-  EXPECT_EQ(85, addrlist1.GetPort());
-
-  // Should reference the same data as addrlist1 -- so when we change addrlist1
-  // both are changed.
-  AddressList addrlist2 = addrlist1;
-  EXPECT_EQ(85, addrlist2.GetPort());
-
-  MutableSetPort(80, &addrlist1);
-  EXPECT_EQ(80, addrlist1.GetPort());
-  EXPECT_EQ(80, addrlist2.GetPort());
-}
-
-TEST(AddressListTest, CopyRecursive) {
-  AddressList addrlist1;
-  CreateLongAddressList(&addrlist1, 85);
-  EXPECT_EQ(85, addrlist1.GetPort());
-
-  AddressList addrlist2 =
-      AddressList::CreateByCopying(addrlist1.head());
-
-  ASSERT_TRUE(addrlist2.head()->ai_next != NULL);
-
-  // addrlist1 is the same as addrlist2 at this point.
-  EXPECT_EQ(85, addrlist1.GetPort());
-  EXPECT_EQ(85, addrlist2.GetPort());
-
-  // Changes to addrlist1 are not reflected in addrlist2.
-  MutableSetPort(70, &addrlist1);
-  MutableSetPort(90, &addrlist2);
-
-  EXPECT_EQ(70, addrlist1.GetPort());
-  EXPECT_EQ(90, addrlist2.GetPort());
-}
-
-TEST(AddressListTest, CopyNonRecursive) {
-  AddressList addrlist1;
-  CreateLongAddressList(&addrlist1, 85);
-  EXPECT_EQ(85, addrlist1.GetPort());
-
-  AddressList addrlist2 =
-      AddressList::CreateByCopyingFirstAddress(addrlist1.head());
-
-  ASSERT_TRUE(addrlist2.head()->ai_next == NULL);
-
-  // addrlist1 is the same as addrlist2 at this point.
-  EXPECT_EQ(85, addrlist1.GetPort());
-  EXPECT_EQ(85, addrlist2.GetPort());
-
-  // Changes to addrlist1 are not reflected in addrlist2.
-  MutableSetPort(70, &addrlist1);
-  MutableSetPort(90, &addrlist2);
-
-  EXPECT_EQ(70, addrlist1.GetPort());
-  EXPECT_EQ(90, addrlist2.GetPort());
-}
-
-TEST(AddressListTest, Append) {
-  AddressList addrlist1;
-  EXPECT_EQ(0, CreateAddressList("192.168.1.1", 11, &addrlist1));
-  EXPECT_EQ(11, addrlist1.GetPort());
-  AddressList addrlist2;
-  EXPECT_EQ(0, CreateAddressList("192.168.1.2", 12, &addrlist2));
-  EXPECT_EQ(12, addrlist2.GetPort());
-
-  ASSERT_TRUE(addrlist1.head()->ai_next == NULL);
-  addrlist1.Append(addrlist2.head());
-  ASSERT_TRUE(addrlist1.head()->ai_next != NULL);
-
-  AddressList addrlist3 =
-      AddressList::CreateByCopyingFirstAddress(addrlist1.head()->ai_next);
-  EXPECT_EQ(12, addrlist3.GetPort());
-}
-
 static const char* kCanonicalHostname = "canonical.bar.com";
 
 TEST(AddressListTest, Canonical) {
   // Create an addrinfo with a canonical name.
-  sockaddr_in address;
+  struct sockaddr_in address;
   // The contents of address do not matter for this test,
   // so just zero-ing them out for consistency.
   memset(&address, 0x0, sizeof(address));
+  // But we need to set the family.
+  address.sin_family = AF_INET;
   struct addrinfo ai;
   memset(&ai, 0x0, sizeof(ai));
   ai.ai_family = AF_INET;
@@ -163,115 +33,57 @@ TEST(AddressListTest, Canonical) {
 
   // Copy the addrinfo struct into an AddressList object and
   // make sure it seems correct.
-  AddressList addrlist1 = AddressList::CreateByCopying(&ai);
-  const struct addrinfo* addrinfo1 = addrlist1.head();
-  EXPECT_TRUE(addrinfo1 != NULL);
-  EXPECT_TRUE(addrinfo1->ai_next == NULL);
-  std::string canon_name1;
-  EXPECT_TRUE(addrlist1.GetCanonicalName(&canon_name1));
-  EXPECT_EQ("canonical.bar.com", canon_name1);
+  AddressList addrlist1 = AddressList::CreateFromAddrinfo(&ai);
+  EXPECT_EQ("canonical.bar.com", addrlist1.canonical_name());
 
   // Copy the AddressList to another one.
-  AddressList addrlist2 = AddressList::CreateByCopying(addrinfo1);
-  const struct addrinfo* addrinfo2 = addrlist2.head();
-  EXPECT_TRUE(addrinfo2 != NULL);
-  EXPECT_TRUE(addrinfo2->ai_next == NULL);
-  EXPECT_TRUE(addrinfo2->ai_canonname != NULL);
-  EXPECT_NE(addrinfo1, addrinfo2);
-  EXPECT_NE(addrinfo1->ai_canonname, addrinfo2->ai_canonname);
-  std::string canon_name2;
-  EXPECT_TRUE(addrlist2.GetCanonicalName(&canon_name2));
-  EXPECT_EQ("canonical.bar.com", canon_name2);
-
-  // Make sure that GetCanonicalName correctly returns false
-  // when ai_canonname is NULL.
-  ai.ai_canonname = NULL;
-  AddressList addrlist_no_canon = AddressList::CreateByCopying(&ai);
-  std::string canon_name3 = "blah";
-  EXPECT_FALSE(addrlist_no_canon.GetCanonicalName(&canon_name3));
-  EXPECT_EQ("blah", canon_name3);
+  AddressList addrlist2 = addrlist1;
+  EXPECT_EQ("canonical.bar.com", addrlist2.canonical_name());
 }
 
-TEST(AddressListTest, IPLiteralConstructor) {
-  struct TestData {
-    std::string ip_address;
-    std::string canonical_ip_address;
-    bool is_ipv6;
-  } tests[] = {
-    { "127.0.00.1", "127.0.0.1", false },
-    { "192.168.1.1", "192.168.1.1", false },
-    { "::1", "::1", true },
-    { "2001:db8:0::42", "2001:db8::42", true },
-  };
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); i++) {
-    AddressList expected_list;
-    int rv = CreateAddressList(tests[i].canonical_ip_address, 80,
-                               &expected_list);
-    if (tests[i].is_ipv6 && rv != 0) {
-      LOG(WARNING) << "Unable to resolve ip literal '" << tests[i].ip_address
-                   << "' test skipped.";
-      continue;
-    }
-    ASSERT_EQ(0, rv);
-    const struct addrinfo* good_ai = expected_list.head();
-
-    IPAddressNumber ip_number;
-    ASSERT_TRUE(ParseIPLiteralToNumber(tests[i].ip_address, &ip_number));
-    AddressList test_list = AddressList::CreateFromIPAddressWithCname(
-        ip_number, 80, true);
-    const struct addrinfo* test_ai = test_list.head();
-
-    EXPECT_EQ(good_ai->ai_family, test_ai->ai_family);
-    EXPECT_EQ(good_ai->ai_socktype, test_ai->ai_socktype);
-    EXPECT_EQ(good_ai->ai_addrlen, test_ai->ai_addrlen);
-    size_t sockaddr_size =
-        good_ai->ai_socktype == AF_INET ? sizeof(struct sockaddr_in) :
-        good_ai->ai_socktype == AF_INET6 ? sizeof(struct sockaddr_in6) : 0;
-    EXPECT_EQ(memcmp(good_ai->ai_addr, test_ai->ai_addr, sockaddr_size), 0);
-    EXPECT_EQ(good_ai->ai_next, test_ai->ai_next);
-    EXPECT_EQ(strcmp(tests[i].canonical_ip_address.c_str(),
-                     test_ai->ai_canonname), 0);
+TEST(AddressListTest, CreateFromAddrinfo) {
+  // Create an 4-element addrinfo.
+  const unsigned kNumElements = 4;
+  SockaddrStorage storage[kNumElements];
+  struct addrinfo ai[kNumElements];
+  for (unsigned i = 0; i < kNumElements; ++i) {
+    struct sockaddr_in* addr =
+        reinterpret_cast<struct sockaddr_in*>(storage[i].addr);
+    storage[i].addr_len = sizeof(struct sockaddr_in);
+    // Populating the address with { i, i, i, i }.
+    memset(&addr->sin_addr, i, kIPv4AddressSize);
+    addr->sin_family = AF_INET;
+    // Set port to i << 2;
+    addr->sin_port = base::HostToNet16(static_cast<uint16>(i << 2));
+    memset(&ai[i], 0x0, sizeof(ai[i]));
+    ai[i].ai_family = addr->sin_family;
+    ai[i].ai_socktype = SOCK_STREAM;
+    ai[i].ai_addrlen = storage[i].addr_len;
+    ai[i].ai_addr = storage[i].addr;
+    if (i + 1 < kNumElements)
+      ai[i].ai_next = &ai[i + 1];
   }
-}
 
-TEST(AddressListTest, AddressFromAddrInfo) {
-  struct TestData {
-    std::string ip_address;
-    std::string canonical_ip_address;
-    bool is_ipv6;
-  } tests[] = {
-    { "127.0.00.1", "127.0.0.1", false },
-    { "192.168.1.1", "192.168.1.1", false },
-    { "::1", "::1", true },
-    { "2001:db8:0::42", "2001:db8::42", true },
-  };
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); i++) {
-    AddressList expected_list;
-    int rv = CreateAddressList(tests[i].canonical_ip_address, 80,
-                               &expected_list);
-    if (tests[i].is_ipv6 && rv != 0) {
-      LOG(WARNING) << "Unable to resolve ip literal '" << tests[i].ip_address
-                   << "' test skipped.";
-      continue;
-    }
-    ASSERT_EQ(0, rv);
-    const struct addrinfo* good_ai = expected_list.head();
+  AddressList list = AddressList::CreateFromAddrinfo(&ai[0]);
 
-    AddressList test_list =
-        AddressList::CreateFromSockaddr(good_ai->ai_addr,
-                                        good_ai->ai_addrlen,
-                                        SOCK_STREAM,
-                                        IPPROTO_TCP);
-    const struct addrinfo* test_ai = test_list.head();
-
-    EXPECT_EQ(good_ai->ai_family, test_ai->ai_family);
-    EXPECT_EQ(good_ai->ai_addrlen, test_ai->ai_addrlen);
-    size_t sockaddr_size =
-        good_ai->ai_family == AF_INET ? sizeof(struct sockaddr_in) :
-        good_ai->ai_family == AF_INET6 ? sizeof(struct sockaddr_in6) : 0;
-    EXPECT_EQ(memcmp(good_ai->ai_addr, test_ai->ai_addr, sockaddr_size), 0);
-    EXPECT_EQ(good_ai->ai_next, test_ai->ai_next);
+  ASSERT_EQ(kNumElements, list.size());
+  for (size_t i = 0; i < list.size(); ++i) {
+    EXPECT_EQ(AF_INET, list[i].GetFamily());
+    // Only check the first byte of the address.
+    EXPECT_EQ(i, list[i].address()[0]);
+    EXPECT_EQ(static_cast<int>(i << 2), list[i].port());
   }
+
+  // Check if operator= works.
+  AddressList copy;
+  copy = list;
+  ASSERT_EQ(kNumElements, copy.size());
+
+  // Check if copy is independent.
+  copy[1] = IPEndPoint(copy[2].address(), 0xBEEF);
+  // Original should be unchanged.
+  EXPECT_EQ(1u, list[1].address()[0]);
+  EXPECT_EQ(1 << 2, list[1].port());
 }
 
 TEST(AddressListTest, CreateFromIPAddressList) {
@@ -318,25 +130,8 @@ TEST(AddressListTest, CreateFromIPAddressList) {
   AddressList test_list = AddressList::CreateFromIPAddressList(ip_list,
                                                                kCanonicalName);
   std::string canonical_name;
-  EXPECT_TRUE(test_list.GetCanonicalName(&canonical_name));
-  EXPECT_EQ(kCanonicalName, canonical_name);
-
-  // Make sure that CreateFromIPAddressList has created an addrinfo
-  // chain of exactly the same length as the |tests| with correct content.
-  const struct addrinfo* next_ai = test_list.head();
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    ASSERT_TRUE(next_ai != NULL);
-    EXPECT_EQ(tests[i].ai_family, next_ai->ai_family);
-    EXPECT_EQ(tests[i].ai_addrlen, static_cast<size_t>(next_ai->ai_addrlen));
-
-    char* ai_addr = reinterpret_cast<char*>(next_ai->ai_addr);
-    int rv = memcmp(tests[i].in_addr,
-                    ai_addr + tests[i].in_addr_offset,
-                    tests[i].in_addr_size);
-    EXPECT_EQ(0, rv);
-    next_ai = next_ai->ai_next;
-  }
-  EXPECT_EQ(NULL, next_ai);
+  EXPECT_EQ(kCanonicalName, test_list.canonical_name());
+  EXPECT_EQ(ARRAYSIZE_UNSAFE(tests), test_list.size());
 }
 
 }  // namespace

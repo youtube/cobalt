@@ -13,7 +13,6 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/socket/client_socket_handle.h"
 
 namespace net {

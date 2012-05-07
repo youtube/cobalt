@@ -13,7 +13,6 @@
 #include "net/base/net_log.h"
 #include "net/base/net_log_unittest.h"
 #include "net/base/mock_host_resolver.h"
-#include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/winsock_init.h"
 #include "net/socket/client_socket_factory.h"
