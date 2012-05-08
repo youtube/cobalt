@@ -16,7 +16,7 @@ diff -up a/src/net/third_party/nss/ssl/ssl.h b/src/net/third_party/nss/ssl/ssl.h
 diff -up a/src/net/third_party/nss/ssl/ssl3con.c b/src/net/third_party/nss/ssl/ssl3con.c
 --- a/src/net/third_party/nss/ssl/ssl3con.c	2012-02-29 17:49:08.431530583 -0800
 +++ b/src/net/third_party/nss/ssl/ssl3con.c	2012-02-29 18:55:27.038466043 -0800
-@@ -5769,6 +5769,84 @@ done:
+@@ -5769,6 +5769,85 @@ done:
      return rv;
  }
  
@@ -93,6 +93,7 @@ diff -up a/src/net/third_party/nss/ssl/ssl3con.c b/src/net/third_party/nss/ssl/s
 +	if (certChain) {
 +	    CERT_DestroyCertificateList(certChain);
 +	}
++	PORT_SetError(SEC_ERROR_LIBRARY_FAILURE);
 +	rv = SECFailure;
 +    }
 +    return rv;
