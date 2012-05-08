@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -91,7 +91,7 @@ bool PlatformMimeUtil::GetPreferredExtensionForMimeType(
     }
   }
 
-  // TODO(dhg): Fix this the right way by implementing whats said below.
+  // TODO(dhg): Fix this the right way by implementing what's said below.
   // Unlike GetPlatformMimeTypeFromExtension, this method doesn't have a
   // default list that it uses, but for now we are also returning false since
   // this doesn't really matter as much under Linux.
@@ -102,6 +102,14 @@ bool PlatformMimeUtil::GetPreferredExtensionForMimeType(
   // then then try to chop off "*.".
 
   return false;
+}
+
+void PlatformMimeUtil::GetPlatformExtensionsForMimeType(
+    const std::string& mime_type,
+    base::hash_set<FilePath::StringType>* extensions) const {
+  FilePath::StringType ext;
+  if (GetPreferredExtensionForMimeType(mime_type, &ext))
+    extensions->insert(ext);
 }
 
 }  // namespace net

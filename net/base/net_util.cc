@@ -1036,16 +1036,26 @@ void EnsureSafeExtension(const std::string& mime_type,
     extension.erase(extension.begin());  // Erase preceding '.'.
 
   if ((ignore_extension || extension.empty()) && !mime_type.empty()) {
-    FilePath::StringType mime_extension;
+    FilePath::StringType preferred_mime_extension;
+    std::vector<FilePath::StringType> all_mime_extensions;
     // The GetPreferredExtensionForMimeType call will end up going to disk.  Do
     // this on another thread to avoid slowing the IO thread.
     // http://crbug.com/61827
     // TODO(asanka): Remove this ScopedAllowIO once all callers have switched
     // over to IO safe threads.
     base::ThreadRestrictions::ScopedAllowIO allow_io;
-    net::GetPreferredExtensionForMimeType(mime_type, &mime_extension);
-    if (!mime_extension.empty())
-      extension = mime_extension;
+    net::GetPreferredExtensionForMimeType(mime_type, &preferred_mime_extension);
+    net::GetExtensionsForMimeType(mime_type, &all_mime_extensions);
+    // If the existing extension is in the list of valid extensions for the
+    // given type, use it. This avoids doing things like pointlessly renaming
+    // "foo.jpg" to "foo.jpeg".
+    if (std::find(all_mime_extensions.begin(),
+                  all_mime_extensions.end(),
+                  extension) != all_mime_extensions.end()) {
+      // leave |extension| alone
+    } else if (!preferred_mime_extension.empty()) {
+      extension = preferred_mime_extension;
+    }
   }
 
 #if defined(OS_WIN)
