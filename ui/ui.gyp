@@ -491,7 +491,6 @@
           ],
           'link_settings': {
             'libraries': [
-              '-lXcursor',  # For XCursor* function calls in x11_util.cc. 
               '-lXrender',  # For XRender* function calls in x11_util.cc.
             ],
           },
