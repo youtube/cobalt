@@ -688,10 +688,9 @@ void GetExtensionsHelper(const char** standard_types,
                          size_t standard_types_len,
                          const std::string& leading_mime_type,
                          base::hash_set<FilePath::StringType>* extensions) {
-  FilePath::StringType extension;
   for (size_t i = 0; i < standard_types_len; ++i) {
-    if (GetPreferredExtensionForMimeType(standard_types[i], &extension))
-      extensions->insert(extension);
+    g_mime_util.Get().GetPlatformExtensionsForMimeType(standard_types[i],
+                                                       extensions);
   }
 
   // Also look up the extensions from hard-coded mappings in case that some
@@ -744,9 +743,8 @@ void GetVideoExtensions(std::vector<FilePath::StringType>* extensions) {
 void GetExtensionsForMimeType(const std::string& mime_type,
                               std::vector<FilePath::StringType>* extensions) {
   base::hash_set<FilePath::StringType> unique_extensions;
-  FilePath::StringType extension;
-  if (GetPreferredExtensionForMimeType(mime_type, &extension))
-    unique_extensions.insert(extension);
+  g_mime_util.Get().GetPlatformExtensionsForMimeType(mime_type,
+                                                     &unique_extensions);
 
   // Also look up the extensions from hard-coded mappings in case that some
   // supported extensions are not registered in the system registry, like ogg.
