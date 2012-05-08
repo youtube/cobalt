@@ -89,12 +89,6 @@ bool AudioFileReader::Open() {
           << " result: " << result;
       return false;
     }
-
-    if ((result = av_seek_frame(format_context_, 0, 0, 0)) < 0) {
-      DLOG(WARNING) << "AudioFileReader::Open() : could not seek frame -"
-          << " result: " << result;
-      return false;
-    }
   } else {
     DLOG(WARNING) << "AudioFileReader::Open() : could not find codec -"
         << " result: " << result;
@@ -151,7 +145,9 @@ bool AudioFileReader::Read(const std::vector<float*>& audio_data,
       DLOG(WARNING)
           << "AudioFileReader::Read() : error in avcodec_decode_audio3() -"
           << result;
-      return false;
+
+      // Fail if nothing has been decoded, otherwise return partial data.
+      return current_frame > 0;
     }
 
     // Determine the number of sample-frames we just decoded.
