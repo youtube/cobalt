@@ -484,12 +484,14 @@ void Rankings::TrackRankingsBlock(CacheRankingsBlock* node,
 
 int Rankings::SelfCheck() {
   int total = 0;
+  base::TimeTicks start = base::TimeTicks::Now();
   for (int i = 0; i < LAST_ELEMENT; i++) {
     int partial = CheckList(static_cast<List>(i));
     if (partial < 0)
       return partial;
     total += partial;
   }
+  CACHE_UMA(AGE_MS, "ListSelfCheckTime", 0, start);
   return total;
 }
 
