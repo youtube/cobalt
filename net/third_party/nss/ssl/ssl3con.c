@@ -6087,6 +6087,7 @@ ssl3_RestartHandshakeAfterCertReq(sslSocket *         ss,
 	if (certChain) {
 	    CERT_DestroyCertificateList(certChain);
 	}
+	PORT_SetError(SEC_ERROR_LIBRARY_FAILURE);
 	rv = SECFailure;
     }
     return rv;
