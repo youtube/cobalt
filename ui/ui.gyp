@@ -517,18 +517,6 @@
             }],
           ],
         }],
-        ['enable_dip==1', {
-          'sources': [
-            'gfx/insets_f.cc',
-            'gfx/insets_f.h',
-            'gfx/point_f.cc',
-            'gfx/point_f.h',
-            'gfx/rect_f.cc',
-            'gfx/rect_f.h',
-            'gfx/size_f.cc',
-            'gfx/size_f.h',
-          ],
-        }],
         ['toolkit_uses_gtk == 1', {
           'dependencies': [
             '../build/linux/system.gyp:gtk',
