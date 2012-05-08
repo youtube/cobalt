@@ -1550,6 +1550,13 @@
             'xcode_settings': {
               'WARNING_CFLAGS!': ['-Wall', '-Wextra'],
             },
+            'conditions': [
+              ['buildtype=="Official"', {
+                'xcode_settings': {
+                  'GCC_TREAT_WARNINGS_AS_ERRORS': 'NO',    # -Werror
+                },
+              }],
+            ],
           }],
         ],
       }, {
