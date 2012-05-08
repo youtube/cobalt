@@ -891,6 +891,17 @@ TEST(NetUtilTest, GenerateSafeFileName) {
       FILE_PATH_LITERAL("C:\\foo\\harmless.{mismatched-"),
       FILE_PATH_LITERAL("C:\\foo\\harmless.{mismatched-")
     },
+    // Allow extension synonyms.
+    {
+      "image/jpeg",
+      FILE_PATH_LITERAL("C:\\foo\\bar.jpg"),
+      FILE_PATH_LITERAL("C:\\foo\\bar.jpg")
+    },
+    {
+      "image/jpeg",
+      FILE_PATH_LITERAL("C:\\foo\\bar.jpeg"),
+      FILE_PATH_LITERAL("C:\\foo\\bar.jpeg")
+    },
 #else  // !defined(OS_WIN)
     {
       "text/html",
@@ -936,6 +947,17 @@ TEST(NetUtilTest, GenerateSafeFileName) {
       "text/html",
       FILE_PATH_LITERAL("/foo/con"),
       FILE_PATH_LITERAL("/foo/con.html")
+    },
+    // Allow extension synonyms.
+    {
+      "image/jpeg",
+      FILE_PATH_LITERAL("/bar.jpg"),
+      FILE_PATH_LITERAL("/bar.jpg")
+    },
+    {
+      "image/jpeg",
+      FILE_PATH_LITERAL("/bar.jpeg"),
+      FILE_PATH_LITERAL("/bar.jpeg")
     },
 #endif  // !defined(OS_WIN)
   };

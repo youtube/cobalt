@@ -212,7 +212,7 @@
         'base/platform_mime_util.h',
         # TODO(tc): gnome-vfs? xdgmime? /etc/mime.types?
         'base/platform_mime_util_linux.cc',
-        'base/platform_mime_util_mac.cc',
+        'base/platform_mime_util_mac.mm',
         'base/platform_mime_util_win.cc',
         'base/prioritized_dispatcher.cc',
         'base/prioritized_dispatcher.h',
@@ -976,6 +976,7 @@
             ],
             'link_settings': {
               'libraries': [
+                '$(SDKROOT)/System/Library/Frameworks/Foundation.framework',
                 '$(SDKROOT)/System/Library/Frameworks/Security.framework',
                 '$(SDKROOT)/System/Library/Frameworks/SystemConfiguration.framework',
                 '$(SDKROOT)/usr/lib/libresolv.dylib',
