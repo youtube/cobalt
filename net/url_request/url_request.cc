@@ -134,6 +134,7 @@ void URLRequest::Delegate::OnSSLCertificateError(URLRequest* request,
 URLRequest::URLRequest(const GURL& url, Delegate* delegate)
     : url_chain_(1, url),
       method_("GET"),
+      referrer_policy_(CLEAR_REFERRER_ON_TRANSITION_FROM_SECURE_TO_INSECURE),
       load_flags_(LOAD_NORMAL),
       delegate_(delegate),
       is_pending_(false),
@@ -375,6 +376,11 @@ GURL URLRequest::GetSanitizedReferrer() const {
   }
 
   return ret;
+}
+
+void URLRequest::set_referrer_policy(ReferrerPolicy referrer_policy) {
+  DCHECK(!is_pending_);
+  referrer_policy_ = referrer_policy;
 }
 
 void URLRequest::set_delegate(Delegate* delegate) {
@@ -697,8 +703,11 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
   }
 
   // Suppress the referrer if we're redirecting out of https.
-  if (GURL(referrer_).SchemeIsSecure() && !location.SchemeIsSecure())
+  if (referrer_policy_ ==
+          CLEAR_REFERRER_ON_TRANSITION_FROM_SECURE_TO_INSECURE &&
+      GURL(referrer_).SchemeIsSecure() && !location.SchemeIsSecure()) {
     referrer_.clear();
+  }
 
   url_chain_.push_back(location);
   --redirect_limit_;

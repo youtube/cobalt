@@ -120,6 +120,21 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
 #undef HTTP_ATOM
   };
 
+  // Referrer policies (see set_referrer_policy): During server redirects, the
+  // referrer header might be cleared, if the protocol changes from HTTPS to
+  // HTTP. This is the default behavior of URLRequest, corresponding to
+  // CLEAR_REFERRER_ON_TRANSITION_FROM_SECURE_TO_INSECURE. Alternatively, the
+  // referrer policy can be set to never change the referrer header. This
+  // behavior corresponds to NEVER_CLEAR_REFERRER. Embedders will want to use
+  // NEVER_CLEAR_REFERRER when implementing the meta-referrer support
+  // (http://wiki.whatwg.org/wiki/Meta_referrer) and sending requests with a
+  // non-default referrer policy. Only the default referrer policy requires
+  // the referrer to be cleared on transitions from HTTPS to HTTP.
+  enum ReferrerPolicy {
+    CLEAR_REFERRER_ON_TRANSITION_FROM_SECURE_TO_INSECURE,
+    NEVER_CLEAR_REFERRER,
+  };
+
   // This class handles network interception.  Use with
   // (Un)RegisterRequestInterceptor.
   class NET_EXPORT Interceptor {
@@ -341,6 +356,10 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   void set_referrer(const std::string& referrer);
   // Returns the referrer header with potential username and password removed.
   GURL GetSanitizedReferrer() const;
+
+  // The referrer policy to apply when updating the referrer during redirects.
+  // The referrer policy may only be changed before Start() is called.
+  void set_referrer_policy(ReferrerPolicy referrer_policy);
 
   // Sets the delegate of the request.  This value may be changed at any time,
   // and it is permissible for it to be null.
@@ -698,6 +717,7 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   GURL delegate_redirect_url_;
   std::string method_;  // "GET", "POST", etc. Should be all uppercase.
   std::string referrer_;
+  ReferrerPolicy referrer_policy_;
   HttpRequestHeaders extra_request_headers_;
   int load_flags_;  // Flags indicating the request type for the load;
                     // expected values are LOAD_* enums above.
