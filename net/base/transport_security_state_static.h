@@ -1479,6 +1479,9 @@ static const struct HSTSPreload kPreloadedSTS[] = {
   {22, true, "\010platform\007twitter\003com", false, kTwitterCDNPins, DOMAIN_TWITTER_COM },
   {15, true, "\003si0\005twimg\003com", false, kTwitterCDNPins, DOMAIN_TWIMG_COM },
   {23, true, "\010twimg0-a\010akamaihd\003net", false, kTwitterCDNPins, DOMAIN_AKAMAIHD_NET },
+  {22, true, "\020braintreegateway\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {23, false, "\021braintreepayments\003com", true, kNoPins, DOMAIN_NOT_PINNED },
+  {27, false, "\003www\021braintreepayments\003com", true, kNoPins, DOMAIN_NOT_PINNED },
 };
 static const size_t kNumPreloadedSTS = ARRAYSIZE_UNSAFE(kPreloadedSTS);
 
