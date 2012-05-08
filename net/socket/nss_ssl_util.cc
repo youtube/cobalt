@@ -159,6 +159,8 @@ int MapNSSError(PRErrorCode err) {
     case PR_NOT_IMPLEMENTED_ERROR:
       return ERR_NOT_IMPLEMENTED;
 
+    case SEC_ERROR_LIBRARY_FAILURE:
+      return ERR_UNEXPECTED;
     case SEC_ERROR_INVALID_ARGS:
       return ERR_INVALID_ARGUMENT;
     case SEC_ERROR_NO_MEMORY:

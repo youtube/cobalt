@@ -1586,13 +1586,20 @@ int SSLClientSocketNSS::ImportDBCertAndKey(CERTCertificate** cert,
 }
 
 int SSLClientSocketNSS::DoGetDBCertComplete(int result) {
+  SECStatus rv;
   net_log_.EndEventWithNetErrorCode(NetLog::TYPE_SSL_GET_DOMAIN_BOUND_CERT,
                                     result);
   client_auth_cert_needed_ = false;
   domain_bound_cert_request_handle_ = NULL;
 
-  if (result != OK)
-    return result;
+  if (result != OK) {
+    // Failed to get a DBC.  Proceed without.
+    rv = SSL_RestartHandshakeAfterCertReq(nss_fd_, NULL, NULL, NULL);
+    if (rv != SECSuccess)
+      return MapNSSError(PORT_GetError());
+    GotoState(STATE_HANDSHAKE);
+    return OK;
+  }
 
   CERTCertificate* cert;
   SECKEYPrivateKey* key;
@@ -1606,7 +1613,6 @@ int SSLClientSocketNSS::DoGetDBCertComplete(int result) {
   net_log_.AddEvent(NetLog::TYPE_SSL_CLIENT_CERT_PROVIDED,
       make_scoped_refptr(new NetLogIntegerParameter("cert_count",
                                                     cert_chain->len)));
-  SECStatus rv;
   rv = SSL_RestartHandshakeAfterCertReq(nss_fd_, cert, key, cert_chain);
   if (rv != SECSuccess)
     return MapNSSError(PORT_GetError());
