@@ -231,7 +231,7 @@ void AudioManagerBase::ShutdownOnAudioThread() {
       // both physical audio stream objects that belong to the dispatcher as
       // well as the message loop of the audio thread that will soon go away.
       // So, better crash now than later.
-      CHECK(dispatcher->HasOneRef()) << "AudioOutputProxies are still alive";
+      DCHECK(dispatcher->HasOneRef()) << "AudioOutputProxies are still alive";
       dispatcher = NULL;
     }
   }
