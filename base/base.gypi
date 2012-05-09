@@ -348,6 +348,8 @@
           'task_runner.h',
           'task_runner_util.h',
           'template_util.h',
+          'thread_task_runner_handle.cc',
+          'thread_task_runner_handle.h',
           'threading/non_thread_safe.h',
           'threading/non_thread_safe_impl.cc',
           'threading/non_thread_safe_impl.h',
