@@ -85,8 +85,11 @@ class HttpCache::Transaction : public HttpTransaction {
 
   // This transaction is being deleted and we are not done writing to the cache.
   // We need to indicate that the response data was truncated.  Returns true on
-  // success.
+  // success. Keep in mind that this operation may have side effects, such as
+  // deleting the active entry.
   bool AddTruncatedFlag();
+
+  HttpCache::ActiveEntry* entry() { return entry_; }
 
   // Returns the LoadState of the writer transaction of a given ActiveEntry. In
   // other words, returns the LoadState of this transaction without asking the

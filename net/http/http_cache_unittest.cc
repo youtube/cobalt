@@ -3971,6 +3971,103 @@ TEST(HttpCache, GET_IncompleteResource) {
   RemoveMockTransaction(&kRangeGET_TransactionOK);
 }
 
+// Tests the handling of no-store when revalidating a truncated entry.
+TEST(HttpCache, GET_IncompleteResource_NoStore) {
+  MockHttpCache cache;
+  AddMockTransaction(&kRangeGET_TransactionOK);
+
+  std::string raw_headers("HTTP/1.1 200 OK\n"
+                          "Last-Modified: Sat, 18 Apr 2007 01:10:43 GMT\n"
+                          "ETag: \"foo\"\n"
+                          "Accept-Ranges: bytes\n"
+                          "Content-Length: 80\n");
+  CreateTruncatedEntry(raw_headers, &cache);
+  RemoveMockTransaction(&kRangeGET_TransactionOK);
+
+  // Now make a regular request.
+  MockTransaction transaction(kRangeGET_TransactionOK);
+  transaction.request_headers = EXTRA_HEADER;
+  std::string response_headers(transaction.response_headers);
+  response_headers += ("Cache-Control: no-store\n");
+  transaction.response_headers = response_headers.c_str();
+  transaction.data = "rg: 00-09 rg: 10-19 rg: 20-29 rg: 30-39 rg: 40-49 "
+                     "rg: 50-59 rg: 60-69 rg: 70-79 ";
+  AddMockTransaction(&transaction);
+
+  std::string headers;
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
+
+  // We update the headers with the ones received while revalidating.
+  std::string expected_headers(
+      "HTTP/1.1 200 OK\n"
+      "Last-Modified: Sat, 18 Apr 2007 01:10:43 GMT\n"
+      "Accept-Ranges: bytes\n"
+      "Cache-Control: no-store\n"
+      "ETag: \"foo\"\n"
+      "Content-Length: 80\n");
+
+  EXPECT_EQ(expected_headers, headers);
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Verify that the disk entry was deleted.
+  disk_cache::Entry* entry;
+  EXPECT_FALSE(cache.OpenBackendEntry(kRangeGET_TransactionOK.url, &entry));
+  RemoveMockTransaction(&transaction);
+}
+
+// Tests cancelling a request after the server sent no-store.
+TEST(HttpCache, GET_IncompleteResource_Cancel) {
+  MockHttpCache cache;
+  AddMockTransaction(&kRangeGET_TransactionOK);
+
+  std::string raw_headers("HTTP/1.1 200 OK\n"
+                          "Last-Modified: Sat, 18 Apr 2007 01:10:43 GMT\n"
+                          "ETag: \"foo\"\n"
+                          "Accept-Ranges: bytes\n"
+                          "Content-Length: 80\n");
+  CreateTruncatedEntry(raw_headers, &cache);
+  RemoveMockTransaction(&kRangeGET_TransactionOK);
+
+  // Now make a regular request.
+  MockTransaction transaction(kRangeGET_TransactionOK);
+  transaction.request_headers = EXTRA_HEADER;
+  std::string response_headers(transaction.response_headers);
+  response_headers += ("Cache-Control: no-store\n");
+  transaction.response_headers = response_headers.c_str();
+  transaction.data = "rg: 00-09 rg: 10-19 rg: 20-29 rg: 30-39 rg: 40-49 "
+                     "rg: 50-59 rg: 60-69 rg: 70-79 ";
+  AddMockTransaction(&transaction);
+
+  MockHttpRequest request(transaction);
+  Context* c = new Context();
+
+  int rv = cache.http_cache()->CreateTransaction(&c->trans);
+  EXPECT_EQ(net::OK, rv);
+
+  rv = c->trans->Start(&request, c->callback.callback(), net::BoundNetLog());
+  EXPECT_EQ(net::OK, c->callback.GetResult(rv));
+
+  // Make sure that the entry has some data stored.
+  scoped_refptr<net::IOBufferWithSize> buf(new net::IOBufferWithSize(5));
+  rv = c->trans->Read(buf, buf->size(), c->callback.callback());
+  EXPECT_EQ(5, c->callback.GetResult(rv));
+
+  // Cancel the request.
+  delete c;
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Verify that the disk entry was deleted.
+  disk_cache::Entry* entry;
+  EXPECT_FALSE(cache.OpenBackendEntry(kRangeGET_TransactionOK.url, &entry));
+  MessageLoop::current()->RunAllPending();
+  RemoveMockTransaction(&transaction);
+}
+
 // Tests that we delete truncated entries if the server changes its mind midway.
 TEST(HttpCache, GET_IncompleteResource2) {
   MockHttpCache cache;
