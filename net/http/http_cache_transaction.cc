@@ -1054,8 +1054,10 @@ int HttpCache::Transaction::DoUpdateCachedResponse() {
   response_.request_time = new_response_->request_time;
 
   if (response_.headers->HasHeaderValue("cache-control", "no-store")) {
-    int ret = cache_->DoomEntry(cache_key_, NULL);
-    DCHECK_EQ(OK, ret);
+    if (!entry_->doomed) {
+      int ret = cache_->DoomEntry(cache_key_, NULL);
+      DCHECK_EQ(OK, ret);
+    }
   } else {
     // If we are already reading, we already updated the headers for this
     // request; doing it again will change Content-Length.
