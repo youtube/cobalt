@@ -153,7 +153,6 @@ TEST_F(AudioOutputControllerTest, PlayPauseClose) {
   CloseAudioController(controller);
 }
 
-
 TEST_F(AudioOutputControllerTest, HardwareBufferTooLarge) {
   scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
   if (!audio_manager->HasAudioOutputDevices())
@@ -173,6 +172,55 @@ TEST_F(AudioOutputControllerTest, HardwareBufferTooLarge) {
   // Use assert because we don't stop the device and assume we can't
   // create one.
   ASSERT_FALSE(controller);
+}
+
+TEST_F(AudioOutputControllerTest, PlayPausePlayClose) {
+  scoped_ptr<AudioManager> audio_manager(AudioManager::Create());
+  if (!audio_manager->HasAudioOutputDevices())
+    return;
+
+  MockAudioOutputControllerEventHandler event_handler;
+  base::WaitableEvent event(false, false);
+  EXPECT_CALL(event_handler, OnCreated(NotNull()))
+      .WillOnce(InvokeWithoutArgs(&event, &base::WaitableEvent::Signal));
+
+  // OnPlaying() will be called only once.
+  base::WaitableEvent play_event(false, false);
+  EXPECT_CALL(event_handler, OnPlaying(NotNull()))
+      .WillOnce(InvokeWithoutArgs(&play_event, &base::WaitableEvent::Signal));
+
+  // OnPaused() should never be called since the pause during kStarting is
+  // dropped when the second play comes in.
+  EXPECT_CALL(event_handler, OnPaused(NotNull()))
+      .Times(0);
+
+  MockAudioOutputControllerSyncReader sync_reader;
+  EXPECT_CALL(sync_reader, UpdatePendingBytes(_))
+      .Times(AtLeast(2));
+  EXPECT_CALL(sync_reader, Read(_, kHardwareBufferSize))
+      .WillRepeatedly(DoAll(SignalEvent(&event), Return(4)));
+  EXPECT_CALL(sync_reader, DataReady())
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(sync_reader, Close());
+
+  AudioParameters params(AudioParameters::AUDIO_PCM_LINEAR, kChannelLayout,
+                         kSampleRate, kBitsPerSample, kSamplesPerPacket);
+  scoped_refptr<AudioOutputController> controller =
+      AudioOutputController::Create(
+          audio_manager.get(), &event_handler, params, &sync_reader);
+  ASSERT_TRUE(controller.get());
+
+  // Wait for OnCreated() to be called.
+  event.Wait();
+
+  ASSERT_FALSE(play_event.IsSignaled());
+  controller->Play();
+  controller->Pause();
+  controller->Play();
+  play_event.Wait();
+
+  // Now stop the controller.
+  CloseAudioController(controller);
 }
 
 }  // namespace media
