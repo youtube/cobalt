@@ -2,6 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// This class sets up the environment for running the native tests inside an
+// android application. It outputs (to logcat) markers identifying the
+// START/END/CRASH of the test suite, FAILURE/SUCCESS of individual tests etc.
+// These markers are read by the test runner script to generate test results.
+// It injects an event listener in gtest to detect various test stages and
+// installs signal handlers to detect crashes.
+
+#include <android/log.h>
+#include <signal.h>
 #include <stdio.h>
 
 #include "base/android/jni_android.h"
@@ -25,6 +34,33 @@
 extern int main(int argc, char** argv);
 
 namespace {
+
+// The list of signals which are considered to be crashes.
+const int kExceptionSignals[] = {
+  SIGSEGV, SIGABRT, SIGFPE, SIGILL, SIGBUS, -1
+};
+
+struct sigaction g_old_sa[NSIG];
+
+// This function runs in a compromised context. It should not allocate memory.
+void SignalHandler(int sig, siginfo_t *info, void *reserved)
+{
+  // Output the crash marker.
+  __android_log_write(ANDROID_LOG_ERROR, "chromium", "[ CRASHED      ]");
+  g_old_sa[sig].sa_sigaction(sig, info, reserved);
+}
+
+void InstallHandlers() {
+  struct sigaction sa;
+  memset(&sa, 0, sizeof(sa));
+
+  sa.sa_sigaction = SignalHandler;
+  sa.sa_flags = SA_SIGINFO;
+
+  for (unsigned int i = 0; kExceptionSignals[i] != -1; ++i) {
+    sigaction(kExceptionSignals[i], &sa, &g_old_sa[kExceptionSignals[i]]);
+  }
+}
 
 void ParseArgsFromString(const std::string& command_line,
                          std::vector<std::string>* args) {
@@ -191,11 +227,16 @@ static void RunTests(JNIEnv* env,
 
 // This is called by the VM when the shared library is first loaded.
 JNI_EXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
+
+  // Install signal handlers to detect crashes.
+  InstallHandlers();
+
   base::android::InitVM(vm);
   JNIEnv* env = base::android::AttachCurrentThread();
   if (!RegisterNativesImpl(env)) {
     return -1;
   }
   LibraryLoadedOnMainThread(env);
+
   return JNI_VERSION_1_4;
 }
