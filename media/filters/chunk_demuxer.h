@@ -59,7 +59,8 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // kNotSupported is returned if |type| is not a supported format.
   // kReachedIdLimit is returned if the demuxer cannot handle another ID right
   //    now.
-  Status AddId(const std::string& id, const std::string& type);
+  Status AddId(const std::string& id, const std::string& type,
+               std::vector<std::string>& codecs);
 
   // Removed an ID & associated resources that were previously added with
   // AddId().
