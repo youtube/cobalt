@@ -12,6 +12,9 @@ HostResolverImplTest.*
 NetUtilTest.GetNetworkList
 ProxyResolverV8Test.*
 TransportSecurityStateTest.ParseSidePins*
+# TODO(jnd): The following tests are disabled because test server spawner is not
+# enabled on Chromium Android. Once the net upstreaming is done, test server
+# spawner can be enabled and those tests should pass.
 X509CertificateTest.*
 X509CertificateParseTest.*
 FtpDirectoryListingParserWindowsTest.Good
@@ -66,9 +69,12 @@ TransportSecurityStateTest.BogusPinsHeaders
 TransportSecurityStateTest.ValidPinsHeaders
 HTTPSRequestTest.ResumeTest
 HTTPSRequestTest.SSLSessionCacheShardTest
-# TODO(yfriedman): Can't load certificate
-#    net/data/ssl/certificates/root_ca_cert.crt
 HTTPSRequestTest.HTTPSErrorsNoClobberTSSTest
+HttpNetworkTransactionSpdy3Test.UploadUnreadableFile
+HttpNetworkTransactionSpdy2Test.UploadUnreadableFile
+HTTPSRequestTest.SSLv3Fallback
+HTTPSEVCRLSetTest.FreshCRLSet
+HTTPSCRLSetTest.ExpiredCRLSet
 # TODO(jrg): Fails on bots.  Works locally.  Figure out why.  2/6/12
 HttpCache.TypicalGET_ConditionalRequest
 HttpCache.RangeGET_OK
