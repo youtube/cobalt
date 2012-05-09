@@ -709,7 +709,7 @@ class NetLogSpdySynParameter : public NetLog::EventParameters {
  private:
   const linked_ptr<SpdyHeaderBlock> headers_;
   const SpdyControlFlags flags_;
-  const SpdyStreamId id_;
+  const SpdyStreamId stream_id_;
   const SpdyStreamId associated_stream_;
 
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdySynParameter);
