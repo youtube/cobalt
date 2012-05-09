@@ -148,8 +148,13 @@ void AudioOutputController::DoPlay() {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   // We can start from created or paused state.
-  if (state_ != kCreated && state_ != kPaused)
+  if (state_ != kCreated && state_ != kPaused) {
+    // If a pause is pending drop it.  Otherwise the controller might hang since
+    // the corresponding play event has already occurred.
+    if (state_ == kPausedWhenStarting)
+      state_ = kStarting;
     return;
+  }
 
   state_ = kStarting;
 
