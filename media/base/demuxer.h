@@ -22,10 +22,6 @@ class MEDIA_EXPORT DemuxerHost : public DataSourceHost {
   // been determined yet, then returns 0.
   virtual void SetDuration(base::TimeDelta duration) = 0;
 
-  // Set the approximate amount of playable data buffered so far in micro-
-  // seconds.
-  virtual void SetBufferedTime(base::TimeDelta buffered_time) = 0;
-
   // Sets the byte offset at which the client is requesting the video.
   virtual void SetCurrentReadPosition(int64 offset) = 0;
 
