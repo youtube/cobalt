@@ -4,6 +4,7 @@
 
 #ifndef CONTENT_BROWSER_SPEECH_ENDPOINTER_ENDPOINTER_H_
 #define CONTENT_BROWSER_SPEECH_ENDPOINTER_ENDPOINTER_H_
+#pragma once
 
 #include "base/basictypes.h"
 #include "content/browser/speech/endpointer/energy_endpointer.h"
