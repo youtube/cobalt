@@ -40,7 +40,6 @@ static const int kVideoTrackNum = 1;
 static const int kAudioTrackNum = 2;
 
 static const char* kSourceId = "SourceId";
-static const char* kDefaultSourceType = "video/webm; codecs=\"vp8, vorbis\"";
 
 base::TimeDelta kDefaultDuration() {
   return base::TimeDelta::FromMilliseconds(201224);
@@ -170,6 +169,13 @@ class ChunkDemuxerTest : public testing::Test {
     }
   }
 
+  ChunkDemuxer::Status AddId() {
+    std::vector<std::string> codecs(2);
+    codecs[0] = "vp8";
+    codecs[1] = "vorbis";
+    return demuxer_->AddId(kSourceId, "video/webm", codecs);
+  }
+
   bool AppendData(const uint8* data, size_t length) {
     EXPECT_CALL(host_, SetBufferedBytes(_)).Times(AnyNumber());
     EXPECT_CALL(host_, SetNetworkActivity(true))
@@ -229,7 +235,7 @@ class ChunkDemuxerTest : public testing::Test {
     demuxer_->Initialize(
         &host_, CreateInitDoneCB(kDefaultDuration(), expected_status));
 
-    if (demuxer_->AddId(kSourceId, kDefaultSourceType) != ChunkDemuxer::kOk)
+    if (AddId() != ChunkDemuxer::kOk)
       return false;
 
     return AppendInfoTracks(has_audio, has_video, video_content_encoded);
@@ -285,7 +291,7 @@ class ChunkDemuxerTest : public testing::Test {
     demuxer_->Initialize(
         &host_, CreateInitDoneCB(duration, PIPELINE_OK));
 
-    if (demuxer_->AddId(kSourceId, kDefaultSourceType) != ChunkDemuxer::kOk)
+    if (AddId() != ChunkDemuxer::kOk)
       return false;
 
     // Read a WebM file into memory and send the data to the demuxer.
@@ -660,7 +666,7 @@ TEST_F(ChunkDemuxerTest, TestClusterBeforeInfoTracks) {
   demuxer_->Initialize(
       &host_, NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
 
-  ASSERT_EQ(demuxer_->AddId(kSourceId, kDefaultSourceType), ChunkDemuxer::kOk);
+  ASSERT_EQ(AddId(), ChunkDemuxer::kOk);
 
   ClusterBuilder cb;
   cb.SetClusterTimecode(0);
@@ -861,7 +867,7 @@ TEST_F(ChunkDemuxerTest, TestAppendingInPieces) {
   demuxer_->Initialize(
       &host_, CreateInitDoneCB(kDefaultDuration(), PIPELINE_OK));
 
-  ASSERT_EQ(demuxer_->AddId(kSourceId, kDefaultSourceType), ChunkDemuxer::kOk);
+  ASSERT_EQ(AddId(), ChunkDemuxer::kOk);
 
   scoped_array<uint8> info_tracks;
   int info_tracks_size = 0;
@@ -1062,7 +1068,7 @@ TEST_F(ChunkDemuxerTest, TestParseErrorDuringInit) {
   demuxer_->Initialize(
       &host_, CreateInitDoneCB(kDefaultDuration(), PIPELINE_OK));
 
-  ASSERT_EQ(demuxer_->AddId(kSourceId, kDefaultSourceType), ChunkDemuxer::kOk);
+  ASSERT_EQ(AddId(), ChunkDemuxer::kOk);
 
   ASSERT_TRUE(AppendInfoTracks(true, true, false));
 
