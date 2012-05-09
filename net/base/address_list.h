@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_export.h"
 #include "net/base/net_util.h"
@@ -18,7 +19,8 @@ struct addrinfo;
 
 namespace net {
 
-class NET_EXPORT AddressList : private std::vector<IPEndPoint> {
+class NET_EXPORT AddressList
+    : NON_EXPORTED_BASE(private std::vector<IPEndPoint>) {
  public:
   AddressList();
   ~AddressList();
