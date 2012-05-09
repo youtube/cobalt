@@ -240,9 +240,6 @@
       # Whether one-click signin is enabled or not.
       'enable_one_click_signin%': 0,
 
-      # Enable navigator.registerProtocolHandler and supporting UI.
-      'enable_register_protocol_handler%': 1,
-
       # Enable Web Intents support in WebKit, dispatching of intents,
       # and extensions Web Intents support.
       'enable_web_intents%': 1,
@@ -542,7 +539,6 @@
     'clang_use_chrome_plugins%': '<(clang_use_chrome_plugins)',
     'asan%': '<(asan)',
     'order_text_section%': '<(order_text_section)',
-    'enable_register_protocol_handler%': '<(enable_register_protocol_handler)',
     'enable_extensions%': '<(enable_extensions)',
     'enable_web_intents%': '<(enable_web_intents)',
     'enable_web_intents_tag%': '<(enable_web_intents_tag)',
@@ -1070,10 +1066,6 @@
         'use_ibus%': 0,
       }],
 
-      ['enable_register_protocol_handler==1', {
-        'grit_defines': ['-D', 'enable_register_protocol_handler'],
-      }],
-
       ['enable_web_intents_tag==1', {
         'grit_defines': ['-D', 'enable_web_intents_tag'],
       }],
@@ -1427,11 +1419,6 @@
           '<(DEPTH)/third_party/wtl/include',
         ],
       }],  # OS==win
-      ['enable_register_protocol_handler==1', {
-        'defines': [
-          'ENABLE_REGISTER_PROTOCOL_HANDLER=1',
-        ],
-      }],
       ['enable_task_manager==1', {
         'defines': [
           'ENABLE_TASK_MANAGER=1',
