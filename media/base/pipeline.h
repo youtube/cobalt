@@ -313,7 +313,6 @@ class MEDIA_EXPORT Pipeline
 
   // DemuxerHost implementaion.
   virtual void SetDuration(base::TimeDelta duration) OVERRIDE;
-  virtual void SetBufferedTime(base::TimeDelta buffered_time) OVERRIDE;
   virtual void SetCurrentReadPosition(int64 offset) OVERRIDE;
   virtual void OnDemuxerError(PipelineStatus error) OVERRIDE;
 
@@ -490,9 +489,6 @@ class MEDIA_EXPORT Pipeline
 
   // Whether or not a playback rate change should be done once seeking is done.
   bool playback_rate_change_pending_;
-
-  // Amount of available buffered data in microseconds.  Set by filters.
-  base::TimeDelta buffered_time_;
 
   // Amount of available buffered data.  Set by filters.
   int64 buffered_bytes_;

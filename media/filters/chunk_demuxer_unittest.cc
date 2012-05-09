@@ -172,7 +172,6 @@ class ChunkDemuxerTest : public testing::Test {
 
   bool AppendData(const uint8* data, size_t length) {
     EXPECT_CALL(host_, SetBufferedBytes(_)).Times(AnyNumber());
-    EXPECT_CALL(host_, SetBufferedTime(_)).Times(AnyNumber());
     EXPECT_CALL(host_, SetNetworkActivity(true))
         .Times(AnyNumber());
     return demuxer_->AppendData(kSourceId, data, length);

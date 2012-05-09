@@ -612,10 +612,6 @@ bool ChunkDemuxer::AppendData(const std::string& id,
   // Notify the host of 'network activity' because we got data.
   host_->SetBufferedBytes(buffered_bytes);
 
-  if (buffered_ts.InSeconds() >= 0) {
-    host_->SetBufferedTime(buffered_ts);
-  }
-
   host_->SetNetworkActivity(true);
 
   if (!cb.is_null())
