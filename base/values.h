@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -313,10 +313,11 @@ class BASE_EXPORT DictionaryValue : public Value {
   // the copy.  This never returns NULL, even if |this| itself is empty.
   DictionaryValue* DeepCopyWithoutEmptyChildren();
 
-  // Merge a given dictionary into this dictionary. This is done recursively,
-  // i.e. any subdictionaries will be merged as well. In case of key collisions,
-  // the passed in dictionary takes precedence and data already present will be
-  // replaced.
+  // Merge |dictionary| into this dictionary. This is done recursively, i.e. any
+  // sub-dictionaries will be merged as well. In case of key collisions, the
+  // passed in dictionary takes precedence and data already present will be
+  // replaced. Values within |dictionary| are deep-copied, so |dictionary| may
+  // be freed any time after this call.
   void MergeDictionary(const DictionaryValue* dictionary);
 
   // Swaps contents with the |other| dictionary.
