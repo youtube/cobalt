@@ -17,6 +17,7 @@
 #include "base/message_pump_default.h"
 #include "base/metrics/histogram.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
+#include "base/thread_task_runner_handle.h"
 #include "base/threading/thread_local.h"
 #include "base/time.h"
 #include "base/tracked_objects.h"
@@ -139,6 +140,8 @@ MessageLoop::MessageLoop(Type type)
   lazy_tls_ptr.Pointer()->Set(this);
 
   message_loop_proxy_ = new base::MessageLoopProxyImpl();
+  thread_task_runner_handle_.reset(
+      new base::ThreadTaskRunnerHandle(message_loop_proxy_));
 
 // TODO(rvargas): Get rid of the OS guards.
 #if defined(OS_WIN)
@@ -197,6 +200,8 @@ MessageLoop::~MessageLoop() {
   // Let interested parties have one last shot at accessing this.
   FOR_EACH_OBSERVER(DestructionObserver, destruction_observers_,
                     WillDestroyCurrentMessageLoop());
+
+  thread_task_runner_handle_.reset();
 
   // Tell the message_loop_proxy that we are dying.
   static_cast<base::MessageLoopProxyImpl*>(message_loop_proxy_.get())->
