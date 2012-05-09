@@ -339,8 +339,9 @@ if [ -z "${mirror}" ]; then
    mirror="http://archive.ubuntu.com/ubuntu" ||
    mirror="http://ftp.us.debian.org/debian"
 fi
- sudo debootstrap ${archflag} "${distname}" /var/lib/chroot/"${target}"        \
-                  "$mirror"
+
+sudo ${http_proxy:+http_proxy="${http_proxy}"} debootstrap ${archflag} \
+    "${distname}" "/var/lib/chroot/${target}"  "$mirror"
 
 # Add new entry to /etc/schroot/schroot.conf
 grep -qs ubuntu.com /usr/share/debootstrap/scripts/"${distname}" &&
@@ -551,6 +552,13 @@ fi
 sudo sed -i '/^deb[^-]/p
              s/^deb\([^-]\)/deb-src\1/' \
          "/var/lib/chroot/${target}/etc/apt/sources.list"
+
+# Set apt proxy if host has set http_proxy
+if [ -n "${http_proxy}" ]; then
+  sudo sh -c '
+    echo "Acquire::http::proxy \"'"${http_proxy}"'\";" \
+        >>"/var/lib/chroot/'"${target}"'/etc/apt/apt.conf"'
+fi
 
 # Update packages
 sudo "/usr/local/bin/${target%bit}" /bin/sh -c '
