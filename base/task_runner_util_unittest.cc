@@ -21,6 +21,7 @@ void StoreValue(int* destination, int value) {
 }
 
 int g_foo_destruct_count = 0;
+int g_foo_free_count = 0;
 
 struct Foo {
   ~Foo() {
@@ -35,6 +36,23 @@ scoped_ptr<Foo> CreateFoo() {
 void ExpectFoo(scoped_ptr<Foo> foo) {
   EXPECT_TRUE(foo.get());
   scoped_ptr<Foo> local_foo(foo.Pass());
+  EXPECT_TRUE(local_foo.get());
+  EXPECT_FALSE(foo.get());
+}
+
+struct FreeFooFunctor {
+  void operator()(Foo* foo) const {
+    ++g_foo_free_count;
+  };
+};
+
+scoped_ptr_malloc<Foo, FreeFooFunctor> CreateScopedFoo() {
+  return scoped_ptr_malloc<Foo, FreeFooFunctor>(new Foo);
+}
+
+void ExpectScopedFoo(scoped_ptr_malloc<Foo, FreeFooFunctor> foo) {
+  EXPECT_TRUE(foo.get());
+  scoped_ptr_malloc<Foo, FreeFooFunctor> local_foo(foo.Pass());
   EXPECT_TRUE(local_foo.get());
   EXPECT_FALSE(foo.get());
 }
@@ -58,6 +76,7 @@ TEST(TaskRunnerHelpersTest, PostTaskAndReplyWithResult) {
 
 TEST(TaskRunnerHelpersTest, PostTaskAndReplyWithResultPassed) {
   g_foo_destruct_count = 0;
+  g_foo_free_count = 0;
 
   MessageLoop message_loop;
 
@@ -70,6 +89,18 @@ TEST(TaskRunnerHelpersTest, PostTaskAndReplyWithResultPassed) {
   message_loop.RunAllPending();
 
   EXPECT_EQ(1, g_foo_destruct_count);
+  EXPECT_EQ(0, g_foo_free_count);
+
+  PostTaskAndReplyWithResult(
+      message_loop.message_loop_proxy(),
+      FROM_HERE,
+      Bind(&CreateScopedFoo),
+      Bind(&ExpectScopedFoo));
+
+  message_loop.RunAllPending();
+
+  EXPECT_EQ(1, g_foo_destruct_count);
+  EXPECT_EQ(1, g_foo_free_count);
 }
 
 }  // namespace base
