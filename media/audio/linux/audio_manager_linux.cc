@@ -244,14 +244,12 @@ bool AudioManagerLinux::HasAnyAlsaAudioDevice(StreamType stream) {
 AudioOutputStream* AudioManagerLinux::MakeLinearOutputStream(
     const AudioParameters& params) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LINEAR, params.format());
-  LOG(ERROR) << "MakeLinearOutputStream()";
   return MakeOutputStream(params);
 }
 
 AudioOutputStream* AudioManagerLinux::MakeLowLatencyOutputStream(
     const AudioParameters& params) {
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
-  LOG(ERROR) << "MakeLowLatencyOutputStream()";
   return MakeOutputStream(params);
 }
 
