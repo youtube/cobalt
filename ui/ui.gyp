@@ -407,6 +407,8 @@
         'gfx/transform.h',
         'gfx/transform_util.cc',
         'gfx/transform_util.h',
+        'gfx/video_decode_acceleration_support_mac.h',
+        'gfx/video_decode_acceleration_support_mac.mm',
         'ui_controls/ui_controls.h',
         'ui_controls/ui_controls_aura.cc',
         'ui_controls/ui_controls_internal_win.h',
@@ -615,6 +617,7 @@
             'libraries': [
               '$(SDKROOT)/System/Library/Frameworks/Accelerate.framework',
               '$(SDKROOT)/System/Library/Frameworks/AudioUnit.framework',
+              '$(SDKROOT)/System/Library/Frameworks/CoreVideo.framework',
             ],
           },
         }],
