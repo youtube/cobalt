@@ -718,6 +718,37 @@ TEST(ValuesTest, MergeDictionary) {
   EXPECT_EQ("sub_merge_key_value_merge", sub_merge_key_value); // Merged in.
 }
 
+TEST(ValuesTest, MergeDictionaryDeepCopy) {
+  DictionaryValue* child = new DictionaryValue;
+  child->SetString("test", "value");
+  EXPECT_EQ(1U, child->size());
+
+  std::string value;
+  EXPECT_TRUE(child->GetString("test", &value));
+  EXPECT_EQ("value", value);
+
+  scoped_ptr<DictionaryValue> base(new DictionaryValue);
+  base->Set("dict", child);
+  EXPECT_EQ(1U, base->size());
+
+  DictionaryValue* ptr;
+  EXPECT_TRUE(base->GetDictionary("dict", &ptr));
+  EXPECT_EQ(child, ptr);
+
+  scoped_ptr<DictionaryValue> merged(new DictionaryValue);
+  merged->MergeDictionary(base.get());
+  EXPECT_EQ(1U, merged->size());
+  EXPECT_TRUE(merged->GetDictionary("dict", &ptr));
+  EXPECT_NE(child, ptr);
+  EXPECT_TRUE(ptr->GetString("test", &value));
+  EXPECT_EQ("value", value);
+
+  child->SetString("test", "overwrite");
+  base.reset();
+  EXPECT_TRUE(ptr->GetString("test", &value));
+  EXPECT_EQ("value", value);
+}
+
 TEST(ValuesTest, DictionaryIterator) {
   DictionaryValue dict;
   for (DictionaryValue::Iterator it(dict); it.HasNext(); it.Advance()) {
