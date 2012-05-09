@@ -446,9 +446,6 @@ bool TransportSecurityState::DomainState::ParseSTSHeader(
         if (!IsAsciiWhitespace(*tokenizer.token_begin()))
           return false;
         break;
-
-      default:
-        NOTREACHED();
     }
   }
 
