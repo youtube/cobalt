@@ -193,8 +193,7 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
       if test_suite in _TEST_SUITES:
         logging.critical('(Remember to include the path: out/Release/%s)',
                          test_suite)
-      return TestResults.FromOkAndFailed([], [BaseTestResult(test_suite, '')],
-                                         False, False)
+      return TestResults.FromRun(failed=[BaseTestResult(test_suite, '')])
     fully_qualified_test_suites = [test_suite]
   else:
     fully_qualified_test_suites = FullyQualifiedTestSuites(apk)
