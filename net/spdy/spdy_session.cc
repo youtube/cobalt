@@ -41,11 +41,11 @@ namespace net {
 NetLogSpdySynParameter::NetLogSpdySynParameter(
     const linked_ptr<SpdyHeaderBlock>& headers,
     SpdyControlFlags flags,
-    SpdyStreamId id,
+    SpdyStreamId stream_id,
     SpdyStreamId associated_stream)
     : headers_(headers),
       flags_(flags),
-      id_(id),
+      stream_id_(stream_id),
       associated_stream_(associated_stream) {
 }
 
@@ -59,7 +59,7 @@ Value* NetLogSpdySynParameter::ToValue() const {
   }
   dict->SetInteger("flags", flags_);
   dict->Set("headers", headers_list);
-  dict->SetInteger("id", id_);
+  dict->SetInteger("stream_id", stream_id_);
   if (associated_stream_)
     dict->SetInteger("associated_stream", associated_stream_);
   return dict;
