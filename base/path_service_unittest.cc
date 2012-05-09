@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 #include "base/basictypes.h"
 #include "base/file_util.h"
 #include "base/file_path.h"
+#include "base/scoped_temp_dir.h"
 #if defined(OS_WIN)
 #include "base/win/windows_version.h"
 #endif
@@ -73,4 +74,28 @@ TEST_F(PathServiceTest, Get) {
       EXPECT_PRED1(ReturnsValidPath, key);
   }
 #endif
+}
+
+// test that all versions of the Override function of PathService do what they
+// are supposed to do.
+TEST_F(PathServiceTest, Override) {
+  int my_special_key = 666;
+  ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  FilePath fake_cache_dir(temp_dir.path().AppendASCII("cache"));
+  // PathService::Override should always create the path provided if it doesn't
+  // exist.
+  EXPECT_TRUE(PathService::Override(my_special_key, fake_cache_dir));
+  EXPECT_TRUE(file_util::PathExists(fake_cache_dir));
+
+  FilePath fake_cache_dir2(temp_dir.path().AppendASCII("cache2"));
+  // PathService::OverrideAndCreateIfNeeded should obey the |create| parameter.
+  PathService::OverrideAndCreateIfNeeded(my_special_key,
+                                         fake_cache_dir2,
+                                         false);
+  EXPECT_FALSE(file_util::PathExists(fake_cache_dir2));
+  EXPECT_TRUE(PathService::OverrideAndCreateIfNeeded(my_special_key,
+                                                     fake_cache_dir2,
+                                                     true));
+  EXPECT_TRUE(file_util::PathExists(fake_cache_dir2));
 }
