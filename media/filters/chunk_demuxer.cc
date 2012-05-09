@@ -15,8 +15,48 @@
 
 namespace media {
 
-// TODO(acolwell): Remove this when fixing http://crbug.com/122909 .
-const char* kDefaultSourceType = "video/webm; codecs=\"vp8, vorbis\"";
+struct SupportedTypeInfo {
+  const char* type;
+  const char** codecs;
+};
+
+static const char* kVideoWebMCodecs[] = { "vp8", "vorbis", NULL };
+static const char* kAudioWebMCodecs[] = { "vorbis", NULL };
+
+static const SupportedTypeInfo kSupportedTypeInfo[] = {
+  { "video/webm", kVideoWebMCodecs },
+  { "audio/webm", kAudioWebMCodecs },
+};
+
+// Checks to see if the specified |type| and |codecs| list are supported.
+// Returns true if |type| and all codecs listed in |codecs| are supported.
+// Returns false otherwise.
+static bool IsSupported(const std::string& type,
+                        std::vector<std::string>& codecs) {
+  // Search for the SupportedTypeInfo for |type|
+  for (size_t i = 0; i < arraysize(kSupportedTypeInfo); ++i) {
+    const SupportedTypeInfo& type_info = kSupportedTypeInfo[i];
+    if (type == type_info.type) {
+      // Make sure all the codecs specified in |codecs| are
+      // in the supported type info.
+      for (size_t j = 0; j < codecs.size(); ++j) {
+        // Search the type info for a match.
+        bool found_codec = false;
+        for (int k = 0; type_info.codecs[k] && !found_codec; ++k)
+          found_codec = (codecs[j] == type_info.codecs[k]);
+
+        if (!found_codec)
+          return false;
+      }
+
+      // All codecs were supported by this |type|.
+      return true;
+    }
+  }
+
+  // |type| didn't match any of the supported types.
+  return false;
+}
 
 class ChunkDemuxerStream : public DemuxerStream {
  public:
@@ -482,12 +522,15 @@ void ChunkDemuxer::FlushData() {
 }
 
 ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
-                                         const std::string& type) {
-  // TODO(acolwell): Proper mimetype decoding and support for more than one ID
-  // will be added as part of http://crbug.com/122909
-  if (type != kDefaultSourceType)
+                                         const std::string& type,
+                                         std::vector<std::string>& codecs) {
+  DCHECK_GT(codecs.size(), 0u);
+
+  if (!IsSupported(type, codecs))
     return kNotSupported;
 
+  // TODO(acolwell): Support for more than one ID
+  // will be added as part of http://crbug.com/122909
   if (!source_id_.empty())
     return kReachedIdLimit;
 
@@ -543,8 +586,12 @@ bool ChunkDemuxer::AppendData(const std::string& id,
   DVLOG(1) << "AppendData(" << id << ", " << length << ")";
 
   // TODO(acolwell): Remove when http://webk.it/83788 fix lands.
-  if (source_id_.empty())
-    AddId(id, kDefaultSourceType);
+  if (source_id_.empty()) {
+    std::vector<std::string> codecs(2);
+    codecs[0] = "vp8";
+    codecs[1] = "vorbis";
+    AddId(id, "video/webm", codecs);
+  }
 
   DCHECK(!source_id_.empty());
   DCHECK_EQ(source_id_, id);
