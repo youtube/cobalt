@@ -11,6 +11,7 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop.h"
+#include "base/thread_task_runner_handle.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -1688,4 +1689,26 @@ TEST(MessageLoopTest, DestructionObserverTest) {
   // The task should have been destroyed when we deleted the loop.
   EXPECT_TRUE(task_destroyed);
   EXPECT_TRUE(destruction_observer_called);
+}
+
+
+// Verify that MessageLoop sets ThreadMainTaskRunner::current() and it
+// posts tasks on that message loop.
+TEST(MessageLoopTest, ThreadMainTaskRunner) {
+  MessageLoop loop;
+
+  scoped_refptr<Foo> foo(new Foo());
+  std::string a("a");
+  base::ThreadTaskRunnerHandle::Get()->PostTask(FROM_HERE, base::Bind(
+      &Foo::Test1ConstRef, foo.get(), a));
+
+  // Post quit task;
+  MessageLoop::current()->PostTask(FROM_HERE, base::Bind(
+      &MessageLoop::Quit, base::Unretained(MessageLoop::current())));
+
+  // Now kick things off
+  MessageLoop::current()->Run();
+
+  EXPECT_EQ(foo->test_count(), 1);
+  EXPECT_EQ(foo->result(), "a");
 }
