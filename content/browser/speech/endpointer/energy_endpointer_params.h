@@ -4,6 +4,7 @@
 
 #ifndef CONTENT_BROWSER_SPEECH_ENDPOINTER_ENERGY_ENDPOINTER_PARAMS_H_
 #define CONTENT_BROWSER_SPEECH_ENDPOINTER_ENERGY_ENDPOINTER_PARAMS_H_
+#pragma once
 
 #include "base/basictypes.h"
 #include "content/common/content_export.h"
