@@ -958,14 +958,10 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
 #endif
 
 #ifdef SSL_ENABLE_OB_CERTS
-  UMA_HISTOGRAM_BOOLEAN("DBC.Advertised",
-                        ssl_config_.domain_bound_certs_enabled);
   rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_OB_CERTS,
                      ssl_config_.domain_bound_certs_enabled);
   if (rv != SECSuccess)
     LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_OB_CERTS");
-#else
-  UMA_HISTOGRAM_BOOLEAN("DBC.Advertised", false);
 #endif
 
 #ifdef SSL_ENCRYPT_CLIENT_CERTS
@@ -2535,6 +2531,29 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
 }
 #endif  // NSS_PLATFORM_CLIENT_AUTH
 
+void SSLClientSocketNSS::RecordDomainBoundCertSupport() const {
+  PRBool last_handshake_resumed;
+  SECStatus ok = SSL_HandshakeResumedSession(nss_fd_, &last_handshake_resumed);
+  if (ok != SECSuccess || last_handshake_resumed)
+    return;
+
+  // Since this enum is used for a histogram, do not change or re-use values.
+  enum {
+    DISABLED = 0,
+    CLIENT_ONLY = 1,
+    CLIENT_AND_SERVER = 2,
+    DOMAIN_BOUND_CERT_USAGE_MAX
+  } supported = DISABLED;
+#ifdef SSL_ENABLE_OB_CERTS
+  if (domain_bound_cert_xtn_negotiated_)
+    supported = CLIENT_AND_SERVER;
+  else if (ssl_config_.domain_bound_certs_enabled)
+    supported = CLIENT_ONLY;
+#endif
+  UMA_HISTOGRAM_ENUMERATION("DomainBoundCerts.Support", supported,
+                            DOMAIN_BOUND_CERT_USAGE_MAX);
+}
+
 // static
 // NSS calls this when handshake is completed.
 // After the SSL handshake is finished, use CertVerifier to verify
@@ -2545,6 +2564,7 @@ void SSLClientSocketNSS::HandshakeCallback(PRFileDesc* socket,
 
   that->handshake_callback_called_ = true;
 
+  that->RecordDomainBoundCertSupport();
   that->UpdateServerCert();
   that->UpdateConnectionStatus();
 }

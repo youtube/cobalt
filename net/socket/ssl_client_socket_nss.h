@@ -191,6 +191,10 @@ class SSLClientSocketNSS : public SSLClientSocket {
                                      CERTCertificate** result_certificate,
                                      SECKEYPrivateKey** result_private_key);
 #endif
+  // Record histograms for DBC support.  The histogram will only be updated if
+  // this socket did a full handshake.
+  void RecordDomainBoundCertSupport() const;
+
   // NSS calls this when handshake is completed.  We pass 'this' as the second
   // argument.
   static void HandshakeCallback(PRFileDesc* socket, void* arg);
