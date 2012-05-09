@@ -860,6 +860,9 @@ void HttpCache::DoneWithEntry(ActiveEntry* entry, Transaction* trans,
       // This is a successful operation in the sense that we want to keep the
       // entry.
       success = trans->AddTruncatedFlag();
+      // The previous operation may have deleted the entry.
+      if (!trans->entry())
+        return;
     }
     DoneWritingToEntry(entry, success);
   } else {
