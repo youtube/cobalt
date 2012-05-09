@@ -8,7 +8,6 @@
 
 #include "base/message_loop.h"
 #include "base/metrics/histogram.h"
-#include "base/process_util.h"
 #include "base/stringprintf.h"
 #include "base/win/wrapped_window_proc.h"
 
@@ -253,18 +252,14 @@ void MessagePumpForUI::DoRunLoop() {
 void MessagePumpForUI::InitMessageWnd() {
   // Register a unique window class for each instance of UI pump.
   string16 class_name = base::StringPrintf(kWndClassFormat, this);
-  WNDPROC window_procedure = &base::win::WrappedWindowProc<WndProcThunk>;
-
-  // RegisterClassEx uses a handle of the module containing the window procedure
-  // to distinguish identically named classes registered in different modules.
-  instance_ = GetModuleFromAddress(window_procedure);
-
-  WNDCLASSEXW wc = {0};
-  wc.cbSize = sizeof(wc);
-  wc.lpfnWndProc = window_procedure;
-  wc.hInstance = instance_;
-  wc.lpszClassName = class_name.c_str();
-  atom_ = RegisterClassEx(&wc);
+  WNDCLASSEX window_class;
+  base::win::InitializeWindowClass(
+      class_name.c_str(),
+      &base::win::WrappedWindowProc<WndProcThunk>,
+      0, 0, 0, NULL, NULL, NULL, NULL, NULL,
+      &window_class);
+  instance_ = window_class.hInstance;
+  atom_ = RegisterClassEx(&window_class);
   if (atom_ == 0) {
     DCHECK(atom_);
     return;
@@ -272,8 +267,7 @@ void MessagePumpForUI::InitMessageWnd() {
 
   // Create the message-only window.
   message_hwnd_ = CreateWindow(
-      reinterpret_cast<const char16*>(atom_), 0, 0, 0, 0, 0, 0, HWND_MESSAGE, 0,
-      instance_, 0);
+      MAKEINTATOM(atom_), 0, 0, 0, 0, 0, 0, HWND_MESSAGE, 0, instance_, 0);
   if (message_hwnd_ == NULL) {
     DCHECK(message_hwnd_);
     return;

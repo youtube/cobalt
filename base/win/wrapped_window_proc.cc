@@ -1,10 +1,12 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/win/wrapped_window_proc.h"
 
 #include "base/atomicops.h"
+#include "base/logging.h"
+#include "base/process_util.h"
 
 namespace {
 
@@ -26,6 +28,35 @@ WinProcExceptionFilter SetWinProcExceptionFilter(
 int CallExceptionFilter(EXCEPTION_POINTERS* info) {
   return s_exception_filter ? s_exception_filter(info) :
                               EXCEPTION_CONTINUE_SEARCH;
+}
+
+BASE_EXPORT void InitializeWindowClass(
+    const char16* class_name,
+    WNDPROC window_proc,
+    UINT style,
+    int class_extra,
+    int window_extra,
+    HCURSOR cursor,
+    HBRUSH background,
+    const char16* menu_name,
+    HICON large_icon,
+    HICON small_icon,
+    WNDCLASSEX* class_out) {
+  class_out->cbSize = sizeof(WNDCLASSEX);
+  class_out->style = style;
+  class_out->lpfnWndProc = window_proc;
+  class_out->cbClsExtra = class_extra;
+  class_out->cbWndExtra = window_extra;
+  class_out->hInstance = base::GetModuleFromAddress(window_proc);
+  class_out->hIcon = large_icon;
+  class_out->hCursor = cursor;
+  class_out->hbrBackground = background;
+  class_out->lpszMenuName = menu_name;
+  class_out->lpszClassName = class_name;
+  class_out->hIconSm = small_icon;
+
+  // Check if |window_proc| is valid.
+  DCHECK(class_out->hInstance != NULL);
 }
 
 }  // namespace win
