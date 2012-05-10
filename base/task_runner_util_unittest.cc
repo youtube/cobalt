@@ -43,6 +43,7 @@ void ExpectFoo(scoped_ptr<Foo> foo) {
 struct FreeFooFunctor {
   void operator()(Foo* foo) const {
     ++g_foo_free_count;
+    delete foo;
   };
 };
 
@@ -90,6 +91,13 @@ TEST(TaskRunnerHelpersTest, PostTaskAndReplyWithResultPassed) {
 
   EXPECT_EQ(1, g_foo_destruct_count);
   EXPECT_EQ(0, g_foo_free_count);
+}
+
+TEST(TaskRunnerHelpersTest, PostTaskAndReplyWithResultPassedFreeProc) {
+  g_foo_destruct_count = 0;
+  g_foo_free_count = 0;
+
+  MessageLoop message_loop;
 
   PostTaskAndReplyWithResult(
       message_loop.message_loop_proxy(),
