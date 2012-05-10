@@ -189,6 +189,10 @@
             ['OS=="mac" or OS=="android"', {'defines': ['_REENTRANT']}],
             ['OS=="win"', {
               'product_name': 'libxml2',
+              # Disable unimportant 'unused variable' warning, and
+              # signed/unsigned comparison warning. The signed/unsigned (4101)
+              # is fixed upstream and can be removed eventually.
+              'msvs_disabled_warnings': [ 4018, 4101 ],
             }, {  # else: OS!="win"
               'product_name': 'xml2',
             }],
