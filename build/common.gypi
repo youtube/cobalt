@@ -47,6 +47,11 @@
           # Enable inclusion of touch-optimized resources.
           # TODO(joi): Rename to enable_touch_assets.
           'enable_metro%': 0,
+          
+          # Is this change part of the android upstream bringup?
+          # Allows us to *temporarily* disable certain things for
+          # staging.  Only set to 1 in a GYP_DEFINES.
+          'android_upstream_bringup%': 0,
         },
         # Copy conditionally-set variables out one scope.
         'chromeos%': '<(chromeos)',
@@ -58,6 +63,7 @@
         'enable_hidpi%': '<(enable_hidpi)',
         'enable_touch_ui%': '<(enable_touch_ui)',
         'enable_metro%': '<(enable_metro)',
+        'android_upstream_bringup%': '<(android_upstream_bringup)',
 
         # Compute the architecture that we're building on.
         'conditions': [
@@ -2387,6 +2393,9 @@
               '-lm',
             ],
             'conditions': [
+              ['android_upstream_bringup==1', {
+                'defines': ['ANDROID_UPSTREAM_BRINGUP=1',],
+              }],
               ['android_build_type==0', {
                 'ldflags': [
                   '--sysroot=<(android_ndk_sysroot)',
