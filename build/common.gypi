@@ -1888,7 +1888,7 @@
             'target_conditions' : [
               ['_toolset=="target"', {
                 'conditions': [
-                  ['OS=="android" and debug_optimize==0', {
+                  ['OS=="android" and debug_optimize==0 and target_arch=="arm"', {
                     'cflags': [
                       '-mlong-calls',  # Needed when compiling with -O0
                     ],
