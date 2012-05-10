@@ -386,8 +386,6 @@ def Dispatch(options):
 
   if options.use_xvfb:
     xvfb.Stop()
-  if options.annotate:
-    print '@@@BUILD_STEP Test Finished@@@'
   return failures
 
 
@@ -451,7 +449,19 @@ def main(argv):
     option_parser.print_usage()
     sys.exit(1)
   run_tests_helper.SetLogLevel(options.verbose_count)
-  return Dispatch(options)
+  failed_tests_count = Dispatch(options)
+
+  # If we're printing annotations then failures of individual test suites are
+  # communicated by printing a STEP_FAILURE message.
+  # Returning a success exit status also prevents the buildbot from incorrectly
+  # marking the last suite as failed if there were failures in other suites in
+  # the batch (this happens because the exit status is a sum of all failures
+  # from all suites, but the buildbot associates the exit status only with the
+  # most recent step).
+  if options.annotate:
+    return 0
+  else:
+    return failed_tests_count
 
 
 if __name__ == '__main__':
