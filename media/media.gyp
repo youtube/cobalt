@@ -939,6 +939,7 @@
           ],
           'dependencies': [
             '../base/base.gyp:base',
+            'media_java',
           ],
           'include_dirs': [
             '<(SHARED_INTERMEDIATE_DIR)/media',
@@ -963,6 +964,17 @@
             },
           ],
         },
+        {
+          'target_name': 'media_java',
+          'type': 'none',
+          'dependencies': [ '../base/base.gyp:base_java' ],
+          'variables': {
+            'package_name': 'media',
+            'java_in_dir': 'base/android/java',
+          },
+          'includes': [ '../build/java.gypi' ],
+        },
+
       ],
     }, { # OS != "android"'
       # Android does not use ffmpeg, so disable the targets which require it.

@@ -72,8 +72,9 @@ fi
 # gdb commands
 cmdfile=$(mktemp /tmp/gdb_android_XXXXXXXX)
 cat >$cmdfile<<EOF
-set solib-absolute-prefix null
+# set solib-absolute-prefix null
 set solib-search-path ${shared_lib_dir}
+file ${app_process}
 target remote :4321
 EOF
 
@@ -85,5 +86,6 @@ else
   echo Using $gdb
 fi
 
-${gdb} -x $cmdfile $* $app_process
+# ${gdb} -x $cmdfile $* $app_process
+${gdb} -x $cmdfile $*
 rm $cmdfile
