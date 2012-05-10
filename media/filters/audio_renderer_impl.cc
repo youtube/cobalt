@@ -444,9 +444,7 @@ uint32 AudioRendererImpl::FillBuffer(uint8* dest,
     max_time = audio_time_buffered_ = algorithm_->GetTime();
   }
 
-  if (current_time != kNoTimestamp() &&
-      current_time > host()->GetTime() &&
-      max_time != kNoTimestamp()) {
+  if (current_time != kNoTimestamp() && max_time != kNoTimestamp()) {
     time_cb_.Run(current_time, max_time);
   }
 
