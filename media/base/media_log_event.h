@@ -69,11 +69,6 @@ struct MediaLogEvent {
     //         "buffer_current": <current offset>.
     //         "buffer_end": <last buffered byte>.
     BUFFERED_EXTENTS_CHANGED,
-
-    // The recorded statistics of the media pipeline have been updated.
-    // params: "audio_bytes_decoded", "video_bytes_decoded",
-    //         "video_frames_decoded", "video_frames_dropped": <integers>.
-    STATISTICS_UPDATED,
   };
 
   int32 id;

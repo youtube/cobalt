@@ -7,7 +7,7 @@
 #pragma once
 
 #include "base/memory/ref_counted.h"
-#include "base/synchronization/lock.h"
+#include "base/memory/scoped_ptr.h"
 #include "media/base/media_export.h"
 #include "media/base/media_log_event.h"
 #include "media/base/pipeline.h"
@@ -46,26 +46,13 @@ class MEDIA_EXPORT MediaLog : public base::RefCountedThreadSafe<MediaLog> {
   scoped_ptr<MediaLogEvent> CreateBufferedExtentsChangedEvent(
       size_t start, size_t current, size_t end);
 
-  // Called when the pipeline statistics have been updated.
-  // This gets called every frame, so we send the most recent stats after 500ms.
-  // This function is NOT thread safe.
-  void QueueStatisticsUpdatedEvent(PipelineStatistics stats);
-
  protected:
   friend class base::RefCountedThreadSafe<MediaLog>;
   virtual ~MediaLog();
 
  private:
-  // Actually add a STATISTICS_UPDATED event.
-  void AddStatisticsUpdatedEvent();
-
   // A unique (to this process) id for this MediaLog.
   int32 id_;
-
-  // The most recent set of pipeline stats.
-  PipelineStatistics last_statistics_;
-  bool stats_update_pending_;
-  base::Lock stats_lock_;
 
   DISALLOW_COPY_AND_ASSIGN(MediaLog);
 };
