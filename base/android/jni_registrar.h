@@ -11,7 +11,7 @@
 namespace base {
 namespace android {
 
-class RegistrationMethod;
+struct RegistrationMethod;
 
 // Registers the JNI bindings for the specified |method| definition containing
 // |count| elements.  Returns whether the registration of the given methods
