@@ -62,6 +62,14 @@ case "${TARGET_PRODUCT-full}" in
     return 1
 esac
 
+# If we are building NDK/SDK, and in the upstream (open source) tree,
+# define a special variable for bringup purposes.
+case "${ANDROID_BUILD_TOP-undefined}" in
+  "undefined")
+    DEFINES+=" android_upstream_bringup=1"
+    ;;
+esac
+
 toolchain_path="${ANDROID_NDK_ROOT}/toolchains/${toolchain_arch}/prebuilt/"
 export ANDROID_TOOLCHAIN="${toolchain_path}/${toolchain_dir}/bin/"
 
