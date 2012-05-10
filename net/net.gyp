@@ -41,8 +41,8 @@
       'sources': [
         'android/net_jni_registrar.cc',
         'android/net_jni_registrar.h',
-        'android/network_change_notifier.cc',
-        'android/network_change_notifier.h',
+        'android/network_change_notifier_android.cc',
+        'android/network_change_notifier_android.h',
         'android/network_change_notifier_factory.cc',
         'android/network_change_notifier_factory.h',
         'android/network_library.cc',

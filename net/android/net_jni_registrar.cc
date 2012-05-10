@@ -8,7 +8,7 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_registrar.h"
 #include "net/android/network_library.h"
-#include "net/android/network_change_notifier.h"
+#include "net/android/network_change_notifier_android.h"
 
 namespace net {
 namespace android {
