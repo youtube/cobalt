@@ -244,7 +244,7 @@ DEFINE_GUID(kTestEventType,
 }  // namespace
 
 // Fails consistently on Vista. http://crbug.com/127671
-TEST_F(EtwTraceConsumerRealtimeTest, FLAKY_ConsumeEvent) {
+TEST_F(EtwTraceConsumerRealtimeTest, DISABLED_ConsumeEvent) {
   EtwTraceController controller;
   HRESULT hr = controller.StartRealtimeSession(session_name_.c_str(),
                                                100 * 1024);
