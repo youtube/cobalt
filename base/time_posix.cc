@@ -24,12 +24,6 @@ namespace base {
 #if defined(OS_ANDROID)
 #define _POSIX_MONOTONIC_CLOCK 1
 #endif
-#if defined(OS_CHROMEOS)
-// Force definition of the system trace clock; it is a chromeos-only api
-// at the moment and surfacing it in the right place requires mucking
-// with glibc et al.
-#define CLOCK_SYSTEM_TRACE 11
-#endif
 
 struct timespec TimeDelta::ToTimeSpec() const {
   int64 microseconds = InMicroseconds();
