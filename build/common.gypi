@@ -2027,7 +2027,8 @@
                   # versions, so we have to shadow those differences off
                   # and make sure a 32-bit-on-64-bit build picks up the
                   # right files.
-                  ['host_arch!="ia32"', {
+                  # For android build, use NDK headers instead of host headers
+                  ['host_arch!="ia32" and OS!="android"', {
                     'include_dirs+': [
                       '/usr/include32',
                     ],
