@@ -15,6 +15,7 @@
 #include "media/base/filter_host.h"
 #include "media/base/media_export.h"
 #include "media/base/pipeline_status.h"
+#include "media/base/ranges.h"
 #include "ui/gfx/size.h"
 
 class MessageLoop;
@@ -210,9 +211,8 @@ class MEDIA_EXPORT Pipeline
   // the end of the media.
   base::TimeDelta GetCurrentTime() const;
 
-  // Get the approximate amount of playable data buffered so far in micro-
-  // seconds.
-  base::TimeDelta GetBufferedTime();
+  // Get approximate time ranges of buffered media.
+  Ranges<base::TimeDelta> GetBufferedTimeRanges();
 
   // Get the duration of the media in microseconds.  If the duration has not
   // been determined yet, then returns 0.
@@ -245,7 +245,7 @@ class MEDIA_EXPORT Pipeline
   void SetClockForTesting(Clock* clock);
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(PipelineTest, GetBufferedTime);
+  FRIEND_TEST_ALL_PREFIXES(PipelineTest, GetBufferedTimeRanges);
   friend class MediaLog;
 
   // Only allow ourselves to be deleted by reference counting.
@@ -432,6 +432,9 @@ class MEDIA_EXPORT Pipeline
   // caller.
   base::TimeDelta GetCurrentTime_Locked() const;
 
+  // Update internal records of which time ranges are buffered.
+  void UpdateBufferedTimeRanges_Locked();
+
   // Initiates a Stop() on |demuxer_| & |pipeline_filter_|. |callback|
   // is called once both objects have been stopped.
   void DoStop(const base::Closure& callback);
@@ -492,6 +495,9 @@ class MEDIA_EXPORT Pipeline
 
   // Amount of available buffered data.  Set by filters.
   int64 buffered_bytes_;
+
+  // Approximate time ranges of buffered media.
+  Ranges<base::TimeDelta> buffered_time_ranges_;
 
   // Total size of the media.  Set by filters.
   int64 total_bytes_;
@@ -559,11 +565,6 @@ class MEDIA_EXPORT Pipeline
 
   // Set to true in DisableAudioRendererTask().
   bool audio_disabled_;
-
-  // Keep track of the maximum buffered position so the buffering appears
-  // smooth.
-  // TODO(vrk): This is a hack.
-  base::TimeDelta max_buffered_time_;
 
   // Filter collection as passed in by Start().
   scoped_ptr<FilterCollection> filter_collection_;
