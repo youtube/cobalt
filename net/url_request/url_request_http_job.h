@@ -93,10 +93,6 @@ class URLRequestHttpJob : public URLRequestJob {
   virtual HostPortPair GetSocketAddress() const OVERRIDE;
   virtual void NotifyURLRequestDestroyed() OVERRIDE;
 
-  // Keep a reference to the url request context to be sure it's not deleted
-  // before us.
-  scoped_refptr<const URLRequestContext> context_;
-
   HttpRequestInfo request_info_;
   const HttpResponseInfo* response_info_;
 

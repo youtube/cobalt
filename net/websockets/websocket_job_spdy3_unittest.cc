@@ -262,8 +262,6 @@ class MockURLRequestContext : public net::URLRequestContext {
     transport_security_state_.EnableHost("upgrademe.com", state);
   }
 
- protected:
-  friend class base::RefCountedThreadSafe<MockURLRequestContext>;
   virtual ~MockURLRequestContext() {}
 
  private:
@@ -336,11 +334,11 @@ class WebSocketJobSpdy3Test : public PlatformTest {
     SpdySession::set_default_protocol(kProtoSPDY3);
     stream_type_ = STREAM_INVALID;
     cookie_store_ = new MockCookieStore;
-    context_ = new MockURLRequestContext(cookie_store_.get());
+    context_.reset(new MockURLRequestContext(cookie_store_.get()));
   }
   virtual void TearDown() {
     cookie_store_ = NULL;
-    context_ = NULL;
+    context_.reset();
     websocket_ = NULL;
     socket_ = NULL;
   }
@@ -454,7 +452,6 @@ class WebSocketJobSpdy3Test : public PlatformTest {
 
   StreamType stream_type_;
   scoped_refptr<MockCookieStore> cookie_store_;
-  scoped_refptr<MockURLRequestContext> context_;
   scoped_refptr<WebSocketJob> websocket_;
   scoped_refptr<SocketStream> socket_;
   scoped_ptr<MockClientSocketFactory> socket_factory_;
@@ -464,6 +461,7 @@ class WebSocketJobSpdy3Test : public PlatformTest {
   scoped_ptr<net::ProxyService> proxy_service_;
   scoped_ptr<net::MockHostResolver> host_resolver_;
   scoped_ptr<MockHttpTransactionFactory> http_factory_;
+  scoped_ptr<MockURLRequestContext> context_;
 
   static const char kHandshakeRequestWithoutCookie[];
   static const char kHandshakeRequestWithCookie[];

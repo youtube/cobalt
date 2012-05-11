@@ -19,12 +19,10 @@ namespace {
 class TestURLRequestContext : public URLRequestContext {
  public:
   TestURLRequestContext();
+  virtual ~TestURLRequestContext() {}
 
   // Gets a pointer to the cache backend.
   disk_cache::Backend* GetBackend();
-
- protected:
-  virtual ~TestURLRequestContext() {}
 
  private:
   HttpCache cache_;
@@ -104,25 +102,25 @@ void FillCache(URLRequestContext* context) {
 }  // namespace.
 
 TEST(ViewCacheHelper, EmptyCache) {
-  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext());
+  TestURLRequestContext context;
   ViewCacheHelper helper;
 
   TestCompletionCallback cb;
   std::string prefix, data;
-  int rv = helper.GetContentsHTML(context, prefix, &data, cb.callback());
+  int rv = helper.GetContentsHTML(&context, prefix, &data, cb.callback());
   EXPECT_EQ(OK, cb.GetResult(rv));
   EXPECT_FALSE(data.empty());
 }
 
 TEST(ViewCacheHelper, ListContents) {
-  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext());
+  TestURLRequestContext context;
   ViewCacheHelper helper;
 
-  FillCache(context);
+  FillCache(&context);
 
   std::string prefix, data;
   TestCompletionCallback cb;
-  int rv = helper.GetContentsHTML(context, prefix, &data, cb.callback());
+  int rv = helper.GetContentsHTML(&context, prefix, &data, cb.callback());
   EXPECT_EQ(OK, cb.GetResult(rv));
 
   EXPECT_EQ(0U, data.find("<html>"));
@@ -137,14 +135,14 @@ TEST(ViewCacheHelper, ListContents) {
 }
 
 TEST(ViewCacheHelper, DumpEntry) {
-  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext());
+  TestURLRequestContext context;
   ViewCacheHelper helper;
 
-  FillCache(context);
+  FillCache(&context);
 
   std::string data;
   TestCompletionCallback cb;
-  int rv = helper.GetEntryInfoHTML("second", context, &data, cb.callback());
+  int rv = helper.GetEntryInfoHTML("second", &context, &data, cb.callback());
   EXPECT_EQ(OK, cb.GetResult(rv));
 
   EXPECT_EQ(0U, data.find("<html>"));
@@ -162,15 +160,15 @@ TEST(ViewCacheHelper, DumpEntry) {
 
 // Makes sure the links are correct.
 TEST(ViewCacheHelper, Prefix) {
-  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext());
+  TestURLRequestContext context;
   ViewCacheHelper helper;
 
-  FillCache(context);
+  FillCache(&context);
 
   std::string key, data;
   std::string prefix("prefix:");
   TestCompletionCallback cb;
-  int rv = helper.GetContentsHTML(context, prefix, &data, cb.callback());
+  int rv = helper.GetContentsHTML(&context, prefix, &data, cb.callback());
   EXPECT_EQ(OK, cb.GetResult(rv));
 
   EXPECT_EQ(0U, data.find("<html>"));
@@ -181,13 +179,13 @@ TEST(ViewCacheHelper, Prefix) {
 }
 
 TEST(ViewCacheHelper, TruncatedFlag) {
-  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext());
+  TestURLRequestContext context;
   ViewCacheHelper helper;
 
   net::TestCompletionCallback cb;
   disk_cache::Backend* cache;
   int rv =
-      context->http_transaction_factory()->GetCache()->GetBackend(
+      context.http_transaction_factory()->GetCache()->GetBackend(
           &cache, cb.callback());
   ASSERT_EQ(OK, cb.GetResult(rv));
 
@@ -203,7 +201,7 @@ TEST(ViewCacheHelper, TruncatedFlag) {
 
   std::string data;
   TestCompletionCallback cb1;
-  rv = helper.GetEntryInfoHTML(key, context, &data, cb1.callback());
+  rv = helper.GetEntryInfoHTML(key, &context, &data, cb1.callback());
   EXPECT_EQ(OK, cb1.GetResult(rv));
 
   EXPECT_NE(std::string::npos, data.find("RESPONSE_INFO_TRUNCATED"));

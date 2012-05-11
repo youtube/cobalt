@@ -58,15 +58,13 @@ class TestURLRequestContext : public net::URLRequestContext {
   explicit TestURLRequestContext(const std::string& proxy);
   TestURLRequestContext(const std::string& proxy,
                         net::HostResolver* host_resolver);
+  virtual ~TestURLRequestContext();
 
   // Configures the proxy server, must not be called after Init().
   void SetProxyFromString(const std::string& proxy);
   void SetProxyDirect();
 
   void Init();
-
- protected:
-  virtual ~TestURLRequestContext();
 
  private:
   bool initialized_;
@@ -93,7 +91,7 @@ class TestURLRequestContextGetter : public net::URLRequestContextGetter {
 
  private:
   const scoped_refptr<base::MessageLoopProxy> io_message_loop_proxy_;
-  scoped_refptr<TestURLRequestContext> context_;
+  scoped_ptr<TestURLRequestContext> context_;
 };
 
 //-----------------------------------------------------------------------------
@@ -102,6 +100,9 @@ class TestURLRequest : public net::URLRequest {
  public:
   TestURLRequest(const GURL& url, Delegate* delegate);
   virtual ~TestURLRequest();
+
+ private:
+  const scoped_ptr<net::URLRequestContext> context_;
 };
 
 //-----------------------------------------------------------------------------

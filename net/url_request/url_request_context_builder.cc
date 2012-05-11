@@ -179,7 +179,7 @@ void URLRequestContextBuilder::set_proxy_config_service(
 }
 #endif  // defined(OS_LINUX)
 
-scoped_refptr<URLRequestContext> URLRequestContextBuilder::Build() {
+URLRequestContext* URLRequestContextBuilder::Build() {
   BasicURLRequestContext* context = new BasicURLRequestContext;
   URLRequestContextStorage* storage = context->storage();
 
