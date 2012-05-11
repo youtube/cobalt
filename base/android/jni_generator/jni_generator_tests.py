@@ -77,7 +77,7 @@ class TestGenerator(unittest.TestCase):
             String[] projection, String selection,
             String[] selectionArgs, String sortOrder);
     private native void nativeGotOrientation(
-            int nativePtr /* device_orientation::DeviceOrientationAndroid */,
+            int nativePtr /* device_orientation::DataFetcherImplAndroid */,
             double alpha, double beta, double gamma);
     """
     natives = jni_generator.ExtractNatives(test_data)
@@ -189,7 +189,7 @@ class TestGenerator(unittest.TestCase):
                      name='GotOrientation',
                      params=[Param(datatype='int',
                                    cpp_class_name=
-                                 'device_orientation::DeviceOrientationAndroid',
+                                 'device_orientation::DataFetcherImplAndroid',
                                    name='nativePtr'),
                              Param(datatype='double',
                                    name='alpha'),
@@ -200,7 +200,7 @@ class TestGenerator(unittest.TestCase):
                             ],
                      java_class_name='',
                      type='method',
-                     p0_type='device_orientation::DeviceOrientationAndroid'),
+                     p0_type='device_orientation::DataFetcherImplAndroid'),
     ]
     self.assertListEquals(golden_natives, natives)
     h = jni_generator.InlHeaderFileGenerator('', 'org/chromium/TestJni',
@@ -322,8 +322,8 @@ static void GotOrientation(JNIEnv* env, jobject obj,
     jdouble beta,
     jdouble gamma) {
   DCHECK(nativePtr) << "GotOrientation";
-  device_orientation::DeviceOrientationAndroid* native =
-    reinterpret_cast<device_orientation::DeviceOrientationAndroid*>(nativePtr);
+  device_orientation::DataFetcherImplAndroid* native =
+    reinterpret_cast<device_orientation::DataFetcherImplAndroid*>(nativePtr);
   return native->GotOrientation(env, obj, alpha, beta, gamma);
 }
 
