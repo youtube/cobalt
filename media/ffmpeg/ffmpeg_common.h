@@ -10,9 +10,11 @@
 
 #include "base/compiler_specific.h"
 #include "base/time.h"
+#include "media/base/audio_decoder_config.h"
 #include "media/base/channel_layout.h"
 #include "media/base/media_export.h"
 #include "media/base/video_frame.h"
+#include "media/base/video_decoder_config.h"
 
 // Include FFmpeg header files.
 extern "C" {
@@ -94,6 +96,12 @@ VideoFrame::Format PixelFormatToVideoFormat(PixelFormat pixel_format);
 
 // Converts video formats to its corresponding FFmpeg's pixel formats.
 PixelFormat VideoFormatToPixelFormat(VideoFrame::Format video_format);
+
+// Converts an FFmpeg video codec ID into its corresponding supported codec id.
+VideoCodec CodecIDToVideoCodec(CodecID codec_id);
+
+// Converts an FFmpeg audio codec ID into its corresponding supported codec id.
+AudioCodec CodecIDToAudioCodec(CodecID codec_id);
 
 // Calculates the duration of one frame based on the frame rate specified by
 // |config|.
