@@ -38,28 +38,28 @@ URLRequestContext::~URLRequestContext() {
   AssertNoURLRequests();
 }
 
-void URLRequestContext::CopyFrom(URLRequestContext* other) {
+void URLRequestContext::CopyFrom(const URLRequestContext* other) {
   // Copy URLRequestContext parameters.
-  set_net_log(other->net_log());
-  set_host_resolver(other->host_resolver());
-  set_cert_verifier(other->cert_verifier());
-  set_server_bound_cert_service(other->server_bound_cert_service());
-  set_fraudulent_certificate_reporter(other->fraudulent_certificate_reporter());
-  set_http_auth_handler_factory(other->http_auth_handler_factory());
-  set_proxy_service(other->proxy_service());
-  set_ssl_config_service(other->ssl_config_service());
-  set_network_delegate(other->network_delegate());
-  set_http_server_properties(other->http_server_properties());
-  set_cookie_store(other->cookie_store());
-  set_transport_security_state(other->transport_security_state());
+  set_net_log(other->net_log_);
+  set_host_resolver(other->host_resolver_);
+  set_cert_verifier(other->cert_verifier_);
+  set_server_bound_cert_service(other->server_bound_cert_service_);
+  set_fraudulent_certificate_reporter(other->fraudulent_certificate_reporter_);
+  set_http_auth_handler_factory(other->http_auth_handler_factory_);
+  set_proxy_service(other->proxy_service_);
+  set_ssl_config_service(other->ssl_config_service_);
+  set_network_delegate(other->network_delegate_);
+  set_http_server_properties(other->http_server_properties_);
+  set_cookie_store(other->cookie_store_);
+  set_transport_security_state(other->transport_security_state_);
   // FTPAuthCache is unique per context.
-  set_accept_language(other->accept_language());
-  set_accept_charset(other->accept_charset());
-  set_referrer_charset(other->referrer_charset());
-  set_http_transaction_factory(other->http_transaction_factory());
-  set_ftp_transaction_factory(other->ftp_transaction_factory());
-  set_job_factory(other->job_factory());
-  set_throttler_manager(other->throttler_manager());
+  set_accept_language(other->accept_language_);
+  set_accept_charset(other->accept_charset_);
+  set_referrer_charset(other->referrer_charset_);
+  set_http_transaction_factory(other->http_transaction_factory_);
+  set_ftp_transaction_factory(other->ftp_transaction_factory_);
+  set_job_factory(other->job_factory_);
+  set_throttler_manager(other->throttler_manager_);
 }
 
 void URLRequestContext::set_cookie_store(CookieStore* cookie_store) {
