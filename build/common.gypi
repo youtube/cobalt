@@ -125,6 +125,7 @@
       'enable_hidpi%': '<(enable_hidpi)',
       'enable_touch_ui%': '<(enable_touch_ui)',
       'enable_metro%': '<(enable_metro)',
+      'android_upstream_bringup%': '<(android_upstream_bringup)',
 
       # We used to provide a variable for changing how libraries were built.
       # This variable remains until we can clean up all the users.
@@ -563,6 +564,7 @@
     'enable_task_manager%': '<(enable_task_manager)',
     'platformsdk_path%': '<(platformsdk_path)',
     'wix_path%': '<(wix_path)',
+    'android_upstream_bringup%': '<(android_upstream_bringup)',
 
     # Use system yasm instead of bundled one.
     'use_system_yasm%': 0,
