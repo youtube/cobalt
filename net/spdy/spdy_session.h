@@ -398,19 +398,11 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // Adjust the send window size of all ActiveStreams and PendingCreateStreams.
   void UpdateStreamsSendWindowSize(int32 delta_window_size);
 
-  // Send the PING (preface-PING and trailing-PING) frames.
+  // Send the PING (preface-PING) frame.
   void SendPrefacePingIfNoneInFlight();
 
   // Send PING if there are no PINGs in flight and we haven't heard from server.
   void SendPrefacePing();
-
-  // Send a PING after delay. Don't post a PING if there is already
-  // a trailing PING pending.
-  void PlanToSendTrailingPing();
-
-  // Send a PING if there is no |trailing_ping_pending_|. This PING verifies
-  // that the requests are being received by the server.
-  void SendTrailingPing();
 
   // Send the PING frame.
   void WritePingFrame(uint32 unique_id);
@@ -458,7 +450,6 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   bool Respond(const SpdyHeaderBlock& headers,
                const scoped_refptr<SpdyStream> stream);
 
-
   void RecordPingRTTHistogram(base::TimeDelta duration);
   void RecordHistograms();
   void RecordProtocolErrorHistogram(SpdyProtocolErrorDetails details);
@@ -502,10 +493,6 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
     connection_at_risk_of_loss_time_ = duration;
   }
 
-  void set_trailing_ping_delay_time(base::TimeDelta duration) {
-    trailing_ping_delay_time_ = duration;
-  }
-
   void set_hung_interval(base::TimeDelta duration) {
     hung_interval_ = duration;
   }
@@ -514,9 +501,7 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
 
   uint32 next_ping_id() const { return next_ping_id_; }
 
-  base::TimeTicks received_data_time() const { return received_data_time_; }
-
-  bool trailing_ping_pending() const { return trailing_ping_pending_; }
+  base::TimeTicks last_activity_time() const { return last_activity_time_; }
 
   bool check_ping_status_pending() const { return check_ping_status_pending_; }
 
@@ -621,21 +606,12 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // This is the last time we have sent a PING.
   base::TimeTicks last_ping_sent_time_;
 
-  // This is the last time we have received data.
-  base::TimeTicks received_data_time_;
-
-  // Indicate if we have already scheduled a delayed task to send a trailing
-  // ping (and we never have more than one scheduled at a time).
-  bool trailing_ping_pending_;
+  // This is the last time we had activity in the session.
+  base::TimeTicks last_activity_time_;
 
   // Indicate if we have already scheduled a delayed task to check the ping
   // status.
   bool check_ping_status_pending_;
-
-  // Indicate if we need to send a ping (generally, a trailing ping). This helps
-  // us to decide if we need yet another trailing ping, or if it would be a
-  // waste of effort (and MUST not be done).
-  bool need_to_send_ping_;
 
   // Indicate if flow control is enabled or not.
   bool flow_control_;
@@ -673,16 +649,11 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   // we could adjust it to send fewer pings perhaps.
   base::TimeDelta connection_at_risk_of_loss_time_;
 
-  // This is the amount of time we wait before sending a trailing ping. We use
-  // a trailing ping (sent after all data) to get an effective acknowlegement
-  // from the server that it has indeed received all (prior) data frames. With
-  // that assurance, we are willing to enter into a wait state for responses
-  // to our last data frame(s) without further pings.
-  base::TimeDelta trailing_ping_delay_time_;
-
-  // The amount of time that we are willing to tolerate with no data received
-  // (of any form), while there is a ping in flight, before we declare the
-  // connection to be hung.
+  // The amount of time that we are willing to tolerate with no activity (of any
+  // form), while there is a ping in flight, before we declare the connection to
+  // be hung. TODO(rtenneti): When hung, instead of resetting connection, race
+  // to build a new connection, and see if that completes before we (finally)
+  // get a PING response (http://crbug.com/127812).
   base::TimeDelta hung_interval_;
 
   // This SPDY proxy is allowed to push resources from origins that are
