@@ -48,7 +48,7 @@ TEST(DhcpProxyScriptFetcherWin, AdapterNamesAndPacURLFromDhcp) {
 class RealFetchTester {
  public:
   RealFetchTester()
-      : context_((new TestURLRequestContext())),
+      : context_(new TestURLRequestContext),
         fetcher_(new DhcpProxyScriptFetcherWin(context_.get())),
         finished_(false),
         on_completion_is_error_(false) {
@@ -114,7 +114,7 @@ class RealFetchTester {
     base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(30));
   }
 
-  scoped_refptr<URLRequestContext> context_;
+  scoped_ptr<URLRequestContext> context_;
   scoped_ptr<DhcpProxyScriptFetcherWin> fetcher_;
   bool finished_;
   string16 pac_text_;
@@ -200,7 +200,7 @@ TEST(DhcpProxyScriptFetcherWin, RealFetchWithDeferredCancel) {
   // the cancel is called before they complete.
   RealFetchTester fetcher;
   fetcher.fetcher_.reset(
-      new DelayingDhcpProxyScriptFetcherWin(fetcher.context_));
+      new DelayingDhcpProxyScriptFetcherWin(fetcher.context_.get()));
   fetcher.on_completion_is_error_ = true;
   fetcher.RunTestWithDeferredCancel();
   fetcher.WaitUntilDone();
@@ -372,7 +372,7 @@ class FetcherClient {
 public:
   FetcherClient()
       : context_(new TestURLRequestContext),
-        fetcher_(context_),
+        fetcher_(context_.get()),
         finished_(false),
         result_(ERR_UNEXPECTED) {
   }
@@ -411,7 +411,7 @@ public:
     fetcher_.ResetTestState();
   }
 
-  scoped_refptr<URLRequestContext> context_;
+  scoped_ptr<URLRequestContext> context_;
   MockDhcpProxyScriptFetcherWin fetcher_;
   bool finished_;
   int result_;
@@ -421,9 +421,9 @@ public:
 // We separate out each test's logic so that we can easily implement
 // the ReuseFetcher test at the bottom.
 void TestNormalCaseURLConfiguredOneAdapter(FetcherClient* client) {
-  scoped_refptr<URLRequestContext> context(new TestURLRequestContext);
+  TestURLRequestContext context;
   scoped_ptr<DummyDhcpProxyScriptAdapterFetcher> adapter_fetcher(
-      new DummyDhcpProxyScriptAdapterFetcher(context));
+      new DummyDhcpProxyScriptAdapterFetcher(&context));
   adapter_fetcher->Configure(true, OK, L"bingo", 1);
   client->fetcher_.PushBackAdapter("a", adapter_fetcher.release());
   client->RunTest();
@@ -573,9 +573,9 @@ TEST(DhcpProxyScriptFetcherWin, ShortCircuitLessPreferredAdapters) {
 }
 
 void TestImmediateCancel(FetcherClient* client) {
-  scoped_refptr<URLRequestContext> context(new TestURLRequestContext);
+  TestURLRequestContext context;
   scoped_ptr<DummyDhcpProxyScriptAdapterFetcher> adapter_fetcher(
-      new DummyDhcpProxyScriptAdapterFetcher(context));
+      new DummyDhcpProxyScriptAdapterFetcher(&context));
   adapter_fetcher->Configure(true, OK, L"bingo", 1);
   client->fetcher_.PushBackAdapter("a", adapter_fetcher.release());
   client->RunTest();

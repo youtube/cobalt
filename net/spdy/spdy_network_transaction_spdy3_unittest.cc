@@ -2767,13 +2767,12 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, RedirectGetRequest) {
   HttpStreamFactory::set_force_spdy_always(true);
   TestDelegate d;
   {
+    SpdyURLRequestContext spdy_url_request_context;
     net::URLRequest r(GURL("http://www.google.com/"), &d);
-    SpdyURLRequestContext* spdy_url_request_context =
-        new SpdyURLRequestContext();
-    r.set_context(spdy_url_request_context);
-    spdy_url_request_context->socket_factory().
+    r.set_context(&spdy_url_request_context);
+    spdy_url_request_context.socket_factory().
         AddSocketDataProvider(data.get());
-    spdy_url_request_context->socket_factory().
+    spdy_url_request_context.socket_factory().
         AddSocketDataProvider(data2.get());
 
     d.set_quit_on_redirect(true);
@@ -3025,12 +3024,11 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, RedirectServerPush) {
   HttpStreamFactory::set_force_spdy_always(true);
   TestDelegate d;
   TestDelegate d2;
-  scoped_refptr<SpdyURLRequestContext> spdy_url_request_context(
-      new SpdyURLRequestContext());
+  SpdyURLRequestContext spdy_url_request_context;
   {
     net::URLRequest r(GURL("http://www.google.com/"), &d);
-    r.set_context(spdy_url_request_context);
-    spdy_url_request_context->socket_factory().
+    r.set_context(&spdy_url_request_context);
+    spdy_url_request_context.socket_factory().
         AddSocketDataProvider(data.get());
 
     r.Start();
@@ -3041,8 +3039,8 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, RedirectServerPush) {
     EXPECT_EQ(contents, d.data_received());
 
     net::URLRequest r2(GURL("http://www.google.com/foo.dat"), &d2);
-    r2.set_context(spdy_url_request_context);
-    spdy_url_request_context->socket_factory().
+    r2.set_context(&spdy_url_request_context);
+    spdy_url_request_context.socket_factory().
         AddSocketDataProvider(data2.get());
 
     d2.set_quit_on_redirect(true);

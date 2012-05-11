@@ -53,10 +53,10 @@ class URLRequestContextBuilderTest : public PlatformTest {
 TEST_F(URLRequestContextBuilderTest, DefaultSettings) {
   ASSERT_TRUE(test_server_.Start());
 
-  scoped_refptr<URLRequestContext> context = builder_.Build();
+  scoped_ptr<URLRequestContext> context(builder_.Build());
   TestDelegate delegate;
   URLRequest request(test_server_.GetURL("echoheader?Foo"), &delegate);
-  request.set_context(context);
+  request.set_context(context.get());
   request.set_method("GET");
   request.SetExtraRequestHeaderByName("Foo", "Bar", false);
   request.Start();
@@ -68,10 +68,10 @@ TEST_F(URLRequestContextBuilderTest, UserAgent) {
   ASSERT_TRUE(test_server_.Start());
 
   builder_.set_user_agent("Bar");
-  scoped_refptr<URLRequestContext> context = builder_.Build();
+  scoped_ptr<URLRequestContext> context(builder_.Build());
   TestDelegate delegate;
   URLRequest request(test_server_.GetURL("echoheader?User-Agent"), &delegate);
-  request.set_context(context);
+  request.set_context(context.get());
   request.set_method("GET");
   request.Start();
   MessageLoop::current()->Run();
