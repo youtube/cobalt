@@ -50,10 +50,10 @@ class NET_EXPORT SocketStreamJob
   virtual SocketStream::UserData* GetUserData(const void* key) const;
   virtual void SetUserData(const void* key, SocketStream::UserData* data);
 
-  URLRequestContext* context() const {
+  const URLRequestContext* context() const {
     return socket_->context();
   }
-  void set_context(URLRequestContext* context) {
+  void set_context(const URLRequestContext* context) {
     socket_->set_context(context);
   }
 

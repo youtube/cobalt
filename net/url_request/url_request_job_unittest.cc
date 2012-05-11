@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -39,15 +39,15 @@ const MockTransaction kGZip_Transaction = {
 }  // namespace
 
 TEST(URLRequestJob, TransactionNotifiedWhenDone) {
+  MockNetworkLayer network_layer;
+  TestURLRequestContext context;
+  context.set_http_transaction_factory(&network_layer);
+
   TestDelegate d;
   TestURLRequest req(GURL(kGZip_Transaction.url), &d);
-  MockNetworkLayer network_layer;
-
   AddMockTransaction(&kGZip_Transaction);
 
-  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext());
-  context->set_http_transaction_factory(&network_layer);
-  req.set_context(context);
+  req.set_context(&context);
   req.set_method("GET");
   req.Start();
 
@@ -59,17 +59,17 @@ TEST(URLRequestJob, TransactionNotifiedWhenDone) {
 }
 
 TEST(URLRequestJob, SyncTransactionNotifiedWhenDone) {
+  MockNetworkLayer network_layer;
+  TestURLRequestContext context;
+  context.set_http_transaction_factory(&network_layer);
+
   TestDelegate d;
   TestURLRequest req(GURL(kGZip_Transaction.url), &d);
-  MockNetworkLayer network_layer;
-
   MockTransaction transaction(kGZip_Transaction);
   transaction.test_mode = TEST_MODE_SYNC_ALL;
   AddMockTransaction(&transaction);
 
-  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext());
-  context->set_http_transaction_factory(&network_layer);
-  req.set_context(context);
+  req.set_context(&context);
   req.set_method("GET");
   req.Start();
 

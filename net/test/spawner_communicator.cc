@@ -173,8 +173,8 @@ void SpawnerCommunicator::SendCommandAndWaitForResultOnIOThread(
   cur_request_->SetUserData(this, data);
 
   // Build the URLRequest.
-  scoped_refptr<TestURLRequestContext> context(new TestURLRequestContext());
-  cur_request_->set_context(context);
+  context_.reset(new TestURLRequestContext);
+  cur_request_->set_context(context_.get());
   if (post_data.empty()) {
     cur_request_->set_method("GET");
   } else {
@@ -364,4 +364,3 @@ bool SpawnerCommunicator::StopServer() {
 }
 
 }  // namespace net
-

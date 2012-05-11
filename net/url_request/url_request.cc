@@ -132,7 +132,8 @@ void URLRequest::Delegate::OnSSLCertificateError(URLRequest* request,
 // URLRequest
 
 URLRequest::URLRequest(const GURL& url, Delegate* delegate)
-    : url_chain_(1, url),
+    : context_(NULL),
+      url_chain_(1, url),
       method_("GET"),
       referrer_policy_(CLEAR_REFERRER_ON_TRANSITION_FROM_SECURE_TO_INSECURE),
       load_flags_(LOAD_NORMAL),
@@ -721,7 +722,7 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
 }
 
 const URLRequestContext* URLRequest::context() const {
-  return context_.get();
+  return context_;
 }
 
 void URLRequest::set_context(const URLRequestContext* context) {
@@ -738,7 +739,7 @@ void URLRequest::set_context(const URLRequestContext* context) {
     url_requests->insert(this);
   }
 
-  scoped_refptr<const URLRequestContext> prev_context = context_;
+  const URLRequestContext* prev_context = context_;
 
   context_ = context;
 
