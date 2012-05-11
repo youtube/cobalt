@@ -11,7 +11,6 @@
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "media/base/demuxer.h"
-#include "media/base/download_rate_monitor.h"
 #include "media/base/filter_host.h"
 #include "media/base/media_export.h"
 #include "media/base/pipeline_status.h"
@@ -453,14 +452,6 @@ class MEDIA_EXPORT Pipeline
 
   void OnAudioUnderflow();
 
-  // Called when |download_rate_monitor_| believes that the media can
-  // be played through without needing to pause to buffer.
-  void OnCanPlayThrough();
-
-  // Carries out the notification that the media can be played through without
-  // needing to pause to buffer.
-  void NotifyCanPlayThrough();
-
   void StartClockIfWaitingForTimeUpdate_Locked();
 
   // Report pipeline |status| through |cb| avoiding duplicate error reporting.
@@ -504,14 +495,6 @@ class MEDIA_EXPORT Pipeline
 
   // Video's natural width and height.  Set by filters.
   gfx::Size natural_size_;
-
-  // Set by the demuxer to indicate whether the data source is a streaming
-  // source.
-  bool streaming_;
-
-  // Indicates whether the data source is local, such as a local media file
-  // from disk or a local webcam stream.
-  bool local_source_;
 
   // Current volume level (from 0.0f to 1.0f).  This value is set immediately
   // via SetVolume() and a task is dispatched on the message loop to notify the
@@ -605,12 +588,6 @@ class MEDIA_EXPORT Pipeline
   // Time of pipeline creation; is non-zero only until the pipeline first
   // reaches "kStarted", at which point it is used & zeroed out.
   base::Time creation_time_;
-
-  // Approximates the rate at which the media is being downloaded.
-  DownloadRateMonitor download_rate_monitor_;
-
-  // True if the pipeline is actively downloading bytes, false otherwise.
-  bool is_downloading_data_;
 
   DISALLOW_COPY_AND_ASSIGN(Pipeline);
 };
