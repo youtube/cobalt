@@ -87,6 +87,7 @@
       # which requires RTTI.
       'defines': [
         'GOOGLE_PROTOBUF_NO_RTTI',
+        'GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER',
       ],
 
       'direct_dependent_settings': {
@@ -96,6 +97,7 @@
         ],
         'defines': [
           'GOOGLE_PROTOBUF_NO_RTTI',
+          'GOOGLE_PROTOBUF_NO_STATIC_INITIALIZER',
         ],
       },
     },
