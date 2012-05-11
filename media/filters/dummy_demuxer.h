@@ -41,7 +41,7 @@ class DummyDemuxerStream : public DemuxerStream {
 
 class MEDIA_EXPORT DummyDemuxer : public Demuxer {
  public:
-  DummyDemuxer(bool has_video, bool has_audio, bool local_source);
+  DummyDemuxer(bool has_video, bool has_audio);
   virtual ~DummyDemuxer();
 
   // Demuxer implementation.
@@ -51,13 +51,10 @@ class MEDIA_EXPORT DummyDemuxer : public Demuxer {
       DemuxerStream::Type type) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
   virtual int GetBitrate() OVERRIDE;
-  virtual bool IsLocalSource() OVERRIDE;
-  virtual bool IsSeekable() OVERRIDE;
 
  private:
   bool has_video_;
   bool has_audio_;
-  bool local_source_;
   std::vector< scoped_refptr<DummyDemuxerStream> > streams_;
 
   DISALLOW_COPY_AND_ASSIGN(DummyDemuxer);

@@ -70,15 +70,6 @@ class MEDIA_EXPORT Demuxer : public base::RefCountedThreadSafe<Demuxer> {
   // approximated. Returns 0 if it is unknown.
   virtual int GetBitrate() = 0;
 
-  // Returns true if the source is from a local file or stream (such as a
-  // webcam stream), false otherwise.
-  //
-  // TODO(scherkus): See http://crbug.com/120426 on why we should remove this.
-  virtual bool IsLocalSource() = 0;
-
-  // Returns true if seeking is possible; false otherwise.
-  virtual bool IsSeekable() = 0;
-
  protected:
   friend class base::RefCountedThreadSafe<Demuxer>;
   virtual ~Demuxer();

@@ -32,10 +32,9 @@ void DummyDemuxerStream::Read(const ReadCB& read_cb) {}
 
 void DummyDemuxerStream::EnableBitstreamConverter() {}
 
-DummyDemuxer::DummyDemuxer(bool has_video, bool has_audio, bool local_source)
+DummyDemuxer::DummyDemuxer(bool has_video, bool has_audio)
     : has_video_(has_video),
-      has_audio_(has_audio),
-      local_source_(local_source) {
+      has_audio_(has_audio) {
   streams_.resize(DemuxerStream::NUM_TYPES);
   if (has_audio)
     streams_[DemuxerStream::AUDIO] =
@@ -63,16 +62,6 @@ base::TimeDelta DummyDemuxer::GetStartTime() const {
 
 int DummyDemuxer::GetBitrate() {
   return 0;
-}
-
-bool DummyDemuxer::IsLocalSource() {
-  return local_source_;
-}
-
-bool DummyDemuxer::IsSeekable() {
-  // This is always false because DummyDemuxer is only used by WebRTC and such
-  // streams are not seekable.
-  return false;
 }
 
 }  // namespace media
