@@ -48,14 +48,6 @@ class NET_EXPORT URLFetcherDelegate {
   virtual void OnURLFetchUploadProgress(const URLFetcher* source,
                                         int64 current, int64 total);
 
-  // TODO(akalin): Remove this hack once rlz is updated to use
-  // net::URLFetcher{,Delegate}.
-#ifdef RLZ_LIB_FINANCIAL_PING_H_
-  struct content {
-    typedef ::net::URLFetcher URLFetcher;
-  };
-#endif
-
  protected:
   virtual ~URLFetcherDelegate();
 };
