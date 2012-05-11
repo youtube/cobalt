@@ -669,7 +669,7 @@
               'inputs': [
                 '../testing/android/generate_native_test.py',
                 '<(PRODUCT_DIR)/lib.target/libbase_unittests.so',
-                '<(PRODUCT_DIR)/chromium_base.jar'
+                '<(PRODUCT_DIR)/lib.java/chromium_base.jar'
               ],
               'outputs': [
                 '<(PRODUCT_DIR)/ChromeNativeTests_base_unittests-debug.apk',
@@ -679,7 +679,7 @@
                 '--native_library',
                 '<(PRODUCT_DIR)/lib.target/libbase_unittests.so',
                 '--jar',
-                '<(PRODUCT_DIR)/chromium_base.jar',
+                '<(PRODUCT_DIR)/lib.java/chromium_base.jar',
                 '--output',
                 '<(PRODUCT_DIR)/base_unittests_apk',
                 '--ant-args', 
