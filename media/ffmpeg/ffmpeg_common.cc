@@ -5,8 +5,6 @@
 #include "media/ffmpeg/ffmpeg_common.h"
 
 #include "base/logging.h"
-#include "media/base/audio_decoder_config.h"
-#include "media/base/video_decoder_config.h"
 
 namespace media {
 
@@ -23,7 +21,7 @@ int64 ConvertToTimeBase(const AVRational& time_base,
   return av_rescale_q(timestamp.InMicroseconds(), kMicrosBase, time_base);
 }
 
-static AudioCodec CodecIDToAudioCodec(CodecID codec_id) {
+AudioCodec CodecIDToAudioCodec(CodecID codec_id) {
   switch (codec_id) {
     case CODEC_ID_AAC:
       return kCodecAAC;
@@ -84,7 +82,7 @@ static CodecID AudioCodecToCodecID(AudioCodec audio_codec,
   return CODEC_ID_NONE;
 }
 
-static VideoCodec CodecIDToVideoCodec(CodecID codec_id) {
+VideoCodec CodecIDToVideoCodec(CodecID codec_id) {
   switch (codec_id) {
     case CODEC_ID_VC1:
       return kCodecVC1;

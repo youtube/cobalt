@@ -733,4 +733,19 @@ TEST_F(FFmpegDemuxerTest, NoID3TagData) {
   EXPECT_FALSE(av_dict_get(format_context()->metadata, "title", NULL, 0));
 }
 
+// Ensure MP3 files with large image/video based ID3 tags demux okay.  FFmpeg
+// will hand us a video stream to the data which will likely be in a format we
+// don't accept as video; e.g. PNG.
+TEST_F(FFmpegDemuxerTest, Mp3WithVideoStreamID3TagData) {
+#if !defined(USE_PROPRIETARY_CODECS)
+  return;
+#endif
+  CreateDemuxer("id3_png_test.mp3");
+  InitializeDemuxer();
+
+  // Ensure the expected streams are present.
+  EXPECT_FALSE(demuxer_->GetStream(DemuxerStream::VIDEO));
+  EXPECT_TRUE(demuxer_->GetStream(DemuxerStream::AUDIO));
+}
+
 }  // namespace media
