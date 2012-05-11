@@ -10,9 +10,11 @@
 #include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/time.h"
+#include "media/base/audio_decoder_config.h"
 #include "media/base/data_buffer.h"
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
+#include "media/base/video_decoder_config.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/filters/bitstream_converter.h"
 #include "media/filters/ffmpeg_demuxer.h"
@@ -519,9 +521,15 @@ void FFmpegDemuxer::InitializeTask(DemuxerHost* host,
     if (codec_type == AVMEDIA_TYPE_AUDIO) {
       if (found_audio_stream)
         continue;
+      // Ensure the codec is supported.
+      if (CodecIDToAudioCodec(codec_context->codec_id) == kUnknownAudioCodec)
+        continue;
       found_audio_stream = true;
     } else if (codec_type == AVMEDIA_TYPE_VIDEO) {
       if (found_video_stream)
+        continue;
+      // Ensure the codec is supported.
+      if (CodecIDToVideoCodec(codec_context->codec_id) == kUnknownVideoCodec)
         continue;
       found_video_stream = true;
     } else {
