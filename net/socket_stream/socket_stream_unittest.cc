@@ -279,11 +279,12 @@ TEST_F(SocketStreamTest, CloseFlushPendingWrite) {
       base::Unretained(this)));
 
   MockHostResolver host_resolver;
+  TestURLRequestContext context;
 
   scoped_refptr<SocketStream> socket_stream(
       new SocketStream(GURL("ws://example.com/demo"), delegate.get()));
 
-  socket_stream->set_context(new TestURLRequestContext());
+  socket_stream->set_context(&context);
   socket_stream->SetHostResolver(&host_resolver);
 
   MockWrite data_writes[] = {
@@ -379,8 +380,10 @@ TEST_F(SocketStreamTest, BasicAuthProxy) {
   scoped_refptr<SocketStream> socket_stream(
       new SocketStream(GURL("ws://example.com/demo"), delegate.get()));
 
-  socket_stream->set_context(new TestURLRequestContext("myproxy:70"));
   MockHostResolver host_resolver;
+  TestURLRequestContext context("myproxy:70");
+
+  socket_stream->set_context(&context);
   socket_stream->SetHostResolver(&host_resolver);
   socket_stream->SetClientSocketFactory(&mock_socket_factory);
 
@@ -416,11 +419,12 @@ TEST_F(SocketStreamTest, IOPending) {
       &SocketStreamTest::DoIOPending, base::Unretained(this)));
 
   MockHostResolver host_resolver;
+  TestURLRequestContext context;
 
   scoped_refptr<SocketStream> socket_stream(
       new SocketStream(GURL("ws://example.com/demo"), delegate.get()));
 
-  socket_stream->set_context(new TestURLRequestContext());
+  socket_stream->set_context(&context);
   socket_stream->SetHostResolver(&host_resolver);
 
   MockWrite data_writes[] = {
@@ -479,11 +483,12 @@ TEST_F(SocketStreamTest, SwitchToSpdy) {
       &SocketStreamTest::DoSwitchToSpdyTest, base::Unretained(this)));
 
   MockHostResolver host_resolver;
+  TestURLRequestContext context;
 
   scoped_refptr<SocketStream> socket_stream(
       new SocketStream(GURL("ws://example.com/demo"), delegate.get()));
 
-  socket_stream->set_context(new TestURLRequestContext());
+  socket_stream->set_context(&context);
   socket_stream->SetHostResolver(&host_resolver);
 
   socket_stream->Connect();
@@ -508,11 +513,12 @@ TEST_F(SocketStreamTest, SwitchAfterPending) {
       &SocketStreamTest::DoIOPending, base::Unretained(this)));
 
   MockHostResolver host_resolver;
+  TestURLRequestContext context;
 
   scoped_refptr<SocketStream> socket_stream(
       new SocketStream(GURL("ws://example.com/demo"), delegate.get()));
 
-  socket_stream->set_context(new TestURLRequestContext());
+  socket_stream->set_context(&context);
   socket_stream->SetHostResolver(&host_resolver);
 
   socket_stream->Connect();
@@ -556,6 +562,8 @@ TEST_F(SocketStreamTest, SecureProxyConnectError) {
   mock_socket_factory.AddSSLSocketDataProvider(&ssl);
 
   TestCompletionCallback test_callback;
+  MockHostResolver host_resolver;
+  TestURLRequestContext context("https://myproxy:70");
 
   scoped_ptr<SocketStreamEventRecorder> delegate(
       new SocketStreamEventRecorder(test_callback.callback()));
@@ -565,8 +573,7 @@ TEST_F(SocketStreamTest, SecureProxyConnectError) {
   scoped_refptr<SocketStream> socket_stream(
       new SocketStream(GURL("ws://example.com/demo"), delegate.get()));
 
-  socket_stream->set_context(new TestURLRequestContext("https://myproxy:70"));
-  MockHostResolver host_resolver;
+  socket_stream->set_context(&context);
   socket_stream->SetHostResolver(&host_resolver);
   socket_stream->SetClientSocketFactory(&mock_socket_factory);
 
@@ -608,6 +615,8 @@ TEST_F(SocketStreamTest, SecureProxyConnect) {
   mock_socket_factory.AddSSLSocketDataProvider(&ssl);
 
   TestCompletionCallback test_callback;
+  MockHostResolver host_resolver;
+  TestURLRequestContext context("https://myproxy:70");
 
   scoped_ptr<SocketStreamEventRecorder> delegate(
       new SocketStreamEventRecorder(test_callback.callback()));
@@ -617,8 +626,7 @@ TEST_F(SocketStreamTest, SecureProxyConnect) {
   scoped_refptr<SocketStream> socket_stream(
       new SocketStream(GURL("ws://example.com/demo"), delegate.get()));
 
-  socket_stream->set_context(new TestURLRequestContext("https://myproxy:70"));
-  MockHostResolver host_resolver;
+  socket_stream->set_context(&context);
   socket_stream->SetHostResolver(&host_resolver);
   socket_stream->SetClientSocketFactory(&mock_socket_factory);
 

@@ -162,11 +162,14 @@ void TestURLRequestContext::Init() {
 
 
 TestURLRequest::TestURLRequest(const GURL& url, Delegate* delegate)
-    : net::URLRequest(url, delegate) {
-  set_context(new TestURLRequestContext());
+    : net::URLRequest(url, delegate),
+      context_(new TestURLRequestContext) {
+  set_context(context_.get());
 }
 
-TestURLRequest::~TestURLRequest() {}
+TestURLRequest::~TestURLRequest() {
+  set_context(NULL);
+}
 
 TestURLRequestContextGetter::TestURLRequestContextGetter(
     const scoped_refptr<base::MessageLoopProxy>& io_message_loop_proxy)
@@ -177,8 +180,8 @@ TestURLRequestContextGetter::TestURLRequestContextGetter(
 TestURLRequestContextGetter::~TestURLRequestContextGetter() {}
 
 TestURLRequestContext* TestURLRequestContextGetter::GetURLRequestContext() {
-  if (!context_)
-    context_ = new TestURLRequestContext();
+  if (!context_.get())
+    context_.reset(new TestURLRequestContext);
   return context_.get();
 }
 

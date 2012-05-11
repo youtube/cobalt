@@ -44,14 +44,10 @@ class URLRequestThrottlerManager;
 // these member variables, since they may be shared. For the ones that aren't
 // shared, URLRequestContextStorage can be helpful in defining their storage.
 class NET_EXPORT URLRequestContext
-    : public base::RefCountedThreadSafe<URLRequestContext>,
-      NON_EXPORTED_BASE(public base::NonThreadSafe) {
+    : NON_EXPORTED_BASE(public base::NonThreadSafe) {
  public:
   URLRequestContext();
-
-  base::WeakPtr<URLRequestContext> GetWeakPtr() {
-    return weak_factory_.GetWeakPtr();
-  }
+  virtual ~URLRequestContext();
 
   // Copies the state from |other| into this context.
   void CopyFrom(URLRequestContext* other);
@@ -111,7 +107,7 @@ class NET_EXPORT URLRequestContext
 
   // Gets the HTTP Authentication Handler Factory for this context.
   // The factory is only valid for the lifetime of this URLRequestContext
-  HttpAuthHandlerFactory* http_auth_handler_factory() {
+  HttpAuthHandlerFactory* http_auth_handler_factory() const {
     return http_auth_handler_factory_;
   }
   void set_http_auth_handler_factory(HttpAuthHandlerFactory* factory) {
@@ -208,14 +204,7 @@ class NET_EXPORT URLRequestContext
 
   void AssertNoURLRequests() const;
 
- protected:
-  friend class base::RefCountedThreadSafe<URLRequestContext>;
-
-  virtual ~URLRequestContext();
-
  private:
-  base::WeakPtrFactory<URLRequestContext> weak_factory_;
-
   // ---------------------------------------------------------------------------
   // Important: When adding any new members below, consider whether they need to
   // be added to CopyFrom.

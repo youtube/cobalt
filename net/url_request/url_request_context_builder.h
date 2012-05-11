@@ -91,7 +91,7 @@ class NET_EXPORT URLRequestContextBuilder {
   void EnableHttpCache(const HttpCacheParams& params);
   void DisableHttpCache();
 
-  scoped_refptr<URLRequestContext> Build();
+  URLRequestContext* Build();
 
  private:
   std::string user_agent_;

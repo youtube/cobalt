@@ -705,7 +705,7 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   // Contextual information used for this request (can be NULL). This contains
   // most of the dependencies which are shared between requests (disk cache,
   // cookie store, socket pool, etc.)
-  scoped_refptr<const URLRequestContext> context_;
+  const URLRequestContext* context_;
 
   // Tracks the time spent in various load states throughout this request.
   BoundNetLog net_log_;

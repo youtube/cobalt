@@ -258,8 +258,6 @@ class MockURLRequestContext : public net::URLRequestContext {
     transport_security_state_.EnableHost("upgrademe.com", state);
   }
 
- protected:
-  friend class base::RefCountedThreadSafe<MockURLRequestContext>;
   virtual ~MockURLRequestContext() {}
 
  private:
@@ -337,11 +335,11 @@ class WebSocketJobSpdy2Test : public PlatformTest {
     SpdySession::set_default_protocol(kProtoSPDY2);
     stream_type_ = STREAM_INVALID;
     cookie_store_ = new MockCookieStore;
-    context_ = new MockURLRequestContext(cookie_store_.get());
+    context_.reset(new MockURLRequestContext(cookie_store_.get()));
   }
   virtual void TearDown() OVERRIDE {
     cookie_store_ = NULL;
-    context_ = NULL;
+    context_.reset();
     websocket_ = NULL;
     socket_ = NULL;
   }
@@ -455,7 +453,7 @@ class WebSocketJobSpdy2Test : public PlatformTest {
 
   StreamType stream_type_;
   scoped_refptr<MockCookieStore> cookie_store_;
-  scoped_refptr<MockURLRequestContext> context_;
+  scoped_ptr<MockURLRequestContext> context_;
   scoped_refptr<WebSocketJob> websocket_;
   scoped_refptr<SocketStream> socket_;
   scoped_ptr<MockClientSocketFactory> socket_factory_;

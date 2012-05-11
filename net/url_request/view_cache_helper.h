@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -100,7 +100,7 @@ class NET_EXPORT ViewCacheHelper {
   // Called to signal completion of asynchronous IO.
   void OnIOComplete(int result);
 
-  scoped_refptr<const URLRequestContext> context_;
+  const URLRequestContext* context_;
   disk_cache::Backend* disk_cache_;
   disk_cache::Entry* entry_;
   void* iter_;
