@@ -4,6 +4,8 @@
 
 #include "media/base/stream_parser_buffer.h"
 
+#include "base/logging.h"
+
 namespace media {
 
 StreamParserBuffer::StreamParserBuffer(const uint8* data, int data_size,
@@ -20,6 +22,12 @@ scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
     const uint8* data, int data_size, bool is_keyframe) {
   return make_scoped_refptr(
       new StreamParserBuffer(data, data_size, is_keyframe));
+}
+
+base::TimeDelta StreamParserBuffer::GetEndTimestamp() const {
+  DCHECK(GetTimestamp() != kNoTimestamp());
+  DCHECK(GetDuration() != kNoTimestamp());
+  return GetTimestamp() + GetDuration();
 }
 
 }  // namespace media

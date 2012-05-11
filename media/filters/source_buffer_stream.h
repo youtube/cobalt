@@ -57,6 +57,22 @@ class MEDIA_EXPORT SourceBufferStream {
 
  private:
   typedef std::list<SourceBufferRange*> RangeList;
+
+  // Resolve overlapping ranges such that no ranges overlap anymore.
+  // |range_itr| points to the iterator in |ranges_| immediately after
+  // |new_range|. Returns the iterator in |ranges_| immediately after
+  // |new_range|, which may be different from the original |range_itr|.
+  RangeList::iterator ResolveCompleteOverlaps(
+      const RangeList::iterator& range_itr, SourceBufferRange* new_range);
+  RangeList::iterator ResolveEndOverlaps(
+      const RangeList::iterator& range_itr, SourceBufferRange* new_range);
+
+  // Checks to see if the range pointed to by |range_itr| can be appended to the
+  // end of |new_range|, and if so, appends the range and updates |ranges_| to
+  // reflect this.
+  void MergeWithAdjacentRangeIfNecessary(
+      const RangeList::iterator& range_itr, SourceBufferRange* new_range);
+
   // List of disjoint buffered ranges, ordered by start time.
   RangeList ranges_;
 
@@ -67,9 +83,19 @@ class MEDIA_EXPORT SourceBufferStream {
   // Timestamp of the last request to Seek().
   base::TimeDelta seek_buffer_timestamp_;
 
-  // Pointer to the seeked-to Range. This is the Range from which
-  // GetNextBuffer() calls are fulfilled.
+  // Pointer to the seeked-to Range. This is the range from which
+  // GetNextBuffer() calls are fulfilled after the |track_buffer_| has been
+  // emptied.
   SourceBufferRange* selected_range_;
+
+  // Queue of the next buffers to be returned from calls to GetNextBuffer(). If
+  // |track_buffer_| is empty, return buffers from |selected_range_|.
+  BufferQueue track_buffer_;
+
+  // True if the next buffer after the end of the |track_buffer_| is not
+  // buffered yet and we need to wait for the next keyframe after
+  // |track_buffer_| to be appended.
+  bool waiting_for_keyframe_;
 
   DISALLOW_COPY_AND_ASSIGN(SourceBufferStream);
 };

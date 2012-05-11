@@ -17,8 +17,12 @@ class MEDIA_EXPORT StreamParserBuffer : public DataBuffer {
       const uint8* data, int data_size, bool is_keyframe);
   bool IsKeyframe() const { return is_keyframe_; }
 
+  // Returns this buffer's timestamp + duration, assuming both are valid.
+  base::TimeDelta GetEndTimestamp() const;
+
  private:
   StreamParserBuffer(const uint8* data, int data_size, bool is_keyframe);
+
   bool is_keyframe_;
   DISALLOW_COPY_AND_ASSIGN(StreamParserBuffer);
 };

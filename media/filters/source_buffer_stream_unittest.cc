@@ -12,6 +12,9 @@ namespace media {
 
 static const int kDefaultFramesPerSecond = 30;
 static const int kDefaultKeyframesPerSecond = 6;
+static const uint8 kDataA = 0x11;
+static const uint8 kDataB = 0x33;
+static const int kDataSize = 1;
 
 class SourceBufferStreamTest : public testing::Test {
  protected:
@@ -26,12 +29,17 @@ class SourceBufferStreamTest : public testing::Test {
   }
 
   void AppendBuffers(int starting_position, int number_of_buffers) {
-    AppendBuffers(starting_position, number_of_buffers, true);
+    AppendBuffers(starting_position, number_of_buffers, true, NULL, 0);
+  }
+
+  void AppendBuffers(int starting_position, int number_of_buffers,
+                     const uint8* data) {
+    AppendBuffers(starting_position, number_of_buffers, true, data, kDataSize);
   }
 
   void AppendBuffers_ExpectFailure(
       int starting_position, int number_of_buffers) {
-    AppendBuffers(starting_position, number_of_buffers, false);
+    AppendBuffers(starting_position, number_of_buffers, false, NULL, 0);
   }
 
   void Seek(int position) {
@@ -63,11 +71,31 @@ class SourceBufferStreamTest : public testing::Test {
 
   void CheckExpectedBuffers(
       int starting_position, int ending_position) {
-    CheckExpectedBuffers(starting_position, ending_position, false);
+    CheckExpectedBuffers(starting_position, ending_position, false, NULL, 0);
   }
 
   void CheckExpectedBuffers(
       int starting_position, int ending_position, bool expect_keyframe) {
+    CheckExpectedBuffers(starting_position, ending_position, expect_keyframe,
+                         NULL, 0);
+  }
+
+  void CheckExpectedBuffers(
+      int starting_position, int ending_position, const uint8* data) {
+    CheckExpectedBuffers(starting_position, ending_position, false, data,
+                         kDataSize);
+  }
+
+  void CheckExpectedBuffers(
+      int starting_position, int ending_position, const uint8* data,
+      bool expect_keyframe) {
+    CheckExpectedBuffers(starting_position, ending_position, expect_keyframe,
+                         data, kDataSize);
+  }
+
+  void CheckExpectedBuffers(
+      int starting_position, int ending_position, bool expect_keyframe,
+      const uint8* expected_data, int expected_size) {
     int current_position = starting_position;
     for (; current_position <= ending_position; current_position++) {
       scoped_refptr<StreamParserBuffer> buffer;
@@ -76,6 +104,15 @@ class SourceBufferStreamTest : public testing::Test {
 
       if (expect_keyframe && current_position == starting_position)
         EXPECT_TRUE(buffer->IsKeyframe());
+
+      if (expected_data) {
+        const uint8* actual_data = buffer->GetData();
+        const int  actual_size = buffer->GetDataSize();
+        EXPECT_EQ(actual_size, expected_size);
+        for (int i = 0; i < std::min(actual_size, expected_size); i++) {
+          EXPECT_EQ(actual_data[i], expected_data[i]);
+        }
+      }
 
       EXPECT_EQ(buffer->GetTimestamp() / frame_duration_, current_position);
     }
@@ -94,7 +131,7 @@ class SourceBufferStreamTest : public testing::Test {
   }
 
   void AppendBuffers(int starting_position, int number_of_buffers,
-                     bool expect_success) {
+                     bool expect_success, const uint8* data, int size) {
     int keyframe_interval = frames_per_second_ / keyframes_per_second_;
 
     SourceBufferStream::BufferQueue queue;
@@ -102,7 +139,7 @@ class SourceBufferStreamTest : public testing::Test {
       int position = starting_position + i;
       bool is_keyframe = position % keyframe_interval == 0;
       scoped_refptr<StreamParserBuffer> buffer =
-          StreamParserBuffer::CopyFrom(NULL, 0, is_keyframe);
+          StreamParserBuffer::CopyFrom(data, size, is_keyframe);
       buffer->SetDuration(frame_duration_);
       buffer->SetTimestamp(frame_duration_ * position);
       queue.push_back(buffer);
@@ -325,6 +362,128 @@ TEST_F(SourceBufferStreamTest, Overlap_SeveralThenMerge) {
   CheckExpectedBuffers(0, 21);
 }
 
+TEST_F(SourceBufferStreamTest, Overlap_Selected_Complete) {
+  // Append 10 buffers at positions 5 through 14.
+  AppendBuffers(5, 10, &kDataA);
+
+  // Seek to buffer at position 5.
+  Seek(5);
+
+  // Replace old data with new data.
+  AppendBuffers(5, 10, &kDataB);
+
+  // Check timespans are correct.
+  SourceBufferStream::TimespanList expected;
+  expected.push_back(CreateTimespan(5, 14));
+  CheckExpectedTimespans(expected);
+
+  // Check that data has been replaced with new data.
+  CheckExpectedBuffers(5, 14, &kDataB);
+}
+
+// This test is testing that a client can append data to SourceBufferStream that
+// overlaps the range from which the client is currently grabbing buffers. We
+// would expect that the SourceBufferStream would return old data until it hits
+// the keyframe of the new data, after which it will return the new data.
+TEST_F(SourceBufferStreamTest, Overlap_Selected_Complete_TrackBuffer) {
+  // Append 10 buffers at positions 5 through 14.
+  AppendBuffers(5, 10, &kDataA);
+
+  // Seek to buffer at position 5 and get next buffer.
+  Seek(5);
+  CheckExpectedBuffers(5, 5, &kDataA);
+
+  // Do a complete overlap by appending 20 buffers at positions 0 through 19.
+  AppendBuffers(0, 20, &kDataB);
+
+  // Check timespans are correct.
+  SourceBufferStream::TimespanList expected;
+  expected.push_back(CreateTimespan(0, 19));
+  CheckExpectedTimespans(expected);
+
+  // Expect old data up until next keyframe in new data.
+  CheckExpectedBuffers(6, 9, &kDataA);
+  CheckExpectedBuffers(10, 10, &kDataB, true);
+
+  // Expect rest of data to be new.
+  CheckExpectedBuffers(11, 19, &kDataB);
+
+  // Seek back to beginning; all data should be new.
+  Seek(0);
+  CheckExpectedBuffers(0, 19, &kDataB);
+
+  // Check timespan continues to be correct.
+  CheckExpectedTimespans(expected);
+}
+
+TEST_F(SourceBufferStreamTest, Overlap_Selected_Complete_EdgeCase) {
+  // Append 10 buffers at positions 5 through 14.
+  AppendBuffers(5, 10, &kDataA);
+
+  // Seek to buffer at position 5 and get next buffer.
+  Seek(5);
+  CheckExpectedBuffers(5, 5, &kDataA);
+
+  // Replace existing data with new data.
+  AppendBuffers(5, 10, &kDataB);
+
+  // Check timespans are correct.
+  SourceBufferStream::TimespanList expected;
+  expected.push_back(CreateTimespan(5, 14));
+  CheckExpectedTimespans(expected);
+
+  // Expect old data up until next keyframe in new data.
+  CheckExpectedBuffers(6, 9, &kDataA);
+  CheckExpectedBuffers(10, 10, &kDataB, true);
+
+  // Expect rest of data to be new.
+  CheckExpectedBuffers(11, 14, &kDataB);
+
+  // Seek back to beginning; all data should be new.
+  Seek(5);
+  CheckExpectedBuffers(5, 14, &kDataB);
+
+  // Check timespan continues to be correct.
+  CheckExpectedTimespans(expected);
+}
+
+TEST_F(SourceBufferStreamTest, Overlap_Selected_Complete_Multiple) {
+  static const uint8 kDataC = 0x55;
+  static const uint8 kDataD = 0x77;
+
+  // Append 5 buffers at positions 5 through 9.
+  AppendBuffers(5, 5, &kDataA);
+
+  // Seek to buffer at position 5 and get next buffer.
+  Seek(5);
+  CheckExpectedBuffers(5, 5, &kDataA);
+
+  // Replace existing data with new data.
+  AppendBuffers(5, 5, &kDataB);
+
+  // Then replace it again with different data.
+  AppendBuffers(5, 5, &kDataC);
+
+  // Now append 5 new buffers at positions 10 through 14.
+  AppendBuffers(10, 5, &kDataC);
+
+  // Now replace all the data entirely.
+  AppendBuffers(5, 10, &kDataD);
+
+  // Expect buffers 6 through 9 to be DataA, and the remaining
+  // buffers to be kDataD.
+  CheckExpectedBuffers(6, 9, &kDataA);
+  CheckExpectedBuffers(10, 14, &kDataD);
+
+  // At this point we cannot fulfill request.
+  scoped_refptr<StreamParserBuffer> buffer;
+  EXPECT_FALSE(stream_.GetNextBuffer(&buffer));
+
+  // Seek back to beginning; all data should be new.
+  Seek(5);
+  CheckExpectedBuffers(5, 14, &kDataD);
+}
+
 TEST_F(SourceBufferStreamTest, Seek_Keyframe) {
   // Append 6 buffers at positions 0 through 5.
   AppendBuffers(0, 6);
@@ -383,6 +542,34 @@ TEST_F(SourceBufferStreamTest, Seek_InBetweenTimestamps) {
   // Seek to buffer a little before position 5.
   stream_.Seek(5 * frame_duration() - bump);
   CheckExpectedBuffers(0, 0, true);
+}
+
+// This test will do a complete overlap of an existing range in order to add
+// buffers to the track buffers. Then the test does a seek to another part of
+// the stream. The SourceBufferStream should clear its internal track buffer in
+// response to the Seek().
+TEST_F(SourceBufferStreamTest, Seek_After_TrackBuffer_Filled) {
+  // Append 10 buffers at positions 5 through 14.
+  AppendBuffers(5, 10, &kDataA);
+
+  // Seek to buffer at position 5 and get next buffer.
+  Seek(5);
+  CheckExpectedBuffers(5, 5, &kDataA);
+
+  // Do a complete overlap by appending 20 buffers at positions 0 through 19.
+  AppendBuffers(0, 20, &kDataB);
+
+  // Check timespans are correct.
+  SourceBufferStream::TimespanList expected;
+  expected.push_back(CreateTimespan(0, 19));
+  CheckExpectedTimespans(expected);
+
+  // Seek to beginning; all data should be new.
+  Seek(0);
+  CheckExpectedBuffers(0, 19, &kDataB);
+
+  // Check timespan continues to be correct.
+  CheckExpectedTimespans(expected);
 }
 
 // TODO(vrk): When overlaps are handled more elegantly, this test should be
@@ -449,6 +636,35 @@ TEST_F(SourceBufferStreamTest, GetNextBuffer_ExhaustThenAppend) {
   // Append 2 buffers at positions 4 through 5.
   AppendBuffers(4, 2);
   CheckExpectedBuffers(4, 5);
+}
+
+// This test is testing the "next buffer" logic after a complete overlap. In
+// this scenario, when the track buffer is exhausted, there is no buffered data
+// to fulfill the request. The SourceBufferStream should be able to fulfill the
+// request when the data is later appended, and should not lose track of the
+// "next buffer" position.
+TEST_F(SourceBufferStreamTest, GetNextBuffer_Overlap_Selected_Complete) {
+  // Append 5 buffers at positions 5 through 9.
+  AppendBuffers(5, 5, &kDataA);
+
+  // Seek to buffer at position 5 and get next buffer.
+  Seek(5);
+  CheckExpectedBuffers(5, 5, &kDataA);
+
+  // Replace existing data with new data.
+  AppendBuffers(5, 5, &kDataB);
+
+  // Expect old data up until next keyframe in new data.
+  CheckExpectedBuffers(6, 9, &kDataA);
+
+  // Next buffer is at position 10, so should not be able to fulfill the
+  // request.
+  scoped_refptr<StreamParserBuffer> buffer;
+  EXPECT_FALSE(stream_.GetNextBuffer(&buffer));
+
+  // Now add 5 new buffers at positions 10 through 14.
+  AppendBuffers(10, 5, &kDataB);
+  CheckExpectedBuffers(10, 14, &kDataB);
 }
 
 }  // namespace media
