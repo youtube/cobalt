@@ -107,6 +107,8 @@ v8.log
 /gyp-mac-tool
 /llvm
 /media/yuv_convert_simd_x86.xml
+/media/test/data/content
+/media/test/data/security
 /metro_driver
 /native_client
 /net/Debug
