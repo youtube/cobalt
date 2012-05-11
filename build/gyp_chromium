@@ -107,6 +107,8 @@ if __name__ == '__main__':
     psyco.profile()
     print "Enabled Psyco JIT."
 
+  os.environ['GYP_MSVS_VERSION'] = '2008'
+
   # Fall back on hermetic python if we happen to get run under cygwin.
   # TODO(bradnelson): take this out once this issue is fixed:
   #    http://code.google.com/p/gyp/issues/detail?id=177
