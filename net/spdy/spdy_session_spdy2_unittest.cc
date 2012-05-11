@@ -172,12 +172,10 @@ TEST_F(SpdySessionSpdy2Test, Ping) {
   scoped_ptr<SpdyFrame> read_ping(ConstructSpdyPing());
   MockRead reads[] = {
     CreateMockRead(*read_ping),
-    CreateMockRead(*read_ping),
     MockRead(SYNCHRONOUS, 0, 0)  // EOF
   };
   scoped_ptr<SpdyFrame> write_ping(ConstructSpdyPing());
   MockRead writes[] = {
-    CreateMockRead(*write_ping),
     CreateMockRead(*write_ping),
   };
   StaticSocketDataProvider data(
@@ -204,7 +202,6 @@ TEST_F(SpdySessionSpdy2Test, Ping) {
   scoped_refptr<SpdySession> session =
       spdy_session_pool->Get(pair, BoundNetLog());
   EXPECT_TRUE(spdy_session_pool->HasSession(pair));
-
 
   scoped_refptr<TransportSocketParams> transport_params(
       new TransportSocketParams(test_host_port_pair,
@@ -235,7 +232,6 @@ TEST_F(SpdySessionSpdy2Test, Ping) {
   // Enable sending of PING.
   SpdySession::set_enable_ping_based_connection_checking(true);
   session->set_connection_at_risk_of_loss_time(base::TimeDelta::FromSeconds(0));
-  session->set_trailing_ping_delay_time(base::TimeDelta::FromSeconds(0));
   session->set_hung_interval(base::TimeDelta::FromMilliseconds(50));
 
   session->SendPrefacePingIfNoneInFlight();
@@ -245,10 +241,9 @@ TEST_F(SpdySessionSpdy2Test, Ping) {
   session->CheckPingStatus(before_ping_time);
 
   EXPECT_EQ(0, session->pings_in_flight());
-  EXPECT_GT(session->next_ping_id(), static_cast<uint32>(1));
-  EXPECT_FALSE(session->trailing_ping_pending());
+  EXPECT_GE(session->next_ping_id(), static_cast<uint32>(1));
   EXPECT_FALSE(session->check_ping_status_pending());
-  EXPECT_GE(session->received_data_time(), before_ping_time);
+  EXPECT_GE(session->last_activity_time(), before_ping_time);
 
   EXPECT_FALSE(spdy_session_pool->HasSession(pair));
 
@@ -322,13 +317,12 @@ TEST_F(SpdySessionSpdy2Test, FailedPing) {
   // Enable sending of PING.
   SpdySession::set_enable_ping_based_connection_checking(true);
   session->set_connection_at_risk_of_loss_time(base::TimeDelta::FromSeconds(0));
-  session->set_trailing_ping_delay_time(base::TimeDelta::FromSeconds(0));
   session->set_hung_interval(base::TimeDelta::FromSeconds(0));
 
   // Send a PING frame.
   session->WritePingFrame(1);
   EXPECT_LT(0, session->pings_in_flight());
-  EXPECT_GT(session->next_ping_id(), static_cast<uint32>(1));
+  EXPECT_GE(session->next_ping_id(), static_cast<uint32>(1));
   EXPECT_TRUE(session->check_ping_status_pending());
 
   // Assert session is not closed.
@@ -339,7 +333,7 @@ TEST_F(SpdySessionSpdy2Test, FailedPing) {
   // We set last time we have received any data in 1 sec less than now.
   // CheckPingStatus will trigger timeout because hung interval is zero.
   base::TimeTicks now = base::TimeTicks::Now();
-  session->received_data_time_ = now - base::TimeDelta::FromSeconds(1);
+  session->last_activity_time_ = now - base::TimeDelta::FromSeconds(1);
   session->CheckPingStatus(now);
 
   EXPECT_TRUE(session->IsClosed());
