@@ -5,14 +5,16 @@
 #include "base/timer.h"
 
 #include "base/logging.h"
-#include "base/message_loop.h"
+#include "base/single_thread_task_runner.h"
+#include "base/thread_task_runner_handle.h"
+#include "base/threading/platform_thread.h"
 
 namespace base {
 
 // BaseTimerTaskInternal is a simple delegate for scheduling a callback to
-// Timer in the MessageLoop. It also handles the following edge
-// cases:
-// - deleted by MessageLoop.
+// Timer in the thread's default task runner. It also handles the following
+// edge cases:
+// - deleted by the task runner.
 // - abandoned (orphaned) by Timer.
 class BaseTimerTaskInternal {
  public:
@@ -21,7 +23,7 @@ class BaseTimerTaskInternal {
   }
 
   ~BaseTimerTaskInternal() {
-    // This task may be getting cleared because the MessageLoop has been
+    // This task may be getting cleared because the task runner has been
     // destructed.  If so, don't leave Timer with a dangling pointer
     // to this.
     if (timer_)
@@ -33,7 +35,7 @@ class BaseTimerTaskInternal {
     if (!timer_)
       return;
 
-    // *this will be deleted by the MessageLoop, so Timer needs to
+    // *this will be deleted by the task runner, so Timer needs to
     // forget us:
     timer_->scheduled_task_ = NULL;
 
@@ -129,7 +131,7 @@ void Timer::PostNewScheduledTask(TimeDelta delay) {
   DCHECK(scheduled_task_ == NULL);
   is_running_ = true;
   scheduled_task_ = new BaseTimerTaskInternal(this);
-  MessageLoop::current()->PostDelayedTask(posted_from_,
+  ThreadTaskRunnerHandle::Get()->PostDelayedTask(posted_from_,
       base::Bind(&BaseTimerTaskInternal::Run, base::Owned(scheduled_task_)),
       delay);
   scheduled_run_time_ = desired_run_time_ = TimeTicks::Now() + delay;
@@ -158,7 +160,7 @@ void Timer::RunScheduledTask() {
     // TimeTicks::Now() can be expensive, so only call it if we know the user
     // has changed the desired_run_time_.
     TimeTicks now = TimeTicks::Now();
-    // MessageLoop may have called us late anyway, so only post a continuation
+    // Task runner may have called us late anyway, so only post a continuation
     // task if the desired_run_time_ is in the future.
     if (desired_run_time_ > now) {
       // Post a new task to span the remaining time.
