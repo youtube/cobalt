@@ -41,17 +41,25 @@ TEST(EncryptorTest, DecryptWrongKey) {
           crypto::SymmetricKey::AES, "password", "saltiest", 1000, 256));
   EXPECT_TRUE(NULL != key.get());
 
+  // A wrong key that can be detected by implementations that validate every
+  // byte in the padding.
   scoped_ptr<crypto::SymmetricKey> wrong_key(
         crypto::SymmetricKey::DeriveKeyFromPassword(
             crypto::SymmetricKey::AES, "wrongword", "sweetest", 1000, 256));
   EXPECT_TRUE(NULL != wrong_key.get());
 
-  // A wrong key that can't be detected by padding error.  The password
+  // A wrong key that can't be detected by any implementation.  The password
   // "wrongword;" would also work.
   scoped_ptr<crypto::SymmetricKey> wrong_key2(
         crypto::SymmetricKey::DeriveKeyFromPassword(
             crypto::SymmetricKey::AES, "wrongword+", "sweetest", 1000, 256));
   EXPECT_TRUE(NULL != wrong_key2.get());
+
+  // A wrong key that can be detected by all implementations.
+  scoped_ptr<crypto::SymmetricKey> wrong_key3(
+        crypto::SymmetricKey::DeriveKeyFromPassword(
+            crypto::SymmetricKey::AES, "wrongwordx", "sweetest", 1000, 256));
+  EXPECT_TRUE(NULL != wrong_key3.get());
 
   crypto::Encryptor encryptor;
   // The IV must be exactly as long as the cipher block size.
@@ -76,12 +84,17 @@ TEST(EncryptorTest, DecryptWrongKey) {
               static_cast<unsigned char>(ciphertext[i]));
   }
 
+  std::string decypted;
+
+  // This wrong key causes the last padding byte to be 5, which is a valid
+  // padding length, and the second to last padding byte to be 137, which is
+  // invalid.  If an implementation simply uses the last padding byte to
+  // determine the padding length without checking every padding byte,
+  // Encryptor::Decrypt() will still return true.  This is the case for NSS
+  // (crbug.com/124434) and Mac OS X 10.7 (crbug.com/127586).
+#if !defined(USE_NSS)
   crypto::Encryptor decryptor;
   EXPECT_TRUE(decryptor.Init(wrong_key.get(), crypto::Encryptor::CBC, iv));
-  std::string decypted;
-  // TODO(wtc): On Linux, Encryptor::Decrypt() doesn't always return false when
-  // wrong key is provided. See crbug.com/124434. Remove #if when bug is fixed.
-#if !defined(USE_NSS)
   EXPECT_FALSE(decryptor.Decrypt(ciphertext, &decypted));
 #endif
 
@@ -91,6 +104,12 @@ TEST(EncryptorTest, DecryptWrongKey) {
   crypto::Encryptor decryptor2;
   EXPECT_TRUE(decryptor2.Init(wrong_key2.get(), crypto::Encryptor::CBC, iv));
   EXPECT_TRUE(decryptor2.Decrypt(ciphertext, &decypted));
+
+  // This wrong key causes the last padding byte to be 253, which should be
+  // rejected by all implementations.
+  crypto::Encryptor decryptor3;
+  EXPECT_TRUE(decryptor3.Init(wrong_key3.get(), crypto::Encryptor::CBC, iv));
+  EXPECT_FALSE(decryptor3.Decrypt(ciphertext, &decypted));
 }
 
 // CTR mode encryption is only implemented using NSS.
