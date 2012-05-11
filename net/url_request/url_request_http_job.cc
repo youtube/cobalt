@@ -252,7 +252,6 @@ void URLRequestHttpJob::DestroyTransaction() {
   DoneWithRequest(ABORTED);
   transaction_.reset();
   response_info_ = NULL;
-  context_ = NULL;
 }
 
 void URLRequestHttpJob::StartTransaction() {
@@ -327,9 +326,6 @@ void URLRequestHttpJob::StartTransactionInternal() {
         // Special error code for the exponential back-off module.
         rv = ERR_TEMPORARILY_THROTTLED;
       }
-      // Make sure the context is alive for the duration of the
-      // transaction.
-      context_ = request_->context();
     }
   }
 
@@ -663,14 +659,16 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
   // Clear the IO_PENDING status
   SetStatus(URLRequestStatus());
 
+  const URLRequestContext* context = request_->context();
+
   if (result == ERR_SSL_PINNED_KEY_NOT_IN_CERT_CHAIN &&
       transaction_->GetResponseInfo() != NULL) {
     FraudulentCertificateReporter* reporter =
-      context_->fraudulent_certificate_reporter();
+      context->fraudulent_certificate_reporter();
     if (reporter != NULL) {
       const SSLInfo& ssl_info = transaction_->GetResponseInfo()->ssl_info;
       bool sni_available = SSLConfigService::IsSNIAvailable(
-          context_->ssl_config_service());
+          context->ssl_config_service());
       const std::string& host = request_->url().host();
 
       reporter->SendReport(host, ssl_info, sni_available);
@@ -679,11 +677,11 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
 
   if (result == OK) {
     scoped_refptr<HttpResponseHeaders> headers = GetResponseHeaders();
-    if (request_->context() && request_->context()->network_delegate()) {
+    if (context && context->network_delegate()) {
       // Note that |this| may not be deleted until
       // |on_headers_received_callback_| or
       // |NetworkDelegate::URLRequestDestroyed()| has been called.
-      int error = request_->context()->network_delegate()->
+      int error = context->network_delegate()->
           NotifyHeadersReceived(request_, on_headers_received_callback_,
                                 headers, &override_response_headers_);
       if (error != net::OK) {
@@ -707,11 +705,12 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
     // what we should do.
 
     TransportSecurityState::DomainState domain_state;
+    const URLRequestContext* context = request_->context();
     const bool fatal =
-        context_->transport_security_state() &&
-        context_->transport_security_state()->GetDomainState(
+        context->transport_security_state() &&
+        context->transport_security_state()->GetDomainState(
             request_info_.url.host(),
-            SSLConfigService::IsSNIAvailable(context_->ssl_config_service()),
+            SSLConfigService::IsSNIAvailable(context->ssl_config_service()),
             &domain_state);
     NotifySSLCertificateError(transaction_->GetResponseInfo()->ssl_info, fatal);
   } else if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {

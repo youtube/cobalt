@@ -373,11 +373,9 @@ class SpdySessionDependencies {
 class SpdyURLRequestContext : public URLRequestContext {
  public:
   SpdyURLRequestContext();
+  virtual ~SpdyURLRequestContext();
 
   MockClientSocketFactory& socket_factory() { return socket_factory_; }
-
- protected:
-  virtual ~SpdyURLRequestContext();
 
  private:
   MockClientSocketFactory socket_factory_;

@@ -16,8 +16,7 @@
 namespace net {
 
 URLRequestContext::URLRequestContext()
-    : ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
-      net_log_(NULL),
+    : net_log_(NULL),
       host_resolver_(NULL),
       cert_verifier_(NULL),
       server_bound_cert_service_(NULL),
@@ -33,6 +32,10 @@ URLRequestContext::URLRequestContext()
       job_factory_(NULL),
       throttler_manager_(NULL),
       url_requests_(new std::set<const URLRequest*>) {
+}
+
+URLRequestContext::~URLRequestContext() {
+  AssertNoURLRequests();
 }
 
 void URLRequestContext::CopyFrom(URLRequestContext* other) {
@@ -83,10 +86,6 @@ void URLRequestContext::AssertNoURLRequests() const {
     base::debug::Alias(&load_flags);
     CHECK(false);
   }
-}
-
-URLRequestContext::~URLRequestContext() {
-  AssertNoURLRequests();
 }
 
 }  // namespace net

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,7 +22,6 @@ namespace net {
 URLRequestFtpJob::URLRequestFtpJob(URLRequest* request)
     : URLRequestJob(request),
       read_in_progress_(false),
-      context_(request->context()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
 }
 

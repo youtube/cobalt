@@ -56,6 +56,7 @@ SocketStream::SocketStream(const GURL& url, Delegate* delegate)
     : delegate_(delegate),
       url_(url),
       max_pending_send_allowed_(kMaxPendingSendAllowed),
+      context_(NULL),
       next_state_(STATE_NONE),
       host_resolver_(NULL),
       cert_verifier_(NULL),
@@ -101,8 +102,8 @@ bool SocketStream::is_secure() const {
   return url_.SchemeIs("wss");
 }
 
-void SocketStream::set_context(URLRequestContext* context) {
-  scoped_refptr<URLRequestContext> prev_context = context_;
+void SocketStream::set_context(const URLRequestContext* context) {
+  const URLRequestContext* prev_context = context_;
 
   context_ = context;
 

@@ -138,8 +138,8 @@ class NET_EXPORT SocketStream
   Delegate* delegate() const { return delegate_; }
   int max_pending_send_allowed() const { return max_pending_send_allowed_; }
 
-  URLRequestContext* context() const { return context_.get(); }
-  void set_context(URLRequestContext* context);
+  const URLRequestContext* context() const { return context_; }
+  void set_context(const URLRequestContext* context);
 
   BoundNetLog* net_log() { return &net_log_; }
 
@@ -321,7 +321,7 @@ class NET_EXPORT SocketStream
 
   GURL url_;
   int max_pending_send_allowed_;
-  scoped_refptr<URLRequestContext> context_;
+  const URLRequestContext* context_;
 
   UserDataMap user_data_;
 

@@ -150,7 +150,7 @@ class FetcherClient {
   }
 
   TestCompletionCallback callback_;
-  scoped_refptr<URLRequestContext> url_request_context_;
+  scoped_ptr<URLRequestContext> url_request_context_;
   scoped_ptr<MockDhcpProxyScriptAdapterFetcher> fetcher_;
   string16 pac_text_;
 };
@@ -278,11 +278,10 @@ TEST(DhcpProxyScriptAdapterFetcher, MockDhcpRealFetch) {
   GURL configured_url = test_server.GetURL("files/downloadable.pac");
 
   FetcherClient client;
-  scoped_refptr<URLRequestContext> url_request_context(
-      new TestURLRequestContext());
+  TestURLRequestContext url_request_context;
   client.fetcher_.reset(
       new MockDhcpRealFetchProxyScriptAdapterFetcher(
-          url_request_context.get()));
+          &url_request_context));
   client.fetcher_->configured_url_ = configured_url.spec();
   client.RunTest();
   client.WaitForResult(OK);

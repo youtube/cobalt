@@ -295,9 +295,6 @@ void ProxyScriptFetcherImpl::FetchCompleted() {
   int result_code = result_code_;
   CompletionCallback callback = callback_;
 
-  // Hold a reference to the URLRequestContext to prevent re-entrancy from
-  // ~URLRequestContext.
-  scoped_refptr<const URLRequestContext> context(cur_request_->context());
   ResetCurRequestState();
 
   callback.Run(result_code);
