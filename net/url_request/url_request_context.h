@@ -50,7 +50,7 @@ class NET_EXPORT URLRequestContext
   virtual ~URLRequestContext();
 
   // Copies the state from |other| into this context.
-  void CopyFrom(URLRequestContext* other);
+  void CopyFrom(const URLRequestContext* other);
 
   NetLog* net_log() const {
     return net_log_;
