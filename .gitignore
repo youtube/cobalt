@@ -71,8 +71,8 @@ v8.log
 /chrome/installer/mac/third_party/xz/xz
 /chrome/installer/mini_installer.xml
 /chrome/installer/mini_installer/mini_installer.aps
-/chrome/installer/mini_installer_syzygy.xml
 /chrome/installer/mini_installer/support
+/chrome/installer/mini_installer_syzygy.xml
 /chrome/installer_util_strings.xml
 /chrome/metrics_proto.xml
 /chrome/safe_browsing_proto.xml
@@ -96,6 +96,7 @@ v8.log
 /chrome/test/data/pyauto_private
 /chrome/tools/memory
 /chrome/tools/test/reference_build
+/chrome/variations_seed_proto.xml
 /chrome_frame/chrome_frame_ie.xml
 /chrome_frame/tools/test/reference_build
 /content/test/data/layout_tests/LayoutTests/
