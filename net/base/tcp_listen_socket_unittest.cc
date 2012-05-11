@@ -119,10 +119,9 @@ void TCPListenSocketTester::Shutdown() {
 
 void TCPListenSocketTester::Listen() {
   server_ = DoListen();
-  if (server_) {
-    server_->AddRef();
-    ReportAction(TCPListenSocketTestAction(ACTION_LISTEN));
-  }
+  ASSERT_TRUE(server_);
+  server_->AddRef();
+  ReportAction(TCPListenSocketTestAction(ACTION_LISTEN));
 }
 
 void TCPListenSocketTester::SendFromTester() {
@@ -177,6 +176,38 @@ void TCPListenSocketTester::TestServerSend() {
   }
   buf[recv_len] = 0;
   ASSERT_STREQ(buf, kHelloWorld);
+}
+
+void TCPListenSocketTester::TestServerSendMultiple() {
+  // Send enough data to exceed the socket receive window. 20kb is probably a
+  // safe bet.
+  int send_count = (1024*20) / (sizeof(kHelloWorld)-1);
+  int i;
+
+  // Send multiple writes. Since no reading is occuring the data should be
+  // buffered in TCPListenSocket.
+  for (i = 0; i < send_count; ++i) {
+    loop_->PostTask(FROM_HERE, base::Bind(
+        &TCPListenSocketTester::SendFromTester, this));
+    NextAction();
+    ASSERT_EQ(ACTION_SEND, last_action_.type());
+  }
+
+  // Make multiple reads. All of the data should eventually be returned.
+  char buf[sizeof(kHelloWorld)];
+  const int buf_len = sizeof(kHelloWorld);
+  for (i = 0; i < send_count; ++i) {
+    unsigned recv_len = 0;
+    while (recv_len < buf_len-1) {
+      int r = HANDLE_EINTR(recv(test_socket_, buf, buf_len-1, 0));
+      ASSERT_GE(r, 0);
+      recv_len += static_cast<unsigned>(r);
+      if (!r)
+        break;
+    }
+    buf[recv_len] = 0;
+    ASSERT_STREQ(buf, kHelloWorld);
+  }
 }
 
 bool TCPListenSocketTester::Send(SOCKET sock, const std::string& str) {
@@ -246,6 +277,10 @@ TEST_F(TCPListenSocketTest, ClientSendLong) {
 
 TEST_F(TCPListenSocketTest, ServerSend) {
   tester_->TestServerSend();
+}
+
+TEST_F(TCPListenSocketTest, ServerSendMultiple) {
+  tester_->TestServerSendMultiple();
 }
 
 }  // namespace net
