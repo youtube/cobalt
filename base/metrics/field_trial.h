@@ -188,9 +188,9 @@ class BASE_EXPORT FieldTrial : public RefCounted<FieldTrial> {
   // consumers don't use it by mistake in cases where the group was forced.
   static const int kDefaultGroupNumber;
 
-  FieldTrial(const std::string& name, Probability total_probability,
-             const std::string& default_group_name, const int year,
-             const int month, const int day_of_month);
+  FieldTrial(const std::string& name,
+             Probability total_probability,
+             const std::string& default_group_name);
   virtual ~FieldTrial();
 
   // Return the default group name of the FieldTrial.
