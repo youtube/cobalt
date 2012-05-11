@@ -15,38 +15,10 @@
 
 namespace base {
 
-static const char kHistogramFieldTrialSeparator('_');
+namespace {
 
-// statics
-const int FieldTrial::kNotFinalized = -1;
-const int FieldTrial::kDefaultGroupNumber = 0;
-bool FieldTrial::enable_benchmarking_ = false;
-
-const char FieldTrialList::kPersistentStringSeparator('/');
-int FieldTrialList::kExpirationYearInFuture = 0;
-
-//------------------------------------------------------------------------------
-// FieldTrial methods and members.
-
-FieldTrial::FieldTrial(const std::string& name,
-                       const Probability total_probability,
-                       const std::string& default_group_name,
-                       const int year,
-                       const int month,
-                       const int day_of_month)
-  : name_(name),
-    divisor_(total_probability),
-    default_group_name_(default_group_name),
-    random_(static_cast<Probability>(divisor_ * RandDouble())),
-    accumulated_group_probability_(0),
-    next_group_number_(kDefaultGroupNumber + 1),
-    group_(kNotFinalized),
-    enable_field_trial_(true),
-    forced_(false) {
-  DCHECK_GT(total_probability, 0);
-  DCHECK(!name_.empty());
-  DCHECK(!default_group_name_.empty());
-
+// Created a time value based on |year|, |month| and |day_of_month| parameters.
+Time CreateTimeFromParams(int year, int month, int day_of_month) {
   DCHECK_GT(year, 1970);
   DCHECK_GT(month, 0);
   DCHECK_LT(month, 13);
@@ -63,9 +35,39 @@ FieldTrial::FieldTrial(const std::string& name,
   exploded.second = 0;
   exploded.millisecond = 0;
 
-  Time expiration_time = Time::FromLocalExploded(exploded);
-  if (GetBuildTime() > expiration_time)
-    Disable();
+  return Time::FromLocalExploded(exploded);
+}
+
+}  // namespace
+
+static const char kHistogramFieldTrialSeparator('_');
+
+// statics
+const int FieldTrial::kNotFinalized = -1;
+const int FieldTrial::kDefaultGroupNumber = 0;
+bool FieldTrial::enable_benchmarking_ = false;
+
+const char FieldTrialList::kPersistentStringSeparator('/');
+int FieldTrialList::kExpirationYearInFuture = 0;
+
+//------------------------------------------------------------------------------
+// FieldTrial methods and members.
+
+FieldTrial::FieldTrial(const std::string& name,
+                       const Probability total_probability,
+                       const std::string& default_group_name)
+  : name_(name),
+    divisor_(total_probability),
+    default_group_name_(default_group_name),
+    random_(static_cast<Probability>(divisor_ * RandDouble())),
+    accumulated_group_probability_(0),
+    next_group_number_(kDefaultGroupNumber + 1),
+    group_(kNotFinalized),
+    enable_field_trial_(true),
+    forced_(false) {
+  DCHECK_GT(total_probability, 0);
+  DCHECK(!name_.empty());
+  DCHECK(!default_group_name_.empty());
 }
 
 void FieldTrial::UseOneTimeRandomization() {
@@ -276,8 +278,10 @@ FieldTrial* FieldTrialList::FactoryGetFieldTrial(
     return existing_trial;
   }
 
-  FieldTrial* field_trial = new FieldTrial(
-      name, total_probability, default_group_name, year, month, day_of_month);
+  FieldTrial* field_trial =
+      new FieldTrial(name, total_probability, default_group_name);
+  if (GetBuildTime() > CreateTimeFromParams(year, month, day_of_month))
+    field_trial->Disable();
   FieldTrialList::Register(field_trial);
   return field_trial;
 }
@@ -394,8 +398,7 @@ FieldTrial* FieldTrialList::CreateFieldTrial(
     return field_trial;
   }
   const int kTotalProbability = 100;
-  field_trial = new FieldTrial(name, kTotalProbability, group_name,
-                               kExpirationYearInFuture, 1, 1);
+  field_trial = new FieldTrial(name, kTotalProbability, group_name);
   // This is where we may assign a group number different from
   // kDefaultGroupNumber to the default group.
   field_trial->AppendGroup(group_name, kTotalProbability);
