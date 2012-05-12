@@ -440,8 +440,8 @@
           'ui_compositor_image_transport%': 0,
         }],
 
-        # Turn precompiled headers on by default for VS 2010.
-        ['OS=="win" and MSVS_VERSION=="2010"', {
+        # Turn precompiled headers on by default for VS2010 non-Official builds.
+        ['OS=="win" and MSVS_VERSION=="2010" and buildtype!="Official"', {
           'chromium_win_pch%': 1
         }],
 
