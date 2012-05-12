@@ -12,51 +12,27 @@
 namespace net {
 namespace {
 
-void CompareConfig(const struct __res_state &res, const DnsConfig& config) {
-  EXPECT_EQ(config.ndots, static_cast<int>(res.ndots));
-  EXPECT_EQ(config.edns0, (res.options & RES_USE_EDNS0) != 0);
-  EXPECT_EQ(config.rotate, (res.options & RES_ROTATE) != 0);
-  EXPECT_EQ(config.timeout.InSeconds(), res.retrans);
-  EXPECT_EQ(config.attempts, res.retry);
+// MAXNS is normally 3, but let's test 4 if possible.
+const char* kNameserversIPv4[] = {
+    "8.8.8.8",
+    "192.168.1.1",
+    "63.1.2.4",
+    "1.0.0.1",
+};
 
-  // Compare nameservers. IPv6 precede IPv4.
-#if defined(OS_LINUX)
-  size_t nscount6 = res._u._ext.nscount6;
-#else
-  size_t nscount6 = 0;
-#endif
-  size_t nscount4 = res.nscount;
-  ASSERT_EQ(config.nameservers.size(), nscount6 + nscount4);
-#if defined(OS_LINUX)
-  for (size_t i = 0; i < nscount6; ++i) {
-    IPEndPoint ipe;
-    EXPECT_TRUE(ipe.FromSockAddr(
-        reinterpret_cast<const struct sockaddr*>(res._u._ext.nsaddrs[i]),
-        sizeof *res._u._ext.nsaddrs[i]));
-    EXPECT_EQ(config.nameservers[i], ipe);
-  }
-#endif
-  for (size_t i = 0; i < nscount4; ++i) {
-    IPEndPoint ipe;
-    EXPECT_TRUE(ipe.FromSockAddr(
-        reinterpret_cast<const struct sockaddr*>(&res.nsaddr_list[i]),
-        sizeof res.nsaddr_list[i]));
-    EXPECT_EQ(config.nameservers[nscount6 + i], ipe);
-  }
+const char* kNameserversIPv6[] = {
+    NULL,
+    "2001:DB8:0::42",
+    NULL,
+    "::FFFF:129.144.52.38",
+};
 
-  ASSERT_TRUE(config.search.size() <= MAXDNSRCH);
-  EXPECT_TRUE(res.dnsrch[config.search.size()] == NULL);
-  for (size_t i = 0; i < config.search.size(); ++i) {
-    EXPECT_EQ(config.search[i], res.dnsrch[i]);
-  }
-}
-
-// Fills in |res| with sane configuration. Change |generation| to add diversity.
-void InitializeResState(res_state res, unsigned generation) {
+// Fills in |res| with sane configuration.
+void InitializeResState(res_state res) {
   memset(res, 0, sizeof(*res));
   res->options = RES_INIT | RES_ROTATE;
   res->ndots = 2;
-  res->retrans = 8;
+  res->retrans = 4;
   res->retry = 7;
 
   const char kDnsrch[] = "chromium.org" "\0" "example.com";
@@ -64,65 +40,86 @@ void InitializeResState(res_state res, unsigned generation) {
   res->dnsrch[0] = res->defdname;
   res->dnsrch[1] = res->defdname + sizeof("chromium.org");
 
-  const char* ip4addr[3] = {
-      "8.8.8.8",
-      "192.168.1.1",
-      "63.1.2.4",
-  };
-
-  for (int i = 0; i < 3; ++i) {
+  for (unsigned i = 0; i < arraysize(kNameserversIPv4) && i < MAXNS; ++i) {
     struct sockaddr_in sa;
     sa.sin_family = AF_INET;
-    sa.sin_port = base::HostToNet16(NS_DEFAULTPORT + i - generation);
-    inet_pton(AF_INET, ip4addr[i], &sa.sin_addr);
+    sa.sin_port = base::HostToNet16(NS_DEFAULTPORT + i);
+    inet_pton(AF_INET, kNameserversIPv4[i], &sa.sin_addr);
     res->nsaddr_list[i] = sa;
+    ++res->nscount;
   }
-  res->nscount = 3;
 
 #if defined(OS_LINUX)
-  const char* ip6addr[2] = {
-      "2001:db8:0::42",
-      "::FFFF:129.144.52.38",
-  };
-
-  for (int i = 0; i < 2; ++i) {
+  // Install IPv6 addresses, replacing the corresponding IPv4 addresses.
+  unsigned nscount6 = 0;
+  for (unsigned i = 0; i < arraysize(kNameserversIPv6) && i < MAXNS; ++i) {
+    if (!kNameserversIPv6[i])
+      continue;
     // Must use malloc to mimick res_ninit.
     struct sockaddr_in6 *sa6;
     sa6 = (struct sockaddr_in6 *)malloc(sizeof(*sa6));
     sa6->sin6_family = AF_INET6;
     sa6->sin6_port = base::HostToNet16(NS_DEFAULTPORT - i);
-    inet_pton(AF_INET6, ip6addr[i], &sa6->sin6_addr);
+    inet_pton(AF_INET6, kNameserversIPv6[i], &sa6->sin6_addr);
     res->_u._ext.nsaddrs[i] = sa6;
+    memset(&res->nsaddr_list[i], 0, sizeof res->nsaddr_list[i]);
+    ++nscount6;
   }
-  res->_u._ext.nscount6 = 2;
+  res->_u._ext.nscount6 = nscount6;
 #endif
 }
 
 void CloseResState(res_state res) {
 #if defined(OS_LINUX)
-  for (int i = 0; i < res->_u._ext.nscount6; ++i) {
-    ASSERT_TRUE(res->_u._ext.nsaddrs[i] != NULL);
-    free(res->_u._ext.nsaddrs[i]);
+  for (int i = 0; i < res->nscount; ++i) {
+    if (res->_u._ext.nsaddrs[i] != NULL)
+      free(res->_u._ext.nsaddrs[i]);
+  }
+#endif
+}
+
+void InitializeExpectedConfig(DnsConfig* config) {
+  config->ndots = 2;
+  config->timeout = base::TimeDelta::FromSeconds(4);
+  config->attempts = 7;
+  config->rotate = true;
+  config->edns0 = false;
+  config->append_to_multi_label_name = true;
+  config->search.clear();
+  config->search.push_back("chromium.org");
+  config->search.push_back("example.com");
+
+  config->nameservers.clear();
+  for (unsigned i = 0; i < arraysize(kNameserversIPv4) && i < MAXNS; ++i) {
+    IPAddressNumber ip;
+    ParseIPLiteralToNumber(kNameserversIPv4[i], &ip);
+    config->nameservers.push_back(IPEndPoint(ip, NS_DEFAULTPORT + i));
+  }
+
+#if defined(OS_LINUX)
+  for (unsigned i = 0; i < arraysize(kNameserversIPv6) && i < MAXNS; ++i) {
+    if (!kNameserversIPv6[i])
+      continue;
+    IPAddressNumber ip;
+    ParseIPLiteralToNumber(kNameserversIPv6[i], &ip);
+    config->nameservers[i] = IPEndPoint(ip, NS_DEFAULTPORT - i);
   }
 #endif
 }
 
 TEST(DnsConfigServicePosixTest, ConvertResStateToDnsConfig) {
-  struct __res_state res[2];
-  DnsConfig config[2];
-  for (unsigned i = 0; i < 2; ++i) {
-    EXPECT_FALSE(config[i].IsValid());
-    InitializeResState(&res[i], i);
-    ASSERT_TRUE(internal::ConvertResStateToDnsConfig(res[i], &config[i]));
-  }
-  for (unsigned i = 0; i < 2; ++i) {
-    EXPECT_TRUE(config[i].IsValid());
-    CompareConfig(res[i], config[i]);
-    CloseResState(&res[i]);
-  }
-  EXPECT_TRUE(config[0].Equals(config[0]));
-  EXPECT_FALSE(config[0].Equals(config[1]));
-  EXPECT_FALSE(config[1].Equals(config[0]));
+  struct __res_state res;
+  DnsConfig config;
+  EXPECT_FALSE(config.IsValid());
+  InitializeResState(&res);
+  ASSERT_TRUE(internal::ConvertResStateToDnsConfig(res, &config));
+  CloseResState(&res);
+  EXPECT_TRUE(config.IsValid());
+
+  DnsConfig expected_config;
+  EXPECT_FALSE(expected_config.EqualsIgnoreHosts(config));
+  InitializeExpectedConfig(&expected_config);
+  EXPECT_TRUE(expected_config.EqualsIgnoreHosts(config));
 }
 
 }  // namespace
