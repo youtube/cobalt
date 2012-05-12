@@ -6,6 +6,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/debug/alias.h"
+#include "base/debug/stack_trace.h"
 #include "base/string_util.h"
 #include "net/base/host_resolver.h"
 #include "net/cookies/cookie_store.h"
@@ -80,10 +81,14 @@ void URLRequestContext::AssertNoURLRequests() const {
     base::strlcpy(url_buf, request->url().spec().c_str(), arraysize(url_buf));
     bool has_delegate = request->has_delegate();
     int load_flags = request->load_flags();
+    base::debug::StackTrace stack_trace(NULL, 0);
+    if (request->stack_trace())
+      stack_trace = *request->stack_trace();
     base::debug::Alias(url_buf);
     base::debug::Alias(&num_requests);
     base::debug::Alias(&has_delegate);
     base::debug::Alias(&load_flags);
+    base::debug::Alias(&stack_trace);
     CHECK(false);
   }
 }
