@@ -8,6 +8,7 @@
 #include "base/bind_helpers.h"
 #include "base/callback.h"
 #include "base/compiler_specific.h"
+#include "base/debug/stack_trace.h"
 #include "base/lazy_instance.h"
 #include "base/memory/singleton.h"
 #include "base/message_loop.h"
@@ -914,6 +915,17 @@ void URLRequest::SetUnblockedOnDelegate() {
   blocked_on_delegate_ = false;
   load_state_param_.clear();
   net_log_.EndEvent(NetLog::TYPE_URL_REQUEST_BLOCKED_ON_DELEGATE, NULL);
+}
+
+void URLRequest::set_stack_trace(const base::debug::StackTrace& stack_trace) {
+  base::debug::StackTrace* stack_trace_copy =
+      new base::debug::StackTrace(NULL, 0);
+  *stack_trace_copy = stack_trace;
+  stack_trace_.reset(stack_trace_copy);
+}
+
+const base::debug::StackTrace* URLRequest::stack_trace() const {
+  return stack_trace_.get();
 }
 
 }  // namespace net
