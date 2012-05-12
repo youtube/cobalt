@@ -838,7 +838,7 @@
             'media',
             'yuv_convert',
             '../base/base.gyp:base',
-            '../ui/gfx/gl/gl.gyp:gl',
+            '../ui/gl/gl.gyp:gl',
           ],
           'sources': [
             'tools/shader_bench/shader_bench.cc',
@@ -882,7 +882,7 @@
           'type': 'executable',
           'dependencies': [
             '../base/base.gyp:base',
-            '../ui/gfx/gl/gl.gyp:gl',
+            '../ui/gl/gl.gyp:gl',
           ],
           'libraries': [
             '-lGL',
@@ -903,7 +903,7 @@
             'media',
             'yuv_convert',
             '../base/base.gyp:base',
-            '../ui/gfx/gl/gl.gyp:gl',
+            '../ui/gl/gl.gyp:gl',
           ],
           'link_settings': {
             'libraries': [
