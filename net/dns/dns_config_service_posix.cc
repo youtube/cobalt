@@ -182,44 +182,48 @@ bool ConvertResStateToDnsConfig(const struct __res_state& res,
   DCHECK_LE(nscount, MAXNS);
   for (int i = 0; i < nscount; ++i) {
     IPEndPoint ipe;
-    if (ipe.FromSockAddr(
+    if (!ipe.FromSockAddr(
             reinterpret_cast<const struct sockaddr*>(&addresses[i]),
             sizeof addresses[i])) {
-      dns_config->nameservers.push_back(ipe);
-    } else {
       return false;
     }
+    dns_config->nameservers.push_back(ipe);
   }
-#else  // !(defined(OS_MACOSX) || defined(OS_FREEBSD))
-#if defined(OS_LINUX)
-  // Initially, glibc stores IPv6 in _ext.nsaddrs and IPv4 in nsaddr_list.
-  // Next (res_send.c::__libc_res_nsend), it copies nsaddr_list after nsaddrs.
-  // If RES_ROTATE is enabled, the list is shifted left after each res_send.
-  // However, if nsaddr_list changes, it will refill nsaddr_list (IPv4) but
-  // leave the IPv6 entries in nsaddr in the same (shifted) order.
-
-  // Put IPv6 addresses ahead of IPv4.
-  for (int i = 0; i < res._u._ext.nscount6; ++i) {
-    IPEndPoint ipe;
-    if (ipe.FromSockAddr(
-        reinterpret_cast<const struct sockaddr*>(res._u._ext.nsaddrs[i]),
-        sizeof *res._u._ext.nsaddrs[i])) {
-      dns_config->nameservers.push_back(ipe);
-    } else {
-      return false;
-    }
-  }
-#endif  // defined(OS_LINUX)
-
+#elif defined(OS_LINUX)
+  COMPILE_ASSERT(arraysize(res.nsaddr_list) >= MAXNS &&
+                 arraysize(res._u._ext.nsaddrs) >= MAXNS,
+                 incompatible_libresolv_res_state);
+  DCHECK_LE(res.nscount, MAXNS);
+  // Initially, glibc stores IPv6 in |_ext.nsaddrs| and IPv4 in |nsaddr_list|.
+  // In res_send.c:res_nsend, it merges |nsaddr_list| into |nsaddrs|,
+  // but we have to combine the two arrays ourselves.
   for (int i = 0; i < res.nscount; ++i) {
     IPEndPoint ipe;
-    if (ipe.FromSockAddr(
-        reinterpret_cast<const struct sockaddr*>(&res.nsaddr_list[i]),
-        sizeof res.nsaddr_list[i])) {
-      dns_config->nameservers.push_back(ipe);
+    const struct sockaddr* addr = NULL;
+    size_t addr_len = 0;
+    if (res.nsaddr_list[i].sin_family) {  // The indicator used by res_nsend.
+      addr = reinterpret_cast<const struct sockaddr*>(&res.nsaddr_list[i]);
+      addr_len = sizeof res.nsaddr_list[i];
+    } else if (res._u._ext.nsaddrs[i] != NULL) {
+      addr = reinterpret_cast<const struct sockaddr*>(res._u._ext.nsaddrs[i]);
+      addr_len = sizeof *res._u._ext.nsaddrs[i];
     } else {
       return false;
     }
+    if (!ipe.FromSockAddr(addr, addr_len))
+      return false;
+    dns_config->nameservers.push_back(ipe);
+  }
+#else  // !(defined(OS_LINUX) || defined(OS_MACOSX) || defined(OS_FREEBSD))
+  DCHECK_LE(res.nscount, MAXNS);
+  for (int i = 0; i < res.nscount; ++i) {
+    IPEndPoint ipe;
+    if (!ipe.FromSockAddr(
+        reinterpret_cast<const struct sockaddr*>(&res.nsaddr_list[i]),
+        sizeof res.nsaddr_list[i])) {
+      return false;
+    }
+    dns_config->nameservers.push_back(ipe);
   }
 #endif
 
