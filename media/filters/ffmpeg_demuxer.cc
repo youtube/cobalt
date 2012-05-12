@@ -278,9 +278,11 @@ base::TimeDelta FFmpegDemuxerStream::ConvertStreamTimestamp(
 //
 FFmpegDemuxer::FFmpegDemuxer(
     MessageLoop* message_loop,
-    const scoped_refptr<DataSource>& data_source)
+    const scoped_refptr<DataSource>& data_source,
+    bool local_source)
     : host_(NULL),
       message_loop_(message_loop),
+      local_source_(local_source),
       format_context_(NULL),
       data_source_(data_source),
       read_event_(false, false),
@@ -588,6 +590,14 @@ void FFmpegDemuxer::InitializeTask(DemuxerHost* host,
 int FFmpegDemuxer::GetBitrate() {
   DCHECK(format_context_) << "Initialize() has not been called";
   return bitrate_;
+}
+
+bool FFmpegDemuxer::IsLocalSource() {
+  return local_source_;
+}
+
+bool FFmpegDemuxer::IsSeekable() {
+  return !IsStreaming();
 }
 
 void FFmpegDemuxer::SeekTask(base::TimeDelta time, const PipelineStatusCB& cb) {
