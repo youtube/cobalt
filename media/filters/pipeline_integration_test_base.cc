@@ -147,8 +147,7 @@ scoped_ptr<FilterCollection>
 PipelineIntegrationTestBase::CreateFilterCollection(const std::string& url) {
   scoped_refptr<FileDataSource> data_source = new FileDataSource();
   CHECK_EQ(PIPELINE_OK, data_source->Initialize(url));
-  return CreateFilterCollection(new FFmpegDemuxer(
-      &message_loop_, data_source, false));
+  return CreateFilterCollection(new FFmpegDemuxer(&message_loop_, data_source));
 }
 
 scoped_ptr<FilterCollection>

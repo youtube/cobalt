@@ -15,29 +15,6 @@ using ::testing::Return;
 
 namespace media {
 
-MockDataSource::MockDataSource()
-    : total_bytes_(-1),
-      buffered_bytes_(-1) {
-}
-
-MockDataSource::~MockDataSource() {}
-
-void MockDataSource::set_host(DataSourceHost* data_source_host) {
-  DataSource::set_host(data_source_host);
-
-  if (total_bytes_ > 0)
-    host()->SetTotalBytes(total_bytes_);
-
-  if (buffered_bytes_ > 0)
-    host()->SetBufferedBytes(buffered_bytes_);
-}
-
-void MockDataSource::SetTotalAndBufferedBytes(int64 total_bytes,
-                                              int64 buffered_bytes) {
-  total_bytes_ = total_bytes;
-  buffered_bytes_ = buffered_bytes;
-}
-
 MockDemuxer::MockDemuxer() {}
 
 MockDemuxer::~MockDemuxer() {}

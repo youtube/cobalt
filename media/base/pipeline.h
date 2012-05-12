@@ -230,14 +230,6 @@ class MEDIA_EXPORT Pipeline
   // be 0.
   void GetNaturalVideoSize(gfx::Size* out_size) const;
 
-  // If this method returns true, that means the data source is a streaming
-  // data source. Seeking may not be possible.
-  bool IsStreaming() const;
-
-  // If this method returns true, that means the data source is local and
-  // the network is not needed.
-  bool IsLocalSource() const;
-
   // Gets the current pipeline statistics.
   PipelineStatistics GetStatistics() const;
 

@@ -3,8 +3,7 @@
 // found in the LICENSE file.
 //
 // A new breed of mock media filters, this time using gmock!  Feel free to add
-// actions if you need interesting side-effects (i.e., copying data to the
-// buffer passed into MockDataSource::Read()).
+// actions if you need interesting side-effects.
 //
 // Don't forget you can use StrictMock<> and NiceMock<> if you want the mock
 // filters to fail the test or do nothing when an unexpected method is called.
@@ -70,38 +69,6 @@ class MockFilter : public Filter {
   DISALLOW_COPY_AND_ASSIGN(MockFilter);
 };
 
-class MockDataSource : public DataSource {
- public:
-  MockDataSource();
-
-  virtual void set_host(DataSourceHost* data_source_host);
-
-  MOCK_METHOD1(Stop, void(const base::Closure& callback));
-  MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
-  MOCK_METHOD2(Seek, void(base::TimeDelta time, const PipelineStatusCB& cb));
-  MOCK_METHOD0(OnAudioRendererDisabled, void());
-
-  // DataSource implementation.
-  MOCK_METHOD4(Read, void(int64 position, int size, uint8* data,
-                          const DataSource::ReadCB& callback));
-  MOCK_METHOD1(GetSize, bool(int64* size_out));
-  MOCK_METHOD1(SetBitrate, void(int bitrate));
-  MOCK_METHOD0(IsStreaming, bool());
-
-  // Sets the TotalBytes & BufferedBytes values to be sent to host() when
-  // the set_host() is called.
-  void SetTotalAndBufferedBytes(int64 total_bytes, int64 buffered_bytes);
-
- protected:
-  virtual ~MockDataSource();
-
- private:
-  int64 total_bytes_;
-  int64 buffered_bytes_;
-
-  DISALLOW_COPY_AND_ASSIGN(MockDataSource);
-};
-
 class MockDemuxer : public Demuxer {
  public:
   MockDemuxer();
@@ -115,8 +82,6 @@ class MockDemuxer : public Demuxer {
   MOCK_METHOD1(GetStream, scoped_refptr<DemuxerStream>(DemuxerStream::Type));
   MOCK_CONST_METHOD0(GetStartTime, base::TimeDelta());
   MOCK_METHOD0(GetBitrate, int());
-  MOCK_METHOD0(IsLocalSource, bool());
-  MOCK_METHOD0(IsSeekable, bool());
 
  protected:
   virtual ~MockDemuxer();
