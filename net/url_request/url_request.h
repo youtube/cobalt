@@ -38,6 +38,12 @@ class TestAutomationProvider;
 class URLRequestAutomationJob;
 class UserScriptListenerTest;
 
+namespace base {
+namespace debug {
+class StackTrace;
+}
+}
+
 // Temporary layering violation to allow existing users of a deprecated
 // interface.
 namespace appcache {
@@ -611,6 +617,12 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   // TODO(willchan): Undo this. Only temporarily public.
   bool has_delegate() const { return delegate_ != NULL; }
 
+  // NOTE(willchan): This is just temporary for debugging
+  // http://crbug.com/90971.
+  // Allows to setting debug info into the URLRequest.
+  void set_stack_trace(const base::debug::StackTrace& stack_trace);
+  const base::debug::StackTrace* stack_trace() const;
+
  protected:
   // Allow the URLRequestJob class to control the is_pending() flag.
   void set_is_pending(bool value) { is_pending_ = value; }
@@ -787,6 +799,8 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   scoped_refptr<AuthChallengeInfo> auth_info_;
 
   base::TimeTicks creation_time_;
+
+  scoped_ptr<const base::debug::StackTrace> stack_trace_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequest);
 };
