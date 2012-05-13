@@ -15,7 +15,7 @@ const WebSocketFrameHeader::OpCode WebSocketFrameHeader::kOpCodeClose = 0x8;
 const WebSocketFrameHeader::OpCode WebSocketFrameHeader::kOpCodePing = 0x9;
 const WebSocketFrameHeader::OpCode WebSocketFrameHeader::kOpCodePong = 0xA;
 
-WebSocketFrameChunk::WebSocketFrameChunk() {
+WebSocketFrameChunk::WebSocketFrameChunk() : final_chunk(false) {
 }
 
 WebSocketFrameChunk::~WebSocketFrameChunk() {
