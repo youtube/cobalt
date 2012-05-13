@@ -10,7 +10,7 @@ any modification below this line.
 Let's make a story. Add one sentence for each commit:
 
 CHAPTER 1:
-It was a dark and stormy night; the rain fell in torrents--except at
+It was a dark and stormy night; the rain fell in torrents -- except at
 occasional intervals, when it was checked by a violent gust of wind which
 swept up the streets (for it is in London that our scene lies), rattling along
 the housetops, and fiercely agitating the scanty flame of the lamps that
