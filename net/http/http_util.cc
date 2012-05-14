@@ -316,6 +316,8 @@ namespace {
 const char* const kForbiddenHeaderFields[] = {
   "accept-charset",
   "accept-encoding",
+  "access-control-request-headers",
+  "access-control-request-method",
   "connection",
   "content-length",
   "cookie",
