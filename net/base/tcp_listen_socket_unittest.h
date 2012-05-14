@@ -91,6 +91,8 @@ class TCPListenSocketTester :
   void TestClientSendLong();
   // verify a send/read from server to client
   void TestServerSend();
+  // verify multiple sends and reads from server to client.
+  void TestServerSendMultiple();
 
   virtual bool Send(SOCKET sock, const std::string& str);
 
