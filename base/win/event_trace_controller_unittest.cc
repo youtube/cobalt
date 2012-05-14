@@ -17,7 +17,6 @@
 #include "base/win/event_trace_controller.h"
 #include "base/win/event_trace_provider.h"
 #include "base/win/scoped_handle.h"
-#include "base/win/scoped_com_initializer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
@@ -129,7 +128,6 @@ class EtwTraceControllerTest : public testing::Test {
   }
 
  protected:
-  base::win::ScopedCOMInitializer com_initializer_;
   GUID test_provider_;
   std::wstring session_name_;
 };

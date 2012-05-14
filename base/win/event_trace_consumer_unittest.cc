@@ -18,7 +18,6 @@
 #include "base/stringprintf.h"
 #include "base/win/event_trace_controller.h"
 #include "base/win/event_trace_provider.h"
-#include "base/win/scoped_com_initializer.h"
 #include "base/win/scoped_handle.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -104,7 +103,6 @@ class EtwTraceConsumerBaseTest: public testing::Test {
   }
 
  protected:
-  base::win::ScopedCOMInitializer com_initializer_;
   GUID test_provider_;
   std::wstring session_name_;
 };
@@ -245,7 +243,8 @@ DEFINE_GUID(kTestEventType,
 
 }  // namespace
 
-TEST_F(EtwTraceConsumerRealtimeTest, ConsumeEvent) {
+// Fails consistently on Vista. http://crbug.com/127671
+TEST_F(EtwTraceConsumerRealtimeTest, DISABLED_ConsumeEvent) {
   EtwTraceController controller;
   HRESULT hr = controller.StartRealtimeSession(session_name_.c_str(),
                                                100 * 1024);
