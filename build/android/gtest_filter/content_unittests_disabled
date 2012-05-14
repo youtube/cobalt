@@ -41,5 +41,3 @@ GPUTestExpectationsParserTest.WebGLTestExpectationsValidation
 # crbug.com/104950
 DeviceOrientationProviderTest.ObserverNotRemoved
 DeviceOrientationProviderTest.StartFailing
-# crbug.com/126521
-GpuMemoryManagerTest.TestForegroundStubsGetBonusAllocation
