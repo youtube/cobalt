@@ -240,8 +240,6 @@
         'base/theme_provider.h',
         'base/touch/touch_factory.cc',
         'base/touch/touch_factory.h',
-        'base/touch/touch_mode_support.cc',
-        'base/touch/touch_mode_support.h',
         'base/ui_base_exports.cc',
         'base/ui_base_paths.cc',
         'base/ui_base_paths.h',
