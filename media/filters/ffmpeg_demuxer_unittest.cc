@@ -748,4 +748,26 @@ TEST_F(FFmpegDemuxerTest, Mp3WithVideoStreamID3TagData) {
   EXPECT_TRUE(demuxer_->GetStream(DemuxerStream::AUDIO));
 }
 
+// Ensure a video with an unsupported audio track still results in the video
+// stream being demuxed.
+TEST_F(FFmpegDemuxerTest, UnsupportedAudioSupportedVideoDemux) {
+  CreateDemuxer("speex_audio_vorbis_video.ogv");
+  InitializeDemuxer();
+
+  // Ensure the expected streams are present.
+  EXPECT_TRUE(demuxer_->GetStream(DemuxerStream::VIDEO));
+  EXPECT_FALSE(demuxer_->GetStream(DemuxerStream::AUDIO));
+}
+
+// Ensure a video with an unsupported video track still results in the audio
+// stream being demuxed.
+TEST_F(FFmpegDemuxerTest, UnsupportedVideoSupportedAudioDemux) {
+  CreateDemuxer("vorbis_audio_wmv_video.mkv");
+  InitializeDemuxer();
+
+  // Ensure the expected streams are present.
+  EXPECT_FALSE(demuxer_->GetStream(DemuxerStream::VIDEO));
+  EXPECT_TRUE(demuxer_->GetStream(DemuxerStream::AUDIO));
+}
+
 }  // namespace media
