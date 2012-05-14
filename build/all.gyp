@@ -242,7 +242,6 @@
         'chromium_builder_qa', # needed for pyauto
         '../chrome/chrome.gyp:performance_browser_tests',
         '../chrome/chrome.gyp:performance_ui_tests',
-        '../chrome/chrome.gyp:plugin_tests',
         '../chrome/chrome.gyp:sync_performance_tests',
       ],
     }, # target_name: chromium_builder_perf
@@ -331,7 +330,6 @@
             '../chrome/chrome.gyp:browser_tests',
             '../chrome/chrome.gyp:performance_browser_tests',
             '../chrome/chrome.gyp:performance_ui_tests',
-            '../chrome/chrome.gyp:plugin_tests',
             '../chrome/chrome.gyp:safe_browsing_tests',
             '../chrome/chrome.gyp:sync_integration_tests',
             '../chrome/chrome.gyp:unit_tests',
@@ -407,7 +405,6 @@
             '../chrome/chrome.gyp:mini_installer_test',
             '../chrome/chrome.gyp:performance_browser_tests',
             '../chrome/chrome.gyp:performance_ui_tests',
-            '../chrome/chrome.gyp:plugin_tests',
             '../chrome/chrome.gyp:safe_browsing_tests',
             '../chrome/chrome.gyp:sync_integration_tests',
             '../chrome/chrome.gyp:unit_tests',
