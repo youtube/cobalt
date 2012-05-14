@@ -214,6 +214,7 @@ v8.log
 /third_party/webdriver/pylib
 /third_party/webdriver/python/selenium
 /third_party/webgl_conformance
+/third_party/webpagereplay/
 /third_party/webrtc
 /third_party/wix
 /third_party/xdg-utils
