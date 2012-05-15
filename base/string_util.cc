@@ -386,11 +386,7 @@ bool ContainsOnlyWhitespaceASCII(const std::string& str) {
 }
 
 bool ContainsOnlyWhitespace(const string16& str) {
-  for (string16::const_iterator i(str.begin()); i != str.end(); ++i) {
-    if (!IsWhitespace(*i))
-      return false;
-  }
-  return true;
+  return str.find_first_not_of(kWhitespaceUTF16) == string16::npos;
 }
 
 template<typename STR>
