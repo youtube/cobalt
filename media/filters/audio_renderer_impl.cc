@@ -21,6 +21,7 @@ AudioRendererImpl::AudioRendererImpl(media::AudioRendererSink* sink)
       received_end_of_stream_(false),
       rendered_end_of_stream_(false),
       audio_time_buffered_(kNoTimestamp()),
+      current_time_(kNoTimestamp()),
       bytes_per_frame_(0),
       bytes_per_second_(0),
       stopped_(false),
@@ -121,6 +122,7 @@ void AudioRendererImpl::Seek(base::TimeDelta time, const PipelineStatusCB& cb) {
 
   // Throw away everything and schedule our reads.
   audio_time_buffered_ = kNoTimestamp();
+  current_time_ = kNoTimestamp();
   received_end_of_stream_ = false;
   rendered_end_of_stream_ = false;
 
@@ -436,17 +438,35 @@ uint32 AudioRendererImpl::FillBuffer(uint8* dest,
     // buffered at the audio device. The current time can be computed by their
     // difference.
     if (audio_time_buffered_ != kNoTimestamp()) {
-      current_time = audio_time_buffered_ - playback_delay;
+      base::TimeDelta previous_time = current_time_;
+      current_time_ = audio_time_buffered_ - playback_delay;
+
+      // Time can change in one of two ways:
+      //   1) The time of the audio data at the audio device changed, or
+      //   2) The playback delay value has changed
+      //
+      // We only want to set |current_time| (and thus execute |time_cb_|) if
+      // time has progressed and we haven't signaled end of stream yet.
+      //
+      // Why? The current latency of the system results in getting the last call
+      // to FillBuffer() later than we'd like, which delays firing the 'ended'
+      // event, which delays the looping/trigging performance of short sound
+      // effects.
+      //
+      // TODO(scherkus): revisit this and switch back to relying on playback
+      // delay after we've revamped our audio IPC subsystem.
+      if (current_time_ > previous_time && !rendered_end_of_stream_) {
+        current_time = current_time_;
+      }
     }
 
     // The call to FillBuffer() on |algorithm_| has increased the amount of
     // buffered audio data. Update the new amount of time buffered.
-    max_time = audio_time_buffered_ = algorithm_->GetTime();
+    max_time = algorithm_->GetTime();
+    audio_time_buffered_ = max_time;
   }
 
-  if (current_time != kNoTimestamp() &&
-      current_time > host()->GetTime() &&
-      max_time != kNoTimestamp()) {
+  if (current_time != kNoTimestamp() && max_time != kNoTimestamp()) {
     time_cb_.Run(current_time, max_time);
   }
 
