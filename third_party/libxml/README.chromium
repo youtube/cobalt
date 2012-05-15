@@ -24,6 +24,7 @@ Modifications:
 - Import XPath fix http://git.gnome.org/browse/libxml2/commit/xpath.c?id=2ddecc23862bab1a9a9e51e097aefc92ec305e28
 - Merge clang warning fix http://git.gnome.org/browse/libxml2/commit/?id=aae48e64dfbf2b46b157a4c1857e30645116388f
 - Add a fix for proper escaping of xpointer expressions, commit upstream is pending.
+- Add helper classes in chromium/libxml_utils.cc and chromium/include/libxml/libxml_utils.h.
 
 To import a new snapshot of libxml:
 
