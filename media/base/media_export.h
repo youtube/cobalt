@@ -19,7 +19,11 @@
 #endif  // defined(MEDIA_IMPLEMENTATION)
 
 #else  // defined(WIN32)
+#if defined(MEDIA_IMPLEMENTATION)
 #define MEDIA_EXPORT __attribute__((visibility("default")))
+#else
+#define MEDIA_EXPORT
+#endif
 #endif
 
 #else  // defined(COMPONENT_BUILD)
