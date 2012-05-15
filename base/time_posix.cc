@@ -228,7 +228,11 @@ TimeTicks TimeTicks::HighResNow() {
   return Now();
 }
 
-#if defined(OS_POSIX) && defined(CLOCK_SYSTEM_TRACE)
+#if defined(OS_CHROMEOS)
+// Force definition of the system trace clock; it is a chromeos-only api
+// at the moment and surfacing it in the right place requires mucking
+// with glibc et al.
+#define CLOCK_SYSTEM_TRACE 11
 
 // static
 TimeTicks TimeTicks::NowFromSystemTraceTime() {
@@ -236,7 +240,7 @@ TimeTicks TimeTicks::NowFromSystemTraceTime() {
 
   struct timespec ts;
   if (clock_gettime(CLOCK_SYSTEM_TRACE, &ts) != 0) {
-    NOTREACHED() << "clock_gettime(CLOCK_SYSTEM_TRACE) failed.";
+    // NB: fall-back for a chrome os build running on linux
     return HighResNow();
   }
 
@@ -247,14 +251,14 @@ TimeTicks TimeTicks::NowFromSystemTraceTime() {
   return TimeTicks(absolute_micro);
 }
 
-#else // !(defined(OS_POSIX) && defined(CLOCK_SYSTEM_TRACE))
+#else // !defined(OS_CHROMEOS)
 
 // static
 TimeTicks TimeTicks::NowFromSystemTraceTime() {
   return HighResNow();
 }
 
-#endif // defined(OS_POSIX) && defined(CLOCK_SYSTEM_TRACE)
+#endif // defined(OS_CHROMEOS)
 
 #endif  // !OS_MACOSX
 
