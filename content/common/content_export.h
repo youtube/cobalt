@@ -16,7 +16,11 @@
 #endif  // defined(CONTENT_IMPLEMENTATION)
 
 #else // defined(WIN32)
+#if defined(CONTENT_IMPLEMENTATION)
 #define CONTENT_EXPORT __attribute__((visibility("default")))
+#else
+#define CONTENT_EXPORT
+#endif
 #endif
 
 #else // defined(COMPONENT_BUILD)
