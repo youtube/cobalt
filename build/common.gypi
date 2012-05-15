@@ -338,7 +338,10 @@
       # TODO(maruel): Converted the default from 'check' to 'noop' so work can
       # be done while the builders are being reconfigured to check out test data
       # files.
-      'tests_run%': 'noop',
+      'test_isolation_mode%': 'noop',
+      # It must not be '<(PRODUCT_DIR)' alone, the '/' is necessary otherwise
+      # gyp will remove duplicate flags, causing isolate.py to be confused.
+      'test_isolation_outdir%': '<(PRODUCT_DIR)/',
 
        # Force rlz to use chrome's networking stack.
       'force_rlz_use_chrome_net%': 1,
@@ -558,7 +561,8 @@
     'linux_use_gold_binary%': '<(linux_use_gold_binary)',
     'linux_use_gold_flags%': '<(linux_use_gold_flags)',
     'use_canvas_skia%': '<(use_canvas_skia)',
-    'tests_run%': '<(tests_run)',
+    'test_isolation_mode%': '<(test_isolation_mode)',
+    'test_isolation_outdir%': '<(test_isolation_outdir)',
     'enable_automation%': '<(enable_automation)',
     'force_rlz_use_chrome_net%': '<(force_rlz_use_chrome_net)',
     'enable_task_manager%': '<(enable_task_manager)',
