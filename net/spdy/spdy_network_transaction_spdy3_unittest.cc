@@ -6144,4 +6144,90 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, RetryAfterRefused) {
   EXPECT_EQ("HTTP/1.1 200 OK", response.headers->GetStatusLine());
 }
 
+TEST_P(SpdyNetworkTransactionSpdy3Test, OutOfOrderSynStream) {
+  // This first request will start to establish the SpdySession.
+  // Then we will start the second (MEDIUM priority) and then third
+  // (HIGHEST priority) request in such a way that the third will actually
+  // start before the second, causing the second to be re-numbered.
+  scoped_ptr<SpdyFrame> req1(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<SpdyFrame> req2(ConstructSpdyGet(NULL, 0, false, 5, HIGHEST));
+  scoped_ptr<SpdyFrame> req3(ConstructSpdyGet(NULL, 0, false, 7, MEDIUM));
+  MockWrite writes[] = {
+    CreateMockWrite(*req1, 0),
+    CreateMockWrite(*req2, 3),
+    CreateMockWrite(*req3, 4),
+  };
+
+  scoped_ptr<SpdyFrame> resp1(ConstructSpdyGetSynReply(NULL, 0, 1));
+  scoped_ptr<SpdyFrame> body1(ConstructSpdyBodyFrame(1, true));
+  scoped_ptr<SpdyFrame> resp2(ConstructSpdyGetSynReply(NULL, 0, 7));
+  scoped_ptr<SpdyFrame> body2(ConstructSpdyBodyFrame(7, true));
+  scoped_ptr<SpdyFrame> resp3(ConstructSpdyGetSynReply(NULL, 0, 5));
+  scoped_ptr<SpdyFrame> body3(ConstructSpdyBodyFrame(5, true));
+  MockRead reads[] = {
+    CreateMockRead(*resp1, 1),
+    CreateMockRead(*body1, 2),
+    CreateMockRead(*resp2, 5),
+    CreateMockRead(*body2, 6),
+    CreateMockRead(*resp3, 7),
+    CreateMockRead(*body3, 8),
+    MockRead(ASYNC, 0, 9)  // EOF
+  };
+
+  scoped_refptr<DeterministicSocketData> data(
+      new DeterministicSocketData(reads, arraysize(reads),
+                                  writes, arraysize(writes)));
+  NormalSpdyTransactionHelper helper(CreateGetRequest(),
+                                     BoundNetLog(), GetParam(), NULL);
+  helper.SetDeterministic();
+  helper.RunPreTestSetup();
+  helper.AddDeterministicData(data.get());
+
+  // Start the first transaction to set up the SpdySession
+  HttpNetworkTransaction* trans = helper.trans();
+  TestCompletionCallback callback;
+  HttpRequestInfo info1 = CreateGetRequest();
+  info1.priority = LOWEST;
+  int rv = trans->Start(&info1, callback.callback(), BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  // Run the message loop, but do not allow the write to complete.
+  // This leaves the SpdySession with a write pending, which prevents
+  // SpdySession from attempting subsequent writes until this write completes.
+  MessageLoop::current()->RunAllPending();
+
+  // Now, start both new transactions
+  HttpRequestInfo info2 = CreateGetRequest();
+  info2.priority = MEDIUM;
+  TestCompletionCallback callback2;
+    scoped_ptr<HttpNetworkTransaction> trans2(
+        new HttpNetworkTransaction(helper.session()));
+  rv = trans2->Start(&info2, callback2.callback(), BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  MessageLoop::current()->RunAllPending();
+
+  HttpRequestInfo info3 = CreateGetRequest();
+  info3.priority = HIGHEST;
+  TestCompletionCallback callback3;
+  scoped_ptr<HttpNetworkTransaction> trans3(
+      new HttpNetworkTransaction(helper.session()));
+  rv = trans3->Start(&info3, callback3.callback(), BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  MessageLoop::current()->RunAllPending();
+
+  // We now have two SYN_STREAM frames queued up which will be
+  // dequeued only once the first write completes, which we
+  // now allow to happen.
+  data->RunFor(2);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  // And now we can allow everything else to run to completion.
+  data->SetStop(10);
+  data->Run();
+  EXPECT_EQ(OK, callback2.WaitForResult());
+  EXPECT_EQ(OK, callback3.WaitForResult());
+
+  helper.VerifyDataConsumed();
+}
+
 }  // namespace net

@@ -939,6 +939,14 @@ EVENT_TYPE(SPDY_SESSION)
 //   }
 EVENT_TYPE(SPDY_SESSION_SYN_STREAM)
 
+// This event is sent when a SPDY SYN_STREAM is renumbered.
+// The following parameters are attached:
+//   {
+//     "old_id": <The old stream id>,
+//     "new_id": <The new stream id>,
+//   }
+EVENT_TYPE(SPDY_SESSION_SYN_STREAM_RENUMBER)
+
 // This event is sent for a SPDY SYN_STREAM pushed by the server, where a
 // net::URLRequest is already waiting for the stream.
 // The following parameters are attached:
