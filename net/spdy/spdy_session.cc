@@ -67,6 +67,23 @@ Value* NetLogSpdySynParameter::ToValue() const {
 
 NetLogSpdySynParameter::~NetLogSpdySynParameter() {}
 
+NetLogSpdySynRenumberParameter::NetLogSpdySynRenumberParameter(
+    SpdyStreamId old_id,
+    SpdyStreamId new_id)
+    : old_id_(old_id),
+      new_id_(new_id) {
+}
+
+Value* NetLogSpdySynRenumberParameter::ToValue() const {
+  DictionaryValue* dict = new DictionaryValue();
+  dict->SetInteger("old_id", old_id_);
+  dict->SetInteger("new_id", new_id_);
+  return dict;
+}
+
+NetLogSpdySynRenumberParameter::~NetLogSpdySynRenumberParameter() {}
+
+
 NetLogSpdyCredentialParameter::NetLogSpdyCredentialParameter(
     size_t slot,
     const std::string& origin)
@@ -348,6 +365,7 @@ SpdySession::SpdySession(const HostPortProxyPair& host_port_proxy_pair,
       read_buffer_(new IOBuffer(kReadBufferSize)),
       read_pending_(false),
       stream_hi_water_mark_(1),  // Always start at 1 for the first stream id.
+      last_syn_stream_id_(0),
       write_pending_(false),
       delayed_write_pending_(false),
       is_secure_(false),
@@ -1016,6 +1034,33 @@ void SpdySession::WriteSocket() {
       // which is now.  At this time, we don't compress our data frames.
       SpdyFrame uncompressed_frame(next_buffer.buffer()->data(), false);
       size_t size;
+      if (uncompressed_frame.is_control_frame()) {
+        SpdyControlFrame control_frame(next_buffer.buffer()->data(), false);
+        if (control_frame.type() == SYN_STREAM) {
+          SpdySynStreamControlFrame syn_stream(next_buffer.buffer()->data(),
+                                               false);
+          SpdyStreamId id = syn_stream.stream_id();
+          DCHECK(IsStreamActive(id));
+          if (id < last_syn_stream_id_) {
+            SpdyStreamId old_id = id;
+            // need to play some games to change the stream_id
+            scoped_refptr<SpdyStream> stream = active_streams_[id];
+            active_streams_.erase(id);
+            id = GetNewStreamId();
+            syn_stream.set_stream_id(id);
+            stream->set_stream_id(id);
+            ActivateStream(stream);
+
+            if (net_log().IsLoggingAllEvents()) {
+              net_log().AddEvent(
+                  NetLog::TYPE_SPDY_SESSION_SYN_STREAM_RENUMBER,
+                  make_scoped_refptr(
+                      new NetLogSpdySynRenumberParameter(old_id, id)));
+            }
+          }
+          last_syn_stream_id_ = id;
+        }
+      }
       if (buffered_spdy_framer_->IsCompressible(uncompressed_frame)) {
         DCHECK(uncompressed_frame.is_control_frame());
         scoped_ptr<SpdyFrame> compressed_frame(
