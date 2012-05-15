@@ -1393,7 +1393,8 @@
           'action': [
             'python',
             '../tools/isolate/isolate.py',
-            '--mode', '<(tests_run)',
+            '--mode', '<(test_isolation_mode)',
+            '--outdir', '<(test_isolation_outdir)',
             '--variable', 'PRODUCT_DIR', '<(PRODUCT_DIR)',
             '--variable', 'OS', '<(OS)',
             '--result', '<@(_outputs)',
