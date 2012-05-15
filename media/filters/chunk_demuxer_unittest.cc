@@ -1076,4 +1076,32 @@ TEST_F(ChunkDemuxerTest, TestParseErrorDuringInit) {
   ASSERT_TRUE(demuxer_->AppendData(kSourceId, &tmp, 1));
 }
 
+TEST_F(ChunkDemuxerTest, TestAVHeadersWithAudioOnlyType) {
+  EXPECT_CALL(*client_, DemuxerOpened(_));
+  demuxer_->Initialize(
+      &host_, CreateInitDoneCB(kDefaultDuration(),
+                               DEMUXER_ERROR_COULD_NOT_OPEN));
+
+  std::vector<std::string> codecs(1);
+  codecs[0] = "vorbis";
+  ASSERT_EQ(demuxer_->AddId(kSourceId, "audio/webm", codecs),
+            ChunkDemuxer::kOk);
+
+  ASSERT_TRUE(AppendInfoTracks(true, true, false));
+}
+
+TEST_F(ChunkDemuxerTest, TestAVHeadersWithVideoOnlyType) {
+  EXPECT_CALL(*client_, DemuxerOpened(_));
+  demuxer_->Initialize(
+      &host_, CreateInitDoneCB(kDefaultDuration(),
+                               DEMUXER_ERROR_COULD_NOT_OPEN));
+
+  std::vector<std::string> codecs(1);
+  codecs[0] = "vp8";
+  ASSERT_EQ(demuxer_->AddId(kSourceId, "video/webm", codecs),
+            ChunkDemuxer::kOk);
+
+  ASSERT_TRUE(AppendInfoTracks(true, true, false));
+}
+
 }  // namespace media
