@@ -16,7 +16,11 @@
 #endif  // defined(BASE_I18N_IMPLEMENTATION)
 
 #else  // defined(WIN32)
+#if defined(BASE_I18N_IMPLEMENTATION)
 #define BASE_I18N_EXPORT __attribute__((visibility("default")))
+#else
+#define BASE_I18N_EXPORT
+#endif
 #endif
 
 #else  // defined(COMPONENT_BUILD)
