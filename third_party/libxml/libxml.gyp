@@ -20,7 +20,17 @@
       'target_name': 'libxml',
       'conditions': [
         ['os_posix == 1 and OS != "mac" and use_system_libxml', {
-          'type': 'none',
+          'type': 'static_library',
+          'sources': [
+            'chromium/libxml_utils.h',
+            'chromium/libxml_utils.cc',
+          ],
+          'cflags': [
+            '<!@(pkg-config --cflags libxml-2.0)',
+          ],
+          'defines': [
+            'USE_SYSTEM_LIBXML',
+          ],
           'direct_dependent_settings': {
             'cflags': [
               '<!@(pkg-config --cflags libxml-2.0)',
@@ -40,6 +50,8 @@
         }, { # else: os_posix != 1 or OS == "mac" or ! use_system_libxml
           'type': 'static_library',
           'sources': [
+            'chromium/libxml_utils.h',
+            'chromium/libxml_utils.cc',
             'linux/config.h',
             'linux/include/libxml/xmlversion.h',
             'mac/config.h',
