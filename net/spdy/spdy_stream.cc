@@ -519,6 +519,9 @@ int SpdyStream::SendRequest(bool has_upload_data) {
 
 int SpdyStream::WriteStreamData(IOBuffer* data, int length,
                                 SpdyDataFlags flags) {
+  // Until the headers have been completely sent, we can not be sure
+  // that our stream_id is correct.
+  DCHECK_GT(io_state_, STATE_SEND_HEADERS_COMPLETE);
   return session_->WriteStreamData(stream_id_, data, length, flags);
 }
 
