@@ -7,8 +7,8 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
-#include "base/message_loop_proxy.h"
 #include "base/threading/thread.h"
+#include "base/threading/worker_pool.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/default_server_bound_cert_store.h"
 #include "net/base/host_port_pair.h"
@@ -150,7 +150,7 @@ void TestURLRequestContext::Init() {
     context_storage_.set_server_bound_cert_service(
         new net::ServerBoundCertService(
             new net::DefaultServerBoundCertStore(NULL),
-            base::MessageLoopProxy::current()));
+            base::WorkerPool::GetTaskRunner(true)));
   }
   if (accept_language().empty())
     set_accept_language("en-us,fr");
