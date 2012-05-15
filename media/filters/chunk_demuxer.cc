@@ -15,24 +15,59 @@
 
 namespace media {
 
-struct SupportedTypeInfo {
-  const char* type;
-  const char** codecs;
+struct CodecInfo {
+  const char* name;
+  DemuxerStream::Type type;
 };
 
-static const char* kVideoWebMCodecs[] = { "vp8", "vorbis", NULL };
-static const char* kAudioWebMCodecs[] = { "vorbis", NULL };
+typedef StreamParser* (*ParserFactoryFunction)();
+
+struct SupportedTypeInfo {
+  const char* type;
+  const ParserFactoryFunction factory_function;
+  const CodecInfo** codecs;
+};
+
+static const CodecInfo kVP8CodecInfo = { "vp8", DemuxerStream::VIDEO };
+static const CodecInfo kVorbisCodecInfo = { "vorbis", DemuxerStream::AUDIO };
+
+static const CodecInfo* kVideoWebMCodecs[] = {
+  &kVP8CodecInfo,
+  &kVorbisCodecInfo,
+  NULL
+};
+
+static const CodecInfo* kAudioWebMCodecs[] = {
+  &kVorbisCodecInfo,
+  NULL
+};
+
+static StreamParser* BuildWebMParser() {
+  return new WebMStreamParser();
+}
 
 static const SupportedTypeInfo kSupportedTypeInfo[] = {
-  { "video/webm", kVideoWebMCodecs },
-  { "audio/webm", kAudioWebMCodecs },
+  { "video/webm", &BuildWebMParser, kVideoWebMCodecs },
+  { "audio/webm", &BuildWebMParser, kAudioWebMCodecs },
 };
 
 // Checks to see if the specified |type| and |codecs| list are supported.
 // Returns true if |type| and all codecs listed in |codecs| are supported.
-// Returns false otherwise.
+//         |factory_function| contains a function that can build a StreamParser
+//                            for this type.
+//         |has_audio| is true if an audio codec was specified.
+//         |has_video| is true if a video codec was specified.
+// Returns false otherwise. The values of |factory_function|, |has_audio|,
+//         and |has_video| are undefined.
 static bool IsSupported(const std::string& type,
-                        std::vector<std::string>& codecs) {
+                        std::vector<std::string>& codecs,
+                        ParserFactoryFunction* factory_function,
+                        bool* has_audio,
+                        bool* has_video) {
+  *factory_function = NULL;
+  *has_audio = false;
+  *has_video = false;
+
   // Search for the SupportedTypeInfo for |type|
   for (size_t i = 0; i < arraysize(kSupportedTypeInfo); ++i) {
     const SupportedTypeInfo& type_info = kSupportedTypeInfo[i];
@@ -42,12 +77,34 @@ static bool IsSupported(const std::string& type,
       for (size_t j = 0; j < codecs.size(); ++j) {
         // Search the type info for a match.
         bool found_codec = false;
-        for (int k = 0; type_info.codecs[k] && !found_codec; ++k)
-          found_codec = (codecs[j] == type_info.codecs[k]);
+        DemuxerStream::Type codec_type = DemuxerStream::UNKNOWN;
+
+        for (int k = 0; type_info.codecs[k]; ++k) {
+          if (codecs[j] == type_info.codecs[k]->name) {
+            found_codec = true;
+            codec_type = type_info.codecs[k]->type;
+            break;
+          }
+        }
 
         if (!found_codec)
           return false;
+
+        switch (codec_type) {
+          case DemuxerStream::AUDIO:
+            *has_audio = true;
+            break;
+          case DemuxerStream::VIDEO:
+            *has_video = true;
+            break;
+          default:
+            DVLOG(1) << "Unsupported codec type '"<< codec_type << "' for "
+                     << codecs[j];
+            return false;
+        }
       }
+
+      *factory_function = type_info.factory_function;
 
       // All codecs were supported by this |type|.
       return true;
@@ -417,15 +474,6 @@ void ChunkDemuxer::Initialize(DemuxerHost* host,
 
     ChangeState_Locked(INITIALIZING);
     init_cb_ = cb;
-
-    source_buffer_.reset(new SourceBuffer());
-
-    source_buffer_->Init(
-        base::Bind(&ChunkDemuxer::OnSourceBufferInitDone, this),
-        base::Bind(&ChunkDemuxer::OnNewConfigs, base::Unretained(this)),
-        base::Bind(&ChunkDemuxer::OnAudioBuffers, base::Unretained(this)),
-        base::Bind(&ChunkDemuxer::OnVideoBuffers, base::Unretained(this)),
-        base::Bind(&ChunkDemuxer::OnKeyNeeded, base::Unretained(this)));
   }
 
   client_->DemuxerOpened(this);
@@ -517,7 +565,10 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
                                          std::vector<std::string>& codecs) {
   DCHECK_GT(codecs.size(), 0u);
 
-  if (!IsSupported(type, codecs))
+  bool has_audio = false;
+  bool has_video = false;
+  ParserFactoryFunction factory_function = NULL;
+  if (!IsSupported(type, codecs, &factory_function, &has_audio, &has_video))
     return kNotSupported;
 
   // TODO(acolwell): Support for more than one ID
@@ -526,6 +577,33 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
     return kReachedIdLimit;
 
   source_id_ = id;
+
+  StreamParser::NewBuffersCB audio_cb;
+  StreamParser::NewBuffersCB video_cb;
+
+  if (has_audio) {
+    audio_cb = base::Bind(&ChunkDemuxer::OnAudioBuffers,
+                          base::Unretained(this));
+  }
+
+  if (has_video) {
+    video_cb = base::Bind(&ChunkDemuxer::OnVideoBuffers,
+                          base::Unretained(this));
+  }
+
+  scoped_ptr<StreamParser> stream_parser(factory_function());
+
+  CHECK(stream_parser.get());
+
+  source_buffer_.reset(new SourceBuffer());
+  source_buffer_->Init(
+      stream_parser.Pass(),
+      base::Bind(&ChunkDemuxer::OnSourceBufferInitDone, this),
+      base::Bind(&ChunkDemuxer::OnNewConfigs, base::Unretained(this)),
+      audio_cb,
+      video_cb,
+      base::Bind(&ChunkDemuxer::OnKeyNeeded, base::Unretained(this)));
+
   return kOk;
 }
 
