@@ -52,16 +52,6 @@
           # Allows us to *temporarily* disable certain things for
           # staging.  Only set to 1 in a GYP_DEFINES.
           'android_upstream_bringup%': 0,
-
-          # Override buildtype to select the desired build flavor.
-          # Dev - everyday build for development/testing
-          # Official - release build (generally implies additional processing)
-          # TODO(mmoss) Once 'buildtype' is fully supported (e.g. Windows gyp
-          # conversion is done), some of the things which are now controlled by
-          # 'branding', such as symbol generation, will need to be refactored
-          # based on 'buildtype' (i.e. we don't care about saving symbols for
-          # non-Official # builds).
-          'buildtype%': 'Dev',
         },
         # Copy conditionally-set variables out one scope.
         'chromeos%': '<(chromeos)',
@@ -74,7 +64,6 @@
         'enable_touch_ui%': '<(enable_touch_ui)',
         'enable_metro%': '<(enable_metro)',
         'android_upstream_bringup%': '<(android_upstream_bringup)',
-        'buildtype%': '<(buildtype)',
 
         # Compute the architecture that we're building on.
         'conditions': [
@@ -137,7 +126,6 @@
       'enable_touch_ui%': '<(enable_touch_ui)',
       'enable_metro%': '<(enable_metro)',
       'android_upstream_bringup%': '<(android_upstream_bringup)',
-      'chromium_win_pch%': '<(chromium_win_pch)',
 
       # We used to provide a variable for changing how libraries were built.
       # This variable remains until we can clean up all the users.
@@ -149,7 +137,15 @@
       # Override branding to select the desired branding flavor.
       'branding%': 'Chromium',
 
-      'buildtype%': '<(buildtype)',
+      # Override buildtype to select the desired build flavor.
+      # Dev - everyday build for development/testing
+      # Official - release build (generally implies additional processing)
+      # TODO(mmoss) Once 'buildtype' is fully supported (e.g. Windows gyp
+      # conversion is done), some of the things which are now controlled by
+      # 'branding', such as symbol generation, will need to be refactored based
+      # on 'buildtype' (i.e. we don't care about saving symbols for non-Official
+      # builds).
+      'buildtype%': 'Dev',
 
       # Default architecture we're building for is the architecture we're
       # building on.
@@ -287,6 +283,12 @@
       # Enables support for promo resource service.
       'enable_promo_resource_service%': 1,
 
+      # XInput2 multitouch support is disabled by default (use_xi2_mt=0).
+      # Setting to non-zero value enables XI2 MT. When XI2 MT is enabled,
+      # the input value also defines the required XI2 minor minimum version.
+      # For example, use_xi2_mt=2 means XI2.2 or above version is required.
+      'use_xi2_mt%': 0,
+
       # Use of precompiled headers on Windows.
       #
       # This is on by default in VS 2010, but off by default for VS
@@ -305,12 +307,6 @@
       # http://code.google.com/p/chromium/wiki/WindowsPrecompiledHeaders
       # for details.
       'chromium_win_pch%': 0,
-
-      # XInput2 multitouch support is disabled by default (use_xi2_mt=0).
-      # Setting to non-zero value enables XI2 MT. When XI2 MT is enabled,
-      # the input value also defines the required XI2 minor minimum version.
-      # For example, use_xi2_mt=2 means XI2.2 or above version is required.
-      'use_xi2_mt%': 0,
 
       # Set this to true when building with Clang.
       # See http://code.google.com/p/chromium/wiki/Clang for details.
@@ -445,7 +441,7 @@
         }],
 
         # Turn precompiled headers on by default for VS 2010.
-        ['OS=="win" and MSVS_VERSION=="2010" and buildtype!="Official"', {
+        ['OS=="win" and MSVS_VERSION=="2010"', {
           'chromium_win_pch%': 1
         }],
 
