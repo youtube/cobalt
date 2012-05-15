@@ -73,6 +73,12 @@ esac
 toolchain_path="${ANDROID_NDK_ROOT}/toolchains/${toolchain_arch}/prebuilt/"
 export ANDROID_TOOLCHAIN="${toolchain_path}/${toolchain_dir}/bin/"
 
+if [ ! -d "${ANDROID_TOOLCHAIN}" ]; then
+  echo "Can not find Android toolchain in ${ANDROID_TOOLCHAIN}." >& 2
+  echo "The NDK version might be wrong." >& 2
+  return 1
+fi
+
 export ANDROID_SDK_VERSION="15"
 
 # Needed by android antfiles when creating apks.
@@ -82,12 +88,8 @@ export ANDROID_SDK_HOME=${ANDROID_SDK_ROOT}
 export PATH=$PATH:${ANDROID_NDK_ROOT}
 export PATH=$PATH:${ANDROID_SDK_ROOT}/tools
 export PATH=$PATH:${ANDROID_SDK_ROOT}/platform-tools
-
-if [ ! -d "${ANDROID_TOOLCHAIN}" ]; then
-  echo "Can not find Android toolchain in ${ANDROID_TOOLCHAIN}." >& 2
-  echo "The NDK version might be wrong." >& 2
-  return 1
-fi
+# Must have tools like arm-linux-androideabi-gcc on the path for ninja
+export PATH=$PATH:${ANDROID_TOOLCHAIN}
 
 if [ -z "${CHROME_SRC}" ]; then
   # If $CHROME_SRC was not set, assume current directory is CHROME_SRC.
