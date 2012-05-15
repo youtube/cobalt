@@ -76,9 +76,6 @@
         'android_upstream_bringup%': '<(android_upstream_bringup)',
         'buildtype%': '<(buildtype)',
 
-        # Use of precompiled headers on Windows. See comment below.
-        'chromium_win_pch%': '0',
-
         # Compute the architecture that we're building on.
         'conditions': [
           [ 'OS=="win" or OS=="mac"', {
@@ -140,7 +137,6 @@
       'enable_touch_ui%': '<(enable_touch_ui)',
       'enable_metro%': '<(enable_metro)',
       'android_upstream_bringup%': '<(android_upstream_bringup)',
-      'chromium_win_pch%': '<(chromium_win_pch)',
 
       # We used to provide a variable for changing how libraries were built.
       # This variable remains until we can clean up all the users.
