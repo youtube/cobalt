@@ -3891,7 +3891,7 @@ dtoa
 				goto no_digits;
 			goto one_digit;
 			}
-		for(i = 1;; i++, dval(&u) *= 10.) {
+		for(i = 1; i <= k + 1; i++, dval(&u) *= 10.) {
 			L = (Long)(dval(&u) / ds);
 			dval(&u) -= L*ds;
 #ifdef Check_FLT_ROUNDS
