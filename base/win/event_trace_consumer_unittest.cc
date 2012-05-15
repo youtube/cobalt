@@ -206,7 +206,6 @@ class EtwTraceConsumerRealtimeTest: public EtwTraceConsumerBaseTest {
   }
 
   TestConsumer consumer_;
-  GUID test_provider_;
   base::win::ScopedHandle consumer_ready_;
   base::win::ScopedHandle consumer_thread_;
 };
@@ -243,8 +242,7 @@ DEFINE_GUID(kTestEventType,
 
 }  // namespace
 
-// Fails consistently on Vista. http://crbug.com/127671
-TEST_F(EtwTraceConsumerRealtimeTest, DISABLED_ConsumeEvent) {
+TEST_F(EtwTraceConsumerRealtimeTest, ConsumeEvent) {
   EtwTraceController controller;
   HRESULT hr = controller.StartRealtimeSession(session_name_.c_str(),
                                                100 * 1024);
