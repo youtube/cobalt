@@ -155,8 +155,10 @@ class MEDIA_EXPORT AudioRendererImpl
   bool received_end_of_stream_;
   bool rendered_end_of_stream_;
 
-  // The timestamp of the last frame (i.e. furthest in the future) buffered.
+  // The timestamp of the last frame (i.e. furthest in the future) buffered as
+  // well as the current time that takes current playback delay into account.
   base::TimeDelta audio_time_buffered_;
+  base::TimeDelta current_time_;
 
   // Filter callbacks.
   base::Closure pause_cb_;
