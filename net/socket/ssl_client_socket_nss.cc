@@ -430,6 +430,7 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
                                        const SSLClientSocketContext& context)
     : transport_send_busy_(false),
       transport_recv_busy_(false),
+      transport_recv_eof_(false),
       transport_(transport_socket),
       host_and_port_(host_and_port),
       ssl_config_(ssl_config),
@@ -633,6 +634,7 @@ void SSLClientSocketNSS::Disconnect() {
   user_write_callback_.Reset();
   transport_send_busy_   = false;
   transport_recv_busy_   = false;
+  transport_recv_eof_    = false;
   user_read_buf_         = NULL;
   user_read_buf_len_     = 0;
   user_write_buf_        = NULL;
@@ -1219,6 +1221,7 @@ void SSLClientSocketNSS::OnSendComplete(int result) {
       network_moved = DoTransportIO();
   } while (rv_read == ERR_IO_PENDING &&
            rv_write == ERR_IO_PENDING &&
+           (user_read_buf_ || user_write_buf_) &&
            network_moved);
 
   if (user_read_buf_ && rv_read != ERR_IO_PENDING)
@@ -1922,7 +1925,7 @@ bool SSLClientSocketNSS::DoTransportIO() {
       if (rv > 0)
         network_moved = true;
     } while (rv > 0);
-    if (BufferRecv() >= 0)
+    if (!transport_recv_eof_ && BufferRecv() >= 0)
       network_moved = true;
   }
   LeaveFunction(network_moved);
@@ -1932,7 +1935,7 @@ bool SSLClientSocketNSS::DoTransportIO() {
 // Return 0 for EOF,
 // > 0 for bytes transferred immediately,
 // < 0 for error (or the non-error ERR_IO_PENDING).
-int SSLClientSocketNSS::BufferSend(void) {
+int SSLClientSocketNSS::BufferSend() {
   if (transport_send_busy_)
     return ERR_IO_PENDING;
 
@@ -1971,7 +1974,7 @@ void SSLClientSocketNSS::BufferSendComplete(int result) {
   LeaveFunction("");
 }
 
-int SSLClientSocketNSS::BufferRecv(void) {
+int SSLClientSocketNSS::BufferRecv() {
   if (transport_recv_busy_) return ERR_IO_PENDING;
 
   char* buf;
@@ -1990,8 +1993,11 @@ int SSLClientSocketNSS::BufferRecv(void) {
     if (rv == ERR_IO_PENDING) {
       transport_recv_busy_ = true;
     } else {
-      if (rv > 0)
+      if (rv > 0) {
         memcpy(buf, recv_buffer_->data(), rv);
+      } else if (rv == 0) {
+        transport_recv_eof_ = true;
+      }
       memio_PutReadResult(nss_bufs_, MapErrorToNSS(rv));
       recv_buffer_ = NULL;
     }
@@ -2006,6 +2012,8 @@ void SSLClientSocketNSS::BufferRecvComplete(int result) {
     char* buf;
     memio_GetReadParams(nss_bufs_, &buf);
     memcpy(buf, recv_buffer_->data(), result);
+  } else if (result == 0) {
+    transport_recv_eof_ = true;
   }
   recv_buffer_ = NULL;
   memio_PutReadResult(nss_bufs_, MapErrorToNSS(result));
