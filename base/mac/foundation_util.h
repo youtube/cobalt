@@ -33,6 +33,9 @@ typedef unsigned int NSSearchPathDirectory;
 typedef unsigned int NSSearchPathDomainMask;
 #endif
 
+typedef struct OpaqueSecTrustRef* SecACLRef;
+typedef struct OpaqueSecTrustedApplicationRef* SecTrustedApplicationRef;
+
 namespace base {
 namespace mac {
 
@@ -245,7 +248,10 @@ CF_CAST_DECL(CFNumber);
 CF_CAST_DECL(CFSet);
 CF_CAST_DECL(CFString);
 
-#undef CF_CAST_DEFN
+CF_CAST_DECL(SecACL);
+CF_CAST_DECL(SecTrustedApplication);
+
+#undef CF_CAST_DECL
 
 #if defined(__OBJC__)
 
