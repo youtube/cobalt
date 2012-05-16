@@ -13,7 +13,12 @@
 #include "base/time.h"
 
 using base::Time;
+using base::TimeDelta;
 using base::WaitableEvent;
+
+// Workaround for crbug.com/128128.
+// Minimal delay between stream->Stop() and stream->Start().
+const int kMacWorkaroundInMilliseconds = 50;
 
 namespace media {
 
@@ -33,7 +38,10 @@ AudioOutputController::AudioOutputController(EventHandler* handler,
       sync_reader_(sync_reader),
       message_loop_(NULL),
       number_polling_attempts_left_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(weak_this_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(weak_this_(this)),
+      previous_stop_time_(
+          Time::Now() -
+          TimeDelta::FromMilliseconds(kMacWorkaroundInMilliseconds + 1)) {
 }
 
 AudioOutputController::~AudioOutputController() {
@@ -170,7 +178,7 @@ void AudioOutputController::DoPlay() {
       FROM_HERE,
       base::Bind(&AudioOutputController::PollAndStartIfDataReady,
       weak_this_.GetWeakPtr()),
-      base::TimeDelta::FromMilliseconds(kPollPauseInMilliseconds));
+      TimeDelta::FromMilliseconds(kPollPauseInMilliseconds));
 }
 
 void AudioOutputController::PollAndStartIfDataReady() {
@@ -195,12 +203,25 @@ void AudioOutputController::PollAndStartIfDataReady() {
         FROM_HERE,
         base::Bind(&AudioOutputController::PollAndStartIfDataReady,
         weak_this_.GetWeakPtr()),
-        base::TimeDelta::FromMilliseconds(kPollPauseInMilliseconds));
+        TimeDelta::FromMilliseconds(kPollPauseInMilliseconds));
   }
 }
 
 void AudioOutputController::StartStream() {
   DCHECK(message_loop_->BelongsToCurrentThread());
+#if defined(OS_MACOSX)
+  // HACK: workaround for crbug.com/128128.
+  // Mac OS crashes if we start playback too soon after previous ended.
+  // Audio mixer contains better fix, it keeps physical stream opened for
+  // some time after logical one is closed, so sequence of play / pause / play /
+  // pause / ... would reuse the same stream, but we need fix for M20.
+  // TODO(enal): Remove after turning on mixer by default.
+  while ((Time::Now() - previous_stop_time_).InMilliseconds() <
+         kMacWorkaroundInMilliseconds) {
+    base::PlatformThread::YieldCurrentThread();
+  }
+#endif
+
   state_ = kPlaying;
 
   // We start the AudioOutputStream lazily.
@@ -213,8 +234,13 @@ void AudioOutputController::StartStream() {
 void AudioOutputController::DoPause() {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
-  if (stream_)
+  if (stream_) {
+    // Then we stop the audio device. This is not the perfect solution
+    // because it discards all the internal buffer in the audio device.
+    // TODO(hclam): Actually pause the audio device.
     stream_->Stop();
+    previous_stop_time_ = Time::Now();
+  }
 
   switch (state_) {
     case kStarting:
@@ -226,11 +252,6 @@ void AudioOutputController::DoPause() {
       break;
     case kPlaying:
       state_ = kPaused;
-
-      // Then we stop the audio device. This is not the perfect solution
-      // because it discards all the internal buffer in the audio device.
-      // TODO(hclam): Actually pause the audio device.
-      stream_->Stop();
 
       // Send a special pause mark to the low-latency audio thread.
       sync_reader_->UpdatePendingBytes(kPauseMark);
@@ -306,11 +327,11 @@ void AudioOutputController::WaitTillDataReady() {
   if (!sync_reader_->DataReady()) {
     // In the different place we use different mechanism to poll, get max
     // polling delay from constants used there.
-    const base::TimeDelta kMaxPollingDelay = base::TimeDelta::FromMilliseconds(
+    const base::TimeDelta kMaxPollingDelay = TimeDelta::FromMilliseconds(
         kPollNumAttempts * kPollPauseInMilliseconds);
     Time start_time = Time::Now();
     do {
-      base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(1));
+      base::PlatformThread::Sleep(TimeDelta::FromMilliseconds(1));
     } while (!sync_reader_->DataReady() &&
              Time::Now() - start_time < kMaxPollingDelay);
   }
