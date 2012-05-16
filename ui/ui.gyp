@@ -295,6 +295,8 @@
         'base/x/root_window_property_watcher_x.h',
         'base/x/work_area_watcher_x.cc',
         'base/x/work_area_watcher_x.h',
+        'base/x/x11_atom_cache.cc',
+        'base/x/x11_atom_cache.h',
         'base/x/x11_util.cc',
         'base/x/x11_util.h',
         'base/x/x11_util_internal.h',
