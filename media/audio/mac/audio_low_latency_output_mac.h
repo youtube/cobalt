@@ -19,7 +19,7 @@
 
 #include <AudioUnit/AudioUnit.h>
 
-#include "base/memory/scoped_ptr.h"
+#include "base/compiler_specific.h"
 #include "media/audio/audio_io.h"
 #include "media/audio/audio_parameters.h"
 
