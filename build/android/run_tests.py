@@ -76,6 +76,13 @@ _TEST_SUITES = ['base_unittests',
                 'ui_unittests',
                ]
 
+# Test suites which are build as an APK. This will be replaced by the default
+# list when we start building all suites as APK.
+_APK_TEST_SUITES = ['replaceme',  # Test the template apk too.
+                    'base_unittests',
+                    'ipc_tests',
+                    'ui_unittests',
+                   ]
 
 def FullyQualifiedTestSuites(apk):
   """Return a fully qualified list that represents all known suites.
@@ -86,11 +93,11 @@ def FullyQualifiedTestSuites(apk):
   test_suite_dir = os.path.abspath(os.path.join(run_tests_helper.CHROME_DIR,
                                                 'out', 'Release'))
   if apk:
-    # out/Release/$SUITE_apk/ChromeNativeTests-debug.apk
+    # out/Release/$SUITE_apk/$SUITE-debug.apk
     suites = [os.path.join(test_suite_dir,
                            t + '_apk',
-                           'ChromeNativeTests-debug.apk')
-              for t in _TEST_SUITES]
+                           t + '-debug.apk')
+              for t in _APK_TEST_SUITES]
   else:
     suites = [os.path.join(test_suite_dir, t) for t in _TEST_SUITES]
   return suites
