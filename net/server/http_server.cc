@@ -93,14 +93,14 @@ void HttpServer::Close(int connection_id)
   DidClose(connection->socket_);
 }
 
-void HttpServer::DidAccept(ListenSocket* server,
-                           ListenSocket* socket) {
+void HttpServer::DidAccept(StreamListenSocket* server,
+                           StreamListenSocket* socket) {
   HttpConnection* connection = new HttpConnection(this, socket);
   id_to_connection_[connection->id()] = connection;
   socket_to_connection_[socket] = connection;
 }
 
-void HttpServer::DidRead(ListenSocket* socket,
+void HttpServer::DidRead(StreamListenSocket* socket,
                          const char* data,
                          int len) {
   HttpConnection* connection = FindConnection(socket);
@@ -148,7 +148,7 @@ void HttpServer::DidRead(ListenSocket* socket,
   }
 }
 
-void HttpServer::DidClose(ListenSocket* socket) {
+void HttpServer::DidClose(StreamListenSocket* socket) {
   HttpConnection* connection = FindConnection(socket);
   DCHECK(connection != NULL);
   id_to_connection_.erase(connection->id());
@@ -302,7 +302,7 @@ HttpConnection* HttpServer::FindConnection(int connection_id) {
   return it->second;
 }
 
-HttpConnection* HttpServer::FindConnection(ListenSocket* socket) {
+HttpConnection* HttpServer::FindConnection(StreamListenSocket* socket) {
   SocketToConnectionMap::iterator it = socket_to_connection_.find(socket);
   if (it == socket_to_connection_.end())
     return NULL;
