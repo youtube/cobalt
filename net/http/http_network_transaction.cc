@@ -164,6 +164,7 @@ int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING)
     callback_ = callback;
+  CHECK_NE(rv, ERR_SPDY_PING_FAILED);
   return rv;
 }
 
@@ -470,6 +471,7 @@ bool HttpNetworkTransaction::is_https_request() const {
 }
 
 void HttpNetworkTransaction::DoCallback(int rv) {
+  CHECK_NE(rv, ERR_SPDY_PING_FAILED);
   DCHECK_NE(rv, ERR_IO_PENDING);
   DCHECK(!callback_.is_null());
 
