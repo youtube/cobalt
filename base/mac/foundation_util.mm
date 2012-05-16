@@ -13,9 +13,6 @@
 #include "base/mac/mac_logging.h"
 #include "base/sys_string_conversions.h"
 
-typedef struct OpaqueSecTrustRef* SecACLRef;
-typedef struct OpaqueSecTrustedApplicationRef* SecTrustedApplicationRef;
-
 extern "C" {
 CFTypeID SecACLGetTypeID();
 CFTypeID SecTrustedApplicationGetTypeID();
