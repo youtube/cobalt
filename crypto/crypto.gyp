@@ -61,7 +61,7 @@
         }],
         [ 'OS == "android"', {
             'dependencies': [
-              '../build/android/system.gyp:ssl',
+              '../third_party/openssl/openssl.gyp:openssl',
             ],
             'sources/': [
               ['exclude', 'ec_private_key_nss\.cc$'],
