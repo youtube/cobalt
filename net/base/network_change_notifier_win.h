@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/threading/non_thread_safe.h"
 #include "base/timer.h"
@@ -47,6 +48,7 @@ class NET_EXPORT_PRIVATE NetworkChangeNotifierWin
   int sequential_failures() { return sequential_failures_; }
 
  private:
+  class DnsWatcherThread;
   friend class NetworkChangeNotifierWinTest;
 
   // NetworkChangeNotifier methods:
@@ -88,6 +90,9 @@ class NET_EXPORT_PRIVATE NetworkChangeNotifierWin
 
   // Used for calling WatchForAddressChange again on failure.
   base::WeakPtrFactory<NetworkChangeNotifierWin> weak_factory_;
+
+  // Thread on which we can run DnsConfigWatcher.
+  scoped_ptr<DnsWatcherThread> dns_watcher_thread_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierWin);
 };

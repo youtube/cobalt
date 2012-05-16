@@ -8,11 +8,16 @@
 
 #include "base/basictypes.h"
 #include "base/observer_list_threadsafe.h"
+#include "base/synchronization/lock.h"
 #include "net/base/net_export.h"
 
 namespace net {
 
 class NetworkChangeNotifierFactory;
+
+namespace internal {
+class DnsConfigWatcher;
+}
 
 // NetworkChangeNotifier monitors the system for network changes, and notifies
 // registered observers of those events.  Observers may register on any thread,
@@ -27,8 +32,10 @@ class NET_EXPORT NetworkChangeNotifier {
     CHANGE_DNS_SETTINGS = 1 << 0,
     // The HOSTS file has changed.
     CHANGE_DNS_HOSTS = 1 << 1,
-    // Computer name has changed.
-    CHANGE_DNS_LOCALHOST = 1 << 2,
+    // The watcher has started.
+    CHANGE_DNS_WATCH_STARTED = 1 << 2,
+    // The watcher has failed and will not be available until further notice.
+    CHANGE_DNS_WATCH_FAILED = 1 << 3,
   };
 
   class NET_EXPORT IPAddressObserver {
@@ -105,6 +112,9 @@ class NET_EXPORT NetworkChangeNotifier {
   // will be successfully.
   static bool IsOffline();
 
+  // Returns true if DNS watcher is operational.
+  static bool IsWatchingDNS();
+
   // Like Create(), but for use in tests.  The mock object doesn't monitor any
   // events, it merely rebroadcasts notifications when requested.
   static NetworkChangeNotifier* CreateMock();
@@ -135,6 +145,8 @@ class NET_EXPORT NetworkChangeNotifier {
   }
 
  protected:
+  friend class internal::DnsConfigWatcher;
+
   NetworkChangeNotifier();
 
   // Broadcasts a notification to all registered observers.  Note that this
@@ -171,6 +183,13 @@ class NET_EXPORT NetworkChangeNotifier {
       online_state_observer_list_;
   const scoped_refptr<ObserverListThreadSafe<DNSObserver> >
       resolver_state_observer_list_;
+
+  // True iff DNS watchers are operational.
+  // Otherwise, OnDNSChanged might not be issued for future changes.
+  // TODO(szym): This is a temporary interface, consider restarting them.
+  //             http://crbug.com/116139
+  base::Lock watching_dns_lock_;
+  bool watching_dns_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifier);
 };

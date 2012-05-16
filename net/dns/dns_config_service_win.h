@@ -33,28 +33,27 @@
 
 namespace net {
 
-class FilePathWatcherWrapper;
-
-// Use DnsConfigService::CreateSystemService to use it outside of tests.
 namespace internal {
 
-class NET_EXPORT_PRIVATE DnsConfigServiceWin
-    : NON_EXPORTED_BASE(public DnsConfigService) {
- public:
-  DnsConfigServiceWin();
-  virtual ~DnsConfigServiceWin();
+// Registry key paths.
+const wchar_t* const kTcpipPath =
+    L"SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters";
+const wchar_t* const kTcpip6Path =
+    L"SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters";
+const wchar_t* const kDnscachePath =
+    L"SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters";
+const wchar_t* const kPolicyPath =
+    L"SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient";
 
-  virtual void Watch(const CallbackType& callback) OVERRIDE;
+// Returns the path to the HOSTS file.
+FilePath GetHostsPath();
 
- private:
-  class ConfigReader;
-  class HostsReader;
-
-  scoped_refptr<ConfigReader> config_reader_;
-  scoped_refptr<HostsReader> hosts_reader_;
-
-  DISALLOW_COPY_AND_ASSIGN(DnsConfigServiceWin);
-};
+// Parses |value| as search list (comma-delimited list of domain names) from
+// a registry key and stores it in |out|. Returns true on success. Empty
+// entries (e.g., "chromium.org,,org") terminate the list. Non-ascii hostnames
+// are converted to punycode.
+bool NET_EXPORT_PRIVATE ParseSearchList(const string16& value,
+                                        std::vector<std::string>* out);
 
 // All relevant settings read from registry and IP Helper. This isolates our
 // logic from system calls and is exposed for unit tests. Keep it an aggregate
@@ -102,16 +101,36 @@ struct NET_EXPORT_PRIVATE DnsSystemSettings {
   RegDword append_to_multi_label_name;
 };
 
-// Parses |value| as search list (comma-delimited list of domain names) from
-// a registry key and stores it in |out|. Returns true on success. Empty
-// entries (e.g., "chromium.org,,org") terminate the list. Non-ascii hostnames
-// are converted to punycode.
-bool NET_EXPORT_PRIVATE ParseSearchList(const string16& value,
-                                        std::vector<std::string>* out);
-
 // Fills in |dns_config| from |settings|. Exposed for tests.
 bool NET_EXPORT_PRIVATE ConvertSettingsToDnsConfig(
-    const DnsSystemSettings& settings, DnsConfig* dns_config);
+    const DnsSystemSettings& settings,
+    DnsConfig* dns_config);
+
+// Use DnsConfigService::CreateSystemService to use it outside of tests.
+class NET_EXPORT_PRIVATE DnsConfigServiceWin
+    : public DnsConfigService,
+      public NetworkChangeNotifier::IPAddressObserver {
+ public:
+  DnsConfigServiceWin();
+  virtual ~DnsConfigServiceWin();
+
+  virtual void Watch(const CallbackType& callback) OVERRIDE;
+
+ private:
+  class ConfigReader;
+  class HostsReader;
+
+  // NetworkChangeNotifier::DNSObserver:
+  virtual void OnDNSChanged(unsigned detail) OVERRIDE;
+
+  // NetworkChangeNotifier::IPAddressObserver:
+  virtual void OnIPAddressChanged() OVERRIDE;
+
+  scoped_refptr<ConfigReader> config_reader_;
+  scoped_refptr<HostsReader> hosts_reader_;
+
+  DISALLOW_COPY_AND_ASSIGN(DnsConfigServiceWin);
+};
 
 }  // namespace internal
 

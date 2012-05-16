@@ -24,7 +24,7 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
   NetworkChangeNotifierMac();
   virtual ~NetworkChangeNotifierMac();
 
-  // NetworkChangeNotifier implementation:
+  // NetworkChangeNotifier:
   virtual bool IsCurrentlyOffline() const OVERRIDE;
 
  private:
@@ -33,6 +33,8 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
     OFFLINE = 0,
     ONLINE = 1
   };
+
+  class DnsWatcherThread;
 
   // Forwarder just exists to keep the NetworkConfigWatcherMac API out of
   // NetworkChangeNotifierMac's public API.
@@ -82,6 +84,9 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
 
   Forwarder forwarder_;
   scoped_ptr<const NetworkConfigWatcherMac> config_watcher_;
+
+  // Thread on which we can run DnsConfigWatcher, which requires TYPE_IO.
+  scoped_ptr<DnsWatcherThread> dns_watcher_thread_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierMac);
 };
