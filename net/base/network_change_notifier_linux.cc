@@ -10,6 +10,7 @@
 #include "net/base/network_change_notifier_linux.h"
 
 #include <errno.h>
+#include <resolv.h>
 #include <sys/socket.h>
 
 #include "base/bind.h"
@@ -17,8 +18,6 @@
 #include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/eintr_wrapper.h"
-#include "base/file_util.h"
-#include "base/files/file_path_watcher.h"
 #include "base/memory/weak_ptr.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
@@ -30,8 +29,7 @@
 #include "dbus/object_proxy.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_change_notifier_netlink_linux.h"
-
-using ::base::files::FilePathWatcher;
+#include "net/dns/dns_config_watcher.h"
 
 namespace net {
 
@@ -63,28 +61,6 @@ enum {
   NM_STATE_CONNECTED_SITE = 60,
   NM_STATE_CONNECTED_GLOBAL = 70
 };
-
-class DNSWatchDelegate : public FilePathWatcher::Delegate {
- public:
-  explicit DNSWatchDelegate(const base::Closure& callback)
-      : callback_(callback) {}
-  virtual ~DNSWatchDelegate() {}
-  // FilePathWatcher::Delegate interface
-  virtual void OnFilePathChanged(const FilePath& path) OVERRIDE;
-  virtual void OnFilePathError(const FilePath& path) OVERRIDE;
- private:
-  base::Closure callback_;
-  DISALLOW_COPY_AND_ASSIGN(DNSWatchDelegate);
-};
-
-void DNSWatchDelegate::OnFilePathChanged(const FilePath& path) {
-  // Calls NetworkChangeNotifier::NotifyObserversOfDNSChange().
-  callback_.Run();
-}
-
-void DNSWatchDelegate::OnFilePathError(const FilePath& path) {
-  LOG(ERROR) << "DNSWatchDelegate::OnFilePathError for " << path.value();
-}
 
 }  // namespace
 
@@ -271,8 +247,8 @@ class NetworkChangeNotifierLinux::Thread
   virtual ~Thread();
 
   // MessageLoopForIO::Watcher:
-  virtual void OnFileCanReadWithoutBlocking(int fd);
-  virtual void OnFileCanWriteWithoutBlocking(int /* fd */);
+  virtual void OnFileCanReadWithoutBlocking(int fd) OVERRIDE;
+  virtual void OnFileCanWriteWithoutBlocking(int /* fd */) OVERRIDE;
 
   // Plumbing for NetworkChangeNotifier::IsCurrentlyOffline.
   // Safe to call from any thread.
@@ -282,8 +258,8 @@ class NetworkChangeNotifierLinux::Thread
 
  protected:
   // base::Thread
-  virtual void Init();
-  virtual void CleanUp();
+  virtual void Init() OVERRIDE;
+  virtual void CleanUp() OVERRIDE;
 
  private:
   // Starts listening for netlink messages.  Also handles the messages if there
@@ -299,17 +275,10 @@ class NetworkChangeNotifierLinux::Thread
   int netlink_fd_;
   MessageLoopForIO::FileDescriptorWatcher netlink_watcher_;
 
-  // Technically only needed for ChromeOS, but it's ugly to #ifdef out.
-  base::WeakPtrFactory<Thread> ptr_factory_;
-
-  // Used to watch for changes to /etc/resolv.conf and /etc/hosts.
-  scoped_ptr<base::files::FilePathWatcher> resolv_file_watcher_;
-  scoped_ptr<base::files::FilePathWatcher> hosts_file_watcher_;
-  scoped_refptr<DNSWatchDelegate> resolv_watcher_delegate_;
-  scoped_refptr<DNSWatchDelegate> hosts_watcher_delegate_;
-
   // Used to detect online/offline state changes.
   NetworkManagerApi network_manager_api_;
+
+  internal::DnsConfigWatcher dns_watcher_;
 
   DISALLOW_COPY_AND_ASSIGN(Thread);
 };
@@ -317,7 +286,6 @@ class NetworkChangeNotifierLinux::Thread
 NetworkChangeNotifierLinux::Thread::Thread(dbus::Bus* bus)
     : base::Thread("NetworkChangeNotifier"),
       netlink_fd_(kInvalidSocket),
-      ALLOW_THIS_IN_INITIALIZER_LIST(ptr_factory_(this)),
       network_manager_api_(
           base::Bind(&NetworkChangeNotifier
                      ::NotifyObserversOfOnlineStateChange),
@@ -329,23 +297,6 @@ NetworkChangeNotifierLinux::Thread::~Thread() {
 }
 
 void NetworkChangeNotifierLinux::Thread::Init() {
-  resolv_file_watcher_.reset(new FilePathWatcher);
-  hosts_file_watcher_.reset(new FilePathWatcher);
-  resolv_watcher_delegate_ = new DNSWatchDelegate(base::Bind(
-      &NetworkChangeNotifier::NotifyObserversOfDNSChange,
-      static_cast<unsigned>(CHANGE_DNS_SETTINGS)));
-  hosts_watcher_delegate_ = new DNSWatchDelegate(base::Bind(
-      &NetworkChangeNotifier::NotifyObserversOfDNSChange,
-      static_cast<unsigned>(CHANGE_DNS_HOSTS)));
-  if (!resolv_file_watcher_->Watch(
-          FilePath(FILE_PATH_LITERAL("/etc/resolv.conf")),
-          resolv_watcher_delegate_.get())) {
-    LOG(ERROR) << "Failed to setup watch for /etc/resolv.conf";
-  }
-  if (!hosts_file_watcher_->Watch(FilePath(FILE_PATH_LITERAL("/etc/hosts")),
-          hosts_watcher_delegate_.get())) {
-    LOG(ERROR) << "Failed to setup watch for /etc/hosts";
-  }
   netlink_fd_ = InitializeNetlinkSocket();
   if (netlink_fd_ < 0) {
     netlink_fd_ = kInvalidSocket;
@@ -354,6 +305,8 @@ void NetworkChangeNotifierLinux::Thread::Init() {
   ListenForNotifications();
 
   network_manager_api_.Init();
+
+  dns_watcher_.Init();
 }
 
 void NetworkChangeNotifierLinux::Thread::CleanUp() {
@@ -363,12 +316,9 @@ void NetworkChangeNotifierLinux::Thread::CleanUp() {
     netlink_fd_ = kInvalidSocket;
     netlink_watcher_.StopWatchingFileDescriptor();
   }
-  // Kill watchers early to make sure they won't try to call
-  // into us via the delegate during destruction.
-  resolv_file_watcher_.reset();
-  hosts_file_watcher_.reset();
-
   network_manager_api_.CleanUp();
+
+  dns_watcher_.CleanUp();
 }
 
 void NetworkChangeNotifierLinux::Thread::OnFileCanReadWithoutBlocking(int fd) {

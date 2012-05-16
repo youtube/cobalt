@@ -77,7 +77,29 @@ DnsConfigService::DnsConfigService()
       have_hosts_(false),
       need_update_(false) {}
 
-DnsConfigService::~DnsConfigService() {}
+DnsConfigService::~DnsConfigService() {
+  // Must always clean up.
+  NetworkChangeNotifier::RemoveDNSObserver(this);
+}
+
+void DnsConfigService::Read(const CallbackType& callback) {
+  DCHECK(CalledOnValidThread());
+  DCHECK(!callback.is_null());
+  DCHECK(callback_.is_null());
+  callback_ = callback;
+  OnDNSChanged(NetworkChangeNotifier::CHANGE_DNS_WATCH_STARTED);
+}
+
+void DnsConfigService::Watch(const CallbackType& callback) {
+  DCHECK(CalledOnValidThread());
+  DCHECK(!callback.is_null());
+  DCHECK(callback_.is_null());
+  NetworkChangeNotifier::AddDNSObserver(this);
+  callback_ = callback;
+  if (NetworkChangeNotifier::IsWatchingDNS())
+    OnDNSChanged(NetworkChangeNotifier::CHANGE_DNS_WATCH_STARTED);
+  // else: Wait until signal before reading.
+}
 
 void DnsConfigService::InvalidateConfig() {
   DCHECK(CalledOnValidThread());

@@ -17,27 +17,17 @@
 
 namespace net {
 
-class FilePathWatcherWrapper;
-
 // Use DnsConfigService::CreateSystemService to use it outside of tests.
 namespace internal {
 
-class NET_EXPORT_PRIVATE DnsConfigServicePosix
-    : NON_EXPORTED_BASE(public DnsConfigService) {
+class NET_EXPORT_PRIVATE DnsConfigServicePosix : public DnsConfigService {
  public:
   DnsConfigServicePosix();
   virtual ~DnsConfigServicePosix();
 
-  virtual void Watch(const CallbackType& callback) OVERRIDE;
-
  private:
-  class ConfigWatcher;
-
-  void OnConfigChanged(bool watch_succeeded);
-  void OnHostsChanged(bool watch_succeeded);
-
-  scoped_ptr<ConfigWatcher> config_watcher_;
-  scoped_ptr<FilePathWatcherWrapper> hosts_watcher_;
+  // NetworkChangeNotifier::DNSObserver:
+  virtual void OnDNSChanged(unsigned detail) OVERRIDE;
 
   scoped_refptr<SerialWorker> config_reader_;
   scoped_refptr<SerialWorker> hosts_reader_;

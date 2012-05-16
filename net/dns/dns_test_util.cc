@@ -163,8 +163,18 @@ scoped_ptr<DnsClient> CreateMockDnsClient(const DnsConfig& config) {
   return scoped_ptr<DnsClient>(new MockDnsClient(config));
 }
 
-void MockDnsConfigService::Watch(const CallbackType& callback) {
-  set_callback(callback);
+MockDnsConfigService::~MockDnsConfigService() {
+}
+
+void MockDnsConfigService::OnDNSChanged(unsigned detail) {
+}
+
+void MockDnsConfigService::ChangeConfig(const DnsConfig& config) {
+  DnsConfigService::OnConfigRead(config);
+}
+
+void MockDnsConfigService::ChangeHosts(const DnsHosts& hosts) {
+  DnsConfigService::OnHostsRead(hosts);
 }
 
 }  // namespace net
