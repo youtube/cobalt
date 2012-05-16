@@ -270,12 +270,6 @@ class NSSInitSingleton {
                    callback));
   }
 
-  bool IsTPMTokenAvailable() {
-    if (tpm_token_info_delegate_.get() == NULL)
-      return false;
-    return tpm_token_info_delegate_->IsTokenAvailable();
-  }
-
   void GetTPMTokenInfo(std::string* token_name, std::string* user_pin) {
     if (tpm_token_info_delegate_.get() == NULL) {
       LOG(ERROR) << "GetTPMTokenInfo called before TPM Token is ready.";
@@ -768,10 +762,6 @@ void EnableTPMTokenForNSS(TPMTokenInfoDelegate* info_delegate) {
 
 void GetTPMTokenInfo(std::string* token_name, std::string* user_pin) {
   g_nss_singleton.Get().GetTPMTokenInfo(token_name, user_pin);
-}
-
-bool IsTPMTokenAvailable() {
-  return g_nss_singleton.Get().IsTPMTokenAvailable();
 }
 
 bool IsTPMTokenReady() {
