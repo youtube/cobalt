@@ -680,8 +680,9 @@
         'video/capture/video_capture_device_unittest.cc',
         'webm/cluster_builder.cc',
         'webm/cluster_builder.h',
-        'webm/webm_parser_unittest.cc',
+        'webm/webm_cluster_parser_unittest.cc',
         'webm/webm_content_encodings_client_unittest.cc',
+        'webm/webm_parser_unittest.cc',
       ],
       'conditions': [
         ['os_posix==1 and OS!="mac"', {
@@ -713,6 +714,7 @@
             'filters/ffmpeg_video_decoder_unittest.cc',
             'filters/pipeline_integration_test.cc',
             'filters/pipeline_integration_test_base.cc',
+            'webm/webm_cluster_parser_unittest.cc',
           ],
         }],
         ['OS == "linux"', {

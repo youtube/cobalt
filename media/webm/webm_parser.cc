@@ -22,7 +22,6 @@ enum ElementType {
   FLOAT,
   BINARY,
   STRING,
-  SBLOCK,
   SKIP,
 };
 
@@ -97,7 +96,7 @@ static const ElementIdInfo kChapterTranslateIds[] = {
 };
 
 static const ElementIdInfo kClusterIds[] = {
-  {SBLOCK, kWebMIdSimpleBlock},
+  {BINARY, kWebMIdSimpleBlock},
   {UINT, kWebMIdTimecode},
   {LIST, kWebMIdSilentTracks},
   {UINT, kWebMIdPosition},
@@ -529,43 +528,6 @@ static int FindListLevel(int id) {
   return -1;
 }
 
-static int ParseSimpleBlock(const uint8* buf, int size,
-                            WebMParserClient* client) {
-  if (size < 4)
-    return -1;
-
-  // Return an error if the trackNum > 127. We just aren't
-  // going to support large track numbers right now.
-  if ((buf[0] & 0x80) != 0x80) {
-    DVLOG(1) << "TrackNumber over 127 not supported";
-    return -1;
-  }
-
-  int track_num = buf[0] & 0x7f;
-  int timecode = buf[1] << 8 | buf[2];
-  int flags = buf[3] & 0xff;
-  int lacing = (flags >> 1) & 0x3;
-
-  if (lacing != 0) {
-    DVLOG(1) << "Lacing " << lacing << " not supported yet.";
-    return -1;
-  }
-
-  // Sign extend negative timecode offsets.
-  if (timecode & 0x8000)
-    timecode |= (-1 << 16);
-
-  const uint8* frame_data = buf + 4;
-  int frame_size = size - (frame_data - buf);
-  if (!client->OnSimpleBlock(track_num, timecode, flags,
-                             frame_data, frame_size)) {
-    return -1;
-  }
-
-  return size;
-}
-
-
 static int ParseUInt(const uint8* buf, int size, int id,
                      WebMParserClient* client) {
   if ((size <= 0) || (size > 8))
@@ -639,9 +601,6 @@ static int ParseNonListElement(ElementType type, int id, int64 element_size,
 
   int result = -1;
   switch(type) {
-    case SBLOCK:
-      result = ParseSimpleBlock(buf, element_size, client);
-      break;
     case LIST:
       NOTIMPLEMENTED();
       result = -1;
@@ -700,12 +659,6 @@ bool WebMParserClient::OnBinary(int id, const uint8* data, int size) {
 
 bool WebMParserClient::OnString(int id, const std::string& str) {
   DVLOG(1) << "Unexpected string element with ID " << std::hex << id;
-  return false;
-}
-
-bool WebMParserClient::OnSimpleBlock(int track_num, int timecode, int flags,
-                                     const uint8* data, int size) {
-  DVLOG(1) << "Unexpected simple block element";
   return false;
 }
 
