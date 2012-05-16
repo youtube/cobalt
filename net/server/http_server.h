@@ -11,7 +11,7 @@
 
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
-#include "net/base/listen_socket.h"
+#include "net/base/stream_listen_socket.h"
 
 namespace net {
 
@@ -19,7 +19,7 @@ class HttpConnection;
 class HttpServerRequestInfo;
 class WebSocket;
 
-class HttpServer : public ListenSocket::ListenSocketDelegate,
+class HttpServer : public StreamListenSocket::Delegate,
                    public base::RefCountedThreadSafe<HttpServer> {
  public:
   class Delegate {
@@ -54,11 +54,12 @@ class HttpServer : public ListenSocket::ListenSocketDelegate,
   void Close(int connection_id);
 
   // ListenSocketDelegate
-  virtual void DidAccept(ListenSocket* server, ListenSocket* socket) OVERRIDE;
-  virtual void DidRead(ListenSocket* socket,
+  virtual void DidAccept(StreamListenSocket* server,
+                         StreamListenSocket* socket) OVERRIDE;
+  virtual void DidRead(StreamListenSocket* socket,
                        const char* data,
                        int len) OVERRIDE;
-  virtual void DidClose(ListenSocket* socket) OVERRIDE;
+  virtual void DidClose(StreamListenSocket* socket) OVERRIDE;
 
  protected:
   virtual ~HttpServer();
@@ -75,13 +76,13 @@ class HttpServer : public ListenSocket::ListenSocketDelegate,
                     size_t* pos);
 
   HttpConnection* FindConnection(int connection_id);
-  HttpConnection* FindConnection(ListenSocket* socket);
+  HttpConnection* FindConnection(StreamListenSocket* socket);
 
   HttpServer::Delegate* delegate_;
-  scoped_refptr<ListenSocket> server_;
+  scoped_refptr<StreamListenSocket> server_;
   typedef std::map<int, HttpConnection*> IdToConnectionMap;
   IdToConnectionMap id_to_connection_;
-  typedef std::map<ListenSocket*, HttpConnection*> SocketToConnectionMap;
+  typedef std::map<StreamListenSocket*, HttpConnection*> SocketToConnectionMap;
   SocketToConnectionMap socket_to_connection_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpServer);
