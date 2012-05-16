@@ -237,6 +237,10 @@
       # See https://sites.google.com/a/chromium.org/dev/developers/testing/addresssanitizer
       'asan%': 0,
 
+      # Set to true to instrument the code with function call logger.
+      # See src/third_party/cygprofile/cyg-profile.cc for details.
+      'order_profiling%': 0,
+
       # Use the provided profiled order file to link Chrome image with it.
       # This makes Chrome faster by better using CPU cache when executing code.
       # This is known as PGO (profile guided optimization).
@@ -551,6 +555,7 @@
     'notifications%': '<(notifications)',
     'clang_use_chrome_plugins%': '<(clang_use_chrome_plugins)',
     'asan%': '<(asan)',
+    'order_profiling%': '<(order_profiling)',
     'order_text_section%': '<(order_text_section)',
     'enable_extensions%': '<(enable_extensions)',
     'enable_web_intents%': '<(enable_web_intents)',
@@ -2213,6 +2218,15 @@
             ],
             'defines': [
               'ADDRESS_SANITIZER',
+            ],
+          }],
+          ['order_profiling!=0 and (chromeos==1 or OS=="linux")', {
+            'target_conditions' : [
+              ['_toolset=="target"', {
+                'cflags': [
+                  '-finstrument-functions',
+                ],
+              }],
             ],
           }],
           ['linux_breakpad==1', {
