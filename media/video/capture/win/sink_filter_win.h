@@ -10,7 +10,7 @@
 
 #include <windows.h>
 
-#include "base/memory/scoped_ptr.h"
+#include "base/memory/ref_counted.h"
 #include "media/video/capture/video_capture_device.h"
 #include "media/video/capture/video_capture_types.h"
 #include "media/video/capture/win/filter_base_win.h"
