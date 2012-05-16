@@ -2839,23 +2839,6 @@
               '_HAS_EXCEPTIONS=0',
             ],
           }],
-          # To support installing a component build (where the DLLs are not in
-          # same directory as chrome.exe and setup.exe):
-          # create_installer_archive.py writes custom manifests for all the
-          # DLLs. The setting below prevents VS from automatically generating
-          # the usual manifests for those DLLs which would override the custom
-          # external manifests.
-          ['component=="shared_library"', {
-            'target_conditions': [
-              ['_type=="shared_library"', {
-                'msvs_settings': {
-                  'VCLinkerTool': {
-                    'GenerateManifest': 'false',
-                  },
-                },
-              }],
-            ],
-          }],
           ['MSVS_VERSION=="2008"', {
             'defines': [
               '_HAS_TR1=0',
