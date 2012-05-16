@@ -31,8 +31,10 @@ enum ClientSocketTestTypes {
   SCTP
 };
 
+}  // namespace
+
 class TransportClientSocketTest
-    : public ListenSocket::ListenSocketDelegate,
+    : public StreamListenSocket::Delegate,
       public ::testing::TestWithParam<ClientSocketTestTypes> {
  public:
   TransportClientSocketTest()
@@ -45,18 +47,19 @@ class TransportClientSocketTest
   ~TransportClientSocketTest() {
   }
 
-  // Implement ListenSocketDelegate methods
-  virtual void DidAccept(ListenSocket* server, ListenSocket* connection) {
+  // Implement StreamListenSocket::Delegate methods
+  virtual void DidAccept(StreamListenSocket* server,
+                         StreamListenSocket* connection) {
     connected_sock_ = reinterpret_cast<TCPListenSocket*>(connection);
   }
-  virtual void DidRead(ListenSocket*, const char* str, int len) {
+  virtual void DidRead(StreamListenSocket*, const char* str, int len) {
     // TODO(dkegel): this might not be long enough to tickle some bugs.
     connected_sock_->Send(kServerReply, arraysize(kServerReply) - 1,
                           false /* Don't append line feed */);
     if (close_server_socket_on_next_send_)
       CloseServerSocket();
   }
-  virtual void DidClose(ListenSocket* sock) {}
+  virtual void DidClose(StreamListenSocket* sock) {}
 
   // Testcase hooks
   virtual void SetUp();
@@ -101,7 +104,7 @@ void TransportClientSocketTest::SetUp() {
   ::testing::TestWithParam<ClientSocketTestTypes>::SetUp();
 
   // Find a free port to listen on
-  TCPListenSocket *sock = NULL;
+  scoped_refptr<TCPListenSocket> sock = NULL;
   int port;
   // Range of ports to listen on.  Shouldn't need to try many.
   const int kMinPort = 10100;
@@ -111,7 +114,7 @@ void TransportClientSocketTest::SetUp() {
 #endif
   for (port = kMinPort; port < kMaxPort; port++) {
     sock = TCPListenSocket::CreateAndListen("127.0.0.1", port, this);
-    if (sock)
+    if (sock.get())
       break;
   }
   ASSERT_TRUE(sock != NULL);
@@ -444,7 +447,5 @@ TEST_P(TransportClientSocketTest, DISABLED_FullDuplex_WriteFirst) {
   rv = callback.WaitForResult();
   EXPECT_GE(rv, 0);
 }
-
-}  // namespace
 
 }  // namespace net
