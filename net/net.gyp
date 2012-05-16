@@ -998,7 +998,7 @@
               'ENABLE_PERSISTENT_SESSION_COOKIES'
             ],
             'dependencies': [
-              '../build/android/system.gyp:ssl',
+              '../third_party/openssl/openssl.gyp:openssl',
               'net_java',
               'net_jni_headers',
             ],
@@ -1357,7 +1357,7 @@
         ],
         [ 'OS == "android"', {
             'dependencies': [
-              '../build/android/system.gyp:ssl',
+              '../third_party/openssl/openssl.gyp:openssl',
             ],
             'sources!': [
               'dns/dns_config_service_posix_unittest.cc',
