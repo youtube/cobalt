@@ -321,9 +321,7 @@ bool SpawnerCommunicator::StartServer(const std::string& arguments,
     return false;
 
   // Check whether the data returned from spawner server is JSON-formatted.
-  base::JSONReader json_reader;
-  scoped_ptr<base::Value> value(json_reader.JsonToValue(server_return_data,
-                                                        true, false));
+  scoped_ptr<base::Value> value(base::JSONReader::Read(server_return_data));
   if (!value.get() || !value->IsType(base::Value::TYPE_DICTIONARY)) {
     LOG(ERROR) << "Invalid server data: " << server_return_data.c_str();
     return false;

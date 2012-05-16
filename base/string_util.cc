@@ -472,7 +472,7 @@ bool IsStringUTF8(const std::string& str) {
     int32 code_point;
     CBU8_NEXT(src, char_index, src_len, code_point);
     if (!base::IsValidCharacter(code_point))
-       return false;
+      return false;
   }
   return true;
 }
