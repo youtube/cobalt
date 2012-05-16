@@ -2208,16 +2208,20 @@
             ],
           }],
           ['asan==1', {
-            'cflags': [
-              '-faddress-sanitizer',
-              '-fno-omit-frame-pointer',
-              '-w',
-            ],
-            'ldflags': [
-              '-faddress-sanitizer',
-            ],
-            'defines': [
-              'ADDRESS_SANITIZER',
+            'target_conditions': [
+              ['_toolset=="target"', {
+                  'cflags': [
+                      '-faddress-sanitizer',
+                      '-fno-omit-frame-pointer',
+                      '-w',
+                  ],
+                  'ldflags': [
+                      '-faddress-sanitizer',
+                  ],
+                  'defines': [
+                      'ADDRESS_SANITIZER',
+                  ],
+              }],
             ],
           }],
           ['order_profiling!=0 and (chromeos==1 or OS=="linux")', {
