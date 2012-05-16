@@ -836,6 +836,13 @@
             'conditions': [
               ['target_arch == "ia32"', {
                 'target_arch': 'x86',
+                'android_app_abi%': 'x86',
+              }],
+              ['target_arch=="arm" and armv7==0', {
+                'android_app_abi%': 'armeabi',
+              }],
+              ['target_arch=="arm" and armv7==1', {
+                'android_app_abi%': 'armeabi-v7a',
               }],
             ],
 
@@ -846,11 +853,13 @@
           'android_ndk_root%': '<(android_ndk_root)',
           'android_ndk_sysroot': '<(android_ndk_root)/platforms/android-9/arch-<(target_arch)',
           'android_build_type%': '<(android_build_type)',
+          'android_app_abi%': '<(android_app_abi)',
         },
         'android_ndk_root%': '<(android_ndk_root)',
         'android_ndk_sysroot': '<(android_ndk_sysroot)',
         'android_ndk_include': '<(android_ndk_sysroot)/usr/include',
         'android_ndk_lib': '<(android_ndk_sysroot)/usr/lib',
+        'android_app_abi%': '<(android_app_abi)',
 
         # Uses Android's crash report system
         'linux_breakpad%': 0,
