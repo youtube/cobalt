@@ -222,27 +222,27 @@ bool TCPListenSocketTester::Send(SOCKET sock, const std::string& str) {
   return true;
 }
 
-void TCPListenSocketTester::DidAccept(ListenSocket *server,
-                                      ListenSocket *connection) {
+void TCPListenSocketTester::DidAccept(StreamListenSocket* server,
+                                      StreamListenSocket* connection) {
   connection_ = connection;
   connection_->AddRef();
   ReportAction(TCPListenSocketTestAction(ACTION_ACCEPT));
 }
 
-void TCPListenSocketTester::DidRead(ListenSocket *connection,
+void TCPListenSocketTester::DidRead(StreamListenSocket* connection,
                                     const char* data,
                                     int len) {
   std::string str(data, len);
   ReportAction(TCPListenSocketTestAction(ACTION_READ, str));
 }
 
-void TCPListenSocketTester::DidClose(ListenSocket *sock) {
+void TCPListenSocketTester::DidClose(StreamListenSocket* sock) {
   ReportAction(TCPListenSocketTestAction(ACTION_CLOSE));
 }
 
 TCPListenSocketTester::~TCPListenSocketTester() {}
 
-TCPListenSocket* TCPListenSocketTester::DoListen() {
+scoped_refptr<TCPListenSocket> TCPListenSocketTester::DoListen() {
   return TCPListenSocket::CreateAndListen(kLoopback, kTestPort, this);
 }
 

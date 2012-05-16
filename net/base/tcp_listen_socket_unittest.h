@@ -17,6 +17,7 @@
 #endif
 
 #include "base/basictypes.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
@@ -67,7 +68,7 @@ class TCPListenSocketTestAction {
 // This had to be split out into a separate class because I couldn't
 // make the testing::Test class refcounted.
 class TCPListenSocketTester :
-    public ListenSocket::ListenSocketDelegate,
+    public StreamListenSocket::Delegate,
     public base::RefCountedThreadSafe<TCPListenSocketTester> {
 
  public:
@@ -96,17 +97,17 @@ class TCPListenSocketTester :
 
   virtual bool Send(SOCKET sock, const std::string& str);
 
-  // ListenSocket::ListenSocketDelegate:
-  virtual void DidAccept(ListenSocket *server,
-                         ListenSocket *connection) OVERRIDE;
-  virtual void DidRead(ListenSocket *connection, const char* data,
+  // StreamListenSocket::Delegate:
+  virtual void DidAccept(StreamListenSocket* server,
+                         StreamListenSocket* connection) OVERRIDE;
+  virtual void DidRead(StreamListenSocket* connection, const char* data,
                        int len) OVERRIDE;
-  virtual void DidClose(ListenSocket *sock) OVERRIDE;
+  virtual void DidClose(StreamListenSocket* sock) OVERRIDE;
 
   scoped_ptr<base::Thread> thread_;
   MessageLoopForIO* loop_;
-  TCPListenSocket* server_;
-  ListenSocket* connection_;
+  scoped_refptr<TCPListenSocket> server_;
+  StreamListenSocket* connection_;
   TCPListenSocketTestAction last_action_;
 
   SOCKET test_socket_;
@@ -121,7 +122,7 @@ class TCPListenSocketTester :
 
   virtual ~TCPListenSocketTester();
 
-  virtual TCPListenSocket* DoListen();
+  virtual scoped_refptr<TCPListenSocket> DoListen();
 };
 
 }  // namespace net

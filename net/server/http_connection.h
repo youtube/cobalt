@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,7 +15,7 @@
 namespace net {
 
 class HttpServer;
-class ListenSocket;
+class StreamListenSocket;
 class WebSocket;
 
 class HttpConnection {
@@ -35,13 +35,13 @@ class HttpConnection {
   friend class HttpServer;
   static int last_id_;
 
-  HttpConnection(HttpServer* server, ListenSocket* sock);
+  HttpConnection(HttpServer* server, StreamListenSocket* sock);
   ~HttpConnection();
 
   void DetachSocket();
 
   HttpServer* server_;
-  scoped_refptr<ListenSocket> socket_;
+  scoped_refptr<StreamListenSocket> socket_;
   scoped_ptr<WebSocket> web_socket_;
   std::string recv_data_;
   int id_;
