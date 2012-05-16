@@ -7,7 +7,6 @@
 
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "media/base/demuxer.h"
 #include "testing/gmock/include/gmock/gmock.h"
 

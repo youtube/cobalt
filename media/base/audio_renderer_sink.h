@@ -8,7 +8,6 @@
 #include <vector>
 #include "base/basictypes.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "media/audio/audio_parameters.h"
 #include "media/base/media_export.h"
 
@@ -60,7 +59,7 @@ class AudioRendererSink
 
   // Called to inform the sink of a change in playback rate. Override if
   // subclass needs the playback rate.
-  virtual void SetPlaybackRate(float rate) {};
+  virtual void SetPlaybackRate(float rate) {}
 
   // Sets the playback volume, with range [0.0, 1.0] inclusive.
   // Returns |true| on success.
