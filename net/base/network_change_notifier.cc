@@ -81,6 +81,14 @@ bool NetworkChangeNotifier::IsOffline() {
 }
 
 // static
+bool NetworkChangeNotifier::IsWatchingDNS() {
+  if (!g_network_change_notifier)
+    return false;
+  base::AutoLock(g_network_change_notifier->watching_dns_lock_);
+  return g_network_change_notifier->watching_dns_;
+}
+
+// static
 NetworkChangeNotifier* NetworkChangeNotifier::CreateMock() {
   return new MockNetworkChangeNotifier();
 }
@@ -137,11 +145,13 @@ NetworkChangeNotifier::NetworkChangeNotifier()
             ObserverListBase<OnlineStateObserver>::NOTIFY_EXISTING_ONLY)),
       resolver_state_observer_list_(
         new ObserverListThreadSafe<DNSObserver>(
-            ObserverListBase<DNSObserver>::NOTIFY_EXISTING_ONLY)) {
+            ObserverListBase<DNSObserver>::NOTIFY_EXISTING_ONLY)),
+      watching_dns_(false) {
   DCHECK(!g_network_change_notifier);
   g_network_change_notifier = this;
 }
 
+// static
 void NetworkChangeNotifier::NotifyObserversOfIPAddressChange() {
   if (g_network_change_notifier) {
     g_network_change_notifier->ip_address_observer_list_->Notify(
@@ -149,13 +159,28 @@ void NetworkChangeNotifier::NotifyObserversOfIPAddressChange() {
   }
 }
 
+// static
 void NetworkChangeNotifier::NotifyObserversOfDNSChange(unsigned detail) {
   if (g_network_change_notifier) {
+    {
+      base::AutoLock(g_network_change_notifier->watching_dns_lock_);
+      if (detail & NetworkChangeNotifier::CHANGE_DNS_WATCH_STARTED) {
+        g_network_change_notifier->watching_dns_ = true;
+      } else if (detail & NetworkChangeNotifier::CHANGE_DNS_WATCH_FAILED) {
+        g_network_change_notifier->watching_dns_ = false;
+      }
+      // Include detail that watch is off to spare the call to IsWatchingDNS.
+      if (!g_network_change_notifier->watching_dns_)
+        detail |= NetworkChangeNotifier::CHANGE_DNS_WATCH_FAILED;
+    }
+    DCHECK(!(detail & NetworkChangeNotifier::CHANGE_DNS_WATCH_FAILED) ||
+           !(detail & NetworkChangeNotifier::CHANGE_DNS_WATCH_STARTED));
     g_network_change_notifier->resolver_state_observer_list_->Notify(
         &DNSObserver::OnDNSChanged, detail);
   }
 }
 
+// static
 void NetworkChangeNotifier::NotifyObserversOfOnlineStateChange() {
   if (g_network_change_notifier) {
     g_network_change_notifier->online_state_observer_list_->Notify(

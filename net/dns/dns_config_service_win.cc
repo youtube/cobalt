@@ -19,14 +19,12 @@
 #include "base/threading/non_thread_safe.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/utf_string_conversions.h"
-#include "base/win/object_watcher.h"
 #include "base/win/registry.h"
 #include "base/win/windows_version.h"
 #include "googleurl/src/url_canon.h"
 #include "net/base/net_util.h"
 #include "net/base/network_change_notifier.h"
 #include "net/dns/dns_protocol.h"
-#include "net/dns/file_path_watcher_wrapper.h"
 #include "net/dns/serial_worker.h"
 
 #pragma comment(lib, "iphlpapi.lib")
@@ -37,15 +35,6 @@ namespace internal {
 
 namespace {
 
-// Registry key paths.
-const wchar_t* const kTcpipPath =
-    L"SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters";
-const wchar_t* const kTcpip6Path =
-    L"SYSTEM\\CurrentControlSet\\Services\\Tcpip6\\Parameters";
-const wchar_t* const kDnscachePath =
-    L"SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters";
-const wchar_t* const kPolicyPath =
-    L"SOFTWARE\\Policies\\Microsoft\\Windows NT\\DNSClient";
 const wchar_t* const kPrimaryDnsSuffixPath =
     L"SOFTWARE\\Policies\\Microsoft\\System\\DNSClient";
 
@@ -93,62 +82,6 @@ class RegistryReader : public base::NonThreadSafe {
   base::win::RegKey key_;
 
   DISALLOW_COPY_AND_ASSIGN(RegistryReader);
-};
-
-
-// Watches a single registry key for changes.
-class RegistryWatcher : public base::win::ObjectWatcher::Delegate,
-                        public base::NonThreadSafe {
- public:
-  typedef base::Callback<void(bool succeeded)> CallbackType;
-  RegistryWatcher() {}
-
-  bool Watch(const wchar_t* key, const CallbackType& callback) {
-    DCHECK(CalledOnValidThread());
-    DCHECK(!callback.is_null());
-    Cancel();
-    if (key_.Open(HKEY_LOCAL_MACHINE, key, KEY_NOTIFY) != ERROR_SUCCESS)
-      return false;
-    if (key_.StartWatching() != ERROR_SUCCESS)
-      return false;
-    if (!watcher_.StartWatching(key_.watch_event(), this))
-      return false;
-    callback_ = callback;
-    return true;
-  }
-
-  bool IsWatching() const {
-    DCHECK(CalledOnValidThread());
-    return !callback_.is_null();
-  }
-
-  void Cancel() {
-    DCHECK(CalledOnValidThread());
-    callback_.Reset();
-    if (key_.Valid()) {
-      watcher_.StopWatching();
-      key_.StopWatching();
-      key_.Close();
-    }
-  }
-
-  virtual void OnObjectSignaled(HANDLE object) OVERRIDE {
-    DCHECK(CalledOnValidThread());
-    bool succeeded = (key_.StartWatching() == ERROR_SUCCESS) &&
-                      watcher_.StartWatching(key_.watch_event(), this);
-    CallbackType callback = callback_;
-    if (!succeeded)
-      Cancel();
-    if (!callback.is_null())
-      callback.Run(succeeded);
-  }
-
- private:
-  CallbackType callback_;
-  base::win::RegKey key_;
-  base::win::ObjectWatcher watcher_;
-
-  DISALLOW_COPY_AND_ASSIGN(RegistryWatcher);
 };
 
 // Returns NULL if failed.
@@ -199,6 +132,13 @@ bool ParseDomainASCII(const string16& widestr, std::string* domain) {
 }
 
 }  // namespace
+
+FilePath GetHostsPath() {
+  TCHAR buffer[MAX_PATH];
+  UINT rc = GetSystemDirectory(buffer, MAX_PATH);
+  DCHECK(0 < rc && rc < MAX_PATH);
+  return FilePath(buffer).Append(FILE_PATH_LITERAL("drivers\\etc\\hosts"));
+}
 
 bool ParseSearchList(const string16& value, std::vector<std::string>* output) {
   DCHECK(output);
@@ -378,58 +318,7 @@ class DnsConfigServiceWin::ConfigReader : public SerialWorker {
       : service_(service),
         success_(false) {}
 
-  bool Watch() {
-    DCHECK(loop()->BelongsToCurrentThread());
-
-    RegistryWatcher::CallbackType callback =
-        base::Bind(&ConfigReader::OnChange, base::Unretained(this));
-
-    // The Tcpip key must be present.
-    if (!tcpip_watcher_.Watch(kTcpipPath, callback))
-      return false;
-
-    // Watch for IPv6 nameservers.
-    tcpip6_watcher_.Watch(kTcpip6Path, callback);
-
-    // DNS suffix search list and devolution can be configured via group
-    // policy which sets this registry key. If the key is missing, the policy
-    // does not apply, and the DNS client uses Tcpip and Dnscache settings.
-    // If a policy is installed, DnsConfigService will need to be restarted.
-    // BUG=99509
-
-    dnscache_watcher_.Watch(kDnscachePath, callback);
-    policy_watcher_.Watch(kPolicyPath, callback);
-
-    WorkNow();
-    return true;
-  }
-
-  void Cancel() {
-    DCHECK(loop()->BelongsToCurrentThread());
-    SerialWorker::Cancel();
-    policy_watcher_.Cancel();
-    dnscache_watcher_.Cancel();
-    tcpip6_watcher_.Cancel();
-    tcpip_watcher_.Cancel();
-  }
-
  private:
-  virtual ~ConfigReader() {
-    DCHECK(IsCancelled());
-  }
-
-  void OnChange(bool succeeded) {
-    DCHECK(loop()->BelongsToCurrentThread());
-    if (!IsCancelled())
-      service_->InvalidateConfig();
-    // We don't trust a config that we cannot watch in the future.
-    // TODO(szym): re-start watcher if that makes sense. http://crbug.com/116139
-    if (succeeded)
-      WorkNow();
-    else
-      LOG(ERROR) << "Failed to watch DNS config";
-  }
-
   bool ReadDevolutionSetting(const RegistryReader& reader,
                              DnsSystemSettings::DevolutionSetting& setting) {
     return reader.ReadDword(L"UseDomainNameDevolution", &setting.enabled) &&
@@ -500,73 +389,18 @@ class DnsConfigServiceWin::ConfigReader : public SerialWorker {
   // Written in DoRead(), read in OnReadFinished(). No locking required.
   DnsConfig dns_config_;
   bool success_;
-
-  RegistryWatcher tcpip_watcher_;
-  RegistryWatcher tcpip6_watcher_;
-  RegistryWatcher dnscache_watcher_;
-  RegistryWatcher policy_watcher_;
 };
-
-FilePath GetHostsPath() {
-  TCHAR buffer[MAX_PATH];
-  UINT rc = GetSystemDirectory(buffer, MAX_PATH);
-  DCHECK(0 < rc && rc < MAX_PATH);
-  return FilePath(buffer).Append(FILE_PATH_LITERAL("drivers\\etc\\hosts"));
-}
 
 // An extension for DnsHostsReader which also watches the HOSTS file,
 // reads local name from GetComputerNameEx, local IP from GetAdaptersAddresses,
 // and observes changes to local IP address.
-class DnsConfigServiceWin::HostsReader
-    : public DnsHostsReader,
-      public NetworkChangeNotifier::IPAddressObserver {
+class DnsConfigServiceWin::HostsReader : public DnsHostsReader {
  public:
   explicit HostsReader(DnsConfigServiceWin* service)
       : DnsHostsReader(GetHostsPath()), service_(service) {
   }
 
-  bool Watch() {
-    DCHECK(loop()->BelongsToCurrentThread());
-    DCHECK(!IsCancelled());
-
-    // In case the reader is restarted, remove it from the observer list.
-    NetworkChangeNotifier::RemoveIPAddressObserver(this);
-
-    if (!hosts_watcher_.Watch(path(),
-                              base::Bind(&HostsReader::OnHostsChanged,
-                                         base::Unretained(this)))) {
-      return false;
-    }
-    NetworkChangeNotifier::AddIPAddressObserver(this);
-    WorkNow();
-    return true;
-  }
-
-  // Cancels the underlying SerialWorker. Cannot be undone.
-  void Cancel() {
-    DnsHostsReader::Cancel();
-    hosts_watcher_.Cancel();
-    NetworkChangeNotifier::RemoveIPAddressObserver(this);
-  }
-
  private:
-  virtual void OnIPAddressChanged() OVERRIDE {
-    DCHECK(loop()->BelongsToCurrentThread());
-    service_->InvalidateHosts();
-    if (!hosts_watcher_.IsWatching())
-      return;
-    WorkNow();
-  }
-
-  void OnHostsChanged(bool succeeded) {
-    DCHECK(loop()->BelongsToCurrentThread());
-    service_->InvalidateHosts();
-    if (succeeded)
-      WorkNow();
-    else
-      LOG(ERROR) << "Failed to watch DNS hosts";
-  }
-
   virtual void DoWork() OVERRIDE {
     DnsHostsReader::DoWork();
 
@@ -658,17 +492,17 @@ class DnsConfigServiceWin::HostsReader
 
   virtual void OnWorkFinished() OVERRIDE {
     DCHECK(loop()->BelongsToCurrentThread());
-    if (!success_ || !hosts_watcher_.IsWatching())
-      return;
-    service_->OnHostsRead(dns_hosts_);
+    if (success_) {
+      service_->OnHostsRead(dns_hosts_);
+    } else {
+      LOG(WARNING) << "Failed to read hosts.";
+    }
   }
 
   DnsConfigServiceWin* service_;
-  FilePathWatcherWrapper hosts_watcher_;
 
   DISALLOW_COPY_AND_ASSIGN(HostsReader);
 };
-
 
 DnsConfigServiceWin::DnsConfigServiceWin()
     : config_reader_(new ConfigReader(this)),
@@ -678,27 +512,40 @@ DnsConfigServiceWin::~DnsConfigServiceWin() {
   DCHECK(CalledOnValidThread());
   config_reader_->Cancel();
   hosts_reader_->Cancel();
+  NetworkChangeNotifier::RemoveIPAddressObserver(this);
 }
 
 void DnsConfigServiceWin::Watch(const CallbackType& callback) {
-  DCHECK(CalledOnValidThread());
-  DCHECK(!callback.is_null());
-  set_callback(callback);
+  DnsConfigService::Watch(callback);
+  // Also need to observe changes to local non-loopback IP for DnsHosts.
+  NetworkChangeNotifier::AddIPAddressObserver(this);
+}
 
-  // This is done only once per lifetime so open the keys and file watcher
-  // handles on this thread.
-  // TODO(szym): Should/can this be avoided? http://crbug.com/114223
-  base::ThreadRestrictions::ScopedAllowIO allow_io;
-
-  if (!config_reader_->Watch()) {
-    LOG(ERROR) << "Failed to start watching DNS config";
+void DnsConfigServiceWin::OnDNSChanged(unsigned detail) {
+  if (detail & NetworkChangeNotifier::CHANGE_DNS_WATCH_FAILED) {
     InvalidateConfig();
-  }
-
-  if (!hosts_reader_->Watch()) {
-    LOG(ERROR) << "Failed to start watching HOSTS";
     InvalidateHosts();
+    // We don't trust a config that we cannot watch in the future.
+    config_reader_->Cancel();
+    hosts_reader_->Cancel();
+    return;
   }
+  if (detail & NetworkChangeNotifier::CHANGE_DNS_WATCH_STARTED)
+    detail = ~0;  // Assume everything changed.
+  if (detail & NetworkChangeNotifier::CHANGE_DNS_SETTINGS) {
+    InvalidateConfig();
+    config_reader_->WorkNow();
+  }
+  if (detail & NetworkChangeNotifier::CHANGE_DNS_HOSTS) {
+    InvalidateHosts();
+    hosts_reader_->WorkNow();
+  }
+}
+
+void DnsConfigServiceWin::OnIPAddressChanged() {
+  // Need to update non-loopback IP of local host.
+  if (NetworkChangeNotifier::IsWatchingDNS())
+    OnDNSChanged(NetworkChangeNotifier::CHANGE_DNS_HOSTS);
 }
 
 }  // namespace internal
