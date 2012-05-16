@@ -256,7 +256,7 @@ void BaseTestServer::SetResourcePath(const FilePath& document_root,
 bool BaseTestServer::ParseServerData(const std::string& server_data) {
   VLOG(1) << "Server data: " << server_data;
   base::JSONReader json_reader;
-  scoped_ptr<Value> value(json_reader.JsonToValue(server_data, true, false));
+  scoped_ptr<Value> value(json_reader.ReadToValue(server_data));
   if (!value.get() || !value->IsType(Value::TYPE_DICTIONARY)) {
     LOG(ERROR) << "Could not parse server data: "
                << json_reader.GetErrorMessage();

@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -694,6 +694,10 @@ void DictionaryValue::MergeDictionary(const DictionaryValue* dictionary) {
   }
 }
 
+void DictionaryValue::Swap(DictionaryValue* other) {
+  dictionary_.swap(other->dictionary_);
+}
+
 DictionaryValue* DictionaryValue::DeepCopy() const {
   DictionaryValue* result = new DictionaryValue;
 
@@ -906,6 +910,10 @@ bool ListValue::Insert(size_t index, Value* in_value) {
 
 ListValue::const_iterator ListValue::Find(const Value& value) const {
   return std::find_if(list_.begin(), list_.end(), ValueEquals(&value));
+}
+
+void ListValue::Swap(ListValue* other) {
+  list_.swap(other->list_);
 }
 
 bool ListValue::GetAsList(ListValue** out_value) {
