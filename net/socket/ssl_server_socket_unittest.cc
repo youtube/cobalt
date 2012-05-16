@@ -54,10 +54,14 @@ class FakeDataChannel {
  public:
   FakeDataChannel()
       : read_buf_len_(0),
-        ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {
+        ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)),
+        closed_(false),
+        write_called_after_close_(false) {
   }
 
   int Read(IOBuffer* buf, int buf_len, const CompletionCallback& callback) {
+    if (closed_)
+      return 0;
     if (data_.empty()) {
       read_callback_ = callback;
       read_buf_ = buf;
@@ -68,11 +72,29 @@ class FakeDataChannel {
   }
 
   int Write(IOBuffer* buf, int buf_len, const CompletionCallback& callback) {
+    if (closed_) {
+      if (write_called_after_close_)
+        return net::ERR_CONNECTION_RESET;
+      write_called_after_close_ = true;
+      write_callback_ = callback;
+      MessageLoop::current()->PostTask(
+          FROM_HERE, base::Bind(&FakeDataChannel::DoWriteCallback,
+                                weak_factory_.GetWeakPtr()));
+      return net::ERR_IO_PENDING;
+    }
     data_.push(new net::DrainableIOBuffer(buf, buf_len));
     MessageLoop::current()->PostTask(
         FROM_HERE, base::Bind(&FakeDataChannel::DoReadCallback,
                               weak_factory_.GetWeakPtr()));
     return buf_len;
+  }
+
+  // Closes the FakeDataChannel. After Close() is called, Read() returns 0,
+  // indicating EOF, and Write() fails with ERR_CONNECTION_RESET. Note that
+  // after the FakeDataChannel is closed, the first Write() call completes
+  // asynchronously, which is necessary to reproduce bug 127822.
+  void Close() {
+    closed_ = true;
   }
 
  private:
@@ -86,6 +108,15 @@ class FakeDataChannel {
     read_buf_ = NULL;
     read_buf_len_ = 0;
     callback.Run(copied);
+  }
+
+  void DoWriteCallback() {
+    if (write_callback_.is_null())
+      return;
+
+    CompletionCallback callback = write_callback_;
+    write_callback_.Reset();
+    callback.Run(net::ERR_CONNECTION_RESET);
   }
 
   int PropogateData(scoped_refptr<net::IOBuffer> read_buf, int read_buf_len) {
@@ -103,9 +134,19 @@ class FakeDataChannel {
   scoped_refptr<net::IOBuffer> read_buf_;
   int read_buf_len_;
 
+  CompletionCallback write_callback_;
+
   std::queue<scoped_refptr<net::DrainableIOBuffer> > data_;
 
   base::WeakPtrFactory<FakeDataChannel> weak_factory_;
+
+  // True if Close() has been called.
+  bool closed_;
+
+  // Controls the completion of Write() after the FakeDataChannel is closed.
+  // After the FakeDataChannel is closed, the first Write() call completes
+  // asynchronously.
+  bool write_called_after_close_;
 
   DISALLOW_COPY_AND_ASSIGN(FakeDataChannel);
 };
@@ -147,7 +188,10 @@ class FakeSocket : public StreamSocket {
     return net::OK;
   }
 
-  virtual void Disconnect() OVERRIDE {}
+  virtual void Disconnect() OVERRIDE {
+    incoming_->Close();
+    outgoing_->Close();
+  }
 
   virtual bool IsConnected() const OVERRIDE {
     return true;
@@ -427,6 +471,60 @@ TEST_F(SSLServerSocketTest, DataTransfer) {
   EXPECT_EQ(write_buf->size(), read_buf->BytesConsumed());
   read_buf->SetOffset(0);
   EXPECT_EQ(0, memcmp(write_buf->data(), read_buf->data(), write_buf->size()));
+}
+
+// A regression test for bug 127822 (http://crbug.com/127822).
+// If the server closes the connection after the handshake is finished,
+// the client's Write() call should not cause an infinite loop.
+// NOTE: this is a test for SSLClientSocket rather than SSLServerSocket.
+TEST_F(SSLServerSocketTest, ClientWriteAfterServerClose) {
+  Initialize();
+
+  TestCompletionCallback connect_callback;
+  TestCompletionCallback handshake_callback;
+
+  // Establish connection.
+  int client_ret = client_socket_->Connect(connect_callback.callback());
+  ASSERT_TRUE(client_ret == net::OK || client_ret == net::ERR_IO_PENDING);
+
+  int server_ret = server_socket_->Handshake(handshake_callback.callback());
+  ASSERT_TRUE(server_ret == net::OK || server_ret == net::ERR_IO_PENDING);
+
+  client_ret = connect_callback.GetResult(client_ret);
+  ASSERT_EQ(net::OK, client_ret);
+  server_ret = handshake_callback.GetResult(server_ret);
+  ASSERT_EQ(net::OK, server_ret);
+
+  scoped_refptr<net::StringIOBuffer> write_buf =
+      new net::StringIOBuffer("testing123");
+
+  // The server closes the connection. The server needs to write some
+  // data first so that the client's Read() calls from the transport
+  // socket won't return ERR_IO_PENDING.  This ensures that the client
+  // will call Read() on the transport socket again.
+  TestCompletionCallback write_callback;
+
+  server_ret = server_socket_->Write(write_buf, write_buf->size(),
+                                     write_callback.callback());
+  EXPECT_TRUE(server_ret > 0 || server_ret == net::ERR_IO_PENDING);
+
+  server_ret = write_callback.GetResult(server_ret);
+  EXPECT_GT(server_ret, 0);
+
+  server_socket_->Disconnect();
+
+  // The client writes some data. This should not cause an infinite loop.
+  client_ret = client_socket_->Write(write_buf, write_buf->size(),
+                                     write_callback.callback());
+  EXPECT_TRUE(client_ret > 0 || client_ret == net::ERR_IO_PENDING);
+
+  client_ret = write_callback.GetResult(client_ret);
+  EXPECT_GT(client_ret, 0);
+
+  MessageLoop::current()->PostDelayedTask(
+      FROM_HERE, MessageLoop::QuitClosure(),
+      base::TimeDelta::FromMilliseconds(10));
+  MessageLoop::current()->Run();
 }
 
 // This test executes ExportKeyingMaterial() on the client and server sockets,

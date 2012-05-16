@@ -149,9 +149,9 @@ class SSLClientSocketNSS : public SSLClientSocket {
   void SaveSSLHostInfo();
 
   bool DoTransportIO();
-  int BufferSend(void);
+  int BufferSend();
   void BufferSendComplete(int result);
-  int BufferRecv(void);
+  int BufferRecv();
   void BufferRecvComplete(int result);
 
   // Handles an NSS error generated while handshaking or performing IO.
@@ -214,6 +214,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
 
   bool transport_send_busy_;
   bool transport_recv_busy_;
+  bool transport_recv_eof_;
   scoped_refptr<IOBuffer> recv_buffer_;
 
   scoped_ptr<ClientSocketHandle> transport_;
