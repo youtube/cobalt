@@ -16,6 +16,8 @@ using ::testing::_;
 
 namespace media {
 
+enum { kBlockCount = 5 };
+
 class MockWebMParserClient : public WebMParserClient {
  public:
   virtual ~MockWebMParserClient() {}
@@ -27,7 +29,6 @@ class MockWebMParserClient : public WebMParserClient {
   MOCK_METHOD2(OnFloat, bool(int, double));
   MOCK_METHOD3(OnBinary, bool(int, const uint8*, int));
   MOCK_METHOD2(OnString, bool(int, const std::string&));
-  MOCK_METHOD5(OnSimpleBlock, bool(int, int, int, const uint8*, int));
 };
 
 class WebMParserTest : public testing::Test {
@@ -35,44 +36,29 @@ class WebMParserTest : public testing::Test {
   StrictMock<MockWebMParserClient> client_;
 };
 
-struct SimpleBlockInfo {
-  int track_num;
-  int timestamp;
-};
-
-static void AddSimpleBlock(ClusterBuilder* cb, int track_num,
-                           int64 timecode) {
-  uint8 data[] = { 0x00 };
-  cb->AddSimpleBlock(track_num, timecode, 0, data, sizeof(data));
-}
-
-static scoped_ptr<Cluster> CreateCluster(int timecode,
-                                         const SimpleBlockInfo* block_info,
-                                         int block_count) {
+static scoped_ptr<Cluster> CreateCluster(int block_count) {
   ClusterBuilder cb;
   cb.SetClusterTimecode(0);
 
-  for (int i = 0; i < block_count; i++)
-    AddSimpleBlock(&cb, block_info[i].track_num, block_info[i].timestamp);
+  for (int i = 0; i < block_count; i++) {
+    uint8 data[] = { 0x00 };
+    cb.AddSimpleBlock(0, i, 0, data, sizeof(data));
+  }
 
   return cb.Finish();
 }
 
-static void CreateClusterExpectations(int timecode,
-                                      const SimpleBlockInfo* block_info,
-                                      int block_count,
+static void CreateClusterExpectations(int block_count,
                                       bool is_complete_cluster,
                                       MockWebMParserClient* client) {
 
   InSequence s;
   EXPECT_CALL(*client, OnListStart(kWebMIdCluster)).WillOnce(Return(client));
-  EXPECT_CALL(*client, OnUInt(kWebMIdTimecode, timecode))
+  EXPECT_CALL(*client, OnUInt(kWebMIdTimecode, 0))
       .WillOnce(Return(true));
 
   for (int i = 0; i < block_count; i++) {
-    EXPECT_CALL(*client, OnSimpleBlock(block_info[i].track_num,
-                                       block_info[i].timestamp,
-                                       _, _, _))
+    EXPECT_CALL(*client, OnBinary(kWebMIdSimpleBlock, _, _))
         .WillOnce(Return(true));
   }
 
@@ -205,17 +191,8 @@ TEST_F(WebMParserTest, VoidAndCRC32InList) {
 
 
 TEST_F(WebMParserTest, ParseListElementWithSingleCall) {
-  const SimpleBlockInfo kBlockInfo[] = {
-    { 0, 1 },
-    { 1, 2 },
-    { 0, 3 },
-    { 0, 4 },
-    { 1, 4 },
-  };
-  int block_count = arraysize(kBlockInfo);
-
-  scoped_ptr<Cluster> cluster(CreateCluster(0, kBlockInfo, block_count));
-  CreateClusterExpectations(0, kBlockInfo, block_count, true, &client_);
+  scoped_ptr<Cluster> cluster(CreateCluster(kBlockCount));
+  CreateClusterExpectations(kBlockCount, true, &client_);
 
   WebMListParser parser(kWebMIdCluster, &client_);
   int result = parser.Parse(cluster->data(), cluster->size());
@@ -224,17 +201,8 @@ TEST_F(WebMParserTest, ParseListElementWithSingleCall) {
 }
 
 TEST_F(WebMParserTest, ParseListElementWithMultipleCalls) {
-  const SimpleBlockInfo kBlockInfo[] = {
-    { 0, 1 },
-    { 1, 2 },
-    { 0, 3 },
-    { 0, 4 },
-    { 1, 4 },
-  };
-  int block_count = arraysize(kBlockInfo);
-
-  scoped_ptr<Cluster> cluster(CreateCluster(0, kBlockInfo, block_count));
-  CreateClusterExpectations(0, kBlockInfo, block_count, true, &client_);
+  scoped_ptr<Cluster> cluster(CreateCluster(kBlockCount));
+  CreateClusterExpectations(kBlockCount, true, &client_);
 
   const uint8* data = cluster->data();
   int size = cluster->size();
@@ -267,23 +235,13 @@ TEST_F(WebMParserTest, ParseListElementWithMultipleCalls) {
 
 TEST_F(WebMParserTest, TestReset) {
   InSequence s;
-
-  const SimpleBlockInfo kBlockInfo[] = {
-    { 0, 1 },
-    { 1, 2 },
-    { 0, 3 },
-    { 0, 4 },
-    { 1, 4 },
-  };
-  int block_count = arraysize(kBlockInfo);
-
-  scoped_ptr<Cluster> cluster(CreateCluster(0, kBlockInfo, block_count));
+  scoped_ptr<Cluster> cluster(CreateCluster(kBlockCount));
 
   // First expect all but the last block.
-  CreateClusterExpectations(0, kBlockInfo, block_count - 1, false, &client_);
+  CreateClusterExpectations(kBlockCount - 1, false, &client_);
 
   // Now expect all blocks.
-  CreateClusterExpectations(0, kBlockInfo, block_count, true, &client_);
+  CreateClusterExpectations(kBlockCount, true, &client_);
 
   WebMListParser parser(kWebMIdCluster, &client_);
 

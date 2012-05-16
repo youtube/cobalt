@@ -9,12 +9,13 @@
 #include <string>
 
 #include "base/memory/scoped_ptr.h"
+#include "media/base/media_export.h"
 #include "media/base/stream_parser_buffer.h"
 #include "media/webm/webm_parser.h"
 
 namespace media {
 
-class WebMClusterParser : public WebMParserClient {
+class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
  public:
   typedef std::deque<scoped_refptr<StreamParserBuffer> > BufferQueue;
 
@@ -45,8 +46,11 @@ class WebMClusterParser : public WebMParserClient {
   virtual WebMParserClient* OnListStart(int id) OVERRIDE;
   virtual bool OnListEnd(int id) OVERRIDE;
   virtual bool OnUInt(int id, int64 val) OVERRIDE;
-  virtual bool OnSimpleBlock(int track_num, int timecode, int flags,
-                             const uint8* data, int size) OVERRIDE;
+  virtual bool OnBinary(int id, const uint8* data, int size) OVERRIDE;
+
+  bool ParseBlock(const uint8* buf, int size, int duration);
+  bool OnBlock(int track_num, int timecode, int duration, int flags,
+               const uint8* data, int size);
 
   double timecode_multiplier_;  // Multiplier used to convert timecodes into
                                 // microseconds.
@@ -60,6 +64,9 @@ class WebMClusterParser : public WebMParserClient {
   WebMListParser parser_;
 
   int64 last_block_timecode_;
+  scoped_array<uint8> block_data_;
+  int block_data_size_;
+  int64 block_duration_;
 
   int64 cluster_timecode_;
   BufferQueue audio_buffers_;
