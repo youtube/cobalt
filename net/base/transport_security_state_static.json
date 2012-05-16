@@ -258,6 +258,7 @@
     { "name": "braintreegateway.com", "include_subdomains": true, "mode": "force-https" },
     { "name": "braintreepayments.com", "mode": "force-https" },
     { "name": "www.braintreepayments.com", "mode": "force-https" },
+    { "name": "emailprivacytester.com", "mode": "force-https" },
 
     // Entries that are only valid if the client supports SNI.
     { "name": "gmail.com", "mode": "force-https", "pins": "google", "snionly": true },
