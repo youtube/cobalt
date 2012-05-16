@@ -35,9 +35,6 @@ class MEDIA_EXPORT WebMParserClient {
   virtual bool OnFloat(int id, double val);
   virtual bool OnBinary(int id, const uint8* data, int size);
   virtual bool OnString(int id, const std::string& str);
-  virtual bool OnSimpleBlock(int track_num, int timecode,
-                             int flags,
-                             const uint8* data, int size);
 
  protected:
   WebMParserClient();

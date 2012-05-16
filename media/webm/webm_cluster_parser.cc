@@ -26,6 +26,8 @@ WebMClusterParser::WebMClusterParser(int64 timecode_scale,
       video_encryption_key_id_size_(video_encryption_key_id_size),
       parser_(kWebMIdCluster, this),
       last_block_timecode_(-1),
+      block_data_size_(-1),
+      block_duration_(-1),
       cluster_timecode_(-1) {
   CHECK_GE(video_encryption_key_id_size, 0);
   if (video_encryption_key_id_size > 0) {
@@ -68,17 +70,38 @@ int WebMClusterParser::Parse(const uint8* buf, int size) {
 }
 
 WebMParserClient* WebMClusterParser::OnListStart(int id) {
-  if (id == kWebMIdCluster)
+  if (id == kWebMIdCluster) {
     cluster_timecode_ = -1;
+  } else if (id == kWebMIdBlockGroup) {
+    block_data_.reset();
+    block_data_size_ = -1;
+    block_duration_ = -1;
+  }
 
   return this;
 }
 
 bool WebMClusterParser::OnListEnd(int id) {
-  if (id == kWebMIdCluster)
+  if (id == kWebMIdCluster) {
     cluster_timecode_ = -1;
+    return true;
+  }
 
-  return true;
+  if (id != kWebMIdBlockGroup)
+    return true;
+
+  // Make sure the BlockGroup actually had a Block.
+  if (block_data_size_ == -1) {
+    DVLOG(1) << "Block missing from BlockGroup.";
+    return false;
+  }
+
+  bool result = ParseBlock(block_data_.get(), block_data_size_,
+                           block_duration_);
+  block_data_.reset();
+  block_data_size_ = -1;
+  block_duration_ = -1;
+  return result;
 }
 
 bool WebMClusterParser::OnUInt(int id, int64 val) {
@@ -87,26 +110,78 @@ bool WebMClusterParser::OnUInt(int id, int64 val) {
       return false;
 
     cluster_timecode_ = val;
+  } else if (id == kWebMIdBlockDuration) {
+    if (block_duration_ != -1)
+      return false;
+    block_duration_ = val;
   }
 
   return true;
 }
 
-bool WebMClusterParser::OnSimpleBlock(int track_num, int timecode,
-                                      int flags,
-                                      const uint8* data, int size) {
+bool WebMClusterParser::ParseBlock(const uint8* buf, int size, int duration) {
+  if (size < 4)
+    return false;
+
+  // Return an error if the trackNum > 127. We just aren't
+  // going to support large track numbers right now.
+  if (!(buf[0] & 0x80)) {
+    DVLOG(1) << "TrackNumber over 127 not supported";
+    return false;
+  }
+
+  int track_num = buf[0] & 0x7f;
+  int timecode = buf[1] << 8 | buf[2];
+  int flags = buf[3] & 0xff;
+  int lacing = (flags >> 1) & 0x3;
+
+  if (lacing) {
+    DVLOG(1) << "Lacing " << lacing << " not supported yet.";
+    return false;
+  }
+
+  // Sign extend negative timecode offsets.
+  if (timecode & 0x8000)
+    timecode |= (-1 << 16);
+
+  const uint8* frame_data = buf + 4;
+  int frame_size = size - (frame_data - buf);
+  return OnBlock(track_num, timecode, duration, flags, frame_data, frame_size);
+}
+
+bool WebMClusterParser::OnBinary(int id, const uint8* data, int size) {
+  if (id == kWebMIdSimpleBlock)
+    return ParseBlock(data, size, -1);
+
+  if (id != kWebMIdBlock)
+    return true;
+
+  if (block_data_.get()) {
+    DVLOG(1) << "More than 1 Block in a BlockGroup is not supported.";
+    return false;
+  }
+
+  block_data_.reset(new uint8[size]);
+  memcpy(block_data_.get(), data, size);
+  block_data_size_ = size;
+  return true;
+}
+bool WebMClusterParser::OnBlock(int track_num, int timecode,
+                                int  block_duration,
+                                int flags,
+                                const uint8* data, int size) {
   if (cluster_timecode_ == -1) {
-    DVLOG(1) << "Got SimpleBlock before cluster timecode.";
+    DVLOG(1) << "Got a block before cluster timecode.";
     return false;
   }
 
   if (timecode < 0) {
-    DVLOG(1) << "Got SimpleBlock with negative timecode offset " << timecode;
+    DVLOG(1) << "Got a block with negative timecode offset " << timecode;
     return false;
   }
 
   if (last_block_timecode_ != -1 && timecode < last_block_timecode_) {
-    DVLOG(1) << "Got SimpleBlock with a timecode before the previous block.";
+    DVLOG(1) << "Got a block with a timecode before the previous block.";
     return false;
   }
 
@@ -128,21 +203,29 @@ bool WebMClusterParser::OnSimpleBlock(int track_num, int timecode,
 
   buffer->SetTimestamp(timestamp);
   BufferQueue* queue = NULL;
+  base::TimeDelta duration = kNoTimestamp();
 
   if (track_num == audio_track_num_) {
-    buffer->SetDuration(audio_default_duration_);
+    duration = audio_default_duration_;
     queue = &audio_buffers_;
   } else if (track_num == video_track_num_) {
-    buffer->SetDuration(video_default_duration_);
+    duration = video_default_duration_;
     queue = &video_buffers_;
   } else {
     DVLOG(1) << "Unexpected track number " << track_num;
     return false;
   }
 
+  if (block_duration >= 0) {
+    duration = base::TimeDelta::FromMicroseconds(
+        block_duration * timecode_multiplier_);
+  }
+
+  buffer->SetDuration(duration);
+
   if (!queue->empty() &&
       buffer->GetTimestamp() == queue->back()->GetTimestamp()) {
-    DVLOG(1) << "Got SimpleBlock timecode is not strictly monotonically "
+    DVLOG(1) << "Got a block timecode that is not strictly monotonically "
              << "increasing for track " << track_num;
     return false;
   }
