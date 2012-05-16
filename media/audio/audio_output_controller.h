@@ -226,6 +226,9 @@ class MEDIA_EXPORT AudioOutputController
   // Also, if we're shutting down, we do not want to poll for more data.
   base::WeakPtrFactory<AudioOutputController> weak_this_;
 
+  // Workaround for Mac OS X bug, see crbug.com/128128.
+  base::Time previous_stop_time_;
+
   DISALLOW_COPY_AND_ASSIGN(AudioOutputController);
 };
 
