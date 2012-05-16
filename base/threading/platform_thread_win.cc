@@ -181,7 +181,14 @@ void PlatformThread::Join(PlatformThreadHandle thread_handle) {
   // Wait for the thread to exit.  It should already have terminated but make
   // sure this assumption is valid.
   DWORD result = WaitForSingleObject(thread_handle, INFINITE);
-  DCHECK_EQ(WAIT_OBJECT_0, result);
+  if (result != WAIT_OBJECT_0) {
+    // Debug info for bug 127931.
+    DWORD error = GetLastError();
+    debug::Alias(&error);
+    debug::Alias(&result);
+    debug::Alias(&thread_handle);
+    CHECK(false);
+  }
 
   CloseHandle(thread_handle);
 }
