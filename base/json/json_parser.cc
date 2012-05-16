@@ -258,9 +258,9 @@ Value* JSONParser::Parse(const std::string& input) {
   // hidden root.
   if (!(options_ & JSON_DETACHABLE_CHILDREN)) {
     if (root->IsType(Value::TYPE_DICTIONARY)) {
-      return new DictionaryHiddenRootValue(&input_copy, root.release());
+      return new DictionaryHiddenRootValue(&input_copy, root.get());
     } else if (root->IsType(Value::TYPE_LIST)) {
-      return new ListHiddenRootValue(&input_copy, root.release());
+      return new ListHiddenRootValue(&input_copy, root.get());
     } else if (root->IsType(Value::TYPE_STRING)) {
       // A string type could be a JSONStringValue, but because there's no
       // corresponding HiddenRootValue, the memory will be lost. Deep copy to
