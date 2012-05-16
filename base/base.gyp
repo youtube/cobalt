@@ -668,12 +668,13 @@
               # a template, and builds them.
               'action_name': 'generate_and_build',
               'inputs': [
+                '../testing/android/AndroidManifest.xml',
                 '../testing/android/generate_native_test.py',
                 '<(PRODUCT_DIR)/lib.target/libbase_unittests.so',
                 '<(PRODUCT_DIR)/lib.java/chromium_base.jar'
               ],
               'outputs': [
-                '<(PRODUCT_DIR)/ChromeNativeTests_base_unittests-debug.apk',
+                '<(PRODUCT_DIR)/base_unittests_apk/base_unittests-debug.apk',
               ],
               'action': [ 
                 '../testing/android/generate_native_test.py',
