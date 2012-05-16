@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -38,6 +38,7 @@ class NET_EXPORT_PRIVATE NetworkChangeNotifierLinux
   // The thread used to listen for notifications.  This relays the notification
   // to the registered observers without posting back to the thread the object
   // was created on.
+  // Also used for DnsConfigWatcher which requires TYPE_IO message loop.
   scoped_ptr<Thread> notifier_thread_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierLinux);

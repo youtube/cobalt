@@ -5,6 +5,15 @@
 #include "net/base/network_change_notifier_mac.h"
 
 #include <netinet/in.h>
+#include <resolv.h>
+
+#include "base/basictypes.h"
+#include "base/threading/thread.h"
+#include "net/dns/dns_config_watcher.h"
+
+#ifndef _PATH_RESCONF  // Normally defined in <resolv.h>
+#define _PATH_RESCONF "/etc/resolv.conf"
+#endif
 
 namespace net {
 
@@ -14,13 +23,38 @@ static bool CalculateReachability(SCNetworkConnectionFlags flags) {
   return reachable && !connection_required;
 }
 
+class NetworkChangeNotifierMac::DnsWatcherThread : public base::Thread {
+ public:
+  DnsWatcherThread() : base::Thread("NetworkChangeNotifier") {}
+
+  virtual ~DnsWatcherThread() {
+    Stop();
+  }
+
+  virtual void Init() OVERRIDE {
+    watcher_.Init();
+  }
+
+  virtual void CleanUp() OVERRIDE {
+    watcher_.CleanUp();
+  }
+
+ private:
+  internal::DnsConfigWatcher watcher_;
+
+  DISALLOW_COPY_AND_ASSIGN(DnsWatcherThread);
+};
+
 NetworkChangeNotifierMac::NetworkChangeNotifierMac()
     : online_state_(UNINITIALIZED),
       initial_state_cv_(&online_state_lock_),
-      forwarder_(this) {
+      forwarder_(this),
+      dns_watcher_thread_(new DnsWatcherThread()) {
   // Must be initialized after the rest of this object, as it may call back into
   // SetInitialState().
   config_watcher_.reset(new NetworkConfigWatcherMac(&forwarder_));
+  dns_watcher_thread_->StartWithOptions(
+      base::Thread::Options(MessageLoop::TYPE_IO, 0));
 }
 
 NetworkChangeNotifierMac::~NetworkChangeNotifierMac() {

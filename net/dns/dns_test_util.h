@@ -172,18 +172,14 @@ scoped_ptr<DnsClient> CreateMockDnsClient(const DnsConfig& config);
 
 class MockDnsConfigService : public DnsConfigService {
  public:
-  virtual ~MockDnsConfigService() {}
+  virtual ~MockDnsConfigService();
 
-  virtual void Watch(const CallbackType& callback) OVERRIDE;
+  // NetworkChangeNotifier::DNSObserver:
+  virtual void OnDNSChanged(unsigned detail) OVERRIDE;
 
   // Expose the protected methods for tests.
-  void ChangeConfig(const DnsConfig& config) {
-    DnsConfigService::OnConfigRead(config);
-  }
-
-  void ChangeHosts(const DnsHosts& hosts) {
-    DnsConfigService::OnHostsRead(hosts);
-  }
+  void ChangeConfig(const DnsConfig& config);
+  void ChangeHosts(const DnsHosts& hosts);
 };
 
 

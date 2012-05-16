@@ -29,9 +29,7 @@ class DnsConfigServiceTest : public testing::Test {
  protected:
   class TestDnsConfigService : public DnsConfigService {
    public:
-    virtual void Watch(const CallbackType& callback) OVERRIDE {
-      set_callback(callback);
-    }
+    virtual void OnDNSChanged(unsigned detail) OVERRIDE {}
 
     // Expose the protected methods to this test suite.
     void InvalidateConfig() {
@@ -189,16 +187,12 @@ TEST_F(DnsConfigServiceTest, FLAKY_GetSystemConfig) {
   service_.reset();
   scoped_ptr<DnsConfigService> service(DnsConfigService::CreateSystemService());
 
-  service->Watch(base::Bind(&DnsConfigServiceTest::OnConfigChanged,
-                            base::Unretained(this)));
+  service->Read(base::Bind(&DnsConfigServiceTest::OnConfigChanged,
+                           base::Unretained(this)));
   base::TimeDelta kTimeout = TestTimeouts::action_max_timeout();
   WaitForConfig(kTimeout);
   ASSERT_TRUE(last_config_.IsValid()) << "Did not receive DnsConfig in " <<
       kTimeout.InSecondsF() << "s";
-
-  // Restart watch to confirm it's allowed.
-  service->Watch(base::Bind(&DnsConfigServiceTest::OnConfigChanged,
-                            base::Unretained(this)));
 }
 #endif  // OS_POSIX || OS_WIN
 
