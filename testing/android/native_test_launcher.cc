@@ -73,10 +73,11 @@ void ParseArgsFromString(const std::string& command_line,
   }
 }
 
-void ParseArgsFromCommandLineFile(const FilePath& internal_data_path,
-                                  std::vector<std::string>* args) {
-  static const char kCommandLineFile[] = "chrome-native-tests-command-line";
-  FilePath command_line(internal_data_path.Append(FilePath(kCommandLineFile)));
+void ParseArgsFromCommandLineFile(std::vector<std::string>* args) {
+  // The test runner script can write to "/data/local/tmp".
+  static const char kCommandLineFilePath[] =
+      "/data/local/tmp/chrome-native-tests-command-line";
+  FilePath command_line(kCommandLineFilePath);
   std::string command_line_string;
   if (file_util::ReadFileToString(command_line, &command_line_string)) {
     ParseArgsFromString(command_line_string, args);
@@ -166,8 +167,7 @@ void LibraryLoadedOnMainThread(JNIEnv* env) {
     // internal gtest data structures based on the command line.
     // It needs to be scoped as it also resets the CommandLine.
     std::vector<std::string> args;
-    FilePath path("/data/user/0/org.chromium.native_test/files/");
-    ParseArgsFromCommandLineFile(path, &args);
+    ParseArgsFromCommandLineFile(&args);
     std::vector<char*> argv;
     ArgsToArgv(args, &argv);
     base::TestSuite test_suite(argv.size(), &argv[0]);
@@ -206,7 +206,7 @@ static void RunTests(JNIEnv* env,
   freopen(stdout_path.value().c_str(), "w", stdout);
 
   std::vector<std::string> args;
-  ParseArgsFromCommandLineFile(files_dir, &args);
+  ParseArgsFromCommandLineFile(&args);
 
   // We need to pass in a non-const char**.
   std::vector<char*> argv;
