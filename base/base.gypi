@@ -143,6 +143,8 @@
           'id_map.h',
           'json/json_file_value_serializer.cc',
           'json/json_file_value_serializer.h',
+          'json/json_parser.cc',
+          'json/json_parser.h',
           'json/json_reader.cc',
           'json/json_reader.h',
           'json/json_string_value_serializer.cc',

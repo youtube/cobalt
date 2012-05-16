@@ -33,22 +33,17 @@
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
-
-// Chromium and Chromium OS check out gtest to different places, so we're
-// unable to compile on both if we include gtest_prod.h here.  Instead, include
-// its only contents -- this will need to be updated if the macro ever changes.
-#define FRIEND_TEST(test_case_name, test_name)\
-friend class test_case_name##_##test_name##_Test
-
-#define FRIEND_TEST_ALL_PREFIXES(test_case_name, test_name) \
-  FRIEND_TEST(test_case_name, test_name); \
-  FRIEND_TEST(test_case_name, DISABLED_##test_name); \
-  FRIEND_TEST(test_case_name, FLAKY_##test_name); \
-  FRIEND_TEST(test_case_name, FAILS_##test_name)
+#include "base/memory/scoped_ptr.h"
 
 namespace base {
-
 class Value;
+
+namespace internal {
+class JSONParser;
+}
+}
+
+namespace base {
 
 enum JSONParserOptions {
   // Parses the input strictly according to RFC 4627, except for where noted
@@ -57,56 +52,22 @@ enum JSONParserOptions {
 
   // Allows commas to exist after the last element in structures.
   JSON_ALLOW_TRAILING_COMMAS = 1 << 0,
+
+  // The parser can perform optimizations by placing hidden data in the root of
+  // the JSON object, which speeds up certain operations on children. However,
+  // if the child is Remove()d from root, it would result in use-after-free
+  // unless it is DeepCopy()ed or this option is used.
+  JSON_DETACHABLE_CHILDREN = 1 << 1,
 };
 
 class BASE_EXPORT JSONReader {
  public:
-  // A struct to hold a JS token.
-  class Token {
-   public:
-    enum Type {
-     OBJECT_BEGIN,           // {
-     OBJECT_END,             // }
-     ARRAY_BEGIN,            // [
-     ARRAY_END,              // ]
-     STRING,
-     NUMBER,
-     BOOL_TRUE,              // true
-     BOOL_FALSE,             // false
-     NULL_TOKEN,             // null
-     LIST_SEPARATOR,         // ,
-     OBJECT_PAIR_SEPARATOR,  // :
-     END_OF_INPUT,
-     INVALID_TOKEN,
-    };
-
-    Token(Type t, const char* b, int len)
-        : type(t), begin(b), length(len) {}
-
-    // Get the character that's one past the end of this token.
-    char NextChar() {
-      return *(begin + length);
-    }
-
-    static Token CreateInvalidToken() {
-      return Token(INVALID_TOKEN, 0, 0);
-    }
-
-    Type type;
-
-    // A pointer into JSONReader::json_pos_ that's the beginning of this token.
-    const char* begin;
-
-    // End should be one char past the end of the token.
-    int length;
-  };
-
   // Error codes during parsing.
   enum JsonParseError {
     JSON_NO_ERROR = 0,
-    JSON_BAD_ROOT_ELEMENT_TYPE,
     JSON_INVALID_ESCAPE,
     JSON_SYNTAX_ERROR,
+    JSON_UNEXPECTED_TOKEN,
     JSON_TRAILING_COMMA,
     JSON_TOO_MUCH_NESTING,
     JSON_UNEXPECTED_DATA_AFTER_ROOT,
@@ -115,16 +76,22 @@ class BASE_EXPORT JSONReader {
   };
 
   // String versions of parse error codes.
-  static const char* kBadRootElementType;
   static const char* kInvalidEscape;
   static const char* kSyntaxError;
+  static const char* kUnexpectedToken;
   static const char* kTrailingComma;
   static const char* kTooMuchNesting;
   static const char* kUnexpectedDataAfterRoot;
   static const char* kUnsupportedEncoding;
   static const char* kUnquotedDictionaryKey;
 
+  // Constructs a reader with the default options, JSON_PARSE_RFC.
   JSONReader();
+
+  // Constructs a reader with custom options.
+  explicit JSONReader(int options);
+
+  ~JSONReader();
 
   // Reads and parses |json|, returning a Value. The caller owns the returned
   // instance. If |json| is not a properly formed JSON string, returns NULL.
@@ -148,106 +115,19 @@ class BASE_EXPORT JSONReader {
   // Returns an empty string if error_code is JSON_NO_ERROR.
   static std::string ErrorCodeToString(JsonParseError error_code);
 
-  // Returns the error code if the last call to JsonToValue() failed.
+  // Parses an input string into a Value that is owned by the caller.
+  Value* ReadToValue(const std::string& json);
+
+  // Returns the error code if the last call to ReadToValue() failed.
   // Returns JSON_NO_ERROR otherwise.
-  JsonParseError error_code() const { return error_code_; }
+  JsonParseError error_code() const;
 
   // Converts error_code_ to a human-readable string, including line and column
   // numbers if appropriate.
   std::string GetErrorMessage() const;
 
-  // Reads and parses |json|, returning a Value. The caller owns the returned
-  // instance. If |json| is not a properly formed JSON string, returns NULL and
-  // a detailed error can be retrieved from |error_message()|.
-  // If |check_root| is true, we require that the root object be an object or
-  // array. Otherwise, it can be any valid JSON type.
-  // If |allow_trailing_comma| is true, we will ignore trailing commas in
-  // objects and arrays even though this goes against the RFC.
-  Value* JsonToValue(const std::string& json, bool check_root,
-                     bool allow_trailing_comma);
-
  private:
-  FRIEND_TEST_ALL_PREFIXES(JSONReaderTest, Reading);
-  FRIEND_TEST_ALL_PREFIXES(JSONReaderTest, ErrorMessages);
-
-  static std::string FormatErrorMessage(int line, int column,
-                                        const std::string& description);
-
-  // Recursively build Value.  Returns NULL if we don't have a valid JSON
-  // string.  If |is_root| is true, we verify that the root element is either
-  // an object or an array.
-  Value* BuildValue(bool is_root);
-
-  // Parses a sequence of characters into a Token::NUMBER. If the sequence of
-  // characters is not a valid number, returns a Token::INVALID_TOKEN. Note
-  // that DecodeNumber is used to actually convert from a string to an
-  // int/double.
-  Token ParseNumberToken();
-
-  // Try and convert the substring that token holds into an int or a double. If
-  // we can (ie., no overflow), return the value, else return NULL.
-  Value* DecodeNumber(const Token& token);
-
-  // Parses a sequence of characters into a Token::STRING. If the sequence of
-  // characters is not a valid string, returns a Token::INVALID_TOKEN. Note
-  // that DecodeString is used to actually decode the escaped string into an
-  // actual wstring.
-  Token ParseStringToken();
-
-  // Convert the substring into a value string.  This should always succeed
-  // (otherwise ParseStringToken would have failed).
-  Value* DecodeString(const Token& token);
-
-  // Helper function for DecodeString that consumes UTF16 [0,2] code units and
-  // convers them to UTF8 code untis.  |token| is the string token in which the
-  // units should be read, |i| is the position in the token at which the first
-  // code unit starts, immediately after the |\u|. This will be mutated if code
-  // units are consumed. |dest_string| is a string to which the UTF8 code unit
-  // should be appended. Returns true on success and false if there's an
-  // encoding error.
-  bool ConvertUTF16Units(const Token& token,
-                         int* i,
-                         std::string* dest_string);
-
-  // Grabs the next token in the JSON stream.  This does not increment the
-  // stream so it can be used to look ahead at the next token.
-  Token ParseToken();
-
-  // Increments |json_pos_| past leading whitespace and comments.
-  void EatWhitespaceAndComments();
-
-  // If |json_pos_| is at the start of a comment, eat it, otherwise, returns
-  // false.
-  bool EatComment();
-
-  // Checks if |json_pos_| matches str.
-  bool NextStringMatch(const char* str, size_t length);
-
-  // Sets the error code that will be returned to the caller. The current
-  // line and column are determined and added into the final message.
-  void SetErrorCode(const JsonParseError error, const char* error_pos);
-
-  // Pointer to the starting position in the input string.
-  const char* start_pos_;
-
-  // Pointer to the current position in the input string.
-  const char* json_pos_;
-
-  // Pointer to the last position in the input string.
-  const char* end_pos_;
-
-  // Used to keep track of how many nested lists/dicts there are.
-  int stack_depth_;
-
-  // A parser flag that allows trailing commas in objects and arrays.
-  bool allow_trailing_comma_;
-
-  // Contains the error code for the last call to JsonToValue(), if any.
-  JsonParseError error_code_;
-  int error_line_;
-  int error_col_;
-
-  DISALLOW_COPY_AND_ASSIGN(JSONReader);
+  scoped_ptr<internal::JSONParser> parser_;
 };
 
 }  // namespace base
