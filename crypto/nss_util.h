@@ -8,7 +8,6 @@
 
 #include <string>
 #include "base/basictypes.h"
-#include "base/callback.h"
 #include "crypto/crypto_export.h"
 
 #if defined(USE_NSS)
@@ -26,9 +25,6 @@ class Time;
 namespace crypto {
 
 class SymmetricKey;
-
-// A callback to handle the result of InitializeTPMToken.
-typedef base::Callback<void(bool result)> InitializeTPMTokenCallback;
 
 #if defined(USE_NSS)
 // EarlySetupForNSSInit performs lightweight setup which must occur before the
@@ -93,36 +89,10 @@ bool CheckNSSVersion(const char* version);
 // GetPublicNSSKeySlot().
 CRYPTO_EXPORT void OpenPersistentNSSDB();
 
-// A delegate class that we can use to access the cros API for
-// communication with cryptohomed and the TPM.
-class CRYPTO_EXPORT TPMTokenInfoDelegate {
- public:
-  // A callback to handle the result of RequestIsTokenReady.
-  typedef base::Callback<void(bool result)> RequestIsTokenReadyCallback;
-
-  TPMTokenInfoDelegate();
-  virtual ~TPMTokenInfoDelegate();
-
-  // Runs |callback| with true if the TPM and PKCS#11 token slot is ready to be
-  // used.
-  // If IsTokenAvailable() is false this should run |callback| with false.
-  // If IsTokenAvailable() is true, this should eventually run |callback| with
-  // true.
-  virtual void RequestIsTokenReady(RequestIsTokenReadyCallback callback) const
-      = 0;
-
-  // Fetches token properties. TODO(stevenjb): make this interface asynchronous
-  // so that the implementation does not have to be blocking.
-  virtual void GetTokenInfo(std::string* token_name,
-                            std::string* user_pin) const = 0;
-};
-
 // Indicates that NSS should load the Chaps library so that we
 // can access the TPM through NSS.  Once this is called,
 // GetPrivateNSSKeySlot() will return the TPM slot if one was found.
-// Takes ownership of the passed-in delegate object so it can access
-// the cros library to talk to cryptohomed.
-CRYPTO_EXPORT void EnableTPMTokenForNSS(TPMTokenInfoDelegate* delegate);
+CRYPTO_EXPORT void EnableTPMTokenForNSS();
 
 // Get name and user PIN for the built-in TPM token on ChromeOS.
 // Either one can safely be NULL.  Should only be called after
@@ -137,7 +107,8 @@ CRYPTO_EXPORT void GetTPMTokenInfo(std::string* token_name,
 CRYPTO_EXPORT bool IsTPMTokenReady();
 
 // Initialize the TPM token.  Does nothing if it is already initialized.
-CRYPTO_EXPORT void InitializeTPMToken(InitializeTPMTokenCallback callback);
+CRYPTO_EXPORT bool InitializeTPMToken(const std::string& token_name,
+                                      const std::string& user_pin);
 
 // Gets supplemental user key. Creates one in NSS database if it does not exist.
 // The supplemental user key is used for AES encryption of user data that is
