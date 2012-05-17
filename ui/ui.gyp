@@ -240,6 +240,7 @@
         'base/resource/resource_bundle_win.h',
         'base/resource/resource_data_dll_win.cc',
         'base/resource/resource_data_dll_win.h',
+        'base/resource/resource_handle.cc',
         'base/resource/resource_handle.h',
         'base/text/bytes_formatting.cc',
         'base/text/bytes_formatting.h',
