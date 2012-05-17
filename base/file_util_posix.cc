@@ -38,6 +38,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/singleton.h"
+#include "base/path_service.h"
 #include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
@@ -920,7 +921,7 @@ bool GetTempDir(FilePath* path) {
     *path = FilePath(tmp);
   else
 #if defined(OS_ANDROID)
-    *path = FilePath("/data/local/tmp");
+    return PathService::Get(base::DIR_CACHE, path);
 #else
     *path = FilePath("/tmp");
 #endif
