@@ -9,7 +9,6 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
 #include "net/base/net_log.h"
 #include "net/http/http_stream.h"
 #include "net/socket/ssl_client_socket.h"

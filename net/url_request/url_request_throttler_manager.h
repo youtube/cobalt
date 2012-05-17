@@ -11,7 +11,7 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/memory/ref_counted.h"
 #include "base/threading/non_thread_safe.h"
 #include "base/threading/platform_thread.h"
 #include "googleurl/src/gurl.h"
