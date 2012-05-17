@@ -13,7 +13,6 @@
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "net/base/cert_database.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/ip_endpoint.h"
