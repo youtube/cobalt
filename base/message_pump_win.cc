@@ -8,6 +8,7 @@
 
 #include "base/message_loop.h"
 #include "base/metrics/histogram.h"
+#include "base/process_util.h"
 #include "base/win/wrapped_window_proc.h"
 
 namespace base {
@@ -82,13 +83,13 @@ int MessagePumpWin::GetCurrentDelay() const {
 //-----------------------------------------------------------------------------
 // MessagePumpForUI public:
 
-MessagePumpForUI::MessagePumpForUI() {
+MessagePumpForUI::MessagePumpForUI() : instance_(NULL) {
   InitMessageWnd();
 }
 
 MessagePumpForUI::~MessagePumpForUI() {
   DestroyWindow(message_hwnd_);
-  UnregisterClass(kWndClass, GetModuleHandle(NULL));
+  UnregisterClass(kWndClass, instance_);
 }
 
 void MessagePumpForUI::ScheduleWork() {
@@ -230,17 +231,16 @@ void MessagePumpForUI::DoRunLoop() {
 }
 
 void MessagePumpForUI::InitMessageWnd() {
-  HINSTANCE hinst = GetModuleHandle(NULL);
-
   WNDCLASSEX wc = {0};
   wc.cbSize = sizeof(wc);
   wc.lpfnWndProc = base::win::WrappedWindowProc<WndProcThunk>;
-  wc.hInstance = hinst;
+  wc.hInstance = base::GetModuleFromAddress(wc.lpfnWndProc);
   wc.lpszClassName = kWndClass;
+  instance_ = wc.hInstance;
   RegisterClassEx(&wc);
 
   message_hwnd_ =
-      CreateWindow(kWndClass, 0, 0, 0, 0, 0, 0, HWND_MESSAGE, 0, hinst, 0);
+      CreateWindow(kWndClass, 0, 0, 0, 0, 0, 0, HWND_MESSAGE, 0, instance_, 0);
   DCHECK(message_hwnd_);
 }
 
