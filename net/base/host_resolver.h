@@ -8,7 +8,6 @@
 
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
 #include "net/base/address_family.h"
 #include "net/base/completion_callback.h"
 #include "net/base/host_port_pair.h"

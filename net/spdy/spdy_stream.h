@@ -12,7 +12,6 @@
 #include "base/basictypes.h"
 #include "base/memory/linked_ptr.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/bandwidth_metrics.h"
 #include "net/base/io_buffer.h"

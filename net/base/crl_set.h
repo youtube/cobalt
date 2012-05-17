@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/string_piece.h"
 #include "base/time.h"
 #include "net/base/net_export.h"

@@ -9,7 +9,7 @@
 #include <set>
 #include <string>
 
-#include "base/memory/scoped_ptr.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_vector.h"
 #include "base/message_loop_proxy.h"
 #include "base/threading/non_thread_safe.h"

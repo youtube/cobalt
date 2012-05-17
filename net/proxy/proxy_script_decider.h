@@ -1,14 +1,14 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_PROXY_SCRIPT_DECIDER_H
-#define NET_PROXY_SCRIPT_DECIDER_H
+#ifndef NET_PROXY_PROXY_SCRIPT_DECIDER_H_
+#define NET_PROXY_PROXY_SCRIPT_DECIDER_H_
 #pragma once
 
 #include <vector>
 
-#include "base/memory/scoped_ptr.h"
+#include "base/memory/ref_counted.h"
 #include "base/string16.h"
 #include "base/time.h"
 #include "base/timer.h"
@@ -176,4 +176,4 @@ class NET_EXPORT_PRIVATE ProxyScriptDecider {
 
 }  // namespace net
 
-#endif  // NET_PROXY_SCRIPT_DECIDER_H
+#endif  // NET_PROXY_PROXY_SCRIPT_DECIDER_H_
