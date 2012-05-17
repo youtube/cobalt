@@ -11,7 +11,6 @@
 #include <resolv.h>
 
 #include "base/compiler_specific.h"
-#include "base/memory/scoped_ptr.h"
 #include "net/base/net_export.h"
 #include "net/dns/dns_config_service.h"
 

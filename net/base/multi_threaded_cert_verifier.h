@@ -12,7 +12,6 @@
 #include "base/basictypes.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/threading/non_thread_safe.h"
 #include "net/base/cert_database.h"
 #include "net/base/cert_verifier.h"
@@ -31,10 +30,10 @@ class CertVerifyProc;
 
 // MultiThreadedCertVerifier is a CertVerifier implementation that runs
 // synchronous CertVerifier implementations on worker threads.
-class NET_EXPORT_PRIVATE MultiThreadedCertVerifier :
-    public CertVerifier,
-    NON_EXPORTED_BASE(public base::NonThreadSafe),
-    public CertDatabase::Observer {
+class NET_EXPORT_PRIVATE MultiThreadedCertVerifier
+    : public CertVerifier,
+      NON_EXPORTED_BASE(public base::NonThreadSafe),
+      public CertDatabase::Observer {
  public:
   MultiThreadedCertVerifier();
 
