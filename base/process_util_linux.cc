@@ -75,6 +75,7 @@ bool ParseProcStats(const std::string& stats_data,
   if (open_parens_idx == std::string::npos ||
       close_parens_idx == std::string::npos ||
       open_parens_idx > close_parens_idx) {
+    DLOG(WARNING) << "Failed to find matched parens in '" << stats_data << "'";
     NOTREACHED();
     return false;
   }
