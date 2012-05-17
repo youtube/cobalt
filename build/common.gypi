@@ -273,6 +273,11 @@
       # plugins to make call of the main thread.
       'enable_pepper_threading%': 0,
 
+      # Include the PPAPI IPC proxy for NaCl. This is a work-in-progress; this
+      # allows us to build this feature locally without it affecting others
+      # working in affected subsystems like base and ipc.
+      'build_ppapi_ipc_proxy_untrusted%': 0,
+
       # Enables use of the session service, which is enabled by default.
       # Support for disabling depends on the platform.
       'enable_session_service%': 1,
@@ -523,6 +528,7 @@
     'use_gnome_keyring%': '<(use_gnome_keyring)',
     'linux_fpic%': '<(linux_fpic)',
     'enable_pepper_threading%': '<(enable_pepper_threading)',
+    'build_ppapi_ipc_proxy_untrusted%': '<(build_ppapi_ipc_proxy_untrusted)',
     'chromeos%': '<(chromeos)',
     'use_virtual_keyboard%': '<(use_virtual_keyboard)',
     'enable_viewport%': '<(enable_viewport)',
