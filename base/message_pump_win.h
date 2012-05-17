@@ -154,6 +154,9 @@ class BASE_EXPORT MessagePumpForUI : public MessagePumpWin {
   bool ProcessMessageHelper(const MSG& msg);
   bool ProcessPumpReplacementMessage();
 
+  // Instance of the module containing the window procedure.
+  HMODULE instance_;
+
   // A hidden message-only window.
   HWND message_hwnd_;
 };
