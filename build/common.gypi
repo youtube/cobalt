@@ -98,7 +98,7 @@
           # imply using ash. This rule should be removed for the future when
           # both Linux and Windows are using the aura windows without the ash
           # interface.
-          ['use_aura==1 and ((OS=="linux" and chromeos==0))', {
+          ['use_aura==1 and ((OS=="linux" and chromeos==0) or OS=="win")', {
             'use_ash%': 1,
           }],
           ['use_ash==1', {
