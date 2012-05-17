@@ -6,7 +6,7 @@
 #define NET_BASE_UPLOAD_DATA_STREAM_H_
 #pragma once
 
-#include "base/memory/scoped_ptr.h"
+#include "base/memory/ref_counted.h"
 #include "net/base/net_export.h"
 #include "net/base/upload_data.h"
 
