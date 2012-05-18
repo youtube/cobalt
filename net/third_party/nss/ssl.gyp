@@ -142,6 +142,10 @@
             '../../../third_party/nss/nss.gyp:nspr',
             '../../../third_party/nss/nss.gyp:nss',
           ],
+          'export_dependent_settings': [
+            '../../../third_party/nss/nss.gyp:nspr',
+            '../../../third_party/nss/nss.gyp:nss',
+          ],
           'direct_dependent_settings': {
             'include_dirs': [
               'ssl',
