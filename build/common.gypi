@@ -254,8 +254,7 @@
       # Whether one-click signin is enabled or not.
       'enable_one_click_signin%': 0,
 
-      # Enable Web Intents support in WebKit, dispatching of intents,
-      # and extensions Web Intents support.
+      # Enable Web Intents support in WebKit.
       'enable_web_intents%': 1,
 
       # Enable Chrome browser extensions
