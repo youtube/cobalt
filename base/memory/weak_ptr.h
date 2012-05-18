@@ -232,22 +232,30 @@ class WeakPtrFactory {
   explicit WeakPtrFactory(T* ptr) : ptr_(ptr) {
   }
 
+  ~WeakPtrFactory() {
+    ptr_ = NULL;
+  }
+
   WeakPtr<T> GetWeakPtr() {
+    DCHECK(ptr_);
     return WeakPtr<T>(weak_reference_owner_.GetRef(), ptr_);
   }
 
   // Call this method to invalidate all existing weak pointers.
   void InvalidateWeakPtrs() {
+    DCHECK(ptr_);
     weak_reference_owner_.Invalidate();
   }
 
   // Call this method to determine if any weak pointers exist.
   bool HasWeakPtrs() const {
+    DCHECK(ptr_);
     return weak_reference_owner_.HasRefs();
   }
 
   // Indicates that this object will be used on another thread from now on.
   void DetachFromThread() {
+    DCHECK(ptr_);
     weak_reference_owner_.DetachFromThread();
   }
 
