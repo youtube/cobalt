@@ -352,7 +352,7 @@
       'test_isolation_mode%': 'noop',
       # It must not be '<(PRODUCT_DIR)' alone, the '/' is necessary otherwise
       # gyp will remove duplicate flags, causing isolate.py to be confused.
-      'test_isolation_outdir%': '<(PRODUCT_DIR)/',
+      'test_isolation_outdir%': '<(PRODUCT_DIR)/isolate',
 
        # Force rlz to use chrome's networking stack.
       'force_rlz_use_chrome_net%': 1,
