@@ -59,10 +59,6 @@ FFmpegVideoDecoder::FFmpegVideoDecoder(
       frame_rate_denominator_(0) {
 }
 
-FFmpegVideoDecoder::~FFmpegVideoDecoder() {
-  ReleaseFFmpegResources();
-}
-
 void FFmpegVideoDecoder::Initialize(const scoped_refptr<DemuxerStream>& stream,
                                     const PipelineStatusCB& status_cb,
                                     const StatisticsCB& statistics_cb) {
@@ -177,6 +173,10 @@ const gfx::Size& FFmpegVideoDecoder::natural_size() {
 
 AesDecryptor* FFmpegVideoDecoder::decryptor() {
   return &decryptor_;
+}
+
+FFmpegVideoDecoder::~FFmpegVideoDecoder() {
+  ReleaseFFmpegResources();
 }
 
 void FFmpegVideoDecoder::DoRead(const ReadCB& read_cb) {

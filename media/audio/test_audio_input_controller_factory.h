@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -49,7 +49,6 @@ class TestAudioInputController : public AudioInputController {
                            AudioManager* audio_manager,
                            EventHandler* event_handler,
                            SyncWriter* sync_writer);
-  virtual ~TestAudioInputController();
 
   // Returns the event handler installed on the AudioInputController.
   EventHandler* event_handler() const { return event_handler_; }
@@ -60,6 +59,9 @@ class TestAudioInputController : public AudioInputController {
 
   // Ensure that the closure is run on the audio-manager thread.
   virtual void Close(const base::Closure& closed_task) OVERRIDE;
+
+ protected:
+  virtual ~TestAudioInputController();
 
  private:
   // These are not owned by us and expected to be valid for this object's

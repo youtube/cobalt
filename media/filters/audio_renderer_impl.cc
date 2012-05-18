@@ -31,12 +31,6 @@ AudioRendererImpl::AudioRendererImpl(media::AudioRendererSink* sink)
                           base::Unretained(this))) {
 }
 
-AudioRendererImpl::~AudioRendererImpl() {
-  // Stop() should have been called and |algorithm_| should have been destroyed.
-  DCHECK(state_ == kUninitialized || state_ == kStopped);
-  DCHECK(!algorithm_.get());
-}
-
 void AudioRendererImpl::Play(const base::Closure& callback) {
   {
     base::AutoLock auto_lock(lock_);
@@ -224,6 +218,12 @@ void AudioRendererImpl::SetVolume(float volume) {
   if (stopped_)
     return;
   sink_->SetVolume(volume);
+}
+
+AudioRendererImpl::~AudioRendererImpl() {
+  // Stop() should have been called and |algorithm_| should have been destroyed.
+  DCHECK(state_ == kUninitialized || state_ == kStopped);
+  DCHECK(!algorithm_.get());
 }
 
 void AudioRendererImpl::DecodedAudioReady(scoped_refptr<Buffer> buffer) {

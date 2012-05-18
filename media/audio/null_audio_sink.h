@@ -24,7 +24,6 @@ class MEDIA_EXPORT NullAudioSink
     : NON_EXPORTED_BASE(public AudioRendererSink) {
  public:
   NullAudioSink();
-  virtual ~NullAudioSink();
 
   // AudioRendererSink implementation.
   virtual void Initialize(const AudioParameters& params,
@@ -36,6 +35,9 @@ class MEDIA_EXPORT NullAudioSink
   virtual void SetPlaybackRate(float rate) OVERRIDE;
   virtual bool SetVolume(double volume) OVERRIDE;
   virtual void GetVolume(double* volume) OVERRIDE;
+
+ protected:
+  virtual ~NullAudioSink();
 
  private:
   // Audio thread task that periodically calls FillBuffer() to consume

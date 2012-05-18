@@ -117,8 +117,6 @@ class MEDIA_EXPORT AudioInputController
     virtual ~Factory() {}
   };
 
-  virtual ~AudioInputController();
-
   // Factory method for creating an AudioInputController.
   // The audio device will be created on the audio thread, and when that is
   // done, the event handler will receive an OnCreated() call from that same
@@ -181,6 +179,8 @@ class MEDIA_EXPORT AudioInputController
   }
 
  protected:
+  friend class base::RefCountedThreadSafe<AudioInputController>;
+
   // Internal state of the source.
   enum State {
     kEmpty,
@@ -191,6 +191,7 @@ class MEDIA_EXPORT AudioInputController
   };
 
   AudioInputController(EventHandler* handler, SyncWriter* sync_writer);
+  virtual ~AudioInputController();
 
   // Methods called on the audio thread (owned by the AudioManager).
   void DoCreate(AudioManager* audio_manager, const AudioParameters& params,

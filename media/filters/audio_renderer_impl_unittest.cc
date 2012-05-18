@@ -32,6 +32,9 @@ class MockAudioSink : public media::AudioRendererSink {
   MOCK_METHOD1(SetPlaybackRate, void(float rate));
   MOCK_METHOD1(SetVolume, bool(double volume));
   MOCK_METHOD1(GetVolume, void(double* volume));
+
+ protected:
+  virtual ~MockAudioSink() {}
 };
 
 }  // namespace

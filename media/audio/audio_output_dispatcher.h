@@ -52,7 +52,6 @@ class MEDIA_EXPORT AudioOutputDispatcher
   // Ownership of the |stream_proxy| is passed to the dispatcher.
   virtual void StopStream(AudioOutputProxy* stream_proxy) = 0;
 
-
   // Called by AudioOutputProxy when the volume is set.
   virtual void StreamVolumeSet(AudioOutputProxy* stream_proxy,
                                double volume) = 0;
@@ -65,6 +64,8 @@ class MEDIA_EXPORT AudioOutputDispatcher
 
  protected:
   friend class base::RefCountedThreadSafe<AudioOutputDispatcher>;
+  friend class AudioOutputProxyTest;
+
   virtual ~AudioOutputDispatcher();
 
   // A no-reference-held pointer (we don't want circular references) back to the

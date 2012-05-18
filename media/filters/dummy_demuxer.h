@@ -29,9 +29,10 @@ class DummyDemuxerStream : public DemuxerStream {
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
   virtual void EnableBitstreamConverter() OVERRIDE;
 
- private:
+ protected:
   virtual ~DummyDemuxerStream();
 
+ private:
   Type type_;
   AudioDecoderConfig audio_config_;
   VideoDecoderConfig video_config_;
@@ -42,7 +43,6 @@ class DummyDemuxerStream : public DemuxerStream {
 class MEDIA_EXPORT DummyDemuxer : public Demuxer {
  public:
   DummyDemuxer(bool has_video, bool has_audio);
-  virtual ~DummyDemuxer();
 
   // Demuxer implementation.
   virtual void Initialize(DemuxerHost* host,
@@ -51,6 +51,9 @@ class MEDIA_EXPORT DummyDemuxer : public Demuxer {
       DemuxerStream::Type type) OVERRIDE;
   virtual base::TimeDelta GetStartTime() const OVERRIDE;
   virtual int GetBitrate() OVERRIDE;
+
+ protected:
+  virtual ~DummyDemuxer();
 
  private:
   bool has_video_;

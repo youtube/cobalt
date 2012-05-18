@@ -26,10 +26,6 @@ FileDataSource::FileDataSource(bool disable_file_size)
       disable_file_size_(disable_file_size) {
 }
 
-FileDataSource::~FileDataSource() {
-  DCHECK(!file_);
-}
-
 PipelineStatus FileDataSource::Initialize(const std::string& url) {
   DCHECK(!file_);
 #if defined(OS_WIN)
@@ -52,13 +48,6 @@ PipelineStatus FileDataSource::Initialize(const std::string& url) {
 void FileDataSource::set_host(DataSourceHost* host) {
   DataSource::set_host(host);
   UpdateHostBytes();
-}
-
-void FileDataSource::UpdateHostBytes() {
-  if (host() && file_) {
-    host()->SetTotalBytes(file_size_);
-    host()->SetBufferedBytes(file_size_);
-  }
 }
 
 void FileDataSource::Stop(const base::Closure& callback) {
@@ -113,5 +102,16 @@ bool FileDataSource::IsStreaming() {
 }
 
 void FileDataSource::SetBitrate(int bitrate) {}
+
+FileDataSource::~FileDataSource() {
+  DCHECK(!file_);
+}
+
+void FileDataSource::UpdateHostBytes() {
+  if (host() && file_) {
+    host()->SetTotalBytes(file_size_);
+    host()->SetBufferedBytes(file_size_);
+  }
+}
 
 }  // namespace media
