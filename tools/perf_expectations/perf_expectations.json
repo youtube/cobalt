@@ -68,7 +68,7 @@
  "linux-release/av_perf/ttp/LowMediumNone": {"reva": 121031, "revb": 121278, "type": "absolute", "better": "lower", "improve": 4620, "regress": 5329, "sha1": "860d4202"},
  "linux-release/av_perf/ttp/NoConstraints": {"reva": 126806, "revb": 127708, "type": "absolute", "better": "lower", "improve": 27, "regress": 50, "sha1": "26987a45"},
  "linux-release/av_perf/ttp/Wifi_1Mbps_60ms": {"reva": 126806, "revb": 127708, "type": "absolute", "better": "lower", "improve": 1263, "regress": 1418, "sha1": "172bdabe"},
- "linux-release/dhtml/times/t": {"reva": 137725, "revb": 109709, "improve": -5994, "regress": 6111, "sha1": "b149ac98"},
+ "linux-release/dhtml/times/t": {"reva": 137725, "revb": 137748, "improve": -233, "regress": -54, "sha1": "784909f8"},
  "linux-release/dom_perf/Total/score": {"reva": 122431, "revb": 123492, "improve": 238, "regress": 67, "sha1": "c58fbd81"},
  "linux-release/dromaeo_jslib/jslib/score": {"reva": 128533, "revb": 128915, "improve": -19, "regress": -62, "sha1": "af340875"},
  "linux-release/intl1/times/t": {"reva": 137725, "revb": 137748, "improve": -476, "regress": -284, "sha1": "739656d7"},
