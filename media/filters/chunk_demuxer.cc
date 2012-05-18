@@ -123,7 +123,6 @@ class ChunkDemuxerStream : public DemuxerStream {
 
   explicit ChunkDemuxerStream(const AudioDecoderConfig& audio_config);
   explicit ChunkDemuxerStream(const VideoDecoderConfig& video_config);
-  virtual ~ChunkDemuxerStream();
 
   void Flush();
   void Seek(base::TimeDelta time);
@@ -149,6 +148,9 @@ class ChunkDemuxerStream : public DemuxerStream {
   virtual void EnableBitstreamConverter() OVERRIDE;
   virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
+
+ protected:
+  virtual ~ChunkDemuxerStream();
 
  private:
   enum State {
@@ -202,8 +204,6 @@ ChunkDemuxerStream::ChunkDemuxerStream(const VideoDecoderConfig& video_config)
       last_buffer_timestamp_(kNoTimestamp()) {
   video_config_.CopyFrom(video_config);
 }
-
-ChunkDemuxerStream::~ChunkDemuxerStream() {}
 
 void ChunkDemuxerStream::Flush() {
   DVLOG(1) << "Flush()";
@@ -417,6 +417,8 @@ void ChunkDemuxerStream::ChangeState_Locked(State state) {
   state_ = state;
 }
 
+ChunkDemuxerStream::~ChunkDemuxerStream() {}
+
 void ChunkDemuxerStream::DeferRead_Locked(const ReadCB& read_cb) {
   lock_.AssertAcquired();
   // Wrap & store |read_cb| so that it will
@@ -458,10 +460,6 @@ ChunkDemuxer::ChunkDemuxer(ChunkDemuxerClient* client)
       buffered_bytes_(0),
       seek_waits_for_data_(true) {
   DCHECK(client);
-}
-
-ChunkDemuxer::~ChunkDemuxer() {
-  DCHECK_NE(state_, INITIALIZED);
 }
 
 void ChunkDemuxer::Initialize(DemuxerHost* host,
@@ -811,6 +809,10 @@ void ChunkDemuxer::Shutdown() {
 void ChunkDemuxer::ChangeState_Locked(State new_state) {
   lock_.AssertAcquired();
   state_ = new_state;
+}
+
+ChunkDemuxer::~ChunkDemuxer() {
+  DCHECK_NE(state_, INITIALIZED);
 }
 
 void ChunkDemuxer::ReportError_Locked(PipelineStatus error) {

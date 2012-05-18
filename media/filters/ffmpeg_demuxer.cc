@@ -35,8 +35,6 @@ class AVPacketBuffer : public Buffer {
         packet_(packet.Pass()) {
   }
 
-  virtual ~AVPacketBuffer() {}
-
   // Buffer implementation.
   virtual const uint8* GetData() const {
     return reinterpret_cast<const uint8*>(packet_->data);
@@ -45,6 +43,9 @@ class AVPacketBuffer : public Buffer {
   virtual int GetDataSize() const {
     return packet_->size;
   }
+
+ protected:
+  virtual ~AVPacketBuffer() {}
 
  private:
   scoped_ptr_malloc<AVPacket, ScopedPtrAVFreePacket> packet_;
@@ -82,13 +83,6 @@ FFmpegDemuxerStream::FFmpegDemuxerStream(FFmpegDemuxer* demuxer,
 
   // Calculate the duration.
   duration_ = ConvertStreamTimestamp(stream->time_base, stream->duration);
-}
-
-FFmpegDemuxerStream::~FFmpegDemuxerStream() {
-  base::AutoLock auto_lock(lock_);
-  DCHECK(stopped_);
-  DCHECK(read_queue_.empty());
-  DCHECK(buffer_queue_.empty());
 }
 
 bool FFmpegDemuxerStream::HasPendingReads() {
@@ -262,6 +256,13 @@ const AudioDecoderConfig& FFmpegDemuxerStream::audio_decoder_config() {
 const VideoDecoderConfig& FFmpegDemuxerStream::video_decoder_config() {
   CHECK_EQ(type_, VIDEO);
   return video_config_;
+}
+
+FFmpegDemuxerStream::~FFmpegDemuxerStream() {
+  base::AutoLock auto_lock(lock_);
+  DCHECK(stopped_);
+  DCHECK(read_queue_.empty());
+  DCHECK(buffer_queue_.empty());
 }
 
 // static

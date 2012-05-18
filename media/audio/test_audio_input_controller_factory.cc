@@ -18,13 +18,13 @@ TestAudioInputController::TestAudioInputController(
   message_loop_ = audio_manager->GetMessageLoop();
 }
 
+void TestAudioInputController::Close(const base::Closure& closed_task) {
+  message_loop_->PostTask(FROM_HERE, closed_task);
+}
+
 TestAudioInputController::~TestAudioInputController() {
   // Inform the factory so that it allows creating new instances in future.
   factory_->OnTestAudioInputControllerDestroyed(this);
-}
-
-void TestAudioInputController::Close(const base::Closure& closed_task) {
-  message_loop_->PostTask(FROM_HERE, closed_task);
 }
 
 TestAudioInputControllerFactory::TestAudioInputControllerFactory()

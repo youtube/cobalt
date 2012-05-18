@@ -429,14 +429,17 @@ class MockReadCB : public base::RefCountedThreadSafe<MockReadCB> {
  public:
   MockReadCB() {}
 
+  MOCK_METHOD0(OnDelete, void());
+  MOCK_METHOD1(Run, void(const scoped_refptr<Buffer>& buffer));
+
+ protected:
   virtual ~MockReadCB() {
     OnDelete();
   }
 
-  MOCK_METHOD0(OnDelete, void());
-  MOCK_METHOD1(Run, void(const scoped_refptr<Buffer>& buffer));
-
  private:
+  friend class base::RefCountedThreadSafe<MockReadCB>;
+
   DISALLOW_COPY_AND_ASSIGN(MockReadCB);
 };
 

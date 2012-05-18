@@ -45,7 +45,6 @@ class MEDIA_EXPORT VideoRendererBase
   VideoRendererBase(const base::Closure& paint_cb,
                     const SetOpaqueCB& set_opaque_cb,
                     bool drop_frames);
-  virtual ~VideoRendererBase();
 
   // Filter implementation.
   virtual void Play(const base::Closure& callback) OVERRIDE;
@@ -73,6 +72,9 @@ class MEDIA_EXPORT VideoRendererBase
   // pause/flush/seek.
   void GetCurrentFrame(scoped_refptr<VideoFrame>* frame_out);
   void PutCurrentFrame(scoped_refptr<VideoFrame> frame);
+
+ protected:
+  virtual ~VideoRendererBase();
 
  private:
   // Callback from the video decoder delivering decoded video frames and

@@ -27,7 +27,6 @@ class MEDIA_EXPORT VideoCapture {
           stride(0),
           buffer_size(0),
           memory_pointer(NULL) {}
-    ~VideoFrameBuffer() {}
 
     int width;
     int height;
@@ -37,6 +36,9 @@ class MEDIA_EXPORT VideoCapture {
     base::Time timestamp;
 
    private:
+    friend class base::RefCountedThreadSafe<VideoFrameBuffer>;
+    ~VideoFrameBuffer() {}
+
     DISALLOW_COPY_AND_ASSIGN(VideoFrameBuffer);
   };
 

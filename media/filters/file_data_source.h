@@ -19,7 +19,6 @@ class MEDIA_EXPORT FileDataSource : public DataSource {
  public:
   FileDataSource();
   FileDataSource(bool disable_file_size);
-  virtual ~FileDataSource();
 
   PipelineStatus Initialize(const std::string& url);
 
@@ -31,6 +30,9 @@ class MEDIA_EXPORT FileDataSource : public DataSource {
   virtual bool GetSize(int64* size_out) OVERRIDE;
   virtual bool IsStreaming() OVERRIDE;
   virtual void SetBitrate(int bitrate) OVERRIDE;
+
+ protected:
+  virtual ~FileDataSource();
 
  private:
   // Informs the host of changes in total and buffered bytes.

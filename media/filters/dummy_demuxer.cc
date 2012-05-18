@@ -44,8 +44,6 @@ DummyDemuxer::DummyDemuxer(bool has_video, bool has_audio)
         new DummyDemuxerStream(DemuxerStream::VIDEO);
 }
 
-DummyDemuxer::~DummyDemuxer() {}
-
 void DummyDemuxer::Initialize(DemuxerHost* host,
                               const PipelineStatusCB& status_cb) {
   host->SetDuration(media::kInfiniteDuration());
@@ -63,5 +61,7 @@ base::TimeDelta DummyDemuxer::GetStartTime() const {
 int DummyDemuxer::GetBitrate() {
   return 0;
 }
+
+DummyDemuxer::~DummyDemuxer() {}
 
 }  // namespace media

@@ -8,13 +8,6 @@
 
 namespace media {
 
-StreamParserBuffer::StreamParserBuffer(const uint8* data, int data_size,
-                                       bool is_keyframe)
-    : DataBuffer(data, data_size),
-      is_keyframe_(is_keyframe) {
-  SetDuration(kNoTimestamp());
-}
-
 scoped_refptr<StreamParserBuffer> StreamParserBuffer::CreateEOSBuffer() {
   return make_scoped_refptr(new StreamParserBuffer(NULL, 0, false));
 }
@@ -29,6 +22,17 @@ base::TimeDelta StreamParserBuffer::GetEndTimestamp() const {
   DCHECK(GetTimestamp() != kNoTimestamp());
   DCHECK(GetDuration() != kNoTimestamp());
   return GetTimestamp() + GetDuration();
+}
+
+StreamParserBuffer::StreamParserBuffer(const uint8* data, int data_size,
+                                       bool is_keyframe)
+    : DataBuffer(data, data_size),
+      is_keyframe_(is_keyframe) {
+  SetDuration(kNoTimestamp());
+}
+
+
+StreamParserBuffer::~StreamParserBuffer() {
 }
 
 }  // namespace media

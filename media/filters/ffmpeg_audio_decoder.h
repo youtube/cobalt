@@ -20,7 +20,6 @@ class DataBuffer;
 class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
  public:
   FFmpegAudioDecoder(const base::Callback<MessageLoop*()>& message_loop_cb);
-  virtual ~FFmpegAudioDecoder();
 
   // AudioDecoder implementation.
   virtual void Initialize(const scoped_refptr<DemuxerStream>& stream,
@@ -31,6 +30,9 @@ class MEDIA_EXPORT FFmpegAudioDecoder : public AudioDecoder {
   virtual ChannelLayout channel_layout() OVERRIDE;
   virtual int samples_per_second() OVERRIDE;
   virtual void Reset(const base::Closure& closure) OVERRIDE;
+
+ protected:
+  virtual ~FFmpegAudioDecoder();
 
  private:
   // Methods running on decoder thread.

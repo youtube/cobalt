@@ -21,8 +21,6 @@ VideoFrameGenerator::VideoFrameGenerator(
       frame_duration_(frame_duration) {
 }
 
-VideoFrameGenerator::~VideoFrameGenerator() {}
-
 void VideoFrameGenerator::Initialize(
     const scoped_refptr<DemuxerStream>& stream,
     const PipelineStatusCB& status_cb,
@@ -54,6 +52,8 @@ void VideoFrameGenerator::Stop(const base::Closure& closure) {
 const gfx::Size& VideoFrameGenerator::natural_size() {
   return natural_size_;
 }
+
+VideoFrameGenerator::~VideoFrameGenerator() {}
 
 void VideoFrameGenerator::InitializeOnDecoderThread(
     const scoped_refptr<DemuxerStream>& /* stream */,

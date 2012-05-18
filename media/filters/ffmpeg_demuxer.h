@@ -84,9 +84,11 @@ class FFmpegDemuxerStream : public DemuxerStream {
   virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
 
+ protected:
+  virtual ~FFmpegDemuxerStream();
+
  private:
   friend class FFmpegDemuxerTest;
-  virtual ~FFmpegDemuxerStream();
 
   // Carries out enqueuing a pending read on the demuxer thread.
   void ReadTask(const ReadCB& read_cb);
@@ -132,7 +134,6 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
  public:
   FFmpegDemuxer(MessageLoop* message_loop,
                 const scoped_refptr<DataSource>& data_source);
-  virtual ~FFmpegDemuxer();
 
   // Posts a task to perform additional demuxing.
   virtual void PostDemuxTask();
@@ -162,6 +163,8 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
  private:
   // To allow tests access to privates.
   friend class FFmpegDemuxerTest;
+
+  virtual ~FFmpegDemuxer();
 
   // Carries out initialization on the demuxer thread.
   void InitializeTask(DemuxerHost* host, const PipelineStatusCB& status_cb);
