@@ -38,7 +38,6 @@ class MEDIA_EXPORT AudioRendererImpl
   // Methods called on Render thread ------------------------------------------
   // An AudioRendererSink is used as the destination for the rendered audio.
   explicit AudioRendererImpl(media::AudioRendererSink* sink);
-  virtual ~AudioRendererImpl();
 
   // Methods called on pipeline thread ----------------------------------------
   // Filter implementation.
@@ -57,6 +56,9 @@ class MEDIA_EXPORT AudioRendererImpl
   virtual bool HasEnded() OVERRIDE;
   virtual void ResumeAfterUnderflow(bool buffer_more_audio) OVERRIDE;
   virtual void SetVolume(float volume) OVERRIDE;
+
+ protected:
+  virtual ~AudioRendererImpl();
 
  private:
   friend class AudioRendererImplTest;

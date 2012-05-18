@@ -22,7 +22,6 @@ namespace media {
 class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
  public:
   FFmpegVideoDecoder(const base::Callback<MessageLoop*()>& message_loop_cb);
-  virtual ~FFmpegVideoDecoder();
 
   // VideoDecoder implementation.
   virtual void Initialize(const scoped_refptr<DemuxerStream>& stream,
@@ -34,6 +33,9 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   virtual const gfx::Size& natural_size() OVERRIDE;
 
   AesDecryptor* decryptor();
+
+ protected:
+  virtual ~FFmpegVideoDecoder();
 
  private:
   enum DecoderState {

@@ -31,11 +31,6 @@ VideoRendererBase::VideoRendererBase(const base::Closure& paint_cb,
   DCHECK(!paint_cb_.is_null());
 }
 
-VideoRendererBase::~VideoRendererBase() {
-  base::AutoLock auto_lock(lock_);
-  DCHECK(state_ == kUninitialized || state_ == kStopped) << state_;
-}
-
 void VideoRendererBase::Play(const base::Closure& callback) {
   base::AutoLock auto_lock(lock_);
   DCHECK_EQ(kPrerolled, state_);
@@ -356,6 +351,11 @@ void VideoRendererBase::PutCurrentFrame(scoped_refptr<VideoFrame> frame) {
   if (state_ == kError || state_ == kStopped) {
     DoStopOrError_Locked();
   }
+}
+
+VideoRendererBase::~VideoRendererBase() {
+  base::AutoLock auto_lock(lock_);
+  DCHECK(state_ == kUninitialized || state_ == kStopped) << state_;
 }
 
 void VideoRendererBase::FrameReady(VideoDecoder::DecoderStatus status,

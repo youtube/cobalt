@@ -38,8 +38,6 @@ class AudioRendererSink
     virtual ~RenderCallback() {}
   };
 
-  virtual ~AudioRendererSink() {}
-
   // Sets important information about the audio stream format.
   // It must be called before any of the other methods.
   virtual void Initialize(const AudioParameters& params,
@@ -67,6 +65,10 @@ class AudioRendererSink
 
   // Gets the playback volume, with range [0.0, 1.0] inclusive.
   virtual void GetVolume(double* volume) = 0;
+
+ protected:
+  friend class base::RefCountedThreadSafe<AudioRendererSink>;
+  virtual ~AudioRendererSink() {}
 };
 
 }  // namespace media

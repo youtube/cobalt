@@ -26,7 +26,6 @@ class MEDIA_EXPORT VideoFrameGenerator : public VideoDecoder {
       base::MessageLoopProxy* message_loop_proxy,
       const gfx::Size& size,
       const base::TimeDelta& frame_duration);
-  virtual ~VideoFrameGenerator();
 
   // VideoDecoder implementation.
   virtual void Initialize(
@@ -37,6 +36,9 @@ class MEDIA_EXPORT VideoFrameGenerator : public VideoDecoder {
   virtual void Reset(const base::Closure& closure) OVERRIDE;
   virtual void Stop(const base::Closure& closure) OVERRIDE;
   virtual const gfx::Size& natural_size() OVERRIDE;
+
+ protected:
+  virtual ~VideoFrameGenerator();
 
  private:
   void InitializeOnDecoderThread(

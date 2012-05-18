@@ -34,7 +34,6 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   typedef std::vector<std::pair<base::TimeDelta, base::TimeDelta> > Ranges;
 
   explicit ChunkDemuxer(ChunkDemuxerClient* client);
-  virtual ~ChunkDemuxer();
 
   // Demuxer implementation.
   virtual void Initialize(DemuxerHost* host,
@@ -81,6 +80,9 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   void EndOfStream(PipelineStatus status);
   bool HasEnded();
   void Shutdown();
+
+ protected:
+  virtual ~ChunkDemuxer();
 
  private:
   enum State {

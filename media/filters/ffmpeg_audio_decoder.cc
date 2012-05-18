@@ -57,18 +57,6 @@ FFmpegAudioDecoder::FFmpegAudioDecoder(
       decoded_audio_(static_cast<uint8*>(av_malloc(decoded_audio_size_))) {
 }
 
-FFmpegAudioDecoder::~FFmpegAudioDecoder() {
-  av_free(decoded_audio_);
-
-  // TODO(scherkus): should we require Stop() to be called? this might end up
-  // getting called on a random thread due to refcounting.
-  if (codec_context_) {
-    av_free(codec_context_->extradata);
-    avcodec_close(codec_context_);
-    av_free(codec_context_);
-  }
-}
-
 void FFmpegAudioDecoder::Initialize(
     const scoped_refptr<DemuxerStream>& stream,
     const PipelineStatusCB& status_cb,
@@ -109,6 +97,18 @@ int FFmpegAudioDecoder::samples_per_second() {
 void FFmpegAudioDecoder::Reset(const base::Closure& closure) {
   message_loop_->PostTask(FROM_HERE, base::Bind(
       &FFmpegAudioDecoder::DoReset, this, closure));
+}
+
+FFmpegAudioDecoder::~FFmpegAudioDecoder() {
+  av_free(decoded_audio_);
+
+  // TODO(scherkus): should we require Stop() to be called? this might end up
+  // getting called on a random thread due to refcounting.
+  if (codec_context_) {
+    av_free(codec_context_->extradata);
+    avcodec_close(codec_context_);
+    av_free(codec_context_);
+  }
 }
 
 void FFmpegAudioDecoder::DoInitialize(
