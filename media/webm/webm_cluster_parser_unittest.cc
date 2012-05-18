@@ -38,11 +38,11 @@ struct BlockInfo {
 };
 
 const BlockInfo kDefaultBlockInfo[] = {
-  { kAudioTrackNum, 0, -1, true },
-  { kAudioTrackNum, 23, -1, true },
+  { kAudioTrackNum, 0, 23, true },
+  { kAudioTrackNum, 23, 23, true },
   { kVideoTrackNum, kVideoDefaultDurationInMs, kVideoDefaultDurationInMs,
     true },
-  { kAudioTrackNum, 46, -1, true },
+  { kAudioTrackNum, 46, 23, false },
   { kVideoTrackNum, 2 * kVideoDefaultDurationInMs, kVideoDefaultDurationInMs,
     true },
 };
@@ -242,7 +242,7 @@ TEST_F(WebMClusterParserTest, ParseBlockGroup) {
 
 TEST_F(WebMClusterParserTest, ParseSimpleBlockAndBlockGroupMixture) {
   const BlockInfo kBlockInfo[] = {
-    { kAudioTrackNum, 0, -1, true },
+    { kAudioTrackNum, 0, 23, true },
     { kAudioTrackNum, 23, 23, false },
     { kVideoTrackNum, kVideoDefaultDurationInMs, kVideoDefaultDurationInMs,
       true },

@@ -39,6 +39,9 @@ static const int kVideoTrackEntryHeaderSize = kVideoTrackSizeOffset +
 static const int kVideoTrackNum = 1;
 static const int kAudioTrackNum = 2;
 
+static const int kAudioBlockDuration = 23;
+static const int kVideoBlockDuration = 33;
+
 static const char* kSourceId = "SourceId";
 
 base::TimeDelta kDefaultDuration() {
@@ -59,7 +62,7 @@ static void WriteInt64(uint8* buffer, int64 number) {
 }
 
 MATCHER_P(HasTimestamp, timestamp_in_ms, "") {
-  return !arg->IsEndOfStream() &&
+  return arg && !arg->IsEndOfStream() &&
       arg->GetTimestamp().InMilliseconds() == timestamp_in_ms;
 }
 
@@ -177,6 +180,7 @@ class ChunkDemuxerTest : public testing::Test {
   }
 
   bool AppendData(const uint8* data, size_t length) {
+    CHECK(length);
     EXPECT_CALL(host_, SetBufferedBytes(_)).Times(AnyNumber());
     EXPECT_CALL(host_, SetNetworkActivity(true))
         .Times(AnyNumber());
@@ -253,10 +257,74 @@ class ChunkDemuxerTest : public testing::Test {
     cb->AddSimpleBlock(track_num, timecode, 0, data, sizeof(data));
   }
 
-  void AddSimpleBlock(ClusterBuilder* cb, int track_num, int64 timecode,
-                      int size) {
+  scoped_ptr<Cluster> GenerateCluster(int timecode, int block_count) {
+    CHECK_GT(block_count, 0);
+
+    int size = 10;
     scoped_array<uint8> data(new uint8[size]);
-    cb->AddSimpleBlock(track_num, timecode, 0, data.get(), size);
+
+    ClusterBuilder cb;
+    cb.SetClusterTimecode(timecode);
+    int audio_timecode = timecode;
+    int video_timecode = timecode + 1;
+
+    if (block_count == 1) {
+      cb.AddBlockGroup(kAudioTrackNum, audio_timecode, kAudioBlockDuration, 0,
+                       data.get(), size);
+      return cb.Finish();
+    }
+
+    // Create simple blocks for everything except the last 2 blocks.
+    for (int i = 0; i < block_count - 2; i++) {
+      if (audio_timecode <= video_timecode) {
+        cb.AddSimpleBlock(kAudioTrackNum, audio_timecode, 0, data.get(), size);
+        audio_timecode += kAudioBlockDuration;
+        continue;
+      }
+
+      cb.AddSimpleBlock(kVideoTrackNum, video_timecode, 0, data.get(), size);
+      video_timecode += kVideoBlockDuration;
+    }
+
+    // Make the last 2 blocks BlockGroups so that they don't get delayed by the
+    // block duration calculation logic.
+    if (audio_timecode <= video_timecode) {
+      cb.AddBlockGroup(kAudioTrackNum, audio_timecode, kAudioBlockDuration, 0,
+                       data.get(), size);
+      cb.AddBlockGroup(kVideoTrackNum, video_timecode, kVideoBlockDuration, 0,
+                       data.get(), size);
+    } else {
+      cb.AddBlockGroup(kVideoTrackNum, video_timecode, kVideoBlockDuration, 0,
+                       data.get(), size);
+      cb.AddBlockGroup(kAudioTrackNum, audio_timecode, kAudioBlockDuration, 0,
+                       data.get(), size);
+    }
+
+    return cb.Finish();
+  }
+
+  void GenerateExpectedReads(int timecode, int block_count,
+                             DemuxerStream* audio,
+                             DemuxerStream* video) {
+    CHECK_GT(block_count, 0);
+    int audio_timecode = timecode;
+    int video_timecode = timecode + 1;
+
+    if (block_count == 1) {
+      ExpectRead(audio, audio_timecode);
+      return;
+    }
+
+    for (int i = 0; i < block_count; i++) {
+      if (audio_timecode <= video_timecode) {
+        ExpectRead(audio, audio_timecode);
+        audio_timecode += kAudioBlockDuration;
+        continue;
+      }
+
+      ExpectRead(video, video_timecode);
+      video_timecode += kVideoBlockDuration;
+    }
   }
 
   MOCK_METHOD1(ReadDone, void(const scoped_refptr<Buffer>&));
@@ -416,10 +484,7 @@ TEST_F(ChunkDemuxerTest, TestAppendDataAfterSeek) {
 
   EXPECT_CALL(*this, Checkpoint(2));
 
-  ClusterBuilder cb;
-  cb.SetClusterTimecode(0);
-  AddSimpleBlock(&cb, kVideoTrackNum, 0);
-  scoped_ptr<Cluster> cluster(cb.Finish());
+  scoped_ptr<Cluster> cluster(GenerateCluster(0, 4));
 
   Checkpoint(1);
 
@@ -442,28 +507,20 @@ TEST_F(ChunkDemuxerTest, TestSeekWhileParsingCluster) {
 
   InSequence s;
 
-  ClusterBuilder cb;
-  cb.SetClusterTimecode(0);
-  AddSimpleBlock(&cb, kAudioTrackNum, 1);
-  AddSimpleBlock(&cb, kVideoTrackNum, 2);
-  AddSimpleBlock(&cb, kAudioTrackNum, 10);
-  AddSimpleBlock(&cb, kVideoTrackNum, 20);
-  scoped_ptr<Cluster> cluster_a(cb.Finish());
-
-  cb.SetClusterTimecode(5000);
-  AddSimpleBlock(&cb, kAudioTrackNum, 5000);
-  AddSimpleBlock(&cb, kVideoTrackNum, 5005);
-  AddSimpleBlock(&cb, kAudioTrackNum, 5007);
-  AddSimpleBlock(&cb, kVideoTrackNum, 5035);
-  scoped_ptr<Cluster> cluster_b(cb.Finish());
+  scoped_ptr<Cluster> cluster_a(GenerateCluster(0, 6));
+  scoped_ptr<Cluster> cluster_b(GenerateCluster(5000, 6));
 
   // Append all but the last byte so that everything but
   // the last block can be parsed.
   ASSERT_TRUE(AppendData(cluster_a->data(), cluster_a->size() - 1));
 
-  ExpectRead(audio, 1);
-  ExpectRead(video, 2);
-  ExpectRead(audio, 10);
+  ExpectRead(audio, 0);
+  ExpectRead(video, 1);
+  ExpectRead(audio, kAudioBlockDuration);
+  // Note: We skip trying to read a video buffer here because computing
+  // the duration for this block relies on successfully parsing the last block
+  // in the cluster the cluster.
+  ExpectRead(audio, 2 * kAudioBlockDuration);
 
   demuxer_->FlushData();
   demuxer_->Seek(base::TimeDelta::FromSeconds(5),
@@ -473,10 +530,7 @@ TEST_F(ChunkDemuxerTest, TestSeekWhileParsingCluster) {
   // Append the new cluster and verify that only the blocks
   // in the new cluster are returned.
   ASSERT_TRUE(AppendData(cluster_b->data(), cluster_b->size()));
-  ExpectRead(audio, 5000);
-  ExpectRead(video, 5005);
-  ExpectRead(audio, 5007);
-  ExpectRead(video, 5035);
+  GenerateExpectedReads(5000, 6, audio, video);
 }
 
 // Test the case where AppendData() is called before Init().
@@ -501,18 +555,14 @@ TEST_F(ChunkDemuxerTest, TestRead) {
   bool audio_read_done = false;
   bool video_read_done = false;
   audio->Read(base::Bind(&OnReadDone,
-                         base::TimeDelta::FromMilliseconds(32),
+                         base::TimeDelta::FromMilliseconds(0),
                          &audio_read_done));
 
   video->Read(base::Bind(&OnReadDone,
-                         base::TimeDelta::FromMilliseconds(123),
+                         base::TimeDelta::FromMilliseconds(1),
                          &video_read_done));
 
-  ClusterBuilder cb;
-  cb.SetClusterTimecode(0);
-  AddSimpleBlock(&cb, kAudioTrackNum, 32);
-  AddSimpleBlock(&cb, kVideoTrackNum, 123);
-  scoped_ptr<Cluster> cluster(cb.Finish());
+  scoped_ptr<Cluster> cluster(GenerateCluster(0, 4));
 
   ASSERT_TRUE(AppendData(cluster->data(), cluster->size()));
 
@@ -523,25 +573,13 @@ TEST_F(ChunkDemuxerTest, TestRead) {
 TEST_F(ChunkDemuxerTest, TestOutOfOrderClusters) {
   ASSERT_TRUE(InitDemuxer(true, true, false));
 
-  ClusterBuilder cb;
-
-  cb.SetClusterTimecode(10);
-  AddSimpleBlock(&cb, kAudioTrackNum, 10);
-  AddSimpleBlock(&cb, kVideoTrackNum, 10);
-  AddSimpleBlock(&cb, kAudioTrackNum, 33);
-  AddSimpleBlock(&cb, kVideoTrackNum, 43);
-  scoped_ptr<Cluster> cluster_a(cb.Finish());
+  scoped_ptr<Cluster> cluster_a(GenerateCluster(10, 4));
 
   ASSERT_TRUE(AppendData(cluster_a->data(), cluster_a->size()));
 
   // Cluster B starts before cluster_a and has data
   // that overlaps.
-  cb.SetClusterTimecode(5);
-  AddSimpleBlock(&cb, kAudioTrackNum, 5);
-  AddSimpleBlock(&cb, kVideoTrackNum, 7);
-  AddSimpleBlock(&cb, kAudioTrackNum, 28);
-  AddSimpleBlock(&cb, kVideoTrackNum, 40);
-  scoped_ptr<Cluster> cluster_b(cb.Finish());
+  scoped_ptr<Cluster> cluster_b(GenerateCluster(5, 4));
 
   // Make sure that AppendData() fails because this cluster data
   // is before previous data.
@@ -549,10 +587,7 @@ TEST_F(ChunkDemuxerTest, TestOutOfOrderClusters) {
   ASSERT_TRUE(AppendData(cluster_b->data(), cluster_b->size()));
 
   // Verify that AppendData() doesn't accept more data now.
-  cb.SetClusterTimecode(45);
-  AddSimpleBlock(&cb, kAudioTrackNum, 45);
-  AddSimpleBlock(&cb, kVideoTrackNum, 45);
-  scoped_ptr<Cluster> cluster_c(cb.Finish());
+  scoped_ptr<Cluster> cluster_c(GenerateCluster(45, 2));
   EXPECT_FALSE(demuxer_->AppendData(kSourceId, cluster_c->data(),
                                     cluster_c->size()));
 }
@@ -575,10 +610,7 @@ TEST_F(ChunkDemuxerTest, TestNonMonotonicButAboveClusterTimecode) {
   ASSERT_TRUE(AppendData(cluster_a->data(), cluster_a->size()));
 
   // Verify that AppendData() doesn't accept more data now.
-  cb.SetClusterTimecode(20);
-  AddSimpleBlock(&cb, kAudioTrackNum, 20);
-  AddSimpleBlock(&cb, kVideoTrackNum, 20);
-  scoped_ptr<Cluster> cluster_b(cb.Finish());
+  scoped_ptr<Cluster> cluster_b(GenerateCluster(20, 2));
   EXPECT_FALSE(demuxer_->AppendData(kSourceId, cluster_b->data(),
                                     cluster_b->size()));
 }
@@ -601,10 +633,7 @@ TEST_F(ChunkDemuxerTest, TestBackwardsAndBeforeClusterTimecode) {
   ASSERT_TRUE(AppendData(cluster_a->data(), cluster_a->size()));
 
   // Verify that AppendData() doesn't accept more data now.
-  cb.SetClusterTimecode(6);
-  AddSimpleBlock(&cb, kAudioTrackNum, 6);
-  AddSimpleBlock(&cb, kVideoTrackNum, 6);
-  scoped_ptr<Cluster> cluster_b(cb.Finish());
+  scoped_ptr<Cluster> cluster_b(GenerateCluster(6, 2));
   EXPECT_FALSE(demuxer_->AppendData(kSourceId, cluster_b->data(),
                                     cluster_b->size()));
 }
@@ -651,10 +680,7 @@ TEST_F(ChunkDemuxerTest, TestMonotonicallyIncreasingTimestampsAcrossClusters) {
   ASSERT_TRUE(AppendData(cluster_b->data(), cluster_b->size()));
 
   // Verify that AppendData() doesn't accept more data now.
-  cb.SetClusterTimecode(10);
-  AddSimpleBlock(&cb, kAudioTrackNum, 10);
-  AddSimpleBlock(&cb, kVideoTrackNum, 10);
-  scoped_ptr<Cluster> cluster_c(cb.Finish());
+  scoped_ptr<Cluster> cluster_c(GenerateCluster(10, 2));
   EXPECT_FALSE(demuxer_->AppendData(kSourceId, cluster_c->data(),
                                     cluster_c->size()));
 }
@@ -668,10 +694,7 @@ TEST_F(ChunkDemuxerTest, TestClusterBeforeInfoTracks) {
 
   ASSERT_EQ(AddId(), ChunkDemuxer::kOk);
 
-  ClusterBuilder cb;
-  cb.SetClusterTimecode(0);
-  AddSimpleBlock(&cb, kVideoTrackNum, 0);
-  scoped_ptr<Cluster> cluster(cb.Finish());
+  scoped_ptr<Cluster> cluster(GenerateCluster(0, 1));
 
   ASSERT_TRUE(AppendData(cluster->data(), cluster->size()));
 }
@@ -687,13 +710,7 @@ TEST_F(ChunkDemuxerTest, TestEOSDuringInit) {
 TEST_F(ChunkDemuxerTest, TestDecodeErrorEndOfStream) {
   ASSERT_TRUE(InitDemuxer(true, true, false));
 
-  ClusterBuilder cb;
-  cb.SetClusterTimecode(0);
-  AddSimpleBlock(&cb, kAudioTrackNum, 0);
-  AddSimpleBlock(&cb, kVideoTrackNum, 0);
-  AddSimpleBlock(&cb, kAudioTrackNum, 23);
-  AddSimpleBlock(&cb, kVideoTrackNum, 33);
-  scoped_ptr<Cluster> cluster(cb.Finish());
+  scoped_ptr<Cluster> cluster(GenerateCluster(0, 4));
   ASSERT_TRUE(AppendData(cluster->data(), cluster->size()));
 
   EXPECT_CALL(host_, OnDemuxerError(PIPELINE_ERROR_DECODE));
@@ -703,13 +720,7 @@ TEST_F(ChunkDemuxerTest, TestDecodeErrorEndOfStream) {
 TEST_F(ChunkDemuxerTest, TestNetworkErrorEndOfStream) {
   ASSERT_TRUE(InitDemuxer(true, true, false));
 
-  ClusterBuilder cb;
-  cb.SetClusterTimecode(0);
-  AddSimpleBlock(&cb, kAudioTrackNum, 0);
-  AddSimpleBlock(&cb, kVideoTrackNum, 0);
-  AddSimpleBlock(&cb, kAudioTrackNum, 23);
-  AddSimpleBlock(&cb, kVideoTrackNum, 33);
-  scoped_ptr<Cluster> cluster(cb.Finish());
+  scoped_ptr<Cluster> cluster(GenerateCluster(0, 4));
   ASSERT_TRUE(AppendData(cluster->data(), cluster->size()));
 
   EXPECT_CALL(host_, OnDemuxerError(PIPELINE_ERROR_NETWORK));
@@ -780,21 +791,17 @@ TEST_F(ChunkDemuxerTest, TestEndOfStreamWithPendingReads) {
   EndOfStreamHelper end_of_stream_helper_2(demuxer_);
 
   audio->Read(base::Bind(&OnReadDone,
-                         base::TimeDelta::FromMilliseconds(32),
+                         base::TimeDelta::FromMilliseconds(0),
                          &audio_read_done_1));
 
   video->Read(base::Bind(&OnReadDone,
-                         base::TimeDelta::FromMilliseconds(123),
+                         base::TimeDelta::FromMilliseconds(1),
                          &video_read_done_1));
 
   end_of_stream_helper_1.RequestReads();
   end_of_stream_helper_2.RequestReads();
 
-  ClusterBuilder cb;
-  cb.SetClusterTimecode(0);
-  AddSimpleBlock(&cb, kAudioTrackNum, 32);
-  AddSimpleBlock(&cb, kVideoTrackNum, 123);
-  scoped_ptr<Cluster> cluster(cb.Finish());
+  scoped_ptr<Cluster> cluster(GenerateCluster(0, 2));
 
   ASSERT_TRUE(AppendData(cluster->data(), cluster->size()));
 
@@ -826,20 +833,16 @@ TEST_F(ChunkDemuxerTest, TestReadsAfterEndOfStream) {
   EndOfStreamHelper end_of_stream_helper_3(demuxer_);
 
   audio->Read(base::Bind(&OnReadDone,
-                         base::TimeDelta::FromMilliseconds(32),
+                         base::TimeDelta::FromMilliseconds(0),
                          &audio_read_done_1));
 
   video->Read(base::Bind(&OnReadDone,
-                         base::TimeDelta::FromMilliseconds(123),
+                         base::TimeDelta::FromMilliseconds(1),
                          &video_read_done_1));
 
   end_of_stream_helper_1.RequestReads();
 
-  ClusterBuilder cb;
-  cb.SetClusterTimecode(0);
-  AddSimpleBlock(&cb, kAudioTrackNum, 32);
-  AddSimpleBlock(&cb, kVideoTrackNum, 123);
-  scoped_ptr<Cluster> cluster(cb.Finish());
+  scoped_ptr<Cluster> cluster(GenerateCluster(0, 2));
 
   ASSERT_TRUE(AppendData(cluster->data(), cluster->size()));
 
@@ -873,16 +876,8 @@ TEST_F(ChunkDemuxerTest, TestAppendingInPieces) {
   int info_tracks_size = 0;
   CreateInfoTracks(true, true, false, &info_tracks, &info_tracks_size);
 
-  ClusterBuilder cb;
-  cb.SetClusterTimecode(0);
-  AddSimpleBlock(&cb, kAudioTrackNum, 32, 512);
-  AddSimpleBlock(&cb, kVideoTrackNum, 123, 1024);
-  scoped_ptr<Cluster> cluster_a(cb.Finish());
-
-  cb.SetClusterTimecode(125);
-  AddSimpleBlock(&cb, kAudioTrackNum, 125, 2048);
-  AddSimpleBlock(&cb, kVideoTrackNum, 150, 2048);
-  scoped_ptr<Cluster> cluster_b(cb.Finish());
+  scoped_ptr<Cluster> cluster_a(GenerateCluster(0, 4));
+  scoped_ptr<Cluster> cluster_b(GenerateCluster(68, 4));
 
   size_t buffer_size = info_tracks_size + cluster_a->size() + cluster_b->size();
   scoped_array<uint8> buffer(new uint8[buffer_size]);
@@ -906,31 +901,8 @@ TEST_F(ChunkDemuxerTest, TestAppendingInPieces) {
   ASSERT_TRUE(audio);
   ASSERT_TRUE(video);
 
-  bool audio_read_done = false;
-  bool video_read_done = false;
-  audio->Read(base::Bind(&OnReadDone,
-                         base::TimeDelta::FromMilliseconds(32),
-                         &audio_read_done));
-
-  video->Read(base::Bind(&OnReadDone,
-                         base::TimeDelta::FromMilliseconds(123),
-                         &video_read_done));
-
-  EXPECT_TRUE(audio_read_done);
-  EXPECT_TRUE(video_read_done);
-
-  audio_read_done = false;
-  video_read_done = false;
-  audio->Read(base::Bind(&OnReadDone,
-                         base::TimeDelta::FromMilliseconds(125),
-                         &audio_read_done));
-
-  video->Read(base::Bind(&OnReadDone,
-                         base::TimeDelta::FromMilliseconds(150),
-                         &video_read_done));
-
-  EXPECT_TRUE(audio_read_done);
-  EXPECT_TRUE(video_read_done);
+  GenerateExpectedReads(0, 4, audio, video);
+  GenerateExpectedReads(68, 4, audio, video);
 }
 
 TEST_F(ChunkDemuxerTest, TestWebMFile_AudioAndVideo) {
@@ -993,14 +965,7 @@ TEST_F(ChunkDemuxerTest, TestWebMFile_VideoOnly) {
 TEST_F(ChunkDemuxerTest, TestIncrementalClusterParsing) {
   ASSERT_TRUE(InitDemuxer(true, true, false));
 
-  ClusterBuilder cb;
-  cb.SetClusterTimecode(0);
-  AddSimpleBlock(&cb, kAudioTrackNum, 0, 10);
-  AddSimpleBlock(&cb, kVideoTrackNum, 1, 10);
-  AddSimpleBlock(&cb, kVideoTrackNum, 2, 10);
-  AddSimpleBlock(&cb, kAudioTrackNum, 3, 10);
-  scoped_ptr<Cluster> cluster(cb.Finish());
-
+  scoped_ptr<Cluster> cluster(GenerateCluster(0, 6));
   scoped_refptr<DemuxerStream> audio =
       demuxer_->GetStream(DemuxerStream::AUDIO);
   scoped_refptr<DemuxerStream> video =
@@ -1042,11 +1007,11 @@ TEST_F(ChunkDemuxerTest, TestIncrementalClusterParsing) {
   audio_read_done = false;
   video_read_done = false;
   audio->Read(base::Bind(&OnReadDone,
-                         base::TimeDelta::FromMilliseconds(3),
+                         base::TimeDelta::FromMilliseconds(23),
                          &audio_read_done));
 
   video->Read(base::Bind(&OnReadDone,
-                         base::TimeDelta::FromMilliseconds(2),
+                         base::TimeDelta::FromMilliseconds(34),
                          &video_read_done));
 
   // Make sure the reads haven't completed yet.
@@ -1054,6 +1019,7 @@ TEST_F(ChunkDemuxerTest, TestIncrementalClusterParsing) {
   EXPECT_FALSE(video_read_done);
 
   // Append the remaining data.
+  ASSERT_LT(i, cluster->size());
   ASSERT_TRUE(AppendData(cluster->data() + i, cluster->size() - i));
 
   EXPECT_TRUE(audio_read_done);

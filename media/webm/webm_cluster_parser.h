@@ -38,10 +38,34 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   // Returns the number of bytes parsed on success.
   int Parse(const uint8* buf, int size);
 
-  const BufferQueue& audio_buffers() const { return audio_buffers_; }
-  const BufferQueue& video_buffers() const { return video_buffers_; }
+  const BufferQueue& audio_buffers() const { return audio_.buffers(); }
+  const BufferQueue& video_buffers() const { return video_.buffers(); }
 
  private:
+  // Helper class that manages per-track state.
+  class Track {
+   public:
+    Track(int track_num, base::TimeDelta default_duration);
+    ~Track();
+
+    int track_num() const { return track_num_; }
+    const BufferQueue& buffers() const { return buffers_; }
+
+    bool AddBuffer(const scoped_refptr<StreamParserBuffer>& buffer);
+
+    // Clears all buffer state.
+    void Reset();
+
+    // Clears only the |buffers_|.
+    void ClearBufferQueue();
+
+   private:
+    int track_num_;
+    base::TimeDelta default_duration_;
+    BufferQueue buffers_;
+    scoped_refptr<StreamParserBuffer> delayed_buffer_;
+  };
+
   // WebMParserClient methods.
   virtual WebMParserClient* OnListStart(int id) OVERRIDE;
   virtual bool OnListEnd(int id) OVERRIDE;
@@ -54,10 +78,6 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
 
   double timecode_multiplier_;  // Multiplier used to convert timecodes into
                                 // microseconds.
-  int audio_track_num_;
-  base::TimeDelta audio_default_duration_;
-  int video_track_num_;
-  base::TimeDelta  video_default_duration_;
   scoped_array<uint8> video_encryption_key_id_;
   int video_encryption_key_id_size_;
 
@@ -69,8 +89,9 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   int64 block_duration_;
 
   int64 cluster_timecode_;
-  BufferQueue audio_buffers_;
-  BufferQueue video_buffers_;
+
+  Track audio_;
+  Track video_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(WebMClusterParser);
 };
