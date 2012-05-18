@@ -12,6 +12,7 @@ StreamParserBuffer::StreamParserBuffer(const uint8* data, int data_size,
                                        bool is_keyframe)
     : DataBuffer(data, data_size),
       is_keyframe_(is_keyframe) {
+  SetDuration(kNoTimestamp());
 }
 
 scoped_refptr<StreamParserBuffer> StreamParserBuffer::CreateEOSBuffer() {
