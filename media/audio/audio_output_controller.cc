@@ -209,6 +209,7 @@ void AudioOutputController::PollAndStartIfDataReady() {
 
 void AudioOutputController::StartStream() {
   DCHECK(message_loop_->BelongsToCurrentThread());
+
 #if defined(OS_MACOSX)
   // HACK: workaround for crbug.com/128128.
   // Mac OS crashes if we start playback too soon after previous ended.
@@ -216,9 +217,13 @@ void AudioOutputController::StartStream() {
   // some time after logical one is closed, so sequence of play / pause / play /
   // pause / ... would reuse the same stream, but we need fix for M20.
   // TODO(enal): Remove after turning on mixer by default.
-  while ((Time::Now() - previous_stop_time_).InMilliseconds() <
-         kMacWorkaroundInMilliseconds) {
-    base::PlatformThread::YieldCurrentThread();
+  int milliseconds_since_stop =
+      (Time::Now() - previous_stop_time_).InMilliseconds();
+  if ((milliseconds_since_stop >= 0) &&
+      (milliseconds_since_stop < kMacWorkaroundInMilliseconds)) {
+    base::PlatformThread::Sleep(
+        TimeDelta::FromMilliseconds(kMacWorkaroundInMilliseconds -
+                                    milliseconds_since_stop));
   }
 #endif
 
