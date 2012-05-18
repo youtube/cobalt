@@ -43,6 +43,7 @@ ImageTest.SwapRepresentations
 L10nUtilTest.GetAppLocale
 L10nUtilTest.GetDisplayNameForCountry
 L10nUtilTest.GetDisplayNameForLocale
+ResourceBundle.DelegateGetFont
 TextEliderTest.ElideEmail
 TextEliderTest.ElideEmailMoreSpace
 TextEliderTest.ElideRectangleText
