@@ -22,6 +22,7 @@ import gyp
 # Add paths so that pymod_do_main(...) can import files.
 sys.path.insert(1, os.path.join(chrome_src, 'tools', 'grit'))
 sys.path.insert(1, os.path.join(chrome_src, 'chrome', 'tools', 'build'))
+sys.path.insert(1, os.path.join(chrome_src, 'native_client', 'build'))
 
 
 # On Windows, Psyco shortens warm runs of build/gyp_chromium by about
