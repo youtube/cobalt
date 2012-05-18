@@ -542,9 +542,6 @@ Value* JSONParser::ConsumeDictionary() {
     }
   }
 
-  if (token != T_OBJECT_END)
-    return NULL;
-
   return dict.release();
 }
 
@@ -587,9 +584,6 @@ Value* JSONParser::ConsumeList() {
       return NULL;
     }
   }
-
-  if (token != T_ARRAY_END)
-    return NULL;
 
   return list.release();
 }
