@@ -19,16 +19,14 @@ WebMClusterParser::WebMClusterParser(int64 timecode_scale,
                                      const uint8* video_encryption_key_id,
                                      int video_encryption_key_id_size)
     : timecode_multiplier_(timecode_scale / 1000.0),
-      audio_track_num_(audio_track_num),
-      audio_default_duration_(audio_default_duration),
-      video_track_num_(video_track_num),
-      video_default_duration_(video_default_duration),
       video_encryption_key_id_size_(video_encryption_key_id_size),
       parser_(kWebMIdCluster, this),
       last_block_timecode_(-1),
       block_data_size_(-1),
       block_duration_(-1),
-      cluster_timecode_(-1) {
+      cluster_timecode_(-1),
+      audio_(audio_track_num, audio_default_duration),
+      video_(video_track_num, video_default_duration) {
   CHECK_GE(video_encryption_key_id_size, 0);
   if (video_encryption_key_id_size > 0) {
     video_encryption_key_id_.reset(new uint8[video_encryption_key_id_size]);
@@ -40,16 +38,16 @@ WebMClusterParser::WebMClusterParser(int64 timecode_scale,
 WebMClusterParser::~WebMClusterParser() {}
 
 void WebMClusterParser::Reset() {
-  audio_buffers_.clear();
-  video_buffers_.clear();
   last_block_timecode_ = -1;
   cluster_timecode_ = -1;
   parser_.Reset();
+  audio_.Reset();
+  video_.Reset();
 }
 
 int WebMClusterParser::Parse(const uint8* buf, int size) {
-  audio_buffers_.clear();
-  video_buffers_.clear();
+  audio_.ClearBufferQueue();
+  video_.ClearBufferQueue();
 
   int result = parser_.Parse(buf, size);
 
@@ -166,6 +164,7 @@ bool WebMClusterParser::OnBinary(int id, const uint8* data, int size) {
   block_data_size_ = size;
   return true;
 }
+
 bool WebMClusterParser::OnBlock(int track_num, int timecode,
                                 int  block_duration,
                                 int flags,
@@ -196,42 +195,80 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
   scoped_refptr<StreamParserBuffer> buffer =
       StreamParserBuffer::CopyFrom(data, size, is_keyframe);
 
-  if (track_num == video_track_num_ && video_encryption_key_id_.get()) {
+  if (track_num == video_.track_num() && video_encryption_key_id_.get()) {
     buffer->SetDecryptConfig(scoped_ptr<DecryptConfig>(new DecryptConfig(
         video_encryption_key_id_.get(), video_encryption_key_id_size_)));
   }
 
   buffer->SetTimestamp(timestamp);
-  BufferQueue* queue = NULL;
-  base::TimeDelta duration = kNoTimestamp();
-
-  if (track_num == audio_track_num_) {
-    duration = audio_default_duration_;
-    queue = &audio_buffers_;
-  } else if (track_num == video_track_num_) {
-    duration = video_default_duration_;
-    queue = &video_buffers_;
-  } else {
-    DVLOG(1) << "Unexpected track number " << track_num;
-    return false;
-  }
 
   if (block_duration >= 0) {
-    duration = base::TimeDelta::FromMicroseconds(
-        block_duration * timecode_multiplier_);
+    buffer->SetDuration(base::TimeDelta::FromMicroseconds(
+        block_duration * timecode_multiplier_));
   }
 
-  buffer->SetDuration(duration);
+  if (track_num == audio_.track_num()) {
+    return audio_.AddBuffer(buffer);
+  } else if (track_num == video_.track_num()) {
+    return video_.AddBuffer(buffer);
+  }
 
-  if (!queue->empty() &&
-      buffer->GetTimestamp() == queue->back()->GetTimestamp()) {
+  DVLOG(1) << "Unexpected track number " << track_num;
+  return false;
+}
+
+WebMClusterParser::Track::Track(int track_num,
+                                base::TimeDelta default_duration)
+    : track_num_(track_num),
+      default_duration_(default_duration) {
+}
+
+WebMClusterParser::Track::~Track() {}
+
+bool WebMClusterParser::Track::AddBuffer(
+    const scoped_refptr<StreamParserBuffer>& buffer) {
+  if (!buffers_.empty() &&
+      buffer->GetTimestamp() == buffers_.back()->GetTimestamp()) {
     DVLOG(1) << "Got a block timecode that is not strictly monotonically "
-             << "increasing for track " << track_num;
+             << "increasing for track " << track_num_;
     return false;
   }
 
-  queue->push_back(buffer);
+  if (buffer->GetDuration() == kNoTimestamp())
+    buffer->SetDuration(default_duration_);
+
+  if (delayed_buffer_) {
+    // Update the duration of the delayed buffer and place it into the queue.
+    base::TimeDelta new_duration =
+        buffer->GetTimestamp() - delayed_buffer_->GetTimestamp();
+
+    if (new_duration <= base::TimeDelta())
+      return false;
+
+    delayed_buffer_->SetDuration(new_duration);
+    buffers_.push_back(delayed_buffer_);
+
+    delayed_buffer_ = NULL;
+  }
+
+  // Place the buffer in delayed buffer slot if we don't know
+  // its duration.
+  if (buffer->GetDuration() == kNoTimestamp()) {
+    delayed_buffer_ = buffer;
+    return true;
+  }
+
+  buffers_.push_back(buffer);
   return true;
+}
+
+void WebMClusterParser::Track::Reset() {
+  buffers_.clear();
+  delayed_buffer_ = NULL;
+}
+
+void WebMClusterParser::Track::ClearBufferQueue() {
+  buffers_.clear();
 }
 
 }  // namespace media

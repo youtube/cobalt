@@ -226,7 +226,7 @@ TEST_F(PipelineIntegrationTest, DISABLED_SeekWhilePlaying) {
 // Verify audio decoder & renderer can handle aborted demuxer reads.
 TEST_F(PipelineIntegrationTest, ChunkDemuxerAbortRead_AudioOnly) {
   ASSERT_TRUE(TestSeekDuringRead("bear-320x240-audio-only.webm", 8192,
-                                 base::TimeDelta::FromMilliseconds(477),
+                                 base::TimeDelta::FromMilliseconds(464),
                                  base::TimeDelta::FromMilliseconds(617),
                                  0x10CA, 19730));
 }

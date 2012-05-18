@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 #include "base/string_util.h"
+#include "media/base/buffers.h"
 #include "media/webm/webm_constants.h"
 #include "media/webm/webm_content_encodings.h"
 
@@ -21,7 +22,9 @@ WebMTracksParser::WebMTracksParser(int64 timecode_scale)
       track_num_(-1),
       track_default_duration_(-1),
       audio_track_num_(-1),
-      video_track_num_(-1) {
+      audio_default_duration_(kNoTimestamp()),
+      video_track_num_(-1),
+      video_default_duration_(kNoTimestamp()) {
 }
 
 WebMTracksParser::~WebMTracksParser() {}
@@ -49,9 +52,9 @@ int WebMTracksParser::Parse(const uint8* buf, int size) {
   track_num_ = -1;
   track_default_duration_ = -1;
   audio_track_num_ = -1;
-  audio_default_duration_ = base::TimeDelta();
+  audio_default_duration_ = kNoTimestamp();
   video_track_num_ = -1;
-  video_default_duration_ = base::TimeDelta();
+  video_default_duration_ = kNoTimestamp();
 
   WebMListParser parser(kWebMIdTracks, this);
   int result = parser.Parse(buf, size);
@@ -95,7 +98,7 @@ bool WebMTracksParser::OnListEnd(int id) {
       return false;
     }
 
-    base::TimeDelta default_duration;
+    base::TimeDelta default_duration = kNoTimestamp();
 
     if (track_default_duration_ > 0) {
       // Convert nanoseconds to base::TimeDelta.
