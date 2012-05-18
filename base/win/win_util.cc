@@ -191,8 +191,6 @@ bool SetAppIdForPropertyStore(IPropertyStore* property_store,
 }
 
 bool SetDualModeForPropertyStore(IPropertyStore* property_store) {
-  DCHECK_GE(base::win::GetVersion(), base::win::VERSION_WIN8);
-
   return SetBooleanValueForPropertyStore(property_store,
                                          PKEY_AppUserModel_DualMode,
                                          true) &&

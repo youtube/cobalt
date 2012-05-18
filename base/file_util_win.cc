@@ -424,7 +424,6 @@ bool CreateOrUpdateShortcutLink(const wchar_t *source,
     if (app_id && !base::win::SetAppIdForPropertyStore(property_store, app_id))
       return false;
     if (is_dual_mode &&
-        base::win::GetVersion() >= base::win::VERSION_WIN8 &&
         !base::win::SetDualModeForPropertyStore(property_store)) {
       return false;
     }
