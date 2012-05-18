@@ -22,6 +22,7 @@ class MEDIA_EXPORT StreamParserBuffer : public DataBuffer {
 
  private:
   StreamParserBuffer(const uint8* data, int data_size, bool is_keyframe);
+  virtual ~StreamParserBuffer() {}
 
   bool is_keyframe_;
   DISALLOW_COPY_AND_ASSIGN(StreamParserBuffer);
