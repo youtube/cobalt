@@ -23,10 +23,9 @@ class NET_EXPORT TCPListenSocket : public StreamListenSocket {
   static scoped_refptr<TCPListenSocket> CreateAndListen(
       const std::string& ip, int port, StreamListenSocket::Delegate* del);
 
-  virtual ~TCPListenSocket();
-
  protected:
   TCPListenSocket(SOCKET s, StreamListenSocket::Delegate* del);
+  virtual ~TCPListenSocket();
 
   static SOCKET CreateAndBind(const std::string& ip, int port);
 
