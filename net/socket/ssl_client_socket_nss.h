@@ -273,10 +273,6 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // resume on the socket with a different value.
   const std::string ssl_session_cache_shard_;
 
-  // True iff we believe that the user has an ESET product intercepting our
-  // HTTPS connections.
-  bool eset_mitm_detected_;
-
   // True iff |ssl_host_info_| contained a predicted certificate chain and
   // that we found the prediction to be correct.
   bool predicted_cert_chain_correct_;
