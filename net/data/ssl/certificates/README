@@ -117,3 +117,7 @@ unit tests.
      "openssl req -x509 -days 3650 -sha1 -extensions req_san_sanity \
           -config ../scripts/ee.cnf -newkey rsa:1024 -text \
           -out subjectAltName_sanity_check.pem"
+
+- ndn.ca.crt: "New Dream Network Certificate Authority" root certificate.
+     This is an X.509 v1 certificate that omits the version field. Used to
+     test that the certificate version gets the default value v1.
