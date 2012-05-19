@@ -550,7 +550,6 @@
             '../chrome/chrome.gyp:chrome',
             '../chrome/chrome.gyp:interactive_ui_tests',            
             '../chrome/chrome.gyp:unit_tests',
-            '../remoting/remoting.gyp:remoting_unittests',
             '../ui/aura/aura.gyp:*',
             '../ui/compositor/compositor.gyp:*',
             '../ui/ui.gyp:gfx_unittests',
