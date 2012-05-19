@@ -33,6 +33,10 @@ class UI_EXPORT RectF : public RectBase<RectF, PointF, SizeF, InsetsF, float> {
   std::string ToString() const;
 };
 
+#if !defined(COMPILER_MSVC)
+extern template class RectBase<RectF, PointF, SizeF, InsetsF, float>;
+#endif
+
 }  // namespace gfx
 
 #endif  // UI_GFX_RECT_H_
