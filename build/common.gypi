@@ -1089,8 +1089,28 @@
         'grit_defines': ['-D', 'enable_extensions'],
       }],
       ['clang_use_chrome_plugins==1 and OS!="win"', {
-        'clang_chrome_plugins_flags':
-            '<!(<(DEPTH)/tools/clang/scripts/plugin_flags.sh)',
+        'variables': {
+          'clang_chrome_plugins_flags': [
+            '<!@(<(DEPTH)/tools/clang/scripts/plugin_flags.sh)'
+          ],
+        },
+        'conditions': [
+          ['chromeos==1', {
+            # TODO(rsleevi): http://crbug.com/123295 - Disabled on ChromeOS
+            # for now.
+            'clang_chrome_plugins_flags': [
+              '<@(clang_chrome_plugins_flags)',
+              '-Xclang',
+              '-plugin-arg-find-bad-constructs',
+              '-Xclang',
+              '-skip-refcounted-dtors'
+            ],
+          }, {
+            'clang_chrome_plugins_flags': [
+              '<@(clang_chrome_plugins_flags)',
+            ],
+          }],
+        ],
       }],
 
       # Set use_ibus to 1 to enable ibus support.
@@ -2191,7 +2211,7 @@
           }],
           ['clang==1 and clang_use_chrome_plugins==1', {
             'cflags': [
-              '<(clang_chrome_plugins_flags)',
+              '<@(clang_chrome_plugins_flags)',
             ],
           }],
           ['clang==1 and clang_load!=""', {
@@ -2626,7 +2646,7 @@
             }],
             ['clang==1 and clang_use_chrome_plugins==1', {
               'OTHER_CFLAGS': [
-                '<(clang_chrome_plugins_flags)',
+                '<@(clang_chrome_plugins_flags)',
               ],
             }],
             ['clang==1 and clang_load!=""', {
