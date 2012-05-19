@@ -448,7 +448,6 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocketHandle* transport_socket,
       handshake_callback_called_(false),
       completed_handshake_(false),
       ssl_session_cache_shard_(context.ssl_session_cache_shard),
-      eset_mitm_detected_(false),
       predicted_cert_chain_correct_(false),
       next_handshake_state_(STATE_NONE),
       nss_fd_(NULL),
@@ -648,7 +647,6 @@ void SSLClientSocketNSS::Disconnect() {
   server_cert_verify_result_ = NULL;
   ssl_connection_status_ = 0;
   completed_handshake_   = false;
-  eset_mitm_detected_    = false;
   start_cert_verification_time_ = base::TimeTicks();
   predicted_cert_chain_correct_ = false;
   nss_bufs_              = NULL;
@@ -1445,74 +1443,70 @@ int SSLClientSocketNSS::DoHandshake() {
     }
   } else if (rv == SECSuccess) {
     if (handshake_callback_called_) {
-      if (eset_mitm_detected_) {
-        net_error = ERR_ESET_ANTI_VIRUS_SSL_INTERCEPTION;
-      } else {
-        // We need to see if the predicted certificate chain (in
-        // |ssl_host_info_->state().certs) matches the actual certificate chain
-        // before we call SaveSSLHostInfo, as that will update
-        // |ssl_host_info_|.
-        if (ssl_host_info_.get() && !ssl_host_info_->state().certs.empty()) {
-          PeerCertificateChain certs(nss_fd_);
-          const SSLHostInfo::State& state = ssl_host_info_->state();
-          predicted_cert_chain_correct_ = certs.size() == state.certs.size();
-          if (predicted_cert_chain_correct_) {
-            for (unsigned i = 0; i < certs.size(); i++) {
-              if (certs[i]->derCert.len != state.certs[i].size() ||
-                  memcmp(certs[i]->derCert.data, state.certs[i].data(),
-                         certs[i]->derCert.len) != 0) {
-                predicted_cert_chain_correct_ = false;
-                break;
-              }
+      // We need to see if the predicted certificate chain (in
+      // |ssl_host_info_->state().certs) matches the actual certificate chain
+      // before we call SaveSSLHostInfo, as that will update
+      // |ssl_host_info_|.
+      if (ssl_host_info_.get() && !ssl_host_info_->state().certs.empty()) {
+        PeerCertificateChain certs(nss_fd_);
+        const SSLHostInfo::State& state = ssl_host_info_->state();
+        predicted_cert_chain_correct_ = certs.size() == state.certs.size();
+        if (predicted_cert_chain_correct_) {
+          for (unsigned i = 0; i < certs.size(); i++) {
+            if (certs[i]->derCert.len != state.certs[i].size() ||
+                memcmp(certs[i]->derCert.data, state.certs[i].data(),
+                       certs[i]->derCert.len) != 0) {
+              predicted_cert_chain_correct_ = false;
+              break;
             }
           }
         }
+      }
 
 #if defined(SSL_ENABLE_OCSP_STAPLING)
-        // TODO(agl): figure out how to plumb an OCSP response into the Mac
-        // system library and update IsOCSPStaplingSupported for Mac.
-        if (!predicted_cert_chain_correct_ && IsOCSPStaplingSupported()) {
-          unsigned int len = 0;
-          SSL_GetStapledOCSPResponse(nss_fd_, NULL, &len);
-          if (len) {
-            const unsigned int orig_len = len;
-            scoped_array<uint8> ocsp_response(new uint8[orig_len]);
-            SSL_GetStapledOCSPResponse(nss_fd_, ocsp_response.get(), &len);
-            DCHECK_EQ(orig_len, len);
+      // TODO(agl): figure out how to plumb an OCSP response into the Mac
+      // system library and update IsOCSPStaplingSupported for Mac.
+      if (!predicted_cert_chain_correct_ && IsOCSPStaplingSupported()) {
+        unsigned int len = 0;
+        SSL_GetStapledOCSPResponse(nss_fd_, NULL, &len);
+        if (len) {
+          const unsigned int orig_len = len;
+          scoped_array<uint8> ocsp_response(new uint8[orig_len]);
+          SSL_GetStapledOCSPResponse(nss_fd_, ocsp_response.get(), &len);
+          DCHECK_EQ(orig_len, len);
 
 #if defined(OS_WIN)
-            CRYPT_DATA_BLOB ocsp_response_blob;
-            ocsp_response_blob.cbData = len;
-            ocsp_response_blob.pbData = ocsp_response.get();
-            BOOL ok = CertSetCertificateContextProperty(
-                server_cert_->os_cert_handle(),
-                CERT_OCSP_RESPONSE_PROP_ID,
-                CERT_SET_PROPERTY_IGNORE_PERSIST_ERROR_FLAG,
-                &ocsp_response_blob);
-            if (!ok) {
-              VLOG(1) << "Failed to set OCSP response property: "
-                      << GetLastError();
-            }
-#elif defined(USE_NSS)
-            CacheOCSPResponseFromSideChannelFunction cache_ocsp_response =
-                GetCacheOCSPResponseFromSideChannelFunction();
-            SECItem ocsp_response_item;
-            ocsp_response_item.type = siBuffer;
-            ocsp_response_item.data = ocsp_response.get();
-            ocsp_response_item.len = len;
-
-            cache_ocsp_response(
-                CERT_GetDefaultCertDB(), server_cert_nss_, PR_Now(),
-                &ocsp_response_item, NULL);
-#endif
+          CRYPT_DATA_BLOB ocsp_response_blob;
+          ocsp_response_blob.cbData = len;
+          ocsp_response_blob.pbData = ocsp_response.get();
+          BOOL ok = CertSetCertificateContextProperty(
+              server_cert_->os_cert_handle(),
+              CERT_OCSP_RESPONSE_PROP_ID,
+              CERT_SET_PROPERTY_IGNORE_PERSIST_ERROR_FLAG,
+              &ocsp_response_blob);
+          if (!ok) {
+            VLOG(1) << "Failed to set OCSP response property: "
+                    << GetLastError();
           }
+#elif defined(USE_NSS)
+          CacheOCSPResponseFromSideChannelFunction cache_ocsp_response =
+              GetCacheOCSPResponseFromSideChannelFunction();
+          SECItem ocsp_response_item;
+          ocsp_response_item.type = siBuffer;
+          ocsp_response_item.data = ocsp_response.get();
+          ocsp_response_item.len = len;
+
+          cache_ocsp_response(
+              CERT_GetDefaultCertDB(), server_cert_nss_, PR_Now(),
+              &ocsp_response_item, NULL);
+#endif
         }
+      }
 #endif
 
-        SaveSSLHostInfo();
-        // SSL handshake is completed. Let's verify the certificate.
-        GotoState(STATE_VERIFY_DNSSEC);
-      }
+      SaveSSLHostInfo();
+      // SSL handshake is completed. Let's verify the certificate.
+      GotoState(STATE_VERIFY_DNSSEC);
       // Done!
     } else {
       // Workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=562434 -
