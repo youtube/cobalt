@@ -50,6 +50,10 @@ CancelableSyncSocket::CancelableSyncSocket(Handle handle)
     : SyncSocket(handle) {
 }
 
+size_t CancelableSyncSocket::Send(const void* buffer, size_t length) {
+  return 0;
+}
+
 bool CancelableSyncSocket::Shutdown() {
   return false;
 }
