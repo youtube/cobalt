@@ -30,6 +30,7 @@
 #include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/string16.h"
 
 // This file declares "using base::Value", etc. at the bottom, so that
@@ -177,33 +178,32 @@ class BASE_EXPORT StringValue : public Value {
 
 class BASE_EXPORT BinaryValue: public Value {
  public:
-  virtual ~BinaryValue();
+  // Creates a BinaryValue with a null buffer and size of 0.
+  BinaryValue();
 
-  // Creates a Value to represent a binary buffer.  The new object takes
-  // ownership of the pointer passed in, if successful.
-  // Returns NULL if buffer is NULL.
-  static BinaryValue* Create(char* buffer, size_t size);
+  // Creates a BinaryValue, taking ownership of the bytes pointed to by
+  // |buffer|.
+  BinaryValue(scoped_ptr<char> buffer, size_t size);
+
+  virtual ~BinaryValue();
 
   // For situations where you want to keep ownership of your buffer, this
   // factory method creates a new BinaryValue by copying the contents of the
   // buffer that's passed in.
-  // Returns NULL if buffer is NULL.
   static BinaryValue* CreateWithCopiedBuffer(const char* buffer, size_t size);
 
   size_t GetSize() const { return size_; }
-  char* GetBuffer() { return buffer_; }
-  const char* GetBuffer() const { return buffer_; }
+
+  // May return NULL.
+  char* GetBuffer() { return buffer_.get(); }
+  const char* GetBuffer() const { return buffer_.get(); }
 
   // Overridden from Value:
   virtual BinaryValue* DeepCopy() const OVERRIDE;
   virtual bool Equals(const Value* other) const OVERRIDE;
 
  private:
-  // Constructor is private so that only objects with valid buffer pointers
-  // and size values can be created.
-  BinaryValue(char* buffer, size_t size);
-
-  char* buffer_;
+  scoped_ptr<char> buffer_;
   size_t size_;
 
   DISALLOW_COPY_AND_ASSIGN(BinaryValue);
