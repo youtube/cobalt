@@ -137,4 +137,32 @@ TEST(SystemMonitor, DeviceChangeNotifications) {
   loop.RunAllPending();
 }
 
+TEST(SystemMonitor, PowerRequirements) {
+#if defined(OS_WIN)
+  MessageLoop loop;
+  SystemMonitor system_monitor;
+  ASSERT_EQ(0, system_monitor.GetPowerRequirementsCountForTest());
+
+  system_monitor.BeginPowerRequirement(SystemMonitor::TEST_REQUIRED, "foo");
+  ASSERT_EQ(1, system_monitor.GetPowerRequirementsCountForTest());
+
+  system_monitor.BeginPowerRequirement(SystemMonitor::TEST_REQUIRED, "bar");
+  ASSERT_EQ(2, system_monitor.GetPowerRequirementsCountForTest());
+
+  // A second identical request should not increase the request count.
+  system_monitor.BeginPowerRequirement(SystemMonitor::TEST_REQUIRED, "bar");
+  ASSERT_EQ(2, system_monitor.GetPowerRequirementsCountForTest());
+
+  system_monitor.EndPowerRequirement(SystemMonitor::TEST_REQUIRED, "foo");
+  ASSERT_EQ(1, system_monitor.GetPowerRequirementsCountForTest());
+
+  // The request count should not decrease until all identical requests end.
+  system_monitor.EndPowerRequirement(SystemMonitor::TEST_REQUIRED, "bar");
+  ASSERT_EQ(1, system_monitor.GetPowerRequirementsCountForTest());
+
+  system_monitor.EndPowerRequirement(SystemMonitor::TEST_REQUIRED, "bar");
+  ASSERT_EQ(0, system_monitor.GetPowerRequirementsCountForTest());
+#endif  // defined(OS_WIN)
+}
+
 }  // namespace base
