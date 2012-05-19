@@ -298,33 +298,32 @@ bool StringValue::Equals(const Value* other) const {
 
 ///////////////////// BinaryValue ////////////////////
 
-BinaryValue::~BinaryValue() {
-  DCHECK(buffer_);
-  if (buffer_)
-    delete[] buffer_;
+BinaryValue::BinaryValue()
+    : Value(TYPE_BINARY),
+      buffer_(NULL),
+      size_(0) {
 }
 
-// static
-BinaryValue* BinaryValue::Create(char* buffer, size_t size) {
-  if (!buffer)
-    return NULL;
+BinaryValue::BinaryValue(scoped_ptr<char> buffer, size_t size)
+    : Value(TYPE_BINARY),
+      buffer_(buffer.release()),
+      size_(size) {
+}
 
-  return new BinaryValue(buffer, size);
+BinaryValue::~BinaryValue() {
 }
 
 // static
 BinaryValue* BinaryValue::CreateWithCopiedBuffer(const char* buffer,
                                                  size_t size) {
-  if (!buffer)
-    return NULL;
-
   char* buffer_copy = new char[size];
   memcpy(buffer_copy, buffer, size);
-  return new BinaryValue(buffer_copy, size);
+  scoped_ptr<char> scoped_buffer_copy(buffer_copy);
+  return new BinaryValue(scoped_buffer_copy.Pass(), size);
 }
 
 BinaryValue* BinaryValue::DeepCopy() const {
-  return CreateWithCopiedBuffer(buffer_, size_);
+  return CreateWithCopiedBuffer(buffer_.get(), size_);
 }
 
 bool BinaryValue::Equals(const Value* other) const {
@@ -333,14 +332,7 @@ bool BinaryValue::Equals(const Value* other) const {
   const BinaryValue* other_binary = static_cast<const BinaryValue*>(other);
   if (other_binary->size_ != size_)
     return false;
-  return !memcmp(buffer_, other_binary->buffer_, size_);
-}
-
-BinaryValue::BinaryValue(char* buffer, size_t size)
-  : Value(TYPE_BINARY),
-    buffer_(buffer),
-    size_(size) {
-  DCHECK(buffer_);
+  return !memcmp(GetBuffer(), other_binary->GetBuffer(), size_);
 }
 
 ///////////////////// DictionaryValue ////////////////////

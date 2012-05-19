@@ -105,23 +105,15 @@ TEST(ValuesTest, List) {
 }
 
 TEST(ValuesTest, BinaryValue) {
-  char* buffer = NULL;
-  // Passing a null buffer pointer doesn't yield a BinaryValue
-  scoped_ptr<BinaryValue> binary(BinaryValue::Create(buffer, 0));
-  ASSERT_FALSE(binary.get());
-
-  // If you want to represent an empty binary value, use a zero-length buffer.
-  buffer = new char[1];
-  ASSERT_TRUE(buffer);
-  binary.reset(BinaryValue::Create(buffer, 0));
+  // Default constructor creates a BinaryValue with a null buffer and size 0.
+  scoped_ptr<BinaryValue> binary(new BinaryValue());
   ASSERT_TRUE(binary.get());
-  ASSERT_TRUE(binary->GetBuffer());
-  ASSERT_EQ(buffer, binary->GetBuffer());
+  ASSERT_EQ(NULL, binary->GetBuffer());
   ASSERT_EQ(0U, binary->GetSize());
 
   // Test the common case of a non-empty buffer
-  buffer = new char[15];
-  binary.reset(BinaryValue::Create(buffer, 15));
+  char* buffer = new char[15];
+  binary.reset(new BinaryValue(scoped_ptr<char>(buffer), 15));
   ASSERT_TRUE(binary.get());
   ASSERT_TRUE(binary->GetBuffer());
   ASSERT_EQ(buffer, binary->GetBuffer());
@@ -350,9 +342,9 @@ TEST(ValuesTest, DeepCopy) {
       Value::CreateStringValue(ASCIIToUTF16("hello16"));
   original_dict.Set("string16", original_string16);
 
-  char* original_buffer = new char[42];
-  memset(original_buffer, '!', 42);
-  BinaryValue* original_binary = BinaryValue::Create(original_buffer, 42);
+  scoped_ptr<char> original_buffer(new char[42]);
+  memset(original_buffer.get(), '!', 42);
+  BinaryValue* original_binary = new BinaryValue(original_buffer.Pass(), 42);
   original_dict.Set("binary", original_binary);
 
   ListValue* original_list = new ListValue();
@@ -558,9 +550,9 @@ TEST(ValuesTest, DeepCopyCovariantReturnTypes) {
       Value::CreateStringValue(ASCIIToUTF16("hello16"));
   original_dict.Set("string16", original_string16);
 
-  char* original_buffer = new char[42];
-  memset(original_buffer, '!', 42);
-  BinaryValue* original_binary = BinaryValue::Create(original_buffer, 42);
+  scoped_ptr<char> original_buffer(new char[42]);
+  memset(original_buffer.get(), '!', 42);
+  BinaryValue* original_binary = new BinaryValue(original_buffer.Pass(), 42);
   original_dict.Set("binary", original_binary);
 
   ListValue* original_list = new ListValue();
