@@ -11,6 +11,17 @@
 #include "base/process_util.h"
 #include "base/win/wrapped_window_proc.h"
 
+namespace {
+
+enum MessageLoopProblems {
+  MESSAGE_POST_ERROR,
+  COMPLETION_POST_ERROR,
+  SET_TIMER_ERROR,
+  MESSAGE_LOOP_PROBLEM_MAX,
+};
+
+}  // namespace
+
 namespace base {
 
 static const wchar_t kWndClass[] = L"Chrome_MessagePumpWindow";
@@ -97,7 +108,22 @@ void MessagePumpForUI::ScheduleWork() {
     return;  // Someone else continued the pumping.
 
   // Make sure the MessagePump does some work for us.
-  PostMessage(message_hwnd_, kMsgHaveWork, reinterpret_cast<WPARAM>(this), 0);
+  BOOL ret = PostMessage(message_hwnd_, kMsgHaveWork,
+                         reinterpret_cast<WPARAM>(this), 0);
+  if (ret)
+    return;  // There was room in the Window Message queue.
+
+  // We have failed to insert a have-work message, so there is a chance that we
+  // will starve tasks/timers while sitting in a nested message loop.  Nested
+  // loops only look at Windows Message queues, and don't look at *our* task
+  // queues, etc., so we might not get a time slice in such. :-(
+  // We could abort here, but the fear is that this failure mode is plausibly
+  // common (queue is full, of about 2000 messages), so we'll do a near-graceful
+  // recovery.  Nested loops are pretty transient (we think), so this will
+  // probably be recoverable.
+  InterlockedExchange(&have_work_, 0);  // Clarify that we didn't really insert.
+  UMA_HISTOGRAM_ENUMERATION("Chrome.MessageLoopProblem", MESSAGE_POST_ERROR,
+                            MESSAGE_LOOP_PROBLEM_MAX);
 }
 
 void MessagePumpForUI::ScheduleDelayedWork(const TimeTicks& delayed_work_time) {
@@ -130,7 +156,15 @@ void MessagePumpForUI::ScheduleDelayedWork(const TimeTicks& delayed_work_time) {
 
   // Create a WM_TIMER event that will wake us up to check for any pending
   // timers (in case we are running within a nested, external sub-pump).
-  SetTimer(message_hwnd_, reinterpret_cast<UINT_PTR>(this), delay_msec, NULL);
+  BOOL ret = SetTimer(message_hwnd_, reinterpret_cast<UINT_PTR>(this),
+                      delay_msec, NULL);
+  if (ret)
+    return;
+  // If we can't set timers, we are in big trouble... but cross our fingers for
+  // now.
+  // TODO(jar): If we don't see this error, use a CHECK() here instead.
+  UMA_HISTOGRAM_ENUMERATION("Chrome.MessageLoopProblem", SET_TIMER_ERROR,
+                            MESSAGE_LOOP_PROBLEM_MAX);
 }
 
 void MessagePumpForUI::PumpOutPendingPaintMessages() {
@@ -420,7 +454,13 @@ void MessagePumpForIO::ScheduleWork() {
   BOOL ret = PostQueuedCompletionStatus(port_, 0,
                                         reinterpret_cast<ULONG_PTR>(this),
                                         reinterpret_cast<OVERLAPPED*>(this));
-  DCHECK(ret);
+  if (ret)
+    return;  // Post worked perfectly.
+
+  // See comment in MessagePumpForUI::ScheduleWork() for this error recovery.
+  InterlockedExchange(&have_work_, 0);  // Clarify that we didn't succeed.
+  UMA_HISTOGRAM_ENUMERATION("Chrome.MessageLoopProblem", COMPLETION_POST_ERROR,
+                            MESSAGE_LOOP_PROBLEM_MAX);
 }
 
 void MessagePumpForIO::ScheduleDelayedWork(const TimeTicks& delayed_work_time) {
