@@ -252,7 +252,7 @@ if [ "$(uname -m)" = "x86_64" ]; then
   else
     cmp_list="${cmp_list} lib32readline5-dev"
   fi
-  sudo apt-get install $cmp_list
+  sudo apt-get install ${do_quietly-} $cmp_list
 
   tmp=/tmp/install-32bit.$$
   trap 'rm -rf "${tmp}"' EXIT INT TERM QUIT
