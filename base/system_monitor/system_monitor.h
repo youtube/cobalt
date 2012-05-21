@@ -9,10 +9,12 @@
 #include <map>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
 #include "base/threading/thread_checker.h"
+#include "base/tuple.h"
 #include "build/build_config.h"
 
 // Windows HiRes timers drain the battery faster so we need to know the battery
@@ -57,6 +59,8 @@ class BASE_EXPORT SystemMonitor {
   };
 
   typedef unsigned int DeviceIdType;
+  // (Media device id, Media device name, Media device path)
+  typedef Tuple3<DeviceIdType, std::string, FilePath> MediaDeviceInfo;
 
   // Create SystemMonitor. Only one SystemMonitor instance per application
   // is allowed.
@@ -155,6 +159,9 @@ class BASE_EXPORT SystemMonitor {
                                   const FilePath& path);
   void ProcessMediaDeviceDetached(const DeviceIdType& id);
 
+  // Returns information for attached media devices.
+  std::vector<MediaDeviceInfo>* GetAttachedMediaDevices() const;
+
   // Enters or leaves a period of time with a given |requirement|. If the
   // operation has multiple requirements, make sure to use a unique |reason| for
   // each one. Reusing the same |reason| is OK as far as the |requirement| is
@@ -172,6 +179,8 @@ class BASE_EXPORT SystemMonitor {
   size_t GetPowerRequirementsCountForTest() const;
 
  private:
+  typedef std::map<base::SystemMonitor::DeviceIdType,
+                   MediaDeviceInfo> MediaDeviceMap;
 #if defined(OS_MACOSX)
   void PlatformInit();
   void PlatformDestroy();
@@ -210,6 +219,8 @@ class BASE_EXPORT SystemMonitor {
 #if defined(ENABLE_BATTERY_MONITORING)
   base::OneShotTimer<SystemMonitor> delayed_battery_check_;
 #endif
+
+  MediaDeviceMap media_device_map_;
 
   DISALLOW_COPY_AND_ASSIGN(SystemMonitor);
 };
