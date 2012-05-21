@@ -131,8 +131,7 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   PlatformThreadId thread_id() const { return thread_id_; }
 
   // Returns true if the thread has been started, and not yet stopped.
-  // When a thread is running, |thread_id_| is a valid id.
-  bool IsRunning() const { return thread_id_ != kInvalidThreadId; }
+  bool IsRunning() const;
 
  protected:
   // Called just prior to starting the message loop
@@ -163,6 +162,9 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
   // If true, we're in the middle of stopping, and shouldn't access
   // |message_loop_|. It may non-NULL and invalid.
   bool stopping_;
+
+  // True while inside of Run().
+  bool running_;
 
   // Used to pass data to ThreadMain.
   struct StartupData;
