@@ -85,16 +85,10 @@ class MEDIA_EXPORT AudioRendererImpl
   // should the filled buffer be played. If FillBuffer() is called as the audio
   // hardware plays the buffer, then |playback_delay| should be zero.
   //
-  // FillBuffer() calls SignalEndOfStream() when it reaches end of stream.
-  //
   // Safe to call on any thread.
   uint32 FillBuffer(uint8* dest,
                     uint32 requested_frames,
                     const base::TimeDelta& playback_delay);
-
-  // Called at the end of stream when all the hardware buffers become empty
-  // (i.e. when all the data written to the device has been played).
-  void SignalEndOfStream();
 
   // Get the playback rate of |algorithm_|.
   float GetPlaybackRate();
