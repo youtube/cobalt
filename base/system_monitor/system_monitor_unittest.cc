@@ -2,9 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/file_path.h"
-#include "base/test/mock_devices_changed_observer.h"
 #include "base/system_monitor/system_monitor.h"
+
+#include "base/file_path.h"
+#include "base/message_loop.h"
+#include "base/test/mock_devices_changed_observer.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -135,6 +137,75 @@ TEST(SystemMonitor, DeviceChangeNotifications) {
   system_monitor.ProcessMediaDeviceDetached(1);
   system_monitor.ProcessMediaDeviceDetached(2);
   loop.RunAllPending();
+}
+
+TEST(SystemMonitor, GetAttachedMediaDevicesEmpty) {
+  // Initialize a message loop for this to run on.
+  MessageLoop loop;
+
+#if defined(OS_MACOSX)
+  SystemMonitor::AllocateSystemIOPorts();
+#endif
+
+  SystemMonitor system_monitor;
+
+  scoped_ptr<std::vector<SystemMonitor::MediaDeviceInfo> > devices;
+  devices.reset(system_monitor.GetAttachedMediaDevices());
+  EXPECT_EQ(0U, devices->size());
+}
+
+TEST(SystemMonitor, GetAttachedMediaDevicesAttachDetach) {
+  // Initialize a message loop for this to run on.
+  MessageLoop loop;
+
+#if defined(OS_MACOSX)
+  SystemMonitor::AllocateSystemIOPorts();
+#endif
+
+  SystemMonitor system_monitor;
+
+  const SystemMonitor::DeviceIdType kDeviceId1 = 42;
+  const char kDeviceName1[] = "test";
+  const FilePath kDevicePath1(FILE_PATH_LITERAL("/testfoo"));
+  system_monitor.ProcessMediaDeviceAttached(kDeviceId1,
+                                            kDeviceName1,
+                                            kDevicePath1);
+  loop.RunAllPending();
+  scoped_ptr<std::vector<SystemMonitor::MediaDeviceInfo> > devices;
+  devices.reset(system_monitor.GetAttachedMediaDevices());
+  ASSERT_EQ(1U, devices->size());
+  EXPECT_EQ(kDeviceId1, (*devices)[0].a);
+  EXPECT_EQ(kDeviceName1, (*devices)[0].b);
+  EXPECT_EQ(kDevicePath1, (*devices)[0].c);
+
+  const SystemMonitor::DeviceIdType kDeviceId2 = 44;
+  const char kDeviceName2[] = "test2";
+  const FilePath kDevicePath2(FILE_PATH_LITERAL("/testbar"));
+  system_monitor.ProcessMediaDeviceAttached(kDeviceId2,
+                                            kDeviceName2,
+                                            kDevicePath2);
+  loop.RunAllPending();
+  devices.reset(system_monitor.GetAttachedMediaDevices());
+  ASSERT_EQ(2U, devices->size());
+  EXPECT_EQ(kDeviceId1, (*devices)[0].a);
+  EXPECT_EQ(kDeviceName1, (*devices)[0].b);
+  EXPECT_EQ(kDevicePath1, (*devices)[0].c);
+  EXPECT_EQ(kDeviceId2, (*devices)[1].a);
+  EXPECT_EQ(kDeviceName2, (*devices)[1].b);
+  EXPECT_EQ(kDevicePath2, (*devices)[1].c);
+
+  system_monitor.ProcessMediaDeviceDetached(kDeviceId1);
+  loop.RunAllPending();
+  devices.reset(system_monitor.GetAttachedMediaDevices());
+  ASSERT_EQ(1U, devices->size());
+  EXPECT_EQ(kDeviceId2, (*devices)[0].a);
+  EXPECT_EQ(kDeviceName2, (*devices)[0].b);
+  EXPECT_EQ(kDevicePath2, (*devices)[0].c);
+
+  system_monitor.ProcessMediaDeviceDetached(kDeviceId2);
+  loop.RunAllPending();
+  devices.reset(system_monitor.GetAttachedMediaDevices());
+  EXPECT_EQ(0U, devices->size());
 }
 
 TEST(SystemMonitor, PowerRequirements) {
