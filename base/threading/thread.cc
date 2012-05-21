@@ -161,11 +161,11 @@ void Thread::ThreadMain() {
     // Let's do this before signaling we are started.
     Init();
 
+    running_ = true;
     startup_data_->event.Signal();
     // startup_data_ can't be touched anymore since the starting thread is now
     // unlocked.
 
-    running_ = true;
     Run(message_loop_);
     running_ = false;
 
