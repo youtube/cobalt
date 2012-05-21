@@ -75,8 +75,9 @@ class MEDIA_EXPORT AudioRendererAlgorithm {
   float playback_rate() const { return playback_rate_; }
   void SetPlaybackRate(float new_rate);
 
-  // Returns whether the algorithm needs more data to continue filling buffers.
-  bool NeedsMoreData();
+  // Returns whether the algorithm has enough data at the current playback rate
+  // such that it can write data on the next call to FillBuffer().
+  bool CanFillBuffer();
 
   // Returns true if |audio_buffer_| is at or exceeds capacity.
   bool IsQueueFull();
@@ -99,9 +100,6 @@ class MEDIA_EXPORT AudioRendererAlgorithm {
   bool is_muted() { return muted_; }
 
  private:
-  // Returns true if |audio_buffer_| is empty.
-  bool IsQueueEmpty();
-
   // Fills |dest| with one frame of audio data at normal speed. Returns true if
   // a frame was rendered, false otherwise.
   bool OutputNormalPlayback(uint8* dest);

@@ -199,7 +199,7 @@ void AudioRendererImpl::Initialize(const scoped_refptr<AudioDecoder>& decoder,
 
 bool AudioRendererImpl::HasEnded() {
   base::AutoLock auto_lock(lock_);
-  DCHECK(!rendered_end_of_stream_ || algorithm_->NeedsMoreData());
+  DCHECK(!rendered_end_of_stream_ || !algorithm_->CanFillBuffer());
 
   return received_end_of_stream_ && rendered_end_of_stream_;
 }
@@ -274,14 +274,6 @@ void AudioRendererImpl::DecodedAudioReady(scoped_refptr<Buffer> buffer) {
       return;
     case kStopped:
       return;
-  }
-}
-
-void AudioRendererImpl::SignalEndOfStream() {
-  DCHECK(received_end_of_stream_);
-  if (!rendered_end_of_stream_) {
-    rendered_end_of_stream_ = true;
-    host()->NotifyEnded();
   }
 }
 
@@ -406,31 +398,36 @@ uint32 AudioRendererImpl::FillBuffer(uint8* dest,
       return zeros_to_write / bytes_per_frame_;
     }
 
-    // Use three conditions to determine the end of playback:
-    // 1. Algorithm needs more audio data.
-    // 2. We've received an end of stream buffer.
-    //    (received_end_of_stream_ == true)
-    // 3. Browser process has no audio data being played.
-    //    There is no way to check that condition that would work for all
-    //    derived classes, so call virtual method that would either render
-    //    end of stream or schedule such rendering.
+    // We use the following conditions to determine end of playback:
+    //   1) Algorithm can not fill the audio callback buffer
+    //   2) We received an end of stream buffer
+    //   3) We haven't already signalled that we've ended
+    //   4) Our estimated earliest end time has expired
     //
-    // Three conditions determine when an underflow occurs:
-    // 1. Algorithm has no audio data.
-    // 2. Currently in the kPlaying state.
-    // 3. Have not received an end of stream buffer.
-    if (algorithm_->NeedsMoreData()) {
-      if (received_end_of_stream_) {
-        // TODO(enal): schedule callback instead of polling.
-        if (base::Time::Now() >= earliest_end_time_)
-          SignalEndOfStream();
-      } else if (state_ == kPlaying) {
-        state_ = kUnderflow;
-        underflow_cb = underflow_cb_;
-      }
-    } else {
-      // Otherwise fill the buffer.
+    // TODO(enal): we should replace (4) with a check that the browser has no
+    // more audio data or at least use a delayed callback.
+    //
+    // We use the following conditions to determine underflow:
+    //   1) Algorithm can not fill the audio callback buffer
+    //   2) We have NOT received an end of stream buffer
+    //   3) We are in the kPlaying state
+    //
+    // Otherwise fill the buffer with whatever data we can send to the device.
+    if (!algorithm_->CanFillBuffer() && received_end_of_stream_ &&
+        !rendered_end_of_stream_ && base::Time::Now() >= earliest_end_time_) {
+      rendered_end_of_stream_ = true;
+      host()->NotifyEnded();
+    } else if (!algorithm_->CanFillBuffer() && !received_end_of_stream_ &&
+               state_ == kPlaying) {
+      state_ = kUnderflow;
+      underflow_cb = underflow_cb_;
+    } else if (algorithm_->CanFillBuffer()) {
       frames_written = algorithm_->FillBuffer(dest, requested_frames);
+      DCHECK_GT(frames_written, 0u);
+    } else {
+      // We can't write any data this cycle. For example, we may have
+      // sent all available data to the audio device while not reaching
+      // |earliest_end_time_|.
     }
 
     // The |audio_time_buffered_| is the ending timestamp of the last frame
