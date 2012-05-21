@@ -4,6 +4,8 @@
 
 #include "base/system_monitor/system_monitor.h"
 
+#include <utility>
+
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
@@ -87,11 +89,26 @@ void SystemMonitor::ProcessDevicesChanged() {
 void SystemMonitor::ProcessMediaDeviceAttached(const DeviceIdType& id,
                                                const std::string& name,
                                                const FilePath& path) {
+  media_device_map_.insert(std::make_pair(id, MakeTuple(id, name, path)));
   NotifyMediaDeviceAttached(id, name, path);
 }
 
 void SystemMonitor::ProcessMediaDeviceDetached(const DeviceIdType& id) {
+  MediaDeviceMap::iterator it = media_device_map_.find(id);
+  if (it != media_device_map_.end())
+    media_device_map_.erase(it);
   NotifyMediaDeviceDetached(id);
+}
+
+std::vector<SystemMonitor::MediaDeviceInfo>*
+SystemMonitor::GetAttachedMediaDevices() const {
+  std::vector<MediaDeviceInfo>* results = new std::vector<MediaDeviceInfo>;
+  for (MediaDeviceMap::const_iterator it = media_device_map_.begin();
+       it != media_device_map_.end();
+       ++it) {
+    results->push_back(it->second);
+  }
+  return results;
 }
 
 void SystemMonitor::AddPowerObserver(PowerObserver* obs) {
