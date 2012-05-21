@@ -420,12 +420,8 @@ void AudioRendererAlgorithm::EnqueueBuffer(Buffer* buffer_in) {
     request_read_cb_.Run();
 }
 
-bool AudioRendererAlgorithm::NeedsMoreData() {
-  return needs_more_data_ || IsQueueEmpty();
-}
-
-bool AudioRendererAlgorithm::IsQueueEmpty() {
-  return audio_buffer_.forward_bytes() == 0;
+bool AudioRendererAlgorithm::CanFillBuffer() {
+  return audio_buffer_.forward_bytes() > 0 && !needs_more_data_;
 }
 
 bool AudioRendererAlgorithm::IsQueueFull() {
