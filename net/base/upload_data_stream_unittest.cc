@@ -27,17 +27,6 @@ const char kTestData[] = "0123456789";
 const size_t kTestDataSize = arraysize(kTestData) - 1;
 const size_t kTestBufferSize = 1 << 14;  // 16KB.
 
-// Reads data from the upload data stream, and returns the data as string.
-std::string ReadFromUploadDataStream(UploadDataStream* stream) {
-  std::string data_read;
-  scoped_refptr<IOBuffer> buf = new IOBuffer(kTestBufferSize);
-  while (!stream->IsEOF()) {
-    const int bytes_read = stream->Read(buf, kTestBufferSize);
-    data_read.append(buf->data(), bytes_read);
-  }
-  return data_read;
-}
-
 }  // namespace
 
 class UploadDataStreamTest : public PlatformTest {
@@ -151,38 +140,6 @@ TEST_F(UploadDataStreamTest, FileChanged) {
   FileChangedHelper(temp_file_path,
                     file_info.last_modified - base::TimeDelta::FromSeconds(1),
                     true);
-
-  file_util::Delete(temp_file_path, false);
-}
-
-TEST_F(UploadDataStreamTest, UploadDataReused) {
-  FilePath temp_file_path;
-  ASSERT_TRUE(file_util::CreateTemporaryFile(&temp_file_path));
-  ASSERT_EQ(static_cast<int>(kTestDataSize),
-            file_util::WriteFile(temp_file_path, kTestData, kTestDataSize));
-
-  // Prepare |upload_data_| that contains a file.
-  std::vector<UploadData::Element> elements;
-  UploadData::Element element;
-  element.SetToFilePath(temp_file_path);
-  elements.push_back(element);
-  upload_data_->SetElements(elements);
-  EXPECT_EQ(kTestDataSize, upload_data_->GetContentLengthSync());
-
-  // Confirm that the file is read properly.
-  {
-    UploadDataStream stream(upload_data_);
-    ASSERT_EQ(OK, stream.Init());
-    EXPECT_EQ(kTestData, ReadFromUploadDataStream(&stream));
-  }
-
-  // Reuse |upload_data_| for another UploadDataStream, and confirm that the
-  // file is read properly.
-  {
-    UploadDataStream stream(upload_data_);
-    ASSERT_EQ(OK, stream.Init());
-    EXPECT_EQ(kTestData, ReadFromUploadDataStream(&stream));
-  }
 
   file_util::Delete(temp_file_path, false);
 }
