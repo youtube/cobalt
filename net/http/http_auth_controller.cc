@@ -450,17 +450,21 @@ bool HttpAuthController::SelectNextAuthIdentityToTry() {
   DCHECK(handler_.get());
   DCHECK(identity_.invalid);
 
-  // Do not try to use the username:password encoded into the URL.  At worst,
-  // this represents a session fixation attack against basic auth, and as it
-  // turns out, IE hasn't supported this for years. If a caller really wants
-  // to use embedded identities, the can add an URLRequest::Delegate that
-  // inspects the URL and supplies the username/password at OnAuthRequired()
-  // time. Past data shows this is used extremely infrequently in web pages,
-  // but continue to collect this data.
+  // Try to use the username:password encoded into the URL first.
   if (target_ == HttpAuth::AUTH_SERVER && auth_url_.has_username() &&
       !embedded_identity_used_) {
+    identity_.source = HttpAuth::IDENT_SRC_URL;
+    identity_.invalid = false;
+    // Extract the username:password from the URL.
+    string16 username;
+    string16 password;
+    GetIdentityFromURL(auth_url_, &username, &password);
+    identity_.credentials.Set(username, password);
     embedded_identity_used_ = true;
+    // TODO(eroman): If the password is blank, should we also try combining
+    // with a password from the cache?
     UMA_HISTOGRAM_BOOLEAN("net.HttpIdentSrcURL", true);
+    return true;
   }
 
   // Check the auth cache for a realm entry.
