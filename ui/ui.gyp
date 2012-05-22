@@ -261,6 +261,8 @@
         'base/ui_export.h',
         'base/view_prop.cc',
         'base/view_prop.h',
+        'base/win/accessibility_misc_utils.h',
+        'base/win/accessibility_misc_utils.cc',
         'base/win/atl_module.h',
         'base/win/dpi.cc',
         'base/win/dpi.h',
