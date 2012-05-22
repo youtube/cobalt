@@ -129,8 +129,9 @@ class NET_EXPORT UploadData
     // Returns the number of bytes remaining to read.
     uint64 BytesRemaining();
 
-    // Resets the offset to zero, so that the element can be reread.
-    void ResetOffset() { offset_ = 0; }
+    // Resets the offset to zero and closes the file stream if opened, so
+    // that the element can be reread.
+    void ResetOffset();
 
    private:
     // Returns a FileStream opened for reading for this element, positioned
