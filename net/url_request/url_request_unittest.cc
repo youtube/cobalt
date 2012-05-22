@@ -1552,7 +1552,7 @@ TEST_F(HTTPSOCSPTest, Valid) {
   TestServer::HTTPSOptions https_options(TestServer::HTTPSOptions::CERT_AUTO);
   https_options.ocsp_status = TestServer::HTTPSOptions::OCSP_OK;
 
-  CertStatus cert_status;
+  CertStatus cert_status = 0;
   DoConnection(https_options, &cert_status);
 
   EXPECT_EQ(0u, cert_status & CERT_STATUS_ALL_ERRORS);
