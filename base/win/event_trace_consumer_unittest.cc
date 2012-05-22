@@ -282,6 +282,8 @@ class EtwTraceConsumerDataTest: public EtwTraceConsumerBaseTest {
   }
 
   virtual void SetUp() {
+    EtwTraceConsumerBaseTest::SetUp();
+
     EtwTraceProperties prop;
     EtwTraceController::Stop(session_name_.c_str(), &prop);
 
