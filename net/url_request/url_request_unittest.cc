@@ -2935,6 +2935,36 @@ TEST_F(URLRequestTestHTTP, BasicAuthWithCookies) {
     EXPECT_TRUE(d.data_received().find("Cookie: got_challenged=true")
         != std::string::npos);
   }
+
+  // Same test as above, except this time the restart is initiated earlier
+  // (without user intervention since identity is embedded in the URL).
+  {
+    TestNetworkDelegate network_delegate;  // must outlive URLRequest
+    TestURLRequestContext context(true);
+    context.set_network_delegate(&network_delegate);
+    context.Init();
+
+    TestDelegate d;
+
+    GURL::Replacements replacements;
+    std::string username("user2");
+    std::string password("secret");
+    replacements.SetUsernameStr(username);
+    replacements.SetPasswordStr(password);
+    GURL url_with_identity = url_requiring_auth.ReplaceComponents(replacements);
+
+    URLRequest r(url_with_identity, &d);
+    r.set_context(&context);
+    r.Start();
+
+    MessageLoop::current()->Run();
+
+    EXPECT_TRUE(d.data_received().find("user2/secret") != std::string::npos);
+
+    // Make sure we sent the cookie in the restarted transaction.
+    EXPECT_TRUE(d.data_received().find("Cookie: got_challenged=true")
+        != std::string::npos);
+  }
 }
 
 TEST_F(URLRequestTest, DelayedCookieCallback) {
