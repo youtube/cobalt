@@ -74,7 +74,7 @@ class GenericScopedHandle {
   void Close() {
     if (Traits::IsHandleValid(handle_)) {
       if (!Traits::CloseHandle(handle_)) {
-        NOTREACHED();
+        CHECK(false);
       }
       handle_ = Traits::NullHandle();
     }
