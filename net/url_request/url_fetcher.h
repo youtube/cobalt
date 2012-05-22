@@ -9,8 +9,10 @@
 #include <string>
 #include <vector>
 
+#include "base/callback_forward.h"
 #include "base/memory/ref_counted.h"
 #include "base/platform_file.h"
+#include "base/supports_user_data.h"
 #include "net/base/net_export.h"
 
 class FilePath;
@@ -75,6 +77,10 @@ class NET_EXPORT URLFetcher {
     PUT,
   };
 
+  // Used by SetURLRequestUserData.  The callback should make a fresh
+  // base::SupportsUserData::Data object every time it's called.
+  typedef base::Callback<base::SupportsUserData::Data*()> CreateDataCallback;
+
   virtual ~URLFetcher();
 
   // Sets data only needed by POSTs.  All callers making POST requests should
@@ -124,6 +130,16 @@ class NET_EXPORT URLFetcher {
   // request is started.
   virtual void SetRequestContext(
       URLRequestContextGetter* request_context_getter) = 0;
+
+  // Set the URL that should be consulted for the third-party cookie
+  // blocking policy.
+  virtual void SetFirstPartyForCookies(
+      const GURL& first_party_for_cookies) = 0;
+
+  // Set the key and data callback that is used when setting the user
+  // data on any URLRequest objects this object creates.
+  virtual void SetURLRequestUserData(
+      const void* key, const CreateDataCallback& create_data_callback) = 0;
 
   // If |retry| is false, 5xx responses will be propagated to the observer,
   // if it is true URLFetcher will automatically re-execute the request,
