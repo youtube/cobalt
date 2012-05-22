@@ -416,6 +416,7 @@ SSLClientSocketOpenSSL::SSLClientSocketOpenSSL(
     const SSLClientSocketContext& context)
     : transport_send_busy_(false),
       transport_recv_busy_(false),
+      transport_recv_eof_(false),
       completed_handshake_(false),
       client_auth_cert_needed_(false),
       cert_verifier_(context.cert_verifier),
@@ -718,6 +719,7 @@ void SSLClientSocketOpenSSL::Disconnect() {
   transport_send_busy_ = false;
   send_buffer_ = NULL;
   transport_recv_busy_ = false;
+  transport_recv_eof_ = false;
   recv_buffer_ = NULL;
 
   user_connect_callback_.Reset();
@@ -955,9 +957,10 @@ X509Certificate* SSLClientSocketOpenSSL::UpdateServerCert() {
 
 bool SSLClientSocketOpenSSL::DoTransportIO() {
   bool network_moved = false;
-  int nsent = BufferSend();
-  int nreceived = BufferRecv();
-  network_moved = (nsent > 0 || nreceived >= 0);
+  if (BufferSend() > 0)
+    network_moved = true;
+  if (!transport_recv_eof_ && BufferRecv() >= 0)
+    network_moved = true;
   return network_moved;
 }
 
@@ -1050,6 +1053,8 @@ void SSLClientSocketOpenSSL::TransportReadComplete(int result) {
     // Received 0 (end of file) or an error. Either way, bubble it up to the
     // SSL layer via the BIO. TODO(joth): consider stashing the error code, to
     // relay up to the SSL socket client (i.e. via DoReadCallback).
+    if (result == 0)
+      transport_recv_eof_ = true;
     BIO_set_mem_eof_return(transport_bio_, 0);
     (void)BIO_shutdown_wr(transport_bio_);
   } else {
@@ -1098,6 +1103,7 @@ void SSLClientSocketOpenSSL::OnSendComplete(int result) {
       network_moved = DoTransportIO();
   } while (rv_read == ERR_IO_PENDING &&
            rv_write == ERR_IO_PENDING &&
+           (user_read_buf_ || user_write_buf_) &&
            network_moved);
 
   if (user_read_buf_ && rv_read != ERR_IO_PENDING)
