@@ -23,6 +23,7 @@
         '../net/net.gyp:*',
         '../ppapi/ppapi.gyp:*',
         '../ppapi/ppapi_internal.gyp:*',
+        '../ppapi/ppapi_proxy_untrusted.gyp:*',
         '../printing/printing.gyp:*',
         '../sdch/sdch.gyp:*',
         '../skia/skia.gyp:*',
