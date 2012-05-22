@@ -32,8 +32,7 @@
           # Use OpenSSL instead of NSS. Under development: see http://crbug.com/62803
           'use_openssl%': 0,
 
-          # Disable Virtual keyboard support by default.
-          'use_virtual_keyboard%': 0,
+          'use_ibus%': 0,
 
           # Disable viewport meta tag by default.
           'enable_viewport%': 0,
@@ -68,7 +67,7 @@
         'use_aura%': '<(use_aura)',
         'use_ash%': '<(use_ash)',
         'use_openssl%': '<(use_openssl)',
-        'use_virtual_keyboard%': '<(use_virtual_keyboard)',
+        'use_ibus%': '<(use_ibus)',
         'enable_viewport%': '<(enable_viewport)',
         'enable_hidpi%': '<(enable_hidpi)',
         'enable_touch_ui%': '<(enable_touch_ui)',
@@ -131,7 +130,7 @@
       'use_aura%': '<(use_aura)',
       'use_ash%': '<(use_ash)',
       'use_openssl%': '<(use_openssl)',
-      'use_virtual_keyboard%': '<(use_virtual_keyboard)',
+      'use_ibus%': '<(use_ibus)',
       'enable_viewport%': '<(enable_viewport)',
       'enable_hidpi%': '<(enable_hidpi)',
       'enable_touch_ui%': '<(enable_touch_ui)',
@@ -517,6 +516,7 @@
     'use_aura%': '<(use_aura)',
     'use_ash%': '<(use_ash)',
     'use_openssl%': '<(use_openssl)',
+    'use_ibus%': '<(use_ibus)',
     'use_nss%': '<(use_nss)',
     'os_bsd%': '<(os_bsd)',
     'os_posix%': '<(os_posix)',
@@ -529,7 +529,6 @@
     'enable_pepper_threading%': '<(enable_pepper_threading)',
     'build_ppapi_ipc_proxy_untrusted%': '<(build_ppapi_ipc_proxy_untrusted)',
     'chromeos%': '<(chromeos)',
-    'use_virtual_keyboard%': '<(use_virtual_keyboard)',
     'enable_viewport%': '<(enable_viewport)',
     'enable_hidpi%': '<(enable_hidpi)',
     'enable_touch_ui%': '<(enable_touch_ui)',
@@ -1060,9 +1059,6 @@
       ['use_nss==1', {
         'grit_defines': ['-D', 'use_nss'],
       }],
-      ['use_virtual_keyboard==1', {
-        'grit_defines': ['-D', 'use_virtual_keyboard'],
-      }],
       ['file_manager_extension==1', {
         'grit_defines': ['-D', 'file_manager_extension'],
       }],
@@ -1111,13 +1107,6 @@
             ],
           }],
         ],
-      }],
-
-      # Set use_ibus to 1 to enable ibus support.
-      ['use_virtual_keyboard==1 and chromeos==1', {
-        'use_ibus%': 1,
-      }, {
-        'use_ibus%': 0,
       }],
 
       ['enable_web_intents_tag==1', {
@@ -1309,9 +1298,6 @@
       }],
       ['chromeos==1', {
         'defines': ['OS_CHROMEOS=1'],
-      }],
-      ['use_virtual_keyboard==1', {
-        'defines': ['USE_VIRTUAL_KEYBOARD=1'],
       }],
       ['use_xi2_mt!=0', {
         'defines': ['USE_XI2_MT=<(use_xi2_mt)'],
