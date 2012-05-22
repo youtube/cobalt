@@ -16,6 +16,7 @@ using ::testing::AnyNumber;
 using ::testing::InSequence;
 using ::testing::NotNull;
 using ::testing::Return;
+using ::testing::SaveArg;
 using ::testing::SetArgumentPointee;
 using ::testing::_;
 
@@ -101,7 +102,8 @@ class ChunkDemuxerTest : public testing::Test {
   };
 
   ChunkDemuxerTest()
-      : client_(new MockChunkDemuxerClient()),
+      : buffered_bytes_(0),
+        client_(new MockChunkDemuxerClient()),
         demuxer_(new ChunkDemuxer(client_.get())) {
   }
 
@@ -181,7 +183,9 @@ class ChunkDemuxerTest : public testing::Test {
 
   bool AppendData(const uint8* data, size_t length) {
     CHECK(length);
-    EXPECT_CALL(host_, SetBufferedBytes(_)).Times(AnyNumber());
+    EXPECT_CALL(host_, SetBufferedBytes(_))
+        .Times(AnyNumber())
+        .WillRepeatedly(SaveArg<0>(&buffered_bytes_));
     EXPECT_CALL(host_, SetNetworkActivity(true))
         .Times(AnyNumber());
     return demuxer_->AppendData(kSourceId, data, length);
@@ -195,11 +199,14 @@ class ChunkDemuxerTest : public testing::Test {
     const uint8* start = data;
     const uint8* end = data + length;
     while (start < end) {
+      int64 old_buffered_bytes = buffered_bytes_;
       size_t append_size = std::min(piece_size,
                                     static_cast<size_t>(end - start));
       if (!AppendData(start, append_size))
         return false;
       start += append_size;
+
+      EXPECT_GT(buffered_bytes_, old_buffered_bytes);
     }
     return true;
   }
@@ -405,6 +412,7 @@ class ChunkDemuxerTest : public testing::Test {
   }
 
   MockDemuxerHost host_;
+  int64 buffered_bytes_;
 
   scoped_ptr<MockChunkDemuxerClient> client_;
   scoped_refptr<ChunkDemuxer> demuxer_;

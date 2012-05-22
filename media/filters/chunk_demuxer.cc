@@ -140,8 +140,6 @@ class ChunkDemuxerStream : public DemuxerStream {
   bool GetBufferedRange(base::TimeDelta* start_out,
                         base::TimeDelta* end_out) const;
 
-  bool GetLastBufferTimestamp(base::TimeDelta* timestamp) const;
-
   // DemuxerStream methods.
   virtual void Read(const ReadCB& read_cb) OVERRIDE;
   virtual Type type() OVERRIDE;
@@ -321,17 +319,6 @@ bool ChunkDemuxerStream::GetBufferedRange(
   if (end_duration != kNoTimestamp())
     *end_out += end_duration;
 
-  return true;
-}
-
-bool ChunkDemuxerStream::GetLastBufferTimestamp(
-    base::TimeDelta* timestamp) const {
-  base::AutoLock auto_lock(lock_);
-
-  if (buffers_.empty())
-    return false;
-
-  *timestamp = buffers_.back()->GetTimestamp();
   return true;
 }
 
@@ -667,7 +654,6 @@ bool ChunkDemuxer::AppendData(const std::string& id,
   DCHECK_GT(length, 0u);
 
   int64 buffered_bytes = 0;
-  base::TimeDelta buffered_ts = base::TimeDelta::FromSeconds(-1);
 
   PipelineStatusCB cb;
   {
@@ -709,17 +695,7 @@ bool ChunkDemuxer::AppendData(const std::string& id,
       std::swap(cb, seek_cb_);
     }
 
-    base::TimeDelta tmp;
-    if (audio_.get() && audio_->GetLastBufferTimestamp(&tmp) &&
-        tmp > buffered_ts) {
-      buffered_ts = tmp;
-    }
-
-    if (video_.get() && video_->GetLastBufferTimestamp(&tmp) &&
-        tmp > buffered_ts) {
-      buffered_ts = tmp;
-    }
-
+    buffered_bytes_ += length;
     buffered_bytes = buffered_bytes_;
   }
 
