@@ -1099,7 +1099,7 @@
               '-Xclang',
               '-plugin-arg-find-bad-constructs',
               '-Xclang',
-              '-skip-refcounted-dtors'
+              'skip-refcounted-dtors'
             ],
           }, {
             'clang_chrome_plugins_flags': [
