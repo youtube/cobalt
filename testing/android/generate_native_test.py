@@ -21,6 +21,11 @@ import shutil
 import subprocess
 import sys
 
+# cmd_helper.py is under ../../build/android/
+sys.path.append(os.path.join(os.path.abspath(os.path.dirname(__file__)), '..',
+   '..', 'build', 'android'))
+import cmd_helper # pylint: disable=F0401
+
 
 class NativeTestApkGenerator(object):
   """Generate a native test apk source tree.
@@ -118,8 +123,10 @@ class NativeTestApkGenerator(object):
       if not os.path.exists(destdir):
         os.makedirs(destdir)
       dest = os.path.join(destdir, os.path.basename(self._native_library))
-      logging.warn('%s --> %s' % (self._native_library, dest))
-      shutil.copyfile(self._native_library, dest)
+      logging.warn('strip %s --> %s' % (self._native_library, dest))
+      strip = os.environ['STRIP']
+      cmd_helper.RunCmd(
+          [strip, '--strip-unneeded', self._native_library, '-o', dest])
     if self._jars:
       destdir = os.path.join(self._output_directory, 'libs')
       if not os.path.exists(destdir):
