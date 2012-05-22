@@ -114,20 +114,6 @@ uint64 UploadData::Element::BytesRemaining() {
   return GetContentLength() - offset_;
 }
 
-void UploadData::Element::ResetOffset() {
-  offset_ = 0;
-
-  // Delete the file stream if already opened, so we can reread the file from
-  // the beginning.
-  if (file_stream_) {
-    // Temporarily allow until fix: http://crbug.com/72001.
-    base::ThreadRestrictions::ScopedAllowIO allow_io;
-    file_stream_->CloseSync();
-    delete file_stream_;
-    file_stream_ = NULL;
-  }
-}
-
 FileStream* UploadData::Element::OpenFileStream() {
   scoped_ptr<FileStream> file(new FileStream(NULL));
   int64 rv = file->OpenSync(
