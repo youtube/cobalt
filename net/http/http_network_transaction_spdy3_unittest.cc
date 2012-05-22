@@ -3727,8 +3727,8 @@ TEST_F(HttpNetworkTransactionSpdy3Test, ResendRequestOnWriteBodyError) {
 
 // Test the request-challenge-retry sequence for basic auth when there is
 // an identity in the URL. The request should be sent as normal, but when
-// it fails the identity from the URL is no longer used.
-TEST_F(HttpNetworkTransactionSpdy3Test, IgnoreAuthIdentityInURL) {
+// it fails the identity from the URL is used to answer the challenge.
+TEST_F(HttpNetworkTransactionSpdy3Test, AuthIdentityInURL) {
   HttpRequestInfo request;
   request.method = "GET";
   request.url = GURL("http://foo:b@r@www.google.com/");
@@ -3755,16 +3755,159 @@ TEST_F(HttpNetworkTransactionSpdy3Test, IgnoreAuthIdentityInURL) {
     MockRead(SYNCHRONOUS, ERR_FAILED),
   };
 
+  // After the challenge above, the transaction will be restarted using the
+  // identity from the url (foo, b@r) to answer the challenge.
+  MockWrite data_writes2[] = {
+    MockWrite("GET / HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Connection: keep-alive\r\n"
+              "Authorization: Basic Zm9vOmJAcg==\r\n\r\n"),
+  };
+
+  MockRead data_reads2[] = {
+    MockRead("HTTP/1.0 200 OK\r\n"),
+    MockRead("Content-Length: 100\r\n\r\n"),
+    MockRead(SYNCHRONOUS, OK),
+  };
+
   StaticSocketDataProvider data1(data_reads1, arraysize(data_reads1),
                                  data_writes1, arraysize(data_writes1));
+  StaticSocketDataProvider data2(data_reads2, arraysize(data_reads2),
+                                 data_writes2, arraysize(data_writes2));
   session_deps.socket_factory.AddSocketDataProvider(&data1);
+  session_deps.socket_factory.AddSocketDataProvider(&data2);
 
   TestCompletionCallback callback1;
   int rv = trans->Start(&request, callback1.callback(), BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback1.WaitForResult();
   EXPECT_EQ(OK, rv);
+  EXPECT_TRUE(trans->IsReadyToRestartForAuth());
+
+  TestCompletionCallback callback2;
+  rv = trans->RestartWithAuth(AuthCredentials(), callback2.callback());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback2.WaitForResult();
+  EXPECT_EQ(OK, rv);
   EXPECT_FALSE(trans->IsReadyToRestartForAuth());
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+
+  // There is no challenge info, since the identity in URL worked.
+  EXPECT_TRUE(response->auth_challenge.get() == NULL);
+
+  EXPECT_EQ(100, response->headers->GetContentLength());
+
+  // Empty the current queue.
+  MessageLoop::current()->RunAllPending();
+}
+
+// Test the request-challenge-retry sequence for basic auth when there is an
+// incorrect identity in the URL. The identity from the URL should be used only
+// once.
+TEST_F(HttpNetworkTransactionSpdy3Test, WrongAuthIdentityInURL) {
+  HttpRequestInfo request;
+  request.method = "GET";
+  // Note: the URL has a username:password in it.  The password "baz" is
+  // wrong (should be "bar").
+  request.url = GURL("http://foo:baz@www.google.com/");
+
+  request.load_flags = LOAD_NORMAL;
+
+  SessionDependencies session_deps;
+  scoped_ptr<HttpTransaction> trans(
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
+
+  MockWrite data_writes1[] = {
+    MockWrite("GET / HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Connection: keep-alive\r\n\r\n"),
+  };
+
+  MockRead data_reads1[] = {
+    MockRead("HTTP/1.0 401 Unauthorized\r\n"),
+    MockRead("WWW-Authenticate: Basic realm=\"MyRealm1\"\r\n"),
+    MockRead("Content-Length: 10\r\n\r\n"),
+    MockRead(SYNCHRONOUS, ERR_FAILED),
+  };
+
+  // After the challenge above, the transaction will be restarted using the
+  // identity from the url (foo, baz) to answer the challenge.
+  MockWrite data_writes2[] = {
+    MockWrite("GET / HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Connection: keep-alive\r\n"
+              "Authorization: Basic Zm9vOmJheg==\r\n\r\n"),
+  };
+
+  MockRead data_reads2[] = {
+    MockRead("HTTP/1.0 401 Unauthorized\r\n"),
+    MockRead("WWW-Authenticate: Basic realm=\"MyRealm1\"\r\n"),
+    MockRead("Content-Length: 10\r\n\r\n"),
+    MockRead(SYNCHRONOUS, ERR_FAILED),
+  };
+
+  // After the challenge above, the transaction will be restarted using the
+  // identity supplied by the user (foo, bar) to answer the challenge.
+  MockWrite data_writes3[] = {
+    MockWrite("GET / HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Connection: keep-alive\r\n"
+              "Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
+  };
+
+  MockRead data_reads3[] = {
+    MockRead("HTTP/1.0 200 OK\r\n"),
+    MockRead("Content-Length: 100\r\n\r\n"),
+    MockRead(SYNCHRONOUS, OK),
+  };
+
+  StaticSocketDataProvider data1(data_reads1, arraysize(data_reads1),
+                                 data_writes1, arraysize(data_writes1));
+  StaticSocketDataProvider data2(data_reads2, arraysize(data_reads2),
+                                 data_writes2, arraysize(data_writes2));
+  StaticSocketDataProvider data3(data_reads3, arraysize(data_reads3),
+                                 data_writes3, arraysize(data_writes3));
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
+  session_deps.socket_factory.AddSocketDataProvider(&data2);
+  session_deps.socket_factory.AddSocketDataProvider(&data3);
+
+  TestCompletionCallback callback1;
+
+  int rv = trans->Start(&request, callback1.callback(), BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback1.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  EXPECT_TRUE(trans->IsReadyToRestartForAuth());
+  TestCompletionCallback callback2;
+  rv = trans->RestartWithAuth(AuthCredentials(), callback2.callback());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback2.WaitForResult();
+  EXPECT_EQ(OK, rv);
+  EXPECT_FALSE(trans->IsReadyToRestartForAuth());
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  EXPECT_TRUE(CheckBasicServerAuth(response->auth_challenge.get()));
+
+  TestCompletionCallback callback3;
+  rv = trans->RestartWithAuth(
+      AuthCredentials(kFoo, kBar), callback3.callback());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback3.WaitForResult();
+  EXPECT_EQ(OK, rv);
+  EXPECT_FALSE(trans->IsReadyToRestartForAuth());
+
+  response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+
+  // There is no challenge info, since the identity worked.
+  EXPECT_TRUE(response->auth_challenge.get() == NULL);
+
+  EXPECT_EQ(100, response->headers->GetContentLength());
 
   // Empty the current queue.
   MessageLoop::current()->RunAllPending();
