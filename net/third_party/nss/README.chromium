@@ -54,7 +54,7 @@ Patches:
     patches/negotiatedextension.patch
 
   * Support the encrypted client certificates extension.
-    https://bugzilla.mozilla.org/show_bug.cgi?id=691991
+    https://bugzilla.mozilla.org/show_bug.cgi?id=692154
     patches/encryptedclientcerts.patch
 
   * Add function to retrieve TLS client cert types requested by server.
