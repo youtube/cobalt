@@ -415,8 +415,6 @@
           'nix/mime_util_xdg.h',
           'nix/xdg_util.cc',
           'nix/xdg_util.h',
-          'win/accessibility_misc_utils.h',
-          'win/accessibility_misc_utils.cc',
           'win/enum_variant.h',
           'win/enum_variant.cc',
           'win/event_trace_consumer.h',
