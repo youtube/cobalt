@@ -123,6 +123,7 @@ class SSLClientSocketOpenSSL : public SSLClientSocket {
   bool transport_send_busy_;
   scoped_refptr<DrainableIOBuffer> send_buffer_;
   bool transport_recv_busy_;
+  bool transport_recv_eof_;
   scoped_refptr<IOBuffer> recv_buffer_;
 
   CompletionCallback user_connect_callback_;
