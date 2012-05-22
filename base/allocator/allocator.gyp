@@ -304,6 +304,11 @@
           'defines': [
             'PERFTOOLS_DLL_DECL=',
           ],
+          'defines!': [
+            # tcmalloc source files unconditionally define this, remove it from
+            # the list of defines that common.gypi defines globally.
+            'NOMINMAX',
+          ],
           'dependencies': [
             'libcmt',
           ],
