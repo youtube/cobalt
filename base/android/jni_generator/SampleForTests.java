@@ -74,7 +74,7 @@ class SampleForTests {
   void methodThatThrowsException() throws Exception {}
 
   //------------------------------------------------------------------------------------------------
-  // Java fields which are accessed from C++ code must be annotated with @AccessedByNative to
+  // Java fields which are accessed from C++ code only must be annotated with @AccessedByNative to
   // prevent them being eliminated when unreferenced code is stripped.
   @AccessedByNative
   private int javaField;
