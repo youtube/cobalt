@@ -1734,7 +1734,7 @@ TEST_F(HTTPSCRLSetTest, ExpiredCRLSet) {
 TEST_F(HTTPSRequestTest, SSLv3Fallback) {
   TestServer::HTTPSOptions https_options(
       TestServer::HTTPSOptions::CERT_OK);
-  https_options.tls_intolerant = true;
+  https_options.tls_intolerant = TestServer::HTTPSOptions::TLS_INTOLERANT_ALL;
   TestServer test_server(https_options,
                          FilePath(FILE_PATH_LITERAL("net/data/ssl")));
   ASSERT_TRUE(test_server.Start());
@@ -1751,6 +1751,8 @@ TEST_F(HTTPSRequestTest, SSLv3Fallback) {
 
   EXPECT_EQ(1, d.response_started_count());
   EXPECT_NE(0, d.bytes_received());
+  EXPECT_EQ(SSL_CONNECTION_VERSION_SSL3,
+            SSLConnectionStatusToVersion(r.ssl_info().connection_status));
   EXPECT_TRUE(r.ssl_info().connection_status & SSL_CONNECTION_SSL3_FALLBACK);
 }
 

@@ -59,7 +59,7 @@ BaseTestServer::HTTPSOptions::HTTPSOptions()
       request_client_certificate(false),
       bulk_ciphers(HTTPSOptions::BULK_CIPHER_ANY),
       record_resume(false),
-      tls_intolerant(false) {}
+      tls_intolerant(TLS_INTOLERANT_NONE) {}
 
 BaseTestServer::HTTPSOptions::HTTPSOptions(
     BaseTestServer::HTTPSOptions::ServerCertificate cert)
@@ -67,7 +67,7 @@ BaseTestServer::HTTPSOptions::HTTPSOptions(
       request_client_certificate(false),
       bulk_ciphers(HTTPSOptions::BULK_CIPHER_ANY),
       record_resume(false),
-      tls_intolerant(false) {}
+      tls_intolerant(TLS_INTOLERANT_NONE) {}
 
 BaseTestServer::HTTPSOptions::~HTTPSOptions() {}
 
@@ -377,8 +377,10 @@ bool BaseTestServer::GenerateArguments(base::DictionaryValue* arguments) const {
       arguments->Set("ssl-bulk-cipher", bulk_cipher_values.release());
     if (https_options_.record_resume)
       arguments->Set("https-record-resume", base::Value::CreateNullValue());
-    if (https_options_.tls_intolerant)
-      arguments->Set("tls-intolerant", base::Value::CreateNullValue());
+    if (https_options_.tls_intolerant != HTTPSOptions::TLS_INTOLERANT_NONE) {
+      arguments->Set("tls-intolerant",
+          base::Value::CreateIntegerValue(https_options_.tls_intolerant));
+    }
   }
   return true;
 }
