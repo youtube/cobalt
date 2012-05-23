@@ -631,6 +631,11 @@
     # Currently ignored on Windows.
     'coverage%': 0,
 
+    # Set to 1 to force Visual C++ to use legacy debug information format /Z7.
+    # This is useful for parallel compilation tools which can't support /Zi.
+    # Only used on Windows.
+    'win_z7%' : 0,
+
     # Although base/allocator lets you select a heap library via an
     # environment variable, the libcmt shim it uses sometimes gets in
     # the way.  To disable it entirely, and switch to normal msvcrt, do e.g.
@@ -1461,6 +1466,15 @@
         'include_dirs': [
           '<(DEPTH)/third_party/wtl/include',
         ],
+        'conditions': [
+          ['win_z7!=0', {
+            'msvs_settings': {
+              'VCCLCompilerTool': {
+                'DebugInformationFormat': '1',
+              }
+            }
+          }],
+        ],  # win_z7!=0
       }],  # OS==win
       ['enable_task_manager==1', {
         'defines': [
