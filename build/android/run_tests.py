@@ -76,12 +76,9 @@ _TEST_SUITES = ['base_unittests',
                 'ui_unittests',
                ]
 
-# Test suites which are build as an APK. This will be replaced by the default
+# Test suites which are run as APK. This will be replaced by the default
 # list when we start building all suites as APK.
-_APK_TEST_SUITES = ['replaceme',  # Test the template apk too.
-                    'base_unittests',
-                    'ipc_tests',
-                    'ui_unittests',
+_APK_TEST_SUITES = ['base_unittests',
                    ]
 
 def FullyQualifiedTestSuites(apk):
