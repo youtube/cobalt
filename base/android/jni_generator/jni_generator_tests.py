@@ -62,7 +62,7 @@ class TestGenerator(unittest.TestCase):
     private static native String nativeGetDomainAndRegistry(String url);
     private static native void nativeCreateHistoricalTabFromState(
             byte[] state, int tab_index);
-    private native byte[] nativeGetStateAsByteArray(ChromeView view);
+    private native byte[] nativeGetStateAsByteArray(ContentView view);
     private static native String[] nativeGetAutofillProfileGUIDs();
     private native void nativeSetRecognitionResults(
             int sessionId, String[] results);
@@ -123,7 +123,7 @@ class TestGenerator(unittest.TestCase):
                      type='function'),
         NativeMethod(return_type='byte[]', static=False,
                      name='GetStateAsByteArray',
-                     params=[Param(datatype='ChromeView', name='view')],
+                     params=[Param(datatype='ContentView', name='view')],
                      java_class_name='',
                      type='function'),
         NativeMethod(return_type='String[]', static=True,
@@ -371,7 +371,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
 "V", reinterpret_cast<void*>(CreateHistoricalTabFromState) },
     { "nativeGetStateAsByteArray",
 "("
-"Lorg/chromium/chromeview/ChromeView;"
+"Lorg/chromium/content/browser/ContentView;"
 ")"
 "[B", reinterpret_cast<void*>(GetStateAsByteArray) },
     { "nativeGetAutofillProfileGUIDs",
@@ -404,7 +404,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
     { "nativeGetDefaultBookmarkFolder",
 "("
 ")"
-"Lcom/android/chrome/ChromeBrowserProvider$BookmarkNode;",
+"Lcom/google/android/apps/chrome/ChromeBrowserProvider$BookmarkNode;",
     reinterpret_cast<void*>(GetDefaultBookmarkFolder) },
     { "nativeQueryBookmarkFromAPI",
 "("
@@ -414,7 +414,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
 "[Ljava/lang/String;"
 "Ljava/lang/String;"
 ")"
-"Lcom/android/chrome/database/SQLiteCursor;",
+"Lcom/google/android/apps/chrome/database/SQLiteCursor;",
     reinterpret_cast<void*>(QueryBookmarkFromAPI) },
     { "nativeGotOrientation",
 "("
@@ -783,10 +783,10 @@ static bool RegisterNativesImpl(JNIEnv* env) {
     void dismiss();
     @SuppressWarnings("unused")
     @CalledByNative
-    private static boolean shouldShowAutoLogin(ChromeView chromeView,
+    private static boolean shouldShowAutoLogin(ContentView contentView,
             String realm, String account, String args) {
         AccountManagerContainer accountManagerContainer =
-            new AccountManagerContainer((Activity)chromeView.getContext(),
+            new AccountManagerContainer((Activity)contentView.getContext(),
             realm, account, args);
         String[] logins = accountManagerContainer.getAccountLogins(null);
         return logins.length != 0;
@@ -855,7 +855,7 @@ static bool RegisterNativesImpl(JNIEnv* env) {
             name='shouldShowAutoLogin',
             method_id_var_name='shouldShowAutoLogin',
             java_class_name='',
-            params=[Param(datatype='ChromeView', name='chromeView'),
+            params=[Param(datatype='ContentView', name='contentView'),
                     Param(datatype='String', name='realm'),
                     Param(datatype='String', name='account'),
                     Param(datatype='String', name='args')],
@@ -988,7 +988,7 @@ static void Java_InfoBar_dismiss(JNIEnv* env, jobject obj) {
 
 static jmethodID g_TestJni_shouldShowAutoLogin = 0;
 static jboolean Java_TestJni_shouldShowAutoLogin(JNIEnv* env, jobject
-    chromeView,
+    contentView,
     jstring realm,
     jstring account,
     jstring args) {
@@ -997,7 +997,7 @@ static jboolean Java_TestJni_shouldShowAutoLogin(JNIEnv* env, jobject
   DCHECK(g_TestJni_shouldShowAutoLogin);
   jboolean ret =
     env->CallStaticBooleanMethod(g_TestJni_clazz,
-      g_TestJni_shouldShowAutoLogin, chromeView, realm, account, args);
+      g_TestJni_shouldShowAutoLogin, contentView, realm, account, args);
   base::android::CheckException(env);
   return ret;
 }
@@ -1065,7 +1065,7 @@ static void GetMethodIDsImpl(JNIEnv* env) {
 "Ljava/lang/String;"
 "Landroid/graphics/Bitmap;"
 ")"
-"Lcom/android/chrome/infobar/InfoBarContainer$NativeInfoBar;");
+"Lcom/google/android/apps/chrome/infobar/InfoBarContainer$NativeInfoBar;");
 
   g_TestJni_showAutoLoginInfoBar =
       base::android::GetMethodID(
@@ -1078,7 +1078,7 @@ static void GetMethodIDsImpl(JNIEnv* env) {
 "Ljava/lang/String;"
 "Ljava/lang/String;"
 ")"
-"Lcom/android/chrome/infobar/InfoBarContainer$NativeInfoBar;");
+"Lcom/google/android/apps/chrome/infobar/InfoBarContainer$NativeInfoBar;");
 
   g_InfoBar_dismiss =
       base::android::GetMethodID(
@@ -1095,7 +1095,7 @@ static void GetMethodIDsImpl(JNIEnv* env) {
           "shouldShowAutoLogin",
 
 "("
-"Lorg/chromium/chromeview/ChromeView;"
+"Lorg/chromium/content/browser/ContentView;"
 "Ljava/lang/String;"
 "Ljava/lang/String;"
 "Ljava/lang/String;"
@@ -1167,14 +1167,14 @@ scooby doo
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-package org.chromium.chromeview;
+package org.chromium.content.browser;
 
-import org.chromium.chromeview.legacy.DownloadListener;
+import org.chromium.base.BuildInfo;
 """
-    self.assertEquals('org/chromium/chromeview/Foo',
+    self.assertEquals('org/chromium/content/browser/Foo',
                       jni_generator.ExtractFullyQualifiedJavaClassName(
-                          'org/chromium/chromeview/Foo.java', contents))
-    self.assertEquals('org/chromium/chromeview/Foo',
+                          'org/chromium/content/browser/Foo.java', contents))
+    self.assertEquals('org/chromium/content/browser/Foo',
                       jni_generator.ExtractFullyQualifiedJavaClassName(
                           'frameworks/Foo.java', contents))
     self.assertRaises(SyntaxError,
