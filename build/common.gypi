@@ -901,7 +901,7 @@
         'notifications%': 0,
 
         'gtest_target_type%': '<(gtest_target_type)',
-        # TODO(jrg): when 'gtest_target_type'=='shared_libary' and
+        # TODO(jrg): when 'gtest_target_type'=='shared_library' and
         # OS==android, make all gtest_targets depend on
         # testing/android/native_test.gyp:native_test_apk.
         ### 'gtest_target_type': 'shared_libary',
@@ -1348,6 +1348,9 @@
       }],
       ['enable_metro==1', {
         'defines': ['ENABLE_METRO=1'],
+      }],
+      ['OS=="android" and gtest_target_type=="shared_library"', {
+        'defines': ['ANDROID_APK_TEST_TARGET=1'],
       }],
       ['fastbuild!=0', {
 
