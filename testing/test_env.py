@@ -23,6 +23,8 @@ def run_executable(cmd, env):
   env['LANGUAGE'] = 'en_US.UTF-8'
   # Used by base/base_paths_linux.cc
   env['CR_SOURCE_ROOT'] = os.path.abspath(ROOT_DIR).encode('utf-8')
+  # Ensure paths are correctly separated on windows.
+  cmd[0] = cmd[0].replace('/', os.path.sep)
   if cmd[0].endswith('.py'):
     cmd.insert(0, sys.executable)
   try:
