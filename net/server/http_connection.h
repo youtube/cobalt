@@ -20,6 +20,8 @@ class WebSocket;
 
 class HttpConnection {
  public:
+  ~HttpConnection();
+
   void Send(const std::string& data);
   void Send(const char* bytes, int len);
   void Send200(const std::string& data, const std::string& content_type);
@@ -36,7 +38,6 @@ class HttpConnection {
   static int last_id_;
 
   HttpConnection(HttpServer* server, StreamListenSocket* sock);
-  ~HttpConnection();
 
   void DetachSocket();
 

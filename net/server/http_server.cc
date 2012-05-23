@@ -6,6 +6,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
+#include "base/stl_util.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
 #include "base/sys_byteorder.h"
@@ -17,11 +18,11 @@
 
 namespace net {
 
-HttpServer::HttpServer(const std::string& host,
-                       int port,
-                       HttpServer::Delegate* del)
-    : delegate_(del) {
-  server_ = TCPListenSocket::CreateAndListen(host, port, this);
+HttpServer::HttpServer(const StreamListenSocketFactory& factory,
+                       HttpServer::Delegate* delegate)
+    : delegate_(delegate),
+      ALLOW_THIS_IN_INITIALIZER_LIST(server_(factory.CreateAndListen(this))) {
+  DCHECK(server_);
 }
 
 void HttpServer::AcceptWebSocket(
@@ -157,10 +158,8 @@ void HttpServer::DidClose(StreamListenSocket* socket) {
 }
 
 HttpServer::~HttpServer() {
-  IdToConnectionMap copy = id_to_connection_;
-  for (IdToConnectionMap::iterator it = copy.begin(); it != copy.end(); ++it)
-    delete it->second;
-
+  STLDeleteContainerPairSecondPointers(
+      id_to_connection_.begin(), id_to_connection_.end());
   server_ = NULL;
 }
 
