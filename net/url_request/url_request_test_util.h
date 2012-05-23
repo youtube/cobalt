@@ -23,7 +23,6 @@
 #include "base/utf_string_conversions.h"
 #include "googleurl/src/url_util.h"
 #include "net/base/cert_verifier.h"
-#include "net/base/host_resolver.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_delegate.h"
@@ -52,22 +51,14 @@ class TestURLRequestContext : public net::URLRequestContext {
   // URLRequestContext before it is constructed completely. If
   // |delay_initialization| is true, Init() needs be be called manually.
   explicit TestURLRequestContext(bool delay_initialization);
-  // We need this constructor because TestURLRequestContext("foo") actually
-  // calls the boolean constructor rather than the std::string constructor.
-  explicit TestURLRequestContext(const char* proxy);
-  explicit TestURLRequestContext(const std::string& proxy);
-  TestURLRequestContext(const std::string& proxy,
-                        net::HostResolver* host_resolver);
   virtual ~TestURLRequestContext();
-
-  // Configures the proxy server, must not be called after Init().
-  void SetProxyFromString(const std::string& proxy);
-  void SetProxyDirect();
 
   void Init();
 
  private:
   bool initialized_;
+
+ protected:
   net::URLRequestContextStorage context_storage_;
 };
 
@@ -80,6 +71,11 @@ class TestURLRequestContextGetter : public net::URLRequestContextGetter {
   // |io_message_loop_proxy| must not be NULL.
   explicit TestURLRequestContextGetter(
       const scoped_refptr<base::MessageLoopProxy>& io_message_loop_proxy);
+
+  // Use to pass a pre-initialized |context|.
+  TestURLRequestContextGetter(
+      const scoped_refptr<base::MessageLoopProxy>& io_message_loop_proxy,
+      scoped_ptr<TestURLRequestContext> context);
 
   // net::URLRequestContextGetter implementation.
   virtual TestURLRequestContext* GetURLRequestContext() OVERRIDE;
