@@ -17,6 +17,7 @@
 #include "base/callback.h"
 #include "media/base/audio_decoder.h"
 #include "media/base/audio_decoder_config.h"
+#include "media/base/audio_renderer.h"
 #include "media/base/demuxer.h"
 #include "media/base/filters.h"
 #include "media/base/filter_collection.h"
@@ -24,6 +25,7 @@
 #include "media/base/video_decoder.h"
 #include "media/base/video_decoder_config.h"
 #include "media/base/video_frame.h"
+#include "media/base/video_renderer.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace media {
