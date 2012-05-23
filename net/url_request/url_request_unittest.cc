@@ -1600,7 +1600,7 @@ TEST_F(HTTPSOCSPTest, Invalid) {
       TestServer::HTTPSOptions::CERT_AUTO);
   https_options.ocsp_status = TestServer::HTTPSOptions::OCSP_INVALID;
 
-  CertStatus cert_status;
+  CertStatus cert_status = 0;
   DoConnection(https_options, &cert_status);
 
   EXPECT_EQ(ExpectedCertStatusForFailedOnlineRevocationCheck(),
@@ -1631,7 +1631,7 @@ TEST_F(HTTPSEVCRLSetTest, MissingCRLSetAndInvalidOCSP) {
   https_options.ocsp_status = TestServer::HTTPSOptions::OCSP_INVALID;
   SSLConfigService::SetCRLSet(scoped_refptr<CRLSet>());
 
-  CertStatus cert_status;
+  CertStatus cert_status = 0;
   DoConnection(https_options, &cert_status);
 
   EXPECT_EQ(ExpectedCertStatusForFailedOnlineRevocationCheck(),
@@ -1692,7 +1692,7 @@ TEST_F(HTTPSEVCRLSetTest, FreshCRLSet) {
   SSLConfigService::SetCRLSet(
       scoped_refptr<CRLSet>(CRLSet::EmptyCRLSetForTesting()));
 
-  CertStatus cert_status;
+  CertStatus cert_status = 0;
   DoConnection(https_options, &cert_status);
 
   // With a valid, fresh CRLSet the bad OCSP response shouldn't matter because
@@ -1721,7 +1721,7 @@ TEST_F(HTTPSCRLSetTest, ExpiredCRLSet) {
   SSLConfigService::SetCRLSet(
       scoped_refptr<CRLSet>(CRLSet::ExpiredCRLSetForTesting()));
 
-  CertStatus cert_status;
+  CertStatus cert_status = 0;
   DoConnection(https_options, &cert_status);
 
   // If we're not trying EV verification then, even if the CRLSet has expired,
