@@ -220,6 +220,8 @@
           'message_loop_proxy_impl.h',
           'message_pump.cc',
           'message_pump.h',
+          'message_pump_android.cc',
+          'message_pump_android.h',
           'message_pump_default.cc',
           'message_pump_default.h',
           'message_pump_win.cc',
