@@ -458,16 +458,18 @@
             {
               'action_name': 'libcmt',
               'inputs': [
-                'prep_libc.sh',
+                'prep_libc.py',
               ],
               'outputs': [
                 '<(SHARED_INTERMEDIATE_DIR)/allocator/libcmt.lib',
               ],
               'action': [
-                './prep_libc.sh',
+                'python',
+                'prep_libc.py',
                 '$(VCInstallDir)lib',
                 '<(SHARED_INTERMEDIATE_DIR)/allocator',
               ],
+              'msvs_cygwin_shell': '0',
             },
           ],
         },
