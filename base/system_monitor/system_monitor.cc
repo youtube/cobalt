@@ -100,13 +100,13 @@ void SystemMonitor::ProcessMediaDeviceDetached(const DeviceIdType& id) {
   NotifyMediaDeviceDetached(id);
 }
 
-std::vector<SystemMonitor::MediaDeviceInfo>*
+std::vector<SystemMonitor::MediaDeviceInfo>
 SystemMonitor::GetAttachedMediaDevices() const {
-  std::vector<MediaDeviceInfo>* results = new std::vector<MediaDeviceInfo>;
+  std::vector<MediaDeviceInfo> results;
   for (MediaDeviceMap::const_iterator it = media_device_map_.begin();
        it != media_device_map_.end();
        ++it) {
-    results->push_back(it->second);
+    results.push_back(it->second);
   }
   return results;
 }
