@@ -24,6 +24,8 @@ class NET_EXPORT TCPListenSocket : public StreamListenSocket {
       const std::string& ip, int port, StreamListenSocket::Delegate* del);
 
  protected:
+  friend class scoped_refptr<TCPListenSocket>;
+
   TCPListenSocket(SOCKET s, StreamListenSocket::Delegate* del);
   virtual ~TCPListenSocket();
 
@@ -34,6 +36,23 @@ class NET_EXPORT TCPListenSocket : public StreamListenSocket {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(TCPListenSocket);
+};
+
+// Factory that can be used to instantiate TCPListenSocket.
+class NET_EXPORT TCPListenSocketFactory : public StreamListenSocketFactory {
+ public:
+  TCPListenSocketFactory(const std::string& ip, int port);
+  virtual ~TCPListenSocketFactory();
+
+  // StreamListenSocketFactory overrides.
+  virtual scoped_refptr<StreamListenSocket> CreateAndListen(
+      StreamListenSocket::Delegate* delegate) const OVERRIDE;
+
+ private:
+  const std::string ip_;
+  const int port_;
+
+  DISALLOW_COPY_AND_ASSIGN(TCPListenSocketFactory);
 };
 
 }  // namespace net

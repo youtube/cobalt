@@ -39,7 +39,8 @@ class HttpServer : public StreamListenSocket::Delegate,
     virtual ~Delegate() {}
   };
 
-  HttpServer(const std::string& host, int port, HttpServer::Delegate* del);
+  HttpServer(const StreamListenSocketFactory& socket_factory,
+             HttpServer::Delegate* delegate);
 
   void AcceptWebSocket(int connection_id,
                        const HttpServerRequestInfo& request);

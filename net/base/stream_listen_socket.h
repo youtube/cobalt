@@ -147,6 +147,17 @@ class NET_EXPORT StreamListenSocket
   DISALLOW_COPY_AND_ASSIGN(StreamListenSocket);
 };
 
+// Abstract factory that must be subclassed for each subclass of
+// StreamListenSocket.
+class NET_EXPORT StreamListenSocketFactory {
+ public:
+  virtual ~StreamListenSocketFactory() {}
+
+  // Returns a new instance of StreamListenSocket or NULL if an error occurred.
+  virtual scoped_refptr<StreamListenSocket> CreateAndListen(
+      StreamListenSocket::Delegate* delegate) const = 0;
+};
+
 }  // namespace net
 
 #endif  // NET_BASE_STREAM_LISTEN_SOCKET_H_
