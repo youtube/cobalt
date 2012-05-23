@@ -8,13 +8,15 @@
 #include <list>
 
 #include "base/memory/ref_counted.h"
-#include "media/base/demuxer.h"
-#include "media/base/filters.h"
+#include "media/base/media_export.h"
 
 namespace media {
 
 class AudioDecoder;
+class AudioRenderer;
+class Demuxer;
 class VideoDecoder;
+class VideoRenderer;
 
 // This is a collection of Filter objects used to form a media playback
 // pipeline. See src/media/base/pipeline.h for more information.
@@ -30,8 +32,8 @@ class MEDIA_EXPORT FilterCollection {
   // Adds a filter to the collection.
   void AddAudioDecoder(AudioDecoder* audio_decoder);
   void AddVideoDecoder(VideoDecoder* video_decoder);
-  void AddAudioRenderer(AudioRenderer* filter);
-  void AddVideoRenderer(VideoRenderer* filter);
+  void AddAudioRenderer(AudioRenderer* audio_renderer);
+  void AddVideoRenderer(VideoRenderer* video_renderer);
 
   // Is the collection empty?
   bool IsEmpty() const;
@@ -45,36 +47,15 @@ class MEDIA_EXPORT FilterCollection {
   // Filters are selected in FIFO order.
   void SelectAudioDecoder(scoped_refptr<AudioDecoder>* out);
   void SelectVideoDecoder(scoped_refptr<VideoDecoder>* out);
-  void SelectAudioRenderer(scoped_refptr<AudioRenderer>* filter_out);
-  void SelectVideoRenderer(scoped_refptr<VideoRenderer>* filter_out);
+  void SelectAudioRenderer(scoped_refptr<AudioRenderer>* out);
+  void SelectVideoRenderer(scoped_refptr<VideoRenderer>* out);
 
  private:
-  // Identifies the type of filter implementation. Each filter has to be one of
-  // the following types. This is used to mark, identify, and support
-  // downcasting of different filter types stored in the filters_ list.
-  enum FilterType {
-    AUDIO_RENDERER,
-    VIDEO_RENDERER,
-  };
-
-  // List of filters managed by this collection.
-  typedef std::pair<FilterType, scoped_refptr<Filter> > FilterListElement;
-  typedef std::list<FilterListElement> FilterList;
-  FilterList filters_;
   scoped_refptr<Demuxer> demuxer_;
   std::list<scoped_refptr<AudioDecoder> > audio_decoders_;
   std::list<scoped_refptr<VideoDecoder> > video_decoders_;
-
-  // Helper function that adds a filter to the filter list.
-  void AddFilter(FilterType filter_type, Filter* filter);
-
-  // Helper function for SelectXXX() methods. It manages the
-  // downcasting and mapping between FilterType and Filter class.
-  template<FilterType filter_type, typename F>
-  void SelectFilter(scoped_refptr<F>* filter_out);
-
-  // Helper function that searches the filters list for a specific filter type.
-  void SelectFilter(FilterType filter_type, scoped_refptr<Filter>* filter_out);
+  std::list<scoped_refptr<AudioRenderer> > audio_renderers_;
+  std::list<scoped_refptr<VideoRenderer> > video_renderers_;
 
   DISALLOW_COPY_AND_ASSIGN(FilterCollection);
 };

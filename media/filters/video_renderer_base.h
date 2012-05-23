@@ -11,10 +11,10 @@
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
 #include "base/threading/platform_thread.h"
-#include "media/base/filters.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/video_decoder.h"
 #include "media/base/video_frame.h"
+#include "media/base/video_renderer.h"
 
 namespace media {
 
