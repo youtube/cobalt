@@ -246,11 +246,6 @@ const ProxyServer& SocketStream::proxy_server() const {
   return proxy_info_.proxy_server();
 }
 
-void SocketStream::SetHostResolver(HostResolver* host_resolver) {
-  DCHECK(host_resolver);
-  host_resolver_ = host_resolver;
-}
-
 void SocketStream::SetClientSocketFactory(
     ClientSocketFactory* factory) {
   DCHECK(factory);

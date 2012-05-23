@@ -11,6 +11,7 @@
 #include "base/path_service.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/mock_cert_verifier.h"
+#include "net/base/mock_host_resolver.h"
 #include "net/base/net_util.h"
 #include "net/base/load_flags.h"
 #include "net/base/ssl_config_service_defaults.h"
@@ -70,10 +71,7 @@ class RequestContext : public URLRequestContext {
  public:
   RequestContext() : ALLOW_THIS_IN_INITIALIZER_LIST(storage_(this)) {
     ProxyConfig no_proxy;
-    storage_.set_host_resolver(
-        CreateSystemHostResolver(HostResolver::kDefaultParallelism,
-                                 HostResolver::kDefaultRetryAttempts,
-                                 NULL));
+    storage_.set_host_resolver(new MockHostResolver);
     storage_.set_cert_verifier(new MockCertVerifier);
     storage_.set_proxy_service(ProxyService::CreateFixed(no_proxy));
     storage_.set_ssl_config_service(new SSLConfigServiceDefaults);
