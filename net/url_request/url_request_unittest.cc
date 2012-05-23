@@ -160,8 +160,6 @@ bool FingerprintsEqual(const FingerprintVector& a, const FingerprintVector& b) {
   return true;
 }
 
-}  // namespace
-
 // A network delegate that blocks requests, optionally cancelling or redirecting
 // them.
 class BlockingNetworkDelegate : public TestNetworkDelegate {
@@ -403,6 +401,21 @@ class TestJobInterceptor : public URLRequestJobFactory::Interceptor {
   mutable URLRequestJob* main_intercept_job_;
 };
 
+class TestURLRequestContextWithProxy : public TestURLRequestContext {
+ public:
+  // Does not own |delegate|.
+  TestURLRequestContextWithProxy(const std::string& proxy,
+                                 NetworkDelegate* delegate)
+      : TestURLRequestContext(true) {
+    context_storage_.set_proxy_service(ProxyService::CreateFixed(proxy));
+    set_network_delegate(delegate);
+    Init();
+  }
+  virtual ~TestURLRequestContextWithProxy() {}
+};
+
+}  // namespace
+
 // Inherit PlatformTest since we require the autorelease pool on Mac OS X.f
 class URLRequestTest : public PlatformTest {
  public:
@@ -550,10 +563,9 @@ TEST_F(URLRequestTestHTTP, FLAKY_ProxyTunnelRedirectTest) {
   ASSERT_TRUE(test_server_.Start());
 
   TestNetworkDelegate network_delegate;  // must outlive URLRequest
-  TestURLRequestContext context(true);
-  context.SetProxyFromString(test_server_.host_port_pair().ToString());
-  context.set_network_delegate(&network_delegate);
-  context.Init();
+  TestURLRequestContextWithProxy context(
+      test_server_.host_port_pair().ToString(),
+      &network_delegate);
 
   TestDelegate d;
   {
@@ -580,10 +592,9 @@ TEST_F(URLRequestTestHTTP, DISABLED_NetworkDelegateTunnelConnectionFailed) {
   ASSERT_TRUE(test_server_.Start());
 
   TestNetworkDelegate network_delegate;  // must outlive URLRequest
-  TestURLRequestContext context(true);
-  context.SetProxyFromString(test_server_.host_port_pair().ToString());
-  context.set_network_delegate(&network_delegate);
-  context.Init();
+  TestURLRequestContextWithProxy context(
+      test_server_.host_port_pair().ToString(),
+      &network_delegate);
 
   TestDelegate d;
   {
@@ -613,10 +624,9 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateCancelRequest) {
   BlockingNetworkDelegate network_delegate;
   network_delegate.set_callback_retval(ERR_EMPTY_RESPONSE);
 
-  TestURLRequestContext context(true);
-  context.SetProxyFromString(test_server_.host_port_pair().ToString());
-  context.set_network_delegate(&network_delegate);
-  context.Init();
+  TestURLRequestContextWithProxy context(
+      test_server_.host_port_pair().ToString(),
+      &network_delegate);
 
   {
     URLRequest r(test_server_.GetURL(""), &d);
@@ -641,10 +651,9 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateCancelRequestSynchronously) {
   BlockingNetworkDelegate network_delegate;
   network_delegate.set_retval(ERR_EMPTY_RESPONSE);
 
-  TestURLRequestContext context(true);
-  context.SetProxyFromString(test_server_.host_port_pair().ToString());
-  context.set_network_delegate(&network_delegate);
-  context.Init();
+  TestURLRequestContextWithProxy context(
+      test_server_.host_port_pair().ToString(),
+      &network_delegate);
 
   {
     URLRequest r(test_server_.GetURL(""), &d);
@@ -671,10 +680,9 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateRedirectRequest) {
   GURL redirect_url(test_server_.GetURL("simple.html"));
   network_delegate.set_redirect_url(redirect_url);
 
-  TestURLRequestContext context(true);
-  context.SetProxyFromString(test_server_.host_port_pair().ToString());
-  context.set_network_delegate(&network_delegate);
-  context.Init();
+  TestURLRequestContextWithProxy context(
+      test_server_.host_port_pair().ToString(),
+      &network_delegate);
 
   {
     GURL original_url(test_server_.GetURL("empty.html"));
@@ -706,10 +714,9 @@ TEST_F(URLRequestTestHTTP, NetworkDelegateRedirectRequestSynchronously) {
   network_delegate.set_redirect_url(redirect_url);
   network_delegate.set_retval(OK);
 
-  TestURLRequestContext context(true);
-  context.SetProxyFromString(test_server_.host_port_pair().ToString());
-  context.set_network_delegate(&network_delegate);
-  context.Init();
+  TestURLRequestContextWithProxy context(
+      test_server_.host_port_pair().ToString(),
+      &network_delegate);
 
   {
     GURL original_url(test_server_.GetURL("empty.html"));
@@ -1124,10 +1131,9 @@ TEST_F(URLRequestTestHTTP, UnexpectedServerAuthTest) {
   ASSERT_TRUE(test_server_.Start());
 
   TestNetworkDelegate network_delegate;  // must outlive URLRequest
-  TestURLRequestContext context(true);
-  context.SetProxyFromString(test_server_.host_port_pair().ToString());
-  context.set_network_delegate(&network_delegate);
-  context.Init();
+  TestURLRequestContextWithProxy context(
+      test_server_.host_port_pair().ToString(),
+      &network_delegate);
 
   TestDelegate d;
   {
@@ -3059,8 +3065,6 @@ TEST_F(URLRequestTest, DoNotSendCookies) {
     EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
     EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
   }
-
-  default_context_.set_network_delegate(&default_network_delegate_);
 }
 
 TEST_F(URLRequestTest, DoNotSaveCookies) {
@@ -3120,8 +3124,6 @@ TEST_F(URLRequestTest, DoNotSaveCookies) {
     EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
     EXPECT_EQ(0, network_delegate.set_cookie_count());
   }
-
-  default_context_.set_network_delegate(&default_network_delegate_);
 }
 
 TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy) {
@@ -3176,8 +3178,6 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy) {
     EXPECT_EQ(1, network_delegate.blocked_get_cookies_count());
     EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
   }
-
-  default_context_.set_network_delegate(&default_network_delegate_);
 }
 
 TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy) {
@@ -3215,7 +3215,6 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy) {
     EXPECT_EQ(2, network_delegate.blocked_set_cookie_count());
   }
 
-
   // Verify the cookies weren't saved or updated.
   {
     TestNetworkDelegate network_delegate;
@@ -3234,8 +3233,6 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy) {
     EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
     EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
   }
-
-  default_context_.set_network_delegate(&default_network_delegate_);
 }
 
 TEST_F(URLRequestTest, DoNotSaveEmptyCookies) {
@@ -3256,8 +3253,6 @@ TEST_F(URLRequestTest, DoNotSaveEmptyCookies) {
     EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
     EXPECT_EQ(0, network_delegate.set_cookie_count());
   }
-
-  default_context_.set_network_delegate(&default_network_delegate_);
 }
 
 TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy_Async) {
@@ -3312,8 +3307,6 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy_Async) {
     EXPECT_EQ(1, network_delegate.blocked_get_cookies_count());
     EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
   }
-
-  default_context_.set_network_delegate(&default_network_delegate_);
 }
 
 TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy_Async) {
@@ -3369,8 +3362,6 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy_Async) {
     EXPECT_EQ(0, network_delegate.blocked_get_cookies_count());
     EXPECT_EQ(0, network_delegate.blocked_set_cookie_count());
   }
-
-  default_context_.set_network_delegate(&default_network_delegate_);
 }
 
 void CheckCookiePolicyCallback(bool* was_run, const CookieList& cookies) {
@@ -4035,11 +4026,7 @@ TEST_F(URLRequestTest, NetworkDelegateProxyError) {
   host_resolver.rules()->AddSimulatedFailure("*");
 
   TestNetworkDelegate network_delegate;  // must outlive URLRequests
-  TestURLRequestContext context(true);
-  context.set_network_delegate(&network_delegate);
-  context.SetProxyFromString("myproxy:70");
-  context.set_host_resolver(&host_resolver);
-  context.Init();
+  TestURLRequestContextWithProxy context("myproxy:70", &network_delegate);
 
   TestDelegate d;
   URLRequest req(GURL("http://example.com"), &d);
