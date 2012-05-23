@@ -143,9 +143,9 @@ TEST_F(SystemMonitorTest, DeviceChangeNotifications) {
 }
 
 TEST_F(SystemMonitorTest, GetAttachedMediaDevicesEmpty) {
-  scoped_ptr<std::vector<SystemMonitor::MediaDeviceInfo> > devices;
-  devices.reset(system_monitor_->GetAttachedMediaDevices());
-  EXPECT_EQ(0U, devices->size());
+  std::vector<SystemMonitor::MediaDeviceInfo> devices =
+      system_monitor_->GetAttachedMediaDevices();
+  EXPECT_EQ(0U, devices.size());
 }
 
 TEST_F(SystemMonitorTest, GetAttachedMediaDevicesAttachDetach) {
@@ -156,12 +156,12 @@ TEST_F(SystemMonitorTest, GetAttachedMediaDevicesAttachDetach) {
                                              kDeviceName1,
                                              kDevicePath1);
   message_loop_.RunAllPending();
-  scoped_ptr<std::vector<SystemMonitor::MediaDeviceInfo> > devices;
-  devices.reset(system_monitor_->GetAttachedMediaDevices());
-  ASSERT_EQ(1U, devices->size());
-  EXPECT_EQ(kDeviceId1, (*devices)[0].a);
-  EXPECT_EQ(kDeviceName1, (*devices)[0].b);
-  EXPECT_EQ(kDevicePath1, (*devices)[0].c);
+  std::vector<SystemMonitor::MediaDeviceInfo> devices =
+      system_monitor_->GetAttachedMediaDevices();
+  ASSERT_EQ(1U, devices.size());
+  EXPECT_EQ(kDeviceId1, devices[0].a);
+  EXPECT_EQ(kDeviceName1, devices[0].b);
+  EXPECT_EQ(kDevicePath1, devices[0].c);
 
   const SystemMonitor::DeviceIdType kDeviceId2 = 44;
   const char kDeviceName2[] = "test2";
@@ -170,27 +170,27 @@ TEST_F(SystemMonitorTest, GetAttachedMediaDevicesAttachDetach) {
                                              kDeviceName2,
                                              kDevicePath2);
   message_loop_.RunAllPending();
-  devices.reset(system_monitor_->GetAttachedMediaDevices());
-  ASSERT_EQ(2U, devices->size());
-  EXPECT_EQ(kDeviceId1, (*devices)[0].a);
-  EXPECT_EQ(kDeviceName1, (*devices)[0].b);
-  EXPECT_EQ(kDevicePath1, (*devices)[0].c);
-  EXPECT_EQ(kDeviceId2, (*devices)[1].a);
-  EXPECT_EQ(kDeviceName2, (*devices)[1].b);
-  EXPECT_EQ(kDevicePath2, (*devices)[1].c);
+  devices = system_monitor_->GetAttachedMediaDevices();
+  ASSERT_EQ(2U, devices.size());
+  EXPECT_EQ(kDeviceId1, devices[0].a);
+  EXPECT_EQ(kDeviceName1, devices[0].b);
+  EXPECT_EQ(kDevicePath1, devices[0].c);
+  EXPECT_EQ(kDeviceId2, devices[1].a);
+  EXPECT_EQ(kDeviceName2, devices[1].b);
+  EXPECT_EQ(kDevicePath2, devices[1].c);
 
   system_monitor_->ProcessMediaDeviceDetached(kDeviceId1);
   message_loop_.RunAllPending();
-  devices.reset(system_monitor_->GetAttachedMediaDevices());
-  ASSERT_EQ(1U, devices->size());
-  EXPECT_EQ(kDeviceId2, (*devices)[0].a);
-  EXPECT_EQ(kDeviceName2, (*devices)[0].b);
-  EXPECT_EQ(kDevicePath2, (*devices)[0].c);
+  devices = system_monitor_->GetAttachedMediaDevices();
+  ASSERT_EQ(1U, devices.size());
+  EXPECT_EQ(kDeviceId2, devices[0].a);
+  EXPECT_EQ(kDeviceName2, devices[0].b);
+  EXPECT_EQ(kDevicePath2, devices[0].c);
 
   system_monitor_->ProcessMediaDeviceDetached(kDeviceId2);
   message_loop_.RunAllPending();
-  devices.reset(system_monitor_->GetAttachedMediaDevices());
-  EXPECT_EQ(0U, devices->size());
+  devices = system_monitor_->GetAttachedMediaDevices();
+  EXPECT_EQ(0U, devices.size());
 }
 
 TEST_F(SystemMonitorTest, PowerRequirements) {
