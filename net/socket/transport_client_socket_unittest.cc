@@ -8,8 +8,8 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "net/base/address_list.h"
-#include "net/base/host_resolver.h"
 #include "net/base/io_buffer.h"
+#include "net/base/mock_host_resolver.h"
 #include "net/base/net_log.h"
 #include "net/base/net_log_unittest.h"
 #include "net/base/net_errors.h"
@@ -122,10 +122,8 @@ void TransportClientSocketTest::SetUp() {
   listen_port_ = port;
 
   AddressList addr;
-  scoped_ptr<HostResolver> resolver(
-      CreateSystemHostResolver(HostResolver::kDefaultParallelism,
-                               HostResolver::kDefaultRetryAttempts,
-                               NULL));
+  // MockHostResolver resolves everything to 127.0.0.1.
+  scoped_ptr<HostResolver> resolver(new MockHostResolver());
   HostResolver::RequestInfo info(HostPortPair("localhost", listen_port_));
   TestCompletionCallback callback;
   int rv = resolver->Resolve(info, &addr, callback.callback(), NULL,
