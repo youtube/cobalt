@@ -2177,9 +2177,12 @@ if __name__ == '__main__':
                            'automatically generated certificate. One of '
                            '[ok,revoked,invalid]')
   option_parser.add_option('', '--tls-intolerant', dest='tls_intolerant',
-                           const=True, default=False, action='store_const',
-                           help='If true, TLS connections will be aborted '
-                           ' in order to test SSLv3 fallback.')
+                           default='0', type='int',
+                           help='If nonzero, certain TLS connections will be'
+                           ' aborted in order to test version fallback. 1'
+                           ' means all TLS versions will be aborted. 2 means'
+                           ' TLS 1.1 or higher will be aborted. 3 means TLS'
+                           ' 1.2 or higher will be aborted.')
   option_parser.add_option('', '--https-record-resume', dest='record_resume',
                            const=True, default=False, action='store_const',
                            help='Record resumption cache events rather than'
