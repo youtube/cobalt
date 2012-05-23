@@ -24,9 +24,9 @@
 
 #include "base/synchronization/lock.h"
 #include "media/base/audio_decoder.h"
+#include "media/base/audio_renderer.h"
 #include "media/base/audio_renderer_sink.h"
 #include "media/base/buffers.h"
-#include "media/base/filters.h"
 #include "media/filters/audio_renderer_algorithm.h"
 
 namespace media {
