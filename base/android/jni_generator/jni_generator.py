@@ -19,7 +19,7 @@ from string import Template
 import subprocess
 import sys
 import textwrap
-
+import zipfile
 
 UNKNOWN_JAVA_TYPE_PREFIX = 'UNKNOWN_JAVA_TYPE: '
 
@@ -150,35 +150,42 @@ def JavaParamToJni(param):
   ]
   app_param_list = [
       'Landroid/graphics/SurfaceTexture',
-      'Lcom/android/chrome/ChromeBrowserProvider$BookmarkNode',
-      'Lcom/android/chrome/JSModalDialog',
-      'Lcom/android/chrome/OmniboxSuggestion',
-      'Lcom/android/chrome/PageInfoViewer',
-      'Lcom/android/chrome/Tab',
-      'Lcom/android/chrome/database/SQLiteCursor',
-      'Lcom/android/chrome/infobar/InfoBarContainer$NativeInfoBar',
-      ('Lcom/android/chrome/preferences/ChromeNativePreferences$'
+      'Lcom/google/android/apps/chrome/AutofillData',
+      'Lcom/google/android/apps/chrome/ChromeBrowserProvider$BookmarkNode',
+      'Lcom/google/android/apps/chrome/ChromeHttpAuthHandler',
+      'Lcom/google/android/apps/chrome/ChromeContextMenuInfo',
+      'Lcom/google/android/apps/chrome/OmniboxSuggestion',
+      'Lcom/google/android/apps/chrome/PageInfoViewer',
+      'Lcom/google/android/apps/chrome/Tab',
+      'Lcom/google/android/apps/chrome/database/SQLiteCursor',
+      'Lcom/google/android/apps/chrome/infobar/InfoBarContainer',
+      'Lcom/google/android/apps/chrome/infobar/InfoBarContainer$NativeInfoBar',
+      ('Lcom/google/android/apps/chrome/preferences/ChromeNativePreferences$'
        'PasswordListObserver'),
       'Lorg/chromium/base/SystemMessageHandler',
-      'Lorg/chromium/chromeview/AutofillData',
-      'Lorg/chromium/chromeview/ChromeHttpAuthHandler',
-      'Lorg/chromium/chromeview/ChromeVideoView',
-      'Lorg/chromium/chromeview/ChromeView',
-      'Lorg/chromium/chromeview/ChromeView$ChromeViewContextMenuInfo',
-      ('Lorg/chromium/chromeview/ChromeView$'
+      'Lorg/chromium/chrome/browser/JSModalDialog',
+      'Lorg/chromium/chrome/browser/SelectFileDialog',
+      'Lorg/chromium/content/browser/ChromeVideoView',
+      'Lorg/chromium/content/browser/ContentView',
+      ('Lorg/chromium/content/browser/ContentView$'
        'FindResultReceivedListener$FindNotificationDetails'),
-      'Lorg/chromium/chromeview/ChromeViewClient',
-      'Lorg/chromium/chromeview/DeviceInfo',
-      'Lorg/chromium/chromeview/DeviceOrientation',
-      'Lorg/chromium/chromeview/JavaInputStream',
-      'Lorg/chromium/chromeview/LocationProvider',
-      'Lorg/chromium/chromeview/SandboxedProcessArgs',
-      'Lorg/chromium/chromeview/SandboxedProcessConnection',
-      'Lorg/chromium/chromeview/SandboxedProcessService',
-      'Lorg/chromium/chromeview/SelectFileDialog',
-      'Lorg/chromium/chromeview/SurfaceTextureListener',
-      'Lorg/chromium/chromeview/TouchPoint',
+      'Lorg/chromium/content/browser/ChromeViewClient',
+      'Lorg/chromium/content/browser/ContentHttpAuthHandler',
+      'Lorg/chromium/content/browser/DeviceInfo',
+      'Lorg/chromium/content/browser/DeviceOrientation',
+      'Lorg/chromium/content/browser/FileChooserParams',
+      'Lorg/chromium/content/browser/InterceptedRequestData',
+      'Lorg/chromium/content/browser/JavaInputStream',
+      'Lorg/chromium/content/browser/LocationProvider',
+      'Lorg/chromium/content/browser/SandboxedProcessArgs',
+      'Lorg/chromium/content/browser/SandboxedProcessConnection',
+      'Lorg/chromium/content/browser/SandboxedProcessService',
+      'Lorg/chromium/content/browser/SurfaceTextureListener',
+      'Lorg/chromium/content/browser/TouchPoint',
+      'Lorg/chromium/content/browser/WaitableNativeEvent',
       'Lorg/chromium/media/MediaPlayerListener',
+      'Lorg/chromium/net/NetworkChangeNotifier',
+      'Lorg/chromium/net/ProxyChangeListener',
       'Lorg/chromium/net/NetworkChangeNotifier',
   ]
   if param == 'byte[][]':
@@ -870,6 +877,35 @@ def WrapOutput(output):
   return '\n'.join(ret)
 
 
+def ExtractInputFiles(jar_file, input_files, out_dirs):
+  """Extracts input files from jar and returns them as list of filenames.
+
+  The input files are extracted to the same directory that the generated jni
+  headers will be placed in.  This is passed as an argument to script.
+
+  Args:
+    jar_file: the jar file containing the input files to extract
+    input_files: the list of files to extract from the jar file
+    out_dirs: the name of the directories to extract to
+
+  Returns:
+    a list of file names of extracted input files
+  """
+  jar_file = zipfile.ZipFile(jar_file)
+  extracted_file_names = []
+
+  for (input_file, out_dir) in zip(input_files, out_dirs):
+    out_dir = os.path.join(out_dir, os.path.dirname(input_file))
+    if not os.path.exists(out_dir):
+      os.makedirs(out_dir)
+    extracted_file_name = os.path.join(out_dir, os.path.basename(input_file))
+    with open(extracted_file_name, 'w') as outfile:
+      outfile.write(jar_file.read(input_file))
+    extracted_file_names.append(extracted_file_name)
+
+  return extracted_file_names
+
+
 def GenerateJNIHeaders(input_files, output_files, use_javap, namespace):
   for i in xrange(len(input_files)):
     try:
@@ -928,6 +964,9 @@ See SampleForTests.java for more details.
                            help='Saves the output to file(s) (the first half of'
                            ' args specify the java input files, the second'
                            ' half specify the header output files.')
+  option_parser.add_option('-j', dest='jar_file',
+                           help='Extract the list of input files from'
+                           ' a specified jar file.')
   option_parser.add_option('-p', dest='javap_class',
                            action='store_true',
                            default=False,
@@ -944,6 +983,10 @@ See SampleForTests.java for more details.
     output_files = input_files[len(input_files) / 2:]
     input_files = input_files[:len(input_files) / 2]
   CheckFilenames(input_files, output_files)
+  if options.jar_file:
+    # CheckFileNames guarantees same length for inputs and outputs
+    out_dirs = map(os.path.dirname, output_files)
+    input_files = ExtractInputFiles(options.jar_file, input_files, out_dirs)
   GenerateJNIHeaders(input_files, output_files, options.javap_class,
                      options.namespace)
 
