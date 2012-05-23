@@ -17,6 +17,9 @@ namespace android {
 // BuildInfo is a singleton class that stores android build and device
 // information. It will be called from Android specific java code and gets used
 // primarily in crash reporting.
+
+// It is also used to store the last java exception seen during JNI.
+// TODO(nileshagrawal): Find a better place to store this info.
 class BuildInfo {
  public:
 
@@ -60,6 +63,12 @@ class BuildInfo {
     return package_version_name_;
   }
 
+  const char* java_exception_info() const {
+    return java_exception_info_;
+  }
+
+  void set_java_exception_info(const std::string& info);
+
  private:
   BuildInfo();
 
@@ -76,6 +85,7 @@ class BuildInfo {
   char* android_build_fp_;
   char* package_version_code_;
   char* package_version_name_;
+  char* java_exception_info_;
 
   DISALLOW_COPY_AND_ASSIGN(BuildInfo);
 };
