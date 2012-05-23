@@ -168,9 +168,6 @@ class NET_EXPORT SocketStream
 
   const ProxyServer& proxy_server() const;
 
-  // Sets an alternative HostResolver. For testing purposes only.
-  void SetHostResolver(HostResolver* host_resolver);
-
   // Sets an alternative ClientSocketFactory.  Doesn't take ownership of
   // |factory|.  For testing purposes only.
   void SetClientSocketFactory(ClientSocketFactory* factory);
