@@ -14,7 +14,7 @@
  "linux-release-64/sizes/nacl_helper_bootstrap-si/initializers": {"reva": 114822, "revb": 115019, "type": "absolute", "better": "lower", "improve": 0, "regress": 0, "sha1": "228221af"},
  "linux-release-64/sizes/nacl_helper_bootstrap-text/text": {"reva": 114822, "revb": 115019, "type": "absolute", "better": "lower", "improve": 4454, "regress": 4924, "sha1": "67c7ed4d"},
  "linux-release-64/sizes/nacl_helper_bootstrap/nacl_helper_bootstrap": {"reva": 114822, "revb": 115019, "type": "absolute", "better": "lower", "improve": 9076, "regress": 10032, "sha1": "a2d25af5"},
- "linux-release-lowmem/bloat-http/times/t": {"reva": 137912, "revb": 138064, "improve": -1256, "regress": -976, "sha1": "d8cf4fe8"},
+ "linux-release-lowmem/bloat-http/times/t": {"reva": 138345, "revb": 138550, "improve": -1102, "regress": -680, "sha1": "03db6df5"},
  "linux-release-lowmem/database/delete-transactions/t": {"reva": 137912, "revb": 138066, "improve": -1277, "regress": 89, "sha1": "e34d7d0e"},
  "linux-release-lowmem/database/insert-transactions/t": {"reva": 137912, "revb": 138066, "improve": -1055, "regress": 254, "sha1": "3492d39e"},
  "linux-release-lowmem/database/pseudo-random-transactions/t": {"reva": 137912, "revb": 138066, "improve": -732, "regress": 144, "sha1": "55b0703f"},
