@@ -160,7 +160,7 @@ class BASE_EXPORT SystemMonitor {
   void ProcessMediaDeviceDetached(const DeviceIdType& id);
 
   // Returns information for attached media devices.
-  std::vector<MediaDeviceInfo>* GetAttachedMediaDevices() const;
+  std::vector<MediaDeviceInfo> GetAttachedMediaDevices() const;
 
   // Enters or leaves a period of time with a given |requirement|. If the
   // operation has multiple requirements, make sure to use a unique |reason| for
