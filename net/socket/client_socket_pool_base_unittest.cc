@@ -3243,7 +3243,17 @@ TEST_F(ClientSocketPoolBaseTest, RequestSocketsSynchronousError) {
   ASSERT_FALSE(pool_->HasGroup("a"));
 }
 
-TEST_F(ClientSocketPoolBaseTest, RequestSocketsMultipleTimesDoesNothing) {
+// http://crbug.com/129364
+#if defined(OS_WIN)
+#define MAYBE_RequestSocketsMultipleTimesDoesNothing \
+    DISABLED_RequestSocketsMultipleTimesDoesNothing
+#else
+#define MAYBE_RequestSocketsMultipleTimesDoesNothing \
+    RequestSocketsMultipleTimesDoesNothing
+#endif
+
+TEST_F(ClientSocketPoolBaseTest,
+       MAYBE_RequestSocketsMultipleTimesDoesNothing) {
   CreatePool(4, 4);
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
 
