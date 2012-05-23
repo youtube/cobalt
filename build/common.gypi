@@ -1822,6 +1822,9 @@
           },
         },
         'conditions': [
+          ['msvs_use_common_release', {
+            'includes': ['release.gypi'],
+          }],
           ['release_valgrind_build==0', {
             'defines': [
               'NVALGRIND',
@@ -1851,11 +1854,6 @@
       },
       'Release': {
         'inherit_from': ['Common_Base', 'x86_Base', 'Release_Base'],
-        'conditions': [
-          ['msvs_use_common_release', {
-            'includes': ['release.gypi'],
-          }],
-        ]
       },
       'conditions': [
         [ 'OS=="win"', {
