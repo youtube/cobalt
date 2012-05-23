@@ -88,4 +88,16 @@ void TCPListenSocket::Accept() {
   socket_delegate_->DidAccept(this, sock);
 }
 
+TCPListenSocketFactory::TCPListenSocketFactory(const string& ip, int port)
+    : ip_(ip),
+      port_(port) {
+}
+
+TCPListenSocketFactory::~TCPListenSocketFactory() {}
+
+scoped_refptr<StreamListenSocket> TCPListenSocketFactory::CreateAndListen(
+    StreamListenSocket::Delegate* delegate) const {
+  return TCPListenSocket::CreateAndListen(ip_, port_, delegate);
+}
+
 }  // namespace net
