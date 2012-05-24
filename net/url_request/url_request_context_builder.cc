@@ -10,6 +10,7 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/threading/thread.h"
+#include "base/thread_task_runner_handle.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/host_resolver.h"
 #include "net/base/net_errors.h"
@@ -207,7 +208,7 @@ URLRequestContext* URLRequestContextBuilder::Build() {
 #else
   ProxyConfigService* proxy_config_service =
       ProxyService::CreateSystemProxyConfigService(
-          MessageLoop::current(),
+          base::ThreadTaskRunnerHandle::Get(),
           context->file_message_loop());
 #endif  // defined(OS_LINUX)
   storage->set_proxy_service(
