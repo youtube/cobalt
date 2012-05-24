@@ -328,5 +328,17 @@ void SetupSubprocessAllocator() {
 #endif  // ENABLE_DYNAMIC_ALLOCATOR_SWITCHING
 }
 
+void* TCMallocDoMallocForTest(size_t size) {
+  return do_malloc(size);
+}
+
+void TCMallocDoFreeForTest(void* ptr) {
+  do_free(ptr);
+}
+
+size_t ExcludeSpaceForMarkForTest(size_t size) {
+  return ExcludeSpaceForMark(size);
+}
+
 }  // namespace allocator.
 }  // namespace base.
