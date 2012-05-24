@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,6 +13,11 @@ namespace allocator {
 // CHROME_ALLOCATOR_2 (if specified), then CHROME_ALLOCATOR (if specified), and
 // then a default value (typically set to TCMALLOC).
 void SetupSubprocessAllocator();
+
+// Expose some of tcmalloc functions for test.
+void* TCMallocDoMallocForTest(size_t size);
+void TCMallocDoFreeForTest(void* ptr);
+size_t ExcludeSpaceForMarkForTest(size_t size);
 
 }  // namespace allocator.
 }  // namespace base.
