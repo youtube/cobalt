@@ -27,7 +27,8 @@ class NetworkChangeNotifier : public net::NetworkChangeNotifier {
   void CreateJavaObject(JNIEnv* env);
 
   // NetworkChangeNotifier:
-  virtual bool IsCurrentlyOffline() const OVERRIDE;
+  virtual net::NetworkChangeNotifier::ConnectionType
+      GetCurrentConnectionType() const OVERRIDE;
 
   base::android::ScopedJavaGlobalRef<jobject> java_network_change_notifier_;
 

@@ -24,15 +24,8 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
   NetworkChangeNotifierMac();
   virtual ~NetworkChangeNotifierMac();
 
-  // NetworkChangeNotifier:
-  virtual bool IsCurrentlyOffline() const OVERRIDE;
-
- private:
-  enum OnlineState {
-    UNINITIALIZED = -1,
-    OFFLINE = 0,
-    ONLINE = 1
-  };
+  // NetworkChangeNotifier implementation:
+  virtual ConnectionType GetCurrentConnectionType() const OVERRIDE;
 
   class DnsWatcherThread;
 
@@ -45,7 +38,7 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
 
     // NetworkConfigWatcherMac::Delegate implementation:
     virtual void Init() OVERRIDE {
-      net_config_watcher_->SetInitialState();
+      net_config_watcher_->SetInitialConnectionType();
     }
     virtual void StartReachabilityNotifications() OVERRIDE {
       net_config_watcher_->StartReachabilityNotifications();
@@ -68,7 +61,7 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
   void SetDynamicStoreNotificationKeys(SCDynamicStoreRef store);
   void OnNetworkConfigChange(CFArrayRef changed_keys);
 
-  void SetInitialState();
+  void SetInitialConnectionType();
 
   static void ReachabilityCallback(SCNetworkReachabilityRef target,
                                    SCNetworkConnectionFlags flags,
@@ -76,9 +69,10 @@ class NetworkChangeNotifierMac: public NetworkChangeNotifier {
 
   // These must be constructed before config_watcher_ to ensure
   // the lock is in a valid state when Forwarder::Init is called.
-  OnlineState online_state_;
-  mutable base::Lock online_state_lock_;
-  mutable base::ConditionVariable initial_state_cv_;
+  ConnectionType connection_type_;
+  bool connection_type_initialized_;
+  mutable base::Lock connection_type_lock_;
+  mutable base::ConditionVariable initial_connection_type_cv_;
   base::mac::ScopedCFTypeRef<SCNetworkReachabilityRef> reachability_;
   base::mac::ScopedCFTypeRef<CFRunLoopRef> run_loop_;
 

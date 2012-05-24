@@ -69,9 +69,11 @@ NetworkChangeNotifierWin::~NetworkChangeNotifierWin() {
   WSACloseEvent(addr_overlapped_.hEvent);
 }
 
-// Conceptually we would like to tell whether the user is "online" verus
-// "offline".  This is challenging since the only thing we can test with
-// certainty is whether a *particular* host is reachable.
+// This implementation does not return the actual connection type but merely
+// determines if the user is "online" (in which case it returns
+// CONNECTION_UNKNOWN) or "offline" (and then it returns CONNECTION_NONE).
+// This is challenging since the only thing we can test with certainty is
+// whether a *particular* host is reachable.
 //
 // While we can't conclusively determine when a user is "online", we can at
 // least reliably recognize some of the situtations when they are clearly
@@ -115,7 +117,8 @@ NetworkChangeNotifierWin::~NetworkChangeNotifierWin() {
 // experiments I ran... However none of them correctly returned "offline" when
 // executing 'ipconfig /release'.
 //
-bool NetworkChangeNotifierWin::IsCurrentlyOffline() const {
+NetworkChangeNotifier::ConnectionType
+NetworkChangeNotifierWin::GetCurrentConnectionType() const {
 
   // TODO(eroman): We could cache this value, and only re-calculate it on
   //               network changes. For now we recompute it each time asked,
@@ -138,7 +141,7 @@ bool NetworkChangeNotifierWin::IsCurrentlyOffline() const {
   if (0 != WSALookupServiceBegin(&query_set, LUP_RETURN_ALL,
                                  &ws_handle)) {
     LOG(ERROR) << "WSALookupServiceBegin failed with: " << WSAGetLastError();
-    return false;
+    return NetworkChangeNotifier::CONNECTION_UNKNOWN;
   }
 
   bool found_connection = false;
@@ -183,7 +186,9 @@ bool NetworkChangeNotifierWin::IsCurrentlyOffline() const {
   LOG_IF(ERROR, result != 0)
       << "WSALookupServiceEnd() failed with: " << result;
 
-  return !found_connection;
+  // TODO(droger): Return something more detailed than CONNECTION_UNKNOWN.
+  return found_connection ? NetworkChangeNotifier::CONNECTION_UNKNOWN :
+                            NetworkChangeNotifier::CONNECTION_NONE;
 }
 
 void NetworkChangeNotifierWin::OnObjectSignaled(HANDLE object) {
@@ -201,14 +206,14 @@ void NetworkChangeNotifierWin::NotifyObservers() {
   DCHECK(CalledOnValidThread());
   NotifyObserversOfIPAddressChange();
 
-  // Calling IsOffline() at this very moment is likely to give
+  // Calling GetConnectionType() at this very moment is likely to give
   // the wrong result, so we delay that until a little bit later.
   //
   // The one second delay chosen here was determined experimentally
   // by adamk on Windows 7.
   timer_.Stop();  // cancel any already waiting notification
   timer_.Start(FROM_HERE, base::TimeDelta::FromSeconds(1), this,
-               &NetworkChangeNotifierWin::NotifyParentOfOnlineStateChange);
+               &NetworkChangeNotifierWin::NotifyParentOfConnectionTypeChange);
 }
 
 void NetworkChangeNotifierWin::WatchForAddressChange() {
@@ -264,8 +269,8 @@ bool NetworkChangeNotifierWin::WatchForAddressChangeInternal() {
   return true;
 }
 
-void NetworkChangeNotifierWin::NotifyParentOfOnlineStateChange() {
-  NotifyObserversOfOnlineStateChange();
+void NetworkChangeNotifierWin::NotifyParentOfConnectionTypeChange() {
+  NotifyObserversOfConnectionTypeChange();
 }
 
 }  // namespace net

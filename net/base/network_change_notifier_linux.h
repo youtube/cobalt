@@ -33,7 +33,7 @@ class NET_EXPORT_PRIVATE NetworkChangeNotifierLinux
   virtual ~NetworkChangeNotifierLinux();
 
   // NetworkChangeNotifier:
-  virtual bool IsCurrentlyOffline() const OVERRIDE;
+  virtual ConnectionType GetCurrentConnectionType() const OVERRIDE;
 
   // The thread used to listen for notifications.  This relays the notification
   // to the registered observers without posting back to the thread the object

@@ -511,10 +511,12 @@ TEST(URLRequestThrottlerManager, ClearOnNetworkChange) {
         manager.OnIPAddressChanged();
         break;
       case 1:
-        manager.OnOnlineStateChanged(true);
+        manager.OnConnectionTypeChanged(
+            net::NetworkChangeNotifier::CONNECTION_UNKNOWN);
         break;
       case 2:
-        manager.OnOnlineStateChanged(false);
+        manager.OnConnectionTypeChanged(
+            net::NetworkChangeNotifier::CONNECTION_NONE);
         break;
       default:
         FAIL();
