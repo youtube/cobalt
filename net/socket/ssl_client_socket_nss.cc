@@ -2083,12 +2083,9 @@ SECStatus SSLClientSocketNSS::OwnAuthCertHandler(void* arg,
 
 // static
 bool SSLClientSocketNSS::DomainBoundCertNegotiated(PRFileDesc* socket) {
-  PRBool xtn_negotiated = PR_FALSE;
-  SECStatus rv = SSL_HandshakeNegotiatedExtension(
-      socket, ssl_ob_cert_xtn, &xtn_negotiated);
-  DCHECK_EQ(SECSuccess, rv);
-
-  return xtn_negotiated ? true : false;
+  // TODO(wtc,mattm): this is temporary while DBC support is changed into
+  // Channel ID.
+  return false;
 }
 
 SECStatus SSLClientSocketNSS::DomainBoundClientAuthHandler(

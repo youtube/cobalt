@@ -356,8 +356,6 @@ typedef struct sslOptionsStr {
     unsigned int enableFalseStart       : 1;  /* 23 */
     unsigned int cbcRandomIV            : 1;  /* 24 */
     unsigned int enableOCSPStapling     : 1;  /* 25 */
-    unsigned int enableOBCerts          : 1;  /* 26 */
-    unsigned int encryptClientCerts     : 1;  /* 27 */
 } sslOptions;
 
 typedef enum { sslHandshakingUndetermined = 0,
@@ -1702,11 +1700,7 @@ extern SECStatus ssl3_ClientHandleSessionTicketXtn(sslSocket *ss,
 			PRUint16 ex_type, SECItem *data);
 extern SECStatus ssl3_ClientHandleStatusRequestXtn(sslSocket *ss,
 			PRUint16 ex_type, SECItem *data);
-extern SECStatus ssl3_ClientHandleOBCertXtn(sslSocket *ss,
-			PRUint16 ex_type, SECItem *data);
 extern SECStatus ssl3_ServerHandleSessionTicketXtn(sslSocket *ss,
-			PRUint16 ex_type, SECItem *data);
-extern SECStatus ssl3_ServerHandleOBCertXtn(sslSocket *ss,
 			PRUint16 ex_type, SECItem *data);
 
 /* ClientHello and ServerHello extension senders.
@@ -1723,8 +1717,6 @@ extern PRInt32 ssl3_ClientSendStatusRequestXtn(sslSocket *ss, PRBool append,
  */
 extern PRInt32 ssl3_SendServerNameXtn(sslSocket *ss, PRBool append,
                      PRUint32 maxBytes);
-extern PRInt32 ssl3_SendOBCertXtn(sslSocket *ss, PRBool append,
-			PRUint32 maxBytes);
 
 /* Assigns new cert, cert chain and keys to ss->serverCerts
  * struct. If certChain is NULL, tries to find one. Aborts if
