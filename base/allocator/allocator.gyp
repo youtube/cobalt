@@ -201,7 +201,7 @@
         'allocator_shim.cc',
         'allocator_shim.h',
         'generic_allocators.cc',
-        'win_allocator.cc',        
+        'win_allocator.cc',
       ],
       # sources! means that these are not compiled directly.
       'sources!': [
@@ -433,9 +433,9 @@
       ],
     },
     {
-      # This library is linked in to libbase and allocator_unittests.
-      # It can't depend on either and nothing else should depend on it -
-      # all other code should use the interfaced provided by libbase.
+      # This library is linked in to src/base.gypi:base and allocator_unittests
+      # It can't depend on either and nothing else should depend on it - all
+      # other code should use the interfaced provided by base.
       'target_name': 'allocator_extension_thunks',
       'type': 'static_library',
       'sources': [
@@ -510,6 +510,23 @@
             },
           },
         },
+      {
+        'target_name': 'tcmalloc_unittest',
+        'type': 'executable',
+        'sources': [
+          'tcmalloc_unittest.cc',
+        ],
+        'include_dirs': [
+          '../..',
+          # For constants of TCMalloc.
+          '<(tcmalloc_dir)/src',
+        ],
+        'dependencies': [
+          '../../testing/gtest.gyp:gtest',
+          '../base.gyp:base',
+          'allocator',
+        ],
+      },
       ],
     }],
   ],
