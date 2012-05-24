@@ -123,6 +123,13 @@
         "UTNUSERFirstObject",
         "GTECyberTrustGlobalRoot"
       ]
+    },
+    {
+      "name": "tor2web",
+      "static_spki_hashes": [
+        "AlphaSSL_G2",
+        "Tor2web"
+      ]
     }
   ],
 
@@ -259,6 +266,7 @@
     { "name": "braintreepayments.com", "mode": "force-https" },
     { "name": "www.braintreepayments.com", "mode": "force-https" },
     { "name": "emailprivacytester.com", "mode": "force-https" },
+    { "name": "tor2web.org", "include_subdomains": true, "pins": "tor2web" },
 
     // Entries that are only valid if the client supports SNI.
     { "name": "gmail.com", "mode": "force-https", "pins": "google", "snionly": true },
