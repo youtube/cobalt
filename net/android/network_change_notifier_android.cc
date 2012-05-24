@@ -31,13 +31,17 @@ void NetworkChangeNotifier::CreateJavaObject(JNIEnv* env) {
 }
 
 void NetworkChangeNotifier::NotifyObservers(JNIEnv* env, jobject obj) {
-  NotifyObserversOfOnlineStateChange();
+  NotifyObserversOfConnectionTypeChange();
 }
 
-bool NetworkChangeNotifier::IsCurrentlyOffline() const {
+net::NetworkChangeNotifier::ConnectionType
+    NetworkChangeNotifier::GetCurrentConnectionType() const {
   JNIEnv* env = base::android::AttachCurrentThread();
-  return !Java_NetworkChangeNotifier_isConnected(
-      env, java_network_change_notifier_.obj());
+  // TODO(droger): Return something more detailed than CONNECTION_UNKNOWN.
+  return Java_NetworkChangeNotifier_isConnected(
+      env, java_network_change_notifier_.obj()) ?
+          net::NetworkChangeNotifier::CONNECTION_UNKNOWN :
+          net::NetworkChangeNotifier::CONNECTION_NONE;
 }
 
 // static
