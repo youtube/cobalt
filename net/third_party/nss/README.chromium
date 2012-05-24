@@ -40,6 +40,11 @@ Patches:
     patches/didhandshakeresume.patch
     https://bugzilla.mozilla.org/show_bug.cgi?id=731798
 
+  * Support origin bound certificates.
+    http://balfanz.github.com/tls-obc-spec/draft-balfanz-tls-obc-00.txt
+    https://bugzilla.mozilla.org/show_bug.cgi?id=680292
+    patches/origin_bound_certs.patch
+
   * Add a function to restart a handshake after a client certificate request.
     patches/restartclientauth.patch
 
@@ -47,6 +52,10 @@ Patches:
     is finished.
     https://bugzilla.mozilla.org/show_bug.cgi?id=681839
     patches/negotiatedextension.patch
+
+  * Support the encrypted client certificates extension.
+    https://bugzilla.mozilla.org/show_bug.cgi?id=692154
+    patches/encryptedclientcerts.patch
 
   * Add function to retrieve TLS client cert types requested by server.
     https://bugzilla.mozilla.org/show_bug.cgi?id=51413

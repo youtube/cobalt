@@ -1243,68 +1243,6 @@ lZPvy5TYnh+dXIVtx6quTx8itc2VrbqnzPmrC3p/
 static const char kSPKIHash_GTECyberTrustGlobalRoot[] =
     "sha1/WXkS3mF11m/EI7d3E3THlt5viHI=";
 
-#if 0
------BEGIN CERTIFICATE-----
-MIIEgjCCA2qgAwIBAgISESHiIwbyj8tbXjvCF3lADzOxMA0GCSqGSIb3DQEBBQUA
-MC4xETAPBgNVBAoTCEFscGhhU1NMMRkwFwYDVQQDExBBbHBoYVNTTCBDQSAtIEcy
-MB4XDTExMTIwNTEyMzYzMVoXDTE2MTIwNTA0NTk1OFowSDELMAkGA1UEBhMCREUx
-ITAfBgNVBAsTGERvbWFpbiBDb250cm9sIFZhbGlkYXRlZDEWMBQGA1UEAxQNKi50
-b3Iyd2ViLm9yZzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAJZ/olAy
-7o+W0soGoxD5xWXGVKa3cQdv/daqwDyFhGINhVgsm3GS3Oo2XLAYvyvlUFceuy2v
-fRecb431lh7xtLhPpr5nZL/T0cjUxffstxSt5HI5BQ5Q/TFLA4iJQDzJgiNld0DJ
-RYd8gGADwh5cVBjvAtRouUbFw75b1/4hR3kJnQsHutvglLjWHmZtf/ZoZ39CbR1a
-LBJpEPoWkVqJ9LrvgA+aJ1wmi+oKLfSYQkDEn30DBeVxBZBp6tRc93eGqK1skzpG
-2Sof9cmlRNIXp8plYBvtsV3LKrFlBXvQRr+hhpjrqGNib02ynyJdRij7tOCLHfqW
-UitjVQVOWoGs49MCAwEAAaOCAX4wggF6MA4GA1UdDwEB/wQEAwIFoDBNBgNVHSAE
-RjBEMEIGCisGAQQBoDIBCgowNDAyBggrBgEFBQcCARYmaHR0cHM6Ly93d3cuZ2xv
-YmFsc2lnbi5jb20vcmVwb3NpdG9yeS8wJQYDVR0RBB4wHIINKi50b3Iyd2ViLm9y
-Z4ILdG9yMndlYi5vcmcwCQYDVR0TBAIwADAdBgNVHSUEFjAUBggrBgEFBQcDAQYI
-KwYBBQUHAwIwOgYDVR0fBDMwMTAvoC2gK4YpaHR0cDovL2NybDIuYWxwaGFzc2wu
-Y29tL2dzL2dzYWxwaGFnMi5jcmwwTAYIKwYBBQUHAQEEQDA+MDwGCCsGAQUFBzAC
-hjBodHRwOi8vc2VjdXJlMi5hbHBoYXNzbC5jb20vY2FjZXJ0L2dzYWxwaGFnMi5j
-cnQwHQYDVR0OBBYEFLE3Bo2XTl90LORxYwgr2pPD06tSMB8GA1UdIwQYMBaAFBTq
-GVXwDg0yxh90M7eOZhpMEjEeMA0GCSqGSIb3DQEBBQUAA4IBAQAyOUFr9R7EKzPP
-B8UsWT5ckA/TNlOqbdo6fvqshQfH/FHUQja28IbYcpBiC2XsMov+r7WNiH3lh1CF
-WKT1SwfO6a0I/58CL36pL/asWv/onlDYgAsCwr1j7qcSiROZlpLD+tehiCE70afa
-+3VlyoGsbKVZ2A7MrXnxIaYhmhe4Y+238PwyBT74fpBvwoFIcbccwWEST8J2y2YW
-4+SWm4pJtcJxJH/uJ8qzvZLwjzcgFKQbBLVtl+SRAblFSj64YuO9Xu97+nta1HuL
-fmLvlwIO/yvONapjePASH6prPdmWvj3Clqz381mkU1pLpxTgHQqeoP87DYi8z084
-+maO9AY4
------END CERTIFICATE-----
-#endif
-static const char kSPKIHash_Tor2web[] =
-    "sha1/GeW1hxvUgy7I9ZSX/sZe+0jjM7E=";
-
-#if 0
------BEGIN CERTIFICATE-----
-MIIELzCCAxegAwIBAgILBAAAAAABL07hNwIwDQYJKoZIhvcNAQEFBQAwVzELMAkG
-A1UEBhMCQkUxGTAXBgNVBAoTEEdsb2JhbFNpZ24gbnYtc2ExEDAOBgNVBAsTB1Jv
-b3QgQ0ExGzAZBgNVBAMTEkdsb2JhbFNpZ24gUm9vdCBDQTAeFw0xMTA0MTMxMDAw
-MDBaFw0yMjA0MTMxMDAwMDBaMC4xETAPBgNVBAoTCEFscGhhU1NMMRkwFwYDVQQD
-ExBBbHBoYVNTTCBDQSAtIEcyMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
-AQEAw/BliN8b3caChy/JC7pUxmM/RnWsSxQfmHKLHBD/CalSbi9l32WEP1+Bstjx
-T9fwWrvJr9Ax3SZGKpme2KmjtrgHxMlx95WE79LqH1Sg5b7kQSFWMRBkfR5jjpxx
-XDygLt5n3MiaIPB1yLC2J4Hrlw3uIkWlwi80J+zgWRJRsx4F5Tgg0mlZelkXvhpL
-OQgSeTObZGj+WIHdiAxqulm0ryRPYeDK/Bda0jxyq6dMt7nqLeP0P5miTcgdWPh/
-UzWO1yKIt2F2CBMTaWawV1kTMQpwgiuT1/biQBXQHQFyxxNYalrsGYkWPODIjYYq
-+jfwNTLd7OX+gI73BWe0i0J1NQIDAQABo4IBIzCCAR8wDgYDVR0PAQH/BAQDAgEG
-MBIGA1UdEwEB/wQIMAYBAf8CAQAwHQYDVR0OBBYEFBTqGVXwDg0yxh90M7eOZhpM
-EjEeMEUGA1UdIAQ+MDwwOgYEVR0gADAyMDAGCCsGAQUFBwIBFiRodHRwczovL3d3
-dy5hbHBoYXNzbC5jb20vcmVwb3NpdG9yeS8wMwYDVR0fBCwwKjAooCagJIYiaHR0
-cDovL2NybC5nbG9iYWxzaWduLm5ldC9yb290LmNybDA9BggrBgEFBQcBAQQxMC8w
-LQYIKwYBBQUHMAGGIWh0dHA6Ly9vY3NwLmdsb2JhbHNpZ24uY29tL3Jvb3RyMTAf
-BgNVHSMEGDAWgBRge2YaRQ2XyolQL30EzTSo//z9SzANBgkqhkiG9w0BAQUFAAOC
-AQEABjBCm89JAn6J6fWDWj0C87yyRt5KUO65mpBz2qBcJsqCrA6ts5T6KC6y5kk/
-UHcOlS9o82U8nxTyaGCStvwEDfakGKFpYA3jnWhbvJ4LOFmNIdoj+pmKCbkfpy61
-VWxH50Hs5uJ/r1VEOeCsdO5l0/qrUUgw8T53be3kD0CY7kd/jbZYJ82Sb2AjzAKb
-WSh4olGd0Eqc5ZNemI/L7z/K/uCvpMlbbkBYpZItvV1lVcW/fARB2aS1gOmUYAIQ
-OGoICNdTHC2Tr8kTe9RsxDrE+4CsuzpOVHrNTrM+7fH8EU6f9fMUvLmxMc72qi+l
-+MPpZqmyIJ3E+LgDYqeF0RhjWw==
------END CERTIFICATE-----
-#endif
-static const char kSPKIHash_AlphaSSL_G2[] =
-    "sha1/5STpjjF9yPytkFN8kecNpHCTkF8=";
-
 // The following is static data describing the hosts that are hardcoded with
 // certificate pins or HSTS information.
 
@@ -1426,16 +1364,6 @@ static const char* const kTwitterCDNAcceptableCerts[] = {
   kNoRejectedPublicKeys, \
 }
 
-static const char* const kTor2webAcceptableCerts[] = {
-  kSPKIHash_AlphaSSL_G2,
-  kSPKIHash_Tor2web,
-  NULL,
-};
-#define kTor2webPins { \
-  kTor2webAcceptableCerts, \
-  kNoRejectedPublicKeys, \
-}
-
 #define kNoPins {\
   NULL, NULL, \
 }
@@ -1554,8 +1482,6 @@ static const struct HSTSPreload kPreloadedSTS[] = {
   {22, true, "\020braintreegateway\003com", true, kNoPins, DOMAIN_NOT_PINNED },
   {23, false, "\021braintreepayments\003com", true, kNoPins, DOMAIN_NOT_PINNED },
   {27, false, "\003www\021braintreepayments\003com", true, kNoPins, DOMAIN_NOT_PINNED },
-  {24, false, "\022emailprivacytester\003com", true, kNoPins, DOMAIN_NOT_PINNED },
-  {13, true, "\007tor2web\003org", false, kTor2webPins, DOMAIN_TOR2WEB_ORG },
 };
 static const size_t kNumPreloadedSTS = ARRAYSIZE_UNSAFE(kPreloadedSTS);
 
