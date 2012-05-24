@@ -36,7 +36,7 @@ class NetLog;
 class NET_EXPORT URLRequestThrottlerManager
     : NON_EXPORTED_BASE(public base::NonThreadSafe),
       public NetworkChangeNotifier::IPAddressObserver,
-      public NetworkChangeNotifier::OnlineStateObserver {
+      public NetworkChangeNotifier::ConnectionTypeObserver {
  public:
   URLRequestThrottlerManager();
   virtual ~URLRequestThrottlerManager();
@@ -81,8 +81,9 @@ class NET_EXPORT URLRequestThrottlerManager
   // IPAddressObserver interface.
   virtual void OnIPAddressChanged() OVERRIDE;
 
-  // OnlineStateObserver interface.
-  virtual void OnOnlineStateChanged(bool online) OVERRIDE;
+  // ConnectionTypeObserver interface.
+  virtual void OnConnectionTypeChanged(
+      NetworkChangeNotifier::ConnectionType type) OVERRIDE;
 
   // Method that allows us to transform a URL into an ID that can be used in our
   // map. Resulting IDs will be lowercase and consist of the scheme, host, port
