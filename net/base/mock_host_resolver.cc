@@ -347,13 +347,7 @@ RuleBasedHostResolverProc::~RuleBasedHostResolverProc() {
 
 RuleBasedHostResolverProc* CreateCatchAllHostResolverProc() {
   RuleBasedHostResolverProc* catchall = new RuleBasedHostResolverProc(NULL);
-#if defined(OS_ANDROID)
-  // In Android emulator, the development machine's '127.0.0.1' is mapped to
-  // '10.0.2.2'.
-  catchall->AddIPLiteralRule("*", "10.0.2.2", "localhost");
-#else
   catchall->AddIPLiteralRule("*", "127.0.0.1", "localhost");
-#endif
 
   // Next add a rules-based layer the use controls.
   return new RuleBasedHostResolverProc(catchall);
