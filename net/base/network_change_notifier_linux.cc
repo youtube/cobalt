@@ -83,9 +83,9 @@ class NetworkManagerApi {
   // Must be called by the helper thread's CleanUp() method.
   void CleanUp();
 
-  // Implementation of NetworkChangeNotifierLinux::IsCurrentlyOffline().
+  // Implementation of NetworkChangeNotifierLinux::GetCurrentConnectionType().
   // Safe to call from any thread, but will block until Init() has completed.
-  bool IsCurrentlyOffline();
+  NetworkChangeNotifier::ConnectionType GetCurrentConnectionType();
 
  private:
   // Callbacks for D-Bus API.
@@ -232,12 +232,15 @@ bool NetworkManagerApi::StateIsOffline(uint32 state) {
   }
 }
 
-bool NetworkManagerApi::IsCurrentlyOffline() {
+NetworkChangeNotifier::ConnectionType
+NetworkManagerApi::GetCurrentConnectionType() {
   // http://crbug.com/125097
   base::ThreadRestrictions::ScopedAllowWait allow_wait;
   offline_state_initialized_.Wait();
   base::AutoLock lock(is_offline_lock_);
-  return is_offline_;
+  // TODO(droger): Return something more detailed than CONNECTION_UNKNOWN.
+  return is_offline_ ? NetworkChangeNotifier::CONNECTION_NONE :
+                       NetworkChangeNotifier::CONNECTION_UNKNOWN;
 }
 
 class NetworkChangeNotifierLinux::Thread
@@ -250,10 +253,10 @@ class NetworkChangeNotifierLinux::Thread
   virtual void OnFileCanReadWithoutBlocking(int fd) OVERRIDE;
   virtual void OnFileCanWriteWithoutBlocking(int /* fd */) OVERRIDE;
 
-  // Plumbing for NetworkChangeNotifier::IsCurrentlyOffline.
+  // Plumbing for NetworkChangeNotifier::GetCurrentConnectionType.
   // Safe to call from any thread.
-  bool IsCurrentlyOffline() {
-    return network_manager_api_.IsCurrentlyOffline();
+  NetworkChangeNotifier::ConnectionType GetCurrentConnectionType() {
+    return network_manager_api_.GetCurrentConnectionType();
   }
 
  protected:
@@ -287,8 +290,8 @@ NetworkChangeNotifierLinux::Thread::Thread(dbus::Bus* bus)
     : base::Thread("NetworkChangeNotifier"),
       netlink_fd_(kInvalidSocket),
       network_manager_api_(
-          base::Bind(&NetworkChangeNotifier
-                     ::NotifyObserversOfOnlineStateChange),
+          base::Bind(&NetworkChangeNotifier::
+                     NotifyObserversOfConnectionTypeChange),
           bus) {
 }
 
@@ -392,8 +395,9 @@ NetworkChangeNotifierLinux::~NetworkChangeNotifierLinux() {
   notifier_thread_->Stop();
 }
 
-bool NetworkChangeNotifierLinux::IsCurrentlyOffline() const {
-  return notifier_thread_->IsCurrentlyOffline();
+NetworkChangeNotifier::ConnectionType
+NetworkChangeNotifierLinux::GetCurrentConnectionType() const {
+  return notifier_thread_->GetCurrentConnectionType();
 }
 
 }  // namespace net

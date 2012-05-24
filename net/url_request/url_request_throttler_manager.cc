@@ -28,12 +28,12 @@ URLRequestThrottlerManager::URLRequestThrottlerManager()
   url_id_replacements_.ClearRef();
 
   NetworkChangeNotifier::AddIPAddressObserver(this);
-  NetworkChangeNotifier::AddOnlineStateObserver(this);
+  NetworkChangeNotifier::AddConnectionTypeObserver(this);
 }
 
 URLRequestThrottlerManager::~URLRequestThrottlerManager() {
   NetworkChangeNotifier::RemoveIPAddressObserver(this);
-  NetworkChangeNotifier::RemoveOnlineStateObserver(this);
+  NetworkChangeNotifier::RemoveConnectionTypeObserver(this);
 
   // Since, for now, the manager object might conceivably go away before
   // the entries, detach the entries' back-pointer to the manager.
@@ -166,7 +166,8 @@ void URLRequestThrottlerManager::OnIPAddressChanged() {
   OnNetworkChange();
 }
 
-void URLRequestThrottlerManager::OnOnlineStateChanged(bool online) {
+void URLRequestThrottlerManager::OnConnectionTypeChanged(
+    NetworkChangeNotifier::ConnectionType type) {
   OnNetworkChange();
 }
 
@@ -207,7 +208,7 @@ void URLRequestThrottlerManager::OnNetworkChange() {
   // Remove all entries.  Any entries that in-flight requests have a reference
   // to will live until those requests end, and these entries may be
   // inconsistent with new entries for the same URLs, but since what we
-  // want is a clean slate for the new connection state, this is OK.
+  // want is a clean slate for the new connection type, this is OK.
   url_entries_.clear();
   requests_since_last_gc_ = 0;
 }
