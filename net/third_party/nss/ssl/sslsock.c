@@ -187,6 +187,8 @@ static sslOptions ssl_defaults = {
     PR_FALSE,   /* enableFalseStart   */
     PR_TRUE,    /* cbcRandomIV        */
     PR_FALSE,   /* enableOCSPStapling */
+    PR_FALSE,   /* enableOBCerts */
+    PR_FALSE,   /* encryptClientCerts */
 };
 
 /*
@@ -864,6 +866,14 @@ SSL_OptionSet(PRFileDesc *fd, PRInt32 which, PRBool on)
 	ss->opt.enableOCSPStapling = on;
 	break;
 
+      case SSL_ENABLE_OB_CERTS:
+	ss->opt.enableOBCerts = on;
+	break;
+
+      case SSL_ENCRYPT_CLIENT_CERTS:
+	ss->opt.encryptClientCerts = on;
+	break;
+
       default:
 	PORT_SetError(SEC_ERROR_INVALID_ARGS);
 	rv = SECFailure;
@@ -934,6 +944,9 @@ SSL_OptionGet(PRFileDesc *fd, PRInt32 which, PRBool *pOn)
     case SSL_ENABLE_FALSE_START:  on = ss->opt.enableFalseStart;   break;
     case SSL_CBC_RANDOM_IV:       on = ss->opt.cbcRandomIV;        break;
     case SSL_ENABLE_OCSP_STAPLING: on = ss->opt.enableOCSPStapling; break;
+    case SSL_ENABLE_OB_CERTS:     on = ss->opt.enableOBCerts;      break;
+    case SSL_ENCRYPT_CLIENT_CERTS:
+                                  on = ss->opt.encryptClientCerts; break;
 
     default:
 	PORT_SetError(SEC_ERROR_INVALID_ARGS);
@@ -995,6 +1008,9 @@ SSL_OptionGetDefault(PRInt32 which, PRBool *pOn)
     case SSL_ENABLE_OCSP_STAPLING:
 	on = ssl_defaults.enableOCSPStapling;
 	break;
+    case SSL_ENABLE_OB_CERTS:     on = ssl_defaults.enableOBCerts;      break;
+    case SSL_ENCRYPT_CLIENT_CERTS:
+                                  on = ssl_defaults.encryptClientCerts; break;
 
     default:
 	PORT_SetError(SEC_ERROR_INVALID_ARGS);
@@ -1156,6 +1172,14 @@ SSL_OptionSetDefault(PRInt32 which, PRBool on)
 
       case SSL_ENABLE_OCSP_STAPLING:
 	ssl_defaults.enableOCSPStapling = on;
+	break;
+
+      case SSL_ENABLE_OB_CERTS:
+	ssl_defaults.enableOBCerts = on;
+	break;
+
+      case SSL_ENCRYPT_CLIENT_CERTS:
+	ssl_defaults.encryptClientCerts = on;
 	break;
 
       default:
