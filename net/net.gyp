@@ -1533,6 +1533,8 @@
         'socket/socket_test_util.h',
         'test/base_test_server.cc',
         'test/base_test_server.h',
+        'test/local_sync_test_server.cc',
+        'test/local_sync_test_server.h',
         'test/local_test_server_posix.cc',
         'test/local_test_server_win.cc',
         'test/local_test_server.cc',

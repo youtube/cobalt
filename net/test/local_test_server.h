@@ -49,6 +49,10 @@ class LocalTestServer : public BaseTestServer {
   // testserver python script in |*directory|.
   static bool GetTestServerDirectory(FilePath* directory) WARN_UNUSED_RESULT;
 
+  // Adds the command line arguments for the Python test server to
+  // |command_line|. Returns true on success.
+  virtual bool AddCommandLineArguments(CommandLine* command_line) const;
+
  private:
   bool Init(const FilePath& document_root);
 
@@ -57,10 +61,6 @@ class LocalTestServer : public BaseTestServer {
 
   // Waits for the server to start. Returns true on success.
   bool WaitToStart() WARN_UNUSED_RESULT;
-
-  // Add the command line arguments for the Python test server to
-  // |command_line|. Return true on success.
-  bool AddCommandLineArguments(CommandLine* command_line) const;
 
   // Handle of the Python process running the test server.
   base::ProcessHandle process_handle_;
