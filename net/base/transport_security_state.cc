@@ -564,8 +564,6 @@ enum SecondLevelDomainName {
 
   DOMAIN_AKAMAIHD_NET,
 
-  DOMAIN_TOR2WEB_ORG,
-
   // Boundary value for UMA_HISTOGRAM_ENUMERATION:
   DOMAIN_NUM_EVENTS
 };
