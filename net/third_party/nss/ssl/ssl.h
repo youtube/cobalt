@@ -191,6 +191,8 @@ SSL_IMPORT PRFileDesc *DTLS_ImportFD(PRFileDesc *model, PRFileDesc *fd);
  */
 #define SSL_CBC_RANDOM_IV 23
 #define SSL_ENABLE_OCSP_STAPLING       24 /* Request OCSP stapling (client) */
+#define SSL_ENABLE_OB_CERTS            25 /* Enable origin bound certs.     */
+#define SSL_ENCRYPT_CLIENT_CERTS       26 /* Enable encrypted client certs. */
 
 #ifdef SSL_DEPRECATED_FUNCTION 
 /* Old deprecated function names */
