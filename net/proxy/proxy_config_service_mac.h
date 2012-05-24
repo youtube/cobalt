@@ -15,7 +15,9 @@
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_config_service.h"
 
-class MessageLoop;
+namespace base {
+class SingleThreadTaskRunner;
+}  // namespace base
 
 namespace net {
 
@@ -25,9 +27,10 @@ namespace net {
 class NET_EXPORT ProxyConfigServiceMac : public ProxyConfigService {
  public:
   // Constructs a ProxyConfigService that watches the Mac OS system settings.
-  // This instance is expected to be operated and deleted on |io_loop|
+  // This instance is expected to be operated and deleted on the IO thread
   // (however it may be constructed from a different thread).
-  explicit ProxyConfigServiceMac(MessageLoop* io_loop);
+  explicit ProxyConfigServiceMac(
+      base::SingleThreadTaskRunner* io_thread_task_runner);
   virtual ~ProxyConfigServiceMac();
 
  public:
@@ -80,7 +83,7 @@ class NET_EXPORT ProxyConfigServiceMac : public ProxyConfigService {
   scoped_refptr<Helper> helper_;
 
   // The thread that we expect to be operated on.
-  MessageLoop* io_loop_;
+  const scoped_refptr<base::SingleThreadTaskRunner> io_thread_task_runner_;
 
   DISALLOW_COPY_AND_ASSIGN(ProxyConfigServiceMac);
 };

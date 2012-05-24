@@ -175,7 +175,7 @@ class MockSettingGetter
     values = zero_values;
   }
 
-  virtual bool Init(base::MessageLoopProxy* glib_default_loop,
+  virtual bool Init(base::SingleThreadTaskRunner* glib_thread_task_runner,
                     MessageLoopForIO* file_loop) OVERRIDE {
     return true;
   }
@@ -187,7 +187,7 @@ class MockSettingGetter
     return true;
   }
 
-  virtual base::MessageLoopProxy* GetNotificationLoop() OVERRIDE {
+  virtual base::SingleThreadTaskRunner* GetNotificationTaskRunner() OVERRIDE {
     return NULL;
   }
 
