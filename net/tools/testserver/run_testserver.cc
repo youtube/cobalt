@@ -10,15 +10,19 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/process_util.h"
+#include "base/string_number_conversions.h"
 #include "base/test/test_timeouts.h"
 #include "base/utf_string_conversions.h"
+#include "net/test/local_sync_test_server.h"
 #include "net/test/python_utils.h"
 #include "net/test/test_server.h"
 
 static void PrintUsage() {
   printf("run_testserver --doc-root=relpath [--http|--https|--ftp|--sync]\n"
-         "               [--https-cert=ok|mismatched-name|expired]\n");
-  printf("(NOTE: relpath should be relative to the 'src' directory)\n");
+         "               [--https-cert=ok|mismatched-name|expired]\n"
+         "               [--port=<port>] [--xmpp-port=<xmpp_port>]\n");
+  printf("(NOTE: relpath should be relative to the 'src' directory.\n");
+  printf("       --port and --xmpp-port only work with the --sync flag.)\n");
 }
 
 // Launches the chromiumsync_test script, testing the --sync functionality.
@@ -51,6 +55,23 @@ static bool RunSyncTest() {
   return true;
 }
 
+// Gets a port value from the switch with name |switch_name| and writes it to
+// |port|. Returns true if successful and false otherwise.
+static bool GetPortFromSwitch(const std::string& switch_name, uint16* port) {
+  DCHECK(port != NULL) << "|port| is NULL";
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  int port_int = 0;
+  if (command_line->HasSwitch(switch_name)) {
+    std::string port_str = command_line->GetSwitchValueASCII(switch_name);
+    if (!base::StringToInt(port_str, &port_int)) {
+      LOG(WARNING) << "Could not extract port from switch " << switch_name;
+      return false;
+    }
+  }
+  *port = static_cast<uint16>(port_int);
+  return true;
+}
+
 int main(int argc, const char* argv[]) {
   base::AtExitManager at_exit_manager;
   MessageLoopForIO message_loop;
@@ -71,7 +92,11 @@ int main(int argc, const char* argv[]) {
 
   TestTimeouts::Initialize();
 
-  if (command_line->GetSwitches().empty() || command_line->HasSwitch("help")) {
+  if (command_line->GetSwitches().empty() ||
+      command_line->HasSwitch("help") ||
+      ((command_line->HasSwitch("port") ||
+        command_line->HasSwitch("xmpp-port")) &&
+       !command_line->HasSwitch("sync"))) {
     PrintUsage();
     return -1;
   }
@@ -114,12 +139,29 @@ int main(int argc, const char* argv[]) {
   }
 
   scoped_ptr<net::TestServer> test_server;
-  if (server_type == net::TestServer::TYPE_HTTPS)
-    test_server.reset(new net::TestServer(https_options, doc_root));
-  else
-    test_server.reset(new net::TestServer(server_type,
-                                          net::TestServer::kLocalhost,
-                                          doc_root));
+  switch (server_type) {
+    case net::TestServer::TYPE_HTTPS: {
+      test_server.reset(new net::TestServer(https_options, doc_root));
+      break;
+    }
+    case net::TestServer::TYPE_SYNC: {
+      uint16 port = 0;
+      uint16 xmpp_port = 0;
+      if (!GetPortFromSwitch("port", &port) ||
+          !GetPortFromSwitch("xmpp-port", &xmpp_port)) {
+        printf("Error: Could not extract --port and/or --xmpp-port.\n");
+        return -1;
+      }
+      test_server.reset(new net::LocalSyncTestServer(port, xmpp_port));
+      break;
+    }
+    default: {
+      test_server.reset(new net::TestServer(server_type,
+                                            net::TestServer::kLocalhost,
+                                            doc_root));
+      break;
+    }
+  }
 
   if (!test_server->Start()) {
     printf("Error: failed to start test server. Exiting.\n");
