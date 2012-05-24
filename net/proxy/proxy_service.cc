@@ -14,6 +14,7 @@
 #include "base/message_loop.h"
 #include "base/message_loop_proxy.h"
 #include "base/string_util.h"
+#include "base/thread_task_runner_handle.h"
 #include "base/values.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/completion_callback.h"
@@ -1419,11 +1420,12 @@ void ProxyService::ForceReloadProxyConfig() {
 
 // static
 ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
-    MessageLoop* io_loop, MessageLoop* file_loop) {
+    base::SingleThreadTaskRunner* io_thread_task_runner,
+    MessageLoop* file_loop) {
 #if defined(OS_WIN)
   return new ProxyConfigServiceWin();
 #elif defined(OS_MACOSX)
-  return new ProxyConfigServiceMac(io_loop);
+  return new ProxyConfigServiceMac(io_thread_task_runner);
 #elif defined(OS_CHROMEOS)
   LOG(ERROR) << "ProxyConfigService for ChromeOS should be created in "
              << "profile_io_data.cc::CreateProxyConfigService and this should "
@@ -1433,10 +1435,11 @@ ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
   ProxyConfigServiceLinux* linux_config_service =
       new ProxyConfigServiceLinux();
 
-  // Assume we got called from the UI loop, which runs the default
-  // glib main loop, so the current thread is where we should be
-  // running gconf calls from.
-  MessageLoop* glib_default_loop = MessageLoopForUI::current();
+  // Assume we got called on the thread that runs the default glib
+  // main loop, so the current thread is where we should be running
+  // gconf calls from.
+  scoped_refptr<base::SingleThreadTaskRunner> glib_thread_task_runner =
+      base::ThreadTaskRunnerHandle::Get();
 
   // The file loop should be a MessageLoopForIO on Linux.
   DCHECK_EQ(MessageLoop::TYPE_IO, file_loop->type());
@@ -1446,8 +1449,7 @@ ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
   // notifications (delivered in either |glib_default_loop| or
   // |file_loop|) to keep us updated when the proxy config changes.
   linux_config_service->SetupAndFetchInitialConfig(
-      glib_default_loop->message_loop_proxy(),
-      io_loop->message_loop_proxy(),
+      glib_thread_task_runner, io_thread_task_runner,
       static_cast<MessageLoopForIO*>(file_loop));
 
   return linux_config_service;

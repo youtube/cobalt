@@ -26,6 +26,10 @@
 class GURL;
 class MessageLoop;
 
+namespace base {
+class SingleThreadTaskRunner;
+}  // namespace base
+
 namespace net {
 
 class DhcpProxyScriptFetcher;
@@ -271,7 +275,8 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
   // Creates a config service appropriate for this platform that fetches the
   // system proxy settings.
   static ProxyConfigService* CreateSystemProxyConfigService(
-      MessageLoop* io_loop, MessageLoop* file_loop);
+      base::SingleThreadTaskRunner* io_thread_task_runner,
+      MessageLoop* file_loop);
 
   // This method should only be used by unit tests.
   void set_stall_proxy_auto_config_delay(base::TimeDelta delay) {
