@@ -107,12 +107,12 @@ export PATH=$PATH:${CHROME_SRC}/build/android
 
 # Performs a gyp_chromium run to convert gyp->Makefile for android code.
 android_gyp() {
-  GOMA_WRAPPER=""
+  ANDROID_GOMA_WRAPPER=""
   if [[ -d $GOMA_DIR ]]; then
-    GOMA_WRAPPER="$GOMA_DIR/gomacc"
+    ANDROID_GOMA_WRAPPER="$GOMA_DIR/gomacc"
   fi
   # Ninja requires "*_target" for target builds.
-  GOMA_WRAPPER=${GOMA_WRAPPER} \
+  ANDROID_GOMA_WRAPPER=${ANDROID_GOMA_WRAPPER} \
   CC_target=$(basename ${ANDROID_TOOLCHAIN}/*-gcc) \
   CXX_target=$(basename ${ANDROID_TOOLCHAIN}/*-g++) \
   LINK_target=$(basename ${ANDROID_TOOLCHAIN}/*-gcc) \
