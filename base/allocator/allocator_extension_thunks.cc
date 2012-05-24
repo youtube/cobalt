@@ -11,11 +11,11 @@ namespace allocator {
 namespace thunks {
 
 // This slightly odd translation unit exists because of the peculularity of how
-// allocator_unittests works on windows.  That target has to perform
+// allocator_unittests work on windows.  That target has to perform
 // tcmalloc-specific initialization on windows, but it cannot depend on base
-// otherwise.  This target sits in the middle - both libbase and
-// allocator_unittests can depend on it.
-// This file can't depend on anything else in base, including logging.
+// otherwise. This target sits in the middle - base and allocator_unittests
+// can depend on it. This file can't depend on anything else in base, including
+// logging.
 
 static GetStatsFunction* g_get_stats_function = NULL;
 static ReleaseFreeMemoryFunction* g_release_free_memory_function = NULL;
