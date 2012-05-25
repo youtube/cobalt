@@ -154,7 +154,7 @@ HourClockType GetHourClockType() {
   //
   // See http://userguide.icu-project.org/formatparse/datetime for details
   // about the date/time format syntax.
-  if (pattern_unicode.indexOf(L'a') == -1) {
+  if (pattern_unicode.indexOf('a') == -1) {
     return k24HourClock;
   } else {
     return k12HourClock;

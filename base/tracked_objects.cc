@@ -70,7 +70,7 @@ DeathData::DeathData(int count) {
 
 void DeathData::RecordDeath(const DurationInt queue_duration,
                             const DurationInt run_duration,
-                            int random_number) {
+                            int32 random_number) {
   ++count_;
   queue_duration_sum_ += queue_duration;
   run_duration_sum_ += run_duration;
