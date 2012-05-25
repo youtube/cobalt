@@ -312,7 +312,7 @@
             'android/jni_generator/jni_generator.gyp:jni_generator_tests',
           ],
           'conditions': [
-            ['"<(gtest_target_type)"=="shared_library"', {
+            ['gtest_target_type == "shared_library"', {
               'dependencies': [
                 '../testing/android/native_test.gyp:native_test_native_code',
               ],
@@ -643,54 +643,27 @@
        },
      ],
    }],
-    # Special target to wrap a <(gtest_target_type)==shared_library
+    # Special target to wrap a gtest_target_type == shared_library
     # base_unittests into an android apk for execution.
     # TODO(jrg): lib.target comes from _InstallableTargetInstallPath()
     # in the gyp make generator.  What is the correct way to extract
     # this path from gyp and into 'raw' for input to antfiles?
     # Hard-coding in the gypfile seems a poor choice.
-    # TODO(jrg): there has to be a shorter way to do all this.  Try
-    # and convert this entire target cluster into ~5 lines that can be
-    # trivially copied to other projects with only a deps change, such
-    # as with a new gtest_target_type called
-    # 'shared_library_apk_wrapper' that does a lot of this magically.
-    ['OS=="android" and "<(gtest_target_type)"=="shared_library"', {
+    ['OS == "android" and gtest_target_type == "shared_library"', {
       'targets': [
         {
           'target_name': 'base_unittests_apk',
           'type': 'none',
           'dependencies': [
-            'base',  # So that android/java/java.gyp:base_java is built
+            'base_java',
             'base_unittests',
           ],
-          'actions': [
-            {
-              # Generate apk files (including source and antfile) from
-              # a template, and builds them.
-              'action_name': 'generate_and_build',
-              'inputs': [
-                '../testing/android/AndroidManifest.xml',
-                '../testing/android/generate_native_test.py',
-                '<(PRODUCT_DIR)/lib.target/libbase_unittests.so',
-                '<(PRODUCT_DIR)/lib.java/chromium_base.jar'
-              ],
-              'outputs': [
-                '<(PRODUCT_DIR)/base_unittests_apk/base_unittests-debug.apk',
-              ],
-              'action': [ 
-                '../testing/android/generate_native_test.py',
-                '--native_library',
-                '<(PRODUCT_DIR)/lib.target/libbase_unittests.so',
-                '--jar',
-                '<(PRODUCT_DIR)/lib.java/chromium_base.jar',
-                '--output',
-                '<(PRODUCT_DIR)/base_unittests_apk',
-                '--ant-args', 
-                '-DPRODUCT_DIR=<(PRODUCT_DIR)',
-                '--ant-compile'
-              ],
-            },
-          ]
+          'variables': {
+            'test_suite_name': 'base_unittests',
+            'input_shlib_path': '<(PRODUCT_DIR)/lib.target/<(SHARED_LIB_PREFIX)base_unittests<(SHARED_LIB_SUFFIX)',
+            'input_jars_paths': ['<(PRODUCT_DIR)/lib.java/chromium_base.jar',],
+          },
+          'includes': [ '../build/apk_test.gypi' ],
         }],
     }],
   ],
