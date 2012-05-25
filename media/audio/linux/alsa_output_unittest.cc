@@ -43,6 +43,7 @@ class MockAlsaWrapper : public AlsaWrapper {
                             snd_pcm_stream_t stream, int mode));
   MOCK_METHOD1(PcmClose, int(snd_pcm_t* handle));
   MOCK_METHOD1(PcmPrepare, int(snd_pcm_t* handle));
+  MOCK_METHOD1(PcmDrain, int(snd_pcm_t* handle));
   MOCK_METHOD1(PcmDrop, int(snd_pcm_t* handle));
   MOCK_METHOD2(PcmDelay, int(snd_pcm_t* handle, snd_pcm_sframes_t* delay));
   MOCK_METHOD3(PcmWritei, snd_pcm_sframes_t(snd_pcm_t* handle,
@@ -457,6 +458,10 @@ TEST_F(AlsaPcmOutputStreamTest, StartStop) {
 
   test_stream->Start(&mock_callback);
   message_loop_.RunAllPending();
+
+  EXPECT_CALL(mock_alsa_wrapper_, PcmDrain(kFakeHandle))
+      .WillOnce(Return(0));
+  test_stream->Stop();
 
   EXPECT_CALL(mock_alsa_wrapper_, PcmClose(kFakeHandle))
       .WillOnce(Return(0));

@@ -43,6 +43,10 @@ int AlsaWrapper::PcmPrepare(snd_pcm_t* handle) {
   return snd_pcm_prepare(handle);
 }
 
+int AlsaWrapper::PcmDrain(snd_pcm_t* handle) {
+  return snd_pcm_drain(handle);
+}
+
 int AlsaWrapper::PcmDrop(snd_pcm_t* handle) {
   return snd_pcm_drop(handle);
 }
