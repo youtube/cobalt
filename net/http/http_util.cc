@@ -15,6 +15,7 @@
 #include "base/string_number_conversions.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
+#include "base/time.h"
 
 using std::string;
 
@@ -697,6 +698,36 @@ void HttpUtil::AppendHeaderIfMissing(const char* header_name,
   if (net::HttpUtil::HasHeader(*headers, header_name))
     return;
   *headers += std::string(header_name) + ": " + header_value + "\r\n";
+}
+
+bool HttpUtil::HasStrongValidators(HttpVersion version,
+                                   const std::string& etag_header,
+                                   const std::string& last_modified_header,
+                                   const std::string& date_header) {
+  if (version < HttpVersion(1, 1))
+    return false;
+
+  if (!etag_header.empty()) {
+    size_t slash = etag_header.find('/');
+    if (slash == std::string::npos || slash == 0)
+      return true;
+
+    std::string::const_iterator i = etag_header.begin();
+    std::string::const_iterator j = etag_header.begin() + slash;
+    TrimLWS(&i, &j);
+    if (!LowerCaseEqualsASCII(i, j, "w"))
+      return true;
+  }
+
+  base::Time last_modified;
+  if (!base::Time::FromString(last_modified_header.c_str(), &last_modified))
+    return false;
+
+  base::Time date;
+  if (!base::Time::FromString(date_header.c_str(), &date))
+    return false;
+
+  return ((date - last_modified).InSeconds() >= 60);
 }
 
 // BNF from section 4.2 of RFC 2616:
