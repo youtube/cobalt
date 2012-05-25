@@ -40,7 +40,7 @@ bool DetectAllEncodings(const std::string& text,
   UCharsetDetector* detector = ucsdet_open(&status);
   ucsdet_setText(detector, text.data(), static_cast<int32_t>(text.length()),
                  &status);
-  int32_t matches_count = 0;
+  int matches_count = 0;
   const UCharsetMatch** matches = ucsdet_detectAll(detector,
                                                    &matches_count,
                                                    &status);
@@ -57,7 +57,7 @@ bool DetectAllEncodings(const std::string& text,
   std::set<std::string> sniffed_encodings;
 
   encodings->clear();
-  for (int32_t i = 0; i < matches_count; i++) {
+  for (int i = 0; i < matches_count; i++) {
     UErrorCode get_name_status = U_ZERO_ERROR;
     const char* encoding_name = ucsdet_getName(matches[i], &get_name_status);
 
@@ -87,7 +87,7 @@ bool DetectAllEncodings(const std::string& text,
                                                                        &status);
   int detectable_count = uenum_count(detectable_encodings, &status);
   for (int i = 0; i < detectable_count; i++) {
-    int32_t name_length;
+    int name_length;
     const char* name_raw = uenum_next(detectable_encodings,
                                       &name_length,
                                       &status);
