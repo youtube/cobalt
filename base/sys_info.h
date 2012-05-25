@@ -80,6 +80,10 @@ class BASE_EXPORT SysInfo {
   // Returns the path to the lsb-release file.
   static FilePath GetLsbReleaseFilePath();
 #endif // defined(OS_CHROMEOS)
+
+#if defined(OS_ANDROID)
+  static int DalvikHeapSizeMB();
+#endif // defined(OS_ANDROID)
 };
 
 }  // namespace base

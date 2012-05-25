@@ -337,6 +337,7 @@
           'system_monitor/system_monitor_win.cc',
           'sys_byteorder.h',
           'sys_info.h',
+          'sys_info_android.cc',
           'sys_info_chromeos.cc',
           'sys_info_freebsd.cc',
           'sys_info_linux.cc',
