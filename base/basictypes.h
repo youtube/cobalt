@@ -20,14 +20,7 @@
 typedef signed char         schar;
 typedef signed char         int8;
 typedef short               int16;
-#if defined(__LB_SHELL__)
-// strict compilers will freak out of you try to mix int* and long*, even when
-// they are the same size.  since we treat int32 and int32_t as interchangeable
-// in chromium, use the compiler's type here instead of assuming int.
-typedef int32_t             int32;
-#else
 typedef int                 int32;
-#endif
 
 // The NSPR system headers define 64-bit as |long| when possible, except on
 // Mac OS X.  In order to not have typedef mismatches, we do the same on LP64.
