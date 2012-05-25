@@ -1032,7 +1032,7 @@
     },
     {
       'target_name': 'net_unittests',
-      'type': 'executable',
+      'type': '<(gtest_target_type)',
       'dependencies': [
         'net',
         'net_test_support',
@@ -1369,6 +1369,11 @@
             ],
           },
         ],
+        ['OS == "android" and gtest_target_type == "shared_library"', {
+          'dependencies': [
+            '../testing/android/native_test.gyp:native_test_native_code',
+          ]
+        }],
         [ 'OS != "win" and OS != "mac"', {
           'sources!': [
             'base/x509_cert_types_unittest.cc',
@@ -1542,7 +1547,7 @@
         'test/local_test_server.cc',
         'test/local_test_server.h',
         'test/python_utils.cc',
-        'test/python_utils.h',        
+        'test/python_utils.h',
         'test/remote_test_server.cc',
         'test/remote_test_server.h',
         'test/spawner_communicator.cc',
@@ -1841,6 +1846,31 @@
             '../base/base.gyp:base_java',
           ],
           'includes': [ '../build/java.gypi' ],
+        },
+      ],
+    }],
+    # Special target to wrap a gtest_target_type==shared_library
+    # net_unittests into an android apk for execution.
+    # See base.gyp for TODO(jrg)s about this strategy.
+    ['OS == "android" and gtest_target_type == "shared_library"', {
+      'targets': [
+        {
+          'target_name': 'net_unittests_apk',
+          'type': 'none',
+          'dependencies': [
+            '../base/base.gyp:base_java',
+            'net_java',
+            'net_unittests',
+          ],
+          'variables': {
+            'test_suite_name': 'net_unittests',
+            'input_shlib_path': '<(PRODUCT_DIR)/lib.target/<(SHARED_LIB_PREFIX)net_unittests<(SHARED_LIB_SUFFIX)',
+            'input_jars_paths': [
+              '<(PRODUCT_DIR)/lib.java/chromium_base.jar',
+              '<(PRODUCT_DIR)/lib.java/chromium_net.jar',
+             ],
+          },
+          'includes': [ '../build/apk_test.gypi' ],
         },
       ],
     }],

@@ -168,8 +168,8 @@ def main(argv):
                     help='Be verbose')
   parser.add_option('--native_library',
                     help='Full name of native shared library test bundle')
-  parser.add_option('--jar', action='append',
-                    help='Include this jar; can be specified multiple times')
+  parser.add_option('--jars',
+                    help='Space separated list of jars to be included')
   parser.add_option('--output',
                     help='Output directory for generated files.')
   parser.add_option('--ant-compile', action='store_true',
@@ -188,8 +188,12 @@ def main(argv):
   if options.verbose:
     logging.basicConfig(level=logging.DEBUG, format=' %(message)s')
 
+  # Remove all quotes from the jars string
+  jar_list = []
+  if options.jars:
+    jar_list = options.jars.replace('"', '').split()
   ntag = NativeTestApkGenerator(native_library=options.native_library,
-                                jars=options.jar,
+                                jars=jar_list,
                                 output_directory=options.output)
   ntag.CreateBundle()
   if options.ant_compile:
