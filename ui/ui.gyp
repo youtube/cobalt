@@ -294,8 +294,6 @@
         'base/x/events_x.cc',
         'base/x/root_window_property_watcher_x.cc',
         'base/x/root_window_property_watcher_x.h',
-        'base/x/valuators.cc',
-        'base/x/valuators.h',
         'base/x/work_area_watcher_x.cc',
         'base/x/work_area_watcher_x.h',
         'base/x/x11_util.cc',
