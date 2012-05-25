@@ -6,10 +6,6 @@
 
 #include "base/logging.h"
 
-// Due to certain overly-strict compilers, I have to cast between pointers
-// to these two types.  This compile-time assertion makes sure it's safe.
-COMPILE_ASSERT(sizeof(int) == sizeof(int32_t), int_and_int32_t_are_equivalent);
-
 namespace base {
 namespace i18n {
 
@@ -50,14 +46,14 @@ UBiDiDirection BiDiLineIterator::GetVisualRun(int index,
                                               int* start,
                                               int* length) {
   DCHECK(bidi_ != NULL);
-  return ubidi_getVisualRun(bidi_, index, (int32_t*)start, (int32_t*)length);
+  return ubidi_getVisualRun(bidi_, index, start, length);
 }
 
 void BiDiLineIterator::GetLogicalRun(int start,
                                      int* end,
                                      UBiDiLevel* level) {
   DCHECK(bidi_ != NULL);
-  ubidi_getLogicalRun(bidi_, start, (int32_t*)end, level);
+  ubidi_getLogicalRun(bidi_, start, end, level);
 }
 
 }  // namespace i18n
