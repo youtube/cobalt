@@ -294,6 +294,8 @@
         'base/x/events_x.cc',
         'base/x/root_window_property_watcher_x.cc',
         'base/x/root_window_property_watcher_x.h',
+        'base/x/valuators.cc',
+        'base/x/valuators.h',
         'base/x/work_area_watcher_x.cc',
         'base/x/work_area_watcher_x.h',
         'base/x/x11_util.cc',
@@ -641,10 +643,9 @@
             },
           },
         }, {  # use_x11==0
-          'sources!': [
-            'base/keycodes/keyboard_code_conversion_x.cc',
-            'base/keycodes/keyboard_code_conversion_x.h',
-            'base/x/',
+          'sources/': [
+            ['exclude', 'base/keycodes/keyboard_code_conversion_x.*'],
+            ['exclude', 'base/x/*'],
           ],
         }],
         ['toolkit_views==0', {
