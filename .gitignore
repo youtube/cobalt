@@ -29,6 +29,7 @@
 .gdbinit
 .metadata
 .project
+.settings/ # settings directory for eclipse
 # Only /build/(Debug|Release|x64|ipch) should need to be ignored, but bug #119528 makes this global ignore required for now.
 Debug/
 ipch/
