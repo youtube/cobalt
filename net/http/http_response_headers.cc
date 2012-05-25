@@ -1160,32 +1160,16 @@ bool HttpResponseHeaders::IsKeepAlive() const {
 }
 
 bool HttpResponseHeaders::HasStrongValidators() const {
-  if (GetHttpVersion() < HttpVersion(1, 1))
-    return false;
-
-  std::string etag_value;
-  EnumerateHeader(NULL, "etag", &etag_value);
-  if (!etag_value.empty()) {
-    size_t slash = etag_value.find('/');
-    if (slash == std::string::npos || slash == 0)
-      return true;
-
-    std::string::const_iterator i = etag_value.begin();
-    std::string::const_iterator j = etag_value.begin() + slash;
-    HttpUtil::TrimLWS(&i, &j);
-    if (!LowerCaseEqualsASCII(i, j, "w"))
-      return true;
-  }
-
-  Time last_modified;
-  if (!GetLastModifiedValue(&last_modified))
-    return false;
-
-  Time date;
-  if (!GetDateValue(&date))
-    return false;
-
-  return ((date - last_modified).InSeconds() >= 60);
+  std::string etag_header;
+  EnumerateHeader(NULL, "etag", &etag_header);
+  std::string last_modified_header;
+  EnumerateHeader(NULL, "Last-Modified", &last_modified_header);
+  std::string date_header;
+  EnumerateHeader(NULL, "Date", &date_header);
+  return HttpUtil::HasStrongValidators(GetHttpVersion(),
+                                       etag_header,
+                                       last_modified_header,
+                                       date_header);
 }
 
 // From RFC 2616:
