@@ -88,7 +88,7 @@ NetworkChangeNotifier::GetConnectionType() {
 bool NetworkChangeNotifier::IsWatchingDNS() {
   if (!g_network_change_notifier)
     return false;
-  base::AutoLock(g_network_change_notifier->watching_dns_lock_);
+  base::AutoLock lock(g_network_change_notifier->watching_dns_lock_);
   return g_network_change_notifier->watching_dns_;
 }
 
@@ -167,7 +167,7 @@ void NetworkChangeNotifier::NotifyObserversOfIPAddressChange() {
 void NetworkChangeNotifier::NotifyObserversOfDNSChange(unsigned detail) {
   if (g_network_change_notifier) {
     {
-      base::AutoLock(g_network_change_notifier->watching_dns_lock_);
+      base::AutoLock lock(g_network_change_notifier->watching_dns_lock_);
       if (detail & NetworkChangeNotifier::CHANGE_DNS_WATCH_STARTED) {
         g_network_change_notifier->watching_dns_ = true;
       } else if (detail & NetworkChangeNotifier::CHANGE_DNS_WATCH_FAILED) {
