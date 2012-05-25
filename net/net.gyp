@@ -722,6 +722,8 @@
         'url_request/url_fetcher.h',
         'url_request/url_fetcher_delegate.cc',
         'url_request/url_fetcher_delegate.h',
+        'url_request/url_fetcher_factory.cc',
+        'url_request/url_fetcher_factory.h',
         'url_request/url_request.cc',
         'url_request/url_request.h',
         'url_request/url_request_about_job.cc',
