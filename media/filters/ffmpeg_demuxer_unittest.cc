@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
 #include <deque>
+#include <string>
 
 #include "base/file_path.h"
 #include "base/file_util.h"
@@ -41,7 +43,6 @@ MATCHER(IsEndOfStreamBuffer,
 // FFmpeg, pipeline and filter host mocks.
 class FFmpegDemuxerTest : public testing::Test {
  protected:
-
   FFmpegDemuxerTest() {}
 
   virtual ~FFmpegDemuxerTest() {
@@ -96,6 +97,11 @@ class FFmpegDemuxerTest : public testing::Test {
               buffer->GetTimestamp());
   }
 
+  // Accessor to demuxer internals.
+  void set_duration_known(bool duration_known) {
+    demuxer_->duration_known_ = duration_known;
+  }
+
   // Creates a data source with the given |file_name|. If |disable_file_size|
   // then the data source pretends it does not know the file size (e.g. often
   // when streaming video). Uses this data source to initialize a demuxer, then
@@ -123,6 +129,35 @@ class FFmpegDemuxerTest : public testing::Test {
 
   AVFormatContext* format_context() {
     return demuxer_->format_context_;
+  }
+
+  void ReadUntilEndOfStream() {
+    // We should expect an end of stream buffer.
+    scoped_refptr<DemuxerStream> audio =
+        demuxer_->GetStream(DemuxerStream::AUDIO);
+    scoped_refptr<DemuxerStreamReader> reader(new DemuxerStreamReader());
+
+    bool got_eos_buffer = false;
+    const int kMaxBuffers = 170;
+    for (int i = 0; !got_eos_buffer && i < kMaxBuffers; i++) {
+      reader->Read(audio);
+      message_loop_.RunAllPending();
+      EXPECT_TRUE(reader->called());
+      ASSERT_TRUE(reader->buffer());
+
+      if (reader->buffer()->IsEndOfStream()) {
+        got_eos_buffer = true;
+        EXPECT_TRUE(reader->buffer()->GetData() == NULL);
+        EXPECT_EQ(0, reader->buffer()->GetDataSize());
+        break;
+      }
+
+      EXPECT_TRUE(reader->buffer()->GetData() != NULL);
+      EXPECT_GT(reader->buffer()->GetDataSize(), 0);
+      reader->Reset();
+    }
+
+    EXPECT_TRUE(got_eos_buffer);
   }
 
  private:
@@ -332,33 +367,16 @@ TEST_F(FFmpegDemuxerTest, Read_EndOfStream) {
   // Verify that end of stream buffers are created.
   CreateDemuxer("bear-320x240.webm");
   InitializeDemuxer();
+  ReadUntilEndOfStream();
+}
 
-  // We should now expect an end of stream buffer.
-  scoped_refptr<DemuxerStream> audio =
-      demuxer_->GetStream(DemuxerStream::AUDIO);
-  scoped_refptr<DemuxerStreamReader> reader(new DemuxerStreamReader());
-
-  bool got_eos_buffer = false;
-  const int kMaxBuffers = 170;
-  for (int i = 0; !got_eos_buffer && i < kMaxBuffers; i++) {
-    reader->Read(audio);
-    message_loop_.RunAllPending();
-    EXPECT_TRUE(reader->called());
-    ASSERT_TRUE(reader->buffer());
-
-    if (reader->buffer()->IsEndOfStream()) {
-      got_eos_buffer = true;
-      EXPECT_TRUE(reader->buffer()->GetData() == NULL);
-      EXPECT_EQ(0, reader->buffer()->GetDataSize());
-      break;
-    }
-
-    EXPECT_TRUE(reader->buffer()->GetData() != NULL);
-    EXPECT_GT(reader->buffer()->GetDataSize(), 0);
-    reader->Reset();
-  }
-
-  EXPECT_TRUE(got_eos_buffer);
+TEST_F(FFmpegDemuxerTest, Read_EndOfStream_NoDuration) {
+  // Verify that end of stream buffers are created.
+  CreateDemuxer("bear-320x240.webm", false);
+  InitializeDemuxer();
+  set_duration_known(false);
+  EXPECT_CALL(host_, SetDuration(_));
+  ReadUntilEndOfStream();
 }
 
 TEST_F(FFmpegDemuxerTest, Seek) {
