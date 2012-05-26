@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "media/filters/ffmpeg_demuxer.h"
+
+#include <algorithm>
+#include <string>
+
 #include "base/bind.h"
 #include "base/callback.h"
 #include "base/command_line.h"
@@ -17,7 +22,6 @@
 #include "media/base/video_decoder_config.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/filters/bitstream_converter.h"
-#include "media/filters/ffmpeg_demuxer.h"
 #include "media/filters/ffmpeg_glue.h"
 #include "media/filters/ffmpeg_h264_bitstream_converter.h"
 
@@ -265,6 +269,10 @@ FFmpegDemuxerStream::~FFmpegDemuxerStream() {
   DCHECK(buffer_queue_.empty());
 }
 
+base::TimeDelta FFmpegDemuxerStream::GetElapsedTime() const {
+  return ConvertStreamTimestamp(stream_->time_base, stream_->cur_dts);
+}
+
 // static
 base::TimeDelta FFmpegDemuxerStream::ConvertStreamTimestamp(
     const AVRational& time_base, int64 timestamp) {
@@ -290,7 +298,8 @@ FFmpegDemuxer::FFmpegDemuxer(
       read_position_(0),
       bitrate_(0),
       start_time_(kNoTimestamp()),
-      audio_disabled_(false) {
+      audio_disabled_(false),
+      duration_known_(false) {
   DCHECK(message_loop_);
   DCHECK(data_source_);
 }
@@ -575,6 +584,7 @@ void FFmpegDemuxer::InitializeTask(DemuxerHost* host,
   // Good to go: set the duration and bitrate and notify we're done
   // initializing.
   host_->SetDuration(max_duration);
+  duration_known_ = (max_duration != kInfiniteDuration());
 
   int64 filesize_in_bytes = 0;
   GetSize(&filesize_in_bytes);
@@ -630,6 +640,23 @@ void FFmpegDemuxer::DemuxTask() {
   scoped_ptr_malloc<AVPacket, ScopedPtrAVFreePacket> packet(new AVPacket());
   int result = av_read_frame(format_context_, packet.get());
   if (result < 0) {
+    // Update the duration based on the audio stream if
+    // it was previously unknown http://crbug.com/86830
+    if (!duration_known_) {
+      // Search streams for AUDIO one.
+      for (StreamVector::iterator iter = streams_.begin();
+           iter != streams_.end();
+           ++iter) {
+        if (*iter && (*iter)->type() == DemuxerStream::AUDIO) {
+          base::TimeDelta duration = (*iter)->GetElapsedTime();
+          if (duration != kNoTimestamp() && duration > base::TimeDelta()) {
+            host_->SetDuration(duration);
+            duration_known_ = true;
+          }
+          break;
+        }
+      }
+    }
     // If we have reached the end of stream, tell the downstream filters about
     // the event.
     StreamHasEnded();
