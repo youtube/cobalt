@@ -326,8 +326,8 @@ class SSLServerSocketTest : public PlatformTest {
     ssl_config.cached_info_enabled = false;
     ssl_config.false_start_enabled = false;
     ssl_config.domain_bound_certs_enabled = false;
-    ssl_config.ssl3_enabled = true;
-    ssl_config.tls1_enabled = true;
+    ssl_config.version_min = SSL_PROTOCOL_VERSION_SSL3;
+    ssl_config.version_max = SSL_PROTOCOL_VERSION_TLS1_1;
 
     // Certificate provided by the host doesn't need authority.
     net::SSLConfig::CertAndStatus cert_and_status;

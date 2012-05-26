@@ -112,11 +112,35 @@ int InitSocketPoolHelper(const GURL& request_url,
   std::string connection_group = origin_host_port.ToString();
   DCHECK(!connection_group.empty());
   if (using_ssl) {
-    std::string prefix;
-    if (ssl_config_for_origin.tls1_enabled) {
-      prefix = "ssl/";
-    } else {
-      prefix = "sslv3/";
+    // All connections in a group should use the same SSLConfig settings.
+    // Encode version_max in the connection group's name, unless it's the
+    // default version_max. (We want the common case to use the shortest
+    // encoding). A version_max of TLS 1.1 is encoded as "ssl(max:3.2)/"
+    // rather than "tlsv1.1/" because the actual protocol version, which
+    // is selected by the server, may not be TLS 1.1. Do not encode
+    // version_min in the connection group's name because version_min
+    // should be the same for all connections, whereas version_max may
+    // change for version fallbacks.
+    std::string prefix = "ssl/";
+    if (ssl_config_for_origin.version_max !=
+        SSLConfigService::default_version_max()) {
+      switch (ssl_config_for_origin.version_max) {
+        case SSL_PROTOCOL_VERSION_TLS1_2:
+          prefix = "ssl(max:3.3)/";
+          break;
+        case SSL_PROTOCOL_VERSION_TLS1_1:
+          prefix = "ssl(max:3.2)/";
+          break;
+        case SSL_PROTOCOL_VERSION_TLS1:
+          prefix = "ssl(max:3.1)/";
+          break;
+        case SSL_PROTOCOL_VERSION_SSL3:
+          prefix = "sslv3/";
+          break;
+        default:
+          CHECK(false);
+          break;
+      }
     }
     connection_group = prefix + connection_group;
   }
