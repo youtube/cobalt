@@ -43,10 +43,6 @@
           # Enable touch optimized art assets and metrics.
           'enable_touch_ui%': 0,
 
-          # Enable inclusion of touch-optimized resources.
-          # TODO(joi): Rename to enable_touch_assets.
-          'enable_metro%': 0,
-
           # Is this change part of the android upstream bringup?
           # Allows us to *temporarily* disable certain things for
           # staging.  Only set to 1 in a GYP_DEFINES.
@@ -71,7 +67,6 @@
         'enable_viewport%': '<(enable_viewport)',
         'enable_hidpi%': '<(enable_hidpi)',
         'enable_touch_ui%': '<(enable_touch_ui)',
-        'enable_metro%': '<(enable_metro)',
         'android_upstream_bringup%': '<(android_upstream_bringup)',
         'buildtype%': '<(buildtype)',
 
@@ -117,7 +112,7 @@
           }],
 
           # Enable touch UI on Metro and Chrome OS.
-          ['enable_metro==1 or chromeos==1', {
+          ['OS=="win" or chromeos==1', {
             'enable_touch_ui%': 1,
           }],
         ],
@@ -134,7 +129,6 @@
       'enable_viewport%': '<(enable_viewport)',
       'enable_hidpi%': '<(enable_hidpi)',
       'enable_touch_ui%': '<(enable_touch_ui)',
-      'enable_metro%': '<(enable_metro)',
       'android_upstream_bringup%': '<(android_upstream_bringup)',
 
       # We used to provide a variable for changing how libraries were built.
@@ -532,7 +526,6 @@
     'enable_viewport%': '<(enable_viewport)',
     'enable_hidpi%': '<(enable_hidpi)',
     'enable_touch_ui%': '<(enable_touch_ui)',
-    'enable_metro%': '<(enable_metro)',
     'use_xi2_mt%':'<(use_xi2_mt)',
     'file_manager_extension%': '<(file_manager_extension)',
     'webui_task_manager%': '<(webui_task_manager)',
@@ -1350,9 +1343,6 @@
       }],
       ['enable_hidpi==1', {
         'defines': ['ENABLE_HIDPI=1'],
-      }],
-      ['enable_metro==1', {
-        'defines': ['ENABLE_METRO=1'],
       }],
       ['OS=="android" and gtest_target_type=="shared_library"', {
         'defines': ['ANDROID_APK_TEST_TARGET=1'],
