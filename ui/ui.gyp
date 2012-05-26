@@ -30,7 +30,7 @@
         '../third_party/libpng/libpng.gyp:libpng',
         '../third_party/zlib/zlib.gyp:zlib',
         'base/strings/ui_strings.gyp:ui_strings',
-        'native_theme_resources',
+        'ui_resources_standard',
         '<(libjpeg_gyp_path):libjpeg',
       ],
       'defines': [
@@ -684,33 +684,6 @@
           ],
         }],
       ],
-    },
-    {
-      'target_name': 'native_theme_resources',
-      'type': 'none',
-      'variables': {
-        'grit_out_dir': '<(SHARED_INTERMEDIATE_DIR)/ui/native_theme',
-      },
-      'actions': [
-        {
-          'action_name': 'native_theme_resources',
-          'variables': {
-            'grit_grd_file': 'base/native_theme/resources/native_theme_resources.grd',
-          },
-          'includes': [ '../build/grit_action.gypi' ],
-        },
-      ],
-      # gfx_resources.pak is used by DumpRenderTree.
-      # TODO(oshima): Update DumpRenderTree.gyp to use new pak file and
-      # remove this.
-      'copies': [ {
-          'destination': '<(SHARED_INTERMEDIATE_DIR)/ui/gfx/',
-          'files' : [
-             '<(SHARED_INTERMEDIATE_DIR)/ui/native_theme/gfx_resources.pak',
-          ],
-        },
-      ],
-      'includes': [ '../build/grit_target.gypi' ],
     },
   ],
   'conditions': [
