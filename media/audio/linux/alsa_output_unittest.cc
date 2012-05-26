@@ -473,6 +473,8 @@ TEST_F(AlsaPcmOutputStreamTest, StartStop) {
 TEST_F(AlsaPcmOutputStreamTest, WritePacket_FinishedPacket) {
   AlsaPcmOutputStream* test_stream = CreateStream(kTestChannelLayout);
   InitBuffer(test_stream);
+  test_stream->TransitionTo(AlsaPcmOutputStream::kIsOpened);
+  test_stream->TransitionTo(AlsaPcmOutputStream::kIsPlaying);
 
   // Nothing should happen.  Don't set any expectations and Our strict mocks
   // should verify most of this.
@@ -486,6 +488,8 @@ TEST_F(AlsaPcmOutputStreamTest, WritePacket_FinishedPacket) {
 TEST_F(AlsaPcmOutputStreamTest, WritePacket_NormalPacket) {
   AlsaPcmOutputStream* test_stream = CreateStream(kTestChannelLayout);
   InitBuffer(test_stream);
+  test_stream->TransitionTo(AlsaPcmOutputStream::kIsOpened);
+  test_stream->TransitionTo(AlsaPcmOutputStream::kIsPlaying);
 
   // Write a little less than half the data.
   int written = packet_->GetDataSize() / kTestBytesPerFrame / 2 - 1;
@@ -510,6 +514,8 @@ TEST_F(AlsaPcmOutputStreamTest, WritePacket_NormalPacket) {
 TEST_F(AlsaPcmOutputStreamTest, WritePacket_WriteFails) {
   AlsaPcmOutputStream* test_stream = CreateStream(kTestChannelLayout);
   InitBuffer(test_stream);
+  test_stream->TransitionTo(AlsaPcmOutputStream::kIsOpened);
+  test_stream->TransitionTo(AlsaPcmOutputStream::kIsPlaying);
 
   // Fail due to a recoverable error and see that PcmRecover code path
   // continues normally.
@@ -540,6 +546,8 @@ TEST_F(AlsaPcmOutputStreamTest, WritePacket_WriteFails) {
 TEST_F(AlsaPcmOutputStreamTest, WritePacket_StopStream) {
   AlsaPcmOutputStream* test_stream = CreateStream(kTestChannelLayout);
   InitBuffer(test_stream);
+  test_stream->TransitionTo(AlsaPcmOutputStream::kIsOpened);
+  test_stream->TransitionTo(AlsaPcmOutputStream::kIsPlaying);
 
   // No expectations set on the strict mock because nothing should be called.
   test_stream->stop_stream_ = true;
@@ -790,7 +798,6 @@ TEST_F(AlsaPcmOutputStreamTest, ScheduleNextWrite) {
   AlsaPcmOutputStream* test_stream = CreateStream(kTestChannelLayout);
   test_stream->TransitionTo(AlsaPcmOutputStream::kIsOpened);
   test_stream->TransitionTo(AlsaPcmOutputStream::kIsPlaying);
-DLOG(WARNING) << test_stream->state();
   InitBuffer(test_stream);
   DLOG(WARNING) << test_stream->state();
   EXPECT_CALL(mock_alsa_wrapper_, PcmAvailUpdate(_))

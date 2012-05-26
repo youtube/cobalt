@@ -429,7 +429,7 @@ void AlsaPcmOutputStream::WritePacket() {
     return;
   }
 
-  if (state() == kIsStopped)
+  if (state() != kIsPlaying)
     return;
 
   CHECK_EQ(buffer_->forward_bytes() % bytes_per_output_frame_, 0u);
