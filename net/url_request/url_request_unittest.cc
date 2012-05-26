@@ -1751,9 +1751,45 @@ TEST_F(HTTPSRequestTest, SSLv3Fallback) {
 
   EXPECT_EQ(1, d.response_started_count());
   EXPECT_NE(0, d.bytes_received());
-  EXPECT_EQ(SSL_CONNECTION_VERSION_SSL3,
+  EXPECT_EQ(static_cast<int>(SSL_CONNECTION_VERSION_SSL3),
             SSLConnectionStatusToVersion(r.ssl_info().connection_status));
-  EXPECT_TRUE(r.ssl_info().connection_status & SSL_CONNECTION_SSL3_FALLBACK);
+  EXPECT_TRUE(r.ssl_info().connection_status & SSL_CONNECTION_VERSION_FALLBACK);
+}
+
+// Tests TLSv1.1 -> TLSv1 fallback. Verifies that we don't fall back more
+// than necessary.
+TEST_F(HTTPSRequestTest, TLSv1Fallback) {
+  uint16 default_version_max = SSLConfigService::default_version_max();
+  // The OpenSSL library in use may not support TLS 1.1.
+#if !defined(USE_OPENSSL)
+  EXPECT_GT(default_version_max, SSL_PROTOCOL_VERSION_TLS1);
+#endif
+  if (default_version_max <= SSL_PROTOCOL_VERSION_TLS1)
+    return;
+
+  TestServer::HTTPSOptions https_options(
+      TestServer::HTTPSOptions::CERT_OK);
+  https_options.tls_intolerant =
+      TestServer::HTTPSOptions::TLS_INTOLERANT_TLS1_1;
+  TestServer test_server(https_options,
+                         FilePath(FILE_PATH_LITERAL("net/data/ssl")));
+  ASSERT_TRUE(test_server.Start());
+
+  TestDelegate d;
+  TestURLRequestContext context(true);
+  context.Init();
+  d.set_allow_certificate_errors(true);
+  URLRequest r(test_server.GetURL(""), &d);
+  r.set_context(&context);
+  r.Start();
+
+  MessageLoop::current()->Run();
+
+  EXPECT_EQ(1, d.response_started_count());
+  EXPECT_NE(0, d.bytes_received());
+  EXPECT_EQ(static_cast<int>(SSL_CONNECTION_VERSION_TLS1),
+            SSLConnectionStatusToVersion(r.ssl_info().connection_status));
+  EXPECT_TRUE(r.ssl_info().connection_status & SSL_CONNECTION_VERSION_FALLBACK);
 }
 
 // This tests that a load of www.google.com with a certificate error sets

@@ -738,8 +738,8 @@ void SSLClientSocketMac::GetSSLInfo(SSLInfo* ssl_info) {
         SSL_CONNECTION_CIPHERSUITE_SHIFT;
   }
 
-  if (ssl_config_.ssl3_fallback)
-    ssl_info->connection_status |= SSL_CONNECTION_SSL3_FALLBACK;
+  if (ssl_config_.version_fallback)
+    ssl_info->connection_status |= SSL_CONNECTION_VERSION_FALLBACK;
 }
 
 void SSLClientSocketMac::GetSSLCertRequestInfo(
@@ -812,15 +812,23 @@ int SSLClientSocketMac::InitializeSSLContext() {
   if (status)
     return NetErrorFromOSStatus(status);
 
+  // If ssl_config_.version_max > SSL_PROTOCOL_VERSION_TLS1, it means the
+  // SSLConfigService::SetDefaultVersionMax(SSL_PROTOCOL_VERSION_TLS1) call
+  // in ClientSocketFactory::UseSystemSSL() is not effective.
+  DCHECK_LE(ssl_config_.version_max, SSL_PROTOCOL_VERSION_TLS1);
+
+  bool ssl3_enabled = (ssl_config_.version_min == SSL_PROTOCOL_VERSION_SSL3);
   status = SSLSetProtocolVersionEnabled(ssl_context_,
                                         kSSLProtocol3,
-                                        ssl_config_.ssl3_enabled);
+                                        ssl3_enabled);
   if (status)
     return NetErrorFromOSStatus(status);
 
+  bool tls1_enabled = (ssl_config_.version_min <= SSL_PROTOCOL_VERSION_TLS1 &&
+                       ssl_config_.version_max >= SSL_PROTOCOL_VERSION_TLS1);
   status = SSLSetProtocolVersionEnabled(ssl_context_,
                                         kTLSProtocol1,
-                                        ssl_config_.tls1_enabled);
+                                        tls1_enabled);
   if (status)
     return NetErrorFromOSStatus(status);
 

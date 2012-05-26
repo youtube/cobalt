@@ -68,8 +68,8 @@ SSLServerSocketNSS::SSLServerSocketNSS(
       next_handshake_state_(STATE_NONE),
       completed_handshake_(false) {
   ssl_config_.false_start_enabled = false;
-  ssl_config_.ssl3_enabled = true;
-  ssl_config_.tls1_enabled = true;
+  ssl_config_.version_min = SSL_PROTOCOL_VERSION_SSL3;
+  ssl_config_.version_max = SSL_PROTOCOL_VERSION_TLS1_1;
 
   // TODO(hclam): Need a better way to clone a key.
   std::vector<uint8> key_bytes;
@@ -284,16 +284,13 @@ int SSLServerSocketNSS::InitializeSSLOptions() {
     return ERR_UNEXPECTED;
   }
 
-  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_SSL3, PR_TRUE);
+  SSLVersionRange version_range;
+  version_range.min = ssl_config_.version_min;
+  version_range.max = ssl_config_.version_max;
+  rv = SSL_VersionRangeSet(nss_fd_, &version_range);
   if (rv != SECSuccess) {
-    LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_SSL3");
-    return ERR_UNEXPECTED;
-  }
-
-  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_TLS, ssl_config_.tls1_enabled);
-  if (rv != SECSuccess) {
-    LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_TLS");
-    return ERR_UNEXPECTED;
+    LogFailedNSSFunction(net_log_, "SSL_VersionRangeSet", "");
+    return ERR_NO_SSL_VERSIONS_ENABLED;
   }
 
   for (std::vector<uint16>::const_iterator it =

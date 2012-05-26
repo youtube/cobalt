@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -134,6 +134,14 @@ ClientSocketFactory* ClientSocketFactory::GetDefaultFactory() {
 // static
 void ClientSocketFactory::UseSystemSSL() {
   g_use_system_ssl = true;
+
+#if defined(OS_WIN)
+  // Reflect the capability of SSLClientSocketWin.
+  SSLConfigService::SetDefaultVersionMax(SSL_PROTOCOL_VERSION_TLS1);
+#elif defined(OS_MACOSX)
+  // Reflect the capability of SSLClientSocketMac.
+  SSLConfigService::SetDefaultVersionMax(SSL_PROTOCOL_VERSION_TLS1);
+#endif
 }
 
 }  // namespace net
