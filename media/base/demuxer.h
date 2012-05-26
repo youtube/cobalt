@@ -18,8 +18,8 @@ class MEDIA_EXPORT DemuxerHost : public DataSourceHost {
  public:
   virtual ~DemuxerHost();
 
-  // Get the duration of the media in microseconds.  If the duration has not
-  // been determined yet, then returns 0.
+  // Sets the duration of the media in microseconds.
+  // Duration may be kInfiniteDuration() if the duration is not known.
   virtual void SetDuration(base::TimeDelta duration) = 0;
 
   // Sets the byte offset at which the client is requesting the video.

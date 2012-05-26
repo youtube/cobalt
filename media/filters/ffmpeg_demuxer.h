@@ -40,12 +40,12 @@ struct AVFormatContext;
 struct AVPacket;
 struct AVRational;
 struct AVStream;
-class ScopedPtrAVFreePacket;
 
 namespace media {
 
 class BitstreamConverter;
 class FFmpegDemuxer;
+class ScopedPtrAVFreePacket;
 
 class FFmpegDemuxerStream : public DemuxerStream {
  public:
@@ -83,6 +83,10 @@ class FFmpegDemuxerStream : public DemuxerStream {
   virtual void EnableBitstreamConverter() OVERRIDE;
   virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
   virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
+
+  // Returns elapsed time based on the already queued packets.
+  // Used to determine stream duration when it's not known ahead of time.
+  base::TimeDelta GetElapsedTime() const;
 
  protected:
   virtual ~FFmpegDemuxerStream();
@@ -246,6 +250,10 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer, public FFmpegURLProtocol {
   // Whether audio has been disabled for this demuxer (in which case this class
   // drops packets destined for AUDIO demuxer streams on the floor).
   bool audio_disabled_;
+
+  // Set if we know duration of the audio stream. Used when processing end of
+  // stream -- at this moment we definitely know duration.
+  bool duration_known_;
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxer);
 };
