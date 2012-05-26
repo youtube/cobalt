@@ -1162,16 +1162,39 @@ int HttpNetworkTransaction::HandleSSLHandshakeError(int error) {
   switch (error) {
     case ERR_SSL_PROTOCOL_ERROR:
     case ERR_SSL_VERSION_OR_CIPHER_MISMATCH:
+      if (server_ssl_config_.version_max >= SSL_PROTOCOL_VERSION_TLS1 &&
+          server_ssl_config_.version_max > server_ssl_config_.version_min) {
+        // This could be a TLS-intolerant server or a server that chose a
+        // cipher suite defined only for higher protocol versions (such as
+        // an SSL 3.0 server that chose a TLS-only cipher suite).  Fall
+        // back to the next lower version and retry.
+        // NOTE: if the SSLClientSocket class doesn't support TLS 1.1,
+        // specifying TLS 1.1 in version_max will result in a TLS 1.0
+        // handshake, so falling back from TLS 1.1 to TLS 1.0 will simply
+        // repeat the TLS 1.0 handshake. To avoid this problem, the default
+        // version_max should match the maximum protocol version supported
+        // by the SSLClientSocket class.
+        LOG(WARNING) << "Falling back one version because host is "
+                        "TLS intolerant: " << GetHostAndPort(request_->url)
+                     << " error: " << error;
+        server_ssl_config_.version_max--;
+        server_ssl_config_.version_fallback = true;
+        ResetConnectionAndRequestForResend();
+        error = OK;
+      }
+      break;
     case ERR_SSL_DECOMPRESSION_FAILURE_ALERT:
     case ERR_SSL_BAD_RECORD_MAC_ALERT:
-      if (server_ssl_config_.tls1_enabled) {
-        // This could be a TLS-intolerant server, an SSL 3.0 server that
-        // chose a TLS-only cipher suite or a server with buggy DEFLATE
-        // support. Turn off TLS 1.0, DEFLATE support and retry.
-        LOG(WARNING) << "Falling back to SSLv3 because host is TLS intolerant: "
-                     << GetHostAndPort(request_->url);
-        server_ssl_config_.tls1_enabled = false;
-        server_ssl_config_.ssl3_fallback = true;
+      if (server_ssl_config_.version_max >= SSL_PROTOCOL_VERSION_TLS1 &&
+          server_ssl_config_.version_min == SSL_PROTOCOL_VERSION_SSL3) {
+        // This could be a server with buggy DEFLATE support. Turn off TLS,
+        // DEFLATE support and retry.
+        // TODO(wtc): turn off DEFLATE support only. Do not tie it to TLS.
+        LOG(WARNING) << "Falling back to SSLv3 because host has buggy TLS "
+                        "compression support: "
+                     << GetHostAndPort(request_->url) << " error: " << error;
+        server_ssl_config_.version_max = SSL_PROTOCOL_VERSION_SSL3;
+        server_ssl_config_.version_fallback = true;
         ResetConnectionAndRequestForResend();
         error = OK;
       }
@@ -1188,10 +1211,9 @@ int HttpNetworkTransaction::HandleIOError(int error) {
   // SSL errors may happen at any time during the stream and indicate issues
   // with the underlying connection. Because the peer may request
   // renegotiation at any time, check and handle any possible SSL handshake
-  // related errors. In addition to renegotiation, TLS False/Snap Start may
-  // cause SSL handshake errors to be delayed until the first or second Write
-  // (Snap Start) or the first Read (False & Snap Start) on the underlying
-  // connection.
+  // related errors. In addition to renegotiation, TLS False Start may cause
+  // SSL handshake errors (specifically servers with buggy DEFLATE support)
+  // to be delayed until the first Read on the underlying connection.
   error = HandleSSLHandshakeError(error);
 
   switch (error) {

@@ -116,6 +116,7 @@ static int MapSecurityError(SECURITY_STATUS err) {
 
 // A bitmask consisting of these bit flags encodes which versions of the SSL
 // protocol (SSL 3.0 and TLS 1.0) are enabled.
+// TODO(wtc): support TLS 1.1 and TLS 1.2 on Windows Vista and later.
 enum {
   SSL3 = 1 << 0,
   TLS1 = 1 << 1,
@@ -423,6 +424,8 @@ void SSLClientSocketWin::GetSSLInfo(SSLInfo* ssl_info) {
     // dwExchStrength and dwHashStrength.  dwExchStrength needs to be
     // normalized.
     ssl_info->security_bits = connection_info.dwCipherStrength;
+    // TODO(wtc): connection_info.dwProtocol is the negotiated version.
+    // Save it in ssl_info->connection_status.
   }
   // SecPkgContext_CipherInfo comes from CNG and is available on Vista or
   // later only.  On XP, the next QueryContextAttributes call fails with
@@ -442,8 +445,8 @@ void SSLClientSocketWin::GetSSLInfo(SSLInfo* ssl_info) {
     // any field related to the compression method.
   }
 
-  if (ssl_config_.ssl3_fallback)
-    ssl_info->connection_status |= SSL_CONNECTION_SSL3_FALLBACK;
+  if (ssl_config_.version_fallback)
+    ssl_info->connection_status |= SSL_CONNECTION_VERSION_FALLBACK;
 }
 
 void SSLClientSocketWin::GetSSLCertRequestInfo(
@@ -585,11 +588,17 @@ int SSLClientSocketWin::Connect(const CompletionCallback& callback) {
 }
 
 int SSLClientSocketWin::InitializeSSLContext() {
+  // If ssl_config_.version_max > SSL_PROTOCOL_VERSION_TLS1, it means the
+  // SSLConfigService::SetDefaultVersionMax(SSL_PROTOCOL_VERSION_TLS1) call
+  // in ClientSocketFactory::UseSystemSSL() is not effective.
+  DCHECK_LE(ssl_config_.version_max, SSL_PROTOCOL_VERSION_TLS1);
   int ssl_version_mask = 0;
-  if (ssl_config_.ssl3_enabled)
+  if (ssl_config_.version_min == SSL_PROTOCOL_VERSION_SSL3)
     ssl_version_mask |= SSL3;
-  if (ssl_config_.tls1_enabled)
+  if (ssl_config_.version_min <= SSL_PROTOCOL_VERSION_TLS1 &&
+      ssl_config_.version_max >= SSL_PROTOCOL_VERSION_TLS1) {
     ssl_version_mask |= TLS1;
+  }
   // If we pass 0 to GetCredHandle, we will let Schannel select the protocols,
   // rather than enabling no protocols.  So we have to fail here.
   if (ssl_version_mask == 0)

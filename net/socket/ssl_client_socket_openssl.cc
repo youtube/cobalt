@@ -467,13 +467,29 @@ bool SSLClientSocketOpenSSL::Init() {
   // set everything we care about to an absolute value.
   SslSetClearMask options;
   options.ConfigureFlag(SSL_OP_NO_SSLv2, true);
-  options.ConfigureFlag(SSL_OP_NO_SSLv3, !ssl_config_.ssl3_enabled);
-  options.ConfigureFlag(SSL_OP_NO_TLSv1, !ssl_config_.tls1_enabled);
+  bool ssl3_enabled = (ssl_config_.version_min == SSL_PROTOCOL_VERSION_SSL3);
+  options.ConfigureFlag(SSL_OP_NO_SSLv3, !ssl3_enabled);
+  bool tls1_enabled = (ssl_config_.version_min <= SSL_PROTOCOL_VERSION_TLS1 &&
+                       ssl_config_.version_max >= SSL_PROTOCOL_VERSION_TLS1);
+  options.ConfigureFlag(SSL_OP_NO_TLSv1, !tls1_enabled);
+#if defined(SSL_OP_NO_TLSv1_1)
+  bool tls1_1_enabled =
+      (ssl_config_.version_min <= SSL_PROTOCOL_VERSION_TLS1_1 &&
+       ssl_config_.version_max >= SSL_PROTOCOL_VERSION_TLS1_1);
+  options.ConfigureFlag(SSL_OP_NO_TLSv1_1, !tls1_1_enabled);
+#endif
+#if defined(SSL_OP_NO_TLSv1_2)
+  bool tls1_2_enabled =
+      (ssl_config_.version_min <= SSL_PROTOCOL_VERSION_TLS1_2 &&
+       ssl_config_.version_max >= SSL_PROTOCOL_VERSION_TLS1_2);
+  options.ConfigureFlag(SSL_OP_NO_TLSv1_2, !tls1_2_enabled);
+#endif
 
 #if defined(SSL_OP_NO_COMPRESSION)
   // If TLS was disabled also disable compression, to provide maximum site
   // compatibility in the case of protocol fallback. See http://crbug.com/31628
-  options.ConfigureFlag(SSL_OP_NO_COMPRESSION, !ssl_config_.tls1_enabled);
+  options.ConfigureFlag(SSL_OP_NO_COMPRESSION,
+                        ssl_config_.version_max < SSL_PROTOCOL_VERSION_TLS1);
 #endif
 
   // TODO(joth): Set this conditionally, see http://crbug.com/55410
@@ -601,8 +617,8 @@ void SSLClientSocketOpenSSL::GetSSLInfo(SSLInfo* ssl_info) {
   UMA_HISTOGRAM_ENUMERATION("Net.RenegotiationExtensionSupported",
                             implicit_cast<int>(peer_supports_renego_ext), 2);
 
-  if (ssl_config_.ssl3_fallback)
-    ssl_info->connection_status |= SSL_CONNECTION_SSL3_FALLBACK;
+  if (ssl_config_.version_fallback)
+    ssl_info->connection_status |= SSL_CONNECTION_VERSION_FALLBACK;
 
   DVLOG(3) << "Encoded connection status: cipher suite = "
       << SSLConnectionStatusToCipherSuite(ssl_info->connection_status)

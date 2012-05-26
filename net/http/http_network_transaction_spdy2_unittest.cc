@@ -9101,8 +9101,8 @@ TEST_F(HttpNetworkTransactionSpdy2Test,
 
   // [ssl_]data3 contains the data for the third SSL handshake. When a
   // connection to a server fails during an SSL handshake,
-  // HttpNetworkTransaction will attempt to fallback to SSLv3 if the initial
-  // connection was attempted with TLSv1. This is transparent to the caller
+  // HttpNetworkTransaction will attempt to fallback to TLSv1 if the previous
+  // connection was attempted with TLSv1.1. This is transparent to the caller
   // of the HttpNetworkTransaction. Because this test failure is due to
   // requiring a client certificate, this fallback handshake should also
   // fail.
@@ -9111,6 +9111,19 @@ TEST_F(HttpNetworkTransactionSpdy2Test,
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl_data3);
   net::StaticSocketDataProvider data3(NULL, 0, NULL, 0);
   session_deps.socket_factory.AddSocketDataProvider(&data3);
+
+  // [ssl_]data4 contains the data for the fourth SSL handshake. When a
+  // connection to a server fails during an SSL handshake,
+  // HttpNetworkTransaction will attempt to fallback to SSLv3 if the previous
+  // connection was attempted with TLSv1. This is transparent to the caller
+  // of the HttpNetworkTransaction. Because this test failure is due to
+  // requiring a client certificate, this fallback handshake should also
+  // fail.
+  SSLSocketDataProvider ssl_data4(ASYNC, net::ERR_SSL_PROTOCOL_ERROR);
+  ssl_data4.cert_request_info = cert_request.get();
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl_data4);
+  net::StaticSocketDataProvider data4(NULL, 0, NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&data4);
 
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
   scoped_ptr<HttpNetworkTransaction> trans(new HttpNetworkTransaction(session));
@@ -9140,8 +9153,8 @@ TEST_F(HttpNetworkTransactionSpdy2Test,
   ASSERT_EQ(NULL, client_cert.get());
 
   // Restart the handshake. This will consume ssl_data2, which fails, and
-  // then consume ssl_data3, which should also fail. The result code is
-  // checked against what ssl_data3 should return.
+  // then consume ssl_data3 and ssl_data4, both of which should also fail.
+  // The result code is checked against what ssl_data4 should return.
   rv = callback.WaitForResult();
   ASSERT_EQ(net::ERR_SSL_PROTOCOL_ERROR, rv);
 
@@ -9208,14 +9221,23 @@ TEST_F(HttpNetworkTransactionSpdy2Test,
   session_deps.socket_factory.AddSocketDataProvider(&data2);
 
   // As described in ClientAuthCertCache_Direct_NoFalseStart, [ssl_]data3 is
-  // the data for the SSL handshake once the TLSv1 connection falls back to
-  // SSLv3. It has the same behaviour as [ssl_]data2.
+  // the data for the SSL handshake once the TLSv1.1 connection falls back to
+  // TLSv1. It has the same behaviour as [ssl_]data2.
   SSLSocketDataProvider ssl_data3(ASYNC, net::OK);
   ssl_data3.cert_request_info = cert_request.get();
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl_data3);
   net::StaticSocketDataProvider data3(
       data2_reads, arraysize(data2_reads), NULL, 0);
   session_deps.socket_factory.AddSocketDataProvider(&data3);
+
+  // [ssl_]data4 is the data for the SSL handshake once the TLSv1 connection
+  // falls back to SSLv3. It has the same behaviour as [ssl_]data2.
+  SSLSocketDataProvider ssl_data4(ASYNC, net::OK);
+  ssl_data4.cert_request_info = cert_request.get();
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl_data4);
+  net::StaticSocketDataProvider data4(
+      data2_reads, arraysize(data2_reads), NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&data4);
 
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
   scoped_ptr<HttpNetworkTransaction> trans(new HttpNetworkTransaction(session));
@@ -9246,8 +9268,8 @@ TEST_F(HttpNetworkTransactionSpdy2Test,
 
 
   // Restart the handshake. This will consume ssl_data2, which fails, and
-  // then consume ssl_data3, which should also fail. The result code is
-  // checked against what ssl_data3 should return.
+  // then consume ssl_data3 and ssl_data4, both of which should also fail.
+  // The result code is checked against what ssl_data4 should return.
   rv = callback.WaitForResult();
   ASSERT_EQ(net::ERR_SSL_PROTOCOL_ERROR, rv);
 
@@ -9290,11 +9312,14 @@ TEST_F(HttpNetworkTransactionSpdy2Test, ClientAuthCertCache_Proxy_Fail) {
   net::StaticSocketDataProvider data2(NULL, 0, NULL, 0);
   session_deps.socket_factory.AddSocketDataProvider(&data2);
 
+  // TODO(wtc): find out why this unit test doesn't need [ssl_]data3.
+#if 0
   SSLSocketDataProvider ssl_data3(ASYNC, net::ERR_SSL_PROTOCOL_ERROR);
   ssl_data3.cert_request_info = cert_request.get();
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl_data3);
   net::StaticSocketDataProvider data3(NULL, 0, NULL, 0);
   session_deps.socket_factory.AddSocketDataProvider(&data3);
+#endif
 
   net::HttpRequestInfo requests[2];
   requests[0].url = GURL("https://www.example.com/");
