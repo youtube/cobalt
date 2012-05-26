@@ -864,16 +864,13 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
     return ERR_UNEXPECTED;
   }
 
-  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_SSL3, ssl_config_.ssl3_enabled);
+  SSLVersionRange version_range;
+  version_range.min = ssl_config_.version_min;
+  version_range.max = ssl_config_.version_max;
+  rv = SSL_VersionRangeSet(nss_fd_, &version_range);
   if (rv != SECSuccess) {
-    LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_SSL3");
-    return ERR_UNEXPECTED;
-  }
-
-  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_TLS, ssl_config_.tls1_enabled);
-  if (rv != SECSuccess) {
-    LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_TLS");
-    return ERR_UNEXPECTED;
+    LogFailedNSSFunction(net_log_, "SSL_VersionRangeSet", "");
+    return ERR_NO_SSL_VERSIONS_ENABLED;
   }
 
   for (std::vector<uint16>::const_iterator it =
@@ -900,7 +897,8 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   // is advertised. Thus, if TLS is disabled (probably because we are doing
   // SSLv3 fallback), we disable DEFLATE also.
   // See http://crbug.com/31628
-  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_DEFLATE, ssl_config_.tls1_enabled);
+  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_DEFLATE,
+                     ssl_config_.version_max >= SSL_PROTOCOL_VERSION_TLS1);
   if (rv != SECSuccess)
     LogFailedNSSFunction(net_log_, "SSL_OptionSet", "SSL_ENABLE_DEFLATE");
 #endif
@@ -1135,8 +1133,8 @@ void SSLClientSocketNSS::UpdateConnectionStatus() {
   }
 #endif
 
-  if (ssl_config_.ssl3_fallback)
-    ssl_connection_status_ |= SSL_CONNECTION_SSL3_FALLBACK;
+  if (ssl_config_.version_fallback)
+    ssl_connection_status_ |= SSL_CONNECTION_VERSION_FALLBACK;
 }
 
 void SSLClientSocketNSS::DoReadCallback(int rv) {
@@ -1759,7 +1757,9 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
                         IsCertStatusMinorError(cert_status))) &&
       server_cert_verify_result_->is_issued_by_known_root &&
       transport_security_state_) {
-    bool sni_available = ssl_config_.tls1_enabled || ssl_config_.ssl3_fallback;
+    bool sni_available =
+        ssl_config_.version_max >= SSL_PROTOCOL_VERSION_TLS1 ||
+        ssl_config_.version_fallback;
     const std::string& host = host_and_port_.host();
 
     TransportSecurityState::DomainState domain_state;
