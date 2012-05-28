@@ -163,6 +163,17 @@ class Xvfb(object):
       del os.environ['DISPLAY']
       self._pid = 0
 
+def PrintAnnotationForTestResults(test_results):
+  if test_results.timed_out:
+    print '@@@STEP_WARNINGS@@@'
+  elif test_results.failed:
+    print '@@@STEP_FAILURE@@@'
+  elif test_results.crashed:
+    print '@@@STEP_FAILURE@@@'
+  elif test_results.overall_fail:
+    print '@@@STEP_FAILURE@@@'
+  else:
+    print 'Step success!'  # No annotation needed
 
 def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
              timeout, performance_test, cleanup_test_files, tool,
@@ -225,14 +236,7 @@ def RunTests(device, test_suite, gtest_filter, test_arguments, rebaseline,
       log_dump_name, [d for d in debug_info_list if d])
 
   if annotate:
-    if test.test_results.timed_out:
-      print '@@@STEP_WARNINGS@@@'
-    elif test.test_results.failed:
-      print '@@@STEP_FAILURE@@@'
-    elif test.test_results.overall_fail:
-      print '@@@STEP_FAILURE@@@'
-    else:
-      print 'Step success!'  # No annotation needed
+    PrintAnnotationForTestResults(test.test_results)
 
   return TestResults.FromTestResults(results)
 
@@ -242,7 +246,7 @@ class TestSharder(BaseTestSharder):
 
   def __init__(self, attached_devices, test_suite, gtest_filter,
                test_arguments, timeout, rebaseline, performance_test,
-               cleanup_test_files, tool):
+               cleanup_test_files, tool, annotate):
     BaseTestSharder.__init__(self, attached_devices)
     self.test_suite = test_suite
     self.test_suite_basename = os.path.basename(test_suite)
@@ -253,6 +257,7 @@ class TestSharder(BaseTestSharder):
     self.performance_test = performance_test
     self.cleanup_test_files = cleanup_test_files
     self.tool = tool
+    self.annotate = annotate
     test = SingleTestRunner(self.attached_devices[0], test_suite, gtest_filter,
                             test_arguments, timeout, rebaseline,
                             performance_test, cleanup_test_files, tool, 0)
@@ -287,6 +292,8 @@ class TestSharder(BaseTestSharder):
   def OnTestsCompleted(self, test_runners, test_results):
     """Notifies that we completed the tests."""
     test_results.LogFull()
+    if self.annotate:
+      PrintAnnotationForTestResults(test_results)
     if test_results.failed and self.rebaseline:
       test_runners[0].UpdateFilter(test_results.failed)
 
@@ -332,7 +339,8 @@ def _RunATestSuite(options):
                           options.gtest_filter, options.test_arguments,
                           options.timeout, options.rebaseline,
                           options.performance_test,
-                          options.cleanup_test_files, options.tool)
+                          options.cleanup_test_files, options.tool,
+                          options.annotate)
     test_results = sharder.RunShardedTests()
   else:
     test_results = RunTests(attached_devices[0], options.test_suite,
