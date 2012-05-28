@@ -21,6 +21,7 @@
 *.vpwhistu
 *.vtg
 *.xcodeproj
+*_proto.xml
 *~
 .*.sw?
 .DS_Store
@@ -30,11 +31,6 @@
 .metadata
 .project
 .settings/ # settings directory for eclipse
-# Only /build/(Debug|Release|x64|ipch) should need to be ignored, but bug #119528 makes this global ignore required for now.
-Debug/
-ipch/
-Release/
-x64/
 tags
 Thumbs.db
 v8.log
@@ -60,13 +56,8 @@ v8.log
 /chrome/browser/protector/internal
 /chrome/browser/resources/software_rendering_list
 /chrome/browser/spellchecker/internal
-/chrome/browser/sync/protocol/sync_proto.xml
-/chrome/cert_logger_proto.xml
 /chrome/chrome_version_resources.xml
 /chrome/common/extensions/api/api.xml
-/chrome/feedback_proto.xml
-/chrome/gdata_proto.xml
-/chrome/in_memory_url_index_cache_proto.xml
 /chrome/installer/linux
 /chrome/installer/mac/internal
 /chrome/installer/mac/third_party/xz/xz
@@ -75,9 +66,6 @@ v8.log
 /chrome/installer/mini_installer/support
 /chrome/installer/mini_installer_syzygy.xml
 /chrome/installer_util_strings.xml
-/chrome/metrics_proto.xml
-/chrome/safe_browsing_proto.xml
-/chrome/safe_browsing_report_proto.xml
 /chrome/setup.xml
 /chrome/setup_unittests.xml
 /chrome/test/chromeos/autotest/files/client/deps/chrome_test/test_src/
@@ -97,7 +85,6 @@ v8.log
 /chrome/test/data/pyauto_private
 /chrome/tools/memory
 /chrome/tools/test/reference_build
-/chrome/variations_seed_proto.xml
 /chrome_frame/chrome_frame_ie.xml
 /chrome_frame/tools/test/reference_build
 /content/test/data/layout_tests/LayoutTests/
@@ -133,7 +120,6 @@ v8.log
 /rlz
 /sdch/open-vcdiff
 /seccompsandbox
-/sync/protocol/sync_proto.xml
 /testing/gmock
 /testing/gtest
 /testserver.log
@@ -145,7 +131,6 @@ v8.log
 /third_party/aosp
 /third_party/asan
 /third_party/bidichecker
-/third_party/cacheinvalidation/cacheinvalidation_proto.xml
 /third_party/cacheinvalidation/files
 /third_party/chromeos_login_manager
 /third_party/chromeos_text_input
