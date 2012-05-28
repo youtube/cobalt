@@ -171,7 +171,6 @@
         'base/gtk/scoped_region.cc',
         'base/gtk/scoped_region.h',
         'base/hit_test.h',
-        'base/javascript_message_type.h',
         'base/keycodes/keyboard_code_conversion.cc',
         'base/keycodes/keyboard_code_conversion.h',
         'base/keycodes/keyboard_code_conversion_gtk.cc',
