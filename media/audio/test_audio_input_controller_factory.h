@@ -25,7 +25,7 @@ class TestAudioInputControllerFactory;
 // Typical usage:
 //   // Create and register factory.
 //   TestAudioInputControllerFactory factory;
-//   AudioInputController::set_factory(&factory);
+//   AudioInputController::set_factory_for_testing(&factory);
 //
 //   // Do something that triggers creation of an AudioInputController.
 //   TestAudioInputController* controller = factory.last_controller();
@@ -41,7 +41,7 @@ class TestAudioInputControllerFactory;
 //   // Make sure consumer of AudioInputController does the right thing.
 //   ...
 //   // Reset factory.
-//   AudioInputController::set_factory(NULL);
+//   AudioInputController::set_factory_for_testing(NULL);
 
 class TestAudioInputController : public AudioInputController {
  public:
