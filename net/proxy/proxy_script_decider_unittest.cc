@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "base/bind.h"
+#include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
 #include "base/time.h"
@@ -532,15 +533,16 @@ TEST(ProxyScriptDeciderTest, AutodetectDhcpFailParse) {
 
 class AsyncFailDhcpFetcher
     : public DhcpProxyScriptFetcher,
-      public base::RefCountedThreadSafe<AsyncFailDhcpFetcher> {
+      public base::SupportsWeakPtr<AsyncFailDhcpFetcher> {
  public:
   AsyncFailDhcpFetcher() {}
+  ~AsyncFailDhcpFetcher() {}
 
   int Fetch(string16* utf16_text, const CompletionCallback& callback) OVERRIDE {
     callback_ = callback;
     MessageLoop::current()->PostTask(
         FROM_HERE,
-        base::Bind(&AsyncFailDhcpFetcher::CallbackWithFailure, this));
+        base::Bind(&AsyncFailDhcpFetcher::CallbackWithFailure, AsWeakPtr()));
     return ERR_IO_PENDING;
   }
 
@@ -558,9 +560,6 @@ class AsyncFailDhcpFetcher
   }
 
  private:
-  friend class base::RefCountedThreadSafe<AsyncFailDhcpFetcher>;
-  ~AsyncFailDhcpFetcher() {}
-
   GURL dummy_gurl_;
   CompletionCallback callback_;
 };
@@ -573,7 +572,7 @@ TEST(ProxyScriptDeciderTest, DhcpCancelledByDestructor) {
   Rules rules;
   RuleBasedProxyScriptFetcher fetcher(&rules);
 
-  scoped_refptr<AsyncFailDhcpFetcher> dhcp_fetcher(new AsyncFailDhcpFetcher());
+  scoped_ptr<AsyncFailDhcpFetcher> dhcp_fetcher(new AsyncFailDhcpFetcher());
 
   ProxyConfig config;
   config.set_auto_detect(true);
