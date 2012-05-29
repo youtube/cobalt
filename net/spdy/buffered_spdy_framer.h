@@ -21,7 +21,6 @@ namespace net {
 class NET_EXPORT_PRIVATE BufferedSpdyFramerVisitorInterface {
  public:
   BufferedSpdyFramerVisitorInterface() {}
-  virtual ~BufferedSpdyFramerVisitorInterface() {}
 
   // Called if an error is detected in the SpdyFrame protocol.
   virtual void OnError(SpdyFramer::SpdyError error_code) = 0;
@@ -68,6 +67,9 @@ class NET_EXPORT_PRIVATE BufferedSpdyFramerVisitorInterface {
   // Called when an individual setting within a SETTINGS frame has been parsed
   // and validated.
   virtual void OnSetting(SpdySettingsIds id, uint8 flags, uint32 value) = 0;
+
+ protected:
+  virtual ~BufferedSpdyFramerVisitorInterface() {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(BufferedSpdyFramerVisitorInterface);

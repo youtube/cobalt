@@ -60,8 +60,6 @@ class NET_EXPORT StreamListenSocket
   // should be split up similarly.
   class Delegate {
    public:
-    virtual ~Delegate() {}
-
     // |server| is the original listening Socket, connection is the new
     // Socket that was created.  Ownership of |connection| is transferred
     // to the delegate with this call.
@@ -71,6 +69,9 @@ class NET_EXPORT StreamListenSocket
                          const char* data,
                          int len) = 0;
     virtual void DidClose(StreamListenSocket* sock) = 0;
+
+   protected:
+    virtual ~Delegate() {}
   };
 
   // Send data to the socket.

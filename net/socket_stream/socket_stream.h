@@ -59,8 +59,6 @@ class NET_EXPORT SocketStream
 
   class NET_EXPORT Delegate {
    public:
-    virtual ~Delegate() {}
-
     virtual int OnStartOpenConnection(SocketStream* socket,
                                       const CompletionCallback& callback) {
       return OK;
@@ -121,6 +119,9 @@ class NET_EXPORT SocketStream
                               CookieOptions* options) {
       return true;
     }
+
+   protected:
+    virtual ~Delegate() {}
   };
 
   SocketStream(const GURL& url, Delegate* delegate);
