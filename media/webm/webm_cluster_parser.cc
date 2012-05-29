@@ -234,9 +234,6 @@ bool WebMClusterParser::Track::AddBuffer(
     return false;
   }
 
-  if (buffer->GetDuration() == kNoTimestamp())
-    buffer->SetDuration(default_duration_);
-
   if (delayed_buffer_) {
     // Update the duration of the delayed buffer and place it into the queue.
     base::TimeDelta new_duration =
