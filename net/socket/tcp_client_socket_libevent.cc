@@ -32,37 +32,39 @@ namespace net {
 namespace {
 
 const int kInvalidSocket = -1;
+const int kTCPKeepAliveSeconds = 45;
 
-// DisableNagle turns off buffering in the kernel. By default, TCP sockets will
-// wait up to 200ms for more data to complete a packet before transmitting.
+// SetTCPNoDelay turns on/off buffering in the kernel. By default, TCP sockets
+// will wait up to 200ms for more data to complete a packet before transmitting.
 // After calling this function, the kernel will not wait. See TCP_NODELAY in
 // `man 7 tcp`.
-int DisableNagle(int fd) {
-  int on = 1;
-  return setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));
+bool SetTCPNoDelay(int fd, bool no_delay) {
+  int on = no_delay ? 1 : 0;
+  int error = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on,
+      sizeof(on));
+  return error == 0;
 }
 
 // SetTCPKeepAlive sets SO_KEEPALIVE.
-void SetTCPKeepAlive(int fd) {
-  int optval = 1;
-  socklen_t optlen = sizeof(optval);
-  if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen)) {
+bool  SetTCPKeepAlive(int fd, bool enable, int delay) {
+  int on = enable ? 1 : 0;
+  if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on))) {
     PLOG(ERROR) << "Failed to set SO_KEEPALIVE on fd: " << fd;
-    return;
+    return false;
   }
 #if defined(OS_LINUX)
   // Set seconds until first TCP keep alive.
-  optval = 45;
-  if (setsockopt(fd, SOL_TCP, TCP_KEEPIDLE, &optval, optlen)) {
+  if (setsockopt(fd, SOL_TCP, TCP_KEEPIDLE, &delay, sizeof(delay))) {
     PLOG(ERROR) << "Failed to set TCP_KEEPIDLE on fd: " << fd;
-    return;
+    return false;
   }
   // Set seconds between TCP keep alives.
-  if (setsockopt(fd, SOL_TCP, TCP_KEEPINTVL, &optval, optlen)) {
+  if (setsockopt(fd, SOL_TCP, TCP_KEEPINTVL, &delay, sizeof(delay))) {
     PLOG(ERROR) << "Failed to set TCP_KEEPINTVL on fd: " << fd;
-    return;
+    return false;
   }
 #endif
+  return true;
 }
 
 // Sets socket parameters. Returns the OS error code (or 0 on
@@ -73,8 +75,8 @@ int SetupSocket(int socket) {
 
   // This mirrors the behaviour on Windows. See the comment in
   // tcp_client_socket_win.cc after searching for "NODELAY".
-  DisableNagle(socket);  // If DisableNagle fails, we don't care.
-  SetTCPKeepAlive(socket);
+  SetTCPNoDelay(socket, true);  // If SetTCPNoDelay fails, we don't care.
+  SetTCPKeepAlive(socket, true, kTCPKeepAliveSeconds);
 
   return 0;
 }
@@ -558,6 +560,16 @@ bool TCPClientSocketLibevent::SetSendBufferSize(int32 size) {
       sizeof(size));
   DCHECK(!rv) << "Could not set socket send buffer size: " << errno;
   return rv == 0;
+}
+
+bool TCPClientSocketLibevent::SetKeepAlive(bool enable, int delay) {
+  int socket = socket_ != kInvalidSocket ? socket_ : bound_socket_;
+  return SetTCPKeepAlive(socket, enable, delay);
+}
+
+bool TCPClientSocketLibevent::SetNoDelay(bool no_delay) {
+  int socket = socket_ != kInvalidSocket ? socket_ : bound_socket_;
+  return SetTCPNoDelay(socket, no_delay);
 }
 
 void TCPClientSocketLibevent::LogConnectCompletion(int net_error) {
