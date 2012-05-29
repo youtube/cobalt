@@ -4046,7 +4046,17 @@ TEST(HttpCache, GET_IncompleteResource_Cancel) {
   int rv = cache.http_cache()->CreateTransaction(&c->trans);
   EXPECT_EQ(net::OK, rv);
 
+  // Queue another request to this transaction. We have to start this request
+  // before the first one gets the response from the server and dooms the entry,
+  // otherwise it will just create a new entry without being queued to the first
+  // request.
+  Context* pending = new Context();
+  EXPECT_EQ(net::OK, cache.http_cache()->CreateTransaction(&pending->trans));
+
   rv = c->trans->Start(&request, c->callback.callback(), net::BoundNetLog());
+  EXPECT_EQ(net::ERR_IO_PENDING,
+            pending->trans->Start(&request, pending->callback.callback(),
+                                  net::BoundNetLog()));
   EXPECT_EQ(net::OK, c->callback.GetResult(rv));
 
   // Make sure that the entry has some data stored.
@@ -4054,16 +4064,14 @@ TEST(HttpCache, GET_IncompleteResource_Cancel) {
   rv = c->trans->Read(buf, buf->size(), c->callback.callback());
   EXPECT_EQ(5, c->callback.GetResult(rv));
 
-  // Cancel the request.
+  // Cancel the requests.
   delete c;
+  delete pending;
 
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
-  EXPECT_EQ(1, cache.disk_cache()->create_count());
+  EXPECT_EQ(2, cache.disk_cache()->create_count());
 
-  // Verify that the disk entry was deleted.
-  disk_cache::Entry* entry;
-  EXPECT_FALSE(cache.OpenBackendEntry(kRangeGET_TransactionOK.url, &entry));
   MessageLoop::current()->RunAllPending();
   RemoveMockTransaction(&transaction);
 }
