@@ -121,7 +121,6 @@ class NET_EXPORT NetLog {
     // Observers must stop watching a NetLog before either the Observer or the
     // NetLog is destroyed.
     ThreadSafeObserver();
-    virtual ~ThreadSafeObserver();
 
     // Returns the minimum log level for events this observer wants to
     // receive.  Must not be called when not watching a NetLog.
@@ -152,6 +151,9 @@ class NET_EXPORT NetLog {
                             const Source& source,
                             EventPhase phase,
                             EventParameters* params) = 0;
+
+   protected:
+    virtual ~ThreadSafeObserver();
 
    private:
     friend class NetLog;
