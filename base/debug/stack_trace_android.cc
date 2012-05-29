@@ -55,5 +55,10 @@ void StackTrace::OutputToStream(std::ostream* os) const {
   NOTIMPLEMENTED();
 }
 
+std::string StackTrace::ToString() const {
+  NOTIMPLEMENTED();
+  return "";
+}
+
 }  // namespace debug
 }  // namespace base
