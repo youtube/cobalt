@@ -55,13 +55,14 @@ namespace media {
 // busy looping.
 static const uint32 kNoDataSleepMilliseconds = 10;
 
-// Mininum interval between OnMoreData() calls.
-const uint32 kMinIntervalBetweenOnMoreDataCallsInMs = 5;
+// Mininum interval between OnMoreData() calls.  This is to avoid glitches for
+// WebAudio which needs time to generate new data.
+static const uint32 kMinIntervalBetweenOnMoreDataCallsInMs = 5;
 
 // According to the linux nanosleep manpage, nanosleep on linux can miss the
-// deadline by up to 10ms because the kernel timeslice is 10ms.  Give a 2x
-// buffer to compensate for the timeslice, and any additional slowdowns.
-static const uint32 kSleepErrorMilliseconds = 20;
+// deadline by up to 10ms because the kernel timeslice is 10ms.  This should be
+// enough to compensate for the timeslice, and any additional slowdowns.
+static const uint32 kSleepErrorMilliseconds = 10;
 
 // Set to 0 during debugging if you want error messages due to underrun
 // events or other recoverable errors.
@@ -143,10 +144,9 @@ const char AlsaPcmOutputStream::kDefaultDevice[] = "default";
 const char AlsaPcmOutputStream::kAutoSelectDevice[] = "";
 const char AlsaPcmOutputStream::kPlugPrefix[] = "plug:";
 
-// Since we expect to only be able to wake up with a resolution of
-// kSleepErrorMilliseconds, double that for our minimum required latency.
-const uint32 AlsaPcmOutputStream::kMinLatencyMicros =
-    kSleepErrorMilliseconds * 2 * 1000;
+// We use 40ms as our minimum required latency. If it is needed, we may be able
+// to get it down to 20ms.
+const uint32 AlsaPcmOutputStream::kMinLatencyMicros = 40 * 1000;
 
 AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
                                          const AudioParameters& params,
@@ -325,7 +325,7 @@ void AlsaPcmOutputStream::Start(AudioSourceCallback* callback) {
     }
 
     if (!stop_stream_)
-      ScheduleNextWrite(false);
+      WriteTask();
   }
 }
 
@@ -384,6 +384,9 @@ void AlsaPcmOutputStream::BufferPacket(bool* source_exhausted) {
                                                         hardware_delay));
     CHECK_LE(packet_size, packet->GetBufferSize());
 
+    // Reset the |last_fill_time| to avoid back to back RunDataCallback().
+    last_fill_time_ = base::Time::Now();
+
     // This should not happen, but in case it does, drop any trailing bytes
     // that aren't large enough to make a frame.  Without this, packet writing
     // may stall because the last few bytes in the packet may never get used by
@@ -438,9 +441,9 @@ void AlsaPcmOutputStream::WritePacket() {
   int buffer_size;
   if (buffer_->GetCurrentChunk(&buffer_data, &buffer_size)) {
     buffer_size = buffer_size - (buffer_size % bytes_per_output_frame_);
-    snd_pcm_sframes_t frames = buffer_size / bytes_per_output_frame_;
-
-    DCHECK_GT(frames, 0);
+    snd_pcm_sframes_t frames = std::min(
+        static_cast<snd_pcm_sframes_t>(buffer_size / bytes_per_output_frame_),
+        GetAvailableFrames());
 
     snd_pcm_sframes_t frames_written =
         wrapper_->PcmWritei(playback_handle_, buffer_data, frames);
@@ -452,23 +455,16 @@ void AlsaPcmOutputStream::WritePacket() {
       frames_written = wrapper_->PcmRecover(playback_handle_,
                                             frames_written,
                                             kPcmRecoverIsSilent);
-    }
-
-    if (frames_written < 0) {
-      // TODO(ajwong): Is EAGAIN the only error we want to except from stopping
-      // the pcm playback?
-      if (frames_written != -EAGAIN) {
-        LOG(ERROR) << "Failed to write to pcm device: "
-                   << wrapper_->StrError(frames_written);
-        RunErrorCallback(frames_written);
-        stop_stream_ = true;
+      if (frames_written < 0) {
+        if (frames_written != -EAGAIN) {
+          LOG(ERROR) << "Failed to write to pcm device: "
+                     << wrapper_->StrError(frames_written);
+          RunErrorCallback(frames_written);
+          stop_stream_ = true;
+        }
       }
     } else {
-      if (frames_written > frames) {
-        LOG(WARNING)
-            << "snd_pcm_writei() has written more frame that we asked.";
-        frames_written = frames;
-      }
+      DCHECK_EQ(frames_written, frames);
 
       // Seek forward in the buffer after we've written some data to ALSA.
       buffer_->Seek(frames_written * bytes_per_output_frame_);
@@ -506,7 +502,7 @@ void AlsaPcmOutputStream::ScheduleNextWrite(bool source_exhausted) {
   if (stop_stream_)
     return;
 
-  uint32 frames_avail_wanted = alsa_buffer_frames_ / 2;
+  const uint32 kTargetFramesAvailable = alsa_buffer_frames_ / 2;
   uint32 available_frames = GetAvailableFrames();
   uint32 frames_in_buffer = buffer_->forward_bytes() / bytes_per_output_frame_;
 
@@ -515,29 +511,38 @@ void AlsaPcmOutputStream::ScheduleNextWrite(bool source_exhausted) {
   uint32 next_fill_time_ms =
       FramesToMillis(frames_per_packet_ / 2, sample_rate_);
 
-  if (frames_in_buffer && (frames_in_buffer <= available_frames)) {
-    // There is data in the current buffer, consume them immediately if we have
-    // enough space in the soundcard.
-    next_fill_time_ms = 0;
+  if (frames_in_buffer && available_frames) {
+    // There is data in the current buffer, consume them immediately once we
+    // have enough space in the soundcard.
+    if (frames_in_buffer <= available_frames)
+      next_fill_time_ms = 0;
   } else {
-    // Otherwise schedule the next write for the moment when half of the alsa
-    // buffer becomes available.
-    if (available_frames < frames_avail_wanted) {
-      uint32 frames_until_empty_enough = frames_avail_wanted - available_frames;
+    // Otherwise schedule the next write for the moment when the available
+    // buffer of the soundcards hits the |kTargetFramesAvailable|.
+    if (available_frames < kTargetFramesAvailable) {
+      uint32 frames_until_empty_enough =
+          kTargetFramesAvailable - available_frames;
       next_fill_time_ms =
           FramesToMillis(frames_until_empty_enough, sample_rate_);
 
-      // Adjust for time resolution.
-      if (next_fill_time_ms > kNoDataSleepMilliseconds)
-        next_fill_time_ms -= kNoDataSleepMilliseconds;
-
-      // Avoid back-to-back writing.
-      if (next_fill_time_ms < kMinIntervalBetweenOnMoreDataCallsInMs)
-        next_fill_time_ms = kMinIntervalBetweenOnMoreDataCallsInMs;
-    } else if (available_frames == alsa_buffer_frames_) {
-      // Buffer is empty, invoke next write immediately.
+      // Adjust for the kernel timeslice and any additional slowdown.
+      // TODO(xians): Remove this adjustment if it is not required by
+      // low performance machines any more.
+      if (next_fill_time_ms > kSleepErrorMilliseconds)
+        next_fill_time_ms -= kSleepErrorMilliseconds;
+      else
+        next_fill_time_ms = 0;
+    } else {
+      // The sound card has |kTargetFramesAvailable| or more frames available.
+      // Invoke the next write immediately to avoid underrun.
       next_fill_time_ms = 0;
     }
+
+    // Avoid back-to-back writing.
+    base::TimeDelta delay = base::Time::Now() - last_fill_time_;
+    if (delay.InMilliseconds() < kMinIntervalBetweenOnMoreDataCallsInMs &&
+        next_fill_time_ms < kMinIntervalBetweenOnMoreDataCallsInMs)
+      next_fill_time_ms = kMinIntervalBetweenOnMoreDataCallsInMs;
   }
 
   // Avoid busy looping if the data source is exhausted.
@@ -546,18 +551,11 @@ void AlsaPcmOutputStream::ScheduleNextWrite(bool source_exhausted) {
 
   // Only schedule more reads/writes if we are still in the playing state.
   if (state() == kIsPlaying) {
-    if (next_fill_time_ms == 0) {
-      manager_->GetMessageLoop()->PostTask(FROM_HERE, base::Bind(
-          &AlsaPcmOutputStream::WriteTask, weak_factory_.GetWeakPtr()));
-    } else {
-      // TODO(ajwong): Measure the reliability of the delay interval.  Use
-      // base/metrics/histogram.h.
-      manager_->GetMessageLoop()->PostDelayedTask(
-          FROM_HERE,
-          base::Bind(&AlsaPcmOutputStream::WriteTask,
-                     weak_factory_.GetWeakPtr()),
-          base::TimeDelta::FromMilliseconds(next_fill_time_ms));
-    }
+    manager_->GetMessageLoop()->PostDelayedTask(
+        FROM_HERE,
+        base::Bind(&AlsaPcmOutputStream::WriteTask,
+                   weak_factory_.GetWeakPtr()),
+                   base::TimeDelta::FromMilliseconds(next_fill_time_ms));
   }
 }
 
