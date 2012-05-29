@@ -36,6 +36,7 @@ CommandLine MultiProcessTest::MakeCmdLine(const std::string& procname,
   return cl;
 }
 
+#if !defined(OS_ANDROID)
 ProcessHandle MultiProcessTest::SpawnChildImpl(
     const std::string& procname,
     const FileHandleMappingVector& fds_to_map,
@@ -50,5 +51,6 @@ ProcessHandle MultiProcessTest::SpawnChildImpl(
   base::LaunchProcess(MakeCmdLine(procname, debug_on_start), options, &handle);
   return handle;
 }
+#endif  // !defined(OS_ANDROID)
 
 }  // namespace base
