@@ -440,6 +440,7 @@
         'test/mock_time_provider.h',
         'test/multiprocess_test.cc',
         'test/multiprocess_test.h',
+        'test/multiprocess_test_android.cc',
         'test/perf_test_suite.cc',
         'test/perf_test_suite.h',
         'test/scoped_locale.cc',
