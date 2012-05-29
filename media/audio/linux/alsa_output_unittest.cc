@@ -435,32 +435,25 @@ TEST_F(AlsaPcmOutputStreamTest, StartStop) {
   // Expect the pre-roll.
   MockAudioSourceCallback mock_callback;
   EXPECT_CALL(mock_alsa_wrapper_, PcmState(kFakeHandle))
-      .Times(3)
       .WillRepeatedly(Return(SND_PCM_STATE_RUNNING));
   EXPECT_CALL(mock_alsa_wrapper_, PcmDelay(kFakeHandle, _))
-      .Times(2)
       .WillRepeatedly(DoAll(SetArgumentPointee<1>(0), Return(0)));
   EXPECT_CALL(mock_callback, OnMoreData(_, kTestPacketSize, _))
-      .Times(2)
-      .WillOnce(Return(kTestPacketSize))
-      .WillOnce(Return(0));
+      .WillRepeatedly(Return(kTestPacketSize));
   EXPECT_CALL(mock_alsa_wrapper_, PcmWritei(kFakeHandle, _, _))
-      .WillOnce(Return(kTestFramesPerPacket));
+      .WillRepeatedly(Return(kTestFramesPerPacket));
 
   // Expect scheduling.
   EXPECT_CALL(mock_alsa_wrapper_, PcmAvailUpdate(kFakeHandle))
-      .Times(AtLeast(3))
-      .WillOnce(Return(kTestFramesPerPacket))  // Buffer is empty.
-      .WillOnce(Return(kTestFramesPerPacket))
-      .WillRepeatedly(DoAll(InvokeWithoutArgs(&message_loop_,
-                                              &MessageLoop::QuitNow),
-                                              Return(0)));  // Buffer is full.
+      .Times(AtLeast(2))
+      .WillRepeatedly(Return(kTestFramesPerPacket));
 
   test_stream->Start(&mock_callback);
   message_loop_.RunAllPending();
 
   EXPECT_CALL(mock_alsa_wrapper_, PcmDrain(kFakeHandle))
       .WillOnce(Return(0));
+
   test_stream->Stop();
 
   EXPECT_CALL(mock_alsa_wrapper_, PcmClose(kFakeHandle))
@@ -486,14 +479,26 @@ TEST_F(AlsaPcmOutputStreamTest, WritePacket_FinishedPacket) {
 }
 
 TEST_F(AlsaPcmOutputStreamTest, WritePacket_NormalPacket) {
+  // We need to open the stream before writing data to ALSA.
+  EXPECT_CALL(mock_alsa_wrapper_, PcmOpen(_, _, _, _))
+      .WillOnce(DoAll(SetArgumentPointee<0>(kFakeHandle),
+                      Return(0)));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmSetParams(_, _, _, _, _, _, _))
+      .WillOnce(Return(0));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmGetParams(_, _, _))
+      .WillOnce(DoAll(SetArgumentPointee<1>(kTestFramesPerPacket),
+                      SetArgumentPointee<2>(kTestFramesPerPacket / 2),
+                      Return(0)));
   AlsaPcmOutputStream* test_stream = CreateStream(kTestChannelLayout);
+  ASSERT_TRUE(test_stream->Open());
   InitBuffer(test_stream);
-  test_stream->TransitionTo(AlsaPcmOutputStream::kIsOpened);
   test_stream->TransitionTo(AlsaPcmOutputStream::kIsPlaying);
 
   // Write a little less than half the data.
   int written = packet_->GetDataSize() / kTestBytesPerFrame / 2 - 1;
-  EXPECT_CALL(mock_alsa_wrapper_, PcmWritei(_, packet_->GetData(), _))
+  EXPECT_CALL(mock_alsa_wrapper_, PcmAvailUpdate(kFakeHandle))
+        .WillOnce(Return(written));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmWritei(kFakeHandle, packet_->GetData(), _))
       .WillOnce(Return(written));
 
   test_stream->WritePacket();
@@ -502,44 +507,71 @@ TEST_F(AlsaPcmOutputStreamTest, WritePacket_NormalPacket) {
             packet_->GetDataSize() - written * kTestBytesPerFrame);
 
   // Write the rest.
+  EXPECT_CALL(mock_alsa_wrapper_, PcmAvailUpdate(kFakeHandle))
+      .WillOnce(Return(kTestFramesPerPacket - written));
   EXPECT_CALL(mock_alsa_wrapper_,
-              PcmWritei(_, packet_->GetData() + written * kTestBytesPerFrame,
+              PcmWritei(kFakeHandle,
+                        packet_->GetData() + written * kTestBytesPerFrame,
                         _))
       .WillOnce(Return(packet_->GetDataSize() / kTestBytesPerFrame - written));
   test_stream->WritePacket();
   EXPECT_EQ(0, test_stream->buffer_->forward_bytes());
+
+  // Now close it and test that everything was released.
+  EXPECT_CALL(mock_alsa_wrapper_, PcmClose(kFakeHandle))
+      .WillOnce(Return(0));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmName(kFakeHandle))
+      .WillOnce(Return(kTestDeviceName));
   test_stream->Close();
 }
 
 TEST_F(AlsaPcmOutputStreamTest, WritePacket_WriteFails) {
+  // We need to open the stream before writing data to ALSA.
+  EXPECT_CALL(mock_alsa_wrapper_, PcmOpen(_, _, _, _))
+      .WillOnce(DoAll(SetArgumentPointee<0>(kFakeHandle),
+                      Return(0)));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmSetParams(_, _, _, _, _, _, _))
+      .WillOnce(Return(0));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmGetParams(_, _, _))
+      .WillOnce(DoAll(SetArgumentPointee<1>(kTestFramesPerPacket),
+                      SetArgumentPointee<2>(kTestFramesPerPacket / 2),
+                      Return(0)));
   AlsaPcmOutputStream* test_stream = CreateStream(kTestChannelLayout);
+  ASSERT_TRUE(test_stream->Open());
   InitBuffer(test_stream);
-  test_stream->TransitionTo(AlsaPcmOutputStream::kIsOpened);
   test_stream->TransitionTo(AlsaPcmOutputStream::kIsPlaying);
 
   // Fail due to a recoverable error and see that PcmRecover code path
   // continues normally.
-  EXPECT_CALL(mock_alsa_wrapper_, PcmWritei(_, _, _))
+  EXPECT_CALL(mock_alsa_wrapper_, PcmAvailUpdate(kFakeHandle))
+      .WillOnce(Return(kTestFramesPerPacket));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmWritei(kFakeHandle, _, _))
       .WillOnce(Return(-EINTR));
-  EXPECT_CALL(mock_alsa_wrapper_, PcmRecover(_, _, _))
-      .WillOnce(Return(packet_->GetDataSize() / kTestBytesPerFrame / 2 - 1));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmRecover(kFakeHandle, _, _))
+      .WillOnce(Return(0));
 
   test_stream->WritePacket();
 
-  ASSERT_EQ(test_stream->buffer_->forward_bytes(),
-            packet_->GetDataSize() / 2 + kTestBytesPerFrame);
+  ASSERT_EQ(test_stream->buffer_->forward_bytes(), packet_->GetDataSize());
 
   // Fail the next write, and see that stop_stream_ is set.
-  EXPECT_CALL(mock_alsa_wrapper_, PcmWritei(_, _, _))
+  EXPECT_CALL(mock_alsa_wrapper_, PcmAvailUpdate(kFakeHandle))
+        .WillOnce(Return(kTestFramesPerPacket));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmWritei(kFakeHandle, _, _))
       .WillOnce(Return(kTestFailedErrno));
-  EXPECT_CALL(mock_alsa_wrapper_, PcmRecover(_, _, _))
+  EXPECT_CALL(mock_alsa_wrapper_, PcmRecover(kFakeHandle, _, _))
       .WillOnce(Return(kTestFailedErrno));
   EXPECT_CALL(mock_alsa_wrapper_, StrError(kTestFailedErrno))
       .WillOnce(Return(kDummyMessage));
   test_stream->WritePacket();
-  EXPECT_EQ(test_stream->buffer_->forward_bytes(),
-            packet_->GetDataSize() / 2 + kTestBytesPerFrame);
+  EXPECT_EQ(test_stream->buffer_->forward_bytes(), packet_->GetDataSize());
   EXPECT_TRUE(test_stream->stop_stream_);
+
+  // Now close it and test that everything was released.
+  EXPECT_CALL(mock_alsa_wrapper_, PcmClose(kFakeHandle))
+      .WillOnce(Return(0));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmName(kFakeHandle))
+      .WillOnce(Return(kTestDeviceName));
   test_stream->Close();
 }
 
