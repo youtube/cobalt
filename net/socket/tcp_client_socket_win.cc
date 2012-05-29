@@ -27,6 +27,8 @@ namespace net {
 
 namespace {
 
+const int kTCPKeepAliveSeconds = 45;
+
 bool SetSocketReceiveBufferSize(SOCKET socket, int32 size) {
   int rv = setsockopt(socket, SOL_SOCKET, SO_RCVBUF,
                       reinterpret_cast<const char*>(&size), sizeof(size));
@@ -38,6 +40,57 @@ bool SetSocketSendBufferSize(SOCKET socket, int32 size) {
   int rv = setsockopt(socket, SOL_SOCKET, SO_SNDBUF,
                       reinterpret_cast<const char*>(&size), sizeof(size));
   DCHECK(!rv) << "Could not set socket send buffer size: " << GetLastError();
+  return rv == 0;
+}
+
+// Disable Nagle.
+// The Nagle implementation on windows is governed by RFC 896.  The idea
+// behind Nagle is to reduce small packets on the network.  When Nagle is
+// enabled, if a partial packet has been sent, the TCP stack will disallow
+// further *partial* packets until an ACK has been received from the other
+// side.  Good applications should always strive to send as much data as
+// possible and avoid partial-packet sends.  However, in most real world
+// applications, there are edge cases where this does not happen, and two
+// partial packets may be sent back to back.  For a browser, it is NEVER
+// a benefit to delay for an RTT before the second packet is sent.
+//
+// As a practical example in Chromium today, consider the case of a small
+// POST.  I have verified this:
+//     Client writes 649 bytes of header  (partial packet #1)
+//     Client writes 50 bytes of POST data (partial packet #2)
+// In the above example, with Nagle, a RTT delay is inserted between these
+// two sends due to nagle.  RTTs can easily be 100ms or more.  The best
+// fix is to make sure that for POSTing data, we write as much data as
+// possible and minimize partial packets.  We will fix that.  But disabling
+// Nagle also ensure we don't run into this delay in other edge cases.
+// See also:
+//    http://technet.microsoft.com/en-us/library/bb726981.aspx
+bool DisableNagle(SOCKET socket, bool disable) {
+  BOOL val = disable ? TRUE : FALSE;
+  int rv = setsockopt(socket, IPPROTO_TCP, TCP_NODELAY,
+                      reinterpret_cast<const char*>(&val),
+                      sizeof(val));
+  DCHECK(!rv) << "Could not disable nagle";
+  return rv == 0;
+}
+
+// Enable TCP Keep-Alive to prevent NAT routers from timing out TCP
+// connections. See http://crbug.com/27400 for details.
+bool SetTCPKeepAlive(SOCKET socket, BOOL enable, int delay_secs) {
+  int delay = delay_secs * 1000;
+  struct tcp_keepalive keepalive_vals = {
+    enable ? 1 : 0,  // TCP keep-alive on.
+    delay,  // Delay seconds before sending first TCP keep-alive packet.
+    delay,  // Delay seconds between sending TCP keep-alive packets.
+  };
+  DWORD bytes_returned = 0xABAB;
+  int rv = WSAIoctl(socket, SIO_KEEPALIVE_VALS, &keepalive_vals,
+                sizeof(keepalive_vals), NULL, 0,
+                &bytes_returned, NULL, NULL);
+  DCHECK(!rv) << "Could not enable TCP Keep-Alive for socket: " << socket
+              << " [error: " << WSAGetLastError() << "].";
+
+  // Disregard any failure in disabling nagle or enabling TCP Keep-Alive.
   return rv == 0;
 }
 
@@ -60,50 +113,8 @@ int SetupSocket(SOCKET socket) {
     SetSocketSendBufferSize(socket, kSocketBufferSize);
   }
 
-  // Disable Nagle.
-  // The Nagle implementation on windows is governed by RFC 896.  The idea
-  // behind Nagle is to reduce small packets on the network.  When Nagle is
-  // enabled, if a partial packet has been sent, the TCP stack will disallow
-  // further *partial* packets until an ACK has been received from the other
-  // side.  Good applications should always strive to send as much data as
-  // possible and avoid partial-packet sends.  However, in most real world
-  // applications, there are edge cases where this does not happen, and two
-  // partil packets may be sent back to back.  For a browser, it is NEVER
-  // a benefit to delay for an RTT before the second packet is sent.
-  //
-  // As a practical example in Chromium today, consider the case of a small
-  // POST.  I have verified this:
-  //     Client writes 649 bytes of header  (partial packet #1)
-  //     Client writes 50 bytes of POST data (partial packet #2)
-  // In the above example, with Nagle, a RTT delay is inserted between these
-  // two sends due to nagle.  RTTs can easily be 100ms or more.  The best
-  // fix is to make sure that for POSTing data, we write as much data as
-  // possible and minimize partial packets.  We will fix that.  But disabling
-  // Nagle also ensure we don't run into this delay in other edge cases.
-  // See also:
-  //    http://technet.microsoft.com/en-us/library/bb726981.aspx
-  const BOOL kDisableNagle = TRUE;
-  int rv = setsockopt(socket, IPPROTO_TCP, TCP_NODELAY,
-                      reinterpret_cast<const char*>(&kDisableNagle),
-                      sizeof(kDisableNagle));
-  DCHECK(!rv) << "Could not disable nagle";
-
-  // Enable TCP Keep-Alive to prevent NAT routers from timing out TCP
-  // connections. See http://crbug.com/27400 for details.
-
-  struct tcp_keepalive keepalive_vals = {
-    1, // TCP keep-alive on.
-    45000,  // Wait 45s until sending first TCP keep-alive packet.
-    45000,  // Wait 45s between sending TCP keep-alive packets.
-  };
-  DWORD bytes_returned = 0xABAB;
-  rv = WSAIoctl(socket, SIO_KEEPALIVE_VALS, &keepalive_vals,
-                sizeof(keepalive_vals), NULL, 0,
-                &bytes_returned, NULL, NULL);
-  DCHECK(!rv) << "Could not enable TCP Keep-Alive for socket: " << socket
-              << " [error: " << WSAGetLastError() << "].";
-
-  // Disregard any failure in disabling nagle or enabling TCP Keep-Alive.
+  DisableNagle(socket, true);
+  SetTCPKeepAlive(socket, true, kTCPKeepAliveSeconds);
   return 0;
 }
 
@@ -780,6 +791,14 @@ bool TCPClientSocketWin::SetReceiveBufferSize(int32 size) {
 bool TCPClientSocketWin::SetSendBufferSize(int32 size) {
   DCHECK(CalledOnValidThread());
   return SetSocketSendBufferSize(socket_, size);
+}
+
+bool TCPClientSocketWin::SetKeepAlive(bool enable, int delay) {
+  return SetTCPKeepAlive(socket_, enable, delay);
+}
+
+bool TCPClientSocketWin::SetNoDelay(bool no_delay) {
+  return DisableNagle(socket_, no_delay);
 }
 
 void TCPClientSocketWin::LogConnectCompletion(int net_error) {
