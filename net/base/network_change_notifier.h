@@ -52,14 +52,13 @@ class NET_EXPORT NetworkChangeNotifier {
 
   class NET_EXPORT IPAddressObserver {
    public:
-    virtual ~IPAddressObserver() {}
-
     // Will be called when the IP address of the primary interface changes.
     // This includes when the primary interface itself changes.
     virtual void OnIPAddressChanged() = 0;
 
    protected:
     IPAddressObserver() {}
+    virtual ~IPAddressObserver() {}
 
    private:
     DISALLOW_COPY_AND_ASSIGN(IPAddressObserver);
@@ -67,16 +66,15 @@ class NET_EXPORT NetworkChangeNotifier {
 
   class NET_EXPORT ConnectionTypeObserver {
    public:
-    virtual ~ConnectionTypeObserver() {}
-
-  // Will be called when the connection type of the system has changed.
-  // See NetworkChangeNotifier::GetConnectionType() for important caveats
-  // about the unreliability of using this signal to infer the ability to
-  // reach remote sites.
+    // Will be called when the connection type of the system has changed.
+    // See NetworkChangeNotifier::GetConnectionType() for important caveats
+    // about the unreliability of using this signal to infer the ability to
+    // reach remote sites.
     virtual void OnConnectionTypeChanged(ConnectionType type) = 0;
 
    protected:
     ConnectionTypeObserver() {}
+    virtual ~ConnectionTypeObserver() {}
 
    private:
     DISALLOW_COPY_AND_ASSIGN(ConnectionTypeObserver);
@@ -84,14 +82,13 @@ class NET_EXPORT NetworkChangeNotifier {
 
   class NET_EXPORT DNSObserver {
    public:
-    virtual ~DNSObserver() {}
-
     // Will be called when the DNS settings of the system may have changed.
     // The flags set in |detail| provide the specific set of changes.
     virtual void OnDNSChanged(unsigned detail) = 0;
 
    protected:
     DNSObserver() {}
+    virtual ~DNSObserver() {}
 
    private:
     DISALLOW_COPY_AND_ASSIGN(DNSObserver);

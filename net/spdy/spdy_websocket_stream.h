@@ -51,6 +51,9 @@ class NET_EXPORT_PRIVATE SpdyWebSocketStream
 
     // Called when SpdyStream is closed.
     virtual void OnCloseSpdyStream() = 0;
+
+   protected:
+    virtual ~Delegate() {}
   };
 
   SpdyWebSocketStream(SpdySession* spdy_session, Delegate* delegate);
