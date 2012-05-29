@@ -906,10 +906,10 @@ def ExtractInputFiles(jar_file, input_files, out_dirs):
   return extracted_file_names
 
 
-def GenerateJNIHeaders(input_files, output_files, namespace):
+def GenerateJNIHeaders(input_files, output_files, use_javap, namespace):
   for i in xrange(len(input_files)):
     try:
-      if os.path.splitext(input_files[i])[1] == '.class':
+      if use_javap:
         jni_from_javap = JNIFromJavaP.CreateFromClass(input_files[i], namespace)
         output = jni_from_javap.GetContent()
       else:
@@ -966,8 +966,11 @@ See SampleForTests.java for more details.
                            ' half specify the header output files.')
   option_parser.add_option('-j', dest='jar_file',
                            help='Extract the list of input files from'
-                           ' a specified jar file.'
-                           ' Uses javap to extract the methods from a'
+                           ' a specified jar file.')
+  option_parser.add_option('-p', dest='javap_class',
+                           action='store_true',
+                           default=False,
+                           help='Uses javap to extract the methods from a'
                            ' pre-compiled class. Input files should point'
                            ' to pre-compiled Java .class files.')
   option_parser.add_option('-n', dest='namespace',
@@ -984,7 +987,8 @@ See SampleForTests.java for more details.
     # CheckFileNames guarantees same length for inputs and outputs
     out_dirs = map(os.path.dirname, output_files)
     input_files = ExtractInputFiles(options.jar_file, input_files, out_dirs)
-  GenerateJNIHeaders(input_files, output_files, options.namespace)
+  GenerateJNIHeaders(input_files, output_files, options.javap_class,
+                     options.namespace)
 
 
 if __name__ == '__main__':
