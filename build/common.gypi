@@ -872,6 +872,10 @@
         'android_ndk_lib': '<(android_ndk_sysroot)/usr/lib',
         'android_app_abi%': '<(android_app_abi)',
 
+        # Provides an absolute path to PRODUCT_DIR (e.g. out/Release). Used
+        # to specify the output directory for Ant in the Android build.
+        'ant_build_out': '`cd <(PRODUCT_DIR) && pwd -P`',
+
         # Uses Android's crash report system
         'linux_breakpad%': 0,
 
