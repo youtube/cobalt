@@ -434,6 +434,10 @@
           'webui_task_manager%': 1,
         }],
 
+        ['OS=="win" or OS=="mac" or (OS=="linux" and use_aura==0)', {	
+          'enable_one_click_signin%': 1,	
+        }],
+
         ['OS=="android"', {
           'proprietary_codecs%': 1,
           'enable_webrtc%': 0,
