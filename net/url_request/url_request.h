@@ -233,8 +233,6 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
   //
   class NET_EXPORT Delegate {
    public:
-    virtual ~Delegate() {}
-
     // Called upon a server-initiated redirect.  The delegate may call the
     // request's Cancel method to prevent the redirect from being followed.
     // Since there may be multiple chained redirects, there may also be more
@@ -302,6 +300,9 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
     // If an error occurred, request->status() will contain the error,
     // and bytes read will be -1.
     virtual void OnReadCompleted(URLRequest* request, int bytes_read) = 0;
+
+   protected:
+    virtual ~Delegate() {}
   };
 
   // Initialize an URL request.
