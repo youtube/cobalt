@@ -70,6 +70,9 @@ class NET_EXPORT_PRIVATE TCPClientSocketLibevent : public StreamSocket,
   virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
   virtual bool SetSendBufferSize(int32 size) OVERRIDE;
 
+  virtual bool SetKeepAlive(bool enable, int delay);
+  virtual bool SetNoDelay(bool no_delay);
+
  private:
   // State machine for connecting the socket.
   enum ConnectState {
