@@ -297,6 +297,8 @@ TEST_F(CertVerifyProcTest, RejectWeakKeys) {
         EXPECT_NE(OK, error);
         EXPECT_EQ(CERT_STATUS_WEAK_KEY,
                   verify_result.cert_status & CERT_STATUS_WEAK_KEY);
+        EXPECT_NE(CERT_STATUS_INVALID,
+                  verify_result.cert_status & CERT_STATUS_INVALID);
       } else {
         EXPECT_EQ(OK, error);
         EXPECT_EQ(0U, verify_result.cert_status & CERT_STATUS_WEAK_KEY);
