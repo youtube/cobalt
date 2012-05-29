@@ -62,7 +62,6 @@ class ResourceDispatcherHostTest;
 // interface.
 namespace fileapi {
 class FileSystemDirURLRequestJobTest;
-class FileSystemOperationWriteTest;
 class FileSystemURLRequestJobTest;
 class FileWriterDelegateTest;
 }
@@ -191,7 +190,6 @@ class NET_EXPORT URLRequest : NON_EXPORTED_BASE(public base::NonThreadSafe),
     friend class appcache::AppCacheURLRequestJobTest;
     friend class content::ResourceDispatcherHostTest;
     friend class fileapi::FileSystemDirURLRequestJobTest;
-    friend class fileapi::FileSystemOperationWriteTest;
     friend class fileapi::FileSystemURLRequestJobTest;
     friend class fileapi::FileWriterDelegateTest;
     friend class policy::CannedResponseInterceptor;
