@@ -47,7 +47,7 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   virtual int GetBitrate() OVERRIDE;
 
   // Methods used by an external object to control this demuxer.
-  void FlushData();
+  void StartWaitingForSeek();
 
   // Registers a new |id| to use for AppendData() calls. |type| indicates
   // the MIME type for the data that we intend to append for this ID.
@@ -77,8 +77,30 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // it can accept a new segment.
   void Abort(const std::string& id);
 
-  void EndOfStream(PipelineStatus status);
-  bool HasEnded();
+  // Accesses the configs associated with the current playback buffers.
+  const AudioDecoderConfig& GetCurrentAudioDecoderConfig();
+  const VideoDecoderConfig& GetCurrentVideoDecoderConfig();
+
+  // Fills |out_buffer| with a new buffer from the current SourceBufferStream
+  // indicated by |type|.
+  // Returns true if |out_buffer| is filled with a valid buffer.
+  // Returns false if SourceBuffer can not fulfill the request or if |type| is
+  // not AUDIO or VIDEO.
+  // Two versions needed (Locked and not Locked) because this method is called
+  // during a Read() when ChunkDemuxer IS NOT locked and from
+  // ChunkDemuxerStream::CreateReadDoneClosures_Locked() when
+  // OnBuffersAvailable() is called and ChunkDemuxer IS locked.
+  // TODO(acolwell): Investigate a cleaner solution to SourceBufferRead locking
+  // requirements. crbug.com/129849
+  bool SourceBufferRead_Locked(DemuxerStream::Type type,
+                               scoped_refptr<StreamParserBuffer>* out_buffer);
+  bool SourceBufferRead(DemuxerStream::Type type,
+                        scoped_refptr<StreamParserBuffer>* out_buffer);
+
+  // Signals an EndOfStream request.
+  // Returns false if called in an unexpected state or if there is a gap between
+  // the current position and the end of the buffered data.
+  bool EndOfStream(PipelineStatus status);
   void Shutdown();
 
  protected:
@@ -100,13 +122,12 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   // data.
   void ReportError_Locked(PipelineStatus error);
 
-  void OnSourceBufferInitDone(bool success, base::TimeDelta duration);
-
   // SourceBuffer callbacks.
+  void OnSourceBufferInitDone(bool success, base::TimeDelta duration);
   bool OnNewConfigs(const AudioDecoderConfig& audio_config,
                     const VideoDecoderConfig& video_config);
-  bool OnAudioBuffers(const StreamParser::BufferQueue& buffer);
-  bool OnVideoBuffers(const StreamParser::BufferQueue& buffer);
+  bool OnAudioBuffers();
+  bool OnVideoBuffers();
   bool OnKeyNeeded(scoped_array<uint8> init_data, int init_data_size);
 
   mutable base::Lock lock_;
@@ -125,10 +146,6 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   base::TimeDelta duration_;
 
   scoped_ptr<SourceBuffer> source_buffer_;
-
-  // Should a Seek() call wait for more data before calling the
-  // callback.
-  bool seek_waits_for_data_;
 
   // TODO(acolwell): Remove this when fixing http://crbug.com/122909
   std::string source_id_;

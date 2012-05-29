@@ -40,11 +40,11 @@ struct BlockInfo {
 const BlockInfo kDefaultBlockInfo[] = {
   { kAudioTrackNum, 0, 23, true },
   { kAudioTrackNum, 23, 23, true },
-  { kVideoTrackNum, kVideoDefaultDurationInMs, kVideoDefaultDurationInMs,
-    true },
-  { kAudioTrackNum, 46, 23, false },
-  { kVideoTrackNum, 2 * kVideoDefaultDurationInMs, kVideoDefaultDurationInMs,
-    true },
+  { kVideoTrackNum, 33, 34, true },
+  { kAudioTrackNum, 46, 23, true },
+  { kVideoTrackNum, 67, 33, false },
+  { kAudioTrackNum, 69, 23, false },
+  { kVideoTrackNum, 100, 33, false },
 };
 
 static scoped_ptr<Cluster> CreateCluster(int timecode,

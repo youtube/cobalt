@@ -40,6 +40,7 @@ class SourceBufferRange {
   // filled with a valid buffer, false if there is not enough data to fulfill
   // the request.
   bool GetNextBuffer(scoped_refptr<StreamParserBuffer>* out_buffer);
+  bool HasNextBuffer() const;
   base::TimeDelta GetNextTimestamp() const;
 
   // Returns the Timespan of buffered time in this range.
@@ -156,10 +157,29 @@ static bool IsNextInSequence(
 namespace media {
 
 SourceBufferStream::SourceBufferStream()
-    : seek_pending_(false),
-      seek_buffer_timestamp_(kNoTimestamp()),
+    : seek_pending_(true),
+      seek_buffer_timestamp_(base::TimeDelta()),
       selected_range_(NULL),
-      waiting_for_keyframe_(false) {
+      waiting_for_keyframe_(false),
+      end_of_stream_(false) {
+}
+
+SourceBufferStream::SourceBufferStream(const AudioDecoderConfig& audio_config)
+    : seek_pending_(true),
+      seek_buffer_timestamp_(base::TimeDelta()),
+      selected_range_(NULL),
+      waiting_for_keyframe_(false),
+      end_of_stream_(false) {
+  audio_config_.CopyFrom(audio_config);
+}
+
+SourceBufferStream::SourceBufferStream(const VideoDecoderConfig& video_config)
+    : seek_pending_(true),
+      seek_buffer_timestamp_(base::TimeDelta()),
+      selected_range_(NULL),
+      waiting_for_keyframe_(false),
+      end_of_stream_(false) {
+  video_config_.CopyFrom(video_config);
 }
 
 SourceBufferStream::~SourceBufferStream() {
@@ -325,6 +345,11 @@ void SourceBufferStream::Seek(base::TimeDelta timestamp) {
   selected_range_ = *itr;
   selected_range_->Seek(timestamp);
   seek_pending_ = false;
+  end_of_stream_ = false;
+}
+
+bool SourceBufferStream::IsSeekPending() const {
+  return seek_pending_;
 }
 
 bool SourceBufferStream::GetNextBuffer(
@@ -334,6 +359,13 @@ bool SourceBufferStream::GetNextBuffer(
     track_buffer_.pop_front();
     return true;
   }
+
+  if (end_of_stream_ && (!selected_range_ ||
+                         !selected_range_->HasNextBuffer())) {
+    *out_buffer = StreamParserBuffer::CreateEOSBuffer();
+    return true;
+  }
+
   return selected_range_ && selected_range_->GetNextBuffer(out_buffer);
 }
 
@@ -345,6 +377,15 @@ SourceBufferStream::GetBufferedTime() const {
     timespans.push_back((*itr)->GetBufferedTime());
   }
   return timespans;
+}
+
+void SourceBufferStream::EndOfStream() {
+  DCHECK(CanEndOfStream());
+  end_of_stream_ = true;
+}
+
+bool SourceBufferStream::CanEndOfStream() const {
+  return ranges_.empty() || selected_range_ == ranges_.back();
 }
 
 SourceBufferRange::SourceBufferRange()
@@ -419,7 +460,6 @@ base::TimeDelta SourceBufferRange::SeekAfter(base::TimeDelta timestamp) {
   return result->first;
 }
 
-
 bool SourceBufferRange::GetNextBuffer(
     scoped_refptr<StreamParserBuffer>* out_buffer) {
   DCHECK_GE(next_buffer_index_, 0);
@@ -429,6 +469,11 @@ bool SourceBufferRange::GetNextBuffer(
   *out_buffer = buffers_.at(next_buffer_index_);
   next_buffer_index_++;
   return true;
+}
+
+bool SourceBufferRange::HasNextBuffer() const {
+  return next_buffer_index_ >= 0 &&
+         next_buffer_index_ < static_cast<int>(buffers_.size());
 }
 
 base::TimeDelta SourceBufferRange::GetNextTimestamp() const {

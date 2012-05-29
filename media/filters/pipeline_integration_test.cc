@@ -42,7 +42,7 @@ class MockMediaSource : public ChunkDemuxerClient {
   const std::string& url() const { return url_; }
 
   void Seek(int new_position, int seek_append_size) {
-    chunk_demuxer_->FlushData();
+    chunk_demuxer_->StartWaitingForSeek();
 
     DCHECK_GE(new_position, 0);
     DCHECK_LT(new_position, file_data_size_);

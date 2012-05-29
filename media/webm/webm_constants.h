@@ -195,6 +195,8 @@ const int kWebMIdWritingApp = 0x5741;
 const int64 kWebMReservedId = 0x1FFFFFFF;
 const int64 kWebMUnknownSize = GG_LONGLONG(0x00FFFFFFFFFFFFFF);
 
+const uint8 kWebMFlagKeyframe = 0x80;
+
 }  // namespace media
 
 #endif  // MEDIA_WEBM_WEBM_CONSTANTS_H_
