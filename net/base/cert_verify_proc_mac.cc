@@ -111,6 +111,15 @@ CertStatus CertStatusFromOSStatus(OSStatus status) {
     case CSSMERR_APPLETP_IDP_FAIL:
       return CERT_STATUS_INVALID;
 
+    case CSSMERR_CSP_UNSUPPORTED_KEY_SIZE:
+      // Mapping UNSUPPORTED_KEY_SIZE to CERT_STATUS_WEAK_KEY is not strictly
+      // accurate, as the error may have been returned due to a key size
+      // that exceeded the maximum supported. However, within
+      // CertVerifyProcMac::VerifyInternal(), this code should only be
+      // encountered as a certificate status code, and only when the key size
+      // is smaller than the minimum required (1024 bits).
+      return CERT_STATUS_WEAK_KEY;
+
     default: {
       // Failure was due to something Chromium doesn't define a
       // specific status for (such as basic constraints violation, or
@@ -428,6 +437,14 @@ int CertVerifyProcMac::VerifyInternal(X509Certificate* cert,
 
   GetCertChainInfo(scoped_completed_chain.get(), chain_info, verify_result);
 
+  // As of Security Update 2012-002/OS X 10.7.4, when an RSA key < 1024 bits
+  // is encountered, CSSM returns CSSMERR_TP_VERIFY_ACTION_FAILED and adds
+  // CSSMERR_CSP_UNSUPPORTED_KEY_SIZE as a certificate status. Avoid mapping
+  // the CSSMERR_TP_VERIFY_ACTION_FAILED to CERT_STATUS_INVALID if the only
+  // error was due to an unsupported key size.
+  bool policy_failed = false;
+  bool weak_key = false;
+
   // Evaluate the results
   OSStatus cssm_result;
   switch (trust_result) {
@@ -450,7 +467,11 @@ int CertVerifyProcMac::VerifyInternal(X509Certificate* cert,
       status = SecTrustGetCssmResultCode(trust_ref, &cssm_result);
       if (status)
         return NetErrorFromOSStatus(status);
-      verify_result->cert_status |= CertStatusFromOSStatus(cssm_result);
+      if (cssm_result == CSSMERR_TP_VERIFY_ACTION_FAILED) {
+        policy_failed = true;
+      } else {
+        verify_result->cert_status |= CertStatusFromOSStatus(cssm_result);
+      }
       // Walk the chain of error codes in the CSSM_TP_APPLE_EVIDENCE_INFO
       // structure which can catch multiple errors from each certificate.
       for (CFIndex index = 0, chain_count = CFArrayGetCount(completed_chain);
@@ -467,9 +488,17 @@ int CertVerifyProcMac::VerifyInternal(X509Certificate* cert,
         for (uint32 status_code_index = 0;
              status_code_index < chain_info[index].NumStatusCodes;
              ++status_code_index) {
-          verify_result->cert_status |= CertStatusFromOSStatus(
+          CertStatus mapped_status = CertStatusFromOSStatus(
               chain_info[index].StatusCodes[status_code_index]);
+          if (mapped_status == CERT_STATUS_WEAK_KEY)
+            weak_key = true;
+          verify_result->cert_status |= mapped_status;
         }
+      }
+      if (policy_failed && !weak_key) {
+        // If CSSMERR_TP_VERIFY_ACTION_FAILED wasn't returned due to a weak
+        // key, map it back to an appropriate error code.
+        verify_result->cert_status |= CertStatusFromOSStatus(cssm_result);
       }
       if (!IsCertStatusError(verify_result->cert_status)) {
         LOG(ERROR) << "cssm_result=" << cssm_result;
