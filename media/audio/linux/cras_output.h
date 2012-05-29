@@ -92,6 +92,9 @@ class MEDIA_EXPORT CrasOutputStream : public AudioOutputStream {
   // Packet size in samples.
   uint32 samples_per_packet_;
 
+  // Size of frame in bytes.
+  uint32 bytes_per_frame_;
+
   // Rate in Hz.
   size_t frame_rate_;
 
