@@ -32,7 +32,7 @@
 #if !defined(OS_MACOSX) && !defined(OS_ANDROID)
 
 #if defined(USE_AURA)
-#include "base/message_pump_x.h"
+#include "base/message_pump_aurax11.h"
 #else
 #include "base/message_pump_gtk.h"
 #endif

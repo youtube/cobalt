@@ -483,17 +483,11 @@
               'sources!': [
                 'atomicops_internals_x86_gcc.cc',
                 'message_pump_glib.cc',
-                'message_pump_x.cc',
+                'message_pump_aurax11.cc',
               ],
           }],
           [ 'toolkit_uses_gtk==0', {
             'sources!': [ 'message_pump_gtk.cc', ],
-          }],
-          [ 'use_aura==0 or OS == "win" or OS == "mac"', {
-            'sources!' : [ 'message_pump_x.cc', ],
-          }, {
-            'sources!' : [ 'message_pump_gtk.cc', ],
-            'sources/' : [ [ 'include', '^message_pump_x\\.cc$', ] ],
           }],
           [ 'OS != "linux" and os_bsd != 1', {
               'sources!': [
@@ -797,8 +791,8 @@
         'message_pump_gtk.cc',
         'message_pump_gtk.h',
         'message_pump_observer.h',
-        'message_pump_x.cc',
-        'message_pump_x.h',
+        'message_pump_aurax11.cc',
+        'message_pump_aurax11.h',
         'message_pump_libevent.cc',
         'message_pump_libevent.h',
         'message_pump_mac.h',
