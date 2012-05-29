@@ -10,8 +10,10 @@
 #include <utility>
 
 #include "base/memory/ref_counted.h"
+#include "media/base/audio_decoder_config.h"
 #include "media/base/media_export.h"
 #include "media/base/stream_parser_buffer.h"
+#include "media/base/video_decoder_config.h"
 
 namespace media {
 
@@ -28,6 +30,9 @@ class MEDIA_EXPORT SourceBufferStream {
   typedef std::list<Timespan> TimespanList;
 
   SourceBufferStream();
+  explicit SourceBufferStream(const AudioDecoderConfig& audio_config);
+  explicit SourceBufferStream(const VideoDecoderConfig& video_config);
+
   ~SourceBufferStream();
 
   // Add the |buffers| to the SourceBufferStream. Buffers within the queue are
@@ -44,6 +49,10 @@ class MEDIA_EXPORT SourceBufferStream {
   // buffers starting from the closest keyframe before |timestamp|.
   void Seek(base::TimeDelta timestamp);
 
+  // Returns true if the SourceBufferStream has seeked to a time without
+  // buffered data and is waiting for more data to be appended.
+  bool IsSeekPending() const;
+
   // Fills |out_buffer| with a new buffer. Seek() must be called before calling
   // this method. Buffers are presented in order from the last call to Seek().
   // |out_buffer|'s timestamp may be earlier than the |timestamp| passed to
@@ -54,6 +63,23 @@ class MEDIA_EXPORT SourceBufferStream {
 
   // Returns a list of the buffered time ranges.
   TimespanList GetBufferedTime() const;
+
+  // Notifies this SourceBufferStream that EndOfStream has been called and that
+  // GetNextBuffer() should return EOS buffers after all other buffered data.
+  // Returns false if called when there is a gap between the current position
+  // and the end of the buffered data.
+  void EndOfStream();
+
+  // Returns true if this SourceBufferStream can successfully call EndOfStream()
+  // (if there are no gaps between the current position and the remaining data).
+  bool CanEndOfStream() const;
+
+  const AudioDecoderConfig& GetCurrentAudioDecoderConfig() {
+    return audio_config_;
+  }
+  const VideoDecoderConfig& GetCurrentVideoDecoderConfig() {
+    return video_config_;
+  }
 
  private:
   typedef std::list<SourceBufferRange*> RangeList;
@@ -76,6 +102,9 @@ class MEDIA_EXPORT SourceBufferStream {
   // List of disjoint buffered ranges, ordered by start time.
   RangeList ranges_;
 
+  AudioDecoderConfig audio_config_;
+  VideoDecoderConfig video_config_;
+
   // True if more data needs to be appended before the Seek() can complete,
   // false if no Seek() has been requested or the Seek() is completed.
   bool seek_pending_;
@@ -96,6 +125,10 @@ class MEDIA_EXPORT SourceBufferStream {
   // buffered yet and we need to wait for the next keyframe after
   // |track_buffer_| to be appended.
   bool waiting_for_keyframe_;
+
+  // True when EndOfStream() has been called and GetNextBuffer() should return
+  // EOS buffers for read requests beyond the buffered data.  False initially.
+  bool end_of_stream_;
 
   DISALLOW_COPY_AND_ASSIGN(SourceBufferStream);
 };
