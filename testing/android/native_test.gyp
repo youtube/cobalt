@@ -31,7 +31,7 @@
               ],
               'action': [
                 'ant',
-                '-DPRODUCT_DIR=<(PRODUCT_DIR)',
+                '-DPRODUCT_DIR=<(ant_build_out)',
                 '-buildfile',
                 '<(DEPTH)/testing/android/native_test_apk.xml',
               ]
