@@ -44,7 +44,7 @@
       ],
       'action': [
         'ant',
-        '-DPRODUCT_DIR=<(PRODUCT_DIR)',
+        '-DPRODUCT_DIR=<(ant_build_out)',
         '-DPACKAGE_NAME=<(package_name)',
         '-buildfile',
         '<(java_in_dir)/<(package_name).xml',

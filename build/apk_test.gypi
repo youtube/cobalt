@@ -44,7 +44,7 @@
               '--output',
               '<(PRODUCT_DIR)/<(test_suite_name)_apk',
               '--ant-args',
-              '-DPRODUCT_DIR=<(PRODUCT_DIR)',
+              '-DPRODUCT_DIR=<(ant_build_out)',
               '--ant-compile'
             ],
           }],
