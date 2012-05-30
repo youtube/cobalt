@@ -79,6 +79,9 @@ _TEST_SUITES = ['base_unittests',
 # Test suites which are run as APK. This will be replaced by the default
 # list when we start building all suites as APK.
 _APK_TEST_SUITES = ['base_unittests',
+                    'content_unittests',
+                    'ipc_tests',
+                    'net_unittests',
                    ]
 
 def FullyQualifiedTestSuites(apk):
