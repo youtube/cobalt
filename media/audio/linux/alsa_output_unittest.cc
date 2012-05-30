@@ -831,11 +831,11 @@ TEST_F(AlsaPcmOutputStreamTest, ScheduleNextWrite) {
   test_stream->TransitionTo(AlsaPcmOutputStream::kIsOpened);
   test_stream->TransitionTo(AlsaPcmOutputStream::kIsPlaying);
   InitBuffer(test_stream);
-  DLOG(WARNING) << test_stream->state();
+  DVLOG(1) << test_stream->state();
   EXPECT_CALL(mock_alsa_wrapper_, PcmAvailUpdate(_))
       .WillOnce(Return(10));
   test_stream->ScheduleNextWrite(false);
-  DLOG(WARNING) << test_stream->state();
+  DVLOG(1) << test_stream->state();
   // TODO(sergeyu): Figure out how to check that the task has been added to the
   // message loop.
 
@@ -844,9 +844,9 @@ TEST_F(AlsaPcmOutputStreamTest, ScheduleNextWrite) {
   // heapcheck happy.
 
   test_stream->stop_stream_ = true;
-  DLOG(WARNING) << test_stream->state();
+  DVLOG(1) << test_stream->state();
   test_stream->TransitionTo(AlsaPcmOutputStream::kIsClosed);
-  DLOG(WARNING) << test_stream->state();
+  DVLOG(1) << test_stream->state();
   test_stream->Close();
 }
 
