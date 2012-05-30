@@ -22,9 +22,6 @@ class MEDIA_EXPORT DemuxerHost : public DataSourceHost {
   // Duration may be kInfiniteDuration() if the duration is not known.
   virtual void SetDuration(base::TimeDelta duration) = 0;
 
-  // Sets the byte offset at which the client is requesting the video.
-  virtual void SetCurrentReadPosition(int64 offset) = 0;
-
   // Stops execution of the pipeline due to a fatal error.  Do not call this
   // method with PIPELINE_OK.
   virtual void OnDemuxerError(PipelineStatus error) = 0;

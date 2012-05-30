@@ -184,9 +184,8 @@ class ChunkDemuxerTest : public testing::Test {
 
   bool AppendData(const uint8* data, size_t length) {
     CHECK(length);
-    EXPECT_CALL(host_, SetBufferedBytes(_))
-        .Times(AnyNumber())
-        .WillRepeatedly(SaveArg<0>(&buffered_bytes_));
+    EXPECT_CALL(host_, AddBufferedByteRange(_, _)).Times(AnyNumber())
+        .WillRepeatedly(SaveArg<1>(&buffered_bytes_));
     EXPECT_CALL(host_, SetNetworkActivity(true))
         .Times(AnyNumber());
     return demuxer_->AppendData(kSourceId, data, length);
@@ -228,10 +227,8 @@ class ChunkDemuxerTest : public testing::Test {
 
   PipelineStatusCB CreateInitDoneCB(const base::TimeDelta& expected_duration,
                                     PipelineStatus expected_status) {
-    if (expected_status == PIPELINE_OK) {
+    if (expected_status == PIPELINE_OK)
       EXPECT_CALL(host_, SetDuration(expected_duration));
-      EXPECT_CALL(host_, SetCurrentReadPosition(_));
-    }
 
     return base::Bind(&ChunkDemuxerTest::InitDoneCalled,
                       base::Unretained(this),

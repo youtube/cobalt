@@ -219,6 +219,9 @@ class MEDIA_EXPORT Pipeline
 
   // Get the total number of bytes that are buffered on the client and ready to
   // be played.
+  // TODO(fischman): this interface is only needed so WMPI can provide
+  // bytesLoaded() which is only present so that HTMLMediaElement can decide
+  // whether progress has been made.  Bogus!  http://webk.it/86113
   int64 GetBufferedBytes() const;
 
   // Get the total size of the media file.  If the size has not yet been
@@ -299,12 +302,11 @@ class MEDIA_EXPORT Pipeline
 
   // DataSourceHost (by way of DemuxerHost) implementation.
   virtual void SetTotalBytes(int64 total_bytes) OVERRIDE;
-  virtual void SetBufferedBytes(int64 buffered_bytes) OVERRIDE;
+  virtual void AddBufferedByteRange(int64 start, int64 end) OVERRIDE;
   virtual void SetNetworkActivity(bool is_downloading_data) OVERRIDE;
 
   // DemuxerHost implementaion.
   virtual void SetDuration(base::TimeDelta duration) OVERRIDE;
-  virtual void SetCurrentReadPosition(int64 offset) OVERRIDE;
   virtual void OnDemuxerError(PipelineStatus error) OVERRIDE;
 
   // FilterHost implementation.
@@ -423,8 +425,8 @@ class MEDIA_EXPORT Pipeline
   // caller.
   base::TimeDelta GetCurrentTime_Locked() const;
 
-  // Update internal records of which time ranges are buffered.
-  void UpdateBufferedTimeRanges_Locked();
+  // Compute the time corresponding to a byte offset.
+  base::TimeDelta TimeForByteOffset_Locked(int64 byte_offset) const;
 
   // Initiates a Stop() on |demuxer_| & |pipeline_filter_|. |callback|
   // is called once both objects have been stopped.
@@ -476,11 +478,8 @@ class MEDIA_EXPORT Pipeline
   // Whether or not a playback rate change should be done once seeking is done.
   bool playback_rate_change_pending_;
 
-  // Amount of available buffered data.  Set by filters.
-  int64 buffered_bytes_;
-
-  // Approximate time ranges of buffered media.
-  Ranges<base::TimeDelta> buffered_time_ranges_;
+  // Amount of available buffered data.
+  Ranges<int64> buffered_byte_ranges_;
 
   // Total size of the media.  Set by filters.
   int64 total_bytes_;
@@ -533,10 +532,6 @@ class MEDIA_EXPORT Pipeline
   // For kSeeking we need to remember where we're seeking between filter
   // replies.
   base::TimeDelta seek_timestamp_;
-
-  // For GetCurrentBytes()/SetCurrentBytes() we need to know what byte we are
-  // currently reading.
-  int64 current_bytes_;
 
   // Set to true in DisableAudioRendererTask().
   bool audio_disabled_;

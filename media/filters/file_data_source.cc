@@ -110,7 +110,7 @@ FileDataSource::~FileDataSource() {
 void FileDataSource::UpdateHostBytes() {
   if (host() && file_) {
     host()->SetTotalBytes(file_size_);
-    host()->SetBufferedBytes(file_size_);
+    host()->AddBufferedByteRange(0, file_size_);
   }
 }
 

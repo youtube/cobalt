@@ -18,9 +18,8 @@ class MEDIA_EXPORT DataSourceHost {
   // Set the total size of the media file.
   virtual void SetTotalBytes(int64 total_bytes) = 0;
 
-  // Sets the total number of bytes that are buffered on the client and ready to
-  // be played.
-  virtual void SetBufferedBytes(int64 buffered_bytes) = 0;
+  // Notify the host that byte range [start,end] has been buffered.
+  virtual void AddBufferedByteRange(int64 start, int64 end) = 0;
 
   // Sets the flag to indicate current network activity.
   virtual void SetNetworkActivity(bool is_downloading_data) = 0;

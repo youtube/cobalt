@@ -19,7 +19,7 @@ class MockDataSourceHost : public DataSourceHost {
 
   // DataSourceHost implementation.
   MOCK_METHOD1(SetTotalBytes, void(int64 total_bytes));
-  MOCK_METHOD1(SetBufferedBytes, void(int64 buffered_bytes));
+  MOCK_METHOD2(AddBufferedByteRange, void(int64 start, int64 end));
   MOCK_METHOD1(SetNetworkActivity, void(bool network_activity));
 
  private:
