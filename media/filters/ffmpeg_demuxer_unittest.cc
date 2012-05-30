@@ -65,9 +65,7 @@ class FFmpegDemuxerTest : public testing::Test {
     CHECK(!demuxer_);
 
     EXPECT_CALL(host_, SetTotalBytes(_)).Times(AnyNumber());
-    EXPECT_CALL(host_, SetBufferedBytes(_)).Times(AnyNumber());
-    EXPECT_CALL(host_, SetCurrentReadPosition(_))
-        .WillRepeatedly(SaveArg<0>(&current_read_position_));
+    EXPECT_CALL(host_, AddBufferedByteRange(_, _)).Times(AnyNumber());
 
     CreateDataSource(name, disable_file_size);
     demuxer_ = new FFmpegDemuxer(&message_loop_, data_source_);
@@ -125,8 +123,6 @@ class FFmpegDemuxerTest : public testing::Test {
   StrictMock<MockDemuxerHost> host_;
   MessageLoop message_loop_;
 
-  int64 current_read_position_;
-
   AVFormatContext* format_context() {
     return demuxer_->format_context_;
   }
@@ -182,7 +178,6 @@ class FFmpegDemuxerTest : public testing::Test {
 TEST_F(FFmpegDemuxerTest, Initialize_OpenFails) {
   // Simulate avformat_open_input() failing.
   CreateDemuxer("ten_byte_file"),
-  EXPECT_CALL(host_, SetCurrentReadPosition(_));
   demuxer_->Initialize(
       &host_, NewExpectedStatusCB(DEMUXER_ERROR_COULD_NOT_OPEN));
 
@@ -202,7 +197,6 @@ TEST_F(FFmpegDemuxerTest, Initialize_OpenFails) {
 TEST_F(FFmpegDemuxerTest, Initialize_NoStreams) {
   // Open a file with no streams whatsoever.
   CreateDemuxer("no_streams.webm");
-  EXPECT_CALL(host_, SetCurrentReadPosition(_));
   demuxer_->Initialize(
       &host_, NewExpectedStatusCB(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
   message_loop_.RunAllPending();
@@ -592,13 +586,11 @@ TEST_F(FFmpegDemuxerTest, ProtocolRead) {
   // Read 32 bytes from offset zero and verify position.
   uint8 buffer[32];
   EXPECT_EQ(32u, demuxer_->Read(32, buffer));
-  EXPECT_EQ(32, current_read_position_);
   EXPECT_TRUE(demuxer_->GetPosition(&position));
   EXPECT_EQ(32, position);
 
   // Read an additional 32 bytes and verify position.
   EXPECT_EQ(32u, demuxer_->Read(32, buffer));
-  EXPECT_EQ(64, current_read_position_);
   EXPECT_TRUE(demuxer_->GetPosition(&position));
   EXPECT_EQ(64, position);
 
@@ -607,17 +599,14 @@ TEST_F(FFmpegDemuxerTest, ProtocolRead) {
   EXPECT_TRUE(demuxer_->GetSize(&size));
   EXPECT_TRUE(demuxer_->SetPosition(size - 48));
   EXPECT_EQ(32u, demuxer_->Read(32, buffer));
-  EXPECT_EQ(size - 16, current_read_position_);
   EXPECT_TRUE(demuxer_->GetPosition(&position));
   EXPECT_EQ(size - 16, position);
 
   EXPECT_EQ(16u, demuxer_->Read(32, buffer));
-  EXPECT_EQ(size, current_read_position_);
   EXPECT_TRUE(demuxer_->GetPosition(&position));
   EXPECT_EQ(size, position);
 
   EXPECT_EQ(0u, demuxer_->Read(32, buffer));
-  EXPECT_EQ(size, current_read_position_);
   EXPECT_TRUE(demuxer_->GetPosition(&position));
   EXPECT_EQ(size, position);
 
@@ -651,7 +640,6 @@ TEST_F(FFmpegDemuxerTest, ProtocolGetSetPosition) {
   int64 position;
   EXPECT_TRUE(demuxer_->GetSize(&size));
   EXPECT_TRUE(demuxer_->GetPosition(&position));
-  EXPECT_EQ(current_read_position_, position);
 
   EXPECT_TRUE(demuxer_->SetPosition(512));
   EXPECT_FALSE(demuxer_->SetPosition(size));
