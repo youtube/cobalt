@@ -18,7 +18,7 @@ extern const char kAlsaInputDevice[];
 #endif
 
 #if defined(OS_LINUX)
-extern const char kUseCras[];
+MEDIA_EXPORT extern const char kUseCras[];
 #endif
 
 #if defined(OS_POSIX) && !defined(OS_MACOSX)
