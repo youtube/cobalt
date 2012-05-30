@@ -289,5 +289,18 @@ TEST_F(JSONParserTest, ErrorMessages) {
   EXPECT_EQ(JSONReader::JSON_INVALID_ESCAPE, error_code);
 }
 
+TEST_F(JSONParserTest, Decode4ByteUtf8Char) {
+  // This test strings contains a 4 byte unicode character (a smiley!) that the
+  // reader should be able to handle (the character is \xf0\x9f\x98\x87).
+  const char kUtf8Data[] =
+      "[\"😇\",[],[],[],{\"google:suggesttype\":[]}]";
+  std::string error_message;
+  int error_code = 0;
+  scoped_ptr<Value> root(
+      JSONReader::ReadAndReturnError(kUtf8Data, JSON_PARSE_RFC, &error_code,
+                                     &error_message));
+  EXPECT_TRUE(root.get()) << error_message;
+}
+
 }  // namespace internal
 }  // namespace base
