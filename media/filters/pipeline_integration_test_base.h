@@ -7,6 +7,7 @@
 
 #include "base/message_loop.h"
 #include "base/md5.h"
+#include "media/audio/null_audio_sink.h"
 #include "media/base/filter_collection.h"
 #include "media/base/message_loop_factory.h"
 #include "media/base/pipeline.h"
@@ -51,6 +52,10 @@ class PipelineIntegrationTestBase {
   // --video-threads=1 to ensure correctness.
   std::string GetVideoHash();
 
+  // Returns the MD5 hash of all audio frames seen.  Should only be called once
+  // after playback completes.
+  std::string GetAudioHash();
+
  protected:
   MessageLoop message_loop_;
   base::MD5Context md5_context_;
@@ -58,6 +63,7 @@ class PipelineIntegrationTestBase {
   scoped_refptr<Pipeline> pipeline_;
   scoped_refptr<FFmpegVideoDecoder> decoder_;
   scoped_refptr<VideoRendererBase> renderer_;
+  scoped_refptr<NullAudioSink> audio_sink_;
   bool ended_;
   PipelineStatus pipeline_status_;
 
