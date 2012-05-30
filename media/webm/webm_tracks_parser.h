@@ -27,14 +27,7 @@ class WebMTracksParser : public WebMParserClient {
   int Parse(const uint8* buf, int size);
 
   int64 audio_track_num() const { return audio_track_num_; }
-  base::TimeDelta audio_default_duration() const {
-    return audio_default_duration_;
-  }
-
   int64 video_track_num() const { return video_track_num_; }
-  base::TimeDelta video_default_duration() const {
-    return video_default_duration_;
-  }
 
   const uint8* video_encryption_key_id() const;
   int video_encryption_key_id_size() const;
@@ -52,15 +45,12 @@ class WebMTracksParser : public WebMParserClient {
 
   int64 track_type_;
   int64 track_num_;
-  int64 track_default_duration_;
   scoped_ptr<WebMContentEncodingsClient> track_content_encodings_client_;
 
   int64 audio_track_num_;
-  base::TimeDelta audio_default_duration_;
   scoped_ptr<WebMContentEncodingsClient> audio_content_encodings_client_;
 
   int64 video_track_num_;
-  base::TimeDelta video_default_duration_;
   scoped_ptr<WebMContentEncodingsClient> video_content_encodings_client_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(WebMTracksParser);
