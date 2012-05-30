@@ -135,6 +135,7 @@ class SpawnerCommunicator : public net::URLRequest::Delegate {
   // outstanding tasks when |this| is deleted.
   base::WeakPtrFactory<SpawnerCommunicator> weak_factory_;
 
+  // Request context used by |cur_request_|.
   scoped_ptr<URLRequestContext> context_;
 
   // The current (in progress) request, or NULL.
