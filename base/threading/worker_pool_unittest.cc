@@ -83,7 +83,14 @@ TEST_F(WorkerPoolTest, PostTask) {
   long_test_event.Wait();
 }
 
-TEST_F(WorkerPoolTest, PostTaskAndReply) {
+#if defined(OS_WIN) || defined(OS_LINUX)
+// Flaky on Windows and Linux (http://crbug.com/130337)
+#define MAYBE_PostTaskAndReply DISABLED_PostTaskAndReply
+#else
+#define MAYBE_PostTaskAndReply PostTaskAndReply
+#endif
+
+TEST_F(WorkerPoolTest, MAYBE_PostTaskAndReply) {
   MessageLoop message_loop;
   scoped_refptr<PostTaskAndReplyTester> tester(new PostTaskAndReplyTester());
   tester->RunTest();
