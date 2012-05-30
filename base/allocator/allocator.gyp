@@ -469,7 +469,6 @@
                 '$(VCInstallDir)lib',
                 '<(SHARED_INTERMEDIATE_DIR)/allocator',
               ],
-              'msvs_cygwin_shell': '0',
             },
           ],
         },
