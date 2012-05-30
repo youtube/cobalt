@@ -217,13 +217,6 @@ class MEDIA_EXPORT Pipeline
   // been determined yet, then returns 0.
   base::TimeDelta GetMediaDuration() const;
 
-  // Get the total number of bytes that are buffered on the client and ready to
-  // be played.
-  // TODO(fischman): this interface is only needed so WMPI can provide
-  // bytesLoaded() which is only present so that HTMLMediaElement can decide
-  // whether progress has been made.  Bogus!  http://webk.it/86113
-  int64 GetBufferedBytes() const;
-
   // Get the total size of the media file.  If the size has not yet been
   // determined or can not be determined, this value is 0.
   int64 GetTotalBytes() const;
@@ -232,6 +225,10 @@ class MEDIA_EXPORT Pipeline
   // video or the video has not been rendered yet, the width and height will
   // be 0.
   void GetNaturalVideoSize(gfx::Size* out_size) const;
+
+  // Return true if loading progress has been made since the last time this
+  // method was called.
+  bool DidLoadingProgress() const;
 
   // Gets the current pipeline statistics.
   PipelineStatistics GetStatistics() const;
@@ -478,8 +475,12 @@ class MEDIA_EXPORT Pipeline
   // Whether or not a playback rate change should be done once seeking is done.
   bool playback_rate_change_pending_;
 
-  // Amount of available buffered data.
+  // Amount of available buffered data.  Set by filters.
   Ranges<int64> buffered_byte_ranges_;
+
+  // True when AddBufferedByteRange() has been called more recently than
+  // DidLoadingProgress().
+  mutable bool did_loading_progress_;
 
   // Total size of the media.  Set by filters.
   int64 total_bytes_;
