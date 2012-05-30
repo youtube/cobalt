@@ -51,10 +51,11 @@ class NativeTestApkGenerator(object):
                       'native_test_apk.xml',
                       'res/values/strings.xml']
 
-  def __init__(self, native_library, jars, output_directory):
+  def __init__(self, native_library, jars, output_directory, target_abi):
     self._native_library = native_library
     self._jars = jars
     self._output_directory = output_directory
+    self._target_abi = target_abi
     self._root_name = None
     if self._native_library:
       self._root_name = self._LibraryRoot()
@@ -119,7 +120,7 @@ class NativeTestApkGenerator(object):
   def _CopyLibraryAndJars(self):
     """Copy the shlib and jars into the apk source tree (if relevant)"""
     if self._native_library:
-      destdir = os.path.join(self._output_directory, 'libs/armeabi')
+      destdir = os.path.join(self._output_directory, 'libs/' + self._target_abi)
       if not os.path.exists(destdir):
         os.makedirs(destdir)
       dest = os.path.join(destdir, os.path.basename(self._native_library))
@@ -172,6 +173,8 @@ def main(argv):
                     help='Space separated list of jars to be included')
   parser.add_option('--output',
                     help='Output directory for generated files.')
+  parser.add_option('--app_abi', default='armeabi',
+                    help='ABI for native shared library')
   parser.add_option('--ant-compile', action='store_true',
                     help='If specified, build the generated apk with ant')
   parser.add_option('--ant-args',
@@ -194,7 +197,8 @@ def main(argv):
     jar_list = options.jars.replace('"', '').split()
   ntag = NativeTestApkGenerator(native_library=options.native_library,
                                 jars=jar_list,
-                                output_directory=options.output)
+                                output_directory=options.output,
+                                target_abi=options.app_abi)
   ntag.CreateBundle()
   if options.ant_compile:
     ntag.Compile(options.ant_args)
