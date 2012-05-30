@@ -653,7 +653,7 @@ int VideoCaptureDeviceWin::GetBestMatchedCapability(int requested_width,
 }
 
 void VideoCaptureDeviceWin::SetErrorState(const char* reason) {
-  DLOG(ERROR) << reason;
+  DVLOG(1) << reason;
   state_ = kError;
   observer_->OnError();
 }

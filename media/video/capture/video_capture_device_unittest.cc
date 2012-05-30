@@ -87,7 +87,7 @@ TEST_F(VideoCaptureDeviceTest, OpenInvalidDevice) {
 TEST_F(VideoCaptureDeviceTest, CaptureVGA) {
   VideoCaptureDevice::GetDeviceNames(&names_);
   if (!names_.size()) {
-    LOG(WARNING) << "No camera available. Exiting test.";
+    DVLOG(1) << "No camera available. Exiting test.";
     return;
   }
 
@@ -115,7 +115,7 @@ TEST_F(VideoCaptureDeviceTest, CaptureVGA) {
 TEST_F(VideoCaptureDeviceTest, Capture720p) {
   VideoCaptureDevice::GetDeviceNames(&names_);
   if (!names_.size()) {
-    LOG(WARNING) << "No camera available. Exiting test.";
+    DVLOG(1) << "No camera available. Exiting test.";
     return;
   }
 
@@ -145,7 +145,7 @@ TEST_F(VideoCaptureDeviceTest, Capture720p) {
 TEST_F(VideoCaptureDeviceTest, MAYBE_AllocateBadSize) {
   VideoCaptureDevice::GetDeviceNames(&names_);
   if (!names_.size()) {
-    LOG(WARNING) << "No camera available. Exiting test.";
+    DVLOG(1) << "No camera available. Exiting test.";
     return;
   }
   scoped_ptr<VideoCaptureDevice> device(
@@ -166,7 +166,7 @@ TEST_F(VideoCaptureDeviceTest, MAYBE_AllocateBadSize) {
 TEST_F(VideoCaptureDeviceTest, ReAllocateCamera) {
   VideoCaptureDevice::GetDeviceNames(&names_);
   if (!names_.size()) {
-    LOG(WARNING) << "No camera available. Exiting test.";
+    DVLOG(1) << "No camera available. Exiting test.";
     return;
   }
   scoped_ptr<VideoCaptureDevice> device(
@@ -199,7 +199,7 @@ TEST_F(VideoCaptureDeviceTest, ReAllocateCamera) {
 TEST_F(VideoCaptureDeviceTest, DeAllocateCameraWhileRunning) {
   VideoCaptureDevice::GetDeviceNames(&names_);
   if (!names_.size()) {
-    LOG(WARNING) << "No camera available. Exiting test.";
+    DVLOG(1) << "No camera available. Exiting test.";
     return;
   }
   scoped_ptr<VideoCaptureDevice> device(
