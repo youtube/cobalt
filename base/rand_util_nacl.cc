@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "base/rand_util.h"
-#include "base/rand_util_c.h"
 
 #include "base/lazy_instance.h"
 #include "base/logging.h"
