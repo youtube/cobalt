@@ -203,10 +203,6 @@
       # Remoting compilation is enabled by default. Set to 0 to disable.
       'remoting%': 1,
 
-      # P2P APIs are compiled in by default. Set to 0 to disable.
-      # Also note that this should be enabled for remoting to compile.
-      'p2p_apis%': 1,
-
       # Configuration policy is enabled by default. Set to 0 to disable.
       'configuration_policy%': 1,
 
@@ -549,7 +545,6 @@
     'enable_one_click_signin%': '<(enable_one_click_signin)',
     'enable_webrtc%': '<(enable_webrtc)',
     'chromium_win_pch%': '<(chromium_win_pch)',
-    'p2p_apis%': '<(p2p_apis)',
     'configuration_policy%': '<(configuration_policy)',
     'safe_browsing%': '<(safe_browsing)',
     'input_speech%': '<(input_speech)',
@@ -1338,9 +1333,6 @@
       }],
       ['enable_webrtc==1', {
         'defines': ['ENABLE_WEBRTC=1'],
-      }],
-      ['p2p_apis==1', {
-        'defines': ['ENABLE_P2P_APIS=1'],
       }],
       ['proprietary_codecs==1', {
         'defines': ['USE_PROPRIETARY_CODECS'],
