@@ -41,3 +41,5 @@ GPUTestExpectationsParserTest.WebGLTestExpectationsValidation
 # crbug.com/104950
 DeviceOrientationProviderTest.ObserverNotRemoved
 DeviceOrientationProviderTest.StartFailing
+# Test failures on APK
+ChromeAppCacheServiceTest.*

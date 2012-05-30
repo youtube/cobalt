@@ -59,7 +59,9 @@
             '../testing/android/native_test.gyp:native_test_apk',
             # Unit test bundles packaged as an apk.
             '../base/base.gyp:base_unittests_apk',
+            '../content/content.gyp:content_unittests_apk',
             '../ipc/ipc.gyp:ipc_tests_apk',
+            '../net/net.gyp:net_unittests_apk',
             '../ui/ui.gyp:ui_unittests_apk',
           ],
         }]
