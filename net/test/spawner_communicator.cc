@@ -126,7 +126,10 @@ void SpawnerCommunicator::StartIOThread() {
 void SpawnerCommunicator::Shutdown() {
   DCHECK_NE(MessageLoop::current(), io_thread_.message_loop());
   DCHECK(is_running_);
+  // The request and its context should be created and destroyed only on the
+  // IO thread.
   DCHECK(!cur_request_.get());
+  DCHECK(!context_.get());
   io_thread_.Stop();
   allowed_port_.reset();
 }
@@ -239,6 +242,10 @@ void SpawnerCommunicator::OnSpawnerCommandCompleted(URLRequest* request) {
   // Clear current request to indicate the completion of sending a command
   // to spawner server and getting the result.
   cur_request_.reset();
+  context_.reset();
+  // Invalidate the weak pointers on the IO thread.
+  weak_factory_.InvalidateWeakPtrs();
+
   // Wakeup the caller in user thread.
   event_.Signal();
 }
