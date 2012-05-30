@@ -43,6 +43,8 @@
               '"<@(input_jars_paths)"',
               '--output',
               '<(PRODUCT_DIR)/<(test_suite_name)_apk',
+              '--app_abi',
+              '<(android_app_abi)',
               '--ant-args',
               '-DPRODUCT_DIR=<(ant_build_out)',
               '--ant-compile'
