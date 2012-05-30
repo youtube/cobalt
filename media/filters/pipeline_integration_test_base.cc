@@ -6,7 +6,6 @@
 
 #include "base/bind.h"
 #include "media/base/media_log.h"
-#include "media/audio/null_audio_sink.h"
 #include "media/filters/audio_renderer_impl.h"
 #include "media/filters/chunk_demuxer.h"
 #include "media/filters/ffmpeg_audio_decoder.h"
@@ -177,7 +176,9 @@ PipelineIntegrationTestBase::CreateFilterCollection(
                  base::Unretained(this)),
       false);
   collection->AddVideoRenderer(renderer_);
-  collection->AddAudioRenderer(new AudioRendererImpl(new NullAudioSink()));
+  audio_sink_ = new NullAudioSink();
+  audio_sink_->StartAudioHashForTesting();
+  collection->AddAudioRenderer(new AudioRendererImpl(audio_sink_));
   return collection.Pass();
 }
 
@@ -193,6 +194,10 @@ std::string PipelineIntegrationTestBase::GetVideoHash() {
   base::MD5Digest digest;
   base::MD5Final(&digest, &md5_context_);
   return base::MD5DigestToBase16(digest);
+}
+
+std::string PipelineIntegrationTestBase::GetAudioHash() {
+  return audio_sink_->GetAudioHashForTesting();
 }
 
 }  // namespace media
