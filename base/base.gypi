@@ -274,7 +274,6 @@
           'property_bag.h',
           'rand_util.cc',
           'rand_util.h',
-          'rand_util_c.h',
           'rand_util_posix.cc',
           'rand_util_win.cc',
           'safe_strerror_posix.cc',
