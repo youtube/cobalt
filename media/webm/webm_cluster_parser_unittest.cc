@@ -19,16 +19,7 @@ enum {
   kTimecodeScale = 1000000,  // Timecode scale for millisecond timestamps.
   kAudioTrackNum = 1,
   kVideoTrackNum = 2,
-  kVideoDefaultDurationInMs = 33,
 };
-
-static base::TimeDelta kAudioDefaultDuration() {
-  return kNoTimestamp();
-}
-
-static base::TimeDelta kVideoDefaultDuration() {
-  return base::TimeDelta::FromMilliseconds(kVideoDefaultDurationInMs);
-}
 
 struct BlockInfo {
   int track_num;
@@ -133,9 +124,7 @@ class WebMClusterParserTest  : public testing::Test {
   WebMClusterParserTest()
       : parser_(new WebMClusterParser(kTimecodeScale,
                                       kAudioTrackNum,
-                                      kAudioDefaultDuration(),
                                       kVideoTrackNum,
-                                      kVideoDefaultDuration(),
                                       NULL, 0)) {
   }
 
@@ -244,11 +233,9 @@ TEST_F(WebMClusterParserTest, ParseSimpleBlockAndBlockGroupMixture) {
   const BlockInfo kBlockInfo[] = {
     { kAudioTrackNum, 0, 23, true },
     { kAudioTrackNum, 23, 23, false },
-    { kVideoTrackNum, kVideoDefaultDurationInMs, kVideoDefaultDurationInMs,
-      true },
+    { kVideoTrackNum, 33, 34, true },
     { kAudioTrackNum, 46, 23, false },
-    { kVideoTrackNum, 2 * kVideoDefaultDurationInMs, 34,
-      false },
+    { kVideoTrackNum, 67, 33, false },
   };
   int block_count = arraysize(kBlockInfo);
   scoped_ptr<Cluster> cluster(CreateCluster(0, kBlockInfo, block_count));

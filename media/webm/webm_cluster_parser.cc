@@ -13,9 +13,7 @@ namespace media {
 
 WebMClusterParser::WebMClusterParser(int64 timecode_scale,
                                      int audio_track_num,
-                                     base::TimeDelta audio_default_duration,
                                      int video_track_num,
-                                     base::TimeDelta video_default_duration,
                                      const uint8* video_encryption_key_id,
                                      int video_encryption_key_id_size)
     : timecode_multiplier_(timecode_scale / 1000.0),
@@ -25,8 +23,8 @@ WebMClusterParser::WebMClusterParser(int64 timecode_scale,
       block_data_size_(-1),
       block_duration_(-1),
       cluster_timecode_(-1),
-      audio_(audio_track_num, audio_default_duration),
-      video_(video_track_num, video_default_duration) {
+      audio_(audio_track_num),
+      video_(video_track_num) {
   CHECK_GE(video_encryption_key_id_size, 0);
   if (video_encryption_key_id_size > 0) {
     video_encryption_key_id_.reset(new uint8[video_encryption_key_id_size]);
@@ -217,10 +215,8 @@ bool WebMClusterParser::OnBlock(int track_num, int timecode,
   return false;
 }
 
-WebMClusterParser::Track::Track(int track_num,
-                                base::TimeDelta default_duration)
-    : track_num_(track_num),
-      default_duration_(default_duration) {
+WebMClusterParser::Track::Track(int track_num)
+    : track_num_(track_num) {
 }
 
 WebMClusterParser::Track::~Track() {}
