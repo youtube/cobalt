@@ -78,6 +78,9 @@ PlatformFile CreatePlatformFile(const FilePath& name, int flags,
     NOTREACHED();
   }
 
+  if (flags & PLATFORM_FILE_TERMINAL_DEVICE)
+    open_flags |= O_NOCTTY | O_NDELAY;
+
   COMPILE_ASSERT(O_RDONLY == 0, O_RDONLY_must_equal_zero);
 
   int mode = S_IRUSR | S_IWUSR;
@@ -175,6 +178,24 @@ int ReadPlatformFile(PlatformFile file, int64 offset, char* data, int size) {
   return bytes_read ? bytes_read : rv;
 }
 
+int ReadPlatformFileAtCurrentPos(PlatformFile file, char* data, int size) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  if (file < 0 || size < 0)
+    return -1;
+
+  int bytes_read = 0;
+  int rv;
+  do {
+    rv = HANDLE_EINTR(read(file, data, size));
+    if (rv <= 0)
+      break;
+
+    bytes_read += rv;
+  } while (bytes_read < size);
+
+  return bytes_read ? bytes_read : rv;
+}
+
 int ReadPlatformFileNoBestEffort(PlatformFile file, int64 offset,
                                  char* data, int size) {
   base::ThreadRestrictions::AssertIOAllowed();
@@ -195,6 +216,25 @@ int WritePlatformFile(PlatformFile file, int64 offset,
   do {
     rv = HANDLE_EINTR(pwrite(file, data + bytes_written,
                              size - bytes_written, offset + bytes_written));
+    if (rv <= 0)
+      break;
+
+    bytes_written += rv;
+  } while (bytes_written < size);
+
+  return bytes_written ? bytes_written : rv;
+}
+
+int WritePlatformFileAtCurrentPos(PlatformFile file,
+                                  const char* data, int size) {
+  base::ThreadRestrictions::AssertIOAllowed();
+  if (file < 0 || size < 0)
+    return -1;
+
+  int bytes_written = 0;
+  int rv;
+  do {
+    rv = HANDLE_EINTR(write(file, data, size));
     if (rv <= 0)
       break;
 
