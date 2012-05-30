@@ -34,7 +34,7 @@ class MEDIA_EXPORT VideoCaptureDevice {
   };
   typedef std::list<Name> Names;
 
-  class EventHandler {
+  class MEDIA_EXPORT EventHandler {
    public:
     // Captured a new video frame.
     virtual void OnIncomingCapturedFrame(const uint8* data,
