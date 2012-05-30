@@ -1273,6 +1273,17 @@
       }, {  # else: branding!="Chrome"
         'defines': ['CHROMIUM_BUILD'],
       }],
+      ['OS=="mac" and component=="shared_library"', {
+        'xcode_settings': {
+          'DYLIB_INSTALL_NAME_BASE': '@rpath',
+          'LD_RUNPATH_SEARCH_PATHS': [
+            # For unbundled binaries.
+            '@loader_path/.',
+            # For bundled binaries, to get back from Binary.app/Contents/MacOS.
+            '@loader_path/../../..',
+          ],
+        },
+      }],
       ['branding=="Chrome" and (OS=="win" or OS=="mac")', {
         'defines': ['ENABLE_RLZ'],
       }],
