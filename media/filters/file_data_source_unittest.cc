@@ -53,7 +53,7 @@ std::string TestFileURL() {
 TEST(FileDataSourceTest, OpenFile) {
   StrictMock<MockDataSourceHost> host;
   EXPECT_CALL(host, SetTotalBytes(10));
-  EXPECT_CALL(host, SetBufferedBytes(10));
+  EXPECT_CALL(host, AddBufferedByteRange(0, 10));
 
   scoped_refptr<FileDataSource> filter(new FileDataSource());
   filter->set_host(&host);

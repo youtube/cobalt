@@ -571,8 +571,9 @@ bool ChunkDemuxer::AppendData(const std::string& id,
     buffered_bytes = buffered_bytes_;
   }
 
-  // Notify the host of 'network activity' because we got data.
-  host_->SetBufferedBytes(buffered_bytes);
+  // Notify the host of 'network activity' because we got data, using a bogus
+  // range.
+  host_->AddBufferedByteRange(0, buffered_bytes);
 
   host_->SetNetworkActivity(true);
 
@@ -715,7 +716,6 @@ void ChunkDemuxer::OnSourceBufferInitDone(bool success,
 
   duration_ = duration;
   host_->SetDuration(duration_);
-  host_->SetCurrentReadPosition(0);
 
   ChangeState_Locked(INITIALIZED);
   PipelineStatusCB cb;
