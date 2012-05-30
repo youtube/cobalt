@@ -163,7 +163,8 @@ TEST_F(PipelineIntegrationTest, BasicPlayback) {
   ASSERT_TRUE(WaitUntilOnEnded());
 
   ASSERT_EQ(GetVideoHash(), "f0be120a90a811506777c99a2cdf7cc1");
-  ASSERT_EQ(GetAudioHash(), "9c5656bacee06f50ca90cc916419f84c");
+  // TODO(dalecurtis): Hashing is inconsistent, see http://crbug.com/130371
+  // ASSERT_EQ(GetAudioHash(), "9c5656bacee06f50ca90cc916419f84c");
 }
 
 TEST_F(PipelineIntegrationTest, EncryptedPlayback) {
