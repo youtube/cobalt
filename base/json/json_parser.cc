@@ -801,7 +801,9 @@ void JSONParser::DecodeUTF8(const int32& point, StringBuilder* dest) {
     int offset = 0;
     CBU8_APPEND_UNSAFE(utf8_units, offset, point);
     dest->Convert();
-    dest->AppendString(utf8_units);
+    // CBU8_APPEND_UNSAFE can overwrite up to 4 bytes, so utf8_units may not be
+    // zero terminated at this point.  |offset| contains the correct length.
+    dest->AppendString(std::string(utf8_units, offset));
   }
 }
 
