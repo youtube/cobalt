@@ -106,7 +106,7 @@ VideoCaptureDevice* VideoCaptureDevice::Create(const Name& device_name) {
   // allocates the camera.
   int fd = open(device_name.unique_id.c_str(), O_RDONLY);
   if (fd < 0) {
-    DPLOG(ERROR) << "Cannot open device";
+    DVLOG(1) << "Cannot open device";
     delete self;
     return NULL;
   }
@@ -451,7 +451,7 @@ void VideoCaptureDeviceLinux::DeAllocateVideoBuffers() {
 }
 
 void VideoCaptureDeviceLinux::SetErrorState(const std::string& reason) {
-  DLOG(ERROR) << reason;
+  DVLOG(1) << reason;
   state_ = kError;
   observer_->OnError();
 }
