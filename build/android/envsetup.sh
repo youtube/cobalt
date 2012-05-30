@@ -93,7 +93,17 @@ export PATH=$PATH:${ANDROID_TOOLCHAIN}
 
 if [ -z "${CHROME_SRC}" ]; then
   # If $CHROME_SRC was not set, assume current directory is CHROME_SRC.
-  export CHROME_SRC=$(readlink -f .)
+  export CHROME_SRC="${PWD}"
+fi
+
+if [ "${PWD/"${CHROME_SRC}"/}" == "${PWD}" ]; then
+  # If current directory is not in $CHROME_SRC, it might be set for other
+  # source tree. If $CHROME_SRC was set correctly and we are in the correct
+  # directory, "${PWD/"${CHROME_SRC}"/}" will be "".
+  # Otherwise, it will equal to "${PWD}"
+  echo "Warning: Current directory is out of CHROME_SRC, it may not be \
+the one you want."
+  echo "${CHROME_SRC}"
 fi
 
 if [ ! -d "${CHROME_SRC}" ]; then
