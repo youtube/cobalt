@@ -21,9 +21,7 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
 
   WebMClusterParser(int64 timecode_scale,
                     int audio_track_num,
-                    base::TimeDelta audio_default_duration,
                     int video_track_num,
-                    base::TimeDelta video_default_duration,
                     const uint8* video_encryption_key_id,
                     int video_encryption_key_id_size);
   virtual ~WebMClusterParser();
@@ -45,7 +43,7 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
   // Helper class that manages per-track state.
   class Track {
    public:
-    Track(int track_num, base::TimeDelta default_duration);
+    explicit Track(int track_num);
     ~Track();
 
     int track_num() const { return track_num_; }
@@ -61,7 +59,6 @@ class MEDIA_EXPORT WebMClusterParser : public WebMParserClient {
 
    private:
     int track_num_;
-    base::TimeDelta default_duration_;
     BufferQueue buffers_;
     scoped_refptr<StreamParserBuffer> delayed_buffer_;
   };

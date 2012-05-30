@@ -349,9 +349,7 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8* data, int size) {
   cluster_parser_.reset(new WebMClusterParser(
       info_parser.timecode_scale(),
       tracks_parser.audio_track_num(),
-      tracks_parser.audio_default_duration(),
       tracks_parser.video_track_num(),
-      tracks_parser.video_default_duration(),
       tracks_parser.video_encryption_key_id(),
       tracks_parser.video_encryption_key_id_size()));
 
