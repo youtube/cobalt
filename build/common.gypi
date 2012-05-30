@@ -497,7 +497,7 @@
         #
         # On Aura, this allows per-tile painting to be used in the browser
         # compositor.
-        ['use_aura==1 or OS=="win"', {
+        ['OS!="mac" and OS!="android"', {
           'use_canvas_skia%': 1,
         }],
       ],
