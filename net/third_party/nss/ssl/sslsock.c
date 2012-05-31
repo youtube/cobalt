@@ -374,6 +374,8 @@ ssl_DupSocket(sslSocket *os)
 	    ss->handshakeCallback     = os->handshakeCallback;
 	    ss->handshakeCallbackData = os->handshakeCallbackData;
 	    ss->pkcs11PinArg          = os->pkcs11PinArg;
+	    ss->getChannelID          = os->getChannelID;
+	    ss->getChannelIDArg       = os->getChannelIDArg;
     
 	    /* Create security data */
 	    rv = ssl_CopySecurityInfo(ss, os);
@@ -1688,6 +1690,10 @@ SSL_ReconfigFD(PRFileDesc *model, PRFileDesc *fd)
         ss->handshakeCallbackData = sm->handshakeCallbackData;
     if (sm->pkcs11PinArg)
         ss->pkcs11PinArg          = sm->pkcs11PinArg;
+    if (sm->getChannelID)
+        ss->getChannelID          = sm->getChannelID;
+    if (sm->getChannelIDArg)
+        ss->getChannelIDArg       = sm->getChannelIDArg;
     return fd;
 loser:
     return NULL;
@@ -2938,6 +2944,8 @@ ssl_NewSocket(PRBool makeLocks, SSLProtocolVariant protocolVariant)
 	ss->handleBadCert      = NULL;
 	ss->badCertArg         = NULL;
 	ss->pkcs11PinArg       = NULL;
+	ss->getChannelID       = NULL;
+	ss->getChannelIDArg    = NULL;
 
 	ssl_ChooseOps(ss);
 	ssl2_InitSocketPolicy(ss);

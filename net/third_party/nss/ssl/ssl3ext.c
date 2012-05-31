@@ -80,10 +80,14 @@ static SECStatus ssl3_HandleRenegotiationInfoXtn(sslSocket *ss,
     PRUint16 ex_type, SECItem *data);
 static SECStatus ssl3_ClientHandleNextProtoNegoXtn(sslSocket *ss,
 			PRUint16 ex_type, SECItem *data);
+static SECStatus ssl3_ClientHandleChannelIDXtn(sslSocket *ss,
+			PRUint16 ex_type, SECItem *data);
 static SECStatus ssl3_ServerHandleNextProtoNegoXtn(sslSocket *ss,
 			PRUint16 ex_type, SECItem *data);
 static PRInt32 ssl3_ClientSendNextProtoNegoXtn(sslSocket *ss, PRBool append,
 					       PRUint32 maxBytes);
+static PRInt32 ssl3_ClientSendChannelIDXtn(sslSocket *ss, PRBool append,
+					  PRUint32 maxBytes);
 
 /*
  * Write bytes.  Using this function means the SECItem structure
@@ -253,6 +257,7 @@ static const ssl3HelloExtensionHandler serverHelloHandlersTLS[] = {
     { ssl_session_ticket_xtn,     &ssl3_ClientHandleSessionTicketXtn },
     { ssl_renegotiation_info_xtn, &ssl3_HandleRenegotiationInfoXtn },
     { ssl_next_proto_nego_xtn,    &ssl3_ClientHandleNextProtoNegoXtn },
+    { ssl_channel_id_xtn,          &ssl3_ClientHandleChannelIDXtn },
     { ssl_cert_status_xtn,        &ssl3_ClientHandleStatusRequestXtn },
     { -1, NULL }
 };
@@ -278,6 +283,7 @@ ssl3HelloExtensionSender clientHelloSendersTLS[SSL_MAX_EXTENSIONS] = {
 #endif
     { ssl_session_ticket_xtn,     &ssl3_SendSessionTicketXtn },
     { ssl_next_proto_nego_xtn,    &ssl3_ClientSendNextProtoNegoXtn },
+    { ssl_channel_id_xtn,         &ssl3_ClientSendChannelIDXtn },
     { ssl_cert_status_xtn,        &ssl3_ClientSendStatusRequestXtn }
     /* any extra entries will appear as { 0, NULL }    */
 };
@@ -660,6 +666,52 @@ ssl3_ClientSendNextProtoNegoXtn(sslSocket * ss, PRBool append,
 		ssl_next_proto_nego_xtn;
     } else if (maxBytes < extension_length) {
 	return 0;
+    }
+
+    return extension_length;
+
+loser:
+    return -1;
+}
+
+static SECStatus
+ssl3_ClientHandleChannelIDXtn(sslSocket *ss, PRUint16 ex_type,
+			     SECItem *data)
+{
+    PORT_Assert(ss->getChannelID != NULL);
+
+    if (data->len) {
+	PORT_SetError(SSL_ERROR_BAD_CHANNEL_ID_DATA);
+	return SECFailure;
+    }
+    ss->xtnData.negotiated[ss->xtnData.numNegotiated++] = ex_type;
+    return SECSuccess;
+}
+
+static PRInt32
+ssl3_ClientSendChannelIDXtn(sslSocket * ss, PRBool append,
+			    PRUint32 maxBytes)
+{
+    PRInt32 extension_length = 4;
+
+    if (!ss->getChannelID)
+	return 0;
+
+    if (maxBytes < extension_length) {
+	PORT_Assert(0);
+	return 0;
+    }
+
+    if (append) {
+	SECStatus rv;
+	rv = ssl3_AppendHandshakeNumber(ss, ssl_channel_id_xtn, 2);
+	if (rv != SECSuccess)
+	    goto loser;
+	rv = ssl3_AppendHandshakeNumber(ss, 0, 2);
+	if (rv != SECSuccess)
+	    goto loser;
+	ss->xtnData.advertised[ss->xtnData.numAdvertised++] =
+		ssl_channel_id_xtn;
     }
 
     return extension_length;

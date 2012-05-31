@@ -251,6 +251,24 @@ SSL_GetClientAuthDataHook(PRFileDesc *s, SSLGetClientAuthData func,
     return SECSuccess;
 }
 
+SECStatus
+SSL_SetClientChannelIDCallback(PRFileDesc *fd,
+			       SSLClientChannelIDCallback callback,
+			       void *arg) {
+    sslSocket *ss = ssl_FindSocket(fd);
+
+    if (!ss) {
+	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_SetClientChannelIDCallback",
+		 SSL_GETPID(), fd));
+	return SECFailure;
+    }
+
+    ss->getChannelID = callback;
+    ss->getChannelIDArg = arg;
+
+    return SECSuccess;
+}
+
 #ifdef NSS_PLATFORM_CLIENT_AUTH
 /* NEED LOCKS IN HERE.  */
 SECStatus 
