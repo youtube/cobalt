@@ -5,6 +5,7 @@
 #include "media/filters/pipeline_integration_test_base.h"
 
 #include "base/bind.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/test_data_util.h"
 #include "media/filters/chunk_demuxer_client.h"
 
@@ -24,10 +25,10 @@ class MockMediaSource : public ChunkDemuxerClient {
       : url_(GetTestDataURL(filename)),
         current_position_(0),
         initial_append_size_(initial_append_size) {
-    ReadTestDataFile(filename, &file_data_, &file_data_size_);
+    file_data_ = ReadTestDataFile(filename);
 
     DCHECK_GT(initial_append_size_, 0);
-    DCHECK_LE(initial_append_size_, file_data_size_);
+    DCHECK_LE(initial_append_size_, file_data_->GetDataSize());
   }
 
   virtual ~MockMediaSource() {}
@@ -45,7 +46,7 @@ class MockMediaSource : public ChunkDemuxerClient {
     chunk_demuxer_->StartWaitingForSeek();
 
     DCHECK_GE(new_position, 0);
-    DCHECK_LT(new_position, file_data_size_);
+    DCHECK_LT(new_position, file_data_->GetDataSize());
     current_position_ = new_position;
 
     AppendData(seek_append_size);
@@ -53,11 +54,10 @@ class MockMediaSource : public ChunkDemuxerClient {
 
   void AppendData(int size) {
     DCHECK(chunk_demuxer_.get());
-    DCHECK_LT(current_position_, file_data_size_);
-    DCHECK_LE(current_position_ + size, file_data_size_);
-    CHECK(chunk_demuxer_->AppendData(kSourceId,
-                                     file_data_.get() + current_position_,
-                                     size));
+    DCHECK_LT(current_position_, file_data_->GetDataSize());
+    DCHECK_LE(current_position_ + size, file_data_->GetDataSize());
+    CHECK(chunk_demuxer_->AppendData(
+        kSourceId, file_data_->GetData() + current_position_, size));
     current_position_ += size;
   }
 
@@ -98,8 +98,7 @@ class MockMediaSource : public ChunkDemuxerClient {
 
  private:
   std::string url_;
-  scoped_array<uint8> file_data_;
-  int file_data_size_;
+  scoped_refptr<DecoderBuffer> file_data_;
   int current_position_;
   int initial_append_size_;
   scoped_refptr<ChunkDemuxer> chunk_demuxer_;

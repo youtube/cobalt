@@ -4,6 +4,7 @@
 
 #include "base/bind.h"
 #include "media/base/audio_decoder_config.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/mock_callback.h"
 #include "media/base/mock_demuxer_host.h"
 #include "media/base/test_data_util.h"
@@ -70,7 +71,7 @@ MATCHER_P(HasTimestamp, timestamp_in_ms, "") {
 
 static void OnReadDone(const base::TimeDelta& expected_time,
                        bool* called,
-                       const scoped_refptr<Buffer>& buffer) {
+                       const scoped_refptr<DecoderBuffer>& buffer) {
   EXPECT_EQ(expected_time, buffer->GetTimestamp());
   *called = true;
 }
@@ -115,63 +116,61 @@ class ChunkDemuxerTest : public testing::Test {
   void CreateInfoTracks(bool has_audio, bool has_video,
                         bool video_content_encoded, scoped_array<uint8>* buffer,
                         int* size) {
-    scoped_array<uint8> info;
-    int info_size = 0;
-    scoped_array<uint8> audio_track_entry;
-    int audio_track_entry_size = 0;
-    scoped_array<uint8> video_track_entry;
-    int video_track_entry_size = 0;
-    scoped_array<uint8> video_content_encodings;
-    int video_content_encodings_size = 0;
+    scoped_refptr<DecoderBuffer> info;
+    scoped_refptr<DecoderBuffer> audio_track_entry;
+    scoped_refptr<DecoderBuffer> video_track_entry;
+    scoped_refptr<DecoderBuffer> video_content_encodings;
 
-    ReadTestDataFile("webm_info_element", &info, &info_size);
+    info = ReadTestDataFile("webm_info_element");
 
     int tracks_element_size = 0;
 
     if (has_audio) {
-      ReadTestDataFile("webm_vorbis_track_entry", &audio_track_entry,
-                       &audio_track_entry_size);
-      tracks_element_size += audio_track_entry_size;
+      audio_track_entry = ReadTestDataFile("webm_vorbis_track_entry");
+      tracks_element_size += audio_track_entry->GetDataSize();
     }
 
     if (has_video) {
-      ReadTestDataFile("webm_vp8_track_entry", &video_track_entry,
-                       &video_track_entry_size);
-      tracks_element_size += video_track_entry_size;
+      video_track_entry = ReadTestDataFile("webm_vp8_track_entry");
+      tracks_element_size += video_track_entry->GetDataSize();
       if (video_content_encoded) {
-        ReadTestDataFile("webm_content_encodings", &video_content_encodings,
-                         &video_content_encodings_size);
-        tracks_element_size += video_content_encodings_size;
+        video_content_encodings = ReadTestDataFile("webm_content_encodings");
+        tracks_element_size += video_content_encodings->GetDataSize();
       }
     }
 
-    *size = info_size + kTracksHeaderSize + tracks_element_size;
+    *size = info->GetDataSize() + kTracksHeaderSize + tracks_element_size;
 
     buffer->reset(new uint8[*size]);
 
     uint8* buf = buffer->get();
-    memcpy(buf, info.get(), info_size);
-    buf += info_size;
+    memcpy(buf, info->GetData(), info->GetDataSize());
+    buf += info->GetDataSize();
 
     memcpy(buf, kTracksHeader, kTracksHeaderSize);
     WriteInt64(buf + kTracksSizeOffset, tracks_element_size);
     buf += kTracksHeaderSize;
 
     if (has_audio) {
-      memcpy(buf, audio_track_entry.get(), audio_track_entry_size);
-      buf += audio_track_entry_size;
+      memcpy(buf, audio_track_entry->GetData(),
+             audio_track_entry->GetDataSize());
+      buf += audio_track_entry->GetDataSize();
     }
 
     if (has_video) {
-      memcpy(buf, video_track_entry.get(), video_track_entry_size);
+      memcpy(buf, video_track_entry->GetData(),
+             video_track_entry->GetDataSize());
       if (video_content_encoded) {
-        memcpy(buf + video_track_entry_size, video_content_encodings.get(),
-               video_content_encodings_size);
-        video_track_entry_size += video_content_encodings_size;
+        memcpy(buf + video_track_entry->GetDataSize(),
+               video_content_encodings->GetData(),
+               video_content_encodings->GetDataSize());
         WriteInt64(buf + kVideoTrackSizeOffset,
-                   video_track_entry_size - kVideoTrackEntryHeaderSize);
+                   video_track_entry->GetDataSize() +
+                   video_content_encodings->GetDataSize() -
+                   kVideoTrackEntryHeaderSize);
+        buf += video_content_encodings->GetDataSize();
       }
-      buf += video_track_entry_size;
+      buf += video_track_entry->GetDataSize();
     }
   }
 
@@ -340,7 +339,7 @@ class ChunkDemuxerTest : public testing::Test {
     }
   }
 
-  MOCK_METHOD1(ReadDone, void(const scoped_refptr<Buffer>&));
+  MOCK_METHOD1(ReadDone, void(const scoped_refptr<DecoderBuffer>&));
 
   void ExpectRead(DemuxerStream* stream, int64 timestamp_in_ms) {
     EXPECT_CALL(*this, ReadDone(HasTimestamp(timestamp_in_ms)));
@@ -365,9 +364,6 @@ class ChunkDemuxerTest : public testing::Test {
   bool ParseWebMFile(const std::string& filename,
                      const BufferTimestamps* timestamps,
                      const base::TimeDelta& duration) {
-    scoped_array<uint8> buffer;
-    int buffer_size = 0;
-
     EXPECT_CALL(*client_, DemuxerOpened(_));
     demuxer_->Initialize(
         &host_, CreateInitDoneCB(duration, PIPELINE_OK));
@@ -376,8 +372,8 @@ class ChunkDemuxerTest : public testing::Test {
       return false;
 
     // Read a WebM file into memory and send the data to the demuxer.
-    ReadTestDataFile(filename, &buffer, &buffer_size);
-    if (!AppendDataInPieces(buffer.get(), buffer_size, 512))
+    scoped_refptr<DecoderBuffer> buffer = ReadTestDataFile(filename);
+    if (!AppendDataInPieces(buffer->GetData(), buffer->GetDataSize(), 512))
       return false;
 
     scoped_refptr<DemuxerStream> audio =
@@ -774,8 +770,8 @@ class EndOfStreamHelper {
   }
 
  private:
-  static void OnEndOfStreamReadDone(bool* called,
-                                    const scoped_refptr<Buffer>& buffer) {
+  static void OnEndOfStreamReadDone(
+      bool* called, const scoped_refptr<DecoderBuffer>& buffer) {
     EXPECT_TRUE(buffer->IsEndOfStream());
     *called = true;
   }

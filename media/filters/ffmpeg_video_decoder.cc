@@ -9,6 +9,7 @@
 #include "base/command_line.h"
 #include "base/message_loop.h"
 #include "base/string_number_conversions.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/limits.h"
 #include "media/base/media_switches.h"
@@ -208,14 +209,16 @@ void FFmpegVideoDecoder::ReadFromDemuxerStream() {
   demuxer_stream_->Read(base::Bind(&FFmpegVideoDecoder::DecodeBuffer, this));
 }
 
-void FFmpegVideoDecoder::DecodeBuffer(const scoped_refptr<Buffer>& buffer) {
+void FFmpegVideoDecoder::DecodeBuffer(
+    const scoped_refptr<DecoderBuffer>& buffer) {
   // TODO(scherkus): fix FFmpegDemuxerStream::Read() to not execute our read
   // callback on the same execution stack so we can get rid of forced task post.
   message_loop_->PostTask(FROM_HERE, base::Bind(
       &FFmpegVideoDecoder::DoDecodeBuffer, this, buffer));
 }
 
-void FFmpegVideoDecoder::DoDecodeBuffer(const scoped_refptr<Buffer>& buffer) {
+void FFmpegVideoDecoder::DoDecodeBuffer(
+    const scoped_refptr<DecoderBuffer>& buffer) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK_NE(state_, kUninitialized);
   DCHECK_NE(state_, kDecodeFinished);
@@ -262,7 +265,7 @@ void FFmpegVideoDecoder::DoDecodeBuffer(const scoped_refptr<Buffer>& buffer) {
     state_ = kFlushCodec;
   }
 
-  scoped_refptr<Buffer> unencrypted_buffer = buffer;
+  scoped_refptr<DecoderBuffer> unencrypted_buffer = buffer;
   if (buffer->GetDecryptConfig() && buffer->GetDataSize()) {
     unencrypted_buffer = decryptor_.Decrypt(buffer);
     if (!unencrypted_buffer || !unencrypted_buffer->GetDataSize()) {
@@ -303,7 +306,7 @@ void FFmpegVideoDecoder::DoDecodeBuffer(const scoped_refptr<Buffer>& buffer) {
 }
 
 bool FFmpegVideoDecoder::Decode(
-    const scoped_refptr<Buffer>& buffer,
+    const scoped_refptr<DecoderBuffer>& buffer,
     scoped_refptr<VideoFrame>* video_frame) {
   DCHECK(video_frame);
 

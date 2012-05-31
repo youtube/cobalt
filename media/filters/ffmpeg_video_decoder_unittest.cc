@@ -8,7 +8,7 @@
 #include "base/message_loop.h"
 #include "base/memory/singleton.h"
 #include "base/string_util.h"
-#include "media/base/data_buffer.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/decrypt_config.h"
 #include "media/base/limits.h"
 #include "media/base/mock_callback.h"
@@ -57,11 +57,11 @@ class FFmpegVideoDecoderTest : public testing::Test {
 
     // Initialize various test buffers.
     frame_buffer_.reset(new uint8[kCodedSize.GetArea()]);
-    end_of_stream_buffer_ = new DataBuffer(0);
-    ReadTestDataFile("vp8-I-frame-320x240", &i_frame_buffer_);
-    ReadTestDataFile("vp8-corrupt-I-frame", &corrupt_i_frame_buffer_);
-    ReadTestDataFile("vp8-encrypted-I-frame-320x240",
-                     &encrypted_i_frame_buffer_);
+    end_of_stream_buffer_ = DecoderBuffer::CreateEOSBuffer();
+    i_frame_buffer_ = ReadTestDataFile("vp8-I-frame-320x240");
+    corrupt_i_frame_buffer_ = ReadTestDataFile("vp8-corrupt-I-frame");
+    encrypted_i_frame_buffer_ = ReadTestDataFile(
+        "vp8-encrypted-I-frame-320x240");
 
     config_.Initialize(kCodecVP8, VIDEO_CODEC_PROFILE_UNKNOWN,
                        kVideoFormat, kCodedSize, kVisibleRect,
@@ -129,7 +129,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
   // uncompressed output to |video_frame|. This method works with single
   // and multithreaded decoders. End of stream buffers are used to trigger
   // the frame to be returned in the multithreaded decoder case.
-  void DecodeSingleFrame(const scoped_refptr<Buffer>& buffer,
+  void DecodeSingleFrame(const scoped_refptr<DecoderBuffer>& buffer,
                          VideoDecoder::DecoderStatus* status,
                          scoped_refptr<VideoFrame>* video_frame) {
     EXPECT_CALL(*demuxer_, Read(_))
@@ -154,8 +154,7 @@ class FFmpegVideoDecoderTest : public testing::Test {
     scoped_refptr<VideoFrame> video_frame_a;
     scoped_refptr<VideoFrame> video_frame_b;
 
-    scoped_refptr<Buffer> buffer;
-    ReadTestDataFile(test_file_name, &buffer);
+    scoped_refptr<DecoderBuffer> buffer = ReadTestDataFile(test_file_name);
 
     EXPECT_CALL(*demuxer_, Read(_))
         .WillOnce(ReturnBuffer(i_frame_buffer_))
@@ -204,10 +203,10 @@ class FFmpegVideoDecoderTest : public testing::Test {
 
   // Various buffers for testing.
   scoped_array<uint8_t> frame_buffer_;
-  scoped_refptr<Buffer> end_of_stream_buffer_;
-  scoped_refptr<Buffer> i_frame_buffer_;
-  scoped_refptr<Buffer> corrupt_i_frame_buffer_;
-  scoped_refptr<DataBuffer> encrypted_i_frame_buffer_;
+  scoped_refptr<DecoderBuffer> end_of_stream_buffer_;
+  scoped_refptr<DecoderBuffer> i_frame_buffer_;
+  scoped_refptr<DecoderBuffer> corrupt_i_frame_buffer_;
+  scoped_refptr<DecoderBuffer> encrypted_i_frame_buffer_;
 
   // Used for generating timestamped buffers.
   std::deque<int64> timestamps_;
@@ -271,7 +270,7 @@ TEST_F(FFmpegVideoDecoderTest, DecodeFrame_Normal) {
 TEST_F(FFmpegVideoDecoderTest, DecodeFrame_0ByteFrame) {
   Initialize();
 
-  scoped_refptr<DataBuffer> zero_byte_buffer = new DataBuffer(1);
+  scoped_refptr<DecoderBuffer> zero_byte_buffer = new DecoderBuffer(0);
 
   VideoDecoder::DecoderStatus status_a;
   VideoDecoder::DecoderStatus status_b;
@@ -514,7 +513,7 @@ TEST_F(FFmpegVideoDecoderTest, AbortPendingRead) {
   Initialize();
 
   EXPECT_CALL(*demuxer_, Read(_))
-      .WillOnce(ReturnBuffer(scoped_refptr<Buffer>()));
+      .WillOnce(ReturnBuffer(scoped_refptr<DecoderBuffer>()));
 
   VideoDecoder::DecoderStatus status;
   scoped_refptr<VideoFrame> video_frame;
