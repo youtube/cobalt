@@ -18,6 +18,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/x509_certificate.h"
 #include "net/third_party/mozilla_security_manager/nsNSSCertificateDB.h"
+#include "net/third_party/mozilla_security_manager/nsNSSCertTrust.h"
 #include "net/third_party/mozilla_security_manager/nsPKCS12Blob.h"
 
 // In NSS 3.13, CERTDB_VALID_PEER was renamed CERTDB_TERMINAL_RECORD. So we use
@@ -198,54 +199,30 @@ bool CertDatabase::ImportCACerts(const CertificateList& certificates,
 }
 
 bool CertDatabase::ImportServerCert(const CertificateList& certificates,
-                                    TrustBits trust_bits,
                                     ImportCertFailureList* not_imported) {
-  return psm::ImportServerCert(certificates, trust_bits, not_imported);
+  return psm::ImportServerCert(certificates, not_imported);
 }
 
 CertDatabase::TrustBits CertDatabase::GetCertTrust(const X509Certificate* cert,
                                                    CertType type) const {
-  CERTCertTrust trust;
-  SECStatus srv = CERT_GetCertTrust(cert->os_cert_handle(), &trust);
+  CERTCertTrust nsstrust;
+  SECStatus srv = CERT_GetCertTrust(cert->os_cert_handle(), &nsstrust);
   if (srv != SECSuccess) {
     LOG(ERROR) << "CERT_GetCertTrust failed with error " << PORT_GetError();
-    return TRUST_DEFAULT;
+    return UNTRUSTED;
   }
-  // We define our own more "friendly" TrustBits, which means we aren't able to
-  // round-trip all possible NSS trust flag combinations.  We try to map them in
-  // a sensible way.
+  psm::nsNSSCertTrust trust(&nsstrust);
   switch (type) {
-    case CA_CERT: {
-      const unsigned kTrustedCA = CERTDB_TRUSTED_CA | CERTDB_TRUSTED_CLIENT_CA;
-      const unsigned kCAFlags = kTrustedCA | CERTDB_TERMINAL_RECORD;
-
-      TrustBits trust_bits = TRUST_DEFAULT;
-      if ((trust.sslFlags & kCAFlags) == CERTDB_TERMINAL_RECORD)
-        trust_bits |= DISTRUSTED_SSL;
-      else if (trust.sslFlags & kTrustedCA)
-        trust_bits |= TRUSTED_SSL;
-
-      if ((trust.emailFlags & kCAFlags) == CERTDB_TERMINAL_RECORD)
-        trust_bits |= DISTRUSTED_EMAIL;
-      else if (trust.emailFlags & kTrustedCA)
-        trust_bits |= TRUSTED_EMAIL;
-
-      if ((trust.objectSigningFlags & kCAFlags) == CERTDB_TERMINAL_RECORD)
-        trust_bits |= DISTRUSTED_OBJ_SIGN;
-      else if (trust.objectSigningFlags & kTrustedCA)
-        trust_bits |= TRUSTED_OBJ_SIGN;
-
-      return trust_bits;
-    }
+    case CA_CERT:
+      return trust.HasTrustedCA(PR_TRUE, PR_FALSE, PR_FALSE) * TRUSTED_SSL +
+          trust.HasTrustedCA(PR_FALSE, PR_TRUE, PR_FALSE) * TRUSTED_EMAIL +
+          trust.HasTrustedCA(PR_FALSE, PR_FALSE, PR_TRUE) * TRUSTED_OBJ_SIGN;
     case SERVER_CERT:
-      if (trust.sslFlags & CERTDB_TERMINAL_RECORD) {
-        if (trust.sslFlags & CERTDB_TRUSTED)
-          return TRUSTED_SSL;
-        return DISTRUSTED_SSL;
-      }
-      return TRUST_DEFAULT;
+      return trust.HasTrustedPeer(PR_TRUE, PR_FALSE, PR_FALSE) * TRUSTED_SSL +
+          trust.HasTrustedPeer(PR_FALSE, PR_TRUE, PR_FALSE) * TRUSTED_EMAIL +
+          trust.HasTrustedPeer(PR_FALSE, PR_FALSE, PR_TRUE) * TRUSTED_OBJ_SIGN;
     default:
-      return TRUST_DEFAULT;
+      return UNTRUSTED;
   }
 }
 
