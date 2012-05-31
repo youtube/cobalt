@@ -17,12 +17,12 @@ if [[ "$adb" = "" ]] ; then
   exit 1
 fi
 
-# TODO(jrg): non-rooted path speculative and untested.
-rooted_phone=1
+rooted_phone=0
 
 root=$(dirname $0)/../..
 package_name=org.chromium.content_shell
-gdb_server_on_device=/data/data/$package_name/lib/gdbserver
+data_dir=/data/data/$package_name
+gdb_server_on_device=$data_dir/lib/gdbserver
 shared_lib_dir=$root/out/Release/lib.target
 
 # Kill any running gdbserver
@@ -50,15 +50,12 @@ if [[ "$no_gdb_server" != "" ]] ; then
   exit 3
 fi
 
-adb forward tcp:4321 tcp:4321
-
-# TODO(jrg): Consider a closer match to ndk-gdb which uses subtly
-# different semantics for both port forwarding and launching
-# gdbserver.
 if [[ $rooted_phone -eq 1 ]] ; then
   adb shell $gdb_server_on_device :4321 --attach $pid &
+  adb forward tcp:4321 tcp:4321
 else
-  adb shell run-as $package_name $gdb_server_on_device :4321 --attach $pid &
+  adb shell run-as $package_name lib/gdbserver +debug-socket --attach $pid &
+  adb forward tcp:4321 localfilesystem:$data_dir/debug-socket
 fi
 sleep 2
 
