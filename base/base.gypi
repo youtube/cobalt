@@ -446,6 +446,7 @@
           'win/scoped_com_initializer.h',
           'win/scoped_comptr.h',
           'win/scoped_gdi_object.h',
+          'win/scoped_handle.cc',
           'win/scoped_handle.h',
           'win/scoped_hdc.h',
           'win/scoped_hglobal.h',
