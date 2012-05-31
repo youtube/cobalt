@@ -1734,8 +1734,12 @@
         },
         'conditions': [
           ['OS=="linux"', {
-            'cflags': [
-              '<@(debug_extra_cflags)',
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags': [
+                  '<@(debug_extra_cflags)',
+                ],
+              }],
             ],
           }],
           ['release_valgrind_build==0', {
@@ -1826,8 +1830,12 @@
             'defines': ['NO_TCMALLOC'],
           }],
           ['OS=="linux"', {
-            'cflags': [
-             '<@(release_extra_cflags)',
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags': [
+                  '<@(release_extra_cflags)',
+                ],
+              }],
             ],
           }],
         ],
