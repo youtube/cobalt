@@ -633,7 +633,6 @@
           ],
           'dependencies': [
             'symbolize',
-            '../build/util/build_util.gyp:lastchange#target',
             '../build/linux/system.gyp:glib',
             '../build/linux/system.gyp:x11',
             'xdg_mime',
