@@ -8,7 +8,9 @@
 
 #include <windows.h>
 
+#include "base/base_export.h"
 #include "base/basictypes.h"
+#include "base/location.h"
 #include "base/logging.h"
 
 namespace base {
@@ -21,7 +23,7 @@ namespace win {
 //     and INVALID_HANDLE_VALUE (-1) for Win32 handles.
 //   - Receive() method allows to receive a handle value from a function that
 //     takes a raw handle pointer only.
-template <class Traits>
+template <class Traits, class Verifier>
 class GenericScopedHandle {
  public:
   typedef typename Traits::Handle Handle;
@@ -46,6 +48,8 @@ class GenericScopedHandle {
 
       if (Traits::IsHandleValid(handle)) {
         handle_ = handle;
+        Verifier::StartTracking(handle, this,
+                                tracked_objects::GetProgramCounter());
       }
     }
   }
@@ -60,6 +64,10 @@ class GenericScopedHandle {
 
   Handle* Receive() {
     DCHECK(!Traits::IsHandleValid(handle_)) << "Handle must be NULL";
+
+    // We cannot track this case :(. Just tell the verifier about it.
+    Verifier::StartTracking(INVALID_HANDLE_VALUE, this,
+                            tracked_objects::GetProgramCounter());
     return &handle_;
   }
 
@@ -67,6 +75,7 @@ class GenericScopedHandle {
   Handle Take() {
     Handle temp = handle_;
     handle_ = Traits::NullHandle();
+    Verifier::StopTracking(temp, this, tracked_objects::GetProgramCounter());
     return temp;
   }
 
@@ -76,6 +85,8 @@ class GenericScopedHandle {
       if (!Traits::CloseHandle(handle_)) {
         CHECK(false);
       }
+      Verifier::StopTracking(handle_, this,
+                             tracked_objects::GetProgramCounter());
       handle_ = Traits::NullHandle();
     }
   }
@@ -110,7 +121,31 @@ class HandleTraits {
   DISALLOW_IMPLICIT_CONSTRUCTORS(HandleTraits);
 };
 
-typedef GenericScopedHandle<HandleTraits> ScopedHandle;
+// Do-nothing verifier.
+class DummyVerifierTraits {
+ public:
+  typedef HANDLE Handle;
+
+  static void StartTracking(HANDLE handle, const void* owner, const void* pc) {}
+  static void StopTracking(HANDLE handle, const void* owner, const void* pc) {}
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(DummyVerifierTraits);
+};
+
+// Performs actual run-time tracking.
+class BASE_EXPORT VerifierTraits {
+ public:
+  typedef HANDLE Handle;
+
+  static void StartTracking(HANDLE handle, const void* owner, const void* pc);
+  static void StopTracking(HANDLE handle, const void* owner, const void* pc);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(VerifierTraits);
+};
+
+typedef GenericScopedHandle<HandleTraits, DummyVerifierTraits> ScopedHandle;
 
 }  // namespace win
 }  // namespace base
