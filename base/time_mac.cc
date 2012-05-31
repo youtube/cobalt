@@ -96,7 +96,7 @@ void Time::Explode(bool is_local, Exploded* exploded) const {
 
   exploded->year = date.year;
   exploded->month = date.month;
-  exploded->day_of_week = (cf_day_of_week == 7) ? 0 : cf_day_of_week - 1;
+  exploded->day_of_week = cf_day_of_week % 7;
   exploded->day_of_month = date.day;
   exploded->hour = date.hour;
   exploded->minute = date.minute;
