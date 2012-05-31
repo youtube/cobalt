@@ -7,9 +7,7 @@
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "base/path_service.h"
-#include "media/base/buffers.h"
-#include "media/base/data_buffer.h"
-#include "media/ffmpeg/ffmpeg_common.h"
+#include "media/base/decoder_buffer.h"
 
 namespace media {
 
@@ -24,8 +22,7 @@ std::string GetTestDataURL(const std::string& name) {
   return file_path.MaybeAsASCII();
 }
 
-void ReadTestDataFile(const std::string& name, scoped_array<uint8>* buffer,
-                      int* size) {
+scoped_refptr<DecoderBuffer> ReadTestDataFile(const std::string& name) {
   FilePath file_path;
   CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &file_path));
 
@@ -38,34 +35,14 @@ void ReadTestDataFile(const std::string& name, scoped_array<uint8>* buffer,
   CHECK(file_util::GetFileSize(file_path, &tmp))
       << "Failed to get file size for '" << name << "'";
 
-  // Why FF_INPUT_BUFFER_PADDING_SIZE? FFmpeg assumes all input buffers are
-  // padded. Since most of our test data is passed to FFmpeg, it makes sense
-  // to do the padding here instead of scattering it around test code.
   int file_size = static_cast<int>(tmp);
-  int padded_size = file_size + FF_INPUT_BUFFER_PADDING_SIZE;
-  buffer->reset(reinterpret_cast<uint8_t*>(new uint8[padded_size]));
-  memset(buffer->get(), 0, padded_size);
 
-  CHECK(file_size == file_util::ReadFile(file_path,
-                                         reinterpret_cast<char*>(buffer->get()),
-                                         file_size))
-    << "Failed to read '" << name << "'";
-  *size = file_size;
-}
+  scoped_refptr<DecoderBuffer> buffer(new DecoderBuffer(file_size));
+  CHECK_EQ(file_size, file_util::ReadFile(
+      file_path, reinterpret_cast<char*>(buffer->GetWritableData()), file_size))
+      << "Failed to read '" << name << "'";
 
-void ReadTestDataFile(const std::string& name,
-                      scoped_refptr<DataBuffer>* buffer) {
-  scoped_array<uint8> buf;
-  int buf_size;
-  ReadTestDataFile(name, &buf, &buf_size);
-  *buffer = new DataBuffer(buf.Pass(), buf_size);
-}
-
-void ReadTestDataFile(const std::string& name,
-                      scoped_refptr<Buffer>* buffer) {
-  scoped_refptr<DataBuffer> data_buffer;
-  ReadTestDataFile(name, &data_buffer);
-  *buffer = data_buffer;
+  return buffer;
 }
 
 }  // namespace media

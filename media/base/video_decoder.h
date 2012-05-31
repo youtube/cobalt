@@ -13,7 +13,6 @@
 
 namespace media {
 
-class Buffer;
 class DemuxerStream;
 class VideoFrame;
 

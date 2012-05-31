@@ -19,7 +19,7 @@ class SymmetricKey;
 
 namespace media {
 
-class Buffer;
+class DecoderBuffer;
 
 // Decrypts AES encrypted buffer into unencrypted buffer.
 class MEDIA_EXPORT AesDecryptor {
@@ -35,9 +35,10 @@ class MEDIA_EXPORT AesDecryptor {
               const uint8* key, int key_size);
 
   // Decrypt |input| buffer. The |input| should not be NULL.
-  // Return a Buffer that contains decrypted data if decryption succeeded.
+  // Return a DecoderBuffer with the decrypted data if decryption succeeded.
   // Return NULL if decryption failed.
-  scoped_refptr<Buffer> Decrypt(const scoped_refptr<Buffer>& input);
+  scoped_refptr<DecoderBuffer> Decrypt(
+      const scoped_refptr<DecoderBuffer>& input);
 
  private:
   // KeyMap owns the crypto::SymmetricKey* and must delete them when they are

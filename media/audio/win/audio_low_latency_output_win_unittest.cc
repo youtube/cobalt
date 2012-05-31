@@ -18,6 +18,7 @@
 #include "media/audio/audio_manager.h"
 #include "media/audio/audio_util.h"
 #include "media/audio/win/audio_low_latency_output_win.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/seekable_buffer.h"
 #include "media/base/test_data_util.h"
 #include "testing/gmock_mutant.h"
@@ -70,7 +71,7 @@ class ReadFromFileAudioSource : public AudioOutputStream::AudioSourceCallback {
       elements_to_write_(0) {
     // Reads a test file from media/test/data directory and stores it in
     // a scoped_array.
-    ReadTestDataFile(name, &file_, &file_size_);
+    file_ = ReadTestDataFile(name);
 
     // Creates an array that will store delta times between callbacks.
     // The content of this array will be written to a text file at
@@ -115,8 +116,8 @@ class ReadFromFileAudioSource : public AudioOutputStream::AudioSourceCallback {
 
     // Use samples read from a data file and fill up the audio buffer
     // provided to us in the callback.
-    if (pos_ + static_cast<int>(max_size) > file_size_)
-      max_size = file_size_ - pos_;
+    if (pos_ + static_cast<int>(max_size) > file_size())
+      max_size = file_size() - pos_;
     if (max_size) {
       memcpy(dest, &file_[pos_], max_size);
       pos_ += max_size;
@@ -126,12 +127,11 @@ class ReadFromFileAudioSource : public AudioOutputStream::AudioSourceCallback {
 
   virtual void OnError(AudioOutputStream* stream, int code) {}
 
-  int file_size() { return file_size_; }
+  int file_size() { return file_->GetDataSize(); }
 
  private:
-  scoped_array<uint8> file_;
+  scoped_refptr<DecoderBuffer> file_;
   scoped_array<int> delta_times_;
-  int file_size_;
   int pos_;
   base::Time previous_call_time_;
   FILE* text_file_;

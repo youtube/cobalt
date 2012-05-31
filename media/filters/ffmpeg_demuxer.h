@@ -29,7 +29,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/synchronization/waitable_event.h"
 #include "media/base/audio_decoder_config.h"
-#include "media/base/buffers.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/demuxer.h"
 #include "media/base/pipeline.h"
 #include "media/base/video_decoder_config.h"
@@ -58,7 +58,8 @@ class FFmpegDemuxerStream : public DemuxerStream {
   // Safe to call on any thread.
   bool HasPendingReads();
 
-  // Enqueues the given AVPacket.
+  // Enqueues the given AVPacket.  If |packet| is NULL an end of stream packet
+  // is enqueued.
   void EnqueuePacket(scoped_ptr_malloc<AVPacket, ScopedPtrAVFreePacket> packet);
 
   // Signals to empty the buffer queue and mark next packet as discontinuous.
@@ -115,7 +116,7 @@ class FFmpegDemuxerStream : public DemuxerStream {
   bool discontinuous_;
   bool stopped_;
 
-  typedef std::deque<scoped_refptr<Buffer> > BufferQueue;
+  typedef std::deque<scoped_refptr<DecoderBuffer> > BufferQueue;
   BufferQueue buffer_queue_;
 
   typedef std::deque<ReadCB> ReadQueue;

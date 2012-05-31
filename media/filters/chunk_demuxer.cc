@@ -189,7 +189,7 @@ void ChunkDemuxerStream::StartWaitingForSeek() {
   }
 
   for (ReadCBQueue::iterator it = read_cbs.begin(); it != read_cbs.end(); ++it)
-    it->Run(scoped_refptr<Buffer>());
+    it->Run(NULL);
 }
 
 void ChunkDemuxerStream::Seek(base::TimeDelta time) {
@@ -231,7 +231,7 @@ void ChunkDemuxerStream::Shutdown() {
 // Helper function that makes sure |read_cb| runs on |message_loop|.
 static void RunOnMessageLoop(const DemuxerStream::ReadCB& read_cb,
                              MessageLoop* message_loop,
-                             const scoped_refptr<Buffer>& buffer) {
+                             const scoped_refptr<DecoderBuffer>& buffer) {
   if (MessageLoop::current() != message_loop) {
     message_loop->PostTask(FROM_HERE, base::Bind(
         &RunOnMessageLoop, read_cb, message_loop, buffer));

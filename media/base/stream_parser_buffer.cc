@@ -26,7 +26,7 @@ base::TimeDelta StreamParserBuffer::GetEndTimestamp() const {
 
 StreamParserBuffer::StreamParserBuffer(const uint8* data, int data_size,
                                        bool is_keyframe)
-    : DataBuffer(data, data_size),
+    : DecoderBuffer(data, data_size),
       is_keyframe_(is_keyframe) {
   SetDuration(kNoTimestamp());
 }

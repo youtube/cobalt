@@ -13,36 +13,18 @@
 
 namespace media {
 
-class Buffer;
-class DataBuffer;
+class DecoderBuffer;
 
 // Returns a URL path for a file in the media/test/data directory.
 std::string GetTestDataURL(const std::string& name);
 
 // Reads a test file from media/test/data directory and stores it in
-// a scoped_array.
+// a DecoderBuffer.  Use DecoderBuffer vs DataBuffer to ensure no matter
+// what a test does, it's safe to use FFmpeg methods.
 //
 //  |name| - The name of the file.
 //  |buffer| - The contents of the file.
-//  |size| - The size of the buffer.
-void ReadTestDataFile(const std::string& name,
-                      scoped_array<uint8>* buffer,
-                      int* size);
-
-// Reads a test file from media/test/data directory and stores it in
-// a DataBuffer.
-//
-//  |name| - The name of the file.
-//  |buffer| - The contents of the file.
-void ReadTestDataFile(const std::string& name,
-                      scoped_refptr<DataBuffer>* buffer);
-
-// Reads a test file from media/test/data directory and stores it in
-// a Buffer.
-//
-//  |name| - The name of the file.
-//  |buffer| - The contents of the file.
-void ReadTestDataFile(const std::string& name, scoped_refptr<Buffer>* buffer);
+scoped_refptr<DecoderBuffer> ReadTestDataFile(const std::string& name);
 
 }  // namespace media
 

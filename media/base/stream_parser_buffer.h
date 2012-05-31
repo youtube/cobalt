@@ -5,12 +5,12 @@
 #ifndef MEDIA_BASE_STREAM_PARSER_BUFFER_H_
 #define MEDIA_BASE_STREAM_PARSER_BUFFER_H_
 
-#include "media/base/data_buffer.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/media_export.h"
 
 namespace media {
 
-class MEDIA_EXPORT StreamParserBuffer : public DataBuffer {
+class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
  public:
   static scoped_refptr<StreamParserBuffer> CreateEOSBuffer();
   static scoped_refptr<StreamParserBuffer> CopyFrom(
