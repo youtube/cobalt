@@ -159,6 +159,30 @@ TEST_F(TimeTest, ParseTimeTest1) {
   EXPECT_EQ(current_time, parsed_time.ToTimeT());
 }
 
+TEST_F(TimeTest, DayOfWeekSunday) {
+  Time time;
+  EXPECT_TRUE(Time::FromString("Sun, 06 May 2012 12:00:00 GMT", &time));
+  Time::Exploded exploded;
+  time.UTCExplode(&exploded);
+  EXPECT_EQ(0, exploded.day_of_week);
+}
+
+TEST_F(TimeTest, DayOfWeekWednesday) {
+  Time time;
+  EXPECT_TRUE(Time::FromString("Wed, 09 May 2012 12:00:00 GMT", &time));
+  Time::Exploded exploded;
+  time.UTCExplode(&exploded);
+  EXPECT_EQ(3, exploded.day_of_week);
+}
+
+TEST_F(TimeTest, DayOfWeekSaturday) {
+  Time time;
+  EXPECT_TRUE(Time::FromString("Sat, 12 May 2012 12:00:00 GMT", &time));
+  Time::Exploded exploded;
+  time.UTCExplode(&exploded);
+  EXPECT_EQ(6, exploded.day_of_week);
+}
+
 TEST_F(TimeTest, ParseTimeTest2) {
   Time parsed_time;
   EXPECT_TRUE(Time::FromString("Mon, 15 Oct 2007 19:45:00 GMT", &parsed_time));
