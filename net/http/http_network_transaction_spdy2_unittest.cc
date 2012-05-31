@@ -4925,9 +4925,9 @@ TEST_F(HttpNetworkTransactionSpdy2Test, BasicAuthSpdyProxy) {
 
   MockWrite spdy_writes[] = {
     CreateMockWrite(*req, 0, ASYNC),
-    CreateMockWrite(*rst, 2, ASYNC),
-    CreateMockWrite(*connect2, 3),
-    CreateMockWrite(*wrapped_get, 5)
+    CreateMockWrite(*connect2, 2),
+    CreateMockWrite(*rst, 3, ASYNC),
+    CreateMockWrite(*wrapped_get, 5),
   };
 
   // The proxy responds to the connect with a 407, using a persistent
