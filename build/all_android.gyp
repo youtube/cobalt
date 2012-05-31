@@ -59,6 +59,9 @@
             # Unit test bundles packaged as an apk.
             '../base/base.gyp:base_unittests_apk',
             '../content/content.gyp:content_unittests_apk',
+            '../gpu/gpu.gyp:gpu_unittests_apk',
+            '../sql/sql.gyp:sql_unittests_apk',
+            '../sync/sync.gyp:sync_unit_tests_apk',
             '../ipc/ipc.gyp:ipc_tests_apk',
             '../net/net.gyp:net_unittests_apk',
             '../ui/ui.gyp:ui_unittests_apk',
