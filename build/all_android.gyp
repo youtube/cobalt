@@ -13,7 +13,6 @@
       'type': 'none',
       'dependencies': [
         '../content/content.gyp:content_shell_apk',
-        'util/build_util.gyp:*',
         'android_builder_tests',
       ],
     }, # target_name: All
