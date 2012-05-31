@@ -265,6 +265,7 @@
         'base/win/dpi.cc',
         'base/win/dpi.h',
         'base/win/events_win.cc',
+        'base/win/extra_sdk_defines.h',
         'base/win/foreground_helper.cc',
         'base/win/foreground_helper.h',
         'base/win/hwnd_util.cc',
