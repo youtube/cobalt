@@ -1195,11 +1195,11 @@ TEST_F(SpdySessionSpdy3Test, UpdateStreamsSendWindowSize) {
 TEST_F(SpdySessionSpdy3Test, OutOfOrderSynStreams) {
   // Construct the request.
   MockConnect connect_data(SYNCHRONOUS, OK);
-  scoped_ptr<SpdyFrame> req1(ConstructSpdyGet(NULL, 0, false, 3, HIGHEST));
-  scoped_ptr<SpdyFrame> req2(ConstructSpdyGet(NULL, 0, false, 5, LOWEST));
+  scoped_ptr<SpdyFrame> req1(ConstructSpdyGet(NULL, 0, false, 1, LOWEST));
+  scoped_ptr<SpdyFrame> req2(ConstructSpdyGet(NULL, 0, false, 3, HIGHEST));
   MockWrite writes[] = {
-    CreateMockWrite(*req1, 1),
-    CreateMockWrite(*req2, 2),
+    CreateMockWrite(*req1, 2),
+    CreateMockWrite(*req2, 1),
   };
 
   scoped_ptr<SpdyFrame> resp1(ConstructSpdyGetSynReply(NULL, 0, 3));
@@ -1284,7 +1284,7 @@ TEST_F(SpdySessionSpdy3Test, OutOfOrderSynStreams) {
   spdy_stream2->SendRequest(false);
   MessageLoop::current()->RunAllPending();
 
-  EXPECT_EQ(5u, spdy_stream1->stream_id());
+  EXPECT_EQ(1u, spdy_stream1->stream_id());
   EXPECT_EQ(3u, spdy_stream2->stream_id());
 
   spdy_stream1->Cancel();

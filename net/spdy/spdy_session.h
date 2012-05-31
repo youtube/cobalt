@@ -540,8 +540,6 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   bool read_pending_;
 
   int stream_hi_water_mark_;  // The next stream id to use.
-  // The stream id of the last SYN_STREAM frame written on this session.
-  SpdyStreamId last_syn_stream_id_;
 
   // Queue, for each priority, of pending Create Streams that have not
   // yet been satisfied
@@ -687,25 +685,6 @@ class NetLogSpdySynParameter : public NetLog::EventParameters {
 
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdySynParameter);
 };
-
-
-class NetLogSpdySynRenumberParameter : public NetLog::EventParameters {
- public:
-  NetLogSpdySynRenumberParameter(SpdyStreamId old_id,
-                        SpdyStreamId new_id);
-
-  virtual base::Value* ToValue() const OVERRIDE;
-
- protected:
-  virtual ~NetLogSpdySynRenumberParameter();
-
- private:
-  const SpdyStreamId old_id_;
-  const SpdyStreamId new_id_;
-
-  DISALLOW_COPY_AND_ASSIGN(NetLogSpdySynRenumberParameter);
-};
-
 
 class NetLogSpdyCredentialParameter : public NetLog::EventParameters {
  public:
