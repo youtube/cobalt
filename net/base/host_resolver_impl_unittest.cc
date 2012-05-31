@@ -49,17 +49,20 @@ HostResolverImpl* CreateHostResolverImpl(HostResolverProc* resolver_proc) {
       DefaultLimits(),
       DefaultParams(resolver_proc),
       scoped_ptr<DnsConfigService>(NULL),
+      scoped_ptr<DnsClient>(NULL),
       NULL);
 }
 
-HostResolverImpl* CreateHostResolverImplWithDnsConfig(
+HostResolverImpl* CreateHostResolverImplWithDnsClient(
     HostResolverProc* resolver_proc,
-    scoped_ptr<DnsConfigService> config_service) {
+    scoped_ptr<DnsConfigService> dns_config_service) {
+  // Initially with empty DnsConfig. Use |dns_config_service| to update it.
   return new HostResolverImpl(
       HostCache::CreateDefaultCache(),
       DefaultLimits(),
       DefaultParams(resolver_proc),
-      config_service.Pass(),
+      dns_config_service.Pass(),
+      CreateMockDnsClient(DnsConfig()),
       NULL);
 }
 
@@ -76,6 +79,7 @@ HostResolverImpl* CreateSerialHostResolverImpl(
       limits,
       params,
       scoped_ptr<DnsConfigService>(NULL),
+      scoped_ptr<DnsClient>(NULL),
       NULL);
 }
 
@@ -523,10 +527,6 @@ class HostResolverImplTest : public testing::Test {
     return resolver_->num_running_jobs_for_tests();
   }
 
-  void set_dns_client(scoped_ptr<DnsClient> client) {
-    resolver_->set_dns_client_for_tests(client.Pass());
-  }
-
   scoped_refptr<MockHostResolverProc> proc_;
   scoped_ptr<HostResolverImpl> resolver_;
   ScopedVector<Request> requests_;
@@ -782,6 +782,7 @@ TEST_F(HostResolverImplTest, StartWithinCallback) {
       DefaultLimits(),
       DefaultParams(proc_),
       scoped_ptr<DnsConfigService>(NULL),
+      scoped_ptr<DnsClient>(NULL),
       NULL));
 
   for (size_t i = 0; i < 4; ++i) {
@@ -1219,6 +1220,7 @@ TEST_F(HostResolverImplTest, MultipleAttempts) {
                            DefaultLimits(),
                            params,
                            scoped_ptr<DnsConfigService>(NULL),
+                           scoped_ptr<DnsClient>(NULL),
                            NULL));
 
   // Resolve "host1".
@@ -1254,6 +1256,14 @@ DnsConfig CreateValidDnsConfig() {
 
 // Test successful and fallback resolutions in HostResolverImpl::DnsTask.
 TEST_F(HostResolverImplTest, DnsTask) {
+  // Initially, there's DnsConfigService, but no DnsConfig.
+  // Note, |config_service| will be owned by |resolver_|.
+  MockDnsConfigService* config_service = new MockDnsConfigService();
+  resolver_.reset(
+      CreateHostResolverImplWithDnsClient(
+          proc_,
+          scoped_ptr<DnsConfigService>(config_service)));
+
   proc_->AddRuleForAllFamilies("er_succeed", "192.168.1.101");
   proc_->AddRuleForAllFamilies("nx_succeed", "192.168.1.102");
   // All other hostnames will fail in proc_.
@@ -1264,7 +1274,9 @@ TEST_F(HostResolverImplTest, DnsTask) {
 
   EXPECT_EQ(ERR_NAME_NOT_RESOLVED, requests_[0]->WaitForResult());
 
-  set_dns_client(CreateMockDnsClient(CreateValidDnsConfig()));
+  DnsConfig config = CreateValidDnsConfig();
+  config_service->ChangeHosts(config.hosts);
+  config_service->ChangeConfig(config);
 
   EXPECT_EQ(ERR_IO_PENDING, CreateRequest("ok_fail", 80)->Resolve());
   EXPECT_EQ(ERR_IO_PENDING, CreateRequest("er_fail", 80)->Resolve());
@@ -1290,18 +1302,20 @@ TEST_F(HostResolverImplTest, DnsTask) {
 }
 
 TEST_F(HostResolverImplTest, ServeFromHosts) {
-  // Initially, there's DnsConfigService, but no DnsConfig.
+  // Note, |config_service| will be owned by |resolver_|.
   MockDnsConfigService* config_service = new MockDnsConfigService();
   resolver_.reset(
-      CreateHostResolverImplWithDnsConfig(
+      CreateHostResolverImplWithDnsClient(
           proc_,
           scoped_ptr<DnsConfigService>(config_service)));
 
+  // Initially, use empty HOSTS file.
+  DnsConfig config = CreateValidDnsConfig();
+  config_service->ChangeHosts(DnsHosts());
+  config_service->ChangeConfig(config);
+
   proc_->AddRuleForAllFamilies("", "0.0.0.0");  // Default to failures.
   proc_->SignalMultiple(1u);  // For the first request which misses.
-
-  DnsConfig config = CreateValidDnsConfig();
-  set_dns_client(CreateMockDnsClient(config));
 
   Request* req0 = CreateRequest("er_ipv4", 80);
   EXPECT_EQ(ERR_IO_PENDING, req0->Resolve());
@@ -1317,7 +1331,7 @@ TEST_F(HostResolverImplTest, ServeFromHosts) {
   hosts[DnsHostsKey("er_both", ADDRESS_FAMILY_IPV4)] = local_ipv4;
   hosts[DnsHostsKey("er_both", ADDRESS_FAMILY_IPV6)] = local_ipv6;
 
-  // Then we introduce valid DnsConfig.
+  // Update HOSTS file.
   config_service->ChangeConfig(config);
   config_service->ChangeHosts(hosts);
 
