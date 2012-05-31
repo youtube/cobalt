@@ -18,7 +18,7 @@ void CheckAndCloseHandle(HANDLE handle) {
     return;
   if (::CloseHandle(handle))
     return;
-  DPCHECK(false) << "Failed to close a handle.";
+  CHECK(false);
 }
 
 // Duplicates source into target, returning true upon success. |target| is
