@@ -80,14 +80,21 @@ class NET_EXPORT CertDatabase {
   // trusted as a server.
   // For EMAIL_CERT, only TRUSTED_EMAIL makes sense, and specifies the cert is
   // trusted for email.
+  // DISTRUSTED_* specifies that the cert should not be trusted for the given
+  // usage, regardless of whether it would otherwise inherit trust from the
+  // issuer chain.
+  // Use TRUST_DEFAULT to inherit trust as normal.
   // NOTE: The actual constants are defined using an enum instead of static
   // consts due to compilation/linkage constraints with template functions.
   typedef uint32 TrustBits;
   enum {
-    UNTRUSTED        =      0,
-    TRUSTED_SSL      = 1 << 0,
-    TRUSTED_EMAIL    = 1 << 1,
-    TRUSTED_OBJ_SIGN = 1 << 2,
+    TRUST_DEFAULT         =      0,
+    TRUSTED_SSL           = 1 << 0,
+    TRUSTED_EMAIL         = 1 << 1,
+    TRUSTED_OBJ_SIGN      = 1 << 2,
+    DISTRUSTED_SSL        = 1 << 3,
+    DISTRUSTED_EMAIL      = 1 << 4,
+    DISTRUSTED_OBJ_SIGN   = 1 << 5,
   };
 
   CertDatabase();
@@ -101,7 +108,7 @@ class NET_EXPORT CertDatabase {
   // the platform cert database, or possibly other network error codes.
   int AddUserCert(X509Certificate* cert);
 
-#if defined(USE_NSS) || defined(USE_OPENSSL)
+#if defined(USE_NSS)
   // Get a list of unique certificates in the certificate database (one
   // instance of all certificates).
   void ListCerts(CertificateList* certs);
@@ -158,10 +165,13 @@ class NET_EXPORT CertDatabase {
   // not given any trust.
   // Any certificates that could not be imported will be listed in
   // |not_imported|.
+  // |trust_bits| can be set to explicitly trust or distrust the certificate, or
+  // use TRUST_DEFAULT to inherit trust as normal.
   // Returns false if there is an internal error, otherwise true is returned and
   // |not_imported| should be checked for any certificates that were not
   // imported.
   bool ImportServerCert(const CertificateList& certificates,
+                        TrustBits trust_bits,
                         ImportCertFailureList* not_imported);
 
   // Get trust bits for certificate.
