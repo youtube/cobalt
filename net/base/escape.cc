@@ -1,4 +1,4 @@
-// Copyright (c) 2011 The Chromium Authors. All rights reserved.
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -247,6 +247,10 @@ static const Charmap kExternalHandlerCharmap = {{
 
 }  // namespace
 
+std::string EscapeQueryParamValue(const std::string& text, bool use_plus) {
+  return Escape(text, kQueryCharmap, use_plus);
+}
+
 std::string EscapePath(const std::string& path) {
   return Escape(path, kPathCharmap, false);
 }
@@ -352,16 +356,6 @@ string16 UnescapeForHTML(const string16& input) {
     }
   }
   return text;
-}
-
-std::string EscapeQueryParamValue(const std::string& text, bool use_plus) {
-  return Escape(text, kQueryCharmap, use_plus);
-}
-
-// Convert the string to a sequence of bytes and then % escape anything
-// except alphanumerics and !'()*-._~
-string16 EscapeQueryParamValueUTF8(const string16& text, bool use_plus) {
-  return UTF8ToUTF16(Escape(UTF16ToUTF8(text), kQueryCharmap, use_plus));
 }
 
 namespace internal {
