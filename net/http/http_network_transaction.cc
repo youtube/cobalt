@@ -19,6 +19,7 @@
 #include "base/string_number_conversions.h"
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#include "base/values.h"
 #include "build/build_config.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/auth.h"
@@ -92,6 +93,37 @@ bool IsClientCertificateError(int error) {
       return false;
   }
 }
+
+class SSLVersionFallbackParams : public NetLog::EventParameters {
+ public:
+  SSLVersionFallbackParams(const std::string& host_and_port,
+                           int net_error,
+                           uint16 version_before,
+                           uint16 version_after)
+      : host_and_port_(host_and_port),
+        net_error_(net_error),
+        version_before_(version_before),
+        version_after_(version_after) {
+  }
+
+  virtual Value* ToValue() const {
+    DictionaryValue* dict = new DictionaryValue();
+    dict->SetString("host_and_port", host_and_port_);
+    dict->SetInteger("net_error", net_error_);
+    dict->SetInteger("version_before", version_before_);
+    dict->SetInteger("version_after", version_after_);
+    return dict;
+  }
+
+ protected:
+  virtual ~SSLVersionFallbackParams() {}
+
+ private:
+  const std::string host_and_port_;
+  const int net_error_;  // Network error code that caused the fallback.
+  const uint16 version_before_;  // SSL version before the fallback.
+  const uint16 version_after_;  // SSL version after the fallback.
+};
 
 }  // namespace
 
@@ -1174,10 +1206,13 @@ int HttpNetworkTransaction::HandleSSLHandshakeError(int error) {
         // repeat the TLS 1.0 handshake. To avoid this problem, the default
         // version_max should match the maximum protocol version supported
         // by the SSLClientSocket class.
-        LOG(WARNING) << "Falling back one version because host is "
-                        "TLS intolerant: " << GetHostAndPort(request_->url)
-                     << " error: " << error;
+        uint16 version_before = server_ssl_config_.version_max;
         server_ssl_config_.version_max--;
+        net_log_.AddEvent(
+            NetLog::TYPE_SSL_VERSION_FALLBACK,
+            make_scoped_refptr(new SSLVersionFallbackParams(
+                GetHostAndPort(request_->url), error,
+                version_before, server_ssl_config_.version_max)));
         server_ssl_config_.version_fallback = true;
         ResetConnectionAndRequestForResend();
         error = OK;
@@ -1190,10 +1225,13 @@ int HttpNetworkTransaction::HandleSSLHandshakeError(int error) {
         // This could be a server with buggy DEFLATE support. Turn off TLS,
         // DEFLATE support and retry.
         // TODO(wtc): turn off DEFLATE support only. Do not tie it to TLS.
-        LOG(WARNING) << "Falling back to SSLv3 because host has buggy TLS "
-                        "compression support: "
-                     << GetHostAndPort(request_->url) << " error: " << error;
+        uint16 version_before = server_ssl_config_.version_max;
         server_ssl_config_.version_max = SSL_PROTOCOL_VERSION_SSL3;
+        net_log_.AddEvent(
+            NetLog::TYPE_SSL_VERSION_FALLBACK,
+            make_scoped_refptr(new SSLVersionFallbackParams(
+                GetHostAndPort(request_->url), error,
+                version_before, server_ssl_config_.version_max)));
         server_ssl_config_.version_fallback = true;
         ResetConnectionAndRequestForResend();
         error = OK;
