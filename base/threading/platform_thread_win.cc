@@ -5,6 +5,7 @@
 #include "base/threading/platform_thread.h"
 
 #include "base/debug/alias.h"
+#include "base/debug/profiler.h"
 #include "base/logging.h"
 #include "base/threading/thread_local.h"
 #include "base/threading/thread_restrictions.h"
@@ -133,7 +134,9 @@ void PlatformThread::SetName(const char* name) {
 
   // The debugger needs to be around to catch the name in the exception.  If
   // there isn't a debugger, we are just needlessly throwing an exception.
-  if (!::IsDebuggerPresent())
+  // If this image file is instrumented, we raise the exception anyway
+  // to provide the profiler with human-readable thread names.
+  if (!::IsDebuggerPresent() && !base::debug::IsBinaryInstrumented())
     return;
 
   SetNameInternal(CurrentId(), name);
