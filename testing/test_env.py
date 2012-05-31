@@ -13,6 +13,16 @@ import sys
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def fix_python_path(cmd):
+  """Returns the fixed command line to call the right python executable."""
+  out = cmd[:]
+  if out[0] == 'python':
+    out[0] = sys.executable
+  elif out[0].endswith('.py'):
+    out.insert(0, sys.executable)
+  return out
+
+
 def run_executable(cmd, env):
   """Runs an executable with:
     - environment variable CR_SOURCE_ROOT set to the root directory.
@@ -25,8 +35,7 @@ def run_executable(cmd, env):
   env['CR_SOURCE_ROOT'] = os.path.abspath(ROOT_DIR).encode('utf-8')
   # Ensure paths are correctly separated on windows.
   cmd[0] = cmd[0].replace('/', os.path.sep)
-  if cmd[0].endswith('.py'):
-    cmd.insert(0, sys.executable)
+  cmd = fix_python_path(cmd)
   try:
     return subprocess.call(cmd, env=env)
   except OSError:
