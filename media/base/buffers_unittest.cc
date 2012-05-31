@@ -82,9 +82,4 @@ TEST(BufferTest, IsEndOfStream) {
   EXPECT_FALSE(buffer->IsEndOfStream());
 }
 
-TEST(BufferTest, GetDecryptConfig) {
-  scoped_refptr<TestBuffer> buffer = new TestBuffer();
-  EXPECT_FALSE(buffer->GetDecryptConfig());
-}
-
 }  // namespace media

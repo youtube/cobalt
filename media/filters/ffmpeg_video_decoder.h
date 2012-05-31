@@ -12,6 +12,7 @@
 #include "media/base/video_decoder.h"
 #include "media/crypto/aes_decryptor.h"
 
+class DecoderBuffer;
 class MessageLoop;
 
 struct AVCodecContext;
@@ -50,11 +51,11 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
 
   // Reads from the demuxer stream with corresponding callback method.
   void ReadFromDemuxerStream();
-  void DecodeBuffer(const scoped_refptr<Buffer>& buffer);
+  void DecodeBuffer(const scoped_refptr<DecoderBuffer>& buffer);
 
   // Carries out the decoding operation scheduled by DecodeBuffer().
-  void DoDecodeBuffer(const scoped_refptr<Buffer>& buffer);
-  bool Decode(const scoped_refptr<Buffer>& buffer,
+  void DoDecodeBuffer(const scoped_refptr<DecoderBuffer>& buffer);
+  bool Decode(const scoped_refptr<DecoderBuffer>& buffer,
               scoped_refptr<VideoFrame>* video_frame);
 
   // Delivers the frame to |read_cb_| and resets the callback.

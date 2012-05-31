@@ -442,7 +442,7 @@ class MockReadCB : public base::RefCountedThreadSafe<MockReadCB> {
   MockReadCB() {}
 
   MOCK_METHOD0(OnDelete, void());
-  MOCK_METHOD1(Run, void(const scoped_refptr<Buffer>& buffer));
+  MOCK_METHOD1(Run, void(const scoped_refptr<DecoderBuffer>& buffer));
 
  protected:
   virtual ~MockReadCB() {

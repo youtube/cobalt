@@ -30,7 +30,6 @@ class MEDIA_EXPORT DataBuffer : public Buffer {
   // Buffer implementation.
   virtual const uint8* GetData() const OVERRIDE;
   virtual int GetDataSize() const OVERRIDE;
-  virtual const DecryptConfig* GetDecryptConfig() const OVERRIDE;
 
   // Returns a read-write pointer to the buffer data.
   virtual uint8* GetWritableData();
@@ -42,21 +41,18 @@ class MEDIA_EXPORT DataBuffer : public Buffer {
   // Returns the size of the underlying buffer.
   virtual int GetBufferSize() const;
 
-  virtual void SetDecryptConfig(scoped_ptr<DecryptConfig> decrypt_config);
-
  protected:
   // Copies from [data,data+size) to owned array.
   DataBuffer(const uint8* data, int size);
   virtual ~DataBuffer();
 
  private:
-  // Helper method to allocate |data_| with at least |buffer_size| bytes.
-  void AllocateBuffer(int buffer_size);
+  // Constructor helper method for memory allocations.
+  void Initialize();
 
   scoped_array<uint8> data_;
   int buffer_size_;
   int data_size_;
-  scoped_ptr<DecryptConfig> decrypt_config_;
 
   DISALLOW_COPY_AND_ASSIGN(DataBuffer);
 };

@@ -7,6 +7,7 @@
 #include "base/bind.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/data_buffer.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/demuxer.h"
 #include "media/base/pipeline.h"
 #include "media/ffmpeg/ffmpeg_common.h"
@@ -168,7 +169,8 @@ void FFmpegAudioDecoder::DoRead(const ReadCB& read_cb) {
   ReadFromDemuxerStream();
 }
 
-void FFmpegAudioDecoder::DoDecodeBuffer(const scoped_refptr<Buffer>& input) {
+void FFmpegAudioDecoder::DoDecodeBuffer(
+    const scoped_refptr<DecoderBuffer>& input) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(!read_cb_.is_null());
 
@@ -190,13 +192,8 @@ void FFmpegAudioDecoder::DoDecodeBuffer(const scoped_refptr<Buffer>& input) {
 
   AVPacket packet;
   av_init_packet(&packet);
-  if (input->IsEndOfStream()) {
-    packet.data = NULL;
-    packet.size = 0;
-  } else {
-    packet.data = const_cast<uint8*>(input->GetData());
-    packet.size = input->GetDataSize();
-  }
+  packet.data = const_cast<uint8*>(input->GetData());
+  packet.size = input->GetDataSize();
 
   PipelineStatistics statistics;
   statistics.audio_bytes_decoded = input->GetDataSize();
@@ -256,7 +253,8 @@ void FFmpegAudioDecoder::ReadFromDemuxerStream() {
   demuxer_stream_->Read(base::Bind(&FFmpegAudioDecoder::DecodeBuffer, this));
 }
 
-void FFmpegAudioDecoder::DecodeBuffer(const scoped_refptr<Buffer>& buffer) {
+void FFmpegAudioDecoder::DecodeBuffer(
+    const scoped_refptr<DecoderBuffer>& buffer) {
   // TODO(scherkus): fix FFmpegDemuxerStream::Read() to not execute our read
   // callback on the same execution stack so we can get rid of forced task post.
   message_loop_->PostTask(FROM_HERE, base::Bind(

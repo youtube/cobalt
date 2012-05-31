@@ -9,8 +9,7 @@
 #include "base/string_piece.h"
 #include "crypto/encryptor.h"
 #include "crypto/symmetric_key.h"
-#include "media/base/buffers.h"
-#include "media/base/data_buffer.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/decrypt_config.h"
 
 namespace media {
@@ -19,10 +18,10 @@ namespace media {
 static const char kInitialCounter[] = "0000000000000000";
 
 // Decrypt |input| using |key|.
-// Return a scoped_refptr to a Buffer object with the decrypted data on success.
-// Return a scoped_refptr to NULL if the data could not be decrypted.
-static scoped_refptr<Buffer> DecryptData(const Buffer& input,
-                                         crypto::SymmetricKey* key) {
+// Return a DecoderBuffer with the decrypted data if decryption succeeded.
+// Return NULL if decryption failed.
+static scoped_refptr<DecoderBuffer> DecryptData(const DecoderBuffer& input,
+                                                crypto::SymmetricKey* key) {
   CHECK(input.GetDataSize());
   CHECK(key);
 
@@ -43,9 +42,8 @@ static scoped_refptr<Buffer> DecryptData(const Buffer& input,
     return NULL;
   }
 
-  // TODO(xhwang): Implement a string based Buffer implementation to avoid
-  // data copying.
-  return DataBuffer::CopyFrom(
+  // TODO(xhwang): Find a way to avoid this data copy.
+  return DecoderBuffer::CopyFrom(
       reinterpret_cast<const uint8*>(decrypted_text.data()),
       decrypted_text.size());
 }
@@ -81,8 +79,8 @@ void AesDecryptor::AddKey(const uint8* key_id, int key_id_size,
   key_map_[key_id_string] = symmetric_key;
 }
 
-scoped_refptr<Buffer> AesDecryptor::Decrypt(
-    const scoped_refptr<Buffer>& encrypted) {
+scoped_refptr<DecoderBuffer> AesDecryptor::Decrypt(
+    const scoped_refptr<DecoderBuffer>& encrypted) {
   CHECK(encrypted->GetDecryptConfig());
   const uint8* key_id = encrypted->GetDecryptConfig()->key_id();
   const int key_id_size = encrypted->GetDecryptConfig()->key_id_size();
@@ -101,7 +99,7 @@ scoped_refptr<Buffer> AesDecryptor::Decrypt(
     key = found->second;
   }
 
-  scoped_refptr<Buffer> decrypted = DecryptData(*encrypted, key);
+  scoped_refptr<DecoderBuffer> decrypted = DecryptData(*encrypted, key);
 
   if (decrypted) {
     decrypted->SetTimestamp(encrypted->GetTimestamp());

@@ -4,7 +4,7 @@
 
 #include <string>
 
-#include "media/base/data_buffer.h"
+#include "media/base/decoder_buffer.h"
 #include "media/base/decrypt_config.h"
 #include "media/crypto/aes_decryptor.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -28,7 +28,8 @@ static const unsigned char kKeyId2[] = "Key ID 2.";
 class AesDecryptorTest : public testing::Test {
  public:
   AesDecryptorTest() {
-    encrypted_data_ = DataBuffer::CopyFrom(kEncryptedData, kEncryptedDataSize);
+    encrypted_data_ = DecoderBuffer::CopyFrom(
+        kEncryptedData, kEncryptedDataSize);
   }
 
  protected:
@@ -38,7 +39,8 @@ class AesDecryptorTest : public testing::Test {
   }
 
   void DecryptAndExpectToSucceed() {
-    scoped_refptr<Buffer> decrypted = decryptor_.Decrypt(encrypted_data_);
+    scoped_refptr<DecoderBuffer> decrypted =
+        decryptor_.Decrypt(encrypted_data_);
     ASSERT_TRUE(decrypted);
     int data_length = sizeof(kOriginalData) - 1;
     ASSERT_EQ(data_length, decrypted->GetDataSize());
@@ -46,11 +48,12 @@ class AesDecryptorTest : public testing::Test {
   }
 
   void DecryptAndExpectToFail() {
-    scoped_refptr<Buffer> decrypted = decryptor_.Decrypt(encrypted_data_);
+    scoped_refptr<DecoderBuffer> decrypted =
+        decryptor_.Decrypt(encrypted_data_);
     EXPECT_FALSE(decrypted);
   }
 
-  scoped_refptr<DataBuffer> encrypted_data_;
+  scoped_refptr<DecoderBuffer> encrypted_data_;
   AesDecryptor decryptor_;
 };
 
