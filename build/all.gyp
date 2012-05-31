@@ -56,7 +56,6 @@
         '../v8/tools/gyp/v8.gyp:*',
         '../webkit/support/webkit_support.gyp:*',
         '../webkit/webkit.gyp:*',
-        'util/build_util.gyp:*',
         'temp_gyp/googleurl.gyp:*',
         '<(libjpeg_gyp_path):*',
       ],
