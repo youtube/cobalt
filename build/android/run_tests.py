@@ -76,14 +76,6 @@ _TEST_SUITES = ['base_unittests',
                 'ui_unittests',
                ]
 
-# Test suites which are run as APK. This will be replaced by the default
-# list when we start building all suites as APK.
-_APK_TEST_SUITES = ['base_unittests',
-                    'content_unittests',
-                    'ipc_tests',
-                    'net_unittests',
-                   ]
-
 def FullyQualifiedTestSuites(apk):
   """Return a fully qualified list that represents all known suites.
 
@@ -97,7 +89,7 @@ def FullyQualifiedTestSuites(apk):
     suites = [os.path.join(test_suite_dir,
                            t + '_apk',
                            t + '-debug.apk')
-              for t in _APK_TEST_SUITES]
+              for t in _TEST_SUITES]
   else:
     suites = [os.path.join(test_suite_dir, t) for t in _TEST_SUITES]
   return suites
