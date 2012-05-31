@@ -163,7 +163,8 @@ typedef enum {
     client_key_exchange	= 16, 
     finished		= 20,
     certificate_status	= 22,
-    next_proto		= 67
+    next_proto		= 67,
+    encrypted_extensions= 203
 } SSL3HandshakeType;
 
 typedef struct {

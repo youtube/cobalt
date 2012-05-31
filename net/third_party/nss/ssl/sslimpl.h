@@ -1198,6 +1198,8 @@ const unsigned char *  preferredCipher;
     void                     *pkcs11PinArg;
     SSLNextProtoCallback      nextProtoCallback;
     void                     *nextProtoArg;
+    SSLClientChannelIDCallback getChannelID;
+    void                     *getChannelIDArg;
 
     PRIntervalTime            rTimeout; /* timeout for NSPR I/O */
     PRIntervalTime            wTimeout; /* timeout for NSPR I/O */
