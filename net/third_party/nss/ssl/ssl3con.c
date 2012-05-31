@@ -86,6 +86,7 @@ static SECStatus ssl3_SendCertificate(       sslSocket *ss);
 static SECStatus ssl3_SendEmptyCertificate(  sslSocket *ss);
 static SECStatus ssl3_SendCertificateRequest(sslSocket *ss);
 static SECStatus ssl3_SendNextProto(         sslSocket *ss);
+static SECStatus ssl3_SendEncryptedExtensions(sslSocket *ss);
 static SECStatus ssl3_SendFinished(          sslSocket *ss, PRInt32 flags);
 static SECStatus ssl3_SendServerHello(       sslSocket *ss);
 static SECStatus ssl3_SendServerHelloDone(   sslSocket *ss);
@@ -6239,6 +6240,10 @@ ssl3_SendClientSecondRound(sslSocket *ss)
 	    goto loser;	/* err code was set. */
 	}
     }
+    rv = ssl3_SendEncryptedExtensions(ss);
+    if (rv != SECSuccess) {
+	goto loser; /* err code was set. */
+    }
 
     rv = ssl3_SendFinished(ss, 0);
     if (rv != SECSuccess) {
@@ -8855,6 +8860,130 @@ ssl3_SendNextProto(sslSocket *ss)
     return rv;
 }
 
+/* called from ssl3_SendClientSecondRound
+ *	     ssl3_HandleFinished
+ */
+static SECStatus
+ssl3_SendEncryptedExtensions(sslSocket *ss)
+{
+    static const char CHANNEL_ID_MAGIC[] = "TLS Channel ID signature";
+    /* This is the ASN.1 prefix for a P-256 public key. Specifically it's:
+     * SEQUENCE
+     *   SEQUENCE
+     *     OID id-ecPublicKey
+     *     OID prime256v1
+     *   BIT STRING, length 66, 0 trailing bits: 0x04
+     *
+     * The 0x04 in the BIT STRING is the prefix for an uncompressed, X9.62
+     * public key. Following that are the two field elements as 32-byte,
+     * big-endian numbers, as required by the Channel ID. */
+    static const unsigned char P256_SPKI_PREFIX[] = {
+	0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86,
+	0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x08, 0x2a,
+	0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03,
+	0x42, 0x00, 0x04
+    };
+    /* ChannelIDs are always 128 bytes long: 64 bytes of P-256 public key and 64
+     * bytes of ECDSA signature. */
+    static const int CHANNEL_ID_PUBLIC_KEY_LENGTH = 64;
+    static const int CHANNEL_ID_LENGTH = 128;
+
+    SECStatus rv = SECFailure;
+    SECItem *spki = NULL;
+    SSL3Hashes hashes;
+    const unsigned char *pub_bytes;
+    unsigned char signed_data[sizeof(CHANNEL_ID_MAGIC) + sizeof(SSL3Hashes)];
+    unsigned char digest[SHA256_LENGTH];
+    SECItem digest_item;
+    unsigned char signature[64];
+    SECItem signature_item;
+    SECKEYPrivateKey *channelID = NULL;
+    SECKEYPublicKey *channelIDPub = NULL;
+
+    PORT_Assert(ss->opt.noLocks || ssl_HaveXmitBufLock(ss));
+    PORT_Assert(ss->opt.noLocks || ssl_HaveSSL3HandshakeLock(ss));
+
+    if (ss->getChannelID == NULL ||
+	!ssl3_ExtensionNegotiated(ss, ssl_channel_id_xtn)) {
+	return SECSuccess;
+    }
+
+    rv = ss->getChannelID(ss->getChannelIDArg, ss->fd,
+			  &channelIDPub, &channelID);
+    if (rv != SECSuccess) {
+	PORT_SetError(SSL_ERROR_GET_CHANNEL_ID_FAILED);
+	goto loser;
+    }
+
+    if (SECKEY_GetPrivateKeyType(channelID) != ecKey ||
+	PK11_SignatureLen(channelID) != sizeof(signature)) {
+	PORT_SetError(SSL_ERROR_INVALID_CHANNEL_ID_KEY);
+	rv = SECFailure;
+	goto loser;
+    }
+
+    ssl_GetSpecReadLock(ss);
+    rv = ssl3_ComputeHandshakeHashes(ss, ss->ssl3.cwSpec, &hashes, 0);
+    ssl_ReleaseSpecReadLock(ss);
+
+    if (rv != SECSuccess)
+	goto loser;
+
+    rv = ssl3_AppendHandshakeHeader(ss, encrypted_extensions,
+				    2 + 2 + CHANNEL_ID_LENGTH);
+    if (rv != SECSuccess)
+	goto loser;	/* error code set by AppendHandshakeHeader */
+    rv = ssl3_AppendHandshakeNumber(ss, ssl_channel_id_xtn, 2);
+    if (rv != SECSuccess)
+	goto loser;	/* error code set by AppendHandshake */
+    rv = ssl3_AppendHandshakeNumber(ss, CHANNEL_ID_LENGTH, 2);
+    if (rv != SECSuccess)
+	goto loser;	/* error code set by AppendHandshake */
+
+    spki = SECKEY_EncodeDERSubjectPublicKeyInfo(channelIDPub);
+
+    if (spki->len != sizeof(P256_SPKI_PREFIX) + CHANNEL_ID_PUBLIC_KEY_LENGTH ||
+	memcmp(spki->data, P256_SPKI_PREFIX, sizeof(P256_SPKI_PREFIX) != 0)) {
+	PORT_SetError(SSL_ERROR_INVALID_CHANNEL_ID_KEY);
+	rv = SECFailure;
+	goto loser;
+    }
+
+    pub_bytes = spki->data + sizeof(P256_SPKI_PREFIX);
+
+    memcpy(signed_data, CHANNEL_ID_MAGIC, sizeof(CHANNEL_ID_MAGIC));
+    memcpy(signed_data + sizeof(CHANNEL_ID_MAGIC), &hashes, sizeof(hashes));
+
+    rv = PK11_HashBuf(SEC_OID_SHA256, digest, signed_data, sizeof(signed_data));
+    if (rv != SECSuccess)
+	goto loser;
+
+    digest_item.data = digest;
+    digest_item.len = sizeof(digest);
+
+    signature_item.data = signature;
+    signature_item.len = sizeof(signature);
+
+    rv = PK11_Sign(channelID, &signature_item, &digest_item);
+    if (rv != SECSuccess)
+	goto loser;
+
+    rv = ssl3_AppendHandshake(ss, pub_bytes, CHANNEL_ID_PUBLIC_KEY_LENGTH);
+    if (rv != SECSuccess)
+	goto loser;
+    rv = ssl3_AppendHandshake(ss, signature, sizeof(signature));
+
+loser:
+    if (spki)
+	SECITEM_FreeItem(spki, PR_TRUE);
+    if (channelID)
+	SECKEY_DestroyPrivateKey(channelID);
+    if (channelIDPub)
+	SECKEY_DestroyPublicKey(channelIDPub);
+
+    return rv;
+}
+
 /* called from ssl3_HandleServerHelloDone
  *             ssl3_HandleClientHello
  *             ssl3_HandleFinished
@@ -9105,11 +9234,16 @@ ssl3_HandleFinished(sslSocket *ss, SSL3Opaque *b, PRUint32 length,
 	    flags = ssl_SEND_FLAG_FORCE_INTO_BUFFER;
 	}
 
-	if (!isServer && !ss->firstHsDone) {
-	    rv = ssl3_SendNextProto(ss);
-	    if (rv != SECSuccess) {
-		goto xmit_loser; /* err code was set. */
+	if (!isServer) {
+	    if (!ss->firstHsDone) {
+		rv = ssl3_SendNextProto(ss);
+		if (rv != SECSuccess) {
+		    goto xmit_loser; /* err code was set. */
+		}
 	    }
+	    rv = ssl3_SendEncryptedExtensions(ss);
+	    if (rv != SECSuccess)
+		goto xmit_loser; /* err code was set. */
 	}
 
 	if (IS_DTLS(ss)) {

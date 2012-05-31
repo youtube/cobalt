@@ -945,6 +945,25 @@ SSL_IMPORT SECStatus SSL_HandshakeNegotiatedExtension(PRFileDesc * socket,
 SSL_IMPORT SECStatus SSL_HandshakeResumedSession(PRFileDesc *fd,
                                                  PRBool *last_handshake_resumed);
 
+/* See SSL_SetClientChannelIDCallback for usage. The callback must return
+ * SECFailure or SECSuccess (not SECWouldBlock). On SECSuccess, the callback
+ * must have written a P-256, EC key pair to |*out_public_key| and
+ * |*out_private_key|. */
+typedef SECStatus (PR_CALLBACK *SSLClientChannelIDCallback)(
+    void *arg,
+    PRFileDesc *fd,
+    SECKEYPublicKey **out_public_key,
+    SECKEYPrivateKey **out_private_key);
+
+/* SSL_SetClientChannelIDCallback sets a callback function that will be called
+ * just before a Channel ID is sent. This is only applicable to a client socket
+ * and setting this callback causes the TLS Channel ID extension to be
+ * advertised. */
+SSL_IMPORT SECStatus SSL_SetClientChannelIDCallback(
+    PRFileDesc *fd,
+    SSLClientChannelIDCallback callback,
+    void *arg);
+
 /*
 ** How long should we wait before retransmitting the next flight of
 ** the DTLS handshake? Returns SECFailure if not DTLS or not in a
