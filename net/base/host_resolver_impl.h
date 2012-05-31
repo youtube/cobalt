@@ -109,8 +109,10 @@ class NET_EXPORT HostResolverImpl
   // run at once. This upper-bounds the total number of outstanding
   // DNS transactions (not counting retransmissions and retries).
   //
-  // |dns_config_service| will be used to obtain DnsConfig for
-  // DnsTransactionFactory.
+  // |dns_config_service| will be used to detect changes to DNS configuration
+  // and obtain DnsConfig for DnsClient.
+  //
+  // |dns_client|, if set, will be used to resolve requests.
   //
   // |net_log| must remain valid for the life of the HostResolverImpl.
   // TODO(szym): change to scoped_ptr<HostCache>.
@@ -118,6 +120,7 @@ class NET_EXPORT HostResolverImpl
                    const PrioritizedDispatcher::Limits& job_limits,
                    const ProcTaskParams& proc_params,
                    scoped_ptr<DnsConfigService> dns_config_service,
+                   scoped_ptr<DnsClient> dns_client,
                    NetLog* net_log);
 
   // If any completion callbacks are pending when the resolver is destroyed,
@@ -156,10 +159,6 @@ class NET_EXPORT HostResolverImpl
   typedef std::map<Key, Job*> JobMap;
   typedef ScopedVector<Request> RequestsList;
 
-  void set_dns_client_for_tests(scoped_ptr<DnsClient> client) {
-    dns_client_ = client.Pass();
-  }
-
   // Helper used by |Resolve()| and |ResolveFromCache()|.  Performs IP
   // literal, cache and HOSTS lookup (if enabled), returns OK if successful,
   // ERR_NAME_NOT_RESOLVED if either hostname is invalid or IP literal is
@@ -184,8 +183,8 @@ class NET_EXPORT HostResolverImpl
                       int* net_error,
                       AddressList* addresses);
 
-  // If |key| is not found in the HOSTS file or no HOSTS file known, returns
-  // false, otherwise returns true and fills |addresses|.
+  // If we have a DnsClient with a valid DnsConfig, and |key| is found in the
+  // HOSTS file, returns true and fills |addresses|. Otherwise returns false.
   bool ServeFromHosts(const Key& key,
                       const RequestInfo& info,
                       AddressList* addresses);
@@ -214,7 +213,8 @@ class NET_EXPORT HostResolverImpl
   // Might start new jobs.
   void AbortAllInProgressJobs();
 
-  // Attempts to serve each Job in |jobs_| from the HOSTS file.
+  // Attempts to serve each Job in |jobs_| from the HOSTS file if we have
+  // a DnsClient with a valid DnsConfig.
   void TryServingAllJobsFromHosts();
 
   // NetworkChangeNotifier::IPAddressObserver:
@@ -226,10 +226,10 @@ class NET_EXPORT HostResolverImpl
   // DnsConfigService callback:
   void OnDnsConfigChanged(const DnsConfig& dns_config);
 
-  // True if have fully configured DNS client.
+  // True if have a DnsClient with a valid DnsConfig.
   bool HaveDnsConfig() const;
-  // Allows the tests to catch slots leaking out of the dispatcher.
 
+  // Allows the tests to catch slots leaking out of the dispatcher.
   size_t num_running_jobs_for_tests() const {
     return dispatcher_.num_running_jobs();
   }
@@ -252,12 +252,17 @@ class NET_EXPORT HostResolverImpl
   // Address family to use when the request doesn't specify one.
   AddressFamily default_address_family_;
 
-  scoped_ptr<DnsClient> dns_client_;
   scoped_ptr<DnsConfigService> dns_config_service_;
 
+  // If present, used by DnsTask and ServeFromHosts to resolve requests.
+  scoped_ptr<DnsClient> dns_client_;
+
+  // True if received valid config from |dns_config_service_|. Temporary, used
+  // to measure performance of DnsConfigService: http://crbug.com/125599
+  bool received_dns_config_;
+
   // Indicate if probing is done after each network change event to set address
-  // family.
-  // When false, explicit setting of address family is used.
+  // family. When false, explicit setting of address family is used.
   bool ipv6_probe_monitoring_;
 
   // The last un-cancelled IPv6ProbeJob (if any).

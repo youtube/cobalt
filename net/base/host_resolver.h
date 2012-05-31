@@ -185,6 +185,10 @@ class NET_EXPORT HostResolver {
 // |max_retry_attempts| is the maximum number of times we will retry for host
 // resolution. Pass HostResolver::kDefaultRetryAttempts to choose a default
 // value.
+// The created HostResolver uses an instance of DnsConfigService to retrieve
+// system DNS configuration.
+// This resolver should not be used in test context. Instead, use
+// MockHostResolver from net/base/mock_host_resolver.h.
 NET_EXPORT HostResolver* CreateSystemHostResolver(
     size_t max_concurrent_resolves,
     size_t max_retry_attempts,

@@ -147,6 +147,8 @@ void UmaAsyncDnsResolveStatus(DnsResolveStatus result) {
                             RESOLVE_STATUS_MAX);
 }
 
+//-----------------------------------------------------------------------------
+
 // Wraps call to SystemHostResolverProc as an instance of HostResolverProc.
 // TODO(szym): This should probably be declared in host_resolver_proc.h.
 class CallSystemHostResolverProc : public HostResolverProc {
@@ -435,6 +437,7 @@ HostResolver* CreateHostResolver(size_t max_concurrent_resolves,
                                  size_t max_retry_attempts,
                                  HostCache* cache,
                                  scoped_ptr<DnsConfigService> config_service,
+                                 scoped_ptr<DnsClient> dns_client,
                                  NetLog* net_log) {
   if (max_concurrent_resolves == HostResolver::kDefaultParallelism)
     max_concurrent_resolves = kDefaultMaxProcTasks;
@@ -449,6 +452,7 @@ HostResolver* CreateHostResolver(size_t max_concurrent_resolves,
       limits,
       HostResolverImpl::ProcTaskParams(NULL, max_retry_attempts),
       config_service.Pass(),
+      dns_client.Pass(),
       net_log);
 
   return resolver;
@@ -464,7 +468,8 @@ HostResolver* CreateSystemHostResolver(size_t max_concurrent_resolves,
   return CreateHostResolver(max_concurrent_resolves,
                             max_retry_attempts,
                             HostCache::CreateDefaultCache(),
-                            scoped_ptr<DnsConfigService>(NULL),
+                            DnsConfigService::CreateSystemService(),
+                            scoped_ptr<DnsClient>(NULL),
                             net_log);
 }
 
@@ -475,18 +480,18 @@ HostResolver* CreateNonCachingSystemHostResolver(size_t max_concurrent_resolves,
                             max_retry_attempts,
                             NULL,
                             scoped_ptr<DnsConfigService>(NULL),
+                            scoped_ptr<DnsClient>(NULL),
                             net_log);
 }
 
 HostResolver* CreateAsyncHostResolver(size_t max_concurrent_resolves,
                                       size_t max_retry_attempts,
                                       NetLog* net_log) {
-  scoped_ptr<DnsConfigService> config_service =
-      DnsConfigService::CreateSystemService();
   return CreateHostResolver(max_concurrent_resolves,
                             max_retry_attempts,
                             HostCache::CreateDefaultCache(),
-                            config_service.Pass(),
+                            DnsConfigService::CreateSystemService(),
+                            DnsClient::CreateClient(net_log),
                             net_log);
 }
 
@@ -1424,8 +1429,14 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
 
     DCHECK(!requests_.empty());
 
-    if (net_error == OK)
+    if (net_error == OK) {
       SetPortOnAddressList(requests_->front()->info().port(), &list);
+      // Record this histogram here, when we know the system has a valid DNS
+      // configuration.
+      UMA_HISTOGRAM_ENUMERATION("AsyncDNS.HaveDnsConfig",
+                                resolver_->received_dns_config_ ? 1 : 0,
+                                2);
+    }
 
     if ((net_error != ERR_ABORTED) &&
         (net_error != ERR_HOST_RESOLVER_QUEUE_TOO_LARGE)) {
@@ -1516,14 +1527,16 @@ HostResolverImpl::HostResolverImpl(
     const PrioritizedDispatcher::Limits& job_limits,
     const ProcTaskParams& proc_params,
     scoped_ptr<DnsConfigService> dns_config_service,
+    scoped_ptr<DnsClient> dns_client,
     NetLog* net_log)
     : cache_(cache),
       dispatcher_(job_limits),
       max_queued_jobs_(job_limits.total_jobs * 100u),
       proc_params_(proc_params),
       default_address_family_(ADDRESS_FAMILY_UNSPECIFIED),
-      dns_client_(NULL),
       dns_config_service_(dns_config_service.Pass()),
+      dns_client_(dns_client.Pass()),
+      received_dns_config_(false),
       ipv6_probe_monitoring_(false),
       additional_resolver_flags_(0),
       net_log_(net_log) {
@@ -1544,18 +1557,16 @@ HostResolverImpl::HostResolverImpl(
     additional_resolver_flags_ |= HOST_RESOLVER_LOOPBACK_ONLY;
 #endif
   NetworkChangeNotifier::AddIPAddressObserver(this);
-#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
-#if !defined(OS_ANDROID)
-  EnsureDnsReloaderInit();
-#endif
+#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD) && \
+    !defined(OS_ANDROID)
   NetworkChangeNotifier::AddDNSObserver(this);
+  EnsureDnsReloaderInit();
 #endif
 
   if (dns_config_service_.get()) {
     dns_config_service_->Watch(
         base::Bind(&HostResolverImpl::OnDnsConfigChanged,
                    base::Unretained(this)));
-    dns_client_ = DnsClient::CreateClient(net_log_);
   }
 }
 
@@ -1566,9 +1577,7 @@ HostResolverImpl::~HostResolverImpl() {
   STLDeleteValues(&jobs_);
 
   NetworkChangeNotifier::RemoveIPAddressObserver(this);
-#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
   NetworkChangeNotifier::RemoveDNSObserver(this);
-#endif
 }
 
 void HostResolverImpl::SetMaxQueuedJobs(size_t value) {
@@ -1931,6 +1940,12 @@ void HostResolverImpl::OnIPAddressChanged() {
 }
 
 void HostResolverImpl::OnDNSChanged(unsigned detail) {
+  // Ignore signals about watches.
+  const unsigned kIgnoredDetail =
+      NetworkChangeNotifier::CHANGE_DNS_WATCH_STARTED |
+      NetworkChangeNotifier::CHANGE_DNS_WATCH_FAILED;
+  if ((detail & ~kIgnoredDetail) == 0)
+    return;
   // If the DNS server has changed, existing cached info could be wrong so we
   // have to drop our internal cache :( Note that OS level DNS caches, such
   // as NSCD's cache should be dropped automatically by the OS when
@@ -1938,7 +1953,7 @@ void HostResolverImpl::OnDNSChanged(unsigned detail) {
   if (cache_.get())
     cache_->clear();
   // Existing jobs will have been sent to the original server so they need to
-  // be aborted. TODO(Craig): Should these jobs be restarted?
+  // be aborted.
   AbortAllInProgressJobs();
   // |this| may be deleted inside AbortAllInProgressJobs().
 }
@@ -1950,28 +1965,21 @@ void HostResolverImpl::OnDnsConfigChanged(const DnsConfig& dns_config) {
         make_scoped_refptr(new DnsConfigParameters(dns_config)));
   }
 
-  DCHECK(dns_client_.get());
+  // TODO(szym): Remove once http://crbug.com/125599 is resolved.
+  received_dns_config_ = dns_config.IsValid();
 
   // Life check to bail once |this| is deleted.
   base::WeakPtr<HostResolverImpl> self = AsWeakPtr();
 
-  bool config_changed = (dns_client_->GetConfig() != NULL) &&
-      !dns_config.EqualsIgnoreHosts(*dns_client_->GetConfig());
-
-  // We want a new factory in place, before we Abort running Jobs, so that the
-  // newly started jobs use the new factory.
-  dns_client_->SetConfig(dns_config);
-
-  // Don't Abort running Jobs unless they were running on DnsTransaction and
-  // DnsConfig changed beyond DnsHosts. HOSTS-only change will be resolved by
-  // TryServingAllJobsFromHosts below.
-  if (config_changed) {
-    // TODO(szym): This will change once http://crbug.com/114827 is fixed.
+  if (dns_client_.get()) {
+    // We want a new factory in place, before we Abort running Jobs, so that the
+    // newly started jobs use the new factory.
+    dns_client_->SetConfig(dns_config);
     OnDNSChanged(NetworkChangeNotifier::CHANGE_DNS_SETTINGS);
+    // |this| may be deleted inside OnDNSChanged().
+    if (self)
+      TryServingAllJobsFromHosts();
   }
-
-  if (self && dns_config.IsValid())
-    TryServingAllJobsFromHosts();
 }
 
 bool HostResolverImpl::HaveDnsConfig() const {
