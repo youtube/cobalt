@@ -88,17 +88,34 @@ ReturnAddressLocationResolver GetProfilerReturnAddrResolutionFunc() {
 extern "C" IMAGE_DOS_HEADER __ImageBase;
 
 bool IsBinaryInstrumented() {
-  HMODULE this_module = reinterpret_cast<HMODULE>(&__ImageBase);
-  base::win::PEImage image(this_module);
+  enum InstrumentationCheckState {
+    UNINITIALIZED,
+    INSTRUMENTED_IMAGE,
+    NON_INSTRUMENTED_IMAGE,
+  };
 
-  // This should be self-evident, soon as we're executing.
-  DCHECK(image.VerifyMagic());
+  static InstrumentationCheckState state = UNINITIALIZED;
 
-  // Syzygy-instrumented binaries contain a PE image section named ".thunks",
-  // and all Syzygy-modified binaries contain the ".syzygy" image section.
-  // This is a very fast check, as it only looks at the image header.
-  return (image.GetImageSectionHeaderByName(".thunks") != NULL) &&
-      (image.GetImageSectionHeaderByName(".syzygy") != NULL);
+  if (state == UNINITIALIZED) {
+    HMODULE this_module = reinterpret_cast<HMODULE>(&__ImageBase);
+    base::win::PEImage image(this_module);
+
+    // Check to be sure our image is structured as we'd expect.
+    DCHECK(image.VerifyMagic());
+
+    // Syzygy-instrumented binaries contain a PE image section named ".thunks",
+    // and all Syzygy-modified binaries contain the ".syzygy" image section.
+    // This is a very fast check, as it only looks at the image header.
+    if ((image.GetImageSectionHeaderByName(".thunks") != NULL) &&
+        (image.GetImageSectionHeaderByName(".syzygy") != NULL)) {
+      state = INSTRUMENTED_IMAGE;
+    } else {
+      state = NON_INSTRUMENTED_IMAGE;
+    }
+  }
+  DCHECK(state != UNINITIALIZED);
+
+  return state == INSTRUMENTED_IMAGE;
 }
 
 // Callback function to PEImage::EnumImportChunks.
