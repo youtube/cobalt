@@ -487,12 +487,16 @@ EVENT_TYPE(SSL_HANDSHAKE_ERROR)
 EVENT_TYPE(SSL_READ_ERROR)
 EVENT_TYPE(SSL_WRITE_ERROR)
 
-// An SSL Snap Start was attempted
+// An SSL connection needs to be retried with a lower protocol version because
+// the server may be intolerant of the protocol version we offered.
 // The following parameters are attached to the event:
 //   {
-//     "type": <Integer code for the Snap Start result>,
+//     "host_and_port": <String encoding the host and port>,
+//     "net_error": <Net integer error code>,
+//     "version_before": <SSL version before the fallback>,
+//     "version_after": <SSL version after the fallback>,
 //   }
-EVENT_TYPE(SSL_SNAP_START)
+EVENT_TYPE(SSL_VERSION_FALLBACK)
 
 // We found that our prediction of the server's certificates was correct and
 // we merged the verification with the SSLHostInfo.
