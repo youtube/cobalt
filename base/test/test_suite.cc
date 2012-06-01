@@ -28,7 +28,7 @@
 #endif
 
 #if defined(OS_ANDROID)
-#include "base/test/test_stub_android.h"
+#include "base/test/test_support_android.h"
 #endif
 
 #if defined(TOOLKIT_GTK)
@@ -101,8 +101,13 @@ void TestSuite::PreInitialize(int argc, char** argv,
 #elif defined(TOOLKIT_GTK)
   gtk_init_check(&argc, &argv);
 #endif  // defined(TOOLKIT_GTK)
+
+  // On Android when building tests as apks, AtExitManager is created in
+  // testing/android/native_test_wrapper.cc before main() is called.
+#if !defined(ANDROID_APK_TEST_TARGET)
   if (create_at_exit_manager)
     at_exit_manager_.reset(new base::AtExitManager);
+#endif
 
   // Don't add additional code to this function.  Instead add it to
   // Initialize().  See bug 6436.
@@ -237,9 +242,8 @@ void TestSuite::Initialize() {
 #endif
 
 #if defined(OS_ANDROID)
-  InitAndroidTestStub();
-#endif
-
+  InitAndroidTest();
+#else
   // Initialize logging.
   FilePath exe;
   PathService::Get(base::FILE_EXE, &exe);
@@ -253,6 +257,7 @@ void TestSuite::Initialize() {
   // We want process and thread IDs because we may have multiple processes.
   // Note: temporarily enabled timestamps in an effort to catch bug 6361.
   logging::SetLogItems(true, true, true, true);
+#endif  // else defined(OS_ANDROID)
 
   CHECK(base::EnableInProcessStackDumping());
 #if defined(OS_WIN)
@@ -269,11 +274,7 @@ void TestSuite::Initialize() {
     logging::SetLogAssertHandler(UnitTestAssertHandler);
   }
 
-#if !defined(OS_ANDROID)
-  // TODO(michaelbai): The icu can not be compiled in Android now, this should
-  // be enabled once icu is ready. http://b/5406077.
   icu_util::Initialize();
-#endif
 
   CatchMaybeTests();
   ResetCommandLine();
