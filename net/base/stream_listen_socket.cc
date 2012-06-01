@@ -69,14 +69,14 @@ const net::BackoffEntry::Policy kSendBackoffPolicy = {
 }  // namespace
 
 #if defined(OS_WIN)
-const SOCKET StreamListenSocket::kInvalidSocket = INVALID_SOCKET;
+const SocketDescriptor StreamListenSocket::kInvalidSocket = INVALID_SOCKET;
 const int StreamListenSocket::kSocketError = SOCKET_ERROR;
 #elif defined(OS_POSIX)
-const SOCKET StreamListenSocket::kInvalidSocket = -1;
+const SocketDescriptor StreamListenSocket::kInvalidSocket = -1;
 const int StreamListenSocket::kSocketError = -1;
 #endif
 
-StreamListenSocket::StreamListenSocket(SOCKET s,
+StreamListenSocket::StreamListenSocket(SocketDescriptor s,
                                        StreamListenSocket::Delegate* del)
     : socket_delegate_(del),
       socket_(s),
@@ -115,8 +115,8 @@ void StreamListenSocket::Send(const string& str, bool append_linefeed) {
   Send(str.data(), static_cast<int>(str.length()), append_linefeed);
 }
 
-SOCKET StreamListenSocket::AcceptSocket() {
-  SOCKET conn = HANDLE_EINTR(accept(socket_, NULL, NULL));
+SocketDescriptor StreamListenSocket::AcceptSocket() {
+  SocketDescriptor conn = HANDLE_EINTR(accept(socket_, NULL, NULL));
   if (conn == kInvalidSocket)
     LOG(ERROR) << "Error accepting connection.";
   else
@@ -204,7 +204,7 @@ void StreamListenSocket::Close() {
   socket_delegate_->DidClose(this);
 }
 
-void StreamListenSocket::CloseSocket(SOCKET s) {
+void StreamListenSocket::CloseSocket(SocketDescriptor s) {
   if (s && s != kInvalidSocket) {
     UnwatchSocket();
 #if defined(OS_WIN)

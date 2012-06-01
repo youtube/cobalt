@@ -41,7 +41,9 @@
 #include "net/base/stream_listen_socket.h"
 
 #if defined(OS_POSIX)
-typedef int SOCKET;
+typedef int SocketDescriptor;
+#else
+typedef SOCKET SocketDescriptor;
 #endif
 
 namespace net {
@@ -78,6 +80,9 @@ class NET_EXPORT StreamListenSocket
   void Send(const char* bytes, int len, bool append_linefeed = false);
   void Send(const std::string& str, bool append_linefeed = false);
 
+  static const SocketDescriptor kInvalidSocket;
+  static const int kSocketError;
+
  protected:
   enum WaitState {
     NOT_WAITING      = 0,
@@ -85,19 +90,16 @@ class NET_EXPORT StreamListenSocket
     WAITING_READ     = 2
   };
 
-  static const SOCKET kInvalidSocket;
-  static const int kSocketError;
-
-  StreamListenSocket(SOCKET s, Delegate* del);
+  StreamListenSocket(SocketDescriptor s, Delegate* del);
   virtual ~StreamListenSocket();
 
-  SOCKET AcceptSocket();
+  SocketDescriptor AcceptSocket();
   virtual void Accept() = 0;
 
   void Listen();
   void Read();
   void Close();
-  void CloseSocket(SOCKET s);
+  void CloseSocket(SocketDescriptor s);
 
   // Pass any value in case of Windows, because in Windows
   // we are not using state.
@@ -133,7 +135,7 @@ class NET_EXPORT StreamListenSocket
   void PauseReads();
   void ResumeReads();
 
-  const SOCKET socket_;
+  const SocketDescriptor socket_;
   bool reads_paused_;
   bool has_pending_reads_;
 

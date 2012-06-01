@@ -26,10 +26,10 @@ class NET_EXPORT TCPListenSocket : public StreamListenSocket {
  protected:
   friend class scoped_refptr<TCPListenSocket>;
 
-  TCPListenSocket(SOCKET s, StreamListenSocket::Delegate* del);
+  TCPListenSocket(SocketDescriptor s, StreamListenSocket::Delegate* del);
   virtual ~TCPListenSocket();
 
-  static SOCKET CreateAndBind(const std::string& ip, int port);
+  static SocketDescriptor CreateAndBind(const std::string& ip, int port);
 
   // Implements StreamListenSocket::Accept.
   virtual void Accept() OVERRIDE;
