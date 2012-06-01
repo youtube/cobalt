@@ -137,8 +137,11 @@ class NativeTestApkGenerator(object):
         logging.warn('%s --> %s' % (jar, dest))
         shutil.copyfile(jar, dest)
 
-  def CreateBundle(self):
+  def CreateBundle(self, ant_compile):
     """Create the apk bundle source and assemble components."""
+    if not ant_compile:
+      self._SOURCE_FILES.append('Android.mk')
+      self._REPLACEME_FILES.append('Android.mk')
     self._CopyTemplateFiles()
     self._ReplaceStrings()
     self._CopyLibraryAndJars()
@@ -162,6 +165,16 @@ class NativeTestApkGenerator(object):
       logging.error('Ant return code %d' % p.returncode)
       sys.exit(p.returncode)
 
+  def CompileAndroidMk(self):
+    """Build the generated apk within Android source tree using Android.mk."""
+    try:
+      import compile_android_mk  # pylint: disable=F0401
+    except:
+      raise AssertionError('Not in Android source tree. '
+                           'Please use --ant-compile.')
+    compile_android_mk.CompileAndroidMk(self._native_library,
+                                        self._output_directory)
+
 
 def main(argv):
   parser = optparse.OptionParser()
@@ -176,7 +189,9 @@ def main(argv):
   parser.add_option('--app_abi', default='armeabi',
                     help='ABI for native shared library')
   parser.add_option('--ant-compile', action='store_true',
-                    help='If specified, build the generated apk with ant')
+                    help='If specified, build the generated apk with ant. '
+                         'Otherwise assume compiling within the Android '
+                         'source tree using Android.mk.')
   parser.add_option('--ant-args',
                     help='extra args for ant')
 
@@ -195,13 +210,21 @@ def main(argv):
   jar_list = []
   if options.jars:
     jar_list = options.jars.replace('"', '').split()
+
+  # Ignore --ant-compile when building with Android source.
+  if 'ANDROID_BUILD_TOP' in os.environ:
+    options.ant_compile = False
+
   ntag = NativeTestApkGenerator(native_library=options.native_library,
                                 jars=jar_list,
                                 output_directory=options.output,
                                 target_abi=options.app_abi)
-  ntag.CreateBundle()
+  ntag.CreateBundle(options.ant_compile)
+
   if options.ant_compile:
     ntag.Compile(options.ant_args)
+  else:
+    ntag.CompileAndroidMk()
 
   logging.warn('COMPLETE.')
 
