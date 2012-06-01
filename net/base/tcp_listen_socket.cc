@@ -31,7 +31,7 @@ namespace net {
 // static
 scoped_refptr<TCPListenSocket> TCPListenSocket::CreateAndListen(
     const string& ip, int port, StreamListenSocket::Delegate* del) {
-  SOCKET s = CreateAndBind(ip, port);
+  SocketDescriptor s = CreateAndBind(ip, port);
   if (s == kInvalidSocket)
     return NULL;
   scoped_refptr<TCPListenSocket> sock(new TCPListenSocket(s, del));
@@ -39,18 +39,19 @@ scoped_refptr<TCPListenSocket> TCPListenSocket::CreateAndListen(
   return sock;
 }
 
-TCPListenSocket::TCPListenSocket(SOCKET s, StreamListenSocket::Delegate* del)
+TCPListenSocket::TCPListenSocket(SocketDescriptor s,
+                                 StreamListenSocket::Delegate* del)
     : StreamListenSocket(s, del) {
 }
 
 TCPListenSocket::~TCPListenSocket() {}
 
-SOCKET TCPListenSocket::CreateAndBind(const string& ip, int port) {
+SocketDescriptor TCPListenSocket::CreateAndBind(const string& ip, int port) {
 #if defined(OS_WIN)
   EnsureWinsockInit();
 #endif
 
-  SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  SocketDescriptor s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (s != kInvalidSocket) {
 #if defined(OS_POSIX)
     // Allow rapid reuse.
@@ -76,7 +77,7 @@ SOCKET TCPListenSocket::CreateAndBind(const string& ip, int port) {
 }
 
 void TCPListenSocket::Accept() {
-  SOCKET conn = AcceptSocket();
+  SocketDescriptor conn = AcceptSocket();
   if (conn == kInvalidSocket)
     return;
   scoped_refptr<TCPListenSocket> sock(
