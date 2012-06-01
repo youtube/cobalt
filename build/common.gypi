@@ -1200,7 +1200,7 @@
 
       # See http://msdn.microsoft.com/en-us/library/2kxx5t2c(v=vs.80).aspx
       # Tri-state: blank is default, 1 on, 0 off
-      'win_release_OmitFramePointers%': '1',
+      'win_release_OmitFramePointers%': '0',
       # Tri-state: blank is default, 1 on, 0 off
       'win_debug_OmitFramePointers%': '',
 
