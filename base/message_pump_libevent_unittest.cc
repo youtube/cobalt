@@ -82,18 +82,22 @@ class DeleteWatcher : public MessagePumpLibevent::Watcher {
       : controller_(controller) {
     DCHECK(controller_);
   }
-  virtual ~DeleteWatcher() {}
+  virtual ~DeleteWatcher() {
+    DCHECK(!controller_);
+  }
 
   // base:MessagePumpLibevent::Watcher interface
   virtual void OnFileCanReadWithoutBlocking(int /* fd */) OVERRIDE {
     NOTREACHED();
   }
   virtual void OnFileCanWriteWithoutBlocking(int /* fd */) OVERRIDE {
+    DCHECK(controller_);
     delete controller_;
+    controller_ = NULL;
   }
 
  private:
-  MessagePumpLibevent::FileDescriptorWatcher* const controller_;
+  MessagePumpLibevent::FileDescriptorWatcher* controller_;
 };
 
 TEST_F(MessagePumpLibeventTest, DeleteWatcher) {
