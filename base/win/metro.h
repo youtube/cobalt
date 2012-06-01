@@ -41,6 +41,12 @@ struct CurrentTabInfo {
   wchar_t* url;
 };
 
+// The types of exports in metro_driver.dll.
+typedef HRESULT (*ActivateApplicationFn)(const wchar_t*);
+
+// The names of the exports in metro_driver.dll.
+BASE_EXPORT extern const char kActivateApplication[];
+
 // Returns the handle to the metro dll loaded in the process. A NULL return
 // indicates that the metro dll was not loaded in the process.
 BASE_EXPORT HMODULE GetMetroModule();
