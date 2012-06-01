@@ -64,9 +64,6 @@ class BASE_EXPORT PlatformThread {
   // Yield the current thread so another thread can be scheduled.
   static void YieldCurrentThread();
 
-  // Sleeps for the specified duration (units are milliseconds).
-  static void Sleep(int duration_ms);
-
   // Sleeps for the specified duration.
   static void Sleep(base::TimeDelta duration);
 

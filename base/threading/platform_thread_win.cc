@@ -110,11 +110,6 @@ void PlatformThread::YieldCurrentThread() {
 }
 
 // static
-void PlatformThread::Sleep(int duration_ms) {
-  ::Sleep(duration_ms);
-}
-
-// static
 void PlatformThread::Sleep(TimeDelta duration) {
   ::Sleep(duration.InMillisecondsRoundedUp());
 }
