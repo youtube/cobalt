@@ -42,9 +42,9 @@
           'target_name': 'native_test_native_code',
           'message': 'building native pieces of native test package',
           'type': 'static_library',
-           'sources': [
-             'native_test_launcher.cc',
-           ],
+          'sources': [
+            'native_test_launcher.cc',
+          ],
           'direct_dependent_settings': {
             'ldflags!': [
               # JNI_OnLoad is implemented in a .a and we need to
@@ -53,14 +53,14 @@
             ],
           },
           'dependencies': [ 
-            'jni_headers',
             '../../base/base.gyp:base',
             '../../base/base.gyp:test_support_base',
             '../gtest.gyp:gtest',
+            'native_test_jni_headers',
           ],
         },
         {
-          'target_name': 'jni_headers',
+          'target_name': 'native_test_jni_headers',
           'type': 'none',
           'actions': [
             {

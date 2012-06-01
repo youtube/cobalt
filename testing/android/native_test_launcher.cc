@@ -26,11 +26,11 @@
 #include "base/stringprintf.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
-#include "base/test/test_suite.h"
-#include "testing/android/jni/chrome_native_test_activity_jni.h"
+#include "base/test/test_support_android.h"
 #include "gtest/gtest.h"
+#include "testing/android/jni/chrome_native_test_activity_jni.h"
 
-// GTest's main function.
+// The main function of the program to be wrapped as a test apk.
 extern int main(int argc, char** argv);
 
 namespace {
@@ -74,7 +74,8 @@ void ParseArgsFromString(const std::string& command_line,
 }
 
 void ParseArgsFromCommandLineFile(std::vector<std::string>* args) {
-  // The test runner script can write to "/data/local/tmp".
+  // The test runner script writes the command line file in
+  // "/data/local/tmp".
   static const char kCommandLineFilePath[] =
       "/data/local/tmp/chrome-native-tests-command-line";
   FilePath command_line(kCommandLineFilePath);
@@ -158,39 +159,6 @@ void AndroidLogPrinter::OnTestProgramEnd(
   LOG(ERROR) << msg;
 }
 
-void LibraryLoadedOnMainThread(JNIEnv* env) {
-  static const char* const kInitialArgv[] = { "ChromeTestActivity" };
-
-  {
-    // We need a test suite to be created before we do any tracing or
-    // logging: it creates a global at_exit_manager and initializes
-    // internal gtest data structures based on the command line.
-    // It needs to be scoped as it also resets the CommandLine.
-    std::vector<std::string> args;
-    ParseArgsFromCommandLineFile(&args);
-    std::vector<char*> argv;
-    ArgsToArgv(args, &argv);
-    base::TestSuite test_suite(argv.size(), &argv[0]);
-  }
-
-  CommandLine::Init(arraysize(kInitialArgv), kInitialArgv);
-
-  logging::InitLogging(NULL,
-                       logging::LOG_ONLY_TO_SYSTEM_DEBUG_LOG,
-                       logging::DONT_LOCK_LOG_FILE,
-                       logging::DELETE_OLD_LOG_FILE,
-                       logging::ENABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS);
-  // To view log output with IDs and timestamps use "adb logcat -v threadtime".
-  logging::SetLogItems(false,    // Process ID
-                       false,    // Thread ID
-                       false,    // Timestamp
-                       false);   // Tick count
-  VLOG(0) << "Chromium logging enabled: level = " << logging::GetMinLogLevel()
-          << ", default verbosity = " << logging::GetVlogVerbosity();
-  base::android::RegisterLocaleUtils(env);
-  base::android::RegisterPathUtils(env);
-}
-
 }  // namespace
 
 // This method is called on a separate java thread so that we won't trigger
@@ -199,6 +167,21 @@ static void RunTests(JNIEnv* env,
                      jobject obj,
                      jstring jfiles_dir,
                      jobject app_context) {
+  base::AtExitManager exit_manager;
+
+  static const char* const kInitialArgv[] = { "ChromeTestActivity" };
+  CommandLine::Init(arraysize(kInitialArgv), kInitialArgv);
+
+  // Set the application context in base.
+  base::android::ScopedJavaLocalRef<jobject> scoped_context(
+      env, env->NewLocalRef(app_context));
+  base::android::InitApplicationContext(scoped_context);
+
+  base::android::RegisterLocaleUtils(env);
+  base::android::RegisterPathUtils(env);
+
+  InitAndroidTest();
+
   FilePath files_dir(base::android::ConvertJavaStringToUTF8(env, jfiles_dir));
   // A few options, such "--gtest_list_tests", will just use printf directly
   // and won't use the "AndroidLogPrinter". Redirect stdout to a known file.
@@ -217,17 +200,11 @@ static void RunTests(JNIEnv* env,
   AndroidLogPrinter* log = new AndroidLogPrinter();
   log->Init(&argc, &argv[0]);
 
-  // Set the application context in base.
-  base::android::ScopedJavaLocalRef<jobject> scoped_context(
-      env, env->NewLocalRef(app_context));
-  base::android::InitApplicationContext(scoped_context);
-
   main(argc, &argv[0]);
 }
 
 // This is called by the VM when the shared library is first loaded.
 JNI_EXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
-
   // Install signal handlers to detect crashes.
   InstallHandlers();
 
@@ -236,7 +213,6 @@ JNI_EXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   if (!RegisterNativesImpl(env)) {
     return -1;
   }
-  LibraryLoadedOnMainThread(env);
 
   return JNI_VERSION_1_4;
 }
