@@ -14,7 +14,11 @@
 #endif
 
 #if defined(OS_POSIX)
+#if defined(__LB_SHELL__)
+#include <vector>
+#else
 #include <list>
+#endif
 #include <utility>
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
@@ -152,7 +156,11 @@ class BASE_EXPORT WaitableEvent {
     base::Lock lock_;
     const bool manual_reset_;
     bool signaled_;
+#if defined(__LB_SHELL__)
+    std::vector<Waiter*> waiters_;
+#else
     std::list<Waiter*> waiters_;
+#endif
   };
 
   typedef std::pair<WaitableEvent*, size_t> WaiterAndIndex;
