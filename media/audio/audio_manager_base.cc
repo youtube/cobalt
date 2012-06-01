@@ -143,7 +143,7 @@ AudioOutputStream* AudioManagerBase::MakeAudioOutputStreamProxy(
     base::TimeDelta close_delay =
         base::TimeDelta::FromSeconds(kStreamCloseDelaySeconds);
     const CommandLine* cmd_line = CommandLine::ForCurrentProcess();
-    if (cmd_line->HasSwitch(switches::kEnableAudioMixer)) {
+    if (!cmd_line->HasSwitch(switches::kDisableAudioMixer)) {
       dispatcher = new AudioOutputMixer(this, params, close_delay);
     } else {
       dispatcher = new AudioOutputDispatcherImpl(this, params, close_delay);
