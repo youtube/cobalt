@@ -27,6 +27,7 @@ AudioRendererImpl::AudioRendererImpl(media::AudioRendererSink* sink)
       stopped_(false),
       sink_(sink),
       is_initialized_(false),
+      underflow_disabled_(false),
       read_cb_(base::Bind(&AudioRendererImpl::DecodedAudioReady,
                           base::Unretained(this))) {
 }
@@ -418,7 +419,7 @@ uint32 AudioRendererImpl::FillBuffer(uint8* dest,
       rendered_end_of_stream_ = true;
       host()->NotifyEnded();
     } else if (!algorithm_->CanFillBuffer() && !received_end_of_stream_ &&
-               state_ == kPlaying) {
+               state_ == kPlaying && !underflow_disabled_) {
       state_ = kUnderflow;
       underflow_cb = underflow_cb_;
     } else if (algorithm_->CanFillBuffer()) {
@@ -500,6 +501,11 @@ base::TimeDelta AudioRendererImpl::ConvertToDuration(int bytes) {
 
 void AudioRendererImpl::OnRenderError() {
   host()->DisableAudioRenderer();
+}
+
+void AudioRendererImpl::DisableUnderflowForTesting() {
+  DCHECK(!is_initialized_);
+  underflow_disabled_ = true;
 }
 
 }  // namespace media

@@ -37,7 +37,8 @@ class MEDIA_EXPORT NullAudioSink
   virtual bool SetVolume(double volume) OVERRIDE;
   virtual void GetVolume(double* volume) OVERRIDE;
 
-  // Enables audio frame hashing and reinitializes the MD5 context.
+  // Enables audio frame hashing and reinitializes the MD5 context.  Must be
+  // called prior to Initialize().
   void StartAudioHashForTesting();
 
   // Returns the MD5 hash of all audio frames seen since the last reset.
@@ -68,7 +69,7 @@ class MEDIA_EXPORT NullAudioSink
 
   // Controls whether or not a running MD5 hash is computed for audio frames.
   bool hash_audio_for_testing_;
-  base::MD5Context md5_context_;
+  scoped_array<base::MD5Context> md5_channel_contexts_;
 
   DISALLOW_COPY_AND_ASSIGN(NullAudioSink);
 };
