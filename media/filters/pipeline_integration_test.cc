@@ -160,10 +160,17 @@ TEST_F(PipelineIntegrationTest, BasicPlayback) {
   Play();
 
   ASSERT_TRUE(WaitUntilOnEnded());
+}
 
-  ASSERT_EQ(GetVideoHash(), "f0be120a90a811506777c99a2cdf7cc1");
-  // TODO(dalecurtis): Hashing is inconsistent, see http://crbug.com/130371
-  // ASSERT_EQ(GetAudioHash(), "9c5656bacee06f50ca90cc916419f84c");
+TEST_F(PipelineIntegrationTest, BasicPlaybackHashed) {
+  ASSERT_TRUE(Start(GetTestDataURL("bear-320x240.webm"), PIPELINE_OK, true));
+
+  Play();
+
+  ASSERT_TRUE(WaitUntilOnEnded());
+
+  EXPECT_EQ(GetVideoHash(), "f0be120a90a811506777c99a2cdf7cc1");
+  EXPECT_EQ(GetAudioHash(), "6138555be3389e6aba4c8e6f70195d50");
 }
 
 TEST_F(PipelineIntegrationTest, EncryptedPlayback) {

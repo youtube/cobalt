@@ -57,6 +57,12 @@ class MEDIA_EXPORT AudioRendererImpl
   virtual void ResumeAfterUnderflow(bool buffer_more_audio) OVERRIDE;
   virtual void SetVolume(float volume) OVERRIDE;
 
+  // Disables underflow support.  When used, |state_| will never transition to
+  // kUnderflow resulting in Render calls that underflow returning 0 frames
+  // instead of some number of silence frames.  Must be called prior to
+  // Initialize().
+  void DisableUnderflowForTesting();
+
  protected:
   virtual ~AudioRendererImpl();
 
@@ -197,6 +203,8 @@ class MEDIA_EXPORT AudioRendererImpl
   base::Time earliest_end_time_;
 
   AudioParameters audio_parameters_;
+
+  bool underflow_disabled_;
 
   AudioDecoder::ReadCB read_cb_;
 
