@@ -20,7 +20,8 @@ namespace media {
 const char kNullVideoHash[] = "d41d8cd98f00b204e9800998ecf8427e";
 
 PipelineIntegrationTestBase::PipelineIntegrationTestBase()
-    : message_loop_factory_(new MessageLoopFactory()),
+    : hashing_enabled_(false),
+      message_loop_factory_(new MessageLoopFactory()),
       pipeline_(new Pipeline(&message_loop_, new MediaLog())),
       ended_(false),
       pipeline_status_(PIPELINE_OK) {
@@ -87,6 +88,13 @@ bool PipelineIntegrationTestBase::Start(const std::string& url,
       QuitOnStatusCB(expected_status));
   message_loop_.Run();
   return (pipeline_status_ == PIPELINE_OK);
+}
+
+bool PipelineIntegrationTestBase::Start(const std::string& url,
+                                        PipelineStatus expected_status,
+                                        bool hashing_enabled) {
+  hashing_enabled_ = hashing_enabled;
+  return Start(url, expected_status);
 }
 
 void PipelineIntegrationTestBase::Play() {
@@ -169,20 +177,29 @@ PipelineIntegrationTestBase::CreateFilterCollection(
                  base::Unretained(message_loop_factory_.get()),
                  "VideoDecoderThread"));
   collection->AddVideoDecoder(decoder_);
+  // Disable frame dropping if hashing is enabled.
   renderer_ = new VideoRendererBase(
       base::Bind(&PipelineIntegrationTestBase::OnVideoRendererPaint,
                  base::Unretained(this)),
       base::Bind(&PipelineIntegrationTestBase::OnSetOpaque,
                  base::Unretained(this)),
-      false);
+      !hashing_enabled_);
   collection->AddVideoRenderer(renderer_);
   audio_sink_ = new NullAudioSink();
-  audio_sink_->StartAudioHashForTesting();
-  collection->AddAudioRenderer(new AudioRendererImpl(audio_sink_));
+  if (hashing_enabled_)
+    audio_sink_->StartAudioHashForTesting();
+  scoped_refptr<AudioRendererImpl> audio_renderer(new AudioRendererImpl(
+      audio_sink_));
+  // Disable underflow if hashing is enabled.
+  if (hashing_enabled_)
+    audio_renderer->DisableUnderflowForTesting();
+  collection->AddAudioRenderer(audio_renderer);
   return collection.Pass();
 }
 
 void PipelineIntegrationTestBase::OnVideoRendererPaint() {
+  if (!hashing_enabled_)
+    return;
   scoped_refptr<VideoFrame> frame;
   renderer_->GetCurrentFrame(&frame);
   if (frame)
@@ -191,12 +208,14 @@ void PipelineIntegrationTestBase::OnVideoRendererPaint() {
 }
 
 std::string PipelineIntegrationTestBase::GetVideoHash() {
+  DCHECK(hashing_enabled_);
   base::MD5Digest digest;
   base::MD5Final(&digest, &md5_context_);
   return base::MD5DigestToBase16(digest);
 }
 
 std::string PipelineIntegrationTestBase::GetAudioHash() {
+  DCHECK(hashing_enabled_);
   return audio_sink_->GetAudioHashForTesting();
 }
 

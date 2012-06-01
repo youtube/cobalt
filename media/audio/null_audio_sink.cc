@@ -6,6 +6,7 @@
 
 #include "base/bind.h"
 #include "base/stringprintf.h"
+#include "base/sys_byteorder.h"
 #include "base/threading/platform_thread.h"
 
 namespace media {
@@ -28,6 +29,12 @@ void NullAudioSink::Initialize(const AudioParameters& params,
   for (int i = 0; i < params.channels(); ++i) {
     float* channel_data = new float[params.frames_per_buffer()];
     audio_data_.push_back(channel_data);
+  }
+
+  if (hash_audio_for_testing_) {
+    md5_channel_contexts_.reset(new base::MD5Context[params.channels()]);
+    for (int i = 0; i < params.channels(); i++)
+      base::MD5Init(&md5_channel_contexts_[i]);
   }
 
   callback_ = callback;
@@ -93,15 +100,18 @@ void NullAudioSink::FillBufferTask() {
     int frames_per_millisecond =
         params_.sample_rate() / base::Time::kMillisecondsPerSecond;
 
-    if (hash_audio_for_testing_) {
+    if (hash_audio_for_testing_ && frames_received > 0) {
+      DCHECK_EQ(sizeof(float), sizeof(uint32));
       int channels = audio_data_.size();
-      // Include hash of channel count in case frames_received == 0.
-      base::MD5Update(&md5_context_, base::StringPiece(
-          base::StringPrintf("%d", channels)));
-      for (int channel_index = 0; channel_index < channels; ++channel_index) {
-        base::MD5Update(&md5_context_, base::StringPiece(
-            reinterpret_cast<char*>(audio_data_[channel_index]),
-            sizeof(float) * frames_received));
+      for (int channel_idx = 0; channel_idx < channels; ++channel_idx) {
+        for (int frame_idx = 0; frame_idx < frames_received; frame_idx++) {
+          // Convert float to uint32 w/o conversion loss.
+          uint32 frame = base::ByteSwapToLE32(*reinterpret_cast<uint32*>(
+              &audio_data_[channel_idx][frame_idx]));
+          base::MD5Update(
+              &md5_channel_contexts_[channel_idx], base::StringPiece(
+                  reinterpret_cast<char*>(&frame), sizeof(frame)));
+        }
       }
     }
 
@@ -121,14 +131,22 @@ void NullAudioSink::FillBufferTask() {
 }
 
 void NullAudioSink::StartAudioHashForTesting() {
+  DCHECK(!initialized_);
   hash_audio_for_testing_ = true;
-  base::MD5Init(&md5_context_);
 }
 
 std::string NullAudioSink::GetAudioHashForTesting() {
   DCHECK(hash_audio_for_testing_);
+
+  // Hash all channels into the first channel.
   base::MD5Digest digest;
-  base::MD5Final(&digest, &md5_context_);
+  for (size_t i = 1; i < audio_data_.size(); i++) {
+    base::MD5Final(&digest, &md5_channel_contexts_[i]);
+    base::MD5Update(&md5_channel_contexts_[0], base::StringPiece(
+        reinterpret_cast<char*>(&digest), sizeof(base::MD5Digest)));
+  }
+
+  base::MD5Final(&digest, &md5_channel_contexts_[0]);
   return base::MD5DigestToBase16(digest);
 }
 

@@ -38,6 +38,10 @@ class PipelineIntegrationTestBase {
   bool WaitUntilOnEnded();
   PipelineStatus WaitUntilEndedOrError();
   bool Start(const std::string& url, PipelineStatus expected_status);
+  // Enable playback with audio and video hashing enabled.  Frame dropping and
+  // audio underflow will be disabled to ensure consistent hashes.
+  bool Start(const std::string& url, PipelineStatus expected_status,
+             bool hashing_enabled);
   void Play();
   void Pause();
   bool Seek(base::TimeDelta seek_time);
@@ -49,16 +53,19 @@ class PipelineIntegrationTestBase {
 
   // Returns the MD5 hash of all video frames seen.  Should only be called once
   // after playback completes.  First time hashes should be generated with
-  // --video-threads=1 to ensure correctness.
+  // --video-threads=1 to ensure correctness.  Pipeline must have been started
+  // with hashing enabled.
   std::string GetVideoHash();
 
   // Returns the MD5 hash of all audio frames seen.  Should only be called once
-  // after playback completes.
+  // after playback completes.  Pipeline must have been started with hashing
+  // enabled.
   std::string GetAudioHash();
 
  protected:
   MessageLoop message_loop_;
   base::MD5Context md5_context_;
+  bool hashing_enabled_;
   scoped_ptr<MessageLoopFactory> message_loop_factory_;
   scoped_refptr<Pipeline> pipeline_;
   scoped_refptr<FFmpegVideoDecoder> decoder_;
