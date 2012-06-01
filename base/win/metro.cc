@@ -9,6 +9,8 @@
 namespace base {
 namespace win {
 
+const char kActivateApplication[] = "ActivateApplication";
+
 HMODULE GetMetroModule() {
   return GetModuleHandleA("metro_driver.dll");
 }
@@ -22,4 +24,3 @@ wchar_t* LocalAllocAndCopyString(const string16& src) {
 
 }  // namespace win
 }  // namespace base
-
