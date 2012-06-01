@@ -68,7 +68,9 @@
 
 #include "build/build_config.h"
 
-#if defined(OS_POSIX)
+#if defined(__LB_SHELL__)
+#include "lb_shell/lb_mutex.h"
+#elif defined(OS_POSIX)
 #include <pthread.h>
 #endif
 
@@ -102,6 +104,13 @@ class BASE_EXPORT ConditionVariable {
 
 #if defined(OS_WIN)
   ConditionVarImpl* impl_;
+#elif defined(__LB_SHELL__)
+  lb_shell_cond_t condition_;
+  lb_shell_mutex_t* user_mutex_;
+#if !defined(NDEBUG)
+  base::Lock* user_lock_;     // Needed to adjust shadow lock state on wait.
+#endif
+
 #elif defined(OS_POSIX)
   pthread_cond_t condition_;
   pthread_mutex_t* user_mutex_;
