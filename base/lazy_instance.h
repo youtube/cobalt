@@ -187,6 +187,9 @@ class LazyInstance {
   // of |private_buf_| on 64 bit architectures. (This member must be first to
   // allow the syntax used in LAZY_INSTANCE_INITIALIZER to work correctly.)
   subtle::AtomicWord private_instance_;
+#if defined(__LB_PS3__)
+  __attribute__((aligned(8)))
+#endif
   int8 private_buf_[sizeof(Type)];  // Preallocated space for the Type instance.
 
  private:
