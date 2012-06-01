@@ -48,7 +48,7 @@ void TCPListenSocketTester::SetUp() {
 
   // verify the connect/accept and setup test_socket_
   test_socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  ASSERT_NE(INVALID_SOCKET, test_socket_);
+  ASSERT_NE(StreamListenSocket::kInvalidSocket, test_socket_);
   struct sockaddr_in client;
   client.sin_family = AF_INET;
   client.sin_addr.s_addr = inet_addr(kLoopback);
@@ -56,7 +56,7 @@ void TCPListenSocketTester::SetUp() {
   int ret = HANDLE_EINTR(
       connect(test_socket_, reinterpret_cast<sockaddr*>(&client),
               sizeof(client)));
-  ASSERT_NE(ret, SOCKET_ERROR);
+  ASSERT_NE(ret, StreamListenSocket::kSocketError);
 
   NextAction();
   ASSERT_EQ(ACTION_ACCEPT, last_action_.type());
@@ -100,7 +100,7 @@ int TCPListenSocketTester::ClearTestSocket() {
   int len_ret = 0;
   do {
     int len = HANDLE_EINTR(recv(test_socket_, buf, kReadBufSize, 0));
-    if (len == SOCKET_ERROR || len == 0) {
+    if (len == StreamListenSocket::kSocketError || len == 0) {
       break;
     } else {
       len_ret += len;
@@ -210,10 +210,11 @@ void TCPListenSocketTester::TestServerSendMultiple() {
   }
 }
 
-bool TCPListenSocketTester::Send(SOCKET sock, const std::string& str) {
+bool TCPListenSocketTester::Send(SocketDescriptor sock,
+                                 const std::string& str) {
   int len = static_cast<int>(str.length());
   int send_len = HANDLE_EINTR(send(sock, str.data(), len, 0));
-  if (send_len == SOCKET_ERROR) {
+  if (send_len == StreamListenSocket::kSocketError) {
     LOG(ERROR) << "send failed: " << errno;
     return false;
   } else if (send_len != len) {

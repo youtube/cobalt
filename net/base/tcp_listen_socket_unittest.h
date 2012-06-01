@@ -29,13 +29,6 @@
 #include "net/base/winsock_init.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if defined(OS_POSIX)
-// Used same name as in Windows to avoid #ifdef where referenced
-#define SOCKET int
-const int INVALID_SOCKET = -1;
-const int SOCKET_ERROR = -1;
-#endif
-
 namespace net {
 
 enum ActionType {
@@ -95,7 +88,7 @@ class TCPListenSocketTester :
   // verify multiple sends and reads from server to client.
   void TestServerSendMultiple();
 
-  virtual bool Send(SOCKET sock, const std::string& str);
+  virtual bool Send(SocketDescriptor sock, const std::string& str);
 
   // StreamListenSocket::Delegate:
   virtual void DidAccept(StreamListenSocket* server,
@@ -110,7 +103,7 @@ class TCPListenSocketTester :
   StreamListenSocket* connection_;
   TCPListenSocketTestAction last_action_;
 
-  SOCKET test_socket_;
+  SocketDescriptor test_socket_;
   static const int kTestPort;
 
   base::Lock lock_;  // protects |queue_| and wraps |cv_|
