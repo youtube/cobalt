@@ -1689,6 +1689,17 @@
         'tools/crl_set_dump/crl_set_dump.cc',
       ],
     },
+    {
+      'target_name': 'dns_fuzz_stub',
+      'type': 'executable',
+      'dependencies': [
+        'net',
+        '../base/base.gyp:base',
+      ],
+      'sources': [
+        'tools/dns_fuzz_stub/dns_fuzz_stub.cc',
+      ],
+    },
   ],
   'conditions': [
      ['os_posix == 1 and OS != "mac" and OS != "android"', {
