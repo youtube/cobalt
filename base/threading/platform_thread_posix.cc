@@ -176,13 +176,6 @@ void PlatformThread::YieldCurrentThread() {
 }
 
 // static
-void PlatformThread::Sleep(int duration_ms) {
-  // NOTE: This function will be supplanted by the other version of Sleep
-  // in the future.  See issue 108171 for more information.
-  Sleep(TimeDelta::FromMilliseconds(duration_ms));
-}
-
-// static
 void PlatformThread::Sleep(TimeDelta duration) {
   struct timespec sleep_time, remaining;
 
