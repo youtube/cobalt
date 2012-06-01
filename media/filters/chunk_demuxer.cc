@@ -218,7 +218,7 @@ void ChunkDemuxerStream::Shutdown() {
   {
     base::AutoLock auto_lock(lock_);
     ChangeState_Locked(SHUTDOWN);
-
+    chunk_demuxer_ = NULL;
     std::swap(read_cbs_, read_cbs);
   }
 
@@ -257,9 +257,13 @@ void ChunkDemuxerStream::Read(const ReadCB& read_cb) {
 
         bool read_success;
         {
+          // Hold a reference to |chunk_demuxer_| just in case we get a
+          // Shutdown() call while unlocked.
+          scoped_refptr<ChunkDemuxer> chunk_demuxer = chunk_demuxer_;
+
           // Unlock is necessary to avoid deadlock with OnBuffersAvailable().
           base::AutoUnlock auto_unlock(lock_);
-          read_success = chunk_demuxer_->SourceBufferRead(type_, &buffer);
+          read_success = chunk_demuxer->SourceBufferRead(type_, &buffer);
         }
 
         // Check whether the state may have changed during the unlock.
@@ -609,6 +613,8 @@ bool ChunkDemuxer::SourceBufferRead(DemuxerStream::Type type,
 bool ChunkDemuxer::SourceBufferRead_Locked(DemuxerStream::Type type,
     scoped_refptr<StreamParserBuffer>* out_buffer) {
   lock_.AssertAcquired();
+  if (!source_buffer_.get())
+    return false;
   return source_buffer_->Read(type, out_buffer);
 }
 
