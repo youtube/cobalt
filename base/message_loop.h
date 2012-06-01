@@ -165,20 +165,12 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
 
   void PostDelayedTask(
       const tracked_objects::Location& from_here,
-      const base::Closure& task, int64 delay_ms);
-
-  void PostDelayedTask(
-      const tracked_objects::Location& from_here,
       const base::Closure& task,
       base::TimeDelta delay);
 
   void PostNonNestableTask(
       const tracked_objects::Location& from_here,
       const base::Closure& task);
-
-  void PostNonNestableDelayedTask(
-      const tracked_objects::Location& from_here,
-      const base::Closure& task, int64 delay_ms);
 
   void PostNonNestableDelayedTask(
       const tracked_objects::Location& from_here,
@@ -449,7 +441,7 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   bool DeletePendingTasks();
 
   // Calculates the time at which a PendingTask should run.
-  base::TimeTicks CalculateDelayedRuntime(int64 delay_ms);
+  base::TimeTicks CalculateDelayedRuntime(base::TimeDelta delay);
 
   // Start recording histogram info about events and action IF it was enabled
   // and IF the statistics recorder can accept a registration of our histogram.

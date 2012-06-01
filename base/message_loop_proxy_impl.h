@@ -21,14 +21,7 @@ class BASE_EXPORT MessageLoopProxyImpl : public MessageLoopProxy {
   // MessageLoopProxy implementation
   virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
                                const base::Closure& task,
-                               int64 delay_ms) OVERRIDE;
-  virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
-                               const base::Closure& task,
                                base::TimeDelta delay) OVERRIDE;
-  virtual bool PostNonNestableDelayedTask(
-      const tracked_objects::Location& from_here,
-      const base::Closure& task,
-      int64 delay_ms) OVERRIDE;
   virtual bool PostNonNestableDelayedTask(
       const tracked_objects::Location& from_here,
       const base::Closure& task,
