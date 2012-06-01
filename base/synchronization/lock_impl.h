@@ -10,6 +10,8 @@
 
 #if defined(OS_WIN)
 #include <windows.h>
+#elif defined(__LB_SHELL__)
+#include "lb_shell/lb_mutex.h"
 #elif defined(OS_POSIX)
 #include <pthread.h>
 #endif
@@ -27,6 +29,8 @@ class BASE_EXPORT LockImpl {
  public:
 #if defined(OS_WIN)
   typedef CRITICAL_SECTION OSLockType;
+#elif defined(__LB_SHELL__)
+  typedef lb_shell_mutex_t OSLockType;
 #elif defined(OS_POSIX)
   typedef pthread_mutex_t OSLockType;
 #endif
