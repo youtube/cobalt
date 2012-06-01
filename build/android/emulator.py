@@ -152,8 +152,8 @@ class Emulator(object):
         # Speed up emulator launch by 40%.  Really.
         '-no-boot-anim',
         # The default /data size is 64M.
-        # That's not enough for 4 unit test bundles and their data.
-        '-partition-size', '256',
+        # That's not enough for 8 unit test bundles and their data.
+        '-partition-size', '512',
         # Use a familiar name and port.
         '-avd', 'buildbot',
         '-port', str(port)]
@@ -247,7 +247,7 @@ class Emulator(object):
       signal.signal(sig, self._ShutdownOnSignal)
 
 def main(argv):
-  Emulator().launch()
+  Emulator(True).Launch(True)
 
 
 if __name__ == '__main__':
