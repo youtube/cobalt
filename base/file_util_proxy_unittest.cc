@@ -216,6 +216,9 @@ TEST_F(FileUtilProxyTest, CreateTemporary) {
   std::string data;
   EXPECT_TRUE(file_util::ReadFileToString(path_, &data));
   EXPECT_EQ("test", data);
+
+  // Make sure we can & do delete the created file to prevent leaks on the bots.
+  EXPECT_TRUE(file_util::Delete(path_, false));
 }
 
 TEST_F(FileUtilProxyTest, GetFileInfo_File) {
