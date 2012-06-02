@@ -34,7 +34,7 @@ class PriorityQueue : public base::NonThreadSafe {
  private:
   // This section is up-front for Pointer only.
 #if !defined(NDEBUG)
-  typedef std::list<std::pair<size_t, T> > List;
+  typedef std::list<std::pair<unsigned, T> > List;
 #else
   typedef std::list<T> List;
 #endif
@@ -49,8 +49,24 @@ class PriorityQueue : public base::NonThreadSafe {
     // Constructs a null pointer.
     Pointer() : priority_(kNullPriority) {
 #if !defined(NDEBUG)
-      id_ = static_cast<size_t>(-1);
+      id_ = static_cast<unsigned>(-1);
 #endif
+    }
+
+    Pointer(const Pointer& p) : priority_(p.priority_), iterator_(p.iterator_) {
+#if !defined(NDEBUG)
+      id_ = p.id_;
+#endif
+    }
+
+    Pointer& operator=(const Pointer& p) {
+      // Self-assignment is benign.
+      priority_ = p.priority_;
+      iterator_ = p.iterator_;
+#if !defined(NDEBUG)
+      id_ = p.id_;
+#endif
+      return *this;
     }
 
     bool is_null() const { return priority_ == kNullPriority; }
@@ -94,7 +110,7 @@ class PriorityQueue : public base::NonThreadSafe {
 
 #if !defined(NDEBUG)
     // Used by the queue to check if a Pointer is valid.
-    size_t id_;
+    unsigned id_;
 #endif
   };
 
@@ -114,7 +130,7 @@ class PriorityQueue : public base::NonThreadSafe {
     ++size_;
     List& list = lists_[priority];
 #if !defined(NDEBUG)
-    size_t id = next_id_;
+    unsigned id = next_id_;
     valid_ids_.insert(id);
     ++next_id_;
     return Pointer(priority, list.insert(list.end(),
@@ -208,15 +224,16 @@ class PriorityQueue : public base::NonThreadSafe {
   typedef std::vector<List> ListVector;
 
 #if !defined(NDEBUG)
-  size_t next_id_;
-  base::hash_set<size_t> valid_ids_;
+  unsigned next_id_;
+  base::hash_set<unsigned> valid_ids_;
 #endif
 
   ListVector lists_;
   size_t size_;
+
+  DISALLOW_COPY_AND_ASSIGN(PriorityQueue);
 };
 
 }  // namespace net
 
 #endif  // NET_BASE_PRIORITY_QUEUE_H_
-
