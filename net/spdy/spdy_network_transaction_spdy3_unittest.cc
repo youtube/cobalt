@@ -4133,7 +4133,7 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, NetLog) {
   // This test is intentionally non-specific about the exact ordering of the
   // log; instead we just check to make sure that certain events exist, and that
   // they are in the right order.
-  net::CapturingNetLog::EntryList entries;
+  net::CapturingNetLog::CapturedEntryList entries;
   log.GetEntries(&entries);
 
   EXPECT_LT(0u, entries.size());
@@ -4162,25 +4162,25 @@ TEST_P(SpdyNetworkTransactionSpdy3Test, NetLog) {
       entries, 0,
       net::NetLog::TYPE_SPDY_SESSION_SYN_STREAM,
       net::NetLog::PHASE_NONE);
-  CapturingNetLog::Entry entry = entries[pos];
-  NetLogSpdySynParameter* request_params =
-      static_cast<NetLogSpdySynParameter*>(entry.extra_parameters.get());
-  SpdyHeaderBlock* headers =
-      request_params->GetHeaders().get();
 
-  SpdyHeaderBlock expected;
-  expected[":host"] = "www.google.com";
-  expected[":path"] = "/";
-  expected[":scheme"] = "http";
-  expected[":version"] = "HTTP/1.1";
-  expected[":method"] = "GET";
-  expected["user-agent"] = "Chrome";
-  EXPECT_EQ(expected.size(), headers->size());
-  SpdyHeaderBlock::const_iterator end = expected.end();
-  for (SpdyHeaderBlock::const_iterator it = expected.begin();
-      it != end;
-      ++it) {
-    EXPECT_EQ(it->second, (*headers)[it->first]);
+  ListValue* header_list;
+  ASSERT_TRUE(entries[pos].params.get());
+  ASSERT_TRUE(entries[pos].params->GetList("headers", &header_list));
+
+  std::vector<std::string> expected;
+  expected.push_back(":host: www.google.com");
+  expected.push_back(":path: /");
+  expected.push_back(":scheme: http");
+  expected.push_back(":version: HTTP/1.1");
+  expected.push_back(":method: GET");
+  expected.push_back("user-agent: Chrome");
+  EXPECT_EQ(expected.size(), header_list->GetSize());
+  for (std::vector<std::string>::const_iterator it = expected.begin();
+       it != expected.end();
+       ++it) {
+    base::StringValue header(*it);
+    EXPECT_NE(header_list->end(), header_list->Find(header)) <<
+        "Header not found: " << *it;
   }
 }
 

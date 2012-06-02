@@ -48,7 +48,7 @@ TEST(HttpAuthHandlerTest, NetLog) {
         if (async)
           test_callback.WaitForResult();
 
-        net::CapturingNetLog::EntryList entries;
+        net::CapturingNetLog::CapturedEntryList entries;
         capturing_net_log.GetEntries(&entries);
 
         EXPECT_EQ(2u, entries.size());
