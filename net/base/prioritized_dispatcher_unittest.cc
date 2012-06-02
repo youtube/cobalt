@@ -6,6 +6,7 @@
 #include <string>
 
 #include "base/compiler_specific.h"
+#include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
 #include "net/base/prioritized_dispatcher.h"
@@ -28,77 +29,87 @@ COMPILE_ASSERT(MINIMUM_PRIORITY == 0u &&
 class PrioritizedDispatcherTest : public testing::Test {
  public:
   typedef PrioritizedDispatcher::Priority Priority;
-  // A job that appends |data| to |log_| when started and '.' when finished.
+  // A job that appends |tag| to |log| when started and '.' when finished.
   // This is intended to confirm the execution order of a sequence of jobs added
-  // to the dispatcher.
+  // to the dispatcher. Note that finishing order of jobs does not matter.
   class TestJob : public PrioritizedDispatcher::Job {
    public:
-    TestJob(PrioritizedDispatcherTest* test, char data, Priority priority)
-        : test_(test), data_(data), priority_(priority), running_(false) {}
+    TestJob(PrioritizedDispatcher* dispatcher,
+            char tag,
+            Priority priority,
+            std::string* log)
+        : dispatcher_(dispatcher),
+          tag_(tag),
+          priority_(priority),
+          running_(false),
+          log_(log) {}
 
-    // MSVS does not accept EXPECT_EQ(this, ...) so wrap it up.
-    PrioritizedDispatcher::Job* this_job() {
-      return this;
+    bool running() const {
+      return running_;
+    }
+
+    const PrioritizedDispatcher::Handle handle() const {
+      return handle_;
     }
 
     void Add() {
-      EXPECT_TRUE(handle_.is_null());
-      EXPECT_FALSE(running_);
-      size_t num_queued = dispatch().num_queued_jobs();
-      size_t num_running = dispatch().num_running_jobs();
+      CHECK(handle_.is_null());
+      CHECK(!running_);
+      size_t num_queued = dispatcher_->num_queued_jobs();
+      size_t num_running = dispatcher_->num_running_jobs();
 
-      handle_ = dispatch().Add(this, priority_);
+      handle_ = dispatcher_->Add(this, priority_);
 
       if (handle_.is_null()) {
-        EXPECT_EQ(num_queued, dispatch().num_queued_jobs());
+        EXPECT_EQ(num_queued, dispatcher_->num_queued_jobs());
         EXPECT_TRUE(running_);
-        EXPECT_EQ(num_running + 1, dispatch().num_running_jobs());
+        EXPECT_EQ(num_running + 1, dispatcher_->num_running_jobs());
       } else {
         EXPECT_FALSE(running_);
         EXPECT_EQ(priority_, handle_.priority());
-        EXPECT_EQ(this_job(), handle_.value());
-        EXPECT_EQ(num_running, dispatch().num_running_jobs());
+        EXPECT_EQ(tag_, reinterpret_cast<TestJob*>(handle_.value())->tag_);
+        EXPECT_EQ(num_running, dispatcher_->num_running_jobs());
       }
     }
 
     void ChangePriority(Priority priority) {
-      EXPECT_FALSE(running_);
-      ASSERT_FALSE(handle_.is_null());
-      size_t num_queued = dispatch().num_queued_jobs();
-      size_t num_running = dispatch().num_running_jobs();
+      CHECK(!handle_.is_null());
+      CHECK(!running_);
+      size_t num_queued = dispatcher_->num_queued_jobs();
+      size_t num_running = dispatcher_->num_running_jobs();
 
-      handle_ = dispatch().ChangePriority(handle_, priority);
+      handle_ = dispatcher_->ChangePriority(handle_, priority);
 
       if (handle_.is_null()) {
         EXPECT_TRUE(running_);
-        EXPECT_EQ(num_queued - 1, dispatch().num_queued_jobs());
-        EXPECT_EQ(num_running + 1, dispatch().num_running_jobs());
+        EXPECT_EQ(num_queued - 1, dispatcher_->num_queued_jobs());
+        EXPECT_EQ(num_running + 1, dispatcher_->num_running_jobs());
       } else {
         EXPECT_FALSE(running_);
         EXPECT_EQ(priority, handle_.priority());
-        EXPECT_EQ(this_job(), handle_.value());
-        EXPECT_EQ(num_queued, dispatch().num_queued_jobs());
-        EXPECT_EQ(num_running, dispatch().num_running_jobs());
+        EXPECT_EQ(tag_, reinterpret_cast<TestJob*>(handle_.value())->tag_);
+        EXPECT_EQ(num_queued, dispatcher_->num_queued_jobs());
+        EXPECT_EQ(num_running, dispatcher_->num_running_jobs());
       }
     }
 
     void Cancel() {
-      EXPECT_FALSE(running_);
-      ASSERT_FALSE(handle_.is_null());
-      size_t num_queued = dispatch().num_queued_jobs();
+      CHECK(!handle_.is_null());
+      CHECK(!running_);
+      size_t num_queued = dispatcher_->num_queued_jobs();
 
-      dispatch().Cancel(handle_);
+      dispatcher_->Cancel(handle_);
 
-      EXPECT_EQ(num_queued - 1, dispatch().num_queued_jobs());
+      EXPECT_EQ(num_queued - 1, dispatcher_->num_queued_jobs());
       handle_ = PrioritizedDispatcher::Handle();
     }
 
     void Finish() {
-      EXPECT_TRUE(running_);
+      CHECK(running_);
       running_ = false;
-      test_->log_.append(1u, '.');
+      log_->append(1u, '.');
 
-      dispatch().OnJobFinished();
+      dispatcher_->OnJobFinished();
     }
 
     // PriorityDispatch::Job interface
@@ -106,42 +117,42 @@ class PrioritizedDispatcherTest : public testing::Test {
       EXPECT_FALSE(running_);
       handle_ = PrioritizedDispatcher::Handle();
       running_ = true;
-      test_->log_.append(1u, data_);
+      log_->append(1u, tag_);
     }
 
    private:
-    PrioritizedDispatcher& dispatch() { return *(test_->dispatch_); }
+    PrioritizedDispatcher* dispatcher_;
 
-    PrioritizedDispatcherTest* test_;
-
-    char data_;
+    char tag_;
     Priority priority_;
 
     PrioritizedDispatcher::Handle handle_;
     bool running_;
+
+    std::string* log_;
   };
 
  protected:
   void Prepare(const PrioritizedDispatcher::Limits& limits) {
-    dispatch_.reset(new PrioritizedDispatcher(limits));
+    dispatcher_.reset(new PrioritizedDispatcher(limits));
   }
 
   TestJob* AddJob(char data, Priority priority) {
-    TestJob* job = new TestJob(this, data, priority);
+    TestJob* job = new TestJob(dispatcher_.get(), data, priority, &log_);
     jobs_.push_back(job);
     job->Add();
     return job;
   }
 
   void Expect(std::string log) {
-    EXPECT_EQ(0u, dispatch_->num_queued_jobs());
-    EXPECT_EQ(0u, dispatch_->num_running_jobs());
+    EXPECT_EQ(0u, dispatcher_->num_queued_jobs());
+    EXPECT_EQ(0u, dispatcher_->num_running_jobs());
     EXPECT_EQ(log, log_);
     log_.clear();
   }
 
   std::string log_;
-  scoped_ptr<PrioritizedDispatcher> dispatch_;
+  scoped_ptr<PrioritizedDispatcher> dispatcher_;
   ScopedVector<TestJob> jobs_;
 };
 
@@ -155,9 +166,13 @@ TEST_F(PrioritizedDispatcherTest, AddAFIFO) {
   TestJob* job_c = AddJob('c', IDLE);
   TestJob* job_d = AddJob('d', IDLE);
 
+  ASSERT_TRUE(job_a->running());
   job_a->Finish();
+  ASSERT_TRUE(job_b->running());
   job_b->Finish();
+  ASSERT_TRUE(job_c->running());
   job_c->Finish();
+  ASSERT_TRUE(job_d->running());
   job_d->Finish();
 
   Expect("a.b.c.d.");
@@ -173,10 +188,15 @@ TEST_F(PrioritizedDispatcherTest, AddPriority) {
   TestJob* job_d = AddJob('d', HIGHEST);
   TestJob* job_e = AddJob('e', MEDIUM);
 
+  ASSERT_TRUE(job_a->running());
   job_a->Finish();
+  ASSERT_TRUE(job_c->running());
   job_c->Finish();
+  ASSERT_TRUE(job_d->running());
   job_d->Finish();
+  ASSERT_TRUE(job_b->running());
   job_b->Finish();
+  ASSERT_TRUE(job_e->running());
   job_e->Finish();
 
   Expect("a.c.d.b.e.");
@@ -199,17 +219,27 @@ TEST_F(PrioritizedDispatcherTest, EnforceLimits) {
   TestJob* job_g = AddJob('g', HIGHEST); // Uses reserved slot.
   TestJob* job_h = AddJob('h', HIGHEST); // Must wait.
 
-  EXPECT_EQ(5u, dispatch_->num_running_jobs());
-  EXPECT_EQ(3u, dispatch_->num_queued_jobs());
+  EXPECT_EQ(5u, dispatcher_->num_running_jobs());
+  EXPECT_EQ(3u, dispatcher_->num_queued_jobs());
 
-  job_a->Finish();  // Releases h.
-  job_b->Finish();
+  ASSERT_TRUE(job_a->running());
+  ASSERT_TRUE(job_b->running());
+  ASSERT_TRUE(job_d->running());
+  ASSERT_TRUE(job_f->running());
+  ASSERT_TRUE(job_g->running());
+  // a, b, d, f, g are running. Finish them in any order.
+  job_b->Finish();  // Releases h.
+  job_f->Finish();
+  job_a->Finish();
+  job_g->Finish();  // Releases e.
   job_d->Finish();
-  job_f->Finish();  // Releases e.
-  job_g->Finish();
-  job_h->Finish();  // Releases c.
-  job_e->Finish();
+  ASSERT_TRUE(job_e->running());
+  ASSERT_TRUE(job_h->running());
+  // h, e are running.
+  job_e->Finish();  // Releases c.
+  ASSERT_TRUE(job_c->running());
   job_c->Finish();
+  job_h->Finish();
 
   Expect("abdfg.h...e..c..");
 }
@@ -223,12 +253,18 @@ TEST_F(PrioritizedDispatcherTest, ChangePriority) {
   TestJob* job_c = AddJob('c', HIGHEST);
   TestJob* job_d = AddJob('d', HIGHEST);
 
+  ASSERT_FALSE(job_b->running());
+  ASSERT_FALSE(job_c->running());
   job_b->ChangePriority(HIGHEST);
   job_c->ChangePriority(MEDIUM);
 
+  ASSERT_TRUE(job_a->running());
   job_a->Finish();
+  ASSERT_TRUE(job_d->running());
   job_d->Finish();
+  ASSERT_TRUE(job_b->running());
   job_b->Finish();
+  ASSERT_TRUE(job_c->running());
   job_c->Finish();
 
   Expect("a.d.b.c.");
@@ -244,11 +280,16 @@ TEST_F(PrioritizedDispatcherTest, Cancel) {
   TestJob* job_d = AddJob('d', IDLE);
   TestJob* job_e = AddJob('e', IDLE);
 
+  ASSERT_FALSE(job_b->running());
+  ASSERT_FALSE(job_d->running());
   job_b->Cancel();
   job_d->Cancel();
 
+  ASSERT_TRUE(job_a->running());
   job_a->Finish();
+  ASSERT_TRUE(job_c->running());
   job_c->Finish();
+  ASSERT_TRUE(job_e->running());
   job_e->Finish();
 
   Expect("a.c.e.");
@@ -264,17 +305,59 @@ TEST_F(PrioritizedDispatcherTest, Evict) {
   TestJob* job_d = AddJob('d', LOW);
   TestJob* job_e = AddJob('e', HIGHEST);
 
-  EXPECT_EQ(job_b, dispatch_->EvictOldestLowest());
-  EXPECT_EQ(job_d, dispatch_->EvictOldestLowest());
+  EXPECT_EQ(job_b, dispatcher_->EvictOldestLowest());
+  EXPECT_EQ(job_d, dispatcher_->EvictOldestLowest());
 
+  ASSERT_TRUE(job_a->running());
   job_a->Finish();
+  ASSERT_TRUE(job_c->running());
   job_c->Finish();
+  ASSERT_TRUE(job_e->running());
   job_e->Finish();
 
   Expect("a.c.e.");
 }
 
+TEST_F(PrioritizedDispatcherTest, EvictFromEmpty) {
+  PrioritizedDispatcher::Limits limits(NUM_PRIORITIES, 1);
+  Prepare(limits);
+  EXPECT_TRUE(dispatcher_->EvictOldestLowest() == NULL);
+}
+
+#if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
+TEST_F(PrioritizedDispatcherTest, CancelNull) {
+  PrioritizedDispatcher::Limits limits(NUM_PRIORITIES, 1);
+  Prepare(limits);
+  EXPECT_DEBUG_DEATH(dispatcher_->Cancel(PrioritizedDispatcher::Handle()), "");
+}
+
+TEST_F(PrioritizedDispatcherTest, CancelMissing) {
+  PrioritizedDispatcher::Limits limits(NUM_PRIORITIES, 1);
+  Prepare(limits);
+  AddJob('a', IDLE);
+  TestJob* job_b = AddJob('b', IDLE);
+  PrioritizedDispatcher::Handle handle = job_b->handle();
+  ASSERT_FALSE(handle.is_null());
+  dispatcher_->Cancel(handle);
+  EXPECT_DEBUG_DEATH(dispatcher_->Cancel(handle), "");
+}
+
+TEST_F(PrioritizedDispatcherTest, CancelIncompatible) {
+  PrioritizedDispatcher::Limits limits(NUM_PRIORITIES, 1);
+  Prepare(limits);
+  AddJob('a', IDLE);
+  TestJob* job_b = AddJob('b', IDLE);
+  PrioritizedDispatcher::Handle handle = job_b->handle();
+  ASSERT_FALSE(handle.is_null());
+
+  // New dispatcher.
+  Prepare(limits);
+  AddJob('a', IDLE);
+  AddJob('b', IDLE);
+  EXPECT_DEBUG_DEATH(dispatcher_->Cancel(handle), "");
+}
+#endif  // GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
+
 }  // namespace
 
 }  // namespace net
-

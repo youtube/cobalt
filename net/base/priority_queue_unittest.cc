@@ -18,115 +18,88 @@ const int kLastMaxOrder[kNumElements] = { 7, 4, 5, 2, 0, 6, 1, 8, 3 };
 const int kFirstMaxOrder[kNumElements] = { 4, 7, 5, 0, 2, 1, 6, 3, 8 };
 const int kLastMinOrder[kNumElements] = { 8, 3, 6, 1, 2, 0, 5, 7, 4 };
 
-void CheckEmpty(PriorityQueue<int>* queue) {
-  EXPECT_EQ(0u, queue->size());
-  EXPECT_TRUE(queue->FirstMin().is_null());
-  EXPECT_TRUE(queue->LastMin().is_null());
-  EXPECT_TRUE(queue->FirstMax().is_null());
-  EXPECT_TRUE(queue->LastMax().is_null());
+class PriorityQueueTest : public testing::Test {
+ protected:
+  PriorityQueueTest() : queue_(kNumPriorities) {}
+
+  virtual void SetUp() OVERRIDE {
+    CheckEmpty();
+    for (size_t i = 0; i < kNumElements; ++i) {
+      EXPECT_EQ(i, queue_.size());
+      pointers_[i] = queue_.Insert(static_cast<int>(i), kPriorities[i]);
+    }
+    EXPECT_EQ(kNumElements, queue_.size());
+  }
+
+  void CheckEmpty() {
+    EXPECT_EQ(0u, queue_.size());
+    EXPECT_TRUE(queue_.FirstMin().is_null());
+    EXPECT_TRUE(queue_.LastMin().is_null());
+    EXPECT_TRUE(queue_.FirstMax().is_null());
+    EXPECT_TRUE(queue_.LastMax().is_null());
+  }
+
+  PriorityQueue<int> queue_;
+  PriorityQueue<int>::Pointer pointers_[kNumElements];
+};
+
+TEST_F(PriorityQueueTest, AddAndClear) {
+  for (size_t i = 0; i < kNumElements; ++i) {
+    EXPECT_EQ(kPriorities[i], pointers_[i].priority());
+    EXPECT_EQ(static_cast<int>(i), pointers_[i].value());
+  }
+  queue_.Clear();
+  CheckEmpty();
 }
 
-TEST(PriorityQueueTest, AddAndClear) {
-  PriorityQueue<int> queue(kNumPriorities);
-  PriorityQueue<int>::Pointer pointers[kNumElements];
-
-  CheckEmpty(&queue);
+TEST_F(PriorityQueueTest, FirstMinOrder) {
   for (size_t i = 0; i < kNumElements; ++i) {
-    EXPECT_EQ(i, queue.size());
-    pointers[i] = queue.Insert(static_cast<int>(i), kPriorities[i]);
-  }
-  EXPECT_EQ(kNumElements, queue.size());
-
-  for (size_t i = 0; i < kNumElements; ++i) {
-    EXPECT_EQ(kPriorities[i], pointers[i].priority());
-    EXPECT_EQ(static_cast<int>(i), pointers[i].value());
-  }
-
-  queue.Clear();
-  CheckEmpty(&queue);
-}
-
-TEST(PriorityQueueTest, FirstMinOrder) {
-  PriorityQueue<int> queue(kNumPriorities);
-  PriorityQueue<int>::Pointer pointers[kNumElements];
-
-  for (size_t i = 0; i < kNumElements; ++i) {
-    pointers[i] = queue.Insert(static_cast<int>(i), kPriorities[i]);
-  }
-
-  for (size_t i = 0; i < kNumElements; ++i) {
-    EXPECT_EQ(kNumElements - i, queue.size());
+    EXPECT_EQ(kNumElements - i, queue_.size());
     // Also check Equals.
-    EXPECT_TRUE(queue.FirstMin().Equals(pointers[kFirstMinOrder[i]]));
-    EXPECT_EQ(kFirstMinOrder[i], queue.FirstMin().value());
-    queue.Erase(queue.FirstMin());
+    EXPECT_TRUE(queue_.FirstMin().Equals(pointers_[kFirstMinOrder[i]]));
+    EXPECT_EQ(kFirstMinOrder[i], queue_.FirstMin().value());
+    queue_.Erase(queue_.FirstMin());
   }
-  CheckEmpty(&queue);
+  CheckEmpty();
 }
 
-TEST(PriorityQueueTest, LastMinOrder) {
-  PriorityQueue<int> queue(kNumPriorities);
-
+TEST_F(PriorityQueueTest, LastMinOrder) {
   for (size_t i = 0; i < kNumElements; ++i) {
-    queue.Insert(static_cast<int>(i), kPriorities[i]);
+    EXPECT_EQ(kLastMinOrder[i], queue_.LastMin().value());
+    queue_.Erase(queue_.LastMin());
   }
-
-  for (size_t i = 0; i < kNumElements; ++i) {
-    EXPECT_EQ(kLastMinOrder[i], queue.LastMin().value());
-    queue.Erase(queue.LastMin());
-  }
-  CheckEmpty(&queue);
+  CheckEmpty();
 }
 
-TEST(PriorityQueueTest, FirstMaxOrder) {
-  PriorityQueue<int> queue(kNumPriorities);
-
+TEST_F(PriorityQueueTest, FirstMaxOrder) {
   for (size_t i = 0; i < kNumElements; ++i) {
-    queue.Insert(static_cast<int>(i), kPriorities[i]);
+    EXPECT_EQ(kFirstMaxOrder[i], queue_.FirstMax().value());
+    queue_.Erase(queue_.FirstMax());
   }
-
-  for (size_t i = 0; i < kNumElements; ++i) {
-    EXPECT_EQ(kFirstMaxOrder[i], queue.FirstMax().value());
-    queue.Erase(queue.FirstMax());
-  }
-  CheckEmpty(&queue);
+  CheckEmpty();
 }
 
-TEST(PriorityQueueTest, LastMaxOrder) {
-  PriorityQueue<int> queue(kNumPriorities);
-
+TEST_F(PriorityQueueTest, LastMaxOrder) {
   for (size_t i = 0; i < kNumElements; ++i) {
-    queue.Insert(static_cast<int>(i), kPriorities[i]);
+    EXPECT_EQ(kLastMaxOrder[i], queue_.LastMax().value());
+    queue_.Erase(queue_.LastMax());
   }
-
-  for (size_t i = 0; i < kNumElements; ++i) {
-    EXPECT_EQ(kLastMaxOrder[i], queue.LastMax().value());
-    queue.Erase(queue.LastMax());
-  }
-  CheckEmpty(&queue);
+  CheckEmpty();
 }
 
-TEST(PriorityQueueTest, EraseFromMiddle) {
-  PriorityQueue<int> queue(kNumPriorities);
-  PriorityQueue<int>::Pointer pointers[kNumElements];
-
-  for (size_t i = 0; i < kNumElements; ++i) {
-    pointers[i] = queue.Insert(static_cast<int>(i), kPriorities[i]);
-  }
-
-  queue.Erase(pointers[2]);
-  queue.Erase(pointers[3]);
+TEST_F(PriorityQueueTest, EraseFromMiddle) {
+  queue_.Erase(pointers_[2]);
+  queue_.Erase(pointers_[3]);
 
   int expected_order[] = { 8, 1, 6, 0, 5, 4, 7 };
 
   for (size_t i = 0; i < arraysize(expected_order); ++i) {
-    EXPECT_EQ(expected_order[i], queue.FirstMin().value());
-    queue.Erase(queue.FirstMin());
+    EXPECT_EQ(expected_order[i], queue_.FirstMin().value());
+    queue_.Erase(queue_.FirstMin());
   }
-  CheckEmpty(&queue);
+  CheckEmpty();
 }
 
 }  // namespace
 
 }  // namespace net
-
