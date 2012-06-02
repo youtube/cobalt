@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_BASE_PRIORITY_DISPATCH_H_
-#define NET_BASE_PRIORITY_DISPATCH_H_
+#ifndef NET_BASE_PRIORITIZED_DISPATCHER_H_
+#define NET_BASE_PRIORITIZED_DISPATCHER_H_
 #pragma once
 
 #include <vector>
@@ -18,10 +18,10 @@ namespace net {
 // jobs. It never revokes a job once started. The job must call OnJobFinished
 // once it finishes in order to dispatch further jobs.
 //
-// All operations are O(p) time for p priority levels. The class is fully
-// reentrant: it is safe to execute any method (incl. destructor) from within
-// Job callbacks. However, this class is NOT thread-safe, which is enforced
-// by the underlying non-thread-safe PriorityQueue.
+// This class is NOT thread-safe which is enforced by the underlying
+// non-thread-safe PriorityQueue. All operations are O(p) time for p priority
+// levels. It is safe to execute any method, including destructor, from within
+// Job::Start.
 //
 class NET_EXPORT_PRIVATE PrioritizedDispatcher {
  public:
@@ -29,10 +29,13 @@ class NET_EXPORT_PRIVATE PrioritizedDispatcher {
   typedef PriorityQueue<Job*>::Priority Priority;
 
   // Describes the limits for the number of jobs started by the dispatcher.
-  // For example, |total_jobs| = 30 and |reserved_slots| = { 5, 10, 5 }
-  // allow for at most 30 running jobs in total. If there are already 24 jobs
-  // running, then there can be 6 more jobs started of which at most 1 can be
-  // at priority 1 or 2, but the rest have to be at 2.
+  // For example, |total_jobs| = 30 and |reserved_slots| = { 0, 5, 10, 5 } allow
+  // for at most 30 running jobs in total. Jobs at priority 0 can't use slots
+  // reserved for higher priorities, so they are limited to 10.
+  // If there are already 24 jobs running, then only 6 more jobs can start. No
+  // jobs at priority 1 or below can start. After one more job starts, no jobs
+  // at priority 2 or below can start, since the remaining 5 slots are reserved
+  // for priority 3 or above.
   struct NET_EXPORT_PRIVATE Limits {
     Limits(Priority num_priorities, size_t total_jobs);
     ~Limits();
@@ -50,10 +53,10 @@ class NET_EXPORT_PRIVATE PrioritizedDispatcher {
   // deleted after it is dispatched or canceled, or the dispatcher is destroyed.
   class Job {
    public:
-    // Note: PriorityDispatch will never delete a Job.
+    // Note: PrioritizedDispatcher will never delete a Job.
     virtual ~Job() {}
-    // Called when the dispatcher starts the job. Must call OnJobFinished when
-    // done.
+    // Called when the dispatcher starts the job. Once the job finishes, it must
+    // call OnJobFinished.
     virtual void Start() = 0;
   };
 
@@ -62,7 +65,7 @@ class NET_EXPORT_PRIVATE PrioritizedDispatcher {
   typedef PriorityQueue<Job*>::Pointer Handle;
 
   // Creates a dispatcher enforcing |limits| on number of running jobs.
-  PrioritizedDispatcher(const Limits& limits);
+  explicit PrioritizedDispatcher(const Limits& limits);
 
   ~PrioritizedDispatcher();
 
@@ -72,14 +75,15 @@ class NET_EXPORT_PRIVATE PrioritizedDispatcher {
 
   // Adds |job| with |priority| to the dispatcher. If limits permit, |job| is
   // started immediately. Returns handle to the job or null-handle if the job is
-  // started.
+  // started. The dispatcher does not own |job|, but |job| must live as long as
+  // it is queued in the dispatcher.
   Handle Add(Job* job, Priority priority);
 
   // Removes the job with |handle| from the queue. Invalidates |handle|.
   // Note: a Handle is valid iff the job is in the queue, i.e. has not Started.
   void Cancel(const Handle& handle);
 
-  // Removes and returns the oldest-lowest Job from the queue invalidating any
+  // Cancels and returns the oldest-lowest-priority Job invalidating any
   // handles to it. Returns NULL if the queue is empty.
   Job* EvictOldestLowest();
 
@@ -111,5 +115,4 @@ class NET_EXPORT_PRIVATE PrioritizedDispatcher {
 
 }  // namespace net
 
-#endif  // NET_BASE_PRIORITY_DISPATCH_H_
-
+#endif  // NET_BASE_PRIORITIZED_DISPATCHER_H_
