@@ -12,7 +12,7 @@
 
 namespace tracked_objects {
 
-enum BASE_EXPORT TimeSourceType {
+enum TimeSourceType {
   TIME_SOURCE_TYPE_WALL_TIME,
   TIME_SOURCE_TYPE_TCMALLOC
 };
